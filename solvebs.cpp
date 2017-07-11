@@ -25,7 +25,9 @@ mathing at the classical turning point [e=v], and uses perurbation theory for mi
 	//- ni is starting (initial) point for integration
 	//- nf is end (final) point for integration (nf=ctp)
 int adamsmoulton(double *p, double *q, double *v, int ka, double &en, int ni, int nf){
-	
+	//XXX update to corect array form!
+	//XXX Fix AMO / amo2 thing!
+	//Can use VECTOR! ??
 
 	double ama[amo2];		//AM coefs. 
 	double amd,amaa;

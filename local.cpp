@@ -98,7 +98,7 @@ int main(void){
 	double p[NGP],q[NGP];	
 
 
-
+	const int MAXSTATES=100;
 
 //	int Z=1;
 	int nmin=1;
@@ -116,11 +116,10 @@ int main(void){
 	
 	
 	// Arrays for saving the wavefunctions
-	//const int nlist=79; //XXX here!
-	double P[nlist][NGP],Q[nlist][NGP];	
-	double ev[nlist];
-	int kappa[nlist];
-	int nn[nlist];
+	double P[MAXSTATES][NGP],Q[MAXSTATES][NGP];	
+	double ev[MAXSTATES];
+	int kappa[MAXSTATES];
+	int nn[MAXSTATES];
 
 	//fills in the potential (should be dependent on input)
 	double v[NGP];
