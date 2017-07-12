@@ -1,2 +1,4 @@
-g++ -Wall -Wpedantic -O -o local.x local.cpp -llapack -lblas &&
-./local.x
+g++ -O -ggdb -o local.x local.cpp solvebs.cpp solvebs.h funs.cpp funs.h params.h -llapack -lblas 
+#&&
+#./local.x
+#-Wall -Wpedantic 

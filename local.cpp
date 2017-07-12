@@ -10,34 +10,28 @@ It should take input from "local.in" file
 
 
 ---------------------*/
+//#include <iostream>
+//#include <fstream>
+//#include <cmath>
+//#include <stdio.h>
+//#include <time.h>
 
-#include <iostream>
-#include <fstream>
-#include <cmath>
-#include <stdio.h>
-#include <time.h>
-
-// order is important!  
-#include "./data.cpp"
-#include "./params.cpp"		//for parameters
-#include "./funs.cpp"
-
-int dodebug=0;
-void debug(int lineno){
-	if (dodebug==1){
-		printf("DEBUG: Line no. %i\n",lineno);
-	}
-}
+//// order is important!  
+//#include "./data.cpp"
+//#include "./params.cpp"		//for parameters
+//#include "./funs.cpp"
 
 
-
-#include "./solvebs.cpp"   // this program solves dirac Eq. (Contains solveBS)
+//using namespace std;
+#include "funs.h"
+#include "solvebs.h"
+#include "params.h"
 
 
 
 
 
-
+//#include "./solvebs.cpp"   // this program solves dirac Eq. (Contains solveBS)
 
 
 

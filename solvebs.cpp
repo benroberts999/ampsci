@@ -15,16 +15,19 @@ mathing at the classical turning point [e=v], and uses perurbation theory for mi
 
 
 ---------------------*/
+//using namespace std;
+#include "solvebs.h"
+//#include "funs.h"
+//#include "params.h"
 
-
-
-
+int dodebug=0;
 
 //******************************************************************
 //program finishes the INWARD/OUTWARD integrations (ADAMS-MOULTON)
 	//- ni is starting (initial) point for integration
 	//- nf is end (final) point for integration (nf=ctp)
-int adamsmoulton(double *p, double *q, double *v, int ka, double &en, int ni, int nf){
+int adamsmoulton(double *p, double *q, double *v, int ka, double &en, int ni, int nf)
+{
 	//XXX update to corect array form!
 	//XXX Fix AMO / amo2 thing!
 	//Can use VECTOR! ??
@@ -108,7 +111,8 @@ int adamsmoulton(double *p, double *q, double *v, int ka, double &en, int ni, in
 
 //******************************************************************
 //program to start the OUTWARD integration (then call ADAMS-MOULTON)
-int outint(double *p, double *q, double *v, int Z, int ka, double &en, int ctp){
+int outint(double *p, double *q, double *v, int Z, int ka, double &en, int ctp)
+{
 
 	
 	double az = Z*aa;				
@@ -225,7 +229,8 @@ int outint(double *p, double *q, double *v, int Z, int ka, double &en, int ctp){
 
 //******************************************************************
 //program to start the INWARD integration (then call ADAMS-MOULTON)
-int inint(double *p, double *q, double *v, int Z, int ka, double &en, int ctp, int pinf){
+int inint(double *p, double *q, double *v, int Z, int ka, double &en, int ctp, int pinf)
+{
 
 	double lambda=sqrt(-en*(2+en*aa2));
 	double zeta=-v[pinf]*r(pinf);
@@ -291,7 +296,8 @@ int inint(double *p, double *q, double *v, int Z, int ka, double &en, int ctp, i
 
 //****************************************************************************************
 //Program solves single-particle dirac equation for potential V using Adams-Moulton method
-int solveDBS(double *p, double *q, double *v, int Z, int n, int ka, double &en, int &pinf, int &its, double &eps){
+int solveDBS(double *p, double *q, double *v, int Z, int n, int ka, double &en, int &pinf, int &its, double &eps)
+{
 
 
 	if ((fabs(ka)<=n)and(ka!=n)){
@@ -511,10 +517,173 @@ int solveDBS(double *p, double *q, double *v, int Z, int n, int ka, double &en, 
 
 
 
+//*********************************************************
+//*********************************************************
+//*********************************************************
+// 			Numerical DE solve by integration (adams) coeficients
+
+
+//******************************************************************
+// coeficients for the ADAMS-MOULTON routine
+int AMcoefs(double *mia, double &mid, double &miaa)
+{
+
+// coefs for Adams..
+
+	if (AMO==8){
+		double tia[8]={-33953,312874,-1291214,3146338,-5033120,5595358,-4604594,4467094};
+		mid=3628800;
+		miaa=1070017;
+		for (int i=0; i<AMO; i++){
+			mia[i]=tia[i];
+		}
+	}
+	else if(AMO==7){
+		double tia[7]={1375,-11351,41499,-88547,123133,-121797,139849};
+		mid=120960;
+		miaa=36799;
+		for (int i=0; i<AMO; i++){
+			mia[i]=tia[i];
+		}
+	}
+	else if(AMO==6){
+		double tia[6]={-863,6312,-20211,37504,-46461,65112};
+		mid=60480;
+		miaa=19087;
+		for (int i=0; i<AMO; i++){
+			mia[i]=tia[i];
+		}
+	}
+	else if(AMO==5){
+		double tia[5]={27,-173,482,-798,1427};
+		mid=1440;
+		miaa=475;
+		for (int i=0; i<AMO; i++){
+			mia[i]=tia[i];
+		}
+	}
+	else if(AMO==4){
+		double tia[4]={-19,106,-264,646};
+		mid=720;
+		miaa=251;
+		for (int i=0; i<AMO; i++){
+			mia[i]=tia[i];
+		}
+	}
+	else if(AMO==3){
+		double tia[3]={1,-5,19};
+		mid=24;
+		miaa=9;
+		for (int i=0; i<AMO; i++){
+			mia[i]=tia[i];
+		}
+	}
+	else if(AMO==2){
+		double tia[2]={-1,8};
+		mid=12;
+		miaa=5;
+		for (int i=0; i<AMO; i++){
+			mia[i]=tia[i];
+		}
+	}
+	else if(AMO==1){
+		double tia[1]={1};
+		mid=2;
+		miaa=1;
+		for (int i=0; i<AMO; i++){
+			mia[i]=tia[i];
+		}
+	}
+	else{
+		printf("FAILURE: No Adams-Moulton coeficients. Check AMO\n");
+		return 1;
+	}
+	
+	return 0;
+}	// END AMcoefs
 
 
 
+//******************************************************************
+// coeficients for the OUTINT routine
+int OIcoefs(double (*oie)[amo2], double *oia, double &oid)
+{
 
+// coefs for outint..
+
+	if (AMO==8){
+		double tie[8][8]={	-1338,2940,-2940,2450,-1470,588,-140,15,
+							-240,-798,1680,-1050,560,-210,48,-5,
+							60,-420,-378,1050,-420,140,-30,3,
+							-32,168,-672,0,672,-168,32,-3,
+							30,-140,420,-1050,378,420,-60,5,
+							-48,210,-560,1050,-1680,798,240,-15,
+							140,-588,1470,-2450,2940,-2940,1338,105,
+							-960,3920,-9408,14700,-15680,11760,-6720,2283};
+		double tia[8]={-105,15,-5,3,-3,5,-15,105};
+		oid=840;
+		for (int i=0; i<AMO; i++){
+			oia[i]=tia[i];
+			for (int j=0; j<AMO; j++){
+				oie[i][j]=tie[i][j];
+			}
+		}
+	}
+	else if (AMO==7){
+		double tie[7][7]={	-609,1260,-1050,700,-315,84,-10,
+							-140,-329,700,-350,140,-35,4,
+							42,-252,-105,420,-126,28,-3,
+							-28,126,-420,105,252,-42,4,
+							35,-140,350,-700,329,140,-10,
+							-84,315,-700,1050,-1260,609,60,
+							490,-1764,3675,-4900,4410,-2940,1089};
+		double tia[7]={-60,10,-4,3,-4,10,-60};
+		oid=420;
+		for (int i=0; i<AMO; i++){
+			oia[i]=tia[i];
+			for (int j=0; j<AMO; j++){
+				oie[i][j]=tie[i][j];
+			}
+		}
+	}
+	else if (AMO==6){
+		double tie[6][6]={	-77,150,-100,50,-15,2,
+							-24,-35,80,-30,8,-1,
+							9,-45,0,45,-9,1,
+							-8,30,-80,35,24,-2,
+							15,-50,100,-150,77,10,
+							-72,225,-400,450,-360,147};
+		double tia[6]={-10,2,-1,1,-2,10};
+		oid=60;
+		for (int i=0; i<AMO; i++){
+			oia[i]=tia[i];
+			for (int j=0; j<AMO; j++){
+				oie[i][j]=tie[i][j];
+			}
+		}
+	}
+	else if (AMO==5){
+		double tie[5][5]={	-65,120,-60,20,-3,
+							-30,-20,60,-15,2,
+							15,-60,20,30,-3,
+							-20,60,-120,65,12,
+							75,-200,300,-300,137};
+		double tia[5]={-12,3,-2,3,-12};
+		oid=60;
+		for (int i=0; i<AMO; i++){
+			oia[i]=tia[i];
+			for (int j=0; j<AMO; j++){
+				oie[i][j]=tie[i][j];
+			}
+		}
+	}
+	else{
+		printf("FAILURE: No Adams-Moulton (OUTINT) coeficients. Check AMO\n");
+		return 1;
+	}
+
+	return 0;
+}	// 	END OIcoefs
 
 
 
