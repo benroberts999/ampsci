@@ -431,7 +431,69 @@ double diracen(int z, int n, int k){
 	return diracE;
 }
 
+//******************************************************************************
+//int invertMatrix(double *inmat, double *outmat, int n)
+int invertMatrix(double inmat[amo2][amo2], double outmat[amo2][amo2])
+/*
+170316.
+Will invert a square matrix of /any/ dimension, amo2.
+Must be called using following syntax:
+ invertMatrix((double *)inmat,(double *)outmat,n)
+[since the intputs need to be in 1-dim arrays though! (i.e. flattened)]
+Uses the GNU 'GSL' libraries:
+https://www.gnu.org/software/gsl/manual/html_node/Linear-Algebra-Examples.html
+https://www.gnu.org/software/gsl/manual/html_node/LU-Decomposition.html
+http://www.macapp.net/MyWikiThings/invertmatrix.c
+Requires #include <gsl/gsl_linalg.h>
 
+INPUT:
+  inmat     :: double 'flat' matix of dimension n*n [call as "(double *)inmat"]
+  n         :: integer, dimension of matrices
+OUTPUT:
+  outmat    :: inverted 'flat' matrix [call as "(double *)outmat"]
+
+=== Change Log ===
+
+*/
+{
+ int iRet=0;
+ //size of matrix:
+// std::size_t n=inmat.size();
+// if(inmat[0].size()!=n)return 0; //matrix not square!
+// int n=(int)inmat.size();
+// if(inmat[0].size()!=(size_t)n)return 0; //matrix not square!
+ int n=amo2;
+ // Define all the used matrices (for GSL)
+ gsl_matrix * m  = gsl_matrix_alloc (n, n);
+ gsl_matrix * inverse = gsl_matrix_alloc (n, n);
+ gsl_permutation * perm = gsl_permutation_alloc (n);
+ //fill matrix:
+ for(int i=0;i<n;i++){
+   for(int j=0;j<n;j++){
+     //gsl_matrix_set(m,i,j,inmat[i*n+j]);
+     gsl_matrix_set(m,i,j,inmat[i][j]);
+   }
+ }
+ //peform LU decomposition (using GSL)
+ //and inversion (if non-singular)
+ int s;
+ gsl_linalg_LU_decomp (m, perm, &s);
+ double det=gsl_linalg_LU_det (m, s); 
+ if(det!=0)gsl_linalg_LU_invert (m, perm, inverse);
+ if(det==0)iRet=1;
+ //Fill the output matrix:
+ for(int i=0;i<n;i++){
+   for(int j=0;j<n;j++){
+     //outmat[i*n+j]=gsl_matrix_get(inverse,i,j);
+     outmat[i][j]=gsl_matrix_get(inverse,i,j);
+   }
+ }
+ //clear memory
+ gsl_permutation_free (perm);
+ gsl_matrix_free (m);
+ gsl_matrix_free (inverse);
+ return iRet;
+}
 
 //******************************************************************
 // Function that uses LAPACK [dgetrf+dgetri] to invert a matrix
@@ -440,16 +502,24 @@ double diracen(int z, int n, int k){
 //extern "C" void dgetrf_(int*, int*, double*, int*, int*, int*);
 //extern "C" void dgetri_(int*, double*, int*, int*, double*, int*, int*);
 // above definitions must be made!
-int invertmat(double (*matrix)[amo2], double (*inverse)[amo2], int dim){
+//int invertmat(double (*matrix)[amo2], double (*inverse)[amo2], int dim)
+int invertmat(double matrix[amo2][amo2], double inverse[amo2][amo2], int dim)
+/*
+needs:
+  extern "C" void dgetrf_(int*, int*, double*, int*, int*, int*);
+  extern "C" void dgetri_(int*, double*, int*, int*, double*, int*, int*);
+in the header file!
+*/{
 
 	int info;				 	// LAPACK output: =0 means OK
 	double work;
 	int ipvt[dim];				// row swaps?
 	int LW=3*dim;				//dimension of `workspace'
 
+  debug(450);
 	double tempmat[dim][dim];	
 
-	int printmatrices=0;	//=1 to print the matrices!
+	int printmatrices=1;	//=1 to print the matrices!
 	
 	for (int i=0; i<dim; i++){
 		for (int j=0; j<dim; j++){
@@ -457,8 +527,10 @@ int invertmat(double (*matrix)[amo2], double (*inverse)[amo2], int dim){
 		}
 	}
 
+  debug(461);
 	dgetrf_(&dim,&dim,*tempmat,&dim,ipvt,&info);
 	dgetri_(&dim,*tempmat,&dim,ipvt,&work,&LW,&info); 
+	debug(464);
 	
 	for (int i=0; i<dim; i++){
 		for (int j=0; j<dim; j++){
@@ -506,6 +578,7 @@ int invertmat(double (*matrix)[amo2], double (*inverse)[amo2], int dim){
 	if(info!=0){
 		printf("Problem with LAPACK inverting matrix! Error code: %i\n",info);	
 	}		
+	debug(512);
 
 	return info;
 }	// END invertmat

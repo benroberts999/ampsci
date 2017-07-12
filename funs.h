@@ -6,7 +6,8 @@
 #include <stdio.h>
 #include <time.h>
 #include "params.h"
-
+#include <vector>
+#include <gsl/gsl_linalg.h>
 #endif
 
 void debug(int lineno);
@@ -25,4 +26,7 @@ double diracen(int z, int n, int k);
 
 extern "C" void dgetrf_(int*, int*, double*, int*, int*, int*);
 extern "C" void dgetri_(int*, double*, int*, int*, double*, int*, int*);
-int invertmat(double (*matrix)[amo2], double (*inverse)[amo2], int dim);
+//int invertmat(double (*matrix)[amo2], double (*inverse)[amo2], int dim);
+int invertmat(double matrix[amo2][amo2], double inverse[amo2][amo2], int dim);
+
+int invertMatrix(double inmat[amo2][amo2], double outmat[amo2][amo2]);

@@ -20,278 +20,10 @@ mathing at the classical turning point [e=v], and uses perurbation theory for mi
 //#include "funs.h"
 //#include "params.h"
 
-int dodebug=0;
-
-//******************************************************************
-//program finishes the INWARD/OUTWARD integrations (ADAMS-MOULTON)
-	//- ni is starting (initial) point for integration
-	//- nf is end (final) point for integration (nf=ctp)
-int adamsmoulton(double *p, double *q, double *v, int ka, double &en, int ni, int nf)
-{
-	//XXX update to corect array form!
-	//XXX Fix AMO / amo2 thing!
-	//Can use VECTOR! ??
-
-	double ama[amo2];		//AM coefs. 
-	double amd,amaa;
-	AMcoefs(ama,amd,amaa);	// loads the coeficients!
-
-	//this just checks that all working..prints out coefs.
-	if (dodebug==1){
-		for (int i=0; i<AMO; i++){
-			printf("AMA[%i]=%f\n",i,ama[i]);
-		}
-		printf("amd=%.0f, amaa=%.0f\n",amd,amaa);
-	}
-
-	int inc;			//'increment' for integration (+1 for forward, -1 for backward)
-	int nosteps;		// number of steps integration should make
-	if (nf>ni){
-		inc=1;
-		nosteps=nf-ni+1; 		//check the "+1"...
-	}
-	else if (nf<ni){
-		inc=-1;
-		nosteps=ni-nf+1;
-	}
-	else{
-		printf("WARNING: ni=nf in adamsmoulton.. no further integration");
-		return 1;
-	}
-	
-	
-	double dp[NGP],dq[NGP];			//create arrays for wf derivatives
-	double amcoef[amo2];
-	int k1=ni-inc*(AMO);
-	for (int i=0; i<AMO; i++){		
-		dp[i]=inc*(-ka*dror(k1)*p[k1]-aa*((en+2*c2)-v[k1])*drdt(k1)*q[k1]);
-		dq[i]=inc*(ka*dror(k1)*q[k1]+aa*(en-v[k1])*drdt(k1)*p[k1]);
-		amcoef[i]=(h/amd)*ama[i];	
-		k1=k1+inc;
-	}
-
-
-	//integrates the function from ni to the c.t.p
-	double a0=(h/amd)*amaa;
-	int k2=ni;
-	for (int i=0; i<nosteps; i++){		//double check! - end point should be ctp! (inclusive)
-		double dai=-inc*(ka*dror(k2));
-		double dbi=-inc*aa*(en+2*c2-v[k2])*drdt(k2);
-		double dci=inc*aa*(en-v[k2])*drdt(k2);
-		double ddi=-dai;
-		double det = 1-a0*a0*(dbi*dci-dai*ddi);
-		double sp=p[k2-inc];
-		double sq=q[k2-inc];
-		for (int l=0; l<AMO; l++){
-			sp=sp+amcoef[l]*dp[l];
-			sq=sq+amcoef[l]*dq[l];
-		}
-		p[k2]=(sp+a0*(dbi*sq-ddi*sp))/det;
-		q[k2]=(sq+a0*(dci*sp-dai*sq))/det;
-		for (int l=0; l<(AMO-1); l++){		//loads next 'first' k values (?)
-			dp[l]=dp[l+1];
-			dq[l]=dq[l+1];
-		}
-		dp[AMO-1]=dai*p[k2]+dbi*q[k2];		//loads next 'first' deriv's (?)
-		dq[AMO-1]=dci*p[k2]+ddi*q[k2];		
-		k2=k2+inc;
-	}
-	
-	return 0;	
-}	// END adamsmoulton
+int dodebug=1;
 
 
 
-
-
-
-
-
-
-
-//******************************************************************
-//program to start the OUTWARD integration (then call ADAMS-MOULTON)
-int outint(double *p, double *q, double *v, int Z, int ka, double &en, int ctp)
-{
-
-	
-	double az = Z*aa;				
-	double ga=sqrt(pow(ka,2)-pow(az,2));
-	
-	//initial wf values
-	double u0=1;
-	double v0;
-	if (ka>0){
-		v0=-(ga+ka)/az;
-	}
-	else {
-		v0=az/(ga-ka);
-	}
-	p[0]=0;
-	q[0]=0;
-
-	
-	double ie[amo2][amo2];
-	double ia[amo2];
-	double id;
-	OIcoefs(ie,ia,id);
-
-
-	
-	// loop through and find first nol*AMO points of wf
-	for (int ln=0; ln<nol; ln++){
-		int i0=ln*AMO+1;
-		
-		//defines/populates coefs
-		double coefa[amo2],coefb[amo2],coefc[amo2],coefd[amo2];
-		double em[amo2][amo2];
-		for (int i=0; i<AMO; i++){
-			coefa[i]=-id*h*(ga+ka)*dror(i+i0);
-			coefb[i]=-id*h*(en+2*c2-v[i+i0])*drdt(i+i0)*aa;
-			coefc[i]=id*h*(en-v[i+i0])*drdt(i+i0)*aa;
-			coefd[i]=-id*h*(ga-ka)*dror(i+i0);
-			for (int j=0; j<AMO; j++){
-				em[i][j]=ie[i][j];
-			}
-			em[i][i]=em[i][i]-coefd[i];
-		}
-
-
-		//inverts the matrix!  invfm = Inv(fm)
-		double invem[amo2][amo2];
-		invertmat(em,invem,amo2); 
-		
-		
-		double s[amo2];
-		double fm[amo2][amo2];
-		for (int i=0; i<AMO; i++){
-			s[i]=-ia[i]*u0;
-			for (int j=0; j<AMO; j++){
-				fm[i][j]=ie[i][j]-coefb[i]*invem[i][j]*coefc[j];
-				s[i]=s[i]-coefb[i]*invem[i][j]*ia[j]*v0;
-			}
-			fm[i][i]=fm[i][i]-coefa[i];					
-		}
-	
-		
-		//inverts the matrix!  invfm = Inv(fm)
-		double invfm[amo2][amo2];
-		invertmat(fm,invfm,amo2);
-			
-	
-		//writes u(r) in terms of coefs and the inverse of fm
-		double us[amo2];
-		for (int i=0; i<AMO; i++){
-			us[i]=0;
-			for (int j=0; j<AMO; j++){
-				us[i]=us[i]+invfm[i][j]*s[j];
-			}
-		}
-		
-		
-		//writes v(r) in terms of coefs + u(r)
-		double vs[amo2];
-		for (int i=0; i<AMO; i++){
-			vs[i]=0;
-			for (int j=0; j<AMO; j++){
-				vs[i]=vs[i]+invem[i][j]*(coefc[j]*us[j]-ia[j]*v0);
-			}
-		}
-		
-		
-		//writes wavefunction: P= r^gamma u(r) etc..
-		for (int i=0; i<AMO; i++){
-			p[i+i0]=pow(r(i+i0),ga)*us[i];
-			q[i+i0]=pow(r(i+i0),ga)*vs[i];
-		}
-		
-		//re-sets 'starting point' for next ln
-		u0=us[AMO-1];
-		v0=vs[AMO-1];
-				
-	}	// END for (int ln=0; ln<nol; ln++)  [loop through outint `nol' times]
-
-
-	// calls adamsmoulton to finish integration from (nol*AMO+1) to ctp	
-	int na=nol*AMO+1;					
-	if (ctp>na){
-		adamsmoulton(p,q,v,ka,en,na,ctp);
-	}
-
-
-	return 0;
-}	// END outint
-
-
-
-
-
-
-//******************************************************************
-//program to start the INWARD integration (then call ADAMS-MOULTON)
-int inint(double *p, double *q, double *v, int Z, int ka, double &en, int ctp, int pinf)
-{
-
-	double lambda=sqrt(-en*(2+en*aa2));
-	double zeta=-v[pinf]*r(pinf);
-	double sigma=(1+en*aa2)*(zeta/lambda);				
-	double Ren=en+c2;
-	
-	// Generates the expansion coeficients for asymptotic wf up to order NX (nx is 'param')
-	double bx[nx];
-	double ax[nx];
-	bx[0]=(ka+(zeta/lambda))*(aa/2);
-	for (int i=0; i<nx; i++){
-		ax[i]=(ka+(i+1-sigma)*Ren*aa2-zeta*lambda*aa2)*bx[i]*cc/((i+1)*lambda);
-		if (i<(nx-1)){
-			bx[i+1]=(pow(ka,2)-pow((i+1-sigma),2)-pow(zeta,2)*aa2)*bx[i]/(2*(i+1)*lambda);
-		}
-	}
-	
-	
-	//Generates last `AMO' points for P and Q [actually AMO+1?]
-	double f1=sqrt(1+en*aa2/2);
-	double f2=sqrt(-en/2)*aa;
-	for (int i=pinf; i>=(pinf-AMO); i=i-1){			// double check end point!
-		double rfac=pow(r(i),sigma)*exp(-lambda*r(i));
-		double ps=1;
-		double qs=0;
-		double rk=1;
-		for (int k=0; k<nx; k++){		//this will loop until a) converge, b) k=nx
-			rk=rk*r(i);
-			ps=ps+(ax[k]/rk);
-			qs=qs+(bx[k]/rk);
-			double xe=fmax(fabs((ax[k]/rk)/ps),fabs((bx[k]/rk)/qs));
-			if (xe<nxepsp){
-				k=nx;					//reached convergance
-			}
-			else if (k==(nx-1)){
-				if (xe>nxepss){
-					printf("WARNING: Asymp. expansion in ININT didn't converge: %i, %i, %.2e\n"
-						,i,k,xe);
-				}
-			}
-		}
-		p[i]=rfac*(f1*ps+f2*qs);
-		q[i]=rfac*(f2*ps-f1*qs);
-	}
-
-	
-	//calls adams-moulton
-	if ((pinf-AMO-1)>=ctp){						
-		adamsmoulton(p,q,v,ka,en,pinf-AMO-1,ctp);
-	}
-
-	return 0;
-}	// END inint
-
-
-
-
-//**************************************************************************
-//**************************************************************************
-//**************************************************************************
-//**************************************************************************
 
 
 //****************************************************************************************
@@ -323,7 +55,7 @@ int solveDBS(double *p, double *q, double *v, int Z, int n, int ka, double &en, 
 
 	int more=0,less=0;			//params for checking nodes
 	double eupper=0,elower=0;		//params for """ and varying energy
-	double anorm;				// normalisation constant
+	double anorm=0;				// normalisation constant
 	int ctp;					//classical turning point
 	int status=0;
 	double deltaEn=0;
@@ -356,16 +88,17 @@ int solveDBS(double *p, double *q, double *v, int Z, int n, int ka, double &en, 
 		if(dodebug==1){printf("Classical turning point (i=%i): ctp=%.1f a.u.\n",ctp,r(ctp));}
 		if(dodebug==1){printf("%i %i: Pinf= %.1f,  en= %f\n",n,ka,r(pinf),en);}
 
-
+    debug(91);
 		inint(p,q,v,Z,ka,en,ctp,pinf);		//do the "inward int"
+		debug(93);
 
 		//save the values of wf at ctp from the 'inward' ind
 		double ptp=p[ctp];
 		double qtp=q[ctp];
 
-
+    debug(99);
 		outint(p,q,v,Z,ka,en,ctp);			//do the "outward int"
-
+    debug(101);
 
 		// scales the inward solution to match the outward solution (for P)
 		double rescale=p[ctp]/ptp;
@@ -520,6 +253,282 @@ int solveDBS(double *p, double *q, double *v, int Z, int n, int ka, double &en, 
 //*********************************************************
 //*********************************************************
 //*********************************************************
+
+
+
+
+//******************************************************************
+//program to start the OUTWARD integration (then call ADAMS-MOULTON)
+int outint(double *p, double *q, double *v, int Z, int ka, double &en, int ctp)
+{
+
+	
+	double az = Z*aa;				
+	double ga=sqrt(pow(ka,2)-pow(az,2));
+	
+	//initial wf values
+	double u0=1;
+	double v0;
+	if (ka>0){
+		v0=-(ga+ka)/az;
+	}
+	else {
+		v0=az/(ga-ka);
+	}
+	p[0]=0;
+	q[0]=0;
+
+	debug(281);
+	double ie[amo2][amo2];
+	double ia[amo2];
+	double id;
+	OIcoefs(ie,ia,id);
+	debug(286);
+
+
+	
+	// loop through and find first nol*AMO points of wf
+	for (int ln=0; ln<nol; ln++){
+		int i0=ln*AMO+1;
+		
+		//defines/populates coefs
+		debug(295);
+		double coefa[amo2],coefb[amo2],coefc[amo2],coefd[amo2];
+		double em[amo2][amo2];
+		debug(298);
+		for (int i=0; i<AMO; i++){
+			coefa[i]=-id*h*(ga+ka)*dror(i+i0);
+			coefb[i]=-id*h*(en+2*c2-v[i+i0])*drdt(i+i0)*aa;
+			coefc[i]=id*h*(en-v[i+i0])*drdt(i+i0)*aa;
+			coefd[i]=-id*h*(ga-ka)*dror(i+i0);
+			for (int j=0; j<AMO; j++){
+				em[i][j]=ie[i][j];
+			}
+			em[i][i]=em[i][i]-coefd[i];
+		}
+
+
+		//inverts the matrix!  invfm = Inv(fm)
+		debug(312);
+		double invem[amo2][amo2]={0};
+		debug(314);
+		//invertmat(em,invem,amo2); 
+		invertMatrix(em,invem);
+		debug(316);
+		
+		
+		double s[amo2];
+		double fm[amo2][amo2];
+		for (int i=0; i<AMO; i++){
+			s[i]=-ia[i]*u0;
+			for (int j=0; j<AMO; j++){
+				fm[i][j]=ie[i][j]-coefb[i]*invem[i][j]*coefc[j];
+				s[i]=s[i]-coefb[i]*invem[i][j]*ia[j]*v0;
+			}
+			fm[i][i]=fm[i][i]-coefa[i];					
+		}
+	
+		
+		//inverts the matrix!  invfm = Inv(fm)
+		double invfm[amo2][amo2]={0};
+		//invertmat(fm,invfm,amo2);
+		invertMatrix(fm,invfm);
+			
+	
+		//writes u(r) in terms of coefs and the inverse of fm
+		double us[amo2];
+		for (int i=0; i<AMO; i++){
+			us[i]=0;
+			for (int j=0; j<AMO; j++){
+				us[i]=us[i]+invfm[i][j]*s[j];
+			}
+		}
+		
+		
+		//writes v(r) in terms of coefs + u(r)
+		double vs[amo2];
+		for (int i=0; i<AMO; i++){
+			vs[i]=0;
+			for (int j=0; j<AMO; j++){
+				vs[i]=vs[i]+invem[i][j]*(coefc[j]*us[j]-ia[j]*v0);
+			}
+		}
+		
+		
+		//writes wavefunction: P= r^gamma u(r) etc..
+		for (int i=0; i<AMO; i++){
+			p[i+i0]=pow(r(i+i0),ga)*us[i];
+			q[i+i0]=pow(r(i+i0),ga)*vs[i];
+		}
+		
+		//re-sets 'starting point' for next ln
+		u0=us[AMO-1];
+		v0=vs[AMO-1];
+				
+	}	// END for (int ln=0; ln<nol; ln++)  [loop through outint `nol' times]
+
+
+	// calls adamsmoulton to finish integration from (nol*AMO+1) to ctp	
+	int na=nol*AMO+1;					
+	if (ctp>na){
+		adamsmoulton(p,q,v,ka,en,na,ctp);
+	}
+
+
+	return 0;
+}	// END outint
+
+
+
+
+
+
+//******************************************************************
+//program to start the INWARD integration (then call ADAMS-MOULTON)
+int inint(double *p, double *q, double *v, int Z, int ka, double &en, int ctp, int pinf)
+{
+
+	double lambda=sqrt(-en*(2+en*aa2));
+	double zeta=-v[pinf]*r(pinf);
+	double sigma=(1+en*aa2)*(zeta/lambda);				
+	double Ren=en+c2;
+	
+	// Generates the expansion coeficients for asymptotic wf up to order NX (nx is 'param')
+	double bx[nx];
+	double ax[nx];
+	bx[0]=(ka+(zeta/lambda))*(aa/2);
+	for (int i=0; i<nx; i++){
+		ax[i]=(ka+(i+1-sigma)*Ren*aa2-zeta*lambda*aa2)*bx[i]*cc/((i+1)*lambda);
+		if (i<(nx-1)){
+			bx[i+1]=(pow(ka,2)-pow((i+1-sigma),2)-pow(zeta,2)*aa2)*bx[i]/(2*(i+1)*lambda);
+		}
+	}
+	
+	
+	//Generates last `AMO' points for P and Q [actually AMO+1?]
+	double f1=sqrt(1+en*aa2/2);
+	double f2=sqrt(-en/2)*aa;
+	for (int i=pinf; i>=(pinf-AMO); i=i-1){			// double check end point!
+		double rfac=pow(r(i),sigma)*exp(-lambda*r(i));
+		double ps=1;
+		double qs=0;
+		double rk=1;
+		for (int k=0; k<nx; k++){		//this will loop until a) converge, b) k=nx
+			rk=rk*r(i);
+			ps=ps+(ax[k]/rk);
+			qs=qs+(bx[k]/rk);
+			double xe=fmax(fabs((ax[k]/rk)/ps),fabs((bx[k]/rk)/qs));
+			if (xe<nxepsp){
+				k=nx;					//reached convergance
+			}
+			else if (k==(nx-1)){
+				if (xe>nxepss){
+					printf("WARNING: Asymp. expansion in ININT didn't converge: %i, %i, %.2e\n"
+						,i,k,xe);
+				}
+			}
+		}
+		p[i]=rfac*(f1*ps+f2*qs);
+		q[i]=rfac*(f2*ps-f1*qs);
+	}
+
+	
+	//calls adams-moulton
+	if ((pinf-AMO-1)>=ctp){						
+		adamsmoulton(p,q,v,ka,en,pinf-AMO-1,ctp);
+	}
+
+	return 0;
+}	// END inint
+
+
+//******************************************************************
+//program finishes the INWARD/OUTWARD integrations (ADAMS-MOULTON)
+	//- ni is starting (initial) point for integration
+	//- nf is end (final) point for integration (nf=ctp)
+int adamsmoulton(double *p, double *q, double *v, int ka, double &en, int ni, int nf)
+{
+	//XXX update to corect array form!
+	//XXX Fix AMO / amo2 thing!
+	//Can use VECTOR! ??
+
+	double ama[amo2];		//AM coefs. 
+	double amd,amaa;
+	AMcoefs(ama,amd,amaa);	// loads the coeficients!
+
+	//this just checks that all working..prints out coefs.
+	if (dodebug==1){
+		for (int i=0; i<AMO; i++){
+			printf("AMA[%i]=%f\n",i,ama[i]);
+		}
+		printf("amd=%.0f, amaa=%.0f\n",amd,amaa);
+	}
+
+	int inc;			//'increment' for integration (+1 for forward, -1 for backward)
+	int nosteps;		// number of steps integration should make
+	if (nf>ni){
+		inc=1;
+		nosteps=nf-ni+1; 		//check the "+1"...
+	}
+	else if (nf<ni){
+		inc=-1;
+		nosteps=ni-nf+1;
+	}
+	else{
+		printf("WARNING: ni=nf in adamsmoulton.. no further integration");
+		return 1;
+	}
+	
+	
+	double dp[NGP],dq[NGP];			//create arrays for wf derivatives
+	double amcoef[amo2];
+	int k1=ni-inc*(AMO);
+	for (int i=0; i<AMO; i++){		
+		dp[i]=inc*(-ka*dror(k1)*p[k1]-aa*((en+2*c2)-v[k1])*drdt(k1)*q[k1]);
+		dq[i]=inc*(ka*dror(k1)*q[k1]+aa*(en-v[k1])*drdt(k1)*p[k1]);
+		amcoef[i]=(h/amd)*ama[i];	
+		k1=k1+inc;
+	}
+
+
+	//integrates the function from ni to the c.t.p
+	double a0=(h/amd)*amaa;
+	int k2=ni;
+	for (int i=0; i<nosteps; i++){		//double check! - end point should be ctp! (inclusive)
+		double dai=-inc*(ka*dror(k2));
+		double dbi=-inc*aa*(en+2*c2-v[k2])*drdt(k2);
+		double dci=inc*aa*(en-v[k2])*drdt(k2);
+		double ddi=-dai;
+		double det = 1-a0*a0*(dbi*dci-dai*ddi);
+		double sp=p[k2-inc];
+		double sq=q[k2-inc];
+		for (int l=0; l<AMO; l++){
+			sp=sp+amcoef[l]*dp[l];
+			sq=sq+amcoef[l]*dq[l];
+		}
+		p[k2]=(sp+a0*(dbi*sq-ddi*sp))/det;
+		q[k2]=(sq+a0*(dci*sp-dai*sq))/det;
+		for (int l=0; l<(AMO-1); l++){		//loads next 'first' k values (?)
+			dp[l]=dp[l+1];
+			dq[l]=dq[l+1];
+		}
+		dp[AMO-1]=dai*p[k2]+dbi*q[k2];		//loads next 'first' deriv's (?)
+		dq[AMO-1]=dci*p[k2]+ddi*q[k2];		
+		k2=k2+inc;
+	}
+	
+	return 0;	
+}	// END adamsmoulton
+
+
+
+//**************************************************************************
+//**************************************************************************
+//**************************************************************************
+//**************************************************************************
+
+
+
 // 			Numerical DE solve by integration (adams) coeficients
 
 

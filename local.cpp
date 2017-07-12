@@ -92,7 +92,7 @@ int main(void){
 	double p[NGP],q[NGP];	
 
 
-	const int MAXSTATES=100;
+	const int MAXSTATES=50;
 
 //	int Z=1;
 	int nmin=1;
@@ -142,8 +142,9 @@ int main(void){
   			// Energy guess for H-like
 			en=diracen(Z,n,ka);
 			
-			
+			debug(145);
 			solveDBS(p,q,v,Z,n,ka,en,pinf,its,eps);
+			debug(147);
 			for (int i=0; i<NGP; i++){
 				P[a][i]=p[i];
 				Q[a][i]=q[i];

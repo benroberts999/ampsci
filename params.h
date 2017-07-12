@@ -14,10 +14,16 @@ double h=0.03125;			//this is the one that should be as small as possible! (0.03
 */
 
 //params for radial grid!
-const double paramRmax=50000;  // this should be INPUT?
-const double r0=5e-6;
-const double h=0.005;			// for some reason, this doesn't work if h<0.00048.. ?
-const int NGP=log(paramRmax/r0)/h+2;
+//const double paramRmax=50000;  // this should be INPUT?
+//const double r0=5e-6;
+//const double h=0.005;			// for some reason, this doesn't work if h<0.00048.. ?
+//const int NGP=log(paramRmax/r0)/h+2;
+
+//const double paramRmax=100;  // this should be INPUT?
+const double paramRmax=100;  // this should be INPUT?
+const double r0=1e-4;
+const int NGP=1000;
+const double h=log(paramRmax/r0)/(NGP-2);
 
 // NOTE maxing these out, doesn't increase accuracy that much.... and breaks other things, such as finite nuclear size!
 // e.g. 0.01 gives same accuracy as 0.0005 !

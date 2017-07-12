@@ -5,6 +5,10 @@
 #include <cmath>
 #include <stdio.h>
 #include <time.h>
+#include <vector>
+#include <gsl/gsl_linalg.h>
+
+
 #include "funs.h"
 #include "params.h"
 
