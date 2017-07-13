@@ -20,7 +20,7 @@ mathing at the classical turning point [e=v], and uses perurbation theory for mi
 //#include "funs.h"
 //#include "params.h"
 
-int dodebug=1;
+int dodebug=0;
 
 
 
@@ -88,17 +88,13 @@ int solveDBS(double *p, double *q, double *v, int Z, int n, int ka, double &en, 
 		if(dodebug==1){printf("Classical turning point (i=%i): ctp=%.1f a.u.\n",ctp,r(ctp));}
 		if(dodebug==1){printf("%i %i: Pinf= %.1f,  en= %f\n",n,ka,r(pinf),en);}
 
-    debug(91);
 		inint(p,q,v,Z,ka,en,ctp,pinf);		//do the "inward int"
-		debug(93);
 
 		//save the values of wf at ctp from the 'inward' ind
 		double ptp=p[ctp];
 		double qtp=q[ctp];
 
-    debug(99);
 		outint(p,q,v,Z,ka,en,ctp);			//do the "outward int"
-    debug(101);
 
 		// scales the inward solution to match the outward solution (for P)
 		double rescale=p[ctp]/ptp;
@@ -278,12 +274,10 @@ int outint(double *p, double *q, double *v, int Z, int ka, double &en, int ctp)
 	p[0]=0;
 	q[0]=0;
 
-	debug(281);
 	double ie[amo2][amo2];
 	double ia[amo2];
 	double id;
 	OIcoefs(ie,ia,id);
-	debug(286);
 
 
 	
@@ -292,10 +286,8 @@ int outint(double *p, double *q, double *v, int Z, int ka, double &en, int ctp)
 		int i0=ln*AMO+1;
 		
 		//defines/populates coefs
-		debug(295);
 		double coefa[amo2],coefb[amo2],coefc[amo2],coefd[amo2];
 		double em[amo2][amo2];
-		debug(298);
 		for (int i=0; i<AMO; i++){
 			coefa[i]=-id*h*(ga+ka)*dror(i+i0);
 			coefb[i]=-id*h*(en+2*c2-v[i+i0])*drdt(i+i0)*aa;
@@ -309,12 +301,9 @@ int outint(double *p, double *q, double *v, int Z, int ka, double &en, int ctp)
 
 
 		//inverts the matrix!  invfm = Inv(fm)
-		debug(312);
 		double invem[amo2][amo2]={0};
-		debug(314);
 		//invertmat(em,invem,amo2); 
 		invertMatrix(em,invem);
-		debug(316);
 		
 		
 		double s[amo2];
