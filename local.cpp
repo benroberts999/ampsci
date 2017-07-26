@@ -211,8 +211,7 @@ int main(void){
 
 
 
-
-/*	
+/*
 	// Orthogonality tests:
 	printf("\nTesting orthormality [Radial Integrals only!]\n");
 	for (int s=0; s<nlist; s++){
@@ -227,7 +226,6 @@ int main(void){
 		}
 	}
 */
-
 
 
 
