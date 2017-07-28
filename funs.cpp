@@ -452,6 +452,10 @@ INPUT:
 OUTPUT:
   outmat    :: inverted 'flat' matrix [call as "(double *)outmat"]
 
+
+
+XXX use updated VECTOR version!!
+
 === Change Log ===
 
 */
