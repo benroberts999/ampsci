@@ -135,10 +135,11 @@ the minor (P.T.) changes work!
       }
     }
     if(ctp>=pinf){
+      //Didn't find ctp! Does this ever happen?
       printf("FAILURE: Turning point at or after pract. inf. \n");
       printf("ctp(%i)=%.1f, pinf(%i)=%.1f\n",ctp,r(ctp),pinf,r(pinf));
       return 1;
-    }    //optional error msg...
+    }
     if(dodebug==1) printf("Classical turning point (i=%i): ctp=%.1f a.u.\n",
                           ctp,r(ctp));
     if(dodebug==1) printf("%i %i: Pinf= %.1f,  en= %f\n",n,ka,r(pinf),en);
@@ -177,7 +178,7 @@ the minor (P.T.) changes work!
         sp=spn;
       }
     }
-    if(dodebug==1){printf("Nodes=%i\n",nozeros);}
+    if(dodebug==1) printf("Nodes=%i\n",nozeros);
 
 
     //checks to see if there are too many/too few nodes.
@@ -252,18 +253,18 @@ the minor (P.T.) changes work!
     its++; //increment 'number of iterations' counter
     
     if(dodebug==1){printf("Itteration number %i,  en= %f\n",its,en);}
-    if (its>ntry){
-      if (deltaEn<deles){
-        if (dodebug==1){
+    if(its>ntry){
+      if(deltaEn<deles){
+        if(dodebug==1){
           printf("Wavefunction %i %i didn't fully converge after %i iterations"
                  ", but OK.\n",n,ka,ntry);
         }
         eps=deltaEn;
         status=1;
-      }
-      else{
-        printf("Wavefunction %i %i didn't converge after %i itterations.\n",n,ka,ntry);
-        if (dodebug==1){printf("%i %i: Pinf= %.1f,  en= %f\n",n,ka,r(pinf),en);}
+      }else{
+        printf("Wavefunction %i %i didn't converge after %i itterations.\n",n,
+               ka,ntry);
+        if(dodebug==1) printf("%i %i: Pinf= %.1f,  en= %f\n",n,ka,r(pinf),en);
         eps=deltaEn;
         return 2;
       }
@@ -325,7 +326,10 @@ the minor (P.T.) changes work!
 int outint(double p[], double q[], double v[], int Z, int ka, 
            double &en, int ctp)
 /*
-Program to start the OUTWARD integration (then call ADAMS-MOULTON)
+Program to start the OUTWARD integration.
+Starts from 0, and uses an expansion(?) to go to (nol*AMO).
+Then, it then call ADAMS-MOULTON, to finished (from nol*AMO+1 to ctp)
+
 XXX rename to outwardAM ? amOutIntegration ?
 
 */
@@ -335,7 +339,10 @@ XXX rename to outwardAM ? amOutIntegration ?
   double az = Z*ALPHA;                  //Z*alpha
   double ga=sqrt(pow(ka,2)-pow(az,2));  //'gamma' factor
 
+
   //initial wf values
+  // P(r) = r^gamma u(r)
+  // Q(r) = r^gamma v(r)
   double u0=1;
   double v0;
   if (ka>0){
@@ -347,6 +354,7 @@ XXX rename to outwardAM ? amOutIntegration ?
   p[0]=0;
   q[0]=0;
 
+  //Coeficients used by the method
   double ie[amo2][amo2];
   double ia[amo2];
   double id;
@@ -390,12 +398,14 @@ XXX rename to outwardAM ? amOutIntegration ?
 
 
     //inverts the matrix!  invfm = Inv(fm)
+    // XXX use vector!
     double invfm[amo2][amo2]={0};
     //invertmat(fm,invfm,amo2);
     invertMatrix(fm,invfm);
 
 
     //writes u(r) in terms of coefs and the inverse of fm
+    // P(r) = r^gamma u(r)
     double us[amo2];
     for (int i=0; i<AMO; i++){
       us[i]=0;
@@ -406,6 +416,7 @@ XXX rename to outwardAM ? amOutIntegration ?
 
 
     //writes v(r) in terms of coefs + u(r)
+    // Q(r) = r^gamma v(r)
     double vs[amo2];
     for (int i=0; i<AMO; i++){
       vs[i]=0;
@@ -425,7 +436,7 @@ XXX rename to outwardAM ? amOutIntegration ?
     u0=us[AMO-1];
     v0=vs[AMO-1];
 
-  }  // END for (int ln=0; ln<nol; ln++)  [loop through outint `nol' times]
+  }// END for (int ln=0; ln<nol; ln++)  [loop through outint `nol' times]
 
 
   // calls adamsmoulton to finish integration from (nol*AMO+1) to ctp
@@ -444,23 +455,31 @@ XXX rename to outwardAM ? amOutIntegration ?
 
 
 //******************************************************************
-//program to start the INWARD integration (then call ADAMS-MOULTON)
-int inint(double p[], double q[], double v[], int Z, int ka, double &en, int ctp, int pinf)
+int inint(double p[], double q[], double v[], int Z, int ka, double &en, 
+          int ctp, int pinf)
+/*
+Program to start the INWARD integration.
+Starts from Pinf, and uses an expansion(?) to go to (pinf-AMO)
+Then, it then call ADAMS-MOULTON, to finished (from nol*AMO+1 to ctp)
+*/
 {
 
+  
   double lambda=sqrt(-en*(2+en*aa2));
   double zeta=-v[pinf]*r(pinf);
   double sigma=(1+en*aa2)*(zeta/lambda);
-  double Ren=en+c2;
+  double Ren=en+c2;   //total relativistic energy
 
-  // Generates the expansion coeficients for asymptotic wf up to order NX (nx is 'param')
+  //Generates the expansion coeficients for asymptotic wf 
+  // up to order NX (nx is 'param')
   double bx[nx];
   double ax[nx];
   bx[0]=(ka+(zeta/lambda))*(aa/2);
   for (int i=0; i<nx; i++){
     ax[i]=(ka+(i+1-sigma)*Ren*aa2-zeta*lambda*aa2)*bx[i]*cc/((i+1)*lambda);
     if (i<(nx-1)){
-      bx[i+1]=(pow(ka,2)-pow((i+1-sigma),2)-pow(zeta,2)*aa2)*bx[i]/(2*(i+1)*lambda);
+      bx[i+1]=(pow(ka,2)-pow((i+1-sigma),2)-pow(zeta,2)*aa2)
+              *bx[i]/(2*(i+1)*lambda);
     }
   }
 
@@ -468,7 +487,7 @@ int inint(double p[], double q[], double v[], int Z, int ka, double &en, int ctp
   //Generates last `AMO' points for P and Q [actually AMO+1?]
   double f1=sqrt(1+en*aa2/2);
   double f2=sqrt(-en/2)*aa;
-  for (int i=pinf; i>=(pinf-AMO); i=i-1){      // double check end point!
+  for (int i=pinf; i>=(pinf-AMO); i--){      // double check end point!
     double rfac=pow(r(i),sigma)*exp(-lambda*r(i));
     double ps=1;
     double qs=0;
@@ -483,7 +502,8 @@ int inint(double p[], double q[], double v[], int Z, int ka, double &en, int ctp
       }
       else if (k==(nx-1)){
         if (xe>nxepss){
-          printf("WARNING: Asymp. expansion in ININT didn't converge: %i, %i, %.2e\n"
+          printf("WARNING: Asymp. expansion in ININT didn't converge:"
+                 " %i, %i, %.2e\n"
             ,i,k,xe);
         }
       }
