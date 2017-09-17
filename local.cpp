@@ -199,13 +199,29 @@ int main(void){
 
 
 
+
 // HERE!? Is there some problem with the formula?? a missing n or kappa??
   // Testing Dirac Eq. by evaluating <a|H|a> - ME of Hamiltonian
   printf("\nTesting Dirac Eq: <n|H|n> (test of numerical uncertainty)\n");
   for (int s=0; s<nlist; s++){
+    double dP[NGP];
+    double dQ[NGP];
+    double Ps[NGP];
+    double Qs[NGP];
+    //dQ[0]=0;
+    for (int i=0; i<NGP; i++){
+      Ps[i]=P[s][i];
+      Qs[i]=Q[s][i];
+      //dQ[i]=(Q[s][i]-Q[s][i-1])/(h*drdt(i));
+    }
+    diff(Qs,dQ);
+    diff(Ps,dP);
     for (int i=0; i<NGP; i++){
       rad[i]=(
-            ((-2*kappa[s])/(r(i)*aa))*P[s][i]*Q[s][i]
+            2*P[s][i]*dQ[i]/aa
+            // P[s][i]*dQ[i]/aa
+            //-Q[s][i]*dP[i]/aa
+          +  ((-2*kappa[s])/(r(i)*aa))*P[s][i]*Q[s][i]
             +v[i]*(P[s][i]*P[s][i]+Q[s][i]*Q[s][i])
            -(2/aa2)*Q[s][i]*Q[s][i]
           );
@@ -218,7 +234,7 @@ int main(void){
 
 
 
-/*
+
   // Orthogonality tests:
   printf("\nTesting orthormality [Radial Integrals only!]\n");
   for (int s=0; s<nlist; s++){
@@ -232,7 +248,7 @@ int main(void){
       }
     }
   }
-*/
+
 
 
 
