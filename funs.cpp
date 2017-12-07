@@ -2,7 +2,7 @@
 
 /*
 ********************************************************
-Tue 20 Jan 2015  
+Tue 20 Jan 2015
 
 Contains functions that can be called from other programs:
 
@@ -14,7 +14,7 @@ Contains functions that can be called from other programs:
 
 - Exact (0-size nucleus) Dirac energies, for comparison
 
--An "approximation" to the Thomas-Fermi potential (based on an expansion of Z-dependent solution. 
+-An "approximation" to the Thomas-Fermi potential (based on an expansion of Z-dependent solution.
 
 
 *********************************************************
@@ -36,7 +36,7 @@ void debug(int lineno){
 //			DEFINES RADIAL GRID
 
 // dr/dt
-double drdt(int i){			
+double drdt(int i){
 	double rpi;
 	if (i==0){
 		rpi=r0;
@@ -122,7 +122,7 @@ double sphere(int i, int Z, int A, double cR0){
 	// if cR0=0, then uses default
 
 	double vpot;
-	
+
 	//workout default value for nuclear rms radius
 	double rms;
 	if (A>9){
@@ -131,7 +131,7 @@ double sphere(int i, int Z, int A, double cR0){
 	else{
 		rms=(1.15*pow(A,0.333))*(1e-15/aB);		// no idea if this is correct
 	}
-	
+
 	// If input is zero, use default value
 	if (cR0==0){
 		cR0=sqrt(5/3)*rms;
@@ -218,10 +218,12 @@ double TFapprox(int i, int Z){
 	}
 	else if ((i>0)and(i<NGP)){
 //		x=1.12950781018323*r(i)*pow(Z,1/3.);
-		x=1.12950781018323*r(i)*cbrt(Z);		
-		phi=1/(1+0.02747*pow(x,0.5)+1.243*pow(x,1)-0.1486*pow(x,1.5)+0.2302*pow(x,2)+0.007298*pow(x,2.5)+0.006944*pow(x,3));
+		x=1.12950781018323*r(i)*cbrt(Z);
+		phi=1./(1+0.02747*pow(x,0.5)+1.243*x-0.1486*pow(x,1.5)
+          +0.2302*pow(x,2)+0.007298*pow(x,2.5)+0.006944*pow(x,3)
+        );
 //		vTF = -((Z-1)*phi+1)/r(i);
-		vTF = -(0.95)*((Z-1)*phi+1)/r(i);		
+		vTF = -(0.95)*((Z-1)*phi+1)/r(i);
 	}
 	else{
 		printf("FAILURE: Wrong gridpoint used for TFapprox(i=%i)\n",i);
@@ -252,11 +254,11 @@ double integrate(double *f, int l, int m){
 		m=temp;
 		negInt=-1;
 	}
-	if (m>=NGP){m=NGP-1;} 
+	if (m>=NGP){m=NGP-1;}
 	if (l<0){l=0;}
 
 
-// Defines the `nquad'-point quadrature integration coeficents. 
+// Defines the `nquad'-point quadrature integration coeficents.
 // nquad can take any integer from 1 to 14 (=1 implies trapazoid rule)
 	double ic[nquad];
 	if (nquad==1){
@@ -351,7 +353,7 @@ double integrate(double *f, int l, int m){
 		a=a+f[i];
 	}
 	a=a*h*negInt;
-	
+
 	// rectangle method (for tests)
 	double b=0;
 	for (int i=l; i<m; i++){
@@ -380,7 +382,7 @@ int diff(double *f, double *deriv){
 // This hasn't been fully tested!
 
 /*
-df/dr = df/dt * dt/dr = (df/dt) / (dr/dt) = (df/di) * (di/dt) / (dr/dt) = 
+df/dr = df/dt * dt/dr = (df/dt) / (dr/dt) = (df/di) * (di/dt) / (dr/dt) =
 = (df/di)  / (h * dr/dt)
 coeficients from: http://en.wikipedia.org/wiki/Finite_difference_coefficient
 */
@@ -388,10 +390,10 @@ coeficients from: http://en.wikipedia.org/wiki/Finite_difference_coefficient
 
 	deriv[0]= (f[1]-f[0])/(h*drdt(0));
 	deriv[NGP-1]= (f[NGP-1]-f[NGP-2])/(h*drdt(NGP-1));
-	
+
 	deriv[1]= (f[2]-f[0])/(2*h*drdt(1));
 	deriv[NGP-2]= (f[NGP-1]-f[NGP-3])/(2*h*drdt(NGP-2));
-	
+
 	deriv[2]= (f[0]-8*f[1]+8*f[3]-f[4])/(12*h*drdt(2));
 	deriv[NGP-3]= (f[NGP-5]-8*f[NGP-4]+8*f[NGP-2]-f[NGP-1])/(12*h*drdt(NGP-3));
 
@@ -399,9 +401,9 @@ coeficients from: http://en.wikipedia.org/wiki/Finite_difference_coefficient
 	deriv[NGP-4]= (-1*f[NGP-7]+9*f[NGP-6]-45*f[NGP-5]+45*f[NGP-3]-9*f[NGP-2]+1*f[NGP-1])/(60*h*drdt(NGP-4));
 
 	for (int i=4; i<(NGP-4);i++){
-//		deriv[i] = ( (1/56)*f[i-4] - (4/21)*f[i-3] + 1*f[i-2] - 4*f[i-1] 
+//		deriv[i] = ( (1/56)*f[i-4] - (4/21)*f[i-3] + 1*f[i-2] - 4*f[i-1]
 //		- (1/56)*f[i+4] + (4/21)*f[i+3] - 1*f[i+2] + 4*f[i+1] ) / (5*h*drdt(i));
-		deriv[i] = ( (1/8)*f[i-4] - (4/3)*f[i-3] + 7*f[i-2] - 28*f[i-1] 
+		deriv[i] = ( (1/8)*f[i-4] - (4/3)*f[i-3] + 7*f[i-2] - 28*f[i-1]
 		- (1/8)*f[i+4] + (4/3)*f[i+3] - 7*f[i+2] + 28*f[i+1] ) / (35*h*drdt(i));
 	}
 
@@ -425,9 +427,9 @@ coeficients from: http://en.wikipedia.org/wiki/Finite_difference_coefficient
 
 // ``Exact'' Dirac energies (for comparison) [for pure coulomb/infinitesimal nucleus]
 double diracen(int z, int n, int k){
-// 
+//
 	double g=sqrt(k*k-aa2*z*z);
-	double diracE=c2/sqrt(1+(aa2*z*z)/pow((g+n-fabs(k)),2))-c2;	
+	double diracE=c2/sqrt(1+(aa2*z*z)/pow((g+n-fabs(k)),2))-c2;
 	return diracE;
 }
 
@@ -482,7 +484,7 @@ XXX use updated VECTOR version!!
  //and inversion (if non-singular)
  int s;
  gsl_linalg_LU_decomp (m, perm, &s);
- double det=gsl_linalg_LU_det (m, s); 
+ double det=gsl_linalg_LU_det (m, s);
  if(det!=0)gsl_linalg_LU_invert (m, perm, inverse);
  if(det==0)iRet=1;
  //Fill the output matrix:
@@ -521,10 +523,10 @@ in the header file!
 	int LW=3*dim;				//dimension of `workspace'
 
   debug(450);
-	double tempmat[dim][dim];	
+	double tempmat[dim][dim];
 
 	int printmatrices=1;	//=1 to print the matrices!
-	
+
 	for (int i=0; i<dim; i++){
 		for (int j=0; j<dim; j++){
 			tempmat[i][j]=matrix[i][j];
@@ -533,15 +535,15 @@ in the header file!
 
   debug(461);
 	dgetrf_(&dim,&dim,*tempmat,&dim,ipvt,&info);
-	dgetri_(&dim,*tempmat,&dim,ipvt,&work,&LW,&info); 
+	dgetri_(&dim,*tempmat,&dim,ipvt,&work,&LW,&info);
 	debug(464);
-	
+
 	for (int i=0; i<dim; i++){
 		for (int j=0; j<dim; j++){
 			inverse[i][j]=tempmat[i][j];
 		}
 	}
-	
+
 	// For testing the matrix inversion!
 	// Prints out incoming matrix, its inverse, and their product (which should be I)
 	if (printmatrices==1){
@@ -574,24 +576,15 @@ in the header file!
 				}
 				printf("% 7.1g",AB[i][j]);
 			}
-			printf("\n");	
+			printf("\n");
 		}
 		printf("\n");
 	} //END print matrices
 
 	if(info!=0){
-		printf("Problem with LAPACK inverting matrix! Error code: %i\n",info);	
-	}		
+		printf("Problem with LAPACK inverting matrix! Error code: %i\n",info);
+	}
 	debug(512);
 
 	return info;
 }	// END invertmat
-
-
-
-
-
-
-
-
-
