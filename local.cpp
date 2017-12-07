@@ -64,6 +64,7 @@ int main(void){
   // (Entering Z should be OK too!)
   // Then, if I enter A=0, it uses the default A, otherwise the given A
   // (I think A is more common than N)
+  // -> "atom info" class! - Z, A, etc. etc.
 
   //input parameters
   int Z=0;
@@ -76,7 +77,7 @@ int main(void){
         myfile >> Za;
   myfile.close();
 
-  printf("%Z=i, A(?)=%i\n",Z,Za);
+  printf("Z=%i, A(?)=%i\n",Z,Za);
 
 
 
@@ -228,7 +229,8 @@ int main(void){
     }
     double R=integrate(rad,0,NGP-1);
     double fracdiff=(R-ev[s])/ev[s];
-    printf("<%i% i|H|%i% i> = % .15f, E(%i% i) = % .15f; % .2e\n",nn[s],kappa[s],nn[s],kappa[s],R,nn[s],kappa[s],ev[s],fracdiff);
+    printf("<%i% i|H|%i% i> = % .15f, E(%i% i) = % .15f; % .2e\n",
+        nn[s],kappa[s],nn[s],kappa[s],R,nn[s],kappa[s],ev[s],fracdiff);
   }
 
 
@@ -347,23 +349,3 @@ int main(void){
 
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
