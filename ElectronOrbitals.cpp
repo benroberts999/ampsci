@@ -89,6 +89,43 @@ int sphericalNucleus()
 }
 
 
+int fermiNucleus(double t, double c) //or t?
+{
+  // XXX put formula!!
+  //xxx aLSO: have default values??? depend on z/a ?? rN??
+
+  //XXX test? clear vnuc!?
+
+  // t, skin thickness [90 to 10% fall-off range]
+  // t = a[4 ln(3)]
+  double a=0.22756*t;
+  //https://www.gnu.org/software/gsl/manual/html_node/Complete-Fermi_002dDirac-Integrals
+  double coa=c/a;
+  double F2 = gsl_sf_fermi_dirac_2(coa);
+  double pi2 = 9.8696044010894; // pi^2
+  for(int i=1; i<ngp; i++){
+    double t_r = r[i];
+    double t_v = -z/t_r;
+    if(t_r<10.*a){  // XXX OK??
+      double roa = t_r/a;
+      double coa2= pow(coa,2);
+      double xF1 = gsl_sf_fermi_dirac_1(roa-coa);
+      double xF2 = gsl_sf_fermi_dirac_2(roa-coa);
+      double tX  = -pow(roa,3) - 2*coa*(pi2+coa2) + roa*(pi2+3*coa2)
+                 +  6*roa*xF1 - 12*xF2;
+      //t_v*=1+tX/(12*F2);
+      t_v+=t_v*tX/(12*F2);
+    }
+    vnuc.push_back(t_v);
+  }
+
+}
+
+
+
+// FOr Fermi:
+//https://www.gnu.org/software/gsl/manual/html_node/Complete-Fermi_002dDirac-Integrals.html
+
 // Form vnuc [few options!]
 
 //re-size vectors?? nah, later!
