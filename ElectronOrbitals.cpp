@@ -31,24 +31,38 @@ int formRadialGrid()
   //I _think_ this is the Johnson grid.... check.
   // XXX AND add explanation to comments!
 
+  //XXX put a safety check??
+
   double r0=1.e-4; // XXX input?? private variable? XXX
+  // XXX copied from before. WHY like this???
+  double paramRmax=500;
+  double h=log(paramRmax/r0)/(ngp-2); //XXX ok??
 
 
-  for(int i=0; i<ngp){
+  for(int i=0; i<ngp; i++){
     double temp_drdt = r0*exp(i*h);
     drdt.push_back(temp_drdt);
   }
 
-  for(int i=0; i<ngp){
-    
+  for(int i=0; i<ngp; i++){
+    // Is it OK that it starts at 0?? should it be r0? 0.01*r0?
+    // XXX Check Johnson book..?
+    double temp_r = drdt[i]-r0;
+    r.push_back(temp_r);
   }
 
-
+  // (dr/dt)/r [for convinience]
+  dror.push_back(0.); //XXX is this correct?? XXX
+  for(int i=1; i<ngp; i++){
+    double temp_dror = drdt[i]/r[i];
+    dror.push_back(temp_dror);
+  }
 
   return 0;
 }
 
-// Form r grid [which version?]
+
+
 
 // Form vnuc [few options!]
 
