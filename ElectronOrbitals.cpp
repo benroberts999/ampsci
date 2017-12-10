@@ -63,6 +63,31 @@ int formRadialGrid()
 
 
 
+int sphericalNucleus()
+{
+
+  double rN; //nuclear charge radius:
+  //Estimate nuclear charge radius. Only for spherical nuclei.
+  //https://www-nds.iaea.org/radii/
+  if(A==1) rN = 0.8783;       // 1-H
+  else if(A==4) rN = 1.6755;  // 4-He
+  else if(A==7) rN = 2.4440;  // 7-Li
+  else if(A<10) rN = 1.15*pow(A,0.333);
+  else rN = (0.836*pow(A,0.333)+0.570);
+  rN/=ABOHR_FM;
+
+  //Fill the vnuc array with spherical nuclear potantial
+  vnuc.push_back(-z/(0.01*1.e-6)); //XXX ??
+  for(int i=1; i<ngp; i++){
+    double temp_v;
+    if(r[i]<rN) temp_v = z*(pow(r[i],2)-3.*pow(rN,2))/(2.*pow(rN,3));
+    else temp_v = -z/r[i];
+    vnuc.push_back(temp_v);
+  }
+
+  return 0;
+}
+
 
 // Form vnuc [few options!]
 

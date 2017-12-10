@@ -50,7 +50,7 @@ class ElectronOrbitals{
     int ngp;
 
     int formRadialGrid();
-
+    int sphericalNucleus();
 
 
 };
