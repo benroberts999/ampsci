@@ -4,7 +4,12 @@
 XXX - UPDATE this to work with the new class.
 Essentially, should use vectors instead of arrays.
 
-* Update to use GSL libraries etc.
+XXX Update to use GSL libraries etc.
+
+
+XXX Update to use f,g instead of p,q??
+-->  first, just get working with p and q.
+Then, update to f and g
 
 
 */
@@ -104,6 +109,7 @@ the minor (P.T.) changes work!
 
   // Find 'l' from 'kappa' (ang. momentum Q number)
   // This is used to calculate number of nodes wf should have
+  // XXX Make this a function? XXX
   int ll;          //L ang. mom QN
   if (ka>0){
     ll=ka;
@@ -397,6 +403,7 @@ XXX rename to outwardAM ? amOutIntegration ?
     double invem[amo2][amo2]={0};
     //invertmat(em,invem,amo2);
     invertMatrix(em,invem);
+    // XXX update to use GSL ? XXX
 
 
     double s[amo2];
@@ -416,6 +423,7 @@ XXX rename to outwardAM ? amOutIntegration ?
     double invfm[amo2][amo2]={0};
     //invertmat(fm,invfm,amo2);
     invertMatrix(fm,invfm);
+    // XXX update to use GSL ? XXX
 
 
     //writes u(r) in terms of coefs and the inverse of fm
