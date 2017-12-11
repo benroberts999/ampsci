@@ -66,6 +66,8 @@ int formRadialGrid()
 int sphericalNucleus()
 {
 
+//XXX change, so i can input a different charge radius!! XXX
+
   double rN; //nuclear charge radius:
   //Estimate nuclear charge radius. Only for spherical nuclei.
   //https://www-nds.iaea.org/radii/
@@ -75,11 +77,14 @@ int sphericalNucleus()
   else if(A<10) rN = 1.15*pow(A,0.333);
   else rN = (0.836*pow(A,0.333)+0.570);
   rN/=ABOHR_FM;
+  // XXX Add data tables of nuclear radii!
 
   //Fill the vnuc array with spherical nuclear potantial
-  vnuc.push_back(-Z/(0.01*1.e-6)); //XXX ??
+  vnuc.push_back(0); //XXX ??
   for(int i=1; i<ngp; i++){
     double temp_v;
+    //XXX double checK!!!
+    //XXX also: don't need to evaluate rn^3 etc. more than once!!!
     if(r[i]<rN) temp_v = Z*(pow(r[i],2)-3.*pow(rN,2))/(2.*pow(rN,3));
     else temp_v = -Z/r[i];
     vnuc.push_back(temp_v);
@@ -92,27 +97,41 @@ int sphericalNucleus()
 int fermiNucleus(double t, double c)
 /*
 Uses a Fermi-Dirac distribution for the nuclear potential.
+
+rho(r) = rho_0 {1 + Exp[(r-c)/a]}^-1
+V(r) = -(4 Pi)/r [A+B]
+  A = Int[ rho(x) x^2 , {x,0,r}]
+  B = r * Int[ rho(x) x , {x,r,infty}]
+rho_0 is found by either:
+  * V(infinity) = -Z/r , or equivilantly
+  * \int rho(r) d^3r = Z
+
 Depends on:
   * t: skin thickness [90 to 10% fall-off range]
     note: t = a[4 ln(3)]
-  * c: half-density raius
+  * c: half-density raius [rho(c)=0.5 rho0]
 
+t and c are input values. In 'fermi' of fm (femto metres)
+If provided with 0, will use 'default' values, approx. formula.
+
+V(r) is expressed in terms of Complete Fermi-Dirac intagrals.
+These are computed using the GSL libraries.
 https://www.gnu.org/software/gsl/manual/html_node/Complete-Fermi_002dDirac-Integrals
 */
 {
-  // XXX put formula!!
-  //xxx aLSO: have default values??? depend on z/a ?? rN??
 
   //XXX test? clear vnuc!?
 
   if(t==0) t=2.4; // Default skin-thickness (in fm)
   if(c==0) c=1.1*pow(A,0.3333); //default half-charge radius ????
+  // XXX Better approx! +/or data tables!
 
   double a=0.22756*t; // a = t*[4 ln(3)]
   double coa=c/a;
   // Use GSL for the Complete Fermi-Dirac Integrals:
   double F2 = gsl_sf_fermi_dirac_2(coa);
   double pi2 = pow(M_PI,2);
+  vnuc.push_back(0); //XXX ??
   for(int i=1; i<ngp; i++){
     double t_r = r[i];
     double t_v = -Z/t_r;
@@ -123,10 +142,10 @@ https://www.gnu.org/software/gsl/manual/html_node/Complete-Fermi_002dDirac-Integ
       double xF2 = gsl_sf_fermi_dirac_2(roa-coa);
       double tX  = -pow(roa,3) - 2*coa*(pi2+coa2) + roa*(pi2+3*coa2)
                  +  6*roa*xF1 - 12*xF2;
-      //t_v*=1+tX/(12.*F2);
       t_v+=t_v*tX/(12.*F2);
     }
     vnuc.push_back(t_v);
   }
 
+  return 0;
 }
