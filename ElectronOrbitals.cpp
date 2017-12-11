@@ -17,9 +17,9 @@ ElectronOrbitals(std::string s_in_z, int in_a, int in_ngp)
 ElectronOrbitals(int in_z, int in_a, int in_ngp)
 {
   ngp=in_ngp;
-  z=in_z;
-  if(in_a==0) a=atinfo_a[z]; //Use default atomic mass
-  else a=in_a;
+  Z=in_z;
+  if(in_a==0) A=atinfo_a[Z]; //Use default atomic mass
+  else A=in_a;
 
 }
 
@@ -77,11 +77,11 @@ int sphericalNucleus()
   rN/=ABOHR_FM;
 
   //Fill the vnuc array with spherical nuclear potantial
-  vnuc.push_back(-z/(0.01*1.e-6)); //XXX ??
+  vnuc.push_back(-Z/(0.01*1.e-6)); //XXX ??
   for(int i=1; i<ngp; i++){
     double temp_v;
-    if(r[i]<rN) temp_v = z*(pow(r[i],2)-3.*pow(rN,2))/(2.*pow(rN,3));
-    else temp_v = -z/r[i];
+    if(r[i]<rN) temp_v = Z*(pow(r[i],2)-3.*pow(rN,2))/(2.*pow(rN,3));
+    else temp_v = -Z/r[i];
     vnuc.push_back(temp_v);
   }
 
@@ -91,8 +91,13 @@ int sphericalNucleus()
 
 int fermiNucleus(double t, double c)
 /*
-https://www.gnu.org/software/gsl/manual/html_node/x
- with x=Complete-Fermi_002dDirac-Integrals
+Uses a Fermi-Dirac distribution for the nuclear potential.
+Depends on:
+  * t: skin thickness [90 to 10% fall-off range]
+    note: t = a[4 ln(3)]
+  * c: half-density raius
+
+https://www.gnu.org/software/gsl/manual/html_node/Complete-Fermi_002dDirac-Integrals
 */
 {
   // XXX put formula!!
@@ -100,17 +105,19 @@ https://www.gnu.org/software/gsl/manual/html_node/x
 
   //XXX test? clear vnuc!?
 
-  // t, skin thickness [90 to 10% fall-off range]
-  // t = a[4 ln(3)]
-  double a=0.22756*t;
+  if(t==0) t=2.4; // Default skin-thickness (in fm)
+  if(c==0) c=1.1*pow(A,0.3333); //default half-charge radius ????
+
+  double a=0.22756*t; // a = t*[4 ln(3)]
   double coa=c/a;
+  // Use GSL for the Complete Fermi-Dirac Integrals:
   double F2 = gsl_sf_fermi_dirac_2(coa);
-  double pi2 = 9.8696044010894; // pi^2
+  double pi2 = pow(M_PI,2);
   for(int i=1; i<ngp; i++){
     double t_r = r[i];
-    double t_v = -z/t_r;
+    double t_v = -Z/t_r;
     if(t_r<10.*a){  // XXX OK??
-      double roa = t_r/a; //XXX convert fm - atomic!
+      double roa = ABOHR_FM*t_r/a; // convert fm <-> atomic
       double coa2= pow(coa,2);
       double xF1 = gsl_sf_fermi_dirac_1(roa-coa);
       double xF2 = gsl_sf_fermi_dirac_2(roa-coa);
@@ -123,12 +130,3 @@ https://www.gnu.org/software/gsl/manual/html_node/x
   }
 
 }
-
-
-
-// FOr Fermi:
-//https://www.gnu.org/software/gsl/manual/html_node/Complete-Fermi_002dDirac-Integrals.html
-
-// Form vnuc [few options!]
-
-//re-size vectors?? nah, later!

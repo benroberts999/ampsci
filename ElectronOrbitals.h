@@ -28,7 +28,7 @@ class ElectronOrbitals{
 
     std::vector<double> vnuc;
 
-    int z,a;
+    int Z,A;
     std::string atom;
 
     double var_alpha; // like this?
