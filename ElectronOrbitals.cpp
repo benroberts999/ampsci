@@ -3,6 +3,7 @@
 #include "physicalConstants.h"
 #include "atomInfo.h"
 
+//******************************************************************************
 ElectronOrbitals(std::string s_in_z, int in_a, int in_ngp)
 {
   //Work out Z from given atomic symbol
@@ -13,13 +14,17 @@ ElectronOrbitals(std::string s_in_z, int in_a, int in_ngp)
   //XXX needs some kind of safety-check! XXX
   ElectronOrbitals(int iz, int in_a, int in_ngp);
 }
-
+//-----Overloaded---------------------------------------------------------------
 ElectronOrbitals(int in_z, int in_a, int in_ngp)
 {
   ngp=in_ngp;
+  formRadialGrid();
+
   Z=in_z;
   if(in_a==0) A=atinfo_a[Z]; //Use default atomic mass
   else A=in_a;
+  sphericalNucleus(); //input rnuc?
+  //fermiNucleus();
 
 }
 
@@ -39,11 +44,13 @@ int formRadialGrid()
   double h=log(paramRmax/r0)/(ngp-2); //XXX ok??
 
 
+  drdt.clear();
   for(int i=0; i<ngp; i++){
     double temp_drdt = r0*exp(i*h);
     drdt.push_back(temp_drdt);
   }
 
+  r.clear();
   for(int i=0; i<ngp; i++){
     // Is it OK that it starts at 0?? should it be r0? 0.01*r0?
     // XXX Check Johnson book..?
@@ -52,6 +59,7 @@ int formRadialGrid()
   }
 
   // (dr/dt)/r [for convinience]
+  dror.clear();
   dror.push_back(0.); //XXX is this correct?? XXX
   for(int i=1; i<ngp; i++){
     double temp_dror = drdt[i]/r[i];
@@ -62,38 +70,61 @@ int formRadialGrid()
 }
 
 
+
 //******************************************************************************
-int sphericalNucleus()
+int zeroNucleus()
+/*
+infinitesimal nucleus.
+1/r potential
+*/
 {
+  vnuc.clear(); //just to be sure..
+  vnuc.push_back(0); //XXX ??
+  for(int i=1; i<ngp; i++)
+    vnuc.push_back(-Z/r[i]);
+  return 0;
+}
 
-//XXX change, so i can input a different charge radius!! XXX
+//******************************************************************************
+int sphericalNucleus(double rnuc)
+/*
+Potential due to a spherical nucleus, with (charge) radius, rnuc.
+Note: rnuc must be given in "fermi" (fm, femto-metres).
+If rnuc=0 is given [which is default], then will use approximate
+formula for rN.
+See: https://www-nds.iaea.org/radii/
+*/
+{
+  vnuc.clear(); //just to be sure..
 
-  double rN; //nuclear charge radius:
+  double rN=rnuc; //nuclear charge radius:
   //Estimate nuclear charge radius. Only for spherical nuclei.
-  //https://www-nds.iaea.org/radii/
-  if(A==1) rN = 0.8783;       // 1-H
-  else if(A==4) rN = 1.6755;  // 4-He
-  else if(A==7) rN = 2.4440;  // 7-Li
-  else if(A<10) rN = 1.15*pow(A,0.333);
-  else rN = (0.836*pow(A,0.333)+0.570);
+  if(rnuc==0){
+    if(A==1) rN = 0.8783;       // 1-H
+    else if(A==4) rN = 1.6755;  // 4-He
+    else if(A==7) rN = 2.4440;  // 7-Li
+    else if(A<10) rN = 1.15*pow(A,0.333);
+    else rN = (0.836*pow(A,0.333)+0.570);
+  }
   rN/=ABOHR_FM;
   // XXX Add data tables of nuclear radii!
 
   //Fill the vnuc array with spherical nuclear potantial
   vnuc.push_back(0); //XXX ??
+  double rn2=pow(rN,2);
+  double rn3=pow(rN,3);
   for(int i=1; i<ngp; i++){
     double temp_v;
-    //XXX double checK!!!
-    //XXX also: don't need to evaluate rn^3 etc. more than once!!!
-    if(r[i]<rN) temp_v = Z*(pow(r[i],2)-3.*pow(rN,2))/(2.*pow(rN,3));
-    else temp_v = -Z/r[i];
+    double ri = r[i];
+    if(ri<rN) temp_v = Z*(pow(ri,2)-3.*rn2)/(2.rn3);
+    else temp_v = -Z/ri;
     vnuc.push_back(temp_v);
   }
 
   return 0;
 }
 
-
+//******************************************************************************
 int fermiNucleus(double t, double c)
 /*
 Uses a Fermi-Dirac distribution for the nuclear potential.
@@ -119,8 +150,7 @@ These are computed using the GSL libraries.
 https://www.gnu.org/software/gsl/manual/html_node/Complete-Fermi_002dDirac-Integrals
 */
 {
-
-  //XXX test? clear vnuc!?
+  vnuc.clear(); // clear the array [just in case..]
 
   if(t==0) t=2.4; // Default skin-thickness (in fm)
   if(c==0) c=1.1*pow(A,0.3333); //default half-charge radius ????
