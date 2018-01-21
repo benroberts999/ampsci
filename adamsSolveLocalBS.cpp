@@ -58,11 +58,10 @@ To do :: Jan 2018
 //******************************************************************************
 // int solveDBS(double p[], double q[], double v[], int Z, int n, int ka,
 //              double &en, int &pinf, int &its, double &eps)
-int solveDBS(std::vector<double> &p, std::vector<double> &q,
-    std::vector<double> v, int Z, int n, int ka, double &en,
-    double alpha, int NGP,
-    std::vector<double> r, std::vector<double> drdt, double h,
-    int &pinf, int &its, double &eps)
+int solveDBS(std::vector<double> &p, std::vector<double> &q, double &en,
+    std::vector<double> v, int Z, int n, int ka,
+    std::vector<double> r, std::vector<double> drdt, double h, int NGP,
+    int &pinf, int &its, double &eps, double alpha)
 /*
 Solves local, spherical bound state dirac equation using Adams-Moulton method.
 Based of code in book by W. R. Johnson:
@@ -107,6 +106,15 @@ the minor (P.T.) changes work!
 // This is good, but should also have an option that allows an initial input
 // of zero, in which case this program will make the initial guess
 // XXX
+
+
+  // bound state wavefunctions (Adams-moul)
+  const double delep=5e-15;		//PRIMARY convergence parameter for bound state energy	(10^-11)
+  const double deles=1e-11;		//SECONDAY convergence parameter for bound state energy	(X)
+  const int ntry=30;			// Number of failed attempts at converging (sove bs) before error quit (30)
+  const double alr=800;			// ''assymptotically large r [not what this is..]''  (=800)
+  const double lde=0.2;		//amount to vary energy by for 'large' variations (0.1 => 10%)
+  // XXX where to put these parameters?
 
   //Checks to see if legal n is requested. If not, increases n, re-calls
   //Should I do this? If there's a logic problem, probably better to know?
