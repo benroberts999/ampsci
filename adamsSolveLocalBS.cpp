@@ -59,8 +59,9 @@ To do :: Jan 2018
 // int solveDBS(double p[], double q[], double v[], int Z, int n, int ka,
 //              double &en, int &pinf, int &its, double &eps)
 int solveDBS(std::vector<double> &p, std::vector<double> &q,
-    std::vector<double> &v, int Z, int n, int ka, double &en,
+    std::vector<double> v, int Z, int n, int ka, double &en,
     double alpha, int NGP,
+    std::vector<double> r, std::vector<double> drdt, double h,
     int &pinf, int &its, double &eps)
 /*
 Solves local, spherical bound state dirac equation using Adams-Moulton method.
@@ -149,13 +150,13 @@ the minor (P.T.) changes work!
     //Step backwards from the last point (NGP-1) until
     // (V(r) - E)*r^2 >  alr    (alr = "asymptotically large r)
     pinf=NGP-1;
-    while ( (en-v[pinf])*pow(r(pinf),2) + alr < 0 ){
+    while ( (en-v[pinf])*pow(r[pinf],2) + alr < 0 ){
       pinf=pinf-1;
     }
     if(pinf==NGP-1)
         printf("WARNING: pract. inf. = size of box for %i %i\n",n,ka);
     if(dodebug)
-        printf("Practical infinity (i=%i): Pinf=%.1f a.u.\n",pinf,r(pinf));
+        printf("Practical infinity (i=%i): Pinf=%.1f a.u.\n",pinf,r[pinf]);
 
 
     //Find classical turning point 'ctp'
@@ -173,12 +174,12 @@ the minor (P.T.) changes work!
     if(ctp>=pinf){
       //Didn't find ctp! Does this ever happen?
       printf("FAILURE: Turning point at or after pract. inf. \n");
-      printf("ctp(%i)=%.1f, pinf(%i)=%.1f\n",ctp,r(ctp),pinf,r(pinf));
+      printf("ctp(%i)=%.1f, pinf(%i)=%.1f\n",ctp,r[ctp],pinf,r[pinf]);
       return 1;
     }
     if(dodebug) printf("Classical turning point (i=%i): ctp=%.1f a.u.\n",
-                          ctp,r(ctp));
-    if(dodebug) printf("%i %i: Pinf= %.1f,  en= %f\n",n,ka,r(pinf),en);
+                          ctp,r[ctp]);
+    if(dodebug) printf("%i %i: Pinf= %.1f,  en= %f\n",n,ka,r[pinf],en);
 
     //Perform the "inwards integration":
     inint(p,q,v,Z,ka,en,ctp,pinf);
@@ -225,7 +226,7 @@ the minor (P.T.) changes work!
     if(nozeros>inodes){
       //Too many nodes:
       more=more+1;
-      if ((more==1)or(en<eupper)){
+      if ((more==1)||(en<eupper)){
         eupper=en;
       }
       etemp=(1+lde)*en;
@@ -239,7 +240,7 @@ the minor (P.T.) changes work!
     }else if (nozeros<inodes){
       //too few nodes:
       less=less+1;
-      if ((less==1)or(en>elower)){
+      if ((less==1)||(en>elower)){
         elower=en;
       }
       etemp=(1-lde)*en;
@@ -268,11 +269,11 @@ the minor (P.T.) changes work!
         printf("de=%.3e, en=%.5f, et=%.5f, el=%.5f, e=%.5f\n",
           de,en,etemp,elower,eupper);
       }
-      if ((less!=0)and(etemp<elower)){
+      if ((less!=0)&&(etemp<elower)){
         deltaEn=fabs((en-0.5*(en+elower))/en);
         en=0.5*(en+elower);
       }
-      else if ((more!=0)and(etemp>eupper)){
+      else if ((more!=0)&&(etemp>eupper)){
         deltaEn=((en-0.5*(en+eupper))/en);
         en=0.5*(en+eupper);
       }
@@ -301,7 +302,7 @@ the minor (P.T.) changes work!
       }else{
         printf("Wavefunction %i %i didn't converge after %i itterations.\n",n,
                ka,ntry);
-        if(dodebug) printf("%i %i: Pinf= %.1f,  en= %f\n",n,ka,r(pinf),en);
+        if(dodebug) printf("%i %i: Pinf= %.1f,  en= %f\n",n,ka,r[pinf],en);
         eps=deltaEn;
         return 2;
       }
@@ -311,13 +312,14 @@ the minor (P.T.) changes work!
 
 
   if(dodebug){
+    // move to class! [as an 'info' function! - used for de-bugging]
     int iat1=log((1+r0)/r0)/h;
     int iat10=log((10+r0)/r0)/h;
     printf("Radial grid sepparations at 1 a.u., 10 a.u., ctp and pinf:\n");
-    printf("At    r=1    a.u.;  dr=%.4f\n",r(iat1)-r(iat1-1));
-    printf("At    r=10   a.u.;  dr=%.4f\n",r(iat10)-r(iat10-1));
-    printf("ctp:  r=%3.1f a.u.;  dr=%.4f\n",r(ctp),r(ctp)-r(ctp-1));
-    printf("pinf: r=%3.1f a.u.;  dr=%.4f\n",r(pinf),r(pinf)-r(pinf-1));
+    printf("At    r=1    a.u.;  dr=%.4f\n",r[iat1]-r[iat1-1]);
+    printf("At    r=10   a.u.;  dr=%.4f\n",r[iat10]-r[iat10-1]);
+    printf("ctp:  r=%3.1f a.u.;  dr=%.4f\n",r[ctp],r[ctp]-r[ctp-1]);
+    printf("pinf: r=%3.1f a.u.;  dr=%.4f\n",r[pinf],r[pinf]-r[pinf-1]);
   }
 
 
@@ -335,15 +337,15 @@ the minor (P.T.) changes work!
   }
 
   if(dodebug)
-      printf("NGP=%i, Size of box: Rmax=%.1f a.u., h=%f\n",NGP,r(NGP-1),h);
+      printf("NGP=%i, Size of box: Rmax=%.1f a.u., h=%f\n",NGP,r[NGP-1],h);
 
   if(dodebug){
     printf("Converged for %i %i to %.3e after %i iterations;\n",n,ka,eps,its);
     printf("%i %i: Pinf(%i)=%.1f,  \nMy energy:  en= %.15f\n",n,ka,pinf,
-           r(pinf),en);
+           r[pinf],en);
     double fracdiff=(en-diracen(Z,n,ka))/en;
     printf("Exact Dirac:  Ed= %.15f; Del=%.2g%% \n\n",
-    diracen(Z,n,ka),fracdiff);
+        diracen(Z,n,ka),fracdiff);
   }
 
   return 0;
@@ -363,7 +365,9 @@ the minor (P.T.) changes work!
 // int outint(double p[], double q[], double v[], int Z, int ka,
 //            double &en, int ctp)
 int outint(int amo_pts, std::vector<double> &p, std::vector<double> &q,
-    std::vector<double> &v, int Z, int ka, double alpha, double &en, int ctp)
+    double &en, std::vector<double> v, int Z, int ka,
+    std::vector<double> r, std::vector<double> drdt, double h,
+    double alpha, int ctp)
 /*
 Program to start the OUTWARD integration.
 Starts from 0, and uses an expansion(?) to go to (nol*amo_pts).
@@ -374,8 +378,10 @@ XXX rename to outwardAM ? amOutIntegration ?
 */
 {
 
+  const int nol=1;				// # of outdir runs [finds first nol*AMO+1 points (3)]
 
   double az = Z*alpha;                  //Z*alpha
+  double c2 = 1./pow(alpha,2);
   double ga=sqrt(pow(ka,2)-pow(az,2));  //'gamma' factor
 
 
@@ -411,16 +417,15 @@ XXX rename to outwardAM ? amOutIntegration ?
     std::vector<double> coefa,coefb,coefc,coefd;
     std::vector< std::vector<double> > em(amo_pts,std::vector<double>(amo_pts));
     for (int i=0; i<amo_pts; i++){
-      //XXX aa = alpha^2 ??
-      //XXX drdt() -> drdt[] !
       // coefa[i]=-id*h*(ga+ka)*dror(i+i0);
       // coefb[i]=-id*h*(en+2*c2-v[i+i0])*drdt(i+i0)*aa;
       // coefc[i]=id*h*(en-v[i+i0])*drdt(i+i0)*aa;
       // coefd[i]=-id*h*(ga-ka)*dror(i+i0);
-      coefa.push_back(-id*h*(ga+ka)*dror(i+i0));
-      coefb.push_back(-id*h*(en+2*c2-v[i+i0])*drdt(i+i0)*aa);
-      coefc.push_back(id*h*(en-v[i+i0])*drdt(i+i0)*aa);
-      coefd.push_back(-id*h*(ga-ka)*dror(i+i0));
+      double dror = drdt[i+i0]/r[i+i0];
+      coefa.push_back(-id*h*(ga+ka)*dror);
+      coefb.push_back(-id*h*(en+2*c2-v[i+i0])*drdt[i+i0]*alpha);
+      coefc.push_back(id*h*(en-v[i+i0])*drdt[i+i0]*alpha);
+      coefd.push_back(-id*h*(ga-ka)*dror);
       for (int j=0; j<amo_pts; j++){
         em[i][j]=ie[i][j];
       }
@@ -484,8 +489,8 @@ XXX rename to outwardAM ? amOutIntegration ?
 
     //writes wavefunction: P= r^gamma u(r) etc..
     for (int i=0; i<amo_pts; i++){
-      p[i+i0]=pow(r(i+i0),ga)*us[i];
-      q[i+i0]=pow(r(i+i0),ga)*vs[i];
+      p[i+i0]=pow(r[i+i0],ga)*us[i];
+      q[i+i0]=pow(r[i+i0],ga)*vs[i];
       //XXX r: to array!
     }
 
@@ -514,9 +519,10 @@ XXX rename to outwardAM ? amOutIntegration ?
 //******************************************************************
 // int inint(double p[], double q[], double v[], int Z, int ka, double &en,
 //           int ctp, int pinf)
-int inint(std::vector<double> &p, std::vector<double> &q,
-    std::vector<double> &v, int Z, int ka, double &en,
-          int ctp, int pinf)
+int inint(std::vector<double> &p, std::vector<double> &q, double &en,
+    std::vector<double> v, int ka,
+    std::vector<double> r, std::vector<double> drdt, double h,
+    int ctp, int pinf)
 /*
 Program to start the INWARD integration.
 Starts from Pinf, and uses an expansion(?) to go to (pinf-amo_pts)
@@ -524,10 +530,18 @@ Then, it then call ADAMS-MOULTON, to finished (from nol*amo_pts+1 to ctp)
 */
 {
 
+  const int nx=30;	//order of the expansion coeficients in 'inint'  (15 orig.)
+  const float nxepsp=1e-18; // PRIMARY convergance for expansion in `inint'' (10^-8)
+  const float nxepss=1e-3;  // SECONDARY convergance for expansion in `inint'' (10e-3)
+  // XXX treat as variable here? Param in the .h ??
 
-  double lambda=sqrt(-en*(2+en*aa2)); //XXX alpha^2 ??
-  double zeta=-v[pinf]*r(pinf);
-  double sigma=(1+en*aa2)*(zeta/lambda);
+  double alpha2 = pow(alpha,2);
+  double cc = 1./alpha;
+  double c2 = 1./alpha2;
+
+  double lambda=sqrt(-en*(2+en*alpha2)); //XXX alpha^2 ??
+  double zeta=-v[pinf]*r[pinf];
+  double sigma=(1+en*alpha2)*(zeta/lambda);
   double Ren=en+c2;   //total relativistic energy
 
   //Generates the expansion coeficients for asymptotic wf
@@ -536,26 +550,26 @@ Then, it then call ADAMS-MOULTON, to finished (from nol*amo_pts+1 to ctp)
   // double ax[nx];
   std::vector<double> bx(nx); //nx = ?? from 'params'?
   std::vector<double> ax(nx);
-  bx[0]=(ka+(zeta/lambda))*(aa/2);
+  bx[0]=(ka+(zeta/lambda))*(alpha/2);
   for (int i=0; i<nx; i++){
-    ax[i]=(ka+(i+1-sigma)*Ren*aa2-zeta*lambda*aa2)*bx[i]*cc/((i+1)*lambda);
+    ax[i]=(ka+(i+1-sigma)*Ren*alpha2-zeta*lambda*alpha2)*bx[i]*cc/((i+1)*lambda);
     if (i<(nx-1)){
-      bx[i+1]=(pow(ka,2)-pow((i+1-sigma),2)-pow(zeta,2)*aa2)
+      bx[i+1]=(pow(ka,2)-pow((i+1-sigma),2)-pow(zeta,2)*alpha2)
               *bx[i]/(2*(i+1)*lambda);
     }
   }
 
 
   //Generates last `amo_pts' points for P and Q [actually amo_pts+1?]
-  double f1=sqrt(1+en*aa2/2);
-  double f2=sqrt(-en/2)*aa;
+  double f1=sqrt(1.+en*alpha2/2.);
+  double f2=sqrt(-en/2.)*alpha;
   for (int i=pinf; i>=(pinf-amo_pts); i--){      // double check end point!
-    double rfac=pow(r(i),sigma)*exp(-lambda*r(i));
-    double ps=1;
-    double qs=0;
-    double rk=1;
+    double rfac=pow(r[i],sigma)*exp(-lambda*r[i]);
+    double ps=1.;
+    double qs=0.;
+    double rk=1.;
     for (int k=0; k<nx; k++){    //this will loop until a) converge, b) k=nx
-      rk=rk*r(i); //XXX replace w/ array!
+      rk=rk*r[i]; //XXX replace w/ array!
       ps=ps+(ax[k]/rk);
       qs=qs+(bx[k]/rk);
       double xe=fmax(fabs((ax[k]/rk)/ps),fabs((bx[k]/rk)/qs));
@@ -587,8 +601,10 @@ Then, it then call ADAMS-MOULTON, to finished (from nol*amo_pts+1 to ctp)
 //******************************************************************************
 // int adamsmoulton(double p[], double q[], double v[], int ka, double &en,
 //                  int ni, int nf)
-int adamsmoulton(std::vector<double> &p, std::vector<double> &q,
-    std::vector<double> &v, int ka, double &en, int ni, int nf)
+int adamsmoulton(std::vector<double> &p, std::vector<double> &q, double &en,
+    std::vector<double> v, int ka,
+    std::vector<double> r, std::vector<double> drdt, double h,
+    double alpha, int ni, int nf)
 /*
 //program finishes the INWARD/OUTWARD integrations (ADAMS-MOULTON)
   //- ni is starting (initial) point for integration
@@ -598,6 +614,8 @@ int adamsmoulton(std::vector<double> &p, std::vector<double> &q,
   //XXX update to corect array form!
   //XXX Fix AMO / amo2 thing!
   //Can use VECTOR! ??
+
+  double c2 = 1./pow(alpha,2); // c^2 - just to shorten code
 
   // double ama[amo2];    //AM coefs.
   std::vector<double> ama(amo_pts);
@@ -633,9 +651,10 @@ int adamsmoulton(std::vector<double> &p, std::vector<double> &q,
   std::vector<double> dp(NGP),dq(NGP); //XXX is this syntax valid?
   std::vector<double> amcoef(amo_pts);
   int k1=ni-inc*(amo_pts);
-  for (int i=0; i<amo_pts; i++){
-    dp[i]=inc*(-ka*dror(k1)*p[k1]-aa*((en+2*c2)-v[k1])*drdt(k1)*q[k1]);
-    dq[i]=inc*(ka*dror(k1)*q[k1]+aa*(en-v[k1])*drdt(k1)*p[k1]);
+  for (int i=0; i<amo_pts; i++){//nb: k1 is iterated
+    double dror = drdt[k1]/r[k1];
+    dp[i]=inc*(-ka*dror*p[k1]-alpha*((en+2*c2)-v[k1])*drdt[k1]*q[k1]);
+    dq[i]=inc*(ka*dror*q[k1]+alpha*(en-v[k1])*drdt[k1]*p[k1]);
     //XXX drdt etc. update!
     amcoef[i]=(h/amd)*ama[i]; //XXX h?
     k1=k1+inc;
@@ -646,9 +665,10 @@ int adamsmoulton(std::vector<double> &p, std::vector<double> &q,
   double a0=(h/amd)*amaa;
   int k2=ni;
   for (int i=0; i<nosteps; i++){    //double check! - end point should be ctp! (inclusive)
-    double dai=-inc*(ka*dror(k2));
-    double dbi=-inc*aa*(en+2*c2-v[k2])*drdt(k2);
-    double dci=inc*aa*(en-v[k2])*drdt(k2);
+    double dror = drdt[k2]/r[k2];
+    double dai=-inc*(ka*dror);
+    double dbi=-inc*alpha*(en+2*c2-v[k2])*drdt[k2];
+    double dci=inc*alpha*(en-v[k2])*drdt[k2];
     double ddi=-dai;
     double det = 1-a0*a0*(dbi*dci-dai*ddi);
     double sp=p[k2-inc];
