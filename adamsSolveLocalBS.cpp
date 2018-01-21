@@ -20,7 +20,7 @@ Then, update to f and g
 /*---------------------
 Thu 06 Nov 2014 23:29:57 AEDT
 
-- IT WORKS.... (AMO=8 fails sometimes)
+- IT WORKS.... (amo_pts=8 fails sometimes)
 
 `test' program to solve single-electron bound-state Dirac problem for a (given) central potential.
 Based on W. Johnson code that employs the Adams-Moulton method of inward/outward integration with
@@ -39,8 +39,8 @@ mathing at the classical turning point [e=v], and uses perurbation theory for mi
 //#include "funs.h"
 //#include "params.h"
 
-int dodebug=0;
 
+bool dodebug=false;
 
 /*
 To do :: Jan 2018
@@ -56,8 +56,12 @@ To do :: Jan 2018
 
 
 //******************************************************************************
-int solveDBS(double p[], double q[], double v[], int Z, int n, int ka,
-             double &en, int &pinf, int &its, double &eps)
+// int solveDBS(double p[], double q[], double v[], int Z, int n, int ka,
+//              double &en, int &pinf, int &its, double &eps)
+int solveDBS(std::vector<double> &p, std::vector<double> &q,
+    std::vector<double> &v, int Z, int n, int ka, double &en,
+    double alpha, int NGP,
+    int &pinf, int &its, double &eps)
 /*
 Solves local, spherical bound state dirac equation using Adams-Moulton method.
 Based of code in book by W. R. Johnson:
@@ -105,16 +109,17 @@ the minor (P.T.) changes work!
 
   //Checks to see if legal n is requested. If not, increases n, re-calls
   //Should I do this? If there's a logic problem, probably better to know?
-  if ((fabs(ka)<=n)and(ka!=n)){
-    if(dodebug==1){printf("\nRunning SolveDBS for state %i %i:\n",n,ka);}
+  if ( (fabs(ka)<=n) && (ka!=n) ){
+    //XXX swap around!
+    if(dodebug) printf("\nRunning SolveDBS for state %i %i:\n",n,ka);
   }
   else{
     //XXX No..shouldn't do this!
-    printf("\nSate %i %i does not exist.. increasing n by 1!\n",n,ka);
-    n=n+1;
-    en=-0.5*(pow(Z,2)/pow(n,2));
-    solveDBS(p,q,v,Z,n,ka,en,pinf,its,eps);
-    return 0;
+    printf("\nSate %i %i does not exist..\n",n,ka);
+    // n=n+1;
+    // en=-0.5*(pow(Z,2)/pow(n,2));
+    // solveDBS(p,q,v,Z,n,ka,en,pinf,its,eps);
+    return 1;
   }
 
 
@@ -149,7 +154,7 @@ the minor (P.T.) changes work!
     }
     if(pinf==NGP-1)
         printf("WARNING: pract. inf. = size of box for %i %i\n",n,ka);
-    if(dodebug==1)
+    if(dodebug)
         printf("Practical infinity (i=%i): Pinf=%.1f a.u.\n",pinf,r(pinf));
 
 
@@ -171,9 +176,9 @@ the minor (P.T.) changes work!
       printf("ctp(%i)=%.1f, pinf(%i)=%.1f\n",ctp,r(ctp),pinf,r(pinf));
       return 1;
     }
-    if(dodebug==1) printf("Classical turning point (i=%i): ctp=%.1f a.u.\n",
+    if(dodebug) printf("Classical turning point (i=%i): ctp=%.1f a.u.\n",
                           ctp,r(ctp));
-    if(dodebug==1) printf("%i %i: Pinf= %.1f,  en= %f\n",n,ka,r(pinf),en);
+    if(dodebug) printf("%i %i: Pinf= %.1f,  en= %f\n",n,ka,r(pinf),en);
 
     //Perform the "inwards integration":
     inint(p,q,v,Z,ka,en,ctp,pinf);
@@ -209,7 +214,7 @@ the minor (P.T.) changes work!
         sp=spn;
       }
     }
-    if(dodebug==1) printf("Nodes=%i\n",nozeros);
+    if(dodebug) printf("Nodes=%i\n",nozeros);
 
 
     //checks to see if there are too many/too few nodes.
@@ -248,17 +253,18 @@ the minor (P.T.) changes work!
     }else{
       // correct number of nodes.
       //From here, use perturbation theory to fine-time the energy
-      if(dodebug==1){printf("Correct number of nodes, starting P.T.\n");}
-      double ppqq[NGP];
+      if(dodebug){printf("Correct number of nodes, starting P.T.\n");}
+      //double ppqq[NGP];
+      std::vector<double> ppqq(NGP);
       for (int i=0; i<=pinf; i++){
         ppqq[i]=p[i]*p[i]+q[i]*q[i];    // XXX add alpha here if need!
       }
       anorm=integrate(ppqq,0,pinf);
-      if(dodebug==1){printf("anrom=%.5f\n",anorm);}
-      double de=  cc * p[ctp] * (qtp-q[ctp]) / anorm ;
+      if(dodebug) printf("anrom=%.5f\n",anorm);
+      double de=  cc * p[ctp] * (qtp-q[ctp]) / anorm ; //XXX cc = c or c^2 ??
       deltaEn=fabs(de/en);
       etemp = en + de;
-      if(dodebug==1){
+      if(dodebug){
         printf("de=%.3e, en=%.5f, et=%.5f, el=%.5f, e=%.5f\n",
           de,en,etemp,elower,eupper);
       }
@@ -283,10 +289,10 @@ the minor (P.T.) changes work!
 
     its++; //increment 'number of iterations' counter
 
-    if(dodebug==1){printf("Itteration number %i,  en= %f\n",its,en);}
+    if(dodebug) printf("Itteration number %i,  en= %f\n",its,en);
     if(its>ntry){
       if(deltaEn<deles){
-        if(dodebug==1){
+        if(dodebug){
           printf("Wavefunction %i %i didn't fully converge after %i iterations"
                  ", but OK.\n",n,ka,ntry);
         }
@@ -295,7 +301,7 @@ the minor (P.T.) changes work!
       }else{
         printf("Wavefunction %i %i didn't converge after %i itterations.\n",n,
                ka,ntry);
-        if(dodebug==1) printf("%i %i: Pinf= %.1f,  en= %f\n",n,ka,r(pinf),en);
+        if(dodebug) printf("%i %i: Pinf= %.1f,  en= %f\n",n,ka,r(pinf),en);
         eps=deltaEn;
         return 2;
       }
@@ -304,7 +310,7 @@ the minor (P.T.) changes work!
   }// END: while (status==0)
 
 
-  if(dodebug==1){
+  if(dodebug){
     int iat1=log((1+r0)/r0)/h;
     int iat10=log((10+r0)/r0)/h;
     printf("Radial grid sepparations at 1 a.u., 10 a.u., ctp and pinf:\n");
@@ -317,7 +323,7 @@ the minor (P.T.) changes work!
 
   //normalises the wavefunction
   double an= 1/sqrt(anorm);
-  if(dodebug==1){printf("An=%.5e\n",an);}
+  if(dodebug) printf("An=%.5e\n",an);
   for (int i=0; i<=pinf; i++){
     p[i]=an*p[i];
     q[i]=an*q[i];
@@ -328,10 +334,10 @@ the minor (P.T.) changes work!
     q[i]=0;
   }
 
-  if(dodebug==1)
+  if(dodebug)
       printf("NGP=%i, Size of box: Rmax=%.1f a.u., h=%f\n",NGP,r(NGP-1),h);
 
-  if(dodebug==1){
+  if(dodebug){
     printf("Converged for %i %i to %.3e after %i iterations;\n",n,ka,eps,its);
     printf("%i %i: Pinf(%i)=%.1f,  \nMy energy:  en= %.15f\n",n,ka,pinf,
            r(pinf),en);
@@ -354,12 +360,14 @@ the minor (P.T.) changes work!
 
 
 //******************************************************************************
-int outint(double p[], double q[], double v[], int Z, int ka,
-           double &en, int ctp)
+// int outint(double p[], double q[], double v[], int Z, int ka,
+//            double &en, int ctp)
+int outint(int amo_pts, std::vector<double> &p, std::vector<double> &q,
+    std::vector<double> &v, int Z, int ka, double alpha, double &en, int ctp)
 /*
 Program to start the OUTWARD integration.
-Starts from 0, and uses an expansion(?) to go to (nol*AMO).
-Then, it then call ADAMS-MOULTON, to finished (from nol*AMO+1 to ctp)
+Starts from 0, and uses an expansion(?) to go to (nol*amo_pts).
+Then, it then call ADAMS-MOULTON, to finished (from nol*amo_pts+1 to ctp)
 
 XXX rename to outwardAM ? amOutIntegration ?
 
@@ -367,7 +375,7 @@ XXX rename to outwardAM ? amOutIntegration ?
 {
 
 
-  double az = Z*ALPHA;                  //Z*alpha
+  double az = Z*alpha;                  //Z*alpha
   double ga=sqrt(pow(ka,2)-pow(az,2));  //'gamma' factor
 
 
@@ -386,24 +394,34 @@ XXX rename to outwardAM ? amOutIntegration ?
   q[0]=0;
 
   //Coeficients used by the method
-  double ie[amo2][amo2];
-  double ia[amo2];
+  //double ie[amo2][amo2];
+  //double ia[amo2];
+  std::vector< std::vector<double> > ie(amo_pts,std::vector<double>(amo_pts));
+  std::vector<double> ia(amo_pts);
   double id;
-  OIcoefs(ie,ia,id);
+  outIntCoefs(ie,ia,id);
 
-  // loop through and find first nol*AMO points of wf
+  // loop through and find first nol*amo_pts points of wf
   for (int ln=0; ln<nol; ln++){
-    int i0=ln*AMO+1;
+    int i0=ln*amo_pts+1;
 
     //defines/populates coefs
-    double coefa[amo2],coefb[amo2],coefc[amo2],coefd[amo2];
-    double em[amo2][amo2];
-    for (int i=0; i<AMO; i++){
-      coefa[i]=-id*h*(ga+ka)*dror(i+i0);
-      coefb[i]=-id*h*(en+2*c2-v[i+i0])*drdt(i+i0)*aa;
-      coefc[i]=id*h*(en-v[i+i0])*drdt(i+i0)*aa;
-      coefd[i]=-id*h*(ga-ka)*dror(i+i0);
-      for (int j=0; j<AMO; j++){
+    //double coefa[amo2],coefb[amo2],coefc[amo2],coefd[amo2];
+    //double em[amo2][amo2];
+    std::vector<double> coefa,coefb,coefc,coefd;
+    std::vector< std::vector<double> > em(amo_pts,std::vector<double>(amo_pts));
+    for (int i=0; i<amo_pts; i++){
+      //XXX aa = alpha^2 ??
+      //XXX drdt() -> drdt[] !
+      // coefa[i]=-id*h*(ga+ka)*dror(i+i0);
+      // coefb[i]=-id*h*(en+2*c2-v[i+i0])*drdt(i+i0)*aa;
+      // coefc[i]=id*h*(en-v[i+i0])*drdt(i+i0)*aa;
+      // coefd[i]=-id*h*(ga-ka)*dror(i+i0);
+      coefa.push_back(-id*h*(ga+ka)*dror(i+i0));
+      coefb.push_back(-id*h*(en+2*c2-v[i+i0])*drdt(i+i0)*aa);
+      coefc.push_back(id*h*(en-v[i+i0])*drdt(i+i0)*aa);
+      coefd.push_back(-id*h*(ga-ka)*dror(i+i0));
+      for (int j=0; j<amo_pts; j++){
         em[i][j]=ie[i][j];
       }
       em[i][i]=em[i][i]-coefd[i];
@@ -417,11 +435,13 @@ XXX rename to outwardAM ? amOutIntegration ?
     // XXX update to use GSL ? XXX
 
 
-    double s[amo2];
-    double fm[amo2][amo2];
-    for (int i=0; i<AMO; i++){
+    // double s[amo2];
+    // double fm[amo2][amo2];
+    std::vector<double> s(amo_pts);
+    std::vector< std::vector<double> > fm(amo_pts,std::vector<double>(amo_pts));
+    for (int i=0; i<amo_pts; i++){
       s[i]=-ia[i]*u0;
-      for (int j=0; j<AMO; j++){
+      for (int j=0; j<amo_pts; j++){
         fm[i][j]=ie[i][j]-coefb[i]*invem[i][j]*coefc[j];
         s[i]=s[i]-coefb[i]*invem[i][j]*ia[j]*v0;
       }
@@ -439,10 +459,11 @@ XXX rename to outwardAM ? amOutIntegration ?
 
     //writes u(r) in terms of coefs and the inverse of fm
     // P(r) = r^gamma u(r)
-    double us[amo2];
-    for (int i=0; i<AMO; i++){
+    // double us[amo2];
+    std::vector<double> us(amo_pts);
+    for (int i=0; i<amo_pts; i++){
       us[i]=0;
-      for (int j=0; j<AMO; j++){
+      for (int j=0; j<amo_pts; j++){
         us[i]=us[i]+invfm[i][j]*s[j];
       }
     }
@@ -450,30 +471,33 @@ XXX rename to outwardAM ? amOutIntegration ?
 
     //writes v(r) in terms of coefs + u(r)
     // Q(r) = r^gamma v(r)
-    double vs[amo2];
-    for (int i=0; i<AMO; i++){
+    // double vs[amo2];
+    std::vector<double> vs(amo_pts);
+    for (int i=0; i<amo_pts; i++){
       vs[i]=0;
-      for (int j=0; j<AMO; j++){
-        vs[i]=vs[i]+invem[i][j]*(coefc[j]*us[j]-ia[j]*v0);
+      for (int j=0; j<amo_pts; j++){
+        vs[i]=vs[i]+invem[i][j]*(coefc[j]*us[j]-ia[j]*v0); //XXX
+        //XXX here: is this the large cancellation?
       }
     }
 
 
     //writes wavefunction: P= r^gamma u(r) etc..
-    for (int i=0; i<AMO; i++){
+    for (int i=0; i<amo_pts; i++){
       p[i+i0]=pow(r(i+i0),ga)*us[i];
       q[i+i0]=pow(r(i+i0),ga)*vs[i];
+      //XXX r: to array!
     }
 
     //re-sets 'starting point' for next ln
-    u0=us[AMO-1];
-    v0=vs[AMO-1];
+    u0=us[amo_pts-1];
+    v0=vs[amo_pts-1];
 
   }// END for (int ln=0; ln<nol; ln++)  [loop through outint `nol' times]
 
 
-  // calls adamsmoulton to finish integration from (nol*AMO+1) to ctp
-  int na=nol*AMO+1;
+  // calls adamsmoulton to finish integration from (nol*amo_pts+1) to ctp
+  int na=nol*amo_pts+1;
   if (ctp>na){
     adamsmoulton(p,q,v,ka,en,na,ctp);
   }
@@ -488,25 +512,30 @@ XXX rename to outwardAM ? amOutIntegration ?
 
 
 //******************************************************************
-int inint(double p[], double q[], double v[], int Z, int ka, double &en,
+// int inint(double p[], double q[], double v[], int Z, int ka, double &en,
+//           int ctp, int pinf)
+int inint(std::vector<double> &p, std::vector<double> &q,
+    std::vector<double> &v, int Z, int ka, double &en,
           int ctp, int pinf)
 /*
 Program to start the INWARD integration.
-Starts from Pinf, and uses an expansion(?) to go to (pinf-AMO)
-Then, it then call ADAMS-MOULTON, to finished (from nol*AMO+1 to ctp)
+Starts from Pinf, and uses an expansion(?) to go to (pinf-amo_pts)
+Then, it then call ADAMS-MOULTON, to finished (from nol*amo_pts+1 to ctp)
 */
 {
 
 
-  double lambda=sqrt(-en*(2+en*aa2));
+  double lambda=sqrt(-en*(2+en*aa2)); //XXX alpha^2 ??
   double zeta=-v[pinf]*r(pinf);
   double sigma=(1+en*aa2)*(zeta/lambda);
   double Ren=en+c2;   //total relativistic energy
 
   //Generates the expansion coeficients for asymptotic wf
   // up to order NX (nx is 'param')
-  double bx[nx];
-  double ax[nx];
+  // double bx[nx];
+  // double ax[nx];
+  std::vector<double> bx(nx); //nx = ?? from 'params'?
+  std::vector<double> ax(nx);
   bx[0]=(ka+(zeta/lambda))*(aa/2);
   for (int i=0; i<nx; i++){
     ax[i]=(ka+(i+1-sigma)*Ren*aa2-zeta*lambda*aa2)*bx[i]*cc/((i+1)*lambda);
@@ -517,16 +546,16 @@ Then, it then call ADAMS-MOULTON, to finished (from nol*AMO+1 to ctp)
   }
 
 
-  //Generates last `AMO' points for P and Q [actually AMO+1?]
+  //Generates last `amo_pts' points for P and Q [actually amo_pts+1?]
   double f1=sqrt(1+en*aa2/2);
   double f2=sqrt(-en/2)*aa;
-  for (int i=pinf; i>=(pinf-AMO); i--){      // double check end point!
+  for (int i=pinf; i>=(pinf-amo_pts); i--){      // double check end point!
     double rfac=pow(r(i),sigma)*exp(-lambda*r(i));
     double ps=1;
     double qs=0;
     double rk=1;
     for (int k=0; k<nx; k++){    //this will loop until a) converge, b) k=nx
-      rk=rk*r(i);
+      rk=rk*r(i); //XXX replace w/ array!
       ps=ps+(ax[k]/rk);
       qs=qs+(bx[k]/rk);
       double xe=fmax(fabs((ax[k]/rk)/ps),fabs((bx[k]/rk)/qs));
@@ -542,13 +571,13 @@ Then, it then call ADAMS-MOULTON, to finished (from nol*AMO+1 to ctp)
       }
     }
     p[i]=rfac*(f1*ps+f2*qs);
-    q[i]=rfac*(f2*ps-f1*qs);
+    q[i]=rfac*(f2*ps-f1*qs);  //XXX here? the 'small cancellation'(?)
   }
 
 
   //calls adams-moulton
-  if ((pinf-AMO-1)>=ctp){
-    adamsmoulton(p,q,v,ka,en,pinf-AMO-1,ctp);
+  if ((pinf-amo_pts-1)>=ctp){
+    adamsmoulton(p,q,v,ka,en,pinf-amo_pts-1,ctp);
   }
 
   return 0;
@@ -556,8 +585,10 @@ Then, it then call ADAMS-MOULTON, to finished (from nol*AMO+1 to ctp)
 
 
 //******************************************************************************
-int adamsmoulton(double p[], double q[], double v[], int ka, double &en,
-                 int ni, int nf)
+// int adamsmoulton(double p[], double q[], double v[], int ka, double &en,
+//                  int ni, int nf)
+int adamsmoulton(std::vector<double> &p, std::vector<double> &q,
+    std::vector<double> &v, int ka, double &en, int ni, int nf)
 /*
 //program finishes the INWARD/OUTWARD integrations (ADAMS-MOULTON)
   //- ni is starting (initial) point for integration
@@ -568,15 +599,15 @@ int adamsmoulton(double p[], double q[], double v[], int ka, double &en,
   //XXX Fix AMO / amo2 thing!
   //Can use VECTOR! ??
 
-  double ama[amo2];    //AM coefs.
+  // double ama[amo2];    //AM coefs.
+  std::vector<double> ama(amo_pts);
   double amd,amaa;
-  AMcoefs(ama,amd,amaa);  // loads the coeficients!
+  AMcoefs(ama,amd,amaa);  // loads the coeficients! //XXX update!
 
   //this just checks that all working..prints out coefs.
-  if (dodebug==1){
-    for (int i=0; i<AMO; i++){
+  if (dodebug){
+    for (int i=0; i<amo_pts; i++)
       printf("AMA[%i]=%f\n",i,ama[i]);
-    }
     printf("amd=%.0f, amaa=%.0f\n",amd,amaa);
   }
 
@@ -596,13 +627,17 @@ int adamsmoulton(double p[], double q[], double v[], int ka, double &en,
   }
 
 
-  double dp[NGP],dq[NGP];      //create arrays for wf derivatives
-  double amcoef[amo2];
-  int k1=ni-inc*(AMO);
-  for (int i=0; i<AMO; i++){
+  // double dp[NGP],dq[NGP];      //create arrays for wf derivatives
+  // double amcoef[amo2];
+  //create arrays for wf derivatives
+  std::vector<double> dp(NGP),dq(NGP); //XXX is this syntax valid?
+  std::vector<double> amcoef(amo_pts);
+  int k1=ni-inc*(amo_pts);
+  for (int i=0; i<amo_pts; i++){
     dp[i]=inc*(-ka*dror(k1)*p[k1]-aa*((en+2*c2)-v[k1])*drdt(k1)*q[k1]);
     dq[i]=inc*(ka*dror(k1)*q[k1]+aa*(en-v[k1])*drdt(k1)*p[k1]);
-    amcoef[i]=(h/amd)*ama[i];
+    //XXX drdt etc. update!
+    amcoef[i]=(h/amd)*ama[i]; //XXX h?
     k1=k1+inc;
   }
 
@@ -618,18 +653,18 @@ int adamsmoulton(double p[], double q[], double v[], int ka, double &en,
     double det = 1-a0*a0*(dbi*dci-dai*ddi);
     double sp=p[k2-inc];
     double sq=q[k2-inc];
-    for (int l=0; l<AMO; l++){
+    for (int l=0; l<amo_pts; l++){
       sp=sp+amcoef[l]*dp[l];
       sq=sq+amcoef[l]*dq[l];
     }
     p[k2]=(sp+a0*(dbi*sq-ddi*sp))/det;
     q[k2]=(sq+a0*(dci*sp-dai*sq))/det;
-    for (int l=0; l<(AMO-1); l++){    //loads next 'first' k values (?)
+    for (int l=0; l<(amo_pts-1); l++){    //loads next 'first' k values (?)
       dp[l]=dp[l+1];
       dq[l]=dq[l+1];
     }
-    dp[AMO-1]=dai*p[k2]+dbi*q[k2];    //loads next 'first' deriv's (?)
-    dq[AMO-1]=dci*p[k2]+ddi*q[k2];
+    dp[amo_pts-1]=dai*p[k2]+dbi*q[k2];    //loads next 'first' deriv's (?)
+    dq[amo_pts-1]=dci*p[k2]+ddi*q[k2];
     k2=k2+inc;
   }
 
@@ -650,77 +685,79 @@ int adamsmoulton(double p[], double q[], double v[], int ka, double &en,
 
 //******************************************************************
 // coeficients for the ADAMS-MOULTON routine
-int AMcoefs(double *mia, double &mid, double &miaa)
+int AMcoefs(std::vector<double> &mia, double &mid, double &miaa)
 {
 
 // coefs for Adams..
 
-  if (AMO==8){
+//XXX XXX XXX Make array of MAX domension! then, just 'input' the correct #
+
+  if (amo_pts==8){
     double tia[8]={-33953,312874,-1291214,3146338,-5033120,5595358,-4604594,4467094};
     mid=3628800;
     miaa=1070017;
-    for (int i=0; i<AMO; i++){
+    for (int i=0; i<amo_pts; i++){
       mia[i]=tia[i];
     }
   }
-  else if(AMO==7){
+  else if(amo_pts==7){
     double tia[7]={1375,-11351,41499,-88547,123133,-121797,139849};
     mid=120960;
     miaa=36799;
-    for (int i=0; i<AMO; i++){
+    for (int i=0; i<amo_pts; i++){
       mia[i]=tia[i];
     }
   }
-  else if(AMO==6){
+  else if(amo_pts==6){
     double tia[6]={-863,6312,-20211,37504,-46461,65112};
     mid=60480;
     miaa=19087;
-    for (int i=0; i<AMO; i++){
+    for (int i=0; i<amo_pts; i++){
       mia[i]=tia[i];
     }
   }
-  else if(AMO==5){
+  else if(amo_pts==5){
     double tia[5]={27,-173,482,-798,1427};
     mid=1440;
     miaa=475;
-    for (int i=0; i<AMO; i++){
+    for (int i=0; i<amo_pts; i++){
       mia[i]=tia[i];
     }
   }
-  else if(AMO==4){
+  else if(amo_pts==4){
     double tia[4]={-19,106,-264,646};
     mid=720;
     miaa=251;
-    for (int i=0; i<AMO; i++){
+    for (int i=0; i<amo_pts; i++){
       mia[i]=tia[i];
     }
   }
-  else if(AMO==3){
+  else if(amo_pts==3){
     double tia[3]={1,-5,19};
     mid=24;
     miaa=9;
-    for (int i=0; i<AMO; i++){
+    for (int i=0; i<amo_pts; i++){
       mia[i]=tia[i];
     }
   }
-  else if(AMO==2){
+  else if(amo_pts==2){
     double tia[2]={-1,8};
     mid=12;
     miaa=5;
-    for (int i=0; i<AMO; i++){
+    for (int i=0; i<amo_pts; i++){
       mia[i]=tia[i];
     }
   }
-  else if(AMO==1){
+  else if(amo_pts==1){
     double tia[1]={1};
     mid=2;
     miaa=1;
-    for (int i=0; i<AMO; i++){
+    for (int i=0; i<amo_pts; i++){
       mia[i]=tia[i];
     }
   }
   else{
-    printf("FAILURE: No Adams-Moulton coeficients. Check AMO\n");
+    printf("FAILURE: No Adams-Moulton coeficients. Check amo_pts\n");
     return 1;
   }
 
@@ -731,12 +768,17 @@ int AMcoefs(double *mia, double &mid, double &miaa)
 
 //******************************************************************
 // coeficients for the OUTINT routine
-int OIcoefs(double (*oie)[amo2], double *oia, double &oid)
+//int OIcoefs(double (*oie)[amo2], double *oia, double &oid)
+int outIntCoefs(std::vector< std::vector<double> > &oie,
+    std::vector<double> &oia, double &oid)
 {
 
-// coefs for outint..
+  //XXX XXX XXX Make array of MAX domension! then, just 'input' the correct #
+  // ?? little harder here..
 
-  if (AMO==8){
+// coefs for outint..
+  int amo_pts = oia.size();
+  if (amo_pts==8){
     double tie[8][8]={-1338,2940,-2940,2450,-1470,588,-140,15,
                       -240,-798,1680,-1050,560,-210,48,-5,
                       60,-420,-378,1050,-420,140,-30,3,
@@ -747,14 +789,15 @@ int OIcoefs(double (*oie)[amo2], double *oia, double &oid)
                       -960,3920,-9408,14700,-15680,11760,-6720,2283};
     double tia[8]={-105,15,-5,3,-3,5,-15,105};
     oid=840;
-    for (int i=0; i<AMO; i++){
+    for (int i=0; i<amo_pts; i++){
       oia[i]=tia[i];
-      for (int j=0; j<AMO; j++){
+      //oia.push_back(tia[i]);
+      for (int j=0; j<amo_pts; j++){
         oie[i][j]=tie[i][j];
       }
     }
   }
-  else if (AMO==7){
+  else if (amo_pts==7){
     double tie[7][7]={-609,1260,-1050,700,-315,84,-10,
                       -140,-329,700,-350,140,-35,4,
                       42,-252,-105,420,-126,28,-3,
@@ -764,14 +807,14 @@ int OIcoefs(double (*oie)[amo2], double *oia, double &oid)
                       490,-1764,3675,-4900,4410,-2940,1089};
     double tia[7]={-60,10,-4,3,-4,10,-60};
     oid=420;
-    for (int i=0; i<AMO; i++){
+    for (int i=0; i<amo_pts; i++){
       oia[i]=tia[i];
-      for (int j=0; j<AMO; j++){
+      for (int j=0; j<amo_pts; j++){
         oie[i][j]=tie[i][j];
       }
     }
   }
-  else if (AMO==6){
+  else if (amo_pts==6){
     double tie[6][6]={-77,150,-100,50,-15,2,
                       -24,-35,80,-30,8,-1,
                       9,-45,0,45,-9,1,
@@ -780,14 +823,14 @@ int OIcoefs(double (*oie)[amo2], double *oia, double &oid)
                       -72,225,-400,450,-360,147};
     double tia[6]={-10,2,-1,1,-2,10};
     oid=60;
-    for (int i=0; i<AMO; i++){
+    for (int i=0; i<amo_pts; i++){
       oia[i]=tia[i];
-      for (int j=0; j<AMO; j++){
+      for (int j=0; j<amo_pts; j++){
         oie[i][j]=tie[i][j];
       }
     }
   }
-  else if (AMO==5){
+  else if (amo_pts==5){
     double tie[5][5]={-65,120,-60,20,-3,
                       -30,-20,60,-15,2,
                       15,-60,20,30,-3,
@@ -795,15 +838,15 @@ int OIcoefs(double (*oie)[amo2], double *oia, double &oid)
                       75,-200,300,-300,137};
     double tia[5]={-12,3,-2,3,-12};
     oid=60;
-    for (int i=0; i<AMO; i++){
+    for (int i=0; i<amo_pts; i++){
       oia[i]=tia[i];
-      for (int j=0; j<AMO; j++){
+      for (int j=0; j<amo_pts; j++){
         oie[i][j]=tie[i][j];
       }
     }
   }
   else{
-    printf("FAILURE: No Adams-Moulton (OUTINT) coeficients. Check AMO\n");
+    printf("FAILURE: No Adams-Moulton (OUTINT) coeficients. Check amo_pts\n");
     return 1;
   }
 

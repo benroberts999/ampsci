@@ -1,10 +1,10 @@
 #ifndef _SOLVEBS_H
 #define _SOLVEBS_H
 #include <iostream>
-#include <fstream>
+//#include <fstream>
 #include <cmath>
-#include <stdio.h>
-#include <time.h>
+//#include <stdio.h>
+//#include <time.h>
 #include <vector>
 #include <gsl/gsl_linalg.h>
 
