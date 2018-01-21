@@ -3,9 +3,12 @@
 #include <string>
 #include <vector>
 #include <cmath>
+#include "ElectronOrbitals.h"
 #include "physicalConstants.h"
+#include "atomInfo.h"
+#include "adamsSolveLocalBS.h"
 
-const int NGP_DEFAULT=1000;
+const int NGP_DEFAULT=1000; //???
 
 class ElectronOrbitals{
 
@@ -24,8 +27,6 @@ class ElectronOrbitals{
     std::vector<double> drdt;
     std::vector<double> dror;
 
-
-
     std::vector<double> vnuc;
 
     int Z,A;
@@ -42,6 +43,8 @@ class ElectronOrbitals{
     //std::vector<unsigned int> llist;
     //std::vector<unsigned int> j2list;
     //std::vector<std::string> hrlist;
+
+    localBoundState();
 
 
   private:

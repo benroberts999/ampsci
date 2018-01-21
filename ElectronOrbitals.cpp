@@ -2,6 +2,7 @@
 #include "ElectronOrbitals.h"
 #include "physicalConstants.h"
 #include "atomInfo.h"
+#include "adamsSolveLocalBS.h"
 
 //******************************************************************************
 ElectronOrbitals(std::string s_in_z, int in_a, int in_ngp)
@@ -27,6 +28,17 @@ ElectronOrbitals(int in_z, int in_a, int in_ngp)
   //fermiNucleus();
 
 }
+
+//******************************************************************************
+int localBoundState();
+/*
+``Wrapper'' function, to use the adamsSolveLocalBS method!
+*/
+{
+
+
+}
+
 
 //******************************************************************************
 int formRadialGrid()
