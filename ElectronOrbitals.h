@@ -1,12 +1,12 @@
 #ifndef _ORBITALS_H
 #define _ORBITALS_H
-#include <string>
+#include <string> //???
 #include <vector>
 #include <cmath>
-//#include "ElectronOrbitals.h"
 #include "physicalConstants.h"
 #include "atomInfo.h"
 #include "adamsSolveLocalBS.h"
+#include <gsl/gsl_sf_fermi_dirac.h>
 
 const int NGP_DEFAULT=1000; //???
 
@@ -14,8 +14,9 @@ class ElectronOrbitals{
 
   public:
 
-    ElectronOrbitals(int in_z, int in_a=0, int in_ngp=NGP_DEFAULT);
-    ElectronOrbitals(std::string s_in_z, int in_a=0, int in_ngp=NGP_DEFAULT);
+    ElectronOrbitals(int in_z, int in_a, int in_ngp);
+//    ElectronOrbitals(int in_z, int in_a=0, int in_ngp=NGP_DEFAULT);
+    //ElectronOrbitals(std::string s_in_z, int in_a=0, int in_ngp=NGP_DEFAULT);
     // z
     // ion=0, a, ngp, num_pot_type
 
@@ -26,6 +27,7 @@ class ElectronOrbitals{
     std::vector<double> r;
     std::vector<double> drdt;
     std::vector<double> dror;
+    double h;
 
     std::vector<double> vnuc;
 
@@ -44,7 +46,7 @@ class ElectronOrbitals{
     //std::vector<unsigned int> j2list;
     //std::vector<std::string> hrlist;
 
-    localBoundState();
+    int localBoundState();
 
 
   private:

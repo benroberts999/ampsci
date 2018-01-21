@@ -5,18 +5,18 @@
 #include "adamsSolveLocalBS.h"
 
 //******************************************************************************
-ElectronOrbitals(std::string s_in_z, int in_a, int in_ngp)
-{
-  //Work out Z from given atomic symbol
-  int iz;
-  for(iz=1; iz<200; iz++){
-    if(atinfo_sym[iz]==s_in_z || s_in_z==std::to_string(iz)) break;
-  }
-  //XXX needs some kind of safety-check! XXX
-  ElectronOrbitals(int iz, int in_a, int in_ngp);
-}
+//ElectronOrbitals(std::string s_in_z, int in_a, int in_ngp)
+//{
+//  //Work out Z from given atomic symbol
+//  int iz;
+//  for(iz=1; iz<200; iz++){
+//    if(atinfo_sym[iz]==s_in_z || s_in_z==std::to_string(iz)) break;
+//  }
+//  //XXX needs some kind of safety-check! XXX
+//  ElectronOrbitals(int iz, int in_a, int in_ngp);
+//}
 //-----Overloaded---------------------------------------------------------------
-ElectronOrbitals(int in_z, int in_a, int in_ngp)
+ElectronOrbitals::ElectronOrbitals(int in_z, int in_a, int in_ngp)
 {
   ngp=in_ngp;
   formRadialGrid();
@@ -24,13 +24,14 @@ ElectronOrbitals(int in_z, int in_a, int in_ngp)
   Z=in_z;
   if(in_a==0) A=atinfo_a[Z]; //Use default atomic mass
   else A=in_a;
-  sphericalNucleus(); //input rnuc?
+  zeroNucleus();
+  //sphericalNucleus(); //input rnuc?
   //fermiNucleus();
 
 }
 
 //******************************************************************************
-int localBoundState();
+int ElectronOrbitals::localBoundState()
 /*
 ``Wrapper'' function, to use the adamsSolveLocalBS method!
 */
@@ -40,13 +41,14 @@ int localBoundState();
 
   int n=1,ka=-1;
   int pinf,its;
-  solveDBS(p[0],q[0],en[0],v,Z,n,ka,r,drdt,h,NGP,pinf,its,eps,alpha);
+  double eps;
+  return solveDBS(p[0],q[0],en[0],vnuc,Z,n,ka,r,drdt,h,ngp,pinf,its,eps,alpha);
 
 }
 
 
 //******************************************************************************
-int formRadialGrid()
+int ElectronOrbitals::formRadialGrid()
 {
   // XXX NOTE: There are several options for the grids!
   // See Dzuba code! Which is better? Option for either??
@@ -58,7 +60,7 @@ int formRadialGrid()
   double r0=1.e-4; // XXX input?? private variable? XXX
   // XXX copied from before. WHY like this???
   double paramRmax=500;
-  double h=log(paramRmax/r0)/(ngp-2); //XXX ok??
+  h=log(paramRmax/r0)/(ngp-2); //XXX ok??
 
 
   drdt.clear();
@@ -89,7 +91,7 @@ int formRadialGrid()
 
 
 //******************************************************************************
-int zeroNucleus()
+int ElectronOrbitals::zeroNucleus()
 /*
 infinitesimal nucleus.
 1/r potential
@@ -103,7 +105,7 @@ infinitesimal nucleus.
 }
 
 //******************************************************************************
-int sphericalNucleus(double rnuc)
+int ElectronOrbitals::sphericalNucleus(double rnuc)
 /*
 Potential due to a spherical nucleus, with (charge) radius, rnuc.
 Note: rnuc must be given in "fermi" (fm, femto-metres).
@@ -133,7 +135,7 @@ See: https://www-nds.iaea.org/radii/
   for(int i=1; i<ngp; i++){
     double temp_v;
     double ri = r[i];
-    if(ri<rN) temp_v = Z*(pow(ri,2)-3.*rn2)/(2.rn3);
+    if(ri<rN) temp_v = Z*(pow(ri,2)-3.*rn2)/(2.*rn3); //XXX 2.*rn3?? check!? XXX
     else temp_v = -Z/ri;
     vnuc.push_back(temp_v);
   }
@@ -142,7 +144,7 @@ See: https://www-nds.iaea.org/radii/
 }
 
 //******************************************************************************
-int fermiNucleus(double t, double c)
+int ElectronOrbitals::fermiNucleus(double t, double c)
 /*
 Uses a Fermi-Dirac distribution for the nuclear potential.
 

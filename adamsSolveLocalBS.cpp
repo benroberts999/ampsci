@@ -191,14 +191,14 @@ the minor (P.T.) changes work!
     if(dodebug) printf("%i %i: Pinf= %.1f,  en= %f\n",n,ka,r[pinf],en);
 
     //Perform the "inwards integration":
-    inwardAM(p,q,en,v,ka,r,drdt,h,ctp,pinf,alpha);
+    inwardAM(p,q,en,v,ka,r,drdt,h,NGP,ctp,pinf,alpha);
 
     //save the values of wf at ctp from the 'inward' ind
     double ptp=p[ctp];
     double qtp=q[ctp];
 
     //Perform the "outwards integration"
-    outwardAM(p,q,en,v,Z,ka,r,drdt,h,ctp,alpha);
+    outwardAM(p,q,en,v,Z,ka,r,drdt,h,NGP,ctp,alpha);
 
     //Scales the inward solution to match the outward solution (for P)
     double rescale=p[ctp]/ptp;
@@ -271,7 +271,7 @@ the minor (P.T.) changes work!
       }
       anorm=integrate(ppqq,0,pinf);
       if(dodebug) printf("anrom=%.5f\n",anorm);
-      double de=  cc * p[ctp] * (qtp-q[ctp]) / anorm ; //XXX cc = c or c^2 ??
+      double de=  (1./alpha) * p[ctp] * (qtp-q[ctp]) / anorm ;
       deltaEn=fabs(de/en);
       etemp = en + de;
       if(dodebug){
@@ -320,16 +320,16 @@ the minor (P.T.) changes work!
   }// END: while (status==0)
 
 
-  if(dodebug){
-    // move to class! [as an 'info' function! - used for de-bugging]
-    int iat1=log((1+r0)/r0)/h;
-    int iat10=log((10+r0)/r0)/h;
-    printf("Radial grid sepparations at 1 a.u., 10 a.u., ctp and pinf:\n");
-    printf("At    r=1    a.u.;  dr=%.4f\n",r[iat1]-r[iat1-1]);
-    printf("At    r=10   a.u.;  dr=%.4f\n",r[iat10]-r[iat10-1]);
-    printf("ctp:  r=%3.1f a.u.;  dr=%.4f\n",r[ctp],r[ctp]-r[ctp-1]);
-    printf("pinf: r=%3.1f a.u.;  dr=%.4f\n",r[pinf],r[pinf]-r[pinf-1]);
-  }
+//  if(dodebug){
+//    // move to class! [as an 'info' function! - used for de-bugging]
+//    int iat1=log((1+r0)/r0)/h;
+//    int iat10=log((10+r0)/r0)/h;
+//    printf("Radial grid sepparations at 1 a.u., 10 a.u., ctp and pinf:\n");
+//    printf("At    r=1    a.u.;  dr=%.4f\n",r[iat1]-r[iat1-1]);
+//    printf("At    r=10   a.u.;  dr=%.4f\n",r[iat10]-r[iat10-1]);
+//    printf("ctp:  r=%3.1f a.u.;  dr=%.4f\n",r[ctp],r[ctp]-r[ctp-1]);
+//    printf("pinf: r=%3.1f a.u.;  dr=%.4f\n",r[pinf],r[pinf]-r[pinf-1]);
+//  }
 
 
   //normalises the wavefunction
@@ -373,7 +373,7 @@ the minor (P.T.) changes work!
 //******************************************************************************
 int outwardAM(std::vector<double> &p, std::vector<double> &q, double &en,
     std::vector<double> v, int Z, int ka,
-    std::vector<double> r, std::vector<double> drdt, double h,
+    std::vector<double> r, std::vector<double> drdt, double h, int NGP,
     int ctp, double alpha)
 /*
 Program to start the OUTWARD integration.
@@ -511,7 +511,7 @@ XXX rename to outwardAM ? amOutInt?
   // calls adamsmoulton to finish integration from (nol*AMO+1) to ctp
   int na=nol*AMO+1;
   if (ctp>na){
-    adamsMoulton(p,q,en,v,ka,r,drdt,h,na,ctp,alpha);
+    adamsMoulton(p,q,en,v,ka,r,drdt,h,NGP,na,ctp,alpha);
   }
 
 
@@ -526,7 +526,7 @@ XXX rename to outwardAM ? amOutInt?
 //******************************************************************
 int inwardAM(std::vector<double> &p, std::vector<double> &q, double &en,
     std::vector<double> v, int ka,
-    std::vector<double> r, std::vector<double> drdt, double h,
+    std::vector<double> r, std::vector<double> drdt, double h, int NGP,
     int ctp, int pinf, double alpha)
 /*
 Program to start the INWARD integration.
@@ -596,7 +596,7 @@ Then, it then call ADAMS-MOULTON, to finished (from nol*AMO+1 to ctp)
 
   //calls adams-moulton
   if ((pinf-AMO-1)>=ctp){
-    adamsMoulton(p,q,en,v,ka,r,drdt,h,pinf-AMO-1,ctp,alpha);
+    adamsMoulton(p,q,en,v,ka,r,drdt,h,NGP,pinf-AMO-1,ctp,alpha);
   }
 
   return 0;
@@ -606,7 +606,7 @@ Then, it then call ADAMS-MOULTON, to finished (from nol*AMO+1 to ctp)
 //******************************************************************************
 int adamsMoulton(std::vector<double> &p, std::vector<double> &q, double &en,
     std::vector<double> v, int ka,
-    std::vector<double> r, std::vector<double> drdt, double h,
+    std::vector<double> r, std::vector<double> drdt, double h, int NGP,
     int ni, int nf, double alpha)
 /*
 //program finishes the INWARD/OUTWARD integrations (ADAMS-MOULTON)

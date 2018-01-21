@@ -1,4 +1,4 @@
 #!/bin/bash
 # -std=c++11
-g++ -O -Wall -Wpedantic -o test.x test.cpp test.h MAT_matrixAlgebraGSL.h adamsSolveLocalBS.h physicalConstants.h atomInfo.h adamsSolveLocalBS.h -lgsl -lgslcblas -lm &&
+g++ -O -Wall -Wpedantic -o test.x test.cpp ElectronOrbitals.cpp ElectronOrbitals.h MAT_matrixAlgebraGSL.cpp MAT_matrixAlgebraGSL.h adamsSolveLocalBS.cpp adamsSolveLocalBS.h physicalConstants.h atomInfo.h adamsSolveLocalBS.cpp adamsSolveLocalBS.h -lgsl -lgslcblas -lm &&
 ./test.x
