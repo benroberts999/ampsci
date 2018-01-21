@@ -6,7 +6,8 @@
 //#include <stdio.h>
 //#include <time.h>
 #include <vector>
-#include <gsl/gsl_linalg.h>
+#include "MAT_matrixAlgebraGSL.h"
+#include <gsl/gsl_linalg.h> //??? needed??
 
 
   const int AMO=7; //XXX

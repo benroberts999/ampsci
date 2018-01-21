@@ -440,11 +440,12 @@ XXX rename to outwardAM ? amOutInt?
     }
 
 
-    //inverts the matrix!  invfm = Inv(fm)
-    double invem[amo2][amo2]={0};
-    //invertmat(em,invem,amo2);
-    invertMatrix(em,invem);
-    // XXX update to use GSL ? XXX
+    // //inverts the matrix!  invfm = Inv(fm)
+    // double invem[amo2][amo2]={0};
+    // //invertmat(em,invem,amo2);
+    // invertMatrix(em,invem);
+    // // XXX update to use GSL ? XXX
+    MAT_invertMatrix(em); //from here on, em is the inverted matrix!
 
 
     std::vector<double> s(AMO);
@@ -452,8 +453,8 @@ XXX rename to outwardAM ? amOutInt?
     for (int i=0; i<AMO; i++){
       s[i]=-ia[i]*u0;
       for (int j=0; j<AMO; j++){
-        fm[i][j]=ie[i][j]-coefb[i]*invem[i][j]*coefc[j];
-        s[i]=s[i]-coefb[i]*invem[i][j]*ia[j]*v0;
+        fm[i][j]=ie[i][j]-coefb[i]*em[i][j]*coefc[j];
+        s[i]=s[i]-coefb[i]*em[i][j]*ia[j]*v0;
       }
       fm[i][i]=fm[i][i]-coefa[i];
     }
@@ -461,10 +462,11 @@ XXX rename to outwardAM ? amOutInt?
 
     //inverts the matrix!  invfm = Inv(fm)
     // XXX use vector!
-    double invfm[amo2][amo2]={0};
+    //double invfm[amo2][amo2]={0};
     //invertmat(fm,invfm,amo2);
-    invertMatrix(fm,invfm);
+    //invertMatrix(fm,invfm);
     // XXX update to use GSL ? XXX
+    MAT_invertMatrix(fm); //from here on, fm is the inverted matrix!
 
 
     //writes u(r) in terms of coefs and the inverse of fm
@@ -474,7 +476,7 @@ XXX rename to outwardAM ? amOutInt?
     for (int i=0; i<AMO; i++){
       us[i]=0;
       for (int j=0; j<AMO; j++){
-        us[i]=us[i]+invfm[i][j]*s[j];
+        us[i]=us[i]+fm[i][j]*s[j];
       }
     }
 
@@ -486,7 +488,7 @@ XXX rename to outwardAM ? amOutInt?
     for (int i=0; i<AMO; i++){
       vs[i]=0;
       for (int j=0; j<AMO; j++){
-        vs[i]=vs[i]+invem[i][j]*(coefc[j]*us[j]-ia[j]*v0); //XXX
+        vs[i]=vs[i]+em[i][j]*(coefc[j]*us[j]-ia[j]*v0); //XXX
         //XXX here: is this the large cancellation?
       }
     }
