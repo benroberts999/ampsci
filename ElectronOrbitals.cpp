@@ -2,7 +2,7 @@
 #include "ElectronOrbitals.h"
 #include "physicalConstants.h"
 #include "atomInfo.h"
-#include "adamsSolveLocalBS.h"
+//#include "adamsSolveLocalBS.h"
 
 //******************************************************************************
 //ElectronOrbitals(std::string s_in_z, int in_a, int in_ngp)
@@ -39,11 +39,17 @@ int ElectronOrbitals::localBoundState()
 
   double alpha=ALPHA;
 
-  int n=1,ka=-1;
+  int n=2,ka=-1;
   int pinf,its;
   double eps;
-  return solveDBS(p[0],q[0],en[0],vnuc,Z,n,ka,r,drdt,h,ngp,pinf,its,eps,alpha);
+  double en_a=-0.3;
+  std::vector<double> p_a(ngp);
+  std::vector<double> q_a(ngp);
+  solveDBS(p_a,q_a,en_a,vnuc,Z,n,ka,r,drdt,h,ngp,pinf,its,eps,alpha);
+  std::cout<<en_a<<"\n";
+  printf("%.15f   %i  %.3e\n",en_a,its,eps);
 
+  return 0;
 }
 
 

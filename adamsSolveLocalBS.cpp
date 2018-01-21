@@ -270,7 +270,7 @@ the minor (P.T.) changes work!
         ppqq[i]=p[i]*p[i]+q[i]*q[i];    // XXX add alpha here if need!
       }
       //anorm=integrate(ppqq,0,pinf);
-      anorm=INT_integrate(ppqq,drdt,0,pinf);
+      anorm=INT_integrate(ppqq,drdt,h,0,pinf);
       if(dodebug) printf("anrom=%.5f\n",anorm);
       double de=  (1./alpha) * p[ctp] * (qtp-q[ctp]) / anorm ;
       deltaEn=fabs(de/en);

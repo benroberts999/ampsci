@@ -6,7 +6,7 @@
 // Integrates input function f(i) wrt r, from l to m. This program contains wronskian drdt
 //Uses an nquad-point quadrature formula.. for nquad=1->14 (any integer)
 //double integrate(double *f, int l, int m)
-double INT_integrate(std::vector<double> f, std::vector<double> w, int l,
+double INT_integrate(std::vector<double> f, std::vector<double> w, double h, int l,
   int m, int nquad)
 /*
 
@@ -32,13 +32,18 @@ XXX overload so can use floats?
 		m=temp;
 		negInt=-1;
 	}
-	if (m>=NGP){m=NGP-1;}
+	int ngp = f.size();
+	if (m>=ngp){m=ngp-1;}
 	if (l<0){l=0;}
 
 
+  if(nquad<1)nquad=1;
+  if(nquad>14)nquad=14;
+
 // Defines the `nquad'-point quadrature integration coeficents.
 // nquad can take any integer from 1 to 14 (=1 implies trapazoid rule)
-	double ic[nquad];
+	//double ic[nquad];
+	std::vector<double> ic(nquad);
 	if (nquad==1){
 		double c[1]={1};
 		for (int i=0;i<nquad;i++){ic[i]=c[i];}
@@ -104,8 +109,8 @@ XXX overload so can use floats?
 		for (int i=0;i<nquad;i++){ic[i]=c[i];}
 	}
 	else {
-		printf("FAILURE: Wrong order for integration.. check nquad\n");
-		return 0;
+		//printf("FAILURE: Wrong order for integration.. check nquad\n");
+		return 1; //XXX
 	}
 
 	double dd[14]={2,2,24,24,1440,1440,120960,120960,7257600,

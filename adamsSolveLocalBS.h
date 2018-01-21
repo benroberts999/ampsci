@@ -14,7 +14,6 @@
   const int AMO=7; //XXX
 
 
-#endif
 
 int solveDBS(std::vector<double> &p, std::vector<double> &q, double &en,
     std::vector<double> v, int Z, int n, int ka,
@@ -40,3 +39,5 @@ int getAdamsCoefs(std::vector<double> &mia, double &mid, double &miaa);
 
 int getOutwardCoefs(std::vector< std::vector<double> > &oie,
     std::vector<double> &oia, double &oid);
+
+#endif
