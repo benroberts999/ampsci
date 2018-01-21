@@ -9,8 +9,8 @@
 #include <gsl/gsl_linalg.h>
 
 
-#include "funs.h" // XXX kill/fix!
-#include "params.h" // XXX kill/fix!
+// #include "funs.h" // XXX kill/fix!
+// #include "params.h" // XXX kill/fix!
 
 #endif
 

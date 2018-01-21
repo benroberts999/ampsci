@@ -35,14 +35,24 @@ mathing at the classical turning point [e=v], and uses perurbation theory for mi
 
 ---------------------*/
 //using namespace std;
-#include "solvebs.h"
+#include "adamsSolveLocalBS.h"
 //#include "funs.h"
 //#include "params.h"
 
 int dodebug=0;
 
 
+/*
+To do :: Jan 2018
 
+ * update all to use vectors
+ * Make 100% self-contained [besides libraries]
+ * ONLY use _internal_ physical constants [alpha]
+ * have clever [~5 digit] error codes! (e.g. 00201) ??
+ * smarter variable names!
+ * updated ctp matching thing! [see below]
+
+*/
 
 
 //******************************************************************************
@@ -99,6 +109,7 @@ the minor (P.T.) changes work!
     if(dodebug==1){printf("\nRunning SolveDBS for state %i %i:\n",n,ka);}
   }
   else{
+    //XXX No..shouldn't do this!
     printf("\nSate %i %i does not exist.. increasing n by 1!\n",n,ka);
     n=n+1;
     en=-0.5*(pow(Z,2)/pow(n,2));

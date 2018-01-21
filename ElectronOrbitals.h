@@ -19,8 +19,8 @@ class ElectronOrbitals{
     // z
     // ion=0, a, ngp, num_pot_type
 
-    std::vector< std::vector<double> > f;
-    std::vector< std::vector<double> > g;
+    std::vector< std::vector<double> > p;
+    std::vector< std::vector<double> > q;
     std::vector<double> en;
 
     std::vector<double> r;
