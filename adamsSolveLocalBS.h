@@ -8,6 +8,7 @@
 #include <vector>
 #include "MAT_matrixAlgebraGSL.h"
 #include <gsl/gsl_linalg.h> //??? needed??
+#include "INT_quadratureIntegration.h"
 
 
   const int AMO=7; //XXX
