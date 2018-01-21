@@ -20,7 +20,7 @@ Then, update to f and g
 /*---------------------
 Thu 06 Nov 2014 23:29:57 AEDT
 
-- IT WORKS.... (amo_pts=8 fails sometimes)
+- IT WORKS.... (AMO=8 fails sometimes)
 
 `test' program to solve single-electron bound-state Dirac problem for a (given) central potential.
 Based on W. Johnson code that employs the Adams-Moulton method of inward/outward integration with
@@ -108,6 +108,7 @@ the minor (P.T.) changes work!
 // XXX
 
 
+
   // bound state wavefunctions (Adams-moul)
   const double delep=5e-15;		//PRIMARY convergence parameter for bound state energy	(10^-11)
   const double deles=1e-11;		//SECONDAY convergence parameter for bound state energy	(X)
@@ -190,14 +191,14 @@ the minor (P.T.) changes work!
     if(dodebug) printf("%i %i: Pinf= %.1f,  en= %f\n",n,ka,r[pinf],en);
 
     //Perform the "inwards integration":
-    inint(p,q,v,Z,ka,en,ctp,pinf);
+    inwardAM(p,q,en,v,ka,r,drdt,h,ctp,pinf,alpha);
 
     //save the values of wf at ctp from the 'inward' ind
     double ptp=p[ctp];
     double qtp=q[ctp];
 
     //Perform the "outwards integration"
-    outint(p,q,v,Z,ka,en,ctp);
+    outwardAM(p,q,en,v,Z,ka,r,drdt,h,ctp,alpha);
 
     //Scales the inward solution to match the outward solution (for P)
     double rescale=p[ctp]/ptp;
@@ -351,9 +352,9 @@ the minor (P.T.) changes work!
     printf("Converged for %i %i to %.3e after %i iterations;\n",n,ka,eps,its);
     printf("%i %i: Pinf(%i)=%.1f,  \nMy energy:  en= %.15f\n",n,ka,pinf,
            r[pinf],en);
-    double fracdiff=(en-diracen(Z,n,ka))/en;
-    printf("Exact Dirac:  Ed= %.15f; Del=%.2g%% \n\n",
-        diracen(Z,n,ka),fracdiff);
+    // double fracdiff=(en-diracen(Z,n,ka))/en;
+    // printf("Exact Dirac:  Ed= %.15f; Del=%.2g%% \n\n",
+    //     diracen(Z,n,ka),fracdiff);
   }
 
   return 0;
@@ -370,18 +371,16 @@ the minor (P.T.) changes work!
 
 
 //******************************************************************************
-// int outint(double p[], double q[], double v[], int Z, int ka,
-//            double &en, int ctp)
-int outint(int amo_pts, std::vector<double> &p, std::vector<double> &q,
-    double &en, std::vector<double> v, int Z, int ka,
+int outwardAM(std::vector<double> &p, std::vector<double> &q, double &en,
+    std::vector<double> v, int Z, int ka,
     std::vector<double> r, std::vector<double> drdt, double h,
-    double alpha, int ctp)
+    int ctp, double alpha)
 /*
 Program to start the OUTWARD integration.
-Starts from 0, and uses an expansion(?) to go to (nol*amo_pts).
-Then, it then call ADAMS-MOULTON, to finished (from nol*amo_pts+1 to ctp)
+Starts from 0, and uses an expansion(?) to go to (nol*AMO).
+Then, it then call ADAMS-MOULTON, to finished (from nol*AMO+1 to ctp)
 
-XXX rename to outwardAM ? amOutIntegration ?
+XXX rename to outwardAM ? amOutInt?
 
 */
 {
@@ -410,21 +409,21 @@ XXX rename to outwardAM ? amOutIntegration ?
   //Coeficients used by the method
   //double ie[amo2][amo2];
   //double ia[amo2];
-  std::vector< std::vector<double> > ie(amo_pts,std::vector<double>(amo_pts));
-  std::vector<double> ia(amo_pts);
+  std::vector< std::vector<double> > ie(AMO,std::vector<double>(AMO));
+  std::vector<double> ia(AMO);
   double id;
-  outIntCoefs(ie,ia,id);
+  getOutwardCoefs(ie,ia,id);
 
-  // loop through and find first nol*amo_pts points of wf
+  // loop through and find first nol*AMO points of wf
   for (int ln=0; ln<nol; ln++){
-    int i0=ln*amo_pts+1;
+    int i0=ln*AMO+1;
 
     //defines/populates coefs
     //double coefa[amo2],coefb[amo2],coefc[amo2],coefd[amo2];
     //double em[amo2][amo2];
     std::vector<double> coefa,coefb,coefc,coefd;
-    std::vector< std::vector<double> > em(amo_pts,std::vector<double>(amo_pts));
-    for (int i=0; i<amo_pts; i++){
+    std::vector< std::vector<double> > em(AMO,std::vector<double>(AMO));
+    for (int i=0; i<AMO; i++){
       // coefa[i]=-id*h*(ga+ka)*dror(i+i0);
       // coefb[i]=-id*h*(en+2*c2-v[i+i0])*drdt(i+i0)*aa;
       // coefc[i]=id*h*(en-v[i+i0])*drdt(i+i0)*aa;
@@ -434,7 +433,7 @@ XXX rename to outwardAM ? amOutIntegration ?
       coefb.push_back(-id*h*(en+2*c2-v[i+i0])*drdt[i+i0]*alpha);
       coefc.push_back(id*h*(en-v[i+i0])*drdt[i+i0]*alpha);
       coefd.push_back(-id*h*(ga-ka)*dror);
-      for (int j=0; j<amo_pts; j++){
+      for (int j=0; j<AMO; j++){
         em[i][j]=ie[i][j];
       }
       em[i][i]=em[i][i]-coefd[i];
@@ -448,13 +447,11 @@ XXX rename to outwardAM ? amOutIntegration ?
     // XXX update to use GSL ? XXX
 
 
-    // double s[amo2];
-    // double fm[amo2][amo2];
-    std::vector<double> s(amo_pts);
-    std::vector< std::vector<double> > fm(amo_pts,std::vector<double>(amo_pts));
-    for (int i=0; i<amo_pts; i++){
+    std::vector<double> s(AMO);
+    std::vector< std::vector<double> > fm(AMO,std::vector<double>(AMO));
+    for (int i=0; i<AMO; i++){
       s[i]=-ia[i]*u0;
-      for (int j=0; j<amo_pts; j++){
+      for (int j=0; j<AMO; j++){
         fm[i][j]=ie[i][j]-coefb[i]*invem[i][j]*coefc[j];
         s[i]=s[i]-coefb[i]*invem[i][j]*ia[j]*v0;
       }
@@ -473,10 +470,10 @@ XXX rename to outwardAM ? amOutIntegration ?
     //writes u(r) in terms of coefs and the inverse of fm
     // P(r) = r^gamma u(r)
     // double us[amo2];
-    std::vector<double> us(amo_pts);
-    for (int i=0; i<amo_pts; i++){
+    std::vector<double> us(AMO);
+    for (int i=0; i<AMO; i++){
       us[i]=0;
-      for (int j=0; j<amo_pts; j++){
+      for (int j=0; j<AMO; j++){
         us[i]=us[i]+invfm[i][j]*s[j];
       }
     }
@@ -485,10 +482,10 @@ XXX rename to outwardAM ? amOutIntegration ?
     //writes v(r) in terms of coefs + u(r)
     // Q(r) = r^gamma v(r)
     // double vs[amo2];
-    std::vector<double> vs(amo_pts);
-    for (int i=0; i<amo_pts; i++){
+    std::vector<double> vs(AMO);
+    for (int i=0; i<AMO; i++){
       vs[i]=0;
-      for (int j=0; j<amo_pts; j++){
+      for (int j=0; j<AMO; j++){
         vs[i]=vs[i]+invem[i][j]*(coefc[j]*us[j]-ia[j]*v0); //XXX
         //XXX here: is this the large cancellation?
       }
@@ -496,23 +493,23 @@ XXX rename to outwardAM ? amOutIntegration ?
 
 
     //writes wavefunction: P= r^gamma u(r) etc..
-    for (int i=0; i<amo_pts; i++){
+    for (int i=0; i<AMO; i++){
       p[i+i0]=pow(r[i+i0],ga)*us[i];
       q[i+i0]=pow(r[i+i0],ga)*vs[i];
       //XXX r: to array!
     }
 
     //re-sets 'starting point' for next ln
-    u0=us[amo_pts-1];
-    v0=vs[amo_pts-1];
+    u0=us[AMO-1];
+    v0=vs[AMO-1];
 
   }// END for (int ln=0; ln<nol; ln++)  [loop through outint `nol' times]
 
 
-  // calls adamsmoulton to finish integration from (nol*amo_pts+1) to ctp
-  int na=nol*amo_pts+1;
+  // calls adamsmoulton to finish integration from (nol*AMO+1) to ctp
+  int na=nol*AMO+1;
   if (ctp>na){
-    adamsmoulton(p,q,v,ka,en,na,ctp);
+    adamsMoulton(p,q,en,v,ka,r,drdt,h,na,ctp,alpha);
   }
 
 
@@ -525,16 +522,14 @@ XXX rename to outwardAM ? amOutIntegration ?
 
 
 //******************************************************************
-// int inint(double p[], double q[], double v[], int Z, int ka, double &en,
-//           int ctp, int pinf)
-int inint(std::vector<double> &p, std::vector<double> &q, double &en,
+int inwardAM(std::vector<double> &p, std::vector<double> &q, double &en,
     std::vector<double> v, int ka,
     std::vector<double> r, std::vector<double> drdt, double h,
-    int ctp, int pinf)
+    int ctp, int pinf, double alpha)
 /*
 Program to start the INWARD integration.
-Starts from Pinf, and uses an expansion(?) to go to (pinf-amo_pts)
-Then, it then call ADAMS-MOULTON, to finished (from nol*amo_pts+1 to ctp)
+Starts from Pinf, and uses an expansion(?) to go to (pinf-AMO)
+Then, it then call ADAMS-MOULTON, to finished (from nol*AMO+1 to ctp)
 */
 {
 
@@ -568,10 +563,10 @@ Then, it then call ADAMS-MOULTON, to finished (from nol*amo_pts+1 to ctp)
   }
 
 
-  //Generates last `amo_pts' points for P and Q [actually amo_pts+1?]
+  //Generates last `AMO' points for P and Q [actually AMO+1?]
   double f1=sqrt(1.+en*alpha2/2.);
   double f2=sqrt(-en/2.)*alpha;
-  for (int i=pinf; i>=(pinf-amo_pts); i--){      // double check end point!
+  for (int i=pinf; i>=(pinf-AMO); i--){      // double check end point!
     double rfac=pow(r[i],sigma)*exp(-lambda*r[i]);
     double ps=1.;
     double qs=0.;
@@ -598,8 +593,8 @@ Then, it then call ADAMS-MOULTON, to finished (from nol*amo_pts+1 to ctp)
 
 
   //calls adams-moulton
-  if ((pinf-amo_pts-1)>=ctp){
-    adamsmoulton(p,q,v,ka,en,pinf-amo_pts-1,ctp);
+  if ((pinf-AMO-1)>=ctp){
+    adamsMoulton(p,q,en,v,ka,r,drdt,h,pinf-AMO-1,ctp,alpha);
   }
 
   return 0;
@@ -607,32 +602,27 @@ Then, it then call ADAMS-MOULTON, to finished (from nol*amo_pts+1 to ctp)
 
 
 //******************************************************************************
-// int adamsmoulton(double p[], double q[], double v[], int ka, double &en,
-//                  int ni, int nf)
-int adamsmoulton(std::vector<double> &p, std::vector<double> &q, double &en,
+int adamsMoulton(std::vector<double> &p, std::vector<double> &q, double &en,
     std::vector<double> v, int ka,
     std::vector<double> r, std::vector<double> drdt, double h,
-    double alpha, int ni, int nf)
+    int ni, int nf, double alpha)
 /*
 //program finishes the INWARD/OUTWARD integrations (ADAMS-MOULTON)
   //- ni is starting (initial) point for integration
   //- nf is end (final) point for integration (nf=ctp)
 */
 {
-  //XXX update to corect array form!
-  //XXX Fix AMO / amo2 thing!
-  //Can use VECTOR! ??
 
   double c2 = 1./pow(alpha,2); // c^2 - just to shorten code
 
   // double ama[amo2];    //AM coefs.
-  std::vector<double> ama(amo_pts);
+  std::vector<double> ama(AMO);
   double amd,amaa;
-  AMcoefs(ama,amd,amaa);  // loads the coeficients! //XXX update!
+  getAdamsCoefs(ama,amd,amaa);  // loads the coeficients! //XXX update!
 
   //this just checks that all working..prints out coefs.
   if (dodebug){
-    for (int i=0; i<amo_pts; i++)
+    for (int i=0; i<AMO; i++)
       printf("AMA[%i]=%f\n",i,ama[i]);
     printf("amd=%.0f, amaa=%.0f\n",amd,amaa);
   }
@@ -657,15 +647,15 @@ int adamsmoulton(std::vector<double> &p, std::vector<double> &q, double &en,
   // double amcoef[amo2];
   //create arrays for wf derivatives
   std::vector<double> dp(NGP),dq(NGP); //XXX is this syntax valid?
-  std::vector<double> amcoef(amo_pts);
-  int k1=ni-inc*(amo_pts);
-  for (int i=0; i<amo_pts; i++){//nb: k1 is iterated
+  std::vector<double> amcoef(AMO);
+  int k1=ni-inc*(AMO);
+  for (int i=0; i<AMO; i++){//nb: k1 is iterated
     double dror = drdt[k1]/r[k1];
     dp[i]=inc*(-ka*dror*p[k1]-alpha*((en+2*c2)-v[k1])*drdt[k1]*q[k1]);
     dq[i]=inc*(ka*dror*q[k1]+alpha*(en-v[k1])*drdt[k1]*p[k1]);
     //XXX drdt etc. update!
-    amcoef[i]=(h/amd)*ama[i]; //XXX h?
-    k1=k1+inc;
+    amcoef[i]=(h/amd)*ama[i];
+    k1+=inc;
   }
 
 
@@ -681,19 +671,19 @@ int adamsmoulton(std::vector<double> &p, std::vector<double> &q, double &en,
     double det = 1-a0*a0*(dbi*dci-dai*ddi);
     double sp=p[k2-inc];
     double sq=q[k2-inc];
-    for (int l=0; l<amo_pts; l++){
+    for (int l=0; l<AMO; l++){
       sp=sp+amcoef[l]*dp[l];
       sq=sq+amcoef[l]*dq[l];
     }
     p[k2]=(sp+a0*(dbi*sq-ddi*sp))/det;
     q[k2]=(sq+a0*(dci*sp-dai*sq))/det;
-    for (int l=0; l<(amo_pts-1); l++){    //loads next 'first' k values (?)
+    for (int l=0; l<(AMO-1); l++){    //loads next 'first' k values (?)
       dp[l]=dp[l+1];
       dq[l]=dq[l+1];
     }
-    dp[amo_pts-1]=dai*p[k2]+dbi*q[k2];    //loads next 'first' deriv's (?)
-    dq[amo_pts-1]=dci*p[k2]+ddi*q[k2];
-    k2=k2+inc;
+    dp[AMO-1]=dai*p[k2]+dbi*q[k2];    //loads next 'first' deriv's (?)
+    dq[AMO-1]=dci*p[k2]+ddi*q[k2];
+    k2+=inc;
   }
 
   return 0;
@@ -713,79 +703,79 @@ int adamsmoulton(std::vector<double> &p, std::vector<double> &q, double &en,
 
 //******************************************************************
 // coeficients for the ADAMS-MOULTON routine
-int AMcoefs(std::vector<double> &mia, double &mid, double &miaa)
+int getAdamsCoefs(std::vector<double> &mia, double &mid, double &miaa)
 {
 
 // coefs for Adams..
 
 //XXX XXX XXX Make array of MAX domension! then, just 'input' the correct #
 
-  if (amo_pts==8){
+  if (AMO==8){
     double tia[8]={-33953,312874,-1291214,3146338,-5033120,5595358,-4604594,4467094};
     mid=3628800;
     miaa=1070017;
-    for (int i=0; i<amo_pts; i++){
+    for (int i=0; i<AMO; i++){
       mia[i]=tia[i];
     }
   }
-  else if(amo_pts==7){
+  else if(AMO==7){
     double tia[7]={1375,-11351,41499,-88547,123133,-121797,139849};
     mid=120960;
     miaa=36799;
-    for (int i=0; i<amo_pts; i++){
+    for (int i=0; i<AMO; i++){
       mia[i]=tia[i];
     }
   }
-  else if(amo_pts==6){
+  else if(AMO==6){
     double tia[6]={-863,6312,-20211,37504,-46461,65112};
     mid=60480;
     miaa=19087;
-    for (int i=0; i<amo_pts; i++){
+    for (int i=0; i<AMO; i++){
       mia[i]=tia[i];
     }
   }
-  else if(amo_pts==5){
+  else if(AMO==5){
     double tia[5]={27,-173,482,-798,1427};
     mid=1440;
     miaa=475;
-    for (int i=0; i<amo_pts; i++){
+    for (int i=0; i<AMO; i++){
       mia[i]=tia[i];
     }
   }
-  else if(amo_pts==4){
+  else if(AMO==4){
     double tia[4]={-19,106,-264,646};
     mid=720;
     miaa=251;
-    for (int i=0; i<amo_pts; i++){
+    for (int i=0; i<AMO; i++){
       mia[i]=tia[i];
     }
   }
-  else if(amo_pts==3){
+  else if(AMO==3){
     double tia[3]={1,-5,19};
     mid=24;
     miaa=9;
-    for (int i=0; i<amo_pts; i++){
+    for (int i=0; i<AMO; i++){
       mia[i]=tia[i];
     }
   }
-  else if(amo_pts==2){
+  else if(AMO==2){
     double tia[2]={-1,8};
     mid=12;
     miaa=5;
-    for (int i=0; i<amo_pts; i++){
+    for (int i=0; i<AMO; i++){
       mia[i]=tia[i];
     }
   }
-  else if(amo_pts==1){
+  else if(AMO==1){
     double tia[1]={1};
     mid=2;
     miaa=1;
-    for (int i=0; i<amo_pts; i++){
+    for (int i=0; i<AMO; i++){
       mia[i]=tia[i];
     }
   }
   else{
-    printf("FAILURE: No Adams-Moulton coeficients. Check amo_pts\n");
+    printf("FAILURE: No Adams-Moulton coeficients. Check AMO\n");
     return 1;
   }
 
@@ -797,7 +787,7 @@ int AMcoefs(std::vector<double> &mia, double &mid, double &miaa)
 //******************************************************************
 // coeficients for the OUTINT routine
 //int OIcoefs(double (*oie)[amo2], double *oia, double &oid)
-int outIntCoefs(std::vector< std::vector<double> > &oie,
+int getOutwardCoefs(std::vector< std::vector<double> > &oie,
     std::vector<double> &oia, double &oid)
 {
 
@@ -805,8 +795,8 @@ int outIntCoefs(std::vector< std::vector<double> > &oie,
   // ?? little harder here..
 
 // coefs for outint..
-  int amo_pts = oia.size();
-  if (amo_pts==8){
+  //int AMO = oia.size();
+  if (AMO==8){
     double tie[8][8]={-1338,2940,-2940,2450,-1470,588,-140,15,
                       -240,-798,1680,-1050,560,-210,48,-5,
                       60,-420,-378,1050,-420,140,-30,3,
@@ -817,15 +807,15 @@ int outIntCoefs(std::vector< std::vector<double> > &oie,
                       -960,3920,-9408,14700,-15680,11760,-6720,2283};
     double tia[8]={-105,15,-5,3,-3,5,-15,105};
     oid=840;
-    for (int i=0; i<amo_pts; i++){
+    for (int i=0; i<AMO; i++){
       oia[i]=tia[i];
       //oia.push_back(tia[i]);
-      for (int j=0; j<amo_pts; j++){
+      for (int j=0; j<AMO; j++){
         oie[i][j]=tie[i][j];
       }
     }
   }
-  else if (amo_pts==7){
+  else if (AMO==7){
     double tie[7][7]={-609,1260,-1050,700,-315,84,-10,
                       -140,-329,700,-350,140,-35,4,
                       42,-252,-105,420,-126,28,-3,
@@ -835,14 +825,14 @@ int outIntCoefs(std::vector< std::vector<double> > &oie,
                       490,-1764,3675,-4900,4410,-2940,1089};
     double tia[7]={-60,10,-4,3,-4,10,-60};
     oid=420;
-    for (int i=0; i<amo_pts; i++){
+    for (int i=0; i<AMO; i++){
       oia[i]=tia[i];
-      for (int j=0; j<amo_pts; j++){
+      for (int j=0; j<AMO; j++){
         oie[i][j]=tie[i][j];
       }
     }
   }
-  else if (amo_pts==6){
+  else if (AMO==6){
     double tie[6][6]={-77,150,-100,50,-15,2,
                       -24,-35,80,-30,8,-1,
                       9,-45,0,45,-9,1,
@@ -851,14 +841,14 @@ int outIntCoefs(std::vector< std::vector<double> > &oie,
                       -72,225,-400,450,-360,147};
     double tia[6]={-10,2,-1,1,-2,10};
     oid=60;
-    for (int i=0; i<amo_pts; i++){
+    for (int i=0; i<AMO; i++){
       oia[i]=tia[i];
-      for (int j=0; j<amo_pts; j++){
+      for (int j=0; j<AMO; j++){
         oie[i][j]=tie[i][j];
       }
     }
   }
-  else if (amo_pts==5){
+  else if (AMO==5){
     double tie[5][5]={-65,120,-60,20,-3,
                       -30,-20,60,-15,2,
                       15,-60,20,30,-3,
@@ -866,15 +856,15 @@ int outIntCoefs(std::vector< std::vector<double> > &oie,
                       75,-200,300,-300,137};
     double tia[5]={-12,3,-2,3,-12};
     oid=60;
-    for (int i=0; i<amo_pts; i++){
+    for (int i=0; i<AMO; i++){
       oia[i]=tia[i];
-      for (int j=0; j<amo_pts; j++){
+      for (int j=0; j<AMO; j++){
         oie[i][j]=tie[i][j];
       }
     }
   }
   else{
-    printf("FAILURE: No Adams-Moulton (OUTINT) coeficients. Check amo_pts\n");
+    printf("FAILURE: No Adams-Moulton (OUTINT) coeficients. Check AMO\n");
     return 1;
   }
 

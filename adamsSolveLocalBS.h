@@ -9,19 +9,32 @@
 #include <gsl/gsl_linalg.h>
 
 
-// #include "funs.h" // XXX kill/fix!
-// #include "params.h" // XXX kill/fix!
+  const int AMO=7; //XXX
+
 
 #endif
 
-int adamsmoulton(double *p, double *q, double *v, int ka, double &en, int ni, int nf);
+int solveDBS(std::vector<double> &p, std::vector<double> &q, double &en,
+    std::vector<double> v, int Z, int n, int ka,
+    std::vector<double> r, std::vector<double> drdt, double h, int NGP,
+    int &pinf, int &its, double &eps, double alpha);
 
-int outint(double *p, double *q, double *v, int Z, int ka, double &en, int ctp);
+int outwardAM(std::vector<double> &p, std::vector<double> &q, double &en,
+    std::vector<double> v, int Z, int ka,
+    std::vector<double> r, std::vector<double> drdt, double h,
+    int ctp, double alpha);
 
-int inint(double *p, double *q, double *v, int Z, int ka, double &en, int ctp, int pinf);
+int inwardAM(std::vector<double> &p, std::vector<double> &q, double &en,
+    std::vector<double> v, int ka,
+    std::vector<double> r, std::vector<double> drdt, double h,
+    int ctp, int pinf, double alpha);
 
-int solveDBS(double *p, double *q, double *v, int Z, int n, int ka, double &en, int &pinf, int &its, double &eps);
+int adamsMoulton(std::vector<double> &p, std::vector<double> &q, double &en,
+    std::vector<double> v, int ka,
+    std::vector<double> r, std::vector<double> drdt, double h,
+    int ni, int nf, double alpha);
 
-int AMcoefs(double *mia, double &mid, double &miaa);
+int getAdamsCoefs(std::vector<double> &mia, double &mid, double &miaa);
 
-int OIcoefs(double (*oie)[amo2], double *oia, double &oid);
+int getOutwardCoefs(std::vector< std::vector<double> > &oie,
+    std::vector<double> &oia, double &oid);

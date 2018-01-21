@@ -36,6 +36,11 @@ int localBoundState();
 */
 {
 
+  double alpha=ALPHA;
+
+  int n=1,ka=-1;
+  int pinf,its;
+  solveDBS(p[0],q[0],en[0],v,Z,n,ka,r,drdt,h,NGP,pinf,its,eps,alpha);
 
 }
 
