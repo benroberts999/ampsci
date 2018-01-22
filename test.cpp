@@ -55,36 +55,33 @@ int main(void){
         wf.nlist[s],wf.klist[s],R);
   }
 
-  // // HERE!? Is there some problem with the formula?? a missing n or kappa??
-  // // Testing Dirac Eq. by evaluating <a|H|a> - ME of Hamiltonian
-  // printf("\nTesting Dirac Eq: <n|H|n> (test of numerical uncertainty)\n");
-  // for (int s=0; s<num_states; s++){
-  //   double dP[NGP];
-  //   double dQ[NGP];
-  //   double Ps[NGP];
-  //   double Qs[NGP];
-  //   //dQ[0]=0;
-  //   for (int i=0; i<NGP; i++){
-  //     Ps[i]=P[s][i];
-  //     Qs[i]=Q[s][i];
-  //     //dQ[i]=(Q[s][i]-Q[s][i-1])/(h*drdt(i));
-  //   }
-  //   diff(Qs,dQ);
-  //   diff(Ps,dP);
-  //   for (int i=0; i<NGP; i++){
-  //     rad[i]=(
-  //           2*P[s][i]*dQ[i]/aa
-  //           // P[s][i]*dQ[i]/aa
-  //           //-Q[s][i]*dP[i]/aa
-  //         +  ((-2*kappa[s])/(r(i)*aa))*P[s][i]*Q[s][i]
-  //           +v[i]*(P[s][i]*P[s][i]+Q[s][i]*Q[s][i])
-  //          -(2/aa2)*Q[s][i]*Q[s][i]
-  //         );
-  //   }
-  //   double R=integrate(rad,0,NGP-1);
-  //   double fracdiff=(R-ev[s])/ev[s];
-  //   printf("<%i% i|H|%i% i> = % .15f, E(%i% i) = % .15f; % .2e\n",nn[s],kappa[s],nn[s],kappa[s],R,nn[s],kappa[s],ev[s],fracdiff);
-  // }
+  // HERE!? Is there some problem with the formula?? a missing n or kappa??
+  // Testing Dirac Eq. by evaluating <a|H|a> - ME of Hamiltonian
+  printf("\nTesting Dirac Eq: <n|H|n> (test of numerical uncertainty)\n");
+  int ngp=wf.ngp;
+  double alpha = wf.alpha;
+  double a2 = pow(alpha,2);
+  for (int s=0; s<num_states; s++){
+    //std::vector<double> Ps,Qs;
+    //Ps.push_back(wf.p[s]);
+    //Qs.push_back(wf.p[s]);
+    std::vector<double> dP(ngp),dQ(ngp);
+    INT_diff(wf.q[s],dQ,wf.drdt,wf.h);
+    INT_diff(wf.p[s],dP,wf.drdt,wf.h);
+    for (int i=0; i<NGP; i++){
+      rad[i]=(
+            2*wf.p[s][i]*dQ[i]/alpha
+            // P[s][i]*dQ[i]/aa
+            //-Q[s][i]*dP[i]/aa
+          +  ((-2*wf.klist[s])/(r[i]*alpha))*wf.p[s][i]*wf.p[s][i]
+            +wf.v[i]*(wf.p[s][i]*wf.p[s][i]+wf.q[s][i]*wf.q[s][i])
+           -(2./a2)*wf.q[s][i]*wf.q[s][i]
+          );
+    }
+    double R=INT_integrate(rad,wf.drdt,wf.h);
+    double fracdiff=(R-wf.en[s])/wf.en[s];
+    printf("<%i% i|H|%i% i> = % .15f, E(%i% i) = % .15f; % .2e\n",wf.nlist[s],wf.klist[s],R,wf.nlist[s],wf.klist[s],wf.en[s],fracdiff);
+  }
 
 
 

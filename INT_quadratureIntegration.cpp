@@ -149,3 +149,49 @@ XXX overload so can use floats?
 
 	return a;
 }		// END integrate
+
+
+
+
+
+//******************************************************************
+// Calculates the derivative of a function!
+int INT_diff(std::vector<double> f, std::vector<double> drdt, double h,
+    std::vector<double> &deriv)
+{
+
+// Problem: This calcs the derivative for a few (4) points AFTER pinf; where it oscilates.
+// Means the first 0 of dP won't correspond to first max of P!
+
+// This hasn't been fully tested!
+
+/*
+df/dr = df/dt * dt/dr = (df/dt) / (dr/dt) = (df/di) * (di/dt) / (dr/dt) =
+= (df/di)  / (h * dr/dt)
+coeficients from: http://en.wikipedia.org/wiki/Finite_difference_coefficient
+*/
+
+  int NGP = f.size();
+
+	deriv[0]= (f[1]-f[0])/(h*drdt[0]);
+	deriv[NGP-1]= (f[NGP-1]-f[NGP-2])/(h*drdt[NGP-1]);
+
+	deriv[1]= (f[2]-f[0])/(2*h*drdt[1]);
+	deriv[NGP-2]= (f[NGP-1]-f[NGP-3])/(2*h*drdt[NGP-2]);
+
+	deriv[2]= (f[0]-8*f[1]+8*f[3]-f[4])/(12*h*drdt[2]);
+	deriv[NGP-3]= (f[NGP-5]-8*f[NGP-4]+8*f[NGP-2]-f[NGP-1])/(12*h*drdt[NGP-3]);
+
+	deriv[3]= (-1*f[0]+9*f[1]-45*f[2]+45*f[4]-9*f[5]+1*f[6])/(60*h*drdt[3]);
+	deriv[NGP-4]= (-1*f[NGP-7]+9*f[NGP-6]-45*f[NGP-5]+45*f[NGP-3]-9*f[NGP-2]+1*f[NGP-1])/(60*h*drdt[NGP-4]);
+
+	for (int i=4; i<(NGP-4);i++){
+//		deriv[i] = ( (1/56)*f[i-4] - (4/21)*f[i-3] + 1*f[i-2] - 4*f[i-1]
+//		- (1/56)*f[i+4] + (4/21)*f[i+3] - 1*f[i+2] + 4*f[i+1] ) / (5*h*drdt(i));
+		deriv[i] = ( (1./8)*f[i-4] - (4./3)*f[i-3] + 7*f[i-2] - 28*f[i-1]
+		- (1./8)*f[i+4] + (4./3)*f[i+3] - 7*f[i+2] + 28*f[i+1] ) / (35*h*drdt[i]);
+	}
+
+  return 0;
+
+}
