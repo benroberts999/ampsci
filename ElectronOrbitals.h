@@ -14,7 +14,8 @@ class ElectronOrbitals{
 
   public:
 
-    ElectronOrbitals(int in_z, int in_a, int in_ngp=NGP_DEFAULT, double var_alpha=1);
+    ElectronOrbitals(int in_z, int in_a, int in_ngp=NGP_DEFAULT,
+        double var_alpha=1);
 
     std::vector< std::vector<double> > p;
     std::vector< std::vector<double> > q;
@@ -23,6 +24,7 @@ class ElectronOrbitals{
     std::vector<double> r;
     std::vector<double> drdt;
     std::vector<double> dror;
+    int ngp;
     double h;
 
     std::vector<double> vnuc;
@@ -52,7 +54,7 @@ class ElectronOrbitals{
   private:
 
     //Number of grid points:
-    int ngp;
+
 
     int formRadialGrid();
     int zeroNucleus();

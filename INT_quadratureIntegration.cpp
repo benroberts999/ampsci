@@ -23,6 +23,9 @@ XXX overload so can use floats?
 //Note: normally, NGP is so large, that there is no difference between nquad=1 to 14!
 
 
+  int ngp = f.size();
+  if (m==0) m=ngp-1;
+
 //re-arange limits to make less fiddly
 // so I don't need to ..
 	int negInt=1;
@@ -32,7 +35,6 @@ XXX overload so can use floats?
 		m=temp;
 		negInt=-1;
 	}
-	int ngp = f.size();
 	if (m>=ngp){m=ngp-1;}
 	if (l<0){l=0;}
 
