@@ -16,10 +16,13 @@
 //  ElectronOrbitals(int iz, int in_a, int in_ngp);
 //}
 //-----Overloaded---------------------------------------------------------------
-ElectronOrbitals::ElectronOrbitals(int in_z, int in_a, int in_ngp)
+ElectronOrbitals::ElectronOrbitals(int in_z, int in_a, int in_ngp, double var_alpha)
 {
+
   ngp=in_ngp;
   formRadialGrid();
+
+  alpha=ALPHA*var_alpha;
 
   Z=in_z;
   if(in_a==0) A=atinfo_a[Z]; //Use default atomic mass
@@ -31,23 +34,41 @@ ElectronOrbitals::ElectronOrbitals(int in_z, int in_a, int in_ngp)
 }
 
 //******************************************************************************
-int ElectronOrbitals::localBoundState()
+int ElectronOrbitals::localBoundState(int in_max_n, int in_max_l)
 /*
 ``Wrapper'' function, to use the adamsSolveLocalBS method!
 */
 {
 
-  double alpha=ALPHA;
+  //double alpha=ALPHA;
 
-  int n=2,ka=-1;
-  int pinf,its;
-  double eps;
-  double en_a=-0.3;
-  std::vector<double> p_a(ngp);
-  std::vector<double> q_a(ngp);
-  solveDBS(p_a,q_a,en_a,vnuc,Z,n,ka,r,drdt,h,ngp,pinf,its,eps,alpha);
-  std::cout<<en_a<<"\n";
-  printf("%.15f   %i  %.3e\n",en_a,its,eps);
+  max_n = in_max_n;
+  max_l = in_max_l;
+
+  for(int n=1; n<=max_n; n++){
+    for(int i=1; i<2*n; i++){ //loop through each kappa state
+      int k = pow(-1,i)*ceil(0.5*i);
+      int l = fabs(k+1/2)-1/2;
+      if(l>max_l) continue;
+      nlist.push_back(n);
+      klist.push_back(k);
+      int pinf,its;
+      double eps;
+      double en_a = -0.5*pow((double)Z/n,2);
+      std::vector<double> p_a(ngp);
+      std::vector<double> q_a(ngp);
+      solveDBS(p_a,q_a,en_a,vnuc,Z,n,k,r,drdt,h,ngp,pinf,its,eps,alpha);
+      p.push_back(p_a);
+      q.push_back(q_a);
+      en.push_back(en_a);
+      //store convergance info:
+      pinflist.push_back(pinf);
+      itslist.push_back(its);
+      epslist.push_back(eps);
+    }
+  }
+
+
 
   return 0;
 }
@@ -93,6 +114,30 @@ int ElectronOrbitals::formRadialGrid()
 
   return 0;
 }
+
+
+
+
+//******************************************************************************
+double ElectronOrbitals::diracen(int z, int n, int k){
+//
+  // double c2 = 1./pow(alpha,2);
+  // double za2 = pow(alpha*z,2);
+  // double g=sqrt(k*k-za2);
+	// double diracE=c2*(1./sqrt(1+za2/pow((g+n-fabs(k)),2))-1.);
+  double a2 = pow(alpha,2);
+  double c2 = 1./pow(alpha,2);
+  double za2 = pow(alpha*z,2);
+  double g=sqrt(k*k-za2);
+
+  double w2 = pow(z,2)/pow(g+n-fabs(k),2);
+  double d  = 1.+a2*w2;
+
+  double diracE = -1*w2/(2*d) - (a2*w2/2+1-sqrt(1+a2*w2))*(c2/d);
+  //double diracE=c2*(1./sqrt(1+za2/pow((g+n-fabs(k)),2))-1.);
+	return diracE;
+}
+
 
 
 

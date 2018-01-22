@@ -39,6 +39,12 @@ const std::string atinfo_sym[121]={"0",
   "Md","No","Lr","Rf","Db","Sg","Bh","Hs","Mt","Ds",
   "Rg","Cn","Nh","Fl","Mc","Lv","Ts","Og","E119","E120"};
 
+const std::string atinfo_l_array[5]={"s","p","d","f","g"};
+inline std::string atinfo_l(int l){
+  if(l<5) return atinfo_l_array[l];
+  else return std::to_string(l);
+}
+
 // //No idea if this works, so comment out for now
 // int zFromSymbol(std::string at){
 //   for(int z=0; z<121; z++){

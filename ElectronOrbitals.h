@@ -14,11 +14,7 @@ class ElectronOrbitals{
 
   public:
 
-    ElectronOrbitals(int in_z, int in_a, int in_ngp);
-//    ElectronOrbitals(int in_z, int in_a=0, int in_ngp=NGP_DEFAULT);
-    //ElectronOrbitals(std::string s_in_z, int in_a=0, int in_ngp=NGP_DEFAULT);
-    // z
-    // ion=0, a, ngp, num_pot_type
+    ElectronOrbitals(int in_z, int in_a, int in_ngp=NGP_DEFAULT, double var_alpha=1);
 
     std::vector< std::vector<double> > p;
     std::vector< std::vector<double> > q;
@@ -34,7 +30,8 @@ class ElectronOrbitals{
     int Z,A;
     std::string atom;
 
-    double var_alpha; // like this?
+    //double var_alpha; // like this?
+    double alpha;
 
     int max_n;
     int max_l;
@@ -42,11 +39,14 @@ class ElectronOrbitals{
 
     std::vector<unsigned> nlist;
     std::vector<int> klist;
-    //std::vector<unsigned int> llist;
-    //std::vector<unsigned int> j2list;
-    //std::vector<std::string> hrlist;
 
-    int localBoundState();
+    std::vector<int> pinflist;
+    std::vector<int> itslist;
+    std::vector<double> epslist;
+
+    int localBoundState(int in_max_n, int in_max_l=100);
+
+    double diracen(int z, int n, int k);
 
 
   private:
@@ -58,6 +58,8 @@ class ElectronOrbitals{
     int zeroNucleus();
     int sphericalNucleus(double rnuc=0);
     int fermiNucleus(double t=0, double c=0);
+
+
 
 
 };
