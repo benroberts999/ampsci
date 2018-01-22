@@ -92,11 +92,12 @@ int ElectronOrbitals::formRadialGrid()
 
   drdt.clear();
   for(int i=0; i<ngp; i++){
-    double temp_drdt = r0*exp(i*h);
+    double temp_drdt = r0*exp((i+1)*h); //XXX -1? check!
     drdt.push_back(temp_drdt);
   }
 
   r.clear();
+  //r.push_back(1.e-8);
   for(int i=0; i<ngp; i++){
     // Is it OK that it starts at 0?? should it be r0? 0.01*r0?
     // XXX Check Johnson book..?

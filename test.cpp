@@ -62,27 +62,26 @@ int main(void){
   double alpha = wf.alpha;
   double a2 = pow(alpha,2);
   for (int s=0; s<num_states; s++){
-    //std::vector<double> Ps,Qs;
-    //Ps.push_back(wf.p[s]);
-    //Qs.push_back(wf.p[s]);
-    std::vector<double> dP(ngp),dQ(ngp);
-    INT_diff(wf.q[s],dQ,wf.drdt,wf.h);
-    INT_diff(wf.p[s],dP,wf.drdt,wf.h);
-    for (int i=0; i<NGP; i++){
-      rad[i]=(
-            2*wf.p[s][i]*dQ[i]/alpha
-            // P[s][i]*dQ[i]/aa
-            //-Q[s][i]*dP[i]/aa
-          +  ((-2*wf.klist[s])/(r[i]*alpha))*wf.p[s][i]*wf.p[s][i]
-            +wf.v[i]*(wf.p[s][i]*wf.p[s][i]+wf.q[s][i]*wf.q[s][i])
-           -(2./a2)*wf.q[s][i]*wf.q[s][i]
-          );
+    std::vector<double> dQ(ngp);
+    INT_diff(wf.q[s],wf.drdt,wf.h,dQ);
+    std::vector<double> rad;
+    for (int i=0; i<ngp; i++){
+      double x1=2*wf.p[s][i]*dQ[i]/alpha;
+      double x2=-2*wf.klist[s]*wf.p[s][i]*wf.q[s][i]/(wf.r[i]*alpha);
+      double x3=-2*pow(wf.q[s][i],2)/a2;
+      double x4=wf.vnuc[i]*(pow(wf.p[s][i],2)+pow(wf.q[s][i],2));
+      rad.push_back(x1+x3+x2+x4);
     }
     double R=INT_integrate(rad,wf.drdt,wf.h);
     double fracdiff=(R-wf.en[s])/wf.en[s];
-    printf("<%i% i|H|%i% i> = % .15f, E(%i% i) = % .15f; % .2e\n",wf.nlist[s],wf.klist[s],R,wf.nlist[s],wf.klist[s],wf.en[s],fracdiff);
+    printf("<%i% i|H|%i% i> = % .15f, E(%i% i) = % .15f; % .2e\n",wf.nlist[s],
+        wf.klist[s],wf.nlist[s],wf.klist[s],R,wf.nlist[s],wf.klist[s],
+        wf.en[s],fracdiff);
   }
 
+
+  for(int i=0; i<15; i++)
+    std::cout<<wf.r[i]<<" "<<wf.p[0][i]<<" "<<wf.q[0][i]<<"\n";
 
 
 
