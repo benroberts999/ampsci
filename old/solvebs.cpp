@@ -34,12 +34,12 @@ Solves local, spherical bound state dirac equation using Adams-Moulton method.
 Based of code in book by W. R. Johnson:
   W. R. Johnson, Atomic Structure Theory (Springer, New York, 2007)
 
-See also: 
+See also:
  * https://en.wikipedia.org/wiki/Linear_multistep_method
- * Hairer, Ernst; Nørsett, Syvert Paul; Wanner, Gerhard (1993), 
-   Solving ordinary differential equations I: Nonstiff problems (2nd ed.), 
+ * Hairer, Ernst; Nørsett, Syvert Paul; Wanner, Gerhard (1993),
+   Solving ordinary differential equations I: Nonstiff problems (2nd ed.),
    Berlin: Springer Verlag, ISBN 978-3-540-56670-0.
- * Quarteroni, Alfio; Sacco, Riccardo; Saleri, Fausto (2000), 
+ * Quarteroni, Alfio; Sacco, Riccardo; Saleri, Fausto (2000),
    Matematica Numerica, Springer Verlag, ISBN 978-88-470-0077-3.
  * http://mathworld.wolfram.com/AdamsMethod.html
 
@@ -53,7 +53,7 @@ Rough description of method:
 5. Matches the two functions at ctp, by re-scaling the 'inward' solution (for P)
 6. Checks the number of nodes the wf has. If too many or too few nodes, makes
    a large change to the energy and tries again (from step 2).
-   If the correct number of nodes, uses perturbation theory to make minor 
+   If the correct number of nodes, uses perturbation theory to make minor
    corrections to the energy to 'zoom in', then re-starts from step 2.
    Continues until this energy adjustment falls below a prescribed threshold.
 
@@ -68,7 +68,7 @@ the minor (P.T.) changes work!
 {
 
 
-// XXX 
+// XXX
 // At the moment, it appears that initial energy guess in an input.
 // This is good, but should also have an option that allows an initial input
 // of zero, in which case this program will make the initial guess
@@ -251,7 +251,7 @@ the minor (P.T.) changes work!
     }// END: if(nozeros>inodes
 
     its++; //increment 'number of iterations' counter
-    
+
     if(dodebug==1){printf("Itteration number %i,  en= %f\n",its,en);}
     if(its>ntry){
       if(deltaEn<deles){
@@ -323,7 +323,7 @@ the minor (P.T.) changes work!
 
 
 //******************************************************************************
-int outint(double p[], double q[], double v[], int Z, int ka, 
+int outint(double p[], double q[], double v[], int Z, int ka,
            double &en, int ctp)
 /*
 Program to start the OUTWARD integration.
@@ -455,7 +455,7 @@ XXX rename to outwardAM ? amOutIntegration ?
 
 
 //******************************************************************
-int inint(double p[], double q[], double v[], int Z, int ka, double &en, 
+int inint(double p[], double q[], double v[], int Z, int ka, double &en,
           int ctp, int pinf)
 /*
 Program to start the INWARD integration.
@@ -464,13 +464,13 @@ Then, it then call ADAMS-MOULTON, to finished (from nol*AMO+1 to ctp)
 */
 {
 
-  
+
   double lambda=sqrt(-en*(2+en*aa2));
   double zeta=-v[pinf]*r(pinf);
   double sigma=(1+en*aa2)*(zeta/lambda);
   double Ren=en+c2;   //total relativistic energy
 
-  //Generates the expansion coeficients for asymptotic wf 
+  //Generates the expansion coeficients for asymptotic wf
   // up to order NX (nx is 'param')
   double bx[nx];
   double ax[nx];
@@ -523,7 +523,7 @@ Then, it then call ADAMS-MOULTON, to finished (from nol*AMO+1 to ctp)
 
 
 //******************************************************************************
-int adamsmoulton(double p[], double q[], double v[], int ka, double &en, 
+int adamsmoulton(double p[], double q[], double v[], int ka, double &en,
                  int ni, int nf)
 /*
 //program finishes the INWARD/OUTWARD integrations (ADAMS-MOULTON)
@@ -776,15 +776,3 @@ int OIcoefs(double (*oie)[amo2], double *oia, double &oid)
 
   return 0;
 }  //   END OIcoefs
-
-
-
-
-
-
-
-
-
-
-
-

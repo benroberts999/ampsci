@@ -2,7 +2,7 @@
 #define _PARAMS_H
 #include <cmath>
 /******************************************
-Wed 05 Nov 2014 13:09:25 AEDT 
+Wed 05 Nov 2014 13:09:25 AEDT
 
 Global Parameters for all programs.
 
@@ -10,7 +10,7 @@ Global Parameters for all programs.
 /*
 double r0=0.0005; 			// (0.0005)
 int NGP=500;      		//probably THIS should be a function of r_max and h and r0 etc.  (500)
-double h=0.03125;			//this is the one that should be as small as possible! (0.03125) 
+double h=0.03125;			//this is the one that should be as small as possible! (0.03125)
 */
 
 //params for radial grid!
@@ -57,7 +57,7 @@ const int AMO=amo2;
 double const CLIGHT=137.035999074;				//speed of light in a.u.
 double const CLIGHT2=CLIGHT*CLIGHT;
 double const ALPHA=1./CLIGHT;						// fine structure constant
-double const ALPHA2=ALPHA*ALPHA;						
+double const ALPHA2=ALPHA*ALPHA;
 //// kill below!
 double const cc=137.035999074;				//speed of light in a.u.
 double const c2=cc*cc;
@@ -80,8 +80,3 @@ double const meMeV=0.510998928;				// mass_electron in MeV/c^2
 double const mesi=9.10938291e-31;			// " "  in SI (kg)
 
 #endif
-
-
-
-
-
