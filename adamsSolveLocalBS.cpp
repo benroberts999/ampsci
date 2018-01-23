@@ -1,70 +1,39 @@
-
 /*
-
-XXX - UPDATE this to work with the new class.
-Essentially, should use vectors instead of arrays.
-
-XXX Update to use GSL libraries etc.
-
-
-XXX Update to use f,g instead of p,q??
--->  first, just get working with p and q.
-Then, update to f and g
-
-
-*/
-
-
-
-
-/*---------------------
 Thu 06 Nov 2014 23:29:57 AEDT
 
 - IT WORKS.... (AMO=8 fails sometimes)
 
-`test' program to solve single-electron bound-state Dirac problem for a (given) central potential.
-Based on W. Johnson code that employs the Adams-Moulton method of inward/outward integration with
-mathing at the classical turning point [e=v], and uses perurbation theory for minor adjustments of energies.
+Program to solve single-electron bound-state Dirac problem for a (given)
+local, central potential.
+Based on method presented in book by W. Johnson.
+Employs the Adams-Moulton method.
 
-- Change from (iP,Q) to (f,ig), or better: (f, iag)... a way to actually remove smallness? or is it always just a factor?
-
--should be made to be a program that is called by a) coulomb code (for H-like)
---or parametric etc.
-
-
-
----------------------*/
-//using namespace std;
+solveDBS is the main routine that is called from elsewhere.
+All other functions called by solveDBS.
+*/
 #include "adamsSolveLocalBS.h"
-//#include "funs.h"
-//#include "params.h"
 
 
-bool dodebug=false;
+
+bool dodebug=false; //if true, will print progress messages.
 
 /*
 To do :: Jan 2018
-
- * update all to use vectors
- * Make 100% self-contained [besides libraries]
- * ONLY use _internal_ physical constants [alpha]
- * have clever [~5 digit] error codes! (e.g. 00201) ??
  * smarter variable names!
+ * p,q -> f,g! Check the q cancellation!
  * updated ctp matching thing! [see below]
 
 */
 
 
 //******************************************************************************
-// int solveDBS(double p[], double q[], double v[], int Z, int n, int ka,
-//              double &en, int &pinf, int &its, double &eps)
 int solveDBS(std::vector<double> &p, std::vector<double> &q, double &en,
     std::vector<double> v, int Z, int n, int ka,
     std::vector<double> r, std::vector<double> drdt, double h, int NGP,
     int &pinf, int &its, double &eps, double alpha)
 /*
 Solves local, spherical bound state dirac equation using Adams-Moulton method.
-Based of code in book by W. R. Johnson:
+Based on method presented in book by W. R. Johnson:
   W. R. Johnson, Atomic Structure Theory (Springer, New York, 2007)
 
 See also:
@@ -78,7 +47,7 @@ See also:
 
 Rough description of method:
 1. Start with initial 'guess' of energy XXX* (see note below)
-2. Find the "practical infinity", and the Classical turning point
+2. Find the "practical infinity" (psi~0), and the Classical turning point [e=v]
 3. Performs 'inward' integration (Adams Moulton). Integrates from the
    practical infinity inwards to the classical turning point (ctp).
 4. Performs 'outward' integration (Adams Moulton). Integrates from 0
@@ -112,7 +81,7 @@ the minor (P.T.) changes work!
   // bound state wavefunctions (Adams-moul)
   const double delep=5e-15;		//PRIMARY convergence parameter for bound state energy	(10^-11)
   const double deles=1e-11;		//SECONDAY convergence parameter for bound state energy	(X)
-  const int ntry=30;			// Number of failed attempts at converging (sove bs) before error quit (30)
+  const int ntry=100;			// Number of failed attempts at converging (sove bs) before error quit (30)
   const double alr=800;			// ''assymptotically large r [not what this is..]''  (=800)
   const double lde=0.2;		//amount to vary energy by for 'large' variations (0.1 => 10%)
   // XXX where to put these parameters?
@@ -135,25 +104,22 @@ the minor (P.T.) changes work!
 
   // Find 'l' from 'kappa' (ang. momentum Q number)
   // This is used to calculate number of nodes wf should have
-  // XXX Make this a function? XXX
-  int ll;          //L ang. mom QN
-  if (ka>0){
-    ll=ka;
-  }else{
-    ll=-ka-1;
-  }
-  int inodes=n-ll-1;      //# of nodes wf should have
+  int ll;   //L ang. mom QN
+  if (ka>0) ll=ka;
+  else ll=-ka-1;
+  //Number of nodes wf should have:
+  int inodes=n-ll-1;
 
   //Some parameters used by the Adams Moulton method:
   int more=0,less=0;          //params for checking nodes
   double eupper=0,elower=0;   //params for """ and varying energy
   double anorm=0;             // normalisation constant
   int ctp;                    //classical turning point
-  int status=0;
+  bool converged=false;
   double deltaEn=0;
   its=0;            //numer of iterations (for this n,ka)
 
-  while (status==0){
+  while (!converged){
 
     //Find the practical infinity 'pinf'
     //Step backwards from the last point (NGP-1) until
@@ -290,7 +256,7 @@ the minor (P.T.) changes work!
       else if (deltaEn<delep){
         en=etemp;
         eps=deltaEn;
-        status=1;
+        converged=true;
       }
       else {
         eps=deltaEn;
@@ -303,12 +269,10 @@ the minor (P.T.) changes work!
     if(dodebug) printf("Itteration number %i,  en= %f\n",its,en);
     if(its>ntry){
       if(deltaEn<deles){
-        if(dodebug){
-          printf("Wavefunction %i %i didn't fully converge after %i iterations"
-                 ", but OK.\n",n,ka,ntry);
-        }
+        if(dodebug) printf("Wavefunction %i %i didn't fully converge after "
+                    "%i iterations, but OK.\n",n,ka,ntry);
         eps=deltaEn;
-        status=1;
+        converged=true; //kind-of
       }else{
         printf("Wavefunction %i %i didn't converge after %i itterations.\n",n,
                ka,ntry);
@@ -318,7 +282,7 @@ the minor (P.T.) changes work!
       }
     }
 
-  }// END: while (status==0)
+  }// END: while (not converged)
 
 
 //  if(dodebug){

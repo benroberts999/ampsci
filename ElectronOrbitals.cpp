@@ -84,7 +84,7 @@ int ElectronOrbitals::formRadialGrid()
 
   //XXX put a safety check??
 
-  double r0=1.e-4; // XXX input?? private variable? XXX
+  double r0=1.e-5; // XXX input?? private variable? XXX
   // XXX copied from before. WHY like this???
   double paramRmax=500;
   h=log(paramRmax/r0)/(ngp-2); //XXX ok??
@@ -190,6 +190,7 @@ See: https://www-nds.iaea.org/radii/
     if(ri<rN) temp_v = Z*(pow(ri,2)-3.*rn2)/(2.*rn3); //XXX 2.*rn3?? check!? XXX
     else temp_v = -Z/ri;
     vnuc.push_back(temp_v);
+    //std::cout<<i<<" "<<r[i]<<" "<<rN<<" "<<temp_v<<" "<<-Z/ri<<"\n";
   }
 
   return 0;
@@ -227,6 +228,8 @@ https://www.gnu.org/software/gsl/manual/html_node/Complete-Fermi_002dDirac-Integ
   if(c==0) c=1.1*pow(A,0.3333); //default half-charge radius ????
   // XXX Better approx! +/or data tables!
 
+  //std::cout<<c/ABOHR_FM<<"\n";
+
   double a=0.22756*t; // a = t*[4 ln(3)]
   double coa=c/a;
   // Use GSL for the Complete Fermi-Dirac Integrals:
@@ -246,6 +249,7 @@ https://www.gnu.org/software/gsl/manual/html_node/Complete-Fermi_002dDirac-Integ
       t_v+=t_v*tX/(12.*F2);
     }
     vnuc.push_back(t_v);
+    //std::cout<<i<<" "<<r[i]<<" "<<t_v<<" "<<-Z/t_r<<"\n";
   }
 
   return 0;

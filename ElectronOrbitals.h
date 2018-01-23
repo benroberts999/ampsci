@@ -49,6 +49,8 @@ class ElectronOrbitals{
     int localBoundState(int in_max_n, int in_max_l=100);
 
     double diracen(int z, int n, int k);
+    int sphericalNucleus(double rnuc=0);
+    int fermiNucleus(double t=0, double c=0);
 
 
   private:
@@ -58,8 +60,7 @@ class ElectronOrbitals{
 
     int formRadialGrid();
     int zeroNucleus();
-    int sphericalNucleus(double rnuc=0);
-    int fermiNucleus(double t=0, double c=0);
+
 
 
 

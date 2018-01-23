@@ -14,16 +14,23 @@ int main(void){
   //printf("NGP=%i, Size of box: Rmax=%.1f a.u., h=%f\n\n",NGP,r(NGP-1),h);
 
   int Z=1;
-  int A=1;
+  int A=0;
   int n_max = 5;
   ElectronOrbitals wf(Z,A,2000,1.);
 
   wf.localBoundState(n_max);
 
+  // ElectronOrbitals wf2(Z,A,2000,1.);
+  // ElectronOrbitals wf3(Z,A,2000,1.);
+  // wf2.sphericalNucleus();
+  // wf3.fermiNucleus();
+  //wf2.localBoundState(n_max);
+  //wf3.localBoundState(n_max);
+
   printf("Grid: pts=%i h=%7.5f Rmax=%5.1f\n\n",wf.ngp,wf.h,wf.r[wf.ngp-1]);
 
 
-  printf(" n l_j    k  R_inf its eps   En (au)            Error (au)\n");
+  printf(" n l_j    k  R_inf its eps     En (au)            Error (au)\n");
   int num_states = wf.nlist.size();
   for(int i=0; i<num_states; i++){
     int n=wf.nlist[i];
@@ -33,7 +40,7 @@ int main(void){
     double del = wf.en[i] - wf.diracen(wf.Z,n,k);
     double rinf = wf.r[wf.pinflist[i]];
     //std::cout<<wf.diracen(wf.Z,n,k)<<"\n";
-    printf("%2i %s_%i/2 (%2i)  %3.0f %i %5.0e  %.15f  %8.1e\n",
+    printf("%2i %s_%i/2 (%2i)  %3.0f %2i  %5.0e  %.15f  %7.0e\n",
         n,atinfo_l(l).c_str(),twoj,k,rinf,wf.itslist[i],wf.epslist[i],
         wf.en[i],del);
   }
@@ -80,10 +87,25 @@ int main(void){
   }
 
 
-  for(int i=0; i<15; i++)
-    std::cout<<wf.r[i]<<" "<<wf.p[0][i]<<" "<<wf.q[0][i]<<"\n";
-
-
+  // for(int i=0; i<15; i++)
+  //   std::cout<<wf.r[i]<<" "<<wf.p[0][i]<<" "<<wf.q[0][i]<<"\n";
+  //
+  // std::cout<<"\n\n";
+  // //int num_states = wf.nlist.size();
+  // for(int i=0; i<num_states; i++){
+  //   int n=wf.nlist[i];
+  //   int k=wf.klist[i];
+  //   int twoj = 2*abs(k)-1;
+  //   int l = (abs(2*k+1)-1)/2;
+  //   double del1 = wf2.en[i] - wf.en[i];
+  //   double del2 = wf3.en[i] - wf.en[i];
+  //   printf("%2i %s_%i/2 (%2i)  %.15f  %9.2e %9.2e\n",
+  //       n,atinfo_l(l).c_str(),twoj,k,wf.en[i],del1,del2);
+  // }
+  //
+  // // for(int i=0; i<wf.ngp; i++){
+  // //   std::cout<<i<<" "<<wf.r[i]<<" "<<wf.vnuc[i]<<" "<<wf2.vnuc[i]<<" "<<wf3.vnuc[i]<<"\n";
+  // // }
 
   tf = clock();
   double total_time = 1000.*double(tf-ti)/CLOCKS_PER_SEC;
