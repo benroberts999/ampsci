@@ -58,7 +58,8 @@ class ElectronOrbitals{
     //Number of grid points:
 
 
-    int formRadialGrid();
+    int JohnsonRadialGrid(double r0=1.e-6, double rmax=250.);
+    int DzubaRadialGrid(double r0=1.e-6, double rmax=250., double b=4.);
     int zeroNucleus();
 
 

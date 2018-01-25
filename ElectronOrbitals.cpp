@@ -20,7 +20,8 @@ ElectronOrbitals::ElectronOrbitals(int in_z, int in_a, int in_ngp, double var_al
 {
 
   ngp=in_ngp;
-  formRadialGrid();
+  //JohnsonRadialGrid(1.e-6,250.);
+  DzubaRadialGrid(1.e-6,250.);
 
   alpha=ALPHA*var_alpha;
 
@@ -39,8 +40,6 @@ int ElectronOrbitals::localBoundState(int in_max_n, int in_max_l)
 ``Wrapper'' function, to use the adamsSolveLocalBS method!
 */
 {
-
-  //double alpha=ALPHA;
 
   max_n = in_max_n;
   max_l = in_max_l;
@@ -69,28 +68,27 @@ int ElectronOrbitals::localBoundState(int in_max_n, int in_max_l)
   }
 
 
-
   return 0;
 }
 
 
 //******************************************************************************
-int ElectronOrbitals::formRadialGrid()
+int ElectronOrbitals::JohnsonRadialGrid(double r0, double rmax)
+/*
+Non-uniform r grid, taken from Johnson book (w/ minor modification).
+Quite a standard exponential grid.
+Uses:
+   dr/dt = r0 * exp(t)
+=> r = r0 * exp(t)
+   t = i*h for i=0,1,2,...
+*/
 {
-  // XXX NOTE: There are several options for the grids!
-  // See Dzuba code! Which is better? Option for either??
-  //I _think_ this is the Johnson grid.... check.
-  // XXX AND add explanation to comments!
 
-  //XXX put a safety check??
-
-  double r0=1.e-6; // XXX input?? private variable? XXX
-  double paramRmax=500;
-  h=log(paramRmax/r0)/(ngp-1);
+  h=log(rmax/r0)/(ngp-1);
   if(h>0.03){
     std::cout<<"Warning: h="<<h<<" in formRadialGrid. Is this too large??\n";
   }
-  
+
   drdt.clear();
   for(int i=0; i<ngp; i++){
     double temp_drdt = r0*exp(i*h);
@@ -115,7 +113,53 @@ int ElectronOrbitals::formRadialGrid()
   return 0;
 }
 
+//******************************************************************************
+int ElectronOrbitals::DzubaRadialGrid(double r0, double rmax, double b)
+/*
+Non-uniform r-grid taken from V. Dzuba code.
+Uses:
+  dr/dt = r / (b + r)
+  t = r + b*log(r)
+Grid will be ~ exponential below 'b', roughly linear afterwards
+Default b=4.
+*/
+{
 
+  h=(rmax-r0+b*log(rmax/r0))/(ngp-1);
+
+  //clear the vectors, just in case
+  r.clear();
+  drdt.clear();
+  dror.clear();
+  //initial points:
+  r.push_back(r0);
+  dror.push_back(1./(b+r0));
+  drdt.push_back(dror[0]*r0);
+
+  // Use method from Dzuba code to calculate r grid
+  double t = r0 + b*log(r0); //t is linear/uniform grid
+  for(int i=1; i<ngp; i++){
+    t+=h;
+    double t_r = r[i-1];  //"temp" r
+    //Integrate dr/dt to find r:
+    double delta_r=1.;
+    int ii=0; //to count number of iterations
+    while(delta_r>r0*1.e-15){
+      double delta_t = t - (t_r + b*log(t_r)); // t = t0+i*h
+      double t_drdt = t_r/(t_r + b); // temp dr/dt
+      delta_r = delta_t * t_drdt;
+      t_r += delta_r;
+      ii++;
+      if(ii>30) break; //usually converges in ~ 2 or 3 steps!
+    }
+    //std::cout<<ii<<" "<<eps<<"\n";
+    r.push_back(t_r);
+    dror.push_back(1./(b+t_r));
+    drdt.push_back(dror[i]*t_r);
+  }
+
+  return 0;
+}
 
 
 //******************************************************************************
@@ -199,6 +243,8 @@ See: https://www-nds.iaea.org/radii/
 int ElectronOrbitals::fermiNucleus(double t, double c)
 /*
 Uses a Fermi-Dirac distribution for the nuclear potential.
+
+NOTE: Only seems to work for fairly large Z !
 
 rho(r) = rho_0 {1 + Exp[(r-c)/a]}^-1
 V(r) = -(4 Pi)/r [A+B]

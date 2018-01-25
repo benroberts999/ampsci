@@ -16,16 +16,11 @@ int main(void){
   int Z=1;
   int A=0;
   int n_max = 5;
-  ElectronOrbitals wf(Z,A,1000,1.);
+  ElectronOrbitals wf(Z,A,2000,1.);
 
   wf.localBoundState(n_max);
-
-  // ElectronOrbitals wf2(Z,A,2000,1.);
-  // ElectronOrbitals wf3(Z,A,2000,1.);
-  // wf2.sphericalNucleus();
-  // wf3.fermiNucleus();
-  //wf2.localBoundState(n_max);
-  //wf3.localBoundState(n_max);
+  //wf.fermiNucleus();
+  //wf.sphericalNucleus();
 
   printf("Grid: pts=%i h=%7.5f Rmax=%5.1f\n\n",wf.ngp,wf.h,wf.r[wf.ngp-1]);
 
@@ -84,27 +79,6 @@ int main(void){
     printf("<%i% i|H|%i% i> = % .15f, E(%i% i) = % .15f; % .0e\n",wf.nlist[s],
         wf.klist[s],wf.nlist[s],wf.klist[s],R,wf.nlist[s],wf.klist[s],
         wf.en[s],fracdiff);
-  }
-
-
-  // for(int i=0; i<15; i++)
-  //   std::cout<<wf.r[i]<<" "<<wf.p[0][i]<<" "<<wf.q[0][i]<<"\n";
-  //
-  // std::cout<<"\n\n";
-  // //int num_states = wf.nlist.size();
-  // for(int i=0; i<num_states; i++){
-  //   int n=wf.nlist[i];
-  //   int k=wf.klist[i];
-  //   int twoj = 2*abs(k)-1;
-  //   int l = (abs(2*k+1)-1)/2;
-  //   double del1 = wf2.en[i] - wf.en[i];
-  //   double del2 = wf3.en[i] - wf.en[i];
-  //   printf("%2i %s_%i/2 (%2i)  %.15f  %9.2e %9.2e\n",
-  //       n,atinfo_l(l).c_str(),twoj,k,wf.en[i],del1,del2);
-  // }
-  //
-  for(int i=0; i<15; i++){
-    std::cout<<i<<" "<<wf.r[i]<<" "<<wf.vnuc[i]<<" "<<wf.p[0][i]<<"\n";
   }
 
   tf = clock();
