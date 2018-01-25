@@ -16,7 +16,7 @@ int main(void){
   int Z=1;
   int A=0;
   int n_max = 5;
-  ElectronOrbitals wf(Z,A,2000,1.);
+  ElectronOrbitals wf(Z,A,1000,1.);
 
   wf.localBoundState(n_max);
 
@@ -81,7 +81,7 @@ int main(void){
     }
     double R=INT_integrate(rad,wf.drdt,wf.h);
     double fracdiff=(R-wf.en[s])/wf.en[s];
-    printf("<%i% i|H|%i% i> = % .15f, E(%i% i) = % .15f; % .2e\n",wf.nlist[s],
+    printf("<%i% i|H|%i% i> = % .15f, E(%i% i) = % .15f; % .0e\n",wf.nlist[s],
         wf.klist[s],wf.nlist[s],wf.klist[s],R,wf.nlist[s],wf.klist[s],
         wf.en[s],fracdiff);
   }
@@ -103,9 +103,9 @@ int main(void){
   //       n,atinfo_l(l).c_str(),twoj,k,wf.en[i],del1,del2);
   // }
   //
-  // // for(int i=0; i<wf.ngp; i++){
-  // //   std::cout<<i<<" "<<wf.r[i]<<" "<<wf.vnuc[i]<<" "<<wf2.vnuc[i]<<" "<<wf3.vnuc[i]<<"\n";
-  // // }
+  for(int i=0; i<15; i++){
+    std::cout<<i<<" "<<wf.r[i]<<" "<<wf.vnuc[i]<<" "<<wf.p[0][i]<<"\n";
+  }
 
   tf = clock();
   double total_time = 1000.*double(tf-ti)/CLOCKS_PER_SEC;

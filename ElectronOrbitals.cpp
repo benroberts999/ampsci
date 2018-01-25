@@ -84,30 +84,29 @@ int ElectronOrbitals::formRadialGrid()
 
   //XXX put a safety check??
 
-  double r0=1.e-5; // XXX input?? private variable? XXX
-  // XXX copied from before. WHY like this???
+  double r0=1.e-6; // XXX input?? private variable? XXX
   double paramRmax=500;
-  h=log(paramRmax/r0)/(ngp-2); //XXX ok??
-
-
+  h=log(paramRmax/r0)/(ngp-1);
+  if(h>0.03){
+    std::cout<<"Warning: h="<<h<<" in formRadialGrid. Is this too large??\n";
+  }
+  
   drdt.clear();
   for(int i=0; i<ngp; i++){
-    double temp_drdt = r0*exp((i+1)*h); //XXX -1? check!
+    double temp_drdt = r0*exp(i*h);
     drdt.push_back(temp_drdt);
   }
 
   r.clear();
-  //r.push_back(1.e-8);
   for(int i=0; i<ngp; i++){
-    // Is it OK that it starts at 0?? should it be r0? 0.01*r0?
-    // XXX Check Johnson book..?
-    double temp_r = drdt[i]-r0;
+    double temp_r = drdt[i];
     r.push_back(temp_r);
   }
 
   // (dr/dt)/r [for convinience]
+  //Note: with current radial grid, this is always 1! (not true in general)
   dror.clear();
-  dror.push_back(0.); //XXX is this correct?? XXX
+  dror.push_back(1.);
   for(int i=1; i<ngp; i++){
     double temp_dror = drdt[i]/r[i];
     dror.push_back(temp_dror);
