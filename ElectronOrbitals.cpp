@@ -4,19 +4,9 @@
 #include "atomInfo.h"
 //#include "adamsSolveLocalBS.h"
 
-//******************************************************************************
-//ElectronOrbitals(std::string s_in_z, int in_a, int in_ngp)
-//{
-//  //Work out Z from given atomic symbol
-//  int iz;
-//  for(iz=1; iz<200; iz++){
-//    if(atinfo_sym[iz]==s_in_z || s_in_z==std::to_string(iz)) break;
-//  }
-//  //XXX needs some kind of safety-check! XXX
-//  ElectronOrbitals(int iz, int in_a, int in_ngp);
-//}
-//-----Overloaded---------------------------------------------------------------
-ElectronOrbitals::ElectronOrbitals(int in_z, int in_a, int in_ngp, double var_alpha)
+********************************************************************************
+ElectronOrbitals::ElectronOrbitals(int in_z, int in_a, int in_ngp,
+  double var_alpha)
 {
 
   ngp=in_ngp;
@@ -31,8 +21,16 @@ ElectronOrbitals::ElectronOrbitals(int in_z, int in_a, int in_ngp, double var_al
   zeroNucleus();
   //sphericalNucleus(); //input rnuc?
   //fermiNucleus();
-
 }
+//-----Overloaded---------------------------------------------------------------
+ElectronOrbitals::ElectronOrbitals(std::string s_in_z, int in_a, int in_ngp,
+  double var_alpha)
+{
+ //Work out Z from given atomic symbol
+ int iz = atinfo_get_z(s_in_z);
+ ElectronOrbitals(iz,in_a,in_ngp,var_alpha);
+}
+
 
 //******************************************************************************
 int ElectronOrbitals::localBoundState(int in_max_n, int in_max_l)
