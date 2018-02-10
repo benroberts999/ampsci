@@ -45,13 +45,13 @@ inline std::string atinfo_l(int l){
   else return std::to_string(l);
 }
 
-// //No idea if this works, so comment out for now
-// int zFromSymbol(std::string at){
-//   for(int z=0; z<121; z++){
-//     if(at==atinfo_sym[z]) return z;
-//   }
-//   std::cout<<"\n FAILURE 47 in atomInfo: "<<at<<" not found.\n";
-//   return 0;
-// }
+//No idea if this works, so comment out for now
+inline int atinfo_get_z(std::string at){
+  for(int z=0; z<121; z++){
+    if(at==atinfo_sym[z]) return z;
+  }
+  std::cout<<"\n FAILURE 47 in atomInfo: "<<at<<" not found.\n";
+  return 0;
+}
 
 #endif
