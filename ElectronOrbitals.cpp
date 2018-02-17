@@ -4,7 +4,7 @@
 #include "atomInfo.h"
 //#include "adamsSolveLocalBS.h"
 
-********************************************************************************
+//********************************************************************************
 ElectronOrbitals::ElectronOrbitals(int in_z, int in_a, int in_ngp,
   double var_alpha)
 {

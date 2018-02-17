@@ -138,7 +138,7 @@ the minor (P.T.) changes work!
     //Step backwards from the "practical infinity" until
     //  V(r) > E        [nb: both V and E are <0]
     ctp=pinf;
-    int d_ctp=2; //XXX here. Num points ctp +/- d_ctp. Make input!
+    int d_ctp=0; //XXX here. Num points ctp +/- d_ctp. Make input!
     while ( (en-v[ctp]) < 0 ){
       ctp=ctp-1;
       if (ctp-d_ctp<=0){
