@@ -151,7 +151,6 @@ the minor (P.T.) changes work!
       //Didn't find ctp! Does this ever happen?
       printf("FAILURE: Turning point at or after pract. inf. \n");
       printf("ctp=%i, d_ctp=%i, pinf=%i, NGP=%i\n",ctp,d_ctp,pinf,NGP);
-      // printf("ctp(%i)=%.1f, d_ctp=%i, pinf(%i)=%.1f\n",ctp,r[ctp],d_ctp,pinf,r[pinf]);
       return 1;
     }
     if(dodebug) printf("Classical turning point (i=%i): ctp=%.1f a.u.\n",
@@ -288,17 +287,6 @@ the minor (P.T.) changes work!
   }// END: while (not converged)
 
 
-//  if(dodebug){
-//    // move to class! [as an 'info' function! - used for de-bugging]
-//    int iat1=log((1+r0)/r0)/h;
-//    int iat10=log((10+r0)/r0)/h;
-//    printf("Radial grid sepparations at 1 a.u., 10 a.u., ctp and pinf:\n");
-//    printf("At    r=1    a.u.;  dr=%.4f\n",r[iat1]-r[iat1-1]);
-//    printf("At    r=10   a.u.;  dr=%.4f\n",r[iat10]-r[iat10-1]);
-//    printf("ctp:  r=%3.1f a.u.;  dr=%.4f\n",r[ctp],r[ctp]-r[ctp-1]);
-//    printf("pinf: r=%3.1f a.u.;  dr=%.4f\n",r[pinf],r[pinf]-r[pinf-1]);
-//  }
-
 
   //normalises the wavefunction
   double an= 1/sqrt(anorm);
@@ -308,7 +296,7 @@ the minor (P.T.) changes work!
     q[i]=an*q[i];
   }
   for (int i=(pinf+1); i<NGP; i++){
-    // this prob. not neccissary, but kills remainders
+    // kills remainders
     p[i]=0;
     q[i]=0;
   }
@@ -320,9 +308,6 @@ the minor (P.T.) changes work!
     printf("Converged for %i %i to %.3e after %i iterations;\n",n,ka,eps,its);
     printf("%i %i: Pinf(%i)=%.1f,  \nMy energy:  en= %.15f\n",n,ka,pinf,
            r[pinf],en);
-    // double fracdiff=(en-diracen(Z,n,ka))/en;
-    // printf("Exact Dirac:  Ed= %.15f; Del=%.2g%% \n\n",
-    //     diracen(Z,n,ka),fracdiff);
   }
 
   return 0;
@@ -342,11 +327,11 @@ the minor (P.T.) changes work!
 int outwardAM(std::vector<double> &p, std::vector<double> &q, double &en,
     std::vector<double> v, int Z, int ka,
     std::vector<double> r, std::vector<double> drdt, double h, int NGP,
-    int ctp, double alpha)
+    int nf, double alpha)
 /*
 Program to start the OUTWARD integration.
 Starts from 0, and uses an expansion(?) to go to (nol*AMO).
-Then, it then call ADAMS-MOULTON, to finished (from nol*AMO+1 to ctp)
+Then, it then call ADAMS-MOULTON, to finished (from nol*AMO+1 to nf = ctp+d_ctp)
 
 XXX rename to outwardAM ? amOutInt?
 
@@ -375,8 +360,6 @@ XXX rename to outwardAM ? amOutInt?
   q[0]=0;
 
   //Coeficients used by the method
-  //double ie[amo2][amo2];
-  //double ia[amo2];
   std::vector< std::vector<double> > ie(AMO,std::vector<double>(AMO));
   std::vector<double> ia(AMO);
   double id;
@@ -387,15 +370,9 @@ XXX rename to outwardAM ? amOutInt?
     int i0=ln*AMO+1;
 
     //defines/populates coefs
-    //double coefa[amo2],coefb[amo2],coefc[amo2],coefd[amo2];
-    //double em[amo2][amo2];
     std::vector<double> coefa,coefb,coefc,coefd;
     std::vector< std::vector<double> > em(AMO,std::vector<double>(AMO));
     for (int i=0; i<AMO; i++){
-      // coefa[i]=-id*h*(ga+ka)*dror(i+i0);
-      // coefb[i]=-id*h*(en+2*c2-v[i+i0])*drdt(i+i0)*aa;
-      // coefc[i]=id*h*(en-v[i+i0])*drdt(i+i0)*aa;
-      // coefd[i]=-id*h*(ga-ka)*dror(i+i0);
       double dror = drdt[i+i0]/r[i+i0];
       coefa.push_back(-id*h*(ga+ka)*dror);
       coefb.push_back(-id*h*(en+2*c2-v[i+i0])*drdt[i+i0]*alpha);
@@ -409,10 +386,6 @@ XXX rename to outwardAM ? amOutInt?
 
 
     // //inverts the matrix!  invfm = Inv(fm)
-    // double invem[amo2][amo2]={0};
-    // //invertmat(em,invem,amo2);
-    // invertMatrix(em,invem);
-    // // XXX update to use GSL ? XXX
     MAT_invertMatrix(em); //from here on, em is the inverted matrix!
 
 
@@ -429,17 +402,11 @@ XXX rename to outwardAM ? amOutInt?
 
 
     //inverts the matrix!  invfm = Inv(fm)
-    // XXX use vector!
-    //double invfm[amo2][amo2]={0};
-    //invertmat(fm,invfm,amo2);
-    //invertMatrix(fm,invfm);
-    // XXX update to use GSL ? XXX
     MAT_invertMatrix(fm); //from here on, fm is the inverted matrix!
 
 
     //writes u(r) in terms of coefs and the inverse of fm
     // P(r) = r^gamma u(r)
-    // double us[amo2];
     std::vector<double> us(AMO);
     for (int i=0; i<AMO; i++){
       us[i]=0;
@@ -451,7 +418,6 @@ XXX rename to outwardAM ? amOutInt?
 
     //writes v(r) in terms of coefs + u(r)
     // Q(r) = r^gamma v(r)
-    // double vs[amo2];
     std::vector<double> vs(AMO);
     for (int i=0; i<AMO; i++){
       vs[i]=0;
@@ -476,10 +442,10 @@ XXX rename to outwardAM ? amOutInt?
   }// END for (int ln=0; ln<nol; ln++)  [loop through outint `nol' times]
 
 
-  // calls adamsmoulton to finish integration from (nol*AMO+1) to ctp
+  // calls adamsmoulton to finish integration from (nol*AMO+1) to nf = ctp+d_ctp
   int na=nol*AMO+1;
-  if (ctp>na){
-    adamsMoulton(p,q,en,v,ka,r,drdt,h,NGP,na,ctp,alpha);
+  if (nf>na){
+    adamsMoulton(p,q,en,v,ka,r,drdt,h,NGP,na,nf,alpha);
   }
 
 
@@ -495,11 +461,11 @@ XXX rename to outwardAM ? amOutInt?
 int inwardAM(std::vector<double> &p, std::vector<double> &q, double &en,
     std::vector<double> v, int ka,
     std::vector<double> r, std::vector<double> drdt, double h, int NGP,
-    int ctp, int pinf, double alpha)
+    int nf, int pinf, double alpha)
 /*
 Program to start the INWARD integration.
 Starts from Pinf, and uses an expansion(?) to go to (pinf-AMO)
-Then, it then call ADAMS-MOULTON, to finished (from nol*AMO+1 to ctp)
+Then, it then call ADAMS-MOULTON, to finished (from nol*AMO+1 to nf = ctp-d_ctp)
 */
 {
 
@@ -519,8 +485,6 @@ Then, it then call ADAMS-MOULTON, to finished (from nol*AMO+1 to ctp)
 
   //Generates the expansion coeficients for asymptotic wf
   // up to order NX (nx is 'param')
-  // double bx[nx];
-  // double ax[nx];
   std::vector<double> bx(nx); //nx = ?? from 'params'?
   std::vector<double> ax(nx);
   bx[0]=(ka+(zeta/lambda))*(alpha/2);
@@ -563,8 +527,8 @@ Then, it then call ADAMS-MOULTON, to finished (from nol*AMO+1 to ctp)
 
 
   //calls adams-moulton
-  if ((pinf-AMO-1)>=ctp){
-    adamsMoulton(p,q,en,v,ka,r,drdt,h,NGP,pinf-AMO-1,ctp,alpha);
+  if ((pinf-AMO-1)>=nf){
+    adamsMoulton(p,q,en,v,ka,r,drdt,h,NGP,pinf-AMO-1,nf,alpha);
   }
 
   return 0;
@@ -579,13 +543,13 @@ int adamsMoulton(std::vector<double> &p, std::vector<double> &q, double &en,
 /*
 //program finishes the INWARD/OUTWARD integrations (ADAMS-MOULTON)
   //- ni is starting (initial) point for integration
-  //- nf is end (final) point for integration (nf=ctp)
+  //- nf is end (final) point for integration (nf=ctp+/-d_ctp)
 */
 {
 
   double c2 = 1./pow(alpha,2); // c^2 - just to shorten code
 
-  // double ama[amo2];    //AM coefs.
+  //AM coefs.
   std::vector<double> ama(AMO);
   double amd,amaa;
   getAdamsCoefs(ama,amd,amaa);  // loads the coeficients! //XXX update!
@@ -608,13 +572,11 @@ int adamsMoulton(std::vector<double> &p, std::vector<double> &q, double &en,
     nosteps=ni-nf+1;
   }
   else{
-    printf("WARNING: ni=nf in adamsmoulton.. no further integration");
+    printf("WARNING 611: ni=nf in adamsmoulton.. no further integration");
     return 1;
   }
 
 
-  // double dp[NGP],dq[NGP];      //create arrays for wf derivatives
-  // double amcoef[amo2];
   //create arrays for wf derivatives
   std::vector<double> dp(NGP),dq(NGP); //XXX is this syntax valid?
   std::vector<double> amcoef(AMO);
@@ -623,7 +585,6 @@ int adamsMoulton(std::vector<double> &p, std::vector<double> &q, double &en,
     double dror = drdt[k1]/r[k1];
     dp[i]=inc*(-ka*dror*p[k1]-alpha*((en+2*c2)-v[k1])*drdt[k1]*q[k1]);
     dq[i]=inc*(ka*dror*q[k1]+alpha*(en-v[k1])*drdt[k1]*p[k1]);
-    //XXX drdt etc. update!
     amcoef[i]=(h/amd)*ama[i];
     k1+=inc;
   }
@@ -632,7 +593,7 @@ int adamsMoulton(std::vector<double> &p, std::vector<double> &q, double &en,
   //integrates the function from ni to the c.t.p
   double a0=(h/amd)*amaa;
   int k2=ni;
-  for (int i=0; i<nosteps; i++){    //double check! - end point should be ctp! (inclusive)
+  for (int i=0; i<nosteps; i++){    //double check! - end point should be ctp*! (inclusive)
     double dror = drdt[k2]/r[k2];
     double dai=-inc*(ka*dror);
     double dbi=-inc*alpha*(en+2*c2-v[k2])*drdt[k2];
