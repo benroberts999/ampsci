@@ -157,24 +157,65 @@ the minor (P.T.) changes work!
                 ctp,r[ctp]);
     if(dodebug) printf("%i %i: Pinf= %.1f,  en= %f\n",n,ka,r[pinf],en);
 
+    //Temporary vectors for in/out integrations
+    std::vector<double> pin(NGP),qin(NGP),pout(NGP),qout(NGP);
+
     //Perform the "inwards integration":
-    inwardAM(p,q,en,v,ka,r,drdt,h,NGP,ctp-d_ctp,pinf,alpha);
+    inwardAM(pin,qin,en,v,ka,r,drdt,h,NGP,ctp-d_ctp,pinf,alpha);
 
     //save the values of wf at ctp from the 'inward' ind
-    //XXX ctp update! XXX
-    double ptp=p[ctp];
-    double qtp=q[ctp];
+    //XXX ctp update! XXX - make vectors!! (2*d_ctp+1)
+  //  double ptp=pin[ctp];
+    double qtp=qin[ctp];
 
     //Perform the "outwards integration"
-    outwardAM(p,q,en,v,Z,ka,r,drdt,h,NGP,ctp+d_ctp,alpha);
+    outwardAM(pout,qout,en,v,Z,ka,r,drdt,h,NGP,ctp+d_ctp,alpha);
 
-    //Scales the inward solution to match the outward solution (for P)
-    double rescale=p[ctp]/ptp;
-    for (int i=ctp+1; i<=pinf; i++){
-      p[i]=rescale*p[i];
-      q[i]=rescale*q[i];
+    //Find the re-scaling factor using a weighted average:
+    double rescale = pout[ctp]/pin[ctp];
+    double denom = 1;
+    for(int i=1; i<=d_ctp; i++){
+      //re-scale from weigted average. Weight = distance from ctp
+      rescale += (pout[ctp+i]/pin[ctp+i] + pout[ctp-i]/pin[ctp-i])/(i+1);
+      denom += 2./(i+1);
     }
+    rescale /= denom;
+    std::cout<<"denom="<<denom<<"\n";
+
+    //re-scale the inward solution to match the outward solution (for P):
+    for(int i=ctp-d_ctp; i<=pinf; i++){
+      pin[i]*=rescale;
+      qin[i]*=rescale;
+    }
+
+    //XXX add comment
+    for(int i=0; i<ctp-d_ctp; i++){
+      p[i] = pout[i];
+      q[i] = qout[i];
+    }
+    for(int i=ctp+d_ctp+1; i<=pinf; i++){
+      p[i] = pin[i];
+      q[i] = qin[i];
+    }
+    for(int i=ctp-d_ctp; i<=ctp+d_ctp; i++){
+      double B = (double((i-ctp)+d_ctp))/(2.*d_ctp);
+      double A = 1-B;
+      std::cout<<i<<"/"<<ctp<<" "<<A<<" "<<B<<" "<<A+B<<"\n";
+      p[i] = A*pout[i] + B*pin[i];
+      q[i] = A*qout[i] + B*qin[i];
+    }
+
+
+    // //Scales the inward solution to match the outward solution (for P)
+    // //XXX Needs fixing!
+    // double rescale=p[ctp]/ptp;
+    // for (int i=ctp+1; i<=pinf; i++){
+    //   p[i]=rescale*p[i];
+    //   q[i]=rescale*q[i];
+    // }
+
     // The qtp value is scaled too; used in perturbation correction.
+    // XXX ??? fix!?
     qtp=rescale*qtp;
 
 
@@ -241,6 +282,7 @@ the minor (P.T.) changes work!
       anorm=INT_integrate(ppqq,drdt,h,0,pinf);
       if(dodebug) printf("anrom=%.5f\n",anorm);
       double de=  (1./alpha) * p[ctp] * (qtp-q[ctp]) / anorm ;
+      //XXX HERE!!! XXX
       deltaEn=fabs(de/en);
       etemp = en + de;
       if(dodebug){
