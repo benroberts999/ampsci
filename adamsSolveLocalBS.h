@@ -11,8 +11,6 @@
 #include "INT_quadratureIntegration.h"
 
 
-  const int AMO=7; //XXX
-
 
 
 int solveDBS(std::vector<double> &p, std::vector<double> &q, double &en,

@@ -21,10 +21,12 @@ bool debug=false; //if true, will print progress messages.
 To do :: Jan 2018
  * smarter variable names!
  * p,q -> f,g! Check the q cancellation!
- * updated ctp matching thing! [see below]
+ * updated ctp matching thing! [see below] DONE
 
 */
 
+  const int AMO=7; //XXX
+  //XXX make parameter like the rest!
 
 //******************************************************************************
 int solveDBS(std::vector<double> &p, std::vector<double> &q, double &en,
@@ -63,24 +65,14 @@ Rough description of method:
    then re-starts from step 2.
 Continues until this energy adjustment falls below a prescribed threshold.
 
-XXX is it possible to  slightly change the method, so that inint and outint
-go _past_ ctp (by some set number of points), and then we try to match all of
-these points (instead of just 1)??
-
-XXX Go back and re-understand how the large energy changes work, AND how
-the minor (P.T.) changes work!
-
 */
 {
-
 
 // XXX
 // At the moment, it appears that initial energy guess in an input.
 // This is good, but should also have an option that allows an initial input
 // of zero, in which case this program will make the initial guess
 // XXX
-
-
 
   // bound state wavefunctions (Adams-moul)
   const double delep=1e-16;		//PRIMARY convergence parameter for bound state energy	(10^-11)
@@ -198,7 +190,7 @@ the minor (P.T.) changes work!
       if(d_ctp==0) B=0.5;
       else B = (double((i-ctp)+d_ctp))/(2.*d_ctp);
       double A = 1-B;
-      std::cout<<i<<"/"<<ctp<<" "<<A<<" "<<B<<" "<<A+B<<"\n";
+      //std::cout<<i<<"/"<<ctp<<" "<<A<<" "<<B<<" "<<A+B<<"\n";
       p[i] = A*pout[i] + B*pin[i];
       q[i] = A*qout[i] + B*qin[i];
     }
@@ -247,6 +239,7 @@ the minor (P.T.) changes work!
       deltaEn=fabs((en-etemp)/en);
       en=etemp;
     }else{
+      // XXX Maybe, put this into a function!
       // correct number of nodes.
       //From here, use perturbation theory to fine-time the energy
       if(debug) printf("Correct number of nodes, starting P.T.\n");
