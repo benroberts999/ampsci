@@ -141,16 +141,17 @@ the minor (P.T.) changes work!
     int d_ctp=2; //XXX here. Num points ctp +/- d_ctp. Make input!
     while ( (en-v[ctp]) < 0 ){
       ctp=ctp-1;
-      if (ctp<=0){
+      if (ctp-d_ctp<=0){
         //fails if ctp<0, (or ctp>pinf?)
         printf("FAILURE 96 in solveDBS: No classical region?\n");
         return 1;
       }
     }
-    if(ctp>=pinf){
+    if(ctp+d_ctp>=pinf){
       //Didn't find ctp! Does this ever happen?
       printf("FAILURE: Turning point at or after pract. inf. \n");
-      printf("ctp(%i)=%.1f, pinf(%i)=%.1f\n",ctp,r[ctp],pinf,r[pinf]);
+      printf("ctp=%i, d_ctp=%i, pinf=%i, NGP=%i\n",ctp,d_ctp,pinf,NGP);
+      // printf("ctp(%i)=%.1f, d_ctp=%i, pinf(%i)=%.1f\n",ctp,r[ctp],d_ctp,pinf,r[pinf]);
       return 1;
     }
     if(dodebug) printf("Classical turning point (i=%i): ctp=%.1f a.u.\n",
@@ -158,14 +159,15 @@ the minor (P.T.) changes work!
     if(dodebug) printf("%i %i: Pinf= %.1f,  en= %f\n",n,ka,r[pinf],en);
 
     //Perform the "inwards integration":
-    inwardAM(p,q,en,v,ka,r,drdt,h,NGP,ctp,pinf,alpha);
+    inwardAM(p,q,en,v,ka,r,drdt,h,NGP,ctp-d_ctp,pinf,alpha);
 
     //save the values of wf at ctp from the 'inward' ind
+    //XXX ctp update! XXX
     double ptp=p[ctp];
     double qtp=q[ctp];
 
     //Perform the "outwards integration"
-    outwardAM(p,q,en,v,Z,ka,r,drdt,h,NGP,ctp,alpha);
+    outwardAM(p,q,en,v,Z,ka,r,drdt,h,NGP,ctp+d_ctp,alpha);
 
     //Scales the inward solution to match the outward solution (for P)
     double rescale=p[ctp]/ptp;
