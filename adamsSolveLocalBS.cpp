@@ -129,15 +129,16 @@ the minor (P.T.) changes work!
       pinf=pinf-1;
     }
     if(pinf==NGP-1)
-        printf("WARNING: pract. inf. = size of box for %i %i\n",n,ka);
+      printf("WARNING: pract. inf. = size of box for %i %i\n",n,ka);
     if(dodebug)
-        printf("Practical infinity (i=%i): Pinf=%.1f a.u.\n",pinf,r[pinf]);
+      printf("Practical infinity (i=%i): Pinf=%.1f a.u.\n",pinf,r[pinf]);
 
 
     //Find classical turning point 'ctp'
     //Step backwards from the "practical infinity" until
     //  V(r) > E        [nb: both V and E are <0]
     ctp=pinf;
+    int d_ctp=2; //XXX here. Num points ctp +/- d_ctp. Make input!
     while ( (en-v[ctp]) < 0 ){
       ctp=ctp-1;
       if (ctp<=0){
@@ -153,7 +154,7 @@ the minor (P.T.) changes work!
       return 1;
     }
     if(dodebug) printf("Classical turning point (i=%i): ctp=%.1f a.u.\n",
-                          ctp,r[ctp]);
+                ctp,r[ctp]);
     if(dodebug) printf("%i %i: Pinf= %.1f,  en= %f\n",n,ka,r[pinf],en);
 
     //Perform the "inwards integration":
