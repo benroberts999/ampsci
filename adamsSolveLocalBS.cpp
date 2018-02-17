@@ -150,9 +150,9 @@ Continues until this energy adjustment falls below a prescribed threshold.
     //Perform the "inwards integration":
     inwardAM(pin,qin,en,v,ka,r,drdt,h,NGP,ctp-d_ctp,pinf,alpha);
 
-    //save the values of wf at ctp from the 'inward' ind
-    // XXX qtp used for PT - single value??
-    double qtp=qin[ctp];
+    // //save the values of wf at ctp from the 'inward' ind
+    // // XXX qtp used for PT - single value??
+    // double qtp=qin[ctp];
 
     //Perform the "outwards integration"
     outwardAM(pout,qout,en,v,Z,ka,r,drdt,h,NGP,ctp+d_ctp,alpha);
@@ -195,9 +195,9 @@ Continues until this energy adjustment falls below a prescribed threshold.
       q[i] = A*qout[i] + B*qin[i];
     }
 
-    // The qtp value is scaled too; used in perturbation correction.
-    // XXX ??? fix!?
-    qtp=rescale*qtp; //don't need: qtp = qin[ctp] !
+    // // The qtp value is scaled too; used in perturbation correction.
+    // // XXX ??? fix!?
+    // qtp=rescale*qtp; //don't need: qtp = qin[ctp] !
 
     //Count the number of nodes (zeros) the wf has.
     //Just counts the number of times wf changes sign
@@ -249,7 +249,10 @@ Continues until this energy adjustment falls below a prescribed threshold.
       }
       anorm=INT_integrate(ppqq,drdt,h,0,pinf);
       if(debug) printf("anrom=%.5f\n",anorm);
-      double de=  (1./alpha) * p[ctp] * (qtp-q[ctp]) / anorm ;
+
+      double del_q = qin[ctp]-qout[ctp];
+
+      double de=  (1./alpha) * p[ctp] * (del_q) / anorm ;
       //XXX HERE!!! XXX
       deltaEn=fabs(de/en);
       etemp = en + de;
