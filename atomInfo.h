@@ -1,6 +1,7 @@
 #ifndef _ATINFO_H
 #define _ATINFO_H
 #include <string>
+#include <iostream>
 
 // List of "most-common" A's, for each Z.
 //ans list of atom names
