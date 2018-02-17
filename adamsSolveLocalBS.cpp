@@ -199,7 +199,9 @@ the minor (P.T.) changes work!
       q[i] = qin[i];
     }
     for(int i=ctp-d_ctp; i<=ctp+d_ctp; i++){
-      double B = (double((i-ctp)+d_ctp))/(2.*d_ctp);
+      double B;
+      if(d_ctp==0) B=0.5;
+      else B = (double((i-ctp)+d_ctp))/(2.*d_ctp);
       double A = 1-B;
       std::cout<<i<<"/"<<ctp<<" "<<A<<" "<<B<<" "<<A+B<<"\n";
       p[i] = A*pout[i] + B*pin[i];
