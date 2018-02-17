@@ -180,7 +180,7 @@ the minor (P.T.) changes work!
       denom += 2./(i+1);
     }
     rescale /= denom;
-    std::cout<<"denom="<<denom<<"\n";
+    std::cout<<"denom="<<denom<<" rescale="<<rescale<<"\n";
 
     //re-scale the inward solution to match the outward solution (for P):
     for(int i=ctp-d_ctp; i<=pinf; i++){
@@ -189,6 +189,7 @@ the minor (P.T.) changes work!
     }
 
     //XXX add comment
+    //Bring into single loop, with if statement for A and B?
     for(int i=0; i<ctp-d_ctp; i++){
       p[i] = pout[i];
       q[i] = qout[i];
