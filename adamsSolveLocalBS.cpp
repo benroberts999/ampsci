@@ -15,7 +15,7 @@ All other functions called by solveDBS.
 
 
 
-bool dodebug=false; //if true, will print progress messages.
+bool debug=false; //if true, will print progress messages.
 
 /*
 To do :: Jan 2018
@@ -35,6 +35,8 @@ int solveDBS(std::vector<double> &p, std::vector<double> &q, double &en,
 Solves local, spherical bound state dirac equation using Adams-Moulton method.
 Based on method presented in book by W. R. Johnson:
   W. R. Johnson, Atomic Structure Theory (Springer, New York, 2007)
+I have added a few extensions to this method. In particular, I integrate past
+the classical turning point. (See below)
 
 See also:
  * https://en.wikipedia.org/wiki/Linear_multistep_method
@@ -46,18 +48,20 @@ See also:
  * http://mathworld.wolfram.com/AdamsMethod.html
 
 Rough description of method:
-1. Start with initial 'guess' of energy XXX* (see note below)
+1. Start with initial 'guess' of energy
 2. Find the "practical infinity" (psi~0), and the Classical turning point [e=v]
-3. Performs 'inward' integration (Adams Moulton). Integrates from the
-   practical infinity inwards to the classical turning point (ctp).
+3. Performs 'inward' integration (Adams Moulton). Integrates from the practical
+   infinity inwards to d_ctp points past the classical turning point (ctp).
 4. Performs 'outward' integration (Adams Moulton). Integrates from 0
-   outwards to the classical turning point.
-5. Matches the two functions at ctp, by re-scaling the 'inward' solution (for P)
+   outwards to d_ctp points past the ctp.
+5. Matches the two functions around ctp, by re-scaling the 'inward' solution
+   (for P). Uses a weighted mean, with weights given by distance from ctp.
 6. Checks the number of nodes the wf has. If too many or too few nodes, makes
    a large change to the energy and tries again (from step 2).
    If the correct number of nodes, uses perturbation theory to make minor
-   corrections to the energy to 'zoom in', then re-starts from step 2.
-   Continues until this energy adjustment falls below a prescribed threshold.
+   corrections to the energy to 'zoom in' (matching the in/out solution for q),
+   then re-starts from step 2.
+Continues until this energy adjustment falls below a prescribed threshold.
 
 XXX is it possible to  slightly change the method, so that inint and outint
 go _past_ ctp (by some set number of points), and then we try to match all of
@@ -79,25 +83,20 @@ the minor (P.T.) changes work!
 
 
   // bound state wavefunctions (Adams-moul)
-  const double delep=5e-15;		//PRIMARY convergence parameter for bound state energy	(10^-11)
-  const double deles=1e-11;		//SECONDAY convergence parameter for bound state energy	(X)
-  const int ntry=100;			// Number of failed attempts at converging (sove bs) before error quit (30)
+  const double delep=1e-16;		//PRIMARY convergence parameter for bound state energy	(10^-11)
+  const double deles=1e-10;		//SECONDAY convergence parameter for bound state energy	(X)
+  const int ntry=250;			// Number of failed attempts at converging (sove bs) before error quit (30)
   const double alr=800;			// ''assymptotically large r [not what this is..]''  (=800)
   const double lde=0.2;		//amount to vary energy by for 'large' variations (0.1 => 10%)
+  int d_ctp=10; //XXX here. Num points ctp +/- d_ctp. Make input!
   // XXX where to put these parameters?
 
   //Checks to see if legal n is requested. If not, increases n, re-calls
   //Should I do this? If there's a logic problem, probably better to know?
   if ( (fabs(ka)<=n) && (ka!=n) ){
-    //XXX swap around!
-    if(dodebug) printf("\nRunning SolveDBS for state %i %i:\n",n,ka);
-  }
-  else{
-    //XXX No..shouldn't do this!
+    if(debug) printf("\nRunning SolveDBS for state %i %i:\n",n,ka);
+  }else{
     printf("\nSate %i %i does not exist..\n",n,ka);
-    // n=n+1;
-    // en=-0.5*(pow(Z,2)/pow(n,2));
-    // solveDBS(p,q,v,Z,n,ka,en,pinf,its,eps);
     return 1;
   }
 
@@ -114,7 +113,7 @@ the minor (P.T.) changes work!
   int more=0,less=0;          //params for checking nodes
   double eupper=0,elower=0;   //params for """ and varying energy
   double anorm=0;             // normalisation constant
-  int ctp;                    //classical turning point
+  int ctp=-1;                 //classical turning point
   bool converged=false;
   double deltaEn=0;
   its=0;            //numer of iterations (for this n,ka)
@@ -123,24 +122,20 @@ the minor (P.T.) changes work!
 
     //Find the practical infinity 'pinf'
     //Step backwards from the last point (NGP-1) until
-    // (V(r) - E)*r^2 >  alr    (alr = "asymptotically large r)
+    // (V(r) - E)*r^2 >  alr    (alr = "asymptotically large r")
     pinf=NGP-1;
-    while ( (en-v[pinf])*pow(r[pinf],2) + alr < 0 ){
-      pinf=pinf-1;
-    }
+    while((en-v[pinf])*pow(r[pinf],2) + alr < 0) pinf--; //pinf=pinf-1;
     if(pinf==NGP-1)
       printf("WARNING: pract. inf. = size of box for %i %i\n",n,ka);
-    if(dodebug)
+    if(debug)
       printf("Practical infinity (i=%i): Pinf=%.1f a.u.\n",pinf,r[pinf]);
-
 
     //Find classical turning point 'ctp'
     //Step backwards from the "practical infinity" until
     //  V(r) > E        [nb: both V and E are <0]
     ctp=pinf;
-    int d_ctp=0; //XXX here. Num points ctp +/- d_ctp. Make input!
     while ( (en-v[ctp]) < 0 ){
-      ctp=ctp-1;
+      ctp--; //=ctp-1;
       if (ctp-d_ctp<=0){
         //fails if ctp<0, (or ctp>pinf?)
         printf("FAILURE 96 in solveDBS: No classical region?\n");
@@ -153,9 +148,9 @@ the minor (P.T.) changes work!
       printf("ctp=%i, d_ctp=%i, pinf=%i, NGP=%i\n",ctp,d_ctp,pinf,NGP);
       return 1;
     }
-    if(dodebug) printf("Classical turning point (i=%i): ctp=%.1f a.u.\n",
+    if(debug) printf("Classical turning point (i=%i): ctp=%.1f a.u.\n",
                 ctp,r[ctp]);
-    if(dodebug) printf("%i %i: Pinf= %.1f,  en= %f\n",n,ka,r[pinf],en);
+    if(debug) printf("%i %i: Pinf= %.1f,  en= %f\n",n,ka,r[pinf],en);
 
     //Temporary vectors for in/out integrations
     std::vector<double> pin(NGP),qin(NGP),pout(NGP),qout(NGP);
@@ -164,8 +159,7 @@ the minor (P.T.) changes work!
     inwardAM(pin,qin,en,v,ka,r,drdt,h,NGP,ctp-d_ctp,pinf,alpha);
 
     //save the values of wf at ctp from the 'inward' ind
-    //XXX ctp update! XXX - make vectors!! (2*d_ctp+1)
-  //  double ptp=pin[ctp];
+    // XXX qtp used for PT - single value??
     double qtp=qin[ctp];
 
     //Perform the "outwards integration"
@@ -180,7 +174,7 @@ the minor (P.T.) changes work!
       denom += 2./(i+1);
     }
     rescale /= denom;
-    std::cout<<"denom="<<denom<<" rescale="<<rescale<<"\n";
+    if(debug) std::cout<<"denom="<<denom<<" rescale="<<rescale<<"\n";
 
     //re-scale the inward solution to match the outward solution (for P):
     for(int i=ctp-d_ctp; i<=pinf; i++){
@@ -188,7 +182,7 @@ the minor (P.T.) changes work!
       qin[i]*=rescale;
     }
 
-    //XXX add comment
+    //Join the in and outward solutions. "Meshed" around ctp +/- d_ctp
     //Bring into single loop, with if statement for A and B?
     for(int i=0; i<ctp-d_ctp; i++){
       p[i] = pout[i];
@@ -199,6 +193,7 @@ the minor (P.T.) changes work!
       q[i] = qin[i];
     }
     for(int i=ctp-d_ctp; i<=ctp+d_ctp; i++){
+      //"Mesh" in the intermediate region
       double B;
       if(d_ctp==0) B=0.5;
       else B = (double((i-ctp)+d_ctp))/(2.*d_ctp);
@@ -208,26 +203,16 @@ the minor (P.T.) changes work!
       q[i] = A*qout[i] + B*qin[i];
     }
 
-
-    // //Scales the inward solution to match the outward solution (for P)
-    // //XXX Needs fixing!
-    // double rescale=p[ctp]/ptp;
-    // for (int i=ctp+1; i<=pinf; i++){
-    //   p[i]=rescale*p[i];
-    //   q[i]=rescale*q[i];
-    // }
-
     // The qtp value is scaled too; used in perturbation correction.
     // XXX ??? fix!?
-    qtp=rescale*qtp;
-
+    qtp=rescale*qtp; //don't need: qtp = qin[ctp] !
 
     //Count the number of nodes (zeros) the wf has.
     //Just counts the number of times wf changes sign
     int nozeros=0;
     double sp=p[1];
     double spn;
-    for (int i=2; i<pinf; i++){
+    for(int i=2; i<pinf; i++){
       spn=p[i];
       if (sp*spn<0){
         nozeros=nozeros+1;
@@ -236,7 +221,7 @@ the minor (P.T.) changes work!
         sp=spn;
       }
     }
-    if(dodebug) printf("Nodes=%i\n",nozeros);
+    if(debug) printf("Nodes=%i\n",nozeros);
 
 
     //checks to see if there are too many/too few nodes.
@@ -246,49 +231,36 @@ the minor (P.T.) changes work!
     double etemp;
     if(nozeros>inodes){
       //Too many nodes:
-      more=more+1;
-      if ((more==1)||(en<eupper)){
-        eupper=en;
-      }
+      //more=more+1;
+      more++;
+      if((more==1)||(en<eupper)) eupper=en;
       etemp=(1+lde)*en;
-      if (less!=0){
-        if(etemp<elower){
-          etemp=0.5*(eupper+elower);
-        }
-      }
+      if((less!=0)&&(etemp<elower)) etemp=0.5*(eupper+elower);
       deltaEn=fabs((en-etemp)/en);
       en=etemp;
     }else if (nozeros<inodes){
       //too few nodes:
       less=less+1;
-      if ((less==1)||(en>elower)){
-        elower=en;
-      }
+      if((less==1)||(en>elower)) elower=en;
       etemp=(1-lde)*en;
-      if (more!=0){
-        if(etemp>eupper){
-          etemp=0.5*(eupper+elower);
-        }
-      }
+      if((more!=0)&&(etemp>eupper)) etemp=0.5*(eupper+elower);
       deltaEn=fabs((en-etemp)/en);
       en=etemp;
     }else{
       // correct number of nodes.
       //From here, use perturbation theory to fine-time the energy
-      if(dodebug){printf("Correct number of nodes, starting P.T.\n");}
-      //double ppqq[NGP];
+      if(debug) printf("Correct number of nodes, starting P.T.\n");
       std::vector<double> ppqq(NGP);
       for (int i=0; i<=pinf; i++){
         ppqq[i]=p[i]*p[i]+q[i]*q[i];    // XXX add alpha here if need!
       }
-      //anorm=integrate(ppqq,0,pinf);
       anorm=INT_integrate(ppqq,drdt,h,0,pinf);
-      if(dodebug) printf("anrom=%.5f\n",anorm);
+      if(debug) printf("anrom=%.5f\n",anorm);
       double de=  (1./alpha) * p[ctp] * (qtp-q[ctp]) / anorm ;
       //XXX HERE!!! XXX
       deltaEn=fabs(de/en);
       etemp = en + de;
-      if(dodebug){
+      if(debug){
         printf("de=%.3e, en=%.5f, et=%.5f, el=%.5f, e=%.5f\n",
           de,en,etemp,elower,eupper);
       }
@@ -313,17 +285,17 @@ the minor (P.T.) changes work!
 
     its++; //increment 'number of iterations' counter
 
-    if(dodebug) printf("Itteration number %i,  en= %f\n",its,en);
+    if(debug) printf("Itteration number %i,  en= %f\n",its,en);
     if(its>ntry){
       if(deltaEn<deles){
-        if(dodebug) printf("Wavefunction %i %i didn't fully converge after "
+        if(debug) printf("Wavefunction %i %i didn't fully converge after "
                     "%i iterations, but OK.\n",n,ka,ntry);
         eps=deltaEn;
-        converged=true; //kind-of
+        converged=true; //Converged to "secondary" level, deles
       }else{
         printf("Wavefunction %i %i didn't converge after %i itterations.\n",n,
                ka,ntry);
-        if(dodebug) printf("%i %i: Pinf= %.1f,  en= %f\n",n,ka,r[pinf],en);
+        if(debug) printf("%i %i: Pinf= %.1f,  en= %f\n",n,ka,r[pinf],en);
         eps=deltaEn;
         return 2;
       }
@@ -331,25 +303,21 @@ the minor (P.T.) changes work!
 
   }// END: while (not converged)
 
-
-
   //normalises the wavefunction
   double an= 1/sqrt(anorm);
-  if(dodebug) printf("An=%.5e\n",an);
-  for (int i=0; i<=pinf; i++){
+  if(debug) printf("An=%.5e\n",an);
+  for(int i=0; i<=pinf; i++){
     p[i]=an*p[i];
     q[i]=an*q[i];
   }
-  for (int i=(pinf+1); i<NGP; i++){
+  for(int i=(pinf+1); i<NGP; i++){
     // kills remainders
     p[i]=0;
     q[i]=0;
   }
 
-  if(dodebug)
-      printf("NGP=%i, Size of box: Rmax=%.1f a.u., h=%f\n",NGP,r[NGP-1],h);
-
-  if(dodebug){
+  if(debug){
+    printf("NGP=%i, Size of box: Rmax=%.1f a.u., h=%f\n",NGP,r[NGP-1],h);
     printf("Converged for %i %i to %.3e after %i iterations;\n",n,ka,eps,its);
     printf("%i %i: Pinf(%i)=%.1f,  \nMy energy:  en= %.15f\n",n,ka,pinf,
            r[pinf],en);
@@ -600,7 +568,7 @@ int adamsMoulton(std::vector<double> &p, std::vector<double> &q, double &en,
   getAdamsCoefs(ama,amd,amaa);  // loads the coeficients! //XXX update!
 
   //this just checks that all working..prints out coefs.
-  if (dodebug){
+  if (debug){
     for (int i=0; i<AMO; i++)
       printf("AMA[%i]=%f\n",i,ama[i]);
     printf("amd=%.0f, amaa=%.0f\n",amd,amaa);

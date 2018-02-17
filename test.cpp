@@ -35,7 +35,7 @@ int main(void){
     double del = wf.en[i] - wf.diracen(wf.Z,n,k);
     double rinf = wf.r[wf.pinflist[i]];
     //std::cout<<wf.diracen(wf.Z,n,k)<<"\n";
-    printf("%2i %s_%i/2 (%2i)  %3.0f %2i  %5.0e  %.15f  %7.0e\n",
+    printf("%2i %s_%i/2 (%2i)  %3.0f %3i  %5.0e  %.15f  %7.0e\n",
         n,atinfo_l(l).c_str(),twoj,k,rinf,wf.itslist[i],wf.epslist[i],
         wf.en[i],del);
   }
@@ -57,7 +57,6 @@ int main(void){
         wf.nlist[s],wf.klist[s],R);
   }
 
-  // HERE!? Is there some problem with the formula?? a missing n or kappa??
   // Testing Dirac Eq. by evaluating <a|H|a> - ME of Hamiltonian
   printf("\nTesting Dirac Eq: <n|H|n> (test of numerical uncertainty)\n");
   int ngp=wf.ngp;
