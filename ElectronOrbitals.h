@@ -14,9 +14,9 @@ class ElectronOrbitals{
 
   public:
 
-    ElectronOrbitals(std::string s_in_z, int in_a=0, int in_ngp=NGP_DEFAULT,
-        double var_alpha=1);
     ElectronOrbitals(int in_z, int in_a=0, int in_ngp=NGP_DEFAULT,
+        double var_alpha=1);
+    ElectronOrbitals(std::string s_in_z, int in_a=0, int in_ngp=NGP_DEFAULT,
         double var_alpha=1);
 
     std::vector< std::vector<double> > p;
