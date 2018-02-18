@@ -7,3 +7,6 @@ Includes a parameter to vary the effective speed of light - allowing non-relativ
 
 The program currently named "test.cpp" includes main(), and shows an example.
 
+Note: makes use of GSL libraries: https://www.gnu.org/software/gsl/
+
+[For example, with ubuntu: sudo apt-get install libgsl0-dev]
