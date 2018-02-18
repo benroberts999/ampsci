@@ -1,32 +1,20 @@
+#include "adamsSolveLocalBS.h"
 /*
-Thu 06 Nov 2014 23:29:57 AEDT
-
-- IT WORKS.... (AMO=8 fails sometimes)
-
+Thu 06 Nov 2014 23:29:57 AEDT. Updated 2018 to go past ctp.
 Program to solve single-electron bound-state Dirac problem for a (given)
 local, central potential.
 Based on method presented in book by W. Johnson.
 Employs the Adams-Moulton method.
-
 solveDBS is the main routine that is called from elsewhere.
 All other functions called by solveDBS.
+
+===== To do :: Jan 2018 =====
+  * p,q -> f,g! Check the q cancellation!
+
 */
-#include "adamsSolveLocalBS.h"
-
-
-
 bool debug=false; //if true, will print progress messages.
-
-/*
-To do :: Jan 2018
- * smarter variable names!
- * p,q -> f,g! Check the q cancellation!
- * updated ctp matching thing! [see below] DONE
-
-*/
-
-  const int AMO=7; //XXX
-  //XXX make parameter like the rest!
+//parameter: Adams-Moulton ''order'' (number of points)
+const int AMO=7; //must be between 5 and 8 (for now). 7 Seems good.
 
 //******************************************************************************
 int solveDBS(std::vector<double> &p, std::vector<double> &q, double &en,
@@ -65,8 +53,9 @@ Rough description of method:
    then re-starts from step 2.
 Continues until this energy adjustment falls below a prescribed threshold.
 
-*/
-{
+There are two energy convergence parameters, primary and secondary.
+If cannot converge to primary value, but better than secondary, will not give
+an error.
 
 // XXX
 // At the moment, it appears that initial energy guess in an input.
@@ -74,13 +63,15 @@ Continues until this energy adjustment falls below a prescribed threshold.
 // of zero, in which case this program will make the initial guess
 // XXX
 
-  // bound state wavefunctions (Adams-moul)
-  const double delep=5e-16;		//PRIMARY convergence parameter for bound state energy	(10^-11)
-  const double deles=1e-10;		//SECONDAY convergence parameter for bound state energy	(X)
-  const int ntry=512;			// Number of failed attempts at converging (sove bs) before error quit (30)
-  const double alr=800;			// ''assymptotically large r [not what this is..]''  (=800)
-  const double lde=0.2;		//amount to vary energy by for 'large' variations (0.1 => 10%)
-  int d_ctp=5; //XXX here. Num points ctp +/- d_ctp. Make input!
+*/
+{
+  //Parameters. Put somwhere else?
+  const double delep=5e-16; //PRIMARY convergence parameter [energy] (10^-11)
+  const double deles=1e-10; //SECONDAY convergence parameter [energy]	(X)
+  const int ntry=64;        // Max # attempts at converging [sove bs] (30)
+  const double alr=800;     // ''assymptotically large r [kinda..]''  (=800)
+  const double lde=0.2;     // 'large' energy variations (0.1 => 10%)
+  const int d_ctp=5;        //Num points past ctp +/- d_ctp.
   // XXX where to put these parameters?
 
   //Checks to see if legal n is requested. If not, increases n, re-calls
@@ -91,7 +82,6 @@ Continues until this energy adjustment falls below a prescribed threshold.
     printf("\nSate %i %i does not exist..\n",n,ka);
     return 1;
   }
-
 
   // Find 'l' from 'kappa' (ang. momentum Q number)
   // This is used to calculate number of nodes wf should have
@@ -107,7 +97,7 @@ Continues until this energy adjustment falls below a prescribed threshold.
   double anorm=0;             // normalisation constant
   int ctp=-1;                 //classical turning point
   bool converged=false;
-  double deltaEn=0;
+  double delta_en=0;
   its=0;            //numer of iterations (for this n,ka)
 
   while (!converged){
@@ -169,7 +159,6 @@ Continues until this energy adjustment falls below a prescribed threshold.
     }
 
     //Join the in and outward solutions. "Meshed" around ctp +/- d_ctp
-    //Bring into single loop, with if statement for A and B?
     for(int i=0; i<ctp-d_ctp; i++){
       p[i] = pout[i];
       q[i] = qout[i];
@@ -184,7 +173,6 @@ Continues until this energy adjustment falls below a prescribed threshold.
       if(d_ctp==0) B=0.5;
       else B = (double((i-ctp)+d_ctp))/(2.*d_ctp);
       double A = 1-B;
-      //std::cout<<i<<"/"<<ctp<<" "<<A<<" "<<B<<" "<<A+B<<"\n";
       p[i] = A*pout[i] + B*pin[i];
       q[i] = A*qout[i] + B*qin[i];
     }
@@ -196,12 +184,8 @@ Continues until this energy adjustment falls below a prescribed threshold.
     double spn;
     for(int i=2; i<pinf; i++){
       spn=p[i];
-      if (sp*spn<0){
-        nozeros=nozeros+1;
-      }
-      if(spn!=0){
-        sp=spn;
-      }
+      if (sp*spn<0) nozeros++;
+      if(spn!=0)    sp=spn;
     }
     if(debug) printf("Nodes=%i\n",nozeros);
 
@@ -212,20 +196,19 @@ Continues until this energy adjustment falls below a prescribed threshold.
     double etemp;
     if(nozeros>inodes){
       //Too many nodes:
-      //more=more+1;
       more++;
       if((more==1)||(en<eupper)) eupper=en;
       etemp=(1+lde)*en;
       if((less!=0)&&(etemp<elower)) etemp=0.5*(eupper+elower);
-      deltaEn=fabs((en-etemp)/en);
+      delta_en=fabs((en-etemp)/en);
       en=etemp;
     }else if (nozeros<inodes){
       //too few nodes:
-      less=less+1;
+      less++;
       if((less==1)||(en>elower)) elower=en;
       etemp=(1-lde)*en;
       if((more!=0)&&(etemp>eupper)) etemp=0.5*(eupper+elower);
-      deltaEn=fabs((en-etemp)/en);
+      delta_en=fabs((en-etemp)/en);
       en=etemp;
     }else{
       // XXX Maybe, put this into a function!
@@ -253,25 +236,22 @@ Continues until this energy adjustment falls below a prescribed threshold.
       }
       p_del_q /= denom;
       double de=  (1./alpha) * p_del_q / anorm ;
-      deltaEn=fabs(de/en);
+      delta_en=fabs(de/en);
       etemp = en + de;
       if(debug) printf("de=%.3e, en=%.5f, et=%.5f, el=%.5f, e=%.5f\n",
                 de,en,etemp,elower,eupper);
-      if ((less!=0)&&(etemp<elower)){
-        deltaEn=fabs((en-0.5*(en+elower))/en);
+      if((less!=0)&&(etemp<elower)){
+        delta_en=fabs((en-0.5*(en+elower))/en);
         en=0.5*(en+elower);
-      }
-      else if ((more!=0)&&(etemp>eupper)){
-        deltaEn=((en-0.5*(en+eupper))/en);
+      }else if((more!=0)&&(etemp>eupper)){
+        delta_en=((en-0.5*(en+eupper))/en);
         en=0.5*(en+eupper);
-      }
-      else if (deltaEn<delep){
+      }else if(delta_en<delep){
         en=etemp;
-        eps=deltaEn;
+        eps=delta_en;
         converged=true;
-      }
-      else {
-        eps=deltaEn;
+      }else{
+        eps=delta_en;
         en=etemp;
       }
     }// END: if(nozeros>inodes
@@ -280,16 +260,16 @@ Continues until this energy adjustment falls below a prescribed threshold.
     if(debug) printf("Itteration number %i,  en= %f\n",its,en);
 
     if(its>=ntry){
-      if(deltaEn<deles){
+      if(delta_en<deles){
         if(debug) printf("Wavefunction %i %i didn't fully converge after "
                     "%i iterations, but OK.\n",n,ka,ntry);
-        eps=deltaEn;
+        eps=delta_en;
         converged=true; //Converged to "secondary" level, deles
       }else{
         printf("Wavefunction %i %i didn't converge after %i itterations.\n",n,
                ka,ntry);
         if(debug) printf("%i %i: Pinf= %.1f,  en= %f\n",n,ka,r[pinf],en);
-        eps=deltaEn;
+        eps=delta_en;
         return 2;
       }
     }
@@ -303,8 +283,8 @@ Continues until this energy adjustment falls below a prescribed threshold.
     p[i]=an*p[i];
     q[i]=an*q[i];
   }
-  for(int i=(pinf+1); i<NGP; i++){
-    // kills remainders
+  for(int i=pinf+1; i<NGP; i++){
+    // kills remainders (just for safety)
     p[i]=0;
     q[i]=0;
   }
@@ -317,17 +297,11 @@ Continues until this energy adjustment falls below a prescribed threshold.
   }
 
   return 0;
-}  // END solveDBS
-
-
-
+}
 
 //*********************************************************
 //*********************************************************
 //*********************************************************
-
-
-
 
 //******************************************************************************
 int outwardAM(std::vector<double> &p, std::vector<double> &q, double &en,
@@ -337,31 +311,22 @@ int outwardAM(std::vector<double> &p, std::vector<double> &q, double &en,
 /*
 Program to start the OUTWARD integration.
 Starts from 0, and uses an expansion(?) to go to (nol*AMO).
-Then, it then call ADAMS-MOULTON, to finished (from nol*AMO+1 to nf = ctp+d_ctp)
-
-XXX rename to outwardAM ? amOutInt?
-
+Then, it then call ADAMS-MOULTON, to finish (from nol*AMO+1 to nf = ctp+d_ctp)
 */
 {
+  const int nol=1; // # of outdir runs [finds first nol*AMO+1 points (3)]
 
-  const int nol=1;				// # of outdir runs [finds first nol*AMO+1 points (3)]
-
-  double az = Z*alpha;                  //Z*alpha
+  double az = Z*alpha;
   double c2 = 1./pow(alpha,2);
-  double ga=sqrt(pow(ka,2)-pow(az,2));  //'gamma' factor
-
+  double ga = sqrt(pow(ka,2)-pow(az,2));
 
   //initial wf values
   // P(r) = r^gamma u(r)
   // Q(r) = r^gamma v(r)
   double u0=1;
   double v0;
-  if (ka>0){
-    v0=-(ga+ka)/az;
-  }
-  else {
-    v0=az/(ga-ka);
-  }
+  if (ka>0) v0 = -(ga+ka)/az;
+  else      v0 = az/(ga-ka);
   p[0]=0;
   q[0]=0;
 
@@ -375,7 +340,7 @@ XXX rename to outwardAM ? amOutInt?
   for (int ln=0; ln<nol; ln++){
     int i0=ln*AMO+1;
 
-    //defines/populates coefs
+    //defines/populates em coefs
     std::vector<double> coefa,coefb,coefc,coefd;
     std::vector< std::vector<double> > em(AMO,std::vector<double>(AMO));
     for (int i=0; i<AMO; i++){
@@ -384,17 +349,13 @@ XXX rename to outwardAM ? amOutInt?
       coefb.push_back(-id*h*(en+2*c2-v[i+i0])*drdt[i+i0]*alpha);
       coefc.push_back(id*h*(en-v[i+i0])*drdt[i+i0]*alpha);
       coefd.push_back(-id*h*(ga-ka)*dror);
-      for (int j=0; j<AMO; j++){
-        em[i][j]=ie[i][j];
-      }
+      for (int j=0; j<AMO; j++) em[i][j]=ie[i][j];
       em[i][i]=em[i][i]-coefd[i];
     }
+    // //inverts the em matrix
+    MAT_invertMatrix(em); //from here on, em is the inverted matrix
 
-
-    // //inverts the matrix!  invfm = Inv(fm)
-    MAT_invertMatrix(em); //from here on, em is the inverted matrix!
-
-
+    //defines/populates fm, s coefs
     std::vector<double> s(AMO);
     std::vector< std::vector<double> > fm(AMO,std::vector<double>(AMO));
     for (int i=0; i<AMO; i++){
@@ -405,11 +366,8 @@ XXX rename to outwardAM ? amOutInt?
       }
       fm[i][i]=fm[i][i]-coefa[i];
     }
-
-
-    //inverts the matrix!  invfm = Inv(fm)
-    MAT_invertMatrix(fm); //from here on, fm is the inverted matrix!
-
+    //inverts the matrix!  fm =-> Inv(fm)
+    MAT_invertMatrix(fm); //from here on, fm is the inverted matrix
 
     //writes u(r) in terms of coefs and the inverse of fm
     // P(r) = r^gamma u(r)
@@ -420,7 +378,6 @@ XXX rename to outwardAM ? amOutInt?
         us[i]=us[i]+fm[i][j]*s[j];
       }
     }
-
 
     //writes v(r) in terms of coefs + u(r)
     // Q(r) = r^gamma v(r)
@@ -433,12 +390,10 @@ XXX rename to outwardAM ? amOutInt?
       }
     }
 
-
     //writes wavefunction: P= r^gamma u(r) etc..
     for (int i=0; i<AMO; i++){
       p[i+i0]=pow(r[i+i0],ga)*us[i];
       q[i+i0]=pow(r[i+i0],ga)*vs[i];
-      //XXX r: to array!
     }
 
     //re-sets 'starting point' for next ln
@@ -447,20 +402,12 @@ XXX rename to outwardAM ? amOutInt?
 
   }// END for (int ln=0; ln<nol; ln++)  [loop through outint `nol' times]
 
-
-  // calls adamsmoulton to finish integration from (nol*AMO+1) to nf = ctp+d_ctp
-  int na=nol*AMO+1;
-  if (nf>na){
-    adamsMoulton(p,q,en,v,ka,r,drdt,h,NGP,na,nf,alpha);
-  }
-
+  //Call adamsmoulton to finish integration from (nol*AMO+1) to nf = ctp+d_ctp
+  int na = nol*AMO+1;
+  if (nf>na) adamsMoulton(p,q,en,v,ka,r,drdt,h,NGP,na,nf,alpha);
 
   return 0;
-}  // END outint
-
-
-
-
+}
 
 
 //******************************************************************
@@ -471,66 +418,62 @@ int inwardAM(std::vector<double> &p, std::vector<double> &q, double &en,
 /*
 Program to start the INWARD integration.
 Starts from Pinf, and uses an expansion(?) to go to (pinf-AMO)
-Then, it then call ADAMS-MOULTON, to finished (from nol*AMO+1 to nf = ctp-d_ctp)
+Then, it then call ADAMS-MOULTON, to finish (from nol*AMO+1 to nf = ctp-d_ctp)
 */
 {
-
-  const int nx=30;	//order of the expansion coeficients in 'inint'  (15 orig.)
-  const float nxepsp=1e-18; // PRIMARY convergance for expansion in `inint'' (10^-8)
-  const float nxepss=1e-3;  // SECONDARY convergance for expansion in `inint'' (10e-3)
-  // XXX treat as variable here? Param in the .h ??
+  //order of the expansion coeficients in 'inint'  (15 orig.)
+  const int nx=30;
+  // PRIMARY convergance for expansion in `inint'' (10^-8)
+  const float nxepsp=1e-18;
+  // SECONDARY convergance for expansion in `inint'' (10e-3):
+  const float nxepss=1e-3;
 
   double alpha2 = pow(alpha,2);
   double cc = 1./alpha;
   double c2 = 1./alpha2;
 
-  double lambda=sqrt(-en*(2+en*alpha2)); //XXX alpha^2 ??
+  double lambda=sqrt(-en*(2+en*alpha2));
   double zeta=-v[pinf]*r[pinf];
   double sigma=(1+en*alpha2)*(zeta/lambda);
   double Ren=en+c2;   //total relativistic energy
 
   //Generates the expansion coeficients for asymptotic wf
   // up to order NX (nx is 'param')
-  std::vector<double> bx(nx); //nx = ?? from 'params'?
+  std::vector<double> bx(nx);
   std::vector<double> ax(nx);
   bx[0]=(ka+(zeta/lambda))*(alpha/2);
-  for (int i=0; i<nx; i++){
-    ax[i]=(ka+(i+1-sigma)*Ren*alpha2-zeta*lambda*alpha2)*bx[i]*cc/((i+1)*lambda);
-    if (i<(nx-1)){
-      bx[i+1]=(pow(ka,2)-pow((i+1-sigma),2)-pow(zeta,2)*alpha2)
-              *bx[i]/(2*(i+1)*lambda);
-    }
+  for(int i=0; i<nx; i++){
+    ax[i]=(ka+(i+1-sigma)*Ren*alpha2-zeta*lambda*alpha2)*bx[i]*cc
+         /((i+1)*lambda);
+    if(i<(nx-1)) bx[i+1]=(pow(ka,2)-pow((i+1-sigma),2)-pow(zeta,2)*alpha2)
+                *bx[i]/(2*(i+1)*lambda);
   }
-
 
   //Generates last `AMO' points for P and Q [actually AMO+1?]
   double f1=sqrt(1.+en*alpha2/2.);
   double f2=sqrt(-en/2.)*alpha;
-  for (int i=pinf; i>=(pinf-AMO); i--){      // double check end point!
+  for (int i=pinf; i>=(pinf-AMO); i--){
     double rfac=pow(r[i],sigma)*exp(-lambda*r[i]);
     double ps=1.;
     double qs=0.;
     double rk=1.;
-    for (int k=0; k<nx; k++){    //this will loop until a) converge, b) k=nx
-      rk=rk*r[i]; //XXX replace w/ array!
+    for (int k=0; k<nx; k++){ //this will loop until a) converge, b) k=nx
+      rk=rk*r[i];
       ps=ps+(ax[k]/rk);
       qs=qs+(bx[k]/rk);
       double xe=fmax(fabs((ax[k]/rk)/ps),fabs((bx[k]/rk)/qs));
       if (xe<nxepsp){
-        k=nx;          //reached convergance
+        k=nx; //reached convergance
       }
       else if (k==(nx-1)){
-        if (xe>nxepss){
+        if (xe>nxepss)
           printf("WARNING: Asymp. expansion in ININT didn't converge:"
-                 " %i, %i, %.2e\n"
-            ,i,k,xe);
-        }
+                 " %i, %i, %.2e\n",i,k,xe);
       }
     }
     p[i]=rfac*(f1*ps+f2*qs);
     q[i]=rfac*(f2*ps-f1*qs);  //XXX here? the 'small cancellation'(?)
   }
-
 
   //calls adams-moulton
   if ((pinf-AMO-1)>=nf){
@@ -538,7 +481,7 @@ Then, it then call ADAMS-MOULTON, to finished (from nol*AMO+1 to nf = ctp-d_ctp)
   }
 
   return 0;
-}  // END inint
+}
 
 
 //******************************************************************************
@@ -547,28 +490,25 @@ int adamsMoulton(std::vector<double> &p, std::vector<double> &q, double &en,
     std::vector<double> r, std::vector<double> drdt, double h, int NGP,
     int ni, int nf, double alpha)
 /*
-//program finishes the INWARD/OUTWARD integrations (ADAMS-MOULTON)
+program finishes the INWARD/OUTWARD integrations (ADAMS-MOULTON)
   //- ni is starting (initial) point for integration
   //- nf is end (final) point for integration (nf=ctp+/-d_ctp)
 */
 {
-
   double c2 = 1./pow(alpha,2); // c^2 - just to shorten code
-
   //AM coefs.
   std::vector<double> ama(AMO);
   double amd,amaa;
-  getAdamsCoefs(ama,amd,amaa);  // loads the coeficients! //XXX update!
+  getAdamsCoefs(ama,amd,amaa);  // loads the coeficients
 
   //this just checks that all working..prints out coefs.
   if (debug){
-    for (int i=0; i<AMO; i++)
-      printf("AMA[%i]=%f\n",i,ama[i]);
+    for (int i=0; i<AMO; i++) printf("AMA[%i]=%f\n",i,ama[i]);
     printf("amd=%.0f, amaa=%.0f\n",amd,amaa);
   }
 
-  int inc;      //'increment' for integration (+1 for forward, -1 for backward)
-  int nosteps;    // number of steps integration should make
+  int inc;     //'increment' for integration (+1 for forward, -1 for backward)
+  int nosteps; // number of steps integration should make
   if (nf>ni){
     inc=1;
     nosteps=nf-ni+1;     //check the "+1"...
@@ -582,7 +522,6 @@ int adamsMoulton(std::vector<double> &p, std::vector<double> &q, double &en,
     return 1;
   }
 
-
   //create arrays for wf derivatives
   std::vector<double> dp(NGP),dq(NGP); //XXX is this syntax valid?
   std::vector<double> amcoef(AMO);
@@ -595,11 +534,10 @@ int adamsMoulton(std::vector<double> &p, std::vector<double> &q, double &en,
     k1+=inc;
   }
 
-
   //integrates the function from ni to the c.t.p
   double a0=(h/amd)*amaa;
   int k2=ni;
-  for (int i=0; i<nosteps; i++){    //double check! - end point should be ctp*! (inclusive)
+  for (int i=0; i<nosteps; i++){
     double dror = drdt[k2]/r[k2];
     double dai=-inc*(ka*dror);
     double dbi=-inc*alpha*(en+2*c2-v[k2])*drdt[k2];
@@ -627,28 +565,22 @@ int adamsMoulton(std::vector<double> &p, std::vector<double> &q, double &en,
 }  // END adamsmoulton
 
 
-
 //**************************************************************************
 //**************************************************************************
 //**************************************************************************
 //**************************************************************************
-
-
-
-//       Numerical DE solve by integration (adams) coeficients
-
 
 //******************************************************************
-// coeficients for the ADAMS-MOULTON routine
 int getAdamsCoefs(std::vector<double> &mia, double &mid, double &miaa)
+/*
+coeficients for the ADAMS-MOULTON routine
+*/
 {
-
-// coefs for Adams..
-
 //XXX XXX XXX Make array of MAX domension! then, just 'input' the correct #
 
   if (AMO==8){
-    double tia[8]={-33953,312874,-1291214,3146338,-5033120,5595358,-4604594,4467094};
+    double tia[8]={-33953,312874,-1291214,3146338,-5033120,5595358,-4604594,
+      4467094};
     mid=3628800;
     miaa=1070017;
     for (int i=0; i<AMO; i++){
@@ -720,19 +652,17 @@ int getAdamsCoefs(std::vector<double> &mia, double &mid, double &miaa)
 }  // END AMcoefs
 
 
-
 //******************************************************************
-// coeficients for the OUTINT routine
-//int OIcoefs(double (*oie)[amo2], double *oia, double &oid)
 int getOutwardCoefs(std::vector< std::vector<double> > &oie,
     std::vector<double> &oia, double &oid)
+/*
+coeficients for the OUTINT routine
+*/
 {
+//XXX XXX XXX Make array of MAX domension! then, just 'input' the correct #
+// ?? little harder here..
+//XX ? only down to 5?
 
-  //XXX XXX XXX Make array of MAX domension! then, just 'input' the correct #
-  // ?? little harder here..
-
-// coefs for outint..
-  //int AMO = oia.size();
   if (AMO==8){
     double tie[8][8]={-1338,2940,-2940,2450,-1470,588,-140,15,
                       -240,-798,1680,-1050,560,-210,48,-5,
