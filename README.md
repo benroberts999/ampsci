@@ -1,14 +1,9 @@
 Dirac BS code.
-Solves local central-field problem for Dirac equation
+Solves local central-field problem for Dirac equation.
 
+With reasonable choices for the integration grids, typically converges to around 1e-16
 
+Includes a parameter to vary the effective speed of light - allowing non-relativistic approximation.
 
-# To Do 
+The program currently named "test.cpp" includes main(), and shows an example.
 
- * Doesn't converge for a Fermi nucleus?
- * --Also, check 'PT' etc (method)
- * Update method to go past c.t.p in each direction
- * Add parametric potentials
- * Add Thomas-Fermi potential
- * Smarter automatic initial energy guess
- * HF: Begin with 'Hartree' (no exch) method
