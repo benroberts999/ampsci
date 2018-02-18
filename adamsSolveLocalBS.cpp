@@ -244,7 +244,7 @@ an error.
         delta_en=fabs((en-0.5*(en+elower))/en);
         en=0.5*(en+elower);
       }else if((more!=0)&&(etemp>eupper)){
-        delta_en=((en-0.5*(en+eupper))/en);
+        delta_en=fabs((en-0.5*(en+eupper))/en); //should be fabs? wasn't??
         en=0.5*(en+eupper);
       }else if(delta_en<delep){
         en=etemp;
