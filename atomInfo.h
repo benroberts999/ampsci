@@ -10,8 +10,14 @@
 //NOTE: First entry is zero, so the array index matches Z!
 //For now, goes up to E120 [121 etries]
 
-//LATER: can add magnetic moments, "shells" etc..
+//XXX change to ATINF ??
 
+//LATER: can add magnetic moments, "shells" etc..
+//Also: rn(?), skin thickness, half-density radius?
+
+//Default values for A for each atom.
+//Note: array index matches Z, so first entry is blank.
+//Goes up to E120 (Z=120)
 const int atinfo_a[121]={0,
     1,  4,  7,  9, 11, 12, 14, 16, 19, 20,
    23, 24, 27, 28, 31, 32, 35, 40, 39, 40,
@@ -40,13 +46,15 @@ const std::string atinfo_sym[121]={"0",
   "Md","No","Lr","Rf","Db","Sg","Bh","Hs","Mt","Ds",
   "Rg","Cn","Nh","Fl","Mc","Lv","Ts","Og","E119","E120"};
 
+//Short function that returns orbital term given l
 const std::string atinfo_l_array[5]={"s","p","d","f","g"};
 inline std::string atinfo_l(int l){
   if(l<5) return atinfo_l_array[l];
   else return std::to_string(l);
 }
 
-//No idea if this works, so comment out for now
+//Given an atomic symbol (H, He, etc.), will return Z
+//Note: Symbol must be exact, including capitalisation
 inline int atinfo_get_z(std::string at){
   for(int z=0; z<121; z++){
     if(at==atinfo_sym[z]) return z;
