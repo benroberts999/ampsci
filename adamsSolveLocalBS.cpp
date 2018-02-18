@@ -279,7 +279,7 @@ Continues until this energy adjustment falls below a prescribed threshold.
     its++; //increment 'number of iterations' counter
     if(debug) printf("Itteration number %i,  en= %f\n",its,en);
 
-    if(its=>ntry){
+    if(its>=ntry){
       if(deltaEn<deles){
         if(debug) printf("Wavefunction %i %i didn't fully converge after "
                     "%i iterations, but OK.\n",n,ka,ntry);
