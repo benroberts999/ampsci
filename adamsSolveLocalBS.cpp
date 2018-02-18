@@ -75,12 +75,12 @@ Continues until this energy adjustment falls below a prescribed threshold.
 // XXX
 
   // bound state wavefunctions (Adams-moul)
-  const double delep=1e-16;		//PRIMARY convergence parameter for bound state energy	(10^-11)
+  const double delep=5e-16;		//PRIMARY convergence parameter for bound state energy	(10^-11)
   const double deles=1e-10;		//SECONDAY convergence parameter for bound state energy	(X)
-  const int ntry=250;			// Number of failed attempts at converging (sove bs) before error quit (30)
+  const int ntry=512;			// Number of failed attempts at converging (sove bs) before error quit (30)
   const double alr=800;			// ''assymptotically large r [not what this is..]''  (=800)
   const double lde=0.2;		//amount to vary energy by for 'large' variations (0.1 => 10%)
-  int d_ctp=10; //XXX here. Num points ctp +/- d_ctp. Make input!
+  int d_ctp=5; //XXX here. Num points ctp +/- d_ctp. Make input!
   // XXX where to put these parameters?
 
   //Checks to see if legal n is requested. If not, increases n, re-calls
@@ -146,14 +146,8 @@ Continues until this energy adjustment falls below a prescribed threshold.
 
     //Temporary vectors for in/out integrations
     std::vector<double> pin(NGP),qin(NGP),pout(NGP),qout(NGP);
-
     //Perform the "inwards integration":
     inwardAM(pin,qin,en,v,ka,r,drdt,h,NGP,ctp-d_ctp,pinf,alpha);
-
-    // //save the values of wf at ctp from the 'inward' ind
-    // // XXX qtp used for PT - single value??
-    // double qtp=qin[ctp];
-
     //Perform the "outwards integration"
     outwardAM(pout,qout,en,v,Z,ka,r,drdt,h,NGP,ctp+d_ctp,alpha);
 
@@ -162,8 +156,8 @@ Continues until this energy adjustment falls below a prescribed threshold.
     double denom = 1;
     for(int i=1; i<=d_ctp; i++){
       //re-scale from weigted average. Weight = distance from ctp
-      rescale += (pout[ctp+i]/pin[ctp+i] + pout[ctp-i]/pin[ctp-i])/(i+1);
-      denom += 2./(i+1);
+      rescale += 0.5*(pout[ctp+i]/pin[ctp+i] + pout[ctp-i]/pin[ctp-i])/(i+1);
+      denom += 1./(i+1);
     }
     rescale /= denom;
     if(debug) std::cout<<"denom="<<denom<<" rescale="<<rescale<<"\n";
@@ -195,10 +189,6 @@ Continues until this energy adjustment falls below a prescribed threshold.
       q[i] = A*qout[i] + B*qin[i];
     }
 
-    // // The qtp value is scaled too; used in perturbation correction.
-    // // XXX ??? fix!?
-    // qtp=rescale*qtp; //don't need: qtp = qin[ctp] !
-
     //Count the number of nodes (zeros) the wf has.
     //Just counts the number of times wf changes sign
     int nozeros=0;
@@ -214,7 +204,6 @@ Continues until this energy adjustment falls below a prescribed threshold.
       }
     }
     if(debug) printf("Nodes=%i\n",nozeros);
-
 
     //checks to see if there are too many/too few nodes.
     //Makes large adjustment to energy until in correct region
@@ -249,17 +238,25 @@ Continues until this energy adjustment falls below a prescribed threshold.
       }
       anorm=INT_integrate(ppqq,drdt,h,0,pinf);
       if(debug) printf("anrom=%.5f\n",anorm);
-
-      double del_q = qin[ctp]-qout[ctp];
-
-      double de=  (1./alpha) * p[ctp] * (del_q) / anorm ;
-      //XXX HERE!!! XXX
+      //Use perturbation theory to work out delta En
+      // delta E = c*P(r)*[Qin(r)-Qout(r)]
+      // nb: wf not yet normalised!
+      double p_del_q = p[ctp]*(qin[ctp]-qout[ctp]);
+      double denom=1;
+      //weighted average around ctp:
+      for(int i=1; i<=d_ctp; i++){
+        p_del_q += 0.5*(
+                    p[ctp+i]*(qin[ctp+i]-qout[ctp+i]) +
+                    p[ctp-i]*(qin[ctp-i]-qout[ctp-i])
+                  )/(i+1.);
+        denom += 1./(i+1.);
+      }
+      p_del_q /= denom;
+      double de=  (1./alpha) * p_del_q / anorm ;
       deltaEn=fabs(de/en);
       etemp = en + de;
-      if(debug){
-        printf("de=%.3e, en=%.5f, et=%.5f, el=%.5f, e=%.5f\n",
-          de,en,etemp,elower,eupper);
-      }
+      if(debug) printf("de=%.3e, en=%.5f, et=%.5f, el=%.5f, e=%.5f\n",
+                de,en,etemp,elower,eupper);
       if ((less!=0)&&(etemp<elower)){
         deltaEn=fabs((en-0.5*(en+elower))/en);
         en=0.5*(en+elower);
@@ -280,9 +277,9 @@ Continues until this energy adjustment falls below a prescribed threshold.
     }// END: if(nozeros>inodes
 
     its++; //increment 'number of iterations' counter
-
     if(debug) printf("Itteration number %i,  en= %f\n",its,en);
-    if(its>ntry){
+
+    if(its=>ntry){
       if(deltaEn<deles){
         if(debug) printf("Wavefunction %i %i didn't fully converge after "
                     "%i iterations, but OK.\n",n,ka,ntry);
