@@ -45,7 +45,7 @@ int ElectronOrbitals::localBoundState(int in_max_n, int in_max_l)
   for(int n=1; n<=max_n; n++){
     for(int i=1; i<2*n; i++){ //loop through each kappa state
       int k = pow(-1,i)*ceil(0.5*i);
-      int l = fabs(k+1/2)-1/2;
+      int l = (abs(2*k+1)-1)/2;
       if(l>max_l) continue;
       nlist.push_back(n);
       klist.push_back(k);
