@@ -18,7 +18,7 @@ int main(void){
   int n_max = 5;
   ElectronOrbitals wf(Z,A,2000,1.);
 
-  wf.localBoundState(n_max);
+  wf.hydrogenLike(n_max);
   //wf.fermiNucleus();
   //wf.sphericalNucleus();
 

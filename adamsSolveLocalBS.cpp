@@ -107,7 +107,7 @@ an error.
     // (V(r) - E)*r^2 >  alr    (alr = "asymptotically large r")
     pinf=NGP-1;
     while((en-v[pinf])*pow(r[pinf],2) + alr < 0) pinf--; //pinf=pinf-1;
-    if(pinf==NGP-1)
+    if((pinf==NGP-1)&& debug)
       printf("WARNING: pract. inf. = size of box for %i %i\n",n,ka);
     if(debug)
       printf("Practical infinity (i=%i): Pinf=%.1f a.u.\n",pinf,r[pinf]);

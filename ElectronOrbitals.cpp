@@ -33,7 +33,7 @@ ElectronOrbitals::ElectronOrbitals(std::string s_in_z, int in_a, int in_ngp,
 
 
 //******************************************************************************
-int ElectronOrbitals::localBoundState(int in_max_n, int in_max_l)
+int ElectronOrbitals::hydrogenLike(int in_max_n, int in_max_l)
 /*
 ``Wrapper'' function, to use the adamsSolveLocalBS method!
 */

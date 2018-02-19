@@ -48,7 +48,7 @@ class ElectronOrbitals{
     std::vector<int> itslist;
     std::vector<double> epslist;
 
-    int localBoundState(int in_max_n, int in_max_l=100);
+    int hydrogenLike(int in_max_n, int in_max_l=100);
 
     double diracen(int z, int n, int k);
     int sphericalNucleus(double rnuc=0);
