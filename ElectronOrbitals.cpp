@@ -4,6 +4,9 @@
 #include "atomInfo.h"
 //#include "adamsSolveLocalBS.h"
 
+
+//XXX XXX XXX make routine that solves for a signle state. pushes back n,k etc.!
+
 //******************************************************************************
 ElectronOrbitals::ElectronOrbitals(int in_z, int in_a, int in_ngp, double rmin,
   double rmax, double var_alpha)
