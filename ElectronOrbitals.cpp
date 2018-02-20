@@ -4,14 +4,14 @@
 #include "atomInfo.h"
 //#include "adamsSolveLocalBS.h"
 
-//********************************************************************************
-ElectronOrbitals::ElectronOrbitals(int in_z, int in_a, int in_ngp,
-  double var_alpha)
+//******************************************************************************
+ElectronOrbitals::ElectronOrbitals(int in_z, int in_a, int in_ngp, double rmin,
+  double rmax, double var_alpha)
 {
 
   ngp=in_ngp;
-  //JohnsonRadialGrid(1.e-6,250.);
-  DzubaRadialGrid(1.e-6,250.);
+  //JohnsonRadialGrid(rmin,rmax);
+  DzubaRadialGrid(rmin,rmax);
 
   alpha=ALPHA*var_alpha;
 
@@ -19,12 +19,10 @@ ElectronOrbitals::ElectronOrbitals(int in_z, int in_a, int in_ngp,
   if(in_a==0) A=atinfo_a[Z]; //Use default atomic mass
   else A=in_a;
   zeroNucleus();
-  //sphericalNucleus(); //input rnuc?
-  //fermiNucleus();
 }
 //-----Overloaded---------------------------------------------------------------
 ElectronOrbitals::ElectronOrbitals(std::string s_in_z, int in_a, int in_ngp,
-  double var_alpha)
+  double rmin, double rmax, double var_alpha)
 {
  //Work out Z from given atomic symbol
  int iz = atinfo_get_z(s_in_z);
@@ -36,9 +34,9 @@ ElectronOrbitals::ElectronOrbitals(std::string s_in_z, int in_a, int in_ngp,
 int ElectronOrbitals::hydrogenLike(int in_max_n, int in_max_l)
 /*
 ``Wrapper'' function, to use the adamsSolveLocalBS method!
+Set up specifically for H-like ions
 */
 {
-
   max_n = in_max_n;
   max_l = in_max_l;
 
@@ -64,7 +62,6 @@ int ElectronOrbitals::hydrogenLike(int in_max_n, int in_max_l)
       epslist.push_back(eps);
     }
   }
-
 
   return 0;
 }
