@@ -32,6 +32,7 @@ int main(void){
   //Generate the orbitals object:
   ElectronOrbitals wf(Z,A,ngp,r0,rmax,varalpha);
   wf.sphericalNucleus();
+  //wf.fermiNucleus();
 
   double H=4.4691;
   double d=0.8967;
@@ -40,23 +41,30 @@ int main(void){
   }
 
 
-  int k =-1;
-  int n=6;
-  wf.nlist.push_back(n);
-  wf.klist.push_back(k);
-  int pinf,its;
-  double eps;
-  double en_a = -0.5*pow(1./n,2);
-  std::vector<double> p_a(ngp);
-  std::vector<double> q_a(ngp);
-  solveDBS(p_a,q_a,en_a,wf.vnuc,Z,n,k,wf.r,wf.drdt,wf.h,wf.ngp,pinf,its,eps,wf.alpha);
-  wf.p.push_back(p_a);
-  wf.q.push_back(q_a);
-  wf.en.push_back(en_a);
-  //store convergance info:
-  wf.pinflist.push_back(pinf);
-  wf.itslist.push_back(its);
-  wf.epslist.push_back(eps);
+  int max_l=1;
+  int max_n=8;
+  for(int n=6; n<=max_n; n++){
+    for(int i=1; i<2*n; i++){ //loop through each kappa state
+      int k = pow(-1,i)*ceil(0.5*i);
+      int l = (abs(2*k+1)-1)/2;
+      if(l>max_l) continue;
+      wf.nlist.push_back(n);
+      wf.klist.push_back(k);
+      int pinf,its;
+      double eps;
+      double en_a = -0.5*pow(1./n,2);
+      std::vector<double> p_a(ngp);
+      std::vector<double> q_a(ngp);
+      solveDBS(p_a,q_a,en_a,wf.vnuc,Z,n,k,wf.r,wf.drdt,wf.h,wf.ngp,pinf,its,eps,wf.alpha);
+      wf.p.push_back(p_a);
+      wf.q.push_back(q_a);
+      wf.en.push_back(en_a);
+      //store convergance info:
+      wf.pinflist.push_back(pinf);
+      wf.itslist.push_back(its);
+      wf.epslist.push_back(eps);
+    }
+  }
 
 
 
@@ -68,9 +76,10 @@ int main(void){
     int twoj = 2*abs(k)-1;
     int l = (abs(2*k+1)-1)/2;
     double rinf = wf.r[wf.pinflist[i]];
+    double en0 = wf.en[0];
     printf("%2i %s_%i/2 (%2i)  %3.0f %3i  %5.0e  %.15f  %.7f\n",
         n,atinfo_l(l).c_str(),twoj,k,rinf,wf.itslist[i],wf.epslist[i],
-        wf.en[i],wf.en[i]*HARTREE_ICM);
+        wf.en[i],(wf.en[i]-en0)*HARTREE_ICM);
   }
 
   tf = clock();
