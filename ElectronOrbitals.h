@@ -29,7 +29,9 @@ class ElectronOrbitals{
     int ngp;
     double h;
 
+    //std::vector<double> v;    //total ??
     std::vector<double> vnuc;
+    std::vector<double> vdir; //direct/local part of the electron potential
 
     int Z,A;
     std::string atom;
@@ -49,6 +51,8 @@ class ElectronOrbitals{
     std::vector<double> epslist;
 
     int hydrogenLike(int in_max_n, int in_max_l=100);
+
+    int solveLocalDirac(int n, int k, double en_a);
 
     double diracen(int z, int n, int k);
     int sphericalNucleus(double rnuc=0);

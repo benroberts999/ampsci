@@ -33,11 +33,45 @@ ElectronOrbitals::ElectronOrbitals(std::string s_in_z, int in_a, int in_ngp,
 }
 
 
+
+//******************************************************************************
+int ElectronOrbitals::solveLocalDirac(int n, int k, double e_a)
+/*
+XXX vnuc !!!
+*/
+{
+  int pinf,its;
+  double eps;
+  std::vector<double> p_a(ngp);
+  std::vector<double> q_a(ngp);
+
+  std::vector<double> v_a = vnuc;
+  if(vdir.size()!=0){
+    for(int i=0; i<ngp; i++) v_a[i] += vdir[i];
+  }
+
+  int i_ret = solveDBS(p_a,q_a,e_a,v_a,Z,n,k,r,drdt,h,ngp,pinf,its,eps,alpha);
+  //Store wf + energy
+  p.push_back(p_a);
+  q.push_back(q_a);
+  en.push_back(e_a);
+  //Store states:
+  nlist.push_back(n);
+  klist.push_back(k);
+  //store convergance info:
+  pinflist.push_back(pinf);
+  itslist.push_back(its);
+  epslist.push_back(eps);
+
+  return i_ret;
+}
+
 //******************************************************************************
 int ElectronOrbitals::hydrogenLike(int in_max_n, int in_max_l)
 /*
 ``Wrapper'' function, to use the adamsSolveLocalBS method!
 Set up specifically for H-like ions
+XXX Kill this one! XXX
 */
 {
   max_n = in_max_n;

@@ -37,7 +37,8 @@ int main(void){
   double H=4.4691;
   double d=0.8967;
   for(int i=0; i<wf.ngp; i++){
-    wf.vnuc[i] += PRM_green(Z,wf.r[i],H,d);
+    double vtmp = PRM_green(Z,wf.r[i],H,d);
+    wf.vdir.push_back(vtmp);
   }
 
 
@@ -48,21 +49,9 @@ int main(void){
       int k = pow(-1,i)*ceil(0.5*i);
       int l = (abs(2*k+1)-1)/2;
       if(l>max_l) continue;
-      wf.nlist.push_back(n);
-      wf.klist.push_back(k);
-      int pinf,its;
-      double eps;
-      double en_a = -0.5*pow(1./n,2);
-      std::vector<double> p_a(ngp);
-      std::vector<double> q_a(ngp);
-      solveDBS(p_a,q_a,en_a,wf.vnuc,Z,n,k,wf.r,wf.drdt,wf.h,wf.ngp,pinf,its,eps,wf.alpha);
-      wf.p.push_back(p_a);
-      wf.q.push_back(q_a);
-      wf.en.push_back(en_a);
-      //store convergance info:
-      wf.pinflist.push_back(pinf);
-      wf.itslist.push_back(its);
-      wf.epslist.push_back(eps);
+      //
+      double e_a = -0.5*pow(1./n,2);
+      wf.solveLocalDirac(n,k,e_a);
     }
   }
 
