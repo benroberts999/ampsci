@@ -296,7 +296,7 @@ an error.
            r[pinf],en);
   }
 
-  return 0;
+  return 0; // XXX XXX XXX have a code!!!!!
 }
 
 //*********************************************************
