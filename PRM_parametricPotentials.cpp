@@ -19,7 +19,7 @@ Does not include nuclear part!
 
 
 //******************************************************************************
-double PRM_tietz(int Z, double r, double g, double t)
+double PRM_tietz(int Z, double r, double t, double g)
 /*
 TIETZ parametric potential
 Does NOT include nuclear potential
