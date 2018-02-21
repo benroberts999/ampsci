@@ -1,7 +1,6 @@
 # Dirac bound state code.
 
 Solves local central-field problem for Dirac equation.
-Based on W. Johnson code, with a few extensions that improve numerical stability and accuracy.
 
 Based on book by W. Johnson, with a few extensions that improve numerical
 stability and accuracy.
