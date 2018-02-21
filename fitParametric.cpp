@@ -25,7 +25,7 @@ int main(void){
   std::vector<int> in_n,in_k;
   std::vector<double> in_en;
   std::ifstream ifile;
-  ifile.open("testPRM.in"); //input file
+  ifile.open("fitParametric.in"); //input file
   {
     std::string junk;
     ifile >> Z >> A;            getline(ifile,junk);

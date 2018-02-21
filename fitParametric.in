@@ -8,7 +8,9 @@
 7  1 -0.0439281737
 8  1 -0.0259603227
 ===================
+Place each "target" state and energy on a new line.
 format: n k target_energy
+These are the states that will be calculated, and fitted
 
 
 
@@ -26,7 +28,7 @@ Cs states:
 for 6,7s & 6,7,8p_1/2
 
 
-Best fit parameters for Tietz: 
+Best fit parameters for Tietz:
   t=1.92200  g=0.31570
 
  n l_j    k Rinf its  eps     En (au)            En (/cm)
@@ -37,7 +39,7 @@ Best fit parameters for Tietz:
  8 p_1/2  1  196   5  3e-16  -0.025972381157547  25687.6007022    -0.0464%
 
 
-Best fit parameters for Green: 
+Best fit parameters for Green:
   H=4.82798  d=0.93884
 
  n l_j    k Rinf its  eps     En (au)            En (/cm)
@@ -46,6 +48,3 @@ Best fit parameters for Green:
  6 p_1/2  1   99   6  3e-16  -0.091945993166778  11229.6908051     0.2392%
  7 p_1/2  1  146   6  4e-17  -0.044108997300578  21728.6978387    -0.4116%
  8 p_1/2  1  195   6  4e-16  -0.026076144392138  25686.4515833    -0.4461%
-
-
-
