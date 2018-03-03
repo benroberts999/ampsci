@@ -99,5 +99,10 @@ int main(void){
   double total_time = 1000.*double(tf-ti)/CLOCKS_PER_SEC;
   printf ("\nt=%.3f ms.\n",total_time);
 
+  std::cout<<"\n\n";
+  std::vector<double> pc(ngp),qc(ngp);
+  double ec = 0.2;
+  solveContinuum(pc,qc,ec,wf.vnuc,wf.Z,-1,wf.r,wf.drdt,wf.h,wf.ngp,wf.alpha);
+
   return 0;
 }
