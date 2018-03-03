@@ -103,6 +103,28 @@ int main(void){
   std::vector<double> pc(ngp),qc(ngp);
   double ec = 0.2;
   solveContinuum(pc,qc,ec,wf.vnuc,wf.Z,-1,wf.r,wf.drdt,wf.h,wf.ngp,wf.alpha);
+  
+  
+  std::ofstream ofile;
+  ofile.open("cont.txt");
+  for(int i=0; i<wf.ngp; i++){
+    ofile<<wf.r[i]<<" "<<pc[i]<<"\n";
+  }
+  ofile.close();
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
 
   return 0;
 }

@@ -34,7 +34,7 @@ int solveContinuum(std::vector<double> &p, std::vector<double> &q, double &en,
   //Perform the "outwards integration"
   outwardAM(p,q,en,v,Z,ka,r,drdt,h,NGP,NGP-1,alpha);
 
-  resturn 0;
+  return 0;
 }
 
 
