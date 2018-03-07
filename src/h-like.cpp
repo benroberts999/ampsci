@@ -101,30 +101,81 @@ int main(void){
 
   std::cout<<"\n\n";
   std::vector<double> pc(ngp),qc(ngp);
+  std::vector<double> pc2(ngp),qc2(ngp);
   double ec = 0.2;
   solveContinuum(pc,qc,ec,wf.vnuc,wf.Z,-1,wf.r,wf.drdt,wf.h,wf.ngp,wf.alpha);
-  
-  
+  solveContinuum(pc2,qc2,0.4,wf.vnuc,wf.Z,-1,wf.r,wf.drdt,wf.h,wf.ngp,wf.alpha);
+
+  std::vector<double> p1p2(ngp);
+  for(int i=0; i<wf.ngp; i++)
+    p1p2[i]=pc[i]*pc2[i] + qc[i]*qc2[i];
+
+  double del=INT_integrate(p1p2,wf.drdt,wf.h,0,wf.ngp);
+  std::cout<<del<<"\n";
+
+
   std::ofstream ofile;
   ofile.open("cont.txt");
   for(int i=0; i<wf.ngp; i++){
-    ofile<<wf.r[i]<<" "<<pc[i]<<"\n";
+    ofile<<wf.r[i]<<" "<<pc[i]<<" "<<pc2[i]<<"\n";
   }
   ofile.close();
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
-  
+
+  // Find the r's for psi=zero, two consec => period
+  //Once period is converged enough, can normalise by comparison with
+  // exact (asymptotic) solution (??)
+  // Find "maximum" amplitude, by using a quadratic fit to 2 nearest points
+  // Scale by ratio of this maximum to max of analytic soln
+  double xa=1,xb=pc[wf.ngp-300];
+  double wk1=-1, wk2=0;
+  for(int i=wf.ngp-300; i<wf.ngp; i++){
+    xa=xb;
+    xb=pc[i];
+    if(xb*xa<0){
+      double r1 = (wf.r[i]*pc[i-1]-wf.r[i-1]*pc[i])/(pc[i-1]-pc[i]);
+      double ya=xb,yb=xb;
+      for(int j=i+1; j<wf.ngp; j++){
+        ya=yb;
+        yb=pc[j];
+        if(ya*yb<0){
+          double r2 = (wf.r[j]*pc[j-1]-wf.r[j-1]*pc[j])/(pc[j-1]-pc[j]);
+          std::cout<<i<<" "<<j<<" "<<r2-r1<<" "<<0.5*pow(3.1416/(r2-r1),2)<<"\n";
+          wk1 = wk2;
+          wk2 = r2-r1;
+          //std::cout<<wk1<<" "<<wk2<<" "<<
+          break;
+        }
+      }
+      if(fabs(wk1-wk2)<1.e-4) break;
+    }
+
+    /*
+    psi ~ A Cos(kr)
+    r0 is 'zero', r1, r2 are first points on either side
+    y1 = psi(r1) etc
+    then:
+    A = y1 - dy * dr1^2 / (dr2^2 - dr1^2)
+    dy  = y2-y1
+    dr1 = r1-r0
+    dr2 = r2-r0
+    [also have converse...if not the same, take average?]
+    A = y2 - dy * dr2^2 / (dr2^2 - dr1^2)
+    XXX NOTE! haven't checked this!! Check using Mathematica!! XXX
+    XXX NO! doesn't seem to work... XXX
+    */
+
+  }
+
+
+
+
+
+
+
+
+
+
+
 
   return 0;
 }

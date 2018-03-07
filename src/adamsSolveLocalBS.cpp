@@ -19,17 +19,11 @@ const int AMO=7; //must be between 5 and 8 (for now). 7 Seems good.
 
 
 //******************************************************************************
-int solveContinuum(std::vector<double> &p, std::vector<double> &q, double &en,
+int solveContinuum(std::vector<double> &p, std::vector<double> &q, double en,
     std::vector<double> v, int Z, int ka,
     std::vector<double> r, std::vector<double> drdt, double h, int NGP,
     double alpha)
 {
-  //Parameters. Put somwhere else?
-  const double delep=5e-16; //PRIMARY convergence parameter [energy] (10^-11)
-  const double deles=1e-10; //SECONDAY convergence parameter [energy]	(X)
-  const int ntry=64;        // Max # attempts at converging [sove bs] (30)
-  const double alr=800;     // ''assymptotically large r [kinda..]''  (=800)
-  const double lde=0.2;     // 'large' energy variations (0.1 => 10%)
 
   //Perform the "outwards integration"
   outwardAM(p,q,en,v,Z,ka,r,drdt,h,NGP,NGP-1,alpha);

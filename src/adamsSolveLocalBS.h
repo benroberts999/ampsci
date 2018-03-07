@@ -11,7 +11,7 @@
 #include "INT_quadratureIntegration.h"
 
 
-int solveContinuum(std::vector<double> &p, std::vector<double> &q, double &en,
+int solveContinuum(std::vector<double> &p, std::vector<double> &q, double en,
     std::vector<double> v, int Z, int ka,
     std::vector<double> r, std::vector<double> drdt, double h, int NGP,
     double alpha);
