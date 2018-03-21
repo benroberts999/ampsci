@@ -1,5 +1,5 @@
 #include "ElectronOrbitals.h"
-#include "atomInfo.h"
+#include "ATI_atomInfo.h"
 #include "INT_quadratureIntegration.h"
 #include <iostream>
 #include <fstream>
@@ -52,7 +52,7 @@ int main(void){
     double del = wf.en[i] - wf.diracen(wf.Z,n,k);
     double rinf = wf.r[wf.pinflist[i]];
     printf("%2i %s_%i/2 (%2i)  %3.0f %3i  %5.0e  %.15f  %7.0e\n",
-        n,atinfo_l(l).c_str(),twoj,k,rinf,wf.itslist[i],wf.epslist[i],
+        n,ATI_l(l).c_str(),twoj,k,rinf,wf.itslist[i],wf.epslist[i],
         wf.en[i],del);
   }
 

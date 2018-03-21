@@ -10,7 +10,7 @@ all: h-like.x fitParametric.x #testTF.x
 ## All programs depend on these header/object files:
 
 DEPS = $(addprefix $(IDIR)/, \
- adamsSolveLocalBS.h atomInfo.h ElectronOrbitals.h \
+ adamsSolveLocalBS.h ATI_atomInfo.h ElectronOrbitals.h \
  INT_quadratureIntegration.h MAT_matrixAlgebraGSL.h physicalConstants.h \
 )
 

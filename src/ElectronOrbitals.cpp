@@ -1,8 +1,5 @@
 //class ElectronOrbitals::
 #include "ElectronOrbitals.h"
-#include "physicalConstants.h"
-#include "atomInfo.h"
-//#include "adamsSolveLocalBS.h"
 
 
 //XXX XXX XXX make routine that solves for a signle state. pushes back n,k etc.!

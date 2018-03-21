@@ -4,7 +4,7 @@
 #include <vector>
 #include <cmath>
 #include "physicalConstants.h"
-#include "atomInfo.h"
+#include "ATI_atomInfo.h"
 #include "adamsSolveLocalBS.h"
 #include <gsl/gsl_sf_fermi_dirac.h>
 
@@ -59,6 +59,8 @@ class ElectronOrbitals{
     double diracen(int z, int n, int k);
     int sphericalNucleus(double rnuc=0);
     int fermiNucleus(double t=0, double c=0);
+
+    int determineCore(); //???
 
 
   private:
