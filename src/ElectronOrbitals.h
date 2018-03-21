@@ -43,6 +43,8 @@ class ElectronOrbitals{
     int max_l;
     int num_states; //?
 
+    std::vector<int> core_list;
+
     std::vector<unsigned> nlist;
     std::vector<int> klist;
 

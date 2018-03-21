@@ -19,7 +19,7 @@ ElectronOrbitals::ElectronOrbitals(int in_z, int in_a, int in_ngp, double rmin,
   alpha=ALPHA*var_alpha;
 
   Z=in_z;
-  if(in_a==0) A=atinfo_a[Z]; //Use default atomic mass
+  if(in_a==0) A=ATI_a[Z]; //Use default atomic mass
   else A=in_a;
   zeroNucleus();
 }
@@ -28,7 +28,7 @@ ElectronOrbitals::ElectronOrbitals(std::string s_in_z, int in_a, int in_ngp,
   double rmin, double rmax, double var_alpha)
 {
  //Work out Z from given atomic symbol
- int iz = atinfo_get_z(s_in_z);
+ int iz = ATI_get_z(s_in_z);
  ElectronOrbitals(iz,in_a,in_ngp,var_alpha);
 }
 
@@ -103,6 +103,19 @@ XXX Kill this one! XXX
   return 0;
 }
 
+
+//******************************************************************************
+int ElectronOrbitals::determineCore()
+/*
+Take in Either:
+  - previous closed shell (noble), + 'rest'
+  OR
+  -
+*/
+{
+
+  return 0;
+}
 
 //******************************************************************************
 int ElectronOrbitals::JohnsonRadialGrid(double r0, double rmax)
