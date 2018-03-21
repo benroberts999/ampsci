@@ -81,5 +81,10 @@ const std::vector<int> ATI_core_Rn
 const std::vector<int> ATI_core_Og
   ={2, 2,6, 2,6,10, 2,6,10,14, 2,6,10,14,0, 2,6,10,0,0,0, 2,6};
 
+const std::vector<int> ATI_core_n
+  = {1, 2,2, 3,3,3, 4,4,4,4, 5,5,5,5,5, 6,6,6,6,6,6, 7,7};
+const std::vector<int> ATI_core_l
+  = {0, 0,1, 0,1,2, 0,1,2,3, 0,1,2,3,4, 0,1,2,3,4,5, 0,1};
+
 
 #endif
