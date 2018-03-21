@@ -65,7 +65,7 @@ inline int ATI_get_z(std::string at){
 
 
 //Shell configurations for Noble gasses (Group 8)
-// ???
+// ??? OK?
 const std::vector<int> ATI_core_He
   ={2};
 const std::vector<int> ATI_core_Ne
