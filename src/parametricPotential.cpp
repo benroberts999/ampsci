@@ -5,11 +5,6 @@
 #include <fstream>
 #include <sstream>
 
-
-
-
-
-
 int main(void){
 
   clock_t ti,tf;
@@ -27,7 +22,6 @@ int main(void){
   double Gf,Gh,Gd;  //Green potential parameters
 
   int n_max,l_max;
-
   std::vector<std::string> str_core;
 
   //Open and read the input file:
@@ -62,11 +56,9 @@ int main(void){
     Tf /= TG_norm;
   }
 
-  //If H,d etc are zero, call default values??
+  //If H,d etc are zero, use default values
   if(Gf!=0 && Gh==0) PRM_defaultGreen(Z,Gh,Gd);
   if(Tf!=0 && Tt==0) PRM_defaultTietz(Z,Tt,Tg);
-
-
 
 
   printf("\nRunning parametric potential for %s, Z=%i A=%i\n",
@@ -78,10 +70,10 @@ int main(void){
   //Generate the orbitals object:
   ElectronOrbitals wf(Z,A,ngp,r0,rmax,varalpha);
   //if(A!=0) wf.sphericalNucleus();
-  //wf.fermiNucleus(); //Blah!
 
   printf("Grid: pts=%i h=%7.5f Rmax=%5.1f\n",wf.ngp,wf.h,wf.r[wf.ngp-1]);
 
+  //Determine which states are in the core:
   std::vector<int> core_list; //should be in the class!
   int core_ok = wf.determineCore(str_core,core_list);
   if(core_ok==2){
@@ -91,6 +83,7 @@ int main(void){
     return 1;
   }
 
+  //Fill the electron part of the potential
   wf.vdir.resize(wf.ngp);
   for(int i=0; i<wf.ngp; i++){
     double tmp = 0;
@@ -168,6 +161,7 @@ int main(void){
   std::vector<int> sort_list;
   wf.sortedEnergyList(sort_list);
 
+  //Output results:
   printf("\n n l_j    k Rinf its    eps      En (au)        En (/cm)\n");
   for(size_t m=0; m<sort_list.size(); m++){
     int i = sort_list[m];

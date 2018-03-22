@@ -1,20 +1,11 @@
 Cs 0              | Z, A(=0 for default)
 Xe .              | Core configuration (end with ' .')
 1.e-5 250. 5000   | r0, rmax, num_points
-1 0 0             | green H d
+1 0 0             | green H d *
 1 0 0             | Tietz t g
 8 1               | max n and l (valence)
 -----------------------
 
-NB: only works for Cs for now (i think?)
-
-me [Cs]:
-1 4.82798  0.93884    | green H d
-Johnson:
-1 4.4691  0.8967      | green H d
-
-
-
-Rb
-Green:
-  H=3.60950  d=0.80224
+Fraction of each potential to use (normalised inside program)
+Put 0 for H or t to use the default values for parameters.
+Otherwise, use 'fitParametric' program to calculate H,d (t,g)
