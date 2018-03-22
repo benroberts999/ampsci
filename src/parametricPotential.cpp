@@ -3,6 +3,7 @@
 #include "PRM_parametricPotentials.h"
 #include <iostream>
 #include <fstream>
+#include <algorithm>
 
 int main(void){
 
@@ -20,6 +21,8 @@ int main(void){
   double Tf,Tt,Tg;  //Teitz potential parameters
   double Gf,Gh,Gd;  //Green potential parameters
 
+  int n_max,l_max;
+
   //Open and read the input file:
   {
     std::ifstream ifs;
@@ -30,6 +33,7 @@ int main(void){
     ifs >> r0 >> rmax >> ngp;     getline(ifs,jnk);
     ifs >> Gf >> Gh >> Gd;        getline(ifs,jnk);
     ifs >> Tf >> Tt >> Tg;        getline(ifs,jnk);
+    ifs >> n_max >> l_max;        getline(ifs,jnk);
     ifs.close();
   }
 
@@ -73,6 +77,8 @@ int main(void){
   std::vector<int> core_list; //should be in the class!
   core_list = ATI_core_Xe; //Cs core is Xe-like!
 
+  int ns=0,np=0,nd=0,nf=0;
+
   // Solve for each core state:
   int tot_el=0; // for working out Z_eff
   for(size_t i=0; i<core_list.size(); i++){
@@ -81,6 +87,12 @@ int main(void){
 
     int n = ATI_core_n[i];
     int l = ATI_core_l[i];
+
+    //remember the largest n for each s,p,d,f
+    if(l==0)      ns=n;
+    else if(l==1) np=n;
+    else if(l==2) nd=n;
+    else if(l==3) nf=n;
 
     tot_el+=num;
 
@@ -97,18 +109,59 @@ int main(void){
 
   int num_core = wf.nlist.size();
 
-  printf("\n n l_j    k Rinf its    eps      En (au)\n");
-  for(size_t i=0; i<wf.nlist.size(); i++){
-    if((int)i==num_core) std::cout<<"========= Valence: ======\n";
+
+  for(int n=1; n<=n_max; n++){
+    for(int l=0; l<=l_max; l++){
+      if(l+1>n) continue;
+
+      if(l==0 && n<=ns) continue;
+      if(l==1 && n<=np) continue;
+      if(l==2 && n<=nd) continue;
+      if(l==3 && n<=nf) continue;
+
+      for(int tk=0; tk<2; tk++){
+        int k;
+        if(tk==0) k=l;
+        else      k=-(l+1);
+        if(k==0) continue;
+
+        double en_a = - 0.5 * 0.25 * pow((1.*ns)/n,2); //energy guess
+        wf.solveLocalDirac(n,k,en_a);
+
+      }
+    }
+  }
+
+  // Sort the output of states by energy:
+  std::vector<double> t_en = wf.en;
+  std::sort(t_en.begin(),t_en.end());
+  std::vector<int> sort_list;
+  for(size_t i=0; i<t_en.size(); i++){
+    for(size_t m=0; m<wf.nlist.size(); m++){
+      if(wf.en[m]==t_en[i]){
+        sort_list.push_back(m);
+        break;
+      }
+    }
+  }
+
+
+  printf("\n n l_j    k Rinf its    eps      En (au)    En (/cm)\n");
+  for(size_t m=0; m<sort_list.size(); m++){
+    int i = sort_list[m];
+    if((int)m==num_core){
+      std::cout<<" ========= Valence: ======\n";
+      printf(" n l_j    k Rinf its    eps      En (au)    En (/cm)\n");
+    }
     int n=wf.nlist[i];
     int k=wf.klist[i];
     int twoj = 2*abs(k)-1;
     int l = (abs(2*k+1)-1)/2;
     double rinf = wf.r[wf.pinflist[i]];
     double eni = wf.en[i];
-    printf("%2i %s_%i/2 %2i  %3.0f %3i  %5.0e  %11.5f\n",
+    printf("%2i %s_%i/2 %2i  %3.0f %3i  %5.0e  %11.5f %11.0f\n",
         n,ATI_l(l).c_str(),twoj,k,rinf,wf.itslist[i],wf.epslist[i],
-        eni);
+        eni, eni*HARTREE_ICM);
   }
 
   tf = clock();
