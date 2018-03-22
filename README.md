@@ -18,16 +18,22 @@ Note: makes use of GSL libraries: https://www.gnu.org/software/gsl/
  * For example, with ubuntu: _sudo apt-get install libgsl0-dev_
 
 
-## h-like.cpp
+## h-like.x
 
  * An example that solves for H-like ions
  * compile: _make h-like.x_
  * Input parameters/options in file: h-like.in
 
 
-## fitParametric.cpp
+## fitParametric.x
 
  * Finds the best-fit parameters for two-parameter parametric potentials
  (Green, or Tietz potentials, See Johnson book]
  * Takes input/target states from fitParametric.in
  * compile: _make fitParametric.x_
+
+## parametricPotential.x
+
+ * Solves Dirac equation using Green/Tietz parametric potentials
+ * You can give it parameters (H,g,t,d), or it will use defaults
+ * Optionally: give it the core configuration Eg. Xe 6s2 .
