@@ -1,6 +1,6 @@
-Cs 0              | Z, A(=0 for default)
-Xe .              | Core configuration (end with ' .')
-1.e-5 250. 5000   | r0, rmax, num_points
+Ag 0              | Z, A(=0 for default)
+Kr 4d10 .         | Core configuration (end with ' .')
+1.e-4 500. 2000   | r0, rmax, num_points
 1 0 0             | green H d *
 1 0 0             | Tietz t g
 8 1               | max n and l (valence)
