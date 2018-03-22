@@ -97,7 +97,10 @@ int main(void){
     tot_el+=num;
 
     double Zeff = 2. + double(Z - tot_el);
-    double en_a = -0.5 * pow(Zeff/n,2); //energy guess
+    int neff=n;
+    if(n==2) neff=n+2;
+    if(n==3) neff=n+4;
+    double en_a = -0.5 * pow(Zeff/neff,2); //energy guess
 
     int k1 = l; //j = l-1/2
     if(k1!=0) wf.solveLocalDirac(n,k1,en_a);
@@ -125,7 +128,10 @@ int main(void){
         else      k=-(l+1);
         if(k==0) continue;
 
-        double en_a = - 0.5 * 0.25 * pow((1.*ns)/n,2); //energy guess
+        int neff=n;
+        if(l==2) neff=n+2;
+        if(l==3) neff=n+4;
+        double en_a = - 0.5 * 0.25 * pow((1.*ns)/neff,2); //energy guess
         wf.solveLocalDirac(n,k,en_a);
 
       }
@@ -146,12 +152,12 @@ int main(void){
   }
 
 
-  printf("\n n l_j    k Rinf its    eps      En (au)    En (/cm)\n");
+  printf("\n n l_j    k Rinf its    eps      En (au)        En (/cm)\n");
   for(size_t m=0; m<sort_list.size(); m++){
     int i = sort_list[m];
     if((int)m==num_core){
       std::cout<<" ========= Valence: ======\n";
-      printf(" n l_j    k Rinf its    eps      En (au)    En (/cm)\n");
+      printf(" n l_j    k Rinf its    eps      En (au)        En (/cm)\n");
     }
     int n=wf.nlist[i];
     int k=wf.klist[i];
@@ -159,7 +165,7 @@ int main(void){
     int l = (abs(2*k+1)-1)/2;
     double rinf = wf.r[wf.pinflist[i]];
     double eni = wf.en[i];
-    printf("%2i %s_%i/2 %2i  %3.0f %3i  %5.0e  %11.5f %11.0f\n",
+    printf("%2i %s_%i/2 %2i  %3.0f %3i  %5.0e  %11.5f %15.3f\n",
         n,ATI_l(l).c_str(),twoj,k,rinf,wf.itslist[i],wf.epslist[i],
         eni, eni*HARTREE_ICM);
   }
