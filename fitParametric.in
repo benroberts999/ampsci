@@ -1,17 +1,25 @@
-55 0               | Z, A(=0 for default)
-1.e-5 250. 2048    | r0, rmax, num_points
+37 0               | Z, A(=0 for default)
+1.e-4 250. 2000    | r0, rmax, num_points
 0                  | green(0) or tietz(1)
 5                  | num_states (each state on following line):
-6 -1 -0.1430983961
-7 -1 -0.0586443137
-6  1 -0.0921664588
-7  1 -0.0439281737
-8  1 -0.0259603227
+5 -1 -0.15351     
+6 -1 -0.06177     
+7 -1 -0.03362     
+5  1 -0.09619    
+6  1 -0.04545     
 ===================
 Place each "target" state and energy on a new line.
 format: n k target_energy
 These are the states that will be calculated, and fitted
 
+Rb states: [exp]
+5 -1 -0.15351
+6 -1 -0.06177
+7 -1 -0.03362
+5  1 -0.09619
+6  1 -0.04545
+Green:
+  H=3.60950  d=0.80224
 
 
 Cs states:
@@ -47,4 +55,4 @@ Best fit parameters for Green:
  7 s_1/2 -1  125   7  3e-16  -0.058891416390160  18484.3318582    -0.4214%
  6 p_1/2  1   99   6  3e-16  -0.091945993166778  11229.6908051     0.2392%
  7 p_1/2  1  146   6  4e-17  -0.044108997300578  21728.6978387    -0.4116%
- 8 p_1/2  1  195   6  4e-16  -0.026076144392138  25686.4515833    -0.4461%
+ e p_1/2  1  195   6  4e-16  -0.026076144392138  25686.4515833    -0.4461%

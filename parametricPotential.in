@@ -1,7 +1,7 @@
-Cs 0                  | Z, A(=0 for default)
-Xe .                  | Core configuration (end with ' .')
+Rb 0                  | Z, A(=0 for default)
+Kr .                  | Core configuration (end with ' .')
 1.e-5 250. 5000       | r0, rmax, num_points
-1 4.82798  0.93884    | green H d
+1 3.60950  0.80224    | green H d
 0 1.92200  0.31570    | Tietz t g
 9 1                   | max n and l (valence)
 -----------------------
@@ -12,3 +12,9 @@ me:
 1 4.82798  0.93884    | green H d
 Johnson:
 1 4.4691  0.8967      | green H d
+
+
+
+Rb
+Green:
+  H=3.60950  d=0.80224
