@@ -1,13 +1,14 @@
 Cs 0                  | Z, A(=0 for default)
-1.e-5 500. 5000       | r0, rmax, num_points
+Xe .                  | Core configuration (end with ' .')
+1.e-5 250. 5000       | r0, rmax, num_points
 1 4.82798  0.93884    | green H d
 0 1.92200  0.31570    | Tietz t g
-15 1                   | max n and l (valence)
-
+9 1                   | max n and l (valence)
+-----------------------
 
 NB: only works for Cs for now (i think?)
 
 me:
 1 4.82798  0.93884    | green H d
 Johnson:
-1 4.4691  0.8967     | green H d
+1 4.4691  0.8967      | green H d

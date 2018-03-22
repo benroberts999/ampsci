@@ -3,6 +3,7 @@
 #include "PRM_parametricPotentials.h"
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <algorithm>
 
 int main(void){
@@ -23,6 +24,8 @@ int main(void){
 
   int n_max,l_max;
 
+  std::vector<std::string> str_core;
+
   //Open and read the input file:
   {
     std::ifstream ifs;
@@ -30,6 +33,13 @@ int main(void){
     std::string jnk;
     // read in the input parameters:
     ifs >> Z_str >> A;            getline(ifs,jnk);
+    while(true){
+      std::string str;
+      ifs >> str;
+      if(str=="."||str=="|"||str=="!") break;
+      str_core.push_back(str);
+    }
+    getline(ifs,jnk);
     ifs >> r0 >> rmax >> ngp;     getline(ifs,jnk);
     ifs >> Gf >> Gh >> Gd;        getline(ifs,jnk);
     ifs >> Tf >> Tt >> Tg;        getline(ifs,jnk);
@@ -44,10 +54,14 @@ int main(void){
     Tf /= TG_norm;
   }
 
+
   //If H,d etc are zero, call default values??
 
   int Z = ATI_get_z(Z_str);
   if(Z==0) return 2;
+
+  if(A==0) A=ATI_a[Z]; //if none given, get default A
+
 
   printf("\nRunning for Parametric potential potential, Z=%i\n",Z);
   printf("*************************************************\n");
@@ -55,11 +69,19 @@ int main(void){
   //Generate the orbitals object:
   ElectronOrbitals wf(Z,A,ngp,r0,rmax,varalpha);
   //if(A!=0) wf.sphericalNucleus();
-  A=133;
   //wf.fermiNucleus(); //Blah!
 
   printf("Grid: pts=%i h=%7.5f Rmax=%5.1f\n",wf.ngp,wf.h,wf.r[wf.ngp-1]);
-  // XXX Make a "print grid info" function!
+
+
+  std::vector<int> core_list; //should be in the class!
+  int core_ok = wf.determineCore(str_core,core_list);
+  if(core_ok==2){
+    std::cout<<"Problem with core: ";
+    for(size_t i=0; i<str_core.size(); i++) std::cout<<str_core[i]<<" ";
+    std::cout<<"\n";
+    return 1;
+  }
 
   wf.vdir.resize(wf.ngp);
   for(int i=0; i<wf.ngp; i++){
@@ -70,14 +92,7 @@ int main(void){
   }
 
 
-  // * Form the core
-  // * Loop over core, solve
-  // * Solve valence list
-
-  std::vector<int> core_list; //should be in the class!
-  core_list = ATI_core_Xe; //Cs core is Xe-like!
-
-  int ns=0,np=0,nd=0,nf=0;
+  int ns=0,np=0,nd=0,nf=0;  //max n for each core l
 
   // Solve for each core state:
   int tot_el=0; // for working out Z_eff
@@ -97,10 +112,13 @@ int main(void){
     tot_el+=num;
 
     double Zeff = 2. + double(Z - tot_el);
+    if(Zeff<1.) Zeff=1.;
     int neff=n;
     if(n==2) neff=n+2;
     if(n==3) neff=n+4;
     double en_a = -0.5 * pow(Zeff/neff,2); //energy guess
+
+    // XXX check 'num' to work out if both j\pm1/2 or not! ?? XXX
 
     int k1 = l; //j = l-1/2
     if(k1!=0) wf.solveLocalDirac(n,k1,en_a);
@@ -108,11 +126,11 @@ int main(void){
     wf.solveLocalDirac(n,k2,en_a);
 
   }
-  //return 1;
 
+  //store number of calculated core states:
   int num_core = wf.nlist.size();
 
-
+  //Calculate the valence (and excited) states
   for(int n=1; n<=n_max; n++){
     for(int l=0; l<=l_max; l++){
       if(l+1>n) continue;
@@ -144,7 +162,7 @@ int main(void){
   std::vector<int> sort_list;
   for(size_t i=0; i<t_en.size(); i++){
     for(size_t m=0; m<wf.nlist.size(); m++){
-      if(wf.en[m]==t_en[i]){
+      if(wf.en[m]==t_en[i]){ //nb: i don't like this! little dangerous!?
         sort_list.push_back(m);
         break;
       }

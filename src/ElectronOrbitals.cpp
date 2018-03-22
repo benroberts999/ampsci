@@ -102,14 +102,71 @@ XXX Kill this one! XXX
 
 
 //******************************************************************************
-int ElectronOrbitals::determineCore()
+int ElectronOrbitals::determineCore(std::vector<std::string> str_core,
+  std::vector<int> &core)
 /*
-Take in Either:
-  - previous closed shell (noble), + 'rest'
-  OR
-  -
+Takes in a string list for the core configuration, outputs an int list
+Takes in previous closed shell (noble), + 'rest' (or just the rest)
+E.g:
+  Core of Cs: Xe
+  Core of Gold: Xe 4f14 5d10
+'rest' is in form nLm : n=n, L=l, m=number of electrons in that nl shell.
+NOTE: Only works up to n=9, and l=5 [h]
 */
 {
+  core.clear();
+  if(str_core.size()==0) return 1;
+
+  int ibeg=1;
+  std::string ng=str_core[0];
+  if     (ng=="He") core=ATI_core_He;
+  else if(ng=="Ne") core=ATI_core_Ne;
+  else if(ng=="Ar") core=ATI_core_Ar;
+  else if(ng=="Kr") core=ATI_core_Kr;
+  else if(ng=="Xe") core=ATI_core_Xe;
+  else if(ng=="Rn") core=ATI_core_Rn;
+  else if(ng=="Og") core=ATI_core_Og;
+  else ibeg=0;
+
+  std::vector<int> core_ex;
+  for(size_t i=ibeg; i<str_core.size(); i++){
+    //Parse string, determine config for this term
+    int n = std::stoi(str_core[i].substr(0,1));
+    int m = std::stoi(str_core[i].substr(2));
+    std::string strl=str_core[i].substr(1,1);
+    int l=-1;
+    if     (strl=="s") l=0;
+    else if(strl=="p") l=1;
+    else if(strl=="d") l=2;
+    else if(strl=="f") l=3;
+    else if(strl=="g") l=4;
+    else if(strl=="h") l=5;
+    else return 2;
+
+    //Check if this term is valid
+    if(m>4*l+2) return 2;
+    if(l+1>n)   return 2;
+
+    //Form int list for this term:
+    for(int in=0; in<=n; in++){
+      for(int il=0; il<in; il++){
+        if(in==n && il==l) core_ex.push_back(m);
+        else               core_ex.push_back(0);
+      }
+    }
+
+    //Merge this term with the existing core:
+    int size = std::max(core_ex.size(),core.size());
+    core_ex.resize(size);
+    core.resize(size);
+    for(size_t j=0; j<core.size(); j++){
+      core[j] += core_ex[j];
+      if(core[j] > 4*ATI_core_l[j]+2) return 2; //check if valid
+    }
+
+  }
+
+
 
   return 0;
 }
