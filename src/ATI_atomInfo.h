@@ -59,6 +59,8 @@ inline int ATI_get_z(std::string at){
   for(int z=0; z<121; z++){
     if(at==ATI_sym[z]) return z;
   }
+  int t_z = std::stoi(at);
+  if(t_z>0 && t_z<137) return t_z;
   std::cout<<"\n FAILURE 47 in atomInfo: "<<at<<" not found.\n";
   return 0;
 }
