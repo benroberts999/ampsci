@@ -51,6 +51,10 @@ int main(void){
     ifs.close();
   }
 
+  int Z = ATI_get_z(Z_str);
+  if(Z==0) return 2;
+  if(A==0) A=ATI_a[Z]; //if none given, get default A
+
   //Normalise the Teitz/Green weights:
   if(Gf!=0 || Tf!=0){
     double TG_norm = Gf + Tf;
@@ -58,18 +62,18 @@ int main(void){
     Tf /= TG_norm;
   }
 
-
   //If H,d etc are zero, call default values??
+  if(Gf!=0 && Gh==0) PRM_defaultGreen(Z,Gh,Gd);
+  if(Tf!=0 && Tt==0) PRM_defaultTietz(Z,Tt,Tg);
 
-  int Z = ATI_get_z(Z_str);
-  if(Z==0) return 2;
 
-  if(A==0) A=ATI_a[Z]; //if none given, get default A
 
 
   printf("\nRunning parametric potential for %s, Z=%i A=%i\n",
     Z_str.c_str(),Z,A);
   printf("*************************************************\n");
+  if(Gf!=0) printf("%3.0f%% Green potential: H=%.4f  d=%.4f\n",Gf*100.,Gh,Gd);
+  if(Tf!=0) printf("%3.0f%% Tietz potential: T=%.4f  g=%.4f\n",Tf*100.,Tt,Tg);
 
   //Generate the orbitals object:
   ElectronOrbitals wf(Z,A,ngp,r0,rmax,varalpha);
