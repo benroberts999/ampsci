@@ -128,7 +128,6 @@ NOTE: Only works up to n=9, and l=5 [h]
   else if(ng=="Og") core=ATI_core_Og;
   else ibeg=0;
 
-  std::vector<int> core_ex;
   for(size_t i=ibeg; i<str_core.size(); i++){
     //Parse string, determine config for this term
     int n = std::stoi(str_core[i].substr(0,1));
@@ -147,6 +146,7 @@ NOTE: Only works up to n=9, and l=5 [h]
     if(m>4*l+2) return 2;
     if(l+1>n)   return 2;
 
+    std::vector<int> core_ex;
     //Form int list for this term:
     for(int in=0; in<=n; in++){
       for(int il=0; il<in; il++){
@@ -159,14 +159,13 @@ NOTE: Only works up to n=9, and l=5 [h]
     int size = std::max(core_ex.size(),core.size());
     core_ex.resize(size);
     core.resize(size);
+
     for(size_t j=0; j<core.size(); j++){
       core[j] += core_ex[j];
       if(core[j] > 4*ATI_core_l[j]+2) return 2; //check if valid
     }
 
   }
-
-
 
   return 0;
 }
@@ -397,4 +396,30 @@ https://www.gnu.org/software/gsl/manual/html_node/Complete-Fermi_002dDirac-Integ
   }
 
   return 0;
+}
+
+
+
+//******************************************************************************
+bool ELO_sortcol( const std::vector<double>& v1,
+               const std::vector<double>& v2 ) {
+    return v1[0] > v2[0];
+}
+//******************************************************************************
+int ElectronOrbitals::sortedEnergyList(std::vector<int> &sort_list)
+{
+
+  std::vector< std::vector<double> > t_en;
+  for(size_t i=0; i<en.size(); i++){
+    t_en.push_back({en[i],(double)i+0.1});
+    //+0.1 to prevent rounding error when going from double -> int
+  }
+
+  std::sort(t_en.rbegin(), t_en.rend(), ELO_sortcol);
+
+  for(size_t i=0; i<en.size(); i++){
+    sort_list.push_back((int)t_en[i][1]);
+  }
+  return 0;
+
 }

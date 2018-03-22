@@ -7,6 +7,7 @@
 #include "ATI_atomInfo.h"
 #include "adamsSolveLocalBS.h"
 #include <gsl/gsl_sf_fermi_dirac.h>
+#include <algorithm> //for sort
 
 const int NGP_DEFAULT=1000; //???
 
@@ -62,6 +63,8 @@ class ElectronOrbitals{
 
     int determineCore(std::vector<std::string> str_core,
       std::vector<int> &core); //???
+
+    int sortedEnergyList(std::vector<int> &sort_list);
 
 
   private:

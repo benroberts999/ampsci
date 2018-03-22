@@ -4,7 +4,11 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include <algorithm>
+
+
+
+
+
 
 int main(void){
 
@@ -48,7 +52,7 @@ int main(void){
   }
 
   //Normalise the Teitz/Green weights:
-  {
+  if(Gf!=0 || Tf!=0){
     double TG_norm = Gf + Tf;
     Gf /= TG_norm;
     Tf /= TG_norm;
@@ -63,7 +67,8 @@ int main(void){
   if(A==0) A=ATI_a[Z]; //if none given, get default A
 
 
-  printf("\nRunning for Parametric potential potential, Z=%i\n",Z);
+  printf("\nRunning parametric potential for %s, Z=%i A=%i\n",
+    Z_str.c_str(),Z,A);
   printf("*************************************************\n");
 
   //Generate the orbitals object:
@@ -72,7 +77,6 @@ int main(void){
   //wf.fermiNucleus(); //Blah!
 
   printf("Grid: pts=%i h=%7.5f Rmax=%5.1f\n",wf.ngp,wf.h,wf.r[wf.ngp-1]);
-
 
   std::vector<int> core_list; //should be in the class!
   int core_ok = wf.determineCore(str_core,core_list);
@@ -90,7 +94,6 @@ int main(void){
     if(Tf!=0) tmp += Tf*PRM_tietz(Z,wf.r[i],Tt,Tg);
     wf.vdir[i] = tmp;
   }
-
 
   int ns=0,np=0,nd=0,nf=0;  //max n for each core l
 
@@ -118,12 +121,10 @@ int main(void){
     if(n==3) neff=n+4;
     double en_a = -0.5 * pow(Zeff/neff,2); //energy guess
 
-    // XXX check 'num' to work out if both j\pm1/2 or not! ?? XXX
-
     int k1 = l; //j = l-1/2
     if(k1!=0) wf.solveLocalDirac(n,k1,en_a);
     int k2 = -(l+1); //j=l+1/2
-    wf.solveLocalDirac(n,k2,en_a);
+    if(num>2*l) wf.solveLocalDirac(n,k2,en_a);
 
   }
 
@@ -135,6 +136,8 @@ int main(void){
     for(int l=0; l<=l_max; l++){
       if(l+1>n) continue;
 
+      //Skip states already calculated in core:
+      //XXX NOTE: will miss p_3/2 if only p_1/2 in core!?!? [for e.g.]
       if(l==0 && n<=ns) continue;
       if(l==1 && n<=np) continue;
       if(l==2 && n<=nd) continue;
@@ -150,25 +153,16 @@ int main(void){
         if(l==2) neff=n+2;
         if(l==3) neff=n+4;
         double en_a = - 0.5 * 0.25 * pow((1.*ns)/neff,2); //energy guess
+        if(Gf==0 && Tf==0) en_a = -0.5 * pow(Z/n,2);
         wf.solveLocalDirac(n,k,en_a);
 
       }
     }
   }
 
-  // Sort the output of states by energy:
-  std::vector<double> t_en = wf.en;
-  std::sort(t_en.begin(),t_en.end());
+  //make list of energy indices in sorted order:
   std::vector<int> sort_list;
-  for(size_t i=0; i<t_en.size(); i++){
-    for(size_t m=0; m<wf.nlist.size(); m++){
-      if(wf.en[m]==t_en[i]){ //nb: i don't like this! little dangerous!?
-        sort_list.push_back(m);
-        break;
-      }
-    }
-  }
-
+  wf.sortedEnergyList(sort_list);
 
   printf("\n n l_j    k Rinf its    eps      En (au)        En (/cm)\n");
   for(size_t m=0; m<sort_list.size(); m++){
