@@ -4,13 +4,13 @@ CXX=g++
 CXXFLAGS=-I$(IDIR) -std=c++11 -Wall -fopenmp -O
 LIBS=-lgsl -lgslcblas -lm
 
-all: h-like.x fitParametric.x #testTF.x
+all: h-like.x fitParametric.x parametricPotential.x #testTF.x
 
 ################################################################################
 ## All programs depend on these header/object files:
 
 DEPS = $(addprefix $(IDIR)/, \
- adamsSolveLocalBS.h atomInfo.h ElectronOrbitals.h \
+ adamsSolveLocalBS.h ATI_atomInfo.h ElectronOrbitals.h \
  INT_quadratureIntegration.h MAT_matrixAlgebraGSL.h physicalConstants.h \
 )
 
@@ -43,6 +43,9 @@ h-like.x: $(OBJ) $(IDIR)/h-like.o
 	$(COMP)
 
 fitParametric.x: $(OBJ) $(IDIR)/fitParametric.o $(IDIR)/PRM_parametricPotentials.o
+	$(COMP)
+
+parametricPotential.x: $(OBJ) $(IDIR)/parametricPotential.o $(IDIR)/PRM_parametricPotentials.o
 	$(COMP)
 
 .PHONY: clean

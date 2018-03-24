@@ -18,7 +18,7 @@
 //Default values for A for each atom.
 //Note: array index matches Z, so first entry is blank.
 //Goes up to E120 (Z=120)
-const int atinfo_a[121]={0,
+const int ATI_a[121]={0,
     1,  4,  7,  9, 11, 12, 14, 16, 19, 20,
    23, 24, 27, 28, 31, 32, 35, 40, 39, 40,
    45, 48, 51, 52, 55, 56, 59, 59, 64, 65,
@@ -32,7 +32,7 @@ const int atinfo_a[121]={0,
   258,259,262,267,270,269,270,270,278,281,
   281,285,286,289,289,293,293,294,315,320};
 
-const std::string atinfo_sym[121]={"0",
+const std::string ATI_sym[121]={"0",
    "H","He","Li","Be", "B", "C", "N", "O", "F","Ne",
   "Na","Mg","Al","Si", "P", "S","Cl","Ar", "K","Ca",
   "Sc","Ti", "V","Cr","Mn","Fe","Co","Ni","Cu","Zn",
@@ -47,20 +47,48 @@ const std::string atinfo_sym[121]={"0",
   "Rg","Cn","Nh","Fl","Mc","Lv","Ts","Og","E119","E120"};
 
 //Short function that returns orbital term given l
-const std::string atinfo_l_array[5]={"s","p","d","f","g"};
-inline std::string atinfo_l(int l){
-  if(l<5) return atinfo_l_array[l];
+inline std::string ATI_l(int l){
+  std::string tmp_l_array[5]={"s","p","d","f","g"};
+  if(l<5) return tmp_l_array[l];
   else return std::to_string(l);
 }
 
 //Given an atomic symbol (H, He, etc.), will return Z
 //Note: Symbol must be exact, including capitalisation
-inline int atinfo_get_z(std::string at){
+inline int ATI_get_z(std::string at){
   for(int z=0; z<121; z++){
-    if(at==atinfo_sym[z]) return z;
+    if(at==ATI_sym[z]) return z;
   }
+  int t_z = std::stoi(at);
+  if(t_z>0 && t_z<137) return t_z;
   std::cout<<"\n FAILURE 47 in atomInfo: "<<at<<" not found.\n";
   return 0;
 }
+
+
+//Shell configurations for Noble gasses (Group 8)
+// ??? OK?
+const std::vector<int> ATI_core_He
+  ={2};
+const std::vector<int> ATI_core_Ne
+  ={2, 2,6};
+const std::vector<int> ATI_core_Ar
+  ={2, 2,6, 2,6};
+const std::vector<int> ATI_core_Kr
+  ={2, 2,6, 2,6,10, 2,6};
+const std::vector<int> ATI_core_Xe
+  ={2, 2,6, 2,6,10, 2,6,10,0,  2,6};
+const std::vector<int> ATI_core_Rn
+  ={2, 2,6, 2,6,10, 2,6,10,14, 2,6,10,0,0,  2,6};
+const std::vector<int> ATI_core_Og
+  ={2, 2,6, 2,6,10, 2,6,10,14, 2,6,10,14,0, 2,6,10,0,0,0, 2,6};
+
+const std::vector<int> ATI_core_n
+  = {1, 2,2, 3,3,3, 4,4,4,4, 5,5,5,5,5, 6,6,6,6,6,6, 7,7,7,7,7,7,7,
+    8,8,8,8,8,8,8,8, 9,9,9,9,9,9,9,9,9};
+const std::vector<int> ATI_core_l
+  = {0, 0,1, 0,1,2, 0,1,2,3, 0,1,2,3,4, 0,1,2,3,4,5, 0,1,2,3,4,5,6,
+    0,1,2,3,4,5,6,7, 0,1,2,3,4,5,6,7,8};
+
 
 #endif

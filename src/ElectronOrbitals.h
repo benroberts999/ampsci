@@ -4,9 +4,10 @@
 #include <vector>
 #include <cmath>
 #include "physicalConstants.h"
-#include "atomInfo.h"
+#include "ATI_atomInfo.h"
 #include "adamsSolveLocalBS.h"
 #include <gsl/gsl_sf_fermi_dirac.h>
+#include <algorithm> //for sort
 
 const int NGP_DEFAULT=1000; //???
 
@@ -43,6 +44,8 @@ class ElectronOrbitals{
     int max_l;
     int num_states; //?
 
+    std::vector<int> core_list;
+
     std::vector<unsigned> nlist;
     std::vector<int> klist;
 
@@ -57,6 +60,11 @@ class ElectronOrbitals{
     double diracen(int z, int n, int k);
     int sphericalNucleus(double rnuc=0);
     int fermiNucleus(double t=0, double c=0);
+
+    int determineCore(std::vector<std::string> str_core,
+      std::vector<int> &core); //???
+
+    int sortedEnergyList(std::vector<int> &sort_list);
 
 
   private:

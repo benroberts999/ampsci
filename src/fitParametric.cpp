@@ -1,5 +1,5 @@
 #include "ElectronOrbitals.h"
-#include "atomInfo.h"
+#include "ATI_atomInfo.h"
 #include "INT_quadratureIntegration.h"
 #include "PRM_parametricPotentials.h"
 #include <iostream>
@@ -17,7 +17,8 @@ int main(void){
   bool sphere=true; //Finite nucleus? makes no difference??
 
   //Input parameters:
-  int Z,A;
+  std::string Z_str;
+  int A;
   int ngp;
   double r0,rmax;
   int igreen;
@@ -28,7 +29,7 @@ int main(void){
   ifile.open("fitParametric.in"); //input file
   {
     std::string junk;
-    ifile >> Z >> A;            getline(ifile,junk);
+    ifile >> Z_str >> A;        getline(ifile,junk);
     ifile >> r0 >> rmax >> ngp; getline(ifile,junk);
     ifile >> igreen;            getline(ifile,junk);
     int nstates;
@@ -44,6 +45,9 @@ int main(void){
   }
   ifile.close();
 
+  int Z = ATI_get_z(Z_str);
+  if(Z==0) return 2;
+
   bool green=true;
   std::string which="Green";
   if(igreen==1){
@@ -55,9 +59,9 @@ int main(void){
   double eps = 1.e-5;
   int max_its = 100;
 
-  printf("\n Finding best-fit parameters for %s potential, Z=%i\n",
-    which.c_str(),Z);
-  printf("******************************************************\n");
+  printf("\n Finding best-fit parameters for %s potential, %s Z=%i\n",
+    which.c_str(),Z_str.c_str(),Z);
+  printf("*********************************************************\n");
 
   double GHmin=0.1, GHmax=10.;
   double Gdmin=0.05, Gdmax=2.;
@@ -155,7 +159,7 @@ int main(void){
     double eni = wf.en[i];
     double enT = in_en[i];
     printf("%2i %s_%i/2 %2i  %3.0f %3i  %5.0e  %.15f  %13.7f  %9.4f%%\n",
-        n,atinfo_l(l).c_str(),twoj,k,rinf,wf.itslist[i],wf.epslist[i],
+        n,ATI_l(l).c_str(),twoj,k,rinf,wf.itslist[i],wf.epslist[i],
         eni,(eni-en0)*HARTREE_ICM,100.*(enT-eni)/enT);
   }
 

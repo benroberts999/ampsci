@@ -1,0 +1,11 @@
+Ag 0              | Z, A(=0 for default)
+Kr 4d10 .         | Core configuration (end with ' .')
+1.e-4 500. 2000   | r0, rmax, num_points
+1 0 0             | green H d *
+1 0 0             | Tietz t g
+8 1               | max n and l (valence)
+-----------------------
+
+Fraction of each potential to use (normalised inside program)
+Put 0 for H or t to use the default values for parameters.
+Otherwise, use 'fitParametric' program to calculate H,d (t,g)
