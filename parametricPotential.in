@@ -1,5 +1,5 @@
-Ag 0              | Z, A(=0 for default)
-Kr 4d10 .         | Core configuration (end with ' .')
+Rb 0              | Z, A(=0 for default)
+Kr  .         | Core configuration (end with ' .')
 1.e-4 500. 2000   | r0, rmax, num_points
 1 0 0             | green H d *
 1 0 0             | Tietz t g
