@@ -96,6 +96,7 @@ int main(void){
 
   // Solve for each core state:
   int tot_el=0; // for working out Z_eff
+
   for(size_t i=0; i<core_list.size(); i++){
     int num = core_list[i];
     if(num==0) continue;
@@ -109,17 +110,21 @@ int main(void){
     else if(l==2) nd=n;
     else if(l==3) nf=n;
 
+    //effective Z (for energy guess) -- not perfect!
+    double Zeff =  double(Z - tot_el - num);
+    if(l==1) Zeff = 1. + double(Z - tot_el - 0.5*num);
+    if(l==2) Zeff = 1. + double(Z - tot_el - 0.5*num);
+    if(Zeff<1.) Zeff=1.;
     tot_el+=num;
 
-    double Zeff = 2. + double(Z - tot_el);
-    if(Zeff<1.) Zeff=1.;
-    int neff=n;
-    if(n==2) neff=n+2;
-    if(n==3) neff=n+4;
-    double en_a = -0.5 * pow(Zeff/neff,2); //energy guess
+    double en_a = -0.5 * pow(Zeff/n,2);
+    if(n>1) en_a *= 0.5;
 
     int k1 = l; //j = l-1/2
-    if(k1!=0) wf.solveLocalDirac(n,k1,en_a);
+    if(k1!=0) {
+      wf.solveLocalDirac(n,k1,en_a);
+      en_a = 0.95*wf.en[wf.nlist.size()-1]; //update guess for next same l
+    }
     int k2 = -(l+1); //j=l+1/2
     if(num>2*l) wf.solveLocalDirac(n,k2,en_a);
 
@@ -146,11 +151,12 @@ int main(void){
         else      k=-(l+1);
         if(k==0) continue;
 
-        int neff=n;
-        if(l==2) neff=n+2;
-        if(l==3) neff=n+4;
-        double en_a = - 0.5 * 0.25 * pow((1.*ns)/neff,2); //energy guess
-        if(Gf==0 && Tf==0) en_a = -0.5 * pow(Z/n,2);
+        double neff=0.8+fabs(n-ns);
+        if(neff<0.8) neff=0.8;
+        if(l==1) neff+=0.5;
+        if(l==2) neff+=2.;
+        if(l==3) neff+=3.25;
+        double en_a = -0.5/pow(neff,2);
         wf.solveLocalDirac(n,k,en_a);
 
       }
