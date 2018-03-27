@@ -96,13 +96,7 @@ int main(void){
 
   // Solve for each core state:
   int tot_el=0; // for working out Z_eff
-  //int prev_n=0;
-  double prev_e=0;
-  //int prev_l=0;
-  
-  std::vector<double> en_guess;
-  
-  
+
   for(size_t i=0; i<core_list.size(); i++){
     int num = core_list[i];
     if(num==0) continue;
@@ -116,46 +110,28 @@ int main(void){
     else if(l==2) nd=n;
     else if(l==3) nf=n;
 
-    tot_el+=num;
-    //if(i!=0) tot_el += core_list[i-1];
-
-    double Zeff = 1.+double(Z - tot_el);
-    //Zeff = Z*(1.23-0.195*(n));
+    //effective Z (for energy guess) -- not perfect!
+    double Zeff =  double(Z - tot_el - num);
+    if(l==1) Zeff = 1. + double(Z - tot_el - 0.5*num);
+    if(l==2) Zeff = 1. + double(Z - tot_el - 0.5*num);
     if(Zeff<1.) Zeff=1.;
-    double en_a; //energy guess
-    if(l==0){ 
-      en_a = -0.5 * pow(Zeff/n,2);
-      if(n>1) en_a *= 0.5;
-    }else{
-      en_a = prev_e ;
-      if(l==1) en_a*=pow(double(Z - tot_el)/double(Z - tot_el+2.),2);
-      if(l==2) en_a*=pow(double(Z - tot_el)/double(Z - tot_el+6.),2);
-      if(l==3) en_a*=pow(double(Z - tot_el)/double(Z - tot_el+10.),2);
-    }
+    tot_el+=num;
+
+    double en_a = -0.5 * pow(Zeff/n,2);
+    if(n>1) en_a *= 0.5;
 
     int k1 = l; //j = l-1/2
     if(k1!=0) {
-      en_guess.push_back(en_a);
       wf.solveLocalDirac(n,k1,en_a);
-      en_a = wf.en[wf.nlist.size()-1];
-      if(l==1) en_a *= 0.83;
-      if(l>1)  en_a *= 0.95;
-     }
-    int k2 = -(l+1); //j=l+1/2
-    if(num>2*l){
-      en_guess.push_back(en_a);
-      wf.solveLocalDirac(n,k2,en_a);
+      en_a = 0.95*wf.en[wf.nlist.size()-1]; //update guess for next same l
     }
-    
-    if(l==0) prev_e = wf.en[wf.nlist.size()-1];
-
+    int k2 = -(l+1); //j=l+1/2
+    if(num>2*l) wf.solveLocalDirac(n,k2,en_a);
 
   }
 
   //store number of calculated core states:
   int num_core = wf.nlist.size();
-  
-  prev_e=0;
 
   //Calculate the valence (and excited) states
   for(int n=1; n<=n_max; n++){
@@ -175,18 +151,13 @@ int main(void){
         else      k=-(l+1);
         if(k==0) continue;
 
-        int neff=n;
-        if(l==2) neff=n+2;
-        if(l==3) neff=n+4;
-        //double en_a = - 0.5 * 0.25 * pow((1.*ns)/neff,2); //energy guess
-        //en_a = -0.5*pow(Z-tot_el,2);
-        double en_a;
-        if(prev_e==0 || l==0) en_a = -0.5*pow(Z-tot_el,2)*pow(double(n-ns)/(n-ns+1),2);
-        else en_a = prev_e*pow(double(n-ns)/(n-ns+1),2);
-        if(Gf==0 && Tf==0) en_a = -0.5 * pow(Z/n,2);
-        en_guess.push_back(en_a);
+        double neff=0.8+fabs(n-ns);
+        if(neff<0.8) neff=0.8;
+        if(l==1) neff+=0.5;
+        if(l==2) neff+=2.;
+        if(l==3) neff+=3.25;
+        double en_a = -0.5/pow(neff,2);
         wf.solveLocalDirac(n,k,en_a);
-        prev_e = wf.en[wf.nlist.size()-1];
 
       }
     }
@@ -210,9 +181,9 @@ int main(void){
     int l = (abs(2*k+1)-1)/2;
     double rinf = wf.r[wf.pinflist[i]];
     double eni = wf.en[i];
-    printf("%2i %s_%i/2 %2i  %3.0f %3i  %5.0e  %11.5f %15.3f %10.4f\n",
+    printf("%2i %s_%i/2 %2i  %3.0f %3i  %5.0e  %11.5f %15.3f\n",
         n,ATI_l(l).c_str(),twoj,k,rinf,wf.itslist[i],wf.epslist[i],
-        eni, eni*HARTREE_ICM, en_guess[i]);
+        eni, eni*HARTREE_ICM);
   }
 
   tf = clock();
