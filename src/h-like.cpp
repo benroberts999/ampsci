@@ -28,6 +28,8 @@ int main(void){
   printf("\nRunning SolveDBS for Local H-like potential, Z=%i\n",Z);
   printf("*************************************************\n");
 
+//ngp=500000;
+
   //Generate the orbitals object:
   ElectronOrbitals wf(Z,A,ngp,r0,rmax,varalpha);
   if(A!=0) wf.sphericalNucleus();
@@ -126,9 +128,9 @@ int main(void){
   // exact (asymptotic) solution (??)
   // Find "maximum" amplitude, by using a quadratic fit to 2 nearest points
   // Scale by ratio of this maximum to max of analytic soln
-  double xa=1,xb=pc[wf.ngp-300];
+  double xa=1,xb=pc[wf.ngp-5000];
   double wk1=-1, wk2=0;
-  for(int i=wf.ngp-300; i<wf.ngp; i++){
+  for(int i=wf.ngp-5000; i<wf.ngp; i++){
     xa=xb;
     xb=pc[i];
     if(xb*xa<0){
@@ -139,14 +141,15 @@ int main(void){
         yb=pc[j];
         if(ya*yb<0){
           double r2 = (wf.r[j]*pc[j-1]-wf.r[j-1]*pc[j])/(pc[j-1]-pc[j]);
-          std::cout<<i<<" "<<j<<" "<<r2-r1<<" "<<0.5*pow(3.1416/(r2-r1),2)<<"\n";
+          std::cout<<i<<" "<<j<<" "<<r2-r1<<" "<<0.5*pow(3.1416/(r2-r1),2)
+            <<" r="<<wf.r[j]<<"\n";
           wk1 = wk2;
           wk2 = r2-r1;
           //std::cout<<wk1<<" "<<wk2<<" "<<
           break;
         }
       }
-      if(fabs(wk1-wk2)<1.e-4) break;
+      if(fabs(wk1-wk2)<1.e-8) break;
     }
 
     /*
