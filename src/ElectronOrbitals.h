@@ -61,6 +61,8 @@ class ElectronOrbitals{
     int sphericalNucleus(double rnuc=0);
     int fermiNucleus(double t=0, double c=0);
 
+    int getRadialIndex(double r_target);
+
     int determineCore(std::vector<std::string> str_core,
       std::vector<int> &core); //???
 

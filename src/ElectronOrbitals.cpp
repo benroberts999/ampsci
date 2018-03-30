@@ -211,6 +211,29 @@ Uses:
   return 0;
 }
 
+
+//******************************************************************************
+int ElectronOrbitals::getRadialIndex(double r_target)
+/*
+Finds the radial grid index that corresponds to r=r_target
+NOTE: returns index that corresponds to r _lower_ that (or equal to) r_target
+*/
+{
+  if (r.size()==0){
+    std::cout<<"ERROR 219 in ElectronOrbitals - no grid!\n";
+    return -1;
+  }
+  if(r_target >= r[ngp-1]) return (ngp-1);
+  if(r_target <= r[0]) return 0; //nb: in this case: r[i] > r_target! careful!
+  //loop through, find i for r[i] <= r_target < r[i+1]:
+  for(size_t i=0; i<r.size()-1; i++){
+    if(r_target>=r[i] && r_target<r[i+1]) return i;
+  }
+  //shouldn't get past this loop! This just for safety?
+  std::cout<<"ERROR 227 in ElectronOrbitals - didn't find r??\n";
+  return -1; //??
+}
+
 //******************************************************************************
 int ElectronOrbitals::DzubaRadialGrid(double r0, double rmax, double b)
 /*
