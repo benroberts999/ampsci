@@ -28,6 +28,12 @@ int solveContinuum(std::vector<double> &p, std::vector<double> &q, double en,
   //Perform the "outwards integration"
   outwardAM(p,q,en,v,Z,ka,r,drdt,h,NGP,NGP-1,alpha);
 
+  //Normalise the wfs:
+  // - Go to asymptotic region
+  // - Check amplitude has 'settleled' to acceptable region
+  // - re-scale result to match exact (H-like) case
+  // After aymptotic region: Analytic??
+
   return 0;
 }
 
