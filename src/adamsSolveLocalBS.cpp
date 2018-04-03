@@ -41,6 +41,13 @@ int solveContinuum(std::vector<double> &p, std::vector<double> &q, double en,
 //******************************************************************************
 double fitQuadratic(double x1, double x2, double x3,
     double y1, double y2, double y3)
+/*
+Takes in three points, and fits them to a quadratic function.
+Returns y-value for vertex of quadratic.
+Used for finding the amplitude of a sine/cosine function, given thee points.
+i.e., will return amplitude of since function.
+Note: the given 3 points _MUST_ be close to maximum, otherwise, fit wont work
+*/
 {
 
   if(y1<0) y1=fabs(y1);

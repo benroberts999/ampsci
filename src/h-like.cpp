@@ -32,15 +32,15 @@ int main(void){
 
 
 
-  //double out = fitQuadratic(1007.,1008.,1009.,1.39351,1.40745,1.2818,true);
-  //double out = fitQuadratic(1007.5,1007.6,1007.7,1.41817,1.41886,1.41813,true);
-  //double out = fitQuadratic(1007.0,1007.5,1008.,1.39351,1.41817,1.40745,true);
-  double out = fitQuadratic(.0,.5,.1,6.,7.,5.);
-  std::cout<<out<<"\n";
-  printf("%.8f\n",out);
-
-
-return 1;
+//   //double out = fitQuadratic(1007.,1008.,1009.,1.39351,1.40745,1.2818,true);
+//   //double out = fitQuadratic(1007.5,1007.6,1007.7,1.41817,1.41886,1.41813,true);
+//   //double out = fitQuadratic(1007.0,1007.5,1008.,1.39351,1.41817,1.40745,true);
+//   double out = fitQuadratic(.0,.5,.1,6.,7.,5.);
+//   std::cout<<out<<"\n";
+//   printf("%.8f\n",out);
+//
+//
+// return 1;
 
 
 
@@ -118,75 +118,166 @@ return 1;
   double total_time = 1000.*double(tf-ti)/CLOCKS_PER_SEC;
   printf ("\nt=%.3f ms.\n",total_time);
 
+  std::vector<double> rc=wf.r;
+  std::vector<double> drdtc=wf.drdt;
+  int NGPc=wf.ngp;
+  double last_r = wf.r[wf.ngp-1];
+  std::vector<double> vc=wf.vnuc;
+  while(true){
+    double r_new = last_r + wf.h;
+    rc.push_back(r_new);
+    drdtc.push_back(1.);
+    vc.push_back(-1./r_new); //Z ion !! XXX
+    NGPc++;
+    last_r = r_new;
+    if(last_r>25000.) break;
+  }
+  // for(int i=0; i<wf.ngp; i++){
+  //   printf("%i %.1f %.3f %.3f\n",i,wf.r[i],wf.drdt[i],wf.h);
+  // }
+  //return 0;
+
+
+
+
   std::cout<<"\n\n";
-  std::vector<double> pc(ngp),qc(ngp);
-  std::vector<double> pc2(ngp),qc2(ngp);
+  std::vector<double> pc(NGPc),qc(NGPc);
+  //std::vector<double> pc2(ngp),qc2(ngp);
   double ec = 0.2;
-  solveContinuum(pc,qc,ec,wf.vnuc,wf.Z,-1,wf.r,wf.drdt,wf.h,wf.ngp,wf.alpha);
-  solveContinuum(pc2,qc2,0.4,wf.vnuc,wf.Z,-1,wf.r,wf.drdt,wf.h,wf.ngp,wf.alpha);
+  //solveContinuum(pc,qc,ec,wf.vnuc,wf.Z,-1,wf.r,wf.drdt,wf.h,wf.ngp,wf.alpha);
+  solveContinuum(pc,qc,ec,vc,wf.Z,-1,rc,drdtc,wf.h,NGPc,wf.alpha);
 
-  std::vector<double> p1p2(ngp);
-  for(int i=0; i<wf.ngp; i++)
-    p1p2[i]=pc[i]*pc2[i] + qc[i]*qc2[i];
+  //solveContinuum(pc2,qc2,0.4,wf.vnuc,wf.Z,-1,wf.r,wf.drdt,wf.h,wf.ngp,wf.alpha);
 
-  double del=INT_integrate(p1p2,wf.drdt,wf.h,0,wf.ngp);
-  std::cout<<del<<"\n";
+  // std::vector<double> p1p2(ngp);
+  // for(int i=0; i<wf.ngp; i++)
+  //   p1p2[i]=pc[i]*pc2[i] + qc[i]*qc2[i];
+  //
+  // double del=INT_integrate(p1p2,wf.drdt,wf.h,0,wf.ngp);
+  // std::cout<<del<<"\n";
 
 
   std::ofstream ofile;
   ofile.open("cont.txt");
-  for(int i=0; i<wf.ngp; i++){
-    ofile<<wf.r[i]<<" "<<pc[i]<<" "<<pc2[i]<<"\n";
+  for(int i=0; i<NGPc; i++){
+    ofile<<rc[i]<<" "<<pc[i]<<" "<<qc[i]<<"\n";
   }
   ofile.close();
 
-  // Find the r's for psi=zero, two consec => period
-  //Once period is converged enough, can normalise by comparison with
-  // exact (asymptotic) solution (??)
-  // Find "maximum" amplitude, by using a quadratic fit to 2 nearest points
-  // Scale by ratio of this maximum to max of analytic soln
-  double xa=1,xb=pc[wf.ngp-5000];
-  double wk1=-1, wk2=0;
-  for(int i=wf.ngp-5000; i<wf.ngp; i++){
-    xa=xb;
-    xb=pc[i];
-    if(xb*xa<0){
-      double r1 = (wf.r[i]*pc[i-1]-wf.r[i-1]*pc[i])/(pc[i-1]-pc[i]);
-      double ya=xb,yb=xb;
-      for(int j=i+1; j<wf.ngp; j++){
-        ya=yb;
-        yb=pc[j];
-        if(ya*yb<0){
-          double r2 = (wf.r[j]*pc[j-1]-wf.r[j-1]*pc[j])/(pc[j-1]-pc[j]);
-          std::cout<<i<<" "<<j<<" "<<r2-r1<<" "<<0.5*pow(3.1416/(r2-r1),2)
-            <<" r="<<wf.r[j]<<"\n";
-          wk1 = wk2;
-          wk2 = r2-r1;
-          //std::cout<<wk1<<" "<<wk2<<" "<<
-          break;
-        }
+  // // Find the r's for psi=zero, two consec => period
+  // //Once period is converged enough, can normalise by comparison with
+  // // exact (asymptotic) solution (??)
+  // // Find "maximum" amplitude, by using a quadratic fit to 2 nearest points
+  // // Scale by ratio of this maximum to max of analytic soln
+  // double xa=1,xb=pc[wf.ngp-5000];
+  // double wk1=-1, wk2=0;
+  // for(int i=wf.ngp-5000; i<wf.ngp; i++){
+  //   xa=xb;
+  //   xb=pc[i];
+  //   if(xb*xa<0){
+  //     double r1 = (wf.r[i]*pc[i-1]-wf.r[i-1]*pc[i])/(pc[i-1]-pc[i]);
+  //     double ya=xb,yb=xb;
+  //     for(int j=i+1; j<wf.ngp; j++){
+  //       ya=yb;
+  //       yb=pc[j];
+  //       if(ya*yb<0){
+  //         double r2 = (wf.r[j]*pc[j-1]-wf.r[j-1]*pc[j])/(pc[j-1]-pc[j]);
+  //         std::cout<<i<<" "<<j<<" "<<r2-r1<<" "<<0.5*pow(3.1416/(r2-r1),2)
+  //           <<" r="<<wf.r[j]<<"\n";
+  //         wk1 = wk2;
+  //         wk2 = r2-r1;
+  //         //std::cout<<wk1<<" "<<wk2<<" "<<
+  //         break;
+  //       }
+  //     }
+  //     if(fabs(wk1-wk2)<1.e-8) break;
+  //   }
+
+  double Zion=1.;
+  double lam = 1.e6; //XXX ???
+  double r_asym = (Zion + sqrt(4.*lam*ec+pow(Zion,2)))/(2.*ec);
+  int i0 = wf.getRadialIndex(r_asym);
+  std::cout<<"\nr_asym="<<r_asym<<", i0="<<i0<<"\n\n";
+
+
+  int ntry=0, maxtry=25;
+  double amp=0;
+  while(ntry<maxtry){
+    //find first zero after r_asym
+    for(int i=i0; i<NGPc; i++){
+      if(pc[i]*pc[i-1]<0){
+        i0=i;
+        break;
       }
-      if(fabs(wk1-wk2)<1.e-8) break;
     }
+    //std::cout<<"Frist zero r="<<wf.r[i0]<<", i0="<<i0<<"\n";
+    //find max:
+    int imax=0;
+    double y0,y1,y2,y3,y4;
+    double x0,x1,x2,x3,x4;
+    for(int i=i0+1; i<NGPc; i++){
+      if(fabs(pc[i])<fabs(pc[i-1])){
+        imax=i-1;
+        y0=fabs(pc[i-3]);
+        y1=fabs(pc[i-2]);
+        y2=fabs(pc[i-1]);
+        y3=fabs(pc[i]);
+        y4=fabs(pc[i+1]);
+        x0=rc[i-3];
+        x1=rc[i-2];
+        x2=rc[i-1];
+        x3=rc[i];
+        x4=rc[i+1];
+        //std::cout<<"OK! "<<imax<<"\n";
+        break;
+      }
+    }
+    i0++;
+    ntry++;
+    double out1 = fitQuadratic(x1,x2,x3,y1,y2,y3);
+    double out2 = fitQuadratic(x0,x2,x4,y0,y2,y4);
+    printf("%i %.0f = %.8f , %.8f = %.8f\n",imax,x2,out1,out2,0.5*(out1+out2));
+    amp+=0.5*(out1+out2);
+  }
+  amp/=maxtry;
+  printf("\namp=%.6f\n",amp);
 
-    /*
-    psi ~ A Cos(kr)
-    r0 is 'zero', r1, r2 are first points on either side
-    y1 = psi(r1) etc
-    then:
-    A = y1 - dy * dr1^2 / (dr2^2 - dr1^2)
-    dy  = y2-y1
-    dr1 = r1-r0
-    dr2 = r2-r0
-    [also have converse...if not the same, take average?]
-    A = y2 - dy * dr2^2 / (dr2^2 - dr1^2)
-    XXX NOTE! haven't checked this!! Check using Mathematica!! XXX
-    XXX NO! doesn't seem to work... XXX
-    */
+  //find first maximum, to determine low-r sign!
+  double mxp=0;
+  int maxi=0;
+  int maxsign=0;
+  for(int i=0; i<NGPc; i++){
+    if(fabs(pc[i+1])<fabs(pc[i]) && pc[i+1]*pc[i]*pc[i-1]>0){
+      mxp=pc[i];
+      maxi=i;
+      if(pc[i]>0) maxsign=1;
+      else maxsign=-1;
+      break;
+    }
+  }
+  std::cout<<mxp<<" "<<rc[maxi]<<" "<<maxsign<<"\n";
 
+  double al2 = pow(wf.alpha,2);
+
+  //double ceps = sqrt(ec/2 - 0.5*ec*ec/(ec+2./al2));
+  double ceps = sqrt(ec/(ec*al2+2.));
+  printf("%.10f\n",ceps);
+  double D = 1./sqrt(M_PI*ceps);
+  printf("%.10f\n",D);
+
+  double sf=D/amp;
+
+  for(int i=0; i<NGPc; i++){
+    pc[i] *= sf;
+    qc[i] *= sf;
   }
 
-
+  //std::ofstream ofile;
+  ofile.open("contN.txt");
+  for(int i=0; i<NGPc; i++){
+    ofile<<rc[i]<<" "<<pc[i]<<" "<<qc[i]<<"\n";
+  }
+  ofile.close();
 
 
 
