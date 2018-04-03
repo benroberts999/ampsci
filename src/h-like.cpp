@@ -30,6 +30,23 @@ int main(void){
 
 //ngp=500000;
 
+
+
+  //double out = fitQuadratic(1007.,1008.,1009.,1.39351,1.40745,1.2818,true);
+  //double out = fitQuadratic(1007.5,1007.6,1007.7,1.41817,1.41886,1.41813,true);
+  //double out = fitQuadratic(1007.0,1007.5,1008.,1.39351,1.41817,1.40745,true);
+  double out = fitQuadratic(.0,.5,.1,6.,7.,5.);
+  std::cout<<out<<"\n";
+  printf("%.8f\n",out);
+
+
+return 1;
+
+
+
+
+
+
   //Generate the orbitals object:
   ElectronOrbitals wf(Z,A,ngp,r0,rmax,varalpha);
   if(A!=0) wf.sphericalNucleus();

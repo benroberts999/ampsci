@@ -38,7 +38,31 @@ int solveContinuum(std::vector<double> &p, std::vector<double> &q, double en,
 }
 
 
+//******************************************************************************
+double fitQuadratic(double x1, double x2, double x3,
+    double y1, double y2, double y3)
+{
 
+  if(y1<0) y1=fabs(y1);
+  if(y2<0) y2=fabs(y2);
+  if(y3<0) y3=fabs(y3);
+
+  double d = (x1 - x2)*(x1 - x3)*(x2 - x3);
+  double Ad = x3*(x2*(x2 - x3)*y1 + x1*(-x1 + x3)*y2) + x1*(x1 - x2)*x2*y3;
+  double Bd = x3*x3*(y1 - y2) + x1*x1*(y2 - y3) + x2*x2*(-y1 + y3);
+  double Cd = x3*(-y1 + y2) + x2*(y1 - y3) + x1*(-y2 + y3);
+  double y0 = (Ad/d) - Bd*Bd/(4.*Cd*d);
+
+  //Find largest input y:
+  double ymax=y2;
+  if(y1>ymax) ymax=y1;
+  if(y3>ymax) ymax=y3;
+
+  if(ymax>y0) y0 = ymax; //y0 can't be less than (y1,y2,y3)
+
+  return y0;
+
+}
 
 
 
