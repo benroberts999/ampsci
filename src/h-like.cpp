@@ -118,43 +118,45 @@ int main(void){
   double total_time = 1000.*double(tf-ti)/CLOCKS_PER_SEC;
   printf ("\nt=%.3f ms.\n",total_time);
 
-  std::vector<double> rc=wf.r;
-  std::vector<double> drdtc=wf.drdt;
-  int NGPc=wf.ngp;
-  double last_r = wf.r[wf.ngp-1];
-  std::vector<double> vc=wf.vnuc;
-  while(true){
-    double r_new = last_r + wf.h;
-    rc.push_back(r_new);
-    drdtc.push_back(1.);
-    vc.push_back(-1./r_new); //Z ion !! XXX
-    NGPc++;
-    last_r = r_new;
-    if(last_r>25000.) break;
-  }
-  // for(int i=0; i<wf.ngp; i++){
-  //   printf("%i %.1f %.3f %.3f\n",i,wf.r[i],wf.drdt[i],wf.h);
-  // }
-  //return 0;
+
+
 
 
 
 
   std::cout<<"\n\n";
-  std::vector<double> pc(NGPc),qc(NGPc);
-  //std::vector<double> pc2(ngp),qc2(ngp);
+
+
   double ec = 0.2;
-  //solveContinuum(pc,qc,ec,wf.vnuc,wf.Z,-1,wf.r,wf.drdt,wf.h,wf.ngp,wf.alpha);
-  solveContinuum(pc,qc,ec,vc,wf.Z,-1,rc,drdtc,wf.h,NGPc,wf.alpha);
+  int kc=-1;
 
-  //solveContinuum(pc2,qc2,0.4,wf.vnuc,wf.Z,-1,wf.r,wf.drdt,wf.h,wf.ngp,wf.alpha);
+  double Zion=1.;
+  std::vector<double> rc=wf.r;
+  std::vector<double> drdtc=wf.drdt;
+  int NGPc=wf.ngp;
+  double last_r = wf.r[wf.ngp-1];
+  std::vector<double> vc=wf.vnuc;
 
-  // std::vector<double> p1p2(ngp);
-  // for(int i=0; i<wf.ngp; i++)
-  //   p1p2[i]=pc[i]*pc2[i] + qc[i]*qc2[i];
-  //
-  // double del=INT_integrate(p1p2,wf.drdt,wf.h,0,wf.ngp);
-  // std::cout<<del<<"\n";
+  double lam = 1.e6; //XXX ???
+  double r_asym = (Zion + sqrt(4.*lam*ec+pow(Zion,2)))/(2.*ec);
+
+  //XXX testing only!!!
+  double hc = (M_PI/15)/sqrt(2.*ec);
+
+  while(true){
+    //double r_new = last_r + wf.h;
+    double r_new = last_r + hc;
+    rc.push_back(r_new);
+    //drdtc.push_back(1.);
+    drdtc.push_back(hc/wf.h); //??? correct??
+    vc.push_back(-Zion/r_new);
+    NGPc++;
+    last_r = r_new;
+    if(last_r>1.2*r_asym) break;
+  }
+
+  std::vector<double> pc(NGPc),qc(NGPc);
+  solveContinuum(pc,qc,ec,vc,wf.Z,kc,rc,drdtc,wf.h,NGPc,wf.alpha);
 
 
   std::ofstream ofile;
@@ -164,40 +166,56 @@ int main(void){
   }
   ofile.close();
 
-  // // Find the r's for psi=zero, two consec => period
-  // //Once period is converged enough, can normalise by comparison with
-  // // exact (asymptotic) solution (??)
-  // // Find "maximum" amplitude, by using a quadratic fit to 2 nearest points
-  // // Scale by ratio of this maximum to max of analytic soln
-  // double xa=1,xb=pc[wf.ngp-5000];
-  // double wk1=-1, wk2=0;
-  // for(int i=wf.ngp-5000; i<wf.ngp; i++){
-  //   xa=xb;
-  //   xb=pc[i];
-  //   if(xb*xa<0){
-  //     double r1 = (wf.r[i]*pc[i-1]-wf.r[i-1]*pc[i])/(pc[i-1]-pc[i]);
-  //     double ya=xb,yb=xb;
-  //     for(int j=i+1; j<wf.ngp; j++){
-  //       ya=yb;
-  //       yb=pc[j];
-  //       if(ya*yb<0){
-  //         double r2 = (wf.r[j]*pc[j-1]-wf.r[j-1]*pc[j])/(pc[j-1]-pc[j]);
-  //         std::cout<<i<<" "<<j<<" "<<r2-r1<<" "<<0.5*pow(3.1416/(r2-r1),2)
-  //           <<" r="<<wf.r[j]<<"\n";
-  //         wk1 = wk2;
-  //         wk2 = r2-r1;
-  //         //std::cout<<wk1<<" "<<wk2<<" "<<
-  //         break;
-  //       }
-  //     }
-  //     if(fabs(wk1-wk2)<1.e-8) break;
-  //   }
 
-  double Zion=1.;
-  double lam = 1.e6; //XXX ???
-  double r_asym = (Zion + sqrt(4.*lam*ec+pow(Zion,2)))/(2.*ec);
-  int i0 = wf.getRadialIndex(r_asym);
+
+  int i0 = wf.ngp;
+  for(int i=wf.ngp; i<NGPc; i++){
+    if(rc[i]>r_asym){
+      i0=i-1;
+      break;
+    }
+  }
   std::cout<<"\nr_asym="<<r_asym<<", i0="<<i0<<"\n\n";
+
+
+  // Find the r's for psi=zero, two consec => period
+  //Once period is converged enough, can normalise by comparison with
+  // exact (asymptotic) solution (??)
+  // Find "maximum" amplitude, by using a quadratic fit to 2 nearest points
+  // Scale by ratio of this maximum to max of analytic soln
+  double xa=1,xb=pc[wf.ngp];
+  double wk1=-1, wk2=0;
+  for(int i=wf.ngp; i<NGPc; i++){
+    xa=xb;
+    xb=pc[i];
+    if(xb*xa<0){
+      double r1 = (rc[i]*pc[i-1]-rc[i-1]*pc[i])/(pc[i-1]-pc[i]);
+      double ya=xb,yb=xb;
+      for(int j=i+1; j<NGPc; j++){
+        ya=yb;
+        yb=pc[j];
+        if(ya*yb<0){
+          double r2 = (rc[j]*pc[j-1]-rc[j-1]*pc[j])/(pc[j-1]-pc[j]);
+          // std::cout<<i<<" "<<j<<"   dr="<<r2-r1<<"    w="<<0.5*pow(M_PI/(r2-r1),2)
+          //   <<"          r="<<rc[j]<<"\n";
+          wk1 = wk2;
+          wk2 = r2-r1;
+          //std::cout<<wk1<<" "<<wk2<<" "<<
+          break;
+        }
+      }
+      if(fabs(wk1-wk2)<1.e-4){
+        std::cout<<i<<" "<<rc[i]<<" ("<<r_asym<<")\n";
+        i0=i;
+        break;
+      }
+    }
+  }
+//return 1;
+std::cout<<"\nr_asym="<<r_asym<<", i0="<<i0<<"\n\n";
+
+
+
 
 
   int ntry=0, maxtry=25;
