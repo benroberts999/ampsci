@@ -1,5 +1,5 @@
 1 0               | Z, A(=0 for 0-nucleus)
 0 10              | max n, l
-1.e-3 250. 1000   | r0, rmax, num_points
+1.e-3 100. 1000   | r0, rmax, num_points
 1.                  | varalpha [~0 for non-rel]
 ===================

@@ -127,7 +127,7 @@ int main(void){
   std::cout<<"\n\n";
 
 
-  double ec = 0.2;
+  double ec = 3.;
   int kc=-1;
 
   double Zion=1.;
@@ -137,11 +137,15 @@ int main(void){
   double last_r = wf.r[wf.ngp-1];
   std::vector<double> vc=wf.vnuc;
 
-  double lam = 1.e6; //XXX ???
+  double lam = 1.e7; //XXX ???
   double r_asym = (Zion + sqrt(4.*lam*ec+pow(Zion,2)))/(2.*ec);
 
   //XXX testing only!!!
+  // double hc = wf.h;
   double hc = (M_PI/15)/sqrt(2.*ec);
+  // XXX No, just give a warning? XXX XXX
+  //(nb: 'sine' region might start BEFORE ngp !!!) XXX
+
 
   while(true){
     //double r_new = last_r + wf.h;
@@ -165,7 +169,6 @@ int main(void){
     ofile<<rc[i]<<" "<<pc[i]<<" "<<qc[i]<<"\n";
   }
   ofile.close();
-
 
 
   int i0 = wf.ngp;
@@ -205,20 +208,22 @@ int main(void){
         }
       }
       if(fabs(wk1-wk2)<1.e-4){
-        std::cout<<i<<" "<<rc[i]<<" ("<<r_asym<<")\n";
+        //std::cout<<i<<" "<<rc[i]<<" ("<<r_asym<<")\n";
         i0=i;
         break;
       }
     }
   }
 //return 1;
-std::cout<<"\nr_asym="<<r_asym<<", i0="<<i0<<"\n\n";
+  std::cout<<"\nr_asym_old="<<r_asym<<"\n";
+  r_asym = rc[i0];
+  std::cout<<"r_asym_new="<<r_asym<<"  i0="<<i0<<"\n\n";
 
 
 
 
 
-  int ntry=0, maxtry=25;
+  int ntry=0, maxtry=5;
   double amp=0;
   while(ntry<maxtry){
     //find first zero after r_asym
@@ -227,6 +232,8 @@ std::cout<<"\nr_asym="<<r_asym<<", i0="<<i0<<"\n\n";
         i0=i;
         break;
       }
+      // XXX XXX Need some check here, in case we run out of points!! ??
+      //No, it's ok, will just find 'same' max 10 times..
     }
     //std::cout<<"Frist zero r="<<wf.r[i0]<<", i0="<<i0<<"\n";
     //find max:
@@ -254,7 +261,7 @@ std::cout<<"\nr_asym="<<r_asym<<", i0="<<i0<<"\n\n";
     ntry++;
     double out1 = fitQuadratic(x1,x2,x3,y1,y2,y3);
     double out2 = fitQuadratic(x0,x2,x4,y0,y2,y4);
-    printf("%i %.0f = %.8f , %.8f = %.8f\n",imax,x2,out1,out2,0.5*(out1+out2));
+    //printf("%i %.0f = %.8f , %.8f = %.8f\n",imax,x2,out1,out2,0.5*(out1+out2));
     amp+=0.5*(out1+out2);
   }
   amp/=maxtry;
