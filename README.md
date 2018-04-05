@@ -13,6 +13,8 @@ to better than a few parts in 10^16
  * Includes an option to vary the effective speed of light -
 allowing non-relativistic approximation.
 
+ * Also, has ability to solve for continuum states
+
 Note: makes use of GSL libraries: https://www.gnu.org/software/gsl/
 
  * For example, with ubuntu: _sudo apt-get install libgsl0-dev_
