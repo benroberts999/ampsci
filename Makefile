@@ -10,7 +10,7 @@ all: h-like.x fitParametric.x parametricPotential.x #testTF.x
 ## All programs depend on these header/object files:
 
 DEPS = $(addprefix $(IDIR)/, \
- adamsSolveLocalBS.h ATI_atomInfo.h ElectronOrbitals.h \
+ adamsSolveLocalBS.h adamsSolveLocalContinuum.h ATI_atomInfo.h ElectronOrbitals.h \
  INT_quadratureIntegration.h MAT_matrixAlgebraGSL.h physicalConstants.h \
 )
 
@@ -19,7 +19,7 @@ DEPS = $(addprefix $(IDIR)/, \
 
 # All programs depend on these objects:
 OBJ = $(addprefix $(IDIR)/, \
- adamsSolveLocalBS.o ElectronOrbitals.o INT_quadratureIntegration.o \
+ adamsSolveLocalBS.o adamsSolveLocalContinuum.o ElectronOrbitals.o INT_quadratureIntegration.o \
  MAT_matrixAlgebraGSL.o \
 )
 

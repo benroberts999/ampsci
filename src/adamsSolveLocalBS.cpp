@@ -18,58 +18,6 @@ const int AMO=7; //must be between 5 and 8 (for now). 7 Seems good.
 
 
 
-//******************************************************************************
-int solveContinuum(std::vector<double> &p, std::vector<double> &q, double en,
-    std::vector<double> v, int Z, int ka,
-    std::vector<double> r, std::vector<double> drdt, double h, int NGP,
-    double alpha)
-{
-
-  //Perform the "outwards integration"
-  outwardAM(p,q,en,v,Z,ka,r,drdt,h,NGP,NGP-1,alpha);
-
-  //Normalise the wfs:
-  // - Go to asymptotic region
-  // - Check amplitude has 'settleled' to acceptable region
-  // - re-scale result to match exact (H-like) case
-  // After aymptotic region: Analytic??
-
-  return 0;
-}
-
-
-//******************************************************************************
-double fitQuadratic(double x1, double x2, double x3,
-    double y1, double y2, double y3)
-/*
-Takes in three points, and fits them to a quadratic function.
-Returns y-value for vertex of quadratic.
-Used for finding the amplitude of a sine/cosine function, given thee points.
-i.e., will return amplitude of since function.
-Note: the given 3 points _MUST_ be close to maximum, otherwise, fit wont work
-*/
-{
-
-  if(y1<0) y1=fabs(y1);
-  if(y2<0) y2=fabs(y2);
-  if(y3<0) y3=fabs(y3);
-
-  double d = (x1 - x2)*(x1 - x3)*(x2 - x3);
-  double Ad = x3*(x2*(x2 - x3)*y1 + x1*(-x1 + x3)*y2) + x1*(x1 - x2)*x2*y3;
-  double Bd = x3*x3*(y1 - y2) + x1*x1*(y2 - y3) + x2*x2*(-y1 + y3);
-  double Cd = x3*(-y1 + y2) + x2*(y1 - y3) + x1*(-y2 + y3);
-  double y0 = (Ad/d) - Bd*Bd/(4.*Cd*d);
-
-  //Find largest input y:
-  double ymax=y2;
-  if(y1>ymax) ymax=y1;
-  if(y3>ymax) ymax=y3;
-
-  if(ymax>y0) y0 = ymax; //y0 can't be less than (y1,y2,y3)
-
-  return y0;
-
-}
 
 
 

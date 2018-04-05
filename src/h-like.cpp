@@ -4,6 +4,7 @@
 #include <iostream>
 #include <fstream>
 
+
 int main(void){
 
   clock_t ti,tf;
@@ -264,23 +265,6 @@ int main(void){
     amp+=0.5*(out1+out2);
   }
   amp/=maxtry;
-  //printf("\namp=%.6f\n",amp);
-
-  // //find first maximum, to determine low-r sign!
-  // double mxp=0;
-  // int maxi=0;
-  // int maxsign=0;
-  // for(int i=0; i<NGPc; i++){
-  //   if(fabs(pc[i+1])<fabs(pc[i]) && pc[i+1]*pc[i]*pc[i-1]>0){
-  //     mxp=pc[i];
-  //     maxi=i;
-  //     if(pc[i]>0) maxsign=1;
-  //     else maxsign=-1;
-  //     break;
-  //   }
-  // }
-  // std::cout<<mxp<<" "<<rc[maxi]<<" "<<maxsign<<"\n";
-
 
   // Calculate normalisation coeficient, D, and re-scaling factor:
   // D = Sqrt[alpha/(pi*eps)] <-- Amplitude of large-r p(r)
@@ -298,16 +282,16 @@ int main(void){
     qc[i] *= sf;
   }
 
+
+
+
+
   //std::ofstream ofile;
   ofile.open("contN.txt");
   for(int i=0; i<NGPc; i++){
     ofile<<rc[i]<<" "<<pc[i]<<" "<<qc[i]<<"\n";
   }
   ofile.close();
-
-
-
-
 
 
 
