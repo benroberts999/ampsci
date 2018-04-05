@@ -3,7 +3,10 @@
 
 //******************************************************************************
 ContinuumOrbitals::ContinuumOrbitals(ElectronOrbitals wf)
-/**/
+/*
+Initialise object:
+ * Copies grid and potential info, since these must always match bound states!
+*/
 {
 
   //Grid:
@@ -40,7 +43,12 @@ int ContinuumOrbitals::solveLocalContinuum(double ec, int max_l)
 
 //******************************************************************************
 int ContinuumOrbitals::solveLocalContinuum(double ec, int min_l, int max_l)
-/**/
+/*
+Solved the Dirac equation for local potential for positive energy (no mc2)
+continuum (un-bound) states [partial waves].
+ * Goes well past NGP, looks for asymptotic region, where wf is sinosoidal
+ * Uses fit to known exact H-like for normalisation.
+*/
 {
 
   //Find 'inital guess' for asymptotic region:
