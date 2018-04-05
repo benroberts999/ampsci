@@ -3,7 +3,7 @@
 #include "INT_quadratureIntegration.h"
 #include <iostream>
 #include <fstream>
-
+#include "ContinuumOrbitals.h"
 
 int main(void){
 
@@ -103,56 +103,8 @@ int main(void){
 
 
 
-
-
-
-
-  //std::cout<<"\n\n";
-
-
-  double ec = 0.2;
-  int kc=-1;
-  double Zion=1.;
-
-  std::vector<double> rc=wf.r;
-  std::vector<double> drdtc=wf.drdt;
-  int NGPc=wf.ngp;
-  double last_r = wf.r[wf.ngp-1];
-  std::vector<double> vc=wf.vnuc;
-
-  double lam = 1.e7; //XXX ???
-  double r_asym = (Zion + sqrt(4.*lam*ec+pow(Zion,2)))/(2.*ec);
-
-  double hc = wf.h;
-  double hc_target = (M_PI/15)/sqrt(2.*ec);
-  if(hc>hc_target){
-    printf("WARNING: Grid not dense enough for ec=%.3f (h=%.2f, need h<%.2f)",
-      ec,hc,hc_target);
-    if(hc>2*hc_target){
-      printf("FAILURE: Grid not dense enough for ec=%.3f (h=%.2f, need h<%.2f)",
-      ec,hc,hc_target);
-      return 1;
-    }
-  }
-
-  //Set up temporary continuum grid:
-  // Extend grid for continuum state. Goes to ~20% more than 'anymp region'
-  int i_asym = wf.ngp-1;
-  while(true){
-    double r_new = last_r + hc;
-    if(r_new>=r_asym && last_r<r_asym) i_asym=NGPc-1;
-    rc.push_back(r_new);
-    drdtc.push_back(hc/wf.h); //??? correct??
-    vc.push_back(-Zion/r_new);
-    NGPc++;
-    last_r = r_new;
-    if(last_r>1.2*r_asym) break;
-  }
-
-  //Solve Dirac equation on temporary (extended) grid
-  std::vector<double> pc(wf.ngp),qc(wf.ngp);
-  solveContinuum(pc,qc,ec,vc,wf.Z,kc,rc,drdtc,hc,wf.ngp,NGPc,i_asym,wf.alpha);
-
+  ContinuumOrbitals cntm(wf);
+  cntm.solveLocalContinuum(0.1,0);
 
   return 0;
 }

@@ -1,12 +1,12 @@
 #ifndef _ORBITALS_H
 #define _ORBITALS_H
-#include <string> //???
+#include <string>
 #include <vector>
 #include <cmath>
 #include "physicalConstants.h"
 #include "ATI_atomInfo.h"
 #include "adamsSolveLocalBS.h"
-#include "adamsSolveLocalContinuum.h" //XXX sub-class???
+// #include "adamsSolveLocalContinuum.h" //XXX sub-class???
 #include <gsl/gsl_sf_fermi_dirac.h>
 #include <algorithm> //for sort
 

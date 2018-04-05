@@ -10,7 +10,7 @@ all: h-like.x fitParametric.x parametricPotential.x #testTF.x
 ## All programs depend on these header/object files:
 
 DEPS = $(addprefix $(IDIR)/, \
- adamsSolveLocalBS.h adamsSolveLocalContinuum.h ATI_atomInfo.h ElectronOrbitals.h \
+ adamsSolveLocalBS.h ATI_atomInfo.h ElectronOrbitals.h \
  INT_quadratureIntegration.h MAT_matrixAlgebraGSL.h physicalConstants.h \
 )
 
@@ -19,7 +19,7 @@ DEPS = $(addprefix $(IDIR)/, \
 
 # All programs depend on these objects:
 OBJ = $(addprefix $(IDIR)/, \
- adamsSolveLocalBS.o adamsSolveLocalContinuum.o ElectronOrbitals.o INT_quadratureIntegration.o \
+ adamsSolveLocalBS.o ElectronOrbitals.o INT_quadratureIntegration.o \
  MAT_matrixAlgebraGSL.o \
 )
 
@@ -31,6 +31,18 @@ $(IDIR)/PRM_parametricPotentials.cpp $(IDIR)/PRM_parametricPotentials.h
 	$(CXX) -c -o $@ $< $(CXXFLAGS)
 
 
+$(IDIR)/adamsSolveLocalContinuum.o: \
+$(IDIR)/adamsSolveLocalContinuum.cpp $(IDIR)/adamsSolveLocalContinuum.h
+	$(CXX) -c -o $@ $< $(CXXFLAGS)
+
+$(IDIR)/ContinuumOrbitals.o: \
+$(IDIR)/ContinuumOrbitals.cpp $(IDIR)/ContinuumOrbitals.h
+	$(CXX) -c -o $@ $< $(CXXFLAGS)
+
+CNTM = $(addprefix $(IDIR)/, \
+ adamsSolveLocalContinuum.o ContinuumOrbitals.o \
+)
+
 ################################################################################
 # All final programs
 
@@ -39,7 +51,7 @@ COMP = $(CXX) -o $@ $^ $(CXXFLAGS) $(LIBS)
 #testTF.x: $(IDIR)/TMF_thomasFermi.cpp
 #	$(COMP)
 
-h-like.x: $(OBJ) $(IDIR)/h-like.o
+h-like.x: $(OBJ) $(IDIR)/h-like.o $(CNTM)
 	$(COMP)
 
 fitParametric.x: $(OBJ) $(IDIR)/fitParametric.o $(IDIR)/PRM_parametricPotentials.o
