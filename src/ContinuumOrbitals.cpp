@@ -22,7 +22,11 @@ ContinuumOrbitals::ContinuumOrbitals(ElectronOrbitals wf)
     for(int i=0; i<NGPb; i++) v[i] += wf.vdir[i];
   }
 
+  //Find overal charge of atom (-1)
+  //For neutral atom, should be 1 (usually, since cntm is ionisation state)
+  // r->inf, v(r) = -Z_ion/r
   Zion = -1*wf.r[NGPb-5]*v[NGPb-5];
+  if(Zion<1) Zion = 1;
 
 }
 
