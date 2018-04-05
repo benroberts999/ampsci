@@ -124,10 +124,10 @@ int main(void){
 
 
 
-  std::cout<<"\n\n";
+  //std::cout<<"\n\n";
 
 
-  double ec = 3.;
+  double ec = 0.25;
   int kc=-1;
 
   double Zion=1.;
@@ -141,17 +141,23 @@ int main(void){
   double r_asym = (Zion + sqrt(4.*lam*ec+pow(Zion,2)))/(2.*ec);
 
   //XXX testing only!!!
-  // double hc = wf.h;
-  double hc = (M_PI/15)/sqrt(2.*ec);
-  // XXX No, just give a warning? XXX XXX
-  //(nb: 'sine' region might start BEFORE ngp !!!) XXX
+  double hc = wf.h;
+  double hc_target = (M_PI/15)/sqrt(2.*ec);
+  if(hc>hc_target){
+    printf("WARNING: Grid not dense enough for ec=%.3f (h=%.2f, need h<%.2f)",
+      ec,hc,hc_target);
+    if(hc>2*hc_target){
+      printf("FAILURE: Grid not dense enough for ec=%.3f (h=%.2f, need h<%.2f)",
+      ec,hc,hc_target);
+      return 1;
+    }
+  }
 
-
+  //Set up temporary continuum grid:
+  // Extend grid for continuum state. Goes to ~20% more than 'anymp region'
   while(true){
-    //double r_new = last_r + wf.h;
     double r_new = last_r + hc;
     rc.push_back(r_new);
-    //drdtc.push_back(1.);
     drdtc.push_back(hc/wf.h); //??? correct??
     vc.push_back(-Zion/r_new);
     NGPc++;
@@ -159,6 +165,7 @@ int main(void){
     if(last_r>1.2*r_asym) break;
   }
 
+  //Solve Dirac equation on temporary (extended) grid
   std::vector<double> pc(NGPc),qc(NGPc);
   solveContinuum(pc,qc,ec,vc,wf.Z,kc,rc,drdtc,wf.h,NGPc,wf.alpha);
 
@@ -170,7 +177,7 @@ int main(void){
   }
   ofile.close();
 
-
+  //find index of 'asymptotically large r' region
   int i0 = wf.ngp;
   for(int i=wf.ngp; i<NGPc; i++){
     if(rc[i]>r_asym){
@@ -178,51 +185,48 @@ int main(void){
       break;
     }
   }
-  std::cout<<"\nr_asym="<<r_asym<<", i0="<<i0<<"\n\n";
+  //std::cout<<"\nr_asym="<<r_asym<<", i0="<<i0<<"\n\n";
 
 
   // Find the r's for psi=zero, two consec => period
   //Once period is converged enough, can normalise by comparison with
   // exact (asymptotic) solution (??)
-  // Find "maximum" amplitude, by using a quadratic fit to 2 nearest points
-  // Scale by ratio of this maximum to max of analytic soln
+  //nb: looks for convergence between r(NGP) and r_asym
+  // If doesn't 'converge' in this region, uses r_asym
   double xa=1,xb=pc[wf.ngp];
   double wk1=-1, wk2=0;
-  for(int i=wf.ngp; i<NGPc; i++){
+  for(int i=wf.ngp; i<i0; i++){
     xa=xb;
     xb=pc[i];
     if(xb*xa<0){
+      //Use linear extrapolation to find exact r of the zero:
       double r1 = (rc[i]*pc[i-1]-rc[i-1]*pc[i])/(pc[i-1]-pc[i]);
       double ya=xb,yb=xb;
       for(int j=i+1; j<NGPc; j++){
         ya=yb;
         yb=pc[j];
         if(ya*yb<0){
+          //Use linear extrapolation to find exact r of the next zero:
           double r2 = (rc[j]*pc[j-1]-rc[j-1]*pc[j])/(pc[j-1]-pc[j]);
-          // std::cout<<i<<" "<<j<<"   dr="<<r2-r1<<"    w="<<0.5*pow(M_PI/(r2-r1),2)
-          //   <<"          r="<<rc[j]<<"\n";
           wk1 = wk2;
           wk2 = r2-r1;
-          //std::cout<<wk1<<" "<<wk2<<" "<<
           break;
         }
       }
       if(fabs(wk1-wk2)<1.e-4){
-        //std::cout<<i<<" "<<rc[i]<<" ("<<r_asym<<")\n";
+        //check for "convergence"
         i0=i;
         break;
       }
     }
   }
-//return 1;
-  std::cout<<"\nr_asym_old="<<r_asym<<"\n";
-  r_asym = rc[i0];
-  std::cout<<"r_asym_new="<<r_asym<<"  i0="<<i0<<"\n\n";
+  //XXX Note: this method only 'kinda' works???
+  // a) am I not going out far enough?
+  // b) Or, it's just not that accurate? Seems acurate to 1 - 0.1% ?
 
 
-
-
-
+  // Find "maximum" amplitude, by using a quadratic fit to 2 nearest points
+  // Scale by ratio of this maximum to max of analytic soln
   int ntry=0, maxtry=5;
   double amp=0;
   while(ntry<maxtry){
@@ -232,10 +236,7 @@ int main(void){
         i0=i;
         break;
       }
-      // XXX XXX Need some check here, in case we run out of points!! ??
-      //No, it's ok, will just find 'same' max 10 times..
     }
-    //std::cout<<"Frist zero r="<<wf.r[i0]<<", i0="<<i0<<"\n";
     //find max:
     int imax=0;
     double y0,y1,y2,y3,y4;
@@ -253,7 +254,6 @@ int main(void){
         x2=rc[i-1];
         x3=rc[i];
         x4=rc[i+1];
-        //std::cout<<"OK! "<<imax<<"\n";
         break;
       }
     }
@@ -261,38 +261,39 @@ int main(void){
     ntry++;
     double out1 = fitQuadratic(x1,x2,x3,y1,y2,y3);
     double out2 = fitQuadratic(x0,x2,x4,y0,y2,y4);
-    //printf("%i %.0f = %.8f , %.8f = %.8f\n",imax,x2,out1,out2,0.5*(out1+out2));
     amp+=0.5*(out1+out2);
   }
   amp/=maxtry;
-  printf("\namp=%.6f\n",amp);
+  //printf("\namp=%.6f\n",amp);
 
-  //find first maximum, to determine low-r sign!
-  double mxp=0;
-  int maxi=0;
-  int maxsign=0;
-  for(int i=0; i<NGPc; i++){
-    if(fabs(pc[i+1])<fabs(pc[i]) && pc[i+1]*pc[i]*pc[i-1]>0){
-      mxp=pc[i];
-      maxi=i;
-      if(pc[i]>0) maxsign=1;
-      else maxsign=-1;
-      break;
-    }
-  }
-  std::cout<<mxp<<" "<<rc[maxi]<<" "<<maxsign<<"\n";
+  // //find first maximum, to determine low-r sign!
+  // double mxp=0;
+  // int maxi=0;
+  // int maxsign=0;
+  // for(int i=0; i<NGPc; i++){
+  //   if(fabs(pc[i+1])<fabs(pc[i]) && pc[i+1]*pc[i]*pc[i-1]>0){
+  //     mxp=pc[i];
+  //     maxi=i;
+  //     if(pc[i]>0) maxsign=1;
+  //     else maxsign=-1;
+  //     break;
+  //   }
+  // }
+  // std::cout<<mxp<<" "<<rc[maxi]<<" "<<maxsign<<"\n";
 
+
+  // Calculate normalisation coeficient, D, and re-scaling factor:
+  // D = Sqrt[alpha/(pi*eps)] <-- Amplitude of large-r p(r)
+  // eps = Sqrt[en/(en+2mc^2)]
   double al2 = pow(wf.alpha,2);
-
-  //double ceps = sqrt(ec/2 - 0.5*ec*ec/(ec+2./al2));
-  double ceps = sqrt(ec/(ec*al2+2.));
-  printf("%.10f\n",ceps);
+  double ceps = sqrt(ec/(ec*al2+2.)); // c*eps = eps/alpha
+  //printf("%.10f\n",ceps);
   double D = 1./sqrt(M_PI*ceps);
-  printf("%.10f\n",D);
-
-  double sf=D/amp;
-
+  //printf("%.10f\n",D);
+  double sf=D/amp; //re-scale factor
+  //Normalise the wfs:
   for(int i=0; i<NGPc; i++){
+    // XXX here: transfere into 'true' p,q (from temp ones!)
     pc[i] *= sf;
     qc[i] *= sf;
   }
