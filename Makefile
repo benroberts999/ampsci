@@ -57,7 +57,7 @@ h-like.x: $(OBJ) $(IDIR)/h-like.o $(CNTM)
 fitParametric.x: $(OBJ) $(IDIR)/fitParametric.o $(IDIR)/PRM_parametricPotentials.o
 	$(COMP)
 
-parametricPotential.x: $(OBJ) $(IDIR)/parametricPotential.o $(IDIR)/PRM_parametricPotentials.o
+parametricPotential.x: $(OBJ) $(IDIR)/parametricPotential.o $(IDIR)/PRM_parametricPotentials.o $(CNTM)
 	$(COMP)
 
 .PHONY: clean

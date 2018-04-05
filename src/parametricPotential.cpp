@@ -4,6 +4,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include "ContinuumOrbitals.h"
 
 int main(void){
 
@@ -189,6 +190,33 @@ int main(void){
   tf = clock();
   double total_time = 1000.*double(tf-ti)/CLOCKS_PER_SEC;
   printf ("\nt=%.3f ms.\n",total_time);
+
+
+  // ContinuumOrbitals cntm(wf);
+  // cntm.solveLocalContinuum(20.,0,0);
+  // for(size_t i=0; i<cntm.klist.size(); i++)
+  //   std::cout<<cntm.klist[i]<<" "<<cntm.en[i]<<"\n";
+  //
+  //
+  // int icore = sort_list[num_core];
+  //
+  // //XXX TEST: Output wfs:
+  // std::ofstream ofile,ofile2,ofile3;
+  // ofile.open("cont.txt");
+  // ofile2.open("bound.txt");
+  // ofile3.open("overlap.txt");
+  // for(int i=0; i<wf.ngp; i++){
+  //   ofile<<wf.r[i]<<" "<<cntm.p[0][i]<<" "<<cntm.q[0][i]<<"\n";
+  //   ofile2<<wf.r[i]<<" "<<wf.p[icore][i]<<" "<<wf.q[icore][i]<<"\n";
+  //   ofile3<<wf.r[i]<<" "<<wf.p[icore][i]*cntm.p[0][i]<<"\n";
+  // }
+  // ofile.close();
+  // ofile2.close();
+  // ofile3.close();
+  //
+  // std::cout<<wf.nlist[icore]<<" "<<wf.klist[icore]<<"\n";
+
+
 
   return 0;
 }
