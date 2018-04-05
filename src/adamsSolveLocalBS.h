@@ -1,17 +1,11 @@
 #ifndef _SOLVEBS_H
 #define _SOLVEBS_H
 #include <iostream>
-//#include <fstream>
 #include <cmath>
-//#include <stdio.h>
-//#include <time.h>
 #include <vector>
 #include "MAT_matrixAlgebraGSL.h"
 #include <gsl/gsl_linalg.h> //??? needed??
 #include "INT_quadratureIntegration.h"
-
-
-
 
 int solveDBS(std::vector<double> &p, std::vector<double> &q, double &en,
     std::vector<double> v, int Z, int n, int ka,

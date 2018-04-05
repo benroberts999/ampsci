@@ -16,6 +16,12 @@ bool debug=false; //if true, will print progress messages.
 //parameter: Adams-Moulton ''order'' (number of points)
 const int AMO=7; //must be between 5 and 8 (for now). 7 Seems good.
 
+
+
+
+
+
+
 //******************************************************************************
 int solveDBS(std::vector<double> &p, std::vector<double> &q, double &en,
     std::vector<double> v, int Z, int n, int ka,
