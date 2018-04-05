@@ -12,7 +12,9 @@ Initialise object:
   //Grid:
   NGPb = wf.ngp;
   h = wf.h;
+  r.clear();
   r = wf.r;
+  drdt.clear();
   drdt = wf.drdt;
   // dror ??
 
@@ -20,6 +22,7 @@ Initialise object:
   Z = wf.Z;
 
   //Local part of the potential:
+  v.clear();
   v = wf.vnuc;
   if(wf.vdir.size()!=0){
     for(int i=0; i<NGPb; i++) v[i] += wf.vdir[i];
@@ -110,4 +113,15 @@ continuum (un-bound) states [partial waves].
 
   return 0; //XXX code?
 
+}
+
+
+//******************************************************************************
+void ContinuumOrbitals::clear()
+/**/
+{
+  p.clear();
+  q.clear();
+  en.clear();
+  klist.clear();
 }
