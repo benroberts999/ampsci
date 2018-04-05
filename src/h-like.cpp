@@ -3,7 +3,6 @@
 #include "INT_quadratureIntegration.h"
 #include <iostream>
 #include <fstream>
-#include "ContinuumOrbitals.h"
 
 int main(void){
 
@@ -15,6 +14,7 @@ int main(void){
   int ngp = 2000;
   double r0,rmax;
   double varalpha;
+  int iextra;
   std::ifstream ifile;
   ifile.open("h-like.in");
   {
@@ -23,12 +23,14 @@ int main(void){
     ifile >> n_max >> l_max;    getline(ifile,junk);
     ifile >> r0 >> rmax >> ngp; getline(ifile,junk);
     ifile >> varalpha;          getline(ifile,junk);
+    ifile >> iextra;            getline(ifile,junk);
   }
   ifile.close();
+  bool extra=false;
+  if(iextra==1) extra=true;
 
   printf("\nRunning SolveDBS for Local H-like potential, Z=%i\n",Z);
   printf("*************************************************\n");
-
 
   //Generate the orbitals object:
   ElectronOrbitals wf(Z,A,ngp,r0,rmax,varalpha);
@@ -58,53 +60,49 @@ int main(void){
         wf.en[i],del);
   }
 
-
-  // Calculate the expectation value of r^rpow for each state in list:
-  printf("\nExpectation value of r^n\n");
-  for (int s=0; s<num_states; s++){
-    std::vector<double> rad1,rad2;
-    for (int i=0; i<wf.ngp; i++){
-      double x1=(wf.p[s][i]*wf.p[s][i]+wf.q[s][i]*wf.q[s][i])*pow(wf.r[i],1);
-      double x2=(wf.p[s][i]*wf.p[s][i]+wf.q[s][i]*wf.q[s][i])*pow(wf.r[i],-1);
-      rad1.push_back(x1);
-      rad2.push_back(x2);
+  if(extra){
+    // Calculate the expectation value of r^rpow for each state in list:
+    printf("\nExpectation value of r^n\n");
+    for (int s=0; s<num_states; s++){
+      std::vector<double> rad1,rad2;
+      for (int i=0; i<wf.ngp; i++){
+        double x1=(wf.p[s][i]*wf.p[s][i]+wf.q[s][i]*wf.q[s][i])*pow(wf.r[i],1);
+        double x2=(wf.p[s][i]*wf.p[s][i]+wf.q[s][i]*wf.q[s][i])*pow(wf.r[i],-1);
+        rad1.push_back(x1);
+        rad2.push_back(x2);
+      }
+      double R1=INT_integrate(rad1,wf.drdt,wf.h);
+      double R2=INT_integrate(rad2,wf.drdt,wf.h);
+      printf("<%i% i|r^n|%i% i> n=1 %13.10f, n=-1 %13.10f\n",wf.nlist[s],
+          wf.klist[s],wf.nlist[s],wf.klist[s],R1,R2);
     }
-    double R1=INT_integrate(rad1,wf.drdt,wf.h);
-    double R2=INT_integrate(rad2,wf.drdt,wf.h);
-    printf("<%i% i|r^n|%i% i> n=1 %13.10f, n=-1 %13.10f\n",wf.nlist[s],
-        wf.klist[s],wf.nlist[s],wf.klist[s],R1,R2);
-  }
 
-  // Testing Dirac Eq. by evaluating <a|H|a> - ME of Hamiltonian
-  printf("\nTesting wavefunctions: <n|H|n>  (numerical error)\n");
-  double alpha = wf.alpha;
-  double a2 = pow(alpha,2);
-  for (int s=0; s<num_states; s++){
-    std::vector<double> dQ(wf.ngp);
-    INT_diff(wf.q[s],wf.drdt,wf.h,dQ);
-    std::vector<double> rad;
-    for (int i=0; i<wf.ngp; i++){
-      double x1=2*wf.p[s][i]*dQ[i]/alpha;
-      double x2=-2*wf.klist[s]*wf.p[s][i]*wf.q[s][i]/(wf.r[i]*alpha);
-      double x3=-2*pow(wf.q[s][i],2)/a2;
-      double x4=wf.vnuc[i]*(pow(wf.p[s][i],2)+pow(wf.q[s][i],2));
-      rad.push_back(x1+x3+x2+x4);
+    // Testing Dirac Eq. by evaluating <a|H|a> - ME of Hamiltonian
+    printf("\nTesting wavefunctions: <n|H|n>  (numerical error)\n");
+    double alpha = wf.alpha;
+    double a2 = pow(alpha,2);
+    for (int s=0; s<num_states; s++){
+      std::vector<double> dQ(wf.ngp);
+      INT_diff(wf.q[s],wf.drdt,wf.h,dQ);
+      std::vector<double> rad;
+      for (int i=0; i<wf.ngp; i++){
+        double x1=2*wf.p[s][i]*dQ[i]/alpha;
+        double x2=-2*wf.klist[s]*wf.p[s][i]*wf.q[s][i]/(wf.r[i]*alpha);
+        double x3=-2*pow(wf.q[s][i],2)/a2;
+        double x4=wf.vnuc[i]*(pow(wf.p[s][i],2)+pow(wf.q[s][i],2));
+        rad.push_back(x1+x3+x2+x4);
+      }
+      double R=INT_integrate(rad,wf.drdt,wf.h);
+      double fracdiff=(R-wf.en[s])/wf.en[s];
+      printf("<%i% i|H|%i% i> = % .15f, E(%i% i) = % .15f; % .0e\n",wf.nlist[s],
+          wf.klist[s],wf.nlist[s],wf.klist[s],R,wf.nlist[s],wf.klist[s],
+          wf.en[s],fracdiff);
     }
-    double R=INT_integrate(rad,wf.drdt,wf.h);
-    double fracdiff=(R-wf.en[s])/wf.en[s];
-    printf("<%i% i|H|%i% i> = % .15f, E(%i% i) = % .15f; % .0e\n",wf.nlist[s],
-        wf.klist[s],wf.nlist[s],wf.klist[s],R,wf.nlist[s],wf.klist[s],
-        wf.en[s],fracdiff);
   }
 
   tf = clock();
   double total_time = 1000.*double(tf-ti)/CLOCKS_PER_SEC;
   printf ("\nt=%.3f ms.\n",total_time);
-
-
-
-  ContinuumOrbitals cntm(wf);
-  cntm.solveLocalContinuum(0.1,0);
 
   return 0;
 }
