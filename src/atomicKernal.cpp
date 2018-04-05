@@ -6,12 +6,16 @@
 #include <sstream>
 #include "ContinuumOrbitals.h"
 
+double enGuess(int Z, int n, int l, int tot_el, int num);
+
+
+//******************************************************************************
 int main(void){
 
   clock_t ti,tf;
   ti = clock();
 
-  double varalpha=1; //need same number as used for the fitting!
+  double varalpha; //need same number as used for the fitting!
 
   //Input options
   std::string Z_str;
@@ -22,7 +26,6 @@ int main(void){
   double Tf,Tt,Tg;  //Teitz potential parameters
   double Gf,Gh,Gd;  //Green potential parameters
 
-  int n_max,l_max;
   std::vector<std::string> str_core;
 
   //Open and read the input file:
@@ -42,13 +45,13 @@ int main(void){
     ifs >> r0 >> rmax >> ngp;     getline(ifs,jnk);
     ifs >> Gf >> Gh >> Gd;        getline(ifs,jnk);
     ifs >> Tf >> Tt >> Tg;        getline(ifs,jnk);
-    ifs >> n_max >> l_max;        getline(ifs,jnk);
+    ifs >> varalpha;              getline(ifs,jnk);
     ifs.close();
   }
 
   int Z = ATI_get_z(Z_str);
   if(Z==0) return 2;
-  if(A==0) A=ATI_a[Z]; //if none given, get default A
+  if(A==-1) A=ATI_a[Z]; //if none given, get default A
 
   //Normalise the Teitz/Green weights:
   if(Gf!=0 || Tf!=0){
@@ -70,7 +73,7 @@ int main(void){
 
   //Generate the orbitals object:
   ElectronOrbitals wf(Z,A,ngp,r0,rmax,varalpha);
-  //if(A!=0) wf.sphericalNucleus();
+  if(A>0) wf.sphericalNucleus();
 
   printf("Grid: pts=%i h=%7.5f Rmax=%5.1f\n",wf.ngp,wf.h,wf.r[wf.ngp-1]);
 
@@ -93,34 +96,15 @@ int main(void){
     wf.vdir[i] = tmp;
   }
 
-  int ns=0,np=0,nd=0,nf=0;  //max n for each core l
-
   // Solve for each core state:
   int tot_el=0; // for working out Z_eff
-
   for(size_t i=0; i<core_list.size(); i++){
     int num = core_list[i];
     if(num==0) continue;
-
     int n = ATI_core_n[i];
     int l = ATI_core_l[i];
-
-    //remember the largest n for each s,p,d,f
-    if(l==0)      ns=n;
-    else if(l==1) np=n;
-    else if(l==2) nd=n;
-    else if(l==3) nf=n;
-
-    //effective Z (for energy guess) -- not perfect!
-    double Zeff =  double(Z - tot_el - num);
-    if(l==1) Zeff = 1. + double(Z - tot_el - 0.5*num);
-    if(l==2) Zeff = 1. + double(Z - tot_el - 0.5*num);
-    if(Zeff<1.) Zeff=1.;
+    double en_a = enGuess(Z,n,l,tot_el,num);
     tot_el+=num;
-
-    double en_a = -0.5 * pow(Zeff/n,2);
-    if(n>1) en_a *= 0.5;
-
     int k1 = l; //j = l-1/2
     if(k1!=0) {
       wf.solveLocalDirac(n,k1,en_a);
@@ -128,40 +112,6 @@ int main(void){
     }
     int k2 = -(l+1); //j=l+1/2
     if(num>2*l) wf.solveLocalDirac(n,k2,en_a);
-
-  }
-
-  //store number of calculated core states:
-  int num_core = wf.nlist.size();
-
-  //Calculate the valence (and excited) states
-  for(int n=1; n<=n_max; n++){
-    for(int l=0; l<=l_max; l++){
-      if(l+1>n) continue;
-
-      //Skip states already calculated in core:
-      //XXX NOTE: will miss p_3/2 if only p_1/2 in core!?!? [for e.g.]
-      if(l==0 && n<=ns) continue;
-      if(l==1 && n<=np) continue;
-      if(l==2 && n<=nd) continue;
-      if(l==3 && n<=nf) continue;
-
-      for(int tk=0; tk<2; tk++){
-        int k;
-        if(tk==0) k=l;
-        else      k=-(l+1);
-        if(k==0) continue;
-
-        double neff=0.8+fabs(n-ns);
-        if(neff<0.8) neff=0.8;
-        if(l==1) neff+=0.5;
-        if(l==2) neff+=2.;
-        if(l==3) neff+=3.25;
-        double en_a = -0.5/pow(neff,2);
-        wf.solveLocalDirac(n,k,en_a);
-
-      }
-    }
   }
 
   //make list of energy indices in sorted order:
@@ -169,54 +119,82 @@ int main(void){
   wf.sortedEnergyList(sort_list);
 
   //Output results:
-  printf("\n n l_j    k Rinf its    eps      En (au)        En (/cm)\n");
+  printf("\n n l_j    k Rinf its    eps     En (au)     En (/cm)    En (eV)\n");
   for(size_t m=0; m<sort_list.size(); m++){
     int i = sort_list[m];
-    if((int)m==num_core){
-      std::cout<<" ========= Valence: ======\n";
-      printf(" n l_j    k Rinf its    eps      En (au)        En (/cm)\n");
-    }
     int n=wf.nlist[i];
     int k=wf.klist[i];
     int twoj = 2*abs(k)-1;
     int l = (abs(2*k+1)-1)/2;
     double rinf = wf.r[wf.pinflist[i]];
     double eni = wf.en[i];
-    printf("%2i %s_%i/2 %2i  %3.0f %3i  %5.0e  %11.5f %15.3f\n",
+    printf("%2i %s_%i/2 %2i  %3.0f %3i  %5.0e  %11.5f %12.0f %10.2f\n",
         n,ATI_l(l).c_str(),twoj,k,rinf,wf.itslist[i],wf.epslist[i],
-        eni, eni*HARTREE_ICM);
+        eni, eni*HARTREE_ICM, eni*HARTREE_EV);
   }
+
+
+  ContinuumOrbitals cntm(wf);
+
+  double keV = (1.e3/HARTREE_EV);
+
+  double dE = 2.*keV;
+
+
+  int is=0;
+  int n=3;
+  int k=-1;
+
+
+  for(size_t i=0; i<wf.nlist.size(); i++){
+    if (wf.nlist[i] == n && wf.klist[i] == k){
+      is = i;
+      break;
+    }
+  }
+
+  cntm.solveLocalContinuum(dE-wf.en[is],0);
+  std::vector<double> f(wf.ngp);
+
+  std::ofstream ofile;
+  ofile.open("ak-test3.txt");
+
+  double qmin=10.;
+  double qmax=5000.;
+  int qsteps=3000;
+
+  for(int iq=0; iq<qsteps; iq++){
+    double x=iq/(qsteps-1.);
+    double q = qmin*pow(qmax/qmin,x);
+    for(int j=0; j<wf.ngp; j++)
+      f[j] = wf.p[is][j]*cntm.p[0][j]*(sin(q*wf.r[j])/(q*wf.r[j]));
+    double a = INT_integrate(f,wf.drdt,wf.h);
+    //std::cout<<q<<" "<<pow(x,2)<<"\n";
+    ofile<<q<<" "<<pow(a,2)<<"\n";
+  }
+  ofile.close();
+
 
   tf = clock();
   double total_time = 1000.*double(tf-ti)/CLOCKS_PER_SEC;
   printf ("\nt=%.3f ms.\n",total_time);
 
-
-  // ContinuumOrbitals cntm(wf);
-  // cntm.solveLocalContinuum(20.,0,0);
-  // for(size_t i=0; i<cntm.klist.size(); i++)
-  //   std::cout<<cntm.klist[i]<<" "<<cntm.en[i]<<"\n";
-  //
-  //
-  // int icore = sort_list[num_core];
-  //
-  // //XXX TEST: Output wfs:
-  // std::ofstream ofile,ofile2,ofile3;
-  // ofile.open("cont.txt");
-  // ofile2.open("bound.txt");
-  // ofile3.open("overlap.txt");
-  // for(int i=0; i<wf.ngp; i++){
-  //   ofile<<wf.r[i]<<" "<<cntm.p[0][i]<<" "<<cntm.q[0][i]<<"\n";
-  //   ofile2<<wf.r[i]<<" "<<wf.p[icore][i]<<" "<<wf.q[icore][i]<<"\n";
-  //   ofile3<<wf.r[i]<<" "<<wf.p[icore][i]*cntm.p[0][i]<<"\n";
-  // }
-  // ofile.close();
-  // ofile2.close();
-  // ofile3.close();
-  //
-  // std::cout<<wf.nlist[icore]<<" "<<wf.klist[icore]<<"\n";
-
-
-
   return 0;
+}
+
+
+
+
+//******************************************************************************
+double enGuess(int Z, int n, int l, int tot_el, int num)
+{
+  //effective Z (for energy guess) -- not perfect!
+  double Zeff =  double(Z - tot_el - num);
+  if(l==1) Zeff = 1. + double(Z - tot_el - 0.5*num);
+  if(l==2) Zeff = 1. + double(Z - tot_el - 0.5*num);
+  if(Zeff<1.) Zeff=1.;
+
+  double en_a = -0.5 * pow(Zeff/n,2);
+  if(n>1) en_a *= 0.5;
+  return en_a;
 }

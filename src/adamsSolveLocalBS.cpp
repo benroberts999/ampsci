@@ -72,8 +72,8 @@ an error.
 */
 {
   //Parameters. Put somwhere else?
-  const double delep=5e-16; //PRIMARY convergence parameter [energy] (10^-11)
-  const double deles=1e-10; //SECONDAY convergence parameter [energy]	(X)
+  const double delep=1e-15; //PRIMARY convergence parameter [energy] (10^-11)
+  const double deles=1e-6; //SECONDAY convergence parameter [energy]	(X)
   const int ntry=64;        // Max # attempts at converging [sove bs] (30)
   const double alr=800;     // ''assymptotically large r [kinda..]''  (=800)
   const double lde=0.2;     // 'large' energy variations (0.1 => 10%)
