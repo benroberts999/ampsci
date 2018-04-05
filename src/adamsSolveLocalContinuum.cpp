@@ -48,16 +48,16 @@ int solveContinuum(std::vector<double> &p, std::vector<double> &q, double ec,
     q[i] = sf*qc[i];
   }
 
-  //XXX TEST: Output wfs:
-  std::ofstream ofile,ofileN;
-  ofileN.open("contN.txt");
-  ofile.open("cont.txt");
-  for(int i=0; i<NGPc; i++){
-    ofile<<rc[i]<<" "<<pc[i]<<" "<<qc[i]<<"\n";
-    ofileN<<rc[i]<<" "<<sf*pc[i]<<" "<<sf*qc[i]<<"\n";
-  }
-  ofileN.close();
-  ofile.close();
+  // //XXX TEST: Output wfs:
+  // std::ofstream ofile,ofileN;
+  // ofileN.open("contN.txt");
+  // ofile.open("cont.txt");
+  // for(int i=0; i<NGPc; i++){
+  //   ofile<<rc[i]<<" "<<pc[i]<<" "<<qc[i]<<"\n";
+  //   ofileN<<rc[i]<<" "<<sf*pc[i]<<" "<<sf*qc[i]<<"\n";
+  // }
+  // ofileN.close();
+  // ofile.close();
 
 
   return 0;
