@@ -58,11 +58,11 @@ continuum (un-bound) states [partial waves].
   // Check if 'h' is small enough for oscillating region:
   double h_target = (M_PI/15)/sqrt(2.*ec);
   if(h>h_target){
-    printf("WARNING 51 CntOrb: Grid not dense enough for ec=%.3f (h=%.2f, "
-      "need h<%.2f)",ec,h,h_target);
+    std::cout<<"WARNING 61 CntOrb: Grid not dense enough for ec="<<ec
+      <<" (h="<<h<<", need h<"<<h_target<<")\n";
     if(h>2*h_target){
-      printf("FAILURE 54 CntOrb: Grid not dense enough for ec=%.3f (h=%.2f, "
-      "need h<%.2f)",ec,h,h_target);
+      std::cout<<"FAILURE 64 CntOrb: Grid not dense enough for ec="<<ec
+        <<" (h="<<h<<", need h<"<<h_target<<")\n";
       return 1;
     }
   }
