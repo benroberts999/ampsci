@@ -15,13 +15,14 @@ int main(void){
   clock_t ti,tf;
   ti = clock();
 
-  double varalpha; //need same number as used for the fitting!
+ 
 
   //Input options
   std::string Z_str;
   int A;
   double r0,rmax;
   int ngp;
+  double varalpha;// for non-relativistic approx
 
   std::vector<std::string> str_core; //States for the core
 
@@ -57,11 +58,15 @@ int main(void){
     ifs >> label;                 getline(ifs,jnk);
     ifs.close();
   }
+  
+  //alpha can't be zero:
+  if(varalpha==0) varalpha=1.e-25;
 
   //Convert units for input dE into atomic units
   double keV = (1.e3/HARTREE_EV);
   demin*=keV;
   demax*=keV;
+  //nb: I don't change the units for q (momentum transfer) for now
 
   //Look-up atomic number, Z, and also A
   int Z = ATI_get_z(Z_str);
