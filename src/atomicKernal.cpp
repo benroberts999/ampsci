@@ -23,10 +23,16 @@ int main(void){
   double r0,rmax;
   int ngp;
 
+  std::vector<std::string> str_core; //States for the core
+
   double Tf,Tt,Tg;  //Teitz potential parameters
   double Gf,Gh,Gd;  //Green potential parameters
 
-  std::vector<std::string> str_core;
+  //q and dE grids:
+  double qmin,qmax,demin,demax;
+  int qsteps,desteps;
+
+  std::string label; //label for output file
 
   //Open and read the input file:
   {
@@ -46,9 +52,18 @@ int main(void){
     ifs >> Gf >> Gh >> Gd;        getline(ifs,jnk);
     ifs >> Tf >> Tt >> Tg;        getline(ifs,jnk);
     ifs >> varalpha;              getline(ifs,jnk);
+    ifs >>demin>>demax>>desteps;  getline(ifs,jnk);
+    ifs >>qmin>> qmax >> qsteps;  getline(ifs,jnk);
+    ifs >> label;                 getline(ifs,jnk);
     ifs.close();
   }
 
+  //Convert units for input dE into atomic units
+  double keV = (1.e3/HARTREE_EV);
+  demin*=keV;
+  demax*=keV;
+
+  //Look-up atomic number, Z, and also A
   int Z = ATI_get_z(Z_str);
   if(Z==0) return 2;
   if(A==-1) A=ATI_a[Z]; //if none given, get default A
@@ -64,7 +79,6 @@ int main(void){
   if(Gf!=0 && Gh==0) PRM_defaultGreen(Z,Gh,Gd);
   if(Tf!=0 && Tt==0) PRM_defaultTietz(Z,Tt,Tg);
 
-
   printf("\nRunning parametric potential for %s, Z=%i A=%i\n",
     Z_str.c_str(),Z,A);
   printf("*************************************************\n");
@@ -73,9 +87,10 @@ int main(void){
 
   //Generate the orbitals object:
   ElectronOrbitals wf(Z,A,ngp,r0,rmax,varalpha);
-  if(A>0) wf.sphericalNucleus();
-
   printf("Grid: pts=%i h=%7.5f Rmax=%5.1f\n",wf.ngp,wf.h,wf.r[wf.ngp-1]);
+
+  //If non-zero A is given, use spherical nucleus.
+  if(A>0) wf.sphericalNucleus();
 
   //Determine which states are in the core:
   std::vector<int> core_list; //should be in the class!
@@ -87,7 +102,7 @@ int main(void){
     return 1;
   }
 
-  //Fill the electron part of the potential
+  //Fill the electron part of the (local/direct) potential
   wf.vdir.resize(wf.ngp);
   for(int i=0; i<wf.ngp; i++){
     double tmp = 0;
@@ -96,7 +111,7 @@ int main(void){
     wf.vdir[i] = tmp;
   }
 
-  // Solve for each core state:
+  // Solve Dirac equation for each (bound) core state:
   int tot_el=0; // for working out Z_eff
   for(size_t i=0; i<core_list.size(); i++){
     int num = core_list[i];
@@ -133,18 +148,13 @@ int main(void){
         eni, eni*HARTREE_ICM, eni*HARTREE_EV);
   }
 
-
+  //Continuum wavefunction object
   ContinuumOrbitals cntm(wf);
 
-  double keV = (1.e3/HARTREE_EV);
-
-  double dE = 2.*keV;
-
-
+  //Which core states to calulate for (just 3s for now!)
   int is=0;
   int n=3;
   int k=-1;
-
 
   for(size_t i=0; i<wf.nlist.size(); i++){
     if (wf.nlist[i] == n && wf.klist[i] == k){
@@ -153,24 +163,38 @@ int main(void){
     }
   }
 
-  cntm.solveLocalContinuum(dE-wf.en[is],0);
-  std::vector<double> f(wf.ngp);
-
   std::ofstream ofile;
-  ofile.open("ak-test3.txt");
+  std::string fname = "ak-test_"+label+".txt";
+  ofile.open(fname);
 
-  double qmin=10.;
-  double qmax=5000.;
-  int qsteps=3000;
+  //Probably, it makes more sense to store in an array, write to file later
+  //XXX
 
-  for(int iq=0; iq<qsteps; iq++){
-    double x=iq/(qsteps-1.);
-    double q = qmin*pow(qmax/qmin,x);
-    for(int j=0; j<wf.ngp; j++)
-      f[j] = wf.p[is][j]*cntm.p[0][j]*(sin(q*wf.r[j])/(q*wf.r[j]));
-    double a = INT_integrate(f,wf.drdt,wf.h);
-    //std::cout<<q<<" "<<pow(x,2)<<"\n";
-    ofile<<q<<" "<<pow(a,2)<<"\n";
+  for(int ide=0; ide<desteps; ide++){
+
+    double y=ide/(desteps-1.);
+    double dE = demin*pow(demax/demin,y);
+    double ec = dE+wf.en[is];
+    std::cout<<dE<<" "<<wf.en[is]<<" "<<ec<<"\n";
+    if(ec>0)cntm.solveLocalContinuum(ec,0);
+
+    for(int iq=0; iq<qsteps; iq++){
+      double x=iq/(qsteps-1.);
+      double q = qmin*pow(qmax/qmin,x);
+
+      double a=0;
+      if(cntm.p.size()>0){
+        for(int j=0; j<wf.ngp; j++){
+          a += (wf.p[is][j]*cntm.p[0][j] + wf.q[is][j]*cntm.q[0][j])
+             *(sin(q*wf.r[j])/(q*wf.r[j]))
+             *wf.drdt[j]*wf.h;
+        }
+      }
+      ofile<<dE<<" "<<q<<" "<<pow(a,2)<<"\n";
+
+    }
+    cntm.clear(); //deletes cntm wfs for this energy
+    ofile<<"\n";
   }
   ofile.close();
 
