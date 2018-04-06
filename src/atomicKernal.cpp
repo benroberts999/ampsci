@@ -198,6 +198,32 @@ int main(void){
   }
   ofile.close();
 
+//XXX but make it floats/doubles - swap between!
+  // std::vector< std::vector< std::vector<double> > > ok;
+  // for(int i=0; i<desteps; i++){
+  //   std::vector< std::vector<double> > tmp2;
+  //   for(int j=0; j<qsteps; j++){
+  //     std::vector<double> tmp;
+  //     for(int k=0; k<20; k++){
+  //       tmp.push_back(k);
+  //     }
+  //     tmp2.push_back(tmp);
+  //   }
+  //   ok.push_back(tmp2);
+  // }
+  //
+  // ofile.open("test.txt");
+  // for(int i=0; i<desteps; i++){
+  //   for(int j=0; j<qsteps; j++){
+  //     for(int k=0; k<20; k++){
+  //       ofile<<ok[i][j][k]<<" ";
+  //     }
+  //     ofile<<"\n";
+  //   }
+  //   ofile<<"\n";
+  // }
+  // ofile.close();
+
 
   tf = clock();
   double total_time = 1000.*double(tf-ti)/CLOCKS_PER_SEC;
