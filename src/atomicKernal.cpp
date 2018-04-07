@@ -15,7 +15,7 @@ int main(void){
   clock_t ti,tf;
   ti = clock();
 
- 
+
 
   //Input options
   std::string Z_str;
@@ -58,7 +58,7 @@ int main(void){
     ifs >> label;                 getline(ifs,jnk);
     ifs.close();
   }
-  
+
   //alpha can't be zero:
   if(varalpha==0) varalpha=1.e-25;
 
@@ -174,6 +174,13 @@ int main(void){
 
   //Probably, it makes more sense to store in an array, write to file later
   //XXX
+  /*
+  ALSO:
+    * Need angular factor
+    * Different n states
+    * Different (l, l', L) states
+
+  */
 
   for(int ide=0; ide<desteps; ide++){
 
