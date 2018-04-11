@@ -59,6 +59,9 @@ int main(void){
     ifs.close();
   }
 
+  if(desteps==1) demax=demin;
+  if(qsteps==1) qmax=qmin;
+
   //alpha can't be zero:
   if(varalpha==0) varalpha=1.e-25;
 
