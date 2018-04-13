@@ -159,28 +159,11 @@ int main(void){
   //Continuum wavefunction object
   ContinuumOrbitals cntm(wf);
 
-  // //Which core states to calulate for (just 3s for now!)
-  // int is=0;
-  // int n=3;
-  // int k=-1;
-  //
-  // for(size_t i=0; i<wf.nlist.size(); i++){
-  //   if (wf.nlist[i] == n && wf.klist[i] == k){
-  //     is = i;
-  //     break;
-  //   }
-  // }
-
-
-
-  //Probably, it makes more sense to store in an array, write to file later
   //XXX
   /*
   ALSO:
     * Need angular factor
-    * Different n states
-    * Different (l, l', L) states
-
+    * Different (l', L) states
   */
   std::vector< std::vector< std::vector<float> > > AK; //float ok?
   std::vector<float> qlst;
@@ -191,8 +174,14 @@ int main(void){
   int max_l=0; //maximum bound-state l
 
   for(int ide=0; ide<desteps; ide++){
+    int pc = int(100.*ide/desteps);
+    std::cout<<"Running dE step "<<ide<<"/"<<desteps<<"  -  "<<pc<<"% done"
+    <<"                                        \r";
+    std::cout.flush();
 
-    double y=ide/(desteps-1.);
+    double y;
+    if(desteps>1) y=ide/(desteps-1.);
+    else y=0;
     double dE = demin*pow(demax/demin,y);
 
     std::vector< std::vector<float> > AK_nk;
@@ -205,11 +194,14 @@ int main(void){
       int twoj = 2*abs(k)-1;
       int n=wf.nlist[is];
 
-      std::string nk=std::to_string(n)+ATI_l(l)+"_"+std::to_string(twoj)+"/2";
-      nklst.push_back(nk);
+      if(ide==0){
+        std::string nk=std::to_string(n)+ATI_l(l)
+          +"_{"+std::to_string(twoj)+"/2}";
+        nklst.push_back(nk);
+      }
 
       double ec = dE+wf.en[is];
-      std::cout<<nk<<" "<<dE<<" "<<wf.en[is]<<" "<<ec<<"\n";
+      //std::cout<<nk<<" "<<dE<<" "<<wf.en[is]<<" "<<ec<<"\n";
       if(ec>0)cntm.solveLocalContinuum(ec,0);
 
       std::vector<float> AK_nk_q;
@@ -230,15 +222,14 @@ int main(void){
         }
         if(ide==0) qlst.push_back(q);
         AK_nk_q.push_back(pow(a*wf.h,2));
-        //ofile<<dE<<" "<<q<<" "<<pow(a,2)<<"\n";
       }
       AK_nk.push_back(AK_nk_q);
     }
     dElst.push_back(dE);
     AK.push_back(AK_nk);
     cntm.clear(); //deletes cntm wfs for this energy
-    //ofile<<"\n";
   }
+  std::cout<<"\r Done.                                                      \n";
 
 
   //ALSO: should write the AK array to a binary file here,
@@ -248,10 +239,11 @@ int main(void){
   std::ofstream ofile;
   std::string fname = "ak-test_"+label+".txt";
   ofile.open(fname);
-  ofile<<"#dE(qu) q(au) ";
-  for(size_t i=0; i<nklst.size(); i++)
-    ofile<<nklst[i]<<" ";
+  ofile<<"dE(au) q(au) ";
+  for(size_t i=0; i<nklst.size(); i++) ofile<<nklst[i]<<" ";
   ofile<<"\n";
+  for(size_t i=0; i<dElst.size(); i++) ofile<<dElst[i]<<" ";
+  ofile<<"\n\n";
   for(size_t i=0; i<AK.size(); i++){
     for(size_t k=0; k<AK[0][0].size(); k++){
       ofile<<dElst[i]<<" "<<qlst[k]<<" ";
@@ -266,7 +258,10 @@ int main(void){
 
   tf = clock();
   double total_time = 1000.*double(tf-ti)/CLOCKS_PER_SEC;
-  printf ("\nt=%.3f ms.\n",total_time);
+  if(total_time<1000) printf ("\nt=%.3f ms.\n",total_time);
+  else if(total_time<60000) printf ("\nt=%.1f s.\n",total_time/1000.);
+  else if(total_time<3600000) printf ("\nt=%.1f mins.\n",total_time/60000.);
+  else printf ("\nt=%.1f hours.\n",total_time/3600000.);
 
   return 0;
 }
