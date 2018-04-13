@@ -4,6 +4,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <sys/time.h>
 #include "ContinuumOrbitals.h"
 
 double enGuess(int Z, int n, int l, int tot_el, int num);
@@ -12,10 +13,8 @@ double enGuess(int Z, int n, int l, int tot_el, int num);
 //******************************************************************************
 int main(void){
 
-  clock_t ti,tf;
-  ti = clock();
-
-
+  struct timeval start, end;
+  gettimeofday(&start, NULL);
 
   //Input options
   std::string Z_str;
@@ -59,6 +58,7 @@ int main(void){
     ifs.close();
   }
 
+  //allow for single-step in dE or q grid
   if(desteps==1) demax=demin;
   if(qsteps==1) qmax=qmin;
 
@@ -69,6 +69,7 @@ int main(void){
   double keV = (1.e3/HARTREE_EV);
   demin*=keV;
   demax*=keV;
+  double qMeV = (1.e6/(HARTREE_EV*CLIGHT));
   //nb: I don't change the units for q (momentum transfer) for now
 
   //Look-up atomic number, Z, and also A
@@ -164,30 +165,31 @@ int main(void){
   ALSO:
     * Need angular factor
     * Different (l', L) states
+    * -- check <||> is non-zero before calc!
   */
   std::vector< std::vector< std::vector<float> > > AK; //float ok?
-  std::vector<float> qlst;
+  std::vector<float> qlst(qsteps);
   std::vector<float> dElst;
   std::vector<std::string> nklst;
 
   int ic=0; //cntm state!
   int max_l=0; //maximum bound-state l
 
+  std::cout<<"\nCalculating atomic kernal AK(q,dE):\n";
+  printf(" dE: %5.2f -- %5.1f keV  (%.2f -- %.1f au)\n",demin/keV,demax/keV,demin,demax);
+  printf("  q: %5.0e -- %5.1g MeV  (%.2f -- %.1f au)\n",qmin/qMeV,qmax/qMeV,qmin,qmax);
   for(int ide=0; ide<desteps; ide++){
     int pc = int(100.*ide/desteps);
-    std::cout<<"Running dE step "<<ide<<"/"<<desteps<<"  -  "<<pc<<"% done"
+    std::cout<<" Running dE step "<<ide<<"/"<<desteps<<"  -  "<<pc<<"% done"
     <<"                                        \r";
     std::cout.flush();
-
     double y;
     if(desteps>1) y=ide/(desteps-1.);
     else y=0;
     double dE = demin*pow(demax/demin,y);
 
     std::vector< std::vector<float> > AK_nk;
-
     for(size_t is=0; is<wf.nlist.size(); is++){
-
       int k=wf.klist[is];
       int l = (abs(2*k+1)-1)/2;
       if(l>max_l) continue;
@@ -201,10 +203,10 @@ int main(void){
       }
 
       double ec = dE+wf.en[is];
-      //std::cout<<nk<<" "<<dE<<" "<<wf.en[is]<<" "<<ec<<"\n";
       if(ec>0)cntm.solveLocalContinuum(ec,0);
 
-      std::vector<float> AK_nk_q;
+      std::vector<float> AK_nk_q(qsteps);
+      #pragma omp parallel for
       for(int iq=0; iq<qsteps; iq++){
         double x=iq/(qsteps-1.);
         double q = qmin*pow(qmax/qmin,x);
@@ -220,8 +222,8 @@ int main(void){
                  *jLqr*wf.drdt[j];// *h below!
           }
         }
-        if(ide==0) qlst.push_back(q);
-        AK_nk_q.push_back(pow(a*wf.h,2));
+        if(ide==0) qlst[iq]=q;
+        AK_nk_q[iq]=pow(a*wf.h,2);
       }
       AK_nk.push_back(AK_nk_q);
     }
@@ -229,7 +231,8 @@ int main(void){
     AK.push_back(AK_nk);
     cntm.clear(); //deletes cntm wfs for this energy
   }
-  std::cout<<"\r Done.                                                      \n";
+  std::cout<<" Running dE step "<<desteps<<"/"<<desteps<<"  -  100% done  :)   "
+  <<"                \n";// extra space to over-write any left-over junk.
 
 
   //ALSO: should write the AK array to a binary file here,
@@ -256,12 +259,13 @@ int main(void){
   }
   ofile.close();
 
-  tf = clock();
-  double total_time = 1000.*double(tf-ti)/CLOCKS_PER_SEC;
-  if(total_time<1000) printf ("\nt=%.3f ms.\n",total_time);
-  else if(total_time<60000) printf ("\nt=%.1f s.\n",total_time/1000.);
-  else if(total_time<3600000) printf ("\nt=%.1f mins.\n",total_time/60000.);
-  else printf ("\nt=%.1f hours.\n",total_time/3600000.);
+  gettimeofday(&end, NULL);
+  double total_time = (end.tv_sec-start.tv_sec)
+  + (end.tv_usec - start.tv_usec)*1e-6;
+  if(total_time<1) printf ("\nt=%.3f ms.\n",total_time*1000);
+  else if(total_time<60) printf ("\nt=%.1f s.\n",total_time);
+  else if(total_time<3600) printf ("\nt=%.1f mins.\n",total_time/60.);
+  else printf ("\nt=%.1f hours.\n",total_time/3600.);
 
   return 0;
 }
