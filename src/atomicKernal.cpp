@@ -159,21 +159,19 @@ int main(void){
   //Continuum wavefunction object
   ContinuumOrbitals cntm(wf);
 
-  //Which core states to calulate for (just 3s for now!)
-  int is=0;
-  int n=3;
-  int k=-1;
+  // //Which core states to calulate for (just 3s for now!)
+  // int is=0;
+  // int n=3;
+  // int k=-1;
+  //
+  // for(size_t i=0; i<wf.nlist.size(); i++){
+  //   if (wf.nlist[i] == n && wf.klist[i] == k){
+  //     is = i;
+  //     break;
+  //   }
+  // }
 
-  for(size_t i=0; i<wf.nlist.size(); i++){
-    if (wf.nlist[i] == n && wf.klist[i] == k){
-      is = i;
-      break;
-    }
-  }
 
-  std::ofstream ofile;
-  std::string fname = "ak-test_"+label+".txt";
-  ofile.open(fname);
 
   //Probably, it makes more sense to store in an array, write to file later
   //XXX
@@ -184,61 +182,87 @@ int main(void){
     * Different (l, l', L) states
 
   */
+  std::vector< std::vector< std::vector<float> > > AK; //float ok?
+  std::vector<float> qlst;
+  std::vector<float> dElst;
+  std::vector<std::string> nklst;
+
+  int ic=0; //cntm state!
+  int max_l=0; //maximum bound-state l
 
   for(int ide=0; ide<desteps; ide++){
 
     double y=ide/(desteps-1.);
     double dE = demin*pow(demax/demin,y);
-    double ec = dE+wf.en[is];
-    std::cout<<dE<<" "<<wf.en[is]<<" "<<ec<<"\n";
-    if(ec>0)cntm.solveLocalContinuum(ec,0);
 
-    for(int iq=0; iq<qsteps; iq++){
-      double x=iq/(qsteps-1.);
-      double q = qmin*pow(qmax/qmin,x);
+    std::vector< std::vector<float> > AK_nk;
 
-      double a=0;
-      if(cntm.p.size()>0){
-        for(int j=0; j<wf.ngp; j++){
-          a += (wf.p[is][j]*cntm.p[0][j] + wf.q[is][j]*cntm.q[0][j])
-             *(sin(q*wf.r[j])/(q*wf.r[j]))
-             *wf.drdt[j]*wf.h;
+    for(size_t is=0; is<wf.nlist.size(); is++){
+
+      int k=wf.klist[is];
+      int l = (abs(2*k+1)-1)/2;
+      if(l>max_l) continue;
+      int twoj = 2*abs(k)-1;
+      int n=wf.nlist[is];
+
+      std::string nk=std::to_string(n)+ATI_l(l)+"_"+std::to_string(twoj)+"/2";
+      nklst.push_back(nk);
+
+      double ec = dE+wf.en[is];
+      std::cout<<nk<<" "<<dE<<" "<<wf.en[is]<<" "<<ec<<"\n";
+      if(ec>0)cntm.solveLocalContinuum(ec,0);
+
+      std::vector<float> AK_nk_q;
+      for(int iq=0; iq<qsteps; iq++){
+        double x=iq/(qsteps-1.);
+        double q = qmin*pow(qmax/qmin,x);
+
+        double a=0;
+        double jLqr;
+        if(cntm.p.size()>0){
+          int maxj = wf.pinflist[is]; //don't bother going further
+          // int maxj = wf.ngp;
+          for(int j=0; j<maxj; j++){
+            jLqr = sin(q*wf.r[j]) / (q*wf.r[j]);
+            a += (wf.p[is][j]*cntm.p[ic][j] + wf.q[is][j]*cntm.q[ic][j])
+                 *jLqr*wf.drdt[j];// *h below!
+          }
         }
+        if(ide==0) qlst.push_back(q);
+        AK_nk_q.push_back(pow(a*wf.h,2));
+        //ofile<<dE<<" "<<q<<" "<<pow(a,2)<<"\n";
       }
-      ofile<<dE<<" "<<q<<" "<<pow(a,2)<<"\n";
-
+      AK_nk.push_back(AK_nk_q);
     }
+    dElst.push_back(dE);
+    AK.push_back(AK_nk);
     cntm.clear(); //deletes cntm wfs for this energy
+    //ofile<<"\n";
+  }
+
+
+  //ALSO: should write the AK array to a binary file here,
+  //for ease of use in other applictaions.
+
+  //Write out file (in gnuplot friendly form)
+  std::ofstream ofile;
+  std::string fname = "ak-test_"+label+".txt";
+  ofile.open(fname);
+  ofile<<"#dE(qu) q(au) ";
+  for(size_t i=0; i<nklst.size(); i++)
+    ofile<<nklst[i]<<" ";
+  ofile<<"\n";
+  for(size_t i=0; i<AK.size(); i++){
+    for(size_t k=0; k<AK[0][0].size(); k++){
+      ofile<<dElst[i]<<" "<<qlst[k]<<" ";
+      for(size_t j=0; j<AK[0].size(); j++){
+        ofile<<AK[i][j][k]<<" ";
+      }
+      ofile<<"\n";
+    }
     ofile<<"\n";
   }
   ofile.close();
-
-//XXX but make it floats/doubles - swap between!
-  // std::vector< std::vector< std::vector<double> > > ok;
-  // for(int i=0; i<desteps; i++){
-  //   std::vector< std::vector<double> > tmp2;
-  //   for(int j=0; j<qsteps; j++){
-  //     std::vector<double> tmp;
-  //     for(int k=0; k<20; k++){
-  //       tmp.push_back(k);
-  //     }
-  //     tmp2.push_back(tmp);
-  //   }
-  //   ok.push_back(tmp2);
-  // }
-  //
-  // ofile.open("test.txt");
-  // for(int i=0; i<desteps; i++){
-  //   for(int j=0; j<qsteps; j++){
-  //     for(int k=0; k<20; k++){
-  //       ofile<<ok[i][j][k]<<" ";
-  //     }
-  //     ofile<<"\n";
-  //   }
-  //   ofile<<"\n";
-  // }
-  // ofile.close();
-
 
   tf = clock();
   double total_time = 1000.*double(tf-ti)/CLOCKS_PER_SEC;

@@ -4,8 +4,8 @@ Xe  .              | Core configuration (end with ' .')
 1 5. 1.0           | green H d *
 1 2.40 0.05        | Tietz t g
 1                  | varalpha [~0 for non-rel]
-1.5   4.     50    | dE(min, max, #steps) - in keV
-10.   5000.  1000  | q (min, max, #steps) - in au
+1.5   4.     3   | dE(min, max, #steps) - in keV
+10.   5000.  10  | q (min, max, #steps) - in au
 xx                 | label for output file
 --------------------
 
