@@ -60,6 +60,9 @@ fitParametric.x: $(OBJ) $(IDIR)/fitParametric.o $(IDIR)/PRM_parametricPotentials
 parametricPotential.x: $(OBJ) $(IDIR)/parametricPotential.o $(IDIR)/PRM_parametricPotentials.o $(CNTM)
 	$(COMP)
 
+hartree.x: $(OBJ) $(IDIR)/hartree.o $(IDIR)/PRM_parametricPotentials.o $(CNTM)
+	$(COMP)
+
 .PHONY: clean
 clean:
 	rm -f *.x *~ $(IDIR)/*.o $(IDIR)/*~
