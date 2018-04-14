@@ -84,6 +84,10 @@ int main(void){
     return 1;
   }
 
+
+
+
+
   //Fill the electron part of the potential
   wf.vdir.resize(wf.ngp);
   for(int i=0; i<wf.ngp; i++){
@@ -94,10 +98,8 @@ int main(void){
   }
 
   int ns=0,np=0,nd=0,nf=0;  //max n for each core l
-
   // Solve for each core state:
   int tot_el=0; // for working out Z_eff
-
   for(size_t i=0; i<core_list.size(); i++){
     int num = core_list[i];
     if(num==0) continue;
@@ -131,38 +133,9 @@ int main(void){
 
   }
 
-  //store number of calculated core states:
-  int num_core = wf.nlist.size();
 
-  //Calculate the valence (and excited) states
-  for(int n=1; n<=n_max; n++){
-    for(int l=0; l<=l_max; l++){
-      if(l+1>n) continue;
 
-      //Skip states already calculated in core:
-      //XXX NOTE: will miss p_3/2 if only p_1/2 in core!?!? [for e.g.]
-      if(l==0 && n<=ns) continue;
-      if(l==1 && n<=np) continue;
-      if(l==2 && n<=nd) continue;
-      if(l==3 && n<=nf) continue;
 
-      for(int tk=0; tk<2; tk++){
-        int k;
-        if(tk==0) k=l;
-        else      k=-(l+1);
-        if(k==0) continue;
-
-        double neff=0.8+fabs(n-ns);
-        if(neff<0.8) neff=0.8;
-        if(l==1) neff+=0.5;
-        if(l==2) neff+=2.;
-        if(l==3) neff+=3.25;
-        double en_a = -0.5/pow(neff,2);
-        wf.solveLocalDirac(n,k,en_a);
-
-      }
-    }
-  }
 
   //make list of energy indices in sorted order:
   std::vector<int> sort_list;
@@ -172,10 +145,6 @@ int main(void){
   printf("\n n l_j    k Rinf its    eps      En (au)        En (/cm)\n");
   for(size_t m=0; m<sort_list.size(); m++){
     int i = sort_list[m];
-    if((int)m==num_core){
-      std::cout<<" ========= Valence: ======\n";
-      printf(" n l_j    k Rinf its    eps      En (au)        En (/cm)\n");
-    }
     int n=wf.nlist[i];
     int k=wf.klist[i];
     int twoj = 2*abs(k)-1;
@@ -187,36 +156,11 @@ int main(void){
         eni, eni*HARTREE_ICM);
   }
 
+
+
   tf = clock();
   double total_time = 1000.*double(tf-ti)/CLOCKS_PER_SEC;
   printf ("\nt=%.3f ms.\n",total_time);
-
-
-  // ContinuumOrbitals cntm(wf);
-  // cntm.solveLocalContinuum(20.,0,0);
-  // for(size_t i=0; i<cntm.klist.size(); i++)
-  //   std::cout<<cntm.klist[i]<<" "<<cntm.en[i]<<"\n";
-  //
-  //
-  // int icore = sort_list[num_core];
-  //
-  // //XXX TEST: Output wfs:
-  // std::ofstream ofile,ofile2,ofile3;
-  // ofile.open("cont.txt");
-  // ofile2.open("bound.txt");
-  // ofile3.open("overlap.txt");
-  // for(int i=0; i<wf.ngp; i++){
-  //   ofile<<wf.r[i]<<" "<<cntm.p[0][i]<<" "<<cntm.q[0][i]<<"\n";
-  //   ofile2<<wf.r[i]<<" "<<wf.p[icore][i]<<" "<<wf.q[icore][i]<<"\n";
-  //   ofile3<<wf.r[i]<<" "<<wf.p[icore][i]*cntm.p[0][i]<<"\n";
-  // }
-  // ofile.close();
-  // ofile2.close();
-  // ofile3.close();
-  //
-  // std::cout<<wf.nlist[icore]<<" "<<wf.klist[icore]<<"\n";
-
-
 
   return 0;
 }
