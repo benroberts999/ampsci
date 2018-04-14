@@ -97,7 +97,6 @@ int main(void){
     wf.vdir[i] = tmp;
   }
 
-  int ns=0,np=0,nd=0,nf=0;  //max n for each core l
   // Solve for each core state:
   int tot_el=0; // for working out Z_eff
   for(size_t i=0; i<core_list.size(); i++){
@@ -106,12 +105,6 @@ int main(void){
 
     int n = ATI_core_n[i];
     int l = ATI_core_l[i];
-
-    //remember the largest n for each s,p,d,f
-    if(l==0)      ns=n;
-    else if(l==1) np=n;
-    else if(l==2) nd=n;
-    else if(l==3) nf=n;
 
     //effective Z (for energy guess) -- not perfect!
     double Zeff =  double(Z - tot_el - num);
@@ -132,9 +125,6 @@ int main(void){
     if(num>2*l) wf.solveLocalDirac(n,k2,en_a);
 
   }
-
-
-
 
 
   //make list of energy indices in sorted order:
