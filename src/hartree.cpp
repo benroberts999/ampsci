@@ -118,11 +118,11 @@ int main(void){
 
     int k1 = l; //j = l-1/2
     if(k1!=0) {
-      wf.solveLocalDirac(n,k1,en_a);
+      wf.solveLocalDirac(n,k1,en_a,4);
       en_a = 0.95*wf.en[wf.nlist.size()-1]; //update guess for next same l
     }
     int k2 = -(l+1); //j=l+1/2
-    if(num>2*l) wf.solveLocalDirac(n,k2,en_a);
+    if(num>2*l) wf.solveLocalDirac(n,k2,en_a,4);
 
   }
 
