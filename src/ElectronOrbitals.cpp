@@ -32,7 +32,7 @@ ElectronOrbitals::ElectronOrbitals(std::string s_in_z, int in_a, int in_ngp,
 
 
 //******************************************************************************
-int ElectronOrbitals::solveLocalDirac(int n, int k, double e_a)
+int ElectronOrbitals::solveLocalDirac(int n, int k, double e_a, int log_dele_or)
 /*
 XXX vnuc !!!
 */
@@ -47,7 +47,7 @@ XXX vnuc !!!
     for(int i=0; i<ngp; i++) v_a[i] += vdir[i];
   }
 
-  int i_ret = solveDBS(p_a,q_a,e_a,v_a,Z,n,k,r,drdt,h,ngp,pinf,its,eps,alpha);
+  int i_ret = solveDBS(p_a,q_a,e_a,v_a,Z,n,k,r,drdt,h,ngp,pinf,its,eps,alpha,log_dele_or);
   //Store wf + energy
   p.push_back(p_a);
   q.push_back(q_a);

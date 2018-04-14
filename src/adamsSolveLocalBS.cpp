@@ -18,15 +18,11 @@ const int AMO=7; //must be between 5 and 8 (for now). 7 Seems good.
 
 
 
-
-
-
-
 //******************************************************************************
 int solveDBS(std::vector<double> &p, std::vector<double> &q, double &en,
     std::vector<double> v, int Z, int n, int ka,
     std::vector<double> r, std::vector<double> drdt, double h, int NGP,
-    int &pinf, int &its, double &eps, double alpha)
+    int &pinf, int &its, double &eps, double alpha, int log_dele_or)
 /*
 Solves local, spherical bound state dirac equation using Adams-Moulton method.
 Based on method presented in book by W. R. Johnson:
@@ -63,22 +59,20 @@ There are two energy convergence parameters, primary and secondary.
 If cannot converge to primary value, but better than secondary, will not give
 an error.
 
-// XXX
-// At the moment, it appears that initial energy guess in an input.
-// This is good, but should also have an option that allows an initial input
-// of zero, in which case this program will make the initial guess
-// XXX
-
 */
 {
   //Parameters. Put somwhere else?
-  const double delep=5e-16; //PRIMARY convergence parameter [energy] (10^-11)
-  const double deles=1e-10; //SECONDAY convergence parameter [energy]	(X)
-  const int ntry=64;        // Max # attempts at converging [sove bs] (30)
+  double delep=1e-15; //PRIMARY convergence parameter [energy] (10^-11)
+  double deles=1e-6; //SECONDAY convergence parameter [energy]	(X)
+  const int ntry=32;        // Max # attempts at converging [sove bs] (30)
   const double alr=800;     // ''assymptotically large r [kinda..]''  (=800)
-  const double lde=0.2;     // 'large' energy variations (0.1 => 10%)
+  const double lde=0.3;     // 'large' energy variations (0.1 => 10%)
   const int d_ctp=5;        //Num points past ctp +/- d_ctp.
-  // XXX where to put these parameters?
+
+  if(log_dele_or>0){
+    delep=1./pow(10,log_dele_or);
+    deles=10*delep;
+  }
 
   //Checks to see if legal n is requested. If not, increases n, re-calls
   //Should I do this? If there's a logic problem, probably better to know?

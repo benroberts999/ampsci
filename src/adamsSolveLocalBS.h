@@ -10,7 +10,7 @@
 int solveDBS(std::vector<double> &p, std::vector<double> &q, double &en,
     std::vector<double> v, int Z, int n, int ka,
     std::vector<double> r, std::vector<double> drdt, double h, int NGP,
-    int &pinf, int &its, double &eps, double alpha);
+    int &pinf, int &its, double &eps, double alpha, int log_dele_or=0);
 
 int outwardAM(std::vector<double> &p, std::vector<double> &q, double &en,
     std::vector<double> v, int Z, int ka,
