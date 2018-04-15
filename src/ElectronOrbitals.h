@@ -47,7 +47,7 @@ class ElectronOrbitals{
 
     std::vector<int> core_list;
 
-    std::vector<unsigned> nlist;
+    std::vector<int> nlist;
     std::vector<int> klist;
 
     std::vector<int> pinflist;

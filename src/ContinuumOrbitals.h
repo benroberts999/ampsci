@@ -19,6 +19,8 @@ class ContinuumOrbitals{
     int solveLocalContinuum(double ec, int min_l, int max_l);
     int solveLocalContinuum(double ec, int max_l);
 
+    void clear();
+
     std::vector< std::vector<double> > p;
     std::vector< std::vector<double> > q;
     std::vector<double> en;

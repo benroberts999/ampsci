@@ -125,9 +125,9 @@ an error.
       }
     }
     if(ctp+d_ctp>=pinf){
-      //Didn't find ctp! Does this ever happen?
-      printf("FAILURE: Turning point at or after pract. inf. \n");
-      printf("ctp=%i, d_ctp=%i, pinf=%i, NGP=%i\n",ctp,d_ctp,pinf,NGP);
+      //Didn't find ctp! Does this ever happen? Yes, if energy guess too wrong
+      if(debug)printf("FAILURE: Turning point at or after pract. inf. \n");
+      if(debug)printf("ctp=%i, d_ctp=%i, pinf=%i, NGP=%i\n",ctp,d_ctp,pinf,NGP);
       return 1;
     }
     if(debug) printf("Classical turning point (i=%i): ctp=%.1f a.u.\n",
@@ -466,7 +466,7 @@ Then, it then call ADAMS-MOULTON, to finish (from nol*AMO+1 to nf = ctp-d_ctp)
         k=nx; //reached convergance
       }
       else if (k==(nx-1)){
-        if (xe>nxepss)
+        if (xe>nxepss && debug)
           printf("WARNING: Asymp. expansion in ININT didn't converge:"
                  " %i, %i, %.2e\n",i,k,xe);
       }
