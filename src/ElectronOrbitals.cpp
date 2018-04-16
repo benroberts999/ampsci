@@ -137,8 +137,7 @@ XXX Kill this one! XXX
 
 
 //******************************************************************************
-int ElectronOrbitals::determineCore(std::vector<std::string> str_core,
-  std::vector<int> &core)
+int ElectronOrbitals::determineCore(std::vector<std::string> str_core)
 /*
 Takes in a string list for the core configuration, outputs an int list
 Takes in previous closed shell (noble), + 'rest' (or just the rest)
@@ -149,18 +148,18 @@ E.g:
 NOTE: Only works up to n=9, and l=5 [h]
 */
 {
-  core.clear();
+  core_list.clear();
   if(str_core.size()==0) return 1;
 
   int ibeg=1;
   std::string ng=str_core[0];
-  if     (ng=="He") core=ATI_core_He;
-  else if(ng=="Ne") core=ATI_core_Ne;
-  else if(ng=="Ar") core=ATI_core_Ar;
-  else if(ng=="Kr") core=ATI_core_Kr;
-  else if(ng=="Xe") core=ATI_core_Xe;
-  else if(ng=="Rn") core=ATI_core_Rn;
-  else if(ng=="Og") core=ATI_core_Og;
+  if     (ng=="He") core_list=ATI_core_He;
+  else if(ng=="Ne") core_list=ATI_core_Ne;
+  else if(ng=="Ar") core_list=ATI_core_Ar;
+  else if(ng=="Kr") core_list=ATI_core_Kr;
+  else if(ng=="Xe") core_list=ATI_core_Xe;
+  else if(ng=="Rn") core_list=ATI_core_Rn;
+  else if(ng=="Og") core_list=ATI_core_Og;
   else ibeg=0;
 
   for(size_t i=ibeg; i<str_core.size(); i++){
@@ -191,13 +190,13 @@ NOTE: Only works up to n=9, and l=5 [h]
     }
 
     //Merge this term with the existing core:
-    int size = std::max(core_ex.size(),core.size());
+    int size = std::max(core_ex.size(),core_list.size());
     core_ex.resize(size);
-    core.resize(size);
+    core_list.resize(size);
 
-    for(size_t j=0; j<core.size(); j++){
-      core[j] += core_ex[j];
-      if(core[j] > 4*ATI_core_l[j]+2) return 2; //check if valid
+    for(size_t j=0; j<core_list.size(); j++){
+      core_list[j] += core_ex[j];
+      if(core_list[j] > 4*ATI_core_l[j]+2) return 2; //check if valid
     }
 
   }

@@ -102,8 +102,7 @@ int main(void){
   if(A>0) wf.sphericalNucleus();
 
   //Determine which states are in the core:
-  std::vector<int> core_list; //should be in the class!
-  int core_ok = wf.determineCore(str_core,core_list);
+  int core_ok = wf.determineCore(str_core);
   if(core_ok==2){
     std::cout<<"Problem with core: ";
     for(size_t i=0; i<str_core.size(); i++) std::cout<<str_core[i]<<" ";
@@ -122,8 +121,8 @@ int main(void){
 
   // Solve Dirac equation for each (bound) core state:
   int tot_el=0; // for working out Z_eff
-  for(size_t i=0; i<core_list.size(); i++){
-    int num = core_list[i];
+  for(size_t i=0; i<wf.core_list.size(); i++){
+    int num = wf.core_list[i];
     if(num==0) continue;
     int n = ATI_core_n[i];
     int l = ATI_core_l[i];

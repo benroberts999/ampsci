@@ -65,8 +65,7 @@ class ElectronOrbitals{
 
     int getRadialIndex(double r_target);
 
-    int determineCore(std::vector<std::string> str_core,
-      std::vector<int> &core); //???
+    int determineCore(std::vector<std::string> str_core);
 
     int sortedEnergyList(std::vector<int> &sort_list);
 
