@@ -64,6 +64,41 @@ XXX vnuc !!!
 }
 
 //******************************************************************************
+int ElectronOrbitals::reSolveLocalDirac(int i, double e_a, int log_dele_or)
+/*
+If no e_a is given, will use the existing one!
+(Usually, a better guess should be given, using P.T.)
+*/
+{
+  int pinf,its;
+  double eps;
+  std::vector<double> p_a(ngp);
+  std::vector<double> q_a(ngp);
+
+  std::vector<double> v_a = vnuc;
+  if(vdir.size()!=0){
+    for(int i=0; i<ngp; i++) v_a[i] += vdir[i];
+  }
+
+  int n=nlist[i];
+  int k=klist[i];
+  if(e_a==0) e_a = en[i];
+  int i_ret = solveDBS(p_a,q_a,e_a,v_a,Z,n,k,r,drdt,h,ngp,pinf,its,eps,alpha,log_dele_or);
+
+  //Store wf + energy
+  for(size_t j=0; j<p[i].size(); j++) p[i][j] = p_a[j];
+  for(size_t j=0; j<p[i].size(); j++) q[i][j] = q_a[j];
+  en[i] = e_a;
+  //store convergance info:
+  pinflist[i] = pinf;
+  itslist[i]  = its;
+  epslist[i]  = eps;
+
+  return i_ret;
+}
+
+
+//******************************************************************************
 int ElectronOrbitals::hydrogenLike(int in_max_n, int in_max_l)
 /*
 ``Wrapper'' function, to use the adamsSolveLocalBS method!

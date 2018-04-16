@@ -57,6 +57,7 @@ class ElectronOrbitals{
     int hydrogenLike(int in_max_n, int in_max_l=100);
 
     int solveLocalDirac(int n, int k, double en_a, int log_dele_or=0);
+    int reSolveLocalDirac(int i, double e_a=0, int log_dele_or=0);
 
     double diracen(int z, int n, int k);
     int sphericalNucleus(double rnuc=0);
