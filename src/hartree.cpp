@@ -7,6 +7,7 @@
 #include "ContinuumOrbitals.h"
 
 double enGuess(int Z, int n, int l, int tot_el, int num);
+int formNewVdir(ElectronOrbitals wf, std::vector<double> &vdir_new, int a=-1);
 
 int main(void){
 
@@ -112,58 +113,43 @@ int main(void){
 
 
 
-for(int n=0; n<15; n++){
-
-  std::vector<double> rho(wf.ngp);
-  for(size_t i=0; i<wf.nlist.size(); i++){
-    int ka = wf.klist[i];
-    int la = (abs(2*ka+1)-1)/2;
-    for(int j=0; j<wf.ngp; j++){
-      rho[j] += (4*la+2)*(pow(wf.p[i][j],2) + pow(wf.q[i][j],2));
-      // XXX NON-relativistic formula!!! XXX
-    }
-  }
-
-  std::vector<double> vdir_new(wf.ngp);
-  double f = 1. - 1./wf.nlist.size();
-  for(int j=0; j<wf.ngp; j++){
-    double r = wf.r[j];
-    double v_tmp = 0;
-    for(int k=0; k<wf.ngp; k++){
-      double rp = wf.r[k];
-      double rm = std::max(r,rp);
-      v_tmp += (rho[k]/rm)*wf.drdt[k];
-    }
-    vdir_new[j] = 0.5*f*v_tmp*wf.h; //XXX why 0.5??? NR???
-  }
+for(int n=0; n<25; n++){
 
   double eta=0.3;
+  std::vector<double> vdir_new;
+  formNewVdir(wf,vdir_new);
 
   std::vector<double> vdir_old = wf.vdir;
   for(int j=0; j<wf.ngp; j++){
     wf.vdir[j] = eta*vdir_new[j] + (1.-eta)*vdir_old[j];
   }
 
-  // for(int i=0; i<wf.ngp; i++){
-  //   if(i%10!=0) continue;
-  //   std::cout<<i<<" "<<wf.r[i]<<" "<<vdir_old[i]<<" "<<vdir_new[i]<<"\n";
-  // }
 
-
-  double prev_e = wf.en[5];
+  double prev_e = wf.en[0];
 
   for(size_t i=0; i<wf.nlist.size(); i++){
+
+    // std::vector<double> vdir_new;
+    // formNewVdir(wf,vdir_new,i);
+    //
+    // std::vector<double> vdir_old = wf.vdir;
+    // for(int j=0; j<wf.ngp; j++){
+    //   wf.vdir[j] = eta*vdir_new[j] + (1.-eta)*vdir_old[j];
+    // }
+
+
     double del_e=0;
     for(int j=0; j<wf.ngp; j++)
       del_e += (wf.vdir[j]-vdir_old[j])*
       (pow(wf.p[i][j],2) + pow(wf.q[i][j],2))*wf.drdt[j];
     del_e*=wf.h;
     double new_e = wf.en[i] + 1*del_e;
+    if(new_e>0)new_e=-0.1;
     //std::cout<<wf.en[i]<<" "<<del_e<<" "<<wf.en[i]+del_e<<"\n";
     wf.reSolveLocalDirac(i,new_e,4);
   }
 
-  double next_e = wf.en[5];
+  double next_e = wf.en[0];
 
 
 std::cout<<n+1<<" "<<(next_e-prev_e)/(next_e*eta)<<"\n";
@@ -171,6 +157,17 @@ std::cout<<n+1<<" "<<(next_e-prev_e)/(next_e*eta)<<"\n";
 
 
 
+  std::ofstream ofile;
+  ofile.open("pot.txt");
+  ofile<<"r Gr Vh Z/r 1/r\n";
+  for(int i=0; i<wf.ngp; i++){
+    ofile<<wf.r[i]<<" "
+      <<-PRM_green(Z,wf.r[i],Gh,Gd)-wf.vnuc[i]<<" "
+      <<-wf.vdir[i]-wf.vnuc[i]<<" "
+      <<Z/wf.r[i]<<" "<<1./wf.r[i]<<"\n";
+
+  }
+  ofile.close();
 
 
 
@@ -205,6 +202,70 @@ std::cout<<n+1<<" "<<(next_e-prev_e)/(next_e*eta)<<"\n";
 }
 
 
+// //******************************************************************************
+// double formRho(ElectronOrbitals wf, std::vector<double> rho) //XXX OK? lots memory? Reference?
+// {
+//   rho.clear();
+//   rho.resize(wf.ngp);
+//   for(size_t i=0; i<wf.nlist.size(); i++){
+//     int ka = wf.klist[i];
+//     int la = (abs(2*ka+1)-1)/2;
+//     for(int j=0; j<wf.ngp; j++){
+//       rho[j] += (4*la+2)*(pow(wf.p[i][j],2) + pow(wf.q[i][j],2));
+//     }
+//   }
+// }
+
+//******************************************************************************
+int formNewVdir(ElectronOrbitals wf, std::vector<double> &vdir_new, int a)
+//XXX OK? lots memory? Reference?
+//XXX core list!!! make part of class!
+{
+
+  vdir_new.clear();
+  vdir_new.resize(wf.ngp);
+
+  //XXX use core_list instead!!! XXX
+  int Ncore=0;
+  for(size_t i=0; i<wf.nlist.size(); i++){
+    int ka = wf.klist[i];
+    int twoj = 2*abs(ka)-1;
+    Ncore += twoj+1;
+  }
+
+
+  //a=-1 means assume vdir same for all orbitals!
+  double f=1;
+  if(a==-1) f = 1. - 1./Ncore;
+
+  std::vector<double> rho(wf.ngp);
+  for(size_t i=0; i<wf.nlist.size(); i++){
+    int ia=0;
+    if ((int)i==a) ia=1; //number of states to 'skip'
+    int ka = wf.klist[i];
+    //int la = (abs(2*ka+1)-1)/2;
+    int twoj = 2*abs(ka)-1;
+    for(int j=0; j<wf.ngp; j++){
+      //rho[j] += (4*la+2-ia)*(pow(wf.p[i][j],2) + pow(wf.q[i][j],2));
+      rho[j] += (twoj+1-ia)*(pow(wf.p[i][j],2) + pow(wf.q[i][j],2));
+      //XXX assumes closed shell!? ia!
+    }
+  }
+
+  for(int j=0; j<wf.ngp; j++){
+    double r = wf.r[j];
+    double v_tmp = 0;
+    for(int k=0; k<wf.ngp; k++){
+      double rp = wf.r[k];
+      double rm = std::max(r,rp);//can be little more clever, slight speedup
+      v_tmp += (rho[k]/rm)*wf.drdt[k];
+    }
+    //vdir_new[j] = 0.5*f*v_tmp*wf.h; //XXX why 0.5??? XXX XXX XXX
+    vdir_new[j] = f*v_tmp*wf.h; //XXX why 0.5??? XXX XXX XXX
+  }
+
+  return 0;
+}
 
 //******************************************************************************
 double enGuess(int Z, int n, int l, int tot_el, int num)

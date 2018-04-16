@@ -1,7 +1,7 @@
-Cs 0              | Z, A(=0 for default, -1 for '0 nuc')
+Cs -1             | Z, A(=0 for default, -1 for '0 nuc')
 Xe  .             | Core configuration (end with ' .')
 1.e-3 100. 5000   | r0, rmax, num_points
-7 0               | max n and l (valence)
+0 0               | max n and l (valence)
 1.                |
 -----------------------
 
