@@ -92,11 +92,11 @@ int main(void){
     tot_el+=num;
     int k1 = l; //j = l-1/2
     if(k1!=0) {
-      wf.solveLocalDirac(n,k1,en_a);
+      wf.solveLocalDirac(n,k1,en_a,4);
       en_a = 0.95*wf.en[wf.nlist.size()-1]; //update guess for next same l
     }
     int k2 = -(l+1); //j=l+1/2
-    if(num>2*l) wf.solveLocalDirac(n,k2,en_a);
+    if(num>2*l) wf.solveLocalDirac(n,k2,en_a,4);
   }
 
 
@@ -116,9 +116,9 @@ int main(void){
 for(int n=0; n<25; n++){
 
   double eta=0.3;
+
   std::vector<double> vdir_new;
   formNewVdir(wf,vdir_new);
-
   std::vector<double> vdir_old = wf.vdir;
   for(int j=0; j<wf.ngp; j++){
     wf.vdir[j] = eta*vdir_new[j] + (1.-eta)*vdir_old[j];
@@ -131,7 +131,6 @@ for(int n=0; n<25; n++){
 
     // std::vector<double> vdir_new;
     // formNewVdir(wf,vdir_new,i);
-    //
     // std::vector<double> vdir_old = wf.vdir;
     // for(int j=0; j<wf.ngp; j++){
     //   wf.vdir[j] = eta*vdir_new[j] + (1.-eta)*vdir_old[j];
@@ -146,13 +145,14 @@ for(int n=0; n<25; n++){
     double new_e = wf.en[i] + 1*del_e;
     if(new_e>0)new_e=-0.1;
     //std::cout<<wf.en[i]<<" "<<del_e<<" "<<wf.en[i]+del_e<<"\n";
-    wf.reSolveLocalDirac(i,new_e,4);
+    wf.reSolveLocalDirac(i,new_e,10);
   }
 
   double next_e = wf.en[0];
 
+  std::cout<<n+1<<" "<<(next_e-prev_e)/(next_e*eta)<<"\n";
+  if(fabs((next_e-prev_e)/(next_e*eta))<1.e-5) break;
 
-std::cout<<n+1<<" "<<(next_e-prev_e)/(next_e*eta)<<"\n";
 }
 
 
@@ -234,19 +234,18 @@ int formNewVdir(ElectronOrbitals wf, std::vector<double> &vdir_new, int a)
   }
 
 
-  //a=-1 means assume vdir same for all orbitals!
+  // //a=-1 means assume vdir same for all orbitals!
   double f=1;
   if(a==-1) f = 1. - 1./Ncore;
 
   std::vector<double> rho(wf.ngp);
   for(size_t i=0; i<wf.nlist.size(); i++){
     int ia=0;
-    if ((int)i==a) ia=1; //number of states to 'skip'
+    //if ((int)i==a) ia=0; //number of states to 'skip'
     int ka = wf.klist[i];
     //int la = (abs(2*ka+1)-1)/2;
     int twoj = 2*abs(ka)-1;
     for(int j=0; j<wf.ngp; j++){
-      //rho[j] += (4*la+2-ia)*(pow(wf.p[i][j],2) + pow(wf.q[i][j],2));
       rho[j] += (twoj+1-ia)*(pow(wf.p[i][j],2) + pow(wf.q[i][j],2));
       //XXX assumes closed shell!? ia!
     }
@@ -260,8 +259,7 @@ int formNewVdir(ElectronOrbitals wf, std::vector<double> &vdir_new, int a)
       double rm = std::max(r,rp);//can be little more clever, slight speedup
       v_tmp += (rho[k]/rm)*wf.drdt[k];
     }
-    //vdir_new[j] = 0.5*f*v_tmp*wf.h; //XXX why 0.5??? XXX XXX XXX
-    vdir_new[j] = f*v_tmp*wf.h; //XXX why 0.5??? XXX XXX XXX
+    vdir_new[j] = f*v_tmp*wf.h;
   }
 
   return 0;
