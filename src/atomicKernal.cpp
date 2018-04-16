@@ -120,22 +120,7 @@ int main(void){
   }
 
   // Solve Dirac equation for each (bound) core state:
-  int tot_el=0; // for working out Z_eff
-  for(size_t i=0; i<wf.core_list.size(); i++){
-    int num = wf.core_list[i];
-    if(num==0) continue;
-    int n = ATI_core_n[i];
-    int l = ATI_core_l[i];
-    double en_a = enGuess(Z,n,l,tot_el,num);
-    tot_el+=num;
-    int k1 = l; //j = l-1/2
-    if(k1!=0) {
-      wf.solveLocalDirac(n,k1,en_a);
-      en_a = 0.95*wf.en[wf.nlist.size()-1]; //update guess for next same l
-    }
-    int k2 = -(l+1); //j=l+1/2
-    if(num>2*l) wf.solveLocalDirac(n,k2,en_a);
-  }
+  wf.solveInitialCore();
 
   //make list of energy indices in sorted order:
   std::vector<int> sort_list;
