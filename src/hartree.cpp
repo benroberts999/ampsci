@@ -46,23 +46,25 @@ int main(void){
 
   int Z = ATI_get_z(Z_str);
   if(Z==0) return 2;
-  if(A==0) A=ATI_a[Z]; //if none given, get default A
+  if(A==-1) A=ATI_a[Z]; //if none given, get default A
+
+  int max_hartree=100; //Max number of Hartree iterations
+  double eps_hartree=1.e-5;
 
   //Get default values for Green potential
   //NB: scaled to fit alkali _valence_ states - better if scaled for core!
   double Gh,Gd;  //Green potential parameters
   PRM_defaultGreen(Z,Gh,Gd);
 
-  printf("\nRunning HART for %s, Z=%i A=%i\n",
+  printf("\nRunning HARTEE for %s, Z=%i A=%i\n",
     Z_str.c_str(),Z,A);
   printf("*************************************************\n");
-  printf("Initial: Green potential: H=%.4f  d=%.4f\n",Gh,Gd);
 
   //Generate the orbitals object:
   ElectronOrbitals wf(Z,A,ngp,r0,rmax,varalpha);
   if(A>0) wf.sphericalNucleus();
 
-  printf("Grid: pts=%i h=%7.5f r0=%.1e Rmax=%5.1f\n",wf.ngp,wf.h,wf.r[0],wf.r[wf.ngp-1]);
+  printf("Grid: pts=%i h=%7.5f r0=%.1e Rmax=%5.1f\n\n",wf.ngp,wf.h,wf.r[0],wf.r[wf.ngp-1]);
 
   //Determine which states are in the core:
   std::vector<int> core_list; //should be in the class!
@@ -92,68 +94,56 @@ int main(void){
     tot_el+=num;
     int k1 = l; //j = l-1/2
     if(k1!=0) {
-      wf.solveLocalDirac(n,k1,en_a,4);
+      wf.solveLocalDirac(n,k1,en_a,1); //only need to solve to 10^1 level!
       en_a = 0.95*wf.en[wf.nlist.size()-1]; //update guess for next same l
     }
     int k2 = -(l+1); //j=l+1/2
-    if(num>2*l) wf.solveLocalDirac(n,k2,en_a,4);
+    if(num>2*l) wf.solveLocalDirac(n,k2,en_a,1);
   }
 
 
-  // for(int i=0; i<wf.nlist.size(); i++){
-  //   double norm=0;
-  //   for(int j=0; j<wf.ngp; j++){
-  //     norm += (pow(wf.p[i][j],2) + pow(wf.q[i][j],2))*wf.drdt[j]*wf.h;
-  //   }
-  //   std::cout<<norm<<"\n";
-  // }
-  // return 1;
+  //Hartree loop:
+  for(int n=0; n<max_hartree; n++){
+
+    double eta=0.50;
 
 
+    std::vector<double> vdir_old = wf.vdir;
+    std::vector<double> vdir_new;
+    formNewVdir(wf,vdir_new);
+    for(int j=0; j<wf.ngp; j++){
+      wf.vdir[j] = eta*vdir_new[j] + (1.-eta)*vdir_old[j];
+    }
 
 
+    double prev_e = 0;//wf.en[0];
+    for(size_t i=0; i<wf.nlist.size(); i++) prev_e += wf.en[i]/wf.nlist.size();
 
-for(int n=0; n<25; n++){
+    for(size_t i=0; i<wf.nlist.size(); i++){
 
-  double eta=0.3;
+      double del_e=0;
+      for(int j=0; j<wf.ngp; j++)
+        del_e += (wf.vdir[j]-vdir_old[j])*
+        (pow(wf.p[i][j],2) + pow(wf.q[i][j],2))*wf.drdt[j];
+      del_e*=wf.h;
+      double new_e = wf.en[i] + 1*del_e;
+      if(new_e>0)new_e=-0.1;
+      wf.reSolveLocalDirac(i,new_e,3); //only go to 1/10^3 - do better at end!
+    }
 
-  std::vector<double> vdir_new;
-  formNewVdir(wf,vdir_new);
-  std::vector<double> vdir_old = wf.vdir;
-  for(int j=0; j<wf.ngp; j++){
-    wf.vdir[j] = eta*vdir_new[j] + (1.-eta)*vdir_old[j];
+    double next_e = 0;
+    for(size_t i=0; i<wf.nlist.size(); i++) next_e += wf.en[i]/wf.nlist.size();
+
+    //std::cout<<n+1<<" "<<<<"\n";
+    double delta_hartree = (next_e-prev_e)/(next_e*eta);
+    printf("Hart it:%3i,  del=%6.0e\n",n+1,delta_hartree);
+
+    if(fabs(delta_hartree)<eps_hartree) break;
+
   }
 
-
-  double prev_e = wf.en[0];
-
-  for(size_t i=0; i<wf.nlist.size(); i++){
-
-    // std::vector<double> vdir_new;
-    // formNewVdir(wf,vdir_new,i);
-    // std::vector<double> vdir_old = wf.vdir;
-    // for(int j=0; j<wf.ngp; j++){
-    //   wf.vdir[j] = eta*vdir_new[j] + (1.-eta)*vdir_old[j];
-    // }
-
-
-    double del_e=0;
-    for(int j=0; j<wf.ngp; j++)
-      del_e += (wf.vdir[j]-vdir_old[j])*
-      (pow(wf.p[i][j],2) + pow(wf.q[i][j],2))*wf.drdt[j];
-    del_e*=wf.h;
-    double new_e = wf.en[i] + 1*del_e;
-    if(new_e>0)new_e=-0.1;
-    //std::cout<<wf.en[i]<<" "<<del_e<<" "<<wf.en[i]+del_e<<"\n";
-    wf.reSolveLocalDirac(i,new_e,10);
-  }
-
-  double next_e = wf.en[0];
-
-  std::cout<<n+1<<" "<<(next_e-prev_e)/(next_e*eta)<<"\n";
-  if(fabs((next_e-prev_e)/(next_e*eta))<1.e-5) break;
-
-}
+  for(size_t i=0; i<wf.nlist.size(); i++)
+    wf.reSolveLocalDirac(i,0,14);
 
 
 
