@@ -205,6 +205,44 @@ NOTE: Only works up to n=9, and l=5 [h]
 }
 
 //******************************************************************************
+int ElectronOrbitals::solveInitialCore(int log_dele_or)
+{
+  int tot_el=0; // for working out Z_eff
+  for(size_t i=0; i<core_list.size(); i++){
+    int num = core_list[i];
+    if(num==0) continue;
+    int n = ATI_core_n[i];
+    int l = ATI_core_l[i];
+    double en_a = enGuess(Z,n,l,tot_el,num);
+    tot_el+=num;
+    int k1 = l; //j = l-1/2
+    if(k1!=0) {
+      solveLocalDirac(n,k1,en_a,log_dele_or);
+      en_a = 0.95*en[nlist.size()-1]; //update guess for next same l
+    }
+    int k2 = -(l+1); //j=l+1/2
+    if(num>2*l) solveLocalDirac(n,k2,en_a,log_dele_or);
+  }
+  return 0;
+}
+//******************************************************************************
+double ElectronOrbitals::enGuess(int Z, int n, int l, int tot_el, int num)
+/*
+Private
+*/
+{
+  //effective Z (for energy guess) -- not perfect!
+  double Zeff =  double(Z - tot_el - num);
+  if(l==1) Zeff = 1. + double(Z - tot_el - 0.5*num);
+  if(l==2) Zeff = 1. + double(Z - tot_el - 0.5*num);
+  if(Zeff<1.) Zeff=1.;
+
+  double en_a = -0.5 * pow(Zeff/n,2);
+  if(n>1) en_a *= 0.5;
+  return en_a;
+}
+
+//******************************************************************************
 int ElectronOrbitals::JohnsonRadialGrid(double r0, double rmax)
 /*
 Non-uniform r grid, taken from Johnson book (w/ minor modification).

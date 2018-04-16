@@ -66,6 +66,7 @@ class ElectronOrbitals{
     int getRadialIndex(double r_target);
 
     int determineCore(std::vector<std::string> str_core);
+    int solveInitialCore(int log_dele_or=0);
 
     int sortedEnergyList(std::vector<int> &sort_list);
 
@@ -78,6 +79,7 @@ class ElectronOrbitals{
     int JohnsonRadialGrid(double r0=1.e-6, double rmax=250.);
     int DzubaRadialGrid(double r0=1.e-6, double rmax=250., double b=4.);
     int zeroNucleus();
+    double enGuess(int Z, int n, int l, int tot_el, int num);
 
 
 

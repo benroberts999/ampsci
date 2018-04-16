@@ -6,7 +6,6 @@
 #include <sstream>
 #include "ContinuumOrbitals.h"
 
-double enGuess(int Z, int n, int l, int tot_el, int num);
 int formNewVdir(ElectronOrbitals wf, std::vector<double> &vdir_new, int a=-1);
 
 int main(void){
@@ -84,22 +83,7 @@ int main(void){
 
   //First step: Solve each core state using parameteric potential
   // XXX clean, put in other function
-  int tot_el=0; // for working out Z_eff
-  for(size_t i=0; i<wf.core_list.size(); i++){
-    int num = wf.core_list[i];
-    if(num==0) continue;
-    int n = ATI_core_n[i];
-    int l = ATI_core_l[i];
-    double en_a = enGuess(Z,n,l,tot_el,num);
-    tot_el+=num;
-    int k1 = l; //j = l-1/2
-    if(k1!=0) {
-      wf.solveLocalDirac(n,k1,en_a,1); //only need to solve to 10^1 level!
-      en_a = 0.95*wf.en[wf.nlist.size()-1]; //update guess for next same l
-    }
-    int k2 = -(l+1); //j=l+1/2
-    if(num>2*l) wf.solveLocalDirac(n,k2,en_a,1);
-  }
+  wf.solveInitialCore(1);
 
 
   //Hartree loop:
@@ -253,18 +237,4 @@ int formNewVdir(ElectronOrbitals wf, std::vector<double> &vdir_new, int a)
   }
 
   return 0;
-}
-
-//******************************************************************************
-double enGuess(int Z, int n, int l, int tot_el, int num)
-{
-  //effective Z (for energy guess) -- not perfect!
-  double Zeff =  double(Z - tot_el - num);
-  if(l==1) Zeff = 1. + double(Z - tot_el - 0.5*num);
-  if(l==2) Zeff = 1. + double(Z - tot_el - 0.5*num);
-  if(Zeff<1.) Zeff=1.;
-
-  double en_a = -0.5 * pow(Zeff/n,2);
-  if(n>1) en_a *= 0.5;
-  return en_a;
 }
