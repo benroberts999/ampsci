@@ -98,17 +98,76 @@ int main(void){
     if(num>2*l) wf.solveLocalDirac(n,k2,en_a);
   }
 
-//XXX issue: uses "push_back in" solveLocalDirac
-// --> Soln: use actual function!
-//NO: add new function to electron orbitals! [so dan't have to wf.X for all X]
 
+  // for(int i=0; i<wf.nlist.size(); i++){
+  //   double norm=0;
+  //   for(int j=0; j<wf.ngp; j++){
+  //     norm += (pow(wf.p[i][j],2) + pow(wf.q[i][j],2))*wf.drdt[j]*wf.h;
+  //   }
+  //   std::cout<<norm<<"\n";
+  // }
+  // return 1;
+
+
+
+
+
+for(int n=0; n<15; n++){
+
+  std::vector<double> rho(wf.ngp);
   for(size_t i=0; i<wf.nlist.size(); i++){
-    // solveDBS(p_a,q_a,e_a,v_a,Z,n,k,r,drdt,h,ngp,pinf,its,eps,alpha,log_dele_or);
-    wf.reSolveLocalDirac(i);
+    int ka = wf.klist[i];
+    int la = (abs(2*ka+1)-1)/2;
+    for(int j=0; j<wf.ngp; j++){
+      rho[j] += (4*la+2)*(pow(wf.p[i][j],2) + pow(wf.q[i][j],2));
+      // XXX NON-relativistic formula!!! XXX
+    }
   }
 
+  std::vector<double> vdir_new(wf.ngp);
+  double f = 1. - 1./wf.nlist.size();
+  for(int j=0; j<wf.ngp; j++){
+    double r = wf.r[j];
+    double v_tmp = 0;
+    for(int k=0; k<wf.ngp; k++){
+      double rp = wf.r[k];
+      double rm = std::max(r,rp);
+      v_tmp += (rho[k]/rm)*wf.drdt[k];
+    }
+    vdir_new[j] = 0.5*f*v_tmp*wf.h; //XXX why 0.5??? NR???
+  }
+
+  double eta=0.3;
+
+  std::vector<double> vdir_old = wf.vdir;
+  for(int j=0; j<wf.ngp; j++){
+    wf.vdir[j] = eta*vdir_new[j] + (1.-eta)*vdir_old[j];
+  }
+
+  // for(int i=0; i<wf.ngp; i++){
+  //   if(i%10!=0) continue;
+  //   std::cout<<i<<" "<<wf.r[i]<<" "<<vdir_old[i]<<" "<<vdir_new[i]<<"\n";
+  // }
 
 
+  double prev_e = wf.en[5];
+
+  for(size_t i=0; i<wf.nlist.size(); i++){
+    double del_e=0;
+    for(int j=0; j<wf.ngp; j++)
+      del_e += (wf.vdir[j]-vdir_old[j])*
+      (pow(wf.p[i][j],2) + pow(wf.q[i][j],2))*wf.drdt[j];
+    del_e*=wf.h;
+    double new_e = wf.en[i] + 1*del_e;
+    //std::cout<<wf.en[i]<<" "<<del_e<<" "<<wf.en[i]+del_e<<"\n";
+    wf.reSolveLocalDirac(i,new_e,4);
+  }
+
+  double next_e = wf.en[5];
+
+
+std::cout<<n+1<<" "<<(next_e-prev_e)/(next_e*eta)<<"\n";
+}
 
 
 
