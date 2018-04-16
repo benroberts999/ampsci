@@ -6,7 +6,7 @@
 #include <sstream>
 #include "ContinuumOrbitals.h"
 
-int formNewVdir(ElectronOrbitals wf, std::vector<double> &vdir_new, int a=-1);
+int formNewVdir(ElectronOrbitals wf, std::vector<double> &vdir_new, bool core=true);
 
 int main(void){
 
@@ -48,12 +48,9 @@ int main(void){
   if(A==-1) A=ATI_a[Z]; //if none given, get default A
 
   int max_hartree=100; //Max number of Hartree iterations
-  double eps_hartree=1.e-5;
+  double eps_hartree=1.e-6;
 
-  //Get default values for Green potential
-  //NB: scaled to fit alkali _valence_ states - better if scaled for core!
-  double Gh,Gd;  //Green potential parameters
-  PRM_defaultGreen(Z,Gh,Gd);
+
 
   printf("\nRunning HARTEE for %s, Z=%i A=%i\n",
     Z_str.c_str(),Z,A);
@@ -63,10 +60,10 @@ int main(void){
   ElectronOrbitals wf(Z,A,ngp,r0,rmax,varalpha);
   if(A>0) wf.sphericalNucleus();
 
-  printf("Grid: pts=%i h=%7.5f r0=%.1e Rmax=%5.1f\n\n",wf.ngp,wf.h,wf.r[0],wf.r[wf.ngp-1]);
+  printf("Grid: pts=%i h=%7.5f r0=%.1e Rmax=%5.1f\n\n"
+  ,  wf.ngp,wf.h,wf.r[0],wf.r[wf.ngp-1]);
 
   //Determine which states are in the core:
-  //std::vector<int> core_list; //should be in the class!
   int core_ok = wf.determineCore(str_core);
   if(core_ok==2){
     std::cout<<"Problem with core: ";
@@ -76,13 +73,11 @@ int main(void){
   }
 
   //Fill the electron part of the potential, using Greens PRM for initial approx
-  wf.vdir.resize(wf.ngp);
-  for(int i=0; i<wf.ngp; i++){
-    wf.vdir[i] = PRM_green(Z,wf.r[i],Gh,Gd);
-  }
+  double Gh,Gd;  //Green potential parameters
+  PRM_defaultGreen(Z,Gh,Gd); //Get default values for Green potential
+  for(int i=0; i<wf.ngp; i++) wf.vdir.push_back(PRM_green(Z,wf.r[i],Gh,Gd));
 
   //First step: Solve each core state using parameteric potential
-  // XXX clean, put in other function
   wf.solveInitialCore(1);
 
 
@@ -90,7 +85,6 @@ int main(void){
   for(int n=0; n<max_hartree; n++){
 
     double eta=0.50;
-
 
     std::vector<double> vdir_old = wf.vdir;
     std::vector<double> vdir_new;
@@ -100,11 +94,10 @@ int main(void){
     }
 
 
-    double prev_e = 0;//wf.en[0];
+    double prev_e = 0;
     for(size_t i=0; i<wf.nlist.size(); i++) prev_e += wf.en[i]/wf.nlist.size();
 
     for(size_t i=0; i<wf.nlist.size(); i++){
-
       double del_e=0;
       for(int j=0; j<wf.ngp; j++)
         del_e += (wf.vdir[j]-vdir_old[j])*
@@ -118,16 +111,20 @@ int main(void){
     double next_e = 0;
     for(size_t i=0; i<wf.nlist.size(); i++) next_e += wf.en[i]/wf.nlist.size();
 
-    //std::cout<<n+1<<" "<<<<"\n";
     double delta_hartree = (next_e-prev_e)/(next_e*eta);
     printf("Hart it:%3i,  del=%6.0e\n",n+1,delta_hartree);
 
     if(fabs(delta_hartree)<eps_hartree) break;
-
   }
 
-  for(size_t i=0; i<wf.nlist.size(); i++)
-    wf.reSolveLocalDirac(i,0,14);
+  //re-run solve Dirac to higher convergance level after Hart pot. ok
+  for(size_t i=0; i<wf.nlist.size(); i++) wf.reSolveLocalDirac(i,0,14);
+
+  formNewVdir(wf,wf.vdir,false);
+
+  wf.solveLocalDirac(6,-1,-0.13);
+  wf.solveLocalDirac(7,-1,-0.06);
+  wf.solveLocalDirac(8,-1,-0.03);
 
 
 
@@ -191,7 +188,7 @@ int main(void){
 // }
 
 //******************************************************************************
-int formNewVdir(ElectronOrbitals wf, std::vector<double> &vdir_new, int a)
+int formNewVdir(ElectronOrbitals wf, std::vector<double> &vdir_new, bool core)
 //XXX OK? lots memory? Reference?
 //XXX core list!!! make part of class!
 {
@@ -199,7 +196,7 @@ int formNewVdir(ElectronOrbitals wf, std::vector<double> &vdir_new, int a)
   vdir_new.clear();
   vdir_new.resize(wf.ngp);
 
-  //XXX use core_list instead!!! XXX
+  //XXX use core_list instead!!! XXX ??
   int Ncore=0;
   for(size_t i=0; i<wf.nlist.size(); i++){
     int ka = wf.klist[i];
@@ -210,17 +207,14 @@ int formNewVdir(ElectronOrbitals wf, std::vector<double> &vdir_new, int a)
 
   // //a=-1 means assume vdir same for all orbitals!
   double f=1;
-  if(a==-1) f = 1. - 1./Ncore;
+  if(core) f = 1. - (1.)/Ncore;
 
   std::vector<double> rho(wf.ngp);
   for(size_t i=0; i<wf.nlist.size(); i++){
-    int ia=0;
-    //if ((int)i==a) ia=0; //number of states to 'skip'
     int ka = wf.klist[i];
-    //int la = (abs(2*ka+1)-1)/2;
     int twoj = 2*abs(ka)-1;
     for(int j=0; j<wf.ngp; j++){
-      rho[j] += (twoj+1-ia)*(pow(wf.p[i][j],2) + pow(wf.q[i][j],2));
+      rho[j] += (twoj+1)*(pow(wf.p[i][j],2) + pow(wf.q[i][j],2));
       //XXX assumes closed shell!? ia!
     }
   }
