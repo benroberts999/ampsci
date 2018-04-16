@@ -103,7 +103,8 @@ int main(void){
 //NO: add new function to electron orbitals! [so dan't have to wf.X for all X]
 
   for(size_t i=0; i<wf.nlist.size(); i++){
-    solveDBS(p_a,q_a,e_a,v_a,Z,n,k,r,drdt,h,ngp,pinf,its,eps,alpha,log_dele_or);
+    // solveDBS(p_a,q_a,e_a,v_a,Z,n,k,r,drdt,h,ngp,pinf,its,eps,alpha,log_dele_or);
+    wf.reSolveLocalDirac(i);
   }
 
 
