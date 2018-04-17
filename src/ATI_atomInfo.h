@@ -53,6 +53,15 @@ inline std::string ATI_l(int l){
   else return std::to_string(l);
 }
 
+//Short function that returns orbital l (int), given kappa
+inline int ATI_l_k(int ka){
+  return (abs(2*ka+1)-1)/2;
+}
+//Short function that returns 2*j (int), given kappa
+inline int ATI_twoj_k(int ka){
+  return 2*abs(ka)-1;
+}
+
 //Given an atomic symbol (H, He, etc.), will return Z
 //Note: Symbol must be exact, including capitalisation
 inline int ATI_get_z(std::string at){
