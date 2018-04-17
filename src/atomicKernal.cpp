@@ -158,20 +158,13 @@ int main(void){
   //Continuum wavefunction object
   ContinuumOrbitals cntm(wf);
 
-  //XXX
-  /*
-  ALSO:
-    * Need angular factor
-    * Different (l', L) states
-    * -- check <||> is non-zero before calc!
-  */
+  //Arrays to store results for outputting later:
   std::vector< std::vector< std::vector<float> > > AK; //float ok?
   std::vector<float> qlst(qsteps);
   std::vector<float> dElst;
   std::vector<std::string> nklst;
 
-
-
+  //Calculate the AK
   std::cout<<"\nCalculating atomic kernal AK(q,dE):\n";
   printf(" dE: %5.2f -- %5.1f keV  (%.2f -- %.1f au)\n"
   ,   demin/keV,demax/keV,demin,demax);
@@ -187,6 +180,7 @@ int main(void){
     else y=0;
     double dE = demin*pow(demax/demin,y);
 
+    //Loop over core (bound) states:
     std::vector< std::vector<float> > AK_nk;
     for(size_t is=0; is<wf.nlist.size(); is++){
       int k = wf.klist[is];
@@ -201,10 +195,13 @@ int main(void){
         nklst.push_back(nk);
       }
 
+      //Calculate continuum wavefunctions
+      /// XXX for Hartree - check r*V = 1 ???
       double ec = dE+wf.en[is];
       if(ec>0)cntm.solveLocalContinuum(ec,max_lc);
-      // XXX Link lcmax to Lmax!
 
+      // Generate AK for each L, lc, and q
+      //NB: L and lc summed, not stored indevidually
       std::vector<float> AK_nk_q(qsteps);
       for(int L=0; L<=max_L; L++){
         for(size_t ic=0; ic<cntm.klist.size(); ic++){
@@ -237,7 +234,7 @@ int main(void){
         } // END loop over cntm states (ic)
       } // end L loop
       AK_nk.push_back(AK_nk_q);
-    }
+    }// END loop over bound states
     dElst.push_back(dE);
     AK.push_back(AK_nk);
     cntm.clear(); //deletes cntm wfs for this energy
