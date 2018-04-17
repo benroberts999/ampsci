@@ -18,7 +18,7 @@ Solves the Hartree equations (no exchange term yet)
   for(int i=0; i<wf.ngp; i++) wf.vdir.push_back(PRM_green(wf.Z,wf.r[i],Gh,Gd));
 
   //First step: Solve each core state using parameteric potential
-  wf.solveInitialCore(1);
+  wf.solveInitialCore(1); //1, since don't need high accuray here [1 in 10^1]
 
   //Hartree loop:
   int num_its=0;
@@ -34,7 +34,7 @@ Solves the Hartree equations (no exchange term yet)
 
     //Solve dirac equation for each (Core) orbital in new potential
     double prev_e = 0;
-    for(int i=0; i<wf.num_core; i++) prev_e += wf.en[i]/wf.nlist.size();
+    for(int i=0; i<wf.num_core; i++) prev_e += wf.en[i]/wf.num_core;
     for(int i=0; i<wf.num_core; i++){
       double del_e=0;
       for(int j=0; j<wf.ngp; j++)
@@ -46,7 +46,7 @@ Solves the Hartree equations (no exchange term yet)
       wf.reSolveLocalDirac(i,new_e,3); //only go to 1/10^3 - do better at end!
     }
     double next_e = 0;
-    for(int i=0; i<wf.num_core; i++) next_e += wf.en[i]/wf.nlist.size();
+    for(int i=0; i<wf.num_core; i++) next_e += wf.en[i]/wf.num_core;
 
     //check for convergence:
     //NB: eta in denom, otherwise v. small eta will spuriously give small delta
@@ -57,7 +57,7 @@ Solves the Hartree equations (no exchange term yet)
   }
 
   //re-run solve Dirac to higher convergance level after Hart pot. ok
-  for(size_t i=0; i<wf.nlist.size(); i++) wf.reSolveLocalDirac(i,0,14);
+  for(int i=0; i<wf.num_core; i++) wf.reSolveLocalDirac(i,0,14);
   //Form the total core potential using new wfs
   //This time, solved for case of valence states (different factor)
   formNewVdir(wf,wf.vdir,false);
@@ -98,7 +98,7 @@ core=true by default
 
   //Count number of electron in the core (assumes all closed shells! XXX)
   int Ncore=0;
-  for(size_t i=0; i<wf.num_core; i++){
+  for(int i=0; i<wf.num_core; i++){
     int ka = wf.klist[i];
     int twoj = 2*abs(ka)-1;
     Ncore += twoj+1;
@@ -112,7 +112,7 @@ core=true by default
   // 2j+1 is occupation number of that orbital.
   // NB: assumes closed shell!?
   std::vector<double> rho(wf.ngp);
-  for(size_t i=0; i<wf.num_core; i++){
+  for(int i=0; i<wf.num_core; i++){
     int ka = wf.klist[i];
     int twoj = 2*abs(ka)-1;
     for(int j=0; j<wf.ngp; j++){

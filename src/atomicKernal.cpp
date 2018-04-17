@@ -8,9 +8,6 @@
 #include "ContinuumOrbitals.h"
 #include "HF_hartree.h"
 
-double enGuess(int Z, int n, int l, int tot_el, int num);
-
-
 //******************************************************************************
 int main(void){
 
@@ -23,12 +20,13 @@ int main(void){
   double r0,rmax;
   int ngp;
   double varalpha;// for non-relativistic approx
+  double hart_del;//HART convergance
 
   std::vector<std::string> str_core; //States for the core
 
-  //double Tf,Tt,Tg;  //Teitz potential parameters
+  //Green potential parameters
   int Gf;
-  double Gh,Gd;  //Green potential parameters
+  double Gh,Gd;
 
   //q and dE grids:
   double qmin,qmax,demin,demax;
@@ -52,13 +50,16 @@ int main(void){
     getline(ifs,jnk);
     ifs >> r0 >> rmax >> ngp;     getline(ifs,jnk);
     ifs >> Gf >> Gh >> Gd;        getline(ifs,jnk);
-    //ifs >> Tf >> Tt >> Tg;        getline(ifs,jnk);
+    ifs >> hart_del;              getline(ifs,jnk);
     ifs >> varalpha;              getline(ifs,jnk);
     ifs >>demin>>demax>>desteps;  getline(ifs,jnk);
     ifs >>qmin>> qmax >> qsteps;  getline(ifs,jnk);
     ifs >> label;                 getline(ifs,jnk);
     ifs.close();
   }
+
+  //default Hartree convergance goal:
+  if(hart_del==0) hart_del=1.e-6;
 
   //allow for single-step in dE or q grid
   if(desteps==1) demax=demin;
@@ -79,18 +80,26 @@ int main(void){
   if(Z==0) return 2;
   if(A==-1) A=ATI_a[Z]; //if none given, get default A
 
-  // //If H,d etc are zero, use default values
-  // if(Gf!=0 && Gh==0) PRM_defaultGreen(Z,Gh,Gd);
-  // if(Tf!=0 && Tt==0) PRM_defaultTietz(Z,Tt,Tg);
+
 
   printf("\nRunning Atomic Kernal for %s, Z=%i A=%i\n",
     Z_str.c_str(),Z,A);
   printf("*************************************************\n");
-  if(Gf!=0) printf("Green potential: H=%.4f  d=%.4f\n",Gh,Gd);
+  if(Gf!=0) printf("Using Green potential: H=%.4f  d=%.4f\n",Gh,Gd);
+  else printf("Using Hartree potential (converge to %.0e)\n",hart_del);
 
   //Generate the orbitals object:
   ElectronOrbitals wf(Z,A,ngp,r0,rmax,varalpha);
-  printf("Grid: pts=%i h=%7.5f Rmax=%5.1f\n",wf.ngp,wf.h,wf.r[wf.ngp-1]);
+  printf("Grid: pts=%i h=%6.4f r0=%.0e Rmax=%5.1f\n"
+  , wf.ngp,wf.h,wf.r[0],wf.r[wf.ngp-1]);
+
+  // Check if 'h' is small enough for oscillating region:
+  double h_target = (M_PI/15)/sqrt(2.*demax);
+  if(h>2*h_target){
+    std::cout<<"\nWARNING 101: Grid not dense enough for ec="<<ec
+      <<" (h="<<h<<", need h<"<<h_target<<")\n";
+    std::cout<<"Program will continue, but continuum wfs may be bad.\n\n";
+  }
 
   //If non-zero A is given, use spherical nucleus.
   if(A>0) wf.sphericalNucleus();
@@ -105,7 +114,7 @@ int main(void){
   }
 
   if(Gf==0){
-    HF_hartreeCore(wf,1.e-4);
+    HF_hartreeCore(wf,hart_del);
   }else{
     //Fill the electron part of the (local/direct) potential
     for(int i=0; i<wf.ngp; i++){
@@ -114,7 +123,7 @@ int main(void){
     // Solve Dirac equation for each (bound) core state:
     wf.solveInitialCore();
   }
-  
+
 
   //make list of energy indices in sorted order:
   std::vector<int> sort_list;
@@ -246,21 +255,4 @@ int main(void){
   else printf ("\nt=%.1f hours.\n",total_time/3600.);
 
   return 0;
-}
-
-
-
-
-//******************************************************************************
-double enGuess(int Z, int n, int l, int tot_el, int num)
-{
-  //effective Z (for energy guess) -- not perfect!
-  double Zeff =  double(Z - tot_el - num);
-  if(l==1) Zeff = 1. + double(Z - tot_el - 0.5*num);
-  if(l==2) Zeff = 1. + double(Z - tot_el - 0.5*num);
-  if(Zeff<1.) Zeff=1.;
-
-  double en_a = -0.5 * pow(Zeff/n,2);
-  if(n>1) en_a *= 0.5;
-  return en_a;
 }
