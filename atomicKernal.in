@@ -2,7 +2,6 @@ Xe -1              | Z, A(=-1 for default A, 0='0 nucleus')
 Xe  .              | Core configuration (end with ' .')
 1.e-3 45.  5000    | r0, rmax, num_points
 0 5. 1.0           | green H d *
-0 2.40 0.05        | Tietz t g
 1                  | varalpha [~0 for non-rel]
 .10   01.0   5     | dE(min, max, #steps) - in keV
 0.1   2000.  100   | q (min, max, #steps) - in au
