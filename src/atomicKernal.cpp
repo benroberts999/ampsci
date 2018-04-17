@@ -132,8 +132,8 @@ int main(void){
     int i = sort_list[m];
     int n=wf.nlist[i];
     int k=wf.klist[i];
-    int twoj = 2*abs(k)-1;
-    int l = (abs(2*k+1)-1)/2;
+    int twoj = ATI_twoj_k(k);
+    int l = ATI_l_k(k);
     double rinf = wf.r[wf.pinflist[i]];
     double eni = wf.en[i];
     printf("%2i %s_%i/2 %2i  %3.0f %3i  %5.0e  %11.5f %12.0f %10.2f\n",
@@ -177,9 +177,9 @@ int main(void){
     std::vector< std::vector<float> > AK_nk;
     for(size_t is=0; is<wf.nlist.size(); is++){
       int k=wf.klist[is];
-      int l = (abs(2*k+1)-1)/2;
+      int l = ATI_l_k(k);
       if(l>max_l) continue;
-      int twoj = 2*abs(k)-1;
+      int twoj = ATI_twoj_k(k);
       int n=wf.nlist[is];
 
       if(ide==0){
@@ -209,7 +209,8 @@ int main(void){
           }
         }
         if(ide==0) qlst[iq]=q;
-        AK_nk_q[iq]=pow(a*wf.h,2);
+        double C_Lkk = 2.; //XXX only for all j=1/2 states!
+        AK_nk_q[iq] = C_Lkk*pow(a*wf.h,2);
       }
       AK_nk.push_back(AK_nk_q);
     }
