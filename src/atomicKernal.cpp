@@ -162,6 +162,8 @@ int main(void){
 
   int ic=0; //cntm state!
   int max_l=0; //maximum bound-state l
+  int max_lc=0;
+  int max_L =0; //XXX link max L to max lc !!
 
   std::cout<<"\nCalculating atomic kernal AK(q,dE):\n";
   printf(" dE: %5.2f -- %5.1f keV  (%.2f -- %.1f au)\n"
@@ -180,7 +182,7 @@ int main(void){
 
     std::vector< std::vector<float> > AK_nk;
     for(size_t is=0; is<wf.nlist.size(); is++){
-      int k=wf.klist[is];
+      int k = wf.klist[is];
       int l = ATI_l_k(k);
       if(l>max_l) continue;
       int twoj = ATI_twoj_k(k);
@@ -193,29 +195,43 @@ int main(void){
       }
 
       double ec = dE+wf.en[is];
-      if(ec>0)cntm.solveLocalContinuum(ec,0);
+      if(ec>0)cntm.solveLocalContinuum(ec,max_lc);
+      // XXX Link lcmax to Lmax!
 
       std::vector<float> AK_nk_q(qsteps);
-      #pragma omp parallel for
-      for(int iq=0; iq<qsteps; iq++){
-        double x=iq/(qsteps-1.);
-        double q = qmin*pow(qmax/qmin,x);
 
-        double a=0;
-        double jLqr;
-        if(cntm.p.size()>0){
-          int maxj = wf.pinflist[is]; //don't bother going further
-          // int maxj = wf.ngp;
-          for(int j=0; j<maxj; j++){
-            jLqr = sin(q*wf.r[j]) / (q*wf.r[j]);
-            a += (wf.p[is][j]*cntm.p[ic][j] + wf.q[is][j]*cntm.q[ic][j])
-                 *jLqr*wf.drdt[j];// *h below!
+      for(int L=0; L<=max_L; L++){
+        for(size_t ic=0; ic<cntm.klist.size(); ic++){
+
+          int kc = cntm.klist[ic];
+          int lc = ATI_l_k(kc);
+          if(lc > max_lc) break; //XXX Need lc loop!!
+          double dC_Lkk = CLkk(L,k,kc);
+          if(dC_Lkk==0) continue;
+
+          #pragma omp parallel for
+          for(int iq=0; iq<qsteps; iq++){
+            double x=iq/(qsteps-1.);
+            double q = qmin*pow(qmax/qmin,x);
+
+            double a=0;
+            double jLqr;
+            if(cntm.p.size()>0){
+              int maxj = wf.pinflist[is]; //don't bother going further
+              // int maxj = wf.ngp;
+              for(int j=0; j<maxj; j++){
+                jLqr = sin(q*wf.r[j]) / (q*wf.r[j]);
+                a += (wf.p[is][j]*cntm.p[ic][j] + wf.q[is][j]*cntm.q[ic][j])
+                     *jLqr*wf.drdt[j];// *h below!
+              }
+            }
+            if(ide==0) qlst[iq]=q;
+            AK_nk_q[iq] += dC_Lkk*pow(a*wf.h,2);
           }
-        }
-        if(ide==0) qlst[iq]=q;
-        double C_Lkk = 2.; //XXX only for all j=1/2 states!
-        AK_nk_q[iq] = C_Lkk*pow(a*wf.h,2);
-      }
+
+        } // END loop over cntm states (ic)
+      } // end L loop
+
       AK_nk.push_back(AK_nk_q);
     }
     dElst.push_back(dE);
