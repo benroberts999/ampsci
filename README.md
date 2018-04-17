@@ -31,12 +31,16 @@ Note: makes use of GSL libraries: https://www.gnu.org/software/gsl/
  * compile: _make h-like.x_
  * Input parameters/options in file: h-like.in
 
-## fitParametric.x
+## hartree.x
 
- * Finds the best-fit parameters for two-parameter parametric potentials
- (Green, or Tietz potentials, See Johnson book]
- * Takes input/target states from fitParametric.in
- * compile: _make fitParametric.x_
+ * Solves Hartree potential (no exchange) for core + valence states
+ * Takes core configuration: Noble gas + extra. end with ' . ' (needs space)
+ E.g.:
+   * Cs: 'Xe . '
+   * Au: 'Xe 4f14 5d10 .'
+ * Includes finite nuclear size (assumes spherical nucleus)
+ * As of yet, does not write wavefunctions to disk
+
 
 ## parametricPotential.x
 
@@ -44,3 +48,10 @@ Note: makes use of GSL libraries: https://www.gnu.org/software/gsl/
  * You can give it parameters (H,g,t,d), or it will use defaults
  * Optionally: give it the core configuration Eg. for Ag, core is:
    Kr 4d10 .
+
+## fitParametric.x
+
+ * Finds the best-fit parameters for two-parameter parametric potentials
+   (Green, or Tietz potentials, See Johnson book]
+ * Takes input/target states from fitParametric.in
+ * compile: _make fitParametric.x_

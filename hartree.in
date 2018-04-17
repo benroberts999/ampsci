@@ -3,5 +3,5 @@ Xe .               | Core configuration (end with ' .')
 1.e-6 200. 3000    | r0, rmax, num_points
 0                  | Hartree convergence. [0 for max its]
 7 2                | max n and l (valence)
-1.                 |
+1.                 | var_alpha. (<<1 for non-rel. =1 for normal.)
 --------------------
