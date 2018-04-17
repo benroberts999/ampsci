@@ -93,9 +93,9 @@ int main(void){
 
   // Check if 'h' is small enough for oscillating region:
   double h_target = (M_PI/15)/sqrt(2.*demax);
-  if(h>2*h_target){
-    std::cout<<"\nWARNING 101: Grid not dense enough for ec="<<ec
-      <<" (h="<<h<<", need h<"<<h_target<<")\n";
+  if(wf.h>2*h_target){
+    std::cout<<"\nWARNING 101: Grid not dense enough for contimuum state with "
+      <<"ec="<<demax<<" (h="<<wf.h<<", need h<"<<h_target<<")\n";
     std::cout<<"Program will continue, but continuum wfs may be bad.\n\n";
   }
 
