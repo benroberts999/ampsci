@@ -27,7 +27,7 @@ ElectronOrbitals::ElectronOrbitals(std::string s_in_z, int in_a, int in_ngp,
 {
  //Work out Z from given atomic symbol
  int iz = ATI_get_z(s_in_z);
- ElectronOrbitals(iz,in_a,in_ngp,var_alpha);
+ ElectronOrbitals(iz,in_a,in_ngp,rmin,rmax,var_alpha);
 }
 
 

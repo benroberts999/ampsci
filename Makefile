@@ -1,7 +1,7 @@
 IDIR =./src
 
 CXX=g++
-CXXFLAGS=-I$(IDIR) -std=c++11 -Wall -fopenmp -O
+CXXFLAGS=-I$(IDIR) -std=c++11 -Wall -fopenmp -O #-Wextra -Wpedantic 
 LIBS=-lgsl -lgslcblas -lm
 
 all: h-like.x fitParametric.x parametricPotential.x atomicKernal.x hartree.x
@@ -55,19 +55,19 @@ COMP = $(CXX) -o $@ $^ $(CXXFLAGS) $(LIBS)
 h-like.x: $(OBJ) $(IDIR)/h-like.o
 	$(COMP)
 
-fitParametric.x: $(OBJ) $(IDIR)/fitParametric.o
+fitParametric.x: $(OBJ) $(IDIR)/fitParametric.o \
 $(IDIR)/PRM_parametricPotentials.o
 	$(COMP)
 
-parametricPotential.x: $(OBJ) $(IDIR)/parametricPotential.o
+parametricPotential.x: $(OBJ) $(IDIR)/parametricPotential.o \
 $(IDIR)/PRM_parametricPotentials.o
 	$(COMP)
 
-atomicKernal.x: $(OBJ) $(IDIR)/atomicKernal.o $(IDIR)/PRM_parametricPotentials.o
-$(CNTM) $(IDIR)/HF_hartree.o
+atomicKernal.x: $(OBJ) $(IDIR)/atomicKernal.o \
+$(IDIR)/PRM_parametricPotentials.o $(CNTM) $(IDIR)/HF_hartree.o
 	$(COMP)
 
-hartree.x: $(OBJ) $(IDIR)/hartree.o $(IDIR)/PRM_parametricPotentials.o
+hartree.x: $(OBJ) $(IDIR)/hartree.o $(IDIR)/PRM_parametricPotentials.o \
 $(IDIR)/HF_hartree.o
 	$(COMP)
 
