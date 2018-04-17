@@ -29,7 +29,6 @@ int HF_hartreeCore(ElectronOrbitals &wf, double eps_hartree)
 
     double prev_e = 0;
     for(size_t i=0; i<wf.nlist.size(); i++) prev_e += wf.en[i]/wf.nlist.size();
-
     for(size_t i=0; i<wf.nlist.size(); i++){
       double del_e=0;
       for(int j=0; j<wf.ngp; j++)
@@ -38,6 +37,7 @@ int HF_hartreeCore(ElectronOrbitals &wf, double eps_hartree)
       del_e*=wf.h;
       double new_e = wf.en[i] + 1*del_e;
       if(new_e>0)new_e=-0.1;
+
       wf.reSolveLocalDirac(i,new_e,3); //only go to 1/10^3 - do better at end!
     }
 
@@ -75,36 +75,49 @@ int HF_hartreeCore(ElectronOrbitals &wf, double eps_hartree)
 
 //******************************************************************************
 int formNewVdir(ElectronOrbitals wf, std::vector<double> &vdir_new, bool core)
-//XXX OK? lots memory? Reference?
-//XXX core list!!! make part of class!
+/*
+This takes in the wavefunctions, and forms the direct (local) part of the
+electron potential. Does not include exchange.
+NOTE: For now, assumes closed shell. And assumes core potential is the same
+for each orbital, which is a good approximation.
+When core=true, will solve for all core states with (1-1/N) (V^N-1 for core)
+When core=false, will solve for core. Good for valence states [N is different!]
+core=true by default
+*/
 {
 
+  //Make sure vector is correct size, and clear old potential away
   vdir_new.clear();
   vdir_new.resize(wf.ngp);
 
-  //XXX use core_list instead!!! XXX ??
+  //Count number of electron in the core (assumes all closed shells! XXX)
   int Ncore=0;
-  for(size_t i=0; i<wf.nlist.size(); i++){
+  for(size_t i=0; i<wf.num_core; i++){
     int ka = wf.klist[i];
     int twoj = 2*abs(ka)-1;
     Ncore += twoj+1;
   }
 
-
-  // //a=-1 means assume vdir same for all orbitals!
+  //Factor: When solveing for core N=Ncore. For valence, N=Ncore+_
   double f=1;
   if(core) f = 1. - (1.)/Ncore;
 
+  //Determine the total electron (charge) density of core:
+  // 2j+1 is occupation number of that orbital.
+  // NB: assumes closed shell!?
   std::vector<double> rho(wf.ngp);
-  for(size_t i=0; i<wf.nlist.size(); i++){
+  for(size_t i=0; i<wf.num_core; i++){
     int ka = wf.klist[i];
     int twoj = 2*abs(ka)-1;
     for(int j=0; j<wf.ngp; j++){
       rho[j] += (twoj+1)*(pow(wf.p[i][j],2) + pow(wf.q[i][j],2));
-      //XXX assumes closed shell!? ia!
     }
   }
 
+  //This is the slow part:
+  //Ise the above determined electron (charge) density with Gauss' law
+  //to determine the electric potential (energy). Makes use of spherical symm.
+  #pragma omp parallel for
   for(int j=0; j<wf.ngp; j++){
     double r = wf.r[j];
     double v_tmp = 0;
