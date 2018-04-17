@@ -37,7 +37,7 @@ int main(void){
   int qsteps,desteps;
 
   // Max anglular momentums
-  int max_l,max_l,max_L;
+  int max_l,max_lc,max_L;
 
   std::string label; //label for output file
 
