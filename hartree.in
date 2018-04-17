@@ -1,10 +1,7 @@
 Cs -1              | Z, A(=-1 for default, 0 for '0 nuc')
-Xe .              | Core configuration (end with ' .')
-1.e-6 300. 5000   | r0, rmax, num_points
-7 3               | max n and l (valence)
-1.                |
------------------------
-
-Fraction of each potential to use (normalised inside program)
-Put 0 for H or t to use the default values for parameters.
-Otherwise, use 'fitParametric' program to calculate H,d (t,g)
+Xe .               | Core configuration (end with ' .')
+1.e-6 200. 3000    | r0, rmax, num_points
+0                  | Hartree convergence. [0 for max its]
+7 2                | max n and l (valence)
+1.                 |
+--------------------

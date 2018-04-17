@@ -18,6 +18,7 @@ int main(void){
   double r0,rmax;
   int ngp;
   double varalpha;
+  double eps_hart;
 
   int n_max,l_max;
   std::vector<std::string> str_core;
@@ -37,6 +38,7 @@ int main(void){
     }
     getline(ifs,jnk);
     ifs >> r0 >> rmax >> ngp;     getline(ifs,jnk);
+    ifs >> eps_hart;              getline(ifs,jnk);
     ifs >> n_max >> l_max;        getline(ifs,jnk);
     ifs >> varalpha;              getline(ifs,jnk);
     ifs.close();
@@ -45,11 +47,6 @@ int main(void){
   int Z = ATI_get_z(Z_str);
   if(Z==0) return 2;
   if(A==-1) A=ATI_a[Z]; //if none given, get default A
-
-
-  double eps_hartree=1.e-6;
-
-
 
   printf("\nRunning HARTEE for %s, Z=%i A=%i\n",
     Z_str.c_str(),Z,A);
@@ -72,7 +69,7 @@ int main(void){
   }
 
   //Solve Hartree equations for the core:
-  HF_hartreeCore(wf,eps_hartree);
+  HF_hartreeCore(wf,eps_hart);
 
   int maxn=0;
   for(int i=0; i<wf.num_core; i++) if(wf.nlist[i]>maxn) maxn=wf.nlist[i];
@@ -109,23 +106,27 @@ int main(void){
   //Output results:
   printf("\nHARTEE results for %s, Z=%i A=%i\n",Z_str.c_str(),Z,A);
   printf(" n l_j    k Rinf its    eps      En (au)        En (/cm)\n");
+  bool val=false; double en_lim=0;
   for(size_t m=0; m<sort_list.size(); m++){
     int i = sort_list[m];
     if((int)m==wf.num_core){
+      en_lim = fabs(wf.en[i]);
+      val = true;
       std::cout<<" ========= Valence: ======\n";
-      printf(" n l_j    k Rinf its    eps      En (au)        En (/cm)\n");
+      printf(" n l_j    k Rinf its    eps      En (au)        En (/cm)   En (/cm)\n");
     }
     int n=wf.nlist[i];
     int k=wf.klist[i];
-    int twoj = 2*abs(k)-1;
-    int l = (abs(2*k+1)-1)/2;
+    int twoj = ATI_twoj_k(k);
+    int l = ATI_l_k(k);
     double rinf = wf.r[wf.pinflist[i]];
     double eni = wf.en[i];
-    printf("%2i %s_%i/2 %2i  %3.0f %3i  %5.0e  %11.5f %15.3f\n",
+    printf("%2i %s_%i/2 %2i  %3.0f %3i  %5.0e  %11.5f %15.3f",
         n,ATI_l(l).c_str(),twoj,k,rinf,wf.itslist[i],wf.epslist[i],
         eni, eni*HARTREE_ICM);
+    if(val)printf(" %10.2f\n",(eni+en_lim)*HARTREE_ICM);
+    else std::cout<<"\n";
   }
-
 
 
   gettimeofday(&end, NULL);

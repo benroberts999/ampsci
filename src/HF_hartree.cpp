@@ -7,7 +7,6 @@ int HF_hartreeCore(ElectronOrbitals &wf, double eps_hartree)
 Solves the Hartree equations (no exchange term yet)
 */
 {
-
   // "Mixing" of new + old Potential:
   // V_n+1 = eta*V_n+1 + (1-eta)*V_n
   const double eta=0.50;
@@ -100,7 +99,7 @@ core=true by default
   int Ncore=0;
   for(int i=0; i<wf.num_core; i++){
     int ka = wf.klist[i];
-    int twoj = 2*abs(ka)-1;
+    int twoj = ATI_twoj_k(ka);
     Ncore += twoj+1;
   }
 
@@ -114,7 +113,7 @@ core=true by default
   std::vector<double> rho(wf.ngp);
   for(int i=0; i<wf.num_core; i++){
     int ka = wf.klist[i];
-    int twoj = 2*abs(ka)-1;
+    int twoj = ATI_twoj_k(ka);
     for(int j=0; j<wf.ngp; j++){
       rho[j] += (twoj+1)*(pow(wf.p[i][j],2) + pow(wf.q[i][j],2));
     }
