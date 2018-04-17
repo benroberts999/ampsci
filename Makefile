@@ -55,16 +55,20 @@ COMP = $(CXX) -o $@ $^ $(CXXFLAGS) $(LIBS)
 h-like.x: $(OBJ) $(IDIR)/h-like.o
 	$(COMP)
 
-fitParametric.x: $(OBJ) $(IDIR)/fitParametric.o $(IDIR)/PRM_parametricPotentials.o
+fitParametric.x: $(OBJ) $(IDIR)/fitParametric.o
+$(IDIR)/PRM_parametricPotentials.o
 	$(COMP)
 
-parametricPotential.x: $(OBJ) $(IDIR)/parametricPotential.o $(IDIR)/PRM_parametricPotentials.o
+parametricPotential.x: $(OBJ) $(IDIR)/parametricPotential.o
+$(IDIR)/PRM_parametricPotentials.o
 	$(COMP)
 
-atomicKernal.x: $(OBJ) $(IDIR)/atomicKernal.o $(IDIR)/PRM_parametricPotentials.o $(CNTM) $(IDIR)/HF_hartree.o
+atomicKernal.x: $(OBJ) $(IDIR)/atomicKernal.o $(IDIR)/PRM_parametricPotentials.o
+$(CNTM) $(IDIR)/HF_hartree.o
 	$(COMP)
 
-hartree.x: $(OBJ) $(IDIR)/hartree.o $(IDIR)/PRM_parametricPotentials.o $(IDIR)/HF_hartree.o
+hartree.x: $(OBJ) $(IDIR)/hartree.o $(IDIR)/PRM_parametricPotentials.o
+$(IDIR)/HF_hartree.o
 	$(COMP)
 
 .PHONY: clean
