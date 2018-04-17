@@ -36,6 +36,9 @@ int main(void){
   double qmin,qmax,demin,demax;
   int qsteps,desteps;
 
+  // Max anglular momentums
+  int max_l,max_l,max_L;
+
   std::string label; //label for output file
 
   //Open and read the input file:
@@ -58,6 +61,8 @@ int main(void){
     ifs >> varalpha;              getline(ifs,jnk);
     ifs >>demin>>demax>>desteps;  getline(ifs,jnk);
     ifs >>qmin>> qmax >> qsteps;  getline(ifs,jnk);
+    ifs >> max_l >> max_lc;       getline(ifs,jnk);
+    ifs >> max_L;                 getline(ifs,jnk);
     ifs >> label;                 getline(ifs,jnk);
     ifs.close();
   }
@@ -68,6 +73,11 @@ int main(void){
   //allow for single-step in dE or q grid
   if(desteps==1) demax=demin;
   if(qsteps==1) qmax=qmin;
+
+  // Fix maximum angular momentum values:
+  if(max_lc<0) return 2;
+  if(max_l<0 || max_l>3) max_l=3; //default: all core states (no >f)
+  if(max_L>max_l+max_lc || max_L<0) max_L = max_l + max_lc; //triangle rule
 
   //alpha can't be zero:
   if(varalpha==0) varalpha=1.e-25;
@@ -160,10 +170,7 @@ int main(void){
   std::vector<float> dElst;
   std::vector<std::string> nklst;
 
-  int ic=0; //cntm state!
-  int max_l=0; //maximum bound-state l
-  int max_lc=0;
-  int max_L =0; //XXX link max L to max lc !!
+
 
   std::cout<<"\nCalculating atomic kernal AK(q,dE):\n";
   printf(" dE: %5.2f -- %5.1f keV  (%.2f -- %.1f au)\n"
@@ -199,13 +206,11 @@ int main(void){
       // XXX Link lcmax to Lmax!
 
       std::vector<float> AK_nk_q(qsteps);
-
       for(int L=0; L<=max_L; L++){
         for(size_t ic=0; ic<cntm.klist.size(); ic++){
-
           int kc = cntm.klist[ic];
           int lc = ATI_l_k(kc);
-          if(lc > max_lc) break; //XXX Need lc loop!!
+          if(lc > max_lc) break;
           double dC_Lkk = CLkk(L,k,kc);
           if(dC_Lkk==0) continue;
 
@@ -231,7 +236,6 @@ int main(void){
 
         } // END loop over cntm states (ic)
       } // end L loop
-
       AK_nk.push_back(AK_nk_q);
     }
     dElst.push_back(dE);

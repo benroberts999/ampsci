@@ -6,6 +6,8 @@ Xe  .              | Core configuration (end with ' .')
 1                  | varalpha [<<1 for non-rel [1.e-20]; =1 for normal]
 .10   35.0   5     | dE(min, max, #steps) - in keV
 0.1   2000.  100   | q (min, max, #steps) - in au
+0  0               | max l (bound), and lc (continuum)
+-1                 | max L (multipolarity). put -1 for all
 test1              | label for output file
 --------------------
 
