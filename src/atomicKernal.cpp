@@ -50,8 +50,8 @@ int main(void){
     }
     getline(ifs,jnk);
     ifs >> r0 >> rmax >> ngp;     getline(ifs,jnk);
-    // ifs >> Gf >> Gh >> Gd;        getline(ifs,jnk);
-    // ifs >> Tf >> Tt >> Tg;        getline(ifs,jnk);
+    ifs >> Gf >> Gh >> Gd;        getline(ifs,jnk);
+    ifs >> Tf >> Tt >> Tg;        getline(ifs,jnk);
     ifs >> varalpha;              getline(ifs,jnk);
     ifs >>demin>>demax>>desteps;  getline(ifs,jnk);
     ifs >>qmin>> qmax >> qsteps;  getline(ifs,jnk);
@@ -78,22 +78,22 @@ int main(void){
   if(Z==0) return 2;
   if(A==-1) A=ATI_a[Z]; //if none given, get default A
 
-  // //Normalise the Teitz/Green weights:
-  // if(Gf!=0 || Tf!=0){
-  //   double TG_norm = Gf + Tf;
-  //   Gf /= TG_norm;
-  //   Tf /= TG_norm;
-  // }
+  //Normalise the Teitz/Green weights:
+  if(Gf!=0 || Tf!=0){
+    double TG_norm = Gf + Tf;
+    Gf /= TG_norm;
+    Tf /= TG_norm;
+  }
 
   // //If H,d etc are zero, use default values
   // if(Gf!=0 && Gh==0) PRM_defaultGreen(Z,Gh,Gd);
   // if(Tf!=0 && Tt==0) PRM_defaultTietz(Z,Tt,Tg);
 
-  printf("\nRunning parametric potential for %s, Z=%i A=%i\n",
+  printf("\nRunning Atomic Kernal for %s, Z=%i A=%i\n",
     Z_str.c_str(),Z,A);
   printf("*************************************************\n");
-  // if(Gf!=0) printf("%3.0f%% Green potential: H=%.4f  d=%.4f\n",Gf*100.,Gh,Gd);
-  // if(Tf!=0) printf("%3.0f%% Tietz potential: T=%.4f  g=%.4f\n",Tf*100.,Tt,Tg);
+  if(Gf!=0) printf("%3.0f%% Green potential: H=%.4f  d=%.4f\n",Gf*100.,Gh,Gd);
+  if(Tf!=0) printf("%3.0f%% Tietz potential: T=%.4f  g=%.4f\n",Tf*100.,Tt,Tg);
 
   //Generate the orbitals object:
   ElectronOrbitals wf(Z,A,ngp,r0,rmax,varalpha);
@@ -111,19 +111,21 @@ int main(void){
     return 1;
   }
 
-  // //Fill the electron part of the (local/direct) potential
-  // wf.vdir.resize(wf.ngp);
-  // for(int i=0; i<wf.ngp; i++){
-  //   double tmp = 0;
-  //   if(Gf!=0) tmp += Gf*PRM_green(Z,wf.r[i],Gh,Gd);
-  //   if(Tf!=0) tmp += Tf*PRM_tietz(Z,wf.r[i],Tt,Tg);
-  //   wf.vdir[i] = tmp;
-  // }
-  //
-  // // Solve Dirac equation for each (bound) core state:
-  // wf.solveInitialCore();
-
-  HF_hartreeCore(wf,1.e-4);
+  if(Gf==0){
+    HF_hartreeCore(wf,1.e-4);
+  }else{
+    //Fill the electron part of the (local/direct) potential
+    wf.vdir.resize(wf.ngp);
+    for(int i=0; i<wf.ngp; i++){
+      double tmp = 0;
+      if(Gf!=0) tmp += Gf*PRM_green(Z,wf.r[i],Gh,Gd);
+      if(Tf!=0) tmp += Tf*PRM_tietz(Z,wf.r[i],Tt,Tg);
+      wf.vdir[i] = tmp;
+    }
+    // Solve Dirac equation for each (bound) core state:
+    wf.solveInitialCore();
+  }
+  
 
   //make list of energy indices in sorted order:
   std::vector<int> sort_list;
