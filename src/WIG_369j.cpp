@@ -37,9 +37,8 @@ Works for l and j (integer and half-integer)
   return gsl_sf_coupling_3j(two_j1,two_j2,two_j3,two_m1,two_m2,two_m3);
 }
 
-
 //******************************************************************************
-double WIG_cg_1(int j1, int m1, int j1, int m2, int J, int M)
+double WIG_cg_1(int j1, int m1, int j2, int m2, int J, int M)
 /*
 Calculates Clebsh-Gordon coeficient:
 <j1 m1, j2 m2 | J M> = (-1)^(j1-j2+M) * Sqrt(2J+1) * (j1 j2  J)
@@ -52,8 +51,9 @@ Note: this function takes INTEGER values, only works for l (not half-integer j)!
   if((j1-j2+M)%2==0) sign = 1;
   return sign*sqrt(2.*J+1.)*gsl_sf_coupling_3j(2*j1,2*j2,2*J,2*m1,2*m2,-2*M);
 }
+
 //------------------------------------------------------------------------------
-double WIG_cg_2(int two_j1, int two_m1, int two_j1, int two_m2, int two_J,
+double WIG_cg_2(int two_j1, int two_m1, int two_j2, int two_m2, int two_J,
   int two_M)
 /*
 <j1 m1, j2 m2 | J M> = (-1)^(j1-j2+M) * Sqrt(2J+1) * (j1 j2  J)

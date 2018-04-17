@@ -1,7 +1,7 @@
 IDIR =./src
 
 CXX=g++
-CXXFLAGS=-I$(IDIR) -std=c++11 -Wall -fopenmp -O #-Wextra -Wpedantic 
+CXXFLAGS=-I$(IDIR) -std=c++11 -Wall -fopenmp -O #-Wextra -Wpedantic
 LIBS=-lgsl -lgslcblas -lm
 
 all: h-like.x fitParametric.x parametricPotential.x atomicKernal.x hartree.x
@@ -30,6 +30,9 @@ $(IDIR)/PRM_parametricPotentials.o: \
 $(IDIR)/PRM_parametricPotentials.cpp $(IDIR)/PRM_parametricPotentials.h
 	$(CXX) -c -o $@ $< $(CXXFLAGS)
 
+$(IDIR)/WIG_369j.o: \
+$(IDIR)/WIG_369j.cpp $(IDIR)/WIG_369j.h
+	$(CXX) -c -o $@ $< $(CXXFLAGS)
 
 $(IDIR)/adamsSolveLocalContinuum.o: \
 $(IDIR)/adamsSolveLocalContinuum.cpp $(IDIR)/adamsSolveLocalContinuum.h
