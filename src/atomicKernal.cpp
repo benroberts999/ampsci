@@ -80,8 +80,6 @@ int main(void){
   if(Z==0) return 2;
   if(A==-1) A=ATI_a[Z]; //if none given, get default A
 
-
-
   printf("\nRunning Atomic Kernal for %s, Z=%i A=%i\n",
     Z_str.c_str(),Z,A);
   printf("*************************************************\n");
@@ -123,7 +121,6 @@ int main(void){
     // Solve Dirac equation for each (bound) core state:
     wf.solveInitialCore();
   }
-
 
   //make list of energy indices in sorted order:
   std::vector<int> sort_list;
