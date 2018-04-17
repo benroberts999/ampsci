@@ -7,6 +7,10 @@
 #include <sys/time.h>
 #include "ContinuumOrbitals.h"
 #include "HF_hartree.h"
+#include "WIG_369j.h"
+
+//Declare angular coeficient. [See Phys.Rev.D 93, 115037 (2016).]
+double CLkk(int L, int ka, int kb);
 
 //******************************************************************************
 int main(void){
@@ -255,4 +259,39 @@ int main(void){
   else printf ("\nt=%.1f hours.\n",total_time/3600.);
 
   return 0;
+}
+
+
+
+//******************************************************************************
+double CLkk(int L, int ka, int kb)
+/*
+Calculates the angular coeficient (averaged over all m)
+B. M. Roberts, V. A. Dzuba, V. V. Flambaum, M. Pospelov, and Y. V. Stadnik,
+Phys. Rev. D 93, 115037 (2016). [arXiv:1604.04559]
+*/
+{
+  int two_ja = ATI_twoj_k(ka);
+  int two_jb = ATI_twoj_k(kb);
+  int la = ATI_l_k(ka);
+  int lb = ATI_l_k(kb);
+
+  double tjB = WIG_3j_2(two_jb,2*L,two_ja,-1,0,1);
+  if(fabs(tjB)==0) return 0;
+  double B = 1./pow(tjB,2);
+
+  int s1 = -1;
+  if((two_ja+two_jb-2*(la+lb))%4==0) s1=1;
+
+  double tj1 = WIG_3j_1(lb,la,L,0,0,0);
+  double A = (1./4)*s1*(2*L+1)*pow(tj1,2);
+
+  double X = s1*(two_ja+1)*(two_jb+1)*pow(tj1,2);
+
+  double tj2 = WIG_3j_1(lb,la,L,-1,1,0);
+  double Y = 8*sqrt(la*(la+1)*lb*(lb+1))*tj1*tj2;
+
+  double Z = -4*(ka+1)*(kb+1)*pow(tj2,2);
+
+  return (A*B)*(X+Y+Z);
 }

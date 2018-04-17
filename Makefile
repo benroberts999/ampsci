@@ -66,7 +66,7 @@ parametricPotential.x: $(OBJ) $(IDIR)/parametricPotential.o \
 $(IDIR)/PRM_parametricPotentials.o
 	$(COMP)
 
-atomicKernal.x: $(OBJ) $(IDIR)/atomicKernal.o \
+atomicKernal.x: $(OBJ) $(IDIR)/atomicKernal.o $(IDIR)/WIG_369j.o \
 $(IDIR)/PRM_parametricPotentials.o $(CNTM) $(IDIR)/HF_hartree.o
 	$(COMP)
 
