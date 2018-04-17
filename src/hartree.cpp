@@ -70,55 +70,8 @@ int main(void){
     return 1;
   }
 
+  //Solve Hartree equations for the core:
   HF_hartreeCore(wf);
-  // //Fill the electron part of the potential, using Greens PRM for initial approx
-  // double Gh,Gd;  //Green potential parameters
-  // PRM_defaultGreen(Z,Gh,Gd); //Get default values for Green potential
-  // for(int i=0; i<wf.ngp; i++) wf.vdir.push_back(PRM_green(Z,wf.r[i],Gh,Gd));
-  //
-  // //First step: Solve each core state using parameteric potential
-  // wf.solveInitialCore(1);
-  //
-  //
-  // //Hartree loop:
-  // for(int n=0; n<max_hartree; n++){
-  //
-  //   double eta=0.50;
-  //
-  //   std::vector<double> vdir_old = wf.vdir;
-  //   std::vector<double> vdir_new;
-  //   formNewVdir(wf,vdir_new);
-  //   for(int j=0; j<wf.ngp; j++){
-  //     wf.vdir[j] = eta*vdir_new[j] + (1.-eta)*vdir_old[j];
-  //   }
-  //
-  //   double prev_e = 0;
-  //   for(size_t i=0; i<wf.nlist.size(); i++) prev_e += wf.en[i]/wf.nlist.size();
-  //
-  //   for(size_t i=0; i<wf.nlist.size(); i++){
-  //     double del_e=0;
-  //     for(int j=0; j<wf.ngp; j++)
-  //       del_e += (wf.vdir[j]-vdir_old[j])*
-  //       (pow(wf.p[i][j],2) + pow(wf.q[i][j],2))*wf.drdt[j];
-  //     del_e*=wf.h;
-  //     double new_e = wf.en[i] + 1*del_e;
-  //     if(new_e>0)new_e=-0.1;
-  //     wf.reSolveLocalDirac(i,new_e,3); //only go to 1/10^3 - do better at end!
-  //   }
-  //
-  //   double next_e = 0;
-  //   for(size_t i=0; i<wf.nlist.size(); i++) next_e += wf.en[i]/wf.nlist.size();
-  //
-  //   double delta_hartree = (next_e-prev_e)/(next_e*eta);
-  //   printf("Hart it:%3i,  del=%6.0e\n",n+1,delta_hartree);
-  //
-  //   if(fabs(delta_hartree)<eps_hartree) break;
-  // }
-  //
-  // //re-run solve Dirac to higher convergance level after Hart pot. ok
-  // for(size_t i=0; i<wf.nlist.size(); i++) wf.reSolveLocalDirac(i,0,14);
-  //
-  // formNewVdir(wf,wf.vdir,false);
 
   wf.solveLocalDirac(6,-1,-0.13);
   wf.solveLocalDirac(7,-1,-0.06);

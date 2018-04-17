@@ -56,19 +56,17 @@ int HF_hartreeCore(ElectronOrbitals &wf, double eps_hartree)
 
   formNewVdir(wf,wf.vdir,false);
 
-
-  std::ofstream ofile;
-  ofile.open("pot.txt");
-  ofile<<"r Gr Vh Z/r 1/r\n";
-  for(int i=0; i<wf.ngp; i++){
-    ofile<<wf.r[i]<<" "
-      <<-PRM_green(wf.Z,wf.r[i],Gh,Gd)-wf.vnuc[i]<<" "
-      <<-wf.vdir[i]-wf.vnuc[i]<<" "
-      <<wf.Z/wf.r[i]<<" "<<1./wf.r[i]<<"\n";
-
-  }
-  ofile.close();
-
+  // std::ofstream ofile;
+  // ofile.open("pot.txt");
+  // ofile<<"r Gr Vh Z/r 1/r\n";
+  // for(int i=0; i<wf.ngp; i++){
+  //   ofile<<wf.r[i]<<" "
+  //     <<-PRM_green(wf.Z,wf.r[i],Gh,Gd)-wf.vnuc[i]<<" "
+  //     <<-wf.vdir[i]-wf.vnuc[i]<<" "
+  //     <<wf.Z/wf.r[i]<<" "<<1./wf.r[i]<<"\n";
+  //
+  // }
+  // ofile.close();
 
   return num_its;
 }
