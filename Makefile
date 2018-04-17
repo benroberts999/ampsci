@@ -35,6 +35,10 @@ $(IDIR)/adamsSolveLocalContinuum.o: \
 $(IDIR)/adamsSolveLocalContinuum.cpp $(IDIR)/adamsSolveLocalContinuum.h
 	$(CXX) -c -o $@ $< $(CXXFLAGS)
 
+$(IDIR)/HF_hartree.o: \
+$(IDIR)/HF_hartree.cpp $(IDIR)/HF_hartree.h
+	$(CXX) -c -o $@ $< $(CXXFLAGS)
+
 $(IDIR)/ContinuumOrbitals.o: \
 $(IDIR)/ContinuumOrbitals.cpp $(IDIR)/ContinuumOrbitals.h
 	$(CXX) -c -o $@ $< $(CXXFLAGS)
@@ -60,7 +64,7 @@ parametricPotential.x: $(OBJ) $(IDIR)/parametricPotential.o $(IDIR)/PRM_parametr
 atomicKernal.x: $(OBJ) $(IDIR)/atomicKernal.o $(IDIR)/PRM_parametricPotentials.o $(CNTM)
 	$(COMP)
 
-hartree.x: $(OBJ) $(IDIR)/hartree.o $(IDIR)/PRM_parametricPotentials.o $(CNTM)
+hartree.x: $(OBJ) $(IDIR)/hartree.o $(IDIR)/PRM_parametricPotentials.o $(IDIR)/HF_hartree.o
 	$(COMP)
 
 .PHONY: clean
