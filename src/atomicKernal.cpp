@@ -160,8 +160,10 @@ int main(void){
   int max_l=0; //maximum bound-state l
 
   std::cout<<"\nCalculating atomic kernal AK(q,dE):\n";
-  printf(" dE: %5.2f -- %5.1f keV  (%.2f -- %.1f au)\n",demin/keV,demax/keV,demin,demax);
-  printf("  q: %5.0e -- %5.1g MeV  (%.2f -- %.1f au)\n",qmin/qMeV,qmax/qMeV,qmin,qmax);
+  printf(" dE: %5.2f -- %5.1f keV  (%.2f -- %.1f au)\n"
+  ,   demin/keV,demax/keV,demin,demax);
+  printf("  q: %5.0e -- %5.1g MeV  (%.2f -- %.1f au)\n"
+  ,   qmin/qMeV,qmax/qMeV,qmin,qmax);
   for(int ide=0; ide<desteps; ide++){
     int pc = int(100.*ide/desteps);
     std::cout<<" Running dE step "<<ide<<"/"<<desteps<<"  -  "<<pc<<"% done"
