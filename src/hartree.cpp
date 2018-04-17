@@ -4,12 +4,13 @@
 #include "HF_hartree.h"
 #include <iostream>
 #include <sstream>
+#include <sys/time.h>
 
 
 int main(void){
 
-  clock_t ti,tf;
-  ti = clock();
+  struct timeval start, end;
+  gettimeofday(&start, NULL);
 
   //Input options
   std::string Z_str;
@@ -106,7 +107,8 @@ int main(void){
   wf.sortedEnergyList(sort_list);
 
   //Output results:
-  printf("\n n l_j    k Rinf its    eps      En (au)        En (/cm)\n");
+  printf("\nHARTEE results for %s, Z=%i A=%i\n",Z_str.c_str(),Z,A);
+  printf(" n l_j    k Rinf its    eps      En (au)        En (/cm)\n");
   for(size_t m=0; m<sort_list.size(); m++){
     int i = sort_list[m];
     if((int)m==wf.num_core){
@@ -126,9 +128,13 @@ int main(void){
 
 
 
-  tf = clock();
-  double total_time = 1000.*double(tf-ti)/CLOCKS_PER_SEC;
-  printf ("\nt=%.3f ms.\n",total_time);
+  gettimeofday(&end, NULL);
+  double total_time = (end.tv_sec-start.tv_sec)
+  + (end.tv_usec - start.tv_usec)*1e-6;
+  if(total_time<1) printf ("\nt=%.3f ms.\n",total_time*1000);
+  else if(total_time<60) printf ("\nt=%.3f s.\n",total_time);
+  else if(total_time<3600) printf ("\nt=%.2f mins.\n",total_time/60.);
+  else printf ("\nt=%.1f hours.\n",total_time/3600.);
 
   return 0;
 }
