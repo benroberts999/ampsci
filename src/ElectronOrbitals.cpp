@@ -14,6 +14,7 @@ ElectronOrbitals::ElectronOrbitals(int in_z, int in_a, int in_ngp, double rmin,
   DzubaRadialGrid(rmin,rmax);
 
   alpha=ALPHA*var_alpha;
+  num_core=0;
 
   Z=in_z;
   if(in_a==0) A=ATI_a[Z]; //Use default atomic mass
@@ -47,7 +48,8 @@ XXX vnuc !!!
     for(int i=0; i<ngp; i++) v_a[i] += vdir[i];
   }
 
-  int i_ret = solveDBS(p_a,q_a,e_a,v_a,Z,n,k,r,drdt,h,ngp,pinf,its,eps,alpha,log_dele_or);
+  int i_ret = solveDBS(p_a,q_a,e_a,v_a,Z,n,k,r,drdt,h,ngp,pinf,its,eps,alpha,
+    log_dele_or);
   //Store wf + energy
   p.push_back(p_a);
   q.push_back(q_a);
@@ -83,7 +85,8 @@ If no e_a is given, will use the existing one!
   int n=nlist[i];
   int k=klist[i];
   if(e_a==0) e_a = en[i];
-  int i_ret = solveDBS(p_a,q_a,e_a,v_a,Z,n,k,r,drdt,h,ngp,pinf,its,eps,alpha,log_dele_or);
+  int i_ret = solveDBS(p_a,q_a,e_a,v_a,Z,n,k,r,drdt,h,ngp,pinf,its,eps,alpha,
+    log_dele_or);
 
   //Store wf + energy
   for(size_t j=0; j<p[i].size(); j++) p[i][j] = p_a[j];
@@ -205,6 +208,16 @@ NOTE: Only works up to n=9, and l=5 [h]
 }
 
 //******************************************************************************
+bool ElectronOrbitals::isInCore(int n, int k){
+  for(int i=0; i<num_core; i++)
+    if(n==nlist[i] && k==klist[i]) return true;
+  return false;
+}
+
+
+
+
+//******************************************************************************
 int ElectronOrbitals::solveInitialCore(int log_dele_or)
 {
   int tot_el=0; // for working out Z_eff
@@ -223,6 +236,7 @@ int ElectronOrbitals::solveInitialCore(int log_dele_or)
     int k2 = -(l+1); //j=l+1/2
     if(num>2*l) solveLocalDirac(n,k2,en_a,log_dele_or);
   }
+  num_core = nlist.size(); //store number of states in core
   return 0;
 }
 //******************************************************************************
@@ -356,7 +370,7 @@ Default b=4.
 
 
 //******************************************************************************
-double ElectronOrbitals::diracen(int z, int n, int k){
+double ElectronOrbitals::diracen(double z, double n, int k){
 //
   // double c2 = 1./pow(alpha,2);
   // double za2 = pow(alpha*z,2);

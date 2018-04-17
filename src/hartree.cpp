@@ -71,18 +71,35 @@ int main(void){
   }
 
   //Solve Hartree equations for the core:
-  HF_hartreeCore(wf);
+  HF_hartreeCore(wf,eps_hartree);
 
-  wf.solveLocalDirac(6,-1,-0.13);
-  wf.solveLocalDirac(7,-1,-0.06);
-  wf.solveLocalDirac(8,-1,-0.03);
+  int maxn=0;
+  for(int i=0; i<wf.num_core; i++) if(wf.nlist[i]>maxn) maxn=wf.nlist[i];
 
-
-
-
-
-
-
+  //Calculate the valence (and excited) states
+  for(int n=0; n<=n_max; n++){
+    for(int l=0; l<=l_max; l++){
+      if(l+1>n) continue;
+      for(int tk=0; tk<2; tk++){
+        int k;
+        if(tk==0) k=l;
+        else      k=-(l+1);
+        if(k==0) continue;
+        if(wf.isInCore(n,k)) continue;
+        //This energy guess works very well for Cs, Fr etc.
+        //Works poorly (but still converges) for light atoms
+        int dn=n-maxn;
+        double neff=1.+dn;
+        double x=1;
+        if(maxn<4) x=0.25;
+        if(l==1) neff+=0.5*x;
+        if(l==2) neff+=2.*pow(x,0.5);
+        if(l>=3) neff+=4.*x;
+        double en_a = -0.5/pow(neff,2);
+        wf.solveLocalDirac(n,k,en_a);
+      }
+    }
+  }
 
   //make list of energy indices in sorted order:
   std::vector<int> sort_list;
@@ -92,6 +109,10 @@ int main(void){
   printf("\n n l_j    k Rinf its    eps      En (au)        En (/cm)\n");
   for(size_t m=0; m<sort_list.size(); m++){
     int i = sort_list[m];
+    if((int)m==wf.num_core){
+      std::cout<<" ========= Valence: ======\n";
+      printf(" n l_j    k Rinf its    eps      En (au)        En (/cm)\n");
+    }
     int n=wf.nlist[i];
     int k=wf.klist[i];
     int twoj = 2*abs(k)-1;
@@ -111,18 +132,3 @@ int main(void){
 
   return 0;
 }
-
-
-// //******************************************************************************
-// double formRho(ElectronOrbitals wf, std::vector<double> rho) //XXX OK? lots memory? Reference?
-// {
-//   rho.clear();
-//   rho.resize(wf.ngp);
-//   for(size_t i=0; i<wf.nlist.size(); i++){
-//     int ka = wf.klist[i];
-//     int la = (abs(2*ka+1)-1)/2;
-//     for(int j=0; j<wf.ngp; j++){
-//       rho[j] += (4*la+2)*(pow(wf.p[i][j],2) + pow(wf.q[i][j],2));
-//     }
-//   }
-// }

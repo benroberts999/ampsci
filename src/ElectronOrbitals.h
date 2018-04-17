@@ -46,6 +46,7 @@ class ElectronOrbitals{
     int num_states; //?
 
     std::vector<int> core_list;
+    int num_core;
 
     std::vector<int> nlist;
     std::vector<int> klist;
@@ -59,7 +60,7 @@ class ElectronOrbitals{
     int solveLocalDirac(int n, int k, double en_a, int log_dele_or=0);
     int reSolveLocalDirac(int i, double e_a=0, int log_dele_or=0);
 
-    double diracen(int z, int n, int k);
+    double diracen(double z, double n, int k);
     int sphericalNucleus(double rnuc=0);
     int fermiNucleus(double t=0, double c=0);
 
@@ -67,6 +68,7 @@ class ElectronOrbitals{
 
     int determineCore(std::vector<std::string> str_core);
     int solveInitialCore(int log_dele_or=0);
+    bool isInCore(int n, int k);
 
     int sortedEnergyList(std::vector<int> &sort_list);
 
