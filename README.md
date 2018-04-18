@@ -43,8 +43,10 @@ Note: makes use of GSL libraries: https://www.gnu.org/software/gsl/
    * For Au: 'Xe 4f14 5d10 . '
    * For Tl: 'Xe 4f14 5d10 6s2 . '
  * Solve single-electron valence states in the Hartree potential of given core
+   * For now, the core must be closed-shell
  * Includes finite nuclear size (assumes spherical nucleus)
  * As of yet, does not write wavefunctions to disk
+ * NOTE: Not 100% finished yet, still has some issues. Works well enough though
 
 ## atomicKernal.x
 
