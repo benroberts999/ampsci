@@ -47,11 +47,15 @@ Note: makes use of GSL libraries: https://www.gnu.org/software/gsl/
 ## atomicKernal.x
 
  * Calculates the "Atomic Kernal" (for scattering/ionisation) for each core
- orbital, as a function of momentum transfer (q), and energy deposition (dE)
- * Uses self-consistent Hartree method (optionally, can use parametric pot)
+ orbital, as a function of momentum transfer (q), and energy deposition (dE).
+ Writes result to human-readable (and gnuplot-friendly) file.
+ * Uses self-consistent Hartree method (optionally, can use parametric potential, which is faster but less accurate)
  * Note: need quite a dense grid [large number of points] for
-  a) highly oscillating J_L function at low r, and
-  b) to solve equation for high-energy continuum states.
+   * a) highly oscillating J_L function at low r, and
+   * b) to solve equation for high-energy continuum states.
+   * NGP=25000 allows good dE and q range, and is fairly quick
+ * Sums over 'all' continuum angular momentum states (and multipolarities)
+   * Maximum values for l are input parameters
 
 ## parametricPotential.x
 
