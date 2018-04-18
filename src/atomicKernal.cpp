@@ -8,6 +8,7 @@
 #include "ContinuumOrbitals.h"
 #include "HF_hartree.h"
 #include "WIG_369j.h"
+#include <gsl/gsl_sf_bessel.h>
 
 //Declare angular coeficient. [See Phys.Rev.D 93, 115037 (2016).]
 double CLkk(int L, int ka, int kb);
@@ -82,12 +83,14 @@ int main(void){
   //alpha can't be zero:
   if(varalpha==0) varalpha=1.e-25;
 
-  //Convert units for input dE into atomic units
+  //Convert units for input q and dE range into atomic units
   double keV = (1.e3/HARTREE_EV);
   demin*=keV;
   demax*=keV;
   double qMeV = (1.e6/(HARTREE_EV*CLIGHT));
-  //nb: I don't change the units for q (momentum transfer) for now
+  qmin*=qMeV;
+  qmax*=qMeV;
+
 
   //Look-up atomic number, Z, and also A
   int Z = ATI_get_z(Z_str);
@@ -164,6 +167,25 @@ int main(void){
   std::vector<float> dElst;
   std::vector<std::string> nklst;
 
+  //pre-calculate the spherical Bessel function look-up table for efficiency
+  std::cout<<std::endl;
+  std::vector< std::vector< std::vector<float> > > jLqr_f;
+  jLqr_f.resize(max_L+1, std::vector< std::vector<float> >
+    (qsteps, std::vector<float>(wf.ngp)));
+  for(int L=0; L<=max_L; L++){
+    std::cout<<"\rCalculating spherical Bessel look-up table for L="
+    <<L<<"/"<<max_L<<" .. "<<std::flush;
+    #pragma omp parallel for
+    for(int iq=0; iq<qsteps; iq++){
+      double x=iq/(qsteps-1.);
+      double q = qmin*pow(qmax/qmin,x);
+      for(int ir=0; ir<wf.ngp; ir++){
+        jLqr_f[L][iq][ir] = gsl_sf_bessel_jl(L, q*wf.r[ir]);
+      }
+    }
+  }
+  std::cout<<"done\n";
+
   //Calculate the AK
   std::cout<<"\nCalculating atomic kernal AK(q,dE):\n";
   printf(" dE: %5.2f -- %5.1f keV  (%.2f -- %.1f au)\n"
@@ -220,9 +242,9 @@ int main(void){
             double jLqr;
             if(cntm.p.size()>0){
               int maxj = wf.pinflist[is]; //don't bother going further
-              // int maxj = wf.ngp;
+              //Do the radial integral:
               for(int j=0; j<maxj; j++){
-                jLqr = sin(q*wf.r[j]) / (q*wf.r[j]);
+                jLqr = jLqr_f[L][iq][j];
                 a += (wf.p[is][j]*cntm.p[ic][j] + wf.q[is][j]*cntm.q[ic][j])
                      *jLqr*wf.drdt[j];// *h below!
               }
@@ -246,9 +268,9 @@ int main(void){
   //ALSO: should write the AK array to a binary file here,
   //for ease of use in other applictaions.
 
-  //Write out file (in gnuplot friendly form)
+  //Write out to text file (in gnuplot friendly form)
   std::ofstream ofile;
-  std::string fname = "ak-test_"+label+".txt";
+  std::string fname = "ak-"+Z_str+"_"+label+".txt";
   ofile.open(fname);
   ofile<<"dE(au) q(au) ";
   for(size_t i=0; i<nklst.size(); i++) ofile<<nklst[i]<<" ";
