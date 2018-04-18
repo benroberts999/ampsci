@@ -63,6 +63,12 @@ int main(void){
   if(extra){
     // Calculate the expectation value of r^rpow for each state in list:
     printf("\nExpectation value of r^n\n");
+    std::cout<<"         ";
+    for(int in=-1; in<=1; in ++){
+      if(in==0) continue;
+      printf("<nk|r^%i|nk> ",in)
+    }
+    std::cout<<"\n";
     for (int s=0; s<num_states; s++){
       std::vector<double> rad1,rad2;
       for (int i=0; i<wf.ngp; i++){
@@ -73,8 +79,8 @@ int main(void){
       }
       double R1=INT_integrate(rad1,wf.drdt,wf.h);
       double R2=INT_integrate(rad2,wf.drdt,wf.h);
-      printf("<%i% i|r^n|%i% i> n=1 %13.10f, n=-1 %13.10f\n",wf.nlist[s],
-          wf.klist[s],wf.nlist[s],wf.klist[s],R1,R2);
+      printf("%2i%s_%i/2 : %11.8f, %11.8f\n",wf.nlist[s],
+          ATI_l(ATI_l_k(wf.klist[s])),ATI_twoj_k(wf.klist[s]),R1,R2);
     }
 
     // Testing Dirac Eq. by evaluating <a|H|a> - ME of Hamiltonian
