@@ -49,7 +49,6 @@ Note: makes use of GSL libraries: https://www.gnu.org/software/gsl/
  * Calculates the "Atomic Kernal" (for scattering/ionisation) for each core
  orbital, as a function of momentum transfer (q), and energy deposition (dE)
  * Uses self-consistent Hartree method (optionally, can use parametric pot)
- * For now, only does for s_1/2 states (core + continuum). Will update soon.
  * Note: need quite a dense grid [large number of points] for
   a) highly oscillating J_L function at low r, and
   b) to solve equation for high-energy continuum states.
