@@ -10,9 +10,7 @@
 //NOTE: First entry is zero, so the array index matches Z!
 //For now, goes up to E120 [121 etries]
 
-//XXX change to ATINF ??
-
-//LATER: can add magnetic moments, "shells" etc..
+//LATER: can add magnetic moments, more "shells" etc..
 //Also: rn(?), skin thickness, half-density radius?
 
 //Default values for A for each atom.
