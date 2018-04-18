@@ -19,7 +19,9 @@ allowing non-relativistic approximation.
 
 Note: makes use of GSL libraries: https://www.gnu.org/software/gsl/
 
- * For example, with ubuntu: _sudo apt-get install libgsl0-dev_
+ * For example, with ubuntu: _$sudo apt-get install libgsl0-dev_
+ * Probably also needs LAPACK/BLAS: _$sudo apt-get install libblas-dev libatlas-dev liblapack-dev_
+
 
 ### Compiling and use:
 
