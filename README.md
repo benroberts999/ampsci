@@ -53,6 +53,9 @@ Note: makes use of GSL libraries: https://www.gnu.org/software/gsl/
  * Calculates the "Atomic Kernal" (for scattering/ionisation) for each core
  orbital, as a function of momentum transfer (q), and energy deposition (dE).
  Writes result to human-readable (and gnuplot-friendly) file.
+ * For definitions/details, see: B.M.Roberts, V.A.Dzuba, V.V.Flambaum, M.Pospelov, Y.V.Stadnik, 
+ [Phys.Rev.D 93, 115037 (2016)](https://link.aps.org/doi/10.1103/PhysRevD.93.115037 "pay-walled"); 
+ [arXiv:1604.04559](https://arxiv.org/abs/1604.04559 "free download").
  * Uses self-consistent Hartree method (optionally, can use parametric potential, which is faster but less accurate)
  * Note: need quite a dense grid [large number of points] for
    * a) highly oscillating J_L function at low r, and
