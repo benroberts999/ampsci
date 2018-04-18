@@ -63,6 +63,7 @@ Note: makes use of GSL libraries: https://www.gnu.org/software/gsl/
    * NGP=25000 allows good dE and q range, and is fairly quick
  * Sums over 'all' continuum angular momentum states (and multipolarities)
    * Maximum values for l are input parameters
+ * Yes, I know I spelled "kernel" wrong..
 
 ## parametricPotential.x
 
