@@ -272,14 +272,14 @@ int main(void){
   std::ofstream ofile;
   std::string fname = "ak-"+Z_str+"_"+label+".txt";
   ofile.open(fname);
-  ofile<<"dE(au) q(au) ";
+  ofile<<"dE(keV) q(MeV) ";
   for(size_t i=0; i<nklst.size(); i++) ofile<<nklst[i]<<" ";
   ofile<<"\n";
-  for(size_t i=0; i<dElst.size(); i++) ofile<<dElst[i]<<" ";
+  for(size_t i=0; i<dElst.size(); i++) ofile<<dElst[i]/keV<<" ";
   ofile<<"\n\n";
   for(size_t i=0; i<AK.size(); i++){
     for(size_t k=0; k<AK[0][0].size(); k++){
-      ofile<<dElst[i]<<" "<<qlst[k]<<" ";
+      ofile<<dElst[i]/keV<<" "<<qlst[k]/qMeV<<" ";
       for(size_t j=0; j<AK[0].size(); j++){
         ofile<<AK[i][j][k]<<" ";
       }
