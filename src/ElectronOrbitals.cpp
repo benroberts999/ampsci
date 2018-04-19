@@ -237,6 +237,27 @@ int ElectronOrbitals::solveInitialCore(int log_dele_or)
     if(num>2*l) solveLocalDirac(n,k2,en_a,log_dele_or);
   }
   num_core = nlist.size(); //store number of states in core
+
+  //occupancy fraction for each core state:
+  for(int i=0; i<num_core; i++){
+    int n = nlist[i];
+    int ka = klist[i];
+    int l = ATI_l_k(ka);
+    //Find the correct core list index (to determine filling factor):
+    int ic=-1;
+    for(size_t j=0; j<core_list.size(); j++){
+      if(n==ATI_core_n[j] && l==ATI_core_l[j]){
+        ic = j;
+        break;
+      }
+    }
+    if(ic==-1){
+      std::cout<<"FAIL 254 in ElectronOrbitals:solveInitialCore\n";
+      return 2;
+    }
+    core_ocf.push_back(double(core_list[ic])/(4*l+2));
+  }
+
   return 0;
 }
 //******************************************************************************

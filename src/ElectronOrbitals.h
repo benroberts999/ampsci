@@ -46,6 +46,7 @@ class ElectronOrbitals{
     int num_states; //?
 
     std::vector<int> core_list;
+    std::vector<double> core_ocf; //occupancy fraction
     int num_core;
 
     std::vector<int> nlist;
