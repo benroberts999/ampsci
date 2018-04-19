@@ -42,8 +42,7 @@ Note: makes use of GSL libraries: https://www.gnu.org/software/gsl/
    * For Cs: 'Xe . '
    * For Au: 'Xe 4f14 5d10 . '
    * For Tl: 'Xe 4f14 5d10 6s2 . '
- * Solve single-electron valence states in the Hartree potential of given core
-   * For now, the core must be closed-shell
+ * Solves single-electron valence states in the Hartree potential of given core
  * Includes finite nuclear size (assumes spherical nucleus)
  * As of yet, does not write wavefunctions to disk
  * NOTE: Not 100% finished yet, still has some issues. Works well enough though
@@ -53,8 +52,8 @@ Note: makes use of GSL libraries: https://www.gnu.org/software/gsl/
  * Calculates the "Atomic Kernal" (for scattering/ionisation) for each core
  orbital, as a function of momentum transfer (q), and energy deposition (dE).
  Writes result to human-readable (and gnuplot-friendly) file.
- * For definitions/details, see: B.M.Roberts, V.A.Dzuba, V.V.Flambaum, M.Pospelov, Y.V.Stadnik, 
- [Phys.Rev.D 93, 115037 (2016)](https://link.aps.org/doi/10.1103/PhysRevD.93.115037 "pay-walled"); 
+ * For definitions/details, see: B.M.Roberts, V.A.Dzuba, V.V.Flambaum, M.Pospelov, Y.V.Stadnik,
+ [Phys.Rev.D 93, 115037 (2016)](https://link.aps.org/doi/10.1103/PhysRevD.93.115037 "pay-walled");
  [arXiv:1604.04559](https://arxiv.org/abs/1604.04559 "free download").
  * Uses self-consistent Hartree method (optionally, can use parametric potential, which is faster but less accurate)
  * Note: need quite a dense grid [large number of points] for

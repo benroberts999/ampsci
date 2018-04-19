@@ -6,7 +6,6 @@
 #include <sstream>
 #include <sys/time.h>
 
-
 int main(void){
 
   struct timeval start, end;
@@ -48,7 +47,7 @@ int main(void){
   if(Z==0) return 2;
   if(A==-1) A=ATI_a[Z]; //if none given, get default A
 
-  printf("\nRunning HARTEE for %s, Z=%i A=%i\n",
+  printf("\nRunning HARTREE for %s, Z=%i A=%i\n",
     Z_str.c_str(),Z,A);
   printf("*************************************************\n");
 
@@ -71,7 +70,7 @@ int main(void){
   //Solve Hartree equations for the core:
   HF_hartreeCore(wf,eps_hart);
 
-  int maxn=0;
+  int maxn=0; //max 'n' in the core (used for valence energy guess)
   for(int i=0; i<wf.num_core; i++) if(wf.nlist[i]>maxn) maxn=wf.nlist[i];
 
   //Calculate the valence (and excited) states
@@ -113,7 +112,8 @@ int main(void){
       en_lim = fabs(wf.en[i]);
       val = true;
       std::cout<<" ========= Valence: ======\n";
-      printf(" n l_j    k Rinf its    eps      En (au)        En (/cm)   En (/cm)\n");
+      printf(
+      " n l_j    k Rinf its    eps      En (au)        En (/cm)   En (/cm)\n");
     }
     int n=wf.nlist[i];
     int k=wf.klist[i];
@@ -127,7 +127,6 @@ int main(void){
     if(val)printf(" %10.2f\n",(eni+en_lim)*HARTREE_ICM);
     else std::cout<<"\n";
   }
-
 
   gettimeofday(&end, NULL);
   double total_time = (end.tv_sec-start.tv_sec)
