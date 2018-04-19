@@ -95,17 +95,23 @@ core=true by default
   vdir_new.clear();
   vdir_new.resize(wf.ngp);
 
-  //Count number of electron in the core (assumes all closed shells! XXX)
+  // //Count number of electron in the core (assumes all closed shells! XXX)
+  // int Ncore=0;
+  // for(int i=0; i<wf.num_core; i++){
+  //   int ka = wf.klist[i];
+  //   int twoj = ATI_twoj_k(ka);
+  //   Ncore += twoj+1;
+  // }
+  // Ncore--;
+
+  //Count number of electrons in the core
   int Ncore=0;
-  for(int i=0; i<wf.num_core; i++){
-    int ka = wf.klist[i];
-    int twoj = ATI_twoj_k(ka);
-    Ncore += twoj+1;
-  }
+  for(size_t i=0; i<wf.core_list.size(); i++) Ncore+=wf.core_list[i];
 
   //Factor: When solveing for core N=Ncore. For valence, N=Ncore+_
   double f=1;
-  if(core) f = 1. - (1.)/Ncore;
+  //if(core)
+  f = 1. - (1.)/Ncore;
 
   //Determine the total electron (charge) density of core:
   // 2j+1 is occupation number of that orbital.
@@ -113,6 +119,14 @@ core=true by default
   std::vector<double> rho(wf.ngp);
   for(int i=0; i<wf.num_core; i++){
     int ka = wf.klist[i];
+    int l = ATI_l_k(ka);
+    int n = wf.nlist[i];
+    int ic=-1;
+    for(size_t j=0; j<wf.core_list.size(); j++){
+      if(n==ATI_core_n[j] && l==ATI_core_l[j])
+    }
+    double ffrac = double(wf.core_list[i])/(4*l+2); //XXX NO!
+    std::cout<<wf.nlist[i]<<" "<<l<<" "<<ka<<" "<<ffrac<<"\n";
     int twoj = ATI_twoj_k(ka);
     for(int j=0; j<wf.ngp; j++){
       rho[j] += (twoj+1)*(pow(wf.p[i][j],2) + pow(wf.q[i][j],2));
