@@ -75,14 +75,14 @@ int main(void){
 
   //Calculate the valence (and excited) states
   for(int n=0; n<=n_max; n++){
-    for(int l=0; l<=l_max; l++){
+    for(int l=0; l<=l_max; l++){ //loop over l
       if(l+1>n) continue;
-      for(int tk=0; tk<2; tk++){
+      for(int tk=0; tk<2; tk++){ //loop over k (ie j=l +/- 1/2)
         int k;
-        if(tk==0) k=l;
-        else      k=-(l+1);
-        if(k==0) continue;
-        if(wf.isInCore(n,k)) continue;
+        if(tk==0) k=l;      //j = l - 1/2
+        else      k=-(l+1); //j = l + 1/2
+        if(k==0) continue;  // no j = l - 1/2 for l=0
+        if(wf.isInCore(n,k)) continue; //skip states already in the core
         //This energy guess works very well for Cs, Fr etc.
         //Works poorly (but still converges) for light atoms
         int dn=n-maxn;

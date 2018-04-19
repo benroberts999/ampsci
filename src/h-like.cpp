@@ -62,19 +62,27 @@ int main(void){
 
   if(extra){
     // Calculate the expectation value of r^rpow for each state in list:
-    printf("\nExpectation value of r^n\n");
+    printf("\nExpectation value of r^n (radial integral)\n");
+    std::cout<<"          ";
+    for(int in=-2; in<=2; in ++){
+      if(in==0) continue;
+      printf(" <nk|r^%i|nk>   ",in);
+    }
+    std::cout<<"\n";
     for (int s=0; s<num_states; s++){
-      std::vector<double> rad1,rad2;
-      for (int i=0; i<wf.ngp; i++){
-        double x1=(wf.p[s][i]*wf.p[s][i]+wf.q[s][i]*wf.q[s][i])*pow(wf.r[i],1);
-        double x2=(wf.p[s][i]*wf.p[s][i]+wf.q[s][i]*wf.q[s][i])*pow(wf.r[i],-1);
-        rad1.push_back(x1);
-        rad2.push_back(x2);
+      printf("%2i%s_%i/2 : ",wf.nlist[s],ATI_l(ATI_l_k(wf.klist[s])).c_str(),
+        ATI_twoj_k(wf.klist[s]));
+      for(int in=-2; in<=2; in ++){
+        if(in==0) continue;
+        std::vector<double> rad1;
+        for (int i=0; i<wf.ngp; i++){
+          double x1=(wf.p[s][i]*wf.p[s][i]+wf.q[s][i]*wf.q[s][i])*pow(wf.r[i],in);
+          rad1.push_back(x1);
+        }
+        double R1=INT_integrate(rad1,wf.drdt,wf.h);
+        printf("%13.8f, ",R1);
       }
-      double R1=INT_integrate(rad1,wf.drdt,wf.h);
-      double R2=INT_integrate(rad2,wf.drdt,wf.h);
-      printf("<%i% i|r^n|%i% i> n=1 %13.10f, n=-1 %13.10f\n",wf.nlist[s],
-          wf.klist[s],wf.nlist[s],wf.klist[s],R1,R2);
+      std::cout<<"\n";
     }
 
     // Testing Dirac Eq. by evaluating <a|H|a> - ME of Hamiltonian
