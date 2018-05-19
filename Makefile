@@ -4,7 +4,8 @@ CXX=g++
 CXXFLAGS=-I$(IDIR) -std=c++11 -Wall -fopenmp -O #-Wextra -Wpedantic
 LIBS=-lgsl -lgslcblas -lm
 
-all: h-like.x fitParametric.x parametricPotential.x atomicKernal.x hartree.x
+all: h-like.x fitParametric.x parametricPotential.x atomicKernal.x hartree.x \
+ wigner.x
 
 ################################################################################
 ## All programs depend on these header/object files:
@@ -74,6 +75,17 @@ hartree.x: $(OBJ) $(IDIR)/hartree.o $(IDIR)/PRM_parametricPotentials.o \
 $(IDIR)/HF_hartree.o
 	$(COMP)
 
+wigner.x: $(IDIR)/wigner.o $(IDIR)/WIG_369j.o
+	$(COMP)
+
 .PHONY: clean
 clean:
 	rm -f *.x *~ $(IDIR)/*.o $(IDIR)/*~
+
+
+
+
+
+
+
+
