@@ -2,7 +2,7 @@
 #include <iostream>
 #include <sstream>
 /*
-Quick routine that outputs numeric values for Wigner 3,6,9J symbols
+Quick routine that outputs numeric values for Wigner 3,6,9J symbols.
 */
 
 int caseCG(void){
