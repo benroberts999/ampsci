@@ -46,9 +46,9 @@ int case9j(void){
 }
 
 int main(int num_in, char* argv[]){
-
+  
   int i_type=-1;
-  if(num_in !=0){
+  if(num_in>1){
     i_type = std::stoi(argv[1]);
   }else{
     std::cout<<"Which symbol do you want? 3,6,9? (0 for CG)\n";
