@@ -218,8 +218,8 @@ int main(void){
       }
 
       //Calculate continuum wavefunctions
-      /// XXX for Hartree - check r*V = 1 ???
       double ec = dE+wf.en[is];
+      cntm.clear();
       if(ec>0)cntm.solveLocalContinuum(ec,max_lc);
 
       // Generate AK for each L, lc, and q
@@ -232,17 +232,17 @@ int main(void){
           if(lc > max_lc) break;
           double dC_Lkk = CLkk(L,k,kc);
           if(dC_Lkk==0) continue;
-
           #pragma omp parallel for
           for(int iq=0; iq<qsteps; iq++){
             double x=iq/(qsteps-1.);
             double q = qmin*pow(qmax/qmin,x);
-
-            double a=0;
-            double jLqr;
+            double a = 0;
+            double jLqr = 0;
             if(cntm.p.size()>0){
+              if(ec<=0) std::cout<<"ERROR 244: !?!?\n";
               int maxj = wf.pinflist[is]; //don't bother going further
               //Do the radial integral:
+              a=0;
               for(int j=0; j<maxj; j++){
                 jLqr = jLqr_f[L][iq][j];
                 a += (wf.p[is][j]*cntm.p[ic][j] + wf.q[is][j]*cntm.q[ic][j])
@@ -252,14 +252,13 @@ int main(void){
             if(ide==0) qlst[iq]=q;
             AK_nk_q[iq] += dC_Lkk*pow(a*wf.h,2);
           }
-
         } // END loop over cntm states (ic)
       } // end L loop
       AK_nk.push_back(AK_nk_q);
+      cntm.clear(); //deletes cntm wfs for this energy
     }// END loop over bound states
     dElst.push_back(dE);
     AK.push_back(AK_nk);
-    cntm.clear(); //deletes cntm wfs for this energy
   }
   std::cout<<" Running dE step "<<desteps<<"/"<<desteps<<"  -  100% done  :)   "
   <<"                \n";// extra space to over-write any left-over junk.
@@ -274,8 +273,10 @@ int main(void){
   ofile.open(fname);
   ofile<<"dE(keV) q(MeV) ";
   for(size_t i=0; i<nklst.size(); i++) ofile<<nklst[i]<<" ";
-  ofile<<"\n";
-  for(size_t i=0; i<dElst.size(); i++) ofile<<dElst[i]/keV<<" ";
+  if(qsteps>1){
+    ofile<<"\n";
+    for(size_t i=0; i<dElst.size(); i++) ofile<<dElst[i]/keV<<" ";
+  }
   ofile<<"\n\n";
   for(size_t i=0; i<AK.size(); i++){
     for(size_t k=0; k<AK[0][0].size(); k++){
@@ -285,7 +286,7 @@ int main(void){
       }
       ofile<<"\n";
     }
-    ofile<<"\n";
+    if(qsteps>1)ofile<<"\n";
   }
   ofile.close();
 
