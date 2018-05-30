@@ -290,6 +290,11 @@ int main(void){
   }
   ofile.close();
 
+  // AK[i][j][k] // [dE][nk][q]
+  //open file
+  //write out 'header' info
+  //write out array
+
   gettimeofday(&end, NULL);
   double total_time = (end.tv_sec-start.tv_sec)
   + (end.tv_usec - start.tv_usec)*1e-6;
@@ -334,4 +339,89 @@ Phys. Rev. D 93, 115037 (2016). [arXiv:1604.04559]
   double Z = -4*(ka+1)*(kb+1)*pow(tj2,2);
 
   return (A*B)*(X+Y+Z);
+}
+
+
+//******************************************************************************
+/*
+Helper functions for the binary read in/out
+*/
+template<typename T>
+int binary_write(std::fstream& stream, const T& value){
+    stream.write(reinterpret_cast<const char*>(&value), sizeof(T));
+    return 0;
+}
+template<typename T>
+int binary_read(std::fstream& stream, T& value){
+    stream.read(reinterpret_cast<char*>(&value), sizeof(T));
+    return 0;
+}
+int binary_str_write(std::fstream& stream, std::string& value){
+    binary_write(stream,value.length());
+    stream.write(value.c_str(), value.length());
+    return 0;
+}
+int binary_str_read(std::fstream& stream, std::string& ovalue){
+    size_t temp_len;
+    binary_read(stream,temp_len);
+    char* value = new char[temp_len+1];
+    stream.read(value, temp_len);
+    value[temp_len] = '\0'; //null 'end of string' character
+    ovalue = value;
+    delete [] value;
+    return 0;
+}
+template<typename T>
+int binary_rw(std::fstream& stream, T& value, bool write){
+    if(write) binary_write(stream, value);
+    else binary_read(stream, value);
+    return 0;
+}
+template<typename T>
+int binary_str_rw(std::fstream& stream, T& value, bool write){
+    if(write) binary_str_write(stream,value);
+    else binary_str_read(stream,value);
+    return 0;
+}
+//XXX remove first  ones???
+
+
+//************
+int akReadWrite(std::string fname, bool write,
+  std::vector< std::vector< std::vector<double> > > &AK,
+  std::vector<double> &dElst,
+  std::vector<double> &nklst,
+  std::vector<double> &qlst)
+{
+  std::fstream iof;
+  if(write) iof.open(fname,std::ios_base::out|std::ios_base::binary);
+  else      iof.open(fname,std::ios_base::in|std::ios_base::binary);
+
+  if(write){
+    binary_rw(iof,AK.size(),write);
+    binary_rw(iof,AK[0].size(),write);
+    binary_rw(iof,AK[0][0].size(),write);
+  }else{
+    int nq,ns,nde;
+    binary_rw(iof,nde,write);
+    binary_rw(iof,ns,write);
+    binary_rw(iof,nq,write);
+    AK.resize(nde,std::vector< std::vector<double> >(ns,std::vector<double>(nq)));
+    dElst.resize(nde);
+    nklst.resize(ns);
+    qlst.resize(nq);
+  }
+  for(size_t ie=0; ie<AK.size(); ie++){
+    binary_rw(iof,dElst[ie],write);
+    for(size_t in=0; ie<AK[0].size(); ie++){
+      if(ie==0) binary_rw(iof,nklst[in],write);
+      for(size_t iq=0; ie<AK[0][0].size(); ie++){
+        if(ie==0 && in==0) binary_rw(iof,qlst[iq],write);
+        binary_rw(iof,AK[ie][in][iq],write);
+      }
+    }
+  }
+
+
+  return 0; //?
 }
