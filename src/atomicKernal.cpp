@@ -270,13 +270,10 @@ int main(void){
   <<"                \n";// extra space to over-write any left-over junk.
 
 
-  //ALSO: should write the AK array to a binary file here,
-  //for ease of use in other applictaions.
-
   //Write out to text file (in gnuplot friendly form)
   std::ofstream ofile;
-  std::string fname = "ak-"+Z_str+"_"+label+".txt";
-  ofile.open(fname);
+  std::string fname = "ak-"+Z_str+"_"+label;
+  ofile.open(fname+".txt");
   ofile<<"dE(keV) q(MeV) ";
   for(size_t i=0; i<nklst.size(); i++) ofile<<nklst[i]<<" ";
   if(qsteps>1){
@@ -296,37 +293,8 @@ int main(void){
   }
   ofile.close();
 
-  // AK[i][j][k] // [dE][nk][q]
-  //open file
-  //write out 'header' info
-  //write out array
-  akReadWrite("ak.bin",true,AK,dElst,nklst,qlst);
-  AK.clear();
-  dElst.clear();
-  nklst.clear();
-  qlst.clear();
-  akReadWrite("ak.bin",false,AK,dElst,nklst,qlst);
-
-  fname = "ak-"+Z_str+"_"+label+"_2.txt";
-  ofile.open(fname);
-  ofile<<"dE(keV) q(MeV) ";
-  for(size_t i=0; i<nklst.size(); i++) ofile<<nklst[i]<<" ";
-  if(qsteps>1){
-    ofile<<"\n";
-    for(size_t i=0; i<dElst.size(); i++) ofile<<dElst[i]/keV<<" ";
-  }
-  ofile<<"\n\n";
-  for(size_t i=0; i<AK.size(); i++){
-    for(size_t k=0; k<AK[0][0].size(); k++){
-      ofile<<dElst[i]/keV<<" "<<qlst[k]/qMeV<<" ";
-      for(size_t j=0; j<AK[0].size(); j++){
-        ofile<<AK[i][j][k]<<" ";
-      }
-      ofile<<"\n";
-    }
-    if(qsteps>1)ofile<<"\n";
-  }
-  ofile.close();
+  //Write out AK as binary file
+  akReadWrite(fname+".bin",true,AK,dElst,nklst,qlst);
 
   gettimeofday(&end, NULL);
   double total_time = (end.tv_sec-start.tv_sec)
@@ -380,46 +348,32 @@ Phys. Rev. D 93, 115037 (2016). [arXiv:1604.04559]
 Helper functions for the binary read in/out
 */
 template<typename T>
-int binary_write(std::fstream& stream, const T& value){
-    stream.write(reinterpret_cast<const char*>(&value), sizeof(T));
-    return 0;
-}
-template<typename T>
-int binary_read(std::fstream& stream, T& value){
-    stream.read(reinterpret_cast<char*>(&value), sizeof(T));
-    return 0;
-}
-int binary_str_write(std::fstream& stream, std::string& value){
-    binary_write(stream,value.length());
-    stream.write(value.c_str(), value.length());
-    return 0;
-}
-int binary_str_read(std::fstream& stream, std::string& ovalue){
-    size_t temp_len;
-    binary_read(stream,temp_len);
-    char* value = new char[temp_len+1];
-    stream.read(value, temp_len);
-    value[temp_len] = '\0'; //null 'end of string' character
-    ovalue = value;
-    delete [] value;
-    return 0;
-}
-template<typename T>
 int binary_rw(std::fstream& stream, T& value, bool write){
-    if(write) binary_write(stream, value);
-    else binary_read(stream, value);
-    return 0;
+  if(write) stream.write(reinterpret_cast<const char*>(&value), sizeof(T));
+  else stream.read(reinterpret_cast<char*>(&value), sizeof(T));
+  return 0;
 }
 template<typename T>
 int binary_str_rw(std::fstream& stream, T& value, bool write){
-    if(write) binary_str_write(stream,value);
-    else binary_str_read(stream,value);
+  if(write){
+    size_t temp_len = value.length();
+    stream.write(reinterpret_cast<const char*>(&temp_len), sizeof(size_t));
+    stream.write(value.c_str(), value.length());
+  }else{
+    size_t temp_len;
+    stream.read(reinterpret_cast<char*>(&temp_len), sizeof(size_t));
+    char* tvalue = new char[temp_len+1];
+    stream.read(tvalue, temp_len);
+    tvalue[temp_len] = '\0'; //null 'end of string' character
+    value = tvalue;
+    delete [] tvalue;
     return 0;
+  }
+  return 0;
 }
-//XXX remove first  ones???
 
 
-//************
+//******************************************************************************
 int akReadWrite(std::string fname, bool write,
   std::vector< std::vector< std::vector<float> > > &AK,
   std::vector<float> &dElst,
@@ -437,7 +391,6 @@ int akReadWrite(std::string fname, bool write,
     binary_rw(iof,tmp1,write);
     binary_rw(iof,tmp2,write);
     binary_rw(iof,tmp3,write);
-    std::cout<<tmp1<<" "<<tmp2<<" "<<tmp3<<"\n";
   }else{
     int nq,ns,nde;
     binary_rw(iof,nde,write);
@@ -459,6 +412,5 @@ int akReadWrite(std::string fname, bool write,
     }
   }
 
-
-  return 0; //?
+  return 0;
 }
