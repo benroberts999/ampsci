@@ -13,6 +13,12 @@
 //Declare angular coeficient. [See Phys.Rev.D 93, 115037 (2016).]
 double CLkk(int L, int ka, int kb);
 
+int akReadWrite(std::string fname, bool write,
+  std::vector< std::vector< std::vector<float> > > &AK,
+  std::vector<float> &dElst,
+  std::vector<std::string> &nklst,
+  std::vector<float> &qlst);
+
 //******************************************************************************
 int main(void){
 
@@ -294,6 +300,33 @@ int main(void){
   //open file
   //write out 'header' info
   //write out array
+  akReadWrite("ak.bin",true,AK,dElst,nklst,qlst);
+  AK.clear();
+  dElst.clear();
+  nklst.clear();
+  qlst.clear();
+  akReadWrite("ak.bin",false,AK,dElst,nklst,qlst);
+
+  fname = "ak-"+Z_str+"_"+label+"_2.txt";
+  ofile.open(fname);
+  ofile<<"dE(keV) q(MeV) ";
+  for(size_t i=0; i<nklst.size(); i++) ofile<<nklst[i]<<" ";
+  if(qsteps>1){
+    ofile<<"\n";
+    for(size_t i=0; i<dElst.size(); i++) ofile<<dElst[i]/keV<<" ";
+  }
+  ofile<<"\n\n";
+  for(size_t i=0; i<AK.size(); i++){
+    for(size_t k=0; k<AK[0][0].size(); k++){
+      ofile<<dElst[i]/keV<<" "<<qlst[k]/qMeV<<" ";
+      for(size_t j=0; j<AK[0].size(); j++){
+        ofile<<AK[i][j][k]<<" ";
+      }
+      ofile<<"\n";
+    }
+    if(qsteps>1)ofile<<"\n";
+  }
+  ofile.close();
 
   gettimeofday(&end, NULL);
   double total_time = (end.tv_sec-start.tv_sec)
@@ -388,34 +421,38 @@ int binary_str_rw(std::fstream& stream, T& value, bool write){
 
 //************
 int akReadWrite(std::string fname, bool write,
-  std::vector< std::vector< std::vector<double> > > &AK,
-  std::vector<double> &dElst,
-  std::vector<double> &nklst,
-  std::vector<double> &qlst)
+  std::vector< std::vector< std::vector<float> > > &AK,
+  std::vector<float> &dElst,
+  std::vector<std::string> &nklst,
+  std::vector<float> &qlst)
 {
   std::fstream iof;
   if(write) iof.open(fname,std::ios_base::out|std::ios_base::binary);
-  else      iof.open(fname,std::ios_base::in|std::ios_base::binary);
+  else      iof.open(fname,std::ios_base::in |std::ios_base::binary);
 
   if(write){
-    binary_rw(iof,AK.size(),write);
-    binary_rw(iof,AK[0].size(),write);
-    binary_rw(iof,AK[0][0].size(),write);
+    int tmp1 = AK.size();
+    int tmp2 = AK[0].size();
+    int tmp3 = AK[0][0].size();
+    binary_rw(iof,tmp1,write);
+    binary_rw(iof,tmp2,write);
+    binary_rw(iof,tmp3,write);
+    std::cout<<tmp1<<" "<<tmp2<<" "<<tmp3<<"\n";
   }else{
     int nq,ns,nde;
     binary_rw(iof,nde,write);
     binary_rw(iof,ns,write);
     binary_rw(iof,nq,write);
-    AK.resize(nde,std::vector< std::vector<double> >(ns,std::vector<double>(nq)));
+    AK.resize(nde,std::vector< std::vector<float> >(ns,std::vector<float>(nq)));
     dElst.resize(nde);
     nklst.resize(ns);
     qlst.resize(nq);
   }
   for(size_t ie=0; ie<AK.size(); ie++){
     binary_rw(iof,dElst[ie],write);
-    for(size_t in=0; ie<AK[0].size(); ie++){
-      if(ie==0) binary_rw(iof,nklst[in],write);
-      for(size_t iq=0; ie<AK[0][0].size(); ie++){
+    for(size_t in=0; in<AK[0].size(); in++){
+      if(ie==0) binary_str_rw(iof,nklst[in],write);
+      for(size_t iq=0; iq<AK[0][0].size(); iq++){
         if(ie==0 && in==0) binary_rw(iof,qlst[iq],write);
         binary_rw(iof,AK[ie][in][iq],write);
       }
