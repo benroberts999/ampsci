@@ -47,6 +47,10 @@ $(IDIR)/ContinuumOrbitals.o: \
 $(IDIR)/ContinuumOrbitals.cpp $(IDIR)/ContinuumOrbitals.h
 	$(CXX) -c -o $@ $< $(CXXFLAGS)
 
+$(IDIR)/akFunctions.o: \
+$(IDIR)/akFunctions.cpp $(IDIR)/akFunctions.h
+	$(CXX) -c -o $@ $< $(CXXFLAGS)
+
 CNTM = $(addprefix $(IDIR)/, \
  adamsSolveLocalContinuum.o ContinuumOrbitals.o \
 )
@@ -67,7 +71,7 @@ parametricPotential.x: $(OBJ) $(IDIR)/parametricPotential.o \
 $(IDIR)/PRM_parametricPotentials.o
 	$(COMP)
 
-atomicKernal.x: $(OBJ) $(IDIR)/atomicKernal.o $(IDIR)/WIG_369j.o \
+atomicKernal.x: $(OBJ) $(IDIR)/atomicKernal.o $(IDIR)/akFunctions.o $(IDIR)/WIG_369j.o \
 $(IDIR)/PRM_parametricPotentials.o $(CNTM) $(IDIR)/HF_hartree.o
 	$(COMP)
 
@@ -81,11 +85,3 @@ wigner.x: $(IDIR)/wigner.o $(IDIR)/WIG_369j.o
 .PHONY: clean
 clean:
 	rm -f *.x *~ $(IDIR)/*.o $(IDIR)/*~
-
-
-
-
-
-
-
-
