@@ -14,6 +14,12 @@ int main(void){
   std::string akfn = "ak-Xe_test.bin"; //XXX
   akReadWrite(akfn,false,AK,dElst,nklst,qlst);
 
+  int nqsteps = qlst.size();
+  double qmin = qlst[0];
+  double qmax = qlst[nqsteps-1];
+
+  double dqonq = log(qmax/qmin)/(nqsteps-1); //need to multiply by q
+
 
   return 0;
 }
