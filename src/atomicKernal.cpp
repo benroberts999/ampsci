@@ -25,7 +25,7 @@ int main(void){
   int qsteps,desteps;
 
   // Max anglular momentums
-  int max_l,max_lc,max_L;
+  int max_l,max_L;
 
   std::string label; //label for output file
 
@@ -49,7 +49,7 @@ int main(void){
     ifs >> varalpha;              getline(ifs,jnk);
     ifs >>demin>>demax>>desteps;  getline(ifs,jnk);
     ifs >>qmin>> qmax >> qsteps;  getline(ifs,jnk);
-    ifs >> max_l >> max_lc;       getline(ifs,jnk);
+    ifs >> max_l;                 getline(ifs,jnk);
     ifs >> max_L;                 getline(ifs,jnk);
     ifs >> label;                 getline(ifs,jnk);
     ifs.close();
@@ -66,9 +66,9 @@ int main(void){
 
   //XXX Simplify: only specificy L. Do all k' allowed by L.
   // Fix maximum angular momentum values:
-  if(max_lc<0) return 2;
+  //if(max_lc<0) return 2;
   if(max_l<0 || max_l>3) max_l=3; //default: all core states (no >f)
-  if(max_L>max_l+max_lc || max_L<0) max_L = max_l + max_lc; //triangle rule
+  //if(max_L>max_l+max_lc || max_L<0) max_L = max_l + max_lc; //triangle rule
 
   /// XXX have a min_L ?? -- just for testing?
 
@@ -82,6 +82,22 @@ int main(void){
   double qMeV = (1.e6/(HARTREE_EV*CLIGHT));
   qmin*=qMeV;
   qmax*=qMeV;
+
+  // std::vector<int> kv={-1,1,-2,2,-3};
+  //
+  // for(int i=0; i<kv.size(); i++){
+  //   for(int j=0; j<kv.size(); j++){
+  //     int k = kv[i];
+  //     int kc = kv[j];
+  //
+  //     for(int L=0; L<4; L++){
+  //       double C = CLkk(L,k,kc);
+  //       double C2 = CLkk_OLD(L,k,kc);
+  //       printf("%2i %2i %2i : %5.2f  %5.2f  d=%6.3f\n",k,kc,L,C,C2,C-C2);
+  //     }
+  //   }
+  // }
+  // return 1;
 
 
   //Look-up atomic number, Z, and also A
@@ -220,7 +236,11 @@ int main(void){
       //Calculate continuum wavefunctions
       double ec = dE+wf.en[is];
       cntm.clear();
-      if(ec>0) cntm.solveLocalContinuum(ec,max_lc); //Have min_lc ??? XXX XXX
+      int lc_max = l + max_L;
+      int lc_min = l - max_L;
+      if(lc_min<0) lc_min = 0;
+      if(ec>0) cntm.solveLocalContinuum(ec,lc_min,lc_max);
+      //XXX can have ec_max. If ec large enough - use plane waves!?? XXX
 
       // Generate AK for each L, lc, and q
       //NB: L and lc summed, not stored indevidually
@@ -229,8 +249,8 @@ int main(void){
         for(size_t ic=0; ic<cntm.klist.size(); ic++){
           int kc = cntm.klist[ic];
           int lc = ATI_l_k(kc);
-          if(lc > max_lc) break;
-          double dC_Lkk = CLkk(L,k,kc);
+          //if(lc > max_lc) break;
+          double dC_Lkk = CLkk(L,k,kc); //XXX new formula!
           if(dC_Lkk==0) continue;
           #pragma omp parallel for
           for(int iq=0; iq<qsteps; iq++){

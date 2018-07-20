@@ -14,6 +14,7 @@
 
 
 //Declare angular coeficient. [See Phys.Rev.D 93, 115037 (2016).]
+double CLkk_OLD(int L, int ka, int kb);
 double CLkk(int L, int ka, int kb);
 
 int akReadWrite(std::string fname, bool write,

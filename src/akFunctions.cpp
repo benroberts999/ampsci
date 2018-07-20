@@ -3,6 +3,25 @@
 
 //******************************************************************************
 double CLkk(int L, int ka, int kb)
+{
+  int la = ATI_l_k(ka);
+  int lb = ATI_l_k(kb);
+  int two_ja = ATI_twoj_k(ka);
+  int two_jb = ATI_twoj_k(kb);
+  double ja = 0.5*two_ja;
+  double jb = 0.5*two_jb;
+
+  if((la+lb+L)%2!=0) return 0; //Parity rule
+  if((la+lb<L)||(abs(la-lb)>L)) return 0; //triangle rule (l)
+
+  double tjB = WIG_3j(jb,ja,L,-0.5,0.5,0);
+  return (2*ja+1)*(2*jb+1)*(2*L+1)*pow(tjB,2);
+}
+
+
+
+//******************************************************************************
+double CLkk_OLD(int L, int ka, int kb)
 /*
 Calculates the angular coeficient (averaged over all m)
 B. M. Roberts, V. A. Dzuba, V. V. Flambaum, M. Pospelov, and Y. V. Stadnik,
