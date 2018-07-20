@@ -62,10 +62,15 @@ int main(void){
   if(desteps==1) demax=demin;
   if(qsteps==1) qmax=qmin;
 
+  //XXX Make bunch of smalle functions!!! XXX
+
+  //XXX Simplify: only specificy L. Do all k' allowed by L.
   // Fix maximum angular momentum values:
   if(max_lc<0) return 2;
   if(max_l<0 || max_l>3) max_l=3; //default: all core states (no >f)
   if(max_L>max_l+max_lc || max_L<0) max_L = max_l + max_lc; //triangle rule
+
+  /// XXX have a min_L ?? -- just for testing?
 
   //alpha can't be zero:
   if(varalpha==0) varalpha=1.e-25;
@@ -95,6 +100,7 @@ int main(void){
   printf("Grid: pts=%i h=%6.4f r0=%.0e Rmax=%5.1f\n"
   , wf.ngp,wf.h,wf.r[0],wf.r[wf.ngp-1]);
 
+  //XXX GIVE option to input h0, work-out Npts !!! XXX
   // Check if 'h' is small enough for oscillating region:
   double h_target = (M_PI/15)/sqrt(2.*demax);
   if(wf.h>2*h_target){
@@ -102,6 +108,10 @@ int main(void){
       <<"ec="<<demax<<" (h="<<wf.h<<", need h<"<<h_target<<")\n";
     std::cout<<"Program will continue, but continuum wfs may be bad.\n\n";
   }
+
+  //XXX XXX XXX have an ec_max !
+  // Just artificially set K to zero above this. Hope it's small enough!
+  // Set to 'zero' to not use it?
 
   //If non-zero A is given, use spherical nucleus.
   if(A>0) wf.sphericalNucleus();
@@ -125,6 +135,7 @@ int main(void){
     // Solve Dirac equation for each (bound) core state:
     wf.solveInitialCore();
   }
+  //XXX Make option to use Z-eff with H-like!!! XXX
 
   //make list of energy indices in sorted order:
   std::vector<int> sort_list;
@@ -144,6 +155,8 @@ int main(void){
         n,ATI_l(l).c_str(),twoj,k,rinf,wf.itslist[i],wf.epslist[i],
         eni, eni*HARTREE_ICM, eni*HARTREE_EV);
   }
+
+  //////////////////////////////////////////////////
 
   //Continuum wavefunction object
   ContinuumOrbitals cntm(wf);
@@ -207,7 +220,7 @@ int main(void){
       //Calculate continuum wavefunctions
       double ec = dE+wf.en[is];
       cntm.clear();
-      if(ec>0)cntm.solveLocalContinuum(ec,max_lc);
+      if(ec>0) cntm.solveLocalContinuum(ec,max_lc); //Have min_lc ??? XXX XXX
 
       // Generate AK for each L, lc, and q
       //NB: L and lc summed, not stored indevidually
@@ -221,7 +234,7 @@ int main(void){
           if(dC_Lkk==0) continue;
           #pragma omp parallel for
           for(int iq=0; iq<qsteps; iq++){
-            double x=iq/(qsteps-1.);
+            double x = double(iq)/(qsteps-1.);
             double q = qmin*pow(qmax/qmin,x);
             double a = 0;
             double jLqr = 0;
@@ -238,7 +251,7 @@ int main(void){
             }
             if(ide==0) qlst[iq]=q;
             AK_nk_q[iq] += dC_Lkk*pow(a*wf.h,2);
-          }
+          } //q
         } // END loop over cntm states (ic)
       } // end L loop
       AK_nk.push_back(AK_nk_q);
@@ -247,8 +260,8 @@ int main(void){
     dElst.push_back(dE);
     AK.push_back(AK_nk);
   }
-  std::cout<<" Running dE step "<<desteps<<"/"<<desteps<<"  -  100% done  :)   "
-  <<"                \n";// extra space to over-write any left-over junk.
+  std::cout<<" Running dE step "<<desteps<<"/"<<desteps<<"  -  100% done  :)  "
+  <<"                  \n";// extra space to over-write any left-over junk.
 
 
   //Write out to text file (in gnuplot friendly form)
