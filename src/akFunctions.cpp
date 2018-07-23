@@ -127,12 +127,71 @@ int akReadWrite(std::string fname, bool write,
 }
 
 
+//******************************************************************************
+int calculateK_nk(ElectronOrbitals &wf, int is, int max_L, double dE,
+  std::vector< std::vector<std::vector<float> > > &jLqr_f,
+  std::vector< std::vector<float> > &K_nk)
+{
+  if (is>=(int)wf.p.size()) return 1; //should never occur XXX
+
+  ContinuumOrbitals cntm(wf); //XXX here?
+
+  int k = wf.klist[is];
+  int l = ATI_l_k(k);
+
+  int qsteps = (int)jLqr_f[0].size();
+
+  //Calculate continuum wavefunctions
+  double ec = dE+wf.en[is];
+  cntm.clear();
+  int lc_max = l + max_L;
+  int lc_min = l - max_L;
+  if(lc_min<0) lc_min = 0;
+  if(ec>0) cntm.solveLocalContinuum(ec,lc_min,lc_max);
+  //XXX can have ec_max. If ec large enough - use plane waves!?? XXX
+
+  // Generate AK for each L, lc, and q
+  //NB: L and lc summed, not stored indevidually
+  std::vector<float> AK_nk_q(qsteps);
+  for(int L=0; L<=max_L; L++){
+    for(size_t ic=0; ic<cntm.klist.size(); ic++){
+      int kc = cntm.klist[ic];
+      //int lc = ATI_l_k(kc);
+      //if(lc > max_lc) break;
+      double dC_Lkk = CLkk(L,k,kc); //XXX new formula!
+      if(dC_Lkk==0) continue;
+      #pragma omp parallel for
+      for(int iq=0; iq<qsteps; iq++){
+        //double x = double(iq)/(qsteps-1.);
+        //double q = qmin*pow(qmax/qmin,x);
+        double a = 0;
+        double jLqr = 0;
+        if(cntm.p.size()>0){
+          if(ec<=0) std::cout<<"ERROR 244: !?!?\n";
+          int maxj = wf.pinflist[is]; //don't bother going further
+          //Do the radial integral:
+          a=0;
+          for(int j=0; j<maxj; j++){
+            jLqr = jLqr_f[L][iq][j];
+            a += (wf.p[is][j]*cntm.p[ic][j] + wf.q[is][j]*cntm.q[ic][j])
+                 *jLqr*wf.drdt[j];// *h below!
+          }
+        }
+        //if(ide==0) qlst[iq]=q;
+        AK_nk_q[iq] += dC_Lkk*pow(a*wf.h,2);
+      } //q
+    } // END loop over cntm states (ic)
+  } // end L loop
+  K_nk.push_back(AK_nk_q);
+  cntm.clear(); //deletes cntm wfs for this energy
+  return 0;
+}
 
 
 //******************************************************************************
 int calculateKpw_nk(ElectronOrbitals &wf, int nk, double dE,
-  std::vector< std::vector<float> > &jl_q_r,
-  std::vector< std::vector<float> > &K_nk;
+  std::vector< std::vector<float> > &jl_qr,
+  std::vector< std::vector<float> > &K_nk
 )
 /*
 For plane-wave final state.
@@ -144,11 +203,11 @@ Should be called once per initial state
   if (nk>=(int)wf.p.size()) return 1; //should never occur XXX
 
   int kappa = wf.klist[nk];
-  int l = ATI_l_k(kappa);
+  //int l = ATI_l_k(kappa);
   int twoj = ATI_twoj_k(kappa);
 
-  int qsteps = (int)jl_q_r.size();
-  std::vector<double> tmpK_q(qsteps);
+  int qsteps = (int)jl_qr.size();
+  std::vector<float> tmpK_q(qsteps);
 
   double eps = dE - wf.en[nk];
   int maxir = wf.pinflist[nk]; //don't bother going further

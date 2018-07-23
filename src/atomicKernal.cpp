@@ -175,7 +175,7 @@ int main(void){
   //////////////////////////////////////////////////
 
   //Continuum wavefunction object
-  ContinuumOrbitals cntm(wf);
+  //ContinuumOrbitals cntm(wf);
 
   //Arrays to store results for outputting later:
   std::vector< std::vector< std::vector<float> > > AK; //float ok?
@@ -208,6 +208,8 @@ int main(void){
   ,   demin/keV,demax/keV,demin,demax);
   printf("  q: %5.0e -- %5.1g MeV  (%.2f -- %.1f au)\n"
   ,   qmin/qMeV,qmax/qMeV,qmin,qmax);
+
+
   for(int ide=0; ide<desteps; ide++){
     int pc = int(100.*ide/desteps);
     std::cout<<" Running dE step "<<ide<<"/"<<desteps<<"  -  "<<pc<<"% done"
@@ -233,49 +235,10 @@ int main(void){
         nklst.push_back(nk);
       }
 
-      //Calculate continuum wavefunctions
-      double ec = dE+wf.en[is];
-      cntm.clear();
-      int lc_max = l + max_L;
-      int lc_min = l - max_L;
-      if(lc_min<0) lc_min = 0;
-      if(ec>0) cntm.solveLocalContinuum(ec,lc_min,lc_max);
       //XXX can have ec_max. If ec large enough - use plane waves!?? XXX
 
-      // Generate AK for each L, lc, and q
-      //NB: L and lc summed, not stored indevidually
-      std::vector<float> AK_nk_q(qsteps);
-      for(int L=0; L<=max_L; L++){
-        for(size_t ic=0; ic<cntm.klist.size(); ic++){
-          int kc = cntm.klist[ic];
-          int lc = ATI_l_k(kc);
-          //if(lc > max_lc) break;
-          double dC_Lkk = CLkk(L,k,kc); //XXX new formula!
-          if(dC_Lkk==0) continue;
-          #pragma omp parallel for
-          for(int iq=0; iq<qsteps; iq++){
-            double x = double(iq)/(qsteps-1.);
-            double q = qmin*pow(qmax/qmin,x);
-            double a = 0;
-            double jLqr = 0;
-            if(cntm.p.size()>0){
-              if(ec<=0) std::cout<<"ERROR 244: !?!?\n";
-              int maxj = wf.pinflist[is]; //don't bother going further
-              //Do the radial integral:
-              a=0;
-              for(int j=0; j<maxj; j++){
-                jLqr = jLqr_f[L][iq][j];
-                a += (wf.p[is][j]*cntm.p[ic][j] + wf.q[is][j]*cntm.q[ic][j])
-                     *jLqr*wf.drdt[j];// *h below!
-              }
-            }
-            if(ide==0) qlst[iq]=q;
-            AK_nk_q[iq] += dC_Lkk*pow(a*wf.h,2);
-          } //q
-        } // END loop over cntm states (ic)
-      } // end L loop
-      AK_nk.push_back(AK_nk_q);
-      cntm.clear(); //deletes cntm wfs for this energy
+      calculateK_nk(wf,is,max_L,dE,jLqr_f,AK_nk);
+
     }// END loop over bound states
     dElst.push_back(dE);
     AK.push_back(AK_nk);
@@ -297,7 +260,16 @@ int main(void){
   ofile<<"\n\n";
   for(size_t i=0; i<AK.size(); i++){
     for(size_t k=0; k<AK[0][0].size(); k++){
-      ofile<<dElst[i]/keV<<" "<<qlst[k]/qMeV<<" ";
+
+      double x = double(k)/(qsteps-1.);
+      double q = qmin*pow(qmax/qmin,x);
+
+      double y;
+      if(desteps>1) y=double(i)/(desteps-1.);
+      else y=0;
+      double dE = demin*pow(demax/demin,y);
+
+      ofile<<dE/keV<<" "<<q/qMeV<<" ";
       for(size_t j=0; j<AK[0].size(); j++){
         ofile<<AK[i][j][k]<<" ";
       }

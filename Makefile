@@ -5,7 +5,7 @@ CXXFLAGS=-I$(IDIR) -std=c++11 -Wall -fopenmp -O #-Wextra -Wpedantic
 LIBS=-lgsl -lgslcblas -lm
 
 all: h-like.x fitParametric.x parametricPotential.x atomicKernal.x hartree.x \
- wigner.x dmeXSection.x
+ wigner.x
 
 ################################################################################
 ## All programs depend on these header/object files:
@@ -75,8 +75,8 @@ atomicKernal.x: $(OBJ) $(IDIR)/atomicKernal.o $(IDIR)/akFunctions.o $(IDIR)/WIG_
 $(IDIR)/PRM_parametricPotentials.o $(CNTM) $(IDIR)/HF_hartree.o
 	$(COMP)
 
-dmeXSection.x: $(OBJ) $(IDIR)/dmeXSection.o $(IDIR)/akFunctions.o $(IDIR)/WIG_369j.o
-	$(COMP)
+# dmeXSection.x: $(OBJ) $(IDIR)/dmeXSection.o $(IDIR)/akFunctions.o $(IDIR)/WIG_369j.o
+# 	$(COMP)
 
 hartree.x: $(OBJ) $(IDIR)/hartree.o $(IDIR)/PRM_parametricPotentials.o \
 $(IDIR)/HF_hartree.o
