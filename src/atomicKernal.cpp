@@ -62,13 +62,8 @@ int main(void){
   if(desteps==1) demax=demin;
   if(qsteps==1) qmax=qmin;
 
-  //XXX Make bunch of smalle functions!!! XXX
-
-  //XXX Simplify: only specificy L. Do all k' allowed by L.
   // Fix maximum angular momentum values:
-  //if(max_lc<0) return 2;
   if(max_l<0 || max_l>3) max_l=3; //default: all core states (no >f)
-  //if(max_L>max_l+max_lc || max_L<0) max_L = max_l + max_lc; //triangle rule
 
   /// XXX have a min_L ?? -- just for testing?
 
