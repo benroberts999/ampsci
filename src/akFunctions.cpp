@@ -125,3 +125,44 @@ int akReadWrite(std::string fname, bool write,
 
   return 0;
 }
+
+
+
+
+//******************************************************************************
+int calculateKpw_nk(ElectronOrbitals &wf, int nk, double dE,
+  std::vector< std::vector<float> > &jl_q_r,
+  std::vector< std::vector<float> > &K_nk;
+)
+/*
+For plane-wave final state.
+Only has f-part....Can restore g-part, but need to be sure of plane-wave!
+Chi(q) - Int[ f_nk*j_l(qr)*r , {r,0,inf}]
+Should be called once per initial state
+*/
+{
+  if (nk>=(int)wf.p.size()) return 1; //should never occur XXX
+
+  int kappa = wf.klist[nk];
+  int l = ATI_l_k(kappa);
+  int twoj = ATI_twoj_k(kappa);
+
+  int qsteps = (int)jl_q_r.size();
+  std::vector<double> tmpK_q(qsteps);
+
+  double eps = dE - wf.en[nk];
+  int maxir = wf.pinflist[nk]; //don't bother going further
+
+  for(int iq=0; iq<qsteps; iq++){
+    if(eps<=0) break;
+    double chi_q=0;
+    for(int ir=0; ir<maxir; ir++){
+      chi_q += wf.p[nk][ir]*jl_qr[iq][ir]*wf.r[ir];
+    }
+    chi_q *= wf.h;
+    tmpK_q[iq] = (2./M_PI)*(twoj+1)*pow(chi_q,2)*sqrt(2.*eps);
+  }
+
+  K_nk.push_back(tmpK_q);
+  return 0;
+}
