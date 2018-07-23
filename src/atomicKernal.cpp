@@ -174,8 +174,8 @@ int main(void){
 
   //Arrays to store results for outputting later:
   std::vector< std::vector< std::vector<float> > > AK; //float ok?
-  std::vector<float> qlst(qsteps);
-  std::vector<float> dElst;
+  // std::vector<float> qlst(qsteps);
+  // std::vector<float> dElst;
   std::vector<std::string> nklst;
 
   //pre-calculate the spherical Bessel function look-up table for efficiency
@@ -236,7 +236,7 @@ int main(void){
       //calculateKpw_nk(wf,is,dE,jLqr_f[l],AK_nk);
 
     }// END loop over bound states
-    dElst.push_back(dE);
+    //dElst.push_back(dE);
     AK.push_back(AK_nk);
   }
   std::cout<<" Running dE step "<<desteps<<"/"<<desteps<<"  -  100% done  :)  "
@@ -269,8 +269,8 @@ int main(void){
   }
   ofile.close();
 
-  //Write out AK as binary file
-  akReadWrite(fname+".bin",true,AK,dElst,nklst,qlst);
+  // //Write out AK as binary file
+  // akReadWrite(fname+".bin",true,AK,dElst,nklst,qlst);
 
   gettimeofday(&end, NULL);
   double total_time = (end.tv_sec-start.tv_sec)
