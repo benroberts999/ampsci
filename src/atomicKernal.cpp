@@ -238,6 +238,7 @@ int main(void){
       //XXX can have ec_max. If ec large enough - use plane waves!?? XXX
 
       calculateK_nk(wf,is,max_L,dE,jLqr_f,AK_nk);
+      //calculateKpw_nk(wf,is,dE,jLqr_f[l],AK_nk);
 
     }// END loop over bound states
     dElst.push_back(dE);
@@ -248,27 +249,21 @@ int main(void){
 
 
   //Write out to text file (in gnuplot friendly form)
+  // XXX re-think the format?
   std::ofstream ofile;
   std::string fname = "ak-"+Z_str+"_"+label;
   ofile.open(fname+".txt");
   ofile<<"dE(keV) q(MeV) ";
   for(size_t i=0; i<nklst.size(); i++) ofile<<nklst[i]<<" ";
-  if(qsteps>1){
-    ofile<<"\n";
-    for(size_t i=0; i<dElst.size(); i++) ofile<<dElst[i]/keV<<" ";
-  }
   ofile<<"\n\n";
   for(size_t i=0; i<AK.size(); i++){
     for(size_t k=0; k<AK[0][0].size(); k++){
-
       double x = double(k)/(qsteps-1.);
+      if(qsteps==1) x=0;
       double q = qmin*pow(qmax/qmin,x);
-
-      double y;
-      if(desteps>1) y=double(i)/(desteps-1.);
-      else y=0;
+      double y = double(i)/(desteps-1.);
+      if(desteps==1) y=0;
       double dE = demin*pow(demax/demin,y);
-
       ofile<<dE/keV<<" "<<q/qMeV<<" ";
       for(size_t j=0; j<AK[0].size(); j++){
         ofile<<AK[i][j][k]<<" ";

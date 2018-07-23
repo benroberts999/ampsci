@@ -4,8 +4,8 @@ Xe  .              | Core configuration (end with ' .')
 1 5. 1.0           | green H d *2
 1.e-4              | Hartree convergence goal. put 0 for default.
 1                  | varalpha [<<1 for non-rel [1.e-20]; =1 for normal]
-2.0    2.0    1    | dE(min, max, #steps) - in keV
-0.01   1.0  064    | q (min, max, #steps) - in MeV
+1.0    6.0   16    | dE(min, max, #steps) - in keV
+0.01   1.0  999    | q (min, max, #steps) - in MeV
 0                  | max l (bound)
 5                  | max L (multipolarity). put -1 for all
 xxxx               | label for output file

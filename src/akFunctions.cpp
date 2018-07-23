@@ -216,7 +216,7 @@ Should be called once per initial state
     if(eps<=0) break;
     double chi_q=0;
     for(int ir=0; ir<maxir; ir++){
-      chi_q += wf.p[nk][ir]*jl_qr[iq][ir]*wf.r[ir];
+      chi_q += wf.p[nk][ir]*jl_qr[iq][ir]*wf.r[ir]*wf.drdt[ir];
     }
     chi_q *= wf.h;
     tmpK_q[iq] = (2./M_PI)*(twoj+1)*pow(chi_q,2)*sqrt(2.*eps);
