@@ -140,28 +140,28 @@ int akReadWrite(std::string fname, bool write,
   else      iof.open(fname,std::ios_base::in |std::ios_base::binary);
 
   if(write){
-    int dE_steps = AK.size();   //dE
-    int num_states = AK[0].size();  //nk
-    int q_steps = AK[0][0].size();//q
-    binary_rw(iof,dE_steps,write);
-    binary_rw(iof,num_states,write);
-    binary_rw(iof,q_steps,write);
+    int nde = AK.size();   //dE
+    int ns = AK[0].size();  //nk
+    int nq = AK[0][0].size();//q
+    binary_rw(iof,nde,write);
+    binary_rw(iof,ns,write);
+    binary_rw(iof,nq,write);
   }else{
     int nq,ns,nde;
     binary_rw(iof,nde,write);
     binary_rw(iof,ns,write);
     binary_rw(iof,nq,write);
     AK.resize(nde,std::vector< std::vector<float> >(ns,std::vector<float>(nq)));
-    // dElst.resize(nde);
     nklst.resize(ns);
-    // qlst.resize(nq);
   }
+  binary_rw(iof,qmin,write);
+  binary_rw(iof,qmax,write);
+  binary_rw(iof,dEmin,write);
+  binary_rw(iof,dEmax,write);
   for(size_t ie=0; ie<AK.size(); ie++){
-    // binary_rw(iof,dElst[ie],write);
     for(size_t in=0; in<AK[0].size(); in++){
       if(ie==0) binary_str_rw(iof,nklst[in],write);
       for(size_t iq=0; iq<AK[0][0].size(); iq++){
-        // if(ie==0 && in==0) binary_rw(iof,qlst[iq],write);
         binary_rw(iof,AK[ie][in][iq],write);
       }
     }

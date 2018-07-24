@@ -8,7 +8,7 @@ Xe  .              | Core configuration (end with ' .')
 0.001  10.  3000   | q (min, max, #steps) - in MeV
 0                  | max l (bound). Put -1 for all.
 6                  | max L (multipolarity). Put -1 to use plane waves.
-0                  | 0=text output, 1=binary, 2=both.
+1                  | 0=text output, 1=binary, 2=both.
 L6                 | label for output file
 --------------------
 
