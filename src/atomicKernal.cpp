@@ -53,15 +53,13 @@ int main(void){
     ifs >>qmin>> qmax >> qsteps;  getline(ifs,jnk);
     ifs >> max_l;                 getline(ifs,jnk);
     ifs >> max_L;                 getline(ifs,jnk);
-    ifs >> label;                 getline(ifs,jnk);
     ifs >> iout_format;           getline(ifs,jnk);
+    ifs >> label;                 getline(ifs,jnk);
     ifs.close();
   }
 
   bool plane_wave = false;
   if(max_L<0) plane_wave = true;
-
-
 
   //default Hartree convergance goal:
   if(hart_del==0) hart_del=1.e-6;
