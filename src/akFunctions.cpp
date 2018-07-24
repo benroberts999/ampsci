@@ -53,6 +53,49 @@ Phys. Rev. D 93, 115037 (2016). [arXiv:1604.04559]
   return (A*B)*(X+Y+Z);
 }
 
+//******************************************************************************
+void writeToTextFile(
+  std::string fname,
+  std::vector< std::vector< std::vector<float> > > &AK,
+  std::vector<std::string> nklst,
+  double qmin, double qmax,
+  double demin, double demax
+)
+{
+  int desteps = AK.size();   //dE
+  int num_states = AK[0].size();  //nk
+  int qsteps = AK[0][0].size();//q
+
+  double qMeV = (1.e6/(HARTREE_EV*CLIGHT));
+  double keV = (1.e3/HARTREE_EV);
+
+  std::ofstream ofile;
+  ofile.open(fname+".txt");
+  ofile<<"dE(keV) q(MeV) ";
+  for(size_t i=0; i<nklst.size(); i++) ofile<<nklst[i]<<" ";
+  ofile<<"\n\n";
+  for(int i=0; i<desteps; i++){
+    for(int k=0; k<qsteps; k++){
+      double x = double(k)/(qsteps-1);
+      if(qsteps==1) x=0;
+      double q = qmin*pow(qmax/qmin,x);
+      double y = double(i)/(desteps-1);
+      if(desteps==1) y=0;
+      double dE = demin*pow(demax/demin,y);
+      ofile<<dE/keV<<" "<<q/qMeV<<" ";
+      for(int j=0; j<num_states; j++){
+        ofile<<AK[i][j][k]<<" ";
+      }
+      ofile<<"\n";
+    }
+    if(qsteps>1)ofile<<"\n";
+  }
+  ofile.close();
+}
+
+
+
+
 
 //******************************************************************************
 /*
@@ -87,37 +130,38 @@ int binary_str_rw(std::fstream& stream, T& value, bool write){
 //******************************************************************************
 int akReadWrite(std::string fname, bool write,
   std::vector< std::vector< std::vector<float> > > &AK,
-  std::vector<float> &dElst,
   std::vector<std::string> &nklst,
-  std::vector<float> &qlst)
+  double &qmin, double &qmax,
+  double &dEmin, double &dEmax)
 {
   std::fstream iof;
+  fname=fname+".bin";
   if(write) iof.open(fname,std::ios_base::out|std::ios_base::binary);
   else      iof.open(fname,std::ios_base::in |std::ios_base::binary);
 
   if(write){
-    int tmp1 = AK.size();
-    int tmp2 = AK[0].size();
-    int tmp3 = AK[0][0].size();
-    binary_rw(iof,tmp1,write);
-    binary_rw(iof,tmp2,write);
-    binary_rw(iof,tmp3,write);
+    int dE_steps = AK.size();   //dE
+    int num_states = AK[0].size();  //nk
+    int q_steps = AK[0][0].size();//q
+    binary_rw(iof,dE_steps,write);
+    binary_rw(iof,num_states,write);
+    binary_rw(iof,q_steps,write);
   }else{
     int nq,ns,nde;
     binary_rw(iof,nde,write);
     binary_rw(iof,ns,write);
     binary_rw(iof,nq,write);
     AK.resize(nde,std::vector< std::vector<float> >(ns,std::vector<float>(nq)));
-    dElst.resize(nde);
+    // dElst.resize(nde);
     nklst.resize(ns);
-    qlst.resize(nq);
+    // qlst.resize(nq);
   }
   for(size_t ie=0; ie<AK.size(); ie++){
-    binary_rw(iof,dElst[ie],write);
+    // binary_rw(iof,dElst[ie],write);
     for(size_t in=0; in<AK[0].size(); in++){
       if(ie==0) binary_str_rw(iof,nklst[in],write);
       for(size_t iq=0; iq<AK[0][0].size(); iq++){
-        if(ie==0 && in==0) binary_rw(iof,qlst[iq],write);
+        // if(ie==0 && in==0) binary_rw(iof,qlst[iq],write);
         binary_rw(iof,AK[ie][in][iq],write);
       }
     }
@@ -224,4 +268,32 @@ Should be called once per initial state
 
   K_nk.push_back(tmpK_q);
   return 0;
+}
+
+
+
+//******************************************************************************
+void AKF_sphericalBesselTable(
+  std::vector< std::vector< std::vector<float> > > &jLqr_f,
+  int max_L,
+  double qmin, double qmax, int qsteps,
+  std::vector<double> &r)
+{
+  std::cout<<std::endl;
+  int ngp = (int)r.size();
+  jLqr_f.resize(max_L+1, std::vector< std::vector<float> >
+    (qsteps, std::vector<float>(ngp)));
+  for(int L=0; L<=max_L; L++){
+    std::cout<<"\rCalculating spherical Bessel look-up table for L="
+    <<L<<"/"<<max_L<<" .. "<<std::flush;
+    #pragma omp parallel for
+    for(int iq=0; iq<qsteps; iq++){
+      double x=double(iq)/(qsteps-1);
+      double q = qmin*pow(qmax/qmin,x);
+      for(int ir=0; ir<ngp; ir++){
+        jLqr_f[L][iq][ir] = gsl_sf_bessel_jl(L, q*r[ir]);
+      }
+    }
+  }
+  std::cout<<"done\n";
 }
