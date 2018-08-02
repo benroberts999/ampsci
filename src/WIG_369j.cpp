@@ -1,4 +1,6 @@
 #include "WIG_369j.h"
+namespace WIG{
+
 /*
 Wrapper functions to calculate wigner 3,6,9-J symbols.
 Uses GSL:
@@ -13,7 +15,7 @@ integer angular momentum (l).
 
 
 //******************************************************************************
-double WIG_3j(double j1, double j2, double j3, double m1, double m2, double m3)
+double threej(double j1, double j2, double j3, double m1, double m2, double m3)
 /*
 Calculates wigner 3j symbol:
   (j1 j2 j3)
@@ -32,7 +34,7 @@ Works for l and j (integer and half-integer)
 }
 
 //------------------------------------------------------------------------------
-double WIG_3j_1(int j1, int j2, int j3, int m1, int m2, int m3)
+double threej_1(int j1, int j2, int j3, int m1, int m2, int m3)
 /*
 Calculates wigner 3j symbol:
   (j1 j2 j3)
@@ -44,7 +46,7 @@ Note: this function takes INTEGER values, only works for l (not half-integer j)!
 }
 
 //------------------------------------------------------------------------------
-double WIG_3j_2(int two_j1, int two_j2, int two_j3, int two_m1, int two_m2,
+double threej_2(int two_j1, int two_j2, int two_j3, int two_m1, int two_m2,
   int two_m3)
 /*
 Calculates wigner 3j symbol:
@@ -59,7 +61,7 @@ Works for l and j (integer and half-integer)
 
 
 //******************************************************************************
-double WIG_cg(double j1, double m1, double j2, double m2, double J, double M)
+double cg(double j1, double m1, double j2, double m2, double J, double M)
 /*
 <j1 m1, j2 m2 | J M> = (-1)^(j1-j2+M) * Sqrt(2J+1) * (j1 j2  J)
 .                                                    (m1 m2 -M)
@@ -81,7 +83,7 @@ Works for l and j (integer and half-integer)
 }
 
 //------------------------------------------------------------------------------
-double WIG_cg_1(int j1, int m1, int j2, int m2, int J, int M)
+double cg_1(int j1, int m1, int j2, int m2, int J, int M)
 /*
 Calculates Clebsh-Gordon coeficient:
 <j1 m1, j2 m2 | J M> = (-1)^(j1-j2+M) * Sqrt(2J+1) * (j1 j2  J)
@@ -96,7 +98,7 @@ Note: this function takes INTEGER values, only works for l (not half-integer j)!
 }
 
 //------------------------------------------------------------------------------
-double WIG_cg_2(int two_j1, int two_m1, int two_j2, int two_m2, int two_J,
+double cg_2(int two_j1, int two_m1, int two_j2, int two_m2, int two_J,
   int two_M)
 /*
 <j1 m1, j2 m2 | J M> = (-1)^(j1-j2+M) * Sqrt(2J+1) * (j1 j2  J)
@@ -113,7 +115,7 @@ Works for l and j (integer and half-integer)
 }
 
 //******************************************************************************
-double WIG_6j(double j1, double j2, double j3, double j4, double j5, double j6)
+double sixj(double j1, double j2, double j3, double j4, double j5, double j6)
 /*
 Calculates wigner 6j symbol:
   {j1 j2 j3}
@@ -132,7 +134,7 @@ Works for l and j (integer and half-integer)
 }
 
 //------------------------------------------------------------------------------
-double WIG_6j_1(int j1, int j2, int j3, int j4, int j5, int j6)
+double sixj_1(int j1, int j2, int j3, int j4, int j5, int j6)
 /*
 Calculates wigner 6j symbol:
   {j1 j2 j3}
@@ -144,7 +146,7 @@ Note: this function takes INTEGER values, only works for l (not half-integer j)!
 }
 
 //------------------------------------------------------------------------------
-double WIG_6j_2(int two_j1, int two_j2, int two_j3, int two_j4, int two_j5,
+double sixj_2(int two_j1, int two_j2, int two_j3, int two_j4, int two_j5,
   int two_j6)
 /*
 Calculates wigner 6j symbol:
@@ -158,7 +160,7 @@ Works for l and j (integer and half-integer)
 }
 
 //******************************************************************************
-double WIG_9j(double j1, double j2, double j3, double j4, double j5, double j6, 
+double ninej(double j1, double j2, double j3, double j4, double j5, double j6,
   double j7, double j8, double j9)
 /*
 Calculates wigner 9j symbol:
@@ -183,7 +185,7 @@ Works for l and j (integer and half-integer)
 }
 
 //------------------------------------------------------------------------------
-double WIG_9j_1(int j1, int j2, int j3, int j4, int j5, int j6, int j7, int j8,
+double ninej_1(int j1, int j2, int j3, int j4, int j5, int j6, int j7, int j8,
   int j9)
 /*
 Calculates wigner 9j symbol:
@@ -197,7 +199,7 @@ Note: this function takes INTEGER values, only works for l (not half-integer j)!
 }
 
 //------------------------------------------------------------------------------
-double WIG_9j_2(int two_j1, int two_j2, int two_j3, int two_j4, int two_j5,
+double ninej_2(int two_j1, int two_j2, int two_j3, int two_j4, int two_j5,
   int two_j6, int two_j7, int two_j8, int two_j9)
 /*
 Calculates wigner 9j symbol:
@@ -210,3 +212,5 @@ Works for l and j (integer and half-integer)*/
   return gsl_sf_coupling_9j(two_j1,two_j2,two_j3,two_j4,two_j5,two_j6,two_j7,
     two_j8,two_j9);
 }
+
+}//namespace

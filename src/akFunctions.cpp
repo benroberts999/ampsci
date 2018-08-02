@@ -14,7 +14,7 @@ double CLkk(int L, int ka, int kb)
   if((la+lb+L)%2!=0) return 0; //Parity rule
   if((la+lb<L)||(abs(la-lb)>L)) return 0; //triangle rule (l)
 
-  double tjB = WIG_3j(jb,ja,L,-0.5,0.5,0);
+  double tjB = WIG::threej(jb,ja,L,-0.5,0.5,0);
   return (2*ja+1)*(2*jb+1)*(2*L+1)*pow(tjB,2);
 }
 
@@ -35,7 +35,7 @@ Phys. Rev. D 93, 115037 (2016). [arXiv:1604.04559]
   int la = ATI::l_k(ka);
   int lb = ATI::l_k(kb);
 
-  double tjB = WIG_3j(jb,L,ja,-0.5,0,0.5);
+  double tjB = WIG::threej(jb,L,ja,-0.5,0,0.5);
   if(fabs(tjB)==0) return 0;
   double B = 1./pow(tjB,2);
 
@@ -43,10 +43,10 @@ Phys. Rev. D 93, 115037 (2016). [arXiv:1604.04559]
   int s1 = -1;
   if((two_ja+two_jb-2*(la+lb))%4==0) s1=1;
 
-  double tj1 = WIG_3j(lb,la,L,0,0,0);
+  double tj1 = WIG::threej(lb,la,L,0,0,0);
   double A = (1./4)*s1*(2*L+1)*pow(tj1,2);
   double X = s1*(two_ja+1)*(two_jb+1)*pow(tj1,2);
-  double tj2 = WIG_3j(lb,la,L,-1,1,0);
+  double tj2 = WIG::threej(lb,la,L,-1,1,0);
   double Y = 8*sqrt(la*(la+1)*lb*(lb+1))*tj1*tj2;
   double Z = -4*(ka+1)*(kb+1)*pow(tj2,2);
 
