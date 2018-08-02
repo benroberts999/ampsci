@@ -2,11 +2,16 @@
 //*********************************************************
 //*********************************************************
 //*********************************************************
+
+namespace INT{
+
+
+
 //			INTEGRATE
 // Integrates input function f(i) wrt r, from l to m. This program contains wronskian drdt
 //Uses an nquad-point quadrature formula.. for nquad=1->14 (any integer)
 //double integrate(double *f, int l, int m)
-double INT_integrate(std::vector<double> f, std::vector<double> w, double h, int l,
+double integrate(std::vector<double> f, std::vector<double> w, double h, int l,
   int m, int nquad)
 /*
 
@@ -156,7 +161,7 @@ XXX overload so can use floats?
 
 //******************************************************************
 // Calculates the derivative of a function!
-int INT_diff(std::vector<double> f, std::vector<double> drdt, double h,
+int diff(std::vector<double> f, std::vector<double> drdt, double h,
     std::vector<double> &deriv)
 {
 
@@ -195,3 +200,6 @@ coeficients from: http://en.wikipedia.org/wiki/Finite_difference_coefficient
   return 0;
 
 }
+
+
+}//namespace

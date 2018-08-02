@@ -219,7 +219,7 @@ an error.
       for (int i=0; i<=pinf; i++){
         ppqq[i]=p[i]*p[i]+q[i]*q[i];    // XXX add alpha here if need!
       }
-      anorm=INT_integrate(ppqq,drdt,h,0,pinf);
+      anorm=INT::integrate(ppqq,drdt,h,0,pinf);
       if(debug) printf("anrom=%.5f\n",anorm);
       //Use perturbation theory to work out delta En
       // delta E = c*P(r)*[Qin(r)-Qout(r)]

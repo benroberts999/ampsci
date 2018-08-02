@@ -79,7 +79,7 @@ int main(void){
           double x1=(wf.p[s][i]*wf.p[s][i]+wf.q[s][i]*wf.q[s][i])*pow(wf.r[i],in);
           rad1.push_back(x1);
         }
-        double R1=INT_integrate(rad1,wf.drdt,wf.h);
+        double R1=INT::integrate(rad1,wf.drdt,wf.h);
         printf("%13.8f, ",R1);
       }
       std::cout<<"\n";
@@ -91,7 +91,7 @@ int main(void){
     double a2 = pow(alpha,2);
     for (int s=0; s<num_states; s++){
       std::vector<double> dQ(wf.ngp);
-      INT_diff(wf.q[s],wf.drdt,wf.h,dQ);
+      INT::diff(wf.q[s],wf.drdt,wf.h,dQ);
       std::vector<double> rad;
       for (int i=0; i<wf.ngp; i++){
         double x1=2*wf.p[s][i]*dQ[i]/alpha;
@@ -100,7 +100,7 @@ int main(void){
         double x4=wf.vnuc[i]*(pow(wf.p[s][i],2)+pow(wf.q[s][i],2));
         rad.push_back(x1+x3+x2+x4);
       }
-      double R=INT_integrate(rad,wf.drdt,wf.h);
+      double R=INT::integrate(rad,wf.drdt,wf.h);
       double fracdiff=(R-wf.en[s])/wf.en[s];
       printf("<%i% i|H|%i% i> = % .15f, E(%i% i) = % .15f; % .0e\n",wf.nlist[s],
           wf.klist[s],wf.nlist[s],wf.klist[s],R,wf.nlist[s],wf.klist[s],
