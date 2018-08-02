@@ -139,7 +139,7 @@ int main(void){
   }else{
     //Fill the electron part of the (local/direct) potential
     for(int i=0; i<wf.ngp; i++){
-      wf.vdir.push_back(PRM_green(Z,wf.r[i],Gh,Gd));
+      wf.vdir.push_back(PRM::green(Z,wf.r[i],Gh,Gd));
     }
     // Solve Dirac equation for each (bound) core state:
     wf.solveInitialCore();

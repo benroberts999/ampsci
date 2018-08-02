@@ -58,8 +58,8 @@ int main(void){
   }
 
   //If H,d etc are zero, use default values
-  if(Gf!=0 && Gh==0) PRM_defaultGreen(Z,Gh,Gd);
-  if(Tf!=0 && Tt==0) PRM_defaultTietz(Z,Tt,Tg);
+  if(Gf!=0 && Gh==0) PRM::defaultGreen(Z,Gh,Gd);
+  if(Tf!=0 && Tt==0) PRM::defaultTietz(Z,Tt,Tg);
 
 
   printf("\nRunning parametric potential for %s, Z=%i A=%i\n",
@@ -87,8 +87,8 @@ int main(void){
   wf.vdir.resize(wf.ngp);
   for(int i=0; i<wf.ngp; i++){
     double tmp = 0;
-    if(Gf!=0) tmp += Gf*PRM_green(Z,wf.r[i],Gh,Gd);
-    if(Tf!=0) tmp += Tf*PRM_tietz(Z,wf.r[i],Tt,Tg);
+    if(Gf!=0) tmp += Gf*PRM::green(Z,wf.r[i],Gh,Gd);
+    if(Tf!=0) tmp += Tf*PRM::tietz(Z,wf.r[i],Tt,Tg);
     wf.vdir[i] = tmp;
   }
 

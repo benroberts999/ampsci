@@ -14,8 +14,8 @@ Solves the Hartree equations (no exchange term yet)
 
   //Fill the electron part of the potential, using Greens PRM for initial approx
   double Gh,Gd;  //Green potential parameters
-  PRM_defaultGreen(wf.Z,Gh,Gd); //Get default values for Green potential
-  for(int i=0; i<wf.ngp; i++) wf.vdir.push_back(PRM_green(wf.Z,wf.r[i],Gh,Gd));
+  PRM::defaultGreen(wf.Z,Gh,Gd); //Get default values for Green potential
+  for(int i=0; i<wf.ngp; i++) wf.vdir.push_back(PRM::green(wf.Z,wf.r[i],Gh,Gd));
 
   //First step: Solve each core state using parameteric potential
   wf.solveInitialCore(1); //1, since don't need high accuray here [1 in 10^1]
@@ -67,7 +67,7 @@ Solves the Hartree equations (no exchange term yet)
   // ofile<<"r Gr Vh Z/r 1/r\n";
   // for(int i=0; i<wf.ngp; i++){
   //   ofile<<wf.r[i]<<" "
-  //     <<-PRM_green(wf.Z,wf.r[i],Gh,Gd)-wf.vnuc[i]<<" "
+  //     <<-PRM::green(wf.Z,wf.r[i],Gh,Gd)-wf.vnuc[i]<<" "
   //     <<-wf.vdir[i]-wf.vnuc[i]<<" "
   //     <<wf.Z/wf.r[i]<<" "<<1./wf.r[i]<<"\n";
   //

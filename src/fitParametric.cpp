@@ -87,9 +87,9 @@ int main(void){
         ElectronOrbitals wf(Z,A,ngp,r0,rmax,varalpha);
         if(sphere) wf.sphericalNucleus();
         if(green) for(int i=0; i<wf.ngp; i++)
-          wf.vdir.push_back(PRM_green(Z,wf.r[i],H,d));
+          wf.vdir.push_back(PRM::green(Z,wf.r[i],H,d));
         else for(int i=0; i<wf.ngp; i++)
-          wf.vdir.push_back(PRM_tietz(Z,wf.r[i],H,d));
+          wf.vdir.push_back(PRM::tietz(Z,wf.r[i],H,d));
         double fx = 0;
         for(size_t ns=0; ns<in_n.size(); ns++){
           wf.solveLocalDirac(in_n[ns],in_k[ns],in_en[ns]);
@@ -142,9 +142,9 @@ int main(void){
   if(sphere) wf.sphericalNucleus();
 
   if(green)
-    for(int i=0; i<wf.ngp; i++) wf.vdir.push_back(PRM_green(Z,wf.r[i],H,d));
+    for(int i=0; i<wf.ngp; i++) wf.vdir.push_back(PRM::green(Z,wf.r[i],H,d));
   else
-    for(int i=0; i<wf.ngp; i++) wf.vdir.push_back(PRM_tietz(Z,wf.r[i],H,d));
+    for(int i=0; i<wf.ngp; i++) wf.vdir.push_back(PRM::tietz(Z,wf.r[i],H,d));
   for(size_t ns=0; ns<in_n.size(); ns++)
     wf.solveLocalDirac(in_n[ns],in_k[ns],in_en[ns]);
 

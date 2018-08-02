@@ -1,8 +1,8 @@
 #include "PRM_parametricPotentials.h"
-
+namespace PRM{
 
 //******************************************************************************
-double PRM_green(int Z, double r, double H, double d)
+double green(int Z, double r, double H, double d)
 /*
 Have default H and d : scaled to fit Alkali atoms!
 Does not include nuclear part!
@@ -14,7 +14,7 @@ Does not include nuclear part!
 
 
 //******************************************************************************
-double PRM_tietz(int Z, double r, double t, double g)
+double tietz(int Z, double r, double t, double g)
 /*
 TIETZ parametric potential
 Does NOT include nuclear potential
@@ -27,7 +27,7 @@ Does NOT include nuclear potential
 
 
 //******************************************************************************
-int PRM_defaultGreen(int z, double &H, double &d)
+int defaultGreen(int z, double &H, double &d)
 /*
 Default values for Green potential parameters.
 Determined by fitting the 5 lowest J=1/2 states.
@@ -90,7 +90,7 @@ Crude quadratic fit used for other Z values.
 }
 
 //******************************************************************************
-int PRM_defaultTietz(int z, double &t, double &g)
+int defaultTietz(int z, double &t, double &g)
 /*
 Default values for Green potential parameters.
 Determined by fitting the 5 lowest J=1/2 states.
@@ -166,7 +166,7 @@ Crude quadratic fit used for other Z values.
 
 
 
-
+}//namespace
 
 
 
