@@ -1,5 +1,13 @@
 #include "akFunctions.h"
 
+double fv(double v){
+  if(v<0.1) return 0;
+  else if(v>750.) return 0;
+  else return 1./750.;
+}
+
+
+
 //******************************************************************************
 int main(void){
 
@@ -32,11 +40,30 @@ int main(void){
 
   if(num_states != (int)nklst.size()) return 1;
 
+  // XXX !>!?!?!?!?!?!? XXX CHECK!!!
   double dqonq = log(qmax/qmin)/(qsteps-1); //need to multiply by q
   //XXX check!
 
   std::cout<<qmin<<" "<<qmax<<" "<<demin<<" "<<demax<<"\n";
   std::cout<<qsteps<<" "<<num_states<<" "<<desteps<<"\n";
+
+  double v=137*1.e-3; // typical v..integrate later...
+  double m=1000; //XXX check units!!!
+  double dE = 2000/27.2; //XXX check...later, function!
+  double qminus = m*v - sqrt(m*m*v*v-2*m*dE);
+  double qplus  = m*v + sqrt(m*m*v*v-2*m*dE);
+
+  //find clostest dE to given "target"!
+  //How to do q-grid integration?
+
+  double a=0;
+  for(int iq=0; iq<qsteps; iq++){
+    double x = double(iq)/(qsteps-1);
+    double q = qmin*pow(qmax/qmin,x);
+    if(q<qminus || q>qplus) continue;
+    a+=AKenq[1][1][iq]*pow(q,-3)*dqonq;
+  }
+  std::cout<<"a="<<a<<"\n";
 
 
   //Min/max m_chi
