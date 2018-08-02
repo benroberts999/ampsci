@@ -135,7 +135,7 @@ int main(void){
   }
 
   if(Gf==0){
-    HF_hartreeCore(wf,hart_del);
+    HF::hartreeCore(wf,hart_del);
   }else{
     //Fill the electron part of the (local/direct) potential
     for(int i=0; i<wf.ngp; i++){

@@ -1,8 +1,9 @@
 #include "HF_hartree.h"
 
+namespace HF{
 
 //******************************************************************************
-int HF_hartreeCore(ElectronOrbitals &wf, double eps_hartree)
+int hartreeCore(ElectronOrbitals &wf, double eps_hartree)
 /*
 Solves the Hartree equations (no exchange term yet)
 */
@@ -132,3 +133,9 @@ core=true by default
 
   return 0;
 }
+
+
+
+
+
+}//Namespace
