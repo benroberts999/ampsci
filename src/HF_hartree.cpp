@@ -108,7 +108,7 @@ core=true by default
   std::vector<double> rho(wf.ngp);
   for(int i=0; i<wf.num_core; i++){
     int ka = wf.klist[i];
-    int twoj = ATI_twoj_k(ka);
+    int twoj = ATI::twoj_k(ka);
     double frac = wf.core_ocf[i];
     for(int j=0; j<wf.ngp; j++){
       rho[j] += frac*(twoj+1)*(pow(wf.p[i][j],2) + pow(wf.q[i][j],2));

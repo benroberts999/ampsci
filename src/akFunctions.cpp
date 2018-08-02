@@ -4,10 +4,10 @@
 //******************************************************************************
 double CLkk(int L, int ka, int kb)
 {
-  int la = ATI_l_k(ka);
-  int lb = ATI_l_k(kb);
-  int two_ja = ATI_twoj_k(ka);
-  int two_jb = ATI_twoj_k(kb);
+  int la = ATI::l_k(ka);
+  int lb = ATI::l_k(kb);
+  int two_ja = ATI::twoj_k(ka);
+  int two_jb = ATI::twoj_k(kb);
   double ja = 0.5*two_ja;
   double jb = 0.5*two_jb;
 
@@ -28,12 +28,12 @@ B. M. Roberts, V. A. Dzuba, V. V. Flambaum, M. Pospelov, and Y. V. Stadnik,
 Phys. Rev. D 93, 115037 (2016). [arXiv:1604.04559]
 */
 {
-  int two_ja = ATI_twoj_k(ka);
-  int two_jb = ATI_twoj_k(kb);
+  int two_ja = ATI::twoj_k(ka);
+  int two_jb = ATI::twoj_k(kb);
   double ja = 0.5*two_ja;
   double jb = 0.5*two_jb;
-  int la = ATI_l_k(ka);
-  int lb = ATI_l_k(kb);
+  int la = ATI::l_k(ka);
+  int lb = ATI::l_k(kb);
 
   double tjB = WIG_3j(jb,L,ja,-0.5,0,0.5);
   if(fabs(tjB)==0) return 0;
@@ -181,7 +181,7 @@ int calculateK_nk(ElectronOrbitals &wf, int is, int max_L, double dE,
   ContinuumOrbitals cntm(wf); //XXX here?
 
   int k = wf.klist[is];
-  int l = ATI_l_k(k);
+  int l = ATI::l_k(k);
 
   int qsteps = (int)jLqr_f[0].size();
 
@@ -200,7 +200,7 @@ int calculateK_nk(ElectronOrbitals &wf, int is, int max_L, double dE,
   for(int L=0; L<=max_L; L++){
     for(size_t ic=0; ic<cntm.klist.size(); ic++){
       int kc = cntm.klist[ic];
-      //int lc = ATI_l_k(kc);
+      //int lc = ATI::l_k(kc);
       //if(lc > max_lc) break;
       double dC_Lkk = CLkk(L,k,kc); //XXX new formula!
       if(dC_Lkk==0) continue;
@@ -247,8 +247,8 @@ Should be called once per initial state
   if (nk>=(int)wf.p.size()) return 1; //should never occur XXX
 
   int kappa = wf.klist[nk];
-  //int l = ATI_l_k(kappa);
-  int twoj = ATI_twoj_k(kappa);
+  //int l = ATI::l_k(kappa);
+  int twoj = ATI::twoj_k(kappa);
 
   int qsteps = (int)jl_qr.size();
   std::vector<float> tmpK_q(qsteps);

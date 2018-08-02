@@ -56,7 +56,7 @@ int main(void){
     double del = wf.en[i] - wf.diracen(wf.Z,n,k);
     double rinf = wf.r[wf.pinflist[i]];
     printf("%2i %s_%i/2 (%2i)  %3.0f %3i  %5.0e  %.15f  %7.0e\n",
-        n,ATI_l(l).c_str(),twoj,k,rinf,wf.itslist[i],wf.epslist[i],
+        n,ATI::l_symbol(l).c_str(),twoj,k,rinf,wf.itslist[i],wf.epslist[i],
         wf.en[i],del);
   }
 
@@ -70,8 +70,8 @@ int main(void){
     }
     std::cout<<"\n";
     for (int s=0; s<num_states; s++){
-      printf("%2i%s_%i/2 : ",wf.nlist[s],ATI_l(ATI_l_k(wf.klist[s])).c_str(),
-        ATI_twoj_k(wf.klist[s]));
+      printf("%2i%s_%i/2 : ",wf.nlist[s],ATI::l_symbol(ATI::l_k(wf.klist[s])).c_str(),
+        ATI::twoj_k(wf.klist[s]));
       for(int in=-2; in<=2; in ++){
         if(in==0) continue;
         std::vector<double> rad1;

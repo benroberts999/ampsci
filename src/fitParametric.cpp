@@ -45,7 +45,7 @@ int main(void){
   }
   ifile.close();
 
-  int Z = ATI_get_z(Z_str);
+  int Z = ATI::get_z(Z_str);
   if(Z==0) return 2;
 
   bool green=true;
@@ -159,7 +159,7 @@ int main(void){
     double eni = wf.en[i];
     double enT = in_en[i];
     printf("%2i %s_%i/2 %2i  %3.0f %3i  %5.0e  %.15f  %13.7f  %9.4f%%\n",
-        n,ATI_l(l).c_str(),twoj,k,rinf,wf.itslist[i],wf.epslist[i],
+        n,ATI::l_symbol(l).c_str(),twoj,k,rinf,wf.itslist[i],wf.epslist[i],
         eni,(eni-en0)*HARTREE_ICM,100.*(enT-eni)/enT);
   }
 

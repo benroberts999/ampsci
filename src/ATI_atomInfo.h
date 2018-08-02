@@ -3,20 +3,12 @@
 #include <string>
 #include <iostream>
 
-// List of "most-common" A's, for each Z.
-//ans list of atom names
-// Used Mathematica to generate list!
-
-//NOTE: First entry is zero, so the array index matches Z!
-//For now, goes up to E120 [121 etries]
-
-//LATER: can add magnetic moments, more "shells" etc..
-//Also: rn(?), skin thickness, half-density radius?
+namespace ATI{
 
 //Default values for A for each atom.
 //Note: array index matches Z, so first entry is blank.
 //Goes up to E120 (Z=120)
-const int ATI_a[121]={0,
+const int A[121]={0,
     1,  4,  7,  9, 11, 12, 14, 16, 19, 20,
    23, 24, 27, 28, 31, 32, 35, 40, 39, 40,
    45, 48, 51, 52, 55, 56, 59, 59, 64, 65,
@@ -30,7 +22,7 @@ const int ATI_a[121]={0,
   258,259,262,267,270,269,270,270,278,281,
   281,285,286,289,289,293,293,294,315,320};
 
-const std::string ATI_sym[121]={"0",
+const std::string atom_name_z[121]={"0",
    "H","He","Li","Be", "B", "C", "N", "O", "F","Ne",
   "Na","Mg","Al","Si", "P", "S","Cl","Ar", "K","Ca",
   "Sc","Ti", "V","Cr","Mn","Fe","Co","Ni","Cu","Zn",
@@ -45,26 +37,29 @@ const std::string ATI_sym[121]={"0",
   "Rg","Cn","Nh","Fl","Mc","Lv","Ts","Og","E119","E120"};
 
 //Short function that returns orbital term given l
-inline std::string ATI_l(int l){
-  std::string tmp_l_array[5]={"s","p","d","f","g"};
-  if(l<5) return tmp_l_array[l];
+inline std::string l_symbol(int l){
+  std::string tmp_l_array[6]={"s","p","d","f","g","h"};
+  if(l<6) return tmp_l_array[l];
   else return std::to_string(l);
 }
 
 //Short function that returns orbital l (int), given kappa
-inline int ATI_l_k(int ka){
+inline int l_k(int ka){
   return (abs(2*ka+1)-1)/2;
 }
 //Short function that returns 2*j (int), given kappa
-inline int ATI_twoj_k(int ka){
+inline int twoj_k(int ka){
   return 2*abs(ka)-1;
+}
+inline double j_k(int ka){
+  return 0.5*twoj_k(ka);
 }
 
 //Given an atomic symbol (H, He, etc.), will return Z
 //Note: Symbol must be exact, including capitalisation
-inline int ATI_get_z(std::string at){
+inline int get_z(std::string at){
   for(int z=0; z<121; z++){
-    if(at==ATI_sym[z]) return z;
+    if(at==atom_name_z[z]) return z;
   }
   int t_z = std::stoi(at);
   if(t_z>0 && t_z<137) return t_z;
@@ -75,27 +70,28 @@ inline int ATI_get_z(std::string at){
 
 //Shell configurations for Noble gasses (Group 8)
 // ??? OK?
-const std::vector<int> ATI_core_He
+const std::vector<int> core_He
   ={2};
-const std::vector<int> ATI_core_Ne
+const std::vector<int> core_Ne
   ={2, 2,6};
-const std::vector<int> ATI_core_Ar
+const std::vector<int> core_Ar
   ={2, 2,6, 2,6};
-const std::vector<int> ATI_core_Kr
+const std::vector<int> core_Kr
   ={2, 2,6, 2,6,10, 2,6};
-const std::vector<int> ATI_core_Xe
+const std::vector<int> core_Xe
   ={2, 2,6, 2,6,10, 2,6,10,0,  2,6};
-const std::vector<int> ATI_core_Rn
+const std::vector<int> core_Rn
   ={2, 2,6, 2,6,10, 2,6,10,14, 2,6,10,0,0,  2,6};
-const std::vector<int> ATI_core_Og
+const std::vector<int> core_Og
   ={2, 2,6, 2,6,10, 2,6,10,14, 2,6,10,14,0, 2,6,10,0,0,0, 2,6};
 
-const std::vector<int> ATI_core_n
+const std::vector<int> core_n
   = {1, 2,2, 3,3,3, 4,4,4,4, 5,5,5,5,5, 6,6,6,6,6,6, 7,7,7,7,7,7,7,
     8,8,8,8,8,8,8,8, 9,9,9,9,9,9,9,9,9};
-const std::vector<int> ATI_core_l
+const std::vector<int> core_l
   = {0, 0,1, 0,1,2, 0,1,2,3, 0,1,2,3,4, 0,1,2,3,4,5, 0,1,2,3,4,5,6,
     0,1,2,3,4,5,6,7, 0,1,2,3,4,5,6,7,8};
 
+}
 
 #endif

@@ -17,7 +17,7 @@ ElectronOrbitals::ElectronOrbitals(int in_z, int in_a, int in_ngp, double rmin,
   num_core=0;
 
   Z=in_z;
-  if(in_a==0) A=ATI_a[Z]; //Use default atomic mass
+  if(in_a==0) A=ATI::A[Z]; //Use default atomic mass
   else A=in_a;
   zeroNucleus();
 }
@@ -26,7 +26,7 @@ ElectronOrbitals::ElectronOrbitals(std::string s_in_z, int in_a, int in_ngp,
   double rmin, double rmax, double var_alpha)
 {
  //Work out Z from given atomic symbol
- int iz = ATI_get_z(s_in_z);
+ int iz = ATI::get_z(s_in_z);
  ElectronOrbitals(iz,in_a,in_ngp,rmin,rmax,var_alpha);
 }
 
@@ -156,13 +156,13 @@ NOTE: Only works up to n=9, and l=5 [h]
 
   int ibeg=1;
   std::string ng=str_core[0];
-  if     (ng=="He") core_list=ATI_core_He;
-  else if(ng=="Ne") core_list=ATI_core_Ne;
-  else if(ng=="Ar") core_list=ATI_core_Ar;
-  else if(ng=="Kr") core_list=ATI_core_Kr;
-  else if(ng=="Xe") core_list=ATI_core_Xe;
-  else if(ng=="Rn") core_list=ATI_core_Rn;
-  else if(ng=="Og") core_list=ATI_core_Og;
+  if     (ng=="He") core_list=ATI::core_He;
+  else if(ng=="Ne") core_list=ATI::core_Ne;
+  else if(ng=="Ar") core_list=ATI::core_Ar;
+  else if(ng=="Kr") core_list=ATI::core_Kr;
+  else if(ng=="Xe") core_list=ATI::core_Xe;
+  else if(ng=="Rn") core_list=ATI::core_Rn;
+  else if(ng=="Og") core_list=ATI::core_Og;
   else ibeg=0;
 
   for(size_t i=ibeg; i<str_core.size(); i++){
@@ -199,7 +199,7 @@ NOTE: Only works up to n=9, and l=5 [h]
 
     for(size_t j=0; j<core_list.size(); j++){
       core_list[j] += core_ex[j];
-      if(core_list[j] > 4*ATI_core_l[j]+2) return 2; //check if valid
+      if(core_list[j] > 4*ATI::core_l[j]+2) return 2; //check if valid
     }
 
   }
@@ -224,8 +224,8 @@ int ElectronOrbitals::solveInitialCore(int log_dele_or)
   for(size_t i=0; i<core_list.size(); i++){
     int num = core_list[i];
     if(num==0) continue;
-    int n = ATI_core_n[i];
-    int l = ATI_core_l[i];
+    int n = ATI::core_n[i];
+    int l = ATI::core_l[i];
     double en_a = enGuess(Z,n,l,tot_el,num);
     tot_el+=num;
     int k1 = l; //j = l-1/2
@@ -242,11 +242,11 @@ int ElectronOrbitals::solveInitialCore(int log_dele_or)
   for(int i=0; i<num_core; i++){
     int n = nlist[i];
     int ka = klist[i];
-    int l = ATI_l_k(ka);
+    int l = ATI::l_k(ka);
     //Find the correct core list index (to determine filling factor):
     int ic=-1;
     for(size_t j=0; j<core_list.size(); j++){
-      if(n==ATI_core_n[j] && l==ATI_core_l[j]){
+      if(n==ATI::core_n[j] && l==ATI::core_l[j]){
         ic = j;
         break;
       }

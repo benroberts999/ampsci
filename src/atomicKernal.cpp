@@ -84,9 +84,9 @@ int main(void){
   qmax*=qMeV;
 
   //Look-up atomic number, Z, and also A
-  int Z = ATI_get_z(Z_str);
+  int Z = ATI::get_z(Z_str);
   if(Z==0) return 2;
-  if(A==-1) A=ATI_a[Z]; //if none given, get default A
+  if(A==-1) A=ATI::A[Z]; //if none given, get default A
 
   //outut file name 9excluding extension):
   std::string fname = "ak-"+Z_str+"_"+label;
@@ -156,12 +156,12 @@ int main(void){
     int i = sort_list[m];
     int n=wf.nlist[i];
     int k=wf.klist[i];
-    int twoj = ATI_twoj_k(k);
-    int l = ATI_l_k(k);
+    int twoj = ATI::twoj_k(k);
+    int l = ATI::l_k(k);
     double rinf = wf.r[wf.pinflist[i]];
     double eni = wf.en[i];
     printf("%2i %s_%i/2 %2i  %3.0f %3i  %5.0e  %11.5f %12.0f %10.2f\n",
-        n,ATI_l(l).c_str(),twoj,k,rinf,wf.itslist[i],wf.epslist[i],
+        n,ATI::l_symbol(l).c_str(),twoj,k,rinf,wf.itslist[i],wf.epslist[i],
         eni, eni*HARTREE_ICM, eni*HARTREE_EV);
   }
 
@@ -197,13 +197,13 @@ int main(void){
     std::vector< std::vector<float> > AK_nk;
     for(size_t is=0; is<wf.nlist.size(); is++){
       int k = wf.klist[is];
-      int l = ATI_l_k(k);
+      int l = ATI::l_k(k);
       if(l>max_l) continue;
-      int twoj = ATI_twoj_k(k);
+      int twoj = ATI::twoj_k(k);
       int n=wf.nlist[is];
 
       if(ide==0){
-        std::string nk=std::to_string(n)+ATI_l(l)
+        std::string nk=std::to_string(n)+ATI::l_symbol(l)
           +"_{"+std::to_string(twoj)+"/2}";
         nklst.push_back(nk);
       }
