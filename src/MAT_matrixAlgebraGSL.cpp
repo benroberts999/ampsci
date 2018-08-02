@@ -1,7 +1,7 @@
 #include "MAT_matrixAlgebraGSL.h"
-
+namespace MAT{
 //******************************************************************************
-int MAT_invertMatrix(std::vector< std::vector<double> > inmat,
+int invertMatrix(std::vector< std::vector<double> > inmat,
                         std::vector< std::vector<double> > &outmat)
 /*
 170316.
@@ -66,7 +66,7 @@ See also overloaded version, that just takes in 1 matrix, and inverts it!
 
 
 //---- Overloaded: -------------------------------------------------------------
-int MAT_invertMatrix(std::vector< std::vector<double> > &inmat)
+int invertMatrix(std::vector< std::vector<double> > &inmat)
 /*
 170827.
 Overloaded version, that just over-writes the input matrix with the output!
@@ -77,7 +77,7 @@ Overloaded version, that just over-writes the input matrix with the output!
   std::vector< std::vector<double> > outmat; //will be re-sized inside function
 
   //call function to do the matrix inversion.
-  int iRet=MAT_invertMatrix(inmat,outmat);
+  int iRet=invertMatrix(inmat,outmat);
 
   int n=(int)outmat.size(); //use size of outmat in case something went wrong
 
@@ -92,7 +92,7 @@ Overloaded version, that just over-writes the input matrix with the output!
 }
 
 //---- Overloaded: -------------------------------------------------------------
-int MAT_invertMatrix(std::vector< std::vector<float> > inmat,
+int invertMatrix(std::vector< std::vector<float> > inmat,
                         std::vector< std::vector<float> > &outmat)
 {
 
@@ -106,7 +106,7 @@ int MAT_invertMatrix(std::vector< std::vector<float> > inmat,
     }
   }
 
-  int iret = MAT_invertMatrix(dbl_inmat);
+  int iret = invertMatrix(dbl_inmat);
 
   for(int i=0; i<n; i++){
     for(int j=0; j<m; j++){
@@ -120,7 +120,7 @@ int MAT_invertMatrix(std::vector< std::vector<float> > inmat,
 }
 
 //---- Overloaded: -------------------------------------------------------------
-int MAT_invertMatrix(std::vector< std::vector<float> > &inmat)
+int invertMatrix(std::vector< std::vector<float> > &inmat)
 {
 
   int n=(int)inmat.size();
@@ -133,7 +133,7 @@ int MAT_invertMatrix(std::vector< std::vector<float> > &inmat)
     }
   }
 
-  int iret = MAT_invertMatrix(dbl_inmat);
+  int iret = invertMatrix(dbl_inmat);
 
   for(int i=0; i<n; i++){
     for(int j=0; j<m; j++){
@@ -148,7 +148,7 @@ int MAT_invertMatrix(std::vector< std::vector<float> > &inmat)
 
 
 //******************************************************************************
-double MAT_calcDeterminant(std::vector< std::vector<double> > inmat)
+double calcDeterminant(std::vector< std::vector<double> > inmat)
 /*
 170622.
 Calculates the determinant of any real square matrix of dimension n.
@@ -191,7 +191,7 @@ INPUT:
 }
 
 //---- Overloaded: -------------------------------------------------------------
-double MAT_calcDeterminant(std::vector< std::vector<float> > inmat)
+double calcDeterminant(std::vector< std::vector<float> > inmat)
 {
 
   int n=(int)inmat.size();
@@ -204,14 +204,14 @@ double MAT_calcDeterminant(std::vector< std::vector<float> > inmat)
     }
   }
 
-  return MAT_calcDeterminant(dbl_inmat);
+  return calcDeterminant(dbl_inmat);
 
 }
 
 
 
 //******************************************************************************
-int MAT_linsolve(std::vector< std::vector<double> > inmat,
+int linsolve(std::vector< std::vector<double> > inmat,
                  std::vector<double> invec, std::vector<double> &outvec)
 /*
 170321.
@@ -277,3 +277,5 @@ OUTPUT:
   gsl_vector_free (b);
   return iRet;
 }
+
+}//namespace

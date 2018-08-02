@@ -353,7 +353,7 @@ Then, it then call ADAMS-MOULTON, to finish (from nol*AMO+1 to nf = ctp+d_ctp)
       em[i][i]=em[i][i]-coefd[i];
     }
     // //inverts the em matrix
-    MAT_invertMatrix(em); //from here on, em is the inverted matrix
+    MAT::invertMatrix(em); //from here on, em is the inverted matrix
 
     //defines/populates fm, s coefs
     std::vector<double> s(AMO);
@@ -367,7 +367,7 @@ Then, it then call ADAMS-MOULTON, to finish (from nol*AMO+1 to nf = ctp+d_ctp)
       fm[i][i]=fm[i][i]-coefa[i];
     }
     //inverts the matrix!  fm =-> Inv(fm)
-    MAT_invertMatrix(fm); //from here on, fm is the inverted matrix
+    MAT::invertMatrix(fm); //from here on, fm is the inverted matrix
 
     //writes u(r) in terms of coefs and the inverse of fm
     // P(r) = r^gamma u(r)
