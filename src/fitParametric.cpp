@@ -160,7 +160,7 @@ int main(void){
     double enT = in_en[i];
     printf("%2i %s_%i/2 %2i  %3.0f %3i  %5.0e  %.15f  %13.7f  %9.4f%%\n",
         n,ATI::l_symbol(l).c_str(),twoj,k,rinf,wf.itslist[i],wf.epslist[i],
-        eni,(eni-en0)*HARTREE_ICM,100.*(enT-eni)/enT);
+        eni,(eni-en0)*FPC::Hartree_invcm,100.*(enT-eni)/enT);
   }
 
   tf = clock();

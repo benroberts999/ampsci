@@ -66,8 +66,8 @@ void writeToTextFile(
   int num_states = AK[0].size();  //nk
   int qsteps = AK[0][0].size();//q
 
-  double qMeV = (1.e6/(HARTREE_EV*CLIGHT));
-  double keV = (1.e3/HARTREE_EV);
+  double qMeV = (1.e6/(FPC::Hartree_eV*FPC::c));
+  double keV = (1.e3/FPC::Hartree_eV);
 
   std::ofstream ofile;
   ofile.open(fname+".txt");

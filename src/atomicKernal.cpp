@@ -76,10 +76,10 @@ int main(void){
   if(varalpha==0) varalpha=1.e-25;
 
   //Convert units for input q and dE range into atomic units
-  double keV = (1.e3/HARTREE_EV);
+  double keV = (1.e3/FPC::Hartree_eV);
   demin*=keV;
   demax*=keV;
-  double qMeV = (1.e6/(HARTREE_EV*CLIGHT));
+  double qMeV = (1.e6/(FPC::Hartree_eV*FPC::c));
   qmin*=qMeV;
   qmax*=qMeV;
 
@@ -162,7 +162,7 @@ int main(void){
     double eni = wf.en[i];
     printf("%2i %s_%i/2 %2i  %3.0f %3i  %5.0e  %11.5f %12.0f %10.2f\n",
         n,ATI::l_symbol(l).c_str(),twoj,k,rinf,wf.itslist[i],wf.epslist[i],
-        eni, eni*HARTREE_ICM, eni*HARTREE_EV);
+        eni, eni*FPC::Hartree_invcm, eni*FPC::Hartree_eV);
   }
 
   //////////////////////////////////////////////////

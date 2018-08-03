@@ -53,7 +53,7 @@ int main(void){
   double qminus = m*v - sqrt(m*m*v*v-2*m*dE);
   double qplus  = m*v + sqrt(m*m*v*v-2*m*dE);
 
-  double Aconst = 8*M_PI*CLIGHT2;
+  double Aconst = 8*M_PI*FPC::c2;
 
   //find clostest dE to given "target"!
   //How to do q-grid integration?

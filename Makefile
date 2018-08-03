@@ -13,7 +13,7 @@ all: h-like.x fitParametric.x parametricPotential.x atomicKernal.x hartree.x \
 
 DEPS = $(addprefix $(IDIR)/, \
  adamsSolveLocalBS.h ATI_atomInfo.h ElectronOrbitals.h \
- INT_quadratureIntegration.h MAT_matrixAlgebraGSL.h physicalConstants.h \
+ INT_quadratureIntegration.h MAT_matrixAlgebraGSL.h FPC_physicalConstants.h \
 )
 
 $(ODIR)/%.o: $(IDIR)/%.cpp $(DEPS)

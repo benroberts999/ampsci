@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 #include <cmath>
-#include "physicalConstants.h"
+#include "FPC_physicalConstants.h"
 #include "ATI_atomInfo.h"
 #include "ElectronOrbitals.h"
 #include "adamsSolveLocalBS.h"

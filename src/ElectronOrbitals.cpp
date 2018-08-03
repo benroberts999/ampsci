@@ -13,7 +13,7 @@ ElectronOrbitals::ElectronOrbitals(int in_z, int in_a, int in_ngp, double rmin,
   //JohnsonRadialGrid(rmin,rmax);
   DzubaRadialGrid(rmin,rmax);
 
-  alpha=ALPHA*var_alpha;
+  alpha=FPC::alpha*var_alpha;
   num_core=0;
 
   Z=in_z;
@@ -448,7 +448,7 @@ See: https://www-nds.iaea.org/radii/
     else if(A<10) rN = 1.15*pow(A,0.333);
     else rN = (0.836*pow(A,0.333)+0.570);
   }
-  rN/=ABOHR_FM;
+  rN/=FPC::aB_fm;
   // XXX Add data tables of nuclear radii!
 
   //Fill the vnuc array with spherical nuclear potantial
@@ -501,7 +501,7 @@ https://www.gnu.org/software/gsl/manual/html_node/Complete-Fermi_002dDirac-Integ
   if(c==0) c=1.1*pow(A,0.3333); //default half-charge radius ????
   // XXX Better approx! +/or data tables!
 
-  //std::cout<<c/ABOHR_FM<<"\n";
+  //std::cout<<c/FPC::aB_fm<<"\n";
 
   double a=0.22756*t; // a = t*[4 ln(3)]
   double coa=c/a;
@@ -513,7 +513,7 @@ https://www.gnu.org/software/gsl/manual/html_node/Complete-Fermi_002dDirac-Integ
     double t_r = r[i];
     double t_v = -Z/t_r;
     if(t_r<10.*a){  // XXX OK??
-      double roa = ABOHR_FM*t_r/a; // convert fm <-> atomic
+      double roa = FPC::aB_fm*t_r/a; // convert fm <-> atomic
       double coa2= pow(coa,2);
       double xF1 = gsl_sf_fermi_dirac_1(roa-coa);
       double xF2 = gsl_sf_fermi_dirac_2(roa-coa);

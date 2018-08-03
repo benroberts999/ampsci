@@ -183,7 +183,7 @@ int main(void){
     double eni = wf.en[i];
     printf("%2i %s_%i/2 %2i  %3.0f %3i  %5.0e  %11.5f %15.3f\n",
         n,ATI::l_symbol(l).c_str(),twoj,k,rinf,wf.itslist[i],wf.epslist[i],
-        eni, eni*HARTREE_ICM);
+        eni, eni*FPC::Hartree_invcm);
   }
 
   tf = clock();
