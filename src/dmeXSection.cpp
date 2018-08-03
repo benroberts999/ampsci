@@ -40,9 +40,8 @@ int main(void){
 
   if(num_states != (int)nklst.size()) return 1;
 
-  // XXX !>!?!?!?!?!?!? XXX CHECK!!!
+  // Do q derivative on i grid:
   double dqonq = log(qmax/qmin)/(qsteps-1); //need to multiply by q
-  //XXX check!
 
   std::cout<<qmin<<" "<<qmax<<" "<<demin<<" "<<demax<<"\n";
   std::cout<<qsteps<<" "<<num_states<<" "<<desteps<<"\n";
@@ -50,8 +49,11 @@ int main(void){
   double v=137*1.e-3; // typical v..integrate later...
   double m=1000; //XXX check units!!!
   double dE = 2000/27.2; //XXX check...later, function!
+  double mv = 100.;//XXX check units!!!
   double qminus = m*v - sqrt(m*m*v*v-2*m*dE);
   double qplus  = m*v + sqrt(m*m*v*v-2*m*dE);
+
+  double Aconst = 8*M_PI*CLIGHT2;
 
   //find clostest dE to given "target"!
   //How to do q-grid integration?
