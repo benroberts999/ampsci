@@ -48,8 +48,8 @@ $(ODIR)/ContinuumOrbitals.o: \
 $(IDIR)/ContinuumOrbitals.cpp $(IDIR)/ContinuumOrbitals.h
 	$(CXX) -c -o $@ $< $(CXXFLAGS)
 
-$(ODIR)/akFunctions.o: \
-$(IDIR)/akFunctions.cpp $(IDIR)/akFunctions.h
+$(ODIR)/AKF_akFunctions.o: \
+$(IDIR)/AKF_akFunctions.cpp $(IDIR)/AKF_akFunctions.h
 	$(CXX) -c -o $@ $< $(CXXFLAGS)
 
 CNTM = $(addprefix $(ODIR)/, \
@@ -72,12 +72,12 @@ parametricPotential.x: $(OBJ) $(ODIR)/parametricPotential.o \
 $(ODIR)/PRM_parametricPotentials.o
 	$(COMP)
 
-atomicKernal.x: $(OBJ) $(ODIR)/atomicKernal.o $(ODIR)/akFunctions.o \
+atomicKernal.x: $(OBJ) $(ODIR)/atomicKernal.o $(ODIR)/AKF_akFunctions.o \
 $(ODIR)/WIG_369j.o $(ODIR)/PRM_parametricPotentials.o $(CNTM) \
 $(ODIR)/HF_hartree.o
 	$(COMP)
 
-dmeXSection.x: $(OBJ) $(ODIR)/dmeXSection.o $(ODIR)/akFunctions.o \
+dmeXSection.x: $(OBJ) $(ODIR)/dmeXSection.o $(ODIR)/AKF_akFunctions.o \
 $(ODIR)/WIG_369j.o $(CNTM)
 	$(COMP)
 

@@ -1,4 +1,4 @@
-#include "akFunctions.h"
+#include "AKF_akFunctions.h"
 
 //******************************************************************************
 int main(void){
@@ -173,7 +173,7 @@ int main(void){
 
   //pre-calculate the spherical Bessel function look-up table for efficiency
   std::vector< std::vector< std::vector<float> > > jLqr_f;
-  AKF_sphericalBesselTable(jLqr_f,max_L,qmin,qmax,qsteps,wf.r);
+  AKF::sphericalBesselTable(jLqr_f,max_L,qmin,qmax,qsteps,wf.r);
 
   //Calculate the AK
   std::cout<<"\nCalculating atomic kernal AK(q,dE):\n";
@@ -209,8 +209,8 @@ int main(void){
       }
 
       //XXX can have ec_max. If ec large enough - use plane waves!?? XXX
-      if(plane_wave) calculateKpw_nk(wf,is,dE,jLqr_f[l],AK_nk);
-      else calculateK_nk(wf,is,max_L,dE,jLqr_f,AK_nk);
+      if(plane_wave) AKF::calculateKpw_nk(wf,is,dE,jLqr_f[l],AK_nk);
+      else AKF::calculateK_nk(wf,is,max_L,dE,jLqr_f,AK_nk);
 
     }// END loop over bound states
     //dElst.push_back(dE);
@@ -221,10 +221,10 @@ int main(void){
 
 
   //Write out to text file (in gnuplot friendly form)
-  if(text_out) writeToTextFile(fname,AK,nklst,qmin,qmax,demin,demax);
+  if(text_out) AKF::writeToTextFile(fname,AK,nklst,qmin,qmax,demin,demax);
 
   // //Write out AK as binary file
-  if(bin_out) akReadWrite(fname,true,AK,nklst,qmin,qmax,demin,demax);
+  if(bin_out) AKF::akReadWrite(fname,true,AK,nklst,qmin,qmax,demin,demax);
 
   gettimeofday(&end, NULL);
   double total_time = (end.tv_sec-start.tv_sec)

@@ -1,4 +1,4 @@
-#include "akFunctions.h"
+#include "AKF_akFunctions.h"
 
 double fv(double v){
   if(v<0.1) return 0;
@@ -32,7 +32,7 @@ int main(void){
   //Read in AK file
   //std::string akfn = "ak-Xe_L6"; //XXX
   std::cout<<"Opening file: "<<akfn<<".bin\n";
-  akReadWrite(akfn,false,AKenq,nklst,qmin,qmax,demin,demax);
+  AKF::akReadWrite(akfn,false,AKenq,nklst,qmin,qmax,demin,demax);
 
   int desteps = (int) AKenq.size();
   int num_states = (int) AKenq[0].size();
