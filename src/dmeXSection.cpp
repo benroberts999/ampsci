@@ -42,18 +42,38 @@ int main(void){
 
   // Do q derivative on i grid:
   double dqonq = log(qmax/qmin)/(qsteps-1); //need to multiply by q
+  std::cout<<"\n\n dqonq="<<dqonq<<"\n\n";
 
   std::cout<<qmin<<" "<<qmax<<" "<<demin<<" "<<demax<<"\n";
   std::cout<<qsteps<<" "<<num_states<<" "<<desteps<<"\n";
 
-  double v=137*1.e-3; // typical v..integrate later...
-  double m=1000; //XXX check units!!!
-  double dE = 2000/27.2; //XXX check...later, function!
-  double mv = 100.;//XXX check units!!!
-  double qminus = m*v - sqrt(m*m*v*v-2*m*dE);
-  double qplus  = m*v + sqrt(m*m*v*v-2*m*dE);
 
-  double Aconst = 8*M_PI*FPC::c2;
+  double m=1; //XXX in GeV
+  //convert WIMP masses from GeV to a.u.
+  m *= (1.e3/FPC::m_e_MeV);
+
+  bool finite_med = true;
+  //Vector mass:
+  //NB: have both '0' case (easy), and 'inf' case! (changes coupling const!)
+  double mv = 0.1;
+  //convert from MeV to au:
+  mv *= (1./FPC::m_e_MeV);
+
+
+  double v=137*1.e-3; // typical v..integrate later...
+
+  double dE = demin;
+
+  double arg = pow(m*v,2)-2.*m*dE; //may be negative; skip!
+  double qminus = m*v - sqrt(arg);
+  double qplus  = m*v + sqrt(arg);
+
+  //Numberical constant. Note: Inlcudes dqonq
+  //NOTE: if alpgha_chi = alpha in the code.. kill c2 !!
+  double Aconst = 8*M_PI*FPC::c2*dqonq;
+  std::cout<<"\n\n Aconst="<<Aconst<<"\n\n";
+
+  std::cout<<"\n\n demax="<<demax*FPC::Hartree_eV<<"\n\n";
 
   //find clostest dE to given "target"!
   //How to do q-grid integration?
@@ -62,10 +82,13 @@ int main(void){
   for(int iq=0; iq<qsteps; iq++){
     double x = double(iq)/(qsteps-1);
     double q = qmin*pow(qmax/qmin,x);
+    double dq_on_dqonq = q; //devide by dqonq - just a const. Include in Acont!
+    double Fq = q*dq_on_dqonq;
+    if(finite_med) Fq /= pow(q*q+mv*mv,2);
     if(q<qminus || q>qplus) continue;
-    a+=AKenq[1][1][iq]*pow(q,-3)*dqonq;
+    a+=(1./v)*Fq*AKenq[1][2][iq];// xxx choose state + dE!
   }
-  std::cout<<"a="<<a<<"\n";
+  std::cout<<"a="<<a*Aconst<<"\n";
 
 
   //Min/max m_chi
@@ -75,6 +98,8 @@ int main(void){
   //Integrate over q,v
   //Clever way to do v integral (or constant v?)
   //nb: there is a v_min!
+
+  //XXX also: integrate over dE (in bins?)
 
 
   return 0;

@@ -17,6 +17,7 @@ double const alpha2=alpha*alpha;
 
 //Proton mass (mp/me)
 const double m_p=1836.15267389; //CODATA 2014: 1836.152 673 89(17)
+const double m_e_MeV = 0.5109989461; //MeV/c^2 - electron mass
 
 //Length:
 double const aB_m=0.52917721067e-10; //CODATA 2014: 0.52917721067(12)e-10 m
