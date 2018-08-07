@@ -88,6 +88,8 @@ $(ODIR)/HF_hartree.o
 wigner.x: $(ODIR)/wigner.o $(ODIR)/WIG_369j.o
 	$(COMP)
 
-.PHONY: clean
+.PHONY: clean do_the_chicken_dance
 clean:
 	rm -f *.x *~ $(ODIR)/*.o $(IDIR)/*~
+do_the_chicken_dance:
+	@echo 'Why would I do that?'
