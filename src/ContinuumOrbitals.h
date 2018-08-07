@@ -6,8 +6,8 @@
 #include "FPC_physicalConstants.h"
 #include "ATI_atomInfo.h"
 #include "ElectronOrbitals.h"
-#include "adamsSolveLocalBS.h"
-#include "adamsSolveLocalContinuum.h"
+#include "ADAMS_solveLocalBS.h"
+#include "ADAMS_solveLocalContinuum.h"
 
 
 class ContinuumOrbitals{

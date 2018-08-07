@@ -5,7 +5,7 @@
 #include <cmath>
 #include "FPC_physicalConstants.h"
 #include "ATI_atomInfo.h"
-#include "adamsSolveLocalBS.h"
+#include "ADAMS_solveLocalBS.h"
 // #include "adamsSolveLocalContinuum.h" //XXX sub-class???
 #include <gsl/gsl_sf_fermi_dirac.h>
 #include <algorithm> //for sort
