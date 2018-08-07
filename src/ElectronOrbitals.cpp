@@ -48,8 +48,8 @@ XXX vnuc !!!
     for(int i=0; i<ngp; i++) v_a[i] += vdir[i];
   }
 
-  int i_ret = solveDBS(p_a,q_a,e_a,v_a,Z,n,k,r,drdt,h,ngp,pinf,its,eps,alpha,
-    log_dele_or);
+  int i_ret = ADAMS::solveDBS(p_a,q_a,e_a,v_a,Z,n,k,r,drdt,h,ngp,pinf,its,eps,
+    alpha,log_dele_or);
   //Store wf + energy
   p.push_back(p_a);
   q.push_back(q_a);
@@ -85,8 +85,8 @@ If no e_a is given, will use the existing one!
   int n=nlist[i];
   int k=klist[i];
   if(e_a==0) e_a = en[i];
-  int i_ret = solveDBS(p_a,q_a,e_a,v_a,Z,n,k,r,drdt,h,ngp,pinf,its,eps,alpha,
-    log_dele_or);
+  int i_ret = ADAMS::solveDBS(p_a,q_a,e_a,v_a,Z,n,k,r,drdt,h,ngp,pinf,its,eps,
+    alpha,log_dele_or);
 
   //Store wf + energy
   for(size_t j=0; j<p[i].size(); j++) p[i][j] = p_a[j];
@@ -124,7 +124,7 @@ XXX Kill this one! XXX
       double en_a = -0.5*pow((double)Z/n,2);
       std::vector<double> p_a(ngp);
       std::vector<double> q_a(ngp);
-      solveDBS(p_a,q_a,en_a,vnuc,Z,n,k,r,drdt,h,ngp,pinf,its,eps,alpha);
+      ADAMS::solveDBS(p_a,q_a,en_a,vnuc,Z,n,k,r,drdt,h,ngp,pinf,its,eps,alpha);
       p.push_back(p_a);
       q.push_back(q_a);
       en.push_back(en_a);

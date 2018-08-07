@@ -12,7 +12,7 @@ all: h-like.x fitParametric.x parametricPotential.x atomicKernal.x hartree.x \
 ## All programs depend on these header/object files:
 
 DEPS = $(addprefix $(IDIR)/, \
- adamsSolveLocalBS.h ATI_atomInfo.h ElectronOrbitals.h \
+ ADAMS_solveLocalBS.h ATI_atomInfo.h ElectronOrbitals.h \
  INT_quadratureIntegration.h MAT_matrixAlgebraGSL.h FPC_physicalConstants.h \
 )
 
@@ -21,7 +21,7 @@ $(ODIR)/%.o: $(IDIR)/%.cpp $(DEPS)
 
 # All programs depend on these objects:
 OBJ = $(addprefix $(ODIR)/, \
- adamsSolveLocalBS.o ElectronOrbitals.o INT_quadratureIntegration.o \
+ ADAMS_solveLocalBS.o ElectronOrbitals.o INT_quadratureIntegration.o \
  MAT_matrixAlgebraGSL.o \
 )
 
@@ -36,8 +36,8 @@ $(ODIR)/WIG_369j.o: \
 $(IDIR)/WIG_369j.cpp $(IDIR)/WIG_369j.h
 	$(CXX) -c -o $@ $< $(CXXFLAGS)
 
-$(ODIR)/adamsSolveLocalContinuum.o: \
-$(IDIR)/adamsSolveLocalContinuum.cpp $(IDIR)/adamsSolveLocalContinuum.h
+$(ODIR)/ADAMS_solveLocalContinuum.o: \
+$(IDIR)/ADAMS_solveLocalContinuum.cpp $(IDIR)/ADAMS_solveLocalContinuum.h
 	$(CXX) -c -o $@ $< $(CXXFLAGS)
 
 $(ODIR)/HF_hartree.o: \
@@ -53,7 +53,7 @@ $(IDIR)/AKF_akFunctions.cpp $(IDIR)/AKF_akFunctions.h
 	$(CXX) -c -o $@ $< $(CXXFLAGS)
 
 CNTM = $(addprefix $(ODIR)/, \
- adamsSolveLocalContinuum.o ContinuumOrbitals.o \
+ ADAMS_solveLocalContinuum.o ContinuumOrbitals.o \
 )
 
 ################################################################################
