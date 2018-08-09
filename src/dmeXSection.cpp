@@ -1,12 +1,59 @@
 #include "AKF_akFunctions.h"
 
-double fv(double v){
-  if(v<0.1) return 0;
-  else if(v>750.) return 0;
-  else return 1./750.;
+// double fv(double v){
+//   if(v<0.1) return 0;
+//   else if(v>750.) return 0;
+//   else return 1./750.;
+// }
+
+double fv(double v, double phi=0);
+
+//******************************************************************************
+double fv(double v, double phi)
+/*
+Standard halo model for velocity distribution, in laboratory frame.
+ f ~ v^2 exp(-v^2)
+Note: distribution for DM particles that cross paths with Earth.
+We should have: <v> = 370
+//XXX Update to include 'Phase' !!!
+*/
+{
+
+  double vesc = 544.; // galactic escape velocity
+  double vL0 = 220.; // local frame velocity, average
+  double vc  = 220; // circular velocity
+
+//  double phi=0;
+  double vearth = 30.; //XXX update!
+
+  double vl = vL0 + vearth*sin(phi);
+
+  double Knorm1 = 0.91706*0.942099; //for phi=0
+  double Kn = Knorm1*sqrt(M_PI)*vc*vl*370.;
+  double A = pow(v,2)/Kn;
+
+  // This is a rough way to enforce normalisation thoughout the year!
+  if(phi!=0){ //save some evals if phi=0
+    A /= 1. + 0.0587669*sin(phi);
+    A /= 1.00137 - 0.00137*cos(2*phi) - 0.00013*sin(phi);//0.000123*sin(phi);
+  }
+
+
+  double arg1 = -pow((v-vl)/vc,2);
+
+  if(v<=0){
+    return 0; //just for safety - should never be called with v<0
+  }else if(v<vesc-vl){
+    double arg2 = -pow((v+vl)/vc,2);
+    return A*(exp(arg1)-exp(arg2));
+  }else if(v<vesc+vl){
+    double arg2 = -pow(vesc/vc,2);
+    return A*(exp(arg1)-exp(arg2));
+  }else{
+    return 0;
+  }
+
 }
-
-
 
 //******************************************************************************
 int main(void){
@@ -22,6 +69,22 @@ int main(void){
     ifs >> akfn;         getline(ifs,jnk);
     ifs.close();
   }
+
+  // double num=12;
+  // std::cout<<"\n{";
+  // // for(double phi=0; phi<=2*3.15; phi +=0.5)
+  // for(int i=0; i<=2*num; i++)
+  // {
+  //   double phi = 2*M_PI*i/num;
+  // double K=0;
+  // double dv = 0.001;
+  // for(double v=0; v<900.; v+=dv){
+  //   K += fv(v,phi);
+  // }
+  // std::cout<<"{"<<phi<<","<<K*dv<<"},";
+  // }
+  // std::cout<<"\n";
+  // return 1;
 
 
   //Arrays to store results for outputting later:
@@ -60,7 +123,7 @@ int main(void){
   mv *= (1./FPC::m_e_MeV);
 
 
-  double v=137*1.e-2; // typical v..integrate later...
+  double v=300*1.e-3; // typical v..integrate later...
 
   //double dE = demin;
 
