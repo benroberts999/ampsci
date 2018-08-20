@@ -90,6 +90,8 @@ $(ODIR)/HF_hartree.o
 wigner.x: $(ODIR)/wigner.o $(ODIR)/WIG_369j.o
 	$(COMP)
 
+################################################################################
+
 checkObj:
 	@if [ ! -d $(ODIR) ]; then \
 	echo '\n ERROR: Directory: '$(ODIR)' doesnt exist - please create it!\n'; \

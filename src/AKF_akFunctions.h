@@ -14,8 +14,6 @@
 
 namespace AKF{
 
-  //Declare angular coeficient. [See Phys.Rev.D 93, 115037 (2016).]
-  //double CLkk_OLD(int L, int ka, int kb);
   double CLkk(int L, int ka, int kb);
 
   void writeToTextFile(
@@ -23,8 +21,7 @@ namespace AKF{
     std::vector< std::vector< std::vector<float> > > &AK,
     std::vector<std::string> nklst,
     double qmin, double qmax,
-    double demin, double demax
-  );
+    double demin, double demax);
 
   int akReadWrite(std::string fname, bool write,
     std::vector< std::vector< std::vector<float> > > &AK,
@@ -38,16 +35,13 @@ namespace AKF{
 
   int calculateKpw_nk(ElectronOrbitals &wf, int nk, double dE,
     std::vector< std::vector<float> > &jl_qr,
-    std::vector< std::vector<float> > &K_nk
-  );
-
+    std::vector< std::vector<float> > &K_nk);
 
   void sphericalBesselTable(
     std::vector< std::vector< std::vector<float> > > &jLqr_f,
     int max_L,
     double qmin, double qmax, int qsteps,
     std::vector<double> &r);
-
 
 }
 #endif

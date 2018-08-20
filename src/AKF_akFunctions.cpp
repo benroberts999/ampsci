@@ -19,40 +19,6 @@ double CLkk(int L, int ka, int kb)
 }
 
 
-
-// //******************************************************************************
-// double CLkk_OLD(int L, int ka, int kb)
-// /*
-// Calculates the angular coeficient (averaged over all m)
-// B. M. Roberts, V. A. Dzuba, V. V. Flambaum, M. Pospelov, and Y. V. Stadnik,
-// Phys. Rev. D 93, 115037 (2016). [arXiv:1604.04559]
-// */
-// {
-//   int two_ja = ATI::twoj_k(ka);
-//   int two_jb = ATI::twoj_k(kb);
-//   double ja = 0.5*two_ja;
-//   double jb = 0.5*two_jb;
-//   int la = ATI::l_k(ka);
-//   int lb = ATI::l_k(kb);
-//
-//   double tjB = WIG::threej(jb,L,ja,-0.5,0,0.5);
-//   if(fabs(tjB)==0) return 0;
-//   double B = 1./pow(tjB,2);
-//
-//   //(-1)^(ja etc) -> calc sign
-//   int s1 = -1;
-//   if((two_ja+two_jb-2*(la+lb))%4==0) s1=1;
-//
-//   double tj1 = WIG::threej(lb,la,L,0,0,0);
-//   double A = (1./4)*s1*(2*L+1)*pow(tj1,2);
-//   double X = s1*(two_ja+1)*(two_jb+1)*pow(tj1,2);
-//   double tj2 = WIG::threej(lb,la,L,-1,1,0);
-//   double Y = 8*sqrt(la*(la+1)*lb*(lb+1))*tj1*tj2;
-//   double Z = -4*(ka+1)*(kb+1)*pow(tj2,2);
-//
-//   return (A*B)*(X+Y+Z);
-// }
-
 //******************************************************************************
 void writeToTextFile(
   std::string fname,
@@ -92,9 +58,6 @@ void writeToTextFile(
   }
   ofile.close();
 }
-
-
-
 
 
 //******************************************************************************
@@ -192,22 +155,17 @@ int calculateK_nk(ElectronOrbitals &wf, int is, int max_L, double dE,
   int lc_min = l - max_L;
   if(lc_min<0) lc_min = 0;
   if(ec>0) cntm.solveLocalContinuum(ec,lc_min,lc_max);
-  //XXX can have ec_max. If ec large enough - use plane waves!?? XXX
 
   // Generate AK for each L, lc, and q
-  //NB: L and lc summed, not stored indevidually
+  // L and lc are summed, not stored indevidually
   std::vector<float> AK_nk_q(qsteps);
   for(int L=0; L<=max_L; L++){
     for(size_t ic=0; ic<cntm.klist.size(); ic++){
       int kc = cntm.klist[ic];
-      //int lc = ATI::l_k(kc);
-      //if(lc > max_lc) break;
       double dC_Lkk = CLkk(L,k,kc); //XXX new formula!
       if(dC_Lkk==0) continue;
       #pragma omp parallel for
       for(int iq=0; iq<qsteps; iq++){
-        //double x = double(iq)/(qsteps-1.);
-        //double q = qmin*pow(qmax/qmin,x);
         double a = 0;
         double jLqr = 0;
         if(cntm.p.size()>0){
@@ -221,7 +179,6 @@ int calculateK_nk(ElectronOrbitals &wf, int is, int max_L, double dE,
                  *jLqr*wf.drdt[j];// *h below!
           }
         }
-        //if(ide==0) qlst[iq]=q;
         AK_nk_q[iq] += dC_Lkk*pow(a*wf.h,2);
       } //q
     } // END loop over cntm states (ic)
@@ -244,10 +201,9 @@ Chi(q) - Int[ f_nk*j_l(qr)*r , {r,0,inf}]
 Should be called once per initial state
 */
 {
-  if (nk>=(int)wf.p.size()) return 1; //should never occur XXX
+  if (nk>=(int)wf.p.size()) return 1; //should never occur
 
   int kappa = wf.klist[nk];
-  //int l = ATI::l_k(kappa);
   int twoj = ATI::twoj_k(kappa);
 
   int qsteps = (int)jl_qr.size();
@@ -269,7 +225,6 @@ Should be called once per initial state
   K_nk.push_back(tmpK_q);
   return 0;
 }
-
 
 
 //******************************************************************************
@@ -298,4 +253,5 @@ void sphericalBesselTable(
   std::cout<<"done\n";
 }
 
-}
+
+}//End namespace
