@@ -7,6 +7,15 @@
 // }
 
 double fv(double v, double phi=0);
+double fv_au(double v_au, double phi=0);
+
+//******************************************************************************
+double fv_au(double v_au, double phi){
+  double v = v_au * (FPC::c_SI/FPC::c); //will be in m/s
+  v/=1.e3; //convert from m/s -> km/s
+  std::cout<<v<<"\n";
+  return fv(v,phi);
+}
 
 //******************************************************************************
 double fv(double v, double phi)
@@ -15,7 +24,7 @@ Standard halo model for velocity distribution, in laboratory frame.
  f ~ v^2 exp(-v^2)
 Note: distribution for DM particles that cross paths with Earth.
 We should have: <v> = 370
-//XXX Update to include 'Phase' !!!
+XXX - Includes phase - BUT not 100% sure it's correct! XXX XXX XXX
 */
 {
 
@@ -23,8 +32,7 @@ We should have: <v> = 370
   double vL0 = 220.; // local frame velocity, average
   double vc  = 220; // circular velocity
 
-//  double phi=0;
-  double vearth = 30.; //XXX update!
+  double vearth = 30.; //XXX update! ??
 
   double vl = vL0 + vearth*sin(phi);
 
@@ -37,7 +45,7 @@ We should have: <v> = 370
     A /= 1. + 0.0587669*sin(phi);
     A /= 1.00137 - 0.00137*cos(2*phi) - 0.00013*sin(phi);//0.000123*sin(phi);
   }
-
+  //Probably, this isn't good enough... XXX
 
   double arg1 = -pow((v-vl)/vc,2);
 
@@ -59,7 +67,14 @@ We should have: <v> = 370
 int main(void){
 
 
-  std::string akfn;
+  double kms_to_au = 1.e3*(FPC::c/FPC::c_SI);
+  std::cout<<300.*kms_to_au<<"\n";
+  fv_au(300.*kms_to_au,0);
+
+  return 1;
+
+  //define input parameters
+  std::string akfn; //name of K file to read in
 
   //Open and read the input file:
   {

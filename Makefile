@@ -98,7 +98,7 @@ checkObj:
 	false; \
 	fi
 
-.PHONY: clean do_the_chicken_dance
+.PHONY: clean do_the_chicken_dance checkObj
 clean:
 	rm -f *.x *~ $(ODIR)/*.o $(IDIR)/*~
 do_the_chicken_dance:
