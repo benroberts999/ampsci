@@ -5,8 +5,10 @@ CXX=g++
 CXXFLAGS=-I$(IDIR) -std=c++11 -Wall -fopenmp -O #-Wextra -Wpedantic
 LIBS=-lgsl -lgslcblas -lm
 
-all: h-like.x fitParametric.x parametricPotential.x atomicKernal.x hartree.x \
- wigner.x dmeXSection.x
+all: checkObj h-like.x fitParametric.x parametricPotential.x atomicKernal.x \
+hartree.x wigner.x dmeXSection.x
+
+
 
 ################################################################################
 ## All programs depend on these header/object files:
@@ -87,6 +89,12 @@ $(ODIR)/HF_hartree.o
 
 wigner.x: $(ODIR)/wigner.o $(ODIR)/WIG_369j.o
 	$(COMP)
+
+checkObj:
+	@if [ ! -d $(ODIR) ]; then \
+	echo '\n ERROR: Directory: '$(ODIR)' doesnt exist - please create it!\n'; \
+	false; \
+	fi
 
 .PHONY: clean do_the_chicken_dance
 clean:
