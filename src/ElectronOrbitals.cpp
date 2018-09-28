@@ -163,10 +163,14 @@ NOTE: Only works up to n=9, and l=5 [h]
   else if(ng=="Xe") core_list=ATI::core_Xe;
   else if(ng=="Rn") core_list=ATI::core_Rn;
   else if(ng=="Og") core_list=ATI::core_Og;
+  else if(ng=="Zn") core_list=ATI::core_Zn;
+  else if(ng=="Cd") core_list=ATI::core_Cd;
+  else if(ng=="Hg") core_list=ATI::core_Hg;
   else ibeg=0;
 
   for(size_t i=ibeg; i<str_core.size(); i++){
     //Parse string, determine config for this term
+    std::cout<<i<<" "<<str_core[i]<<"\n";
     int n = std::stoi(str_core[i].substr(0,1));
     int m = std::stoi(str_core[i].substr(2));
     std::string strl=str_core[i].substr(1,1);
