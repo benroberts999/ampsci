@@ -19,7 +19,7 @@ Also, need at least ~10 points per half-period. More points for higher energy!
 
 //******************************************************************************
 int solveContinuum(std::vector<double> &p, std::vector<double> &q, double ec,
-    std::vector<double> v, int Z, int ka,
+    std::vector<double> v, double Z, int ka,
     std::vector<double> rc, std::vector<double> drdt, double h,
     int NGPb, int NGPc, int i_asym,
     double alpha)
