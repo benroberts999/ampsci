@@ -20,7 +20,7 @@ int main(void){
   double eps_hart;
 
   int n_max,l_max;
-  std::vector<std::string> str_core;
+  std::string str_core;
 
   //Open and read the input file:
   {
@@ -29,13 +29,7 @@ int main(void){
     std::string jnk;
     // read in the input parameters:
     ifs >> Z_str >> A;            getline(ifs,jnk);
-    while(true){
-      std::string str;
-      ifs >> str;
-      if(str=="."||str=="|"||str=="!") break;
-      str_core.push_back(str);
-    }
-    getline(ifs,jnk);
+    ifs >> str_core;              getline(ifs,jnk);
     ifs >> r0 >> rmax >> ngp;     getline(ifs,jnk);
     ifs >> eps_hart;              getline(ifs,jnk);
     ifs >> n_max >> l_max;        getline(ifs,jnk);
@@ -61,9 +55,7 @@ int main(void){
   //Determine which states are in the core:
   int core_ok = wf.determineCore(str_core);
   if(core_ok==2){
-    std::cout<<"Problem with core: ";
-    for(size_t i=0; i<str_core.size(); i++) std::cout<<str_core[i]<<" ";
-    std::cout<<"\n";
+    std::cout<<"Problem with core: "<<str_core<<"\n";
     return 1;
   }
 

@@ -1,5 +1,5 @@
 I  -1              | Z, A(=-1 for default A, 0='0 nucleus')
-Kr 4d10 5s2 5p5 .  | Core configuration (end with ' .')
+Kr,4d10,5s2,5p5    | Core configuration
 1.e-5 45.  15000   | r0, rmax, num_points *1
 1 5. 1.0           | green H d *2
 1.e-4              | Hartree convergence goal. put 0 for default.

@@ -140,7 +140,8 @@ XXX Kill this one! XXX
 
 
 //******************************************************************************
-int ElectronOrbitals::determineCore(std::vector<std::string> str_core)
+// int ElectronOrbitals::determineCore(std::vector<std::string> str_core)
+int ElectronOrbitals::determineCore(std::string str_core_in)
 /*
 Takes in a string list for the core configuration, outputs an int list
 Takes in previous closed shell (noble), + 'rest' (or just the rest)
@@ -151,6 +152,17 @@ E.g:
 NOTE: Only works up to n=9, and l=5 [h]
 */
 {
+
+  //Move comma-seperated string into an array (vector)
+  std::vector<std::string> str_core;
+  std::stringstream ss(str_core_in);
+  while( ss.good() ){
+    std::string substr;
+    getline( ss, substr, ',' );
+    //std::cout<<substr<<"\n";
+    str_core.push_back( substr );
+  }
+
   core_list.clear();
   if(str_core.size()==0) return 1;
 
@@ -163,6 +175,9 @@ NOTE: Only works up to n=9, and l=5 [h]
   else if(ng=="Xe") core_list=ATI::core_Xe;
   else if(ng=="Rn") core_list=ATI::core_Rn;
   else if(ng=="Og") core_list=ATI::core_Og;
+  else if(ng=="Zn") core_list=ATI::core_Zn;
+  else if(ng=="Cd") core_list=ATI::core_Cd;
+  else if(ng=="Hg") core_list=ATI::core_Hg;
   else ibeg=0;
 
   for(size_t i=ibeg; i<str_core.size(); i++){
