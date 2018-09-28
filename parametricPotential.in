@@ -1,5 +1,5 @@
 Fr 0              | Z, A(=0 for default)
-Rn  .             | Core configuration (end with ' .')
+Rn                | Core configuration (comma separated)
 1.e-3 100. 5000   | r0, rmax, num_points
 1 0 0             | green H d *
 1 0 0             | Tietz t g

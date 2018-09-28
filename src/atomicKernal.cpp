@@ -14,7 +14,7 @@ int main(void){
   double varalpha;// for non-relativistic approx
   double hart_del;//HART convergance
 
-  std::vector<std::string> str_core; //States for the core
+  std::string str_core; //States for the core
 
   //Green potential parameters
   int Gf;
@@ -38,13 +38,7 @@ int main(void){
     std::string jnk;
     // read in the input parameters:
     ifs >> Z_str >> A;            getline(ifs,jnk);
-    while(true){
-      std::string str;
-      ifs >> str;
-      if(str=="."||str=="|"||str=="!") break;
-      str_core.push_back(str);
-    }
-    getline(ifs,jnk);
+    ifs >> str_core;              getline(ifs,jnk);
     ifs >> r0 >> rmax >> ngp;     getline(ifs,jnk);
     ifs >> Gf >> Gh >> Gd;        getline(ifs,jnk);
     ifs >> hart_del;              getline(ifs,jnk);
@@ -128,9 +122,7 @@ int main(void){
   //Determine which states are in the core:
   int core_ok = wf.determineCore(str_core);
   if(core_ok==2){
-    std::cout<<"Problem with core: ";
-    for(size_t i=0; i<str_core.size(); i++) std::cout<<str_core[i]<<" ";
-    std::cout<<"\n";
+    std::cout<<"Problem with core: "<<str_core<<"\n";
     return 1;
   }
 

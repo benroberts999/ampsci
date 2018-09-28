@@ -1,6 +1,7 @@
 #ifndef _ORBITALS_H
 #define _ORBITALS_H
 #include <string>
+#include <sstream>
 #include <vector>
 #include <cmath>
 #include "FPC_physicalConstants.h"
@@ -67,7 +68,7 @@ class ElectronOrbitals{
 
     int getRadialIndex(double r_target);
 
-    int determineCore(std::vector<std::string> str_core);
+    int determineCore(std::string str_core_in);
     int solveInitialCore(int log_dele_or=0);
     bool isInCore(int n, int k);
 

@@ -140,7 +140,8 @@ XXX Kill this one! XXX
 
 
 //******************************************************************************
-int ElectronOrbitals::determineCore(std::vector<std::string> str_core)
+// int ElectronOrbitals::determineCore(std::vector<std::string> str_core)
+int ElectronOrbitals::determineCore(std::string str_core_in)
 /*
 Takes in a string list for the core configuration, outputs an int list
 Takes in previous closed shell (noble), + 'rest' (or just the rest)
@@ -151,6 +152,17 @@ E.g:
 NOTE: Only works up to n=9, and l=5 [h]
 */
 {
+
+  //Move comma-seperated string into an array (vector)
+  std::vector<std::string> str_core;
+  std::stringstream ss(str_core_in);
+  while( ss.good() ){
+    std::string substr;
+    getline( ss, substr, ',' );
+    //std::cout<<substr<<"\n";
+    str_core.push_back( substr );
+  }
+
   core_list.clear();
   if(str_core.size()==0) return 1;
 
@@ -170,7 +182,6 @@ NOTE: Only works up to n=9, and l=5 [h]
 
   for(size_t i=ibeg; i<str_core.size(); i++){
     //Parse string, determine config for this term
-    std::cout<<i<<" "<<str_core[i]<<"\n";
     int n = std::stoi(str_core[i].substr(0,1));
     int m = std::stoi(str_core[i].substr(2));
     std::string strl=str_core[i].substr(1,1);

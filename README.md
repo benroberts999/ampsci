@@ -37,11 +37,12 @@ Note: makes use of GSL libraries: https://www.gnu.org/software/gsl/
 ## hartree.x
 
  * Solves Hartree potential (no exchange) for core + valence states
- * Takes core configuration: Noble gas + extra. end with ' . ' (needs space)
+ * Takes core configuration: Noble gas + extra. (comma separated, no spaces)
+ * (As well as Noble gas, can use Zn,Cd,Hg)
  E.g.:
-   * For Cs: 'Xe . '
-   * For Au: 'Xe 4f14 5d10 . '
-   * For Tl: 'Xe 4f14 5d10 6s2 . '
+   * For Cs: 'Xe'
+   * For Au: 'Xe,4f14,5d10'
+   * For Tl: 'Xe,4f14,5d10,6s2' OR 'Hg'
  * Solves single-electron valence states in the Hartree potential of given core
  * Includes finite nuclear size (assumes spherical nucleus)
  * As of yet, does not write wavefunctions to disk
