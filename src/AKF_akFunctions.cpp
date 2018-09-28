@@ -199,6 +199,9 @@ For plane-wave final state.
 Only has f-part....Can restore g-part, but need to be sure of plane-wave!
 Chi(q) - Int[ f_nk*j_l(qr)*r , {r,0,inf}]
 Should be called once per initial state
+
+XXX Note sure if correct! esp, (q) angular part!? XXX
+
 */
 {
   if (nk>=(int)wf.p.size()) return 1; //should never occur
@@ -220,6 +223,7 @@ Should be called once per initial state
     }
     chi_q *= wf.h;
     tmpK_q[iq] = (2./M_PI)*(twoj+1)*pow(chi_q,2)*sqrt(2.*eps);
+    //tmpK_q[iq] = pow(4*3.14159,2)*pow(chi_q,2); //XXX XXX just cf KOPP
   }
 
   K_nk.push_back(tmpK_q);
