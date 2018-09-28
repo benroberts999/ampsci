@@ -6,7 +6,7 @@ CXXFLAGS=-I$(IDIR) -std=c++11 -Wall -fopenmp -O #-Wextra -Wpedantic
 LIBS=-lgsl -lgslcblas -lm
 
 all: checkObj h-like.x fitParametric.x parametricPotential.x atomicKernal.x \
-hartree.x wigner.x dmeXSection.x
+hartree.x wigner.x
 
 
 
@@ -83,10 +83,10 @@ hartree.x: $(OBJ) $(ODIR)/hartree.o $(ODIR)/PRM_parametricPotentials.o \
 $(ODIR)/HF_hartree.o
 	$(COMP)
 
-dmeXSection.x: $(OBJ) $(ODIR)/dmeXSection.o $(ODIR)/AKF_akFunctions.o \
-$(ODIR)/WIG_369j.o $(ODIR)/PRM_parametricPotentials.o $(CNTM) \
-$(ODIR)/HF_hartree.o
-	$(COMP)
+#dmeXSection.x: $(OBJ) $(ODIR)/dmeXSection.o $(ODIR)/AKF_akFunctions.o \
+#$(ODIR)/WIG_369j.o $(ODIR)/PRM_parametricPotentials.o $(CNTM) \
+#$(ODIR)/HF_hartree.o
+#	$(COMP)
 
 wigner.x: $(ODIR)/wigner.o $(ODIR)/WIG_369j.o
 	$(COMP)
