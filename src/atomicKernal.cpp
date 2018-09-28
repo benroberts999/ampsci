@@ -100,21 +100,17 @@ int main(void){
 
   //Generate the orbitals object:
   ElectronOrbitals wf(Z,A,ngp,r0,rmax,varalpha);
+  double h_target = (M_PI/20.)/sqrt(2.*demax);
+  if(wf.h > h_target){
+    int old_ngp = ngp;
+    wf.DzubaRadialGrid(h_target,r0,rmax);
+    ngp = wf.ngp;
+    std::cout<<"\nWARNING 101: Grid not dense enough for contimuum state with "
+         <<"ec="<<demax<<"au\n";
+    std::cout<<"Updateing ngp: "<<old_ngp<<" --> "<<ngp<<"\n";
+  }
   printf("Grid: pts=%i h=%6.4f r0=%.0e Rmax=%5.1f\n",wf.ngp,wf.h,wf.r[0]
          ,wf.r[wf.ngp-1]);
-
-  //XXX GIVE option to input h0, work-out Npts !!! XXX
-  // Check if 'h' is small enough for oscillating region:
-  double h_target = (M_PI/15)/sqrt(2.*demax);
-  if(wf.h>2*h_target){
-    std::cout<<"\nWARNING 101: Grid not dense enough for contimuum state with "
-      <<"ec="<<demax<<" (h="<<wf.h<<", need h<"<<h_target<<")\n";
-    std::cout<<"Program will continue, but continuum wfs may be bad.\n\n";
-  }
-
-  //XXX XXX XXX have an ec_max !?
-  // Just artificially set K to zero above this. Hope it's small enough!
-  // Set to 'zero' to not use it?
 
   //If non-zero A is given, use spherical nucleus.
   if(A>0) wf.sphericalNucleus();
