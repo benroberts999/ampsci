@@ -80,8 +80,9 @@ class ElectronOrbitals{
     //Number of grid points:
 
 
-    int JohnsonRadialGrid(double r0=1.e-6, double rmax=250.);
-    int DzubaRadialGrid(double r0=1.e-6, double rmax=250., double b=4.);
+    int JohnsonRadialGrid(int ngp_in, double r0=1.e-6, double rmax=250.);
+    int DzubaRadialGrid(int ngp_in, double r0, double rmax, double b=4.);
+    int DzubaRadialGrid(double in_h, double r0, double rmax, double b=4.);
     int zeroNucleus();
     double enGuess(int Z, int n, int l, int tot_el, int num);
 

@@ -1,17 +1,13 @@
 //class ElectronOrbitals::
 #include "ElectronOrbitals.h"
 
-
-//XXX XXX XXX make routine that solves for a signle state. pushes back n,k etc.!
-
 //******************************************************************************
 ElectronOrbitals::ElectronOrbitals(int in_z, int in_a, int in_ngp, double rmin,
   double rmax, double var_alpha)
 {
 
-  ngp=in_ngp;
-  //JohnsonRadialGrid(rmin,rmax);
-  DzubaRadialGrid(rmin,rmax);
+  //JohnsonRadialGrid(in_ngp,rmin,rmax);
+  DzubaRadialGrid(in_ngp,rmin,rmax);
 
   alpha=FPC::alpha*var_alpha;
   num_core=0;
@@ -293,7 +289,7 @@ Private
 }
 
 //******************************************************************************
-int ElectronOrbitals::JohnsonRadialGrid(double r0, double rmax)
+int ElectronOrbitals::JohnsonRadialGrid(int in_ngp, double r0, double rmax)
 /*
 Non-uniform r grid, taken from Johnson book (w/ minor modification).
 Quite a standard exponential grid.
@@ -304,6 +300,7 @@ Uses:
 */
 {
 
+  ngp = in_ngp;
   h=log(rmax/r0)/(ngp-1);
   if(h>0.03){
     std::cout<<"Warning: h="<<h<<" in formRadialGrid. Is this too large??\n";
@@ -357,7 +354,20 @@ NOTE: returns index that corresponds to r _lower_ that (or equal to) r_target
 }
 
 //******************************************************************************
-int ElectronOrbitals::DzubaRadialGrid(double r0, double rmax, double b)
+int ElectronOrbitals::DzubaRadialGrid(double in_h, double r0, double rmax,
+   double b)
+/*
+OVERLOADED.
+So, can give an input h, and let program determine NGP.
+*/
+{
+  double d_ngp = (in_h-r0+rmax+b*log(rmax/r0))/in_h;
+  int in_ngp = (int)d_ngp+1;
+  return DzubaRadialGrid(in_ngp,r0,rmax,b);
+}
+//******************************************************************************
+int ElectronOrbitals::DzubaRadialGrid(int in_ngp, double r0, double rmax,
+   double b)
 /*
 Non-uniform r-grid taken from V. Dzuba code.
 Uses:
@@ -368,6 +378,7 @@ Default b=4.
 */
 {
 
+  ngp = in_ngp;
   h=(rmax-r0+b*log(rmax/r0))/(ngp-1);
 
   //clear the vectors, just in case
