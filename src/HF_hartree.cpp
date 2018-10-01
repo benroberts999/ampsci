@@ -52,8 +52,9 @@ Solves the Hartree equations (no exchange term yet)
     //NB: eta in denom, otherwise v. small eta will spuriously give small delta
     double delta_hartree = (next_e-prev_e)/(next_e*eta);
     num_its = n+1;
-    //printf("Hart it:%3i,  del=%6.0e\n",num_its,delta_hartree);
-    printf("Hart it:%3i,  del=%6.0e     \r",num_its,delta_hartree);
+    //Output Hartree it number/eps to screen (overwrite line):
+    printf("Hartree it:%3i,  del=%6.0e     \r",num_its,delta_hartree);
+    std::cout<<std::flush; //flush cout to update screen output
     if(fabs(delta_hartree)<eps_hartree) break;
   }
   std::cout<<"\n";
