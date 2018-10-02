@@ -34,6 +34,8 @@ Initialise object:
   Zion = -1*wf.r[NGPb-5]*v[NGPb-5];
   if(Zion<1) Zion = 1;
 
+  std::cout<<"Zion="<<Zion<<"\n";
+
 }
 
 //******************************************************************************
@@ -126,6 +128,8 @@ continuum (un-bound) states [partial waves].
 */
 {
 
+
+
   //Find 'inital guess' for asymptotic region:
   double lam = 1.e7; //XXX ???
   double r_asym = (Zeff + sqrt(4.*lam*ec+pow(Zeff,2)))/(2.*ec);
@@ -158,10 +162,14 @@ continuum (un-bound) states [partial waves].
     if(r_new>=r_asym && last_r<r_asym) i_asym=NGPc-1;
     rc.push_back(r_new);
     drdtc.push_back(1.);
-    //vc.push_back(-Zion/r_new);
-    vc.push_back(-Zeff/r_new);
+    // vc.push_back(-Zeff/r_new);
     NGPc++;
     last_r = r_new;
+  }
+
+  vc.clear();
+  for(int i=0; i<NGPc; i++){
+    vc.push_back(-Zeff/rc[i]);
   }
 
   int MAX_STATES=100;
