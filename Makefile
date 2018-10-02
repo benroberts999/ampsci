@@ -97,6 +97,7 @@ checkObj:
 	@if [ ! -d $(ODIR) ]; then \
 	echo '\n ERROR: Directory: '$(ODIR)' doesnt exist - please create it!\n'; \
 	false; \
+	echo 'done\n'; \
 	fi
 
 .PHONY: clean do_the_chicken_dance checkObj

@@ -62,6 +62,49 @@ XXX vnuc !!!
 }
 
 //******************************************************************************
+int ElectronOrbitals::solveZeff(int n, int k, double Zeff_or_En, bool calcZeff)
+/*
+Solves H-like with effective Z
+Not fully tested yet!
+*/
+{
+  int pinf,its;
+  double eps;
+  std::vector<double> p_a(ngp);
+  std::vector<double> q_a(ngp);
+
+
+  double Zeff = Zeff_or_En;
+  double e_a = -0.5*pow(Zeff/n,2);
+  if(calcZeff){
+    e_a  = Zeff_or_En;
+    Zeff = n*sqrt(-2.*e_a);
+  }
+
+
+  std::vector<double> v_a; // = vnuc;
+  double zscale = (Zeff/Z);
+  for(size_t i=0; i<vnuc.size(); i++) v_a.push_back(vnuc[i]*zscale);
+
+  int i_ret = ADAMS::solveDBS(p_a,q_a,e_a,v_a,Zeff,n,k,r,drdt,h,ngp,pinf,its,
+    eps,alpha,0);
+  //Store wf + energy
+  p.push_back(p_a);
+  q.push_back(q_a);
+  en.push_back(e_a);
+  //Store states:
+  nlist.push_back(n);
+  klist.push_back(k);
+  //store convergance info:
+  pinflist.push_back(pinf);
+  itslist.push_back(its);
+  epslist.push_back(eps);
+
+  return i_ret;
+}
+
+
+//******************************************************************************
 int ElectronOrbitals::reSolveLocalDirac(int i, double e_a, int log_dele_or)
 /*
 If no e_a is given, will use the existing one!

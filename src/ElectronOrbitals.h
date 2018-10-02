@@ -59,6 +59,8 @@ class ElectronOrbitals{
 
     int hydrogenLike(int in_max_n, int in_max_l=100);
 
+    int solveZeff(int n, int k, double Zeff_or_En, bool calcZeff);
+
     int solveLocalDirac(int n, int k, double en_a, int log_dele_or=0);
     int reSolveLocalDirac(int i, double e_a=0, int log_dele_or=0);
 
