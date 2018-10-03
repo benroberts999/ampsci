@@ -9,7 +9,6 @@ all: checkObj h-like.x fitParametric.x parametricPotential.x atomicKernal.x \
 hartree.x wigner.x dmeXSection.x
 
 
-
 ################################################################################
 ## All programs depend on these header/object files:
 
@@ -97,7 +96,8 @@ checkObj:
 	@if [ ! -d $(ODIR) ]; then \
 	echo '\n ERROR: Directory: '$(ODIR)' doesnt exist - please create it!\n'; \
 	false; \
-	echo 'done\n'; \
+	else \
+	echo 'done'; \
 	fi
 
 .PHONY: clean do_the_chicken_dance checkObj
