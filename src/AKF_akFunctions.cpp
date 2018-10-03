@@ -137,11 +137,14 @@ int akReadWrite(std::string fname, bool write,
 //******************************************************************************
 int calculateK_nk(ElectronOrbitals &wf, int is, int max_L, double dE,
   std::vector< std::vector<std::vector<float> > > &jLqr_f,
-  std::vector< std::vector<float> > &K_nk)
+  std::vector< std::vector<float> > &K_nk, double Zeff)
+/*
+Zeff is '-1' by default. If Zeff > 0, will solve w/ Zeff model
+*/
 {
-  if (is>=(int)wf.p.size()) return 1; //should never occur XXX
+  if (is>=(int)wf.p.size()) return 1; //should never occur, just safety?
 
-  ContinuumOrbitals cntm(wf); //XXX here?
+  ContinuumOrbitals cntm(wf);// create cntm object [survives locally only]
 
   int k = wf.klist[is];
   int l = ATI::l_k(k);
@@ -154,7 +157,10 @@ int calculateK_nk(ElectronOrbitals &wf, int is, int max_L, double dE,
   int lc_max = l + max_L;
   int lc_min = l - max_L;
   if(lc_min<0) lc_min = 0;
-  if(ec>0) cntm.solveLocalContinuum(ec,lc_min,lc_max);
+  if(ec>0){
+    if(Zeff>0) cntm.solveZeffContinuum(ec,Zeff,lc_min,lc_max); //Zeff version
+    else       cntm.solveLocalContinuum(ec,lc_min,lc_max);
+  }
 
   // Generate AK for each L, lc, and q
   // L and lc are summed, not stored indevidually

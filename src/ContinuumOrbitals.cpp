@@ -8,7 +8,6 @@ Initialise object:
  * Copies grid and potential info, since these must always match bound states!
 */
 {
-
   //Grid:
   NGPb = wf.ngp;
   h = wf.h;
@@ -16,7 +15,6 @@ Initialise object:
   r = wf.r;
   drdt.clear();
   drdt = wf.drdt;
-  // dror ??
 
   alpha = wf.alpha;
   Z = wf.Z;
@@ -34,8 +32,6 @@ Initialise object:
   Zion = -1*wf.r[NGPb-5]*v[NGPb-5];
   if(Zion<1) Zion = 1;
 
-  std::cout<<"Zion="<<Zion<<"\n";
-
 }
 
 //******************************************************************************
@@ -44,7 +40,6 @@ int ContinuumOrbitals::solveLocalContinuum(double ec, int max_l)
 {
   return solveLocalContinuum(ec,0,max_l);
 }
-
 
 //******************************************************************************
 int ContinuumOrbitals::solveLocalContinuum(double ec, int min_l, int max_l)
@@ -95,26 +90,20 @@ continuum (un-bound) states [partial waves].
   }
 
   int MAX_STATES=100;
-
   for(int i=0; i<MAX_STATES; i++){ //loop through each k state
-
     int k = pow(-1,i+1)*ceil(0.5*(i+1));
     int l = (abs(2*k+1)-1)/2;
     if(l<min_l) continue;
     if(l>max_l) break;
-
     std::vector<double> pc(NGPb),qc(NGPb); //only as long as bound-state grid
     ADAMS::solveContinuum(pc,qc,ec,vc,Z,k,rc,drdtc,h,NGPb,NGPc,i_asym,alpha);
-
     p.push_back(pc);
     q.push_back(qc);
     en.push_back(ec);
     klist.push_back(k);
-
   }
 
   return 0; //XXX code?
-
 }
 
 //******************************************************************************
@@ -127,11 +116,8 @@ continuum (un-bound) states [partial waves].
  * Uses fit to known exact H-like for normalisation.
 */
 {
-
-
-
   //Find 'inital guess' for asymptotic region:
-  double lam = 1.e7; //XXX ???
+  double lam = 1.e7;
   double r_asym = (Zeff + sqrt(4.*lam*ec+pow(Zeff,2)))/(2.*ec);
 
   // Check if 'h' is small enough for oscillating region:
@@ -151,7 +137,6 @@ continuum (un-bound) states [partial waves].
   //That's why we make a new (temporary) vector, rc
   std::vector<double> rc = r;
   std::vector<double> drdtc = drdt;
-  std::vector<double> vc = v; //should only be called with nuc! [no dir]
   int NGPc = NGPb;
 
   //Fill (extend) the temporary grid:
@@ -167,32 +152,27 @@ continuum (un-bound) states [partial waves].
     last_r = r_new;
   }
 
-  vc.clear();
+  //Nuclear potential:
+  std::vector<double> vc;
   for(int i=0; i<NGPc; i++){
     vc.push_back(-Zeff/rc[i]);
   }
 
   int MAX_STATES=100;
-
   for(int i=0; i<MAX_STATES; i++){ //loop through each k state
-
     int k = pow(-1,i+1)*ceil(0.5*(i+1));
     int l = (abs(2*k+1)-1)/2;
     if(l<min_l) continue;
     if(l>max_l) break;
-
     std::vector<double> pc(NGPb),qc(NGPb); //only as long as bound-state grid
     ADAMS::solveContinuum(pc,qc,ec,vc,Zeff,k,rc,drdtc,h,NGPb,NGPc,i_asym,alpha);
-
     p.push_back(pc);
     q.push_back(qc);
     en.push_back(ec);
     klist.push_back(k);
-
   }
 
-  return 0; //XXX code?
-
+  return 0;
 }
 
 

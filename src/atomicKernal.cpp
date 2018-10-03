@@ -82,6 +82,13 @@ int main(void){
   if(Z==0) return 2;
   if(A==-1) A=ATI::A[Z]; //if none given, get default A
 
+  //Zeff: only for testing!
+  bool use_Zeff = false; // XXX Make sure set to false!
+  double en_zef = -43.;
+  int n_zef = 3;
+  int k_zef = -1;
+  double Zeff = n_zef*sqrt(-2.*en_zef);
+
   //outut file name 9excluding extension):
   std::string fname = "ak-"+Z_str+"_"+label;
 
@@ -122,17 +129,21 @@ int main(void){
     return 1;
   }
 
-  if(Gf==0){
+  if(use_Zeff){
+    //Use Zeff (single oribtal only, just for tests!)
+    wf.solveZeff(n_zef,k_zef,Zeff,false);
+  }else if(Gf==0){
+    //use Hartree method:
     HF::hartreeCore(wf,hart_del);
   }else{
+    //Use Green (local parametric) potential
     //Fill the electron part of the (local/direct) potential
-    for(int i=0; i<wf.ngp; i++){
+    for(int i=0; i<wf.ngp; i++)
       wf.vdir.push_back(PRM::green(Z,wf.r[i],Gh,Gd));
-    }
     // Solve Dirac equation for each (bound) core state:
     wf.solveInitialCore();
   }
-  //XXX Make option to use Z-eff with H-like!!! XXX
+
 
   //make list of energy indices in sorted order:
   std::vector<int> sort_list;
@@ -196,8 +207,8 @@ int main(void){
         nklst.push_back(nk);
       }
 
-      //XXX can have ec_max. If ec large enough - use plane waves!?? XXX
       if(plane_wave) AKF::calculateKpw_nk(wf,is,dE,jLqr_f[l],AK_nk);
+      else if(use_Zeff) AKF::calculateK_nk(wf,is,max_L,dE,jLqr_f,AK_nk,Zeff);
       else AKF::calculateK_nk(wf,is,max_L,dE,jLqr_f,AK_nk);
 
     }// END loop over bound states
