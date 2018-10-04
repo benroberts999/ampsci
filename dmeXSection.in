@@ -1,1 +1,7 @@
-ak-Xe_test1
+ak-Xe_test  | input file name
+100         | v steps
+0.1 10. 10  | m_chi/GeV: min, max, num_steps
+2           | mv: 0=massless, 1=range, 2= heavy
+0.1 10. 10  | m_v/MeV: min, max, num_steps [only if =1 above]
+2.          | E target. If non-zero, plots sig(v) for given E + m,mv [uses min]
+testx       | output label

@@ -53,6 +53,10 @@ $(ODIR)/AKF_akFunctions.o: \
 $(IDIR)/AKF_akFunctions.cpp $(IDIR)/AKF_akFunctions.h
 	$(CXX) -c -o $@ $< $(CXXFLAGS)
 
+$(ODIR)/SHM_standardHaloModel.o: \
+$(IDIR)/SHM_standardHaloModel.cpp $(IDIR)/SHM_standardHaloModel.h
+	$(CXX) -c -o $@ $< $(CXXFLAGS)
+
 CNTM = $(addprefix $(ODIR)/, \
  ADAMS_solveLocalContinuum.o ContinuumOrbitals.o \
 )
@@ -84,7 +88,7 @@ $(ODIR)/HF_hartree.o
 
 dmeXSection.x: $(OBJ) $(ODIR)/dmeXSection.o $(ODIR)/AKF_akFunctions.o \
 $(ODIR)/WIG_369j.o $(ODIR)/PRM_parametricPotentials.o $(CNTM) \
-$(ODIR)/HF_hartree.o
+$(ODIR)/HF_hartree.o $(ODIR)/SHM_standardHaloModel.o 
 	$(COMP)
 
 wigner.x: $(ODIR)/wigner.o $(ODIR)/WIG_369j.o
