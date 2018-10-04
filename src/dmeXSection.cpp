@@ -27,7 +27,21 @@ int main(void){
   double M_to_GeV = FPC::m_e_MeV/1000.;
   double M_to_MeV = FPC::m_e_MeV;
   double V_to_kms = (FPC::c_SI/FPC::c)/1000.;
+    double V_to_cms = (FPC::c_SI*FPC::alpha)*100.; // au -> cm/s
+    double V_to_cmday = V_to_cms*(24*60*60); // cm/s -> cm/day
   double Q_to_MeV = FPC::Hartree_eV*FPC::c/1.e6;
+  //cross section: ds/dE
+  double ds_to_cm2keV = pow(FPC::aB_cm,2)/E_to_keV; // au -> cm^2/keV
+
+  //Numberical constant. For alpha_chi = 1 !
+  // (if want alpgha_chi = alpha in the code, kill c2 )
+  double A_au = 8*M_PI*FPC::c2;
+  //Convert from au -> cm^2/keV
+  double A_cmkeV = A_au*ds_to_cm2keV;
+
+  //DM energy density (in GeV/cm^3)
+  //note: will be divided by m_chi, also in GeV
+  double rhoDM_GeVcm3 = 0.4; // GeV/cm^3
 
   //define input parameters
   std::string akfn; //name of K file to read in
@@ -51,7 +65,6 @@ int main(void){
     ifs >> label;                   getline(ifs,jnk);
     ifs.close();
   }
-
   //DM mass:
   mmin /= M_to_GeV;
   mmax /= M_to_GeV;
@@ -81,20 +94,11 @@ int main(void){
     mvmax = mvmin;
     n_mv = 1;
   }
-
   //convert E target to au
-  std::cout<<de_target<<"\n";
   de_target /= E_to_keV;
-  std::cout<<de_target<<"\n";
 
-
-
-
-  //DM mass (in GeV)
-  double m=1.;
-  //convert WIMP masses from GeV to a.u.
-  m /= M_to_GeV;
-
+  //masses (loop over later!) XXX
+  double m = mmin;
   double mv = mvmin;
 
   //Arrays/values to be filled from input AK file:
@@ -105,17 +109,13 @@ int main(void){
   //Read in AK file
   std::cout<<"Opening file: "<<akfn<<".bin\n";
   AKF::akReadWrite(akfn,false,AKenq,nklst,qmin,qmax,demin,demax);
-
   int desteps    = (int) AKenq.size();
   int num_states = (int) AKenq[0].size();
   int qsteps     = (int) AKenq[0][0].size();
-
   if(num_states != (int)nklst.size()) return 1; //just sanity check
 
-
-  bool plotv = false;
-
   //If only doing a single dE:
+  bool plotv = false;
   int i_et = -1;
   if(de_target>0 || desteps==1){
     plotv = true;
@@ -134,15 +134,10 @@ int main(void){
     desteps = 1;
   }
 
-
   // Do q derivative on i grid:
-  double dqonq = log(qmax/qmin)/(qsteps-1); //need to multiply by q
-
-  //converts from MeV to au
-  // double qMeV = 1./Q_to_MeV;
+  double dqonq = log(qmax/qmin)/(qsteps-1); //need to multiply by q for dq
 
   //Grid of f_v(v). Can use to change vel profiles
-  //int vsteps = 1000;
   std::vector<double> arr_fv(vsteps);
   double max_v = (SHM::max_v)/V_to_kms;
   double dv = max_v/vsteps;
@@ -152,32 +147,26 @@ int main(void){
   }
 
 
+  //Print the grid info to screen:
   printf("q  grid: %6.2f -> %6.2f  MeV, %5i steps\n"
     ,qmin*Q_to_MeV,qmax*Q_to_MeV,qsteps);
   printf("E  grid: %6.2f -> %6.2f  keV, %5i steps\n"
     ,demin*E_to_keV,demax*E_to_keV,desteps);
   printf("v  grid: %6.2f -> %6.1f km/s, %5i steps\n"
     ,dv*V_to_kms,max_v*V_to_kms,vsteps);
-
   printf("Mx grid: %6.2f -> %6.1f  GeV, %5i steps\n"
     ,mmin*M_to_GeV,mmax*M_to_GeV,n_m);
   printf("Mv grid: %6.3f -> %6.3f  MeV, %5i steps\n"
     ,mvmin*M_to_MeV,mvmax*M_to_MeV,n_mv);
+  printf("A = %.1f au = %.2e cm^2/keV\n",A_au,A_cmkeV);
+  std::cout<<"ds/dE conversion factor:   "<<ds_to_cm2keV<<" cm^2/keV\n"
+    <<"ds.v/dE conversion factor: "
+    <<ds_to_cm2keV*V_to_cmday<<"   cm^3/keV/day\n";
 
-
-  printf("m_chi = %6.1f GeV\n",m*M_to_GeV);
-  printf("m_v=mu= %6.3f MeV\n",mv*M_to_MeV);
-
-  //Numberical constant. Note: Inlcudes dqonq
-  //NOTE: if alpgha_chi = alpha in the code.. kill c2 !!
-  //NB: includes dv - Not good if not integrating over v!?!
-  double A = 8*M_PI*FPC::c2;
-
-  std::cout<<"A = "<<A<<"\n";
+  // return 1;
 
   std::ofstream ofv;
   ofv.open("vplot-"+label+".txt");
-
 
   for(int ie=0; ie<desteps; ie++){
     //double a=0;
@@ -212,11 +201,11 @@ int main(void){
         }
       }
       ds_de += ds_de_dv*fvonv;
-      if(plotv) ofv<<v*V_to_kms<<" "<<(ds_de_dv/(v*v))*A*dqonq<<"\n";
-      if(plotv) std::cout<<v*V_to_kms<<" "<<(ds_de_dv/(v*v))*A*dqonq<<"\n";
+      if(plotv) ofv<<v*V_to_kms<<" "<<(ds_de_dv/(v*v))*A_cmkeV*dqonq<<"\n";
+      // if(plotv) std::cout<<v*V_to_kms<<" "<<(ds_de_dv/(v*v))*A*dqonq<<"\n";
     }
      std::cout<<"E="<<dE*E_to_keV<<" keV"
-     <<"; <sig.v>/dE = "<<ds_de*A*dv*dqonq<<"\n";
+     <<"; <sig.v>/dE = "<<ds_de*A_cmkeV*dv*V_to_cmday*dqonq<<" cm^3/keV/day\n";
   }
 
 
