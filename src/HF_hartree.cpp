@@ -113,7 +113,7 @@ core=true by default
   for(int i=0; i<wf.num_core; i++){
     int ka = wf.klist[i];
     int twoj = ATI::twoj_k(ka);
-    double frac = wf.core_ocf[i];
+    double frac = wf.core_ocf[i]; //avgs over non-rel. configs
     for(int j=0; j<wf.ngp; j++){
       rho[j] += frac*(twoj+1)*(pow(wf.p[i][j],2) + pow(wf.q[i][j],2));
     }
@@ -138,7 +138,70 @@ core=true by default
 }
 
 
+//******************************************************************************
+int vkScreening(ElectronOrbitals &wf, int a, int b, std::vector<double> vk)
+/*
+Pass by reference? Faster? Worse??
+Averaged exchange potential! Break into functions??
+NOTE: must be multiplied
+*/
 
+{
+
+  vk.resize(wf.ngp);
+
+  int ka = wf.klist[a];
+  int kb = wf.klist[b];
+  int tja = ATI::twoj_k(ka);
+  int tjb = ATI::twoj_k(kb);
+  int la = ATI::l_k(ka);
+  int lb = ATI::l_k(kb);
+
+  int ja_m_jb = fabs(tja - tjb)/2;
+  int ja_p_jb = (tja + tjb)/2;
+
+  //Stats factors (averaged over non-rel configs)
+  double sfa = (tja+1)*wf.core_ocf[a];
+  double sfb = (tjb+1)*wf.core_ocf[b];
+
+  //Count number of electrons in the core
+  int Ncore=0;
+  for(size_t i=0; i<wf.core_list.size(); i++) Ncore+=wf.core_list[i];
+
+  std::vector<double> Lam_abk;
+  std::vector<int> k_list;
+  for(int k = ja_m_jb; k<=ja_p_jb; k++){
+    double tL = pow(WIG::threej_2(tja,tjb,2*k,-1,1,0),2);
+    tL *= parity(la,lb,k);
+    if(tL != 0){
+      k_list.push_back(k);
+      Lam_abk.push_back(tL);
+    }
+  }
+  if(Lam_abk.size()==0) return 0;
+
+  #pragma omp parallel for
+  for(int i=0; i<wf.ngp; i++){
+    double r = wf.r[i];
+
+    double v_tmp = 0;
+    for(int j=0; j<wf.ngp; j++){
+      double rp = wf.r[j];
+      double t_X = (wf.p[a][j]*wf.p[b][j] + wf.q[a][j]*wf.q[b][j])*wf.drdt[i];
+      for(size_t ik=0; ik<k_list.size(); ik++){
+        int k = k_list[ik];
+        double tL = Lam_abk[ik];
+        double x_k;
+        if(rp<r) x_k = pow(rp/r,k)/r;
+        else     x_k = pow(r/rp,k)/rp;
+        v_tmp += tL*x_k*t_X;
+      }
+    }
+    double sf = sfa*sfb*(1./Ncore)
+    v_tmp *= sf*wf.h*(wf.p[a][i]*wf.p[b][i] + wf.q[a][i]*wf.q[b][i]);
+
+  }
+}
 
 
 }//Namespace
