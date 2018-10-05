@@ -13,6 +13,15 @@ integer angular momentum (l).
  * Other '_2' version, takes in 2*j (as an integer). Works for l and j
 */
 
+int parity(int la, int lb, int k)
+/*
+Parity rule. Returns 1 only if la+lb+k is even
+*/
+{
+  if( (la+lb+k) % 2 == 0 ) return 1;
+  return 0;
+}
+
 
 //******************************************************************************
 double threej(double j1, double j2, double j3, double m1, double m2, double m3)

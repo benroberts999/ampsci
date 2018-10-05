@@ -27,5 +27,7 @@ double ninej_1(int j1, int j2, int j3, int j4, int j5, int j6, int j7, int j8,
 double ninej_2(int two_j1, int two_j2, int two_j3, int two_j4, int two_j5,
   int two_j6, int two_j7, int two_j8, int two_j9);
 
+int parity(int la, int lb, int k);
+
 }
 #endif
