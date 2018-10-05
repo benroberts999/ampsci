@@ -88,7 +88,7 @@ $(ODIR)/HF_hartree.o
 
 dmeXSection.x: $(OBJ) $(ODIR)/dmeXSection.o $(ODIR)/AKF_akFunctions.o \
 $(ODIR)/WIG_369j.o $(ODIR)/PRM_parametricPotentials.o $(CNTM) \
-$(ODIR)/HF_hartree.o $(ODIR)/SHM_standardHaloModel.o 
+$(ODIR)/HF_hartree.o $(ODIR)/SHM_standardHaloModel.o
 	$(COMP)
 
 wigner.x: $(ODIR)/wigner.o $(ODIR)/WIG_369j.o
@@ -101,7 +101,7 @@ checkObj:
 	echo '\n ERROR: Directory: '$(ODIR)' doesnt exist - please create it!\n'; \
 	false; \
 	else \
-	echo 'done'; \
+	echo 'OK'; \
 	fi
 
 .PHONY: clean do_the_chicken_dance checkObj
