@@ -6,6 +6,7 @@
 #include "ElectronOrbitals.h"
 #include "PRM_parametricPotentials.h"
 #include "ATI_atomInfo.h"
+#include "WIG_369j.h"
 #include <fstream>
 
 namespace HF{
@@ -17,6 +18,12 @@ namespace HF{
   
   int formNewVdir(ElectronOrbitals wf, std::vector<double> &vdir_new
   ,   bool core=true);
+
+int formVexCore(ElectronOrbitals &wf, std::vector< std::vector<double> > &vex);
+int formVexA(ElectronOrbitals &wf, int a, std::vector<double> &vex_a);
+int formLambdaABk(std::vector<double> &L_abk, int tja, int tjb, int la, int lb);
+double vexABr(ElectronOrbitals &wf, int a, int b, int ir,
+  std::vector<double> &L_abk, int k_min);
 
 }
 

@@ -295,10 +295,10 @@ int ElectronOrbitals::solveInitialCore(int log_dele_or)
   //Count number of electrons in the core
   // XXX
   int num_core_electrons=0;
-  for(size_t i=0; i<wf.core_list.size(); i++) num_core_electrons+=wf.core_list[i];
+  for(size_t i=0; i<core_list.size(); i++) num_core_electrons+=core_list[i];
   //For testing:
   std::cout<<"Testing num_core states/electrons:\n";
-  std::cout<<wf.core_list.size()<<" =? "<<num_core_states<<" don't think should be?\n";
+  std::cout<<core_list.size()<<" =? "<<num_core_states<<" don't think should be?\n";
   std::cout<<tot_el<<" =? "<<num_core_states<<"\n";
   //XXX Should these be here? Or, in the "determine core" routine??
 

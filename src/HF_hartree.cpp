@@ -143,14 +143,14 @@ core=true by default
 int formVexCore(ElectronOrbitals &wf, std::vector< std::vector<double> > &vex){
 
   vex.clear();
-  vex.resize(num_core_states);
+  vex.resize(wf.num_core_states);
   #pragma omp parallel for
   for(int a=0; a<wf.num_core_states; a++){
     std::vector<double> vex_a;
     formVexA(wf,a,vex_a);
     vex[a] = vex_a; //double-check this works w/ vectors..
   }
-
+  return 0;
 }
 
 //******************************************************************************
@@ -164,13 +164,13 @@ v_tot(r) should still go to (N-M)/r for large r - check!
   int ngp = wf.ngp;
 
   int tja = ATI::twoj_k(wf.kappa[a]);
-  int la = ATI::l_a(wf.kappa[a]);
+  int la = ATI::l_k(wf.kappa[a]);
 
   vex_a.clear();
   vex_a.resize(ngp);
   for(int b=0; b<wf.num_core_states; b++){// Core? or all??
     int tjb = ATI::twoj_k(wf.kappa[b]);
-    int lb = ATI::l_a(wf.kappa[b]);
+    int lb = ATI::l_k(wf.kappa[b]);
     std::vector<double> L_abk;
     int k_min = formLambdaABk(L_abk,tja,tjb,la,lb);
     double stf = wf.core_ocf[b]*(tjb+1); //avg over non-rel configs
@@ -185,7 +185,7 @@ v_tot(r) should still go to (N-M)/r for large r - check!
 }
 
 //******************************************************************************
-formLambdaABk(std::vector<double> &L_abk, int tja, int tjb, int la, int lb)
+int formLambdaABk(std::vector<double> &L_abk, int tja, int tjb, int la, int lb)
 /*
 L_abk = 3js(ja,jb,k,-1/2,1/2,2)^2 * parity(la+lb+k)
 */
