@@ -46,13 +46,13 @@ class ElectronOrbitals{
     int max_l;
     int num_states; //?
 
-    std::vector<int> core_list;
+    std::vector<int> core_list; //number of electrons in each shell! (non-rel??)
     std::vector<double> core_ocf; //occupancy fraction
     int num_core_states;
     int num_core_electrons; // Nc = N - M
 
     std::vector<int> nlist;
-    std::vector<int> klist;
+    std::vector<int> kappa;
 
     std::vector<int> pinflist;
     std::vector<int> itslist;

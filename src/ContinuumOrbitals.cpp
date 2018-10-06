@@ -100,7 +100,7 @@ continuum (un-bound) states [partial waves].
     p.push_back(pc);
     q.push_back(qc);
     en.push_back(ec);
-    klist.push_back(k);
+    kappa.push_back(k);
   }
 
   return 0; //XXX code?
@@ -169,7 +169,7 @@ continuum (un-bound) states [partial waves].
     p.push_back(pc);
     q.push_back(qc);
     en.push_back(ec);
-    klist.push_back(k);
+    kappa.push_back(k);
   }
 
   return 0;
@@ -183,5 +183,5 @@ void ContinuumOrbitals::clear()
   p.clear();
   q.clear();
   en.clear();
-  klist.clear();
+  kappa.clear();
 }

@@ -108,7 +108,7 @@ int main(void){
       " n l_j    k Rinf its    eps      En (au)        En (/cm)   En (/cm)\n");
     }
     int n=wf.nlist[i];
-    int k=wf.klist[i];
+    int k=wf.kappa[i];
     int twoj = ATI::twoj_k(k);
     int l = ATI::l_k(k);
     double rinf = wf.r[wf.pinflist[i]];

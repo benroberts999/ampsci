@@ -50,7 +50,7 @@ int main(void){
   int num_states = wf.nlist.size();
   for(int i=0; i<num_states; i++){
     int n=wf.nlist[i];
-    int k=wf.klist[i];
+    int k=wf.kappa[i];
     int twoj = 2*abs(k)-1;
     int l = (abs(2*k+1)-1)/2;
     double del = wf.en[i] - wf.diracen(wf.Z,n,k);
@@ -70,8 +70,8 @@ int main(void){
     }
     std::cout<<"\n";
     for (int s=0; s<num_states; s++){
-      printf("%2i%s_%i/2 : ",wf.nlist[s],ATI::l_symbol(ATI::l_k(wf.klist[s])).c_str(),
-        ATI::twoj_k(wf.klist[s]));
+      printf("%2i%s_%i/2 : ",wf.nlist[s],ATI::l_symbol(ATI::l_k(wf.kappa[s])).c_str(),
+        ATI::twoj_k(wf.kappa[s]));
       for(int in=-2; in<=2; in ++){
         if(in==0) continue;
         std::vector<double> rad1;
@@ -95,7 +95,7 @@ int main(void){
       std::vector<double> rad;
       for (int i=0; i<wf.ngp; i++){
         double x1=2*wf.p[s][i]*dQ[i]/alpha;
-        double x2=-2*wf.klist[s]*wf.p[s][i]*wf.q[s][i]/(wf.r[i]*alpha);
+        double x2=-2*wf.kappa[s]*wf.p[s][i]*wf.q[s][i]/(wf.r[i]*alpha);
         double x3=-2*pow(wf.q[s][i],2)/a2;
         double x4=wf.vnuc[i]*(pow(wf.p[s][i],2)+pow(wf.q[s][i],2));
         rad.push_back(x1+x3+x2+x4);
@@ -103,7 +103,7 @@ int main(void){
       double R=INT::integrate(rad,wf.drdt,wf.h);
       double fracdiff=(R-wf.en[s])/wf.en[s];
       printf("<%i% i|H|%i% i> = % .15f, E(%i% i) = % .15f; % .0e\n",wf.nlist[s],
-          wf.klist[s],wf.nlist[s],wf.klist[s],R,wf.nlist[s],wf.klist[s],
+          wf.kappa[s],wf.nlist[s],wf.kappa[s],R,wf.nlist[s],wf.kappa[s],
           wf.en[s],fracdiff);
     }
   }

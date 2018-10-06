@@ -146,7 +146,7 @@ Zeff is '-1' by default. If Zeff > 0, will solve w/ Zeff model
 
   ContinuumOrbitals cntm(wf);// create cntm object [survives locally only]
 
-  int k = wf.klist[is];
+  int k = wf.kappa[is];
   int l = ATI::l_k(k);
 
   int qsteps = (int)jLqr_f[0].size();
@@ -166,8 +166,8 @@ Zeff is '-1' by default. If Zeff > 0, will solve w/ Zeff model
   // L and lc are summed, not stored indevidually
   std::vector<float> AK_nk_q(qsteps);
   for(int L=0; L<=max_L; L++){
-    for(size_t ic=0; ic<cntm.klist.size(); ic++){
-      int kc = cntm.klist[ic];
+    for(size_t ic=0; ic<cntm.kappa.size(); ic++){
+      int kc = cntm.kappa[ic];
       double dC_Lkk = CLkk(L,k,kc); //XXX new formula!
       if(dC_Lkk==0) continue;
       #pragma omp parallel for
@@ -212,7 +212,7 @@ XXX Note sure if correct! esp, (q) angular part!? XXX
 {
   if (nk>=(int)wf.p.size()) return 1; //should never occur
 
-  int kappa = wf.klist[nk];
+  int kappa = wf.kappa[nk];
   int twoj = ATI::twoj_k(kappa);
 
   int qsteps = (int)jl_qr.size();

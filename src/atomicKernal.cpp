@@ -154,7 +154,7 @@ int main(void){
   for(size_t m=0; m<sort_list.size(); m++){
     int i = sort_list[m];
     int n=wf.nlist[i];
-    int k=wf.klist[i];
+    int k=wf.kappa[i];
     int twoj = ATI::twoj_k(k);
     int l = ATI::l_k(k);
     double rinf = wf.r[wf.pinflist[i]];
@@ -195,7 +195,7 @@ int main(void){
     //Loop over core (bound) states:
     std::vector< std::vector<float> > AK_nk;
     for(size_t is=0; is<wf.nlist.size(); is++){
-      int k = wf.klist[is];
+      int k = wf.kappa[is];
       int l = ATI::l_k(k);
       if(l>max_l) continue;
       int twoj = ATI::twoj_k(k);

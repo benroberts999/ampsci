@@ -151,7 +151,7 @@ int main(void){
   printf(" n l_j    k Rinf its  eps     En (au)            En (/cm)\n");
   for(size_t i=0; i<wf.nlist.size(); i++){
     int n=wf.nlist[i];
-    int k=wf.klist[i];
+    int k=wf.kappa[i];
     int twoj = 2*abs(k)-1;
     int l = (abs(2*k+1)-1)/2;
     double rinf = wf.r[wf.pinflist[i]];

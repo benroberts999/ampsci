@@ -111,7 +111,7 @@ core=true by default
   // 2j+1 is closed-shell occupation number of that orbital.
   std::vector<double> rho(wf.ngp);
   for(int i=0; i<wf.num_core_states; i++){
-    int ka = wf.klist[i];
+    int ka = wf.kappa[i];
     int twoj = ATI::twoj_k(ka);
     double frac = wf.core_ocf[i]; //avgs over non-rel. configs
     for(int j=0; j<wf.ngp; j++){
@@ -150,8 +150,8 @@ NOTE: must be multiplied
 
   vk.resize(wf.ngp);
 
-  int ka = wf.klist[a];
-  int kb = wf.klist[b];
+  int ka = wf.kappa[a];
+  int kb = wf.kappa[b];
   int tja = ATI::twoj_k(ka);
   int tjb = ATI::twoj_k(kb);
   int la = ATI::l_k(ka);

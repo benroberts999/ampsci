@@ -26,7 +26,7 @@ class ContinuumOrbitals{
     std::vector< std::vector<double> > p;
     std::vector< std::vector<double> > q;
     std::vector<double> en;
-    std::vector<int> klist;
+    std::vector<int> kappa;
 
   private:
 

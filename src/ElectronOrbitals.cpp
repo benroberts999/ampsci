@@ -52,7 +52,7 @@ XXX vnuc !!!
   en.push_back(e_a);
   //Store states:
   nlist.push_back(n);
-  klist.push_back(k);
+  kappa.push_back(k);
   //store convergance info:
   pinflist.push_back(pinf);
   itslist.push_back(its);
@@ -94,7 +94,7 @@ Not fully tested yet!
   en.push_back(e_a);
   //Store states:
   nlist.push_back(n);
-  klist.push_back(k);
+  kappa.push_back(k);
   //store convergance info:
   pinflist.push_back(pinf);
   itslist.push_back(its);
@@ -122,7 +122,7 @@ If no e_a is given, will use the existing one!
   }
 
   int n=nlist[i];
-  int k=klist[i];
+  int k=kappa[i];
   if(e_a==0) e_a = en[i];
   int i_ret = ADAMS::solveDBS(p_a,q_a,e_a,v_a,Z,n,k,r,drdt,h,ngp,pinf,its,eps,
     alpha,log_dele_or);
@@ -157,7 +157,7 @@ XXX Kill this one! XXX
       int l = (abs(2*k+1)-1)/2;
       if(l>max_l) continue;
       nlist.push_back(n);
-      klist.push_back(k);
+      kappa.push_back(k);
       int pinf,its;
       double eps;
       double en_a = -0.5*pow((double)Z/n,2);
@@ -264,7 +264,7 @@ NOTE: Only works up to n=9, and l=5 [h]
 //******************************************************************************
 bool ElectronOrbitals::isInCore(int n, int k){
   for(int i=0; i<num_core_states; i++)
-    if(n==nlist[i] && k==klist[i]) return true;
+    if(n==nlist[i] && k==kappa[i]) return true;
   return false;
 }
 
@@ -305,7 +305,7 @@ int ElectronOrbitals::solveInitialCore(int log_dele_or)
   //occupancy fraction for each core state:
   for(int i=0; i<num_core_states; i++){
     int n = nlist[i];
-    int ka = klist[i];
+    int ka = kappa[i];
     int l = ATI::l_k(ka);
     //Find the correct core list index (to determine filling factor):
     int ic=-1;

@@ -168,7 +168,7 @@ int main(void){
       printf(" n l_j    k Rinf its    eps      En (au)        En (/cm)\n");
     }
     int n=wf.nlist[i];
-    int k=wf.klist[i];
+    int k=wf.kappa[i];
     int twoj = 2*abs(k)-1;
     int l = (abs(2*k+1)-1)/2;
     double rinf = wf.r[wf.pinflist[i]];
@@ -185,8 +185,8 @@ int main(void){
 
   // ContinuumOrbitals cntm(wf);
   // cntm.solveLocalContinuum(20.,0,0);
-  // for(size_t i=0; i<cntm.klist.size(); i++)
-  //   std::cout<<cntm.klist[i]<<" "<<cntm.en[i]<<"\n";
+  // for(size_t i=0; i<cntm.kappa.size(); i++)
+  //   std::cout<<cntm.kappa[i]<<" "<<cntm.en[i]<<"\n";
   //
   //
   // int icore = sort_list[num_core_states];
@@ -205,7 +205,7 @@ int main(void){
   // ofile2.close();
   // ofile3.close();
   //
-  // std::cout<<wf.nlist[icore]<<" "<<wf.klist[icore]<<"\n";
+  // std::cout<<wf.nlist[icore]<<" "<<wf.kappa[icore]<<"\n";
 
 
 
