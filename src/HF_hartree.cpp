@@ -142,16 +142,70 @@ core=true by default
 //******************************************************************************
 int formVex(ElectronOrbitals &wf, int a, std::vector<double> vexa)
 /*
-
+for now, include a in the b summation too.
+Means we should not scale v_dir?
+v_tot(r) should still go to (N-M)/r for large r - check!
+Should I calc+store v_ex for each core state ? Yes, probs. Can //-ize
+OR - run HF its for each core state sepp.?
 */
 {
+  int ngp = wf.ngp;
+  std::vector<double> vex_a(ngp);
+  for(int i=0; i<ngp; i++){
+    double vex_a_r = 0;
+    double fac_bot = wf.p[a][i]*wf.p[a][i] + wf.q[a][i]*wf.q[a][i];
+    for(int b=0; b<wf.num_core_states; b++){
+      int tjb = ATI::twoj_k(wf.kappa[b]); //XXX swap r and b loops?
+      double fac_top = wf.p[a][i]*wf.p[b][i] + wf.q[a][i]*wf.q[b][i];
+      //Calculate vex_ab_r
+      vex_a_r += (tjb+1)*vex_ab_r*fac_top/fac_bot; //XXX * fill factor!!
+    }
+  }
 
 }
 
+//******************************************************************************
+double vexABr(ElectronOrbitals &wf, int a, int b, int ir)
+/*
+Not sure if this is the best way to do this..
+vex_ab(r) = sum_k L_abk * vex_abk(r)   [2jb+1 already above]
+L_abk = 3js(ja,jb,k,-1/2,1/2,2)^2 * parity(ja+jb+k)
+v_abk(r) = int [r_min^k/r_max^(k+1)]*[fafb + gagb](r2) dr_2
+r_min = min(r,r2) //nb: can test the indices!
+*/
+{
 
+  int tja = ATI::twoj_k(wf.kappa[a]);
+  int tjb = ATI::twoj_k(wf.kappa[a]);
+
+  int k_min = fabs(tja - tjb)/2;
+  int k_max = (tja + tjb)/2;
+
+  std::vector<double> L_abk(k_max);
+  for(int k = k_min; k<=k_max; k++){
+    double tL = pow(WIG::threej_2(tja,tjb,2*k,-1,1,0),2);
+    tL *= parity(la,lb,k);
+    L_abk[k] = tL;
+  }
+
+  double vex_ab_r = 0;
+  for(int jr=0; jr<wf.ngp; jr++){
+    double xL = 0;
+    for(int k = k_min; k<=k_max; k++){
+      double xLk = L_abk[k];
+      if(xLk==0) continue;
+      if(ir>jr) xLk *= pow(wf.r[jr]/wf.r[ir],k)/wf.r[ir];
+      else      xLk *= pow(wf.r[ir]/wf.r[jr],k)/wf.r[jr];
+      xL += xLk;
+    }
+    double FF = (wf.p[a][jr]*wf.p[b][jr] + wf.q[a][jr]*wf.q[b][jr]);
+    vex_ab_r += xL*FF*wf.drdt[jr];
+  }
+  return vex_ab_r*wf.h; // XXX Better to *h outside? Maybe, but confusing!
+}
 
 //******************************************************************************
-int vkScreening(ElectronOrbitals &wf, int a, int b, std::vector<double> vk)
+int vkScreeningOLD(ElectronOrbitals &wf, int a, int b, std::vector<double> vk)
 /*
 Pass by reference? Faster? Worse??
 Averaged exchange potential! Break into functions??
