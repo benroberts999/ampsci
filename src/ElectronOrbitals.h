@@ -48,7 +48,8 @@ class ElectronOrbitals{
 
     std::vector<int> core_list;
     std::vector<double> core_ocf; //occupancy fraction
-    int num_core;
+    int num_core_states;
+    int num_core_electrons; // Nc = N - M
 
     std::vector<int> nlist;
     std::vector<int> klist;

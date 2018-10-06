@@ -34,8 +34,8 @@ Solves the Hartree equations (no exchange term yet)
 
     //Solve dirac equation for each (Core) orbital in new potential
     double prev_e = 0;
-    for(int i=0; i<wf.num_core; i++) prev_e += wf.en[i]/wf.num_core;
-    for(int i=0; i<wf.num_core; i++){
+    for(int i=0; i<wf.num_core_states; i++) prev_e += wf.en[i]/wf.num_core_states;
+    for(int i=0; i<wf.num_core_states; i++){
       double del_e=0;
       for(int j=0; j<wf.ngp; j++)
         del_e += (wf.vdir[j]-vdir_old[j])*
@@ -46,7 +46,7 @@ Solves the Hartree equations (no exchange term yet)
       wf.reSolveLocalDirac(i,new_e,3); //only go to 1/10^3 - do better at end!
     }
     double next_e = 0;
-    for(int i=0; i<wf.num_core; i++) next_e += wf.en[i]/wf.num_core;
+    for(int i=0; i<wf.num_core_states; i++) next_e += wf.en[i]/wf.num_core_states;
 
     //check for convergence:
     //NB: eta in denom, otherwise v. small eta will spuriously give small delta
@@ -60,7 +60,7 @@ Solves the Hartree equations (no exchange term yet)
   std::cout<<"\n";
 
   //re-run solve Dirac to higher convergance level after Hart pot. ok
-  for(int i=0; i<wf.num_core; i++) wf.reSolveLocalDirac(i,0,14);
+  for(int i=0; i<wf.num_core_states; i++) wf.reSolveLocalDirac(i,0,14);
   //Form the total core potential using new wfs
   //This time, solved for case of valence states (different factor)
   formNewVdir(wf,wf.vdir,false);
@@ -110,7 +110,7 @@ core=true by default
   //Determine the total electron (charge) density of core:
   // 2j+1 is closed-shell occupation number of that orbital.
   std::vector<double> rho(wf.ngp);
-  for(int i=0; i<wf.num_core; i++){
+  for(int i=0; i<wf.num_core_states; i++){
     int ka = wf.klist[i];
     int twoj = ATI::twoj_k(ka);
     double frac = wf.core_ocf[i]; //avgs over non-rel. configs

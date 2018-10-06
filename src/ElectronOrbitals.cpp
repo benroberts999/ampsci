@@ -10,7 +10,7 @@ ElectronOrbitals::ElectronOrbitals(int in_z, int in_a, int in_ngp, double rmin,
   DzubaRadialGrid(in_ngp,rmin,rmax);
 
   alpha=FPC::alpha*var_alpha;
-  num_core=0;
+  num_core_states=0;
 
   Z=in_z;
   if(in_a==0) A=ATI::A[Z]; //Use default atomic mass
@@ -263,7 +263,7 @@ NOTE: Only works up to n=9, and l=5 [h]
 
 //******************************************************************************
 bool ElectronOrbitals::isInCore(int n, int k){
-  for(int i=0; i<num_core; i++)
+  for(int i=0; i<num_core_states; i++)
     if(n==nlist[i] && k==klist[i]) return true;
   return false;
 }
@@ -290,10 +290,20 @@ int ElectronOrbitals::solveInitialCore(int log_dele_or)
     int k2 = -(l+1); //j=l+1/2
     if(num>2*l) solveLocalDirac(n,k2,en_a,log_dele_or);
   }
-  num_core = nlist.size(); //store number of states in core
+  num_core_states = nlist.size(); //store number of states in core
+
+  //Count number of electrons in the core
+  // XXX
+  int num_core_electrons=0;
+  for(size_t i=0; i<wf.core_list.size(); i++) num_core_electrons+=wf.core_list[i];
+  //For testing:
+  std::cout<<"Testing num_core states/electrons:\n";
+  std::cout<<wf.core_list.size()<<" =? "<<num_core_states<<" don't think should be?\n";
+  std::cout<<tot_el<<" =? "<<num_core_states<<"\n";
+  //XXX Should these be here? Or, in the "determine core" routine??
 
   //occupancy fraction for each core state:
-  for(int i=0; i<num_core; i++){
+  for(int i=0; i<num_core_states; i++){
     int n = nlist[i];
     int ka = klist[i];
     int l = ATI::l_k(ka);

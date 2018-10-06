@@ -123,7 +123,7 @@ int main(void){
   }
 
   //store number of calculated core states:
-  int num_core = wf.nlist.size();
+  int num_core_states = wf.nlist.size();
 
   //Calculate the valence (and excited) states
   for(int n=1; n<=n_max; n++){
@@ -163,7 +163,7 @@ int main(void){
   printf("\n n l_j    k Rinf its    eps      En (au)        En (/cm)\n");
   for(size_t m=0; m<sort_list.size(); m++){
     int i = sort_list[m];
-    if((int)m==num_core){
+    if((int)m==num_core_states){
       std::cout<<" ========= Valence: ======\n";
       printf(" n l_j    k Rinf its    eps      En (au)        En (/cm)\n");
     }
@@ -189,7 +189,7 @@ int main(void){
   //   std::cout<<cntm.klist[i]<<" "<<cntm.en[i]<<"\n";
   //
   //
-  // int icore = sort_list[num_core];
+  // int icore = sort_list[num_core_states];
   //
   // //XXX TEST: Output wfs:
   // std::ofstream ofile,ofile2,ofile3;

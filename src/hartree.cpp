@@ -63,7 +63,7 @@ int main(void){
   HF::hartreeCore(wf,eps_hart);
 
   int maxn=0; //max 'n' in the core (used for valence energy guess)
-  for(int i=0; i<wf.num_core; i++) if(wf.nlist[i]>maxn) maxn=wf.nlist[i];
+  for(int i=0; i<wf.num_core_states; i++) if(wf.nlist[i]>maxn) maxn=wf.nlist[i];
 
   //Calculate the valence (and excited) states
   for(int n=0; n<=n_max; n++){
@@ -100,7 +100,7 @@ int main(void){
   bool val=false; double en_lim=0;
   for(size_t m=0; m<sort_list.size(); m++){
     int i = sort_list[m];
-    if((int)m==wf.num_core){
+    if((int)m==wf.num_core_states){
       en_lim = fabs(wf.en[i]);
       val = true;
       std::cout<<" ========= Valence: ======\n";
