@@ -138,6 +138,18 @@ core=true by default
 }
 
 
+
+//******************************************************************************
+int formVex(ElectronOrbitals &wf, int a, std::vector<double> vexa)
+/*
+
+*/
+{
+
+}
+
+
+
 //******************************************************************************
 int vkScreening(ElectronOrbitals &wf, int a, int b, std::vector<double> vk)
 /*
