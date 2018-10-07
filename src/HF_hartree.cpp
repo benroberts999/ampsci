@@ -144,7 +144,7 @@ int hartreeFockCore(ElectronOrbitals &wf, double eps_HF)
   vex.resize(Ncs,std::vector<double>(ngp));
 
   for(hits=1; hits<MAX_HART_ITS; hits++){
-    std::vector<double> en_old = wf.en;
+
 
     //Form v_dir & v_ex
     std::vector<double> vdir_old = wf.vdir;
@@ -154,8 +154,17 @@ int hartreeFockCore(ElectronOrbitals &wf, double eps_HF)
     std::vector< std::vector<double> > vex_old = vex; //XX class!
     formVexCore(wf,vex);
 
-    //calculate de from PT
+    for(int j=0; j<wf.ngp; j++){
+      wf.vdir[j] = eta*vdir_new[j] + (1.-eta)*vdir_old[j];
+      for(int i=0; i<Ncs; i++){
+        vex[i][j] = eta*vex[i][j] + (1.-eta)*vex_old[i][j];
+      }
+    }
+
+    std::vector<double> en_old = wf.en;
+    double t_eps = 0;
     for(int i=0; i<Ncs; i++){
+      //calculate de from PT
       double del_e = 0;
       for(int j=0; j<wf.ngp; j++){
         double dv = wf.vdir[j]+vex[i][j]-vdir_old[j]-vex_old[i][j];
@@ -174,6 +183,7 @@ int hartreeFockCore(ElectronOrbitals &wf, double eps_HF)
     if(t_eps<eps_HF && hits>1) break;
   }
 
+  return 0;
 }
 
 //******************************************************************************
