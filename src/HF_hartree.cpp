@@ -81,7 +81,15 @@ Solves the Hartree equations (no exchange term yet)
   return num_its;
 }
 
-
+//******************************************************************************
+int hartreeFockCore(ElectronOrbitals &wf, double eps_hartree)
+{
+/*
+  1) Green potential for starting approx.
+  2) Hartree for the core (vdir)
+  3) Add exchange. Loop over all states? Or each state?
+*/
+}
 
 //******************************************************************************
 int formNewVdir(ElectronOrbitals wf, std::vector<double> &vdir_new, bool core)
