@@ -93,6 +93,7 @@ int hartreeFockCore(ElectronOrbitals &wf, double eps_HF)
   // "Mixing" of new + old Potential:
   // V_n+1 = eta*V_n+1 + (1-eta)*V_n
   const double eta=0.50;
+  const double eta_x=0.20;
   int ngp = wf.ngp;
 
   wf.vdir.clear(); //make sure it's empty
@@ -154,10 +155,12 @@ int hartreeFockCore(ElectronOrbitals &wf, double eps_HF)
     std::vector< std::vector<double> > vex_old = vex; //XX class!
     formVexCore(wf,vex);
 
+    //XXX Scale by 1 - 1/N ???
+
     for(int j=0; j<wf.ngp; j++){
       wf.vdir[j] = eta*vdir_new[j] + (1.-eta)*vdir_old[j];
       for(int i=0; i<Ncs; i++){
-        vex[i][j] = eta*vex[i][j] + (1.-eta)*vex_old[i][j];
+        vex[i][j] = eta_x*vex[i][j] + (1.-eta_x)*vex_old[i][j];
       }
     }
 
@@ -173,15 +176,18 @@ int hartreeFockCore(ElectronOrbitals &wf, double eps_HF)
       del_e*=wf.h;
       double en_guess = en_old[i] + del_e;
       if(en_guess>0) en_guess = en_old[i]; //safety, should never happen
-      wf.reSolveLocalDirac(i,en_guess,3); //only go to 1/10^3 here
+      wf.reSolveLocalDirac(i,en_guess,vex[i],3); //only go to 1/10^3 here
       double sfac = 2.*wf.kappa[i]*wf.core_ocf[i]; //|2k|=2j+1
       t_eps += fabs(sfac*(wf.en[i]-en_old[i])/en_old[i]);
     }
     t_eps /= (wf.num_core_electrons*eta);
     //Note: just weighted average of eps for each orbital.. good 'nuff
-    std::cout<<"Hartree it: "<<hits<<" "<<t_eps<<"\n";
-    if(t_eps<eps_HF && hits>1) break;
+    std::cout<<"HF it: "<<hits<<" "<<t_eps<<"\n";
+    if(t_eps<eps_HF && hits>2) break;
   }
+
+  for(int i=0; i<Ncs; i++) wf.reSolveLocalDirac(i,en_guess,vex[i],15);
+  //XXX And re-form the potentials! What about the scale???
 
   return 0;
 }
@@ -203,7 +209,7 @@ core=true by default
   vdir_new.clear();
   vdir_new.resize(wf.ngp);
 
-  //Count number of electrons in the core
+  //Count number of electrons in the core XXX FIX THIS XXX
   int Ncore=0;
   for(size_t i=0; i<wf.core_list.size(); i++) Ncore+=wf.core_list[i];
 
@@ -248,7 +254,7 @@ int formVexCore(ElectronOrbitals &wf, std::vector< std::vector<double> > &vex){
 
   vex.clear();
   vex.resize(wf.num_core_states);
-  #pragma omp parallel for
+  //#pragma omp parallel for //XXX XXX XXX Check!?
   for(int a=0; a<wf.num_core_states; a++){
     std::vector<double> vex_a;
     formVexA(wf,a,vex_a);
@@ -279,10 +285,14 @@ v_tot(r) should still go to (N-M)/r for large r - check!
     int k_min = formLambdaABk(L_abk,tja,tjb,la,lb);
     double stf = wf.core_ocf[b]*(tjb+1); //avg over non-rel configs
     for(int ir=0; ir<ngp; ir++){
-      double fac_bot = wf.p[a][ir]*wf.p[a][ir] + wf.q[a][ir]*wf.q[a][ir]; //?
-      double fac_top = wf.p[a][ir]*wf.p[b][ir] + wf.q[a][ir]*wf.q[b][ir];
+      double fac = 1;
+      if(a!=b){
+        double fac_bot = wf.p[a][ir]*wf.p[a][ir] + wf.q[a][ir]*wf.q[a][ir]; //?
+        double fac_top = wf.p[a][ir]*wf.p[b][ir] + wf.q[a][ir]*wf.q[b][ir];
+        if(fac_bot!=0) fac = fac_top/fac_bot;
+      }
       double vex_ab_r = vexABr(wf,a,b,ir,L_abk,k_min);
-      vex_a[ir] += stf*vex_ab_r*fac_top/fac_bot;
+      vex_a[ir] += stf*vex_ab_r*fac;
     }
   }
   return 0;

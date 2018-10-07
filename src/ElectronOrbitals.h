@@ -64,6 +64,8 @@ class ElectronOrbitals{
 
     int solveLocalDirac(int n, int k, double en_a, int log_dele_or=0);
     int reSolveLocalDirac(int i, double e_a=0, int log_dele_or=0);
+    int reSolveLocalDirac(int i, double e_a, std::vector<double> vex,
+      int log_dele_or=0);
 
     double diracen(double z, double n, int k);
     int sphericalNucleus(double rnuc=0);

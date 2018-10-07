@@ -105,7 +105,14 @@ Not fully tested yet!
 
 
 //******************************************************************************
-int ElectronOrbitals::reSolveLocalDirac(int i, double e_a, int log_dele_or)
+int ElectronOrbitals::reSolveLocalDirac(int i, double e_a, int log_dele_or){
+  std::vector<double> dummy_vex;
+  return reSolveLocalDirac(i,e_a,dummy_vex,log_dele_or);
+}
+//XXX XXX XXX This best way???? Add to class???
+//******************************************************************************
+int ElectronOrbitals::reSolveLocalDirac(int i, double e_a,
+  std::vector<double> vex, int log_dele_or)
 /*
 If no e_a is given, will use the existing one!
 (Usually, a better guess should be given, using P.T.)
@@ -117,9 +124,8 @@ If no e_a is given, will use the existing one!
   std::vector<double> q_a(ngp);
 
   std::vector<double> v_a = vnuc;
-  if(vdir.size()!=0){
-    for(int i=0; i<ngp; i++) v_a[i] += vdir[i];
-  }
+  if(vdir.size()!=0) for(int i=0; i<ngp; i++) v_a[i] += vdir[i];
+  if(vex.size()!=0) for(int i=0; i<ngp; i++) v_a[i] += vex[i];
 
   int n=nlist[i];
   int k=kappa[i];
@@ -292,14 +298,13 @@ int ElectronOrbitals::solveInitialCore(int log_dele_or)
   }
   num_core_states = nlist.size(); //store number of states in core
 
-  //Count number of electrons in the core
-  // XXX
-  int num_core_electrons=0;
+  //Count number of electrons in the core XXX move to determine core!
+  num_core_electrons = 0;
   for(size_t i=0; i<core_list.size(); i++) num_core_electrons+=core_list[i];
   //For testing:
   std::cout<<"Testing num_core states/electrons:\n";
   std::cout<<core_list.size()<<" =? "<<num_core_states<<" don't think should be?\n";
-  std::cout<<tot_el<<" =? "<<num_core_states<<"\n";
+  std::cout<<tot_el<<" =? "<<num_core_electrons<<"\n";
   //XXX Should these be here? Or, in the "determine core" routine??
 
   //occupancy fraction for each core state:
@@ -320,6 +325,7 @@ int ElectronOrbitals::solveInitialCore(int log_dele_or)
       return 2;
     }
     core_ocf.push_back(double(core_list[ic])/(4*l+2));
+    //std::cout<<"TEST322: "<<n<<ka<<" "<<l<<" "<<double(core_list[ic])/(4*l+2)<<"\n";
   }
 
   return 0;
