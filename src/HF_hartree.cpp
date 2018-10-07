@@ -186,7 +186,7 @@ int hartreeFockCore(ElectronOrbitals &wf, double eps_HF)
     if(t_eps<eps_HF && hits>2) break;
   }
 
-  for(int i=0; i<Ncs; i++) wf.reSolveLocalDirac(i,en_guess,vex[i],15);
+  for(int i=0; i<Ncs; i++) wf.reSolveLocalDirac(i,wf.en[i],vex[i],15);
   //XXX And re-form the potentials! What about the scale???
 
   return 0;
