@@ -22,7 +22,7 @@ Solves the Hartree equations (no exchange term yet)
 
   //Hartree loop:
   int num_its=0;
-  for(int n=0; n<max_hartree; n++){
+  for(int n=0; n<MAX_HART_ITS; n++){
 
     //Use known orbitals to form new potential:
     std::vector<double> vdir_old = wf.vdir;
@@ -82,13 +82,64 @@ Solves the Hartree equations (no exchange term yet)
 }
 
 //******************************************************************************
-int hartreeFockCore(ElectronOrbitals &wf, double eps_hartree)
+int hartreeFockCore(ElectronOrbitals &wf, double eps_HF)
 {
 /*
   1) Green potential for starting approx.
   2) Hartree for the core (vdir)
   3) Add exchange. Loop over all states? Or each state?
 */
+
+  // "Mixing" of new + old Potential:
+  // V_n+1 = eta*V_n+1 + (1-eta)*V_n
+  const double eta=0.50;
+  int ngp = wf.ngp;
+  int Ncs = wf.num_core_states;
+
+  wf.vdir.clear(); //make sure it's empty
+
+  //Fill the electron part of the potential, using Greens PRM for initial approx
+  double Gh,Gd;  //Green potential parameters
+  PRM::defaultGreen(wf.Z,Gh,Gd); //Get default values for Green potential
+  for(int i=0; i<ngp; i++) wf.vdir.push_back(PRM::green(wf.Z,wf.r[i],Gh,Gd));
+
+  //First step: Solve each core state using parameteric potential
+  wf.solveInitialCore(1); //1, since don't need high accuray here [1 in 10^1]
+
+  //Now, solve using Hartree
+  //Move this to seperate routine! XXX
+  int hits;
+  for(hits=1; hits<MAX_HART_ITS; hits++){
+    //Use known orbitals to form new potential:
+    std::vector<double> vdir_old = wf.vdir;
+    std::vector<double> vdir_new;
+    formNewVdir(wf,vdir_new);
+    for(int j=0; j<wf.ngp; j++)
+      wf.vdir[j] = eta*vdir_new[j] + (1.-eta)*vdir_old[j];
+
+    std::vector<double> en_old = wf.en;
+    double t_eps = 0;
+    for(int i=0; i<Ncs; i++){
+      //Use PT to find new energy guess
+      double del_e=0;
+      for(int j=0; j<wf.ngp; j++) del_e += (wf.vdir[j]-vdir_old[j])
+        *(pow(wf.p[i][j],2) + pow(wf.q[i][j],2))*wf.drdt[j];
+      del_e*=wf.h;
+      double en_guess = en_old[i] + del_e;
+      if(en_guess>0) en_guess = en_old[i]; //safety, should never happen
+      wf.reSolveLocalDirac(i,en_guess,3); //only go to 1/10^3 here
+      double sfac = 2.*wf.kappa[i]*wf.core_ocf[i]; //|2k|=2j+1
+      t_eps += fabs(sfac*(wf.en[i]-en_old[i])/en_old[i]);
+    }
+    t_eps /= (wf.num_core_electrons*eta);
+    std::cout<<hits<<" "<<t_eps<<"\n";
+
+    //Note: just weight
+
+
+  }
+
+
 }
 
 //******************************************************************************

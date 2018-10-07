@@ -11,11 +11,13 @@
 
 namespace HF{
 
-  const int max_hartree=100; //Max number of Hartree iterations
+  const int MAX_HART_ITS=100; //Max number of Hartree iterations
   const double default_eps=1.e-6;
 
+  int hartreeFockCore(ElectronOrbitals &wf, double eps_HF);
+
   int hartreeCore(ElectronOrbitals &wf, double eps_hartree=default_eps);
-  
+
   int formNewVdir(ElectronOrbitals wf, std::vector<double> &vdir_new
   ,   bool core=true);
 
