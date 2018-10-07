@@ -138,23 +138,27 @@ int hartreeFockCore(ElectronOrbitals &wf, double eps_HF)
     if(t_eps<eps_hart && hits>1) break;
   }
 
-  //Form v_dir & v_ex
-  std::vector<double> vdir_old = wf.vdir;
-  std::vector<double> vdir_new;
-  formNewVdir(wf,vdir_new,true);
 
-  std::vector< std::vector<double> > vex; //into class??
-  std::vector< std::vector<double> > vex_old(Ncs,std::vector<double>(ngp));
-  formVexCore(wf,vex);
+  std::vector< std::vector<double> > vex; //into class?? XXX
+  vex.clear(); //move to beginning ?
+  vex.resize(Ncs,std::vector<double>(ngp));
 
   for(hits=1; hits<MAX_HART_ITS; hits++){
     std::vector<double> en_old = wf.en;
 
+    //Form v_dir & v_ex
+    std::vector<double> vdir_old = wf.vdir;
+    std::vector<double> vdir_new;
+    formNewVdir(wf,vdir_new,true);
+
+    std::vector< std::vector<double> > vex_old = vex; //XX class!
+    formVexCore(wf,vex);
+
     //calculate de from PT
-    for(int a=0; a<Ncs; a++){
+    for(int i=0; i<Ncs; i++){
       double del_e = 0;
       for(int j=0; j<wf.ngp; j++){
-        double dv = wf.vdir[j]+vex[a][j]-vdir_old[j]-vex_old[a][j];
+        double dv = wf.vdir[j]+vex[i][j]-vdir_old[j]-vex_old[i][j];
         del_e += dv*(pow(wf.p[i][j],2) + pow(wf.q[i][j],2))*wf.drdt[j];
       }
       del_e*=wf.h;
