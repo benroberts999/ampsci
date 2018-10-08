@@ -28,7 +28,7 @@ Solves the Hartree equations (no exchange term yet)
     //Use known orbitals to form new potential:
     std::vector<double> vdir_old = wf.vdir;
     std::vector<double> vdir_new;
-    formNewVdir(wf,vdir_new);
+    formNewVdir(wf,vdir_new,true);
     for(int j=0; j<wf.ngp; j++){
       wf.vdir[j] = eta*vdir_new[j] + (1.-eta)*vdir_old[j];
     }
@@ -65,18 +65,6 @@ Solves the Hartree equations (no exchange term yet)
   //Form the total core potential using new wfs
   //This time, solved for case of valence states (different factor)
   formNewVdir(wf,wf.vdir,false);
-
-  // std::ofstream ofile;
-  // ofile.open("pot.txt");
-  // ofile<<"r Gr Vh Z/r 1/r\n";
-  // for(int i=0; i<wf.ngp; i++){
-  //   ofile<<wf.r[i]<<" "
-  //     <<-PRM::green(wf.Z,wf.r[i],Gh,Gd)-wf.vnuc[i]<<" "
-  //     <<-wf.vdir[i]-wf.vnuc[i]<<" "
-  //     <<wf.Z/wf.r[i]<<" "<<1./wf.r[i]<<"\n";
-  //
-  // }
-  // ofile.close();
 
   return num_its;
 }
@@ -144,6 +132,9 @@ int hartreeFockCore(ElectronOrbitals &wf, double eps_HF)
   vex.clear(); //move to beginning ?
   vex.resize(Ncs,std::vector<double>(ngp));
 
+  //XXX One reason it's slow: Iterates V_ex for each orbital, even when some ok!
+  // SO: do for each orbital sepperately!
+
   for(hits=1; hits<MAX_HART_ITS; hits++){
 
     if(hits==4){
@@ -185,7 +176,6 @@ int hartreeFockCore(ElectronOrbitals &wf, double eps_HF)
     }
     t_eps /= (wf.num_core_electrons*eta);
     //Note: just weighted average of eps for each orbital.. good 'nuff
-    // std::cout<<"HF it: "<<hits<<" "<<t_eps<<"\n";
     printf("\rHF it: %3i, eps= %6.1e              ",hits,t_eps);
     std::cout<<std::flush;
     if(t_eps<eps_HF && hits>2) break;
@@ -193,26 +183,13 @@ int hartreeFockCore(ElectronOrbitals &wf, double eps_HF)
   std::cout<<"\n";
 
   for(int i=0; i<Ncs; i++) wf.reSolveLocalDirac(i,wf.en[i],vex[i],15);
-  formNewVdir(wf,wf.vdir,false); //XX false?
-  //XXX And re-form the potentials! What about the scale???
-
-  // std::ofstream of("v.txt");
-  // for(int i=0; i<wf.ngp; i++){
-  //   of<<wf.r[i]<<" "<<wf.Z/wf.r[i]-wf.vdir[i]<<" "<<-1*vex[0][i]<<" "
-  //     <<wf.Z/wf.r[i]-wf.vdir[i]-vex[0][i]<<" "<<1.*wf.Z/wf.r[i]<<" "<<1./wf.r[i]<<"\n";
-  // }
-
-  // for(int i=0; i<wf.ngp; i++){
-  //   of<<wf.r[i]<<" "<<-1*wf.vnuc[i]-wf.vdir[i]<<" "<<-1*vex[0][i]<<" "
-  //     <<-1*wf.vnuc[i]-wf.vdir[i]-vex[0][i]<<" "<<-1*wf.vnuc[i]<<" "<<1./wf.r[i]
-  //     <<" "<<fabs(wf.p[0][i])<<"\n";
-  // }
+  formNewVdir(wf,wf.vdir,false);
 
   return 0;
 }
 
 //******************************************************************************
-int formNewVdir(ElectronOrbitals wf, std::vector<double> &vdir_new, bool core)
+int formNewVdir(ElectronOrbitals wf, std::vector<double> &vdir_new, bool scale)
 /*
 This takes in the wavefunctions, and forms the direct (local) part of the
 electron potential. Does not include exchange.
@@ -234,7 +211,7 @@ core=true by default
 
   //Factor: When solveing for core N=Ncore. For valence, N=Ncore+_
   double f=1;
-  if(core) f = 1. - (1.)/Ncore; //XXX Not '1', but Z_ion !!! XXX XXX
+  if(scale) f = 1. - (1.)/Ncore;
 
   //Determine the total electron (charge) density of core:
   // 2j+1 is closed-shell occupation number of that orbital.
@@ -273,7 +250,7 @@ int formVexCore(ElectronOrbitals &wf, std::vector< std::vector<double> > &vex){
 
   vex.clear();
   vex.resize(wf.num_core_states);
-  #pragma omp parallel for //XXX XXX XXX Check!?
+  #pragma omp parallel for
   for(int a=0; a<wf.num_core_states; a++){
     std::vector<double> vex_a;
     formVexA(wf,a,vex_a);

@@ -1,9 +1,9 @@
-Ne 0              | Z, A(=0 for default)
-Ne                | Core configuration (comma separated)
+Cs 0              | Z, A(=0 for default)
+Xe                | Core configuration (comma separated)
 1.e-3 100. 5000   | r0, rmax, num_points
 1 0 0             | green H d *
 1 0 0             | Tietz t g
-0 0               | max n and l (valence)
+6 1               | max n and l (valence)
 -----------------------
 
 Fraction of each potential to use (normalised inside program)
