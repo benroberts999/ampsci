@@ -4,7 +4,7 @@
 #include "ContinuumOrbitals.h"
 #include "INT_quadratureIntegration.h"
 #include "PRM_parametricPotentials.h"
-#include "HF_hartree.h"
+#include "HF_hartreeFock.h"
 #include "WIG_369j.h"
 #include <iostream>
 #include <fstream>

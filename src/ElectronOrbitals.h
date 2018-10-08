@@ -76,6 +76,10 @@ class ElectronOrbitals{
     int determineCore(std::string str_core_in);
     int solveInitialCore(int log_dele_or=0);
     bool isInCore(int n, int k);
+    int maxCore_n(void);
+
+    double enGuessCore(int n, int l, int tot_el, int num);
+    double enGuessVal(int n, int ka);
 
     int sortedEnergyList(std::vector<int> &sort_list);
 
@@ -89,7 +93,7 @@ class ElectronOrbitals{
     // int DzubaRadialGrid(int ngp_in, double r0, double rmax, double b=4.);
     // int DzubaRadialGrid(double in_h, double r0, double rmax, double b=4.);
     int zeroNucleus();
-    double enGuess(int Z, int n, int l, int tot_el, int num);
+
 
 
 

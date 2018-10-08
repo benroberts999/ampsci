@@ -27,6 +27,8 @@ int formLambdaABk(std::vector<double> &L_abk, int tja, int tjb, int la, int lb);
 double vexABr(ElectronOrbitals &wf, int a, int b, int ir,
   std::vector<double> L_abk, int k_min);
 
+  int hartreeFockValence(ElectronOrbitals &wf, int na, int ka, double eps_HF);
+
 }
 
 #endif

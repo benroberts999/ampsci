@@ -1,4 +1,20 @@
-#include "HF_hartree.h"
+#include "HF_hartreeFock.h"
+
+/*
+8 Oct 2018
+
+Works, but not perfectly.
+Orthonormality only reached to ~1e4 - strange. ~1e10 for Hartree.
+
+ * Use INT function?
+ * Do iterations for each core state sepperately! Might be faster??
+ * "Cheat" thing with fac_bot & fac_top ???
+
+ * Needs some more clean-up!
+
+*/
+
+
 
 namespace HF{
 
@@ -188,24 +204,43 @@ int hartreeFockCore(ElectronOrbitals &wf, double eps_HF)
   return 0;
 }
 
-// //******************************************************************************
-// int hartreeFockValence(ElectronOrbitals &wf, double eps_HF)
-// /*
-// Calculate valence states in frozen core
-// */
-// {
-//
-//   int na = 6;
-//   int ka = -1;
-//
-//   int hits;
-//   for(hits=1; hits<MAX_HART_ITS; hits++){
-//
-//   }
-//
-//
-//
-// }
+//******************************************************************************
+int hartreeFockValence(ElectronOrbitals &wf, int na, int ka, double eps_HF)
+/*
+Calculate valence states in frozen core
+*/
+{
+
+  if(wf.isInCore(na,ka)){
+    std::cout<<"\nHF Warning199: "<<na<<" "<<ka<<" is in the core!\n";
+    return 0;
+  }
+
+  double eta=0.4;
+
+  double en_g = wf.enGuessVal(na,ka);
+  wf.solveLocalDirac(na,ka,en_g,3);
+  int a = wf.nlist.size() - 1;
+
+  std::vector<double> vexa(wf.ngp);
+  int hits;
+  for(hits=1; hits<MAX_HART_ITS; hits++){
+    std::vector<double> vexa_old = vexa;
+    double en_old = wf.en[a];
+    std::vector<double> vexa_new;
+    formVexA(wf,a,vexa_new);
+
+    for(int i=0; i<wf.ngp; i++) vexa[i] = eta*vexa_new[i]+(1.-eta)*vexa_old[i];
+    wf.reSolveLocalDirac(a,wf.en[a],vexa,3);
+    double eps = fabs((wf.en[a]-en_old)/(eta*en_old));
+    printf("\rv:%2i %2i %2i  eps=%6.1e  en=%9.6f        ",a,na,ka,eps,wf.en[a]);
+    std::cout<<std::flush;
+    if(eps<eps_HF) break;
+  }
+  std::cout<<"\n";
+  wf.reSolveLocalDirac(a,wf.en[a],vexa,15);
+  return hits;
+}
 
 //******************************************************************************
 int formNewVdir(ElectronOrbitals &wf, std::vector<double> &vdir_new, bool scale)

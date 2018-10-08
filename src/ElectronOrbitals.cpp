@@ -278,8 +278,13 @@ bool ElectronOrbitals::isInCore(int n, int k){
   return false;
 }
 
-
-
+//******************************************************************************
+int ElectronOrbitals::maxCore_n(void){
+  int max_n = 0;
+  for(int i=0; i<num_core_states; i++)
+    if(nlist[i]>max_n) max_n = nlist[i];
+  return max_n;
+}
 
 //******************************************************************************
 int ElectronOrbitals::solveInitialCore(int log_dele_or)
@@ -290,7 +295,7 @@ int ElectronOrbitals::solveInitialCore(int log_dele_or)
     if(num==0) continue;
     int n = ATI::core_n[i];
     int l = ATI::core_l[i];
-    double en_a = enGuess(Z,n,l,tot_el,num);
+    double en_a = enGuessCore(n,l,tot_el,num);
     tot_el+=num;
     int k1 = l; //j = l-1/2
     if(k1!=0) {
@@ -325,9 +330,11 @@ int ElectronOrbitals::solveInitialCore(int log_dele_or)
   return 0;
 }
 //******************************************************************************
-double ElectronOrbitals::enGuess(int Z, int n, int l, int tot_el, int num)
+double ElectronOrbitals::enGuessCore(int n, int l, int tot_el, int num)
 /*
 Private
+tot_el = total electrons BELOW
+num = num electrons in THIS shell
 */
 {
   //effective Z (for energy guess) -- not perfect!
@@ -340,6 +347,25 @@ Private
   if(n>1) en_a *= 0.5;
   return en_a;
 }
+
+
+//******************************************************************************
+double ElectronOrbitals::enGuessVal(int n, int ka)
+{
+
+  int maxn = maxCore_n();
+  int l = ATI::l_k(ka);
+  int dn=n-maxn;
+  double neff=1.+dn;
+  double x=1;
+  if(maxn<4) x=0.25;
+  if(l==1) neff+=0.5*x;
+  if(l==2) neff+=2.*pow(x,0.5);
+  if(l>=3) neff+=4.*x;
+  return -0.5/pow(neff,2);
+
+}
+
 
 //******************************************************************************
 int ElectronOrbitals::JohnsonRadialGrid(int in_ngp, double r0, double rmax)

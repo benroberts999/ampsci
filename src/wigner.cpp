@@ -46,7 +46,9 @@ int case9j(void){
 }
 
 int main(int num_in, char* argv[]){
-  
+
+  BEG:
+
   int i_type=-1;
   if(num_in>1){
     i_type = std::stoi(argv[1]);
@@ -54,7 +56,7 @@ int main(int num_in, char* argv[]){
     std::cout<<"Which symbol do you want? 3,6,9? (0 for CG)\n";
     std::cin>>i_type;
   }
-  
+
   if(i_type==0){
     return caseCG();
   }else if(i_type==3){
@@ -65,9 +67,9 @@ int main(int num_in, char* argv[]){
     return case9j();
   }else{
     std::cout<<i_type<<" is not valid. Enter 0, 3, 6, or 9.\n";
-    main(0,argv);
-    return 0;
+    goto BEG;
+    // return 0;
   }
-  
+
   return 0;
 }
