@@ -135,7 +135,7 @@ int hartreeFockCore(ElectronOrbitals &wf, double eps_HF)
   // SO: do for each orbital sepperately!
 
   int hits;
-  for(hits=1; hits<MAX_HART_ITS*3; hits++){
+  for(hits=1; hits<MAX_HART_ITS; hits++){
 
     if(hits==4){
       eta *= 2;
@@ -187,6 +187,25 @@ int hartreeFockCore(ElectronOrbitals &wf, double eps_HF)
 
   return 0;
 }
+
+// //******************************************************************************
+// int hartreeFockValence(ElectronOrbitals &wf, double eps_HF)
+// /*
+// Calculate valence states in frozen core
+// */
+// {
+//
+//   int na = 6;
+//   int ka = -1;
+//
+//   int hits;
+//   for(hits=1; hits<MAX_HART_ITS; hits++){
+//
+//   }
+//
+//
+//
+// }
 
 //******************************************************************************
 int formNewVdir(ElectronOrbitals &wf, std::vector<double> &vdir_new, bool scale)
