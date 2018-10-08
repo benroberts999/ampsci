@@ -97,7 +97,7 @@ int main(void){
   wf.sortedEnergyList(sort_list);
 
   //Output results:
-  printf("\nHARTEE results for %s, Z=%i A=%i\n",Z_str.c_str(),Z,A);
+  printf("\nCore: %s, Z=%i A=%i\n",Z_str.c_str(),Z,A);
   printf(" n l_j    k Rinf its    eps      En (au)        En (/cm)\n");
   bool val=false; double en_lim=0;
   for(size_t m=0; m<sort_list.size(); m++){
