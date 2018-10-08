@@ -92,8 +92,8 @@ int hartreeFockCore(ElectronOrbitals &wf, double eps_HF)
 
   // "Mixing" of new + old Potential:
   // V_n+1 = eta*V_n+1 + (1-eta)*V_n
-  const double eta=0.50;
-  const double eta_x=0.20;
+  double eta=0.4;
+  double eta_x=0.4;
   int ngp = wf.ngp;
 
   wf.vdir.clear(); //make sure it's empty
@@ -107,37 +107,37 @@ int hartreeFockCore(ElectronOrbitals &wf, double eps_HF)
   wf.solveInitialCore(3); //3, since don't need high accuray here [1 in 10^3]
   int Ncs = wf.num_core_states;
 
-  //Now, solve using Hartree
-  //Move this to seperate routine! XXX
+  // //Now, solve using Hartree
+  // //Move this to seperate routine! XXX
   int hits;
-  double eps_hart = 1.e-3;
-  for(hits=1; hits<MAX_HART_ITS; hits++){
-    //Use known orbitals to form new potential:
-    std::vector<double> vdir_old = wf.vdir;
-    std::vector<double> vdir_new;
-    formNewVdir(wf,vdir_new,true); //true: means scale!
-    for(int j=0; j<wf.ngp; j++)
-      wf.vdir[j] = eta*vdir_new[j] + (1.-eta)*vdir_old[j];
-
-    std::vector<double> en_old = wf.en;
-    double t_eps = 0;
-    for(int i=0; i<Ncs; i++){
-      //Use PT to find new energy guess
-      double del_e=0;
-      for(int j=0; j<wf.ngp; j++) del_e += (wf.vdir[j]-vdir_old[j])
-        *(pow(wf.p[i][j],2) + pow(wf.q[i][j],2))*wf.drdt[j];
-      del_e*=wf.h;
-      double en_guess = en_old[i] + del_e;
-      if(en_guess>0) en_guess = en_old[i]; //safety, should never happen
-      wf.reSolveLocalDirac(i,en_guess,3); //only go to 1/10^3 here
-      double sfac = 2.*wf.kappa[i]*wf.core_ocf[i]; //|2k|=2j+1
-      t_eps += fabs(sfac*(wf.en[i]-en_old[i])/en_old[i]);
-    }
-    t_eps /= (wf.num_core_electrons*eta);
-    //Note: just weighted average of eps for each orbital.. good 'nuff
-    std::cout<<"Hartree it: "<<hits<<" "<<t_eps<<"\n";
-    if(t_eps<eps_hart && hits>1) break;
-  }
+  // double eps_hart = 1.e-3;
+  // for(hits=1; hits<MAX_HART_ITS; hits++){
+  //   //Use known orbitals to form new potential:
+  //   std::vector<double> vdir_old = wf.vdir;
+  //   std::vector<double> vdir_new;
+  //   formNewVdir(wf,vdir_new,true); //true: means scale!
+  //   for(int j=0; j<wf.ngp; j++)
+  //     wf.vdir[j] = eta*vdir_new[j] + (1.-eta)*vdir_old[j];
+  //
+  //   std::vector<double> en_old = wf.en;
+  //   double t_eps = 0;
+  //   for(int i=0; i<Ncs; i++){
+  //     //Use PT to find new energy guess
+  //     double del_e=0;
+  //     for(int j=0; j<wf.ngp; j++) del_e += (wf.vdir[j]-vdir_old[j])
+  //       *(pow(wf.p[i][j],2) + pow(wf.q[i][j],2))*wf.drdt[j];
+  //     del_e*=wf.h;
+  //     double en_guess = en_old[i] + del_e;
+  //     if(en_guess>0) en_guess = en_old[i]; //safety, should never happen
+  //     wf.reSolveLocalDirac(i,en_guess,3); //only go to 1/10^3 here
+  //     double sfac = 2.*wf.kappa[i]*wf.core_ocf[i]; //|2k|=2j+1
+  //     t_eps += fabs(sfac*(wf.en[i]-en_old[i])/en_old[i]);
+  //   }
+  //   t_eps /= (wf.num_core_electrons*eta);
+  //   //Note: just weighted average of eps for each orbital.. good 'nuff
+  //   std::cout<<"Hartree it: "<<hits<<" "<<t_eps<<" "<<wf.en[0]<<"\n";
+  //   if(t_eps<eps_hart && hits>1) break;
+  // }
 
 
   std::vector< std::vector<double> > vex; //into class?? XXX
@@ -146,16 +146,19 @@ int hartreeFockCore(ElectronOrbitals &wf, double eps_HF)
 
   for(hits=1; hits<MAX_HART_ITS; hits++){
 
+    if(hits==4){
+      eta *= 2;
+      eta_x *= 2;
+    }
 
     //Form v_dir & v_ex
     std::vector<double> vdir_old = wf.vdir;
     std::vector<double> vdir_new;
-    formNewVdir(wf,vdir_new,true);
+    formNewVdir(wf,vdir_new,false); //XX false?
 
     std::vector< std::vector<double> > vex_old = vex; //XX class!
+    //std::cout<<"#156 - forming VexCore\n";
     formVexCore(wf,vex);
-
-    //XXX Scale by 1 - 1/N ???
 
     for(int j=0; j<wf.ngp; j++){
       wf.vdir[j] = eta*vdir_new[j] + (1.-eta)*vdir_old[j];
@@ -176,18 +179,34 @@ int hartreeFockCore(ElectronOrbitals &wf, double eps_HF)
       del_e*=wf.h;
       double en_guess = en_old[i] + del_e;
       if(en_guess>0) en_guess = en_old[i]; //safety, should never happen
-      wf.reSolveLocalDirac(i,en_guess,vex[i],3); //only go to 1/10^3 here
+      wf.reSolveLocalDirac(i,en_guess,vex[i],2); //only go to 1/10^3 here
       double sfac = 2.*wf.kappa[i]*wf.core_ocf[i]; //|2k|=2j+1
       t_eps += fabs(sfac*(wf.en[i]-en_old[i])/en_old[i]);
     }
     t_eps /= (wf.num_core_electrons*eta);
     //Note: just weighted average of eps for each orbital.. good 'nuff
-    std::cout<<"HF it: "<<hits<<" "<<t_eps<<"\n";
+    // std::cout<<"HF it: "<<hits<<" "<<t_eps<<"\n";
+    printf("\rHF it: %3i, eps= %6.1e              ",hits,t_eps);
+    std::cout<<std::flush;
     if(t_eps<eps_HF && hits>2) break;
   }
+  std::cout<<"\n";
 
   for(int i=0; i<Ncs; i++) wf.reSolveLocalDirac(i,wf.en[i],vex[i],15);
+  formNewVdir(wf,wf.vdir,false); //XX false?
   //XXX And re-form the potentials! What about the scale???
+
+  // std::ofstream of("v.txt");
+  // for(int i=0; i<wf.ngp; i++){
+  //   of<<wf.r[i]<<" "<<wf.Z/wf.r[i]-wf.vdir[i]<<" "<<-1*vex[0][i]<<" "
+  //     <<wf.Z/wf.r[i]-wf.vdir[i]-vex[0][i]<<" "<<1.*wf.Z/wf.r[i]<<" "<<1./wf.r[i]<<"\n";
+  // }
+
+  // for(int i=0; i<wf.ngp; i++){
+  //   of<<wf.r[i]<<" "<<-1*wf.vnuc[i]-wf.vdir[i]<<" "<<-1*vex[0][i]<<" "
+  //     <<-1*wf.vnuc[i]-wf.vdir[i]-vex[0][i]<<" "<<-1*wf.vnuc[i]<<" "<<1./wf.r[i]
+  //     <<" "<<fabs(wf.p[0][i])<<"\n";
+  // }
 
   return 0;
 }
@@ -209,13 +228,13 @@ core=true by default
   vdir_new.clear();
   vdir_new.resize(wf.ngp);
 
-  //Count number of electrons in the core XXX FIX THIS XXX
+  //Count number of electrons in the core XXX FIX THIS XXX XXX
   int Ncore=0;
   for(size_t i=0; i<wf.core_list.size(); i++) Ncore+=wf.core_list[i];
 
   //Factor: When solveing for core N=Ncore. For valence, N=Ncore+_
   double f=1;
-  if(core) f = 1. - (1.)/Ncore;
+  if(core) f = 1. - (1.)/Ncore; //XXX Not '1', but Z_ion !!! XXX XXX
 
   //Determine the total electron (charge) density of core:
   // 2j+1 is closed-shell occupation number of that orbital.
@@ -254,7 +273,7 @@ int formVexCore(ElectronOrbitals &wf, std::vector< std::vector<double> > &vex){
 
   vex.clear();
   vex.resize(wf.num_core_states);
-  //#pragma omp parallel for //XXX XXX XXX Check!?
+  #pragma omp parallel for //XXX XXX XXX Check!?
   for(int a=0; a<wf.num_core_states; a++){
     std::vector<double> vex_a;
     formVexA(wf,a,vex_a);
@@ -264,8 +283,9 @@ int formVexCore(ElectronOrbitals &wf, std::vector< std::vector<double> > &vex){
 }
 
 //******************************************************************************
-int formVexA(ElectronOrbitals &wf, int a, std::vector<double> &vex_a)
+int formVexA(ElectronOrbitals wf, int a, std::vector<double> &vex_a)
 /*
+XXX pass by reference? No?
 for now, include a in the b summation too.
 Means we should not scale v_dir?
 v_tot(r) should still go to (N-M)/r for large r - check!
@@ -284,15 +304,19 @@ v_tot(r) should still go to (N-M)/r for large r - check!
     std::vector<double> L_abk;
     int k_min = formLambdaABk(L_abk,tja,tjb,la,lb);
     double stf = wf.core_ocf[b]*(tjb+1); //avg over non-rel configs
+    //if(b==a) stf*= (tjb)/(tjb+1); //XXX scale??
     for(int ir=0; ir<ngp; ir++){
       double fac = 1;
       if(a!=b){
-        double fac_bot = wf.p[a][ir]*wf.p[a][ir] + wf.q[a][ir]*wf.q[a][ir]; //?
-        double fac_top = wf.p[a][ir]*wf.p[b][ir] + wf.q[a][ir]*wf.q[b][ir];
-        if(fac_bot!=0) fac = fac_top/fac_bot;
+        //XXX Creates bad instability when p[a] is small!
+        //XXX I added cut-offs. Not OK? Works though??
+        double fac_top =1.e-6+(wf.p[a][ir]*wf.p[b][ir] + wf.q[a][ir]*wf.q[b][ir]);
+        double fac_bot =1.e-6+wf.p[a][ir]*wf.p[a][ir] + wf.q[a][ir]*wf.q[a][ir];
+        if(fac_bot!=0 && fac_top!=0) fac = fac_top/fac_bot;
+        else fac=1;
       }
       double vex_ab_r = vexABr(wf,a,b,ir,L_abk,k_min);
-      vex_a[ir] += stf*vex_ab_r*fac;
+      vex_a[ir] += -1*stf*vex_ab_r*fac; //nb: minus sign
     }
   }
   return 0;
@@ -306,7 +330,8 @@ L_abk = 3js(ja,jb,k,-1/2,1/2,2)^2 * parity(la+lb+k)
 {
   int k_min = fabs(tja - tjb)/2;
   int k_max = (tja + tjb)/2;
-  L_abk.resize(k_max);
+  L_abk.clear();
+  L_abk.resize(k_max+1,0);
   for(int k = k_min; k<=k_max; k++){
     double tL = pow(WIG::threej_2(tja,tjb,2*k,-1,1,0),2);
     tL *= WIG::parity(la,lb,k);
@@ -325,23 +350,28 @@ v_abk(r) = int [r_min^k/r_max^(k+1)]*[fafb + gagb](r2) dr_2
 r_min = min(r,r2) //nb: can test the indices!
 */
 {
-  int k_max = (int) L_abk.size();
+  int k_max = (int) L_abk.size() - 1;
 
   double vex_ab_r = 0;
-  for(int jr=0; jr<wf.ngp; jr++){
+  int ir_max = std::min(wf.pinflist[a],wf.pinflist[b]);
+  for(int jr=0; jr<ir_max; jr++){
     double xL = 0;
     for(int k = k_min; k<=k_max; k++){
-      double xLk = L_abk[k];
-      if(xLk==0) continue;
-      if(ir>jr) xLk *= pow(wf.r[jr]/wf.r[ir],k)/wf.r[ir];
-      else      xLk *= pow(wf.r[ir]/wf.r[jr],k)/wf.r[jr];
-      xL += xLk;
+      double Lk = L_abk[k];
+      if(Lk==0) continue;
+      double xk = 0;
+      if(ir>jr) xk = pow(wf.r[jr],k)/pow(wf.r[ir],k+1);
+      else      xk = pow(wf.r[ir],k)/pow(wf.r[jr],k+1);
+      xL += xk*Lk;
     }
     double FF = (wf.p[a][jr]*wf.p[b][jr] + wf.q[a][jr]*wf.q[b][jr]);
     vex_ab_r += xL*FF*wf.drdt[jr];
   }
   return vex_ab_r*wf.h;
 }
+
+
+//(wf.p[a][jr]*wf.p[b][jr] + wf.q[a][jr]*wf.q[b][jr])
 
 // //******************************************************************************
 // int vkScreeningOLD(ElectronOrbitals &wf, int a, int b, std::vector<double> vk)

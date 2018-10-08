@@ -60,7 +60,8 @@ int main(void){
   }
 
   //Solve Hartree equations for the core:
-  HF::hartreeCore(wf,eps_hart);
+  HF::hartreeFockCore(wf,eps_hart);
+  //HF::hartreeCore(wf,eps_hart);
 
   int maxn=0; //max 'n' in the core (used for valence energy guess)
   for(int i=0; i<wf.num_core_states; i++) if(wf.nlist[i]>maxn) maxn=wf.nlist[i];

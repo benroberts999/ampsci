@@ -2,7 +2,7 @@ IDIR =./src
 ODIR =./obj
 
 CXX=g++
-CXXFLAGS=-I$(IDIR) -std=c++11 -Wall -fopenmp -O #-Wextra -Wpedantic
+CXXFLAGS=-I$(IDIR) -std=c++11 -O3 -fopenmp -Wall -Wextra -Wpedantic #-fopenmp
 LIBS=-lgsl -lgslcblas -lm
 
 all: checkObj h-like.x fitParametric.x parametricPotential.x atomicKernal.x \

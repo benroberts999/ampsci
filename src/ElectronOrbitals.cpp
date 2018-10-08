@@ -264,6 +264,10 @@ NOTE: Only works up to n=9, and l=5 [h]
 
   }
 
+  //Count number of electrons in the core XXX move to determine core!
+  num_core_electrons = 0;
+  for(size_t i=0; i<core_list.size(); i++) num_core_electrons+=core_list[i];
+
   return 0;
 }
 
@@ -298,15 +302,6 @@ int ElectronOrbitals::solveInitialCore(int log_dele_or)
   }
   num_core_states = nlist.size(); //store number of states in core
 
-  //Count number of electrons in the core XXX move to determine core!
-  num_core_electrons = 0;
-  for(size_t i=0; i<core_list.size(); i++) num_core_electrons+=core_list[i];
-  //For testing:
-  std::cout<<"Testing num_core states/electrons:\n";
-  std::cout<<core_list.size()<<" =? "<<num_core_states<<" don't think should be?\n";
-  std::cout<<tot_el<<" =? "<<num_core_electrons<<"\n";
-  //XXX Should these be here? Or, in the "determine core" routine??
-
   //occupancy fraction for each core state:
   for(int i=0; i<num_core_states; i++){
     int n = nlist[i];
@@ -325,7 +320,6 @@ int ElectronOrbitals::solveInitialCore(int log_dele_or)
       return 2;
     }
     core_ocf.push_back(double(core_list[ic])/(4*l+2));
-    //std::cout<<"TEST322: "<<n<<ka<<" "<<l<<" "<<double(core_list[ic])/(4*l+2)<<"\n";
   }
 
   return 0;
