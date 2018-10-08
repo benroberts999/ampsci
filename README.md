@@ -1,7 +1,7 @@
 # Relativistic, self-consistent atomic structure code.
 
-Solves local central-field problem for Dirac equation, and does Hartree method.
-(For now, does not include exchange).
+Solves local central-field problem for Dirac equation,
+using the Hartree-Fock method.
 
 With reasonable choices for the integration grids, typically converges
 to better than a few parts in 10^16
