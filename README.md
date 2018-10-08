@@ -34,16 +34,17 @@ Note: makes use of GSL libraries: https://www.gnu.org/software/gsl/
 
  * An example that solves for H-like ions
 
-## hartree.x
+## hartreeFock.x
 
- * Solves Hartree potential (no exchange) for core + valence states
+ * Solves Hartree Fock potential for core + valence states
+ * Note: simplified version. Accuracy OK. Needs work. Bit slow.
  * Takes core configuration: Noble gas + extra. (comma separated, no spaces)
  * (As well as Noble gas, can use Zn,Cd,Hg)
  E.g.:
    * For Cs: 'Xe'
    * For Au: 'Xe,4f14,5d10'
    * For Tl: 'Xe,4f14,5d10,6s2' OR 'Hg'
- * Solves single-electron valence states in the Hartree potential of given core
+ * Can also solve single-electron valence states in the HF potential
  * Includes finite nuclear size (assumes spherical nucleus)
  * As of yet, does not write wavefunctions to disk
  * NOTE: Not 100% finished yet, still has some issues. Works well enough though
@@ -52,15 +53,14 @@ Note: makes use of GSL libraries: https://www.gnu.org/software/gsl/
 
  * Calculates the "Atomic Kernal" (for scattering/ionisation) for each core
  orbital, as a function of momentum transfer (q), and energy deposition (dE).
- Writes result to human-readable (and gnuplot-friendly) file.
+ Writes result to human-readable (and gnuplot-friendly) file, and/or binary.
  * For definitions/details, see: B.M.Roberts, V.A.Dzuba, V.V.Flambaum, M.Pospelov, Y.V.Stadnik,
  [Phys.Rev.D 93, 115037 (2016)](https://link.aps.org/doi/10.1103/PhysRevD.93.115037 "pay-walled");
  [arXiv:1604.04559](https://arxiv.org/abs/1604.04559 "free download").
- * Uses self-consistent Hartree method (optionally, can use parametric potential, which is faster but less accurate)
+ * Uses self-consistent Hartree Fock method (optionally, can use parametric potential, which is faster but less accurate)
  * Note: need quite a dense grid [large number of points] for
    * a) highly oscillating J_L function at low r, and
    * b) to solve equation for high-energy continuum states.
-   * NGP=25000 allows good dE and q range, and is fairly quick
  * Sums over 'all' continuum angular momentum states (and multipolarities)
    * Maximum values for l are input parameters
  * Yes, I know I spelled "kernel" wrong..
