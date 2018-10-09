@@ -301,7 +301,7 @@ int formVexCore(ElectronOrbitals &wf, std::vector< std::vector<double> > &vex){
 
   vex.clear();
   vex.resize(wf.num_core_states);
-  #pragma omp parallel for
+  //#pragma omp parallel for // - no!, actually better to //ise below
   for(int a=0; a<wf.num_core_states; a++){
     std::vector<double> vex_a;
     formVexA(wf,a,vex_a);
@@ -326,25 +326,26 @@ v_tot(r) should still go to (N-M)/r for large r - check!
 
   vex_a.clear();
   vex_a.resize(ngp);
-  for(int b=0; b<wf.num_core_states; b++){// Core? or all??
+  for(int b=0; b<wf.num_core_states; b++){
     int tjb = ATI::twoj_k(wf.kappa[b]);
     int lb = ATI::l_k(wf.kappa[b]);
     std::vector<double> L_abk;
     int k_min = formLambdaABk(L_abk,tja,tjb,la,lb);
     double stf = wf.core_ocf[b]*(tjb+1); //avg over non-rel configs
-    //int max_ir_p = std::min(wf.pinflist[a],wf.pinflist[b]);
+    #pragma omp parallel for
     for(int ir=0; ir<ngp; ir++){
       double fac = 1;
       if(a!=b){
-        //XXX Creates bad instability when p[a] is small!
-        //XXX I added cut-offs. Not OK? Works though??
+        //NB: Creates bad instability when p[a] is small!
+        //--so I added cut-offs. OK? Works!(?)
         double fac_top = 1.e-6 +
           (wf.p[a][ir]*wf.p[b][ir] + wf.q[a][ir]*wf.q[b][ir]);
         double fac_bot = 1.e-6 +
           (wf.p[a][ir]*wf.p[a][ir] + wf.q[a][ir]*wf.q[a][ir]);
         if(fac_bot!=0 && fac_top!=0) fac = fac_top/fac_bot;
-        else fac=1;
+        else fac=0;
       }
+      if(fac==0) continue; //continue, not break. a)OMP, b) r=0 case.
       double vex_ab_r = vexABr(wf,a,b,ir,L_abk,k_min);
       vex_a[ir] += -1*stf*vex_ab_r*fac; //nb: minus sign
     }
