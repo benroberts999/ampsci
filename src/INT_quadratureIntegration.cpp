@@ -6,6 +6,16 @@
 namespace INT{
 
 
+//Coefs for 14-point int
+int nquad14 = 14;
+double c14[14] =
+      {1360737653653.,9821965479386.,-7321658717812.,34616887868158.,
+      -48598072507095.,81634716670404.,-78837462715392.,76782233435964.,
+      -41474518178601.,28198302087170.,-3009613761932.,
+      7268021504806.,4920175305323.,5252701747968.};
+double dd14 = 5230697472000.;
+
+
 
 //			INTEGRATE
 // Integrates input function f(i) wrt r, from l to m. This program contains wronskian drdt
@@ -200,6 +210,118 @@ coeficients from: http://en.wikipedia.org/wiki/Finite_difference_coefficient
   return 0;
 
 }
+
+//******************************************************************
+double integrate1(
+  std::vector<double> &f1,
+  double h,
+  int l, int m)
+/*
+Integrates f1*f2*f3
+NOTE: f3 should be wronskian!Jacobian?Whatever
+*/
+{
+  int ngp = f1.size();
+  if (m<=0 || m>=ngp)  m = ngp - 1;
+	// Defines/calculates the integral
+	double a = 0;
+	int ll = l;
+	int mm = m ;
+	for (int i=0; i<nquad14; i++){
+		a += c14[i]*(f1[ll] + f1[mm]);
+		ll++;
+		mm--;
+	}
+	a /= dd14;
+	for (int i=l; i<=m; i++) a += f1[i];
+	return a*h;
+}		// END integrate1
+//******************************************************************
+double integrate2(
+  std::vector<double> &f1,
+  std::vector<double> &f2,
+  double h,
+  int l, int m)
+/*
+Integrates f1*f2*f3
+NOTE: f3 should be wronskian!Jacobian?Whatever
+*/
+{
+  int ngp = f1.size();
+  if (m<=0 || m>=ngp)  m = ngp - 1;
+	// Defines/calculates the integral
+	double a = 0;
+	int ll = l;
+	int mm = m ;
+	for (int i=0; i<nquad14; i++){
+		a += c14[i]*(f1[ll]*f2[ll] + f1[mm]*f2[mm]);
+		ll++;
+		mm--;
+	}
+	a /= dd14;
+	for (int i=l; i<=m; i++) a += f1[i]*f2[i];
+	return a*h;
+}		// END integrate2
+//******************************************************************
+double integrate3(
+  std::vector<double> &f1,
+  std::vector<double> &f2,
+  std::vector<double> &f3,
+  double h,
+  int l, int m)
+/*
+Integrates f1*f2*f3
+NOTE: f3 should be wronskian!Jacobian?Whatever
+*/
+{
+  int ngp = f1.size();
+  if (m<=0 || m>=ngp)  m = ngp - 1;
+	// Defines/calculates the integral
+	double a = 0;
+	int ll = l;
+	int mm = m ;
+	for (int i=0; i<nquad14; i++){
+		a += c14[i]*(f1[ll]*f2[ll]*f3[ll] + f1[mm]*f2[mm]*f3[mm]);
+		ll++;
+		mm--;
+	}
+	a /= dd14;
+	for (int i=l; i<=m; i++) a += f1[i]*f2[i]*f3[i];
+	return a*h;
+}		// END integrate3
+//******************************************************************
+double integrate4(
+  std::vector<double> &f1,
+  std::vector<double> &f2,
+  std::vector<double> &f3,
+  std::vector<double> &f4,
+  double h,
+  int l, int m)
+/*
+Integrates f1*f2*f3
+NOTE: f3 should be wronskian!Jacobian?Whatever
+*/
+{
+  int ngp = f1.size();
+  if (m<=0 || m>=ngp)  m = ngp - 1;
+	// Defines/calculates the integral
+	double a = 0;
+	int ll = l;
+	int mm = m ;
+	for (int i=0; i<nquad14; i++){
+		a += c14[i]*(f1[ll]*f2[ll]*f3[ll]*f4[ll] + f1[mm]*f2[mm]*f3[mm]*f4[mm]);
+		ll++;
+		mm--;
+	}
+	a /= dd14;
+	for (int i=l; i<=m; i++) a += f1[i]*f2[i]*f3[i]*f4[i];
+	return a*h;
+}		// END integrate3
+
+
+
+
+
 
 
 }//namespace

@@ -10,6 +10,21 @@ double integrate(std::vector<double> f, std::vector<double> w, double h,
 int diff(std::vector<double> f, std::vector<double> drdt, double h,
       std::vector<double> &deriv);
 
+double integrate4(
+        std::vector<double> &f1,
+        std::vector<double> &f2,
+        std::vector<double> &f3,
+        std::vector<double> &f4,
+        double h=1, int l=0, int m=0);
+double integrate3(
+        std::vector<double> &f1,
+        std::vector<double> &f2,
+        std::vector<double> &f3,
+        double h=1, int l=0, int m=0);
+double integrate2(std::vector<double> &f1,std::vector<double> &f2,
+        double h=1, int l=0, int m=0);
+double integrate3(std::vector<double> &f1, double h=1, int l=0, int m=0);
+
 }
 
 #endif
