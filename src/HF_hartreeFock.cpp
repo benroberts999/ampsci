@@ -96,8 +96,9 @@ int hartreeFockCore(ElectronOrbitals &wf, double eps_HF)
 
   // "Mixing" of new + old Potential:
   // V_n+1 = eta*V_n+1 + (1-eta)*V_n
-  double eta=0.4;
-  double eta_x=0.4;
+  //NB: must be less than 0.5!, because x2 after first few its!
+  double eta=0.35;
+  double eta_x=0.35;
   int ngp = wf.ngp;
 
   wf.vdir.clear(); //make sure it's empty
@@ -185,14 +186,14 @@ int hartreeFockCore(ElectronOrbitals &wf, double eps_HF)
       del_e*=wf.h;
       double en_guess = en_old[i] + del_e;
       if(en_guess>0) en_guess = en_old[i]; //safety, should never happen
-      wf.reSolveLocalDirac(i,en_guess,vex[i],3); //only go to 1/10^3 here
+      wf.reSolveLocalDirac(i,en_guess,vex[i],2); //only go to 1/10^3 here
       double sfac = 2.*wf.kappa[i]*wf.core_ocf[i]; //|2k|=2j+1
       t_eps += fabs(sfac*(wf.en[i]-en_old[i])/en_old[i]);
     }
     t_eps /= (wf.num_core_electrons*eta);
     //Note: just weighted average of eps for each orbital.. good 'nuff
 
-    printf("\rHF it: %3i, eps= %6.1e              ",hits,t_eps);
+    printf("\rHF core it: %3i, eps= %6.1e              ",hits,t_eps);
     std::cout<<std::flush;
     if(t_eps<eps_HF && hits>2) break;
   }
@@ -216,7 +217,7 @@ Calculate valence states in frozen core
     return 0;
   }
 
-  double eta=0.4;
+  double eta=0.35;
 
   double en_g = wf.enGuessVal(na,ka);
   wf.solveLocalDirac(na,ka,en_g,3);
@@ -225,15 +226,17 @@ Calculate valence states in frozen core
   std::vector<double> vexa(wf.ngp);
   int hits;
   for(hits=1; hits<MAX_HART_ITS; hits++){
+    if(hits==4) eta*=2;
     std::vector<double> vexa_old = vexa;
     double en_old = wf.en[a];
     std::vector<double> vexa_new;
     formVexA(wf,a,vexa_new);
 
     for(int i=0; i<wf.ngp; i++) vexa[i] = eta*vexa_new[i]+(1.-eta)*vexa_old[i];
-    wf.reSolveLocalDirac(a,wf.en[a],vexa,3);
+    wf.reSolveLocalDirac(a,wf.en[a],vexa,2);
     double eps = fabs((wf.en[a]-en_old)/(eta*en_old));
-    printf("\rv:%2i %2i %2i  eps=%6.1e  en=%9.6f        ",a,na,ka,eps,wf.en[a]);
+    printf("\rHF val:%2i %2i %2i | %3i eps=%6.1e  en=%11.8f                  "
+    ,a,na,ka,hits,eps,wf.en[a]);
     std::cout<<std::flush;
     if(eps<eps_HF) break;
   }
@@ -259,7 +262,9 @@ core=true by default
   vdir_new.clear();
   vdir_new.resize(wf.ngp);
 
-  //Factor: When solveing for core N=Ncore. For valence, N=Ncore+_
+  //Scaling factor. For hartree only (when FOCK excluded)
+  //Because I sum over all electrons, includes self-interaction
+  //This part is cancelled from FOCK, but if no fock, needs to be scaled down.
   double f=1;
   if(scale) f = 1. - (1.)/wf.num_core_electrons;
 
@@ -279,7 +284,7 @@ core=true by default
   //This is the slow part:
   //Ise the above determined electron (charge) density with Gauss' law
   //to determine the electric potential (energy). Makes use of spherical symm.
-  //#pragma omp parallel for
+  //#pragma omp parallel for // No. - doesn't help
   for(int j=0; j<wf.ngp; j++){
     double r = wf.r[j];
     double v_tmp = 0;
