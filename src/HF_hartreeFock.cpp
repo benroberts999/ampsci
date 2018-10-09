@@ -281,22 +281,33 @@ core=true by default
     }
   }
 
-  // std::vector<double> rho_on_r(wf.ngp); //XXX for below!
-  // for(int j=0; j<wf.ngp; j++) rho_on_r[j] = rho[j]/wf.r[j];
 
+/*
+Use the above determined electron (charge) density with Gauss' law
+to determine the electric potential (energy). Makes use of spherical symm.
+Note: Uses efficient integral method:
 
-  //Use the above determined electron (charge) density with Gauss' law
-  //to determine the electric potential (energy). Makes use of spherical symm.
+  vdir(r) = Int_0^inf rho(r')/r_max dr'
+          = Int_0^r rho(r')/r dr' + Int_r^inf rho(r')/r' dr'
+          = A(r)/r + B(r)
+  A(r0)   = 0
+  B(r0)   = Int_0^inf rho(r')/r' dr'
+  A(r_n)  = A(r_n-1) + rho(r)dr
+  B(r_n)  = B(r_n-1) - (rho(r)/r)dr
+  vdir(r) = A(r)/r + B(r)
+
+Note: I don't use quadrature formula here.
+*/
+
   std::vector<double> A(wf.ngp),B(wf.ngp);
 
-  //for(int i=1; i<wf.ngp; i++){
+  //Note: I don't use quadrature formula here.
   double b0 = 0;
   for(int i=0; i<wf.ngp; i++) b0 += wf.drdt[i]*rho[i]/wf.r[i];
 
   B[0] = b0; //INT::integrate2(rho_on_r,wf.drdt,1.,0,wf.ngp,0,0);
   A[0] = 0.;
   vdir_new[0] = B[0];
-
   for(int i=1; i<wf.ngp; i++){
     B[i] = B[i-1] - wf.drdt[i-1]*rho[i-1]/wf.r[i-1];
     A[i] = A[i-1] + wf.drdt[i-1]*rho[i-1];
