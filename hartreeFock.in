@@ -1,7 +1,7 @@
-Cs 0               | Z, A(=-1 for default, 0 for '0 nuc')
-Xe                 | Core configuration (comma separated)
-1.e-5 150 1500     | r0, rmax, num_points
-1 1.e-8            | HF? (1=HF, 2=H). Convergence. [0 for max its]
-7 1                | max n and l (valence)
+Ne 0               | Z, A(=-1 for default, 0 for '0 nuc')
+Ne                 | Core configuration (comma separated)
+1.e-5 150 50000    | r0, rmax, num_points
+0 1.e-15           | HF? (1=HF, 2=H). Convergence. [0 for max its]
+0 1                | max n and l (valence)
 1                  | var_alpha. (<<1 for non-rel. =1 for normal.)
 --------------------

@@ -324,11 +324,10 @@ int formVexCore(ElectronOrbitals &wf, std::vector< std::vector<double> > &vex){
 
   vex.clear();
   vex.resize(wf.num_core_states);
-  //#pragma omp parallel for // - no!, actually better to //ise below
   for(int a=0; a<wf.num_core_states; a++){
     std::vector<double> vex_a;
     formVexA(wf,a,vex_a);
-    vex[a] = vex_a; //double-check this works w/ vectors..
+    vex[a] = vex_a;
   }
   return 0;
 }
@@ -336,10 +335,10 @@ int formVexCore(ElectronOrbitals &wf, std::vector< std::vector<double> > &vex){
 //******************************************************************************
 int formVexA(ElectronOrbitals &wf, int a, std::vector<double> &vex_a)
 /*
-XXX pass by reference? No?
 for now, include a in the b summation too.
 Means we should not scale v_dir?
 v_tot(r) should still go to (N-M)/r for large r - check!
+XXX XXX XXX XXX Major change to this routine!! See Vdir above! XXX XXX XXX
 */
 {
   int ngp = wf.ngp;
