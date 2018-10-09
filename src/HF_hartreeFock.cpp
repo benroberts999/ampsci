@@ -54,7 +54,7 @@ Solves the Hartree equations (no exchange term yet)
     for(int i=0; i<Ncs; i++) prev_e += wf.en[i]/Ncs;
     for(int i=0; i<Ncs; i++){
       double del_e=0;
-      for(int j=0; j<wf.ngp; j++)
+      for(int j=0; j<wf.pinflist[i]; j++)
         del_e += (wf.vdir[j]-vdir_old[j])*
         (pow(wf.p[i][j],2) + pow(wf.q[i][j],2))*wf.drdt[j];
       del_e*=wf.h;
@@ -270,7 +270,7 @@ core=true by default
 
   //Determine the total electron (charge) density of core:
   // 2j+1 is closed-shell occupation number of that orbital.
-  std::vector<double> rho(wf.ngp);
+  std::vector<double> rho(wf.ngp,0);
   for(int i=0; i<wf.num_core_states; i++){
     int ka = wf.kappa[i];
     int twoj = ATI::twoj_k(ka);
@@ -281,19 +281,26 @@ core=true by default
     }
   }
 
-  //This is the slow part:
-  //Ise the above determined electron (charge) density with Gauss' law
+  // std::vector<double> rho_on_r(wf.ngp); //XXX for below!
+  // for(int j=0; j<wf.ngp; j++) rho_on_r[j] = rho[j]/wf.r[j];
+
+
+  //Use the above determined electron (charge) density with Gauss' law
   //to determine the electric potential (energy). Makes use of spherical symm.
-  //#pragma omp parallel for // No. - doesn't help
-  for(int j=0; j<wf.ngp; j++){
-    double r = wf.r[j];
-    double v_tmp = 0;
-    for(int k=0; k<wf.ngp; k++){
-      double rp = wf.r[k];
-      double rm = std::max(r,rp);//can be little more clever, slight speedup
-      v_tmp += (rho[k]/rm)*wf.drdt[k];
-    }
-    vdir_new[j] = f*v_tmp*wf.h;
+  std::vector<double> A(wf.ngp),B(wf.ngp);
+
+  //for(int i=1; i<wf.ngp; i++){
+  double b0 = 0;
+  for(int i=0; i<wf.ngp; i++) b0 += wf.drdt[i]*rho[i]/wf.r[i];
+
+  B[0] = b0; //INT::integrate2(rho_on_r,wf.drdt,1.,0,wf.ngp,0,0);
+  A[0] = 0.;
+  vdir_new[0] = B[0];
+
+  for(int i=1; i<wf.ngp; i++){
+    B[i] = B[i-1] - wf.drdt[i-1]*rho[i-1]/wf.r[i-1];
+    A[i] = A[i-1] + wf.drdt[i-1]*rho[i-1];
+    vdir_new[i] = f*wf.h*(A[i]/wf.r[i] + B[i]);
   }
 
   return 0;
