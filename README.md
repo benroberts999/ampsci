@@ -1,34 +1,35 @@
 # Relativistic, self-consistent atomic structure code.
 
-Solves local central-field problem for Dirac equation,
-using the Hartree-Fock method.
+Solves local central-field problem for Dirac equation, using the Hartree-Fock method.
+Fully relativistic, includes finite-nuclear size (spherical nucleus), and can
+solve for continuum states.
 
-With reasonable choices for the integration grids, typically converges
+ * With reasonable choices for the integration grids, typically converges
 to better than a few parts in 10^16
-
-The part that solves the Dirac eigenvalue DE is based on book by W. Johnson,
-with a few extensions that improve numerical stability and accuracy.
- * W. R. Johnson, Atomic Structure Theory (Springer, New York, 2007).
 
  * Includes an option to vary the effective speed of light -
 allowing non-relativistic approximation.
 
  * Wavefunctions are in form psi = (1/r) [iP,Q], (using Dirac basis)
 
- * Also, has ability to solve for continuum states
-
 Note: makes use of GSL libraries: https://www.gnu.org/software/gsl/
 
  * For example, with ubuntu: _$sudo apt-get install libgsl0-dev_
  * Probably also needs LAPACK/BLAS: _$sudo apt-get install libblas-dev libatlas-dev liblapack-dev_
 
+ The part that solves the Dirac eigenvalue DE is based on book by W. Johnson,
+ with a few extensions that improve numerical stability and accuracy [W. R. Johnson, Atomic Structure Theory (Springer, New York, 2007).]
 
 ### Compiling and use:
 
  * All programs compiled using the Makefile
  (run _$make_ or _$make programName.x_)
+ * Must create a directory called _./obj/_
+ - code places object files inside here
  * All executables end with '.x' suffix; run like _$./programName.x_
  * All programs have input options, stored and read from 'programName.in' file
+ * Note: below just tells how to use existing programs, to see how they work,
+ see the comments/instructions inside the source code
 
 ## h-like.x
 
@@ -37,7 +38,7 @@ Note: makes use of GSL libraries: https://www.gnu.org/software/gsl/
 ## hartreeFock.x
 
  * Solves Hartree Fock potential for core + valence states
- * Note: simplified version. Accuracy OK. Needs work. Bit slow.
+ * Only really works for closed shells. OK if shell 'mostly' closed
  * Takes core configuration: Noble gas + extra. (comma separated, no spaces)
  * (As well as Noble gas, can use Zn,Cd,Hg)
  E.g.:
@@ -46,8 +47,7 @@ Note: makes use of GSL libraries: https://www.gnu.org/software/gsl/
    * For Tl: 'Xe,4f14,5d10,6s2' OR 'Hg'
  * Can also solve single-electron valence states in the HF potential
  * Includes finite nuclear size (assumes spherical nucleus)
- * As of yet, does not write wavefunctions to disk
- * NOTE: Not 100% finished yet, still has some issues. Works well enough though
+ * Does not yet write wavefunctions to disk
 
 ## atomicKernal.x
 
@@ -69,10 +69,10 @@ Note: makes use of GSL libraries: https://www.gnu.org/software/gsl/
 
  * Solves Dirac equation using Green/Tietz parametric potentials
  * You can give it parameters (H,g,t,d), or it will use defaults
- * Optionally: give it the core configuration (As in 'hartree' program)
+ * Optionally: give it the core configuration (As in 'hartreeFock' program)
 
 ## fitParametric.x
 
  * Finds the best-fit parameters for two-parameter parametric potentials
-   (Green, or Tietz potentials, See Johnson book)
+   (Green, or Tietz potentials)
  * Takes input/target states from fitParametric.in

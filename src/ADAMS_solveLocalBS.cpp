@@ -217,11 +217,14 @@ an error.
       // correct number of nodes.
       //From here, use perturbation theory to fine-time the energy
       if(debug) printf("Correct number of nodes, starting P.T.\n");
-      std::vector<double> ppqq(NGP);
-      for (int i=0; i<=pinf; i++){
-        ppqq[i]=p[i]*p[i]+q[i]*q[i];    // XXX add alpha here if need!
-      }
-      anorm=INT::integrate(ppqq,drdt,h,0,pinf);
+      // std::vector<double> ppqq(NGP);
+      // for (int i=0; i<=pinf; i++){
+      //   ppqq[i]=p[i]*p[i]+q[i]*q[i];    // XXX add alpha here if need!
+      // }
+      // anorm=INT::integrate(ppqq,drdt,h,0,pinf);
+      double anormP = INT::integrate3(p,p,drdt,h,0,pinf);
+      double anormQ = INT::integrate3(q,q,drdt,h,0,pinf);
+      anorm = anormP + anormQ;
       if(debug) printf("anrom=%.5f\n",anorm);
       //Use perturbation theory to work out delta En
       // delta E = c*P(r)*[Qin(r)-Qout(r)]

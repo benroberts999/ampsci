@@ -134,7 +134,8 @@ int main(void){
     wf.solveZeff(n_zef,k_zef,Zeff,false);
   }else if(Gf==0){
     //use Hartree method:
-    HF::hartreeCore(wf,hart_del);
+    // HF::hartreeCore(wf,hart_del);
+    HF::hartreeFockCore(wf,hart_del);
   }else{
     //Use Green (local parametric) potential
     //Fill the electron part of the (local/direct) potential
