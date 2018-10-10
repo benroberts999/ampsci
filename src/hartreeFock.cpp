@@ -130,7 +130,7 @@ int main(void){
   else if(total_time<3600) printf ("\nt=%.2f mins.\n",total_time/60.);
   else printf ("\nt=%.1f hours.\n",total_time/3600.);
 
-  bool run_test = true;
+  bool run_test = false;
   if(run_test){
     std::vector<double> ppqq(wf.ngp);
     std::cout<<"Test orthonormality [should all read 0]:\n";

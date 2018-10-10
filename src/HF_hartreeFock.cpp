@@ -186,7 +186,7 @@ int hartreeFockCore(ElectronOrbitals &wf, double eps_HF)
       del_e*=wf.h;
       double en_guess = en_old[i] + del_e;
       if(en_guess>0) en_guess = en_old[i]; //safety, should never happen
-      wf.reSolveLocalDirac(i,en_guess,vex[i],2); //only go to 1/10^3 here
+      wf.reSolveLocalDirac(i,en_guess,vex[i],3); //only go to 1/10^3 here
       double sfac = 2.*wf.kappa[i]*wf.core_ocf[i]; //|2k|=2j+1
       t_eps += fabs(sfac*(wf.en[i]-en_old[i])/en_old[i]);
     }
@@ -212,12 +212,12 @@ Calculate valence states in frozen core
 */
 {
 
-  if(wf.isInCore(na,ka)){
-    std::cout<<"\nHF Warning199: "<<na<<" "<<ka<<" is in the core!\n";
-    return 0;
-  }
+  // if(wf.isInCore(na,ka)){
+  //   std::cout<<"\nHF Warning199: "<<na<<" "<<ka<<" is in the core!\n";
+  //   return 0;
+  // }
 
-  double eta=0.35;
+  double eta=0.35; //note: is x2 after 4 its!
 
   double en_g = wf.enGuessVal(na,ka);
   wf.solveLocalDirac(na,ka,en_g,3);
@@ -233,7 +233,7 @@ Calculate valence states in frozen core
     formVexA(wf,a,vexa_new);
 
     for(int i=0; i<wf.ngp; i++) vexa[i] = eta*vexa_new[i]+(1.-eta)*vexa_old[i];
-    wf.reSolveLocalDirac(a,wf.en[a],vexa,2);
+    wf.reSolveLocalDirac(a,wf.en[a],vexa,3);
     double eps = fabs((wf.en[a]-en_old)/(eta*en_old));
     printf("\rHF val:%2i %2i %2i | %3i eps=%6.1e  en=%11.8f                  "
     ,a,na,ka,hits,eps,wf.en[a]);
@@ -250,11 +250,17 @@ int formNewVdir(ElectronOrbitals &wf, std::vector<double> &vdir_new, bool scale)
 /*
 This takes in the wavefunctions, and forms the direct (local) part of the
 electron potential. Does not include exchange.
-NOTE: For now, assumes core potential is the same
-for each orbital, which is a good approximation.
-When core=true, will solve for all core states with (1-1/N) (V^N-1 for core)
-When core=false, will solve for core. Good for valence states [N is different!]
-core=true by default
+If scale==true, scales by (Nc-1)/Nc [accounts for self-interaction]
+scale should be true if not doing exchange, but false if doing exchange!
+Note: Uses efficient integral method:
+  vdir(r) :=  Int_0^inf rho(r')/r_max dr'
+           =  Int_0^r rho(r')/r dr' + Int_r^inf rho(r')/r' dr'
+           =  A(r)/r + B(r)
+  A(r0)    =  0
+  B(r0)    =  Int_0^inf rho(r')/r' dr'
+  A(r_n)   =  A(r_n-1) + rho(r)dr
+  B(r_n)   =  B(r_n-1) - (rho(r)/r)dr
+  vdir(r)  =  A(r)/r + B(r)
 */
 {
 
@@ -281,30 +287,13 @@ core=true by default
     }
   }
 
-
-/*
-Use the above determined electron (charge) density with Gauss' law
-to determine the electric potential (energy). Makes use of spherical symm.
-Note: Uses efficient integral method:
-
-  vdir(r) = Int_0^inf rho(r')/r_max dr'
-          = Int_0^r rho(r')/r dr' + Int_r^inf rho(r')/r' dr'
-          = A(r)/r + B(r)
-  A(r0)   = 0
-  B(r0)   = Int_0^inf rho(r')/r' dr'
-  A(r_n)  = A(r_n-1) + rho(r)dr
-  B(r_n)  = B(r_n-1) - (rho(r)/r)dr
-  vdir(r) = A(r)/r + B(r)
-
-Note: I don't use quadrature formula here.
-*/
-
-  std::vector<double> A(wf.ngp),B(wf.ngp);
-
+  //Use the above determined electron (charge) density with Gauss' law
+  //to determine the electric potential (energy). Makes use of spherical symm.
+  // vdir(r) = A(r)/r + B(r) [see above]
   //Note: I don't use quadrature formula here.
+  std::vector<double> A(wf.ngp),B(wf.ngp);
   double b0 = 0;
   for(int i=0; i<wf.ngp; i++) b0 += wf.drdt[i]*rho[i]/wf.r[i];
-
   B[0] = b0; //INT::integrate2(rho_on_r,wf.drdt,1.,0,wf.ngp,0,0);
   A[0] = 0.;
   vdir_new[0] = B[0];
@@ -324,6 +313,7 @@ int formVexCore(ElectronOrbitals &wf, std::vector< std::vector<double> > &vex){
 
   vex.clear();
   vex.resize(wf.num_core_states);
+  //$pragma omp parallel for
   for(int a=0; a<wf.num_core_states; a++){
     std::vector<double> vex_a;
     formVexA(wf,a,vex_a);
@@ -339,6 +329,8 @@ for now, include a in the b summation too.
 Means we should not scale v_dir?
 v_tot(r) should still go to (N-M)/r for large r - check!
 XXX XXX XXX XXX Major change to this routine!! See Vdir above! XXX XXX XXX
+
+ * Note sign convention: V = V_dir + V_ex [-ve inside Vex!]
 */
 {
   int ngp = wf.ngp;
@@ -360,12 +352,14 @@ XXX XXX XXX XXX Major change to this routine!! See Vdir above! XXX XXX XXX
       if(a!=b){
         //NB: Creates bad instability when p[a] is small!
         //--so I added cut-offs. OK? Works!(?)
-        double fac_top = 1.e-6 +
+        double fac_top = //1.e-7 +
           (wf.p[a][ir]*wf.p[b][ir] + wf.q[a][ir]*wf.q[b][ir]);
-        double fac_bot = 1.e-6 +
+        double fac_bot = //1.e-7 +
           (wf.p[a][ir]*wf.p[a][ir] + wf.q[a][ir]*wf.q[a][ir]);
-        if(fac_bot!=0 && fac_top!=0) fac = fac_top/fac_bot;
-        else fac=0;
+        //if(fac_bot!=0 && fac_top!=0) fac = fac_top/fac_bot;
+        //else fac=0;
+        fac = fac_top/fac_bot;
+        if(fabs(wf.p[a][ir])<1.e-3) fac=0;
       }
       if(fac==0) continue; //continue, not break. a)OMP, b) r=0 case.
       double vex_ab_r = vexABr(wf,a,b,ir,L_abk,k_min);
