@@ -15,19 +15,17 @@ namespace HF{
   const double default_eps=1.e-6;
 
   int hartreeFockCore(ElectronOrbitals &wf, double eps_HF);
-
+  int hartreeFockValence(ElectronOrbitals &wf, int na, int ka, double eps_HF);
   int hartreeCore(ElectronOrbitals &wf, double eps_hartree=default_eps);
 
-  int formNewVdir(ElectronOrbitals &wf, std::vector<double> &vdir_new
-  ,   bool core);
+  int formNewVdir(ElectronOrbitals &wf, std::vector<double> &vdir_new,
+    bool core);
 
-int formVexCore(ElectronOrbitals &wf, std::vector< std::vector<double> > &vex);
-int formVexA(ElectronOrbitals &wf, int a, std::vector<double> &vex_a);
-int formLambdaABk(std::vector<double> &L_abk, int tja, int tjb, int la, int lb);
-double vexABr(ElectronOrbitals &wf, int a, int b, int ir,
-  std::vector<double> L_abk, int k_min);
-
-  int hartreeFockValence(ElectronOrbitals &wf, int na, int ka, double eps_HF);
+  int formVexCore(ElectronOrbitals &wf,
+    std::vector< std::vector<double> > &vex);
+  int formVexA(ElectronOrbitals &wf, int a, std::vector<double> &vex_a);
+  int formLambdaABk(std::vector<double> &L_abk, int tja, int tjb, int la,
+    int lb);
 
 }
 
