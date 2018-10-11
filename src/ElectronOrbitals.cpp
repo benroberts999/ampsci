@@ -307,7 +307,7 @@ int ElectronOrbitals::solveInitialCore(int log_dele_or)
   }
   num_core_states = nlist.size(); //store number of states in core
 
-  //occupancy fraction for each core state:
+  //occupancy fraction for each core state (Non-rel states!):
   for(int i=0; i<num_core_states; i++){
     int n = nlist[i];
     int ka = kappa[i];
