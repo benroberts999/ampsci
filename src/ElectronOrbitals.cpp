@@ -301,6 +301,7 @@ int ElectronOrbitals::solveInitialCore(int log_dele_or)
     if(k1!=0) {
       solveLocalDirac(n,k1,en_a,log_dele_or);
       en_a = 0.95*en[nlist.size()-1]; //update guess for next same l
+      if(en_a>0) en_a = enGuessCore(n,l,tot_el,num);
     }
     int k2 = -(l+1); //j=l+1/2
     if(num>2*l) solveLocalDirac(n,k2,en_a,log_dele_or);
