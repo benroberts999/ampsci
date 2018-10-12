@@ -9,6 +9,8 @@ namespace PRM{
   int defaultGreen(int z, double &H, double &d);
   int defaultTietz(int z, double &t, double &g);
 
+int defaultGreenCore(int z, double &H, double &d);
+
 }
 
 #endif

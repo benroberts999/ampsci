@@ -25,7 +25,7 @@ Note: V_HF = V_dir + V_ex    -- note sign convention!
   //Starting approx:
   //Fill the electron part of the potential, using Greens PRM for initial approx
   double Gh,Gd;  //Green potential parameters
-  PRM::defaultGreen(wf.Z,Gh,Gd); //Get default values for Green potential
+  PRM::defaultGreenCore(wf.Z,Gh,Gd); //Get default values for Green potential
   for(int i=0; i<ngp; i++) wf.vdir.push_back(PRM::green(wf.Z,wf.r[i],Gh,Gd));
 
   //First step: Solve each core state using above parameteric potential

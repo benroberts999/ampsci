@@ -1,4 +1,5 @@
 #include "PRM_parametricPotentials.h"
+#include <iostream>
 namespace PRM{
 
 //******************************************************************************
@@ -22,6 +23,69 @@ Does NOT include nuclear potential
 {
   if(r==0) return 0;
 	return (-1./r)*(1. + (double(Z)-1.)*exp(-g*r)/pow(1.+t*r,2)) + double(Z)/r;
+}
+
+
+
+//******************************************************************************
+int defaultGreenCore(int z, double &H, double &d)
+/*
+Fits the highest few states in the core.
+Typically: highest one of s,p,d,f
+Fitted to match HF energies - aid convergance!
+*/
+{
+  double zHd[18][3] = {{2, 5.74134, 1.79658},
+                      {3, 1.53157, 1.28991},
+                      {5, 2.87763, 2},
+                      {11, 1.49089, 0.62143},
+                      {13, 9.837, 2.99813},
+                      {19, 5.55771, 1.65891},
+                      {29, 2.5, 0.65},
+                      {31, 2.932, 0.736},
+                      {37, 4.7987, 1.06374},
+                      {47, 1.95883, 0.52759},
+                      {49, 3.363, 0.75499},
+                      {55, 5.49443, 1.10865},
+                      {70, 5.25, 0.85},
+                      {79, 4.45331, 0.73931},
+                      {81, 4.7354, 0.7749},
+                      {87, 4.93797, 0.8122},
+                      {102, 4.33716, 0.67213},
+                      {113, 5.10036, 0.75391}};
+
+  for(int i=0; i<18; i++){
+    int iz = (int) zHd[i][0];
+    if (z==iz){
+      // std::cout<<zHd[i][1]<<" "<<zHd[i][2]<<"\n";
+      H = zHd[i][1];
+      d = zHd[i][2];
+      return 0;
+    }
+  }
+
+  for(int i=1; i<18; i++){
+    int izm = (int) zHd[i-1][0];
+    int izp = (int) zHd[i][0];
+    if(z>izm && z<izp){
+      double H1 = zHd[i-1][1];
+      double H2 = zHd[i][1];
+      double d1 = zHd[i-1][2];
+      double d2 = zHd[i][2];
+
+      H = H1 + (H2-H1)*(z-izm)/(izp-izm);
+      d = d1 + (d2-d1)*(z-izm)/(izp-izm);
+      // std::cout<<H<<" "<<d<<"\n";
+      return 0;
+    }
+  }
+
+  if(z>113){
+    H = 5.;
+    d = 0.75;
+  }
+
+  return 0;
 }
 
 
