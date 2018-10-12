@@ -102,6 +102,8 @@ an error.
   double delta_en=0;
   its=0;            //numer of iterations (for this n,ka)
 
+  bool noCTP = false; //allow miss CTP once
+
   while (!converged){
 
     //Find the practical infinity 'pinf'
@@ -130,7 +132,8 @@ an error.
       //Didn't find ctp! Does this ever happen? Yes, if energy guess too wrong
       if(debug)printf("FAILURE: Turning point at or after pract. inf. \n");
       if(debug)printf("ctp=%i, d_ctp=%i, pinf=%i, NGP=%i\n",ctp,d_ctp,pinf,NGP);
-      return 1;
+      if(noCTP) return 1;
+      else ctp = pinf - 5*d_ctp;
     }
     if(debug) printf("Classical turning point (i=%i): ctp=%.1f a.u.\n",
                 ctp,r[ctp]);
@@ -152,7 +155,7 @@ an error.
       denom += 1./(i+1);
     }
     rescale /= denom;
-    if(debug) std::cout<<"denom="<<denom<<" rescale="<<rescale<<"\n";
+    //if(debug) std::cout<<"denom="<<denom<<" rescale="<<rescale<<"\n";
 
     //re-scale the inward solution to match the outward solution (for P):
     for(int i=ctp-d_ctp; i<=pinf; i++){
@@ -271,6 +274,7 @@ an error.
         eps=delta_en;
         converged=true; //Converged to "secondary" level, deles
       }else{
+        if(debug)
         printf("Wavefunction %i %i didn't converge after %i itterations.\n",n,
                ka,ntry);
         if(debug) printf("%i %i: Pinf= %.1f,  en= %f\n",n,ka,r[pinf],en);
@@ -283,7 +287,7 @@ an error.
 
   //normalises the wavefunction
   double an= 1/sqrt(anorm);
-  if(debug) printf("An=%.5e\n",an);
+  //if(debug) printf("An=%.5e\n",an);
   for(int i=0; i<=pinf; i++){
     p[i]=an*p[i];
     q[i]=an*q[i];
@@ -507,10 +511,10 @@ program finishes the INWARD/OUTWARD integrations (ADAMS-MOULTON)
   getAdamsCoefs(ama,amd,amaa);  // loads the coeficients
 
   //this just checks that all working..prints out coefs.
-  if (debug){
-    for (int i=0; i<AMO; i++) printf("AMA[%i]=%f\n",i,ama[i]);
-    printf("amd=%.0f, amaa=%.0f\n",amd,amaa);
-  }
+  // if (debug){
+  //   for (int i=0; i<AMO; i++) printf("AMA[%i]=%f\n",i,ama[i]);
+  //   printf("amd=%.0f, amaa=%.0f\n",amd,amaa);
+  // }
 
   int inc;     //'increment' for integration (+1 for forward, -1 for backward)
   int nosteps; // number of steps integration should make
