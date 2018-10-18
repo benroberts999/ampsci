@@ -235,6 +235,9 @@ Parallelised over core states. note: Must use omp critical
   vex_a.resize(ngp);
   #pragma omp parallel for
   for(int b=0; b<wf.num_core_states; b++){
+ 
+    //XXX HERE! Ignores f states in core!!! XXX
+    if(wf.kappa[b]==3||wf.kappa[b]==-4) continue;
     //Arrays and values needed:
     std::vector<double> Vxab(ngp);
     int irmax = std::min(wf.pinflist[a],wf.pinflist[b]);
