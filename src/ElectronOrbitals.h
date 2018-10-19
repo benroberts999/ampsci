@@ -78,7 +78,7 @@ class ElectronOrbitals{
     bool isInCore(int n, int k);
     int maxCore_n(void);
 
-    double enGuessCore(int n, int l, int tot_el, int num);
+    double enGuessCore(int n, int l);
     double enGuessVal(int n, int ka);
 
     int sortedEnergyList(std::vector<int> &sort_list);

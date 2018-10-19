@@ -295,19 +295,20 @@ int ElectronOrbitals::solveInitialCore(int log_dele_or)
     if(num==0) continue;
     int n = ATI::core_n[i];
     int l = ATI::core_l[i];
-    double en_a = enGuessCore(n,l,tot_el,num);
+    double en_a = enGuessCore(n,l);
     tot_el+=num;
     int k1 = l; //j = l-1/2
     if(k1!=0) {
       solveLocalDirac(n,k1,en_a,log_dele_or);
       en_a = 0.95*en[nlist.size()-1]; //update guess for next same l
+      if(en_a>0) en_a = enGuessCore(n,l);
     }
     int k2 = -(l+1); //j=l+1/2
     if(num>2*l) solveLocalDirac(n,k2,en_a,log_dele_or);
   }
   num_core_states = nlist.size(); //store number of states in core
 
-  //occupancy fraction for each core state:
+  //occupancy fraction for each core state (Non-rel states!):
   for(int i=0; i<num_core_states; i++){
     int n = nlist[i];
     int ka = kappa[i];
@@ -330,13 +331,24 @@ int ElectronOrbitals::solveInitialCore(int log_dele_or)
   return 0;
 }
 //******************************************************************************
-double ElectronOrbitals::enGuessCore(int n, int l, int tot_el, int num)
+double ElectronOrbitals::enGuessCore(int n, int l)
 /*
 Private
 tot_el = total electrons BELOW
 num = num electrons in THIS shell
 */
 {
+
+  int tot_el = 0;
+  int num = 0;
+  for(size_t i=0; i<core_list.size(); i++){
+    if(l==ATI::core_l[i] && n==ATI::core_n[i]){
+      num = core_list[i];
+      break;
+    }
+    tot_el += core_list[i];
+  }
+
   //effective Z (for energy guess) -- not perfect!
   double Zeff =  double(Z - tot_el - num);
   if(l==1) Zeff = 1. + double(Z - tot_el - 0.5*num);
@@ -345,6 +357,10 @@ num = num electrons in THIS shell
 
   double en_a = -0.5 * pow(Zeff/n,2);
   if(n>1) en_a *= 0.5;
+
+  if(n==maxCore_n()-1) en_a *= 1.25;
+  if(n==maxCore_n()) en_a *= 2.5;
+
   return en_a;
 }
 
