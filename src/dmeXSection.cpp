@@ -213,99 +213,116 @@ int main(void){
 
   // return 1;
 
-  std::ofstream ofv,ofE;
-  ofv.open("vplot-"+label+".txt");
-  ofE.open("Eplot-"+label+".txt");
+  std::ofstream of;
+  std::string str_E = std::to_string(int(de_target*E_to_keV*1000));
+  if(plotv) of.open("plot-svdE_v-"+str_E+"-"+label+".txt");
+  else      of.open("plot-svdE_dE-"+label+".txt");
+
+  if(plotv) std::cout<<"Plotting ds.v/dE as function of v:\n";
+  else      std::cout<<"Plotting <ds.v>/dE as function of dE:\n";
 
   double dE = de_target;
   int ie = i_et;
 
-  std::vector< std::vector< std::vector<float> > > ds_mv_mx_x;
+  std::vector< std::vector< std::vector<float> > > dsv_mv_mx_x;
 
-  if(plotv) ds_mv_mx_x.resize(n_mv,
+  if(plotv) dsv_mv_mx_x.resize(n_mv,
     std::vector< std::vector<float> >(n_mx,std::vector<float>(vsteps)));
-  else ds_mv_mx_x.resize(n_mv,
+  else dsv_mv_mx_x.resize(n_mv,
     std::vector< std::vector<float> >(n_mx,std::vector<float>(desteps)));
 
 
+  std::cout.precision(1);
+  std::cout<<std::fixed;
   for(int imv=0; imv<n_mv; imv++){
     double xmv = double(imv)/(n_mv-1);
     double mv = mvmin*pow(mvmax/mvmin,xmv);
     if(n_mv==1) mv = mvmin;
-
-
     for(int imx=0; imx<n_mx; imx++){
       double xmx = double(imx)/(n_mx-1);
       double mx = mxmin*pow(mxmax/mxmin,xmx);
       if(n_mx==1) mx = mxmin;
-
+      std::cout<<"\nmv = "<<mv*M_to_MeV<<" MeV; mx = "<<mx*M_to_GeV<<" GeV\n";
       //#pragma omp parallel for
       for(int ie=0; ie<desteps; ie++){
         //double a=0;
         double xe = double(ie)/(desteps-1);
         double dE = demin*pow(demax/demin,xe);
+        std::cout<<"\rE: "<<dE<<"/"<<demax<<" au       ";
+        std::cout<<std::flush;
         if(desteps==1){
           dE = de_target;
           ie = i_et;
         }
-
         double dsvdE = 0;
         double vmin = sqrt(dE*2/mx);
         for(int iv=0; iv<vsteps; iv++){
           double v = (iv+1)*dv;
           if(v<vmin) continue;
           double dsdE = dsdE_iEdEvum_qg(AKenq,ie,dE,v,mv,mx,qmin,qmax);
-          if(plotv) ds_mv_mx_x[imv][imx][iv] = v*dsdE;
+          if(plotv) dsv_mv_mx_x[imv][imx][iv] = v*dsdE;
           dsvdE += arr_fv[iv]*v*dsdE;
         }//v
         dsvdE *= dv;
-        //ofE<<dE*E_to_keV<<" "<<dsvdE*dsvdE_to_cm3keVday<<"\n";
-        if(!plotv) ds_mv_mx_x[imv][imx][ie] = dsvdE;
+        if(!plotv) dsv_mv_mx_x[imv][imx][ie] = dsvdE;
       }//dE
     }//mx
   }//mv
+  std::cout<<"\n";
 
 
 
 
   //Plot as function of v:
 
-  ofv<<"# m_v blocks: ";
+  of<<"# m_v blocks: ";
   for(int imv=0; imv<n_mv; imv++){
     double xmv = double(imv)/(n_mv-1);
     double mv = mvmin*pow(mvmax/mvmin,xmv);
     if(n_mv==1) mv = mvmin;
-    ofv<<imv<<","<<mv*M_to_MeV<<" ";
+    of<<imv<<","<<mv*M_to_MeV<<" ";
   }
-  ofv<<"\n";
+  of<<"\n";
 
   for(int imv=0; imv<n_mv; imv++){
-    if(!plotv) break;
     double xmv = double(imv)/(n_mv-1);
     double mv = mvmin*pow(mvmax/mvmin,xmv);
     if(n_mv==1) mv = mvmin;
 
-    ofv<<"\""<<std::fixed<<std::setprecision(2)<<mv*M_to_MeV<<" MeV\"   ";
+    of<<"\""<<std::fixed<<std::setprecision(2)<<mv*M_to_MeV<<" MeV\"   ";
     for(int imx=0; imx<n_mx; imx++){
       double xmx = double(imx)/(n_mx-1);
       double mx = mxmin*pow(mxmax/mxmin,xmx);
       if(n_mx==1) mx = mxmin;
-      //ofv<<mx*M_to_GeV<<" ";
-      ofv<<"\""<<std::setprecision(1)<<mx*M_to_GeV<<" GeV\"   ";
+      //of<<mx*M_to_GeV<<" ";
+      of<<"\""<<std::setprecision(1)<<mx*M_to_GeV<<" GeV\"   ";
     }
-    ofv<<"\n"<<std::scientific<<std::setprecision(6);
+    of<<"\n"<<std::scientific<<std::setprecision(6);
 
     for(int iv=0; iv<vsteps; iv++){
+      if(!plotv) break;
       double v = (iv+1)*dv;
-      ofv<<v*V_to_kms<<" ";
-
+      of<<v*V_to_kms<<" ";
       for(int imx=0; imx<n_mx; imx++){
-        ofv<<ds_mv_mx_x[imv][imx][iv]*dsvdE_to_cm3keVday<<" ";
+        of<<dsv_mv_mx_x[imv][imx][iv]*dsvdE_to_cm3keVday<<" ";
       }//mx
-      ofv<<"\n";
+      of<<"\n";
     }//v
-    ofv<<"\n";
+
+    for(int ie=0; ie<desteps; ie++){
+      if(plotv) break;
+      double xe = double(ie)/(desteps-1);
+      double dE = demin*pow(demax/demin,xe);
+      of<<dE*E_to_keV<<" ";
+      for(int imx=0; imx<n_mx; imx++){
+        of<<dsv_mv_mx_x[imv][imx][ie]*dsvdE_to_cm3keVday<<" ";
+      }//mx
+      of<<"\n";
+    }//v
+
+    of<<"\n";
   }//mv
+
 
   return 0;
 }

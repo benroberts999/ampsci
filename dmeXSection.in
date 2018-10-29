@@ -1,8 +1,8 @@
 ak-Xe_test1     | input file name
 500             | v steps
 0.1 10. 5       | m_chi/GeV: min, max, num_steps
-0               | mv: 0=massless, 1=range, 2= heavy
+2               | mv: 0=massless, 1=range, 2= heavy
 0.1 10. 0       | m_v/MeV: min, max, num_steps [only if =1 above]
-1.0             | E target. Non-zero: plot s(v)
-vt_0_1p0        | output label
+0               | E target. Non-zero: plot s(v). zero: <ds.v>
+masive          | output label
 =================
