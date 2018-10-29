@@ -145,10 +145,6 @@ int main(void){
   //convert E target to au
   de_target /= E_to_keV;
 
-  // //masses (loop over later!) XXX
-  // double mx = mxmin;
-  // double mv = mvmin;
-
   //Arrays/values to be filled from input AK file:
   std::vector< std::vector< std::vector<float> > > AKenq;
   std::vector<std::string> nklst;
@@ -162,8 +158,8 @@ int main(void){
   int qsteps     = (int) AKenq[0][0].size();
   if(num_states != (int)nklst.size()) return 1; //just sanity check
 
-  //If only doing a single dE:
-  bool plotv = false;
+  bool plotv = false; //if single dE, plot fn of v!
+  //If only doing a single dE, find correct index for target dE:
   int i_et = -1;
   if(de_target>0 || desteps==1){
     plotv = true;
