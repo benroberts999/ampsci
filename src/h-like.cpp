@@ -79,7 +79,8 @@ int main(void){
           double x1=(wf.p[s][i]*wf.p[s][i]+wf.q[s][i]*wf.q[s][i])*pow(wf.r[i],in);
           rad1.push_back(x1);
         }
-        double R1=INT::integrate(rad1,wf.drdt,wf.h);
+        // double R1=INT::integrate(rad1,wf.drdt,wf.h);
+        double R1=INT::integrate2(rad1,wf.drdt)*wf.h;
         printf("%13.8f, ",R1);
       }
       std::cout<<"\n";
@@ -107,6 +108,27 @@ int main(void){
           wf.en[s],fracdiff);
     }
   }
+
+  // std::vector<double> rinv(wf.ngp);
+  // for(int i=0; i<wf.ngp; i++) rinv[i] = 1./wf.r[i];
+  //
+  // int a = 0;
+  // double L = INT::integrate4(wf.p[a],wf.r,wf.p[a],wf.drdt)*wf.h;
+  //
+  // double dL = 0;
+  // for(int n=0; n<num_states; n++){
+  //   if(a==n) continue;
+  //   if(wf.kappa[a]!=wf.kappa[n]) continue;
+  //   double A = INT::integrate4(wf.p[a],rinv,wf.p[n],wf.drdt);
+  //   double B = INT::integrate4(wf.p[a],wf.r,wf.p[n],wf.drdt);
+  //
+  //   double dE = wf.en[a]-wf.en[n];
+  //   double f = 2*fabs(wf.kappa[n]);
+  //   dL += f*A*B/dE;
+  //   //std::cout<<n<<":"<<A<<" "<<B<<" "<<dE<<" : "<<dL<<" "<<A*B/dE<<"\n";
+  // }
+  // dL*=(wf.h*wf.h);
+  // std::cout<<"L="<<L<<" ;  dL = "<<2*dL<<"  "<<2*dL/L<<"\n";
 
   tf = clock();
   double total_time = 1000.*double(tf-ti)/CLOCKS_PER_SEC;
