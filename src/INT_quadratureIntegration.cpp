@@ -222,7 +222,8 @@ NOTE: f3 should be wronskian!Jacobian?Whatever
 */
 {
   int ngp = f1.size();
-  if (m>ngp)  m = ngp;
+  if(m==0) m = ngp-1;
+  if (m>=ngp)  m = ngp-1;
   if (m<=l) return 0;
 	// Defines/calculates the integral
 	double a = 0;
@@ -253,7 +254,8 @@ NOTE: f3 should be wronskian!Jacobian?Whatever
 */
 {
   int ngp = f1.size();
-  if (m>ngp)  m = ngp;
+  if(m==0) m = ngp-1;
+  if (m>=ngp)  m = ngp-1;
   if (m<=l) return 0;
 	// Defines/calculates the integral
   double a = 0;
@@ -285,7 +287,8 @@ NOTE: f3 should be wronskian!Jacobian?Whatever
 */
 {
   int ngp = f1.size();
-  if (m>ngp)  m = ngp;
+  if(m==0) m = ngp-1;
+  if (m>=ngp)  m = ngp-1;
   if (m<=l) return 0;
 	// Defines/calculates the integral
   double a = 0;
@@ -319,12 +322,13 @@ NOTE: f3 should be wronskian!Jacobian?Whatever
 */
 {
   int ngp = f1.size();
-  if (m>ngp)  m = ngp;
+  if(m==0) m = ngp-1;
+  if (m>=ngp)  m = ngp-1;
   if (m<=l) return 0;
   // Defines/calculates the integral
   double a = 0;
   for (int i=l; i<=m; i++) a += f1[i]*f2[i]*f3[i]*f4[i];
-  
+
   if( (a_start==0 && a_end==0) || ((m-l) <= 2*nquad14)) return a*h;
 
 	int ll = l;
