@@ -31,7 +31,7 @@ ElectronOrbitals::ElectronOrbitals(std::string s_in_z, int in_a, int in_ngp,
 //******************************************************************************
 int ElectronOrbitals::solveLocalDirac(int n, int k, double e_a, int log_dele_or)
 /*
-XXX vnuc !!!
+Uses ADAMS::solveDBS to solve Dirac Eqn for local potential (Vnuc + Vdir)
 */
 {
   int pinf,its;
@@ -73,14 +73,12 @@ Not fully tested yet!
   std::vector<double> p_a(ngp);
   std::vector<double> q_a(ngp);
 
-
   double Zeff = Zeff_or_En;
   double e_a = -0.5*pow(Zeff/n,2);
   if(calcZeff){
     e_a  = Zeff_or_En;
     Zeff = n*sqrt(-2.*e_a);
   }
-
 
   std::vector<double> v_a; // = vnuc;
   double zscale = (Zeff/Z);
@@ -105,15 +103,19 @@ Not fully tested yet!
 
 
 //******************************************************************************
-int ElectronOrbitals::reSolveLocalDirac(int i, double e_a, int log_dele_or){
+int ElectronOrbitals::reSolveLocalDirac(int i, double e_a, int log_dele_or)
+/*Overloaded version; see below*/
+{
   std::vector<double> dummy_vex;
   return reSolveLocalDirac(i,e_a,dummy_vex,log_dele_or);
 }
-//XXX XXX XXX This best way???? Add to class???
+
 //******************************************************************************
 int ElectronOrbitals::reSolveLocalDirac(int i, double e_a,
   std::vector<double> vex, int log_dele_or)
 /*
+"Re"solves dirac eqaution. Use this to re-solve for same state.
+Over-rides existing solution.
 If no e_a is given, will use the existing one!
 (Usually, a better guess should be given, using P.T.)
 */
@@ -185,7 +187,6 @@ XXX Kill this one! XXX
 
 
 //******************************************************************************
-// int ElectronOrbitals::determineCore(std::vector<std::string> str_core)
 int ElectronOrbitals::determineCore(std::string str_core_in)
 /*
 Takes in a string list for the core configuration, outputs an int list
@@ -226,6 +227,7 @@ NOTE: Only works up to n=9, and l=5 [h]
   else ibeg=0;
 
   for(size_t i=ibeg; i<str_core.size(); i++){
+
     //Parse string, determine config for this term
     int n = std::stoi(str_core[i].substr(0,1));
     int m = std::stoi(str_core[i].substr(2));
@@ -272,14 +274,21 @@ NOTE: Only works up to n=9, and l=5 [h]
 }
 
 //******************************************************************************
-bool ElectronOrbitals::isInCore(int n, int k){
+bool ElectronOrbitals::isInCore(int n, int k)
+/*
+Checks if given state is in the core.
+NOTE: in some cases, given state may be in and out! Account for this?
+*/
+{
   for(int i=0; i<num_core_states; i++)
     if(n==nlist[i] && k==kappa[i]) return true;
   return false;
 }
 
 //******************************************************************************
-int ElectronOrbitals::maxCore_n(void){
+int ElectronOrbitals::maxCore_n(void)
+//Returns the largest n in the core (used for energy guesses)
+{
   int max_n = 0;
   for(int i=0; i<num_core_states; i++)
     if(nlist[i]>max_n) max_n = nlist[i];
@@ -288,6 +297,11 @@ int ElectronOrbitals::maxCore_n(void){
 
 //******************************************************************************
 int ElectronOrbitals::solveInitialCore(int log_dele_or)
+/*
+Solves the Dirac eqn for each state in the core
+Only for local potential (direct part)
+HF_hartreeFock.cpp has routines for Hartree Fock
+*/
 {
   int tot_el=0; // for working out Z_eff
   for(size_t i=0; i<core_list.size(); i++){
@@ -330,10 +344,13 @@ int ElectronOrbitals::solveInitialCore(int log_dele_or)
 
   return 0;
 }
+
+
 //******************************************************************************
 double ElectronOrbitals::enGuessCore(int n, int l)
 /*
 Private
+Energy guess for core states. Not perfect, good enough
 tot_el = total electrons BELOW
 num = num electrons in THIS shell
 */
@@ -367,8 +384,8 @@ num = num electrons in THIS shell
 
 //******************************************************************************
 double ElectronOrbitals::enGuessVal(int n, int ka)
+/*Energy guess for valence states. Not perfect, good enough*/
 {
-
   int maxn = maxCore_n();
   int l = ATI::l_k(ka);
   int dn=n-maxn;
@@ -379,7 +396,6 @@ double ElectronOrbitals::enGuessVal(int n, int ka)
   if(l==2) neff+=2.*pow(x,0.5);
   if(l>=3) neff+=4.*x;
   return -0.5/pow(neff,2);
-
 }
 
 
