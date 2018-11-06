@@ -119,8 +119,8 @@ int main(void){
         n,ATI::l_symbol(l).c_str(),twoj,k,rinf,wf.itslist[i],wf.epslist[i],
         eni, eni*FPC::Hartree_invcm);
     if(val)printf(" %10.2f\n",(eni+en_lim)*FPC::Hartree_invcm);
-    else std::cout<<" /eng="<<wf.enGuessCore(n,l)<<"\n";
-    // std::cout<<"\n";
+    //else std::cout<<" /eng="<<wf.enGuessCore(n,l)<<"\n";
+    else std::cout<<"\n";
   }
 
   gettimeofday(&end, NULL);
