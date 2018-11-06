@@ -133,7 +133,6 @@ int main(void){
 
   bool run_test = false;
   if(run_test){
-    std::vector<double> ppqq(wf.ngp);
     std::cout<<"Test orthonormality [should all read 0]:\n";
     std::cout<<"       ";
     for(uint b=0; b<wf.nlist.size(); b++)
@@ -146,15 +145,9 @@ int main(void){
           std::cout<<" ------- ";
           continue;
         }
-        double x1=0;
-        for (int i=0; i<wf.ngp; i++){
-          double y = wf.p[a][i]*wf.p[b][i]+wf.q[a][i]*wf.q[b][i];
-          ppqq[i] = y;
-          x1 += y*wf.drdt[i];
-        }
-        x1 *= wf.h;
-        double x2 = INT::integrate(ppqq,wf.drdt,wf.h);
-        double xo=x2;
+        double xf = INT::integrate3(wf.p[a],wf.p[b],wf.drdt);
+        double xg = INT::integrate3(wf.q[a],wf.q[b],wf.drdt);
+        double xo = wf.h*(xf+xg);
         if(wf.nlist[a]==wf.nlist[b]) xo -= 1;
         printf(" %7.0e ",xo);
       }

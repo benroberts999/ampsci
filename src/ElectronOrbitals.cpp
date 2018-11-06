@@ -395,6 +395,7 @@ num_its is optional parameter. Repeats that many times!
   }
 
   //Re-normalise orbitals (nb: doesn't make much difference)
+  //#pragma omp parallel for
   for(int a=0; a<Ns; a++){
     double faa = INT::integrate3(p[a],p[a],drdt);
     double gaa = INT::integrate3(q[a],q[a],drdt);

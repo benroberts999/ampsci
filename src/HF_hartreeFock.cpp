@@ -75,6 +75,8 @@ Note: V_HF = V_dir + V_ex    -- note sign convention!
     }
     t_eps /= (wf.num_core_electrons*eta);
 
+    wf.orthonormaliseOrbitals(1); //??
+
     printf("\rHF core        it:%3i eps=%6.1e              ",hits,t_eps);
     std::cout<<std::flush;
     if(t_eps<eps_HF && hits>2) break;
@@ -84,7 +86,10 @@ Note: V_HF = V_dir + V_ex    -- note sign convention!
   //Now, re-solve core orbitals with higher precission
   // + re-solve direct potential (higher precission)
   for(int i=0; i<Ncs; i++) wf.reSolveLocalDirac(i,wf.en[i],vex[i],15);
+  wf.orthonormaliseOrbitals(1);
   formNewVdir(wf,wf.vdir,false);
+  for(int i=0; i<Ncs; i++) wf.reSolveLocalDirac(i,wf.en[i],vex[i],15);
+  wf.orthonormaliseOrbitals(2);
 
   return 0;
 }
@@ -121,6 +126,7 @@ Calculate valence states in frozen Hartree-Fock core
     //Solve Dirac using new potential:
     wf.reSolveLocalDirac(a,en_new,vexa,3);
     double eps = fabs((wf.en[a]-en_old)/(eta*en_old));
+    //wf.orthonormaliseOrbitals(1); //??
     printf("\rHF val:%2i %2i %2i | %3i eps=%6.1e  en=%11.8f                  "
     ,a,na,ka,hits,eps,wf.en[a]);
     std::cout<<std::flush;
@@ -128,6 +134,8 @@ Calculate valence states in frozen Hartree-Fock core
   }
   std::cout<<"\n";
   wf.reSolveLocalDirac(a,wf.en[a],vexa,15);
+  wf.orthonormaliseOrbitals(2); //?? XXX here, but not below??
+  //XXX Change! XXX Don't let valence influence core!!
   return hits;
 }
 
@@ -235,7 +243,7 @@ Parallelised over core states. note: Must use omp critical
   vex_a.resize(ngp);
   #pragma omp parallel for
   for(int b=0; b<wf.num_core_states; b++){
- 
+
     //XXX HERE! Ignores f states in core!!! XXX
     if(wf.kappa[b]==3||wf.kappa[b]==-4) continue;
     //Arrays and values needed:
