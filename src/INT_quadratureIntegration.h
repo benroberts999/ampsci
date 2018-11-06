@@ -25,7 +25,7 @@ double integrate3(
 double integrate2(std::vector<double> &f1,std::vector<double> &f2,
         double h=1, int l=0, int m=0,
       int a_start=1, int a_end=1);
-double integrate3(std::vector<double> &f1, double h=1, int l=0, int m=0,
+double integrate1(std::vector<double> &f1, double h=1, int l=0, int m=0,
    int a_start=1, int a_end=1);
 
 }

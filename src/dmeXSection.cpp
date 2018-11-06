@@ -1,5 +1,6 @@
 #include "AKF_akFunctions.h"
 #include "SHM_standardHaloModel.h"
+#include <iomanip>
 
 // double fv(double v){
 //   if(v<0.1) return 0;
@@ -19,6 +20,52 @@ double fv_au(double v_au, double phi){
 
 
 //******************************************************************************
+template<typename T>
+double dsdE_iEdEvum_qg(std::vector< std::vector< std::vector<T> > > &K_enq,
+  int iE, double dE, double v, double mu, double mx,
+  double qmin, double qmax)
+{
+  double A_au = 8*M_PI*FPC::c2;
+  double v2 = pow(v,2);
+
+  int desteps    = (int) K_enq.size();
+  int num_states = (int) K_enq[0].size();
+  int qsteps     = (int) K_enq[0][0].size();
+  if(iE>=desteps) return 0; //or -1?
+
+  bool finite_med = true;
+  if(mu<0) finite_med = false;
+
+  // Do q derivative on i grid:
+  double dqonq = log(qmax/qmin)/(qsteps-1); //need to multiply by q for dq
+
+  double arg = pow(mx*v,2)-2.*mx*dE;
+  if(arg<0) return 0;
+
+  double qminus = mx*v - sqrt(arg);
+  double qplus  = mx*v + sqrt(arg);
+  if(qminus>qmax || qplus<qmin) return 0; //or -1 ?
+  double dsdE = 0;
+  for(int ink=0; ink<num_states; ink++){
+    #pragma omp parallel for
+    for(int iq=0; iq<qsteps; iq++){
+      double x = double(iq)/(qsteps-1);
+      double q = qmin*pow(qmax/qmin,x);
+      if(q<qminus || q>qplus) continue;
+      double t_Fq = q*q; //(dq/q) is constant, multiply at end
+      if(finite_med) t_Fq /= pow(q*q+mu*mu,2);
+      #pragma omp critical
+      {
+        dsdE += t_Fq*K_enq[iE][ink][iq];  //dq/q included in aAconst
+      }
+    }
+  }
+
+  dsdE *= (A_au/v2)*dqonq;
+  return dsdE;
+}
+
+//******************************************************************************
 int main(void){
 
   //Units Conversion Factors.
@@ -31,13 +78,15 @@ int main(void){
     double V_to_cmday = V_to_cms*(24*60*60); // cm/s -> cm/day
   double Q_to_MeV = FPC::Hartree_eV*FPC::c/1.e6;
   //cross section: ds/dE
-  double ds_to_cm2keV = pow(FPC::aB_cm,2)/E_to_keV; // au -> cm^2/keV
+
+  double dsdE_to_cm2keV = pow(FPC::aB_cm,2)/E_to_keV; // au -> cm^2/keV
+  double dsvdE_to_cm3keVday = dsdE_to_cm2keV*V_to_cmday;
 
   //Numberical constant. For alpha_chi = 1 !
   // (if want alpgha_chi = alpha in the code, kill c2 )
   double A_au = 8*M_PI*FPC::c2;
   //Convert from au -> cm^2/keV
-  double A_cmkeV = A_au*ds_to_cm2keV;
+  double A_cmkeV = A_au*dsdE_to_cm2keV;
 
   //DM energy density (in GeV/cm^3)
   //note: will be divided by m_chi, also in GeV
@@ -46,8 +95,8 @@ int main(void){
   //define input parameters
   std::string akfn; //name of K file to read in
   int vsteps;
-  double mmin,mmax,mvmin,mvmax; //m_chi and m_v masses
-  int n_m,i_mv,n_mv;
+  double mxmin,mxmax,mvmin,mvmax; //m_chi and m_v masses
+  int n_mx,i_mv,n_mv;
   double de_target;
   std::string label="testx";
 
@@ -58,7 +107,7 @@ int main(void){
     std::string jnk;
     ifs >> akfn;                    getline(ifs,jnk);
     ifs >> vsteps;                  getline(ifs,jnk);
-    ifs >> mmin >> mmax >> n_m;     getline(ifs,jnk);
+    ifs >> mxmin >> mxmax >> n_mx;   getline(ifs,jnk);
     ifs >> i_mv;                    getline(ifs,jnk);
     ifs >> mvmin >> mvmax >> n_mv;  getline(ifs,jnk);
     ifs >> de_target;               getline(ifs,jnk);
@@ -66,22 +115,24 @@ int main(void){
     ifs.close();
   }
   //DM mass:
-  mmin /= M_to_GeV;
-  mmax /= M_to_GeV;
-  if(mmax<=mmin || n_m<=1){
-    mmax = mmin;
-    n_m = 1;
+  mxmin /= M_to_GeV;
+  mxmax /= M_to_GeV;
+  if(mxmax<=mxmin || n_mx<=1){
+    mxmax = mxmin;
+    n_mx = 1;
   }
   //Mediator mass: convert units + set-up finite/infinite case
-  bool finite_med = true;
+  if(mvmax<=mvmin || n_mv<=1){
+    mvmax = mvmin;
+    n_mv = 1;
+  }
   if(i_mv==0){
     //massless case. Do sepperately
     mvmin = mvmax = 0;
     n_mv = 1;
   }else if(i_mv==2){
     //Heavy-mediator case (contact interaction)
-    finite_med = false;
-    mvmin = mvmax = 1./0.;
+    mvmin = mvmax = -1; //1./0.;
     n_mv = 1;
   }else if(i_mv==1){
     mvmin /= M_to_MeV;
@@ -90,16 +141,9 @@ int main(void){
     std::cout<<"Wrong m_v input given. Try again. Or not, whatevs\n";
     return 1;
   }
-  if(mvmax<=mvmin || n_mv<=1){
-    mvmax = mvmin;
-    n_mv = 1;
-  }
+
   //convert E target to au
   de_target /= E_to_keV;
-
-  //masses (loop over later!) XXX
-  double m = mmin;
-  double mv = mvmin;
 
   //Arrays/values to be filled from input AK file:
   std::vector< std::vector< std::vector<float> > > AKenq;
@@ -114,8 +158,8 @@ int main(void){
   int qsteps     = (int) AKenq[0][0].size();
   if(num_states != (int)nklst.size()) return 1; //just sanity check
 
-  //If only doing a single dE:
-  bool plotv = false;
+  bool plotv = false; //if single dE, plot fn of v!
+  //If only doing a single dE, find correct index for target dE:
   int i_et = -1;
   if(de_target>0 || desteps==1){
     plotv = true;
@@ -155,58 +199,125 @@ int main(void){
   printf("v  grid: %6.2f -> %6.1f km/s, %5i steps\n"
     ,dv*V_to_kms,max_v*V_to_kms,vsteps);
   printf("Mx grid: %6.2f -> %6.1f  GeV, %5i steps\n"
-    ,mmin*M_to_GeV,mmax*M_to_GeV,n_m);
+    ,mxmin*M_to_GeV,mxmax*M_to_GeV,n_mx);
   printf("Mv grid: %6.3f -> %6.3f  MeV, %5i steps\n"
     ,mvmin*M_to_MeV,mvmax*M_to_MeV,n_mv);
   printf("A = %.1f au = %.2e cm^2/keV\n",A_au,A_cmkeV);
-  std::cout<<"ds/dE conversion factor:   "<<ds_to_cm2keV<<" cm^2/keV\n"
+  std::cout<<"ds/dE conversion factor:   "<<dsdE_to_cm2keV<<" cm^2/keV\n"
     <<"ds.v/dE conversion factor: "
-    <<ds_to_cm2keV*V_to_cmday<<"   cm^3/keV/day\n";
+    <<dsvdE_to_cm3keVday<<"   cm^3/keV/day\n";
 
   // return 1;
 
-  std::ofstream ofv;
-  ofv.open("vplot-"+label+".txt");
+  std::ofstream of;
+  std::string str_E = std::to_string(int(de_target*E_to_keV*1000));
+  if(plotv) of.open("plot-svdE_v-"+str_E+"-"+label+".txt");
+  else      of.open("plot-svdE_dE-"+label+".txt");
 
-  for(int ie=0; ie<desteps; ie++){
-    //double a=0;
-    double xe = double(ie)/(desteps-1);
-    double dE = demin*pow(demax/demin,xe);
-    if(desteps==1){
-      dE = de_target;
-      ie = i_et;
-    }
-    double vmin = sqrt(dE*2/m);
-    double ds_de=0;
-    for(int iv=0; iv<vsteps; iv++){
-      double v = (iv+1)*dv;
-      if(v<vmin) continue;
-      double fvonv = arr_fv[iv]/v;
-      //if(plotv) fvonv = 1./v; //don't mult by fv if plotting sig(v)
-      double arg = pow(m*v,2)-2.*m*dE; //may be negative; skip!
-      if(arg<0 || fvonv==0) continue;
-      double qminus = m*v - sqrt(arg);
-      double qplus  = m*v + sqrt(arg);
-      double ds_de_dv=0;
-      for(int ink=0; ink<num_states; ink++){
-        for(int iq=0; iq<qsteps; iq++){
-          double x = double(iq)/(qsteps-1);
-          double q = qmin*pow(qmax/qmin,x);
-          if(q<qminus || q>qplus) continue;
-          double dq_on_dqonq = q; //devide by dqonq - just a const.
-          //Include dqonq in Aconst!
-          double Fq = q*dq_on_dqonq; //extra q factor from dqonq (Jacobian)
-          if(finite_med) Fq /= pow(q*q+mv*mv,2);
-          ds_de_dv += Fq*AKenq[ie][ink][iq];  //dq/q included in aAconst
+  if(plotv) std::cout<<"Plotting ds.v/dE as function of v:\n";
+  else      std::cout<<"Plotting <ds.v>/dE as function of dE:\n";
+
+  double dE = de_target;
+  int ie = i_et;
+
+  std::vector< std::vector< std::vector<float> > > dsv_mv_mx_x;
+
+  if(plotv) dsv_mv_mx_x.resize(n_mv,
+    std::vector< std::vector<float> >(n_mx,std::vector<float>(vsteps)));
+  else dsv_mv_mx_x.resize(n_mv,
+    std::vector< std::vector<float> >(n_mx,std::vector<float>(desteps)));
+
+
+  std::cout.precision(1);
+  std::cout<<std::fixed;
+  for(int imv=0; imv<n_mv; imv++){
+    double xmv = double(imv)/(n_mv-1);
+    double mv = mvmin*pow(mvmax/mvmin,xmv);
+    if(n_mv==1) mv = mvmin;
+    for(int imx=0; imx<n_mx; imx++){
+      double xmx = double(imx)/(n_mx-1);
+      double mx = mxmin*pow(mxmax/mxmin,xmx);
+      if(n_mx==1) mx = mxmin;
+      std::cout<<"\nmv = "<<mv*M_to_MeV<<" MeV; mx = "<<mx*M_to_GeV<<" GeV\n";
+      //#pragma omp parallel for
+      for(int ie=0; ie<desteps; ie++){
+        //double a=0;
+        double xe = double(ie)/(desteps-1);
+        double dE = demin*pow(demax/demin,xe);
+        std::cout<<"\rE: "<<dE<<"/"<<demax<<" au       ";
+        std::cout<<std::flush;
+        if(desteps==1){
+          dE = de_target;
+          ie = i_et;
         }
-      }
-      ds_de += ds_de_dv*fvonv;
-      if(plotv) ofv<<v*V_to_kms<<" "<<(ds_de_dv/(v*v))*A_cmkeV*dqonq<<"\n";
-      // if(plotv) std::cout<<v*V_to_kms<<" "<<(ds_de_dv/(v*v))*A*dqonq<<"\n";
-    }
-     std::cout<<"E="<<dE*E_to_keV<<" keV"
-     <<"; <sig.v>/dE = "<<ds_de*A_cmkeV*dv*V_to_cmday*dqonq<<" cm^3/keV/day\n";
+        double dsvdE = 0;
+        double vmin = sqrt(dE*2/mx);
+        for(int iv=0; iv<vsteps; iv++){
+          double v = (iv+1)*dv;
+          if(v<vmin) continue;
+          double dsdE = dsdE_iEdEvum_qg(AKenq,ie,dE,v,mv,mx,qmin,qmax);
+          if(plotv) dsv_mv_mx_x[imv][imx][iv] = v*dsdE;
+          dsvdE += arr_fv[iv]*v*dsdE;
+        }//v
+        dsvdE *= dv;
+        if(!plotv) dsv_mv_mx_x[imv][imx][ie] = dsvdE;
+      }//dE
+    }//mx
+  }//mv
+  std::cout<<"\n";
+
+
+
+
+  //Plot as function of v:
+
+  of<<"# m_v blocks: ";
+  for(int imv=0; imv<n_mv; imv++){
+    double xmv = double(imv)/(n_mv-1);
+    double mv = mvmin*pow(mvmax/mvmin,xmv);
+    if(n_mv==1) mv = mvmin;
+    of<<imv<<","<<mv*M_to_MeV<<" ";
   }
+  of<<"\n";
+
+  for(int imv=0; imv<n_mv; imv++){
+    double xmv = double(imv)/(n_mv-1);
+    double mv = mvmin*pow(mvmax/mvmin,xmv);
+    if(n_mv==1) mv = mvmin;
+
+    of<<"\""<<std::fixed<<std::setprecision(2)<<mv*M_to_MeV<<" MeV\"   ";
+    for(int imx=0; imx<n_mx; imx++){
+      double xmx = double(imx)/(n_mx-1);
+      double mx = mxmin*pow(mxmax/mxmin,xmx);
+      if(n_mx==1) mx = mxmin;
+      //of<<mx*M_to_GeV<<" ";
+      of<<"\""<<std::setprecision(1)<<mx*M_to_GeV<<" GeV\"   ";
+    }
+    of<<"\n"<<std::scientific<<std::setprecision(6);
+
+    for(int iv=0; iv<vsteps; iv++){
+      if(!plotv) break;
+      double v = (iv+1)*dv;
+      of<<v*V_to_kms<<" ";
+      for(int imx=0; imx<n_mx; imx++){
+        of<<dsv_mv_mx_x[imv][imx][iv]*dsvdE_to_cm3keVday<<" ";
+      }//mx
+      of<<"\n";
+    }//v
+
+    for(int ie=0; ie<desteps; ie++){
+      if(plotv) break;
+      double xe = double(ie)/(desteps-1);
+      double dE = demin*pow(demax/demin,xe);
+      of<<dE*E_to_keV<<" ";
+      for(int imx=0; imx<n_mx; imx++){
+        of<<dsv_mv_mx_x[imv][imx][ie]*dsvdE_to_cm3keVday<<" ";
+      }//mx
+      of<<"\n";
+    }//v
+
+    of<<"\n";
+  }//mv
 
 
   return 0;
