@@ -345,6 +345,70 @@ HF_hartreeFock.cpp has routines for Hartree Fock
   return 0;
 }
 
+//******************************************************************************
+void ElectronOrbitals::orthonormaliseOrbitals(int num_its)
+/*
+Forces ALL orbitals to be orthogonal to each other, and normal
+Note: workes best if run twice!
+No idea why, but need to include factor of 0.5!? Am I double counting?
+|a> ->  |a> - \sum_{b!=a} |b><b|a>
+Then:
+|a> -> |a> / <a|a>
+c_ba = c_ab = <a|b>
+num_its is optional parameter. Repeats that many times!
+*/
+{
+  int Ns = nlist.size();
+  std::vector< std::vector<double> > c_ab(Ns, std::vector<double>(Ns));
+
+  //Calculate c_ab = <a|b>  [for b>a -- symmetric]
+  for(int a=0; a<Ns; a++){
+    for(int b=a+1; b<Ns; b++){
+      if(kappa[a]!=kappa[b]) continue;
+      double fab = INT::integrate3(p[a],p[b],drdt);
+      double gab = INT::integrate3(q[a],q[b],drdt);
+      c_ab[a][b] = 0.5*h*(fab+gab); //XXX Why 0.5???
+      //std::cout<<a<<" "<<b<<" "<<c_ab[a][b]<<"\n";
+    }
+  }
+
+  //fill in the a>b part:
+  for(int b=0; b<Ns; b++){
+    for(int a=b+1; a<Ns; a++){
+      if(kappa[a]!=kappa[b]) continue;
+      c_ab[a][b] = c_ab[b][a];
+    }
+  }
+
+  //Orthogonalise orbitals:
+  for(int a=0; a<Ns; a++){
+    for(int b=0; b<Ns; b++){
+      if(a==b) continue;
+      if(kappa[a]!=kappa[b]) continue;
+      double cab = c_ab[a][b];
+      if(cab==0) continue; //already?
+      for(int ir=0; ir<ngp; ir++){
+        p[a][ir] -= cab*p[b][ir];
+        q[a][ir] -= cab*q[b][ir];
+      }
+    }
+  }
+
+  //Re-normalise orbitals (nb: doesn't make much difference)
+  for(int a=0; a<Ns; a++){
+    double faa = INT::integrate3(p[a],p[a],drdt);
+    double gaa = INT::integrate3(q[a],q[a],drdt);
+    double norm = 1./sqrt(h*(faa+gaa));
+    for(int ir=0; ir<ngp; ir++){
+      p[a][ir] *= norm;
+      q[a][ir] *= norm;
+    }
+  }
+
+  //If necisary: repeat
+  if(num_its>1) orthonormaliseOrbitals(num_its-1);
+
+}
 
 //******************************************************************************
 double ElectronOrbitals::enGuessCore(int n, int l)

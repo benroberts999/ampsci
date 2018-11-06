@@ -60,6 +60,8 @@ int main(void){
         wf.en[i],del);
   }
 
+  //wf.orthonormaliseOrbitals(2);
+
   if(extra){
     // Calculate the expectation value of r^rpow for each state in list:
     printf("\nExpectation value of r^n (radial integral)\n");
