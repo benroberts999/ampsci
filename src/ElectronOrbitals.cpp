@@ -412,6 +412,89 @@ num_its is optional parameter. Repeats that many times!
 }
 
 //******************************************************************************
+void ElectronOrbitals::orthonormaliseValence(int num_its)
+/*
+
+|v> --> |v> - sum_c |c><c|v> - sum_{w!=v} |w><w|v>
+*/
+{
+  int Ns_T = nlist.size();
+  int Ns_c = num_core_states;
+  int Ns_v = Ns_T - Ns_c;
+
+  //std::vector< std::vector<double> > c_ab(Ns, std::vector<double>(Ns));
+// std::cout<<Ns_T<<" "<<Ns_c<<" "<<Ns_v<<"\n";
+  std::vector< std::vector<double> > A_vc(Ns_v, std::vector<double>(Ns_c));
+  for(int iv=Ns_c; iv<Ns_T; iv++){
+    for(int ic=0; ic<Ns_c; ic++){
+      // std::cout<<kappa[iv]<<"+"<<kappa[ic]<<"..";
+      if(kappa[iv]!=kappa[ic]) continue;
+      double fvc = INT::integrate3(p[iv],p[ic],drdt);
+      double gvc = INT::integrate3(q[iv],q[ic],drdt);
+      A_vc[iv-Ns_c][ic] = h*(fvc+gvc); //no 0.5 here - not symmetric!
+      // std::cout<<iv<<" "<<ic<<" "<<A_vc[iv-Ns_c][ic]<<"\n";
+    }
+    // std::cout<<"\n";
+  }
+  // std::cout<<"\n";
+  // std::cout<<"\n";
+
+  std::vector< std::vector<double> > A_vw(Ns_v, std::vector<double>(Ns_v));
+  for(int iv=Ns_c; iv<Ns_T; iv++){
+    for(int iw=iv+1; iw<Ns_T; iw++){
+      if(kappa[iv]!=kappa[iw]) continue;
+      double fvw = INT::integrate3(p[iv],p[iw],drdt);
+      double gvw = INT::integrate3(q[iv],q[iw],drdt);
+      A_vw[iv-Ns_c][iw-Ns_c] = 0.5*h*(fvw+gvw);
+      //std::cout<<iv<<" "<<iw<<" "<<A_vw[iv-Ns_c][iw-Ns_c]<<"\n";
+    }
+  }
+  //fill in the iv>iw part:
+  for(int iw=Ns_c; iw<Ns_T; iw++){
+    for(int iv=iw+1; iv<Ns_T; iv++){
+      if(kappa[iv]!=kappa[iw]) continue;
+      A_vw[iv-Ns_c][iw-Ns_c] = A_vw[iw-Ns_c][iv-Ns_c];
+    }
+  }
+//std::cout<<"\n";
+  for(int iv=Ns_c; iv<Ns_T; iv++){
+    for(int ic=0; ic<Ns_c; ic++){
+      if(kappa[iv]!=kappa[ic]) continue;
+      double Avc = A_vc[iv-Ns_c][ic];
+      if(Avc==0) continue; //never?
+      for(int ir=0; ir<ngp; ir++){
+        p[iv][ir] -= Avc*p[ic][ir];
+        q[iv][ir] -= Avc*q[ic][ir];
+      }
+    }
+    for(int iw=Ns_c; iw<Ns_T; iw++){
+      if(iv==iw) continue;
+      if(kappa[iv]!=kappa[iw]) continue;
+      double Avw = A_vw[iv-Ns_c][iw-Ns_c];
+      if(Avw==0) continue; //never?
+      for(int ir=0; ir<ngp; ir++){
+        p[iv][ir] -= Avw*p[iw][ir];
+        q[iv][ir] -= Avw*q[iw][ir];
+      }
+    }
+  }
+
+  for(int iv=Ns_c; iv<Ns_T; iv++){
+    double fvv = INT::integrate3(p[iv],p[iv],drdt);
+    double gvv = INT::integrate3(q[iv],q[iv],drdt);
+    double norm = 1./sqrt(h*(fvv+gvv));
+    for(int ir=0; ir<ngp; ir++){
+      p[iv][ir] *= norm;
+      q[iv][ir] *= norm;
+    }
+  }
+
+  //If necisary: repeat
+  if(num_its>1) orthonormaliseValence(num_its-1);
+
+}
+
+//******************************************************************************
 double ElectronOrbitals::enGuessCore(int n, int l)
 /*
 Private

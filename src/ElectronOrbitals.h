@@ -79,6 +79,7 @@ class ElectronOrbitals{
     int maxCore_n(void);
 
     void orthonormaliseOrbitals(int num_its=1);
+    void orthonormaliseValence(int num_its);
 
     double enGuessCore(int n, int l);
     double enGuessVal(int n, int ka);

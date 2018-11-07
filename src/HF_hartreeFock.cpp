@@ -126,16 +126,15 @@ Calculate valence states in frozen Hartree-Fock core
     //Solve Dirac using new potential:
     wf.reSolveLocalDirac(a,en_new,vexa,3);
     double eps = fabs((wf.en[a]-en_old)/(eta*en_old));
-    //wf.orthonormaliseOrbitals(1); //??
+    wf.orthonormaliseValence(1);
     printf("\rHF val:%2i %2i %2i | %3i eps=%6.1e  en=%11.8f                  "
     ,a,na,ka,hits,eps,wf.en[a]);
     std::cout<<std::flush;
-    if(eps<eps_HF) break;
+    if(eps<eps_HF && hits>2) break;
   }
   std::cout<<"\n";
   wf.reSolveLocalDirac(a,wf.en[a],vexa,15);
-  wf.orthonormaliseOrbitals(2); //?? XXX here, but not below??
-  //XXX Change! XXX Don't let valence influence core!!
+  wf.orthonormaliseValence(2);
   return hits;
 }
 
