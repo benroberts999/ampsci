@@ -28,6 +28,7 @@ double ninej_2(int two_j1, int two_j2, int two_j3, int two_j4, int two_j5,
   int two_j6, int two_j7, int two_j8, int two_j9);
 
 int parity(int la, int lb, int k);
+int triangle(double j1, double j2, double J);
 
 }
 #endif

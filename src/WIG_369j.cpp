@@ -13,6 +13,7 @@ integer angular momentum (l).
  * Other '_2' version, takes in 2*j (as an integer). Works for l and j
 */
 
+//******************************************************************************
 int parity(int la, int lb, int k)
 /*
 Parity rule. Returns 1 only if la+lb+k is even
@@ -22,6 +23,18 @@ Parity rule. Returns 1 only if la+lb+k is even
   return 0;
 }
 
+//******************************************************************************
+int triangle(double j1, double j2, double J)
+/*
+Triangle rule. XXX NOT TESTED XXX
+*/
+{
+  int two_j1 = (int) round(2*j1);
+  int two_j2 = (int) round(2*j2);
+  int two_J  = (int) round(2*J);
+  if((two_j1+two_j2<two_J)||(abs(two_j1-two_j2)>two_J)) return 0;
+  return 1;
+}
 
 //******************************************************************************
 double threej(double j1, double j2, double j3, double m1, double m2, double m3)

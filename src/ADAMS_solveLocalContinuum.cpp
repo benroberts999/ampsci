@@ -11,8 +11,9 @@ solution should be sinosoidal. Then, matches amplitude with low-r expansion.
 Therefore, need grid to go very far out (v. large r).
 Also, need at least ~10 points per half-period. More points for higher energy!
 
-===== To do :: Jan 2018 =====
+===== To do =====
   * p,q -> f,g!
+  * Find asymptotic region + normalise...better?
 
 */
 
@@ -23,6 +24,14 @@ int solveContinuum(std::vector<double> &p, std::vector<double> &q, double ec,
     std::vector<double> rc, std::vector<double> drdt, double h,
     int NGPb, int NGPc, int i_asym,
     double alpha)
+/*
+Solves Dirac equation for continuum state, for given energy, ec
+by integrating outwards from 0
+ec > 0
+Normalises wf. by comparison w/ H-like solution at v. large r
+NGPb id the regular (bound-state) grid.
+NGPc is grid for continuum (only for solving). NGPc >> NGPb
+*/
 {
 
   //Perform the "outwards integration"
@@ -49,18 +58,6 @@ int solveContinuum(std::vector<double> &p, std::vector<double> &q, double ec,
     q[i] = sf*qc[i];
   }
 
-  // //XXX TEST: Output wfs:
-  // std::ofstream ofile,ofileN;
-  // ofileN.open("contN.txt");
-  // ofile.open("cont.txt");
-  // for(int i=0; i<NGPc; i++){
-  //   ofile<<rc[i]<<" "<<pc[i]<<" "<<qc[i]<<"\n";
-  //   ofileN<<rc[i]<<" "<<sf*pc[i]<<" "<<sf*qc[i]<<"\n";
-  // }
-  // ofileN.close();
-  // ofile.close();
-
-
   return 0;
 }
 
@@ -73,7 +70,6 @@ double findSineAmplitude(std::vector<double> pc, std::vector<double> rc,
  Scale by ratio of this maximum to max of analytic soln
 */
 {
-
   int ntry=0, maxtry=5;
   double amp=0;
   while(ntry<maxtry){
@@ -120,7 +116,7 @@ Finds a 'better' guess for the asymptotic region, by looking for where
 the period of oscilations becomes constant
 (variation in periof drops below certain value)
 
-XXX Note: this method only 'kinda' works???
+Note: this method works well, but not perfectly.
  a) am I not going out far enough?
  b) Or, it's just not that accurate? Seems acurate to 1 - 0.1% ?
 
@@ -172,12 +168,11 @@ i.e., will return amplitude of since function.
 Note: the given 3 points _MUST_ be close to maximum, otherwise, fit wont work
 */
 {
-
   if(y1<0) y1=fabs(y1);
   if(y2<0) y2=fabs(y2);
   if(y3<0) y3=fabs(y3);
 
-  double d = (x1 - x2)*(x1 - x3)*(x2 - x3);
+  double d  = (x1 - x2)*(x1 - x3)*(x2 - x3);
   double Ad = x3*(x2*(x2 - x3)*y1 + x1*(-x1 + x3)*y2) + x1*(x1 - x2)*x2*y3;
   double Bd = x3*x3*(y1 - y2) + x1*x1*(y2 - y3) + x2*x2*(-y1 + y3);
   double Cd = x3*(-y1 + y2) + x2*(y1 - y3) + x1*(-y2 + y3);
@@ -191,7 +186,6 @@ Note: the given 3 points _MUST_ be close to maximum, otherwise, fit wont work
   if(ymax>y0) y0 = ymax; //y0 can't be less than (y1,y2,y3)
 
   return y0;
-
 }
 
 

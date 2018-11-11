@@ -3,6 +3,10 @@
 #include <string>
 #include <iostream>
 
+/*
+ * Add nuclear properties!
+*/
+
 namespace ATI{
 
 //Default values for A for each atom.
@@ -69,7 +73,6 @@ inline int get_z(std::string at){
 
 
 //Shell configurations for Noble gasses (Group 8)
-// ??? OK?
 const std::vector<int> core_He
   ={2};
 const std::vector<int> core_Ne
@@ -85,6 +88,7 @@ const std::vector<int> core_Rn
 const std::vector<int> core_Og
   ={2, 2,6, 2,6,10, 2,6,10,14, 2,6,10,14,0, 2,6,10,0,0,0, 2,6};
 
+//Some other useful 'semi' full shells (transition)
 const std::vector<int> core_Zn
   ={2, 2,6, 2,6,10, 2};
 const std::vector<int> core_Cd

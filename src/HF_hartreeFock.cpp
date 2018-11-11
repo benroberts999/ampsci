@@ -75,7 +75,8 @@ Note: V_HF = V_dir + V_ex    -- note sign convention!
     }
     t_eps /= (wf.num_core_electrons*eta);
 
-    wf.orthonormaliseOrbitals(1); //??
+    //Force all core orbitals to be orthogonal to each other
+    wf.orthonormaliseOrbitals(1);
 
     printf("\rHF core        it:%3i eps=%6.1e              ",hits,t_eps);
     std::cout<<std::flush;
@@ -87,7 +88,7 @@ Note: V_HF = V_dir + V_ex    -- note sign convention!
   // + re-solve direct potential (higher precission)
   for(int i=0; i<Ncs; i++) wf.reSolveLocalDirac(i,wf.en[i],vex[i],15);
   wf.orthonormaliseOrbitals(1);
-  formNewVdir(wf,wf.vdir,false);
+  formNewVdir(wf,wf.vdir,false); //+ new v_ex??
   for(int i=0; i<Ncs; i++) wf.reSolveLocalDirac(i,wf.en[i],vex[i],15);
   wf.orthonormaliseOrbitals(2);
 
@@ -126,6 +127,7 @@ Calculate valence states in frozen Hartree-Fock core
     //Solve Dirac using new potential:
     wf.reSolveLocalDirac(a,en_new,vexa,3);
     double eps = fabs((wf.en[a]-en_old)/(eta*en_old));
+    //Force valence states to be orthogonal to each other + to core:
     wf.orthonormaliseValence(1);
     printf("\rHF val:%2i %2i %2i | %3i eps=%6.1e  en=%11.8f                  "
     ,a,na,ka,hits,eps,wf.en[a]);
@@ -133,6 +135,7 @@ Calculate valence states in frozen Hartree-Fock core
     if(eps<eps_HF && hits>2) break;
   }
   std::cout<<"\n";
+  //Re-solve w/ higher precission (probs not needed)
   wf.reSolveLocalDirac(a,wf.en[a],vexa,15);
   wf.orthonormaliseValence(2);
   return hits;
@@ -232,6 +235,8 @@ Note sign convention: V = V_dir + V_ex [-ve inside Vex!]
 Note: the "fac" method is not 100% correct. Unstable for small f_a
 I get around this by introducing a cut-off. OK, but not ideal.
 Parallelised over core states. note: Must use omp critical
+NOTE: Doesn't work for core f states! Because of above dodgy??
+For now: exclude core f states. Ok, but not ideal
 */
 {
   int ngp = wf.ngp;
@@ -294,7 +299,6 @@ Parallelised over core states. note: Must use omp critical
     }//r
   }//b loop
   return 0;
-
 }
 
 //******************************************************************************

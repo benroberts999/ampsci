@@ -93,8 +93,6 @@ class ElectronOrbitals{
 
     //Grid
     int JohnsonRadialGrid(int ngp_in, double r0=1.e-6, double rmax=250.);
-    // int DzubaRadialGrid(int ngp_in, double r0, double rmax, double b=4.);
-    // int DzubaRadialGrid(double in_h, double r0, double rmax, double b=4.);
     int zeroNucleus();
 
 

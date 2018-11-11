@@ -1,12 +1,19 @@
 //class ElectronOrbitals::
 #include "ElectronOrbitals.h"
 
+/*
+ ==== To Do ====
+ * Write out to disk
+ * Store core/valence ok? What about semi-filled shells?
+ * Fix filling for j=l+1/2 semi-filled core shells!!
+
+*/
+
 //******************************************************************************
 ElectronOrbitals::ElectronOrbitals(int in_z, int in_a, int in_ngp, double rmin,
   double rmax, double var_alpha)
 {
 
-  //JohnsonRadialGrid(in_ngp,rmin,rmax);
   DzubaRadialGrid(in_ngp,rmin,rmax);
 
   alpha=FPC::alpha*var_alpha;
@@ -27,7 +34,6 @@ ElectronOrbitals::ElectronOrbitals(std::string s_in_z, int in_a, int in_ngp,
 }
 
 
-
 //******************************************************************************
 int ElectronOrbitals::solveLocalDirac(int n, int k, double e_a, int log_dele_or)
 /*
@@ -39,11 +45,14 @@ Uses ADAMS::solveDBS to solve Dirac Eqn for local potential (Vnuc + Vdir)
   std::vector<double> p_a(ngp);
   std::vector<double> q_a(ngp);
 
+  //Fill V(r) with nulcear + DIRECT part of electron potential
+  //nb: for exchange part, need to use reSolveLocalDirac()
   std::vector<double> v_a = vnuc;
   if(vdir.size()!=0){
     for(int i=0; i<ngp; i++) v_a[i] += vdir[i];
   }
 
+  //Solve local dirac Eq:
   int i_ret = ADAMS::solveDBS(p_a,q_a,e_a,v_a,Z,n,k,r,drdt,h,ngp,pinf,its,eps,
     alpha,log_dele_or);
   //Store wf + energy
@@ -104,12 +113,13 @@ Not fully tested yet!
 
 //******************************************************************************
 int ElectronOrbitals::reSolveLocalDirac(int i, double e_a, int log_dele_or)
-/*Overloaded version; see below*/
+/*Overloaded version; see below
+This one doesn't have exchange potential
+*/
 {
   std::vector<double> dummy_vex;
   return reSolveLocalDirac(i,e_a,dummy_vex,log_dele_or);
 }
-
 //******************************************************************************
 int ElectronOrbitals::reSolveLocalDirac(int i, double e_a,
   std::vector<double> vex, int log_dele_or)
@@ -118,6 +128,11 @@ int ElectronOrbitals::reSolveLocalDirac(int i, double e_a,
 Over-rides existing solution.
 If no e_a is given, will use the existing one!
 (Usually, a better guess should be given, using P.T.)
+Note: optionally takes in exchange potential! (see overloaded above)
+Note: Uses the "dodgy" re-scaled exchange potenital:
+Vex\psi_a = sum_b vex_a psi_b -> [sum_b vex_a (psi_b/psi_a)] psi_a
+so, here, vex = [sum_b vex_a (psi_b/psi_a)]
+This is not ideal..
 */
 {
   int pinf,its;
@@ -196,6 +211,10 @@ E.g:
   Core of Gold: Xe 4f14 5d10
 'rest' is in form nLm : n=n, L=l, m=number of electrons in that nl shell.
 NOTE: Only works up to n=9, and l=5 [h]
+
+XXX NOTE: for now, fills the l-1/2 states first [when shell not full]
+Not correct! Should do both, but use occupance fractions!! XXX
+(Not here, actually, this comment belongs in 'solveInitialCore')
 */
 {
 
@@ -278,6 +297,7 @@ bool ElectronOrbitals::isInCore(int n, int k)
 /*
 Checks if given state is in the core.
 NOTE: in some cases, given state may be in and out! Account for this?
+XXX Also check occupancy fraction? Do seperately!
 */
 {
   for(int i=0; i<num_core_states; i++)
@@ -319,6 +339,7 @@ HF_hartreeFock.cpp has routines for Hartree Fock
     }
     int k2 = -(l+1); //j=l+1/2
     if(num>2*l) solveLocalDirac(n,k2,en_a,log_dele_or);
+    //XXX Here! Solve BOTH, and adjust with occ. fraction!! XXX
   }
   num_core_states = nlist.size(); //store number of states in core
 
@@ -350,12 +371,15 @@ void ElectronOrbitals::orthonormaliseOrbitals(int num_its)
 /*
 Forces ALL orbitals to be orthogonal to each other, and normal
 Note: workes best if run twice!
-No idea why, but need to include factor of 0.5!? Am I double counting?
 |a> ->  |a> - \sum_{b!=a} |b><b|a>
 Then:
 |a> -> |a> / <a|a>
 c_ba = c_ab = <a|b>
 num_its is optional parameter. Repeats that many times!
+Note: I force all orthog to each other - i.e. double count.
+{force <2|1>=0 and then <1|2>=0}
+Would be 2x faster not to do this - but that would treat some orbitals special!
+Hence factor of 0.5
 */
 {
   int Ns = nlist.size();
@@ -367,8 +391,7 @@ num_its is optional parameter. Repeats that many times!
       if(kappa[a]!=kappa[b]) continue;
       double fab = INT::integrate3(p[a],p[b],drdt);
       double gab = INT::integrate3(q[a],q[b],drdt);
-      c_ab[a][b] = 0.5*h*(fab+gab); //XXX Why 0.5???
-      //std::cout<<a<<" "<<b<<" "<<c_ab[a][b]<<"\n";
+      c_ab[a][b] = 0.5*h*(fab+gab); //0.5 avoids double counting
     }
   }
 
@@ -395,7 +418,6 @@ num_its is optional parameter. Repeats that many times!
   }
 
   //Re-normalise orbitals (nb: doesn't make much difference)
-  //#pragma omp parallel for
   for(int a=0; a<Ns; a++){
     double faa = INT::integrate3(p[a],p[a],drdt);
     double gaa = INT::integrate3(q[a],q[a],drdt);
@@ -408,13 +430,15 @@ num_its is optional parameter. Repeats that many times!
 
   //If necisary: repeat
   if(num_its>1) orthonormaliseOrbitals(num_its-1);
-
 }
 
 //******************************************************************************
 void ElectronOrbitals::orthonormaliseValence(int num_its)
 /*
-
+Force valence orbitals to be orthogonal to:
+  a) core orbitals
+  b) other valence orbitals
+After the core is 'frozen', don't touch core orbitals!
 |v> --> |v> - sum_c |c><c|v> - sum_{w!=v} |w><w|v>
 */
 {
@@ -422,42 +446,38 @@ void ElectronOrbitals::orthonormaliseValence(int num_its)
   int Ns_c = num_core_states;
   int Ns_v = Ns_T - Ns_c;
 
-  //std::vector< std::vector<double> > c_ab(Ns, std::vector<double>(Ns));
-// std::cout<<Ns_T<<" "<<Ns_c<<" "<<Ns_v<<"\n";
+  //Calculate the core-valence coeficients <c|v> = A_cv
   std::vector< std::vector<double> > A_vc(Ns_v, std::vector<double>(Ns_c));
   for(int iv=Ns_c; iv<Ns_T; iv++){
     for(int ic=0; ic<Ns_c; ic++){
-      // std::cout<<kappa[iv]<<"+"<<kappa[ic]<<"..";
       if(kappa[iv]!=kappa[ic]) continue;
       double fvc = INT::integrate3(p[iv],p[ic],drdt);
       double gvc = INT::integrate3(q[iv],q[ic],drdt);
-      A_vc[iv-Ns_c][ic] = h*(fvc+gvc); //no 0.5 here - not symmetric!
-      // std::cout<<iv<<" "<<ic<<" "<<A_vc[iv-Ns_c][ic]<<"\n";
+      A_vc[iv-Ns_c][ic] = h*(fvc+gvc); //no 0.5 here - no double counting
     }
-    // std::cout<<"\n";
   }
-  // std::cout<<"\n";
-  // std::cout<<"\n";
 
+  //Calculate the valence-valence coefs, <v|w> [only for w>v]
   std::vector< std::vector<double> > A_vw(Ns_v, std::vector<double>(Ns_v));
   for(int iv=Ns_c; iv<Ns_T; iv++){
     for(int iw=iv+1; iw<Ns_T; iw++){
       if(kappa[iv]!=kappa[iw]) continue;
       double fvw = INT::integrate3(p[iv],p[iw],drdt);
       double gvw = INT::integrate3(q[iv],q[iw],drdt);
-      A_vw[iv-Ns_c][iw-Ns_c] = 0.5*h*(fvw+gvw);
-      //std::cout<<iv<<" "<<iw<<" "<<A_vw[iv-Ns_c][iw-Ns_c]<<"\n";
+      A_vw[iv-Ns_c][iw-Ns_c] = 0.5*h*(fvw+gvw); //0.5 due to double counting
     }
   }
-  //fill in the iv>iw part:
+  //fill in the symmetric v>w part:
   for(int iw=Ns_c; iw<Ns_T; iw++){
     for(int iv=iw+1; iv<Ns_T; iv++){
       if(kappa[iv]!=kappa[iw]) continue;
       A_vw[iv-Ns_c][iw-Ns_c] = A_vw[iw-Ns_c][iv-Ns_c];
     }
   }
-//std::cout<<"\n";
+
+  //Orthogonalise:
   for(int iv=Ns_c; iv<Ns_T; iv++){
+    //Core-valence part:
     for(int ic=0; ic<Ns_c; ic++){
       if(kappa[iv]!=kappa[ic]) continue;
       double Avc = A_vc[iv-Ns_c][ic];
@@ -467,6 +487,7 @@ void ElectronOrbitals::orthonormaliseValence(int num_its)
         q[iv][ir] -= Avc*q[ic][ir];
       }
     }
+    //valence-valence part:
     for(int iw=Ns_c; iw<Ns_T; iw++){
       if(iv==iw) continue;
       if(kappa[iv]!=kappa[iw]) continue;
@@ -479,6 +500,7 @@ void ElectronOrbitals::orthonormaliseValence(int num_its)
     }
   }
 
+  //Re-normalise the orbitals:
   for(int iv=Ns_c; iv<Ns_T; iv++){
     double fvv = INT::integrate3(p[iv],p[iv],drdt);
     double gvv = INT::integrate3(q[iv],q[iv],drdt);
@@ -491,7 +513,6 @@ void ElectronOrbitals::orthonormaliseValence(int num_its)
 
   //If necisary: repeat
   if(num_its>1) orthonormaliseValence(num_its-1);
-
 }
 
 //******************************************************************************
@@ -553,9 +574,9 @@ int ElectronOrbitals::JohnsonRadialGrid(int in_ngp, double r0, double rmax)
 Non-uniform r grid, taken from Johnson book (w/ minor modification).
 Quite a standard exponential grid.
 Uses:
-   dr/dt = r0 * exp(t)
-=> r = r0 * exp(t)
-   t = i*h for i=0,1,2,...
+  dr/dt = r0 * exp(t)
+  =>  r = r0 * exp(t)
+      t = i*h for i=0,1,2,...
 */
 {
 
@@ -696,8 +717,6 @@ double ElectronOrbitals::diracen(double z, double n, int k){
 }
 
 
-
-
 //******************************************************************************
 int ElectronOrbitals::zeroNucleus()
 /*
@@ -817,11 +836,16 @@ https://www.gnu.org/software/gsl/manual/html_node/Complete-Fermi_002dDirac-Integ
 
 //******************************************************************************
 bool ELO_sortcol( const std::vector<double>& v1,
-               const std::vector<double>& v2 ) {
+    const std::vector<double>& v2)
+{
     return v1[0] > v2[0];
 }
-//******************************************************************************
+//------------------------------------------------------------------------------
 int ElectronOrbitals::sortedEnergyList(std::vector<int> &sort_list)
+/*
+Outouts a list of integers corresponding to the states
+sorted by energy (lowest energy first)
+*/
 {
 
   std::vector< std::vector<double> > t_en;
@@ -836,5 +860,4 @@ int ElectronOrbitals::sortedEnergyList(std::vector<int> &sort_list)
     sort_list.push_back((int)t_en[i][1]);
   }
   return 0;
-
 }

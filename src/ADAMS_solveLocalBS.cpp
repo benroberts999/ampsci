@@ -8,8 +8,10 @@ Employs the Adams-Moulton method.
 solveDBS is the main routine that is called from elsewhere.
 All other functions called by solveDBS.
 
-===== To do :: Jan 2018 =====
-  * p,q -> f,g! Check the q cancellation!
+=====  To Do  =====
+  * p,q -> f,g! Check the q cancellation! Analytically remove??
+  * Check outint low-r expansion. Works with fns???
+  * Modify for inhomogeneous equation?
 
 */
 
@@ -17,8 +19,6 @@ namespace ADAMS{
 
 bool debug=false; //if true, will print progress messages.
 //parameter: Adams-Moulton ''order'' (number of points)
-
-
 
 //******************************************************************************
 int solveDBS(std::vector<double> &p, std::vector<double> &q, double &en,
@@ -73,12 +73,12 @@ an error.
 
   if(log_dele_or>0){
     delep=1./pow(10,log_dele_or);
-    deles=10*delep;
+    deles=1000*delep;
+    if(deles>0.1) deles = 0.1;
   }
 
-  //Checks to see if legal n is requested. If not, increases n, re-calls
-  //Should I do this? If there's a logic problem, probably better to know?
-  if ( (fabs(ka)<=n) && (ka!=n) ){
+  //Checks to see if legal n is requested.
+  if ( (abs(ka)<=n) && (ka!=n) ){
     if(debug) printf("\nRunning SolveDBS for state %i %i:\n",n,ka);
   }else{
     printf("\nSate %i %i does not exist..\n",n,ka);
@@ -110,7 +110,7 @@ an error.
     //Step backwards from the last point (NGP-1) until
     // (V(r) - E)*r^2 >  alr    (alr = "asymptotically large r")
     pinf=NGP-1;
-    while((en-v[pinf])*pow(r[pinf],2) + alr < 0) pinf--; //pinf=pinf-1;
+    while((en-v[pinf])*pow(r[pinf],2) + alr < 0) pinf--;
     if((pinf==NGP-1)&& debug)
       printf("WARNING: pract. inf. = size of box for %i %i\n",n,ka);
     if(debug)
@@ -216,15 +216,9 @@ an error.
       delta_en=fabs((en-etemp)/en);
       en=etemp;
     }else{
-      // XXX Maybe, put this into a function!
       // correct number of nodes.
       //From here, use perturbation theory to fine-time the energy
       if(debug) printf("Correct number of nodes, starting P.T.\n");
-      // std::vector<double> ppqq(NGP);
-      // for (int i=0; i<=pinf; i++){
-      //   ppqq[i]=p[i]*p[i]+q[i]*q[i];    // XXX add alpha here if need!
-      // }
-      // anorm=INT::integrate(ppqq,drdt,h,0,pinf);
       double anormP = INT::integrate3(p,p,drdt,h,0,pinf);
       double anormQ = INT::integrate3(q,q,drdt,h,0,pinf);
       anorm = anormP + anormQ;
@@ -252,7 +246,7 @@ an error.
         delta_en=fabs((en-0.5*(en+elower))/en);
         en=0.5*(en+elower);
       }else if((more!=0)&&(etemp>eupper)){
-        delta_en=fabs((en-0.5*(en+eupper))/en); //should be fabs? wasn't??
+        delta_en=fabs((en-0.5*(en+eupper))/en);
         en=0.5*(en+eupper);
       }else if(delta_en<delep){
         en=etemp;
@@ -279,7 +273,8 @@ an error.
                ka,ntry);
         if(debug) printf("%i %i: Pinf= %.1f,  en= %f\n",n,ka,r[pinf],en);
         eps=delta_en;
-        return 2;
+        //return 2; XXX Have a return code! see below!
+        break; //still proceed to normalise!!
       }
     }
 
@@ -305,7 +300,7 @@ an error.
            r[pinf],en);
   }
 
-  return 0; // XXX XXX XXX have a code!!!!!
+  return 0; // have a code!!!!!
 }
 
 //*********************************************************
