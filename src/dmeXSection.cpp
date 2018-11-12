@@ -29,6 +29,17 @@ double rhoDM_GeVcm3 = 0.4; // GeV/cm^3
 ////////////////////////////////////////////////////////////////////////////////
 
 
+//******************************************************************************
+double g(double s, double x){
+  double a = 0.398942/s;
+  double y = (x/s)*(x/s);
+  // if(y<0.2) return a*(1.-0.5*pow(x,2)+0.125*pow(x,4)-0.02083*pow(x,6)
+  //  +0.0026042*pow(x,8)-0.00026042*pow(x,10));
+  return a*exp(-0.5*y);
+}
+
+
+//******************************************************************************
 double fv_au(double v_au, double phi=0);
 //******************************************************************************
 double fv_au(double v_au, double phi){
@@ -321,7 +332,57 @@ int main(void){
   }//mv
 
   if(desteps==1) return 0; //finished
+  std::cout.precision(4);
+  std::cout<<std::scientific;
 
 
+
+  int imv = 0;
+  int imx = 0;
+  double dEonE = log(demax/demin)/(desteps-1);
+
+  //calculate Gaussian smearing (DAMA)
+  std::vector<double> y(desteps);
+  for(int i = 0; i<desteps; i++){
+    double E = demin*pow(demax/demin,double(i)/(desteps-1));
+    double y0 = 0;
+    double alph = 0.45 - 0.04; //do thrice?? XXX
+    double s = (alph*sqrt(E*E_to_keV) + 0.009*(E*E_to_keV))/E_to_keV;
+    //std::cout<<E*E_to_keV<<" "<<s*E_to_keV<<" "<<s<<"\n";
+    for(int j = 0; j<desteps; j++){
+      double Ep = demin*pow(demax/demin,double(j)/(desteps-1));
+      y0 += g(s,E-Ep)*dsv_mv_mx_x[imv][imx][j]*Ep;
+      // std::cout<<"E: "<<E<<" "<<Ep<<" "<<g(s,E-Ep)<<" "<<y0<<"\n";
+    }
+    y[i] = y0*dEonE;
+    // std::cout<<"y "<<y0<<" "<<dEonE<<" "<<g(s,E-0.6)<<"\n";
+  }
+
+  double Ea=0.5/E_to_keV;
+  while(Ea<4.5/E_to_keV){
+    Ea += 0.5/E_to_keV;
+    double Eb=Ea + 0.5/E_to_keV;
+    double tmpa = (desteps-1)*log(Ea/demin)/log(demax/demin);
+    double tmpb = (desteps-1)*log(Eb/demin)/log(demax/demin);
+    int ieA = (int) ceil(tmpa);
+    int ieB = (int) ceil(tmpb);
+    if(ieB>=desteps) break;
+    //std::cout<<ieA<<" "<<ieB<<"\n";
+
+    double Rate=0;
+
+
+    for(int ie = ieA; ie<=ieB; ie++){
+      double xe = double(ie)/(desteps-1);
+      double E = demin*pow(demax/demin,xe);
+
+      // Rate += dsv_mv_mx_x[imv][imx][ie]*E;
+      Rate += y[ie]*E;
+
+    }
+    Rate*=dEonE;
+    // std::cout<<dEonE<<" "<<Rate<<"\n";
+    printf("%3.1f-%3.1f: %.2e\n",Ea*E_to_keV,Eb*E_to_keV,Rate);
+  }
   return 0;
 }
