@@ -2,15 +2,34 @@
 #include "SHM_standardHaloModel.h"
 #include <iomanip>
 
-// double fv(double v){
-//   if(v<0.1) return 0;
-//   else if(v>750.) return 0;
-//   else return 1./750.;
-// }
+////////////////////////////////////////////////////////////////////////////////
+//Units Conversion Factors.
+//Conver FROM a.u. TO rel./other units
+double E_to_keV = FPC::Hartree_eV/1000.; //au -> keV (energy)
+double M_to_GeV = FPC::m_e_MeV/1000.;
+double M_to_MeV = FPC::m_e_MeV;
+double V_to_kms = (FPC::c_SI/FPC::c)/1000.;
+  double V_to_cms = (FPC::c_SI*FPC::alpha)*100.; // au -> cm/s
+  double V_to_cmday = V_to_cms*(24*60*60); // cm/s -> cm/day
+double Q_to_MeV = FPC::Hartree_eV*FPC::c/1.e6;
+//cross section: ds/dE
 
-// double fv(double v, double phi=0);
+double dsdE_to_cm2keV = pow(FPC::aB_cm,2)/E_to_keV; // au -> cm^2/keV
+double dsvdE_to_cm3keVday = dsdE_to_cm2keV*V_to_cmday;
+
+//Numberical constant. For alpha_chi = 1 !
+// (if want alpgha_chi = alpha in the code, kill c2 )
+double A_au = 8*M_PI*FPC::c2;
+//Convert from au -> cm^2/keV
+double A_cmkeV = A_au*dsdE_to_cm2keV;
+
+//DM energy density (in GeV/cm^3)
+//note: will be divided by m_chi, also in GeV
+double rhoDM_GeVcm3 = 0.4; // GeV/cm^3
+////////////////////////////////////////////////////////////////////////////////
+
+
 double fv_au(double v_au, double phi=0);
-
 //******************************************************************************
 double fv_au(double v_au, double phi){
   double v = v_au * (FPC::c_SI/FPC::c); //will be in m/s
@@ -24,6 +43,10 @@ template<typename T>
 double dsdE_iEdEvum_qg(std::vector< std::vector< std::vector<T> > > &K_enq,
   int iE, double dE, double v, double mu, double mx,
   double qmin, double qmax)
+/*
+calcualtes cross-section ds/dE, for given E, v, mu, and mx.
+Also needs min/max q (from grid) to re-construct q grids.
+*/
 {
   double A_au = 8*M_PI*FPC::c2;
   double v2 = pow(v,2);
@@ -68,30 +91,6 @@ double dsdE_iEdEvum_qg(std::vector< std::vector< std::vector<T> > > &K_enq,
 //******************************************************************************
 int main(void){
 
-  //Units Conversion Factors.
-  //Conver FROM a.u. TO rel./other units
-  double E_to_keV = FPC::Hartree_eV/1000.; //au -> keV (energy)
-  double M_to_GeV = FPC::m_e_MeV/1000.;
-  double M_to_MeV = FPC::m_e_MeV;
-  double V_to_kms = (FPC::c_SI/FPC::c)/1000.;
-    double V_to_cms = (FPC::c_SI*FPC::alpha)*100.; // au -> cm/s
-    double V_to_cmday = V_to_cms*(24*60*60); // cm/s -> cm/day
-  double Q_to_MeV = FPC::Hartree_eV*FPC::c/1.e6;
-  //cross section: ds/dE
-
-  double dsdE_to_cm2keV = pow(FPC::aB_cm,2)/E_to_keV; // au -> cm^2/keV
-  double dsvdE_to_cm3keVday = dsdE_to_cm2keV*V_to_cmday;
-
-  //Numberical constant. For alpha_chi = 1 !
-  // (if want alpgha_chi = alpha in the code, kill c2 )
-  double A_au = 8*M_PI*FPC::c2;
-  //Convert from au -> cm^2/keV
-  double A_cmkeV = A_au*dsdE_to_cm2keV;
-
-  //DM energy density (in GeV/cm^3)
-  //note: will be divided by m_chi, also in GeV
-  double rhoDM_GeVcm3 = 0.4; // GeV/cm^3
-
   //define input parameters
   std::string akfn; //name of K file to read in
   int vsteps;
@@ -99,6 +98,7 @@ int main(void){
   int n_mx,i_mv,n_mv;
   double de_target;
   std::string label="testx";
+  bool plotv = false; //if single dE, plot fn of v!
 
   //Open and read the input file:
   {
@@ -114,6 +114,7 @@ int main(void){
     ifs >> label;                   getline(ifs,jnk);
     ifs.close();
   }
+
   //DM mass:
   mxmin /= M_to_GeV;
   mxmax /= M_to_GeV;
@@ -121,6 +122,7 @@ int main(void){
     mxmax = mxmin;
     n_mx = 1;
   }
+
   //Mediator mass: convert units + set-up finite/infinite case
   if(mvmax<=mvmin || n_mv<=1){
     mvmax = mvmin;
@@ -158,7 +160,6 @@ int main(void){
   int qsteps     = (int) AKenq[0][0].size();
   if(num_states != (int)nklst.size()) return 1; //just sanity check
 
-  bool plotv = false; //if single dE, plot fn of v!
   //If only doing a single dE, find correct index for target dE:
   int i_et = -1;
   if(de_target>0 || desteps==1){
@@ -173,13 +174,14 @@ int main(void){
     }
     demin = de_target;
     demin = de_target;
-    std::cout<<de_target<<"\n";
     if(i_et >= desteps || i_et<0) std::cout<<"Bad E target\n";
     desteps = 1;
+    std::cout<<"Signle dE: i="<<i_et<<" : "<<de_target<<"au = "
+      <<de_target*E_to_keV<<"kev\n";
   }
 
   // Do q derivative on i grid:
-  double dqonq = log(qmax/qmin)/(qsteps-1); //need to multiply by q for dq
+  //double dqonq = log(qmax/qmin)/(qsteps-1); //need to multiply by q for dq
 
   //Grid of f_v(v). Can use to change vel profiles
   std::vector<double> arr_fv(vsteps);
@@ -192,7 +194,7 @@ int main(void){
 
 
   //Print the grid info to screen:
-  printf("q  grid: %6.2f -> %6.2f  MeV, %5i steps\n"
+  printf("\nq  grid: %6.2f -> %6.2f  MeV, %5i steps\n"
     ,qmin*Q_to_MeV,qmax*Q_to_MeV,qsteps);
   printf("E  grid: %6.2f -> %6.2f  keV, %5i steps\n"
     ,demin*E_to_keV,demax*E_to_keV,desteps);
@@ -200,34 +202,39 @@ int main(void){
     ,dv*V_to_kms,max_v*V_to_kms,vsteps);
   printf("Mx grid: %6.2f -> %6.1f  GeV, %5i steps\n"
     ,mxmin*M_to_GeV,mxmax*M_to_GeV,n_mx);
-  printf("Mv grid: %6.3f -> %6.3f  MeV, %5i steps\n"
+  printf("Mv grid: %6.3f -> %6.3f  MeV, %5i steps\n\n"
     ,mvmin*M_to_MeV,mvmax*M_to_MeV,n_mv);
   printf("A = %.1f au = %.2e cm^2/keV\n",A_au,A_cmkeV);
   std::cout<<"ds/dE conversion factor:   "<<dsdE_to_cm2keV<<" cm^2/keV\n"
     <<"ds.v/dE conversion factor: "
-    <<dsvdE_to_cm3keVday<<"   cm^3/keV/day\n";
+    <<dsvdE_to_cm3keVday<<"   cm^3/keV/day\n\n";
 
   // return 1;
 
+  //Open relevant output files
   std::ofstream of;
-  std::string str_E = std::to_string(int(de_target*E_to_keV*1000));
-  if(plotv) of.open("plot-svdE_v-"+str_E+"-"+label+".txt");
-  else      of.open("plot-svdE_dE-"+label+".txt");
+  std::string fname,str_E;
+  str_E = std::to_string(int(de_target*E_to_keV*1000));
+  if(plotv) fname = "plot-sdE_v-"+str_E+"-"+label+".txt";
+  else      fname = "plot-svdE_dE-"+label+".txt";
+  of.open(fname.c_str());
 
-  if(plotv) std::cout<<"Plotting ds.v/dE as function of v:\n";
+  if(plotv) std::cout<<"Plotting ds/dE as function of v:\n";
   else      std::cout<<"Plotting <ds.v>/dE as function of dE:\n";
+  std::cout<<"Filename: "<<fname<<"\n\n";
 
-  double dE = de_target;
-  int ie = i_et;
 
+  //Array to store cross-section
+  // ds.v/dE (fun. of mv, mx, {v or E})
   std::vector< std::vector< std::vector<float> > > dsv_mv_mx_x;
-
   if(plotv) dsv_mv_mx_x.resize(n_mv,
     std::vector< std::vector<float> >(n_mx,std::vector<float>(vsteps)));
   else dsv_mv_mx_x.resize(n_mv,
     std::vector< std::vector<float> >(n_mx,std::vector<float>(desteps)));
 
-
+  //Fill arrays:
+  // If single E (plot v), calculate ds.v/dE for each v
+  // If many E (no plot v), calc <ds.v>/dE for each E
   std::cout.precision(1);
   std::cout<<std::fixed;
   for(int imv=0; imv<n_mv; imv++){
@@ -238,17 +245,18 @@ int main(void){
       double xmx = double(imx)/(n_mx-1);
       double mx = mxmin*pow(mxmax/mxmin,xmx);
       if(n_mx==1) mx = mxmin;
-      std::cout<<"\nmv = "<<mv*M_to_MeV<<" MeV; mx = "<<mx*M_to_GeV<<" GeV\n";
+      std::cout<<"mv = "<<mv*M_to_MeV<<" MeV; mx = "<<mx*M_to_GeV<<" GeV\n";
       //#pragma omp parallel for
       for(int ie=0; ie<desteps; ie++){
         //double a=0;
         double xe = double(ie)/(desteps-1);
         double dE = demin*pow(demax/demin,xe);
-        std::cout<<"\rE: "<<dE<<"/"<<demax<<" au       ";
-        std::cout<<std::flush;
         if(desteps==1){
           dE = de_target;
           ie = i_et;
+        }else{
+          std::cout<<"\rE: "<<dE<<"/"<<demax<<" au       ";
+          std::cout<<std::flush;
         }
         double dsvdE = 0;
         double vmin = sqrt(dE*2/mx);
@@ -262,15 +270,13 @@ int main(void){
         dsvdE *= dv;
         if(!plotv) dsv_mv_mx_x[imv][imx][ie] = dsvdE;
       }//dE
+      if(desteps!=1) std::cout<<"\n";
     }//mx
   }//mv
   std::cout<<"\n";
 
 
-
-
-  //Plot as function of v:
-
+  //Output plots. Function of v, or dE
   of<<"# m_v blocks: ";
   for(int imv=0; imv<n_mv; imv++){
     double xmv = double(imv)/(n_mv-1);
@@ -279,32 +285,28 @@ int main(void){
     of<<imv<<","<<mv*M_to_MeV<<" ";
   }
   of<<"\n";
-
   for(int imv=0; imv<n_mv; imv++){
     double xmv = double(imv)/(n_mv-1);
     double mv = mvmin*pow(mvmax/mvmin,xmv);
     if(n_mv==1) mv = mvmin;
-
     of<<"\""<<std::fixed<<std::setprecision(2)<<mv*M_to_MeV<<" MeV\"   ";
     for(int imx=0; imx<n_mx; imx++){
       double xmx = double(imx)/(n_mx-1);
       double mx = mxmin*pow(mxmax/mxmin,xmx);
       if(n_mx==1) mx = mxmin;
-      //of<<mx*M_to_GeV<<" ";
       of<<"\""<<std::setprecision(1)<<mx*M_to_GeV<<" GeV\"   ";
     }
     of<<"\n"<<std::scientific<<std::setprecision(6);
-
     for(int iv=0; iv<vsteps; iv++){
       if(!plotv) break;
       double v = (iv+1)*dv;
       of<<v*V_to_kms<<" ";
       for(int imx=0; imx<n_mx; imx++){
-        of<<dsv_mv_mx_x[imv][imx][iv]*dsvdE_to_cm3keVday<<" ";
+        //output ds/dE [not ds.v/dE]
+        of<<(dsv_mv_mx_x[imv][imx][iv]/v)*dsdE_to_cm2keV<<" ";
       }//mx
       of<<"\n";
     }//v
-
     for(int ie=0; ie<desteps; ie++){
       if(plotv) break;
       double xe = double(ie)/(desteps-1);
@@ -315,9 +317,10 @@ int main(void){
       }//mx
       of<<"\n";
     }//v
-
     of<<"\n";
   }//mv
+
+  if(desteps==1) return 0; //finished
 
 
   return 0;
