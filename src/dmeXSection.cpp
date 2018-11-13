@@ -40,12 +40,12 @@ double g(double s, double x){
 
 
 //******************************************************************************
-double fv_au(double v_au, double phi=0);
+double fv_au(double v_au, double cosphi=0, double dves=0, double dv0=0);
 //******************************************************************************
-double fv_au(double v_au, double phi){
+double fv_au(double v_au, double cosphi, double dves, double dv0){
   double v = v_au * (FPC::c_SI/FPC::c); //will be in m/s
   v/=1.e3; //convert from m/s -> km/s
-  return SHM::fv(v,phi);
+  return SHM::fv(v,cosphi,dves,dv0);
 }
 
 
@@ -128,23 +128,6 @@ int main(void){
     ifs.close();
   }
 
-  // double A = SHM::normfv(0,0,0.5);
-  // std::cout<<A-1<<"\n";
-  // printf("%.9f\n",A);
-  //
-  // int num_vsteps = 2000;
-  // double dv2 = SHM::MAXV/num_vsteps;
-  //
-  // double v = dv2;
-  // double B = 0;
-  // for(int i=0; i<num_vsteps; i++){
-  //   B += v*SHM::fv(v,0,0,0.5);
-  //   v += dv2;
-  // }
-  // std::cout<<A*B*dv2<<"\n";
-  //
-  // return 1;
-
   //DM mass:
   mxmin /= M_to_GeV;
   mxmax /= M_to_GeV;
@@ -215,11 +198,15 @@ int main(void){
 
   //Grid of f_v(v). Can use to change vel profiles
   std::vector<double> arr_fv(vsteps);
+  double cosphi = 0; //[-1,1] - phase!
+  double dvesc = 0;
+  double dv0 = 0; //has opposite of effect I would have guessed??
   double max_v = (SHM::MAXV)/V_to_kms;
   double dv = max_v/vsteps;
+  double fvNorm = SHM::normfv(cosphi,dvesc,dv0);
   for(int i=0; i<vsteps; i++){
     double v = (i+1)*dv; //don't include zero
-    arr_fv[i] = fv_au(v);
+    arr_fv[i] = fvNorm*fv_au(v);
   }
 
 
@@ -374,8 +361,8 @@ int main(void){
   for(int i = 0; i<desteps; i++){
     double E = demin*pow(demax/demin,double(i)/(desteps-1));
     double y0 = 0;
-    double alph = 0.45 + 1*0.04; //do thrice?? XXX
-    double beta = 0.009 + 1*0.005; //
+    double alph = 0.45 + 0*0.04; //do thrice?? XXX
+    double beta = 0.009 + 0*0.005; //
     double s = (alph*sqrt(E*E_to_keV) + beta*(E*E_to_keV))/E_to_keV;
     //std::cout<<E*E_to_keV<<" "<<s*E_to_keV<<" "<<s<<"\n";
     for(int j = 0; j<desteps; j++){

@@ -19,9 +19,9 @@ namespace SHM{
 
   const double VEROTEQ = 0.47; //earth rotation speed (approx) @ equator
 
-  const double MAXV = VESC + VSUN + VEORB + VEROTEQ;
+  const double MAXV = VESC + VSUN + VEORB + VEROTEQ + DEL_V0 + DEL_VESC;
 
-  double fv(double v, double sinphi=0, double dves=0, double dv0=0);
-  double normfv(double sinphi=0, double dves=0, double dv0=0);
+  double fv(double v, double cosphi=0, double dves=0, double dv0=0);
+  double normfv(double cosphi=0, double dves=0, double dv0=0);
 
 }

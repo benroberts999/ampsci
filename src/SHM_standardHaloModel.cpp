@@ -4,7 +4,7 @@ namespace SHM{
 
 
 //******************************************************************************
-double fv(double v, double sinphi, double dves, double dv0)
+double fv(double v, double cosphi, double dves, double dv0)
 /*
 Standard halo model for velocity distribution, in laboratory frame.
  f ~ v^2 exp(-v^2)
@@ -25,7 +25,7 @@ Otherwise, NOT normalised!
   double veorb = VEORB;
 
   //local velocity (lab)
-  double vl = v_sun + veorb*COSBETA*sinphi;
+  double vl = v_sun + veorb*COSBETA*cosphi;
 
   //approx norm const:
   double Kn = sqrt(M_PI)*v0*vl*370.;
@@ -49,7 +49,7 @@ Otherwise, NOT normalised!
 
 
 //******************************************************************************
-double normfv(double sinphi, double dves, double dv0)
+double normfv(double cosphi, double dves, double dv0)
 {
   int num_vsteps = 2000;
   double dv = MAXV/num_vsteps;
@@ -57,7 +57,7 @@ double normfv(double sinphi, double dves, double dv0)
   double v = dv;
   double A = 0;
   for(int i=0; i<num_vsteps; i++){
-    A += fv(v,sinphi,dves,dv0);
+    A += fv(v,cosphi,dves,dv0);
     v += dv;
   }
   return 1./(A*dv);
