@@ -88,7 +88,7 @@ Also needs min/max q (from grid) to re-construct q grids.
       if(q<qminus || q>qplus) continue;
       double t_Fq = q*q; //(dq/q) is constant, multiply at end
       if(finite_med) t_Fq /= pow(q*q+mu*mu,2);
-      #pragma omp critical
+      #pragma omp critical (qint)
       {
         dsdE += t_Fq*K_enq[iE][ink][iq];  //dq/q included in aAconst
       }
@@ -110,6 +110,7 @@ int main(void){
   double de_target;
   std::string label="testx";
   bool plotv = false; //if single dE, plot fn of v!
+  double Ebi,Ebf,Ebw; // E bins: initial,final, width
 
   //Open and read the input file:
   {
@@ -118,13 +119,33 @@ int main(void){
     std::string jnk;
     ifs >> akfn;                    getline(ifs,jnk);
     ifs >> vsteps;                  getline(ifs,jnk);
-    ifs >> mxmin >> mxmax >> n_mx;   getline(ifs,jnk);
+    ifs >> mxmin >> mxmax >> n_mx;  getline(ifs,jnk);
     ifs >> i_mv;                    getline(ifs,jnk);
     ifs >> mvmin >> mvmax >> n_mv;  getline(ifs,jnk);
     ifs >> de_target;               getline(ifs,jnk);
     ifs >> label;                   getline(ifs,jnk);
+    ifs >> Ebi>>Ebf>>Ebw;           getline(ifs,jnk);
     ifs.close();
   }
+
+
+
+  double A = SHM::normfv(0,0,0.5);
+  std::cout<<A-1<<"\n";
+  printf("%.9f\n",A);
+
+  int num_vsteps = 2000;
+  double dv2 = SHM::MAXV/num_vsteps;
+
+  double v = dv2;
+  double B = 0;
+  for(int i=0; i<num_vsteps; i++){
+    B += v*SHM::fv(v,0,0,0.5);
+    v += dv2;
+  }
+  std::cout<<A*B*dv2<<"\n";
+
+  return 1;
 
   //DM mass:
   mxmin /= M_to_GeV;
@@ -196,7 +217,7 @@ int main(void){
 
   //Grid of f_v(v). Can use to change vel profiles
   std::vector<double> arr_fv(vsteps);
-  double max_v = (SHM::max_v)/V_to_kms;
+  double max_v = (SHM::MAXV)/V_to_kms;
   double dv = max_v/vsteps;
   for(int i=0; i<vsteps; i++){
     double v = (i+1)*dv; //don't include zero
@@ -266,7 +287,9 @@ int main(void){
           dE = de_target;
           ie = i_et;
         }else{
-          std::cout<<"\rE: "<<dE<<"/"<<demax<<" au       ";
+          //std::cout<<"\rE: "<<dE<<"/"<<demax<<" au       ";
+          double pc = 100.*(ie+1.)/desteps;
+          printf("\rE: %5.1f/%5.1f au  -  %5.1f%%        ",dE,demax,pc);
           std::cout<<std::flush;
         }
         double dsvdE = 0;
@@ -275,8 +298,11 @@ int main(void){
           double v = (iv+1)*dv;
           if(v<vmin) continue;
           double dsdE = dsdE_iEdEvum_qg(AKenq,ie,dE,v,mv,mx,qmin,qmax);
-          if(plotv) dsv_mv_mx_x[imv][imx][iv] = v*dsdE;
-          dsvdE += arr_fv[iv]*v*dsdE;
+          if(plotv) dsv_mv_mx_x[imv][imx][iv] = dsdE; //nb: no v!
+          //#pragma omp critical (Eloop)
+          {
+            dsvdE += arr_fv[iv]*v*dsdE;
+          }
         }//v
         dsvdE *= dv;
         if(!plotv) dsv_mv_mx_x[imv][imx][ie] = dsvdE;
@@ -314,7 +340,7 @@ int main(void){
       of<<v*V_to_kms<<" ";
       for(int imx=0; imx<n_mx; imx++){
         //output ds/dE [not ds.v/dE]
-        of<<(dsv_mv_mx_x[imv][imx][iv]/v)*dsdE_to_cm2keV<<" ";
+        of<<(dsv_mv_mx_x[imv][imx][iv])*dsdE_to_cm2keV<<" ";
       }//mx
       of<<"\n";
     }//v
@@ -336,6 +362,10 @@ int main(void){
   std::cout<<std::scientific;
 
 
+  //XXX output dsv_mv_mx_x as binary
+  //(only for all E - NOT v!!)
+  //**************************************************************************
+
 
   int imv = 0;
   int imx = 0;
@@ -346,8 +376,9 @@ int main(void){
   for(int i = 0; i<desteps; i++){
     double E = demin*pow(demax/demin,double(i)/(desteps-1));
     double y0 = 0;
-    double alph = 0.45 - 0.04; //do thrice?? XXX
-    double s = (alph*sqrt(E*E_to_keV) + 0.009*(E*E_to_keV))/E_to_keV;
+    double alph = 0.45 + 1*0.04; //do thrice?? XXX
+    double beta = 0.009 + 1*0.005; //
+    double s = (alph*sqrt(E*E_to_keV) + beta*(E*E_to_keV))/E_to_keV;
     //std::cout<<E*E_to_keV<<" "<<s*E_to_keV<<" "<<s<<"\n";
     for(int j = 0; j<desteps; j++){
       double Ep = demin*pow(demax/demin,double(j)/(desteps-1));
@@ -358,10 +389,15 @@ int main(void){
     // std::cout<<"y "<<y0<<" "<<dEonE<<" "<<g(s,E-0.6)<<"\n";
   }
 
-  double Ea=0.5/E_to_keV;
-  while(Ea<4.5/E_to_keV){
-    Ea += 0.5/E_to_keV;
-    double Eb=Ea + 0.5/E_to_keV;
+  // //no smearing:
+  // for(int i = 0; i<desteps; i++){
+  //   y[i] = dsv_mv_mx_x[imv][imx][i];
+  // }
+
+  double Ea=Ebi/E_to_keV;
+  while(Ea<(Ebf + Ebw)/E_to_keV){
+
+    double Eb = Ea + Ebw/E_to_keV;
     double tmpa = (desteps-1)*log(Ea/demin)/log(demax/demin);
     double tmpb = (desteps-1)*log(Eb/demin)/log(demax/demin);
     int ieA = (int) ceil(tmpa);
@@ -383,6 +419,7 @@ int main(void){
     Rate*=dEonE;
     // std::cout<<dEonE<<" "<<Rate<<"\n";
     printf("%3.1f-%3.1f: %.2e\n",Ea*E_to_keV,Eb*E_to_keV,Rate);
+    Ea += 0.5/E_to_keV;
   }
   return 0;
 }

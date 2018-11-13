@@ -1,8 +1,9 @@
-ak-Xe_lnG        | input file name
+ak-Xe_full      | input file name
 100             | v steps
-5.0 10. 1       | m_chi/GeV: min, max, num_steps
+5.  5.  1       | m_chi/GeV: min, max, num_steps
 0               | mv: 0=massless, 1=range, 2= heavy
 0.1 10. 1       | m_v/MeV: min, max, num_steps [only if =1 above]
 0               | E target. Non-zero: plot s(v). zero: <ds.v>
-massless        | output label
+xx              | output label
+0.5 6 0.5       | E bins (integration)
 =================
