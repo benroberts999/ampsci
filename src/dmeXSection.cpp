@@ -206,7 +206,7 @@ int main(void){
   double fvNorm = SHM::normfv(cosphi,dvesc,dv0);
   for(int i=0; i<vsteps; i++){
     double v = (i+1)*dv; //don't include zero
-    arr_fv[i] = fvNorm*fv_au(v);
+    arr_fv[i] = fvNorm*fv_au(v,cosphi,dvesc,dv0);
   }
 
 
