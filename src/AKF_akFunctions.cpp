@@ -175,7 +175,7 @@ Zeff is '-1' by default. If Zeff > 0, will solve w/ Zeff model
         double a = 0;
         double jLqr = 0;
         if(cntm.p.size()>0){
-          if(ec<=0) std::cout<<"ERROR 244: !?!?\n";
+          //if(ec<=0) std::cout<<"ERROR 244: !?!?\n";
           int maxj = wf.pinflist[is]; //don't bother going further
           //Do the radial integral:
           a=0;
