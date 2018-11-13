@@ -128,24 +128,22 @@ int main(void){
     ifs.close();
   }
 
-
-
-  double A = SHM::normfv(0,0,0.5);
-  std::cout<<A-1<<"\n";
-  printf("%.9f\n",A);
-
-  int num_vsteps = 2000;
-  double dv2 = SHM::MAXV/num_vsteps;
-
-  double v = dv2;
-  double B = 0;
-  for(int i=0; i<num_vsteps; i++){
-    B += v*SHM::fv(v,0,0,0.5);
-    v += dv2;
-  }
-  std::cout<<A*B*dv2<<"\n";
-
-  return 1;
+  // double A = SHM::normfv(0,0,0.5);
+  // std::cout<<A-1<<"\n";
+  // printf("%.9f\n",A);
+  //
+  // int num_vsteps = 2000;
+  // double dv2 = SHM::MAXV/num_vsteps;
+  //
+  // double v = dv2;
+  // double B = 0;
+  // for(int i=0; i<num_vsteps; i++){
+  //   B += v*SHM::fv(v,0,0,0.5);
+  //   v += dv2;
+  // }
+  // std::cout<<A*B*dv2<<"\n";
+  //
+  // return 1;
 
   //DM mass:
   mxmin /= M_to_GeV;
