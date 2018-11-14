@@ -52,11 +52,12 @@ double fv_au(double v_au, double cosphi, double dves, double dv0){
 //******************************************************************************
 template<typename T>
 double dsdE_iEdEvum_qg(std::vector< std::vector< std::vector<T> > > &K_enq,
-  int iE, double dE, double v, double mu, double mx,
+  int iE, double dE, double v, double mv, double mx,
   double qmin, double qmax)
 /*
 calcualtes cross-section ds/dE, for given E, v, mu, and mx.
 Also needs min/max q (from grid) to re-construct q grids.
+note: mu = mv c / hbar = mv/alpha!
 */
 {
   double A_au = 8*M_PI*FPC::c2;
@@ -66,6 +67,8 @@ Also needs min/max q (from grid) to re-construct q grids.
   int num_states = (int) K_enq[0].size();
   int qsteps     = (int) K_enq[0][0].size();
   if(iE>=desteps) return 0; //or -1?
+
+  double mu = mv*FPC::c;
 
   bool finite_med = true;
   if(mu<0) finite_med = false;
@@ -150,12 +153,15 @@ int main(void){
     mvmin = mvmax = -1; //1./0.;
     n_mv = 1;
   }else if(i_mv==1){
+    //std::cout<<mvmin<<" MeV = ";
     mvmin /= M_to_MeV;
     mvmax /= M_to_MeV;
+    //std::cout<<mvmin<<" au ?\n ";
   }else{
     std::cout<<"Wrong m_v input given. Try again. Or not, whatevs\n";
     return 1;
   }
+  //return 1;
 
   //convert E target to au
   de_target /= E_to_keV;
