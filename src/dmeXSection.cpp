@@ -383,7 +383,11 @@ int main(void){
   double mx = mxmin*pow(mxmax/mxmin,double(imx)/(n_mx-1));
 
   //calculate Gaussian smearing (DAMA)
-  std::vector<double> y(desteps);
+  //std::vector<double> y(desteps);
+  std::vector<float> y = dsv_mv_mx_x[imv][imx];
+
+  //calculate Gaussian smearing (DAMA)
+  // XXX Also: include detector efficiency!
   for(int i = 0; i<desteps; i++){
     double E = demin*pow(demax/demin,double(i)/(desteps-1));
     double y0 = 0;
