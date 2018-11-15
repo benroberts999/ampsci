@@ -1,15 +1,15 @@
 Xe -1              | Z, A(=-1 for default A, 0='0 nucleus')
 Xe                 | Core configuration
 1.e-5 45. 25000    | r0, rmax, num_points *1
-0  5. 1.0          | green H d *2
+1  5. 1.0          | green H d *2
 1.e-6              | Hartree convergence goal. put 0 for default.
 1                  | varalpha [0 or <<1 for non-rel; =1 for normal] *3
-0.01    6  128     | dE(min, max, #steps) - in keV
-0.001   5. 1500    | q (min, max, #steps) - in MeV
+0.10    6  1       | dE(min, max, #steps) - in keV
+0.001   5. 1000    | q (min, max, #steps) - in MeV
 -1                 | max l (bound). Put -1 for all.
-4                  | max L (multipolarity). Put -1 to use plane waves.
-1                  | 0=text output, 1=binary, 2=both.
-x                  | label for output file
+3                  | max L (multipolarity). Put -1 to use plane waves.
+0                  | 0=text output, 1=binary, 2=both.
+Gr                 | label for output file
 --------------------
 
 Core for Xe:

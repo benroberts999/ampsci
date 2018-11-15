@@ -1,12 +1,12 @@
 ak-Xe_full    | input file name
 150             | v steps
-1.  10.  1      | m_chi/GeV: min, max, num_steps
+10. 10.  1      | m_chi/GeV: min, max, num_steps
 0               | mv: 0=massless, 1=range, 2= heavy
 0.01 10. 4      | m_v/MeV: min, max, num_steps [only if =1 above]
 0  0  0         | SHM: cosphi; Error: dvesc, dv0. [-1,1]
 0               | Error in DAMA detector resolution [-1,1]
 0               | E target. Non-zero: plot s(v). zero: <ds.v>
 131             | 131 for Xe; 127+23=150 for Dama
-0.0 6 0.5       | E bins (integration)
+0.0 6 0         | E bins (integration) [put 0 width for plot]
 x               | output label
 =================

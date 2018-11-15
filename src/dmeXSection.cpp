@@ -387,7 +387,7 @@ int main(void){
   std::vector<float> y = dsv_mv_mx_x[imv][imx];
 
   //calculate Gaussian smearing (DAMA)
-  // XXX Also: include detector efficiency!
+  // Also: include detector efficiency!? Can ignore for dama..
   for(int i = 0; i<desteps; i++){
     double E = demin*pow(demax/demin,double(i)/(desteps-1));
     double y0 = 0;
@@ -399,10 +399,8 @@ int main(void){
     for(int j = 0; j<desteps; j++){
       double Ep = demin*pow(demax/demin,double(j)/(desteps-1));
       y0 += g(s,E-Ep)*dsv_mv_mx_x[imv][imx][j]*Ep;
-      // std::cout<<"E: "<<E<<" "<<Ep<<" "<<g(s,E-Ep)<<" "<<y0<<"\n";
     }
     y[i] = y0*dEonE;
-    // std::cout<<"y "<<y0<<" "<<dEonE<<" "<<g(s,E-0.6)<<"\n";
   }
 
   // //no smearing:
@@ -410,18 +408,14 @@ int main(void){
   //   y[i] = dsv_mv_mx_x[imv][imx][i];
   // }
 
-
-
   double MN = Atot*(FPC::u_NMU*FPC::m_e_kg); //Total atomic/mol. mass (in kg)
   double rho_on_mxc2 = rhoDM_GeVcm3/(mx*M_to_GeV);
   double rateFac = dsvdE_to_cm3keVday*rho_on_mxc2/MN;
   //in (cm^3/kev/day)/(cm^3 *kg) = 1/keV/kg/day
 
-
   // //double check units: flux of DM particles, per second
   // std::cout<<"DM flux through 1cm^2 per second: ~";
   // std::cout<<300.e5*rhoDM_GeVcm3/(mx*M_to_GeV)<<"\n\n";
-
 
   //Integrate smeared rate over energy bins
   std::cout<<"Input file: "<<akfn<<"\n";
