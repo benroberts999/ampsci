@@ -1,5 +1,5 @@
-ak-Xe_30k       | input file name
-200             | v steps
+ak-Xe_full    | input file name
+150             | v steps
 1.  10.  1      | m_chi/GeV: min, max, num_steps
 0               | mv: 0=massless, 1=range, 2= heavy
 0.01 10. 4      | m_v/MeV: min, max, num_steps [only if =1 above]

@@ -68,7 +68,7 @@ Note: V_HF = V_dir + V_ex    -- note sign convention!
       del_e*=wf.h;
       double en_guess = en_old[i] + del_e;
       if(en_guess>0) en_guess = en_old[i]; //safety, should never happen
-      wf.reSolveLocalDirac(i,en_guess,vex[i],3); //only go to 1/10^3 here
+      wf.reSolveDirac(i,en_guess,vex[i],3); //only go to 1/10^3 here
       //t_eps: weighted average of (de)/e for each orbital:
       double sfac = 2.*wf.kappa[i]*wf.core_ocf[i]; //|2k|=2j+1
       t_eps += fabs(sfac*(wf.en[i]-en_old[i])/en_old[i]);
@@ -86,10 +86,10 @@ Note: V_HF = V_dir + V_ex    -- note sign convention!
 
   //Now, re-solve core orbitals with higher precission
   // + re-solve direct potential (higher precission)
-  for(int i=0; i<Ncs; i++) wf.reSolveLocalDirac(i,wf.en[i],vex[i],15);
+  for(int i=0; i<Ncs; i++) wf.reSolveDirac(i,wf.en[i],vex[i],15);
   wf.orthonormaliseOrbitals(1);
   formNewVdir(wf,wf.vdir,false); //+ new v_ex??
-  for(int i=0; i<Ncs; i++) wf.reSolveLocalDirac(i,wf.en[i],vex[i],15);
+  for(int i=0; i<Ncs; i++) wf.reSolveDirac(i,wf.en[i],vex[i],15);
   wf.orthonormaliseOrbitals(2);
 
   return 0;
@@ -125,7 +125,7 @@ Calculate valence states in frozen Hartree-Fock core
       (vexa[i]-vexa_old[i])*(pow(wf.p[a][i],2)+pow(wf.q[a][i],2))*wf.drdt[i];
     en_new = wf.en[a] + en_new*wf.h;
     //Solve Dirac using new potential:
-    wf.reSolveLocalDirac(a,en_new,vexa,3);
+    wf.reSolveDirac(a,en_new,vexa,3);
     double eps = fabs((wf.en[a]-en_old)/(eta*en_old));
     //Force valence states to be orthogonal to each other + to core:
     wf.orthonormaliseValence(1);
@@ -136,7 +136,7 @@ Calculate valence states in frozen Hartree-Fock core
   }
   std::cout<<"\n";
   //Re-solve w/ higher precission (probs not needed)
-  wf.reSolveLocalDirac(a,wf.en[a],vexa,15);
+  wf.reSolveDirac(a,wf.en[a],vexa,15);
   wf.orthonormaliseValence(2);
   return hits;
 }
@@ -365,7 +365,7 @@ NOTE: can make this nicer.. but will never use it, so whatever.
       del_e*=wf.h;
       double new_e = wf.en[i] + 1*del_e;
       if(new_e>0)new_e=-0.1;
-      wf.reSolveLocalDirac(i,new_e,3); //only go to 1/10^3 - do better at end!
+      wf.reSolveDirac(i,new_e,3); //only go to 1/10^3 - do better at end!
     }
     double next_e = 0;
     for(int i=0; i<Ncs; i++) next_e += wf.en[i]/Ncs;
@@ -382,7 +382,7 @@ NOTE: can make this nicer.. but will never use it, so whatever.
   std::cout<<"\n";
 
   //re-run solve Dirac to higher convergance level after Hart pot. ok
-  for(int i=0; i<Ncs; i++) wf.reSolveLocalDirac(i,0,14);
+  for(int i=0; i<Ncs; i++) wf.reSolveDirac(i,0,14);
   //Form the total core potential using new wfs
   //This time, solved for case of valence states (different factor)
   formNewVdir(wf,wf.vdir,false);
@@ -410,7 +410,7 @@ NOTE: can make this nicer.. but will never use it, so whatever.
   //     del_e*=wf.h;
   //     double en_guess = en_old[i] + del_e;
   //     if(en_guess>0) en_guess = en_old[i]; //safety, should never happen
-  //     wf.reSolveLocalDirac(i,en_guess,3); //only go to 1/10^3 here
+  //     wf.reSolveDirac(i,en_guess,3); //only go to 1/10^3 here
   //     double sfac = 2.*wf.kappa[i]*wf.core_ocf[i]; //|2k|=2j+1
   //     t_eps += fabs(sfac*(wf.en[i]-en_old[i])/en_old[i]);
   //   }
