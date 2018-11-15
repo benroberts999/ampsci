@@ -51,6 +51,11 @@ int main(void){
     ifs >> label;                 getline(ifs,jnk);
     ifs.close();
   }
+  bool noExch = false;
+  if(Gf<0){
+    noExch = true;
+    Gf = 0;
+  }
 
   bool plane_wave = false;
   if(max_L<0) plane_wave = true;
@@ -103,7 +108,8 @@ int main(void){
     Z_str.c_str(),Z,A);
   printf("*************************************************\n");
   if(Gf!=0) printf("Using Green potential: H=%.4f  d=%.4f\n",Gh,Gd);
-  else printf("Using Hartree potential (converge to %.0e)\n",hart_del);
+  else if(noExch)printf("Using Hartree pot. (converge to %.0e)\n",hart_del);
+  else printf("Using Hartree Fock (converge to %.0e)\n",hart_del);
 
   //Generate the orbitals object:
   ElectronOrbitals wf(Z,A,ngp,r0,rmax,varalpha);
@@ -134,8 +140,8 @@ int main(void){
     wf.solveZeff(n_zef,k_zef,Zeff,false);
   }else if(Gf==0){
     //use Hartree method:
-    // HF::hartreeCore(wf,hart_del);
-    HF::hartreeFockCore(wf,hart_del);
+    if(noExch) HF::hartreeCore(wf,hart_del);
+    else       HF::hartreeFockCore(wf,hart_del);
   }else{
     //Use Green (local parametric) potential
     //Fill the electron part of the (local/direct) potential
