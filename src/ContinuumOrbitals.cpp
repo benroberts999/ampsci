@@ -2,10 +2,11 @@
 
 
 //******************************************************************************
-ContinuumOrbitals::ContinuumOrbitals(ElectronOrbitals wf)
+ContinuumOrbitals::ContinuumOrbitals(ElectronOrbitals wf, int izion)
 /*
 Initialise object:
  * Copies grid and potential info, since these must always match bound states!
+If none given, will assume izion should be 1! Not 100% always!
 */
 {
   //Grid:
@@ -19,18 +20,26 @@ Initialise object:
   alpha = wf.alpha;
   Z = wf.Z;
 
+  //Check Zion. Will normally be 0 for neutral atom. Make -1
+  double tmp_Zion = -1*wf.r[NGPb-5]*(wf.vnuc[NGPb-5]+wf.vdir[NGPb-5]);
+
+  double scale = 1;
+  if(fabs(tmp_Zion-izion)>0.01)
+    scale = double(Z-izion)/(wf.r[NGPb-5]*wf.vdir[NGPb-5]);
+
   //Local part of the potential:
   v.clear();
   v = wf.vnuc;
   if(wf.vdir.size()!=0){
-    for(int i=0; i<NGPb; i++) v[i] += wf.vdir[i];
+    for(int i=0; i<NGPb; i++) v[i] += wf.vdir[i]*scale;
   }
 
-  //Find overal charge of atom (-1)
+  //Re-Check overal charge of atom (-1)
   //For neutral atom, should be 1 (usually, since cntm is ionisation state)
   // r->inf, v(r) = -Z_ion/r
-  Zion = -1*wf.r[NGPb-5]*v[NGPb-5];
-  if(Zion<1) Zion = 1;
+  tmp_Zion = -1*wf.r[NGPb-5]*v[NGPb-5];
+  //std::cout<<"Zion="<<tmp_Zion<<" = "<<-1*wf.r[NGPb-5]*v[NGPb-5]<<"\n";
+  Zion = izion;
 
 }
 
