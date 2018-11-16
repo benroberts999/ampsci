@@ -291,7 +291,7 @@ int main(void){
           double v = (iv+1)*dv;
           if(v<vmin) continue;
           double dsdE = dsdE_iEdEvum_qg(AKenq,ie,dE,v,mv,mx,qmin,qmax);
-          if(plotv) dsv_mv_mx_x[imv][imx][iv] = dsdE; //nb: no v!
+          if(plotv) dsv_mv_mx_x[imv][imx][iv] = dsdE; //nb: no v! XXX v^2?
           //#pragma omp critical (Eloop)
           {
             dsvdE += arr_fv[iv]*v*dsdE;
@@ -346,6 +346,7 @@ int main(void){
         for(int imx=0; imx<n_mx; imx++){
           //output ds/dE [not ds.v/dE]
           of<<(dsv_mv_mx_x[imv][imx][iv])*dsdE_to_cm2keV<<" ";
+          //of<<(dsv_mv_mx_x[imv][imx][iv])*dsvdE_to_cm3keVday<<" ";
         }//mx
         of<<"\n";
       }//v
