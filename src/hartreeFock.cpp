@@ -16,7 +16,7 @@ int main(void){
   int A;
   double r0,rmax;
   int ngp;
-  double varalpha;
+  double varalpha,varalpha2;
   double eps_hart;
   int iHF;
 
@@ -34,11 +34,15 @@ int main(void){
     ifs >> r0 >> rmax >> ngp;     getline(ifs,jnk);
     ifs >> iHF >> eps_hart;       getline(ifs,jnk);
     ifs >> n_max >> l_max;        getline(ifs,jnk);
-    ifs >> varalpha;              getline(ifs,jnk);
+    ifs >> varalpha2;             getline(ifs,jnk);
     ifs.close();
   }
   bool doHF = true;
   if(iHF==0) doHF = false;
+
+  //Change varAlph^2 to varalph
+  if(varalpha2==0) varalpha2 = 1.e-10;
+  varalpha = sqrt(varalpha2);
 
   int Z = ATI::get_z(Z_str);
   if(Z==0) return 2;
