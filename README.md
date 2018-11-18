@@ -1,7 +1,6 @@
 # Relativistic, self-consistent atomic structure code.
 
-Solves local central-field problem for Dirac equation,
-using the Hartree-Fock method.
+Solves the Dirac equation for atomic systems using the Hartree-Fock method.
 Fully relativistic, includes finite-nuclear size, and can
 solve for continuum states (energy normalisation).
 
@@ -16,7 +15,7 @@ allowing non-relativistic approximation.
 Note: makes use of GSL libraries: https://www.gnu.org/software/gsl/
 
  * For example, with ubuntu: _$sudo apt-get install libgsl0-dev_
- * Probably also needs LAPACK/BLAS:
+ * Also needs LAPACK/BLAS libraries:
 _$sudo apt-get install libblas-dev libatlas-dev liblapack-dev_
 
 The part that solves the Dirac eigenvalue DE is based on book by W. Johnson,
@@ -27,12 +26,16 @@ with a few extensions that improve numerical stability and accuracy
 
  * All programs compiled using the Makefile
  (run _$make_ or _$make programName.x_)
+ * Must have LAPACK, GSL libraries installed already (see above)
  * Must create a directory called _./obj/_
    * code places object files inside here
  * All executables end with '.x' suffix; run like _$./programName.x_
  * All programs have input options, stored and read from 'programName.in' file
  * Note: below just tells how to use existing programs, to see how they work,
  see the comments/instructions inside the source code
+
+The above instructions are for linux (ubuntu). For windows, the easiest way (for me, anyway) is to make use of the recent 'windows subsystem for linux'. Instructions on installation/use here: https://www.roberts999.com/posts/2018/11/wsl-coding-windows-ubuntu
+Then, the compilation+use can proceed as per above.
 
 ## h-like.x
 
@@ -41,8 +44,8 @@ with a few extensions that improve numerical stability and accuracy
 ## hartreeFock.x
 
  * Solves relativistic Hartree Fock potential for core + valence states
- * Only really works for closed shells. OK if shell 'mostly' closed
- * Takes core configuration: Noble gas + extra. (comma separated, no spaces)
+ * Only really works for closed shells, and atomic with single valence electron above closed shells. (Works OK if shell 'mostly' closed)
+ * Takes in core configuration: Noble gas + extra. (comma separated, no spaces)
  * (As well as Noble gas, can use Zn,Cd,Hg)
 
 E.g. (V^N-1):
