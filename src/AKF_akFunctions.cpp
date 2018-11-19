@@ -164,6 +164,8 @@ Zeff is '-1' by default. If Zeff > 0, will solve w/ Zeff model
     else       cntm.solveLocalContinuum(ec,lc_min,lc_max);
   }
 
+  double x_ocf = wf.core_ocf[is]; //occupancy fraction. Usually 1
+
   // Generate AK for each L, lc, and q
   // L and lc are summed, not stored indevidually
   std::vector<float> AK_nk_q(qsteps);
@@ -187,7 +189,7 @@ Zeff is '-1' by default. If Zeff > 0, will solve w/ Zeff model
                  *jLqr*wf.drdt[j];// *h below!
           }
         }
-        AK_nk_q[iq] += dC_Lkk*pow(a*wf.h,2);
+        AK_nk_q[iq] += dC_Lkk*pow(a*wf.h,2)*x_ocf;
       } //q
     } // END loop over cntm states (ic)
   } // end L loop
