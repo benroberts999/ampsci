@@ -338,7 +338,8 @@ HF_hartreeFock.cpp has routines for Hartree Fock
       if(en_a>0) en_a = enGuessCore(n,l);
     }
     int k2 = -(l+1); //j=l+1/2
-    if(num>2*l) solveLocalDirac(n,k2,en_a,log_dele_or);
+    //if(num>2*l) 
+    solveLocalDirac(n,k2,en_a,log_dele_or);
     //XXX Here! Solve BOTH, and adjust with occ. fraction!! XXX
   }
   num_core_states = nlist.size(); //store number of states in core

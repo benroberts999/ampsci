@@ -1,15 +1,15 @@
-Xe -1              | Z, A(=-1 for default A, 0='0 nucleus')
-Xe                 | Core configuration
-1.e-6 45. 60000    | r0, rmax, num_points *1
+Tl -1              | Z, A(=-1 for default A, 0='0 nucleus')
+Hg,6p1             | Core configuration
+1.e-6 45. 10000    | r0, rmax, num_points *1
 0  5. 1.0          | green H d *2
-1.e-9              | Hartree convergence goal. put 0 for default.
+1.e-8              | Hartree convergence goal. put 0 for default.
 1                  | varalpha [0 or <<1 for non-rel; =1 for normal] *3
-0.01   10  512     | dE(min, max, #steps) - in keV
-0.001   5. 2048    | q (min, max, #steps) - in MeV
+0.010  00    1     | dE(min, max, #steps) - in keV
+0.001   2. 256     | q (min, max, #steps) - in MeV
 -1                 | max l (bound). Put -1 for all.
-4                  | max L (multipolarity). Put -1 to use plane waves.
-1                  | 0=text output, 1=binary, 2=both.
-XTRME              | label for output file
+2                  | max L (multipolarity). Put -1 to use plane waves.
+0                  | 0=text output, 1=binary, 2=both.
+xx                 | label for output file
 --------------------
 
 Core for Xe:

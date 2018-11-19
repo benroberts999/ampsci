@@ -157,7 +157,7 @@ int main(void){
   wf.sortedEnergyList(sort_list);
 
   //Output results:
-  printf("\n n l_j    k Rinf its    eps     En (au)     En (/cm)    En (eV)\n");
+  printf("\n     n l_j    k Rinf its    eps     En (au)     En (/cm)    En (eV)\n");
   for(size_t m=0; m<sort_list.size(); m++){
     int i = sort_list[m];
     int n=wf.nlist[i];
