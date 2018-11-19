@@ -166,15 +166,16 @@ int main(void){
     int l = ATI::l_k(k);
     double rinf = wf.r[wf.pinflist[i]];
     double eni = wf.en[i];
-    printf("%2i %s_%i/2 %2i  %3.0f %3i  %5.0e  %11.5f %12.0f %10.2f\n",
-        n,ATI::l_symbol(l).c_str(),twoj,k,rinf,wf.itslist[i],wf.epslist[i],
-        eni, eni*FPC::Hartree_invcm, eni*FPC::Hartree_eV);
+    double x = wf.core_ocf[i];
+    printf("%2i) %2i %s_%i/2 %2i  %3.0f %3i  %5.0e  %11.5f %12.0f %10.2f   (%.2f)\n",
+        i,n,ATI::l_symbol(l).c_str(),twoj,k,rinf,wf.itslist[i],wf.epslist[i],
+        eni, eni*FPC::Hartree_invcm, eni*FPC::Hartree_eV,x);
   }
 
   //////////////////////////////////////////////////
 
   //Arrays to store results for outputting later:
-  std::vector< std::vector< std::vector<float> > > AK; //float ok?
+  std::vector< std::vector< std::vector<float> > > AK(desteps); //float ok?
   std::vector<std::string> nklst;
 
   //pre-calculate the spherical Bessel function look-up table for efficiency
@@ -188,49 +189,48 @@ int main(void){
   printf("  q: %5.0e -- %5.1g MeV  (%.2f -- %.1f au)\n"
         ,qmin/qMeV,qmax/qMeV,qmin,qmax);
 
+  //Store state info (each orbital)
+  for(size_t is=0; is<wf.nlist.size(); is++){
+    int k = wf.kappa[is];
+    int l = ATI::l_k(k);
+    if(l>max_l) continue;
+    int twoj = ATI::twoj_k(k);
+    int n=wf.nlist[is];
+    std::string nk=std::to_string(n)+ATI::l_symbol(l)
+        +"_{"+std::to_string(twoj)+"/2}";
+    nklst.push_back(nk);
+  }
 
+  //Calculate K(q,E)
+  std::cout<<"Running dE loops ("<<desteps<<").."<<std::flush;
+  #pragma omp parallel for if(desteps>3)
   for(int ide=0; ide<desteps; ide++){
-    int pc = int(100.*ide/desteps);
-    std::cout<<" Running dE step "<<ide<<"/"<<desteps<<"  -  "<<pc<<"% done"
-    <<"                                        \r";
-    std::cout.flush();
-    double y;
-    if(desteps>1) y=ide/(desteps-1.);
-    else y=0;
+    double y = double(ide)/(desteps-1);
+    if(desteps==1) y=0;
     double dE = demin*pow(demax/demin,y);
-
     //Loop over core (bound) states:
     std::vector< std::vector<float> > AK_nk;
     for(size_t is=0; is<wf.nlist.size(); is++){
       int k = wf.kappa[is];
       int l = ATI::l_k(k);
       if(l>max_l) continue;
-      int twoj = ATI::twoj_k(k);
-      int n=wf.nlist[is];
-
-      if(ide==0){
-        std::string nk=std::to_string(n)+ATI::l_symbol(l)
-          +"_{"+std::to_string(twoj)+"/2}";
-        nklst.push_back(nk);
-      }
-
       if(plane_wave) AKF::calculateKpw_nk(wf,is,dE,jLqr_f[l],AK_nk);
       else if(use_Zeff) AKF::calculateK_nk(wf,is,max_L,dE,jLqr_f,AK_nk,Zeff);
       else AKF::calculateK_nk(wf,is,max_L,dE,jLqr_f,AK_nk);
-
     }// END loop over bound states
-    //dElst.push_back(dE);
-    AK.push_back(AK_nk);
+    AK[ide] = AK_nk;
   }
-  std::cout<<" Running dE step "<<desteps<<"/"<<desteps<<"  -  100% done  :)  "
-  <<"                  \n";// extra space to over-write any left-over junk.
-
+  std::cout<<"..done :)\n";
 
   //Write out to text file (in gnuplot friendly form)
   if(text_out) AKF::writeToTextFile(fname,AK,nklst,qmin,qmax,demin,demax);
-
   // //Write out AK as binary file
   if(bin_out) AKF::akReadWrite(fname,true,AK,nklst,qmin,qmax,demin,demax);
+  std::cout<<"Written to: "<<fname;
+  if(text_out) std::cout<<".txt";
+  if(text_out && bin_out) std::cout<<", and ";
+  if(bin_out) std::cout<<".bin";
+  std::cout<<"\n";
 
   gettimeofday(&end, NULL);
   double total_time = (end.tv_sec-start.tv_sec)
