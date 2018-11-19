@@ -119,7 +119,7 @@ int main(void){
   double Atot;
   double Ebi,Ebf,Ebw; // E bins: initial,final, width
   double cosp,dvesc,dv0;
-  double dres;
+  double dres,err_PEkeV; //detector resolution, PE-keV errors [-1]
 
   //Open and read the input file:
   {
@@ -132,7 +132,7 @@ int main(void){
     ifs >> i_mv;                    getline(ifs,jnk);
     ifs >> mvmin >> mvmax >> n_mv;  getline(ifs,jnk);
     ifs >> cosp >> dvesc >> dv0;    getline(ifs,jnk);
-    ifs >> dres;                    getline(ifs,jnk);
+    ifs >> dres >> err_PEkeV;       getline(ifs,jnk);
     ifs >> de_target;               getline(ifs,jnk);
     ifs >> Atot;                    getline(ifs,jnk);
     ifs >> Ebi>>Ebf>>Ebw;           getline(ifs,jnk);
@@ -389,6 +389,12 @@ int main(void){
   //std::vector<double> y(desteps);
   std::vector<float> y = dsv_mv_mx_x[imv][imx];
 
+  //
+  //double err_PEkeV = 0.; //should be between [-1,1]
+  double PE_per_keV = 6.5 + err_PEkeV*1.;
+  double E_thresh_HW = 1./PE_per_keV/E_to_keV;
+    std::cout<<E_thresh_HW<<"au "<<E_thresh_HW*FPC::Hartree_eV<<"eV "<<E_thresh_HW*E_to_keV<<"\n";
+
   //calculate Gaussian smearing (DAMA)
   //XXX ALSO: HARDWARE threshold - 1 PE. ~5.5-7.5 PE per keV!
   // Also: include detector efficiency!? Can ignore for dama..
@@ -396,18 +402,20 @@ int main(void){
   double beta = 0.009 + dres*0.005;
   for(int i = 0; i<desteps; i++){
     double E = demin*pow(demax/demin,double(i)/(desteps-1));
+    if(E<E_thresh_HW){
+      y[i] = 0; //need set zero, since non-zero to begin with!
+      continue; //Theoretical minimum software threshold..
+    }
     //triple check this! Super important!
     double s = (alph*sqrt(E*E_to_keV) + beta*(E*E_to_keV))/E_to_keV;
     //std::cout<<E*E_to_keV<<" "<<s*E_to_keV<<" "<<s<<"\n";
     double y0 = 0;
-    double y1 = 0;
     for(int j = 0; j<desteps; j++){
       double Ep = demin*pow(demax/demin,double(j)/(desteps-1));
+      if(Ep<E_thresh_HW) continue; //hardware threshold
       y0 += g(s,E-Ep)*dsv_mv_mx_x[imv][imx][j]*Ep;
-      //y1 += g(s,E-Ep)*Ep; //check Gaussian normalisation
     }
     y[i] = y0*dEonE;
-    //std::cout<<y1*dEonE<<"\n";
   }
 
   // //no smearing:
