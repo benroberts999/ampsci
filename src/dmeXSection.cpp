@@ -31,6 +31,7 @@ double rhoDM_GeVcm3 = 0.4; // GeV/cm^3
 
 //******************************************************************************
 double g(double s, double x){
+  //if(fabs(x)>3*s) return 0;//XXX
   double a = 0.398942/s;
   double y = (x/s)*(x/s);
   // if(y<0.2) return a*(1.-0.5*pow(x,2)+0.125*pow(x,4)-0.02083*pow(x,6)
@@ -85,6 +86,7 @@ note: mu = mv c / hbar = mv/alpha!
   if(qminus>qmax || qplus<qmin) return 0; //or -1 ?
   double dsdE = 0;
   for(int ink=0; ink<num_states; ink++){
+    //if(ink>=15) continue;
     #pragma omp parallel for
     for(int iq=0; iq<qsteps; iq++){
       double x = double(iq)/(qsteps-1);
@@ -388,20 +390,24 @@ int main(void){
   std::vector<float> y = dsv_mv_mx_x[imv][imx];
 
   //calculate Gaussian smearing (DAMA)
+  //XXX ALSO: HARDWARE threshold - 1 PE. ~5.5-7.5 PE per keV!
   // Also: include detector efficiency!? Can ignore for dama..
+  double alph = 0.45 + dres*0.04;
+  double beta = 0.009 + dres*0.005;
   for(int i = 0; i<desteps; i++){
     double E = demin*pow(demax/demin,double(i)/(desteps-1));
-    double y0 = 0;
-    double alph = 0.45 + dres*0.04;
-    double beta = 0.009 + dres*0.005;
     //triple check this! Super important!
     double s = (alph*sqrt(E*E_to_keV) + beta*(E*E_to_keV))/E_to_keV;
     //std::cout<<E*E_to_keV<<" "<<s*E_to_keV<<" "<<s<<"\n";
+    double y0 = 0;
+    double y1 = 0;
     for(int j = 0; j<desteps; j++){
       double Ep = demin*pow(demax/demin,double(j)/(desteps-1));
       y0 += g(s,E-Ep)*dsv_mv_mx_x[imv][imx][j]*Ep;
+      //y1 += g(s,E-Ep)*Ep; //check Gaussian normalisation
     }
     y[i] = y0*dEonE;
+    //std::cout<<y1*dEonE<<"\n";
   }
 
   // //no smearing:
@@ -442,8 +448,8 @@ int main(void){
     }
     Rate *= rateFac*dEonE/Ebw;
     // std::cout<<dEonE<<" "<<Rate<<"\n";
-    printf("%3.1f-%3.1f: %6.3f   %.2e\n",
-    Ea*E_to_keV,Eb*E_to_keV,0.5*(Ea+Eb)*E_to_keV,Rate);
+    printf("%3.1f-%3.1f: %6.3f   %.2e     %i\n",
+      Ea*E_to_keV,Eb*E_to_keV,0.5*(Ea+Eb)*E_to_keV,Rate,ieB-ieA);
     Ea += Ebw/E_to_keV;
   }
 
