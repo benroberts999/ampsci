@@ -1,3 +1,6 @@
+#ifndef _SHM_H
+#define _SHM_H
+
 #include <vector>
 #include <cmath>
 
@@ -25,3 +28,5 @@ namespace SHM{
   double normfv(double cosphi=0, double dves=0, double dv0=0);
 
 }
+
+#endif
