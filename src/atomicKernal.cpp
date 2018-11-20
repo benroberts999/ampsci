@@ -151,7 +151,6 @@ int main(void){
     wf.solveInitialCore();
   }
 
-
   //make list of energy indices in sorted order:
   std::vector<int> sort_list;
   wf.sortedEnergyList(sort_list);
@@ -176,7 +175,6 @@ int main(void){
 
   //Arrays to store results for outputting later:
   std::vector< std::vector< std::vector<float> > > AK; //float ok?
-
   int num_states = wf.nlist.size();
   AK.resize(desteps, std::vector< std::vector<float> >
     (num_states, std::vector<float>(qsteps)));
@@ -219,15 +217,11 @@ int main(void){
       int k = wf.kappa[is];
       int l = ATI::l_k(k);
       if(l>max_l) continue;
-      // if(plane_wave) AKF::calculateKpw_nk(wf,is,dE,jLqr_f[l],AK_nk);
-      // else if(use_Zeff) AKF::calculateK_nk(wf,is,max_L,dE,jLqr_f,AK_nk,Zeff);
-      // else AKF::calculateK_nk(wf,is,max_L,dE,jLqr_f,AK_nk);
       if(plane_wave) AKF::calculateKpw_nk(wf,is,dE,jLqr_f[l],AK[ide][is]);
       else if(use_Zeff)
         AKF::calculateK_nk(wf,is,max_L,dE,jLqr_f,AK[ide][is],Zeff);
       else AKF::calculateK_nk(wf,is,max_L,dE,jLqr_f,AK[ide][is]);
     }// END loop over bound states
-    //AK[ide] = AK_nk;
   }
   std::cout<<"..done :)\n";
 
