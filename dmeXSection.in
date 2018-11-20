@@ -1,8 +1,14 @@
-ak-Xe_test2     | input file name
-500             | v steps
-0.1 10. 5       | m_chi/GeV: min, max, num_steps
-2               | mv: 0=massless, 1=range, 2= heavy
-0.1 10. 0       | m_v/MeV: min, max, num_steps [only if =1 above]
+ak-Xe_mid2      | input file name
+100             | v steps
+1.0  10. 1      | m_chi/GeV: min, max, num_steps
+0               | mv: 0=massless, 1=range, 2= heavy
+01.0 01. 1      | m_v/MeV: min, max, num_steps [only if =1 above]
+0  0  0         | SHM: cosphi; Error: dvesc, dv0. [-1,1]
+0  0            | DAMA error: det. resolution, PE-keV [-1,1] *
 0               | E target. Non-zero: plot s(v). zero: <ds.v>
-masive2         | output label
+131             | 131 for Xe; 127+23=150 for Dama
+0.0 5 0         | E bins (integration) [put 0 width for plot]
+mid2            | output label
 =================
+I take average of 6.5+/-1 PE per keV.
+NOTE: This is definitely too simplistic!

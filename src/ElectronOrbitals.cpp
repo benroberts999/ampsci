@@ -46,7 +46,7 @@ Uses ADAMS::solveDBS to solve Dirac Eqn for local potential (Vnuc + Vdir)
   std::vector<double> q_a(ngp);
 
   //Fill V(r) with nulcear + DIRECT part of electron potential
-  //nb: for exchange part, need to use reSolveLocalDirac()
+  //nb: for exchange part, need to use reSolveDirac()
   std::vector<double> v_a = vnuc;
   if(vdir.size()!=0){
     for(int i=0; i<ngp; i++) v_a[i] += vdir[i];
@@ -112,16 +112,16 @@ Not fully tested yet!
 
 
 //******************************************************************************
-int ElectronOrbitals::reSolveLocalDirac(int i, double e_a, int log_dele_or)
+int ElectronOrbitals::reSolveDirac(int i, double e_a, int log_dele_or)
 /*Overloaded version; see below
 This one doesn't have exchange potential
 */
 {
   std::vector<double> dummy_vex;
-  return reSolveLocalDirac(i,e_a,dummy_vex,log_dele_or);
+  return reSolveDirac(i,e_a,dummy_vex,log_dele_or);
 }
 //******************************************************************************
-int ElectronOrbitals::reSolveLocalDirac(int i, double e_a,
+int ElectronOrbitals::reSolveDirac(int i, double e_a,
   std::vector<double> vex, int log_dele_or)
 /*
 "Re"solves dirac eqaution. Use this to re-solve for same state.
@@ -338,7 +338,8 @@ HF_hartreeFock.cpp has routines for Hartree Fock
       if(en_a>0) en_a = enGuessCore(n,l);
     }
     int k2 = -(l+1); //j=l+1/2
-    if(num>2*l) solveLocalDirac(n,k2,en_a,log_dele_or);
+    //if(num>2*l) 
+    solveLocalDirac(n,k2,en_a,log_dele_or);
     //XXX Here! Solve BOTH, and adjust with occ. fraction!! XXX
   }
   num_core_states = nlist.size(); //store number of states in core

@@ -39,7 +39,7 @@ void writeToTextFile(
   ofile.open(fname+".txt");
   ofile<<"dE(keV) q(MeV) ";
   for(size_t i=0; i<nklst.size(); i++) ofile<<nklst[i]<<" ";
-  ofile<<"\n\n";
+  ofile<<"Sum\n\n";
   for(int i=0; i<desteps; i++){
     for(int k=0; k<qsteps; k++){
       double x = double(k)/(qsteps-1);
@@ -49,10 +49,12 @@ void writeToTextFile(
       if(desteps==1) y=0;
       double dE = demin*pow(demax/demin,y);
       ofile<<dE/keV<<" "<<q/qMeV<<" ";
+      double sum = 0;
       for(int j=0; j<num_states; j++){
+        sum += AK[i][j][k];
         ofile<<AK[i][j][k]<<" ";
       }
-      ofile<<"\n";
+      ofile<<sum<<"\n";
     }
     if(qsteps>1)ofile<<"\n";
   }
@@ -162,6 +164,8 @@ Zeff is '-1' by default. If Zeff > 0, will solve w/ Zeff model
     else       cntm.solveLocalContinuum(ec,lc_min,lc_max);
   }
 
+  double x_ocf = wf.core_ocf[is]; //occupancy fraction. Usually 1
+
   // Generate AK for each L, lc, and q
   // L and lc are summed, not stored indevidually
   std::vector<float> AK_nk_q(qsteps);
@@ -175,7 +179,7 @@ Zeff is '-1' by default. If Zeff > 0, will solve w/ Zeff model
         double a = 0;
         double jLqr = 0;
         if(cntm.p.size()>0){
-          if(ec<=0) std::cout<<"ERROR 244: !?!?\n";
+          //if(ec<=0) std::cout<<"ERROR 244: !?!?\n";
           int maxj = wf.pinflist[is]; //don't bother going further
           //Do the radial integral:
           a=0;
@@ -185,7 +189,7 @@ Zeff is '-1' by default. If Zeff > 0, will solve w/ Zeff model
                  *jLqr*wf.drdt[j];// *h below!
           }
         }
-        AK_nk_q[iq] += dC_Lkk*pow(a*wf.h,2);
+        AK_nk_q[iq] += dC_Lkk*pow(a*wf.h,2)*x_ocf;
       } //q
     } // END loop over cntm states (ic)
   } // end L loop
@@ -263,7 +267,7 @@ void sphericalBesselTable(
         int num_extra = 0;
         if(ir<ngp-1){
           double qdrop = q*(r[ir+1]-r[ir])/M_PI;
-          double min_qdrop = 0.05; // require 20 pts per half wavelength!
+          double min_qdrop = 0.02; // require 50 pts per half wavelength!
           if(qdrop>min_qdrop) num_extra = int(qdrop/min_qdrop)+1;
         }
         {//Include 'extra' points into j_L (avg):

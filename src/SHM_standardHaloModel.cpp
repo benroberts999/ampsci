@@ -2,46 +2,44 @@
 
 namespace SHM{
 
-  // const double vesc = 544.; // galactic escape velocity
-  // const double vL0 = 220.; // local frame velocity, average
-  // const double vc  = 220; // circular velocity
-  // const double vearth = 30.; //XXX update! ??
-  //
-  // const double max_v = vesc + vL0 + vearth;
 
 //******************************************************************************
-double fv(double v, double phi)
+double fv(double v, double cosphi, double dves, double dv0)
 /*
 Standard halo model for velocity distribution, in laboratory frame.
  f ~ v^2 exp(-v^2)
 Note: distribution for DM particles that cross paths with Earth.
-We should have: <v> = 370
-XXX - Includes phase - BUT not 100% sure it's correct! XXX XXX XXX
+
+Note: normalised for all extras = 0.
+Otherwise, NOT normalised!
+
+ sinphi should be [-1,1]
+ dv0 should be [0,1]..
+ dves = [-1,1]
 */
 {
 
-  double vl = vL0 + vearth*sin(phi);
+  double v0    = V0   + dv0*DEL_V0;   //account for errors
+  double v_sun = VSUN + dv0*DEL_V0;   //account for errors
+  double vesc  = VESC + dves*DEL_VESC; //account for errors
+  double veorb = VEORB;
 
-  double Knorm1 = 0.91706*0.942099; //for phi=0
-  double Kn = Knorm1*sqrt(M_PI)*vc*vl*370.;
-  double A = pow(v,2)/Kn;
+  //local velocity (lab)
+  double vl = v_sun + veorb*COSBETA*cosphi;
 
-  // This is a rough way to enforce normalisation thoughout the year!
-  if(phi!=0){ //save some evals if phi=0
-    A /= 1. + 0.0587669*sin(phi);
-    A /= 1.00137 - 0.00137*cos(2*phi) - 0.00013*sin(phi);//0.000123*sin(phi);
-  }
-  //Probably, this isn't good enough... XXX
+  //approx norm const:
+  double Kn = sqrt(M_PI)*v0*vl*370.;
+  double A = 1.126550845*pow(v,2)/Kn;
 
-  double arg1 = -pow((v-vl)/vc,2);
+  double arg1 = -pow((v-vl)/v0,2);
 
   if(v<=0){
-    return 0; //just for safety - should never be called with v<0
-  }else if(v<vesc-vl){
-    double arg2 = -pow((v+vl)/vc,2);
+    return 0;
+  }else if(v<vesc-vl){ //here
+    double arg2 = -pow((v+vl)/v0,2);
     return A*(exp(arg1)-exp(arg2));
-  }else if(v<vesc+vl){
-    double arg2 = -pow(vesc/vc,2);
+  }else if(v<vesc+vl){ //here
+    double arg2 = -pow(vesc/v0,2);
     return A*(exp(arg1)-exp(arg2));
   }else{
     return 0;
@@ -49,6 +47,21 @@ XXX - Includes phase - BUT not 100% sure it's correct! XXX XXX XXX
 
 }
 
+
+//******************************************************************************
+double normfv(double cosphi, double dves, double dv0)
+{
+  int num_vsteps = 2000;
+  double dv = MAXV/num_vsteps;
+
+  double v = dv;
+  double A = 0;
+  for(int i=0; i<num_vsteps; i++){
+    A += fv(v,cosphi,dves,dv0);
+    v += dv;
+  }
+  return 1./(A*dv);
+}
 
 
 } //namespace

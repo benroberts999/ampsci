@@ -14,7 +14,8 @@ class ContinuumOrbitals{
 
   public:
 
-    ContinuumOrbitals(ElectronOrbitals wf); //takes in grid, v from here
+    ContinuumOrbitals(ElectronOrbitals wf, int izion=1);
+    //takes in grid, v from here
 
     int solveLocalContinuum(double ec, int min_l, int max_l);
     int solveLocalContinuum(double ec, int max_l);
