@@ -6,11 +6,12 @@
 #include "PRM_parametricPotentials.h"
 #include "HF_hartreeFock.h"
 #include "WIG_369j.h"
+#include "SBF_sphericalBesselFunctions.h"
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include <sys/time.h>
-#include <gsl/gsl_sf_bessel.h>
+//#include <gsl/gsl_sf_bessel.h>
 
 namespace AKF{
 

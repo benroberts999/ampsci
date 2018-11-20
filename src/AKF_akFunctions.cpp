@@ -260,7 +260,8 @@ void sphericalBesselTable(
       double x=double(iq)/(qsteps-1);
       double q = qmin*pow(qmax/qmin,x);
       for(int ir=0; ir<ngp; ir++){
-        double tmp = gsl_sf_bessel_jl(L, q*r[ir]);
+        //double tmp = gsl_sf_bessel_jl(L, q*r[ir]);
+        double tmp = SBF::JL(L, q*r[ir]);
         // If q(dr) is too large, "missing" j_L oscillations
         //(overstepping them). This helps to fix that.
         //By averaging the J_L function. Note: only works if wf is smooth
@@ -275,7 +276,8 @@ void sphericalBesselTable(
             double b = (i+1.)/(num_extra+1.);
             double a=1.-b;
             double qrtmp = q*(a*r[ir]+b*r[ir+1]);
-            tmp += gsl_sf_bessel_jl(L, qrtmp);
+            //tmp += gsl_sf_bessel_jl(L, qrtmp);
+            tmp += SBF::JL(L, qrtmp);
           }
           tmp /= (num_extra+1);
         }
