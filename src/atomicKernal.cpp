@@ -175,7 +175,12 @@ int main(void){
   //////////////////////////////////////////////////
 
   //Arrays to store results for outputting later:
-  std::vector< std::vector< std::vector<float> > > AK(desteps); //float ok?
+  std::vector< std::vector< std::vector<float> > > AK; //float ok?
+
+  int num_states = wf.nlist.size();
+  AK.resize(desteps, std::vector< std::vector<float> >
+    (num_states, std::vector<float>(qsteps)));
+
   std::vector<std::string> nklst;
 
   //pre-calculate the spherical Bessel function look-up table for efficiency
@@ -193,7 +198,7 @@ int main(void){
   for(size_t is=0; is<wf.nlist.size(); is++){
     int k = wf.kappa[is];
     int l = ATI::l_k(k);
-    if(l>max_l) continue;
+    //if(l>max_l) continue;
     int twoj = ATI::twoj_k(k);
     int n=wf.nlist[is];
     std::string nk=std::to_string(n)+ATI::l_symbol(l)
@@ -209,16 +214,20 @@ int main(void){
     if(desteps==1) y=0;
     double dE = demin*pow(demax/demin,y);
     //Loop over core (bound) states:
-    std::vector< std::vector<float> > AK_nk;
+    //std::vector< std::vector<float> > AK_nk;
     for(size_t is=0; is<wf.nlist.size(); is++){
       int k = wf.kappa[is];
       int l = ATI::l_k(k);
       if(l>max_l) continue;
-      if(plane_wave) AKF::calculateKpw_nk(wf,is,dE,jLqr_f[l],AK_nk);
-      else if(use_Zeff) AKF::calculateK_nk(wf,is,max_L,dE,jLqr_f,AK_nk,Zeff);
-      else AKF::calculateK_nk(wf,is,max_L,dE,jLqr_f,AK_nk);
+      // if(plane_wave) AKF::calculateKpw_nk(wf,is,dE,jLqr_f[l],AK_nk);
+      // else if(use_Zeff) AKF::calculateK_nk(wf,is,max_L,dE,jLqr_f,AK_nk,Zeff);
+      // else AKF::calculateK_nk(wf,is,max_L,dE,jLqr_f,AK_nk);
+      if(plane_wave) AKF::calculateKpw_nk(wf,is,dE,jLqr_f[l],AK[ide][is]);
+      else if(use_Zeff)
+        AKF::calculateK_nk(wf,is,max_L,dE,jLqr_f,AK[ide][is],Zeff);
+      else AKF::calculateK_nk(wf,is,max_L,dE,jLqr_f,AK[ide][is]);
     }// END loop over bound states
-    AK[ide] = AK_nk;
+    //AK[ide] = AK_nk;
   }
   std::cout<<"..done :)\n";
 

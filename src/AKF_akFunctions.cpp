@@ -139,13 +139,11 @@ int akReadWrite(std::string fname, bool write,
 //******************************************************************************
 int calculateK_nk(ElectronOrbitals &wf, int is, int max_L, double dE,
   std::vector< std::vector<std::vector<float> > > &jLqr_f,
-  std::vector< std::vector<float> > &K_nk, double Zeff)
+  std::vector<float> &AK_nk_q, double Zeff)
 /*
 Zeff is '-1' by default. If Zeff > 0, will solve w/ Zeff model
 */
 {
-  if (is>=(int)wf.p.size()) return 1; //should never occur, just safety?
-
   ContinuumOrbitals cntm(wf);// create cntm object [survives locally only]
 
   int k = wf.kappa[is];
@@ -168,7 +166,7 @@ Zeff is '-1' by default. If Zeff > 0, will solve w/ Zeff model
 
   // Generate AK for each L, lc, and q
   // L and lc are summed, not stored indevidually
-  std::vector<float> AK_nk_q(qsteps);
+  //std::vector<float> AK_nk_q(qsteps);
   for(int L=0; L<=max_L; L++){
     for(size_t ic=0; ic<cntm.kappa.size(); ic++){
       int kc = cntm.kappa[ic];
@@ -193,8 +191,8 @@ Zeff is '-1' by default. If Zeff > 0, will solve w/ Zeff model
       } //q
     } // END loop over cntm states (ic)
   } // end L loop
-  K_nk.push_back(AK_nk_q);
-  cntm.clear(); //deletes cntm wfs for this energy
+  //K_nk.push_back(AK_nk_q);
+  //cntm.clear(); //deletes cntm wfs for this energy
   return 0;
 }
 
@@ -202,7 +200,7 @@ Zeff is '-1' by default. If Zeff > 0, will solve w/ Zeff model
 //******************************************************************************
 int calculateKpw_nk(ElectronOrbitals &wf, int nk, double dE,
   std::vector< std::vector<float> > &jl_qr,
-  std::vector< std::vector<float> > &K_nk
+  std::vector<float> &tmpK_q
 )
 /*
 For plane-wave final state.
@@ -220,7 +218,7 @@ XXX Note sure if correct! esp, (q) angular part!? XXX
   int twoj = ATI::twoj_k(kappa);
 
   int qsteps = (int)jl_qr.size();
-  std::vector<float> tmpK_q(qsteps);
+  //std::vector<float> tmpK_q(qsteps);
 
   double eps = dE - wf.en[nk];
   int maxir = wf.pinflist[nk]; //don't bother going further
@@ -236,7 +234,7 @@ XXX Note sure if correct! esp, (q) angular part!? XXX
     //tmpK_q[iq] = pow(4*3.14159,2)*pow(chi_q,2); //XXX XXX just cf KOPP
   }
 
-  K_nk.push_back(tmpK_q);
+  //K_nk.push_back(tmpK_q);
   return 0;
 }
 
