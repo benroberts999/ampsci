@@ -6,7 +6,7 @@ CXXFLAGS=-I$(IDIR) -std=c++11 -Ofast -fopenmp -Wall -Wextra -Wpedantic
 LIBS=-lgsl -lgslcblas -lm
 
 all: checkObj h-like.x fitParametric.x parametricPotential.x atomicKernal.x \
-hartreeFock.x wigner.x #dmeXSection.x 
+hartreeFock.x wigner.x dmeXSection.x 
 
 
 ################################################################################
