@@ -2,11 +2,11 @@ IDIR =./src
 ODIR =./obj
 
 CXX=g++
-CXXFLAGS=-I$(IDIR) -std=c++11 -Ofast -fopenmp -Wall -Wextra -Wpedantic #-fopenmp
+CXXFLAGS=-I$(IDIR) -std=c++11 -Ofast -fopenmp -Wall -Wextra -Wpedantic
 LIBS=-lgsl -lgslcblas -lm
 
 all: checkObj h-like.x fitParametric.x parametricPotential.x atomicKernal.x \
-hartreeFock.x dmeXSection.x wigner.x
+hartreeFock.x wigner.x #dmeXSection.x 
 
 
 ################################################################################
@@ -21,7 +21,7 @@ $(ODIR)/%.o: $(IDIR)/%.cpp $(DEPS)
 	$(CXX) -c -o $@ $< $(CXXFLAGS)
 
 # All programs depend on these objects:
-OBJ = $(addprefix $(ODIR)/, \
+BASE = $(addprefix $(ODIR)/, \
  ADAMS_solveLocalBS.o ElectronOrbitals.o INT_quadratureIntegration.o \
  MAT_matrixAlgebraGSL.o \
 )
@@ -57,6 +57,10 @@ $(ODIR)/SHM_standardHaloModel.o: \
 $(IDIR)/SHM_standardHaloModel.cpp $(IDIR)/SHM_standardHaloModel.h
 	$(CXX) -c -o $@ $< $(CXXFLAGS)
 
+$(ODIR)/SBF_sphericalBesselFunctions.o: \
+$(IDIR)/SBF_sphericalBesselFunctions.cpp $(IDIR)/SBF_sphericalBesselFunctions.h
+	$(CXX) -c -o $@ $< $(CXXFLAGS)
+
 CNTM = $(addprefix $(ODIR)/, \
  ADAMS_solveLocalContinuum.o ContinuumOrbitals.o \
 )
@@ -66,27 +70,29 @@ CNTM = $(addprefix $(ODIR)/, \
 
 COMP = $(CXX) -o $@ $^ $(CXXFLAGS) $(LIBS)
 
-h-like.x: $(OBJ) $(ODIR)/h-like.o
+h-like.x: $(BASE) $(ODIR)/h-like.o
 	$(COMP)
 
-fitParametric.x: $(OBJ) $(ODIR)/fitParametric.o \
+fitParametric.x: $(BASE) $(ODIR)/fitParametric.o \
 $(ODIR)/PRM_parametricPotentials.o
 	$(COMP)
 
-parametricPotential.x: $(OBJ) $(ODIR)/parametricPotential.o \
+parametricPotential.x: $(BASE) $(ODIR)/parametricPotential.o \
 $(ODIR)/PRM_parametricPotentials.o
 	$(COMP)
 
-atomicKernal.x: $(OBJ) $(ODIR)/atomicKernal.o $(ODIR)/AKF_akFunctions.o \
+atomicKernal.x: $(BASE) $(ODIR)/atomicKernal.o $(ODIR)/AKF_akFunctions.o \
 $(ODIR)/WIG_369j.o $(ODIR)/PRM_parametricPotentials.o $(CNTM) \
-$(ODIR)/HF_hartreeFock.o
+$(ODIR)/HF_hartreeFock.o $(ODIR)/SBF_sphericalBesselFunctions.o
 	$(COMP)
 
-hartreeFock.x: $(OBJ) $(ODIR)/hartreeFock.o $(ODIR)/PRM_parametricPotentials.o \
+hartreeFock.x: $(BASE) $(ODIR)/hartreeFock.o \
+$(ODIR)/PRM_parametricPotentials.o \
 $(ODIR)/WIG_369j.o $(ODIR)/HF_hartreeFock.o
 	$(COMP)
 
-dmeXSection.x: $(OBJ) $(ODIR)/dmeXSection.o $(ODIR)/AKF_akFunctions.o \
+dmeXSection.x: $(BASE) $(ODIR)/dmeXSection.o $(ODIR)/AKF_akFunctions.o \
+$(ODIR)/SBF_sphericalBesselFunctions.o \
 $(ODIR)/WIG_369j.o $(ODIR)/PRM_parametricPotentials.o $(CNTM) \
 $(ODIR)/HF_hartreeFock.o $(ODIR)/SHM_standardHaloModel.o
 	$(COMP)
