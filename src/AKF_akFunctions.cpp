@@ -266,20 +266,18 @@ void sphericalBesselTable(
         int num_extra = 0;
         if(ir<ngp-1){
           double qdrop = q*(r[ir+1]-r[ir])/M_PI;
-          double min_qdrop = 0.02; // require 50 pts per half wavelength!
-          if(qdrop>min_qdrop) num_extra = int(qdrop/min_qdrop)+1;
+          double min_qdrop = 0.01; // require 100 pts per half wavelength!
+          if(qdrop>min_qdrop) num_extra = int(qdrop/min_qdrop)+3;
         }
         {//Include 'extra' points into j_L (avg):
           for(int i=0; i<num_extra; i++){
             double b = (i+1.)/(num_extra+1.);
             double a=1.-b;
             double qrtmp = q*(a*r[ir]+b*r[ir+1]);
-            //tmp += gsl_sf_bessel_jl(L, qrtmp);
-            tmp += SBF::JL(L, qrtmp);
+            tmp += SBF::JL(L, qrtmp); //*1./(i+1);
           }
           tmp /= (num_extra+1);
         }
-
         jLqr_f[L][iq][ir] = tmp;
       }
     }
