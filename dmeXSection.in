@@ -1,4 +1,4 @@
-ak-Xe_mid2      | input file name
+ak-Xe_S1        | input file name
 100             | v steps
 1.0  10. 1      | m_chi/GeV: min, max, num_steps
 0               | mv: 0=massless, 1=range, 2= heavy
@@ -8,7 +8,7 @@ ak-Xe_mid2      | input file name
 0               | E target. Non-zero: plot s(v). zero: <ds.v>
 131             | 131 for Xe; 127+23=150 for Dama
 0.0 5 0         | E bins (integration) [put 0 width for plot]
-mid2            | output label
+x               | output label
 =================
 I take average of 6.5+/-1 PE per keV.
 NOTE: This is definitely too simplistic!
