@@ -14,14 +14,25 @@ double V_to_kms = (FPC::c_SI/FPC::c)/1000.;
 double Q_to_MeV = FPC::Hartree_eV*FPC::c/1.e6;
 //cross section: ds/dE
 
-double dsdE_to_cm2keV = pow(FPC::aB_cm,2)/E_to_keV; // au -> cm^2/keV
+// //with sig-bar_e = a_B^2
+// double dsdE_to_cm2keV = pow(FPC::aB_cm,2)/E_to_keV; // au -> cm^2/keV
+// double dsvdE_to_cm3keVday = dsdE_to_cm2keV*V_to_cmday;
+
+double sbe_cm2 = 1.e-37;
+double sbe_au  = sbe_cm2/pow(FPC::aB_cm,2);
+//double sbe_au = 16.*3.14; //alpha_chi = alpha
+
+//XXX Check check!
+//With with sig-bar_e = sbe_cm2 = 1.e-37cm^2;
+//double dsdE_to_cm2keV = sbe_au*pow(FPC::aB_cm,2)/E_to_keV; // au -> cm^2/keV
+double dsdE_to_cm2keV = sbe_cm2/E_to_keV; // au -> cm^2/keV
 double dsvdE_to_cm3keVday = dsdE_to_cm2keV*V_to_cmday;
 
-//Numberical constant. For alpha_chi = 1 !
-// (if want alpgha_chi = alpha in the code, kill c2 )
-double A_au = 8*M_PI*FPC::c2;
-//Convert from au -> cm^2/keV
-double A_cmkeV = A_au*dsdE_to_cm2keV;
+// //Numberical constant. For alpha_chi = 1 !
+// // (if want alpgha_chi = alpha in the code, kill c2 )
+// double A_au = 8*M_PI*FPC::c2;
+// //Convert from au -> cm^2/keV
+// double A_cmkeV = A_au*dsdE_to_cm2keV;
 
 //DM energy density (in GeV/cm^3)
 //note: will be divided by m_chi, also in GeV
@@ -59,10 +70,14 @@ double dsdE_iEdEvum_qg(std::vector< std::vector< std::vector<T> > > &K_enq,
 calcualtes cross-section ds/dE, for given E, v, mu, and mx.
 Also needs min/max q (from grid) to re-construct q grids.
 note: mu = mv c / hbar = mv/alpha!
+
+Updated to output in units of sig-bar_e
+
 */
 {
   //double A_au = 8*M_PI*FPC::c2; // alpha_chi = 1 in code.
-  double A_au = 8*M_PI; //alpha_chi = eta*alpha; eta=1 in code
+  //double A_au = 8*M_PI; //alpha_chi = eta*alpha; eta=1 in code
+  double A_sigbar_e = 0.5; //in units of sig-bar_e !
   double v2 = pow(v,2);
 
   int desteps    = (int) K_enq.size();
@@ -92,16 +107,20 @@ note: mu = mv c / hbar = mv/alpha!
       double x = double(iq)/(qsteps-1);
       double q = qmin*pow(qmax/qmin,x);
       if(q<qminus || q>qplus) continue;
-      double t_Fq = q*q; //(dq/q) is constant, multiply at end
-      if(finite_med) t_Fq /= pow(q*q+mu*mu,2);
+      //double t_Fq = q*q; //(dq/q) is constant, multiply at end
+      double qdq_on_dqonq = q*q; //(dq/q) is constant, multiply at end
+      double F_chi = 1.;
+      if(finite_med) F_chi = 1./pow(q*q+mu*mu,2);
+      //if(finite_med) t_Fq /= pow(q*q+mu*mu,2);
       #pragma omp critical (qint)
       {
-        dsdE += t_Fq*K_enq[iE][ink][iq];  //dq/q included in aAconst
+        //dsdE += t_Fq*K_enq[iE][ink][iq];
+        dsdE += qdq_on_dqonq*F_chi*K_enq[iE][ink][iq];  //dq/q included below
       }
     }
   }
 
-  dsdE *= (A_au/v2)*dqonq;
+  dsdE *= (A_sigbar_e/v2)*dqonq;
   return dsdE;
 }
 
@@ -237,7 +256,7 @@ int main(void){
   else printf("Mv grid: %6.3f -> %6.3f  MeV, %5i steps\n"
     ,mvmin*M_to_MeV,mvmax*M_to_MeV,n_mv);
 
-  printf("\nA = %.1f au = %.2e cm^2/keV\n",A_au,A_cmkeV);
+  //printf("\nA = %.1f au = %.2e cm^2/keV\n",A_au,A_cmkeV);
   std::cout<<"ds/dE conversion factor:   "<<dsdE_to_cm2keV<<" cm^2/keV\n"
     <<"ds.v/dE conversion factor: "
     <<dsvdE_to_cm3keVday<<"   cm^3/keV/day\n\n";
@@ -426,6 +445,7 @@ int main(void){
   double MN = Atot*(FPC::u_NMU*FPC::m_e_kg); //Total atomic/mol. mass (in kg)
   double rho_on_mxc2 = rhoDM_GeVcm3/(mx*M_to_GeV);
   double rateFac = dsvdE_to_cm3keVday*rho_on_mxc2/MN;
+  //std::cout<<"Here: "<<MN<<" "<<rateFac<<"\n";
   //in (cm^3/kev/day)/(cm^3 *kg) = 1/keV/kg/day
 
   // //double check units: flux of DM particles, per second
