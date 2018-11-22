@@ -6,7 +6,7 @@ CXXFLAGS=-I$(IDIR) -std=c++11 -Ofast -fopenmp -Wall -Wextra -Wpedantic
 LIBS=-lgsl -lgslcblas -lm
 
 all: checkObj h-like.x fitParametric.x parametricPotential.x atomicKernal.x \
-hartreeFock.x wigner.x dmeXSection.x 
+hartreeFock.x wigner.x dmeXSection.x dmeXSection_new.x
 
 
 ################################################################################
@@ -92,6 +92,12 @@ $(ODIR)/WIG_369j.o $(ODIR)/HF_hartreeFock.o
 	$(COMP)
 
 dmeXSection.x: $(BASE) $(ODIR)/dmeXSection.o $(ODIR)/AKF_akFunctions.o \
+$(ODIR)/SBF_sphericalBesselFunctions.o \
+$(ODIR)/WIG_369j.o $(ODIR)/PRM_parametricPotentials.o $(CNTM) \
+$(ODIR)/HF_hartreeFock.o $(ODIR)/SHM_standardHaloModel.o
+	$(COMP)
+
+dmeXSection_new.x: $(BASE) $(ODIR)/dmeXSection_new.o $(ODIR)/AKF_akFunctions.o \
 $(ODIR)/SBF_sphericalBesselFunctions.o \
 $(ODIR)/WIG_369j.o $(ODIR)/PRM_parametricPotentials.o $(CNTM) \
 $(ODIR)/HF_hartreeFock.o $(ODIR)/SHM_standardHaloModel.o
