@@ -5,7 +5,6 @@ ak-Xe_S1        | input file name
 01.0 01. 1      | m_v/MeV: min, max, num_steps [only if =1 above]
 0  0  0         | SHM: cosphi; Error: dvesc, dv0. [-1,1]
 0  0            | DAMA error: det. resolution, PE-keV [-1,1] *
-0               | E target. Non-zero: plot s(v). zero: <ds.v>
 131             | 131 for Xe; 127+23=150 for Dama
 0.0 5 0.5       | E bins (integration) [put 0 width for plot]
 y               | output label
