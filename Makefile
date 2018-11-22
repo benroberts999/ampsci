@@ -57,6 +57,10 @@ $(ODIR)/SHM_standardHaloModel.o: \
 $(IDIR)/SHM_standardHaloModel.cpp $(IDIR)/SHM_standardHaloModel.h
 	$(CXX) -c -o $@ $< $(CXXFLAGS)
 
+$(ODIR)/StandardHaloModel.o: \
+$(IDIR)/StandardHaloModel.cpp $(IDIR)/StandardHaloModel.h
+	$(CXX) -c -o $@ $< $(CXXFLAGS)
+
 $(ODIR)/SBF_sphericalBesselFunctions.o: \
 $(IDIR)/SBF_sphericalBesselFunctions.cpp $(IDIR)/SBF_sphericalBesselFunctions.h
 	$(CXX) -c -o $@ $< $(CXXFLAGS)
@@ -93,6 +97,7 @@ $(ODIR)/WIG_369j.o $(ODIR)/HF_hartreeFock.o
 
 dmeXSection.x: $(BASE) $(ODIR)/dmeXSection.o $(ODIR)/AKF_akFunctions.o \
 $(ODIR)/SBF_sphericalBesselFunctions.o \
+$(ODIR)/StandardHaloModel.o \
 $(ODIR)/WIG_369j.o $(ODIR)/PRM_parametricPotentials.o $(CNTM) \
 $(ODIR)/HF_hartreeFock.o $(ODIR)/SHM_standardHaloModel.o
 	$(COMP)

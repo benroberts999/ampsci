@@ -1,5 +1,5 @@
-#ifndef _SHM_H
-#define _SHM_H
+#ifndef _SHMold_H
+#define _SHMold_H
 
 #include <vector>
 #include <cmath>

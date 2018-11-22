@@ -1,4 +1,5 @@
 #include "AKF_akFunctions.h"
+#include "StandardHaloModel.h"
 #include "SHM_standardHaloModel.h"
 #include <iomanip>
 
@@ -344,6 +345,28 @@ int main(void){
     double v = (i+1)*dv; //don't include zero
     arr_fv[i] = fvNorm*fv_au(v,cosp,dvesc,dv0);
   }
+
+  std::vector<double> arr_fv2(vsteps);
+  StandardHaloModel shm(cosp,dvesc,dv0);
+  for(int i=0; i<vsteps; i++){
+    double v = (i+1)*dv; //don't include zero
+    double vkms = v * (FPC::c_SI/FPC::c); //will be in m/s
+    vkms/=1.e3; //convert from m/s -> km/s
+    arr_fv2[i] = shm.fv(vkms);
+  }
+
+  double a=0, b=0;
+  for(int i=0; i<vsteps; i++){
+    double v = (i+1)*dv; //don't include zero
+    std::cout<<v<<" "<<arr_fv[i]<<" "<<arr_fv2[i]<<" "<<arr_fv[i]-arr_fv2[i]<<"\n";
+    a += arr_fv2[i]*dv*(FPC::c_SI/FPC::c)/1.e3;
+    b += arr_fv[i]*dv;
+  }
+  std::cout<<a<<" "<<b<<"\n";
+
+  std::cout<<"NOTE: Fchi NOT normalised correctly??\n";
+
+  return 1;
 
   //Print the grid info to screen:
   printf("\nq :%6.2f -> %6.2f MeV, N=%4i\n",qmin*Q_to_MeV,qmax*Q_to_MeV,qsteps);
