@@ -110,17 +110,13 @@ Output in units of sig-bar_e
 
   double dsdE = 0;
   for(int ink=0; ink<num_states; ink++){
-    #pragma omp parallel for
     for(int iq=0; iq<qsteps; iq++){
       double q = qgrid.x(iq);
       if(q<qminus || q>qplus) continue;
       double qdq_on_dqonq = q*q; //(dq/q) is constant, multiply at end
       double F_chi = 1.;
       if(finite_med) F_chi = 1./pow(q*q+mu*mu,2);
-      #pragma omp critical (qint)
-      {
-        dsdE += qdq_on_dqonq*F_chi*Ke_nq[ink][iq];  //dq/q included below
-      }
+      dsdE += qdq_on_dqonq*F_chi*Ke_nq[ink][iq];  //dq/q included below
     }//q int
   }//states
 
@@ -175,11 +171,6 @@ Note: mv<0 means "heavy" mediator [Fx=1]
     dsvde[ie] = dsvdE;
   }//dE
 }
-
-
-
-
-
 
 //******************************************************************************
 void writeForGnuplot_mvBlock(
@@ -329,7 +320,6 @@ int main(void){
   fEbin/=E_to_keV;
   wEbin/=E_to_keV;
 
-
   //Arrays/values to be filled from input AK file:
   std::vector< std::vector< std::vector<float> > > Kenq;
   std::vector<std::string> nklst;
@@ -356,15 +346,15 @@ int main(void){
   }
 
   //Print the grid info to screen:
-  printf("\nq: %6.2f -> %6.2f MeV, N=%4i\n",qmin*Q_to_MeV,qmax*Q_to_MeV,qsteps);
-  printf("E: %6.2f -> %6.2f keV, N=%4i\n"
+  printf("\nq :%6.2f -> %6.2f MeV, N=%4i\n",qmin*Q_to_MeV,qmax*Q_to_MeV,qsteps);
+  printf("E :%6.2f -> %6.2f keV, N=%4i\n"
     ,demin*E_to_keV,demax*E_to_keV,desteps);
-  printf("v: %6.2f -> %6.2f km/s, N=%4i\n"
+  printf("v :%6.2f -> %6.2fkm/s, N=%4i\n"
     ,dv*V_to_kms,max_v*V_to_kms,vsteps);
-  printf("Mx: %6.2f -> %6.2f GeV, N=%4i\n"
+  printf("Mx:%6.2f -> %6.2f GeV, N=%4i\n"
     ,mxmin*M_to_GeV,mxmax*M_to_GeV,n_mx);
   if(mvmin<0) std::cout<<"Heavy meadiator\n";
-  else printf("Mv grid: %6.2f -> %6.2f  MeV, %4i steps\n"
+  else printf("Mv:%6.2f -> %6.2f MeV, N=%4i\n"
     ,mvmin*M_to_MeV,mvmax*M_to_MeV,n_mv);
 
   // Units + conversions for dsvde..etc
@@ -373,6 +363,11 @@ int main(void){
     <<"ds.v/dE conversion factor: "
     <<dsvdE_to_cm3keVday<<"   cm^3/keV/day\n\n";
 
+  double al_x = (sqrt(sbe_1e37_cm2)/FPC::aB_cm)*(FPC::alpha/sqrt(16.*M_PI));
+  double al_xH = al_x/(FPC::m_e_MeV*FPC::alpha2);
+  std::cout<<"Note: sig-bar_e =  "<<sbe_1e37_cm2<<"cm2 corresponds to:\n"
+    <<" Light mediator: al_x = "<<al_x<<"\n"
+    <<" Heavy mediator: al_x = "<<al_xH<<"*(mv/MeV)^2\n\n";
 
   //Array to store cross-section
   // ds.v/dE (fun. of mv, mx, E)
@@ -414,8 +409,6 @@ int main(void){
       writeForGnuplot_mvBlock(dsv_mv_mx_E,mvgrid,mxgrid,Egrid,fn_dsvde);
     }
   }
-
-
 
 
   // *********************
