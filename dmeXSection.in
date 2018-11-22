@@ -7,8 +7,8 @@ ak-Xe_S1        | input file name
 0  0            | DAMA error: det. resolution, PE-keV [-1,1] *
 0               | E target. Non-zero: plot s(v). zero: <ds.v>
 131             | 131 for Xe; 127+23=150 for Dama
-0.0 5 0         | E bins (integration) [put 0 width for plot]
-x               | output label
+0.0 5 0.5       | E bins (integration) [put 0 width for plot]
+y               | output label
 =================
 I take average of 6.5+/-1 PE per keV.
 NOTE: This is definitely too simplistic!

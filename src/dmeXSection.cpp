@@ -2,6 +2,28 @@
 #include "SHM_standardHaloModel.h"
 #include <iomanip>
 
+
+struct ExpGrid{
+  int N;
+  double min;
+  double max;
+  double dxonx;
+  ExpGrid(int in_N, double in_min, double in_max);
+  double x(int i);
+};
+
+ExpGrid::ExpGrid(int in_N, double in_min, double in_max){
+  N = in_N;
+  min = in_min;
+  max = in_max;
+  dxonx = log(max/min)/(N-1);
+}
+
+double ExpGrid::x(int i){
+  double y = double(i)/(N-1);
+  return min*pow(max/min,y);
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 //Units Conversion Factors.
 //Conver FROM a.u. TO rel./other units
@@ -397,7 +419,8 @@ int main(void){
   //(only for all E - NOT v!!)
   //**************************************************************************
 
-
+  // XXX For now, only does for single mx, mv!
+  // XXX Should be easy to update..
   int imv = 0;
   int imx = 0;
   double dEonE = log(demax/demin)/(desteps-1);
@@ -405,17 +428,13 @@ int main(void){
   double mx = mxmin*pow(mxmax/mxmin,double(imx)/(n_mx-1));
 
   //calculate Gaussian smearing (DAMA)
-  //std::vector<double> y(desteps);
-  std::vector<float> y = dsv_mv_mx_x[imv][imx];
+  std::vector<float> y(desteps); // = dsv_mv_mx_x[imv][imx];
 
-  //
-  //double err_PEkeV = 0.; //should be between [-1,1]
+  //Hardware threshold: should be between [-1,1]
   double PE_per_keV = 6.5 + err_PEkeV*1.;
   double E_thresh_HW = 1./PE_per_keV/E_to_keV;
-    std::cout<<E_thresh_HW<<"au "<<E_thresh_HW*FPC::Hartree_eV<<"eV "<<E_thresh_HW*E_to_keV<<"\n";
 
   //calculate Gaussian smearing (DAMA)
-  //XXX ALSO: HARDWARE threshold - 1 PE. ~5.5-7.5 PE per keV!
   // Also: include detector efficiency!? Can ignore for dama..
   double alph = 0.45 + dres*0.04;
   double beta = 0.009 + dres*0.005;
@@ -427,6 +446,7 @@ int main(void){
     }
     //triple check this! Super important!
     double s = (alph*sqrt(E*E_to_keV) + beta*(E*E_to_keV))/E_to_keV;
+     //s = 0.01/E_to_keV;
     //std::cout<<E*E_to_keV<<" "<<s*E_to_keV<<" "<<s<<"\n";
     double y0 = 0;
     for(int j = 0; j<desteps; j++){
@@ -447,6 +467,16 @@ int main(void){
   double rateFac = dsvdE_to_cm3keVday*rho_on_mxc2/MN;
   //std::cout<<"Here: "<<MN<<" "<<rateFac<<"\n";
   //in (cm^3/kev/day)/(cm^3 *kg) = 1/keV/kg/day
+
+  //Output plot of dR/dE, dS/dE
+  std::ofstream of;
+  std::string fname = "plot-dSdE-"+label+".txt";
+  of.open(fname.c_str());
+  for(int i = 0; i<desteps; i++){
+    double E = demin*pow(demax/demin,double(i)/(desteps-1));
+    of<<E*E_to_keV<<" "<<rateFac*y[i]<<" "<<rateFac*dsv_mv_mx_x[imv][imx][i]<<"\n";
+  }
+  of.close();
 
   // //double check units: flux of DM particles, per second
   // std::cout<<"DM flux through 1cm^2 per second: ~";
@@ -469,13 +499,16 @@ int main(void){
     if(ieA<0)ieA=0;
 
     double Rate=0;
+    // std::cout<<ieA<<" "<<ieB-1<<"  ::  ";
+    // std::cout<<demin*pow(demax/demin,double(ieA)/(desteps-1))*E_to_keV;
+    // std::cout<<" - ";
+    // std::cout<<demin*pow(demax/demin,double(ieB-1)/(desteps-1))*E_to_keV<<"\n";
     for(int ie = ieA; ie<ieB; ie++){
       double xe = double(ie)/(desteps-1);
       double E = demin*pow(demax/demin,xe);
       Rate += y[ie]*E; //nb: E is from Jacobian; * dE/E below
     }
-    Rate *= rateFac*dEonE/Ebw;
-    // std::cout<<dEonE<<" "<<Rate<<"\n";
+    Rate *= rateFac*dEonE/(Ebw/E_to_keV);
     printf("%3.1f-%3.1f: %6.3f   %.2e     %i\n",
       Ea*E_to_keV,Eb*E_to_keV,0.5*(Ea+Eb)*E_to_keV,Rate,ieB-ieA);
     Ea += Ebw/E_to_keV;
