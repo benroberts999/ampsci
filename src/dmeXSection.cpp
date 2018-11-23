@@ -262,14 +262,15 @@ int main(void){
   std::string label;
   double Atot;
   double iEbin,fEbin,wEbin; // E bins: initial,final, width
-  double cosp,dvesc,dv0;
+  double dvesc,dv0;
   double dres,err_PEkeV; //detector resolution, PE-keV errors [-1]
+  bool do_anMod;
   bool do_DAMA;
 
   //Open and read the input file:
   {
     std::ifstream ifs("dmeXSection.in");
-    int idodama;
+    int idodama, ianmod;
     std::string jnk;
     ifs >> akfn;                    getline(ifs,jnk);
     ifs >> label;                   getline(ifs,jnk);
@@ -277,16 +278,20 @@ int main(void){
     ifs >> mxmin >> mxmax >> n_mx;  getline(ifs,jnk);
     ifs >> i_mv;                    getline(ifs,jnk);
     ifs >> mvmin >> mvmax >> n_mv;  getline(ifs,jnk);
-    ifs >> cosp >> dvesc >> dv0;    getline(ifs,jnk);
+    ifs >> ianmod >> dvesc >> dv0;  getline(ifs,jnk);
     ifs >> idodama;                 getline(ifs,jnk);
     ifs >> dres >> err_PEkeV;       getline(ifs,jnk);
     ifs >> Atot;                    getline(ifs,jnk);
     ifs >> iEbin >> fEbin >> wEbin; getline(ifs,jnk);
     label = label=="na" ? akfn : akfn+"-"+label;
-    do_DAMA = idodama==1 ? true : false;
+    do_anMod = ianmod==1 ? true : false;
+    do_DAMA  = idodama==1 ? true : false;
   }
 
-  if(cosp>1 || cosp<-1) return 1; //add message
+  if(!do_DAMA) do_anMod = false; //don't do anmod if outputting dsvde!
+  if(do_anMod){
+    std::cout<<"Running for annual modulation\n";
+  }
 
   //DM mass: Convert from GeV to au:
   mxmin /= M_to_GeV;
@@ -333,13 +338,19 @@ int main(void){
   // f.dv = 1 => [f] = [1/v]
   double max_v = (SHMCONSTS::MAXV)/V_to_kms;
   double dv = max_v/vsteps;
-  std::vector<double> arr_fv(vsteps);
-  StandardHaloModel shm(cosp,dvesc,dv0);
-  for(int i=0; i<vsteps; i++){
-    double v = (i+1)*dv; //don't include zero
-    double vkms = v*(FPC::c_SI/FPC::c)/1.e3; //will be in km/s
-    arr_fv[i] = shm.fv(vkms)/(1./V_to_kms); //convert to a.u. [f]=[1/v]
+  int num_cp = do_anMod ? 3 : 1; //just 1 v. dist? or 3 (for an mod.)?
+  std::vector< std::vector<double> > arr_fv(num_cp,
+      std::vector<double>(vsteps));
+  for(int icp = 0; icp<num_cp; icp++){
+    double cosp = icp==0 ? 0 : pow(-1,icp); //0, -1, 1
+    StandardHaloModel shm(cosp,dvesc,dv0);
+    for(int i=0; i<vsteps; i++){
+      double v = (i+1)*dv; //don't include zero
+      double vkms = v*(FPC::c_SI/FPC::c)/1.e3; //will be in km/s
+      arr_fv[icp][i] = shm.fv(vkms)/(1./V_to_kms); //convert to a.u. [f]=[1/v]
+    }
   }
+  //return 1;
 
   //Print the grid info to screen:
   printf("\nq :%6.2f -> %6.2f MeV, N=%4i\n",qmin*Q_to_MeV,qmax*Q_to_MeV,qsteps);
@@ -371,30 +382,60 @@ int main(void){
   //Array to store cross-section
   // ds.v/dE (fun. of mv, mx, E)
   std::vector< std::vector< std::vector<float> > > dsv_mv_mx_E;
-  dsv_mv_mx_E.resize(n_mv,
-    std::vector< std::vector<float> >(n_mx,
-      std::vector<float>(desteps)
-    )
-  );
+  std::vector< std::vector< std::vector<float> > > dsv_mv_mx_Emax;
+
+  dsv_mv_mx_E.resize(n_mv,std::vector< std::vector<float> >(n_mx,
+      std::vector<float>(desteps)));
+  if(do_anMod){
+  dsv_mv_mx_Emax.resize(n_mv,std::vector< std::vector<float> >(n_mx,
+      std::vector<float>(desteps)));
+  }
 
   // Calculate <ds.v>/dE for each E (for each mx, mv)
-  std::cout<<"Doing q and v integrations: ";
-  printf("cos(phi)=%4.1f; dvesc=%4.1f; dv0=%4.1f.\n",cosp,dvesc,dv0);
+  std::cout<<"Doing q and v integrations: \n";
+  //printf("cos(phi)=%4.1f; dvesc=%4.1f; dv0=%4.1f.\n",cosp,dvesc,dv0);
   for(int imv=0; imv<n_mv; imv++){
     double mv = mvgrid.x(imv);
+    #pragma omp parallel for if(n_mx>15)
     for(int imx=0; imx<n_mx; imx++){
       double mx = mxgrid.x(imx);
-      printf("M_chi=%5.2f GeV",mx*M_to_GeV);
-      if(mv>=0) printf(" ; M_v=%6.3f MeV",mv*M_to_MeV);
-      std::cout<<" .. "<<std::flush;
-      form_dsvdE(dsv_mv_mx_E[imv][imx],Kenq,mv,mx,Egrid,qgrid,arr_fv,dv);
-      std::cout<<" .. Done\n";
+      //printf("M_chi=%5.2f GeV",mx*M_to_GeV);
+      //if(mv>=0) printf(" ; M_v=%6.3f MeV",mv*M_to_MeV);
+      std::cout<<"\r .. "<<std::flush;
+      if(do_anMod){
+        //std::cout<<"(-) "<<std::flush;
+        form_dsvdE(dsv_mv_mx_E[imv][imx],Kenq,mv,mx,Egrid,qgrid,arr_fv[1],dv);
+        //std::cout<<"(+)"<<std::flush;
+        std::cout<<"\r  ... "<<std::flush;
+        form_dsvdE(dsv_mv_mx_Emax[imv][imx],Kenq,mv,mx,Egrid,qgrid,arr_fv[2]
+          ,dv);
+      }else{
+        form_dsvdE(dsv_mv_mx_E[imv][imx],Kenq,mv,mx,Egrid,qgrid,arr_fv[0],dv);
+      }
+      std::cout<<"\r .. .. "<<std::flush;
+      //std::cout<<" .. Done\n";
     }//mx
   }//mv
   std::cout<<"\n";
 
 
+  //If doing an. mod, form "amplitude" for ds.v/dE, used below
+  if(do_anMod){
+    for(int imv=0; imv<n_mv; imv++){
+      for(int imx=0; imx<n_mx; imx++){
+        for(int ie=0; ie<desteps; ie++){
+          dsv_mv_mx_E[imv][imx][ie] =
+           0.5*(dsv_mv_mx_Emax[imv][imx][ie]-dsv_mv_mx_E[imv][imx][ie]);
+        }
+      }
+    }
+  }
+  //need to do this? No..
+  dsv_mv_mx_Emax.clear();
+
+
   bool write_dsvde = true;
+  if(do_DAMA) write_dsvde = false; //otherwise, get's printed too often
   //Output <ds.v>/dE for gnuplot:
   if(write_dsvde){
     std::string fn_dsvde = "dsvde_mx-"+label+".out";
@@ -464,14 +505,15 @@ int main(void){
   bool write_dS = true;
   //output dS/dE for gnuplot:
   if(write_dS){
-    std::string fn_dSde = "dSdE_mx-"+label+".out";
+    std::string spref = do_anMod ? "dSmdE" : "dSdE";
+    std::string fn_dSde = spref+"_mx-"+label+".out";
     std::cout<<"Writing to file: "<<fn_dSde<<"\n";
     double u = 1; //already converted!
     if(n_mv==1 || n_mx>1){
       writeForGnuplot_mvBlock(dSdE_mv_mx_E,mvgrid,mxgrid,Egrid,fn_dSde,u);
     }
     if(n_mv>1){
-      fn_dSde = "dSdE_mv-"+label+".out";
+      fn_dSde = spref+"_mv-"+label+".out";
       std::cout<<"Writing to file: "<<fn_dSde<<"\n";
       writeForGnuplot_mvBlock(dSdE_mv_mx_E,mvgrid,mxgrid,Egrid,fn_dSde,u);
     }
@@ -488,11 +530,13 @@ int main(void){
     )
   );
 
-  std::cout<<"\nIntegrated (averaged) each energy bin\n";
+  if(do_anMod)std::cout<<"\nSm/Ew, annual modulation amplitude (/day/kg/keV)\n";
+  else        std::cout<<"\nS/Ew, annual modulation amplitude (/day/kg/keV)\n";
+  std::cout<<"Integrated (averaged) each energy bin.\n";
   std::cout<<"(Just outputting for first mx/mv: ";
     printf("M_chi=%5.2f GeV",mxmin*M_to_GeV);
     if(mvmin>=0) printf(" ; M_v=%6.3f MeV",mvmin*M_to_MeV);
-  std::cout<<"\n";
+  std::cout<<")\n";
   for(int imv=0; imv<n_mv; imv++){
     for(int imx=0; imx<n_mx; imx++){
       for(int i=0; i<num_bins; i++){

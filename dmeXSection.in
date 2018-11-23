@@ -1,10 +1,10 @@
 ak-I_S1         | input file name
 h-m             | output label (put 'na' for none)
 150             | v steps
-0.1  10. 5      | m_chi/GeV: min, max, num_steps
+0.1  10. 1      | m_chi/GeV: min, max, num_steps
 2               | mv: 0=massless, 1=range, 2= heavy
 0.00 00.0 1     | m_v/MeV: min, max, num_steps [only if =1 above]
--1 0  0         | SHM: cosphi; Error: dvesc, dv0. [-1,1]
+1  0  0         | So anmod?; SHM Error: dvesc, dv0. [-1,1]
 1               | 1= Do for DAMA (as below)
 0  0            | DAMA error: det. resolution, PE-keV [-1,1] *
 150             | 131 for Xe; 127+23=150 for Dama
