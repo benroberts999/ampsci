@@ -1,14 +1,14 @@
 ak-I_S1         | input file name
-h-m             | output label (put 'na' for none)
-150             | v steps
-0.1  10. 1      | m_chi/GeV: min, max, num_steps
+xxx             | output label (put 'na' for none)
+75              | v steps
+0.1  10. 16     | m_chi/GeV: min, max, num_steps
 2               | mv: 0=massless, 1=range, 2= heavy
 0.00 00.0 1     | m_v/MeV: min, max, num_steps [only if =1 above]
-1  0  0         | So anmod?; SHM Error: dvesc, dv0. [-1,1]
+1  0  0         | Do anmod?; SHM Error: dvesc, dv0. [-1,1]
 1               | 1= Do for DAMA (as below)
 0  0            | DAMA error: det. resolution, PE-keV [-1,1] *
 150             | 131 for Xe; 127+23=150 for Dama
-0.0 6 0.5       | E bins (integration) [put 0 width for plot]
+0.0 3 1.0       | E bins (integration) [put 0 width for plot]
 =================
 I take average of 6.5+/-1 PE per keV.
 NOTE: This is definitely too simplistic!

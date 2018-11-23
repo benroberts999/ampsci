@@ -564,5 +564,35 @@ int main(void){
     }
   }
 
+
+  // For each energy bin, output as function of m_chi.
+  // Note: if doing this, don't output above files! (too many m_chi's)
+  // Each collumn a different energy bin
+  //Each m_v
+  std::ofstream of("tmpout.out");
+
+  for(int imv=0; imv<n_mv; imv++){
+    double mv = mvgrid.x(imv);
+    of<<"\""<<std::fixed<<std::setprecision(2)<<mv*M_to_MeV<<" MeV\"   ";
+    for(int i=0; i<num_bins; i++){
+      double EaKev = (iEbin+i*wEbin)*E_to_keV;
+      double EbKev = EaKev + wEbin*E_to_keV;
+      of<<"\""
+        <<std::fixed<<std::setprecision(1)<<EaKev<<"-"<<EbKev<<" keV\"   ";
+    }
+    of<<"\n"<<std::scientific<<std::setprecision(6);
+    for(int imx=0; imx<n_mx; imx++){
+      double mx = mxgrid.x(imx)*M_to_GeV;
+      of<<mx<<" ";
+      for(int ie=0; ie<num_bins; ie++){
+        of<<S_mv_mx_E[imv][imx][ie]<<" ";
+      }//mx
+      of<<"\n";
+    }//E
+    of<<"\n";
+  }//mv
+
+  of.close();
+
   return 0;
 }
