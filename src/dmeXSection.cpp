@@ -72,18 +72,18 @@ double g(double s, double x)
   return a*exp(-0.5*y);
 }
 
-//******************************************************************************
-double fv_au(double v_au, double cosphi, double dves, double dv0)
-// SHM vel. distribution, v in atomic units.
-{
-  double v = v_au * (FPC::c_SI/FPC::c); //will be in m/s
-  v/=1.e3; //convert from m/s -> km/s
-  return SHM::fv(v,cosphi,dves,dv0);
-}
+// //******************************************************************************
+// double fv_au(double v_au, double cosphi, double dves, double dv0)
+// // SHM vel. distribution, v in atomic units.
+// {
+//   double v = v_au * (FPC::c_SI/FPC::c); //will be in m/s
+//   v/=1.e3; //convert from m/s -> km/s
+//   return SHM::fv(v,cosphi,dves,dv0);
+// }
 
 //******************************************************************************
 template<typename T>
-double dsdE_Evmvmx(std::vector< std::vector<T> > &Ke_nq,
+double dsdE_Evmvmx(const std::vector< std::vector<T> > &Ke_nq,
   double E, double v, double mv, double mx, ExpGrid &qgrid)
 /*
 Note: just takes in _PART_ of K (for given E)
@@ -128,9 +128,9 @@ Output in units of sig-bar_e
 
 //******************************************************************************
 template<typename T>
-double dsvdE_Evmvmx(std::vector< std::vector<T> > &Ke_nq,
+double dsvdE_Evmvmx(const std::vector< std::vector<T> > &Ke_nq,
   double E, double mv, double mx, ExpGrid &qgrid,
-  std::vector<double> &arr_fv, double dv)
+  const std::vector<double> &arr_fv, double dv)
 /*
 Calculates <ds.v>/dE for given E, mv, mx
 Does the v integration
@@ -153,7 +153,7 @@ Note: only takes _part_ of the K array! (for given E)
 template<typename T>
 void form_dsvdE(
   std::vector<float> &dsvde,
-  std::vector< std::vector< std::vector<T> > > &K_enq,
+  const std::vector< std::vector< std::vector<T> > > &K_enq,
   double mv, double mx,
   ExpGrid &Egrid, ExpGrid &qgrid,
   std::vector<double> &arr_fv, double dv)
@@ -336,37 +336,18 @@ int main(void){
   ExpGrid Egrid(desteps,demin,demax);
   ExpGrid qgrid(qsteps,qmin,qmax);
 
-  //Grid of f_v(v). Can use to change vel profiles
-  std::vector<double> arr_fv(vsteps);
+  // Grid of f_v(v). Can use to change vel profiles
+  // Note: SHM is in km/s units, both for v and f!
+  // f.dv = 1 => [f] = [1/v]
   double max_v = (SHM::MAXV)/V_to_kms;
   double dv = max_v/vsteps;
-  double fvNorm = SHM::normfv(cosp,dvesc,dv0);
-  for(int i=0; i<vsteps; i++){
-    double v = (i+1)*dv; //don't include zero
-    arr_fv[i] = fvNorm*fv_au(v,cosp,dvesc,dv0);
-  }
-
-  std::vector<double> arr_fv2(vsteps);
+  std::vector<double> arr_fv(vsteps);
   StandardHaloModel shm(cosp,dvesc,dv0);
   for(int i=0; i<vsteps; i++){
     double v = (i+1)*dv; //don't include zero
-    double vkms = v * (FPC::c_SI/FPC::c); //will be in m/s
-    vkms/=1.e3; //convert from m/s -> km/s
-    arr_fv2[i] = shm.fv(vkms);
+    double vkms = v*(FPC::c_SI/FPC::c)/1.e3; //will be in km/s
+    arr_fv[i] = shm.fv(vkms)/(1./V_to_kms); //convert to a.u. [f]=[1/v]
   }
-
-  double a=0, b=0;
-  for(int i=0; i<vsteps; i++){
-    double v = (i+1)*dv; //don't include zero
-    std::cout<<v<<" "<<arr_fv[i]<<" "<<arr_fv2[i]<<" "<<arr_fv[i]-arr_fv2[i]<<"\n";
-    a += arr_fv2[i]*dv*(FPC::c_SI/FPC::c)/1.e3;
-    b += arr_fv[i]*dv;
-  }
-  std::cout<<a<<" "<<b<<"\n";
-
-  std::cout<<"NOTE: Fchi NOT normalised correctly??\n";
-
-  return 1;
 
   //Print the grid info to screen:
   printf("\nq :%6.2f -> %6.2f MeV, N=%4i\n",qmin*Q_to_MeV,qmax*Q_to_MeV,qsteps);
@@ -392,6 +373,9 @@ int main(void){
     <<" Light mediator: al_x = "<<al_x<<"\n"
     <<" Heavy mediator: al_x = "<<al_xH<<"*(mv/MeV)^2\n\n";
 
+
+  //Calculate <ds.v>/dE:
+
   //Array to store cross-section
   // ds.v/dE (fun. of mv, mx, E)
   std::vector< std::vector< std::vector<float> > > dsv_mv_mx_E;
@@ -401,9 +385,7 @@ int main(void){
     )
   );
 
-  //Fill arrays:
-  // If single E (plot v), calculate ds.v/dE for each v
-  // If many E (no plot v), calc <ds.v>/dE for each E
+  // Calculate <ds.v>/dE for each E (for each mx, mv)
   std::cout<<"Doing q and v integrations: ";
   printf("cos(phi)=%4.1f; dvesc=%4.1f; dv0=%4.1f.\n",cosp,dvesc,dv0);
   for(int imv=0; imv<n_mv; imv++){
@@ -421,7 +403,7 @@ int main(void){
 
   bool write_dsvde = true;
 
-  //output <ds.v>/dE for gnuplot:
+  //Output <ds.v>/dE for gnuplot:
   if(write_dsvde){
     std::string fn_dsvde = "plot-dsvde_mx-"+label+".out";
     std::cout<<"Writing to file: "<<fn_dsvde<<"\n";
