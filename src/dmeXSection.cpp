@@ -1,6 +1,5 @@
 #include "AKF_akFunctions.h"
 #include "StandardHaloModel.h"
-#include "SHM_standardHaloModel.h"
 #include <iomanip>
 
 //Convert FROM a.u. TO rel./other units
@@ -71,15 +70,6 @@ double g(double s, double x)
   double y = (x/s)*(x/s);
   return a*exp(-0.5*y);
 }
-
-// //******************************************************************************
-// double fv_au(double v_au, double cosphi, double dves, double dv0)
-// // SHM vel. distribution, v in atomic units.
-// {
-//   double v = v_au * (FPC::c_SI/FPC::c); //will be in m/s
-//   v/=1.e3; //convert from m/s -> km/s
-//   return SHM::fv(v,cosphi,dves,dv0);
-// }
 
 //******************************************************************************
 template<typename T>
@@ -173,13 +163,14 @@ Note: mv<0 means "heavy" mediator [Fx=1]
   }//dE
 }
 
+
 //******************************************************************************
 void writeForGnuplot_mvBlock(
-  std::vector< std::vector< std::vector<float> > > &X_mv_mx_x,
+  const std::vector< std::vector< std::vector<float> > > &X_mv_mx_x,
   ExpGrid mvgrid, ExpGrid mxgrid, ExpGrid Egrid,
-  std::string fname)
+  std::string fname, double y_unit_convert)
 {
-
+//dsvdE_to_cm3keVday
   std::ofstream of(fname.c_str());
 
   int n_mv = mvgrid.N;
@@ -205,7 +196,7 @@ void writeForGnuplot_mvBlock(
       double E = Egrid.x(ie);
       of<<E*E_to_keV<<" ";
       for(int imx=0; imx<n_mx; imx++){
-        of<<X_mv_mx_x[imv][imx][ie]*dsvdE_to_cm3keVday<<" ";
+        of<<X_mv_mx_x[imv][imx][ie]*y_unit_convert<<" ";
       }//mx
       of<<"\n";
     }//E
@@ -216,7 +207,7 @@ void writeForGnuplot_mvBlock(
 }
 //******************************************************************************
 void writeForGnuplot_mxBlock(
-  std::vector< std::vector< std::vector<float> > > &X_mv_mx_x,
+  const std::vector< std::vector< std::vector<float> > > &X_mv_mx_x,
   ExpGrid mvgrid, ExpGrid mxgrid, ExpGrid Egrid,
   std::string fname)
 {
@@ -264,34 +255,35 @@ void writeForGnuplot_mxBlock(
 int main(void){
 
   //define input parameters
-  std::string akfn; //name of K file to read in
+  std::string akfn;
   int vsteps;
   double mxmin,mxmax,mvmin,mvmax; //m_chi and m_v masses
   int n_mx,i_mv,n_mv;
-  //double de_target;
-  std::string label="testx";
-  //bool plotv = false; //if single dE, plot fn of v!
+  std::string label;
   double Atot;
   double iEbin,fEbin,wEbin; // E bins: initial,final, width
   double cosp,dvesc,dv0;
   double dres,err_PEkeV; //detector resolution, PE-keV errors [-1]
+  bool do_DAMA;
 
   //Open and read the input file:
   {
-    std::ifstream ifs;
-    ifs.open("dmeXSection.in");
+    std::ifstream ifs("dmeXSection.in");
+    int idodama;
     std::string jnk;
     ifs >> akfn;                    getline(ifs,jnk);
+    ifs >> label;                   getline(ifs,jnk);
     ifs >> vsteps;                  getline(ifs,jnk);
     ifs >> mxmin >> mxmax >> n_mx;  getline(ifs,jnk);
     ifs >> i_mv;                    getline(ifs,jnk);
     ifs >> mvmin >> mvmax >> n_mv;  getline(ifs,jnk);
     ifs >> cosp >> dvesc >> dv0;    getline(ifs,jnk);
+    ifs >> idodama;                 getline(ifs,jnk);
     ifs >> dres >> err_PEkeV;       getline(ifs,jnk);
     ifs >> Atot;                    getline(ifs,jnk);
     ifs >> iEbin >> fEbin >> wEbin; getline(ifs,jnk);
-    ifs >> label;                   getline(ifs,jnk);
-    ifs.close();
+    label = label=="na" ? akfn : akfn+"-"+label;
+    do_DAMA = idodama==1 ? true : false;
   }
 
   if(cosp>1 || cosp<-1) return 1; //add message
@@ -339,7 +331,7 @@ int main(void){
   // Grid of f_v(v). Can use to change vel profiles
   // Note: SHM is in km/s units, both for v and f!
   // f.dv = 1 => [f] = [1/v]
-  double max_v = (SHM::MAXV)/V_to_kms;
+  double max_v = (SHMCONSTS::MAXV)/V_to_kms;
   double dv = max_v/vsteps;
   std::vector<double> arr_fv(vsteps);
   StandardHaloModel shm(cosp,dvesc,dv0);
@@ -401,25 +393,29 @@ int main(void){
   }//mv
   std::cout<<"\n";
 
-  bool write_dsvde = true;
 
+  bool write_dsvde = true;
   //Output <ds.v>/dE for gnuplot:
   if(write_dsvde){
-    std::string fn_dsvde = "plot-dsvde_mx-"+label+".out";
+    std::string fn_dsvde = "dsvde_mx-"+label+".out";
     std::cout<<"Writing to file: "<<fn_dsvde<<"\n";
-    writeForGnuplot_mvBlock(dsv_mv_mx_E,mvgrid,mxgrid,Egrid,fn_dsvde);
+    double u = dsvdE_to_cm3keVday; //convert units for <ds.v>/dE
+    if(n_mv==1 || n_mx>1){
+      writeForGnuplot_mvBlock(dsv_mv_mx_E,mvgrid,mxgrid,Egrid,fn_dsvde,u);
+    }
     if(n_mv>1){
-      fn_dsvde = "plot-dsvde_mv-"+label+".out";
+      fn_dsvde = "dsvde_mv-"+label+".out";
       std::cout<<"Writing to file: "<<fn_dsvde<<"\n";
-      writeForGnuplot_mvBlock(dsv_mv_mx_E,mvgrid,mxgrid,Egrid,fn_dsvde);
+      writeForGnuplot_mvBlock(dsv_mv_mx_E,mvgrid,mxgrid,Egrid,fn_dsvde,u);
     }
   }
-
 
   // *********************
   //    Here, is just for DAMA! Move into sepperate function!!
   // *********************
 
+  if(!do_DAMA) return 1;
+  std::cout<<"\n *** Doing S1 for DAMA ***\n\n";
 
   //Array to store observable Rate, S
   std::vector< std::vector< std::vector<float> > > dSdE_mv_mx_E;
@@ -428,7 +424,6 @@ int main(void){
       std::vector<float>(desteps)
     )
   );
-
 
   //Hardware threshold: should be between [-1,1]
   double PE_per_keV = 6.5 + err_PEkeV*1.;
@@ -466,20 +461,21 @@ int main(void){
     }
   }
 
-
   bool write_dS = true;
   //output dS/dE for gnuplot:
   if(write_dS){
-    std::string fn_dSde = "plot-dSdE_mx-"+label+".out";
+    std::string fn_dSde = "dSdE_mx-"+label+".out";
     std::cout<<"Writing to file: "<<fn_dSde<<"\n";
-    writeForGnuplot_mvBlock(dSdE_mv_mx_E,mvgrid,mxgrid,Egrid,fn_dSde);
+    double u = 1; //already converted!
+    if(n_mv==1 || n_mx>1){
+      writeForGnuplot_mvBlock(dSdE_mv_mx_E,mvgrid,mxgrid,Egrid,fn_dSde,u);
+    }
     if(n_mv>1){
-      fn_dSde = "plot-dSdE_mv-"+label+".out";
+      fn_dSde = "dSdE_mv-"+label+".out";
       std::cout<<"Writing to file: "<<fn_dSde<<"\n";
-      writeForGnuplot_mvBlock(dSdE_mv_mx_E,mvgrid,mxgrid,Egrid,fn_dSde);
+      writeForGnuplot_mvBlock(dSdE_mv_mx_E,mvgrid,mxgrid,Egrid,fn_dSde,u);
     }
   }
-
 
   // Integrate/average into energy bins:
   int num_bins = ceil((fEbin-iEbin)/wEbin);
