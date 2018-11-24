@@ -3,13 +3,11 @@
 #include <vector>
 #include "ElectronOrbitals.h"
 
-
 class ContinuumOrbitals{
 
   public:
 
-    //XXX Pass by const ref?!? XXX
-    ContinuumOrbitals(ElectronOrbitals wf, int izion=1);
+    ContinuumOrbitals(const ElectronOrbitals &wf, int izion=1);
     //takes in grid, v from here
 
     int solveLocalContinuum(double ec, int min_l, int max_l);

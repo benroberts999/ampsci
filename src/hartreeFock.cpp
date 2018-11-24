@@ -1,13 +1,12 @@
 #include "ElectronOrbitals.h"
+#include "HF_hartreeFock.h"
 #include "INT_quadratureIntegration.h"
 #include "PRM_parametricPotentials.h"
-#include "HF_hartreeFock.h"
 #include "FPC_physicalConstants.h"
 #include "ATI_atomInfo.h"
 #include <iostream>
 #include <cmath>
 #include <fstream>
-#include <sstream>
 #include <sys/time.h>
 
 int main(void){

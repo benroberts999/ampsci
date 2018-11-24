@@ -6,7 +6,6 @@
 #include <iostream>
 #include <fstream>
 #include <cmath>
-#include <omp.h>
 /*
 Finds the best-fit parameter values for the Green or Tietz potentials
 */

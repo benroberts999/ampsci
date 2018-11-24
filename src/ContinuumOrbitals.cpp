@@ -1,15 +1,15 @@
 #include "ContinuumOrbitals.h"
-#include <string>
-#include <vector>
-#include <cmath>
-#include "FPC_physicalConstants.h"
-#include "ATI_atomInfo.h"
 #include "ElectronOrbitals.h"
 #include "ADAMS_solveLocalBS.h"
 #include "ADAMS_solveLocalContinuum.h"
+#include "FPC_physicalConstants.h"
+#include "ATI_atomInfo.h"
+#include <string>
+#include <vector>
+#include <cmath>
 
 //******************************************************************************
-ContinuumOrbitals::ContinuumOrbitals(ElectronOrbitals wf, int izion)
+ContinuumOrbitals::ContinuumOrbitals(const ElectronOrbitals &wf, int izion)
 /*
 Initialise object:
  * Copies grid and potential info, since these must always match bound states!

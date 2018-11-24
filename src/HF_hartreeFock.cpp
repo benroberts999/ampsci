@@ -1,11 +1,12 @@
 #include "HF_hartreeFock.h"
-#include <cmath>
-#include <string>
-#include <vector>
 #include "ElectronOrbitals.h"
 #include "PRM_parametricPotentials.h"
 #include "ATI_atomInfo.h"
 #include "WIG_369j.h"
+#include <cmath>
+#include <string>
+#include <vector>
+
 /*
 Calculates self-consistent Hartree-Fock potential, including exchange.
 Solves all core and valence states.
@@ -50,6 +51,7 @@ Note: V_HF = V_dir + V_ex    -- note sign convention!
     if(hits==4) eta *= 2;
 
     //Form new v_dir and v_ex:
+    //XXX XXX XXX Fastor to form these once outside! ? Check if safe! XXX
     std::vector<double> vdir_old = wf.vdir;
     std::vector<double> vdir_new;
     formNewVdir(wf,vdir_new,false);
@@ -149,7 +151,8 @@ Calculate valence states in frozen Hartree-Fock core
 }
 
 //******************************************************************************
-int formNewVdir(ElectronOrbitals &wf, std::vector<double> &vdir_new, bool scale)
+int formNewVdir(const ElectronOrbitals &wf, std::vector<double> &vdir_new,
+  bool scale)
 /*
 This takes in the wavefunctions, and forms the direct (local) part of the
 electron potential. Does not include exchange.
@@ -168,7 +171,7 @@ Note: Uses efficient integral method:
 {
 
   //Make sure vector is correct size, and clear old potential away
-  vdir_new.clear();
+  //vdir_new.clear();
   vdir_new.resize(wf.ngp);
 
   //Scaling factor. For hartree only (when FOCK excluded)
@@ -212,13 +215,13 @@ Note: Uses efficient integral method:
 //==============================================================================
 
 //******************************************************************************
-int formVexCore(ElectronOrbitals &wf, std::vector< std::vector<double> > &vex)
+int formVexCore(const ElectronOrbitals &wf, std::vector< std::vector<double> > &vex)
 /*
 Calculates exchange potential for each state in the core
 Parallelised for speed
 */
 {
-  vex.clear();
+  //vex.clear();
   vex.resize(wf.num_core_states);
   #pragma omp parallel for
   for(int a=0; a<wf.num_core_states; a++){
@@ -230,7 +233,7 @@ Parallelised for speed
 }
 
 //******************************************************************************
-int formVexA(ElectronOrbitals &wf, int a, std::vector<double> &vex_a)
+int formVexA(const ElectronOrbitals &wf, int a, std::vector<double> &vex_a)
 /*
 Forms the exchange potential for state a
   Vex_a(r)  = -\sum_b [Jb]*vex_ab(r)*fac   [fac = (fafb+gagb))/(fafa+gaga)]
@@ -250,7 +253,7 @@ For now: exclude core f states. Ok, but not ideal
   int tja = ATI::twoj_k(wf.kappa[a]);
   int la = ATI::l_k(wf.kappa[a]);
 
-  vex_a.clear();
+  vex_a.clear(); //must be clear!
   vex_a.resize(ngp);
   #pragma omp parallel for
   for(int b=0; b<wf.num_core_states; b++){

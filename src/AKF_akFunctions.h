@@ -21,11 +21,11 @@ namespace AKF{
     double &qmin, double &qmax,
     double &dEmin, double &dEmax);
 
-  int calculateK_nk(ElectronOrbitals &wf, int nk, int max_L, double dE,
+  int calculateK_nk(const ElectronOrbitals &wf, int nk, int max_L, double dE,
     std::vector< std::vector<std::vector<float> > > &jLqr_f,
     std::vector<float> &K_nk, double Zeff=-1);
 
-  int calculateKpw_nk(ElectronOrbitals &wf, int nk, double dE,
+  int calculateKpw_nk(const ElectronOrbitals &wf, int nk, double dE,
     std::vector< std::vector<float> > &jl_qr,
     std::vector<float> &K_nk);
 

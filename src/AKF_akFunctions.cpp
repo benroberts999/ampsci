@@ -1,9 +1,6 @@
 #include "AKF_akFunctions.h"
 #include "ElectronOrbitals.h"
 #include "ContinuumOrbitals.h"
-#include "INT_quadratureIntegration.h"
-#include "PRM_parametricPotentials.h"
-#include "HF_hartreeFock.h"
 #include "WIG_369j.h"
 #include "SBF_sphericalBesselFunctions.h"
 #include "FPC_physicalConstants.h"
@@ -11,8 +8,6 @@
 #include <iostream>
 #include <cmath>
 #include <fstream>
-#include <sstream>
-//#include <sys/time.h>
 
 namespace AKF{
 
@@ -152,7 +147,7 @@ int akReadWrite(std::string fname, bool write,
 
 
 //******************************************************************************
-int calculateK_nk(ElectronOrbitals &wf, int is, int max_L, double dE,
+int calculateK_nk(const ElectronOrbitals &wf, int is, int max_L, double dE,
   std::vector< std::vector<std::vector<float> > > &jLqr_f,
   std::vector<float> &AK_nk_q, double Zeff)
 /*
@@ -213,7 +208,7 @@ Zeff is '-1' by default. If Zeff > 0, will solve w/ Zeff model
 
 
 //******************************************************************************
-int calculateKpw_nk(ElectronOrbitals &wf, int nk, double dE,
+int calculateKpw_nk(const ElectronOrbitals &wf, int nk, double dE,
   std::vector< std::vector<float> > &jl_qr,
   std::vector<float> &tmpK_q
 )

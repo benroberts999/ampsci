@@ -1,21 +1,12 @@
 #include "AKF_akFunctions.h"
 #include "StandardHaloModel.h"
-#include "ElectronOrbitals.h"
-#include "ContinuumOrbitals.h"
-#include "INT_quadratureIntegration.h"
-#include "PRM_parametricPotentials.h"
-#include "HF_hartreeFock.h"
-#include "WIG_369j.h"
-#include "SBF_sphericalBesselFunctions.h"
 #include "FPC_physicalConstants.h"
 #include <iostream>
 #include <string>
 #include <cmath>
 #include <vector>
 #include <fstream>
-#include <sstream>
 #include <iomanip>
-// XXX Can remove many of these??
 
 //Convert FROM a.u. TO rel./other units
 double E_to_keV = FPC::Hartree_eV/1000.; //au -> keV (energy)

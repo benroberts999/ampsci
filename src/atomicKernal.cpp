@@ -2,15 +2,11 @@
 #include "ElectronOrbitals.h"
 #include "ContinuumOrbitals.h"
 #include "ATI_atomInfo.h"
-#include "INT_quadratureIntegration.h"
 #include "PRM_parametricPotentials.h"
 #include "HF_hartreeFock.h"
 #include "FPC_physicalConstants.h"
-#include "WIG_369j.h"
-#include "SBF_sphericalBesselFunctions.h"
 #include <iostream>
 #include <fstream>
-#include <sstream>
 #include <cmath>
 #include <sys/time.h>
 
