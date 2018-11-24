@@ -33,6 +33,8 @@ with a few extensions that improve numerical stability and accuracy
  * All programs have input options, stored and read from 'programName.in' file
  * Note: below just tells how to use existing programs, to see how they work,
  see the comments/instructions inside the source code
+ * Tested with g++ and clang++. For clang++, openmp (parallelisation) isn't
+  supported by default, but seems to run fine besides that.
 
 The above instructions are for linux (ubuntu). For windows, the easiest way (for me, anyway) is to make use of the recent 'windows subsystem for linux'. Instructions on installation/use here: https://www.roberts999.com/posts/2018/11/wsl-coding-windows-ubuntu
 Then, the compilation+use can proceed as per above.
