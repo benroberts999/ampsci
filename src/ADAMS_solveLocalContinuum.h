@@ -1,7 +1,6 @@
 #ifndef _SOLVECNTM_H
 #define _SOLVECNTM_H
-#include "ADAMS_solveLocalBS.h"
-#include <fstream> //XXX remove after!
+#include <vector>
 namespace ADAMS{
 
 double fitQuadratic(double x1, double x2, double x3, double y1, double y2,

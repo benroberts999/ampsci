@@ -1,6 +1,7 @@
 #ifndef _ATINFO_H
 #define _ATINFO_H
 #include <string>
+#include <vector>
 #include <iostream>
 
 /*

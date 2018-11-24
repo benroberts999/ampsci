@@ -1,6 +1,5 @@
 #ifndef _PARAMETRICPOT_H
 #define _PARAMETRICPOT_H
-#include<cmath>
 
 namespace PRM{
 
@@ -8,8 +7,7 @@ namespace PRM{
   double tietz(int Z, double r, double g, double t);
   int defaultGreen(int z, double &H, double &d);
   int defaultTietz(int z, double &t, double &g);
-
-int defaultGreenCore(int z, double &H, double &d);
+  int defaultGreenCore(int z, double &H, double &d);
 
 }
 

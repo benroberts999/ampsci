@@ -1,11 +1,6 @@
 #ifndef _SOLVEBS_H
 #define _SOLVEBS_H
-#include <iostream>
-#include <cmath>
 #include <vector>
-#include "MAT_matrixAlgebraGSL.h"
-#include <gsl/gsl_linalg.h> //??? needed??
-#include "INT_quadratureIntegration.h"
 
 namespace ADAMS{
 

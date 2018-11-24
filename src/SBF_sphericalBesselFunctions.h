@@ -1,7 +1,5 @@
 #ifndef _SBF_H
 #define _SBF_H
-#include <gsl/gsl_sf_bessel.h>
-#include <cmath>
 
 namespace SBF{
 

@@ -1,11 +1,10 @@
 #ifndef _MATRIXALG_H
 #define _MATRIXALG_H
-#include <gsl/gsl_linalg.h>
 #include <vector>
-#include <cmath>  //?? needed?
 
 namespace MAT{
 
+//XXX Pass as reference, const?? + overload w. template ?? XXX
 int invertMatrix(std::vector< std::vector<double> > inmat,
                         std::vector< std::vector<double> > &outmat);
 int invertMatrix(std::vector< std::vector<double> > &inmat);

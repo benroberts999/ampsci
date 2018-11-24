@@ -1,15 +1,7 @@
 #ifndef _ORBITALS_H
 #define _ORBITALS_H
-#include <string>
-#include <sstream>
 #include <vector>
-#include <cmath>
-#include "FPC_physicalConstants.h"
-#include "ATI_atomInfo.h"
-#include "ADAMS_solveLocalBS.h"
-// #include "adamsSolveLocalContinuum.h" //XXX sub-class???
-#include <gsl/gsl_sf_fermi_dirac.h>
-#include <algorithm> //for sort
+#include <string>
 
 const int NGP_DEFAULT=1000; //???
 

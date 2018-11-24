@@ -1,5 +1,9 @@
 #include "PRM_parametricPotentials.h"
+#include "FPC_physicalConstants.h"
+#include "ATI_atomInfo.h"
 #include <iostream>
+#include <cmath>
+
 namespace PRM{
 
 //******************************************************************************

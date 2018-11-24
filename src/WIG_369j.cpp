@@ -1,4 +1,8 @@
 #include "WIG_369j.h"
+#include <gsl/gsl_sf_coupling.h>
+#include <cmath>
+#include <stdlib.h>
+
 namespace WIG{
 
 /*

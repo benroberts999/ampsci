@@ -1,4 +1,11 @@
 #include "HF_hartreeFock.h"
+#include <cmath>
+#include <string>
+#include <vector>
+#include "ElectronOrbitals.h"
+#include "PRM_parametricPotentials.h"
+#include "ATI_atomInfo.h"
+#include "WIG_369j.h"
 /*
 Calculates self-consistent Hartree-Fock potential, including exchange.
 Solves all core and valence states.

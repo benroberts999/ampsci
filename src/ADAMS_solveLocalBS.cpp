@@ -1,4 +1,10 @@
 #include "ADAMS_solveLocalBS.h"
+#include "MAT_matrixAlgebraGSL.h"
+#include "INT_quadratureIntegration.h"
+#include <iostream>
+#include <cmath>
+#include <vector>
+
 /*
 Thu 06 Nov 2014 23:29:57 AEDT. Updated 2018 to go past ctp.
 Program to solve single-electron bound-state Dirac problem for a (given)

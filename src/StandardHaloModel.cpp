@@ -1,4 +1,6 @@
 #include "StandardHaloModel.h"
+#include <cmath>
+#include <vector>
 
 using namespace SHMCONSTS;
 

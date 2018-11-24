@@ -1,7 +1,6 @@
 #ifndef _INTQUAD_H
 #define _INTQUAD_H
 #include <vector>
-#include <iostream>
 
 namespace INT{
 

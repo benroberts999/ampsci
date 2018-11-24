@@ -1,9 +1,11 @@
 #include "ElectronOrbitals.h"
 #include "ATI_atomInfo.h"
+#include "FPC_physicalConstants.h"
 #include "INT_quadratureIntegration.h"
 #include "PRM_parametricPotentials.h"
 #include <iostream>
 #include <fstream>
+#include <cmath>
 #include <omp.h>
 /*
 Finds the best-fit parameter values for the Green or Tietz potentials

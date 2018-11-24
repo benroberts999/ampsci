@@ -3,6 +3,7 @@
 #include "INT_quadratureIntegration.h"
 #include <iostream>
 #include <fstream>
+#include <cmath>
 
 int main(void){
 

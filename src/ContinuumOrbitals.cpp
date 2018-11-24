@@ -1,5 +1,12 @@
 #include "ContinuumOrbitals.h"
-
+#include <string>
+#include <vector>
+#include <cmath>
+#include "FPC_physicalConstants.h"
+#include "ATI_atomInfo.h"
+#include "ElectronOrbitals.h"
+#include "ADAMS_solveLocalBS.h"
+#include "ADAMS_solveLocalContinuum.h"
 
 //******************************************************************************
 ContinuumOrbitals::ContinuumOrbitals(ElectronOrbitals wf, int izion)

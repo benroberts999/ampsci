@@ -1,6 +1,15 @@
 //class ElectronOrbitals::
 #include "ElectronOrbitals.h"
-
+#include "INT_quadratureIntegration.h"
+#include <string>
+#include <sstream>
+#include <vector>
+#include <cmath>
+#include "FPC_physicalConstants.h"
+#include "ATI_atomInfo.h"
+#include "ADAMS_solveLocalBS.h"
+#include <gsl/gsl_sf_fermi_dirac.h>
+#include <algorithm> //for sort
 /*
  ==== To Do ====
  * Write out to disk
@@ -338,7 +347,7 @@ HF_hartreeFock.cpp has routines for Hartree Fock
       if(en_a>0) en_a = enGuessCore(n,l);
     }
     int k2 = -(l+1); //j=l+1/2
-    //if(num>2*l) 
+    //if(num>2*l)
     solveLocalDirac(n,k2,en_a,log_dele_or);
     //XXX Here! Solve BOTH, and adjust with occ. fraction!! XXX
   }

@@ -1,4 +1,8 @@
 #include "MAT_matrixAlgebraGSL.h"
+#include <gsl/gsl_linalg.h>
+#include <vector>
+//#include <cmath>  //?? needed?
+
 namespace MAT{
 //******************************************************************************
 int invertMatrix(std::vector< std::vector<double> > inmat,

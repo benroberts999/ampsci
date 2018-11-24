@@ -1,9 +1,7 @@
 //https://www.gnu.org/software/gsl/doc/html/specfunc.html?highlight=3j#coupling-coefficients
 #ifndef _WIGNER_H
 #define _WIGNER_H
-#include <gsl/gsl_sf_coupling.h>
-#include <math.h>
-#include <stdlib.h>
+
 namespace WIG{
 
 double threej(double j1, double j2, double j3, double m1, double m2, double m3);

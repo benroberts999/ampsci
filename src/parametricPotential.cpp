@@ -1,6 +1,8 @@
 #include "ElectronOrbitals.h"
 #include "INT_quadratureIntegration.h"
 #include "PRM_parametricPotentials.h"
+#include "ATI_atomInfo.h"
+#include "FPC_physicalConstants.h"
 #include <iostream>
 #include <fstream>
 #include <sstream>

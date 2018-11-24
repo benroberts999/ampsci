@@ -1,17 +1,8 @@
 #ifndef _AKFUNS_H
 #define _AKFUNS_H
 #include "ElectronOrbitals.h"
-#include "ContinuumOrbitals.h"
-#include "INT_quadratureIntegration.h"
-#include "PRM_parametricPotentials.h"
-#include "HF_hartreeFock.h"
-#include "WIG_369j.h"
-#include "SBF_sphericalBesselFunctions.h"
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <sys/time.h>
-//#include <gsl/gsl_sf_bessel.h>
+#include <vector>
+#include <string>
 
 namespace AKF{
 

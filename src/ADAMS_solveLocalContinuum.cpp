@@ -1,4 +1,8 @@
 #include "ADAMS_solveLocalContinuum.h"
+#include <cmath>
+#include "ADAMS_solveLocalBS.h"
+//#include <fstream> //XXX remove after!
+
 namespace ADAMS{
 /*
 2018-04-04.

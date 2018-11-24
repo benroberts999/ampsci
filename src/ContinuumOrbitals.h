@@ -1,19 +1,14 @@
 #ifndef _CNTMORB_H
 #define _CNTMORB_H
-#include <string>
 #include <vector>
-#include <cmath>
-#include "FPC_physicalConstants.h"
-#include "ATI_atomInfo.h"
 #include "ElectronOrbitals.h"
-#include "ADAMS_solveLocalBS.h"
-#include "ADAMS_solveLocalContinuum.h"
 
 
 class ContinuumOrbitals{
 
   public:
 
+    //XXX Pass by const ref?!? XXX
     ContinuumOrbitals(ElectronOrbitals wf, int izion=1);
     //takes in grid, v from here
 

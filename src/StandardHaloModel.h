@@ -1,7 +1,6 @@
 #ifndef _SHM_H
 #define _SHM_H
 #include <vector>
-#include <cmath>
 
 namespace SHMCONSTS{
   const double VESC = 550.; // galactic escape velocity [1804.01231]
