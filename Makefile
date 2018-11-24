@@ -1,118 +1,113 @@
-IDIR =./src
-ODIR =./obj
+#Set directories for input files/source code (ID),
+# output object files (OD), and executables (XD)
+ID =./src
+OD =./obj
+XD =./
 
 CXX=g++
-CXXFLAGS=-I$(IDIR) -std=c++11 -Ofast -fopenmp -Wall -Wextra -Wpedantic
+CXXFLAGS=-I$(ID) -std=c++11 -Ofast -fopenmp -Wall -Wextra -Wpedantic
 LIBS=-lgsl -lgslcblas -lm
 
-all: checkObj h-like.x fitParametric.x parametricPotential.x atomicKernal.x \
-hartreeFock.x wigner.x dmeXSection.x
-
+#Command to compile objects and link them
+COMP=$(CXX) -c -o $@ $< $(CXXFLAGS)
+LINK=$(CXX) -o $@ $^ $(CXXFLAGS) $(LIBS)
 
 ################################################################################
-## All programs depend on these header/object files:
-
-DEPS = $(addprefix $(IDIR)/, \
- ADAMS_solveLocalBS.h ATI_atomInfo.h ElectronOrbitals.h \
- INT_quadratureIntegration.h MAT_matrixAlgebraGSL.h FPC_physicalConstants.h \
+#Allow exectuables to be placed in another directory:
+ALLEXES = $(addprefix $(XD)/, \
+ h-like.x fitParametric.x parametricPotential.x atomicKernal.x \
+ hartreeFock.x wigner.x dmeXSection.x \
 )
 
-$(ODIR)/%.o: $(IDIR)/%.cpp $(DEPS)
-	$(CXX) -c -o $@ $< $(CXXFLAGS)
+#Default make rule:
+all: checkObj checkXdir $(ALLEXES)
 
-# All programs depend on these objects:
-BASE = $(addprefix $(ODIR)/, \
+################################################################################
+## Dependencies:
+
+# All programs depend on these generic common headers:
+COMH = $(addprefix $(ID)/, \
+ ATI_atomInfo.h FPC_physicalConstants.h \
+)
+
+# Rule for files that have .cpp AND a .h file
+# They depend 'only' on their own header, + generic common headers
+$(OD)/%.o: $(ID)/%.cpp $(ID)/%.h $(COMH)
+	$(COMP)
+
+# Rule for files that _don't_ have a .h header. (mains)
+# These also depend on the common headers
+$(OD)/%.o: $(ID)/%.cpp $(COMH)
+	$(COMP)
+
+# Here: List rules for any other progs that don't fit above rules?
+$(OD)/dummy.o: $(ID)/dummy.cpp $(COMH) $(ID)/otherHeader.h
+	$(COMP)
+
+################################################################################
+# Hust to save typing: Many programs depend on these combos:
+
+BASE = $(addprefix $(OD)/, \
  ADAMS_solveLocalBS.o ElectronOrbitals.o INT_quadratureIntegration.o \
  MAT_matrixAlgebraGSL.o \
 )
 
-################################################################################
-# List all other dependencies:
+HF = $(addprefix $(OD)/, \
+ HF_hartreeFock.o PRM_parametricPotentials.o WIG_369j.o \
+)
 
-$(ODIR)/PRM_parametricPotentials.o: \
-$(IDIR)/PRM_parametricPotentials.cpp $(IDIR)/PRM_parametricPotentials.h
-	$(CXX) -c -o $@ $< $(CXXFLAGS)
-
-$(ODIR)/WIG_369j.o: \
-$(IDIR)/WIG_369j.cpp $(IDIR)/WIG_369j.h
-	$(CXX) -c -o $@ $< $(CXXFLAGS)
-
-$(ODIR)/ADAMS_solveLocalContinuum.o: \
-$(IDIR)/ADAMS_solveLocalContinuum.cpp $(IDIR)/ADAMS_solveLocalContinuum.h
-	$(CXX) -c -o $@ $< $(CXXFLAGS)
-
-$(ODIR)/HF_hartreeFock.o: \
-$(IDIR)/HF_hartreeFock.cpp $(IDIR)/HF_hartreeFock.h
-	$(CXX) -c -o $@ $< $(CXXFLAGS)
-
-$(ODIR)/ContinuumOrbitals.o: \
-$(IDIR)/ContinuumOrbitals.cpp $(IDIR)/ContinuumOrbitals.h
-	$(CXX) -c -o $@ $< $(CXXFLAGS)
-
-$(ODIR)/AKF_akFunctions.o: \
-$(IDIR)/AKF_akFunctions.cpp $(IDIR)/AKF_akFunctions.h
-	$(CXX) -c -o $@ $< $(CXXFLAGS)
-
-$(ODIR)/StandardHaloModel.o: \
-$(IDIR)/StandardHaloModel.cpp $(IDIR)/StandardHaloModel.h
-	$(CXX) -c -o $@ $< $(CXXFLAGS)
-
-$(ODIR)/SBF_sphericalBesselFunctions.o: \
-$(IDIR)/SBF_sphericalBesselFunctions.cpp $(IDIR)/SBF_sphericalBesselFunctions.h
-	$(CXX) -c -o $@ $< $(CXXFLAGS)
-
-CNTM = $(addprefix $(ODIR)/, \
+CNTM = $(addprefix $(OD)/, \
  ADAMS_solveLocalContinuum.o ContinuumOrbitals.o \
 )
 
 ################################################################################
-# All final programs
+# Link + build all final programs
 
-COMP = $(CXX) -o $@ $^ $(CXXFLAGS) $(LIBS)
+$(XD)/h-like.x: $(BASE) $(OD)/h-like.o
+	$(LINK)
 
-h-like.x: $(BASE) $(ODIR)/h-like.o
-	$(COMP)
+$(XD)/fitParametric.x: $(BASE) $(OD)/fitParametric.o \
+$(OD)/PRM_parametricPotentials.o
+	$(LINK)
 
-fitParametric.x: $(BASE) $(ODIR)/fitParametric.o \
-$(ODIR)/PRM_parametricPotentials.o
-	$(COMP)
+$(XD)/parametricPotential.x: $(BASE) $(OD)/parametricPotential.o \
+$(OD)/PRM_parametricPotentials.o
+	$(LINK)
 
-parametricPotential.x: $(BASE) $(ODIR)/parametricPotential.o \
-$(ODIR)/PRM_parametricPotentials.o
-	$(COMP)
+$(XD)/atomicKernal.x: $(BASE) $(CNTM) $(HF) \
+$(OD)/atomicKernal.o $(OD)/AKF_akFunctions.o \
+$(OD)/SBF_sphericalBesselFunctions.o
+	$(LINK)
 
-atomicKernal.x: $(BASE) $(ODIR)/atomicKernal.o $(ODIR)/AKF_akFunctions.o \
-$(ODIR)/WIG_369j.o $(ODIR)/PRM_parametricPotentials.o $(CNTM) \
-$(ODIR)/HF_hartreeFock.o $(ODIR)/SBF_sphericalBesselFunctions.o
-	$(COMP)
+$(XD)/hartreeFock.x: $(BASE) $(HF) $(OD)/hartreeFock.o
+	$(LINK)
 
-hartreeFock.x: $(BASE) $(ODIR)/hartreeFock.o \
-$(ODIR)/PRM_parametricPotentials.o \
-$(ODIR)/WIG_369j.o $(ODIR)/HF_hartreeFock.o
-	$(COMP)
+$(XD)/dmeXSection.x: $(BASE) $(CNTM) $(HF) $(OD)/dmeXSection.o \
+$(OD)/AKF_akFunctions.o $(OD)/SBF_sphericalBesselFunctions.o \
+$(OD)/StandardHaloModel.o
+	$(LINK)
 
-dmeXSection.x: $(BASE) $(ODIR)/dmeXSection.o $(ODIR)/AKF_akFunctions.o \
-$(ODIR)/SBF_sphericalBesselFunctions.o \
-$(ODIR)/StandardHaloModel.o \
-$(ODIR)/WIG_369j.o $(ODIR)/PRM_parametricPotentials.o $(CNTM) \
-$(ODIR)/HF_hartreeFock.o
-	$(COMP)
-
-wigner.x: $(ODIR)/wigner.o $(ODIR)/WIG_369j.o
-	$(COMP)
+$(XD)/wigner.x: $(OD)/wigner.o $(OD)/WIG_369j.o
+	$(LINK)
 
 ################################################################################
 
 checkObj:
-	@if [ ! -d $(ODIR) ]; then \
-	echo '\n ERROR: Directory: '$(ODIR)' doesnt exist - please create it!\n'; \
-	false; \
+	@if [ ! -d $(OD) ]; then \
+	  echo '\n ERROR: Directory: '$(OD)' doesnt exist - please create it!\n'; \
+	  false; \
 	else \
-	echo 'OK'; \
+	  echo 'OK'; \
 	fi
 
-.PHONY: clean do_the_chicken_dance checkObj
+checkXdir:
+	@if [ ! -d $(XD) ]; then \
+		echo '\n ERROR: Directory: '$(XD)' doesnt exist - please create it!\n'; \
+		false; \
+	fi
+
+.PHONY: clean do_the_chicken_dance checkObj checkXdir
 clean:
-	rm -f *.x *~ $(ODIR)/*.o $(IDIR)/*~
+	rm -f $(XD)/*.x $(OD)/*.o
 do_the_chicken_dance:
 	@echo 'Why would I do that?'
