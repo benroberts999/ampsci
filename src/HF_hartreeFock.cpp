@@ -197,16 +197,13 @@ Note: Uses efficient integral method:
   //to determine the electric potential (energy). Makes use of spherical symm.
   // vdir(r) = A(r)/r + B(r) [see above]
   //Note: I don't use quadrature formula here.
-  std::vector<double> A(wf.ngp),B(wf.ngp);
-  double b0 = 0;
-  for(int i=0; i<wf.ngp; i++) b0 += wf.drdt[i]*rho[i]/wf.r[i];
-  B[0] = b0; //INT::integrate2(rho_on_r,wf.drdt,1.,0,wf.ngp,0,0);
-  A[0] = 0.;
-  vdir_new[0] = B[0];
+  double a=0, b = 0;
+  for(int i=0; i<wf.ngp; i++) b += wf.drdt[i]*rho[i]/wf.r[i];
+  vdir_new[0] = b;
   for(int i=1; i<wf.ngp; i++){
-    B[i] = B[i-1] - wf.drdt[i-1]*rho[i-1]/wf.r[i-1];
-    A[i] = A[i-1] + wf.drdt[i-1]*rho[i-1];
-    vdir_new[i] = f*wf.h*(A[i]/wf.r[i] + B[i]);
+    b = b - wf.drdt[i-1]*rho[i-1]/wf.r[i-1];
+    a = a + wf.drdt[i-1]*rho[i-1];
+    vdir_new[i] = f*wf.h*(a/wf.r[i] + b);
   }
 
   return 0;
