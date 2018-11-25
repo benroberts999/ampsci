@@ -53,12 +53,12 @@ Note: V_HF = V_dir + V_ex    -- note sign convention!
     //Form new v_dir and v_ex:
     //XXX XXX XXX Fastor to form these once outside! ? Check if safe! XXX
     std::vector<double> vdir_old = wf.vdir;
-    std::vector<double> vdir_new;
-    formNewVdir(wf,vdir_new,false);
+    //std::vector<double> vdir_new;
+    formNewVdir(wf,wf.vdir,false);
     std::vector< std::vector<double> > vex_old = vex;
     formVexCore(wf,vex);
     for(int j=0; j<wf.ngp; j++){
-      wf.vdir[j] = eta*vdir_new[j] + (1.-eta)*vdir_old[j];
+      wf.vdir[j] = eta*wf.vdir[j] + (1.-eta)*vdir_old[j];
       for(int i=0; i<Ncs; i++){
         vex[i][j] = eta*vex[i][j] + (1.-eta)*vex_old[i][j];
       }
@@ -172,7 +172,7 @@ Note: Uses efficient integral method:
 
   //Make sure vector is correct size, and clear old potential away
   //vdir_new.clear();
-  vdir_new.resize(wf.ngp);
+  //vdir_new.resize(wf.ngp);
 
   //Scaling factor. For hartree only (when FOCK excluded)
   //Because I sum over all electrons, includes self-interaction
@@ -355,10 +355,10 @@ NOTE: can make this nicer.. but will never use it, so whatever.
 
     //Use known orbitals to form new potential:
     std::vector<double> vdir_old = wf.vdir;
-    std::vector<double> vdir_new;
-    formNewVdir(wf,vdir_new,true);
+    //std::vector<double> vdir_new;
+    formNewVdir(wf,wf.vdir,true);
     for(int j=0; j<wf.ngp; j++){
-      wf.vdir[j] = eta*vdir_new[j] + (1.-eta)*vdir_old[j];
+      wf.vdir[j] = eta*wf.vdir[j] + (1.-eta)*vdir_old[j];
     }
 
     //Solve dirac equation for each (Core) orbital in new potential
