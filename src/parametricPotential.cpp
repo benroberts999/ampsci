@@ -2,13 +2,13 @@
 #include "PRM_parametricPotentials.h"
 #include "ATI_atomInfo.h"
 #include "FPC_physicalConstants.h"
+#include "ChronoTimer.h"
 #include <iostream>
 #include <fstream>
 
 int main(void){
 
-  clock_t ti,tf;
-  ti = clock();
+  ChronoTimer sw(true); //start timer
 
   double varalpha=1; //need same number as used for the fitting!
 
@@ -131,10 +131,7 @@ int main(void){
         eni, eni*FPC::Hartree_invcm);
   }
 
-  tf = clock();
-  double total_time = 1000.*double(tf-ti)/CLOCKS_PER_SEC;
-  printf ("\nt=%.3f ms.\n",total_time);
-
+  std::cout<<"\n "<<sw.reading_str()<<"\n";
 
   return 0;
 }

@@ -63,28 +63,28 @@ CNTM = $(addprefix $(OD)/, \
 ################################################################################
 # Link + build all final programs
 
-$(XD)/h-like.x: $(BASE) $(OD)/h-like.o
+$(XD)/h-like.x: $(BASE) $(OD)/h-like.o $(OD)/ChronoTimer.o
 	$(LINK)
 
 $(XD)/fitParametric.x: $(BASE) $(OD)/fitParametric.o \
-$(OD)/PRM_parametricPotentials.o
+$(OD)/PRM_parametricPotentials.o $(OD)/ChronoTimer.o
 	$(LINK)
 
 $(XD)/parametricPotential.x: $(BASE) $(OD)/parametricPotential.o \
-$(OD)/PRM_parametricPotentials.o
+$(OD)/PRM_parametricPotentials.o $(OD)/ChronoTimer.o
 	$(LINK)
 
 $(XD)/atomicKernal.x: $(BASE) $(CNTM) $(HF) \
 $(OD)/atomicKernal.o $(OD)/AKF_akFunctions.o \
-$(OD)/SBF_sphericalBesselFunctions.o
+$(OD)/SBF_sphericalBesselFunctions.o $(OD)/ChronoTimer.o
 	$(LINK)
 
-$(XD)/hartreeFock.x: $(BASE) $(HF) $(OD)/hartreeFock.o
+$(XD)/hartreeFock.x: $(BASE) $(HF) $(OD)/hartreeFock.o $(OD)/ChronoTimer.o
 	$(LINK)
 
 $(XD)/dmeXSection.x: $(BASE) $(CNTM) $(HF) $(OD)/dmeXSection.o \
 $(OD)/AKF_akFunctions.o $(OD)/SBF_sphericalBesselFunctions.o \
-$(OD)/StandardHaloModel.o
+$(OD)/StandardHaloModel.o $(OD)/ChronoTimer.o
 	$(LINK)
 
 $(XD)/wigner.x: $(OD)/wigner.o $(OD)/WIG_369j.o

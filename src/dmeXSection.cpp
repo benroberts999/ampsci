@@ -1,6 +1,7 @@
 #include "AKF_akFunctions.h"
 #include "StandardHaloModel.h"
 #include "FPC_physicalConstants.h"
+#include "ChronoTimer.h"
 #include <iostream>
 #include <string>
 #include <cmath>
@@ -260,6 +261,8 @@ void writeForGnuplot_mxBlock(
 //******************************************************************************
 int main(void){
 
+  ChronoTimer sw(true);//start timer
+
   //define input parameters
   std::string akfn;
   int vsteps;
@@ -458,6 +461,8 @@ int main(void){
     }
   }
 
+  std::cout<<sw.reading_str()<<"\n";
+
   // *********************
   //    Here, is just for DAMA! Move into sepperate function!!
   // *********************
@@ -600,6 +605,8 @@ int main(void){
   }//mv
 
   of.close();
+
+  std::cout<<"\nTotal: "<<sw.reading_str()<<"\n";
 
   return 0;
 }

@@ -1,14 +1,14 @@
 #include "ElectronOrbitals.h"
 #include "ATI_atomInfo.h"
 #include "INT_quadratureIntegration.h"
+#include "ChronoTimer.h"
 #include <iostream>
 #include <fstream>
 #include <cmath>
 
 int main(void){
 
-  clock_t ti,tf;
-  ti = clock();
+  ChronoTimer sw(true);//start timer
 
   int Z,A;
   int n_max,l_max;
@@ -133,9 +133,7 @@ int main(void){
   // dL*=(wf.h*wf.h);
   // std::cout<<"L="<<L<<" ;  dL = "<<2*dL<<"  "<<2*dL/L<<"\n";
 
-  tf = clock();
-  double total_time = 1000.*double(tf-ti)/CLOCKS_PER_SEC;
-  printf ("\nt=%.3f ms.\n",total_time);
+  std::cout<<"\n Total time: "<<sw.reading_str()<<"\n";
 
   return 0;
 }

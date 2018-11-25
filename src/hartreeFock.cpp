@@ -7,12 +7,12 @@
 #include <iostream>
 #include <cmath>
 #include <fstream>
-#include <sys/time.h>
+#include "ChronoTimer.h"
 
 int main(void){
 
-  struct timeval start, end;
-  gettimeofday(&start, NULL);
+  ChronoTimer sw; //start the stopwatch
+  sw.start();
 
   //Input options
   std::string Z_str;
@@ -69,9 +69,11 @@ int main(void){
     return 1;
   }
 
+  sw.start();
   //Solve Hartree equations for the core:
   if(doHF) HF::hartreeFockCore(wf,eps_hart);
   else     HF::hartreeCore(wf,eps_hart);
+  std::cout<<"core: "<<sw.lap_reading_str()<<"\n";
 
   //Make a list of valence states to solve:
   std::vector< std::vector<int> > lst;
@@ -89,6 +91,7 @@ int main(void){
     }
   }
   //Solve for the valence states:
+  sw.start();
   for(uint i=0; i<lst.size(); i++){
     int n = lst[i][0];
     int k = lst[i][1];
@@ -98,6 +101,7 @@ int main(void){
       wf.solveLocalDirac(n,k,en_g,15);
     }
   }
+  std::cout<<"Valence: "<<sw.lap_reading_str()<<"\n";
 
   //make list of energy indices in sorted order:
   std::vector<int> sort_list;
@@ -130,13 +134,7 @@ int main(void){
     else std::cout<<"\n";
   }
 
-  gettimeofday(&end, NULL);
-  double total_time = (end.tv_sec-start.tv_sec)
-  + (end.tv_usec - start.tv_usec)*1e-6;
-  if(total_time<1) printf ("\nt=%.3f ms.\n",total_time*1000);
-  else if(total_time<60) printf ("\nt=%.3f s.\n",total_time);
-  else if(total_time<3600) printf ("\nt=%.2f mins.\n",total_time/60.);
-  else printf ("\nt=%.1f hours.\n",total_time/3600.);
+  std::cout<<"\n Total time: "<<sw.reading_str()<<"\n";
 
   bool run_test = false;
   if(run_test){
