@@ -15,7 +15,7 @@ Usage:
 
   start/stop lets you time indevidual sections of code, while not timing
   others.
-  Calling start() again will re-set current timing run.
+  Calling start() again will start a new "lap", and save current to total.
 
   reading_ms() -- returns total elapsed time as double, in ms
   lap_reading_ms() -- same, but only returns time since last start()

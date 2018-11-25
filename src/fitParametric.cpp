@@ -3,6 +3,7 @@
 #include "FPC_physicalConstants.h"
 #include "INT_quadratureIntegration.h"
 #include "PRM_parametricPotentials.h"
+#include "ChronoTimer.h"
 #include <iostream>
 #include <fstream>
 #include <cmath>
@@ -12,8 +13,7 @@ Finds the best-fit parameter values for the Green or Tietz potentials
 
 int main(void){
 
-  clock_t ti,tf;
-  ti = clock();
+  ChronoTimer sw(true); //start stopwatch
 
   bool sphere=true; //Finite nucleus? makes no difference??
 
@@ -164,9 +164,7 @@ int main(void){
         eni,(eni-en0)*FPC::Hartree_invcm,100.*(enT-eni)/enT);
   }
 
-  tf = clock();
-  double total_time = double(tf-ti)/CLOCKS_PER_SEC;
-  printf ("\nt=%.1f s.\n",total_time);
+  std::cout<<"\nTime: "<<sw.reading_str()<<"\n";
 
   return 0;
 }

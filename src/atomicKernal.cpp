@@ -5,16 +5,17 @@
 #include "PRM_parametricPotentials.h"
 #include "HF_hartreeFock.h"
 #include "FPC_physicalConstants.h"
+#include "ChronoTimer.h"
 #include <iostream>
 #include <fstream>
 #include <cmath>
-#include <sys/time.h>
+//#include <sys/time.h>
+
 
 //******************************************************************************
 int main(void){
 
-  struct timeval start, end;
-  gettimeofday(&start, NULL);
+  ChronoTimer sw(true); //start stopwatch
 
   //Input options
   std::string Z_str;
@@ -245,13 +246,7 @@ int main(void){
   if(bin_out) std::cout<<".bin";
   std::cout<<"\n";
 
-  gettimeofday(&end, NULL);
-  double total_time = (end.tv_sec-start.tv_sec)
-  + (end.tv_usec - start.tv_usec)*1e-6;
-  if(total_time<1) printf ("\nt=%.3f ms.\n",total_time*1000);
-  else if(total_time<60) printf ("\nt=%.1f s.\n",total_time);
-  else if(total_time<3600) printf ("\nt=%.1f mins.\n",total_time/60.);
-  else printf ("\nt=%.1f hours.\n",total_time/3600.);
+  std::cout<<"\n "<<sw.reading_str()<<"\n";
 
   return 0;
 }

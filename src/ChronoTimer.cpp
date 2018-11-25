@@ -16,6 +16,7 @@ ChronoTimer::ChronoTimer(bool auto_start)
 void ChronoTimer::start()
 {
   //note: will over-ride any existing reading!
+  if(running) stop();
   running = true;
   tstart = std::chrono::high_resolution_clock::now();
 }
