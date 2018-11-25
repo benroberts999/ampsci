@@ -5,7 +5,7 @@
 
 namespace MAT{
 //******************************************************************************
-int invertMatrix(std::vector< std::vector<double> > inmat,
+int invertMatrix(const std::vector< std::vector<double> > &inmat,
                         std::vector< std::vector<double> > &outmat)
 /*
 170316.
@@ -96,7 +96,7 @@ Overloaded version, that just over-writes the input matrix with the output!
 }
 
 //---- Overloaded: -------------------------------------------------------------
-int invertMatrix(std::vector< std::vector<float> > inmat,
+int invertMatrix(const std::vector< std::vector<float> > &inmat,
                         std::vector< std::vector<float> > &outmat)
 {
 
@@ -152,7 +152,7 @@ int invertMatrix(std::vector< std::vector<float> > &inmat)
 
 
 //******************************************************************************
-double calcDeterminant(std::vector< std::vector<double> > inmat)
+double calcDeterminant(const std::vector< std::vector<double> > &inmat)
 /*
 170622.
 Calculates the determinant of any real square matrix of dimension n.
@@ -195,7 +195,7 @@ INPUT:
 }
 
 //---- Overloaded: -------------------------------------------------------------
-double calcDeterminant(std::vector< std::vector<float> > inmat)
+double calcDeterminant(const std::vector< std::vector<float> > & inmat)
 {
 
   int n=(int)inmat.size();
@@ -215,8 +215,8 @@ double calcDeterminant(std::vector< std::vector<float> > inmat)
 
 
 //******************************************************************************
-int linsolve(std::vector< std::vector<double> > inmat,
-                 std::vector<double> invec, std::vector<double> &outvec)
+int linsolve(const std::vector< std::vector<double> > &inmat,
+             const std::vector<double> & invec, std::vector<double> &outvec)
 /*
 170321.
 Solves the linear matrix equation A.x=b for x

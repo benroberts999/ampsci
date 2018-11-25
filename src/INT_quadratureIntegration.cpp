@@ -21,7 +21,7 @@ double dd14 = 5230697472000;
 // Integrates input function f(i) wrt r, from l to m. This program contains wronskian drdt
 //Uses an nquad-point quadrature formula.. for nquad=1->14 (any integer)
 //double integrate(double *f, int l, int m)
-double integrate(std::vector<double> f, std::vector<double> w, double h, int l,
+double integrate(const std::vector<double> &fin, const std::vector<double> &w, double h, int l,
   int m, int nquad)
 /*
 
@@ -37,6 +37,7 @@ XXX overload so can use floats?
 
 //Note: normally, NGP is so large, that there is no difference between nquad=1 to 14!
 
+  std::vector<double>f=fin; //XXX bad temp. workaround! XXX
 
   int ngp = f.size();
   if (m==0) m=ngp-1;
@@ -171,7 +172,7 @@ XXX overload so can use floats?
 
 //******************************************************************
 // Calculates the derivative of a function!
-int diff(std::vector<double> f, std::vector<double> drdt, double h,
+int diff(const std::vector<double> &f, const std::vector<double> &drdt, double h,
     std::vector<double> &deriv)
 {
 
@@ -213,7 +214,7 @@ coeficients from: http://en.wikipedia.org/wiki/Finite_difference_coefficient
 
 //******************************************************************
 double integrate1(
-  std::vector<double> &f1,
+  const std::vector<double> &f1,
   double h,
   int l, int m,
   int a_start, int a_end)
@@ -244,8 +245,8 @@ NOTE: f3 should be wronskian!Jacobian?Whatever
 }		// END integrate1
 //******************************************************************
 double integrate2(
-  std::vector<double> &f1,
-  std::vector<double> &f2,
+  const std::vector<double> &f1,
+  const std::vector<double> &f2,
   double h,
   int l, int m,
   int a_start, int a_end)
@@ -276,9 +277,9 @@ NOTE: f3 should be wronskian!Jacobian?Whatever
 }		// END integrate2
 //******************************************************************
 double integrate3(
-  std::vector<double> &f1,
-  std::vector<double> &f2,
-  std::vector<double> &f3,
+  const std::vector<double> &f1,
+  const std::vector<double> &f2,
+  const std::vector<double> &f3,
   double h,
   int l, int m,
   int a_start, int a_end)
@@ -310,10 +311,10 @@ NOTE: f3 should be wronskian!Jacobian?Whatever
 }		// END integrate3
 //******************************************************************
 double integrate4(
-  std::vector<double> &f1,
-  std::vector<double> &f2,
-  std::vector<double> &f3,
-  std::vector<double> &f4,
+  const std::vector<double> &f1,
+  const std::vector<double> &f2,
+  const std::vector<double> &f3,
+  const std::vector<double> &f4,
   double h,
   int l, int m,
   int a_start, int a_end)

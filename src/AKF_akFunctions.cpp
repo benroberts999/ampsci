@@ -32,8 +32,8 @@ double CLkk(int L, int ka, int kb)
 //******************************************************************************
 void writeToTextFile(
   std::string fname,
-  std::vector< std::vector< std::vector<float> > > &AK,
-  std::vector<std::string> nklst,
+  const std::vector< std::vector< std::vector<float> > > &AK,
+  const std::vector<std::string> & nklst,
   double qmin, double qmax,
   double demin, double demax
 )

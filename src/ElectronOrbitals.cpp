@@ -131,7 +131,7 @@ This one doesn't have exchange potential
 }
 //******************************************************************************
 int ElectronOrbitals::reSolveDirac(int i, double e_a,
-  std::vector<double> vex, int log_dele_or)
+  const std::vector<double> &vex, int log_dele_or)
 /*
 "Re"solves dirac eqaution. Use this to re-solve for same state.
 Over-rides existing solution.

@@ -28,8 +28,8 @@ bool debug=false; //if true, will print progress messages.
 
 //******************************************************************************
 int solveDBS(std::vector<double> &p, std::vector<double> &q, double &en,
-    std::vector<double> v, double Z, int n, int ka,
-    std::vector<double> r, std::vector<double> drdt, double h, int NGP,
+    const std::vector<double> &v, double Z, int n, int ka,
+    const std::vector<double> &r, const std::vector<double> &drdt, double h, int NGP,
     int &pinf, int &its, double &eps, double alpha, int log_dele_or)
 /*
 Solves local, spherical bound state dirac equation using Adams-Moulton method.
@@ -315,8 +315,8 @@ an error.
 
 //******************************************************************************
 int outwardAM(std::vector<double> &p, std::vector<double> &q, double &en,
-    std::vector<double> v, double Z, int ka,
-    std::vector<double> r, std::vector<double> drdt, double h, int NGP,
+    const std::vector<double> &v, double Z, int ka,
+    const std::vector<double> &r, const std::vector<double> &drdt, double h, int NGP,
     int nf, double alpha)
 /*
 Program to start the OUTWARD integration.
@@ -422,8 +422,8 @@ Then, it then call ADAMS-MOULTON, to finish (from nol*AMO+1 to nf = ctp+d_ctp)
 
 //******************************************************************
 int inwardAM(std::vector<double> &p, std::vector<double> &q, double &en,
-    std::vector<double> v, int ka,
-    std::vector<double> r, std::vector<double> drdt, double h, int NGP,
+    const std::vector<double> &v, int ka,
+    const std::vector<double> &r, const std::vector<double> &drdt, double h, int NGP,
     int nf, int pinf, double alpha)
 /*
 Program to start the INWARD integration.
@@ -496,8 +496,8 @@ Then, it then call ADAMS-MOULTON, to finish (from nol*AMO+1 to nf = ctp-d_ctp)
 
 //******************************************************************************
 int adamsMoulton(std::vector<double> &p, std::vector<double> &q, double &en,
-    std::vector<double> v, int ka,
-    std::vector<double> r, std::vector<double> drdt, double h, int NGP,
+    const std::vector<double> &v, int ka,
+    const std::vector<double> &r, const std::vector<double> &drdt, double h, int NGP,
     int ni, int nf, double alpha)
 /*
 program finishes the INWARD/OUTWARD integrations (ADAMS-MOULTON)

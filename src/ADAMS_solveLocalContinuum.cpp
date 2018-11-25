@@ -23,8 +23,8 @@ Also, need at least ~10 points per half-period. More points for higher energy!
 
 //******************************************************************************
 int solveContinuum(std::vector<double> &p, std::vector<double> &q, double ec,
-    std::vector<double> v, double Z, int ka,
-    std::vector<double> rc, std::vector<double> drdt, double h,
+    const std::vector<double> &v, double Z, int ka,
+    const std::vector<double> &rc, const std::vector<double> &drdt, double h,
     int NGPb, int NGPc, int i_asym,
     double alpha)
 /*
@@ -66,7 +66,7 @@ NGPc is grid for continuum (only for solving). NGPc >> NGPb
 
 
 //******************************************************************************
-double findSineAmplitude(std::vector<double> pc, std::vector<double> rc,
+double findSineAmplitude(std::vector<double> &pc, const std::vector<double> &rc,
   int NGPc, int i_asym)
 /*
  Find "maximum" amplitude, by using a quadratic fit to 2 nearest points
@@ -112,7 +112,7 @@ double findSineAmplitude(std::vector<double> pc, std::vector<double> rc,
 }
 
 //******************************************************************************
-int findAsymptoticRegion(std::vector<double> pc, std::vector<double> rc,
+int findAsymptoticRegion(std::vector<double> &pc, const std::vector<double> &rc,
   int NGPb, int NGPc, int i_asym)
 /*
 Finds a 'better' guess for the asymptotic region, by looking for where
