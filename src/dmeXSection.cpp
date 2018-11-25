@@ -330,7 +330,8 @@ int main(void){
   double qmin,qmax,demin,demax;
   //Read in AK file
   std::cout<<"Opening file: "<<akfn<<".bin\n";
-  AKF::akReadWrite(akfn,false,Kenq,nklst,qmin,qmax,demin,demax);
+  int iok=AKF::akReadWrite(akfn,false,Kenq,nklst,qmin,qmax,demin,demax);
+  if(iok!=0) return 1;
   int desteps    = (int) Kenq.size();
   int num_states = (int) Kenq[0].size();
   int qsteps     = (int) Kenq[0][0].size();

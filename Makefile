@@ -16,9 +16,8 @@ LINK=$(CXX) -o $@ $^ $(CXXFLAGS) $(LIBS)
 #Allow exectuables to be placed in another directory:
 ALLEXES = $(addprefix $(XD)/, \
  h-like.x fitParametric.x parametricPotential.x atomicKernal.x \
- hartreeFock.x wigner.x \
+ hartreeFock.x wigner.x dmeXSection.x \
 )
-#dmeXSection.x
 
 #Default make rule:
 all: checkObj checkXdir $(ALLEXES)

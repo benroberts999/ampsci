@@ -114,6 +114,11 @@ int akReadWrite(std::string fname, bool write,
   if(write) iof.open(fname,std::ios_base::out|std::ios_base::binary);
   else      iof.open(fname,std::ios_base::in |std::ios_base::binary);
 
+  if(iof.fail()){
+    std::cout<<"Can't open "<<fname<<"\n";
+    return 1;
+  }
+
   if(write){
     int nde = AK.size();   //dE
     int ns = AK[0].size();  //nk
