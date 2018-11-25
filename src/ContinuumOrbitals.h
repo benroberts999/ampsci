@@ -1,5 +1,4 @@
-#ifndef _CNTMORB_H
-#define _CNTMORB_H
+#pragma once
 #include <vector>
 #include "ElectronOrbitals.h"
 
@@ -36,7 +35,4 @@ class ContinuumOrbitals{
     int NGPb;
     double h;
 
-
 };
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef _ORBITALS_H
-#define _ORBITALS_H
+#pragma once
 #include <vector>
 #include <string>
 
@@ -87,11 +86,4 @@ class ElectronOrbitals{
     int JohnsonRadialGrid(int ngp_in, double r0=1.e-6, double rmax=250.);
     int zeroNucleus();
 
-
-
-
-
-
 };
-
-#endif

@@ -1,5 +1,4 @@
-#ifndef _PHYSCONSTS_H
-#define _PHYSCONSTS_H
+#pragma once
 /*
 Constains physical constants, and units conversions.
 Taken mostly from 2014 CODATA values.
@@ -52,4 +51,3 @@ namespace FPC{
   const double muN_CGS=muB_CGS/m_p;
 
 }
-#endif

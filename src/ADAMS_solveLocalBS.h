@@ -1,5 +1,4 @@
-#ifndef _SOLVEBS_H
-#define _SOLVEBS_H
+#pragma once
 #include <vector>
 
 namespace ADAMS{
@@ -32,4 +31,3 @@ namespace ADAMS{
       std::vector<double> &oia, double &oid);
 
 }
-#endif

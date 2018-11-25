@@ -1,5 +1,4 @@
-#ifndef _SOLVECNTM_H
-#define _SOLVECNTM_H
+#pragma once
 #include <vector>
 namespace ADAMS{
 
@@ -18,4 +17,3 @@ int findAsymptoticRegion(std::vector<double> pc, std::vector<double> rc,
   int NGPb, int NGPc, int i_asym);
 
 }
-#endif

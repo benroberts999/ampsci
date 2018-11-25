@@ -1,5 +1,4 @@
-#ifndef _PARAMETRICPOT_H
-#define _PARAMETRICPOT_H
+#pragma once
 
 namespace PRM{
 
@@ -10,5 +9,3 @@ namespace PRM{
   int defaultGreenCore(int z, double &H, double &d);
 
 }
-
-#endif

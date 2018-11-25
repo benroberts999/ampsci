@@ -1,5 +1,4 @@
-#ifndef _HART_H
-#define _HART_H
+#pragma once
 #include <vector>
 #include "ElectronOrbitals.h"
 
@@ -22,5 +21,3 @@ namespace HF{
     int lb);
 
 }
-
-#endif

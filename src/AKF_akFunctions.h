@@ -1,5 +1,4 @@
-#ifndef _AKFUNS_H
-#define _AKFUNS_H
+#pragma once
 #include "ElectronOrbitals.h"
 #include <vector>
 #include <string>
@@ -34,6 +33,5 @@ namespace AKF{
     int max_L,
     double qmin, double qmax, int qsteps,
     std::vector<double> &r);
-
+    
 }
-#endif

@@ -1,5 +1,4 @@
-#ifndef _ATINFO_H
-#define _ATINFO_H
+#pragma once
 #include <string>
 #include <vector>
 #include <iostream>
@@ -72,7 +71,6 @@ inline int get_z(std::string at){
   return 0;
 }
 
-
 //Shell configurations for Noble gasses (Group 8)
 const std::vector<int> core_He
   ={2};
@@ -105,5 +103,3 @@ const std::vector<int> core_l
     0,1,2,3,4,5,6,7, 0,1,2,3,4,5,6,7,8};
 
 }
-
-#endif

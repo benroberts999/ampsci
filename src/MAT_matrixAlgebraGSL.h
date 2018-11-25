@@ -1,5 +1,4 @@
-#ifndef _MATRIXALG_H
-#define _MATRIXALG_H
+#pragma once
 #include <vector>
 
 namespace MAT{
@@ -19,5 +18,3 @@ int linsolve(std::vector< std::vector<double> > inmat,
                  std::vector<double> invec, std::vector<double> &outvec);
 
 }
-
-#endif

@@ -1,8 +1,7 @@
-//https://www.gnu.org/software/gsl/doc/html/specfunc.html?highlight=3j#coupling-coefficients
-#ifndef _WIGNER_H
-#define _WIGNER_H
+#pragma once
 
 namespace WIG{
+//https://www.gnu.org/software/gsl/doc/html/specfunc.html?highlight=3j#coupling-coefficients
 
 double threej(double j1, double j2, double j3, double m1, double m2, double m3);
 double threej_1(int j1, int j2, int j3, int m1, int m2, int m3);
@@ -30,4 +29,3 @@ int parity(int la, int lb, int k);
 int triangle(double j1, double j2, double J);
 
 }
-#endif

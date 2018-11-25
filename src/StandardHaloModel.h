@@ -1,5 +1,4 @@
-#ifndef _SHM_H
-#define _SHM_H
+#pragma once
 #include <vector>
 
 namespace SHMCONSTS{
@@ -33,5 +32,3 @@ private:
   double NormConst = 1;
   double normfv();
 };
-
-#endif
