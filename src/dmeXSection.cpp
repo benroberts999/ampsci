@@ -407,6 +407,8 @@ void doDAMA(const FloatVec3D &dsv_mv_mx_E,
     }
   }
 
+  if(wEbin==0 || fEbin==0 || iEbin==fEbin) return;
+
   // Integrate/average into energy bins:
   int num_bins = ceil((fEbin-iEbin)/wEbin);
 
@@ -545,6 +547,7 @@ int main(void){
   //DM mass: Convert from GeV to au:
   mxmin /= M_to_GeV;
   mxmax /= M_to_GeV;
+  if(n_mx==1) mxmax = mxmin;
   ExpGrid mxgrid(n_mx,mxmin,mxmax);
 
   //Mediator mass: convert units + set-up finite/infinite case
