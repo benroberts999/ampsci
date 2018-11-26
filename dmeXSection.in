@@ -9,6 +9,7 @@ xxx             | output label (put 'na' for none)
 0  0            | DAMA error: det. resolution, PE-keV [-1,1] *
 150             | 131 for Xe; 127+23=150 for Dama
 0.0 3 1.0       | E bins (integration) [put 0 width for plot]
+1               | 0=print dS/dE; 1=print S/[Ew];
 =================
 I take average of 6.5+/-1 PE per keV.
 NOTE: This is definitely too simplistic!

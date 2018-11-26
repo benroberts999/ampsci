@@ -275,11 +275,12 @@ int main(void){
   double dres,err_PEkeV; //detector resolution, PE-keV errors [-1]
   bool do_anMod;
   bool do_DAMA;
+  bool write_SofM;
 
   //Open and read the input file:
   {
     std::ifstream ifs("dmeXSection.in");
-    int idodama, ianmod;
+    int idodama, ianmod, iSM;
     std::string jnk;
     ifs >> akfn;                    getline(ifs,jnk);
     ifs >> label;                   getline(ifs,jnk);
@@ -292,9 +293,11 @@ int main(void){
     ifs >> dres >> err_PEkeV;       getline(ifs,jnk);
     ifs >> Atot;                    getline(ifs,jnk);
     ifs >> iEbin >> fEbin >> wEbin; getline(ifs,jnk);
+    ifs >> iSM;                     getline(ifs,jnk);
     label = label=="na" ? akfn : akfn+"-"+label;
     do_anMod = ianmod==1 ? true : false;
     do_DAMA  = idodama==1 ? true : false;
+    write_SofM = iSM==1 ? true : false;
   }
 
   if(!do_DAMA) do_anMod = false; //don't do anmod if outputting dsvde!
@@ -317,6 +320,7 @@ int main(void){
     mvmin = mvmax = -1; //1./0.;
     n_mv = 1;
   }else{
+    //Do for a range of m_v's (almost never do this..)
     mvmin /= M_to_MeV;
     mvmax /= M_to_MeV;
   }
@@ -343,7 +347,7 @@ int main(void){
   ExpGrid Egrid(desteps,demin,demax);
   ExpGrid qgrid(qsteps,qmin,qmax);
 
-  // Grid of f_v(v). Can use to change vel profiles
+  // Grid of SHM vel. distro f_v(v). Can use to change vel profiles
   // Note: SHM is in km/s units, both for v and f!
   // f.dv = 1 => [f] = [1/v]
   double max_v = (SHMCONSTS::MAXV)/V_to_kms;
@@ -360,10 +364,10 @@ int main(void){
       arr_fv[icp][i] = shm.fv(vkms)/(1./V_to_kms); //convert to a.u. [f]=[1/v]
     }
   }
-  //return 1;
 
   //Print the grid info to screen:
-  printf("\nq :%6.2f -> %6.2f MeV, N=%4i\n",qmin*Q_to_MeV,qmax*Q_to_MeV,qsteps);
+  std::cout<<"\nGrids:\n";
+  printf("q :%6.2f -> %6.2f MeV, N=%4i\n",qmin*Q_to_MeV,qmax*Q_to_MeV,qsteps);
   printf("E :%6.2f -> %6.2f keV, N=%4i\n"
     ,demin*E_to_keV,demax*E_to_keV,desteps);
   printf("v :%6.2f -> %6.2fkm/s, N=%4i\n"
@@ -375,7 +379,7 @@ int main(void){
     ,mvmin*M_to_MeV,mvmax*M_to_MeV,n_mv);
 
   // Units + conversions for dsvde..etc
-  std::cout<<"Doing calculations with sig-bar_e =  "<<sbe_1e37_cm2<<"cm2\n"
+  std::cout<<"\nDoing calculations with sig-bar_e =  "<<sbe_1e37_cm2<<"cm2\n"
     <<"ds/dE conversion factor:   "<<dsdE_to_cm2keV<<" cm^2/keV\n"
     <<"ds.v/dE conversion factor: "
     <<dsvdE_to_cm3keVday<<"   cm^3/keV/day\n\n";
@@ -387,6 +391,7 @@ int main(void){
     <<" Heavy mediator: al_x = "<<al_xH<<"*(mv/MeV)^2\n\n";
 
 
+  // ********************************************************
   //Calculate <ds.v>/dE:
 
   //Array to store cross-section
@@ -401,9 +406,10 @@ int main(void){
       std::vector<float>(desteps)));
   }
 
+  //XXX Move this into function
+  sw.start();
   // Calculate <ds.v>/dE for each E (for each mx, mv)
-  std::cout<<"Doing q and v integrations: \n";
-  //printf("cos(phi)=%4.1f; dvesc=%4.1f; dv0=%4.1f.\n",cosp,dvesc,dv0);
+  std::cout<<"Calculating <ds.v>/dE (doing q and v integrations): \n";
   for(int imv=0; imv<n_mv; imv++){
     double mv = mvgrid.x(imv);
     #pragma omp parallel for if(n_mx>15)
@@ -427,10 +433,12 @@ int main(void){
     }//mx
   }//mv
   std::cout<<"\n";
-
+  std::cout<<"<ds.v>/dE: "<<sw.lap_reading_str()<<"\n";
 
   //If doing an. mod, form "amplitude" for ds.v/dE, used below
   if(do_anMod){
+    std::cout<<"\nAnnual modulation.\n";
+    std::cout<<"Forming <ds.v>_mod = (<ds.v>_max - <ds.v>_min)/2 \n";
     for(int imv=0; imv<n_mv; imv++){
       for(int imx=0; imx<n_mx; imx++){
         for(int ie=0; ie<desteps; ie++){
@@ -443,10 +451,8 @@ int main(void){
   //need to do this? No..
   dsv_mv_mx_Emax.clear();
 
-
-  bool write_dsvde = true;
-  if(do_DAMA) write_dsvde = false; //otherwise, get's printed too often
   //Output <ds.v>/dE for gnuplot:
+  bool write_dsvde = do_DAMA? false : true; //otherwise, get's printed too often
   if(write_dsvde){
     std::string fn_dsvde = "dsvde_mx-"+label+".out";
     std::cout<<"Writing to file: "<<fn_dsvde<<"\n";
@@ -461,7 +467,9 @@ int main(void){
     }
   }
 
-  std::cout<<sw.reading_str()<<"\n";
+  //XXX Here: write out to binary?
+  //NO! just have various options (DAMA, Xe100, Xe10 etc)
+  //And call a seperate function for each!
 
   // *********************
   //    Here, is just for DAMA! Move into sepperate function!!
@@ -514,7 +522,8 @@ int main(void){
     }
   }
 
-  bool write_dS = true;
+  bool write_dS = write_SofM? false : true;
+  //(Only write dS/dE if not writing )
   //output dS/dE for gnuplot:
   if(write_dS){
     std::string spref = do_anMod ? "dSmdE" : "dSdE";
@@ -542,8 +551,11 @@ int main(void){
     )
   );
 
-  if(do_anMod)std::cout<<"\nSm/Ew, annual modulation amplitude (/day/kg/keV)\n";
-  else        std::cout<<"\nS/Ew, annual modulation amplitude (/day/kg/keV)\n";
+  //Creates S (or Sm) [actually S/E_w] - rate averaged over each energy bin
+  //Also prints energy bins to screen (only for first mx, mv)
+  std::cout<<"\nCalculating ";
+  if(do_anMod)std::cout<<"Sm/Ew, annual modulation amplitude (/day/kg/keV)\n";
+  else        std::cout<<"S/Ew, annual modulation amplitude (/day/kg/keV)\n";
   std::cout<<"Integrated (averaged) each energy bin.\n";
   std::cout<<"(Just outputting for first mx/mv: ";
     printf("M_chi=%5.2f GeV",mxmin*M_to_GeV);
@@ -581,32 +593,35 @@ int main(void){
   // Note: if doing this, don't output above files! (too many m_chi's)
   // Each collumn a different energy bin
   //Each m_v
-  std::ofstream of("tmpout.out");
+  if(write_SofM){
+    std::string fn_S = do_anMod ? "Sm" : "S";
+    fn_S = fn_S+"_mx-"+label+".out";
+    std::cout<<"Writing to file: "<<fn_S<<"\n";
+    std::ofstream of(fn_S);
 
-  for(int imv=0; imv<n_mv; imv++){
-    double mv = mvgrid.x(imv);
-    of<<"\""<<std::fixed<<std::setprecision(2)<<mv*M_to_MeV<<" MeV\"   ";
-    for(int i=0; i<num_bins; i++){
-      double EaKev = (iEbin+i*wEbin)*E_to_keV;
-      double EbKev = EaKev + wEbin*E_to_keV;
-      of<<"\""
-        <<std::fixed<<std::setprecision(1)<<EaKev<<"-"<<EbKev<<" keV\"   ";
-    }
-    of<<"\n"<<std::scientific<<std::setprecision(6);
-    for(int imx=0; imx<n_mx; imx++){
-      double mx = mxgrid.x(imx)*M_to_GeV;
-      of<<mx<<" ";
-      for(int ie=0; ie<num_bins; ie++){
-        of<<S_mv_mx_E[imv][imx][ie]<<" ";
-      }//mx
+    for(int imv=0; imv<n_mv; imv++){
+      double mv = mvgrid.x(imv);
+      of<<"\""<<std::fixed<<std::setprecision(2)<<mv*M_to_MeV<<" MeV\"   ";
+      for(int i=0; i<num_bins; i++){
+        double EaKev = (iEbin+i*wEbin)*E_to_keV;
+        double EbKev = EaKev + wEbin*E_to_keV;
+        of<<"\""
+          <<std::fixed<<std::setprecision(1)<<EaKev<<"-"<<EbKev<<" keV\"   ";
+      }
+      of<<"\n"<<std::scientific<<std::setprecision(6);
+      for(int imx=0; imx<n_mx; imx++){
+        double mx = mxgrid.x(imx)*M_to_GeV;
+        of<<mx<<" ";
+        for(int ie=0; ie<num_bins; ie++){
+          of<<S_mv_mx_E[imv][imx][ie]<<" ";
+        }//mx
+        of<<"\n";
+      }//E
       of<<"\n";
-    }//E
-    of<<"\n";
-  }//mv
-
-  of.close();
+    }//mv
+    of.close();
+  }
 
   std::cout<<"\nTotal: "<<sw.reading_str()<<"\n";
-
   return 0;
 }
