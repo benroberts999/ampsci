@@ -27,6 +27,11 @@ double dsdE_to_cm2keV = sbe_1e37_cm2/E_to_keV; // au -> cm^2/keV
 double dsvdE_to_cm3keVday = dsdE_to_cm2keV*V_to_cmday;
 
 
+// *** === *** === *** === *** === *** === *** === *** === *** === *** === ***
+// Some macro/typedef short cuts
+using FloatVec3D = std::vector< std::vector< std::vector<float> > >;
+using FloatVec2D = std::vector< std::vector<float> >;
+
 //******************************************************************************
 struct ExpGrid{
   int N;
@@ -78,6 +83,7 @@ double g(double s, double x)
   return a*exp(-0.5*y);
 }
 
+// double dsdE = dsdE_Evmvmx(Ke_nq,E,v,mv,mx,qgrid);
 //******************************************************************************
 template<typename T>
 double dsdE_Evmvmx(const std::vector< std::vector<T> > &Ke_nq,
@@ -90,10 +96,10 @@ note: mu = mv c / hbar = mv/alpha!
 Output in units of sig-bar_e
 */
 {
+
   double arg = pow(mx*v,2)-2.*mx*E;
   if(arg<0) return 0;
-
-  int num_states = (int) Ke_nq.size();
+  int num_states = (int) (Ke_nq.size());
   int qsteps     = qgrid.N;
   double dqonq = qgrid.dxonx;
 
@@ -123,10 +129,13 @@ Output in units of sig-bar_e
   return dsdE;
 }
 
+// double dsvdE = dsvdE_Evmvmx(K_enq[ie],E,mv,mx,qgrid,arr_fv,dv);
 //******************************************************************************
 template<typename T>
-double dsvdE_Evmvmx(const std::vector< std::vector<T> > &Ke_nq,
-  double E, double mv, double mx, ExpGrid &qgrid,
+double dsvdE_Evmvmx(
+  const std::vector< std::vector<T> > &Ke_nq,
+  double E, double mv, double mx,
+  ExpGrid &qgrid,
   const std::vector<double> &arr_fv, double dv)
 /*
 Calculates <ds.v>/dE for given E, mv, mx
@@ -153,7 +162,7 @@ void form_dsvdE(
   const std::vector< std::vector< std::vector<T> > > &K_enq,
   double mv, double mx,
   ExpGrid &Egrid, ExpGrid &qgrid,
-  std::vector<double> &arr_fv, double dv)
+  const std::vector<double> &arr_fv, double dv)
 /*
 Forms <dsv>/de array (for given mx, mv)
 Note: mv<0 means "heavy" mediator [Fx=1]
@@ -173,7 +182,7 @@ Note: mv<0 means "heavy" mediator [Fx=1]
 
 //******************************************************************************
 void writeForGnuplot_mvBlock(
-  const std::vector< std::vector< std::vector<float> > > &X_mv_mx_x,
+  const FloatVec3D &X_mv_mx_x,
   ExpGrid mvgrid, ExpGrid mxgrid, ExpGrid Egrid,
   std::string fname, double y_unit_convert)
 {
@@ -214,9 +223,9 @@ void writeForGnuplot_mvBlock(
 }
 //******************************************************************************
 void writeForGnuplot_mxBlock(
-  const std::vector< std::vector< std::vector<float> > > &X_mv_mx_x,
-  ExpGrid mvgrid, ExpGrid mxgrid, ExpGrid Egrid,
-  std::string fname)
+  const FloatVec3D &X_mv_mx_x,
+  ExpGrid &mvgrid, ExpGrid &mxgrid, ExpGrid &Egrid,
+  const std::string &fname)
 {
 
   std::ofstream of(fname.c_str());
@@ -252,6 +261,70 @@ void writeForGnuplot_mxBlock(
   }//mx
 
   of.close();
+}
+
+
+
+//******************************************************************************
+template<typename T>
+void calculate_dsvde_array(
+  const std::vector< std::vector< std::vector<T> > > &Kenq,
+  FloatVec3D &dsv_mv_mx_E,
+  ExpGrid &mvgrid, ExpGrid &mxgrid, ExpGrid &Egrid, ExpGrid &qgrid,
+  const std::vector< std::vector<double> > &arr_fv, double dv,
+  bool do_anMod)
+{
+
+  int n_mv = mvgrid.N;
+  int n_mx = mxgrid.N;
+  int desteps = Egrid.N;
+
+  dsv_mv_mx_E.resize(n_mv,std::vector< std::vector<float> >(n_mx,
+      std::vector<float>(desteps)));
+
+  FloatVec3D dsv_mv_mx_Emax;
+  if(do_anMod){
+    dsv_mv_mx_Emax.resize(n_mv,std::vector< std::vector<float> >(n_mx,
+      std::vector<float>(desteps)));
+  }
+
+  // Calculate <ds.v>/dE for each E (for each mx, mv)
+  std::cout<<"Calculating <ds.v>/dE (doing q and v integrations): \n";
+  for(int imv=0; imv<n_mv; imv++){
+    double mv = mvgrid.x(imv);
+    #pragma omp parallel for if(n_mx>15)
+    for(int imx=0; imx<n_mx; imx++){
+      double mx = mxgrid.x(imx);
+      //printf("M_chi=%5.2f GeV",mx*M_to_GeV);
+      //if(mv>=0) printf(" ; M_v=%6.3f MeV",mv*M_to_MeV);
+      std::cout<<"\r .. "<<std::flush;
+      if(do_anMod){
+        form_dsvdE(dsv_mv_mx_E[imv][imx],Kenq,mv,mx,Egrid,qgrid,arr_fv[1],dv);
+        std::cout<<"\r  ... "<<std::flush;
+        form_dsvdE(dsv_mv_mx_Emax[imv][imx],Kenq,mv,mx,Egrid,qgrid,arr_fv[2]
+          ,dv);
+      }else{
+        form_dsvdE(dsv_mv_mx_E[imv][imx],Kenq,mv,mx,Egrid,qgrid,arr_fv[0],dv);
+      }
+      std::cout<<"\r .. .. "<<std::flush;
+    }//mx
+  }//mv
+  std::cout<<"\n";
+
+  //If doing an. mod, form "amplitude" for ds.v/dE, used below
+  if(do_anMod){
+    std::cout<<"\nAnnual modulation.\n";
+    std::cout<<"Forming <ds.v>_mod = (<ds.v>_max - <ds.v>_min)/2 \n";
+    for(int imv=0; imv<n_mv; imv++){
+      for(int imx=0; imx<n_mx; imx++){
+        for(int ie=0; ie<desteps; ie++){
+          dsv_mv_mx_E[imv][imx][ie] =
+           0.5*(dsv_mv_mx_Emax[imv][imx][ie]-dsv_mv_mx_E[imv][imx][ie]);
+        }
+      }
+    }
+  }
+
 }
 
 
@@ -332,7 +405,7 @@ int main(void){
   wEbin/=E_to_keV;
 
   //Arrays/values to be filled from input AK file:
-  std::vector< std::vector< std::vector<float> > > Kenq;
+  FloatVec3D Kenq;
   std::vector<std::string> nklst;
   double qmin,qmax,demin,demax;
   //Read in AK file
@@ -392,64 +465,15 @@ int main(void){
 
 
   // ********************************************************
-  //Calculate <ds.v>/dE:
-
-  //Array to store cross-section
-  // ds.v/dE (fun. of mv, mx, E)
-  std::vector< std::vector< std::vector<float> > > dsv_mv_mx_E;
-  std::vector< std::vector< std::vector<float> > > dsv_mv_mx_Emax;
-
-  dsv_mv_mx_E.resize(n_mv,std::vector< std::vector<float> >(n_mx,
-      std::vector<float>(desteps)));
-  if(do_anMod){
-  dsv_mv_mx_Emax.resize(n_mv,std::vector< std::vector<float> >(n_mx,
-      std::vector<float>(desteps)));
-  }
-
-  //XXX Move this into function
-  sw.start();
   // Calculate <ds.v>/dE for each E (for each mx, mv)
-  std::cout<<"Calculating <ds.v>/dE (doing q and v integrations): \n";
-  for(int imv=0; imv<n_mv; imv++){
-    double mv = mvgrid.x(imv);
-    #pragma omp parallel for if(n_mx>15)
-    for(int imx=0; imx<n_mx; imx++){
-      double mx = mxgrid.x(imx);
-      //printf("M_chi=%5.2f GeV",mx*M_to_GeV);
-      //if(mv>=0) printf(" ; M_v=%6.3f MeV",mv*M_to_MeV);
-      std::cout<<"\r .. "<<std::flush;
-      if(do_anMod){
-        //std::cout<<"(-) "<<std::flush;
-        form_dsvdE(dsv_mv_mx_E[imv][imx],Kenq,mv,mx,Egrid,qgrid,arr_fv[1],dv);
-        //std::cout<<"(+)"<<std::flush;
-        std::cout<<"\r  ... "<<std::flush;
-        form_dsvdE(dsv_mv_mx_Emax[imv][imx],Kenq,mv,mx,Egrid,qgrid,arr_fv[2]
-          ,dv);
-      }else{
-        form_dsvdE(dsv_mv_mx_E[imv][imx],Kenq,mv,mx,Egrid,qgrid,arr_fv[0],dv);
-      }
-      std::cout<<"\r .. .. "<<std::flush;
-      //std::cout<<" .. Done\n";
-    }//mx
-  }//mv
-  std::cout<<"\n";
+  //ds.v/dE (fun. of mv, mx, E)
+  FloatVec3D dsv_mv_mx_E; //Array to store cross-section
+  sw.start();
+  calculate_dsvde_array(Kenq,dsv_mv_mx_E,mvgrid,mxgrid,Egrid,qgrid,
+    arr_fv,dv,do_anMod);
   std::cout<<"<ds.v>/dE: "<<sw.lap_reading_str()<<"\n";
 
-  //If doing an. mod, form "amplitude" for ds.v/dE, used below
-  if(do_anMod){
-    std::cout<<"\nAnnual modulation.\n";
-    std::cout<<"Forming <ds.v>_mod = (<ds.v>_max - <ds.v>_min)/2 \n";
-    for(int imv=0; imv<n_mv; imv++){
-      for(int imx=0; imx<n_mx; imx++){
-        for(int ie=0; ie<desteps; ie++){
-          dsv_mv_mx_E[imv][imx][ie] =
-           0.5*(dsv_mv_mx_Emax[imv][imx][ie]-dsv_mv_mx_E[imv][imx][ie]);
-        }
-      }
-    }
-  }
-  //need to do this? No..
-  dsv_mv_mx_Emax.clear();
+
 
   //Output <ds.v>/dE for gnuplot:
   bool write_dsvde = do_DAMA? false : true; //otherwise, get's printed too often
@@ -479,7 +503,7 @@ int main(void){
   std::cout<<"\n *** Doing S1 for DAMA ***\n\n";
 
   //Array to store observable Rate, S
-  std::vector< std::vector< std::vector<float> > > dSdE_mv_mx_E;
+  FloatVec3D dSdE_mv_mx_E;
   dSdE_mv_mx_E.resize(n_mv,
     std::vector< std::vector<float> >(n_mx,
       std::vector<float>(desteps)
@@ -544,7 +568,7 @@ int main(void){
   int num_bins = ceil((fEbin-iEbin)/wEbin);
 
   //Array to store averaged Rate, S
-  std::vector< std::vector< std::vector<float> > > S_mv_mx_E;
+  FloatVec3D S_mv_mx_E;
   S_mv_mx_E.resize(n_mv,
     std::vector< std::vector<float> >(n_mx,
       std::vector<float>(num_bins)
