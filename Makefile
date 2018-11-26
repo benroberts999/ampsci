@@ -2,7 +2,7 @@
 # output object files (OD), and executables (XD)
 ID =./src
 OD =./obj
-XD =./
+XD =.
 
 OPT=-Ofast
 OMP=-fopenmp

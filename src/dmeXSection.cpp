@@ -330,6 +330,169 @@ void calculate_dsvde_array(
 
 
 //******************************************************************************
+void doDAMA(const FloatVec3D &dsv_mv_mx_E,
+  ExpGrid &mvgrid, ExpGrid &mxgrid, ExpGrid &Egrid,
+  bool do_anMod, bool write_dSdE, bool write_SofM,
+  double dres, double err_PEkeV, double Atot,
+  double iEbin, double fEbin, double wEbin,
+  std::string label
+)
+{
+  std::cout<<"\n*** Doing S1 for DAMA ***\n";
+
+  int n_mv = mvgrid.N;
+  int n_mx = mxgrid.N;
+  int desteps = Egrid.N;
+
+  //Array to store observable Rate, S
+  FloatVec3D dSdE_mv_mx_E;
+  dSdE_mv_mx_E.resize(n_mv,
+    std::vector< std::vector<float> >(n_mx,
+      std::vector<float>(desteps)
+    )
+  );
+
+  //Hardware threshold: should be between [-1,1]
+  double PE_per_keV = 6.5 + err_PEkeV*1.;
+  double E_thresh_HW = 1./PE_per_keV/E_to_keV;
+
+  //DAMA parameters for Gaussian resolution (smearing)
+  double alpha = 0.45 + dres*0.04;
+  double beta = 0.009 + dres*0.005;
+
+  double dEonE = Egrid.dxonx;
+  double MN = Atot*(FPC::u_NMU*FPC::m_e_kg); //Total atomic/mol. mass (in kg)
+
+  //Calculate _observable_ rate, S, for DAMA
+  // inlcuding Gaussian resolution, +
+  for(int imv=0; imv<n_mv; imv++){
+    for(int imx=0; imx<n_mx; imx++){
+      double mx = mxgrid.x(imx);
+      double rho_on_mxc2 = rhoDM_GeVcm3/(mx*M_to_GeV);
+      double rateFac = dsvdE_to_cm3keVday*rho_on_mxc2/MN;
+      for(int i = 0; i<desteps; i++){
+        double E = Egrid.x(i);
+        if(E<E_thresh_HW){
+          dSdE_mv_mx_E[imv][imx][i] = 0;
+          continue;
+        }
+        //triple check this! Super important!
+        double s = (alpha*sqrt(E*E_to_keV) + beta*(E*E_to_keV))/E_to_keV;
+        double y0 = 0;
+        //integrate over Eprime:
+        for(int j = 0; j<desteps; j++){
+          double Ep = Egrid.x(j);
+          if(Ep<E_thresh_HW) continue; //hardware threshold
+          y0 += g(s,E-Ep)*dsv_mv_mx_E[imv][imx][j]*Ep;
+        }
+        dSdE_mv_mx_E[imv][imx][i] = y0*dEonE*rateFac;
+      }
+    }
+  }
+
+  //(Only write dS/dE if not writing )
+  //output dS/dE for gnuplot:
+  if(write_dSdE){
+    std::string spref = do_anMod ? "dSmdE" : "dSdE";
+    std::string fn_dSde = spref+"_mx-"+label+".out";
+    std::cout<<"Writing to file: "<<fn_dSde<<"\n";
+    double u = 1; //already converted!
+    if(n_mv==1 || n_mx>1){
+      writeForGnuplot_mvBlock(dSdE_mv_mx_E,mvgrid,mxgrid,Egrid,fn_dSde,u);
+    }
+    if(n_mv>1){
+      fn_dSde = spref+"_mv-"+label+".out";
+      std::cout<<"Writing to file: "<<fn_dSde<<"\n";
+      writeForGnuplot_mvBlock(dSdE_mv_mx_E,mvgrid,mxgrid,Egrid,fn_dSde,u);
+    }
+  }
+
+  // Integrate/average into energy bins:
+  int num_bins = ceil((fEbin-iEbin)/wEbin);
+
+  //Array to store averaged Rate, S
+  FloatVec3D S_mv_mx_E;
+  S_mv_mx_E.resize(n_mv,
+    std::vector< std::vector<float> >(n_mx,
+      std::vector<float>(num_bins)
+    )
+  );
+
+  //Creates S (or Sm) [actually S/E_w] - rate averaged over each energy bin
+  //Also prints energy bins to screen (only for first mx, mv)
+  std::cout<<"\nCalculating ";
+  if(do_anMod)std::cout<<"Sm/Ew, annual modulation amplitude (/day/kg/keV)\n";
+  else        std::cout<<"S/Ew, average event rate (/day/kg/keV)\n";
+  std::cout<<"Integrated (averaged) each energy bin.\n";
+  std::cout<<"(Just outputting for first mx/mv: ";
+    printf("M_chi=%5.2f GeV",mxgrid.min*M_to_GeV);
+    if(mvgrid.min>=0) printf(" ; M_v=%6.3f MeV",mvgrid.min*M_to_MeV);
+  std::cout<<")\n";
+  for(int imv=0; imv<n_mv; imv++){
+    for(int imx=0; imx<n_mx; imx++){
+      for(int i=0; i<num_bins; i++){
+        int ieA = Egrid.findNextIndex(iEbin+i*wEbin);
+        int ieB = Egrid.findNextIndex(iEbin+(i+1)*wEbin);
+        if(ieA<0) ieA=0;
+
+        double Rate = 0;
+        for(int ie = ieA; ie<ieB; ie++){
+          if(ieB>=desteps) break;
+          double E = Egrid.x(ie);
+          Rate += dSdE_mv_mx_E[imv][imx][ie]*E;
+          //nb: E is from Jacobian; * dE/E below
+        }
+        Rate *= dEonE/wEbin;
+        S_mv_mx_E[imv][imx][i] = Rate;
+        double EaKev = Egrid.x(ieA)*E_to_keV;
+        double EbKev = Egrid.x(ieB)*E_to_keV;
+        if(imv==0 && imx==0){
+          //only print first one to screen
+          printf("%3.1f-%3.1f: %6.3f   %.2e     %i\n",
+          EaKev,EbKev,0.5*(EaKev+EbKev),Rate,ieB-ieA);
+        }
+      }
+    }
+  }
+
+
+  // For each energy bin, output as function of m_chi.
+  // Note: if doing this, don't output above files! (too many m_chi's)
+  // Each collumn a different energy bin
+  //Each m_v
+  if(write_SofM){
+    std::string fn_S = do_anMod ? "Sm" : "S";
+    fn_S = fn_S+"_mx-"+label+".out";
+    std::cout<<"Writing to file: "<<fn_S<<"\n";
+    std::ofstream of(fn_S);
+
+    for(int imv=0; imv<n_mv; imv++){
+      double mv = mvgrid.x(imv);
+      of<<"\""<<std::fixed<<std::setprecision(2)<<mv*M_to_MeV<<" MeV\"   ";
+      for(int i=0; i<num_bins; i++){
+        double EaKev = (iEbin+i*wEbin)*E_to_keV;
+        double EbKev = EaKev + wEbin*E_to_keV;
+        of<<"\""
+          <<std::fixed<<std::setprecision(1)<<EaKev<<"-"<<EbKev<<" keV\"   ";
+      }
+      of<<"\n"<<std::scientific<<std::setprecision(6);
+      for(int imx=0; imx<n_mx; imx++){
+        double mx = mxgrid.x(imx)*M_to_GeV;
+        of<<mx<<" ";
+        for(int ie=0; ie<num_bins; ie++){
+          of<<S_mv_mx_E[imv][imx][ie]<<" ";
+        }//mx
+        of<<"\n";
+      }//E
+      of<<"\n";
+    }//mv
+    of.close();
+  }
+
+}
+
+
+//******************************************************************************
 //******************************************************************************
 //******************************************************************************
 int main(void){
@@ -348,7 +511,7 @@ int main(void){
   double dres,err_PEkeV; //detector resolution, PE-keV errors [-1]
   bool do_anMod;
   bool do_DAMA;
-  bool write_SofM;
+  bool write_dSdE, write_SofM;
 
   //Open and read the input file:
   {
@@ -370,7 +533,8 @@ int main(void){
     label = label=="na" ? akfn : akfn+"-"+label;
     do_anMod = ianmod==1 ? true : false;
     do_DAMA  = idodama==1 ? true : false;
-    write_SofM = iSM==1 ? true : false;
+    write_SofM = iSM==0 ? false : true;
+    write_dSdE = iSM==1 ? false : true;
   }
 
   if(!do_DAMA) do_anMod = false; //don't do anmod if outputting dsvde!
@@ -491,160 +655,16 @@ int main(void){
     }
   }
 
-  //XXX Here: write out to binary?
-  //NO! just have various options (DAMA, Xe100, Xe10 etc)
-  //And call a seperate function for each!
-
   // *********************
   //    Here, is just for DAMA! Move into sepperate function!!
   // *********************
 
-  if(!do_DAMA) return 1;
-  std::cout<<"\n *** Doing S1 for DAMA ***\n\n";
 
-  //Array to store observable Rate, S
-  FloatVec3D dSdE_mv_mx_E;
-  dSdE_mv_mx_E.resize(n_mv,
-    std::vector< std::vector<float> >(n_mx,
-      std::vector<float>(desteps)
-    )
-  );
+  //Calculate and output obervable rate for DAMA
+  if(do_DAMA)
+    doDAMA(dsv_mv_mx_E,mvgrid, mxgrid, Egrid, do_anMod, write_dSdE, write_SofM,
+    dres, err_PEkeV, Atot, iEbin, fEbin, wEbin, label);
 
-  //Hardware threshold: should be between [-1,1]
-  double PE_per_keV = 6.5 + err_PEkeV*1.;
-  double E_thresh_HW = 1./PE_per_keV/E_to_keV;
-
-  //calculate Gaussian smearing (DAMA)
-  double alpha = 0.45 + dres*0.04;
-  double beta = 0.009 + dres*0.005;
-
-  double dEonE = Egrid.dxonx;
-  double MN = Atot*(FPC::u_NMU*FPC::m_e_kg); //Total atomic/mol. mass (in kg)
-
-  for(int imv=0; imv<n_mv; imv++){
-    for(int imx=0; imx<n_mx; imx++){
-      double mx = mxgrid.x(imx);
-      double rho_on_mxc2 = rhoDM_GeVcm3/(mx*M_to_GeV);
-      double rateFac = dsvdE_to_cm3keVday*rho_on_mxc2/MN;
-      for(int i = 0; i<desteps; i++){
-        double E = Egrid.x(i);
-        if(E<E_thresh_HW){
-          dSdE_mv_mx_E[imv][imx][i] = 0;
-          continue;
-        }
-        //triple check this! Super important!
-        double s = (alpha*sqrt(E*E_to_keV) + beta*(E*E_to_keV))/E_to_keV;
-        double y0 = 0;
-        //integrate over Eprime:
-        for(int j = 0; j<desteps; j++){
-          double Ep = Egrid.x(j);
-          if(Ep<E_thresh_HW) continue; //hardware threshold
-          y0 += g(s,E-Ep)*dsv_mv_mx_E[imv][imx][j]*Ep;
-        }
-        dSdE_mv_mx_E[imv][imx][i] = y0*dEonE*rateFac;
-      }
-    }
-  }
-
-  bool write_dS = write_SofM? false : true;
-  //(Only write dS/dE if not writing )
-  //output dS/dE for gnuplot:
-  if(write_dS){
-    std::string spref = do_anMod ? "dSmdE" : "dSdE";
-    std::string fn_dSde = spref+"_mx-"+label+".out";
-    std::cout<<"Writing to file: "<<fn_dSde<<"\n";
-    double u = 1; //already converted!
-    if(n_mv==1 || n_mx>1){
-      writeForGnuplot_mvBlock(dSdE_mv_mx_E,mvgrid,mxgrid,Egrid,fn_dSde,u);
-    }
-    if(n_mv>1){
-      fn_dSde = spref+"_mv-"+label+".out";
-      std::cout<<"Writing to file: "<<fn_dSde<<"\n";
-      writeForGnuplot_mvBlock(dSdE_mv_mx_E,mvgrid,mxgrid,Egrid,fn_dSde,u);
-    }
-  }
-
-  // Integrate/average into energy bins:
-  int num_bins = ceil((fEbin-iEbin)/wEbin);
-
-  //Array to store averaged Rate, S
-  FloatVec3D S_mv_mx_E;
-  S_mv_mx_E.resize(n_mv,
-    std::vector< std::vector<float> >(n_mx,
-      std::vector<float>(num_bins)
-    )
-  );
-
-  //Creates S (or Sm) [actually S/E_w] - rate averaged over each energy bin
-  //Also prints energy bins to screen (only for first mx, mv)
-  std::cout<<"\nCalculating ";
-  if(do_anMod)std::cout<<"Sm/Ew, annual modulation amplitude (/day/kg/keV)\n";
-  else        std::cout<<"S/Ew, annual modulation amplitude (/day/kg/keV)\n";
-  std::cout<<"Integrated (averaged) each energy bin.\n";
-  std::cout<<"(Just outputting for first mx/mv: ";
-    printf("M_chi=%5.2f GeV",mxmin*M_to_GeV);
-    if(mvmin>=0) printf(" ; M_v=%6.3f MeV",mvmin*M_to_MeV);
-  std::cout<<")\n";
-  for(int imv=0; imv<n_mv; imv++){
-    for(int imx=0; imx<n_mx; imx++){
-      for(int i=0; i<num_bins; i++){
-        int ieA = Egrid.findNextIndex(iEbin+i*wEbin);
-        int ieB = Egrid.findNextIndex(iEbin+(i+1)*wEbin);
-        if(ieA<0) ieA=0;
-
-        double Rate = 0;
-        for(int ie = ieA; ie<ieB; ie++){
-          if(ieB>=desteps) break;
-          double E = Egrid.x(ie);
-          Rate += dSdE_mv_mx_E[imv][imx][ie]*E;
-          //nb: E is from Jacobian; * dE/E below
-        }
-        Rate *= dEonE/wEbin;
-        S_mv_mx_E[imv][imx][i] = Rate;
-        double EaKev = Egrid.x(ieA)*E_to_keV;
-        double EbKev = Egrid.x(ieB)*E_to_keV;
-        if(imv==0 && imx==0){
-          //only print first one to screen
-          printf("%3.1f-%3.1f: %6.3f   %.2e     %i\n",
-          EaKev,EbKev,0.5*(EaKev+EbKev),Rate,ieB-ieA);
-        }
-      }
-    }
-  }
-
-
-  // For each energy bin, output as function of m_chi.
-  // Note: if doing this, don't output above files! (too many m_chi's)
-  // Each collumn a different energy bin
-  //Each m_v
-  if(write_SofM){
-    std::string fn_S = do_anMod ? "Sm" : "S";
-    fn_S = fn_S+"_mx-"+label+".out";
-    std::cout<<"Writing to file: "<<fn_S<<"\n";
-    std::ofstream of(fn_S);
-
-    for(int imv=0; imv<n_mv; imv++){
-      double mv = mvgrid.x(imv);
-      of<<"\""<<std::fixed<<std::setprecision(2)<<mv*M_to_MeV<<" MeV\"   ";
-      for(int i=0; i<num_bins; i++){
-        double EaKev = (iEbin+i*wEbin)*E_to_keV;
-        double EbKev = EaKev + wEbin*E_to_keV;
-        of<<"\""
-          <<std::fixed<<std::setprecision(1)<<EaKev<<"-"<<EbKev<<" keV\"   ";
-      }
-      of<<"\n"<<std::scientific<<std::setprecision(6);
-      for(int imx=0; imx<n_mx; imx++){
-        double mx = mxgrid.x(imx)*M_to_GeV;
-        of<<mx<<" ";
-        for(int ie=0; ie<num_bins; ie++){
-          of<<S_mv_mx_E[imv][imx][ie]<<" ";
-        }//mx
-        of<<"\n";
-      }//E
-      of<<"\n";
-    }//mv
-    of.close();
-  }
 
   std::cout<<"\nTotal: "<<sw.reading_str()<<"\n";
   return 0;
