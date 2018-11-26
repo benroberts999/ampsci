@@ -4,8 +4,12 @@ ID =./src
 OD =./obj
 XD =./
 
+OPT=-Ofast
+OMP=-fopenmp
+WARN=-Wall -Wextra -Wpedantic
+
 CXX=g++
-CXXFLAGS=-I$(ID) -std=c++11 -Ofast -fopenmp -Wall -Wextra -Wpedantic
+CXXFLAGS=-I$(ID) -std=c++11 $(OPT) $(OMP) $(WARN)
 LIBS=-lgsl -lgslcblas -lm
 
 #Command to compile objects and link them

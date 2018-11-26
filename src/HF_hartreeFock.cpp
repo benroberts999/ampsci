@@ -270,20 +270,18 @@ For now: exclude core f states. Ok, but not ideal
     for(int k = k_min; k<=k_max; k++){
       double Labk = L_abk[k];
       if(Labk==0) continue;
-      //Calculate Vex_ab^k
-      std::vector<double> A(ngp),B(ngp),Vxabk(ngp);
-      A[0] = 0;
-      double b0=0;
-      //Use INT formulas??
-      for(int i=0; i<irmax; i++) b0 += wf.drdt[i]*
+      //Calculate Vex_ab^k (see note above for phys. definitions)
+      std::vector<double> Vxabk(ngp);
+      double Ax=0, Bx=0;
+      //Use INT formulas?
+      for(int i=0; i<irmax; i++) Bx += wf.drdt[i]*
         (wf.p[a][i]*wf.p[b][i]+wf.q[a][i]*wf.q[b][i])/pow(wf.r[i],k+1);
-      B[0] = b0;
       for(int i=1; i<ngp; i++){
         double Fdr = wf.drdt[i-1]*
           (wf.p[a][i-1]*wf.p[b][i-1]+wf.q[a][i-1]*wf.q[b][i-1]);
-        A[i] = A[i-1] + Fdr*pow(wf.r[i-1],k);
-        B[i] = B[i-1] - Fdr/pow(wf.r[i-1],k+1);
-        Vxabk[i] = wf.h*(A[i]/pow(wf.r[i],k+1) + B[i]*pow(wf.r[i],k));
+          Ax = Ax + Fdr*pow(wf.r[i-1],k);
+          Bx = Bx - Fdr/pow(wf.r[i-1],k+1);
+          Vxabk[i] = wf.h*(Ax/pow(wf.r[i],k+1) + Bx*pow(wf.r[i],k));
       }
       for(int i=1; i<ngp; i++){
         Vxab[i] += Vxabk[i]*Labk;
