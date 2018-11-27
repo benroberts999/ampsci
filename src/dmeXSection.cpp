@@ -9,32 +9,39 @@
 #include <fstream>
 #include <iomanip>
 
-//Convert FROM a.u. TO rel./other units
+//Convert FROM a.u. (hb=e=me=1, c=1/alpha) TO relativistic (hb=c=1)
 double E_to_keV = FPC::Hartree_eV/1000.; //au -> keV (energy)
+double Q_to_MeV = FPC::Hartree_eV*FPC::c/1.e6; //momentum (q transfer)
 double M_to_GeV = FPC::m_e_MeV/1000.;
 double M_to_MeV = FPC::m_e_MeV;
+//Convert velocity FROM au to SI units
 double V_to_kms = (FPC::c_SI/FPC::c)/1000.;
 double V_to_cms = (FPC::c_SI*FPC::alpha)*100.; // au -> cm/s
 double V_to_cmday = V_to_cms*(24*60*60); // cm/s -> cm/day
-double Q_to_MeV = FPC::Hartree_eV*FPC::c/1.e6;
 
 //DM energy density (in GeV/cm^3)
 double rhoDM_GeVcm3 = 0.4; // GeV/cm^3
 
+//Default value used for bar-sigma_e + conversions from a.u.
 double sbe_1e37_cm2 = 1.e-37;
-//With with sig-bar_e = sbe_cm2 = 1.e-37cm^2;
 double dsdE_to_cm2keV = sbe_1e37_cm2/E_to_keV; // au -> cm^2/keV
 double dsvdE_to_cm3keVday = dsdE_to_cm2keV*V_to_cmday;
 
-
 // *** === *** === *** === *** === *** === *** === *** === *** === *** === ***
 // Some macro/typedef short cuts
+//Just to save time/space
 using FloatVec3D = std::vector< std::vector< std::vector<float> > >;
 using FloatVec2D = std::vector< std::vector<float> >;
 
 //******************************************************************************
-struct ExpGrid{
-  int N;
+struct ExpGrid
+/*
+Simple struct to hold/define logarithmic/exponential grids.
+Including Jacobian [dxdi := dx/di]
+Note: dxonx := (dx/di)/x -- this is a constant! Used often
+*/
+{
+  int N; //number of points in grid
   double min;
   double max;
   double dxonx;
@@ -44,7 +51,9 @@ struct ExpGrid{
   ExpGrid(int in_N, double in_min, double in_max);
 };
 
-ExpGrid::ExpGrid(int in_N, double in_min, double in_max){
+ExpGrid::ExpGrid(int in_N, double in_min, double in_max)
+//constructor, includes some safety features/checks
+{
   N = in_N;
   min = in_min;
   max = in_max;
@@ -53,13 +62,16 @@ ExpGrid::ExpGrid(int in_N, double in_min, double in_max){
     max = in_min;
   }
   if(in_N<=1){
-    max=min;
+    max=in_min;
+    min=in_min;
     N=1;
   }
   dxonx = log(max/min)/(N-1);
 }
 
-double ExpGrid::x(int i){
+double ExpGrid::x(int i)
+//returns value at given grid point
+{
   double y = double(i)/(N-1);
   if(N==1) return min;
   return min*pow(max/min,y);
@@ -68,7 +80,10 @@ double ExpGrid::dxdi(int i){
   return dxonx*x(i);
 }
 
-int ExpGrid::findNextIndex(double x){
+int ExpGrid::findNextIndex(double x)
+//Returns index correspoding to given value
+//Note: finds NEXT LARGEST grid point (greater then or equal to.)
+{
   double tmp = (N-1)*log(x/min)/log(max/min);
   int i = (int) ceil(tmp);
   return i;
@@ -83,27 +98,26 @@ double g(double s, double x)
   return a*exp(-0.5*y);
 }
 
-// double dsdE = dsdE_Evmvmx(Ke_nq,E,v,mv,mx,qgrid);
 //******************************************************************************
 template<typename T>
 double dsdE_Evmvmx(const std::vector< std::vector<T> > &Ke_nq,
   double E, double v, double mv, double mx, ExpGrid &qgrid)
 /*
-Note: just takes in _PART_ of K (for given E)
 calcualtes cross-section ds/dE, for given E, v, mu, and mx.
+Note: just takes in _PART_ of K (for given E)
 Does q integrations, and sums over states
 note: mu = mv c / hbar = mv/alpha!
+If given negative value for mv, will use super-heavy mediator case
 Output in units of sig-bar_e
 */
 {
-
   double arg = pow(mx*v,2)-2.*mx*E;
   if(arg<0) return 0;
   int num_states = (int) (Ke_nq.size());
   int qsteps     = qgrid.N;
   double dqonq = qgrid.dxonx;
 
-  double mu = mv*FPC::c;
+  double mu = mv*FPC::c; //mu = m_v*c
 
   bool finite_med = true;
   if(mu<0) finite_med = false;
@@ -129,7 +143,6 @@ Output in units of sig-bar_e
   return dsdE;
 }
 
-// double dsvdE = dsvdE_Evmvmx(K_enq[ie],E,mv,mx,qgrid,arr_fv,dv);
 //******************************************************************************
 template<typename T>
 double dsvdE_Evmvmx(
@@ -164,7 +177,7 @@ void form_dsvdE(
   ExpGrid &Egrid, ExpGrid &qgrid,
   const std::vector<double> &arr_fv, double dv)
 /*
-Forms <dsv>/de array (for given mx, mv)
+Forms <ds.v>/dE array (for given mx, mv)
 Note: mv<0 means "heavy" mediator [Fx=1]
 */
 {
@@ -185,8 +198,9 @@ void writeForGnuplot_mvBlock(
   const FloatVec3D &X_mv_mx_x,
   ExpGrid mvgrid, ExpGrid mxgrid, ExpGrid Egrid,
   std::string fname, double y_unit_convert)
+// Write to gnu-plot formatted text file.
+// Each column is a m_chi (DM mass). Each block is different m_v
 {
-//dsvdE_to_cm3keVday
   std::ofstream of(fname.c_str());
 
   int n_mv = mvgrid.N;
@@ -226,8 +240,9 @@ void writeForGnuplot_mxBlock(
   const FloatVec3D &X_mv_mx_x,
   ExpGrid &mvgrid, ExpGrid &mxgrid, ExpGrid &Egrid,
   const std::string &fname)
+// Write to gnu-plot formatted text file
+// Each column is a m_v (mediator mass). Each block is different m_chi
 {
-
   std::ofstream of(fname.c_str());
 
   int n_mv = mvgrid.N;
@@ -264,7 +279,6 @@ void writeForGnuplot_mxBlock(
 }
 
 
-
 //******************************************************************************
 template<typename T>
 void calculate_dsvde_array(
@@ -273,8 +287,13 @@ void calculate_dsvde_array(
   ExpGrid &mvgrid, ExpGrid &mxgrid, ExpGrid &Egrid, ExpGrid &qgrid,
   const std::vector< std::vector<double> > &arr_fv, double dv,
   bool do_anMod)
+/*
+Fills the <ds.v>/dE array for each value of m_chi and m_v
+Note: If doing annual modulation, then will calculate:
+  <ds.v>_mod = (<ds.v>_max - <ds.v>_min)/2
+instead
+*/
 {
-
   int n_mv = mvgrid.N;
   int n_mx = mxgrid.N;
   int desteps = Egrid.N;
@@ -328,15 +347,19 @@ void calculate_dsvde_array(
 }
 
 
-
 //******************************************************************************
 void doDAMA(const FloatVec3D &dsv_mv_mx_E,
   ExpGrid &mvgrid, ExpGrid &mxgrid, ExpGrid &Egrid,
   bool do_anMod, bool write_dSdE, bool write_SofM,
   double dres, double err_PEkeV, double Atot,
   double iEbin, double fEbin, double wEbin,
-  std::string label
-)
+  std::string label)
+/*
+Takes in <ds.v>/dE, and calculated dS/dE, for DAMA.
+Depending on above, will be either S_0 or S_m (mod. amplitude)
+Includes detector resolution etc.
+Optionally further integrates into energy bins
+*/
 {
   std::cout<<"\n*** Doing S1 for DAMA ***\n";
 
@@ -503,54 +526,61 @@ int main(void){
 
   //define input parameters
   std::string akfn;
-  int vsteps;
   double mxmin,mxmax,mvmin,mvmax; //m_chi and m_v masses
-  int n_mx,i_mv,n_mv;
-  std::string label;
-  double Atot;
+  int i_mv; // massless mediator (0)? Heavy mediator (2); intermediate (1)
+  int n_mx,n_mv; //number of steps in m_chi, and m_v grids
+  std::string label; //label to append to output file names
+  double Atot; // Total nuclear mass number (Na+I)
   double iEbin,fEbin,wEbin; // E bins: initial,final, width
-  double dvesc,dv0;
+  double dvesc,dv0; //error terms for SHM
   double dres,err_PEkeV; //detector resolution, PE-keV errors [-1]
+  //Bools to control which parts to calculate:
   bool do_anMod;
   bool do_DAMA;
-  bool write_dSdE, write_SofM;
+  bool write_dsvde, write_dSdE, write_SofM;
 
   //Open and read the input file:
   {
     std::ifstream ifs("dmeXSection.in");
-    int idodama, ianmod, iSM;
+    int iwr_dsvde, idodama, ianmod, iSM;
     std::string jnk;
     ifs >> akfn;                    getline(ifs,jnk);
     ifs >> label;                   getline(ifs,jnk);
-    ifs >> vsteps;                  getline(ifs,jnk);
     ifs >> mxmin >> mxmax >> n_mx;  getline(ifs,jnk);
     ifs >> i_mv;                    getline(ifs,jnk);
     ifs >> mvmin >> mvmax >> n_mv;  getline(ifs,jnk);
-    ifs >> ianmod >> dvesc >> dv0;  getline(ifs,jnk);
+    ifs >> dvesc >> dv0;            getline(ifs,jnk);
+    ifs >> ianmod;                  getline(ifs,jnk);
+    ifs >> iwr_dsvde;               getline(ifs,jnk);
     ifs >> idodama;                 getline(ifs,jnk);
     ifs >> dres >> err_PEkeV;       getline(ifs,jnk);
     ifs >> Atot;                    getline(ifs,jnk);
     ifs >> iEbin >> fEbin >> wEbin; getline(ifs,jnk);
     ifs >> iSM;                     getline(ifs,jnk);
     label = label=="na" ? akfn : akfn+"-"+label;
+    write_dsvde = iwr_dsvde==1? true : false;
     do_anMod = ianmod==1 ? true : false;
     do_DAMA  = idodama==1 ? true : false;
     write_SofM = iSM==0 ? false : true;
     write_dSdE = iSM==1 ? false : true;
   }
 
-  if(!do_DAMA) do_anMod = false; //don't do anmod if outputting dsvde!
-  if(do_anMod){
-    std::cout<<"Running for annual modulation\n";
-  }
+  //Number of points in the velocity integration.
+  const int vsteps = 100; //no need to be input
 
-  //DM mass: Convert from GeV to au:
+  //DM mass: Convert from GeV to au + define grids
   mxmin /= M_to_GeV;
   mxmax /= M_to_GeV;
   if(n_mx==1) mxmax = mxmin;
   ExpGrid mxgrid(n_mx,mxmin,mxmax);
 
+  //Append 'l'('h') to label for light(heavy) mediator
+  if(i_mv==0) label = label+"_l";
+  if(i_mv==2) label = label+"_h";
+
   //Mediator mass: convert units + set-up finite/infinite case
+  //Note: For super-heavy mediator (contact interaction)
+  // will set m_v to be negative! (this is silly, but it works)
   if(i_mv==0){
     //massless case. Do sepperately
     mvmin = mvmax = 0;
@@ -566,7 +596,7 @@ int main(void){
   }
   ExpGrid mvgrid(n_mv,mvmin,mvmax);
 
-  //Energy bins for integrating/averaging
+  //Energy bins for integrating/averaging (convert units)
   iEbin/=E_to_keV;
   fEbin/=E_to_keV;
   wEbin/=E_to_keV;
@@ -606,6 +636,7 @@ int main(void){
   }
 
   //Print the grid info to screen:
+  if(do_anMod) std::cout<<"Running for annual modulation amplitude\n";
   std::cout<<"\nGrids:\n";
   printf("q :%6.2f -> %6.2f MeV, N=%4i\n",qmin*Q_to_MeV,qmax*Q_to_MeV,qsteps);
   printf("E :%6.2f -> %6.2f keV, N=%4i\n"
@@ -640,34 +671,28 @@ int main(void){
     arr_fv,dv,do_anMod);
   std::cout<<"<ds.v>/dE: "<<sw.lap_reading_str()<<"\n";
 
-
-
   //Output <ds.v>/dE for gnuplot:
-  bool write_dsvde = do_DAMA? false : true; //otherwise, get's printed too often
   if(write_dsvde){
-    std::string fn_dsvde = "dsvde_mx-"+label+".out";
+    std::string prefix = do_anMod ? "dsvde_mod" : "dsvde";
+    std::string fn_dsvde = prefix+"_mx-"+label+".out";
     std::cout<<"Writing to file: "<<fn_dsvde<<"\n";
     double u = dsvdE_to_cm3keVday; //convert units for <ds.v>/dE
     if(n_mv==1 || n_mx>1){
       writeForGnuplot_mvBlock(dsv_mv_mx_E,mvgrid,mxgrid,Egrid,fn_dsvde,u);
     }
     if(n_mv>1){
-      fn_dsvde = "dsvde_mv-"+label+".out";
+      fn_dsvde = prefix+"_mv-"+label+".out";
       std::cout<<"Writing to file: "<<fn_dsvde<<"\n";
       writeForGnuplot_mvBlock(dsv_mv_mx_E,mvgrid,mxgrid,Egrid,fn_dsvde,u);
     }
   }
 
-  // *********************
-  //    Here, is just for DAMA! Move into sepperate function!!
-  // *********************
-
-
+  // ********************************************************
   //Calculate and output obervable rate for DAMA
-  if(do_DAMA)
+  if(do_DAMA){
     doDAMA(dsv_mv_mx_E,mvgrid, mxgrid, Egrid, do_anMod, write_dSdE, write_SofM,
     dres, err_PEkeV, Atot, iEbin, fEbin, wEbin, label);
-
+  }
 
   std::cout<<"\nTotal: "<<sw.reading_str()<<"\n";
   return 0;
