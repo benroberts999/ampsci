@@ -112,6 +112,6 @@ checkXdir:
 
 .PHONY: clean do_the_chicken_dance checkObj checkXdir
 clean:
-	rm -f $(XD)/*.x $(OD)/*.o
+	rm -f $(ALLEXES) $(OD)/*.o
 do_the_chicken_dance:
 	@echo 'Why would I do that?'
