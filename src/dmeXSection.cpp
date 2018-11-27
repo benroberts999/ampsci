@@ -183,7 +183,7 @@ Note: mv<0 means "heavy" mediator [Fx=1]
 {
   //Loop through E, create dsvde array
   int desteps = Egrid.N;
-  #pragma omp parallel for
+  //#pragma omp parallel for
   for(int ie=0; ie<desteps; ie++){
     double E = Egrid.x(ie);
     //Do v (and q) integrations:
@@ -311,7 +311,7 @@ instead
   std::cout<<"Calculating <ds.v>/dE (doing q and v integrations): \n";
   for(int imv=0; imv<n_mv; imv++){
     double mv = mvgrid.x(imv);
-    #pragma omp parallel for if(n_mx>15)
+    #pragma omp parallel for //if(n_mx>15)
     for(int imx=0; imx<n_mx; imx++){
       double mx = mxgrid.x(imx);
       //printf("M_chi=%5.2f GeV",mx*M_to_GeV);
