@@ -141,8 +141,7 @@ double F_chi_2_general(double mu, double q){
 }
 
 //******************************************************************************
-template<typename T>
-double dsdE_Evmvmx(const std::vector< std::vector<T> > &Ke_nq,
+double dsdE_Evmvmx(const std::vector< std::vector<float> > &Ke_nq,
   double E, double v, double mv, double mx, ExpGrid &qgrid,
   double (*F_chi_2)(double, double))
 /*
@@ -184,9 +183,8 @@ Uses a function pointer for DM form factor. F_chi_2(mu,q) := |F_chi|^2
 }
 
 //******************************************************************************
-template<typename T>
 double dsvdE_Evmvmx(
-  const std::vector< std::vector<T> > &Ke_nq,
+  const std::vector< std::vector<float> > &Ke_nq,
   double E, double mv, double mx,
   ExpGrid &qgrid,
   const std::vector<double> &arr_fv, double dv,
@@ -210,10 +208,9 @@ Note: only takes _part_ of the K array! (for given E)
 }
 
 //******************************************************************************
-template<typename T>
 void form_dsvdE(
   std::vector<float> &dsvde,
-  const std::vector< std::vector< std::vector<T> > > &K_enq,
+  const std::vector< std::vector< std::vector<float> > > &K_enq,
   double mv, double mx,
   ExpGrid &Egrid, ExpGrid &qgrid,
   const std::vector<double> &arr_fv, double dv,
@@ -236,98 +233,8 @@ Note: mv<0 means "heavy" mediator [Fx=1]
 
 
 //******************************************************************************
-void writeForGnuplot_mvBlock(
-  const FloatVec3D &X_mv_mx_x,
-  ExpGrid mvgrid, ExpGrid mxgrid, ExpGrid Egrid,
-  std::string fname, double y_unit_convert)
-// Write to gnu-plot formatted text file.
-// Each column is a m_chi (DM mass). Each block is different m_v
-{
-  std::ofstream of(fname.c_str());
-
-  int n_mv = mvgrid.N;
-  int n_mx = mxgrid.N;
-  int desteps = Egrid.N;
-
-  of<<"# m_v blocks: ";
-  for(int imv=0; imv<n_mv; imv++){
-    double mv = mvgrid.x(imv);
-    if(mv>=0) of<<imv<<","<<mv*M_to_MeV<<" ";
-    else of<<imv<<","<<"Ultra-massive"<<" ";
-  }
-  of<<"\n";
-
-  for(int imv=0; imv<n_mv; imv++){
-    double mv = mvgrid.x(imv);
-    if(mv>=0) of<<"\""<<std::fixed<<std::setprecision(2)<<mv*M_to_MeV
-      <<" MeV\"   ";
-    else of<<"\""<<"infty"<<" MeV\"   ";
-    for(int imx=0; imx<n_mx; imx++){
-      double mx = mxgrid.x(imx);
-      of<<"\""<<std::setprecision(1)<<mx*M_to_GeV<<" GeV\"   ";
-    }
-    of<<"\n"<<std::scientific<<std::setprecision(6);
-    for(int ie=0; ie<desteps; ie++){
-      double E = Egrid.x(ie);
-      of<<E*E_to_keV<<" ";
-      for(int imx=0; imx<n_mx; imx++){
-        of<<X_mv_mx_x[imv][imx][ie]*y_unit_convert<<" ";
-      }//mx
-      of<<"\n";
-    }//E
-    of<<"\n";
-  }//mv
-
-  of.close();
-}
-//******************************************************************************
-void writeForGnuplot_mxBlock(
-  const FloatVec3D &X_mv_mx_x,
-  ExpGrid &mvgrid, ExpGrid &mxgrid, ExpGrid &Egrid,
-  const std::string &fname)
-// Write to gnu-plot formatted text file
-// Each column is a m_v (mediator mass). Each block is different m_chi
-{
-  std::ofstream of(fname.c_str());
-
-  int n_mv = mvgrid.N;
-  int n_mx = mxgrid.N;
-  int desteps = Egrid.N;
-
-  of<<"# m_x blocks: ";
-  for(int imx=0; imx<n_mx; imx++){
-    double mx = mxgrid.x(imx);
-    of<<imx<<","<<mx*M_to_GeV<<" ";
-  }
-  of<<"\n";
-
-  for(int imx=0; imx<n_mx; imx++){
-    double mx = mxgrid.x(imx);
-    of<<"\""<<std::fixed<<std::setprecision(2)<<mx*M_to_GeV<<" GeV\"   ";
-    for(int imv=0; imv<n_mv; imv++){
-      double mv = mvgrid.x(imv);
-      of<<"\""<<std::setprecision(1)<<mv*M_to_MeV<<" MeV\"   ";
-    }
-    of<<"\n"<<std::scientific<<std::setprecision(6);
-    for(int ie=0; ie<desteps; ie++){
-      double E = Egrid.x(ie);
-      of<<E*E_to_keV<<" ";
-      for(int imv=0; imv<n_mv; imv++){
-        of<<X_mv_mx_x[imv][imx][ie]*dsvdE_to_cm3keVday<<" ";
-      }//mv
-      of<<"\n";
-    }//E
-    of<<"\n";
-  }//mx
-
-  of.close();
-}
-
-
-//******************************************************************************
-template<typename T>
 void calculate_dsvde_array(
-  const std::vector< std::vector< std::vector<T> > > &Kenq,
+  const std::vector< std::vector< std::vector<float> > > &Kenq,
   FloatVec3D &dsv_mv_mx_E,
   ExpGrid &mvgrid, ExpGrid &mxgrid, ExpGrid &Egrid, ExpGrid &qgrid,
   const std::vector< std::vector<double> > &arr_fv, double dv,
@@ -563,6 +470,94 @@ Optionally further integrates into energy bins
 
 }
 
+
+//******************************************************************************
+void writeForGnuplot_mvBlock(
+  const FloatVec3D &X_mv_mx_x,
+  ExpGrid mvgrid, ExpGrid mxgrid, ExpGrid Egrid,
+  std::string fname, double y_unit_convert)
+// Write to gnu-plot formatted text file.
+// Each column is a m_chi (DM mass). Each block is different m_v
+{
+  std::ofstream of(fname.c_str());
+
+  int n_mv = mvgrid.N;
+  int n_mx = mxgrid.N;
+  int desteps = Egrid.N;
+
+  of<<"# m_v blocks: ";
+  for(int imv=0; imv<n_mv; imv++){
+    double mv = mvgrid.x(imv);
+    if(mv>=0) of<<imv<<","<<mv*M_to_MeV<<" ";
+    else of<<imv<<","<<"Ultra-massive"<<" ";
+  }
+  of<<"\n";
+
+  for(int imv=0; imv<n_mv; imv++){
+    double mv = mvgrid.x(imv);
+    if(mv>=0) of<<"\""<<std::fixed<<std::setprecision(2)<<mv*M_to_MeV
+      <<" MeV\"   ";
+    else of<<"\""<<"infty"<<" MeV\"   ";
+    for(int imx=0; imx<n_mx; imx++){
+      double mx = mxgrid.x(imx);
+      of<<"\""<<std::setprecision(1)<<mx*M_to_GeV<<" GeV\"   ";
+    }
+    of<<"\n"<<std::scientific<<std::setprecision(6);
+    for(int ie=0; ie<desteps; ie++){
+      double E = Egrid.x(ie);
+      of<<E*E_to_keV<<" ";
+      for(int imx=0; imx<n_mx; imx++){
+        of<<X_mv_mx_x[imv][imx][ie]*y_unit_convert<<" ";
+      }//mx
+      of<<"\n";
+    }//E
+    of<<"\n";
+  }//mv
+
+  of.close();
+}
+//******************************************************************************
+void writeForGnuplot_mxBlock(
+  const FloatVec3D &X_mv_mx_x,
+  ExpGrid &mvgrid, ExpGrid &mxgrid, ExpGrid &Egrid,
+  const std::string &fname)
+// Write to gnu-plot formatted text file
+// Each column is a m_v (mediator mass). Each block is different m_chi
+{
+  std::ofstream of(fname.c_str());
+
+  int n_mv = mvgrid.N;
+  int n_mx = mxgrid.N;
+  int desteps = Egrid.N;
+
+  of<<"# m_x blocks: ";
+  for(int imx=0; imx<n_mx; imx++){
+    double mx = mxgrid.x(imx);
+    of<<imx<<","<<mx*M_to_GeV<<" ";
+  }
+  of<<"\n";
+
+  for(int imx=0; imx<n_mx; imx++){
+    double mx = mxgrid.x(imx);
+    of<<"\""<<std::fixed<<std::setprecision(2)<<mx*M_to_GeV<<" GeV\"   ";
+    for(int imv=0; imv<n_mv; imv++){
+      double mv = mvgrid.x(imv);
+      of<<"\""<<std::setprecision(1)<<mv*M_to_MeV<<" MeV\"   ";
+    }
+    of<<"\n"<<std::scientific<<std::setprecision(6);
+    for(int ie=0; ie<desteps; ie++){
+      double E = Egrid.x(ie);
+      of<<E*E_to_keV<<" ";
+      for(int imv=0; imv<n_mv; imv++){
+        of<<X_mv_mx_x[imv][imx][ie]*dsvdE_to_cm3keVday<<" ";
+      }//mv
+      of<<"\n";
+    }//E
+    of<<"\n";
+  }//mx
+
+  of.close();
+}
 
 //******************************************************************************
 //******************************************************************************
