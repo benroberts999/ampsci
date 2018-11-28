@@ -49,6 +49,12 @@ Note: dxonx := (dx/di)/x -- this is a constant! Used often
   double dxdi(int i);
   int findNextIndex(double x);
   ExpGrid(int in_N, double in_min, double in_max);
+private:
+  //XXX this part cobbled together after-the-fact to increase speed...
+  std::vector<double> x_array;
+  std::vector<double> dxdi_array;
+  double f_x(int i);
+  double f_dxdi(int i);
 };
 
 ExpGrid::ExpGrid(int in_N, double in_min, double in_max)
@@ -67,16 +73,31 @@ ExpGrid::ExpGrid(int in_N, double in_min, double in_max)
     N=1;
   }
   dxonx = log(max/min)/(N-1);
+  for(int i=0; i<N; i++){
+    x_array.push_back(f_x(i));
+    dxdi_array.push_back(f_x(i));
+  }
 }
-
 double ExpGrid::x(int i)
+//returns value at given grid point
+{
+  return x_array[i]; //no bounds-checking, don't waste time
+  // double y = double(i)/(N-1);
+  // if(N==1) return min;
+  // return min*pow(max/min,y);
+}
+double ExpGrid::dxdi(int i){
+  return dxdi_array[i];
+  // return dxonx*x(i);
+}
+double ExpGrid::f_x(int i)
 //returns value at given grid point
 {
   double y = double(i)/(N-1);
   if(N==1) return min;
   return min*pow(max/min,y);
 }
-double ExpGrid::dxdi(int i){
+double ExpGrid::f_dxdi(int i){
   return dxonx*x(i);
 }
 
