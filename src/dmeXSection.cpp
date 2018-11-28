@@ -99,9 +99,31 @@ double g(double s, double x)
 }
 
 //******************************************************************************
+/*
+DM Form factors, simplified for ultra-light, and ultra-heavy cases
+*/
+double F_chi_2_heavy(double mu, double q)
+//Limit of heavy mediatior (mu >> q)
+{
+  (void)mu;
+  (void)q;
+  return 1;
+}
+double F_chi_2_light(double mu, double q)
+//Limit of light mediatior (mu << q)
+{
+  (void)mu;
+  return 1./(q*q*q*q);
+}
+double F_chi_2_general(double mu, double q){
+  return pow( (mu*mu+1.)/(mu*mu + q*q) ,2);
+}
+
+//******************************************************************************
 template<typename T>
 double dsdE_Evmvmx(const std::vector< std::vector<T> > &Ke_nq,
-  double E, double v, double mv, double mx, ExpGrid &qgrid)
+  double E, double v, double mv, double mx, ExpGrid &qgrid,
+  double (*F_chi_2)(double, double))
 /*
 calcualtes cross-section ds/dE, for given E, v, mu, and mx.
 Note: just takes in _PART_ of K (for given E)
@@ -109,6 +131,7 @@ Does q integrations, and sums over states
 note: mu = mv c / hbar = mv/alpha!
 If given negative value for mv, will use super-heavy mediator case
 Output in units of sig-bar_e
+Uses a function pointer for DM form factor. F_chi_2(mu,q) := |F_chi|^2
 */
 {
   double arg = pow(mx*v,2)-2.*mx*E;
@@ -118,9 +141,6 @@ Output in units of sig-bar_e
   double dqonq = qgrid.dxonx;
 
   double mu = mv*FPC::c; //mu = m_v*c
-
-  bool finite_med = true;
-  if(mu<0) finite_med = false;
 
   double qminus = mx*v - sqrt(arg);
   double qplus  = mx*v + sqrt(arg);
@@ -132,9 +152,8 @@ Output in units of sig-bar_e
       double q = qgrid.x(iq);
       if(q<qminus || q>qplus) continue;
       double qdq_on_dqonq = q*q; //(dq/q) is constant, multiply at end
-      double F_chi = 1.;
-      if(finite_med) F_chi = 1./pow(q*q+mu*mu,2);
-      dsdE += qdq_on_dqonq*F_chi*Ke_nq[ink][iq];  //dq/q included below
+      double FX2 = F_chi_2(mu,q); //DM form factr (^2) [uses function pointer]
+      dsdE += qdq_on_dqonq*FX2*Ke_nq[ink][iq];  //dq/q included below
     }//q int
   }//states
 
@@ -149,7 +168,8 @@ double dsvdE_Evmvmx(
   const std::vector< std::vector<T> > &Ke_nq,
   double E, double mv, double mx,
   ExpGrid &qgrid,
-  const std::vector<double> &arr_fv, double dv)
+  const std::vector<double> &arr_fv, double dv,
+  double (*F_chi_2)(double, double))
 /*
 Calculates <ds.v>/dE for given E, mv, mx
 Does the v integration
@@ -162,7 +182,7 @@ Note: only takes _part_ of the K array! (for given E)
   for(int iv=0; iv<vsteps; iv++){
     double v = (iv+1)*dv;
     if(v<vmin) continue;
-    double dsdE = dsdE_Evmvmx(Ke_nq,E,v,mv,mx,qgrid);
+    double dsdE = dsdE_Evmvmx(Ke_nq,E,v,mv,mx,qgrid,F_chi_2);
     dsvdE += arr_fv[iv]*v*dsdE;
   }//v
   return dsvdE*dv;
@@ -175,7 +195,8 @@ void form_dsvdE(
   const std::vector< std::vector< std::vector<T> > > &K_enq,
   double mv, double mx,
   ExpGrid &Egrid, ExpGrid &qgrid,
-  const std::vector<double> &arr_fv, double dv)
+  const std::vector<double> &arr_fv, double dv,
+  double (*F_chi_2)(double, double))
 /*
 Forms <ds.v>/dE array (for given mx, mv)
 Note: mv<0 means "heavy" mediator [Fx=1]
@@ -187,7 +208,7 @@ Note: mv<0 means "heavy" mediator [Fx=1]
   for(int ie=0; ie<desteps; ie++){
     double E = Egrid.x(ie);
     //Do v (and q) integrations:
-    double dsvdE = dsvdE_Evmvmx(K_enq[ie],E,mv,mx,qgrid,arr_fv,dv);
+    double dsvdE = dsvdE_Evmvmx(K_enq[ie],E,mv,mx,qgrid,arr_fv,dv,F_chi_2);
     dsvde[ie] = dsvdE;
   }//dE
 }
@@ -210,13 +231,16 @@ void writeForGnuplot_mvBlock(
   of<<"# m_v blocks: ";
   for(int imv=0; imv<n_mv; imv++){
     double mv = mvgrid.x(imv);
-    of<<imv<<","<<mv*M_to_MeV<<" ";
+    if(mv>=0) of<<imv<<","<<mv*M_to_MeV<<" ";
+    else of<<imv<<","<<"Ultra-massive"<<" ";
   }
   of<<"\n";
 
   for(int imv=0; imv<n_mv; imv++){
     double mv = mvgrid.x(imv);
-    of<<"\""<<std::fixed<<std::setprecision(2)<<mv*M_to_MeV<<" MeV\"   ";
+    if(mv>=0) of<<"\""<<std::fixed<<std::setprecision(2)<<mv*M_to_MeV
+      <<" MeV\"   ";
+    else of<<"\""<<"infty"<<" MeV\"   ";
     for(int imx=0; imx<n_mx; imx++){
       double mx = mxgrid.x(imx);
       of<<"\""<<std::setprecision(1)<<mx*M_to_GeV<<" GeV\"   ";
@@ -286,7 +310,7 @@ void calculate_dsvde_array(
   FloatVec3D &dsv_mv_mx_E,
   ExpGrid &mvgrid, ExpGrid &mxgrid, ExpGrid &Egrid, ExpGrid &qgrid,
   const std::vector< std::vector<double> > &arr_fv, double dv,
-  bool do_anMod)
+  bool do_anMod, double (*F_chi_2)(double, double))
 /*
 Fills the <ds.v>/dE array for each value of m_chi and m_v
 Note: If doing annual modulation, then will calculate:
@@ -311,19 +335,19 @@ instead
   std::cout<<"Calculating <ds.v>/dE (doing q and v integrations): \n";
   for(int imv=0; imv<n_mv; imv++){
     double mv = mvgrid.x(imv);
-    #pragma omp parallel for //if(n_mx>15)
+    #pragma omp parallel for
     for(int imx=0; imx<n_mx; imx++){
       double mx = mxgrid.x(imx);
-      //printf("M_chi=%5.2f GeV",mx*M_to_GeV);
-      //if(mv>=0) printf(" ; M_v=%6.3f MeV",mv*M_to_MeV);
       std::cout<<"\r .. "<<std::flush;
       if(do_anMod){
-        form_dsvdE(dsv_mv_mx_E[imv][imx],Kenq,mv,mx,Egrid,qgrid,arr_fv[1],dv);
+        form_dsvdE(dsv_mv_mx_E[imv][imx],Kenq,mv,mx,Egrid,qgrid,arr_fv[1],dv,
+          F_chi_2);
         std::cout<<"\r  ... "<<std::flush;
-        form_dsvdE(dsv_mv_mx_Emax[imv][imx],Kenq,mv,mx,Egrid,qgrid,arr_fv[2]
-          ,dv);
+        form_dsvdE(dsv_mv_mx_Emax[imv][imx],Kenq,mv,mx,Egrid,qgrid,arr_fv[2],
+          dv,F_chi_2);
       }else{
-        form_dsvdE(dsv_mv_mx_E[imv][imx],Kenq,mv,mx,Egrid,qgrid,arr_fv[0],dv);
+        form_dsvdE(dsv_mv_mx_E[imv][imx],Kenq,mv,mx,Egrid,qgrid,arr_fv[0],dv,
+          F_chi_2);
       }
       std::cout<<"\r .. .. "<<std::flush;
     }//mx
@@ -493,7 +517,9 @@ Optionally further integrates into energy bins
 
     for(int imv=0; imv<n_mv; imv++){
       double mv = mvgrid.x(imv);
-      of<<"\""<<std::fixed<<std::setprecision(2)<<mv*M_to_MeV<<" MeV\"   ";
+      if(mv>=0) of<<"\""<<std::fixed<<std::setprecision(2)<<mv*M_to_MeV
+        <<" MeV\"   ";
+      else of<<"\""<<"infty"<<" MeV\"   ";
       for(int i=0; i<num_bins; i++){
         double EaKev = (iEbin+i*wEbin)*E_to_keV;
         double EbKev = EaKev + wEbin*E_to_keV;
@@ -645,7 +671,8 @@ int main(void){
     ,dv*V_to_kms,max_v*V_to_kms,vsteps);
   printf("Mx:%6.2f -> %6.2f GeV, N=%4i\n"
     ,mxmin*M_to_GeV,mxmax*M_to_GeV,n_mx);
-  if(mvmin<0) std::cout<<"Heavy meadiator\n";
+  if(i_mv==0) std::cout<<"Ultra-light meadiator (F_x = q^-2)\n";
+  else if(i_mv==2) std::cout<<"Heavy meadiator  (F_x = 1)\n";
   else printf("Mv:%6.2f -> %6.2f MeV, N=%4i\n"
     ,mvmin*M_to_MeV,mvmax*M_to_MeV,n_mv);
 
@@ -662,13 +689,21 @@ int main(void){
     <<" Heavy mediator: al_x = "<<al_xH<<"*(mv/MeV)^2\n\n";
 
 
+
+  //Define function pointer for DM form-factor:
+  double (*F_chi_2)(double, double);
+  // massless mediator (0)? Heavy mediator (2); intermediate (1)
+  if(i_mv==0)       F_chi_2 = &F_chi_2_light;
+  else if(i_mv==2)  F_chi_2 = &F_chi_2_heavy;
+  else              F_chi_2 = &F_chi_2_general;
+
   // ********************************************************
   // Calculate <ds.v>/dE for each E (for each mx, mv)
   //ds.v/dE (fun. of mv, mx, E)
   FloatVec3D dsv_mv_mx_E; //Array to store cross-section
   sw.start();
   calculate_dsvde_array(Kenq,dsv_mv_mx_E,mvgrid,mxgrid,Egrid,qgrid,
-    arr_fv,dv,do_anMod);
+    arr_fv,dv,do_anMod,F_chi_2);
   std::cout<<"<ds.v>/dE: "<<sw.lap_reading_str()<<"\n";
 
   //Output <ds.v>/dE for gnuplot:
