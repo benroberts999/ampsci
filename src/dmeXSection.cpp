@@ -45,18 +45,27 @@ Note: dxonx := (dx/di)/x -- this is a constant! Used often
   double min;
   double max;
   double dxonx;
-  double x(int i);
-  double dxdi(int i);
+  double x(int i){
+    return x_array[i]; //no bounds-checking, don't waste time
+  };
+  double dxdi(int i){
+    return dxdi_array[i];
+  };
   int findNextIndex(double x);
   ExpGrid(int in_N, double in_min, double in_max);
 private:
-  //XXX this part cobbled together after-the-fact to increase speed...
   std::vector<double> x_array;
   std::vector<double> dxdi_array;
-  double f_x(int i);
-  double f_dxdi(int i);
+  double f_x(int i){
+    //Calculates value at given grid point
+    double y = double(i)/(N-1);
+    if(N==1) return min;
+    return min*pow(max/min,y);
+  };
+  double f_dxdi(int i){
+    return dxonx*x(i);
+  };
 };
-
 ExpGrid::ExpGrid(int in_N, double in_min, double in_max)
 //constructor, includes some safety features/checks
 {
@@ -78,25 +87,6 @@ ExpGrid::ExpGrid(int in_N, double in_min, double in_max)
     dxdi_array.push_back(f_x(i));
   }
 }
-double ExpGrid::x(int i)
-//returns value at given grid point
-{
-  return x_array[i]; //no bounds-checking, don't waste time
-}
-double ExpGrid::dxdi(int i){
-  return dxdi_array[i];
-}
-double ExpGrid::f_x(int i)
-//returns value at given grid point
-{
-  double y = double(i)/(N-1);
-  if(N==1) return min;
-  return min*pow(max/min,y);
-}
-double ExpGrid::f_dxdi(int i){
-  return dxonx*x(i);
-}
-
 int ExpGrid::findNextIndex(double x)
 //Returns index correspoding to given value
 //Note: finds NEXT LARGEST grid point (greater then or equal to.)
@@ -515,72 +505,70 @@ Optionally further integrates into energy bins
     }
   }
 
+  if(!write_SofM) return;
   // For each energy bin, output as function of m_chi.
   // Note: if doing this, don't output above files! (too many m_chi's)
   // Each collumn a different energy bin
   //Each m_v
-  if(write_SofM){
-    std::string fn_S = do_anMod ? "Sm" : "S";
-    fn_S = fn_S+"_mx-"+label+".out";
+  std::string fn_S = do_anMod ? "Sm" : "S";
+  fn_S = fn_S+"_mx-"+label+".out";
+  std::ofstream of; //(fn_S);
+
+  if(n_mv==1 || n_mx>1){
+    //Write Sm/[E] as function of m_chi, each m_v as block
     std::cout<<"Writing to file: "<<fn_S<<"\n";
-    std::ofstream of(fn_S);
-
-    if(n_mv==1 || n_mx>1){
-      //Write Sm/[E] as function of m_chi, each m_v as block
-      for(int imv=0; imv<n_mv; imv++){
-        double mv = mvgrid.x(imv);
-        if(mv>=0) of<<"\""<<std::fixed<<std::setprecision(2)<<mv*M_to_MeV
-          <<" MeV\"   ";
-        else of<<"\""<<"infty"<<" MeV\"   ";
-        for(int i=0; i<num_bins; i++){
-          double EaKev = (iEbin+i*wEbin)*E_to_keV;
-          double EbKev = EaKev + wEbin*E_to_keV;
-          of<<"\""
-            <<std::fixed<<std::setprecision(1)<<EaKev<<"-"<<EbKev<<" keV\"   ";
-        }
-        of<<"\n"<<std::scientific<<std::setprecision(6);
-        for(int imx=0; imx<n_mx; imx++){
-          double mx = mxgrid.x(imx)*M_to_GeV;
-          of<<mx<<" ";
-          for(int ie=0; ie<num_bins; ie++){
-            of<<S_mv_mx_E[imv][imx][ie]<<" ";
-          }//mx
-          of<<"\n";
-        }//E
+    of.open(fn_S);
+    for(int imv=0; imv<n_mv; imv++){
+      double mv = mvgrid.x(imv);
+      if(mv>=0) of<<"\""<<std::fixed<<std::setprecision(2)<<mv*M_to_MeV
+        <<" MeV\"   ";
+      else of<<"\""<<"infty"<<" MeV\"   ";
+      for(int i=0; i<num_bins; i++){
+        double EaKev = (iEbin+i*wEbin)*E_to_keV;
+        double EbKev = EaKev + wEbin*E_to_keV;
+        of<<"\""
+          <<std::fixed<<std::setprecision(1)<<EaKev<<"-"<<EbKev<<" keV\"   ";
+      }
+      of<<"\n"<<std::scientific<<std::setprecision(6);
+      for(int imx=0; imx<n_mx; imx++){
+        double mx = mxgrid.x(imx)*M_to_GeV;
+        of<<mx<<" ";
+        for(int ie=0; ie<num_bins; ie++){
+          of<<S_mv_mx_E[imv][imx][ie]<<" ";
+        }//mx
         of<<"\n";
-      }//mv
-    }
+      }//E
+      of<<"\n";
+    }//mv
     of.close();
+  }
 
+  if(n_mv>1){
+    //Write Sm/[E] as function of m_v, each m_chi as block
     fn_S = do_anMod ? "Sm" : "S";
     fn_S = fn_S+"_mv-"+label+".out";
     std::cout<<"Writing to file: "<<fn_S<<"\n";
     of.open(fn_S);
-
-    if(n_mv>1){
-      //Write Sm/[E] as function of m_v, each m_chi as block
-      for(int imx=0; imx<n_mx; imx++){
-        double mx = mxgrid.x(imx);
-        of<<"\""<<std::fixed<<std::setprecision(2)<<mx*M_to_GeV<<" GeV\"   ";
-        for(int i=0; i<num_bins; i++){
-          double EaKev = (iEbin+i*wEbin)*E_to_keV;
-          double EbKev = EaKev + wEbin*E_to_keV;
-          of<<"\""
-            <<std::fixed<<std::setprecision(1)<<EaKev<<"-"<<EbKev<<" keV\"   ";
-        }
-        of<<"\n"<<std::scientific<<std::setprecision(6);
-        for(int imv=0; imv<n_mv; imv++){
-          double mv = mvgrid.x(imv)*M_to_MeV;
-          of<<mv<<" ";
-          for(int ie=0; ie<num_bins; ie++){
-            of<<S_mv_mx_E[imv][imx][ie]<<" ";
-          }//mv
-          of<<"\n";
-        }//E
+    for(int imx=0; imx<n_mx; imx++){
+      double mx = mxgrid.x(imx);
+      of<<"\""<<std::fixed<<std::setprecision(2)<<mx*M_to_GeV<<" GeV\"   ";
+      for(int i=0; i<num_bins; i++){
+        double EaKev = (iEbin+i*wEbin)*E_to_keV;
+        double EbKev = EaKev + wEbin*E_to_keV;
+        of<<"\""
+          <<std::fixed<<std::setprecision(1)<<EaKev<<"-"<<EbKev<<" keV\"   ";
+      }
+      of<<"\n"<<std::scientific<<std::setprecision(6);
+      for(int imv=0; imv<n_mv; imv++){
+        double mv = mvgrid.x(imv)*M_to_MeV;
+        of<<mv<<" ";
+        for(int ie=0; ie<num_bins; ie++){
+          of<<S_mv_mx_E[imv][imx][ie]<<" ";
+        }//mv
         of<<"\n";
-      }//mx
-    }
-
+      }//E
+      of<<"\n";
+    }//mx
     of.close();
   }
 
