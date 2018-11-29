@@ -82,13 +82,9 @@ double ExpGrid::x(int i)
 //returns value at given grid point
 {
   return x_array[i]; //no bounds-checking, don't waste time
-  // double y = double(i)/(N-1);
-  // if(N==1) return min;
-  // return min*pow(max/min,y);
 }
 double ExpGrid::dxdi(int i){
   return dxdi_array[i];
-  // return dxonx*x(i);
 }
 double ExpGrid::f_x(int i)
 //returns value at given grid point
@@ -136,7 +132,7 @@ double F_chi_2_light(double mu, double q)
   (void)mu;
   return 1./(q*q*q*q);
 }
-double F_chi_2_general(double mu, double q){
+double F_chi_2_intermediate(double mu, double q){
   return pow( (mu*mu+1.)/(mu*mu + q*q) ,2);
 }
 
@@ -403,7 +399,6 @@ Optionally further integrates into energy bins
 */
 {
   std::cout<<"\n*** Doing S1 for DAMA ***\n";
-
   int n_mv = mvgrid.N;
   int n_mx = mxgrid.N;
   int desteps = Egrid.N;
@@ -472,7 +467,6 @@ Optionally further integrates into energy bins
   }
 
   if(wEbin==0 || fEbin==0 || iEbin==fEbin) return;
-
   // Integrate/average into energy bins:
   int num_bins = ceil((fEbin-iEbin)/wEbin);
 
@@ -520,7 +514,6 @@ Optionally further integrates into energy bins
       }
     }
   }
-
 
   // For each energy bin, output as function of m_chi.
   // Note: if doing this, don't output above files! (too many m_chi's)
@@ -594,19 +587,15 @@ Optionally further integrates into energy bins
 }
 
 
-
-
 //******************************************************************************
 //******************************************************************************
 //******************************************************************************
 int main(void){
-
   ChronoTimer sw(true);//start timer
 
   //define input parameters
   std::string akfn;
   double mxmin,mxmax,mvmin,mvmax; //m_chi and m_v masses
-  int i_mv; // massless mediator (0)? Heavy mediator (2); intermediate (1)
   int n_mx,n_mv; //number of steps in m_chi, and m_v grids
   std::string label; //label to append to output file names
   double Atot; // Total nuclear mass number (Na+I)
@@ -617,31 +606,43 @@ int main(void){
   bool do_anMod;
   bool do_DAMA;
   bool write_dsvde, write_dSdE, write_SofM;
+  //Which type of mediator (for DM form factor)
+  enum class Mediator { light, intermediate, heavy };
+  Mediator mediator;
 
   //Open and read the input file:
   {
+    int i_mv, iwr_dsvde, idodama, ianmod, iSM; //temp settings
     std::ifstream ifs("dmeXSection.in");
-    int iwr_dsvde, idodama, ianmod, iSM;
     std::string jnk;
-    ifs >> akfn;                    getline(ifs,jnk);
-    ifs >> label;                   getline(ifs,jnk);
-    ifs >> mxmin >> mxmax >> n_mx;  getline(ifs,jnk);
-    ifs >> i_mv;                    getline(ifs,jnk);
-    ifs >> mvmin >> mvmax >> n_mv;  getline(ifs,jnk);
-    ifs >> dvesc >> dv0;            getline(ifs,jnk);
-    ifs >> ianmod;                  getline(ifs,jnk);
-    ifs >> iwr_dsvde;               getline(ifs,jnk);
-    ifs >> idodama;                 getline(ifs,jnk);
-    ifs >> dres >> err_PEkeV;       getline(ifs,jnk);
-    ifs >> Atot;                    getline(ifs,jnk);
-    ifs >> iEbin >> fEbin >> wEbin; getline(ifs,jnk);
-    ifs >> iSM;                     getline(ifs,jnk);
+      ifs >> akfn;                    getline(ifs,jnk);
+      ifs >> label;                   getline(ifs,jnk);
+      ifs >> mxmin >> mxmax >> n_mx;  getline(ifs,jnk);
+      ifs >> i_mv;                    getline(ifs,jnk);
+      ifs >> mvmin >> mvmax >> n_mv;  getline(ifs,jnk);
+      ifs >> dvesc >> dv0;            getline(ifs,jnk);
+      ifs >> ianmod;                  getline(ifs,jnk);
+      ifs >> iwr_dsvde;               getline(ifs,jnk);
+      ifs >> idodama;                 getline(ifs,jnk);
+      ifs >> dres >> err_PEkeV;       getline(ifs,jnk);
+      ifs >> Atot;                    getline(ifs,jnk);
+      ifs >> iEbin >> fEbin >> wEbin; getline(ifs,jnk);
+      ifs >> iSM;                     getline(ifs,jnk);
+    ifs.close();
     label = label=="na" ? akfn : akfn+"-"+label;
+    //what to write to file:
     write_dsvde = iwr_dsvde==1? true : false;
-    do_anMod = ianmod==1 ? true : false;
-    do_DAMA  = idodama==1 ? true : false;
     write_SofM = iSM==0 ? false : true;
     write_dSdE = iSM==1 ? false : true;
+    //What to calclate:
+    do_anMod = ianmod==1 ? true : false;
+    do_DAMA  = idodama==1 ? true : false;
+    switch(i_mv){
+      case 0 : mediator = Mediator::light; break;
+      case 1 : mediator = Mediator::intermediate; break;
+      case 2 : mediator = Mediator::heavy; break;
+      default: std::cout<<"Invalid mediator\n"; return 1;
+    }
   }
 
   //Number of points in the velocity integration.
@@ -654,22 +655,29 @@ int main(void){
   ExpGrid mxgrid(n_mx,mxmin,mxmax);
 
   //Append 'l'('h') to label for light(heavy) mediator
-  if(i_mv==0) label = label+"_l";
-  if(i_mv==2) label = label+"_h";
+  switch(mediator){
+    case Mediator::light        : label = label+"_l"; break;
+    case Mediator::intermediate : label = label+"_m"; break;
+    case Mediator::heavy        : label = label+"_h"; break;
+  }
 
   //Mediator mass: convert units + set-up finite/infinite case
   //Note: For super-heavy mediator (contact interaction)
   // will set m_v to be negative! (this is silly, but it works)
-  if(i_mv==0){
+  if(mediator==Mediator::light){
     //massless case. Do sepperately
     mvmin = mvmax = 0;
     n_mv = 1;
-  }else if(i_mv==2){
+  }else if(mediator==Mediator::heavy){
     //Heavy-mediator case (contact interaction)
-    mvmin = mvmax = -1; //1./0.;
+    mvmin = mvmax = -1.; //switch..silly..
     n_mv = 1;
   }else{
-    //Do for a range of m_v's (almost never do this..)
+    //Do for a range of m_v's
+    if(mvmin==0 || mvmax==0){
+      std::cout<<"cannot have 0 mv mass for interdiatie mediator\n";
+      return 1;
+    }
     mvmin /= M_to_MeV;
     mvmax /= M_to_MeV;
   }
@@ -724,10 +732,13 @@ int main(void){
     ,dv*V_to_kms,max_v*V_to_kms,vsteps);
   printf("Mx:%6.2f -> %6.2f GeV, N=%4i\n"
     ,mxmin*M_to_GeV,mxmax*M_to_GeV,n_mx);
-  if(i_mv==0) std::cout<<"Ultra-light meadiator (F_x = q^-2)\n";
-  else if(i_mv==2) std::cout<<"Heavy meadiator  (F_x = 1)\n";
-  else printf("Mv:%6.2f -> %6.2f MeV, N=%4i\n"
-    ,mvmin*M_to_MeV,mvmax*M_to_MeV,n_mv);
+  switch(mediator){
+    case Mediator::light : std::cout<<"Ultra-light meadiator (F_x = q^-2)\n";
+      break;
+    case Mediator::heavy : std::cout<<"Heavy meadiator  (F_x = 1)\n"; break;
+    default : printf("Mv:%6.2f -> %6.2f MeV, N=%4i\n"
+      ,mvmin*M_to_MeV,mvmax*M_to_MeV,n_mv);
+  }
 
   // Units + conversions for dsvde..etc
   std::cout<<"\nDoing calculations with sig-bar_e =  "<<sbe_1e37_cm2<<"cm2\n"
@@ -742,13 +753,13 @@ int main(void){
     <<" Heavy mediator: al_x = "<<al_xH<<"*(mv/MeV)^2\n\n";
 
 
-
-  //Define function pointer for DM form-factor:
+  //Define + set function pointer for DM form-factor:
   double (*F_chi_2)(double, double);
-  // massless mediator (0)? Heavy mediator (2); intermediate (1)
-  if(i_mv==0)       F_chi_2 = &F_chi_2_light;
-  else if(i_mv==2)  F_chi_2 = &F_chi_2_heavy;
-  else              F_chi_2 = &F_chi_2_general;
+  switch(mediator){
+    case Mediator::light : F_chi_2 = &F_chi_2_light; break;
+    case Mediator::heavy : F_chi_2 = &F_chi_2_heavy; break;
+    case Mediator::intermediate : F_chi_2 = &F_chi_2_intermediate; break;
+  }
 
   // ********************************************************
   // Calculate <ds.v>/dE for each E (for each mx, mv)
