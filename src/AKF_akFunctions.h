@@ -1,5 +1,6 @@
 #pragma once
 #include "ElectronOrbitals.h"
+#include "ExponentialGrid.h"
 #include <vector>
 #include <string>
 
@@ -31,7 +32,8 @@ namespace AKF{
   void sphericalBesselTable(
     std::vector< std::vector< std::vector<float> > > &jLqr_f,
     int max_L,
-    double qmin, double qmax, int qsteps,
-    std::vector<double> &r);
+    //double qmin, double qmax, int qsteps,
+    const ExpGrid &qgrid,
+    const std::vector<double> &r);
 
 }

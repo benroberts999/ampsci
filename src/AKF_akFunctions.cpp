@@ -5,6 +5,7 @@
 #include "SBF_sphericalBesselFunctions.h"
 #include "FPC_physicalConstants.h"
 #include "ATI_atomInfo.h"
+#include "ExponentialGrid.h"
 #include <iostream>
 #include <cmath>
 #include <fstream>
@@ -108,6 +109,8 @@ int akReadWrite(std::string fname, bool write,
   std::vector<std::string> &nklst,
   double &qmin, double &qmax,
   double &dEmin, double &dEmax)
+//NOTE: In theory, should replace with ExpGrid's...but would kill
+//existing files....
 {
   std::fstream iof;
   fname=fname+".bin";
@@ -181,18 +184,16 @@ Zeff is '-1' by default. If Zeff > 0, will solve w/ Zeff model
 
   // Generate AK for each L, lc, and q
   // L and lc are summed, not stored indevidually
-  //std::vector<float> AK_nk_q(qsteps);
   for(int L=0; L<=max_L; L++){
     for(size_t ic=0; ic<cntm.kappa.size(); ic++){
       int kc = cntm.kappa[ic];
-      double dC_Lkk = CLkk(L,k,kc); //XXX new formula!
+      double dC_Lkk = CLkk(L,k,kc);
       if(dC_Lkk==0) continue;
-      #pragma omp parallel for
+      //#pragma omp parallel for
       for(int iq=0; iq<qsteps; iq++){
         double a = 0;
         double jLqr = 0;
         if(cntm.p.size()>0){
-          //if(ec<=0) std::cout<<"ERROR 244: !?!?\n";
           int maxj = wf.pinflist[is]; //don't bother going further
           //Do the radial integral:
           a=0;
@@ -206,7 +207,6 @@ Zeff is '-1' by default. If Zeff > 0, will solve w/ Zeff model
       } //q
     } // END loop over cntm states (ic)
   } // end L loop
-  //K_nk.push_back(AK_nk_q);
   //cntm.clear(); //deletes cntm wfs for this energy
   return 0;
 }
@@ -233,7 +233,6 @@ XXX Note sure if correct! esp, (q) angular part!? XXX
   int twoj = ATI::twoj_k(kappa);
 
   int qsteps = (int)jl_qr.size();
-  //std::vector<float> tmpK_q(qsteps);
 
   double eps = dE - wf.en[nk];
   int maxir = wf.pinflist[nk]; //don't bother going further
@@ -249,7 +248,6 @@ XXX Note sure if correct! esp, (q) angular part!? XXX
     //tmpK_q[iq] = pow(4*3.14159,2)*pow(chi_q,2); //XXX XXX just cf KOPP
   }
 
-  //K_nk.push_back(tmpK_q);
   return 0;
 }
 
@@ -258,11 +256,13 @@ XXX Note sure if correct! esp, (q) angular part!? XXX
 void sphericalBesselTable(
   std::vector< std::vector< std::vector<float> > > &jLqr_f,
   int max_L,
-  double qmin, double qmax, int qsteps,
-  std::vector<double> &r)
+  const ExpGrid &qgrid,
+  const std::vector<double> &r)
 {
   std::cout<<std::endl;
   int ngp = (int)r.size();
+  int qsteps = qgrid.N();
+
   jLqr_f.resize(max_L+1, std::vector< std::vector<float> >
     (qsteps, std::vector<float>(ngp)));
   for(int L=0; L<=max_L; L++){
@@ -270,8 +270,7 @@ void sphericalBesselTable(
     <<L<<"/"<<max_L<<" .. "<<std::flush;
     #pragma omp parallel for
     for(int iq=0; iq<qsteps; iq++){
-      double x=double(iq)/(qsteps-1);
-      double q = qmin*pow(qmax/qmin,x);
+      double q = qgrid.x(iq);
       for(int ir=0; ir<ngp; ir++){
         //double tmp = gsl_sf_bessel_jl(L, q*r[ir]);
         double tmp = SBF::JL(L, q*r[ir]);
@@ -289,7 +288,7 @@ void sphericalBesselTable(
             double b = (i+1.)/(num_extra+1.);
             double a=1.-b;
             double qrtmp = q*(a*r[ir]+b*r[ir+1]);
-            tmp += SBF::JL(L, qrtmp); //*1./(i+1);
+            tmp += SBF::JL(L, qrtmp);
           }
           tmp /= (num_extra+1);
         }

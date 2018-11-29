@@ -2,15 +2,13 @@
 #include <vector>
 #include <string>
 
-const int NGP_DEFAULT=1000; //???
-
 class ElectronOrbitals{
 
   public:
 
-    ElectronOrbitals(int in_z, int in_a=0, int in_ngp=NGP_DEFAULT,
+    ElectronOrbitals(int in_z, int in_a=0, int in_ngp=1000,
         double rmin=1e-6, double rmax=250., double var_alpha=1);
-    ElectronOrbitals(std::string s_in_z, int in_a=0, int in_ngp=NGP_DEFAULT,
+    ElectronOrbitals(std::string s_in_z, int in_a=0, int in_ngp=1000,
         double rmin=1e-6, double rmax=250., double var_alpha=1);
 
     std::vector< std::vector<double> > p;

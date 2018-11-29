@@ -6,15 +6,13 @@
 #include "HF_hartreeFock.h"
 #include "FPC_physicalConstants.h"
 #include "ChronoTimer.h"
+#include "ExponentialGrid.h"
 #include <iostream>
 #include <fstream>
 #include <cmath>
-//#include <sys/time.h>
-
 
 //******************************************************************************
 int main(void){
-
   ChronoTimer sw(true); //start stopwatch
 
   //Input options
@@ -24,22 +22,16 @@ int main(void){
   int ngp;
   double varalpha;// for non-relativistic approx
   double hart_del;//HART convergance
-
   std::string str_core; //States for the core
-
   //Green potential parameters
   int Gf;
   double Gh,Gd;
-
   //q and dE grids:
   double qmin,qmax,demin,demax;
   int qsteps,desteps;
-
   // Max anglular momentums
   int max_l,max_L;
-
   int iout_format;
-
   std::string label; //label for output file
 
   //Open and read the input file:
@@ -77,6 +69,9 @@ int main(void){
   //allow for single-step in dE or q grid
   if(desteps==1) demax=demin;
   if(qsteps==1) qmax=qmin;
+  //Set up the E and q grids
+  ExpGrid Egrid(desteps, demin, demax);
+  ExpGrid qgrid(qsteps, qmin, qmax);
 
   // Fix maximum angular momentum values:
   if(max_l<0 || max_l>3) max_l=3; //default: all core states (no >f)
@@ -105,7 +100,7 @@ int main(void){
   int k_zef = -1;
   double Zeff = n_zef*sqrt(-2.*en_zef);
 
-  //outut file name 9excluding extension):
+  //outut file name (excluding extension):
   std::string fname = "ak-"+Z_str+"_"+label;
 
   //What to output?
@@ -151,7 +146,7 @@ int main(void){
     wf.solveZeff(n_zef,k_zef,Zeff,false);
   }else if(Gf==0){
     //use Hartree method:
-    if(noExch) HF::hartreeCore(wf,hart_del);
+    if(noExch) HF::hartreeCore(wf,hart_del); //only for tests
     else       HF::hartreeFockCore(wf,hart_del);
   }else{
     //Use Green (local parametric) potential
@@ -194,7 +189,7 @@ int main(void){
 
   //pre-calculate the spherical Bessel function look-up table for efficiency
   std::vector< std::vector< std::vector<float> > > jLqr_f;
-  AKF::sphericalBesselTable(jLqr_f,max_L,qmin,qmax,qsteps,wf.r);
+  AKF::sphericalBesselTable(jLqr_f,max_L,qgrid,wf.r);
 
   //Calculate the AK
   std::cout<<"\nCalculating atomic kernal AK(q,dE):\n";
@@ -203,7 +198,7 @@ int main(void){
   printf("  q: %5.0e -- %5.1g MeV  (%.2f -- %.1f au)\n"
         ,qmin/qMeV,qmax/qMeV,qmin,qmax);
 
-  //Store state info (each orbital)
+  //Store state info (each orbital) [just useful for plotting!]
   for(size_t is=0; is<wf.nlist.size(); is++){
     int k = wf.kappa[is];
     int l = ATI::l_k(k);
@@ -217,16 +212,13 @@ int main(void){
 
   //Calculate K(q,E)
   std::cout<<"Running dE loops ("<<desteps<<").."<<std::flush;
-  #pragma omp parallel for if(desteps>3)
+  #pragma omp parallel for
   for(int ide=0; ide<desteps; ide++){
-    double y = double(ide)/(desteps-1);
-    if(desteps==1) y=0;
-    double dE = demin*pow(demax/demin,y);
+    double dE = Egrid.x(ide);
     //Loop over core (bound) states:
-    //std::vector< std::vector<float> > AK_nk;
     for(size_t is=0; is<wf.nlist.size(); is++){
       int k = wf.kappa[is];
-      int l = ATI::l_k(k);
+      int l = ATI::l_k(k); //XXX check this!
       if(l>max_l) continue;
       if(plane_wave) AKF::calculateKpw_nk(wf,is,dE,jLqr_f[l],AK[ide][is]);
       else if(use_Zeff)
@@ -247,6 +239,5 @@ int main(void){
   std::cout<<"\n";
 
   std::cout<<"\n "<<sw.reading_str()<<"\n";
-
   return 0;
 }

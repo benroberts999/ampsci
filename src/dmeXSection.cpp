@@ -2,6 +2,7 @@
 #include "StandardHaloModel.h"
 #include "FPC_physicalConstants.h"
 #include "ChronoTimer.h"
+#include "ExponentialGrid.h"
 #include <iostream>
 #include <string>
 #include <cmath>
@@ -33,68 +34,68 @@ double dsvdE_to_cm3keVday = dsdE_to_cm2keV*V_to_cmday;
 using FloatVec3D = std::vector< std::vector< std::vector<float> > >;
 using FloatVec2D = std::vector< std::vector<float> >;
 
-//******************************************************************************
-struct ExpGrid
-/*
-Simple struct to hold/define logarithmic/exponential grids.
-Including Jacobian [dxdi := dx/di]
-Note: dxonx := (dx/di)/x -- this is a constant! Used often
-*/
-{
-  int N; //number of points in grid
-  double min;
-  double max;
-  double dxonx;
-  double x(int i){
-    return x_array[i]; //no bounds-checking, don't waste time
-  };
-  double dxdi(int i){
-    return dxdi_array[i];
-  };
-  int findNextIndex(double x);
-  ExpGrid(int in_N, double in_min, double in_max);
-private:
-  std::vector<double> x_array;
-  std::vector<double> dxdi_array;
-  double f_x(int i){
-    //Calculates value at given grid point
-    double y = double(i)/(N-1);
-    if(N==1) return min;
-    return min*pow(max/min,y);
-  };
-  double f_dxdi(int i){
-    return dxonx*x(i);
-  };
-};
-ExpGrid::ExpGrid(int in_N, double in_min, double in_max)
-//constructor, includes some safety features/checks
-{
-  N = in_N;
-  min = in_min;
-  max = in_max;
-  if(min>max){
-    min = in_max;
-    max = in_min;
-  }
-  if(in_N<=1){
-    max=in_min;
-    min=in_min;
-    N=1;
-  }
-  dxonx = log(max/min)/(N-1);
-  for(int i=0; i<N; i++){
-    x_array.push_back(f_x(i));
-    dxdi_array.push_back(f_x(i));
-  }
-}
-int ExpGrid::findNextIndex(double x)
-//Returns index correspoding to given value
-//Note: finds NEXT LARGEST grid point (greater then or equal to.)
-{
-  double tmp = (N-1)*log(x/min)/log(max/min);
-  int i = (int) ceil(tmp);
-  return i;
-}
+// //******************************************************************************
+// struct ExpGrid
+// /*
+// Simple struct to hold/define logarithmic/exponential grids.
+// Including Jacobian [dxdi := dx/di]
+// Note: dxonx := (dx/di)/x -- this is a constant! Used often
+// */
+// {
+//   int N; //number of points in grid
+//   double min;
+//   double max;
+//   double dxonx;
+//   double x(int i){
+//     return x_array[i]; //no bounds-checking, don't waste time
+//   };
+//   double dxdi(int i){
+//     return dxdi_array[i];
+//   };
+//   int findNextIndex(double x);
+//   ExpGrid(int in_N, double in_min, double in_max);
+// private:
+//   std::vector<double> x_array;
+//   std::vector<double> dxdi_array;
+//   double f_x(int i){
+//     //Calculates value at given grid point
+//     double y = double(i)/(N-1);
+//     if(N==1) return min;
+//     return min*pow(max/min,y);
+//   };
+//   double f_dxdi(int i){
+//     return dxonx*x(i);
+//   };
+// };
+// ExpGrid::ExpGrid(int in_N, double in_min, double in_max)
+// //constructor, includes some safety features/checks
+// {
+//   N = in_N;
+//   min = in_min;
+//   max = in_max;
+//   if(min>max){
+//     min = in_max;
+//     max = in_min;
+//   }
+//   if(in_N<=1){
+//     max=in_min;
+//     min=in_min;
+//     N=1;
+//   }
+//   dxonx = log(max/min)/(N-1);
+//   for(int i=0; i<N; i++){
+//     x_array.push_back(f_x(i));
+//     dxdi_array.push_back(f_x(i));
+//   }
+// }
+// int ExpGrid::findNextIndex(double x)
+// //Returns index correspoding to given value
+// //Note: finds NEXT LARGEST grid point (greater then or equal to.)
+// {
+//   double tmp = (N-1)*log(x/min)/log(max/min);
+//   int i = (int) ceil(tmp);
+//   return i;
+// }
 
 //******************************************************************************
 double g(double s, double x)
@@ -137,9 +138,9 @@ void writeForGnuplot_mvBlock(
 {
   std::ofstream of(fname.c_str());
 
-  int n_mv = mvgrid.N;
-  int n_mx = mxgrid.N;
-  int desteps = Egrid.N;
+  int n_mv = mvgrid.N();
+  int n_mx = mxgrid.N();
+  int desteps = Egrid.N();
 
   of<<"# m_v blocks: ";
   for(int imv=0; imv<n_mv; imv++){
@@ -182,9 +183,9 @@ void writeForGnuplot_mxBlock(
 {
   std::ofstream of(fname.c_str());
 
-  int n_mv = mvgrid.N;
-  int n_mx = mxgrid.N;
-  int desteps = Egrid.N;
+  int n_mv = mvgrid.N();
+  int n_mx = mxgrid.N();
+  int desteps = Egrid.N();
 
   of<<"# m_x blocks: ";
   for(int imx=0; imx<n_mx; imx++){
@@ -232,14 +233,14 @@ Uses a function pointer for DM form factor. F_chi_2(mu,q) := |F_chi|^2
   double arg = pow(mx*v,2)-2.*mx*E;
   if(arg<0) return 0;
   int num_states = (int) (Ke_nq.size());
-  int qsteps     = qgrid.N;
-  double dqonq = qgrid.dxonx;
+  int qsteps     = qgrid.N();
+  double dqonq = qgrid.dxonx();
 
   double mu = mv*FPC::c; //mu = m_v*c
 
   double qminus = mx*v - sqrt(arg);
   double qplus  = mx*v + sqrt(arg);
-  if(qminus>qgrid.max || qplus<qgrid.min) return 0;
+  if(qminus>qgrid.max() || qplus<qgrid.min()) return 0;
 
   double dsdE = 0;
   for(int ink=0; ink<num_states; ink++){
@@ -296,7 +297,7 @@ Note: mv<0 means "heavy" mediator [Fx=1]
 */
 {
   //Loop through E, create dsvde array
-  int desteps = Egrid.N;
+  int desteps = Egrid.N();
   //#pragma omp parallel for
   for(int ie=0; ie<desteps; ie++){
     double E = Egrid.x(ie);
@@ -321,9 +322,9 @@ Note: If doing annual modulation, then will calculate:
 instead
 */
 {
-  int n_mv = mvgrid.N;
-  int n_mx = mxgrid.N;
-  int desteps = Egrid.N;
+  int n_mv = mvgrid.N();
+  int n_mx = mxgrid.N();
+  int desteps = Egrid.N();
 
   dsv_mv_mx_E.resize(n_mv,std::vector< std::vector<float> >(n_mx,
       std::vector<float>(desteps)));
@@ -389,9 +390,9 @@ Optionally further integrates into energy bins
 */
 {
   std::cout<<"\n*** Doing S1 for DAMA ***\n";
-  int n_mv = mvgrid.N;
-  int n_mx = mxgrid.N;
-  int desteps = Egrid.N;
+  int n_mv = mvgrid.N();
+  int n_mx = mxgrid.N();
+  int desteps = Egrid.N();
 
   //Array to store observable Rate, S
   FloatVec3D dSdE_mv_mx_E;
@@ -409,7 +410,7 @@ Optionally further integrates into energy bins
   double alpha = 0.45 + dres*0.04;
   double beta = 0.009 + dres*0.005;
 
-  double dEonE = Egrid.dxonx;
+  double dEonE = Egrid.dxonx();
   double MN = Atot*(FPC::u_NMU*FPC::m_e_kg); //Total atomic/mol. mass (in kg)
 
   //Calculate _observable_ rate, S, for DAMA
@@ -475,8 +476,8 @@ Optionally further integrates into energy bins
   else        std::cout<<"S/Ew, average event rate (/day/kg/keV)\n";
   std::cout<<"Integrated (averaged) each energy bin.\n";
   std::cout<<"(Just outputting for first mx/mv: ";
-    printf("M_chi=%5.2f GeV",mxgrid.min*M_to_GeV);
-    if(mvgrid.min>=0) printf(" ; M_v=%6.3f MeV",mvgrid.min*M_to_MeV);
+    printf("M_chi=%5.2f GeV",mxgrid.min()*M_to_GeV);
+    if(mvgrid.min()>=0) printf(" ; M_v=%6.3f MeV",mvgrid.min()*M_to_MeV);
   std::cout<<")\n";
   for(int imv=0; imv<n_mv; imv++){
     for(int imx=0; imx<n_mx; imx++){
