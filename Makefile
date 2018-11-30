@@ -81,7 +81,7 @@ $(OD)/PRM_parametricPotentials.o $(OD)/ChronoTimer.o
 $(XD)/atomicKernal.x: $(BASE) $(CNTM) $(HF) \
 $(OD)/atomicKernal.o $(OD)/AKF_akFunctions.o \
 $(OD)/SBF_sphericalBesselFunctions.o $(OD)/ChronoTimer.o \
-$(OD)/ExponentialGrid.o
+$(OD)/ExponentialGrid.o $(OD)/BRW_binaryReadWrite.o
 	$(LINK)
 
 $(XD)/hartreeFock.x: $(BASE) $(HF) $(OD)/hartreeFock.o $(OD)/ChronoTimer.o
@@ -89,7 +89,8 @@ $(XD)/hartreeFock.x: $(BASE) $(HF) $(OD)/hartreeFock.o $(OD)/ChronoTimer.o
 
 $(XD)/dmeXSection.x: $(BASE) $(CNTM) $(HF) $(OD)/dmeXSection.o \
 $(OD)/AKF_akFunctions.o $(OD)/SBF_sphericalBesselFunctions.o \
-$(OD)/StandardHaloModel.o $(OD)/ChronoTimer.o $(OD)/ExponentialGrid.o
+$(OD)/StandardHaloModel.o $(OD)/ChronoTimer.o $(OD)/ExponentialGrid.o \
+$(OD)/BRW_binaryReadWrite.o
 	$(LINK)
 
 $(XD)/wigner.x: $(OD)/wigner.o $(OD)/WIG_369j.o

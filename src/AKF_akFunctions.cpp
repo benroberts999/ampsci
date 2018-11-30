@@ -6,6 +6,7 @@
 #include "FPC_physicalConstants.h"
 #include "ATI_atomInfo.h"
 #include "ExponentialGrid.h"
+#include "BRW_binaryReadWrite.h"
 #include <iostream>
 #include <cmath>
 #include <fstream>
@@ -72,50 +73,19 @@ void writeToTextFile(
   ofile.close();
 }
 
-
-//******************************************************************************
-/*
-Helper functions for the binary read in/out
-*/
-template<typename T>
-int binary_rw(std::fstream& stream, T& value, bool write){
-  if(write) stream.write(reinterpret_cast<const char*>(&value), sizeof(T));
-  else stream.read(reinterpret_cast<char*>(&value), sizeof(T));
-  return 0;
-}
-template<typename T>
-int binary_str_rw(std::fstream& stream, T& value, bool write){
-  if(write){
-    size_t temp_len = value.length();
-    stream.write(reinterpret_cast<const char*>(&temp_len), sizeof(size_t));
-    stream.write(value.c_str(), value.length());
-  }else{
-    size_t temp_len;
-    stream.read(reinterpret_cast<char*>(&temp_len), sizeof(size_t));
-    char* tvalue = new char[temp_len+1];
-    stream.read(tvalue, temp_len);
-    tvalue[temp_len] = '\0'; //null 'end of string' character
-    value = tvalue;
-    delete [] tvalue;
-    return 0;
-  }
-  return 0;
-}
-
-
 //******************************************************************************
 int akReadWrite(std::string fname, bool write,
   std::vector< std::vector< std::vector<float> > > &AK,
   std::vector<std::string> &nklst,
   double &qmin, double &qmax,
   double &dEmin, double &dEmax)
-//NOTE: In theory, should replace with ExpGrid's...but would kill
-//existing files....
 {
+  //Uses BRW_binaryReadWrite
+  BRW::ROW row = write ? BRW::write : BRW::read;
+
   std::fstream iof;
   fname=fname+".bin";
-  if(write) iof.open(fname,std::ios_base::out|std::ios_base::binary);
-  else      iof.open(fname,std::ios_base::in |std::ios_base::binary);
+  BRW::open_binary(iof,fname,row);
 
   if(iof.fail()){
     std::cout<<"Can't open "<<fname<<"\n";
@@ -126,26 +96,26 @@ int akReadWrite(std::string fname, bool write,
     int nde = AK.size();   //dE
     int ns = AK[0].size();  //nk
     int nq = AK[0][0].size();//q
-    binary_rw(iof,nde,write);
-    binary_rw(iof,ns,write);
-    binary_rw(iof,nq,write);
+    BRW::binary_rw(iof,nde,row);
+    BRW::binary_rw(iof,ns,row);
+    BRW::binary_rw(iof,nq,row);
   }else{
     int nq,ns,nde;
-    binary_rw(iof,nde,write);
-    binary_rw(iof,ns,write);
-    binary_rw(iof,nq,write);
+    BRW::binary_rw(iof,nde,row);
+    BRW::binary_rw(iof,ns,row);
+    BRW::binary_rw(iof,nq,row);
     AK.resize(nde,std::vector< std::vector<float> >(ns,std::vector<float>(nq)));
     nklst.resize(ns);
   }
-  binary_rw(iof,qmin,write);
-  binary_rw(iof,qmax,write);
-  binary_rw(iof,dEmin,write);
-  binary_rw(iof,dEmax,write);
+  BRW::binary_rw(iof,qmin,row);
+  BRW::binary_rw(iof,qmax,row);
+  BRW::binary_rw(iof,dEmin,row);
+  BRW::binary_rw(iof,dEmax,row);
   for(size_t ie=0; ie<AK.size(); ie++){
     for(size_t in=0; in<AK[0].size(); in++){
-      if(ie==0) binary_str_rw(iof,nklst[in],write);
+      if(ie==0) BRW::binary_str_rw(iof,nklst[in],row);
       for(size_t iq=0; iq<AK[0][0].size(); iq++){
-        binary_rw(iof,AK[ie][in][iq],write);
+        BRW::binary_rw(iof,AK[ie][in][iq],row);
       }
     }
   }

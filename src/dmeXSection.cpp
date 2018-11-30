@@ -34,68 +34,6 @@ double dsvdE_to_cm3keVday = dsdE_to_cm2keV*V_to_cmday;
 using FloatVec3D = std::vector< std::vector< std::vector<float> > >;
 using FloatVec2D = std::vector< std::vector<float> >;
 
-// //******************************************************************************
-// struct ExpGrid
-// /*
-// Simple struct to hold/define logarithmic/exponential grids.
-// Including Jacobian [dxdi := dx/di]
-// Note: dxonx := (dx/di)/x -- this is a constant! Used often
-// */
-// {
-//   int N; //number of points in grid
-//   double min;
-//   double max;
-//   double dxonx;
-//   double x(int i){
-//     return x_array[i]; //no bounds-checking, don't waste time
-//   };
-//   double dxdi(int i){
-//     return dxdi_array[i];
-//   };
-//   int findNextIndex(double x);
-//   ExpGrid(int in_N, double in_min, double in_max);
-// private:
-//   std::vector<double> x_array;
-//   std::vector<double> dxdi_array;
-//   double f_x(int i){
-//     //Calculates value at given grid point
-//     double y = double(i)/(N-1);
-//     if(N==1) return min;
-//     return min*pow(max/min,y);
-//   };
-//   double f_dxdi(int i){
-//     return dxonx*x(i);
-//   };
-// };
-// ExpGrid::ExpGrid(int in_N, double in_min, double in_max)
-// //constructor, includes some safety features/checks
-// {
-//   N = in_N;
-//   min = in_min;
-//   max = in_max;
-//   if(min>max){
-//     min = in_max;
-//     max = in_min;
-//   }
-//   if(in_N<=1){
-//     max=in_min;
-//     min=in_min;
-//     N=1;
-//   }
-//   dxonx = log(max/min)/(N-1);
-//   for(int i=0; i<N; i++){
-//     x_array.push_back(f_x(i));
-//     dxdi_array.push_back(f_x(i));
-//   }
-// }
-// int ExpGrid::findNextIndex(double x)
-// //Returns index correspoding to given value
-// //Note: finds NEXT LARGEST grid point (greater then or equal to.)
-// {
-//   double tmp = (N-1)*log(x/min)/log(max/min);
-//   int i = (int) ceil(tmp);
-//   return i;
-// }
 
 //******************************************************************************
 double g(double s, double x)

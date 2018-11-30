@@ -32,7 +32,6 @@ namespace AKF{
   void sphericalBesselTable(
     std::vector< std::vector< std::vector<float> > > &jLqr_f,
     int max_L,
-    //double qmin, double qmax, int qsteps,
     const ExpGrid &qgrid,
     const std::vector<double> &r);
 
