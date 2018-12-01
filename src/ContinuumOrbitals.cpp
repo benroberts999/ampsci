@@ -113,8 +113,8 @@ continuum (un-bound) states [partial waves].
     if(l>max_l) break;
     std::vector<double> pc(NGPb),qc(NGPb); //only as long as bound-state grid
     ADAMS::solveContinuum(pc,qc,ec,vc,Z,k,rc,drdtc,h,NGPb,NGPc,i_asym,alpha);
-    p.push_back(pc);
-    q.push_back(qc);
+    f.push_back(pc);
+    g.push_back(qc);
     en.push_back(ec);
     kappa.push_back(k);
   }
@@ -182,8 +182,8 @@ continuum (un-bound) states [partial waves].
     if(l>max_l) break;
     std::vector<double> pc(NGPb),qc(NGPb); //only as long as bound-state grid
     ADAMS::solveContinuum(pc,qc,ec,vc,Zeff,k,rc,drdtc,h,NGPb,NGPc,i_asym,alpha);
-    p.push_back(pc);
-    q.push_back(qc);
+    f.push_back(pc);
+    g.push_back(qc);
     en.push_back(ec);
     kappa.push_back(k);
   }
@@ -196,8 +196,8 @@ continuum (un-bound) states [partial waves].
 void ContinuumOrbitals::clear()
 /**/
 {
-  p.clear();
-  q.clear();
+  f.clear();
+  g.clear();
   en.clear();
   kappa.clear();
 }

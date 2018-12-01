@@ -19,8 +19,8 @@ class ElectronOrbitals{
     std::string atom;
 
     //orbitals:
-    std::vector< std::vector<double> > p;
-    std::vector< std::vector<double> > q;
+    std::vector< std::vector<double> > f;
+    std::vector< std::vector<double> > g;
     std::vector<double> en;
     //state info:
     std::vector<int> nlist;
@@ -32,7 +32,7 @@ class ElectronOrbitals{
     //occupancy fraction.
     //Note: avg over non-rel for core, but rel for valence!
     std::vector<double> occ_frac;
-  
+
     int num_core_states;
     int num_core_electrons; // Nc = N - M
 

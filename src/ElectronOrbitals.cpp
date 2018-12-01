@@ -50,8 +50,8 @@ Uses ADAMS::solveDBS to solve Dirac Eqn for local potential (Vnuc + Vdir)
 {
   int pinf,its;
   double eps;
-  std::vector<double> p_a(ngp);
-  std::vector<double> q_a(ngp);
+  std::vector<double> f_a(ngp);
+  std::vector<double> g_a(ngp);
 
   //Fill V(r) with nulcear + DIRECT part of electron potential
   //nb: for exchange part, need to use reSolveDirac()
@@ -60,11 +60,11 @@ Uses ADAMS::solveDBS to solve Dirac Eqn for local potential (Vnuc + Vdir)
 
   //Solve local dirac Eq:
   if(e_a==0) e_a = enGuessVal(n,k);
-  int i_ret = ADAMS::solveDBS(p_a,q_a,e_a,v_a,Z,n,k,r,drdt,h,ngp,pinf,its,eps,
+  int i_ret = ADAMS::solveDBS(f_a,g_a,e_a,v_a,Z,n,k,r,drdt,h,ngp,pinf,its,eps,
     alpha,log_dele_or);
   //Store wf + energy
-  p.push_back(p_a);
-  q.push_back(q_a);
+  f.push_back(f_a);
+  g.push_back(g_a);
   en.push_back(e_a);
   //Store states:
   nlist.push_back(n);
@@ -73,8 +73,6 @@ Uses ADAMS::solveDBS to solve Dirac Eqn for local potential (Vnuc + Vdir)
   pinflist.push_back(pinf);
   itslist.push_back(its);
   epslist.push_back(eps);
-
-
 
   return i_ret;
 }
@@ -110,9 +108,8 @@ This is not ideal..
 {
   int pinf,its;
   double eps;
-  std::vector<double> p_a(ngp);
-  std::vector<double> q_a(ngp);
 
+  //XXX this is inneficient. Fine, except for HF. THen, slow! ?
   std::vector<double> v_a = vnuc;
   if(vdir.size()!=0) for(int i=0; i<ngp; i++) v_a[i] += vdir[i];
   if(vex.size()!=0) for(int i=0; i<ngp; i++) v_a[i] += vex[i];
@@ -120,13 +117,10 @@ This is not ideal..
   int n=nlist[i];
   int k=kappa[i];
   if(e_a==0) e_a = en[i];
-  int i_ret = ADAMS::solveDBS(p_a,q_a,e_a,v_a,Z,n,k,r,drdt,h,ngp,pinf,its,eps,
+  int i_ret = ADAMS::solveDBS(f[i],g[i],e_a,v_a,Z,n,k,r,drdt,h,ngp,pinf,its,eps,
     alpha,log_dele_or);
+  en[i] = e_a; //update w/ new energy
 
-  //Store wf + energy
-  for(size_t j=0; j<p[i].size(); j++) p[i][j] = p_a[j];
-  for(size_t j=0; j<p[i].size(); j++) q[i][j] = q_a[j];
-  en[i] = e_a;
   //store convergance info:
   pinflist[i] = pinf;
   itslist[i]  = its;
@@ -315,8 +309,8 @@ Hence factor of 0.5
   for(int a=0; a<Ns; a++){
     for(int b=a+1; b<Ns; b++){
       if(kappa[a]!=kappa[b]) continue;
-      double fab = INT::integrate3(p[a],p[b],drdt);
-      double gab = INT::integrate3(q[a],q[b],drdt);
+      double fab = INT::integrate3(f[a],f[b],drdt);
+      double gab = INT::integrate3(g[a],g[b],drdt);
       c_ab[a][b] = 0.5*h*(fab+gab); //0.5 avoids double counting
     }
   }
@@ -337,20 +331,20 @@ Hence factor of 0.5
       double cab = c_ab[a][b];
       if(cab==0) continue; //already?
       for(int ir=0; ir<ngp; ir++){
-        p[a][ir] -= cab*p[b][ir];
-        q[a][ir] -= cab*q[b][ir];
+        f[a][ir] -= cab*f[b][ir];
+        g[a][ir] -= cab*g[b][ir];
       }
     }
   }
 
   //Re-normalise orbitals (nb: doesn't make much difference)
   for(int a=0; a<Ns; a++){
-    double faa = INT::integrate3(p[a],p[a],drdt);
-    double gaa = INT::integrate3(q[a],q[a],drdt);
+    double faa = INT::integrate3(f[a],f[a],drdt);
+    double gaa = INT::integrate3(g[a],g[a],drdt);
     double norm = 1./sqrt(h*(faa+gaa));
     for(int ir=0; ir<ngp; ir++){
-      p[a][ir] *= norm;
-      q[a][ir] *= norm;
+      f[a][ir] *= norm;
+      g[a][ir] *= norm;
     }
   }
 
@@ -377,8 +371,8 @@ After the core is 'frozen', don't touch core orbitals!
   for(int iv=Ns_c; iv<Ns_T; iv++){
     for(int ic=0; ic<Ns_c; ic++){
       if(kappa[iv]!=kappa[ic]) continue;
-      double fvc = INT::integrate3(p[iv],p[ic],drdt);
-      double gvc = INT::integrate3(q[iv],q[ic],drdt);
+      double fvc = INT::integrate3(f[iv],f[ic],drdt);
+      double gvc = INT::integrate3(g[iv],g[ic],drdt);
       A_vc[iv-Ns_c][ic] = h*(fvc+gvc); //no 0.5 here - no double counting
     }
   }
@@ -388,8 +382,8 @@ After the core is 'frozen', don't touch core orbitals!
   for(int iv=Ns_c; iv<Ns_T; iv++){
     for(int iw=iv+1; iw<Ns_T; iw++){
       if(kappa[iv]!=kappa[iw]) continue;
-      double fvw = INT::integrate3(p[iv],p[iw],drdt);
-      double gvw = INT::integrate3(q[iv],q[iw],drdt);
+      double fvw = INT::integrate3(f[iv],f[iw],drdt);
+      double gvw = INT::integrate3(g[iv],g[iw],drdt);
       A_vw[iv-Ns_c][iw-Ns_c] = 0.5*h*(fvw+gvw); //0.5 due to double counting
     }
   }
@@ -409,8 +403,8 @@ After the core is 'frozen', don't touch core orbitals!
       double Avc = A_vc[iv-Ns_c][ic];
       if(Avc==0) continue; //never?
       for(int ir=0; ir<ngp; ir++){
-        p[iv][ir] -= Avc*p[ic][ir];
-        q[iv][ir] -= Avc*q[ic][ir];
+        f[iv][ir] -= Avc*f[ic][ir];
+        g[iv][ir] -= Avc*g[ic][ir];
       }
     }
     //valence-valence part:
@@ -420,20 +414,20 @@ After the core is 'frozen', don't touch core orbitals!
       double Avw = A_vw[iv-Ns_c][iw-Ns_c];
       if(Avw==0) continue; //never?
       for(int ir=0; ir<ngp; ir++){
-        p[iv][ir] -= Avw*p[iw][ir];
-        q[iv][ir] -= Avw*q[iw][ir];
+        f[iv][ir] -= Avw*f[iw][ir];
+        g[iv][ir] -= Avw*g[iw][ir];
       }
     }
   }
 
   //Re-normalise the orbitals:
   for(int iv=Ns_c; iv<Ns_T; iv++){
-    double fvv = INT::integrate3(p[iv],p[iv],drdt);
-    double gvv = INT::integrate3(q[iv],q[iv],drdt);
+    double fvv = INT::integrate3(f[iv],f[iv],drdt);
+    double gvv = INT::integrate3(g[iv],g[iv],drdt);
     double norm = 1./sqrt(h*(fvv+gvv));
     for(int ir=0; ir<ngp; ir++){
-      p[iv][ir] *= norm;
-      q[iv][ir] *= norm;
+      f[iv][ir] *= norm;
+      g[iv][ir] *= norm;
     }
   }
 
@@ -704,7 +698,7 @@ Uses a Fermi-Dirac distribution for the nuclear potential.
 
 NOTE: Only seems to work for fairly large Z !
 
-rho(r) = rho_0 {1 + Exp[(r-c)/a]}^-1
+rho(r) = rho_0 {1 + Exf[(r-c)/a]}^-1
 V(r) = -(4 Pi)/r [A+B]
   A = Int[ rho(x) x^2 , {x,0,r}]
   B = r * Int[ rho(x) x , {x,r,infty}]
@@ -798,8 +792,8 @@ Just clears all the info.
   A=0;
   atom="0";
   //orbitals:
-  p.clear();
-  q.clear();
+  f.clear();
+  g.clear();
   en.clear();
   //state info:
   nlist.clear();

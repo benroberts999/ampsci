@@ -10,7 +10,7 @@ to better than a few parts in 10^16
  * Includes an option to vary the effective speed of light -
 allowing non-relativistic approximation.
 
- * Wavefunctions are in form psi = (1/r) [iP,Q], (using Dirac basis)
+ * Wavefunctions are in form psi = (1/r) [f,ig], (using Dirac basis)
 
 The part that solves the Dirac eigenvalue DE is based on book by W. Johnson,
 with a few extensions that improve numerical stability and accuracy

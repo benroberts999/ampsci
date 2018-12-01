@@ -5,7 +5,7 @@ namespace ADAMS{
 
   const int AMO=7; //must be between 5 and 8 (for now). 7 Seems good.
 
-  int solveDBS(std::vector<double> &p, std::vector<double> &q, double &en,
+  int solveDBS(std::vector<double> &f, std::vector<double> &g, double &en,
       const std::vector<double> &v, double Z, int n, int ka,
       const std::vector<double> &r, const std::vector<double> &drdt, double h, int NGP,
       int &pinf, int &its, double &eps, double alpha, int log_dele_or=0);

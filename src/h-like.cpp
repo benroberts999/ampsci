@@ -87,7 +87,7 @@ int main(void){
         if(in==0) continue;
         std::vector<double> rad1;
         for (int i=0; i<wf.ngp; i++){
-          double x1=(wf.p[s][i]*wf.p[s][i]+wf.q[s][i]*wf.q[s][i])*pow(wf.r[i],in);
+          double x1=(wf.f[s][i]*wf.f[s][i]+wf.g[s][i]*wf.g[s][i])*pow(wf.r[i],in);
           rad1.push_back(x1);
         }
         // double R1=INT::integrate(rad1,wf.drdt,wf.h);
@@ -103,13 +103,13 @@ int main(void){
     double a2 = pow(alpha,2);
     for (int s=0; s<num_states; s++){
       std::vector<double> dQ(wf.ngp);
-      INT::diff(wf.q[s],wf.drdt,wf.h,dQ);
+      INT::diff(wf.g[s],wf.drdt,wf.h,dQ);
       std::vector<double> rad;
       for (int i=0; i<wf.ngp; i++){
-        double x1=2*wf.p[s][i]*dQ[i]/alpha;
-        double x2=-2*wf.kappa[s]*wf.p[s][i]*wf.q[s][i]/(wf.r[i]*alpha);
-        double x3=-2*pow(wf.q[s][i],2)/a2;
-        double x4=wf.vnuc[i]*(pow(wf.p[s][i],2)+pow(wf.q[s][i],2));
+        double x1=2*wf.f[s][i]*dQ[i]/alpha;
+        double x2=-2*wf.kappa[s]*wf.f[s][i]*wf.g[s][i]/(wf.r[i]*alpha);
+        double x3=-2*pow(wf.g[s][i],2)/a2;
+        double x4=wf.vnuc[i]*(pow(wf.f[s][i],2)+pow(wf.g[s][i],2));
         rad.push_back(x1+x3+x2+x4);
       }
       double R=INT::integrate(rad,wf.drdt,wf.h);
@@ -124,14 +124,14 @@ int main(void){
   // for(int i=0; i<wf.ngp; i++) rinv[i] = 1./wf.r[i];
   //
   // int a = 0;
-  // double L = INT::integrate4(wf.p[a],wf.r,wf.p[a],wf.drdt)*wf.h;
+  // double L = INT::integrate4(wf.f[a],wf.r,wf.f[a],wf.drdt)*wf.h;
   //
   // double dL = 0;
   // for(int n=0; n<num_states; n++){
   //   if(a==n) continue;
   //   if(wf.kappa[a]!=wf.kappa[n]) continue;
-  //   double A = INT::integrate4(wf.p[a],rinv,wf.p[n],wf.drdt);
-  //   double B = INT::integrate4(wf.p[a],wf.r,wf.p[n],wf.drdt);
+  //   double A = INT::integrate4(wf.f[a],rinv,wf.f[n],wf.drdt);
+  //   double B = INT::integrate4(wf.f[a],wf.r,wf.f[n],wf.drdt);
   //
   //   double dE = wf.en[a]-wf.en[n];
   //   double f = 2*fabs(wf.kappa[n]);

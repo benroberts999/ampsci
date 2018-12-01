@@ -150,8 +150,8 @@ int main(void){
           std::cout<<" ------- ";
           continue;
         }
-        double xf = INT::integrate3(wf.p[a],wf.p[b],wf.drdt);
-        double xg = INT::integrate3(wf.q[a],wf.q[b],wf.drdt);
+        double xf = INT::integrate3(wf.f[a],wf.f[b],wf.drdt);
+        double xg = INT::integrate3(wf.g[a],wf.g[b],wf.drdt);
         double xo = wf.h*(xf+xg);
         if(wf.nlist[a]==wf.nlist[b]) xo -= 1;
         printf(" %7.0e ",xo);

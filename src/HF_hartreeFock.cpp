@@ -70,7 +70,7 @@ Note: V_HF = V_dir + V_ex    -- note sign convention!
       double del_e = 0;
       for(int j=0; j<wf.ngp; j++){
         double dv = wf.vdir[j]+vex[i][j]-vdir_old[j]-vex_old[i][j];
-        del_e += dv*(pow(wf.p[i][j],2) + pow(wf.q[i][j],2))*wf.drdt[j];
+        del_e += dv*(pow(wf.f[i][j],2) + pow(wf.g[i][j],2))*wf.drdt[j];
       }
       del_e*=wf.h;
       double en_guess = en_old[i] + del_e;
@@ -131,7 +131,7 @@ Calculate valence states in frozen Hartree-Fock core
     //Use P.T. to calculate energy change:
     double en_new = 0;
     for(int i=0; i<wf.pinflist[a]; i++) en_new +=
-      (vexa[i]-vexa_old[i])*(pow(wf.p[a][i],2)+pow(wf.q[a][i],2))*wf.drdt[i];
+      (vexa[i]-vexa_old[i])*(pow(wf.f[a][i],2)+pow(wf.g[a][i],2))*wf.drdt[i];
     en_new = wf.en[a] + en_new*wf.h;
     //Solve Dirac using new potential:
     wf.reSolveDirac(a,en_new,vexa,2);
@@ -185,7 +185,7 @@ Note: Uses efficient integral method:
     double frac = wf.occ_frac[i]; //avgs over non-rel. configs
     int j_max = wf.pinflist[i];
     for(int j=0; j<j_max; j++){
-      rho[j] += frac*(twoj+1)*(pow(wf.p[i][j],2) + pow(wf.q[i][j],2));
+      rho[j] += frac*(twoj+1)*(pow(wf.f[i][j],2) + pow(wf.g[i][j],2));
     }
   }
 
@@ -272,10 +272,10 @@ For now: exclude core f states. Ok, but not ideal
       double Ax=0, Bx=0;
       //Use INT formulas?
       for(int i=0; i<irmax; i++) Bx += wf.drdt[i]*
-        (wf.p[a][i]*wf.p[b][i]+wf.q[a][i]*wf.q[b][i])/pow(wf.r[i],k+1);
+        (wf.f[a][i]*wf.f[b][i]+wf.g[a][i]*wf.g[b][i])/pow(wf.r[i],k+1);
       for(int i=1; i<ngp; i++){
         double Fdr = wf.drdt[i-1]*
-          (wf.p[a][i-1]*wf.p[b][i-1]+wf.q[a][i-1]*wf.q[b][i-1]);
+          (wf.f[a][i-1]*wf.f[b][i-1]+wf.g[a][i-1]*wf.g[b][i-1]);
           Ax = Ax + Fdr*pow(wf.r[i-1],k);
           Bx = Bx - Fdr/pow(wf.r[i-1],k+1);
           Vxabk[i] = wf.h*(Ax/pow(wf.r[i],k+1) + Bx*pow(wf.r[i],k));
@@ -289,9 +289,9 @@ For now: exclude core f states. Ok, but not ideal
       double fac = 1;
       if(a!=b){
         //NB: Cutt-off? OK?
-        if(fabs(wf.p[a][ir])<1.e-3) continue;
-        double fac_top = wf.p[a][ir]*wf.p[b][ir] + wf.q[a][ir]*wf.q[b][ir];
-        double fac_bot = wf.p[a][ir]*wf.p[a][ir] + wf.q[a][ir]*wf.q[a][ir];
+        if(fabs(wf.f[a][ir])<1.e-3) continue;
+        double fac_top = wf.f[a][ir]*wf.f[b][ir] + wf.g[a][ir]*wf.g[b][ir];
+        double fac_bot = wf.f[a][ir]*wf.f[a][ir] + wf.g[a][ir]*wf.g[a][ir];
         fac = fac_top/fac_bot;
       }
       #pragma omp critical
@@ -361,7 +361,7 @@ NOTE: can make this nicer.. but will never use it, so whatever.
       double del_e=0;
       for(int j=0; j<wf.pinflist[i]; j++)
         del_e += (wf.vdir[j]-vdir_old[j])*
-        (pow(wf.p[i][j],2) + pow(wf.q[i][j],2))*wf.drdt[j];
+        (pow(wf.f[i][j],2) + pow(wf.g[i][j],2))*wf.drdt[j];
       del_e*=wf.h;
       double new_e = wf.en[i] + 1*del_e;
       if(new_e>0)new_e=-0.1;
@@ -406,7 +406,7 @@ NOTE: can make this nicer.. but will never use it, so whatever.
   //     //Use PT to find new energy guess
   //     double del_e=0;
   //     for(int j=0; j<wf.ngp; j++) del_e += (wf.vdir[j]-vdir_old[j])
-  //       *(pow(wf.p[i][j],2) + pow(wf.q[i][j],2))*wf.drdt[j];
+  //       *(pow(wf.f[i][j],2) + pow(wf.g[i][j],2))*wf.drdt[j];
   //     del_e*=wf.h;
   //     double en_guess = en_old[i] + del_e;
   //     if(en_guess>0) en_guess = en_old[i]; //safety, should never happen

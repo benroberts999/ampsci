@@ -27,7 +27,7 @@ bool debug=false; //if true, will print progress messages.
 //parameter: Adams-Moulton ''order'' (number of points)
 
 //******************************************************************************
-int solveDBS(std::vector<double> &p, std::vector<double> &q, double &en,
+int solveDBS(std::vector<double> &f, std::vector<double> &g, double &en,
     const std::vector<double> &v, double Z, int n, int ka,
     const std::vector<double> &r, const std::vector<double> &drdt, double h, int NGP,
     int &pinf, int &its, double &eps, double alpha, int log_dele_or)
@@ -62,6 +62,11 @@ Rough description of method:
    corrections to the energy to 'zoom in' (matching the in/out solution for q),
    then re-starts from step 2.
 Continues until this energy adjustment falls below a prescribed threshold.
+
+NOTE: Originaly in terms of (p,q). Now in terms of (f,g).
+Other "sub"-programs still use (p,q).
+  f = p
+  g = -q
 
 There are two energy convergence parameters, primary and secondary.
 If cannot converge to primary value, but better than secondary, will not give
@@ -171,12 +176,12 @@ an error.
 
     //Join the in and outward solutions. "Meshed" around ctp +/- d_ctp
     for(int i=0; i<ctp-d_ctp; i++){
-      p[i] = pout[i];
-      q[i] = qout[i];
+      f[i] = pout[i];
+      g[i] = -1*qout[i];
     }
     for(int i=ctp+d_ctp+1; i<=pinf; i++){
-      p[i] = pin[i];
-      q[i] = qin[i];
+      f[i] = pin[i];
+      g[i] = -1*qin[i];
     }
     for(int i=ctp-d_ctp; i<=ctp+d_ctp; i++){
       //"Mesh" in the intermediate region
@@ -184,17 +189,17 @@ an error.
       if(d_ctp==0) B=0.5;
       else B = (double((i-ctp)+d_ctp))/(2.*d_ctp);
       double A = 1-B;
-      p[i] = A*pout[i] + B*pin[i];
-      q[i] = A*qout[i] + B*qin[i];
+      f[i] = A*pout[i] + B*pin[i];
+      g[i] = -1*(A*qout[i] + B*qin[i]);
     }
 
     //Count the number of nodes (zeros) the wf has.
     //Just counts the number of times wf changes sign
     int nozeros=0;
-    double sp=p[1];
+    double sp=f[1];
     double spn;
     for(int i=2; i<pinf; i++){
-      spn=p[i];
+      spn=f[i];
       if (sp*spn<0) nozeros++;
       if(spn!=0)    sp=spn;
     }
@@ -225,20 +230,20 @@ an error.
       // correct number of nodes.
       //From here, use perturbation theory to fine-time the energy
       if(debug) printf("Correct number of nodes, starting P.T.\n");
-      double anormP = INT::integrate3(p,p,drdt,h,0,pinf);
-      double anormQ = INT::integrate3(q,q,drdt,h,0,pinf);
-      anorm = anormP + anormQ;
+      double anormF = INT::integrate3(f,f,drdt,h,0,pinf);
+      double anormG = INT::integrate3(g,g,drdt,h,0,pinf);
+      anorm = anormF + anormG;
       if(debug) printf("anrom=%.5f\n",anorm);
       //Use perturbation theory to work out delta En
       // delta E = c*P(r)*[Qin(r)-Qout(r)]
       // nb: wf not yet normalised!
-      double p_del_q = p[ctp]*(qin[ctp]-qout[ctp]);
+      double p_del_q = f[ctp]*(qin[ctp]-qout[ctp]);
       double denom=1;
       //weighted average around ctp:
       for(int i=1; i<=d_ctp; i++){
         p_del_q += 0.5*(
-                    p[ctp+i]*(qin[ctp+i]-qout[ctp+i]) +
-                    p[ctp-i]*(qin[ctp-i]-qout[ctp-i])
+                    f[ctp+i]*(qin[ctp+i]-qout[ctp+i]) +
+                    f[ctp-i]*(qin[ctp-i]-qout[ctp-i])
                   )/(i+1.);
         denom += 1./(i+1.);
       }
@@ -290,13 +295,13 @@ an error.
   double an= 1/sqrt(anorm);
   //if(debug) printf("An=%.5e\n",an);
   for(int i=0; i<=pinf; i++){
-    p[i]=an*p[i];
-    q[i]=an*q[i];
+    f[i]=an*f[i];
+    g[i]=an*g[i];
   }
   for(int i=pinf+1; i<NGP; i++){
     // kills remainders (just for safety)
-    p[i]=0;
-    q[i]=0;
+    f[i]=0;
+    g[i]=0;
   }
 
   if(debug){

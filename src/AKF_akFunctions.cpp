@@ -163,13 +163,13 @@ Zeff is '-1' by default. If Zeff > 0, will solve w/ Zeff model
       for(int iq=0; iq<qsteps; iq++){
         double a = 0;
         double jLqr = 0;
-        if(cntm.p.size()>0){
+        if(cntm.f.size()>0){
           int maxj = wf.pinflist[is]; //don't bother going further
           //Do the radial integral:
           a=0;
           for(int j=0; j<maxj; j++){
             jLqr = jLqr_f[L][iq][j];
-            a += (wf.p[is][j]*cntm.p[ic][j] + wf.q[is][j]*cntm.q[ic][j])
+            a += (wf.f[is][j]*cntm.f[ic][j] + wf.g[is][j]*cntm.g[ic][j])
                  *jLqr*wf.drdt[j];// *h below!
           }
         }
@@ -197,7 +197,7 @@ XXX Note sure if correct! esp, (q) angular part!? XXX
 
 */
 {
-  if (nk>=(int)wf.p.size()) return 1; //should never occur
+  if (nk>=(int)wf.f.size()) return 1; //should never occur
 
   int kappa = wf.kappa[nk];
   int twoj = ATI::twoj_k(kappa);
@@ -211,7 +211,7 @@ XXX Note sure if correct! esp, (q) angular part!? XXX
     if(eps<=0) break;
     double chi_q=0;
     for(int ir=0; ir<maxir; ir++){
-      chi_q += wf.p[nk][ir]*jl_qr[iq][ir]*wf.r[ir]*wf.drdt[ir];
+      chi_q += wf.f[nk][ir]*jl_qr[iq][ir]*wf.r[ir]*wf.drdt[ir];
     }
     chi_q *= wf.h;
     tmpK_q[iq] = (2./M_PI)*(twoj+1)*pow(chi_q,2)*sqrt(2.*eps);

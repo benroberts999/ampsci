@@ -16,8 +16,8 @@ class ContinuumOrbitals{
 
     void clear();
 
-    std::vector< std::vector<double> > p;
-    std::vector< std::vector<double> > q;
+    std::vector< std::vector<double> > f;
+    std::vector< std::vector<double> > g;
     std::vector<double> en;
     std::vector<int> kappa;
 
