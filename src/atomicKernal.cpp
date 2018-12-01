@@ -97,7 +97,6 @@ int main(void){
   bool use_Zeff = false; // XXX Make sure set to false!
   double en_zef = -43.;
   int n_zef = 3;
-  int k_zef = -1;
   double Zeff = n_zef*sqrt(-2.*en_zef);
 
   //outut file name (excluding extension):
@@ -122,7 +121,7 @@ int main(void){
   double h_target = (M_PI/20.)/sqrt(2.*demax);
   if(wf.h > h_target){
     int old_ngp = ngp;
-    wf.DzubaRadialGrid(h_target,r0,rmax);
+    wf.logLinearRadialGrid(h_target,r0,rmax);
     ngp = wf.ngp;
     std::cout<<"\nWARNING 101: Grid not dense enough for contimuum state with "
          <<"ec="<<demax<<"au\n";
@@ -142,8 +141,8 @@ int main(void){
   }
 
   if(use_Zeff){
-    //Use Zeff (single oribtal only, just for tests!)
-    wf.solveZeff(n_zef,k_zef,Zeff,false);
+    std::cout<<"Sorry, Zeff no longer an option\n";
+    return 1;
   }else if(Gf==0){
     //use Hartree method:
     if(noExch) HF::hartreeCore(wf,hart_del); //only for tests
@@ -171,7 +170,7 @@ int main(void){
     int l = ATI::l_k(k);
     double rinf = wf.r[wf.pinflist[i]];
     double eni = wf.en[i];
-    double x = wf.core_ocf[i];
+    double x = wf.occ_frac[i];
     printf("%2i) %2i %s_%i/2 %2i  %3.0f %3i  %5.0e  %11.5f %12.0f %10.2f   (%.2f)\n",
         i,n,ATI::l_symbol(l).c_str(),twoj,k,rinf,wf.itslist[i],wf.epslist[i],
         eni, eni*FPC::Hartree_invcm, eni*FPC::Hartree_eV,x);

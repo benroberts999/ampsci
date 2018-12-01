@@ -6,52 +6,53 @@ class ElectronOrbitals{
 
   public:
 
-    ElectronOrbitals(int in_z, int in_a=0, int in_ngp=1000,
+    ElectronOrbitals(int in_z, int in_a=0, int in_ngp=2048,
         double rmin=1e-6, double rmax=250., double var_alpha=1);
-    ElectronOrbitals(std::string s_in_z, int in_a=0, int in_ngp=1000,
+    ElectronOrbitals(std::string s_in_z, int in_a=0, int in_ngp=2048,
         double rmin=1e-6, double rmax=250., double var_alpha=1);
 
+    void clearAll();
+
+  public:
+    //Atom info:
+    int Z,A;
+    std::string atom;
+
+    //orbitals:
     std::vector< std::vector<double> > p;
     std::vector< std::vector<double> > q;
     std::vector<double> en;
+    //state info:
+    std::vector<int> nlist;
+    std::vector<int> kappa;
+    //info from solveing DE
+    std::vector<int> pinflist; //practical infinity
+    std::vector<int> itslist; //num. iterations
+    std::vector<double> epslist; //convergance
+    //occupancy fraction.
+    //Note: avg over non-rel for core, but rel for valence!
+    std::vector<double> occ_frac;
+  
+    int num_core_states;
+    int num_core_electrons; // Nc = N - M
 
+    //grid
     std::vector<double> r;
     std::vector<double> drdt;
     std::vector<double> dror;
     int ngp;
     double h;
 
-    //std::vector<double> v;    //total ??
+    //Potentials
     std::vector<double> vnuc;
     std::vector<double> vdir; //direct/local part of the electron potential
 
-    int Z,A;
-    std::string atom;
+  public:
 
     //double var_alpha; // like this?
-    double alpha;
+    double get_alpha() const;
 
-    int max_n;
-    int max_l;
-    int num_states; //?
-
-    std::vector<int> core_list; //number of electrons in each shell! (non-rel??)
-    std::vector<double> core_ocf; //occupancy fraction
-    int num_core_states;
-    int num_core_electrons; // Nc = N - M
-
-    std::vector<int> nlist;
-    std::vector<int> kappa;
-
-    std::vector<int> pinflist;
-    std::vector<int> itslist;
-    std::vector<double> epslist;
-
-    int hydrogenLike(int in_max_n, int in_max_l=100);
-
-    int solveZeff(int n, int k, double Zeff_or_En, bool calcZeff);
-
-    int solveLocalDirac(int n, int k, double en_a, int log_dele_or=0);
+    int solveLocalDirac(int n, int k, double en_a=0, int log_dele_or=0);
     int reSolveDirac(int i, double e_a=0, int log_dele_or=0);
     int reSolveDirac(int i, double e_a, const std::vector<double> &vex,
       int log_dele_or=0);
@@ -68,20 +69,29 @@ class ElectronOrbitals{
     int maxCore_n(void);
 
     void orthonormaliseOrbitals(int num_its=1);
-    void orthonormaliseValence(int num_its);
-
-    double enGuessCore(int n, int l);
-    double enGuessVal(int n, int ka);
+    void orthonormaliseValence(int num_its=1);
 
     int sortedEnergyList(std::vector<int> &sort_list);
 
-    int DzubaRadialGrid(int ngp_in, double r0, double rmax, double b=4.);
-    int DzubaRadialGrid(double in_h, double r0, double rmax, double b=4.);
+    //Single function to form grid, takes in option (w/ enums)!
+    //Default: logLinear..
+    int logLinearRadialGrid(int ngp_in, double r0, double rmax, double b=4.);
+    int logLinearRadialGrid(double in_h, double r0, double rmax, double b=4.);
 
   private:
 
+    //store internal value for alpha (allows variation)
+    double alpha;
+
+    //number of electrons in each core shell (non-rel??)
+    std::vector<int> num_core_shell;
+
+  private:
     //Grid
-    int JohnsonRadialGrid(int ngp_in, double r0=1.e-6, double rmax=250.);
+    int exponentialRadialGrid(int ngp_in, double r0, double rmax);
     int zeroNucleus();
+
+    double enGuessCore(int n, int l);
+    double enGuessVal(int n, int ka);
 
 };

@@ -86,24 +86,17 @@ int main(void){
   //Solve for core states
   wf.solveInitialCore();
 
-  //store number of calculated core states:
-  int num_core_states = wf.nlist.size();
-
   //Calculate the valence (and excited) states
   for(int n=1; n<=n_max; n++){
     for(int l=0; l<=l_max; l++){
       if(l+1>n) continue;
-
       for(int tk=0; tk<2; tk++){
         int k;
         if(tk==0) k=l;
         else      k=-(l+1);
         if(k==0) continue;
         if(wf.isInCore(n,k)) continue;
-
-        double en_a = wf.enGuessVal(n,k);
-        wf.solveLocalDirac(n,k,en_a);
-
+        wf.solveLocalDirac(n,k);
       }
     }
   }
@@ -116,7 +109,7 @@ int main(void){
   printf("\n n l_j    k Rinf its    eps      En (au)        En (/cm)\n");
   for(size_t m=0; m<sort_list.size(); m++){
     int i = sort_list[m];
-    if((int)m==num_core_states){
+    if((int)m==wf.num_core_states){
       std::cout<<" ========= Valence: ======\n";
       printf(" n l_j    k Rinf its    eps      En (au)        En (/cm)\n");
     }
@@ -132,6 +125,5 @@ int main(void){
   }
 
   std::cout<<"\n "<<sw.reading_str()<<"\n";
-
   return 0;
 }

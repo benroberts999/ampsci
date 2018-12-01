@@ -24,7 +24,7 @@ If none given, will assume izion should be 1! Not 100% always!
   drdt.clear();
   drdt = wf.drdt;
 
-  alpha = wf.alpha;
+  alpha = wf.get_alpha();
   Z = wf.Z;
 
   //Check Zion. Will normally be 0 for neutral atom. Make -1

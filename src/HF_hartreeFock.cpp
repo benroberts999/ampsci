@@ -24,36 +24,34 @@ Note: V_HF = V_dir + V_ex    -- note sign convention!
 {
   // "Mixing" of new + old Potential:
   // V_n+1 = eta*V_n+1 + (1-eta)*V_n
-  //NB: must be less than 0.5!, because x2 after first few its!
-  double eta=0.35;
+  double eta1=0.35;
+  double eta2=0.7; //this value after 4 its
   int ngp = wf.ngp;
 
-  wf.vdir.clear(); //make sure it's empty
+  wf.vdir.resize(ngp); //make sure correct size
 
   //Starting approx:
   //Fill the electron part of the potential, using Greens PRM for initial approx
   double Gh,Gd;  //Green potential parameters
   PRM::defaultGreenCore(wf.Z,Gh,Gd); //Get default values for Green potential
-  for(int i=0; i<ngp; i++) wf.vdir.push_back(PRM::green(wf.Z,wf.r[i],Gh,Gd));
+  for(int i=0; i<ngp; i++) wf.vdir[i] = PRM::green(wf.Z,wf.r[i],Gh,Gd);
 
   //First step: Solve each core state using above parameteric potential
-  wf.solveInitialCore(3); //3, since don't need high accuray here [1 in 10^3]
-  int Ncs = wf.num_core_states;
+  wf.solveInitialCore(2); //2, since don't need high accuray here [1 in 10^2]
+  int &Ncs = wf.num_core_states; //short-hand
 
   //Define exchange potential. Note: not stored at the moment!
   std::vector< std::vector<double> > vex; //into class??
-  vex.clear(); //move to beginning ?
   vex.resize(Ncs,std::vector<double>(ngp));
 
   //Start the HF itterative procedure:
   int hits;
+  double eta = eta1;
   for(hits=1; hits<MAX_HART_ITS; hits++){
-    if(hits==4) eta *= 2;
+    if(hits==4) eta = eta2;
 
     //Form new v_dir and v_ex:
-    //XXX XXX XXX Fastor to form these once outside! ? Check if safe! XXX
     std::vector<double> vdir_old = wf.vdir;
-    //std::vector<double> vdir_new;
     formNewVdir(wf,wf.vdir,false);
     std::vector< std::vector<double> > vex_old = vex;
     formVexCore(wf,vex);
@@ -77,9 +75,9 @@ Note: V_HF = V_dir + V_ex    -- note sign convention!
       del_e*=wf.h;
       double en_guess = en_old[i] + del_e;
       if(en_guess>0) en_guess = en_old[i]; //safety, should never happen
-      wf.reSolveDirac(i,en_guess,vex[i],3); //only go to 1/10^3 here
+      wf.reSolveDirac(i,en_guess,vex[i],2); //only go to 1/10^2 here
       //t_eps: weighted average of (de)/e for each orbital:
-      double sfac = 2.*wf.kappa[i]*wf.core_ocf[i]; //|2k|=2j+1
+      double sfac = 2.*wf.kappa[i]*wf.occ_frac[i]; //|2k|=2j+1
       t_eps += fabs(sfac*(wf.en[i]-en_old[i])/en_old[i]);
     }
     t_eps /= (wf.num_core_electrons*eta);
@@ -114,9 +112,11 @@ Calculate valence states in frozen Hartree-Fock core
   //note: is x2 after 4 its!
   double eta=0.35; //must be <0.5!
   //Get initial value, with no exchange:
-  double en_g = wf.enGuessVal(na,ka);
-  wf.solveLocalDirac(na,ka,en_g,3);
-  int a = wf.nlist.size() - 1;
+  wf.solveLocalDirac(na,ka,0,2);
+  int a = wf.nlist.size() - 1; //index of this valence state
+
+  int twoJplus1 = ATI::twoj_k(ka)+1; //av. over REL configs
+  wf.occ_frac.push_back(1./twoJplus1);
 
   std::vector<double> vexa(wf.ngp);
   int hits;
@@ -134,7 +134,7 @@ Calculate valence states in frozen Hartree-Fock core
       (vexa[i]-vexa_old[i])*(pow(wf.p[a][i],2)+pow(wf.q[a][i],2))*wf.drdt[i];
     en_new = wf.en[a] + en_new*wf.h;
     //Solve Dirac using new potential:
-    wf.reSolveDirac(a,en_new,vexa,3);
+    wf.reSolveDirac(a,en_new,vexa,2);
     double eps = fabs((wf.en[a]-en_old)/(eta*en_old));
     //Force valence states to be orthogonal to each other + to core:
     wf.orthonormaliseValence(1);
@@ -144,7 +144,7 @@ Calculate valence states in frozen Hartree-Fock core
     if(eps<eps_HF && hits>2) break;
   }
   std::cout<<"\n";
-  //Re-solve w/ higher precission (probs not needed)
+  //Re-solve w/ higher precission
   wf.reSolveDirac(a,wf.en[a],vexa,15);
   wf.orthonormaliseValence(2);
   return hits;
@@ -170,10 +170,6 @@ Note: Uses efficient integral method:
 */
 {
 
-  //Make sure vector is correct size, and clear old potential away
-  //vdir_new.clear();
-  //vdir_new.resize(wf.ngp);
-
   //Scaling factor. For hartree only (when FOCK excluded)
   //Because I sum over all electrons, includes self-interaction
   //This part is cancelled from FOCK, but if no fock, needs to be scaled down.
@@ -186,7 +182,7 @@ Note: Uses efficient integral method:
   for(int i=0; i<wf.num_core_states; i++){
     int ka = wf.kappa[i];
     int twoj = ATI::twoj_k(ka);
-    double frac = wf.core_ocf[i]; //avgs over non-rel. configs
+    double frac = wf.occ_frac[i]; //avgs over non-rel. configs
     int j_max = wf.pinflist[i];
     for(int j=0; j<j_max; j++){
       rho[j] += frac*(twoj+1)*(pow(wf.p[i][j],2) + pow(wf.q[i][j],2));
@@ -212,7 +208,8 @@ Note: Uses efficient integral method:
 //==============================================================================
 
 //******************************************************************************
-int formVexCore(const ElectronOrbitals &wf, std::vector< std::vector<double> > &vex)
+int formVexCore(const ElectronOrbitals &wf,
+  std::vector< std::vector<double> > &vex)
 /*
 Calculates exchange potential for each state in the core
 Parallelised for speed
@@ -265,7 +262,7 @@ For now: exclude core f states. Ok, but not ideal
     int lb = ATI::l_k(wf.kappa[b]);
     int k_min = formLambdaABk(L_abk,tja,tjb,la,lb); //fills Lam array
     int k_max = (tja + tjb)/2;
-    double stf = wf.core_ocf[b]*(tjb+1); //avg over non-rel configs
+    double stf = wf.occ_frac[b]*(tjb+1); //avg over non-rel configs
     //Form Vex_ab^k, and sum over k
     for(int k = k_min; k<=k_max; k++){
       double Labk = L_abk[k];
@@ -345,7 +342,7 @@ NOTE: can make this nicer.. but will never use it, so whatever.
 
   //First step: Solve each core state using parameteric potential
   wf.solveInitialCore(1); //1, since don't need high accuray here [1 in 10^1]
-  int Ncs = wf.num_core_states;
+  int &Ncs = wf.num_core_states; //short-hand
 
   //Hartree loop:
   int num_its=0;
@@ -353,11 +350,9 @@ NOTE: can make this nicer.. but will never use it, so whatever.
 
     //Use known orbitals to form new potential:
     std::vector<double> vdir_old = wf.vdir;
-    //std::vector<double> vdir_new;
     formNewVdir(wf,wf.vdir,true);
-    for(int j=0; j<wf.ngp; j++){
+    for(int j=0; j<wf.ngp; j++)
       wf.vdir[j] = eta*wf.vdir[j] + (1.-eta)*vdir_old[j];
-    }
 
     //Solve dirac equation for each (Core) orbital in new potential
     double prev_e = 0;
@@ -416,7 +411,7 @@ NOTE: can make this nicer.. but will never use it, so whatever.
   //     double en_guess = en_old[i] + del_e;
   //     if(en_guess>0) en_guess = en_old[i]; //safety, should never happen
   //     wf.reSolveDirac(i,en_guess,3); //only go to 1/10^3 here
-  //     double sfac = 2.*wf.kappa[i]*wf.core_ocf[i]; //|2k|=2j+1
+  //     double sfac = 2.*wf.kappa[i]*wf.occ_frac[i]; //|2k|=2j+1
   //     t_eps += fabs(sfac*(wf.en[i]-en_old[i])/en_old[i]);
   //   }
   //   t_eps /= (wf.num_core_electrons*eta);

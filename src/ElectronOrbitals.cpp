@@ -1,20 +1,18 @@
 //class ElectronOrbitals::
 #include "ElectronOrbitals.h"
 #include "INT_quadratureIntegration.h"
-#include <string>
-#include <sstream>
-#include <vector>
-#include <cmath>
 #include "FPC_physicalConstants.h"
 #include "ATI_atomInfo.h"
 #include "ADAMS_solveLocalBS.h"
-#include <gsl/gsl_sf_fermi_dirac.h>
+#include <string>
+#include <vector>
+#include <sstream>
+#include <cmath>
+#include <gsl/gsl_sf_fermi_dirac.h> //For fermiNucleus
 #include <algorithm> //for sort
 /*
  ==== To Do ====
  * Write out to disk
- * Store core/valence ok? What about semi-filled shells?
- * Fix filling for j=l+1/2 semi-filled core shells!!
 
 */
 
@@ -22,12 +20,13 @@
 ElectronOrbitals::ElectronOrbitals(int in_z, int in_a, int in_ngp, double rmin,
   double rmax, double var_alpha)
 {
-
-  DzubaRadialGrid(in_ngp,rmin,rmax);
+  clearAll();
+  logLinearRadialGrid(in_ngp,rmin,rmax);
 
   alpha=FPC::alpha*var_alpha;
   num_core_states=0;
 
+  //XXX update this! Make spherical default.
   Z=in_z;
   if(in_a==0) A=ATI::A[Z]; //Use default atomic mass
   else A=in_a;
@@ -57,11 +56,10 @@ Uses ADAMS::solveDBS to solve Dirac Eqn for local potential (Vnuc + Vdir)
   //Fill V(r) with nulcear + DIRECT part of electron potential
   //nb: for exchange part, need to use reSolveDirac()
   std::vector<double> v_a = vnuc;
-  if(vdir.size()!=0){
-    for(int i=0; i<ngp; i++) v_a[i] += vdir[i];
-  }
+  if(vdir.size()!=0) for(int i=0; i<ngp; i++) v_a[i] += vdir[i];
 
   //Solve local dirac Eq:
+  if(e_a==0) e_a = enGuessVal(n,k);
   int i_ret = ADAMS::solveDBS(p_a,q_a,e_a,v_a,Z,n,k,r,drdt,h,ngp,pinf,its,eps,
     alpha,log_dele_or);
   //Store wf + energy
@@ -76,49 +74,15 @@ Uses ADAMS::solveDBS to solve Dirac Eqn for local potential (Vnuc + Vdir)
   itslist.push_back(its);
   epslist.push_back(eps);
 
+
+
   return i_ret;
 }
 
 //******************************************************************************
-int ElectronOrbitals::solveZeff(int n, int k, double Zeff_or_En, bool calcZeff)
-/*
-Solves H-like with effective Z
-Not fully tested yet!
-*/
-{
-  int pinf,its;
-  double eps;
-  std::vector<double> p_a(ngp);
-  std::vector<double> q_a(ngp);
-
-  double Zeff = Zeff_or_En;
-  double e_a = -0.5*pow(Zeff/n,2);
-  if(calcZeff){
-    e_a  = Zeff_or_En;
-    Zeff = n*sqrt(-2.*e_a);
-  }
-
-  std::vector<double> v_a; // = vnuc;
-  double zscale = (Zeff/Z);
-  for(size_t i=0; i<vnuc.size(); i++) v_a.push_back(vnuc[i]*zscale);
-
-  int i_ret = ADAMS::solveDBS(p_a,q_a,e_a,v_a,Zeff,n,k,r,drdt,h,ngp,pinf,its,
-    eps,alpha,0);
-  //Store wf + energy
-  p.push_back(p_a);
-  q.push_back(q_a);
-  en.push_back(e_a);
-  //Store states:
-  nlist.push_back(n);
-  kappa.push_back(k);
-  //store convergance info:
-  pinflist.push_back(pinf);
-  itslist.push_back(its);
-  epslist.push_back(eps);
-
-  return i_ret;
+double ElectronOrbitals::get_alpha()const{
+  return alpha;
 }
-
 
 //******************************************************************************
 int ElectronOrbitals::reSolveDirac(int i, double e_a, int log_dele_or)
@@ -173,44 +137,6 @@ This is not ideal..
 
 
 //******************************************************************************
-int ElectronOrbitals::hydrogenLike(int in_max_n, int in_max_l)
-/*
-``Wrapper'' function, to use the adamsSolveLocalBS method!
-Set up specifically for H-like ions
-XXX Kill this one! XXX
-*/
-{
-  max_n = in_max_n;
-  max_l = in_max_l;
-
-  for(int n=1; n<=max_n; n++){
-    for(int i=1; i<2*n; i++){ //loop through each kappa state
-      int k = pow(-1,i)*ceil(0.5*i);
-      int l = (abs(2*k+1)-1)/2;
-      if(l>max_l) continue;
-      nlist.push_back(n);
-      kappa.push_back(k);
-      int pinf,its;
-      double eps;
-      double en_a = -0.5*pow((double)Z/n,2);
-      std::vector<double> p_a(ngp);
-      std::vector<double> q_a(ngp);
-      ADAMS::solveDBS(p_a,q_a,en_a,vnuc,Z,n,k,r,drdt,h,ngp,pinf,its,eps,alpha);
-      p.push_back(p_a);
-      q.push_back(q_a);
-      en.push_back(en_a);
-      //store convergance info:
-      pinflist.push_back(pinf);
-      itslist.push_back(its);
-      epslist.push_back(eps);
-    }
-  }
-
-  return 0;
-}
-
-
-//******************************************************************************
 int ElectronOrbitals::determineCore(std::string str_core_in)
 /*
 Takes in a string list for the core configuration, outputs an int list
@@ -220,38 +146,32 @@ E.g:
   Core of Gold: Xe 4f14 5d10
 'rest' is in form nLm : n=n, L=l, m=number of electrons in that nl shell.
 NOTE: Only works up to n=9, and l=5 [h]
-
-XXX NOTE: for now, fills the l-1/2 states first [when shell not full]
-Not correct! Should do both, but use occupance fractions!! XXX
-(Not here, actually, this comment belongs in 'solveInitialCore')
 */
 {
-
   //Move comma-seperated string into an array (vector)
   std::vector<std::string> str_core;
   std::stringstream ss(str_core_in);
   while( ss.good() ){
     std::string substr;
     getline( ss, substr, ',' );
-    //std::cout<<substr<<"\n";
     str_core.push_back( substr );
   }
 
-  core_list.clear();
+  num_core_shell.clear();
   if(str_core.size()==0) return 1;
 
   int ibeg=1;
   std::string ng=str_core[0];
-  if     (ng=="He") core_list=ATI::core_He;
-  else if(ng=="Ne") core_list=ATI::core_Ne;
-  else if(ng=="Ar") core_list=ATI::core_Ar;
-  else if(ng=="Kr") core_list=ATI::core_Kr;
-  else if(ng=="Xe") core_list=ATI::core_Xe;
-  else if(ng=="Rn") core_list=ATI::core_Rn;
-  else if(ng=="Og") core_list=ATI::core_Og;
-  else if(ng=="Zn") core_list=ATI::core_Zn;
-  else if(ng=="Cd") core_list=ATI::core_Cd;
-  else if(ng=="Hg") core_list=ATI::core_Hg;
+  if     (ng=="He") num_core_shell=ATI::core_He;
+  else if(ng=="Ne") num_core_shell=ATI::core_Ne;
+  else if(ng=="Ar") num_core_shell=ATI::core_Ar;
+  else if(ng=="Kr") num_core_shell=ATI::core_Kr;
+  else if(ng=="Xe") num_core_shell=ATI::core_Xe;
+  else if(ng=="Rn") num_core_shell=ATI::core_Rn;
+  else if(ng=="Og") num_core_shell=ATI::core_Og;
+  else if(ng=="Zn") num_core_shell=ATI::core_Zn;
+  else if(ng=="Cd") num_core_shell=ATI::core_Cd;
+  else if(ng=="Hg") num_core_shell=ATI::core_Hg;
   else ibeg=0;
 
   for(size_t i=ibeg; i<str_core.size(); i++){
@@ -283,20 +203,20 @@ Not correct! Should do both, but use occupance fractions!! XXX
     }
 
     //Merge this term with the existing core:
-    int size = std::max(core_ex.size(),core_list.size());
+    int size = std::max(core_ex.size(),num_core_shell.size());
     core_ex.resize(size);
-    core_list.resize(size);
+    num_core_shell.resize(size);
 
-    for(size_t j=0; j<core_list.size(); j++){
-      core_list[j] += core_ex[j];
-      if(core_list[j] > 4*ATI::core_l[j]+2) return 2; //check if valid
+    for(size_t j=0; j<num_core_shell.size(); j++){
+      num_core_shell[j] += core_ex[j];
+      if(num_core_shell[j] > 4*ATI::core_l[j]+2) return 2; //check if valid
     }
 
   }
 
-  //Count number of electrons in the core XXX move to determine core!
+  //Count number of electrons in the core
   num_core_electrons = 0;
-  for(size_t i=0; i<core_list.size(); i++) num_core_electrons+=core_list[i];
+  for(int &num : num_core_shell) num_core_electrons += num;
 
   return 0;
 }
@@ -332,14 +252,12 @@ Only for local potential (direct part)
 HF_hartreeFock.cpp has routines for Hartree Fock
 */
 {
-  int tot_el=0; // for working out Z_eff
-  for(size_t i=0; i<core_list.size(); i++){
-    int num = core_list[i];
+  for(size_t i=0; i<num_core_shell.size(); i++){
+    int num = num_core_shell[i];
     if(num==0) continue;
     int n = ATI::core_n[i];
     int l = ATI::core_l[i];
     double en_a = enGuessCore(n,l);
-    tot_el+=num;
     int k1 = l; //j = l-1/2
     if(k1!=0) {
       solveLocalDirac(n,k1,en_a,log_dele_or);
@@ -347,20 +265,18 @@ HF_hartreeFock.cpp has routines for Hartree Fock
       if(en_a>0) en_a = enGuessCore(n,l);
     }
     int k2 = -(l+1); //j=l+1/2
-    //if(num>2*l)
     solveLocalDirac(n,k2,en_a,log_dele_or);
-    //XXX Here! Solve BOTH, and adjust with occ. fraction!! XXX
   }
   num_core_states = nlist.size(); //store number of states in core
 
-  //occupancy fraction for each core state (Non-rel states!):
+  //occupancy fraction for each core state (avg of Non-rel states!):
   for(int i=0; i<num_core_states; i++){
     int n = nlist[i];
     int ka = kappa[i];
     int l = ATI::l_k(ka);
     //Find the correct core list index (to determine filling factor):
     int ic=-1;
-    for(size_t j=0; j<core_list.size(); j++){
+    for(size_t j=0; j<num_core_shell.size(); j++){
       if(n==ATI::core_n[j] && l==ATI::core_l[j]){
         ic = j;
         break;
@@ -370,7 +286,7 @@ HF_hartreeFock.cpp has routines for Hartree Fock
       std::cout<<"FAIL 254 in ElectronOrbitals:solveInitialCore\n";
       return 2;
     }
-    core_ocf.push_back(double(core_list[ic])/(4*l+2));
+    occ_frac.push_back(double(num_core_shell[ic])/(4*l+2));
   }
 
   return 0;
@@ -537,12 +453,12 @@ num = num electrons in THIS shell
 
   int tot_el = 0;
   int num = 0;
-  for(size_t i=0; i<core_list.size(); i++){
+  for(size_t i=0; i<num_core_shell.size(); i++){
     if(l==ATI::core_l[i] && n==ATI::core_n[i]){
-      num = core_list[i];
+      num = num_core_shell[i];
       break;
     }
-    tot_el += core_list[i];
+    tot_el += num_core_shell[i];
   }
 
   //effective Z (for energy guess) -- not perfect!
@@ -579,7 +495,7 @@ double ElectronOrbitals::enGuessVal(int n, int ka)
 
 
 //******************************************************************************
-int ElectronOrbitals::JohnsonRadialGrid(int in_ngp, double r0, double rmax)
+int ElectronOrbitals::exponentialRadialGrid(int in_ngp, double r0, double rmax)
 /*
 Non-uniform r grid, taken from Johnson book (w/ minor modification).
 Quite a standard exponential grid.
@@ -644,7 +560,7 @@ NOTE: returns index that corresponds to r _lower_ that (or equal to) r_target
 }
 
 //******************************************************************************
-int ElectronOrbitals::DzubaRadialGrid(double in_h, double r0, double rmax,
+int ElectronOrbitals::logLinearRadialGrid(double in_h, double r0, double rmax,
    double b)
 /*
 OVERLOADED.
@@ -653,10 +569,10 @@ So, can give an input h, and let program determine NGP.
 {
   double d_ngp = (in_h-r0+rmax+b*log(rmax/r0))/in_h;
   int in_ngp = (int)d_ngp+1;
-  return DzubaRadialGrid(in_ngp,r0,rmax,b);
+  return logLinearRadialGrid(in_ngp,r0,rmax,b);
 }
 //******************************************************************************
-int ElectronOrbitals::DzubaRadialGrid(int in_ngp, double r0, double rmax,
+int ElectronOrbitals::logLinearRadialGrid(int in_ngp, double r0, double rmax,
    double b)
 /*
 Non-uniform r-grid taken from V. Dzuba code.
@@ -836,20 +752,12 @@ https://www.gnu.org/software/gsl/manual/html_node/Complete-Fermi_002dDirac-Integ
       t_v+=t_v*tX/(12.*F2);
     }
     vnuc.push_back(t_v);
-    //std::cout<<i<<" "<<r[i]<<" "<<t_v<<" "<<-Z/t_r<<"\n";
   }
 
   return 0;
 }
 
 
-
-//******************************************************************************
-bool ELO_sortcol( const std::vector<double>& v1,
-    const std::vector<double>& v2)
-{
-    return v1[0] > v2[0];
-}
 //------------------------------------------------------------------------------
 int ElectronOrbitals::sortedEnergyList(std::vector<int> &sort_list)
 /*
@@ -857,17 +765,63 @@ Outouts a list of integers corresponding to the states
 sorted by energy (lowest energy first)
 */
 {
-
   std::vector< std::vector<double> > t_en;
   for(size_t i=0; i<en.size(); i++){
     t_en.push_back({en[i],(double)i+0.1});
     //+0.1 to prevent rounding error when going from double -> int
   }
 
-  std::sort(t_en.rbegin(), t_en.rend(), ELO_sortcol);
+  //Function pointer: sort 2D vector by first col!
+  bool (*sortCol)(const std::vector<double>& v1,
+    const std::vector<double>& v2)
+    = [](const std::vector<double>& v1, const std::vector<double>& v2)
+  {
+        return v1[0] > v2[0];
+  };
+
+  std::sort(t_en.rbegin(), t_en.rend(), sortCol);
 
   for(size_t i=0; i<en.size(); i++){
     sort_list.push_back((int)t_en[i][1]);
   }
   return 0;
+}
+
+//******************************************************************************
+void ElectronOrbitals::clearAll()
+/*
+Just clears all the info.
+*/
+{
+  //Atom info
+  Z=0;
+  A=0;
+  atom="0";
+  //orbitals:
+  p.clear();
+  q.clear();
+  en.clear();
+  //state info:
+  nlist.clear();
+  kappa.clear();
+  //info from solveing DE
+  pinflist.clear();
+  itslist.clear();
+  epslist.clear();
+  //grid
+  r.clear();
+  drdt.clear();
+  dror.clear();
+  ngp=0;
+  h=0;
+  //Potentials
+  vnuc.clear();
+  vdir.clear();
+  //core:
+  occ_frac.clear();
+  num_core_states=0;
+  num_core_electrons=0;
+  // ** private **
+  alpha=0;
+  num_core_shell.clear();
 }

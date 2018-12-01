@@ -150,7 +150,7 @@ Zeff is '-1' by default. If Zeff > 0, will solve w/ Zeff model
     else       cntm.solveLocalContinuum(ec,lc_min,lc_max);
   }
 
-  double x_ocf = wf.core_ocf[is]; //occupancy fraction. Usually 1
+  double x_ocf = wf.occ_frac[is]; //occupancy fraction. Usually 1
 
   // Generate AK for each L, lc, and q
   // L and lc are summed, not stored indevidually

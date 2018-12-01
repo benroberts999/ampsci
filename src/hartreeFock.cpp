@@ -97,8 +97,8 @@ int main(void){
     int k = lst[i][1];
     if(doHF) HF::hartreeFockValence(wf,n,k,eps_hart);
     else{
-      double en_g = wf.enGuessVal(n,k);
-      wf.solveLocalDirac(n,k,en_g,15);
+      //double en_g = wf.enGuessVal(n,k);
+      wf.solveLocalDirac(n,k,0,15);
     }
   }
   std::cout<<"Valence: "<<sw.lap_reading_str()<<"\n";

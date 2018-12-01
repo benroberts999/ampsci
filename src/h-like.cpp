@@ -38,7 +38,15 @@ int main(void){
   if(A!=0) wf.sphericalNucleus();
 
   //Solve the Dirac equation for H-like ions:
-  wf.hydrogenLike(n_max,l_max);
+  for(int n=1; n<=n_max; n++){
+    for(int i=1; i<2*n; i++){ //loop through each kappa state
+      int k = pow(-1,i)*ceil(0.5*i);
+      int l = ATI::l_k(k);
+      if(l>l_max) continue;
+      double eng = wf.diracen(Z,n,k);
+      wf.solveLocalDirac(n,k,eng);
+    }
+  }
 
   printf("Grid: pts=%i h=%7.5f Rmax=%5.1f\n",wf.ngp,wf.h,wf.r[wf.ngp-1]);
   if(varalpha!=1) printf("varalpha = c/c_eff = %.1e  ",varalpha);
@@ -91,7 +99,7 @@ int main(void){
 
     // Testing Dirac Eq. by evaluating <a|H|a> - ME of Hamiltonian
     printf("\nTesting wavefunctions: <n|H|n>  (numerical error)\n");
-    double alpha = wf.alpha;
+    double alpha = wf.get_alpha();
     double a2 = pow(alpha,2);
     for (int s=0; s<num_states; s++){
       std::vector<double> dQ(wf.ngp);
