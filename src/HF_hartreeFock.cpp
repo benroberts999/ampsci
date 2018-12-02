@@ -259,6 +259,7 @@ For now: exclude core f states. Ok, but not ideal
     int tjb = ATI::twoj_k(wf.kappa[b]);
     int lb = ATI::l_k(wf.kappa[b]);
     int k_min = formLambdaABk(L_abk,tja,tjb,la,lb); //fills Lam array
+    //XXX This is slow! Don't need to calc Lambda each time!
     int k_max = (tja + tjb)/2;
     double stf = wf.occ_frac[b]*(tjb+1); //avg over non-rel configs
     //Form Vex_ab^k, and sum over k

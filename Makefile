@@ -20,7 +20,7 @@ LINK=$(CXX) -o $@ $^ $(CXXFLAGS) $(LIBS)
 #Allow exectuables to be placed in another directory:
 ALLEXES = $(addprefix $(XD)/, \
  h-like.x fitParametric.x parametricPotential.x atomicKernal.x \
- hartreeFock.x wigner.x dmeXSection.x \
+ hartreeFock.x wigner.x dmeXSection.x testing\
 )
 
 #Default make rule:
@@ -96,6 +96,9 @@ $(OD)/BRW_binaryReadWrite.o
 $(XD)/wigner.x: $(OD)/wigner.o $(OD)/WIG_369j.o
 	$(LINK)
 
+# $(XD)/testing: $(BASE) $(OD)/testing.o $(OD)/ChronoTimer.o \
+# $(OD)/HartreeFockClass.o $(OD)/PRM_parametricPotentials.o $(OD)/WIG_369j.o
+# 	$(LINK)
 ################################################################################
 
 checkObj:
