@@ -160,5 +160,23 @@ int main(void){
     }
   }
 
+  bool print_wfs = false;
+  if(print_wfs){
+    std::ofstream of("hf-orbitals.txt");
+    of<<"r ";
+    for(size_t a=0; a<wf.nlist.size(); a++){
+      of<<"\""<<wf.nlist[a]<<ATI::l_k(wf.kappa[a])<<"_"
+      <<ATI::twoj_k(wf.kappa[a])<<"/2\" ";
+    }
+    of<<"\n";
+    for(int i=0; i<wf.ngp; i++){
+      of<<wf.r[i]<<" ";
+      for(size_t a=0; a<wf.nlist.size(); a++){
+        of<<wf.f[a][i]<<" ";
+      }
+      of<<"\n";
+    }
+  }
+
   return 0;
 }
