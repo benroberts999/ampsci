@@ -252,8 +252,6 @@ For now: exclude core f states. Ok, but not ideal
   #pragma omp parallel for
   for(int b=0; b<wf.num_core_states; b++){
 
-    //XXX HERE! Ignores f states in core!!! XXX
-    if(wf.kappa[b]==3||wf.kappa[b]==-4) continue;
     //Arrays and values needed:
     std::vector<double> Vxab(ngp);
     int irmax = std::min(wf.pinflist[a],wf.pinflist[b]);
@@ -273,19 +271,20 @@ For now: exclude core f states. Ok, but not ideal
       //Use INT formulas?
       for(int i=0; i<irmax; i++) Bx += wf.drdt[i]*
         (wf.f[a][i]*wf.f[b][i]+wf.g[a][i]*wf.g[b][i])/pow(wf.r[i],k+1);
-      for(int i=1; i<ngp; i++){
+      for(int i=1; i<irmax; i++){
         double Fdr = wf.drdt[i-1]*
           (wf.f[a][i-1]*wf.f[b][i-1]+wf.g[a][i-1]*wf.g[b][i-1]);
           Ax = Ax + Fdr*pow(wf.r[i-1],k);
           Bx = Bx - Fdr/pow(wf.r[i-1],k+1);
           Vxabk[i] = wf.h*(Ax/pow(wf.r[i],k+1) + Bx*pow(wf.r[i],k));
       }
-      for(int i=1; i<ngp; i++){
+      Vxab[0]+=Bx;
+      for(int i=1; i<irmax; i++){
         Vxab[i] += Vxabk[i]*Labk;
       }
     }//k loop
     //Finally, sum each b into Vex:
-    for(int ir=0; ir<ngp; ir++){
+    for(int ir=0; ir<irmax; ir++){
       double fac = 1;
       if(a!=b){
         //NB: Cutt-off? OK?
