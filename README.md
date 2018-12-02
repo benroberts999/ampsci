@@ -19,11 +19,12 @@ with a few extensions that improve numerical stability and accuracy
 ### Compiling and use:
 
  * All programs compiled using the Makefile
- (run _$make_ or _$make programName.x_)
+ (run _$make_ or _$make programName_)
  * Must have LAPACK, GSL libraries installed already (see below)
  * Must create a directory called _./obj/_
    * code places object files inside here
- * All executables end with '.x' suffix; run like _$./programName.x_
+ * All executables run like _$./programName_. By default, placed in same
+  directory as makefile (can change this in make)
  * All programs have input options, stored and read from 'programName.in' file
  * Note: below just tells how to use existing programs, to see how they work,
  see the comments/instructions inside the source code (all in /src/)
@@ -37,13 +38,13 @@ Note: makes use of GSL libraries: https://www.gnu.org/software/gsl/
   _$sudo apt-get install libblas-dev libatlas-dev liblapack-dev_
 
 The above instructions are for linux (ubuntu). For windows, the easiest way (for me, anyway) is to make use of the recent 'windows subsystem for linux'. Instructions on installation/use here: https://www.roberts999.com/posts/2018/11/wsl-coding-windows-ubuntu
-Then, the compilation+use can proceed as per above.
+Then, the compilation + use can proceed as per above.
 
-## h-like.x
+## h-like
 
  * An example that solves for H-like ions
 
-## hartreeFock.x
+## hartreeFock
 
  * Solves relativistic Hartree Fock potential for core + valence states
  * Only really works for closed shells, and atomic with single valence electron above closed shells. (Works OK if shell 'mostly' closed)
@@ -55,7 +56,7 @@ E.g. (V^N-1):
    * For Au: 'Xe,4f14,5d10'
    * For Tl: 'Xe,4f14,5d10,6s2' OR 'Hg'
 
-## atomicKernal.x
+## atomicKernal
 
  * Calculates the "Atomic Kernal" (for scattering/ionisation) for each core
  orbital, as a function of momentum transfer (q), and energy deposition (dE).
@@ -71,21 +72,21 @@ E.g. (V^N-1):
  * Sums over 'all' continuum angular momentum states (and multipolarities)
    * Maximum values for l are input parameters
 
-## dmeXSection.x
+## dmeXSection
 
  * Calculates the cross-section and event rates for ionisation of atoms
  by scattering of DM particle.
- * Takes in the output of "atomicKernal.x"; is a "sub-program" of that work
+ * Takes in the output of "atomicKernal"; is a "sub-program" of that work
  * Also calculates "observable" event rates, accounting for detector thresholds
  and resolutions. For now, just for DAMA detector. Will add for XENON
 
-## parametricPotential.x
+## parametricPotential
 
  * Solves Dirac equation using Green/Tietz parametric potentials
  * You can give it parameters (H,g,t,d), or it will use defaults
  * Optionally: give it the core configuration (As in 'hartreeFock' program)
 
-## fitParametric.x
+## fitParametric
 
  * Finds the best-fit parameters for two-parameter parametric potentials
    (Green, or Tietz potentials)
