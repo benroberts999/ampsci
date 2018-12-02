@@ -8,9 +8,12 @@ class HartreeFock{
 
 public:
   HartreeFock(ElectronOrbitals &wf);
+  void hartree_fock_core(ElectronOrbitals &wf);
 
 private:
   void startingApprox(ElectronOrbitals &wf);
+
+  std::vector< std::vector<double> > vex; //into class??
 
   void form_Lambda_abk(const std::vector<int> &kappa);
   double get_Lambda_abk(int a, int b, int k) const;

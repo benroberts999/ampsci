@@ -27,38 +27,9 @@ HartreeFock::HartreeFock(ElectronOrbitals &wf)
     kappa_index_list.push_back(index_from_kappa(wf.kappa[i]));
   }
 
-  form_Lambda_abk(wf.kappa);
+  // form_Lambda_abk(wf.kappa);
 
-  //initialise the non-square, non-regular array:
-  //XXX make into function!
-  // arr_v_bb0_r.clear();
-  // arr_v_bb0_r.resize(m_num_core_states, std::vector<double>(m_ngp));
-  // arr_v_abk_r.clear();
-  // arr_v_abk_r.resize(m_num_core_states);
-  // for(int a=0; a<m_num_core_states; a++){
-  //   arr_v_abk_r[a].resize(a+1);
-  //   int tja = twoj_list[a];
-  //   for(int b=0; b<=a; b++){
-  //     int tjb = twoj_list[b];
-  //     int num_k = (tja>tjb) ? (tjb+1)/2 : (tja+1)/2;
-  //     arr_v_abk_r[a][b].resize(num_k); //right? or +1? XXX
-  //     for(int ik=0; ik<num_k; ik++){ //every second!
-  //       arr_v_abk_r[a][b][ik].resize(m_ngp);
-  //     }
-  //   }
-  // }
-
-  initialise_arr_v_bb0_r();
-  initialise_arr_v_abk_r();
-
-  //these: move to different function!!
-  form_vabk(wf); //note: call other one if HART only!
-
-  std::vector<std::vector<double> >
-    vex(m_num_core_states, std::vector<double>(m_ngp));
-
-  form_vdir(wf.vdir,wf,false);
-  form_approx_vex_core(vex,wf);
+  hartree_fock_core(wf);
 
 }
 
@@ -85,7 +56,91 @@ void HartreeFock::initialise_arr_v_abk_r(){
   }
 }
 
+//******************************************************************************
+void HartreeFock::hartree_fock_core(ElectronOrbitals &wf){
 
+  int Ncs = wf.num_core_states;
+  double eta1=0.3;
+  double eta2=0.3; //this value after 4 its
+  int ngp = wf.ngp;
+
+  vex.resize(Ncs,std::vector<double>(ngp));//Also
+  initialise_arr_v_bb0_r();
+  // initialise_arr_v_abk_r();
+
+  //these: move to different function!!
+  // form_vabk(wf); //note: call other one if HART only!
+
+  // form_vdir(wf.vdir,wf,false);
+  // form_approx_vex_core(vex,wf);
+
+  int MAX_HART_ITS = 64;
+  double eps_HF = 1.e-6; //XXX
+
+  //Start the HF itterative procedure:
+  int hits;
+  double eta = eta1;
+
+  for(hits=1; hits<MAX_HART_ITS; hits++){
+    if(hits==4) eta = eta2;
+    if(hits==32) eta = eta1; //?
+
+    //Form new v_dir and v_ex:
+
+    std::vector<double> vdir_old = wf.vdir;
+    std::vector< std::vector<double> > vex_old = vex;
+    // form_vabk(wf);
+    form_vbb0(wf);
+    form_vdir(wf.vdir,wf,true);
+    // form_approx_vex_core(vex,wf);
+    for(int j=0; j<wf.ngp; j++){
+      wf.vdir[j] = eta*wf.vdir[j] + (1.-eta)*vdir_old[j];
+      for(int i=0; i<Ncs; i++){
+        vex[i][j] = eta*vex[i][j] + (1.-eta)*vex_old[i][j];
+      }
+    }
+
+    //Solve Dirac Eq. for each state in core, using Vdir+Vex:
+    std::vector<double> en_old = wf.en;
+    double t_eps = 0;
+    for(int i=0; i<Ncs; i++){
+      //calculate de from PT
+      double del_e = 0;
+      for(int j=0; j<wf.ngp; j++){
+        double dv = wf.vdir[j]+vex[i][j]-vdir_old[j]-vex_old[i][j];
+        del_e += dv*(pow(wf.f[i][j],2) + pow(wf.g[i][j],2))*wf.drdt[j];
+      }
+      del_e*=wf.h;
+      std::cout<<"\n"<<en_old[i]<<" "<<del_e<<" ";
+      double en_guess = en_old[i] + del_e;
+      if(en_guess>0) en_guess = en_old[i]; //safety, should never happen
+      wf.reSolveDirac(i,en_guess,vex[i],2); //only go to 1/10^2 here
+      //wf.reSolveDirac(i,en_guess,3); //only go to 1/10^2 here
+      //t_eps: weighted average of (de)/e for each orbital:
+      double sfac = 2.*wf.kappa[i]*wf.occ_frac[i]; //|2k|=2j+1
+      t_eps += fabs(sfac*(wf.en[i]-en_old[i])/en_old[i]);
+    }
+    t_eps /= (wf.num_core_electrons*eta);
+
+    //Force all core orbitals to be orthogonal to each other
+    wf.orthonormaliseOrbitals(1);
+
+    printf("\rHF core        it:%3i eps=%6.1e              ",hits,t_eps);
+    std::cout<<std::flush;
+    if(t_eps<eps_HF && hits>2) break;
+    //std::cout<<wf.en[0]<<" ";
+    std::cin.get();
+  }
+  std::cout<<"\n";
+
+  //Now, re-solve core orbitals with higher precission
+  // + re-solve direct potential (higher precission)
+  for(int i=0; i<Ncs; i++) wf.reSolveDirac(i,wf.en[i],vex[i],15);
+  wf.orthonormaliseOrbitals(1);
+  form_vdir(wf.vdir,wf,false); //+ new v_ex??
+  for(int i=0; i<Ncs; i++) wf.reSolveDirac(i,wf.en[i],vex[i],15);
+  wf.orthonormaliseOrbitals(2);
+}
 //******************************************************************************
 void HartreeFock::startingApprox(ElectronOrbitals &wf)
 /*

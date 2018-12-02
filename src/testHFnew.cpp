@@ -32,13 +32,13 @@ int main(void){
   // bool extra=false;
   // if(iextra==1) extra=true;
 
-  printf("\nRunning SolveDBS for Local H-like potential, Z=%i\n",Z);
-  printf("*************************************************\n");
+  //printf("\nRunning SolveDBS for Local H-like potential, Z=%i\n",Z);
+  // printf("*************************************************\n");
 
   //Generate the orbitals object:
   Z=54;
   ElectronOrbitals wf(Z,A,ngp,r0,rmax,varalpha);
-  if(A!=0) wf.sphericalNucleus();
+  //if(A!=0) wf.sphericalNucleus();
 
   wf.determineCore("Xe");
   HartreeFock hf(wf);
