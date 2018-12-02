@@ -38,6 +38,9 @@ private:
   std::vector<std::vector<double> > arr_v_bb0_r;
   std::vector<std::vector<std::vector<std::vector<double> > > > arr_v_abk_r;
 
+  void initialise_arr_v_bb0_r();
+  void initialise_arr_v_abk_r();
+
   void form_vdir(std::vector<double> &vdir, const ElectronOrbitals &wf,
     bool re_scale=false);
   void form_approx_vex_core(std::vector<std::vector<double> > &vex,

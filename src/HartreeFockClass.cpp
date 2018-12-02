@@ -31,8 +31,44 @@ HartreeFock::HartreeFock(ElectronOrbitals &wf)
 
   //initialise the non-square, non-regular array:
   //XXX make into function!
+  // arr_v_bb0_r.clear();
+  // arr_v_bb0_r.resize(m_num_core_states, std::vector<double>(m_ngp));
+  // arr_v_abk_r.clear();
+  // arr_v_abk_r.resize(m_num_core_states);
+  // for(int a=0; a<m_num_core_states; a++){
+  //   arr_v_abk_r[a].resize(a+1);
+  //   int tja = twoj_list[a];
+  //   for(int b=0; b<=a; b++){
+  //     int tjb = twoj_list[b];
+  //     int num_k = (tja>tjb) ? (tjb+1)/2 : (tja+1)/2;
+  //     arr_v_abk_r[a][b].resize(num_k); //right? or +1? XXX
+  //     for(int ik=0; ik<num_k; ik++){ //every second!
+  //       arr_v_abk_r[a][b][ik].resize(m_ngp);
+  //     }
+  //   }
+  // }
+
+  initialise_arr_v_bb0_r();
+  initialise_arr_v_abk_r();
+
+  //these: move to different function!!
+  form_vabk(wf); //note: call other one if HART only!
+
+  std::vector<std::vector<double> >
+    vex(m_num_core_states, std::vector<double>(m_ngp));
+
+  form_vdir(wf.vdir,wf,false);
+  form_approx_vex_core(vex,wf);
+
+}
+
+//******************************************************************************
+void HartreeFock::initialise_arr_v_bb0_r(){
   arr_v_bb0_r.clear();
   arr_v_bb0_r.resize(m_num_core_states, std::vector<double>(m_ngp));
+}
+//******************************************************************************
+void HartreeFock::initialise_arr_v_abk_r(){
   arr_v_abk_r.clear();
   arr_v_abk_r.resize(m_num_core_states);
   for(int a=0; a<m_num_core_states; a++){
@@ -47,18 +83,8 @@ HartreeFock::HartreeFock(ElectronOrbitals &wf)
       }
     }
   }
-
-  form_vabk(wf); //note: call other one if HART only!
-
-  std::vector<std::vector<double> >
-    vex(m_num_core_states, std::vector<double>(m_ngp));
-
-  form_vdir(wf.vdir,wf,false);
-  form_approx_vex_core(vex,wf);
-
-
-
 }
+
 
 //******************************************************************************
 void HartreeFock::startingApprox(ElectronOrbitals &wf)
