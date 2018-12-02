@@ -19,8 +19,8 @@ LINK=$(CXX) -o $@ $^ $(CXXFLAGS) $(LIBS)
 ################################################################################
 #Allow exectuables to be placed in another directory:
 ALLEXES = $(addprefix $(XD)/, \
- h-like.x fitParametric.x parametricPotential.x atomicKernal.x \
- hartreeFock.x wigner.x dmeXSection.x testing\
+ h-like fitParametric parametricPotential atomicKernal \
+ hartreeFock wigner dmeXSection \
 )
 
 #Default make rule:
@@ -67,38 +67,35 @@ CNTM = $(addprefix $(OD)/, \
 ################################################################################
 # Link + build all final programs
 
-$(XD)/h-like.x: $(BASE) $(OD)/h-like.o $(OD)/ChronoTimer.o
+$(XD)/h-like: $(BASE) $(OD)/h-like.o $(OD)/ChronoTimer.o
 	$(LINK)
 
-$(XD)/fitParametric.x: $(BASE) $(OD)/fitParametric.o \
+$(XD)/fitParametric: $(BASE) $(OD)/fitParametric.o \
 $(OD)/PRM_parametricPotentials.o $(OD)/ChronoTimer.o
 	$(LINK)
 
-$(XD)/parametricPotential.x: $(BASE) $(OD)/parametricPotential.o \
+$(XD)/parametricPotential: $(BASE) $(OD)/parametricPotential.o \
 $(OD)/PRM_parametricPotentials.o $(OD)/ChronoTimer.o
 	$(LINK)
 
-$(XD)/atomicKernal.x: $(BASE) $(CNTM) $(HF) \
+$(XD)/atomicKernal: $(BASE) $(CNTM) $(HF) \
 $(OD)/atomicKernal.o $(OD)/AKF_akFunctions.o \
 $(OD)/SBF_sphericalBesselFunctions.o $(OD)/ChronoTimer.o \
 $(OD)/ExponentialGrid.o $(OD)/BRW_binaryReadWrite.o
 	$(LINK)
 
-$(XD)/hartreeFock.x: $(BASE) $(HF) $(OD)/hartreeFock.o $(OD)/ChronoTimer.o
+$(XD)/hartreeFock: $(BASE) $(HF) $(OD)/hartreeFock.o $(OD)/ChronoTimer.o
 	$(LINK)
 
-$(XD)/dmeXSection.x: $(BASE) $(CNTM) $(HF) $(OD)/dmeXSection.o \
+$(XD)/dmeXSection: $(BASE) $(CNTM) $(HF) $(OD)/dmeXSection.o \
 $(OD)/AKF_akFunctions.o $(OD)/SBF_sphericalBesselFunctions.o \
 $(OD)/StandardHaloModel.o $(OD)/ChronoTimer.o $(OD)/ExponentialGrid.o \
 $(OD)/BRW_binaryReadWrite.o
 	$(LINK)
 
-$(XD)/wigner.x: $(OD)/wigner.o $(OD)/WIG_369j.o
+$(XD)/wigner: $(OD)/wigner.o $(OD)/WIG_369j.o
 	$(LINK)
 
-# $(XD)/testing: $(BASE) $(OD)/testing.o $(OD)/ChronoTimer.o \
-# $(OD)/HartreeFockClass.o $(OD)/PRM_parametricPotentials.o $(OD)/WIG_369j.o
-# 	$(LINK)
 ################################################################################
 
 checkObj:

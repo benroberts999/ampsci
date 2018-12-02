@@ -37,7 +37,7 @@ Note: V_HF = V_dir + V_ex    -- note sign convention!
   for(int i=0; i<ngp; i++) wf.vdir[i] = PRM::green(wf.Z,wf.r[i],Gh,Gd);
 
   //First step: Solve each core state using above parameteric potential
-  wf.solveInitialCore(2); //2, since don't need high accuray here [1 in 10^2]
+  wf.solveInitialCore(1); //2, since don't need high accuray here [1 in 10^2]
   int &Ncs = wf.num_core_states; //short-hand
 
   //Define exchange potential. Note: not stored at the moment!
@@ -75,7 +75,7 @@ Note: V_HF = V_dir + V_ex    -- note sign convention!
       del_e*=wf.h;
       double en_guess = en_old[i] + del_e;
       if(en_guess>0) en_guess = en_old[i]; //safety, should never happen
-      wf.reSolveDirac(i,en_guess,vex[i],2); //only go to 1/10^2 here
+      wf.reSolveDirac(i,en_guess,vex[i],1); //only go to 1/10^2 here
       //t_eps: weighted average of (de)/e for each orbital:
       double sfac = 2.*wf.kappa[i]*wf.occ_frac[i]; //|2k|=2j+1
       t_eps += fabs(sfac*(wf.en[i]-en_old[i])/en_old[i]);
@@ -112,7 +112,7 @@ Calculate valence states in frozen Hartree-Fock core
   //note: is x2 after 4 its!
   double eta=0.35; //must be <0.5!
   //Get initial value, with no exchange:
-  wf.solveLocalDirac(na,ka,0,2);
+  wf.solveLocalDirac(na,ka,0,1);
   int a = wf.nlist.size() - 1; //index of this valence state
 
   int twoJplus1 = ATI::twoj_k(ka)+1; //av. over REL configs
@@ -134,7 +134,7 @@ Calculate valence states in frozen Hartree-Fock core
       (vexa[i]-vexa_old[i])*(pow(wf.f[a][i],2)+pow(wf.g[a][i],2))*wf.drdt[i];
     en_new = wf.en[a] + en_new*wf.h;
     //Solve Dirac using new potential:
-    wf.reSolveDirac(a,en_new,vexa,2);
+    wf.reSolveDirac(a,en_new,vexa,1);
     double eps = fabs((wf.en[a]-en_old)/(eta*en_old));
     //Force valence states to be orthogonal to each other + to core:
     wf.orthonormaliseValence(1);
@@ -272,6 +272,7 @@ For now: exclude core f states. Ok, but not ideal
       //Use INT formulas?
       for(int i=0; i<irmax; i++) Bx += wf.drdt[i]*
         (wf.f[a][i]*wf.f[b][i]+wf.g[a][i]*wf.g[b][i])/pow(wf.r[i],k+1);
+      Vxabk[0] = Bx;
       for(int i=1; i<irmax; i++){
         double Fdr = wf.drdt[i-1]*
           (wf.f[a][i-1]*wf.f[b][i-1]+wf.g[a][i-1]*wf.g[b][i-1]);
@@ -279,8 +280,7 @@ For now: exclude core f states. Ok, but not ideal
           Bx = Bx - Fdr/pow(wf.r[i-1],k+1);
           Vxabk[i] = wf.h*(Ax/pow(wf.r[i],k+1) + Bx*pow(wf.r[i],k));
       }
-      Vxab[0]+=Bx;
-      for(int i=1; i<irmax; i++){
+      for(int i=0; i<irmax; i++){
         Vxab[i] += Vxabk[i]*Labk;
       }
     }//k loop
@@ -365,7 +365,7 @@ NOTE: can make this nicer.. but will never use it, so whatever.
       del_e*=wf.h;
       double new_e = wf.en[i] + 1*del_e;
       if(new_e>0)new_e=-0.1;
-      wf.reSolveDirac(i,new_e,3); //only go to 1/10^3 - do better at end!
+      wf.reSolveDirac(i,new_e,2); //only go to 1/10^3 - do better at end!
     }
     double next_e = 0;
     for(int i=0; i<Ncs; i++) next_e += wf.en[i]/Ncs;
