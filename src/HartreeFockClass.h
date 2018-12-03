@@ -30,6 +30,9 @@ private:
   std::vector<int> twoj_list;
   std::vector<int> kappa_index_list;
 
+  int kappa_from_index(int i); //XXX
+  int l_from_index(int i) const;
+
 
   void calculate_v_abk(const ElectronOrbitals &wf, int a, int b, int k,
     std::vector<double> & vabk);
