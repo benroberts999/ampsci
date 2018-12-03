@@ -5,6 +5,7 @@
 #include "WIG_369j.h"
 #include <vector>
 #include <cmath>
+#include <fstream>
 //Add change update git
 
 // XXX Rename to Coulomb Integrals??
@@ -102,7 +103,6 @@ void HartreeFock::hartree_fock_core(ElectronOrbitals &wf){
     //   std::cout<<wf.r[j]<<" "<<vdir_old[j]<<" "<<wf.vdir[j]<<"\n";
     // }
 
-    // form_approx_vex_core(vex,wf);
     for(int j=0; j<wf.ngp; j++){
       wf.vdir[j] = eta*wf.vdir[j] + (1.-eta)*vdir_old[j];
       for(int i=0; i<Ncs; i++){
@@ -116,19 +116,17 @@ void HartreeFock::hartree_fock_core(ElectronOrbitals &wf){
     for(int i=0; i<Ncs; i++){
       //calculate de from PT
       double del_e = 0;
-      for(int j=0; j<wf.ngp; j++){
+      for(int j=0; j<wf.pinflist[i]; j+=10){
         double dv = wf.vdir[j]+vex[i][j]-vdir_old[j]-vex_old[i][j];
         del_e += dv*(pow(wf.f[i][j],2) + pow(wf.g[i][j],2))*wf.drdt[j];
       }
-      // for(int j=0; j<wf.ngp; j++){
-      //   std::cout<<wf.r[j]<<" "<<wf.vdir[j]<<" "<<53./wf.r[j]<<" "<<vex[i][j]<<"\n";
-      // }
-      // break;
-      del_e*=wf.h;
-      std::cout<<"\n"<<en_old[i]<<" "<<del_e<<" ";
+      del_e*=wf.h*10;
+      //std::cout<<"\n"<<en_old[i]<<" "<<del_e<<" ";
       double en_guess = en_old[i] + del_e;
       if(en_guess>0) en_guess = en_old[i]; //safety, should never happen
       wf.reSolveDirac(i,en_guess,vex[i],1); //only go to 1/10^2 here
+      // std::cout<<"\n"<<hits<<","<<i<<en_old[i]<<" "<<en_guess<<" "<<wf.en[i]<<std::endl;
+      // std::cin.get();
       //wf.reSolveDirac(i,en_guess,3); //only go to 1/10^2 here
       //t_eps: weighted average of (de)/e for each orbital:
       double sfac = 2.*wf.kappa[i]*wf.occ_frac[i]; //|2k|=2j+1
@@ -142,8 +140,7 @@ void HartreeFock::hartree_fock_core(ElectronOrbitals &wf){
     printf("\rHF core        it:%3i eps=%6.1e              ",hits,t_eps);
     std::cout<<std::flush;
     if(t_eps<eps_HF && hits>2) break;
-    //std::cout<<wf.en[0]<<" ";
-    std::cin.get();
+    // std::cin.get();
   }
   std::cout<<"\n";
 
@@ -152,11 +149,21 @@ void HartreeFock::hartree_fock_core(ElectronOrbitals &wf){
   for(int i=0; i<Ncs; i++) wf.reSolveDirac(i,wf.en[i],vex[i],15);
   wf.orthonormaliseOrbitals(1);
   // form_vdir(wf.vdir,wf,false); //+ new v_ex??
-  form_vabk(wf);
+  // form_vabk(wf);
+  form_vbb0(wf);
   form_vdir(wf.vdir,wf,false);
   // form_approx_vex_core(vex,wf);
   for(int i=0; i<Ncs; i++) wf.reSolveDirac(i,wf.en[i],vex[i],15);
   wf.orthonormaliseOrbitals(2);
+
+std::ofstream of("new.txt");
+  for(int j=0; j<wf.ngp; j++){
+    of<<wf.r[j]<<" ";
+    for(int i=0; i<wf.num_core_states; i++){
+      of<<fabs(vex[i][j])<<" ";
+    }
+    of<<"\n";
+  }
 }
 //******************************************************************************
 void HartreeFock::startingApprox(ElectronOrbitals &wf)
@@ -214,7 +221,7 @@ void HartreeFock::form_Lambda_abk(const std::vector<int> &kappa)
   }
   m_max_kappa_index_core = max_kappa_index;
 
-  //xxx careful. For valence, this needs updating!
+  //XXX careful. For valence, this needs updating!
   arr_Lambda_nmk.clear(); //should already be empty!
 
   for(int n=0; n<=max_kappa_index; n++){
@@ -226,27 +233,13 @@ void HartreeFock::form_Lambda_abk(const std::vector<int> &kappa)
       int lb  = l_from_index(m);
       int kmin = (tja - tjb)/2; //don't need abs, as m<=n => ja>=jb
       int kmax = (tja + tjb)/2;
-      // std::cout<<"\n j,kmin: "<<0.5*tja<<" "<<0.5*tjb<<" : "<<kmin<<" -> "<<kmax<<"\n";
-      int num_k = (kmax-kmin)+1; ///2;
-      //std::cout<<"\n\n"<<kmin<<" "<<kmax<<" \n";
-      std::vector<double> Lk(num_k); //+1 ?? XXX
+      std::vector<double> Lk(kmax-kmin+1,0);
       for(int k=kmin; k<=kmax; k++){
         int ik = k-kmin;
-        int p = WIG::parity(la,lb,k);
-        // std::cout<<"\n\n"<<kappa_from_index(n)<<" "<<kappa_from_index(m)<<" "<<k<<" "<<
-        //     WIG::parity(ATI::l_k(kappa_from_index(n)),ATI::l_k(kappa_from_index(m)),k)<<"\n\n";
-        // if(p==0) continue;
+        if(WIG::parity(la,lb,k)==0) continue;
         double tjs = WIG::threej_2(tja,tjb,2*k,-1,1,0);
-        Lk[ik] = tjs*tjs*p;
+        Lk[ik] = tjs*tjs;
       }
-      // for(int ik=0; ik<=ikmax; ik++){
-      //   int k = 2*ik + kmin;
-      //   double tjs = WIG::threej_2(tja,tjb,2*k,-1,1,0);
-      //   //WIG::parity(la,lb,k); //not needed! every 2nd k is good! XXX CHECK?
-      //   std::cout<<"\n\n"<<kappa_from_index(n)<<" "<<kappa_from_index(m)<<" "<<k<<" "<<
-      //     WIG::parity(ATI::l_k(kappa_from_index(n)),ATI::l_k(kappa_from_index(m)),k)<<"\n\n";
-      //   Lk[ik] = tjs*tjs;
-      // }
       Lmk.push_back(Lk);
     }
     arr_Lambda_nmk.push_back(Lmk);
@@ -254,35 +247,24 @@ void HartreeFock::form_Lambda_abk(const std::vector<int> &kappa)
 
 }
 
-// //******************************************************************************
-// int HartreeFock::get_num_ks(int a, int b) const
-// //NOTE: can only be called AFTER arr_v_abk_r is formed!
-// {
-//   if(a==b) return 1;
-//   if(a>b) return arr_v_abk_r[a][b].size();
-//   return arr_v_abk_r[b][a].size();
-// }
-
 //******************************************************************************
 double HartreeFock::get_Lambda_abk(int a, int b, int k) const
 //gets Lambda
 //a nd b and STATE indexes
-//NOTE: There are a few if's here. Maybe better not?
 {
 
   int n = kappa_index_list[a];
   int m = kappa_index_list[b];
 
   int kmin = abs(twoj_list[a] - twoj_list[b])/2;
-  if(k<kmin) return 0;
-  //if(k%2 != kmin%2) return 0; //if kmin is even, k must be even
 
+  //these just safety..can remove if sped-up!
+  if(k<kmin) return 0;
   int kmax = (twoj_list[a] + twoj_list[b])/2;
   if(k>kmax) return 0;
 
-  int ik = (k-kmin);
-  if(n>=m) return arr_Lambda_nmk[n][m][ik];
-  return arr_Lambda_nmk[m][n][ik];
+  if(n>=m) return arr_Lambda_nmk[n][m][k-kmin];
+  return arr_Lambda_nmk[m][n][k-kmin];
 
 }
 
@@ -311,8 +293,6 @@ v^k_ab(rn) = A(rn)/rn^(k+1) + B(rn)*rn^k
 {
 
   int irmax = std::min(wf.pinflist[a],wf.pinflist[b]); //? called too often?
-  //could do k loop in here too? Nah
-  //irmax = m_ngp; //XXX XXX XXX XXX
 
   double Ax=0, Bx=0;
   for(int i=0; i<irmax; i++) Bx += wf.drdt[i]*
@@ -345,17 +325,14 @@ void HartreeFock::form_vbb0(const ElectronOrbitals &wf)
 void HartreeFock::form_vabk(const ElectronOrbitals &wf)
 //Does k=0 case too, so don't call form_vbb0 as well!
 {
-  // arr_v_abk_r //must already be correct size!
   #pragma omp parallel for
   for(int a=0; a<m_num_core_states; a++){
     for(int b=0; b<a; b++){
       int kmin = abs(twoj_list[a] - twoj_list[b])/2;
       int kmax = (twoj_list[a] + twoj_list[b])/2;
       for(int k=kmin; k<=kmax; k++){
-        int ik = (k-kmin);
-        //XXX put check: don't calc if Lam = 0!!
         if(get_Lambda_abk(a,b,k)==0) continue;
-        calculate_v_abk(wf,a,b,k,arr_v_abk_r[a][b][ik]);
+        calculate_v_abk(wf,a,b,k,arr_v_abk_r[a][b][k-kmin]);
       }
     }
     calculate_v_abk(wf,a,a,0,arr_v_bb0_r[a]);
@@ -363,27 +340,20 @@ void HartreeFock::form_vabk(const ElectronOrbitals &wf)
 }
 
 //******************************************************************************
-std::vector<double>& HartreeFock::get_v_abk(int a, int b, int k)
+std::vector<std::vector<double> >& HartreeFock::get_v_abk(int a, int b)
 //XXX make const?
-//XXX Put 'pragma' debug in here - turned on/off @ compile! (no slow-down!)
-//XXX Check if k out of bounds??
 {
-  if(a==b) return arr_v_bb0_r[a];
 
-  //I might already know kmin! XXX
-  int kmin = abs(twoj_list[a] - twoj_list[b])/2;
-  int ik = (k-kmin);
-
-  if(a>b) return arr_v_abk_r[a][b][ik];
-  return arr_v_abk_r[b][a][ik]; //check! Is a copy hapenning?? XXX
-
-  // if(k<kmin) return 0;
-  // if(k%2 != kmin%2) return 0; //if kmin is even, k must be even
-  // int kmax = (twoj_list[a] + twoj_list[b])/2;
-  // if(k>kmax) return 0;
+  if(a>b) return arr_v_abk_r[a][b]; //[ik];
+  return arr_v_abk_r[b][a]; //[ik]; //check! Is a copy hapenning?? XXX
 
 }
-
+//******************************************************************************
+std::vector<double>& HartreeFock::get_v_aa0(int a)
+//XXX make const?
+{
+  return arr_v_bb0_r[a];
+}
 
 //******************************************************************************
 void HartreeFock::form_vdir(std::vector<double> &vdir,
@@ -395,16 +365,10 @@ void HartreeFock::form_vdir(std::vector<double> &vdir,
 
   double sf = re_scale? (1. - (1.)/wf.num_core_electrons) : 1;
 
-  //put OMP here, with critical?
-  //OR omp below?
-  //OR diff loop structure??
   for(int b=0; b<m_num_core_states; b++){
-    //int rmax = wf.pinflist[b];
     double f = (twoj_list[b]+1)*wf.occ_frac[b];
-    std::vector<double> &v0bb = get_v_abk(b,b,0); // is there a copy?????
-    for(int i=0; i<m_ngp; i++){
-      vdir[i] += f*v0bb[i]*sf;
-    }
+    std::vector<double> &v0bb = get_v_aa0(b); // is there a copy?????
+    for(int i=0; i<m_ngp; i++) vdir[i] += f*v0bb[i]*sf;
   }
 
 }
@@ -415,7 +379,7 @@ void HartreeFock::form_approx_vex_core(std::vector<std::vector<double> > &vex,
 {
   #pragma omp parallel for
   for(int a=0; a<m_num_core_states; a++){
-    form_approx_vex_a(a,vex[a],wf); //XXX remember to size first!
+    form_approx_vex_a(a,vex[a],wf);
   }
 }
 
@@ -429,37 +393,32 @@ void HartreeFock::form_approx_vex_a(int a, std::vector<double> &vex_a,
   //Can play w/ OMP + critical here..or not (shouldn't matter!)
   for(int b=0; b<m_num_core_states; b++){
     if(b==a) continue;
-    double x_tjbp1 = (twoj_list[b]+1)*wf.occ_frac[b]; //what about ocf[a]??? XXX
+    double x_tjbp1 = (twoj_list[b]+1)*wf.occ_frac[b];
     int irmax = std::min(wf.pinflist[a],wf.pinflist[b]);
-    //irmax = m_ngp; // XXX XXX XXX NGP
-    //int Nk = get_num_ks(a,b);
     int kmin = abs(twoj_list[a] - twoj_list[b])/2;
     int kmax = (twoj_list[a] + twoj_list[b])/2;
+    std::vector<double> Labk(kmax-kmin+1);
+    for(int k=kmin; k<=kmax; k++) Labk[k-kmin] = get_Lambda_abk(a,b,k);
+    std::vector<std::vector<double> > &vabk = get_v_abk(a,b);
     for(int k=kmin; k<=kmax; k++){
-      //XXX some stuff in here that doesn't depend on k!! take outside of loop??
-      double f1 = get_Lambda_abk(a,b,k);
-      if(f1==0) continue;
-      double f2 = -1*(x_tjbp1)*f1;
-      std::vector<double> &vabk = get_v_abk(a,b,k); // is there a copy?????
-      //std::cout<<"\n\n"<<b<<" "<<k<<" "<<f1<<"\n\n";
+      double L = Labk[k-kmin];
+      if(L==0) continue;
       for(int i=0; i<irmax; i++){
         if(fabs(wf.f[a][i])<1.e-3) continue;
-        //double Fab=0;
-          double fac_top = wf.f[a][i]*wf.f[b][i] + wf.g[a][i]*wf.g[b][i];
-          double fac_bot = wf.f[a][i]*wf.f[a][i] + wf.g[a][i]*wf.g[a][i];
-          double Fab = fac_top/fac_bot;
-        vex_a[i] += f2*vabk[i]*Fab;
+        double fac_top = wf.f[a][i]*wf.f[b][i] + wf.g[a][i]*wf.g[b][i];
+        double fac_bot = wf.f[a][i]*wf.f[a][i] + wf.g[a][i]*wf.g[a][i];
+        double Fab = fac_top/fac_bot;
+        vex_a[i] += -1.*L*x_tjbp1*vabk[k-kmin][i]*Fab;
       }
     }
   }
   //now, do a=b, k=0 case - ONLY if a is in the core!
   if(a<m_num_core_states){
-    double x_tjbp1 = (twoj_list[a]+1)*wf.occ_frac[a]; //what about ocf[a]??? XXX
-    //int irmax = wf.pinflist[a];
-    //irmax = m_ngp; //XXX
-    std::vector<double> &vabk = get_v_abk(a,a,0); // is there a copy?????
-    double f1 = -1*x_tjbp1*get_Lambda_abk(a,a,0);
-    for(int i=0; i<m_ngp; i++) vex_a[i] += f1*vabk[i];
+    double x_tjbp1 = (twoj_list[a]+1)*wf.occ_frac[a];
+    int irmax = wf.pinflist[a];
+    std::vector<double> &vaa0 = get_v_aa0(a); // is there a copy?????
+    double f1 = -1.*x_tjbp1*get_Lambda_abk(a,a,0);
+    for(int i=0; i<irmax; i++) vex_a[i] += f1*vaa0[i];
   }
 
 }

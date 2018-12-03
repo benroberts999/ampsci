@@ -34,12 +34,14 @@ private:
   int l_from_index(int i) const;
 
 
+std::vector<double>& get_v_aa0(int a);
+
   void calculate_v_abk(const ElectronOrbitals &wf, int a, int b, int k,
     std::vector<double> & vabk);
 
   void form_vbb0(const ElectronOrbitals &wf);
   void form_vabk(const ElectronOrbitals &wf);
-  std::vector<double>& get_v_abk(int a, int b, int k);
+  std::vector<std::vector<double> >& get_v_abk(int a, int b);
 
   std::vector<std::vector<double> > arr_v_bb0_r;
   std::vector<std::vector<std::vector<std::vector<double> > > > arr_v_abk_r;
