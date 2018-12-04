@@ -8,6 +8,8 @@
 #include <cmath>
 // #include <fstream>
 
+// NOTE: segfaults ~sometimes~. Is there memory leak?
+
 //******************************************************************************
 HartreeFock::HartreeFock(ElectronOrbitals &wf, double eps_HF)
 {
@@ -25,29 +27,33 @@ HartreeFock::HartreeFock(ElectronOrbitals &wf, double eps_HF)
   //Run HF for all core states
   hartree_fock_core(wf, eps_HF);
 
-  double Ecore = calculate_core_energy(wf);
-  std::cout<<"\n E_core = "<<Ecore<<"\n\n";
+  //double Ecore = calculate_core_energy(wf);
+  //std::cout<<"\n E_core = "<<Ecore<<"\n\n";
+
+  // hartree_fock_valence(wf, 6, -1, eps_HF);
+  // hartree_fock_valence(wf, 6, -3, eps_HF);
+
 
 }
 
 //******************************************************************************
-void HartreeFock::initialise_m_core_v_abk_r()
+void HartreeFock::initialise_m_arr_v_abk_r_core()
 /*
 Initialise (re-size) array to store CORE HF screening functions, v^k_ab(r)
-Note: only for core. These are stored in m_core_v_abk_r array (class member)
+Note: only for core. These are stored in m_arr_v_abk_r array (class member)
 */
 {
-  m_core_v_abk_r.clear();
-  m_core_v_abk_r.resize(m_num_core_states);
+  m_arr_v_abk_r.clear();
+  m_arr_v_abk_r.resize(m_num_core_states);
   for(int a=0; a<m_num_core_states; a++){
-    m_core_v_abk_r[a].resize(a+1);
+    m_arr_v_abk_r[a].resize(a+1);
     int tja = twoj_list[a];
     for(int b=0; b<=a; b++){
       int tjb = twoj_list[b];
       int num_k = (tja>tjb) ? (tjb+1) : (tja+1);
-      m_core_v_abk_r[a][b].resize(num_k);
+      m_arr_v_abk_r[a][b].resize(num_k);
       for(int ik=0; ik<num_k; ik++){
-        m_core_v_abk_r[a][b][ik].resize(m_ngp);
+        m_arr_v_abk_r[a][b][ik].resize(m_ngp);
       }//k
     }//b
   }//a
@@ -64,7 +70,7 @@ void HartreeFock::hartree_fock_core(ElectronOrbitals &wf, double eps_HF){
   form_core_Lambda_abk(wf.kappa);
 
   vex.resize(Ncs,std::vector<double>(ngp));//Also
-  initialise_m_core_v_abk_r();
+  initialise_m_arr_v_abk_r_core();
 
   //Start the HF itterative procedure:
   int hits;
@@ -175,11 +181,11 @@ void HartreeFock::form_core_Lambda_abk(const std::vector<int> &kappa)
 Calculate + store the angular coefifienct:
   Lambda^k_ab := 3js((ja,jb,k),(-1/2,1/2,0))^2*parity(la+lb+k)
 Lambda^k_ab = Lambda^k_ka,kb :: i.e., only depends on kappa!
-This routine re-sizes the m_core_Lambda_nmk array
+This routine re-sizes the m_arr_Lambda_nmk array
 New routine for valence? Or make so can re-call this one??
 */
 {
-  m_core_Lambda_nmk.clear(); //should already be empty!
+  m_arr_Lambda_nmk.clear(); //should already be empty!
 
   //Find largest existing kappa index
   int max_kappa_index = 0;
@@ -187,6 +193,7 @@ New routine for valence? Or make so can re-call this one??
     int kappa_index = index_from_kappa(kappa[i]);
     if(kappa_index > max_kappa_index) max_kappa_index = kappa_index;
   }
+  m_max_kappa_index_so_far = max_kappa_index;
 
   for(int n=0; n<=max_kappa_index; n++){
     int tja = twoj_from_index(n);
@@ -206,8 +213,68 @@ New routine for valence? Or make so can re-call this one??
       }
       Lmk.push_back(Lk);
     }
-    m_core_Lambda_nmk.push_back(Lmk);
+    m_arr_Lambda_nmk.push_back(Lmk);
   }
+
+}
+
+
+//******************************************************************************
+void HartreeFock::extend_Lambda_abk(int kappa_a)
+/*
+
+Note: there is code overlap with: form_core_Lambda_abk
+Could create a new function? Or just leave it?
+Or, merge this with above (if statements etc??)
+Note: don't just add this one, because might have skipped indexes!
+Add all we might need, keep order matchine index!
+*/
+{
+
+  int n_a = index_from_kappa(kappa_a);
+  if(n_a <= m_max_kappa_index_so_far) return; //already done
+
+  for(int n=m_max_kappa_index_so_far+1; n<=n_a; n++){
+    int tja = twoj_from_index(n);
+    int la  = l_from_index(n);
+    std::vector<std::vector<double> > Lmk;
+    for(int m=0; m<=n; m++){
+      int tjb = twoj_from_index(m);
+      int lb  = l_from_index(m);
+      int kmin = (tja - tjb)/2; //don't need abs, as m\leq n => ja\geq jb
+      int kmax = (tja + tjb)/2;
+      std::vector<double> Lk(kmax-kmin+1,0);
+      for(int k=kmin; k<=kmax; k++){
+        int ik = k-kmin;
+        if(WIG::parity(la,lb,k)==0) continue;
+        double tjs = WIG::threej_2(tja,tjb,2*k,-1,1,0);
+        Lk[ik] = tjs*tjs;
+      }
+      Lmk.push_back(Lk);
+    }
+    m_arr_Lambda_nmk.push_back(Lmk);
+  }
+
+  m_max_kappa_index_so_far = n_a;
+
+}
+
+
+//******************************************************************************
+void HartreeFock::extend_m_arr_v_abk_r_valence(int kappa_a)
+/*
+Just makes room for one more valence state!
+*/
+{
+  std::vector<std::vector<std::vector<double> > > v_abk_tmp(m_num_core_states);
+  int tja = 2*abs(kappa_a)-1;  // |2k|=2j+1 ?check! XXX
+  for(int b=0; b<m_num_core_states; b++){
+    int tjb = twoj_list[b];
+    int num_k = (tja>tjb) ? (tjb+1) : (tja+1);
+    v_abk_tmp[b].resize(num_k, std::vector<double>(m_ngp));
+  }//b
+
+  m_arr_v_abk_r.push_back(v_abk_tmp);
 
 }
 
@@ -229,8 +296,8 @@ Note: input a and b are regular ElectronOrbitals state indexes
   int kmax = (twoj_list[a] + twoj_list[b])/2;
   if(k>kmax) return 0;
 
-  if(n>m) return m_core_Lambda_nmk[n][m][k-kmin];
-  return m_core_Lambda_nmk[m][n][k-kmin];
+  if(n>m) return m_arr_Lambda_nmk[n][m][k-kmin];
+  return m_arr_Lambda_nmk[m][n][k-kmin];
 }
 
 //******************************************************************************
@@ -282,7 +349,7 @@ When doing Hartree (no exchange) only need v^0_bb
 */
 {
   for(int b=0; b<wf.num_core_states; b++){
-    calculate_v_abk(wf,b,b,0,m_core_v_abk_r[b][b][0]);
+    calculate_v_abk(wf,b,b,0,m_arr_v_abk_r[b][b][0]);
   }
 }
 
@@ -302,7 +369,7 @@ Note: only for core-core states! (for now?)
       int kmax = (twoj_list[a] + twoj_list[b])/2;
       for(int k=kmin; k<=kmax; k++){
         if(get_Lambda_abk(a,b,k)==0) continue;
-        calculate_v_abk(wf,a,b,k,m_core_v_abk_r[a][b][k-kmin]);
+        calculate_v_abk(wf,a,b,k,m_arr_v_abk_r[a][b][k-kmin]);
       }
     }
   }
@@ -311,22 +378,22 @@ Note: only for core-core states! (for now?)
 //******************************************************************************
 std::vector<std::vector<double> >& HartreeFock::get_v_abk(int a, int b)
 /*
-Returns a reference to a 2D-array (a subset of the m_core_v_abk_r array)
+Returns a reference to a 2D-array (a subset of the m_arr_v_abk_r array)
 Returned array is of form: array[ik][r]; ik runs from 0 -> |kmax-kmin+1|
   array.size() = |kmax-kmin+1| = number of k's
   array[0].size() = ngp
 Allows to call for any a,b, even though only calculated for a>=b (symmetry)
 */
 {
-  if(a>b) return m_core_v_abk_r[a][b];
-  return m_core_v_abk_r[b][a];
+  if(a>b) return m_arr_v_abk_r[a][b];
+  return m_arr_v_abk_r[b][a];
 }
 //******************************************************************************
 std::vector<double>& HartreeFock::get_v_aa0(int a)
 // Same as above, but for v^0_aa, only need to return 1D array: array[r]
 // array.size()=ngp
 {
-  return m_core_v_abk_r[a][a][0];
+  return m_arr_v_abk_r[a][a][0];
 }
 
 //******************************************************************************
@@ -335,7 +402,7 @@ void HartreeFock::form_vdir(std::vector<double> &vdir,
 /*
 Forms the direct part of the potential.
 Must call either form_vbb0 or form_vabk_core first!
-Doesn't calculate, assumes m_core_v_abk_r array exists + is up-to-date
+Doesn't calculate, assumes m_arr_v_abk_r array exists + is up-to-date
 If re_scale==true, will scale by (N-1)/N. This then given the averaged Hartree
  potential (local, same each state, no exchange). re_scale=false by default
 */
@@ -355,7 +422,7 @@ void HartreeFock::form_approx_vex_core(std::vector<std::vector<double> > &vex,
 /*
 Forms the 2D "approximate" exchange potential for each core state, a.
 NOTE: Must call form_vabk_core first!
-Doesn't calculate, assumes m_core_v_abk_r array exists + is up-to-date
+Doesn't calculate, assumes m_arr_v_abk_r array exists + is up-to-date
 */
 {
   #pragma omp parallel for
@@ -471,4 +538,77 @@ where:
     }
   }
   return Etot;
+}
+
+
+
+//******************************************************************************
+void HartreeFock::form_vabk_valence(const ElectronOrbitals &wf, int w)
+{
+  //form m_arr_v_abk_r valence
+  #pragma omp parallel for
+  for(int b=0; b<m_num_core_states; b++){
+    int kmin = abs(twoj_list[w] - twoj_list[b])/2;
+    int kmax = (twoj_list[w] + twoj_list[b])/2;
+    for(int k=kmin; k<=kmax; k++){
+      if(get_Lambda_abk(w,b,k)==0) continue;
+      calculate_v_abk(wf,w,b,k,m_arr_v_abk_r[w][b][k-kmin]);
+    }
+  }
+
+}
+
+//******************************************************************************
+void HartreeFock::hartree_fock_valence(ElectronOrbitals &wf,
+  int n, int kappa, double eps_HF)
+{
+
+  twoj_list.push_back(ATI::twoj_k(kappa));
+  kappa_index_list.push_back(index_from_kappa(kappa));
+  extend_Lambda_abk(kappa);
+  extend_m_arr_v_abk_r_valence(kappa);
+
+  //just use direct to solve initial
+  wf.solveLocalDirac(n,kappa,0,1);
+  int a = wf.nlist.size() - 1; //index of this valence state
+  int twoJplus1 = ATI::twoj_k(kappa)+1; //av. over REL configs
+  wf.occ_frac.push_back(1./twoJplus1);
+
+  double eta1=0.35;
+  double eta2=0.7; //this value after 4 its
+  double eta = eta1;
+  std::vector<double> vexa(wf.ngp);
+  int hits;
+  for(hits=1; hits<MAX_HART_ITS; hits++){
+    if(hits==4) eta=eta2;
+    if(hits==30) eta=eta1;
+    std::vector<double> vexa_old = vexa;
+    double en_old = wf.en[a];
+    //Form new exch. potential:
+    std::vector<double> vexa_new(m_ngp);
+    form_vabk_valence(wf,a);
+    form_approx_vex_a(a,vexa_new,wf);
+    for(int i=0; i<wf.ngp; i++) vexa[i] = eta*vexa_new[i]+(1.-eta)*vexa_old[i];
+    //Use P.T. to calculate energy change:
+    double en_new = 0;
+    for(int i=0; i<wf.pinflist[a]; i+=5) en_new +=
+      (vexa[i]-vexa_old[i])*(pow(wf.f[a][i],2)+pow(wf.g[a][i],2))*wf.drdt[i];
+    en_new = wf.en[a] + en_new*wf.h*5;
+    //Solve Dirac using new potential:
+    wf.reSolveDirac(a,en_new,vexa,1);
+    double eps = fabs((wf.en[a]-en_old)/(eta*en_old));
+    //Force valence states to be orthogonal to each other + to core:
+    // wf.orthonormaliseCoreValence(a,1);
+    printf("\rHF val:%2i %2i %2i | %3i eps=%6.1e  en=%11.8f                  "
+     ,a,n,kappa,hits,eps,wf.en[a]);
+    std::cout<<std::flush;
+    if(eps<eps_HF && hits>2) break;
+  }
+  std::cout<<"\n";
+
+  //Re-solve w/ higher precission
+  wf.reSolveDirac(a,wf.en[a],vexa,15);
+  wf.orthonormaliseValence(2);
+
+
 }

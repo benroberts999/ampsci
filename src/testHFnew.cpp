@@ -51,9 +51,8 @@ int main(void){
   if(Z==0) return 2;
   if(A==-1) A=ATI::A[Z]; //if none given, get default A
 
-  // if(!doHF) printf("\nRunning HARTREE for %s, Z=%i A=%i\n",Z_str.c_str(),Z,A);
-  // else printf("\nRunning HARTREE FOCK for %s, Z=%i A=%i\n",Z_str.c_str(),Z,A);
-  // printf("*************************************************\n");
+  printf("\nRunning HARTREE FOCK for %s, Z=%i A=%i\n",Z_str.c_str(),Z,A);
+  printf("*************************************************\n");
 
   //Generate the orbitals object:
   ElectronOrbitals wf(Z,A,ngp,r0,rmax,varalpha);
@@ -69,40 +68,43 @@ int main(void){
     return 1;
   }
 
+  sw.start();
   HartreeFock hf(wf,eps_hart);
-  // sw.start();
-  // //Solve Hartree equations for the core:
+
+  //Solve Hartree equations for the core:
   // if(doHF) HF::hartreeFockCore(wf,eps_hart);
   // else     HF::hartreeCore(wf,eps_hart);
-  // std::cout<<"core: "<<sw.lap_reading_str()<<"\n";
+  std::cout<<"core: "<<sw.lap_reading_str()<<"\n";
 
-  // //Make a list of valence states to solve:
-  // std::vector< std::vector<int> > lst;
-  // for(int n=0; n<=n_max; n++){
-  //   for(int l=0; l<n; l++){
-  //     if(l>l_max) continue;
-  //     for(int tk=0; tk<2; tk++){ //loop over k
-  //       int k;
-  //       if(tk==0) k=l;      //j = l - 1/2
-  //       else      k=-(l+1); //j = l + 1/2
-  //       if(k==0) continue;  // no j = l - 1/2 for l=0
-  //       if(wf.isInCore(n,k)) continue;
-  //       lst.push_back({n,k});
-  //     }
-  //   }
-  // }
+  //Make a list of valence states to solve:
+  std::vector< std::vector<int> > lst;
+  for(int n=0; n<=n_max; n++){
+    for(int l=0; l<n; l++){
+      if(l>l_max) continue;
+      for(int tk=0; tk<2; tk++){ //loop over k
+        int k;
+        if(tk==0) k=l;      //j = l - 1/2
+        else      k=-(l+1); //j = l + 1/2
+        if(k==0) continue;  // no j = l - 1/2 for l=0
+        if(wf.isInCore(n,k)) continue;
+        lst.push_back({n,k});
+      }
+    }
+  }
   //Solve for the valence states:
-  // sw.start();
-  // for(uint i=0; i<lst.size(); i++){
-  //   int n = lst[i][0];
-  //   int k = lst[i][1];
-  //   if(doHF) HF::hartreeFockValence(wf,n,k,eps_hart);
-  //   else{
-  //     //double en_g = wf.enGuessVal(n,k);
-  //     wf.solveLocalDirac(n,k,0,15);
-  //   }
-  // }
-  // std::cout<<"Valence: "<<sw.lap_reading_str()<<"\n";
+  sw.start();
+  for(uint i=0; i<lst.size(); i++){
+    int n = lst[i][0];
+    int k = lst[i][1];
+    //if(doHF)
+    hf.hartree_fock_valence(wf,n,k,eps_hart);
+    // HF::hartreeFockValence(wf,n,k,eps_hart);
+    // else{
+    //   //double en_g = wf.enGuessVal(n,k);
+    //   wf.solveLocalDirac(n,k,0,15);
+    // }
+  }
+  std::cout<<"Valence: "<<sw.lap_reading_str()<<"\n";
 
   //make list of energy indices in sorted order:
   std::vector<int> sort_list;
