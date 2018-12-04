@@ -47,11 +47,11 @@ void HartreeFock::initialise_arr_v_abk_r(){
   for(int a=0; a<m_num_core_states; a++){
     arr_v_abk_r[a].resize(a+1);
     int tja = twoj_list[a];
-    for(int b=0; b<a; b++){
+    for(int b=0; b<a; b++){//a=b case stored sepperately
       int tjb = twoj_list[b];
       int num_k = (tja>tjb) ? (tjb+1) : (tja+1);
-      arr_v_abk_r[a][b].resize(num_k); //right? or +1? XXX
-      for(int ik=0; ik<num_k; ik++){ //every second!
+      arr_v_abk_r[a][b].resize(num_k);
+      for(int ik=0; ik<num_k; ik++){
         arr_v_abk_r[a][b][ik].resize(m_ngp);
       }
     }
@@ -231,7 +231,7 @@ void HartreeFock::form_Lambda_abk(const std::vector<int> &kappa)
     for(int m=0; m<=n; m++){
       int tjb = twoj_from_index(m);
       int lb  = l_from_index(m);
-      int kmin = (tja - tjb)/2; //don't need abs, as m<=n => ja>=jb
+      int kmin = (tja - tjb)/2; //don't need abs, as m\leq n => ja\geq jb
       int kmax = (tja + tjb)/2;
       std::vector<double> Lk(kmax-kmin+1,0);
       for(int k=kmin; k<=kmax; k++){
@@ -404,6 +404,7 @@ void HartreeFock::form_approx_vex_a(int a, std::vector<double> &vex_a,
       double L = Labk[k-kmin];
       if(L==0) continue;
       for(int i=0; i<irmax; i++){
+        ///XXX Note: don't need to work out Fab each k!!! XXX
         if(fabs(wf.f[a][i])<1.e-3) continue;
         double fac_top = wf.f[a][i]*wf.f[b][i] + wf.g[a][i]*wf.g[b][i];
         double fac_bot = wf.f[a][i]*wf.f[a][i] + wf.g[a][i]*wf.g[a][i];
