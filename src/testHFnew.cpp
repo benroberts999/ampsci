@@ -69,7 +69,7 @@ int main(void){
     return 1;
   }
 
-  HartreeFock hf(wf);
+  HartreeFock hf(wf,eps_hart);
   // sw.start();
   // //Solve Hartree equations for the core:
   // if(doHF) HF::hartreeFockCore(wf,eps_hart);
