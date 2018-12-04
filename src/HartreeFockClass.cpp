@@ -47,7 +47,7 @@ void HartreeFock::initialise_arr_v_abk_r(){
   for(int a=0; a<m_num_core_states; a++){
     arr_v_abk_r[a].resize(a+1);
     int tja = twoj_list[a];
-    for(int b=0; b<a; b++){//a=b case stored sepperately
+    for(int b=0; b<=a; b++){//NO! DO HERE! a=b case stored sepperately
       int tjb = twoj_list[b];
       int num_k = (tja>tjb) ? (tjb+1) : (tja+1);
       arr_v_abk_r[a][b].resize(num_k);
@@ -263,7 +263,7 @@ double HartreeFock::get_Lambda_abk(int a, int b, int k) const
   int kmax = (twoj_list[a] + twoj_list[b])/2;
   if(k>kmax) return 0;
 
-  if(n>=m) return arr_Lambda_nmk[n][m][k-kmin];
+  if(n>m) return arr_Lambda_nmk[n][m][k-kmin];
   return arr_Lambda_nmk[m][n][k-kmin];
 
 }
@@ -299,7 +299,7 @@ v^k_ab(rn) = A(rn)/rn^(k+1) + B(rn)*rn^k
     (wf.f[a][i]*wf.f[b][i]+wf.g[a][i]*wf.g[b][i])/pow(wf.r[i],k+1);
 
   if(a==b) irmax = m_ngp; //XXX
-  vabk[0] = Bx;
+  vabk[0] = Bx*wf.h;
   for(int i=1; i<irmax; i++){
     double Fdr = wf.drdt[i-1]*
       (wf.f[a][i-1]*wf.f[b][i-1]+wf.g[a][i-1]*wf.g[b][i-1]);
@@ -307,7 +307,7 @@ v^k_ab(rn) = A(rn)/rn^(k+1) + B(rn)*rn^k
     Bx = Bx - Fdr/pow(wf.r[i-1],k+1);
     vabk[i] = wf.h*(Ax/pow(wf.r[i],k+1) + Bx*pow(wf.r[i],k));
   }
-  for(int i=irmax; i<wf.ngp; i++) vabk[i] = 0;
+  for(int i=irmax; i<m_ngp; i++) vabk[i] = 0;
 
 }
 
@@ -327,10 +327,11 @@ void HartreeFock::form_vabk(const ElectronOrbitals &wf)
 {
   #pragma omp parallel for
   for(int a=0; a<m_num_core_states; a++){
-    for(int b=0; b<a; b++){
+    for(int b=0; b<=a; b++){
       int kmin = abs(twoj_list[a] - twoj_list[b])/2;
       int kmax = (twoj_list[a] + twoj_list[b])/2;
       for(int k=kmin; k<=kmax; k++){
+        //if(a==b && k==0) continue; //done sepperately below!
         if(get_Lambda_abk(a,b,k)==0) continue;
         calculate_v_abk(wf,a,b,k,arr_v_abk_r[a][b][k-kmin]);
       }
@@ -377,7 +378,7 @@ void HartreeFock::form_vdir(std::vector<double> &vdir,
 void HartreeFock::form_approx_vex_core(std::vector<std::vector<double> > &vex,
   const ElectronOrbitals &wf)
 {
-  #pragma omp parallel for
+  //#pragma omp parallel for
   for(int a=0; a<m_num_core_states; a++){
     form_approx_vex_a(a,vex[a],wf);
   }
@@ -393,33 +394,58 @@ void HartreeFock::form_approx_vex_a(int a, std::vector<double> &vex_a,
   //Can play w/ OMP + critical here..or not (shouldn't matter!)
   for(int b=0; b<m_num_core_states; b++){
     if(b==a) continue;
+    // break;
     double x_tjbp1 = (twoj_list[b]+1)*wf.occ_frac[b];
+    // std::cout<<wf.kappa[a]<<" "<<wf.kappa[b]<<" "<<twoj_list[b]<<" "<<ATI::twoj_k(wf.kappa[b])<<"\n";
+    // std::cin.get();
     int irmax = std::min(wf.pinflist[a],wf.pinflist[b]);
     int kmin = abs(twoj_list[a] - twoj_list[b])/2;
     int kmax = (twoj_list[a] + twoj_list[b])/2;
     std::vector<double> Labk(kmax-kmin+1);
-    for(int k=kmin; k<=kmax; k++) Labk[k-kmin] = get_Lambda_abk(a,b,k);
+    for(int k=kmin; k<=kmax; k++) Labk[k-kmin] = get_Lambda_abk(a,b,k);//XXX unecisary now!
     std::vector<std::vector<double> > &vabk = get_v_abk(a,b);
+    //*******
+    std::vector<double> v_Fab(m_ngp);//XXX allocate once, above?
+    for(int i=0; i<irmax; i++){
+      if(fabs(wf.f[a][i])<1.e-3) continue;
+      double fac_top = wf.f[a][i]*wf.f[b][i] + wf.g[a][i]*wf.g[b][i];
+      double fac_bot = wf.f[a][i]*wf.f[a][i] + wf.g[a][i]*wf.g[a][i];
+      //can do once! (a part!)
+      double Fab = fac_top/fac_bot;
+      v_Fab[i] = -1.*Fab*x_tjbp1;
+    }
+    //*******
     for(int k=kmin; k<=kmax; k++){
-      double L = Labk[k-kmin];
-      if(L==0) continue;
+      double L_abk = Labk[k-kmin];
+      if(L_abk==0) continue;
       for(int i=0; i<irmax; i++){
         ///XXX Note: don't need to work out Fab each k!!! XXX
         if(fabs(wf.f[a][i])<1.e-3) continue;
-        double fac_top = wf.f[a][i]*wf.f[b][i] + wf.g[a][i]*wf.g[b][i];
-        double fac_bot = wf.f[a][i]*wf.f[a][i] + wf.g[a][i]*wf.g[a][i];
-        double Fab = fac_top/fac_bot;
-        vex_a[i] += -1.*L*x_tjbp1*vabk[k-kmin][i]*Fab;
+        // double fac_top = wf.f[a][i]*wf.f[b][i] + wf.g[a][i]*wf.g[b][i];
+        // double fac_bot = wf.f[a][i]*wf.f[a][i] + wf.g[a][i]*wf.g[a][i];
+        // double Fab = fac_top/fac_bot;
+        // vex_a[i] += -1*L_abk*x_tjbp1*vabk[k-kmin][i]*Fab; //??
+        vex_a[i] += L_abk*vabk[k-kmin][i]*v_Fab[i]; //??
       }
     }
   }
   //now, do a=b, k=0 case - ONLY if a is in the core!
   if(a<m_num_core_states){
-    double x_tjbp1 = (twoj_list[a]+1)*wf.occ_frac[a];
+    double x_tjap1 = (twoj_list[a]+1)*wf.occ_frac[a];
     int irmax = wf.pinflist[a];
-    std::vector<double> &vaa0 = get_v_aa0(a); // is there a copy?????
-    double f1 = -1.*x_tjbp1*get_Lambda_abk(a,a,0);
-    for(int i=0; i<irmax; i++) vex_a[i] += f1*vaa0[i];
+    int kmax = twoj_list[a];
+    // std::vector<double> Labk(kmax+1);
+    //std::vector<double> &vaa0 = get_v_aa0(a); // is there a copy?????
+    std::vector<std::vector<double> > &vaak = get_v_abk(a,a);
+    // double f1 = -1.*x_tjap1*get_Lambda_abk(a,a,0);
+    // for(int i=0; i<irmax; i++) vex_a[i] += f1*vaa0[i];
+    for(int k=0; k<=kmax; k++){
+      double L_abk = get_Lambda_abk(a,a,k);
+      if(L_abk==0) continue;
+      for(int i=0; i<m_ngp; i++){
+        vex_a[i] += -1*L_abk*vaak[k][i]*x_tjap1; //??
+      }
+    }
   }
 
 }
