@@ -4,12 +4,12 @@
 #include "PRM_parametricPotentials.h"
 #include "FPC_physicalConstants.h"
 #include "ATI_atomInfo.h"
+#include "HartreeFockClass.h"
+
 #include <iostream>
 #include <cmath>
 #include <fstream>
 #include "ChronoTimer.h"
-#include "HartreeFockClass.h"
-
 
 int main(void){
 
@@ -42,6 +42,8 @@ int main(void){
     ifs >> varalpha2;             getline(ifs,jnk);
     ifs.close();
   }
+  bool doHF = true;
+  if(iHF==0) doHF = false;
 
   //Change varAlph^2 to varalph
   if(varalpha2==0) varalpha2 = 1.e-10;
@@ -51,7 +53,8 @@ int main(void){
   if(Z==0) return 2;
   if(A==-1) A=ATI::A[Z]; //if none given, get default A
 
-  printf("\nRunning HARTREE FOCK for %s, Z=%i A=%i\n",Z_str.c_str(),Z,A);
+  if(!doHF) printf("\nRunning HARTREE for %s, Z=%i A=%i\n",Z_str.c_str(),Z,A);
+  else printf("\nRunning HARTREE FOCK for %s, Z=%i A=%i\n",Z_str.c_str(),Z,A);
   printf("*************************************************\n");
 
   //Generate the orbitals object:
@@ -70,10 +73,6 @@ int main(void){
 
   sw.start();
   HartreeFock hf(wf,eps_hart);
-
-  //Solve Hartree equations for the core:
-  // if(doHF) HF::hartreeFockCore(wf,eps_hart);
-  // else     HF::hartreeCore(wf,eps_hart);
   std::cout<<"core: "<<sw.lap_reading_str()<<"\n";
 
   //Make a list of valence states to solve:
@@ -96,13 +95,7 @@ int main(void){
   for(uint i=0; i<lst.size(); i++){
     int n = lst[i][0];
     int k = lst[i][1];
-    //if(doHF)
-    hf.hartree_fock_valence(wf,n,k,eps_hart);
-    // HF::hartreeFockValence(wf,n,k,eps_hart);
-    // else{
-    //   //double en_g = wf.enGuessVal(n,k);
-    //   wf.solveLocalDirac(n,k,0,15);
-    // }
+    hf.solveValence(wf,n,k);
   }
   std::cout<<"Valence: "<<sw.lap_reading_str()<<"\n";
 
