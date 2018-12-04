@@ -3,6 +3,7 @@
 #include "ATI_atomInfo.h"
 #include "PRM_parametricPotentials.h"
 #include "WIG_369j.h"
+#include "INT_quadratureIntegration.h"
 #include <vector>
 #include <cmath>
 // #include <fstream>
@@ -23,6 +24,9 @@ HartreeFock::HartreeFock(ElectronOrbitals &wf, double eps_HF)
 
   //Run HF for all core states
   hartree_fock_core(wf, eps_HF);
+
+  double Ecore = calculate_core_energy(wf);
+  std::cout<<"\n E_core = "<<Ecore<<"\n\n";
 
 }
 
@@ -422,4 +426,49 @@ Further, largest part of v_ex is when a=b. In this case, the factor=1 is exact!
     }//k
   }//if a in core
 
+}
+
+//******************************************************************************
+double HartreeFock::calculate_core_energy(const ElectronOrbitals &wf)
+/*
+Calculates the total HF core energy:
+  E = \sum_a [ja]e_a - 0.5 \sum_(ab) (R^0_abab - \sum_k L^k_ab R^k_abba)
+where:
+  R^k_abcd = Integral [f_a*f_c + g_a*g_c] * v^k_bd
+  R^0_abab is not absymmetric
+  R^k_abba _is_ ab symmetric
+*/
+{
+
+  double Etot=0;
+  for(int a=0; a<wf.num_core_states; a++){
+    double E1=0, E2=0, E3=0;
+    double xtjap1 = (twoj_list[a]+1)*wf.occ_frac[a];
+    E1 += xtjap1*wf.en[a];
+    for(int b=0; b<wf.num_core_states; b++){
+      double xtjbp1 = (twoj_list[b]+1)*wf.occ_frac[b];
+      std::vector<double> &v0bb = get_v_aa0(b);
+      double R0f2 = INT::integrate4(wf.f[a],wf.f[a],v0bb,wf.drdt);
+      double R0g2 = INT::integrate4(wf.g[a],wf.g[a],v0bb,wf.drdt);
+      E2 += xtjap1*xtjbp1*(R0f2+R0g2);
+      //take advantage of symmetry for third term:
+      if(b>a) continue;
+      double y = (a==b) ? 1 : 2;
+      int kmin = abs(twoj_list[a] - twoj_list[b])/2;
+      int kmax = (twoj_list[a] + twoj_list[b])/2;
+      std::vector<std::vector<double> > &vabk = get_v_abk(a,b);
+      for(int k=kmin; k<=kmax; k++){
+        double L_abk = get_Lambda_abk(a,b,k);
+        if(L_abk==0) continue;
+        int ik = k - kmin;
+        double R0f3 = INT::integrate4(wf.f[a],wf.f[b],vabk[ik],wf.drdt);
+        double R0g3 = INT::integrate4(wf.g[a],wf.g[b],vabk[ik],wf.drdt);
+        E3 += y*xtjap1*xtjbp1*L_abk*(R0f3+R0g3);
+      }
+    }
+    {
+      Etot += E1-0.5*(E2-E3)*wf.h; //update running total
+    }
+  }
+  return Etot;
 }

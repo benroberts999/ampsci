@@ -10,6 +10,9 @@ public:
   HartreeFock(ElectronOrbitals &wf, double eps_HF=1.e-8);
   void hartree_fock_core(ElectronOrbitals &wf, double eps_HF);
 
+  double calculate_core_energy(const ElectronOrbitals &wf);
+
+
 private:
 
   int MAX_HART_ITS = 64;
