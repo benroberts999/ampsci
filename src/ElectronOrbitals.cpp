@@ -300,6 +300,7 @@ Note: I force all orthog to each other - i.e. double count.
 {force <2|1>=0 and then <1|2>=0}
 Would be 2x faster not to do this - but that would treat some orbitals special!
 Hence factor of 0.5
+Note: For HF, should never be called after core is frozen!
 */
 {
   int Ns = nlist.size();
@@ -353,9 +354,53 @@ Hence factor of 0.5
 }
 
 //******************************************************************************
+void ElectronOrbitals::orthonormaliseCoreValence(int iv, int num_its)
+/*
+XXX update! XXX
+Force given valence orbital to be orthogonal to all core orbitals
+After the core is 'frozen', don't touch core orbitals!
+|v> --> |v> - sum_c |c><c|v>
+*/
+{
+  int Ns_c = num_core_states;
+
+  //Calculate the core-valence coeficients <c|v> = A_cv
+  std::vector<double> A_vc(Ns_c);
+  for(int ic=0; ic<Ns_c; ic++){
+    if(kappa[iv]!=kappa[ic]) continue;
+    double fvc = INT::integrate3(f[iv],f[ic],drdt);
+    double gvc = INT::integrate3(g[iv],g[ic],drdt);
+    A_vc[ic] = h*(fvc+gvc); //no 0.5 here - no double counting
+  }
+
+  //Orthogonalise: Core-valence part:
+  for(int ic=0; ic<Ns_c; ic++){
+    if(kappa[iv]!=kappa[ic]) continue;
+    double Avc = A_vc[ic];
+    if(Avc==0) continue; //never?
+    for(int ir=0; ir<ngp; ir++){
+      f[iv][ir] -= Avc*f[ic][ir];
+      g[iv][ir] -= Avc*g[ic][ir];
+    }
+  }
+
+  //Re-normalise the orbitals:
+  double fvv = INT::integrate3(f[iv],f[iv],drdt);
+  double gvv = INT::integrate3(g[iv],g[iv],drdt);
+  double norm = 1./sqrt(h*(fvv+gvv));
+  for(int ir=0; ir<ngp; ir++){
+    f[iv][ir] *= norm;
+    g[iv][ir] *= norm;
+  }
+
+  //If necisary: repeat
+  if(num_its>1) orthonormaliseCoreValence(iv, num_its-1);
+}
+
+//******************************************************************************
 void ElectronOrbitals::orthonormaliseValence(int num_its)
 /*
-Force valence orbitals to be orthogonal to:
+Force all valence orbitals to be orthogonal to:
   a) core orbitals
   b) other valence orbitals
 After the core is 'frozen', don't touch core orbitals!
