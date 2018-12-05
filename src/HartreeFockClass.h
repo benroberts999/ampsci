@@ -9,6 +9,21 @@ Solves all core and valence states.
 // Can solve them to some degree in parallel
 //Requires re-writing the valence part (a little)
 
+//XXX Probably better NOT to call "solveCore" automatically!
+//XXX ALSO: store a POINTER to EO wf object - so I don't need to keep
+//passing it around!
+
+//XXX Also: add ability to update v^k for single state?
+//Does that work? Maybe not. but then can iterate each core state
+//indevidually. Might be better.
+
+//XXX Add back ability to do just Hartree ?
+
+//XXX Have option to suppress printing!
+// ALSO: store its + convergance info for each state!!
+
+//XXX Still doesn't work well for open shells
+
 */
 class HartreeFock{
 

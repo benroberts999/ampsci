@@ -16,6 +16,8 @@
 
 */
 
+
+
 //******************************************************************************
 ElectronOrbitals::ElectronOrbitals(int in_z, int in_a, int in_ngp, double rmin,
   double rmax, double var_alpha)
@@ -243,7 +245,7 @@ int ElectronOrbitals::solveInitialCore(int log_dele_or)
 /*
 Solves the Dirac eqn for each state in the core
 Only for local potential (direct part)
-HF_hartreeFock.cpp has routines for Hartree Fock
+HartreeFockClass.cpp has routines for Hartree Fock
 */
 {
   for(size_t i=0; i<num_core_shell.size(); i++){
@@ -796,6 +798,18 @@ https://www.gnu.org/software/gsl/manual/html_node/Complete-Fermi_002dDirac-Integ
   return 0;
 }
 
+//******************************************************************************
+std::string ElectronOrbitals::seTermSymbol(int ink)
+{
+  std::string ostring =
+  std::to_string(nlist[ink])+ATI::l_symbol(ATI::l_k(kappa[ink]))
+  +"_{"+std::to_string(ATI::twoj_k(kappa[ink]))+"/2}";
+
+  //, bool full
+  //later, if full==true, return (2S+1)L_J..
+
+  return ostring;
+}
 
 //------------------------------------------------------------------------------
 int ElectronOrbitals::sortedEnergyList(std::vector<int> &sort_list)

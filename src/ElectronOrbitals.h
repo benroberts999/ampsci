@@ -52,6 +52,8 @@ class ElectronOrbitals{
     //double var_alpha; // like this?
     double get_alpha() const;
 
+    std::string seTermSymbol(int ink);
+
     int solveLocalDirac(int n, int k, double en_a=0, int log_dele_or=0);
     int reSolveDirac(int i, double e_a=0, int log_dele_or=0);
     int reSolveDirac(int i, double e_a, const std::vector<double> &vex,

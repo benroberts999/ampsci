@@ -10,9 +10,7 @@
 Calculates self-consistent Hartree-Fock potential, including exchange.
 Solves all core and valence states.
 
-//XXX Have option to give a list of valence states!
-// Can solve them to some degree in parallel
-//Requires re-writing the valence part (a little)
+//XXX To-do notes int header
 
 */
 
@@ -91,7 +89,7 @@ void HartreeFock::hartree_fock_core(ElectronOrbitals &wf){
       //t_eps: weighted average of (de)/e for each orbital:
       double sfac = 2.*wf.kappa[i]*wf.occ_frac[i]; //|2k|=2j+1
       t_eps += fabs(sfac*(wf.en[i]-en_old[i])/en_old[i]);
-    }
+    }//core states
     t_eps /= (wf.num_core_electrons*eta);
 
     //Force all core orbitals to be orthogonal to each other
@@ -100,7 +98,7 @@ void HartreeFock::hartree_fock_core(ElectronOrbitals &wf){
     printf("\rHF core        it:%3i eps=%6.1e              ",hits,t_eps);
     std::cout<<std::flush;
     if(t_eps<m_eps_HF && hits>2) break;
-  }
+  }//hits
   std::cout<<"\n";
 
   //Now, re-solve core orbitals with higher precission
