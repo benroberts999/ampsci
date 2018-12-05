@@ -23,7 +23,6 @@ rmax is final point in grid (au). ~100 for valence, ~50 for core is typical.
 
 *2
 Green: put '0' to use Hartree Fock, 1 to use Green (parametric potential).
-or -1 to use Hartree (no Exch)
 Hartree is a better method, but takes longer (for large grids)
 H and d are input parameters.
 Seems to work well enough for Xe core states:

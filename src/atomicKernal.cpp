@@ -3,7 +3,7 @@
 #include "ContinuumOrbitals.h"
 #include "ATI_atomInfo.h"
 #include "PRM_parametricPotentials.h"
-#include "HF_hartreeFock.h"
+#include "HartreeFockClass.h"
 #include "FPC_physicalConstants.h"
 #include "ChronoTimer.h"
 #include "ExponentialGrid.h"
@@ -54,9 +54,7 @@ int main(void){
     ifs >> label;                 getline(ifs,jnk);
     ifs.close();
   }
-  bool noExch = false;
   if(Gf<0){
-    noExch = true;
     Gf = 0;
   }
 
@@ -93,11 +91,11 @@ int main(void){
   if(Z==0) return 2;
   if(A==-1) A=ATI::A[Z]; //if none given, get default A
 
-  //Zeff: only for testing!
-  bool use_Zeff = false; // XXX Make sure set to false!
-  double en_zef = -43.;
-  int n_zef = 3;
-  double Zeff = n_zef*sqrt(-2.*en_zef);
+  // //Zeff: only for testing!
+  // bool use_Zeff = false; // XXX Make sure set to false!
+  // double en_zef = -43.;
+  // int n_zef = 3;
+  // double Zeff = n_zef*sqrt(-2.*en_zef);
 
   //outut file name (excluding extension):
   std::string fname = "ak-"+Z_str+"_"+label;
@@ -113,7 +111,6 @@ int main(void){
     Z_str.c_str(),Z,A);
   printf("*************************************************\n");
   if(Gf!=0) printf("Using Green potential: H=%.4f  d=%.4f\n",Gh,Gd);
-  else if(noExch)printf("Using Hartree pot. (converge to %.0e)\n",hart_del);
   else printf("Using Hartree Fock (converge to %.0e)\n",hart_del);
 
   //Generate the orbitals object:
@@ -140,13 +137,12 @@ int main(void){
     return 1;
   }
 
-  if(use_Zeff){
-    std::cout<<"Sorry, Zeff no longer an option\n";
-    return 1;
-  }else if(Gf==0){
-    //use Hartree method:
-    if(noExch) HF::hartreeCore(wf,hart_del); //only for tests
-    else       HF::hartreeFockCore(wf,hart_del);
+  // if(use_Zeff){
+  //   std::cout<<"Sorry, Zeff no longer an option\n";
+  //   return 1;
+  // }else
+  if(Gf==0){
+    HartreeFock hf(wf,hart_del);
   }else{
     //Use Green (local parametric) potential
     //Fill the electron part of the (local/direct) potential
@@ -220,8 +216,8 @@ int main(void){
       int l = ATI::l_k(k); //XXX check this!
       if(l>max_l) continue;
       if(plane_wave) AKF::calculateKpw_nk(wf,is,dE,jLqr_f[l],AK[ide][is]);
-      else if(use_Zeff)
-        AKF::calculateK_nk(wf,is,max_L,dE,jLqr_f,AK[ide][is],Zeff);
+      // else if(use_Zeff)
+      //   AKF::calculateK_nk(wf,is,max_L,dE,jLqr_f,AK[ide][is],Zeff);
       else AKF::calculateK_nk(wf,is,max_L,dE,jLqr_f,AK[ide][is]);
     }// END loop over bound states
   }

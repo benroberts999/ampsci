@@ -1,5 +1,5 @@
 #include "ElectronOrbitals.h"
-#include "HF_hartreeFock.h"
+#include "HartreeFockClass.h"
 #include "INT_quadratureIntegration.h"
 #include "PRM_parametricPotentials.h"
 #include "FPC_physicalConstants.h"
@@ -20,8 +20,7 @@ int main(void){
   double r0,rmax;
   int ngp;
   double varalpha,varalpha2;
-  double eps_hart;
-  int iHF;
+  double eps_HF;
 
   int n_max,l_max;
   std::string str_core;
@@ -35,13 +34,11 @@ int main(void){
     ifs >> Z_str >> A;            getline(ifs,jnk);
     ifs >> str_core;              getline(ifs,jnk);
     ifs >> r0 >> rmax >> ngp;     getline(ifs,jnk);
-    ifs >> iHF >> eps_hart;       getline(ifs,jnk);
+    ifs >> eps_HF;                getline(ifs,jnk);
     ifs >> n_max >> l_max;        getline(ifs,jnk);
     ifs >> varalpha2;             getline(ifs,jnk);
     ifs.close();
   }
-  bool doHF = true;
-  if(iHF==0) doHF = false;
 
   //Change varAlph^2 to varalph
   if(varalpha2==0) varalpha2 = 1.e-10;
@@ -51,8 +48,7 @@ int main(void){
   if(Z==0) return 2;
   if(A==-1) A=ATI::A[Z]; //if none given, get default A
 
-  if(!doHF) printf("\nRunning HARTREE for %s, Z=%i A=%i\n",Z_str.c_str(),Z,A);
-  else printf("\nRunning HARTREE FOCK for %s, Z=%i A=%i\n",Z_str.c_str(),Z,A);
+  printf("\nRunning HARTREE FOCK for %s, Z=%i A=%i\n",Z_str.c_str(),Z,A);
   printf("*************************************************\n");
 
   //Generate the orbitals object:
@@ -71,8 +67,8 @@ int main(void){
 
   sw.start();
   //Solve Hartree equations for the core:
-  if(doHF) HF::hartreeFockCore(wf,eps_hart);
-  else     HF::hartreeCore(wf,eps_hart);
+  HartreeFock hf(wf,eps_HF);//does core
+  double core_energy = hf.calculateCoreEnergy(wf);
   std::cout<<"core: "<<sw.lap_reading_str()<<"\n";
 
   //Make a list of valence states to solve:
@@ -95,13 +91,9 @@ int main(void){
   for(uint i=0; i<lst.size(); i++){
     int n = lst[i][0];
     int k = lst[i][1];
-    if(doHF) HF::hartreeFockValence(wf,n,k,eps_hart);
-    else{
-      //double en_g = wf.enGuessVal(n,k);
-      wf.solveLocalDirac(n,k,0,15);
-    }
+    hf.solveValence(wf,n,k);
   }
-  std::cout<<"Valence: "<<sw.lap_reading_str()<<"\n";
+  if(lst.size()>0) std::cout<<"Valence: "<<sw.lap_reading_str()<<"\n";
 
   //make list of energy indices in sorted order:
   std::vector<int> sort_list;
@@ -109,16 +101,15 @@ int main(void){
 
   //Output results:
   printf("\nCore: %s, Z=%i A=%i\n",Z_str.c_str(),Z,A);
-  printf(" n l_j    k Rinf its    eps      En (au)        En (/cm)\n");
+  printf("     n l_j    k   Rinf its    eps       En (au)      En (/cm)\n");
   bool val=false; double en_lim=0;
   for(size_t m=0; m<sort_list.size(); m++){
     int i = sort_list[m];
     if((int)m==wf.num_core_states){
       en_lim = fabs(wf.en[i]);
       val = true;
-      std::cout<<" ========= Valence: ======\n";
-      printf(
-      " n l_j    k Rinf its    eps      En (au)        En (/cm)   En (/cm)\n");
+      std::cout<<"Valence: \n";
+      printf("     n l_j    k   Rinf its    eps       En (au)      En (/cm)   En (/cm)\n");
     }
     int n=wf.nlist[i];
     int k=wf.kappa[i];
@@ -126,12 +117,14 @@ int main(void){
     int l = ATI::l_k(k);
     double rinf = wf.r[wf.pinflist[i]];
     double eni = wf.en[i];
-    printf("%2i %s_%i/2 %2i  %3.0f %3i  %5.0e  %11.5f %15.3f",
-        n,ATI::l_symbol(l).c_str(),twoj,k,rinf,wf.itslist[i],wf.epslist[i],
+    printf("%2li) %2i %s_%i/2 %2i  %5.1f %3i  %5.0e %13.7f %13.1f",
+        m,n,ATI::l_symbol(l).c_str(),twoj,k,rinf,wf.itslist[i],wf.epslist[i],
         eni, eni*FPC::Hartree_invcm);
     if(val)printf(" %10.2f\n",(eni+en_lim)*FPC::Hartree_invcm);
     //else std::cout<<" /eng="<<wf.enGuessCore(n,l)<<"\n";
     else std::cout<<"\n";
+    if((int)m==wf.num_core_states-1)
+      printf("E_core = %.2f au\n",core_energy);
   }
 
   std::cout<<"\n Total time: "<<sw.reading_str()<<"\n";
@@ -165,8 +158,7 @@ int main(void){
     std::ofstream of("hf-orbitals.txt");
     of<<"r ";
     for(size_t a=0; a<wf.nlist.size(); a++){
-      of<<"\""<<wf.nlist[a]<<ATI::l_k(wf.kappa[a])<<"_"
-      <<ATI::twoj_k(wf.kappa[a])<<"/2\" ";
+      of<<"\""<<wf.seTermSymbol(a)<<"\" ";
     }
     of<<"\n";
     for(int i=0; i<wf.ngp; i++){

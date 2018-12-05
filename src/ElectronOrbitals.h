@@ -52,6 +52,8 @@ class ElectronOrbitals{
     //double var_alpha; // like this?
     double get_alpha() const;
 
+    std::string seTermSymbol(int ink);
+
     int solveLocalDirac(int n, int k, double en_a=0, int log_dele_or=0);
     int reSolveDirac(int i, double e_a=0, int log_dele_or=0);
     int reSolveDirac(int i, double e_a, const std::vector<double> &vex,
@@ -69,6 +71,7 @@ class ElectronOrbitals{
     int maxCore_n(void);
 
     void orthonormaliseOrbitals(int num_its=1);
+    void orthonormaliseCoreValence(int iv, int num_its=1);
     void orthonormaliseValence(int num_its=1);
 
     int sortedEnergyList(std::vector<int> &sort_list);

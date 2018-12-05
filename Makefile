@@ -57,7 +57,7 @@ BASE = $(addprefix $(OD)/, \
 )
 
 HF = $(addprefix $(OD)/, \
- HF_hartreeFock.o PRM_parametricPotentials.o WIG_369j.o \
+ HartreeFockClass.o PRM_parametricPotentials.o WIG_369j.o \
 )
 
 CNTM = $(addprefix $(OD)/, \
