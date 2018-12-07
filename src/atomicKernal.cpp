@@ -58,8 +58,8 @@ int main(void){
     Gf = 0;
   }
 
-  bool plane_wave = false;
-  if(max_L<0) plane_wave = true;
+  // If L<0, will use plane-waves (instead of cntm fns)
+  bool plane_wave = (max_L<0) ? true : false;
 
   //default Hartree convergance goal:
   if(hart_del==0) hart_del=1.e-6;
@@ -75,7 +75,7 @@ int main(void){
   if(max_l<0 || max_l>3) max_l=3; //default: all core states (no >f)
   if(plane_wave) max_L = max_l; //for spherical bessel.
 
-  //alpha can't be zero:
+  //alpha can't be zero, just make v. small
   if(varalpha==0) varalpha=1.e-25;
 
   //Convert units for input q and dE range into atomic units
@@ -91,20 +91,12 @@ int main(void){
   if(Z==0) return 2;
   if(A==-1) A=ATI::A[Z]; //if none given, get default A
 
-  // //Zeff: only for testing!
-  // bool use_Zeff = false; // XXX Make sure set to false!
-  // double en_zef = -43.;
-  // int n_zef = 3;
-  // double Zeff = n_zef*sqrt(-2.*en_zef);
-
   //outut file name (excluding extension):
   std::string fname = "ak-"+Z_str+"_"+label;
 
-  //What to output?
-  bool text_out = true;
-  bool bin_out  = false;
-  if(iout_format==1) text_out = false;
-  if(iout_format>0)  bin_out  = true;
+  //Write out as text and/or binary file
+  bool text_out = (iout_format==1)? false : true;
+  bool bin_out  = (iout_format>0) ? true : false;
 
   //Print some info to screen:
   printf("\nRunning Atomic Kernal for %s, Z=%i A=%i\n",
@@ -115,6 +107,9 @@ int main(void){
 
   //Generate the orbitals object:
   ElectronOrbitals wf(Z,A,ngp,r0,rmax,varalpha);
+
+  //Make sure h (large-r step size) is small enough to
+  //calculate (normalise) cntm functions with energy = demax
   double h_target = (M_PI/20.)/sqrt(2.*demax);
   if(wf.h > h_target){
     int old_ngp = ngp;
@@ -125,7 +120,7 @@ int main(void){
     std::cout<<"Updateing ngp: "<<old_ngp<<" --> "<<ngp<<"\n";
   }
   printf("Grid: pts=%i h=%6.4f r0=%.0e Rmax=%5.1f\n",wf.ngp,wf.h,wf.r[0]
-         ,wf.r[wf.ngp-1]);
+    ,wf.r[wf.ngp-1]);
 
   //If non-zero A is given, use spherical nucleus.
   if(A>0) wf.sphericalNucleus();
@@ -137,10 +132,7 @@ int main(void){
     return 1;
   }
 
-  // if(use_Zeff){
-  //   std::cout<<"Sorry, Zeff no longer an option\n";
-  //   return 1;
-  // }else
+  //Do Hartree-fock (or parametric potential) for Core
   if(Gf==0){
     HartreeFock hf(wf,hart_del);
   }else{
@@ -148,18 +140,16 @@ int main(void){
     //Fill the electron part of the (local/direct) potential
     for(int i=0; i<wf.ngp; i++)
       wf.vdir.push_back(PRM::green(Z,wf.r[i],Gh,Gd));
-    // Solve Dirac equation for each (bound) core state:
-    wf.solveInitialCore();
+    wf.solveInitialCore();//solves w/ Green
   }
 
   //make list of energy indices in sorted order:
-  std::vector<int> sort_list;
-  wf.sortedEnergyList(sort_list);
+  std::vector<int> sorted_by_energy_list;
+  wf.sortedEnergyList(sorted_by_energy_list);
 
   //Output results:
-  printf("\n     n l_j    k Rinf its    eps     En (au)     En (/cm)    En (eV)\n");
-  for(size_t m=0; m<sort_list.size(); m++){
-    int i = sort_list[m];
+  printf("\n     n l_j    k Rinf its    eps     En (au)     En (/cm)    En (eV)    Oc.Frac.\n");
+  for(int i : sorted_by_energy_list){
     int n=wf.nlist[i];
     int k=wf.kappa[i];
     int twoj = ATI::twoj_k(k);
@@ -168,8 +158,8 @@ int main(void){
     double eni = wf.en[i];
     double x = wf.occ_frac[i];
     printf("%2i) %2i %s_%i/2 %2i  %3.0f %3i  %5.0e  %11.5f %12.0f %10.2f   (%.2f)\n",
-        i,n,ATI::l_symbol(l).c_str(),twoj,k,rinf,wf.itslist[i],wf.epslist[i],
-        eni, eni*FPC::Hartree_invcm, eni*FPC::Hartree_eV,x);
+      i,n,ATI::l_symbol(l).c_str(),twoj,k,rinf,wf.itslist[i],wf.epslist[i],
+      eni, eni*FPC::Hartree_invcm, eni*FPC::Hartree_eV,x);
   }
 
   //////////////////////////////////////////////////
@@ -180,7 +170,7 @@ int main(void){
   AK.resize(desteps, std::vector< std::vector<float> >
     (num_states, std::vector<float>(qsteps)));
 
-  std::vector<std::string> nklst;
+  std::vector<std::string> nklst;//human-readiable state labels (easy plotting)
 
   //pre-calculate the spherical Bessel function look-up table for efficiency
   std::vector< std::vector< std::vector<float> > > jLqr_f;
@@ -216,8 +206,6 @@ int main(void){
       int l = ATI::l_k(k); //XXX check this!
       if(l>max_l) continue;
       if(plane_wave) AKF::calculateKpw_nk(wf,is,dE,jLqr_f[l],AK[ide][is]);
-      // else if(use_Zeff)
-      //   AKF::calculateK_nk(wf,is,max_L,dE,jLqr_f,AK[ide][is],Zeff);
       else AKF::calculateK_nk(wf,is,max_L,dE,jLqr_f,AK[ide][is]);
     }// END loop over bound states
   }

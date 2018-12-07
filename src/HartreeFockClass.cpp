@@ -25,9 +25,10 @@ HartreeFock::HartreeFock(ElectronOrbitals &wf, double eps_HF)
   m_num_core_states = wf.num_core_states;
 
   //store l, 2j, and "kappa_index" in arrays for faster/easier access
-  for(int i=0; i<wf.num_core_states; i++){
-    twoj_list.push_back(ATI::twoj_k(wf.kappa[i]));
-    kappa_index_list.push_back(index_from_kappa(wf.kappa[i]));
+  // for(int i=0; i<wf.num_core_states; i++){
+  for(int kappa : wf.kappa){
+    twoj_list.push_back(ATI::twoj_k(kappa));
+    kappa_index_list.push_back(index_from_kappa(kappa));
   }
 
   //Run HF for all core states
@@ -123,8 +124,6 @@ void HartreeFock::solveValence(ElectronOrbitals &wf, int n, int kappa)
   int a = wf.nlist.size() - 1; //index of this valence state
   int twoJplus1 = ATI::twoj_k(kappa)+1; //av. over REL configs
   wf.occ_frac.push_back(1./twoJplus1);
-
-
 
   double eta1=0.35;
   double eta2=0.7; //this value after 4 its
@@ -438,6 +437,7 @@ v^k_ab(rn) = A(rn)/rn^(k+1) + B(rn)*rn^k
 void HartreeFock::form_vbb0(const ElectronOrbitals &wf)
 /*
 When doing Hartree (no exchange) only need v^0_bb
+Don't call this as well as form_vabk_core, not needed (won't break though)
 */
 {
   for(int b=0; b<wf.num_core_states; b++)
@@ -461,9 +461,9 @@ Note: only for core-core states! (for now?)
       for(int k=kmin; k<=kmax; k++){
         if(get_Lambda_abk(a,b,k)==0) continue;
         calculate_v_abk(wf,a,b,k,m_arr_v_abk_r[a][b][k-kmin]);
-      }
-    }
-  }
+      }//k
+    }//b
+  }//a
 }
 
 //******************************************************************************
@@ -474,7 +474,6 @@ functions v^k_wb for a single (given) valence state (w=valence, b=core).
 Stores in m_arr_v_abk_r
 */
 {
-  //
   #pragma omp parallel for
   for(int b=0; b<m_num_core_states; b++){
     int kmin = abs(twoj_list[w] - twoj_list[b])/2;
@@ -482,9 +481,8 @@ Stores in m_arr_v_abk_r
     for(int k=kmin; k<=kmax; k++){
       if(get_Lambda_abk(w,b,k)==0) continue;
       calculate_v_abk(wf,w,b,k,m_arr_v_abk_r[w][b][k-kmin]);
-    }
-  }
-
+    }//k
+  }//b
 }
 
 //******************************************************************************

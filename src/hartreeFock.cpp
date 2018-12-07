@@ -65,13 +65,15 @@ int main(void){
     return 1;
   }
 
-  sw.start();
+  sw.start(); //start the timer
   //Solve Hartree equations for the core:
   HartreeFock hf(wf,eps_HF);//does core
   double core_energy = hf.calculateCoreEnergy(wf);
   std::cout<<"core: "<<sw.lap_reading_str()<<"\n";
 
   //Make a list of valence states to solve:
+  //Goes from n=0 -> n_max (inclusive), same for l
+  //Adds any state to 'list to calculate' that isn't already in core
   std::vector< std::vector<int> > lst;
   for(int n=0; n<=n_max; n++){
     for(int l=0; l<n; l++){
@@ -88,24 +90,23 @@ int main(void){
   }
   //Solve for the valence states:
   sw.start();
-  for(uint i=0; i<lst.size(); i++){
-    int n = lst[i][0];
-    int k = lst[i][1];
+  for(const auto &nk : lst){
+    int n = nk[0];
+    int k = nk[1];
     hf.solveValence(wf,n,k);
   }
   if(lst.size()>0) std::cout<<"Valence: "<<sw.lap_reading_str()<<"\n";
 
   //make list of energy indices in sorted order:
-  std::vector<int> sort_list;
-  wf.sortedEnergyList(sort_list);
+  std::vector<int> sorted_by_energy_list;
+  wf.sortedEnergyList(sorted_by_energy_list);
 
   //Output results:
   printf("\nCore: %s, Z=%i A=%i\n",Z_str.c_str(),Z,A);
   printf("     n l_j    k   Rinf its    eps       En (au)      En (/cm)\n");
   bool val=false; double en_lim=0;
-  for(size_t m=0; m<sort_list.size(); m++){
-    int i = sort_list[m];
-    if((int)m==wf.num_core_states){
+  for(int i : sorted_by_energy_list){
+    if(i==wf.num_core_states){
       en_lim = fabs(wf.en[i]);
       val = true;
       std::cout<<"Valence: \n";
@@ -117,13 +118,12 @@ int main(void){
     int l = ATI::l_k(k);
     double rinf = wf.r[wf.pinflist[i]];
     double eni = wf.en[i];
-    printf("%2li) %2i %s_%i/2 %2i  %5.1f %3i  %5.0e %13.7f %13.1f",
-        m,n,ATI::l_symbol(l).c_str(),twoj,k,rinf,wf.itslist[i],wf.epslist[i],
+    printf("%2i) %2i %s_%i/2 %2i  %5.1f %3i  %5.0e %13.7f %13.1f",
+        i,n,ATI::l_symbol(l).c_str(),twoj,k,rinf,wf.itslist[i],wf.epslist[i],
         eni, eni*FPC::Hartree_invcm);
     if(val)printf(" %10.2f\n",(eni+en_lim)*FPC::Hartree_invcm);
-    //else std::cout<<" /eng="<<wf.enGuessCore(n,l)<<"\n";
     else std::cout<<"\n";
-    if((int)m==wf.num_core_states-1)
+    if(i==wf.num_core_states-1)
       printf("E_core = %.2f au\n",core_energy);
   }
 

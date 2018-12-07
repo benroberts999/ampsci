@@ -48,17 +48,17 @@ double g(double s, double x)
 /*
 DM Form factors, simplified for ultra-light, and ultra-heavy cases
 */
-double F_chi_2_heavy(double mu, double q)
+double F_chi_2_heavy(double , double )
 //Limit of heavy mediatior (mu >> q)
 {
-  (void)mu;
-  (void)q;
+  // (void)mu;
+  // (void)q;
   return 1;
 }
-double F_chi_2_light(double mu, double q)
+double F_chi_2_light(double , double q)
 //Limit of light mediatior (mu << q)
 {
-  (void)mu;
+  //(void)mu;
   return 1./(q*q*q*q);
 }
 double F_chi_2_intermediate(double mu, double q){
