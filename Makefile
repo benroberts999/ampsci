@@ -6,7 +6,7 @@ XD =.
 
 OPT=-Ofast
 OMP=-fopenmp
-WARN=-Wall -Wextra -Wpedantic
+WARN=-Wpedantic -Wall -Wextra
 
 CXX=g++
 CXXFLAGS=-I$(ID) -std=c++11 $(OPT) $(OMP) $(WARN)

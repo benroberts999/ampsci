@@ -68,7 +68,7 @@ int main(void){
   sw.start(); //start the timer
   //Solve Hartree equations for the core:
   HartreeFock hf(wf,eps_HF);//does core
-  double core_energy = hf.calculateCoreEnergy(wf);
+  double core_energy = hf.calculateCoreEnergy();
   std::cout<<"core: "<<sw.lap_reading_str()<<"\n";
 
   //Make a list of valence states to solve:
@@ -93,7 +93,7 @@ int main(void){
   for(const auto &nk : lst){
     int n = nk[0];
     int k = nk[1];
-    hf.solveValence(wf,n,k);
+    hf.solveValence(n,k);
   }
   if(lst.size()>0) std::cout<<"Valence: "<<sw.lap_reading_str()<<"\n";
 

@@ -9,6 +9,9 @@ Solves all core and valence states.
 // Can solve them to some degree in parallel
 //Requires re-writing the valence part (a little)
 
+//XXX Re-do the 'orthogonalise valence' part. Need val-val?
+//Can just do once! How much does this change wfs?
+
 //XXX Probably better NOT to call "solveCore" automatically!
 //XXX ALSO: store a POINTER to EO wf object - so I don't need to keep
 //passing it around!
@@ -31,11 +34,13 @@ class HartreeFock{
 
     HartreeFock(ElectronOrbitals &wf, double eps_HF = 1.e-8);
 
-    void solveValence(ElectronOrbitals &wf, int n, int kappa);
+    void solveValence(int n, int kappa);
 
-    double calculateCoreEnergy(const ElectronOrbitals &wf);
+    double calculateCoreEnergy();
 
   private:
+
+    ElectronOrbitals* p_wf = NULL;
 
     double m_eps_HF = 1.e-8;
 
@@ -56,8 +61,8 @@ class HartreeFock{
 
   private:
 
-    void hartree_fock_core(ElectronOrbitals &wf);
-    void starting_approx_core(ElectronOrbitals &wf);
+    void hartree_fock_core();
+    void starting_approx_core();
 
     void form_core_Lambda_abk(const std::vector<int> &kappa);
     void extend_Lambda_abk(int kappa_a);
@@ -71,23 +76,20 @@ class HartreeFock{
     int kappa_from_index(int i); //XXX
     int l_from_index(int i) const;
 
-    void form_vabk_core(const ElectronOrbitals &wf);
-    void form_vbb0(const ElectronOrbitals &wf);
-    void calculate_v_abk(const ElectronOrbitals &wf, int a, int b, int k,
+    void form_vabk_core();
+    void form_vbb0();
+    void calculate_v_abk(int a, int b, int k,
       std::vector<double> & vabk);
     std::vector<double>& get_v_aa0(int a);
     std::vector<std::vector<double> >& get_v_abk(int a, int b);
 
-    void form_vabk_valence(const ElectronOrbitals &wf, int w);
+    void form_vabk_valence(int w);
 
-    void form_vdir(std::vector<double> &vdir, const ElectronOrbitals &wf,
-      bool re_scale=false);
+    void form_vdir(std::vector<double> &vdir, bool re_scale=false);
 
-    void form_approx_vex_core(std::vector<std::vector<double> > &vex,
-      const ElectronOrbitals &wf);
+    void form_approx_vex_core(std::vector<std::vector<double> > &vex);
 
-    void form_approx_vex_a(int a, std::vector<double> &vex_a,
-      const ElectronOrbitals &wf);
+    void form_approx_vex_a(int a, std::vector<double> &vex_a);
 
 
 };
