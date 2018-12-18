@@ -354,27 +354,30 @@ Note: For HF, should never be called after core is frozen!
 }
 
 //******************************************************************************
-void ElectronOrbitals::orthonormaliseCoreValence(int iv, int num_its)
+void ElectronOrbitals::orthonormaliseValence(int iv, int num_its)
 /*
-XXX update! XXX
-Force given valence orbital to be orthogonal to all core orbitals
+Force given valence orbital to be orthogonal to
+  a) all core orbitals
+  b) all _lower_ valence orbitals (lower, by state index)
 After the core is 'frozen', don't touch core orbitals!
 |v> --> |v> - sum_c |c><c|v>
+note: here, c denotes core orbitals + valence orbitals with c<v
 */
 {
-  int Ns_c = num_core_states;
+  if(iv<num_core_states) return;
+  int num_states_below = iv;
 
-  //Calculate the core-valence coeficients <c|v> = A_cv
-  std::vector<double> A_vc(Ns_c);
-  for(int ic=0; ic<Ns_c; ic++){
+  //Calculate the coeficients <c|v> = A_cv
+  std::vector<double> A_vc(num_states_below);
+  for(int ic=0; ic<num_states_below; ic++){
     if(kappa[iv]!=kappa[ic]) continue;
     double fvc = INT::integrate3(f[iv],f[ic],drdt);
     double gvc = INT::integrate3(g[iv],g[ic],drdt);
     A_vc[ic] = h*(fvc+gvc); //no 0.5 here - no double counting
   }
 
-  //Orthogonalise: Core-valence part:
-  for(int ic=0; ic<Ns_c; ic++){
+  //Orthogonalise:
+  for(int ic=0; ic<num_states_below; ic++){
     if(kappa[iv]!=kappa[ic]) continue;
     double Avc = A_vc[ic];
     if(Avc==0) continue; //never?
@@ -384,7 +387,7 @@ After the core is 'frozen', don't touch core orbitals!
     }
   }
 
-  //Re-normalise the orbitals:
+  //Re-normalise the valence orbital:
   double fvv = INT::integrate3(f[iv],f[iv],drdt);
   double gvv = INT::integrate3(g[iv],g[iv],drdt);
   double norm = 1./sqrt(h*(fvv+gvv));
@@ -394,91 +397,9 @@ After the core is 'frozen', don't touch core orbitals!
   }
 
   //If necisary: repeat
-  if(num_its>1) orthonormaliseCoreValence(iv, num_its-1);
+  if(num_its>1) orthonormaliseValence(iv, num_its-1);
 }
 
-//******************************************************************************
-void ElectronOrbitals::orthonormaliseValence(int num_its)
-/*
-Force all valence orbitals to be orthogonal to:
-  a) core orbitals
-  b) other valence orbitals
-After the core is 'frozen', don't touch core orbitals!
-|v> --> |v> - sum_c |c><c|v> - sum_{w!=v} |w><w|v>
-*/
-{
-  int Ns_T = nlist.size();
-  int Ns_c = num_core_states;
-  int Ns_v = Ns_T - Ns_c;
-
-  //Calculate the core-valence coeficients <c|v> = A_cv
-  std::vector< std::vector<double> > A_vc(Ns_v, std::vector<double>(Ns_c));
-  for(int iv=Ns_c; iv<Ns_T; iv++){
-    for(int ic=0; ic<Ns_c; ic++){
-      if(kappa[iv]!=kappa[ic]) continue;
-      double fvc = INT::integrate3(f[iv],f[ic],drdt);
-      double gvc = INT::integrate3(g[iv],g[ic],drdt);
-      A_vc[iv-Ns_c][ic] = h*(fvc+gvc); //no 0.5 here - no double counting
-    }
-  }
-
-  //Calculate the valence-valence coefs, <v|w> [only for w>v]
-  std::vector< std::vector<double> > A_vw(Ns_v, std::vector<double>(Ns_v));
-  for(int iv=Ns_c; iv<Ns_T; iv++){
-    for(int iw=iv+1; iw<Ns_T; iw++){
-      if(kappa[iv]!=kappa[iw]) continue;
-      double fvw = INT::integrate3(f[iv],f[iw],drdt);
-      double gvw = INT::integrate3(g[iv],g[iw],drdt);
-      A_vw[iv-Ns_c][iw-Ns_c] = 0.5*h*(fvw+gvw); //0.5 due to double counting
-    }
-  }
-  //fill in the symmetric v>w part:
-  for(int iw=Ns_c; iw<Ns_T; iw++){
-    for(int iv=iw+1; iv<Ns_T; iv++){
-      if(kappa[iv]!=kappa[iw]) continue;
-      A_vw[iv-Ns_c][iw-Ns_c] = A_vw[iw-Ns_c][iv-Ns_c];
-    }
-  }
-
-  //Orthogonalise:
-  for(int iv=Ns_c; iv<Ns_T; iv++){
-    //Core-valence part:
-    for(int ic=0; ic<Ns_c; ic++){
-      if(kappa[iv]!=kappa[ic]) continue;
-      double Avc = A_vc[iv-Ns_c][ic];
-      if(Avc==0) continue; //never?
-      for(int ir=0; ir<ngp; ir++){
-        f[iv][ir] -= Avc*f[ic][ir];
-        g[iv][ir] -= Avc*g[ic][ir];
-      }
-    }
-    //valence-valence part:
-    for(int iw=Ns_c; iw<Ns_T; iw++){
-      if(iv==iw) continue;
-      if(kappa[iv]!=kappa[iw]) continue;
-      double Avw = A_vw[iv-Ns_c][iw-Ns_c];
-      if(Avw==0) continue; //never?
-      for(int ir=0; ir<ngp; ir++){
-        f[iv][ir] -= Avw*f[iw][ir];
-        g[iv][ir] -= Avw*g[iw][ir];
-      }
-    }
-  }
-
-  //Re-normalise the orbitals:
-  for(int iv=Ns_c; iv<Ns_T; iv++){
-    double fvv = INT::integrate3(f[iv],f[iv],drdt);
-    double gvv = INT::integrate3(g[iv],g[iv],drdt);
-    double norm = 1./sqrt(h*(fvv+gvv));
-    for(int ir=0; ir<ngp; ir++){
-      f[iv][ir] *= norm;
-      g[iv][ir] *= norm;
-    }
-  }
-
-  //If necisary: repeat
-  if(num_its>1) orthonormaliseValence(num_its-1);
-}
 
 //******************************************************************************
 double ElectronOrbitals::enGuessCore(int n, int l)

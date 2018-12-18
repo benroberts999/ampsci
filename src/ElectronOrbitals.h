@@ -71,8 +71,9 @@ class ElectronOrbitals{
     int maxCore_n(void);
 
     void orthonormaliseOrbitals(int num_its=1);
-    void orthonormaliseCoreValence(int iv, int num_its=1);
-    void orthonormaliseValence(int num_its=1);
+    // void orthonormaliseValenceWrtCore(int iv, int num_its=1);
+    void orthonormaliseValence(int iv, int num_its);
+    // void orthonormaliseValence(int num_its=1);
 
     int sortedEnergyList(std::vector<int> &sort_list);
 

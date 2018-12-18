@@ -154,7 +154,7 @@ void HartreeFock::solveValence(int n, int kappa)
     p_wf->reSolveDirac(a,en_new,vexa,1);
     double eps = fabs((p_wf->en[a]-en_old)/(eta*en_old));
     //Force valence states to be orthogonal to each other + to core:
-    // p_wf->orthonormaliseCoreValence(a,1);
+    p_wf->orthonormaliseValence(a,1);
     printf("\rHF val:%2i %2i %2i | %3i eps=%6.1e  en=%11.8f                  "
      ,a,n,kappa,hits,eps,p_wf->en[a]);
     std::cout<<std::flush;
@@ -164,7 +164,7 @@ void HartreeFock::solveValence(int n, int kappa)
 
   //Re-solve w/ higher precission
   p_wf->reSolveDirac(a,p_wf->en[a],vexa,15);
-  p_wf->orthonormaliseValence(2);
+  p_wf->orthonormaliseValence(a,2);
 
 }
 
