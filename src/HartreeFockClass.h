@@ -9,13 +9,6 @@ Solves all core and valence states.
 // Can solve them to some degree in parallel
 //Requires re-writing the valence part (a little)
 
-//XXX Re-do the 'orthogonalise valence' part. Need val-val?
-//Can just do once! How much does this change wfs?
-
-//XXX Probably better NOT to call "solveCore" automatically!
-//XXX ALSO: store a POINTER to EO wf object - so I don't need to keep
-//passing it around!
-
 //XXX Also: add ability to update v^k for single state?
 //Does that work? Maybe not. but then can iterate each core state
 //indevidually. Might be better.

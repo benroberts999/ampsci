@@ -10,7 +10,7 @@
 Calculates self-consistent Hartree-Fock potential, including exchange.
 Solves all core and valence states.
 
-//XXX To-do notes int header
+//NB: To-do notes int header
 
 */
 
