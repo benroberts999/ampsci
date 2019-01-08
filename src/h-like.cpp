@@ -35,7 +35,6 @@ int main(void){
 
   //Generate the orbitals object:
   ElectronOrbitals wf(Z,A,ngp,r0,rmax,varalpha);
-  if(A!=0) wf.sphericalNucleus();
 
   //Solve the Dirac equation for H-like ions:
   for(int n=1; n<=n_max; n++){

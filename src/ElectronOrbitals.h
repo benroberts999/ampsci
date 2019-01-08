@@ -65,8 +65,7 @@ class ElectronOrbitals{
 
     int getRadialIndex(double r_target);
 
-    int determineCore(std::string str_core_in);
-    int solveInitialCore(int log_dele_or=0);
+    int solveInitialCore(std::string str_core_in, int log_dele_or=0);
     bool isInCore(int n, int k);
     int maxCore_n(void);
 
@@ -91,6 +90,9 @@ class ElectronOrbitals{
     std::vector<int> num_core_shell;
 
   private:
+
+    int determineCore(std::string str_core_in);
+
     //Grid
     int exponentialRadialGrid(int ngp_in, double r0, double rmax);
     int zeroNucleus();

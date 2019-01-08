@@ -26,11 +26,14 @@ ElectronOrbitals::ElectronOrbitals(int in_z, int in_a, int in_ngp, double rmin,
   alpha=FPC::alpha*var_alpha;
   num_core_states=0;
 
-  //XXX update this! Make spherical default.
   Z=in_z;
-  if(in_a==0) A=ATI::A[Z]; //Use default atomic mass
-  else A=in_a;
-  zeroNucleus();
+
+  //If in_a -ve, use default atomic mass
+  A = (in_a<0) ? ATI::A[Z] : in_a;
+
+  if(A>0) sphericalNucleus();
+  else    zeroNucleus();
+
 }
 //-----Overloaded---------------------------------------------------------------
 ElectronOrbitals::ElectronOrbitals(std::string s_in_z, int in_a, int in_ngp,
@@ -239,13 +242,20 @@ int ElectronOrbitals::maxCore_n(void)
 }
 
 //******************************************************************************
-int ElectronOrbitals::solveInitialCore(int log_dele_or)
+int ElectronOrbitals::solveInitialCore(std::string str_core, int log_dele_or)
 /*
 Solves the Dirac eqn for each state in the core
 Only for local potential (direct part)
 HartreeFockClass.cpp has routines for Hartree Fock
 */
 {
+
+  int core_ok = determineCore(str_core);
+  if(core_ok==2){
+    std::cout<<"Problem with core: "<<str_core<<"\n";
+    return core_ok;
+  }
+
   for(size_t i=0; i<num_core_shell.size(); i++){
     int num = num_core_shell[i];
     if(num==0) continue;

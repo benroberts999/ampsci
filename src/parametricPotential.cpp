@@ -54,7 +54,6 @@ int main(void){
   if(Gf!=0 && Gh==0) PRM::defaultGreen(Z,Gh,Gd);
   if(Tf!=0 && Tt==0) PRM::defaultTietz(Z,Tt,Tg);
 
-
   printf("\nRunning parametric potential for %s, Z=%i A=%i\n",
     Z_str.c_str(),Z,A);
   printf("*************************************************\n");
@@ -63,16 +62,8 @@ int main(void){
 
   //Generate the orbitals object:
   ElectronOrbitals wf(Z,A,ngp,r0,rmax,varalpha);
-  //if(A!=0) wf.sphericalNucleus();
 
   printf("Grid: pts=%i h=%7.5f Rmax=%5.1f\n",wf.ngp,wf.h,wf.r[wf.ngp-1]);
-
-  //Determine which states are in the core:
-  int core_ok = wf.determineCore(str_core);
-  if(core_ok==2){
-    std::cout<<"Problem with core: "<<str_core<<"\n";
-    return 1;
-  }
 
   //Fill the electron part of the potential
   wf.vdir.resize(wf.ngp);
@@ -84,7 +75,7 @@ int main(void){
   }
 
   //Solve for core states
-  wf.solveInitialCore();
+  wf.solveInitialCore(str_core);
 
   //Calculate the valence (and excited) states
   for(int n=1; n<=n_max; n++){

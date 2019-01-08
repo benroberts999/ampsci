@@ -15,7 +15,8 @@ Solves all core and valence states.
 */
 
 //******************************************************************************
-HartreeFock::HartreeFock(ElectronOrbitals &wf, double eps_HF)
+HartreeFock::HartreeFock(ElectronOrbitals &wf, const std::string &in_core,
+  double eps_HF)
 {
 
   m_eps_HF = eps_HF;
@@ -25,7 +26,7 @@ HartreeFock::HartreeFock(ElectronOrbitals &wf, double eps_HF)
   p_wf = &wf;
   m_ngp = p_wf->ngp;
 
-  starting_approx_core();
+  starting_approx_core(in_core);
   m_num_core_states = p_wf->num_core_states;
 
   //store l, 2j, and "kappa_index" in arrays for faster/easier access
@@ -216,7 +217,7 @@ where:
 }
 
 //******************************************************************************
-void HartreeFock::starting_approx_core()
+void HartreeFock::starting_approx_core(const std::string &in_core)
 /*
 Starting approx for HF. Uses Green parametric
 Later, can put other options if you want.
@@ -231,7 +232,7 @@ Later, can put other options if you want.
   for(int i=0; i<m_ngp; i++)
     p_wf -> vdir[i] = PRM::green(Z,p_wf->r[i],Gh,Gd);
   //First step: Solve each core state using above parameteric potential
-  p_wf -> solveInitialCore(1);//1 in 10
+  p_wf -> solveInitialCore(in_core,1);//1 in 10
 }
 
 //******************************************************************************

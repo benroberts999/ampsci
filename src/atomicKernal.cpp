@@ -122,25 +122,15 @@ int main(void){
   printf("Grid: pts=%i h=%6.4f r0=%.0e Rmax=%5.1f\n",wf.ngp,wf.h,wf.r[0]
     ,wf.r[wf.ngp-1]);
 
-  //If non-zero A is given, use spherical nucleus.
-  if(A>0) wf.sphericalNucleus();
-
-  //Determine which states are in the core:
-  int core_ok = wf.determineCore(str_core);
-  if(core_ok==2){
-    std::cout<<"Problem with core: "<<str_core<<"\n";
-    return 1;
-  }
-
   //Do Hartree-fock (or parametric potential) for Core
   if(Gf==0){
-    HartreeFock hf(wf,hart_del);
+    HartreeFock hf(wf,str_core,hart_del);
   }else{
     //Use Green (local parametric) potential
     //Fill the electron part of the (local/direct) potential
     for(int i=0; i<wf.ngp; i++)
       wf.vdir.push_back(PRM::green(Z,wf.r[i],Gh,Gd));
-    wf.solveInitialCore();//solves w/ Green
+    wf.solveInitialCore(str_core);//solves w/ Green
   }
 
   //make list of energy indices in sorted order:

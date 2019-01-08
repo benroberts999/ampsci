@@ -11,8 +11,8 @@
 
 int main(void){
 
-  ChronoTimer sw; //start the stopwatch
-  sw.start();
+  ChronoTimer timer; //start the stopwatch
+  timer.start();
 
   //Input options
   std::string Z_str;
@@ -53,23 +53,16 @@ int main(void){
 
   //Generate the orbitals object:
   ElectronOrbitals wf(Z,A,ngp,r0,rmax,varalpha);
-  if(A>0) wf.sphericalNucleus();
 
   printf("Grid: pts=%i h=%7.5f r0=%.1e Rmax=%5.1f\n\n"
   ,  wf.ngp,wf.h,wf.r[0],wf.r[wf.ngp-1]);
 
-  //Determine which states are in the core:
-  int core_ok = wf.determineCore(str_core);
-  if(core_ok==2){
-    std::cout<<"Problem with core: "<<str_core<<"\n";
-    return 1;
-  }
+  timer.start(); //start the timer
 
-  sw.start(); //start the timer
   //Solve Hartree equations for the core:
-  HartreeFock hf(wf,eps_HF);//does core
+  HartreeFock hf(wf,str_core,eps_HF);
   double core_energy = hf.calculateCoreEnergy();
-  std::cout<<"core: "<<sw.lap_reading_str()<<"\n";
+  std::cout<<"core: "<<timer.lap_reading_str()<<"\n";
 
   //Make a list of valence states to solve:
   //Goes from n=0 -> n_max (inclusive), same for l
@@ -89,13 +82,13 @@ int main(void){
     }
   }
   //Solve for the valence states:
-  sw.start();
+  timer.start();
   for(const auto &nk : lst){
     int n = nk[0];
     int k = nk[1];
     hf.solveValence(n,k);
   }
-  if(lst.size()>0) std::cout<<"Valence: "<<sw.lap_reading_str()<<"\n";
+  if(lst.size()>0) std::cout<<"Valence: "<<timer.lap_reading_str()<<"\n";
 
   //make list of energy indices in sorted order:
   std::vector<int> sorted_by_energy_list;
@@ -126,7 +119,7 @@ int main(void){
     }
   }
 
-  std::cout<<"\n Total time: "<<sw.reading_str()<<"\n";
+  std::cout<<"\n Total time: "<<timer.reading_str()<<"\n";
 
   bool run_test = false;
   if(run_test){

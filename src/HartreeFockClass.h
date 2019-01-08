@@ -25,7 +25,8 @@ class HartreeFock{
 
   public:
 
-    HartreeFock(ElectronOrbitals &wf, double eps_HF = 1.e-8);
+    HartreeFock(ElectronOrbitals &wf, const std::string &in_core,
+      double eps_HF = 1.e-8);
 
     void solveValence(int n, int kappa);
 
@@ -55,7 +56,7 @@ class HartreeFock{
   private:
 
     void hartree_fock_core();
-    void starting_approx_core();
+    void starting_approx_core(const std::string &in_core);
 
     void form_core_Lambda_abk(const std::vector<int> &kappa);
     void extend_Lambda_abk(int kappa_a);
