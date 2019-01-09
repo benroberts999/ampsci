@@ -14,9 +14,6 @@ class ElectronOrbitals{
     void clearAll();
 
   public:
-    //Atom info:
-    int Z,A;
-    std::string atom;
 
     //orbitals:
     std::vector< std::vector<double> > f;
@@ -49,8 +46,9 @@ class ElectronOrbitals{
 
   public:
 
-    //double var_alpha; // like this?
     double get_alpha() const;
+    int Z() const;
+    int A() const;
 
     std::string seTermSymbol(int ink);
 
@@ -70,9 +68,7 @@ class ElectronOrbitals{
     int maxCore_n(void);
 
     void orthonormaliseOrbitals(int num_its=1);
-    // void orthonormaliseValenceWrtCore(int iv, int num_its=1);
     void orthonormaliseValence(int iv, int num_its);
-    // void orthonormaliseValence(int num_its=1);
 
     int sortedEnergyList(std::vector<int> &sort_list);
 
@@ -85,6 +81,10 @@ class ElectronOrbitals{
 
     //store internal value for alpha (allows variation)
     double alpha;
+
+    //Atom info:
+    int Z_,A_;
+    //std::string atom;
 
     //number of electrons in each core shell (non-rel??)
     std::vector<int> num_core_shell;

@@ -224,8 +224,8 @@ Later, can put other options if you want.
 */
 {
   p_wf -> vdir.resize(m_ngp); //make sure correct size
+  int Z = p_wf -> Z();
   //Get default values for Green potential
-  int Z = p_wf -> Z;
   double Gh,Gd;  //Green potential parameters
   PRM::defaultGreenCore(Z,Gh,Gd);
   //Fill the the potential, using Greens PRM

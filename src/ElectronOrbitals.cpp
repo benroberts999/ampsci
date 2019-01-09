@@ -26,12 +26,12 @@ ElectronOrbitals::ElectronOrbitals(int in_z, int in_a, int in_ngp, double rmin,
   alpha=FPC::alpha*var_alpha;
   num_core_states=0;
 
-  Z=in_z;
+  Z_ = in_z;
 
   //If in_a -ve, use default atomic mass
-  A = (in_a<0) ? ATI::A[Z] : in_a;
+  A_ = (in_a<0) ? ATI::A[Z_] : in_a;
 
-  if(A>0) sphericalNucleus();
+  if(A_>0) sphericalNucleus();
   else    zeroNucleus();
 
 }
@@ -63,7 +63,7 @@ Uses ADAMS::solveDBS to solve Dirac Eqn for local potential (Vnuc + Vdir)
 
   //Solve local dirac Eq:
   if(e_a==0) e_a = enGuessVal(n,k);
-  int i_ret = ADAMS::solveDBS(f_a,g_a,e_a,v_a,Z,n,k,r,drdt,h,ngp,pinf,its,eps,
+  int i_ret = ADAMS::solveDBS(f_a,g_a,e_a,v_a,Z_,n,k,r,drdt,h,ngp,pinf,its,eps,
     alpha,log_dele_or);
   //Store wf + energy
   f.push_back(f_a);
@@ -83,6 +83,14 @@ Uses ADAMS::solveDBS to solve Dirac Eqn for local potential (Vnuc + Vdir)
 //******************************************************************************
 double ElectronOrbitals::get_alpha()const{
   return alpha;
+}
+//******************************************************************************
+int ElectronOrbitals::Z()const{
+  return Z_;
+}
+//******************************************************************************
+int ElectronOrbitals::A()const{
+  return A_;
 }
 
 //******************************************************************************
@@ -120,7 +128,7 @@ This is not ideal..
   int n=nlist[i];
   int k=kappa[i];
   if(e_a==0) e_a = en[i];
-  int i_ret = ADAMS::solveDBS(f[i],g[i],e_a,v_a,Z,n,k,r,drdt,h,ngp,pinf,its,eps,
+  int i_ret = ADAMS::solveDBS(f[i],g[i],e_a,v_a,Z_,n,k,r,drdt,h,ngp,pinf,its,eps,
     alpha,log_dele_or);
   en[i] = e_a; //update w/ new energy
 
@@ -432,9 +440,9 @@ num = num electrons in THIS shell
   }
 
   //effective Z (for energy guess) -- not perfect!
-  double Zeff =  double(Z - tot_el - num);
-  if(l==1) Zeff = 1. + double(Z - tot_el - 0.5*num);
-  if(l==2) Zeff = 1. + double(Z - tot_el - 0.5*num);
+  double Zeff =  double(Z_ - tot_el - num);
+  if(l==1) Zeff = 1. + double(Z_ - tot_el - 0.5*num);
+  if(l==2) Zeff = 1. + double(Z_ - tot_el - 0.5*num);
   if(Zeff<1.) Zeff=1.;
 
   double en_a = -0.5 * pow(Zeff/n,2);
@@ -623,7 +631,7 @@ infinitesimal nucleus.
   vnuc.clear(); //just to be sure..
   vnuc.push_back(0); //XXX ??
   for(int i=1; i<ngp; i++)
-    vnuc.push_back(-Z/r[i]);
+    vnuc.push_back(-Z_/r[i]);
   return 0;
 }
 
@@ -642,11 +650,11 @@ See: https://www-nds.iaea.org/radii/
   double rN=rnuc; //nuclear charge radius:
   //Estimate nuclear charge radius. Only for spherical nuclei.
   if(rnuc==0){
-    if(A==1) rN = 0.8783;       // 1-H
-    else if(A==4) rN = 1.6755;  // 4-He
-    else if(A==7) rN = 2.4440;  // 7-Li
-    else if(A<10) rN = 1.15*pow(A,0.333);
-    else rN = (0.836*pow(A,0.333)+0.570);
+    if(A_==1) rN = 0.8783;       // 1-H
+    else if(A_==4) rN = 1.6755;  // 4-He
+    else if(A_==7) rN = 2.4440;  // 7-Li
+    else if(A_<10) rN = 1.15*pow(A_,0.333);
+    else rN = (0.836*pow(A_,0.333)+0.570);
   }
   rN/=FPC::aB_fm;
   // XXX Add data tables of nuclear radii!
@@ -658,10 +666,10 @@ See: https://www-nds.iaea.org/radii/
   for(int i=1; i<ngp; i++){
     double temp_v;
     double ri = r[i];
-    if(ri<rN) temp_v = Z*(pow(ri,2)-3.*rn2)/(2.*rn3); //XXX 2.*rn3?? check!? XXX
-    else temp_v = -Z/ri;
+    if(ri<rN) temp_v = Z_*(pow(ri,2)-3.*rn2)/(2.*rn3); //XXX 2.*rn3?? check!? XXX
+    else temp_v = -Z_/ri;
     vnuc.push_back(temp_v);
-    //std::cout<<i<<" "<<r[i]<<" "<<rN<<" "<<temp_v<<" "<<-Z/ri<<"\n";
+    //std::cout<<i<<" "<<r[i]<<" "<<rN<<" "<<temp_v<<" "<<-Z_/ri<<"\n";
   }
 
   return 0;
@@ -698,7 +706,7 @@ https://www.gnu.org/software/gsl/manual/html_node/Complete-Fermi_002dDirac-Integ
   vnuc.clear(); // clear the array [just in case..]
 
   if(t==0) t=2.4; // Default skin-thickness (in fm)
-  if(c==0) c=1.1*pow(A,0.3333); //default half-charge radius ????
+  if(c==0) c=1.1*pow(A_,0.3333); //default half-charge radius ????
   // XXX Better approx! +/or data tables!
 
   //std::cout<<c/FPC::aB_fm<<"\n";
@@ -711,7 +719,7 @@ https://www.gnu.org/software/gsl/manual/html_node/Complete-Fermi_002dDirac-Integ
   vnuc.push_back(0); //XXX ??
   for(int i=1; i<ngp; i++){
     double t_r = r[i];
-    double t_v = -Z/t_r;
+    double t_v = -Z_/t_r;
     if(t_r<10.*a){  // XXX OK??
       double roa = FPC::aB_fm*t_r/a; // convert fm <-> atomic
       double coa2= pow(coa,2);
@@ -776,9 +784,9 @@ Just clears all the info.
 */
 {
   //Atom info
-  Z=0;
-  A=0;
-  atom="0";
+  Z_=0;
+  A_=0;
+  //atom="0";
   //orbitals:
   f.clear();
   g.clear();
