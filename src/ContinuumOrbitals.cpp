@@ -112,7 +112,7 @@ continuum (un-bound) states [partial waves].
     if(l<min_l) continue;
     if(l>max_l) break;
     std::vector<double> pc(NGPb),qc(NGPb); //only as long as bound-state grid
-    ADAMS::solveContinuum(pc,qc,ec,vc,Z,k,rc,drdtc,h,NGPb,NGPc,i_asym,alpha);
+    ADAMS::solveContinuum(pc,qc,ec,vc,k,rc,drdtc,h,NGPb,NGPc,i_asym,alpha);
     f.push_back(pc);
     g.push_back(qc);
     en.push_back(ec);
@@ -130,6 +130,8 @@ Solved the Dirac equation for local potential for positive energy (no mc2)
 continuum (un-bound) states [partial waves].
  * Goes well past NGP, looks for asymptotic region, where wf is sinosoidal
  * Uses fit to known exact H-like for normalisation.
+XXX This no longer works! (well, it still works)
+On irder to solve for Zeff, just make v use Zeff !!!!!!!
 */
 {
   //Find 'inital guess' for asymptotic region:
@@ -181,7 +183,7 @@ continuum (un-bound) states [partial waves].
     if(l<min_l) continue;
     if(l>max_l) break;
     std::vector<double> pc(NGPb),qc(NGPb); //only as long as bound-state grid
-    ADAMS::solveContinuum(pc,qc,ec,vc,Zeff,k,rc,drdtc,h,NGPb,NGPc,i_asym,alpha);
+    ADAMS::solveContinuum(pc,qc,ec,vc,k,rc,drdtc,h,NGPb,NGPc,i_asym,alpha);
     f.push_back(pc);
     g.push_back(qc);
     en.push_back(ec);

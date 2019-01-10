@@ -23,7 +23,7 @@ Also, need at least ~10 points per half-period. More points for higher energy!
 
 //******************************************************************************
 int solveContinuum(std::vector<double> &p, std::vector<double> &q, double ec,
-    const std::vector<double> &v, double Z, int ka,
+    const std::vector<double> &v, int ka,
     const std::vector<double> &rc, const std::vector<double> &drdt, double h,
     int NGPb, int NGPc, int i_asym,
     double alpha)
@@ -39,7 +39,7 @@ NGPc is grid for continuum (only for solving). NGPc >> NGPb
 
   //Perform the "outwards integration"
   std::vector<double> pc(NGPc),qc(NGPc);
-  outwardAM(pc,qc,ec,v,Z,ka,rc,drdt,h,NGPc,NGPc-1,alpha);
+  outwardAM(pc,qc,ec,v,ka,rc,drdt,h,NGPc,NGPc-1,alpha);
 
   //Find a better (lower) asymptotic region:
   i_asym = findAsymptoticRegion(pc,rc,NGPb,NGPc,i_asym);

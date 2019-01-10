@@ -14,22 +14,24 @@ Employs the Adams-Moulton method.
 solveDBS is the main routine that is called from elsewhere.
 All other functions called by solveDBS.
 
-=====  To Do  =====
-  * p,q -> f,g! Check the q cancellation! Analytically remove??
-  * Check outint low-r expansion. Works with fns???
-  * Modify for inhomogeneous equation?
+=====  To Do / ISSUES  =====
+  * If not correct number of nodes, will finish without saying anything
+   ... maybe, if not correct nodes, allow program to keep trying!
+  * Seems sensitive to d_ctp when it's lare. Why??
+  * Gets the adams and out coeficients many times!! Not efficient!!
+    (may actually be significant! Allocating memory!)
 
 */
 
 namespace ADAMS{
 
-bool debug=false; //if true, will print progress messages.
+const bool debug=false; //if true, will print progress messages.
 //parameter: Adams-Moulton ''order'' (number of points)
 
 //******************************************************************************
 int solveDBS(std::vector<double> &f, std::vector<double> &g, double &en,
-    const std::vector<double> &v, double Z, int n, int ka,
-    const std::vector<double> &r, const std::vector<double> &drdt, double h, int NGP,
+    const std::vector<double> &v, int n, int ka,
+    const std::vector<double> &r, const std::vector<double> &drdt, double h,
     int &pinf, int &its, double &eps, double alpha, int log_dele_or)
 /*
 Solves local, spherical bound state dirac equation using Adams-Moulton method.
@@ -75,18 +77,15 @@ an error.
 */
 {
   //Parameters. Put somwhere else?
-  double delep=1e-15; //PRIMARY convergence parameter [energy] (10^-11)
-  double deles=1e-6; //SECONDAY convergence parameter [energy]	(X)
-  const int ntry=32;        // Max # attempts at converging [sove bs] (30)
-  const double alr=800;     // ''assymptotically large r [kinda..]''  (=800)
-  const double lde=0.3;     // 'large' energy variations (0.1 => 10%)
-  const int d_ctp=5;        //Num points past ctp +/- d_ctp.
 
-  if(log_dele_or>0){
-    delep=1./pow(10,log_dele_or);
-    deles=1000*delep;
-    if(deles>0.1) deles = 0.1;
-  }
+  const int max_its=32;        // Max # attempts at converging [sove bs] (30)
+  const double alr=800;     // ''assymptotically large r [kinda..]''  (=800)
+  const double lfrac_de=0.3;     // 'large' energy variations (0.1 => 10%)
+  const int d_ctp=3;        //Num points past ctp +/- d_ctp.
+  int NGP = (int) r.size();
+
+  double delep=1e-15; //Default convergence parameter [energy] (10^-11)
+  if(log_dele_or>0) delep=1./pow(10,log_dele_or);
 
   //Checks to see if legal n is requested.
   if ( (abs(ka)<=n) && (ka!=n) ){
@@ -97,199 +96,53 @@ an error.
   }
 
   // Find 'l' from 'kappa' (ang. momentum Q number)
-  // This is used to calculate number of nodes wf should have
-  int ll;   //L ang. mom QN
-  if (ka>0) ll=ka;
-  else ll=-ka-1;
+  int l = (ka>0)? ka : -ka-1;
+
   //Number of nodes wf should have:
-  int inodes=n-ll-1;
+  int required_nodes = n-l-1;
 
   //Some parameters used by the Adams Moulton method:
-  int more=0,less=0;          //params for checking nodes
-  double eupper=0,elower=0;   //params for """ and varying energy
-  double anorm=0;             // normalisation constant
-  int ctp=-1;                 //classical turning point
-  bool converged=false;
+  //Number of times there was too many/too few nodes:
+  int more=0,less=0;
+  //Highest/lowest energies tried before correct # of nodes:
+  double eupper=0,elower=0;
+  double anorm=0; // normalisation constant
   double delta_en=0;
-  its=0;            //numer of iterations (for this n,ka)
 
-  bool noCTP = false; //allow miss CTP once
+  //bool noCTP = false; //allow miss CTP once
+  for(its=1; its<max_its; its++){
 
-  while (!converged){
+    // Find the practical infinity 'pinf' [(V(r) - E)*r^2 >  alr]
+    pinf = findPracticalInfinity(en,v,r,alr);
+    //Find classical turning point 'ctp' [V(r) > E ]
+    int ctp = findClassicalTurningPoint(en,v,pinf,d_ctp);
 
-    //Find the practical infinity 'pinf'
-    //Step backwards from the last point (NGP-1) until
-    // (V(r) - E)*r^2 >  alr    (alr = "asymptotically large r")
-    pinf=NGP-1;
-    while((en-v[pinf])*pow(r[pinf],2) + alr < 0) pinf--;
-    if((pinf==NGP-1)&& debug)
-      printf("WARNING: pract. inf. = size of box for %i %i\n",n,ka);
-    if(debug)
-      printf("Practical infinity (i=%i): Pinf=%.1f a.u.\n",pinf,r[pinf]);
-
-    //Find classical turning point 'ctp'
-    //Step backwards from the "practical infinity" until
-    //  V(r) > E        [nb: both V and E are <0]
-    ctp=pinf;
-    while ( (en-v[ctp]) < 0 ){
-      ctp--; //=ctp-1;
-      if (ctp-d_ctp<=0){
-        //fails if ctp<0, (or ctp>pinf?)
-        printf("FAILURE 96 in solveDBS: No classical region?\n");
-        return 1;
-      }
-    }
-    if(ctp+d_ctp>=pinf){
-      //Didn't find ctp! Does this ever happen? Yes, if energy guess too wrong
-      if(debug)printf("FAILURE: Turning point at or after pract. inf. \n");
-      if(debug)printf("ctp=%i, d_ctp=%i, pinf=%i, NGP=%i\n",ctp,d_ctp,pinf,NGP);
-      if(noCTP) return 1;
-      else ctp = pinf - 5*d_ctp;
-    }
-    if(debug) printf("Classical turning point (i=%i): ctp=%.1f a.u.\n",
-                ctp,r[ctp]);
-    if(debug) printf("%i %i: Pinf= %.1f,  en= %f\n",n,ka,r[pinf],en);
-
-    //Temporary vectors for in/out integrations
-    std::vector<double> pin(NGP),qin(NGP),pout(NGP),qout(NGP);
-    //Perform the "inwards integration":
-    inwardAM(pin,qin,en,v,ka,r,drdt,h,NGP,ctp-d_ctp,pinf,alpha);
-    //Perform the "outwards integration"
-    outwardAM(pout,qout,en,v,Z,ka,r,drdt,h,NGP,ctp+d_ctp,alpha);
-
-    //Find the re-scaling factor using a weighted average:
-    double rescale = pout[ctp]/pin[ctp];
-    double denom = 1;
-    for(int i=1; i<=d_ctp; i++){
-      //re-scale from weigted average. Weight = distance from ctp
-      rescale += 0.5*(pout[ctp+i]/pin[ctp+i] + pout[ctp-i]/pin[ctp-i])/(i+1);
-      denom += 1./(i+1);
-    }
-    rescale /= denom;
-    //if(debug) std::cout<<"denom="<<denom<<" rescale="<<rescale<<"\n";
-
-    //re-scale the inward solution to match the outward solution (for P):
-    for(int i=ctp-d_ctp; i<=pinf; i++){
-      pin[i]*=rescale;
-      qin[i]*=rescale;
-    }
-
-    //Join the in and outward solutions. "Meshed" around ctp +/- d_ctp
-    for(int i=0; i<ctp-d_ctp; i++){
-      f[i] = pout[i];
-      g[i] = -1*qout[i];
-    }
-    for(int i=ctp+d_ctp+1; i<=pinf; i++){
-      f[i] = pin[i];
-      g[i] = -1*qin[i];
-    }
-    for(int i=ctp-d_ctp; i<=ctp+d_ctp; i++){
-      //"Mesh" in the intermediate region
-      double B;
-      if(d_ctp==0) B=0.5;
-      else B = (double((i-ctp)+d_ctp))/(2.*d_ctp);
-      double A = 1-B;
-      f[i] = A*pout[i] + B*pin[i];
-      g[i] = -1*(A*qout[i] + B*qin[i]);
-    }
+    // Find solution (f,g) to DE for given energy:
+    // (Inward + outward solutions joined at ctp, merged over ctp+/-d_ctp)
+    // Also stores dg (gout-gin) for PT
+    std::vector<double> dg(2*d_ctp+1); //used for PT to find better e
+    trialDiracSolution(f,g,dg,en,ka,v,r,drdt,h,ctp,d_ctp,pinf,alpha);
 
     //Count the number of nodes (zeros) the wf has.
-    //Just counts the number of times wf changes sign
-    int nozeros=0;
-    double sp=f[1];
-    double spn;
-    for(int i=2; i<pinf; i++){
-      spn=f[i];
-      if (sp*spn<0) nozeros++;
-      if(spn!=0)    sp=spn;
-    }
-    if(debug) printf("Nodes=%i\n",nozeros);
+    int counted_nodes = countNodes(f,pinf);
 
-    //checks to see if there are too many/too few nodes.
-    //Makes large adjustment to energy until in correct region
-    //Then, once in 'correct' region, uses perturbation theory to make small
-    // changes to the energy
-    double etemp;
-    if(nozeros>inodes){
-      //Too many nodes:
-      more++;
-      if((more==1)||(en<eupper)) eupper=en;
-      etemp=(1+lde)*en;
-      if((less!=0)&&(etemp<elower)) etemp=0.5*(eupper+elower);
-      delta_en=fabs((en-etemp)/en);
-      en=etemp;
-    }else if (nozeros<inodes){
-      //too few nodes:
-      less++;
-      if((less==1)||(en>elower)) elower=en;
-      etemp=(1-lde)*en;
-      if((more!=0)&&(etemp>eupper)) etemp=0.5*(eupper+elower);
-      delta_en=fabs((en-etemp)/en);
-      en=etemp;
+    //If correct number of nodes, use PT to make minor energy adjustment.
+    //Otherwise, make large adjustmunt until correct # of nodes
+    bool correct_nodes = false;
+    if(counted_nodes==required_nodes){
+      correct_nodes = true;
+      //do PT, AND find norm const:
+      delta_en = smallEnergyChangePT(anorm,en,f,g,dg,pinf,ctp,d_ctp,alpha,
+                  drdt,h,less,more,elower,eupper);
     }else{
-      // correct number of nodes.
-      //From here, use perturbation theory to fine-time the energy
-      if(debug) printf("Correct number of nodes, starting P.T.\n");
-      double anormF = INT::integrate3(f,f,drdt,h,0,pinf);
-      double anormG = INT::integrate3(g,g,drdt,h,0,pinf);
-      anorm = anormF + anormG;
-      if(debug) printf("anrom=%.5f\n",anorm);
-      //Use perturbation theory to work out delta En
-      // delta E = c*P(r)*[Qin(r)-Qout(r)]
-      // nb: wf not yet normalised!
-      double p_del_q = f[ctp]*(qin[ctp]-qout[ctp]);
-      double denom=1;
-      //weighted average around ctp:
-      for(int i=1; i<=d_ctp; i++){
-        p_del_q += 0.5*(
-                    f[ctp+i]*(qin[ctp+i]-qout[ctp+i]) +
-                    f[ctp-i]*(qin[ctp-i]-qout[ctp-i])
-                  )/(i+1.);
-        denom += 1./(i+1.);
-      }
-      p_del_q /= denom;
-      double de=  (1./alpha) * p_del_q / anorm ;
-      delta_en=fabs(de/en);
-      etemp = en + de;
-      if(debug) printf("de=%.3e, en=%.5f, et=%.5f, el=%.5f, e=%.5f\n",
-                de,en,etemp,elower,eupper);
-      if((less!=0)&&(etemp<elower)){
-        delta_en=fabs((en-0.5*(en+elower))/en);
-        en=0.5*(en+elower);
-      }else if((more!=0)&&(etemp>eupper)){
-        delta_en=fabs((en-0.5*(en+eupper))/en);
-        en=0.5*(en+eupper);
-      }else if(delta_en<delep){
-        en=etemp;
-        eps=delta_en;
-        converged=true;
-      }else{
-        eps=delta_en;
-        en=etemp;
-      }
-    }// END: if(nozeros>inodes
-
-    its++; //increment 'number of iterations' counter
-    if(debug) printf("Itteration number %i,  en= %f\n",its,en);
-
-    if(its>=ntry){
-      if(delta_en<deles){
-        if(debug) printf("Wavefunction %i %i didn't fully converge after "
-                    "%i iterations, but OK.\n",n,ka,ntry);
-        eps=delta_en;
-        converged=true; //Converged to "secondary" level, deles
-      }else{
-        if(debug)
-        printf("Wavefunction %i %i didn't converge after %i itterations.\n",n,
-               ka,ntry);
-        if(debug) printf("%i %i: Pinf= %.1f,  en= %f\n",n,ka,r[pinf],en);
-        eps=delta_en;
-        //return 2; XXX Have a return code! see below!
-        break; //still proceed to normalise!!
-      }
+      bool more_nodes = (counted_nodes>required_nodes) ? true : false;
+      delta_en = largeEnergyChange(en,more,less,eupper,elower,lfrac_de,
+        more_nodes);
     }
 
-  }// END: while (not converged)
+    if(delta_en<delep && correct_nodes) break;
+  }// end itterations
+  eps=delta_en;
 
   //normalises the wavefunction
   double an= 1/sqrt(anorm);
@@ -304,13 +157,6 @@ an error.
     g[i]=0;
   }
 
-  if(debug){
-    printf("NGP=%i, Size of box: Rmax=%.1f a.u., h=%f\n",NGP,r[NGP-1],h);
-    printf("Converged for %i %i to %.3e after %i iterations;\n",n,ka,eps,its);
-    printf("%i %i: Pinf(%i)=%.1f,  \nMy energy:  en= %.15f\n",n,ka,pinf,
-           r[pinf],en);
-  }
-
   return 0; // have a code!!!!!
 }
 
@@ -319,8 +165,211 @@ an error.
 //*********************************************************
 
 //******************************************************************************
+double largeEnergyChange(double &en,
+  int &more, int &less, double &eupper, double &elower,
+  double lfrac_de, bool more_nodes)
+/*
+wf did not have correct number of nodes. Make a large energy adjustment
+more_nodes=true means there were too many nodes
+*/
+{
+  double en_old = en;
+
+  if(more_nodes){
+    //Too many nodes:
+    more++;
+    if((more==1)||(en<eupper)) eupper=en;
+    double etemp=(1.+lfrac_de)*en;
+    if((less!=0)&&(etemp<elower)) etemp=0.5*(eupper+elower);
+    en=etemp;
+  }else{
+    //too few nodes:
+    less++;
+    if((less==1)||(en>elower)) elower=en;
+    double etemp=(1.-lfrac_de)*en;
+    if((more!=0)&&(etemp>eupper)) etemp=0.5*(eupper+elower);
+    en=etemp;
+  }
+
+  return fabs((en_old-en)/en_old);
+}
+
+//******************************************************************************
+double smallEnergyChangePT(double &anorm, double &en,
+  const std::vector<double> &f, const std::vector<double> &g,
+  const std::vector<double> &dg, int pinf, int ctp, int d_ctp, double alpha,
+  const std::vector<double> &drdt, double h,
+  int less, int more, double elower, double eupper)
+/*
+Uses PT to calculate small change in energy.
+Also calculates (+outputs) norm constant (but doesn't normalise orbital!)
+*/
+{
+  double anormF = INT::integrate3(f,f,drdt,h,0,pinf);
+  double anormG = INT::integrate3(g,g,drdt,h,0,pinf);
+  anorm = anormF + anormG;
+
+  //Use perturbation theory to work out delta En
+  // delta E = c*P(r)*[Qin(r)-Qout(r)] - evaluate at ctp
+  // nb: wf not yet normalised!
+  double p_del_q = f[ctp]*dg[d_ctp+0];
+  double denom = 1;
+  // weighted average around ctp:
+  for(int i=1; i<=d_ctp; i++){
+    p_del_q += 0.5*(f[ctp+i]*dg[d_ctp+i] + f[ctp-i]*dg[d_ctp-i])/(i+1.);
+    denom += 1./(i+1.);
+  }
+  p_del_q /= denom;
+  double de=  (1./alpha) * p_del_q / anorm ;
+  double delta_en = fabs(de/en);
+  double etemp = en + de;
+
+  if((less!=0)&&(etemp<elower)){
+    delta_en=fabs((en-0.5*(en+elower))/en);
+    en=0.5*(en+elower);
+  }else if((more!=0)&&(etemp>eupper)){
+    delta_en=fabs((en-0.5*(en+eupper))/en);
+    en=0.5*(en+eupper);
+  }else{
+    en=etemp;
+  }
+  return delta_en;
+}
+
+
+//******************************************************************************
+int findPracticalInfinity(double en,
+  const std::vector<double> &v, const std::vector<double> &r, double alr)
+/*
+//Find the practical infinity 'pinf'
+//Step backwards from the last point (NGP-1) until
+// (V(r) - E)*r^2 >  alr    (alr = "asymptotically large r")
+*/
+{
+  int NGP = (int)r.size();
+  int pinf = NGP-1;
+  while((en-v[pinf])*pow(r[pinf],2) + alr < 0) pinf--;
+
+  if((pinf==NGP-1)&& debug)
+    printf("WARNING 281: pract. inf. exceeds grid for en=%.6f\n",en);
+
+  return pinf;
+}
+
+//******************************************************************************
+int findClassicalTurningPoint(double en, const std::vector<double> &v,
+  int pinf, int d_ctp)
+{
+  //Finds classical turning point 'ctp'
+  //Step backwards from the "practical infinity" until
+  //  V(r) > E        [nb: both V and E are <0]
+  int ctp = pinf;
+  while ( (en-v[ctp]) < 0 ){
+    --ctp;
+    if (ctp-d_ctp<=0){
+      //fails if ctp<0, (or ctp>pinf?)
+      printf("FAILURE 96 in solveDBS: No classical region?\n");
+      return 1;
+    }
+  }
+  if(ctp+d_ctp>=pinf){
+    //Didn't find ctp! Does this ever happen? Yes, if energy guess too wrong
+    if(debug)printf("FAILURE: Turning point at or after pract. inf. \n");
+    if(debug)printf("ctp=%i, d_ctp=%i, pinf=%i, NGP=%lu\n",
+      ctp,d_ctp,pinf,v.size());
+    ctp = pinf - 5*d_ctp; //??? ok?
+  }
+  return ctp;
+}
+
+
+//******************************************************************************
+int countNodes(const std::vector<double> &f, int maxi)
+//Just counts the number of times wf changes sign
+{
+  int sizeof_f = (int)f.size();
+  if(maxi==0 || maxi>sizeof_f) maxi = sizeof_f;
+
+  double sp=f[1];
+  double spn;
+  int counted_nodes = 0;
+  for(int i=2; i<maxi; i++){
+    spn=f[i];
+    if(sp*spn<0) ++counted_nodes;
+    if(spn!=0)   sp=spn;
+  }
+  if(debug) printf("Nodes=%i\n",counted_nodes);
+  return counted_nodes;
+}
+
+//******************************************************************************
+void trialDiracSolution(
+  std::vector<double> &f, std::vector<double> &g, std::vector<double> &dg,
+  double en, int ka, const std::vector<double> &v,
+  const std::vector<double> &r, const std::vector<double> &drdt, double h,
+  int ctp, int d_ctp, int pinf, double alpha)
+{
+  int NGP = (int)f.size();
+  //Temporary vectors for in/out integrations:
+  std::vector<double> pin(NGP),qin(NGP),pout(NGP),qout(NGP);
+  //Perform the "inwards integration":
+  inwardAM(pin,qin,en,v,ka,r,drdt,h,NGP,ctp-d_ctp,pinf,alpha);
+  //Perform the "outwards integration"
+  outwardAM(pout,qout,en,v,ka,r,drdt,h,NGP,ctp+d_ctp,alpha); //Z inside!
+  //Join in/out solutions into f,g + store dg (gout-gin) for PT
+  joinInOutSolutions(f,g,dg,pin,qin,pout,qout,ctp,d_ctp,pinf);
+}
+
+
+//******************************************************************************
+void joinInOutSolutions(
+  std::vector<double> &f, std::vector<double> &g, std::vector<double> &dg,
+  const std::vector<double> &pin, const std::vector<double> &qin,
+  const std::vector<double> &pout, const std::vector<double> &qout,
+  int ctp, int d_ctp, int pinf
+)
+{
+
+  //Find the re-scaling factor (for inward soln) using a weighted average:
+  double rescale = pout[ctp]/pin[ctp];
+  double denom = 1;
+  for(int i=1; i<=d_ctp; i++){
+    //re-scale from weigted average. Weight = distance from ctp
+    rescale += 0.5*(pout[ctp+i]/pin[ctp+i] + pout[ctp-i]/pin[ctp-i])/(i+1);
+    denom += 1./(i+1);
+  }
+  rescale /= denom;
+
+  //Join the in and outward solutions. "Meshed" around ctp +/- d_ctp
+  for(int i=0; i<ctp-d_ctp; i++){
+    f[i] = pout[i];
+    g[i] = -1*qout[i];
+  }
+  for(int i=ctp+d_ctp+1; i<=pinf; i++){
+    f[i] = pin[i]*rescale;
+    g[i] = -1*qin[i]*rescale;
+  }
+  for(int i=ctp-d_ctp; i<=ctp+d_ctp; i++){
+    //"Mesh" in the intermediate region
+    double B;
+    if(d_ctp==0) B=0.5;
+    else B = (double((i-ctp)+d_ctp))/(2.*d_ctp);
+    double A = 1-B;
+    f[i] = A*pout[i] + B*pin[i]*rescale;
+    g[i] = -1*(A*qout[i] + B*qin[i]*rescale);
+  }
+
+  //store difference between in/out solutions (for q) - after re-scaling
+  //Used later for P.T.
+  for(auto i=0u; i<dg.size(); i++){
+    dg[i] = qin[ctp-d_ctp+i]*rescale - qout[ctp-d_ctp+i];
+  }
+
+}
+
+//******************************************************************************
 int outwardAM(std::vector<double> &p, std::vector<double> &q, double &en,
-    const std::vector<double> &v, double Z, int ka,
+    const std::vector<double> &v, int ka,
     const std::vector<double> &r, const std::vector<double> &drdt, double h, int NGP,
     int nf, double alpha)
 /*
@@ -330,6 +379,8 @@ Then, it then call ADAMS-MOULTON, to finish (from nol*AMO+1 to nf = ctp+d_ctp)
 */
 {
   const int nol=1; // # of outdir runs [finds first nol*AMO+1 points (3)]
+
+  double Z = -1*v[AMO]*r[AMO]; //XXX is this OK? XXX
 
   double az = Z*alpha;
   double c2 = 1./pow(alpha,2);
@@ -515,12 +566,6 @@ program finishes the INWARD/OUTWARD integrations (ADAMS-MOULTON)
   std::vector<double> ama(AMO);
   double amd,amaa;
   getAdamsCoefs(ama,amd,amaa);  // loads the coeficients
-
-  //this just checks that all working..prints out coefs.
-  // if (debug){
-  //   for (int i=0; i<AMO; i++) printf("AMA[%i]=%f\n",i,ama[i]);
-  //   printf("amd=%.0f, amaa=%.0f\n",amd,amaa);
-  // }
 
   int inc;     //'increment' for integration (+1 for forward, -1 for backward)
   int nosteps; // number of steps integration should make

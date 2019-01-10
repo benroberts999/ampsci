@@ -63,7 +63,7 @@ Uses ADAMS::solveDBS to solve Dirac Eqn for local potential (Vnuc + Vdir)
 
   //Solve local dirac Eq:
   if(e_a==0) e_a = enGuessVal(n,k);
-  int i_ret = ADAMS::solveDBS(f_a,g_a,e_a,v_a,Z_,n,k,r,drdt,h,ngp,pinf,its,eps,
+  int i_ret = ADAMS::solveDBS(f_a,g_a,e_a,v_a,n,k,r,drdt,h,pinf,its,eps,
     alpha,log_dele_or);
   //Store wf + energy
   f.push_back(f_a);
@@ -128,7 +128,7 @@ This is not ideal..
   int n=nlist[i];
   int k=kappa[i];
   if(e_a==0) e_a = en[i];
-  int i_ret = ADAMS::solveDBS(f[i],g[i],e_a,v_a,Z_,n,k,r,drdt,h,ngp,pinf,its,eps,
+  int i_ret = ADAMS::solveDBS(f[i],g[i],e_a,v_a,n,k,r,drdt,h,pinf,its,eps,
     alpha,log_dele_or);
   en[i] = e_a; //update w/ new energy
 
