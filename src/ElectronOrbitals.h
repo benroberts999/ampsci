@@ -65,7 +65,7 @@ class ElectronOrbitals{
 
     int solveInitialCore(std::string str_core_in, int log_dele_or=0);
     bool isInCore(int n, int k);
-    int maxCore_n(void);
+    int maxCore_n();
 
     void orthonormaliseOrbitals(int num_its=1);
     void orthonormaliseValence(int iv, int num_its);

@@ -11,7 +11,7 @@
 Finds the best-fit parameter values for the Green or Tietz potentials
 */
 
-int main(void){
+int main(){
 
   ChronoTimer sw(true); //start stopwatch
 

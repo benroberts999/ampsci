@@ -5,7 +5,7 @@
 Quick routine that outputs numeric values for Wigner 3,6,9J symbols.
 */
 
-int caseCG(void){
+int caseCG(){
   double j1, m1, j2, m2, J, M;
   std::cout<<"Clebsh-Gordon coef. Enter in order: <j1 m1, j2 m2 | J M>:\n";
   std::cin>>j1>>m1>>j2>>m2>>J>>M;
@@ -14,7 +14,7 @@ int caseCG(void){
   return 0;
 }
 
-int case3j(void){
+int case3j(){
   double j1, j2, j3, m1, m2, m3;
   std::cout<<"3j symbol. Enter in order: j1 j2 j3 m1 m2 m3:\n";
   std::cin>>j1>>j2>>j3>>m1>>m2>>m3;
@@ -24,7 +24,7 @@ int case3j(void){
   return 0;
 }
 
-int case6j(void){
+int case6j(){
   double j1, j2, j3, j4, j5, j6;
   std::cout<<"6j symbol. Enter in order: j1 j2 j3 j4 j5 j6:\n";
   std::cin>>j1>>j2>>j3>>j4>>j5>>j6;
@@ -34,7 +34,7 @@ int case6j(void){
   return 0;
 }
 
-int case9j(void){
+int case9j(){
   double j1, j2, j3, j4, j5, j6, j7, j8, j9;
   std::cout<<"9j symbol. Enter in order: j1 j2 j3 j4 j5 j6 j7 j8 j9:\n";
   std::cin>>j1>>j2>>j3>>j4>>j5>>j6>>j7>>j8>>j9;

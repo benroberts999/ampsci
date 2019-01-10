@@ -6,7 +6,7 @@
 #include <fstream>
 #include <cmath>
 
-int main(void){
+int main(){
 
   ChronoTimer sw(true);//start timer
 

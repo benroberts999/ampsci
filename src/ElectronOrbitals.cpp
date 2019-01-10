@@ -240,7 +240,7 @@ XXX Also check occupancy fraction? Do seperately!
 }
 
 //******************************************************************************
-int ElectronOrbitals::maxCore_n(void)
+int ElectronOrbitals::maxCore_n()
 //Returns the largest n in the core (used for energy guesses)
 {
   int max_n = 0;

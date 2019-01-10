@@ -15,6 +15,9 @@ namespace AKF{
 
 //******************************************************************************
 double CLkk(int L, int ka, int kb)
+/*
+Angular coeficient (nb: is already squared)
+*/
 {
   int la = ATI::l_k(ka);
   int lb = ATI::l_k(kb);
@@ -37,8 +40,10 @@ void writeToTextFile(
   const std::vector< std::vector< std::vector<float> > > &AK,
   const std::vector<std::string> & nklst,
   double qmin, double qmax,
-  double demin, double demax
-)
+  double demin, double demax)
+/*
+Writes the K factor to a text-file, in GNU-plot readable format
+*/
 {
   int desteps = AK.size();   //dE
   int num_states = AK[0].size();  //nk
@@ -79,8 +84,12 @@ int akReadWrite(std::string fname, bool write,
   std::vector<std::string> &nklst,
   double &qmin, double &qmax,
   double &dEmin, double &dEmax)
+/*
+Writes K function (+ all required size etc.) values to a binary file.
+The binary file is read by other programs (e.g., dmeXSection)
+Uses BRW_binaryReadWrite
+*/
 {
-  //Uses BRW_binaryReadWrite
   BRW::ROW row = write ? BRW::write : BRW::read;
 
   std::fstream iof;
@@ -129,7 +138,10 @@ int calculateK_nk(const ElectronOrbitals &wf, int is, int max_L, double dE,
   std::vector< std::vector<std::vector<float> > > &jLqr_f,
   std::vector<float> &AK_nk_q, double Zeff)
 /*
+Calculates the atomic factor for a given core state (is) and energy.
+Note: dE = I + ec is depositied energy, not cntm energy
 Zeff is '-1' by default. If Zeff > 0, will solve w/ Zeff model
+Zeff no longer works at main() level.
 */
 {
   ContinuumOrbitals cntm(wf);// create cntm object [survives locally only]
@@ -228,6 +240,10 @@ void sphericalBesselTable(
   int max_L,
   const ExpGrid &qgrid,
   const std::vector<double> &r)
+/*
+Creates a look-up table w/ spherical Bessel functions. For speed.
+Uses SBF_sphericalBesselFunctions
+*/
 {
   std::cout<<std::endl;
   int ngp = (int)r.size();
@@ -242,7 +258,6 @@ void sphericalBesselTable(
     for(int iq=0; iq<qsteps; iq++){
       double q = qgrid.x(iq);
       for(int ir=0; ir<ngp; ir++){
-        //double tmp = gsl_sf_bessel_jl(L, q*r[ir]);
         double tmp = SBF::JL(L, q*r[ir]);
         // If q(dr) is too large, "missing" j_L oscillations
         //(overstepping them). This helps to fix that.

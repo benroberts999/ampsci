@@ -12,7 +12,7 @@
 #include <cmath>
 
 //******************************************************************************
-int main(void){
+int main(){
   ChronoTimer sw(true); //start stopwatch
 
   //Input options

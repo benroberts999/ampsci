@@ -9,7 +9,7 @@
 #include <fstream>
 #include "ChronoTimer.h"
 
-int main(void){
+int main(){
 
   ChronoTimer timer; //start the stopwatch
   timer.start();
@@ -112,7 +112,7 @@ int main(void){
     if(val)printf(" %10.2f\n",(eni+en_lim)*FPC::Hartree_invcm);
     else std::cout<<"\n";
     if(i==wf.num_core_states-1){
-      printf("E_core = %.2f au\n",core_energy);
+      printf("E_core = %.5f au\n",core_energy);
       // std::cout<<"Valence: \n";
       printf("Val: n l_j    k   Rinf its    eps       En (au)      En (/cm)   En (/cm)\n");
       val = true;
