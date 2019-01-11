@@ -25,14 +25,13 @@ All other functions called by solveDBS.
 
 namespace ADAMS{
 
-const bool debug=false; //if true, will print progress messages.
-//parameter: Adams-Moulton ''order'' (number of points)
+const bool DEBUG = false; //if true, will print progress messages.
 
 //******************************************************************************
-int solveDBS(std::vector<double> &f, std::vector<double> &g, double &en,
+int solveDBS(std::vector<double> &f, std::vector<double> &g, double &en_inout,
     const std::vector<double> &v, int n, int ka,
     const std::vector<double> &r, const std::vector<double> &drdt, double h,
-    int &pinf, int &its, double &eps, double alpha, int log_dele_or)
+    int &pinf_out, int &its_out, double &eps_out, double alpha, int log_dele_or)
 /*
 Solves local, spherical bound state dirac equation using Adams-Moulton method.
 Based on method presented in book by W. R. Johnson:
@@ -57,59 +56,55 @@ Rough description of method:
 4. Performs 'outward' integration (Adams Moulton). Integrates from 0
    outwards to d_ctp points past the ctp.
 5. Matches the two functions around ctp, by re-scaling the 'inward' solution
-   (for P). Uses a weighted mean, with weights given by distance from ctp.
+   (for f). Uses a weighted mean, with weights given by distance from ctp.
 6. Checks the number of nodes the wf has. If too many or too few nodes, makes
    a large change to the energy and tries again (from step 2).
    If the correct number of nodes, uses perturbation theory to make minor
-   corrections to the energy to 'zoom in' (matching the in/out solution for q),
+   corrections to the energy to 'zoom in' (matching the in/out solution for g),
    then re-starts from step 2.
 Continues until this energy adjustment falls below a prescribed threshold.
 
-NOTE: Originaly in terms of (p,q). Now in terms of (f,g).
-Other "sub"-programs still use (p,q).
-  f = p
-  g = -q
+Orbitals defined:
+  psi := (1/r) {f O_k, ig O_(-k)}
 
-There are two energy convergence parameters, primary and secondary.
-If cannot converge to primary value, but better than secondary, will not give
-an error.
+Was originaly in terms of (p,q). Now in terms of (f,g).
+Other "sub"-programs still use (p,q).
+Defn: f = p, g = -q. (My g includes alpha)
 
 */
 {
-  //Parameters. Put somwhere else?
-
-  const int max_its=32;        // Max # attempts at converging [sove bs] (30)
-  const double alr=800;     // ''assymptotically large r [kinda..]''  (=800)
-  const double lfrac_de=0.3;     // 'large' energy variations (0.1 => 10%)
-  const int d_ctp=3;        //Num points past ctp +/- d_ctp.
+  //Parameters.
+  const int max_its = 32;    // Max # attempts at converging [sove bs] (30)
+  const double alr = 800;    // ''assymptotically large r [kinda..]''  (=800)
+  const double lfrac_de=0.3; // 'large' energy variations (0.1 => 10%)
+  const int d_ctp = 3;       //Num points past ctp +/- d_ctp.
   int NGP = (int) r.size();
 
   double delep=1e-15; //Default convergence parameter [energy] (10^-11)
   if(log_dele_or>0) delep=1./pow(10,log_dele_or);
 
   //Checks to see if legal n is requested.
-  if ( (abs(ka)<=n) && (ka!=n) ){
-    if(debug) printf("\nRunning SolveDBS for state %i %i:\n",n,ka);
-  }else{
+  if ( !((abs(ka)<=n) && (ka!=n)) ){
     printf("\nSate %i %i does not exist..\n",n,ka);
     return 1;
   }
 
-  // Find 'l' from 'kappa' (ang. momentum Q number)
+  // Find 'l' from 'kappa' (ang. momentum Q number) for # of nodes
   int l = (ka>0)? ka : -ka-1;
-
-  //Number of nodes wf should have:
   int required_nodes = n-l-1;
+  bool correct_nodes = false;
+
+  double en = en_inout;
+  int pinf = -1;
+  double anorm = 0; // normalisation constant
+  double delta_en = 1;
 
   //Some parameters used by the Adams Moulton method:
   //Number of times there was too many/too few nodes:
-  int more=0,less=0;
+  int more = 0, less = 0;
   //Highest/lowest energies tried before correct # of nodes:
-  double eupper=0,elower=0;
-  double anorm=0; // normalisation constant
-  double delta_en=0;
-
-  //bool noCTP = false; //allow miss CTP once
+  double eupper = 0, elower = 0;
+  int its = 0;
   for(its=1; its<max_its; its++){
 
     // Find the practical infinity 'pinf' [(V(r) - E)*r^2 >  alr]
@@ -128,13 +123,13 @@ an error.
 
     //If correct number of nodes, use PT to make minor energy adjustment.
     //Otherwise, make large adjustmunt until correct # of nodes
-    bool correct_nodes = false;
     if(counted_nodes==required_nodes){
       correct_nodes = true;
       //do PT, AND find norm const:
       delta_en = smallEnergyChangePT(anorm,en,f,g,dg,pinf,ctp,d_ctp,alpha,
                   drdt,h,less,more,elower,eupper);
     }else{
+      correct_nodes = false; //can happen?
       bool more_nodes = (counted_nodes>required_nodes) ? true : false;
       delta_en = largeEnergyChange(en,more,less,eupper,elower,lfrac_de,
         more_nodes);
@@ -142,22 +137,37 @@ an error.
 
     if(delta_en<delep && correct_nodes) break;
   }// end itterations
-  eps=delta_en;
+
+  if(!correct_nodes && DEBUG){
+    //Doesn't do anything..just prints error message.
+    int counted_nodes = countNodes(f,pinf);
+    std::cout<<"\nFAIL-148: wrong nodes:"<<counted_nodes<<"/"
+      <<required_nodes<<" for n,k="<<n<<","<<ka<<"\n";
+  }
+
+  eps_out = delta_en;
+  en_inout = en;
+  pinf_out = pinf;
+  its_out = its;
 
   //normalises the wavefunction
-  double an= 1/sqrt(anorm);
-  //if(debug) printf("An=%.5e\n",an);
-  for(int i=0; i<=pinf; i++){
+  double an= 1./sqrt(anorm);
+  for(int i=0; i<pinf; i++){
     f[i]=an*f[i];
     g[i]=an*g[i];
   }
-  for(int i=pinf+1; i<NGP; i++){
+  for(int i=pinf; i<NGP; i++){
     // kills remainders (just for safety)
     f[i]=0;
     g[i]=0;
   }
 
-  return 0; // have a code!!!!!
+  int ret_code = -1;
+  if(correct_nodes && eps_out<delep) ret_code = 0;
+  else if(correct_nodes) ret_code = 1;
+  else ret_code = 2;
+
+  return ret_code;
 }
 
 //*********************************************************
@@ -250,7 +260,7 @@ int findPracticalInfinity(double en,
   int pinf = NGP-1;
   while((en-v[pinf])*pow(r[pinf],2) + alr < 0) pinf--;
 
-  if((pinf==NGP-1)&& debug)
+  if((pinf==NGP-1)&& DEBUG)
     printf("WARNING 281: pract. inf. exceeds grid for en=%.6f\n",en);
 
   return pinf;
@@ -274,8 +284,8 @@ int findClassicalTurningPoint(double en, const std::vector<double> &v,
   }
   if(ctp+d_ctp>=pinf){
     //Didn't find ctp! Does this ever happen? Yes, if energy guess too wrong
-    if(debug)printf("FAILURE: Turning point at or after pract. inf. \n");
-    if(debug)printf("ctp=%i, d_ctp=%i, pinf=%i, NGP=%lu\n",
+    if(DEBUG)printf("FAILURE: Turning point at or after pract. inf. \n");
+    if(DEBUG)printf("ctp=%i, d_ctp=%i, pinf=%i, NGP=%lu\n",
       ctp,d_ctp,pinf,v.size());
     ctp = pinf - 5*d_ctp; //??? ok?
   }
@@ -298,7 +308,7 @@ int countNodes(const std::vector<double> &f, int maxi)
     if(sp*spn<0) ++counted_nodes;
     if(spn!=0)   sp=spn;
   }
-  if(debug) printf("Nodes=%i\n",counted_nodes);
+  if(DEBUG) printf("Nodes=%i\n",counted_nodes);
   return counted_nodes;
 }
 
@@ -313,9 +323,9 @@ void trialDiracSolution(
   //Temporary vectors for in/out integrations:
   std::vector<double> pin(NGP),qin(NGP),pout(NGP),qout(NGP);
   //Perform the "inwards integration":
-  inwardAM(pin,qin,en,v,ka,r,drdt,h,NGP,ctp-d_ctp,pinf,alpha);
+  inwardAM(pin,qin,en,v,ka,r,drdt,h,ctp-d_ctp,pinf,alpha);
   //Perform the "outwards integration"
-  outwardAM(pout,qout,en,v,ka,r,drdt,h,NGP,ctp+d_ctp,alpha); //Z inside!
+  outwardAM(pout,qout,en,v,ka,r,drdt,h,ctp+d_ctp,alpha); //Z inside!
   //Join in/out solutions into f,g + store dg (gout-gin) for PT
   joinInOutSolutions(f,g,dg,pin,qin,pout,qout,ctp,d_ctp,pinf);
 }
@@ -326,8 +336,7 @@ void joinInOutSolutions(
   std::vector<double> &f, std::vector<double> &g, std::vector<double> &dg,
   const std::vector<double> &pin, const std::vector<double> &qin,
   const std::vector<double> &pout, const std::vector<double> &qout,
-  int ctp, int d_ctp, int pinf
-)
+  int ctp, int d_ctp, int pinf)
 {
 
   //Find the re-scaling factor (for inward soln) using a weighted average:
@@ -370,7 +379,7 @@ void joinInOutSolutions(
 //******************************************************************************
 int outwardAM(std::vector<double> &p, std::vector<double> &q, double &en,
     const std::vector<double> &v, int ka,
-    const std::vector<double> &r, const std::vector<double> &drdt, double h, int NGP,
+    const std::vector<double> &r, const std::vector<double> &drdt, double h,
     int nf, double alpha)
 /*
 Program to start the OUTWARD integration.
@@ -380,7 +389,7 @@ Then, it then call ADAMS-MOULTON, to finish (from nol*AMO+1 to nf = ctp+d_ctp)
 {
   const int nol=1; // # of outdir runs [finds first nol*AMO+1 points (3)]
 
-  double Z = -1*v[AMO]*r[AMO]; //XXX is this OK? XXX
+  double Z = -1*v[AMO]*r[AMO]; //??? is this OK?
 
   double az = Z*alpha;
   double c2 = 1./pow(alpha,2);
@@ -451,8 +460,8 @@ Then, it then call ADAMS-MOULTON, to finish (from nol*AMO+1 to nf = ctp+d_ctp)
     for (int i=0; i<AMO; i++){
       vs[i]=0;
       for (int j=0; j<AMO; j++){
-        vs[i]=vs[i]+em[i][j]*(coefc[j]*us[j]-ia[j]*v0); //XXX
-        //XXX here: is this the large cancellation?
+        vs[i]=vs[i]+em[i][j]*(coefc[j]*us[j]-ia[j]*v0);
+        //??? here: is this the large cancellation?
       }
     }
 
@@ -470,7 +479,7 @@ Then, it then call ADAMS-MOULTON, to finish (from nol*AMO+1 to nf = ctp+d_ctp)
 
   //Call adamsmoulton to finish integration from (nol*AMO+1) to nf = ctp+d_ctp
   int na = nol*AMO+1;
-  if (nf>na) adamsMoulton(p,q,en,v,ka,r,drdt,h,NGP,na,nf,alpha);
+  if (nf>na) adamsMoulton(p,q,en,v,ka,r,drdt,h,na,nf,alpha);
 
   return 0;
 }
@@ -479,7 +488,7 @@ Then, it then call ADAMS-MOULTON, to finish (from nol*AMO+1 to nf = ctp+d_ctp)
 //******************************************************************
 int inwardAM(std::vector<double> &p, std::vector<double> &q, double &en,
     const std::vector<double> &v, int ka,
-    const std::vector<double> &r, const std::vector<double> &drdt, double h, int NGP,
+    const std::vector<double> &r, const std::vector<double> &drdt, double h,
     int nf, int pinf, double alpha)
 /*
 Program to start the INWARD integration.
@@ -532,19 +541,18 @@ Then, it then call ADAMS-MOULTON, to finish (from nol*AMO+1 to nf = ctp-d_ctp)
         k=nx; //reached convergance
       }
       else if (k==(nx-1)){
-        if (xe>nxepss && debug)
+        if (xe>nxepss && DEBUG)
           printf("WARNING: Asymp. expansion in ININT didn't converge:"
                  " %i, %i, %.2e\n",i,k,xe);
       }
     }
     p[i]=rfac*(f1*ps+f2*qs);
-    q[i]=rfac*(f2*ps-f1*qs);  //XXX here? the 'small cancellation'(?)
+    q[i]=rfac*(f2*ps-f1*qs);  //??? here? the 'small cancellation'(?)
   }
 
   //calls adams-moulton
-  if ((pinf-AMO-1)>=nf){
-    adamsMoulton(p,q,en,v,ka,r,drdt,h,NGP,pinf-AMO-1,nf,alpha);
-  }
+  if ((pinf-AMO-1)>=nf)
+    adamsMoulton(p,q,en,v,ka,r,drdt,h,pinf-AMO-1,nf,alpha);
 
   return 0;
 }
@@ -553,7 +561,7 @@ Then, it then call ADAMS-MOULTON, to finish (from nol*AMO+1 to nf = ctp-d_ctp)
 //******************************************************************************
 int adamsMoulton(std::vector<double> &p, std::vector<double> &q, double &en,
     const std::vector<double> &v, int ka,
-    const std::vector<double> &r, const std::vector<double> &drdt, double h, int NGP,
+    const std::vector<double> &r, const std::vector<double> &drdt, double h,
     int ni, int nf, double alpha)
 /*
 program finishes the INWARD/OUTWARD integrations (ADAMS-MOULTON)
@@ -566,6 +574,8 @@ program finishes the INWARD/OUTWARD integrations (ADAMS-MOULTON)
   std::vector<double> ama(AMO);
   double amd,amaa;
   getAdamsCoefs(ama,amd,amaa);  // loads the coeficients
+
+  int NGP = (int) r.size();
 
   int inc;     //'increment' for integration (+1 for forward, -1 for backward)
   int nosteps; // number of steps integration should make
@@ -583,7 +593,7 @@ program finishes the INWARD/OUTWARD integrations (ADAMS-MOULTON)
   }
 
   //create arrays for wf derivatives
-  std::vector<double> dp(NGP),dq(NGP); //XXX is this syntax valid?
+  std::vector<double> dp(NGP),dq(NGP);
   std::vector<double> amcoef(AMO);
   int k1=ni-inc*(AMO);
   for (int i=0; i<AMO; i++){//nb: k1 is iterated

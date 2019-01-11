@@ -3,7 +3,7 @@
 
 namespace ADAMS{
 
-  const int AMO=7; //must be between 5 and 8 (for now). 7 Seems good.
+  const int AMO=8; //must be between 5 and 8 (for now). 7 Seems good.
 
   int solveDBS(std::vector<double> &f, std::vector<double> &g, double &en,
       const std::vector<double> &v, int n, int ka,
@@ -36,17 +36,17 @@ namespace ADAMS{
 
   int outwardAM(std::vector<double> &p, std::vector<double> &q, double &en,
       const std::vector<double> &v, int ka,
-      const std::vector<double> &r, const std::vector<double> &drdt, double h, int NGP,
+      const std::vector<double> &r, const std::vector<double> &drdt, double h,
       int ctp, double alpha);
 
   int inwardAM(std::vector<double> &p, std::vector<double> &q, double &en,
       const std::vector<double> &v, int ka,
-      const std::vector<double> &r, const std::vector<double> &drdt, double h, int NGP,
+      const std::vector<double> &r, const std::vector<double> &drdt, double h,
       int ctp, int pinf, double alpha);
 
   int adamsMoulton(std::vector<double> &p, std::vector<double> &q, double &en,
       const std::vector<double> &v, int ka,
-      const std::vector<double> &r, const std::vector<double> &drdt, double h, int ngp,
+      const std::vector<double> &r, const std::vector<double> &drdt, double h,
       int ni, int nf, double alpha);
 
   void joinInOutSolutions(

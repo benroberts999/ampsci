@@ -67,6 +67,7 @@ int main(){
   //Make a list of valence states to solve:
   //Goes from n=0 -> n_max (inclusive), same for l
   //Adds any state to 'list to calculate' that isn't already in core
+  if(wf.num_core_electrons >= wf.Z()) n_max = 0;
   std::vector< std::vector<int> > lst;
   for(int n=0; n<=n_max; n++){
     for(int l=0; l<n; l++){
@@ -114,6 +115,7 @@ int main(){
     if(i==wf.num_core_states-1){
       printf("E_core = %.5f au\n",core_energy);
       // std::cout<<"Valence: \n";
+      if(wf.num_core_states==(int)wf.nlist.size()) break;
       printf("Val: n l_j    k   Rinf its    eps       En (au)      En (/cm)   En (/cm)\n");
       val = true;
     }

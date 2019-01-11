@@ -15,18 +15,16 @@ Therefore, need grid to go very far out (v. large r).
 Also, need at least ~10 points per half-period. More points for higher energy!
 
 ===== To do =====
-  * p,q -> f,g!
   * Find asymptotic region + normalise...better?
 
 */
 
 
 //******************************************************************************
-int solveContinuum(std::vector<double> &p, std::vector<double> &q, double ec,
+int solveContinuum(std::vector<double> &f, std::vector<double> &g, double ec,
     const std::vector<double> &v, int ka,
     const std::vector<double> &rc, const std::vector<double> &drdt, double h,
-    int NGPb, int NGPc, int i_asym,
-    double alpha)
+    int NGPb, int NGPc, int i_asym, double alpha)
 /*
 Solves Dirac equation for continuum state, for given energy, ec
 by integrating outwards from 0
@@ -39,7 +37,7 @@ NGPc is grid for continuum (only for solving). NGPc >> NGPb
 
   //Perform the "outwards integration"
   std::vector<double> pc(NGPc),qc(NGPc);
-  outwardAM(pc,qc,ec,v,ka,rc,drdt,h,NGPc,NGPc-1,alpha);
+  outwardAM(pc,qc,ec,v,ka,rc,drdt,h,NGPc-1,alpha);
 
   //Find a better (lower) asymptotic region:
   i_asym = findAsymptoticRegion(pc,rc,NGPb,NGPc,i_asym);
@@ -57,8 +55,8 @@ NGPc is grid for continuum (only for solving). NGPc >> NGPb
 
   //Normalise the wfs, and transfer back to shorter arrays:
   for(int i=0; i<NGPb; i++){
-    p[i] = sf*pc[i];
-    q[i] = sf*qc[i];
+    f[i] = sf*pc[i];
+    g[i] = -1.*sf*qc[i]; //xxx check?
   }
 
   return 0;
