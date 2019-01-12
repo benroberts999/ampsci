@@ -81,6 +81,20 @@ Uses ADAMS::solveDBS to solve Dirac Eqn for local potential (Vnuc + Vdir)
 }
 
 //******************************************************************************
+double ElectronOrbitals::radialIntegral(int a, int b)const{
+
+  //check that a and b are OK!
+  //XXX Add operator! AND/OR allow "extra" vector!
+  //XXX And, an option for just LHS f?
+  int pinf = std::min(pinflist[a],pinflist[b]);
+  const std::vector<double> &fprime = f[b];
+  const std::vector<double> &gprime = g[b];
+  double Rf = INT::integrate3(f[a],fprime,drdt,1,0,pinf);
+  double Rg = INT::integrate3(g[a],gprime,drdt,1,0,pinf);
+  return (Rf+Rg)*h;
+}
+
+//******************************************************************************
 double ElectronOrbitals::get_alpha()const{
   return alpha;
 }
