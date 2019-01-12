@@ -35,7 +35,7 @@ Triangle rule. XXX NOT TESTED XXX
   int two_j1 = (int) round(2*j1);
   int two_j2 = (int) round(2*j2);
   int two_J  = (int) round(2*J);
-  if((two_j1+two_j2<two_J)||(abs(two_j1-two_j2)>two_J)) return 0;
+  if((two_j1+two_j2<two_J)||(std::abs(two_j1-two_j2)>two_J)) return 0;
   return 1;
 }
 
