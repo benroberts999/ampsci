@@ -674,13 +674,13 @@ See: https://www-nds.iaea.org/radii/
   // XXX Add data tables of nuclear radii!
 
   //Fill the vnuc array with spherical nuclear potantial
-  vnuc.push_back(0); //XXX ??
+  //vnuc.push_back(0); //XXX ??
   double rn2=pow(rN,2);
   double rn3=pow(rN,3);
-  for(int i=1; i<ngp; i++){
+  for(auto i=0u; i<r.size(); i++){
     double temp_v;
     double ri = r[i];
-    if(ri<rN) temp_v = Z_*(pow(ri,2)-3.*rn2)/(2.*rn3); //XXX 2.*rn3?? check!? XXX
+    if(ri<rN) temp_v = Z_*(pow(ri,2)-3.*rn2)/(2.*rn3);
     else temp_v = -Z_/ri;
     vnuc.push_back(temp_v);
     //std::cout<<i<<" "<<r[i]<<" "<<rN<<" "<<temp_v<<" "<<-Z_/ri<<"\n";
@@ -730,8 +730,8 @@ https://www.gnu.org/software/gsl/manual/html_node/Complete-Fermi_002dDirac-Integ
   // Use GSL for the Complete Fermi-Dirac Integrals:
   double F2 = gsl_sf_fermi_dirac_2(coa);
   double pi2 = pow(M_PI,2);
-  vnuc.push_back(0); //XXX ??
-  for(int i=1; i<ngp; i++){
+  //vnuc.push_back(0); //XXX ??
+  for(int i=0; i<ngp; i++){
     double t_r = r[i];
     double t_v = -Z_/t_r;
     if(t_r<10.*a){  // XXX OK??
