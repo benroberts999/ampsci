@@ -43,6 +43,10 @@ namespace FPC{
   // wavelength (nm):
   double const HartreeWL_nm=45.56335252767;
 
+  //Fermi weak constant (au)
+  const double GFe11 = 2.2225e-3;
+  const double GF = GFe11*(1e-11);
+
   // Bohr magneton (in atomic units):
   const double muB_SI=0.5;        //SI-derived
   const double muB_CGS=0.5*alpha; //Gaussian CGS-derived
