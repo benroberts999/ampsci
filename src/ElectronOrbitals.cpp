@@ -81,18 +81,97 @@ Uses ADAMS::solveDBS to solve Dirac Eqn for local potential (Vnuc + Vdir)
 }
 
 //******************************************************************************
-double ElectronOrbitals::radialIntegral(int a, int b)const{
+double ElectronOrbitals::radialIntegral(uint a, uint b, Operator op)const
+{
+  std::vector<double> empty_vec;
+  return radialIntegral(a,b,empty_vec,op);
+}
+//******************************************************************************
+double ElectronOrbitals::radialIntegral(uint a, uint b,
+  const std::vector<double> &vint, Operator op) const
+/*
+Split into dPsi later??
+*/
+{
 
   //check that a and b are OK!
   //XXX Add operator! AND/OR allow "extra" vector!
   //XXX And, an option for just LHS f?
-  int pinf = std::min(pinflist[a],pinflist[b]);
-  const std::vector<double> &fprime = f[b];
-  const std::vector<double> &gprime = g[b];
-  double Rf = INT::integrate3(f[a],fprime,drdt,1,0,pinf);
-  double Rg = INT::integrate3(g[a],gprime,drdt,1,0,pinf);
+  //int pinf = std::min(pinflist[a],pinflist[b]);
+  std::vector<double> fprime(ngp);// = f[b];
+  std::vector<double> gprime(ngp);// = g[b];
+
+  //XXX This part should be seperate function, so can store dpsi XXX
+  switch(op){
+    case Operator::unity :
+      fprime = f[b];
+      gprime = g[b];
+      break;
+    case Operator::gamma0 :
+      fprime = f[b];
+      for(auto i=0u; i<gprime.size(); i++) gprime[i] = -g[b][i];
+      break;
+    case Operator::gamma5 :
+      for(auto i=0u; i<fprime.size(); i++){
+        //double fi = f[b][i];
+        fprime[i] = g[b][i];
+        gprime[i] = -f[b][i]; //XXX temp, image not cancel!
+      }
+      break;
+    case Operator::dr :
+      INT::diff(f[b],drdt,h,fprime);
+      INT::diff(g[b],drdt,h,gprime);
+      break;
+    case Operator::dr2 :
+      INT::diff(f[b],drdt,h,fprime,2);
+      INT::diff(g[b],drdt,h,gprime,2);
+      break;
+    default : std::cout<<"\nError 103 in EO radialInt: unknown operator\n";
+  }
+
+  // for(auto i=0u; i<vint.size(); i++){
+  //   fprime[i] *= vint[i];
+  //   gprime[i] *= vint[i];
+  // }
+
+  double Rf = INT::integrate4(f[a],vint,fprime,drdt);//,1,0,pinf);
+  double Rg = INT::integrate4(g[a],vint,gprime,drdt);//,1,0,pinf);
   return (Rf+Rg)*h;
 }
+
+// enum class Operator {unity, r, gamma0, gamma5, dr, dr2};
+// //******************************************************************************
+// void ElectronOrbitals::dPsi(unsigned a,
+//   std::vector<double> &fp, std::vector<double> &gp,
+//   const std::vector<double> &vint, Operator operator)
+// {
+//   //check that a valid index.
+//   fp = f[a];//XXX OK? NO! Can't be stacked! :(
+//   gp = g[a];
+//   switch(operator){
+//     case Operator::unity  : break;
+//     case Operator::r      : operate_r(fp,gp); break;
+//     case Operator::gamma0 : operate_gamma0(fp,gp); break;
+//     case Operator::gamma5 : operate_gamma5(fp,gp); break;
+//   }
+//
+//   for(auto i=0u; i<vint.size(); i++){
+//     fp[i] *= v[i];
+//     gp[i] *= v[i];
+//   }
+// }
+// //------------------
+// void operate_gamma0(std::vector<double> &f, std::vector<double> &g){
+//   for(auto i=0u; i<f.size(); i++)
+//     g[i] = -g[i];
+// }
+// void operate_gamma5(std::vector<double> &f, std::vector<double> &g){
+//   for(auto i=0u; i<f.size(); i++){
+//     double fi = f[i];
+//     f[i] = g[i];
+//     g[i] = fi;
+//   }
+// }
 
 //******************************************************************************
 double ElectronOrbitals::get_alpha()const{

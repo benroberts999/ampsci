@@ -3,7 +3,7 @@
 
 namespace operator{
 
-  enum Operator {unity, r, gamma0, gamma5, dr, dr2};
+  enum Operator {unity, gamma0, gamma5};
 
   void operate(std::vector<double> &f, std::vector<double> &g, Operator v);
   void operate(std::vector<double> &f, std::vector<double> &g,
@@ -19,14 +19,12 @@ namespace operator{
 
 void operate(std::vector<double> &f, std::vector<double> &g, Operator v)
 {
-
   switch(v){
     case unity  : break;
     case gamma0 : operate_gamma0(f,g); break;
     case gamma5 : operate_gamma5(f,g); break;
-    default : std::cout<<"\nError18 in operator.cpp: unknown operator\n";
+    default : std::cout<<"\nError 18 in operator.cpp: unknown operator\n";
   }
-
 }
 
 void operate(std::vector<double> &f, std::vector<double> &g,

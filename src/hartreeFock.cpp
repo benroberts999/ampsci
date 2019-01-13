@@ -146,6 +146,7 @@ int main(){
       }
       std::cout<<"\n";
     }
+    std::cout<<"\n Total time: "<<timer.reading_str()<<"\n";
   }
 
   bool print_wfs = false;
@@ -163,6 +164,52 @@ int main(){
       }
       of<<"\n";
     }
+    std::cout<<"\n Total time: "<<timer.reading_str()<<"\n";
+  }
+
+
+  bool testpnc = false;
+  if(testpnc){
+    double a=0.22756*2.3;
+    double c=5.6710; //1.1*pow(wf.A(),0.3333);
+
+    double rho0 = 0;
+    std::vector<double> rho(wf.ngp);
+    for(auto i=0u; i<rho.size(); i++){
+      rho[i] = 1./(1. + exp((wf.r[i]*FPC::aB_fm-c)/a));
+      rho0 += pow(wf.r[i],2)*rho[i]*wf.drdt[i]*4*M_PI*wf.h;
+    }
+    for(auto i=0u; i<rho.size(); i++){
+      rho[i]/=rho0;
+    }
+
+    double Gf = FPC::GFe11;
+    double Cc = (Gf/sqrt(8))*(-133+55); // Qw/(-N)
+    double Ac = 2./6;
+
+    int a6s = wf.getStateIndex(6,-1);
+    int a7s = wf.getStateIndex(7,-1);
+    std::cout<<a6s<<","<<a7s<<"\n";
+    double pnc=0;
+    for(auto np=0u; np<wf.kappa.size(); np++){
+      if(wf.kappa[np]!=1) continue; //p_1/2 only
+      int n = wf.nlist[np];
+      // <7s|d|np><np|hw|6s>/dE6s + <7s|hw|np><np|d|6s>/dE7s
+      double d7s = wf.radialIntegral(a7s,np,wf.r);
+      double w6s = wf.radialIntegral(np,a6s,rho,Operator::gamma5);
+      double dE6s = wf.en[a6s]-wf.en[np];
+      double d6s = wf.radialIntegral(np,a6s,wf.r);
+      double w7s = wf.radialIntegral(a7s,np,rho,Operator::gamma5);
+      double dE7s = wf.en[a7s]-wf.en[np];
+      double pnc1 = Cc*Ac*d7s*w6s/dE6s;
+      double pnc2 = Cc*Ac*d6s*w7s/dE7s;
+      std::cout<<"n="<<n<<" pnc= "<<pnc1<<" + "<<pnc2<<" = "<<pnc1+pnc2<<"\n";
+      // std::cout<<" d: "<<d6s*2*0.408<<" "<<d7s*2*0.408<<"\n";
+      // std::cout<<" w: "<<w6s*sqrt(2)*Cc<<" "<<w7s*sqrt(2)*Cc<<"\n";
+      pnc += pnc1+pnc2;
+    }
+    std::cout<<"Total= "<<pnc<<"\n";
+    std::cout<<"\n Total time: "<<timer.reading_str()<<"\n";
   }
 
   return 0;

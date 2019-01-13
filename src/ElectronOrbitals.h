@@ -2,6 +2,8 @@
 #include <vector>
 #include <string>
 
+enum class Operator {unity, gamma0, gamma5, dr, dr2};
+
 class ElectronOrbitals{
 
   public:
@@ -59,7 +61,9 @@ class ElectronOrbitals{
 
     std::string seTermSymbol(int ink, bool gnuplot=false) const;
 
-    double radialIntegral(int a, int b) const;
+    double radialIntegral(uint a, uint b, Operator op=Operator::unity) const;
+    double radialIntegral(uint a, uint b, const std::vector<double> &vint,
+      Operator op=Operator::unity) const;
 
     int solveLocalDirac(int n, int k, double en_a=0, int log_dele_or=0);
     int reSolveDirac(int i, double e_a=0, int log_dele_or=0);
