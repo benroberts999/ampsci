@@ -31,7 +31,7 @@ ElectronOrbitals::ElectronOrbitals(int in_z, int in_a, int in_ngp, double rmin,
   //If in_a -ve, use default atomic mass
   A_ = (in_a<0) ? ATI::A[Z_] : in_a;
 
-  if(A_>0) sphericalNucleus();
+  if(A_>0) fermiNucleus(); //phericalNucleus();
   else    zeroNucleus();
 
 }
@@ -95,9 +95,7 @@ Split into dPsi later??
 {
 
   //check that a and b are OK!
-  //XXX Add operator! AND/OR allow "extra" vector!
-  //XXX And, an option for just LHS f?
-  //int pinf = std::min(pinflist[a],pinflist[b]);
+  int pinf = std::min(pinflist[a],pinflist[b]);
   std::vector<double> fprime(ngp);// = f[b];
   std::vector<double> gprime(ngp);// = g[b];
 
@@ -113,9 +111,9 @@ Split into dPsi later??
       break;
     case Operator::gamma5 :
       for(auto i=0u; i<fprime.size(); i++){
-        //double fi = f[b][i];
+        //Note: gprimt includes the (-i) from g_a <a|h|b>
         fprime[i] = g[b][i];
-        gprime[i] = -f[b][i]; //XXX temp, image not cancel!
+        gprime[i] = -f[b][i]; //see above
       }
       break;
     case Operator::dr :
@@ -129,49 +127,11 @@ Split into dPsi later??
     default : std::cout<<"\nError 103 in EO radialInt: unknown operator\n";
   }
 
-  // for(auto i=0u; i<vint.size(); i++){
-  //   fprime[i] *= vint[i];
-  //   gprime[i] *= vint[i];
-  // }
-
-  double Rf = INT::integrate4(f[a],vint,fprime,drdt);//,1,0,pinf);
-  double Rg = INT::integrate4(g[a],vint,gprime,drdt);//,1,0,pinf);
+  double Rf = INT::integrate4(f[a],vint,fprime,drdt,1,0,pinf);
+  double Rg = INT::integrate4(g[a],vint,gprime,drdt,1,0,pinf);
   return (Rf+Rg)*h;
 }
 
-// enum class Operator {unity, r, gamma0, gamma5, dr, dr2};
-// //******************************************************************************
-// void ElectronOrbitals::dPsi(unsigned a,
-//   std::vector<double> &fp, std::vector<double> &gp,
-//   const std::vector<double> &vint, Operator operator)
-// {
-//   //check that a valid index.
-//   fp = f[a];//XXX OK? NO! Can't be stacked! :(
-//   gp = g[a];
-//   switch(operator){
-//     case Operator::unity  : break;
-//     case Operator::r      : operate_r(fp,gp); break;
-//     case Operator::gamma0 : operate_gamma0(fp,gp); break;
-//     case Operator::gamma5 : operate_gamma5(fp,gp); break;
-//   }
-//
-//   for(auto i=0u; i<vint.size(); i++){
-//     fp[i] *= v[i];
-//     gp[i] *= v[i];
-//   }
-// }
-// //------------------
-// void operate_gamma0(std::vector<double> &f, std::vector<double> &g){
-//   for(auto i=0u; i<f.size(); i++)
-//     g[i] = -g[i];
-// }
-// void operate_gamma5(std::vector<double> &f, std::vector<double> &g){
-//   for(auto i=0u; i<f.size(); i++){
-//     double fi = f[i];
-//     f[i] = g[i];
-//     g[i] = fi;
-//   }
-// }
 
 //******************************************************************************
 double ElectronOrbitals::get_alpha()const{
@@ -777,7 +737,7 @@ See: https://www-nds.iaea.org/radii/
 {
   vnuc.clear(); //just to be sure..
 
-  double rN=rnuc; //nuclear charge radius:
+  double rN = rnuc; //nuclear charge radius:
   //Estimate nuclear charge radius. Only for spherical nuclei.
   if(rnuc==0){
     if(A_==1) rN = 0.8783;       // 1-H
@@ -790,16 +750,14 @@ See: https://www-nds.iaea.org/radii/
   // XXX Add data tables of nuclear radii!
 
   //Fill the vnuc array with spherical nuclear potantial
-  //vnuc.push_back(0); //XXX ??
   double rn2=pow(rN,2);
   double rn3=pow(rN,3);
   for(auto i=0u; i<r.size(); i++){
     double temp_v;
     double ri = r[i];
-    if(ri<rN) temp_v = Z_*(pow(ri,2)-3.*rn2)/(2.*rn3);
+    if(ri<rN) temp_v = Z_*(ri*ri-3.*rn2)/(2.*rn3);
     else temp_v = -Z_/ri;
     vnuc.push_back(temp_v);
-    //std::cout<<i<<" "<<r[i]<<" "<<rN<<" "<<temp_v<<" "<<-Z_/ri<<"\n";
   }
 
   return 0;
@@ -835,22 +793,21 @@ https://www.gnu.org/software/gsl/manual/html_node/Complete-Fermi_002dDirac-Integ
 {
   vnuc.clear(); // clear the array [just in case..]
 
+  if(Z_==55 && t==0) t=2.3;
+  if(Z_==55 && c==0) c=5.6710;
   if(t==0) t=2.4; // Default skin-thickness (in fm)
   if(c==0) c=1.1*pow(A_,0.3333); //default half-charge radius ????
   // XXX Better approx! +/or data tables!
-
-  //std::cout<<c/FPC::aB_fm<<"\n";
 
   double a=0.22756*t; // a = t*[4 ln(3)]
   double coa=c/a;
   // Use GSL for the Complete Fermi-Dirac Integrals:
   double F2 = gsl_sf_fermi_dirac_2(coa);
   double pi2 = pow(M_PI,2);
-  //vnuc.push_back(0); //XXX ??
   for(int i=0; i<ngp; i++){
     double t_r = r[i];
     double t_v = -Z_/t_r;
-    if(t_r<10.*a){  // XXX OK??
+    if(t_r<2.*a){  // XXX OK?? Note: units!!!
       double roa = FPC::aB_fm*t_r/a; // convert fm <-> atomic
       double coa2= pow(coa,2);
       double xF1 = gsl_sf_fermi_dirac_1(roa-coa);
