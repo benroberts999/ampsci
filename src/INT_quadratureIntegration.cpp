@@ -172,8 +172,8 @@ XXX overload so can use floats?
 
 //******************************************************************
 // Calculates the derivative of a function!
-int diff(const std::vector<double> &f, const std::vector<double> &drdt, double h,
-    std::vector<double> &deriv)
+int diff(const std::vector<double> &f, const std::vector<double> &drdt,
+  double h, std::vector<double> &deriv, int order)
 {
 
 // Problem: This calcs the derivative for a few (4) points AFTER pinf; where it oscilates.
@@ -187,7 +187,8 @@ df/dr = df/dt * dt/dr = (df/dt) / (dr/dt) = (df/di) * (di/dt) / (dr/dt) =
 coeficients from: http://en.wikipedia.org/wiki/Finite_difference_coefficient
 */
 
-  int NGP = f.size();
+  unsigned NGP = f.size();
+  deriv.resize(NGP);
 
 	deriv[0]= (f[1]-f[0])/(h*drdt[0]);
 	deriv[NGP-1]= (f[NGP-1]-f[NGP-2])/(h*drdt[NGP-1]);
@@ -201,12 +202,17 @@ coeficients from: http://en.wikipedia.org/wiki/Finite_difference_coefficient
 	deriv[3]= (-1*f[0]+9*f[1]-45*f[2]+45*f[4]-9*f[5]+1*f[6])/(60*h*drdt[3]);
 	deriv[NGP-4]= (-1*f[NGP-7]+9*f[NGP-6]-45*f[NGP-5]+45*f[NGP-3]-9*f[NGP-2]+1*f[NGP-1])/(60*h*drdt[NGP-4]);
 
-	for (int i=4; i<(NGP-4);i++){
+	for (auto i=4u; i<(NGP-4);i++){
 //		deriv[i] = ( (1/56)*f[i-4] - (4/21)*f[i-3] + 1*f[i-2] - 4*f[i-1]
 //		- (1/56)*f[i+4] + (4/21)*f[i+3] - 1*f[i+2] + 4*f[i+1] ) / (5*h*drdt(i));
 		deriv[i] = ( (1./8)*f[i-4] - (4./3)*f[i-3] + 7*f[i-2] - 28*f[i-1]
 		- (1./8)*f[i+4] + (4./3)*f[i+3] - 7*f[i+2] + 28*f[i+1] ) / (35*h*drdt[i]);
 	}
+
+  if(order > 1){
+    std::vector<double> f2 = deriv;
+    diff(f2,drdt,h,deriv,order-1);
+  }
 
   return 0;
 

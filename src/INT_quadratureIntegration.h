@@ -7,8 +7,7 @@ double integrate(const std::vector<double> &f, const std::vector<double> &w,
   double h, int l=0, int m=0, int nquad=14);
 
 int diff(const std::vector<double> &f, const std::vector<double> &drdt,
-      double h,
-      std::vector<double> &deriv);
+      double h, std::vector<double> &deriv, int order=0);
 
 double integrate4(
         const std::vector<double> &f1,
