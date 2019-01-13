@@ -61,7 +61,7 @@ int main(){
     int k=wf.kappa[i];
     int twoj = 2*abs(k)-1;
     int l = (abs(2*k+1)-1)/2;
-    double del = wf.en[i] - wf.diracen(wf.Z(),n,k);
+    double del = wf.en[i] - wf.diracen(wf.Znuc(),n,k);
     double rinf = wf.r[wf.pinflist[i]];
     printf("%2i %s_%i/2 (%2i)  %3.0f %3i  %5.0e  %.15f  %7.0e\n",
         n,ATI::l_symbol(l).c_str(),twoj,k,rinf,wf.itslist[i],wf.epslist[i],

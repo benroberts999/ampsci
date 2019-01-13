@@ -67,7 +67,7 @@ int main(){
   //Make a list of valence states to solve:
   //Goes from n=0 -> n_max (inclusive), same for l
   //Adds any state to 'list to calculate' that isn't already in core
-  if(wf.num_core_electrons >= wf.Z()) n_max = 0;
+  if((int)wf.num_core_electrons >= wf.Znuc()) n_max = 0;
   std::vector< std::vector<int> > lst;
   for(int n=0; n<=n_max; n++){
     for(int l=0; l<n; l++){
@@ -97,26 +97,27 @@ int main(){
 
   //Output results:
   printf("\nCore: %s, Z=%i A=%i\n",Z_str.c_str(),Z,A);
-  printf("     n l_j    k   Rinf its    eps       En (au)      En (/cm)\n");
+  printf("     state   k   Rinf its    eps       En (au)      En (/cm)\n");
   bool val=false; double en_lim=0;
   for(int i : sorted_by_energy_list){
     if(val && en_lim==0) en_lim = fabs(wf.en[i]); //give energies wrt core
-    int n=wf.nlist[i];
+    //int n=wf.nlist[i];
     int k=wf.kappa[i];
-    int twoj = ATI::twoj_k(k);
-    int l = ATI::l_k(k);
+    //int twoj = ATI::twoj_k(k);
+    //int l = ATI::l_k(k);
     double rinf = wf.r[wf.pinflist[i]];
     double eni = wf.en[i];
-    printf("%2i) %2i %s_%i/2 %2i  %5.1f %3i  %5.0e %13.7f %13.1f",
-        i,n,ATI::l_symbol(l).c_str(),twoj,k,rinf,wf.itslist[i],wf.epslist[i],
+    std::string symb = wf.seTermSymbol(i);
+    printf("%2i) %7s %2i  %5.1f %3i  %5.0e %13.7f %13.1f",
+        i,symb.c_str(),k,rinf,wf.itslist[i],wf.epslist[i],
         eni, eni*FPC::Hartree_invcm);
     if(val)printf(" %10.2f\n",(eni+en_lim)*FPC::Hartree_invcm);
     else std::cout<<"\n";
-    if(i==wf.num_core_states-1){
+    if(i==(int)wf.num_core_states-1){
       printf("E_core = %.5f au\n",core_energy);
       // std::cout<<"Valence: \n";
-      if(wf.num_core_states==(int)wf.nlist.size()) break;
-      printf("Val: n l_j    k   Rinf its    eps       En (au)      En (/cm)   En (/cm)\n");
+      if(wf.num_core_states==wf.nlist.size()) break;
+      printf("Val: state   k   Rinf its    eps       En (au)      En (/cm)   En (/cm)\n");
       val = true;
     }
   }

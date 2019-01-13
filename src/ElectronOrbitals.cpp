@@ -99,12 +99,37 @@ double ElectronOrbitals::get_alpha()const{
   return alpha;
 }
 //******************************************************************************
-int ElectronOrbitals::Z()const{
+int ElectronOrbitals::Znuc()const{
   return Z_;
 }
 //******************************************************************************
-int ElectronOrbitals::A()const{
+int ElectronOrbitals::Anuc()const{
   return A_;
+}
+//******************************************************************************
+int ElectronOrbitals::Nnuc()const{
+  int N = (A_-Z_)>0 ? (A_-Z_) : 0;
+  return N;
+}
+//******************************************************************************
+int ElectronOrbitals::lorb(unsigned i)const{
+  if(i>=kappa.size()) return -1;
+  return ATI::l_k(kappa[i]);
+}
+//******************************************************************************
+int ElectronOrbitals::ka(unsigned i)const{
+  if(i>=kappa.size()) return 0;
+  return kappa[i];
+}
+//******************************************************************************
+double ElectronOrbitals::jtot(unsigned i)const{
+  if(i>=kappa.size()) return -1;
+  return 0.5*ATI::twoj_k(kappa[i]);
+}
+//******************************************************************************
+int ElectronOrbitals::twoj(unsigned i)const{
+  if(i>=kappa.size()) return -1;
+  return ATI::twoj_k(kappa[i]);
 }
 
 //******************************************************************************
@@ -248,9 +273,21 @@ NOTE: in some cases, given state may be in and out! Account for this?
 XXX Also check occupancy fraction? Do seperately!
 */
 {
-  for(int i=0; i<num_core_states; i++)
+  for(auto i=0u; i<num_core_states; i++)
     if(n==nlist[i] && k==kappa[i]) return true;
   return false;
+}
+
+//******************************************************************************
+unsigned ElectronOrbitals::getStateIndex(int n, int k, bool forceVal) const
+/*
+*/
+{
+  unsigned beg = forceVal ? num_core_states : 0u;
+  for(auto i=beg; i<kappa.size(); i++)
+    if(n==nlist[i] && k==kappa[i]) return i;
+  std::cout<<"\nFAIL 290 in EO: Couldn't find state nk="<<n<<","<<k<<"\n";
+  return kappa.size(); //this is an invalid index!
 }
 
 //******************************************************************************
@@ -258,7 +295,7 @@ int ElectronOrbitals::maxCore_n()
 //Returns the largest n in the core (used for energy guesses)
 {
   int max_n = 0;
-  for(int i=0; i<num_core_states; i++)
+  for(auto i=0u; i<num_core_states; i++)
     if(nlist[i]>max_n) max_n = nlist[i];
   return max_n;
 }
@@ -296,13 +333,13 @@ HartreeFockClass.cpp has routines for Hartree Fock
   num_core_states = nlist.size(); //store number of states in core
 
   //occupancy fraction for each core state (avg of Non-rel states!):
-  for(int i=0; i<num_core_states; i++){
+  for(auto i=0u; i<num_core_states; i++){
     int n = nlist[i];
     int ka = kappa[i];
     int l = ATI::l_k(ka);
     //Find the correct core list index (to determine filling factor):
     int ic=-1;
-    for(size_t j=0; j<num_core_shell.size(); j++){
+    for(auto j=0u; j<num_core_shell.size(); j++){
       if(n==ATI::core_n[j] && l==ATI::core_l[j]){
         ic = j;
         break;
@@ -386,7 +423,7 @@ Note: For HF, should never be called after core is frozen!
 }
 
 //******************************************************************************
-void ElectronOrbitals::orthonormaliseValence(int iv, int num_its)
+void ElectronOrbitals::orthonormaliseValence(unsigned iv, int num_its)
 /*
 Force given valence orbital to be orthogonal to
   a) all core orbitals
@@ -397,11 +434,11 @@ note: here, c denotes core orbitals + valence orbitals with c<v
 */
 {
   if(iv<num_core_states) return;
-  int num_states_below = iv;
+  unsigned num_states_below = iv;
 
   //Calculate the coeficients <c|v> = A_cv
   std::vector<double> A_vc(num_states_below);
-  for(int ic=0; ic<num_states_below; ic++){
+  for(auto ic=0u; ic<num_states_below; ic++){
     if(kappa[iv]!=kappa[ic]) continue;
     double fvc = INT::integrate3(f[iv],f[ic],drdt);
     double gvc = INT::integrate3(g[iv],g[ic],drdt);
@@ -409,7 +446,7 @@ note: here, c denotes core orbitals + valence orbitals with c<v
   }
 
   //Orthogonalise:
-  for(int ic=0; ic<num_states_below; ic++){
+  for(auto ic=0u; ic<num_states_below; ic++){
     if(kappa[iv]!=kappa[ic]) continue;
     double Avc = A_vc[ic];
     if(Avc==0) continue; //never?
@@ -530,7 +567,7 @@ Uses:
 
 
 //******************************************************************************
-int ElectronOrbitals::getRadialIndex(double r_target)
+unsigned ElectronOrbitals::getRadialIndex(double r_target) const
 /*
 Finds the radial grid index that corresponds to r=r_target
 NOTE: returns index that corresponds to r _lower_ that (or equal to) r_target
@@ -615,7 +652,7 @@ Default b=4.
 
 
 //******************************************************************************
-double ElectronOrbitals::diracen(double z, double n, int k){
+double ElectronOrbitals::diracen(double z, double n, int k) const{
 //
   // double c2 = 1./pow(alpha,2);
   // double za2 = pow(alpha*z,2);
@@ -750,16 +787,15 @@ https://www.gnu.org/software/gsl/manual/html_node/Complete-Fermi_002dDirac-Integ
 }
 
 //******************************************************************************
-std::string ElectronOrbitals::seTermSymbol(int ink)
+std::string ElectronOrbitals::seTermSymbol(int ink, bool gnuplot) const
 {
-  std::string ostring =
-  std::to_string(nlist[ink])+ATI::l_symbol(ATI::l_k(kappa[ink]))
-  +"_{"+std::to_string(ATI::twoj_k(kappa[ink]))+"/2}";
+  //std::string pad = (!gnuplot && nlist[ink]<10) ? " " : "";
+  std::string ostring1 = std::to_string(nlist[ink])+ATI::l_symbol(lorb(ink));
+  std::string ostring2 = gnuplot ?
+    "_{"+std::to_string(twoj(ink))+"/2}"
+    : "_"+std::to_string(twoj(ink))+"/2";
 
-  //, bool full
-  //later, if full==true, return (2S+1)L_J..
-
-  return ostring;
+  return ostring1+ostring2;
 }
 
 //------------------------------------------------------------------------------

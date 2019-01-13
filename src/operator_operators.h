@@ -3,7 +3,7 @@
 
 namespace operator{
 
-  enum Operator {unity, r, gamma0, gamma5};
+  enum Operator {unity, r, gamma0, gamma5, dr, dr2};
 
   void operate(std::vector<double> &f, std::vector<double> &g, Operator v);
   void operate(std::vector<double> &f, std::vector<double> &g,

@@ -224,7 +224,7 @@ Later, can put other options if you want.
 */
 {
   p_wf -> vdir.resize(m_ngp); //make sure correct size
-  int Z = p_wf -> Z();
+  int Z = p_wf -> Znuc();
   //Get default values for Green potential
   double Gh,Gd;  //Green potential parameters
   PRM::defaultGreenCore(Z,Gh,Gd);
@@ -450,7 +450,7 @@ When doing Hartree (no exchange) only need v^0_bb
 Don't call this as well as form_vabk_core, not needed (won't break though)
 */
 {
-  for(int b=0; b<p_wf->num_core_states; b++)
+  for(auto b=0u; b<p_wf->num_core_states; b++)
     calculate_v_abk(b,b,0,m_arr_v_abk_r[b][b][0]);
 }
 

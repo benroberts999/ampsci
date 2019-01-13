@@ -100,7 +100,7 @@ int main(){
   printf("\n n l_j    k Rinf its    eps      En (au)        En (/cm)\n");
   for(size_t m=0; m<sort_list.size(); m++){
     int i = sort_list[m];
-    if((int)m==wf.num_core_states){
+    if(m==wf.num_core_states){
       std::cout<<" ========= Valence: ======\n";
       printf(" n l_j    k Rinf its    eps      En (au)        En (/cm)\n");
     }

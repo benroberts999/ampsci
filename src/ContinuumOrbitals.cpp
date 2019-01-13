@@ -25,7 +25,7 @@ If none given, will assume izion should be 1! Not 100% always!
   drdt = wf.drdt;
 
   alpha = wf.get_alpha();
-  Z = wf.Z();
+  Z = wf.Znuc();
 
   //Check Zion. Will normally be 0 for neutral atom. Make -1
   double tmp_Zion = -1*wf.r[NGPb-5]*(wf.vnuc[NGPb-5]+wf.vdir[NGPb-5]);

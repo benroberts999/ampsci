@@ -30,8 +30,8 @@ class ElectronOrbitals{
     //Note: avg over non-rel for core, but rel for valence!
     std::vector<double> occ_frac;
 
-    int num_core_states;
-    int num_core_electrons; // Nc = N - M
+    unsigned num_core_states;
+    unsigned num_core_electrons; // Nc = N - M
 
     //grid
     std::vector<double> r;
@@ -47,10 +47,17 @@ class ElectronOrbitals{
   public:
 
     double get_alpha() const;
-    int Z() const;
-    int A() const;
+    int Znuc() const;
+    int Anuc() const;
+    int Nnuc() const;
+    int ka(unsigned i)const;
+    int lorb(unsigned i)const;
+    int twoj(unsigned i)const;
+    double jtot(unsigned i)const;
+    unsigned getStateIndex(int n, int k, bool forceVal=false) const;
+    unsigned getRadialIndex(double r_target) const;
 
-    std::string seTermSymbol(int ink);
+    std::string seTermSymbol(int ink, bool gnuplot=false) const;
 
     double radialIntegral(int a, int b) const;
 
@@ -59,18 +66,16 @@ class ElectronOrbitals{
     int reSolveDirac(int i, double e_a, const std::vector<double> &vex,
       int log_dele_or=0);
 
-    double diracen(double z, double n, int k);
+    double diracen(double z, double n, int k) const;
     int sphericalNucleus(double rnuc=0);
     int fermiNucleus(double t=0, double c=0);
-
-    int getRadialIndex(double r_target);
 
     int solveInitialCore(std::string str_core_in, int log_dele_or=0);
     bool isInCore(int n, int k);
     int maxCore_n();
 
     void orthonormaliseOrbitals(int num_its=1);
-    void orthonormaliseValence(int iv, int num_its);
+    void orthonormaliseValence(unsigned iv, int num_its);
 
     int sortedEnergyList(std::vector<int> &sort_list);
 
