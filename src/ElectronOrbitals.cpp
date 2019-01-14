@@ -93,11 +93,16 @@ double ElectronOrbitals::radialIntegral(uint a, uint b,
 Split into dPsi later??
 */
 {
-
   //check that a and b are OK!
+  if(a>=f.size() || b>=f.size() )
+    std::cout<<"\nFail 97 in EO radInt. Invalid state\n";
+
   int pinf = std::min(pinflist[a],pinflist[b]);
   std::vector<double> fprime(ngp);// = f[b];
   std::vector<double> gprime(ngp);// = g[b];
+
+  //Is this a good way? Confusing?
+  int ig_sign = 1;
 
   //XXX This part should be seperate function, so can store dpsi XXX
   switch(op){
@@ -113,7 +118,8 @@ Split into dPsi later??
       for(auto i=0u; i<fprime.size(); i++){
         //Note: gprimt includes the (-i) from g_a <a|h|b>
         fprime[i] = g[b][i];
-        gprime[i] = -f[b][i]; //see above
+        gprime[i] = f[b][i]; //see above
+        ig_sign = -1;
       }
       break;
     case Operator::dr :
@@ -129,7 +135,7 @@ Split into dPsi later??
 
   double Rf = INT::integrate4(f[a],vint,fprime,drdt,1,0,pinf);
   double Rg = INT::integrate4(g[a],vint,gprime,drdt,1,0,pinf);
-  return (Rf+Rg)*h;
+  return (Rf + ig_sign*Rg)*h;
 }
 
 
@@ -305,7 +311,7 @@ NOTE: Only works up to n=9, and l=5 [h]
 }
 
 //******************************************************************************
-bool ElectronOrbitals::isInCore(int n, int k)
+bool ElectronOrbitals::isInCore(int n, int k) const
 /*
 Checks if given state is in the core.
 NOTE: in some cases, given state may be in and out! Account for this?
@@ -330,12 +336,19 @@ unsigned ElectronOrbitals::getStateIndex(int n, int k, bool forceVal) const
 }
 
 //******************************************************************************
-int ElectronOrbitals::maxCore_n()
-//Returns the largest n in the core (used for energy guesses)
+int ElectronOrbitals::maxCore_n(int ka) const
+/*
+Returns the largest n for states with kappa = ka in the core
+Note: ka is optional input; if none given, will be 0 (& not used)
+(used for energy guesses)
+Note: if you give it l instead of kappa, still works!
+*/
 {
   int max_n = 0;
-  for(auto i=0u; i<num_core_states; i++)
+  for(auto i=0u; i<num_core_states; i++){
+    if(kappa[i] != ka && ka != 0) continue;
     if(nlist[i]>max_n) max_n = nlist[i];
+  }
   return max_n;
 }
 
@@ -835,12 +848,22 @@ std::string ElectronOrbitals::seTermSymbol(int ink, bool gnuplot) const
 }
 
 //------------------------------------------------------------------------------
-int ElectronOrbitals::sortedEnergyList(std::vector<int> &sort_list)
+void ElectronOrbitals::sortedEnergyList(std::vector<int> &sort_list,
+  bool do_sort) const
 /*
 Outouts a list of integers corresponding to the states
 sorted by energy (lowest energy first)
 */
 {
+
+  sort_list.clear();
+
+  if(!do_sort){
+    for(auto i=0u; i<en.size(); i++)
+      sort_list.push_back((int)i);
+    return;
+  }
+
   std::vector< std::vector<double> > t_en;
   for(size_t i=0; i<en.size(); i++){
     t_en.push_back({en[i],(double)i+0.1});
@@ -857,10 +880,9 @@ sorted by energy (lowest energy first)
 
   std::sort(t_en.rbegin(), t_en.rend(), sortCol);
 
-  for(size_t i=0; i<en.size(); i++){
+  for(size_t i=0; i<en.size(); i++)
     sort_list.push_back((int)t_en[i][1]);
-  }
-  return 0;
+
 }
 
 //******************************************************************************

@@ -2,6 +2,6 @@ Cs -1              | Z, A(=-1 for default, 0 for '0 nuc')
 Xe                 | Core configuration (comma separated)
 1.e-6 200 1600     | r0, rmax, num_points
 1.e-10             | HF convergence. [0 for max its]
-8 1                | max n and l (valence)
+3 1                | number of valence states for each l (and l)
 1                  | var(alpha^2). (<<1 for non-rel. =1 for normal.)
 --------------------

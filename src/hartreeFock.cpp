@@ -22,7 +22,7 @@ int main(){
   double varalpha,varalpha2;
   double eps_HF;
 
-  int n_max,l_max;
+  int num_val,l_max;
   std::string str_core;
 
   //Open and read the input file:
@@ -35,7 +35,7 @@ int main(){
     ifs >> str_core;              getline(ifs,jnk);
     ifs >> r0 >> rmax >> ngp;     getline(ifs,jnk);
     ifs >> eps_HF;                getline(ifs,jnk);
-    ifs >> n_max >> l_max;        getline(ifs,jnk);
+    ifs >> num_val >> l_max;      getline(ifs,jnk);
     ifs >> varalpha2;             getline(ifs,jnk);
     ifs.close();
   }
@@ -67,21 +67,38 @@ int main(){
   //Make a list of valence states to solve:
   //Goes from n=0 -> n_max (inclusive), same for l
   //Adds any state to 'list to calculate' that isn't already in core
-  if((int)wf.num_core_electrons >= wf.Znuc()) n_max = 0;
+  // if((int)wf.num_core_electrons >= wf.Znuc()) n_max = 0;
+  // std::vector< std::vector<int> > lst;
+  // for(int n=0; n<=n_max; n++){
+  //   for(int l=0; l<n; l++){
+  //     if(l>l_max) continue;
+  //     for(int tk=0; tk<2; tk++){ //loop over k
+  //       int k;
+  //       if(tk==0) k=l;      //j = l - 1/2
+  //       else      k=-(l+1); //j = l + 1/2
+  //       if(k==0) continue;  // no j = l - 1/2 for l=0
+  //       if(wf.isInCore(n,k)) continue;
+  //       lst.push_back({n,k});
+  //     }
+  //   }
+  // }
+
+  //Create list of valence states to solve for
+  // Solves for lowest num_val states with given l
   std::vector< std::vector<int> > lst;
-  for(int n=0; n<=n_max; n++){
-    for(int l=0; l<n; l++){
-      if(l>l_max) continue;
+  if((int)wf.num_core_electrons >= wf.Znuc()) num_val = 0;
+  for(int l=0; l<=l_max; l++){
+    int n0 = wf.maxCore_n(l) + 1;
+    if(n0==1) n0 += l;
+    for(int nv=0; nv<num_val; nv++){
       for(int tk=0; tk<2; tk++){ //loop over k
-        int k;
-        if(tk==0) k=l;      //j = l - 1/2
-        else      k=-(l+1); //j = l + 1/2
-        if(k==0) continue;  // no j = l - 1/2 for l=0
-        if(wf.isInCore(n,k)) continue;
-        lst.push_back({n,k});
+        int ka = (tk==0)? l : -(l+1); //kappa
+        if(ka==0) continue; //no j=l-1/2 for l=s
+        lst.push_back({n0+nv,ka});
       }
     }
   }
+
   //Solve for the valence states:
   timer.start();
   for(const auto &nk : lst){
@@ -93,18 +110,16 @@ int main(){
 
   //make list of energy indices in sorted order:
   std::vector<int> sorted_by_energy_list;
-  wf.sortedEnergyList(sorted_by_energy_list);
+  wf.sortedEnergyList(sorted_by_energy_list,true);
 
   //Output results:
   printf("\nCore: %s, Z=%i A=%i\n",Z_str.c_str(),Z,A);
   printf("     state   k   Rinf its    eps       En (au)      En (/cm)\n");
-  bool val=false; double en_lim=0;
+  bool val=false;
+  double en_lim=0;
   for(int i : sorted_by_energy_list){
     if(val && en_lim==0) en_lim = fabs(wf.en[i]); //give energies wrt core
-    //int n=wf.nlist[i];
     int k=wf.kappa[i];
-    //int twoj = ATI::twoj_k(k);
-    //int l = ATI::l_k(k);
     double rinf = wf.r[wf.pinflist[i]];
     double eni = wf.en[i];
     std::string symb = wf.seTermSymbol(i);
@@ -115,9 +130,9 @@ int main(){
     else std::cout<<"\n";
     if(i==(int)wf.num_core_states-1){
       printf("E_core = %.5f au\n",core_energy);
-      // std::cout<<"Valence: \n";
       if(wf.num_core_states==wf.nlist.size()) break;
-      printf("Val: state   k   Rinf its    eps       En (au)      En (/cm)   En (/cm)\n");
+      std::cout<<"Val: state   "
+        <<"k   Rinf its    eps       En (au)      En (/cm)   En (/cm)\n";
       val = true;
     }
   }

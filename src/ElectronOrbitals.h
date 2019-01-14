@@ -75,13 +75,13 @@ class ElectronOrbitals{
     int fermiNucleus(double t=0, double c=0);
 
     int solveInitialCore(std::string str_core_in, int log_dele_or=0);
-    bool isInCore(int n, int k);
-    int maxCore_n();
+    bool isInCore(int n, int k) const;
+    int maxCore_n(int ka_in=0) const;
 
     void orthonormaliseOrbitals(int num_its=1);
     void orthonormaliseValence(unsigned iv, int num_its);
 
-    int sortedEnergyList(std::vector<int> &sort_list);
+    void sortedEnergyList(std::vector<int> &sort_list, bool do_sort=false)const;
 
     //Single function to form grid, takes in option (w/ enums)!
     //Default: logLinear..
