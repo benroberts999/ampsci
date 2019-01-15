@@ -17,12 +17,14 @@ double dd14 = 5230697472000;
 
 
 
+//*********************************************************
 //			INTEGRATE
-// Integrates input function f(i) wrt r, from l to m. This program contains wronskian drdt
+// Integrates input function f(i) wrt r, from l to m.
+//This program contains wronskian drdt
 //Uses an nquad-point quadrature formula.. for nquad=1->14 (any integer)
 //double integrate(double *f, int l, int m)
-double integrate(const std::vector<double> &fin, const std::vector<double> &w, double h, int l,
-  int m, int nquad)
+double integrate(const std::vector<double> &fin, const std::vector<double> &w,
+   double h, int l, int m, int nquad)
 /*
 
 f(x) dx -> f(u(t)) w(t) dt
@@ -39,7 +41,7 @@ XXX overload so can use floats?
 
   std::vector<double>f=fin; //XXX bad temp. workaround! XXX
 
-  int ngp = f.size();
+  auto ngp = (int) f.size();
   if (m==0) m=ngp-1;
 
 //re-arange limits to make less fiddly
@@ -187,7 +189,7 @@ df/dr = df/dt * dt/dr = (df/dt) / (dr/dt) = (df/di) * (di/dt) / (dr/dt) =
 coeficients from: http://en.wikipedia.org/wiki/Finite_difference_coefficient
 */
 
-  unsigned NGP = f.size();
+  auto NGP = f.size();
   deriv.resize(NGP);
 
 	deriv[0]= (f[1]-f[0])/(h*drdt[0]);
@@ -229,7 +231,7 @@ Integrates f1*f2*f3
 NOTE: f3 should be wronskian!Jacobian?Whatever
 */
 {
-  int ngp = f1.size();
+  int ngp = (int) f1.size();
   if(m==0) m = ngp-1;
   if (m>=ngp)  m = ngp-1;
   if (m<=l) return 0;
@@ -261,7 +263,7 @@ Integrates f1*f2*f3
 NOTE: f3 should be wronskian!Jacobian?Whatever
 */
 {
-  int ngp = f1.size();
+  int ngp = (int) f1.size();
   if(m==0) m = ngp-1;
   if (m>=ngp)  m = ngp-1;
   if (m<=l) return 0;
@@ -294,7 +296,7 @@ Integrates f1*f2*f3
 NOTE: f3 should be wronskian!Jacobian?Whatever
 */
 {
-  int ngp = f1.size();
+  int ngp = (int) f1.size();
   if(m==0) m = ngp-1;
   if (m>=ngp)  m = ngp-1;
   if (m<=l) return 0;
@@ -329,7 +331,7 @@ Integrates f1*f2*f3
 NOTE: f3 should be wronskian!Jacobian?Whatever
 */
 {
-  int ngp = f1.size();
+  int ngp = (int) f1.size();
   if(m==0) m = ngp-1;
   if (m>=ngp)  m = ngp-1;
   if (m<=l) return 0;

@@ -112,10 +112,10 @@ Split into dPsi later??
       break;
     case Operator::gamma0 :
       fprime = f[b];
-      for(auto i=0u; i<gprime.size(); i++) gprime[i] = -g[b][i];
+      for(size_t i=0; i<gprime.size(); i++) gprime[i] = -g[b][i];
       break;
     case Operator::gamma5 :
-      for(auto i=0u; i<fprime.size(); i++){
+      for(size_t i=0; i<fprime.size(); i++){
         //Note: gprimt includes the (-i) from g_a <a|h|b>
         fprime[i] = g[b][i];
         gprime[i] = f[b][i]; //see above
@@ -157,28 +157,33 @@ int ElectronOrbitals::Nnuc()const{
   return N;
 }
 //******************************************************************************
-int ElectronOrbitals::lorb(unsigned i)const{
+int ElectronOrbitals::lorb(size_t i)const{
   if(i>=kappa.size()) return -1;
   return ATI::l_k(kappa[i]);
 }
 //******************************************************************************
-int ElectronOrbitals::ka(unsigned i)const{
+int ElectronOrbitals::ka(size_t i)const{
   if(i>=kappa.size()) return 0;
   return kappa[i];
 }
 //******************************************************************************
-double ElectronOrbitals::jtot(unsigned i)const{
+int ElectronOrbitals::n_pqn(size_t i)const{
+  //if(i>=kappa.size()) return 0;
+  return nlist[i];
+}
+//******************************************************************************
+double ElectronOrbitals::jtot(size_t i)const{
   if(i>=kappa.size()) return -1;
   return 0.5*ATI::twoj_k(kappa[i]);
 }
 //******************************************************************************
-int ElectronOrbitals::twoj(unsigned i)const{
+int ElectronOrbitals::twoj(size_t i)const{
   if(i>=kappa.size()) return -1;
   return ATI::twoj_k(kappa[i]);
 }
 
 //******************************************************************************
-int ElectronOrbitals::reSolveDirac(int i, double e_a, int log_dele_or)
+int ElectronOrbitals::reSolveDirac(unsigned long i, double e_a, int log_dele_or)
 /*Overloaded version; see below
 This one doesn't have exchange potential
 */
@@ -187,7 +192,7 @@ This one doesn't have exchange potential
   return reSolveDirac(i,e_a,dummy_vex,log_dele_or);
 }
 //******************************************************************************
-int ElectronOrbitals::reSolveDirac(int i, double e_a,
+int ElectronOrbitals::reSolveDirac(unsigned long i, double e_a,
   const std::vector<double> &vex, int log_dele_or)
 /*
 "Re"solves dirac eqaution. Use this to re-solve for same state.
@@ -292,7 +297,7 @@ NOTE: Only works up to n=9, and l=5 [h]
     }
 
     //Merge this term with the existing core:
-    int size = std::max(core_ex.size(),num_core_shell.size());
+    auto size = std::max(core_ex.size(),num_core_shell.size());
     core_ex.resize(size);
     num_core_shell.resize(size);
 
@@ -318,21 +323,27 @@ NOTE: in some cases, given state may be in and out! Account for this?
 XXX Also check occupancy fraction? Do seperately!
 */
 {
-  for(auto i=0u; i<num_core_states; i++)
+  for(size_t i=0; i<num_core_states; i++)
     if(n==nlist[i] && k==kappa[i]) return true;
   return false;
 }
 
 //******************************************************************************
-unsigned ElectronOrbitals::getStateIndex(int n, int k, bool forceVal) const
+size_t ElectronOrbitals::getStateIndex(int n, int k, bool forceVal) const
 /*
 */
 {
-  unsigned beg = forceVal ? num_core_states : 0u;
+  size_t beg = forceVal ? num_core_states : 0;
   for(auto i=beg; i<kappa.size(); i++)
     if(n==nlist[i] && k==kappa[i]) return i;
   std::cout<<"\nFAIL 290 in EO: Couldn't find state nk="<<n<<","<<k<<"\n";
   return kappa.size(); //this is an invalid index!
+}
+
+//******************************************************************************
+size_t ElectronOrbitals::numberStates() const
+{
+  return nlist.size();
 }
 
 //******************************************************************************
@@ -345,7 +356,7 @@ Note: if you give it l instead of kappa, still works!
 */
 {
   int max_n = 0;
-  for(auto i=0u; i<num_core_states; i++){
+  for(size_t i=0; i<num_core_states; i++){
     if(kappa[i] != ka && ka != 0) continue;
     if(nlist[i]>max_n) max_n = nlist[i];
   }
@@ -385,19 +396,19 @@ HartreeFockClass.cpp has routines for Hartree Fock
   num_core_states = nlist.size(); //store number of states in core
 
   //occupancy fraction for each core state (avg of Non-rel states!):
-  for(auto i=0u; i<num_core_states; i++){
+  for(size_t i=0; i<num_core_states; i++){
     int n = nlist[i];
     int ka = kappa[i];
     int l = ATI::l_k(ka);
     //Find the correct core list index (to determine filling factor):
-    int ic=-1;
-    for(auto j=0u; j<num_core_shell.size(); j++){
+    auto ic = num_core_shell.size();
+    for(size_t j=0; j<num_core_shell.size(); j++){
       if(n==ATI::core_n[j] && l==ATI::core_l[j]){
         ic = j;
         break;
       }
     }
-    if(ic==-1){
+    if(ic == num_core_shell.size()){
       std::cout<<"FAIL 254 in ElectronOrbitals:solveInitialCore\n";
       return 2;
     }
@@ -424,12 +435,12 @@ Hence factor of 0.5
 Note: For HF, should never be called after core is frozen!
 */
 {
-  int Ns = nlist.size();
+  size_t Ns = nlist.size();
   std::vector< std::vector<double> > c_ab(Ns, std::vector<double>(Ns));
 
   //Calculate c_ab = <a|b>  [for b>a -- symmetric]
-  for(int a=0; a<Ns; a++){
-    for(int b=a+1; b<Ns; b++){
+  for(size_t a=0; a<Ns; a++){
+    for(size_t b=a+1ul; b<Ns; b++){
       if(kappa[a]!=kappa[b]) continue;
       double fab = INT::integrate3(f[a],f[b],drdt);
       double gab = INT::integrate3(g[a],g[b],drdt);
@@ -438,20 +449,20 @@ Note: For HF, should never be called after core is frozen!
   }
 
   //fill in the a>b part:
-  for(int b=0; b<Ns; b++){
-    for(int a=b+1; a<Ns; a++){
+  for(auto b=0ul; b<Ns; b++){
+    for(auto a=b+1ul; a<Ns; a++){
       if(kappa[a]!=kappa[b]) continue;
       c_ab[a][b] = c_ab[b][a];
     }
   }
 
   //Orthogonalise orbitals:
-  for(int a=0; a<Ns; a++){
-    for(int b=0; b<Ns; b++){
+  for(auto a=0ul; a<Ns; a++){
+    for(auto b=0ul; b<Ns; b++){
       if(a==b) continue;
       if(kappa[a]!=kappa[b]) continue;
       double cab = c_ab[a][b];
-      if(cab==0) continue; //already?
+      if(cab==0ul) continue; //already?
       for(int ir=0; ir<ngp; ir++){
         f[a][ir] -= cab*f[b][ir];
         g[a][ir] -= cab*g[b][ir];
@@ -460,7 +471,7 @@ Note: For HF, should never be called after core is frozen!
   }
 
   //Re-normalise orbitals (nb: doesn't make much difference)
-  for(int a=0; a<Ns; a++){
+  for(size_t a=0; a<Ns; a++){
     double faa = INT::integrate3(f[a],f[a],drdt);
     double gaa = INT::integrate3(g[a],g[a],drdt);
     double norm = 1./sqrt(h*(faa+gaa));
@@ -619,7 +630,7 @@ Uses:
 
 
 //******************************************************************************
-unsigned ElectronOrbitals::getRadialIndex(double r_target) const
+size_t ElectronOrbitals::getRadialIndex(double r_target) const
 /*
 Finds the radial grid index that corresponds to r=r_target
 NOTE: returns index that corresponds to r _lower_ that (or equal to) r_target
@@ -765,7 +776,7 @@ See: https://www-nds.iaea.org/radii/
   //Fill the vnuc array with spherical nuclear potantial
   double rn2=pow(rN,2);
   double rn3=pow(rN,3);
-  for(auto i=0u; i<r.size(); i++){
+  for(size_t i=0; i<r.size(); i++){
     double temp_v;
     double ri = r[i];
     if(ri<rN) temp_v = Z_*(ri*ri-3.*rn2)/(2.*rn3);
@@ -859,7 +870,7 @@ sorted by energy (lowest energy first)
   sort_list.clear();
 
   if(!do_sort){
-    for(auto i=0u; i<en.size(); i++)
+    for(size_t i=0; i<en.size(); i++)
       sort_list.push_back((int)i);
     return;
   }

@@ -32,8 +32,8 @@ class ElectronOrbitals{
     //Note: avg over non-rel for core, but rel for valence!
     std::vector<double> occ_frac;
 
-    unsigned num_core_states;
-    unsigned num_core_electrons; // Nc = N - M
+    size_t num_core_states;
+    size_t num_core_electrons; // Nc = N - M
 
     //grid
     std::vector<double> r;
@@ -52,12 +52,15 @@ class ElectronOrbitals{
     int Znuc() const;
     int Anuc() const;
     int Nnuc() const;
-    int ka(unsigned i)const;
-    int lorb(unsigned i)const;
-    int twoj(unsigned i)const;
-    double jtot(unsigned i)const;
-    unsigned getStateIndex(int n, int k, bool forceVal=false) const;
-    unsigned getRadialIndex(double r_target) const;
+    int ka(size_t i)const;
+    int n_pqn(size_t i)const;
+    int lorb(size_t i)const;
+    int twoj(size_t i)const;
+    double jtot(size_t i)const;
+    size_t getStateIndex(int n, int k, bool forceVal=false) const;
+    size_t getRadialIndex(double r_target) const;
+    size_t numberStates() const;
+
 
     std::string seTermSymbol(int ink, bool gnuplot=false) const;
 
@@ -66,9 +69,9 @@ class ElectronOrbitals{
       Operator op=Operator::unity) const;
 
     int solveLocalDirac(int n, int k, double en_a=0, int log_dele_or=0);
-    int reSolveDirac(int i, double e_a=0, int log_dele_or=0);
-    int reSolveDirac(int i, double e_a, const std::vector<double> &vex,
-      int log_dele_or=0);
+    int reSolveDirac(unsigned long i, double e_a=0, int log_dele_or=0);
+    int reSolveDirac(unsigned long i, double e_a,
+      const std::vector<double> &vex, int log_dele_or=0);
 
     double diracen(double z, double n, int k) const;
     int sphericalNucleus(double rnuc=0);

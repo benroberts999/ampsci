@@ -72,7 +72,7 @@ void HartreeFock::hartree_fock_core(){
 
     for(int j=0; j<m_ngp; j++){
       p_wf->vdir[j] = eta*p_wf->vdir[j] + (1.-eta)*vdir_old[j];
-      for(int i=0; i<m_num_core_states; i++){
+      for(auto i=0ul; i<m_num_core_states; i++){
         vex[i][j] = eta*vex[i][j] + (1.-eta)*vex_old[i][j];
       }
     }
@@ -80,7 +80,7 @@ void HartreeFock::hartree_fock_core(){
     //Solve Dirac Eq. for each state in core, using Vdir+Vex:
     std::vector<double> en_old = p_wf->en;
     double t_eps = 0;
-    for(int i=0; i<m_num_core_states; i++){
+    for(auto i=0ul; i<m_num_core_states; i++){
       //calculate de from PT
       double del_e = 0;
       for(int j=0; j<p_wf->pinflist[i]; j+=5){
@@ -95,7 +95,7 @@ void HartreeFock::hartree_fock_core(){
       double sfac = 2.*p_wf->kappa[i]*p_wf->occ_frac[i]; //|2k|=2j+1
       t_eps += fabs(sfac*(p_wf->en[i]-en_old[i])/en_old[i]);
     }//core states
-    t_eps /= (p_wf->num_core_electrons*eta);
+    t_eps /= (int(p_wf->num_core_electrons)*eta);
 
     //Force all core orbitals to be orthogonal to each other
     p_wf->orthonormaliseOrbitals(1);
@@ -107,7 +107,7 @@ void HartreeFock::hartree_fock_core(){
   std::cout<<"\n";
 
   //Now, re-solve core orbitals with higher precission
-  for(int i=0; i<m_num_core_states; i++)
+  for(auto i=0ul; i<m_num_core_states; i++)
     p_wf -> reSolveDirac(i,p_wf->en[i],vex[i],15);
   p_wf -> orthonormaliseOrbitals(2);
   // + re-solve direct potential (higher precission)?
@@ -126,7 +126,7 @@ void HartreeFock::solveValence(int n, int kappa)
 
   //just use direct to solve initial
   p_wf->solveLocalDirac(n,kappa,0,1);
-  int a = p_wf->nlist.size() - 1; //index of this valence state
+  auto a = p_wf->nlist.size() - 1; //index of this valence state
   int twoJplus1 = ATI::twoj_k(kappa)+1; //av. over REL configs
   p_wf->occ_frac.push_back(1./twoJplus1);
 
@@ -156,7 +156,7 @@ void HartreeFock::solveValence(int n, int kappa)
     double eps = fabs((p_wf->en[a]-en_old)/(eta*en_old));
     //Force valence states to be orthogonal to each other + to core:
     p_wf->orthonormaliseValence(a,1);
-    printf("\rHF val:%2i %2i %2i | %3i eps=%6.1e  en=%11.8f                  "
+    printf("\rHF val:%2lu %2i %2i | %3i eps=%6.1e  en=%11.8f                  "
      ,a,n,kappa,hits,eps,p_wf->en[a]);
     std::cout<<std::flush;
     if(eps<m_eps_HF && hits>2) break;
@@ -182,11 +182,11 @@ where:
 */
 {
   double Etot=0;
-  for(int a=0; a<m_num_core_states; a++){
+  for(auto a=0ul; a<m_num_core_states; a++){
     double E1=0, E2=0, E3=0;
     double xtjap1 = (twoj_list[a]+1)*p_wf->occ_frac[a];
     E1 += xtjap1*p_wf->en[a];
-    for(int b=0; b<m_num_core_states; b++){
+    for(auto b=0ul; b<m_num_core_states; b++){
       double xtjbp1 = (twoj_list[b]+1)*p_wf->occ_frac[b];
       std::vector<double> &v0bb = get_v_aa0(b);
       double R0f2 = INT::integrate4(p_wf->f[a],p_wf->f[a],v0bb,p_wf->drdt);
@@ -273,7 +273,7 @@ New routine for valence? Or make so can re-call this one??
 
   //Find largest existing kappa index
   int max_kappa_index = 0;
-  for(size_t i=0; i<kappa.size(); i++){
+  for(auto i=0ul; i<kappa.size(); i++){
     int kappa_index = index_from_kappa(kappa[i]);
     if(kappa_index > max_kappa_index) max_kappa_index = kappa_index;
   }
@@ -340,7 +340,7 @@ Add all we might need, keep order matchine index!
 }
 
 //******************************************************************************
-double HartreeFock::get_Lambda_abk(int a, int b, int k) const
+double HartreeFock::get_Lambda_abk(unsigned long a, unsigned long b, int k) const
 /*
 Simple routine to (semi-)safely return Lambda_abk
 Note: input a and b are regular ElectronOrbitals state indexes
@@ -371,10 +371,10 @@ Note: only for core. These are stored in m_arr_v_abk_r array (class member)
 {
   m_arr_v_abk_r.clear();
   m_arr_v_abk_r.resize(m_num_core_states);
-  for(int a=0; a<m_num_core_states; a++){
+  for(auto a=0ul; a<m_num_core_states; a++){
     m_arr_v_abk_r[a].resize(a+1);
     int tja = twoj_list[a];
-    for(int b=0; b<=a; b++){
+    for(auto b=0ul; b<=a; b++){
       int tjb = twoj_list[b];
       int num_k = (tja>tjb) ? (tjb+1) : (tja+1);
       m_arr_v_abk_r[a][b].resize(num_k);
@@ -392,7 +392,7 @@ This enlargens the m_arr_v_abk_r to make room for the valence states
 {
   std::vector<std::vector<std::vector<double> > > v_abk_tmp(m_num_core_states);
   int tja = 2*abs(kappa_a)-1;  // |2k|=2j+1
-  for(int b=0; b<m_num_core_states; b++){
+  for(auto b=0ul; b<m_num_core_states; b++){
     int tjb = twoj_list[b];
     int num_k = (tja>tjb) ? (tjb+1) : (tja+1);
     v_abk_tmp[b].resize(num_k, std::vector<double>(m_ngp));
@@ -464,8 +464,8 @@ Note: only for core-core states! (for now?)
 */
 {
   #pragma omp parallel for
-  for(int a=0; a<m_num_core_states; a++){
-    for(int b=0; b<=a; b++){
+  for(auto a=0ul; a<m_num_core_states; a++){
+    for(auto b=0ul; b<=a; b++){
       int kmin = abs(twoj_list[a] - twoj_list[b])/2;
       int kmax = (twoj_list[a] + twoj_list[b])/2;
       for(int k=kmin; k<=kmax; k++){
@@ -477,7 +477,7 @@ Note: only for core-core states! (for now?)
 }
 
 //******************************************************************************
-void HartreeFock::form_vabk_valence(int w)
+void HartreeFock::form_vabk_valence(unsigned long w)
 /*
 Calculates [calls calculate_v_abk] and stores the Hartree-Fock screening
 functions v^k_wb for a single (given) valence state (w=valence, b=core).
@@ -485,7 +485,7 @@ Stores in m_arr_v_abk_r
 */
 {
   #pragma omp parallel for
-  for(int b=0; b<m_num_core_states; b++){
+  for(auto b=0ul; b<m_num_core_states; b++){
     int kmin = abs(twoj_list[w] - twoj_list[b])/2;
     int kmax = (twoj_list[w] + twoj_list[b])/2;
     for(int k=kmin; k<=kmax; k++){
@@ -528,7 +528,7 @@ If re_scale==true, will scale by (N-1)/N. This then given the averaged Hartree
 {
   for(int i=0; i<m_ngp; i++) vdir[i] = 0;
   double sf = re_scale? (1. - (1.)/p_wf->num_core_electrons) : 1;
-  for(int b=0; b<m_num_core_states; b++){
+  for(auto b=0ul; b<m_num_core_states; b++){
     double f = (twoj_list[b]+1)*p_wf->occ_frac[b];
     std::vector<double> &v0bb = get_v_aa0(b);
     for(int i=0; i<m_ngp; i++) vdir[i] += f*v0bb[i]*sf;
@@ -544,13 +544,13 @@ Doesn't calculate, assumes m_arr_v_abk_r array exists + is up-to-date
 */
 {
   #pragma omp parallel for
-  for(int a=0; a<m_num_core_states; a++){
+  for(auto a=0ul; a<m_num_core_states; a++){
     form_approx_vex_a(a,vex[a]);
   }
 }
 
 //******************************************************************************
-void HartreeFock::form_approx_vex_a(int a, std::vector<double> &vex_a)
+void HartreeFock::form_approx_vex_a(unsigned long a, std::vector<double> &vex_a)
 /*
 Forms the 2D "approximate" exchange potential for given core state, a.
 Does the a=b case seperately, since it's a little simpler
@@ -577,7 +577,7 @@ Further, largest part of v_ex is when a=b. In this case, the factor=1 is exact!
   auto &fa =  p_wf->f[a];
   auto &ga =  p_wf->g[a];
 
-  for(int b=0; b<m_num_core_states; b++){ // b!=b
+  for(auto b=0ul; b<m_num_core_states; b++){ // b!=b
     if(b==a) continue;
     auto &fb =  p_wf->f[b];
     auto &gb =  p_wf->g[b];

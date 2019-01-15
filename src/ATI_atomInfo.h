@@ -59,6 +59,15 @@ inline double j_k(int ka){
   return 0.5*twoj_k(ka);
 }
 
+inline int indexFromKappa(int ka){
+  if(ka<0) return -2*ka-2;
+  else     return  2*ka-1;
+}
+inline int kappaFromIndex(int i){
+  if(i%2==0) return -(i+2)/2;
+  else       return  (i+1)/2;
+}
+
 //Given an atomic symbol (H, He, etc.), will return Z
 //Note: Symbol must be exact, including capitalisation
 inline int get_z(std::string at){

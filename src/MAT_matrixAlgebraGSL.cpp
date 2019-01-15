@@ -106,7 +106,7 @@ int invertMatrix(const std::vector< std::vector<float> > &inmat,
 
   for(int i=0; i<n; i++){
     for(int j=0; j<m; j++){
-      dbl_inmat[i][j]=inmat[i][j];
+      dbl_inmat[i][j] = (double) inmat[i][j];
     }
   }
 
@@ -115,7 +115,7 @@ int invertMatrix(const std::vector< std::vector<float> > &inmat,
   for(int i=0; i<n; i++){
     for(int j=0; j<m; j++){
       //dbl_inmat is now the inverted matrix; so make it the output:
-      outmat[i][j]=dbl_inmat[i][j];
+      outmat[i][j] = (float)dbl_inmat[i][j];
     }
   }
 
@@ -133,7 +133,7 @@ int invertMatrix(std::vector< std::vector<float> > &inmat)
 
   for(int i=0; i<n; i++){
     for(int j=0; j<m; j++){
-      dbl_inmat[i][j]=inmat[i][j];
+      dbl_inmat[i][j] = (double) inmat[i][j];
     }
   }
 
@@ -141,7 +141,7 @@ int invertMatrix(std::vector< std::vector<float> > &inmat)
 
   for(int i=0; i<n; i++){
     for(int j=0; j<m; j++){
-      inmat[i][j]=dbl_inmat[i][j];
+      inmat[i][j] = (float) dbl_inmat[i][j];
     }
   }
 
@@ -204,7 +204,7 @@ double calcDeterminant(const std::vector< std::vector<float> > & inmat)
 
   for(int i=0; i<n; i++){
     for(int j=0; j<m; j++){
-      dbl_inmat[i][j]=inmat[i][j];
+      dbl_inmat[i][j] = (double) inmat[i][j];
     }
   }
 

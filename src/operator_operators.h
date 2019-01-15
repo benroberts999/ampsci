@@ -30,19 +30,19 @@ void operate(std::vector<double> &f, std::vector<double> &g, Operator v)
 void operate(std::vector<double> &f, std::vector<double> &g,
   const std::vector<double> &v)
 {
-  for(auto i=0u; i<f.size(); i++){
+  for(size_t i=0; i<f.size(); i++){
     f[i] *= v[i];
     g[i] *= v[i];
   }
 }
 
 void operate_gamma0(std::vector<double> &f, std::vector<double> &g){
-  for(auto i=0u; i<f.size(); i++)
+  for(size_t i=0; i<f.size(); i++)
     g[i] = -g[i];
 }
 
 void operate_gamma5(std::vector<double> &f, std::vector<double> &g){
-  for(auto i=0u; i<f.size(); i++){
+  for(size_t i=0; i<f.size(); i++){
     double fi = f[i];
     f[i] = g[i];
     g[i] = fi;
@@ -57,7 +57,7 @@ void operate_gamma5(std::vector<double> &f, std::vector<double> &g){
 //   double c=gm.el[1][0];
 //   double d=gm.el[1][1];
 //
-//   for(auto i=0u; i<f.size(); i++){
+//   for(size_t i=0; i<f.size(); i++){
 //     double fi = f[i];
 //     f[i] = a*fi + b*g[i];
 //     g[i] = c*fi + d*g[i];

@@ -190,11 +190,11 @@ int main(){
 
     double rho0 = 0;
     std::vector<double> rho(wf.ngp);
-    for(auto i=0u; i<rho.size(); i++){
+    for(size_t i=0; i<rho.size(); i++){
       rho[i] = 1./(1. + exp((wf.r[i]*FPC::aB_fm-c)/a));
       rho0 += pow(wf.r[i],2)*rho[i]*wf.drdt[i]*4*M_PI*wf.h;
     }
-    for(auto i=0u; i<rho.size(); i++){
+    for(size_t i=0; i<rho.size(); i++){
       rho[i]/=rho0;
     }
 
@@ -206,7 +206,7 @@ int main(){
     int a7s = wf.getStateIndex(7,-1);
     std::cout<<a6s<<","<<a7s<<"\n";
     double pnc=0;
-    for(auto np=0u; np<wf.kappa.size(); np++){
+    for(auto np=0ul; np<wf.kappa.size(); np++){
       if(wf.kappa[np]!=1) continue; //p_1/2 only
       int n = wf.nlist[np];
       // <7s|d|np><np|hw|6s>/dE6s + <7s|hw|np><np|d|6s>/dE7s

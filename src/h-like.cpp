@@ -39,7 +39,7 @@ int main(){
   //Solve the Dirac equation for H-like ions:
   for(int n=1; n<=n_max; n++){
     for(int i=1; i<2*n; i++){ //loop through each kappa state
-      int k = pow(-1,i)*ceil(0.5*i);
+      int k = int(pow(-1,i)*ceil(0.5*i));
       int l = ATI::l_k(k);
       if(l>l_max) continue;
       double eng = wf.diracen(Z,n,k);
@@ -55,8 +55,8 @@ int main(){
   std::cout<<"\n";
 
   printf(" n l_j    k  R_inf its eps     En (au)            Error (au)\n");
-  int num_states = wf.nlist.size();
-  for(int i=0; i<num_states; i++){
+  auto num_states = wf.nlist.size();
+  for(auto i=0ul; i<num_states; i++){
     int n=wf.nlist[i];
     int k=wf.kappa[i];
     int twoj = 2*abs(k)-1;
@@ -79,14 +79,15 @@ int main(){
       printf(" <nk|r^%i|nk>   ",in);
     }
     std::cout<<"\n";
-    for (int s=0; s<num_states; s++){
-      printf("%2i%s_%i/2 : ",wf.nlist[s],ATI::l_symbol(ATI::l_k(wf.kappa[s])).c_str(),
-        ATI::twoj_k(wf.kappa[s]));
+    for (auto s=0ul; s<num_states; s++){
+      printf("%2i%s_%i/2 : ",
+        wf.nlist[s],ATI::l_symbol(wf.lorb(s)).c_str(),wf.twoj(s));
       for(int in=-2; in<=2; in ++){
         if(in==0) continue;
         std::vector<double> rad1;
         for (int i=0; i<wf.ngp; i++){
-          double x1=(wf.f[s][i]*wf.f[s][i]+wf.g[s][i]*wf.g[s][i])*pow(wf.r[i],in);
+          double x1 =
+            (wf.f[s][i]*wf.f[s][i]+wf.g[s][i]*wf.g[s][i])*pow(wf.r[i],in);
           rad1.push_back(x1);
         }
         // double R1=INT::integrate(rad1,wf.drdt,wf.h);
@@ -100,7 +101,7 @@ int main(){
     printf("\nTesting wavefunctions: <n|H|n>  (numerical error)\n");
     double alpha = wf.get_alpha();
     double a2 = pow(alpha,2);
-    for (int s=0; s<num_states; s++){
+    for(auto s=0ul; s<num_states; s++){
       std::vector<double> dQ(wf.ngp);
       INT::diff(wf.g[s],wf.drdt,wf.h,dQ);
       std::vector<double> rad;

@@ -370,7 +370,7 @@ void joinInOutSolutions(
 
   //store difference between in/out solutions (for q) - after re-scaling
   //Used later for P.T.
-  for(auto i=0u; i<dg.size(); i++){
+  for(size_t i=0; i<dg.size(); i++){
     dg[i] = qin[ctp-d_ctp+i]*rescale - qout[ctp-d_ctp+i];
   }
 
