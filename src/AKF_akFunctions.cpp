@@ -66,7 +66,7 @@ Writes the K factor to a text-file, in GNU-plot readable format
       if(desteps==1) y=0;
       double dE = demin*pow(demax/demin,y);
       ofile<<dE/keV<<" "<<q/qMeV<<" ";
-      double sum = 0;
+      float sum = 0.f;
       for(int j=0; j<num_states; j++){
         sum += AK[i][j][k];
         ofile<<AK[i][j][k]<<" ";
@@ -173,19 +173,19 @@ Zeff no longer works at main() level.
       if(dC_Lkk==0) continue;
       //#pragma omp parallel for
       for(int iq=0; iq<qsteps; iq++){
-        double a = 0;
-        double jLqr = 0;
+        double a = 0.;
+        double jLqr = 0.;
         if(cntm.f.size()>0){
           int maxj = wf.pinflist[is]; //don't bother going further
           //Do the radial integral:
           a=0;
           for(int j=0; j<maxj; j++){
-            jLqr = jLqr_f[L][iq][j];
+            jLqr = (double)jLqr_f[L][iq][j];
             a += (wf.f[is][j]*cntm.f[ic][j] + wf.g[is][j]*cntm.g[ic][j])
                  *jLqr*wf.drdt[j];// *h below!
           }
         }
-        AK_nk_q[iq] += dC_Lkk*pow(a*wf.h,2)*x_ocf;
+        AK_nk_q[iq] += (float) (dC_Lkk*pow(a*wf.h,2)*x_ocf);
       } //q
     } // END loop over cntm states (ic)
   } // end L loop
@@ -221,12 +221,11 @@ XXX Note sure if correct! esp, (q) angular part!? XXX
 
   for(int iq=0; iq<qsteps; iq++){
     if(eps<=0) break;
-    double chi_q=0;
-    for(int ir=0; ir<maxir; ir++){
-      chi_q += wf.f[nk][ir]*jl_qr[iq][ir]*wf.r[ir]*wf.drdt[ir];
-    }
+    double chi_q=0.;
+    for(int ir=0; ir<maxir; ir++)
+      chi_q += wf.f[nk][ir]*double(jl_qr[iq][ir])*wf.r[ir]*wf.drdt[ir];
     chi_q *= wf.h;
-    tmpK_q[iq] = (2./M_PI)*(twoj+1)*pow(chi_q,2)*sqrt(2.*eps);
+    tmpK_q[iq] = (float) ((2./M_PI)*(twoj+1)*pow(chi_q,2)*sqrt(2.*eps));
     //tmpK_q[iq] = pow(4*3.14159,2)*pow(chi_q,2); //XXX XXX just cf KOPP
   }
 

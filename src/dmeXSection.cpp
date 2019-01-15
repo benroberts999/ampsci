@@ -99,7 +99,7 @@ void writeForGnuplot_mvBlock(
       double E = Egrid.x(ie);
       of<<E*E_to_keV<<" ";
       for(int imx=0; imx<n_mx; imx++){
-        of<<X_mv_mx_x[imv][imx][ie]*y_unit_convert<<" ";
+        of<<double(X_mv_mx_x[imv][imx][ie])*y_unit_convert<<" ";
       }//mx
       of<<"\n";
     }//E
@@ -141,7 +141,7 @@ void writeForGnuplot_mxBlock(
       double E = Egrid.x(ie);
       of<<E*E_to_keV<<" ";
       for(int imv=0; imv<n_mv; imv++){
-        of<<X_mv_mx_x[imv][imx][ie]*y_unit_convert<<" ";
+        of<<double(X_mv_mx_x[imv][imx][ie])*y_unit_convert<<" ";
       }//mv
       of<<"\n";
     }//E
@@ -184,7 +184,7 @@ Uses a function pointer for DM form factor. F_chi_2(mu,q) := |F_chi|^2
       if(q<qminus || q>qplus) continue;
       double qdq_on_dqonq = q*q; //(dq/q) is constant, multiply at end
       double FX2 = F_chi_2(mu,q); //DM form factr (^2) [uses function pointer]
-      dsdE += qdq_on_dqonq*FX2*Ke_nq[ink][iq];  //dq/q included below
+      dsdE += qdq_on_dqonq*FX2*double(Ke_nq[ink][iq]);  //dq/q included below
     }//q int
   }//states
 
@@ -301,7 +301,7 @@ instead
       for(int imx=0; imx<n_mx; imx++){
         for(int ie=0; ie<desteps; ie++){
           dsv_mv_mx_E[imv][imx][ie] =
-           0.5*(dsv_mv_mx_Emax[imv][imx][ie]-dsv_mv_mx_E[imv][imx][ie]);
+           0.5f*(dsv_mv_mx_Emax[imv][imx][ie]-dsv_mv_mx_E[imv][imx][ie]);
         }
       }
     }
@@ -368,9 +368,9 @@ Optionally further integrates into energy bins
         for(int j = 0; j<desteps; j++){
           double Ep = Egrid.x(j);
           if(Ep<E_thresh_HW) continue; //hardware threshold
-          y0 += g(s,E-Ep)*dsv_mv_mx_E[imv][imx][j]*Ep;
+          y0 += g(s,E-Ep)*double(dsv_mv_mx_E[imv][imx][j])*Ep;
         }
-        dSdE_mv_mx_E[imv][imx][i] = y0*dEonE*rateFac;
+        dSdE_mv_mx_E[imv][imx][i] = (float) (y0*dEonE*rateFac);
       }
     }
   }
@@ -425,7 +425,7 @@ Optionally further integrates into energy bins
         for(int ie = ieA; ie<ieB; ie++){
           if(ieB>=desteps) break;
           double E = Egrid.x(ie);
-          Rate += dSdE_mv_mx_E[imv][imx][ie]*E;
+          Rate += double(dSdE_mv_mx_E[imv][imx][ie])*E;
           //nb: E is from Jacobian; * dE/E below
         }
         Rate *= dEonE/wEbin;

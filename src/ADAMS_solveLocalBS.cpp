@@ -499,9 +499,9 @@ Then, it then call ADAMS-MOULTON, to finish (from nol*AMO+1 to nf = ctp-d_ctp)
   //order of the expansion coeficients in 'inint'  (15 orig.)
   const int nx=30;
   // PRIMARY convergance for expansion in `inint'' (10^-8)
-  const float nxepsp=1e-18;
+  const double nxepsp=1e-18;
   // SECONDARY convergance for expansion in `inint'' (10e-3):
-  const float nxepss=1e-3;
+  const double nxepss=1e-3;
 
   double alpha2 = pow(alpha,2);
   double cc = 1./alpha;
