@@ -31,8 +31,7 @@ ElectronOrbitals::ElectronOrbitals(int in_z, int in_a, int in_ngp, double rmin,
   //If in_a -ve, use default atomic mass
   A_ = (in_a<0) ? ATI::A[Z_] : in_a;
 
-  // if(A_>0) fermiNucleus();
-  // else    zeroNucleus();
+  //Use Fermi nucleus by default, unless A=0 is given
   if(A_>0) formNuclearPotential(NucleusType::Fermi);
   else     formNuclearPotential(NucleusType::zero);
 

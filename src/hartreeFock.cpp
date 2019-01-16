@@ -20,9 +20,8 @@ int main(){
   double r0,rmax;
   int ngp;
   double varalpha,varalpha2;
-  double eps_HF;
-
-  int num_val,l_max;
+  double eps_HF; //HF convergance
+  int num_val,l_max; //valence states to calc
   std::string str_core;
 
   //Open and read the input file:
