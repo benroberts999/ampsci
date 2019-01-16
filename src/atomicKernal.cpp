@@ -156,7 +156,7 @@ int main(){
 
   //Arrays to store results for outputting later:
   std::vector< std::vector< std::vector<float> > > AK; //float ok?
-  int num_states = wf.nlist.size();
+  int num_states = (int) wf.nlist.size();
   AK.resize(desteps, std::vector< std::vector<float> >
     (num_states, std::vector<float>(qsteps)));
 
@@ -191,7 +191,8 @@ int main(){
   for(int ide=0; ide<desteps; ide++){
     double dE = Egrid.x(ide);
     //Loop over core (bound) states:
-    for(size_t is=0; is<wf.nlist.size(); is++){
+    // for(size_t is=0; is<wf.nlist.size(); is++){
+    for(auto is : wf.stateIndexList){
       int k = wf.kappa[is];
       int l = ATI::l_k(k); //XXX check this!
       if(l>max_l) continue;

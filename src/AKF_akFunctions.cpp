@@ -45,9 +45,9 @@ void writeToTextFile(
 Writes the K factor to a text-file, in GNU-plot readable format
 */
 {
-  int desteps = AK.size();   //dE
-  int num_states = AK[0].size();  //nk
-  int qsteps = AK[0][0].size();//q
+  int desteps = (int) AK.size();   //dE
+  int num_states = (int) AK[0].size();  //nk
+  int qsteps = (int) AK[0][0].size();//q
 
   double qMeV = (1.e6/(FPC::Hartree_eV*FPC::c));
   double keV = (1.e3/FPC::Hartree_eV);
@@ -55,7 +55,7 @@ Writes the K factor to a text-file, in GNU-plot readable format
   std::ofstream ofile;
   ofile.open(fname+".txt");
   ofile<<"dE(keV) q(MeV) ";
-  for(size_t i=0; i<nklst.size(); i++) ofile<<nklst[i]<<" ";
+  for(size_t i=0; i<nklst.size(); i++) ofile<<nklst[i]<<" "; //xxx can range!
   ofile<<"Sum\n\n";
   for(int i=0; i<desteps; i++){
     for(int k=0; k<qsteps; k++){
@@ -102,9 +102,9 @@ Uses BRW_binaryReadWrite
   }
 
   if(write){
-    int nde = AK.size();   //dE
-    int ns = AK[0].size();  //nk
-    int nq = AK[0][0].size();//q
+    int nde = (int) AK.size();   //dE
+    int ns = (int) AK[0].size();  //nk
+    int nq = (int) AK[0][0].size();//q
     BRW::binary_rw(iof,nde,row);
     BRW::binary_rw(iof,ns,row);
     BRW::binary_rw(iof,nq,row);
@@ -276,7 +276,7 @@ Uses SBF_sphericalBesselFunctions
           }
           tmp /= (num_extra+1);
         }
-        jLqr_f[L][iq][ir] = tmp;
+        jLqr_f[L][iq][ir] = (float) tmp;
       }
     }
   }

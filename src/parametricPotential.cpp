@@ -98,7 +98,7 @@ int main(){
 
   //Output results:
   printf("\n n l_j    k Rinf its    eps      En (au)        En (/cm)\n");
-  for(size_t m=0; m<sort_list.size(); m++){
+  for(int m=0; m<(int)sort_list.size(); m++){//silly. Fix this...
     int i = sort_list[m];
     if(m==wf.num_core_states){
       std::cout<<" ========= Valence: ======\n";

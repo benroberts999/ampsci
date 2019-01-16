@@ -64,25 +64,6 @@ int main(){
   double core_energy = hf.calculateCoreEnergy();
   std::cout<<"core: "<<timer.lap_reading_str()<<"\n";
 
-  //Make a list of valence states to solve:
-  //Goes from n=0 -> n_max (inclusive), same for l
-  //Adds any state to 'list to calculate' that isn't already in core
-  // if((int)wf.num_core_electrons >= wf.Znuc()) n_max = 0;
-  // std::vector< std::vector<int> > lst;
-  // for(int n=0; n<=n_max; n++){
-  //   for(int l=0; l<n; l++){
-  //     if(l>l_max) continue;
-  //     for(int tk=0; tk<2; tk++){ //loop over k
-  //       int k;
-  //       if(tk==0) k=l;      //j = l - 1/2
-  //       else      k=-(l+1); //j = l + 1/2
-  //       if(k==0) continue;  // no j = l - 1/2 for l=0
-  //       if(wf.isInCore(n,k)) continue;
-  //       lst.push_back({n,k});
-  //     }
-  //   }
-  // }
-
   //Create list of valence states to solve for
   // Solves for lowest num_val states with given l
   std::vector< std::vector<int> > lst;
@@ -130,7 +111,7 @@ int main(){
     else std::cout<<"\n";
     if(i==(int)wf.num_core_states-1){
       printf("E_core = %.5f au\n",core_energy);
-      if(wf.num_core_states==wf.nlist.size()) break;
+      if(wf.num_core_states==(int)wf.nlist.size()) break;
       std::cout<<"Val: state   "
         <<"k   Rinf its    eps       En (au)      En (/cm)   En (/cm)\n";
       val = true;
@@ -168,9 +149,8 @@ int main(){
   if(print_wfs){
     std::ofstream of("hf-orbitals.txt");
     of<<"r ";
-    for(size_t a=0; a<wf.nlist.size(); a++){
-      of<<"\""<<wf.seTermSymbol(a)<<"\" ";
-    }
+    for(auto a : wf.stateIndexList)
+      of<<"\""<<wf.seTermSymbol(a,true)<<"\" ";
     of<<"\n";
     for(int i=0; i<wf.ngp; i++){
       of<<wf.r[i]<<" ";
@@ -206,7 +186,7 @@ int main(){
     int a7s = wf.getStateIndex(7,-1);
     std::cout<<a6s<<","<<a7s<<"\n";
     double pnc=0;
-    for(auto np=0ul; np<wf.kappa.size(); np++){
+    for(auto np : wf.stateIndexList){
       if(wf.kappa[np]!=1) continue; //p_1/2 only
       int n = wf.nlist[np];
       // <7s|d|np><np|hw|6s>/dE6s + <7s|hw|np><np|d|6s>/dE7s

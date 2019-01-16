@@ -238,7 +238,7 @@ Note: mv<0 means "heavy" mediator [Fx=1]
     double E = Egrid.x(ie);
     //Do v (and q) integrations:
     double dsvdE = dsvdE_Evmvmx(K_enq[ie],E,mv,mx,qgrid,arr_fv,dv,F_chi_2);
-    dsvde[ie] = dsvdE;
+    dsvde[ie] = (float) dsvdE;
   }//dE
 }
 
@@ -394,7 +394,7 @@ Optionally further integrates into energy bins
 
   if(wEbin==0 || fEbin==0 || iEbin==fEbin) return;
   // Integrate/average into energy bins:
-  int num_bins = ceil((fEbin-iEbin)/wEbin);
+  int num_bins = (int) ceil((fEbin-iEbin)/wEbin);
 
   //Array to store averaged Rate, S
   FloatVec3D S_mv_mx_E;
@@ -429,7 +429,7 @@ Optionally further integrates into energy bins
           //nb: E is from Jacobian; * dE/E below
         }
         Rate *= dEonE/wEbin;
-        S_mv_mx_E[imv][imx][i] = Rate;
+        S_mv_mx_E[imv][imx][i] = (float) Rate;
         double EaKev = Egrid.x(ieA)*E_to_keV;
         double EbKev = Egrid.x(ieB)*E_to_keV;
         if(imv==0 && imx==0){

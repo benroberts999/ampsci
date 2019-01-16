@@ -86,7 +86,7 @@ int main(){
       for(int m=0; m<n_array; m++){
         double d=dmin+m*dd;
         ElectronOrbitals wf(Z,A,ngp,r0,rmax,varalpha);
-        if(sphere) wf.sphericalNucleus();
+        if(sphere) wf.formNuclearPotential(NucleusType::spherical);
         if(green) for(int i=0; i<wf.ngp; i++)
           wf.vdir.push_back(PRM::green(Z,wf.r[i],H,d));
         else for(int i=0; i<wf.ngp; i++)
@@ -140,7 +140,7 @@ int main(){
 
   //Now, solve using the above-found best-fit parameters:
   ElectronOrbitals wf(Z,A,ngp,r0,rmax,varalpha);
-  if(sphere) wf.sphericalNucleus();
+  if(sphere) wf.formNuclearPotential(NucleusType::spherical);
 
   if(green)
     for(int i=0; i<wf.ngp; i++) wf.vdir.push_back(PRM::green(Z,wf.r[i],H,d));

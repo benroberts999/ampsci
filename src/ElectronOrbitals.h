@@ -3,7 +3,9 @@
 #include <string>
 
 enum class Operator {unity, gamma0, gamma5, dr, dr2};
+enum class NucleusType {Fermi, spherical, zero};
 
+//******************************************************************************
 class ElectronOrbitals{
 
   public:
@@ -32,8 +34,12 @@ class ElectronOrbitals{
     //Note: avg over non-rel for core, but rel for valence!
     std::vector<double> occ_frac;
 
-    size_t num_core_states;
-    size_t num_core_electrons; // Nc = N - M
+    std::vector<int> stateIndexList;
+    std::vector<int> coreIndexList;
+    std::vector<int> valenceIndexList;
+
+    int num_core_states;
+    int num_core_electrons; // Nc = N - M
 
     //grid
     std::vector<double> r;
@@ -52,37 +58,39 @@ class ElectronOrbitals{
     int Znuc() const;
     int Anuc() const;
     int Nnuc() const;
-    int ka(size_t i)const;
-    int n_pqn(size_t i)const;
-    int lorb(size_t i)const;
-    int twoj(size_t i)const;
-    double jtot(size_t i)const;
-    size_t getStateIndex(int n, int k, bool forceVal=false) const;
-    size_t getRadialIndex(double r_target) const;
-    size_t numberStates() const;
+    int ka(int i)const;
+    int n_pqn(int i)const;
+    int lorb(int i)const;
+    int twoj(int i)const;
+    double jtot(int i)const;
+    int getStateIndex(int n, int k, bool forceVal=false) const;
+    int getRadialIndex(double r_target) const;
+    int numberOfStates() const; //statesCount() ?
 
 
     std::string seTermSymbol(int ink, bool gnuplot=false) const;
 
-    double radialIntegral(uint a, uint b, Operator op=Operator::unity) const;
-    double radialIntegral(uint a, uint b, const std::vector<double> &vint,
+    double radialIntegral(int a, int b, Operator op=Operator::unity) const;
+    double radialIntegral(int a, int b, const std::vector<double> &vint,
       Operator op=Operator::unity) const;
 
-    int solveLocalDirac(int n, int k, double en_a=0, int log_dele_or=0);
+    int solveLocalDirac(int n, int k, double en_a=0, int log_dele_or=0,
+      bool iscore = false);
     int reSolveDirac(unsigned long i, double e_a=0, int log_dele_or=0);
     int reSolveDirac(unsigned long i, double e_a,
       const std::vector<double> &vex, int log_dele_or=0);
 
+    void formNuclearPotential(NucleusType nucleus_type,
+      double rc=0, double t=0);
+
     double diracen(double z, double n, int k) const;
-    int sphericalNucleus(double rnuc=0);
-    int fermiNucleus(double t=0, double c=0);
 
     int solveInitialCore(std::string str_core_in, int log_dele_or=0);
     bool isInCore(int n, int k) const;
     int maxCore_n(int ka_in=0) const;
 
     void orthonormaliseOrbitals(int num_its=1);
-    void orthonormaliseValence(unsigned iv, int num_its);
+    void orthonormaliseValence(int iv, int num_its);
 
     void sortedEnergyList(std::vector<int> &sort_list, bool do_sort=false)const;
 
@@ -107,9 +115,12 @@ class ElectronOrbitals{
 
     int determineCore(std::string str_core_in);
 
+    int sphericalNucleus(double rnuc=0);
+    int fermiNucleus(double t=0, double c=0);
+    int zeroNucleus();
+
     //Grid
     int exponentialRadialGrid(int ngp_in, double r0, double rmax);
-    int zeroNucleus();
 
     double enGuessCore(int n, int l);
     double enGuessVal(int n, int ka);

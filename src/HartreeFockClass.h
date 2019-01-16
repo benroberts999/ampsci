@@ -41,7 +41,7 @@ class HartreeFock{
     const int MAX_HART_ITS = 64;
 
     int m_ngp;
-    unsigned long m_num_core_states;
+    int m_num_core_states;
     std::vector<int> twoj_list;
     std::vector<int> kappa_index_list;
     int m_max_kappa_index_so_far;
@@ -60,14 +60,14 @@ class HartreeFock{
 
     void form_core_Lambda_abk(const std::vector<int> &kappa);
     void extend_Lambda_abk(int kappa_a);
-    double get_Lambda_abk(unsigned long a, unsigned long b, int k) const;
+    double get_Lambda_abk(int a, int b, int k) const;
 
     void initialise_m_arr_v_abk_r_core();
     void extend_m_arr_v_abk_r_valence(int kappa_a);
 
     int index_from_kappa(int ka) const;
     int twoj_from_index(int i) const;
-    int kappa_from_index(int i); //XXX
+    int kappa_from_index(int i);
     int l_from_index(int i) const;
 
     void form_vabk_core();
@@ -77,13 +77,13 @@ class HartreeFock{
     std::vector<double>& get_v_aa0(int a);
     std::vector<std::vector<double> >& get_v_abk(int a, int b);
 
-    void form_vabk_valence(unsigned long w);
+    void form_vabk_valence(int w);
 
     void form_vdir(std::vector<double> &vdir, bool re_scale=false);
 
     void form_approx_vex_core(std::vector<std::vector<double> > &vex);
 
-    void form_approx_vex_a(unsigned long a, std::vector<double> &vex_a);
+    void form_approx_vex_a(int a, std::vector<double> &vex_a);
 
 
 };

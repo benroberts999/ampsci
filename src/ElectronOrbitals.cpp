@@ -31,8 +31,10 @@ ElectronOrbitals::ElectronOrbitals(int in_z, int in_a, int in_ngp, double rmin,
   //If in_a -ve, use default atomic mass
   A_ = (in_a<0) ? ATI::A[Z_] : in_a;
 
-  if(A_>0) fermiNucleus(); //phericalNucleus();
-  else    zeroNucleus();
+  // if(A_>0) fermiNucleus();
+  // else    zeroNucleus();
+  if(A_>0) formNuclearPotential(NucleusType::Fermi);
+  else     formNuclearPotential(NucleusType::zero);
 
 }
 //-----Overloaded---------------------------------------------------------------
@@ -46,7 +48,8 @@ ElectronOrbitals::ElectronOrbitals(std::string s_in_z, int in_a, int in_ngp,
 
 
 //******************************************************************************
-int ElectronOrbitals::solveLocalDirac(int n, int k, double e_a, int log_dele_or)
+int ElectronOrbitals::solveLocalDirac(int n, int k, double e_a, int log_dele_or,
+  bool iscore)
 /*
 Uses ADAMS::solveDBS to solve Dirac Eqn for local potential (Vnuc + Vdir)
 */
@@ -62,7 +65,7 @@ Uses ADAMS::solveDBS to solve Dirac Eqn for local potential (Vnuc + Vdir)
   if(vdir.size()!=0) for(int i=0; i<ngp; i++) v_a[i] += vdir[i];
 
   //Solve local dirac Eq:
-  if(e_a==0) e_a = enGuessVal(n,k);
+  if(e_a==0) e_a = enGuessVal(n,k); //XXX can update this too! XXX
   int i_ret = ADAMS::solveDBS(f_a,g_a,e_a,v_a,n,k,r,drdt,h,pinf,its,eps,
     alpha,log_dele_or);
   //Store wf + energy
@@ -70,6 +73,10 @@ Uses ADAMS::solveDBS to solve Dirac Eqn for local potential (Vnuc + Vdir)
   g.push_back(g_a);
   en.push_back(e_a);
   //Store states:
+  int this_index = (int) stateIndexList.size();
+  stateIndexList.push_back( this_index ); //ok?
+  if(iscore) coreIndexList.push_back(this_index);
+  else    valenceIndexList.push_back(this_index);
   nlist.push_back(n);
   kappa.push_back(k);
   //store convergance info:
@@ -81,20 +88,20 @@ Uses ADAMS::solveDBS to solve Dirac Eqn for local potential (Vnuc + Vdir)
 }
 
 //******************************************************************************
-double ElectronOrbitals::radialIntegral(uint a, uint b, Operator op)const
+double ElectronOrbitals::radialIntegral(int a, int b, Operator op)const
 {
   std::vector<double> empty_vec;
   return radialIntegral(a,b,empty_vec,op);
 }
 //******************************************************************************
-double ElectronOrbitals::radialIntegral(uint a, uint b,
+double ElectronOrbitals::radialIntegral(int a, int b,
   const std::vector<double> &vint, Operator op) const
 /*
 Split into dPsi later??
 */
 {
   //check that a and b are OK!
-  if(a>=f.size() || b>=f.size() )
+  if(a>=(int)f.size() || b>=(int)f.size() )
     std::cout<<"\nFail 97 in EO radInt. Invalid state\n";
 
   int pinf = std::min(pinflist[a],pinflist[b]);
@@ -157,28 +164,28 @@ int ElectronOrbitals::Nnuc()const{
   return N;
 }
 //******************************************************************************
-int ElectronOrbitals::lorb(size_t i)const{
-  if(i>=kappa.size()) return -1;
+int ElectronOrbitals::lorb(int i)const{
+  if(i>=(int)kappa.size()) std::cerr<<"\nFAIL EO:166: indix too big\n";
   return ATI::l_k(kappa[i]);
 }
 //******************************************************************************
-int ElectronOrbitals::ka(size_t i)const{
-  if(i>=kappa.size()) return 0;
+int ElectronOrbitals::ka(int i)const{
+  if(i>=(int)kappa.size()) std::cerr<<"\nFAIL EO:171: indix too big\n";
   return kappa[i];
 }
 //******************************************************************************
-int ElectronOrbitals::n_pqn(size_t i)const{
-  //if(i>=kappa.size()) return 0;
+int ElectronOrbitals::n_pqn(int i)const{
+  if(i>=(int)kappa.size()) std::cerr<<"\nFAIL EO:176: indix too big\n";
   return nlist[i];
 }
 //******************************************************************************
-double ElectronOrbitals::jtot(size_t i)const{
-  if(i>=kappa.size()) return -1;
+double ElectronOrbitals::jtot(int i)const{
+  if(i>=(int)kappa.size()) std::cerr<<"\nFAIL EO:181: indix too big\n";
   return 0.5*ATI::twoj_k(kappa[i]);
 }
 //******************************************************************************
-int ElectronOrbitals::twoj(size_t i)const{
-  if(i>=kappa.size()) return -1;
+int ElectronOrbitals::twoj(int i)const{
+  if(i>=(int)kappa.size()) std::cerr<<"\nFAIL EO:186: indix too big\n";
   return ATI::twoj_k(kappa[i]);
 }
 
@@ -320,30 +327,31 @@ bool ElectronOrbitals::isInCore(int n, int k) const
 /*
 Checks if given state is in the core.
 NOTE: in some cases, given state may be in and out! Account for this?
-XXX Also check occupancy fraction? Do seperately!
 */
 {
-  for(size_t i=0; i<num_core_states; i++)
+  // for(int i=0; i<num_core_states; i++)
+  for(auto i : coreIndexList)
     if(n==nlist[i] && k==kappa[i]) return true;
   return false;
 }
 
 //******************************************************************************
-size_t ElectronOrbitals::getStateIndex(int n, int k, bool forceVal) const
+int ElectronOrbitals::getStateIndex(int n, int k, bool forceVal) const
 /*
 */
 {
-  size_t beg = forceVal ? num_core_states : 0;
-  for(auto i=beg; i<kappa.size(); i++)
+  //XXX there are better ways to implement this using stateIndexList !
+  int beg = forceVal ? num_core_states : 0;
+  for(auto i=beg; i<(int)kappa.size(); i++)
     if(n==nlist[i] && k==kappa[i]) return i;
   std::cout<<"\nFAIL 290 in EO: Couldn't find state nk="<<n<<","<<k<<"\n";
-  return kappa.size(); //this is an invalid index!
+  return (int)kappa.size(); //this is an invalid index!
 }
 
 //******************************************************************************
-size_t ElectronOrbitals::numberStates() const
+int ElectronOrbitals::numberOfStates() const
 {
-  return nlist.size();
+  return (int) nlist.size();
 }
 
 //******************************************************************************
@@ -356,7 +364,8 @@ Note: if you give it l instead of kappa, still works!
 */
 {
   int max_n = 0;
-  for(size_t i=0; i<num_core_states; i++){
+  // for(size_t i=0; i<num_core_states; i++){
+  for(auto i : coreIndexList){
     if(kappa[i] != ka && ka != 0) continue;
     if(nlist[i]>max_n) max_n = nlist[i];
   }
@@ -386,17 +395,17 @@ HartreeFockClass.cpp has routines for Hartree Fock
     double en_a = enGuessCore(n,l);
     int k1 = l; //j = l-1/2
     if(k1!=0) {
-      solveLocalDirac(n,k1,en_a,log_dele_or);
+      solveLocalDirac(n,k1,en_a,log_dele_or,true);
       en_a = 0.95*en[nlist.size()-1]; //update guess for next same l
       if(en_a>0) en_a = enGuessCore(n,l);
     }
     int k2 = -(l+1); //j=l+1/2
-    solveLocalDirac(n,k2,en_a,log_dele_or);
+    solveLocalDirac(n,k2,en_a,log_dele_or,true);
   }
-  num_core_states = nlist.size(); //store number of states in core
+  num_core_states = (int) nlist.size(); //store number of states in core
 
   //occupancy fraction for each core state (avg of Non-rel states!):
-  for(size_t i=0; i<num_core_states; i++){
+  for(int i=0; i<num_core_states; i++){
     int n = nlist[i];
     int ka = kappa[i];
     int l = ATI::l_k(ka);
@@ -486,7 +495,7 @@ Note: For HF, should never be called after core is frozen!
 }
 
 //******************************************************************************
-void ElectronOrbitals::orthonormaliseValence(unsigned iv, int num_its)
+void ElectronOrbitals::orthonormaliseValence(int iv, int num_its)
 /*
 Force given valence orbital to be orthogonal to
   a) all core orbitals
@@ -497,11 +506,11 @@ note: here, c denotes core orbitals + valence orbitals with c<v
 */
 {
   if(iv<num_core_states) return;
-  unsigned num_states_below = iv;
+  int num_states_below = iv;
 
   //Calculate the coeficients <c|v> = A_cv
   std::vector<double> A_vc(num_states_below);
-  for(auto ic=0u; ic<num_states_below; ic++){
+  for(int ic=0; ic<num_states_below; ic++){
     if(kappa[iv]!=kappa[ic]) continue;
     double fvc = INT::integrate3(f[iv],f[ic],drdt);
     double gvc = INT::integrate3(g[iv],g[ic],drdt);
@@ -509,7 +518,7 @@ note: here, c denotes core orbitals + valence orbitals with c<v
   }
 
   //Orthogonalise:
-  for(auto ic=0u; ic<num_states_below; ic++){
+  for(int ic=0; ic<num_states_below; ic++){
     if(kappa[iv]!=kappa[ic]) continue;
     double Avc = A_vc[ic];
     if(Avc==0) continue; //never?
@@ -630,26 +639,34 @@ Uses:
 
 
 //******************************************************************************
-size_t ElectronOrbitals::getRadialIndex(double r_target) const
+int ElectronOrbitals::getRadialIndex(double r_target) const
 /*
 Finds the radial grid index that corresponds to r=r_target
-NOTE: returns index that corresponds to r _lower_ that (or equal to) r_target
+NOTE: returns index that corresponds to r _lower_ than (or equal to) r_target
+(in general, the grid should be dense enough so that +/- 1 point doesn't matter)
 */
 {
-  if (r.size()==0){
-    std::cout<<"ERROR 219 in ElectronOrbitals - no grid!\n";
-    return -1;
-  }
+  // if (r.size()==0){
+  //   std::cout<<"ERROR 219 in ElectronOrbitals - no grid!\n";
+  //   return -1;
+  // }
   if(r_target >= r[ngp-1]) return (ngp-1);
   if(r_target <= r[0]) return 0; //nb: in this case: r[i] > r_target! careful!
   //loop through, find i for r[i] <= r_target < r[i+1]:
-  for(size_t i=0; i<r.size()-1; i++){
-    if(r_target>=r[i] && r_target<r[i+1]) return i;
-  }
+  for(auto i=0ul; i<r.size()-1; i++)
+    if(r_target>=r[i] && r_target<r[i+1]) return (int)i;
   //shouldn't get past this loop! This just for safety?
   std::cout<<"ERROR 227 in ElectronOrbitals - didn't find r??\n";
   return -1; //??
 }
+
+// enum class GridType {logLinear, exponential, linear};
+//
+// //******************************************************************************
+// void ElectronOrbitals::setGrid(GridType::grid)
+// {
+//
+// }
 
 //******************************************************************************
 int ElectronOrbitals::logLinearRadialGrid(double in_h, double r0, double rmax,
@@ -736,6 +753,19 @@ double ElectronOrbitals::diracen(double z, double n, int k) const{
 
 
 //******************************************************************************
+void ElectronOrbitals::formNuclearPotential(NucleusType nucleus_type,
+  double rc, double t)
+{
+  switch(nucleus_type){
+    case NucleusType::Fermi     : fermiNucleus(t,rc);   break;
+    case NucleusType::spherical : sphericalNucleus(rc); break;
+    case NucleusType::zero      : zeroNucleus();        break;
+    default : std::cerr<<"\nFail EO:755 - invalid nucleus type?\n";
+  }
+}
+
+
+//******************************************************************************
 int ElectronOrbitals::zeroNucleus()
 /*
 infinitesimal nucleus.
@@ -743,8 +773,8 @@ infinitesimal nucleus.
 */
 {
   vnuc.clear(); //just to be sure..
-  vnuc.push_back(0); //XXX ??
-  for(int i=1; i<ngp; i++)
+  //vnuc.push_back(0); //XXX ??
+  for(int i=0; i<ngp; i++)
     vnuc.push_back(-Z_/r[i]);
   return 0;
 }

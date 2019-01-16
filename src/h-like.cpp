@@ -79,9 +79,9 @@ int main(){
       printf(" <nk|r^%i|nk>   ",in);
     }
     std::cout<<"\n";
-    for (auto s=0ul; s<num_states; s++){
-      printf("%2i%s_%i/2 : ",
-        wf.nlist[s],ATI::l_symbol(wf.lorb(s)).c_str(),wf.twoj(s));
+    for (auto s : wf.stateIndexList){
+      printf("%7s : ",
+        wf.seTermSymbol(s).c_str());
       for(int in=-2; in<=2; in ++){
         if(in==0) continue;
         std::vector<double> rad1;
@@ -90,7 +90,6 @@ int main(){
             (wf.f[s][i]*wf.f[s][i]+wf.g[s][i]*wf.g[s][i])*pow(wf.r[i],in);
           rad1.push_back(x1);
         }
-        // double R1=INT::integrate(rad1,wf.drdt,wf.h);
         double R1=INT::integrate2(rad1,wf.drdt)*wf.h;
         printf("%13.8f, ",R1);
       }
@@ -101,45 +100,25 @@ int main(){
     printf("\nTesting wavefunctions: <n|H|n>  (numerical error)\n");
     double alpha = wf.get_alpha();
     double a2 = pow(alpha,2);
-    for(auto s=0ul; s<num_states; s++){
+    // for(auto s=0ul; s<num_states; s++){
+    for(auto s : wf.stateIndexList){
       std::vector<double> dQ(wf.ngp);
       INT::diff(wf.g[s],wf.drdt,wf.h,dQ);
       std::vector<double> rad;
       for (int i=0; i<wf.ngp; i++){
-        double x1=2*wf.f[s][i]*dQ[i]/alpha;
-        double x2=-2*wf.kappa[s]*wf.f[s][i]*wf.g[s][i]/(wf.r[i]*alpha);
+        double x1=-2*wf.f[s][i]*dQ[i]/alpha;
+        double x2=2*wf.kappa[s]*wf.f[s][i]*wf.g[s][i]/(wf.r[i]*alpha);
         double x3=-2*pow(wf.g[s][i],2)/a2;
         double x4=wf.vnuc[i]*(pow(wf.f[s][i],2)+pow(wf.g[s][i],2));
         rad.push_back(x1+x3+x2+x4);
       }
-      double R=INT::integrate(rad,wf.drdt,wf.h);
+      double R=INT::integrate2(rad,wf.drdt)*wf.h;
       double fracdiff=(R-wf.en[s])/wf.en[s];
       printf("<%i% i|H|%i% i> = % .15f, E(%i% i) = % .15f; % .0e\n",wf.nlist[s],
           wf.kappa[s],wf.nlist[s],wf.kappa[s],R,wf.nlist[s],wf.kappa[s],
           wf.en[s],fracdiff);
     }
   }
-
-  // std::vector<double> rinv(wf.ngp);
-  // for(int i=0; i<wf.ngp; i++) rinv[i] = 1./wf.r[i];
-  //
-  // int a = 0;
-  // double L = INT::integrate4(wf.f[a],wf.r,wf.f[a],wf.drdt)*wf.h;
-  //
-  // double dL = 0;
-  // for(int n=0; n<num_states; n++){
-  //   if(a==n) continue;
-  //   if(wf.kappa[a]!=wf.kappa[n]) continue;
-  //   double A = INT::integrate4(wf.f[a],rinv,wf.f[n],wf.drdt);
-  //   double B = INT::integrate4(wf.f[a],wf.r,wf.f[n],wf.drdt);
-  //
-  //   double dE = wf.en[a]-wf.en[n];
-  //   double f = 2*fabs(wf.kappa[n]);
-  //   dL += f*A*B/dE;
-  //   //std::cout<<n<<":"<<A<<" "<<B<<" "<<dE<<" : "<<dL<<" "<<A*B/dE<<"\n";
-  // }
-  // dL*=(wf.h*wf.h);
-  // std::cout<<"L="<<L<<" ;  dL = "<<2*dL<<"  "<<2*dL/L<<"\n";
 
   std::cout<<"\n Total time: "<<sw.reading_str()<<"\n";
 

@@ -107,7 +107,7 @@ continuum (un-bound) states [partial waves].
 
   int MAX_STATES=100;
   for(int i=0; i<MAX_STATES; i++){ //loop through each k state
-    int k = pow(-1,i+1)*ceil(0.5*(i+1));
+    int k = int(pow(-1,i+1)*ceil(0.5*(i+1)));
     int l = (abs(2*k+1)-1)/2;
     if(l<min_l) continue;
     if(l>max_l) break;
@@ -178,7 +178,7 @@ On irder to solve for Zeff, just make v use Zeff !!!!!!!
 
   int MAX_STATES=100;
   for(int i=0; i<MAX_STATES; i++){ //loop through each k state
-    int k = pow(-1,i+1)*ceil(0.5*(i+1));
+    int k = int(pow(-1,i+1)*ceil(0.5*(i+1)));
     int l = (abs(2*k+1)-1)/2;
     if(l<min_l) continue;
     if(l>max_l) break;
