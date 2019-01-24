@@ -4,11 +4,12 @@ ID =./src
 OD =./obj
 XD =.
 
+CXX=g++ #clang++
+
 OPT=-Ofast
-OMP=-fopenmp
+OMP=-fopenmp #-fopenmp=libiomp5 ##needed for clang++
 WARN=-Wpedantic -Wall -Wextra -Wconversion
 
-CXX=g++
 CXXFLAGS=-I$(ID) -std=c++11 $(OPT) $(OMP) $(WARN)
 LIBS=-lgsl -lgslcblas -lm
 
