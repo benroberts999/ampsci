@@ -8,10 +8,11 @@ CXX=g++ #clang++
 
 OPT=-Ofast
 OMP=-fopenmp #-fopenmp=libiomp5 ##needed for clang++
+
 WARN=-Wpedantic -Wall -Wextra -Wconversion
 
-CXXFLAGS=-I$(ID) -std=c++11 $(OPT) $(OMP) $(WARN)
-LIBS=-lgsl -lgslcblas -lm
+CXXFLAGS= -std=c++11 $(OPT) $(OMP) $(WARN) #-I$(ID)
+LIBS=-lgsl -lgslcblas #-lm
 
 #Command to compile objects and link them
 COMP=$(CXX) -c -o $@ $< $(CXXFLAGS)

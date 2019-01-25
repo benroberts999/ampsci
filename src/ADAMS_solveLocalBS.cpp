@@ -417,6 +417,10 @@ Then, it then call ADAMS-MOULTON, to finish (from nol*AMO+1 to nf = ctp+d_ctp)
 
     //defines/populates em coefs
     std::vector<double> coefa,coefb,coefc,coefd;
+    // coefa.reserve(AMO);
+    // coefb.reserve(AMO);
+    // coefc.reserve(AMO);
+    // coefd.reserve(AMO);
     std::vector< std::vector<double> > em(AMO,std::vector<double>(AMO));
     for (int i=0; i<AMO; i++){
       double dror = drdt[i+i0]/r[i+i0];
@@ -499,7 +503,7 @@ Then, it then call ADAMS-MOULTON, to finish (from nol*AMO+1 to nf = ctp-d_ctp)
   //order of the expansion coeficients in 'inint'  (15 orig.)
   const int nx=30;
   // PRIMARY convergance for expansion in `inint'' (10^-8)
-  const double nxepsp=1e-18;
+  const double nxepsp=1e-14;
   // SECONDARY convergance for expansion in `inint'' (10e-3):
   const double nxepss=1e-3;
 
@@ -532,20 +536,18 @@ Then, it then call ADAMS-MOULTON, to finish (from nol*AMO+1 to nf = ctp-d_ctp)
     double ps=1.;
     double qs=0.;
     double rk=1.;
+    double xe=1.;
     for (int k=0; k<nx; k++){ //this will loop until a) converge, b) k=nx
       rk=rk*r[i];
       ps=ps+(ax[k]/rk);
       qs=qs+(bx[k]/rk);
-      double xe=fmax(fabs((ax[k]/rk)/ps),fabs((bx[k]/rk)/qs));
-      if (xe<nxepsp){
-        k=nx; //reached convergance
-      }
-      else if (k==(nx-1)){
-        if (xe>nxepss && DEBUG)
-          printf("WARNING: Asymp. expansion in ININT didn't converge:"
-                 " %i, %i, %.2e\n",i,k,xe);
-      }
+      xe=fmax(fabs((ax[k]/rk)/ps),fabs((bx[k]/rk)/qs));
+      if (xe<nxepsp)
+        break; //reached convergance
     }
+    if (xe>nxepss && DEBUG)
+      printf("WARNING: Asymp. expansion in ININT didn't converge:"
+             " %i, %.2e\n",i,xe);
     p[i]=rfac*(f1*ps+f2*qs);
     q[i]=rfac*(f2*ps-f1*qs);  //??? here? the 'small cancellation'(?)
   }
@@ -588,7 +590,7 @@ program finishes the INWARD/OUTWARD integrations (ADAMS-MOULTON)
     nosteps=ni-nf+1;
   }
   else{
-    printf("WARNING 611: ni=nf in adamsmoulton.. no further integration");
+    printf("FAIL 611: ni=nf in adamsmoulton.. no further integration");
     return 1;
   }
 

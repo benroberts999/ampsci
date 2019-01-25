@@ -119,6 +119,12 @@ void HartreeFock::hartree_fock_core(){
 void HartreeFock::solveValence(int n, int kappa)
 {
 
+  //XXX This is slow! Much better to have another function that takes in
+  // a _list_ of valence states, and reserves all space first!
+  // Could also be a little clever, and do 'initial solve' outside,
+  // then could run the HF part in parallel.
+  //Note: probs not necisary: the 'form vex' part is // anyway, and fairly
+  // efficient
   twoj_list.push_back(ATI::twoj_k(kappa));
   kappa_index_list.push_back(index_from_kappa(kappa));
   extend_Lambda_abk(kappa);
@@ -282,10 +288,12 @@ New routine for valence? Or make so can re-call this one??
   }
   m_max_kappa_index_so_far = max_kappa_index;
 
+  m_arr_Lambda_nmk.reserve(max_kappa_index+1);
   for(int n=0; n<=max_kappa_index; n++){
     int tja = twoj_from_index(n);
     int la  = l_from_index(n);
     std::vector<std::vector<double> > Lmk;
+    Lmk.reserve(n+1);
     for(int m=0; m<=n; m++){
       int tjb = twoj_from_index(m);
       int lb  = l_from_index(m);
@@ -323,6 +331,7 @@ Add all we might need, keep order matchine index!
     int tja = twoj_from_index(n);
     int la  = l_from_index(n);
     std::vector<std::vector<double> > Lmk;
+    Lmk.reserve(n+1);
     for(int m=0; m<=n; m++){
       int tjb = twoj_from_index(m);
       int lb  = l_from_index(m);

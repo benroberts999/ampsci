@@ -89,7 +89,9 @@ int main(){
   //Look-up atomic number, Z, and also A
   int Z = ATI::get_z(Z_str);
   if(Z==0) return 2;
-  if(A==-1) A=ATI::A[Z]; //if none given, get default A
+
+  //Generate the orbitals object:
+  ElectronOrbitals wf(Z,A,ngp,r0,rmax,varalpha);
 
   //outut file name (excluding extension):
   std::string fname = "ak-"+Z_str+"_"+label;
@@ -100,13 +102,10 @@ int main(){
 
   //Print some info to screen:
   printf("\nRunning Atomic Kernal for %s, Z=%i A=%i\n",
-    Z_str.c_str(),Z,A);
+    Z_str.c_str(),Z,wf.Anuc());
   printf("*************************************************\n");
   if(Gf!=0) printf("Using Green potential: H=%.4f  d=%.4f\n",Gh,Gd);
   else printf("Using Hartree Fock (converge to %.0e)\n",hart_del);
-
-  //Generate the orbitals object:
-  ElectronOrbitals wf(Z,A,ngp,r0,rmax,varalpha);
 
   //Make sure h (large-r step size) is small enough to
   //calculate (normalise) cntm functions with energy = demax
@@ -128,6 +127,7 @@ int main(){
   }else{
     //Use Green (local parametric) potential
     //Fill the electron part of the (local/direct) potential
+    wf.vdir.reserve(wf.ngp);
     for(int i=0; i<wf.ngp; i++)
       wf.vdir.push_back(PRM::green(Z,wf.r[i],Gh,Gd));
     wf.solveInitialCore(str_core);//solves w/ Green
@@ -138,17 +138,16 @@ int main(){
   wf.sortedEnergyList(sorted_by_energy_list);
 
   //Output results:
-  printf("\n     n l_j    k Rinf its    eps     En (au)     En (/cm)    En (eV)    Oc.Frac.\n");
+  std::cout<<"\n     state  k Rinf its    eps      En (au)     En (/cm)    "
+    <<"En (eV)   Oc.Frac.\n";
   for(int i : sorted_by_energy_list){
-    int n=wf.nlist[i];
-    int k=wf.kappa[i];
-    int twoj = ATI::twoj_k(k);
-    int l = ATI::l_k(k);
+    auto nlj = wf.seTermSymbol(i);
+    int k = wf.ka(i);
     double rinf = wf.r[wf.pinflist[i]];
     double eni = wf.en[i];
     double x = wf.occ_frac[i];
-    printf("%2i) %2i %s_%i/2 %2i  %3.0f %3i  %5.0e  %11.5f %12.0f %10.2f   (%.2f)\n",
-      i,n,ATI::l_symbol(l).c_str(),twoj,k,rinf,wf.itslist[i],wf.epslist[i],
+    printf("%2i)%7s %2i  %3.0f %3i  %5.0e  %11.5f %12.0f %10.2f   (%.2f)\n",
+      i,nlj.c_str(),k,rinf,wf.itslist[i],wf.epslist[i],
       eni, eni*FPC::Hartree_invcm, eni*FPC::Hartree_eV,x);
   }
 
@@ -160,30 +159,22 @@ int main(){
   AK.resize(desteps, std::vector< std::vector<float> >
     (num_states, std::vector<float>(qsteps)));
 
+  //Store state info (each orbital) [just useful for plotting!]
   std::vector<std::string> nklst;//human-readiable state labels (easy plotting)
+  nklst.reserve(wf.nlist.size());
+  for(auto i : wf.stateIndexList)
+    nklst.emplace_back(wf.seTermSymbol(i,true));
 
   //pre-calculate the spherical Bessel function look-up table for efficiency
   std::vector< std::vector< std::vector<float> > > jLqr_f;
   AKF::sphericalBesselTable(jLqr_f,max_L,qgrid,wf.r);
 
-  //Calculate the AK
+  //Calculate the AK (print to screen)
   std::cout<<"\nCalculating atomic kernal AK(q,dE):\n";
   printf(" dE: %5.2f -- %5.1f keV  (%.2f -- %.1f au)\n"
         ,demin/keV,demax/keV,demin,demax);
   printf("  q: %5.0e -- %5.1g MeV  (%.2f -- %.1f au)\n"
         ,qmin/qMeV,qmax/qMeV,qmin,qmax);
-
-  //Store state info (each orbital) [just useful for plotting!]
-  for(size_t is=0; is<wf.nlist.size(); is++){
-    int k = wf.kappa[is];
-    int l = ATI::l_k(k);
-    //if(l>max_l) continue;
-    int twoj = ATI::twoj_k(k);
-    int n=wf.nlist[is];
-    std::string nk=std::to_string(n)+ATI::l_symbol(l)
-        +"_{"+std::to_string(twoj)+"/2}";
-    nklst.push_back(nk);
-  }
 
   //Calculate K(q,E)
   std::cout<<"Running dE loops ("<<desteps<<").."<<std::flush;
@@ -191,11 +182,9 @@ int main(){
   for(int ide=0; ide<desteps; ide++){
     double dE = Egrid.x(ide);
     //Loop over core (bound) states:
-    // for(size_t is=0; is<wf.nlist.size(); is++){
     for(auto is : wf.stateIndexList){
-      int k = wf.kappa[is];
-      int l = ATI::l_k(k); //XXX check this!
-      if(l>max_l) continue;
+      int l = wf.lorb(is);
+      if(l > max_l) continue;
       if(plane_wave) AKF::calculateKpw_nk(wf,is,dE,jLqr_f[l],AK[ide][is]);
       else AKF::calculateK_nk(wf,is,max_L,dE,jLqr_f,AK[ide][is]);
     }// END loop over bound states
