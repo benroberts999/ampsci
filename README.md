@@ -32,9 +32,9 @@ with a few extensions that improve numerical stability and accuracy
 
 Note: makes use of GSL libraries: https://www.gnu.org/software/gsl/
 
-  * For example, with ubuntu: _$sudo apt-get install libgsl0-dev_
+  * For example, with ubuntu: _$sudo apt-get install libgsl-dev_
   * Also needs LAPACK/BLAS libraries:
-  _$sudo apt-get install libblas-dev libatlas-dev liblapack-dev_
+  _$sudo apt-get install libatlas-base-dev liblapack-dev_ [not libblas-dev ]
 
 The above instructions are for linux (ubuntu). For windows, the easiest way (for me, anyway) is to make use of the recent 'windows subsystem for linux'. Instructions on installation/use here: https://www.roberts999.com/posts/2018/11/wsl-coding-windows-ubuntu
 Then, the compilation + use can proceed as per above.
