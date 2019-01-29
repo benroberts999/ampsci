@@ -14,7 +14,7 @@ namespace ADAMS{
     const std::vector<double> &v, const std::vector<double> &r, double alr);
 
   int findClassicalTurningPoint(double en, const std::vector<double> &v,
-    int pinf, int d_ctp);
+    int pinf);
 
   void trialDiracSolution(
     std::vector<double> &f, std::vector<double> &g, std::vector<double> &dg,
