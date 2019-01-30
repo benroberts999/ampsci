@@ -571,7 +571,11 @@ num = num electrons in THIS shell
   if(n>1) en_a *= 0.5;
 
   if(n==maxCore_n()-1) en_a *= 1.25;
-  if(n==maxCore_n()) en_a *= 2.5;
+  if(n==maxCore_n()) en_a *= 1.5;
+  if(n==maxCore_n()+1 && l==0 && num==2) en_a = -0.5*pow(Zeff,2);
+
+  //std::cout<<"Guess: n,l="<<n<<","<<l<<": "<<en_a<<", tot_el="<<tot_el<<" "<<num<<" "<<Zeff<<"\n";
+  //std::cout<<"maxcn="<<maxCore_n()<<"\n";
 
   return en_a;
 }
