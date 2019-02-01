@@ -1,35 +1,13 @@
-
+#include <vector>
+#include <cmath>
+#include <iostream>
 
 enum class GridType {loglinear, logarithmic, linear};
-
-/*
-
-Use the keyword 'static' to declare the method:
-
-static int MyMethod( int * a, int * b );
-Then you can call the method without an instance like so:
-
-int one = 1;
-int two = 2;
-
-MyClass::MyMethod( &two, &one );
-'static' methods are functions which only use the class as a namespace, and do not require an instance.
-
-The, grid MUST be called with ngp only (no h)!
-But I can use h to generate ngp outside class if I want!
-
-
-*/
-
-
 
 //******************************************************************************
 struct Grid{
 
-  Grid(double in_r0, double in_rmax, int in_ngp,
-    GridType gridtype = GridType::loglinear, double in_b=4.);
-
-  // const GridType gridtype;
+private: //? maybe better to be non-const, but private?
   const double r0;
   const double rmax;
   const int ngp;
@@ -39,31 +17,46 @@ struct Grid{
   std::vector<double> drdu;
   std::vector<double> drduor;
 
-  void printGrid();
-
 private:
   void formLogLinearGrid();
   void formLogGrid();
   void formLinearGrid();
 
-  double calcdu(GridType gridtype, double in_r0, double in_rmax, int in_ngp,
-    double b);
+public:
+
+  Grid(double in_r0, double in_rmax, int in_ngp,
+    GridType gridtype = GridType::loglinear, double b=4.);
+
+  const std::vector<double>& refto_r() const;
+  const std::vector<double>& refto_drdu() const;
+  const std::vector<double>& refto_drduor() const;
+
+  //??? or just make public?
+  const double get_r0();
+  const double get_rmax();
+  const int get_ngp();
+  const double get_du();
+
+  void printDetails() const;
+
+  static double calc_du_from_ngp(double in_r0, double in_rmax, int in_ngp,
+    GridType gridtype, double b=4.) const;
+
+  static int calc_ngp_from_du(double in_r0, double in_rmax, double in_du,
+    GridType gridtype, double b=4.) const;
 };
+
 
 //******************************************************************************
 Grid::Grid(double in_r0, double in_rmax, int in_ngp, GridType gridtype,
   double b)
   : r0(in_r0), rmax(in_rmax), ngp(in_ngp),
-  du(calcdu(in_ngp, gridtype, b))
+  du(calcdu(in_r0, in_rmax, in_ngp, gridtype, b))
 {
 
-  r.clear();
-  drdu.clear();
-  drduor.clear();
-
   r.reserve(ngp);
-  drdu.reserve(ngp);
-  drduor.reserve(ngp);
+  drdu.reserve(ngp);    //Jacobian:
+  drduor.reserve(ngp);  //(1/r)*du/dr (just for convinience)
 
   switch(gridtype){
     case GridType::loglinear : formLogLinearGrid(); break;
@@ -74,19 +67,40 @@ Grid::Grid(double in_r0, double in_rmax, int in_ngp, GridType gridtype,
 
 }
 
-
-
+//******************************************************************************
+void Grid::printDetails() const;
+{
+  printf("Grid: pts=%6i du=%7.5f r0=%.1e Rmax=%7.1f\n",ngp,du,r0,rmax);
+}
 
 //******************************************************************************
-double calcdu(GridType gridtype, double in_r0, double in_rmax, int in_ngp,
-  double b)
+static double calc_du_from_ngp(double in_r0, double in_rmax, int in_ngp,
+  GridType gridtype, double b) const
 {
   switch(gridtype){
     case GridType::loglinear:
       return (in_rmax-in_r0+b*log(in_rmax/in_r0))/(in_ngp-1);
+    case GridType::logarithmic:
+      return log(in_rmax/in_r0)/(in_ngp-1);
+    case GridType::linear:
+      return (in_rmax - in_r0)/(in_ngp-1);
   }
 }
 
+//******************************************************************************
+static int calc_ngp_from_du(double in_r0, double in_rmax, double in_du,
+  GridType gridtype, double b) const
+{
+  switch(gridtype){
+    case GridType::loglinear:
+      return int((in_rmax-in_r0+b*log(in_rmax/in_r0))/in_du) + 2;
+    case GridType::logarithmic:
+      return int(log(in_rmax/in_r0)/in_du) + 2;
+    case GridType::linear:
+      return int((in_rmax - in_r0)/in_du) + 2;
+  }
+
+}
 
 //******************************************************************************
 void Grid::form_loglinear_grid()
@@ -126,4 +140,34 @@ Typically (and by default), b = 4 (unit units/bohr radius)
     drduor.push_back(1./(b+r_tmp));
     drdu.push_back(drduor[i]*r_tmp);
   }
+}
+
+//******************************************************************************
+void Grid::form_logarithmic_grid()
+/*
+Standard exponential (logarithmic) grid.
+Uses:
+  dr/du = r0 * exp(u)
+  =>  r = r0 * exp(u)
+      u = i*du for i=0,1,2,...
+*/
+{
+  for(int i=0; i<ngp; i++)
+    drdu.push_back( r0*exp(i*h) );
+  r = drdu;
+  drduor.reize(ngp,1.);
+}
+
+//******************************************************************************
+void Grid::form_linear_grid()
+/*
+Should only be used for testing usually
+*/
+{
+  for(int i=0; i<ngp; i++){
+    double tmp_r = r0 + i*du;
+    r.push_back(tmp_r);
+    drduor.push_back(1./tmp_r);
+  }
+  drdu.reize(ngp,1.);
 }
