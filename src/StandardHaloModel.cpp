@@ -4,21 +4,19 @@
 
 using namespace SHMCONSTS;
 
-
-StandardHaloModel::StandardHaloModel(double in_cosphi, double dves, double dv0)
-{
+StandardHaloModel::StandardHaloModel(double in_cosphi, double dves,
+                                     double dv0) {
   cosphi = in_cosphi;
 
-  v0    = V0   + dv0*DEL_V0;   //account for errors
-  v_sun = VSUN + dv0*DEL_V0;   //account for errors
-  vesc  = VESC + dves*DEL_VESC; //account for errors
+  v0 = V0 + dv0 * DEL_V0;        // account for errors
+  v_sun = VSUN + dv0 * DEL_V0;   // account for errors
+  vesc = VESC + dves * DEL_VESC; // account for errors
   veorb = VEORB;
 
   NormConst = 1;
   double tmp = normfv();
   NormConst = tmp;
 }
-
 
 //******************************************************************************
 double StandardHaloModel::fv(double v)
@@ -35,40 +33,37 @@ Otherwise, NOT normalised!
  dves = [-1,1]
 */
 {
-  //local velocity (lab)
-  double vl = v_sun + veorb*COSBETA*cosphi;
+  // local velocity (lab)
+  double vl = v_sun + veorb * COSBETA * cosphi;
 
-  //Norm const * v^2:
-  double A = NormConst*pow(v,2);
+  // Norm const * v^2:
+  double A = NormConst * pow(v, 2);
 
-  double arg1 = -pow((v-vl)/v0,2);
+  double arg1 = -pow((v - vl) / v0, 2);
 
-  if(v<=0){
+  if (v <= 0) {
     return 0;
-  }else if(v<vesc-vl){ //here
-    double arg2 = -pow((v+vl)/v0,2);
-    return A*(exp(arg1)-exp(arg2));
-  }else if(v<vesc+vl){ //here
-    double arg2 = -pow(vesc/v0,2);
-    return A*(exp(arg1)-exp(arg2));
-  }else{
+  } else if (v < vesc - vl) { // here
+    double arg2 = -pow((v + vl) / v0, 2);
+    return A * (exp(arg1) - exp(arg2));
+  } else if (v < vesc + vl) { // here
+    double arg2 = -pow(vesc / v0, 2);
+    return A * (exp(arg1) - exp(arg2));
+  } else {
     return 0;
   }
-
 }
 
-
 //******************************************************************************
-double StandardHaloModel::normfv()
-{
+double StandardHaloModel::normfv() {
   int num_vsteps = 2000;
-  double dv = MAXV/num_vsteps;
+  double dv = MAXV / num_vsteps;
 
   double v = dv;
   double A = 0;
-  for(int i=0; i<num_vsteps; i++){
+  for (int i = 0; i < num_vsteps; i++) {
     A += fv(v);
     v += dv;
   }
-  return 1./(A*dv);
+  return 1. / (A * dv);
 }

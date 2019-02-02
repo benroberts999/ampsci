@@ -1,17 +1,15 @@
 #pragma once
-#include <vector>
 #include <string>
+#include <vector>
 
-enum class Operator {unity, gamma0, gamma5, dr, dr2};
-enum class NucleusType {Fermi, spherical, zero};
+enum class Operator { unity, gamma0, gamma5, dr, dr2 };
+enum class NucleusType { Fermi, spherical, zero };
 
-
-class Orbital{
-
+class Orbital {
 
   double *f;
   double *g; //???
-  //also: max, pinf? (f, or f+g?)
+  // also: max, pinf? (f, or f+g?)
 
   double en;
 
@@ -23,12 +21,10 @@ class Orbital{
 
   int its;
   double eps;
-
 };
 
-
 //******************************************************************************
-struct Grid{
+struct Grid {
 
   Grid();
 
@@ -42,15 +38,12 @@ struct Grid{
 
 private:
   void exponentialRadialGrid(int ngp_in, double r0, double rmax);
-  void logLinearRadialGrid(int ngp_in, double r0, double rmax, double b=4.);
-  void logLinearRadialGrid(double in_h, double r0, double rmax, double b=4.);
-
+  void logLinearRadialGrid(int ngp_in, double r0, double rmax, double b = 4.);
+  void logLinearRadialGrid(double in_h, double r0, double rmax, double b = 4.);
 };
 
-
-
 //******************************************************************************
-class ElectronOrbitals{
+class ElectronOrbitals {
 
 private:
   std::vector<double> f_block;
@@ -60,5 +53,4 @@ private:
 
 public:
   std::vector<Orbital> phi;
-
 };

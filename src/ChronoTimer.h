@@ -26,23 +26,21 @@ Usage:
 
 */
 
-class ChronoTimer{
-  public:
-    ChronoTimer(bool auto_start=false);
-    void start();
-    void stop();
-    void reset();
+class ChronoTimer {
+public:
+  ChronoTimer(bool auto_start = false);
+  void start();
+  void stop();
+  void reset();
 
-    double reading_ms();
-    double lap_reading_ms();
-    std::string reading_str();
-    std::string lap_reading_str();
+  double reading_ms();
+  double lap_reading_ms();
+  std::string reading_str();
+  std::string lap_reading_str();
 
-  private:
-
-    bool running;
-    std::chrono::high_resolution_clock::time_point tstart;
-    std::string convertHR(double t);
-    double total_time_ms;
-
+private:
+  bool running;
+  std::chrono::high_resolution_clock::time_point tstart;
+  std::string convertHR(double t);
+  double total_time_ms;
 };

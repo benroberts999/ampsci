@@ -55,7 +55,7 @@ $(OD)/dummy.o: $(ID)/dummy.cpp $(COMH) $(ID)/otherHeader.h
 
 BASE = $(addprefix $(OD)/, \
  ADAMS_solveLocalBS.o ElectronOrbitals.o INT_quadratureIntegration.o \
- MAT_matrixAlgebraGSL.o \
+ MAlg_matrixAlgebra.o \
 )
 
 HF = $(addprefix $(OD)/, \

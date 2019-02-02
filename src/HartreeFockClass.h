@@ -21,69 +21,63 @@ Solves all core and valence states.
 //XXX Still doesn't work well for open shells
 
 */
-class HartreeFock{
+class HartreeFock {
 
-  public:
+public:
+  HartreeFock(ElectronOrbitals &wf, const std::string &in_core,
+              double eps_HF = 1.e-8);
 
-    HartreeFock(ElectronOrbitals &wf, const std::string &in_core,
-      double eps_HF = 1.e-8);
+  void solveValence(int n, int kappa);
 
-    void solveValence(int n, int kappa);
+  double calculateCoreEnergy();
 
-    double calculateCoreEnergy();
+private:
+  ElectronOrbitals *p_wf = NULL;
 
-  private:
+  double m_eps_HF = 1.e-8;
 
-    ElectronOrbitals* p_wf = NULL;
+  const int MAX_HART_ITS = 64;
 
-    double m_eps_HF = 1.e-8;
+  int m_ngp;
+  int m_num_core_states;
+  std::vector<int> twoj_list;
+  std::vector<int> kappa_index_list;
+  int m_max_kappa_index_so_far;
 
-    const int MAX_HART_ITS = 64;
+  // The "localised"/approximate HF potential:
+  std::vector<std::vector<double>> vex;
 
-    int m_ngp;
-    int m_num_core_states;
-    std::vector<int> twoj_list;
-    std::vector<int> kappa_index_list;
-    int m_max_kappa_index_so_far;
+  // Store underlying arrays. These are 'double private'
+  std::vector<std::vector<std::vector<std::vector<double>>>> m_arr_v_abk_r;
+  std::vector<std::vector<std::vector<double>>> m_arr_Lambda_nmk;
 
-    //The "localised"/approximate HF potential:
-    std::vector< std::vector<double> > vex;
+private:
+  void hartree_fock_core();
+  void starting_approx_core(const std::string &in_core);
 
-    //Store underlying arrays. These are 'double private'
-    std::vector<std::vector<std::vector<std::vector<double> > > > m_arr_v_abk_r;
-    std::vector<std::vector<std::vector<double> > > m_arr_Lambda_nmk;
+  void form_core_Lambda_abk(const std::vector<int> &kappa);
+  void extend_Lambda_abk(int kappa_a);
+  double get_Lambda_abk(int a, int b, int k) const;
 
-  private:
+  void initialise_m_arr_v_abk_r_core();
+  void extend_m_arr_v_abk_r_valence(int kappa_a);
 
-    void hartree_fock_core();
-    void starting_approx_core(const std::string &in_core);
+  int index_from_kappa(int ka) const;
+  int twoj_from_index(int i) const;
+  int kappa_from_index(int i);
+  int l_from_index(int i) const;
 
-    void form_core_Lambda_abk(const std::vector<int> &kappa);
-    void extend_Lambda_abk(int kappa_a);
-    double get_Lambda_abk(int a, int b, int k) const;
+  void form_vabk_core();
+  void form_vbb0();
+  void calculate_v_abk(int a, int b, int k, std::vector<double> &vabk);
+  std::vector<double> &get_v_aa0(int a);
+  std::vector<std::vector<double>> &get_v_abk(int a, int b);
 
-    void initialise_m_arr_v_abk_r_core();
-    void extend_m_arr_v_abk_r_valence(int kappa_a);
+  void form_vabk_valence(int w);
 
-    int index_from_kappa(int ka) const;
-    int twoj_from_index(int i) const;
-    int kappa_from_index(int i);
-    int l_from_index(int i) const;
+  void form_vdir(std::vector<double> &vdir, bool re_scale = false);
 
-    void form_vabk_core();
-    void form_vbb0();
-    void calculate_v_abk(int a, int b, int k,
-      std::vector<double> & vabk);
-    std::vector<double>& get_v_aa0(int a);
-    std::vector<std::vector<double> >& get_v_abk(int a, int b);
+  void form_approx_vex_core(std::vector<std::vector<double>> &vex);
 
-    void form_vabk_valence(int w);
-
-    void form_vdir(std::vector<double> &vdir, bool re_scale=false);
-
-    void form_approx_vex_core(std::vector<std::vector<double> > &vex);
-
-    void form_approx_vex_a(int a, std::vector<double> &vex_a);
-
-
+  void form_approx_vex_a(int a, std::vector<double> &vex_a);
 };
