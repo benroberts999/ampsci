@@ -1,17 +1,17 @@
-ak-I_S1         | input file name (without .bin ext) *1
-testout         | output label (put 'na' for none)
-0.1 10. 5       | m_chi/GeV: min, max, num_steps
-2               | mv: 0=massless, 1=range, 2= heavy
-0.00 00.0 0     | m_v/MeV: min, max, num_steps [only if =1 above]
-0  0            | SHM Error: dvesc, dv0. [-1,1]
-1               | Do annual mod amplitude? 1=yes, 0=no
-0               | 1= Write <ds.v>/dE to file (or an mod)?
-1               | DAMA: 1= Calculate S_{0/m} for DAMA (as below)
-0 0             | DAMA error: det. resolution, PE-keV [-1,1] *2
-150             | Atot. 131 for Xe; 127+23=150 for Dama
-0.0 6. 1.0      | E bins (integration): init, final, width (keV)
-1               | write to file: 0 = dS(E)/dE; 1 = S(m)/[Ew]; 2 = both
-=================
+ak-Xe_test      ! input file name (without .bin ext) *1
+testout         ! output label (put 'na' for none)
+0.1 10. 5       ! m_chi/GeV: min, max, num_steps
+2               ! mv: 0=massless, 1=range, 2= heavy
+0.00 00.0 0     ! m_v/MeV: min, max, num_steps [only if =1 above]
+0  0            ! SHM Error: dvesc, dv0. [-1,1]
+1               ! Do annual mod amplitude? 1=yes, 0=no
+0               ! 1= Write <ds.v>/dE to file (or an mod)?
+1               ! DAMA: 1= Calculate S_{0/m} for DAMA (as below)
+0 0             ! DAMA error: det. resolution, PE-keV [-1,1] *2
+150             ! Atot. 131 for Xe; 127+23=150 for Dama
+0.0 6. 1.0      ! E bins (integration): init, final, width (keV)
+1               ! write to file: 0 = dS(E)/dE; 1 = S(m)/[Ew]; 2 = both
+###############==
 *1 reads in binary output from "atomicKernal" program
 *2 a) Gaussian resolution, error in sigma_E [+/-1]
    b) Error in PE-keV conversion (only used for hardware threshold)

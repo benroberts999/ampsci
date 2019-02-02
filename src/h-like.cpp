@@ -1,40 +1,37 @@
 #include "ATI_atomInfo.h"
 #include "ChronoTimer.h"
 #include "ElectronOrbitals.h"
+#include "FileIO_fileReadWrite.h"
 #include "INT_quadratureIntegration.h"
 #include <cmath>
-#include <fstream>
 #include <iostream>
+#include <sstream>
+#include <tuple>
 
 int main() {
 
   ChronoTimer sw(true); // start timer
 
-  int Z, A;
-  int n_max, l_max;
-  int ngp = 2000;
-  double r0, rmax;
-  double varalpha;
-  int iextra;
-  std::ifstream ifile;
-  ifile.open("h-like.in");
+  int Z, A, n_max, l_max, ngp;
+  double r0, rmax, varalpha;
+  bool extra;
   {
-    std::string junk;
-    ifile >> Z >> A;
-    getline(ifile, junk);
-    ifile >> n_max >> l_max;
-    getline(ifile, junk);
-    ifile >> r0 >> rmax >> ngp;
-    getline(ifile, junk);
-    ifile >> varalpha;
-    getline(ifile, junk);
-    ifile >> iextra;
-    getline(ifile, junk);
+    auto input = FileIO::readInputFile("h-like.in");
+    int iextra;
+    auto tp = std::forward_as_tuple(Z, A, n_max, l_max, r0, rmax, ngp, varalpha,
+                                    iextra);
+    using ss = std::stringstream;
+    ss(input[0]) >> std::get<0>(tp);
+    ss(input[1]) >> std::get<1>(tp);
+    ss(input[2]) >> std::get<2>(tp);
+    ss(input[3]) >> std::get<3>(tp);
+    ss(input[4]) >> std::get<4>(tp);
+    ss(input[5]) >> std::get<5>(tp);
+    ss(input[6]) >> std::get<6>(tp);
+    ss(input[7]) >> std::get<7>(tp);
+    ss(input[8]) >> std::get<8>(tp);
+    extra = (iextra == 1) ? true : false;
   }
-  ifile.close();
-  bool extra = false;
-  if (iextra == 1)
-    extra = true;
 
   printf("\nRunning SolveDBS for Local H-like potential, Z=%i\n", Z);
   printf("*************************************************\n");

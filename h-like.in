@@ -1,6 +1,6 @@
-1 0               | Z, A(=0 for 0-nucleus)
-5 10              | max n, l
-1.e-6 250. 2000   | r0, rmax, num_points
-1                 | varalpha [~0 for non-rel]
-0                 | 0=just En, 1= also <r>, <H> (for tests)
-===================
+1 0               ! Z, A(=0 for 0-nucleus)
+5 10              ! max n, l
+1.e-6 250. 2000   ! r0, rmax, num_points
+1                 ! varalpha [~0 for non-rel]
+0                 ! 0=just En, 1= also <r>, <H> (for tests)
+###################

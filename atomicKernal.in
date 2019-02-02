@@ -1,16 +1,16 @@
-I  -1              | Z, A(=-1 for default A, 0='0 nucleus')
-Cd,5p5             | Core configuration
-1.e-5 45. 16000    | r0, rmax, num_points *1
-0  5. 1.0          | green H d *2
-1.e-8              | Hartree convergence goal. put 0 for default.
-1                  | varalpha [0 or <<1 for non-rel; =1 for normal] *3
-0.010   6.  400    | dE(min, max, #steps) - in keV
-0.001   4.  400    | q (min, max, #steps) - in MeV
--1                 | max l (bound). Put -1 for all.
-4                  | max L (multipolarity). Put -1 to use plane waves.
-1                  | 0=text output, 1=binary, 2=both.
-test               | label for output file
---------------------
+Xe -1              ! Z, A(=-1 for default A, 0='0 nucleus')
+Xe                 ! Core configuration
+1.e-5 45. 8000     ! r0, rmax, num_points *1
+0  5. 1.0          ! green H d *2
+1.e-8              ! Hartree convergence goal. put 0 for default.
+1                  ! varalpha [0 or <<1 for non-rel; =1 for normal] *3
+0.100   1.0 10     ! dE(min, max, #steps) - in keV
+0.001   4.  200    ! q (min, max, #steps) - in MeV
+-1                 ! max l (bound). Put -1 for all.
+0                  ! max L (multipolarity). Put -1 to use plane waves.
+1                  ! 0=text output, 1=binary, 2=both.
+test               ! label for output file
+#-------------------
 
 Core for Xe:
 Xe  .
@@ -26,7 +26,7 @@ Green: put '0' to use Hartree Fock, 1 to use Green (parametric potential).
 Hartree is a better method, but takes longer (for large grids)
 H and d are input parameters.
 Seems to work well enough for Xe core states:
-1 5. 1.0           | green H d *
+1 5. 1.0           ! green H d *
 Otherwise, use program "fitParametric" to determine good parameters
 
 *3

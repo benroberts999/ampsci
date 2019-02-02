@@ -23,7 +23,7 @@ OUTPUT:
 
 See also overloaded version, that just takes in 1 matrix, and inverts it!
 
-=== Change Log ===
+### Change Log ###
 
 */
 {
@@ -161,7 +161,7 @@ INPUT:
   inmat     :: double matix of dimension n*n [from std::vector]
   n         :: integer, dimension of matrices
 
-=== Change Log ===
+### Change Log ###
 170702- Uses std::vector input, avoid variable arrays!
 */
 {

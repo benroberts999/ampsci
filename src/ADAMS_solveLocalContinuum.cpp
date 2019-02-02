@@ -14,7 +14,7 @@ solution should be sinosoidal. Then, matches amplitude with low-r expansion.
 Therefore, need grid to go very far out (v. large r).
 Also, need at least ~10 points per half-period. More points for higher energy!
 
-===== To do =====
+###== To do ###==
   * Find asymptotic region + normalise...better?
 
 */

@@ -120,7 +120,7 @@ int main() {
   for (int m = 0; m < (int)sort_list.size(); m++) { // silly. Fix this...
     int i = sort_list[m];
     if (m == wf.num_core_states) {
-      std::cout << " ========= Valence: ======\n";
+      std::cout << " ######### Valence: ######\n";
       printf(" n l_j    k Rinf its    eps      En (au)        En (/cm)\n");
     }
     int n = wf.nlist[i];

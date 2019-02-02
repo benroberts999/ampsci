@@ -1,7 +1,9 @@
-#include "BRW_binaryReadWrite.h"
+#pragma once
 #include <fstream>
 #include <iostream>
+#include <sstream>
 #include <string>
+#include <vector>
 /*
 Functions to help read-write data to binary files.
 NOTE: Only works for plain data. Have to de/re-construct vectors etc. later!
@@ -9,10 +11,31 @@ ALSO: there are no safety checks here! If format is wrong, leads to undefined
 behaviour (most likely, a crash)
 */
 
-namespace BRW {
+namespace FileIO {
 
-// Open the file for binary read/write
-void open_binary(std::fstream &stream, const std::string &fname, ROW row) {
+//******************************************************************************
+inline std::vector<std::string> readInputFile(const std::string &fname) {
+  std::vector<std::string> entry_list;
+  std::ifstream file(fname);
+  std::string line;
+  while (getline(file, line)) {
+    std::stringstream ss(line);
+    std::string entry;
+    while (ss >> entry) {
+      if (entry.at(0) == '!' || entry.at(0) == '#')
+        break;
+      else
+        entry_list.push_back(entry);
+    }
+  }
+  return entry_list;
+}
+
+//******************************************************************************
+enum ROW { read, write };
+
+inline void open_binary(std::fstream &stream, const std::string &fname,
+                        ROW row) {
   switch (row) {
   case write:
     stream.open(fname, std::ios_base::out | std::ios_base::binary);
@@ -21,16 +44,10 @@ void open_binary(std::fstream &stream, const std::string &fname, ROW row) {
     stream.open(fname, std::ios_base::in | std::ios_base::binary);
     break;
   default:
-    std::cout << "\nFAIL 16 in BRW\n";
+    std::cout << "\nFAIL 16 in FileIO\n";
   }
 }
 
-// templates for int, double, float (can add others later)
-template void binary_rw(std::fstream &stream, int &value, ROW row);
-template void binary_rw(std::fstream &stream, double &value, ROW row);
-template void binary_rw(std::fstream &stream, float &value, ROW row);
-
-// Do the actual reading/writing
 template <typename T> void binary_rw(std::fstream &stream, T &value, ROW row) {
   switch (row) {
   case write:
@@ -40,16 +57,11 @@ template <typename T> void binary_rw(std::fstream &stream, T &value, ROW row) {
     stream.read(reinterpret_cast<char *>(&value), sizeof(T));
     break;
   default:
-    std::cout << "\nFAIL 32 in BRW\n";
+    std::cout << "\nFAIL 32 in FileIO\n";
   }
 }
 
-// For strings:
-// void binary_str_rw(std::fstream& stream, std::string& value, ROW row);
-
-// template<typename T>
-
-void binary_str_rw(std::fstream &stream, std::string &value, ROW row) {
+inline void binary_str_rw(std::fstream &stream, std::string &value, ROW row) {
   if (row == write) {
     size_t temp_len = value.length();
     stream.write(reinterpret_cast<const char *>(&temp_len), sizeof(size_t));
@@ -63,8 +75,8 @@ void binary_str_rw(std::fstream &stream, std::string &value, ROW row) {
     value = tvalue;
     delete[] tvalue;
   } else {
-    std::cout << "\nFAIL 55 in BRW\n";
+    std::cout << "\nFAIL 55 in FileIO\n";
   }
 }
 
-} // namespace BRW
+} // namespace FileIO

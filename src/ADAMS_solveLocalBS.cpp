@@ -16,7 +16,7 @@ Employs the Adams-Moulton method.
 solveDBS is the main routine that is called from elsewhere.
 All other functions called by solveDBS.
 
-=====  To Do / ISSUES  =====
+###==  To Do / ISSUES  ###==
   * If not correct number of nodes, will finish without saying anything
    ... maybe, if not correct nodes, allow program to keep trying!
   * Gets the adams and out coeficients many times!! Not efficient!!
@@ -83,7 +83,7 @@ Defn: f = p, g = -q. (My g includes alpha)
   // Parameters.
   const int max_its = 32;      // Max # attempts at converging [sove bs] (30)
   const double alr = 800;      // ''assymptotically large r [kinda..]''  (=800)
-  const double lfrac_de = 0.3; // 'large' energy variations (0.1 => 10%)
+  const double lfrac_de = 0.2; // 'large' energy variations (0.1 => 10%)
   const int d_ctp_in = 8;      // Num points past ctp +/- d_ctp.
 
   int ngp = (int)r.size();

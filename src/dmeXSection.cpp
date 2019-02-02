@@ -2,11 +2,13 @@
 #include "ChronoTimer.h"
 #include "ExponentialGrid.h"
 #include "FPC_physicalConstants.h"
+#include "FileIO_fileReadWrite.h"
 #include "StandardHaloModel.h"
 #include <cmath>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -28,7 +30,7 @@ double sbe_1e37_cm2 = 1.e-37;
 double dsdE_to_cm2keV = sbe_1e37_cm2 / E_to_keV; // au -> cm^2/keV
 double dsvdE_to_cm3keVday = dsdE_to_cm2keV * V_to_cmday;
 
-// *** === *** === *** === *** === *** === *** === *** === *** === *** === ***
+// *** ### *** ### *** ### *** ### *** ### *** ### *** ### *** ### *** ### ***
 // Some macro/typedef short cuts
 // Just to save time/space
 using FloatVec3D = std::vector<std::vector<std::vector<float>>>;
@@ -545,35 +547,33 @@ int main() {
   // Open and read the input file:
   {
     int i_mv, iwr_dsvde, idodama, ianmod, iSM; // temp settings
-    std::ifstream ifs("dmeXSection.in");
-    std::string jnk;
-    ifs >> akfn;
-    getline(ifs, jnk);
-    ifs >> label;
-    getline(ifs, jnk);
-    ifs >> mxmin >> mxmax >> n_mx;
-    getline(ifs, jnk);
-    ifs >> i_mv;
-    getline(ifs, jnk);
-    ifs >> mvmin >> mvmax >> n_mv;
-    getline(ifs, jnk);
-    ifs >> dvesc >> dv0;
-    getline(ifs, jnk);
-    ifs >> ianmod;
-    getline(ifs, jnk);
-    ifs >> iwr_dsvde;
-    getline(ifs, jnk);
-    ifs >> idodama;
-    getline(ifs, jnk);
-    ifs >> dres >> err_PEkeV;
-    getline(ifs, jnk);
-    ifs >> Atot;
-    getline(ifs, jnk);
-    ifs >> iEbin >> fEbin >> wEbin;
-    getline(ifs, jnk);
-    ifs >> iSM;
-    getline(ifs, jnk);
-    ifs.close();
+    auto input = FileIO::readInputFile("dmeXSection.in");
+    auto tp = std::forward_as_tuple(akfn, label, mxmin, mxmax, n_mx, i_mv,
+                                    mvmin, mvmax, n_mv, dvesc, dv0, ianmod,
+                                    iwr_dsvde, idodama, dres, err_PEkeV, Atot,
+                                    iEbin, fEbin, wEbin, iSM);
+    using ss = std::stringstream;
+    ss(input[0]) >> std::get<0>(tp);
+    ss(input[1]) >> std::get<1>(tp);
+    ss(input[2]) >> std::get<2>(tp);
+    ss(input[3]) >> std::get<3>(tp);
+    ss(input[4]) >> std::get<4>(tp);
+    ss(input[5]) >> std::get<5>(tp);
+    ss(input[6]) >> std::get<6>(tp);
+    ss(input[7]) >> std::get<7>(tp);
+    ss(input[8]) >> std::get<8>(tp);
+    ss(input[9]) >> std::get<9>(tp);
+    ss(input[10]) >> std::get<10>(tp);
+    ss(input[11]) >> std::get<11>(tp);
+    ss(input[12]) >> std::get<12>(tp);
+    ss(input[13]) >> std::get<13>(tp);
+    ss(input[14]) >> std::get<14>(tp);
+    ss(input[15]) >> std::get<15>(tp);
+    ss(input[16]) >> std::get<16>(tp);
+    ss(input[17]) >> std::get<17>(tp);
+    ss(input[18]) >> std::get<18>(tp);
+    ss(input[19]) >> std::get<19>(tp);
+    ss(input[20]) >> std::get<20>(tp);
     label = label == "na" ? akfn : akfn + "-" + label;
     // what to write to file:
     write_dsvde = iwr_dsvde == 1 ? true : false;
@@ -597,6 +597,10 @@ int main() {
       return 1;
     }
   }
+
+  std::cout << "XXX"
+            << "\n"
+            << std::flush;
 
   // Number of points in the velocity integration.
   const int vsteps = 100; // no need to be input

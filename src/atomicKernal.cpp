@@ -5,11 +5,12 @@
 #include "ElectronOrbitals.h"
 #include "ExponentialGrid.h"
 #include "FPC_physicalConstants.h"
+#include "FileIO_fileReadWrite.h"
 #include "HartreeFockClass.h"
 #include "PRM_parametricPotentials.h"
 #include <cmath>
-#include <fstream>
 #include <iostream>
+#include <tuple>
 
 //******************************************************************************
 int main() {
@@ -34,41 +35,37 @@ int main() {
   int iout_format;
   std::string label; // label for output file
 
-  // Open and read the input file:
   {
-    std::ifstream ifs;
-    ifs.open("atomicKernal.in");
-    std::string jnk;
-    // read in the input parameters:
-    ifs >> Z_str >> A;
-    getline(ifs, jnk);
-    ifs >> str_core;
-    getline(ifs, jnk);
-    ifs >> r0 >> rmax >> ngp;
-    getline(ifs, jnk);
-    ifs >> Gf >> Gh >> Gd;
-    getline(ifs, jnk);
-    ifs >> hart_del;
-    getline(ifs, jnk);
-    ifs >> varalpha;
-    getline(ifs, jnk);
-    ifs >> demin >> demax >> desteps;
-    getline(ifs, jnk);
-    ifs >> qmin >> qmax >> qsteps;
-    getline(ifs, jnk);
-    ifs >> max_l;
-    getline(ifs, jnk);
-    ifs >> max_L;
-    getline(ifs, jnk);
-    ifs >> iout_format;
-    getline(ifs, jnk);
-    ifs >> label;
-    getline(ifs, jnk);
-    ifs.close();
+    auto input = FileIO::readInputFile("atomicKernal.in");
+    auto tp =
+        std::forward_as_tuple(Z_str, A, str_core, r0, rmax, ngp, Gf, Gh, Gd,
+                              hart_del, varalpha, demin, demax, desteps, qmin,
+                              qmax, qsteps, max_l, max_L, iout_format, label);
+    using ss = std::stringstream;
+    ss(input[0]) >> std::get<0>(tp);
+    ss(input[1]) >> std::get<1>(tp);
+    ss(input[2]) >> std::get<2>(tp);
+    ss(input[3]) >> std::get<3>(tp);
+    ss(input[4]) >> std::get<4>(tp);
+    ss(input[5]) >> std::get<5>(tp);
+    ss(input[6]) >> std::get<6>(tp);
+    ss(input[7]) >> std::get<7>(tp);
+    ss(input[8]) >> std::get<8>(tp);
+    ss(input[9]) >> std::get<9>(tp);
+    ss(input[10]) >> std::get<10>(tp);
+    ss(input[11]) >> std::get<11>(tp);
+    ss(input[12]) >> std::get<12>(tp);
+    ss(input[13]) >> std::get<13>(tp);
+    ss(input[14]) >> std::get<14>(tp);
+    ss(input[15]) >> std::get<15>(tp);
+    ss(input[16]) >> std::get<16>(tp);
+    ss(input[17]) >> std::get<17>(tp);
+    ss(input[18]) >> std::get<18>(tp);
+    ss(input[19]) >> std::get<19>(tp);
+    ss(input[20]) >> std::get<20>(tp);
   }
-  if (Gf < 0) {
+  if (Gf < 0)
     Gf = 0;
-  }
 
   // If L<0, will use plane-waves (instead of cntm fns)
   bool plane_wave = (max_L < 0) ? true : false;
@@ -127,6 +124,9 @@ int main() {
     printf("Using Green potential: H=%.4f  d=%.4f\n", Gh, Gd);
   else
     printf("Using Hartree Fock (converge to %.0e)\n", hart_del);
+
+  std::cout
+      << "\n\n XXX Fix the update NGP issue? Leads to segfaults?? XXX \n\n";
 
   // Make sure h (large-r step size) is small enough to
   // calculate (normalise) cntm functions with energy = demax

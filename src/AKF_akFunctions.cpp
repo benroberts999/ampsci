@@ -1,6 +1,6 @@
 #include "AKF_akFunctions.h"
 #include "ATI_atomInfo.h"
-#include "BRW_binaryReadWrite.h"
+#include "FileIO_fileReadWrite.h"
 #include "ContinuumOrbitals.h"
 #include "ElectronOrbitals.h"
 #include "ExponentialGrid.h"
@@ -89,14 +89,14 @@ int akReadWrite(std::string fname, bool write,
 /*
 Writes K function (+ all required size etc.) values to a binary file.
 The binary file is read by other programs (e.g., dmeXSection)
-Uses BRW_binaryReadWrite
+Uses FileIO_fileReadWrite
 */
 {
-  BRW::ROW row = write ? BRW::write : BRW::read;
+  FileIO::ROW row = write ? FileIO::write : FileIO::read;
 
   std::fstream iof;
   fname = fname + ".bin";
-  BRW::open_binary(iof, fname, row);
+  FileIO::open_binary(iof, fname, row);
 
   if (iof.fail()) {
     std::cout << "Can't open " << fname << "\n";
@@ -107,27 +107,27 @@ Uses BRW_binaryReadWrite
     int nde = (int)AK.size();      // dE
     int ns = (int)AK[0].size();    // nk
     int nq = (int)AK[0][0].size(); // q
-    BRW::binary_rw(iof, nde, row);
-    BRW::binary_rw(iof, ns, row);
-    BRW::binary_rw(iof, nq, row);
+    FileIO::binary_rw(iof, nde, row);
+    FileIO::binary_rw(iof, ns, row);
+    FileIO::binary_rw(iof, nq, row);
   } else {
     int nq, ns, nde;
-    BRW::binary_rw(iof, nde, row);
-    BRW::binary_rw(iof, ns, row);
-    BRW::binary_rw(iof, nq, row);
+    FileIO::binary_rw(iof, nde, row);
+    FileIO::binary_rw(iof, ns, row);
+    FileIO::binary_rw(iof, nq, row);
     AK.resize(nde, std::vector<std::vector<float>>(ns, std::vector<float>(nq)));
     nklst.resize(ns);
   }
-  BRW::binary_rw(iof, qmin, row);
-  BRW::binary_rw(iof, qmax, row);
-  BRW::binary_rw(iof, dEmin, row);
-  BRW::binary_rw(iof, dEmax, row);
+  FileIO::binary_rw(iof, qmin, row);
+  FileIO::binary_rw(iof, qmax, row);
+  FileIO::binary_rw(iof, dEmin, row);
+  FileIO::binary_rw(iof, dEmax, row);
   for (size_t ie = 0; ie < AK.size(); ie++) {
     for (size_t in = 0; in < AK[0].size(); in++) {
       if (ie == 0)
-        BRW::binary_str_rw(iof, nklst[in], row);
+        FileIO::binary_str_rw(iof, nklst[in], row);
       for (size_t iq = 0; iq < AK[0][0].size(); iq++) {
-        BRW::binary_rw(iof, AK[ie][in][iq], row);
+        FileIO::binary_rw(iof, AK[ie][in][iq], row);
       }
     }
   }
