@@ -3,6 +3,8 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <tuple>
+#include <utility>
 #include <vector>
 /*
 Functions to help read-write data to binary files.
@@ -12,6 +14,29 @@ behaviour (most likely, a crash)
 */
 
 namespace FileIO {
+
+//******************************************************************************
+/*
+Uses compile-time recursion to get access to elements of tuple.
+Specifically, string-streams data from a string vector into tuple.
+Works with a tuple of references, i.e., std::forward_as_tuple
+Idea from:
+https://stackoverflow.com/questions/1198260/iterate-over-tuple/23142715
+*/
+template <std::size_t I = 0, typename... Tp>
+inline typename std::enable_if<I == sizeof...(Tp), void>::type
+stringstreamVectorIntoTuple(std::vector<std::string>, std::tuple<Tp...> &) {}
+
+template <std::size_t I = 0, typename... Tp>
+    inline typename std::enable_if <
+    I<sizeof...(Tp), void>::type
+    stringstreamVectorIntoTuple(std::vector<std::string> lst,
+                                std::tuple<Tp...> &t) {
+  if (I > lst.size())
+    std::cerr << "\nFAIL 34 in FileIO: list shorter than tuple\n";
+  std::stringstream(lst[I]) >> std::get<I>(t);
+  stringstreamVectorIntoTuple<I + 1, Tp...>(lst, t);
+}
 
 //******************************************************************************
 inline std::vector<std::string> readInputFile(const std::string &fname) {
@@ -32,10 +57,17 @@ inline std::vector<std::string> readInputFile(const std::string &fname) {
 }
 
 //******************************************************************************
-enum ROW { read, write };
+template <typename... Tp>
+void setInputParameters(std::string infile, std::tuple<Tp...> &tp) {
+  auto input = readInputFile(infile);
+  stringstreamVectorIntoTuple(input, tp);
+}
+
+//******************************************************************************
+enum RoW { read, write };
 
 inline void open_binary(std::fstream &stream, const std::string &fname,
-                        ROW row) {
+                        RoW row) {
   switch (row) {
   case write:
     stream.open(fname, std::ios_base::out | std::ios_base::binary);
@@ -48,7 +80,7 @@ inline void open_binary(std::fstream &stream, const std::string &fname,
   }
 }
 
-template <typename T> void binary_rw(std::fstream &stream, T &value, ROW row) {
+template <typename T> void binary_rw(std::fstream &stream, T &value, RoW row) {
   switch (row) {
   case write:
     stream.write(reinterpret_cast<const char *>(&value), sizeof(T));
@@ -61,7 +93,7 @@ template <typename T> void binary_rw(std::fstream &stream, T &value, ROW row) {
   }
 }
 
-inline void binary_str_rw(std::fstream &stream, std::string &value, ROW row) {
+inline void binary_str_rw(std::fstream &stream, std::string &value, RoW row) {
   if (row == write) {
     size_t temp_len = value.length();
     stream.write(reinterpret_cast<const char *>(&temp_len), sizeof(size_t));

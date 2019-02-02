@@ -92,7 +92,7 @@ The binary file is read by other programs (e.g., dmeXSection)
 Uses FileIO_fileReadWrite
 */
 {
-  FileIO::ROW row = write ? FileIO::write : FileIO::read;
+  FileIO::RoW row = write ? FileIO::write : FileIO::read;
 
   std::fstream iof;
   fname = fname + ".bin";

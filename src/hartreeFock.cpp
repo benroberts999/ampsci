@@ -27,19 +27,9 @@ int main() {
 
   // Open and read the input file:
   {
-    auto input = FileIO::readInputFile("hartreeFock.in");
     auto tp = std::forward_as_tuple(Z_str, A, str_core, r0, rmax, ngp, eps_HF,
                                     num_val, l_max, varalpha2);
-    std::stringstream(input[0]) >> std::get<0>(tp);
-    std::stringstream(input[1]) >> std::get<1>(tp);
-    std::stringstream(input[2]) >> std::get<2>(tp);
-    std::stringstream(input[3]) >> std::get<3>(tp);
-    std::stringstream(input[4]) >> std::get<4>(tp);
-    std::stringstream(input[5]) >> std::get<5>(tp);
-    std::stringstream(input[6]) >> std::get<6>(tp);
-    std::stringstream(input[7]) >> std::get<7>(tp);
-    std::stringstream(input[8]) >> std::get<8>(tp);
-    std::stringstream(input[9]) >> std::get<9>(tp);
+    FileIO::setInputParameters("hartreeFock.in", tp);
   }
 
   // Change varAlph^2 to varalph

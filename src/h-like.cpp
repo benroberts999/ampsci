@@ -16,20 +16,10 @@ int main() {
   double r0, rmax, varalpha;
   bool extra;
   {
-    auto input = FileIO::readInputFile("h-like.in");
     int iextra;
     auto tp = std::forward_as_tuple(Z, A, n_max, l_max, r0, rmax, ngp, varalpha,
                                     iextra);
-    using ss = std::stringstream;
-    ss(input[0]) >> std::get<0>(tp);
-    ss(input[1]) >> std::get<1>(tp);
-    ss(input[2]) >> std::get<2>(tp);
-    ss(input[3]) >> std::get<3>(tp);
-    ss(input[4]) >> std::get<4>(tp);
-    ss(input[5]) >> std::get<5>(tp);
-    ss(input[6]) >> std::get<6>(tp);
-    ss(input[7]) >> std::get<7>(tp);
-    ss(input[8]) >> std::get<8>(tp);
+    FileIO::setInputParameters("h-like.in", tp);
     extra = (iextra == 1) ? true : false;
   }
 

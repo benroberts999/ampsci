@@ -2,47 +2,30 @@
 #include "ChronoTimer.h"
 #include "ElectronOrbitals.h"
 #include "FPC_physicalConstants.h"
+#include "FileIO_fileReadWrite.h"
 #include "PRM_parametricPotentials.h"
-#include <fstream>
 #include <iostream>
+#include <tuple>
 
 int main() {
 
   ChronoTimer sw(true); // start timer
-
-  double varalpha = 1; // need same number as used for the fitting!
+  double varalpha = 1;  // need same number as used for the fitting!
 
   // Input options
   std::string Z_str;
   int A;
   double r0, rmax;
   int ngp;
-
   double Tf, Tt, Tg; // Teitz potential parameters
   double Gf, Gh, Gd; // Green potential parameters
-
   int n_max, l_max;
   std::string str_core;
 
-  // Open and read the input file:
-  {
-    std::ifstream ifs;
-    ifs.open("parametricPotential.in");
-    std::string jnk;
-    // read in the input parameters:
-    ifs >> Z_str >> A;
-    getline(ifs, jnk);
-    ifs >> str_core;
-    getline(ifs, jnk);
-    ifs >> r0 >> rmax >> ngp;
-    getline(ifs, jnk);
-    ifs >> Gf >> Gh >> Gd;
-    getline(ifs, jnk);
-    ifs >> Tf >> Tt >> Tg;
-    getline(ifs, jnk);
-    ifs >> n_max >> l_max;
-    getline(ifs, jnk);
-    ifs.close();
+  { // Open and read the input file:
+    auto tp = std::forward_as_tuple(Z_str, A, str_core, r0, rmax, ngp, Gf, Gh,
+                                    Gd, Tf, Tt, Tg, n_max, l_max);
+    FileIO::setInputParameters("parametricPotential.in", tp);
   }
 
   int Z = ATI::get_z(Z_str);
