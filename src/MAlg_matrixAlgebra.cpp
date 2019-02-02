@@ -3,7 +3,7 @@
 #include <vector>
 //#include <cmath>  //?? needed?
 
-namespace MAT {
+namespace MAlg {
 //******************************************************************************
 int invertMatrix(const std::vector<std::vector<double>> &inmat,
                  std::vector<std::vector<double>> &outmat)
@@ -279,4 +279,4 @@ OUTPUT:
   return iRet;
 }
 
-} // namespace MAT
+} // namespace MAlg
