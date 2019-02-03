@@ -10,7 +10,13 @@
 #include <iostream>
 #include <tuple>
 
-int main() {
+int main(int argc, char *argv[]) {
+
+  std::string input_file = "hartreeFock.in";
+  if (argc > 1) {
+    input_file = std::string(argv[1]);
+    std::cout << "Reading input from " << input_file << "\n";
+  }
 
   ChronoTimer timer; // start the stopwatch
   timer.start();
@@ -29,7 +35,7 @@ int main() {
   {
     auto tp = std::forward_as_tuple(Z_str, A, str_core, r0, rmax, ngp, eps_HF,
                                     num_val, l_max, varalpha2);
-    FileIO::setInputParameters("hartreeFock.in", tp);
+    FileIO::setInputParameters(input_file, tp);
   }
 
   // Change varAlph^2 to varalph
@@ -41,7 +47,7 @@ int main() {
   if (Z == 0)
     return 2;
   if (A == -1)
-    A = ATI::A[Z]; // if none given, get default A
+    A = ATI::defaultA(Z); // if none given, get default A
 
   printf("\nRunning HARTREE FOCK for %s, Z=%i A=%i\n", Z_str.c_str(), Z, A);
   printf("*************************************************\n");
@@ -49,8 +55,8 @@ int main() {
   // Generate the orbitals object:
   ElectronOrbitals wf(Z, A, ngp, r0, rmax, varalpha);
 
-  printf("Grid: pts=%i h=%7.5f r0=%.1e Rmax=%5.1f\n\n", wf.ngp, wf.h, wf.r[0],
-         wf.r[wf.ngp - 1]);
+  printf("Grid: pts=%i h=%7.5f r0=%.1e Rmax=%5.1f\n\n", wf.ngp, wf.h,
+         wf.r.front(), wf.r.back());
 
   timer.start(); // start the timer
 
@@ -100,8 +106,8 @@ int main() {
   for (int i : sorted_by_energy_list) {
     if (val && en_lim == 0)
       en_lim = fabs(wf.en[i]); // give energies wrt core
-    int k = wf.kappa[i];
-    double rinf = wf.r[wf.pinflist[i]];
+    int k = wf.ka(i);
+    double rinf = wf.rinf(i);
     double eni = wf.en[i];
     std::string symb = wf.seTermSymbol(i);
     printf("%2i) %7s %2i  %5.1f %3i  %5.0e %13.7f %13.1f", i, symb.c_str(), k,
@@ -127,19 +133,17 @@ int main() {
   if (run_test) {
     std::cout << "Test orthonormality [should all read 0]:\n";
     std::cout << "       ";
-    for (uint b = 0; b < wf.nlist.size(); b++)
+    for (auto b : wf.stateIndexList)
       printf("   %1i %2i  ", wf.nlist[b], wf.kappa[b]);
     std::cout << "\n";
-    for (uint a = 0; a < wf.nlist.size(); a++) {
+    for (auto a : wf.stateIndexList) {
       printf("%1i %2i  ", wf.nlist[a], wf.kappa[a]);
-      for (uint b = 0; b < wf.nlist.size(); b++) {
+      for (auto b : wf.stateIndexList) {
         if (wf.kappa[a] != wf.kappa[b]) {
           std::cout << " ------- ";
           continue;
         }
-        double xf = INT::integrate3(wf.f[a], wf.f[b], wf.drdt);
-        double xg = INT::integrate3(wf.g[a], wf.g[b], wf.drdt);
-        double xo = wf.h * (xf + xg);
+        double xo = wf.radialIntegral(a, b);
         if (wf.nlist[a] == wf.nlist[b])
           xo -= 1;
         printf(" %7.0e ", xo);
@@ -171,28 +175,27 @@ int main() {
     double a = 0.22756 * 2.3;
     double c = 5.6710; // 1.1*pow(wf.A(),0.3333);
 
-    double rho0 = 0;
-    std::vector<double> rho(wf.ngp);
-    for (size_t i = 0; i < rho.size(); i++) {
-      rho[i] = 1. / (1. + exp((wf.r[i] * FPC::aB_fm - c) / a));
-      rho0 += pow(wf.r[i], 2) * rho[i] * wf.drdt[i] * 4 * M_PI * wf.h;
-    }
-    for (size_t i = 0; i < rho.size(); i++) {
-      rho[i] /= rho0;
-    }
+    std::vector<double> rho;
+    rho.reserve(wf.ngp);
+    for (auto r : wf.r)
+      rho.emplace_back(1. / (1. + exp((r * FPC::aB_fm - c) / a)));
+    double rho0 = INT::integrate4(wf.r, wf.r, rho, wf.drdt, 1, 0, 0, 0, 0) * 4 *
+                  M_PI * wf.h;
+    for (auto &rhoi : rho)
+      rhoi /= rho0;
 
     double Gf = FPC::GFe11;
-    double Cc = (Gf / sqrt(8)) * (-133 + 55); // Qw/(-N)
-    double Ac = 2. / 6;
+    double Cc = (Gf / sqrt(8.)) * (-133. + 55.); // Qw/(-N)
+    double Ac = 2. / 6.;
 
     int a6s = wf.getStateIndex(6, -1);
     int a7s = wf.getStateIndex(7, -1);
     std::cout << a6s << "," << a7s << "\n";
     double pnc = 0;
     for (auto np : wf.stateIndexList) {
-      if (wf.kappa[np] != 1)
+      if (wf.ka(np) != 1)
         continue; // p_1/2 only
-      int n = wf.nlist[np];
+      int n = wf.n_pqn(np);
       // <7s|d|np><np|hw|6s>/dE6s + <7s|hw|np><np|d|6s>/dE7s
       double d7s = wf.radialIntegral(a7s, np, wf.r);
       double w6s = wf.radialIntegral(np, a6s, rho, Operator::gamma5);

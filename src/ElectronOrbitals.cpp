@@ -28,7 +28,7 @@ ElectronOrbitals::ElectronOrbitals(int in_z, int in_a, int in_ngp, double rmin,
   Z_ = in_z;
 
   // If in_a -ve, use default atomic mass
-  A_ = (in_a < 0) ? ATI::A[Z_] : in_a;
+  A_ = (in_a < 0) ? ATI::defaultA(Z_) : in_a;
 
   // Use Fermi nucleus by default, unless A=0 is given
   if (A_ > 0)
@@ -59,9 +59,10 @@ Uses ADAMS::solveDBS to solve Dirac Eqn for local potential (Vnuc + Vdir)
   // Fill V(r) with nulcear + DIRECT part of electron potential
   // nb: for exchange part, need to use reSolveDirac()
   std::vector<double> v_a = vnuc;
-  if (vdir.size() != 0)
+  if (vdir.size() != 0) {
     for (int i = 0; i < ngp; i++)
       v_a[i] += vdir[i];
+  }
 
   // Solve local dirac Eq:
   if (e_a == 0)
@@ -74,7 +75,7 @@ Uses ADAMS::solveDBS to solve Dirac Eqn for local potential (Vnuc + Vdir)
   en.push_back(e_a);
   // Store states:
   int this_index = (int)stateIndexList.size();
-  stateIndexList.push_back(this_index); // ok?
+  stateIndexList.push_back(this_index);
   if (iscore)
     coreIndexList.push_back(this_index);
   else
@@ -100,6 +101,7 @@ double ElectronOrbitals::radialIntegral(int a, int b,
                                         Operator op) const
 /*
 Split into dPsi later??
+XXX Few things here that are slow! XXX
 */
 {
   // check that a and b are OK!
@@ -109,6 +111,8 @@ Split into dPsi later??
   int pinf = std::min(pinflist[a], pinflist[b]);
   std::vector<double> fprime(ngp); // = f[b];
   std::vector<double> gprime(ngp); // = g[b];
+  // XXX Change to reserve + push_back!
+  // XXX Spetial case of unity: don't make copy!!
 
   // Is this a good way? Confusing?
   int ig_sign = 1;
@@ -144,8 +148,15 @@ Split into dPsi later??
     std::cout << "\nError 103 in EO radialInt: unknown operator\n";
   }
 
-  double Rf = INT::integrate4(f[a], vint, fprime, drdt, 1, 0, pinf);
-  double Rg = INT::integrate4(g[a], vint, gprime, drdt, 1, 0, pinf);
+  double Rf = 0, Rg = 0;
+  if (vint.size() == 0) {
+    Rf = INT::integrate3(f[a], fprime, drdt, 1, 0); // pinf? Ruins orthog? EndP?
+    Rg = INT::integrate3(g[a], gprime, drdt, 1, 0);
+  } else {
+    Rf = INT::integrate4(f[a], vint, fprime, drdt, 1, 0, pinf);
+    Rg = INT::integrate4(g[a], vint, gprime, drdt, 1, 0, pinf);
+  }
+
   return (Rf + ig_sign * Rg) * h;
 }
 
@@ -160,6 +171,8 @@ int ElectronOrbitals::Nnuc() const {
   int N = (A_ - Z_) > 0 ? (A_ - Z_) : 0;
   return N;
 }
+//******************************************************************************
+double ElectronOrbitals::rinf(int i) const { return r[pinflist[i]]; }
 //******************************************************************************
 int ElectronOrbitals::lorb(int i) const {
   if (i >= (int)kappa.size())
@@ -783,7 +796,6 @@ Default b=4.
       if (ii > 30)
         break; // usually converges in ~ 2 or 3 steps!
     }
-    // std::cout<<ii<<" "<<eps<<"\n";
     r.push_back(t_r);
     dror.push_back(1. / (b + t_r));
     drdt.push_back(dror[i] * t_r);

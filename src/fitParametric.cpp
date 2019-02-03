@@ -95,16 +95,15 @@ int main() {
         if (sphere)
           wf.formNuclearPotential(NucleusType::spherical);
         if (green)
-          for (int i = 0; i < wf.ngp; i++)
-            wf.vdir.push_back(PRM::green(Z, wf.r[i], H, d));
+          for (auto r : wf.r)
+            wf.vdir.push_back(PRM::green(Z, r, H, d));
         else
-          for (int i = 0; i < wf.ngp; i++)
-            wf.vdir.push_back(PRM::tietz(Z, wf.r[i], H, d));
+          for (auto r : wf.r)
+            wf.vdir.push_back(PRM::tietz(Z, r, H, d));
         double fx = 0;
         for (size_t ns = 0; ns < in_n.size(); ns++) {
           wf.solveLocalDirac(in_n[ns], in_k[ns], in_en[ns]);
           fx += pow((wf.en[ns] - in_en[ns]), 2);
-          // fx += pow((wf.en[ns]-in_en[ns])/in_en[ns],2);
         }
         array[n][m][0] = fx;
         array[n][m][1] = H;
@@ -148,7 +147,7 @@ int main() {
 
   double H = best_H;
   double d = best_d;
-  printf("\nBest fit parameters for ");
+  std::cout << "\nBest fit parameters for ";
   if (green)
     printf("Green: \n  H=%7.5f  d=%7.5f\n\n", H, d);
   else
@@ -158,30 +157,25 @@ int main() {
   ElectronOrbitals wf(Z, A, ngp, r0, rmax, varalpha);
   if (sphere)
     wf.formNuclearPotential(NucleusType::spherical);
-
   if (green)
-    for (int i = 0; i < wf.ngp; i++)
-      wf.vdir.push_back(PRM::green(Z, wf.r[i], H, d));
+    for (auto r : wf.r)
+      wf.vdir.push_back(PRM::green(Z, r, H, d));
   else
-    for (int i = 0; i < wf.ngp; i++)
-      wf.vdir.push_back(PRM::tietz(Z, wf.r[i], H, d));
+    for (auto r : wf.r)
+      wf.vdir.push_back(PRM::tietz(Z, r, H, d));
   for (size_t ns = 0; ns < in_n.size(); ns++)
     wf.solveLocalDirac(in_n[ns], in_k[ns], in_en[ns]);
 
   printf(" n l_j    k Rinf its  eps     En (au)            En (/cm)\n");
-  for (size_t i = 0; i < wf.nlist.size(); i++) {
-    int n = wf.nlist[i];
-    int k = wf.kappa[i];
-    int twoj = 2 * abs(k) - 1;
-    int l = (abs(2 * k + 1) - 1) / 2;
-    double rinf = wf.r[wf.pinflist[i]];
+  for (auto i : wf.stateIndexList) {
+    int k = wf.ka(i);
+    double rinf = wf.rinf(i);
     double en0 = wf.en[0];
     double eni = wf.en[i];
     double enT = in_en[i];
-    printf("%2i %s_%i/2 %2i  %3.0f %3i  %5.0e  %.15f  %13.7f  %9.4f%%\n", n,
-           ATI::l_symbol(l).c_str(), twoj, k, rinf, wf.itslist[i],
-           wf.epslist[i], eni, (eni - en0) * FPC::Hartree_invcm,
-           100. * (enT - eni) / enT);
+    printf("%7s %2i  %3.0f %3i  %5.0e  %.15f  %13.7f  %9.4f%%\n",
+           wf.seTermSymbol(i).c_str(), k, rinf, wf.itslist[i], wf.epslist[i],
+           eni, (eni - en0) * FPC::Hartree_invcm, 100. * (enT - eni) / enT);
   }
 
   std::cout << "\nTime: " << sw.reading_str() << "\n";

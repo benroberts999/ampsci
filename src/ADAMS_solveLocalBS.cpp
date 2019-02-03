@@ -1,11 +1,10 @@
 #include "ADAMS_solveLocalBS.h"
 #include "INT_quadratureIntegration.h"
 #include "MAlg_matrixAlgebra.h"
+#include <array>
 #include <cmath>
 #include <iostream>
 #include <vector>
-// #include <fstream>
-#include <array>
 
 /*
 Thu 06 Nov 2014 23:29:57 AEDT. Updated 2018 to go past ctp.
@@ -165,12 +164,12 @@ Defn: f = p, g = -q. (My g includes alpha)
       break;
   } // end itterations
 
-  if (!correct_nodes) {
-    // Does this ever happen??
+  DEBUG(if (!correct_nodes) {
+    // Does this ever happen?? Yes, but rarely. Also: in fitParametric
     int counted_nodes = countNodes(f, pinf);
     std::cerr << "\nFAIL-148: wrong nodes:" << counted_nodes << "/"
               << required_nodes << " for n,k=" << n << "," << ka << "\n";
-  }
+  })
 
   eps_out = delta_en;
   en_inout = en;

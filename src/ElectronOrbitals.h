@@ -62,6 +62,7 @@ public:
   int lorb(int i) const;
   int twoj(int i) const;
   double jtot(int i) const;
+  double rinf(int i) const;
   int getStateIndex(int n, int k, bool forceVal = false) const;
   int getRadialIndex(double r_target) const;
   int numberOfStates() const; // statesCount() ?

@@ -103,23 +103,26 @@ int main() {
   else
     printf("Using Hartree Fock (converge to %.0e)\n", hart_del);
 
-  std::cout
-      << "\n\n XXX Fix the update NGP issue? Leads to segfaults?? XXX \n\n";
-
   // Make sure h (large-r step size) is small enough to
   // calculate (normalise) cntm functions with energy = demax
+  // Also need to re-form nuclear potential.
+  // Updated class method will avoid this!
   double h_target = (M_PI / 20.) / sqrt(2. * demax);
   if (wf.h > h_target) {
     int old_ngp = ngp;
     wf.logLinearRadialGrid(h_target, r0, rmax);
+    if (wf.Anuc() > 0)
+      wf.formNuclearPotential(NucleusType::Fermi);
+    else
+      wf.formNuclearPotential(NucleusType::zero);
     ngp = wf.ngp;
     std::cout
         << "\nWARNING 101: Grid not dense enough for contimuum state with "
         << "ec=" << demax << "au\n";
-    std::cout << "Updateing ngp: " << old_ngp << " --> " << ngp << "\n";
+    std::cout << "Updating ngp: " << old_ngp << " --> " << ngp << "\n";
   }
-  printf("Grid: pts=%i h=%6.4f r0=%.0e Rmax=%5.1f\n", wf.ngp, wf.h, wf.r[0],
-         wf.r[wf.ngp - 1]);
+  printf("Grid: pts=%i h=%6.4f r0=%.0e Rmax=%5.1f\n", wf.ngp, wf.h,
+         wf.r.front(), wf.r.back());
 
   // Do Hartree-fock (or parametric potential) for Core
   if (Gf == 0) {
@@ -128,22 +131,20 @@ int main() {
     // Use Green (local parametric) potential
     // Fill the electron part of the (local/direct) potential
     wf.vdir.reserve(wf.ngp);
-    for (int i = 0; i < wf.ngp; i++)
-      wf.vdir.push_back(PRM::green(Z, wf.r[i], Gh, Gd));
+    for (auto r : wf.r)
+      wf.vdir.push_back(PRM::green(Z, r, Gh, Gd));
+    std::cerr << "143\n";
+    std::cin.get();
     wf.solveInitialCore(str_core); // solves w/ Green
   }
-
-  // make list of energy indices in sorted order:
-  std::vector<int> sorted_by_energy_list;
-  wf.sortedEnergyList(sorted_by_energy_list);
 
   // Output results:
   std::cout << "\n     state  k Rinf its    eps      En (au)     En (/cm)    "
             << "En (eV)   Oc.Frac.\n";
-  for (int i : sorted_by_energy_list) {
+  for (int i : wf.stateIndexList) {
     auto nlj = wf.seTermSymbol(i);
     int k = wf.ka(i);
-    double rinf = wf.r[wf.pinflist[i]];
+    double rinf = wf.rinf(i);
     double eni = wf.en[i];
     double x = wf.occ_frac[i];
     printf("%2i)%7s %2i  %3.0f %3i  %5.0e  %11.5f %12.0f %10.2f   (%.2f)\n", i,

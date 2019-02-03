@@ -36,13 +36,29 @@ const std::string atom_name_z[121] = {
     "Es", "Fm", "Md", "No", "Lr", "Rf", "Db", "Sg", "Bh", "Hs",   "Mt",
     "Ds", "Rg", "Cn", "Nh", "Fl", "Mc", "Lv", "Ts", "Og", "E119", "E120"};
 
+inline int defaultA(int Z) {
+  if (Z < 121 && Z > 0)
+    return A[Z];
+  else
+    return 0;
+}
+
+inline std::string atomicSymbol(int Z) {
+  if (Z < 121 && Z > 0)
+    return atom_name_z[Z];
+  else
+    return std::to_string(Z);
+}
+
+const std::string spectroscopic_notation = "spdfghiklmnoqrtuv";
+const std::string Spectroscopic_Notation = "SPDFGHIKLMNOQRTUV";
+
 // Short function that returns orbital term given l
 inline std::string l_symbol(int l) {
-  std::string tmp_l_array[6] = {"s", "p", "d", "f", "g", "h"};
-  if (l < 6)
-    return tmp_l_array[l];
+  if (l < (int)spectroscopic_notation.length() && l >= 0)
+    return spectroscopic_notation.substr(l, 1);
   else
-    return std::to_string(l);
+    return "[" + std::to_string(l) + "]";
 }
 
 // Short function that returns orbital l (int), given kappa

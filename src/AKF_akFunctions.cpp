@@ -1,10 +1,10 @@
 #include "AKF_akFunctions.h"
 #include "ATI_atomInfo.h"
-#include "FileIO_fileReadWrite.h"
 #include "ContinuumOrbitals.h"
 #include "ElectronOrbitals.h"
 #include "ExponentialGrid.h"
 #include "FPC_physicalConstants.h"
+#include "FileIO_fileReadWrite.h"
 #include "SBF_sphericalBesselFunctions.h"
 #include "WIG_369j.h"
 #include <cmath>
@@ -148,8 +148,8 @@ Zeff no longer works at main() level.
 {
   ContinuumOrbitals cntm(wf); // create cntm object [survives locally only]
 
-  int k = wf.kappa[is];
-  int l = ATI::l_k(k);
+  int k = wf.ka(is);
+  int l = wf.lorb(is);
 
   int qsteps = (int)jLqr_f[0].size();
 
@@ -216,8 +216,7 @@ XXX Note sure if correct! esp, (q) angular part!? XXX
   if (nk >= (int)wf.f.size())
     return 1; // should never occur
 
-  int kappa = wf.kappa[nk];
-  int twoj = ATI::twoj_k(kappa);
+  int twoj = wf.twoj(nk);
 
   int qsteps = (int)jl_qr.size();
 

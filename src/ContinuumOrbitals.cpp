@@ -178,9 +178,9 @@ On irder to solve for Zeff, just make v use Zeff !!!!!!!
 
   // Nuclear potential:
   std::vector<double> vc;
-  for (int i = 0; i < NGPc; i++) {
-    vc.push_back(-Zeff / rc[i]);
-  }
+  vc.reserve(rc.size());
+  for (auto rci : rc)
+    vc.push_back(-Zeff / rci);
 
   int MAX_STATES = 100;
   for (int i = 0; i < MAX_STATES; i++) { // loop through each k state

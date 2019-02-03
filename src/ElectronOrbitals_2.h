@@ -24,25 +24,6 @@ class Orbital {
 };
 
 //******************************************************************************
-struct Grid {
-
-  Grid();
-
-  std::vector<double> r;
-  std::vector<double> drdu;
-  std::vector<double> drduor;
-  const double r0;
-  const double rmax;
-  const int ngp;
-  const double du;
-
-private:
-  void exponentialRadialGrid(int ngp_in, double r0, double rmax);
-  void logLinearRadialGrid(int ngp_in, double r0, double rmax, double b = 4.);
-  void logLinearRadialGrid(double in_h, double r0, double rmax, double b = 4.);
-};
-
-//******************************************************************************
 class ElectronOrbitals {
 
 private:

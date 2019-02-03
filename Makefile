@@ -9,7 +9,7 @@ CXX=g++ #clang++ #
 OPT=-O3
 OMP=-fopenmp #-fopenmp=libiomp5 ##needed for clang++
 
-WARN=-Wpedantic -Wall -Wextra -Wconversion
+WARN=-Wpedantic -Wall -Wextra -Wdouble-promotion -Wconversion
 
 CXXFLAGS= -std=c++11 $(OPT) $(OMP) $(WARN) #-I$(ID)
 LIBS=-lgsl -lgslcblas

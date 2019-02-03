@@ -83,7 +83,7 @@ double findSineAmplitude(std::vector<double> &pc, const std::vector<double> &rc,
     // find max:
     double y0 = 0, y1 = 0, y2 = 0, y3 = 0, y4 = 0;
     double x0 = 0, x1 = 0, x2 = 0, x3 = 0, x4 = 0;
-    for (int i = i_asym + 1; i < NGPc; i++) {
+    for (int i = i_asym + 1; i < NGPc - 1; i++) {
       if (fabs(pc[i]) < fabs(pc[i - 1])) {
         y0 = fabs(pc[i - 3]);
         y1 = fabs(pc[i - 2]);

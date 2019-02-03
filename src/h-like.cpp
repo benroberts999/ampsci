@@ -5,7 +5,6 @@
 #include "INT_quadratureIntegration.h"
 #include <cmath>
 #include <iostream>
-#include <sstream>
 #include <tuple>
 
 int main() {
@@ -41,9 +40,10 @@ int main() {
     }
   }
 
-  printf("Grid: pts=%i h=%7.5f Rmax=%5.1f\n", wf.ngp, wf.h, wf.r[wf.ngp - 1]);
+  printf("Grid: pts=%i h=%7.5f; r0=%.1e, Rmax=%5.1f\n", wf.ngp, wf.h,
+         wf.r.front(), wf.r.back());
   if (varalpha != 1)
-    printf("varalpha = c/c_eff = %.1e  ", varalpha);
+    std::cout << "varalpha = c/c_eff = " << varalpha << " ";
   if (varalpha < 1)
     std::cout << "(non-relativistic scenario)\n";
   if (varalpha > 1)
@@ -51,30 +51,27 @@ int main() {
 
   std::cout << "\n";
 
-  printf(" n l_j    k  R_inf its eps     En (au)            Error (au)\n");
-  auto num_states = wf.nlist.size();
-  for (auto i = 0ul; i < num_states; i++) {
-    int n = wf.nlist[i];
-    int k = wf.kappa[i];
-    int twoj = 2 * abs(k) - 1;
-    int l = (abs(2 * k + 1) - 1) / 2;
+  std::cout << " n l_j    k  R_inf its eps     En (au)            Error (au)\n";
+  for (auto i : wf.stateIndexList) {
+    int n = wf.n_pqn(i);
+    int k = wf.ka(i);
     double del = wf.en[i] - wf.diracen(wf.Znuc(), n, k);
-    double rinf = wf.r[wf.pinflist[i]];
-    printf("%2i %s_%i/2 (%2i)  %3.0f %3i  %5.0e  %.15f  %7.0e\n", n,
-           ATI::l_symbol(l).c_str(), twoj, k, rinf, wf.itslist[i],
-           wf.epslist[i], wf.en[i], del);
+    double rinf = wf.rinf(i);
+    printf("%7s (%2i)  %3.0f %3i  %5.0e  %.15f  %7.0e\n",
+           wf.seTermSymbol(i).c_str(), k, rinf, wf.itslist[i], wf.epslist[i],
+           wf.en[i], del);
   }
 
   // wf.orthonormaliseOrbitals(2);
 
   if (extra) {
     // Calculate the expectation value of r^rpow for each state in list:
-    printf("\nExpectation value of r^n (radial integral)\n");
+    std::cout << "\nExpectation value of r^n (radial integral)\n";
     std::cout << "          ";
     for (int in = -2; in <= 2; in++) {
       if (in == 0)
         continue;
-      printf(" <nk|r^%i|nk>   ", in);
+      std::cout << " <nk|r^" << in << "|nk>   ";
     }
     std::cout << "\n";
     for (auto s : wf.stateIndexList) {
@@ -82,23 +79,20 @@ int main() {
       for (int in = -2; in <= 2; in++) {
         if (in == 0)
           continue;
-        std::vector<double> rad1;
-        for (int i = 0; i < wf.ngp; i++) {
-          double x1 = (wf.f[s][i] * wf.f[s][i] + wf.g[s][i] * wf.g[s][i]) *
-                      pow(wf.r[i], in);
-          rad1.push_back(x1);
-        }
-        double R1 = INT::integrate2(rad1, wf.drdt) * wf.h;
+        std::vector<double> rton;
+        rton.reserve(wf.ngp);
+        for (auto r : wf.r)
+          rton.push_back(r);
+        double R1 = wf.radialIntegral(s, s, rton);
         printf("%13.8f, ", R1);
       }
       std::cout << "\n";
     }
 
     // Testing Dirac Eq. by evaluating <a|H|a> - ME of Hamiltonian
-    printf("\nTesting wavefunctions: <n|H|n>  (numerical error)\n");
+    std::cout << "\nTesting wavefunctions: <n|H|n>  (numerical error)\n";
     double alpha = wf.get_alpha();
     double a2 = pow(alpha, 2);
-    // for(auto s=0ul; s<num_states; s++){
     for (auto s : wf.stateIndexList) {
       std::vector<double> dQ(wf.ngp);
       INT::diff(wf.g[s], wf.drdt, wf.h, dQ);
@@ -114,8 +108,8 @@ int main() {
       double R = INT::integrate2(rad, wf.drdt) * wf.h;
       double fracdiff = (R - wf.en[s]) / wf.en[s];
       printf("<%i% i|H|%i% i> = % .15f, E(%i% i) = % .15f; % .0e\n",
-             wf.nlist[s], wf.kappa[s], wf.nlist[s], wf.kappa[s], R, wf.nlist[s],
-             wf.kappa[s], wf.en[s], fracdiff);
+             wf.n_pqn(s), wf.ka(s), wf.n_pqn(s), wf.ka(s), R, wf.n_pqn(s),
+             wf.ka(s), wf.en[s], fracdiff);
     }
   }
 

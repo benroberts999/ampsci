@@ -29,10 +29,8 @@ int main() {
   }
 
   int Z = ATI::get_z(Z_str);
-  if (Z == 0)
-    return 2;
   if (A == 0)
-    A = ATI::A[Z]; // if none given, get default A
+    A = ATI::defaultA(Z); // if none given, get default A
 
   // Normalise the Teitz/Green weights:
   if (Gf != 0 || Tf != 0) {
@@ -47,9 +45,9 @@ int main() {
   if (Tf != 0 && Tt == 0)
     PRM::defaultTietz(Z, Tt, Tg);
 
-  printf("\nRunning parametric potential for %s, Z=%i A=%i\n", Z_str.c_str(), Z,
-         A);
-  printf("*************************************************\n");
+  std::cout << "\nRunning parametric potential for " << Z_str << ", Z=" << Z
+            << ", A=" << A << "\n";
+  std::cout << "*************************************************\n";
   if (Gf != 0)
     printf("%3.0f%% Green potential: H=%.4f  d=%.4f\n", Gf * 100., Gh, Gd);
   if (Tf != 0)
@@ -58,17 +56,19 @@ int main() {
   // Generate the orbitals object:
   ElectronOrbitals wf(Z, A, ngp, r0, rmax, varalpha);
 
-  printf("Grid: pts=%i h=%7.5f Rmax=%5.1f\n", wf.ngp, wf.h, wf.r[wf.ngp - 1]);
+  printf("Grid: pts=%i h=%7.5f Rmax=%5.1f\n", wf.ngp, wf.h, wf.r.back());
 
   // Fill the electron part of the potential
-  wf.vdir.resize(wf.ngp);
-  for (int i = 0; i < wf.ngp; i++) {
+  wf.vdir.clear();
+  wf.vdir.reserve(wf.ngp);
+  // for (int i = 0; i < wf.ngp; i++) {
+  for (auto r : wf.r) {
     double tmp = 0;
     if (Gf != 0)
-      tmp += Gf * PRM::green(Z, wf.r[i], Gh, Gd);
+      tmp += Gf * PRM::green(Z, r, Gh, Gd);
     if (Tf != 0)
-      tmp += Tf * PRM::tietz(Z, wf.r[i], Tt, Tg);
-    wf.vdir[i] = tmp;
+      tmp += Tf * PRM::tietz(Z, r, Tt, Tg);
+    wf.vdir.push_back(tmp);
   }
 
   // Solve for core states
@@ -99,22 +99,19 @@ int main() {
   wf.sortedEnergyList(sort_list);
 
   // Output results:
-  printf("\n n l_j    k Rinf its    eps      En (au)        En (/cm)\n");
+  std::cout << "\n n l_j    k Rinf its    eps      En (au)        En (/cm)\n";
   for (int m = 0; m < (int)sort_list.size(); m++) { // silly. Fix this...
     int i = sort_list[m];
     if (m == wf.num_core_states) {
       std::cout << " ######### Valence: ######\n";
-      printf(" n l_j    k Rinf its    eps      En (au)        En (/cm)\n");
+      std::cout << " n l_j    k Rinf its    eps      En (au)        En (/cm)\n";
     }
-    int n = wf.nlist[i];
-    int k = wf.kappa[i];
-    int twoj = 2 * abs(k) - 1;
-    int l = (abs(2 * k + 1) - 1) / 2;
-    double rinf = wf.r[wf.pinflist[i]];
+    int k = wf.ka(i);
+    double rinf = wf.rinf(i);
     double eni = wf.en[i];
-    printf("%2i %s_%i/2 %2i  %3.0f %3i  %5.0e  %11.5f %15.3f\n", n,
-           ATI::l_symbol(l).c_str(), twoj, k, rinf, wf.itslist[i],
-           wf.epslist[i], eni, eni * FPC::Hartree_invcm);
+    printf("%7s %2i  %3.0f %3i  %5.0e  %11.5f %15.3f\n",
+           wf.seTermSymbol(i).c_str(), k, rinf, wf.itslist[i], wf.epslist[i],
+           eni, eni * FPC::Hartree_invcm);
   }
 
   std::cout << "\n " << sw.reading_str() << "\n";
