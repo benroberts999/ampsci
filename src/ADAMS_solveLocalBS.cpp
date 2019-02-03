@@ -84,7 +84,7 @@ Defn: f = p, g = -q. (My g includes alpha)
   const int max_its = 32;      // Max # attempts at converging [sove bs] (30)
   const double alr = 800;      // ''assymptotically large r [kinda..]''  (=800)
   const double lfrac_de = 0.2; // 'large' energy variations (0.1 => 10%)
-  const int d_ctp_in = 8;      // Num points past ctp +/- d_ctp.
+  const int d_ctp_in = 6;      // Num points past ctp +/- d_ctp.
 
   int ngp = (int)r.size();
 
@@ -199,10 +199,6 @@ Defn: f = p, g = -q. (My g includes alpha)
 
   return ret_code;
 }
-
-//*********************************************************
-//*********************************************************
-//*********************************************************
 
 //******************************************************************************
 double largeEnergyChange(double &en, int &more, int &less, double &eupper,
@@ -324,10 +320,10 @@ int findClassicalTurningPoint(double en, const std::vector<double> &v,
   while ((en - v[ctp]) < 0) {
     --ctp;
     /*if (ctp<=0){
-  //fails if ctp<0, (or ctp>pinf?)
-  printf("FAILURE 96 in solveDBS: No classical region?\n");
-  return 1;
-}*/
+      //fails if ctp<0, (or ctp>pinf?)
+      printf("FAILURE 96 in solveDBS: No classical region?\n");
+    return 1;
+    }*/
   }
   if (ctp >= pinf) {
     // Didn't find ctp! Does this ever happen? Yes, if energy guess too wrong
@@ -372,8 +368,7 @@ void trialDiracSolution(std::vector<double> &f, std::vector<double> &g,
   // Perform the "inwards integration":
   inwardAM(pin, qin, en, v, ka, r, drdt, h, ctp - d_ctp, pinf, alpha);
   // Perform the "outwards integration"
-  outwardAM(pout, qout, en, v, ka, r, drdt, h, ctp + d_ctp,
-            alpha); // Z inside!
+  outwardAM(pout, qout, en, v, ka, r, drdt, h, ctp + d_ctp, alpha);
   // Join in/out solutions into f,g + store dg (gout-gin) for PT
   joinInOutSolutions(f, g, dg, pin, qin, pout, qout, ctp, d_ctp, pinf);
 }
@@ -554,15 +549,15 @@ Then, it then call ADAMS-MOULTON, to finish (from nol*AMO+1 to nf = ctp-d_ctp)
   double cc = 1. / alpha;
   double c2 = 1. / alpha2;
 
-  double lambda = sqrt(-en * (2 + en * alpha2));
+  double lambda = sqrt(-en * (2. + en * alpha2));
   double zeta = -v[pinf] * r[pinf];
-  double sigma = (1 + en * alpha2) * (zeta / lambda);
+  double sigma = (1. + en * alpha2) * (zeta / lambda);
   double Ren = en + c2; // total relativistic energy
 
   // Generates the expansion coeficients for asymptotic wf
   // up to order NX (nx is 'param')
-  std::vector<double> bx(nx);
-  std::vector<double> ax(nx);
+  std::array<double, nx> bx;
+  std::array<double, nx> ax;
   bx[0] = (ka + (zeta / lambda)) * (alpha / 2);
   for (int i = 0; i < nx; i++) {
     ax[i] = (ka + (i + 1 - sigma) * Ren * alpha2 - zeta * lambda * alpha2) *
@@ -592,7 +587,7 @@ Then, it then call ADAMS-MOULTON, to finish (from nol*AMO+1 to nf = ctp-d_ctp)
     }
     DEBUG(
         // SECONDARY convergance for expansion in `inint'' (10e-3):
-        const double nxepss = 1e-3;
+        const double nxepss = 1.e-3;
         if (xe > nxepss) std::cerr
         << "WARNING: Asymp. expansion in ININT didn't converge: " << i << " "
         << xe << "\n";)
@@ -774,14 +769,14 @@ coeficients for the OUTINT routine
   // XX ? only down to 5?
 
   if (AMO == 8) {
-    double tie[8][8] = {-1338, 2940, -2940, 2450,  -1470,  588,   -140,  15,
-                        -240,  -798, 1680,  -1050, 560,    -210,  48,    -5,
-                        60,    -420, -378,  1050,  -420,   140,   -30,   3,
-                        -32,   168,  -672,  0,     672,    -168,  32,    -3,
-                        30,    -140, 420,   -1050, 378,    420,   -60,   5,
-                        -48,   210,  -560,  1050,  -1680,  798,   240,   -15,
-                        140,   -588, 1470,  -2450, 2940,   -2940, 1338,  105,
-                        -960,  3920, -9408, 14700, -15680, 11760, -6720, 2283};
+    double tie[8][8] = {{-1338, 2940, -2940, 2450, -1470, 588, -140, 15},
+                        {-240, -798, 1680, -1050, 560, -210, 48, -5},
+                        {60, -420, -378, 1050, -420, 140, -30, 3},
+                        {-32, 168, -672, 0, 672, -168, 32, -3},
+                        {30, -140, 420, -1050, 378, 420, -60, 5},
+                        {-48, 210, -560, 1050, -1680, 798, 240, -15},
+                        {140, -588, 1470, -2450, 2940, -2940, 1338, 105},
+                        {-960, 3920, -9408, 14700, -15680, 11760, -6720, 2283}};
     double tia[8] = {-105, 15, -5, 3, -3, 5, -15, 105};
     oid = 840;
     for (int i = 0; i < AMO; i++) {
@@ -792,12 +787,13 @@ coeficients for the OUTINT routine
       }
     }
   } else if (AMO == 7) {
-    double tie[7][7] = {
-        -609, 1260, -1050, 700,   -315, 84,    -10,  -140,  -329, 700,
-        -350, 140,  -35,   4,     42,   -252,  -105, 420,   -126, 28,
-        -3,   -28,  126,   -420,  105,  252,   -42,  4,     35,   -140,
-        350,  -700, 329,   140,   -10,  -84,   315,  -700,  1050, -1260,
-        609,  60,   490,   -1764, 3675, -4900, 4410, -2940, 1089};
+    double tie[7][7] = {{-609, 1260, -1050, 700, -315, 84, -10},
+                        {-140, -329, 700, -350, 140, -35, 4},
+                        {42, -252, -105, 420, -126, 28, -3},
+                        {-28, 126, -420, 105, 252, -42, 4},
+                        {35, -140, 350, -700, 329, 140, -10},
+                        {-84, 315, -700, 1050, -1260, 609, 60},
+                        {490, -1764, 3675, -4900, 4410, -2940, 1089}};
     double tia[7] = {-60, 10, -4, 3, -4, 10, -60};
     oid = 420;
     for (int i = 0; i < AMO; i++) {
@@ -807,10 +803,10 @@ coeficients for the OUTINT routine
       }
     }
   } else if (AMO == 6) {
-    double tie[6][6] = {-77,  150, -100, 50,  -15, 2,    -24, -35,  80,
-                        -30,  8,   -1,   9,   -45, 0,    45,  -9,   1,
-                        -8,   30,  -80,  35,  24,  -2,   15,  -50,  100,
-                        -150, 77,  10,   -72, 225, -400, 450, -360, 147};
+    double tie[6][6] = {
+        {-77, 150, -100, 50, -15, 2}, {-24, -35, 80, -30, 8, -1},
+        {9, -45, 0, 45, -9, 1},       {-8, 30, -80, 35, 24, -2},
+        {15, -50, 100, -150, 77, 10}, {-72, 225, -400, 450, -360, 147}};
     double tia[6] = {-10, 2, -1, 1, -2, 10};
     oid = 60;
     for (int i = 0; i < AMO; i++) {
@@ -820,9 +816,11 @@ coeficients for the OUTINT routine
       }
     }
   } else if (AMO == 5) {
-    double tie[5][5] = {-65, 120, -60, 20,   -3,  -30,  -20, 60, -15,
-                        2,   15,  -60, 20,   30,  -3,   -20, 60, -120,
-                        65,  12,  75,  -200, 300, -300, 137};
+    double tie[5][5] = {{-65, 120, -60, 20, -3},
+                        {-30, -20, 60, -15, 2},
+                        {15, -60, 20, 30, -3},
+                        {-20, 60, -120, 65, 12},
+                        {75, -200, 300, -300, 137}};
     double tia[5] = {-12, 3, -2, 3, -12};
     oid = 60;
     for (int i = 0; i < AMO; i++) {

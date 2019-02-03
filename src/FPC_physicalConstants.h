@@ -9,13 +9,13 @@ https://en.wikipedia.org/wiki/Atomic_units
 namespace FPC {
 
 // speed of light in a.u., and fine-structure constant
-double const c = 137.035999139; // CODATA 2014: 137.035999139(31)
-double const c2 = c * c;
-double const alpha = 1. / c; // fine structure constant
-double const alpha2 = alpha * alpha;
+const double c = 137.035999139; // CODATA 2014: 137.035999139(31)
+const double c2 = c * c;
+const double alpha = 1. / c; // fine structure constant
+const double alpha2 = alpha * alpha;
 
 // speed of light, in m/s
-double const c_SI = 299792458.;
+const double c_SI = 299792458.;
 
 // Proton mass (mp/me)
 const double m_p = 1836.15267389;     // CODATA 2014: 1836.152 673 89(17)
@@ -26,22 +26,22 @@ const double m_e_kg = 9.10938356e-31; // CODATA 2014: 9.109 383 56(11) e-31
 const double u_NMU = 1822.888486192; // CODATA 2014: 1822.888 486 192(53)
 
 // Length:
-double const aB_m = 0.52917721067e-10; // CODATA 2014: 0.52917721067(12)e-10 m
-double const aB_cm = 0.52917721067e-8;
-double const aB_fm = 0.52917721067e+5;
+const double aB_m = 0.52917721067e-10; // CODATA 2014: 0.52917721067(12)e-10 m
+const double aB_cm = 0.52917721067e-8;
+const double aB_fm = 0.52917721067e+5;
 
 // Time:
-double const time_s = 2.418884326505e-17; // wiki: 2.418884326505(16)×10−17 s
+const double time_s = 2.418884326505e-17; // wiki: 2.418884326505(16)×10−17 s
 
 // Energy:
-double const Hartree_eV = 27.21138602;        // CODATA 2014: 27.21138602(17) eV
-double const Hartree_Hz = 6.579683920711e+15; // 6.579683920711(39)e15 Hz
-double const Hartree_MHz = 6.579683920711e+9;
-double const Hartree_GHz = 6.579683920711e+6;
+const double Hartree_eV = 27.21138602;        // CODATA 2014: 27.21138602(17) eV
+const double Hartree_Hz = 6.579683920711e+15; // 6.579683920711(39)e15 Hz
+const double Hartree_MHz = 6.579683920711e+9;
+const double Hartree_GHz = 6.579683920711e+6;
 // wave-number (inverse cm):
-double const Hartree_invcm = 2.194746313702e+5; // 2.194746313702(13)e7 m-1
+const double Hartree_invcm = 2.194746313702e+5; // 2.194746313702(13)e7 m-1
 // wavelength (nm):
-double const HartreeWL_nm = 45.56335252767;
+const double HartreeWL_nm = 45.56335252767;
 
 // Fermi weak constant (au)
 const double GFe11 = 2.2225e-3;

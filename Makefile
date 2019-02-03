@@ -4,7 +4,7 @@ ID =./src
 OD =./obj
 XD =.
 
-CXX=g++ #clang++
+CXX=g++ #clang++ #
 
 OPT=-O3
 OMP=-fopenmp #-fopenmp=libiomp5 ##needed for clang++
@@ -33,7 +33,7 @@ all: checkObj checkXdir $(ALLEXES)
 
 # All programs depend on these generic common headers:
 COMH = $(addprefix $(ID)/, \
- ATI_atomInfo.h FPC_physicalConstants.h \
+ ATI_atomInfo.h FPC_physicalConstants.h FileIO_fileReadWrite.h \
 )
 
 # Rule for files that have .cpp AND a .h file
@@ -81,8 +81,7 @@ $(OD)/PRM_parametricPotentials.o $(OD)/ChronoTimer.o
 	$(LINK)
 
 $(XD)/atomicKernal: $(BASE) $(CNTM) $(HF) \
-$(OD)/atomicKernal.o $(OD)/AKF_akFunctions.o \
-$(OD)/SBF_sphericalBesselFunctions.o $(OD)/ChronoTimer.o \
+$(OD)/atomicKernal.o $(OD)/AKF_akFunctions.o $(OD)/ChronoTimer.o \
 $(OD)/ExponentialGrid.o
 	$(LINK)
 
@@ -90,7 +89,7 @@ $(XD)/hartreeFock: $(BASE) $(HF) $(OD)/hartreeFock.o $(OD)/ChronoTimer.o
 	$(LINK)
 
 $(XD)/dmeXSection: $(BASE) $(CNTM) $(HF) $(OD)/dmeXSection.o \
-$(OD)/AKF_akFunctions.o $(OD)/SBF_sphericalBesselFunctions.o \
+$(OD)/AKF_akFunctions.o \
 $(OD)/StandardHaloModel.o $(OD)/ChronoTimer.o $(OD)/ExponentialGrid.o
 	$(LINK)
 

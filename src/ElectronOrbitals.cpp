@@ -804,7 +804,7 @@ double ElectronOrbitals::diracen(double z, double n, int k) const {
   double za2 = pow(alpha * z, 2);
   double g = sqrt(k * k - za2);
 
-  double w2 = pow(z, 2) / pow(g + n - fabs(k), 2);
+  double w2 = pow(z, 2) / pow(g + n - fabs((double)k), 2);
   double d = 1. + a2 * w2;
 
   double diracE =

@@ -32,7 +32,7 @@ public:
   double calculateCoreEnergy();
 
 private:
-  ElectronOrbitals *p_wf = NULL;
+  ElectronOrbitals *p_wf = nullptr;
 
   double m_eps_HF = 1.e-8;
 
