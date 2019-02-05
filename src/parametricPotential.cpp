@@ -7,10 +7,13 @@
 #include <iostream>
 #include <tuple>
 
-int main() {
+int main(int argc, char *argv[]) {
+  ChronoTimer sw(true); // start the overall timer
 
-  ChronoTimer sw(true); // start timer
-  double varalpha = 1;  // need same number as used for the fitting!
+  std::string input_file = (argc > 1) ? argv[1] : "parametricPotential.in";
+  std::cout << "Reading input from: " << input_file << "\n";
+
+  double varalpha = 1; // need same number as used for the fitting!
 
   // Input options
   std::string Z_str;

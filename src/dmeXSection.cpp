@@ -524,8 +524,11 @@ Optionally further integrates into energy bins
 //******************************************************************************
 //******************************************************************************
 //******************************************************************************
-int main() {
-  ChronoTimer sw(true); // start timer
+int main(int argc, char *argv[]) {
+  ChronoTimer sw(true); // start the overall timer
+
+  std::string input_file = (argc > 1) ? argv[1] : "dmeXSection.in";
+  std::cout << "Reading input from: " << input_file << "\n";
 
   // define input parameters
   std::string akfn;
@@ -551,7 +554,7 @@ int main() {
                                     mvmin, mvmax, n_mv, dvesc, dv0, ianmod,
                                     iwr_dsvde, idodama, dres, err_PEkeV, Atot,
                                     iEbin, fEbin, wEbin, iSM);
-    FileIO::setInputParameters("dmeXSection.in", tp);
+    FileIO::setInputParameters(input_file, tp);
     label = label == "na" ? akfn : akfn + "-" + label;
     // what to write to file:
     write_dsvde = iwr_dsvde == 1 ? true : false;

@@ -7,9 +7,11 @@
 #include <iostream>
 #include <tuple>
 
-int main() {
+int main(int argc, char *argv[]) {
+  ChronoTimer sw(true); // start the overall timer
 
-  ChronoTimer sw(true); // start timer
+  std::string input_file = (argc > 1) ? argv[1] : "h-like.in";
+  std::cout << "Reading input from: " << input_file << "\n";
 
   int Z, A, n_max, l_max, ngp;
   double r0, rmax, varalpha;
@@ -18,7 +20,7 @@ int main() {
     int iextra;
     auto tp = std::forward_as_tuple(Z, A, n_max, l_max, r0, rmax, ngp, varalpha,
                                     iextra);
-    FileIO::setInputParameters("h-like.in", tp);
+    FileIO::setInputParameters(input_file, tp);
     extra = (iextra == 1) ? true : false;
   }
 

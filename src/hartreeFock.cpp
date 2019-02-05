@@ -11,15 +11,10 @@
 #include <tuple>
 
 int main(int argc, char *argv[]) {
+  ChronoTimer timer(true); // start the overall timer
 
-  std::string input_file = "hartreeFock.in";
-  if (argc > 1) {
-    input_file = std::string(argv[1]);
-    std::cout << "Reading input from " << input_file << "\n";
-  }
-
-  ChronoTimer timer; // start the stopwatch
-  timer.start();
+  std::string input_file = (argc > 1) ? argv[1] : "hartreeFock.in";
+  std::cout << "Reading input from: " << input_file << "\n";
 
   // Input options
   std::string Z_str;
@@ -31,8 +26,7 @@ int main(int argc, char *argv[]) {
   int num_val, l_max; // valence states to calc
   std::string str_core;
 
-  // Open and read the input file:
-  {
+  { // Open and read the input file:
     auto tp = std::forward_as_tuple(Z_str, A, str_core, r0, rmax, ngp, eps_HF,
                                     num_val, l_max, varalpha2);
     FileIO::setInputParameters(input_file, tp);
@@ -49,8 +43,9 @@ int main(int argc, char *argv[]) {
   if (A == -1)
     A = ATI::defaultA(Z); // if none given, get default A
 
-  printf("\nRunning HARTREE FOCK for %s, Z=%i A=%i\n", Z_str.c_str(), Z, A);
-  printf("*************************************************\n");
+  std::cout << "\nRunning Hartree-Fock for " << Z_str << "; Z=" << Z
+            << " A=" << A << "\n"
+            << "*************************************************\n";
 
   // Generate the orbitals object:
   ElectronOrbitals wf(Z, A, ngp, r0, rmax, varalpha);
@@ -58,9 +53,8 @@ int main(int argc, char *argv[]) {
   printf("Grid: pts=%i h=%7.5f r0=%.1e Rmax=%5.1f\n\n", wf.ngp, wf.h,
          wf.r.front(), wf.r.back());
 
-  timer.start(); // start the timer
-
   // Solve Hartree equations for the core:
+  timer.start(); // start the timer for HF
   HartreeFock hf(wf, str_core, eps_HF);
   double core_energy = hf.calculateCoreEnergy();
   std::cout << "core: " << timer.lap_reading_str() << "\n";
@@ -103,7 +97,9 @@ int main(int argc, char *argv[]) {
   printf("     state   k   Rinf its    eps       En (au)      En (/cm)\n");
   bool val = false;
   double en_lim = 0;
+  int count = 0;
   for (int i : sorted_by_energy_list) {
+    ++count;
     if (val && en_lim == 0)
       en_lim = fabs(wf.en[i]); // give energies wrt core
     int k = wf.ka(i);
@@ -116,7 +112,7 @@ int main(int argc, char *argv[]) {
       printf(" %10.2f\n", (eni + en_lim) * FPC::Hartree_invcm);
     else
       std::cout << "\n";
-    if (i == (int)wf.num_core_states - 1) {
+    if (count == (int)wf.num_core_states) {
       printf("E_core = %.5f au\n", core_energy);
       if (wf.num_core_states == (int)wf.nlist.size())
         break;
@@ -134,17 +130,17 @@ int main(int argc, char *argv[]) {
     std::cout << "Test orthonormality [should all read 0]:\n";
     std::cout << "       ";
     for (auto b : wf.stateIndexList)
-      printf("   %1i %2i  ", wf.nlist[b], wf.kappa[b]);
+      printf("   %1i %2i  ", wf.n_pqn(b), wf.ka(b));
     std::cout << "\n";
     for (auto a : wf.stateIndexList) {
-      printf("%1i %2i  ", wf.nlist[a], wf.kappa[a]);
+      printf("%1i %2i  ", wf.n_pqn(a), wf.ka(a));
       for (auto b : wf.stateIndexList) {
-        if (wf.kappa[a] != wf.kappa[b]) {
+        if (wf.ka(a) != wf.ka(b)) {
           std::cout << " ------- ";
           continue;
         }
         double xo = wf.radialIntegral(a, b);
-        if (wf.nlist[a] == wf.nlist[b])
+        if (wf.n_pqn(a) == wf.n_pqn(b))
           xo -= 1;
         printf(" %7.0e ", xo);
       }

@@ -13,8 +13,11 @@
 #include <tuple>
 
 //******************************************************************************
-int main() {
-  ChronoTimer sw(true); // start stopwatch
+int main(int argc, char *argv[]) {
+  ChronoTimer sw(true); // start the overall timer
+
+  std::string input_file = (argc > 1) ? argv[1] : "atomicKernal.in";
+  std::cout << "Reading input from: " << input_file << "\n";
 
   // Input options
   std::string Z_str;
@@ -40,7 +43,7 @@ int main() {
         std::forward_as_tuple(Z_str, A, str_core, r0, rmax, ngp, Gf, Gh, Gd,
                               hart_del, varalpha, demin, demax, desteps, qmin,
                               qmax, qsteps, max_l, max_L, iout_format, label);
-    FileIO::setInputParameters("atomicKernal.in", tp);
+    FileIO::setInputParameters(input_file, tp);
   }
   if (Gf < 0)
     Gf = 0;

@@ -43,7 +43,7 @@ inline std::vector<std::string> readInputFile(const std::string &fname) {
   std::vector<std::string> entry_list;
   std::ifstream file(fname);
   std::string line;
-  while (getline(file, line)) {
+  while (getline(file, line) && (file.is_open())) { // redundant?
     std::stringstream ss(line);
     std::string entry;
     while (ss >> entry) {
@@ -60,6 +60,16 @@ inline std::vector<std::string> readInputFile(const std::string &fname) {
 template <typename... Tp>
 void setInputParameters(std::string infile, std::tuple<Tp...> &tp) {
   auto input = readInputFile(infile);
+  if (sizeof...(Tp) > input.size()) {
+    // Note: for now, I allow a longer-than-needed input list.
+    // This allows us to not have to comment out all the crap below
+    // the input file..
+    std::cerr << "\nFail 71 in FileIO: Wrong number of input parameters? "
+              << "Reading from file: " << infile << ". Expected "
+              << sizeof...(Tp) << " arguments"
+              << ", but got " << input.size() << ".\n";
+    return;
+  }
   stringstreamVectorIntoTuple(input, tp);
 }
 
