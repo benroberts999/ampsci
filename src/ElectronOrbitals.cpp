@@ -109,6 +109,8 @@ XXX Few things here that are slow! XXX
     std::cout << "\nFail 97 in EO radInt. Invalid state\n";
 
   int pinf = std::min(pinflist[a], pinflist[b]);
+  // int pinf = (pinflist[a] + pinflist[b]) / 2;
+
   std::vector<double> fprime(ngp); // = f[b];
   std::vector<double> gprime(ngp); // = g[b];
   // XXX Change to reserve + push_back!
@@ -137,12 +139,14 @@ XXX Few things here that are slow! XXX
     }
     break;
   case Operator::dr:
-    INT::diff(f[b], drdt, h, fprime);
-    INT::diff(g[b], drdt, h, gprime);
+    // INT::diff(f[b], drdt, h, fprime);
+    // INT::diff(g[b], drdt, h, gprime);
+    fprime = INT::derivative(f[b], drdt, h);
+    gprime = INT::derivative(g[b], drdt, h);
     break;
   case Operator::dr2:
-    INT::diff(f[b], drdt, h, fprime, 2);
-    INT::diff(g[b], drdt, h, gprime, 2);
+    fprime = INT::derivative(f[b], drdt, h, 2);
+    gprime = INT::derivative(g[b], drdt, h, 2);
     break;
   default:
     std::cout << "\nError 103 in EO radialInt: unknown operator\n";
@@ -150,8 +154,9 @@ XXX Few things here that are slow! XXX
 
   double Rf = 0, Rg = 0;
   if (vint.size() == 0) {
-    Rf = INT::integrate3(f[a], fprime, drdt, 1, 0); // pinf? Ruins orthog? EndP?
-    Rg = INT::integrate3(g[a], gprime, drdt, 1, 0);
+    Rf = INT::integrate3(f[a], fprime, drdt, 1, 0, pinf);
+    // pinf? Ruins orthog? EndP? ??
+    Rg = INT::integrate3(g[a], gprime, drdt, 1, 0, pinf);
   } else {
     Rf = INT::integrate4(f[a], vint, fprime, drdt, 1, 0, pinf);
     Rg = INT::integrate4(g[a], vint, gprime, drdt, 1, 0, pinf);
@@ -500,8 +505,9 @@ Note: For HF, should never be called after core is frozen!
     for (size_t b = a + 1ul; b < Ns; b++) {
       if (kappa[a] != kappa[b])
         continue;
-      double fab = INT::integrate3(f[a], f[b], drdt);
-      double gab = INT::integrate3(g[a], g[b], drdt);
+      int pinf = std::min(pinflist[a], pinflist[b]);
+      double fab = INT::integrate3(f[a], f[b], drdt, 1., 0, pinf);
+      double gab = INT::integrate3(g[a], g[b], drdt, 1., 0, pinf);
       c_ab[a][b] = 0.5 * h * (fab + gab); // 0.5 avoids double counting
     }
   }
@@ -534,8 +540,9 @@ Note: For HF, should never be called after core is frozen!
 
   // Re-normalise orbitals (nb: doesn't make much difference)
   for (size_t a = 0; a < Ns; a++) {
-    double faa = INT::integrate3(f[a], f[a], drdt);
-    double gaa = INT::integrate3(g[a], g[a], drdt);
+    int pinf = pinflist[a];
+    double faa = INT::integrate3(f[a], f[a], drdt, 1., 0, pinf);
+    double gaa = INT::integrate3(g[a], g[a], drdt, 1., 0, pinf);
     double norm = 1. / sqrt(h * (faa + gaa));
     for (int ir = 0; ir < ngp; ir++) {
       f[a][ir] *= norm;
@@ -568,8 +575,9 @@ note: here, c denotes core orbitals + valence orbitals with c<v
   for (int ic = 0; ic < num_states_below; ic++) {
     if (kappa[iv] != kappa[ic])
       continue;
-    double fvc = INT::integrate3(f[iv], f[ic], drdt);
-    double gvc = INT::integrate3(g[iv], g[ic], drdt);
+    int pinf = std::min(pinflist[iv], pinflist[ic]);
+    double fvc = INT::integrate3(f[iv], f[ic], drdt, 1., 0, pinf);
+    double gvc = INT::integrate3(g[iv], g[ic], drdt, 1., 0, pinf);
     A_vc[ic] = h * (fvc + gvc); // no 0.5 here - no double counting
   }
 
@@ -587,8 +595,9 @@ note: here, c denotes core orbitals + valence orbitals with c<v
   }
 
   // Re-normalise the valence orbital:
-  double fvv = INT::integrate3(f[iv], f[iv], drdt);
-  double gvv = INT::integrate3(g[iv], g[iv], drdt);
+  int pinf = pinflist[iv];
+  double fvv = INT::integrate3(f[iv], f[iv], drdt, 1., 0, pinf);
+  double gvv = INT::integrate3(g[iv], g[iv], drdt, 1., 0, pinf);
   double norm = 1. / sqrt(h * (fvv + gvv));
   for (int ir = 0; ir < ngp; ir++) {
     f[iv][ir] *= norm;

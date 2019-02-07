@@ -96,8 +96,9 @@ int main(int argc, char *argv[]) {
     double alpha = wf.get_alpha();
     double a2 = pow(alpha, 2);
     for (auto s : wf.stateIndexList) {
-      std::vector<double> dQ(wf.ngp);
-      INT::diff(wf.g[s], wf.drdt, wf.h, dQ);
+      // std::vector<double> dQ(wf.ngp);
+      // INT::diff(wf.g[s], wf.drdt, wf.h, dQ);
+      std::vector<double> dQ = INT::derivative(wf.g[s], wf.drdt, wf.h);
       std::vector<double> rad;
       for (int i = 0; i < wf.ngp; i++) {
         double x1 = -2 * wf.f[s][i] * dQ[i] / alpha;

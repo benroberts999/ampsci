@@ -200,9 +200,12 @@ where:
     E1 += xtjap1 * p_wf->en[a];
     for (int b = 0; b < m_num_core_states; b++) {
       double xtjbp1 = (twoj_list[b] + 1) * p_wf->occ_frac[b];
+      int irmax = std::min(p_wf->pinflist[a], p_wf->pinflist[b]);
       std::vector<double> &v0bb = get_v_aa0(b);
-      double R0f2 = INT::integrate4(p_wf->f[a], p_wf->f[a], v0bb, p_wf->drdt);
-      double R0g2 = INT::integrate4(p_wf->g[a], p_wf->g[a], v0bb, p_wf->drdt);
+      double R0f2 = INT::integrate4(p_wf->f[a], p_wf->f[a], v0bb, p_wf->drdt, 1,
+                                    0, irmax);
+      double R0g2 = INT::integrate4(p_wf->g[a], p_wf->g[a], v0bb, p_wf->drdt, 1,
+                                    0, irmax);
       E2 += xtjap1 * xtjbp1 * (R0f2 + R0g2);
       // take advantage of symmetry for third term:
       if (b > a)

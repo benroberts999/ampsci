@@ -34,6 +34,7 @@ all: checkObj checkXdir $(ALLEXES)
 # All programs depend on these generic common headers:
 COMH = $(addprefix $(ID)/, \
  ATI_atomInfo.h FPC_physicalConstants.h FileIO_fileReadWrite.h \
+ INT_quadratureIntegration.h \
 )
 
 # Rule for files that have .cpp AND a .h file
@@ -54,7 +55,7 @@ $(OD)/dummy.o: $(ID)/dummy.cpp $(COMH) $(ID)/otherHeader.h
 # Hust to save typing: Many programs depend on these combos:
 
 BASE = $(addprefix $(OD)/, \
- ADAMS_solveLocalBS.o ElectronOrbitals.o INT_quadratureIntegration.o \
+ ADAMS_solveLocalBS.o ElectronOrbitals.o \
  MAlg_matrixAlgebra.o \
 )
 

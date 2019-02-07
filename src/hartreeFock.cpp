@@ -175,8 +175,11 @@ int main(int argc, char *argv[]) {
     rho.reserve(wf.ngp);
     for (auto r : wf.r)
       rho.emplace_back(1. / (1. + exp((r * FPC::aB_fm - c) / a)));
-    double rho0 = INT::integrate4(wf.r, wf.r, rho, wf.drdt, 1, 0, 0, 0, 0) * 4 *
-                  M_PI * wf.h;
+    // double rho0 = INT::integrate4(wf.r, wf.r, rho, wf.drdt, 1, 0, 0, 0, 0) *
+    // 4 *
+    //               M_PI * wf.h;
+    double rho0 =
+        INT::integrate4(wf.r, wf.r, rho, wf.drdt, 1.) * 4 * M_PI * wf.h;
     for (auto &rhoi : rho)
       rhoi /= rho0;
 
@@ -210,6 +213,25 @@ int main(int argc, char *argv[]) {
     std::cout << "Total= " << pnc << "\n";
     std::cout << "\n Total time: " << timer.reading_str() << "\n";
   }
+
+  // std::vector<double> f;
+  // std::vector<double> df_exact;
+  // for (auto r : wf.r) {
+  //   f.push_back((log(r + 0.5) / (r + 0.5)) * (1. + sqrt(r) * sin(r)));
+  //
+  //   df_exact.push_back(
+  //       (log(0.5 + r) * (sqrt(r) * cos(r) + sin(r) / (2. * sqrt(r)))) /
+  //           (0.5 + r) +
+  //       (1 + sqrt(r) * sin(r)) / pow(0.5 + r, 2) -
+  //       (log(0.5 + r) * (1 + sqrt(r) * sin(r))) / pow(0.5 + r, 2));
+  // }
+  //
+  // std::vector<double> df = INT::derivative(f, wf.drdt, wf.h);
+  //
+  // std::ofstream of("test-deriv.txt");
+  // for (int i = 0; i < wf.ngp; i++) {
+  //   of << wf.r[i] << " " << df_exact[i] << " " << df[i] << "\n";
+  // }
 
   return 0;
 }

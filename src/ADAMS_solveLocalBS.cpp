@@ -83,7 +83,7 @@ Defn: f = p, g = -q. (My g includes alpha)
   const int max_its = 32;      // Max # attempts at converging [sove bs] (30)
   const double alr = 800;      // ''assymptotically large r [kinda..]''  (=800)
   const double lfrac_de = 0.2; // 'large' energy variations (0.1 => 10%)
-  const int d_ctp_in = 6;      // Num points past ctp +/- d_ctp.
+  const int d_ctp_in = 4;      // Num points past ctp +/- d_ctp.
 
   int ngp = (int)r.size();
 
