@@ -11,7 +11,7 @@
 #include <tuple>
 
 int main(int argc, char *argv[]) {
-  ChronoTimer timer(true); // start the overall timer
+  ChronoTimer timer; // start the overall timer
 
   std::string input_file = (argc > 1) ? argv[1] : "hartreeFock.in";
   std::cout << "Reading input from: " << input_file << "\n";
@@ -175,11 +175,11 @@ int main(int argc, char *argv[]) {
     rho.reserve(wf.ngp);
     for (auto r : wf.r)
       rho.emplace_back(1. / (1. + exp((r * FPC::aB_fm - c) / a)));
-    // double rho0 = INT::integrate4(wf.r, wf.r, rho, wf.drdt, 1, 0, 0, 0, 0) *
+    // double rho0 = INT::integrate(wf.r, wf.r, rho, wf.drdt, 1, 0, 0, 0, 0) *
     // 4 *
     //               M_PI * wf.h;
     double rho0 =
-        INT::integrate4(wf.r, wf.r, rho, wf.drdt, 1.) * 4 * M_PI * wf.h;
+        INT::integrate(wf.r, wf.r, rho, wf.drdt, 1.) * 4 * M_PI * wf.h;
     for (auto &rhoi : rho)
       rhoi /= rho0;
 

@@ -14,7 +14,7 @@
 
 //******************************************************************************
 int main(int argc, char *argv[]) {
-  ChronoTimer sw(true); // start the overall timer
+  ChronoTimer sw; // start the overall timer
 
   std::string input_file = (argc > 1) ? argv[1] : "atomicKernal.in";
   std::cout << "Reading input from: " << input_file << "\n";

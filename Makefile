@@ -34,7 +34,7 @@ all: checkObj checkXdir $(ALLEXES)
 # All programs depend on these generic common headers:
 COMH = $(addprefix $(ID)/, \
  ATI_atomInfo.h FPC_physicalConstants.h FileIO_fileReadWrite.h \
- INT_quadratureIntegration.h \
+ INT_quadratureIntegration.h Matrix_linalg.h ChronoTimer.h \
 )
 
 # Rule for files that have .cpp AND a .h file
@@ -56,7 +56,6 @@ $(OD)/dummy.o: $(ID)/dummy.cpp $(COMH) $(ID)/otherHeader.h
 
 BASE = $(addprefix $(OD)/, \
  ADAMS_solveLocalBS.o ElectronOrbitals.o \
- MAlg_matrixAlgebra.o \
 )
 
 HF = $(addprefix $(OD)/, \
@@ -70,28 +69,28 @@ CNTM = $(addprefix $(OD)/, \
 ################################################################################
 # Link + build all final programs
 
-$(XD)/h-like: $(BASE) $(OD)/h-like.o $(OD)/ChronoTimer.o
+$(XD)/h-like: $(BASE) $(OD)/h-like.o
 	$(LINK)
 
 $(XD)/fitParametric: $(BASE) $(OD)/fitParametric.o \
-$(OD)/PRM_parametricPotentials.o $(OD)/ChronoTimer.o
+$(OD)/PRM_parametricPotentials.o
 	$(LINK)
 
 $(XD)/parametricPotential: $(BASE) $(OD)/parametricPotential.o \
-$(OD)/PRM_parametricPotentials.o $(OD)/ChronoTimer.o
+$(OD)/PRM_parametricPotentials.o
 	$(LINK)
 
 $(XD)/atomicKernal: $(BASE) $(CNTM) $(HF) \
-$(OD)/atomicKernal.o $(OD)/AKF_akFunctions.o $(OD)/ChronoTimer.o \
+$(OD)/atomicKernal.o $(OD)/AKF_akFunctions.o \
 $(OD)/ExponentialGrid.o
 	$(LINK)
 
-$(XD)/hartreeFock: $(BASE) $(HF) $(OD)/hartreeFock.o $(OD)/ChronoTimer.o
+$(XD)/hartreeFock: $(BASE) $(HF) $(OD)/hartreeFock.o
 	$(LINK)
 
 $(XD)/dmeXSection: $(BASE) $(CNTM) $(HF) $(OD)/dmeXSection.o \
 $(OD)/AKF_akFunctions.o \
-$(OD)/StandardHaloModel.o $(OD)/ChronoTimer.o $(OD)/ExponentialGrid.o
+$(OD)/StandardHaloModel.o $(OD)/ExponentialGrid.o
 	$(LINK)
 
 $(XD)/wigner: $(OD)/wigner.o $(OD)/WIG_369j.o

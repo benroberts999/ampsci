@@ -8,7 +8,7 @@
 #include <tuple>
 
 int main(int argc, char *argv[]) {
-  ChronoTimer sw(true); // start the overall timer
+  ChronoTimer sw; // start the overall timer
 
   std::string input_file = (argc > 1) ? argv[1] : "h-like.in";
   std::cout << "Reading input from: " << input_file << "\n";
@@ -108,7 +108,7 @@ int main(int argc, char *argv[]) {
         double x4 = wf.vnuc[i] * (pow(wf.f[s][i], 2) + pow(wf.g[s][i], 2));
         rad.push_back(x1 + x3 + x2 + x4);
       }
-      double R = INT::integrate2(rad, wf.drdt) * wf.h;
+      double R = INT::integrate(rad, wf.drdt) * wf.h;
       double fracdiff = (R - wf.en[s]) / wf.en[s];
       printf("<%i% i|H|%i% i> = % .15f, E(%i% i) = % .15f; % .0e\n",
              wf.n_pqn(s), wf.ka(s), wf.n_pqn(s), wf.ka(s), R, wf.n_pqn(s),

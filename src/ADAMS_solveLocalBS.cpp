@@ -1,6 +1,6 @@
 #include "ADAMS_solveLocalBS.h"
 #include "INT_quadratureIntegration.h"
-#include "MAlg_matrixAlgebra.h"
+#include "Matrix_linalg.h"
 #include <array>
 #include <cmath>
 #include <iostream>
@@ -244,8 +244,8 @@ Uses PT to calculate small change in energy.
 Also calculates (+outputs) norm constant (but doesn't normalise orbital!)
 */
 {
-  double anormF = INT::integrate3(f, f, drdt, 1., 0, pinf);
-  double anormG = INT::integrate3(g, g, drdt, 1., 0, pinf);
+  double anormF = INT::integrate(f, f, drdt, 1., 0, pinf);
+  double anormG = INT::integrate(g, g, drdt, 1., 0, pinf);
   anorm = (anormF + anormG) * h;
 
   // Use perturbation theory to work out delta En
@@ -460,8 +460,7 @@ Then, it then call ADAMS-MOULTON, to finish (from nol*AMO+1 to nf = ctp+d_ctp)
 
     // defines/populates em coefs
     std::array<double, AMO> coefa, coefb, coefc, coefd;
-    std::vector<std::vector<double>> em(AMO, std::vector<double>(AMO));
-    // std::array<std::array<double, AMO>, AMO>em; //update MAT_ too!
+    std::array<std::array<double, AMO>, AMO> em;
     for (int i = 0; i < AMO; i++) {
       double dror = drdt[i + i0] / r[i + i0];
       coefa[i] = (-id * h * (ga + ka) * dror);
@@ -473,11 +472,11 @@ Then, it then call ADAMS-MOULTON, to finish (from nol*AMO+1 to nf = ctp+d_ctp)
       em[i][i] = em[i][i] - coefd[i];
     }
     // //inverts the em matrix
-    MAlg::invertMatrix(em); // from here on, em is the inverted matrix
+    em = Matrix::invert(em); // from here on, em is the inverted matrix
 
     // defines/populates fm, s coefs
     std::array<double, AMO> s;
-    std::vector<std::vector<double>> fm(AMO, std::vector<double>(AMO));
+    std::array<std::array<double, AMO>, AMO> fm;
     for (int i = 0; i < AMO; i++) {
       s[i] = -ia[i] * u0;
       for (int j = 0; j < AMO; j++) {
@@ -487,7 +486,7 @@ Then, it then call ADAMS-MOULTON, to finish (from nol*AMO+1 to nf = ctp+d_ctp)
       fm[i][i] = fm[i][i] - coefa[i];
     }
     // inverts the matrix!  fm =-> Inv(fm)
-    MAlg::invertMatrix(fm); // from here on, fm is the inverted matrix
+    fm = Matrix::invert(fm); // from here on, fm is the inverted matrix
 
     // writes u(r) in terms of coefs and the inverse of fm
     // P(r) = r^gamma u(r)

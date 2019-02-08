@@ -56,8 +56,8 @@ static size_t Nquad = 3;
 static double cq[3] = {9., 28., 23.};
 static double dq_inv = 1. / 24.;
 //******************************************************************************
-inline double integrate1(const std::vector<double> &f1, const double dt = 1.,
-                         size_t beg = 0, size_t end = 0)
+inline double integrate(const std::vector<double> &f1, const double dt = 1.,
+                        size_t beg = 0, size_t end = 0)
 /*
 Note: includes no safety checks!
 Integrates from (point) beg to end-1 (i.e., not including end)
@@ -92,9 +92,9 @@ Require:
 } // END integrate1
 
 //******************************************************************************
-inline double integrate2(const std::vector<double> &f1,
-                         const std::vector<double> &f2, const double dt = 1.,
-                         size_t beg = 0, size_t end = 0)
+inline double integrate(const std::vector<double> &f1,
+                        const std::vector<double> &f2, const double dt = 1.,
+                        size_t beg = 0, size_t end = 0)
 // Copy-paste from above
 {
 
@@ -121,10 +121,10 @@ inline double integrate2(const std::vector<double> &f1,
 } // END integrate 2
 
 //******************************************************************************
-inline double integrate3(const std::vector<double> &f1,
-                         const std::vector<double> &f2,
-                         const std::vector<double> &f3, const double dt = 1.,
-                         size_t beg = 0, size_t end = 0)
+inline double integrate(const std::vector<double> &f1,
+                        const std::vector<double> &f2,
+                        const std::vector<double> &f3, const double dt = 1.,
+                        size_t beg = 0, size_t end = 0)
 // Copy-paste from above
 {
 
@@ -152,9 +152,9 @@ inline double integrate3(const std::vector<double> &f1,
 
 //******************************************************************************
 inline double
-integrate4(const std::vector<double> &f1, const std::vector<double> &f2,
-           const std::vector<double> &f3, const std::vector<double> &f4,
-           const double dt = 1., size_t beg = 0, size_t end = 0)
+integrate(const std::vector<double> &f1, const std::vector<double> &f2,
+          const std::vector<double> &f3, const std::vector<double> &f4,
+          const double dt = 1., size_t beg = 0, size_t end = 0)
 // Copy-paste from above
 {
 

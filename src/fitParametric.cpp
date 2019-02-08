@@ -12,7 +12,7 @@ Finds the best-fit parameter values for the Green or Tietz potentials
 */
 
 int main(int argc, char *argv[]) {
-  ChronoTimer sw(true); // start the overall timer
+  ChronoTimer sw; // start the overall timer
 
   std::string input_file = (argc > 1) ? argv[1] : "fitParametric.in";
   std::cout << "Reading input from: " << input_file << "\n";

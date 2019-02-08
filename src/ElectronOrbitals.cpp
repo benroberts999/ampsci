@@ -154,12 +154,12 @@ XXX Few things here that are slow! XXX
 
   double Rf = 0, Rg = 0;
   if (vint.size() == 0) {
-    Rf = INT::integrate3(f[a], fprime, drdt, 1, 0, pinf);
+    Rf = INT::integrate(f[a], fprime, drdt, 1, 0, pinf);
     // pinf? Ruins orthog? EndP? ??
-    Rg = INT::integrate3(g[a], gprime, drdt, 1, 0, pinf);
+    Rg = INT::integrate(g[a], gprime, drdt, 1, 0, pinf);
   } else {
-    Rf = INT::integrate4(f[a], vint, fprime, drdt, 1, 0, pinf);
-    Rg = INT::integrate4(g[a], vint, gprime, drdt, 1, 0, pinf);
+    Rf = INT::integrate(f[a], vint, fprime, drdt, 1, 0, pinf);
+    Rg = INT::integrate(g[a], vint, gprime, drdt, 1, 0, pinf);
   }
 
   return (Rf + ig_sign * Rg) * h;
@@ -506,8 +506,8 @@ Note: For HF, should never be called after core is frozen!
       if (kappa[a] != kappa[b])
         continue;
       int pinf = std::min(pinflist[a], pinflist[b]);
-      double fab = INT::integrate3(f[a], f[b], drdt, 1., 0, pinf);
-      double gab = INT::integrate3(g[a], g[b], drdt, 1., 0, pinf);
+      double fab = INT::integrate(f[a], f[b], drdt, 1., 0, pinf);
+      double gab = INT::integrate(g[a], g[b], drdt, 1., 0, pinf);
       c_ab[a][b] = 0.5 * h * (fab + gab); // 0.5 avoids double counting
     }
   }
@@ -541,8 +541,8 @@ Note: For HF, should never be called after core is frozen!
   // Re-normalise orbitals (nb: doesn't make much difference)
   for (size_t a = 0; a < Ns; a++) {
     int pinf = pinflist[a];
-    double faa = INT::integrate3(f[a], f[a], drdt, 1., 0, pinf);
-    double gaa = INT::integrate3(g[a], g[a], drdt, 1., 0, pinf);
+    double faa = INT::integrate(f[a], f[a], drdt, 1., 0, pinf);
+    double gaa = INT::integrate(g[a], g[a], drdt, 1., 0, pinf);
     double norm = 1. / sqrt(h * (faa + gaa));
     for (int ir = 0; ir < ngp; ir++) {
       f[a][ir] *= norm;
@@ -576,8 +576,8 @@ note: here, c denotes core orbitals + valence orbitals with c<v
     if (kappa[iv] != kappa[ic])
       continue;
     int pinf = std::min(pinflist[iv], pinflist[ic]);
-    double fvc = INT::integrate3(f[iv], f[ic], drdt, 1., 0, pinf);
-    double gvc = INT::integrate3(g[iv], g[ic], drdt, 1., 0, pinf);
+    double fvc = INT::integrate(f[iv], f[ic], drdt, 1., 0, pinf);
+    double gvc = INT::integrate(g[iv], g[ic], drdt, 1., 0, pinf);
     A_vc[ic] = h * (fvc + gvc); // no 0.5 here - no double counting
   }
 
@@ -596,8 +596,8 @@ note: here, c denotes core orbitals + valence orbitals with c<v
 
   // Re-normalise the valence orbital:
   int pinf = pinflist[iv];
-  double fvv = INT::integrate3(f[iv], f[iv], drdt, 1., 0, pinf);
-  double gvv = INT::integrate3(g[iv], g[iv], drdt, 1., 0, pinf);
+  double fvv = INT::integrate(f[iv], f[iv], drdt, 1., 0, pinf);
+  double gvv = INT::integrate(g[iv], g[iv], drdt, 1., 0, pinf);
   double norm = 1. / sqrt(h * (fvv + gvv));
   for (int ir = 0; ir < ngp; ir++) {
     f[iv][ir] *= norm;

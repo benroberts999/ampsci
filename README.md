@@ -26,6 +26,8 @@ with a few extensions that improve numerical stability and accuracy
  * All executables run like _$./programName_. By default, placed in same
   directory as makefile (can change this in make)
  * All programs have input options, stored and read from 'programName.in' file
+   (can also give a different input file on runtime, e.g., to read input from
+    `otherFile.txt`: _$./programName otherFile.txt_)
  * Note: below just tells how to use existing programs, to see how they work,
  see the comments/instructions inside the source code (all in /src/)
  * Tested with g++ and clang++. For clang++, openmp (parallelisation) must be enabled with the -fopenmp=libiomp5 flag (instead of just -fopenmp), but seems to run fine besides that (I think this only works on linux, not mac).
@@ -34,7 +36,7 @@ Note: makes use of GSL libraries: https://www.gnu.org/software/gsl/
 
   * For example, with ubuntu: _$sudo apt-get install libgsl-dev_
   * Also needs LAPACK/BLAS libraries:
-  _$sudo apt-get install libatlas-base-dev liblapack-dev_ [not libblas-dev ]
+  _$sudo apt-get install libatlas-base-dev_ [and _liblapack-dev_ , but not _libblas-dev_ ?]
 
 The above instructions are for linux (ubuntu). For windows, the easiest way (for me, anyway) is to make use of the recent 'windows subsystem for linux'. Instructions on installation/use here: https://www.roberts999.com/posts/2018/11/wsl-coding-windows-ubuntu
 Then, the compilation + use can proceed as per above.
