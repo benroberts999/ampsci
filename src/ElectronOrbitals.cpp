@@ -67,8 +67,8 @@ Uses ADAMS::solveDBS to solve Dirac Eqn for local potential (Vnuc + Vdir)
   // Solve local dirac Eq:
   if (e_a == 0)
     e_a = enGuessVal(n, k); // XXX can update this too! XXX
-  int i_ret = ADAMS::solveDBS(f_a, g_a, e_a, v_a, n, k, r, drdt, h, pinf, its,
-                              eps, alpha, log_dele_or);
+  ADAMS::solveDBS(f_a, g_a, e_a, v_a, n, k, r, drdt, h, pinf, its, eps, alpha,
+                  log_dele_or);
   // Store wf + energy
   f.push_back(f_a);
   g.push_back(g_a);
@@ -87,7 +87,7 @@ Uses ADAMS::solveDBS to solve Dirac Eqn for local potential (Vnuc + Vdir)
   itslist.push_back(its);
   epslist.push_back(eps);
 
-  return i_ret;
+  return 0;
 }
 
 //******************************************************************************
@@ -250,8 +250,8 @@ This is not ideal..
   int k = kappa[i];
   if (e_a == 0)
     e_a = en[i];
-  int i_ret = ADAMS::solveDBS(f[i], g[i], e_a, v_a, n, k, r, drdt, h, pinf, its,
-                              eps, alpha, log_dele_or);
+  ADAMS::solveDBS(f[i], g[i], e_a, v_a, n, k, r, drdt, h, pinf, its, eps, alpha,
+                  log_dele_or);
   en[i] = e_a; // update w/ new energy
 
   // store convergance info:
@@ -259,7 +259,7 @@ This is not ideal..
   itslist[i] = its;
   epslist[i] = eps;
 
-  return i_ret;
+  return 0;
 }
 
 //******************************************************************************
