@@ -6,7 +6,7 @@
 #include "FPC_physicalConstants.h"
 #include "FileIO_fileReadWrite.h"
 #include "SBF_sphericalBesselFunctions.h"
-#include "WIG_369j.h"
+#include "Wigner_369j.h"
 #include <cmath>
 #include <fstream>
 #include <iostream>
@@ -31,7 +31,7 @@ Angular coeficient (nb: is already squared)
   if ((la + lb < L) || (abs(la - lb) > L))
     return 0; // triangle rule (l)
 
-  double tjB = WIG::threej(jb, ja, L, -0.5, 0.5, 0);
+  double tjB = Wigner::threej(jb, ja, L, -0.5, 0.5, 0);
   return (2 * ja + 1) * (2 * jb + 1) * (2 * L + 1) * pow(tjB, 2);
 }
 

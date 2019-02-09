@@ -2,7 +2,7 @@
 #include "ChronoTimer.h"
 #include "ElectronOrbitals.h"
 #include "FileIO_fileReadWrite.h"
-#include "INT_quadratureIntegration.h"
+#include "NumCalc_quadIntegrate.h"
 #include <cmath>
 #include <iostream>
 #include <tuple>
@@ -84,7 +84,7 @@ int main(int argc, char *argv[]) {
         std::vector<double> rton;
         rton.reserve(wf.ngp);
         for (auto r : wf.r)
-          rton.push_back(r);
+          rton.push_back(pow(r, in));
         double R1 = wf.radialIntegral(s, s, rton);
         printf("%13.8f, ", R1);
       }
@@ -97,8 +97,8 @@ int main(int argc, char *argv[]) {
     double a2 = pow(alpha, 2);
     for (auto s : wf.stateIndexList) {
       // std::vector<double> dQ(wf.ngp);
-      // INT::diff(wf.g[s], wf.drdt, wf.h, dQ);
-      std::vector<double> dQ = INT::derivative(wf.g[s], wf.drdt, wf.h);
+      // NumCalc::diff(wf.g[s], wf.drdt, wf.h, dQ);
+      std::vector<double> dQ = NumCalc::derivative(wf.g[s], wf.drdt, wf.h);
       std::vector<double> rad;
       for (int i = 0; i < wf.ngp; i++) {
         double x1 = -2 * wf.f[s][i] * dQ[i] / alpha;
@@ -108,7 +108,7 @@ int main(int argc, char *argv[]) {
         double x4 = wf.vnuc[i] * (pow(wf.f[s][i], 2) + pow(wf.g[s][i], 2));
         rad.push_back(x1 + x3 + x2 + x4);
       }
-      double R = INT::integrate(rad, wf.drdt) * wf.h;
+      double R = NumCalc::integrate(rad, wf.drdt) * wf.h;
       double fracdiff = (R - wf.en[s]) / wf.en[s];
       printf("<%i% i|H|%i% i> = % .15f, E(%i% i) = % .15f; % .0e\n",
              wf.n_pqn(s), wf.ka(s), wf.n_pqn(s), wf.ka(s), R, wf.n_pqn(s),

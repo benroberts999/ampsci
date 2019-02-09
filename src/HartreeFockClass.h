@@ -51,6 +51,11 @@ private:
   std::vector<std::vector<std::vector<std::vector<double>>>> m_arr_v_abk_r;
   std::vector<std::vector<std::vector<double>>> m_arr_Lambda_nmk;
 
+  // v^k_ab(r) := Int_0^inf [r_min^k/r_max^(k+1)]*rho(f') dr'
+  // rho(r') := fa(r')*fb(r') + ga(r')gb(r')
+  // Lambda^k_ab := 3js((ja,jb,k),(-1/2,1/2,0))^2*parity(la+lb+k)
+  // vex[a] := [v_ex*psi_a](r) *(psi_a/psi_a^2) //approx exchange
+
 private:
   void hartree_fock_core();
   void starting_approx_core(const std::string &in_core);

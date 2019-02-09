@@ -2,7 +2,7 @@
 #include "ChronoTimer.h"
 #include "ElectronOrbitals.h"
 #include "FPC_physicalConstants.h"
-#include "INT_quadratureIntegration.h"
+#include "NumCalc_quadIntegrate.h"
 #include "PRM_parametricPotentials.h"
 #include <cmath>
 #include <fstream>

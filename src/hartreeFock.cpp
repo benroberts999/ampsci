@@ -4,7 +4,7 @@
 #include "FPC_physicalConstants.h"
 #include "FileIO_fileReadWrite.h"
 #include "HartreeFockClass.h"
-#include "INT_quadratureIntegration.h"
+#include "NumCalc_quadIntegrate.h"
 #include "PRM_parametricPotentials.h"
 #include <cmath>
 #include <iostream>
@@ -175,11 +175,11 @@ int main(int argc, char *argv[]) {
     rho.reserve(wf.ngp);
     for (auto r : wf.r)
       rho.emplace_back(1. / (1. + exp((r * FPC::aB_fm - c) / a)));
-    // double rho0 = INT::integrate(wf.r, wf.r, rho, wf.drdt, 1, 0, 0, 0, 0) *
+    // double rho0 = NumCalc::integrate(wf.r, wf.r, rho, wf.drdt, 1, 0, 0, 0, 0) *
     // 4 *
     //               M_PI * wf.h;
     double rho0 =
-        INT::integrate(wf.r, wf.r, rho, wf.drdt, 1.) * 4 * M_PI * wf.h;
+        NumCalc::integrate(wf.r, wf.r, rho, wf.drdt, 1.) * 4 * M_PI * wf.h;
     for (auto &rhoi : rho)
       rhoi /= rho0;
 
@@ -226,7 +226,7 @@ int main(int argc, char *argv[]) {
   //       (log(0.5 + r) * (1 + sqrt(r) * sin(r))) / pow(0.5 + r, 2));
   // }
   //
-  // std::vector<double> df = INT::derivative(f, wf.drdt, wf.h);
+  // std::vector<double> df = NumCalc::derivative(f, wf.drdt, wf.h);
   //
   // std::ofstream of("test-deriv.txt");
   // for (int i = 0; i < wf.ngp; i++) {

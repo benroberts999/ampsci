@@ -1,6 +1,6 @@
 #include "ADAMS_solveLocalBS.h"
-#include "INT_quadratureIntegration.h"
 #include "Matrix_linalg.h"
+#include "NumCalc_quadIntegrate.h"
 #include <array>
 #include <cmath>
 #include <iostream>
@@ -85,16 +85,19 @@ Defn: f = p, g = -q. (My g includes alpha)
   const double lfrac_de = 0.2; // 'large' energy variations (0.1 => 10%)
   const int d_ctp_in = 4;      // Num points past ctp +/- d_ctp.
 
+  int d_ctp = d_ctp_in; // from tests..
+
   int ngp = (int)r.size();
 
   // Convergance goal. Default: 1e-15
   double dele_goal = (log_dele > 0) ? 1. / pow(10, log_dele) : 1e-15;
 
-  // Checks to see if legal n is requested.
-  if (!((abs(ka) <= n) && (ka != n))) {
-    printf("\nSate %i %i does not exist..\n", n, ka);
-    return 1;
-  }
+  DEBUG( // Checks to see if legal n is requested.
+      if (!((abs(ka) <= n) && (ka != n))) {
+        std::cerr << "\nFail96 in Adams: bad state n,k=" << n << "," << ka
+                  << "\n";
+        return 1;
+      })
 
   // Find 'l' from 'kappa' (ang. momentum Q number) for # of nodes
   int l = (ka > 0) ? ka : -ka - 1;
@@ -118,14 +121,14 @@ Defn: f = p, g = -q. (My g includes alpha)
     // Find the practical infinity 'pinf' [(V(r) - E)*r^2 >  alr]
     pinf = findPracticalInfinity(en, v, r, alr);
     // Find classical turning point 'ctp' [V(r) > E ]
-    int ctp = findClassicalTurningPoint(en, v, pinf);
+    int ctp = findClassicalTurningPoint(en, v, pinf - d_ctp);
     // Check we won't go past any bounds because of d_ctp:
-    int d_ctp = d_ctp_in;
-    if (d_ctp >= pinf - ctp) {
-      d_ctp = pinf - ctp - 1;
-      if (d_ctp < 0)
-        d_ctp = 0;
-    }
+    // int d_ctp = d_ctp_in;
+    // if (d_ctp >= pinf - ctp) {
+    //   d_ctp = pinf - ctp - 1;
+    //   if (d_ctp < 0)
+    //     d_ctp = 0;
+    // }
 
     // Find solution (f,g) to DE for given energy:
     // (Inward + outward solutions joined at ctp, merged over ctp+/-d_ctp)
@@ -244,8 +247,8 @@ Uses PT to calculate small change in energy.
 Also calculates (+outputs) norm constant (but doesn't normalise orbital!)
 */
 {
-  double anormF = INT::integrate(f, f, drdt, 1., 0, pinf);
-  double anormG = INT::integrate(g, g, drdt, 1., 0, pinf);
+  double anormF = NumCalc::integrate(f, f, drdt, 1., 0, pinf);
+  double anormG = NumCalc::integrate(g, g, drdt, 1., 0, pinf);
   anorm = (anormF + anormG) * h;
 
   // Use perturbation theory to work out delta En

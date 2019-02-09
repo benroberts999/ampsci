@@ -34,7 +34,7 @@ all: checkObj checkXdir $(ALLEXES)
 # All programs depend on these generic common headers:
 COMH = $(addprefix $(ID)/, \
  ATI_atomInfo.h FPC_physicalConstants.h FileIO_fileReadWrite.h \
- INT_quadratureIntegration.h Matrix_linalg.h ChronoTimer.h \
+ NumCalc_quadIntegrate.h Matrix_linalg.h ChronoTimer.h Wigner_369j.h \
 )
 
 # Rule for files that have .cpp AND a .h file
@@ -59,7 +59,7 @@ BASE = $(addprefix $(OD)/, \
 )
 
 HF = $(addprefix $(OD)/, \
- HartreeFockClass.o PRM_parametricPotentials.o WIG_369j.o \
+ HartreeFockClass.o PRM_parametricPotentials.o \
 )
 
 CNTM = $(addprefix $(OD)/, \
@@ -93,7 +93,7 @@ $(OD)/AKF_akFunctions.o \
 $(OD)/StandardHaloModel.o $(OD)/ExponentialGrid.o
 	$(LINK)
 
-$(XD)/wigner: $(OD)/wigner.o $(OD)/WIG_369j.o
+$(XD)/wigner: $(OD)/wigner.o
 	$(LINK)
 
 ################################################################################

@@ -1,4 +1,4 @@
-#include "WIG_369j.h"
+#include "Wigner_369j.h"
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -49,7 +49,7 @@ int main(int num_in, char *argv[]) {
       instructions();
       return 1;
     }
-    double cgc = WIG::threej(v[0], v[1], v[2], v[3], v[4], v[5]);
+    double cgc = Wigner::threej(v[0], v[1], v[2], v[3], v[4], v[5]);
     std::cout << "3j symbol:\n";
     printf("(%4.1f%4.1f%4.1f)\n", v[0], v[1], v[2]);
     printf("(%4.1f%4.1f%4.1f) = %.6f\n", v[3], v[4], v[5], cgc);
@@ -59,19 +59,19 @@ int main(int num_in, char *argv[]) {
       return 1;
     }
     std::cout << "Clebschscgh Gordon coeficient:\n";
-    double cgc = WIG::cg(v[0], v[1], v[2], v[3], v[4], v[5]);
+    double cgc = Wigner::cg(v[0], v[1], v[2], v[3], v[4], v[5]);
     printf("<%.1f %.1f, %.1f %.1f| %.1f %.1f> = %f\n", v[0], v[1], v[2], v[3],
            v[4], v[5], cgc);
   } else if (input.substr(0, 1) == "{") {
     if (v.size() == 6) {
       std::cout << "6j symbol:\n";
-      double cgc = WIG::sixj(v[0], v[1], v[2], v[3], v[4], v[5]);
+      double cgc = Wigner::sixj(v[0], v[1], v[2], v[3], v[4], v[5]);
       printf("{%4.1f%4.1f%4.1f}\n", v[0], v[1], v[2]);
       printf("{%4.1f%4.1f%4.1f} = %.6f\n", v[3], v[4], v[5], cgc);
     } else if (v.size() == 9) {
       std::cout << "9j symbol:\n";
       double cgc =
-          WIG::ninej(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8]);
+          Wigner::ninej(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8]);
       printf("{%4.1f%4.1f%4.1f}\n", v[0], v[1], v[2]);
       printf("{%4.1f%4.1f%4.1f} = %.6f\n", v[3], v[4], v[5], cgc);
       printf("{%4.1f%4.1f%4.1f}\n", v[6], v[7], v[8]);

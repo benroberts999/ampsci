@@ -57,7 +57,7 @@ template <typename T> T JL(int L, T x) {
 
 //******************************************************************************
 template <typename T> T exactGSL_JL(int L, T x) {
-  return gsl_sf_bessel_jl(L, x);
+  return (T)gsl_sf_bessel_jl(L, (double)x);
 }
 
 } // namespace SBF

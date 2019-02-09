@@ -1,6 +1,7 @@
 #pragma once
 #include <array>
 #include <gsl/gsl_linalg.h>
+#include <iostream>
 #include <vector>
 
 /*

@@ -2,7 +2,7 @@
 #include <iostream>
 #include <vector>
 
-namespace INT {
+namespace NumCalc {
 
 //******************************************************************************
 inline std::vector<double> derivative(const std::vector<double> &f,
@@ -72,8 +72,8 @@ Require:
   if (end == 0)
     end = f1.size();
 
-  if (end - beg < 2 * Nquad)
-    std::cerr << "\nFAIL 71 in INT: interval too small\n";
+  // if (end - beg < 2 * Nquad)
+  //   std::cerr << "\nFAIL 71 in INT: interval too small\n";
 
   double Rint_s = 0;
   for (size_t i = 0; i < Nquad; i++)
@@ -101,8 +101,8 @@ inline double integrate(const std::vector<double> &f1,
   if (end == 0)
     end = f1.size();
 
-  if (end - beg < 2 * Nquad)
-    std::cerr << "\nFAIL 71 in INT: interval too small\n";
+  // if (end - beg < 2 * Nquad)
+  //   std::cerr << "\nFAIL 71 in INT: interval too small\n";
 
   double Rint_s = 0;
   for (size_t i = 0; i < Nquad; i++)
@@ -131,8 +131,8 @@ inline double integrate(const std::vector<double> &f1,
   if (end == 0)
     end = f1.size();
 
-  if (end - beg < 2 * Nquad)
-    std::cerr << "\nFAIL 71 in INT: interval too small\n";
+  // if (end - beg < 2 * Nquad)
+  //   std::cerr << "\nFAIL 71 in INT: interval too small\n";
 
   double Rint_s = 0;
   for (size_t i = 0; i < Nquad; i++)
@@ -161,8 +161,8 @@ integrate(const std::vector<double> &f1, const std::vector<double> &f2,
   if (end == 0)
     end = f1.size();
 
-  if (end - beg < 2 * Nquad)
-    std::cerr << "\nFAIL 71 in INT: interval too small\n";
+  // if (end - beg < 2 * Nquad)
+  //   std::cerr << "\nFAIL 71 in INT: interval too small\n";
 
   double Rint_s = 0;
   for (size_t i = 0; i < Nquad; i++)
@@ -181,7 +181,7 @@ integrate(const std::vector<double> &f1, const std::vector<double> &f2,
 
 } // END integrate 4
 
-} // namespace INT
+} // namespace NumCalc
 
 //******************************************************************************
 
