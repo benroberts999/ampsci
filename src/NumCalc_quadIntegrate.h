@@ -61,46 +61,45 @@ template <size_t N> struct QintCoefs {};
 
 template <> struct QintCoefs<13> {
   const static size_t N = 13;
-  const std::array<double, N> cq = {
-      1382741929621,   9535909891802,  -5605325192308,  28323664941310,
-      -32865015189975, 53315213499588, -41078125154304, 39022895874876,
-      -13155015007785, 12465244770050, 3283609164916,   5551687979302,
-      5206230892907};
+  const std::array<double, N> cq{
+      {1382741929621, 9535909891802, -5605325192308, 28323664941310,
+       -32865015189975, 53315213499588, -41078125154304, 39022895874876,
+       -13155015007785, 12465244770050, 3283609164916, 5551687979302,
+       5206230892907}};
   const double dq_inv = 1. / 5230697472000;
 };
 template <> struct QintCoefs<11> {
   const static size_t N = 11;
-  const std::array<double, N> cq = {
-      262747265,   1637546484, -454944189, 3373884696, -2145575886, 3897945600,
-      -1065220914, 1942518504, 636547389,  1021256716, 952327935};
+  const std::array<double, N> cq{
+      {262747265, 1637546484, -454944189, 3373884696, -2145575886, 3897945600,
+       -1065220914, 1942518504, 636547389, 1021256716, 952327935}};
   const double dq_inv = 1. / 958003200;
 };
 template <> struct QintCoefs<9> {
   const static size_t N = 9;
-  const std::array<double, N> cq = {2082753,  11532470, 261166,
-                                    16263486, -1020160, 12489922,
-                                    5095890,  7783754,  7200319};
+  const std::array<double, N> cq{{2082753, 11532470, 261166, 16263486, -1020160,
+                                  12489922, 5095890, 7783754, 7200319}};
   const double dq_inv = 1. / 7257600;
 };
 template <> struct QintCoefs<7> {
   const static size_t N = 7;
-  const std::array<double, N> cq = {36799, 176648, 54851, 177984,
-                                    89437, 130936, 119585};
+  const std::array<double, N> cq{
+      {36799, 176648, 54851, 177984, 89437, 130936, 119585}};
   const double dq_inv = 1. / 120960;
 };
 template <> struct QintCoefs<5> {
   const static size_t N = 5;
-  const std::array<double, N> cq = {475, 1902, 1104, 1586, 1413};
+  const std::array<double, N> cq{{475, 1902, 1104, 1586, 1413}};
   const double dq_inv = 1. / 1440;
 };
 template <> struct QintCoefs<3> {
   const static size_t N = 3;
-  const std::array<double, N> cq = {9, 28, 23};
+  const std::array<double, N> cq{{9, 28, 23}};
   const double dq_inv = 1. / 24;
 };
 template <> struct QintCoefs<1> {
   const static size_t N = 1;
-  const std::array<double, N> cq = {1};
+  const std::array<double, N> cq{{1}};
   const double dq_inv = 1. / 2;
 };
 
