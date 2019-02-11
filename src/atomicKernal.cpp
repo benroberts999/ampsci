@@ -136,8 +136,6 @@ int main(int argc, char *argv[]) {
     wf.vdir.reserve(wf.ngp);
     for (auto r : wf.r)
       wf.vdir.push_back(PRM::green(Z, r, Gh, Gd));
-    std::cerr << "143\n";
-    std::cin.get();
     wf.solveInitialCore(str_core); // solves w/ Green
   }
 

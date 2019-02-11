@@ -17,6 +17,7 @@ namespace AKF {
 double CLkk(int L, int ka, int kb)
 /*
 Angular coeficient (nb: is already squared)
+C_{k}^{k',L} = [j][j'][L] * (j,j',L, -1/,1/2,0)^2 * pi(l+l'+L)
 */
 {
   int la = ATI::l_k(ka);
@@ -30,6 +31,8 @@ Angular coeficient (nb: is already squared)
     return 0; // Parity rule
   if ((la + lb < L) || (abs(la - lb) > L))
     return 0; // triangle rule (l)
+  // Note: triangle rule included in 3j, so this is not needed (but faster)
+  // But, parity rule not included in 3j, so must be checked!
 
   double tjB = Wigner::threej(jb, ja, L, -0.5, 0.5, 0);
   return (2 * ja + 1) * (2 * jb + 1) * (2 * L + 1) * pow(tjB, 2);

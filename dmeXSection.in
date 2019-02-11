@@ -1,4 +1,4 @@
-ak-Xe_test      ! input file name (without .bin ext) *1
+ak-Xe_S1        ! input file name (without .bin ext) *1
 testout         ! output label (put 'na' for none)
 0.1 10. 5       ! m_chi/GeV: min, max, num_steps
 2               ! mv: 0=massless, 1=range, 2= heavy

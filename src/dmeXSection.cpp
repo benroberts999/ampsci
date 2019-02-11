@@ -13,28 +13,41 @@
 #include <vector>
 
 // Convert FROM a.u. (hb=e=me=1, c=1/alpha) TO relativistic (hb=c=1)
-double E_to_keV = FPC::Hartree_eV / 1000.;         // au -> keV (energy)
-double Q_to_MeV = FPC::Hartree_eV * FPC::c / 1.e6; // momentum (q transfer)
-double M_to_GeV = FPC::m_e_MeV / 1000.;
-double M_to_MeV = FPC::m_e_MeV;
+const double E_to_keV = FPC::Hartree_eV / 1000.; // au -> keV (energy)
+const double Q_to_MeV =
+    FPC::Hartree_eV * FPC::c / 1.e6; // momentum (q transfer)
+const double M_to_GeV = FPC::m_e_MeV / 1000.;
+const double M_to_MeV = FPC::m_e_MeV;
 // Convert velocity FROM au to SI units
-double V_to_kms = (FPC::c_SI / FPC::c) / 1000.;
-double V_to_cms = (FPC::c_SI * FPC::alpha) * 100.; // au -> cm/s
-double V_to_cmday = V_to_cms * (24 * 60 * 60);     // cm/s -> cm/day
+const double V_to_kms = (FPC::c_SI / FPC::c) / 1000.;
+const double V_to_cms = (FPC::c_SI * FPC::alpha) * 100.; // au -> cm/s
+const double V_to_cmday = V_to_cms * (24 * 60 * 60);     // cm/s -> cm/day
 
 // DM energy density (in GeV/cm^3)
-double rhoDM_GeVcm3 = 0.4; // GeV/cm^3
+const double rhoDM_GeVcm3 = 0.4; // GeV/cm^3
 
 // Default value used for bar-sigma_e + conversions from a.u.
-double sbe_1e37_cm2 = 1.e-37;
-double dsdE_to_cm2keV = sbe_1e37_cm2 / E_to_keV; // au -> cm^2/keV
-double dsvdE_to_cm3keVday = dsdE_to_cm2keV * V_to_cmday;
+const double sbe_1e37_cm2 = 1.e-37;
+const double dsdE_to_cm2keV = sbe_1e37_cm2 / E_to_keV; // au -> cm^2/keV
+const double dsvdE_to_cm3keVday = dsdE_to_cm2keV * V_to_cmday;
 
-// *** ### *** ### *** ### *** ### *** ### *** ### *** ### *** ### *** ### ***
-// Some macro/typedef short cuts
+// Some typedef short cuts
 // Just to save time/space
 using FloatVec3D = std::vector<std::vector<std::vector<float>>>;
 using FloatVec2D = std::vector<std::vector<float>>;
+
+//******************************************************************************
+double quickExp(double x) {
+  // Good to parts in 1.e-5
+  if (x < 0)
+    return 1. / quickExp(-x);
+  if (x < 0.05)
+    return 1. + x + 0.5 * x * x;
+  if (x < 0.25)
+    return 1. + x + 0.5 * x * x + 0.16666667 * pow(x, 3) +
+           0.041666667 * pow(x, 4);
+  return exp(x);
+}
 
 //******************************************************************************
 double g(double s, double x)
@@ -42,7 +55,63 @@ double g(double s, double x)
 {
   double a = 0.398942 / s;
   double y = (x / s) * (x / s);
-  return a * exp(-0.5 * y);
+  return a * quickExp(-0.5 * y);
+}
+
+//******************************************************************************
+struct SumLogk
+/*
+Calculates sum [log(n), n=1 -> k]
+Uses a lookup-table. Every time given new k value, calcs up to that k.
+If given a k value smaller than max already calc'd, just looks up answer.
+Designed to be included as a static object inside some other function
+*/
+{
+
+public:
+  SumLogk(int k = 0) {
+    sum_logk_array.reserve(30);
+    if (k > 0)
+      calculate_new_term(k);
+  };
+
+  double sum_logk(int k) {
+    if (k <= 1)
+      return 0;
+    if (k <= (int)sum_logk_array.size())
+      return sum_logk_array[k - 1];
+    else
+      return calculate_new_term(k);
+  }
+
+  double calculate_new_term(int k) {
+    int max_k_sofar = (int)sum_logk_array.size();
+    double sum = sum_logk_array.back();
+    for (int ik = max_k_sofar + 1; ik <= k; ik++) {
+      std::cerr << "\n k=" << ik << "\n";
+      sum += log(ik);
+      sum_logk_array.push_back(sum);
+    }
+    return sum;
+  }
+
+private:
+  std::vector<double> sum_logk_array;
+};
+
+//******************************************************************************
+double Pois(int k, double lambda)
+/*
+Safely returns Poisson distribution, without danger of overflows.
+Also, uses a static 'on-the-fly' lookup table for  Sum[log[n]]
+P_k(lambda) = Exp[-lambda] * (lambda^k) / k!
+log(P) = ln(p) = -lambda + k * log(lambda) - Sum[log[n],{n,1,k}]
+k must be >= 0. No check is performed.
+*/
+{
+  static SumLogk slk;
+  double logP = -lambda + k * log(lambda) - slk.sum_logk(k);
+  return quickExp(logP);
 }
 
 //******************************************************************************
@@ -57,7 +126,7 @@ double F_chi_2_heavy(double, double)
 double F_chi_2_light(double, double q)
 // Limit of light mediatior (mu << q)
 {
-  return 1. / (q * q * q * q);
+  return 1. / pow(q, 4);
 }
 double F_chi_2_intermediate(double mu, double q) {
   return pow((mu * mu + 1.) / (mu * mu + q * q), 2);
@@ -522,6 +591,12 @@ Optionally further integrates into energy bins
 }
 
 //******************************************************************************
+// void doXe100(const FloatVec3D &dsv_mv_mx_E, ExpGrid &mvgrid, ExpGrid &mxgrid,
+//              ExpGrid &Egrid, bool do_anMod, bool write_dSdE, bool write_SofM,
+//              double dres_XXX, double err_XXX, double Atot, std::string label)
+//              {}
+
+//******************************************************************************
 //******************************************************************************
 //******************************************************************************
 int main(int argc, char *argv[]) {
@@ -578,10 +653,6 @@ int main(int argc, char *argv[]) {
       return 1;
     }
   }
-
-  std::cout << "XXX"
-            << "\n"
-            << std::flush;
 
   // Number of points in the velocity integration.
   const int vsteps = 100; // no need to be input
