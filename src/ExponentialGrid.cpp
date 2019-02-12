@@ -31,6 +31,10 @@ double ExpGrid::min() const { return m_min; }
 double ExpGrid::max() const { return m_max; }
 double ExpGrid::dxonx() const { return m_dxonx; }
 
+const std::vector<double> &ExpGrid::x_grid() const { return x_array; }
+const std::vector<double> &ExpGrid::dxdt_grid() const { return dxdi_array; }
+double ExpGrid::dt() const { return m_dxonx; } // ONLY for exp....
+
 double ExpGrid::x(int i) const {
   return x_array[i]; // no bounds-checking, don't waste time
 }

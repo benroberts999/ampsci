@@ -3,6 +3,9 @@
 /*
 Simple struct to hold/define logarithmic/exponential grids.
 In future, should be able to create options for other grid types!
+
+This is horible. Kill. Replace with new Grid class!
+
 */
 
 //******************************************************************************
@@ -25,6 +28,10 @@ public:
   double dxdi(int i) const;
   int findNextIndex(double x) const;
   int findNearestIndex(double x) const;
+
+  const std::vector<double> &x_grid() const;
+  const std::vector<double> &dxdt_grid() const;
+  double dt() const;
 
 private:
   int m_N; // number of points in grid

@@ -3,6 +3,7 @@
 #include "ExponentialGrid.h"
 #include "FPC_physicalConstants.h"
 #include "FileIO_fileReadWrite.h"
+#include "NumCalc_quadIntegrate.h"
 #include "StandardHaloModel.h"
 #include <cmath>
 #include <fstream>
@@ -88,7 +89,7 @@ public:
     int max_k_sofar = (int)sum_logk_array.size();
     double sum = sum_logk_array.back();
     for (int ik = max_k_sofar + 1; ik <= k; ik++) {
-      std::cerr << "\n k=" << ik << "\n";
+      // std::cerr << "\n k=" << ik << "\n";
       sum += log(ik);
       sum_logk_array.push_back(sum);
     }
@@ -591,10 +592,106 @@ Optionally further integrates into energy bins
 }
 
 //******************************************************************************
-// void doXe100(const FloatVec3D &dsv_mv_mx_E, ExpGrid &mvgrid, ExpGrid &mxgrid,
-//              ExpGrid &Egrid, bool do_anMod, bool write_dSdE, bool write_SofM,
-//              double dres_XXX, double err_XXX, double Atot, std::string label)
-//              {}
+void doXe100(const FloatVec3D &dsv_mv_mx_E, const ExpGrid &mvgrid,
+             const ExpGrid &mxgrid, const ExpGrid &Egrid, double Atot)
+/*ok*/
+{
+
+  std::cout << "\n*** Doing S1 for Xe100 ***\n";
+  int n_mv = mvgrid.N();
+  int n_mx = mxgrid.N();
+  int desteps = Egrid.N();
+
+  // Generate P_n(N(E)) on n, E grids
+  int n_max = 20; // XXX input?
+  std::vector<std::vector<float>> P(n_max);
+  auto &e_grid = Egrid.x_grid();
+  for (int n = 1; n < n_max; n++) {
+    std::vector<float> Pn;
+    Pn.reserve(e_grid.size());
+    for (auto E : e_grid) {
+      auto NofE = pow(E * E_to_keV, 1.58); // XXX temp! Incl errors!
+      Pn.push_back((float)Pois(n, NofE));
+    }
+    P[n] = Pn;
+  }
+
+  std::vector<float> dedt;
+  { // Workaround for shitty ExpGrid class (double->float)
+    auto &dedt_grid = Egrid.dxdt_grid();
+    dedt.reserve(desteps);
+    for (auto de : dedt_grid)
+      dedt.push_back((float)de);
+  }
+
+  double MN =
+      Atot * (FPC::u_NMU * FPC::m_e_kg); // Total atomic/mol. mass (in kg)
+
+  // Array to store Poisson-smear S1 rate, F
+  FloatVec3D F_mv_mx_n;
+  F_mv_mx_n.resize(
+      n_mv, std::vector<std::vector<float>>(n_mx, std::vector<float>(n_max)));
+
+  // Calculate Poiss-smeared rate, F [mv, mv, n]
+  for (int imv = 0; imv < n_mv; imv++) {
+    for (int imx = 0; imx < n_mx; imx++) {
+      double mx = mxgrid.x(imx);
+      double rho_on_mxc2 = rhoDM_GeVcm3 / (mx * M_to_GeV);
+      double rateFac = dsvdE_to_cm3keVday * rho_on_mxc2 / MN;
+      // XXX XXX CHECK units! XXX Will be different!
+      for (int n = 1; n < n_max; n++) {
+        double int_ds =
+            NumCalc::integrate(dsv_mv_mx_E[imv][imx], P[n], dedt, Egrid.dt());
+        double tmp_R = int_ds * rateFac; // convert to rate
+        F_mv_mx_n[imv][imx][n] = (float)tmp_R;
+      }
+    }
+  }
+
+  // Convet Poisson-smeared rate F, to Gaussian-smeared observable, S
+
+  // create s1 grid
+  int num_s1 = 20;
+  double s1min = 1.;
+  double s1max = 20.;
+  ExpGrid s1grid(num_s1, s1min, s1max);
+
+  FloatVec3D dS_mv_mx_s1; // dS/ds1
+  dS_mv_mx_s1.resize(
+      n_mv, std::vector<std::vector<float>>(n_mx, std::vector<float>(num_s1)));
+
+  auto &s1_grid = s1grid.x_grid();
+  for (int is1 = 0; is1 < num_s1; is1++) { // out of order, since eff
+    auto s1 = s1_grid[is1];
+    double eff = 0.85 * (1. - exp(-0.33 * s1)); // XXX FIX! include errors
+    for (int imv = 0; imv < n_mv; imv++) {
+      for (int imx = 0; imx < n_mx; imx++) {
+        float sum_over_n = 0;
+        for (int n = 1; n < n_max; n++) {
+          double sig = sqrt(n) * 0.5;   // XXX Fix! Inlcude errors!
+          double gf = g(sig, s1) * eff; // call too often. If slow, into grid?
+          sum_over_n += (float)gf * F_mv_mx_n[imv][imx][n];
+        }
+        dS_mv_mx_s1[imv][imx][is1] = (float)sum_over_n;
+      }
+    }
+    // loop over n, mx, mv
+    // gaus depends only on n and s1, so do n first
+  }
+
+  for (int is1 = 0; is1 < num_s1; is1++) {
+    auto s1 = s1_grid[is1];
+    auto S1 = dS_mv_mx_s1[0][0][is1];
+    std::cout << s1 << " " << S1 << "\n";
+  }
+  std::cout << "NOTE: Units are incorrect! Check them!\n";
+
+  // Now, output.
+  // a) as function of s1.
+  // b) integrate s1 into bins.. a) 3--14, b) all?
+
+  return;
+}
 
 //******************************************************************************
 //******************************************************************************
@@ -817,6 +914,8 @@ int main(int argc, char *argv[]) {
       writeForGnuplot_mxBlock(dsv_mv_mx_E, mvgrid, mxgrid, Egrid, fn_dsvde, u);
     }
   }
+
+  doXe100(dsv_mv_mx_E, mvgrid, mxgrid, Egrid, Atot);
 
   // ********************************************************
   // Calculate and output obervable rate for DAMA
