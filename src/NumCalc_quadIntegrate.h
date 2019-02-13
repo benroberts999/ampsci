@@ -187,16 +187,15 @@ inline double integrate(const C &f1, const C &f2, const C &f3,
 
   double Rint_s = 0;
   for (size_t i = 0; i < Nquad; i++)
-    Rint_s += cq[i] * double(f1[beg + i] * f2[beg + i] * f3[beg + i]);
+    Rint_s += cq[i] * f1[beg + i] * f2[beg + i] * f3[beg + i];
 
   double Rint_m = 0;
   for (auto i = beg + Nquad; i < end - Nquad; i++)
-    Rint_m += double(f1[i] * f2[i] * f3[i]);
+    Rint_m += f1[i] * f2[i] * f3[i];
 
   double Rint_e = 0;
   for (size_t i = 0; i < Nquad; i++)
-    Rint_e +=
-        cq[i] * double(f1[end - i - 1] * f2[end - i - 1] * f3[end - i - 1]);
+    Rint_e += cq[i] * f1[end - i - 1] * f2[end - i - 1] * f3[end - i - 1];
 
   return (Rint_m + dq_inv * (Rint_s + Rint_e)) * dt;
 

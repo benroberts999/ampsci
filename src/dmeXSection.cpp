@@ -32,10 +32,14 @@ const double sbe_1e37_cm2 = 1.e-37;
 const double dsdE_to_cm2keV = sbe_1e37_cm2 / E_to_keV; // au -> cm^2/keV
 const double dsvdE_to_cm3keVday = dsdE_to_cm2keV * V_to_cmday;
 
+const double dsdE_to_cm2_perau = sbe_1e37_cm2; // au -> cm^2/keV
+const double dsvdE_to_cm3_per_auday = dsdE_to_cm2_perau * V_to_cmday;
+
 // Some typedef short cuts
 // Just to save time/space
 using FloatVec3D = std::vector<std::vector<std::vector<float>>>;
-using FloatVec2D = std::vector<std::vector<float>>;
+using DoubleVec3D = std::vector<std::vector<std::vector<double>>>;
+using DoubleVec2D = std::vector<std::vector<double>>;
 
 //******************************************************************************
 double quickExp(double x) {
@@ -134,8 +138,9 @@ double F_chi_2_intermediate(double mu, double q) {
 }
 
 //******************************************************************************
-void writeForGnuplot_mvBlock(const FloatVec3D &X_mv_mx_x, ExpGrid &mvgrid,
-                             ExpGrid &mxgrid, ExpGrid &Egrid, std::string fname,
+void writeForGnuplot_mvBlock(const DoubleVec3D &X_mv_mx_x,
+                             const ExpGrid &mvgrid, const ExpGrid &mxgrid,
+                             const ExpGrid &Egrid, std::string fname,
                              double y_unit_convert)
 // Write to gnu-plot formatted text file.
 // Each column is a m_chi (DM mass). Each block is different m_v
@@ -186,9 +191,10 @@ void writeForGnuplot_mvBlock(const FloatVec3D &X_mv_mx_x, ExpGrid &mvgrid,
   of.close();
 }
 //******************************************************************************
-void writeForGnuplot_mxBlock(const FloatVec3D &X_mv_mx_x, ExpGrid &mvgrid,
-                             ExpGrid &mxgrid, ExpGrid &Egrid,
-                             const std::string &fname, double y_unit_convert)
+void writeForGnuplot_mxBlock(const DoubleVec3D &X_mv_mx_x,
+                             const ExpGrid &mvgrid, const ExpGrid &mxgrid,
+                             const ExpGrid &Egrid, const std::string &fname,
+                             double y_unit_convert)
 // Write to gnu-plot formatted text file
 // Each column is a m_v (mediator mass). Each block is different m_chi
 {
@@ -230,7 +236,7 @@ void writeForGnuplot_mxBlock(const FloatVec3D &X_mv_mx_x, ExpGrid &mvgrid,
 
 //******************************************************************************
 double dsdE_Evmvmx(const std::vector<std::vector<float>> &Ke_nq, double E,
-                   double v, double mv, double mx, ExpGrid &qgrid,
+                   double v, double mv, double mx, const ExpGrid &qgrid,
                    double (*F_chi_2)(double, double))
 /*
 calcualtes cross-section ds/dE, for given E, v, mu, and mx.
@@ -276,7 +282,7 @@ Uses a function pointer for DM form factor. F_chi_2(mu,q) := |F_chi|^2
 
 //******************************************************************************
 double dsvdE_Evmvmx(const std::vector<std::vector<float>> &Ke_nq, double E,
-                    double mv, double mx, ExpGrid &qgrid,
+                    double mv, double mx, const ExpGrid &qgrid,
                     const std::vector<double> &arr_fv, double dv,
                     double (*F_chi_2)(double, double))
 /*
@@ -299,11 +305,11 @@ Note: only takes _part_ of the K array! (for given E)
 }
 
 //******************************************************************************
-void form_dsvdE(std::vector<float> &dsvde,
+void form_dsvdE(std::vector<double> &dsvde,
                 const std::vector<std::vector<std::vector<float>>> &K_enq,
-                double mv, double mx, ExpGrid &Egrid, ExpGrid &qgrid,
-                const std::vector<double> &arr_fv, double dv,
-                double (*F_chi_2)(double, double))
+                double mv, double mx, const ExpGrid &Egrid,
+                const ExpGrid &qgrid, const std::vector<double> &arr_fv,
+                double dv, double (*F_chi_2)(double, double))
 /*
 Forms <ds.v>/dE array (for given mx, mv)
 Note: mv<0 means "heavy" mediator [Fx=1]
@@ -317,16 +323,17 @@ Note: mv<0 means "heavy" mediator [Fx=1]
     // Do v (and q) integrations:
     double dsvdE =
         dsvdE_Evmvmx(K_enq[ie], E, mv, mx, qgrid, arr_fv, dv, F_chi_2);
-    dsvde[ie] = (float)dsvdE;
+    dsvde[ie] = dsvdE;
   } // dE
 }
 
 //******************************************************************************
 void calculate_dsvde_array(
     const std::vector<std::vector<std::vector<float>>> &Kenq,
-    FloatVec3D &dsv_mv_mx_E, ExpGrid &mvgrid, ExpGrid &mxgrid, ExpGrid &Egrid,
-    ExpGrid &qgrid, const std::vector<std::vector<double>> &arr_fv, double dv,
-    bool do_anMod, double (*F_chi_2)(double, double))
+    DoubleVec3D &dsv_mv_mx_E, const ExpGrid &mvgrid, const ExpGrid &mxgrid,
+    const ExpGrid &Egrid, const ExpGrid &qgrid,
+    const std::vector<std::vector<double>> &arr_fv, double dv, bool do_anMod,
+    double (*F_chi_2)(double, double))
 /*
 Fills the <ds.v>/dE array for each value of m_chi and m_v
 Note: If doing annual modulation, then will calculate:
@@ -338,13 +345,13 @@ instead
   int n_mx = mxgrid.N();
   int desteps = Egrid.N();
 
-  dsv_mv_mx_E.resize(
-      n_mv, std::vector<std::vector<float>>(n_mx, std::vector<float>(desteps)));
+  dsv_mv_mx_E.resize(n_mv, std::vector<std::vector<double>>(
+                               n_mx, std::vector<double>(desteps)));
 
-  FloatVec3D dsv_mv_mx_Emax;
+  DoubleVec3D dsv_mv_mx_Emax;
   if (do_anMod) {
-    dsv_mv_mx_Emax.resize(n_mv, std::vector<std::vector<float>>(
-                                    n_mx, std::vector<float>(desteps)));
+    dsv_mv_mx_Emax.resize(n_mv, std::vector<std::vector<double>>(
+                                    n_mx, std::vector<double>(desteps)));
   }
 
   // Calculate <ds.v>/dE for each E (for each mx, mv)
@@ -378,18 +385,19 @@ instead
       for (int imx = 0; imx < n_mx; imx++) {
         for (int ie = 0; ie < desteps; ie++) {
           dsv_mv_mx_E[imv][imx][ie] =
-              0.5f * (dsv_mv_mx_Emax[imv][imx][ie] - dsv_mv_mx_E[imv][imx][ie]);
-        }
-      }
-    }
-  }
+              0.5 * (dsv_mv_mx_Emax[imv][imx][ie] - dsv_mv_mx_E[imv][imx][ie]);
+        } // energy
+      }   // mx
+    }     // mv
+  }       // end an. mod.
 }
 
 //******************************************************************************
-void doDAMA(const FloatVec3D &dsv_mv_mx_E, ExpGrid &mvgrid, ExpGrid &mxgrid,
-            ExpGrid &Egrid, bool do_anMod, bool write_dSdE, bool write_SofM,
-            double dres, double err_PEkeV, double Atot, double iEbin,
-            double fEbin, double wEbin, std::string label)
+void doDAMA(const DoubleVec3D &dsv_mv_mx_E, const ExpGrid &mvgrid,
+            const ExpGrid &mxgrid, const ExpGrid &Egrid, bool do_anMod,
+            bool write_dSdE, bool write_SofM, double dres, double err_PEkeV,
+            double Atot, double iEbin, double fEbin, double wEbin,
+            std::string label)
 /*
 Takes in <ds.v>/dE, and calculated dS/dE, for DAMA.
 Depending on above, will be either S_0 or S_m (mod. amplitude)
@@ -403,9 +411,9 @@ Optionally further integrates into energy bins
   int desteps = Egrid.N();
 
   // Array to store observable Rate, S
-  FloatVec3D dSdE_mv_mx_E;
-  dSdE_mv_mx_E.resize(
-      n_mv, std::vector<std::vector<float>>(n_mx, std::vector<float>(desteps)));
+  DoubleVec3D dSdE_mv_mx_E;
+  dSdE_mv_mx_E.resize(n_mv, std::vector<std::vector<double>>(
+                                n_mx, std::vector<double>(desteps)));
 
   // Hardware threshold: should be between [-1,1]
   double PE_per_keV = 6.5 + err_PEkeV * 1.;
@@ -443,7 +451,7 @@ Optionally further integrates into energy bins
             continue; // hardware threshold
           y0 += g(s, E - Ep) * double(dsv_mv_mx_E[imv][imx][j]) * Ep;
         }
-        dSdE_mv_mx_E[imv][imx][i] = (float)(y0 * dEonE * rateFac);
+        dSdE_mv_mx_E[imv][imx][i] = y0 * dEonE * rateFac;
       }
     }
   }
@@ -471,9 +479,9 @@ Optionally further integrates into energy bins
   int num_bins = (int)ceil((fEbin - iEbin) / wEbin);
 
   // Array to store averaged Rate, S
-  FloatVec3D S_mv_mx_E;
-  S_mv_mx_E.resize(n_mv, std::vector<std::vector<float>>(
-                             n_mx, std::vector<float>(num_bins)));
+  DoubleVec3D S_mv_mx_E;
+  S_mv_mx_E.resize(n_mv, std::vector<std::vector<double>>(
+                             n_mx, std::vector<double>(num_bins)));
 
   // Creates S (or Sm) [actually S/E_w] - rate averaged over each energy bin
   // Also prints energy bins to screen (only for first mx, mv)
@@ -505,7 +513,7 @@ Optionally further integrates into energy bins
           // nb: E is from Jacobian; * dE/E below
         }
         Rate *= dEonE / wEbin;
-        S_mv_mx_E[imv][imx][i] = (float)Rate;
+        S_mv_mx_E[imv][imx][i] = Rate;
         double EaKev = Egrid.x(ieA) * E_to_keV;
         double EbKev = Egrid.x(ieB) * E_to_keV;
         if (imv == 0 && imx == 0) {
@@ -592,63 +600,61 @@ Optionally further integrates into energy bins
 }
 
 //******************************************************************************
-void doXe100(const FloatVec3D &dsv_mv_mx_E, const ExpGrid &mvgrid,
-             const ExpGrid &mxgrid, const ExpGrid &Egrid, double Atot)
+void doXe100(const DoubleVec3D &dsv_mv_mx_E, const ExpGrid &mvgrid,
+             const ExpGrid &mxgrid, const ExpGrid &Egrid, double Atot,
+             bool write_dSds1, std::string label)
 /*ok*/
 {
 
   std::cout << "\n*** Doing S1 for Xe100 ***\n";
   int n_mv = mvgrid.N();
   int n_mx = mxgrid.N();
-  int desteps = Egrid.N();
+  // int desteps = Egrid.N();
 
   // Generate P_n(N(E)) on n, E grids
   int n_max = 20; // XXX input?
-  std::vector<std::vector<float>> P(n_max);
+  std::vector<std::vector<double>> P(n_max);
   auto &e_grid = Egrid.x_grid();
   for (int n = 1; n < n_max; n++) {
-    std::vector<float> Pn;
+    std::vector<double> Pn;
     Pn.reserve(e_grid.size());
     for (auto E : e_grid) {
+      // XXX Check units for E here!
       auto NofE = pow(E * E_to_keV, 1.58); // XXX temp! Incl errors!
-      Pn.push_back((float)Pois(n, NofE));
+      Pn.push_back(Pois(n, NofE));
     }
     P[n] = Pn;
   }
 
-  std::vector<float> dedt;
-  { // Workaround for shitty ExpGrid class (double->float)
-    auto &dedt_grid = Egrid.dxdt_grid();
-    dedt.reserve(desteps);
-    for (auto de : dedt_grid)
-      dedt.push_back((float)de);
-  }
+  auto &dedt = Egrid.dxdt_grid();
 
   double MN =
       Atot * (FPC::u_NMU * FPC::m_e_kg); // Total atomic/mol. mass (in kg)
 
   // Array to store Poisson-smear S1 rate, F
-  FloatVec3D F_mv_mx_n;
+  DoubleVec3D F_mv_mx_n;
   F_mv_mx_n.resize(
-      n_mv, std::vector<std::vector<float>>(n_mx, std::vector<float>(n_max)));
+      n_mv, std::vector<std::vector<double>>(n_mx, std::vector<double>(n_max)));
 
   // Calculate Poiss-smeared rate, F [mv, mv, n]
+  // F has units counts/day
   for (int imv = 0; imv < n_mv; imv++) {
     for (int imx = 0; imx < n_mx; imx++) {
       double mx = mxgrid.x(imx);
       double rho_on_mxc2 = rhoDM_GeVcm3 / (mx * M_to_GeV);
-      double rateFac = dsvdE_to_cm3keVday * rho_on_mxc2 / MN;
-      // XXX XXX CHECK units! XXX Will be different!
+      // double rateFac = dsvdE_to_cm3keVday * rho_on_mxc2 / MN;
+      double rateFac_au = dsvdE_to_cm3_per_auday * rho_on_mxc2 / MN;
       for (int n = 1; n < n_max; n++) {
         double int_ds =
             NumCalc::integrate(dsv_mv_mx_E[imv][imx], P[n], dedt, Egrid.dt());
-        double tmp_R = int_ds * rateFac; // convert to rate
-        F_mv_mx_n[imv][imx][n] = (float)tmp_R;
+        double tmp_R = int_ds * rateFac_au; // convert to rate
+        F_mv_mx_n[imv][imx][n] = tmp_R;
       }
     }
   }
 
-  // Convet Poisson-smeared rate F, to Gaussian-smeared observable, S
+  // Convert Poisson-smeared rate F, to Gaussian-smeared observable, S
+  // S has units counts/day/s1 [s1=PE]
 
   // create s1 grid
   int num_s1 = 20;
@@ -656,9 +662,9 @@ void doXe100(const FloatVec3D &dsv_mv_mx_E, const ExpGrid &mvgrid,
   double s1max = 20.;
   ExpGrid s1grid(num_s1, s1min, s1max);
 
-  FloatVec3D dS_mv_mx_s1; // dS/ds1
-  dS_mv_mx_s1.resize(
-      n_mv, std::vector<std::vector<float>>(n_mx, std::vector<float>(num_s1)));
+  DoubleVec3D dS_mv_mx_s1; // dS/ds1
+  dS_mv_mx_s1.resize(n_mv, std::vector<std::vector<double>>(
+                               n_mx, std::vector<double>(num_s1)));
 
   auto &s1_grid = s1grid.x_grid();
   for (int is1 = 0; is1 < num_s1; is1++) { // out of order, since eff
@@ -666,13 +672,13 @@ void doXe100(const FloatVec3D &dsv_mv_mx_E, const ExpGrid &mvgrid,
     double eff = 0.85 * (1. - exp(-0.33 * s1)); // XXX FIX! include errors
     for (int imv = 0; imv < n_mv; imv++) {
       for (int imx = 0; imx < n_mx; imx++) {
-        float sum_over_n = 0;
+        double sum_over_n = 0;
         for (int n = 1; n < n_max; n++) {
           double sig = sqrt(n) * 0.5;   // XXX Fix! Inlcude errors!
           double gf = g(sig, s1) * eff; // call too often. If slow, into grid?
-          sum_over_n += (float)gf * F_mv_mx_n[imv][imx][n];
+          sum_over_n += gf * F_mv_mx_n[imv][imx][n];
         }
-        dS_mv_mx_s1[imv][imx][is1] = (float)sum_over_n;
+        dS_mv_mx_s1[imv][imx][is1] = sum_over_n;
       }
     }
     // loop over n, mx, mv
@@ -684,11 +690,26 @@ void doXe100(const FloatVec3D &dsv_mv_mx_E, const ExpGrid &mvgrid,
     auto S1 = dS_mv_mx_s1[0][0][is1];
     std::cout << s1 << " " << S1 << "\n";
   }
-  std::cout << "NOTE: Units are incorrect! Check them!\n";
 
   // Now, output.
   // a) as function of s1.
   // b) integrate s1 into bins.. a) 3--14, b) all?
+
+  // output dS/ds1 for gnuplot:
+  if (write_dSds1) {
+    std::string spref = "dSds1"; //= do_anMod ? "dSmds1" : "dSds1";
+    std::string fn_dSds1 = spref + "_mx-" + label + ".out";
+    std::cout << "Writing to file: " << fn_dSds1 << "\n";
+    double u = 1; // already converted!
+    if (n_mv == 1 || n_mx > 1) {
+      writeForGnuplot_mvBlock(dS_mv_mx_s1, mvgrid, mxgrid, s1grid, fn_dSds1, u);
+    }
+    if (n_mv > 1) {
+      fn_dSds1 = spref + "_mv-" + label + ".out";
+      std::cout << "Writing to file: " << fn_dSds1 << "\n";
+      writeForGnuplot_mxBlock(dS_mv_mx_s1, mvgrid, mxgrid, s1grid, fn_dSds1, u);
+    }
+  }
 
   return;
 }
@@ -893,7 +914,7 @@ int main(int argc, char *argv[]) {
   // ********************************************************
   // Calculate <ds.v>/dE for each E (for each mx, mv)
   // ds.v/dE (fun. of mv, mx, E)
-  FloatVec3D dsv_mv_mx_E; // Array to store cross-section
+  DoubleVec3D dsv_mv_mx_E; // Array to store cross-section
   sw.start();
   calculate_dsvde_array(Kenq, dsv_mv_mx_E, mvgrid, mxgrid, Egrid, qgrid, arr_fv,
                         dv, do_anMod, F_chi_2);
@@ -915,7 +936,7 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  doXe100(dsv_mv_mx_E, mvgrid, mxgrid, Egrid, Atot);
+  doXe100(dsv_mv_mx_E, mvgrid, mxgrid, Egrid, Atot, true, label);
 
   // ********************************************************
   // Calculate and output obervable rate for DAMA
