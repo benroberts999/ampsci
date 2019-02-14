@@ -1,8 +1,8 @@
 #include "AKF_akFunctions.h"
 #include "ChronoTimer.h"
-#include "ExponentialGrid.h"
 #include "FPC_physicalConstants.h"
 #include "FileIO_fileReadWrite.h"
+#include "Grid.h"
 #include "NumCalc_quadIntegrate.h"
 #include "StandardHaloModel.h"
 #include <cmath>
@@ -138,22 +138,21 @@ double F_chi_2_intermediate(double mu, double q) {
 }
 
 //******************************************************************************
-void writeForGnuplot_mvBlock(const DoubleVec3D &X_mv_mx_x,
-                             const ExpGrid &mvgrid, const ExpGrid &mxgrid,
-                             const ExpGrid &Egrid, std::string fname,
-                             double y_unit_convert)
+void writeForGnuplot_mvBlock(const DoubleVec3D &X_mv_mx_x, const Grid &mvgrid,
+                             const Grid &mxgrid, const Grid &Egrid,
+                             std::string fname, double y_unit_convert)
 // Write to gnu-plot formatted text file.
 // Each column is a m_chi (DM mass). Each block is different m_v
 {
   std::ofstream of(fname.c_str());
 
-  int n_mv = mvgrid.N();
-  int n_mx = mxgrid.N();
-  int desteps = Egrid.N();
+  int n_mv = mvgrid.ngp;
+  int n_mx = mxgrid.ngp;
+  int desteps = Egrid.ngp; //.ngp;
 
   of << "# m_v blocks: ";
   for (int imv = 0; imv < n_mv; imv++) {
-    double mv = mvgrid.x(imv);
+    double mv = mvgrid.r[imv];
     if (mv >= 0)
       of << imv << "," << mv * M_to_MeV << " ";
     else
@@ -164,7 +163,7 @@ void writeForGnuplot_mvBlock(const DoubleVec3D &X_mv_mx_x,
   of << "\n";
 
   for (int imv = 0; imv < n_mv; imv++) {
-    double mv = mvgrid.x(imv);
+    double mv = mvgrid.r[imv];
     if (mv >= 0)
       of << "\"" << std::fixed << std::setprecision(2) << mv * M_to_MeV
          << " MeV\"   ";
@@ -173,12 +172,12 @@ void writeForGnuplot_mvBlock(const DoubleVec3D &X_mv_mx_x,
          << "infty"
          << " MeV\"   ";
     for (int imx = 0; imx < n_mx; imx++) {
-      double mx = mxgrid.x(imx);
+      double mx = mxgrid.r[imx];
       of << "\"" << std::setprecision(1) << mx * M_to_GeV << " GeV\"   ";
     }
     of << "\n" << std::scientific << std::setprecision(6);
     for (int ie = 0; ie < desteps; ie++) {
-      double E = Egrid.x(ie);
+      double E = Egrid.r[ie]; // x(ie);
       of << E * E_to_keV << " ";
       for (int imx = 0; imx < n_mx; imx++) {
         of << double(X_mv_mx_x[imv][imx][ie]) * y_unit_convert << " ";
@@ -191,37 +190,36 @@ void writeForGnuplot_mvBlock(const DoubleVec3D &X_mv_mx_x,
   of.close();
 }
 //******************************************************************************
-void writeForGnuplot_mxBlock(const DoubleVec3D &X_mv_mx_x,
-                             const ExpGrid &mvgrid, const ExpGrid &mxgrid,
-                             const ExpGrid &Egrid, const std::string &fname,
-                             double y_unit_convert)
+void writeForGnuplot_mxBlock(const DoubleVec3D &X_mv_mx_x, const Grid &mvgrid,
+                             const Grid &mxgrid, const Grid &Egrid,
+                             const std::string &fname, double y_unit_convert)
 // Write to gnu-plot formatted text file
 // Each column is a m_v (mediator mass). Each block is different m_chi
 {
   std::ofstream of(fname.c_str());
 
-  int n_mv = mvgrid.N();
-  int n_mx = mxgrid.N();
-  int desteps = Egrid.N();
+  int n_mv = mvgrid.ngp;
+  int n_mx = mxgrid.ngp;
+  int desteps = Egrid.ngp; // ngp;
 
   of << "# m_x blocks: ";
   for (int imx = 0; imx < n_mx; imx++) {
-    double mx = mxgrid.x(imx);
+    double mx = mxgrid.r[imx];
     of << imx << "," << mx * M_to_GeV << " ";
   }
   of << "\n";
 
   for (int imx = 0; imx < n_mx; imx++) {
-    double mx = mxgrid.x(imx);
+    double mx = mxgrid.r[imx];
     of << "\"" << std::fixed << std::setprecision(2) << mx * M_to_GeV
        << " GeV\"   ";
     for (int imv = 0; imv < n_mv; imv++) {
-      double mv = mvgrid.x(imv);
+      double mv = mvgrid.r[imv];
       of << "\"" << std::setprecision(2) << mv * M_to_MeV << " MeV\"   ";
     }
     of << "\n" << std::scientific << std::setprecision(6);
     for (int ie = 0; ie < desteps; ie++) {
-      double E = Egrid.x(ie);
+      double E = Egrid.r[ie]; // x(ie);
       of << E * E_to_keV << " ";
       for (int imv = 0; imv < n_mv; imv++) {
         of << double(X_mv_mx_x[imv][imx][ie]) * y_unit_convert << " ";
@@ -236,7 +234,7 @@ void writeForGnuplot_mxBlock(const DoubleVec3D &X_mv_mx_x,
 
 //******************************************************************************
 double dsdE_Evmvmx(const std::vector<std::vector<float>> &Ke_nq, double E,
-                   double v, double mv, double mx, const ExpGrid &qgrid,
+                   double v, double mv, double mx, const Grid &qgrid,
                    double (*F_chi_2)(double, double))
 /*
 calcualtes cross-section ds/dE, for given E, v, mu, and mx.
@@ -252,37 +250,38 @@ Uses a function pointer for DM form factor. F_chi_2(mu,q) := |F_chi|^2
   if (arg < 0)
     return 0;
   int num_states = (int)(Ke_nq.size());
-  int qsteps = qgrid.N();
-  double dqonq = qgrid.dxonx();
+  int qsteps = qgrid.ngp;
 
   double mu = mv * FPC::c; // mu = m_v*c
 
   double qminus = mx * v - sqrt(arg);
   double qplus = mx * v + sqrt(arg);
-  if (qminus > qgrid.max() || qplus < qgrid.min())
+  if (qminus > qgrid.rmax || qplus < qgrid.r0)
     return 0;
 
   double dsdE = 0;
   for (int ink = 0; ink < num_states; ink++) {
     for (int iq = 0; iq < qsteps; iq++) {
-      double q = qgrid.x(iq);
+      double q = qgrid.r[iq];
       if (q < qminus || q > qplus)
         continue;
-      double qdq_on_dqonq = q * q; //(dq/q) is constant, multiply at end
+      // std::cout << "\nq, dq = " << q << " " << qgrid.drdu[iq] << "\n";
+      // double qdq_on_dqonq = q * q; //(dq/q) is constant, multiply at end
+      double qdq_ondu = q * qgrid.drdu[iq];
       double FX2 = F_chi_2(mu, q); // DM form factr (^2) [uses function pointer]
-      dsdE += qdq_on_dqonq * FX2 * double(Ke_nq[ink][iq]);
+      dsdE += qdq_ondu * FX2 * double(Ke_nq[ink][iq]);
       // dq/q included below
     } // q int
   }   // states
 
   double A = 0.5; // in units of sig-bar_e !
-  dsdE *= (A / pow(v, 2)) * dqonq;
+  dsdE *= (A / pow(v, 2)) * qgrid.du;
   return dsdE;
 }
 
 //******************************************************************************
 double dsvdE_Evmvmx(const std::vector<std::vector<float>> &Ke_nq, double E,
-                    double mv, double mx, const ExpGrid &qgrid,
+                    double mv, double mx, const Grid &qgrid,
                     const std::vector<double> &arr_fv, double dv,
                     double (*F_chi_2)(double, double))
 /*
@@ -307,19 +306,19 @@ Note: only takes _part_ of the K array! (for given E)
 //******************************************************************************
 void form_dsvdE(std::vector<double> &dsvde,
                 const std::vector<std::vector<std::vector<float>>> &K_enq,
-                double mv, double mx, const ExpGrid &Egrid,
-                const ExpGrid &qgrid, const std::vector<double> &arr_fv,
-                double dv, double (*F_chi_2)(double, double))
+                double mv, double mx, const Grid &Egrid, const Grid &qgrid,
+                const std::vector<double> &arr_fv, double dv,
+                double (*F_chi_2)(double, double))
 /*
 Forms <ds.v>/dE array (for given mx, mv)
 Note: mv<0 means "heavy" mediator [Fx=1]
 */
 {
   // Loop through E, create dsvde array
-  int desteps = Egrid.N();
+  int desteps = Egrid.ngp;
   //#pragma omp parallel for
   for (int ie = 0; ie < desteps; ie++) {
-    double E = Egrid.x(ie);
+    double E = Egrid.r[ie];
     // Do v (and q) integrations:
     double dsvdE =
         dsvdE_Evmvmx(K_enq[ie], E, mv, mx, qgrid, arr_fv, dv, F_chi_2);
@@ -330,8 +329,8 @@ Note: mv<0 means "heavy" mediator [Fx=1]
 //******************************************************************************
 void calculate_dsvde_array(
     const std::vector<std::vector<std::vector<float>>> &Kenq,
-    DoubleVec3D &dsv_mv_mx_E, const ExpGrid &mvgrid, const ExpGrid &mxgrid,
-    const ExpGrid &Egrid, const ExpGrid &qgrid,
+    DoubleVec3D &dsv_mv_mx_E, const Grid &mvgrid, const Grid &mxgrid,
+    const Grid &Egrid, const Grid &qgrid,
     const std::vector<std::vector<double>> &arr_fv, double dv, bool do_anMod,
     double (*F_chi_2)(double, double))
 /*
@@ -341,9 +340,9 @@ Note: If doing annual modulation, then will calculate:
 instead
 */
 {
-  int n_mv = mvgrid.N();
-  int n_mx = mxgrid.N();
-  int desteps = Egrid.N();
+  int n_mv = mvgrid.ngp;
+  int n_mx = mxgrid.ngp;
+  int desteps = Egrid.ngp;
 
   dsv_mv_mx_E.resize(n_mv, std::vector<std::vector<double>>(
                                n_mx, std::vector<double>(desteps)));
@@ -357,10 +356,10 @@ instead
   // Calculate <ds.v>/dE for each E (for each mx, mv)
   std::cout << "Calculating <ds.v>/dE (doing q and v integrations): \n";
   for (int imv = 0; imv < n_mv; imv++) {
-    double mv = mvgrid.x(imv);
+    double mv = mvgrid.r[imv];
 #pragma omp parallel for
     for (int imx = 0; imx < n_mx; imx++) {
-      double mx = mxgrid.x(imx);
+      double mx = mxgrid.r[imx];
       std::cout << "\r .. " << std::flush;
       if (do_anMod) {
         form_dsvdE(dsv_mv_mx_E[imv][imx], Kenq, mv, mx, Egrid, qgrid, arr_fv[1],
@@ -393,8 +392,8 @@ instead
 }
 
 //******************************************************************************
-void doDAMA(const DoubleVec3D &dsv_mv_mx_E, const ExpGrid &mvgrid,
-            const ExpGrid &mxgrid, const ExpGrid &Egrid, bool do_anMod,
+void doDAMA(const DoubleVec3D &dsv_mv_mx_E, const Grid &mvgrid,
+            const Grid &mxgrid, const Grid &Egrid, bool do_anMod,
             bool write_dSdE, bool write_SofM, double dres, double err_PEkeV,
             double Atot, double iEbin, double fEbin, double wEbin,
             std::string label)
@@ -406,9 +405,9 @@ Optionally further integrates into energy bins
 */
 {
   std::cout << "\n*** Doing S1 for DAMA ***\n";
-  int n_mv = mvgrid.N();
-  int n_mx = mxgrid.N();
-  int desteps = Egrid.N();
+  int n_mv = mvgrid.ngp;
+  int n_mx = mxgrid.ngp;
+  int desteps = Egrid.ngp;
 
   // Array to store observable Rate, S
   DoubleVec3D dSdE_mv_mx_E;
@@ -423,7 +422,9 @@ Optionally further integrates into energy bins
   double alpha = 0.45 + dres * 0.04;
   double beta = 0.009 + dres * 0.005;
 
-  double dEonE = Egrid.dxonx();
+  // double dEonE = Egrid.dxonx();
+  // double dEonE = Egrid.drduor[0]; // XXX Assumes Log-grid! FIX! Normal!
+
   double MN =
       Atot * (FPC::u_NMU * FPC::m_e_kg); // Total atomic/mol. mass (in kg)
 
@@ -431,11 +432,11 @@ Optionally further integrates into energy bins
   // inlcuding Gaussian resolution, +
   for (int imv = 0; imv < n_mv; imv++) {
     for (int imx = 0; imx < n_mx; imx++) {
-      double mx = mxgrid.x(imx);
+      double mx = mxgrid.r[imx];
       double rho_on_mxc2 = rhoDM_GeVcm3 / (mx * M_to_GeV);
       double rateFac = dsvdE_to_cm3keVday * rho_on_mxc2 / MN;
       for (int i = 0; i < desteps; i++) {
-        double E = Egrid.x(i);
+        double E = Egrid.r[i];
         if (E < E_thresh_HW) {
           dSdE_mv_mx_E[imv][imx][i] = 0;
           continue;
@@ -446,12 +447,12 @@ Optionally further integrates into energy bins
         double y0 = 0;
         // integrate over Eprime:
         for (int j = 0; j < desteps; j++) {
-          double Ep = Egrid.x(j);
+          double Ep = Egrid.r[j];
           if (Ep < E_thresh_HW)
             continue; // hardware threshold
-          y0 += g(s, E - Ep) * double(dsv_mv_mx_E[imv][imx][j]) * Ep;
+          y0 += g(s, E - Ep) * double(dsv_mv_mx_E[imv][imx][j]) * Egrid.drdu[j];
         }
-        dSdE_mv_mx_E[imv][imx][i] = y0 * dEonE * rateFac;
+        dSdE_mv_mx_E[imv][imx][i] = y0 * Egrid.du * rateFac;
       }
     }
   }
@@ -492,9 +493,9 @@ Optionally further integrates into energy bins
     std::cout << "S/Ew, average event rate (/day/kg/keV)\n";
   std::cout << "Integrated (averaged) each energy bin.\n";
   std::cout << "(Just outputting for first mx/mv: ";
-  printf("M_chi=%5.2f GeV", mxgrid.min() * M_to_GeV);
-  if (mvgrid.min() >= 0)
-    printf(" ; M_v=%6.3f MeV", mvgrid.min() * M_to_MeV);
+  printf("M_chi=%5.2f GeV", mxgrid.r0 * M_to_GeV);
+  if (mvgrid.r0 >= 0)
+    printf(" ; M_v=%6.3f MeV", mvgrid.r0 * M_to_MeV);
   std::cout << ")\n";
   for (int imv = 0; imv < n_mv; imv++) {
     for (int imx = 0; imx < n_mx; imx++) {
@@ -508,14 +509,14 @@ Optionally further integrates into energy bins
         for (int ie = ieA; ie < ieB; ie++) {
           if (ieB >= desteps)
             break;
-          double E = Egrid.x(ie);
-          Rate += double(dSdE_mv_mx_E[imv][imx][ie]) * E;
+          double dEdu = Egrid.drdu[ie]; // r[ie];
+          Rate += double(dSdE_mv_mx_E[imv][imx][ie]) * dEdu;
           // nb: E is from Jacobian; * dE/E below
         }
-        Rate *= dEonE / wEbin;
+        Rate *= Egrid.du / wEbin;
         S_mv_mx_E[imv][imx][i] = Rate;
-        double EaKev = Egrid.x(ieA) * E_to_keV;
-        double EbKev = Egrid.x(ieB) * E_to_keV;
+        double EaKev = Egrid.r[ieA] * E_to_keV;
+        double EbKev = Egrid.r[ieB] * E_to_keV;
         if (imv == 0 && imx == 0) {
           // only print first one to screen
           printf("%3.1f-%3.1f: %6.3f   %.2e     %i\n", EaKev, EbKev,
@@ -540,7 +541,7 @@ Optionally further integrates into energy bins
     std::cout << "Writing to file: " << fn_S << "\n";
     of.open(fn_S);
     for (int imv = 0; imv < n_mv; imv++) {
-      double mv = mvgrid.x(imv);
+      double mv = mvgrid.r[imv];
       if (mv >= 0)
         of << "\"" << std::fixed << std::setprecision(2) << mv * M_to_MeV
            << " MeV\"   ";
@@ -556,7 +557,7 @@ Optionally further integrates into energy bins
       }
       of << "\n" << std::scientific << std::setprecision(6);
       for (int imx = 0; imx < n_mx; imx++) {
-        double mx = mxgrid.x(imx) * M_to_GeV;
+        double mx = mxgrid.r[imx] * M_to_GeV;
         of << mx << " ";
         for (int ie = 0; ie < num_bins; ie++) {
           of << S_mv_mx_E[imv][imx][ie] << " ";
@@ -575,7 +576,7 @@ Optionally further integrates into energy bins
     std::cout << "Writing to file: " << fn_S << "\n";
     of.open(fn_S);
     for (int imx = 0; imx < n_mx; imx++) {
-      double mx = mxgrid.x(imx);
+      double mx = mxgrid.r[imx];
       of << "\"" << std::fixed << std::setprecision(2) << mx * M_to_GeV
          << " GeV\"   ";
       for (int i = 0; i < num_bins; i++) {
@@ -586,7 +587,7 @@ Optionally further integrates into energy bins
       }
       of << "\n" << std::scientific << std::setprecision(6);
       for (int imv = 0; imv < n_mv; imv++) {
-        double mv = mvgrid.x(imv) * M_to_MeV;
+        double mv = mvgrid.r[imv] * M_to_MeV;
         of << mv << " ";
         for (int ie = 0; ie < num_bins; ie++) {
           of << S_mv_mx_E[imv][imx][ie] << " ";
@@ -600,21 +601,21 @@ Optionally further integrates into energy bins
 }
 
 //******************************************************************************
-void doXe100(const DoubleVec3D &dsv_mv_mx_E, const ExpGrid &mvgrid,
-             const ExpGrid &mxgrid, const ExpGrid &Egrid, double Atot,
+void doXe100(const DoubleVec3D &dsv_mv_mx_E, const Grid &mvgrid,
+             const Grid &mxgrid, const Grid &Egrid, double Atot,
              bool write_dSds1, std::string label)
 /*ok*/
 {
 
   std::cout << "\n*** Doing S1 for Xe100 ***\n";
-  int n_mv = mvgrid.N();
-  int n_mx = mxgrid.N();
-  // int desteps = Egrid.N();
+  int n_mv = mvgrid.ngp;
+  int n_mx = mxgrid.ngp;
+  // int desteps = Egrid.ngp;
 
   // Generate P_n(N(E)) on n, E grids
   int n_max = 20; // XXX input?
   std::vector<std::vector<double>> P(n_max);
-  auto &e_grid = Egrid.x_grid();
+  auto &e_grid = Egrid.r; // x_grid(); // not needed..
   for (int n = 1; n < n_max; n++) {
     std::vector<double> Pn;
     Pn.reserve(e_grid.size());
@@ -626,7 +627,7 @@ void doXe100(const DoubleVec3D &dsv_mv_mx_E, const ExpGrid &mvgrid,
     P[n] = Pn;
   }
 
-  auto &dedt = Egrid.dxdt_grid();
+  auto &dedt = Egrid.drdu; //.dxdt_grid(); //not needed..
 
   double MN =
       Atot * (FPC::u_NMU * FPC::m_e_kg); // Total atomic/mol. mass (in kg)
@@ -640,13 +641,13 @@ void doXe100(const DoubleVec3D &dsv_mv_mx_E, const ExpGrid &mvgrid,
   // F has units counts/day
   for (int imv = 0; imv < n_mv; imv++) {
     for (int imx = 0; imx < n_mx; imx++) {
-      double mx = mxgrid.x(imx);
+      double mx = mxgrid.r[imx];
       double rho_on_mxc2 = rhoDM_GeVcm3 / (mx * M_to_GeV);
       // double rateFac = dsvdE_to_cm3keVday * rho_on_mxc2 / MN;
       double rateFac_au = dsvdE_to_cm3_per_auday * rho_on_mxc2 / MN;
       for (int n = 1; n < n_max; n++) {
         double int_ds =
-            NumCalc::integrate(dsv_mv_mx_E[imv][imx], P[n], dedt, Egrid.dt());
+            NumCalc::integrate(dsv_mv_mx_E[imv][imx], P[n], dedt, Egrid.du);
         double tmp_R = int_ds * rateFac_au; // convert to rate
         F_mv_mx_n[imv][imx][n] = tmp_R;
       }
@@ -660,13 +661,13 @@ void doXe100(const DoubleVec3D &dsv_mv_mx_E, const ExpGrid &mvgrid,
   int num_s1 = 20;
   double s1min = 1.;
   double s1max = 20.;
-  ExpGrid s1grid(num_s1, s1min, s1max);
+  Grid s1grid(s1min, s1max, num_s1, GridType::logarithmic);
 
   DoubleVec3D dS_mv_mx_s1; // dS/ds1
   dS_mv_mx_s1.resize(n_mv, std::vector<std::vector<double>>(
                                n_mx, std::vector<double>(num_s1)));
 
-  auto &s1_grid = s1grid.x_grid();
+  auto &s1_grid = s1grid.r;                // x_grid(); //xxx not needed
   for (int is1 = 0; is1 < num_s1; is1++) { // out of order, since eff
     auto s1 = s1_grid[is1];
     double eff = 0.85 * (1. - exp(-0.33 * s1)); // XXX FIX! include errors
@@ -780,7 +781,7 @@ int main(int argc, char *argv[]) {
   mxmax /= M_to_GeV;
   if (n_mx == 1)
     mxmax = mxmin;
-  ExpGrid mxgrid(n_mx, mxmin, mxmax);
+  Grid mxgrid(mxmin, mxmax, n_mx, GridType::logarithmic);
 
   // Append 'l'('h') to label for light(heavy) mediator
   switch (mediator) {
@@ -815,7 +816,7 @@ int main(int argc, char *argv[]) {
     mvmin /= M_to_MeV;
     mvmax /= M_to_MeV;
   }
-  ExpGrid mvgrid(n_mv, mvmin, mvmax);
+  Grid mvgrid(mvmin, mvmax, n_mv, GridType::logarithmic);
 
   // Energy bins for integrating/averaging (convert units)
   iEbin /= E_to_keV;
@@ -838,8 +839,8 @@ int main(int argc, char *argv[]) {
   if (num_states != (int)nklst.size())
     return 1; // just sanity check
   // Create the E and q grids:
-  ExpGrid Egrid(desteps, demin, demax);
-  ExpGrid qgrid(qsteps, qmin, qmax);
+  Grid Egrid(demin, demax, desteps, GridType::logarithmic);
+  Grid qgrid(qmin, qmax, qsteps, GridType::logarithmic);
 
   // Grid of SHM vel. distro f_v(v). Can use to change vel profiles
   // Note: SHM is in km/s units, both for v and f!

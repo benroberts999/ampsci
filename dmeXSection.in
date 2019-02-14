@@ -1,11 +1,11 @@
-ak-Xe_S1        ! input file name (without .bin ext) *1
+ak-Xe_test      ! input file name (without .bin ext) *1
 testout         ! output label (put 'na' for none)
-0.1  10. 1      ! m_chi/GeV: min, max, num_steps
+2.1  10. 1      ! m_chi/GeV: min, max, num_steps
 0               ! mv: 0=massless, 1=range, 2= heavy
 0.00 00.0 0     ! m_v/MeV: min, max, num_steps [only if =1 above]
 0  0            ! SHM Error: dvesc, dv0. [-1,1]
 0               ! Do annual mod amplitude? 1=yes, 0=no
-0               ! 1= Write <ds.v>/dE to file (or an mod)?
+1               ! 1= Write <ds.v>/dE to file (or an mod)?
 0               ! DAMA: 1= Calculate S_{0/m} for DAMA (as below)
 0 0             ! DAMA error: det. resolution, PE-keV [-1,1] *2
 131             ! Atot. 131 for Xe; 127+23=150 for Dama

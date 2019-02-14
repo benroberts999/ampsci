@@ -49,6 +49,8 @@ public:
 //******************************************************************************
 inline double Grid::calc_du_from_ngp(double in_r0, double in_rmax, int in_ngp,
                                      GridType gridtype, double b) {
+  if (in_ngp == 1)
+    return 0;
   switch (gridtype) {
   case GridType::loglinear:
     return (in_rmax - in_r0 + b * log(in_rmax / in_r0)) / (in_ngp - 1);
