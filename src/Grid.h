@@ -4,79 +4,60 @@
 
 enum class GridType { loglinear, logarithmic, linear };
 
+/*
+To do:
+-add warnings for -ve grids (exp)
+-don't allow 1 pt, or 0 (for exp) etc.
+
+Make a template
+*/
+
 //******************************************************************************
 struct Grid {
 
 public: // ? maybe better to be non-const, but private?
   const double r0;
   const double rmax;
-  const int Npts;
+  const int ngp;
   const double du;
 
-private:
   std::vector<double> r;
   std::vector<double> drdu;
   std::vector<double> drduor;
 
-  void formLogLinearGrid();
-  void formLogGrid();
-  void formLinearGrid();
+private:
+  void form_loglinear_grid(double b);
+  void form_logarithmic_grid();
+  void form_linear_grid();
 
 public:
   Grid(double in_r0, double in_rmax, int in_ngp,
        GridType gridtype = GridType::loglinear, double b = 4.);
 
-  const std::vector<double> &refto_r() const;
-  const std::vector<double> &refto_drdu() const;
-  const std::vector<double> &refto_drduor() const;
+  // const std::vector<double> &refto_r() const;
+  // const std::vector<double> &refto_drdu() const;
+  // const std::vector<double> &refto_drduor() const;
+  //
+  // double r(int i) const;
+  // double drdu(int i) const;
+  // double drduor(int i) const;
+  // // double du() const;
 
-  // //??? or just make public?
-  // double get_r0() const;
-  // double get_rmax() const;
-  // int get_ngp() const;
-  // double get_du() const;
+  int findNextIndex(double x) const;
+  int findNearestIndex(double x) const;
 
   void printDetails() const;
 
   static double calc_du_from_ngp(double in_r0, double in_rmax, int in_ngp,
-                                 GridType gridtype, double b = 4.) const;
+                                 GridType gridtype, double b = 4.);
 
   static int calc_ngp_from_du(double in_r0, double in_rmax, double in_du,
-                              GridType gridtype, double b = 4.) const;
+                              GridType gridtype, double b = 4.);
 };
 
 //******************************************************************************
-Grid::Grid(double in_r0, double in_rmax, int in_ngp, GridType gridtype,
-           double b)
-    : r0(in_r0), rmax(in_rmax), ngp(in_ngp),
-      du(calcdu(in_r0, in_rmax, in_ngp, gridtype, b)) {
-
-  r.reserve(ngp);
-  drdu.reserve(ngp);   // Jacobian:
-  drduor.reserve(ngp); //(1/r)*du/dr (just for convinience)
-
-  switch (gridtype) {
-  case GridType::loglinear:
-    formLogLinearGrid();
-    break;
-  case GridType::logarithmic:
-    formLogGrid();
-    break;
-  case GridType::loglinear:
-    logLinearRadialGrid();
-    break;
-  default:
-    std::cerr << "\n FAIL 49 in Grid: no grid type?\n";
-  }
-}
-
-//******************************************************************************
-void Grid::printDetails() const;
-{ printf("Grid: pts=%6i du=%7.5f r0=%.1e Rmax=%7.1f\n", ngp, du, r0, rmax); }
-
-//******************************************************************************
-static double calc_du_from_ngp(double in_r0, double in_rmax, int in_ngp,
-                               GridType gridtype, double b) const {
+inline double Grid::calc_du_from_ngp(double in_r0, double in_rmax, int in_ngp,
+                                     GridType gridtype, double b) {
   switch (gridtype) {
   case GridType::loglinear:
     return (in_rmax - in_r0 + b * log(in_rmax / in_r0)) / (in_ngp - 1);
@@ -85,11 +66,13 @@ static double calc_du_from_ngp(double in_r0, double in_rmax, int in_ngp,
   case GridType::linear:
     return (in_rmax - in_r0) / (in_ngp - 1);
   }
+  std::cerr << "\nFAIL 63 in Grid: wrong type?\n";
+  return 1.;
 }
 
 //******************************************************************************
-static int calc_ngp_from_du(double in_r0, double in_rmax, double in_du,
-                            GridType gridtype, double b) const {
+inline int Grid::calc_ngp_from_du(double in_r0, double in_rmax, double in_du,
+                                  GridType gridtype, double b) {
   switch (gridtype) {
   case GridType::loglinear:
     return int((in_rmax - in_r0 + b * log(in_rmax / in_r0)) / in_du) + 2;
@@ -101,7 +84,87 @@ static int calc_ngp_from_du(double in_r0, double in_rmax, double in_du,
 }
 
 //******************************************************************************
-void Grid::form_loglinear_grid()
+inline Grid::Grid(double in_r0, double in_rmax, int in_ngp, GridType gridtype,
+                  double b)
+    : r0(in_r0), rmax(in_rmax), ngp(in_ngp),
+      du(calc_du_from_ngp(in_r0, in_rmax, in_ngp, gridtype, b)) {
+
+  r.reserve(ngp);
+  drdu.reserve(ngp);   // Jacobian:
+  drduor.reserve(ngp); //(1/r)*du/dr (just for convinience)
+
+  switch (gridtype) {
+  case GridType::loglinear:
+    form_loglinear_grid(b);
+    break;
+  case GridType::logarithmic:
+    form_logarithmic_grid();
+    break;
+  case GridType::linear:
+    form_linear_grid();
+    break;
+  default:
+    std::cerr << "\n FAIL 49 in Grid: no grid type?\n";
+  }
+}
+
+// //******************************************************************************
+// const std::vector<double> &Grid::refto_r() const { return r; }
+//
+// const std::vector<double> &Grid::refto_drdu() const { return drdu; }
+//
+// const std::vector<double> &Grid::refto_drduor() const { return drduor; }
+//
+// // Note: no safety check for these!
+// double Grid::r(int i) const { return r[i]; }
+//
+// double Grid::drdu(int i) const { return drdu[i]; }
+//
+// double Grid::drduor(int i) const { return drduor[i]; }
+
+//******************************************************************************
+inline int Grid::findNextIndex(double x) const
+// Returns index correspoding to given value
+// Note: finds NEXT LARGEST grid point (greater then or equal to.)
+// Note: this is slow - don't rely on it inside big loops!
+// For linear or exponential, faster to use formula.
+// But for log-linear, can't
+{
+  for (int i = 0; i < ngp; i++)
+    if (x < r[i])
+      return i;
+  return ngp - 1;
+}
+
+//******************************************************************************
+inline int Grid::findNearestIndex(double x) const
+// Note: this is slow - don't rely on it inside big loops!
+// Returns index correspoding to given value
+{
+  if (x < r0)
+    return 0;
+  if (x > rmax)
+    return ngp - 1;
+  int index = 0;
+  for (int i = 0; i < ngp; i++)
+    if (x < r[i]) {
+      index = i;
+      break;
+    }
+  // we have (in order): r[i-1], x, r[i]
+  if (fabs(x - r[index - 1]) < fabs(r[index] - x))
+    return index - 1;
+  else
+    return index;
+}
+
+//******************************************************************************
+inline void Grid::printDetails() const {
+  printf("Grid: pts=%6i du=%7.5f r0=%.1e Rmax=%7.1f\n", ngp, du, r0, rmax);
+}
+
+//******************************************************************************
+inline void Grid::form_loglinear_grid(double b)
 /*
 Roughly, grid is logarithmically spaced below r=b, and linear above.
 Definition:
@@ -142,7 +205,7 @@ Typically (and by default), b = 4 (unit units/bohr radius)
 }
 
 //******************************************************************************
-void Grid::form_logarithmic_grid()
+inline void Grid::form_logarithmic_grid()
 /*
 Standard exponential (logarithmic) grid.
 Uses:
@@ -152,13 +215,13 @@ Uses:
 */
 {
   for (int i = 0; i < ngp; i++)
-    drdu.push_back(r0 * exp(i * h));
+    drdu.push_back(r0 * exp(i * du));
   r = drdu;
-  drduor.reize(ngp, 1.);
+  drduor.resize(ngp, 1.);
 }
 
 //******************************************************************************
-void Grid::form_linear_grid()
+inline void Grid::form_linear_grid()
 /*
 Should only be used for testing usually
 */
@@ -168,5 +231,5 @@ Should only be used for testing usually
     r.push_back(tmp_r);
     drduor.push_back(1. / tmp_r);
   }
-  drdu.reize(ngp, 1.);
+  drdu.resize(ngp, 1.);
 }
