@@ -6,6 +6,7 @@
 #include "ExponentialGrid.h"
 #include "FPC_physicalConstants.h"
 #include "FileIO_fileReadWrite.h"
+#include "Grid.h"
 #include "HartreeFockClass.h"
 #include "PRM_parametricPotentials.h"
 #include <cmath>
@@ -14,7 +15,7 @@
 
 //******************************************************************************
 int main(int argc, char *argv[]) {
-  ChronoTimer sw; // start the overall timer
+  ChronoTimer timer; // start the overall timer
 
   std::string input_file = (argc > 1) ? argv[1] : "atomicKernal.in";
   std::cout << "Reading input from: " << input_file << "\n";
@@ -61,8 +62,8 @@ int main(int argc, char *argv[]) {
   if (qsteps == 1)
     qmax = qmin;
   // Set up the E and q grids
-  ExpGrid Egrid(desteps, demin, demax);
-  ExpGrid qgrid(qsteps, qmin, qmax);
+  Grid Egrid(demin, demax, desteps, GridType::logarithmic);
+  Grid qgrid(qmin, qmax, qsteps, GridType::logarithmic);
 
   // Fix maximum angular momentum values:
   if (max_l < 0 || max_l > 3)
@@ -84,8 +85,23 @@ int main(int argc, char *argv[]) {
 
   // Look-up atomic number, Z, and also A
   int Z = ATI::get_z(Z_str);
-  if (Z == 0)
-    return 2;
+
+  // Make sure h (large-r step size) is small enough to
+  // calculate (normalise) cntm functions with energy = demax
+  // Also need to re-form nuclear potential.
+  // Updated class method will avoid this!
+  double du_target = (M_PI / 20.) / sqrt(2. * demax);
+  double du = Grid::calc_du_from_ngp(r0, rmax, ngp, GridType::loglinear);
+  if (du > du_target) {
+    int new_ngp =
+        Grid::calc_ngp_from_du(r0, rmax, du_target, GridType::loglinear);
+    int old_ngp = ngp;
+    ngp = new_ngp;
+    std::cout
+        << "\nWARNING 101: Grid not dense enough for contimuum state with "
+        << "ec=" << demax << "au\n";
+    std::cout << "Updating ngp: " << old_ngp << " --> " << ngp << "\n";
+  }
 
   // Generate the orbitals object:
   ElectronOrbitals wf(Z, A, ngp, r0, rmax, varalpha);
@@ -106,28 +122,11 @@ int main(int argc, char *argv[]) {
   else
     printf("Using Hartree Fock (converge to %.0e)\n", hart_del);
 
-  // Make sure h (large-r step size) is small enough to
-  // calculate (normalise) cntm functions with energy = demax
-  // Also need to re-form nuclear potential.
-  // Updated class method will avoid this!
-  double h_target = (M_PI / 20.) / sqrt(2. * demax);
-  if (wf.h > h_target) {
-    int old_ngp = ngp;
-    wf.logLinearRadialGrid(h_target, r0, rmax);
-    if (wf.Anuc() > 0)
-      wf.formNuclearPotential(NucleusType::Fermi);
-    else
-      wf.formNuclearPotential(NucleusType::zero);
-    ngp = wf.ngp;
-    std::cout
-        << "\nWARNING 101: Grid not dense enough for contimuum state with "
-        << "ec=" << demax << "au\n";
-    std::cout << "Updating ngp: " << old_ngp << " --> " << ngp << "\n";
-  }
   printf("Grid: pts=%i h=%6.4f r0=%.0e Rmax=%5.1f\n", wf.ngp, wf.h,
          wf.r.front(), wf.r.back());
 
   // Do Hartree-fock (or parametric potential) for Core
+  timer.start();
   if (Gf == 0) {
     HartreeFock hf(wf, str_core, hart_del);
   } else {
@@ -138,8 +137,9 @@ int main(int argc, char *argv[]) {
       wf.vdir.push_back(PRM::green(Z, r, Gh, Gd));
     wf.solveInitialCore(str_core); // solves w/ Green
   }
+  std::cout << "Time for HF: " << timer.lap_reading_str() << "\n";
 
-  // Output results:
+  // Output HF results:
   std::cout << "\n     state  k Rinf its    eps      En (au)     En (/cm)    "
             << "En (eV)   Oc.Frac.\n";
   for (int i : wf.stateIndexList) {
@@ -169,8 +169,10 @@ int main(int argc, char *argv[]) {
     nklst.emplace_back(wf.seTermSymbol(i, true));
 
   // pre-calculate the spherical Bessel function look-up table for efficiency
+  timer.start();
   std::vector<std::vector<std::vector<float>>> jLqr_f;
-  AKF::sphericalBesselTable(jLqr_f, max_L, qgrid, wf.r);
+  AKF::sphericalBesselTable(jLqr_f, max_L, qgrid.r, wf.r);
+  std::cout << "Time for SB table: " << timer.lap_reading_str() << "\n";
 
   // Calculate the AK (print to screen)
   std::cout << "\nCalculating atomic kernal AK(q,dE):\n";
@@ -180,10 +182,12 @@ int main(int argc, char *argv[]) {
          qmax / qMeV, qmin, qmax);
 
   // Calculate K(q,E)
+  timer.start();
   std::cout << "Running dE loops (" << desteps << ").." << std::flush;
 #pragma omp parallel for
   for (int ide = 0; ide < desteps; ide++) {
-    double dE = Egrid.x(ide);
+    // double dE = Egrid.x(ide);
+    double dE = Egrid.r[ide];
     // Loop over core (bound) states:
     for (auto is : wf.stateIndexList) {
       int l = wf.lorb(is);
@@ -196,6 +200,7 @@ int main(int argc, char *argv[]) {
     } // END loop over bound states
   }
   std::cout << "..done :)\n";
+  std::cout << "Time for AK: " << timer.lap_reading_str() << "\n";
 
   // Write out to text file (in gnuplot friendly form)
   if (text_out)
@@ -212,6 +217,6 @@ int main(int argc, char *argv[]) {
     std::cout << ".bin";
   std::cout << "\n";
 
-  std::cout << "\n " << sw.reading_str() << "\n";
+  std::cout << "\n " << timer.reading_str() << "\n";
   return 0;
 }

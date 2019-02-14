@@ -2,7 +2,6 @@
 #include "ATI_atomInfo.h"
 #include "ContinuumOrbitals.h"
 #include "ElectronOrbitals.h"
-#include "ExponentialGrid.h"
 #include "FPC_physicalConstants.h"
 #include "FileIO_fileReadWrite.h"
 #include "SBF_sphericalBesselFunctions.h"
@@ -45,6 +44,8 @@ void writeToTextFile(std::string fname,
                      double qmax, double demin, double demax)
 /*
 Writes the K factor to a text-file, in GNU-plot readable format
+XXX NOTE: Re-creates grids! Could use Grid class!
+XXX This mean we MUST use exponential Grid! Fix this! XXX
 */
 {
   int desteps = (int)AK.size();       // dE
@@ -93,6 +94,8 @@ int akReadWrite(std::string fname, bool write,
 Writes K function (+ all required size etc.) values to a binary file.
 The binary file is read by other programs (e.g., dmeXSection)
 Uses FileIO_fileReadWrite
+XXX NOTE: Re-creates grids! Could use Grid class!
+XXX This mean we MUST use exponential Grid! Fix this! XXX
 */
 {
   FileIO::RoW row = write ? FileIO::write : FileIO::read;
@@ -243,7 +246,7 @@ XXX Note sure if correct! esp, (q) angular part!? XXX
 
 //******************************************************************************
 void sphericalBesselTable(std::vector<std::vector<std::vector<float>>> &jLqr_f,
-                          int max_L, const ExpGrid &qgrid,
+                          int max_L, const std::vector<double> &q_array,
                           const std::vector<double> &r)
 /*
 Creates a look-up table w/ spherical Bessel functions. For speed.
@@ -252,7 +255,7 @@ Uses SBF_sphericalBesselFunctions
 {
   std::cout << std::endl;
   int ngp = (int)r.size();
-  int qsteps = qgrid.N();
+  int qsteps = (int)q_array.size();
 
   jLqr_f.resize(max_L + 1, std::vector<std::vector<float>>(
                                qsteps, std::vector<float>(ngp)));
@@ -261,7 +264,7 @@ Uses SBF_sphericalBesselFunctions
               << "/" << max_L << " .. " << std::flush;
 #pragma omp parallel for
     for (int iq = 0; iq < qsteps; iq++) {
-      double q = qgrid.x(iq);
+      double q = q_array[iq];
       for (int ir = 0; ir < ngp; ir++) {
         double tmp = SBF::JL(L, q * r[ir]);
         // If q(dr) is too large, "missing" j_L oscillations

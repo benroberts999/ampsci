@@ -34,15 +34,6 @@ public:
   Grid(double in_r0, double in_rmax, int in_ngp,
        GridType gridtype = GridType::loglinear, double b = 4.);
 
-  // const std::vector<double> &refto_r() const;
-  // const std::vector<double> &refto_drdu() const;
-  // const std::vector<double> &refto_drduor() const;
-  //
-  // double r(int i) const;
-  // double drdu(int i) const;
-  // double drduor(int i) const;
-  // // double du() const;
-
   int findNextIndex(double x) const;
   int findNearestIndex(double x) const;
 
@@ -81,6 +72,8 @@ inline int Grid::calc_ngp_from_du(double in_r0, double in_rmax, double in_du,
   case GridType::linear:
     return int((in_rmax - in_r0) / in_du) + 2;
   }
+  std::cerr << "\nFAIL 84 in Grid: wrong type?\n";
+  return 1;
 }
 
 //******************************************************************************
@@ -107,20 +100,6 @@ inline Grid::Grid(double in_r0, double in_rmax, int in_ngp, GridType gridtype,
     std::cerr << "\n FAIL 49 in Grid: no grid type?\n";
   }
 }
-
-// //******************************************************************************
-// const std::vector<double> &Grid::refto_r() const { return r; }
-//
-// const std::vector<double> &Grid::refto_drdu() const { return drdu; }
-//
-// const std::vector<double> &Grid::refto_drduor() const { return drduor; }
-//
-// // Note: no safety check for these!
-// double Grid::r(int i) const { return r[i]; }
-//
-// double Grid::drdu(int i) const { return drdu[i]; }
-//
-// double Grid::drduor(int i) const { return drduor[i]; }
 
 //******************************************************************************
 inline int Grid::findNextIndex(double x) const

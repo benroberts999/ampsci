@@ -27,7 +27,7 @@ int calculateKpw_nk(const ElectronOrbitals &wf, int nk, double dE,
                     std::vector<float> &K_nk);
 
 void sphericalBesselTable(std::vector<std::vector<std::vector<float>>> &jLqr_f,
-                          int max_L, const ExpGrid &qgrid,
+                          int max_L, const std::vector<double> &q_array,
                           const std::vector<double> &r);
 
 } // namespace AKF
