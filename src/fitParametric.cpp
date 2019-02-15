@@ -97,10 +97,10 @@ int main(int argc, char *argv[]) {
         if (sphere)
           wf.formNuclearPotential(NucleusType::spherical);
         if (green)
-          for (auto r : wf.r)
+          for (auto r : wf.rgrid.r)
             wf.vdir.push_back(PRM::green(Z, r, H, d));
         else
-          for (auto r : wf.r)
+          for (auto r : wf.rgrid.r)
             wf.vdir.push_back(PRM::tietz(Z, r, H, d));
         double fx = 0;
         for (size_t ns = 0; ns < in_n.size(); ns++) {
@@ -160,10 +160,10 @@ int main(int argc, char *argv[]) {
   if (sphere)
     wf.formNuclearPotential(NucleusType::spherical);
   if (green)
-    for (auto r : wf.r)
+    for (auto r : wf.rgrid.r)
       wf.vdir.push_back(PRM::green(Z, r, H, d));
   else
-    for (auto r : wf.r)
+    for (auto r : wf.rgrid.r)
       wf.vdir.push_back(PRM::tietz(Z, r, H, d));
   for (size_t ns = 0; ns < in_n.size(); ns++)
     wf.solveLocalDirac(in_n[ns], in_k[ns], in_en[ns]);

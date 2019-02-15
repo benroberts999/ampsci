@@ -1,4 +1,5 @@
 #pragma once
+#include "Grid.h"
 #include <array>
 #include <vector>
 
@@ -10,9 +11,8 @@ static_assert(
     "\nFAIL 8 in Adams (.h): parameter AMO must be between 5 and 8\n");
 
 void solveDBS(std::vector<double> &f, std::vector<double> &g, double &en,
-              const std::vector<double> &v, int n, int ka,
-              const std::vector<double> &r, const std::vector<double> &drdt,
-              double h, int &pinf, int &its, double &eps, double alpha,
+              const std::vector<double> &v, int n, int ka, const Grid &rgrid,
+              int &pinf, int &its, double &eps, double alpha,
               int log_dele_or = 0);
 
 int findPracticalInfinity(double en, const std::vector<double> &v,

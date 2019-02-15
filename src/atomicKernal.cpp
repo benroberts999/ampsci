@@ -121,8 +121,8 @@ int main(int argc, char *argv[]) {
   else
     printf("Using Hartree Fock (converge to %.0e)\n", hart_del);
 
-  printf("Grid: pts=%i h=%6.4f r0=%.0e Rmax=%5.1f\n", wf.ngp, wf.h,
-         wf.r.front(), wf.r.back());
+  printf("Grid: pts=%i h=%6.4f r0=%.0e Rmax=%5.1f\n", wf.rgrid.ngp, wf.rgrid.du,
+         wf.rgrid.r.front(), wf.rgrid.r.back());
 
   // Do Hartree-fock (or parametric potential) for Core
   timer.start();
@@ -131,8 +131,8 @@ int main(int argc, char *argv[]) {
   } else {
     // Use Green (local parametric) potential
     // Fill the electron part of the (local/direct) potential
-    wf.vdir.reserve(wf.ngp);
-    for (auto r : wf.r)
+    wf.vdir.reserve(wf.rgrid.ngp);
+    for (auto r : wf.rgrid.r)
       wf.vdir.push_back(PRM::green(Z, r, Gh, Gd));
     wf.solveInitialCore(str_core); // solves w/ Green
   }
@@ -170,7 +170,7 @@ int main(int argc, char *argv[]) {
   // pre-calculate the spherical Bessel function look-up table for efficiency
   timer.start();
   std::vector<std::vector<std::vector<float>>> jLqr_f;
-  AKF::sphericalBesselTable(jLqr_f, max_L, qgrid.r, wf.r);
+  AKF::sphericalBesselTable(jLqr_f, max_L, qgrid.r, wf.rgrid.r);
   std::cout << "Time for SB table: " << timer.lap_reading_str() << "\n";
 
   // Calculate the AK (print to screen)

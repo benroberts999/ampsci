@@ -1,4 +1,5 @@
 #pragma once
+#include "Grid.h"
 #include <string>
 #include <vector>
 
@@ -9,14 +10,10 @@ enum class NucleusType { Fermi, spherical, zero };
 class ElectronOrbitals {
 
 public:
-  ElectronOrbitals(int in_z, int in_a = 0, int in_ngp = 2048,
-                   double rmin = 1e-6, double rmax = 250.,
-                   double var_alpha = 1);
-  ElectronOrbitals(std::string s_in_z, int in_a = 0, int in_ngp = 2048,
-                   double rmin = 1e-6, double rmax = 250.,
+  ElectronOrbitals(int in_z, int in_a, int in_ngp, double rmin, double rmax,
                    double var_alpha = 1);
 
-  void clearAll();
+  // void clearAll();
 
 public:
   // orbitals:
@@ -38,15 +35,10 @@ public:
   std::vector<int> coreIndexList;
   std::vector<int> valenceIndexList;
 
-  int num_core_states;
-  int num_core_electrons; // Nc = N - M
+  int num_core_states = 0;
+  int num_core_electrons = 0; // Nc = N - M
 
-  // grid
-  std::vector<double> r;
-  std::vector<double> drdt;
-  std::vector<double> dror;
-  int ngp;
-  double h;
+  const Grid rgrid;
 
   // Potentials
   std::vector<double> vnuc;
@@ -96,15 +88,16 @@ public:
 
   // Single function to form grid, takes in option (w/ enums)!
   // Default: logLinear..
-  int logLinearRadialGrid(int ngp_in, double r0, double rmax, double b = 4.);
-  int logLinearRadialGrid(double in_h, double r0, double rmax, double b = 4.);
+  // int logLinearRadialGrid(int ngp_in, double r0, double rmax, double b = 4.);
+  // int logLinearRadialGrid(double in_h, double r0, double rmax, double b
+  // = 4.);
 
 private:
   // store internal value for alpha (allows variation)
-  double alpha;
+  const double alpha;
 
   // Atom info:
-  int Z_, A_;
+  const int Z_, A_;
   // std::string atom;
 
   // number of electrons in each core shell (non-rel??)
@@ -113,13 +106,13 @@ private:
 private:
   int determineCore(std::string str_core_in);
 
-  int sphericalNucleus(double rnuc = 0);
-  int fermiNucleus(double t = 0, double c = 0);
-  int zeroNucleus();
+  void sphericalNucleus(double rnuc = 0);
+  void fermiNucleus(double t = 0, double c = 0);
+  void zeroNucleus();
 
   // Grid
-  int exponentialRadialGrid(int ngp_in, double r0, double rmax);
+  // int exponentialRadialGrid(int ngp_in, double r0, double rmax);
 
-  double enGuessCore(int n, int l);
-  double enGuessVal(int n, int ka);
+  double enGuessCore(int n, int l) const;
+  double enGuessVal(int n, int ka) const;
 };

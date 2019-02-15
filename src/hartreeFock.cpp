@@ -50,8 +50,8 @@ int main(int argc, char *argv[]) {
   // Generate the orbitals object:
   ElectronOrbitals wf(Z, A, ngp, r0, rmax, varalpha);
 
-  printf("Grid: pts=%i h=%7.5f r0=%.1e Rmax=%5.1f\n\n", wf.ngp, wf.h,
-         wf.r.front(), wf.r.back());
+  printf("Grid: pts=%i h=%7.5f r0=%.1e Rmax=%5.1f\n\n", wf.rgrid.ngp,
+         wf.rgrid.du, wf.rgrid.r.front(), wf.rgrid.r.back());
 
   // Solve Hartree equations for the core:
   timer.start(); // start the timer for HF
@@ -156,8 +156,8 @@ int main(int argc, char *argv[]) {
     for (auto a : wf.stateIndexList)
       of << "\"" << wf.seTermSymbol(a, true) << "\" ";
     of << "\n";
-    for (int i = 0; i < wf.ngp; i++) {
-      of << wf.r[i] << " ";
+    for (int i = 0; i < wf.rgrid.ngp; i++) {
+      of << wf.rgrid.r[i] << " ";
       for (size_t a = 0; a < wf.nlist.size(); a++) {
         of << wf.f[a][i] << " ";
       }
@@ -172,14 +172,15 @@ int main(int argc, char *argv[]) {
     double c = 5.6710; // 1.1*pow(wf.A(),0.3333);
 
     std::vector<double> rho;
-    rho.reserve(wf.ngp);
-    for (auto r : wf.r)
+    rho.reserve(wf.rgrid.ngp);
+    for (auto r : wf.rgrid.r)
       rho.emplace_back(1. / (1. + exp((r * FPC::aB_fm - c) / a)));
-    // double rho0 = NumCalc::integrate(wf.r, wf.r, rho, wf.drdt, 1, 0, 0, 0, 0) *
-    // 4 *
-    //               M_PI * wf.h;
+    // double rho0 = NumCalc::integrate(wf.rgrid.r, wf.rgrid.r, rho,
+    // wf.rgrid.drdu, 1, 0, 0, 0, 0) * 4 *
+    //               M_PI * wf.rgrid.du;
     double rho0 =
-        NumCalc::integrate(wf.r, wf.r, rho, wf.drdt, 1.) * 4 * M_PI * wf.h;
+        NumCalc::integrate(wf.rgrid.r, wf.rgrid.r, rho, wf.rgrid.drdu, 1.) * 4 *
+        M_PI * wf.rgrid.du;
     for (auto &rhoi : rho)
       rhoi /= rho0;
 
@@ -196,10 +197,10 @@ int main(int argc, char *argv[]) {
         continue; // p_1/2 only
       int n = wf.n_pqn(np);
       // <7s|d|np><np|hw|6s>/dE6s + <7s|hw|np><np|d|6s>/dE7s
-      double d7s = wf.radialIntegral(a7s, np, wf.r);
+      double d7s = wf.radialIntegral(a7s, np, wf.rgrid.r);
       double w6s = wf.radialIntegral(np, a6s, rho, Operator::gamma5);
       double dE6s = wf.en[a6s] - wf.en[np];
-      double d6s = wf.radialIntegral(np, a6s, wf.r);
+      double d6s = wf.radialIntegral(np, a6s, wf.rgrid.r);
       double w7s = wf.radialIntegral(a7s, np, rho, Operator::gamma5);
       double dE7s = wf.en[a7s] - wf.en[np];
       double pnc1 = Cc * Ac * d7s * w6s / dE6s;
@@ -216,7 +217,7 @@ int main(int argc, char *argv[]) {
 
   // std::vector<double> f;
   // std::vector<double> df_exact;
-  // for (auto r : wf.r) {
+  // for (auto r : wf.rgrid.r) {
   //   f.push_back((log(r + 0.5) / (r + 0.5)) * (1. + sqrt(r) * sin(r)));
   //
   //   df_exact.push_back(
@@ -226,11 +227,12 @@ int main(int argc, char *argv[]) {
   //       (log(0.5 + r) * (1 + sqrt(r) * sin(r))) / pow(0.5 + r, 2));
   // }
   //
-  // std::vector<double> df = NumCalc::derivative(f, wf.drdt, wf.h);
+  // std::vector<double> df = NumCalc::derivative(f, wf.rgrid.drdu,
+  // wf.rgrid.du);
   //
   // std::ofstream of("test-deriv.txt");
-  // for (int i = 0; i < wf.ngp; i++) {
-  //   of << wf.r[i] << " " << df_exact[i] << " " << df[i] << "\n";
+  // for (int i = 0; i < wf.rgrid.ngp; i++) {
+  //   of << wf.rgrid.r[i] << " " << df_exact[i] << " " << df[i] << "\n";
   // }
 
   return 0;

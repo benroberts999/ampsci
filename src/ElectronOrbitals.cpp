@@ -3,6 +3,7 @@
 #include "ADAMS_solveLocalBS.h"
 #include "ATI_atomInfo.h"
 #include "FPC_physicalConstants.h"
+#include "Grid.h"
 #include "NumCalc_quadIntegrate.h"
 #include <algorithm> //for sort
 #include <cmath>
@@ -18,30 +19,18 @@
 
 //******************************************************************************
 ElectronOrbitals::ElectronOrbitals(int in_z, int in_a, int in_ngp, double rmin,
-                                   double rmax, double var_alpha) {
-  clearAll();
-  logLinearRadialGrid(in_ngp, rmin, rmax);
-
-  alpha = FPC::alpha * var_alpha;
-  num_core_states = 0;
-
-  Z_ = in_z;
-
-  // If in_a -ve, use default atomic mass
-  A_ = (in_a < 0) ? ATI::defaultA(Z_) : in_a;
+                                   double rmax, double var_alpha)
+    : rgrid(rmin, rmax, in_ngp, GridType::loglinear, 4.),
+      alpha(FPC::alpha * var_alpha), Z_(in_z),
+      A_((in_a < 0) ? ATI::defaultA(Z_) : in_a)
+//
+{
 
   // Use Fermi nucleus by default, unless A=0 is given
   if (A_ > 0)
     formNuclearPotential(NucleusType::Fermi);
   else
     formNuclearPotential(NucleusType::zero);
-}
-//-----Overloaded---------------------------------------------------------------
-ElectronOrbitals::ElectronOrbitals(std::string s_in_z, int in_a, int in_ngp,
-                                   double rmin, double rmax, double var_alpha) {
-  // Work out Z from given atomic symbol
-  int iz = ATI::get_z(s_in_z);
-  ElectronOrbitals(iz, in_a, in_ngp, rmin, rmax, var_alpha);
 }
 
 //******************************************************************************
@@ -53,21 +42,21 @@ Uses ADAMS::solveDBS to solve Dirac Eqn for local potential (Vnuc + Vdir)
 {
   int pinf, its;
   double eps;
-  std::vector<double> f_a(ngp);
-  std::vector<double> g_a(ngp);
+  std::vector<double> f_a(rgrid.ngp);
+  std::vector<double> g_a(rgrid.ngp);
 
   // Fill V(r) with nulcear + DIRECT part of electron potential
   // nb: for exchange part, need to use reSolveDirac()
   std::vector<double> v_a = vnuc;
   if (vdir.size() != 0) {
-    for (int i = 0; i < ngp; i++)
+    for (int i = 0; i < rgrid.ngp; i++)
       v_a[i] += vdir[i];
   }
 
   // Solve local dirac Eq:
   if (e_a == 0)
-    e_a = enGuessVal(n, k); // XXX can update this too! XXX
-  ADAMS::solveDBS(f_a, g_a, e_a, v_a, n, k, r, drdt, h, pinf, its, eps, alpha,
+    e_a = enGuessVal(n, k);
+  ADAMS::solveDBS(f_a, g_a, e_a, v_a, n, k, rgrid, pinf, its, eps, alpha,
                   log_dele_or);
   // Store wf + energy
   f.push_back(f_a);
@@ -95,6 +84,7 @@ double ElectronOrbitals::radialIntegral(int a, int b, Operator op) const {
   std::vector<double> empty_vec;
   return radialIntegral(a, b, empty_vec, op);
 }
+
 //******************************************************************************
 double ElectronOrbitals::radialIntegral(int a, int b,
                                         const std::vector<double> &vint,
@@ -111,8 +101,8 @@ XXX Few things here that are slow! XXX
   int pinf = std::min(pinflist[a], pinflist[b]);
   // int pinf = (pinflist[a] + pinflist[b]) / 2;
 
-  std::vector<double> fprime(ngp); // = f[b];
-  std::vector<double> gprime(ngp); // = g[b];
+  std::vector<double> fprime(rgrid.ngp); // = f[b];
+  std::vector<double> gprime(rgrid.ngp); // = g[b];
   // XXX Change to reserve + push_back!
   // XXX Spetial case of unity: don't make copy!!
 
@@ -139,14 +129,12 @@ XXX Few things here that are slow! XXX
     }
     break;
   case Operator::dr:
-    // NumCalc::diff(f[b], drdt, h, fprime);
-    // NumCalc::diff(g[b], drdt, h, gprime);
-    fprime = NumCalc::derivative(f[b], drdt, h);
-    gprime = NumCalc::derivative(g[b], drdt, h);
+    fprime = NumCalc::derivative(f[b], rgrid.drdu, rgrid.du);
+    gprime = NumCalc::derivative(g[b], rgrid.drdu, rgrid.du);
     break;
   case Operator::dr2:
-    fprime = NumCalc::derivative(f[b], drdt, h, 2);
-    gprime = NumCalc::derivative(g[b], drdt, h, 2);
+    fprime = NumCalc::derivative(f[b], rgrid.drdu, rgrid.du, 2);
+    gprime = NumCalc::derivative(g[b], rgrid.drdu, rgrid.du, 2);
     break;
   default:
     std::cout << "\nError 103 in EO radialInt: unknown operator\n";
@@ -154,60 +142,41 @@ XXX Few things here that are slow! XXX
 
   double Rf = 0, Rg = 0;
   if (vint.size() == 0) {
-    Rf = NumCalc::integrate(f[a], fprime, drdt, 1, 0, pinf);
-    // pinf? Ruins orthog? EndP? ??
-    Rg = NumCalc::integrate(g[a], gprime, drdt, 1, 0, pinf);
+    Rf = NumCalc::integrate(f[a], fprime, rgrid.drdu, 1, 0, pinf);
+    Rg = NumCalc::integrate(g[a], gprime, rgrid.drdu, 1, 0, pinf);
   } else {
-    Rf = NumCalc::integrate(f[a], vint, fprime, drdt, 1, 0, pinf);
-    Rg = NumCalc::integrate(g[a], vint, gprime, drdt, 1, 0, pinf);
+    Rf = NumCalc::integrate(f[a], vint, fprime, rgrid.drdu, 1, 0, pinf);
+    Rg = NumCalc::integrate(g[a], vint, gprime, rgrid.drdu, 1, 0, pinf);
   }
 
-  return (Rf + ig_sign * Rg) * h;
+  return (Rf + ig_sign * Rg) * rgrid.du;
 }
 
 //******************************************************************************
 double ElectronOrbitals::get_alpha() const { return alpha; }
-//******************************************************************************
+
 int ElectronOrbitals::Znuc() const { return Z_; }
-//******************************************************************************
+
 int ElectronOrbitals::Anuc() const { return A_; }
-//******************************************************************************
+
 int ElectronOrbitals::Nnuc() const {
   int N = (A_ - Z_) > 0 ? (A_ - Z_) : 0;
   return N;
 }
-//******************************************************************************
-double ElectronOrbitals::rinf(int i) const { return r[pinflist[i]]; }
-//******************************************************************************
-int ElectronOrbitals::lorb(int i) const {
-  if (i >= (int)kappa.size())
-    std::cerr << "\nFAIL EO:166: indix too big\n";
-  return ATI::l_k(kappa[i]);
-}
-//******************************************************************************
-int ElectronOrbitals::ka(int i) const {
-  if (i >= (int)kappa.size())
-    std::cerr << "\nFAIL EO:171: indix too big\n";
-  return kappa[i];
-}
-//******************************************************************************
-int ElectronOrbitals::n_pqn(int i) const {
-  if (i >= (int)kappa.size())
-    std::cerr << "\nFAIL EO:176: indix too big\n";
-  return nlist[i];
-}
-//******************************************************************************
+
+double ElectronOrbitals::rinf(int i) const { return rgrid.r[pinflist[i]]; }
+
+int ElectronOrbitals::lorb(int i) const { return ATI::l_k(kappa[i]); }
+
+int ElectronOrbitals::ka(int i) const { return kappa[i]; }
+
+int ElectronOrbitals::n_pqn(int i) const { return nlist[i]; }
+
 double ElectronOrbitals::jtot(int i) const {
-  if (i >= (int)kappa.size())
-    std::cerr << "\nFAIL EO:181: indix too big\n";
   return 0.5 * ATI::twoj_k(kappa[i]);
 }
-//******************************************************************************
-int ElectronOrbitals::twoj(int i) const {
-  if (i >= (int)kappa.size())
-    std::cerr << "\nFAIL EO:186: indix too big\n";
-  return ATI::twoj_k(kappa[i]);
-}
+
+int ElectronOrbitals::twoj(int i) const { return ATI::twoj_k(kappa[i]); }
 
 //******************************************************************************
 int ElectronOrbitals::reSolveDirac(unsigned long i, double e_a, int log_dele_or)
@@ -240,17 +209,17 @@ This is not ideal..
   // XXX this is inneficient. Fine, except for HF. THen, slow! ?
   std::vector<double> v_a = vnuc;
   if (vdir.size() != 0)
-    for (int i = 0; i < ngp; i++)
+    for (int i = 0; i < rgrid.ngp; i++)
       v_a[i] += vdir[i];
   if (vex.size() != 0)
-    for (int i = 0; i < ngp; i++)
+    for (int i = 0; i < rgrid.ngp; i++)
       v_a[i] += vex[i];
 
   int n = nlist[i];
   int k = kappa[i];
   if (e_a == 0)
     e_a = en[i];
-  ADAMS::solveDBS(f[i], g[i], e_a, v_a, n, k, r, drdt, h, pinf, its, eps, alpha,
+  ADAMS::solveDBS(f[i], g[i], e_a, v_a, n, k, rgrid, pinf, its, eps, alpha,
                   log_dele_or);
   en[i] = e_a; // update w/ new energy
 
@@ -375,7 +344,6 @@ NOTE: Only works up to n=9, and l=5 [h]
 bool ElectronOrbitals::isInCore(int n, int k) const
 /*
 Checks if given state is in the core.
-NOTE: in some cases, given state may be in and out! Account for this?
 */
 {
   // for(int i=0; i<num_core_states; i++)
@@ -386,18 +354,13 @@ NOTE: in some cases, given state may be in and out! Account for this?
 }
 
 //******************************************************************************
-int ElectronOrbitals::getStateIndex(int n, int k, bool forceVal) const
-/*
- */
-{
-  // XXX there are better ways to implement this using stateIndexList !
-  int beg = forceVal ? num_core_states : 0;
-  for (auto i = beg; i < (int)kappa.size(); i++)
+int ElectronOrbitals::getStateIndex(int n, int k, bool forceVal) const {
+  auto &state_list = forceVal ? valenceIndexList : stateIndexList;
+  for (auto i : state_list)
     if (n == nlist[i] && k == kappa[i])
       return i;
-  std::cout << "\nFAIL 290 in EO: Couldn't find state nk=" << n << "," << k
-            << "\n";
-  return (int)kappa.size(); // this is an invalid index!
+  std::cerr << "\nFAIL 290 in EO: Couldn't find state nk=" << n << k << "\n";
+  return (int)stateIndexList.size(); // this is an invalid index!
 }
 
 //******************************************************************************
@@ -500,38 +463,25 @@ Note: For HF, should never be called after core is frozen!
   size_t Ns = nlist.size();
   std::vector<std::vector<double>> c_ab(Ns, std::vector<double>(Ns));
 
-  // Calculate c_ab = <a|b>  [for b>a -- symmetric]
-  for (size_t a = 0; a < Ns; a++) {
-    for (size_t b = a + 1ul; b < Ns; b++) {
+  // Calculate c_ab = <a|b>  [only for b>a -- symmetric]
+  for (auto a : stateIndexList) {
+    for (auto b = a + 1; b < (int)Ns; b++) {
       if (kappa[a] != kappa[b])
         continue;
-      int pinf = std::min(pinflist[a], pinflist[b]);
-      double fab = NumCalc::integrate(f[a], f[b], drdt, 1., 0, pinf);
-      double gab = NumCalc::integrate(g[a], g[b], drdt, 1., 0, pinf);
-      c_ab[a][b] = 0.5 * h * (fab + gab); // 0.5 avoids double counting
-    }
-  }
-
-  // fill in the a>b part:
-  for (auto b = 0ul; b < Ns; b++) {
-    for (auto a = b + 1ul; a < Ns; a++) {
-      if (kappa[a] != kappa[b])
-        continue;
-      c_ab[a][b] = c_ab[b][a];
+      c_ab[a][b] = 0.5 * radialIntegral(a, b); // 0.5 avoids double counting
     }
   }
 
   // Orthogonalise orbitals:
-  for (auto a = 0ul; a < Ns; a++) {
-    for (auto b = 0ul; b < Ns; b++) {
+  for (auto a : stateIndexList) {
+    for (auto b : stateIndexList) {
       if (a == b)
         continue;
       if (kappa[a] != kappa[b])
         continue;
-      double cab = c_ab[a][b];
-      if (cab == 0ul)
-        continue; // already?
-      for (int ir = 0; ir < ngp; ir++) {
+      // c_ab = c_ba : only calc'd half:
+      double cab = (a < b) ? c_ab[a][b] : c_ab[b][a];
+      for (int ir = 0; ir < rgrid.ngp; ir++) {
         f[a][ir] -= cab * f[b][ir];
         g[a][ir] -= cab * g[b][ir];
       }
@@ -539,15 +489,13 @@ Note: For HF, should never be called after core is frozen!
   }
 
   // Re-normalise orbitals (nb: doesn't make much difference)
-  for (size_t a = 0; a < Ns; a++) {
-    int pinf = pinflist[a];
-    double faa = NumCalc::integrate(f[a], f[a], drdt, 1., 0, pinf);
-    double gaa = NumCalc::integrate(g[a], g[a], drdt, 1., 0, pinf);
-    double norm = 1. / sqrt(h * (faa + gaa));
-    for (int ir = 0; ir < ngp; ir++) {
-      f[a][ir] *= norm;
-      g[a][ir] *= norm;
-    }
+  for (auto a : stateIndexList) {
+    double A = radialIntegral(a, a);
+    double norm = 1. / sqrt(A);
+    for (auto &fa_r : f[a])
+      fa_r *= norm;
+    for (auto &ga_r : g[a])
+      ga_r *= norm;
   }
 
   // If necisary: repeat
@@ -575,10 +523,7 @@ note: here, c denotes core orbitals + valence orbitals with c<v
   for (int ic = 0; ic < num_states_below; ic++) {
     if (kappa[iv] != kappa[ic])
       continue;
-    int pinf = std::min(pinflist[iv], pinflist[ic]);
-    double fvc = NumCalc::integrate(f[iv], f[ic], drdt, 1., 0, pinf);
-    double gvc = NumCalc::integrate(g[iv], g[ic], drdt, 1., 0, pinf);
-    A_vc[ic] = h * (fvc + gvc); // no 0.5 here - no double counting
+    A_vc[ic] = radialIntegral(iv, ic); // no 0.5 here
   }
 
   // Orthogonalise:
@@ -586,23 +531,19 @@ note: here, c denotes core orbitals + valence orbitals with c<v
     if (kappa[iv] != kappa[ic])
       continue;
     double Avc = A_vc[ic];
-    if (Avc == 0)
-      continue; // never?
-    for (int ir = 0; ir < ngp; ir++) {
+    for (int ir = 0; ir < rgrid.ngp; ir++) {
       f[iv][ir] -= Avc * f[ic][ir];
       g[iv][ir] -= Avc * g[ic][ir];
     }
   }
 
   // Re-normalise the valence orbital:
-  int pinf = pinflist[iv];
-  double fvv = NumCalc::integrate(f[iv], f[iv], drdt, 1., 0, pinf);
-  double gvv = NumCalc::integrate(g[iv], g[iv], drdt, 1., 0, pinf);
-  double norm = 1. / sqrt(h * (fvv + gvv));
-  for (int ir = 0; ir < ngp; ir++) {
-    f[iv][ir] *= norm;
-    g[iv][ir] *= norm;
-  }
+  double A = radialIntegral(iv, iv);
+  double norm = 1. / sqrt(A);
+  for (auto &fv_r : f[iv])
+    fv_r *= norm;
+  for (auto &gv_r : g[iv])
+    gv_r *= norm;
 
   // If necisary: repeat
   if (num_its > 1)
@@ -610,7 +551,7 @@ note: here, c denotes core orbitals + valence orbitals with c<v
 }
 
 //******************************************************************************
-double ElectronOrbitals::enGuessCore(int n, int l)
+double ElectronOrbitals::enGuessCore(int n, int l) const
 /*
 Private
 Energy guess for core states. Not perfect, good enough
@@ -649,14 +590,11 @@ num = num electrons in THIS shell
   if (n == maxCore_n() + 1 && l == 0 && num == 2)
     en_a = -0.5 * pow(Zeff, 2);
 
-  // std::cout<<"Guess: n,l="<<n<<","<<l<<": "<<en_a<<", tot_el="<<tot_el<<"
-  // "<<num<<" "<<Zeff<<"\n"; std::cout<<"maxcn="<<maxCore_n()<<"\n";
-
   return en_a;
 }
 
 //******************************************************************************
-double ElectronOrbitals::enGuessVal(int n, int ka)
+double ElectronOrbitals::enGuessVal(int n, int ka) const
 /*Energy guess for valence states. Not perfect, good enough*/
 {
   int maxn = maxCore_n();
@@ -676,150 +614,13 @@ double ElectronOrbitals::enGuessVal(int n, int ka)
 }
 
 //******************************************************************************
-int ElectronOrbitals::exponentialRadialGrid(int in_ngp, double r0, double rmax)
-/*
-Non-uniform r grid, taken from Johnson book (w/ minor modification).
-Quite a standard exponential grid.
-Uses:
-  dr/dt = r0 * exp(t)
-  =>  r = r0 * exp(t)
-      t = i*h for i=0,1,2,...
-*/
-{
-
-  ngp = in_ngp;
-  h = log(rmax / r0) / (ngp - 1);
-  if (h > 0.03) {
-    std::cout << "Warning: h=" << h
-              << " in formRadialGrid. Is this too large??\n";
-  }
-
-  drdt.clear();
-  for (int i = 0; i < ngp; i++) {
-    double temp_drdt = r0 * exp(i * h);
-    drdt.push_back(temp_drdt);
-  }
-
-  r.clear();
-  for (int i = 0; i < ngp; i++) {
-    double temp_r = drdt[i];
-    r.push_back(temp_r);
-  }
-
-  // (dr/dt)/r [for convinience]
-  // Note: with current radial grid, this is always 1! (not true in general)
-  dror.clear();
-  dror.push_back(1.);
-  for (int i = 1; i < ngp; i++) {
-    double temp_dror = drdt[i] / r[i];
-    dror.push_back(temp_dror);
-  }
-
-  return 0;
-}
-
-//******************************************************************************
-int ElectronOrbitals::getRadialIndex(double r_target) const
-/*
-Finds the radial grid index that corresponds to r=r_target
-NOTE: returns index that corresponds to r _lower_ than (or equal to) r_target
-(in general, the grid should be dense enough so that +/- 1 point doesn't matter)
-*/
-{
-  // if (r.size()==0){
-  //   std::cout<<"ERROR 219 in ElectronOrbitals - no grid!\n";
-  //   return -1;
-  // }
-  if (r_target >= r[ngp - 1])
-    return (ngp - 1);
-  if (r_target <= r[0])
-    return 0; // nb: in this case: r[i] > r_target! careful!
-  // loop through, find i for r[i] <= r_target < r[i+1]:
-  for (auto i = 0ul; i < r.size() - 1; i++)
-    if (r_target >= r[i] && r_target < r[i + 1])
-      return (int)i;
-  // shouldn't get past this loop! This just for safety?
-  std::cout << "ERROR 227 in ElectronOrbitals - didn't find r??\n";
-  return -1; //??
-}
-
-// enum class GridType {logLinear, exponential, linear};
-//
-// //******************************************************************************
-// void ElectronOrbitals::setGrid(GridType::grid)
-// {
-//
-// }
-
-//******************************************************************************
-int ElectronOrbitals::logLinearRadialGrid(double in_h, double r0, double rmax,
-                                          double b)
-/*
-OVERLOADED.
-So, can give an input h, and let program determine NGP.
-*/
-{
-  double d_ngp = (in_h - r0 + rmax + b * log(rmax / r0)) / in_h;
-  int in_ngp = (int)d_ngp + 1;
-  return logLinearRadialGrid(in_ngp, r0, rmax, b);
-}
-//******************************************************************************
-int ElectronOrbitals::logLinearRadialGrid(int in_ngp, double r0, double rmax,
-                                          double b)
-/*
-Non-uniform r-grid taken from V. Dzuba code.
-Uses:
-  dr/dt = r / (b + r)
-  t = r + b*log(r)
-Grid will be ~ exponential below 'b', roughly linear afterwards
-Default b=4.
-*/
-{
-
-  ngp = in_ngp;
-  h = (rmax - r0 + b * log(rmax / r0)) / (ngp - 1);
-
-  // clear the vectors, just in case
-  r.clear();
-  drdt.clear();
-  dror.clear();
-  // initial points:
-  r.push_back(r0);
-  dror.push_back(1. / (b + r0));
-  drdt.push_back(dror[0] * r0);
-
-  // Use method from Dzuba code to calculate r grid
-  double t = r0 + b * log(r0); // t is linear/uniform grid
-  for (int i = 1; i < ngp; i++) {
-    t += h;
-    double t_r = r[i - 1]; //"temp" r
-    // Integrate dr/dt to find r:
-    double delta_r = 1.;
-    int ii = 0; // to count number of iterations
-    while (delta_r > r0 * 1.e-15) {
-      double delta_t = t - (t_r + b * log(t_r)); // t = t0+i*h
-      double t_drdt = t_r / (t_r + b);           // temp dr/dt
-      delta_r = delta_t * t_drdt;
-      t_r += delta_r;
-      ii++;
-      if (ii > 30)
-        break; // usually converges in ~ 2 or 3 steps!
-    }
-    r.push_back(t_r);
-    dror.push_back(1. / (b + t_r));
-    drdt.push_back(dror[i] * t_r);
-  }
-
-  return 0;
+int ElectronOrbitals::getRadialIndex(double r_target) const {
+  return rgrid.findNearestIndex(r_target);
 }
 
 //******************************************************************************
 double ElectronOrbitals::diracen(double z, double n, int k) const {
-  //
-  // double c2 = 1./pow(alpha,2);
-  // double za2 = pow(alpha*z,2);
-  // double g=sqrt(k*k-za2);
-  // double diracE=c2*(1./sqrt(1+za2/pow((g+n-fabs(k)),2))-1.);
+
   double a2 = pow(alpha, 2);
   double c2 = 1. / pow(alpha, 2);
   double za2 = pow(alpha * z, 2);
@@ -830,7 +631,6 @@ double ElectronOrbitals::diracen(double z, double n, int k) const {
 
   double diracE =
       -1 * w2 / (2 * d) - (a2 * w2 / 2 + 1 - sqrt(1 + a2 * w2)) * (c2 / d);
-  // double diracE=c2*(1./sqrt(1+za2/pow((g+n-fabs(k)),2))-1.);
   return diracE;
 }
 
@@ -853,21 +653,21 @@ void ElectronOrbitals::formNuclearPotential(NucleusType nucleus_type, double rc,
 }
 
 //******************************************************************************
-int ElectronOrbitals::zeroNucleus()
+void ElectronOrbitals::zeroNucleus()
 /*
 infinitesimal nucleus.
 1/r potential
 */
 {
-  vnuc.clear(); // just to be sure..
-  // vnuc.push_back(0); //XXX ??
-  for (int i = 0; i < ngp; i++)
-    vnuc.push_back(-Z_ / r[i]);
-  return 0;
+  vnuc.clear();
+  vnuc.reserve(rgrid.ngp);
+  for (auto r : rgrid.r)
+    vnuc.push_back(-Z_ / r);
+  return;
 }
 
 //******************************************************************************
-int ElectronOrbitals::sphericalNucleus(double rnuc)
+void ElectronOrbitals::sphericalNucleus(double rnuc)
 /*
 Potential due to a spherical nucleus, with (charge) radius, rnuc.
 Note: rnuc must be given in "fermi" (fm, femto-metres).
@@ -876,7 +676,8 @@ formula for rN.
 See: https://www-nds.iaea.org/radii/
 */
 {
-  vnuc.clear(); // just to be sure..
+  vnuc.clear();
+  vnuc.reserve(rgrid.ngp);
 
   double rN = rnuc; // nuclear charge radius:
   // Estimate nuclear charge radius. Only for spherical nuclei.
@@ -893,30 +694,23 @@ See: https://www-nds.iaea.org/radii/
       rN = (0.836 * pow(A_, 0.333) + 0.570);
   }
   rN /= FPC::aB_fm;
-  // XXX Add data tables of nuclear radii!
 
   // Fill the vnuc array with spherical nuclear potantial
   double rn2 = pow(rN, 2);
   double rn3 = pow(rN, 3);
-  for (size_t i = 0; i < r.size(); i++) {
-    double temp_v;
-    double ri = r[i];
-    if (ri < rN)
-      temp_v = Z_ * (ri * ri - 3. * rn2) / (2. * rn3);
-    else
-      temp_v = -Z_ / ri;
+  for (auto ri : rgrid.r) {
+    double temp_v =
+        (ri < rN) ? Z_ * (ri * ri - 3. * rn2) / (2. * rn3) : -Z_ / ri;
     vnuc.push_back(temp_v);
   }
 
-  return 0;
+  return;
 }
 
 //******************************************************************************
-int ElectronOrbitals::fermiNucleus(double t, double c)
+void ElectronOrbitals::fermiNucleus(double t, double c)
 /*
 Uses a Fermi-Dirac distribution for the nuclear potential.
-
-NOTE: Only seems to work for fairly large Z !
 
 rho(r) = rho_0 {1 + Exf[(r-c)/a]}^-1
 V(r) = -(4 Pi)/r [A+B]
@@ -936,7 +730,7 @@ If provided with 0, will use 'default' values, approx. formula.
 
 V(r) is expressed in terms of Complete Fermi-Dirac intagrals.
 These are computed using the GSL libraries.
-https://www.gnu.org/software/gsl/manual/html_node/Complete-Fermi_002dDirac-Integrals
+gnu.org/software/gsl/manual/html_node/Complete-Fermi_002dDirac-Integrals
 */
 {
   vnuc.clear(); // clear the array [just in case..]
@@ -945,6 +739,7 @@ https://www.gnu.org/software/gsl/manual/html_node/Complete-Fermi_002dDirac-Integ
     t = 2.3;
   if (Z_ == 55 && c == 0)
     c = 5.6710;
+
   if (t == 0)
     t = 2.4; // Default skin-thickness (in fm)
   if (c == 0)
@@ -956,10 +751,9 @@ https://www.gnu.org/software/gsl/manual/html_node/Complete-Fermi_002dDirac-Integ
   // Use GSL for the Complete Fermi-Dirac Integrals:
   double F2 = gsl_sf_fermi_dirac_2(coa);
   double pi2 = pow(M_PI, 2);
-  for (int i = 0; i < ngp; i++) {
-    double t_r = r[i];
+  for (auto t_r : rgrid.r) {
     double t_v = -Z_ / t_r;
-    if (t_r < 2. * a) {                  // XXX OK?? Note: units!!!
+    if (t_r < 2. * a) {
       double roa = FPC::aB_fm * t_r / a; // convert fm <-> atomic
       double coa2 = pow(coa, 2);
       double xF1 = gsl_sf_fermi_dirac_1(roa - coa);
@@ -971,7 +765,7 @@ https://www.gnu.org/software/gsl/manual/html_node/Complete-Fermi_002dDirac-Integ
     vnuc.push_back(t_v);
   }
 
-  return 0;
+  return;
 }
 
 //******************************************************************************
@@ -1018,43 +812,4 @@ sorted by energy (lowest energy first)
 
   for (size_t i = 0; i < en.size(); i++)
     sort_list.push_back((int)t_en[i][1]);
-}
-
-//******************************************************************************
-void ElectronOrbitals::clearAll()
-/*
-Just clears all the info.
-*/
-{
-  // Atom info
-  Z_ = 0;
-  A_ = 0;
-  // atom="0";
-  // orbitals:
-  f.clear();
-  g.clear();
-  en.clear();
-  // state info:
-  nlist.clear();
-  kappa.clear();
-  // info from solveing DE
-  pinflist.clear();
-  itslist.clear();
-  epslist.clear();
-  // grid
-  r.clear();
-  drdt.clear();
-  dror.clear();
-  ngp = 0;
-  h = 0;
-  // Potentials
-  vnuc.clear();
-  vdir.clear();
-  // core:
-  occ_frac.clear();
-  num_core_states = 0;
-  num_core_electrons = 0;
-  // ** private **
-  alpha = 0;
-  num_core_shell.clear();
 }

@@ -24,7 +24,7 @@ HartreeFock::HartreeFock(ElectronOrbitals &wf, const std::string &in_core,
 
   // Store pointer to ElectronOrbitals object internally
   p_wf = &wf;
-  m_ngp = p_wf->ngp;
+  m_ngp = p_wf->rgrid.ngp;
 
   starting_approx_core(in_core);
   m_num_core_states = p_wf->num_core_states;
@@ -87,9 +87,9 @@ void HartreeFock::hartree_fock_core() {
       for (int j = 0; j < p_wf->pinflist[i]; j += 5) {
         double dv = p_wf->vdir[j] + vex[i][j] - vdir_old[j] - vex_old[i][j];
         del_e += dv * (pow(p_wf->f[i][j], 2) + pow(p_wf->g[i][j], 2)) *
-                 p_wf->drdt[j];
+                 p_wf->rgrid.drdu[j];
       }
-      del_e *= p_wf->h * 5;
+      del_e *= p_wf->rgrid.du * 5;
       double en_guess = en_old[i] + del_e;
       if (en_guess > 0)
         en_guess = en_old[i];                     // safety, should never happen
@@ -162,8 +162,9 @@ void HartreeFock::solveValence(int n, int kappa) {
     double en_new = 0;
     for (int i = 0; i < p_wf->pinflist[a]; i += 5)
       en_new += (vexa[i] - vexa_old[i]) *
-                (pow(p_wf->f[a][i], 2) + pow(p_wf->g[a][i], 2)) * p_wf->drdt[i];
-    en_new = p_wf->en[a] + en_new * p_wf->h * 5;
+                (pow(p_wf->f[a][i], 2) + pow(p_wf->g[a][i], 2)) *
+                p_wf->rgrid.drdu[i];
+    en_new = p_wf->en[a] + en_new * p_wf->rgrid.du * 5;
     // Solve Dirac using new potential:
     p_wf->reSolveDirac(a, en_new, vexa, 1);
     double eps = fabs((p_wf->en[a] - en_old) / (eta * en_old));
@@ -202,10 +203,10 @@ where:
       double xtjbp1 = (twoj_list[b] + 1) * p_wf->occ_frac[b];
       int irmax = std::min(p_wf->pinflist[a], p_wf->pinflist[b]);
       std::vector<double> &v0bb = get_v_aa0(b);
-      double R0f2 = NumCalc::integrate(p_wf->f[a], p_wf->f[a], v0bb, p_wf->drdt,
-                                       1, 0, irmax);
-      double R0g2 = NumCalc::integrate(p_wf->g[a], p_wf->g[a], v0bb, p_wf->drdt,
-                                       1, 0, irmax);
+      double R0f2 = NumCalc::integrate(p_wf->f[a], p_wf->f[a], v0bb,
+                                       p_wf->rgrid.drdu, 1, 0, irmax);
+      double R0g2 = NumCalc::integrate(p_wf->g[a], p_wf->g[a], v0bb,
+                                       p_wf->rgrid.drdu, 1, 0, irmax);
       E2 += xtjap1 * xtjbp1 * (R0f2 + R0g2);
       // take advantage of symmetry for third term:
       if (b > a)
@@ -219,15 +220,15 @@ where:
         if (L_abk == 0)
           continue;
         int ik = k - kmin;
-        double R0f3 =
-            NumCalc::integrate(p_wf->f[a], p_wf->f[b], vabk[ik], p_wf->drdt);
-        double R0g3 =
-            NumCalc::integrate(p_wf->g[a], p_wf->g[b], vabk[ik], p_wf->drdt);
+        double R0f3 = NumCalc::integrate(p_wf->f[a], p_wf->f[b], vabk[ik],
+                                         p_wf->rgrid.drdu);
+        double R0g3 = NumCalc::integrate(p_wf->g[a], p_wf->g[b], vabk[ik],
+                                         p_wf->rgrid.drdu);
         E3 += y * xtjap1 * xtjbp1 * L_abk * (R0f3 + R0g3);
       }
     }
     {
-      Etot += E1 - 0.5 * (E2 - E3) * p_wf->h; // update running total
+      Etot += E1 - 0.5 * (E2 - E3) * p_wf->rgrid.du; // update running total
     }
   }
   return Etot;
@@ -247,7 +248,7 @@ Later, can put other options if you want.
   PRM::defaultGreenCore(Z, Gh, Gd);
   // Fill the the potential, using Greens PRM
   for (int i = 0; i < m_ngp; i++)
-    p_wf->vdir[i] = PRM::green(Z, p_wf->r[i], Gh, Gd);
+    p_wf->vdir[i] = PRM::green(Z, p_wf->rgrid.r[i], Gh, Gd);
   // First step: Solve each core state using above parameteric potential
   p_wf->solveInitialCore(in_core, 1); // 1 in 10
 }
@@ -454,19 +455,21 @@ v^k_ab(rn) = A(rn)/rn^(k+1) + B(rn)*rn^k
 
   double Ax = 0, Bx = 0;
   for (int i = 0; i < irmax; i++)
-    Bx += p_wf->drdt[i] *
+    Bx += p_wf->rgrid.drdu[i] *
           (p_wf->f[a][i] * p_wf->f[b][i] + p_wf->g[a][i] * p_wf->g[b][i]) /
-          pow(p_wf->r[i], k + 1);
+          pow(p_wf->rgrid.r[i], k + 1);
 
   if (a == b)
     irmax = m_ngp; // For direct part, can't cut!
-  vabk[0] = Bx * p_wf->h;
+  vabk[0] = Bx * p_wf->rgrid.du;
   for (int i = 1; i < irmax; i++) {
-    double Fdr = p_wf->drdt[i - 1] * (p_wf->f[a][i - 1] * p_wf->f[b][i - 1] +
-                                      p_wf->g[a][i - 1] * p_wf->g[b][i - 1]);
-    Ax = Ax + Fdr * pow(p_wf->r[i - 1], k);
-    Bx = Bx - Fdr / pow(p_wf->r[i - 1], k + 1);
-    vabk[i] = p_wf->h * (Ax / pow(p_wf->r[i], k + 1) + Bx * pow(p_wf->r[i], k));
+    double Fdr =
+        p_wf->rgrid.drdu[i - 1] * (p_wf->f[a][i - 1] * p_wf->f[b][i - 1] +
+                                   p_wf->g[a][i - 1] * p_wf->g[b][i - 1]);
+    Ax = Ax + Fdr * pow(p_wf->rgrid.r[i - 1], k);
+    Bx = Bx - Fdr / pow(p_wf->rgrid.r[i - 1], k + 1);
+    vabk[i] = p_wf->rgrid.du * (Ax / pow(p_wf->rgrid.r[i], k + 1) +
+                                Bx * pow(p_wf->rgrid.r[i], k));
   }
   for (int i = irmax; i < m_ngp; i++)
     vabk[i] = 0;

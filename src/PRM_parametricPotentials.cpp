@@ -231,10 +231,10 @@ Crude quadratic fit used for other Z values.
 // 	double phi;
 // 	double vTF;
 // 	if (i==0){
-// //		vTF=-Z/(r0);			// ?? or let it be infinite??.. This
-// shouldn't be used
-// 		vTF=-Z/(0.01*r0);			// ?? or let it be infinite??..
+// //		vTF=-Z/(r0);			// ?? or let it be infinite??..
 // This shouldn't be used
+// 		vTF=-Z/(0.01*r0);			// ?? or let it be
+// infinite??.. This shouldn't be used
 // 	}
 // 	else if ((i>0)and(i<NGP)){
 // //		x=1.12950781018323*r(i)*pow(Z,1/3.);

@@ -1,3 +1,4 @@
+#pragma once
 #include <cmath>
 #include <iostream>
 #include <vector>
@@ -32,7 +33,7 @@ private:
 
 public:
   Grid(double in_r0, double in_rmax, int in_ngp,
-       GridType gridtype = GridType::loglinear, double b = 4.);
+       GridType gridtype = GridType::loglinear, double b = 0);
 
   int findNextIndex(double x) const;
   int findNearestIndex(double x) const;
@@ -40,10 +41,10 @@ public:
   void printDetails() const;
 
   static double calc_du_from_ngp(double in_r0, double in_rmax, int in_ngp,
-                                 GridType gridtype, double b = 4.);
+                                 GridType gridtype, double b = 0);
 
   static int calc_ngp_from_du(double in_r0, double in_rmax, double in_du,
-                              GridType gridtype, double b = 4.);
+                              GridType gridtype, double b = 0);
 };
 
 //******************************************************************************
@@ -53,6 +54,8 @@ inline double Grid::calc_du_from_ngp(double in_r0, double in_rmax, int in_ngp,
     return 0;
   switch (gridtype) {
   case GridType::loglinear:
+    if (b == 0)
+      std::cerr << "\nFAIL57 in Grid: cant have b=0 for log-linear grid!\n";
     return (in_rmax - in_r0 + b * log(in_rmax / in_r0)) / (in_ngp - 1);
   case GridType::logarithmic:
     return log(in_rmax / in_r0) / (in_ngp - 1);
@@ -68,6 +71,8 @@ inline int Grid::calc_ngp_from_du(double in_r0, double in_rmax, double in_du,
                                   GridType gridtype, double b) {
   switch (gridtype) {
   case GridType::loglinear:
+    if (b == 0)
+      std::cerr << "\nFAIL57 in Grid: cant have b=0 for log-linear grid!\n";
     return int((in_rmax - in_r0 + b * log(in_rmax / in_r0)) / in_du) + 2;
   case GridType::logarithmic:
     return int(log(in_rmax / in_r0) / in_du) + 2;
@@ -156,6 +161,8 @@ Definition:
 Typically (and by default), b = 4 (unit units/bohr radius)
 */
 {
+  if (b == 0)
+    std::cerr << "FAIL 164 in Grid: Cant have b=0 for LogLinear Grid!\n";
 
   // initial points:
   r.push_back(r0);

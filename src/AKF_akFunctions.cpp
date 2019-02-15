@@ -194,10 +194,10 @@ Zeff no longer works at main() level.
           for (int j = 0; j < maxj; j++) {
             jLqr = (double)jLqr_f[L][iq][j];
             a += (wf.f[is][j] * cntm.f[ic][j] + wf.g[is][j] * cntm.g[ic][j]) *
-                 jLqr * wf.drdt[j]; // *h below!
+                 jLqr * wf.rgrid.drdu[j]; // *h below!
           }
         }
-        AK_nk_q[iq] += (float)(dC_Lkk * pow(a * wf.h, 2) * x_ocf);
+        AK_nk_q[iq] += (float)(dC_Lkk * pow(a * wf.rgrid.du, 2) * x_ocf);
       } // q
     }   // END loop over cntm states (ic)
   }     // end L loop
@@ -234,8 +234,9 @@ XXX Note sure if correct! esp, (q) angular part!? XXX
       break;
     double chi_q = 0.;
     for (int ir = 0; ir < maxir; ir++)
-      chi_q += wf.f[nk][ir] * double(jl_qr[iq][ir]) * wf.r[ir] * wf.drdt[ir];
-    chi_q *= wf.h;
+      chi_q += wf.f[nk][ir] * double(jl_qr[iq][ir]) * wf.rgrid.r[ir] *
+               wf.rgrid.drdu[ir];
+    chi_q *= wf.rgrid.du;
     tmpK_q[iq] =
         (float)((2. / M_PI) * (twoj + 1) * pow(chi_q, 2) * sqrt(2. * eps));
     // tmpK_q[iq] = pow(4*3.14159,2)*pow(chi_q,2); //XXX XXX just cf KOPP

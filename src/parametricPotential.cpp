@@ -59,13 +59,14 @@ int main(int argc, char *argv[]) {
   // Generate the orbitals object:
   ElectronOrbitals wf(Z, A, ngp, r0, rmax, varalpha);
 
-  printf("Grid: pts=%i h=%7.5f Rmax=%5.1f\n", wf.ngp, wf.h, wf.r.back());
+  printf("Grid: pts=%i h=%7.5f Rmax=%5.1f\n", wf.rgrid.ngp, wf.rgrid.du,
+         wf.rgrid.r.back());
 
   // Fill the electron part of the potential
   wf.vdir.clear();
-  wf.vdir.reserve(wf.ngp);
-  // for (int i = 0; i < wf.ngp; i++) {
-  for (auto r : wf.r) {
+  wf.vdir.reserve(wf.rgrid.ngp);
+  // for (int i = 0; i < wf.rgrid.ngp; i++) {
+  for (auto r : wf.rgrid.r) {
     double tmp = 0;
     if (Gf != 0)
       tmp += Gf * PRM::green(Z, r, Gh, Gd);
