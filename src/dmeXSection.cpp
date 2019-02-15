@@ -55,7 +55,7 @@ double quickExp(double x) {
 }
 
 //******************************************************************************
-double g(double s, double x)
+double gaussian(double s, double x)
 // Simple Gaussian
 {
   double a = 0.398942 / s;
@@ -140,11 +140,13 @@ double F_chi_2_intermediate(double mu, double q) {
 //******************************************************************************
 void writeForGnuplot_mvBlock(const DoubleVec3D &X_mv_mx_x, const Grid &mvgrid,
                              const Grid &mxgrid, const Grid &Egrid,
-                             std::string fname, double y_unit_convert)
+                             std::string fname, double y_unit_convert,
+                             double x_unit_convert = E_to_keV)
 // Write to gnu-plot formatted text file.
 // Each column is a m_chi (DM mass). Each block is different m_v
 {
   std::ofstream of(fname.c_str());
+  of << "# sigma^bar_e = " << sbe_1e37_cm2 << " cm^2\n";
 
   int n_mv = mvgrid.ngp;
   int n_mx = mxgrid.ngp;
@@ -178,7 +180,7 @@ void writeForGnuplot_mvBlock(const DoubleVec3D &X_mv_mx_x, const Grid &mvgrid,
     of << "\n" << std::scientific << std::setprecision(6);
     for (int ie = 0; ie < desteps; ie++) {
       double E = Egrid.r[ie]; // x(ie);
-      of << E * E_to_keV << " ";
+      of << E * x_unit_convert << " ";
       for (int imx = 0; imx < n_mx; imx++) {
         of << double(X_mv_mx_x[imv][imx][ie]) * y_unit_convert << " ";
       } // mx
@@ -192,11 +194,13 @@ void writeForGnuplot_mvBlock(const DoubleVec3D &X_mv_mx_x, const Grid &mvgrid,
 //******************************************************************************
 void writeForGnuplot_mxBlock(const DoubleVec3D &X_mv_mx_x, const Grid &mvgrid,
                              const Grid &mxgrid, const Grid &Egrid,
-                             const std::string &fname, double y_unit_convert)
+                             const std::string &fname, double y_unit_convert,
+                             double x_unit_convert = E_to_keV)
 // Write to gnu-plot formatted text file
 // Each column is a m_v (mediator mass). Each block is different m_chi
 {
   std::ofstream of(fname.c_str());
+  of << "# sigma^bar_e = " << sbe_1e37_cm2 << " cm^2\n";
 
   int n_mv = mvgrid.ngp;
   int n_mx = mxgrid.ngp;
@@ -220,7 +224,7 @@ void writeForGnuplot_mxBlock(const DoubleVec3D &X_mv_mx_x, const Grid &mvgrid,
     of << "\n" << std::scientific << std::setprecision(6);
     for (int ie = 0; ie < desteps; ie++) {
       double E = Egrid.r[ie]; // x(ie);
-      of << E * E_to_keV << " ";
+      of << E * x_unit_convert << " ";
       for (int imv = 0; imv < n_mv; imv++) {
         of << double(X_mv_mx_x[imv][imx][ie]) * y_unit_convert << " ";
       } // mv
@@ -252,7 +256,7 @@ Uses a function pointer for DM form factor. F_chi_2(mu,q) := |F_chi|^2
   int num_states = (int)(Ke_nq.size());
   int qsteps = qgrid.ngp;
 
-  double mu = mv * FPC::c; // mu = m_v*c
+  double mu = mv * FPC::c;
 
   double qminus = mx * v - sqrt(arg);
   double qplus = mx * v + sqrt(arg);
@@ -265,12 +269,9 @@ Uses a function pointer for DM form factor. F_chi_2(mu,q) := |F_chi|^2
       double q = qgrid.r[iq];
       if (q < qminus || q > qplus)
         continue;
-      // std::cout << "\nq, dq = " << q << " " << qgrid.drdu[iq] << "\n";
-      // double qdq_on_dqonq = q * q; //(dq/q) is constant, multiply at end
       double qdq_ondu = q * qgrid.drdu[iq];
       double FX2 = F_chi_2(mu, q); // DM form factr (^2) [uses function pointer]
       dsdE += qdq_ondu * FX2 * double(Ke_nq[ink][iq]);
-      // dq/q included below
     } // q int
   }   // states
 
@@ -316,7 +317,6 @@ Note: mv<0 means "heavy" mediator [Fx=1]
 {
   // Loop through E, create dsvde array
   int desteps = Egrid.ngp;
-  //#pragma omp parallel for
   for (int ie = 0; ie < desteps; ie++) {
     double E = Egrid.r[ie];
     // Do v (and q) integrations:
@@ -392,6 +392,25 @@ instead
 }
 
 //******************************************************************************
+std::vector<double>
+convolvedRate(const std::vector<double> &in_rate, const Grid &in_grid,
+              const std::vector<std::vector<double>> &f_conv,
+              double convert_units) {
+
+  auto Nout = f_conv.size();
+
+  // size_t Nout = f_smear.size();
+  std::vector<double> out_rate; //(Nout);
+  out_rate.reserve(Nout);
+  for (size_t i = 0; i < Nout; i++) {
+    double g = NumCalc::integrate(in_rate, f_conv[i], in_grid.drdu, in_grid.du);
+    out_rate.push_back(convert_units * g);
+  }
+
+  return out_rate;
+}
+
+//******************************************************************************
 void doDAMA(const DoubleVec3D &dsv_mv_mx_E, const Grid &mvgrid,
             const Grid &mxgrid, const Grid &Egrid, bool do_anMod,
             bool write_dSdE, bool write_SofM, double dres, double err_PEkeV,
@@ -409,51 +428,46 @@ Optionally further integrates into energy bins
   int n_mx = mxgrid.ngp;
   int desteps = Egrid.ngp;
 
+  // DAMA resolution/threshold parameters:
+  // Hardware threshold: should be between [-1,1]
+  double PE_per_keV = 6.5 + err_PEkeV * 1.;
+  double E_thresh_HW = 1. / PE_per_keV / E_to_keV;
+  // DAMA parameters for Gaussian resolution (smearing)
+  double alpha = 0.45 + dres * 0.04;
+  double beta = 0.009 + dres * 0.005;
+
+  // Create the Gaussian-smearing array (includes HW threshold)
+  std::vector<std::vector<double>> gausVec(desteps);
+  for (int i = 0; i < desteps; i++) {
+    double Eobs = Egrid.r[i];
+    double sigma =
+        (alpha * sqrt(Eobs * E_to_keV) + beta * (Eobs * E_to_keV)) / E_to_keV;
+    for (auto Eer : Egrid.r) {
+      double g = gaussian(sigma, Eobs - Eer);
+      if (Eer < E_thresh_HW || Eobs < E_thresh_HW)
+        g = 0;
+      gausVec[i].push_back(g);
+    }
+  }
+
   // Array to store observable Rate, S
   DoubleVec3D dSdE_mv_mx_E;
   dSdE_mv_mx_E.resize(n_mv, std::vector<std::vector<double>>(
                                 n_mx, std::vector<double>(desteps)));
 
-  // Hardware threshold: should be between [-1,1]
-  double PE_per_keV = 6.5 + err_PEkeV * 1.;
-  double E_thresh_HW = 1. / PE_per_keV / E_to_keV;
-
-  // DAMA parameters for Gaussian resolution (smearing)
-  double alpha = 0.45 + dres * 0.04;
-  double beta = 0.009 + dres * 0.005;
-
-  // double dEonE = Egrid.dxonx();
-  // double dEonE = Egrid.drduor[0]; // XXX Assumes Log-grid! FIX! Normal!
-
-  double MN =
-      Atot * (FPC::u_NMU * FPC::m_e_kg); // Total atomic/mol. mass (in kg)
+  // Total atomic/mol. mass (in kg) [for units]
+  double MN = Atot * (FPC::u_NMU * FPC::m_e_kg);
 
   // Calculate _observable_ rate, S, for DAMA
-  // inlcuding Gaussian resolution, +
+  // inlcuding Gaussian resolution, + hard-ware threshold
+  // Converts units to counts/day/kg/keV
   for (int imv = 0; imv < n_mv; imv++) {
     for (int imx = 0; imx < n_mx; imx++) {
       double mx = mxgrid.r[imx];
       double rho_on_mxc2 = rhoDM_GeVcm3 / (mx * M_to_GeV);
-      double rateFac = dsvdE_to_cm3keVday * rho_on_mxc2 / MN;
-      for (int i = 0; i < desteps; i++) {
-        double E = Egrid.r[i];
-        if (E < E_thresh_HW) {
-          dSdE_mv_mx_E[imv][imx][i] = 0;
-          continue;
-        }
-        // triple check this! Super important!
-        double s =
-            (alpha * sqrt(E * E_to_keV) + beta * (E * E_to_keV)) / E_to_keV;
-        double y0 = 0;
-        // integrate over Eprime:
-        for (int j = 0; j < desteps; j++) {
-          double Ep = Egrid.r[j];
-          if (Ep < E_thresh_HW)
-            continue; // hardware threshold
-          y0 += g(s, E - Ep) * double(dsv_mv_mx_E[imv][imx][j]) * Egrid.drdu[j];
-        }
-        dSdE_mv_mx_E[imv][imx][i] = y0 * Egrid.du * rateFac;
-      }
+      double rate_units = dsvdE_to_cm3keVday * rho_on_mxc2 / MN;
+      dSdE_mv_mx_E[imv][imx] =
+          convolvedRate(dsv_mv_mx_E[imv][imx], Egrid, gausVec, rate_units);
     }
   }
 
@@ -540,6 +554,9 @@ Optionally further integrates into energy bins
     // Write Sm/[E] as function of m_chi, each m_v as block
     std::cout << "Writing to file: " << fn_S << "\n";
     of.open(fn_S);
+    of << "#Rate for DAMA: integrated (averaged) into bins. "
+       << "Units: counts/day/kg/keV\n";
+    of << "# sigma^bar_e = " << sbe_1e37_cm2 << " cm^2\n";
     for (int imv = 0; imv < n_mv; imv++) {
       double mv = mvgrid.r[imv];
       if (mv >= 0)
@@ -602,32 +619,43 @@ Optionally further integrates into energy bins
 
 //******************************************************************************
 void doXe100(const DoubleVec3D &dsv_mv_mx_E, const Grid &mvgrid,
-             const Grid &mxgrid, const Grid &Egrid, double Atot,
-             bool write_dSds1, std::string label)
-/*ok*/
+             const Grid &mxgrid, const Grid &Egrid, double Atot, double N_err,
+             double sPMT_err, bool write_dSds1, bool do_anMod,
+             bool write_integrated, double s1_a, double s1_b, std::string label)
+/*
+Mostly, coming from:
+ - The XENON100 Collaboration, Phys. Rev. D 90, 062009 (2014).
+ - The XENON100 Collaboration, Astropart. Phys. 54, 11 (2014).
+*/
 {
 
-  std::cout << "\n*** Doing S1 for Xe100 ***\n";
+  std::cout << "\n*** Doing S1 for Xe100 ***\n\n";
   int n_mv = mvgrid.ngp;
   int n_mx = mxgrid.ngp;
-  // int desteps = Egrid.ngp;
+
+  // NofE: Conversion between energy recoil and PhotoElectrons
+  // From: Fig. 2 of Phys. Rev. D 90, 062009 (2014).
+  auto NofE = [](double E_au, double err) {
+    double max = 1.23 * pow(E_au * E_to_keV, 1.43482);
+    double min = 0.75 * pow(E_au * E_to_keV, 1.63265);
+    double a = 0.5 * (err + 1.);
+    double b = 1. - a;
+    return a * max + b * min;
+  };
 
   // Generate P_n(N(E)) on n, E grids
-  int n_max = 20; // XXX input?
+  int n_max = 20; // input?
   std::vector<std::vector<double>> P(n_max);
-  auto &e_grid = Egrid.r; // x_grid(); // not needed..
-  for (int n = 1; n < n_max; n++) {
+  for (int n = 0; n < n_max; n++) {
+    // I don't use n=0; but P must be rectangular..
     std::vector<double> Pn;
-    Pn.reserve(e_grid.size());
-    for (auto E : e_grid) {
-      // XXX Check units for E here!
-      auto NofE = pow(E * E_to_keV, 1.58); // XXX temp! Incl errors!
-      Pn.push_back(Pois(n, NofE));
+    Pn.reserve(Egrid.ngp);
+    for (auto E : Egrid.r) {
+      auto Ne = NofE(E, N_err);
+      Pn.push_back(Pois(n, Ne));
     }
     P[n] = Pn;
   }
-
-  auto &dedt = Egrid.drdu; //.dxdt_grid(); //not needed..
 
   double MN =
       Atot * (FPC::u_NMU * FPC::m_e_kg); // Total atomic/mol. mass (in kg)
@@ -638,19 +666,14 @@ void doXe100(const DoubleVec3D &dsv_mv_mx_E, const Grid &mvgrid,
       n_mv, std::vector<std::vector<double>>(n_mx, std::vector<double>(n_max)));
 
   // Calculate Poiss-smeared rate, F [mv, mv, n]
-  // F has units counts/day
+  // F has units: counts/kg/day
   for (int imv = 0; imv < n_mv; imv++) {
     for (int imx = 0; imx < n_mx; imx++) {
       double mx = mxgrid.r[imx];
       double rho_on_mxc2 = rhoDM_GeVcm3 / (mx * M_to_GeV);
-      // double rateFac = dsvdE_to_cm3keVday * rho_on_mxc2 / MN;
-      double rateFac_au = dsvdE_to_cm3_per_auday * rho_on_mxc2 / MN;
-      for (int n = 1; n < n_max; n++) {
-        double int_ds =
-            NumCalc::integrate(dsv_mv_mx_E[imv][imx], P[n], dedt, Egrid.du);
-        double tmp_R = int_ds * rateFac_au; // convert to rate
-        F_mv_mx_n[imv][imx][n] = tmp_R;
-      }
+      double rate_units = dsvdE_to_cm3_per_auday * rho_on_mxc2 / MN;
+      F_mv_mx_n[imv][imx] =
+          convolvedRate(dsv_mv_mx_E[imv][imx], Egrid, P, rate_units);
     }
   }
 
@@ -658,58 +681,157 @@ void doXe100(const DoubleVec3D &dsv_mv_mx_E, const Grid &mvgrid,
   // S has units counts/day/s1 [s1=PE]
 
   // create s1 grid
-  int num_s1 = 20;
-  double s1min = 1.;
-  double s1max = 20.;
+  int num_s1 = Egrid.ngp; // use same number of points!
+  double s1min = 1.;      // Threshold...  always 1 or above
+  double s1max = 15.;     // 6 kev gives less than 16 PE
   Grid s1grid(s1min, s1max, num_s1, GridType::logarithmic);
+
+  // Acceptance
+  // Fig. 1 of Phys. Rev. D 90, 062009 (2014).
+  auto Aacc = [](double s1) { return 0.88 * (1. - exp(-0.33 * s1)); };
+
+  // Gaussian s1 (PE) resolution
+  double sigma_pmt = 0.5 * (1 + sPMT_err * 0.05);
+  // PMT resolution: 0.5 PE, Astropart. Phys. 54, 11 (2014).
+  // Note: No uncertainty in this is given. I take 5%. Only for OoM estimates!
+  std::vector<std::vector<double>> GA_s1_n(num_s1);
+  for (int is1 = 0; is1 < num_s1; is1++) {
+    double s1 = s1grid.r[is1];
+    std::vector<double> G_n(n_max);
+    double A_acc = Aacc(s1);
+    G_n[0] = 0;
+    for (int n = 1; n < n_max; n++) {
+      double sigma = sqrt(n) * sigma_pmt;
+      // GA_s1_n[is1]
+      G_n[n] = gaussian(sigma, s1 - n) * A_acc;
+    }
+    GA_s1_n[is1] = G_n;
+  }
 
   DoubleVec3D dS_mv_mx_s1; // dS/ds1
   dS_mv_mx_s1.resize(n_mv, std::vector<std::vector<double>>(
                                n_mx, std::vector<double>(num_s1)));
 
-  auto &s1_grid = s1grid.r;                // x_grid(); //xxx not needed
-  for (int is1 = 0; is1 < num_s1; is1++) { // out of order, since eff
-    auto s1 = s1_grid[is1];
-    double eff = 0.85 * (1. - exp(-0.33 * s1)); // XXX FIX! include errors
-    for (int imv = 0; imv < n_mv; imv++) {
-      for (int imx = 0; imx < n_mx; imx++) {
+  // Sum over n [F -> dS/ds1]
+  // dS/ds1 units: counts/day/kg/PE
+  for (int imv = 0; imv < n_mv; imv++) {
+    for (int imx = 0; imx < n_mx; imx++) {
+      for (int is1 = 0; is1 < num_s1; is1++) {
         double sum_over_n = 0;
         for (int n = 1; n < n_max; n++) {
-          double sig = sqrt(n) * 0.5;   // XXX Fix! Inlcude errors!
-          double gf = g(sig, s1) * eff; // call too often. If slow, into grid?
-          sum_over_n += gf * F_mv_mx_n[imv][imx][n];
+          sum_over_n += F_mv_mx_n[imv][imx][n] * GA_s1_n[is1][n];
         }
         dS_mv_mx_s1[imv][imx][is1] = sum_over_n;
       }
     }
-    // loop over n, mx, mv
-    // gaus depends only on n and s1, so do n first
   }
-
-  for (int is1 = 0; is1 < num_s1; is1++) {
-    auto s1 = s1_grid[is1];
-    auto S1 = dS_mv_mx_s1[0][0][is1];
-    std::cout << s1 << " " << S1 << "\n";
-  }
-
-  // Now, output.
-  // a) as function of s1.
-  // b) integrate s1 into bins.. a) 3--14, b) all?
 
   // output dS/ds1 for gnuplot:
   if (write_dSds1) {
-    std::string spref = "dSds1"; //= do_anMod ? "dSmds1" : "dSds1";
+    std::string spref = do_anMod ? "dSmds1" : "dSds1";
     std::string fn_dSds1 = spref + "_mx-" + label + ".out";
     std::cout << "Writing to file: " << fn_dSds1 << "\n";
-    double u = 1; // already converted!
+    double ux = 1; // already converted!
+    double uy = 1; // already converted!
     if (n_mv == 1 || n_mx > 1) {
-      writeForGnuplot_mvBlock(dS_mv_mx_s1, mvgrid, mxgrid, s1grid, fn_dSds1, u);
+      writeForGnuplot_mvBlock(dS_mv_mx_s1, mvgrid, mxgrid, s1grid, fn_dSds1, uy,
+                              ux);
     }
     if (n_mv > 1) {
       fn_dSds1 = spref + "_mv-" + label + ".out";
       std::cout << "Writing to file: " << fn_dSds1 << "\n";
-      writeForGnuplot_mxBlock(dS_mv_mx_s1, mvgrid, mxgrid, s1grid, fn_dSds1, u);
+      writeForGnuplot_mxBlock(dS_mv_mx_s1, mvgrid, mxgrid, s1grid, fn_dSds1, uy,
+                              ux);
     }
+  }
+
+  // s1 integrations. Final rates (in counts/day/kg)
+  int is1_a = s1grid.findNearestIndex(s1_a);
+  int is1_b = s1grid.findNearestIndex(s1_b);
+  std::vector<std::vector<double>> rate(n_mv, std::vector<double>(n_mx));
+  for (int imv = 0; imv < n_mv; imv++) {
+    for (int imx = 0; imx < n_mx; imx++) {
+      rate[imv][imx] = NumCalc::integrate(dS_mv_mx_s1[imv][imx], s1grid.drdu,
+                                          s1grid.du, is1_a, is1_b);
+    }
+  }
+
+  // Output some of the integrated s1 rates to screen.
+  // Only outputs the first mv, and first few mxs
+  std::cout << "\nIntegrate s1 rate, for: " << s1_a << " - " << s1_b << " PE\n";
+  std::cout << "Mx (Gev)    Rate (counts/day/kg)\n";
+  for (int imx = 0; imx < n_mx; imx += 2) {
+    printf("  %6.2f      %.2e\n", mxgrid.r[imx] * M_to_GeV, rate[0][imx]);
+    if (imx > 8) {
+      std::cout << "(only printed a few Mx's)\n\n";
+      break;
+    }
+  }
+
+  if (!write_integrated)
+    return;
+
+  // Write out integrated S1 rates (Xe100)
+  std::string range =
+      "_" + std::to_string((int)s1_a) + "-" + std::to_string((int)s1_b) + "PE";
+  std::string fn = do_anMod ? "S1m" : "S1";
+  fn = fn + range;
+
+  // Write as function of Mx (for each Mv)
+  if (mxgrid.ngp > 1) {
+    auto fn_S1 = fn + "_mx-mv_" + label + ".out";
+    std::ofstream of(fn_S1);
+    of << "# Integrated rate for Xe100 (" << s1_a << " - " << s1_b << " PE)."
+       << " units: counts/day/kg\n";
+    of << "# sigma^bar_e = " << sbe_1e37_cm2 << " cm^2\n";
+    of << "Mx(GeV)\\Mv(MeV) ";
+    for (int imv = 0; imv < mvgrid.ngp; imv++) {
+      double mv = mvgrid.r[imv];
+      if (mv >= 0)
+        of << "\"" << std::fixed << std::setprecision(2) << mv * M_to_MeV
+           << " MeV\"   ";
+      else
+        of << "\"infty MeV\"   ";
+    }
+    of << "\n";
+    for (int imx = 0; imx < mxgrid.ngp; imx++) {
+      of << std::fixed << std::setprecision(2);
+      of << mxgrid.r[imx] * M_to_GeV << " ";
+      for (int imv = 0; imv < mvgrid.ngp; imv++) {
+        of << std::scientific << std::setprecision(2) << rate[imv][imx] << " ";
+      }
+      of << "\n";
+    }
+    of.close();
+    std::cout << "Written Integrated S1 rate for Xe100 to file: " << fn_S1
+              << "\n";
+  }
+
+  // Write as function of Mv (for each Mx)
+  if (mvgrid.ngp > 1) {
+    auto fn_S1 = fn + "_mv-mx_" + label + ".out";
+    std::ofstream of(fn_S1);
+    of << "# Integrated rate for Xe100 (" << s1_a << " - " << s1_b << " PE)."
+       << " units: counts/day/kg\n";
+    of << "# sigma^bar_e = " << sbe_1e37_cm2 << " cm^2\n";
+    of << "Mv(MeV)\\Mx(GeV) ";
+    for (int imx = 0; imx < mxgrid.ngp; imx++) {
+      double mx = mxgrid.r[imx];
+      of << "\"" << std::fixed << std::setprecision(2) << mx * M_to_GeV
+         << " GeV\"   ";
+    }
+    of << "\n";
+    for (int imv = 0; imv < mvgrid.ngp; imv++) {
+      of << std::fixed << std::setprecision(2);
+      of << mvgrid.r[imv] * M_to_MeV << " ";
+      for (int imx = 0; imx < mxgrid.ngp; imx++) {
+        of << std::scientific << std::setprecision(2) << rate[imv][imx] << " ";
+      }
+      of << "\n";
+    }
+    of.close();
+    std::cout << "Written Integrated S1 rate for Xe100 to file: " << fn_S1
+              << "\n";
   }
 
   return;
@@ -729,7 +851,7 @@ int main(int argc, char *argv[]) {
   double mxmin, mxmax, mvmin, mvmax; // m_chi and m_v masses
   int n_mx, n_mv;                    // number of steps in m_chi, and m_v grids
   std::string label;                 // label to append to output file names
-  double Atot;                       // Total nuclear mass number (Na+I)
+  double Atot_DAMA;                  // Total nuclear mass number (Na+I)
   double iEbin, fEbin, wEbin;        // E bins: initial,final, width
   double dvesc, dv0;                 // error terms for SHM
   double dres, err_PEkeV;            // detector resolution, PE-keV errors [-1]
@@ -741,13 +863,22 @@ int main(int argc, char *argv[]) {
   enum class Mediator { light, intermediate, heavy };
   Mediator mediator;
 
+  bool do_Xe100;
+  double N_err, sPMT_err;
+  bool write_dSds1;
+  bool write_integrated;
+  double Atot_XE;
+  double s1_a;
+  double s1_b;
+
   // Open and read the input file:
   {
     int i_mv, iwr_dsvde, idodama, ianmod, iSM; // temp settings
-    auto tp = std::forward_as_tuple(akfn, label, mxmin, mxmax, n_mx, i_mv,
-                                    mvmin, mvmax, n_mv, dvesc, dv0, ianmod,
-                                    iwr_dsvde, idodama, dres, err_PEkeV, Atot,
-                                    iEbin, fEbin, wEbin, iSM);
+    int iXe100, iwdS1;
+    auto tp = std::forward_as_tuple(
+        akfn, label, mxmin, mxmax, n_mx, i_mv, mvmin, mvmax, n_mv, dvesc, dv0,
+        ianmod, iwr_dsvde, idodama, dres, err_PEkeV, Atot_DAMA, iEbin, fEbin,
+        wEbin, iSM, iXe100, N_err, sPMT_err, Atot_XE, s1_a, s1_b, iwdS1);
     FileIO::setInputParameters(input_file, tp);
     label = label == "na" ? akfn : akfn + "-" + label;
     // what to write to file:
@@ -757,6 +888,9 @@ int main(int argc, char *argv[]) {
     // What to calclate:
     do_anMod = ianmod == 1 ? true : false;
     do_DAMA = idodama == 1 ? true : false;
+    do_Xe100 = iXe100 == 1 ? true : false;
+    write_dSds1 = iwdS1 == 1 ? false : true;
+    write_integrated = iwdS1 == 0 ? false : true;
     switch (i_mv) {
     case 0:
       mediator = Mediator::light;
@@ -937,14 +1071,17 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  doXe100(dsv_mv_mx_E, mvgrid, mxgrid, Egrid, Atot, true, label);
-
   // ********************************************************
+
+  // Calculate and output obervable rates for XENON100
+  if (do_Xe100)
+    doXe100(dsv_mv_mx_E, mvgrid, mxgrid, Egrid, Atot_XE, N_err, sPMT_err,
+            write_dSds1, do_anMod, write_integrated, s1_a, s1_b, label);
+
   // Calculate and output obervable rate for DAMA
-  if (do_DAMA) {
+  if (do_DAMA)
     doDAMA(dsv_mv_mx_E, mvgrid, mxgrid, Egrid, do_anMod, write_dSdE, write_SofM,
-           dres, err_PEkeV, Atot, iEbin, fEbin, wEbin, label);
-  }
+           dres, err_PEkeV, Atot_DAMA, iEbin, fEbin, wEbin, label);
 
   std::cout << "\nTotal: " << sw.reading_str() << "\n";
   return 0;

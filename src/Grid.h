@@ -15,15 +15,15 @@ Make a template
 //******************************************************************************
 struct Grid {
 
-public: // ? maybe better to be non-const, but private?
-  const double r0;
-  const double rmax;
-  const int ngp;
-  const double du;
+public:
+  const double r0;   // Minimum grid value
+  const double rmax; // Maximum grid value
+  const int ngp;     // Number of Grid Points
+  const double du;   // Uniform grid step size
 
-  std::vector<double> r;
-  std::vector<double> drdu;
-  std::vector<double> drduor;
+  std::vector<double> r;      // Grid values r[i]
+  std::vector<double> drdu;   // Jacobian (dr/du)[i]
+  std::vector<double> drduor; // Convinient: (1/r)*(dr/du)[i]
 
 private:
   void form_loglinear_grid(double b);

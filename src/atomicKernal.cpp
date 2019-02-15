@@ -3,7 +3,6 @@
 #include "ChronoTimer.h"
 #include "ContinuumOrbitals.h"
 #include "ElectronOrbitals.h"
-#include "ExponentialGrid.h"
 #include "FPC_physicalConstants.h"
 #include "FileIO_fileReadWrite.h"
 #include "Grid.h"
