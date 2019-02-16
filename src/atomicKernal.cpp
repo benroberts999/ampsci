@@ -83,7 +83,7 @@ int main(int argc, char *argv[]) {
   Grid Egrid(demin, demax, desteps, GridType::logarithmic);
   Grid qgrid(qmin, qmax, qsteps, GridType::logarithmic);
 
-  // Look-up atomic number, Z, and also A
+  // Look-up atomic number, Z
   int Z = ATI::get_z(Z_str);
 
   // Make sure h (large-r step size) is small enough to
@@ -112,8 +112,6 @@ int main(int argc, char *argv[]) {
   bool bin_out = (iout_format > 0) ? true : false;
 
   // Print some info to screen:
-  // printf("\nRunning Atomic Kernal for %s, Z=%i A=%i\n", Z_str.c_str(), Z,
-  // wf.Anuc());
   std::cout << "\nRunning Atomic Kernal for " << Z_str << ", Z=" << Z
             << " A=" << wf.Anuc() << "\n";
   std::cout << "*************************************************\n";
@@ -122,15 +120,8 @@ int main(int argc, char *argv[]) {
   else
     printf("Using Hartree Fock (converge to %.0e)\n", hart_del);
 
-  // printf("Grid: pts=%i h=%6.4f r0=%.0e Rmax=%5.1f\n", wf.rgrid.ngp,
-  // wf.rgrid.du, wf.rgrid.r.front(), wf.rgrid.r.back());
-
   std::cout << "Radial ";
   wf.rgrid.print();
-  std::cout << "Energy ";
-  Egrid.print();
-  std::cout << "q      ";
-  qgrid.print();
   std::cout << "\n";
 
   // Do Hartree-fock (or parametric potential) for Core
@@ -184,17 +175,16 @@ int main(int argc, char *argv[]) {
 
   // Calculate the AK (print to screen)
   std::cout << "\nCalculating atomic kernal AK(q,dE):\n";
-  printf(" dE: %5.2f -- %5.1f keV  (%.2f -- %.1f au)\n", demin / keV,
-         demax / keV, demin, demax);
-  printf("  q: %5.0e -- %5.1g MeV  (%.2f -- %.1f au)\n", qmin / qMeV,
-         qmax / qMeV, qmin, qmax);
+  printf(" dE: %5.2f -- %5.1f keV  (%.2f -- %.1f au)  [N=%i]\n", demin / keV,
+         demax / keV, demin, demax, desteps);
+  printf("  q: %5.0e -- %5.1g MeV  (%.2f -- %.1f au)  [N=%i]\n", qmin / qMeV,
+         qmax / qMeV, qmin, qmax, qsteps);
 
   // Calculate K(q,E)
   timer.start();
   std::cout << "Running dE loops (" << desteps << ").." << std::flush;
 #pragma omp parallel for
   for (int ide = 0; ide < desteps; ide++) {
-    // double dE = Egrid.x(ide);
     double dE = Egrid.r[ide];
     // Loop over core (bound) states:
     for (auto is : wf.stateIndexList) {
