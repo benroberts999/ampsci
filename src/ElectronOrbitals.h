@@ -13,8 +13,6 @@ public:
   ElectronOrbitals(int in_z, int in_a, int in_ngp, double rmin, double rmax,
                    double var_alpha = 1);
 
-  // void clearAll();
-
 public:
   // orbitals:
   std::vector<std::vector<double>> f;
@@ -43,6 +41,14 @@ public:
   // Potentials
   std::vector<double> vnuc;
   std::vector<double> vdir; // direct/local part of the electron potential
+
+private:
+  // store internal value for alpha (allows variation)
+  const double alpha;
+  // Atom info:
+  const int Z_, A_;
+  // number of electrons in each core shell (non-rel??)
+  std::vector<int> num_core_shell;
 
 public:
   double get_alpha() const;
@@ -86,32 +92,12 @@ public:
   void sortedEnergyList(std::vector<int> &sort_list,
                         bool do_sort = false) const;
 
-  // Single function to form grid, takes in option (w/ enums)!
-  // Default: logLinear..
-  // int logLinearRadialGrid(int ngp_in, double r0, double rmax, double b = 4.);
-  // int logLinearRadialGrid(double in_h, double r0, double rmax, double b
-  // = 4.);
-
-private:
-  // store internal value for alpha (allows variation)
-  const double alpha;
-
-  // Atom info:
-  const int Z_, A_;
-  // std::string atom;
-
-  // number of electrons in each core shell (non-rel??)
-  std::vector<int> num_core_shell;
-
 private:
   int determineCore(std::string str_core_in);
 
   void sphericalNucleus(double rnuc = 0);
   void fermiNucleus(double t = 0, double c = 0);
   void zeroNucleus();
-
-  // Grid
-  // int exponentialRadialGrid(int ngp_in, double r0, double rmax);
 
   double enGuessCore(int n, int l) const;
   double enGuessVal(int n, int ka) const;

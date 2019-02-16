@@ -55,15 +55,6 @@ int main(int argc, char *argv[]) {
   if (hart_del == 0)
     hart_del = 1.e-6;
 
-  // allow for single-step in dE or q grid
-  if (desteps == 1)
-    demax = demin;
-  if (qsteps == 1)
-    qmax = qmin;
-  // Set up the E and q grids
-  Grid Egrid(demin, demax, desteps, GridType::logarithmic);
-  Grid qgrid(qmin, qmax, qsteps, GridType::logarithmic);
-
   // Fix maximum angular momentum values:
   if (max_l < 0 || max_l > 3)
     max_l = 3; // default: all core states (no >f)
@@ -74,6 +65,12 @@ int main(int argc, char *argv[]) {
   if (varalpha == 0)
     varalpha = 1.e-25;
 
+  // allow for single-step in dE or q grid
+  if (desteps == 1)
+    demax = demin;
+  if (qsteps == 1)
+    qmax = qmin;
+
   // Convert units for input q and dE range into atomic units
   double keV = (1.e3 / FPC::Hartree_eV);
   demin *= keV;
@@ -82,18 +79,20 @@ int main(int argc, char *argv[]) {
   qmin *= qMeV;
   qmax *= qMeV;
 
+  // Set up the E and q grids
+  Grid Egrid(demin, demax, desteps, GridType::logarithmic);
+  Grid qgrid(qmin, qmax, qsteps, GridType::logarithmic);
+
   // Look-up atomic number, Z, and also A
   int Z = ATI::get_z(Z_str);
 
   // Make sure h (large-r step size) is small enough to
   // calculate (normalise) cntm functions with energy = demax
-  // Also need to re-form nuclear potential.
-  // Updated class method will avoid this!
   double du_target = (M_PI / 20.) / sqrt(2. * demax);
-  double du = Grid::calc_du_from_ngp(r0, rmax, ngp, GridType::loglinear);
+  double du = Grid::calc_du_from_ngp(r0, rmax, ngp, GridType::loglinear, 3.);
   if (du > du_target) {
     int new_ngp =
-        Grid::calc_ngp_from_du(r0, rmax, du_target, GridType::loglinear);
+        Grid::calc_ngp_from_du(r0, rmax, du_target, GridType::loglinear, 3.);
     int old_ngp = ngp;
     ngp = new_ngp;
     std::cout
@@ -113,16 +112,26 @@ int main(int argc, char *argv[]) {
   bool bin_out = (iout_format > 0) ? true : false;
 
   // Print some info to screen:
-  printf("\nRunning Atomic Kernal for %s, Z=%i A=%i\n", Z_str.c_str(), Z,
-         wf.Anuc());
-  printf("*************************************************\n");
+  // printf("\nRunning Atomic Kernal for %s, Z=%i A=%i\n", Z_str.c_str(), Z,
+  // wf.Anuc());
+  std::cout << "\nRunning Atomic Kernal for " << Z_str << ", Z=" << Z
+            << " A=" << wf.Anuc() << "\n";
+  std::cout << "*************************************************\n";
   if (Gf != 0)
     printf("Using Green potential: H=%.4f  d=%.4f\n", Gh, Gd);
   else
     printf("Using Hartree Fock (converge to %.0e)\n", hart_del);
 
-  printf("Grid: pts=%i h=%6.4f r0=%.0e Rmax=%5.1f\n", wf.rgrid.ngp, wf.rgrid.du,
-         wf.rgrid.r.front(), wf.rgrid.r.back());
+  // printf("Grid: pts=%i h=%6.4f r0=%.0e Rmax=%5.1f\n", wf.rgrid.ngp,
+  // wf.rgrid.du, wf.rgrid.r.front(), wf.rgrid.r.back());
+
+  std::cout << "Radial ";
+  wf.rgrid.print();
+  std::cout << "Energy ";
+  Egrid.print();
+  std::cout << "q      ";
+  qgrid.print();
+  std::cout << "\n";
 
   // Do Hartree-fock (or parametric potential) for Core
   timer.start();

@@ -38,8 +38,6 @@ int main(int argc, char *argv[]) {
   varalpha = sqrt(varalpha2);
 
   int Z = ATI::get_z(Z_str);
-  if (Z == 0)
-    return 2;
   if (A == -1)
     A = ATI::defaultA(Z); // if none given, get default A
 
@@ -49,9 +47,8 @@ int main(int argc, char *argv[]) {
 
   // Generate the orbitals object:
   ElectronOrbitals wf(Z, A, ngp, r0, rmax, varalpha);
-
-  printf("Grid: pts=%i h=%7.5f r0=%.1e Rmax=%5.1f\n\n", wf.rgrid.ngp,
-         wf.rgrid.du, wf.rgrid.r.front(), wf.rgrid.r.back());
+  wf.rgrid.print();
+  std::cout << "\n";
 
   // Solve Hartree equations for the core:
   timer.start(); // start the timer for HF
@@ -93,8 +90,8 @@ int main(int argc, char *argv[]) {
   wf.sortedEnergyList(sorted_by_energy_list, true);
 
   // Output results:
-  printf("\nCore: %s, Z=%i A=%i\n", Z_str.c_str(), Z, A);
-  printf("     state   k   Rinf its    eps       En (au)      En (/cm)\n");
+  std::cout << "\nCore: " << Z_str << ", Z=" << Z << " A=" << A << "\n";
+  std::cout << "     state   k   Rinf its    eps       En (au)      En (/cm)\n";
   bool val = false;
   double en_lim = 0;
   int count = 0;
@@ -105,9 +102,9 @@ int main(int argc, char *argv[]) {
     int k = wf.ka(i);
     double rinf = wf.rinf(i);
     double eni = wf.en[i];
-    std::string symb = wf.seTermSymbol(i);
-    printf("%2i) %7s %2i  %5.1f %3i  %5.0e %13.7f %13.1f", i, symb.c_str(), k,
-           rinf, wf.itslist[i], wf.epslist[i], eni, eni * FPC::Hartree_invcm);
+    auto symb = wf.seTermSymbol(i).c_str();
+    printf("%2i) %7s %2i  %5.1f %3i  %5.0e %13.7f %13.1f", i, symb, k, rinf,
+           wf.itslist[i], wf.epslist[i], eni, eni * FPC::Hartree_invcm);
     if (val)
       printf(" %10.2f\n", (eni + en_lim) * FPC::Hartree_invcm);
     else
@@ -175,9 +172,6 @@ int main(int argc, char *argv[]) {
     rho.reserve(wf.rgrid.ngp);
     for (auto r : wf.rgrid.r)
       rho.emplace_back(1. / (1. + exp((r * FPC::aB_fm - c) / a)));
-    // double rho0 = NumCalc::integrate(wf.rgrid.r, wf.rgrid.r, rho,
-    // wf.rgrid.drdu, 1, 0, 0, 0, 0) * 4 *
-    //               M_PI * wf.rgrid.du;
     double rho0 =
         NumCalc::integrate(wf.rgrid.r, wf.rgrid.r, rho, wf.rgrid.drdu, 1.) * 4 *
         M_PI * wf.rgrid.du;
@@ -207,33 +201,11 @@ int main(int argc, char *argv[]) {
       double pnc2 = Cc * Ac * d6s * w7s / dE7s;
       std::cout << "n=" << n << " pnc= " << pnc1 << " + " << pnc2 << " = "
                 << pnc1 + pnc2 << "\n";
-      // std::cout<<" d: "<<d6s*2*0.408<<" "<<d7s*2*0.408<<"\n";
-      // std::cout<<" w: "<<w6s*sqrt(2)*Cc<<" "<<w7s*sqrt(2)*Cc<<"\n";
       pnc += pnc1 + pnc2;
     }
     std::cout << "Total= " << pnc << "\n";
     std::cout << "\n Total time: " << timer.reading_str() << "\n";
   }
-
-  // std::vector<double> f;
-  // std::vector<double> df_exact;
-  // for (auto r : wf.rgrid.r) {
-  //   f.push_back((log(r + 0.5) / (r + 0.5)) * (1. + sqrt(r) * sin(r)));
-  //
-  //   df_exact.push_back(
-  //       (log(0.5 + r) * (sqrt(r) * cos(r) + sin(r) / (2. * sqrt(r)))) /
-  //           (0.5 + r) +
-  //       (1 + sqrt(r) * sin(r)) / pow(0.5 + r, 2) -
-  //       (log(0.5 + r) * (1 + sqrt(r) * sin(r))) / pow(0.5 + r, 2));
-  // }
-  //
-  // std::vector<double> df = NumCalc::derivative(f, wf.rgrid.drdu,
-  // wf.rgrid.du);
-  //
-  // std::ofstream of("test-deriv.txt");
-  // for (int i = 0; i < wf.rgrid.ngp; i++) {
-  //   of << wf.rgrid.r[i] << " " << df_exact[i] << " " << df[i] << "\n";
-  // }
 
   return 0;
 }

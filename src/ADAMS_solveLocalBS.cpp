@@ -74,7 +74,7 @@ Defn: f = p, g = -q. (My g includes alpha)
 */
 {
   // Parameters.
-  const int max_its = 32;       // Max # attempts at converging [sove bs] (30)
+  const int max_its = 16;       // Max # attempts at converging [sove bs] (30)
   const double alr = 800;       // ''assymptotically large r [kinda..]''  (=800)
   const double lfrac_de = 0.15; // 'large' energy variations (0.1 => 10%)
   const int d_ctp_in = 4;       // Num points past ctp +/- d_ctp.
@@ -89,13 +89,13 @@ Defn: f = p, g = -q. (My g includes alpha)
   auto du = rgrid.du;
 
   // Convergance goal. Default: 1e-15
-  double eps_goal = (log_dele > 0) ? 1. / pow(10, log_dele) : 1e-15;
+  double eps_goal = (log_dele > 0) ? 1. / pow(10, log_dele) : 1e-14;
 
   DEBUG( // Checks to see if legal n is requested.
       if (!((abs(ka) <= n) && (ka != n))) {
         std::cerr << "\nFail96 in Adams: bad state n,k=" << n << "," << ka
                   << "\n";
-        return 1;
+        return;
       })
 
   // Find 'l' from 'kappa' (ang. momentum Q number) for # of nodes
@@ -120,7 +120,7 @@ Defn: f = p, g = -q. (My g includes alpha)
     // Find the practical infinity 'pinf' [(V(r) - E)*r^2 >  alr]
     pinf = findPracticalInfinity(en, v, r, alr);
     // Find classical turning point 'ctp' [V(r) > E ]
-    int ctp = findClassicalTurningPoint(en, v, pinf - d_ctp);
+    int ctp = findClassicalTurningPoint(en, v, pinf, d_ctp);
 
     // Find solution (f,g) to DE for given energy:
     // (Inward + outward solutions joined at ctp, merged over ctp+/-d_ctp)
@@ -161,8 +161,8 @@ Defn: f = p, g = -q. (My g includes alpha)
   // a few more HF iterations..If we don't norm wf, HF will fail.
   if (!correct_nodes) {
     anorm = calcNorm(f, g, drdu, du, pinf);
-    DEBUG(std::cerr << "\nFAIL-148: wrong nodes:" << countNodes(f, pinf);
-          << "/" << required_nodes << " for n,k=" << n << "," << ka << "\n";)
+    DEBUG(std::cerr << "\nFAIL-148: wrong nodes:" << countNodes(f, pinf) << "/"
+                    << required_nodes << " for n,k=" << n << "," << ka << "\n";)
   }
 
   eps_out = eps_en;
@@ -282,32 +282,34 @@ int findPracticalInfinity(double en, const std::vector<double> &v,
   while ((en - v[pinf]) * pow(r[pinf], 2) + alr < 0)
     pinf--;
 
-  DEBUG(if (pinf == ngp - 1) std::cerr
-            << "WARNING 281: pract. inf. exceeds grid for en=" << en << "\n";)
+  if (pinf >= ngp - 1 || pinf <= 0) {
+    DEBUG(std::cerr << "\nWARNING 281: pinf=" << pinf << " for en=" << en
+                    << "\n";)
+    pinf = ngp - 2;
+  }
 
   return pinf;
 }
 
 //******************************************************************************
-int findClassicalTurningPoint(double en, const std::vector<double> &v,
-                              int pinf) {
+int findClassicalTurningPoint(double en, const std::vector<double> &v, int pinf,
+                              int d_ctp) {
   // Finds classical turning point 'ctp'
   // Step backwards from the "practical infinity" until
   //  V(r) > E        [nb: both V and E are <0]
-  int ctp = pinf;
-  while ((en - v[ctp]) < 0) {
+  int ctp = pinf - d_ctp;
+  while ((en - v[ctp]) < 0)
     --ctp;
-    /*if (ctp<=0){
-      //fails if ctp<0, (or ctp>pinf?)
-      printf("FAILURE 96 in solveDBS: No classical region?\n");
-    return 1;
-    }*/
-  }
-  if (ctp >= pinf) {
+
+  if (ctp >= pinf - d_ctp || ctp <= d_ctp) {
     // Didn't find ctp! Does this ever happen? Yes, if energy guess too wrong
-    DEBUG(printf("FAILURE: Turning point at or after pract. inf. \n");
+    DEBUG(std::cout << "FAIL 303: Turning point : \n";
           printf("ctp=%i, pinf=%i, ngp=%lu\n", ctp, pinf, v.size());)
-    ctp = pinf - 5; //??? ok?
+    ctp = pinf - d_ctp;
+    if (ctp <= d_ctp)
+      std::cerr << "FAIL 309: ctp<d_ctp: Grid not dense enough. "
+                << " pinf,ctp,dctp=" << pinf << " " << ctp << " " << d_ctp
+                << "\n";
   }
   return ctp;
 }

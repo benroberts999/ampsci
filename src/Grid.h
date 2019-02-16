@@ -10,11 +10,13 @@ To do:
 -add warnings for -ve grids (exp)
 -don't allow 1 pt, or 0 (for exp) etc.
 
-Make a template
+Make a template?
+ -- templateise type
+ -- ALSO: gridtype ??
 */
 
 //******************************************************************************
-struct Grid {
+class Grid {
 
 public:
   const double r0;   // Minimum grid value
@@ -26,68 +28,75 @@ public:
   std::vector<double> drdu;   // Jacobian (dr/du)[i]
   std::vector<double> drduor; // Convinient: (1/r)*(dr/du)[i]
 
-private:
-  void form_loglinear_grid(double b);
-  void form_logarithmic_grid();
-  void form_linear_grid();
-
 public:
-  Grid(double in_r0, double in_rmax, int in_ngp,
-       GridType gridtype = GridType::loglinear, double b = 0);
+  Grid(double in_r0, double in_rmax, int in_ngp, GridType in_gridtype,
+       double in_b = 0);
 
   int findNextIndex(double x) const;
   int findNearestIndex(double x) const;
 
-  void printDetails() const;
+  void print() const;
 
+  // Static functions: can be called outside of instantialised object
   static double calc_du_from_ngp(double in_r0, double in_rmax, int in_ngp,
-                                 GridType gridtype, double b = 0);
-
+                                 GridType in_gridtype, double in_b = 0);
   static int calc_ngp_from_du(double in_r0, double in_rmax, double in_du,
-                              GridType gridtype, double b = 0);
+                              GridType in_gridtype, double in_b = 0);
+
+private:
+  void form_loglinear_grid();
+  void form_logarithmic_grid();
+  void form_linear_grid();
+
+private:
+  const GridType gridtype;
+  const double b;
 };
 
 //******************************************************************************
-inline double Grid::calc_du_from_ngp(double in_r0, double in_rmax, int in_ngp,
+inline double Grid::calc_du_from_ngp(double r0, double rmax, int ngp,
                                      GridType gridtype, double b) {
-  if (in_ngp == 1)
+  if (ngp == 1)
     return 0;
   switch (gridtype) {
   case GridType::loglinear:
     if (b == 0)
       std::cerr << "\nFAIL57 in Grid: cant have b=0 for log-linear grid!\n";
-    return (in_rmax - in_r0 + b * log(in_rmax / in_r0)) / (in_ngp - 1);
+    return (rmax - r0 + b * log(rmax / r0)) / (ngp - 1);
   case GridType::logarithmic:
-    return log(in_rmax / in_r0) / (in_ngp - 1);
+    return log(rmax / r0) / (ngp - 1);
   case GridType::linear:
-    return (in_rmax - in_r0) / (in_ngp - 1);
+    return (rmax - r0) / (ngp - 1);
   }
   std::cerr << "\nFAIL 63 in Grid: wrong type?\n";
   return 1.;
 }
 
 //******************************************************************************
-inline int Grid::calc_ngp_from_du(double in_r0, double in_rmax, double in_du,
+inline int Grid::calc_ngp_from_du(double r0, double rmax, double du,
                                   GridType gridtype, double b) {
   switch (gridtype) {
   case GridType::loglinear:
     if (b == 0)
       std::cerr << "\nFAIL57 in Grid: cant have b=0 for log-linear grid!\n";
-    return int((in_rmax - in_r0 + b * log(in_rmax / in_r0)) / in_du) + 2;
+    return int((rmax - r0 + b * log(rmax / r0)) / du) + 2;
   case GridType::logarithmic:
-    return int(log(in_rmax / in_r0) / in_du) + 2;
+    return int(log(rmax / r0) / du) + 2;
   case GridType::linear:
-    return int((in_rmax - in_r0) / in_du) + 2;
+    return int((rmax - r0) / du) + 2;
   }
   std::cerr << "\nFAIL 84 in Grid: wrong type?\n";
   return 1;
 }
 
 //******************************************************************************
-inline Grid::Grid(double in_r0, double in_rmax, int in_ngp, GridType gridtype,
-                  double b)
+inline Grid::Grid(double in_r0, double in_rmax, int in_ngp,
+                  GridType in_gridtype, double in_b)
     : r0(in_r0), rmax(in_rmax), ngp(in_ngp),
-      du(calc_du_from_ngp(in_r0, in_rmax, in_ngp, gridtype, b)) {
+      du(calc_du_from_ngp(in_r0, in_rmax, in_ngp, in_gridtype, in_b)),
+      gridtype(in_gridtype), b(in_b)
+//
+{
 
   r.reserve(ngp);
   drdu.reserve(ngp);   // Jacobian:
@@ -95,7 +104,7 @@ inline Grid::Grid(double in_r0, double in_rmax, int in_ngp, GridType gridtype,
 
   switch (gridtype) {
   case GridType::loglinear:
-    form_loglinear_grid(b);
+    form_loglinear_grid();
     break;
   case GridType::logarithmic:
     form_logarithmic_grid();
@@ -115,6 +124,7 @@ inline int Grid::findNextIndex(double x) const
 // Note: this is slow - don't rely on it inside big loops!
 // For linear or exponential, faster to use formula.
 // But for log-linear, can't
+// XXX Better way to implement this!  + Roll together with findNearestIndex
 {
   for (int i = 0; i < ngp; i++)
     if (x < r[i])
@@ -126,6 +136,7 @@ inline int Grid::findNextIndex(double x) const
 inline int Grid::findNearestIndex(double x) const
 // Note: this is slow - don't rely on it inside big loops!
 // Returns index correspoding to given value
+// XXX Better way to implement this!  + Roll together with findNextIndex
 {
   if (x < r0)
     return 0;
@@ -145,12 +156,25 @@ inline int Grid::findNearestIndex(double x) const
 }
 
 //******************************************************************************
-inline void Grid::printDetails() const {
-  printf("Grid: pts=%6i du=%7.5f r0=%.1e Rmax=%7.1f\n", ngp, du, r0, rmax);
+inline void Grid::print() const {
+
+  switch (gridtype) {
+  case GridType::linear:
+    std::cout << "Linear ";
+    break;
+  case GridType::logarithmic:
+    std::cout << "Logarithmic ";
+    break;
+  case GridType::loglinear:
+    std::cout << "Log-linear (b=" << b << ") ";
+  }
+  // printf("grid: N=%i du=%.5f r0=%.1e Rmax=%.1f\n", ngp, du, r0, rmax);
+  std::cout << "grid: " << r0 << "->" << rmax << ", N=" << ngp << ", du=" << du
+            << "\n";
 }
 
 //******************************************************************************
-inline void Grid::form_loglinear_grid(double b)
+inline void Grid::form_loglinear_grid()
 /*
 Roughly, grid is logarithmically spaced below r=b, and linear above.
 Definition:

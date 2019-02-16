@@ -18,8 +18,8 @@ void solveDBS(std::vector<double> &f, std::vector<double> &g, double &en,
 int findPracticalInfinity(double en, const std::vector<double> &v,
                           const std::vector<double> &r, double alr);
 
-int findClassicalTurningPoint(double en, const std::vector<double> &v,
-                              int pinf);
+int findClassicalTurningPoint(double en, const std::vector<double> &v, int pinf,
+                              int d_ctp);
 
 void trialDiracSolution(std::vector<double> &f, std::vector<double> &g,
                         std::vector<double> &dg, double en, int ka,

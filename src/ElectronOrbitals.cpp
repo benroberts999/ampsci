@@ -20,12 +20,11 @@
 //******************************************************************************
 ElectronOrbitals::ElectronOrbitals(int in_z, int in_a, int in_ngp, double rmin,
                                    double rmax, double var_alpha)
-    : rgrid(rmin, rmax, in_ngp, GridType::loglinear, 4.),
+    : rgrid(rmin, rmax, in_ngp, GridType::loglinear, 3.),
       alpha(FPC::alpha * var_alpha), Z_(in_z),
       A_((in_a < 0) ? ATI::defaultA(Z_) : in_a)
 //
 {
-
   // Use Fermi nucleus by default, unless A=0 is given
   if (A_ > 0)
     formNuclearPotential(NucleusType::Fermi);
