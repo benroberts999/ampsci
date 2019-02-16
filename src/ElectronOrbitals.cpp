@@ -39,10 +39,7 @@ int ElectronOrbitals::solveLocalDirac(int n, int k, double e_a, int log_dele_or,
 Uses ADAMS::solveDBS to solve Dirac Eqn for local potential (Vnuc + Vdir)
 */
 {
-  int pinf, its;
-  double eps;
-  std::vector<double> f_a(rgrid.ngp);
-  std::vector<double> g_a(rgrid.ngp);
+  orbitals.emplace_back(DiracSpinor{n, k, rgrid.ngp});
 
   // Fill V(r) with nulcear + DIRECT part of electron potential
   // nb: for exchange part, need to use reSolveDirac()
@@ -53,27 +50,29 @@ Uses ADAMS::solveDBS to solve Dirac Eqn for local potential (Vnuc + Vdir)
   }
 
   // Solve local dirac Eq:
-  if (e_a == 0)
-    e_a = enGuessVal(n, k);
-  ADAMS::solveDBS(f_a, g_a, e_a, v_a, n, k, rgrid, pinf, its, eps, alpha,
-                  log_dele_or);
-  // Store wf + energy
-  f.push_back(f_a);
-  g.push_back(g_a);
-  en.push_back(e_a);
-  // Store states:
+
+  auto &psi = orbitals.back();
+  psi.en = e_a == 0 ? enGuessVal(n, k) : e_a;
+  ADAMS::solveDBS(psi, v_a, rgrid, alpha, log_dele_or);
+
   int this_index = (int)stateIndexList.size();
   stateIndexList.push_back(this_index);
   if (iscore)
     coreIndexList.push_back(this_index);
   else
     valenceIndexList.push_back(this_index);
-  nlist.push_back(n);
-  kappa.push_back(k);
+
+  // Store wf + energy
+  f.push_back(psi.f);
+  g.push_back(psi.g);
+  en.push_back(psi.en);
+  // Store states:
+  nlist.push_back(psi.n);
+  kappa.push_back(psi.k);
   // store convergance info:
-  pinflist.push_back(pinf);
-  itslist.push_back(its);
-  epslist.push_back(eps);
+  pinflist.push_back(psi.pinf);
+  itslist.push_back(psi.its);
+  epslist.push_back(psi.eps);
 
   return 0;
 }
@@ -89,6 +88,7 @@ double ElectronOrbitals::radialIntegral(int a, int b,
                                         const std::vector<double> &vint,
                                         Operator op) const
 /*
+XXX Update so that it takes two ORBITALS, not index! (or either)
 Split into dPsi later??
 XXX Few things here that are slow! XXX
 */
@@ -108,32 +108,36 @@ XXX Few things here that are slow! XXX
   // Is this a good way? Confusing?
   int ig_sign = 1;
 
+  // temporary: ease transition: XXX
+  auto &psi_a = orbitals[a];
+  auto &psi_b = orbitals[b];
+
   // XXX This part should be seperate function, so can store dpsi XXX
   switch (op) {
   case Operator::unity:
-    fprime = f[b];
-    gprime = g[b];
+    fprime = psi_b.f;
+    gprime = psi_b.g;
     break;
   case Operator::gamma0:
-    fprime = f[b];
+    fprime = psi_b.f;
     for (size_t i = 0; i < gprime.size(); i++)
-      gprime[i] = -g[b][i];
+      gprime[i] = -psi_b.g[i];
     break;
   case Operator::gamma5:
     for (size_t i = 0; i < fprime.size(); i++) {
       // Note: gprimt includes the (-i) from g_a <a|h|b>
-      fprime[i] = g[b][i];
-      gprime[i] = f[b][i]; // see above
+      fprime[i] = psi_b.g[i];
+      gprime[i] = psi_b.f[i]; // see above
       ig_sign = -1;
     }
     break;
   case Operator::dr:
-    fprime = NumCalc::derivative(f[b], rgrid.drdu, rgrid.du);
-    gprime = NumCalc::derivative(g[b], rgrid.drdu, rgrid.du);
+    fprime = NumCalc::derivative(psi_b.f, rgrid.drdu, rgrid.du);
+    gprime = NumCalc::derivative(psi_b.g, rgrid.drdu, rgrid.du);
     break;
   case Operator::dr2:
-    fprime = NumCalc::derivative(f[b], rgrid.drdu, rgrid.du, 2);
-    gprime = NumCalc::derivative(g[b], rgrid.drdu, rgrid.du, 2);
+    fprime = NumCalc::derivative(psi_b.f, rgrid.drdu, rgrid.du, 2);
+    gprime = NumCalc::derivative(psi_b.g, rgrid.drdu, rgrid.du, 2);
     break;
   default:
     std::cout << "\nError 103 in EO radialInt: unknown operator\n";
@@ -141,11 +145,11 @@ XXX Few things here that are slow! XXX
 
   double Rf = 0, Rg = 0;
   if (vint.size() == 0) {
-    Rf = NumCalc::integrate(f[a], fprime, rgrid.drdu, 1, 0, pinf);
-    Rg = NumCalc::integrate(g[a], gprime, rgrid.drdu, 1, 0, pinf);
+    Rf = NumCalc::integrate(psi_a.f, fprime, rgrid.drdu, 1, 0, pinf);
+    Rg = NumCalc::integrate(psi_a.g, gprime, rgrid.drdu, 1, 0, pinf);
   } else {
-    Rf = NumCalc::integrate(f[a], vint, fprime, rgrid.drdu, 1, 0, pinf);
-    Rg = NumCalc::integrate(g[a], vint, gprime, rgrid.drdu, 1, 0, pinf);
+    Rf = NumCalc::integrate(psi_a.f, vint, fprime, rgrid.drdu, 1, 0, pinf);
+    Rg = NumCalc::integrate(psi_a.g, vint, gprime, rgrid.drdu, 1, 0, pinf);
   }
 
   return (Rf + ig_sign * Rg) * rgrid.du;
@@ -202,8 +206,6 @@ so, here, vex = [sum_b vex_a (psi_b/psi_a)]
 This is not ideal..
 */
 {
-  int pinf, its;
-  double eps;
 
   // XXX this is inneficient. Fine, except for HF. THen, slow! ?
   std::vector<double> v_a = vnuc;
@@ -214,18 +216,20 @@ This is not ideal..
     for (int i = 0; i < rgrid.ngp; i++)
       v_a[i] += vex[i];
 
-  int n = nlist[i];
-  int k = kappa[i];
-  if (e_a == 0)
-    e_a = en[i];
-  ADAMS::solveDBS(f[i], g[i], e_a, v_a, n, k, rgrid, pinf, its, eps, alpha,
-                  log_dele_or);
-  en[i] = e_a; // update w/ new energy
+  auto &psi = orbitals[i];
+  if (e_a != 0)
+    psi.en = e_a;
+  ADAMS::solveDBS(psi, v_a, rgrid, alpha, log_dele_or);
+
+  f[i] = psi.f;
+  g[i] = psi.g;
+
+  en[i] = psi.en; // update w/ new energy
 
   // store convergance info:
-  pinflist[i] = pinf;
-  itslist[i] = its;
-  epslist[i] = eps;
+  pinflist[i] = psi.pinf;
+  itslist[i] = psi.its;
+  epslist[i] = psi.eps;
 
   return 0;
 }
@@ -437,6 +441,7 @@ HartreeFockClass.cpp has routines for Hartree Fock
       return 2;
     }
     occ_frac.push_back(double(num_core_shell[ic]) / (4 * l + 2));
+    orbitals[i].occ_frac = double(num_core_shell[ic]) / (4 * l + 2); // XXX
   }
 
   return 0;
@@ -471,6 +476,10 @@ Note: For HF, should never be called after core is frozen!
     }
   }
 
+  // // temporary: ease transition: XXX
+  // auto &psi_a = orbitals[a];
+  // auto &psi_b = orbitals[b];
+
   // Orthogonalise orbitals:
   for (auto a : stateIndexList) {
     for (auto b : stateIndexList) {
@@ -481,19 +490,22 @@ Note: For HF, should never be called after core is frozen!
       // c_ab = c_ba : only calc'd half:
       double cab = (a < b) ? c_ab[a][b] : c_ab[b][a];
       for (int ir = 0; ir < rgrid.ngp; ir++) {
-        f[a][ir] -= cab * f[b][ir];
-        g[a][ir] -= cab * g[b][ir];
+        orbitals[a].f[ir] -= cab * orbitals[a].f[ir];
+        orbitals[b].g[ir] -= cab * orbitals[b].g[ir];
       }
     }
   }
 
   // Re-normalise orbitals (nb: doesn't make much difference)
+  // XXX EITHER have orbitals know their state index..
+  // OR make radial integral take ORBITALS instead of INDEX!!
+  // XXX XXX XXX Second option best!! (can be overloaded!)
   for (auto a : stateIndexList) {
     double A = radialIntegral(a, a);
     double norm = 1. / sqrt(A);
-    for (auto &fa_r : f[a])
+    for (auto &fa_r : orbitals[a].f)
       fa_r *= norm;
-    for (auto &ga_r : g[a])
+    for (auto &ga_r : orbitals[a].g)
       ga_r *= norm;
   }
 

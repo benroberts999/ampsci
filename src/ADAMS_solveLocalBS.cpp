@@ -1,4 +1,5 @@
 #include "ADAMS_solveLocalBS.h"
+#include "DiracSpinor.h"
 #include "Grid.h"
 #include "Matrix_linalg.h"
 #include "NumCalc_quadIntegrate.h"
@@ -28,10 +29,8 @@ namespace ADAMS {
 static const AdamsCoefs<AMO> AMcoef; // coeficients
 
 //******************************************************************************
-void solveDBS(std::vector<double> &f, std::vector<double> &g, double &en_inout,
-              const std::vector<double> &v, int n, int ka, const Grid &rgrid,
-              int &pinf_out, int &its_out, double &eps_out, double alpha,
-              int log_dele)
+void solveDBS(DiracSpinor &psi, const std::vector<double> &v, const Grid &rgrid,
+              double alpha, int log_dele)
 /*
 Solves local, spherical bound state dirac equation using Adams-Moulton method.
 Based on method presented in book by W. R. Johnson:
@@ -82,11 +81,22 @@ Defn: f = p, g = -q. (My g includes alpha)
   int d_ctp = d_ctp_in; // from tests..
 
   // Temporary refs to make transition easier. Should remove these
-  // + propogate changes through proplerly
+  // + propogate changes through proplerly XXX XXX XXX
   auto ngp = rgrid.ngp;
   auto &r = rgrid.r;
   auto &drdu = rgrid.drdu;
   auto du = rgrid.du;
+
+  // Temporary refs to make transition easier. Should remove these
+  // + propogate changes through proplerly XXX XXX XXX
+  auto &f = psi.f;
+  auto &g = psi.g;
+  auto &en_inout = psi.en;
+  auto n = psi.n;
+  auto ka = psi.k;
+  auto &pinf_out = psi.pinf;
+  auto &its_out = psi.its;
+  auto &eps_out = psi.eps;
 
   // Convergance goal. Default: 1e-15
   double eps_goal = (log_dele > 0) ? 1. / pow(10, log_dele) : 1e-14;

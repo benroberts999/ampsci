@@ -1,4 +1,5 @@
 #pragma once
+#include "DiracSpinor.h"
 #include "Grid.h"
 #include <string>
 #include <vector>
@@ -15,6 +16,7 @@ public:
 
 public:
   // orbitals:
+  std::vector<DiracSpinor> orbitals;
   std::vector<std::vector<double>> f;
   std::vector<std::vector<double>> g;
   std::vector<double> en;

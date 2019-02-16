@@ -102,11 +102,12 @@ int main(int argc, char *argv[]) {
           NumCalc::derivative(wf.g[s], wf.rgrid.drdu, wf.rgrid.du);
       std::vector<double> rad;
       for (int i = 0; i < wf.rgrid.ngp; i++) {
-        double x1 = -2 * wf.f[s][i] * dQ[i] / alpha;
-        double x2 =
-            2 * wf.kappa[s] * wf.f[s][i] * wf.g[s][i] / (wf.rgrid.r[i] * alpha);
+        double x1 = -2 * wf.orbitals[s].f[i] * dQ[i] / alpha;
+        double x2 = 2 * wf.kappa[s] * wf.orbitals[s].f[i] * wf.g[s][i] /
+                    (wf.rgrid.r[i] * alpha);
         double x3 = -2 * pow(wf.g[s][i], 2) / a2;
-        double x4 = wf.vnuc[i] * (pow(wf.f[s][i], 2) + pow(wf.g[s][i], 2));
+        double x4 =
+            wf.vnuc[i] * (pow(wf.orbitals[s].f[i], 2) + pow(wf.g[s][i], 2));
         rad.push_back(x1 + x3 + x2 + x4);
       }
       double R = NumCalc::integrate(rad, wf.rgrid.drdu) * wf.rgrid.du;

@@ -1,4 +1,5 @@
 #pragma once
+#include "DiracSpinor.h"
 #include "Grid.h"
 #include <array>
 #include <vector>
@@ -10,10 +11,8 @@ static_assert(
     AMO >= 5 && AMO <= 8,
     "\nFAIL 8 in Adams (.h): parameter AMO must be between 5 and 8\n");
 
-void solveDBS(std::vector<double> &f, std::vector<double> &g, double &en,
-              const std::vector<double> &v, int n, int ka, const Grid &rgrid,
-              int &pinf, int &its, double &eps, double alpha,
-              int log_dele_or = 0);
+void solveDBS(DiracSpinor &psi, const std::vector<double> &v, const Grid &rgrid,
+              double alpha, int log_dele);
 
 int findPracticalInfinity(double en, const std::vector<double> &v,
                           const std::vector<double> &r, double alr);

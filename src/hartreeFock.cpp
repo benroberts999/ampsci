@@ -156,7 +156,7 @@ int main(int argc, char *argv[]) {
     for (int i = 0; i < wf.rgrid.ngp; i++) {
       of << wf.rgrid.r[i] << " ";
       for (size_t a = 0; a < wf.nlist.size(); a++) {
-        of << wf.f[a][i] << " ";
+        of << wf.orbitals[a].f[i] << " ";
       }
       of << "\n";
     }

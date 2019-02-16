@@ -169,7 +169,7 @@ int main(int argc, char *argv[]) {
 
   // pre-calculate the spherical Bessel function look-up table for efficiency
   timer.start();
-  std::vector<std::vector<std::vector<float>>> jLqr_f;
+  std::vector<std::vector<std::vector<double>>> jLqr_f;
   AKF::sphericalBesselTable(jLqr_f, max_L, qgrid.r, wf.rgrid.r);
   std::cout << "Time for SB table: " << timer.lap_reading_str() << "\n";
 
