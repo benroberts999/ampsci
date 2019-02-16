@@ -55,15 +55,6 @@ int main(int argc, char *argv[]) {
   if (hart_del == 0)
     hart_del = 1.e-6;
 
-  // allow for single-step in dE or q grid
-  if (desteps == 1)
-    demax = demin;
-  if (qsteps == 1)
-    qmax = qmin;
-  // Set up the E and q grids
-  Grid Egrid(demin, demax, desteps, GridType::logarithmic);
-  Grid qgrid(qmin, qmax, qsteps, GridType::logarithmic);
-
   // Fix maximum angular momentum values:
   if (max_l < 0 || max_l > 3)
     max_l = 3; // default: all core states (no >f)
@@ -74,6 +65,12 @@ int main(int argc, char *argv[]) {
   if (varalpha == 0)
     varalpha = 1.e-25;
 
+  // allow for single-step in dE or q grid
+  if (desteps == 1)
+    demax = demin;
+  if (qsteps == 1)
+    qmax = qmin;
+
   // Convert units for input q and dE range into atomic units
   double keV = (1.e3 / FPC::Hartree_eV);
   demin *= keV;
@@ -81,6 +78,10 @@ int main(int argc, char *argv[]) {
   double qMeV = (1.e6 / (FPC::Hartree_eV * FPC::c));
   qmin *= qMeV;
   qmax *= qMeV;
+
+  // Set up the E and q grids
+  Grid Egrid(demin, demax, desteps, GridType::logarithmic);
+  Grid qgrid(qmin, qmax, qsteps, GridType::logarithmic);
 
   // Look-up atomic number, Z, and also A
   int Z = ATI::get_z(Z_str);
