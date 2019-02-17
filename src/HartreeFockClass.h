@@ -41,6 +41,7 @@ private:
   int m_ngp;
   int m_num_core_states;
   std::vector<int> twoj_list;
+  // std::vector<int> kappa_list;
   std::vector<int> kappa_index_list;
   int m_max_kappa_index_so_far;
 
@@ -60,7 +61,7 @@ private:
   void hartree_fock_core();
   void starting_approx_core(const std::string &in_core);
 
-  void form_core_Lambda_abk(const std::vector<int> &kappa);
+  void form_core_Lambda_abk();
   void extend_Lambda_abk(int kappa_a);
   double get_Lambda_abk(int a, int b, int k) const;
 

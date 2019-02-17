@@ -105,7 +105,7 @@ int main(int argc, char *argv[]) {
         double fx = 0;
         for (size_t ns = 0; ns < in_n.size(); ns++) {
           wf.solveLocalDirac(in_n[ns], in_k[ns], in_en[ns]);
-          fx += pow((wf.en[ns] - in_en[ns]), 2);
+          fx += pow((wf.orbitals[ns].en - in_en[ns]), 2);
         }
         array[n][m][0] = fx;
         array[n][m][1] = H;
@@ -172,12 +172,13 @@ int main(int argc, char *argv[]) {
   for (auto i : wf.stateIndexList) {
     int k = wf.ka(i);
     double rinf = wf.rinf(i);
-    double en0 = wf.en[0];
-    double eni = wf.en[i];
+    double en0 = wf.orbitals.front().en;
+    double eni = wf.orbitals[i].en;
     double enT = in_en[i];
     printf("%7s %2i  %3.0f %3i  %5.0e  %.15f  %13.7f  %9.4f%%\n",
-           wf.seTermSymbol(i).c_str(), k, rinf, wf.itslist[i], wf.epslist[i],
-           eni, (eni - en0) * FPC::Hartree_invcm, 100. * (enT - eni) / enT);
+           wf.seTermSymbol(i).c_str(), k, rinf, wf.orbitals[i].its,
+           wf.orbitals[i].eps, eni, (eni - en0) * FPC::Hartree_invcm,
+           100. * (enT - eni) / enT);
   }
 
   std::cout << "\nTime: " << sw.reading_str() << "\n";

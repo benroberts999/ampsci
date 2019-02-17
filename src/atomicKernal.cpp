@@ -145,10 +145,10 @@ int main(int argc, char *argv[]) {
     auto nlj = wf.seTermSymbol(i);
     int k = wf.ka(i);
     double rinf = wf.rinf(i);
-    double eni = wf.en[i];
-    double x = wf.occ_frac[i];
+    double eni = wf.orbitals[i].en;
+    double x = wf.orbitals[i].occ_frac;
     printf("%2i)%7s %2i  %3.0f %3i  %5.0e  %11.5f %12.0f %10.2f   (%.2f)\n", i,
-           nlj.c_str(), k, rinf, wf.itslist[i], wf.epslist[i], eni,
+           nlj.c_str(), k, rinf, wf.orbitals[i].its, wf.orbitals[i].eps, eni,
            eni * FPC::Hartree_invcm, eni * FPC::Hartree_eV, x);
   }
 
@@ -156,14 +156,14 @@ int main(int argc, char *argv[]) {
 
   // Arrays to store results for outputting later:
   std::vector<std::vector<std::vector<float>>> AK; // float ok?
-  int num_states = (int)wf.nlist.size();
+  int num_states = (int)wf.orbitals.size();
   AK.resize(desteps, std::vector<std::vector<float>>(
                          num_states, std::vector<float>(qsteps)));
 
   // Store state info (each orbital) [just useful for plotting!]
   std::vector<std::string> nklst; // human-readiable state labels (easy
                                   // plotting)
-  nklst.reserve(wf.nlist.size());
+  nklst.reserve(wf.orbitals.size());
   for (auto i : wf.stateIndexList)
     nklst.emplace_back(wf.seTermSymbol(i, true));
 

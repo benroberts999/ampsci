@@ -112,9 +112,9 @@ int main(int argc, char *argv[]) {
     }
     int k = wf.ka(i);
     double rinf = wf.rinf(i);
-    double eni = wf.en[i];
+    double eni = wf.orbitals[i].en;
     printf("%7s %2i  %3.0f %3i  %5.0e  %11.5f %15.3f\n",
-           wf.seTermSymbol(i).c_str(), k, rinf, wf.itslist[i], wf.epslist[i],
+           wf.seTermSymbol(i).c_str(), k, rinf, wf.orbitals[i].its, wf.orbitals[i].eps,
            eni, eni * FPC::Hartree_invcm);
   }
 

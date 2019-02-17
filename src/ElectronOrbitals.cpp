@@ -62,17 +62,17 @@ Uses ADAMS::solveDBS to solve Dirac Eqn for local potential (Vnuc + Vdir)
   else
     valenceIndexList.push_back(this_index);
 
-  // Store wf + energy
-  f.push_back(psi.f);
-  g.push_back(psi.g);
-  en.push_back(psi.en);
-  // Store states:
-  nlist.push_back(psi.n);
-  kappa.push_back(psi.k);
-  // store convergance info:
-  pinflist.push_back(psi.pinf);
-  itslist.push_back(psi.its);
-  epslist.push_back(psi.eps);
+  // // Store wf + energy
+  // f.push_back(psi.f);
+  // g.push_back(psi.g);
+  // en.push_back(psi.en);
+  // // Store states:
+  // nlist.push_back(psi.n);
+  // kappa.push_back(psi.k);
+  // // store convergance info:
+  // pinflist.push_back(psi.pinf);
+  // itslist.push_back(psi.its);
+  // epslist.push_back(psi.eps);
 
   return 0;
 }
@@ -94,11 +94,10 @@ XXX Few things here that are slow! XXX
 */
 {
   // check that a and b are OK!
-  if (a >= (int)f.size() || b >= (int)f.size())
-    std::cout << "\nFail 97 in EO radInt. Invalid state\n";
+  // if (a >= (int)f.size() || b >= (int)f.size())
+  // std::cout << "\nFail 97 in EO radInt. Invalid state\n";
 
-  int pinf = std::min(pinflist[a], pinflist[b]);
-  // int pinf = (pinflist[a] + pinflist[b]) / 2;
+  int pinf = std::min(orbitals[a].pinf, orbitals[b].pinf);
 
   std::vector<double> fprime(rgrid.ngp); // = f[b];
   std::vector<double> gprime(rgrid.ngp); // = g[b];
@@ -167,19 +166,24 @@ int ElectronOrbitals::Nnuc() const {
   return N;
 }
 
-double ElectronOrbitals::rinf(int i) const { return rgrid.r[pinflist[i]]; }
-
-int ElectronOrbitals::lorb(int i) const { return ATI::l_k(kappa[i]); }
-
-int ElectronOrbitals::ka(int i) const { return kappa[i]; }
-
-int ElectronOrbitals::n_pqn(int i) const { return nlist[i]; }
-
-double ElectronOrbitals::jtot(int i) const {
-  return 0.5 * ATI::twoj_k(kappa[i]);
+double ElectronOrbitals::rinf(int i) const {
+  return rgrid.r[orbitals[i].pinf - 1];
 }
 
-int ElectronOrbitals::twoj(int i) const { return ATI::twoj_k(kappa[i]); }
+int ElectronOrbitals::lorb(int i) const { return ATI::l_k(orbitals[i].k); }
+
+// int ElectronOrbitals::ka(int i) const { return kappa[i]; }
+int ElectronOrbitals::ka(int i) const { return orbitals[i].k; }
+
+// int ElectronOrbitals::n_pqn(int i) const { return nlist[i]; }
+int ElectronOrbitals::n_pqn(int i) const { return orbitals[i].n; }
+
+double ElectronOrbitals::jtot(int i) const {
+  // return 0.5 * ATI::twoj_k(kappa[i]);
+  return 0.5 * ATI::twoj_k(orbitals[i].k);
+}
+
+int ElectronOrbitals::twoj(int i) const { return ATI::twoj_k(orbitals[i].k); }
 
 //******************************************************************************
 int ElectronOrbitals::reSolveDirac(unsigned long i, double e_a, int log_dele_or)
@@ -221,15 +225,13 @@ This is not ideal..
     psi.en = e_a;
   ADAMS::solveDBS(psi, v_a, rgrid, alpha, log_dele_or);
 
-  f[i] = psi.f;
-  g[i] = psi.g;
-
-  en[i] = psi.en; // update w/ new energy
-
-  // store convergance info:
-  pinflist[i] = psi.pinf;
-  itslist[i] = psi.its;
-  epslist[i] = psi.eps;
+  // f[i] = psi.f;
+  // g[i] = psi.g;
+  // en[i] = psi.en; // update w/ new energy
+  // // store convergance info:
+  // pinflist[i] = psi.pinf;
+  // itslist[i] = psi.its;
+  // epslist[i] = psi.eps;
 
   return 0;
 }
@@ -351,7 +353,7 @@ Checks if given state is in the core.
 {
   // for(int i=0; i<num_core_states; i++)
   for (auto i : coreIndexList)
-    if (n == nlist[i] && k == kappa[i])
+    if (n == orbitals[i].n && k == orbitals[i].k)
       return true;
   return false;
 }
@@ -360,14 +362,14 @@ Checks if given state is in the core.
 int ElectronOrbitals::getStateIndex(int n, int k, bool forceVal) const {
   auto &state_list = forceVal ? valenceIndexList : stateIndexList;
   for (auto i : state_list)
-    if (n == nlist[i] && k == kappa[i])
+    if (n == orbitals[i].n && k == orbitals[i].k)
       return i;
   std::cerr << "\nFAIL 290 in EO: Couldn't find state nk=" << n << k << "\n";
   return (int)stateIndexList.size(); // this is an invalid index!
 }
 
 //******************************************************************************
-int ElectronOrbitals::numberOfStates() const { return (int)nlist.size(); }
+int ElectronOrbitals::numberOfStates() const { return (int)orbitals.size(); }
 
 //******************************************************************************
 int ElectronOrbitals::maxCore_n(int ka) const
@@ -381,10 +383,10 @@ Note: if you give it l instead of kappa, still works!
   int max_n = 0;
   // for(size_t i=0; i<num_core_states; i++){
   for (auto i : coreIndexList) {
-    if (kappa[i] != ka && ka != 0)
+    if (orbitals[i].k != ka && ka != 0)
       continue;
-    if (nlist[i] > max_n)
-      max_n = nlist[i];
+    if (orbitals[i].n > max_n)
+      max_n = orbitals[i].n;
   }
   return max_n;
 }
@@ -414,19 +416,20 @@ HartreeFockClass.cpp has routines for Hartree Fock
     int k1 = l; // j = l-1/2
     if (k1 != 0) {
       solveLocalDirac(n, k1, en_a, log_dele_or, true);
-      en_a = 0.95 * en[nlist.size() - 1]; // update guess for next same l
+      // en_a = 0.95 * en[orbitals.size() - 1]; // update guess for next same l
+      en_a = 0.95 * orbitals.back().en;
       if (en_a > 0)
         en_a = enGuessCore(n, l);
     }
     int k2 = -(l + 1); // j=l+1/2
     solveLocalDirac(n, k2, en_a, log_dele_or, true);
   }
-  num_core_states = (int)nlist.size(); // store number of states in core
+  num_core_states = (int)orbitals.size(); // store number of states in core
 
   // occupancy fraction for each core state (avg of Non-rel states!):
   for (int i = 0; i < num_core_states; i++) {
-    int n = nlist[i];
-    int ka = kappa[i];
+    int n = orbitals[i].n;
+    int ka = orbitals[i].k;
     int l = ATI::l_k(ka);
     // Find the correct core list index (to determine filling factor):
     auto ic = num_core_shell.size();
@@ -440,7 +443,7 @@ HartreeFockClass.cpp has routines for Hartree Fock
       std::cout << "FAIL 254 in ElectronOrbitals:solveInitialCore\n";
       return 2;
     }
-    occ_frac.push_back(double(num_core_shell[ic]) / (4 * l + 2));
+    // occ_frac.push_back(double(num_core_shell[ic]) / (4 * l + 2));
     orbitals[i].occ_frac = double(num_core_shell[ic]) / (4 * l + 2); // XXX
   }
 
@@ -464,13 +467,13 @@ Hence factor of 0.5
 Note: For HF, should never be called after core is frozen!
 */
 {
-  size_t Ns = nlist.size();
+  size_t Ns = orbitals.size();
   std::vector<std::vector<double>> c_ab(Ns, std::vector<double>(Ns));
 
   // Calculate c_ab = <a|b>  [only for b>a -- symmetric]
   for (auto a : stateIndexList) {
     for (auto b = a + 1; b < (int)Ns; b++) {
-      if (kappa[a] != kappa[b])
+      if (orbitals[a].k != orbitals[b].k)
         continue;
       c_ab[a][b] = 0.5 * radialIntegral(a, b); // 0.5 avoids double counting
     }
@@ -485,7 +488,7 @@ Note: For HF, should never be called after core is frozen!
     for (auto b : stateIndexList) {
       if (a == b)
         continue;
-      if (kappa[a] != kappa[b])
+      if (orbitals[a].k != orbitals[b].k)
         continue;
       // c_ab = c_ba : only calc'd half:
       double cab = (a < b) ? c_ab[a][b] : c_ab[b][a];
@@ -523,6 +526,8 @@ Force given valence orbital to be orthogonal to
 After the core is 'frozen', don't touch core orbitals!
 |v> --> |v> - sum_c |c><c|v>
 note: here, c denotes core orbitals + valence orbitals with c<v
+
+XXX re-write to take ref to an orbital! (?) XXX
 */
 {
   if (iv < num_core_states)
@@ -532,28 +537,29 @@ note: here, c denotes core orbitals + valence orbitals with c<v
   // Calculate the coeficients <c|v> = A_cv
   std::vector<double> A_vc(num_states_below);
   for (int ic = 0; ic < num_states_below; ic++) {
-    if (kappa[iv] != kappa[ic])
+    if (orbitals[iv].k != orbitals[ic].k)
       continue;
     A_vc[ic] = radialIntegral(iv, ic); // no 0.5 here
   }
 
   // Orthogonalise:
   for (int ic = 0; ic < num_states_below; ic++) {
-    if (kappa[iv] != kappa[ic])
+    if (orbitals[iv].k != orbitals[ic].k)
       continue;
     double Avc = A_vc[ic];
     for (int ir = 0; ir < rgrid.ngp; ir++) {
-      f[iv][ir] -= Avc * f[ic][ir];
-      g[iv][ir] -= Avc * g[ic][ir];
+      // Probably an algorithm for this! XXX
+      orbitals[iv].f[ir] -= Avc * orbitals[ic].f[ir];
+      orbitals[iv].g[ir] -= Avc * orbitals[ic].g[ir];
     }
   }
 
   // Re-normalise the valence orbital:
   double A = radialIntegral(iv, iv);
   double norm = 1. / sqrt(A);
-  for (auto &fv_r : f[iv])
+  for (auto &fv_r : orbitals[iv].f)
     fv_r *= norm;
-  for (auto &gv_r : g[iv])
+  for (auto &gv_r : orbitals[iv].g)
     gv_r *= norm;
 
   // If necisary: repeat
@@ -631,7 +637,8 @@ int ElectronOrbitals::getRadialIndex(double r_target) const {
 
 //******************************************************************************
 double ElectronOrbitals::diracen(double z, double n, int k) const {
-
+  // XXX move to AT? Make static?
+  // NOPE! Uses alpha!
   double a2 = pow(alpha, 2);
   double c2 = 1. / pow(alpha, 2);
   double za2 = pow(alpha * z, 2);
@@ -641,7 +648,7 @@ double ElectronOrbitals::diracen(double z, double n, int k) const {
   double d = 1. + a2 * w2;
 
   double diracE =
-      -1 * w2 / (2 * d) - (a2 * w2 / 2 + 1 - sqrt(1 + a2 * w2)) * (c2 / d);
+      -w2 / (2 * d) - (a2 * w2 / 2 + 1. - sqrt(1. + a2 * w2)) * (c2 / d);
   return diracE;
 }
 
@@ -668,6 +675,7 @@ void ElectronOrbitals::zeroNucleus()
 /*
 infinitesimal nucleus.
 1/r potential
+XXX Move to seperate file! Might want to use outside of class! XXX
 */
 {
   vnuc.clear();
@@ -685,6 +693,8 @@ Note: rnuc must be given in "fermi" (fm, femto-metres).
 If rnuc=0 is given [which is default], then will use approximate
 formula for rN.
 See: https://www-nds.iaea.org/radii/
+XXX Move to seperate file! Might want to use outside of class! XXX
+
 */
 {
   vnuc.clear();
@@ -742,10 +752,14 @@ If provided with 0, will use 'default' values, approx. formula.
 V(r) is expressed in terms of Complete Fermi-Dirac intagrals.
 These are computed using the GSL libraries.
 gnu.org/software/gsl/manual/html_node/Complete-Fermi_002dDirac-Integrals
+
+XXX Move to seperate file! Might want to use outside of class! XXX
+
 */
 {
   vnuc.clear(); // clear the array [just in case..]
 
+  // Lookup default values from other function! XXX
   if (Z_ == 55 && t == 0)
     t = 2.3;
   if (Z_ == 55 && c == 0)
@@ -781,8 +795,8 @@ gnu.org/software/gsl/manual/html_node/Complete-Fermi_002dDirac-Integrals
 
 //******************************************************************************
 std::string ElectronOrbitals::seTermSymbol(int ink, bool gnuplot) const {
-  // std::string pad = (!gnuplot && nlist[ink]<10) ? " " : "";
-  std::string ostring1 = std::to_string(nlist[ink]) + ATI::l_symbol(lorb(ink));
+  std::string ostring1 =
+      std::to_string(orbitals[ink].n) + ATI::l_symbol(lorb(ink));
   std::string ostring2 = gnuplot ? "_{" + std::to_string(twoj(ink)) + "/2}"
                                  : "_" + std::to_string(twoj(ink)) + "/2";
 
@@ -801,14 +815,14 @@ sorted by energy (lowest energy first)
   sort_list.clear();
 
   if (!do_sort) {
-    for (size_t i = 0; i < en.size(); i++)
+    for (size_t i = 0; i < orbitals.size(); i++)
       sort_list.push_back((int)i);
     return;
   }
 
   std::vector<std::vector<double>> t_en;
-  for (size_t i = 0; i < en.size(); i++) {
-    t_en.push_back({en[i], (double)i + 0.1});
+  for (size_t i = 0; i < orbitals.size(); i++) {
+    t_en.push_back({orbitals[i].en, (double)i + 0.1});
     //+0.1 to prevent rounding error when going from double -> int
   }
 
@@ -821,6 +835,6 @@ sorted by energy (lowest energy first)
 
   std::sort(t_en.rbegin(), t_en.rend(), sortCol);
 
-  for (size_t i = 0; i < en.size(); i++)
+  for (size_t i = 0; i < orbitals.size(); i++)
     sort_list.push_back((int)t_en[i][1]);
 }

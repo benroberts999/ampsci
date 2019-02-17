@@ -57,11 +57,11 @@ int main(int argc, char *argv[]) {
   for (auto i : wf.stateIndexList) {
     int n = wf.n_pqn(i);
     int k = wf.ka(i);
-    double del = wf.en[i] - wf.diracen(wf.Znuc(), n, k);
+    double del = wf.orbitals[i].en - wf.diracen(wf.Znuc(), n, k);
     double rinf = wf.rinf(i);
     printf("%7s (%2i)  %3.0f %3i  %5.0e  %.15f  %7.0e\n",
-           wf.seTermSymbol(i).c_str(), k, rinf, wf.itslist[i], wf.epslist[i],
-           wf.en[i], del);
+           wf.seTermSymbol(i).c_str(), k, rinf, wf.orbitals[i].its,
+           wf.orbitals[i].eps, wf.orbitals[i].en, del);
   }
 
   // wf.orthonormaliseOrbitals(2);
@@ -97,24 +97,25 @@ int main(int argc, char *argv[]) {
     double a2 = pow(alpha, 2);
     for (auto s : wf.stateIndexList) {
       // std::vector<double> dQ(wf.rgrid.ngp);
-      // NumCalc::diff(wf.g[s], wf.rgrid.drdu, wf.rgrid.du, dQ);
+      // NumCalc::diff(wf.orbitals[s].g, wf.rgrid.drdu, wf.rgrid.du, dQ);
       std::vector<double> dQ =
-          NumCalc::derivative(wf.g[s], wf.rgrid.drdu, wf.rgrid.du);
+          NumCalc::derivative(wf.orbitals[s].g, wf.rgrid.drdu, wf.rgrid.du);
       std::vector<double> rad;
       for (int i = 0; i < wf.rgrid.ngp; i++) {
         double x1 = -2 * wf.orbitals[s].f[i] * dQ[i] / alpha;
-        double x2 = 2 * wf.kappa[s] * wf.orbitals[s].f[i] * wf.g[s][i] /
+        double x2 = 2 * wf.orbitals[s].k * wf.orbitals[s].f[i] * wf.orbitals[s].g[i] /
                     (wf.rgrid.r[i] * alpha);
-        double x3 = -2 * pow(wf.g[s][i], 2) / a2;
+        double x3 = -2 * pow(wf.orbitals[s].g[i], 2) / a2;
         double x4 =
-            wf.vnuc[i] * (pow(wf.orbitals[s].f[i], 2) + pow(wf.g[s][i], 2));
+            wf.vnuc[i] * (pow(wf.orbitals[s].f[i], 2) + pow(wf.orbitals[s].g[i], 2));
         rad.push_back(x1 + x3 + x2 + x4);
       }
       double R = NumCalc::integrate(rad, wf.rgrid.drdu) * wf.rgrid.du;
-      double fracdiff = (R - wf.en[s]) / wf.en[s];
+      double ens = wf.orbitals[s].en;
+      double fracdiff = (R - ens) / ens;
       printf("<%i% i|H|%i% i> = % .15f, E(%i% i) = % .15f; % .0e\n",
              wf.n_pqn(s), wf.ka(s), wf.n_pqn(s), wf.ka(s), R, wf.n_pqn(s),
-             wf.ka(s), wf.en[s], fracdiff);
+             wf.ka(s), ens, fracdiff);
     }
   }
 

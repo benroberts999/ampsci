@@ -17,19 +17,19 @@ public:
 public:
   // orbitals:
   std::vector<DiracSpinor> orbitals;
-  std::vector<std::vector<double>> f;
-  std::vector<std::vector<double>> g;
-  std::vector<double> en;
+  // std::vector<std::vector<double>> f;
+  // std::vector<std::vector<double>> g;
+  // std::vector<double> en;
   // state info:
-  std::vector<int> nlist;
-  std::vector<int> kappa;
+  // std::vector<int> nlist;
+  // std::vector<int> kappa;
   // info from solveing DE
-  std::vector<int> pinflist;   // practical infinity
-  std::vector<int> itslist;    // num. iterations
-  std::vector<double> epslist; // convergance
+  // std::vector<int> pinflist;   // practical infinity
+  // std::vector<int> itslist;    // num. iterations
+  // std::vector<double> epslist; // convergance
   // occupancy fraction.
   // Note: avg over non-rel for core, but rel for valence!
-  std::vector<double> occ_frac;
+  // std::vector<double> occ_frac;
 
   std::vector<int> stateIndexList;
   std::vector<int> coreIndexList;

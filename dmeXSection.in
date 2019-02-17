@@ -1,4 +1,4 @@
-ak-Xe_S1        ! input file name (without .bin ext) *1
+ak-Xe_test      ! input file name (without .bin ext) *1
 test            ! output label (put 'na' for none)
 # Dark Matter:
 0.1  10. 20     ! m_chi/GeV: min, max, num_steps
@@ -8,17 +8,17 @@ test            ! output label (put 'na' for none)
 0               ! Do annual mod amplitude? 1=yes, 0=no
 0               ! 1= Write <ds.v>/dE to file (or an mod)?
 # DAMA/LIBRA:
-0               ! DAMA? 1= Calculate observable ratest for DAMA (as below)
+1               ! DAMA? 1= Calculate observable ratest for DAMA (as below)
 0  0            ! DAMA error: det. resolution, PE-keV [-1,1] *2
 150             ! Atot. 127+23=150 for Dama. Used to get units to /kg
 0.0 6. 1.0      ! E bins (integration): init, final, width (keV)
-2               ! write to file: 0 = dS(E)/dE; 1 = S(m)/[Ew]; 2 = both
+1               ! write to file: 0 = dS(E)/dE; 1 = S(m)/[Ew]; 2 = both
 # XENON 100:
-0               ! Xe100? 1= Calc. rates for Xe100
+1               ! Xe100? 1= Calc. rates for Xe100
 0  0            ! Error [-1,1]; N(e), sig_PMT  *3
 131             ! Atot. 131 for Xe
 3. 14.          ! PE to integrate
-2               ! Write to file: 0= dS/ds1, 1= S1, 2=both
+1               ! Write to file: 0= dS/ds1, 1= S1, 2=both
 !!!!!!!!!!!!!!!!!
 !*1 reads in binary output from "atomicKernal" program
 !*2 a) Gaussian resolution, error in sigma_E [+/-1]

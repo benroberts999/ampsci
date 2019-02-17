@@ -161,7 +161,7 @@ Zeff no longer works at main() level.
   int qsteps = (int)jLqr_f[0].size();
 
   // Calculate continuum wavefunctions
-  double ec = dE + wf.en[is];
+  double ec = dE + wf.orbitals[is].en;
   cntm.clear();
   int lc_max = l + max_L;
   int lc_min = l - max_L;

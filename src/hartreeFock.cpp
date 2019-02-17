@@ -98,20 +98,21 @@ int main(int argc, char *argv[]) {
   for (int i : sorted_by_energy_list) {
     ++count;
     if (val && en_lim == 0)
-      en_lim = fabs(wf.en[i]); // give energies wrt core
+      en_lim = fabs(wf.orbitals[i].en); // give energies wrt core
     int k = wf.ka(i);
     double rinf = wf.rinf(i);
-    double eni = wf.en[i];
+    double eni = wf.orbitals[i].en;
     auto symb = wf.seTermSymbol(i).c_str();
     printf("%2i) %7s %2i  %5.1f %3i  %5.0e %13.7f %13.1f", i, symb, k, rinf,
-           wf.itslist[i], wf.epslist[i], eni, eni * FPC::Hartree_invcm);
+           wf.orbitals[i].its, wf.orbitals[i].eps, eni,
+           eni * FPC::Hartree_invcm);
     if (val)
       printf(" %10.2f\n", (eni + en_lim) * FPC::Hartree_invcm);
     else
       std::cout << "\n";
     if (count == (int)wf.num_core_states) {
       printf("E_core = %.5f au\n", core_energy);
-      if (wf.num_core_states == (int)wf.nlist.size())
+      if (wf.num_core_states == (int)wf.orbitals.size())
         break;
       std::cout
           << "Val: state   "
@@ -155,7 +156,7 @@ int main(int argc, char *argv[]) {
     of << "\n";
     for (int i = 0; i < wf.rgrid.ngp; i++) {
       of << wf.rgrid.r[i] << " ";
-      for (size_t a = 0; a < wf.nlist.size(); a++) {
+      for (size_t a = 0; a < wf.orbitals.size(); a++) {
         of << wf.orbitals[a].f[i] << " ";
       }
       of << "\n";
@@ -193,10 +194,10 @@ int main(int argc, char *argv[]) {
       // <7s|d|np><np|hw|6s>/dE6s + <7s|hw|np><np|d|6s>/dE7s
       double d7s = wf.radialIntegral(a7s, np, wf.rgrid.r);
       double w6s = wf.radialIntegral(np, a6s, rho, Operator::gamma5);
-      double dE6s = wf.en[a6s] - wf.en[np];
+      double dE6s = wf.orbitals[a6s].en - wf.orbitals[np].en;
       double d6s = wf.radialIntegral(np, a6s, wf.rgrid.r);
       double w7s = wf.radialIntegral(a7s, np, rho, Operator::gamma5);
-      double dE7s = wf.en[a7s] - wf.en[np];
+      double dE7s = wf.orbitals[a7s].en - wf.orbitals[np].en;
       double pnc1 = Cc * Ac * d7s * w6s / dE6s;
       double pnc2 = Cc * Ac * d6s * w7s / dE7s;
       std::cout << "n=" << n << " pnc= " << pnc1 << " + " << pnc2 << " = "
