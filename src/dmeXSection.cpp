@@ -131,10 +131,12 @@ double F_chi_2_heavy(double, double)
 double F_chi_2_light(double, double q)
 // Limit of light mediatior (mu << q)
 {
-  return 1. / pow(q, 4);
+  // return 1. / pow(q, 4);
+  return 1. / (q * q * q * q); // wow. MUCH faster? wtf compiler can't fix?
 }
 double F_chi_2_intermediate(double mu, double q) {
-  return pow((mu * mu + 1.) / (mu * mu + q * q), 2);
+  double a = (mu * mu + 1.) / (mu * mu + q * q);
+  return a * a;
 }
 
 //******************************************************************************
@@ -435,6 +437,15 @@ Optionally further integrates into energy bins
   // DAMA parameters for Gaussian resolution (smearing)
   double alpha = 0.45 + dres * 0.04;
   double beta = 0.009 + dres * 0.005;
+  std::cout << "DAMA detector resolution:";
+  if (dres != 0)
+    std::cout << " with error term: " << dres << ".";
+  std::cout << "\n ==> alpha = " << alpha << ", beta=" << beta << " (keV).\n";
+  std::cout << "Hardware threshold (1 PE, from PE->keV conversion):";
+  if (err_PEkeV != 0)
+    std::cout << " with error term: " << err_PEkeV << ".";
+  std::cout << "\n ==> PE per keV = " << PE_per_keV << " (PE).";
+  std::cout << "\n ==> E_HW       = " << E_thresh_HW * E_to_keV << " (keV).\n";
 
   // Create the Gaussian-smearing array (includes HW threshold)
   std::vector<std::vector<double>> gausVec(desteps);
@@ -656,6 +667,11 @@ Mostly, coming from:
     }
     P[n] = Pn;
   }
+  std::cout << "Xe100: eER -> PE conversion N(e): ";
+  if (N_err != 0)
+    std::cout << "with error term: " << N_err << ".";
+  std::cout << "\n ==> N(1keV) = " << NofE(1. / E_to_keV, N_err)
+            << ", N(2keV) = " << NofE(2. / E_to_keV, N_err) << " PE\n";
 
   double MN =
       Atot * (FPC::u_NMU * FPC::m_e_kg); // Total atomic/mol. mass (in kg)
@@ -694,6 +710,13 @@ Mostly, coming from:
   double sigma_pmt = 0.5 * (1 + sPMT_err * 0.05);
   // PMT resolution: 0.5 PE, Astropart. Phys. 54, 11 (2014).
   // Note: No uncertainty in this is given. I take 5%. Only for OoM estimates!
+
+  std::cout << "PMT resolution: ";
+  if (sPMT_err != 0)
+    std::cout << "with error term: " << sPMT_err << " (" << 5. * sPMT_err
+              << "%)";
+  std::cout << "\n ==> sigma_PMT = " << sigma_pmt << " (PE)\n";
+
   std::vector<std::vector<double>> GA_s1_n(num_s1);
   for (int is1 = 0; is1 < num_s1; is1++) {
     double s1 = s1grid.r[is1];
@@ -795,10 +818,10 @@ Mostly, coming from:
     }
     of << "\n";
     for (int imx = 0; imx < mxgrid.ngp; imx++) {
-      of << std::fixed << std::setprecision(2);
+      of << std::scientific << std::setprecision(4);
       of << mxgrid.r[imx] * M_to_GeV << " ";
       for (int imv = 0; imv < mvgrid.ngp; imv++) {
-        of << std::scientific << std::setprecision(2) << rate[imv][imx] << " ";
+        of << std::scientific << std::setprecision(4) << rate[imv][imx] << " ";
       }
       of << "\n";
     }
@@ -822,10 +845,10 @@ Mostly, coming from:
     }
     of << "\n";
     for (int imv = 0; imv < mvgrid.ngp; imv++) {
-      of << std::fixed << std::setprecision(2);
+      of << std::scientific << std::setprecision(4);
       of << mvgrid.r[imv] * M_to_MeV << " ";
       for (int imx = 0; imx < mxgrid.ngp; imx++) {
-        of << std::scientific << std::setprecision(2) << rate[imv][imx] << " ";
+        of << std::scientific << std::setprecision(4) << rate[imv][imx] << " ";
       }
       of << "\n";
     }
@@ -979,6 +1002,7 @@ int main(int argc, char *argv[]) {
   // Grid of SHM vel. distro f_v(v). Can use to change vel profiles
   // Note: SHM is in km/s units, both for v and f!
   // f.dv = 1 => [f] = [1/v]
+
   double max_v = (SHMCONSTS::MAXV) / V_to_kms;
   double dv = max_v / vsteps;
   int num_cp = do_anMod ? 3 : 1; // just 1 v. dist? or 3 (for an mod.)?
@@ -993,6 +1017,13 @@ int main(int argc, char *argv[]) {
           shm.fv(vkms) / (1. / V_to_kms); // convert to a.u. [f]=[1/v]
     }
   }
+  std::cout << "\nUsing SHM velocity distro";
+  if (dvesc != 0 || dv0 != 0)
+    std::cout << " with error terms (dvesc, dv0)=" << dvesc << "," << dv0
+              << ".";
+  std::cout << "\n ==> v0=" << SHMCONSTS::V0 + dv0 * SHMCONSTS::DEL_V0 << ", "
+            << "vesc =" << SHMCONSTS::VESC + dvesc * SHMCONSTS::DEL_VESC
+            << " km/s\n";
 
   // Print the grid info to screen:
   if (do_anMod)
