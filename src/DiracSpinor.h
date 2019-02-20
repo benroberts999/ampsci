@@ -1,17 +1,13 @@
 #pragma once
 // #include "Grid.h"
+#include "ATI_atomInfo.h"
 #include <string>
 #include <vector>
-
-// enum class Operator { unity, gamma0, gamma5, dr, dr2 };
-// enum class NucleusType { Fermi, spherical, zero };
 
 struct DiracSpinor {
 
   DiracSpinor(int in_n, int in_k, int ngp)
-      : en(0), n(in_n), k(in_k), pinf(ngp), its(-1), eps(-1.), occ_frac(-1.)
-  //
-  {
+      : en(0), n(in_n), k(in_k), pinf(ngp - 1) {
     f.resize(ngp, 0);
     g.resize(ngp, 0);
   }
@@ -24,7 +20,40 @@ struct DiracSpinor {
   const int k;
 
   int pinf;
-  int its;
-  double eps;
-  double occ_frac;
+  int its = -1;
+  double eps = -1;
+  double occ_frac = -1;
+
+  // Define the custom comparitors (based on n and k)
+  // Is there a way to do this all together?
+  bool operator==(const DiracSpinor &other) const {
+    return n == other.n && k == other.k;
+  }
+  bool operator!=(const DiracSpinor &other) const { return !(*this == other); }
+
+  // Note: these are a little slow
+  bool operator<(const DiracSpinor &other) const {
+    if (n == other.n)
+      return ATI::indexFromKappa(k) < ATI::indexFromKappa(other.k);
+    return n < other.n;
+  }
+  bool operator>=(const DiracSpinor &other) const { return !(*this < other); }
+  bool operator>(const DiracSpinor &other) const {
+    if (n == other.n)
+      return ATI::indexFromKappa(k) > ATI::indexFromKappa(other.k);
+    return n > other.n;
+  }
+  bool operator<=(const DiracSpinor &other) const { return !(*this > other); }
+
+  int l() const { return ATI::l_k(k); }
+  double j() const { return 0.5 * ATI::twoj_k(k); }
+  int twoj() const { return ATI::twoj_k(k); }
+
+  //****************************************************************************
+  std::string symbol(bool gnuplot = false) const {
+    std::string ostring1 = std::to_string(n) + ATI::l_symbol(l());
+    std::string ostring2 = gnuplot ? "_{" + std::to_string(twoj()) + "/2}"
+                                   : "_" + std::to_string(twoj()) + "/2";
+    return ostring1 + ostring2;
+  }
 };

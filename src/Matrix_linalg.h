@@ -25,11 +25,6 @@ std::vector<std::vector<T>> invert(const std::vector<std::vector<T>> &M) {
   size_t n = M.size();
   if (M[0].size() != n)
     std::cerr << "\nCant invert non-square matrix, silly.\n";
-  // return 0; // matrix not square!
-
-  //"output" inverted matrix
-  std::vector<std::vector<T>> W(n, std::vector<T>(n));
-  // W.reserve(n);
 
   // Define all the used matrices (for GSL)
   gsl_matrix *m = gsl_matrix_alloc(n, n);
@@ -47,15 +42,17 @@ std::vector<std::vector<T>> invert(const std::vector<std::vector<T>> &M) {
   int s;
   gsl_linalg_LU_decomp(m, perm, &s);
   double det = gsl_linalg_LU_det(m, s);
-  if (det != 0)
-    gsl_linalg_LU_invert(m, perm, inverse);
-  if (det == 0)
-    return W; // ERROR!
+
+  //"output" inverted matrix
+  std::vector<std::vector<T>> W(n, std::vector<T>(n));
 
   // Fill the output matrix:
-  for (size_t i = 0; i < n; i++) {
-    for (size_t j = 0; j < n; j++)
-      W[i][j] = gsl_matrix_get(inverse, i, j);
+  if (det != 0) {
+    gsl_linalg_LU_invert(m, perm, inverse);
+    for (size_t i = 0; i < n; i++) {
+      for (size_t j = 0; j < n; j++)
+        W[i][j] = gsl_matrix_get(inverse, i, j);
+    }
   }
 
   // clear memory
@@ -71,9 +68,6 @@ template <typename T, size_t n>
 std::array<std::array<T, n>, n>
 invert(const std::array<std::array<T, n>, n> &M) {
 
-  //"output" inverted matrix
-  std::array<std::array<T, n>, n> W;
-
   // Define all the used matrices (for GSL)
   gsl_matrix *m = gsl_matrix_alloc(n, n);
   gsl_matrix *inverse = gsl_matrix_alloc(n, n);
@@ -90,15 +84,16 @@ invert(const std::array<std::array<T, n>, n> &M) {
   int s;
   gsl_linalg_LU_decomp(m, perm, &s);
   double det = gsl_linalg_LU_det(m, s);
-  if (det != 0)
-    gsl_linalg_LU_invert(m, perm, inverse);
-  if (det == 0)
-    return W; // ERROR!
 
   // Fill the output matrix:
-  for (size_t i = 0; i < n; i++) {
-    for (size_t j = 0; j < n; j++)
-      W[i][j] = gsl_matrix_get(inverse, i, j);
+  //"output" inverted matrix
+  std::array<std::array<T, n>, n> W;
+  if (det != 0) {
+    gsl_linalg_LU_invert(m, perm, inverse);
+    for (size_t i = 0; i < n; i++) {
+      for (size_t j = 0; j < n; j++)
+        W[i][j] = gsl_matrix_get(inverse, i, j);
+    }
   }
 
   // clear memory

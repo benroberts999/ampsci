@@ -17,25 +17,11 @@ public:
 public:
   // orbitals:
   std::vector<DiracSpinor> orbitals;
-  // std::vector<std::vector<double>> f;
-  // std::vector<std::vector<double>> g;
-  // std::vector<double> en;
-  // state info:
-  // std::vector<int> nlist;
-  // std::vector<int> kappa;
-  // info from solveing DE
-  // std::vector<int> pinflist;   // practical infinity
-  // std::vector<int> itslist;    // num. iterations
-  // std::vector<double> epslist; // convergance
-  // occupancy fraction.
-  // Note: avg over non-rel for core, but rel for valence!
-  // std::vector<double> occ_frac;
 
-  std::vector<int> stateIndexList;
-  std::vector<int> coreIndexList;
-  std::vector<int> valenceIndexList;
+  std::vector<size_t> stateIndexList;
+  std::vector<size_t> coreIndexList;
+  std::vector<size_t> valenceIndexList;
 
-  int num_core_states = 0;
   int num_core_electrons = 0; // Nc = N - M
 
   const Grid rgrid;
@@ -57,27 +43,27 @@ public:
   int Znuc() const;
   int Anuc() const;
   int Nnuc() const;
-  int ka(int i) const;
-  int n_pqn(int i) const;
-  int lorb(int i) const;
-  int twoj(int i) const;
-  double jtot(int i) const;
-  double rinf(int i) const;
-  int getStateIndex(int n, int k, bool forceVal = false) const;
+
+  double rinf(const DiracSpinor &phi) const;
+
+  size_t getStateIndex(int n, int k, bool forceVal = false) const;
+  size_t getStateIndex(const DiracSpinor &psi, bool forceVal = false) const;
+
   int getRadialIndex(double r_target) const;
-  int numberOfStates() const; // statesCount() ?
+  size_t numberOfStates() const; // statesCount() ?
 
-  std::string seTermSymbol(int ink, bool gnuplot = false) const;
-
-  double radialIntegral(int a, int b, Operator op = Operator::unity) const;
-  double radialIntegral(int a, int b, const std::vector<double> &vint,
+  double radialIntegral(const DiracSpinor &psi_a, const DiracSpinor &psi_b,
+                        const std::vector<double> &vint,
+                        Operator op = Operator::unity) const;
+  double radialIntegral(const DiracSpinor &psi_a, const DiracSpinor &psi_b,
                         Operator op = Operator::unity) const;
 
+  // XXX ? best way?
   int solveLocalDirac(int n, int k, double en_a = 0, int log_dele_or = 0,
                       bool iscore = false);
-  int reSolveDirac(unsigned long i, double e_a = 0, int log_dele_or = 0);
-  int reSolveDirac(unsigned long i, double e_a, const std::vector<double> &vex,
-                   int log_dele_or = 0);
+  int reSolveDirac(DiracSpinor &psi_a, double e_a = 0, int log_dele_or = 0);
+  int reSolveDirac(DiracSpinor &psi_a, double e_a,
+                   const std::vector<double> &vex, int log_dele_or = 0);
 
   void formNuclearPotential(NucleusType nucleus_type, double rc = 0,
                             double t = 0);
@@ -89,7 +75,7 @@ public:
   int maxCore_n(int ka_in = 0) const;
 
   void orthonormaliseOrbitals(int num_its = 1);
-  void orthonormaliseValence(int iv, int num_its);
+  void orthonormaliseValence(DiracSpinor &psi_v, int num_its);
 
   void sortedEnergyList(std::vector<int> &sort_list,
                         bool do_sort = false) const;

@@ -143,7 +143,7 @@ XXX This mean we MUST use exponential Grid! Fix this! XXX
 }
 
 //******************************************************************************
-int calculateK_nk(const ElectronOrbitals &wf, int is, int max_L, double dE,
+int calculateK_nk(const ElectronOrbitals &wf, size_t is, int max_L, double dE,
                   std::vector<std::vector<std::vector<double>>> &jLqr_f,
                   std::vector<float> &AK_nk_q, double Zeff)
 /*
@@ -154,9 +154,10 @@ Zeff no longer works at main() level.
 */
 {
   ContinuumOrbitals cntm(wf); // create cntm object [survives locally only]
+  auto &psi = wf.orbitals[is];
 
-  int k = wf.ka(is);
-  int l = wf.lorb(is);
+  int k = psi.k;   // wf.ka(is);
+  int l = psi.l(); // wf.lorb(is);
 
   int qsteps = (int)jLqr_f[0].size();
 
@@ -173,10 +174,6 @@ Zeff no longer works at main() level.
     else
       cntm.solveLocalContinuum(ec, lc_min, lc_max);
   }
-
-  auto &psi = wf.orbitals[is];
-  // auto &f = wf.orbitals[is].f;
-  // auto &g = wf.orbitals[is].g;
 
   double x_ocf = psi.occ_frac; // occupancy fraction. Usually 1
 
@@ -207,7 +204,7 @@ Zeff no longer works at main() level.
 }
 
 //******************************************************************************
-int calculateKpw_nk(const ElectronOrbitals &wf, int nk, double dE,
+int calculateKpw_nk(const ElectronOrbitals &wf, size_t nk, double dE,
                     std::vector<std::vector<double>> &jl_qr,
                     std::vector<float> &tmpK_q)
 /*
@@ -220,12 +217,12 @@ XXX Note sure if correct! esp, (q) angular part!? XXX
 
 */
 {
-  if (nk >= (int)wf.orbitals.size())
-    return 1; // should never occur
+  // if (nk >= wf.orbitals.size())
+  //   return 1; // should never occur
 
   auto &psi = wf.orbitals[nk];
 
-  int twoj = wf.twoj(nk);
+  int twoj = psi.twoj(); // wf.twoj(nk);
 
   int qsteps = (int)jl_qr.size();
 

@@ -1,4 +1,4 @@
-ak-Xe_test      ! input file name (without .bin ext) *1
+ak-I_test      ! input file name (without .bin ext) *1
 test            ! output label (put 'na' for none)
 # Dark Matter:
 0.1  10. 20     ! m_chi/GeV: min, max, num_steps

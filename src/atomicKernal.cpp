@@ -89,10 +89,10 @@ int main(int argc, char *argv[]) {
   // Make sure h (large-r step size) is small enough to
   // calculate (normalise) cntm functions with energy = demax
   double du_target = (M_PI / 20.) / sqrt(2. * demax);
-  double du = Grid::calc_du_from_ngp(r0, rmax, ngp, GridType::loglinear, 3.);
+  double du = Grid::calc_du_from_ngp(r0, rmax, ngp, GridType::loglinear, 3.5);
   if (du > du_target) {
     int new_ngp =
-        Grid::calc_ngp_from_du(r0, rmax, du_target, GridType::loglinear, 3.);
+        Grid::calc_ngp_from_du(r0, rmax, du_target, GridType::loglinear, 3.5);
     int old_ngp = ngp;
     ngp = new_ngp;
     std::cout
@@ -141,17 +141,14 @@ int main(int argc, char *argv[]) {
   // Output HF results:
   std::cout << "\n     state  k Rinf its    eps      En (au)     En (/cm)    "
             << "En (eV)   Oc.Frac.\n";
-  for (int i : wf.stateIndexList) {
-    auto nlj = wf.seTermSymbol(i);
-    int k = wf.ka(i);
-    double rinf = wf.rinf(i);
-    double eni = wf.orbitals[i].en;
-    double x = wf.orbitals[i].occ_frac;
-    printf("%2i)%7s %2i  %3.0f %3i  %5.0e  %11.5f %12.0f %10.2f   (%.2f)\n", i,
-           nlj.c_str(), k, rinf, wf.orbitals[i].its, wf.orbitals[i].eps, eni,
-           eni * FPC::Hartree_invcm, eni * FPC::Hartree_eV, x);
+  int i = 0;
+  for (auto &phi : wf.orbitals) {
+    auto nlj = phi.symbol().c_str();
+    double rinf = wf.rinf(phi);
+    printf("%2i)%7s %2i  %3.0f %3i  %5.0e  %11.5f %12.0f %10.2f   (%.2f)\n",
+           i++, nlj, phi.k, rinf, phi.its, phi.eps, phi.en,
+           phi.en * FPC::Hartree_invcm, phi.en * FPC::Hartree_eV, phi.occ_frac);
   }
-
   //////////////////////////////////////////////////
 
   // Arrays to store results for outputting later:
@@ -164,8 +161,10 @@ int main(int argc, char *argv[]) {
   std::vector<std::string> nklst; // human-readiable state labels (easy
                                   // plotting)
   nklst.reserve(wf.orbitals.size());
-  for (auto i : wf.stateIndexList)
-    nklst.emplace_back(wf.seTermSymbol(i, true));
+  // for (auto i : wf.stateIndexList)
+  //   nklst.emplace_back(wf.seTermSymbol(i, true));
+  for (auto &phi : wf.orbitals)
+    nklst.emplace_back(phi.symbol(true));
 
   // pre-calculate the spherical Bessel function look-up table for efficiency
   timer.start();
@@ -188,7 +187,7 @@ int main(int argc, char *argv[]) {
     double dE = Egrid.r[ide];
     // Loop over core (bound) states:
     for (auto is : wf.stateIndexList) {
-      int l = wf.lorb(is);
+      int l = wf.orbitals[is].l(); // lorb(is);
       if (l > max_l)
         continue;
       if (plane_wave)

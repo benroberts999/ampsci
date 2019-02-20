@@ -39,7 +39,7 @@ private:
   const int MAX_HART_ITS = 64;
 
   int m_ngp;
-  int m_num_core_states;
+  size_t m_num_core_states;
   std::vector<int> twoj_list;
   // std::vector<int> kappa_list;
   std::vector<int> kappa_index_list;
@@ -63,7 +63,7 @@ private:
 
   void form_core_Lambda_abk();
   void extend_Lambda_abk(int kappa_a);
-  double get_Lambda_abk(int a, int b, int k) const;
+  double get_Lambda_abk(size_t a, size_t b, int k) const;
 
   void initialise_m_arr_v_abk_r_core();
   void extend_m_arr_v_abk_r_valence(int kappa_a);
@@ -75,15 +75,15 @@ private:
 
   void form_vabk_core();
   void form_vbb0();
-  void calculate_v_abk(int a, int b, int k, std::vector<double> &vabk);
-  std::vector<double> &get_v_aa0(int a);
-  std::vector<std::vector<double>> &get_v_abk(int a, int b);
+  void calculate_v_abk(size_t a, size_t b, int k, std::vector<double> &vabk);
+  std::vector<double> &get_v_aa0(size_t a);
+  std::vector<std::vector<double>> &get_v_abk(size_t a, size_t b);
 
-  void form_vabk_valence(int w);
+  void form_vabk_valence(size_t w);
 
   void form_vdir(std::vector<double> &vdir, bool re_scale = false);
 
   void form_approx_vex_core(std::vector<std::vector<double>> &vex);
 
-  void form_approx_vex_a(int a, std::vector<double> &vex_a);
+  void form_approx_vex_a(size_t a, std::vector<double> &vex_a);
 };

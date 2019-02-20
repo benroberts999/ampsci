@@ -169,16 +169,16 @@ int main(int argc, char *argv[]) {
     wf.solveLocalDirac(in_n[ns], in_k[ns], in_en[ns]);
 
   printf(" n l_j    k Rinf its  eps     En (au)            En (/cm)\n");
-  for (auto i : wf.stateIndexList) {
-    int k = wf.ka(i);
-    double rinf = wf.rinf(i);
-    double en0 = wf.orbitals.front().en;
-    double eni = wf.orbitals[i].en;
-    double enT = in_en[i];
-    printf("%7s %2i  %3.0f %3i  %5.0e  %.15f  %13.7f  %9.4f%%\n",
-           wf.seTermSymbol(i).c_str(), k, rinf, wf.orbitals[i].its,
-           wf.orbitals[i].eps, eni, (eni - en0) * FPC::Hartree_invcm,
-           100. * (enT - eni) / enT);
+  double en0 = wf.orbitals.front().en;
+  int i = 0;
+  for (auto &phi : wf.orbitals) {
+    auto njl = phi.symbol().c_str();
+    double rinf = wf.rinf(phi);
+    double eni = phi.en;
+    double enT = in_en[i++];
+    printf("%7s %2i  %3.0f %3i  %5.0e  %.15f  %13.7f  %9.4f%%\n", njl, phi.k,
+           rinf, phi.its, wf.orbitals[i].eps, eni,
+           (eni - en0) * FPC::Hartree_invcm, 100. * (enT - eni) / enT);
   }
 
   std::cout << "\nTime: " << sw.reading_str() << "\n";
