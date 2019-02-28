@@ -109,7 +109,7 @@ void HartreeFock::hartree_fock_core() {
       //|2k|=2j+1
       t_eps += fabs(sfac * (p_wf->orbitals[i].en - en_old) / en_old);
     } // core states
-    t_eps /= (int(p_wf->num_core_electrons) * eta);
+    t_eps /= (int(p_wf->Ncore()) * eta);
 
     // Force all core orbitals to be orthogonal to each other
     // if (hits % 2) // XXX test. Needed?
@@ -582,7 +582,7 @@ If re_scale==true, will scale by (N-1)/N. This then given the averaged Hartree
 {
   for (int i = 0; i < m_ngp; i++)
     vdir[i] = 0;
-  double sf = re_scale ? (1. - (1.) / p_wf->num_core_electrons) : 1;
+  double sf = re_scale ? (1. - (1.) / p_wf->Ncore()) : 1;
   for (size_t b = 0; b < m_num_core_states; b++) {
     double f = (twoj_list[b] + 1) * p_wf->orbitals[b].occ_frac;
     std::vector<double> &v0bb = get_v_aa0(b);

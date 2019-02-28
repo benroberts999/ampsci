@@ -68,6 +68,51 @@ Uses ADAMS::solveDBS to solve Dirac Eqn for local potential (Vnuc + Vdir)
 }
 
 //******************************************************************************
+int ElectronOrbitals::reSolveDirac(DiracSpinor &psi, double e_a,
+                                   const std::vector<double> &vex,
+                                   int log_dele_or)
+/*
+"Re"solves dirac eqaution. Use this to re-solve for same state.
+Over-rides existing solution.
+If no e_a is given, will use the existing one!
+(Usually, a better guess should be given, using P.T.)
+Note: optionally takes in exchange potential! (see overloaded above)
+Note: Uses the "dodgy" re-scaled exchange potenital:
+Vex\psi_a = sum_b vex_a psi_b -> [sum_b vex_a (psi_b/psi_a)] psi_a
+so, here, vex = [sum_b vex_a (psi_b/psi_a)]
+This is not ideal..
+*/
+{
+
+  // XXX this is inneficient. Fine, except for HF. THen, slow! ?
+  std::vector<double> v_a = vnuc;
+  if (vdir.size() != 0)
+    for (int i = 0; i < rgrid.ngp; i++)
+      v_a[i] += vdir[i];
+  if (vex.size() != 0)
+    for (int i = 0; i < rgrid.ngp; i++)
+      v_a[i] += vex[i];
+
+  // auto &psi = orbitals[i];
+  if (e_a != 0)
+    psi.en = e_a;
+  ADAMS::solveDBS(psi, v_a, rgrid, alpha, log_dele_or);
+
+  return 0;
+}
+
+//******************************************************************************
+int ElectronOrbitals::reSolveDirac(DiracSpinor &psi, double e_a,
+                                   int log_dele_or)
+/*Overloaded version; see below
+This one doesn't have exchange potential
+*/
+{
+  std::vector<double> dummy_vex;
+  return reSolveDirac(psi, e_a, dummy_vex, log_dele_or);
+}
+
+//******************************************************************************
 double ElectronOrbitals::radialIntegral(const DiracSpinor &psi_a,
                                         const DiracSpinor &psi_b,
                                         Operator op) const {
@@ -143,65 +188,22 @@ XXX Few things here that are slow! XXX
 }
 
 //******************************************************************************
-double ElectronOrbitals::get_alpha() const { return alpha; }
+// double ElectronOrbitals::get_alpha() const { return alpha; }
 
-int ElectronOrbitals::Znuc() const { return Z_; }
-
-int ElectronOrbitals::Anuc() const { return A_; }
-
-int ElectronOrbitals::Nnuc() const {
-  int N = (A_ - Z_) > 0 ? (A_ - Z_) : 0;
-  return N;
-}
-
-double ElectronOrbitals::rinf(const DiracSpinor &phi) const {
-  return rgrid.r[phi.pinf];
-}
-
-//******************************************************************************
-int ElectronOrbitals::reSolveDirac(DiracSpinor &psi, double e_a,
-                                   int log_dele_or)
-/*Overloaded version; see below
-This one doesn't have exchange potential
-*/
-{
-  std::vector<double> dummy_vex;
-  return reSolveDirac(psi, e_a, dummy_vex, log_dele_or);
-}
-
-//******************************************************************************
-int ElectronOrbitals::reSolveDirac(DiracSpinor &psi, double e_a,
-                                   const std::vector<double> &vex,
-                                   int log_dele_or)
-/*
-"Re"solves dirac eqaution. Use this to re-solve for same state.
-Over-rides existing solution.
-If no e_a is given, will use the existing one!
-(Usually, a better guess should be given, using P.T.)
-Note: optionally takes in exchange potential! (see overloaded above)
-Note: Uses the "dodgy" re-scaled exchange potenital:
-Vex\psi_a = sum_b vex_a psi_b -> [sum_b vex_a (psi_b/psi_a)] psi_a
-so, here, vex = [sum_b vex_a (psi_b/psi_a)]
-This is not ideal..
-*/
-{
-
-  // XXX this is inneficient. Fine, except for HF. THen, slow! ?
-  std::vector<double> v_a = vnuc;
-  if (vdir.size() != 0)
-    for (int i = 0; i < rgrid.ngp; i++)
-      v_a[i] += vdir[i];
-  if (vex.size() != 0)
-    for (int i = 0; i < rgrid.ngp; i++)
-      v_a[i] += vex[i];
-
-  // auto &psi = orbitals[i];
-  if (e_a != 0)
-    psi.en = e_a;
-  ADAMS::solveDBS(psi, v_a, rgrid, alpha, log_dele_or);
-
-  return 0;
-}
+// int ElectronOrbitals::Znuc() const { return Z_; }
+//
+// int ElectronOrbitals::Anuc() const { return A_; }
+//
+// int ElectronOrbitals::Nnuc() const {
+//   int N = (A_ - Z_) > 0 ? (A_ - Z_) : 0;
+//   return N;
+// }
+//
+// int ElectronOrbitals::Ncore() const { return num_core_electrons; }
+//
+// double ElectronOrbitals::rinf(const DiracSpinor &phi) const {
+//   return rgrid.r[phi.pinf];
+// }
 
 //******************************************************************************
 int ElectronOrbitals::determineCore(std::string str_core_in)
@@ -338,9 +340,6 @@ size_t ElectronOrbitals::getStateIndex(const DiracSpinor &psi,
                                        bool forceVal) const {
   return getStateIndex(psi.n, psi.k, forceVal);
 }
-
-//******************************************************************************
-size_t ElectronOrbitals::numberOfStates() const { return orbitals.size(); }
 
 //******************************************************************************
 int ElectronOrbitals::maxCore_n(int ka) const
@@ -590,22 +589,7 @@ double ElectronOrbitals::enGuessVal(int n, int ka) const
 
 //******************************************************************************
 int ElectronOrbitals::getRadialIndex(double r_target) const {
-  return rgrid.findNearestIndex(r_target);
-}
-
-//******************************************************************************
-double ElectronOrbitals::diracen(double z, double n, int k) const {
-  double a2 = pow(alpha, 2);
-  double c2 = 1. / pow(alpha, 2);
-  double za2 = pow(alpha * z, 2);
-  double g = sqrt(k * k - za2);
-
-  double w2 = pow(z, 2) / pow(g + n - fabs((double)k), 2);
-  double d = 1. + a2 * w2;
-
-  double diracE =
-      -w2 / (2 * d) - (a2 * w2 / 2 + 1. - sqrt(1. + a2 * w2)) * (c2 / d);
-  return diracE;
+  return (int)rgrid.getIndex(r_target, true); // need true?
 }
 
 //******************************************************************************
@@ -734,8 +718,10 @@ XXX Move to seperate file! Might want to use outside of class! XXX
   double pi2 = pow(M_PI, 2);
   for (auto t_r : rgrid.r) {
     double t_v = -Z_ / t_r;
-    if (t_r < 2. * a) {
-      double roa = FPC::aB_fm * t_r / a; // convert fm <-> atomic
+    // if (t_r < 2. * a) {
+    double roa = FPC::aB_fm * t_r / a; // convert fm <-> atomic
+                                       // if (roa < 3. * coa) {
+    if (roa < 5. + coa) {
       double coa2 = pow(coa, 2);
       double xF1 = gsl_sf_fermi_dirac_1(roa - coa);
       double xF2 = gsl_sf_fermi_dirac_2(roa - coa);

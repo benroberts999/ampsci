@@ -37,7 +37,7 @@ int main(int argc, char *argv[]) {
       int l = ATI::l_k(k);
       if (l > l_max)
         continue;
-      double eng = wf.diracen(Z, n, k);
+      double eng = ATI::diracen(Z, n, k, wf.get_alpha());
       wf.solveLocalDirac(n, k, eng);
     }
   }
@@ -53,17 +53,9 @@ int main(int argc, char *argv[]) {
   std::cout << "\n";
 
   std::cout << " n l_j    k  R_inf its eps     En (au)            Error (au)\n";
-  // for (auto i : wf.stateIndexList) {
-  //   int n = wf.n_pqn(i);
-  //   int k = wf.ka(i);
-  //   double del = wf.orbitals[i].en - wf.diracen(wf.Znuc(), n, k);
-  //   double rinf = wf.rinf(i);
-  //   printf("%7s (%2i)  %3.0f %3i  %5.0e  %.15f  %7.0e\n",
-  //          wf.seTermSymbol(i).c_str(), k, rinf, wf.orbitals[i].its,
-  //          wf.orbitals[i].eps, wf.orbitals[i].en, del);
-  // }
   for (auto &psi : wf.orbitals) {
-    double del = psi.en - wf.diracen(wf.Znuc(), psi.n, psi.k);
+    double del = psi.en - ATI::diracen(wf.Znuc(), psi.n, psi.k, wf.get_alpha());
+    // wf.diracen(wf.Znuc(), psi.n, psi.k);
     double rinf = wf.rinf(psi);
     printf("%7s (%2i)  %3.0f %3i  %5.0e  %.15f  %7.0e\n", psi.symbol().c_str(),
            psi.k, rinf, psi.its, psi.eps, psi.en, del);

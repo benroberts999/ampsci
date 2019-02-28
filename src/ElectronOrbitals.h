@@ -22,8 +22,6 @@ public:
   std::vector<size_t> coreIndexList;
   std::vector<size_t> valenceIndexList;
 
-  int num_core_electrons = 0; // Nc = N - M
-
   const Grid rgrid;
 
   // Potentials
@@ -35,22 +33,26 @@ private:
   const double alpha;
   // Atom info:
   const int Z_, A_;
+
   // number of electrons in each core shell (non-rel??)
   std::vector<int> num_core_shell;
+  int num_core_electrons = 0; // Nc = N - M
 
 public:
-  double get_alpha() const;
-  int Znuc() const;
-  int Anuc() const;
-  int Nnuc() const;
-
-  double rinf(const DiracSpinor &phi) const;
+  double get_alpha() const { return alpha; }
+  int Znuc() const { return Z_; }
+  int Anuc() const { return A_; }
+  int Nnuc() const {
+    int N = (A_ - Z_) > 0 ? (A_ - Z_) : 0;
+    return N;
+  }
+  int Ncore() const { return num_core_electrons; }
+  double rinf(const DiracSpinor &phi) const { return rgrid.r[phi.pinf]; }
 
   size_t getStateIndex(int n, int k, bool forceVal = false) const;
   size_t getStateIndex(const DiracSpinor &psi, bool forceVal = false) const;
 
   int getRadialIndex(double r_target) const;
-  size_t numberOfStates() const; // statesCount() ?
 
   double radialIntegral(const DiracSpinor &psi_a, const DiracSpinor &psi_b,
                         const std::vector<double> &vint,
@@ -67,8 +69,6 @@ public:
 
   void formNuclearPotential(NucleusType nucleus_type, double rc = 0,
                             double t = 0);
-
-  double diracen(double z, double n, int k) const;
 
   int solveInitialCore(std::string str_core_in, int log_dele_or = 0);
   bool isInCore(int n, int k) const;

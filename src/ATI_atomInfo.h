@@ -1,4 +1,5 @@
 #pragma once
+#include <cmath>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -117,5 +118,19 @@ const std::vector<int> core_n = {1, 2, 2, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 5,
 const std::vector<int> core_l = {0, 0, 1, 0, 1, 2, 0, 1, 2, 3, 0, 1, 2, 3, 4,
                                  0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 6, 0, 1,
                                  2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7, 8};
+
+//******************************************************************************
+inline double diracen(double z, double n, int k,
+                      double alpha = 0.00729735256635) {
+  double a2 = pow(alpha, 2);
+  double c2 = 1. / pow(alpha, 2);
+  double za2 = pow(alpha * z, 2);
+  double g = sqrt(k * k - za2);
+
+  double w2 = pow(z, 2) / pow(g + n - fabs((double)k), 2);
+  double d = 1. + a2 * w2;
+
+  return -w2 / (2 * d) - (a2 * w2 / 2 + 1. - sqrt(1. + a2 * w2)) * (c2 / d);
+}
 
 } // namespace ATI

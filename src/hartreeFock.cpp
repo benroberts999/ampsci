@@ -59,7 +59,7 @@ int main(int argc, char *argv[]) {
   // Create list of valence states to solve for
   // Solves for lowest num_val states with given l
   std::vector<std::vector<int>> lst;
-  if ((int)wf.num_core_electrons >= wf.Znuc())
+  if ((int)wf.Ncore() >= wf.Znuc())
     num_val = 0;
   for (int l = 0; l <= l_max; l++) {
     int n0 = wf.maxCore_n(l) + 1;

@@ -1,19 +1,10 @@
 #pragma once
+#include <algorithm>
 #include <cmath>
 #include <iostream>
 #include <vector>
 
 enum class GridType { loglinear, logarithmic, linear };
-
-/*
-To do:
--add warnings for -ve grids (exp)
--don't allow 1 pt, or 0 (for exp) etc.
-
-Make a template?
- -- templateise type
- -- ALSO: gridtype ??
-*/
 
 //******************************************************************************
 class Grid {
@@ -32,8 +23,7 @@ public:
   Grid(double in_r0, double in_rmax, int in_ngp, GridType in_gridtype,
        double in_b = 0);
 
-  int findNextIndex(double x) const;
-  int findNearestIndex(double x) const;
+  int getIndex(double x, bool require_nearest = false) const;
 
   void print() const;
 
@@ -62,11 +52,11 @@ inline double Grid::calc_du_from_ngp(double r0, double rmax, int ngp,
   case GridType::loglinear:
     if (b == 0)
       std::cerr << "\nFAIL57 in Grid: cant have b=0 for log-linear grid!\n";
-    return (rmax - r0 + b * log(rmax / r0)) / (ngp - 1);
+    return (rmax - r0 + b * log(rmax / r0)) / (double(ngp - 1));
   case GridType::logarithmic:
-    return log(rmax / r0) / (ngp - 1);
+    return log(rmax / r0) / double(ngp - 1);
   case GridType::linear:
-    return (rmax - r0) / (ngp - 1);
+    return (rmax - r0) / double(ngp - 1);
   }
   std::cerr << "\nFAIL 63 in Grid: wrong type?\n";
   return 1.;
@@ -118,37 +108,24 @@ inline Grid::Grid(double in_r0, double in_rmax, int in_ngp,
 }
 
 //******************************************************************************
-inline int Grid::findNextIndex(double x) const
-// Returns index correspoding to given value
-// Note: finds NEXT LARGEST grid point (greater then or equal to.)
-// Note: this is slow - don't rely on it inside big loops!
-// For linear or exponential, faster to use formula.
-// But for log-linear, can't
-// XXX Better way to implement this!  + Roll together with findNearestIndex
+inline int Grid::getIndex(double x, bool require_nearest) const
+/*
+Returns index correspoding to given value
+Note: finds NEXT LARGEST grid point (greater then or equal to.),
+unluess require_nearest=true, when will give closest point.
+For linear or exponential, faster to use formula.
+But for log-linear, can't.
+I don't think this works for "backwards" grids, maybe not negative grids either
+*/
 {
-  for (int i = 0; i < ngp; i++)
-    if (x < r[i])
-      return i;
-  return ngp - 1;
-}
 
-//******************************************************************************
-inline int Grid::findNearestIndex(double x) const
-// Note: this is slow - don't rely on it inside big loops!
-// Returns index correspoding to given value
-// XXX Better way to implement this!  + Roll together with findNextIndex
-{
-  if (x < r0)
-    return 0;
-  if (x > rmax)
-    return ngp - 1;
-  int index = 0;
-  for (int i = 0; i < ngp; i++)
-    if (x < r[i]) {
-      index = i;
-      break;
-    }
-  // we have (in order): r[i-1], x, r[i]
+  auto low = std::lower_bound(r.begin(), r.end(), x);
+  auto index = (int)(low - r.begin());
+
+  if (!require_nearest || index == 0)
+    return index;
+
+  // Must resturn /nearest/ index (we have (in order): r[i-1], x, r[i])
   if (fabs(x - r[index - 1]) < fabs(r[index] - x))
     return index - 1;
   else
@@ -168,7 +145,6 @@ inline void Grid::print() const {
   case GridType::loglinear:
     std::cout << "Log-linear (b=" << b << ") ";
   }
-  // printf("grid: N=%i du=%.5f r0=%.1e Rmax=%.1f\n", ngp, du, r0, rmax);
   std::cout << "grid: " << r0 << "->" << rmax << ", N=" << ngp << ", du=" << du
             << "\n";
 }
@@ -227,19 +203,15 @@ Uses:
 */
 {
   for (int i = 0; i < ngp; i++)
-    drdu.push_back(r0 * exp(i * du));
+    drdu.push_back(r0 * exp(double(i) * du));
   r = drdu;
   drduor.resize(ngp, 1.);
 }
 
 //******************************************************************************
-inline void Grid::form_linear_grid()
-/*
-Should only be used for testing usually
-*/
-{
+inline void Grid::form_linear_grid() {
   for (int i = 0; i < ngp; i++) {
-    double tmp_r = r0 + i * du;
+    double tmp_r = r0 + double(i) * du;
     r.push_back(tmp_r);
     drduor.push_back(1. / tmp_r);
   }
