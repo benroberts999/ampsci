@@ -50,10 +50,10 @@ public:
   double rinf(const DiracSpinor &phi) const { return rgrid.r[phi.pinf]; }
 
   size_t getStateIndex(int n, int k, bool forceVal = false) const;
-  size_t getStateIndex(const DiracSpinor &psi, bool forceVal = false) const;
 
   int getRadialIndex(double r_target) const;
 
+  // XXX Combine with default argument?
   double radialIntegral(const DiracSpinor &psi_a, const DiracSpinor &psi_b,
                         const std::vector<double> &vint,
                         Operator op = Operator::unity) const;
@@ -61,6 +61,8 @@ public:
                         Operator op = Operator::unity) const;
 
   // XXX ? best way?
+  // XXX Should really have just 1! ?
+  // Then, different way to contruct new spinor??
   int solveLocalDirac(int n, int k, double en_a = 0, int log_dele_or = 0,
                       bool iscore = false);
   int reSolveDirac(DiracSpinor &psi_a, double e_a = 0, int log_dele_or = 0);
@@ -82,10 +84,6 @@ public:
 
 private:
   int determineCore(std::string str_core_in);
-
-  void sphericalNucleus(double rnuc = 0);
-  void fermiNucleus(double t = 0, double c = 0);
-  void zeroNucleus();
 
   double enGuessCore(int n, int l) const;
   double enGuessVal(int n, int ka) const;

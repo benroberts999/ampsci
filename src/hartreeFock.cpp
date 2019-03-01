@@ -4,6 +4,7 @@
 #include "FPC_physicalConstants.h"
 #include "FileIO_fileReadWrite.h"
 #include "HartreeFockClass.h"
+#include "Nucleus.h"
 #include "NumCalc_quadIntegrate.h"
 #include "PRM_parametricPotentials.h"
 #include <cmath>
@@ -158,25 +159,18 @@ int main(int argc, char *argv[]) {
       of << "\n";
     }
   }
+
   bool testpnc = false;
   if (testpnc) {
-    double a = 0.22756 * 2.3;
-    double c = 5.6710; // 1.1*pow(wf.A(),0.3333);
+    double t = 2.3;
+    double c = Nucleus::approximate_rc(wf.Anuc());
 
-    std::vector<double> rho;
-    rho.reserve(wf.rgrid.ngp);
-    for (auto r : wf.rgrid.r)
-      rho.emplace_back(1. / (1. + exp((r * FPC::aB_fm - c) / a)));
-    double rho0 = NumCalc::integrate(wf.rgrid.r, wf.rgrid.r, rho, wf.rgrid.drdu,
-                                     wf.rgrid.du) *
-                  4 * M_PI;
-    for (auto &rhoi : rho)
-      rhoi /= rho0;
+    auto rho = Nucleus::fermiNuclearDensity(1, t, c, wf.rgrid);
 
     double Gf = FPC::GFe11;
     double Cc = (Gf / sqrt(8.)) * (-wf.Nnuc()); // Qw/(-N)
-    double Ac = 2. / 6.;
 
+    double Ac = 2. / 6.; // angular coef
     auto a6s_i = wf.getStateIndex(6, -1);
     auto a7s_i = wf.getStateIndex(7, -1);
     std::cout << a6s_i << "," << a7s_i << "\n";

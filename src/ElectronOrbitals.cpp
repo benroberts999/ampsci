@@ -5,6 +5,7 @@
 #include "DiracSpinor.h"
 #include "FPC_physicalConstants.h"
 #include "Grid.h"
+#include "Nucleus.h"
 #include "NumCalc_quadIntegrate.h"
 #include <algorithm> //for sort
 #include <cmath>
@@ -127,61 +128,74 @@ double ElectronOrbitals::radialIntegral(const DiracSpinor &psi_a,
                                         Operator op) const
 /*
 Split into dPsi later??
-XXX Few things here that are slow! XXX
+Better to split, so that you can chain operators!
+But: will always be a copy in that case; optimise for unity?
+(Just take )
 */
 {
   // check that a and b are OK!
   // if (a >= (int)f.size() || b >= (int)f.size())
   // std::cout << "\nFail 97 in EO radInt. Invalid state\n";
 
-  int pinf = std::min(psi_a.pinf, psi_b.pinf);
+  // int pinf = std::min(psi_a.pinf, psi_b.pinf);
+  // pinf += (int)NumCalc::Nquad + 10;
+  // if (pinf >= rgrid.ngp)
+  //   pinf = rgrid.ngp - 1;
+  // int pinf = rgrid.ngp; // std::max(psi_a.pinf, psi_b.pinf);
+  // int pinf = (int)(0.5 * (psi_a.pinf + psi_b.pinf));
+  int pinf = std::max(psi_a.pinf, psi_b.pinf);
+  // NB: I don't undertand how can be different when taking pinf = min +
+  // Nquad???
 
-  std::vector<double> fprime(rgrid.ngp); // = f[b];
-  std::vector<double> gprime(rgrid.ngp); // = g[b];
-  // XXX Change to reserve + push_back!
-  // XXX Spetial case of unity: don't make copy!!
+  std::vector<double> fprime_tmp;
+  std::vector<double> gprime_tmp;
+
+  // This is to avoid doing a copy..not sure if it worked, or worth it?
+  const std::vector<double> *fprime;
+  const std::vector<double> *gprime;
 
   // Is this a good way? Confusing?
   int ig_sign = 1;
 
-  // XXX This part should be seperate function, so can store dpsi XXX
   switch (op) {
   case Operator::unity:
-    fprime = psi_b.f;
-    gprime = psi_b.g;
+    fprime = &psi_b.f;
+    gprime = &psi_b.g;
     break;
   case Operator::gamma0:
-    fprime = psi_b.f;
-    for (size_t i = 0; i < gprime.size(); i++)
-      gprime[i] = -psi_b.g[i];
+    fprime = &psi_b.f;
+    gprime = &psi_b.g;
+    ig_sign = -1; // XXX CHECK! XXX
     break;
   case Operator::gamma5:
-    for (size_t i = 0; i < fprime.size(); i++) {
-      // Note: gprimt includes the (-i) from g_a <a|h|b>
-      fprime[i] = psi_b.g[i];
-      gprime[i] = psi_b.f[i]; // see above
-      ig_sign = -1;
-    }
+    fprime = &psi_b.g;
+    gprime = &psi_b.f;
+    ig_sign = -1;
     break;
   case Operator::dr:
-    fprime = NumCalc::derivative(psi_b.f, rgrid.drdu, rgrid.du);
-    gprime = NumCalc::derivative(psi_b.g, rgrid.drdu, rgrid.du);
+    fprime_tmp = NumCalc::derivative(psi_b.f, rgrid.drdu, rgrid.du);
+    gprime_tmp = NumCalc::derivative(psi_b.g, rgrid.drdu, rgrid.du);
+    fprime = &fprime_tmp;
+    gprime = &gprime_tmp;
     break;
   case Operator::dr2:
-    fprime = NumCalc::derivative(psi_b.f, rgrid.drdu, rgrid.du, 2);
-    gprime = NumCalc::derivative(psi_b.g, rgrid.drdu, rgrid.du, 2);
+    fprime_tmp = NumCalc::derivative(psi_b.f, rgrid.drdu, rgrid.du, 2);
+    gprime_tmp = NumCalc::derivative(psi_b.g, rgrid.drdu, rgrid.du, 2);
+    fprime = &fprime_tmp;
+    gprime = &gprime_tmp;
     break;
   default:
     std::cout << "\nError 103 in EO radialInt: unknown operator\n";
+    return 0;
   }
 
   double Rf = 0, Rg = 0;
   if (vint.size() == 0) {
-    Rf = NumCalc::integrate(psi_a.f, fprime, rgrid.drdu, 1, 0, pinf);
-    Rg = NumCalc::integrate(psi_a.g, gprime, rgrid.drdu, 1, 0, pinf);
+    Rf = NumCalc::integrate(psi_a.f, *fprime, rgrid.drdu, 1, 0, pinf);
+    Rg = NumCalc::integrate(psi_a.g, *gprime, rgrid.drdu, 1, 0, pinf);
   } else {
-    Rf = NumCalc::integrate(psi_a.f, vint, fprime, rgrid.drdu, 1, 0, pinf);
-    Rg = NumCalc::integrate(psi_a.g, vint, gprime, rgrid.drdu, 1, 0, pinf);
+    Rf = NumCalc::integrate(psi_a.f, vint, *fprime, rgrid.drdu, 1, 0, pinf);
+    Rg = NumCalc::integrate(psi_a.g, vint, *gprime, rgrid.drdu, 1, 0, pinf);
   }
 
   return (Rf + ig_sign * Rg) * rgrid.du;
@@ -335,11 +349,11 @@ size_t ElectronOrbitals::getStateIndex(int n, int k, bool forceVal) const {
   std::cerr << "\nFAIL 290 in EO: Couldn't find state nk=" << n << k << "\n";
   return (int)stateIndexList.size(); // this is an invalid index!
 }
-//******************************************************************************
-size_t ElectronOrbitals::getStateIndex(const DiracSpinor &psi,
-                                       bool forceVal) const {
-  return getStateIndex(psi.n, psi.k, forceVal);
-}
+// //******************************************************************************
+// size_t ElectronOrbitals::getStateIndex(const DiracSpinor &psi,
+//                                        bool forceVal) const {
+//   return getStateIndex(psi.n, psi.k, forceVal);
+// }
 
 //******************************************************************************
 int ElectronOrbitals::maxCore_n(int ka) const
@@ -456,8 +470,8 @@ Note: For HF, should never be called after core is frozen!
       // c_ab = c_ba : only calc'd half:
       double cab = (a < b) ? c_ab[a][b] : c_ab[b][a];
       for (int ir = 0; ir < rgrid.ngp; ir++) {
-        orbitals[a].f[ir] -= cab * orbitals[a].f[ir];
-        orbitals[b].g[ir] -= cab * orbitals[b].g[ir];
+        orbitals[a].f[ir] -= cab * orbitals[b].f[ir];
+        orbitals[a].g[ir] -= cab * orbitals[b].g[ir];
       }
     }
   }
@@ -488,8 +502,7 @@ note: here, c denotes core orbitals + valence orbitals with c<v
 
 */
 {
-  // Some check if psi_v is valence?? Nah.
-  auto num_states_below = getStateIndex(psi_v);
+  auto num_states_below = getStateIndex(psi_v.n, psi_v.k);
 
   // Calculate the coeficients <c|v> = A_cv
   std::vector<double> A_vc(num_states_below);
@@ -595,144 +608,27 @@ int ElectronOrbitals::getRadialIndex(double r_target) const {
 //******************************************************************************
 void ElectronOrbitals::formNuclearPotential(NucleusType nucleus_type, double rc,
                                             double t) {
+  vnuc.clear();
   switch (nucleus_type) {
   case NucleusType::Fermi:
-    fermiNucleus(t, rc);
+    if (t == 0)
+      t = Nucleus::approximate_t_skin(A_);
+    if (rc == 0)
+      rc = Nucleus::approximate_rc(A_); // update?
+    // XXX rms and half-charge-density not the same! Fix XXX
+    vnuc = Nucleus::fermiNuclearPotential(Z_, t, rc, rgrid.r);
     break;
   case NucleusType::spherical:
-    sphericalNucleus(rc);
+    if (rc == 0)
+      rc = Nucleus::approximate_rc(A_); // update?
+    vnuc = Nucleus::sphericalNuclearPotential(Z_, rc, rgrid.r);
     break;
   case NucleusType::zero:
-    zeroNucleus();
+    vnuc = Nucleus::sphericalNuclearPotential(Z_, 0., rgrid.r);
     break;
   default:
     std::cerr << "\nFail EO:755 - invalid nucleus type?\n";
   }
-}
-
-//******************************************************************************
-void ElectronOrbitals::zeroNucleus()
-/*
-infinitesimal nucleus.
-1/r potential
-XXX Move to seperate file! Might want to use outside of class! XXX
-*/
-{
-  vnuc.clear();
-  vnuc.reserve(rgrid.ngp);
-  for (auto r : rgrid.r)
-    vnuc.push_back(-Z_ / r);
-  return;
-}
-
-//******************************************************************************
-void ElectronOrbitals::sphericalNucleus(double rnuc)
-/*
-Potential due to a spherical nucleus, with (charge) radius, rnuc.
-Note: rnuc must be given in "fermi" (fm, femto-metres).
-If rnuc=0 is given [which is default], then will use approximate
-formula for rN.
-See: https://www-nds.iaea.org/radii/
-XXX Move to seperate file! Might want to use outside of class! XXX
-
-*/
-{
-  vnuc.clear();
-  vnuc.reserve(rgrid.ngp);
-
-  double rN = rnuc; // nuclear charge radius:
-  // Estimate nuclear charge radius. Only for spherical nuclei.
-  if (rnuc == 0) {
-    if (A_ == 1)
-      rN = 0.8783; // 1-H
-    else if (A_ == 4)
-      rN = 1.6755; // 4-He
-    else if (A_ == 7)
-      rN = 2.4440; // 7-Li
-    else if (A_ < 10)
-      rN = 1.15 * pow(A_, 0.333);
-    else
-      rN = (0.836 * pow(A_, 0.333) + 0.570);
-  }
-  rN /= FPC::aB_fm;
-
-  // Fill the vnuc array with spherical nuclear potantial
-  double rn2 = pow(rN, 2);
-  double rn3 = pow(rN, 3);
-  for (auto ri : rgrid.r) {
-    double temp_v =
-        (ri < rN) ? Z_ * (ri * ri - 3. * rn2) / (2. * rn3) : -Z_ / ri;
-    vnuc.push_back(temp_v);
-  }
-
-  return;
-}
-
-//******************************************************************************
-void ElectronOrbitals::fermiNucleus(double t, double c)
-/*
-Uses a Fermi-Dirac distribution for the nuclear potential.
-
-rho(r) = rho_0 {1 + Exf[(r-c)/a]}^-1
-V(r) = -(4 Pi)/r [A+B]
-  A = Int[ rho(x) x^2 , {x,0,r}]
-  B = r * Int[ rho(x) x , {x,r,infty}]
-rho_0 is found by either:
-  * V(infinity) = -Z/r , or equivilantly
-  * \int rho(r) d^3r = Z
-
-Depends on:
-  * t: skin thickness [90 to 10% fall-off range]
-    note: t = a[4 ln(3)]
-  * c: half-density raius [rho(c)=0.5 rho0]
-
-t and c are input values. In 'fermi' of fm (femto metres)
-If provided with 0, will use 'default' values, approx. formula.
-
-V(r) is expressed in terms of Complete Fermi-Dirac intagrals.
-These are computed using the GSL libraries.
-gnu.org/software/gsl/manual/html_node/Complete-Fermi_002dDirac-Integrals
-
-XXX Move to seperate file! Might want to use outside of class! XXX
-
-*/
-{
-  vnuc.clear(); // clear the array [just in case..]
-
-  // Lookup default values from other function! XXX
-  if (Z_ == 55 && t == 0)
-    t = 2.3;
-  if (Z_ == 55 && c == 0)
-    c = 5.6710;
-
-  if (t == 0)
-    t = 2.4; // Default skin-thickness (in fm)
-  if (c == 0)
-    c = 1.1 * pow(A_, 0.3333); // default half-charge radius ????
-  // XXX Better approx! +/or data tables!
-
-  double a = 0.22756 * t; // a = t*[4 ln(3)]
-  double coa = c / a;
-  // Use GSL for the Complete Fermi-Dirac Integrals:
-  double F2 = gsl_sf_fermi_dirac_2(coa);
-  double pi2 = pow(M_PI, 2);
-  for (auto t_r : rgrid.r) {
-    double t_v = -Z_ / t_r;
-    // if (t_r < 2. * a) {
-    double roa = FPC::aB_fm * t_r / a; // convert fm <-> atomic
-                                       // if (roa < 3. * coa) {
-    if (roa < 5. + coa) {
-      double coa2 = pow(coa, 2);
-      double xF1 = gsl_sf_fermi_dirac_1(roa - coa);
-      double xF2 = gsl_sf_fermi_dirac_2(roa - coa);
-      double tX = -pow(roa, 3) - 2 * coa * (pi2 + coa2) +
-                  roa * (pi2 + 3 * coa2) + 6 * roa * xF1 - 12 * xF2;
-      t_v += t_v * tX / (12. * F2);
-    }
-    vnuc.push_back(t_v);
-  }
-
-  return;
 }
 
 //------------------------------------------------------------------------------

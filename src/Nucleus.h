@@ -1,7 +1,12 @@
 #include "FPC_physicalConstants.h"
+#include "Grid.h"
+#include "NumCalc_quadIntegrate.h"
+#include <cmath>
+#include <gsl/gsl_sf_fermi_dirac.h>
 
 /*
-Deal properly with grid? Just functions! Call many times!
+Add data tables of change radii ? etc.
+e.g.: https://www-nds.iaea.org/radii/ (or Mathematrica?)
 */
 
 namespace Nucleus {
@@ -13,6 +18,11 @@ nb: returns in Fermi
 approximate
 formula for rN.
 See: https://www-nds.iaea.org/radii/
+[1] G. Fricke, C. Bernhardt, K. Heilig, L. A. Schaller, L. Schellenberg, E. B.
+Shera, and C. W. Dejager, At. Data Nucl. Data Tables 60, 177 (1995).
+ NOTE:
+Difference between r_N and c? (half-density radius..)  NOTE: This is actually
+root-mean-square radius. Not half-charge-density! XXX
 */
 {
 
@@ -26,7 +36,7 @@ See: https://www-nds.iaea.org/radii/
   else if (A < 10)
     rN = 1.15 * pow(A, 0.333);
   else if (A == 133) // 133-Cs
-    rN = 5.6710;
+    rN = 5.6710; // this is half-density. all others are root-mean-square! XXX
   else
     rN = 0.836 * pow(A, 0.333) + 0.570;
 
@@ -34,7 +44,13 @@ See: https://www-nds.iaea.org/radii/
 }
 
 //******************************************************************************
-inline double approximate_t_skin(int Z) { return 2.35; }
+inline double approximate_t_skin(int)
+/*
+skin-thickness. Always same?
+*/
+{
+  return 2.30;
+}
 
 //******************************************************************************
 inline std::vector<double>
@@ -49,7 +65,7 @@ rnuc = 0 corresponds to zeroNucleus
   std::vector<double> vnuc;
   vnuc.reserve(rgrid.size());
 
-  rN = rnuc / FPC::aB_fm;
+  double rN = rnuc / FPC::aB_fm;
 
   // Fill the vnuc array with spherical nuclear potantial
   double rn2 = pow(rN, 2);
@@ -102,8 +118,7 @@ gnu.org/software/gsl/manual/html_node/Complete-Fermi_002dDirac-Integrals
   for (auto r : rgrid) {
     double t_v = -Z / r;
     double roa = FPC::aB_fm * r / a; // convert fm <-> atomic
-    // if (r < 2. * a) {                  // XXX Do properly here, and check!
-    if (roa < 5. + coa) {
+    if (roa < 30. + coa) {
       double roa = FPC::aB_fm * r / a; // convert fm <-> atomic
       double coa2 = pow(coa, 2);
       double xF1 = gsl_sf_fermi_dirac_1(roa - coa);
@@ -116,31 +131,42 @@ gnu.org/software/gsl/manual/html_node/Complete-Fermi_002dDirac-Integrals
   }
 
   return vnuc;
-}
+} // namespace Nucleus
 
 //******************************************************************************
-inline std::vector<double> fermiNuclearDensity(double Z, double t, double c,
-                                               const std::vector<double> &rgrid,
-                                               const std::vector<double> &drdu,
-                                               double du)
+inline std::vector<double> fermiNuclearDensity(double Z_norm, double t,
+                                               double c, const Grid &grid)
 /*
 =
-
+Integrate[ rho(r) , dV ] = Integrate[ 4pi * r^2 * rho(r) , dr ] = Z_norm
+Znorm = Z for nuclear chare density; Z_norm = 1 for nuclear density.
 */
 {
   std::vector<double> rho;
-  rho.reserve(rgrid.size());
+  rho.reserve(grid.ngp);
 
   double a = 0.22756 * t;
-  for (auto r : rgrid)
-    rho.emplace_back(1. / (1. + exp((r * FPC::aB_fm - c) / a)));
-  // XXX cut at some value (write exact zeros)
+  double coa = c / a;
+  for (auto r : grid.r) {
+    double roa = FPC::aB_fm * r / a;
+    if (roa < 30. + coa)
+      rho.emplace_back(1. / (1. + exp(roa - coa)));
+    else
+      rho.push_back(0.);
+  }
 
-  double Norm = NumCalc::integrate(rgrid, rgrid, rho, drdu, du) * 4. * M_PI;
-  double rho0 = 1. / Norm;
+  double Norm =
+      NumCalc::integrate(grid.r, grid.r, rho, grid.drdu, grid.du) * 4. * M_PI;
+  double rho0 = Z_norm / Norm;
 
   for (auto &rhoi : rho)
     rhoi *= rho0;
+
+  // std::cout << "TEST: "
+  //           << NumCalc::integrate(rgrid, rgrid, rho, drdu, du) * 4. * M_PI
+  //           << " =?= " << Z_norm << "\n";
+
+  return rho;
 }
 
 } // namespace Nucleus
