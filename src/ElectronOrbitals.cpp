@@ -143,9 +143,8 @@ But: will always be a copy in that case; optimise for unity?
   //   pinf = rgrid.ngp - 1;
   // int pinf = rgrid.ngp; // std::max(psi_a.pinf, psi_b.pinf);
   // int pinf = (int)(0.5 * (psi_a.pinf + psi_b.pinf));
-  int pinf = std::max(psi_a.pinf, psi_b.pinf);
-  // NB: I don't undertand how can be different when taking pinf = min +
-  // Nquad???
+  // int pinf = std::max(psi_a.pinf, psi_b.pinf);
+  int pinf = 0; // --> ngp
 
   std::vector<double> fprime_tmp;
   std::vector<double> gprime_tmp;
@@ -426,6 +425,8 @@ HartreeFockClass.cpp has routines for Hartree Fock
       return 2;
     }
     orbitals[i].occ_frac = double(num_core_shell[ic]) / (4 * l + 2); // XXX
+    // std::cout << n << " " << ka << " (" << l << ")"
+    //           << " x=" << orbitals[i].occ_frac << "\n";
   }
 
   return 0;
@@ -446,6 +447,10 @@ Note: I force all orthog to each other - i.e. double count.
 Would be 2x faster not to do this - but that would treat some orbitals special!
 Hence factor of 0.5
 Note: For HF, should never be called after core is frozen!
+
+XXX Note: This allows wfs to extend past pinf!
+==> This causes the possible orthog issues..
+
 */
 {
   size_t Ns = orbitals.size();
@@ -470,6 +475,7 @@ Note: For HF, should never be called after core is frozen!
       // c_ab = c_ba : only calc'd half:
       double cab = (a < b) ? c_ab[a][b] : c_ab[b][a];
       for (int ir = 0; ir < rgrid.ngp; ir++) {
+        // for (int ir = 0; ir < orbitals[a].pinf; ir++) {
         orbitals[a].f[ir] -= cab * orbitals[b].f[ir];
         orbitals[a].g[ir] -= cab * orbitals[b].g[ir];
       }
@@ -517,7 +523,8 @@ note: here, c denotes core orbitals + valence orbitals with c<v
     if (psi_v.k != orbitals[ic].k)
       continue;
     double Avc = A_vc[ic];
-    for (int ir = 0; ir < rgrid.ngp; ir++) {
+    // for (int ir = 0; ir < rgrid.ngp; ir++) {
+    for (int ir = 0; ir < psi_v.pinf; ir++) {
       // Probably an algorithm for this!
       psi_v.f[ir] -= Avc * orbitals[ic].f[ir];
       psi_v.g[ir] -= Avc * orbitals[ic].g[ir];

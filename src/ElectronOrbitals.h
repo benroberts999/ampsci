@@ -42,14 +42,12 @@ public:
   double get_alpha() const { return alpha; }
   int Znuc() const { return Z_; }
   int Anuc() const { return A_; }
-  int Nnuc() const {
-    int N = (A_ - Z_) > 0 ? (A_ - Z_) : 0;
-    return N;
-  }
+  int Nnuc() const { return (A_ > Z_) ? (A_ - Z_) : 0; }
   int Ncore() const { return num_core_electrons; }
   double rinf(const DiracSpinor &phi) const { return rgrid.r[phi.pinf]; }
 
   size_t getStateIndex(int n, int k, bool forceVal = false) const;
+  // XXX no need to ever force valence! XXX
 
   int getRadialIndex(double r_target) const;
 

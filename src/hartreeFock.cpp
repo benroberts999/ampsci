@@ -132,6 +132,8 @@ int main(int argc, char *argv[]) {
     for (auto &psi_a : wf.orbitals) {
       printf("%1i %2i  ", psi_a.n, psi_a.k);
       for (auto &psi_b : wf.orbitals) {
+        if (psi_b > psi_a)
+          continue;
         if (psi_a.k != psi_b.k) {
           std::cout << " ------- ";
           continue;

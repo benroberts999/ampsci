@@ -289,7 +289,7 @@ int findPracticalInfinity(double en, const std::vector<double> &v,
 {
   int ngp = (int)r.size();
   int pinf = ngp - 1;
-  while ((en - v[pinf]) * pow(r[pinf], 2) + alr < 0)
+  while ((en - v[pinf]) * r[pinf] * r[pinf] + alr < 0)
     pinf--;
 
   if (pinf >= ngp - 1 || pinf <= 0) {
@@ -425,8 +425,8 @@ Then, it then call ADAMS-MOULTON, to finish (from NOL*AMO+1 to nf = ctp+d_ctp)
 */
 {
   double az = -1 * v[AMO] * r[AMO] * alpha; //  Z = -1 * v[AMO] * r[AMO]
-  double c2 = 1. / pow(alpha, 2);
-  double ga = sqrt(pow(ka, 2) - pow(az, 2));
+  double c2 = 1. / (alpha * alpha);
+  double ga = sqrt(ka * ka - az * az);
 
   // initial wf values
   // P(r) = r^gamma u(r)
@@ -438,11 +438,13 @@ Then, it then call ADAMS-MOULTON, to finish (from NOL*AMO+1 to nf = ctp+d_ctp)
 
   // loop through and find first NOL*AMO points of wf
   for (int ln = 0; ln < NOL; ln++) {
+    // re-work out ga (from az) in here? Poss. slightly diff. z_eff (?XX)
     int i0 = ln * AMO + 1;
 
     // defines/populates em coefs
     std::array<double, AMO> coefa, coefb, coefc, coefd;
-    std::array<std::array<double, AMO>, AMO> em;
+    // std::array<std::array<double, AMO>, AMO> em;
+    Matrix::SqMatrix em(AMO);
     for (int i = 0; i < AMO; i++) {
       double dror = drdu[i + i0] / r[i + i0];
       coefa[i] = (-OID * du * (ga + ka) * dror);
@@ -454,11 +456,13 @@ Then, it then call ADAMS-MOULTON, to finish (from NOL*AMO+1 to nf = ctp+d_ctp)
       em[i][i] = em[i][i] - coefd[i];
     }
     // //inverts the em matrix
-    em = Matrix::invert(em); // from here on, em is the inverted matrix
+    // em = Matrix::invert(em); // from here on, em is the inverted matrix
+    em.invert();
 
     // defines/populates fm, s coefs
     std::array<double, AMO> s;
-    std::array<std::array<double, AMO>, AMO> fm;
+    // std::array<std::array<double, AMO>, AMO> fm;
+    Matrix::SqMatrix fm(AMO);
     for (int i = 0; i < AMO; i++) {
       s[i] = -OIA[i] * u0;
       for (int j = 0; j < AMO; j++) {
@@ -468,7 +472,8 @@ Then, it then call ADAMS-MOULTON, to finish (from NOL*AMO+1 to nf = ctp+d_ctp)
       fm[i][i] = fm[i][i] - coefa[i];
     }
     // inverts the matrix!  fm =-> Inv(fm)
-    fm = Matrix::invert(fm); // from here on, fm is the inverted matrix
+    // fm = Matrix::invert(fm); // from here on, fm is the inverted matrix
+    fm.invert();
 
     // writes u(r) in terms of coefs and the inverse of fm
     // P(r) = r^gamma u(r)
@@ -525,7 +530,7 @@ Then, it then call ADAMS-MOULTON, to finish (from NOL*AMO+1 to nf = ctp-d_ctp)
 */
 {
 
-  double alpha2 = pow(alpha, 2);
+  double alpha2 = alpha * alpha; //(alpha, 2);
   double cc = 1. / alpha;
   double c2 = 1. / alpha2;
 
@@ -538,14 +543,15 @@ Then, it then call ADAMS-MOULTON, to finish (from NOL*AMO+1 to nf = ctp-d_ctp)
   // up to order NX (NX is 'param')
   std::array<double, NX> bx;
   std::array<double, NX> ax;
-  bx[0] = (ka + (zeta / lambda)) * (alpha / 2);
+  bx[0] = (ka + (zeta / lambda)) * (0.5 * alpha);
+  double ka2 = (double)(ka * ka);
+  double zeta2 = zeta * zeta;
   for (int i = 0; i < NX; i++) {
     ax[i] = (ka + (i + 1 - sigma) * Ren * alpha2 - zeta * lambda * alpha2) *
             bx[i] * cc / ((i + 1) * lambda);
     if (i < (NX - 1))
-      bx[i + 1] =
-          (pow(ka, 2) - pow((i + 1 - sigma), 2) - pow(zeta, 2) * alpha2) *
-          bx[i] / (2 * (i + 1) * lambda);
+      bx[i + 1] = (ka2 - pow((double(i + 1) - sigma), 2) - zeta2 * alpha2) *
+                  bx[i] / (2 * (i + 1) * lambda);
   }
 
   // Generates last `AMO' points for P and Q [actually AMO+1?]
@@ -597,7 +603,7 @@ program finishes the INWARD/OUTWARD integrations (ADAMS-MOULTON)
   //- nf is end (final) point for integration (nf=ctp+/-d_ctp)
 */
 {
-  double c2 = 1. / pow(alpha, 2); // c^2 - just to shorten code
+  double c2 = 1. / (alpha * alpha); // c^2 - just to shorten code
 
   int ngp = (int)r.size();
 

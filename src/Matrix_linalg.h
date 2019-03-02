@@ -17,6 +17,35 @@ Eigen probably better option!
 
 namespace Matrix {
 
+// template <typename T>
+class SqMatrix {
+  /*
+    Suddenly gets very slow around n=170.. why? When other method doesn't
+  */
+public:
+  const size_t n;
+  SqMatrix(size_t in_n) : n(in_n) { m = gsl_matrix_alloc(n, n); }
+  ~SqMatrix() { gsl_matrix_free(m); }
+
+  double *operator[](int i) { return &(m->data[i * n]); }
+
+  void invert() {
+    gsl_matrix *inverse = gsl_matrix_alloc(n, n);
+    gsl_permutation *perm = gsl_permutation_alloc(n);
+    int s;
+    gsl_linalg_LU_decomp(m, perm, &s);
+    gsl_linalg_LU_invert(m, perm, inverse);
+    size_t n2 = n * n;
+    for (size_t i = 0; i < n2; i++)
+      m->data[i] = inverse->data[i];
+    gsl_permutation_free(perm);
+    gsl_matrix_free(inverse);
+  }
+
+private:
+  gsl_matrix *m;
+};
+
 //******************************************************************************
 template <typename T>
 std::vector<std::vector<T>> invert(const std::vector<std::vector<T>> &M) {
@@ -106,151 +135,100 @@ invert(const std::array<std::array<T, n>, n> &M) {
 
 } // namespace Matrix
 
-//******************************************************************************
-//******************************************************************************
-//******************************************************************************
-//******************************************************************************
+/*
+  //CODE TO TEST:
+  ChronoTimer sw; // start the overall timer
 
-//******************************************************************************
-//******************************************************************************
-//******************************************************************************
-//******************************************************************************
-// namespace MAlg {
-//
-// //***************************************************************************
-// double calcDeterminant(const std::vector<std::vector<double>> &inmat)
-//
-// // 170622.
-// // Calculates the determinant of any real square matrix of dimension n.
-// // Uses the GNU 'GSL' libraries:
-// //
-// https://www.gnu.org/software/gsl/manual/html_node/Linear-Algebra-Examples.html
-// // https://www.gnu.org/software/gsl/manual/html_node/LU-Decomposition.html
-// // Requires #include <gsl/gsl_linalg.h>
-// //
-// // INPUT:
-// //   inmat     :: double matix of dimension n*n [from std::vector]
-// //   n         :: integer, dimension of matrices
-// //
-// // ### Change Log ###
-// // 170702- Uses std::vector input, avoid variable arrays!
-//
-// {
-//
-//   // size of array:
-//   int n = (int)inmat.size();
-//   if (inmat[0].size() != (size_t)n)
-//     return 0; // matrix not square!
-//
-//   // Define all the used matrices (for GSL)
-//   gsl_matrix *m = gsl_matrix_alloc(n, n);
-//   gsl_permutation *perm = gsl_permutation_alloc(n);
-//   // fill matrix:
-//   for (int i = 0; i < n; i++) {
-//     for (int j = 0; j < n; j++) {
-//       // gsl_matrix_set(m,i,j,inmat[i*n+j]);
-//       gsl_matrix_set(m, i, j, inmat[i][j]);
-//     }
-//   }
-//   // peform LU decomposition (using GSL)
-//   int s;
-//   gsl_linalg_LU_decomp(m, perm, &s);
-//   double det = gsl_linalg_LU_det(m, s); // XXX ok as double?
-//   // clear memory
-//   gsl_permutation_free(perm);
-//   gsl_matrix_free(m);
-//   return det;
-// }
-//
-// //---- Overloaded:
-// ------------------------------------------------------------- double
-// calcDeterminant(const std::vector<std::vector<float>> &inmat) {
-//
-//   int n = (int)inmat.size();
-//   int m = (int)inmat[0].size();
-//   std::vector<std::vector<double>> dbl_inmat(n, std::vector<double>(m));
-//
-//   for (int i = 0; i < n; i++) {
-//     for (int j = 0; j < m; j++) {
-//       dbl_inmat[i][j] = (double)inmat[i][j];
-//     }
-//   }
-//
-//   return calcDeterminant(dbl_inmat);
-// }
-//
-// //***************************************************************************
-// int linsolve(const std::vector<std::vector<double>> &inmat,
-//              const std::vector<double> &invec, std::vector<double> &outvec)
-//
-// // 170321.
-// // Solves the linear matrix equation A.x=b for x
-// // Where:
-// //   A=inmat    is an n*n square matrix
-// //   x=outvec   is an n dim vector (the answer/output!)
-// //   b=invec    is an n dim vector (the input)
-// //
-// // Uses the GNU 'GSL' libraries:
-// //
-// https://www.gnu.org/software/gsl/manual/html_node/Linear-Algebra-Examples.html
-// // https://www.gnu.org/software/gsl/manual/html_node/LU-Decomposition.html
-// // Requires #include <gsl/gsl_linalg.h>
-// //
-// // INPUT:
-// //   inmat  :: double 'flat' matix of dimension n*n [call as "(double
-// *)inmat"]
-// //   invec  :: double vector of dimension n
-// //   n      :: integer, dimension of matrices
-// // OUTPUT:
-// //   outvec :: solution. output n dimensional vector
-// //
-// //
-//
-// {
-//
-//   int n = (int)inmat.size();
-//
-//   if (inmat[0].size() != (size_t)n)
-//     return 1; // matrix not square!
-//   if (invec.size() != (size_t)n)
-//     return 1; // invec incorrect dimension!
-//
-//   // ensure outvec has correct dimension:
-//   outvec.resize(n);
-//
-//   int iRet = 0;
-//   // Define all the used matrices/vectors:
-//   gsl_matrix *A = gsl_matrix_alloc(n, n);
-//   gsl_vector *b = gsl_vector_alloc(n);
-//   gsl_vector *x = gsl_vector_alloc(n);
-//   gsl_permutation *p = gsl_permutation_alloc(n);
-//   // fill matrix/vector:
-//   for (int i = 0; i < n; i++) {
-//     gsl_vector_set(b, i, invec[i]);
-//     for (int j = 0; j < n; j++) {
-//       // gsl_matrix_set(A,i,j,inmat[i*n+j]);
-//       gsl_matrix_set(A, i, j, inmat[i][j]);
-//     }
-//   }
-//   // peform LU decomposition (using GSL)
-//   // and solve linear equation A.x=b for x (if non-singular)
-//   int s;
-//   gsl_linalg_LU_decomp(A, p, &s);
-//   double det = gsl_linalg_LU_det(A, s);
-//   if (det != 0)
-//     gsl_linalg_LU_solve(A, p, b, x);
-//   if (det == 0)
-//     iRet = 1;
-//   // Fill the output vector:
-//   for (int i = 0; i < n; i++) {
-//     outvec[i] = gsl_vector_get(x, i);
-//   }
-//   // clear memory
-//   gsl_permutation_free(p);
-//   gsl_matrix_free(A);
-//   gsl_vector_free(x);
-//   gsl_vector_free(b);
-//   return iRet;
-// }
-//
-// } // namespace MAlg
+  int num = 1000;
+  const int dim = 50;
+  // std::vector<std::array<std::array<double, dim>, dim>> M(num);
+  std::array<std::array<double, dim>, dim> m;
+  Matrix::SqMatrix m2(dim);
+
+  // std::vector<Matrix::SqMatrix<double>> M3;
+  // for (int i = 0; i < num; i++) {
+  //   Matrix::SqMatrix<double> M_tmp(dim);
+  //   M3.push_back(M_tmp);
+  // }
+
+  // for (auto &m : M) {
+  for (int i = 0; i < dim; i++) {
+    for (int j = 0; j < dim; j++) {
+      double x = Rand(0.3);
+      m[i][j] = (i == j) ? double(i + 1) + x : x;
+      m2[i][j] = m[i][j];
+      // M2[i][j] = m[i][j];
+      // std::cout << m[i][j] << " ";
+    }
+    // std::cout << "\n";
+  }
+  // std::cout << "\n";
+  // }
+
+  sw.start();
+  for (int i = 0; i < num; i++)
+    m2.invert();
+  std::cout << "\n Invert2: " << sw.lap_reading_str() << "\n";
+
+  sw.start();
+  for (int i = 0; i < num; i++)
+    m = Matrix::invert(m);
+  std::cout << "\n Invert1: " << sw.lap_reading_str() << "\n";
+
+  sw.start();
+  for (int i = 0; i < num; i++)
+    m = Matrix::invert(m);
+  std::cout << "\n Invert1: " << sw.lap_reading_str() << "\n";
+
+  sw.start();
+  for (int i = 0; i < num; i++)
+    m2.invert();
+  std::cout << "\n Invert2: " << sw.lap_reading_str() << "\n";
+
+  // std::cin.get();
+
+  // for (auto &m : M) {
+  //   for (int i = 0; i < dim; i++) {
+  //     for (int j = 0; j < dim; j++) {
+  //       std::cout << m[i][j] << " ";
+  //     }
+  //     std::cout << "\n";
+  //   }
+  // }
+  // std::cout << "\n";
+  //
+  // M2.invert();
+  // for (int i = 0; i < dim; i++) {
+  //   for (int j = 0; j < dim; j++) {
+  //     std::cout << M2[i][j] << " ";
+  //   }
+  //   std::cout << "\n";
+  // }
+  // std::cout << "\n";
+
+  // for (int i = 0; i < dim; i++) {
+  //   for (int j = 0; j < dim; j++) {
+  //     double x = Rand(0.001);
+  //     // M2.tempGetSet(i, j) = (i == j) ? double(i + 1) + x : x;
+  //     M2[i][j] = (i == j) ? double(i + 1) + x : x;
+  //     std::cout << M2[i][j] << " ";
+  //     // std::cout << M2.tempGetSet(i, j) << " ";
+  //   }
+  //   std::cout << "\n";
+  // }
+  // std::cout << "\n";
+  //
+  // for (int i = 0; i < dim; i++) {
+  //   for (int j = 0; j < dim; j++) {
+  //     // double x = Rand(0.3);
+  //     // M2[i][j] = (i == j) ? double(i + 1) + x : x;
+  //     // std::cout << M2[i][j] << " ";
+  //     std::cout << M2.tempGetSet(i, j) << " ";
+  //   }
+  //   std::cout << "\n";
+  // }
+  // std::cout << "\n";
+
+  return 1;
+
+*/

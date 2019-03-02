@@ -51,6 +51,7 @@ void HartreeFock::hartree_fock_core() {
 
   double eta1 = 0.35;
   double eta2 = 0.7; // this value after 4 its
+  int de_stride = 5; // don't include all pts in PT for new e guess
 
   form_core_Lambda_abk();
 
@@ -75,8 +76,8 @@ void HartreeFock::hartree_fock_core() {
     vex_old = vex;
 
     form_vabk_core();
-    form_vdir(p_wf->vdir, false);
-    form_approx_vex_core(vex);
+    form_vdir(p_wf->vdir, false); // make return? XX
+    form_approx_vex_core(vex);    // make return? XX
 
     for (int j = 0; j < m_ngp; j++) {
       p_wf->vdir[j] = eta * p_wf->vdir[j] + (1. - eta) * vdir_old[j];
@@ -92,14 +93,14 @@ void HartreeFock::hartree_fock_core() {
       // calculate de from PT
       double en_old = p_wf->orbitals[i].en;
       double del_e = 0;
-      for (int j = 0; j < p_wf->orbitals[i].pinf; j += 5) {
+      for (int j = 0; j < p_wf->orbitals[i].pinf; j += de_stride) {
         double dv = p_wf->vdir[j] + vex[i][j] - vdir_old[j] - vex_old[i][j];
         del_e +=
             dv *
             (pow(p_wf->orbitals[i].f[j], 2) + pow(p_wf->orbitals[i].g[j], 2)) *
             p_wf->rgrid.drdu[j];
       }
-      del_e *= p_wf->rgrid.du * 5;
+      del_e *= p_wf->rgrid.du * de_stride;
       double en_guess = en_old + del_e;
       if (en_guess > 0)
         en_guess = en_old; // safety, should never happen
@@ -112,7 +113,6 @@ void HartreeFock::hartree_fock_core() {
     t_eps /= (int(p_wf->Ncore()) * eta);
 
     // Force all core orbitals to be orthogonal to each other
-    // if (hits % 2) // XXX test. Needed?
     p_wf->orthonormaliseOrbitals(1);
 
     printf("\rHF core        it:%3i eps=%6.1e              ", hits, t_eps);
