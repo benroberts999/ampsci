@@ -416,7 +416,6 @@ XXX Note: This allows wfs to extend past pinf!
       // c_ab = c_ba : only calc'd half:
       double cab = (a < b) ? c_ab[a][b] : c_ab[b][a];
       for (int ir = 0; ir < rgrid.ngp; ir++) {
-        // for (int ir = 0; ir < orbitals[a].pinf; ir++) {
         orbitals[a].f[ir] -= cab * orbitals[b].f[ir];
         orbitals[a].g[ir] -= cab * orbitals[b].g[ir];
       }
@@ -438,7 +437,8 @@ XXX Note: This allows wfs to extend past pinf!
 }
 
 //******************************************************************************
-void ElectronOrbitals::orthonormaliseValence(DiracSpinor &psi_v, int num_its)
+void ElectronOrbitals::orthonormaliseValence(DiracSpinor &psi_v, int num_its,
+                                             bool core_only)
 /*
 Force given valence orbital to be orthogonal to
   a) all core orbitals
@@ -446,10 +446,12 @@ Force given valence orbital to be orthogonal to
 After the core is 'frozen', don't touch core orbitals!
 |v> --> |v> - sum_c |c><c|v>
 note: here, c denotes core orbitals + valence orbitals with c<v
-
+if core_only=true, will only orthog phi_v against core orbitals
+(only need to do this part before generating exchange potential!)
 */
 {
-  auto num_states_below = getStateIndex(psi_v.n, psi_v.k);
+  auto num_states_below =
+      core_only ? coreIndexList.size() : getStateIndex(psi_v.n, psi_v.k);
 
   // Calculate the coeficients <c|v> = A_cv
   std::vector<double> A_vc(num_states_below);
@@ -464,7 +466,6 @@ note: here, c denotes core orbitals + valence orbitals with c<v
     if (psi_v.k != orbitals[ic].k)
       continue;
     double Avc = A_vc[ic];
-    // for (int ir = 0; ir < rgrid.ngp; ir++) {
     for (int ir = 0; ir < psi_v.pinf; ir++) {
       // Probably an algorithm for this!
       psi_v.f[ir] -= Avc * orbitals[ic].f[ir];
@@ -482,7 +483,7 @@ note: here, c denotes core orbitals + valence orbitals with c<v
 
   // If necisary: repeat
   if (num_its > 1)
-    orthonormaliseValence(psi_v, num_its - 1);
+    orthonormaliseValence(psi_v, num_its - 1, core_only);
 }
 
 //******************************************************************************

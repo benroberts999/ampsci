@@ -74,7 +74,8 @@ public:
   int maxCore_n(int ka_in = 0) const;
 
   void orthonormaliseOrbitals(int num_its = 1);
-  void orthonormaliseValence(DiracSpinor &psi_v, int num_its);
+  void orthonormaliseValence(DiracSpinor &psi_v, int num_its = 1,
+                             bool core_only = false);
 
   void sortedEnergyList(std::vector<int> &sort_list,
                         bool do_sort = false) const;

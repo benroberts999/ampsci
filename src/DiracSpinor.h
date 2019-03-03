@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-struct DiracSpinor {
+class DiracSpinor {
 
 public: // Data
   DiracSpinor(int in_n, int in_k, int ngp)

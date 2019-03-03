@@ -1,42 +1,45 @@
 #pragma once
 #include "ElectronOrbitals.h"
 #include <vector>
+
 /*
 Calculates self-consistent Hartree-Fock potential, including exchange.
 Solves all core and valence states.
 
-//XXX Have option to give a list of valence states!
-// Can solve them to some degree in parallel
-//Requires re-writing the valence part (a little)
+Note: can run without exchange (Hartree) - for tests only.
+(Still, non-local potential, 'vex' different for each core state)
 
-//XXX Also: add ability to update v^k for single state?
-//Does that work? Maybe not. but then can iterate each core state
-//indevidually. Might be better.
+XXX Have option to give a list of valence states!
+Can solve them to some degree in parallel
+Requires re-writing the valence part (a little)
 
-//XXX Add back ability to do just Hartree ?
+XXX Still doesn't work well for open shells
 
-//XXX Have option to suppress printing!
-// ALSO: store its + convergance info for each state!!
-
-//XXX Still doesn't work well for open shells
+  Definitions:
+  v^k_ab(r)   := Int_0^inf [r_min^k/r_max^(k+1)]*rho(f') dr'
+  rho(r')     := fa(r')*fb(r') + ga(r')gb(r')
+  Lambda^k_ab := 3js((ja,jb,k),(-1/2,1/2,0))^2 * parity(la+lb+k)
+  vex[a]      := [v_ex*psi_a](r) *(psi_a/psi_a^2) (approx exchange)
 
 */
+
 class HartreeFock {
 
 public:
   HartreeFock(ElectronOrbitals &wf, const std::string &in_core,
-              double eps_HF = 1.e-8);
+              double eps_HF = 1.e-8, bool in_ExcludeExchange = false);
 
   void solveValence(int n, int kappa);
 
   double calculateCoreEnergy();
 
 private:
-  ElectronOrbitals *p_wf = nullptr;
+  ElectronOrbitals *const p_wf;
 
   double m_eps_HF = 1.e-8;
 
   const int MAX_HART_ITS = 64;
+  const bool m_excludeExchange; // for testing
 
   const int m_ngp;
   size_t m_num_core_states;
@@ -50,14 +53,6 @@ private:
   // Store underlying arrays. These are 'double private'
   std::vector<std::vector<std::vector<std::vector<double>>>> m_arr_v_abk_r;
   std::vector<std::vector<std::vector<double>>> m_arr_Lambda_nmk;
-
-  /*
-    Definitions:
-    v^k_ab(r)   := Int_0^inf [r_min^k/r_max^(k+1)]*rho(f') dr'
-    rho(r')     := fa(r')*fb(r') + ga(r')gb(r')
-    Lambda^k_ab := 3js((ja,jb,k),(-1/2,1/2,0))^2 * parity(la+lb+k)
-    vex[a]      := [v_ex*psi_a](r) *(psi_a/psi_a^2) (approx exchange)
-  */
 
 private:
   void hartree_fock_core();

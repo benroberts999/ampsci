@@ -292,10 +292,10 @@ int findPracticalInfinity(double en, const std::vector<double> &v,
   while ((en - v[pinf]) * r[pinf] * r[pinf] + alr < 0)
     pinf--;
 
-  if (pinf >= ngp - 1 || pinf <= 0) {
+  if (pinf > ngp - 1 || pinf <= 0) {
     DEBUG(std::cerr << "\nWARNING 281: pinf=" << pinf << " for en=" << en
                     << "\n";)
-    pinf = ngp - 2;
+    pinf = ngp - 1;
   }
 
   return pinf;

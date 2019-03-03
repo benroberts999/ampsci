@@ -20,17 +20,20 @@ int main(int argc, char *argv[]) {
   // Input options
   std::string Z_str;
   int A;
+  std::string str_core;
   double r0, rmax;
   int ngp;
-  double varalpha, varalpha2;
   double eps_HF;      // HF convergance
   int num_val, l_max; // valence states to calc
-  std::string str_core;
+  double varalpha, varalpha2;
+  bool exclude_exchange;
 
   { // Open and read the input file:
+    int i_excl_ex;
     auto tp = std::forward_as_tuple(Z_str, A, str_core, r0, rmax, ngp, eps_HF,
-                                    num_val, l_max, varalpha2);
+                                    num_val, l_max, varalpha2, i_excl_ex);
     FileIO::setInputParameters(input_file, tp);
+    exclude_exchange = i_excl_ex == 1 ? true : false;
   }
 
   // Change varAlph^2 to varalph
@@ -42,8 +45,11 @@ int main(int argc, char *argv[]) {
   if (A == -1)
     A = ATI::defaultA(Z); // if none given, get default A
 
-  std::cout << "\nRunning Hartree-Fock for " << Z_str << "; Z=" << Z
-            << " A=" << A << "\n"
+  if (exclude_exchange)
+    std::cout << "\nRunning Hartree (excluding exchange) for ";
+  else
+    std::cout << "\nRunning Hartree-Fock for ";
+  std::cout << Z_str << "; Z=" << Z << " A=" << A << "\n"
             << "*************************************************\n";
 
   // Generate the orbitals object:
@@ -53,7 +59,7 @@ int main(int argc, char *argv[]) {
 
   // Solve Hartree equations for the core:
   timer.start(); // start the timer for HF
-  HartreeFock hf(wf, str_core, eps_HF);
+  HartreeFock hf(wf, str_core, eps_HF, exclude_exchange);
   double core_energy = hf.calculateCoreEnergy();
   std::cout << "core: " << timer.lap_reading_str() << "\n";
 
@@ -135,7 +141,7 @@ int main(int argc, char *argv[]) {
         if (psi_b > psi_a)
           continue;
         if (psi_a.k != psi_b.k) {
-          std::cout << " ------- ";
+          std::cout << "         ";
           continue;
         }
         double xo = wf.radialIntegral(psi_a, psi_b);
