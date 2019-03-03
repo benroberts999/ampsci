@@ -7,7 +7,7 @@ XD =.
 CXX=g++ #clang++ #
 
 OPT=-O3
-OMP=-fopenmp #-fopenmp=libiomp5 ##needed for clang++
+OMP=-fopenmp #-fopenmp=libiomp5 ##needed for clang++ #No, not anymore!
 
 WARN=-Wpedantic -Wall -Wextra -Wdouble-promotion -Wconversion
 
@@ -33,6 +33,7 @@ all: checkObj checkXdir $(ALLEXES)
 
 # All programs depend on these generic common headers:
 COMH = $(addprefix $(ID)/, \
+ DiracSpinor.h Nucleus.h \
  ATI_atomInfo.h FPC_physicalConstants.h FileIO_fileReadWrite.h \
  NumCalc_quadIntegrate.h Grid.h Matrix_linalg.h ChronoTimer.h Wigner_369j.h \
 )

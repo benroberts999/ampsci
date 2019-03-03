@@ -17,23 +17,23 @@ If none given, will assume izion should be 1! Not 100% always!
 */
 {
   // Grid:
-  NGPb = wf.ngp;
-  h = wf.h;
+  NGPb = wf.rgrid.ngp;
+  h = wf.rgrid.du;
   r.clear();
-  r = wf.r;
+  r = wf.rgrid.r;
   drdt.clear();
-  drdt = wf.drdt;
+  drdt = wf.rgrid.drdu;
 
   alpha = wf.get_alpha();
   Z = wf.Znuc();
 
   // Check Zion. Will normally be 0 for neutral atom. Make -1
   double tmp_Zion =
-      -1 * wf.r[NGPb - 5] * (wf.vnuc[NGPb - 5] + wf.vdir[NGPb - 5]);
+      -1 * wf.rgrid.r[NGPb - 5] * (wf.vnuc[NGPb - 5] + wf.vdir[NGPb - 5]);
 
   double scale = 1;
   if (fabs(tmp_Zion - izion) > 0.01)
-    scale = double(Z - izion) / (wf.r[NGPb - 5] * wf.vdir[NGPb - 5]);
+    scale = double(Z - izion) / (wf.rgrid.r[NGPb - 5] * wf.vdir[NGPb - 5]);
 
   // Local part of the potential:
   v.clear();
@@ -46,8 +46,8 @@ If none given, will assume izion should be 1! Not 100% always!
   // Re-Check overal charge of atom (-1)
   // For neutral atom, should be 1 (usually, since cntm is ionisation state)
   // r->inf, v(r) = -Z_ion/r
-  tmp_Zion = -1 * wf.r[NGPb - 5] * v[NGPb - 5];
-  // std::cout<<"Zion="<<tmp_Zion<<" = "<<-1*wf.r[NGPb-5]*v[NGPb-5]<<"\n";
+  tmp_Zion = -1 * wf.rgrid.r[NGPb - 5] * v[NGPb - 5];
+  // std::cout<<"Zion="<<tmp_Zion<<" = "<<-1*wf.rgrid.r[NGPb-5]*v[NGPb-5]<<"\n";
   Zion = izion;
 }
 
@@ -101,7 +101,7 @@ continuum (un-bound) states [partial waves].
       i_asym = NGPc - 1;
     rc.push_back(r_new);
     drdtc.push_back(1.);
-    // drdtc.push_back(hc/wf.h);
+    // drdtc.push_back(hc/wf.rgrid.du);
     vc.push_back(-Zion / r_new);
     NGPc++;
     last_r = r_new;

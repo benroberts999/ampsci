@@ -4,6 +4,7 @@
 #include "FPC_physicalConstants.h"
 #include "FileIO_fileReadWrite.h"
 #include "HartreeFockClass.h"
+#include "Nucleus.h"
 #include "NumCalc_quadIntegrate.h"
 #include "PRM_parametricPotentials.h"
 #include <cmath>
@@ -19,17 +20,20 @@ int main(int argc, char *argv[]) {
   // Input options
   std::string Z_str;
   int A;
+  std::string str_core;
   double r0, rmax;
   int ngp;
-  double varalpha, varalpha2;
   double eps_HF;      // HF convergance
   int num_val, l_max; // valence states to calc
-  std::string str_core;
+  double varalpha, varalpha2;
+  bool exclude_exchange;
 
   { // Open and read the input file:
+    int i_excl_ex;
     auto tp = std::forward_as_tuple(Z_str, A, str_core, r0, rmax, ngp, eps_HF,
-                                    num_val, l_max, varalpha2);
+                                    num_val, l_max, varalpha2, i_excl_ex);
     FileIO::setInputParameters(input_file, tp);
+    exclude_exchange = i_excl_ex == 1 ? true : false;
   }
 
   // Change varAlph^2 to varalph
@@ -38,31 +42,31 @@ int main(int argc, char *argv[]) {
   varalpha = sqrt(varalpha2);
 
   int Z = ATI::get_z(Z_str);
-  if (Z == 0)
-    return 2;
   if (A == -1)
     A = ATI::defaultA(Z); // if none given, get default A
 
-  std::cout << "\nRunning Hartree-Fock for " << Z_str << "; Z=" << Z
-            << " A=" << A << "\n"
+  if (exclude_exchange)
+    std::cout << "\nRunning Hartree (excluding exchange) for ";
+  else
+    std::cout << "\nRunning Hartree-Fock for ";
+  std::cout << Z_str << "; Z=" << Z << " A=" << A << "\n"
             << "*************************************************\n";
 
   // Generate the orbitals object:
   ElectronOrbitals wf(Z, A, ngp, r0, rmax, varalpha);
-
-  printf("Grid: pts=%i h=%7.5f r0=%.1e Rmax=%5.1f\n\n", wf.ngp, wf.h,
-         wf.r.front(), wf.r.back());
+  wf.rgrid.print();
+  std::cout << "\n";
 
   // Solve Hartree equations for the core:
   timer.start(); // start the timer for HF
-  HartreeFock hf(wf, str_core, eps_HF);
+  HartreeFock hf(wf, str_core, eps_HF, exclude_exchange);
   double core_energy = hf.calculateCoreEnergy();
   std::cout << "core: " << timer.lap_reading_str() << "\n";
 
   // Create list of valence states to solve for
   // Solves for lowest num_val states with given l
   std::vector<std::vector<int>> lst;
-  if ((int)wf.num_core_electrons >= wf.Znuc())
+  if ((int)wf.Ncore() >= wf.Znuc())
     num_val = 0;
   for (int l = 0; l <= l_max; l++) {
     int n0 = wf.maxCore_n(l) + 1;
@@ -93,28 +97,27 @@ int main(int argc, char *argv[]) {
   wf.sortedEnergyList(sorted_by_energy_list, true);
 
   // Output results:
-  printf("\nCore: %s, Z=%i A=%i\n", Z_str.c_str(), Z, A);
-  printf("     state   k   Rinf its    eps       En (au)      En (/cm)\n");
+  std::cout << "\nCore: " << Z_str << ", Z=" << Z << " A=" << A << "\n";
+  std::cout << "     state   k   Rinf its    eps       En (au)      En (/cm)\n";
   bool val = false;
   double en_lim = 0;
   int count = 0;
   for (int i : sorted_by_energy_list) {
+    auto &phi = wf.orbitals[i];
     ++count;
     if (val && en_lim == 0)
-      en_lim = fabs(wf.en[i]); // give energies wrt core
-    int k = wf.ka(i);
-    double rinf = wf.rinf(i);
-    double eni = wf.en[i];
-    std::string symb = wf.seTermSymbol(i);
-    printf("%2i) %7s %2i  %5.1f %3i  %5.0e %13.7f %13.1f", i, symb.c_str(), k,
-           rinf, wf.itslist[i], wf.epslist[i], eni, eni * FPC::Hartree_invcm);
+      en_lim = fabs(phi.en); // give energies wrt core
+    double rinf = wf.rinf(phi);
+    auto symb = phi.symbol().c_str();
+    printf("%2i) %7s %2i  %5.1f %3i  %5.0e %13.7f %13.1f", i, symb, phi.k, rinf,
+           phi.its, phi.eps, phi.en, phi.en * FPC::Hartree_invcm);
     if (val)
-      printf(" %10.2f\n", (eni + en_lim) * FPC::Hartree_invcm);
+      printf(" %10.2f\n", (phi.en + en_lim) * FPC::Hartree_invcm);
     else
       std::cout << "\n";
-    if (count == (int)wf.num_core_states) {
+    if (count == (int)wf.coreIndexList.size()) {
       printf("E_core = %.5f au\n", core_energy);
-      if (wf.num_core_states == (int)wf.nlist.size())
+      if (wf.coreIndexList.size() == wf.orbitals.size())
         break;
       std::cout
           << "Val: state   "
@@ -129,109 +132,79 @@ int main(int argc, char *argv[]) {
   if (run_test) {
     std::cout << "Test orthonormality [should all read 0]:\n";
     std::cout << "       ";
-    for (auto b : wf.stateIndexList)
-      printf("   %1i %2i  ", wf.n_pqn(b), wf.ka(b));
+    for (auto &psi_b : wf.orbitals)
+      printf("   %1i %2i  ", psi_b.n, psi_b.k);
     std::cout << "\n";
-    for (auto a : wf.stateIndexList) {
-      printf("%1i %2i  ", wf.n_pqn(a), wf.ka(a));
-      for (auto b : wf.stateIndexList) {
-        if (wf.ka(a) != wf.ka(b)) {
-          std::cout << " ------- ";
+    for (auto &psi_a : wf.orbitals) {
+      printf("%1i %2i  ", psi_a.n, psi_a.k);
+      for (auto &psi_b : wf.orbitals) {
+        if (psi_b > psi_a)
+          continue;
+        if (psi_a.k != psi_b.k) {
+          std::cout << "         ";
           continue;
         }
-        double xo = wf.radialIntegral(a, b);
-        if (wf.n_pqn(a) == wf.n_pqn(b))
+        double xo = wf.radialIntegral(psi_a, psi_b);
+        if (psi_a.n == psi_b.n)
           xo -= 1;
         printf(" %7.0e ", xo);
       }
       std::cout << "\n";
     }
-    std::cout << "\n Total time: " << timer.reading_str() << "\n";
   }
 
   bool print_wfs = false;
   if (print_wfs) {
     std::ofstream of("hf-orbitals.txt");
     of << "r ";
-    for (auto a : wf.stateIndexList)
-      of << "\"" << wf.seTermSymbol(a, true) << "\" ";
+    for (auto &psi : wf.orbitals)
+      of << "\"" << psi.symbol(true) << "\" ";
     of << "\n";
-    for (int i = 0; i < wf.ngp; i++) {
-      of << wf.r[i] << " ";
-      for (size_t a = 0; a < wf.nlist.size(); a++) {
-        of << wf.f[a][i] << " ";
-      }
+    for (int i = 0; i < wf.rgrid.ngp; i++) {
+      of << wf.rgrid.r[i] << " ";
+      for (auto &psi : wf.orbitals)
+        of << psi.f[i] << " ";
       of << "\n";
     }
-    std::cout << "\n Total time: " << timer.reading_str() << "\n";
   }
 
   bool testpnc = false;
   if (testpnc) {
-    double a = 0.22756 * 2.3;
-    double c = 5.6710; // 1.1*pow(wf.A(),0.3333);
+    double t = 2.3;
+    double c = Nucleus::approximate_rc(wf.Anuc());
 
-    std::vector<double> rho;
-    rho.reserve(wf.ngp);
-    for (auto r : wf.r)
-      rho.emplace_back(1. / (1. + exp((r * FPC::aB_fm - c) / a)));
-    // double rho0 = NumCalc::integrate(wf.r, wf.r, rho, wf.drdt, 1, 0, 0, 0, 0) *
-    // 4 *
-    //               M_PI * wf.h;
-    double rho0 =
-        NumCalc::integrate(wf.r, wf.r, rho, wf.drdt, 1.) * 4 * M_PI * wf.h;
-    for (auto &rhoi : rho)
-      rhoi /= rho0;
+    auto rho = Nucleus::fermiNuclearDensity(1, t, c, wf.rgrid);
 
     double Gf = FPC::GFe11;
-    double Cc = (Gf / sqrt(8.)) * (-133. + 55.); // Qw/(-N)
-    double Ac = 2. / 6.;
+    double Cc = (Gf / sqrt(8.)) * (-wf.Nnuc()); // Qw/(-N)
 
-    int a6s = wf.getStateIndex(6, -1);
-    int a7s = wf.getStateIndex(7, -1);
-    std::cout << a6s << "," << a7s << "\n";
+    double Ac = 2. / 6.; // angular coef
+    auto a6s_i = wf.getStateIndex(6, -1);
+    auto a7s_i = wf.getStateIndex(7, -1);
+    std::cout << a6s_i << "," << a7s_i << "\n";
+    auto &a6s = wf.orbitals[a6s_i];
+    auto &a7s = wf.orbitals[a7s_i];
     double pnc = 0;
-    for (auto np : wf.stateIndexList) {
-      if (wf.ka(np) != 1)
+    for (auto np : wf.orbitals) {
+      if (np.k != 1)
         continue; // p_1/2 only
-      int n = wf.n_pqn(np);
+      int n = np.n;
       // <7s|d|np><np|hw|6s>/dE6s + <7s|hw|np><np|d|6s>/dE7s
-      double d7s = wf.radialIntegral(a7s, np, wf.r);
+      double d7s = wf.radialIntegral(a7s, np, wf.rgrid.r);
       double w6s = wf.radialIntegral(np, a6s, rho, Operator::gamma5);
-      double dE6s = wf.en[a6s] - wf.en[np];
-      double d6s = wf.radialIntegral(np, a6s, wf.r);
+      double dE6s = a6s.en - np.en;
+      double d6s = wf.radialIntegral(np, a6s, wf.rgrid.r);
       double w7s = wf.radialIntegral(a7s, np, rho, Operator::gamma5);
-      double dE7s = wf.en[a7s] - wf.en[np];
+      double dE7s = a7s.en - np.en;
       double pnc1 = Cc * Ac * d7s * w6s / dE6s;
       double pnc2 = Cc * Ac * d6s * w7s / dE7s;
       std::cout << "n=" << n << " pnc= " << pnc1 << " + " << pnc2 << " = "
                 << pnc1 + pnc2 << "\n";
-      // std::cout<<" d: "<<d6s*2*0.408<<" "<<d7s*2*0.408<<"\n";
-      // std::cout<<" w: "<<w6s*sqrt(2)*Cc<<" "<<w7s*sqrt(2)*Cc<<"\n";
       pnc += pnc1 + pnc2;
     }
     std::cout << "Total= " << pnc << "\n";
     std::cout << "\n Total time: " << timer.reading_str() << "\n";
   }
-
-  // std::vector<double> f;
-  // std::vector<double> df_exact;
-  // for (auto r : wf.r) {
-  //   f.push_back((log(r + 0.5) / (r + 0.5)) * (1. + sqrt(r) * sin(r)));
-  //
-  //   df_exact.push_back(
-  //       (log(0.5 + r) * (sqrt(r) * cos(r) + sin(r) / (2. * sqrt(r)))) /
-  //           (0.5 + r) +
-  //       (1 + sqrt(r) * sin(r)) / pow(0.5 + r, 2) -
-  //       (log(0.5 + r) * (1 + sqrt(r) * sin(r))) / pow(0.5 + r, 2));
-  // }
-  //
-  // std::vector<double> df = NumCalc::derivative(f, wf.drdt, wf.h);
-  //
-  // std::ofstream of("test-deriv.txt");
-  // for (int i = 0; i < wf.ngp; i++) {
-  //   of << wf.r[i] << " " << df_exact[i] << " " << df[i] << "\n";
-  // }
 
   return 0;
 }

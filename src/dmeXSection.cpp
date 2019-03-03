@@ -525,15 +525,15 @@ Optionally further integrates into energy bins
   for (int imv = 0; imv < n_mv; imv++) {
     for (int imx = 0; imx < n_mx; imx++) {
       for (int i = 0; i < num_bins; i++) {
-        int ieA = Egrid.findNextIndex(iEbin + i * wEbin);
-        int ieB = Egrid.findNextIndex(iEbin + (i + 1) * wEbin);
-        if (ieA < 0)
-          ieA = 0;
+        auto ieA = Egrid.getIndex(iEbin + i * wEbin);
+        auto ieB = Egrid.getIndex(iEbin + (i + 1) * wEbin);
+        // if (ieA < 0)
+        //   ieA = 0;
 
         double Rate = 0;
-        for (int ie = ieA; ie < ieB; ie++) {
-          if (ieB >= desteps)
-            break;
+        for (auto ie = ieA; ie < ieB; ie++) {
+          // if (ieB >= desteps)
+          //   break;
           double dEdu = Egrid.drdu[ie]; // r[ie];
           Rate += double(dSdE_mv_mx_E[imv][imx][ie]) * dEdu;
           // nb: E is from Jacobian; * dE/E below
@@ -545,7 +545,7 @@ Optionally further integrates into energy bins
         if (imv == 0 && imx == 0) {
           // only print first one to screen
           printf("%3.1f-%3.1f: %6.3f   %.2e     %i\n", EaKev, EbKev,
-                 0.5 * (EaKev + EbKev), Rate, ieB - ieA);
+                 0.5 * (EaKev + EbKev), Rate, (int)(ieB - ieA));
         }
       }
     }
@@ -769,8 +769,8 @@ Mostly, coming from:
   }
 
   // s1 integrations. Final rates (in counts/day/kg)
-  int is1_a = s1grid.findNearestIndex(s1_a);
-  int is1_b = s1grid.findNearestIndex(s1_b);
+  auto is1_a = s1grid.getIndex(s1_a, true);
+  auto is1_b = s1grid.getIndex(s1_b, true);
   std::vector<std::vector<double>> rate(n_mv, std::vector<double>(n_mx));
   for (int imv = 0; imv < n_mv; imv++) {
     for (int imx = 0; imx < n_mx; imx++) {

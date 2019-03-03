@@ -59,13 +59,13 @@ int main(int argc, char *argv[]) {
   // Generate the orbitals object:
   ElectronOrbitals wf(Z, A, ngp, r0, rmax, varalpha);
 
-  printf("Grid: pts=%i h=%7.5f Rmax=%5.1f\n", wf.ngp, wf.h, wf.r.back());
+  wf.rgrid.print();
 
   // Fill the electron part of the potential
   wf.vdir.clear();
-  wf.vdir.reserve(wf.ngp);
-  // for (int i = 0; i < wf.ngp; i++) {
-  for (auto r : wf.r) {
+  wf.vdir.reserve(wf.rgrid.ngp);
+  // for (int i = 0; i < wf.rgrid.ngp; i++) {
+  for (auto r : wf.rgrid.r) {
     double tmp = 0;
     if (Gf != 0)
       tmp += Gf * PRM::green(Z, r, Gh, Gd);
@@ -98,23 +98,23 @@ int main(int argc, char *argv[]) {
   }
 
   // make list of energy indices in sorted order:
-  std::vector<int> sort_list;
-  wf.sortedEnergyList(sort_list);
+  std::vector<int> sorted_list;
+  wf.sortedEnergyList(sorted_list);
 
   // Output results:
   std::cout << "\n n l_j    k Rinf its    eps      En (au)        En (/cm)\n";
-  for (int m = 0; m < (int)sort_list.size(); m++) { // silly. Fix this...
-    int i = sort_list[m];
-    if (m == wf.num_core_states) {
+  int m = 0;
+  for (auto i : sorted_list) {
+    auto &psi = wf.orbitals[i];
+    if (m++ == (int)wf.coreIndexList.size()) {
       std::cout << " ######### Valence: ######\n";
-      std::cout << " n l_j    k Rinf its    eps      En (au)        En (/cm)\n";
+      std::cout
+          << " n l_j    k Rinf its    eps      En (au)        En (/ cm)\n";
     }
-    int k = wf.ka(i);
-    double rinf = wf.rinf(i);
-    double eni = wf.en[i];
-    printf("%7s %2i  %3.0f %3i  %5.0e  %11.5f %15.3f\n",
-           wf.seTermSymbol(i).c_str(), k, rinf, wf.itslist[i], wf.epslist[i],
-           eni, eni * FPC::Hartree_invcm);
+    double rinf = wf.rinf(psi);
+    printf("%7s %2i  %3.0f %3i  %5.0e  %11.5f %15.3f\n", psi.symbol().c_str(),
+           psi.k, rinf, psi.its, wf.orbitals[i].eps, psi.en,
+           psi.en * FPC::Hartree_invcm);
   }
 
   std::cout << "\n " << sw.reading_str() << "\n";

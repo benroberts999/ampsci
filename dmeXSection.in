@@ -15,7 +15,7 @@ Xe100           ! output label (put 'na' for none)
 2               ! write to file: 0 = dS(E)/dE; 1 = S(m)/[Ew]; 2 = both
 # XENON 100:
 1               ! Xe100? 1= Calc. rates for Xe100
-0 0              ! Error [-1,1]; N(e), sig_PMT  *3
+0 0             ! Error [-1,1]; N(e), sig_PMT  *3
 131             ! Atot. 131 for Xe
 3. 14.          ! PE to integrate
 1               ! Write to file: 0= dS/ds1, 1= S1, 2=both

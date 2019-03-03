@@ -1,4 +1,6 @@
 #include "ADAMS_solveLocalBS.h"
+#include "DiracSpinor.h"
+#include "Grid.h"
 #include "Matrix_linalg.h"
 #include "NumCalc_quadIntegrate.h"
 #include <array>
@@ -27,10 +29,7 @@ namespace ADAMS {
 static const AdamsCoefs<AMO> AMcoef; // coeficients
 
 //******************************************************************************
-void solveDBS(std::vector<double> &f, std::vector<double> &g, double &en_inout,
-              const std::vector<double> &v, int n, int ka,
-              const std::vector<double> &r, const std::vector<double> &drdt,
-              double h, int &pinf_out, int &its_out, double &eps_out,
+void solveDBS(DiracSpinor &psi, const std::vector<double> &v, const Grid &rgrid,
               double alpha, int log_dele)
 /*
 Solves local, spherical bound state dirac equation using Adams-Moulton method.
@@ -74,23 +73,39 @@ Defn: f = p, g = -q. (My g includes alpha)
 */
 {
   // Parameters.
-  const int max_its = 32;       // Max # attempts at converging [sove bs] (30)
+  const int max_its = 16;       // Max # attempts at converging [sove bs] (30)
   const double alr = 800;       // ''assymptotically large r [kinda..]''  (=800)
   const double lfrac_de = 0.15; // 'large' energy variations (0.1 => 10%)
   const int d_ctp_in = 4;       // Num points past ctp +/- d_ctp.
 
   int d_ctp = d_ctp_in; // from tests..
 
-  int ngp = (int)r.size();
+  // Temporary refs to make transition easier. Should remove these
+  // + propogate changes through proplerly XXX XXX XXX
+  auto ngp = rgrid.ngp;
+  auto &r = rgrid.r;
+  auto &drdu = rgrid.drdu;
+  auto du = rgrid.du;
+
+  // Temporary refs to make transition easier. Should remove these
+  // + propogate changes through proplerly XXX XXX XXX
+  auto &f = psi.f;
+  auto &g = psi.g;
+  auto &en_inout = psi.en;
+  auto n = psi.n;
+  auto ka = psi.k;
+  auto &pinf_out = psi.pinf;
+  auto &its_out = psi.its;
+  auto &eps_out = psi.eps;
 
   // Convergance goal. Default: 1e-15
-  double eps_goal = (log_dele > 0) ? 1. / pow(10, log_dele) : 1e-15;
+  double eps_goal = (log_dele > 0) ? 1. / pow(10, log_dele) : 1e-14;
 
   DEBUG( // Checks to see if legal n is requested.
       if (!((abs(ka) <= n) && (ka != n))) {
         std::cerr << "\nFail96 in Adams: bad state n,k=" << n << "," << ka
                   << "\n";
-        return 1;
+        return;
       })
 
   // Find 'l' from 'kappa' (ang. momentum Q number) for # of nodes
@@ -115,13 +130,13 @@ Defn: f = p, g = -q. (My g includes alpha)
     // Find the practical infinity 'pinf' [(V(r) - E)*r^2 >  alr]
     pinf = findPracticalInfinity(en, v, r, alr);
     // Find classical turning point 'ctp' [V(r) > E ]
-    int ctp = findClassicalTurningPoint(en, v, pinf - d_ctp);
+    int ctp = findClassicalTurningPoint(en, v, pinf, d_ctp);
 
     // Find solution (f,g) to DE for given energy:
     // (Inward + outward solutions joined at ctp, merged over ctp+/-d_ctp)
     // Also stores dg (gout-gin) for PT
     std::vector<double> dg(2 * d_ctp + 1); // used for PT to find better e
-    trialDiracSolution(f, g, dg, en, ka, v, r, drdt, h, ctp, d_ctp, pinf,
+    trialDiracSolution(f, g, dg, en, ka, v, r, drdu, du, ctp, d_ctp, pinf,
                        alpha);
 
     // Count the number of nodes (zeros) the wf has.
@@ -132,7 +147,7 @@ Defn: f = p, g = -q. (My g includes alpha)
     double en_old = en;
     if (counted_nodes == required_nodes) {
       correct_nodes = true;
-      anorm = calcNorm(f, g, drdt, h, pinf);
+      anorm = calcNorm(f, g, drdu, du, pinf);
       en = smallEnergyChangePT(en_old, anorm, f, dg, ctp, d_ctp, alpha, less,
                                more, elower, eupper);
     } else {
@@ -155,9 +170,9 @@ Defn: f = p, g = -q. (My g includes alpha)
   // This is rare - means a failure. But hopefully, failure will go away after
   // a few more HF iterations..If we don't norm wf, HF will fail.
   if (!correct_nodes) {
-    anorm = calcNorm(f, g, drdt, h, pinf);
-    DEBUG(std::cerr << "\nFAIL-148: wrong nodes:" << countNodes(f, pinf);
-          << "/" << required_nodes << " for n,k=" << n << "," << ka << "\n";)
+    anorm = calcNorm(f, g, drdu, du, pinf);
+    DEBUG(std::cerr << "\nFAIL-148: wrong nodes:" << countNodes(f, pinf) << "/"
+                    << required_nodes << " for n,k=" << n << "," << ka << "\n";)
   }
 
   eps_out = eps_en;
@@ -210,11 +225,11 @@ more_nodes=true means there were too many nodes
 
 //******************************************************************************
 double calcNorm(const std::vector<double> &f, const std::vector<double> &g,
-                const std::vector<double> &drdt, const double h,
+                const std::vector<double> &drdu, const double du,
                 const int pinf) {
-  double anormF = NumCalc::integrate(f, f, drdt, 1., 0, pinf);
-  double anormG = NumCalc::integrate(g, g, drdt, 1., 0, pinf);
-  return (anormF + anormG) * h;
+  double anormF = NumCalc::integrate(f, f, drdu, 1., 0, pinf);
+  double anormG = NumCalc::integrate(g, g, drdu, 1., 0, pinf);
+  return (anormF + anormG) * du;
 }
 
 //******************************************************************************
@@ -274,35 +289,37 @@ int findPracticalInfinity(double en, const std::vector<double> &v,
 {
   int ngp = (int)r.size();
   int pinf = ngp - 1;
-  while ((en - v[pinf]) * pow(r[pinf], 2) + alr < 0)
+  while ((en - v[pinf]) * r[pinf] * r[pinf] + alr < 0)
     pinf--;
 
-  DEBUG(if (pinf == ngp - 1) std::cerr
-            << "WARNING 281: pract. inf. exceeds grid for en=" << en << "\n";)
+  if (pinf > ngp - 1 || pinf <= 0) {
+    DEBUG(std::cerr << "\nWARNING 281: pinf=" << pinf << " for en=" << en
+                    << "\n";)
+    pinf = ngp - 1;
+  }
 
   return pinf;
 }
 
 //******************************************************************************
-int findClassicalTurningPoint(double en, const std::vector<double> &v,
-                              int pinf) {
+int findClassicalTurningPoint(double en, const std::vector<double> &v, int pinf,
+                              int d_ctp) {
   // Finds classical turning point 'ctp'
   // Step backwards from the "practical infinity" until
   //  V(r) > E        [nb: both V and E are <0]
-  int ctp = pinf;
-  while ((en - v[ctp]) < 0) {
+  int ctp = pinf - d_ctp;
+  while ((en - v[ctp]) < 0)
     --ctp;
-    /*if (ctp<=0){
-      //fails if ctp<0, (or ctp>pinf?)
-      printf("FAILURE 96 in solveDBS: No classical region?\n");
-    return 1;
-    }*/
-  }
-  if (ctp >= pinf) {
+
+  if (ctp >= pinf - d_ctp || ctp <= d_ctp) {
     // Didn't find ctp! Does this ever happen? Yes, if energy guess too wrong
-    DEBUG(printf("FAILURE: Turning point at or after pract. inf. \n");
+    DEBUG(std::cout << "FAIL 303: Turning point : \n";
           printf("ctp=%i, pinf=%i, ngp=%lu\n", ctp, pinf, v.size());)
-    ctp = pinf - 5; //??? ok?
+    ctp = pinf - d_ctp;
+    if (ctp <= d_ctp)
+      std::cerr << "FAIL 309: ctp<d_ctp: Grid not dense enough. "
+                << " pinf,ctp,dctp=" << pinf << " " << ctp << " " << d_ctp
+                << "\n";
   }
   return ctp;
 }
@@ -333,15 +350,15 @@ void trialDiracSolution(std::vector<double> &f, std::vector<double> &g,
                         std::vector<double> &dg, double en, int ka,
                         const std::vector<double> &v,
                         const std::vector<double> &r,
-                        const std::vector<double> &drdt, double h, int ctp,
+                        const std::vector<double> &drdu, double du, int ctp,
                         int d_ctp, int pinf, double alpha) {
   int ngp = (int)f.size();
   // Temporary vectors for in/out integrations:
   std::vector<double> pin(ngp), qin(ngp), pout(ngp), qout(ngp);
   // Perform the "inwards integration":
-  inwardAM(pin, qin, en, v, ka, r, drdt, h, ctp - d_ctp, pinf, alpha);
+  inwardAM(pin, qin, en, v, ka, r, drdu, du, ctp - d_ctp, pinf, alpha);
   // Perform the "outwards integration"
-  outwardAM(pout, qout, en, v, ka, r, drdt, h, ctp + d_ctp, alpha);
+  outwardAM(pout, qout, en, v, ka, r, drdu, du, ctp + d_ctp, alpha);
   // Join in/out solutions into f,g + store dg (gout-gin) for PT
   joinInOutSolutions(f, g, dg, pin, qin, pout, qout, ctp, d_ctp, pinf);
 }
@@ -399,8 +416,8 @@ const static auto OID = AMcoef.OId;
 //******************************************************************************
 void outwardAM(std::vector<double> &p, std::vector<double> &q, double &en,
                const std::vector<double> &v, int ka,
-               const std::vector<double> &r, const std::vector<double> &drdt,
-               double h, int nf, double alpha)
+               const std::vector<double> &r, const std::vector<double> &drdu,
+               double du, int nf, double alpha)
 /*
 Program to start the OUTWARD integration.
 Starts from 0, and uses an expansion(?) to go to (NOL*AMO).
@@ -408,8 +425,8 @@ Then, it then call ADAMS-MOULTON, to finish (from NOL*AMO+1 to nf = ctp+d_ctp)
 */
 {
   double az = -1 * v[AMO] * r[AMO] * alpha; //  Z = -1 * v[AMO] * r[AMO]
-  double c2 = 1. / pow(alpha, 2);
-  double ga = sqrt(pow(ka, 2) - pow(az, 2));
+  double c2 = 1. / (alpha * alpha);
+  double ga = sqrt(ka * ka - az * az);
 
   // initial wf values
   // P(r) = r^gamma u(r)
@@ -421,27 +438,31 @@ Then, it then call ADAMS-MOULTON, to finish (from NOL*AMO+1 to nf = ctp+d_ctp)
 
   // loop through and find first NOL*AMO points of wf
   for (int ln = 0; ln < NOL; ln++) {
+    // re-work out ga (from az) in here? Poss. slightly diff. z_eff (?XX)
     int i0 = ln * AMO + 1;
 
     // defines/populates em coefs
     std::array<double, AMO> coefa, coefb, coefc, coefd;
-    std::array<std::array<double, AMO>, AMO> em;
+    // std::array<std::array<double, AMO>, AMO> em;
+    Matrix::SqMatrix em(AMO);
     for (int i = 0; i < AMO; i++) {
-      double dror = drdt[i + i0] / r[i + i0];
-      coefa[i] = (-OID * h * (ga + ka) * dror);
-      coefb[i] = (-OID * h * (en + 2 * c2 - v[i + i0]) * drdt[i + i0] * alpha);
-      coefc[i] = (OID * h * (en - v[i + i0]) * drdt[i + i0] * alpha);
-      coefd[i] = (-OID * h * (ga - ka) * dror);
+      double dror = drdu[i + i0] / r[i + i0];
+      coefa[i] = (-OID * du * (ga + ka) * dror);
+      coefb[i] = (-OID * du * (en + 2 * c2 - v[i + i0]) * drdu[i + i0] * alpha);
+      coefc[i] = (OID * du * (en - v[i + i0]) * drdu[i + i0] * alpha);
+      coefd[i] = (-OID * du * (ga - ka) * dror);
       for (int j = 0; j < AMO; j++)
         em[i][j] = OIE[i][j];
       em[i][i] = em[i][i] - coefd[i];
     }
     // //inverts the em matrix
-    em = Matrix::invert(em); // from here on, em is the inverted matrix
+    // em = Matrix::invert(em); // from here on, em is the inverted matrix
+    em.invert();
 
     // defines/populates fm, s coefs
     std::array<double, AMO> s;
-    std::array<std::array<double, AMO>, AMO> fm;
+    // std::array<std::array<double, AMO>, AMO> fm;
+    Matrix::SqMatrix fm(AMO);
     for (int i = 0; i < AMO; i++) {
       s[i] = -OIA[i] * u0;
       for (int j = 0; j < AMO; j++) {
@@ -451,7 +472,8 @@ Then, it then call ADAMS-MOULTON, to finish (from NOL*AMO+1 to nf = ctp+d_ctp)
       fm[i][i] = fm[i][i] - coefa[i];
     }
     // inverts the matrix!  fm =-> Inv(fm)
-    fm = Matrix::invert(fm); // from here on, fm is the inverted matrix
+    // fm = Matrix::invert(fm); // from here on, fm is the inverted matrix
+    fm.invert();
 
     // writes u(r) in terms of coefs and the inverse of fm
     // P(r) = r^gamma u(r)
@@ -487,7 +509,7 @@ Then, it then call ADAMS-MOULTON, to finish (from NOL*AMO+1 to nf = ctp+d_ctp)
   // Call adamsmoulton to finish integration from (NOL*AMO+1) to nf = ctp+d_ctp
   int na = NOL * AMO + 1;
   if (nf > na)
-    adamsMoulton(p, q, en, v, ka, r, drdt, h, na, nf, alpha);
+    adamsMoulton(p, q, en, v, ka, r, drdu, du, na, nf, alpha);
 
   return;
 }
@@ -499,8 +521,8 @@ const static double NXEPSP = 1.e-10;
 //******************************************************************
 void inwardAM(std::vector<double> &p, std::vector<double> &q, double &en,
               const std::vector<double> &v, int ka,
-              const std::vector<double> &r, const std::vector<double> &drdt,
-              double h, int nf, int pinf, double alpha)
+              const std::vector<double> &r, const std::vector<double> &drdu,
+              double du, int nf, int pinf, double alpha)
 /*
 Program to start the INWARD integration.
 Starts from Pinf, and uses an expansion(?) to go to (pinf-AMO)
@@ -508,7 +530,7 @@ Then, it then call ADAMS-MOULTON, to finish (from NOL*AMO+1 to nf = ctp-d_ctp)
 */
 {
 
-  double alpha2 = pow(alpha, 2);
+  double alpha2 = alpha * alpha; //(alpha, 2);
   double cc = 1. / alpha;
   double c2 = 1. / alpha2;
 
@@ -521,14 +543,15 @@ Then, it then call ADAMS-MOULTON, to finish (from NOL*AMO+1 to nf = ctp-d_ctp)
   // up to order NX (NX is 'param')
   std::array<double, NX> bx;
   std::array<double, NX> ax;
-  bx[0] = (ka + (zeta / lambda)) * (alpha / 2);
+  bx[0] = (ka + (zeta / lambda)) * (0.5 * alpha);
+  double ka2 = (double)(ka * ka);
+  double zeta2 = zeta * zeta;
   for (int i = 0; i < NX; i++) {
     ax[i] = (ka + (i + 1 - sigma) * Ren * alpha2 - zeta * lambda * alpha2) *
             bx[i] * cc / ((i + 1) * lambda);
     if (i < (NX - 1))
-      bx[i + 1] =
-          (pow(ka, 2) - pow((i + 1 - sigma), 2) - pow(zeta, 2) * alpha2) *
-          bx[i] / (2 * (i + 1) * lambda);
+      bx[i + 1] = (ka2 - pow((double(i + 1) - sigma), 2) - zeta2 * alpha2) *
+                  bx[i] / (2 * (i + 1) * lambda);
   }
 
   // Generates last `AMO' points for P and Q [actually AMO+1?]
@@ -560,7 +583,7 @@ Then, it then call ADAMS-MOULTON, to finish (from NOL*AMO+1 to nf = ctp-d_ctp)
 
   // calls adams-moulton
   if ((pinf - AMO - 1) >= nf)
-    adamsMoulton(p, q, en, v, ka, r, drdt, h, pinf - AMO - 1, nf, alpha);
+    adamsMoulton(p, q, en, v, ka, r, drdu, du, pinf - AMO - 1, nf, alpha);
 
   return;
 }
@@ -572,15 +595,15 @@ static const auto AMAA = AMcoef.AMaa;
 //******************************************************************************
 void adamsMoulton(std::vector<double> &p, std::vector<double> &q, double &en,
                   const std::vector<double> &v, int ka,
-                  const std::vector<double> &r, const std::vector<double> &drdt,
-                  double h, int ni, int nf, double alpha)
+                  const std::vector<double> &r, const std::vector<double> &drdu,
+                  double du, int ni, int nf, double alpha)
 /*
 program finishes the INWARD/OUTWARD integrations (ADAMS-MOULTON)
   //- ni is starting (initial) point for integration
   //- nf is end (final) point for integration (nf=ctp+/-d_ctp)
 */
 {
-  double c2 = 1. / pow(alpha, 2); // c^2 - just to shorten code
+  double c2 = 1. / (alpha * alpha); // c^2 - just to shorten code
 
   int ngp = (int)r.size();
 
@@ -604,22 +627,22 @@ program finishes the INWARD/OUTWARD integrations (ADAMS-MOULTON)
   std::array<double, AMO> amcoef;
   int k1 = ni - inc * AMO;
   for (int i = 0; i < AMO; i++) { // nb: k1 is iterated
-    double dror = drdt[k1] / r[k1];
+    double dror = drdu[k1] / r[k1];
     dp[i] = inc * (-ka * dror * p[k1] -
-                   alpha * ((en + 2 * c2) - v[k1]) * drdt[k1] * q[k1]);
-    dq[i] = inc * (ka * dror * q[k1] + alpha * (en - v[k1]) * drdt[k1] * p[k1]);
-    amcoef[i] = h * AMD * AMA[i];
+                   alpha * ((en + 2 * c2) - v[k1]) * drdu[k1] * q[k1]);
+    dq[i] = inc * (ka * dror * q[k1] + alpha * (en - v[k1]) * drdu[k1] * p[k1]);
+    amcoef[i] = du * AMD * AMA[i];
     k1 += inc;
   }
 
   // integrates the function from ni to the c.t.p
-  double a0 = h * AMD * AMAA;
+  double a0 = du * AMD * AMAA;
   int k2 = ni;
   for (int i = 0; i < nosteps; i++) {
-    double dror = drdt[k2] / r[k2];
+    double dror = drdu[k2] / r[k2];
     double dai = -inc * (ka * dror);
-    double dbi = -inc * alpha * (en + 2 * c2 - v[k2]) * drdt[k2];
-    double dci = inc * alpha * (en - v[k2]) * drdt[k2];
+    double dbi = -inc * alpha * (en + 2 * c2 - v[k2]) * drdu[k2];
+    double dci = inc * alpha * (en - v[k2]) * drdu[k2];
     double ddi = -dai;
     double det_inv = 1. / (1. - a0 * a0 * (dbi * dci - dai * ddi));
     double sp = p[k2 - inc];

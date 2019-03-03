@@ -83,18 +83,16 @@ int main(int argc, char *argv[]) {
   Grid Egrid(demin, demax, desteps, GridType::logarithmic);
   Grid qgrid(qmin, qmax, qsteps, GridType::logarithmic);
 
-  // Look-up atomic number, Z, and also A
+  // Look-up atomic number, Z
   int Z = ATI::get_z(Z_str);
 
   // Make sure h (large-r step size) is small enough to
   // calculate (normalise) cntm functions with energy = demax
-  // Also need to re-form nuclear potential.
-  // Updated class method will avoid this!
   double du_target = (M_PI / 20.) / sqrt(2. * demax);
-  double du = Grid::calc_du_from_ngp(r0, rmax, ngp, GridType::loglinear);
+  double du = Grid::calc_du_from_ngp(r0, rmax, ngp, GridType::loglinear, 3.5);
   if (du > du_target) {
     int new_ngp =
-        Grid::calc_ngp_from_du(r0, rmax, du_target, GridType::loglinear);
+        Grid::calc_ngp_from_du(r0, rmax, du_target, GridType::loglinear, 3.5);
     int old_ngp = ngp;
     ngp = new_ngp;
     std::cout
@@ -114,16 +112,17 @@ int main(int argc, char *argv[]) {
   bool bin_out = (iout_format > 0) ? true : false;
 
   // Print some info to screen:
-  printf("\nRunning Atomic Kernal for %s, Z=%i A=%i\n", Z_str.c_str(), Z,
-         wf.Anuc());
-  printf("*************************************************\n");
+  std::cout << "\nRunning Atomic Kernal for " << Z_str << ", Z=" << Z
+            << " A=" << wf.Anuc() << "\n";
+  std::cout << "*************************************************\n";
   if (Gf != 0)
     printf("Using Green potential: H=%.4f  d=%.4f\n", Gh, Gd);
   else
     printf("Using Hartree Fock (converge to %.0e)\n", hart_del);
 
-  printf("Grid: pts=%i h=%6.4f r0=%.0e Rmax=%5.1f\n", wf.ngp, wf.h,
-         wf.r.front(), wf.r.back());
+  std::cout << "Radial ";
+  wf.rgrid.print();
+  std::cout << "\n";
 
   // Do Hartree-fock (or parametric potential) for Core
   timer.start();
@@ -132,8 +131,8 @@ int main(int argc, char *argv[]) {
   } else {
     // Use Green (local parametric) potential
     // Fill the electron part of the (local/direct) potential
-    wf.vdir.reserve(wf.ngp);
-    for (auto r : wf.r)
+    wf.vdir.reserve(wf.rgrid.ngp);
+    for (auto r : wf.rgrid.r)
       wf.vdir.push_back(PRM::green(Z, r, Gh, Gd));
     wf.solveInitialCore(str_core); // solves w/ Green
   }
@@ -142,55 +141,53 @@ int main(int argc, char *argv[]) {
   // Output HF results:
   std::cout << "\n     state  k Rinf its    eps      En (au)     En (/cm)    "
             << "En (eV)   Oc.Frac.\n";
-  for (int i : wf.stateIndexList) {
-    auto nlj = wf.seTermSymbol(i);
-    int k = wf.ka(i);
-    double rinf = wf.rinf(i);
-    double eni = wf.en[i];
-    double x = wf.occ_frac[i];
-    printf("%2i)%7s %2i  %3.0f %3i  %5.0e  %11.5f %12.0f %10.2f   (%.2f)\n", i,
-           nlj.c_str(), k, rinf, wf.itslist[i], wf.epslist[i], eni,
-           eni * FPC::Hartree_invcm, eni * FPC::Hartree_eV, x);
+  int i = 0;
+  for (auto &phi : wf.orbitals) {
+    auto nlj = phi.symbol().c_str();
+    double rinf = wf.rinf(phi);
+    printf("%2i)%7s %2i  %3.0f %3i  %5.0e  %11.5f %12.0f %10.2f   (%.2f)\n",
+           i++, nlj, phi.k, rinf, phi.its, phi.eps, phi.en,
+           phi.en * FPC::Hartree_invcm, phi.en * FPC::Hartree_eV, phi.occ_frac);
   }
-
   //////////////////////////////////////////////////
 
   // Arrays to store results for outputting later:
   std::vector<std::vector<std::vector<float>>> AK; // float ok?
-  int num_states = (int)wf.nlist.size();
+  int num_states = (int)wf.orbitals.size();
   AK.resize(desteps, std::vector<std::vector<float>>(
                          num_states, std::vector<float>(qsteps)));
 
   // Store state info (each orbital) [just useful for plotting!]
   std::vector<std::string> nklst; // human-readiable state labels (easy
                                   // plotting)
-  nklst.reserve(wf.nlist.size());
-  for (auto i : wf.stateIndexList)
-    nklst.emplace_back(wf.seTermSymbol(i, true));
+  nklst.reserve(wf.orbitals.size());
+  // for (auto i : wf.stateIndexList)
+  //   nklst.emplace_back(wf.seTermSymbol(i, true));
+  for (auto &phi : wf.orbitals)
+    nklst.emplace_back(phi.symbol(true));
 
   // pre-calculate the spherical Bessel function look-up table for efficiency
   timer.start();
-  std::vector<std::vector<std::vector<float>>> jLqr_f;
-  AKF::sphericalBesselTable(jLqr_f, max_L, qgrid.r, wf.r);
+  std::vector<std::vector<std::vector<double>>> jLqr_f;
+  AKF::sphericalBesselTable(jLqr_f, max_L, qgrid.r, wf.rgrid.r);
   std::cout << "Time for SB table: " << timer.lap_reading_str() << "\n";
 
   // Calculate the AK (print to screen)
   std::cout << "\nCalculating atomic kernal AK(q,dE):\n";
-  printf(" dE: %5.2f -- %5.1f keV  (%.2f -- %.1f au)\n", demin / keV,
-         demax / keV, demin, demax);
-  printf("  q: %5.0e -- %5.1g MeV  (%.2f -- %.1f au)\n", qmin / qMeV,
-         qmax / qMeV, qmin, qmax);
+  printf(" dE: %5.2f -- %5.1f keV  (%.2f -- %.1f au)  [N=%i]\n", demin / keV,
+         demax / keV, demin, demax, desteps);
+  printf("  q: %5.0e -- %5.1g MeV  (%.2f -- %.1f au)  [N=%i]\n", qmin / qMeV,
+         qmax / qMeV, qmin, qmax, qsteps);
 
   // Calculate K(q,E)
   timer.start();
   std::cout << "Running dE loops (" << desteps << ").." << std::flush;
 #pragma omp parallel for
   for (int ide = 0; ide < desteps; ide++) {
-    // double dE = Egrid.x(ide);
     double dE = Egrid.r[ide];
     // Loop over core (bound) states:
     for (auto is : wf.stateIndexList) {
-      int l = wf.lorb(is);
+      int l = wf.orbitals[is].l(); // lorb(is);
       if (l > max_l)
         continue;
       if (plane_wave)
