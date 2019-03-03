@@ -201,24 +201,6 @@ But: will always be a copy in that case; optimise for unity?
 }
 
 //******************************************************************************
-// double ElectronOrbitals::get_alpha() const { return alpha; }
-
-// int ElectronOrbitals::Znuc() const { return Z_; }
-//
-// int ElectronOrbitals::Anuc() const { return A_; }
-//
-// int ElectronOrbitals::Nnuc() const {
-//   int N = (A_ - Z_) > 0 ? (A_ - Z_) : 0;
-//   return N;
-// }
-//
-// int ElectronOrbitals::Ncore() const { return num_core_electrons; }
-//
-// double ElectronOrbitals::rinf(const DiracSpinor &phi) const {
-//   return rgrid.r[phi.pinf];
-// }
-
-//******************************************************************************
 int ElectronOrbitals::determineCore(std::string str_core_in)
 /*
 Takes in a string list for the core configuration, outputs an int list
@@ -239,34 +221,14 @@ NOTE: Only works up to n=9, and l=5 [h]
     str_core.push_back(substr);
   }
 
-  num_core_shell.clear();
   if (str_core.size() == 0)
-    return 1;
+    return 0; //?
 
-  int ibeg = 1;
-  std::string ng = str_core[0];
-  if (ng == "He")
-    num_core_shell = ATI::core_He;
-  else if (ng == "Ne")
-    num_core_shell = ATI::core_Ne;
-  else if (ng == "Ar")
-    num_core_shell = ATI::core_Ar;
-  else if (ng == "Kr")
-    num_core_shell = ATI::core_Kr;
-  else if (ng == "Xe")
-    num_core_shell = ATI::core_Xe;
-  else if (ng == "Rn")
-    num_core_shell = ATI::core_Rn;
-  else if (ng == "Og")
-    num_core_shell = ATI::core_Og;
-  else if (ng == "Zn")
-    num_core_shell = ATI::core_Zn;
-  else if (ng == "Cd")
-    num_core_shell = ATI::core_Cd;
-  else if (ng == "Hg")
-    num_core_shell = ATI::core_Hg;
-  else
-    ibeg = 0;
+  std::string NobelGas = str_core[0];
+  num_core_shell = ATI::getCoreConfig(NobelGas);
+
+  // Giving a nobel gas is optional:
+  int ibeg = (num_core_shell.size() == 0) ? 0 : 1;
 
   for (size_t i = ibeg; i < str_core.size(); i++) {
 
@@ -274,27 +236,13 @@ NOTE: Only works up to n=9, and l=5 [h]
     int n = std::stoi(str_core[i].substr(0, 1));
     int m = std::stoi(str_core[i].substr(2));
     std::string strl = str_core[i].substr(1, 1);
-    int l = -1;
-    if (strl == "s")
-      l = 0;
-    else if (strl == "p")
-      l = 1;
-    else if (strl == "d")
-      l = 2;
-    else if (strl == "f")
-      l = 3;
-    else if (strl == "g")
-      l = 4;
-    else if (strl == "h")
-      l = 5;
-    else
-      return 2;
+    int l = ATI::symbol_to_l(strl);
 
     // Check if this term is valid
-    if (m > 4 * l + 2)
+    if (m > 4 * l + 2 || l + 1 > n) {
+      std::cerr << "FAIL 281 EO: invalid core term: " << str_core[i] << "\n";
       return 2;
-    if (l + 1 > n)
-      return 2;
+    }
 
     std::vector<int> core_ex;
     // Form int list for this term:
@@ -340,19 +288,14 @@ Checks if given state is in the core.
 }
 
 //******************************************************************************
-size_t ElectronOrbitals::getStateIndex(int n, int k, bool forceVal) const {
-  auto &state_list = forceVal ? valenceIndexList : stateIndexList;
-  for (auto i : state_list)
+size_t ElectronOrbitals::getStateIndex(int n, int k) const {
+  // auto &state_list = forceVal ? valenceIndexList : stateIndexList;
+  for (auto i : stateIndexList)
     if (n == orbitals[i].n && k == orbitals[i].k)
       return i;
   std::cerr << "\nFAIL 290 in EO: Couldn't find state nk=" << n << k << "\n";
   return (int)stateIndexList.size(); // this is an invalid index!
 }
-// //******************************************************************************
-// size_t ElectronOrbitals::getStateIndex(const DiracSpinor &psi,
-//                                        bool forceVal) const {
-//   return getStateIndex(psi.n, psi.k, forceVal);
-// }
 
 //******************************************************************************
 int ElectronOrbitals::maxCore_n(int ka) const
@@ -424,9 +367,7 @@ HartreeFockClass.cpp has routines for Hartree Fock
       std::cout << "FAIL 254 in ElectronOrbitals:solveInitialCore\n";
       return 2;
     }
-    orbitals[i].occ_frac = double(num_core_shell[ic]) / (4 * l + 2); // XXX
-    // std::cout << n << " " << ka << " (" << l << ")"
-    //           << " x=" << orbitals[i].occ_frac << "\n";
+    orbitals[i].occ_frac = double(num_core_shell[ic]) / (4 * l + 2);
   }
 
   return 0;
@@ -606,11 +547,11 @@ double ElectronOrbitals::enGuessVal(int n, int ka) const
     neff += 4. * x;
   return -0.5 / pow(neff, 2);
 }
-
-//******************************************************************************
-int ElectronOrbitals::getRadialIndex(double r_target) const {
-  return (int)rgrid.getIndex(r_target, true); // need true?
-}
+//
+// //******************************************************************************
+// int ElectronOrbitals::getRadialIndex(double r_target) const {
+//   return (int)rgrid.getIndex(r_target, true); // need true?
+// }
 
 //******************************************************************************
 void ElectronOrbitals::formNuclearPotential(NucleusType nucleus_type, double rc,

@@ -45,11 +45,10 @@ public:
   int Nnuc() const { return (A_ > Z_) ? (A_ - Z_) : 0; }
   int Ncore() const { return num_core_electrons; }
   double rinf(const DiracSpinor &phi) const { return rgrid.r[phi.pinf]; }
-
-  size_t getStateIndex(int n, int k, bool forceVal = false) const;
-  // XXX no need to ever force valence! XXX
-
-  int getRadialIndex(double r_target) const;
+  int getRadialIndex(double r_target) const {
+    return (int)rgrid.getIndex(r_target, true); // need true?
+  }
+  size_t getStateIndex(int n, int k) const;
 
   // XXX Combine with default argument?
   double radialIntegral(const DiracSpinor &psi_a, const DiracSpinor &psi_b,

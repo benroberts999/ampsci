@@ -20,7 +20,8 @@ GRID and ORBITALS
 
 //******************************************************************************
 HartreeFock::HartreeFock(ElectronOrbitals &wf, const std::string &in_core,
-                         double eps_HF) {
+                         double eps_HF)
+    : m_ngp(wf.rgrid.ngp) {
 
   m_eps_HF = eps_HF;
   if (eps_HF > 1)
@@ -28,7 +29,6 @@ HartreeFock::HartreeFock(ElectronOrbitals &wf, const std::string &in_core,
 
   // Store pointer to ElectronOrbitals object internally
   p_wf = &wf;
-  m_ngp = p_wf->rgrid.ngp;
 
   starting_approx_core(in_core);
   // m_num_core_states = p_wf->num_core_states;
@@ -64,6 +64,7 @@ void HartreeFock::hartree_fock_core() {
 
   // Start the HF itterative procedure:
   int hits;
+  double t_eps;
   double eta = eta1;
   for (hits = 1; hits < MAX_HART_ITS; hits++) {
     if (hits == 4)
@@ -88,7 +89,7 @@ void HartreeFock::hartree_fock_core() {
 
     // Solve Dirac Eq. for each state in core, using Vdir+Vex:
     // std::vector<double> en_old = p_wf->en;
-    double t_eps = 0;
+    t_eps = 0;
     for (size_t i = 0; i < m_num_core_states; i++) {
       // calculate de from PT
       double en_old = p_wf->orbitals[i].en;
@@ -120,7 +121,8 @@ void HartreeFock::hartree_fock_core() {
     if (t_eps < m_eps_HF && hits > 2)
       break;
   } // hits
-  std::cout << "\n";
+  printf("\rHF core        it:%3i eps=%6.1e              \n", hits, t_eps);
+  // std::cout << "\n";
 
   // Now, re-solve core orbitals with higher precission
   for (size_t i = 0; i < m_num_core_states; i++)

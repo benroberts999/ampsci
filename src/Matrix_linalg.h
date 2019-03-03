@@ -22,9 +22,14 @@ class SqMatrix {
   /*
     Suddenly gets very slow around n=170.. why? When other method doesn't
   */
+private:
+  gsl_matrix *m;
+
 public:
-  const size_t n;
-  SqMatrix(size_t in_n) : n(in_n) { m = gsl_matrix_alloc(n, n); }
+  const int n;
+
+public:
+  SqMatrix(int in_n) : m(gsl_matrix_alloc(in_n, in_n)), n(in_n) {}
   ~SqMatrix() { gsl_matrix_free(m); }
 
   double *operator[](int i) { return &(m->data[i * n]); }
@@ -35,15 +40,12 @@ public:
     int s;
     gsl_linalg_LU_decomp(m, perm, &s);
     gsl_linalg_LU_invert(m, perm, inverse);
-    size_t n2 = n * n;
-    for (size_t i = 0; i < n2; i++)
+    int n2 = n * n;
+    for (int i = 0; i < n2; i++)
       m->data[i] = inverse->data[i];
     gsl_permutation_free(perm);
     gsl_matrix_free(inverse);
   }
-
-private:
-  gsl_matrix *m;
 };
 
 //******************************************************************************

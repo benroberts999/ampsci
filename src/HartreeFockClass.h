@@ -38,10 +38,9 @@ private:
 
   const int MAX_HART_ITS = 64;
 
-  int m_ngp;
+  const int m_ngp;
   size_t m_num_core_states;
   std::vector<int> twoj_list;
-  // std::vector<int> kappa_list;
   std::vector<int> kappa_index_list;
   int m_max_kappa_index_so_far;
 
@@ -52,10 +51,13 @@ private:
   std::vector<std::vector<std::vector<std::vector<double>>>> m_arr_v_abk_r;
   std::vector<std::vector<std::vector<double>>> m_arr_Lambda_nmk;
 
-  // v^k_ab(r) := Int_0^inf [r_min^k/r_max^(k+1)]*rho(f') dr'
-  // rho(r') := fa(r')*fb(r') + ga(r')gb(r')
-  // Lambda^k_ab := 3js((ja,jb,k),(-1/2,1/2,0))^2*parity(la+lb+k)
-  // vex[a] := [v_ex*psi_a](r) *(psi_a/psi_a^2) //approx exchange
+  /*
+    Definitions:
+    v^k_ab(r)   := Int_0^inf [r_min^k/r_max^(k+1)]*rho(f') dr'
+    rho(r')     := fa(r')*fb(r') + ga(r')gb(r')
+    Lambda^k_ab := 3js((ja,jb,k),(-1/2,1/2,0))^2 * parity(la+lb+k)
+    vex[a]      := [v_ex*psi_a](r) *(psi_a/psi_a^2) (approx exchange)
+  */
 
 private:
   void hartree_fock_core();
