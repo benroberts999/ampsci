@@ -29,8 +29,21 @@ def writeFavourdedRegion(filename, data0, data_min, data_max, nsig):
     import math as m
 
     # DAMA observed in the 1--2 keV region
-    Obs = 0.0198
-    dObs= 0.0067  #1.65, for 90% C.L.
+#    Obs = 0.0198
+#    dObs= 0.0067  #1.65, for 90% C.L.
+#    se0 = 1.e-37
+
+    # Xe100 (PRL118, 2017)
+    # NOTE: put into units cpd/kg (NOT cpd/kg/kev)
+    # Means multiply the Xe100 quoted rate by 4 keV
+    # 1.67(73) cpd/keV/tonne => 0.00668(292)
+    # Obs = 0.0063
+    # dObs= 0.0027  #1.65, for 90% C.L.
+    # se0 = 1.e-37
+
+    # R0 [from older paper: PRL115, 091302 (2015), Science 349, 851 (2015).]
+    Obs = 0.019
+    dObs= 0.0000001  #1.65, for 90% C.L.
     se0 = 1.e-37
 
     out = []
@@ -40,7 +53,6 @@ def writeFavourdedRegion(filename, data0, data_min, data_max, nsig):
         S0 = data0[i][1]
         dS_max = abs(data_max[i][1] - S0)
         dS_min = abs(S0 - data_min[i][1])
-        #if data_min[i][1] == 0:
         if S0 == 0:
             #out.append([Mx, 0, 0, 0])
             continue
@@ -49,7 +61,7 @@ def writeFavourdedRegion(filename, data0, data_min, data_max, nsig):
         if data_min[i][1] == 0:
             data_min[i][1] = 1.e-7
             # just a v. small number.. [destructive!!] ??
-        se = se0*Obs/S0
+        se = Obs/(S0/se0)
         arg_min = pow(dObs/Obs,2) + pow(dS_min/S0,2)
         arg_max = pow(dObs/Obs,2) + pow(dS_max/S0,2)
         er_min = m.sqrt(arg_min)*se
@@ -64,8 +76,16 @@ def writeFavourdedRegion(filename, data0, data_min, data_max, nsig):
 
 
 
-data0=readFile("Sm_mx-ak-I_S1-Sm0_h.out")
-data_min=readFile("Sm_mx-ak-I_S1-SmMin_h.out")
-data_max=readFile("Sm_mx-ak-I_S1-SmMax_h.out")
+# data0=readFile("Sm_mx-ak-I_S1-Sm0_h.out")
+# data_min=readFile("Sm_mx-ak-I_S1-SmMin_h.out")
+# data_max=readFile("Sm_mx-ak-I_S1-SmMax_h.out")
+# data0=readFile("S1m_3-14PE_mx-mv_ak-Xe_S1-Xe100_l.out")
+# data_min=readFile("S1m_3-14PE_mx-mv_ak-Xe_S1-Xe100_erM_l.out")
+# data_max=readFile("S1m_3-14PE_mx-mv_ak-Xe_S1-Xe100_erP_l.out")
+# data0=readFile("S1_3-14PE_mx-mv_ak-Xe_S1-Xe100_l.out")
+# data_min=readFile("S1_3-14PE_mx-mv_ak-Xe_S1-Xe100_erM_l.out")
+# data_max=readFile("S1_3-14PE_mx-mv_ak-Xe_S1-Xe100_erP_l.out")
+
+
 nsig = 1.6
-writeFavourdedRegion("heavy-favoured.txt",data0,data_min,data_max,nsig)
+writeFavourdedRegion("Xe100-light-favoured-S0.txt",data0,data_min,data_max,nsig)
