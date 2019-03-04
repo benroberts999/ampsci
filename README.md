@@ -30,7 +30,7 @@ with a few extensions that improve numerical stability and accuracy
     `otherFile.txt`: _$./programName otherFile.txt_)
  * Note: below just tells how to use existing programs, to see how they work,
  see the comments/instructions inside the source code (all in /src/)
- * Tested with g++ and clang++. For clang++, openmp (parallelisation) must be enabled with the -fopenmp=libiomp5 flag (instead of just -fopenmp), but seems to run fine besides that (I think this only works on linux, not mac).
+ * Tested with g++ and clang++.
 
 Note: makes use of GSL libraries: https://www.gnu.org/software/gsl/
 

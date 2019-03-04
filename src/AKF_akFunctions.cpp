@@ -4,6 +4,7 @@
 #include "ElectronOrbitals.h"
 #include "FPC_physicalConstants.h"
 #include "FileIO_fileReadWrite.h"
+#include "NumCalc_quadIntegrate.h"
 #include "SBF_sphericalBesselFunctions.h"
 #include "Wigner_369j.h"
 #include <cmath>
@@ -142,8 +143,8 @@ XXX This mean we MUST use exponential Grid! Fix this! XXX
 }
 
 //******************************************************************************
-int calculateK_nk(const ElectronOrbitals &wf, int is, int max_L, double dE,
-                  std::vector<std::vector<std::vector<float>>> &jLqr_f,
+int calculateK_nk(const ElectronOrbitals &wf, size_t is, int max_L, double dE,
+                  std::vector<std::vector<std::vector<double>>> &jLqr_f,
                   std::vector<float> &AK_nk_q, double Zeff)
 /*
 Calculates the atomic factor for a given core state (is) and energy.
@@ -153,14 +154,15 @@ Zeff no longer works at main() level.
 */
 {
   ContinuumOrbitals cntm(wf); // create cntm object [survives locally only]
+  auto &psi = wf.orbitals[is];
 
-  int k = wf.ka(is);
-  int l = wf.lorb(is);
+  int k = psi.k;   // wf.ka(is);
+  int l = psi.l(); // wf.lorb(is);
 
   int qsteps = (int)jLqr_f[0].size();
 
   // Calculate continuum wavefunctions
-  double ec = dE + wf.en[is];
+  double ec = dE + wf.orbitals[is].en;
   cntm.clear();
   int lc_max = l + max_L;
   int lc_min = l - max_L;
@@ -173,7 +175,7 @@ Zeff no longer works at main() level.
       cntm.solveLocalContinuum(ec, lc_min, lc_max);
   }
 
-  double x_ocf = wf.occ_frac[is]; // occupancy fraction. Usually 1
+  double x_ocf = psi.occ_frac; // occupancy fraction. Usually 1
 
   // Generate AK for each L, lc, and q
   // L and lc are summed, not stored indevidually
@@ -186,28 +188,24 @@ Zeff no longer works at main() level.
       //#pragma omp parallel for
       for (int iq = 0; iq < qsteps; iq++) {
         double a = 0.;
-        double jLqr = 0.;
         if (cntm.f.size() > 0) {
-          int maxj = wf.pinflist[is]; // don't bother going further
-          // Do the radial integral:
-          a = 0;
-          for (int j = 0; j < maxj; j++) {
-            jLqr = (double)jLqr_f[L][iq][j];
-            a += (wf.f[is][j] * cntm.f[ic][j] + wf.g[is][j] * cntm.g[ic][j]) *
-                 jLqr * wf.drdt[j]; // *h below!
-          }
+          int maxj = psi.pinf; // wf.pinflist[is]; // don't bother going further
+          double af = NumCalc::integrate(psi.f, cntm.f[ic], jLqr_f[L][iq],
+                                         wf.rgrid.drdu, 1., 0, maxj);
+          double ag = NumCalc::integrate(psi.g, cntm.g[ic], jLqr_f[L][iq],
+                                         wf.rgrid.drdu, 1., 0, maxj);
+          a = af + ag;
         }
-        AK_nk_q[iq] += (float)(dC_Lkk * pow(a * wf.h, 2) * x_ocf);
+        AK_nk_q[iq] += (float)(dC_Lkk * pow(a * wf.rgrid.du, 2) * x_ocf);
       } // q
     }   // END loop over cntm states (ic)
   }     // end L loop
-  // cntm.clear(); //deletes cntm wfs for this energy
   return 0;
 }
 
 //******************************************************************************
-int calculateKpw_nk(const ElectronOrbitals &wf, int nk, double dE,
-                    std::vector<std::vector<float>> &jl_qr,
+int calculateKpw_nk(const ElectronOrbitals &wf, size_t nk, double dE,
+                    std::vector<std::vector<double>> &jl_qr,
                     std::vector<float> &tmpK_q)
 /*
 For plane-wave final state.
@@ -219,23 +217,23 @@ XXX Note sure if correct! esp, (q) angular part!? XXX
 
 */
 {
-  if (nk >= (int)wf.f.size())
-    return 1; // should never occur
+  // if (nk >= wf.orbitals.size())
+  //   return 1; // should never occur
 
-  int twoj = wf.twoj(nk);
+  auto &psi = wf.orbitals[nk];
+
+  int twoj = psi.twoj(); // wf.twoj(nk);
 
   int qsteps = (int)jl_qr.size();
 
-  double eps = dE - wf.en[nk];
-  int maxir = wf.pinflist[nk]; // don't bother going further
+  double eps = dE - psi.en; // wf.en[nk];
+  int maxir = psi.pinf;     // wf.pinflist[nk]; // don't bother going further
 
   for (int iq = 0; iq < qsteps; iq++) {
     if (eps <= 0)
       break;
-    double chi_q = 0.;
-    for (int ir = 0; ir < maxir; ir++)
-      chi_q += wf.f[nk][ir] * double(jl_qr[iq][ir]) * wf.r[ir] * wf.drdt[ir];
-    chi_q *= wf.h;
+    double chi_q = NumCalc::integrate(psi.f, jl_qr[iq], wf.rgrid.r,
+                                      wf.rgrid.drdu, wf.rgrid.du, 0, maxir);
     tmpK_q[iq] =
         (float)((2. / M_PI) * (twoj + 1) * pow(chi_q, 2) * sqrt(2. * eps));
     // tmpK_q[iq] = pow(4*3.14159,2)*pow(chi_q,2); //XXX XXX just cf KOPP
@@ -245,7 +243,7 @@ XXX Note sure if correct! esp, (q) angular part!? XXX
 }
 
 //******************************************************************************
-void sphericalBesselTable(std::vector<std::vector<std::vector<float>>> &jLqr_f,
+void sphericalBesselTable(std::vector<std::vector<std::vector<double>>> &jLqr_f,
                           int max_L, const std::vector<double> &q_array,
                           const std::vector<double> &r)
 /*
@@ -257,8 +255,8 @@ Uses SBF_sphericalBesselFunctions
   int ngp = (int)r.size();
   int qsteps = (int)q_array.size();
 
-  jLqr_f.resize(max_L + 1, std::vector<std::vector<float>>(
-                               qsteps, std::vector<float>(ngp)));
+  jLqr_f.resize(max_L + 1, std::vector<std::vector<double>>(
+                               qsteps, std::vector<double>(ngp)));
   for (int L = 0; L <= max_L; L++) {
     std::cout << "\rCalculating spherical Bessel look-up table for L=" << L
               << "/" << max_L << " .. " << std::flush;
@@ -286,7 +284,7 @@ Uses SBF_sphericalBesselFunctions
           }
           tmp /= (num_extra + 1);
         }
-        jLqr_f[L][iq][ir] = (float)tmp;
+        jLqr_f[L][iq][ir] = tmp;
       }
     }
   }
