@@ -39,7 +39,13 @@ template <std::size_t I = 0, typename... Tp>
 }
 
 //******************************************************************************
-inline std::vector<std::string> readInputFile(const std::string &fname) {
+inline std::vector<std::string> readInputFile_byEntry(const std::string &fname)
+/*
+Reads each item (space separated) from a file into a string vector
+Any text after a '#' or '!' are treated as comments and ignored
+(can come anywhere in the line)
+*/
+{
   std::vector<std::string> entry_list;
   std::ifstream file(fname);
   std::string line;
@@ -57,9 +63,31 @@ inline std::vector<std::string> readInputFile(const std::string &fname) {
 }
 
 //******************************************************************************
+inline std::vector<std::string> readInputFile_byLine(const std::string &fname)
+/*
+Reads each line from a file into a string vector
+Lines beginning with '!' or '#' are comments
+*/
+{
+  std::vector<std::string> entry_list;
+  std::ifstream file(fname);
+  std::string line;
+  while (getline(file, line) && (file.is_open())) { // redundant?
+    if (line == "")
+      continue;
+    if (line.at(0) == '!' || line.at(0) == '#') {
+      continue;
+    } else {
+      entry_list.push_back(line);
+    }
+  }
+  return entry_list;
+}
+
+//******************************************************************************
 template <typename... Tp>
 void setInputParameters(std::string infile, std::tuple<Tp...> &tp) {
-  auto input = readInputFile(infile);
+  auto input = readInputFile_byEntry(infile);
   if (sizeof...(Tp) > input.size()) {
     // Note: for now, I allow a longer-than-needed input list.
     // This allows us to not have to comment out all the crap below
