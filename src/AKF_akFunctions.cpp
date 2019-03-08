@@ -189,7 +189,7 @@ Zeff no longer works at main() level.
       for (int iq = 0; iq < qsteps; iq++) {
         double a = 0.;
         if (cntm.f.size() > 0) {
-          int maxj = psi.pinf; // wf.pinflist[is]; // don't bother going further
+          auto maxj = psi.pinf; // don't bother going further
           double af = NumCalc::integrate(psi.f, cntm.f[ic], jLqr_f[L][iq],
                                          wf.rgrid.drdu, 1., 0, maxj);
           double ag = NumCalc::integrate(psi.g, cntm.g[ic], jLqr_f[L][iq],
@@ -213,30 +213,27 @@ Only has f-part....Can restore g-part, but need to be sure of plane-wave!
 Chi(q) - Int[ f_nk*j_l(qr)*r , {r,0,inf}]
 Should be called once per initial state
 
-XXX Note sure if correct! esp, (q) angular part!? XXX
-
 */
 {
-  // if (nk >= wf.orbitals.size())
-  //   return 1; // should never occur
 
   auto &psi = wf.orbitals[nk];
 
   int twoj = psi.twoj(); // wf.twoj(nk);
 
-  int qsteps = (int)jl_qr.size();
+  auto qsteps = jl_qr.size();
 
-  double eps = dE - psi.en; // wf.en[nk];
-  int maxir = psi.pinf;     // wf.pinflist[nk]; // don't bother going further
+  double eps = dE - psi.en;
+  auto maxir = psi.pinf; // don't bother going further
 
-  for (int iq = 0; iq < qsteps; iq++) {
-    if (eps <= 0)
-      break;
+  if (eps <= 0)
+    return 0;
+
+  for (size_t iq = 0; iq < qsteps; iq++) {
     double chi_q = NumCalc::integrate(psi.f, jl_qr[iq], wf.rgrid.r,
                                       wf.rgrid.drdu, wf.rgrid.du, 0, maxir);
     tmpK_q[iq] =
         (float)((2. / M_PI) * (twoj + 1) * pow(chi_q, 2) * sqrt(2. * eps));
-    // tmpK_q[iq] = pow(4*3.14159,2)*pow(chi_q,2); //XXX XXX just cf KOPP
+    // tmpK_q[iq] = pow(4*3.14159,2)*pow(chi_q,2); // just cf KOPP
   }
 
   return 0;

@@ -30,6 +30,6 @@ private:
   std::vector<double> r;
   std::vector<double> drdt;
   std::vector<double> dror;
-  int NGPb;
+  size_t NGPb;
   double h;
 };

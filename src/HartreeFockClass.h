@@ -1,5 +1,7 @@
 #pragma once
+#include "DiracSpinor.h"
 #include "ElectronOrbitals.h"
+#include "Grid.h"
 #include <vector>
 
 /*
@@ -31,17 +33,18 @@ public:
 
   void solveValence(int n, int kappa);
 
-  double calculateCoreEnergy();
+  double calculateCoreEnergy() const;
 
 private:
   ElectronOrbitals *const p_wf;
+  const Grid *const p_rgrid;
 
   double m_eps_HF = 1.e-8;
 
   const int MAX_HART_ITS = 64;
   const bool m_excludeExchange; // for testing
 
-  const int m_ngp;
+  // const int m_ngp;
   size_t m_num_core_states;
   std::vector<int> twoj_list;
   std::vector<int> kappa_index_list;
@@ -72,9 +75,11 @@ private:
 
   void form_vabk_core();
   void form_vbb0();
-  void calculate_v_abk(size_t a, size_t b, int k, std::vector<double> &vabk);
-  std::vector<double> &get_v_aa0(size_t a);
-  std::vector<std::vector<double>> &get_v_abk(size_t a, size_t b);
+  void calculate_v_abk(const DiracSpinor &phi_a, const DiracSpinor &phi_b,
+                       int k, std::vector<double> &vabk) const;
+
+  const std::vector<double> &get_v_aa0(size_t a) const;
+  const std::vector<std::vector<double>> &get_v_abk(size_t a, size_t b) const;
 
   void form_vabk_valence(size_t w);
 

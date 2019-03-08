@@ -23,8 +23,8 @@ Also, need at least ~10 points per half-period. More points for higher energy!
 int solveContinuum(std::vector<double> &f, std::vector<double> &g, double ec,
                    const std::vector<double> &v, int ka,
                    const std::vector<double> &rc,
-                   const std::vector<double> &drdt, double h, int NGPb,
-                   int NGPc, int i_asym, double alpha)
+                   const std::vector<double> &drdt, double h, size_t NGPb,
+                   size_t NGPc, size_t i_asym, double alpha)
 /*
 Solves Dirac equation for continuum state, for given energy, ec
 by integrating outwards from 0
@@ -37,7 +37,7 @@ NGPc is grid for continuum (only for solving). NGPc >> NGPb
 
   // Perform the "outwards integration"
   std::vector<double> pc(NGPc), qc(NGPc);
-  outwardAM(pc, qc, ec, v, ka, rc, drdt, h, NGPc - 1, alpha);
+  outwardAM(pc, qc, ec, v, ka, rc, drdt, h, (int)NGPc - 1, alpha);
 
   // Find a better (lower) asymptotic region:
   i_asym = findAsymptoticRegion(pc, rc, NGPb, NGPc, i_asym);
@@ -54,7 +54,7 @@ NGPc is grid for continuum (only for solving). NGPc >> NGPb
   double sf = D / amp; // re-scale factor
 
   // Normalise the wfs, and transfer back to shorter arrays:
-  for (int i = 0; i < NGPb; i++) {
+  for (size_t i = 0; i < NGPb; i++) {
     f[i] = sf * pc[i];
     g[i] = -1. * sf * qc[i]; // xxx check?
   }
@@ -64,7 +64,7 @@ NGPc is grid for continuum (only for solving). NGPc >> NGPb
 
 //******************************************************************************
 double findSineAmplitude(std::vector<double> &pc, const std::vector<double> &rc,
-                         int NGPc, int i_asym)
+                         size_t NGPc, size_t i_asym)
 /*
  Find "maximum" amplitude, by using a quadratic fit to 2 nearest points
  Scale by ratio of this maximum to max of analytic soln
@@ -74,7 +74,7 @@ double findSineAmplitude(std::vector<double> &pc, const std::vector<double> &rc,
   double amp = 0;
   while (ntry < maxtry) {
     // find first zero after r_asym
-    for (int i = i_asym; i < NGPc; i++) {
+    for (size_t i = i_asym; i < NGPc; i++) {
       if (pc[i] * pc[i - 1] < 0) {
         i_asym = i;
         break;
@@ -83,7 +83,7 @@ double findSineAmplitude(std::vector<double> &pc, const std::vector<double> &rc,
     // find max:
     double y0 = 0, y1 = 0, y2 = 0, y3 = 0, y4 = 0;
     double x0 = 0, x1 = 0, x2 = 0, x3 = 0, x4 = 0;
-    for (int i = i_asym + 1; i < NGPc - 1; i++) {
+    for (size_t i = i_asym + 1; i < NGPc - 1; i++) {
       if (fabs(pc[i]) < fabs(pc[i - 1])) {
         y0 = fabs(pc[i - 3]);
         y1 = fabs(pc[i - 2]);
@@ -109,8 +109,9 @@ double findSineAmplitude(std::vector<double> &pc, const std::vector<double> &rc,
 }
 
 //******************************************************************************
-int findAsymptoticRegion(std::vector<double> &pc, const std::vector<double> &rc,
-                         int NGPb, int NGPc, int i_asym)
+size_t findAsymptoticRegion(std::vector<double> &pc,
+                            const std::vector<double> &rc, size_t NGPb,
+                            size_t NGPc, size_t i_asym)
 /*
 Finds a 'better' guess for the asymptotic region, by looking for where
 the period of oscilations becomes constant
@@ -129,14 +130,14 @@ Note: this method works well, but not perfectly.
   // If doesn't 'converge' in this region, uses r_asym
   double xa = 1, xb = pc[NGPb]; // NGPb is #pts in regular grid
   double wk1 = -1, wk2 = 0;
-  for (int i = NGPb; i < i_asym; i++) {
+  for (size_t i = NGPb; i < i_asym; i++) {
     xa = xb;
     xb = pc[i];
     if (xb * xa < 0) {
       // Use linear extrapolation to find exact r of the zero:
       double r1 = (rc[i] * pc[i - 1] - rc[i - 1] * pc[i]) / (pc[i - 1] - pc[i]);
       double ya = xb, yb = xb;
-      for (int j = i + 1; j < NGPc; j++) {
+      for (size_t j = i + 1; j < NGPc; j++) {
         ya = yb;
         yb = pc[j];
         if (ya * yb < 0) {

@@ -22,13 +22,13 @@
 //******************************************************************************
 ElectronOrbitals::ElectronOrbitals(int in_z, int in_a, int in_ngp, double rmin,
                                    double rmax, double var_alpha)
-    : rgrid(rmin, rmax, in_ngp, GridType::loglinear, 3.5),
-      alpha(FPC::alpha * var_alpha), Z_(in_z),
-      A_((in_a < 0) ? ATI::defaultA(Z_) : in_a)
+    : rgrid(rmin, rmax, (size_t)in_ngp, GridType::loglinear, 3.5),
+      m_alpha(FPC::alpha * var_alpha), m_Z(in_z),
+      m_A((in_a < 0) ? ATI::defaultA(m_Z) : in_a)
 //
 {
   // Use Fermi nucleus by default, unless A=0 is given
-  if (A_ > 0)
+  if (m_A > 0)
     formNuclearPotential(NucleusType::Fermi);
   else
     formNuclearPotential(NucleusType::zero);
@@ -47,7 +47,7 @@ Uses ADAMS::solveDBS to solve Dirac Eqn for local potential (Vnuc + Vdir)
   // nb: for exchange part, need to use reSolveDirac()
   std::vector<double> v_a = vnuc;
   if (vdir.size() != 0) {
-    for (int i = 0; i < rgrid.ngp; i++)
+    for (size_t i = 0; i < rgrid.ngp; i++)
       v_a[i] += vdir[i];
   }
 
@@ -55,7 +55,7 @@ Uses ADAMS::solveDBS to solve Dirac Eqn for local potential (Vnuc + Vdir)
 
   auto &psi = orbitals.back();
   psi.en = e_a == 0 ? enGuessVal(n, k) : e_a;
-  ADAMS::solveDBS(psi, v_a, rgrid, alpha, log_dele_or);
+  ADAMS::solveDBS(psi, v_a, rgrid, m_alpha, log_dele_or);
 
   auto this_index = stateIndexList.size();
   stateIndexList.push_back(this_index);
@@ -88,16 +88,16 @@ This is not ideal..
   // XXX this is inneficient. Fine, except for HF. THen, slow! ?
   std::vector<double> v_a = vnuc;
   if (vdir.size() != 0)
-    for (int i = 0; i < rgrid.ngp; i++)
+    for (size_t i = 0; i < rgrid.ngp; i++)
       v_a[i] += vdir[i];
   if (vex.size() != 0)
-    for (int i = 0; i < rgrid.ngp; i++)
+    for (size_t i = 0; i < rgrid.ngp; i++)
       v_a[i] += vex[i];
 
   // auto &psi = orbitals[i];
   if (e_a != 0)
     psi.en = e_a;
-  ADAMS::solveDBS(psi, v_a, rgrid, alpha, log_dele_or);
+  ADAMS::solveDBS(psi, v_a, rgrid, m_alpha, log_dele_or);
 
   return 0;
 }
@@ -415,7 +415,7 @@ XXX Note: This allows wfs to extend past pinf!
         continue;
       // c_ab = c_ba : only calc'd half:
       double cab = (a < b) ? c_ab[a][b] : c_ab[b][a];
-      for (int ir = 0; ir < rgrid.ngp; ir++) {
+      for (size_t ir = 0; ir < rgrid.ngp; ir++) {
         orbitals[a].f[ir] -= cab * orbitals[b].f[ir];
         orbitals[a].g[ir] -= cab * orbitals[b].g[ir];
       }
@@ -438,7 +438,7 @@ XXX Note: This allows wfs to extend past pinf!
 
 //******************************************************************************
 void ElectronOrbitals::orthonormaliseValence(DiracSpinor &psi_v, int num_its,
-                                             bool core_only)
+                                             bool core_only) const
 /*
 Force given valence orbital to be orthogonal to
   a) all core orbitals
@@ -448,6 +448,7 @@ After the core is 'frozen', don't touch core orbitals!
 note: here, c denotes core orbitals + valence orbitals with c<v
 if core_only=true, will only orthog phi_v against core orbitals
 (only need to do this part before generating exchange potential!)
+NB: Is it ok that this is const? Not sure... it's strange way to do it?....
 */
 {
   auto num_states_below =
@@ -466,7 +467,7 @@ if core_only=true, will only orthog phi_v against core orbitals
     if (psi_v.k != orbitals[ic].k)
       continue;
     double Avc = A_vc[ic];
-    for (int ir = 0; ir < psi_v.pinf; ir++) {
+    for (size_t ir = 0; ir < psi_v.pinf; ir++) {
       // Probably an algorithm for this!
       psi_v.f[ir] -= Avc * orbitals[ic].f[ir];
       psi_v.g[ir] -= Avc * orbitals[ic].g[ir];
@@ -507,11 +508,11 @@ num = num electrons in THIS shell
   }
 
   // effective Z (for energy guess) -- not perfect!
-  double Zeff = double(Z_ - tot_el - num);
+  double Zeff = double(m_Z - tot_el - num);
   if (l == 1)
-    Zeff = 1. + double(Z_ - tot_el - 0.5 * num);
+    Zeff = 1. + double(m_Z - tot_el - 0.5 * num);
   if (l == 2)
-    Zeff = 1. + double(Z_ - tot_el - 0.5 * num);
+    Zeff = 1. + double(m_Z - tot_el - 0.5 * num);
   if (Zeff < 1.)
     Zeff = 1.;
 
@@ -548,11 +549,6 @@ double ElectronOrbitals::enGuessVal(int n, int ka) const
     neff += 4. * x;
   return -0.5 / pow(neff, 2);
 }
-//
-// //******************************************************************************
-// int ElectronOrbitals::getRadialIndex(double r_target) const {
-//   return (int)rgrid.getIndex(r_target, true); // need true?
-// }
 
 //******************************************************************************
 void ElectronOrbitals::formNuclearPotential(NucleusType nucleus_type, double rc,
@@ -561,19 +557,19 @@ void ElectronOrbitals::formNuclearPotential(NucleusType nucleus_type, double rc,
   switch (nucleus_type) {
   case NucleusType::Fermi:
     if (t == 0)
-      t = Nucleus::approximate_t_skin(A_);
+      t = Nucleus::approximate_t_skin(m_A);
     if (rc == 0)
-      rc = Nucleus::approximate_rc(A_); // update?
+      rc = Nucleus::approximate_rc(m_A); // update?
     // XXX rms and half-charge-density not the same! Fix XXX
-    vnuc = Nucleus::fermiNuclearPotential(Z_, t, rc, rgrid.r);
+    vnuc = Nucleus::fermiNuclearPotential(m_Z, t, rc, rgrid.r);
     break;
   case NucleusType::spherical:
     if (rc == 0)
-      rc = Nucleus::approximate_rc(A_); // update?
-    vnuc = Nucleus::sphericalNuclearPotential(Z_, rc, rgrid.r);
+      rc = Nucleus::approximate_rc(m_A); // update?
+    vnuc = Nucleus::sphericalNuclearPotential(m_Z, rc, rgrid.r);
     break;
   case NucleusType::zero:
-    vnuc = Nucleus::sphericalNuclearPotential(Z_, 0., rgrid.r);
+    vnuc = Nucleus::sphericalNuclearPotential(m_Z, 0., rgrid.r);
     break;
   default:
     std::cerr << "\nFail EO:755 - invalid nucleus type?\n";

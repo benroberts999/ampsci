@@ -7,9 +7,12 @@ XD =.
 CXX=g++ #clang++ #
 
 OPT=-O3
-OMP=-fopenmp #-fopenmp=libiomp5 ##needed for clang++ #No, not anymore!
+OMP=-fopenmp #-fopenmp=libiomp5
 
 WARN=-Wpedantic -Wall -Wextra -Wdouble-promotion -Wconversion
+
+# Useful for tests:
+#clang++ -c -std=c++11 -O3 -Wpedantic -Wall -Wextra -Wdouble-promotion -Wconversion src/FILE -o ./junk.jnk
 
 CXXFLAGS= -std=c++11 $(OPT) $(OMP) $(WARN) #-I$(ID)
 LIBS=-lgsl -lgslcblas

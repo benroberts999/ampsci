@@ -91,10 +91,10 @@ int main(int argc, char *argv[]) {
   double du_target = (M_PI / 20.) / sqrt(2. * demax);
   double du = Grid::calc_du_from_ngp(r0, rmax, ngp, GridType::loglinear, 3.5);
   if (du > du_target) {
-    int new_ngp =
+    auto new_ngp =
         Grid::calc_ngp_from_du(r0, rmax, du_target, GridType::loglinear, 3.5);
     int old_ngp = ngp;
-    ngp = new_ngp;
+    ngp = (int)new_ngp;
     std::cout
         << "\nWARNING 101: Grid not dense enough for contimuum state with "
         << "ec=" << demax << "au\n";

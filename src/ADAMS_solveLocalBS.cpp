@@ -3,6 +3,7 @@
 #include "Grid.h"
 #include "Matrix_linalg.h"
 #include "NumCalc_quadIntegrate.h"
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <iostream>
@@ -114,7 +115,7 @@ Defn: f = p, g = -q. (My g includes alpha)
   bool correct_nodes = false;
 
   double en = en_inout;
-  int pinf = -1;
+  int pinf = 0;
   double anorm = 0; // normalisation constant
   double eps_en = 1;
 
@@ -177,16 +178,16 @@ Defn: f = p, g = -q. (My g includes alpha)
 
   eps_out = eps_en;
   en_inout = en;
-  pinf_out = pinf;
+  pinf_out = (size_t)pinf;
   its_out = its;
 
   // normalises the wavefunction
   double an = 1. / sqrt(anorm);
-  for (int i = 0; i < pinf; i++) {
+  for (size_t i = 0; i < pinf_out; i++) {
     f[i] = an * f[i];
     g[i] = an * g[i];
   }
-  for (int i = pinf; i < ngp; i++) {
+  for (auto i = pinf_out; i < ngp; i++) {
     f[i] = 0;
     g[i] = 0;
   }
@@ -307,14 +308,13 @@ int findClassicalTurningPoint(double en, const std::vector<double> &v, int pinf,
   // Finds classical turning point 'ctp'
   // Step backwards from the "practical infinity" until
   //  V(r) > E        [nb: both V and E are <0]
-  int ctp = pinf - d_ctp;
-  while ((en - v[ctp]) < 0)
-    --ctp;
+  auto low = std::lower_bound(v.begin() + d_ctp + 1, v.end() - d_ctp, en);
+  auto ctp = (int)(low - v.begin()) - 1;
 
   if (ctp >= pinf - d_ctp || ctp <= d_ctp) {
     // Didn't find ctp! Does this ever happen? Yes, if energy guess too wrong
     DEBUG(std::cout << "FAIL 303: Turning point : \n";
-          printf("ctp=%i, pinf=%i, ngp=%lu\n", ctp, pinf, v.size());)
+          printf("ctp=%i, pinf=%i, ngp=%lu\n", ctp, (int)pinf, v.size());)
     ctp = pinf - d_ctp;
     if (ctp <= d_ctp)
       std::cerr << "FAIL 309: ctp<d_ctp: Grid not dense enough. "

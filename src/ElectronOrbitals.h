@@ -30,19 +30,19 @@ public:
 
 private:
   // store internal value for alpha (allows variation)
-  const double alpha;
+  const double m_alpha;
   // Atom info:
-  const int Z_, A_;
+  const int m_Z, m_A;
 
   // number of electrons in each core shell (non-rel??)
   std::vector<int> num_core_shell;
   int num_core_electrons = 0; // Nc = N - M
 
 public:
-  double get_alpha() const { return alpha; }
-  int Znuc() const { return Z_; }
-  int Anuc() const { return A_; }
-  int Nnuc() const { return (A_ > Z_) ? (A_ - Z_) : 0; }
+  double get_alpha() const { return m_alpha; }
+  int Znuc() const { return m_Z; }
+  int Anuc() const { return m_A; }
+  int Nnuc() const { return (m_A > m_Z) ? (m_A - m_Z) : 0; }
   int Ncore() const { return num_core_electrons; }
   double rinf(const DiracSpinor &phi) const { return rgrid.r[phi.pinf]; }
   int getRadialIndex(double r_target) const {
@@ -75,7 +75,7 @@ public:
 
   void orthonormaliseOrbitals(int num_its = 1);
   void orthonormaliseValence(DiracSpinor &psi_v, int num_its = 1,
-                             bool core_only = false);
+                             bool core_only = false) const; // "const" OK?
 
   void sortedEnergyList(std::vector<int> &sort_list,
                         bool do_sort = false) const;
