@@ -7,7 +7,7 @@ XD =.
 CXX=g++ #clang++ #
 
 OPT=-O3
-OMP=-fopenmp #-fopenmp=libiomp5
+OMP=-fopenmp
 
 WARN=-Wpedantic -Wall -Wextra -Wdouble-promotion -Wconversion
 
