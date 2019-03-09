@@ -108,15 +108,17 @@ int main(int argc, char *argv[]) {
     if (val && en_lim == 0)
       en_lim = fabs(phi.en); // give energies wrt core
     double rinf = wf.rinf(phi);
-    auto symb = phi.symbol().c_str();
-    printf("%2i) %7s %2i  %5.1f %3i  %5.0e %13.7f %13.1f", i, symb, phi.k, rinf,
-           phi.its, phi.eps, phi.en, phi.en * FPC::Hartree_invcm);
+    // auto xxxx = phi.symbol().c_str();
+    printf("%2i) %7s %2i  %5.1f %3i  %5.0e %13.7f %13.1f", i,
+           phi.symbol().c_str(), phi.k, rinf, phi.its, phi.eps, phi.en,
+           phi.en * FPC::Hartree_invcm);
     if (val)
       printf(" %10.2f\n", (phi.en + en_lim) * FPC::Hartree_invcm);
     else
       std::cout << "\n";
     if (count == (int)wf.coreIndexList.size()) {
-      printf("E_core = %.5f au\n", core_energy);
+      // printf("E_core = %.5f au\n", core_energy);
+      std::cout << "E_core = " << core_energy << " au\n";
       if (wf.coreIndexList.size() == wf.orbitals.size())
         break;
       std::cout

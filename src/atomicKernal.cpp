@@ -143,10 +143,9 @@ int main(int argc, char *argv[]) {
             << "En (eV)   Oc.Frac.\n";
   int i = 0;
   for (auto &phi : wf.orbitals) {
-    auto nlj = phi.symbol().c_str();
     double rinf = wf.rinf(phi);
     printf("%2i)%7s %2i  %3.0f %3i  %5.0e  %11.5f %12.0f %10.2f   (%.2f)\n",
-           i++, nlj, phi.k, rinf, phi.its, phi.eps, phi.en,
+           i++, phi.symbol().c_str(), phi.k, rinf, phi.its, phi.eps, phi.en,
            phi.en * FPC::Hartree_invcm, phi.en * FPC::Hartree_eV, phi.occ_frac);
   }
   //////////////////////////////////////////////////
