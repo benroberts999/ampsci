@@ -77,9 +77,9 @@ Defn: f = p, g = -q. (My g includes alpha)
   const int max_its = 16;       // Max # attempts at converging [sove bs] (30)
   const double alr = 800;       // ''assymptotically large r [kinda..]''  (=800)
   const double lfrac_de = 0.15; // 'large' energy variations (0.1 => 10%)
-  const int d_ctp_in = 4;       // Num points past ctp +/- d_ctp.
+  const int d_ctp = 4;          // Num points past ctp +/- d_ctp.
 
-  int d_ctp = d_ctp_in; // from tests..
+  // int d_ctp = d_ctp_in; // from tests..
 
   // Temporary refs to make transition easier. Should remove these
   // + propogate changes through proplerly XXX XXX XXX
@@ -117,7 +117,7 @@ Defn: f = p, g = -q. (My g includes alpha)
   double en = en_inout;
   int pinf = 0;
   double anorm = 0; // normalisation constant
-  double eps_en = 1;
+  double tmp_eps_en = 1;
 
   DEBUG(std::cerr << "Start: n=" << n << ", k=" << ka << ", en=" << en << "\n";)
 
@@ -135,8 +135,8 @@ Defn: f = p, g = -q. (My g includes alpha)
 
     // Find solution (f,g) to DE for given energy:
     // (Inward + outward solutions joined at ctp, merged over ctp+/-d_ctp)
-    // Also stores dg (gout-gin) for PT
-    std::vector<double> dg(2 * d_ctp + 1); // used for PT to find better e
+    // Also stores dg (gout-gin) for PT [used for PT to find better e]
+    std::vector<double> dg(size_t(2 * d_ctp + 1));
     trialDiracSolution(f, g, dg, en, ka, v, r, drdu, du, ctp, d_ctp, pinf,
                        alpha);
 
@@ -156,14 +156,14 @@ Defn: f = p, g = -q. (My g includes alpha)
       bool more_nodes = (counted_nodes > required_nodes) ? true : false;
       largeEnergyChange(en, more, less, eupper, elower, lfrac_de, more_nodes);
     }
-    eps_en = fabs((en - en_old) / en_old);
+    tmp_eps_en = fabs((en - en_old) / en_old);
 
     DEBUG(std::cerr << " :: it=" << its << " nodes:" << counted_nodes << "/"
-                    << required_nodes << " new_en = " << en
-                    << " delta=" << eps_en * en << " eps=" << eps_en << "\n";
+                    << required_nodes << " new_en = " << en << " delta="
+                    << tmp_eps_en * en << " eps=" << tmp_eps_en << "\n";
           std::cin.get();)
 
-    if (eps_en < eps_goal && correct_nodes)
+    if (tmp_eps_en < eps_goal && correct_nodes)
       break;
   } // end itterations
 
@@ -176,7 +176,7 @@ Defn: f = p, g = -q. (My g includes alpha)
                     << required_nodes << " for n,k=" << n << "," << ka << "\n";)
   }
 
-  eps_out = eps_en;
+  eps_out = tmp_eps_en;
   en_inout = en;
   pinf_out = (size_t)pinf;
   its_out = its;
@@ -282,46 +282,29 @@ Also calculates (+outputs) norm constant (but doesn't normalise orbital!)
 //******************************************************************************
 int findPracticalInfinity(double en, const std::vector<double> &v,
                           const std::vector<double> &r, double alr)
-/*
-//Find the practical infinity 'pinf'
-//Step backwards from the last point (ngp-1) until
+// Find the practical infinity 'pinf'
+// Step backwards from the last point (ngp-1) until
 // (V(r) - E)*r^2 >  alr    (alr = "asymptotically large r")
-*/
+// XXX Note: unsafe, and a little slow. Would be better to use
+// std::lower_bound.. but would need lambda or something for r^2 part?
 {
-  int ngp = (int)r.size();
-  int pinf = ngp - 1;
+  auto pinf = r.size() - 1;
   while ((en - v[pinf]) * r[pinf] * r[pinf] + alr < 0)
-    pinf--;
+    --pinf;
 
-  if (pinf > ngp - 1 || pinf <= 0) {
-    DEBUG(std::cerr << "\nWARNING 281: pinf=" << pinf << " for en=" << en
-                    << "\n";)
-    pinf = ngp - 1;
-  }
-
-  return pinf;
+  return (int)pinf;
 }
 
 //******************************************************************************
 int findClassicalTurningPoint(double en, const std::vector<double> &v, int pinf,
-                              int d_ctp) {
-  // Finds classical turning point 'ctp'
-  // Step backwards from the "practical infinity" until
-  //  V(r) > E        [nb: both V and E are <0]
-  auto low = std::lower_bound(v.begin() + d_ctp + 1, v.end() - d_ctp, en);
-  auto ctp = (int)(low - v.begin()) - 1;
-
-  if (ctp >= pinf - d_ctp || ctp <= d_ctp) {
-    // Didn't find ctp! Does this ever happen? Yes, if energy guess too wrong
-    DEBUG(std::cout << "FAIL 303: Turning point : \n";
-          printf("ctp=%i, pinf=%i, ngp=%lu\n", ctp, (int)pinf, v.size());)
-    ctp = pinf - d_ctp;
-    if (ctp <= d_ctp)
-      std::cerr << "FAIL 309: ctp<d_ctp: Grid not dense enough. "
-                << " pinf,ctp,dctp=" << pinf << " " << ctp << " " << d_ctp
-                << "\n";
-  }
-  return ctp;
+                              int d_ctp)
+// Finds classical turning point 'ctp'
+// Enforced to be between (0+ctp) and (pinf-ctp)
+//  V(r) > E        [nb: both V and E are <0]
+{
+  auto low =
+      std::lower_bound(v.begin() + d_ctp + 1, v.begin() + pinf - d_ctp, en);
+  return (int)(low - v.begin()) - 1;
 }
 
 //******************************************************************************
@@ -414,7 +397,7 @@ const static auto &OIE = AMcoef.OIe;
 const static auto &OIA = AMcoef.OIa;
 const static auto OID = AMcoef.OId;
 //******************************************************************************
-void outwardAM(std::vector<double> &p, std::vector<double> &q, double &en,
+void outwardAM(std::vector<double> &p, std::vector<double> &q, double en,
                const std::vector<double> &v, int ka,
                const std::vector<double> &r, const std::vector<double> &drdu,
                double du, int nf, double alpha)
@@ -519,7 +502,7 @@ const static int NX = 15;
 // PRIMARY convergance for expansion in `inwardAM'' (10^-8)
 const static double NXEPSP = 1.e-10;
 //******************************************************************
-void inwardAM(std::vector<double> &p, std::vector<double> &q, double &en,
+void inwardAM(std::vector<double> &p, std::vector<double> &q, double en,
               const std::vector<double> &v, int ka,
               const std::vector<double> &r, const std::vector<double> &drdu,
               double du, int nf, int pinf, double alpha)
@@ -593,7 +576,7 @@ static const auto &AMA = AMcoef.AMa;
 static const auto AMD = AMcoef.AMd;
 static const auto AMAA = AMcoef.AMaa;
 //******************************************************************************
-void adamsMoulton(std::vector<double> &p, std::vector<double> &q, double &en,
+void adamsMoulton(std::vector<double> &p, std::vector<double> &q, double en,
                   const std::vector<double> &v, int ka,
                   const std::vector<double> &r, const std::vector<double> &drdu,
                   double du, int ni, int nf, double alpha)
