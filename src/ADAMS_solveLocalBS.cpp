@@ -255,7 +255,8 @@ Also calculates (+outputs) norm constant (but doesn't normalise orbital!)
   }
 
   p_del_q /= denom;
-  double de = (1. / alpha) * p_del_q / anorm;
+  // double de = (1. / alpha) * p_del_q / anorm;
+  double de = p_del_q / (alpha * anorm);
   double new_en = en + de;
 
   if ((less != 0) && (new_en < lowest_en)) {
@@ -284,8 +285,13 @@ int findPracticalInfinity(double en, const std::vector<double> &v,
 // std::lower_bound.. but would need lambda or something for r^2 part?
 {
   auto pinf = r.size() - 1;
-  while ((en - v[pinf]) * r[pinf] * r[pinf] + alr < 0)
+  while ((en - v[pinf]) * r[pinf] * r[pinf] + alr < 0) {
     --pinf;
+    DEBUG(if (pinf == 0) {
+      std::cerr << "Fail290 in EO: pinf undeflowed?\n";
+      std::cin.get();
+    })
+  }
 
   return (int)pinf;
 }
@@ -384,8 +390,9 @@ void joinInOutSolutions(std::vector<double> &f, std::vector<double> &g,
 
   // store difference between in/out solutions (for q) - after re-scaling
   // Used later for P.T.
-  for (size_t i = 0; i < dg.size(); i++)
+  for (size_t i = 0; i < dg.size(); i++) {
     dg[i] = qin[ctp - d_ctp + i] * rescale - qout[ctp - d_ctp + i];
+  }
 }
 
 // Adams putward Coeficients
@@ -467,7 +474,6 @@ Then, it then call ADAMS-MOULTON, to finish (from NOL*AMO+1 to nf = ctp+d_ctp)
       vs[i] = 0;
       for (int j = 0; j < AMO; j++) {
         vs[i] += em[i][j] * (coefc[j] * us[j] - OIA[j] * v0);
-        //??? here: is this the large cancellation?
       }
     }
 
