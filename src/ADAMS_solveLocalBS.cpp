@@ -507,7 +507,7 @@ void inwardAM(std::vector<double> &p, std::vector<double> &q, double en,
 // (from NOL*AMO+1 to nf = ctp-d_ctp)
 {
 
-  double alpha2 = alpha * alpha; //(alpha, 2);
+  double alpha2 = alpha * alpha;
   double cc = 1. / alpha;
   double c2 = 1. / alpha2;
 
@@ -572,11 +572,9 @@ void adamsMoulton(std::vector<double> &p, std::vector<double> &q, double en,
                   const std::vector<double> &v, int ka,
                   const std::vector<double> &r, const std::vector<double> &drdu,
                   double du, int ni, int nf, double alpha)
-/*
-program finishes the INWARD/OUTWARD integrations (ADAMS-MOULTON)
-  //- ni is starting (initial) point for integration
-  //- nf is end (final) point for integration (nf=ctp+/-d_ctp)
-*/
+// program finishes the INWARD/OUTWARD integrations (ADAMS-MOULTON)
+//   * ni is starting (initial) point for integration
+//   * nf is end (final) point for integration (nf=ctp+/-d_ctp)
 {
   double c2 = 1. / (alpha * alpha); // c^2 - just to shorten code
 

@@ -1,8 +1,8 @@
 #pragma once
-#include "DiracSpinor.h"
-#include "Grid.h"
 #include <array>
 #include <vector>
+class DiracSpinor;
+class Grid;
 
 namespace ADAMS {
 

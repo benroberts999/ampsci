@@ -1,8 +1,8 @@
 #include "FPC_physicalConstants.h"
-#include "Grid.h"
 #include "NumCalc_quadIntegrate.h"
 #include <cmath>
 #include <gsl/gsl_sf_fermi_dirac.h>
+class Grid;
 
 /*
 Add data tables of change radii ? etc.

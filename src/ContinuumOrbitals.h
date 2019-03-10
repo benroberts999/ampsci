@@ -1,6 +1,6 @@
 #pragma once
-#include "ElectronOrbitals.h"
 #include <vector>
+class ElectronOrbitals;
 
 class ContinuumOrbitals {
 

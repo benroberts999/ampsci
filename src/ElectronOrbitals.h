@@ -3,6 +3,8 @@
 #include "Grid.h"
 #include <string>
 #include <vector>
+// class DiracSpinor;
+// class Grid;
 
 enum class Operator { unity, gamma0, gamma5, dr, dr2 };
 enum class NucleusType { Fermi, spherical, zero };
@@ -44,10 +46,8 @@ public:
   int Anuc() const { return m_A; }
   int Nnuc() const { return (m_A > m_Z) ? (m_A - m_Z) : 0; }
   int Ncore() const { return num_core_electrons; }
-  double rinf(const DiracSpinor &phi) const { return rgrid.r[phi.pinf]; }
-  int getRadialIndex(double r_target) const {
-    return (int)rgrid.getIndex(r_target, true); // need true?
-  }
+  double rinf(const DiracSpinor &phi) const;
+  int getRadialIndex(double r_target) const;
   size_t getStateIndex(int n, int k) const;
 
   // XXX Combine with default argument?

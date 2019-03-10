@@ -276,6 +276,15 @@ NOTE: Only works up to n=9, and l=5 [h]
 }
 
 //******************************************************************************
+double ElectronOrbitals::rinf(const DiracSpinor &phi) const {
+  return rgrid.r[phi.pinf];
+}
+
+int ElectronOrbitals::getRadialIndex(double r_target) const {
+  return (int)rgrid.getIndex(r_target, true); // need true?
+}
+
+//******************************************************************************
 bool ElectronOrbitals::isInCore(int n, int k) const
 /*
 Checks if given state is in the core.

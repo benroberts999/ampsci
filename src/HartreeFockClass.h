@@ -1,8 +1,9 @@
 #pragma once
-#include "DiracSpinor.h"
-#include "ElectronOrbitals.h"
-#include "Grid.h"
+#include <string>
 #include <vector>
+class ElectronOrbitals;
+class DiracSpinor;
+class Grid;
 
 /*
 Calculates self-consistent Hartree-Fock potential, including exchange.
