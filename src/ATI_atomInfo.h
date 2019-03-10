@@ -68,7 +68,10 @@ inline int symbol_to_l(std::string l_str) {
   return -1;
 }
 
-inline int l_k(int ka) { return (abs(2 * ka + 1) - 1) / 2; }
+inline int l_k(int ka) {
+  // return (abs(2 * ka + 1) - 1) / 2;
+  return (ka > 0) ? ka : -ka - 1;
+}
 inline int twoj_k(int ka) { return 2 * abs(ka) - 1; }
 inline double j_k(int ka) { return 0.5 * twoj_k(ka); }
 

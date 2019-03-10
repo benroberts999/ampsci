@@ -26,7 +26,7 @@ LIBS=-lgsl -lgslcblas
 # MSAN = -g -fsanitize=memory -fno-omit-frame-pointer
 # ASAN = -g -fsanitize=address -fno-omit-frame-pointer
 # TSAN = -g -fsanitize=thread
-# #-fsanitize=undefined
+# USAN = -g -fsanitize=undefined
 # CXXFLAGS += $(TSAN)
 
 #Command to compile objects and link them

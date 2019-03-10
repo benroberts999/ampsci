@@ -27,10 +27,10 @@ void trialDiracSolution(std::vector<double> &f, std::vector<double> &g,
                         const std::vector<double> &drdt, double h, int ctp,
                         int d_ctp, int pinf, double alpha);
 
-int countNodes(const std::vector<double> &f, int maxi = 0);
+int countNodes(const std::vector<double> &f, const int maxi);
 
-void largeEnergyChange(double &en, int &more, int &less, double &eupper,
-                       double &elower, double lfrac_de, bool more_nodes);
+void largeEnergyChange(double &en, int &more, int &less, double &highest_en,
+                       double &lowest_en, double lfrac_de, bool more_nodes);
 
 double calcNorm(const std::vector<double> &f, const std::vector<double> &g,
                 const std::vector<double> &drdt, const double h,
@@ -39,8 +39,8 @@ double calcNorm(const std::vector<double> &f, const std::vector<double> &g,
 double smallEnergyChangePT(const double en, const double anorm,
                            const std::vector<double> &f,
                            const std::vector<double> &dg, int ctp, int d_ctp,
-                           double alpha, int less, int more, double elower,
-                           double eupper);
+                           double alpha, int less, int more, double lowest_en,
+                           double highest_en);
 
 void outwardAM(std::vector<double> &p, std::vector<double> &q, double en,
                const std::vector<double> &v, int ka,
