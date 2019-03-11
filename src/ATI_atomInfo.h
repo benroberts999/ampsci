@@ -68,9 +68,9 @@ inline int symbol_to_l(std::string l_str) {
   return -1;
 }
 
-constexpr int l_k(int ka) { return (abs(2 * ka + 1) - 1) / 2; }
-constexpr int twoj_k(int ka) { return 2 * abs(ka) - 1; }
-constexpr double j_k(int ka) { return 0.5 * twoj_k(ka); }
+inline int l_k(int ka) { return (abs(2 * ka + 1) - 1) / 2; }
+inline int twoj_k(int ka) { return 2 * abs(ka) - 1; }
+inline double j_k(int ka) { return 0.5 * twoj_k(ka); }
 
 constexpr int indexFromKappa(int ka) {
   return (ka < 0) ? -2 * ka - 2 : 2 * ka - 1;
