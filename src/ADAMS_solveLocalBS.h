@@ -42,17 +42,17 @@ double smallEnergyChangePT(const double en, const double anorm,
                            double alpha, int less, int more, double elower,
                            double eupper);
 
-void outwardAM(std::vector<double> &p, std::vector<double> &q, double &en,
+void outwardAM(std::vector<double> &p, std::vector<double> &q, double en,
                const std::vector<double> &v, int ka,
                const std::vector<double> &r, const std::vector<double> &drdt,
                double h, int ctp, double alpha);
 
-void inwardAM(std::vector<double> &p, std::vector<double> &q, double &en,
+void inwardAM(std::vector<double> &p, std::vector<double> &q, double en,
               const std::vector<double> &v, int ka,
               const std::vector<double> &r, const std::vector<double> &drdt,
               double h, int ctp, int pinf, double alpha);
 
-void adamsMoulton(std::vector<double> &p, std::vector<double> &q, double &en,
+void adamsMoulton(std::vector<double> &p, std::vector<double> &q, double en,
                   const std::vector<double> &v, int ka,
                   const std::vector<double> &r, const std::vector<double> &drdt,
                   double h, int ni, int nf, double alpha);

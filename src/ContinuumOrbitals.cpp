@@ -39,7 +39,7 @@ If none given, will assume izion should be 1! Not 100% always!
   v.clear();
   v = wf.vnuc;
   if (wf.vdir.size() != 0) {
-    for (int i = 0; i < NGPb; i++)
+    for (size_t i = 0; i < NGPb; i++)
       v[i] += wf.vdir[i] * scale;
   }
 
@@ -90,11 +90,11 @@ continuum (un-bound) states [partial waves].
   std::vector<double> rc = r;
   std::vector<double> drdtc = drdt;
   std::vector<double> vc = v;
-  int NGPc = NGPb;
+  size_t NGPc = NGPb;
 
   // Fill (extend) the temporary grid:
   double last_r = r[NGPb - 1];
-  int i_asym = NGPb - 1;
+  size_t i_asym = NGPb - 1;
   while (last_r < 1.2 * r_asym) {
     double r_new = last_r + h;
     if (r_new >= r_asym && last_r < r_asym)
@@ -160,11 +160,11 @@ On irder to solve for Zeff, just make v use Zeff !!!!!!!
   // That's why we make a new (temporary) vector, rc
   std::vector<double> rc = r;
   std::vector<double> drdtc = drdt;
-  int NGPc = NGPb;
+  size_t NGPc = NGPb;
 
   // Fill (extend) the temporary grid:
   double last_r = r[NGPb - 1];
-  int i_asym = NGPb - 1;
+  size_t i_asym = NGPb - 1;
   while (last_r < 1.2 * r_asym) {
     double r_new = last_r + h;
     if (r_new >= r_asym && last_r < r_asym)

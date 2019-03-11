@@ -91,10 +91,10 @@ int main(int argc, char *argv[]) {
   double du_target = (M_PI / 20.) / sqrt(2. * demax);
   double du = Grid::calc_du_from_ngp(r0, rmax, ngp, GridType::loglinear, 3.5);
   if (du > du_target) {
-    int new_ngp =
+    auto new_ngp =
         Grid::calc_ngp_from_du(r0, rmax, du_target, GridType::loglinear, 3.5);
     int old_ngp = ngp;
-    ngp = new_ngp;
+    ngp = (int)new_ngp;
     std::cout
         << "\nWARNING 101: Grid not dense enough for contimuum state with "
         << "ec=" << demax << "au\n";
@@ -143,10 +143,9 @@ int main(int argc, char *argv[]) {
             << "En (eV)   Oc.Frac.\n";
   int i = 0;
   for (auto &phi : wf.orbitals) {
-    auto nlj = phi.symbol().c_str();
     double rinf = wf.rinf(phi);
     printf("%2i)%7s %2i  %3.0f %3i  %5.0e  %11.5f %12.0f %10.2f   (%.2f)\n",
-           i++, nlj, phi.k, rinf, phi.its, phi.eps, phi.en,
+           i++, phi.symbol().c_str(), phi.k, rinf, phi.its, phi.eps, phi.en,
            phi.en * FPC::Hartree_invcm, phi.en * FPC::Hartree_eV, phi.occ_frac);
   }
   //////////////////////////////////////////////////

@@ -5,14 +5,29 @@ OD =./obj
 XD =.
 
 CXX=g++ #clang++ #
+# CXX=clang++ #
 
 OPT=-O3
 OMP=-fopenmp
 
 WARN=-Wpedantic -Wall -Wextra -Wdouble-promotion -Wconversion
+# -fmax-errors=n # useful when changing a lot
 
-CXXFLAGS= -std=c++11 $(OPT) $(OMP) $(WARN) #-I$(ID)
+ifeq ($(CXX),clang++ )
+  WARN += -Wno-sign-conversion
+endif
+
+# Useful for tests:
+#clang++ -c -std=c++11 -O3 -Wpedantic -Wall -Wextra -Wdouble-promotion -Wconversion src/FILE -o ./junk.jnk
+
+CXXFLAGS= -std=c++11 $(OPT) $(OMP) $(WARN)
 LIBS=-lgsl -lgslcblas
+
+# MSAN = -g -fsanitize=memory -fno-omit-frame-pointer
+# ASAN = -g -fsanitize=address -fno-omit-frame-pointer
+# TSAN = -g -fsanitize=thread
+# #-fsanitize=undefined
+# CXXFLAGS += $(TSAN)
 
 #Command to compile objects and link them
 COMP=$(CXX) -c -o $@ $< $(CXXFLAGS)

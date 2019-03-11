@@ -1,6 +1,8 @@
 #include "HartreeFockClass.h"
 #include "ATI_atomInfo.h"
+#include "DiracSpinor.h"
 #include "ElectronOrbitals.h"
+#include "Grid.h"
 #include "NumCalc_quadIntegrate.h"
 #include "PRM_parametricPotentials.h"
 #include "Wigner_369j.h"
@@ -21,7 +23,7 @@ GRID and ORBITALS
 //******************************************************************************
 HartreeFock::HartreeFock(ElectronOrbitals &wf, const std::string &in_core,
                          double eps_HF, bool in_ExcludeExchange)
-    : p_wf(&wf), m_excludeExchange(in_ExcludeExchange), m_ngp(wf.rgrid.ngp) {
+    : p_wf(&wf), p_rgrid(&wf.rgrid), m_excludeExchange(in_ExcludeExchange) {
 
   m_eps_HF = eps_HF;
   if (eps_HF > 1)
@@ -47,19 +49,19 @@ HartreeFock::HartreeFock(ElectronOrbitals &wf, const std::string &in_core,
 void HartreeFock::hartree_fock_core() {
 
   const double eta1 = 0.35;
-  const double eta2 = 0.7; // this value after 4 its
-  const int de_stride = 5; // don't include all pts in PT for new e guess
+  const double eta2 = 0.7;    // this value after 4 its
+  const size_t de_stride = 5; // don't include all pts in PT for new e guess
 
   // bool hartree_only = true;
 
   form_core_Lambda_abk();
 
-  vex.resize(m_num_core_states, std::vector<double>(m_ngp)); // Also
+  vex.resize(m_num_core_states, std::vector<double>(p_rgrid->ngp)); // Also
   initialise_m_arr_v_abk_r_core();
 
-  std::vector<double> vdir_old(m_ngp);
+  std::vector<double> vdir_old(p_rgrid->ngp);
   std::vector<std::vector<double>> vex_old(m_num_core_states,
-                                           std::vector<double>(m_ngp));
+                                           std::vector<double>(p_rgrid->ngp));
 
   // Start the HF itterative procedure:
   int hits;
@@ -78,7 +80,7 @@ void HartreeFock::hartree_fock_core() {
                                   // if (!hartree_only)
     form_approx_vex_core(vex);    // make return? XX
 
-    for (int j = 0; j < m_ngp; j++) {
+    for (size_t j = 0; j < p_rgrid->ngp; j++) {
       p_wf->vdir[j] = eta * p_wf->vdir[j] + (1. - eta) * vdir_old[j];
       for (size_t i = 0; i < m_num_core_states; i++)
         vex[i][j] = eta * vex[i][j] + (1. - eta) * vex_old[i][j];
@@ -91,11 +93,11 @@ void HartreeFock::hartree_fock_core() {
       auto &phi = p_wf->orbitals[i];
       double en_old = phi.en;
       double del_e = 0;
-      for (int j = 0; j < phi.pinf; j += de_stride) {
+      for (size_t j = 0; j < phi.pinf; j += de_stride) {
         double dv = (p_wf->vdir[j] - vdir_old[j]) + (vex[i][j] - vex_old[i][j]);
-        del_e += dv * phi.f[j] * phi.f[j] * p_wf->rgrid.drdu[j];
+        del_e += dv * phi.f[j] * phi.f[j] * p_rgrid->drdu[j];
       }
-      del_e *= p_wf->rgrid.du * de_stride;
+      del_e *= p_rgrid->du * de_stride;
       double en_guess = (en_old < -del_e) ? en_old + del_e : en_old;
       p_wf->reSolveDirac(phi, en_guess, vex[i], 1);
       double state_eps = fabs((phi.en - en_old) / en_old);
@@ -140,11 +142,11 @@ void HartreeFock::solveValence(int n, int kappa) {
   auto &phi = p_wf->orbitals.back();
 
   const double eta1 = 0.35;
-  const double eta2 = 0.7; // this value after 4 its
-  const int de_stride = 5; // don't include all pts in PT for new e guess
+  const double eta2 = 0.7;    // this value after 4 its
+  const size_t de_stride = 5; // don't include all pts in PT for new e guess
 
-  std::vector<double> vexa(m_ngp);
-  std::vector<double> vexa_old; //(m_ngp);
+  std::vector<double> vexa(p_rgrid->ngp);
+  std::vector<double> vexa_old; //(p_rgrid->ngp);
 
   int hits;
   double eps = -1;
@@ -158,14 +160,13 @@ void HartreeFock::solveValence(int n, int kappa) {
 
     form_vabk_valence(a);
     form_approx_vex_a(a, vexa);
-    for (int i = 0; i < m_ngp; i++)
+    for (size_t i = 0; i < p_rgrid->ngp; i++)
       vexa[i] = eta * vexa[i] + (1. - eta) * vexa_old[i];
     // Use P.T. to calculate energy change:
     double en_new = 0;
-    for (int i = 0; i < phi.pinf; i += de_stride)
-      en_new +=
-          (vexa[i] - vexa_old[i]) * (pow(phi.f[i], 2)) * p_wf->rgrid.drdu[i];
-    en_new = en_old + en_new * p_wf->rgrid.du * de_stride;
+    for (size_t i = 0; i < phi.pinf; i += de_stride)
+      en_new += (vexa[i] - vexa_old[i]) * (pow(phi.f[i], 2)) * p_rgrid->drdu[i];
+    en_new = en_old + en_new * p_rgrid->du * de_stride;
     // Solve Dirac using new potential:
     p_wf->reSolveDirac(phi, en_new, vexa, 1);
     eps = fabs((phi.en - en_old) / en_old);
@@ -183,7 +184,7 @@ void HartreeFock::solveValence(int n, int kappa) {
 }
 
 //******************************************************************************
-double HartreeFock::calculateCoreEnergy()
+double HartreeFock::calculateCoreEnergy() const
 /*
 Calculates the total HF core energy:
   E = \sum_a [ja]e_a - 0.5 \sum_(ab) (R^0_abab - \sum_k L^k_ab R^k_abba)
@@ -195,17 +196,20 @@ where:
 {
   double Etot = 0;
   for (size_t a = 0; a < m_num_core_states; a++) {
+    const auto &phi_a = p_wf->orbitals[a];
+
     double E1 = 0, E2 = 0, E3 = 0;
-    double xtjap1 = (twoj_list[a] + 1) * p_wf->orbitals[a].occ_frac;
-    E1 += xtjap1 * p_wf->orbitals[a].en;
+    double xtjap1 = (twoj_list[a] + 1) * phi_a.occ_frac;
+    E1 += xtjap1 * phi_a.en;
     for (size_t b = 0; b < m_num_core_states; b++) {
-      double xtjbp1 = (twoj_list[b] + 1) * p_wf->orbitals[b].occ_frac;
-      int irmax = std::min(p_wf->orbitals[a].pinf, p_wf->orbitals[b].pinf);
-      std::vector<double> &v0bb = get_v_aa0(b);
-      double R0f2 = NumCalc::integrate(p_wf->orbitals[a].f, p_wf->orbitals[a].f,
-                                       v0bb, p_wf->rgrid.drdu, 1, 0, irmax);
-      double R0g2 = NumCalc::integrate(p_wf->orbitals[a].g, p_wf->orbitals[a].g,
-                                       v0bb, p_wf->rgrid.drdu, 1, 0, irmax);
+      const auto &phi_b = p_wf->orbitals[b];
+      double xtjbp1 = (twoj_list[b] + 1) * phi_b.occ_frac;
+      auto irmax = std::min(phi_a.pinf, phi_b.pinf);
+      auto &v0bb = get_v_aa0(b);
+      double R0f2 = NumCalc::integrate(phi_a.f, phi_a.f, v0bb, p_rgrid->drdu, 1,
+                                       0, irmax);
+      double R0g2 = NumCalc::integrate(phi_a.g, phi_a.g, v0bb, p_rgrid->drdu, 1,
+                                       0, irmax);
       E2 += xtjap1 * xtjbp1 * (R0f2 + R0g2);
       // take advantage of symmetry for third term:
       if (b > a)
@@ -213,23 +217,21 @@ where:
       double y = (a == b) ? 1 : 2;
       int kmin = abs(twoj_list[a] - twoj_list[b]) / 2;
       int kmax = (twoj_list[a] + twoj_list[b]) / 2;
-      std::vector<std::vector<double>> &vabk = get_v_abk(a, b);
+      auto &vabk = get_v_abk(a, b);
       for (int k = kmin; k <= kmax; k++) {
         double L_abk = get_Lambda_abk(a, b, k);
         if (L_abk == 0)
           continue;
         int ik = k - kmin;
         double R0f3 =
-            NumCalc::integrate(p_wf->orbitals[a].f, p_wf->orbitals[b].f,
-                               vabk[ik], p_wf->rgrid.drdu);
+            NumCalc::integrate(phi_a.f, phi_b.f, vabk[ik], p_rgrid->drdu);
         double R0g3 =
-            NumCalc::integrate(p_wf->orbitals[a].g, p_wf->orbitals[b].g,
-                               vabk[ik], p_wf->rgrid.drdu);
+            NumCalc::integrate(phi_a.g, phi_b.g, vabk[ik], p_rgrid->drdu);
         E3 += y * xtjap1 * xtjbp1 * L_abk * (R0f3 + R0g3);
       }
     }
     {
-      Etot += E1 - 0.5 * (E2 - E3) * p_wf->rgrid.du; // update running total
+      Etot += E1 - 0.5 * (E2 - E3) * p_rgrid->du; // update running total
     }
   }
   return Etot;
@@ -242,14 +244,14 @@ Starting approx for HF. Uses Green parametric
 Later, can put other options if you want.
 */
 {
-  p_wf->vdir.clear();        // make sure correct size (should already)
-  p_wf->vdir.reserve(m_ngp); //
+  p_wf->vdir.clear();               // make sure correct size (should already)
+  p_wf->vdir.reserve(p_rgrid->ngp); //
   int Z = p_wf->Znuc();
   // Get default values for Green potential
   double Gh, Gd; // Green potential parameters
   PRM::defaultGreenCore(Z, Gh, Gd);
   // Fill the the potential, using Greens PRM
-  for (auto r : p_wf->rgrid.r)
+  for (auto r : p_rgrid->r)
     p_wf->vdir.emplace_back(PRM::green(Z, r, Gh, Gd));
   // First step: Solve each core state using above parameteric potential
   p_wf->solveInitialCore(in_core, 1); // 1 in 10
@@ -406,7 +408,7 @@ Note: only for core. These are stored in m_arr_v_abk_r array (class member)
       size_t num_k = (tja > tjb) ? (tjb + 1) : (tja + 1);
       m_arr_v_abk_r[a][b].resize(num_k);
       for (size_t ik = 0; ik < num_k; ik++) {
-        m_arr_v_abk_r[a][b][ik].resize(m_ngp);
+        m_arr_v_abk_r[a][b][ik].resize(p_rgrid->ngp);
       } // k
     }   // b
   }     // a
@@ -422,14 +424,17 @@ This enlargens the m_arr_v_abk_r to make room for the valence states
   for (size_t b = 0; b < m_num_core_states; b++) {
     int tjb = twoj_list[b];
     int num_k = (tja > tjb) ? (tjb + 1) : (tja + 1);
-    v_abk_tmp[b].resize(num_k, std::vector<double>(m_ngp));
+    v_abk_tmp[b].resize(num_k, std::vector<double>(p_rgrid->ngp));
   } // b
   m_arr_v_abk_r.push_back(v_abk_tmp);
 }
 
 //******************************************************************************
-void HartreeFock::calculate_v_abk(size_t a, size_t b, int k,
-                                  std::vector<double> &vabk)
+// void HartreeFock::calculate_v_abk(size_t a, size_t b, int k,
+//                                   std::vector<double> &vabk)
+void HartreeFock::calculate_v_abk(const DiracSpinor &phi_a,
+                                  const DiracSpinor &phi_b, int k,
+                                  std::vector<double> &vabk) const
 /*
 Calculalates v^k_ab screening function.
 Note: should only call for a>=b, and for k's with non-zero angular coefs
@@ -451,30 +456,27 @@ B(r_n) = A(r_{n-1}) + (rho(r_{n-1})/r_{n-1}^(k+1))*dr
 v^k_ab(rn) = A(rn)/rn^(k+1) + B(rn)*rn^k
 */
 {
-  int irmax =
-      std::min(p_wf->orbitals[a].pinf, p_wf->orbitals[b].pinf); // pass in
-                                                                // instead?
+  auto irmax = std::min(phi_a.pinf, phi_b.pinf); // pass in
+                                                 // instead?
 
   double Ax = 0, Bx = 0;
-  for (int i = 0; i < irmax; i++)
-    Bx += p_wf->rgrid.drdu[i] *
-          (p_wf->orbitals[a].f[i] * p_wf->orbitals[b].f[i] +
-           p_wf->orbitals[a].g[i] * p_wf->orbitals[b].g[i]) /
-          pow(p_wf->rgrid.r[i], k + 1);
+  for (size_t i = 0; i < irmax; i++)
+    Bx += p_rgrid->drdu[i] *
+          (phi_a.f[i] * phi_b.f[i] + phi_a.g[i] * phi_b.g[i]) /
+          pow(p_rgrid->r[i], k + 1);
 
-  if (a == b)
-    irmax = m_ngp; // For direct part, can't cut!
-  vabk[0] = Bx * p_wf->rgrid.du;
-  for (int i = 1; i < irmax; i++) {
-    double Fdr = p_wf->rgrid.drdu[i - 1] *
-                 (p_wf->orbitals[a].f[i - 1] * p_wf->orbitals[b].f[i - 1] +
-                  p_wf->orbitals[a].g[i - 1] * p_wf->orbitals[b].g[i - 1]);
-    Ax = Ax + Fdr * pow(p_wf->rgrid.r[i - 1], k);
-    Bx = Bx - Fdr / pow(p_wf->rgrid.r[i - 1], k + 1);
-    vabk[i] = p_wf->rgrid.du * (Ax / pow(p_wf->rgrid.r[i], k + 1) +
-                                Bx * pow(p_wf->rgrid.r[i], k));
+  if (phi_a == phi_b)             // ok?
+    irmax = (size_t)p_rgrid->ngp; // For direct part, can't cut!
+  vabk[0] = Bx * p_rgrid->du;
+  for (size_t i = 1; i < irmax; i++) {
+    double Fdr = p_rgrid->drdu[i - 1] * (phi_a.f[i - 1] * phi_b.f[i - 1] +
+                                         phi_a.g[i - 1] * phi_b.g[i - 1]);
+    Ax = Ax + Fdr * pow(p_rgrid->r[i - 1], k);
+    Bx = Bx - Fdr / pow(p_rgrid->r[i - 1], k + 1);
+    vabk[i] = p_rgrid->du *
+              (Ax / pow(p_rgrid->r[i], k + 1) + Bx * pow(p_rgrid->r[i], k));
   }
-  for (int i = irmax; i < m_ngp; i++)
+  for (size_t i = irmax; i < (size_t)p_rgrid->ngp; i++)
     vabk[i] = 0;
 }
 
@@ -486,7 +488,8 @@ Don't call this as well as form_vabk_core, not needed (won't break though)
 */
 {
   for (size_t b = 0; b < m_num_core_states; b++)
-    calculate_v_abk(b, b, 0, m_arr_v_abk_r[b][b][0]);
+    calculate_v_abk(p_wf->orbitals[b], p_wf->orbitals[b], 0,
+                    m_arr_v_abk_r[b][b][0]);
 }
 
 //******************************************************************************
@@ -506,7 +509,8 @@ Note: only for core-core states! (for now?)
       for (int k = kmin; k <= kmax; k++) {
         if (get_Lambda_abk(a, b, k) == 0)
           continue;
-        calculate_v_abk(a, b, k, m_arr_v_abk_r[a][b][k - kmin]);
+        calculate_v_abk(p_wf->orbitals[a], p_wf->orbitals[b], k,
+                        m_arr_v_abk_r[a][b][k - kmin]);
       } // k
     }   // b
   }     // a
@@ -527,13 +531,15 @@ Stores in m_arr_v_abk_r
     for (int k = kmin; k <= kmax; k++) {
       if (get_Lambda_abk(w, b, k) == 0)
         continue;
-      calculate_v_abk(w, b, k, m_arr_v_abk_r[w][b][k - kmin]);
+      calculate_v_abk(p_wf->orbitals[w], p_wf->orbitals[b], k,
+                      m_arr_v_abk_r[w][b][k - kmin]);
     } // k
   }   // b
 }
 
 //******************************************************************************
-std::vector<std::vector<double>> &HartreeFock::get_v_abk(size_t a, size_t b)
+const std::vector<std::vector<double>> &HartreeFock::get_v_abk(size_t a,
+                                                               size_t b) const
 /*
 Returns a reference to a 2D-array (a subset of the m_arr_v_abk_r array)
 Returned array is of form: array[ik][r]; ik runs from 0 -> |kmax-kmin+1|
@@ -547,7 +553,7 @@ Allows to call for any a,b, even though only calculated for a>=b (symmetry)
   return m_arr_v_abk_r[b][a];
 }
 //******************************************************************************
-std::vector<double> &HartreeFock::get_v_aa0(size_t a)
+const std::vector<double> &HartreeFock::get_v_aa0(size_t a) const
 // Same as above, but for v^0_aa, only need to return 1D array: array[r]
 // array.size()=ngp
 {
@@ -564,13 +570,15 @@ If re_scale==true, will scale by (N-1)/N. This then given the averaged Hartree
  potential (local, same each state, no exchange). re_scale=false by default
 */
 {
-  for (int i = 0; i < m_ngp; i++)
-    vdir[i] = 0;
+  // for (int i = 0; i < p_rgrid->ngp; i++)
+  //   vdir[i] = 0;
+  for (auto &v_dir : vdir)
+    v_dir = 0;
   double sf = re_scale ? (1. - (1.) / p_wf->Ncore()) : 1;
   for (size_t b = 0; b < m_num_core_states; b++) {
     double f = (twoj_list[b] + 1) * p_wf->orbitals[b].occ_frac;
-    std::vector<double> &v0bb = get_v_aa0(b);
-    for (int i = 0; i < m_ngp; i++)
+    const std::vector<double> &v0bb = get_v_aa0(b);
+    for (size_t i = 0; i < p_rgrid->ngp; i++)
       vdir[i] += f * v0bb[i] * sf;
   } // b
 }
@@ -611,8 +619,10 @@ Therefore, I only calculate vex_a when a=b, or when |psi_a| > 1.e3
 Further, largest part of v_ex is when a=b. In this case, the factor=1 is exact!
 */
 {
-  for (int i = 0; i < m_ngp; i++)
-    vex_a[i] = 0;
+  // for (int i = 0; i < p_rgrid->ngp; i++)
+  //   vex_a[i] = 0;
+  for (auto &va : vex_a)
+    va = 0;
 
   // define references to orbitals (this is just to save typing..)
   auto &phi_a = p_wf->orbitals[a];
@@ -623,12 +633,13 @@ Further, largest part of v_ex is when a=b. In this case, the factor=1 is exact!
         continue;
       auto &phi_b = p_wf->orbitals[b];
       double x_tjbp1 = (twoj_list[b] + 1) * phi_b.occ_frac;
-      int irmax = std::min(phi_a.pinf, phi_b.pinf);
+      auto irmax = std::min(phi_a.pinf, phi_b.pinf);
       int kmin = abs(twoj_list[a] - twoj_list[b]) / 2;
       int kmax = (twoj_list[a] + twoj_list[b]) / 2;
-      std::vector<std::vector<double>> &vabk = get_v_abk(a, b);
-      std::vector<double> v_Fab(m_ngp); // hold "fraction" psi_a*psi_b/(psi_a^2)
-      for (int i = 0; i < irmax; i++) {
+      const std::vector<std::vector<double>> &vabk = get_v_abk(a, b);
+      std::vector<double> v_Fab(
+          p_rgrid->ngp); // hold "fraction" psi_a*psi_b/(psi_a^2)
+      for (size_t i = 0; i < irmax; i++) {
         // This is the approximte part! Divides by psi_a
         if (fabs(phi_a.f[i]) < 1.e-3)
           continue;
@@ -640,7 +651,7 @@ Further, largest part of v_ex is when a=b. In this case, the factor=1 is exact!
         double L_abk = get_Lambda_abk(a, b, k);
         if (L_abk == 0)
           continue;
-        for (int i = 0; i < irmax; i++) {
+        for (size_t i = 0; i < irmax; i++) {
           if (v_Fab[i] == 0)
             continue;
           vex_a[i] += L_abk * vabk[k - kmin][i] * v_Fab[i];
@@ -652,15 +663,16 @@ Further, largest part of v_ex is when a=b. In this case, the factor=1 is exact!
   // now, do a=b, ONLY if a is in the core!
   if (a < m_num_core_states) {
     double x_tjap1 = (twoj_list[a] + 1) * phi_a.occ_frac;
-    int irmax = phi_a.pinf;
+    auto irmax = phi_a.pinf;
     int kmax = twoj_list[a];
-    std::vector<std::vector<double>> &vaak = get_v_abk(a, a);
+    const std::vector<std::vector<double>> &vaak = get_v_abk(a, a);
     for (int k = 0; k <= kmax; k++) {
       double L_abk = get_Lambda_abk(a, a, k);
       if (L_abk == 0)
         continue;
-      for (int i = 0; i < irmax; i++)
+      for (size_t i = 0; i < irmax; i++) {
         vex_a[i] += -1 * L_abk * vaak[k][i] * x_tjap1;
+      }
     } // k
   }   // if a in core
 }

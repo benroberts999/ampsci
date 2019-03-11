@@ -97,7 +97,7 @@ int main(int argc, char *argv[]) {
       std::vector<double> dQ =
           NumCalc::derivative(psi.g, wf.rgrid.drdu, wf.rgrid.du);
       std::vector<double> rad;
-      for (int i = 0; i < wf.rgrid.ngp; i++) {
+      for (size_t i = 0; i < wf.rgrid.ngp; i++) {
         double x1 = -2 * psi.f[i] * dQ[i] / alpha;
         double x2 = 2 * psi.k * psi.f[i] * psi.g[i] / (wf.rgrid.r[i] * alpha);
         double x3 = -2 * pow(psi.g[i], 2) / a2;
