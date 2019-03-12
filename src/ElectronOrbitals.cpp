@@ -276,6 +276,15 @@ NOTE: Only works up to n=9, and l=5 [h]
 }
 
 //******************************************************************************
+double ElectronOrbitals::rinf(const DiracSpinor &phi) const {
+  return rgrid.r[phi.pinf];
+}
+
+int ElectronOrbitals::getRadialIndex(double r_target) const {
+  return (int)rgrid.getIndex(r_target, true); // need true?
+}
+
+//******************************************************************************
 bool ElectronOrbitals::isInCore(int n, int k) const
 /*
 Checks if given state is in the core.
@@ -409,9 +418,9 @@ XXX Note: This allows wfs to extend past pinf!
   // Orthogonalise orbitals:
   for (auto a : stateIndexList) {
     for (auto b : stateIndexList) {
-      if (a == b)
-        continue;
       if (orbitals[a].k != orbitals[b].k)
+        continue;
+      if (a == b)
         continue;
       // c_ab = c_ba : only calc'd half:
       double cab = (a < b) ? c_ab[a][b] : c_ab[b][a];
@@ -423,8 +432,7 @@ XXX Note: This allows wfs to extend past pinf!
   }
 
   for (auto &psi : orbitals) {
-    double A = radialIntegral(psi, psi);
-    double norm = 1. / sqrt(A);
+    double norm = 1. / sqrt(radialIntegral(psi, psi));
     for (auto &fa_r : psi.f)
       fa_r *= norm;
     for (auto &ga_r : psi.g)
@@ -451,22 +459,25 @@ if core_only=true, will only orthog phi_v against core orbitals
 NB: Is it ok that this is const? Not sure... it's strange way to do it?....
 */
 {
-  auto num_states_below =
+  const auto num_states_below =
       core_only ? coreIndexList.size() : getStateIndex(psi_v.n, psi_v.k);
 
   // Calculate the coeficients <c|v> = A_cv
-  std::vector<double> A_vc(num_states_below);
-  for (size_t ic = 0; ic < (size_t)num_states_below; ic++) {
-    if (psi_v.k != orbitals[ic].k)
+  std::vector<double> A_vc; //(num_states_below);
+  A_vc.reserve(num_states_below);
+  for (size_t ic = 0; ic < num_states_below; ic++) {
+    if (psi_v.k != orbitals[ic].k) {
+      A_vc.push_back(0.);
       continue;
-    A_vc[ic] = radialIntegral(psi_v, orbitals[ic]); // no 0.5 here
+    }
+    A_vc.emplace_back(radialIntegral(psi_v, orbitals[ic])); // no 0.5 here
   }
 
   // Orthogonalise:
-  for (size_t ic = 0; ic < (size_t)num_states_below; ic++) {
+  for (size_t ic = 0; ic < num_states_below; ic++) {
     if (psi_v.k != orbitals[ic].k)
       continue;
-    double Avc = A_vc[ic];
+    const double Avc = A_vc[ic];
     for (size_t ir = 0; ir < psi_v.pinf; ir++) {
       // Probably an algorithm for this!
       psi_v.f[ir] -= Avc * orbitals[ic].f[ir];
@@ -475,8 +486,7 @@ NB: Is it ok that this is const? Not sure... it's strange way to do it?....
   }
 
   // Re-normalise the valence orbital:
-  double A = radialIntegral(psi_v, psi_v);
-  double norm = 1. / sqrt(A);
+  const double norm = 1. / sqrt(radialIntegral(psi_v, psi_v));
   for (auto &fv_r : psi_v.f)
     fv_r *= norm;
   for (auto &gv_r : psi_v.g)
@@ -484,7 +494,7 @@ NB: Is it ok that this is const? Not sure... it's strange way to do it?....
 
   // If necisary: repeat
   if (num_its > 1)
-    orthonormaliseValence(psi_v, num_its - 1, core_only);
+    orthonormaliseValence(psi_v, --num_its, core_only);
 }
 
 //******************************************************************************
@@ -532,7 +542,7 @@ num = num electrons in THIS shell
 
 //******************************************************************************
 double ElectronOrbitals::enGuessVal(int n, int ka) const
-/*Energy guess for valence states. Not perfect, good enough*/
+// Energy guess for valence states. Not perfect, good enough
 {
   int maxn = maxCore_n();
   int l = ATI::l_k(ka);

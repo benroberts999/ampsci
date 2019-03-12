@@ -170,6 +170,12 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  // for (size_t i = 0; i < 20; i++) {
+  //   printf("%.2e:  %.2e %.2e  :  %.2e %.2e\n", wf.rgrid.r[i],
+  //          wf.orbitals[17].f[i], wf.orbitals[17].g[i], wf.orbitals[19].f[i],
+  //          wf.orbitals[19].g[i]);
+  // }
+
   bool testpnc = false;
   if (testpnc) {
     double t = 2.3;

@@ -1,8 +1,7 @@
 #pragma once
-#include "ElectronOrbitals.h"
-// #include "ExponentialGrid.h"
 #include <string>
 #include <vector>
+class ElectronOrbitals;
 
 namespace AKF {
 
