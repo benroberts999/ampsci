@@ -72,9 +72,9 @@ void solveDBS(DiracSpinor &psi, const std::vector<double> &v, const Grid &rgrid,
 // Defn: f = p, g = -q. (My g includes alpha)
 {
   // Parameters.
-  const int max_its = 16;       // Max # attempts at converging [sove bs] (30)
+  const int max_its = 32;       // Max # attempts at converging [sove bs] (30)
   const double alr = 800;       // ''assymptotically large r [kinda..]''  (=800)
-  const double lfrac_de = 0.15; // 'large' energy variations (0.1 => 10%)
+  const double lfrac_de = 0.12; // 'large' energy variations (0.1 => 10%)
   const int d_ctp = 4;          // Num points past ctp +/- d_ctp.
 
   // int d_ctp = d_ctp_in; // from tests..
@@ -193,10 +193,8 @@ void solveDBS(DiracSpinor &psi, const std::vector<double> &v, const Grid &rgrid,
 //******************************************************************************
 void largeEnergyChange(double &en, int &more, int &less, double &highest_en,
                        double &lowest_en, double lfrac_de, bool more_nodes)
-/*
-wf did not have correct number of nodes. Make a large energy adjustment
-more_nodes=true means there were too many nodes
-*/
+// wf did not have correct number of nodes. Make a large energy adjustment
+// more_nodes=true means there were too many nodes
 {
   if (more_nodes) {
     // Too many nodes:
@@ -234,10 +232,7 @@ double smallEnergyChangePT(const double en, const double anorm,
                            const std::vector<double> &dg, int ctp, int d_ctp,
                            double alpha, int less, int more, double lowest_en,
                            double highest_en)
-/*
-Uses PT to calculate small change in energy.
-Also calculates (+outputs) norm constant (but doesn't normalise orbital!)
-*/
+// Uses PT to calculate small change in energy.
 {
 
   // Use perturbation theory to work out delta En
@@ -312,10 +307,6 @@ int findClassicalTurningPoint(double en, const std::vector<double> &v, int pinf,
 int countNodes(const std::vector<double> &f, const int maxi)
 // Just counts the number of times wf changes sign
 {
-  // int sizeof_f = (int)f.size();
-  // if (maxi == 0 || maxi > sizeof_f)
-  //   maxi = sizeof_f;
-
   double sp = f[1];
   double spn;
   int counted_nodes = 0;
@@ -335,17 +326,18 @@ void trialDiracSolution(std::vector<double> &f, std::vector<double> &g,
                         const std::vector<double> &v,
                         const std::vector<double> &r,
                         const std::vector<double> &drdu, double du, int ctp,
-                        int d_ctp, int pinf, double alpha) {
+                        int d_ctp, int pinf, double alpha)
+// Performs inward (from pinf) and outward (from r0) integrations for given
+// energy. Intergated in/out towards ctp +/ d_ctp [class. turn. point]
+// Then, joins solutions, including weighted meshing b'ween ctp +/ d_ctp
+// Also: stores dg [the difference: (gout-gin)], which is used for PT
+{
   // XXX Retutn an 'orbital?' Hard..
   auto ngp = f.size();
-  // Temporary vectors for in/out integrations:
   std::vector<double> pin(ngp), qin(ngp), pout(ngp), qout(ngp);
   // XXX Better if I didn't have to re-size these...
-  // Perform the "inwards integration":
   inwardAM(pin, qin, en, v, ka, r, drdu, du, ctp - d_ctp, pinf, alpha);
-  // Perform the "outwards integration"
   outwardAM(pout, qout, en, v, ka, r, drdu, du, ctp + d_ctp, alpha);
-  // Join in/out solutions into f,g + store dg (gout-gin) for PT
   joinInOutSolutions(f, g, dg, pin, qin, pout, qout, ctp, d_ctp, pinf);
 }
 
@@ -396,7 +388,7 @@ void joinInOutSolutions(std::vector<double> &f, std::vector<double> &g,
 }
 
 // Adams putward Coeficients
-const int NOL = 2; // # of outdir runs [finds first NOL*AMO+1 points (3)]
+const int NOL = 1; // # of outdir runs [finds first NOL*AMO+1 points (3)]
 const static auto &OIE = AMcoef.OIe;
 const static auto &OIA = AMcoef.OIa;
 const static auto OID = AMcoef.OId;

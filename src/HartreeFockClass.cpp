@@ -20,6 +20,13 @@ GRID and ORBITALS
 
 */
 
+#define DO_DEBUG false
+#if DO_DEBUG
+#define DEBUG(x) x
+#else
+#define DEBUG(x)
+#endif // DEBUG
+
 //******************************************************************************
 HartreeFock::HartreeFock(ElectronOrbitals &wf, const std::string &in_core,
                          double eps_HF, bool in_ExcludeExchange)
@@ -68,8 +75,11 @@ void HartreeFock::hartree_fock_core() {
   double t_eps;
   double eta = eta1;
   for (hits = 1; hits < MAX_HART_ITS; hits++) {
+    DEBUG(std::cerr << "HF core it: " << hits << "\n";)
     if (hits == 4)
       eta = eta2;
+    if (hits == 32)
+      eta = eta1;
 
     // Form new v_dir and v_ex:
     vdir_old = p_wf->vdir;
@@ -102,9 +112,14 @@ void HartreeFock::hartree_fock_core() {
       p_wf->reSolveDirac(phi, en_guess, vex[i], 1);
       double state_eps = fabs((phi.en - en_old) / en_old);
       // convergance based on worst orbital:
+      DEBUG(printf(" --- %2i,%2i: en=%11.5f  HFeps = %.0e;  AdamsEps = %.0e  "
+                   "(%4i)\n",
+                   phi.n, phi.k, phi.en, state_eps, phi.eps, (int)phi.pinf);)
       if (state_eps > t_eps)
         t_eps = state_eps;
     } // core states
+    DEBUG(std::cerr << "HF core it: " << hits << ": eps=" << t_eps << "\n\n";
+          std::cin.get();)
 
     // Force all core orbitals to be orthogonal to each other
     p_wf->orthonormaliseOrbitals(1);
@@ -115,7 +130,7 @@ void HartreeFock::hartree_fock_core() {
 
   // Now, re-solve core orbitals with higher precission
   for (size_t i = 0; i < m_num_core_states; i++)
-    p_wf->reSolveDirac(p_wf->orbitals[i], p_wf->orbitals[i].en, vex[i], 15);
+    p_wf->reSolveDirac(p_wf->orbitals[i], p_wf->orbitals[i].en, vex[i], 14);
   p_wf->orthonormaliseOrbitals(2);
 }
 
@@ -154,6 +169,8 @@ void HartreeFock::solveValence(int n, int kappa) {
   for (hits = 1; hits < MAX_HART_ITS; hits++) {
     if (hits == 4)
       eta = eta2;
+    // if (hits == 32)
+    //   eta = eta1;
 
     double en_old = phi.en;
     vexa_old = vexa;
