@@ -16,8 +16,6 @@ XXX Have option to give a list of valence states!
 Can solve them to some degree in parallel
 Requires re-writing the valence part (a little)
 
-XXX Still doesn't work well for open shells
-
   Definitions:
   v^k_ab(r)   := Int_0^inf [r_min^k/r_max^(k+1)]*rho(f') dr'
   rho(r')     := fa(r')*fb(r') + ga(r')gb(r')
@@ -55,6 +53,7 @@ private:
   std::vector<std::vector<double>> vex;
 
   // Store underlying arrays. These are 'double private'
+  // nb: these are 'highly non-rectangular'
   std::vector<std::vector<std::vector<std::vector<double>>>> m_arr_v_abk_r;
   std::vector<std::vector<std::vector<double>>> m_arr_Lambda_nmk;
 
