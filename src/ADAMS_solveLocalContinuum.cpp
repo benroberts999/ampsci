@@ -36,14 +36,14 @@ NGPc is grid for continuum (only for solving). NGPc >> NGPb
 {
 
   // Perform the "outwards integration"
-  std::vector<double> pc(NGPc), qc(NGPc);
-  outwardAM(pc, qc, ec, v, ka, rc, drdt, h, (int)NGPc - 1, alpha);
+  std::vector<double> fc(NGPc), gc(NGPc);
+  outwardAM(fc, gc, ec, v, ka, rc, drdt, h, (int)NGPc - 1, alpha);
 
   // Find a better (lower) asymptotic region:
-  i_asym = findAsymptoticRegion(pc, rc, NGPb, NGPc, i_asym);
+  i_asym = findAsymptoticRegion(fc, rc, NGPb, NGPc, i_asym);
 
   // Find amplitude of large-r (asymptotic region) sine-like wf
-  double amp = findSineAmplitude(pc, rc, NGPc, i_asym);
+  double amp = findSineAmplitude(fc, rc, NGPc, i_asym);
 
   // Calculate normalisation coeficient, D, and re-scaling factor:
   // D = Sqrt[alpha/(pi*eps)] <-- Amplitude of large-r p(r)
@@ -55,8 +55,8 @@ NGPc is grid for continuum (only for solving). NGPc >> NGPb
 
   // Normalise the wfs, and transfer back to shorter arrays:
   for (size_t i = 0; i < NGPb; i++) {
-    f[i] = sf * pc[i];
-    g[i] = -1. * sf * qc[i]; // xxx check?
+    f[i] = sf * fc[i];
+    g[i] = sf * gc[i]; // xxx check?
   }
 
   return 0;
