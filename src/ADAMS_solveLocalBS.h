@@ -12,7 +12,7 @@ static_assert(
     "\nFAIL 8 in Adams (.h): parameter AMO must be between 5 and 8\n");
 
 void solveDBS(DiracSpinor &psi, const std::vector<double> &v, const Grid &rgrid,
-              double alpha, int log_dele);
+              const double alpha, int log_dele = 0);
 
 int findPracticalInfinity(double en, const std::vector<double> &v,
                           const std::vector<double> &r, double alr);
@@ -29,8 +29,9 @@ void trialDiracSolution(std::vector<double> &f, std::vector<double> &g,
 
 int countNodes(const std::vector<double> &f, const int maxi);
 
-void largeEnergyChange(double &en, int &more, int &less, double &highest_en,
-                       double &lowest_en, double lfrac_de, bool more_nodes);
+void largeEnergyChange(double &en, int &count_toomany, int &count_toofew,
+                       double &highest_en, double &lowest_en, double lfrac_de,
+                       bool toomany_nodes);
 
 double calcNorm(const std::vector<double> &f, const std::vector<double> &g,
                 const std::vector<double> &drdt, const double h,
@@ -39,30 +40,31 @@ double calcNorm(const std::vector<double> &f, const std::vector<double> &g,
 double smallEnergyChangePT(const double en, const double anorm,
                            const std::vector<double> &f,
                            const std::vector<double> &dg, int ctp, int d_ctp,
-                           double alpha, int less, int more, double lowest_en,
-                           double highest_en);
+                           double alpha, int count_toofew, int count_toomany,
+                           double lowest_en, double highest_en);
 
-void outwardAM(std::vector<double> &p, std::vector<double> &q, double en,
-               const std::vector<double> &v, int ka,
+void outwardAM(std::vector<double> &p, std::vector<double> &q, const double en,
+               const std::vector<double> &v, const int ka,
                const std::vector<double> &r, const std::vector<double> &drdt,
-               double h, int ctp, double alpha);
+               const double h, const int ctp, const double alpha);
 
-void inwardAM(std::vector<double> &p, std::vector<double> &q, double en,
-              const std::vector<double> &v, int ka,
+void inwardAM(std::vector<double> &f, std::vector<double> &g, const double en,
+              const std::vector<double> &v, const int ka,
               const std::vector<double> &r, const std::vector<double> &drdt,
-              double h, int ctp, int pinf, double alpha);
+              const double h, const int ctp, const int pinf,
+              const double alpha);
 
-void adamsMoulton(std::vector<double> &p, std::vector<double> &q, double en,
-                  const std::vector<double> &v, int ka,
-                  const std::vector<double> &r, const std::vector<double> &drdt,
-                  double h, int ni, int nf, double alpha);
+void adamsMoulton(std::vector<double> &f, std::vector<double> &g,
+                  const double en, const std::vector<double> &v, const int ka,
+                  const std::vector<double> &r, const std::vector<double> &drdu,
+                  const double du, const int ni, const int nf,
+                  const double alpha);
 
 void joinInOutSolutions(std::vector<double> &f, std::vector<double> &g,
-                        std::vector<double> &dg, const std::vector<double> &pin,
-                        const std::vector<double> &qin,
-                        const std::vector<double> &pout,
-                        const std::vector<double> &qout, int ctp, int d_ctp,
-                        int pinf);
+                        std::vector<double> &dg,
+                        const std::vector<double> &f_in,
+                        const std::vector<double> &g_in, const int ctp,
+                        const int d_ctp, const int pinf);
 
 //******************************************************************************
 template <int N> struct AdamsCoefs {};
