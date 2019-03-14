@@ -48,7 +48,6 @@ Then, the compilation + use can proceed as per above.
 ## hartreeFock
 
  * Solves relativistic Hartree Fock potential for core + valence states
- * Only really works for closed shells, and atomic with single valence electron above closed shells. (Works OK if shell 'mostly' closed)
  * Takes in core configuration: Noble gas + extra. (comma separated, no spaces)
  * (As well as Noble gas, can use Zn,Cd,Hg)
 
