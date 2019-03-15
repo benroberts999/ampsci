@@ -10,11 +10,10 @@
 
 //******************************************************************************
 ContinuumOrbitals::ContinuumOrbitals(const ElectronOrbitals &wf, int izion)
-/*
-Initialise object:
- * Copies grid and potential info, since these must always match bound states!
-If none given, will assume izion should be 1! Not 100% always!
-*/
+// Initialise object:
+//  * Copies grid and potential info, since these must always match bound
+//  states!
+// If none given, will assume izion should be 1! Not 100% always!
 {
   // Grid:
   NGPb = wf.rgrid.ngp;
@@ -31,6 +30,11 @@ If none given, will assume izion should be 1! Not 100% always!
   double tmp_Zion =
       -1 * wf.rgrid.r[NGPb - 5] * (wf.vnuc[NGPb - 5] + wf.vdir[NGPb - 5]);
 
+  // Note: Because I don't include exchange, need to re-scale the potential
+  // Assumes z_ion=1 (i.e., one electron ejected from otherwise neutral atom)
+  // This is equivilent to using the averaged hartree potential
+  // NOTE: I _could_ have izion = (tmp_Zion +1). But easier for now to just
+  // input z_ion (sometimes, might want to do something different)
   double scale = 1;
   if (fabs(tmp_Zion - izion) > 0.01)
     scale = double(Z - izion) / (wf.rgrid.r[NGPb - 5] * wf.vdir[NGPb - 5]);
@@ -47,25 +51,25 @@ If none given, will assume izion should be 1! Not 100% always!
   // For neutral atom, should be 1 (usually, since cntm is ionisation state)
   // r->inf, v(r) = -Z_ion/r
   tmp_Zion = -1 * wf.rgrid.r[NGPb - 5] * v[NGPb - 5];
-  // std::cout<<"Zion="<<tmp_Zion<<" = "<<-1*wf.rgrid.r[NGPb-5]*v[NGPb-5]<<"\n";
+  // std::cout << "Zion=" << tmp_Zion << " = "
+  //           << -1 * wf.rgrid.r[NGPb - 5] * v[NGPb - 5] << " " << izion <<
+  //           "\n";
   Zion = izion;
 }
 
 //******************************************************************************
 int ContinuumOrbitals::solveLocalContinuum(double ec, int max_l)
-/*Overloaded, assumes min_l=0*/
+// Overloaded, assumes min_l=0
 {
   return solveLocalContinuum(ec, 0, max_l);
 }
 
 //******************************************************************************
 int ContinuumOrbitals::solveLocalContinuum(double ec, int min_l, int max_l)
-/*
-Solved the Dirac equation for local potential for positive energy (no mc2)
-continuum (un-bound) states [partial waves].
- * Goes well past NGP, looks for asymptotic region, where wf is sinosoidal
- * Uses fit to known exact H-like for normalisation.
-*/
+// Solved the Dirac equation for local potential for positive energy (no mc2)
+// continuum (un-bound) states [partial waves].
+//  * Goes well past NGP, looks for asymptotic region, where wf is sinosoidal
+//  * Uses fit to known exact H-like for normalisation.
 {
 
   // Find 'inital guess' for asymptotic region:

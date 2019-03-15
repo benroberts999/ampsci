@@ -642,8 +642,7 @@ void HartreeFock::form_approx_vex_a(size_t a, std::vector<double> &vex_a)
 
   // now, do a=b, ONLY if a is in the core!
   if (a < m_num_core_states) {
-    double x_tjap1 = (twoj_list[a] + 1) * 1; // phi_a.occ_frac;
-    // Not 100% sure why we don't * occ_frac here!
+    double x_tjap1 = (twoj_list[a] + 1); // no occ_frac here
     int kmax = twoj_list[a];
     const auto &vaak = get_v_abk(a, a);
     auto irmax = phi_a.pinf;
