@@ -89,8 +89,8 @@ void solveDBS(DiracSpinor &psi, const std::vector<double> &v, const Grid &rgrid,
   bool correct_nodes = false;
   // Number of times there was too many/too few nodes:
   int count_toomany = 0, count_toofew = 0;
-  // Highest/lowest energies tried before correct # of nodes:
-  double highest_en = 0, lowest_en = 0;
+  // Upper and lower energy window before correct # nodes
+  double high_en = 0, low_en = 0;
 
   // Start eigenvalue iterations:
   double t_en = psi.en;
@@ -105,8 +105,8 @@ void solveDBS(DiracSpinor &psi, const std::vector<double> &v, const Grid &rgrid,
     // Find solution (f,g) to DE for given energy:
     // Also stores dg (gout-gin) for PT [used for PT to find better e]
     std::vector<double> dg(size_t(2 * d_ctp + 1));
-    trialDiracSolution(psi.f, psi.g, dg, t_en, psi.k, v, rgrid.r, rgrid.drdu,
-                       rgrid.du, ctp, d_ctp, t_pinf, alpha);
+    trialDiracSolution(psi.f, psi.g, dg, t_en, psi.k, v, rgrid, ctp, d_ctp,
+                       t_pinf, alpha);
 
     int counted_nodes = countNodes(psi.f, t_pinf);
 
@@ -117,13 +117,12 @@ void solveDBS(DiracSpinor &psi, const std::vector<double> &v, const Grid &rgrid,
       correct_nodes = true;
       anorm = calcNorm(psi.f, psi.g, rgrid.drdu, rgrid.du, t_pinf);
       t_en = smallEnergyChangePT(en_old, anorm, psi.f, dg, ctp, d_ctp, alpha,
-                                 count_toofew, count_toomany, lowest_en,
-                                 highest_en);
+                                 count_toofew, count_toomany, low_en, high_en);
     } else {
       correct_nodes = false;
       bool toomany_nodes = (counted_nodes > required_nodes) ? true : false;
-      largeEnergyChange(t_en, count_toomany, count_toofew, highest_en,
-                        lowest_en, lfrac_de, toomany_nodes);
+      largeEnergyChange(t_en, count_toomany, count_toofew, high_en, low_en,
+                        lfrac_de, toomany_nodes);
     }
     t_eps = fabs((t_en - en_old) / en_old);
 
@@ -168,26 +167,26 @@ void solveDBS(DiracSpinor &psi, const std::vector<double> &v, const Grid &rgrid,
 
 //******************************************************************************
 void largeEnergyChange(double &en, int &count_toomany, int &count_toofew,
-                       double &highest_en, double &lowest_en, double lfrac_de,
+                       double &high_en, double &low_en, double lfrac_de,
                        bool toomany_nodes)
 // wf did not have correct number of nodes. Make a large energy adjustment
 // toomany_nodes=true means there were too many nodes
 {
   if (toomany_nodes) {
     ++count_toomany;
-    if ((count_toomany == 1) || (en < highest_en))
-      highest_en = en;
+    if ((count_toomany == 1) || (en < high_en))
+      high_en = en;
     double etemp = (1. + lfrac_de) * en;
-    if ((count_toofew != 0) && (etemp < lowest_en))
-      etemp = 0.5 * (highest_en + lowest_en);
+    if ((count_toofew != 0) && (etemp < low_en))
+      etemp = 0.5 * (high_en + low_en);
     en = etemp;
   } else {
     ++count_toofew;
-    if ((count_toofew == 1) || (en > lowest_en))
-      lowest_en = en;
+    if ((count_toofew == 1) || (en > low_en))
+      low_en = en;
     double etemp = (1. - lfrac_de) * en;
-    if ((count_toomany != 0) && (etemp > highest_en))
-      etemp = 0.5 * (highest_en + lowest_en);
+    if ((count_toomany != 0) && (etemp > high_en))
+      etemp = 0.5 * (high_en + low_en);
     en = etemp;
   }
 }
@@ -206,7 +205,7 @@ double smallEnergyChangePT(const double en, const double anorm,
                            const std::vector<double> &f,
                            const std::vector<double> &dg, int ctp, int d_ctp,
                            double alpha, int count_toofew, int count_toomany,
-                           double lowest_en, double highest_en) {
+                           double low_en, double high_en) {
 
   // delta E = c*P(r)*[Qin(r)-Qout(r)] - evaluate at ctp
   // nb: wf not yet normalised!
@@ -224,10 +223,10 @@ double smallEnergyChangePT(const double en, const double anorm,
   double de = p_del_q / (alpha * anorm * denom);
   double new_en = en + de;
 
-  if ((count_toofew != 0) && (new_en < lowest_en)) {
-    new_en = 0.5 * (en + lowest_en);
-  } else if ((count_toomany != 0) && (new_en > highest_en)) {
-    new_en = 0.5 * (en + highest_en);
+  if ((count_toofew != 0) && (new_en < low_en)) {
+    new_en = 0.5 * (en + low_en);
+  } else if ((count_toomany != 0) && (new_en > high_en)) {
+    new_en = 0.5 * (en + high_en);
   } else if (new_en > 0) {
     // This only happens v. rarely. nodes correct, but P.T. gives silly result!
     if (de > 0)
@@ -240,8 +239,8 @@ double smallEnergyChangePT(const double en, const double anorm,
 }
 
 //******************************************************************************
-int findPracticalInfinity(double en, const std::vector<double> &v,
-                          const std::vector<double> &r, double alr)
+int findPracticalInfinity(const double en, const std::vector<double> &v,
+                          const std::vector<double> &r, const double alr)
 // Find the practical infinity 'pinf'
 // Step backwards from the last point (ngp-1) until
 // (V(r) - E)*r^2 >  alr    (alr = "asymptotically large r")
@@ -261,8 +260,8 @@ int findPracticalInfinity(double en, const std::vector<double> &v,
 }
 
 //******************************************************************************
-int findClassicalTurningPoint(double en, const std::vector<double> &v, int pinf,
-                              int d_ctp)
+int findClassicalTurningPoint(const double en, const std::vector<double> &v,
+                              const int pinf, const int d_ctp)
 // Finds classical turning point 'ctp'
 // Enforced to be between (0+ctp) and (pinf-ctp)
 //  V(r) > E        [nb: both V and E are <0]
@@ -290,20 +289,19 @@ int countNodes(const std::vector<double> &f, const int maxi) {
 
 //******************************************************************************
 void trialDiracSolution(std::vector<double> &f, std::vector<double> &g,
-                        std::vector<double> &dg, double en, int ka,
-                        const std::vector<double> &v,
-                        const std::vector<double> &r,
-                        const std::vector<double> &drdu, double du, int ctp,
-                        int d_ctp, int pinf, double alpha)
+                        std::vector<double> &dg, const double en, const int ka,
+                        const std::vector<double> &v, const Grid &gr,
+                        const int ctp, const int d_ctp, const int pinf,
+                        const double alpha)
 // Performs inward (from pinf) and outward (from r0) integrations for given
 // energy. Intergated in/out towards ctp +/ d_ctp [class. turn. point]
 // Then, joins solutions, including weighted meshing b'ween ctp +/ d_ctp
 // Also: stores dg [the difference: (gout-gin)], which is used for PT
 {
-  auto ngp = f.size();
-  outwardAM(f, g, en, v, ka, r, drdu, du, ctp + d_ctp, alpha);
-  std::vector<double> f_in(ngp), g_in(ngp);
-  inwardAM(f_in, g_in, en, v, ka, r, drdu, du, ctp - d_ctp, pinf, alpha);
+  outwardAM(f, g, en, v, ka, gr.r, gr.drdu, gr.du, ctp + d_ctp, alpha);
+  std::vector<double> f_in(gr.ngp), g_in(gr.ngp);
+  inwardAM(f_in, g_in, en, v, ka, gr.r, gr.drdu, gr.du, ctp - d_ctp, pinf,
+           alpha);
   joinInOutSolutions(f, g, dg, f_in, g_in, ctp, d_ctp, pinf);
 }
 
@@ -359,8 +357,10 @@ void outwardAM(std::vector<double> &f, std::vector<double> &g, const double en,
 // Then, it then call ADAMS-MOULTON, to finish
 // (from NOL*AMO+1 to nf = ctp+d_ctp)
 {
+  const double c2 = 1. / (alpha * alpha);
+
   double az = -1 * v[1] * r[1] * alpha; //  Z = -1 * v[AMO] * r[AMO]
-  double c2 = 1. / (alpha * alpha);
+  // take average? Or maybe update each point?? Or lowest?
   double ga = sqrt(ka * ka - az * az);
 
   // initial wf values
@@ -463,14 +463,14 @@ void inwardAM(std::vector<double> &f, std::vector<double> &g, const double en,
 // (from NOL*AMO+1 to nf = ctp-d_ctp)
 {
 
-  double alpha2 = alpha * alpha;
-  double cc = 1. / alpha;
-  double c2 = 1. / alpha2;
+  const double alpha2 = alpha * alpha;
+  const double cc = 1. / alpha;
+  const double c2 = 1. / alpha2;
 
-  double lambda = sqrt(-en * (2. + en * alpha2));
-  double zeta = -v[pinf] * r[pinf];
-  double sigma = (1. + en * alpha2) * (zeta / lambda);
-  double Ren = en + c2; // total relativistic energy
+  const double lambda = sqrt(-en * (2. + en * alpha2));
+  const double zeta = -v[pinf] * r[pinf];
+  const double sigma = (1. + en * alpha2) * (zeta / lambda);
+  const double Ren = en + c2; // total relativistic energy
 
   // Generates the expansion coeficients for asymptotic wf
   // up to order NX (NX is 'param')
@@ -501,7 +501,7 @@ void inwardAM(std::vector<double> &f, std::vector<double> &g, const double en,
       rk *= r[i];
       ps += (ax[k] / rk);
       qs += (bx[k] / rk);
-      xe = fmax(fabs((ax[k] / rk) / ps), fabs((bx[k] / rk) / qs));
+      xe = fmax(fabs(ax[k] / ps), fabs(bx[k] / qs)) / rk;
       if (xe < NXEPSP)
         break;
     }

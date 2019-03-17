@@ -42,7 +42,8 @@ int main(int argc, char *argv[]) {
   varalpha = sqrt(varalpha2);
 
   int Z = ATI::get_z(Z_str);
-  if (A == -1)
+  Z_str = ATI::atomicSymbol(Z); // for nice output if Z given as int
+  if (A < 0)
     A = ATI::defaultA(Z); // if none given, get default A
 
   if (exclude_exchange)
@@ -97,7 +98,8 @@ int main(int argc, char *argv[]) {
   wf.sortedEnergyList(sorted_by_energy_list, true);
 
   // Output results:
-  std::cout << "\nCore: " << Z_str << ", Z=" << Z << " A=" << A << "\n";
+  std::cout << "\nHartree Fock: " << Z_str << ", Z=" << Z << " A=" << A << "\n";
+  std::cout << "Core: " << str_core << "\n";
   std::cout << "     state   k   Rinf its    eps       En (au)      En (/cm)\n";
   bool val = false;
   double en_lim = 0;

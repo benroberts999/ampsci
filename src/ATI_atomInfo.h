@@ -1,6 +1,8 @@
 #pragma once
+#include <array>
 #include <cmath>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -9,7 +11,9 @@ namespace ATI {
 // Default values for A for each atom.
 // Note: array index matches Z, so first entry is blank.
 // Goes up to E120 (Z=120)
-static const int A[121] = {
+// static const int
+static const size_t MAX_Z = 121;
+static const std::array<int, MAX_Z> A = {
     0,   1,   4,   7,   9,   11,  12,  14,  16,  19,  20,  23,  24,  27,
     28,  31,  32,  35,  40,  39,  40,  45,  48,  51,  52,  55,  56,  59,
     59,  64,  65,  70,  73,  75,  79,  80,  84,  85,  88,  89,  91,  93,
@@ -20,7 +24,8 @@ static const int A[121] = {
     251, 252, 257, 258, 259, 262, 267, 270, 269, 270, 270, 278, 281, 281,
     285, 286, 289, 289, 293, 293, 294, 315, 320};
 
-static const std::string atom_name_z[121] = {
+// static const std::string atom_name_z[121] =
+static const std::array<std::string, MAX_Z> atom_name_z = {
     "0",  "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",    "Ne",
     "Na", "Mg", "Al", "Si", "P",  "S",  "Cl", "Ar", "K",  "Ca",   "Sc",
     "Ti", "V",  "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn", "Ga",   "Ge",
@@ -33,23 +38,33 @@ static const std::string atom_name_z[121] = {
     "Es", "Fm", "Md", "No", "Lr", "Rf", "Db", "Sg", "Bh", "Hs",   "Mt",
     "Ds", "Rg", "Cn", "Nh", "Fl", "Mc", "Lv", "Ts", "Og", "E119", "E120"};
 
-constexpr int defaultA(int Z) { return (Z < 121 && Z > 0) ? A[Z] : 0; }
+constexpr int defaultA(int Z) { return (Z < (int)MAX_Z && Z > 0) ? A[Z] : 0; }
 
 inline std::string atomicSymbol(int Z) {
-  return (Z < 121 && Z > 0) ? atom_name_z[Z] : std::to_string(Z);
+  return (Z < (int)MAX_Z && Z > 0) ? atom_name_z[Z] : std::to_string(Z);
 }
 
 // Given an atomic symbol (H, He, etc.), will return Z
 // Note: Symbol must be exact, including capitalisation
 inline int get_z(const std::string at) {
-  for (int z = 0; z < 121; z++)
+  for (int z = 0; z < (int)MAX_Z; z++) {
     if (at == atom_name_z[z])
       return z;
-  return std::stoi(at);
+  }
+  int z = 0;
+  try {
+    z = std::stoi(at);
+  } catch (...) {
+  }
+  if (z <= 0) {
+    std::cerr << "Invalid atom/Z: " << at << "\n";
+    std::abort();
+  }
+  return z;
 }
 
-static const std::string spectroscopic_notation = "spdfghiklmnoqrtuv";
-static const std::string Spectroscopic_Notation = "SPDFGHIKLMNOQRTUV";
+static const std::string spectroscopic_notation = "spdfghiklmnoqrtuvwxyz";
+static const std::string Spectroscopic_Notation = "SPDFGHIKLMNOQRTUVWXYZ";
 
 // Short function that returns orbital term given l
 inline std::string l_symbol(int l) {
@@ -61,17 +76,27 @@ inline std::string l_symbol(int l) {
 
 inline int symbol_to_l(std::string l_str) {
   // const char?
-  for (int i = 0; i < (int)spectroscopic_notation.length(); i++)
+  for (int i = 0; i < (int)spectroscopic_notation.length(); i++) {
     if (spectroscopic_notation.substr(i, 1) == l_str)
       return i;
-  std::cerr << "\nFAIL ATI::69 Invalid l: " << l_str << "?\n";
-  return -1;
+  }
+  int l = -1;
+  try {
+    // Can work if given an int as a string:
+    l = std::stoi(l_str);
+  } catch (...) {
+    std::cerr << "\nFAIL ATI::69 Invalid l: " << l_str << "?\n";
+  }
+  return l;
 }
 
-inline int l_k(int ka) {
-  // return (abs(2 * ka + 1) - 1) / 2;
-  return (ka > 0) ? ka : -ka - 1;
-}
+// inline TEMP_func(std::string in_term) {
+//   // first char: must be digit
+//   // ii..ss...ii
+//   std::stringstream ss(in_term);
+// }
+
+inline int l_k(int ka) { return (ka > 0) ? ka : -ka - 1; }
 inline int twoj_k(int ka) { return 2 * abs(ka) - 1; }
 inline double j_k(int ka) { return 0.5 * twoj_k(ka); }
 
@@ -82,9 +107,6 @@ constexpr int indexFromKappa(int ka) {
 constexpr int kappaFromIndex(int i) {
   return (i % 2 == 0) ? -(i + 2) / 2 : (i + 1) / 2;
 }
-
-// const std::string core_config_list = {"He", "Ne", "Ar", "Kr", "Xe",
-// "Rn", "Og", "Zn", "Cd", "Hg"};
 
 // Shell configurations for Noble gasses (Group 8)
 static const std::vector<int> core_He = {2};
@@ -110,7 +132,9 @@ const std::vector<int> core_l = {0, 0, 1, 0, 1, 2, 0, 1, 2, 3, 0, 1, 2, 3, 4,
                                  0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 6, 0, 1,
                                  2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7, 8};
 
-inline std::vector<int> getCoreConfig(const std::string ng) {
+inline std::vector<int> getCoreConfig(const std::string &ng) {
+  // NOTE: if invalid string given, MUST return empty vector!
+  // This is so I can give it '1s2', e.g., and be OK.
   if (ng == "He")
     return ATI::core_He;
   else if (ng == "Ne")

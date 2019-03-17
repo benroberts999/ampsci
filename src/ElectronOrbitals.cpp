@@ -37,9 +37,7 @@ ElectronOrbitals::ElectronOrbitals(int in_z, int in_a, int in_ngp, double rmin,
 //******************************************************************************
 int ElectronOrbitals::solveLocalDirac(int n, int k, double e_a, int log_dele_or,
                                       bool iscore)
-/*
-Uses ADAMS::solveDBS to solve Dirac Eqn for local potential (Vnuc + Vdir)
-*/
+// Uses ADAMS::solveDBS to solve Dirac Eqn for local potential (Vnuc + Vdir)
 {
   orbitals.emplace_back(DiracSpinor{n, k, rgrid.ngp});
 
@@ -58,8 +56,7 @@ Uses ADAMS::solveDBS to solve Dirac Eqn for local potential (Vnuc + Vdir)
   ADAMS::solveDBS(psi, v_a, rgrid, m_alpha, log_dele_or);
 
   auto this_index = stateIndexList.size();
-  stateIndexList.push_back(this_index);
-  // std::cerr << "this-index = " << this_index << "\n";
+  stateIndexList.push_back(this_index); // xxx only works if called in sequence
   if (iscore)
     coreIndexList.push_back(this_index);
   else
@@ -72,17 +69,15 @@ Uses ADAMS::solveDBS to solve Dirac Eqn for local potential (Vnuc + Vdir)
 int ElectronOrbitals::reSolveDirac(DiracSpinor &psi, double e_a,
                                    const std::vector<double> &vex,
                                    int log_dele_or)
-/*
-"Re"solves dirac eqaution. Use this to re-solve for same state.
-Over-rides existing solution.
-If no e_a is given, will use the existing one!
-(Usually, a better guess should be given, using P.T.)
-Note: optionally takes in exchange potential! (see overloaded above)
-Note: Uses the "dodgy" re-scaled exchange potenital:
-Vex\psi_a = sum_b vex_a psi_b -> [sum_b vex_a (psi_b/psi_a)] psi_a
-so, here, vex = [sum_b vex_a (psi_b/psi_a)]
-This is not ideal..
-*/
+// "Re"solves dirac eqaution. Use this to re-solve for same state.
+// Over-rides existing solution.
+// If no e_a is given, will use the existing one!
+// (Usually, a better guess should be given, using P.T.)
+// Note: optionally takes in exchange potential! (see overloaded above)
+// Note: Uses the "dodgy" re-scaled exchange potenital:
+// Vex\psi_a = sum_b vex_a psi_b -> [sum_b vex_a (psi_b/psi_a)] psi_a
+// so, here, vex = [sum_b vex_a (psi_b/psi_a)]
+// This is not ideal..
 {
 
   // XXX this is inneficient. Fine, except for HF. THen, slow! ?
@@ -94,7 +89,6 @@ This is not ideal..
     for (size_t i = 0; i < rgrid.ngp; i++)
       v_a[i] += vex[i];
 
-  // auto &psi = orbitals[i];
   if (e_a != 0)
     psi.en = e_a;
   ADAMS::solveDBS(psi, v_a, rgrid, m_alpha, log_dele_or);
@@ -105,9 +99,8 @@ This is not ideal..
 //******************************************************************************
 int ElectronOrbitals::reSolveDirac(DiracSpinor &psi, double e_a,
                                    int log_dele_or)
-/*Overloaded version; see below
-This one doesn't have exchange potential
-*/
+// Overloaded version; see below
+// This one doesn't have exchange potential
 {
   std::vector<double> dummy_vex;
   return reSolveDirac(psi, e_a, dummy_vex, log_dele_or);
@@ -126,24 +119,11 @@ double ElectronOrbitals::radialIntegral(const DiracSpinor &psi_a,
                                         const DiracSpinor &psi_b,
                                         const std::vector<double> &vint,
                                         Operator op) const
-/*
-Split into dPsi later??
-Better to split, so that you can chain operators!
-But: will always be a copy in that case; optimise for unity?
-(Just take )
-*/
+// Split into dPsi later??
+// Better to split, so that you can chain operators!
+// But: will always be a copy in that case; optimise for unity?
+// (Just take )
 {
-  // check that a and b are OK!
-  // if (a >= (int)f.size() || b >= (int)f.size())
-  // std::cout << "\nFail 97 in EO radInt. Invalid state\n";
-
-  // int pinf = std::min(psi_a.pinf, psi_b.pinf);
-  // pinf += (int)NumCalc::Nquad + 10;
-  // if (pinf >= rgrid.ngp)
-  //   pinf = rgrid.ngp - 1;
-  // int pinf = rgrid.ngp; // std::max(psi_a.pinf, psi_b.pinf);
-  // int pinf = (int)(0.5 * (psi_a.pinf + psi_b.pinf));
-  // int pinf = std::max(psi_a.pinf, psi_b.pinf);
   int pinf = 0; // --> ngp
 
   std::vector<double> fprime_tmp;
@@ -201,16 +181,14 @@ But: will always be a copy in that case; optimise for unity?
 }
 
 //******************************************************************************
-int ElectronOrbitals::determineCore(std::string str_core_in)
-/*
-Takes in a string list for the core configuration, outputs an int list
-Takes in previous closed shell (noble), + 'rest' (or just the rest)
-E.g:
-  Core of Cs: Xe
-  Core of Gold: Xe 4f14 5d10
-'rest' is in form nLm : n=n, L=l, m=number of electrons in that nl shell.
-NOTE: Only works up to n=9, and l=5 [h]
-*/
+void ElectronOrbitals::determineCore(std::string str_core_in)
+// Takes in a string list for the core configuration, outputs an int list
+// Takes in previous closed shell (noble), + 'rest' (or just the rest)
+// E.g:
+//   Core of Cs: Xe
+//   Core of Gold: Xe 4f14 5d10
+// 'rest' is in form nLm : n=n, L=l, m=number of electrons in that nl shell.
+// NOTE: Only works up to n=9, and l=5 [h] XXX
 {
   // Move comma-seperated string into an array (vector)
   std::vector<std::string> str_core;
@@ -221,30 +199,45 @@ NOTE: Only works up to n=9, and l=5 [h]
     str_core.push_back(substr);
   }
 
+  bool bad_core = false;
+
   if (str_core.size() == 0)
-    return 0; //?
+    return;
 
   std::string NobelGas = str_core[0];
   num_core_shell = ATI::getCoreConfig(NobelGas);
 
   // Giving a nobel gas is optional:
   int ibeg = (num_core_shell.size() == 0) ? 0 : 1;
-
   for (size_t i = ibeg; i < str_core.size(); i++) {
-
     // Parse string, determine config for this term
-    int n = std::stoi(str_core[i].substr(0, 1));
-    int m = std::stoi(str_core[i].substr(2));
+
+    bool term_ok = true;
+    if (str_core[i].size() < 3)
+      term_ok = false;
+
+    int n{0}, m{0};
+    try {
+      // xxx here: nlm: n must be <9. l must be 1 digit. ok?
+      n = std::stoi(str_core[i].substr(0, 1));
+      m = std::stoi(str_core[i].substr(2));
+    } catch (...) {
+      term_ok = false;
+    }
     std::string strl = str_core[i].substr(1, 1);
     int l = ATI::symbol_to_l(strl);
 
     // Check if this term is valid
-    if (m > 4 * l + 2 || l + 1 > n) {
-      std::cerr << "FAIL 281 EO: invalid core term: " << str_core[i] << "\n";
-      return 2;
+    if (l + 1 > n || l < 0 || n < 1)
+      term_ok = false;
+
+    if (!term_ok) {
+      std::cout << "Problem with core: " << str_core_in << "\n";
+      std::cerr << "invalid core term: " << str_core[i] << "\n";
+      std::abort();
     }
 
-    std::vector<int> core_ex;
+    std::vector<int> core_ex; //'extra' core parts
     // Form int list for this term:
     for (int in = 0; in <= n; in++) {
       for (int il = 0; il < in; il++) {
@@ -259,12 +252,28 @@ NOTE: Only works up to n=9, and l=5 [h]
     auto size = std::max(core_ex.size(), num_core_shell.size());
     core_ex.resize(size);
     num_core_shell.resize(size);
-
     for (size_t j = 0; j < num_core_shell.size(); j++) {
       num_core_shell[j] += core_ex[j];
       if (num_core_shell[j] > 4 * ATI::core_l[j] + 2)
-        return 2; // check if valid
+        bad_core = true;
     }
+  }
+
+  if (bad_core) {
+    std::cout << "Problem with core: " << str_core_in << " = \n";
+    for (size_t j = 0; j < num_core_shell.size(); j++) {
+      auto num = num_core_shell[j];
+      auto n = ATI::core_n[j];
+      auto l = ATI::core_l[j];
+      if (num == 0)
+        continue;
+      if (num > 4 * l + 2 || l + 1 > n)
+        std::cout << " **";
+      std::cout << n << ATI::l_symbol(l) << "^" << num << ",";
+    }
+    std::cout << "\n";
+    std::cout << "In this house, we obey the Pauli exclusion principle!\n";
+    std::abort();
   }
 
   // Count number of electrons in the core
@@ -272,7 +281,14 @@ NOTE: Only works up to n=9, and l=5 [h]
   for (int &num : num_core_shell)
     num_core_electrons += num;
 
-  return 0;
+  if (num_core_electrons > m_Z) {
+    std::cout << "Problem with core: " << str_core_in << "\n";
+    std::cout << "Too many electrons: N_core=" << num_core_electrons
+              << ", Z=" << m_Z << "\n";
+    std::abort();
+  }
+
+  return;
 }
 
 //******************************************************************************
@@ -286,9 +302,7 @@ int ElectronOrbitals::getRadialIndex(double r_target) const {
 
 //******************************************************************************
 bool ElectronOrbitals::isInCore(int n, int k) const
-/*
-Checks if given state is in the core.
-*/
+// Checks if given state is in the core.
 {
   for (auto i : coreIndexList)
     if (n == orbitals[i].n && k == orbitals[i].k)
@@ -308,12 +322,10 @@ size_t ElectronOrbitals::getStateIndex(int n, int k) const {
 
 //******************************************************************************
 int ElectronOrbitals::maxCore_n(int ka) const
-/*
-Returns the largest n for states with kappa = ka in the core
-Note: ka is optional input; if none given, will be 0 (& not used)
-(used for energy guesses)
-Note: if you give it l instead of kappa, still works!
-*/
+// Returns the largest n for states with kappa = ka in the core
+// Note: ka is optional input; if none given, will be 0 (& not used)
+// (used for energy guesses)
+// Note: if you give it l instead of kappa, still works!
 {
   int max_n = 0;
   for (auto i : coreIndexList) {
@@ -327,18 +339,12 @@ Note: if you give it l instead of kappa, still works!
 
 //******************************************************************************
 int ElectronOrbitals::solveInitialCore(std::string str_core, int log_dele_or)
-/*
-Solves the Dirac eqn for each state in the core
-Only for local potential (direct part)
-HartreeFockClass.cpp has routines for Hartree Fock
-*/
+// Solves the Dirac eqn for each state in the core
+// Only for local potential (direct part)
+// HartreeFockClass.cpp has routines for Hartree Fock
 {
 
-  int core_ok = determineCore(str_core);
-  if (core_ok == 2) {
-    std::cout << "Problem with core: " << str_core << "\n";
-    return core_ok;
-  }
+  determineCore(str_core);
 
   for (size_t i = 0; i < num_core_shell.size(); i++) {
     int num = num_core_shell[i];

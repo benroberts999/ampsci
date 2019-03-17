@@ -14,23 +14,22 @@ static_assert(
 void solveDBS(DiracSpinor &psi, const std::vector<double> &v, const Grid &rgrid,
               const double alpha, int log_dele = 0);
 
-int findPracticalInfinity(double en, const std::vector<double> &v,
-                          const std::vector<double> &r, double alr);
+int findPracticalInfinity(const double en, const std::vector<double> &v,
+                          const std::vector<double> &r, const double alr);
 
-int findClassicalTurningPoint(double en, const std::vector<double> &v, int pinf,
-                              int d_ctp);
+int findClassicalTurningPoint(const double en, const std::vector<double> &v,
+                              const int pinf, const int d_ctp);
 
 void trialDiracSolution(std::vector<double> &f, std::vector<double> &g,
-                        std::vector<double> &dg, double en, int ka,
-                        const std::vector<double> &v,
-                        const std::vector<double> &r,
-                        const std::vector<double> &drdt, double h, int ctp,
-                        int d_ctp, int pinf, double alpha);
+                        std::vector<double> &dg, const double en, const int ka,
+                        const std::vector<double> &v, const Grid &gr,
+                        const int ctp, const int d_ctp, const int pinf,
+                        const double alpha);
 
 int countNodes(const std::vector<double> &f, const int maxi);
 
 void largeEnergyChange(double &en, int &count_toomany, int &count_toofew,
-                       double &highest_en, double &lowest_en, double lfrac_de,
+                       double &high_en, double &low_en, double lfrac_de,
                        bool toomany_nodes);
 
 double calcNorm(const std::vector<double> &f, const std::vector<double> &g,
@@ -41,7 +40,7 @@ double smallEnergyChangePT(const double en, const double anorm,
                            const std::vector<double> &f,
                            const std::vector<double> &dg, int ctp, int d_ctp,
                            double alpha, int count_toofew, int count_toomany,
-                           double lowest_en, double highest_en);
+                           double low_en, double high_en);
 
 void outwardAM(std::vector<double> &p, std::vector<double> &q, const double en,
                const std::vector<double> &v, const int ka,

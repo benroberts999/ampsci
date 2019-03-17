@@ -81,7 +81,7 @@ public:
                         bool do_sort = false) const;
 
 private:
-  int determineCore(std::string str_core_in);
+  void determineCore(std::string str_core_in);
 
   double enGuessCore(int n, int l) const;
   double enGuessVal(int n, int ka) const;
