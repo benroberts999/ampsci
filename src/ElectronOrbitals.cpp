@@ -190,41 +190,46 @@ void ElectronOrbitals::determineCore(std::string str_core_in)
 // 'rest' is in form nLm : n=n, L=l, m=number of electrons in that nl shell.
 // NOTE: Only works up to n=9, and l=5 [h] XXX
 {
+
+  // If there's a 'Noble-Gas' term, replace it with full config
+  // Otherwise, 'first-term' remains unchanges
+  {
+    auto found = str_core_in.find(",");
+    if (found > str_core_in.length())
+      found = str_core_in.length();
+    auto first_term = str_core_in.substr(0, found);
+    auto rest = str_core_in.substr(found);
+    str_core_in = ATI::coreConfig(first_term) + rest;
+  }
+
   // Move comma-seperated string into an array (vector)
   std::vector<std::string> str_core;
-  std::stringstream ss(str_core_in);
-  while (ss.good()) {
-    std::string substr;
-    getline(ss, substr, ',');
-    str_core.push_back(substr);
+  {
+    std::stringstream ss(str_core_in);
+    while (ss.good()) {
+      std::string substr;
+      getline(ss, substr, ',');
+      str_core.push_back(substr);
+    }
   }
 
   bool bad_core = false;
-
-  if (str_core.size() == 0)
-    return;
-
-  std::string NobelGas = str_core[0];
-  num_core_shell = ATI::getCoreConfig(NobelGas);
-
-  // Giving a nobel gas is optional:
-  int ibeg = (num_core_shell.size() == 0) ? 0 : 1;
-  for (size_t i = ibeg; i < str_core.size(); i++) {
+  for (const auto &term : str_core) {
     // Parse string, determine config for this term
 
     bool term_ok = true;
-    if (str_core[i].size() < 3)
+    if (term.size() < 3)
       term_ok = false;
 
     int n{0}, m{0};
     try {
       // xxx here: nlm: n must be <9. l must be 1 digit. ok?
-      n = std::stoi(str_core[i].substr(0, 1));
-      m = std::stoi(str_core[i].substr(2));
+      n = std::stoi(term.substr(0, 1));
+      m = std::stoi(term.substr(2));
     } catch (...) {
       term_ok = false;
     }
-    std::string strl = str_core[i].substr(1, 1);
+    std::string strl = term.substr(1, 1);
     int l = ATI::symbol_to_l(strl);
 
     // Check if this term is valid
@@ -233,28 +238,30 @@ void ElectronOrbitals::determineCore(std::string str_core_in)
 
     if (!term_ok) {
       std::cout << "Problem with core: " << str_core_in << "\n";
-      std::cerr << "invalid core term: " << str_core[i] << "\n";
+      std::cerr << "invalid core term: " << term << "\n";
       std::abort();
     }
 
-    std::vector<int> core_ex; //'extra' core parts
+    std::vector<int> single_core_term; //'extra' core parts
     // Form int list for this term:
+    // Note has entry for every term (most of them zero)
+    // Ineficient, but doesn't matter
     for (int in = 0; in <= n; in++) {
       for (int il = 0; il < in; il++) {
         if (in == n && il == l)
-          core_ex.push_back(m);
+          single_core_term.push_back(m);
         else
-          core_ex.push_back(0);
+          single_core_term.push_back(0);
       }
     }
 
     // Merge this term with the existing core:
-    auto size = std::max(core_ex.size(), num_core_shell.size());
-    core_ex.resize(size);
+    auto size = std::max(single_core_term.size(), num_core_shell.size());
+    single_core_term.resize(size);
     num_core_shell.resize(size);
     for (size_t j = 0; j < num_core_shell.size(); j++) {
-      num_core_shell[j] += core_ex[j];
-      if (num_core_shell[j] > 4 * ATI::core_l[j] + 2)
+      num_core_shell[j] += single_core_term[j];
+      if (num_core_shell[j] > 4 * ATI::core_l[j] + 2 || num_core_shell[j] < 0)
         bad_core = true;
     }
   }
@@ -267,9 +274,9 @@ void ElectronOrbitals::determineCore(std::string str_core_in)
       auto l = ATI::core_l[j];
       if (num == 0)
         continue;
-      if (num > 4 * l + 2 || l + 1 > n)
+      if (num > 4 * l + 2 || l + 1 > n || num < 0)
         std::cout << " **";
-      std::cout << n << ATI::l_symbol(l) << "^" << num << ",";
+      std::cout << n << ATI::l_symbol(l) << num << ",";
     }
     std::cout << "\n";
     std::cout << "In this house, we obey the Pauli exclusion principle!\n";

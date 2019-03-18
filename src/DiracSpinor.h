@@ -26,8 +26,9 @@ public: // Data
 
 public: // Methods
   int l() const { return ATI::l_k(k); }
-  double j() const { return 0.5 * ATI::twoj_k(k); }
+  double j() const { return ATI::j_k(k); }
   int twoj() const { return ATI::twoj_k(k); }
+  int parity() const { return ATI::parity_k(k); }
 
   std::string symbol(bool gnuplot = false) const {
     // Readable symbol (s_1/2, p_{3/2} etc.).

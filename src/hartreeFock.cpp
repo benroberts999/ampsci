@@ -98,8 +98,12 @@ int main(int argc, char *argv[]) {
   wf.sortedEnergyList(sorted_by_energy_list, true);
 
   // Output results:
+  int Zion = wf.Znuc() - wf.Ncore();
   std::cout << "\nHartree Fock: " << Z_str << ", Z=" << Z << " A=" << A << "\n";
-  std::cout << "Core: " << str_core << "\n";
+  std::cout << "Core: " << str_core << " [V^N";
+  if (Zion != 0)
+    std::cout << "-" << Zion;
+  std::cout << "]\n";
   std::cout << "     state   k   Rinf its    eps       En (au)      En (/cm)\n";
   bool val = false;
   double en_lim = 0;
@@ -113,10 +117,14 @@ int main(int argc, char *argv[]) {
     printf("%2i) %7s %2i  %5.1f %3i  %5.0e %13.7f %13.1f", i,
            phi.symbol().c_str(), phi.k, rinf, phi.its, phi.eps, phi.en,
            phi.en * FPC::Hartree_invcm);
-    if (val)
+    if (val) {
       printf(" %10.2f\n", (phi.en + en_lim) * FPC::Hartree_invcm);
-    else
-      std::cout << "\n";
+    } else {
+      if (phi.occ_frac < 0.999)
+        printf("     (%4.2f)\n", phi.occ_frac);
+      else
+        std::cout << "\n";
+    }
     if (count == (int)wf.coreIndexList.size()) {
       std::cout << "E_core = " << core_energy
                 << " au;  = " << core_energy * FPC::Hartree_invcm << "/cm\n";
@@ -170,12 +178,6 @@ int main(int argc, char *argv[]) {
       of << "\n";
     }
   }
-
-  // for (size_t i = 0; i < 20; i++) {
-  //   printf("%.2e:  %.2e %.2e  :  %.2e %.2e\n", wf.rgrid.r[i],
-  //          wf.orbitals[17].f[i], wf.orbitals[17].g[i], wf.orbitals[19].f[i],
-  //          wf.orbitals[19].g[i]);
-  // }
 
   bool testpnc = false;
   if (testpnc) {

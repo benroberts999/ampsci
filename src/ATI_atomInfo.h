@@ -98,7 +98,10 @@ inline int symbol_to_l(std::string l_str) {
 
 inline int l_k(int ka) { return (ka > 0) ? ka : -ka - 1; }
 inline int twoj_k(int ka) { return 2 * abs(ka) - 1; }
-inline double j_k(int ka) { return 0.5 * twoj_k(ka); }
+inline double j_k(int ka) { return abs(ka) - 0.5; }
+inline int parity_k(int ka) {
+  return (ka % 2 == 0) ? ((ka > 0) ? 1 : -1) : ((ka < 0) ? 1 : -1);
+}
 
 constexpr int indexFromKappa(int ka) {
   return (ka < 0) ? -2 * ka - 2 : 2 * ka - 1;
@@ -108,23 +111,6 @@ constexpr int kappaFromIndex(int i) {
   return (i % 2 == 0) ? -(i + 2) / 2 : (i + 1) / 2;
 }
 
-// Shell configurations for Noble gasses (Group 8)
-static const std::vector<int> core_He = {2};
-static const std::vector<int> core_Ne = {2, 2, 6};
-static const std::vector<int> core_Ar = {2, 2, 6, 2, 6};
-static const std::vector<int> core_Kr = {2, 2, 6, 2, 6, 10, 2, 6};
-static const std::vector<int> core_Xe = {2, 2, 6, 2, 6, 10, 2, 6, 10, 0, 2, 6};
-static const std::vector<int> core_Rn = {2,  2, 6, 2,  6, 10, 2, 6, 10,
-                                         14, 2, 6, 10, 0, 0,  2, 6};
-static const std::vector<int> core_Og = {
-    2, 2, 6, 2, 6, 10, 2, 6, 10, 14, 2, 6, 10, 14, 0, 2, 6, 10, 0, 0, 0, 2, 6};
-
-// Some other useful 'semi' full shells (transition)
-static const std::vector<int> core_Zn = {2, 2, 6, 2, 6, 10, 2};
-static const std::vector<int> core_Cd = {2, 2, 6, 2, 6, 10, 2, 6, 10, 0, 2};
-static const std::vector<int> core_Hg = {2,  2,  6, 2, 6,  10, 2, 6,
-                                         10, 14, 2, 6, 10, 0,  0, 2};
-
 const std::vector<int> core_n = {1, 2, 2, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 5,
                                  6, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7, 7, 8, 8,
                                  8, 8, 8, 8, 8, 8, 9, 9, 9, 9, 9, 9, 9, 9, 9};
@@ -132,30 +118,36 @@ const std::vector<int> core_l = {0, 0, 1, 0, 1, 2, 0, 1, 2, 3, 0, 1, 2, 3, 4,
                                  0, 1, 2, 3, 4, 5, 0, 1, 2, 3, 4, 5, 6, 0, 1,
                                  2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7, 8};
 
-inline std::vector<int> getCoreConfig(const std::string &ng) {
-  // NOTE: if invalid string given, MUST return empty vector!
-  // This is so I can give it '1s2', e.g., and be OK.
+inline std::string coreConfig(const std::string &ng) {
+  // NOTE: must return SAME string if none found (or, replace?)
   if (ng == "He")
-    return ATI::core_He;
+    return "1s2";
   else if (ng == "Ne")
-    return ATI::core_Ne;
+    return coreConfig("He") + ",2s2,2p6";
   else if (ng == "Ar")
-    return ATI::core_Ar;
+    return coreConfig("Ne") + ",3s2,3p6";
   else if (ng == "Kr")
-    return ATI::core_Kr;
+    return coreConfig("Ar") + ",3d10,4s2,4p6";
   else if (ng == "Xe")
-    return ATI::core_Xe;
+    return coreConfig("Kr") + ",4d10,5s2,5p6";
   else if (ng == "Rn")
-    return ATI::core_Rn;
+    return coreConfig("Xe") + ",4f14,5d10,6s2,6p6";
   else if (ng == "Og")
-    return ATI::core_Og;
+    return coreConfig("Rn") + ",5f14,6d10,7s2,7p6";
   else if (ng == "Zn")
-    return ATI::core_Zn;
+    return coreConfig("Ar") + ",3d10,4s2";
   else if (ng == "Cd")
-    return ATI::core_Cd;
+    return coreConfig("Kr") + ",4d10,5s2";
   else if (ng == "Hg")
-    return ATI::core_Hg;
-  return {};
+    return coreConfig("Xe") + ",4f14,5d10,6s2";
+  else if (ng == "Cn")
+    return coreConfig("Rn") + ",5f14,6d10,7s2";
+  else if (ng == "Yb")
+    return coreConfig("Xe") + ",4f14,6s2";
+  else if (ng == "No")
+    return coreConfig("Xe") + ",5f14,7s2";
+  else
+    return ng;
 }
 
 //******************************************************************************

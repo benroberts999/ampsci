@@ -40,7 +40,7 @@ private:
 
   double m_eps_HF = 1.e-8;
 
-  const int MAX_HART_ITS = 64;
+  const int MAX_HART_ITS = 99;
   const bool m_excludeExchange; // for testing
 
   // const int m_ngp;
