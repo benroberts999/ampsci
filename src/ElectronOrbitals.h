@@ -20,9 +20,9 @@ public:
   // orbitals:
   std::vector<DiracSpinor> orbitals;
 
-  std::vector<size_t> stateIndexList;
-  std::vector<size_t> coreIndexList;
-  std::vector<size_t> valenceIndexList;
+  std::vector<std::size_t> stateIndexList;
+  std::vector<std::size_t> coreIndexList;
+  std::vector<std::size_t> valenceIndexList;
 
   const Grid rgrid;
 
@@ -48,7 +48,7 @@ public:
   int Ncore() const { return num_core_electrons; }
   double rinf(const DiracSpinor &phi) const;
   int getRadialIndex(double r_target) const;
-  size_t getStateIndex(int n, int k) const;
+  std::size_t getStateIndex(int n, int k) const;
 
   // XXX Combine with default argument?
   double radialIntegral(const DiracSpinor &psi_a, const DiracSpinor &psi_b,
@@ -81,7 +81,7 @@ public:
                         bool do_sort = false) const;
 
 private:
-  void determineCore(std::string str_core_in);
+  void determineCore(const std::string &str_core_in);
 
   double enGuessCore(int n, int l) const;
   double enGuessVal(int n, int ka) const;

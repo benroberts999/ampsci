@@ -10,17 +10,17 @@ enum class GridType { loglinear, logarithmic, linear };
 class Grid {
 
 public:
-  const double r0;   // Minimum grid value
-  const double rmax; // Maximum grid value
-  const size_t ngp;  // Number of Grid Points
-  const double du;   // Uniform grid step size
+  const double r0;       // Minimum grid value
+  const double rmax;     // Maximum grid value
+  const std::size_t ngp; // Number of Grid Points
+  const double du;       // Uniform grid step size
 
   std::vector<double> r;      // Grid values r[i]
   std::vector<double> drdu;   // Jacobian (dr/du)[i]
   std::vector<double> drduor; // Convinient: (1/r)*(dr/du)[i]
 
 public:
-  Grid(double in_r0, double in_rmax, size_t in_ngp, GridType in_gridtype,
+  Grid(double in_r0, double in_rmax, std::size_t in_ngp, GridType in_gridtype,
        double in_b = 0);
 
   int getIndex(double x, bool require_nearest = false) const;
@@ -28,10 +28,12 @@ public:
   void print() const;
 
   // Static functions: can be called outside of instantialised object
-  static double calc_du_from_ngp(double in_r0, double in_rmax, size_t in_ngp,
-                                 GridType in_gridtype, double in_b = 0);
-  static size_t calc_ngp_from_du(double in_r0, double in_rmax, double in_du,
-                                 GridType in_gridtype, double in_b = 0);
+  static double calc_du_from_ngp(double in_r0, double in_rmax,
+                                 std::size_t in_ngp, GridType in_gridtype,
+                                 double in_b = 0);
+  static std::size_t calc_ngp_from_du(double in_r0, double in_rmax,
+                                      double in_du, GridType in_gridtype,
+                                      double in_b = 0);
 
 private:
   void form_loglinear_grid();
@@ -44,7 +46,7 @@ private:
 };
 
 //******************************************************************************
-inline double Grid::calc_du_from_ngp(double r0, double rmax, size_t ngp,
+inline double Grid::calc_du_from_ngp(double r0, double rmax, std::size_t ngp,
                                      GridType gridtype, double b) {
   if (ngp == 1)
     return 0;
@@ -63,24 +65,24 @@ inline double Grid::calc_du_from_ngp(double r0, double rmax, size_t ngp,
 }
 
 //******************************************************************************
-inline size_t Grid::calc_ngp_from_du(double r0, double rmax, double du,
-                                     GridType gridtype, double b) {
+inline std::size_t Grid::calc_ngp_from_du(double r0, double rmax, double du,
+                                          GridType gridtype, double b) {
   switch (gridtype) {
   case GridType::loglinear:
     if (b == 0)
       std::cerr << "\nFAIL57 in Grid: cant have b=0 for log-linear grid!\n";
-    return size_t((rmax - r0 + b * log(rmax / r0)) / du) + 2;
+    return std::size_t((rmax - r0 + b * log(rmax / r0)) / du) + 2;
   case GridType::logarithmic:
-    return size_t(log(rmax / r0) / du) + 2;
+    return std::size_t(log(rmax / r0) / du) + 2;
   case GridType::linear:
-    return size_t((rmax - r0) / du) + 2;
+    return std::size_t((rmax - r0) / du) + 2;
   }
   std::cerr << "\nFAIL 84 in Grid: wrong type?\n";
   return 1;
 }
 
 //******************************************************************************
-inline Grid::Grid(double in_r0, double in_rmax, size_t in_ngp,
+inline Grid::Grid(double in_r0, double in_rmax, std::size_t in_ngp,
                   GridType in_gridtype, double in_b)
     : r0(in_r0), rmax(in_rmax), ngp(in_ngp),
       du(calc_du_from_ngp(in_r0, in_rmax, in_ngp, in_gridtype, in_b)),
@@ -171,7 +173,7 @@ Typically (and by default), b = 4 (unit units/bohr radius)
 
   // Use iterative method from Dzuba code to calculate r grid
   double u = r0 + b * log(r0);
-  for (size_t i = 1; i < ngp; i++) {
+  for (std::size_t i = 1; i < ngp; i++) {
     u += du;
     double r_tmp = r[i - 1];
     // Integrate dr/dt to find r:
@@ -202,7 +204,7 @@ Uses:
       u = i*du for i=0,1,2,...
 */
 {
-  for (size_t i = 0; i < ngp; i++)
+  for (std::size_t i = 0; i < ngp; i++)
     drdu.push_back(r0 * exp(double(i) * du));
   r = drdu;
   drduor.resize(ngp, 1.);
@@ -210,7 +212,7 @@ Uses:
 
 //******************************************************************************
 inline void Grid::form_linear_grid() {
-  for (size_t i = 0; i < ngp; i++) {
+  for (std::size_t i = 0; i < ngp; i++) {
     double tmp_r = r0 + double(i) * du;
     r.push_back(tmp_r);
     drduor.push_back(1. / tmp_r);

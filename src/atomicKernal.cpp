@@ -45,7 +45,7 @@ int main(int argc, char *argv[]) {
                               qmax, qsteps, max_l, max_L, iout_format, label);
     FileIO::setInputParameters(input_file, tp);
   }
-  if (Gf < 0)
+  if (Gf < 0 || Gf > 2)
     Gf = 0;
 
   // If L<0, will use plane-waves (instead of cntm fns)
@@ -115,8 +115,10 @@ int main(int argc, char *argv[]) {
   std::cout << "\nRunning Atomic Kernal for " << Z_str << ", Z=" << Z
             << " A=" << wf.Anuc() << "\n";
   std::cout << "*************************************************\n";
-  if (Gf != 0)
-    printf("Using Green potential: H=%.4f  d=%.4f\n", Gh, Gd);
+  if (Gf == 1)
+    printf("Using Green parametric potential: H=%.4f  d=%.4f\n", Gh, Gd);
+  else if (Gf == 2)
+    printf("Using Hartree [no exchange] (converge to %.0e)\n", hart_del);
   else
     printf("Using Hartree Fock (converge to %.0e)\n", hart_del);
 
@@ -126,8 +128,9 @@ int main(int argc, char *argv[]) {
 
   // Do Hartree-fock (or parametric potential) for Core
   timer.start();
-  if (Gf == 0) {
-    HartreeFock hf(wf, str_core, hart_del);
+  if (Gf != 1) {
+    bool excludeExchange = (Gf == 2) ? true : false;
+    HartreeFock hf(wf, str_core, hart_del, excludeExchange);
   } else {
     // Use Green (local parametric) potential
     // Fill the electron part of the (local/direct) potential

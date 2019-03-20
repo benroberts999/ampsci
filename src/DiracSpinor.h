@@ -6,7 +6,7 @@
 class DiracSpinor {
 
 public: // Data
-  DiracSpinor(int in_n, int in_k, size_t ngp)
+  DiracSpinor(int in_n, int in_k, std::size_t ngp)
       : en(0), n(in_n), k(in_k), pinf(ngp - 1) {
     f.resize(ngp, 0);
     g.resize(ngp, 0);
@@ -19,7 +19,7 @@ public: // Data
   const int n;
   const int k;
 
-  size_t pinf;
+  std::size_t pinf;
   int its = -1;
   double eps = -1;
   double occ_frac = -1;

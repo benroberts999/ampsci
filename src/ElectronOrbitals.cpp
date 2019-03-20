@@ -22,7 +22,7 @@
 //******************************************************************************
 ElectronOrbitals::ElectronOrbitals(int in_z, int in_a, int in_ngp, double rmin,
                                    double rmax, double var_alpha)
-    : rgrid(rmin, rmax, (size_t)in_ngp, GridType::loglinear, 3.5),
+    : rgrid(rmin, rmax, (std::size_t)in_ngp, GridType::loglinear, 3.5),
       m_alpha(FPC::alpha * var_alpha), m_Z(in_z),
       m_A((in_a < 0) ? ATI::defaultA(m_Z) : in_a)
 //
@@ -45,7 +45,7 @@ int ElectronOrbitals::solveLocalDirac(int n, int k, double e_a, int log_dele_or,
   // nb: for exchange part, need to use reSolveDirac()
   std::vector<double> v_a = vnuc;
   if (vdir.size() != 0) {
-    for (size_t i = 0; i < rgrid.ngp; i++)
+    for (auto i = 0ul; i < rgrid.ngp; i++)
       v_a[i] += vdir[i];
   }
 
@@ -83,10 +83,10 @@ int ElectronOrbitals::reSolveDirac(DiracSpinor &psi, double e_a,
   // XXX this is inneficient. Fine, except for HF. THen, slow! ?
   std::vector<double> v_a = vnuc;
   if (vdir.size() != 0)
-    for (size_t i = 0; i < rgrid.ngp; i++)
+    for (std::size_t i = 0; i < rgrid.ngp; i++)
       v_a[i] += vdir[i];
   if (vex.size() != 0)
-    for (size_t i = 0; i < rgrid.ngp; i++)
+    for (std::size_t i = 0; i < rgrid.ngp; i++)
       v_a[i] += vex[i];
 
   if (e_a != 0)
@@ -181,7 +181,7 @@ double ElectronOrbitals::radialIntegral(const DiracSpinor &psi_a,
 }
 
 //******************************************************************************
-void ElectronOrbitals::determineCore(std::string str_core_in)
+void ElectronOrbitals::determineCore(const std::string &str_core_in)
 // Takes in a string list for the core configuration, outputs an int list
 // Takes in previous closed shell (noble), + 'rest' (or just the rest)
 // E.g:
@@ -193,28 +193,26 @@ void ElectronOrbitals::determineCore(std::string str_core_in)
 
   // If there's a 'Noble-Gas' term, replace it with full config
   // Otherwise, 'first-term' remains unchanges
-  {
-    auto found = str_core_in.find(",");
-    if (found > str_core_in.length())
-      found = str_core_in.length();
-    auto first_term = str_core_in.substr(0, found);
-    auto rest = str_core_in.substr(found);
-    str_core_in = ATI::coreConfig(first_term) + rest;
-  }
+  auto found = str_core_in.find(",");
+  if (found > str_core_in.length())
+    found = str_core_in.length();
+  auto first_term = str_core_in.substr(0, found);
+  auto rest = str_core_in.substr(found);
+  auto str_core = ATI::coreConfig(first_term) + rest;
 
   // Move comma-seperated string into an array (vector)
-  std::vector<std::string> str_core;
+  std::vector<std::string> term_str_list;
   {
-    std::stringstream ss(str_core_in);
+    std::stringstream ss(str_core);
     while (ss.good()) {
       std::string substr;
       getline(ss, substr, ',');
-      str_core.push_back(substr);
+      term_str_list.push_back(substr);
     }
   }
 
   bool bad_core = false;
-  for (const auto &term : str_core) {
+  for (const auto &term : term_str_list) {
     // Parse string, determine config for this term
 
     bool term_ok = true;
@@ -259,7 +257,7 @@ void ElectronOrbitals::determineCore(std::string str_core_in)
     auto size = std::max(single_core_term.size(), num_core_shell.size());
     single_core_term.resize(size);
     num_core_shell.resize(size);
-    for (size_t j = 0; j < num_core_shell.size(); j++) {
+    for (std::size_t j = 0; j < num_core_shell.size(); j++) {
       num_core_shell[j] += single_core_term[j];
       if (num_core_shell[j] > 4 * ATI::core_l[j] + 2 || num_core_shell[j] < 0)
         bad_core = true;
@@ -268,7 +266,7 @@ void ElectronOrbitals::determineCore(std::string str_core_in)
 
   if (bad_core) {
     std::cout << "Problem with core: " << str_core_in << " = \n";
-    for (size_t j = 0; j < num_core_shell.size(); j++) {
+    for (std::size_t j = 0; j < num_core_shell.size(); j++) {
       auto num = num_core_shell[j];
       auto n = ATI::core_n[j];
       auto l = ATI::core_l[j];
@@ -318,7 +316,7 @@ bool ElectronOrbitals::isInCore(int n, int k) const
 }
 
 //******************************************************************************
-size_t ElectronOrbitals::getStateIndex(int n, int k) const {
+std::size_t ElectronOrbitals::getStateIndex(int n, int k) const {
   // auto &state_list = forceVal ? valenceIndexList : stateIndexList;
   for (auto i : stateIndexList)
     if (n == orbitals[i].n && k == orbitals[i].k)
@@ -353,7 +351,7 @@ int ElectronOrbitals::solveInitialCore(std::string str_core, int log_dele_or)
 
   determineCore(str_core);
 
-  for (size_t i = 0; i < num_core_shell.size(); i++) {
+  for (std::size_t i = 0; i < num_core_shell.size(); i++) {
     int num = num_core_shell[i];
     if (num == 0)
       continue;
@@ -373,13 +371,13 @@ int ElectronOrbitals::solveInitialCore(std::string str_core, int log_dele_or)
   auto num_core_states = orbitals.size(); // store number of states in core
 
   // occupancy fraction for each core state (avg of Non-rel states!):
-  for (size_t i = 0; i < num_core_states; i++) {
+  for (std::size_t i = 0; i < num_core_states; i++) {
     int n = orbitals[i].n;
     int ka = orbitals[i].k;
     int l = ATI::l_k(ka);
     // Find the correct core list index (to determine filling factor):
     auto ic = num_core_shell.size();
-    for (size_t j = 0; j < num_core_shell.size(); j++) {
+    for (std::size_t j = 0; j < num_core_shell.size(); j++) {
       if (n == ATI::core_n[j] && l == ATI::core_l[j]) {
         ic = j;
         break;
@@ -416,7 +414,7 @@ XXX Note: This allows wfs to extend past pinf!
 
 */
 {
-  size_t Ns = orbitals.size();
+  std::size_t Ns = orbitals.size();
   std::vector<std::vector<double>> c_ab(Ns, std::vector<double>(Ns));
 
   // Calculate c_ab = <a|b>  [only for b>a -- symmetric]
@@ -437,7 +435,7 @@ XXX Note: This allows wfs to extend past pinf!
         continue;
       // c_ab = c_ba : only calc'd half:
       double cab = (a < b) ? c_ab[a][b] : c_ab[b][a];
-      for (size_t ir = 0; ir < rgrid.ngp; ir++) {
+      for (std::size_t ir = 0; ir < rgrid.ngp; ir++) {
         orbitals[a].f[ir] -= cab * orbitals[b].f[ir];
         orbitals[a].g[ir] -= cab * orbitals[b].g[ir];
       }
@@ -478,7 +476,7 @@ NB: Is it ok that this is const? Not sure... it's strange way to do it?....
   // Calculate the coeficients <c|v> = A_cv
   std::vector<double> A_vc; //(num_states_below);
   A_vc.reserve(num_states_below);
-  for (size_t ic = 0; ic < num_states_below; ic++) {
+  for (std::size_t ic = 0; ic < num_states_below; ic++) {
     if (psi_v.k != orbitals[ic].k) {
       A_vc.push_back(0.);
       continue;
@@ -487,11 +485,11 @@ NB: Is it ok that this is const? Not sure... it's strange way to do it?....
   }
 
   // Orthogonalise:
-  for (size_t ic = 0; ic < num_states_below; ic++) {
+  for (std::size_t ic = 0; ic < num_states_below; ic++) {
     if (psi_v.k != orbitals[ic].k)
       continue;
     const double Avc = A_vc[ic];
-    for (size_t ir = 0; ir < psi_v.pinf; ir++) {
+    for (std::size_t ir = 0; ir < psi_v.pinf; ir++) {
       // Probably an algorithm for this!
       psi_v.f[ir] -= Avc * orbitals[ic].f[ir];
       psi_v.g[ir] -= Avc * orbitals[ic].g[ir];
@@ -522,7 +520,7 @@ num = num electrons in THIS shell
 
   int tot_el = 0;
   int num = 0;
-  for (size_t i = 0; i < num_core_shell.size(); i++) {
+  for (std::size_t i = 0; i < num_core_shell.size(); i++) {
     if (l == ATI::core_l[i] && n == ATI::core_n[i]) {
       num = num_core_shell[i];
       break;
@@ -611,13 +609,13 @@ sorted by energy (lowest energy first)
   sort_list.clear();
 
   if (!do_sort) {
-    for (size_t i = 0; i < orbitals.size(); i++)
+    for (std::size_t i = 0; i < orbitals.size(); i++)
       sort_list.push_back((int)i);
     return;
   }
 
   std::vector<std::vector<double>> t_en;
-  for (size_t i = 0; i < orbitals.size(); i++) {
+  for (std::size_t i = 0; i < orbitals.size(); i++) {
     t_en.push_back({orbitals[i].en, (double)i + 0.1});
     //+0.1 to prevent rounding error when going from double -> int
   }
@@ -631,6 +629,6 @@ sorted by energy (lowest energy first)
 
   std::sort(t_en.rbegin(), t_en.rend(), sortCol);
 
-  for (size_t i = 0; i < orbitals.size(); i++)
+  for (std::size_t i = 0; i < orbitals.size(); i++)
     sort_list.push_back((int)t_en[i][1]);
 }

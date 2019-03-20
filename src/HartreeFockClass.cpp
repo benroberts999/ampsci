@@ -48,8 +48,9 @@ HartreeFock::HartreeFock(ElectronOrbitals &wf, const std::string &in_core,
 void HartreeFock::hartree_fock_core() {
 
   const double eta1 = 0.35;
-  const double eta2 = 0.7;    // this value after 4 its
-  const size_t de_stride = 5; // don't include all pts in PT for new e guess
+  const double eta2 = 0.7; // this value after 4 its
+  // don't include all pts in PT for new e guess:
+  const std::size_t de_stride = 5;
 
   form_core_Lambda_abk();
 
@@ -79,21 +80,21 @@ void HartreeFock::hartree_fock_core() {
     form_vdir(p_wf->vdir, false);
     form_approx_vex_core(vex);
 
-    for (size_t j = 0; j < p_rgrid->ngp; j++) {
+    for (std::size_t j = 0; j < p_rgrid->ngp; j++) {
       p_wf->vdir[j] = eta * p_wf->vdir[j] + (1. - eta) * vdir_old[j];
-      for (size_t i = 0; i < m_num_core_states; i++) {
+      for (std::size_t i = 0; i < m_num_core_states; i++) {
         vex[i][j] = eta * vex[i][j] + (1. - eta) * vex_old[i][j];
       }
     }
 
     // Solve Dirac Eq. for each state in core, using Vdir+Vex:
     t_eps = 0;
-    for (size_t i = 0; i < m_num_core_states; i++) {
+    for (std::size_t i = 0; i < m_num_core_states; i++) {
       auto &phi = p_wf->orbitals[i];
       double en_old = phi.en;
       // calculate de from PT
       double del_e = 0;
-      for (size_t j = 0; j < phi.pinf; j += de_stride) {
+      for (std::size_t j = 0; j < phi.pinf; j += de_stride) {
         double dv = (p_wf->vdir[j] - vdir_old[j]) + (vex[i][j] - vex_old[i][j]);
         del_e += dv * phi.f[j] * phi.f[j] * p_rgrid->drdu[j];
       }
@@ -119,7 +120,7 @@ void HartreeFock::hartree_fock_core() {
   printf("\rHF core        it:%3i eps=%6.1e              \n", hits, t_eps);
 
   // Now, re-solve core orbitals with higher precission
-  for (size_t i = 0; i < m_num_core_states; i++) {
+  for (std::size_t i = 0; i < m_num_core_states; i++) {
     p_wf->reSolveDirac(p_wf->orbitals[i], p_wf->orbitals[i].en, vex[i], 14);
   }
   p_wf->orthonormaliseOrbitals(2);
@@ -148,8 +149,9 @@ void HartreeFock::solveValence(int n, int kappa) {
   auto &phi = p_wf->orbitals.back();
 
   const double eta1 = 0.35;
-  const double eta2 = 0.7;    // this value after 4 its
-  const size_t de_stride = 5; // don't include all pts in PT for new e guess
+  const double eta2 = 0.7; // this value after 4 its
+  const std::size_t de_stride =
+      5; // don't include all pts in PT for new e guess
 
   std::vector<double> vexa(p_rgrid->ngp);
   std::vector<double> vexa_old;
@@ -166,12 +168,12 @@ void HartreeFock::solveValence(int n, int kappa) {
 
     form_vabk_valence(a);
     form_approx_vex_a(a, vexa);
-    for (size_t i = 0; i < p_rgrid->ngp; i++) {
+    for (std::size_t i = 0; i < p_rgrid->ngp; i++) {
       vexa[i] = eta * vexa[i] + (1. - eta) * vexa_old[i];
     }
     // Use P.T. to calculate energy change:
     double en_new = 0;
-    for (size_t i = 0; i < phi.pinf; i += de_stride) {
+    for (std::size_t i = 0; i < phi.pinf; i += de_stride) {
       en_new += (vexa[i] - vexa_old[i]) * (pow(phi.f[i], 2)) * p_rgrid->drdu[i];
     }
     en_new = en_old + en_new * p_rgrid->du * de_stride;
@@ -201,13 +203,13 @@ double HartreeFock::calculateCoreEnergy() const
 //   R^k_abba _is_ ab symmetric
 {
   double Etot = 0;
-  for (size_t a = 0; a < m_num_core_states; a++) {
+  for (std::size_t a = 0; a < m_num_core_states; a++) {
     const auto &phi_a = p_wf->orbitals[a];
 
     double E1 = 0, E2 = 0, E3 = 0;
     double xtjap1 = (twoj_list[a] + 1) * phi_a.occ_frac;
     E1 += xtjap1 * phi_a.en;
-    for (size_t b = 0; b < m_num_core_states; b++) {
+    for (std::size_t b = 0; b < m_num_core_states; b++) {
       const auto &phi_b = p_wf->orbitals[b];
       double xtjbp1 = (twoj_list[b] + 1) * phi_b.occ_frac;
       auto irmax = std::min(phi_a.pinf, phi_b.pinf);
@@ -365,7 +367,7 @@ void HartreeFock::extend_Lambda_abk(int kappa_a)
 }
 
 //******************************************************************************
-double HartreeFock::get_Lambda_abk(size_t a, size_t b, int k) const
+double HartreeFock::get_Lambda_abk(std::size_t a, std::size_t b, int k) const
 // Simple routine to (semi-)safely return Lambda_abk
 // Note: input a and b are regular ElectronOrbitals state indexes
 {
@@ -394,14 +396,14 @@ void HartreeFock::initialise_m_arr_v_abk_r_core()
 {
   m_arr_v_abk_r.clear();
   m_arr_v_abk_r.resize(m_num_core_states); // reserve + push_back ?!
-  for (size_t a = 0; a < m_num_core_states; a++) {
+  for (std::size_t a = 0; a < m_num_core_states; a++) {
     m_arr_v_abk_r[a].resize(a + 1);
-    size_t tja = (size_t)twoj_list[a];
-    for (size_t b = 0; b <= a; b++) {
-      size_t tjb = (size_t)twoj_list[b];
-      size_t num_k = (tja > tjb) ? (tjb + 1) : (tja + 1);
+    std::size_t tja = (std::size_t)twoj_list[a];
+    for (std::size_t b = 0; b <= a; b++) {
+      std::size_t tjb = (std::size_t)twoj_list[b];
+      std::size_t num_k = (tja > tjb) ? (tjb + 1) : (tja + 1);
       m_arr_v_abk_r[a][b].resize(num_k);
-      for (size_t ik = 0; ik < num_k; ik++) {
+      for (std::size_t ik = 0; ik < num_k; ik++) {
         m_arr_v_abk_r[a][b][ik].resize(p_rgrid->ngp);
       } // k
     }   // b
@@ -413,7 +415,7 @@ void HartreeFock::extend_m_arr_v_abk_r_valence(int kappa_a)
 {
   std::vector<std::vector<std::vector<double>>> v_abk_tmp(m_num_core_states);
   int tja = 2 * abs(kappa_a) - 1; // |2k|=2j+1
-  for (size_t b = 0; b < m_num_core_states; b++) {
+  for (std::size_t b = 0; b < m_num_core_states; b++) {
     int tjb = twoj_list[b];
     int num_k = (tja > tjb) ? (tjb + 1) : (tja + 1);
     v_abk_tmp[b].resize(num_k, std::vector<double>(p_rgrid->ngp));
@@ -447,7 +449,7 @@ void HartreeFock::calculate_v_abk(const DiracSpinor &phi_a,
   auto irmax = std::min(phi_a.pinf, phi_b.pinf);
 
   double Ax = 0, Bx = 0;
-  for (size_t i = 0; i < irmax; i++) {
+  for (std::size_t i = 0; i < irmax; i++) {
     Bx += p_rgrid->drdu[i] *
           (phi_a.f[i] * phi_b.f[i] + phi_a.g[i] * phi_b.g[i]) /
           pow(p_rgrid->r[i], k + 1);
@@ -455,10 +457,10 @@ void HartreeFock::calculate_v_abk(const DiracSpinor &phi_a,
 
   // For "direct" part, can't cut!
   if (phi_a == phi_b)
-    irmax = (size_t)p_rgrid->ngp;
+    irmax = (std::size_t)p_rgrid->ngp;
 
   vabk[0] = Bx * p_rgrid->du;
-  for (size_t i = 1; i < irmax; i++) {
+  for (std::size_t i = 1; i < irmax; i++) {
     double Fdr = p_rgrid->drdu[i - 1] * (phi_a.f[i - 1] * phi_b.f[i - 1] +
                                          phi_a.g[i - 1] * phi_b.g[i - 1]);
     Ax = Ax + Fdr * pow(p_rgrid->r[i - 1], k);
@@ -466,7 +468,7 @@ void HartreeFock::calculate_v_abk(const DiracSpinor &phi_a,
     vabk[i] = p_rgrid->du *
               (Ax / pow(p_rgrid->r[i], k + 1) + Bx * pow(p_rgrid->r[i], k));
   }
-  for (size_t i = irmax; i < (size_t)p_rgrid->ngp; i++) {
+  for (std::size_t i = irmax; i < (std::size_t)p_rgrid->ngp; i++) {
     vabk[i] = 0; // maybe not needed?
   }
 }
@@ -476,7 +478,7 @@ void HartreeFock::form_vbb0()
 // When doing Hartree (no exchange) only need v^0_bb
 // Don't call this as well as form_vabk_core, not needed (won't break though)
 {
-  for (size_t b = 0; b < m_num_core_states; b++)
+  for (std::size_t b = 0; b < m_num_core_states; b++)
     calculate_v_abk(p_wf->orbitals[b], p_wf->orbitals[b], 0,
                     m_arr_v_abk_r[b][b][0]);
 }
@@ -490,8 +492,8 @@ void HartreeFock::form_vabk_core()
 // (for now?)
 {
 #pragma omp parallel for
-  for (size_t a = 0; a < m_num_core_states; a++) {
-    for (size_t b = 0; b <= a; b++) {
+  for (std::size_t a = 0; a < m_num_core_states; a++) {
+    for (std::size_t b = 0; b <= a; b++) {
       int kmin = abs(twoj_list[a] - twoj_list[b]) / 2;
       int kmax = (twoj_list[a] + twoj_list[b]) / 2;
       for (int k = kmin; k <= kmax; k++) {
@@ -505,13 +507,13 @@ void HartreeFock::form_vabk_core()
 }
 
 //******************************************************************************
-void HartreeFock::form_vabk_valence(size_t w)
+void HartreeFock::form_vabk_valence(std::size_t w)
 // Calculates [calls calculate_v_abk] and stores the Hartree-Fock screening
 // functions v^k_wb for a single (given) valence state (w=valence, b=core).
 // Stores in m_arr_v_abk_r
 {
 #pragma omp parallel for
-  for (size_t b = 0; b < m_num_core_states; b++) {
+  for (std::size_t b = 0; b < m_num_core_states; b++) {
     int kmin = abs(twoj_list[w] - twoj_list[b]) / 2;
     int kmax = (twoj_list[w] + twoj_list[b]) / 2;
     for (int k = kmin; k <= kmax; k++) {
@@ -524,8 +526,8 @@ void HartreeFock::form_vabk_valence(size_t w)
 }
 
 //******************************************************************************
-const std::vector<std::vector<double>> &HartreeFock::get_v_abk(size_t a,
-                                                               size_t b) const
+const std::vector<std::vector<double>> &
+HartreeFock::get_v_abk(std::size_t a, std::size_t b) const
 // Returns a reference to a 2D-array (a subset of the m_arr_v_abk_r array)
 // Returned array is of form: array[ik][r]; ik runs from 0 -> |kmax-kmin+1|
 //   array.size() = |kmax-kmin+1| = number of k's
@@ -537,7 +539,7 @@ const std::vector<std::vector<double>> &HartreeFock::get_v_abk(size_t a,
   return m_arr_v_abk_r[b][a];
 }
 //******************************************************************************
-const std::vector<double> &HartreeFock::get_v_aa0(size_t a) const
+const std::vector<double> &HartreeFock::get_v_aa0(std::size_t a) const
 // Same as above, but for v^0_aa, only need to return 1D array: array[r]
 // array.size()=ngp
 {
@@ -557,10 +559,10 @@ void HartreeFock::form_vdir(std::vector<double> &vdir, bool re_scale)
     v_dir = 0;
   }
   double sf = re_scale ? (1. - 1. / p_wf->Ncore()) : 1;
-  for (size_t b = 0; b < m_num_core_states; b++) {
+  for (std::size_t b = 0; b < m_num_core_states; b++) {
     double f = (twoj_list[b] + 1) * p_wf->orbitals[b].occ_frac;
     const std::vector<double> &v0bb = get_v_aa0(b);
-    for (size_t i = 0; i < p_rgrid->ngp; i++) {
+    for (std::size_t i = 0; i < p_rgrid->ngp; i++) {
       vdir[i] += f * v0bb[i] * sf;
     }
   } // b
@@ -575,13 +577,13 @@ Doesn't calculate, assumes m_arr_v_abk_r array exists + is up-to-date
 */
 {
 #pragma omp parallel for
-  for (size_t a = 0; a < m_num_core_states; a++) {
+  for (std::size_t a = 0; a < m_num_core_states; a++) {
     form_approx_vex_a(a, vex[a]);
   }
 }
 
 //******************************************************************************
-void HartreeFock::form_approx_vex_a(size_t a, std::vector<double> &vex_a)
+void HartreeFock::form_approx_vex_a(std::size_t a, std::vector<double> &vex_a)
 // Forms the 2D "approximate" exchange potential for given core state, a.
 // Does the a=b case seperately, since it's a little simpler
 // Approximate:
@@ -608,7 +610,7 @@ void HartreeFock::form_approx_vex_a(size_t a, std::vector<double> &vex_a)
   auto &phi_a = p_wf->orbitals[a];
 
   if (!m_excludeExchange) {
-    for (size_t b = 0; b < m_num_core_states; b++) { // b!=a
+    for (std::size_t b = 0; b < m_num_core_states; b++) { // b!=a
       if (b == a)
         continue;
       auto &phi_b = p_wf->orbitals[b];
@@ -619,7 +621,7 @@ void HartreeFock::form_approx_vex_a(size_t a, std::vector<double> &vex_a)
       const std::vector<std::vector<double>> &vabk = get_v_abk(a, b);
       // hold "fraction" psi_a*psi_b/(psi_a^2):
       std::vector<double> v_Fab(p_rgrid->ngp);
-      for (size_t i = 0; i < irmax; i++) {
+      for (std::size_t i = 0; i < irmax; i++) {
         // This is the approximte part! Divides by psi_a
         if (fabs(phi_a.f[i]) < 1.e-3)
           continue;
@@ -631,7 +633,7 @@ void HartreeFock::form_approx_vex_a(size_t a, std::vector<double> &vex_a)
         double L_abk = get_Lambda_abk(a, b, k);
         if (L_abk == 0)
           continue;
-        for (size_t i = 0; i < irmax; i++) {
+        for (std::size_t i = 0; i < irmax; i++) {
           if (v_Fab[i] == 0)
             continue;
           vex_a[i] += L_abk * vabk[k - kmin][i] * v_Fab[i];
@@ -650,7 +652,7 @@ void HartreeFock::form_approx_vex_a(size_t a, std::vector<double> &vex_a)
       double L_abk = get_Lambda_abk(a, a, k);
       if (L_abk == 0)
         continue;
-      for (size_t i = 0; i < irmax; i++) {
+      for (std::size_t i = 0; i < irmax; i++) {
         // nb: need to 'cut' here, or fails w/ f states...
         vex_a[i] += -1 * L_abk * vaak[k][i] * x_tjap1;
       }

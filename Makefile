@@ -4,8 +4,8 @@ ID =./src
 OD =./obj
 XD =.
 
-CXX=g++ #clang++ #
-# CXX=clang++ #
+CXX=g++
+#CXX=clang++
 
 OPT=-O3
 OMP=-fopenmp
@@ -23,11 +23,11 @@ endif
 CXXFLAGS= -std=c++11 $(OPT) $(OMP) $(WARN)
 LIBS=-lgsl -lgslcblas
 
-# MSAN = -g -fsanitize=memory -fno-omit-frame-pointer
-# ASAN = -g -fsanitize=address -fno-omit-frame-pointer
-# TSAN = -g -fsanitize=thread
-# USAN = -g -fsanitize=undefined
-# CXXFLAGS += $(TSAN)
+MSAN = -fsanitize=memory
+ASAN = -fsanitize=address
+TSAN = -fsanitize=thread
+USAN = -fsanitize=undefined -fsanitize=unsigned-integer-overflow
+#CXXFLAGS += -g $(TSAN) -fno-omit-frame-pointer
 
 #Command to compile objects and link them
 COMP=$(CXX) -c -o $@ $< $(CXXFLAGS)

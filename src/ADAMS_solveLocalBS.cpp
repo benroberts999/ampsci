@@ -104,7 +104,7 @@ void solveDBS(DiracSpinor &psi, const std::vector<double> &v, const Grid &rgrid,
 
     // Find solution (f,g) to DE for given energy:
     // Also stores dg (gout-gin) for PT [used for PT to find better e]
-    std::vector<double> dg(size_t(2 * d_ctp + 1));
+    std::vector<double> dg(2 * d_ctp + 1);
     trialDiracSolution(psi.f, psi.g, dg, t_en, psi.k, v, rgrid, ctp, d_ctp,
                        t_pinf, alpha);
 
@@ -148,12 +148,12 @@ void solveDBS(DiracSpinor &psi, const std::vector<double> &v, const Grid &rgrid,
   // store energy etc.
   psi.en = t_en;
   psi.eps = t_eps;
-  psi.pinf = (size_t)t_pinf;
+  psi.pinf = (std::size_t)t_pinf;
   psi.its = t_its;
 
   // normalises the orbital (and zero's after pinf)
   double an = 1. / sqrt(anorm);
-  for (size_t i = 0; i < psi.pinf; i++) {
+  for (auto i = 0ul; i < psi.pinf; i++) {
     psi.f[i] = an * psi.f[i];
     psi.g[i] = an * psi.g[i];
   }
@@ -277,7 +277,7 @@ int countNodes(const std::vector<double> &f, const int maxi) {
   double spn;
   int counted_nodes = 0;
   // Just counts the number of times orbital (f) changes sign
-  for (size_t i = 2; i < (size_t)maxi; ++i) {
+  for (int i = 2; i < maxi; ++i) {
     spn = f[i];
     if (sp * spn < 0)
       ++counted_nodes;
@@ -325,7 +325,7 @@ void joinInOutSolutions(std::vector<double> &f, std::vector<double> &g,
 
   // store difference between in/out solutions (for g) - after re-scaling
   // Used later for P.T.
-  for (size_t i = 0; i < dg.size(); i++) {
+  for (auto i = 0; i < (int)dg.size(); i++) {
     dg[i] = g[ctp - d_ctp + i] - g_in[ctp - d_ctp + i] * rescale;
   }
 
@@ -551,7 +551,7 @@ void adamsMoulton(std::vector<double> &f, std::vector<double> &g,
   std::vector<double> df(ngp), dg(ngp);
   std::array<double, AMO> amcoef;
   int k1 = ni - inc * AMO; // nb: k1 is iterated
-  for (size_t i = 0; i < (size_t)AMO; i++) {
+  for (auto i = 0; i < AMO; i++) {
     double dror = drdu[k1] / r[k1];
     df[i] = inc * ((-ka * dror * f[k1]) +
                    (alpha * ((en + 2 * c2) - v[k1]) * drdu[k1] * g[k1]));

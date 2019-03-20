@@ -13,17 +13,15 @@ namespace Nucleus {
 
 //******************************************************************************
 inline double approximate_rc(int A)
-/*
-nb: returns in Fermi
-approximate
-formula for rN.
-See: https://www-nds.iaea.org/radii/
-[1] G. Fricke, C. Bernhardt, K. Heilig, L. A. Schaller, L. Schellenberg, E. B.
-Shera, and C. W. Dejager, At. Data Nucl. Data Tables 60, 177 (1995).
- NOTE:
-Difference between r_N and c? (half-density radius..)  NOTE: This is actually
-root-mean-square radius. Not half-charge-density! XXX
-*/
+// nb: returns in Fermi
+// approximate
+// formula for rN.
+// See: https://www-nds.iaea.org/radii/
+// [1] G. Fricke, C. Bernhardt, K. Heilig, L. A. Schaller, L. Schellenberg, E.
+// B. Shera, and C. W. Dejager, At. Data Nucl. Data Tables 60, 177 (1995).
+//  NOTE:
+// Difference between r_N and c? (half-density radius..)  NOTE: This is actually
+// root-mean-square radius. Not half-charge-density! XXX
 {
 
   double rN;
@@ -45,9 +43,9 @@ root-mean-square radius. Not half-charge-density! XXX
 
 //******************************************************************************
 inline double approximate_t_skin(int)
-/*
-skin-thickness. Always same?
-*/
+// /*
+// skin-thickness. Always same?
+// */
 {
   return 2.30;
 }
@@ -56,11 +54,9 @@ skin-thickness. Always same?
 inline std::vector<double>
 sphericalNuclearPotential(double Z, double rnuc,
                           const std::vector<double> &rgrid)
-/*
-Potential due to a spherical nucleus, with (charge) radius, rnuc.
-Note: rnuc must be given in "fermi" (fm, femto-metres).
-rnuc = 0 corresponds to zeroNucleus
-*/
+// Potential due to a spherical nucleus, with (charge) radius, rnuc.
+// Note: rnuc must be given in "fermi" (fm, femto-metres).
+// rnuc = 0 corresponds to zeroNucleus
 {
   std::vector<double> vnuc;
   vnuc.reserve(rgrid.size());
@@ -82,30 +78,27 @@ rnuc = 0 corresponds to zeroNucleus
 inline std::vector<double>
 fermiNuclearPotential(double Z, double t, double c,
                       const std::vector<double> &rgrid)
-/*
-Uses a Fermi-Dirac distribution for the nuclear potential.
-
-rho(r) = rho_0 {1 + Exf[(r-c)/a]}^-1
-V(r) = -(4 Pi)/r [A+B]
-  A = Int[ rho(x) x^2 , {x,0,r}]
-  B = r * Int[ rho(x) x , {x,r,infty}]
-rho_0 is found by either:
-  * V(infinity) = -Z/r , or equivilantly
-  * \int rho(r) d^3r = Z
-
-Depends on:
-  * t: skin thickness [90 to 10% fall-off range]
-    note: t = a[4 ln(3)]
-  * c: half-density raius [rho(c)=0.5 rho0]
-
-t and c are input values. In 'fermi' of fm (femto metres)
-If provided with 0, will use 'default' values, approx. formula.
-
-V(r) is expressed in terms of Complete Fermi-Dirac intagrals.
-These are computed using the GSL libraries.
-gnu.org/software/gsl/manual/html_node/Complete-Fermi_002dDirac-Integrals
-
-*/
+// Uses a Fermi-Dirac distribution for the nuclear potential.
+//
+// rho(r) = rho_0 {1 + Exf[(r-c)/a]}^-1
+// V(r) = -(4 Pi)/r [A+B]
+//   A = Int[ rho(x) x^2 , {x,0,r}]
+//   B = r * Int[ rho(x) x , {x,r,infty}]
+// rho_0 is found by either:
+//   * V(infinity) = -Z/r , or equivilantly
+//   * \int rho(r) d^3r = Z
+//
+// Depends on:
+//   * t: skin thickness [90 to 10% fall-off range]
+//     note: t = a[4 ln(3)]
+//   * c: half-density raius [rho(c)=0.5 rho0]
+//
+// t and c are input values. In 'fermi' of fm (femto metres)
+// If provided with 0, will use 'default' values, approx. formula.
+//
+// V(r) is expressed in terms of Complete Fermi-Dirac intagrals.
+// These are computed using the GSL libraries.
+// gnu.org/software/gsl/manual/html_node/Complete-Fermi_002dDirac-Integrals
 {
   std::vector<double> vnuc;
   vnuc.reserve(rgrid.size());
@@ -136,11 +129,8 @@ gnu.org/software/gsl/manual/html_node/Complete-Fermi_002dDirac-Integrals
 //******************************************************************************
 inline std::vector<double> fermiNuclearDensity(double Z_norm, double t,
                                                double c, const Grid &grid)
-/*
-=
-Integrate[ rho(r) , dV ] = Integrate[ 4pi * r^2 * rho(r) , dr ] = Z_norm
-Znorm = Z for nuclear chare density; Z_norm = 1 for nuclear density.
-*/
+// Integrate[ rho(r) , dV ] = Integrate[ 4pi * r^2 * rho(r) , dr ] = Z_norm
+// Znorm = Z for nuclear chare density; Z_norm = 1 for nuclear density.
 {
   std::vector<double> rho;
   rho.reserve(grid.ngp);
@@ -161,10 +151,6 @@ Znorm = Z for nuclear chare density; Z_norm = 1 for nuclear density.
 
   for (auto &rhoi : rho)
     rhoi *= rho0;
-
-  // std::cout << "TEST: "
-  //           << NumCalc::integrate(rgrid, rgrid, rho, drdu, du) * 4. * M_PI
-  //           << " =?= " << Z_norm << "\n";
 
   return rho;
 }

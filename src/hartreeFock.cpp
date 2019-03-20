@@ -171,7 +171,7 @@ int main(int argc, char *argv[]) {
     for (auto &psi : wf.orbitals)
       of << "\"" << psi.symbol(true) << "\" ";
     of << "\n";
-    for (size_t i = 0; i < wf.rgrid.ngp; i++) {
+    for (std::size_t i = 0; i < wf.rgrid.ngp; i++) {
       of << wf.rgrid.r[i] << " ";
       for (auto &psi : wf.orbitals)
         of << psi.f[i] << " ";

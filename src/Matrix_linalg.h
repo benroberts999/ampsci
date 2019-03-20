@@ -53,7 +53,7 @@ template <typename T>
 std::vector<std::vector<T>> invert(const std::vector<std::vector<T>> &M) {
 
   // size of matrix:
-  size_t n = M.size();
+  auto n = M.size();
   if (M[0].size() != n)
     std::cerr << "\nCant invert non-square matrix, silly.\n";
 
@@ -63,8 +63,8 @@ std::vector<std::vector<T>> invert(const std::vector<std::vector<T>> &M) {
   gsl_permutation *perm = gsl_permutation_alloc(n);
 
   // fill matrix:
-  for (size_t i = 0; i < n; i++) {
-    for (size_t j = 0; j < n; j++)
+  for (std::size_t i = 0; i < n; i++) {
+    for (std::size_t j = 0; j < n; j++)
       gsl_matrix_set(m, i, j, M[i][j]);
   }
 
@@ -80,8 +80,8 @@ std::vector<std::vector<T>> invert(const std::vector<std::vector<T>> &M) {
   // Fill the output matrix:
   if (det != 0) {
     gsl_linalg_LU_invert(m, perm, inverse);
-    for (size_t i = 0; i < n; i++) {
-      for (size_t j = 0; j < n; j++)
+    for (std::size_t i = 0; i < n; i++) {
+      for (std::size_t j = 0; j < n; j++)
         W[i][j] = gsl_matrix_get(inverse, i, j);
     }
   }
@@ -95,7 +95,7 @@ std::vector<std::vector<T>> invert(const std::vector<std::vector<T>> &M) {
 }
 
 //******************************************************************************
-template <typename T, size_t n>
+template <typename T, std::size_t n>
 std::array<std::array<T, n>, n>
 invert(const std::array<std::array<T, n>, n> &M) {
 
@@ -105,8 +105,8 @@ invert(const std::array<std::array<T, n>, n> &M) {
   gsl_permutation *perm = gsl_permutation_alloc(n);
 
   // fill matrix:
-  for (size_t i = 0; i < n; i++) {
-    for (size_t j = 0; j < n; j++)
+  for (std::size_t i = 0; i < n; i++) {
+    for (std::size_t j = 0; j < n; j++)
       gsl_matrix_set(m, i, j, M[i][j]);
   }
 
@@ -121,8 +121,8 @@ invert(const std::array<std::array<T, n>, n> &M) {
   std::array<std::array<T, n>, n> W;
   if (det != 0) {
     gsl_linalg_LU_invert(m, perm, inverse);
-    for (size_t i = 0; i < n; i++) {
-      for (size_t j = 0; j < n; j++)
+    for (std::size_t i = 0; i < n; i++) {
+      for (std::size_t j = 0; j < n; j++)
         W[i][j] = gsl_matrix_get(inverse, i, j);
     }
   }

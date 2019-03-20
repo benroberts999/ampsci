@@ -103,7 +103,7 @@ int main(int argc, char *argv[]) {
           for (auto r : wf.rgrid.r)
             wf.vdir.push_back(PRM::tietz(Z, r, H, d));
         double fx = 0;
-        for (size_t ns = 0; ns < in_n.size(); ns++) {
+        for (std::size_t ns = 0; ns < in_n.size(); ns++) {
           wf.solveLocalDirac(in_n[ns], in_k[ns], in_en[ns]);
           fx += pow((wf.orbitals[ns].en - in_en[ns]), 2);
         }
@@ -165,7 +165,7 @@ int main(int argc, char *argv[]) {
   else
     for (auto r : wf.rgrid.r)
       wf.vdir.push_back(PRM::tietz(Z, r, H, d));
-  for (size_t ns = 0; ns < in_n.size(); ns++)
+  for (std::size_t ns = 0; ns < in_n.size(); ns++)
     wf.solveLocalDirac(in_n[ns], in_k[ns], in_en[ns]);
 
   printf(" n l_j    k Rinf its  eps     En (au)            En (/cm)\n");

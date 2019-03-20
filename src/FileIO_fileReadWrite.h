@@ -16,13 +16,11 @@ behaviour (most likely, a crash)
 namespace FileIO {
 
 //******************************************************************************
-/*
-Uses compile-time recursion to get access to elements of tuple.
-Specifically, string-streams data from a string vector into tuple.
-Works with a tuple of references, i.e., std::forward_as_tuple
-Idea from:
-https://stackoverflow.com/questions/1198260/iterate-over-tuple/23142715
-*/
+// Uses compile-time recursion to get access to elements of tuple.
+// Specifically, string-streams data from a string vector into tuple.
+// Works with a tuple of references, i.e., std::forward_as_tuple
+// Idea from:
+// https://stackoverflow.com/questions/1198260/iterate-over-tuple/23142715
 template <std::size_t I = 0, typename... Tp>
 inline typename std::enable_if<I == sizeof...(Tp), void>::type
 stringstreamVectorIntoTuple(std::vector<std::string>, std::tuple<Tp...> &) {}
@@ -40,11 +38,9 @@ template <std::size_t I = 0, typename... Tp>
 
 //******************************************************************************
 inline std::vector<std::string> readInputFile_byEntry(const std::string &fname)
-/*
-Reads each item (space separated) from a file into a string vector
-Any text after a '#' or '!' are treated as comments and ignored
-(can come anywhere in the line)
-*/
+// Reads each item (space separated) from a file into a string vector
+// Any text after a '#' or '!' are treated as comments and ignored
+// (can come anywhere in the line)
 {
   std::vector<std::string> entry_list;
   std::ifstream file(fname);
@@ -64,10 +60,8 @@ Any text after a '#' or '!' are treated as comments and ignored
 
 //******************************************************************************
 inline std::vector<std::string> readInputFile_byLine(const std::string &fname)
-/*
-Reads each line from a file into a string vector
-Lines beginning with '!' or '#' are comments
-*/
+// Reads each line from a file into a string vector
+// Lines beginning with '!' or '#' are comments
 {
   std::vector<std::string> entry_list;
   std::ifstream file(fname);
@@ -133,12 +127,13 @@ template <typename T> void binary_rw(std::fstream &stream, T &value, RoW row) {
 
 inline void binary_str_rw(std::fstream &stream, std::string &value, RoW row) {
   if (row == write) {
-    size_t temp_len = value.length();
-    stream.write(reinterpret_cast<const char *>(&temp_len), sizeof(size_t));
+    std::size_t temp_len = value.length();
+    stream.write(reinterpret_cast<const char *>(&temp_len),
+                 sizeof(std::size_t));
     stream.write(value.c_str(), value.length());
   } else if (row == read) {
-    size_t temp_len;
-    stream.read(reinterpret_cast<char *>(&temp_len), sizeof(size_t));
+    std::size_t temp_len;
+    stream.read(reinterpret_cast<char *>(&temp_len), sizeof(std::size_t));
     char *tvalue = new char[temp_len + 1];
     stream.read(tvalue, temp_len);
     tvalue[temp_len] = '\0'; // null 'end of string' character

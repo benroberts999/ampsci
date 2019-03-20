@@ -59,8 +59,9 @@ XXX This mean we MUST use exponential Grid! Fix this! XXX
   std::ofstream ofile;
   ofile.open(fname + ".txt");
   ofile << "dE(keV) q(MeV) ";
-  for (size_t i = 0; i < nklst.size(); i++)
-    ofile << nklst[i] << " "; // xxx can range!
+  for (auto nk : nklst) {
+    ofile << nk << " ";
+  }
   ofile << "Sum\n\n";
   for (int i = 0; i < desteps; i++) {
     for (int k = 0; k < qsteps; k++) {
@@ -129,11 +130,11 @@ XXX This mean we MUST use exponential Grid! Fix this! XXX
   FileIO::binary_rw(iof, qmax, row);
   FileIO::binary_rw(iof, dEmin, row);
   FileIO::binary_rw(iof, dEmax, row);
-  for (size_t ie = 0; ie < AK.size(); ie++) {
-    for (size_t in = 0; in < AK[0].size(); in++) {
+  for (std::size_t ie = 0; ie < AK.size(); ie++) {
+    for (std::size_t in = 0; in < AK[0].size(); in++) {
       if (ie == 0)
         FileIO::binary_str_rw(iof, nklst[in], row);
-      for (size_t iq = 0; iq < AK[0][0].size(); iq++) {
+      for (std::size_t iq = 0; iq < AK[0][0].size(); iq++) {
         FileIO::binary_rw(iof, AK[ie][in][iq], row);
       }
     }
@@ -143,9 +144,10 @@ XXX This mean we MUST use exponential Grid! Fix this! XXX
 }
 
 //******************************************************************************
-int calculateK_nk(const ElectronOrbitals &wf, size_t is, int max_L, double dE,
+int calculateK_nk(const ElectronOrbitals &wf, std::size_t is, int max_L,
+                  double dE,
                   std::vector<std::vector<std::vector<double>>> &jLqr_f,
-                  std::vector<float> &AK_nk_q, double Zeff)
+                  std::vector<float> &AK_nk_q, double)
 /*
 Calculates the atomic factor for a given core state (is) and energy.
 Note: dE = I + ec is depositied energy, not cntm energy
@@ -169,10 +171,11 @@ Zeff no longer works at main() level.
   if (lc_min < 0)
     lc_min = 0;
   if (ec > 0) {
-    if (Zeff > 0)
-      cntm.solveZeffContinuum(ec, Zeff, lc_min, lc_max); // Zeff version
-    else
-      cntm.solveLocalContinuum(ec, lc_min, lc_max);
+    cntm.solveLocalContinuum(ec, lc_min, lc_max);
+    // if (Zeff > 0)
+    //   cntm.solveZeffContinuum(ec, Zeff, lc_min, lc_max); // Zeff version
+    // else
+    //   cntm.solveLocalContinuum(ec, lc_min, lc_max);
   }
 
   double x_ocf = psi.occ_frac; // occupancy fraction. Usually 1
@@ -180,7 +183,7 @@ Zeff no longer works at main() level.
   // Generate AK for each L, lc, and q
   // L and lc are summed, not stored indevidually
   for (int L = 0; L <= max_L; L++) {
-    for (size_t ic = 0; ic < cntm.kappa.size(); ic++) {
+    for (auto ic = 0ul; ic < cntm.kappa.size(); ic++) {
       int kc = cntm.kappa[ic];
       double dC_Lkk = CLkk(L, k, kc);
       if (dC_Lkk == 0)
@@ -204,7 +207,7 @@ Zeff no longer works at main() level.
 }
 
 //******************************************************************************
-int calculateKpw_nk(const ElectronOrbitals &wf, size_t nk, double dE,
+int calculateKpw_nk(const ElectronOrbitals &wf, std::size_t nk, double dE,
                     std::vector<std::vector<double>> &jl_qr,
                     std::vector<float> &tmpK_q)
 /*
@@ -228,7 +231,7 @@ Should be called once per initial state
   if (eps <= 0)
     return 0;
 
-  for (size_t iq = 0; iq < qsteps; iq++) {
+  for (auto iq = 0ul; iq < qsteps; iq++) {
     double chi_q = NumCalc::integrate(psi.f, jl_qr[iq], wf.rgrid.r,
                                       wf.rgrid.drdu, wf.rgrid.du, 0, maxir);
     tmpK_q[iq] =

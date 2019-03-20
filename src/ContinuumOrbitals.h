@@ -11,7 +11,7 @@ public:
   int solveLocalContinuum(double ec, int min_l, int max_l);
   int solveLocalContinuum(double ec, int max_l);
 
-  int solveZeffContinuum(double ec, double Zeff, int min_l, int max_l);
+  // int solveZeffContinuum(double ec, double Zeff, int min_l, int max_l);
 
   void clear();
 
@@ -30,6 +30,6 @@ private:
   std::vector<double> r;
   std::vector<double> drdt;
   std::vector<double> dror;
-  size_t NGPb;
+  std::size_t NGPb;
   double h;
 };

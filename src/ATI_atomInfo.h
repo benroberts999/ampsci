@@ -12,7 +12,7 @@ namespace ATI {
 // Note: array index matches Z, so first entry is blank.
 // Goes up to E120 (Z=120)
 // static const int
-static const size_t MAX_Z = 121;
+static const std::size_t MAX_Z = 121;
 static const std::array<int, MAX_Z> A = {
     0,   1,   4,   7,   9,   11,  12,  14,  16,  19,  20,  23,  24,  27,
     28,  31,  32,  35,  40,  39,  40,  45,  48,  51,  52,  55,  56,  59,
@@ -90,12 +90,6 @@ inline int symbol_to_l(std::string l_str) {
   return l;
 }
 
-// inline TEMP_func(std::string in_term) {
-//   // first char: must be digit
-//   // ii..ss...ii
-//   std::stringstream ss(in_term);
-// }
-
 inline int l_k(int ka) { return (ka > 0) ? ka : -ka - 1; }
 inline int twoj_k(int ka) { return 2 * abs(ka) - 1; }
 inline double j_k(int ka) { return abs(ka) - 0.5; }
@@ -111,6 +105,7 @@ constexpr int kappaFromIndex(int i) {
   return (i % 2 == 0) ? -(i + 2) / 2 : (i + 1) / 2;
 }
 
+// XXX This is a bad/limiting solution:
 const std::vector<int> core_n = {1, 2, 2, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 5,
                                  6, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7, 7, 8, 8,
                                  8, 8, 8, 8, 8, 8, 9, 9, 9, 9, 9, 9, 9, 9, 9};
@@ -145,7 +140,7 @@ inline std::string coreConfig(const std::string &ng) {
   else if (ng == "Yb")
     return coreConfig("Xe") + ",4f14,6s2";
   else if (ng == "No")
-    return coreConfig("Xe") + ",5f14,7s2";
+    return coreConfig("Rn") + ",5f14,7s2";
   else
     return ng;
 }
@@ -153,15 +148,15 @@ inline std::string coreConfig(const std::string &ng) {
 //******************************************************************************
 inline double diracen(double z, double n, int k,
                       double alpha = 0.00729735256635) {
-  double a2 = pow(alpha, 2);
-  double c2 = 1. / pow(alpha, 2);
-  double za2 = pow(alpha * z, 2);
+  double a2 = alpha * alpha;
+  double c2 = 1. / a2;
+  double za2 = z * z * a2;
   double g = sqrt(k * k - za2);
 
-  double w2 = pow(z, 2) / pow(g + n - fabs((double)k), 2);
+  double w2 = z * z / pow(g + n - fabs((double)k), 2);
   double d = 1. + a2 * w2;
 
-  return -w2 / (2 * d) - (a2 * w2 / 2 + 1. - sqrt(1. + a2 * w2)) * (c2 / d);
+  return -w2 / (2 * d) - (0.5 * a2 * w2 + 1. - sqrt(1. + a2 * w2)) * (c2 / d);
 }
 
 } // namespace ATI
