@@ -100,10 +100,10 @@ int main(int argc, char *argv[]) {
   // Output results:
   int Zion = wf.Znuc() - wf.Ncore();
   std::cout << "\nHartree Fock: " << Z_str << ", Z=" << Z << " A=" << A << "\n";
-  std::cout << "Core: " << str_core << " [V^N";
+  std::cout << "Core: " << wf.coreConfiguration_nice() << " (V^N";
   if (Zion != 0)
     std::cout << "-" << Zion;
-  std::cout << "]\n";
+  std::cout << ")\n";
   std::cout << "     state   k   Rinf its    eps       En (au)      En (/cm)\n";
   bool val = false;
   double en_lim = 0;

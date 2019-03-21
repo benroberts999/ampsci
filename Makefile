@@ -13,7 +13,7 @@ OMP=-fopenmp
 WARN=-Wpedantic -Wall -Wextra -Wdouble-promotion -Wconversion
 # -fmax-errors=n # useful when changing a lot
 
-ifeq ($(CXX),clang++ )
+ifeq ($(CXX),clang++)
   WARN += -Wno-sign-conversion
 endif
 

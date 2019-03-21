@@ -48,15 +48,15 @@ Then, the compilation + use can proceed as per above.
 ## hartreeFock
 
  * Solves relativistic Hartree Fock potential for core + valence states
- * Takes in core configuration: Noble gas + extra. (comma separated, no spaces)
- * (As well as Noble gas, can use Zn,Cd,Hg,Cn,Yb,No)
+ * Takes in core configuration: [Noble gas],extra (comma separated, no spaces)
+ * (As well as Noble gas, can use Zn,Cd,Hg,Cn)
  * Can also add negative values: e.g.,
 
 E.g. (V^N-1):
-   * For Cs: 'Xe'
-   * For Au: 'Xe,4f14,5d10' OR 'Hg,6s-2'
-   * For Tl: 'Xe,4f14,5d10,6s2' OR 'Hg'
-   * For I (V^N): 'Cd,5p5' OR 'Xe,5p-1'
+   * For Cs: '[Xe]'
+   * For Au: '[Xe],4f14,5d10' OR '[Hg],6s-2'
+   * For Tl: '[Xe],4f14,5d10,6s2' OR '[Hg]'
+   * For I (V^N): '[Cd],5p5' OR '[Xe],5p-1'
 
 
 ## atomicKernal

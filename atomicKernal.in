@@ -1,5 +1,5 @@
 Xe -1              ! Z, A(=-1 for default A, 0='0 nucleus')
-Xe                 ! Core configuration
+[Xe]               ! Core configuration
 1.e-5 45. 16000    ! r0, rmax, num_points *1
 0  5. 1.0          ! green H d *2  (default 0 - only for tests)
 1.e-9              ! Hartree convergence goal. put 0 for default.
@@ -13,11 +13,10 @@ test               ! label for output file
 #-------------------
 
 Core for Xe:
-Xe   
+[Xe]
 Core for I: any of:
-Kr,4d10,5s2,5p5  
-Cd,5p5  
-Xe,5p-1          
+[Kr],4d10,5s2,5p5
+[Cd],5p5
 
 *1
 r0 is initial point in radial grid (in a.u.) [typically ~ 1.e-6 - 1.e-3]

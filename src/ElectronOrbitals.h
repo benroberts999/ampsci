@@ -20,15 +20,15 @@ public:
   // orbitals:
   std::vector<DiracSpinor> orbitals;
 
-  std::vector<std::size_t> stateIndexList;
-  std::vector<std::size_t> coreIndexList;
-  std::vector<std::size_t> valenceIndexList;
-
   const Grid rgrid;
 
   // Potentials
   std::vector<double> vnuc;
   std::vector<double> vdir; // direct/local part of the electron potential
+
+  std::vector<std::size_t> stateIndexList;
+  std::vector<std::size_t> coreIndexList;
+  std::vector<std::size_t> valenceIndexList;
 
 private:
   // store internal value for alpha (allows variation)
@@ -39,6 +39,7 @@ private:
   // number of electrons in each core shell (non-rel??)
   std::vector<int> num_core_shell;
   int num_core_electrons = 0; // Nc = N - M
+  std::string m_core_string = "";
 
 public:
   double get_alpha() const { return m_alpha; }
@@ -49,6 +50,11 @@ public:
   double rinf(const DiracSpinor &phi) const;
   int getRadialIndex(double r_target) const;
   std::size_t getStateIndex(int n, int k) const;
+
+  std::string coreConfiguration() { return m_core_string; }
+  std::string coreConfiguration_nice() {
+    return ATI::niceCoreOutput(m_core_string);
+  }
 
   // XXX Combine with default argument?
   double radialIntegral(const DiracSpinor &psi_a, const DiracSpinor &psi_b,

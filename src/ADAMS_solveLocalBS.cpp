@@ -449,9 +449,9 @@ void outwardAM(std::vector<double> &f, std::vector<double> &g, const double en,
 }
 
 // order of the expansion coeficients in 'inwardAM'  (15 orig.)
-const static int NX = 15;
+static const int NX = 15;
 // PRIMARY convergance for expansion in `inwardAM'' (10^-8)
-const static double NXEPSP = 1.e-10;
+static const double NXEPSP = 1.e-10;
 //******************************************************************
 void inwardAM(std::vector<double> &f, std::vector<double> &g, const double en,
               const std::vector<double> &v, const int ka,

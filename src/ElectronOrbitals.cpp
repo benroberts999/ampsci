@@ -293,6 +293,11 @@ void ElectronOrbitals::determineCore(const std::string &str_core_in)
     std::abort();
   }
 
+  // store full core config list
+  m_core_string = str_core;
+  // XXX Would be nice to "merge" any duplicates (but retain input order)
+  // i.e. so that "...,5p6,...,5p-1" --> "...,5p5,..."
+
   return;
 }
 

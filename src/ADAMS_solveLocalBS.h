@@ -70,7 +70,7 @@ template <int N> struct AdamsCoefs {};
 //------------------------------------------------------------------------------
 template <> struct AdamsCoefs<8> {
   // Adams coefs:
-  const static int N = 8;
+  static const int N = 8;
   const int AMa[N] = {-33953,   312874,  -1291214, 3146338,
                       -5033120, 5595358, -4604594, 4467094};
   const double AMd = 1. / 3628800;
@@ -91,7 +91,7 @@ template <> struct AdamsCoefs<8> {
 //------------------------------------------------------------------------------
 template <> struct AdamsCoefs<7> {
   // Adams coefs:
-  const static int N = 7;
+  static const int N = 7;
   const int AMa[N] = {1375, -11351, 41499, -88547, 123133, -121797, 139849};
   const double AMd = 1. / 120960;
   const int AMaa = 36799;
@@ -109,7 +109,7 @@ template <> struct AdamsCoefs<7> {
 //------------------------------------------------------------------------------
 template <> struct AdamsCoefs<6> {
   // Adams coefs:
-  const static int N = 6;
+  static const int N = 6;
   const int AMa[N] = {-863, 6312, -20211, 37504, -46461, 65112};
   const double AMd = 1. / 60480;
   const int AMaa = 19087;
@@ -124,7 +124,7 @@ template <> struct AdamsCoefs<6> {
 //------------------------------------------------------------------------------
 template <> struct AdamsCoefs<5> {
   // Adams coefs:
-  const static int N = 5;
+  static const int N = 5;
   const int AMa[N] = {27, -173, 482, -798, 1427};
   const double AMd = 1. / 1440;
   const int AMaa = 475;
