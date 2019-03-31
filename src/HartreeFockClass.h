@@ -39,7 +39,7 @@ private:
 
   double m_eps_HF = 1.e-8;
 
-  const int MAX_HART_ITS = 99;
+  static const int MAX_HART_ITS = 99;
   const bool m_excludeExchange; // for testing
 
   // const int m_ngp;
@@ -67,13 +67,10 @@ private:
   void initialise_m_arr_v_abk_r_core();
   void extend_m_arr_v_abk_r_valence(int kappa_a);
 
-  int index_from_kappa(int ka) const;
-  int twoj_from_index(int i) const;
-  int kappa_from_index(int i);
-  int l_from_index(int i) const;
-
   void form_vabk_core();
   void form_vbb0();
+
+  // XXX this also should reurn?? [need test though!] XXX
   void calculate_v_abk(const DiracSpinor &phi_a, const DiracSpinor &phi_b,
                        int k, std::vector<double> &vabk) const;
 
@@ -83,9 +80,10 @@ private:
 
   void form_vabk_valence(std::size_t w);
 
-  void form_vdir(std::vector<double> &vdir, bool re_scale = false);
-
-  void form_approx_vex_core(std::vector<std::vector<double>> &vex);
-
-  void form_approx_vex_a(std::size_t a, std::vector<double> &vex_a);
+  // XXX try a) make thise const
+  // and b) make them RETURN vector. Be careful; check speed (range of grids)
+  // xxx
+  void form_vdir(std::vector<double> &vdir, bool re_scale = false) const;
+  void form_approx_vex_core(std::vector<std::vector<double>> &vex) const;
+  void form_approx_vex_a(std::size_t a, std::vector<double> &vex_a) const;
 };

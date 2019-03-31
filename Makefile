@@ -5,7 +5,7 @@ OD =./obj
 XD =.
 
 CXX=g++
-#CXX=clang++
+# CXX=clang++
 
 OPT=-O3
 OMP=-fopenmp

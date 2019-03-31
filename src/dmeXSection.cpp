@@ -676,8 +676,8 @@ Mostly, coming from:
   std::cout << "\n ==> N(1keV) = " << NofE(1. / E_to_keV, N_err)
             << ", N(2keV) = " << NofE(2. / E_to_keV, N_err) << " PE\n";
 
-  double MN =
-      Atot * (FPC::u_NMU * FPC::m_e_kg); // Total atomic/mol. mass (in kg)
+  // Total atomic/mol. mass (in kg)
+  double MN = Atot * (FPC::u_NMU * FPC::m_e_kg);
 
   // Array to store Poisson-smear S1 rate, F
   DoubleVec3D F_mv_mx_n;

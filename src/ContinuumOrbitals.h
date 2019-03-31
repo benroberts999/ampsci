@@ -15,6 +15,7 @@ public:
 
   void clear();
 
+  // XXX Swap to Dirac orbital!
   std::vector<std::vector<double>> f;
   std::vector<std::vector<double>> g;
   std::vector<double> en;
@@ -27,6 +28,7 @@ private:
 
   double alpha;
 
+  // Do I need to store these? Grid? Or these elongated ones?
   std::vector<double> r;
   std::vector<double> drdt;
   std::vector<double> dror;

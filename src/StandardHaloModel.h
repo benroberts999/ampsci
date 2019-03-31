@@ -1,5 +1,7 @@
 #pragma once
+#include "Grid.h"
 #include <vector>
+// class Grid;
 
 namespace SHMCONSTS {
 const double VESC = 550.; // galactic escape velocity [1804.01231]
@@ -28,9 +30,11 @@ public:
                     double in_dv0 = 0);
   double cosphi;
   double v0, v_sun, vesc, veorb;
-  double fv(double v);
+  double fv(double v) const;
+
+  std::vector<double> makeFvArray(const Grid &vgrid) const;
 
 private:
-  double NormConst = 1;
-  double normfv();
+  double m_normConst = 1;
+  double normfv() const;
 };

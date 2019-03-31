@@ -1,43 +1,40 @@
 #include "StandardHaloModel.h"
+#include "Grid.h"
 #include <cmath>
 #include <vector>
 
+// make this work w/ Grid?
+// Give it a grid [v], it returns an array [f(v)]
+
 using namespace SHMCONSTS;
 
-StandardHaloModel::StandardHaloModel(double in_cosphi, double dves,
-                                     double dv0) {
-  cosphi = in_cosphi;
+StandardHaloModel::StandardHaloModel(double in_cosphi, double dves, double dv0)
+    : cosphi(in_cosphi), v0(V0 + dv0 * DEL_V0), v_sun(VSUN + dv0 * DEL_V0),
+      vesc(VESC + dves * DEL_VESC), veorb(VEORB) {
 
-  v0 = V0 + dv0 * DEL_V0;        // account for errors
-  v_sun = VSUN + dv0 * DEL_V0;   // account for errors
-  vesc = VESC + dves * DEL_VESC; // account for errors
-  veorb = VEORB;
-
-  NormConst = 1;
-  double tmp = normfv();
-  NormConst = tmp;
+  // NormCost should be 1, but *= more general
+  // (means) it will work for _any_ existing m_normConst
+  m_normConst *= normfv();
 }
 
 //******************************************************************************
-double StandardHaloModel::fv(double v)
-/*
-Standard halo model for velocity distribution, in laboratory frame.
- f ~ v^2 exp(-v^2)
-Note: distribution for DM particles that cross paths with Earth.
-
-Note: normalised for all extras = 0.
-Otherwise, NOT normalised!
-
- sinphi should be [-1,1]
- dv0 should be [0,1]..
- dves = [-1,1]
-*/
+double StandardHaloModel::fv(double v) const
+// Standard halo model for velocity distribution, in laboratory frame.
+//  f ~ v^2 exp(-v^2)
+// Note: distribution for DM particles that cross paths with Earth.
+//
+// Note: normalised for all extras = 0.
+// Otherwise, NOT normalised!
+//
+//  sinphi should be [-1,1]
+//  dv0 should be [0,1]..
+//  dves = [-1,1]
 {
   // local velocity (lab)
   double vl = v_sun + veorb * COSBETA * cosphi;
 
   // Norm const * v^2:
-  double A = NormConst * pow(v, 2);
+  double A = m_normConst * pow(v, 2);
 
   double arg1 = -pow((v - vl) / v0, 2);
 
@@ -55,7 +52,7 @@ Otherwise, NOT normalised!
 }
 
 //******************************************************************************
-double StandardHaloModel::normfv() {
+double StandardHaloModel::normfv() const {
   int num_vsteps = 2000;
   double dv = MAXV / num_vsteps;
 
@@ -66,4 +63,17 @@ double StandardHaloModel::normfv() {
     v += dv;
   }
   return 1. / (A * dv);
+}
+
+//******************************************************************************
+std::vector<double> StandardHaloModel::makeFvArray(const Grid &vgrid) const {
+  // Fills an (external) vector array with f(v) values.
+  // Note: units will be km/s. AND VGRID must be in same units
+  // Possible to re-scale; must rescale v and fv!
+  std::vector<double> fv_array;
+  fv_array.reserve(vgrid.ngp);
+  for (auto v : vgrid.r) {
+    fv_array.push_back(fv(v));
+  }
+  return fv_array;
 }

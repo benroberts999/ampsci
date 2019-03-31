@@ -98,8 +98,8 @@ int main(int argc, char *argv[]) {
   }
 
   // make list of energy indices in sorted order:
-  std::vector<int> sorted_list;
-  wf.sortedEnergyList(sorted_list);
+  // std::vector<int>
+  auto sorted_list = wf.sortedEnergyList();
 
   // Output results:
   std::cout << "\n n l_j    k Rinf its    eps      En (au)        En (/cm)\n";

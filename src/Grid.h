@@ -4,6 +4,10 @@
 #include <iostream>
 #include <vector>
 
+// XXX Add option to "extend" grid (good for Continuum)
+// ===> just give drdu (dr = drdu*du, r_i = r_i-1 + dr)
+// Need be careful w/ rmax. Technically dont need this! XXX
+
 enum class GridType { loglinear, logarithmic, linear };
 
 //******************************************************************************

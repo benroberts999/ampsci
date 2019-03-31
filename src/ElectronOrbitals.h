@@ -66,11 +66,11 @@ public:
   // XXX ? best way?
   // XXX Should really have just 1! ?
   // Then, different way to contruct new spinor??
-  int solveLocalDirac(int n, int k, double en_a = 0, int log_dele_or = 0,
-                      bool iscore = false);
-  int reSolveDirac(DiracSpinor &psi_a, double e_a = 0, int log_dele_or = 0);
-  int reSolveDirac(DiracSpinor &psi_a, double e_a,
-                   const std::vector<double> &vex, int log_dele_or = 0);
+  void solveLocalDirac(int n, int k, double en_a = 0, int log_dele_or = 0,
+                       bool iscore = false);
+  void reSolveDirac(DiracSpinor &psi_a, double e_a = 0, int log_dele_or = 0);
+  void reSolveDirac(DiracSpinor &psi_a, double e_a,
+                    const std::vector<double> &vex, int log_dele_or = 0);
 
   void formNuclearPotential(NucleusType nucleus_type, double rc = 0,
                             double t = 0);
@@ -83,8 +83,7 @@ public:
   void orthonormaliseValence(DiracSpinor &psi_v, int num_its = 1,
                              bool core_only = false) const; // "const" OK?
 
-  void sortedEnergyList(std::vector<int> &sort_list,
-                        bool do_sort = false) const;
+  std::vector<int> sortedEnergyList(bool do_sort = false) const;
 
 private:
   void determineCore(const std::string &str_core_in);

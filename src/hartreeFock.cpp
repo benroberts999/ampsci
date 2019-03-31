@@ -94,8 +94,8 @@ int main(int argc, char *argv[]) {
     std::cout << "Valence: " << timer.lap_reading_str() << "\n";
 
   // make list of energy indices in sorted order:
-  std::vector<int> sorted_by_energy_list;
-  wf.sortedEnergyList(sorted_by_energy_list, true);
+  // std::vector<int>
+  auto sorted_by_energy_list = wf.sortedEnergyList(true);
 
   // Output results:
   int Zion = wf.Znuc() - wf.Ncore();

@@ -1,12 +1,12 @@
-Au 0               ! Z, A(=0 for default)
-1.e-4 250. 3000    ! r0, rmax, num_points
+Cs -1              ! Z, A(=0 for default)
+1.e-5 100. 1600    ! r0, rmax, num_points
 0                  ! green(0) or tietz(1)
 5                  ! num_states (each state on following line):
-6 -1  -0.339032850
-6  1  -0.168812760
-7 -1  -0.090779855
-7  1  -0.065503050
-8 -1  -0.044044850
+4 -1  -9.511      
+4  1  -7.445      
+4  2  -6.920      
+5 -1  -1.4896     
+5  1  -0.9077    
 ##################
 Place each "target" state and energy on a new line.
 format: n k target_energy

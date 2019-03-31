@@ -35,8 +35,8 @@ ElectronOrbitals::ElectronOrbitals(int in_z, int in_a, int in_ngp, double rmin,
 }
 
 //******************************************************************************
-int ElectronOrbitals::solveLocalDirac(int n, int k, double e_a, int log_dele_or,
-                                      bool iscore)
+void ElectronOrbitals::solveLocalDirac(int n, int k, double e_a,
+                                       int log_dele_or, bool iscore)
 // Uses ADAMS::solveDBS to solve Dirac Eqn for local potential (Vnuc + Vdir)
 {
   orbitals.emplace_back(DiracSpinor{n, k, rgrid.ngp});
@@ -62,13 +62,13 @@ int ElectronOrbitals::solveLocalDirac(int n, int k, double e_a, int log_dele_or,
   else
     valenceIndexList.push_back(this_index);
 
-  return 0;
+  return;
 }
 
 //******************************************************************************
-int ElectronOrbitals::reSolveDirac(DiracSpinor &psi, double e_a,
-                                   const std::vector<double> &vex,
-                                   int log_dele_or)
+void ElectronOrbitals::reSolveDirac(DiracSpinor &psi, double e_a,
+                                    const std::vector<double> &vex,
+                                    int log_dele_or)
 // "Re"solves dirac eqaution. Use this to re-solve for same state.
 // Over-rides existing solution.
 // If no e_a is given, will use the existing one!
@@ -82,28 +82,32 @@ int ElectronOrbitals::reSolveDirac(DiracSpinor &psi, double e_a,
 
   // XXX this is inneficient. Fine, except for HF. THen, slow! ?
   std::vector<double> v_a = vnuc;
-  if (vdir.size() != 0)
-    for (std::size_t i = 0; i < rgrid.ngp; i++)
+  if (vdir.size() != 0) {
+    for (std::size_t i = 0; i < rgrid.ngp; i++) {
       v_a[i] += vdir[i];
-  if (vex.size() != 0)
-    for (std::size_t i = 0; i < rgrid.ngp; i++)
+    }
+  }
+  if (vex.size() != 0) {
+    for (std::size_t i = 0; i < rgrid.ngp; i++) {
       v_a[i] += vex[i];
+    }
+  }
 
   if (e_a != 0)
     psi.en = e_a;
   ADAMS::solveDBS(psi, v_a, rgrid, m_alpha, log_dele_or);
 
-  return 0;
+  return;
 }
 
 //******************************************************************************
-int ElectronOrbitals::reSolveDirac(DiracSpinor &psi, double e_a,
-                                   int log_dele_or)
+void ElectronOrbitals::reSolveDirac(DiracSpinor &psi, double e_a,
+                                    int log_dele_or)
 // Overloaded version; see below
 // This one doesn't have exchange potential
 {
-  std::vector<double> dummy_vex;
-  return reSolveDirac(psi, e_a, dummy_vex, log_dele_or);
+  std::vector<double> empty_vec;
+  return reSolveDirac(psi, e_a, empty_vec, log_dele_or);
 }
 
 //******************************************************************************
@@ -164,7 +168,7 @@ double ElectronOrbitals::radialIntegral(const DiracSpinor &psi_a,
     gprime = &gprime_tmp;
     break;
   default:
-    std::cout << "\nError 103 in EO radialInt: unknown operator\n";
+    std::cerr << "\nError 103 in EO radialInt: unknown operator\n";
     return 0;
   }
 
@@ -314,18 +318,19 @@ int ElectronOrbitals::getRadialIndex(double r_target) const {
 bool ElectronOrbitals::isInCore(int n, int k) const
 // Checks if given state is in the core.
 {
-  for (auto i : coreIndexList)
+  for (auto i : coreIndexList) {
     if (n == orbitals[i].n && k == orbitals[i].k)
       return true;
+  }
   return false;
 }
 
 //******************************************************************************
 std::size_t ElectronOrbitals::getStateIndex(int n, int k) const {
-  // auto &state_list = forceVal ? valenceIndexList : stateIndexList;
-  for (auto i : stateIndexList)
+  for (auto i : stateIndexList) {
     if (n == orbitals[i].n && k == orbitals[i].k)
       return i;
+  }
   std::cerr << "\nFAIL 290 in EO: Couldn't find state nk=" << n << k << "\n";
   return (int)stateIndexList.size(); // this is an invalid index!
 }
@@ -378,8 +383,7 @@ int ElectronOrbitals::solveInitialCore(std::string str_core, int log_dele_or)
   // occupancy fraction for each core state (avg of Non-rel states!):
   for (std::size_t i = 0; i < num_core_states; i++) {
     int n = orbitals[i].n;
-    int ka = orbitals[i].k;
-    int l = ATI::l_k(ka);
+    int l = orbitals[i].l();
     // Find the correct core list index (to determine filling factor):
     auto ic = num_core_shell.size();
     for (std::size_t j = 0; j < num_core_shell.size(); j++) {
@@ -400,24 +404,22 @@ int ElectronOrbitals::solveInitialCore(std::string str_core, int log_dele_or)
 
 //******************************************************************************
 void ElectronOrbitals::orthonormaliseOrbitals(int num_its)
-/*
-Forces ALL orbitals to be orthogonal to each other, and normal
-Note: workes best if run twice!
-|a> ->  |a> - \sum_{b!=a} |b><b|a>
-Then:
-|a> -> |a> / <a|a>
-c_ba = c_ab = <a|b>
-num_its is optional parameter. Repeats that many times!
-Note: I force all orthog to each other - i.e. double count.
-{force <2|1>=0 and then <1|2>=0}
-Would be 2x faster not to do this - but that would treat some orbitals special!
-Hence factor of 0.5
-Note: For HF, should never be called after core is frozen!
-
-XXX Note: This allows wfs to extend past pinf!
-==> This causes the possible orthog issues..
-
-*/
+// Forces ALL orbitals to be orthogonal to each other, and normal
+// Note: workes best if run twice!
+// |a> ->  |a> - \sum_{b!=a} |b><b|a>
+// Then:
+// |a> -> |a> / <a|a>
+// c_ba = c_ab = <a|b>
+// num_its is optional parameter. Repeats that many times!
+// Note: I force all orthog to each other - i.e. double count.
+// {force <2|1>=0 and then <1|2>=0}
+// Would be 2x faster not to do this
+//  - but that would treat some orbitals special!
+// Hence factor of 0.5
+// Note: For HF, should never be called after core is frozen!
+//
+// XXX Note: This allows wfs to extend past pinf!
+// ==> This causes the possible orthog issues..
 {
   std::size_t Ns = orbitals.size();
   std::vector<std::vector<double>> c_ab(Ns, std::vector<double>(Ns));
@@ -463,17 +465,15 @@ XXX Note: This allows wfs to extend past pinf!
 //******************************************************************************
 void ElectronOrbitals::orthonormaliseValence(DiracSpinor &psi_v, int num_its,
                                              bool core_only) const
-/*
-Force given valence orbital to be orthogonal to
-  a) all core orbitals
-  b) all _lower_ valence orbitals (lower, by state index)
-After the core is 'frozen', don't touch core orbitals!
-|v> --> |v> - sum_c |c><c|v>
-note: here, c denotes core orbitals + valence orbitals with c<v
-if core_only=true, will only orthog phi_v against core orbitals
-(only need to do this part before generating exchange potential!)
-NB: Is it ok that this is const? Not sure... it's strange way to do it?....
-*/
+// Force given valence orbital to be orthogonal to
+//   a) all core orbitals
+//   b) all _lower_ valence orbitals (lower, by state index)
+// After the core is 'frozen', don't touch core orbitals!
+// |v> --> |v> - sum_c |c><c|v>
+// note: here, c denotes core orbitals + valence orbitals with c<v
+// if core_only=true, will only orthog phi_v against core orbitals
+// (only need to do this part before generating exchange potential!)
+// NB: Is it ok that this is const? Not sure... it's strange way to do it?....
 {
   const auto num_states_below =
       core_only ? coreIndexList.size() : getStateIndex(psi_v.n, psi_v.k);
@@ -515,12 +515,10 @@ NB: Is it ok that this is const? Not sure... it's strange way to do it?....
 
 //******************************************************************************
 double ElectronOrbitals::enGuessCore(int n, int l) const
-/*
-Private
-Energy guess for core states. Not perfect, good enough
-tot_el = total electrons BELOW
-num = num electrons in THIS shell
-*/
+// Private
+// Energy guess for core states. Not perfect, good enough
+// tot_el = total electrons BELOW
+// num = num electrons in THIS shell
 {
 
   int tot_el = 0;
@@ -534,24 +532,28 @@ num = num electrons in THIS shell
   }
 
   // effective Z (for energy guess) -- not perfect!
-  double Zeff = double(m_Z - tot_el - num);
-  if (l == 1)
-    Zeff = 1. + double(m_Z - tot_el - 0.5 * num);
-  if (l == 2)
-    Zeff = 1. + double(m_Z - tot_el - 0.5 * num);
-  if (Zeff < 1.)
+  double Zeff = (m_Z - tot_el - num);
+  if (l == 1) {
+    Zeff = 1. + (m_Z - tot_el - 0.5 * num);
+  } else if (l == 2) {
+    Zeff = 1. + (m_Z - tot_el - 0.5 * num);
+  }
+  if (Zeff < 1.) {
     Zeff = 1.;
+  }
 
   double en_a = -0.5 * pow(Zeff / n, 2);
-  if (n > 1)
+  if (n > 1) {
     en_a *= 0.5;
+  }
 
-  if (n == maxCore_n() - 1)
+  if (n == maxCore_n() - 1) {
     en_a *= 1.25;
-  if (n == maxCore_n())
+  } else if (n == maxCore_n()) {
     en_a *= 1.5;
-  if (n == maxCore_n() + 1 && l == 0 && num == 2)
+  } else if (n == maxCore_n() + 1 && l == 0 && num == 2) {
     en_a = -0.5 * pow(Zeff, 2);
+  }
 
   return en_a;
 }
@@ -603,20 +605,19 @@ void ElectronOrbitals::formNuclearPotential(NucleusType nucleus_type, double rc,
 }
 
 //------------------------------------------------------------------------------
-void ElectronOrbitals::sortedEnergyList(std::vector<int> &sort_list,
-                                        bool do_sort) const
-/*
-Outouts a list of integers corresponding to the states
-sorted by energy (lowest energy first)
-*/
+std::vector<int> ElectronOrbitals::sortedEnergyList(bool do_sort) const
+// Outouts a list of integers corresponding to the states
+// sorted by energy (lowest energy first)
 {
 
-  sort_list.clear();
+  // sort_list.clear();
+  std::vector<int> sort_list;
 
   if (!do_sort) {
-    for (std::size_t i = 0; i < orbitals.size(); i++)
+    for (std::size_t i = 0; i < orbitals.size(); i++) {
       sort_list.push_back((int)i);
-    return;
+    }
+    return sort_list;
   }
 
   std::vector<std::vector<double>> t_en;
@@ -625,15 +626,15 @@ sorted by energy (lowest energy first)
     //+0.1 to prevent rounding error when going from double -> int
   }
 
-  // Function pointer: sort 2D vector by first col!
-  bool (*sortCol)(const std::vector<double> &v1,
-                  const std::vector<double> &v2) =
-      [](const std::vector<double> &v1, const std::vector<double> &v2) {
-        return v1[0] > v2[0];
-      };
+  // Function pointer: sort 2D vector by first col
+  auto sortCol = [](const std::vector<double> &v1,
+                    const std::vector<double> &v2) { return v1[0] > v2[0]; };
 
   std::sort(t_en.rbegin(), t_en.rend(), sortCol);
 
-  for (std::size_t i = 0; i < orbitals.size(); i++)
+  for (std::size_t i = 0; i < orbitals.size(); i++) {
     sort_list.push_back((int)t_en[i][1]);
+  }
+
+  return sort_list;
 }

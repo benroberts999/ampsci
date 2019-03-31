@@ -29,6 +29,10 @@ namespace ADAMS {
 
 static const AdamsCoefs<AMO> AMcoef; // Adamns-Moulton coeficients
 
+// weighting function for meshing in/out solutions
+// nb: must be positive, but i may be negative (?) [ctp - d_ctp]
+static auto weight = [](int i) { return 1. / double(i * i + 1); };
+
 //******************************************************************************
 void solveDBS(DiracSpinor &psi, const std::vector<double> &v, const Grid &rgrid,
               const double alpha, int log_dele)
@@ -50,9 +54,9 @@ void solveDBS(DiracSpinor &psi, const std::vector<double> &v, const Grid &rgrid,
 // Rough description of method:
 // 1. Start with initial 'guess' of energy
 // 2. Find "practical infinity" (psi~0), and Classical turning point (e=v)
-// 3. Performs 'inward' integration (Adams Moulton). Integrates from the
-// practical
-//    infinity inwards to d_ctp points past the classical turning point (ctp).
+// 3. Performs 'inward' integration (Adams Moulton).
+//    Integrates inwards from the practical infinity inwards to d_ctp points
+//    past the classical turning point (ctp).
 // 4. Performs 'outward' integration (Adams Moulton). Integrates from 0
 //    outwards to d_ctp points past the ctp.
 // 5. Matches the two functions around ctp, by re-scaling the 'inward' solution
@@ -69,23 +73,23 @@ void solveDBS(DiracSpinor &psi, const std::vector<double> &v, const Grid &rgrid,
 //
 {
   // Parameters.
-  const int max_its = 99;       // Max # attempts at converging [sove bs] (30)
-  const double alr = 800;       // 'assymptotically large r [kinda..]' (=800)
-  const double lfrac_de = 0.12; // 'large' energy variations (0.1 => 10%)
-  const int d_ctp = 4;          // Num points past ctp +/- d_ctp.
+  static const int max_its = 99; // Max # attempts at converging [sove bs] (30)
+  static const double alr = 800; // 'assymptotically large r [kinda..]' (=800)
+  static const double lfrac_de = 0.12; // 'large' energy variations (0.1 => 10%)
+  static const int d_ctp = 4;          // Num points past ctp +/- d_ctp.
 
   // Convergance goal. Default: 1e-14
-  const double eps_goal = (log_dele > 0) ? pow(10, -log_dele) : 1e-14;
+  const double eps_goal = (log_dele > 0) ? pow(10, -log_dele) : 1.e-14;
 
-  DEBUG( // Checks to see if legal n is requested.
-      if (!(abs(psi.k) <= psi.n && psi.k != psi.n)) {
-        std::cerr << "\nFail96 in Adams: bad state " << psi.symbol() << "\n";
-        return;
-      })
+  DEBUG(if (!(abs(psi.k) <= psi.n && psi.k != psi.n)) {
+    std::cerr << "\nFail96 in Adams: bad state " << psi.symbol() << "\n";
+    return;
+  })
 
-  DEBUG(std::cerr << "Start: " << psi.symbol() << ", en=" << t_en << "\n";)
+  DEBUG(std::cerr << "Start: " << psi.symbol() << ", en=" << psi.en << "\n";)
 
-  const int required_nodes = psi.n - ATI::l_k(psi.k) - 1;
+  // orbital should have (n-l-1) nodes:
+  const int required_nodes = psi.n - psi.l() - 1;
   bool correct_nodes = false;
   // Number of times there was too many/too few nodes:
   int count_toomany = 0, count_toofew = 0;
@@ -100,7 +104,7 @@ void solveDBS(DiracSpinor &psi, const std::vector<double> &v, const Grid &rgrid,
   int t_its = 1;
   for (; t_its < max_its; ++t_its) {
     t_pinf = findPracticalInfinity(t_en, v, rgrid.r, alr);
-    int ctp = findClassicalTurningPoint(t_en, v, t_pinf, d_ctp);
+    const int ctp = findClassicalTurningPoint(t_en, v, t_pinf, d_ctp);
 
     // Find solution (f,g) to DE for given energy:
     // Also stores dg (gout-gin) for PT [used for PT to find better e]
@@ -108,7 +112,7 @@ void solveDBS(DiracSpinor &psi, const std::vector<double> &v, const Grid &rgrid,
     trialDiracSolution(psi.f, psi.g, dg, t_en, psi.k, v, rgrid, ctp, d_ctp,
                        t_pinf, alpha);
 
-    int counted_nodes = countNodes(psi.f, t_pinf);
+    const int counted_nodes = countNodes(psi.f, t_pinf);
 
     // If correct number of nodes, use PT to make minor energy adjustment.
     // Otherwise, make large adjustmunt until correct # of nodes
@@ -140,7 +144,7 @@ void solveDBS(DiracSpinor &psi, const std::vector<double> &v, const Grid &rgrid,
   // a few count_toomany HF iterations..If we don't norm wf, HF will fail.
   if (!correct_nodes) {
     anorm = calcNorm(psi.f, psi.g, rgrid.drdu, rgrid.du, t_pinf);
-    DEBUG(std::cerr << "\nFAIL-148: wrong nodes:" << countNodes(f, t_pinf)
+    DEBUG(std::cerr << "\nFAIL-148: wrong nodes:" << countNodes(psi.f, t_pinf)
                     << "/" << required_nodes << " for " << psi.symbol()
                     << "\n";)
   }
@@ -152,7 +156,7 @@ void solveDBS(DiracSpinor &psi, const std::vector<double> &v, const Grid &rgrid,
   psi.its = t_its;
 
   // normalises the orbital (and zero's after pinf)
-  double an = 1. / sqrt(anorm);
+  const double an = 1. / sqrt(anorm);
   for (auto i = 0ul; i < psi.pinf; i++) {
     psi.f[i] = an * psi.f[i];
     psi.g[i] = an * psi.g[i];
@@ -205,16 +209,16 @@ double smallEnergyChangePT(const double en, const double anorm,
                            const std::vector<double> &f,
                            const std::vector<double> &dg, int ctp, int d_ctp,
                            double alpha, int count_toofew, int count_toomany,
-                           double low_en, double high_en) {
-
-  // delta E = c*P(r)*[Qin(r)-Qout(r)] - evaluate at ctp
-  // nb: wf not yet normalised!
+                           double low_en, double high_en)
+// delta E = c*f(r)*[g_out(r)-g_in(r)] - evaluate at ctp
+// nb: wf not yet normalised (anorm is input param)!
+{
   double p_del_q = f[ctp] * dg[d_ctp];
   double denom = 1.;
 
   // weighted average around ctp:
   for (int i = 1; i <= d_ctp; i++) {
-    double w = 1. / (i * i + 1);
+    auto w = weight(i);
     p_del_q +=
         0.5 * (f[ctp + i] * dg[d_ctp + i] + f[ctp - i] * dg[d_ctp - i]) * w;
     denom += w;
@@ -251,7 +255,7 @@ int findPracticalInfinity(const double en, const std::vector<double> &v,
   while ((en - v[pinf]) * r[pinf] * r[pinf] + alr < 0) {
     --pinf;
     DEBUG(if (pinf == 0) {
-      std::cerr << "Fail290 in EO: pinf undeflowed?\n";
+      std::cerr << "Fail290 in EO: pinf underflowed?\n";
       std::cin.get();
     })
   }
@@ -272,17 +276,16 @@ int findClassicalTurningPoint(const double en, const std::vector<double> &v,
 }
 
 //******************************************************************************
-int countNodes(const std::vector<double> &f, const int maxi) {
+int countNodes(const std::vector<double> &f, const int pinf)
+// Just counts the number of times orbital (f) changes sign
+{
   double sp = f[1];
-  double spn;
   int counted_nodes = 0;
-  // Just counts the number of times orbital (f) changes sign
-  for (int i = 2; i < maxi; ++i) {
-    spn = f[i];
-    if (sp * spn < 0)
+  for (int i = 2; i < pinf; ++i) {
+    if (sp * f[i] < 0) { // ok if f[i]==0 ?? (-0<0?) XXX
       ++counted_nodes;
-    if (spn != 0)
-      sp = spn;
+      sp = f[i];
+    }
   }
   return counted_nodes;
 }
@@ -294,8 +297,8 @@ void trialDiracSolution(std::vector<double> &f, std::vector<double> &g,
                         const int ctp, const int d_ctp, const int pinf,
                         const double alpha)
 // Performs inward (from pinf) and outward (from r0) integrations for given
-// energy. Intergated in/out towards ctp +/ d_ctp [class. turn. point]
-// Then, joins solutions, including weighted meshing b'ween ctp +/ d_ctp
+// energy. Intergated in/out towards ctp +/- d_ctp [class. turn. point]
+// Then, joins solutions, including weighted meshing around ctp +/ d_ctp
 // Also: stores dg [the difference: (gout-gin)], which is used for PT
 {
   outwardAM(f, g, en, v, ka, gr.r, gr.drdu, gr.du, ctp + d_ctp, alpha);
@@ -311,12 +314,13 @@ void joinInOutSolutions(std::vector<double> &f, std::vector<double> &g,
                         const std::vector<double> &f_in,
                         const std::vector<double> &g_in, const int ctp,
                         const int d_ctp, const int pinf) {
+
   // Find the re-scaling factor (for inward soln)
   // Average of points ctp+/-d_ctp [using a weighted average]
   double rescale = f[ctp] / f_in[ctp];
   double denom = 1;
   for (int i = 1; i <= d_ctp; i++) {
-    double w = 1. / (i * i + 1.);
+    auto w = weight(i);
     rescale +=
         0.5 * (f[ctp + i] / f_in[ctp + i] + f[ctp - i] / f_in[ctp - i]) * w;
     denom += w;
@@ -332,12 +336,10 @@ void joinInOutSolutions(std::vector<double> &f, std::vector<double> &g,
   // Join the in and outward solutions. "Meshed" around ctp +/- d_ctp
   for (int i = ctp - d_ctp; i <= ctp + d_ctp; i++) {
     //"Mesh" in the intermediate region, using weighted av.
-    double B = 1. / ((i - ctp) * (i - ctp) + 1);
-    if (i - ctp > 0)
-      B = 1. - B;
-    double A = 1. - B;
-    f[i] = A * f[i] + B * f_in[i] * rescale;
-    g[i] = A * g[i] + B * g_in[i] * rescale;
+    auto b = (i - ctp > 0) ? 1. - weight(i - ctp) : weight(i - ctp);
+    auto a = 1. - b;
+    f[i] = a * f[i] + b * f_in[i] * rescale;
+    g[i] = a * g[i] + b * g_in[i] * rescale;
   }
   for (int i = ctp + d_ctp + 1; i <= pinf; i++) {
     f[i] = f_in[i] * rescale;
@@ -375,7 +377,7 @@ void outwardAM(std::vector<double> &f, std::vector<double> &g, const double en,
   for (int ln = 0; ln < NOL; ln++) {
     int i0 = ln * AMO + 1;
 
-    // defines/populates em coefs
+    // defines/populates em expansion coeficients (then inverts)
     std::array<double, AMO> coefa, coefb, coefc, coefd;
     Matrix::SqMatrix em(AMO);
     const auto oid_du = AMcoef.OId * du;
@@ -505,10 +507,12 @@ void inwardAM(std::vector<double> &f, std::vector<double> &g, const double en,
       if (xe < NXEPSP)
         break;
     }
-    DEBUG(double nxepss = 1.e-3;
-          if (xe > nxepss) std::cerr
-          << "WARNING: Asymp. expansion in inwardAM didn't converge: " << i
-          << " " << xe << "\n";)
+    DEBUG({
+      const double nxepss = 1.e-3;
+      if (xe > nxepss)
+        std::cerr << "WARNING: Asymp. expansion in inwardAM didn't converge: "
+                  << i << " " << xe << "\n";
+    })
     f[i] = rfac * (f1 * ps + f2 * qs);
     g[i] = rfac * (f1 * qs - f2 * ps);
   }

@@ -98,7 +98,8 @@ int ContinuumOrbitals::solveLocalContinuum(double ec, int min_l, int max_l)
   auto NGPc = NGPb;
 
   // Fill (extend) the temporary grid:
-  double last_r = r[NGPb - 1];
+  // double last_r = r[NGPb - 1];
+  auto last_r = r.back();
   auto i_asym = NGPb - 1;
   while (last_r < 1.2 * r_asym) {
     double r_new = last_r + h;
@@ -112,19 +113,18 @@ int ContinuumOrbitals::solveLocalContinuum(double ec, int min_l, int max_l)
     last_r = r_new;
   }
 
-  int MAX_STATES = 100;
-  for (int i = 0; i < MAX_STATES; i++) { // loop through each k state
-    int k = int(pow(-1, i + 1) * ceil(0.5 * (i + 1)));
-    int l = (abs(2 * k + 1) - 1) / 2;
+  for (int i = 0; true; ++i) { // loop through each k state
+    auto k = ATI::kappaFromIndex(i);
+    auto l = ATI::l_k(k);
     if (l < min_l)
       continue;
     if (l > max_l)
       break;
-    std::vector<double> pc(NGPb), qc(NGPb); // only as long as bound-state grid
-    ADAMS::solveContinuum(pc, qc, ec, vc, k, rc, drdtc, h, NGPb, NGPc, i_asym,
+    std::vector<double> fc(NGPb), gc(NGPb); // only as long as bound-state grid
+    ADAMS::solveContinuum(fc, gc, ec, vc, k, rc, drdtc, h, NGPb, NGPc, i_asym,
                           alpha);
-    f.push_back(pc);
-    g.push_back(qc);
+    f.push_back(fc);
+    g.push_back(gc);
     en.push_back(ec);
     kappa.push_back(k);
   }
@@ -209,9 +209,7 @@ int ContinuumOrbitals::solveLocalContinuum(double ec, int min_l, int max_l)
 // }
 
 //******************************************************************************
-void ContinuumOrbitals::clear()
-/**/
-{
+void ContinuumOrbitals::clear() {
   f.clear();
   g.clear();
   en.clear();

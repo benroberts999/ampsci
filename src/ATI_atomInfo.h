@@ -13,6 +13,8 @@ namespace ATI {
 // Note: array index matches Z, so first entry is blank.
 // Goes up to E120 (Z=120)
 // static const int
+// XXX Make this a pair? Or a struct? (then, can put other default nuclear
+// defaults inside as well!)
 static const std::size_t MAX_Z = 121;
 static const std::array<int, MAX_Z> A = {
     0,   1,   4,   7,   9,   11,  12,  14,  16,  19,  20,  23,  24,  27,
@@ -75,7 +77,6 @@ inline std::string l_symbol(int l) {
 }
 
 inline int symbol_to_l(const std::string &l_str) {
-  // const char?
   for (int i = 0; i < (int)spectroscopic_notation.length(); i++) {
     if (spectroscopic_notation.substr(i, 1) == l_str)
       return i;
@@ -106,15 +107,25 @@ constexpr int l_tilde_k(int ka) {
 constexpr int kappa_twojl(int twoj, int l) {
   return ((2 * l - twoj) * (twoj + 1)) / 2;
 }
-
+//******************************************************************************
+//    Kappa Index:
+// For easy array access, define 1-to-1 index for each kappa:
+// kappa: -1  1 -2  2 -3  3 -4  4 ...
+// index:  0  1  2  3  4  5  6  7 ...
+// kappa(i) = (-1,i+1)*(int(i/2)+1)
 constexpr int indexFromKappa(int ka) {
   return (ka < 0) ? -2 * ka - 2 : 2 * ka - 1;
 }
 constexpr int kappaFromIndex(int i) {
   return (i % 2 == 0) ? -(i + 2) / 2 : (i + 1) / 2;
 }
+constexpr int twojFromIndex(int i) { return (i % 2 == 0) ? i + 1 : i; }
+constexpr int lFromIndex(int i) { return (i % 2 == 0) ? i / 2 : (i + 1) / 2; }
+//******************************************************************************
 
 // XXX This is a bad/limiting solution:
+// two issues: a) retrive (n,l) from index
+// b) parsing the input string [not big deal, n typically <7]
 const std::array<int, 45> core_n = {
     1, 2, 2, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 7, 7,
     7, 7, 7, 7, 7, 8, 8, 8, 8, 8, 8, 8, 8, 9, 9, 9, 9, 9, 9, 9, 9, 9};
