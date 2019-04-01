@@ -2,6 +2,7 @@
 #include "ChronoTimer.h"
 #include "ElectronOrbitals.h"
 #include "FPC_physicalConstants.h"
+#include "HartreeFockClass.h"
 #include "NumCalc_quadIntegrate.h"
 #include "PRM_parametricPotentials.h"
 #include <cmath>
@@ -20,7 +21,7 @@ int main(int argc, char *argv[]) {
   // bool sphere = true; // Finite nucleus? makes no difference??
 
   // Input parameters:
-  std::string Z_str;
+  std::string Z_str, str_core;
   int A;
   int ngp;
   double r0, rmax;
@@ -29,27 +30,29 @@ int main(int argc, char *argv[]) {
   std::vector<int> in_n, in_k;
   std::vector<double> in_en;
   std::ifstream ifile;
-  ifile.open("fitParametric.in"); // input file
+  ifile.open("fitParametric2.in"); // input file
   {
     std::string junk;
     ifile >> Z_str >> A;
+    getline(ifile, junk);
+    ifile >> str_core;
     getline(ifile, junk);
     ifile >> r0 >> rmax >> ngp;
     getline(ifile, junk);
     ifile >> igreen;
     getline(ifile, junk);
-    int nstates;
-    ifile >> nstates;
-    getline(ifile, junk);
-    for (int ns = 0; ns < nstates; ns++) {
-      int tn, tk;
-      double te;
-      ifile >> tn >> tk >> te;
-      getline(ifile, junk);
-      in_n.push_back(tn);
-      in_k.push_back(tk);
-      in_en.push_back(te);
-    }
+    // int nstates;
+    // ifile >> nstates;
+    // getline(ifile, junk);
+    // for (int ns = 0; ns < nstates; ns++) {
+    //   int tn, tk;
+    //   double te;
+    //   ifile >> tn >> tk >> te;
+    //   getline(ifile, junk);
+    //   in_n.push_back(tn);
+    //   in_k.push_back(tk);
+    //   in_en.push_back(te);
+    // }
   }
   ifile.close();
 
@@ -71,6 +74,19 @@ int main(int argc, char *argv[]) {
   printf("\n Finding best-fit parameters for %s potential, %s Z=%i\n",
          which.c_str(), Z_str.c_str(), Z);
   printf("*********************************************************\n");
+
+  ElectronOrbitals hfwf(Z, A, ngp, r0, rmax);
+  HartreeFock hf(hfwf, str_core, 1.e-6);
+  for (auto &phi : hfwf.orbitals) {
+    if (phi.k < 0 && phi.k != -1)
+      continue;
+    in_n.push_back(phi.n);
+    in_k.push_back(phi.k);
+    in_en.push_back(phi.en);
+  }
+
+  // std::vector<int> in_n, in_k;
+  // std::vector<double> in_en;
 
   double GHmin = 0.1, GHmax = 15.;
   double Gdmin = 0.05, Gdmax = 2.;
