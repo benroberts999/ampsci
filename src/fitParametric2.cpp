@@ -22,11 +22,11 @@ int main(int argc, char *argv[]) {
 
   // Input parameters:
   std::string Z_str, str_core;
+  int num_val, l_max; // valence states to calc
   int A;
   int ngp;
   double r0, rmax;
   int igreen;
-  double varalpha = 1.;
   std::vector<int> in_n, in_k;
   std::vector<double> in_en;
   std::ifstream ifile;
@@ -36,6 +36,8 @@ int main(int argc, char *argv[]) {
     ifile >> Z_str >> A;
     getline(ifile, junk);
     ifile >> str_core;
+    getline(ifile, junk);
+    ifile >> num_val >> l_max;
     getline(ifile, junk);
     ifile >> r0 >> rmax >> ngp;
     getline(ifile, junk);
@@ -56,6 +58,10 @@ int main(int argc, char *argv[]) {
   }
   ifile.close();
 
+  bool do_HF = true;
+  if (str_core == "na")
+    do_HF = false;
+
   int Z = ATI::get_z(Z_str);
   if (Z == 0)
     return 2;
@@ -75,21 +81,52 @@ int main(int argc, char *argv[]) {
          which.c_str(), Z_str.c_str(), Z);
   printf("*********************************************************\n");
 
-  ElectronOrbitals hfwf(Z, A, ngp, r0, rmax);
-  HartreeFock hf(hfwf, str_core, 1.e-6);
-  for (auto &phi : hfwf.orbitals) {
-    if (phi.k < 0 && phi.k != -1)
-      continue;
-    in_n.push_back(phi.n);
-    in_k.push_back(phi.k);
-    in_en.push_back(phi.en);
+  if (do_HF) {
+    ElectronOrbitals hfwf(Z, A, ngp, r0, rmax);
+    HartreeFock hf(hfwf, str_core, 1.e-6);
+    // for (auto &phi : hfwf.orbitals) {
+    //   if (phi.k < 0 && phi.k != -1)
+    //     continue;
+    //   in_n.push_back(phi.n);
+    //   in_k.push_back(phi.k);
+    //   in_en.push_back(phi.en);
+    // }
+
+    // Create list of valence states to solve for
+    // Solves for lowest num_val states with given l
+    std::vector<std::vector<int>> lst;
+    if ((int)hfwf.Ncore() >= hfwf.Znuc())
+      num_val = 0;
+    for (int l = 0; l <= l_max; l++) {
+      int n0 = hfwf.maxCore_n(l) + 1;
+      if (n0 == 1)
+        n0 += l;
+      for (int nv = 0; nv < num_val; nv++) {
+        for (int tk = 0; tk < 2; tk++) {     // loop over k
+          int ka = (tk == 0) ? l : -(l + 1); // kappa
+          if (ka == 0)
+            continue; // no j=l-1/2 for l=s
+          lst.push_back({n0 + nv, ka});
+        }
+      }
+    }
+    for (const auto &nk : lst) {
+      int n = nk[0];
+      int k = nk[1];
+      hf.solveValence(n, k);
+    }
+
+    for (auto &phi : hfwf.orbitals) {
+      if (phi.k < 0 && phi.k != -1)
+        continue;
+      in_n.push_back(phi.n);
+      in_k.push_back(phi.k);
+      in_en.push_back(phi.en);
+    }
   }
 
-  // std::vector<int> in_n, in_k;
-  // std::vector<double> in_en;
-
-  double GHmin = 0.1, GHmax = 15.;
-  double Gdmin = 0.05, Gdmax = 2.;
+  double GHmin = 0.05, GHmax = 15.;
+  double Gdmin = 0.01, Gdmax = 5.;
 
   double Hmin = GHmin, Hmax = GHmax;
   double dmin = Gdmin, dmax = Gdmax;
@@ -109,7 +146,7 @@ int main(int argc, char *argv[]) {
       double H = Hmin + n * dH;
       for (int m = 0; m < n_array; m++) {
         double d = dmin + m * dd;
-        ElectronOrbitals wf(Z, A, ngp, r0, rmax, varalpha);
+        ElectronOrbitals wf(Z, A, ngp, r0, rmax);
         // if (sphere)
         // wf.formNuclearPotential(NucleusType::spherical);
         if (green)
@@ -172,7 +209,7 @@ int main(int argc, char *argv[]) {
     printf("Tietz: \n  t=%7.5f  g=%7.5f\n\n", H, d);
 
   // Now, solve using the above-found best-fit parameters:
-  ElectronOrbitals wf(Z, A, ngp, r0, rmax, varalpha);
+  ElectronOrbitals wf(Z, A, ngp, r0, rmax);
   //  if (sphere)
   //    wf.formNuclearPotential(NucleusType::spherical);
   if (green)
@@ -192,7 +229,7 @@ int main(int argc, char *argv[]) {
     double rinf = wf.rinf(phi);
     double eni = phi.en;
     double enT = in_en[i++];
-    printf("%7s %2i  %3.0f %3i  %5.0e  %.15f  %13.7f  %9.4f%%\n", njl, phi.k,
+    printf("%7s %2i  %3.0f %3i  %5.0e  %10.4f  %13.3f  %8.2f%%\n", njl, phi.k,
            rinf, phi.its, wf.orbitals[i].eps, eni,
            (eni - en0) * FPC::Hartree_invcm, 100. * (enT - eni) / enT);
   }
