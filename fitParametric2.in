@@ -1,8 +1,8 @@
 Cs -1              ! Z, A(=-1 for default; =0 for 0-nucleus)
-[Xe]               ! Core (for HF). Put 'na' to not run HF
-2 1                ! number of HF valence states for each l (and l)
+[Xe]                   ! Core (for HF). Put 'na' to not run HF
 1.e-5 150. 1600    ! r0, rmax, num_points
 0                  ! green(0) or tietz(1)
+0 1                ! number of HF valence states for each l (and l)
 11                 ! num_states (each state on following line):
 1 -1 -1277.27
 2 -1 -202.46
