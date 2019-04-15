@@ -31,11 +31,12 @@ double tietz(int Z, double r, double t, double g)
 
 //******************************************************************************
 int defaultGreenCore(int z, double &H, double &d)
-// Fitted to match HF energies - aid convergance!
+// Fitted to match HF core energies - aid convergance!
 {
   double zHd[18][3] = {{2, 5.74134, 1.79658},
-                       {3, 1.53157, 1.28991},
-                       {5, 2.87763, 2},
+                       {3, 3.248, 2.518},
+                       // {5, 2.87763, 2},
+                       {5, 6.812, 4.535},
                        {11, 1.49089, 0.62143},
                        {13, 9.837, 2.99813},
                        {19, 5.55771, 1.65891},
