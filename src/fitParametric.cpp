@@ -2,56 +2,73 @@
 #include "ChronoTimer.h"
 #include "ElectronOrbitals.h"
 #include "FPC_physicalConstants.h"
+#include "FileIO_fileReadWrite.h"
+
+#include "HartreeFockClass.h"
 #include "NumCalc_quadIntegrate.h"
 #include "PRM_parametricPotentials.h"
 #include <cmath>
 #include <fstream>
 #include <iostream>
+#include <tuple>
 /*
 Finds the best-fit parameter values for the Green or Tietz potentials
 */
 
+struct nken {
+  int n;
+  int k;
+  double en;
+  nken(int in_n, int in_k, double in_en) : n(in_n), k(in_k), en(in_en){};
+  nken(){};
+};
+
+std::tuple<double, double> performFit(const std::vector<nken> &states, int Z,
+                                      int A, int ngp, double r0, double rmax,
+                                      bool green, bool fit_worst);
+
+//******************************************************************************
 int main(int argc, char *argv[]) {
   ChronoTimer sw; // start the overall timer
 
   std::string input_file = (argc > 1) ? argv[1] : "fitParametric.in";
   std::cout << "Reading input from: " << input_file << "\n";
 
-  // bool sphere = true; // Finite nucleus? makes no difference??
-
   // Input parameters:
-  std::string Z_str;
+  std::string Z_str, str_core;
   int A;
   int ngp;
   double r0, rmax;
   int igreen;
-  double varalpha = 1.;
-  std::vector<int> in_n, in_k;
-  std::vector<double> in_en;
-  std::ifstream ifile;
-  ifile.open("fitParametric.in"); // input file
+  std::vector<nken> states;
+  std::vector<nken> val_states;
+  bool fit_worst;
+
+  auto in_str_list = FileIO::readInputFile_byEntry(input_file);
   {
-    std::string junk;
-    ifile >> Z_str >> A;
-    getline(ifile, junk);
-    ifile >> r0 >> rmax >> ngp;
-    getline(ifile, junk);
-    ifile >> igreen;
-    getline(ifile, junk);
-    int nstates;
-    ifile >> nstates;
-    getline(ifile, junk);
-    for (int ns = 0; ns < nstates; ns++) {
-      int tn, tk;
-      double te;
-      ifile >> tn >> tk >> te;
-      getline(ifile, junk);
-      in_n.push_back(tn);
-      in_k.push_back(tk);
-      in_en.push_back(te);
+    int fit_type;
+    auto tp = std::forward_as_tuple(Z_str, A, str_core, r0, rmax, ngp, igreen,
+                                    fit_type);
+    FileIO::stringstreamVectorIntoTuple(in_str_list, tp);
+    fit_worst = (fit_type == 0) ? true : false;
+
+    auto n_els = std::tuple_size<decltype(tp)>::value; // fuck you c++
+    auto n_val_els = in_str_list.size() - n_els;
+    if (n_val_els % 3 != 0)
+      std::cout << "Error with valence input. Wrong number of input elements\n";
+    for (std::size_t i = n_els; i < in_str_list.size(); i += 3) {
+      auto tv = std::vector<std::string>(in_str_list.begin() + i,
+                                         in_str_list.begin() + i + 3);
+      nken tmp;
+      auto tp2 = std::forward_as_tuple(tmp.n, tmp.k, tmp.en);
+      FileIO::stringstreamVectorIntoTuple(tv, tp2);
+      val_states.push_back(tmp);
     }
   }
-  ifile.close();
+
+  bool do_HF = true;
+  if (str_core == "na")
+    do_HF = false;
 
   int Z = ATI::get_z(Z_str);
   if (Z == 0)
@@ -64,16 +81,125 @@ int main(int argc, char *argv[]) {
     which = "Tietz";
   }
 
-  // convergence parameters for finding best-fit H and d (or t and g)
-  double eps = 1.e-5;
-  int max_its = 100;
-
   printf("\n Finding best-fit parameters for %s potential, %s Z=%i\n",
          which.c_str(), Z_str.c_str(), Z);
-  printf("*********************************************************\n");
+  std::cout << "*********************************************************\n";
 
-  double GHmin = 0.1, GHmax = 15.;
-  double Gdmin = 0.05, Gdmax = 2.;
+  if (do_HF) {
+    ElectronOrbitals hfwf(Z, A, ngp, r0, rmax);
+    HartreeFock hf(hfwf, str_core, 1.e-9);
+    for (auto &phi : hfwf.orbitals) {
+      // // don't fit for both j=l+/-1/2, just one!
+      // if (phi.k < 0 && phi.k != -1)
+      //   continue;
+      states.emplace_back(phi.n, phi.k, phi.en);
+    }
+  }
+
+  if (states.size() > 0) {
+    double H, d;
+    std::tie(H, d) = performFit(states, Z, A, ngp, r0, rmax, green, fit_worst);
+
+    std::cout << "\nBest fit parameters (core) for ";
+    if (green)
+      printf("Green: \n  H=%7.5f  d=%7.5f\n\n", H, d);
+    else
+      printf("Tietz: \n  t=%7.5f  g=%7.5f\n\n", H, d);
+
+    // Now, solve using the above-found best-fit parameters:
+    ElectronOrbitals wf(Z, A, ngp, r0, rmax);
+    if (green)
+      for (auto r : wf.rgrid.r)
+        wf.vdir.push_back(PRM::green(Z, r, H, d));
+    else
+      for (auto r : wf.rgrid.r)
+        wf.vdir.push_back(PRM::tietz(Z, r, H, d));
+    for (auto &nk : states) {
+      wf.solveLocalDirac(nk.n, nk.k, nk.en);
+    }
+
+    printf(" nl_j    k  Rinf its   eps     En (au)    \n");
+    // double en0 = wf.orbitals.front().en;
+    int i = 0;
+    for (auto &phi : wf.orbitals) {
+      auto njl = phi.symbol().c_str();
+      double rinf = wf.rinf(phi);
+      double eni = phi.en;
+      double enT = states[i++].en;
+      printf("%7s %2i  %3.0f %3i  %5.0e  %10.4f  %8.2f%%\n", njl, phi.k, rinf,
+             phi.its, phi.eps, eni, 100. * (enT - eni) / enT);
+    }
+
+    printf("\nCore: {%i, %.3f, %.3f}\n", Z, H, d);
+  }
+
+  if (val_states.size() > 0) {
+    std::cout << "\n";
+    double H, d;
+    std::tie(H, d) =
+        performFit(val_states, Z, A, ngp, r0, rmax, green, fit_worst);
+
+    std::cout << "\nBest fit parameters (valence) for ";
+    if (green)
+      printf("Green: \n  H=%7.5f  d=%7.5f\n\n", H, d);
+    else
+      printf("Tietz: \n  t=%7.5f  g=%7.5f\n\n", H, d);
+
+    // Now, solve using the above-found best-fit parameters:
+    ElectronOrbitals wf(Z, A, ngp, r0, rmax);
+    if (green)
+      for (auto r : wf.rgrid.r)
+        wf.vdir.push_back(PRM::green(Z, r, H, d));
+    else
+      for (auto r : wf.rgrid.r)
+        wf.vdir.push_back(PRM::tietz(Z, r, H, d));
+    for (auto &nk : val_states) {
+      wf.solveLocalDirac(nk.n, nk.k, nk.en);
+    }
+
+    printf(" nl_j    k  Rinf its   eps     En (au)        En (/cm)\n");
+    double en0 = wf.orbitals.front().en;
+    int i = 0;
+    for (auto &phi : wf.orbitals) {
+      auto njl = phi.symbol().c_str();
+      double rinf = wf.rinf(phi);
+      double eni = phi.en;
+      double enT = val_states[i++].en;
+      printf("%7s %2i  %3.0f %3i  %5.0e  %13.7f  %11.4f %8.2f%%\n", njl, phi.k,
+             rinf, phi.its, phi.eps, eni, (eni - en0) * FPC::Hartree_invcm,
+             100. * (enT - eni) / enT);
+    }
+
+    printf("\nValence: {%i, %.3f, %.3f}\n", Z, H, d);
+  }
+
+  std::cout << "\nTime: " << sw.reading_str() << "\n";
+
+  return 0;
+}
+
+//******************************************************************************
+std::tuple<double, double> performFit(const std::vector<nken> &states, int Z,
+                                      int A, int ngp, double r0, double rmax,
+                                      bool green, bool fit_worst) {
+
+  std::cout << "Performing fit (for ";
+  if (green)
+    std::cout << "Green ";
+  else
+    std::cout << "Teitz ";
+  std::cout << "potential).\n";
+  if (fit_worst)
+    std::cout << "Fitting for worst state.\n";
+  else
+    std::cout << "Fitting by sum of (relative) squares.\n";
+
+  // convergence parameters for finding best-fit H and d (or t and g)
+  double eps = 1.e-6;
+  int max_its = 100;
+
+  double GHmin = 0.05, GHmax = 15.;
+  double Gdmin = 0.01, Gdmax = 5.;
 
   double Hmin = GHmin, Hmax = GHmax;
   double dmin = Gdmin, dmax = Gdmax;
@@ -93,19 +219,32 @@ int main(int argc, char *argv[]) {
       double H = Hmin + n * dH;
       for (int m = 0; m < n_array; m++) {
         double d = dmin + m * dd;
-        ElectronOrbitals wf(Z, A, ngp, r0, rmax, varalpha);
-        // if (sphere)
-        // wf.formNuclearPotential(NucleusType::spherical);
+        ElectronOrbitals wf(Z, A, ngp, r0, rmax);
         if (green)
           for (auto r : wf.rgrid.r)
             wf.vdir.push_back(PRM::green(Z, r, H, d));
         else
           for (auto r : wf.rgrid.r)
             wf.vdir.push_back(PRM::tietz(Z, r, H, d));
+        // fits for the worst state
         double fx = 0;
-        for (std::size_t ns = 0; ns < in_n.size(); ns++) {
-          wf.solveLocalDirac(in_n[ns], in_k[ns], in_en[ns]);
-          fx += pow((wf.orbitals[ns].en - in_en[ns]), 2);
+        if (fit_worst) {
+          for (std::size_t ns = 0; ns < states.size(); ns++) {
+            wf.solveLocalDirac(states[ns].n, states[ns].k, states[ns].en);
+            auto fx2 = fabs((wf.orbitals[ns].en - states[ns].en) /
+                            (wf.orbitals[ns].en + states[ns].en));
+            if (fx2 > fx)
+              fx = fx2;
+          }
+        } else {
+          // sum-of-squares
+          for (std::size_t ns = 0; ns < states.size(); ns++) {
+            wf.solveLocalDirac(states[ns].n, states[ns].k, states[ns].en);
+            // fx += pow(wf.orbitals[ns].en - states[ns].en, 2);
+            fx += pow((wf.orbitals[ns].en - states[ns].en) /
+                          (wf.orbitals[ns].en + states[ns].en),
+                      2);
+          }
         }
         array[n][m][0] = fx;
         array[n][m][1] = H;
@@ -147,43 +286,5 @@ int main(int argc, char *argv[]) {
       break;
   }
 
-  double H = best_H;
-  double d = best_d;
-  std::cout << "\nBest fit parameters for ";
-  if (green)
-    printf("Green: \n  H=%7.5f  d=%7.5f\n\n", H, d);
-  else
-    printf("Tietz: \n  t=%7.5f  g=%7.5f\n\n", H, d);
-
-  // Now, solve using the above-found best-fit parameters:
-  ElectronOrbitals wf(Z, A, ngp, r0, rmax, varalpha);
-  //  if (sphere)
-  //    wf.formNuclearPotential(NucleusType::spherical);
-  if (green)
-    for (auto r : wf.rgrid.r)
-      wf.vdir.push_back(PRM::green(Z, r, H, d));
-  else
-    for (auto r : wf.rgrid.r)
-      wf.vdir.push_back(PRM::tietz(Z, r, H, d));
-  for (std::size_t ns = 0; ns < in_n.size(); ns++)
-    wf.solveLocalDirac(in_n[ns], in_k[ns], in_en[ns]);
-
-  printf(" n l_j    k Rinf its  eps     En (au)            En (/cm)\n");
-  double en0 = wf.orbitals.front().en;
-  int i = 0;
-  for (auto &phi : wf.orbitals) {
-    auto njl = phi.symbol().c_str();
-    double rinf = wf.rinf(phi);
-    double eni = phi.en;
-    double enT = in_en[i++];
-    printf("%7s %2i  %3.0f %3i  %5.0e  %.15f  %13.7f  %9.4f%%\n", njl, phi.k,
-           rinf, phi.its, wf.orbitals[i].eps, eni,
-           (eni - en0) * FPC::Hartree_invcm, 100. * (enT - eni) / enT);
-  }
-
-  printf("{%i, %.3f, %.3f}\n", Z, H, d);
-
-  std::cout << "\nTime: " << sw.reading_str() << "\n";
-
-  return 0;
+  return std::make_tuple(best_H, best_d);
 }

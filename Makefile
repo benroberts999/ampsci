@@ -88,11 +88,7 @@ CNTM = $(addprefix $(OD)/, \
 $(XD)/h-like: $(BASE) $(OD)/h-like.o
 	$(LINK)
 
-$(XD)/fitParametric: $(BASE) $(OD)/fitParametric.o \
-$(OD)/PRM_parametricPotentials.o
-	$(LINK)
-
-$(XD)/fitParametric2: $(BASE) $(HF) $(OD)/fitParametric2.o \
+$(XD)/fitParametric: $(BASE) $(HF) $(OD)/fitParametric.o \
 $(OD)/PRM_parametricPotentials.o
 	$(LINK)
 

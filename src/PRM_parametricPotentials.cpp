@@ -8,10 +8,8 @@ namespace PRM {
 
 //******************************************************************************
 double green(int Z, double r, double H, double d)
-/*
-Have default H and d : scaled to fit Alkali atoms!
-Does not include nuclear part!
-*/
+// Have default H and d : scaled to fit Alkali atoms!
+// Does not include nuclear part!
 {
   if (r == 0)
     return 0;
@@ -21,10 +19,8 @@ Does not include nuclear part!
 
 //******************************************************************************
 double tietz(int Z, double r, double t, double g)
-/*
-TIETZ parametric potential
-Does NOT include nuclear potential
-*/
+// TIETZ parametric potential
+// Does NOT include nuclear potential
 {
   if (r == 0)
     return 0;
@@ -35,15 +31,12 @@ Does NOT include nuclear potential
 
 //******************************************************************************
 int defaultGreenCore(int z, double &H, double &d)
-/*
-Fits the highest few states in the core.
-Typically: highest one of s,p,d,f
-Fitted to match HF energies - aid convergance!
-*/
+// Fitted to match HF core energies - aid convergance!
 {
   double zHd[18][3] = {{2, 5.74134, 1.79658},
-                       {3, 1.53157, 1.28991},
-                       {5, 2.87763, 2},
+                       {3, 3.248, 2.518},
+                       // {5, 2.87763, 2},
+                       {5, 6.812, 4.535},
                        {11, 1.49089, 0.62143},
                        {13, 9.837, 2.99813},
                        {19, 5.55771, 1.65891},
@@ -53,11 +46,15 @@ Fitted to match HF energies - aid convergance!
                        {47, 1.95883, 0.52759},
                        {49, 3.363, 0.75499},
                        // {55, 5.49443, 1.10865},
-                       {55, 7.5, 1.48},
+                       // {55, 7.5, 1.48},
+                       {55, 5.772, 1.135},
+                       // {55, 5.958, 1.162},
+                       // {55, 4.369, 0.898},
                        {70, 5.25, 0.85},
                        {79, 4.45331, 0.73931},
                        {81, 4.7354, 0.7749},
-                       {87, 4.93797, 0.8122},
+                       // {87, 4.93797, 0.8122},
+                       {87, 6.173, 0.967},
                        {102, 4.33716, 0.67213},
                        {113, 5.10036, 0.75391}};
 
