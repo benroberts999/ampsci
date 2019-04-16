@@ -1,5 +1,7 @@
-B  -1              ! Z, A(=-1 for default; =0 for 0-nucleus)
-[He],2s2               ! Core (for HF). Put 'na' to not run HF
+Cs  -1             ! Z, A(=-1 for default; =0 for 0-nucleus)
+[Xe]               ! Core (for HF). Put 'na' to not run HF
 1.e-5 150. 1600    ! r0, rmax, num_points
-0                  ! green(0) or tietz(1)
+0  0               ! green(0) or tietz(1), fit-type (0=worst, 1=squares)
+# Valence list: n, k, energy. Put E=0 to use HF energy
+d
 ##################
