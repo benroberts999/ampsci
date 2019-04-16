@@ -37,7 +37,7 @@ LINK=$(CXX) -o $@ $^ $(CXXFLAGS) $(LIBS)
 #Allow exectuables to be placed in another directory:
 ALLEXES = $(addprefix $(XD)/, \
  h-like fitParametric parametricPotential atomicKernal \
- hartreeFock wigner dmeXSection fitParametric2 \
+ hartreeFock wigner dmeXSection \
 )
 
 #Default make rule:
@@ -88,11 +88,7 @@ CNTM = $(addprefix $(OD)/, \
 $(XD)/h-like: $(BASE) $(OD)/h-like.o
 	$(LINK)
 
-$(XD)/fitParametric: $(BASE) $(OD)/fitParametric.o \
-$(OD)/PRM_parametricPotentials.o
-	$(LINK)
-
-$(XD)/fitParametric2: $(BASE) $(HF) $(OD)/fitParametric2.o \
+$(XD)/fitParametric: $(BASE) $(HF) $(OD)/fitParametric.o \
 $(OD)/PRM_parametricPotentials.o
 	$(LINK)
 
