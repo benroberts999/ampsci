@@ -182,10 +182,8 @@ int main(int argc, char *argv[]) {
   bool testpnc = false;
   if (testpnc) {
     double t = 2.3;
-    double c = Nucleus::approximate_rc(wf.Anuc());
-
-    auto rho = Nucleus::fermiNuclearDensity(1, t, c, wf.rgrid);
-
+    double c = Nucleus::approximate_c_hdr(wf.Anuc());
+    auto rho = Nucleus::fermiNuclearDensity_tcN(t, c, 1, wf.rgrid);
     double Gf = FPC::GFe11;
     double Cc = (Gf / sqrt(8.)) * (-wf.Nnuc()); // Qw/(-N)
 

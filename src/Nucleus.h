@@ -1,7 +1,9 @@
+#pragma once
 #include "FPC_physicalConstants.h"
 #include "NumCalc_quadIntegrate.h"
 #include <cmath>
 #include <gsl/gsl_sf_fermi_dirac.h>
+#include <vector>
 class Grid;
 
 /*
@@ -12,40 +14,52 @@ e.g.: https://www-nds.iaea.org/radii/ (or Mathematrica?)
 namespace Nucleus {
 
 //******************************************************************************
-inline double approximate_rc(int A)
-// nb: returns in Fermi
-// approximate
-// formula for rN.
-// See: https://www-nds.iaea.org/radii/
-// [1] G. Fricke, C. Bernhardt, K. Heilig, L. A. Schaller, L. Schellenberg, E.
-// B. Shera, and C. W. Dejager, At. Data Nucl. Data Tables 60, 177 (1995).
-//  NOTE:
-// Difference between r_N and c? (half-density radius..)  NOTE: This is actually
-// root-mean-square radius. Not half-charge-density! XXX
+inline double approximate_r_rms(int A)
+// Returns approximate root-mean-square charge radius in fm [1.e-15 m]
+// https://www.sciencedirect.com/science/article/pii/S0092640X12000265
+// https://www-nds.iaea.org/radii/
+// Few light elements (H, He, Li) are hard-coded for common A
+// Also: Cs-133 is hard-coded.
 {
-
   double rN;
   if (A == 1)
-    rN = 0.8783; // 1-H
+    rN = 0.8791; // 1-H
   else if (A == 4)
-    rN = 1.6755; // 4-He
+    rN = 1.6757; // 4-He
   else if (A == 7)
-    rN = 2.4440; // 7-Li
+    rN = 2.4312; // 7-Li
   else if (A < 10)
     rN = 1.15 * pow(A, 0.333);
   else if (A == 133) // 133-Cs
-    rN = 5.6710; // this is half-density. all others are root-mean-square! XXX
+    rN = 4.8041;
   else
     rN = 0.836 * pow(A, 0.333) + 0.570;
 
-  return rN; // / FPC::aB_fm;
+  return rN;
+}
+
+//******************************************************************************
+inline double c_hdr_formula_rrms_t(double rrms, double t = 2.3)
+// Calculates half-density radius, given rms charge radius, and t.
+// Formula from Ginges, Volotka, Fritzsche, Phys. Rev. A 96, 1 (2017).
+// 4 ln(3) = 4.39445, pi^2 = 9.87
+{
+  double a = t / 4.39445;
+  return sqrt((5. / 3) * rrms * rrms - (7. / 3) * (9.87 * a * a));
+}
+
+//******************************************************************************
+inline double approximate_c_hdr(int A, double t = 2.3)
+// approximate formula for half-density radius (c) - used for Fermi distro
+// nb: returns in Fermi
+{
+  double r = approximate_r_rms(A);
+  return c_hdr_formula_rrms_t(r, t);
 }
 
 //******************************************************************************
 inline double approximate_t_skin(int)
-// /*
 // skin-thickness. Always same?
-// */
 {
   return 2.30;
 }
@@ -127,8 +141,8 @@ fermiNuclearPotential(double Z, double t, double c,
 } // namespace Nucleus
 
 //******************************************************************************
-inline std::vector<double> fermiNuclearDensity(double Z_norm, double t,
-                                               double c, const Grid &grid)
+inline std::vector<double>
+fermiNuclearDensity_tcN(double t, double c, double Z_norm, const Grid &grid)
 // Integrate[ rho(r) , dV ] = Integrate[ 4pi * r^2 * rho(r) , dr ] = Z_norm
 // Znorm = Z for nuclear chare density; Z_norm = 1 for nuclear density.
 {
@@ -139,18 +153,20 @@ inline std::vector<double> fermiNuclearDensity(double Z_norm, double t,
   double coa = c / a;
   for (auto r : grid.r) {
     double roa = FPC::aB_fm * r / a;
-    if (roa < 30. + coa)
+    if (roa < 30. + coa) {
       rho.emplace_back(1. / (1. + exp(roa - coa)));
-    else
+    } else {
       rho.push_back(0.);
+    }
   }
 
   double Norm =
       NumCalc::integrate(grid.r, grid.r, rho, grid.drdu, grid.du) * 4. * M_PI;
   double rho0 = Z_norm / Norm;
 
-  for (auto &rhoi : rho)
+  for (auto &rhoi : rho) {
     rhoi *= rho0;
+  }
 
   return rho;
 }

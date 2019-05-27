@@ -587,13 +587,12 @@ void ElectronOrbitals::formNuclearPotential(NucleusType nucleus_type, double rc,
     if (t == 0)
       t = Nucleus::approximate_t_skin(m_A);
     if (rc == 0)
-      rc = Nucleus::approximate_rc(m_A); // update?
-    // XXX rms and half-charge-density not the same! Fix XXX
+      rc = Nucleus::approximate_c_hdr(m_A);
     vnuc = Nucleus::fermiNuclearPotential(m_Z, t, rc, rgrid.r);
     break;
   case NucleusType::spherical:
     if (rc == 0)
-      rc = Nucleus::approximate_rc(m_A); // update?
+      rc = Nucleus::approximate_c_hdr(m_A); // update?
     vnuc = Nucleus::sphericalNuclearPotential(m_Z, rc, rgrid.r);
     break;
   case NucleusType::zero:
