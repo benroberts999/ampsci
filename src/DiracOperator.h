@@ -1,6 +1,6 @@
 #pragma once
 #include "DiracSpinor.h"
-// #include "Grid.h"
+#include "NumCalc_quadIntegrate.h"
 #include <vector>
 
 //******************************************************************************
@@ -132,11 +132,11 @@ private: // Data
 
 public:
   DiracSpinor operate(const DiracSpinor &phi) const {
-    // XXX Doesn't yet do derivative! Need GRID for that! Pointer? can be null?
     DiracSpinor dPhi(phi.n, phi.k, *phi.p_rgrid);
     dPhi.pinf = phi.pinf; //?
     dPhi.en = phi.en;     //?
-    for (std::size_t i = 0; i < phi.f.size(); i++) {
+
+    for (std::size_t i = 0; i < phi.p_rgrid->ngp; i++) {
       // XXX Take advantage of fact that Gamma either pure diag.
       // or pure off-diag? Otherwise, mix real+imag !!
       dPhi.f[i] = g.e00 * phi.f[i] + g.e01 * phi.g[i];
@@ -144,17 +144,24 @@ public:
       // XXX Note: can mix real+imag (if user does wrong)
       // Also: may swap real/imag part! Check this! XXX
     }
+    if (diff_order > 0) {
+      dPhi.f = NumCalc::derivative(dPhi.f, phi.p_rgrid->drdu, phi.p_rgrid->du,
+                                   diff_order);
+      dPhi.g = NumCalc::derivative(dPhi.g, phi.p_rgrid->drdu, phi.p_rgrid->du,
+                                   diff_order);
+    }
     if (v.size() > 0) {
-      for (std::size_t i = 0; i < phi.f.size(); i++) {
+      for (std::size_t i = 0; i < phi.p_rgrid->ngp; i++) {
         dPhi.f[i] *= v[i];
         dPhi.g[i] *= v[i];
       }
     }
     if (coef != 1) {
-      for (std::size_t i = 0; i < phi.f.size(); i++) {
+      for (std::size_t i = 0; i < phi.p_rgrid->ngp; i++) {
         dPhi.f[i] *= coef;
         dPhi.g[i] *= coef;
       }
     }
+    return dPhi;
   }
 };
