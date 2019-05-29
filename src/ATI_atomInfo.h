@@ -135,8 +135,9 @@ const std::array<int, 45> core_l = {
 
 // Note: this requires that all Nobel Gasses are listed FIRST, in order
 // (Assumed by "niceCoreOutput" function that this matches nobelGasses
-static const std::array<std::pair<std::string, std::string>, 11> nobelGasses = {
-    std::make_pair("[He]", "1s2"), /**/ //
+static const std::array<std::pair<std::string, std::string>, 12> nobelGasses = {
+    std::make_pair("[He]", "1s2"),
+    /**/ //
     std::make_pair("[Ne]", "1s2,2s2,2p6"),
     std::make_pair("[Ar]", "1s2,2s2,2p6,3s2,3p6"),
     std::make_pair("[Kr]", "1s2,2s2,2p6,3s2,3p6,3d10,4s2,4p6"),
@@ -152,7 +153,8 @@ static const std::array<std::pair<std::string, std::string>, 11> nobelGasses = {
     std::make_pair(
         "[Hg]", "1s2,2s2,2p6,3s2,3p6,3d10,4s2,4p6,4d10,5s2,5p6,4f14,5d10,6s2"),
     std::make_pair("[Cn]", "1s2,2s2,2p6,3s2,3p6,3d10,4s2,4p6,4d10,5s2,5p6,"
-                           "4f14,5d10,6s2,6p6,5f14,6d10,7s2")};
+                           "4f14,5d10,6s2,6p6,5f14,6d10,7s2"),
+    std::make_pair("[]", "1s0")};
 
 inline std::string coreConfig(const std::string &in_ng) {
   // Note: must return SAME string if no matching Nobel Gas found
