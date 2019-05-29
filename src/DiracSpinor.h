@@ -1,15 +1,16 @@
 #pragma once
 #include "ATI_atomInfo.h"
+#include "Grid.h"
 #include <string>
 #include <vector>
 
 class DiracSpinor {
 
 public: // Data
-  DiracSpinor(int in_n, int in_k, std::size_t ngp)
-      : n(in_n), k(in_k), pinf(ngp - 1) {
-    f.resize(ngp, 0);
-    g.resize(ngp, 0);
+  DiracSpinor(int in_n, int in_k, const Grid &rgrid)
+      : n(in_n), k(in_k), pinf(rgrid.ngp - 1), p_rgrid(&rgrid) {
+    f.resize(rgrid.ngp, 0);
+    g.resize(rgrid.ngp, 0);
   }
 
   std::vector<double> f;
@@ -20,6 +21,8 @@ public: // Data
   const int k;
 
   std::size_t pinf;
+  const Grid *const p_rgrid;
+
   int its = -1;
   double eps = -1;
   double occ_frac = -1;

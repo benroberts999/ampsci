@@ -39,7 +39,7 @@ void ElectronOrbitals::solveLocalDirac(int n, int k, double e_a,
                                        int log_dele_or, bool iscore)
 // Uses ADAMS::solveDBS to solve Dirac Eqn for local potential (Vnuc + Vdir)
 {
-  orbitals.emplace_back(DiracSpinor{n, k, rgrid.ngp});
+  orbitals.emplace_back(DiracSpinor{n, k, rgrid});
 
   // Fill V(r) with nulcear + DIRECT part of electron potential
   // nb: for exchange part, need to use reSolveDirac()

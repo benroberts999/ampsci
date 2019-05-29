@@ -1,5 +1,6 @@
 #pragma once
 #include "DiracSpinor.h"
+// #include "Grid.h"
 #include <vector>
 
 //******************************************************************************
@@ -52,7 +53,7 @@ struct DiracMatrix
       this->print();
       std::cerr << "+\n";
       other.print();
-      std::cerr << " = ???\nDo not trust results!\n";
+      std::abort();
     }
     int a = this->e00 + other.e00;
     int b = this->e01 + other.e01;
@@ -70,7 +71,7 @@ struct DiracMatrix
       this->print();
       std::cerr << "-\n";
       other.print();
-      std::cerr << " = ???\nDo not trust results!\n";
+      std::abort();
     }
     int a = this->e00 - other.e00;
     int b = this->e01 - other.e01;
@@ -100,8 +101,15 @@ const DiracMatrix g5(0, 1, 1, 0);
 class DiracOperator {
 
 public:
-  DiracOperator(std::vector<double> in_v, DiracMatrix in_g = GammaMatrix::ident,
-                int in_diff = 0, bool in_imag = false)
+  DiracOperator(double in_coef, const std::vector<double> &in_v,
+                const DiracMatrix &in_g = GammaMatrix::ident, int in_diff = 0,
+                bool in_imag = false)
+      : coef(in_coef), v(in_v), g(in_g), diff_order(in_diff),
+        imaginary(in_imag) {}
+
+  DiracOperator(const std::vector<double> &in_v,
+                const DiracMatrix &in_g = GammaMatrix::ident, int in_diff = 0,
+                bool in_imag = false)
       : v(in_v), g(in_g), diff_order(in_diff), imaginary(in_imag) {}
 
   DiracOperator(DiracMatrix in_g = GammaMatrix::ident, int in_diff = 0,
@@ -115,11 +123,38 @@ public:
       : g(in_g), imaginary(in_imag) {}
 
 private: // Data
+  double coef = 1;
   const std::vector<double> v;
   const DiracMatrix g = GammaMatrix::ident;
   const int diff_order = 0;
   const bool imaginary = false;
+  // const Grid *const rgrid = nullptr;
 
 public:
-  DiracSpinor operate(DiracSpinor phi);
+  DiracSpinor operate(const DiracSpinor &phi) const {
+    // XXX Doesn't yet do derivative! Need GRID for that! Pointer? can be null?
+    DiracSpinor dPhi(phi.n, phi.k, *phi.p_rgrid);
+    dPhi.pinf = phi.pinf; //?
+    dPhi.en = phi.en;     //?
+    for (std::size_t i = 0; i < phi.f.size(); i++) {
+      // XXX Take advantage of fact that Gamma either pure diag.
+      // or pure off-diag? Otherwise, mix real+imag !!
+      dPhi.f[i] = g.e00 * phi.f[i] + g.e01 * phi.g[i];
+      dPhi.g[i] = g.e10 * phi.f[i] + g.e11 * phi.g[i];
+      // XXX Note: can mix real+imag (if user does wrong)
+      // Also: may swap real/imag part! Check this! XXX
+    }
+    if (v.size() > 0) {
+      for (std::size_t i = 0; i < phi.f.size(); i++) {
+        dPhi.f[i] *= v[i];
+        dPhi.g[i] *= v[i];
+      }
+    }
+    if (coef != 1) {
+      for (std::size_t i = 0; i < phi.f.size(); i++) {
+        dPhi.f[i] *= coef;
+        dPhi.g[i] *= coef;
+      }
+    }
+  }
 };
