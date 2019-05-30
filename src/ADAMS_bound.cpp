@@ -1,4 +1,4 @@
-#include "ADAMS_solveLocalBS.hpp"
+#include "ADAMS_bound.hpp"
 #include "DiracSpinor.hpp"
 #include "Grid.hpp"
 #include "Matrix_linalg.hpp"

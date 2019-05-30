@@ -1,5 +1,5 @@
-#include "ADAMS_solveLocalContinuum.hpp"
-#include "ADAMS_solveLocalBS.hpp"
+#include "ADAMS_continuum.hpp"
+#include "ADAMS_bound.hpp"
 #include <cmath>
 
 namespace ADAMS {

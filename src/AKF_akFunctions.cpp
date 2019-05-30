@@ -5,7 +5,7 @@
 #include "FPC_physicalConstants.hpp"
 #include "FileIO_fileReadWrite.hpp"
 #include "NumCalc_quadIntegrate.hpp"
-#include "SBF_sphericalBesselFunctions.hpp"
+#include "SBF_sphericalBessel.hpp"
 #include "Wigner_369j.hpp"
 #include <cmath>
 #include <fstream>
@@ -248,7 +248,7 @@ void sphericalBesselTable(std::vector<std::vector<std::vector<double>>> &jLqr_f,
                           const std::vector<double> &r)
 /*
 Creates a look-up table w/ spherical Bessel functions. For speed.
-Uses SBF_sphericalBesselFunctions
+Uses SBF_sphericalBessel
 */
 {
   std::cout << std::endl;

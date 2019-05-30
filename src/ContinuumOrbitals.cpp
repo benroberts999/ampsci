@@ -1,6 +1,6 @@
 #include "ContinuumOrbitals.hpp"
-#include "ADAMS_solveLocalBS.hpp"
-#include "ADAMS_solveLocalContinuum.hpp"
+#include "ADAMS_bound.hpp"
+#include "ADAMS_continuum.hpp"
 #include "ATI_atomInfo.hpp"
 #include "ElectronOrbitals.hpp"
 #include "FPC_physicalConstants.hpp"

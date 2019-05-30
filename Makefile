@@ -71,7 +71,7 @@ $(OD)/dummy.o: $(ID)/dummy.cpp $(COMH) $(ID)/otherHeader.hpp
 # Hust to save typing: Many programs depend on these combos:
 
 BASE = $(addprefix $(OD)/, \
- ADAMS_solveLocalBS.o ElectronOrbitals.o \
+ ADAMS_bound.o ElectronOrbitals.o \
 )
 
 HF = $(addprefix $(OD)/, \
@@ -79,7 +79,7 @@ HF = $(addprefix $(OD)/, \
 )
 
 CNTM = $(addprefix $(OD)/, \
- ADAMS_solveLocalContinuum.o ContinuumOrbitals.o \
+ ADAMS_continuum.o ContinuumOrbitals.o \
 )
 
 ################################################################################

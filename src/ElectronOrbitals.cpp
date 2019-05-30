@@ -1,6 +1,6 @@
 // class ElectronOrbitals::
 #include "ElectronOrbitals.hpp"
-#include "ADAMS_solveLocalBS.hpp"
+#include "ADAMS_bound.hpp"
 #include "ATI_atomInfo.hpp"
 #include "DiracSpinor.hpp"
 #include "FPC_physicalConstants.hpp"
