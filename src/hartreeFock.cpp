@@ -1,5 +1,6 @@
 #include "ATI_atomInfo.h"
 #include "ChronoTimer.h"
+#include "DiracOperator.h"
 #include "ElectronOrbitals.h"
 #include "FPC_physicalConstants.h"
 #include "FileIO_fileReadWrite.h"
@@ -213,6 +214,47 @@ int main(int argc, char *argv[]) {
     }
     std::cout << "Total= " << pnc << "\n";
     std::cout << "\n Total time: " << timer.reading_str() << "\n";
+  }
+
+  // Test hfs and Operator
+
+  double gI = 2.751818 / (3. / 2.); // XXX Rb
+  double Coef = -gI * FPC::alpha / FPC::m_p;
+
+  auto r_rms = 4.1989 / FPC::aB_fm; // XXX Rb
+  // auto r_rms = Nucleus::approximate_r_rms(wf.Anuc());
+  std::cout << "Gridpoints below Rrms: " << wf.rgrid.getIndex(r_rms) << "\n";
+
+  std::vector<double> invr2;
+  invr2.reserve(wf.rgrid.ngp);
+  // auto r03 = pow(r_rms, 3);
+  for (auto &r : wf.rgrid.r) {
+    if (r < r_rms) {
+      // invr2.push_back(r / r03);
+      invr2.push_back(1. / (r * r));
+    } else {
+      invr2.push_back(1. / (r * r));
+    }
+  }
+
+  DiracMatrix g0100(0, 1, 0, 0);
+  DiracOperator vhfs(Coef, invr2, g0100);
+
+  for (auto i : wf.valenceIndexList) {
+    auto &phi = wf.orbitals[i];
+    auto dPhi = vhfs.operate(phi);
+
+    double A_tmp =
+        NumCalc::integrate(phi.f, dPhi.f, wf.rgrid.drdu, wf.rgrid.du);
+    A_tmp += NumCalc::integrate(phi.g, dPhi.g, wf.rgrid.drdu, wf.rgrid.du);
+
+    double j = phi.j();
+    auto factor = FPC::Hartree_MHz * phi.k / (j * (j + 1.));
+
+    std::cout << phi.symbol() << ": ";
+    std::cout << A_tmp * factor << "\n";
+    // double dE = A_tmp * ((7. / 2) + 0.5) * FPC::Hartree_MHz;
+    // std::cout << "dE=" << dE << "\n";
   }
 
   return 0;
