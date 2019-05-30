@@ -56,12 +56,12 @@ public:
     return ATI::niceCoreOutput(m_core_string);
   }
 
-  // XXX Combine with default argument?
-  double radialIntegral(const DiracSpinor &psi_a, const DiracSpinor &psi_b,
-                        const std::vector<double> &vint,
-                        Operator op = Operator::unity) const;
-  double radialIntegral(const DiracSpinor &psi_a, const DiracSpinor &psi_b,
-                        Operator op = Operator::unity) const;
+  // // XXX Combine with default argument?
+  // double radialIntegral(const DiracSpinor &psi_a, const DiracSpinor &psi_b,
+  //                       const std::vector<double> &vint,
+  //                       Operator op = Operator::unity) const;
+  // double radialIntegral(const DiracSpinor &psi_a, const DiracSpinor &psi_b,
+  //                       Operator op = Operator::unity) const;
 
   // XXX ? best way?
   // XXX Should really have just 1! ?

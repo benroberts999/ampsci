@@ -99,6 +99,8 @@ const DiracMatrix g5(0, 1, 1, 0);
 
 //******************************************************************************
 class DiracOperator {
+  // XXX at the moment, two ways can be imaginary..
+  // it's own, and from Dirac matrix....... OK?? XXX
 
 public: // Constructors
   DiracOperator(double in_coef, const std::vector<double> &in_v,
@@ -131,37 +133,71 @@ private: // Data
   // const Grid *const rgrid = nullptr;
 
 public: // Methods
-  DiracSpinor operate(const DiracSpinor &phi) const {
-    DiracSpinor dPhi(phi.n, phi.k, *phi.p_rgrid);
-    dPhi.pinf = phi.pinf; //?
-    dPhi.en = phi.en;     //?
+  DiracSpinor operate(const DiracSpinor &phi) const;
+  DiracOperator HermetianConjugate() const;
 
-    for (std::size_t i = 0; i < phi.p_rgrid->ngp; i++) {
-      // XXX Take advantage of fact that Gamma either pure diag.
-      // or pure off-diag? Otherwise, mix real+imag !!
-      dPhi.f[i] = g.e00 * phi.f[i] + g.e01 * phi.g[i];
-      dPhi.g[i] = g.e10 * phi.f[i] + g.e11 * phi.g[i];
-      // XXX Note: can mix real+imag (if user does wrong)
-      // Also: may swap real/imag part! Check this! XXX
-    }
-    if (diff_order > 0) {
-      dPhi.f = NumCalc::derivative(dPhi.f, phi.p_rgrid->drdu, phi.p_rgrid->du,
-                                   diff_order);
-      dPhi.g = NumCalc::derivative(dPhi.g, phi.p_rgrid->drdu, phi.p_rgrid->du,
-                                   diff_order);
-    }
-    if (v.size() > 0) {
-      for (std::size_t i = 0; i < phi.p_rgrid->ngp; i++) {
-        dPhi.f[i] *= v[i];
-        dPhi.g[i] *= v[i];
-      }
-    }
-    if (coef != 1) {
-      for (std::size_t i = 0; i < phi.p_rgrid->ngp; i++) {
-        dPhi.f[i] *= coef;
-        dPhi.g[i] *= coef;
-      }
-    }
-    return dPhi;
-  }
+public: // Operator overloads
+  DiracSpinor operator*(const DiracSpinor &phi) const { return operate(phi); }
 };
+
+//******************************************************************************
+inline DiracSpinor DiracOperator::operate(const DiracSpinor &phi) const {
+
+  // Note: matrix must be either diagonal or off-diagonal
+  // This isn't checked or enforced yet!??!?
+  bool off_diag = (g.e01 != 0 || g.e10 != 0) ? true : false;
+
+  auto g_imag = off_diag ? !phi.imaginary_g : phi.imaginary_g;
+
+  DiracSpinor dPhi(phi.n, phi.k, *phi.p_rgrid, g_imag);
+  dPhi.pinf = phi.pinf; //?
+  dPhi.en = phi.en;     //?
+
+  // if imag, sign of "g" changes (unless f was img, then sign of f changes)
+  const auto g_sign = (imaginary && phi.imaginary_g) ? -1 : 1;
+  const auto f_sign = (imaginary && !phi.imaginary_g) ? -1 : 1;
+
+  if (off_diag) {
+    for (std::size_t i = 0; i < phi.p_rgrid->ngp; i++) {
+      dPhi.f[i] = g_sign * g.e01 * phi.g[i];
+      dPhi.g[i] = f_sign * g.e10 * phi.f[i];
+    }
+  } else {
+    for (std::size_t i = 0; i < phi.p_rgrid->ngp; i++) {
+      dPhi.f[i] = f_sign * g.e00 * phi.f[i];
+      dPhi.g[i] = g_sign * g.e11 * phi.g[i];
+    }
+  }
+
+  // Differentiate:
+  if (diff_order > 0) {
+    dPhi.f = NumCalc::derivative(dPhi.f, phi.p_rgrid->drdu, phi.p_rgrid->du,
+                                 diff_order);
+    dPhi.g = NumCalc::derivative(dPhi.g, phi.p_rgrid->drdu, phi.p_rgrid->du,
+                                 diff_order);
+  }
+
+  // Multiply by radial vector:
+  if (v.size() > 0) {
+    for (std::size_t i = 0; i < phi.p_rgrid->ngp; i++) {
+      dPhi.f[i] *= v[i];
+      dPhi.g[i] *= v[i];
+    }
+  }
+  if (coef != 1) {
+    for (std::size_t i = 0; i < phi.p_rgrid->ngp; i++) {
+      dPhi.f[i] *= coef;
+      dPhi.g[i] *= coef;
+    }
+  }
+  return dPhi;
+}
+
+//******************************************************************************
+inline DiracOperator DiracOperator::HermetianConjugate() const {
+  // Transpose the Dirac Matrix:
+  const auto gT = DiracMatrix(g.e00, g.e10, g.e01, g.e11, g.imaginary);
+  // complex conjugate:
+  const auto sign = (imaginary) ? -1 : 1;
+  return DiracOperator(sign * coef, v, gT, diff_order, imaginary);
+}

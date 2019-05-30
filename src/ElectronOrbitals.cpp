@@ -110,79 +110,81 @@ void ElectronOrbitals::reSolveDirac(DiracSpinor &psi, double e_a,
   return reSolveDirac(psi, e_a, empty_vec, log_dele_or);
 }
 
-//******************************************************************************
-double ElectronOrbitals::radialIntegral(const DiracSpinor &psi_a,
-                                        const DiracSpinor &psi_b,
-                                        Operator op) const {
-  std::vector<double> empty_vec;
-  return radialIntegral(psi_a, psi_b, empty_vec, op);
-}
-
-//******************************************************************************
-double ElectronOrbitals::radialIntegral(const DiracSpinor &psi_a,
-                                        const DiracSpinor &psi_b,
-                                        const std::vector<double> &vint,
-                                        Operator op) const
-// Split into dPsi later??
-// Better to split, so that you can chain operators!
-// But: will always be a copy in that case; optimise for unity?
-// (Just take )
-{
-  int pinf = 0; // --> ngp
-
-  std::vector<double> fprime_tmp;
-  std::vector<double> gprime_tmp;
-
-  // This is to avoid doing a copy..not sure if it worked, or worth it?
-  const std::vector<double> *fprime;
-  const std::vector<double> *gprime;
-
-  // Is this a good way? Confusing?
-  int ig_sign = 1;
-
-  switch (op) {
-  case Operator::unity:
-    fprime = &psi_b.f;
-    gprime = &psi_b.g;
-    break;
-  case Operator::gamma0:
-    fprime = &psi_b.f;
-    gprime = &psi_b.g;
-    ig_sign = -1; // XXX CHECK! XXX
-    break;
-  case Operator::gamma5:
-    fprime = &psi_b.g;
-    gprime = &psi_b.f;
-    ig_sign = -1;
-    break;
-  case Operator::dr:
-    fprime_tmp = NumCalc::derivative(psi_b.f, rgrid.drdu, rgrid.du);
-    gprime_tmp = NumCalc::derivative(psi_b.g, rgrid.drdu, rgrid.du);
-    fprime = &fprime_tmp;
-    gprime = &gprime_tmp;
-    break;
-  case Operator::dr2:
-    fprime_tmp = NumCalc::derivative(psi_b.f, rgrid.drdu, rgrid.du, 2);
-    gprime_tmp = NumCalc::derivative(psi_b.g, rgrid.drdu, rgrid.du, 2);
-    fprime = &fprime_tmp;
-    gprime = &gprime_tmp;
-    break;
-  default:
-    std::cerr << "\nError 103 in EO radialInt: unknown operator\n";
-    return 0;
-  }
-
-  double Rf = 0, Rg = 0;
-  if (vint.size() == 0) {
-    Rf = NumCalc::integrate(psi_a.f, *fprime, rgrid.drdu, 1, 0, pinf);
-    Rg = NumCalc::integrate(psi_a.g, *gprime, rgrid.drdu, 1, 0, pinf);
-  } else {
-    Rf = NumCalc::integrate(psi_a.f, vint, *fprime, rgrid.drdu, 1, 0, pinf);
-    Rg = NumCalc::integrate(psi_a.g, vint, *gprime, rgrid.drdu, 1, 0, pinf);
-  }
-
-  return (Rf + ig_sign * Rg) * rgrid.du;
-}
+// //******************************************************************************
+// double ElectronOrbitals::radialIntegral(const DiracSpinor &psi_a,
+//                                         const DiracSpinor &psi_b,
+//                                         Operator op) const {
+//   std::vector<double> empty_vec;
+//   // XXX KILL THIS XXX
+//   return radialIntegral(psi_a, psi_b, empty_vec, op);
+// }
+//
+// //******************************************************************************
+// double ElectronOrbitals::radialIntegral(const DiracSpinor &psi_a,
+//                                         const DiracSpinor &psi_b,
+//                                         const std::vector<double> &vint,
+//                                         Operator op) const
+// // Split into dPsi later??
+// // Better to split, so that you can chain operators!
+// // But: will always be a copy in that case; optimise for unity?
+// // (Just take )
+// {
+//   // XXX KILL THIS XXX
+//   int pinf = 0; // --> ngp
+//
+//   std::vector<double> fprime_tmp;
+//   std::vector<double> gprime_tmp;
+//
+//   // This is to avoid doing a copy..not sure if it worked, or worth it?
+//   const std::vector<double> *fprime;
+//   const std::vector<double> *gprime;
+//
+//   // Is this a good way? Confusing?
+//   int ig_sign = 1;
+//
+//   switch (op) {
+//   case Operator::unity:
+//     fprime = &psi_b.f;
+//     gprime = &psi_b.g;
+//     break;
+//   case Operator::gamma0:
+//     fprime = &psi_b.f;
+//     gprime = &psi_b.g;
+//     ig_sign = -1; // XXX CHECK! XXX
+//     break;
+//   case Operator::gamma5:
+//     fprime = &psi_b.g;
+//     gprime = &psi_b.f;
+//     ig_sign = -1;
+//     break;
+//   case Operator::dr:
+//     fprime_tmp = NumCalc::derivative(psi_b.f, rgrid.drdu, rgrid.du);
+//     gprime_tmp = NumCalc::derivative(psi_b.g, rgrid.drdu, rgrid.du);
+//     fprime = &fprime_tmp;
+//     gprime = &gprime_tmp;
+//     break;
+//   case Operator::dr2:
+//     fprime_tmp = NumCalc::derivative(psi_b.f, rgrid.drdu, rgrid.du, 2);
+//     gprime_tmp = NumCalc::derivative(psi_b.g, rgrid.drdu, rgrid.du, 2);
+//     fprime = &fprime_tmp;
+//     gprime = &gprime_tmp;
+//     break;
+//   default:
+//     std::cerr << "\nError 103 in EO radialInt: unknown operator\n";
+//     return 0;
+//   }
+//
+//   double Rf = 0, Rg = 0;
+//   if (vint.size() == 0) {
+//     Rf = NumCalc::integrate(psi_a.f, *fprime, rgrid.drdu, 1, 0, pinf);
+//     Rg = NumCalc::integrate(psi_a.g, *gprime, rgrid.drdu, 1, 0, pinf);
+//   } else {
+//     Rf = NumCalc::integrate(psi_a.f, vint, *fprime, rgrid.drdu, 1, 0, pinf);
+//     Rg = NumCalc::integrate(psi_a.g, vint, *gprime, rgrid.drdu, 1, 0, pinf);
+//   }
+//
+//   return (Rf + ig_sign * Rg) * rgrid.du;
+// }
 
 //******************************************************************************
 void ElectronOrbitals::determineCore(const std::string &str_core_in)

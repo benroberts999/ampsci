@@ -1,8 +1,8 @@
 Rb 87              ! Z, A(=-1 for default, 0 for '0 nuc')
 [Kr]               ! Core configuration (comma separated)
-1.e-7 750 5600     ! r0, rmax, num_points
+1.e-7 750 10000    ! r0, rmax, num_points
 1.e-11             ! HF convergence. [0 for max its]
-9 0                ! number of valence states for each l (and l)
+4 0                ! number of valence states for each l (and l)
 1                  ! var(alpha^2). (<<1 for non-rel. =1 for normal.)
 0                  ! Exclude exchange (1=yes)? (Hartree) Testing only!
 ###################

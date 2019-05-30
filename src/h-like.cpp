@@ -1,5 +1,7 @@
 #include "ATI_atomInfo.hpp"
 #include "ChronoTimer.hpp"
+#include "DiracOperator.hpp"
+// #include "DiracSpinor.hpp"
 #include "ElectronOrbitals.hpp"
 #include "FileIO_fileReadWrite.hpp"
 #include "NumCalc_quadIntegrate.hpp"
@@ -81,7 +83,9 @@ int main(int argc, char *argv[]) {
         rton.reserve(wf.rgrid.ngp);
         for (auto r : wf.rgrid.r)
           rton.push_back(pow(r, in));
-        double R1 = wf.radialIntegral(phi, phi, rton);
+        DiracOperator rp(1, rton);
+        // double R1 = wf.radialIntegral(phi, phi, rton);
+        double R1 = phi * (rp * phi);
         printf("%13.8f, ", R1);
       }
       std::cout << "\n";

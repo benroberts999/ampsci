@@ -8,8 +8,9 @@
 class DiracSpinor {
 
 public: // Data
-  DiracSpinor(int in_n, int in_k, const Grid &rgrid)
-      : n(in_n), k(in_k), pinf(rgrid.ngp - 1), p_rgrid(&rgrid) {
+  DiracSpinor(int in_n, int in_k, const Grid &rgrid, bool imaginary_g = true)
+      : n(in_n), k(in_k), pinf(rgrid.ngp - 1), p_rgrid(&rgrid),
+        imaginary_g(imaginary_g) {
     f.resize(rgrid.ngp, 0);
     g.resize(rgrid.ngp, 0);
   }
@@ -23,6 +24,10 @@ public: // Data
 
   std::size_t pinf;
   const Grid *const p_rgrid;
+
+  // determines relative sign in radial integral
+  // Make private?
+  const bool imaginary_g; // true by default. If false, means upper comp is i
 
   int its = -1;
   double eps = -1;
@@ -66,11 +71,17 @@ public: // comparitor overloads
   bool operator<=(const DiracSpinor &other) const { return !(*this > other); }
 
   double operator*(const DiracSpinor &other) const {
+    // XXX Take into account IMAGINARYness !!!
     int pinf = 0; // XXX goes to ngp...ok?
+
+    // Change the relative sign based in Complex f or g component
+    int ffs = ((!this->imaginary_g) && (other.imaginary_g)) ? -1 : 1;
+    int ggs = ((this->imaginary_g) && (!other.imaginary_g)) ? -1 : 1;
+
     auto ff =
         NumCalc::integrate(this->f, other.f, this->p_rgrid->drdu, 1, 0, pinf);
     auto gg =
         NumCalc::integrate(this->g, other.g, this->p_rgrid->drdu, 1, 0, pinf);
-    return (ff + gg) * this->p_rgrid->du;
+    return (ffs * ff + ggs * gg) * this->p_rgrid->du;
   }
 };
