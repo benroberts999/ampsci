@@ -48,9 +48,9 @@ all: checkObj checkXdir $(ALLEXES)
 
 # All programs depend on these generic common headers:
 COMH = $(addprefix $(ID)/, \
- DiracSpinor.h DiracOperator.h Nucleus.h \
- ATI_atomInfo.h FPC_physicalConstants.h FileIO_fileReadWrite.h \
- NumCalc_quadIntegrate.h Grid.h Matrix_linalg.h ChronoTimer.h Wigner_369j.h \
+ DiracSpinor.hpp DiracOperator.hpp Nucleus.hpp \
+ ATI_atomInfo.hpp FPC_physicalConstants.hpp FileIO_fileReadWrite.hpp \
+ NumCalc_quadIntegrate.hpp Grid.hpp Matrix_linalg.hpp ChronoTimer.hpp Wigner_369j.hpp \
 )
 
 # Rule for files that have .cpp AND a .h file
@@ -64,7 +64,7 @@ $(OD)/%.o: $(ID)/%.cpp $(COMH)
 	$(COMP)
 
 # Here: List rules for any other progs that don't fit above rules?
-$(OD)/dummy.o: $(ID)/dummy.cpp $(COMH) $(ID)/otherHeader.h
+$(OD)/dummy.o: $(ID)/dummy.cpp $(COMH) $(ID)/otherHeader.hpp
 	$(COMP)
 
 ################################################################################

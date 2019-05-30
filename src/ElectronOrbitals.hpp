@@ -1,6 +1,6 @@
 #pragma once
-#include "DiracSpinor.h"
-#include "Grid.h"
+#include "DiracSpinor.hpp"
+#include "Grid.hpp"
 #include <string>
 #include <vector>
 // class DiracSpinor;

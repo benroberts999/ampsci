@@ -1,9 +1,9 @@
-#include "ATI_atomInfo.h"
-#include "ChronoTimer.h"
-#include "ElectronOrbitals.h"
-#include "FPC_physicalConstants.h"
-#include "FileIO_fileReadWrite.h"
-#include "PRM_parametricPotentials.h"
+#include "ATI_atomInfo.hpp"
+#include "ChronoTimer.hpp"
+#include "ElectronOrbitals.hpp"
+#include "FPC_physicalConstants.hpp"
+#include "FileIO_fileReadWrite.hpp"
+#include "PRM_parametricPotentials.hpp"
 #include <iostream>
 #include <tuple>
 

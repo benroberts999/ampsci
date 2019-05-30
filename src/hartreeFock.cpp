@@ -1,13 +1,13 @@
-#include "ATI_atomInfo.h"
-#include "ChronoTimer.h"
-#include "DiracOperator.h"
-#include "ElectronOrbitals.h"
-#include "FPC_physicalConstants.h"
-#include "FileIO_fileReadWrite.h"
-#include "HartreeFockClass.h"
-#include "Nucleus.h"
-#include "NumCalc_quadIntegrate.h"
-#include "PRM_parametricPotentials.h"
+#include "ATI_atomInfo.hpp"
+#include "ChronoTimer.hpp"
+#include "DiracOperator.hpp"
+#include "ElectronOrbitals.hpp"
+#include "FPC_physicalConstants.hpp"
+#include "FileIO_fileReadWrite.hpp"
+#include "HartreeFockClass.hpp"
+#include "Nucleus.hpp"
+#include "NumCalc_quadIntegrate.hpp"
+#include "PRM_parametricPotentials.hpp"
 #include <cmath>
 #include <iostream>
 #include <tuple>
@@ -253,8 +253,6 @@ int main(int argc, char *argv[]) {
 
     std::cout << phi.symbol() << ": ";
     std::cout << A_tmp * factor << "\n";
-    // double dE = A_tmp * ((7. / 2) + 0.5) * FPC::Hartree_MHz;
-    // std::cout << "dE=" << dE << "\n";
   }
 
   return 0;

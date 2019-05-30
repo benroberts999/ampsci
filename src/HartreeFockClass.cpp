@@ -1,11 +1,11 @@
-#include "HartreeFockClass.h"
-#include "ATI_atomInfo.h"
-#include "DiracSpinor.h"
-#include "ElectronOrbitals.h"
-#include "Grid.h"
-#include "NumCalc_quadIntegrate.h"
-#include "PRM_parametricPotentials.h"
-#include "Wigner_369j.h"
+#include "HartreeFockClass.hpp"
+#include "ATI_atomInfo.hpp"
+#include "DiracSpinor.hpp"
+#include "ElectronOrbitals.hpp"
+#include "Grid.hpp"
+#include "NumCalc_quadIntegrate.hpp"
+#include "PRM_parametricPotentials.hpp"
+#include "Wigner_369j.hpp"
 #include <cmath>
 #include <vector>
 /*

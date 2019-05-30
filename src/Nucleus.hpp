@@ -1,6 +1,6 @@
 #pragma once
-#include "FPC_physicalConstants.h"
-#include "NumCalc_quadIntegrate.h"
+#include "FPC_physicalConstants.hpp"
+#include "NumCalc_quadIntegrate.hpp"
 #include <cmath>
 #include <gsl/gsl_sf_fermi_dirac.h>
 #include <vector>

@@ -1,6 +1,6 @@
-#include "PRM_parametricPotentials.h"
-#include "ATI_atomInfo.h"
-#include "FPC_physicalConstants.h"
+#include "PRM_parametricPotentials.hpp"
+#include "ATI_atomInfo.hpp"
+#include "FPC_physicalConstants.hpp"
 #include <cmath>
 #include <iostream>
 

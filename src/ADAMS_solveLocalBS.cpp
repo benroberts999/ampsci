@@ -1,8 +1,8 @@
-#include "ADAMS_solveLocalBS.h"
-#include "DiracSpinor.h"
-#include "Grid.h"
-#include "Matrix_linalg.h"
-#include "NumCalc_quadIntegrate.h"
+#include "ADAMS_solveLocalBS.hpp"
+#include "DiracSpinor.hpp"
+#include "Grid.hpp"
+#include "Matrix_linalg.hpp"
+#include "NumCalc_quadIntegrate.hpp"
 #include <algorithm>
 #include <array>
 #include <cmath>

@@ -1,12 +1,12 @@
-#include "ATI_atomInfo.h"
-#include "ChronoTimer.h"
-#include "ElectronOrbitals.h"
-#include "FPC_physicalConstants.h"
-#include "FileIO_fileReadWrite.h"
+#include "ATI_atomInfo.hpp"
+#include "ChronoTimer.hpp"
+#include "ElectronOrbitals.hpp"
+#include "FPC_physicalConstants.hpp"
+#include "FileIO_fileReadWrite.hpp"
 
-#include "HartreeFockClass.h"
-#include "NumCalc_quadIntegrate.h"
-#include "PRM_parametricPotentials.h"
+#include "HartreeFockClass.hpp"
+#include "NumCalc_quadIntegrate.hpp"
+#include "PRM_parametricPotentials.hpp"
 #include <cmath>
 #include <fstream>
 #include <iostream>

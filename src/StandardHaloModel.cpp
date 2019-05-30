@@ -1,5 +1,5 @@
-#include "StandardHaloModel.h"
-#include "Grid.h"
+#include "StandardHaloModel.hpp"
+#include "Grid.hpp"
 #include <cmath>
 #include <vector>
 

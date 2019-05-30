@@ -1,12 +1,12 @@
 // class ElectronOrbitals::
-#include "ElectronOrbitals.h"
-#include "ADAMS_solveLocalBS.h"
-#include "ATI_atomInfo.h"
-#include "DiracSpinor.h"
-#include "FPC_physicalConstants.h"
-#include "Grid.h"
-#include "Nucleus.h"
-#include "NumCalc_quadIntegrate.h"
+#include "ElectronOrbitals.hpp"
+#include "ADAMS_solveLocalBS.hpp"
+#include "ATI_atomInfo.hpp"
+#include "DiracSpinor.hpp"
+#include "FPC_physicalConstants.hpp"
+#include "Grid.hpp"
+#include "Nucleus.hpp"
+#include "NumCalc_quadIntegrate.hpp"
 #include <algorithm> //for sort
 #include <cmath>
 #include <gsl/gsl_sf_fermi_dirac.h> //For fermiNucleus
@@ -429,7 +429,8 @@ void ElectronOrbitals::orthonormaliseOrbitals(int num_its)
     for (auto b = a + 1; b < Ns; b++) {
       if (orbitals[a].k != orbitals[b].k)
         continue;
-      c_ab[a][b] = 0.5 * radialIntegral(orbitals[a], orbitals[b]);
+      // c_ab[a][b] = 0.5 * radialIntegral(orbitals[a], orbitals[b]);
+      c_ab[a][b] = 0.5 * (orbitals[a] * orbitals[b]);
     }
   }
 
@@ -450,7 +451,8 @@ void ElectronOrbitals::orthonormaliseOrbitals(int num_its)
   }
 
   for (auto &psi : orbitals) {
-    double norm = 1. / sqrt(radialIntegral(psi, psi));
+    // double norm = 1. / sqrt(radialIntegral(psi, psi));
+    double norm = 1. / sqrt((psi * psi));
     for (auto &fa_r : psi.f)
       fa_r *= norm;
     for (auto &ga_r : psi.g)
@@ -486,7 +488,8 @@ void ElectronOrbitals::orthonormaliseValence(DiracSpinor &psi_v, int num_its,
       A_vc.push_back(0.);
       continue;
     }
-    A_vc.emplace_back(radialIntegral(psi_v, orbitals[ic])); // no 0.5 here
+    // A_vc.emplace_back(radialIntegral(psi_v, orbitals[ic])); // no 0.5 here
+    A_vc.emplace_back((psi_v * orbitals[ic])); // no 0.5 here
   }
 
   // Orthogonalise:
@@ -502,7 +505,8 @@ void ElectronOrbitals::orthonormaliseValence(DiracSpinor &psi_v, int num_its,
   }
 
   // Re-normalise the valence orbital:
-  const double norm = 1. / sqrt(radialIntegral(psi_v, psi_v));
+  // const double norm = 1. / sqrt(radialIntegral(psi_v, psi_v));
+  const double norm = 1. / sqrt((psi_v * psi_v));
   for (auto &fv_r : psi_v.f)
     fv_r *= norm;
   for (auto &gv_r : psi_v.g)

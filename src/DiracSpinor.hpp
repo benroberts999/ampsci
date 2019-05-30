@@ -1,6 +1,7 @@
 #pragma once
-#include "ATI_atomInfo.h"
-#include "Grid.h"
+#include "ATI_atomInfo.hpp"
+#include "Grid.hpp"
+#include "NumCalc_quadIntegrate.hpp"
 #include <string>
 #include <vector>
 
@@ -63,4 +64,13 @@ public: // comparitor overloads
     return n > other.n;
   }
   bool operator<=(const DiracSpinor &other) const { return !(*this > other); }
+
+  double operator*(const DiracSpinor &other) const {
+    int pinf = 0; // XXX goes to ngp...ok?
+    auto ff =
+        NumCalc::integrate(this->f, other.f, this->p_rgrid->drdu, 1, 0, pinf);
+    auto gg =
+        NumCalc::integrate(this->g, other.g, this->p_rgrid->drdu, 1, 0, pinf);
+    return (ff + gg) * this->p_rgrid->du;
+  }
 };

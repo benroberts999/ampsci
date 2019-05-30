@@ -1,10 +1,10 @@
-#include "AKF_akFunctions.h"
-#include "ChronoTimer.h"
-#include "FPC_physicalConstants.h"
-#include "FileIO_fileReadWrite.h"
-#include "Grid.h"
-#include "NumCalc_quadIntegrate.h"
-#include "StandardHaloModel.h"
+#include "AKF_akFunctions.hpp"
+#include "ChronoTimer.hpp"
+#include "FPC_physicalConstants.hpp"
+#include "FileIO_fileReadWrite.hpp"
+#include "Grid.hpp"
+#include "NumCalc_quadIntegrate.hpp"
+#include "StandardHaloModel.hpp"
 #include <cmath>
 #include <fstream>
 #include <iomanip>

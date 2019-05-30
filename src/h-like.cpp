@@ -1,8 +1,8 @@
-#include "ATI_atomInfo.h"
-#include "ChronoTimer.h"
-#include "ElectronOrbitals.h"
-#include "FileIO_fileReadWrite.h"
-#include "NumCalc_quadIntegrate.h"
+#include "ATI_atomInfo.hpp"
+#include "ChronoTimer.hpp"
+#include "ElectronOrbitals.hpp"
+#include "FileIO_fileReadWrite.hpp"
+#include "NumCalc_quadIntegrate.hpp"
 #include <cmath>
 #include <iostream>
 #include <tuple>

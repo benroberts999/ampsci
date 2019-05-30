@@ -1,6 +1,6 @@
 #pragma once
-#include "DiracSpinor.h"
-#include "NumCalc_quadIntegrate.h"
+#include "DiracSpinor.hpp"
+#include "NumCalc_quadIntegrate.hpp"
 #include <vector>
 
 //******************************************************************************
@@ -100,7 +100,7 @@ const DiracMatrix g5(0, 1, 1, 0);
 //******************************************************************************
 class DiracOperator {
 
-public:
+public: // Constructors
   DiracOperator(double in_coef, const std::vector<double> &in_v,
                 const DiracMatrix &in_g = GammaMatrix::ident, int in_diff = 0,
                 bool in_imag = false)
@@ -130,7 +130,7 @@ private: // Data
   const bool imaginary = false;
   // const Grid *const rgrid = nullptr;
 
-public:
+public: // Methods
   DiracSpinor operate(const DiracSpinor &phi) const {
     DiracSpinor dPhi(phi.n, phi.k, *phi.p_rgrid);
     dPhi.pinf = phi.pinf; //?
