@@ -3,10 +3,7 @@
 #include "Grid.hpp"
 #include <string>
 #include <vector>
-// class DiracSpinor;
-// class Grid;
 
-enum class Operator { unity, gamma0, gamma5, dr, dr2 };
 enum class NucleusType { Fermi, spherical, zero };
 
 //******************************************************************************
@@ -18,7 +15,7 @@ public:
 
 public:
   // orbitals:
-  std::vector<DiracSpinor> orbitals;
+  std::vector<DiracSpinor> orbitals; // XXX break into core+valence?
 
   const Grid rgrid;
 
@@ -55,13 +52,6 @@ public:
   std::string coreConfiguration_nice() {
     return ATI::niceCoreOutput(m_core_string);
   }
-
-  // // XXX Combine with default argument?
-  // double radialIntegral(const DiracSpinor &psi_a, const DiracSpinor &psi_b,
-  //                       const std::vector<double> &vint,
-  //                       Operator op = Operator::unity) const;
-  // double radialIntegral(const DiracSpinor &psi_a, const DiracSpinor &psi_b,
-  //                       Operator op = Operator::unity) const;
 
   // XXX ? best way?
   // XXX Should really have just 1! ?

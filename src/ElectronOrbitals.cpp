@@ -24,9 +24,7 @@ ElectronOrbitals::ElectronOrbitals(int in_z, int in_a, int in_ngp, double rmin,
                                    double rmax, double var_alpha)
     : rgrid(rmin, rmax, (std::size_t)in_ngp, GridType::loglinear, 3.5),
       m_alpha(FPC::alpha * var_alpha), m_Z(in_z),
-      m_A((in_a < 0) ? ATI::defaultA(m_Z) : in_a)
-//
-{
+      m_A((in_a < 0) ? ATI::defaultA(m_Z) : in_a) {
   // Use Fermi nucleus by default, unless A=0 is given
   if (m_A > 0)
     formNuclearPotential(NucleusType::Fermi);
@@ -109,82 +107,6 @@ void ElectronOrbitals::reSolveDirac(DiracSpinor &psi, double e_a,
   std::vector<double> empty_vec;
   return reSolveDirac(psi, e_a, empty_vec, log_dele_or);
 }
-
-// //******************************************************************************
-// double ElectronOrbitals::radialIntegral(const DiracSpinor &psi_a,
-//                                         const DiracSpinor &psi_b,
-//                                         Operator op) const {
-//   std::vector<double> empty_vec;
-//   // XXX KILL THIS XXX
-//   return radialIntegral(psi_a, psi_b, empty_vec, op);
-// }
-//
-// //******************************************************************************
-// double ElectronOrbitals::radialIntegral(const DiracSpinor &psi_a,
-//                                         const DiracSpinor &psi_b,
-//                                         const std::vector<double> &vint,
-//                                         Operator op) const
-// // Split into dPsi later??
-// // Better to split, so that you can chain operators!
-// // But: will always be a copy in that case; optimise for unity?
-// // (Just take )
-// {
-//   // XXX KILL THIS XXX
-//   int pinf = 0; // --> ngp
-//
-//   std::vector<double> fprime_tmp;
-//   std::vector<double> gprime_tmp;
-//
-//   // This is to avoid doing a copy..not sure if it worked, or worth it?
-//   const std::vector<double> *fprime;
-//   const std::vector<double> *gprime;
-//
-//   // Is this a good way? Confusing?
-//   int ig_sign = 1;
-//
-//   switch (op) {
-//   case Operator::unity:
-//     fprime = &psi_b.f;
-//     gprime = &psi_b.g;
-//     break;
-//   case Operator::gamma0:
-//     fprime = &psi_b.f;
-//     gprime = &psi_b.g;
-//     ig_sign = -1; // XXX CHECK! XXX
-//     break;
-//   case Operator::gamma5:
-//     fprime = &psi_b.g;
-//     gprime = &psi_b.f;
-//     ig_sign = -1;
-//     break;
-//   case Operator::dr:
-//     fprime_tmp = NumCalc::derivative(psi_b.f, rgrid.drdu, rgrid.du);
-//     gprime_tmp = NumCalc::derivative(psi_b.g, rgrid.drdu, rgrid.du);
-//     fprime = &fprime_tmp;
-//     gprime = &gprime_tmp;
-//     break;
-//   case Operator::dr2:
-//     fprime_tmp = NumCalc::derivative(psi_b.f, rgrid.drdu, rgrid.du, 2);
-//     gprime_tmp = NumCalc::derivative(psi_b.g, rgrid.drdu, rgrid.du, 2);
-//     fprime = &fprime_tmp;
-//     gprime = &gprime_tmp;
-//     break;
-//   default:
-//     std::cerr << "\nError 103 in EO radialInt: unknown operator\n";
-//     return 0;
-//   }
-//
-//   double Rf = 0, Rg = 0;
-//   if (vint.size() == 0) {
-//     Rf = NumCalc::integrate(psi_a.f, *fprime, rgrid.drdu, 1, 0, pinf);
-//     Rg = NumCalc::integrate(psi_a.g, *gprime, rgrid.drdu, 1, 0, pinf);
-//   } else {
-//     Rf = NumCalc::integrate(psi_a.f, vint, *fprime, rgrid.drdu, 1, 0, pinf);
-//     Rg = NumCalc::integrate(psi_a.g, vint, *gprime, rgrid.drdu, 1, 0, pinf);
-//   }
-//
-//   return (Rf + ig_sign * Rg) * rgrid.du;
-// }
 
 //******************************************************************************
 void ElectronOrbitals::determineCore(const std::string &str_core_in)
@@ -431,7 +353,6 @@ void ElectronOrbitals::orthonormaliseOrbitals(int num_its)
     for (auto b = a + 1; b < Ns; b++) {
       if (orbitals[a].k != orbitals[b].k)
         continue;
-      // c_ab[a][b] = 0.5 * radialIntegral(orbitals[a], orbitals[b]);
       c_ab[a][b] = 0.5 * (orbitals[a] * orbitals[b]);
     }
   }
@@ -453,8 +374,7 @@ void ElectronOrbitals::orthonormaliseOrbitals(int num_its)
   }
 
   for (auto &psi : orbitals) {
-    // double norm = 1. / sqrt(radialIntegral(psi, psi));
-    double norm = 1. / sqrt((psi * psi));
+    double norm = 1. / sqrt(psi * psi);
     for (auto &fa_r : psi.f)
       fa_r *= norm;
     for (auto &ga_r : psi.g)
@@ -490,7 +410,6 @@ void ElectronOrbitals::orthonormaliseValence(DiracSpinor &psi_v, int num_its,
       A_vc.push_back(0.);
       continue;
     }
-    // A_vc.emplace_back(radialIntegral(psi_v, orbitals[ic])); // no 0.5 here
     A_vc.emplace_back((psi_v * orbitals[ic])); // no 0.5 here
   }
 
@@ -507,7 +426,6 @@ void ElectronOrbitals::orthonormaliseValence(DiracSpinor &psi_v, int num_its,
   }
 
   // Re-normalise the valence orbital:
-  // const double norm = 1. / sqrt(radialIntegral(psi_v, psi_v));
   const double norm = 1. / sqrt((psi_v * psi_v));
   for (auto &fv_r : psi_v.f)
     fv_r *= norm;

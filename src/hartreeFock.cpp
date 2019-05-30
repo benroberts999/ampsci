@@ -156,7 +156,6 @@ int main(int argc, char *argv[]) {
           std::cout << "         ";
           continue;
         }
-        // double xo = wf.radialIntegral(psi_a, psi_b);
         double xo = (psi_a * psi_b);
         if (psi_a.n == psi_b.n)
           xo -= 1;
@@ -189,6 +188,9 @@ int main(int argc, char *argv[]) {
     double Gf = FPC::GFe11;
     double Cc = (Gf / sqrt(8.)) * (-wf.Nnuc()); // Qw/(-N)
 
+    DiracOperator hpnc(Cc, rho, GammaMatrix::g5);
+    DiracOperator he1(-1, wf.rgrid.r);
+
     double Ac = 2. / 6.; // angular coef
     auto a6s_i = wf.getStateIndex(6, -1);
     auto a7s_i = wf.getStateIndex(7, -1);
@@ -197,23 +199,19 @@ int main(int argc, char *argv[]) {
     auto &a7s = wf.orbitals[a7s_i];
     double pnc = 0;
 
-    DiracOperator hpnc(1, rho, GammaMatrix::g5);
-    DiracOperator he1(-1, wf.rgrid.r);
-
     for (auto np : wf.orbitals) {
       if (np.k != 1)
         continue; // p_1/2 only
-      int n = np.n;
       // <7s|d|np><np|hw|6s>/dE6s + <7s|hw|np><np|d|6s>/dE7s
       double d7s = a7s * (he1 * np);
       double w6s = np * (hpnc * a6s);
       double dE6s = a6s.en - np.en;
-      double d6s = np * (he1 * a6s);
       double w7s = a7s * (hpnc * np);
+      double d6s = np * (he1 * a6s);
       double dE7s = a7s.en - np.en;
-      double pnc1 = Cc * Ac * d7s * w6s / dE6s;
-      double pnc2 = Cc * Ac * d6s * w7s / dE7s;
-      std::cout << "n=" << n << " pnc= " << pnc1 << " + " << pnc2 << " = "
+      double pnc1 = Ac * d7s * w6s / dE6s;
+      double pnc2 = Ac * d6s * w7s / dE7s;
+      std::cout << "n=" << np.n << " pnc= " << pnc1 << " + " << pnc2 << " = "
                 << pnc1 + pnc2 << "\n";
       pnc += pnc1 + pnc2;
     }
@@ -221,38 +219,41 @@ int main(int argc, char *argv[]) {
     std::cout << "\n Total time: " << timer.reading_str() << "\n";
   }
 
-  // Test hfs and Operator
-  double gI = 2.751818 / (3. / 2.); // XXX Rb
-  double Coef = -gI * FPC::alpha / FPC::m_p;
+  bool test_hfs = true;
+  if (test_hfs) {
+    // Test hfs and Operator
+    double gI = 2.751818 / (3. / 2.); // XXX Rb
+    double Coef = -gI * FPC::alpha / FPC::m_p;
 
-  auto r_rms = 4.1989 / FPC::aB_fm; // XXX Rb
-  // auto r_rms = Nucleus::approximate_r_rms(wf.Anuc());
-  std::cout << "Gridpoints below Rrms: " << wf.rgrid.getIndex(r_rms) << "\n";
+    auto r_rms = 4.1989 / FPC::aB_fm; // XXX Rb
+    // auto r_rms = Nucleus::approximate_r_rms(wf.Anuc());
+    std::cout << "Gridpoints below Rrms: " << wf.rgrid.getIndex(r_rms) << "\n";
 
-  std::vector<double> invr2;
-  invr2.reserve(wf.rgrid.ngp);
-  // auto r03 = pow(r_rms, 3);
-  for (auto &r : wf.rgrid.r) {
-    if (r < r_rms) {
-      // invr2.push_back(r / r03);
-      invr2.push_back(1. / (r * r));
-    } else {
-      invr2.push_back(1. / (r * r));
+    std::vector<double> invr2;
+    invr2.reserve(wf.rgrid.ngp);
+    // auto r03 = pow(r_rms, 3);
+    for (auto &r : wf.rgrid.r) {
+      if (r < r_rms) {
+        // invr2.push_back(r / r03);
+        invr2.push_back(1. / (r * r));
+      } else {
+        invr2.push_back(1. / (r * r));
+      }
     }
-  }
 
-  DiracMatrix g0100(0, 1, 0, 0);
-  DiracOperator vhfs(Coef, invr2, g0100, 0, true);
+    DiracMatrix g0100(0, 1, 0, 0);
+    DiracOperator vhfs(Coef, invr2, g0100, 0, true);
 
-  for (auto i : wf.valenceIndexList) {
-    auto &phi = wf.orbitals[i];
-    auto A_tmp = phi * (vhfs * phi);
+    for (auto i : wf.valenceIndexList) {
+      auto &phi = wf.orbitals[i];
+      auto A_tmp = phi * (vhfs * phi);
 
-    double j = phi.j();
-    auto factor = FPC::Hartree_MHz * phi.k / (j * (j + 1.));
+      double j = phi.j();
+      auto factor = FPC::Hartree_MHz * phi.k / (j * (j + 1.));
 
-    std::cout << phi.symbol() << ": ";
-    std::cout << A_tmp * factor << "\n";
+      std::cout << phi.symbol() << ": ";
+      std::cout << A_tmp * factor << "\n";
+    }
   }
 
   return 0;
