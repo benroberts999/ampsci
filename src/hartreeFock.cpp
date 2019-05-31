@@ -215,7 +215,7 @@ int main(int argc, char *argv[]) {
     std::cout << "\n Total time: " << timer.reading_str() << "\n";
   }
 
-  bool test_hfs = true;
+  bool test_hfs = false;
   if (test_hfs) {
     // Test hfs and Operator
     double muN = 2.751818;            // XXX Rb
