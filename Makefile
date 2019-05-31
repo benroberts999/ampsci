@@ -48,9 +48,10 @@ all: checkObj checkXdir $(ALLEXES)
 
 # All programs depend on these generic common headers:
 COMH = $(addprefix $(ID)/, \
- DiracSpinor.hpp DiracOperator.hpp Nucleus.hpp \
+ DiracSpinor.hpp DiracOperator.hpp Operators.hpp Nucleus.hpp \
  ATI_atomInfo.hpp FPC_physicalConstants.hpp FileIO_fileReadWrite.hpp \
- NumCalc_quadIntegrate.hpp Grid.hpp Matrix_linalg.hpp ChronoTimer.hpp Wigner_369j.hpp \
+ NumCalc_quadIntegrate.hpp Grid.hpp Matrix_linalg.hpp ChronoTimer.hpp \
+ Wigner_369j.hpp \
 )
 
 # Rule for files that have .cpp AND a .h file
@@ -75,7 +76,7 @@ BASE = $(addprefix $(OD)/, \
 )
 
 HF = $(addprefix $(OD)/, \
- HartreeFockClass.o PRM_parametricPotentials.o \
+ HartreeFockClass.o PRM_localPotentials.o \
 )
 
 CNTM = $(addprefix $(OD)/, \
@@ -89,11 +90,11 @@ $(XD)/h-like: $(BASE) $(OD)/h-like.o
 	$(LINK)
 
 $(XD)/fitParametric: $(BASE) $(HF) $(OD)/fitParametric.o \
-$(OD)/PRM_parametricPotentials.o
+$(OD)/PRM_localPotentials.o
 	$(LINK)
 
 $(XD)/parametricPotential: $(BASE) $(OD)/parametricPotential.o \
-$(OD)/PRM_parametricPotentials.o
+$(OD)/PRM_localPotentials.o
 	$(LINK)
 
 $(XD)/atomicKernal: $(BASE) $(CNTM) $(HF) \

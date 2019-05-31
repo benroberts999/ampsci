@@ -4,7 +4,7 @@
 #include "ElectronOrbitals.hpp"
 #include "Grid.hpp"
 #include "NumCalc_quadIntegrate.hpp"
-#include "PRM_parametricPotentials.hpp"
+#include "PRM_localPotentials.hpp"
 #include "Wigner_369j.hpp"
 #include <cmath>
 #include <vector>

@@ -7,7 +7,8 @@
 #include "HartreeFockClass.hpp"
 #include "Nucleus.hpp"
 #include "NumCalc_quadIntegrate.hpp"
-#include "PRM_parametricPotentials.hpp"
+#include "Operators.hpp"
+#include "PRM_localPotentials.hpp"
 #include <cmath>
 #include <iostream>
 #include <tuple>
@@ -184,33 +185,28 @@ int main(int argc, char *argv[]) {
   if (testpnc) {
     double t = 2.3;
     double c = Nucleus::approximate_c_hdr(wf.Anuc());
-    auto rho = Nucleus::fermiNuclearDensity_tcN(t, c, 1, wf.rgrid);
-    double Gf = FPC::GFe11;
-    double Cc = (Gf / sqrt(8.)) * (-wf.Nnuc()); // Qw/(-N)
-
-    DiracOperator hpnc(Cc, rho, GammaMatrix::g5);
-    DiracOperator he1(-1, wf.rgrid.r);
+    PNCnsiOperator hpnc(c, t, wf.rgrid, -wf.Nnuc());
+    E1Operator he1(wf.rgrid);
 
     double Ac = 2. / 6.; // angular coef
     auto a6s_i = wf.getStateIndex(6, -1);
     auto a7s_i = wf.getStateIndex(7, -1);
-    std::cout << a6s_i << "," << a7s_i << "\n";
     auto &a6s = wf.orbitals[a6s_i];
     auto &a7s = wf.orbitals[a7s_i];
-    double pnc = 0;
+    std::cout << "E_pnc: " << wf.Anuc() << "-" << ATI::atomicSymbol(wf.Znuc())
+              << " " << a6s.symbol() << " -> " << a7s.symbol() << "\n";
 
+    double pnc = 0;
     for (auto np : wf.orbitals) {
       if (np.k != 1)
         continue; // p_1/2 only
       // <7s|d|np><np|hw|6s>/dE6s + <7s|hw|np><np|d|6s>/dE7s
-      double d7s = a7s * (he1 * np);
-      double w6s = np * (hpnc * a6s);
-      double dE6s = a6s.en - np.en;
-      double w7s = a7s * (hpnc * np);
-      double d6s = np * (he1 * a6s);
-      double dE7s = a7s.en - np.en;
-      double pnc1 = Ac * d7s * w6s / dE6s;
-      double pnc2 = Ac * d6s * w7s / dE7s;
+      double pnc1 =
+          Ac * (a7s * (he1 * np)) * (np * (hpnc * a6s)) / (a6s.en - np.en);
+      // double pnc1 =
+      //     Ac * ((he1 * a7s) * np) * ((hpnc * np) * a6s) / (a6s.en - np.en);
+      double pnc2 =
+          Ac * (a7s * (hpnc * np)) * (np * (he1 * a6s)) / (a7s.en - np.en);
       std::cout << "n=" << np.n << " pnc= " << pnc1 << " + " << pnc2 << " = "
                 << pnc1 + pnc2 << "\n";
       pnc += pnc1 + pnc2;
@@ -222,27 +218,16 @@ int main(int argc, char *argv[]) {
   bool test_hfs = true;
   if (test_hfs) {
     // Test hfs and Operator
-    double gI = 2.751818 / (3. / 2.); // XXX Rb
-    double Coef = -gI * FPC::alpha / FPC::m_p;
-
+    double muN = 2.751818;            // XXX Rb
+    double IN = (3. / 2.);            // XXX Rb
     auto r_rms = 4.1989 / FPC::aB_fm; // XXX Rb
     // auto r_rms = Nucleus::approximate_r_rms(wf.Anuc());
     std::cout << "Gridpoints below Rrms: " << wf.rgrid.getIndex(r_rms) << "\n";
 
-    std::vector<double> invr2;
-    invr2.reserve(wf.rgrid.ngp);
-    // auto r03 = pow(r_rms, 3);
-    for (auto &r : wf.rgrid.r) {
-      if (r < r_rms) {
-        // invr2.push_back(r / r03);
-        invr2.push_back(1. / (r * r));
-      } else {
-        invr2.push_back(1. / (r * r));
-      }
-    }
-
-    DiracMatrix g0100(0, 1, 0, 0);
-    DiracOperator vhfs(Coef, invr2, g0100, 0, true);
+    // example for using lambda
+    auto l1 = [](double r, double) { return 1. / (r * r); };
+    // auto l2 = [](double r, double rN) { return r > rN ? 1. / (r * r) : 0.; };
+    HyperfineOperator vhfs(muN, IN, r_rms, wf.rgrid, l1);
 
     for (auto i : wf.valenceIndexList) {
       auto &phi = wf.orbitals[i];

@@ -1,4 +1,4 @@
-#include "PRM_parametricPotentials.hpp"
+#include "PRM_localPotentials.hpp"
 #include "ATI_atomInfo.hpp"
 #include "FPC_physicalConstants.hpp"
 #include <cmath>

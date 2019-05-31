@@ -3,7 +3,7 @@
 #include "ElectronOrbitals.hpp"
 #include "FPC_physicalConstants.hpp"
 #include "FileIO_fileReadWrite.hpp"
-#include "PRM_parametricPotentials.hpp"
+#include "PRM_localPotentials.hpp"
 #include <iostream>
 #include <tuple>
 

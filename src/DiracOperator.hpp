@@ -101,6 +101,13 @@ const DiracMatrix g5(0, 1, 1, 0);
 class DiracOperator {
   // XXX at the moment, two ways can be imaginary..
   // it's own, and from Dirac matrix....... OK?? XXX
+  // Various contructors: (all after v are optional)
+  // DiracOperator(C, v, DiracMatrix(a, b, c, d), diff_order, imag?)
+  // DiracOperator(C, DiracMatrix(a, b, c, d), diff_order, imag?)
+  // DiracOperator(v, DiracMatrix(a, b, c, d), diff_order, imag?)
+  // DiracOperator(DiracMatrix(a, b, c, d), diff_order, imag?)
+  // DiracOperator(diff_order, imag?)
+  // DiracOperator(DiracMatrix(a, b, c, d), imag?)
 
 public: // Constructors
   DiracOperator(double in_coef, const std::vector<double> &in_v,
@@ -108,6 +115,10 @@ public: // Constructors
                 bool in_imag = false)
       : coef(in_coef), v(in_v), g(in_g), diff_order(in_diff),
         imaginary(in_imag) {}
+
+  DiracOperator(double in_coef, const DiracMatrix &in_g = GammaMatrix::ident,
+                int in_diff = 0, bool in_imag = false)
+      : coef(in_coef), g(in_g), diff_order(in_diff), imaginary(in_imag) {}
 
   DiracOperator(const std::vector<double> &in_v,
                 const DiracMatrix &in_g = GammaMatrix::ident, int in_diff = 0,
@@ -124,13 +135,12 @@ public: // Constructors
   DiracOperator(DiracMatrix in_g = GammaMatrix::ident, bool in_imag = false)
       : g(in_g), imaginary(in_imag) {}
 
-private: // Data
-  double coef = 1;
+public: // Data
+  const double coef = 1;
   const std::vector<double> v;
   const DiracMatrix g = GammaMatrix::ident;
   const int diff_order = 0;
   const bool imaginary = false;
-  // const Grid *const rgrid = nullptr;
 
 public: // Methods
   DiracSpinor operate(const DiracSpinor &phi) const;

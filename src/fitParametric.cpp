@@ -6,7 +6,7 @@
 
 #include "HartreeFockClass.hpp"
 #include "NumCalc_quadIntegrate.hpp"
-#include "PRM_parametricPotentials.hpp"
+#include "PRM_localPotentials.hpp"
 #include <cmath>
 #include <fstream>
 #include <iostream>

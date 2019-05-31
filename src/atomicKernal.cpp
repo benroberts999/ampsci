@@ -7,7 +7,7 @@
 #include "FileIO_fileReadWrite.hpp"
 #include "Grid.hpp"
 #include "HartreeFockClass.hpp"
-#include "PRM_parametricPotentials.hpp"
+#include "PRM_localPotentials.hpp"
 #include <cmath>
 #include <iostream>
 #include <tuple>
