@@ -156,7 +156,9 @@ void HartreeFock::solveValence(int n, int kappa) {
   // don't include all pts in PT for new e guess
   static const std::size_t de_stride = 5;
 
-  std::vector<double> vexa(p_rgrid->ngp);
+  vex.emplace_back(p_rgrid->ngp);
+  // std::vector<double> vexa(p_rgrid->ngp);
+  auto &vexa = vex.back();
   std::vector<double> vexa_old;
 
   int hits = 1;
@@ -635,4 +637,10 @@ void HartreeFock::form_approx_vex_a(std::size_t a,
       }
     } // k
   }   // if a in core
+}
+
+//******************************************************************************
+const std::vector<double> &HartreeFock::get_vex(const DiracSpinor &psi) const {
+  auto i = p_wf->getStateIndex(psi.n, psi.k);
+  return vex[i];
 }

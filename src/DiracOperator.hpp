@@ -157,15 +157,19 @@ inline DiracSpinor DiracOperator::operate(const DiracSpinor &phi) const {
   // This isn't checked or enforced yet!??!?
   bool off_diag = (g.e01 != 0 || g.e10 != 0) ? true : false;
 
+  // Diagonal operator swaps f,g, so swaps which comp is imagingary
   auto g_imag = off_diag ? !phi.imaginary_g : phi.imaginary_g;
-
-  DiracSpinor dPhi(phi.n, phi.k, *phi.p_rgrid, g_imag);
-  dPhi.pinf = phi.pinf; //?
-  dPhi.en = phi.en;     //?
+  // Also: if operator is itself imaginary, also swaps!
+  if (imaginary)
+    g_imag = !g_imag;
 
   // if imag, sign of "g" changes (unless f was img, then sign of f changes)
   const auto g_sign = (imaginary && phi.imaginary_g) ? -1 : 1;
   const auto f_sign = (imaginary && !phi.imaginary_g) ? -1 : 1;
+
+  DiracSpinor dPhi(phi.n, phi.k, *phi.p_rgrid, g_imag);
+  dPhi.pinf = phi.pinf; //?
+  dPhi.en = phi.en;     //?
 
   if (off_diag) {
     for (std::size_t i = 0; i < phi.p_rgrid->ngp; i++) {

@@ -33,6 +33,8 @@ public:
 
   double calculateCoreEnergy() const;
 
+  const std::vector<double> &get_vex(const DiracSpinor &psi) const;
+
 private:
   ElectronOrbitals *const p_wf;
   const Grid *const p_rgrid;

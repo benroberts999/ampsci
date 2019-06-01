@@ -164,6 +164,26 @@ int main(int argc, char *argv[]) {
       }
       std::cout << "\n";
     }
+
+    std::cout << "\nTesting wavefunctions: <n|H|n>  (numerical error)\n";
+    double c = 1. / wf.get_alpha();
+    DiracOperator w(c, GammaMatrix::g5, 1, true);
+    RadialOperator x_a(wf.rgrid, -1);
+    DiracOperator y(c * c, DiracMatrix(0, 0, 0, -2));
+    DiracOperator z1(wf.vnuc);
+    DiracOperator z2(wf.vdir);
+    for (auto &psi : wf.orbitals) {
+      auto k = psi.k;
+      DiracOperator z3(hf.get_vex(psi));
+      DiracOperator x_b(c, DiracMatrix(0, 1 - k, 1 + k, 0), 0, true);
+      auto rhs = (w * psi) + (x_a * (x_b * psi)) + (y * psi) + (z1 * psi) +
+                 (z2 * psi) + (z3 * psi);
+      double R = psi * rhs;
+      double ens = psi.en;
+      double fracdiff = (R - ens) / ens;
+      printf("<%i% i|H|%i% i> = %17.11f, E = %17.11f; % .0e\n", psi.n, psi.k,
+             psi.n, psi.k, R, ens, fracdiff);
+    }
   }
 
   bool print_wfs = false;

@@ -84,4 +84,19 @@ public: // comparitor overloads
         NumCalc::integrate(this->g, other.g, this->p_rgrid->drdu, 1, 0, pinf);
     return (ffs * ff + ggs * gg) * this->p_rgrid->du;
   }
+  DiracSpinor operator+(const DiracSpinor &other) const {
+    DiracSpinor sum(other.n, other.k, *other.p_rgrid, other.imaginary_g);
+    sum.pinf = other.pinf; //?
+    sum.en = other.en;     //?
+    if (other.imaginary_g != this->imaginary_g) {
+      std::cerr << "\nFAIL92 in DiracSpinor. Trying to add (re,im)+(im,re)!\n";
+      std::cout << other.imaginary_g << " " << this->imaginary_g << "\n";
+      std::abort();
+    }
+    for (std::size_t i = 0; i < other.p_rgrid->ngp; i++) {
+      sum.f[i] = this->f[i] + other.f[i];
+      sum.g[i] = this->g[i] + other.g[i];
+    }
+    return sum;
+  }
 };
