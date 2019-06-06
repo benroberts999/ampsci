@@ -42,24 +42,18 @@ int main(int argc, char *argv[]) {
   if (varalpha2 == 0)
     varalpha2 = 1.e-10;
   varalpha = sqrt(varalpha2);
-
   int Z = ATI::get_z(Z_str);
-  Z_str = ATI::atomicSymbol(Z); // for nice output if Z given as int
-  if (A < 0)
-    A = ATI::defaultA(Z); // if none given, get default A
 
+  // Generate the orbitals object:
+  ElectronOrbitals wf(Z, A, ngp, r0, rmax, varalpha);
   if (exclude_exchange)
     std::cout << "\nRunning Hartree (excluding exchange) for ";
   else
     std::cout << "\nRunning Hartree-Fock for ";
-  std::cout << Z_str << "; Z=" << Z << " A=" << A << "\n"
-            << "*************************************************\n";
-
-  // Generate the orbitals object:
-  ElectronOrbitals wf(Z, A, ngp, r0, rmax, varalpha);
-  wf.rgrid.print();
+  wf.printAtom();
   wf.printNuclearParams();
-  std::cout << "\n";
+  wf.rgrid.print();
+  std::cout << "********************************************************\n";
 
   // Solve Hartree equations for the core:
   timer.start(); // start the timer for HF
@@ -68,79 +62,33 @@ int main(int argc, char *argv[]) {
   std::cout << "core: " << timer.lap_reading_str() << "\n";
 
   // Create list of valence states to solve for
-  // Solves for lowest num_val states with given l
-  std::vector<std::vector<int>> lst;
   if ((int)wf.Ncore() >= wf.Znuc())
     num_val = 0;
-  for (int l = 0; l <= l_max; l++) {
-    int n0 = wf.maxCore_n(l) + 1;
-    if (n0 == 1)
-      n0 += l;
-    for (int nv = 0; nv < num_val; nv++) {
-      for (int tk = 0; tk < 2; tk++) {     // loop over k
-        int ka = (tk == 0) ? l : -(l + 1); // kappa
-        if (ka == 0)
-          continue; // no j=l-1/2 for l=s
-        lst.push_back({n0 + nv, ka});
-      }
-    }
-  }
-
+  auto val_lst = wf.listOfStates_nk(num_val, l_max);
   // Solve for the valence states:
   timer.start();
-  for (const auto &nk : lst) {
+  for (const auto &nk : val_lst) {
     int n = nk[0];
     int k = nk[1];
     hf.solveValence(n, k);
   }
-  if (lst.size() > 0)
+  if (val_lst.size() > 0)
     std::cout << "Valence: " << timer.lap_reading_str() << "\n";
 
-  // make list of energy indices in sorted order:
-  // std::vector<int>
-  auto sorted_by_energy_list = wf.sortedEnergyList(true);
-
   // Output results:
-  int Zion = wf.Znuc() - wf.Ncore();
-  std::cout << "\nHartree Fock: " << Z_str << ", Z=" << Z << " A=" << A << "\n";
-  std::cout << "Core: " << wf.coreConfiguration_nice() << " (V^N";
-  if (Zion != 0)
-    std::cout << "-" << Zion;
-  std::cout << ")\n";
-  std::cout << "     state   k   Rinf its    eps       En (au)      En (/cm)\n";
-  bool val = false;
-  double en_lim = 0;
-  int count = 0;
-  for (int i : sorted_by_energy_list) {
-    auto &phi = wf.orbitals[i];
-    ++count;
-    if (val && en_lim == 0)
-      en_lim = fabs(phi.en); // give energies wrt core
-    double rinf = wf.rinf(phi);
-    printf("%2i) %7s %2i  %5.1f %3i  %5.0e %13.7f %13.1f", i,
-           phi.symbol().c_str(), phi.k, rinf, phi.its, phi.eps, phi.en,
-           phi.en * FPC::Hartree_invcm);
-    if (val) {
-      printf(" %10.2f\n", (phi.en + en_lim) * FPC::Hartree_invcm);
-    } else {
-      if (phi.occ_frac < 0.999)
-        printf("     (%4.2f)\n", phi.occ_frac);
-      else
-        std::cout << "\n";
-    }
-    if (count == (int)wf.coreIndexList.size()) {
-      std::cout << "E_core = " << core_energy
-                << " au;  = " << core_energy * FPC::Hartree_invcm << "/cm\n";
-      if (wf.coreIndexList.size() == wf.orbitals.size())
-        break;
-      std::cout
-          << "Val: state   "
-          << "k   Rinf its    eps       En (au)      En (/cm)   En (/cm)\n";
-      val = true;
-    }
-  }
+  std::cout << "\nHartree Fock: ";
+  wf.printAtom();
+  bool sorted = true;
+  wf.printCore(sorted);
+  std::cout << "E_core = " << core_energy
+            << " au;  = " << core_energy * FPC::Hartree_invcm << "/cm\n";
+  wf.printValence(sorted);
 
   std::cout << "\n Total time: " << timer.reading_str() << "\n";
+
+  //*********************************************************
+  //               TESTS
+  //*********************************************************
 
   bool run_test = false;
   if (run_test) {
@@ -247,7 +195,8 @@ int main(int argc, char *argv[]) {
 
     // example for using lambda
     auto l1 = [](double r, double) { return 1. / (r * r); };
-    // auto l2 = [](double r, double rN) { return r > rN ? 1. / (r * r) : 0.; };
+    // auto l2 = [](double r, double rN) { return r > rN ? 1. / (r * r) : 0.;
+    // };
     HyperfineOperator vhfs(muN, IN, r_rms, wf.rgrid, l1);
 
     for (auto i : wf.valenceIndexList) {

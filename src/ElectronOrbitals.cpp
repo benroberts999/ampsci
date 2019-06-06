@@ -444,7 +444,6 @@ double ElectronOrbitals::enGuessCore(int n, int l) const
 // tot_el = total electrons BELOW
 // num = num electrons in THIS shell
 {
-
   int tot_el = 0;
   int num = 0;
   for (std::size_t i = 0; i < num_core_shell.size(); i++) {
@@ -462,7 +461,7 @@ double ElectronOrbitals::enGuessCore(int n, int l) const
   } else if (l == 2) {
     Zeff = 1. + (m_Z - tot_el - 0.5 * num);
   }
-  if (Zeff < 1.) {
+  if (Zeff < 1.0) {
     Zeff = 1.;
   }
 
@@ -548,23 +547,23 @@ void ElectronOrbitals::printNuclearParams() {
 }
 
 //******************************************************************************
-std::vector<int> ElectronOrbitals::sortedEnergyList(bool do_sort) const
+std::vector<std::size_t> ElectronOrbitals::sortedEnergyList(bool do_sort,
+                                                            int i_cvb) const
 // Outouts a list of integers corresponding to the states
 // sorted by energy (lowest energy first)
 {
 
-  // sort_list.clear();
-  std::vector<int> sort_list;
+  auto sort_list = stateIndexList;
+  if (i_cvb == 0)
+    sort_list = coreIndexList;
+  if (i_cvb == 1)
+    sort_list = valenceIndexList;
 
-  if (!do_sort) {
-    for (std::size_t i = 0; i < orbitals.size(); i++) {
-      sort_list.push_back((int)i);
-    }
+  if (!do_sort)
     return sort_list;
-  }
 
   std::vector<std::vector<double>> t_en;
-  for (std::size_t i = 0; i < orbitals.size(); i++) {
+  for (auto i : sort_list) {
     t_en.push_back({orbitals[i].en, (double)i + 0.1});
     //+0.1 to prevent rounding error when going from double -> int
   }
@@ -575,9 +574,95 @@ std::vector<int> ElectronOrbitals::sortedEnergyList(bool do_sort) const
 
   std::sort(t_en.rbegin(), t_en.rend(), sortCol);
 
-  for (std::size_t i = 0; i < orbitals.size(); i++) {
-    sort_list.push_back((int)t_en[i][1]);
+  // overwrite list with sorted list
+  for (std::size_t i = 0; i < sort_list.size(); i++) {
+    sort_list[i] = (std::size_t)t_en[i][1];
   }
 
   return sort_list;
+}
+
+//******************************************************************************
+void ElectronOrbitals::printCore(bool sorted)
+// prints core
+{
+  int Zion = Znuc() - Ncore();
+  std::cout << "Core: " << coreConfiguration_nice() << " (V^N";
+  if (Zion != 0)
+    std::cout << "-" << Zion;
+  std::cout << ")\n";
+  std::cout << "     state   k   Rinf its    eps       En (au)      En (/cm)\n";
+
+  auto index_list = sortedEnergyList(sorted, 0);
+  for (auto i : index_list) {
+    auto &phi = orbitals[i];
+    double r_inf = rinf(phi);
+    printf("%2i) %7s %2i  %5.1f %3i  %5.0e %13.7f %13.1f", int(i),
+           phi.symbol().c_str(), phi.k, r_inf, phi.its, phi.eps, phi.en,
+           phi.en *FPC::Hartree_invcm);
+    if (phi.occ_frac < 1.0) {
+      printf("     (%4.2f)\n", phi.occ_frac);
+    } else {
+      std::cout << "\n";
+    }
+  }
+}
+
+//******************************************************************************
+void ElectronOrbitals::printValence(bool sorted)
+// prints valence
+{
+  std::cout << "Val: state   "
+            << "k   Rinf its    eps       En (au)      En (/cm)   En (/cm)\n";
+
+  auto index_list = sortedEnergyList(sorted, 1);
+  double e0 = 0; // orbitals[index_list[0]].en;
+  for (auto i : index_list) {
+    auto &phi = orbitals[i];
+    if (phi.en < e0 || e0 == 0)
+      e0 = phi.en;
+  }
+
+  for (auto i : index_list) {
+    auto &phi = orbitals[i];
+    double r_inf = rinf(phi);
+    printf("%2i) %7s %2i  %5.1f %3i  %5.0e %13.7f %13.1f", int(i),
+           phi.symbol().c_str(), phi.k, r_inf, phi.its, phi.eps, phi.en,
+           phi.en *FPC::Hartree_invcm);
+    printf(" %10.2f\n", (phi.en + e0) * FPC::Hartree_invcm);
+  }
+}
+
+//******************************************************************************
+std::vector<std::vector<int>>
+ElectronOrbitals::listOfStates_nk(int num_val, int la, int lb, bool skip_core)
+// Creates a list of states (usually valence states to solve for)
+// In form {{n,ka},...}
+// Outputs n and l, from min-max l (or from 0-> max l)
+// Calulates num_val different n states (for each l)
+// This will be number of states above the core (skips states which are in the
+// core)
+{
+  std::vector<std::vector<int>> lst;
+  auto l_min = la;
+  auto l_max = lb;
+  if (lb == 0) {
+    l_min = 0;
+    l_max = la;
+  }
+
+  auto min_ik = ATI::indexFromKappa(-l_min - 1);
+  auto max_ik = ATI::indexFromKappa(-l_max - 1);
+  for (int ik = min_ik; ik <= max_ik; ik++) {
+    auto k = ATI::kappaFromIndex(ik);
+    auto l = ATI::l_k(k);
+    auto n_min = l + 1;
+    for (int n = n_min, count = 0; count < num_val; n++) {
+      if (isInCore(n, k) && skip_core)
+        continue;
+      lst.push_back({n, k});
+      ++count;
+    }
+  }
+  return lst;
 }

@@ -54,6 +54,13 @@ public:
   std::string coreConfiguration_nice() {
     return ATI::niceCoreOutput(m_core_string);
   }
+  void printNuclearParams();
+  void printAtom() {
+    std::cout << ATI::atomicSymbol(m_Z) << ", Z=" << m_Z << " A=" << m_A
+              << "\n";
+  }
+  void printCore(bool sorted = true);
+  void printValence(bool sorted = true);
 
   // XXX ? best way?
   // XXX Should really have just 1! ?
@@ -66,7 +73,6 @@ public:
 
   void formNuclearPotential(NucleusType nucleus_type, double rc = 0,
                             double t = 0);
-  void printNuclearParams();
 
   int solveInitialCore(std::string str_core_in, int log_dele_or = 0);
   bool isInCore(int n, int k) const;
@@ -76,7 +82,11 @@ public:
   void orthonormaliseValence(DiracSpinor &psi_v, int num_its = 1,
                              bool core_only = false) const; // "const" OK?
 
-  std::vector<int> sortedEnergyList(bool do_sort = false) const;
+  std::vector<std::size_t> sortedEnergyList(bool do_sort = false,
+                                            int i_cvb = 2) const;
+
+  std::vector<std::vector<int>> listOfStates_nk(int num_val, int la, int lb = 0,
+                                                bool skip_core = true);
 
 private:
   void determineCore(const std::string &str_core_in);
