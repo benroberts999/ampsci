@@ -72,9 +72,9 @@ private:
   void form_vabk_core();
   void form_vbb0();
 
-  // XXX this also should reurn?? [need test though!] XXX
-  void calculate_v_abk(const DiracSpinor &phi_a, const DiracSpinor &phi_b,
-                       int k, std::vector<double> &vabk) const;
+  // // XXX this also should reurn?? [need test though!] XXX
+  // void calculate_v_abk(const DiracSpinor &phi_a, const DiracSpinor &phi_b,
+  //                      int k, std::vector<double> &vabk) const;
 
   const std::vector<double> &get_v_aa0(std::size_t a) const;
   const std::vector<std::vector<double>> &get_v_abk(std::size_t a,

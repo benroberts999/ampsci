@@ -56,7 +56,7 @@ COMH = $(addprefix $(ID)/, \
 
 # Rule for files that have .cpp AND a .h file
 # They depend 'only' on their own header, + generic common headers
-$(OD)/%.o: $(ID)/%.cpp $(ID)/%.h $(COMH)
+$(OD)/%.o: $(ID)/%.cpp $(ID)/%.hpp $(COMH)
 	$(COMP)
 
 # Rule for files that _don't_ have a .h header. (mains)
@@ -76,7 +76,7 @@ BASE = $(addprefix $(OD)/, \
 )
 
 HF = $(addprefix $(OD)/, \
- HartreeFockClass.o PRM_localPotentials.o \
+ HartreeFockClass.o CoulombFunctions.o PRM_localPotentials.o \
 )
 
 CNTM = $(addprefix $(OD)/, \
