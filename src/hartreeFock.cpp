@@ -58,6 +58,7 @@ int main(int argc, char *argv[]) {
   // Generate the orbitals object:
   ElectronOrbitals wf(Z, A, ngp, r0, rmax, varalpha);
   wf.rgrid.print();
+  wf.printNuclearParams();
   std::cout << "\n";
 
   // Solve Hartree equations for the core:

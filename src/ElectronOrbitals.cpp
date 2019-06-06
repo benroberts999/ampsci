@@ -515,19 +515,39 @@ void ElectronOrbitals::formNuclearPotential(NucleusType nucleus_type, double rc,
     vnuc = Nucleus::fermiNuclearPotential(m_Z, t, rc, rgrid.r);
     break;
   case NucleusType::spherical:
-    if (rc == 0)
-      rc = Nucleus::approximate_c_hdr(m_A); // update?
+    if (rc == 0) {
+      // note: still called rc, but is r_N here!
+      rc = Nucleus::approximate_r_rms(m_A);
+    }
+    t = 0;
     vnuc = Nucleus::sphericalNuclearPotential(m_Z, rc, rgrid.r);
     break;
   case NucleusType::zero:
+    rc = 0;
+    t = 0;
     vnuc = Nucleus::sphericalNuclearPotential(m_Z, 0., rgrid.r);
     break;
   default:
     std::cerr << "\nFail EO:755 - invalid nucleus type?\n";
   }
+  m_c = rc;
+  m_t = t;
 }
 
-//------------------------------------------------------------------------------
+//******************************************************************************
+void ElectronOrbitals::printNuclearParams() {
+  if (m_c == 0 && m_t == 0) {
+    std::cout << "Zero-size nucleus\n";
+  } else if (m_t == 0) {
+    std::cout << "Spherical nucleus; r_rms = " << m_c << "\n";
+  } else {
+    std::cout << "Fermi nucleus; r_rms = "
+              << Nucleus::rrms_formula_c_t(m_c, m_t) << ", c=" << m_c
+              << ", t=" << m_t << "\n";
+  }
+}
+
+//******************************************************************************
 std::vector<int> ElectronOrbitals::sortedEnergyList(bool do_sort) const
 // Outouts a list of integers corresponding to the states
 // sorted by energy (lowest energy first)

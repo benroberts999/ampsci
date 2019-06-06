@@ -33,6 +33,8 @@ private:
   // Atom info:
   const int m_Z, m_A;
 
+  double m_c, m_t;
+
   // number of electrons in each core shell (non-rel??)
   std::vector<int> num_core_shell;
   int num_core_electrons = 0; // Nc = N - M
@@ -64,6 +66,7 @@ public:
 
   void formNuclearPotential(NucleusType nucleus_type, double rc = 0,
                             double t = 0);
+  void printNuclearParams();
 
   int solveInitialCore(std::string str_core_in, int log_dele_or = 0);
   bool isInCore(int n, int k) const;

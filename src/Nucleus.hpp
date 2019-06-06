@@ -42,10 +42,20 @@ inline double approximate_r_rms(int A)
 inline double c_hdr_formula_rrms_t(double rrms, double t = 2.3)
 // Calculates half-density radius, given rms charge radius, and t.
 // Formula from Ginges, Volotka, Fritzsche, Phys. Rev. A 96, 1 (2017).
+// 4 ln(3) = 4.39445, pi^2 = 9.8696
+{
+  double a = t / 4.39445;
+  return sqrt((5. / 3) * rrms * rrms - (7. / 3) * (9.8696 * a * a));
+}
+
+//******************************************************************************
+inline double rrms_formula_c_t(double c, double t = 2.3)
+// Calculates  rms charge radius, given half-density radius (c), and t.
+// Formula from Ginges, Volotka, Fritzsche, Phys. Rev. A 96, 1 (2017).
 // 4 ln(3) = 4.39445, pi^2 = 9.87
 {
   double a = t / 4.39445;
-  return sqrt((5. / 3) * rrms * rrms - (7. / 3) * (9.87 * a * a));
+  return sqrt(0.2 * (3. * c * c + 7. * a * a * 9.8696));
 }
 
 //******************************************************************************
