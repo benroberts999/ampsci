@@ -92,7 +92,7 @@ int main(int argc, char *argv[]) {
           continue;
         if (wf.isInCore(n, k))
           continue;
-        wf.solveLocalDirac(n, k);
+        wf.solveInitialValence(n, k);
       }
     }
   }

@@ -103,7 +103,7 @@ void HartreeFock::hartree_fock_core() {
       }
       del_e *= p_rgrid->du * de_stride;
       double en_guess = (en_old < -del_e) ? en_old + del_e : en_old;
-      p_wf->reSolveDirac(phi, en_guess, vex[i], 3);
+      p_wf->solveDirac(phi, en_guess, vex[i], 3);
       double state_eps = fabs((phi.en - en_old) / en_old);
       // convergance based on worst orbital:
       DEBUG(printf(" --- %2i,%2i: en=%11.5f  HFeps = %.0e;  Adams = %.0e[%2i]  "
@@ -125,7 +125,7 @@ void HartreeFock::hartree_fock_core() {
 
   // Now, re-solve core orbitals with higher precission
   for (std::size_t i = 0; i < m_num_core_states; i++) {
-    p_wf->reSolveDirac(p_wf->orbitals[i], p_wf->orbitals[i].en, vex[i], 14);
+    p_wf->solveDirac(p_wf->orbitals[i], p_wf->orbitals[i].en, vex[i], 14);
   }
   p_wf->orthonormaliseOrbitals(2);
 }
@@ -145,7 +145,7 @@ void HartreeFock::solveValence(int n, int kappa) {
   extend_m_arr_v_abk_r_valence(kappa);
 
   // just use direct to solve initial
-  p_wf->solveLocalDirac(n, kappa, 0, 3);
+  p_wf->solveInitialValence(n, kappa, 0, 3);
   auto a = p_wf->valenceIndexList.back();
   int twoJplus1 = ATI::twoj_k(kappa) + 1;
   p_wf->orbitals.back().occ_frac = 1. / twoJplus1;
@@ -185,7 +185,7 @@ void HartreeFock::solveValence(int n, int kappa) {
     }
     en_new_guess = en_old + en_new_guess * p_rgrid->du * de_stride;
     // Solve Dirac using new potential:
-    p_wf->reSolveDirac(phi, en_new_guess, vexa, 3);
+    p_wf->solveDirac(phi, en_new_guess, vexa, 3);
     eps = fabs((phi.en - en_old) / en_old);
     // Force valence states to be orthogonal to core:
     p_wf->orthonormaliseValence(phi, 1, true);
@@ -196,7 +196,7 @@ void HartreeFock::solveValence(int n, int kappa) {
          hits, eps, phi.en);
 
   // Re-solve w/ higher precission
-  p_wf->reSolveDirac(phi, phi.en, vexa, 15);
+  p_wf->solveDirac(phi, phi.en, vexa, 15);
   p_wf->orthonormaliseValence(phi, 2);
 }
 

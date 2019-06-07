@@ -71,10 +71,10 @@ public: // comparitor overloads
   bool operator<=(const DiracSpinor &other) const { return !(*this > other); }
 
   double operator*(const DiracSpinor &other) const {
-    // XXX Take into account IMAGINARYness !!!
     int pinf = 0; // XXX goes to ngp...ok?
 
     // Change the relative sign based in Complex f or g component
+    // (includes complex conjugation of lhs)
     int ffs = ((!this->imaginary_g) && (other.imaginary_g)) ? -1 : 1;
     int ggs = ((this->imaginary_g) && (!other.imaginary_g)) ? -1 : 1;
 

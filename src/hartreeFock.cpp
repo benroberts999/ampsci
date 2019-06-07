@@ -46,6 +46,7 @@ int main(int argc, char *argv[]) {
 
   // Generate the orbitals object:
   ElectronOrbitals wf(Z, A, ngp, r0, rmax, varalpha);
+  // Print info to screen:
   if (exclude_exchange)
     std::cout << "\nRunning Hartree (excluding exchange) for ";
   else
@@ -65,6 +66,7 @@ int main(int argc, char *argv[]) {
   if ((int)wf.Ncore() >= wf.Znuc())
     num_val = 0;
   auto val_lst = wf.listOfStates_nk(num_val, l_max);
+
   // Solve for the valence states:
   timer.start();
   for (const auto &nk : val_lst) {

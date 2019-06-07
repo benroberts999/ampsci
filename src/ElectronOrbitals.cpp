@@ -33,42 +33,10 @@ ElectronOrbitals::ElectronOrbitals(int in_z, int in_a, int in_ngp, double rmin,
 }
 
 //******************************************************************************
-void ElectronOrbitals::solveLocalDirac(int n, int k, double e_a,
-                                       int log_dele_or, bool iscore)
+void ElectronOrbitals::solveDirac(DiracSpinor &psi, double e_a,
+                                  const std::vector<double> &vex,
+                                  int log_dele_or) const
 // Uses ADAMS::solveDBS to solve Dirac Eqn for local potential (Vnuc + Vdir)
-{
-  orbitals.emplace_back(DiracSpinor{n, k, rgrid});
-
-  // Fill V(r) with nulcear + DIRECT part of electron potential
-  // nb: for exchange part, need to use reSolveDirac()
-  std::vector<double> v_a = vnuc;
-  if (vdir.size() != 0) {
-    for (auto i = 0ul; i < rgrid.ngp; i++)
-      v_a[i] += vdir[i];
-  }
-
-  // Solve local dirac Eq:
-
-  auto &psi = orbitals.back();
-  psi.en = e_a == 0 ? enGuessVal(n, k) : e_a;
-  ADAMS::solveDBS(psi, v_a, rgrid, m_alpha, log_dele_or);
-
-  auto this_index = stateIndexList.size();
-  stateIndexList.push_back(this_index); // xxx only works if called in sequence
-  if (iscore)
-    coreIndexList.push_back(this_index);
-  else
-    valenceIndexList.push_back(this_index);
-
-  return;
-}
-
-//******************************************************************************
-void ElectronOrbitals::reSolveDirac(DiracSpinor &psi, double e_a,
-                                    const std::vector<double> &vex,
-                                    int log_dele_or)
-// "Re"solves dirac eqaution. Use this to re-solve for same state.
-// Over-rides existing solution.
 // If no e_a is given, will use the existing one!
 // (Usually, a better guess should be given, using P.T.)
 // Note: optionally takes in exchange potential! (see overloaded above)
@@ -93,19 +61,19 @@ void ElectronOrbitals::reSolveDirac(DiracSpinor &psi, double e_a,
 
   if (e_a != 0)
     psi.en = e_a;
+  // psi.en = e_a == 0 ? enGuessVal(n, k) : e_a; //?? XXX better...
   ADAMS::solveDBS(psi, v_a, rgrid, m_alpha, log_dele_or);
 
   return;
 }
-
-//******************************************************************************
-void ElectronOrbitals::reSolveDirac(DiracSpinor &psi, double e_a,
-                                    int log_dele_or)
-// Overloaded version; see below
+//------------------------------------------------------------------------------
+void ElectronOrbitals::solveDirac(DiracSpinor &psi, double e_a,
+                                  int log_dele_or) const
+// Overloaded version; see above
 // This one doesn't have exchange potential
 {
   std::vector<double> empty_vec;
-  return reSolveDirac(psi, e_a, empty_vec, log_dele_or);
+  return solveDirac(psi, e_a, empty_vec, log_dele_or);
 }
 
 //******************************************************************************
@@ -294,13 +262,19 @@ int ElectronOrbitals::solveInitialCore(std::string str_core, int log_dele_or)
     double en_a = enGuessCore(n, l);
     int k1 = l; // j = l-1/2
     if (k1 != 0) {
-      solveLocalDirac(n, k1, en_a, log_dele_or, true);
+      orbitals.emplace_back(DiracSpinor{n, k1, rgrid});
+      coreIndexList.push_back(orbitals.size() - 1); // XXX
+      stateIndexList.push_back(orbitals.size() - 1);
+      solveDirac(orbitals.back(), en_a, log_dele_or);
       en_a = 0.95 * orbitals.back().en;
       if (en_a > 0)
         en_a = enGuessCore(n, l);
     }
     int k2 = -(l + 1); // j=l+1/2
-    solveLocalDirac(n, k2, en_a, log_dele_or, true);
+    orbitals.emplace_back(DiracSpinor{n, k2, rgrid});
+    coreIndexList.push_back(orbitals.size() - 1); // XXX
+    stateIndexList.push_back(orbitals.size() - 1);
+    solveDirac(orbitals.back(), en_a, log_dele_or);
   }
   auto num_core_states = orbitals.size(); // store number of states in core
 
@@ -324,6 +298,29 @@ int ElectronOrbitals::solveInitialCore(std::string str_core, int log_dele_or)
   }
 
   return 0;
+}
+
+//******************************************************************************
+void ElectronOrbitals::solveInitialValence(int n, int k, double en_a,
+                                           int log_dele_or)
+// xxx
+{
+
+  orbitals.emplace_back(DiracSpinor{n, k, rgrid});
+  stateIndexList.push_back(orbitals.size() - 1);
+  valenceIndexList.push_back(orbitals.size() - 1); // XXX
+
+  // Fill V(r) with nulcear + DIRECT part of electron potential
+  std::vector<double> v_a = vnuc;
+  if (vdir.size() != 0) {
+    for (auto i = 0ul; i < rgrid.ngp; i++)
+      v_a[i] += vdir[i];
+  }
+
+  // Solve local dirac Eq:
+  auto &psi = orbitals.back();
+  psi.en = en_a == 0 ? enGuessVal(n, k) : en_a;
+  ADAMS::solveDBS(psi, v_a, rgrid, m_alpha, log_dele_or);
 }
 
 //******************************************************************************

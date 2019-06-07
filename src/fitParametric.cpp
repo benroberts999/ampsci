@@ -115,7 +115,7 @@ int main(int argc, char *argv[]) {
       for (auto r : wf.rgrid.r)
         wf.vdir.push_back(PRM::tietz(Z, r, H, d));
     for (auto &nk : states) {
-      wf.solveLocalDirac(nk.n, nk.k, nk.en);
+      wf.solveInitialValence(nk.n, nk.k, nk.en);
     }
 
     printf(" nl_j    k  Rinf its   eps     En (au)    \n");
@@ -154,7 +154,7 @@ int main(int argc, char *argv[]) {
       for (auto r : wf.rgrid.r)
         wf.vdir.push_back(PRM::tietz(Z, r, H, d));
     for (auto &nk : val_states) {
-      wf.solveLocalDirac(nk.n, nk.k, nk.en);
+      wf.solveInitialValence(nk.n, nk.k, nk.en);
     }
 
     printf(" nl_j    k  Rinf its   eps     En (au)        En (/cm)\n");
@@ -230,7 +230,7 @@ std::tuple<double, double> performFit(const std::vector<nken> &states, int Z,
         double fx = 0;
         if (fit_worst) {
           for (std::size_t ns = 0; ns < states.size(); ns++) {
-            wf.solveLocalDirac(states[ns].n, states[ns].k, states[ns].en);
+            wf.solveInitialValence(states[ns].n, states[ns].k, states[ns].en);
             auto fx2 = fabs((wf.orbitals[ns].en - states[ns].en) /
                             (wf.orbitals[ns].en + states[ns].en));
             if (fx2 > fx)
@@ -239,7 +239,7 @@ std::tuple<double, double> performFit(const std::vector<nken> &states, int Z,
         } else {
           // sum-of-squares
           for (std::size_t ns = 0; ns < states.size(); ns++) {
-            wf.solveLocalDirac(states[ns].n, states[ns].k, states[ns].en);
+            wf.solveInitialValence(states[ns].n, states[ns].k, states[ns].en);
             // fx += pow(wf.orbitals[ns].en - states[ns].en, 2);
             fx += pow((wf.orbitals[ns].en - states[ns].en) /
                           (wf.orbitals[ns].en + states[ns].en),

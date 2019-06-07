@@ -16,6 +16,7 @@ public:
 public:
   // orbitals:
   std::vector<DiracSpinor> orbitals; // XXX break into core+valence?
+  // std::vector<DiracSpinor> basis;    // XXX break into core+valence?
 
   const Grid rgrid;
 
@@ -32,10 +33,11 @@ private:
   const double m_alpha;
   // Atom info:
   const int m_Z, m_A;
-
+  // nuclus info:
   double m_c, m_t;
 
   // number of electrons in each core shell (non-rel??)
+  // Is this ever used outside of 'setCore' ... kil??
   std::vector<int> num_core_shell;
   int num_core_electrons = 0; // Nc = N - M
   std::string m_core_string = "";
@@ -62,19 +64,16 @@ public:
   void printCore(bool sorted = true);
   void printValence(bool sorted = true);
 
-  // XXX ? best way?
-  // XXX Should really have just 1! ?
-  // Then, different way to contruct new spinor??
-  void solveLocalDirac(int n, int k, double en_a = 0, int log_dele_or = 0,
-                       bool iscore = false);
-  void reSolveDirac(DiracSpinor &psi_a, double e_a = 0, int log_dele_or = 0);
-  void reSolveDirac(DiracSpinor &psi_a, double e_a,
-                    const std::vector<double> &vex, int log_dele_or = 0);
-
   void formNuclearPotential(NucleusType nucleus_type, double rc = 0,
                             double t = 0);
 
+  void solveDirac(DiracSpinor &psi, double e_a, const std::vector<double> &vex,
+                  int log_dele_or = 0) const;
+  void solveDirac(DiracSpinor &psi, double e_a = 0, int log_dele_or = 0) const;
+
   int solveInitialCore(std::string str_core_in, int log_dele_or = 0);
+  void solveInitialValence(int n, int k, double en_a = 0, int log_dele_or = 0);
+
   bool isInCore(int n, int k) const;
   int maxCore_n(int ka_in = 0) const;
 
