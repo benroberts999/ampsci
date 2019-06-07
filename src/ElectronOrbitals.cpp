@@ -250,6 +250,12 @@ int ElectronOrbitals::solveInitialCore(std::string str_core, int log_dele_or)
 // Only for local potential (direct part)
 // HartreeFockClass.cpp has routines for Hartree Fock
 {
+  if (orbitals.size() > 0) {
+    std::cerr << "Fail 254 in ElectronOrbitals:solveInitialCore: States "
+                 "already exist! "
+              << orbitals.size() << "\n";
+    std::abort();
+  }
 
   determineCore(str_core);
 
@@ -276,10 +282,11 @@ int ElectronOrbitals::solveInitialCore(std::string str_core, int log_dele_or)
     stateIndexList.push_back(orbitals.size() - 1);
     solveDirac(orbitals.back(), en_a, log_dele_or);
   }
-  auto num_core_states = orbitals.size(); // store number of states in core
+  // auto num_core_states = orbitals.size(); // store number of states in core
+  m_num_core_states = orbitals.size(); // store number of states in core
 
   // occupancy fraction for each core state (avg of Non-rel states!):
-  for (std::size_t i = 0; i < num_core_states; i++) {
+  for (std::size_t i = 0; i < m_num_core_states; i++) {
     int n = orbitals[i].n;
     int l = orbitals[i].l();
     // Find the correct core list index (to determine filling factor):

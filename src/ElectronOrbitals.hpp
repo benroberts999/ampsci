@@ -27,6 +27,7 @@ public:
   std::vector<std::size_t> stateIndexList;
   std::vector<std::size_t> coreIndexList;
   std::vector<std::size_t> valenceIndexList;
+  std::size_t m_num_core_states; // shuold not be mutable........ XXX
 
 private:
   // store internal value for alpha (allows variation)

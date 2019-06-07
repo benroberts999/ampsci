@@ -12,7 +12,8 @@ public:
   // static double calculate_R_abcdk(); // Core-core? Core-valence?
 
   void initialise_core_v_abk_r();
-  void form_core_v_abk_r(const std::vector<DiracSpinor> &c_orbitals);
+  void form_core_v_abk_r(const std::vector<DiracSpinor> &c_orbitals,
+                         const std::size_t i_core);
   void form_coreval_v_amk_r(const std::vector<DiracSpinor> &c_orbitals,
                             const std::vector<DiracSpinor> &v_orbitals);
 
