@@ -96,12 +96,73 @@ int main(int argc, char *argv[]) {
   if (run_test) {
     std::cout << "Test orthonormality [should all read 0]:\n";
     std::cout << "       ";
-    for (auto &psi_b : wf.orbitals)
+    // for (auto &psi_b : wf.orbitals)
+    //   printf("   %1i %2i  ", psi_b.n, psi_b.k);
+    // std::cout << "\n";
+    // for (auto &psi_a : wf.orbitals) {
+    //   printf("%1i %2i  ", psi_a.n, psi_a.k);
+    //   for (auto &psi_b : wf.orbitals) {
+    //     if (psi_b > psi_a)
+    //       continue;
+    //     if (psi_a.k != psi_b.k) {
+    //       std::cout << "         ";
+    //       continue;
+    //     }
+    //     double xo = (psi_a * psi_b);
+    //     if (psi_a.n == psi_b.n)
+    //       xo -= 1;
+    //     printf(" %7.0e ", xo);
+    //   }
+    //   std::cout << "\n";
+    // }
+
+    // Core-Core:
+    for (auto &psi_b : wf.core_orbitals)
       printf("   %1i %2i  ", psi_b.n, psi_b.k);
     std::cout << "\n";
-    for (auto &psi_a : wf.orbitals) {
+    for (auto &psi_a : wf.core_orbitals) {
       printf("%1i %2i  ", psi_a.n, psi_a.k);
-      for (auto &psi_b : wf.orbitals) {
+      for (auto &psi_b : wf.core_orbitals) {
+        if (psi_b > psi_a)
+          continue;
+        if (psi_a.k != psi_b.k) {
+          std::cout << "         ";
+          continue;
+        }
+        double xo = (psi_a * psi_b);
+        if (psi_a.n == psi_b.n)
+          xo -= 1;
+        printf(" %7.0e ", xo);
+      }
+      std::cout << "\n";
+    }
+    // Core-Valence:
+    for (auto &psi_b : wf.valence_orbitals)
+      printf("   %1i %2i  ", psi_b.n, psi_b.k);
+    std::cout << "\n";
+    for (auto &psi_a : wf.core_orbitals) {
+      printf("%1i %2i  ", psi_a.n, psi_a.k);
+      for (auto &psi_b : wf.valence_orbitals) {
+        if (psi_b > psi_a)
+          continue;
+        if (psi_a.k != psi_b.k) {
+          std::cout << "         ";
+          continue;
+        }
+        double xo = (psi_a * psi_b);
+        if (psi_a.n == psi_b.n)
+          xo -= 1;
+        printf(" %7.0e ", xo);
+      }
+      std::cout << "\n";
+    }
+    // Valence-Valence:
+    for (auto &psi_b : wf.valence_orbitals)
+      printf("   %1i %2i  ", psi_b.n, psi_b.k);
+    std::cout << "\n";
+    for (auto &psi_a : wf.valence_orbitals) {
+      printf("%1i %2i  ", psi_a.n, psi_a.k);
+      for (auto &psi_b : wf.valence_orbitals) {
         if (psi_b > psi_a)
           continue;
         if (psi_a.k != psi_b.k) {
@@ -123,17 +184,20 @@ int main(int argc, char *argv[]) {
     DiracOperator y(c * c, DiracMatrix(0, 0, 0, -2));
     DiracOperator z1(wf.vnuc);
     DiracOperator z2(wf.vdir);
-    for (auto &psi : wf.orbitals) {
-      auto k = psi.k;
-      DiracOperator z3(hf.get_vex(psi));
-      DiracOperator x_b(c, DiracMatrix(0, 1 - k, 1 + k, 0), 0, true);
-      auto rhs = (w * psi) + (x_a * (x_b * psi)) + (y * psi) + (z1 * psi) +
-                 (z2 * psi) + (z3 * psi);
-      double R = psi * rhs;
-      double ens = psi.en;
-      double fracdiff = (R - ens) / ens;
-      printf("<%i% i|H|%i% i> = %17.11f, E = %17.11f; % .0e\n", psi.n, psi.k,
-             psi.n, psi.k, R, ens, fracdiff);
+    for (int i = 0; i < 2; i++) {
+      auto &tmp_orbs = (i == 0) ? wf.core_orbitals : wf.valence_orbitals;
+      for (auto &psi : tmp_orbs) {
+        auto k = psi.k;
+        DiracOperator z3(hf.get_vex(psi));
+        DiracOperator x_b(c, DiracMatrix(0, 1 - k, 1 + k, 0), 0, true);
+        auto rhs = (w * psi) + (x_a * (x_b * psi)) + (y * psi) + (z1 * psi) +
+                   (z2 * psi) + (z3 * psi);
+        double R = psi * rhs;
+        double ens = psi.en;
+        double fracdiff = (R - ens) / ens;
+        printf("<%i% i|H|%i% i> = %17.11f, E = %17.11f; % .0e\n", psi.n, psi.k,
+               psi.n, psi.k, R, ens, fracdiff);
+      }
     }
   }
 
@@ -141,12 +205,16 @@ int main(int argc, char *argv[]) {
   if (print_wfs) {
     std::ofstream of("hf-orbitals.txt");
     of << "r ";
-    for (auto &psi : wf.orbitals)
+    for (auto &psi : wf.core_orbitals)
+      of << "\"" << psi.symbol(true) << "\" ";
+    for (auto &psi : wf.valence_orbitals)
       of << "\"" << psi.symbol(true) << "\" ";
     of << "\n";
     for (std::size_t i = 0; i < wf.rgrid.ngp; i++) {
       of << wf.rgrid.r[i] << " ";
-      for (auto &psi : wf.orbitals)
+      for (auto &psi : wf.core_orbitals)
+        of << psi.f[i] << " ";
+      for (auto &psi : wf.valence_orbitals)
         of << psi.f[i] << " ";
       of << "\n";
     }
@@ -162,25 +230,26 @@ int main(int argc, char *argv[]) {
     double Ac = 2. / 6.; // angular coef
     auto a6s_i = wf.getStateIndex(6, -1);
     auto a7s_i = wf.getStateIndex(7, -1);
-    auto &a6s = wf.orbitals[a6s_i];
-    auto &a7s = wf.orbitals[a7s_i];
+    auto &a6s = wf.valence_orbitals[a6s_i];
+    auto &a7s = wf.valence_orbitals[a7s_i];
     std::cout << "E_pnc: " << wf.Anuc() << "-" << ATI::atomicSymbol(wf.Znuc())
               << " " << a6s.symbol() << " -> " << a7s.symbol() << "\n";
 
     double pnc = 0;
-    for (auto np : wf.orbitals) {
-      if (np.k != 1)
-        continue; // p_1/2 only
-      // <7s|d|np><np|hw|6s>/dE6s + <7s|hw|np><np|d|6s>/dE7s
-      double pnc1 =
-          Ac * (a7s * (he1 * np)) * (np * (hpnc * a6s)) / (a6s.en - np.en);
-      // double pnc1 =
-      //     Ac * ((he1 * a7s) * np) * ((hpnc * np) * a6s) / (a6s.en - np.en);
-      double pnc2 =
-          Ac * (a7s * (hpnc * np)) * (np * (he1 * a6s)) / (a7s.en - np.en);
-      std::cout << "n=" << np.n << " pnc= " << pnc1 << " + " << pnc2 << " = "
-                << pnc1 + pnc2 << "\n";
-      pnc += pnc1 + pnc2;
+    for (int i = 0; i < 2; i++) {
+      auto &tmp_orbs = (i == 0) ? wf.core_orbitals : wf.valence_orbitals;
+      for (auto &np : tmp_orbs) {
+        if (np.k != 1)
+          continue; // p_1/2 only
+        // <7s|d|np><np|hw|6s>/dE6s + <7s|hw|np><np|d|6s>/dE7s
+        double pnc1 =
+            Ac * (a7s * (he1 * np)) * (np * (hpnc * a6s)) / (a6s.en - np.en);
+        double pnc2 =
+            Ac * (a7s * (hpnc * np)) * (np * (he1 * a6s)) / (a7s.en - np.en);
+        std::cout << "n=" << np.n << " pnc= " << pnc1 << " + " << pnc2 << " = "
+                  << pnc1 + pnc2 << "\n";
+        pnc += pnc1 + pnc2;
+      }
     }
     std::cout << "Total= " << pnc << "\n";
     std::cout << "\n Total time: " << timer.reading_str() << "\n";
@@ -201,8 +270,9 @@ int main(int argc, char *argv[]) {
     // };
     HyperfineOperator vhfs(muN, IN, r_rms, wf.rgrid, l1);
 
-    for (auto i : wf.valenceIndexList) {
-      auto &phi = wf.orbitals[i];
+    // for (auto i : wf.valenceIndexList) {
+    //   auto &phi = wf.orbitals[i];
+    for (auto phi : wf.valence_orbitals) {
       auto A_tmp = phi * (vhfs * phi);
 
       double j = phi.j();

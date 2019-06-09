@@ -156,7 +156,7 @@ Zeff no longer works at main() level.
 */
 {
   ContinuumOrbitals cntm(wf); // create cntm object [survives locally only]
-  auto &psi = wf.orbitals[is];
+  auto &psi = wf.core_orbitals[is];
 
   int k = psi.k;   // wf.ka(is);
   int l = psi.l(); // wf.lorb(is);
@@ -164,7 +164,7 @@ Zeff no longer works at main() level.
   int qsteps = (int)jLqr_f[0].size();
 
   // Calculate continuum wavefunctions
-  double ec = dE + wf.orbitals[is].en;
+  double ec = dE + wf.core_orbitals[is].en;
   cntm.clear();
   int lc_max = l + max_L;
   int lc_min = l - max_L;
@@ -219,7 +219,7 @@ Should be called once per initial state
 */
 {
 
-  auto &psi = wf.orbitals[nk];
+  auto &psi = wf.core_orbitals[nk];
 
   int twoj = psi.twoj(); // wf.twoj(nk);
 

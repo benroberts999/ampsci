@@ -87,5 +87,6 @@ private:
   // xxx
   void form_vdir(std::vector<double> &vdir, bool re_scale = false) const;
   void form_approx_vex_core(std::vector<std::vector<double>> &vex) const;
-  void form_approx_vex_a(std::size_t a, std::vector<double> &vex_a) const;
+  void form_approx_vex_a(std::size_t a, std::vector<double> &vex_a,
+                         bool valence = false) const;
 };

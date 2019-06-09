@@ -6,6 +6,8 @@
 
 enum class NucleusType { Fermi, spherical, zero };
 
+enum class OrbitalType { core, valence }; // xxx just test
+
 //******************************************************************************
 class ElectronOrbitals {
 
@@ -15,7 +17,9 @@ public:
 
 public:
   // orbitals:
-  std::vector<DiracSpinor> orbitals; // XXX break into core+valence?
+  std::vector<DiracSpinor> core_orbitals;    // XXX break into core+valence?
+  std::vector<DiracSpinor> valence_orbitals; // XXX break into core+valence?
+
   // std::vector<DiracSpinor> basis;    // XXX break into core+valence?
 
   const Grid rgrid;
@@ -24,9 +28,9 @@ public:
   std::vector<double> vnuc;
   std::vector<double> vdir; // direct/local part of the electron potential
 
-  std::vector<std::size_t> stateIndexList;
-  std::vector<std::size_t> coreIndexList;
-  std::vector<std::size_t> valenceIndexList;
+  // std::vector<std::size_t> stateIndexList;
+  // std::vector<std::size_t> coreIndexList;
+  // std::vector<std::size_t> valenceIndexList;
   std::size_t m_num_core_states; // shuold not be mutable........ XXX
 
 private:
@@ -51,7 +55,7 @@ public:
   int Ncore() const { return num_core_electrons; }
   double rinf(const DiracSpinor &phi) const;
   int getRadialIndex(double r_target) const;
-  std::size_t getStateIndex(int n, int k) const;
+  std::size_t getStateIndex(int n, int k) const; // XXX ???
 
   std::string coreConfiguration() { return m_core_string; }
   std::string coreConfiguration_nice() {
@@ -64,7 +68,16 @@ public:
   }
   void printCore(bool sorted = true);
   void printValence(bool sorted = true);
+  bool isInCore(int n, int k) const;
+  int maxCore_n(int ka_in = 0) const;
 
+  std::vector<std::size_t> sortedEnergyList(bool do_sort = false,
+                                            int i_cvb = 2) const;
+
+  std::vector<std::vector<int>> listOfStates_nk(int num_val, int la, int lb = 0,
+                                                bool skip_core = true);
+
+public:
   void formNuclearPotential(NucleusType nucleus_type, double rc = 0,
                             double t = 0);
 
@@ -75,18 +88,9 @@ public:
   int solveInitialCore(std::string str_core_in, int log_dele_or = 0);
   void solveInitialValence(int n, int k, double en_a = 0, int log_dele_or = 0);
 
-  bool isInCore(int n, int k) const;
-  int maxCore_n(int ka_in = 0) const;
-
-  void orthonormaliseOrbitals(int num_its = 1);
-  void orthonormaliseValence(DiracSpinor &psi_v, int num_its = 1,
-                             bool core_only = false) const; // "const" OK?
-
-  std::vector<std::size_t> sortedEnergyList(bool do_sort = false,
-                                            int i_cvb = 2) const;
-
-  std::vector<std::vector<int>> listOfStates_nk(int num_val, int la, int lb = 0,
-                                                bool skip_core = true);
+  static void orthonormaliseOrbitals(std::vector<DiracSpinor> &tmp_orbs,
+                                     int num_its = 1);
+  void orthonormaliseWrtCore(DiracSpinor &psi_v) const;
 
 private:
   void determineCore(const std::string &str_core_in);

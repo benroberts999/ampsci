@@ -88,7 +88,7 @@ int main(int argc, char *argv[]) {
   if (do_HF) {
     ElectronOrbitals hfwf(Z, A, ngp, r0, rmax);
     HartreeFock hf(hfwf, str_core, 1.e-9);
-    for (auto &phi : hfwf.orbitals) {
+    for (auto &phi : hfwf.core_orbitals) {
       // // don't fit for both j=l+/-1/2, just one!
       // if (phi.k < 0 && phi.k != -1)
       //   continue;
@@ -121,7 +121,7 @@ int main(int argc, char *argv[]) {
     printf(" nl_j    k  Rinf its   eps     En (au)    \n");
     // double en0 = wf.orbitals.front().en;
     int i = 0;
-    for (auto &phi : wf.orbitals) {
+    for (auto &phi : wf.core_orbitals) {
       auto njl = phi.symbol().c_str();
       double rinf = wf.rinf(phi);
       double eni = phi.en;
@@ -158,9 +158,9 @@ int main(int argc, char *argv[]) {
     }
 
     printf(" nl_j    k  Rinf its   eps     En (au)        En (/cm)\n");
-    double en0 = wf.orbitals.front().en;
+    double en0 = wf.valence_orbitals.front().en;
     int i = 0;
-    for (auto &phi : wf.orbitals) {
+    for (auto &phi : wf.valence_orbitals) {
       auto njl = phi.symbol().c_str();
       double rinf = wf.rinf(phi);
       double eni = phi.en;
@@ -231,8 +231,8 @@ std::tuple<double, double> performFit(const std::vector<nken> &states, int Z,
         if (fit_worst) {
           for (std::size_t ns = 0; ns < states.size(); ns++) {
             wf.solveInitialValence(states[ns].n, states[ns].k, states[ns].en);
-            auto fx2 = fabs((wf.orbitals[ns].en - states[ns].en) /
-                            (wf.orbitals[ns].en + states[ns].en));
+            auto fx2 = fabs((wf.valence_orbitals[ns].en - states[ns].en) /
+                            (wf.valence_orbitals[ns].en + states[ns].en));
             if (fx2 > fx)
               fx = fx2;
           }
@@ -241,8 +241,8 @@ std::tuple<double, double> performFit(const std::vector<nken> &states, int Z,
           for (std::size_t ns = 0; ns < states.size(); ns++) {
             wf.solveInitialValence(states[ns].n, states[ns].k, states[ns].en);
             // fx += pow(wf.orbitals[ns].en - states[ns].en, 2);
-            fx += pow((wf.orbitals[ns].en - states[ns].en) /
-                          (wf.orbitals[ns].en + states[ns].en),
+            fx += pow((wf.valence_orbitals[ns].en - states[ns].en) /
+                          (wf.valence_orbitals[ns].en + states[ns].en),
                       2);
           }
         }

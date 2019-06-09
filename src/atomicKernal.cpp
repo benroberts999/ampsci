@@ -145,7 +145,7 @@ int main(int argc, char *argv[]) {
   std::cout << "\n     state  k Rinf its    eps      En (au)     En (/cm)    "
             << "En (eV)   Oc.Frac.\n";
   int i = 0;
-  for (auto &phi : wf.orbitals) {
+  for (auto &phi : wf.core_orbitals) {
     double rinf = wf.rinf(phi);
     printf("%2i)%7s %2i  %3.0f %3i  %5.0e  %11.5f %12.0f %10.2f   (%.2f)\n",
            i++, phi.symbol().c_str(), phi.k, rinf, phi.its, phi.eps, phi.en,
@@ -155,17 +155,17 @@ int main(int argc, char *argv[]) {
 
   // Arrays to store results for outputting later:
   std::vector<std::vector<std::vector<float>>> AK; // float ok?
-  int num_states = (int)wf.orbitals.size();
+  int num_states = (int)wf.core_orbitals.size();
   AK.resize(desteps, std::vector<std::vector<float>>(
                          num_states, std::vector<float>(qsteps)));
 
   // Store state info (each orbital) [just useful for plotting!]
   std::vector<std::string> nklst; // human-readiable state labels (easy
                                   // plotting)
-  nklst.reserve(wf.orbitals.size());
+  nklst.reserve(wf.core_orbitals.size());
   // for (auto i : wf.stateIndexList)
   //   nklst.emplace_back(wf.seTermSymbol(i, true));
-  for (auto &phi : wf.orbitals)
+  for (auto &phi : wf.core_orbitals)
     nklst.emplace_back(phi.symbol(true));
 
   // pre-calculate the spherical Bessel function look-up table for efficiency
@@ -188,8 +188,9 @@ int main(int argc, char *argv[]) {
   for (int ide = 0; ide < desteps; ide++) {
     double dE = Egrid.r[ide];
     // Loop over core (bound) states:
-    for (auto is : wf.stateIndexList) {
-      int l = wf.orbitals[is].l(); // lorb(is);
+    // for (auto is : wf.stateIndexList) {
+    for (std::size_t is = 0; is < wf.core_orbitals.size(); is++) {
+      int l = wf.core_orbitals[is].l(); // lorb(is);
       if (l > max_l)
         continue;
       if (plane_wave)
