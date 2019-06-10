@@ -14,7 +14,7 @@ Calculates self-consistent Hartree-Fock potential, including exchange.
 Solves all core and valence states.
 */
 
-#define DO_DEBUG true
+#define DO_DEBUG false
 #if DO_DEBUG
 #define DEBUG(x) x
 #else
@@ -237,7 +237,9 @@ double HartreeFock::calculateCoreEnergy() const
       int kmax = (twoj_list[a] + twoj_list[b]) / 2;
       auto &vabk = get_v_abk(a, b);
       for (int k = kmin; k <= kmax; k++) {
-        double L_abk = get_Lambda_abk(a, b, k);
+        // double L_abk = get_Lambda_abk_old(a, b, k);
+        double L_abk = get_Lambda_kiakibk_v2(kappa_index_list[a],
+                                             kappa_index_list[b], k, kmin);
         if (L_abk == 0)
           continue;
         int ik = k - kmin;
@@ -356,18 +358,43 @@ void HartreeFock::extend_Lambda_abk(int kappa_a)
 }
 
 //******************************************************************************
-double HartreeFock::get_Lambda_abk(std::size_t a, std::size_t b, int k) const
+double HartreeFock::get_Lambda_abk_old(std::size_t a, std::size_t b,
+                                       int k) const
 // Simple routine to (semi-)safely return Lambda_abk
 // Note: input a and b are regular ElectronOrbitals state indexes
 // No checks. given k must be ok.
+// XXX give it 2j and 2j ? (or ka and kb)?
+// OR: give kappa index!?
 {
   // Get the kappa index for each state:
   int n = kappa_index_list[a];
   int m = kappa_index_list[b];
   int kmin = abs(twoj_list[a] - twoj_list[b]) / 2;
+  // std::cout << n << " " << ATI::indexFromKappa(p_wf->core_orbitals[a].k)
+  //           << "\n";
 
   return (n > m) ? m_arr_Lambda_nmk[n][m][k - kmin]
                  : m_arr_Lambda_nmk[m][n][k - kmin];
+}
+
+//******************************************************************************
+double HartreeFock::get_Lambda_kiakibk_v2(std::size_t kia, std::size_t kib,
+                                          int k, int kmin) const
+// Simple routine to (semi-)safely return Lambda_abk
+// Note: input a and b are regular ElectronOrbitals state indexes
+// No checks. given k must be ok.
+// XXX give it 2j and 2j ? (or ka and kb)?
+// OR: give kappa index!?
+{
+  // Get the kappa index for each state:
+  // int n = kappa_index_list[a];
+  // int m = kappa_index_list[b];
+  // int kmin = abs(twoj_list[a] - twoj_list[b]) / 2;
+  // std::cout << n << " " << ATI::indexFromKappa(p_wf->core_orbitals[a].k)
+  //           << "\n";
+
+  return (kia > kib) ? m_arr_Lambda_nmk[kia][kib][k - kmin]
+                     : m_arr_Lambda_nmk[kib][kia][k - kmin];
 }
 
 //******************************************************************************
@@ -479,7 +506,9 @@ void HartreeFock::form_vabk_core()
       int kmin = abs(twoj_list[a] - twoj_list[b]) / 2;
       int kmax = (twoj_list[a] + twoj_list[b]) / 2;
       for (int k = kmin; k <= kmax; k++) {
-        if (get_Lambda_abk(a, b, k) == 0)
+        // if (get_Lambda_abk_old(a, b, k) == 0)
+        if (get_Lambda_kiakibk_v2(kappa_index_list[a], kappa_index_list[b], k,
+                                  kmin) == 0)
           continue;
         Coulomb::calculate_v_abk(p_wf->core_orbitals[a], p_wf->core_orbitals[b],
                                  k, m_arr_v_abk_r[a][b][k - kmin]);
@@ -499,11 +528,33 @@ void HartreeFock::form_vabk_valence(std::size_t w)
     int kmin = abs(twoj_list[w] - twoj_list[b]) / 2;
     int kmax = (twoj_list[w] + twoj_list[b]) / 2;
     for (int k = kmin; k <= kmax; k++) {
-      if (get_Lambda_abk(w, b, k) == 0)
+      if (get_Lambda_abk_old(w, b, k) == 0) // XXX HERE XXX
         continue;
       Coulomb::calculate_v_abk(p_wf->valence_orbitals[w],
                                p_wf->core_orbitals[b], k,
                                m_arr_v_abk_r[w][b][k - kmin]);
+    } // k
+  }   // b
+}
+//******************************************************************************
+void HartreeFock::form_vabk_valence_v2(const DiracSpinor &phi_w)
+// Calculates [calls calculate_v_abk] and stores the Hartree-Fock screening
+// functions v^k_wb for a single (given) valence state (w=valence, b=core).
+// Stores in m_arr_v_abk_r
+{
+  auto twoj_w = phi_w.twoj();
+  auto ki_w = phi_w.k_index();
+#pragma omp parallel for
+  for (std::size_t b = 0; b < m_num_core_states; b++) {
+    int kmin = abs(twoj_w - twoj_list[b]) / 2;
+    int kmax = (twoj_w + twoj_list[b]) / 2;
+    for (int k = kmin; k <= kmax; k++) {
+      // if (get_Lambda_abk_old(w, b, k) == 0) // XXX HERE XXX
+      if (get_Lambda_kiakibk_v2(ki_w, kappa_index_list[b], k, kmin) == 0)
+        continue;
+      // XXX XXX XXX XXX XXX
+      // Coulomb::calculate_v_abk(phi_w, p_wf->core_orbitals[b], k,
+      //                          m_arr_v_abk_r[w][b][k - kmin]); // XXX XXX
     } // k
   }   // b
 }
@@ -594,6 +645,9 @@ void HartreeFock::form_approx_vex_a(std::size_t a, std::vector<double> &vex_a,
   auto &phi_a =
       valence ? p_wf->valence_orbitals[a] : p_wf->core_orbitals[a]; // XXX
 
+  auto ki_a = phi_a.k_index();
+  auto twoj_a = phi_a.twoj();
+
   if (!m_excludeExchange) {
     for (std::size_t b = 0; b < m_num_core_states; b++) { // b!=a
       if (b == a)
@@ -601,9 +655,9 @@ void HartreeFock::form_approx_vex_a(std::size_t a, std::vector<double> &vex_a,
       auto &phi_b = p_wf->core_orbitals[b];
       double x_tjbp1 = (twoj_list[b] + 1) * phi_b.occ_frac;
       auto irmax = std::min(phi_a.pinf, phi_b.pinf);
-      int kmin = abs(twoj_list[a] - twoj_list[b]) / 2;
-      int kmax = (twoj_list[a] + twoj_list[b]) / 2;
-      const std::vector<std::vector<double>> &vabk = get_v_abk(a, b);
+      int kmin = abs(twoj_a - twoj_list[b]) / 2;
+      int kmax = (twoj_a + twoj_list[b]) / 2;
+      const std::vector<std::vector<double>> &vabk = get_v_abk(a, b); // XXX
       // hold "fraction" psi_a*psi_b/(psi_a^2):
       std::vector<double> v_Fab(p_rgrid->ngp);
       for (std::size_t i = 0; i < irmax; i++) {
@@ -615,7 +669,9 @@ void HartreeFock::form_approx_vex_a(std::size_t a, std::vector<double> &vex_a,
         v_Fab[i] = -1. * x_tjbp1 * fac_top / fac_bot;
       } // r
       for (int k = kmin; k <= kmax; k++) {
-        double L_abk = get_Lambda_abk(a, b, k);
+        // double L_abk = get_Lambda_abk_old(a, b, k);
+        double L_abk =
+            get_Lambda_kiakibk_v2(ki_a, kappa_index_list[b], k, kmin);
         if (L_abk == 0)
           continue;
         for (std::size_t i = 0; i < irmax; i++) {
@@ -628,13 +684,13 @@ void HartreeFock::form_approx_vex_a(std::size_t a, std::vector<double> &vex_a,
   }
 
   // now, do a=b, ONLY if a is in the core!
-  if (a < m_num_core_states) {
-    double x_tjap1 = (twoj_list[a] + 1); // no occ_frac here
-    int kmax = twoj_list[a];
-    const auto &vaak = get_v_abk(a, a);
+  if (a < m_num_core_states) {     // XXX NO!
+    double x_tjap1 = (twoj_a + 1); // no occ_frac here
+    int kmax = twoj_a;
+    const auto &vaak = get_v_abk(a, a); // this OK
     auto irmax = phi_a.pinf;
     for (int k = 0; k <= kmax; k++) {
-      double L_abk = get_Lambda_abk(a, a, k);
+      double L_abk = get_Lambda_kiakibk_v2(ki_a, ki_a, k, 0);
       if (L_abk == 0)
         continue;
       for (std::size_t i = 0; i < irmax; i++) {

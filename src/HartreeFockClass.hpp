@@ -64,7 +64,9 @@ private:
 
   void form_core_Lambda_abk();
   void extend_Lambda_abk(int kappa_a);
-  double get_Lambda_abk(std::size_t a, std::size_t b, int k) const;
+  double get_Lambda_abk_old(std::size_t a, std::size_t b, int k) const;
+  double get_Lambda_kiakibk_v2(std::size_t kia, std::size_t kib, int k,
+                               int kmin) const;
 
   void initialise_m_arr_v_abk_r_core();
   void extend_m_arr_v_abk_r_valence(int kappa_a);
@@ -81,6 +83,7 @@ private:
                                                     std::size_t b) const;
 
   void form_vabk_valence(std::size_t w);
+  void form_vabk_valence_v2(const DiracSpinor &phi_w);
 
   // XXX try a) make thise const
   // and b) make them RETURN vector. Be careful; check speed (range of grids)

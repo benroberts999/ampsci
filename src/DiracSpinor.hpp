@@ -38,6 +38,7 @@ public: // Methods
   double j() const { return ATI::j_k(k); }
   int twoj() const { return ATI::twoj_k(k); }
   int parity() const { return ATI::parity_k(k); }
+  int k_index() const { return ATI::indexFromKappa(k); }
 
   std::string symbol(bool gnuplot = false) const {
     // Readable symbol (s_1/2, p_{3/2} etc.).

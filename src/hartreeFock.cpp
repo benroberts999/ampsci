@@ -96,32 +96,13 @@ int main(int argc, char *argv[]) {
   if (run_test) {
     std::cout << "Test orthonormality [should all read 0]:\n";
     std::cout << "       ";
-    // for (auto &psi_b : wf.orbitals)
-    //   printf("   %1i %2i  ", psi_b.n, psi_b.k);
-    // std::cout << "\n";
-    // for (auto &psi_a : wf.orbitals) {
-    //   printf("%1i %2i  ", psi_a.n, psi_a.k);
-    //   for (auto &psi_b : wf.orbitals) {
-    //     if (psi_b > psi_a)
-    //       continue;
-    //     if (psi_a.k != psi_b.k) {
-    //       std::cout << "         ";
-    //       continue;
-    //     }
-    //     double xo = (psi_a * psi_b);
-    //     if (psi_a.n == psi_b.n)
-    //       xo -= 1;
-    //     printf(" %7.0e ", xo);
-    //   }
-    //   std::cout << "\n";
-    // }
 
     // Core-Core:
     for (auto &psi_b : wf.core_orbitals)
-      printf("   %1i %2i  ", psi_b.n, psi_b.k);
+      printf("  %1i %2i  ", psi_b.n, psi_b.k);
     std::cout << "\n";
     for (auto &psi_a : wf.core_orbitals) {
-      printf("%1i %2i  ", psi_a.n, psi_a.k);
+      printf("%1i %2i ", psi_a.n, psi_a.k);
       for (auto &psi_b : wf.core_orbitals) {
         if (psi_b > psi_a)
           continue;
@@ -132,7 +113,7 @@ int main(int argc, char *argv[]) {
         double xo = (psi_a * psi_b);
         if (psi_a.n == psi_b.n)
           xo -= 1;
-        printf(" %7.0e ", xo);
+        printf(" %6.0e ", xo);
       }
       std::cout << "\n";
     }
