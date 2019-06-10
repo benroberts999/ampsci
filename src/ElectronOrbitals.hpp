@@ -71,8 +71,9 @@ public:
   bool isInCore(int n, int k) const;
   int maxCore_n(int ka_in = 0) const;
 
-  std::vector<std::size_t> sortedEnergyList(bool do_sort = false,
-                                            int i_cvb = 2) const;
+  std::vector<std::size_t>
+  sortedEnergyList(const std::vector<DiracSpinor> &tmp_orbs,
+                   bool do_sort = false) const;
 
   std::vector<std::vector<int>> listOfStates_nk(int num_val, int la, int lb = 0,
                                                 bool skip_core = true);

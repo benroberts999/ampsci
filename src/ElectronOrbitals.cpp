@@ -566,24 +566,14 @@ void ElectronOrbitals::printNuclearParams() {
 }
 
 //******************************************************************************
-std::vector<std::size_t> ElectronOrbitals::sortedEnergyList(bool do_sort,
-                                                            int i_cvb) const
+std::vector<std::size_t>
+ElectronOrbitals::sortedEnergyList(const std::vector<DiracSpinor> &tmp_orbs,
+                                   bool do_sort) const
 // Outouts a list of integers corresponding to the states
 // sorted by energy (lowest energy first)
 {
 
-  // auto sort_list = stateIndexList;
-  // if (i_cvb == 0)
-  //   sort_list = coreIndexList;
-  // if (i_cvb == 1)
-  //   sort_list = valenceIndexList;
-  auto &tmp_orbs = (i_cvb == 0) ? core_orbitals : valence_orbitals;
-
-  // if (!do_sort)
-  //   return sort_list;
-
   std::vector<std::vector<double>> t_en;
-  // for (auto i : sort_list) {
   for (std::size_t i = 0; i < tmp_orbs.size(); i++) {
     t_en.push_back({tmp_orbs[i].en, (double)i + 0.1});
     //+0.1 to prevent rounding error when going from double -> int
@@ -593,9 +583,8 @@ std::vector<std::size_t> ElectronOrbitals::sortedEnergyList(bool do_sort,
   auto sortCol = [](const std::vector<double> &v1,
                     const std::vector<double> &v2) { return v1[0] > v2[0]; };
 
-  if (do_sort) {
+  if (do_sort)
     std::sort(t_en.rbegin(), t_en.rend(), sortCol);
-  }
 
   // overwrite list with sorted list
   std::vector<std::size_t> sorted_list(tmp_orbs.size());
@@ -616,13 +605,13 @@ void ElectronOrbitals::printCore(bool sorted)
   if (Zion != 0)
     std::cout << "-" << Zion;
   std::cout << ")\n";
-  std::cout << "     state   k   Rinf its    eps       En (au)      En (/cm)\n";
+  std::cout << "     state   k   Rinf its   eps       En (au)      En (/cm)\n";
 
-  auto index_list = sortedEnergyList(sorted, 0);
+  auto index_list = sortedEnergyList(core_orbitals, sorted);
   for (auto i : index_list) {
     auto &phi = core_orbitals[i];
     double r_inf = rinf(phi);
-    printf("%2i) %7s %2i  %5.1f %3i  %5.0e %13.7f %13.1f", int(i),
+    printf("%2i) %7s %2i  %5.1f %2i  %5.0e %13.7f %13.1f", int(i),
            phi.symbol().c_str(), phi.k, r_inf, phi.its, phi.eps, phi.en,
            phi.en *FPC::Hartree_invcm);
     if (phi.occ_frac < 1.0) {
@@ -637,22 +626,24 @@ void ElectronOrbitals::printCore(bool sorted)
 void ElectronOrbitals::printValence(bool sorted)
 // prints valence
 {
-  std::cout << "Val: state   "
-            << "k   Rinf its    eps       En (au)      En (/cm)   En (/cm)\n";
+  if (valence_orbitals.size() == 0)
+    return;
 
-  auto index_list = sortedEnergyList(sorted, 1);
+  std::cout << "Val: state   "
+            << "k   Rinf its   eps       En (au)      En (/cm)   En (/cm)\n";
 
   // Find lowest valence energy:
   double e0 = 0;
   for (auto &phi : valence_orbitals) {
-    if (phi.en < e0 || e0 == 0)
+    if (phi.en < e0)
       e0 = phi.en;
   }
 
+  auto index_list = sortedEnergyList(valence_orbitals, sorted);
   for (auto i : index_list) {
     auto &phi = valence_orbitals[i];
     double r_inf = rinf(phi);
-    printf("%2i) %7s %2i  %5.1f %3i  %5.0e %13.7f %13.1f", int(i),
+    printf("%2i) %7s %2i  %5.1f %2i  %5.0e %13.7f %13.1f", int(i),
            phi.symbol().c_str(), phi.k, r_inf, phi.its, phi.eps, phi.en,
            phi.en *FPC::Hartree_invcm);
     printf(" %10.2f\n", (phi.en + e0) * FPC::Hartree_invcm);

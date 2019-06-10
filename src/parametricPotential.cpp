@@ -97,25 +97,31 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  // make list of energy indices in sorted order:
-  // std::vector<int>
-  auto sorted_list = wf.sortedEnergyList();
-
   // Output results:
-  std::cout << "\n n l_j    k Rinf its    eps      En (au)        En (/cm)\n";
-  int m = 0;
-  for (auto i : sorted_list) {
-    auto &psi = wf.orbitals[i];
-    if (m++ == (int)wf.coreIndexList.size()) {
-      std::cout << " ######### Valence: ######\n";
-      std::cout
-          << " n l_j    k Rinf its    eps      En (au)        En (/ cm)\n";
-    }
-    double rinf = wf.rinf(psi);
-    printf("%7s %2i  %3.0f %3i  %5.0e  %11.5f %15.3f\n", psi.symbol().c_str(),
-           psi.k, rinf, psi.its, wf.orbitals[i].eps, psi.en,
-           psi.en * FPC::Hartree_invcm);
-  }
+  wf.printAtom();
+  bool sorted = true;
+  wf.printCore(sorted);
+  std::cout << "---\n";
+  wf.printValence(sorted);
+  // // make list of energy indices in sorted order:
+  // // std::vector<int>
+  // auto sorted_list = wf.sortedEnergyList(orbitals, false);
+  //
+  // // Output results:
+  // std::cout << "\n n l_j    k Rinf its    eps      En (au)        En
+  // (/cm)\n"; int m = 0; for (auto i : sorted_list) {
+  //   auto &psi = wf.orbitals[i];
+  //   if (m++ == (int)wf.coreIndexList.size()) {
+  //     std::cout << " ######### Valence: ######\n";
+  //     std::cout
+  //         << " n l_j    k Rinf its    eps      En (au)        En (/ cm)\n";
+  //   }
+  //   double rinf = wf.rinf(psi);
+  //   printf("%7s %2i  %3.0f %3i  %5.0e  %11.5f %15.3f\n",
+  //   psi.symbol().c_str(),
+  //          psi.k, rinf, psi.its, wf.orbitals[i].eps, psi.en,
+  //          psi.en * FPC::Hartree_invcm);
+  // }
 
   std::cout << "\n " << sw.reading_str() << "\n";
   return 0;
