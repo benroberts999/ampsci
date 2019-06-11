@@ -33,7 +33,8 @@ public:
 
   double calculateCoreEnergy() const;
 
-  const std::vector<double> &get_vex(const DiracSpinor &psi) const;
+  const std::vector<double> &get_vex(const DiracSpinor &psi,
+                                     bool valence) const;
 
 private:
   ElectronOrbitals *const p_wf;
@@ -51,11 +52,13 @@ private:
   int m_max_kappa_index_so_far;
 
   // The "localised"/approximate HF potential:
-  std::vector<std::vector<double>> vex;
+  std::vector<std::vector<double>> vex_core;
+  std::vector<std::vector<double>> vex_val;
 
   // Store underlying arrays. These are 'double private'
   // nb: these are 'highly non-rectangular'
   std::vector<std::vector<std::vector<std::vector<double>>>> m_arr_v_abk_r;
+  std::vector<std::vector<std::vector<double>>> m_arr_vw_bk_r;
   std::vector<std::vector<std::vector<double>>> m_arr_Lambda_nmk;
 
 private:
@@ -64,7 +67,7 @@ private:
 
   void form_core_Lambda_abk();
   void extend_Lambda_abk(int kappa_a);
-  double get_Lambda_abk_old(std::size_t a, std::size_t b, int k) const;
+  // double get_Lambda_abk_old(std::size_t a, std::size_t b, int k) const;
   double get_Lambda_kiakibk_v2(std::size_t kia, std::size_t kib, int k,
                                int kmin) const;
 
@@ -82,8 +85,10 @@ private:
   const std::vector<std::vector<double>> &get_v_abk(std::size_t a,
                                                     std::size_t b) const;
 
-  void form_vabk_valence(std::size_t w);
-  void form_vabk_valence_v2(const DiracSpinor &phi_w);
+  const std::vector<std::vector<double>> &get_vw_bk(std::size_t b) const;
+
+  // void form_vabk_valence(std::size_t w);
+  void form_vabk_valence(const DiracSpinor &phi_w);
 
   // XXX try a) make thise const
   // and b) make them RETURN vector. Be careful; check speed (range of grids)

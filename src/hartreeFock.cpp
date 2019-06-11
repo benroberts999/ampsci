@@ -74,6 +74,7 @@ int main(int argc, char *argv[]) {
     int k = nk[1];
     hf.solveValence(n, k);
   }
+  wf.orthonormaliseOrbitals(wf.valence_orbitals, 2);
   if (val_lst.size() > 0)
     std::cout << "Valence: " << timer.lap_reading_str() << "\n";
 
@@ -92,70 +93,44 @@ int main(int argc, char *argv[]) {
   //               TESTS
   //*********************************************************
 
-  bool run_test = false;
+  bool run_test = true;
   if (run_test) {
-    std::cout << "Test orthonormality [should all read 0]:\n";
-    std::cout << "       ";
+    std::cout << "Test orthonormality [log-scale, should all read 0]:\n";
 
-    // Core-Core:
-    for (auto &psi_b : wf.core_orbitals)
-      printf("  %1i %2i  ", psi_b.n, psi_b.k);
-    std::cout << "\n";
-    for (auto &psi_a : wf.core_orbitals) {
-      printf("%1i %2i ", psi_a.n, psi_a.k);
-      for (auto &psi_b : wf.core_orbitals) {
-        if (psi_b > psi_a)
-          continue;
-        if (psi_a.k != psi_b.k) {
-          std::cout << "         ";
-          continue;
-        }
-        double xo = (psi_a * psi_b);
-        if (psi_a.n == psi_b.n)
-          xo -= 1;
-        printf(" %6.0e ", xo);
-      }
+    for (int i = 0; i < 3; i++) {
+      auto tmp_b = (i == 2) ? wf.valence_orbitals : wf.core_orbitals;
+      auto tmp_a = (i == 0) ? wf.core_orbitals : wf.valence_orbitals;
+      // Core-Core:
+      if (i == 0)
+        std::cout << "\nCore-Core\n    ";
+      else if (i == 1)
+        std::cout << "\nValence-Core\n    ";
+      else
+        std::cout << "\nValence-Valence\n    ";
+      for (auto &psi_b : tmp_b)
+        printf("%2i%2i", psi_b.n, psi_b.k);
       std::cout << "\n";
-    }
-    // Core-Valence:
-    for (auto &psi_b : wf.valence_orbitals)
-      printf("   %1i %2i  ", psi_b.n, psi_b.k);
-    std::cout << "\n";
-    for (auto &psi_a : wf.core_orbitals) {
-      printf("%1i %2i  ", psi_a.n, psi_a.k);
-      for (auto &psi_b : wf.valence_orbitals) {
-        if (psi_b > psi_a)
-          continue;
-        if (psi_a.k != psi_b.k) {
-          std::cout << "         ";
-          continue;
+      for (auto &psi_a : tmp_a) {
+        printf("%2i%2i", psi_a.n, psi_a.k);
+        for (auto &psi_b : tmp_b) {
+          if (psi_b > psi_a)
+            continue;
+          if (psi_a.k != psi_b.k) {
+            std::cout << "    ";
+            continue;
+          }
+          double xo = (psi_a * psi_b);
+          if (psi_a.n == psi_b.n)
+            xo -= 1;
+          // xo = xo == 0 ? 0 : ;
+          // printf(" e%+3.0f", xo);
+          if (xo == 0)
+            printf("   0");
+          else
+            printf(" %+3.0f", log10(fabs(xo)));
         }
-        double xo = (psi_a * psi_b);
-        if (psi_a.n == psi_b.n)
-          xo -= 1;
-        printf(" %7.0e ", xo);
+        std::cout << "\n";
       }
-      std::cout << "\n";
-    }
-    // Valence-Valence:
-    for (auto &psi_b : wf.valence_orbitals)
-      printf("   %1i %2i  ", psi_b.n, psi_b.k);
-    std::cout << "\n";
-    for (auto &psi_a : wf.valence_orbitals) {
-      printf("%1i %2i  ", psi_a.n, psi_a.k);
-      for (auto &psi_b : wf.valence_orbitals) {
-        if (psi_b > psi_a)
-          continue;
-        if (psi_a.k != psi_b.k) {
-          std::cout << "         ";
-          continue;
-        }
-        double xo = (psi_a * psi_b);
-        if (psi_a.n == psi_b.n)
-          xo -= 1;
-        printf(" %7.0e ", xo);
-      }
-      std::cout << "\n";
     }
 
     std::cout << "\nTesting wavefunctions: <n|H|n>  (numerical error)\n";
@@ -167,9 +142,10 @@ int main(int argc, char *argv[]) {
     DiracOperator z2(wf.vdir);
     for (int i = 0; i < 2; i++) {
       auto &tmp_orbs = (i == 0) ? wf.core_orbitals : wf.valence_orbitals;
+      bool valence = (i == 0) ? false : true;
       for (auto &psi : tmp_orbs) {
         auto k = psi.k;
-        DiracOperator z3(hf.get_vex(psi));
+        DiracOperator z3(hf.get_vex(psi, valence));
         DiracOperator x_b(c, DiracMatrix(0, 1 - k, 1 + k, 0), 0, true);
         auto rhs = (w * psi) + (x_a * (x_b * psi)) + (y * psi) + (z1 * psi) +
                    (z2 * psi) + (z3 * psi);
