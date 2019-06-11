@@ -56,7 +56,7 @@ int main(int argc, char *argv[]) {
   std::cout << "\n";
 
   std::cout << " n l_j    k  R_inf its eps     En (au)            Error (au)\n";
-  for (auto &psi : wf.orbitals) {
+  for (auto &psi : wf.valence_orbitals) {
     double del = psi.en - ATI::diracen(wf.Znuc(), psi.n, psi.k, wf.get_alpha());
     // wf.diracen(wf.Znuc(), psi.n, psi.k);
     double rinf = wf.rinf(psi);
@@ -75,7 +75,7 @@ int main(int argc, char *argv[]) {
       std::cout << " <nk|r^" << in << "|nk>   ";
     }
     std::cout << "\n";
-    for (auto &phi : wf.orbitals) {
+    for (auto &phi : wf.valence_orbitals) {
       printf("%7s : ", phi.symbol().c_str());
       for (int in = -2; in <= 2; in++) {
         if (in == 0)
@@ -130,7 +130,7 @@ int main(int argc, char *argv[]) {
     RadialOperator x_a(wf.rgrid, -1);
     DiracOperator y(c * c, DiracMatrix(0, 0, 0, -2));
     DiracOperator z(wf.vnuc);
-    for (auto &psi : wf.orbitals) {
+    for (auto &psi : wf.valence_orbitals) {
       auto k = psi.k;
       DiracOperator x_b(c, DiracMatrix(0, 1 - k, 1 + k, 0), 0, true);
       auto rhs = (w * psi) + (x_a * (x_b * psi)) + (y * psi) + (z * psi);
