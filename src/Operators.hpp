@@ -17,11 +17,11 @@
 // DiracOperator(DiracMatrix(a, b, c, d), imag?)
 
 //******************************************************************************
-static double hfs_default_F(double r, double rN) {
+static inline double hfs_default_F(double r, double rN) {
   return (r > rN) ? 1. / (r * r) : r / (rN * rN * rN);
 }
 
-static std::vector<double> hfs_v(double rN, const Grid &rgrid,
+static inline std::vector<double> hfs_v(double rN, const Grid &rgrid,
                                  double (*hfs_F)(double, double)) {
   std::vector<double> invr2;
   invr2.reserve(rgrid.ngp);
