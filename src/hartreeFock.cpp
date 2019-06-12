@@ -29,13 +29,16 @@ int main(int argc, char *argv[]) {
   int num_val, l_max; // valence states to calc
   double varalpha, varalpha2;
   bool exclude_exchange;
+  bool run_test;
 
   { // Open and read the input file:
-    int i_excl_ex;
-    auto tp = std::forward_as_tuple(Z_str, A, str_core, r0, rmax, ngp, eps_HF,
-                                    num_val, l_max, varalpha2, i_excl_ex);
+    int i_excl_ex, i_tests;
+    auto tp =
+        std::forward_as_tuple(Z_str, A, str_core, r0, rmax, ngp, eps_HF,
+                              num_val, l_max, varalpha2, i_excl_ex, i_tests);
     FileIO::setInputParameters(input_file, tp);
     exclude_exchange = i_excl_ex == 1 ? true : false;
+    run_test = i_tests == 1 ? true : false;
   }
 
   // Change varAlph^2 to varalph
@@ -74,7 +77,10 @@ int main(int argc, char *argv[]) {
     int k = nk[1];
     hf.solveValence(n, k);
   }
-  wf.orthonormaliseOrbitals(wf.valence_orbitals, 2);
+  // wf.orthonormaliseOrbitals(wf.valence_orbitals, 2);
+  // Note: it's not correct to orthogonalise valence states like this,
+  // since if we do, the orbitals will depend (weakly) on which other valence
+  // states we calculate!
   if (val_lst.size() > 0)
     std::cout << "Valence: " << timer.lap_reading_str() << "\n";
 
@@ -93,7 +99,6 @@ int main(int argc, char *argv[]) {
   //               TESTS
   //*********************************************************
 
-  bool run_test = true;
   if (run_test) {
     std::cout << "Test orthonormality [log-scale, should all read 0]:\n";
 
@@ -113,8 +118,10 @@ int main(int argc, char *argv[]) {
       for (auto &psi_a : tmp_a) {
         printf("%2i%2i", psi_a.n, psi_a.k);
         for (auto &psi_b : tmp_b) {
-          if (psi_b > psi_a)
+          if (psi_b > psi_a) {
+            std::cout << "    ";
             continue;
+          }
           if (psi_a.k != psi_b.k) {
             std::cout << "    ";
             continue;
@@ -122,8 +129,6 @@ int main(int argc, char *argv[]) {
           double xo = (psi_a * psi_b);
           if (psi_a.n == psi_b.n)
             xo -= 1;
-          // xo = xo == 0 ? 0 : ;
-          // printf(" e%+3.0f", xo);
           if (xo == 0)
             printf("   0");
           else
@@ -132,6 +137,11 @@ int main(int argc, char *argv[]) {
         std::cout << "\n";
       }
     }
+    std::cout << "\n(Note: Core orbitals are orthogonalised explicitely, as is "
+                 "each valence state [with respect to the core]. However, "
+                 "valence states are not explicitely orthogonalised wrt each "
+                 "other, since there's no self-consistent way to do this with "
+                 "a finite set of valence orbitals).\n";
 
     std::cout << "\nTesting wavefunctions: <n|H|n>  (numerical error)\n";
     double c = 1. / wf.get_alpha();
