@@ -48,7 +48,8 @@ all: checkObj checkXdir $(ALLEXES)
 
 # All programs depend on these generic common headers:
 COMH = $(addprefix $(ID)/, \
- DiracSpinor.hpp DiracOperator.hpp Operators.hpp Nucleus.hpp \
+ DiracSpinor.hpp DiracOperator.hpp ElectronOrbitals.hpp Operators.hpp \
+ Nucleus.hpp \
  ATI_atomInfo.hpp FPC_physicalConstants.hpp FileIO_fileReadWrite.hpp \
  NumCalc_quadIntegrate.hpp Grid.hpp Matrix_linalg.hpp ChronoTimer.hpp \
  Wigner_369j.hpp \

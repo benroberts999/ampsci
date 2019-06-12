@@ -15,15 +15,15 @@
 Finds the best-fit parameter values for the Green or Tietz potentials
 */
 
-struct nken {
-  int n;
-  int k;
-  double en;
-  nken(int in_n, int in_k, double in_en) : n(in_n), k(in_k), en(in_en){};
-  nken(){};
-};
+// struct EOnken {
+//   int n;
+//   int k;
+//   double en;
+//   EOnken(int in_n, int in_k, double in_en) : n(in_n), k(in_k), en(in_en){};
+//   EOnken(){};
+// };
 
-std::tuple<double, double> performFit(const std::vector<nken> &states, int Z,
+std::tuple<double, double> performFit(const std::vector<EOnken> &states, int Z,
                                       int A, int ngp, double r0, double rmax,
                                       bool green, bool fit_worst);
 
@@ -40,8 +40,8 @@ int main(int argc, char *argv[]) {
   int ngp;
   double r0, rmax;
   int igreen;
-  std::vector<nken> states;
-  std::vector<nken> val_states;
+  std::vector<EOnken> states;
+  std::vector<EOnken> val_states;
   bool fit_worst;
 
   auto in_str_list = FileIO::readInputFile_byEntry(input_file);
@@ -59,7 +59,7 @@ int main(int argc, char *argv[]) {
     for (std::size_t i = n_els; i < in_str_list.size(); i += 3) {
       auto tv = std::vector<std::string>(in_str_list.begin() + i,
                                          in_str_list.begin() + i + 3);
-      nken tmp;
+      EOnken tmp;
       auto tp2 = std::forward_as_tuple(tmp.n, tmp.k, tmp.en);
       FileIO::stringstreamVectorIntoTuple(tv, tp2);
       val_states.push_back(tmp);
@@ -115,7 +115,7 @@ int main(int argc, char *argv[]) {
       for (auto r : wf.rgrid.r)
         wf.vdir.push_back(PRM::tietz(Z, r, H, d));
     for (auto &nk : states) {
-      wf.solveInitialValence(nk.n, nk.k, nk.en);
+      wf.solveNewValence(nk.n, nk.k, nk.en);
     }
 
     printf(" nl_j    k  Rinf its   eps     En (au)    \n");
@@ -154,7 +154,7 @@ int main(int argc, char *argv[]) {
       for (auto r : wf.rgrid.r)
         wf.vdir.push_back(PRM::tietz(Z, r, H, d));
     for (auto &nk : val_states) {
-      wf.solveInitialValence(nk.n, nk.k, nk.en);
+      wf.solveNewValence(nk.n, nk.k, nk.en);
     }
 
     printf(" nl_j    k  Rinf its   eps     En (au)        En (/cm)\n");
@@ -179,7 +179,7 @@ int main(int argc, char *argv[]) {
 }
 
 //******************************************************************************
-std::tuple<double, double> performFit(const std::vector<nken> &states, int Z,
+std::tuple<double, double> performFit(const std::vector<EOnken> &states, int Z,
                                       int A, int ngp, double r0, double rmax,
                                       bool green, bool fit_worst) {
 
@@ -230,7 +230,7 @@ std::tuple<double, double> performFit(const std::vector<nken> &states, int Z,
         double fx = 0;
         if (fit_worst) {
           for (std::size_t ns = 0; ns < states.size(); ns++) {
-            wf.solveInitialValence(states[ns].n, states[ns].k, states[ns].en);
+            wf.solveNewValence(states[ns].n, states[ns].k, states[ns].en);
             auto fx2 = fabs((wf.valence_orbitals[ns].en - states[ns].en) /
                             (wf.valence_orbitals[ns].en + states[ns].en));
             if (fx2 > fx)
@@ -239,7 +239,7 @@ std::tuple<double, double> performFit(const std::vector<nken> &states, int Z,
         } else {
           // sum-of-squares
           for (std::size_t ns = 0; ns < states.size(); ns++) {
-            wf.solveInitialValence(states[ns].n, states[ns].k, states[ns].en);
+            wf.solveNewValence(states[ns].n, states[ns].k, states[ns].en);
             // fx += pow(wf.orbitals[ns].en - states[ns].en, 2);
             fx += pow((wf.valence_orbitals[ns].en - states[ns].en) /
                           (wf.valence_orbitals[ns].en + states[ns].en),

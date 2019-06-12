@@ -149,7 +149,7 @@ void HartreeFock::solveValence(int n, int kappa) {
   extend_m_arr_v_abk_r_valence(kappa);
 
   // just use direct to solve initial
-  p_wf->solveInitialValence(n, kappa, 0, 3);
+  p_wf->solveNewValence(n, kappa, 0, 3);
   auto a = p_wf->valence_orbitals.size() - 1;
   int twoJplus1 = ATI::twoj_k(kappa) + 1;
   p_wf->valence_orbitals.back().occ_frac = 1. / twoJplus1;

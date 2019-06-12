@@ -17,9 +17,8 @@ public:
 
 public:
   // orbitals:
-  std::vector<DiracSpinor> core_orbitals;    // XXX break into core+valence?
-  std::vector<DiracSpinor> valence_orbitals; // XXX break into core+valence?
-
+  std::vector<DiracSpinor> core_orbitals;
+  std::vector<DiracSpinor> valence_orbitals;
   // std::vector<DiracSpinor> basis;    // XXX break into core+valence?
 
   const Grid rgrid;
@@ -27,11 +26,6 @@ public:
   // Potentials
   std::vector<double> vnuc;
   std::vector<double> vdir; // direct/local part of the electron potential
-
-  // std::vector<std::size_t> stateIndexList;
-  // std::vector<std::size_t> coreIndexList;
-  // std::vector<std::size_t> valenceIndexList;
-  std::size_t m_num_core_states; // shuold not be mutable........ XXX
 
 private:
   // store internal value for alpha (allows variation)
@@ -41,21 +35,23 @@ private:
   // nuclus info:
   double m_c, m_t;
 
-  // number of electrons in each core shell (non-rel??)
-  // Is this ever used outside of 'setCore' ... kil??
-  std::vector<int> num_core_shell;
-  int num_core_electrons = 0; // Nc = N - M
+  // number of electrons in each core shell (non-rel)
+  std::vector<int> num_core_shell; // XXX This is dumb - try to fix!?
+  int num_core_electrons = 0;      // Nc = N - M
   std::string m_core_string = "";
 
 public:
+  // Rule is: if function is single-line, define here. Else, in .cpp
   double get_alpha() const { return m_alpha; }
   int Znuc() const { return m_Z; }
   int Anuc() const { return m_A; }
   int Nnuc() const { return (m_A > m_Z) ? (m_A - m_Z) : 0; }
   int Ncore() const { return num_core_electrons; }
-  double rinf(const DiracSpinor &phi) const;
-  int getRadialIndex(double r_target) const;
-  std::size_t getStateIndex(int n, int k) const; // XXX ???
+  double rinf(const DiracSpinor &phi) const { return rgrid.r[phi.pinf]; };
+  int getRadialIndex(double r_target) const {
+    return (int)rgrid.getIndex(r_target, true);
+  };
+  std::size_t getStateIndex(int n, int k) const;
 
   std::string coreConfiguration() { return m_core_string; }
   std::string coreConfiguration_nice() {
@@ -87,7 +83,7 @@ public:
   void solveDirac(DiracSpinor &psi, double e_a = 0, int log_dele_or = 0) const;
 
   int solveInitialCore(std::string str_core_in, int log_dele_or = 0);
-  void solveInitialValence(int n, int k, double en_a = 0, int log_dele_or = 0);
+  void solveNewValence(int n, int k, double en_a = 0, int log_dele_or = 0);
 
   static void orthonormaliseOrbitals(std::vector<DiracSpinor> &tmp_orbs,
                                      int num_its = 1);

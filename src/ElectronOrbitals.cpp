@@ -13,11 +13,6 @@
 #include <sstream>
 #include <string>
 #include <vector>
-/*
- ###= To Do ###=
- * Write out to disk
-
-*/
 
 //******************************************************************************
 ElectronOrbitals::ElectronOrbitals(int in_z, int in_a, int in_ngp, double rmin,
@@ -59,9 +54,11 @@ void ElectronOrbitals::solveDirac(DiracSpinor &psi, double e_a,
     }
   }
 
-  if (e_a != 0)
+  if (e_a != 0) {
     psi.en = e_a;
-  // psi.en = e_a == 0 ? enGuessVal(n, k) : e_a; //?? XXX better...
+  } else if (psi.en == 0) {
+    psi.en = enGuessVal(psi.n, psi.k);
+  }
   ADAMS::solveDBS(psi, v_a, rgrid, m_alpha, log_dele_or);
 
   return;
@@ -198,15 +195,6 @@ void ElectronOrbitals::determineCore(const std::string &str_core_in)
 }
 
 //******************************************************************************
-double ElectronOrbitals::rinf(const DiracSpinor &phi) const {
-  return rgrid.r[phi.pinf];
-}
-
-int ElectronOrbitals::getRadialIndex(double r_target) const {
-  return (int)rgrid.getIndex(r_target, true); // need true?
-}
-
-//******************************************************************************
 bool ElectronOrbitals::isInCore(int n, int k) const
 // Checks if given state is in the core.
 {
@@ -219,23 +207,19 @@ bool ElectronOrbitals::isInCore(int n, int k) const
 
 //******************************************************************************
 std::size_t ElectronOrbitals::getStateIndex(int n, int k) const {
-  // auto &tmp_orbitals =
-  //     (ot == OrbitalType::core) ? core_orbitals : valence_orbitals;
-  // for (std::size_t i = 0; i < tmp_orbitals.size(); i++) {
-  //   auto &phi = tmp_orbitals[i];
-  //   if (n == phi.n && k == phi.k)
-  //     return i;
-  // }
-  for (int i = 0; i < 2; i++) {
-    auto &tmp_orbitals = i == 0 ? core_orbitals : valence_orbitals;
+  for (auto &tmp_orbitals : {core_orbitals, valence_orbitals}) {
+    // XXX How the hell does this work?
+    // Is is making a copy of core_orbitals + valence_orbitals ?
+    // If so, have to be careful not to use this deep in a loop!!!
     for (std::size_t i = 0; i < tmp_orbitals.size(); i++) {
       auto &phi = tmp_orbitals[i];
       if (n == phi.n && k == phi.k)
         return i;
     }
   }
-  std::cerr << "\nFAIL 290 in EO: Couldn't find state nk=" << n << k << "\n";
-  return -1; // this is an invalid index!
+  std::cerr << "\nFAIL 290 in EO: Couldn't find state n,k=" << n << "," << k
+            << "\n";
+  std::abort();
 }
 
 //******************************************************************************
@@ -246,12 +230,6 @@ int ElectronOrbitals::maxCore_n(int ka) const
 // Note: if you give it l instead of kappa, still works!
 {
   int max_n = 0;
-  // for (auto i : coreIndexList) {
-  //   if (core_orbitals[i].k != ka && ka != 0)
-  //     continue;
-  //   if (core_orbitals[i].n > max_n)
-  //     max_n = core_orbitals[i].n;
-  // }
   for (auto &phi : core_orbitals) {
     if (phi.k != ka && ka != 0)
       continue;
@@ -295,10 +273,8 @@ int ElectronOrbitals::solveInitialCore(std::string str_core, int log_dele_or)
     core_orbitals.emplace_back(DiracSpinor{n, k2, rgrid});
     solveDirac(core_orbitals.back(), en_a, log_dele_or);
   }
-  m_num_core_states = core_orbitals.size(); // store number of states in core
 
   // occupancy fraction for each core state (avg of Non-rel states!):
-  // for (std::size_t i = 0; i < m_num_core_states; i++) {
   for (auto &phi : core_orbitals) {
     int n = phi.n;
     int l = phi.l();
@@ -321,13 +297,14 @@ int ElectronOrbitals::solveInitialCore(std::string str_core, int log_dele_or)
 }
 
 //******************************************************************************
-void ElectronOrbitals::solveInitialValence(int n, int k, double en_a,
-                                           int log_dele_or)
-// xxx
+void ElectronOrbitals::solveNewValence(int n, int k, double en_a,
+                                       int log_dele_or)
+// Update to take a list ok nken's ?
 {
 
   valence_orbitals.emplace_back(DiracSpinor{n, k, rgrid});
 
+  // XXX Do this again? Or just pass to solveDirac?
   // Fill V(r) with nulcear + DIRECT part of electron potential
   std::vector<double> v_a = vnuc;
   if (vdir.size() != 0) {
@@ -358,7 +335,7 @@ void ElectronOrbitals::orthonormaliseOrbitals(
 // Hence factor of 0.5
 // Note: For HF, should never be called after core is frozen!
 //
-// XXX Note: This allows wfs to extend past pinf!
+// Note: This allows wfs to extend past pinf!
 // ==> This causes the possible orthog issues..
 {
   std::size_t Ns = tmp_orbs.size();
@@ -405,22 +382,11 @@ void ElectronOrbitals::orthonormaliseOrbitals(
 
 //******************************************************************************
 void ElectronOrbitals::orthonormaliseWrtCore(DiracSpinor &psi_v) const
-// Force given valence orbital to be orthogonal to
-//   a) all core orbitals
-// After the core is 'frozen', don't touch core orbitals!
+// Force given orbital to be orthogonal to all core orbitals
+// [After the core is 'frozen', don't touch core orbitals!]
 // |v> --> |v> - sum_c |c><c|v>
-// note: here, c denotes core orbitals + valence orbitals with c<v
-// if core_only=true, will only orthog phi_v against core orbitals
-// (only need to do this part before generating exchange potential!)
-// NB: Is it ok that this is const? Not sure... it's strange way to do it?....
-// XXX
-// XXX
-// XXX
-// IF I ORTHON. CORE-CORE, THEN VAL-CORE, THEN VAL-VAL. WILL VAL-CORE STILL
-// BE ORTHOG ?????
+// note: here, c denotes core orbitals
 {
-  // const auto num_states_below =
-  //     core_only ? coreIndexList.size() : getStateIndex(psi_v.n, psi_v.k);
 
   auto Nc = core_orbitals.size();
 
@@ -572,7 +538,6 @@ ElectronOrbitals::sortedEnergyList(const std::vector<DiracSpinor> &tmp_orbs,
 // Outouts a list of integers corresponding to the states
 // sorted by energy (lowest energy first)
 {
-
   std::vector<std::vector<double>> t_en;
   for (std::size_t i = 0; i < tmp_orbs.size(); i++) {
     t_en.push_back({tmp_orbs[i].en, (double)i + 0.1});
@@ -587,10 +552,9 @@ ElectronOrbitals::sortedEnergyList(const std::vector<DiracSpinor> &tmp_orbs,
     std::sort(t_en.rbegin(), t_en.rend(), sortCol);
 
   // overwrite list with sorted list
-  std::vector<std::size_t> sorted_list(tmp_orbs.size());
-  for (std::size_t i = 0; i < sorted_list.size(); i++) {
-    sorted_list[i] = (std::size_t)t_en[i][1];
-    // XXX make better, but test!
+  std::vector<std::size_t> sorted_list;
+  for (const auto &el : t_en) {
+    sorted_list.push_back(std::size_t(el[1]));
   }
 
   return sorted_list;
@@ -598,7 +562,7 @@ ElectronOrbitals::sortedEnergyList(const std::vector<DiracSpinor> &tmp_orbs,
 
 //******************************************************************************
 void ElectronOrbitals::printCore(bool sorted)
-// prints core
+// prints core orbitals
 {
   int Zion = Znuc() - Ncore();
   std::cout << "Core: " << coreConfiguration_nice() << " (V^N";
@@ -624,7 +588,7 @@ void ElectronOrbitals::printCore(bool sorted)
 
 //******************************************************************************
 void ElectronOrbitals::printValence(bool sorted)
-// prints valence
+// prints valence orbitals
 {
   if (valence_orbitals.size() == 0)
     return;
@@ -646,7 +610,7 @@ void ElectronOrbitals::printValence(bool sorted)
     printf("%2i) %7s %2i  %5.1f %2i  %5.0e %13.7f %13.1f", int(i),
            phi.symbol().c_str(), phi.k, r_inf, phi.its, phi.eps, phi.en,
            phi.en *FPC::Hartree_invcm);
-    printf(" %10.2f\n", (phi.en + e0) * FPC::Hartree_invcm);
+    printf(" %10.2f\n", (phi.en - e0) * FPC::Hartree_invcm);
   }
 }
 
@@ -667,6 +631,10 @@ ElectronOrbitals::listOfStates_nk(int num_val, int la, int lb, bool skip_core)
     l_min = 0;
     l_max = la;
   }
+
+  // XXX a) Add energy guess for valence/core!
+  // XXX b) Change to give list of nken's !
+  // XXX Then: send this list to solvers
 
   auto min_ik = ATI::indexFromKappa(-l_min - 1);
   auto max_ik = ATI::indexFromKappa(-l_max - 1);

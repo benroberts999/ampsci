@@ -92,7 +92,7 @@ int main(int argc, char *argv[]) {
           continue;
         if (wf.isInCore(n, k))
           continue;
-        wf.solveInitialValence(n, k);
+        wf.solveNewValence(n, k);
       }
     }
   }

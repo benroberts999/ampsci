@@ -41,7 +41,7 @@ int main(int argc, char *argv[]) {
       if (l > l_max)
         continue;
       double eng = ATI::diracen(Z, n, k, wf.get_alpha());
-      wf.solveInitialValence(n, k, eng);
+      wf.solveNewValence(n, k, eng);
     }
   }
 

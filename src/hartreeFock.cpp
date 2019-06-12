@@ -150,12 +150,11 @@ int main(int argc, char *argv[]) {
     DiracOperator y(c * c, DiracMatrix(0, 0, 0, -2));
     DiracOperator z1(wf.vnuc);
     DiracOperator z2(wf.vdir);
-    for (int i = 0; i < 2; i++) {
-      auto &tmp_orbs = (i == 0) ? wf.core_orbitals : wf.valence_orbitals;
-      bool valence = (i == 0) ? false : true;
+    bool tmp_valence = false;
+    for (auto &tmp_orbs : {wf.core_orbitals, wf.valence_orbitals}) {
       for (auto &psi : tmp_orbs) {
         auto k = psi.k;
-        DiracOperator z3(hf.get_vex(psi, valence));
+        DiracOperator z3(hf.get_vex(psi, tmp_valence));
         DiracOperator x_b(c, DiracMatrix(0, 1 - k, 1 + k, 0), 0, true);
         auto rhs = (w * psi) + (x_a * (x_b * psi)) + (y * psi) + (z1 * psi) +
                    (z2 * psi) + (z3 * psi);
@@ -165,6 +164,7 @@ int main(int argc, char *argv[]) {
         printf("<%i% i|H|%i% i> = %17.11f, E = %17.11f; % .0e\n", psi.n, psi.k,
                psi.n, psi.k, R, ens, fracdiff);
       }
+      tmp_valence = true;
     }
   }
 
@@ -224,7 +224,7 @@ int main(int argc, char *argv[]) {
 
   bool test_hfs = false;
   if (test_hfs) {
-    // Test hfs and Operator
+    // Test hfs and Operator [hard-coded for Rb]
     double muN = 2.751818;            // XXX Rb
     double IN = (3. / 2.);            // XXX Rb
     auto r_rms = 4.1989 / FPC::aB_fm; // XXX Rb
@@ -233,18 +233,13 @@ int main(int argc, char *argv[]) {
 
     // example for using lambda
     auto l1 = [](double r, double) { return 1. / (r * r); };
-    // auto l2 = [](double r, double rN) { return r > rN ? 1. / (r * r) : 0.;
+    // auto l1 = [](double r, double rN) { return r > rN ? 1. / (r * r) : 0.;
     // };
     HyperfineOperator vhfs(muN, IN, r_rms, wf.rgrid, l1);
-
-    // for (auto i : wf.valenceIndexList) {
-    //   auto &phi = wf.orbitals[i];
     for (auto phi : wf.valence_orbitals) {
       auto A_tmp = phi * (vhfs * phi);
-
       double j = phi.j();
       auto factor = FPC::Hartree_MHz * phi.k / (j * (j + 1.));
-
       std::cout << phi.symbol() << ": ";
       std::cout << A_tmp * factor << "\n";
     }

@@ -5,6 +5,18 @@
 #include <string>
 #include <vector>
 
+//******************************************************************************
+struct EOnken { // name OK? too short?
+  int n;
+  int k;
+  double en;
+  // XXX Add occupation fraction (or number of electrons)?
+  // Then, could use for Core!
+  EOnken(int in_n, int in_k, double in_en = 0) : n(in_n), k(in_k), en(in_en){};
+  EOnken(){};
+};
+
+//******************************************************************************
 class DiracSpinor {
 
 public: // Data
@@ -28,6 +40,9 @@ public: // Data
   // determines relative sign in radial integral
   // Make private?
   const bool imaginary_g; // true by default. If false, means upper comp is i
+
+  // XXX pointer back to vdir? Vex? wf? valence/core/virtual?
+  // Valence/core/virtual would be super useful! XXX
 
   int its = -1;
   double eps = -1;
