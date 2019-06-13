@@ -578,10 +578,13 @@ void ElectronOrbitals::printCore(bool sorted) const
 }
 
 //******************************************************************************
-void ElectronOrbitals::printValence(bool sorted) const
+void ElectronOrbitals::printValence(
+    bool sorted, const std::vector<DiracSpinor> &in_orbitals) const
 // prints valence orbitals
 {
-  if (valence_orbitals.size() == 0)
+  auto tmp_orbs = (in_orbitals.size() == 0) ? valence_orbitals : in_orbitals;
+
+  if (tmp_orbs.size() == 0)
     return;
 
   std::cout << "Val: state   "
@@ -589,14 +592,14 @@ void ElectronOrbitals::printValence(bool sorted) const
 
   // Find lowest valence energy:
   double e0 = 0;
-  for (auto &phi : valence_orbitals) {
+  for (auto &phi : tmp_orbs) {
     if (phi.en < e0)
       e0 = phi.en;
   }
 
-  auto index_list = sortedEnergyList(valence_orbitals, sorted);
+  auto index_list = sortedEnergyList(tmp_orbs, sorted);
   for (auto i : index_list) {
-    auto &phi = valence_orbitals[i];
+    auto &phi = tmp_orbs[i];
     double r_inf = rinf(phi);
     printf("%2i) %7s %2i  %5.1f %2i  %5.0e %13.7f %13.1f", int(i),
            phi.symbol().c_str(), phi.k, r_inf, phi.its, phi.eps, phi.en,

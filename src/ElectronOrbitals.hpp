@@ -63,7 +63,8 @@ public:
            " A=" + std::to_string(m_A);
   }
   void printCore(bool sorted = true) const;
-  void printValence(bool sorted = true) const;
+  void printValence(bool sorted = true,
+                    const std::vector<DiracSpinor> &tmp_orbitals = {}) const;
   bool isInCore(int n, int k) const;
   int maxCore_n(int ka_in = 0) const;
 

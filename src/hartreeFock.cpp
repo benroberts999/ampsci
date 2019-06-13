@@ -74,7 +74,7 @@ int main(int argc, char *argv[]) {
   for (const auto &nk : val_lst) {
     int n = nk[0];
     int k = nk[1];
-    hf.solveValence(n, k);
+    hf.solveNewValence(n, k);
   }
   // wf.orthonormaliseOrbitals(wf.valence_orbitals, 2);
   // Note: it's not correct to orthogonalise valence states like this,
@@ -97,6 +97,20 @@ int main(int argc, char *argv[]) {
   //*********************************************************
   //               TESTS
   //*********************************************************
+
+  bool test_hf_basis = true;
+  if (test_hf_basis) {
+    auto basis_lst = wf.listOfStates_nk(6, 3);
+    std::vector<DiracSpinor> basis = wf.core_orbitals;
+    for (const auto &nk : basis_lst) {
+      basis.emplace_back(DiracSpinor(nk[0], nk[1], wf.rgrid));
+      auto tmp_vex = std::vector<double>{};
+      hf.solveValence(basis.back(), tmp_vex);
+    }
+    wf.orthonormaliseOrbitals(basis, 2);
+    wf.printValence(false, basis);
+    std::cout << "\n Total time: " << timer.reading_str() << "\n";
+  }
 
   if (run_test) {
     std::cout << "Test orthonormality [log-scale, should all read 0]:\n";
@@ -165,6 +179,7 @@ int main(int argc, char *argv[]) {
       }
       tmp_valence = true;
     }
+    std::cout << "\n Total time: " << timer.reading_str() << "\n";
   }
 
   bool print_wfs = false;

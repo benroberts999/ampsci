@@ -133,35 +133,40 @@ void HartreeFock::hartree_fock_core() {
 }
 
 //******************************************************************************
-void HartreeFock::solveValence(int n, int kappa) {
+void HartreeFock::solveNewValence(int n, int kappa) {
 
-  // XXX This is slow! Much better to have another function that takes in
-  // a _list_ of valence states, and reserves all space first!
-  // Could also be a little clever, and do 'initial solve' outside,
-  // then could run the HF part in parallel.
-  // Note: probs not necisary: the 'form vex' part is // anyway, and fairly
-  // efficient
-  // twoj_list.push_back(AtomInfo::twoj_k(kappa));
-  // kappa_index_list.push_back(AtomInfo::indexFromKappa(kappa));
+  p_wf->valence_orbitals.emplace_back(DiracSpinor{n, kappa, p_wf->rgrid});
+  // Solve local dirac Eq:
+  auto &phi = p_wf->valence_orbitals.back();
+  vex_val.emplace_back(std::vector<double>{});
+  auto &vexa = vex_val.back();
+  solveValence(phi, vexa);
+}
+
+//******************************************************************************
+void HartreeFock::solveValence(DiracSpinor &phi, std::vector<double> &vexa)
+// Solves HF for given orbital phi, in frozen core.
+// Does not store vex (must be done outside)
+// Can be used to generate a set of virtual/basis orbitals
+{
+
+  auto kappa = phi.k;
   extend_Lambda_abk(kappa);
   extend_m_arr_v_abk_r_valence(kappa);
 
-  // just use direct to solve initial
-  p_wf->solveNewValence(n, kappa, 0, 3);
-  auto a = p_wf->valence_orbitals.size() - 1;
   int twoJplus1 = AtomInfo::twoj_k(kappa) + 1;
-  p_wf->valence_orbitals.back().occ_frac = 1. / twoJplus1;
+  phi.occ_frac = 1. / twoJplus1;
 
-  auto &phi = p_wf->valence_orbitals.back();
+  // auto &phi = p_wf->valence_orbitals.back();
 
   static const double eta1 = 0.35;
   static const double eta2 = 0.7; // this value after 4 its
   // don't include all pts in PT for new e guess
   static const std::size_t de_stride = 5;
 
-  vex_val.emplace_back(p_rgrid->ngp);
-  // std::vector<double> vexa(p_rgrid->ngp);
-  auto &vexa = vex_val.back();
+  vexa.clear();
+  vexa.resize(p_rgrid->ngp, 0);
+
   std::vector<double> vexa_old;
 
   int hits = 1;
@@ -175,7 +180,7 @@ void HartreeFock::solveValence(int n, int kappa) {
     vexa_old = vexa;
 
     form_vabk_valence(phi);
-    form_approx_vex_a(a, vexa, true);
+    form_approx_vex_a(phi, 0, vexa, true); // XXX I think a doesn't matter?
 
     for (std::size_t i = 0; i < p_rgrid->ngp; i++) {
       vexa[i] = eta * vexa[i] + (1. - eta) * vexa_old[i];
@@ -195,8 +200,8 @@ void HartreeFock::solveValence(int n, int kappa) {
     if (eps < m_eps_HF)
       break;
   }
-  printf("\rHF val:%2lu %2i %2i | %3i eps=%6.1e  en=%11.8f\n", a, n, kappa,
-         hits, eps, phi.en);
+  printf("\rHF val: %2i %2i | %3i eps=%6.1e  en=%11.8f\n", phi.n, kappa, hits,
+         eps, phi.en);
 
   // Re-solve w/ higher precission
   p_wf->solveDirac(phi, phi.en, vexa, 15);
@@ -525,12 +530,13 @@ Doesn't calculate, assumes m_arr_v_abk_r array exists + is up-to-date
 {
 #pragma omp parallel for
   for (std::size_t a = 0; a < m_num_core_states; a++) {
-    form_approx_vex_a(a, vex[a]);
+    form_approx_vex_a(p_wf->core_orbitals[a], a, vex[a]);
   }
 }
 
 //******************************************************************************
-void HartreeFock::form_approx_vex_a(std::size_t a, std::vector<double> &vex_a,
+void HartreeFock::form_approx_vex_a(const DiracSpinor &phi_a, std::size_t a,
+                                    std::vector<double> &vex_a,
                                     bool valence) const
 // Forms the 2D "approximate" exchange potential for given core state, a.
 // Does the a=b case seperately, since it's a little simpler
@@ -556,8 +562,8 @@ void HartreeFock::form_approx_vex_a(std::size_t a, std::vector<double> &vex_a,
     va = 0;
   }
 
-  auto &phi_a =
-      valence ? p_wf->valence_orbitals[a] : p_wf->core_orbitals[a]; // XXX
+  // auto &phi_a =
+  //     valence ? p_wf->valence_orbitals[a] : p_wf->core_orbitals[a]; // XXX
 
   // auto ex_temp = valence ? m_num_core_states : 0;
 
@@ -574,7 +580,7 @@ void HartreeFock::form_approx_vex_a(std::size_t a, std::vector<double> &vex_a,
       int kmin = abs(twoj_a - twoj_list[b]) / 2;
       int kmax = (twoj_a + twoj_list[b]) / 2;
       const std::vector<std::vector<double>> &vabk =
-          valence ? get_vw_bk(b) : get_v_abk(a, b);
+          valence ? get_vw_bk(b) : get_v_abk(a, b); // XXX XXX XXX
       // hold "fraction" psi_a*psi_b/(psi_a^2):
       std::vector<double> v_Fab(p_rgrid->ngp);
       for (std::size_t i = 0; i < irmax; i++) {
@@ -601,11 +607,10 @@ void HartreeFock::form_approx_vex_a(std::size_t a, std::vector<double> &vex_a,
   }
 
   // now, do a=b, ONLY if a is in the core!
-  // if (a < m_num_core_states) {     // XXX NO!
-  if (!valence) {                  // XXX NO!
+  if (!valence) {
     double x_tjap1 = (twoj_a + 1); // no occ_frac here
     int kmax = twoj_a;
-    const auto &vaak = get_v_abk(a, a); // this OK
+    const auto &vaak = get_v_abk(a, a); // this OK  // XXX XXX XXX
     auto irmax = phi_a.pinf;
     for (int k = 0; k <= kmax; k++) {
       double L_abk = get_Lambda_kiakibk_v2(ki_a, ki_a, k, 0);
