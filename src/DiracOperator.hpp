@@ -28,6 +28,7 @@ struct DiracMatrix
     printf("%s(%2i %2i)\n", i, this->e10, this->e11);
   }
 
+  // Everything that follows is overloading operators:
   DiracMatrix operator*(const DiracMatrix &other) const {
     bool imag = false;
     int sign = 1;

@@ -53,17 +53,17 @@ public:
   };
   std::size_t getStateIndex(int n, int k) const;
 
-  std::string coreConfiguration() { return m_core_string; }
-  std::string coreConfiguration_nice() {
+  std::string coreConfiguration() const { return m_core_string; }
+  std::string coreConfiguration_nice() const {
     return ATI::niceCoreOutput(m_core_string);
   }
-  void printNuclearParams();
-  void printAtom() {
-    std::cout << ATI::atomicSymbol(m_Z) << ", Z=" << m_Z << " A=" << m_A
-              << "\n";
+  std::string nuclearParams() const;
+  std::string atom() const {
+    return ATI::atomicSymbol(m_Z) + ", Z=" + std::to_string(m_Z) +
+           " A=" + std::to_string(m_A);
   }
-  void printCore(bool sorted = true);
-  void printValence(bool sorted = true);
+  void printCore(bool sorted = true) const;
+  void printValence(bool sorted = true) const;
   bool isInCore(int n, int k) const;
   int maxCore_n(int ka_in = 0) const;
 
@@ -71,8 +71,9 @@ public:
   sortedEnergyList(const std::vector<DiracSpinor> &tmp_orbs,
                    bool do_sort = false) const;
 
+  // re-write this in terms of nkens !! XXX
   std::vector<std::vector<int>> listOfStates_nk(int num_val, int la, int lb = 0,
-                                                bool skip_core = true);
+                                                bool skip_core = true) const;
 
 public:
   void formNuclearPotential(NucleusType nucleus_type, double rc = 0,
@@ -82,7 +83,7 @@ public:
                   int log_dele_or = 0) const;
   void solveDirac(DiracSpinor &psi, double e_a = 0, int log_dele_or = 0) const;
 
-  int solveInitialCore(std::string str_core_in, int log_dele_or = 0);
+  void solveInitialCore(std::string str_core_in, int log_dele_or = 0);
   void solveNewValence(int n, int k, double en_a = 0, int log_dele_or = 0);
 
   static void orthonormaliseOrbitals(std::vector<DiracSpinor> &tmp_orbs,

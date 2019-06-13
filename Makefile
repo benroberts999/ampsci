@@ -77,7 +77,7 @@ BASE = $(addprefix $(OD)/, \
 )
 
 HF = $(addprefix $(OD)/, \
- HartreeFockClass.o CoulombFunctions.o PRM_localPotentials.o \
+ HartreeFockClass.o CoulombFunctions.o Parametric_potentials.o \
 )
 
 CNTM = $(addprefix $(OD)/, \
@@ -91,11 +91,11 @@ $(XD)/h-like: $(BASE) $(OD)/h-like.o
 	$(LINK)
 
 $(XD)/fitParametric: $(BASE) $(HF) $(OD)/fitParametric.o \
-$(OD)/PRM_localPotentials.o
+$(OD)/Parametric_potentials.o
 	$(LINK)
 
 $(XD)/parametricPotential: $(BASE) $(OD)/parametricPotential.o \
-$(OD)/PRM_localPotentials.o
+$(OD)/Parametric_potentials.o
 	$(LINK)
 
 $(XD)/atomicKernal: $(BASE) $(CNTM) $(HF) \

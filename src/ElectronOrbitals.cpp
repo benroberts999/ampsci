@@ -6,10 +6,8 @@
 #include "FPC_physicalConstants.hpp"
 #include "Grid.hpp"
 #include "Nucleus.hpp"
-#include "NumCalc_quadIntegrate.hpp"
 #include <algorithm> //for sort
 #include <cmath>
-#include <gsl/gsl_sf_fermi_dirac.h> //For fermiNucleus
 #include <sstream>
 #include <string>
 #include <vector>
@@ -41,7 +39,6 @@ void ElectronOrbitals::solveDirac(DiracSpinor &psi, double e_a,
 // This is not ideal..
 {
 
-  // XXX this is inneficient. Fine, except for HF. THen, slow! ?
   std::vector<double> v_a = vnuc;
   if (vdir.size() != 0) {
     for (std::size_t i = 0; i < rgrid.ngp; i++) {
@@ -208,7 +205,7 @@ bool ElectronOrbitals::isInCore(int n, int k) const
 //******************************************************************************
 std::size_t ElectronOrbitals::getStateIndex(int n, int k) const {
   for (auto &tmp_orbitals : {core_orbitals, valence_orbitals}) {
-    // XXX How the hell does this work?
+    // How does this work?
     // Is is making a copy of core_orbitals + valence_orbitals ?
     // If so, have to be careful not to use this deep in a loop!!!
     for (std::size_t i = 0; i < tmp_orbitals.size(); i++) {
@@ -240,7 +237,7 @@ int ElectronOrbitals::maxCore_n(int ka) const
 }
 
 //******************************************************************************
-int ElectronOrbitals::solveInitialCore(std::string str_core, int log_dele_or)
+void ElectronOrbitals::solveInitialCore(std::string str_core, int log_dele_or)
 // Solves the Dirac eqn for each state in the core
 // Only for local potential (direct part)
 // HartreeFockClass.cpp has routines for Hartree Fock
@@ -288,12 +285,10 @@ int ElectronOrbitals::solveInitialCore(std::string str_core, int log_dele_or)
     }
     if (ic == num_core_shell.size()) {
       std::cout << "FAIL 254 in ElectronOrbitals:solveInitialCore\n";
-      return 2;
+      std::abort();
     }
     phi.occ_frac = double(num_core_shell[ic]) / (4 * l + 2);
   }
-
-  return 0;
 }
 
 //******************************************************************************
@@ -301,26 +296,19 @@ void ElectronOrbitals::solveNewValence(int n, int k, double en_a,
                                        int log_dele_or)
 // Update to take a list ok nken's ?
 {
-
   valence_orbitals.emplace_back(DiracSpinor{n, k, rgrid});
-
-  // XXX Do this again? Or just pass to solveDirac?
-  // Fill V(r) with nulcear + DIRECT part of electron potential
-  std::vector<double> v_a = vnuc;
-  if (vdir.size() != 0) {
-    for (auto i = 0ul; i < rgrid.ngp; i++)
-      v_a[i] += vdir[i];
-  }
 
   // Solve local dirac Eq:
   auto &psi = valence_orbitals.back();
-  psi.en = en_a == 0 ? enGuessVal(n, k) : en_a;
-  ADAMS::solveDBS(psi, v_a, rgrid, m_alpha, log_dele_or);
+  if (en_a == 0)
+    en_a = enGuessVal(n, k);
+  solveDirac(psi, en_a, log_dele_or);
 }
 
 //******************************************************************************
 void ElectronOrbitals::orthonormaliseOrbitals(
     std::vector<DiracSpinor> &tmp_orbs, int num_its)
+// Note: this function is static
 // Forces ALL orbitals to be orthogonal to each other, and normal
 // Note: workes best if run twice!
 // |a> ->  |a> - \sum_{b!=a} |b><b|a>
@@ -338,11 +326,11 @@ void ElectronOrbitals::orthonormaliseOrbitals(
 // Note: This allows wfs to extend past pinf!
 // ==> This causes the possible orthog issues..
 {
-  std::size_t Ns = tmp_orbs.size();
+  auto Ns = tmp_orbs.size();
+  auto ngp = tmp_orbs[0].p_rgrid->ngp;
   std::vector<std::vector<double>> c_ab(Ns, std::vector<double>(Ns));
 
   // Calculate c_ab = <a|b>  [only for b>a -- symmetric]
-  // for (auto a : tmp_orbs) {
   for (std::size_t a = 0; a < Ns; a++) {
     for (auto b = a + 1; b < Ns; b++) {
       if (tmp_orbs[a].k != tmp_orbs[b].k)
@@ -360,7 +348,7 @@ void ElectronOrbitals::orthonormaliseOrbitals(
         continue;
       // c_ab = c_ba : only calc'd half:
       double cab = (a < b) ? c_ab[a][b] : c_ab[b][a];
-      for (std::size_t ir = 0; ir < tmp_orbs[a].p_rgrid->ngp; ir++) {
+      for (std::size_t ir = 0; ir < ngp; ir++) {
         tmp_orbs[a].f[ir] -= cab * tmp_orbs[b].f[ir];
         tmp_orbs[a].g[ir] -= cab * tmp_orbs[b].g[ir];
       }
@@ -519,16 +507,18 @@ void ElectronOrbitals::formNuclearPotential(NucleusType nucleus_type, double rc,
 }
 
 //******************************************************************************
-void ElectronOrbitals::printNuclearParams() {
+std::string ElectronOrbitals::nuclearParams() const {
+  // std::string output;
+  std::ostringstream output;
   if (m_c == 0 && m_t == 0) {
-    std::cout << "Zero-size nucleus\n";
+    output << "Zero-size nucleus";
   } else if (m_t == 0) {
-    std::cout << "Spherical nucleus; r_rms = " << m_c << "\n";
+    output << "Spherical nucleus; r_rms = " << m_c;
   } else {
-    std::cout << "Fermi nucleus; r_rms = "
-              << Nucleus::rrms_formula_c_t(m_c, m_t) << ", c=" << m_c
-              << ", t=" << m_t << "\n";
+    output << "Fermi nucleus; r_rms = " << Nucleus::rrms_formula_c_t(m_c, m_t)
+           << ", c=" << m_c << ", t=" << m_t;
   }
+  return output.str();
 }
 
 //******************************************************************************
@@ -561,7 +551,7 @@ ElectronOrbitals::sortedEnergyList(const std::vector<DiracSpinor> &tmp_orbs,
 }
 
 //******************************************************************************
-void ElectronOrbitals::printCore(bool sorted)
+void ElectronOrbitals::printCore(bool sorted) const
 // prints core orbitals
 {
   int Zion = Znuc() - Ncore();
@@ -587,7 +577,7 @@ void ElectronOrbitals::printCore(bool sorted)
 }
 
 //******************************************************************************
-void ElectronOrbitals::printValence(bool sorted)
+void ElectronOrbitals::printValence(bool sorted) const
 // prints valence orbitals
 {
   if (valence_orbitals.size() == 0)
@@ -616,7 +606,8 @@ void ElectronOrbitals::printValence(bool sorted)
 
 //******************************************************************************
 std::vector<std::vector<int>>
-ElectronOrbitals::listOfStates_nk(int num_val, int la, int lb, bool skip_core)
+ElectronOrbitals::listOfStates_nk(int num_val, int la, int lb,
+                                  bool skip_core) const
 // Creates a list of states (usually valence states to solve for)
 // In form {{n,ka},...}
 // Outputs n and l, from min-max l (or from 0-> max l)

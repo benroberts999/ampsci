@@ -45,7 +45,7 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  wf.rgrid.print();
+  std::cout << wf.rgrid.gridParameters() << "\n";
   if (varalpha != 1)
     std::cout << "varalpha = c/c_eff = " << varalpha << " ";
   if (varalpha < 1)

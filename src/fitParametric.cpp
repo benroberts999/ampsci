@@ -6,7 +6,7 @@
 
 #include "HartreeFockClass.hpp"
 #include "NumCalc_quadIntegrate.hpp"
-#include "PRM_localPotentials.hpp"
+#include "Parametric_potentials.hpp"
 #include <cmath>
 #include <fstream>
 #include <iostream>
@@ -110,10 +110,10 @@ int main(int argc, char *argv[]) {
     ElectronOrbitals wf(Z, A, ngp, r0, rmax);
     if (green)
       for (auto r : wf.rgrid.r)
-        wf.vdir.push_back(PRM::green(Z, r, H, d));
+        wf.vdir.push_back(Parametric::green(Z, r, H, d));
     else
       for (auto r : wf.rgrid.r)
-        wf.vdir.push_back(PRM::tietz(Z, r, H, d));
+        wf.vdir.push_back(Parametric::tietz(Z, r, H, d));
     for (auto &nk : states) {
       wf.solveNewValence(nk.n, nk.k, nk.en);
     }
@@ -149,10 +149,10 @@ int main(int argc, char *argv[]) {
     ElectronOrbitals wf(Z, A, ngp, r0, rmax);
     if (green)
       for (auto r : wf.rgrid.r)
-        wf.vdir.push_back(PRM::green(Z, r, H, d));
+        wf.vdir.push_back(Parametric::green(Z, r, H, d));
     else
       for (auto r : wf.rgrid.r)
-        wf.vdir.push_back(PRM::tietz(Z, r, H, d));
+        wf.vdir.push_back(Parametric::tietz(Z, r, H, d));
     for (auto &nk : val_states) {
       wf.solveNewValence(nk.n, nk.k, nk.en);
     }
@@ -222,10 +222,10 @@ std::tuple<double, double> performFit(const std::vector<EOnken> &states, int Z,
         ElectronOrbitals wf(Z, A, ngp, r0, rmax);
         if (green)
           for (auto r : wf.rgrid.r)
-            wf.vdir.push_back(PRM::green(Z, r, H, d));
+            wf.vdir.push_back(Parametric::green(Z, r, H, d));
         else
           for (auto r : wf.rgrid.r)
-            wf.vdir.push_back(PRM::tietz(Z, r, H, d));
+            wf.vdir.push_back(Parametric::tietz(Z, r, H, d));
         // fits for the worst state
         double fx = 0;
         if (fit_worst) {

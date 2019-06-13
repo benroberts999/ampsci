@@ -1,10 +1,10 @@
-#include "PRM_localPotentials.hpp"
+#include "Parametric_potentials.hpp"
 #include "ATI_atomInfo.hpp"
 #include "FPC_physicalConstants.hpp"
 #include <cmath>
 #include <iostream>
 
-namespace PRM {
+namespace Parametric {
 
 //******************************************************************************
 double green(int Z, double r, double H, double d)
@@ -211,7 +211,7 @@ Crude quadratic fit used for other Z values.
   return 0;
 }
 
-} // namespace PRM
+} // namespace Parametric
 
 // //******************************************************************************
 // // "Approximate" (expansion) solution for Thomas-Fermi potential for neutral

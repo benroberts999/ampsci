@@ -7,7 +7,7 @@
 #include "FileIO_fileReadWrite.hpp"
 #include "Grid.hpp"
 #include "HartreeFockClass.hpp"
-#include "PRM_localPotentials.hpp"
+#include "Parametric_potentials.hpp"
 #include <cmath>
 #include <iostream>
 #include <tuple>
@@ -122,9 +122,7 @@ int main(int argc, char *argv[]) {
   else
     printf("Using Hartree Fock (converge to %.0e)\n", hart_del);
 
-  std::cout << "Radial ";
-  wf.rgrid.print();
-  std::cout << "\n";
+  std::cout << "Radial " << wf.rgrid.gridParameters() << "\n\n";
 
   // Do Hartree-fock (or parametric potential) for Core
   timer.start();
@@ -136,7 +134,7 @@ int main(int argc, char *argv[]) {
     // Fill the electron part of the (local/direct) potential
     wf.vdir.reserve(wf.rgrid.ngp);
     for (auto r : wf.rgrid.r)
-      wf.vdir.push_back(PRM::green(Z, r, Gh, Gd));
+      wf.vdir.push_back(Parametric::green(Z, r, Gh, Gd));
     wf.solveInitialCore(str_core); // solves w/ Green
   }
   std::cout << "Time for HF: " << timer.lap_reading_str() << "\n";

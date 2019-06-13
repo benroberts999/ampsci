@@ -5,7 +5,7 @@
 #include "ElectronOrbitals.hpp"
 #include "Grid.hpp"
 #include "NumCalc_quadIntegrate.hpp"
-#include "PRM_localPotentials.hpp"
+#include "Parametric_potentials.hpp"
 #include "Wigner_369j.hpp"
 #include <cmath>
 #include <vector>
@@ -57,8 +57,6 @@ void HartreeFock::hartree_fock_core() {
 
   vex_core.resize(m_num_core_states, std::vector<double>(p_rgrid->ngp)); // Also
   initialise_m_arr_v_abk_r_core();
-
-  std::cout << m_num_core_states << "\n";
 
   std::vector<double> vdir_old(p_rgrid->ngp);
   std::vector<std::vector<double>> vex_old(m_num_core_states,
@@ -270,10 +268,10 @@ void HartreeFock::starting_approx_core(const std::string &in_core)
   int Z = p_wf->Znuc();
   // Get default values for Green potential [should be fitted to HF core orbs]
   double Gh, Gd; // Green potential parameters
-  PRM::defaultGreenCore(Z, Gh, Gd);
-  // Fill the the potential, using Greens PRM
+  Parametric::defaultGreenCore(Z, Gh, Gd);
+  // Fill the the potential, using Greens Parametric
   for (auto r : p_rgrid->r) {
-    p_wf->vdir.emplace_back(PRM::green(Z, r, Gh, Gd));
+    p_wf->vdir.emplace_back(Parametric::green(Z, r, Gh, Gd));
   }
   p_wf->solveInitialCore(in_core, 3);
 }
@@ -359,26 +357,6 @@ void HartreeFock::extend_Lambda_abk(int kappa_a)
   m_max_kappa_index_so_far = n_a;
 }
 
-// //******************************************************************************
-// double HartreeFock::get_Lambda_abk_old(std::size_t a, std::size_t b,
-//                                        int k) const
-// // Simple routine to (semi-)safely return Lambda_abk
-// // Note: input a and b are regular ElectronOrbitals state indexes
-// // No checks. given k must be ok.
-// // XXX give it 2j and 2j ? (or ka and kb)?
-// // OR: give kappa index!?
-// {
-//   // Get the kappa index for each state:
-//   int n = kappa_index_list[a];
-//   int m = kappa_index_list[b];
-//   int kmin = abs(twoj_list[a] - twoj_list[b]) / 2;
-//   // std::cout << n << " " << ATI::indexFromKappa(p_wf->core_orbitals[a].k)
-//   //           << "\n";
-//
-//   return (n > m) ? m_arr_Lambda_nmk[n][m][k - kmin]
-//                  : m_arr_Lambda_nmk[m][n][k - kmin];
-// }
-
 //******************************************************************************
 double HartreeFock::get_Lambda_kiakibk_v2(std::size_t kia, std::size_t kib,
                                           int k, int kmin) const
@@ -388,12 +366,6 @@ double HartreeFock::get_Lambda_kiakibk_v2(std::size_t kia, std::size_t kib,
 // XXX give it 2j and 2j ? (or ka and kb)?
 // OR: give kappa index!?
 {
-  // Get the kappa index for each state:
-  // int n = kappa_index_list[a];
-  // int m = kappa_index_list[b];
-  // int kmin = abs(twoj_list[a] - twoj_list[b]) / 2;
-  // std::cout << n << " " << ATI::indexFromKappa(p_wf->core_orbitals[a].k)
-  //           << "\n";
 
   return (kia > kib) ? m_arr_Lambda_nmk[kia][kib][k - kmin]
                      : m_arr_Lambda_nmk[kib][kia][k - kmin];
@@ -432,56 +404,6 @@ void HartreeFock::extend_m_arr_v_abk_r_valence(int kappa_a)
   }                          // b
   m_arr_vw_bk_r = v_abk_tmp; // xxx
 }
-
-// //******************************************************************************
-// void HartreeFock::calculate_v_abk(const DiracSpinor &phi_a,
-//                                   const DiracSpinor &phi_b, int k,
-//                                   std::vector<double> &vabk) const
-// // Calculalates v^k_ab screening function.
-// // Note: should only call for a>=b, and for k's with non-zero angular coefs
-// // (nothing bad will happen othersie, but no point!)
-// // Since v_ab = v_ba
-// //
-// // Stores in vabk (reference to whatever) - must already be sized corectly!
-// //
-// // r_min := min(r,r')
-// // rho(r') := fa(r')*fb(r') + ga(r')gb(r')
-// // v^k_ab(r) = Int_0^inf [r_min^k/r_max^(k+1)]*rho(f') dr'
-// //           = Int_0^r [r'^k/r^(k+1)]*rho(r') dr'
-// //             + Int_r^inf [r^k/r'^(k+1)]*rho(r') dr'
-// //          := A(r)/r^(k+1) + B(r)*r^k
-// // A(r0)  = 0
-// // B(r0)  = Int_0^inf [r^k/r'^(k+1)]*rho(r') dr'
-// // A(r_n) = A(r_{n-1}) + (rho(r_{n-1})*r_{n-1}^k)*dr
-// // B(r_n) = A(r_{n-1}) + (rho(r_{n-1})/r_{n-1}^(k+1))*dr
-// // v^k_ab(rn) = A(rn)/rn^(k+1) + B(rn)*rn^k
-// {
-//   auto irmax = std::min(phi_a.pinf, phi_b.pinf);
-//
-//   double Ax = 0, Bx = 0;
-//   for (std::size_t i = 0; i < irmax; i++) {
-//     Bx += p_rgrid->drdu[i] *
-//           (phi_a.f[i] * phi_b.f[i] + phi_a.g[i] * phi_b.g[i]) /
-//           pow(p_rgrid->r[i], k + 1);
-//   }
-//
-//   // For "direct" part, can't cut!
-//   if (phi_a == phi_b)
-//     irmax = (std::size_t)p_rgrid->ngp;
-//
-//   vabk[0] = Bx * p_rgrid->du;
-//   for (std::size_t i = 1; i < irmax; i++) {
-//     double Fdr = p_rgrid->drdu[i - 1] * (phi_a.f[i - 1] * phi_b.f[i - 1] +
-//                                          phi_a.g[i - 1] * phi_b.g[i - 1]);
-//     Ax = Ax + Fdr * pow(p_rgrid->r[i - 1], k);
-//     Bx = Bx - Fdr / pow(p_rgrid->r[i - 1], k + 1);
-//     vabk[i] = p_rgrid->du *
-//               (Ax / pow(p_rgrid->r[i], k + 1) + Bx * pow(p_rgrid->r[i], k));
-//   }
-//   for (std::size_t i = irmax; i < (std::size_t)p_rgrid->ngp; i++) {
-//     vabk[i] = 0; // maybe not needed?
-//   }
-// }
 
 //******************************************************************************
 void HartreeFock::form_vbb0()
@@ -539,29 +461,6 @@ void HartreeFock::form_vabk_valence(const DiracSpinor &phi)
     } // k
   }   // b
 }
-// //******************************************************************************
-// void HartreeFock::form_vabk_valence_v2(const DiracSpinor &phi_w)
-// // Calculates [calls calculate_v_abk] and stores the Hartree-Fock screening
-// // functions v^k_wb for a single (given) valence state (w=valence, b=core).
-// // Stores in m_arr_v_abk_r
-// {
-//   auto twoj_w = phi_w.twoj();
-//   auto ki_w = phi_w.k_index();
-// #pragma omp parallel for
-//   for (std::size_t b = 0; b < m_num_core_states; b++) {
-//     int kmin = abs(twoj_w - twoj_list[b]) / 2;
-//     int kmax = (twoj_w + twoj_list[b]) / 2;
-//     for (int k = kmin; k <= kmax; k++) {
-//       // if (get_Lambda_abk_old(w, b, k) == 0) // XXX HERE XXX
-//       if (get_Lambda_kiakibk_v2(ki_w, kappa_index_list[b], k, kmin) == 0)
-//         continue;
-//       // XXX XXX XXX XXX XXX
-//       Coulomb::calculate_v_abk(
-//           phi_w, p_wf->core_orbitals[b], k,
-//           m_arr_v_abk_r[w + m_num_core_states][b][k - kmin]); // XXX XXX
-//     }                                                         // k
-//   }                                                           // b
-// }
 
 //******************************************************************************
 const std::vector<std::vector<double>> &

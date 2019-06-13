@@ -2,6 +2,8 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <sstream>
+#include <string>
 #include <vector>
 
 // XXX Add option to "extend" grid (good for Continuum)
@@ -29,7 +31,7 @@ public:
 
   int getIndex(double x, bool require_nearest = false) const;
 
-  void print() const;
+  std::string gridParameters() const;
 
   // Static functions: can be called outside of instantialised object
   static double calc_du_from_ngp(double in_r0, double in_rmax,
@@ -115,14 +117,13 @@ inline Grid::Grid(double in_r0, double in_rmax, std::size_t in_ngp,
 
 //******************************************************************************
 inline int Grid::getIndex(double x, bool require_nearest) const
-/*
-Returns index correspoding to given value
-Note: finds NEXT LARGEST grid point (greater then or equal to.),
-unluess require_nearest=true, when will give closest point.
-For linear or exponential, faster to use formula.
-But for log-linear, can't.
-I don't think this works for "backwards" grids, maybe not negative grids either
-*/
+// Returns index correspoding to given value
+// Note: finds NEXT LARGEST grid point (greater then or equal to.),
+// unluess require_nearest=true, when will give closest point.
+// For linear or exponential, faster to use formula.
+// But for log-linear, can't.
+// I don't think this works for "backwards" grids, maybe not negative grids
+// either
 {
 
   auto low = std::lower_bound(r.begin(), r.end(), x);
@@ -139,20 +140,20 @@ I don't think this works for "backwards" grids, maybe not negative grids either
 }
 
 //******************************************************************************
-inline void Grid::print() const {
-
+inline std::string Grid::gridParameters() const {
+  std::ostringstream out;
   switch (gridtype) {
   case GridType::linear:
-    std::cout << "Linear ";
+    out << "Linear ";
     break;
   case GridType::logarithmic:
-    std::cout << "Logarithmic ";
+    out << "Logarithmic ";
     break;
   case GridType::loglinear:
-    std::cout << "Log-linear (b=" << b << ") ";
+    out << "Log-linear (b=" << b << ") ";
   }
-  std::cout << "grid: " << r0 << "->" << rmax << ", N=" << ngp << ", du=" << du
-            << "\n";
+  out << "grid: " << r0 << "->" << rmax << ", N=" << ngp << ", du=" << du;
+  return out.str();
 }
 
 //******************************************************************************

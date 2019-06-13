@@ -8,7 +8,7 @@
 #include "Nucleus.hpp"
 #include "NumCalc_quadIntegrate.hpp"
 #include "Operators.hpp"
-#include "PRM_localPotentials.hpp"
+#include "Parametric_potentials.hpp"
 #include <cmath>
 #include <iostream>
 #include <tuple>
@@ -53,11 +53,10 @@ int main(int argc, char *argv[]) {
   if (exclude_exchange)
     std::cout << "\nRunning Hartree (excluding exchange) for ";
   else
-    std::cout << "\nRunning Hartree-Fock for ";
-  wf.printAtom();
-  wf.printNuclearParams();
-  wf.rgrid.print();
-  std::cout << "********************************************************\n";
+    std::cout << "\nRunning Hartree-Fock for " << wf.atom() << "\n";
+  std::cout << wf.nuclearParams() << "\n"
+            << wf.rgrid.gridParameters() << "\n"
+            << "********************************************************\n";
 
   // Solve Hartree equations for the core:
   timer.start(); // start the timer for HF
@@ -85,8 +84,8 @@ int main(int argc, char *argv[]) {
     std::cout << "Valence: " << timer.lap_reading_str() << "\n";
 
   // Output results:
-  std::cout << "\nHartree Fock: ";
-  wf.printAtom();
+  std::cout << "\nHartree Fock: " << wf.atom() << "\n";
+  // wf.printAtom();
   bool sorted = true;
   wf.printCore(sorted);
   std::cout << "E_core = " << core_energy
