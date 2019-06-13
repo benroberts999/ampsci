@@ -1,4 +1,4 @@
-#include "ATI_atomInfo.hpp"
+#include "AtomInfo.hpp"
 #include "ChronoTimer.hpp"
 #include "ElectronOrbitals.hpp"
 #include "FPC_physicalConstants.hpp"
@@ -31,9 +31,9 @@ int main(int argc, char *argv[]) {
     FileIO::setInputParameters("parametricPotential.in", tp);
   }
 
-  int Z = ATI::get_z(Z_str);
+  int Z = AtomInfo::get_z(Z_str);
   if (A == 0)
-    A = ATI::defaultA(Z); // if none given, get default A
+    A = AtomInfo::defaultA(Z); // if none given, get default A
 
   // Normalise the Teitz/Green weights:
   if (Gf != 0 || Tf != 0) {

@@ -1,4 +1,4 @@
-#include "ATI_atomInfo.hpp"
+#include "AtomInfo.hpp"
 #include "ChronoTimer.hpp"
 #include "ElectronOrbitals.hpp"
 #include "FPC_physicalConstants.hpp"
@@ -14,14 +14,6 @@
 /*
 Finds the best-fit parameter values for the Green or Tietz potentials
 */
-
-// struct EOnken {
-//   int n;
-//   int k;
-//   double en;
-//   EOnken(int in_n, int in_k, double in_en) : n(in_n), k(in_k), en(in_en){};
-//   EOnken(){};
-// };
 
 std::tuple<double, double> performFit(const std::vector<EOnken> &states, int Z,
                                       int A, int ngp, double r0, double rmax,
@@ -70,7 +62,7 @@ int main(int argc, char *argv[]) {
   if (str_core == "na")
     do_HF = false;
 
-  int Z = ATI::get_z(Z_str);
+  int Z = AtomInfo::get_z(Z_str);
   if (Z == 0)
     return 2;
 

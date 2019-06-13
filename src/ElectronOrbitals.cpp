@@ -1,7 +1,7 @@
 // class ElectronOrbitals::
 #include "ElectronOrbitals.hpp"
 #include "ADAMS_bound.hpp"
-#include "ATI_atomInfo.hpp"
+#include "AtomInfo.hpp"
 #include "DiracSpinor.hpp"
 #include "FPC_physicalConstants.hpp"
 #include "Grid.hpp"
@@ -17,7 +17,7 @@ ElectronOrbitals::ElectronOrbitals(int in_z, int in_a, int in_ngp, double rmin,
                                    double rmax, double var_alpha)
     : rgrid(rmin, rmax, (std::size_t)in_ngp, GridType::loglinear, 3.5),
       m_alpha(FPC::alpha * var_alpha), m_Z(in_z),
-      m_A((in_a < 0) ? ATI::defaultA(m_Z) : in_a) {
+      m_A((in_a < 0) ? AtomInfo::defaultA(m_Z) : in_a) {
   // Use Fermi nucleus by default, unless A=0 is given
   if (m_A > 0)
     formNuclearPotential(NucleusType::Fermi);
@@ -88,7 +88,7 @@ void ElectronOrbitals::determineCore(const std::string &str_core_in)
     found = str_core_in.length();
   auto first_term = str_core_in.substr(0, found);
   auto rest = str_core_in.substr(found);
-  auto str_core = ATI::coreConfig(first_term) + rest;
+  auto str_core = AtomInfo::coreConfig(first_term) + rest;
 
   // Move comma-seperated string into an array (vector)
   std::vector<std::string> term_str_list;
@@ -118,7 +118,7 @@ void ElectronOrbitals::determineCore(const std::string &str_core_in)
       term_ok = false;
     }
     std::string strl = term.substr(1, 1);
-    int l = ATI::symbol_to_l(strl);
+    int l = AtomInfo::symbol_to_l(strl);
 
     // Check if this term is valid
     if (l + 1 > n || l < 0 || n < 1)
@@ -149,7 +149,8 @@ void ElectronOrbitals::determineCore(const std::string &str_core_in)
     num_core_shell.resize(size);
     for (std::size_t j = 0; j < num_core_shell.size(); j++) {
       num_core_shell[j] += single_core_term[j];
-      if (num_core_shell[j] > 4 * ATI::core_l[j] + 2 || num_core_shell[j] < 0)
+      if (num_core_shell[j] > 4 * AtomInfo::core_l[j] + 2 ||
+          num_core_shell[j] < 0)
         bad_core = true;
     }
   }
@@ -158,13 +159,13 @@ void ElectronOrbitals::determineCore(const std::string &str_core_in)
     std::cout << "Problem with core: " << str_core_in << " = \n";
     for (std::size_t j = 0; j < num_core_shell.size(); j++) {
       auto num = num_core_shell[j];
-      auto n = ATI::core_n[j];
-      auto l = ATI::core_l[j];
+      auto n = AtomInfo::core_n[j];
+      auto l = AtomInfo::core_l[j];
       if (num == 0)
         continue;
       if (num > 4 * l + 2 || l + 1 > n || num < 0)
         std::cout << " **";
-      std::cout << n << ATI::l_symbol(l) << num << ",";
+      std::cout << n << AtomInfo::l_symbol(l) << num << ",";
     }
     std::cout << "\n";
     std::cout << "In this house, we obey the Pauli exclusion principle!\n";
@@ -255,8 +256,8 @@ void ElectronOrbitals::solveInitialCore(std::string str_core, int log_dele_or)
     int num = num_core_shell[i];
     if (num == 0)
       continue;
-    int n = ATI::core_n[i];
-    int l = ATI::core_l[i];
+    int n = AtomInfo::core_n[i];
+    int l = AtomInfo::core_l[i];
     double en_a = enGuessCore(n, l);
     int k1 = l; // j = l-1/2
     if (k1 != 0) {
@@ -278,7 +279,7 @@ void ElectronOrbitals::solveInitialCore(std::string str_core, int log_dele_or)
     // Find the correct core list index (to determine filling factor):
     auto ic = num_core_shell.size();
     for (std::size_t j = 0; j < num_core_shell.size(); j++) {
-      if (n == ATI::core_n[j] && l == ATI::core_l[j]) {
+      if (n == AtomInfo::core_n[j] && l == AtomInfo::core_l[j]) {
         ic = j;
         break;
       }
@@ -420,7 +421,7 @@ double ElectronOrbitals::enGuessCore(int n, int l) const
   int tot_el = 0;
   int num = 0;
   for (std::size_t i = 0; i < num_core_shell.size(); i++) {
-    if (l == ATI::core_l[i] && n == ATI::core_n[i]) {
+    if (l == AtomInfo::core_l[i] && n == AtomInfo::core_n[i]) {
       num = num_core_shell[i];
       break;
     }
@@ -459,7 +460,7 @@ double ElectronOrbitals::enGuessVal(int n, int ka) const
 // Energy guess for valence states. Not perfect, good enough
 {
   int maxn = maxCore_n();
-  int l = ATI::l_k(ka);
+  int l = AtomInfo::l_k(ka);
   int dn = n - maxn;
   double neff = 1. + dn;
   double x = 1;
@@ -627,11 +628,11 @@ ElectronOrbitals::listOfStates_nk(int num_val, int la, int lb,
   // XXX b) Change to give list of nken's !
   // XXX Then: send this list to solvers
 
-  auto min_ik = ATI::indexFromKappa(-l_min - 1);
-  auto max_ik = ATI::indexFromKappa(-l_max - 1);
+  auto min_ik = AtomInfo::indexFromKappa(-l_min - 1);
+  auto max_ik = AtomInfo::indexFromKappa(-l_max - 1);
   for (int ik = min_ik; ik <= max_ik; ik++) {
-    auto k = ATI::kappaFromIndex(ik);
-    auto l = ATI::l_k(k);
+    auto k = AtomInfo::kappaFromIndex(ik);
+    auto l = AtomInfo::l_k(k);
     auto n_min = l + 1;
     for (int n = n_min, count = 0; count < num_val; n++) {
       if (isInCore(n, k) && skip_core)

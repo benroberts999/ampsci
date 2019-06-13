@@ -1,7 +1,7 @@
 #include "ContinuumOrbitals.hpp"
 #include "ADAMS_bound.hpp"
 #include "ADAMS_continuum.hpp"
-#include "ATI_atomInfo.hpp"
+#include "AtomInfo.hpp"
 #include "ElectronOrbitals.hpp"
 #include "FPC_physicalConstants.hpp"
 #include <cmath>
@@ -114,8 +114,8 @@ int ContinuumOrbitals::solveLocalContinuum(double ec, int min_l, int max_l)
   }
 
   for (int i = 0; true; ++i) { // loop through each k state
-    auto k = ATI::kappaFromIndex(i);
-    auto l = ATI::l_k(k);
+    auto k = AtomInfo::kappaFromIndex(i);
+    auto l = AtomInfo::l_k(k);
     if (l < min_l)
       continue;
     if (l > max_l)

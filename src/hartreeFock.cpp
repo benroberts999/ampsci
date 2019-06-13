@@ -1,4 +1,4 @@
-#include "ATI_atomInfo.hpp"
+#include "AtomInfo.hpp"
 #include "ChronoTimer.hpp"
 #include "DiracOperator.hpp"
 #include "ElectronOrbitals.hpp"
@@ -45,7 +45,7 @@ int main(int argc, char *argv[]) {
   if (varalpha2 == 0)
     varalpha2 = 1.e-10;
   varalpha = sqrt(varalpha2);
-  int Z = ATI::get_z(Z_str);
+  int Z = AtomInfo::get_z(Z_str);
 
   // Generate the orbitals object:
   ElectronOrbitals wf(Z, A, ngp, r0, rmax, varalpha);
@@ -198,8 +198,9 @@ int main(int argc, char *argv[]) {
     auto a7s_i = wf.getStateIndex(7, -1);
     auto &a6s = wf.valence_orbitals[a6s_i];
     auto &a7s = wf.valence_orbitals[a7s_i];
-    std::cout << "E_pnc: " << wf.Anuc() << "-" << ATI::atomicSymbol(wf.Znuc())
-              << " " << a6s.symbol() << " -> " << a7s.symbol() << "\n";
+    std::cout << "E_pnc: " << wf.Anuc() << "-"
+              << AtomInfo::atomicSymbol(wf.Znuc()) << " " << a6s.symbol()
+              << " -> " << a7s.symbol() << "\n";
 
     double pnc = 0;
     for (int i = 0; i < 2; i++) {

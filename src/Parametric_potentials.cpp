@@ -1,5 +1,5 @@
 #include "Parametric_potentials.hpp"
-#include "ATI_atomInfo.hpp"
+#include "AtomInfo.hpp"
 #include "FPC_physicalConstants.hpp"
 #include <cmath>
 #include <iostream>

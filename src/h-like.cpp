@@ -1,4 +1,4 @@
-#include "ATI_atomInfo.hpp"
+#include "AtomInfo.hpp"
 #include "ChronoTimer.hpp"
 #include "DiracOperator.hpp"
 #include "Operators.hpp"
@@ -37,10 +37,10 @@ int main(int argc, char *argv[]) {
   for (int n = 1; n <= n_max; n++) {
     for (int i = 1; i < 2 * n; i++) { // loop through each kappa state
       int k = int(pow(-1, i) * ceil(0.5 * i));
-      int l = ATI::l_k(k);
+      int l = AtomInfo::l_k(k);
       if (l > l_max)
         continue;
-      double eng = ATI::diracen(Z, n, k, wf.get_alpha());
+      double eng = AtomInfo::diracen(Z, n, k, wf.get_alpha());
       wf.solveNewValence(n, k, eng);
     }
   }
@@ -57,7 +57,8 @@ int main(int argc, char *argv[]) {
 
   std::cout << " n l_j    k  R_inf its eps     En (au)            Error (au)\n";
   for (auto &psi : wf.valence_orbitals) {
-    double del = psi.en - ATI::diracen(wf.Znuc(), psi.n, psi.k, wf.get_alpha());
+    double del =
+        psi.en - AtomInfo::diracen(wf.Znuc(), psi.n, psi.k, wf.get_alpha());
     // wf.diracen(wf.Znuc(), psi.n, psi.k);
     double rinf = wf.rinf(psi);
     printf("%7s (%2i)  %3.0f %3i  %5.0e  %.15f  %7.0e\n", psi.symbol().c_str(),

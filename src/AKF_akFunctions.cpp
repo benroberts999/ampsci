@@ -1,5 +1,5 @@
 #include "AKF_akFunctions.hpp"
-#include "ATI_atomInfo.hpp"
+#include "AtomInfo.hpp"
 #include "ContinuumOrbitals.hpp"
 #include "ElectronOrbitals.hpp"
 #include "FPC_physicalConstants.hpp"
@@ -20,10 +20,10 @@ Angular coeficient (nb: is already squared)
 C_{k}^{k',L} = [j][j'][L] * (j,j',L, -1/,1/2,0)^2 * pi(l+l'+L)
 */
 {
-  int la = ATI::l_k(ka);
-  int lb = ATI::l_k(kb);
-  int two_ja = ATI::twoj_k(ka);
-  int two_jb = ATI::twoj_k(kb);
+  int la = AtomInfo::l_k(ka);
+  int lb = AtomInfo::l_k(kb);
+  int two_ja = AtomInfo::twoj_k(ka);
+  int two_jb = AtomInfo::twoj_k(kb);
   double ja = 0.5 * two_ja;
   double jb = 0.5 * two_jb;
 

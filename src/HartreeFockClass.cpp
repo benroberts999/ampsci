@@ -1,5 +1,5 @@
 #include "HartreeFockClass.hpp"
-#include "ATI_atomInfo.hpp"
+#include "AtomInfo.hpp"
 #include "CoulombFunctions.hpp"
 #include "DiracSpinor.hpp"
 #include "ElectronOrbitals.hpp"
@@ -38,7 +38,7 @@ HartreeFock::HartreeFock(ElectronOrbitals &wf, const std::string &in_core,
   kappa_index_list.reserve(m_num_core_states);
   for (auto &psi : p_wf->core_orbitals) {
     twoj_list.push_back(psi.twoj());
-    kappa_index_list.push_back(ATI::indexFromKappa(psi.k));
+    kappa_index_list.push_back(AtomInfo::indexFromKappa(psi.k));
   }
 
   // Run HF for all core states
@@ -141,15 +141,15 @@ void HartreeFock::solveValence(int n, int kappa) {
   // then could run the HF part in parallel.
   // Note: probs not necisary: the 'form vex' part is // anyway, and fairly
   // efficient
-  // twoj_list.push_back(ATI::twoj_k(kappa));
-  // kappa_index_list.push_back(ATI::indexFromKappa(kappa));
+  // twoj_list.push_back(AtomInfo::twoj_k(kappa));
+  // kappa_index_list.push_back(AtomInfo::indexFromKappa(kappa));
   extend_Lambda_abk(kappa);
   extend_m_arr_v_abk_r_valence(kappa);
 
   // just use direct to solve initial
   p_wf->solveNewValence(n, kappa, 0, 3);
   auto a = p_wf->valence_orbitals.size() - 1;
-  int twoJplus1 = ATI::twoj_k(kappa) + 1;
+  int twoJplus1 = AtomInfo::twoj_k(kappa) + 1;
   p_wf->valence_orbitals.back().occ_frac = 1. / twoJplus1;
 
   auto &phi = p_wf->valence_orbitals.back();
@@ -297,13 +297,13 @@ void HartreeFock::form_core_Lambda_abk()
 
   m_arr_Lambda_nmk.reserve(max_kappa_index + 1);
   for (int n = 0; n <= max_kappa_index; n++) {
-    int tja = ATI::twojFromIndex(n);
-    int la = ATI::lFromIndex(n);
+    int tja = AtomInfo::twojFromIndex(n);
+    int la = AtomInfo::lFromIndex(n);
     std::vector<std::vector<double>> Lmk;
     Lmk.reserve(n + 1);
     for (int m = 0; m <= n; m++) {
-      int tjb = ATI::twojFromIndex(m);
-      int lb = ATI::lFromIndex(m);
+      int tjb = AtomInfo::twojFromIndex(m);
+      int lb = AtomInfo::lFromIndex(m);
       int kmin = (tja - tjb) / 2; // don't need abs, as m\leq n => ja\geq jb
       int kmax = (tja + tjb) / 2;
       std::vector<double> Lk(kmax - kmin + 1, 0);
@@ -328,18 +328,18 @@ void HartreeFock::extend_Lambda_abk(int kappa_a)
 // Note: don't just add this one, because might have skipped indexes!
 // Add all we might need, keep order matchine index!
 {
-  int n_a = ATI::indexFromKappa(kappa_a);
+  int n_a = AtomInfo::indexFromKappa(kappa_a);
   if (n_a <= m_max_kappa_index_so_far)
     return; // already done
 
   for (int n = m_max_kappa_index_so_far + 1; n <= n_a; n++) {
-    int tja = ATI::twojFromIndex(n);
-    int la = ATI::lFromIndex(n);
+    int tja = AtomInfo::twojFromIndex(n);
+    int la = AtomInfo::lFromIndex(n);
     std::vector<std::vector<double>> Lmk;
     Lmk.reserve(n + 1);
     for (int m = 0; m <= n; m++) {
-      int tjb = ATI::twojFromIndex(m);
-      int lb = ATI::lFromIndex(m);
+      int tjb = AtomInfo::twojFromIndex(m);
+      int lb = AtomInfo::lFromIndex(m);
       int kmin = (tja - tjb) / 2; // don't need abs, as m\leq n => ja\geq jb
       int kmax = (tja + tjb) / 2;
       std::vector<double> Lk(kmax - kmin + 1, 0);

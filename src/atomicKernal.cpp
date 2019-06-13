@@ -1,5 +1,5 @@
 #include "AKF_akFunctions.hpp"
-#include "ATI_atomInfo.hpp"
+#include "AtomInfo.hpp"
 #include "ChronoTimer.hpp"
 #include "ContinuumOrbitals.hpp"
 #include "ElectronOrbitals.hpp"
@@ -84,7 +84,7 @@ int main(int argc, char *argv[]) {
   Grid qgrid(qmin, qmax, qsteps, GridType::logarithmic);
 
   // Look-up atomic number, Z
-  int Z = ATI::get_z(Z_str);
+  int Z = AtomInfo::get_z(Z_str);
 
   // Make sure h (large-r step size) is small enough to
   // calculate (normalise) cntm functions with energy = demax

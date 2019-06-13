@@ -55,11 +55,11 @@ public:
 
   std::string coreConfiguration() const { return m_core_string; }
   std::string coreConfiguration_nice() const {
-    return ATI::niceCoreOutput(m_core_string);
+    return AtomInfo::niceCoreOutput(m_core_string);
   }
   std::string nuclearParams() const;
   std::string atom() const {
-    return ATI::atomicSymbol(m_Z) + ", Z=" + std::to_string(m_Z) +
+    return AtomInfo::atomicSymbol(m_Z) + ", Z=" + std::to_string(m_Z) +
            " A=" + std::to_string(m_A);
   }
   void printCore(bool sorted = true) const;
