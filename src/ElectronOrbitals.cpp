@@ -3,9 +3,9 @@
 #include "ADAMS_bound.hpp"
 #include "AtomInfo.hpp"
 #include "DiracSpinor.hpp"
-#include "FPC_physicalConstants.hpp"
 #include "Grid.hpp"
 #include "Nucleus.hpp"
+#include "PhysConst_constants.hpp"
 #include <algorithm> //for sort
 #include <cmath>
 #include <sstream>
@@ -16,7 +16,7 @@
 ElectronOrbitals::ElectronOrbitals(int in_z, int in_a, int in_ngp, double rmin,
                                    double rmax, double var_alpha)
     : rgrid(rmin, rmax, (std::size_t)in_ngp, GridType::loglinear, 3.5),
-      m_alpha(FPC::alpha * var_alpha), m_Z(in_z),
+      m_alpha(PhysConst::alpha * var_alpha), m_Z(in_z),
       m_A((in_a < 0) ? AtomInfo::defaultA(m_Z) : in_a) {
   // Use Fermi nucleus by default, unless A=0 is given
   if (m_A > 0)
@@ -568,7 +568,7 @@ void ElectronOrbitals::printCore(bool sorted) const
     double r_inf = rinf(phi);
     printf("%2i) %7s %2i  %5.1f %2i  %5.0e %13.7f %13.1f", int(i),
            phi.symbol().c_str(), phi.k, r_inf, phi.its, phi.eps, phi.en,
-           phi.en *FPC::Hartree_invcm);
+           phi.en *PhysConst::Hartree_invcm);
     if (phi.occ_frac < 1.0) {
       printf("     (%4.2f)\n", phi.occ_frac);
     } else {
@@ -603,8 +603,8 @@ void ElectronOrbitals::printValence(
     double r_inf = rinf(phi);
     printf("%2i) %7s %2i  %5.1f %2i  %5.0e %13.7f %13.1f", int(i),
            phi.symbol().c_str(), phi.k, r_inf, phi.its, phi.eps, phi.en,
-           phi.en *FPC::Hartree_invcm);
-    printf(" %10.2f\n", (phi.en - e0) * FPC::Hartree_invcm);
+           phi.en *PhysConst::Hartree_invcm);
+    printf(" %10.2f\n", (phi.en - e0) * PhysConst::Hartree_invcm);
   }
 }
 

@@ -50,7 +50,7 @@ all: checkObj checkXdir $(ALLEXES)
 COMH = $(addprefix $(ID)/, \
  DiracSpinor.hpp DiracOperator.hpp ElectronOrbitals.hpp Operators.hpp \
  Nucleus.hpp \
- AtomInfo.hpp FPC_physicalConstants.hpp FileIO_fileReadWrite.hpp \
+ AtomInfo.hpp PhysConst_constants.hpp FileIO_fileReadWrite.hpp \
  NumCalc_quadIntegrate.hpp Grid.hpp Matrix_linalg.hpp ChronoTimer.hpp \
  Wigner_369j.hpp \
 )

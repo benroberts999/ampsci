@@ -2,13 +2,13 @@
 #include "ChronoTimer.hpp"
 #include "DiracOperator.hpp"
 #include "ElectronOrbitals.hpp"
-#include "FPC_physicalConstants.hpp"
 #include "FileIO_fileReadWrite.hpp"
 #include "HartreeFockClass.hpp"
 #include "Nucleus.hpp"
 #include "NumCalc_quadIntegrate.hpp"
 #include "Operators.hpp"
 #include "Parametric_potentials.hpp"
+#include "PhysConst_constants.hpp"
 #include <cmath>
 #include <iostream>
 #include <tuple>
@@ -89,7 +89,7 @@ int main(int argc, char *argv[]) {
   bool sorted = true;
   wf.printCore(sorted);
   std::cout << "E_core = " << core_energy
-            << " au;  = " << core_energy * FPC::Hartree_invcm << "/cm\n";
+            << " au;  = " << core_energy * PhysConst::Hartree_invcm << "/cm\n";
   wf.printValence(sorted);
 
   std::cout << "\n Total time: " << timer.reading_str() << "\n";
@@ -98,7 +98,7 @@ int main(int argc, char *argv[]) {
   //               TESTS
   //*********************************************************
 
-  bool test_hf_basis = true;
+  bool test_hf_basis = false;
   if (test_hf_basis) {
     auto basis_lst = wf.listOfStates_nk(6, 3);
     std::vector<DiracSpinor> basis = wf.core_orbitals;
@@ -240,9 +240,9 @@ int main(int argc, char *argv[]) {
   bool test_hfs = false;
   if (test_hfs) {
     // Test hfs and Operator [hard-coded for Rb]
-    double muN = 2.751818;            // XXX Rb
-    double IN = (3. / 2.);            // XXX Rb
-    auto r_rms = 4.1989 / FPC::aB_fm; // XXX Rb
+    double muN = 2.751818;                  // XXX Rb
+    double IN = (3. / 2.);                  // XXX Rb
+    auto r_rms = 4.1989 / PhysConst::aB_fm; // XXX Rb
     // auto r_rms = Nucleus::approximate_r_rms(wf.Anuc());
     std::cout << "Gridpoints below Rrms: " << wf.rgrid.getIndex(r_rms) << "\n";
 
@@ -254,7 +254,7 @@ int main(int argc, char *argv[]) {
     for (auto phi : wf.valence_orbitals) {
       auto A_tmp = phi * (vhfs * phi);
       double j = phi.j();
-      auto factor = FPC::Hartree_MHz * phi.k / (j * (j + 1.));
+      auto factor = PhysConst::Hartree_MHz * phi.k / (j * (j + 1.));
       std::cout << phi.symbol() << ": ";
       std::cout << A_tmp * factor << "\n";
     }

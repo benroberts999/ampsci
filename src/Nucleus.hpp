@@ -1,6 +1,6 @@
 #pragma once
-#include "FPC_physicalConstants.hpp"
 #include "NumCalc_quadIntegrate.hpp"
+#include "PhysConst_constants.hpp"
 #include <cmath>
 #include <gsl/gsl_sf_fermi_dirac.h>
 #include <vector>
@@ -85,7 +85,7 @@ sphericalNuclearPotential(double Z, double rnuc,
   std::vector<double> vnuc;
   vnuc.reserve(rgrid.size());
 
-  double rN = rnuc / FPC::aB_fm;
+  double rN = rnuc / PhysConst::aB_fm;
 
   // Fill the vnuc array with spherical nuclear potantial
   double rn2 = pow(rN, 2);
@@ -134,9 +134,9 @@ fermiNuclearPotential(double Z, double t, double c,
   double pi2 = pow(M_PI, 2);
   for (auto r : rgrid) {
     double t_v = -Z / r;
-    double roa = FPC::aB_fm * r / a; // convert fm <-> atomic
+    double roa = PhysConst::aB_fm * r / a; // convert fm <-> atomic
     if (roa < 30. + coa) {
-      double roa = FPC::aB_fm * r / a; // convert fm <-> atomic
+      double roa = PhysConst::aB_fm * r / a; // convert fm <-> atomic
       double coa2 = pow(coa, 2);
       double xF1 = gsl_sf_fermi_dirac_1(roa - coa);
       double xF2 = gsl_sf_fermi_dirac_2(roa - coa);
@@ -162,7 +162,7 @@ fermiNuclearDensity_tcN(double t, double c, double Z_norm, const Grid &grid)
   double a = 0.22756 * t;
   double coa = c / a;
   for (auto r : grid.r) {
-    double roa = FPC::aB_fm * r / a;
+    double roa = PhysConst::aB_fm * r / a;
     if (roa < 30. + coa) {
       rho.emplace_back(1. / (1. + exp(roa - coa)));
     } else {

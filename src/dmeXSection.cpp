@@ -1,9 +1,9 @@
 #include "AKF_akFunctions.hpp"
 #include "ChronoTimer.hpp"
-#include "FPC_physicalConstants.hpp"
 #include "FileIO_fileReadWrite.hpp"
 #include "Grid.hpp"
 #include "NumCalc_quadIntegrate.hpp"
+#include "PhysConst_constants.hpp"
 #include "StandardHaloModel.hpp"
 #include <cmath>
 #include <fstream>
@@ -14,15 +14,16 @@
 #include <vector>
 
 // Convert FROM a.u. (hb=e=me=1, c=1/alpha) TO relativistic (hb=c=1)
-const double E_to_keV = FPC::Hartree_eV / 1000.; // au -> keV (energy)
+const double E_to_keV = PhysConst::Hartree_eV / 1000.; // au -> keV (energy)
 const double Q_to_MeV =
-    FPC::Hartree_eV * FPC::c / 1.e6; // momentum (q transfer)
-const double M_to_GeV = FPC::m_e_MeV / 1000.;
-const double M_to_MeV = FPC::m_e_MeV;
+    PhysConst::Hartree_eV * PhysConst::c / 1.e6; // momentum (q transfer)
+const double M_to_GeV = PhysConst::m_e_MeV / 1000.;
+const double M_to_MeV = PhysConst::m_e_MeV;
 // Convert velocity FROM au to SI units
-const double V_to_kms = (FPC::c_SI / FPC::c) / 1000.;
-const double V_to_cms = (FPC::c_SI * FPC::alpha) * 100.; // au -> cm/s
-const double V_to_cmday = V_to_cms * (24 * 60 * 60);     // cm/s -> cm/day
+const double V_to_kms = (PhysConst::c_SI / PhysConst::c) / 1000.;
+const double V_to_cms =
+    (PhysConst::c_SI * PhysConst::alpha) * 100.;     // au -> cm/s
+const double V_to_cmday = V_to_cms * (24 * 60 * 60); // cm/s -> cm/day
 
 // DM energy density (in GeV/cm^3)
 const double rhoDM_GeVcm3 = 0.4; // GeV/cm^3
@@ -261,7 +262,7 @@ Uses a function pointer for DM form factor. F_chi_2(mu,q) := |F_chi|^2
   std::size_t num_states = (Ke_nq.size());
   std::size_t qsteps = qgrid.ngp;
 
-  double mu = mv * FPC::c;
+  double mu = mv * PhysConst::c;
 
   double qminus = mx * v - sqrt(arg);
   double qplus = mx * v + sqrt(arg);
@@ -470,7 +471,7 @@ Optionally further integrates into energy bins
                                 n_mx, std::vector<double>(desteps)));
 
   // Total atomic/mol. mass (in kg) [for units]
-  double MN = Atot * (FPC::u_NMU * FPC::m_e_kg);
+  double MN = Atot * (PhysConst::u_NMU * PhysConst::m_e_kg);
 
   // Calculate _observable_ rate, S, for DAMA
   // inlcuding Gaussian resolution, + hard-ware threshold
@@ -677,7 +678,7 @@ Mostly, coming from:
             << ", N(2keV) = " << NofE(2. / E_to_keV, N_err) << " PE\n";
 
   // Total atomic/mol. mass (in kg)
-  double MN = Atot * (FPC::u_NMU * FPC::m_e_kg);
+  double MN = Atot * (PhysConst::u_NMU * PhysConst::m_e_kg);
 
   // Array to store Poisson-smear S1 rate, F
   DoubleVec3D F_mv_mx_n;
@@ -1014,8 +1015,9 @@ int main(int argc, char *argv[]) {
     double cosp = icp == 0 ? 0 : pow(-1, icp); // 0, -1, 1
     StandardHaloModel shm(cosp, dvesc, dv0);
     for (int i = 0; i < vsteps; i++) {
-      double v = (i + 1) * dv;                       // don't include zero
-      double vkms = v * (FPC::c_SI / FPC::c) / 1.e3; // will be in km/s
+      double v = (i + 1) * dv; // don't include zero
+      double vkms =
+          v * (PhysConst::c_SI / PhysConst::c) / 1.e3; // will be in km/s
       arr_fv[icp][i] =
           shm.fv(vkms) / (1. / V_to_kms); // convert to a.u. [f]=[1/v]
     }
@@ -1059,9 +1061,9 @@ int main(int argc, char *argv[]) {
             << "ds.v/dE conversion factor: " << dsvdE_to_cm3keVday
             << "   cm^3/keV/day\n\n";
 
-  double al_x =
-      (sqrt(sbe_1e37_cm2) / FPC::aB_cm) * (FPC::alpha / sqrt(16. * M_PI));
-  double al_xH = al_x / (FPC::m_e_MeV * FPC::alpha2);
+  double al_x = (sqrt(sbe_1e37_cm2) / PhysConst::aB_cm) *
+                (PhysConst::alpha / sqrt(16. * M_PI));
+  double al_xH = al_x / (PhysConst::m_e_MeV * PhysConst::alpha2);
   std::cout << "Note: sig-bar_e =  " << sbe_1e37_cm2 << "cm2 corresponds to:\n"
             << " Light mediator: al_x = " << al_x << "\n"
             << " Heavy mediator: al_x = " << al_xH << "*(mv/MeV)^2\n\n";

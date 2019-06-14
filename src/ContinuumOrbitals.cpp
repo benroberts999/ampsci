@@ -3,7 +3,7 @@
 #include "ADAMS_continuum.hpp"
 #include "AtomInfo.hpp"
 #include "ElectronOrbitals.hpp"
-#include "FPC_physicalConstants.hpp"
+#include "PhysConst_constants.hpp"
 #include <cmath>
 #include <string>
 #include <vector>

@@ -1,8 +1,8 @@
 #pragma once
 #include "DiracOperator.hpp"
-#include "FPC_physicalConstants.hpp"
 #include "Grid.hpp"
 #include "Nucleus.hpp"
+#include "PhysConst_constants.hpp"
 #include <cmath>
 #include <vector>
 
@@ -22,7 +22,7 @@ static inline double hfs_default_F(double r, double rN) {
 }
 
 static inline std::vector<double> hfs_v(double rN, const Grid &rgrid,
-                                 double (*hfs_F)(double, double)) {
+                                        double (*hfs_F)(double, double)) {
   std::vector<double> invr2;
   invr2.reserve(rgrid.ngp);
   for (auto r : rgrid.r) {
@@ -35,7 +35,7 @@ class HyperfineOperator : public DiracOperator {
 public:
   HyperfineOperator(double muN, double IN, double rN, const Grid &rgrid,
                     double (*hfs_F)(double, double) = &hfs_default_F)
-      : DiracOperator(-(muN / IN) * FPC::alpha / FPC::m_p,
+      : DiracOperator(-(muN / IN) * PhysConst::alpha / PhysConst::m_p,
                       hfs_v(rN, rgrid, hfs_F), DiracMatrix(0, 1, 0, 0), 0,
                       true) {}
 };
@@ -69,7 +69,7 @@ class PNCnsiOperator : public DiracOperator {
   // To get (Qw/-N), multiply by (-N) [can go into optional 'factor']
 public:
   PNCnsiOperator(double c, double t, const Grid &rgrid, double factor = 1)
-      : DiracOperator(factor * FPC::GFe11 / sqrt(8.),
+      : DiracOperator(factor * PhysConst::GFe11 / sqrt(8.),
                       Nucleus::fermiNuclearDensity_tcN(t, c, 1, rgrid),
                       GammaMatrix::g5) {}
 };
@@ -77,7 +77,7 @@ public:
 // double t = 2.3;
 // double c = Nucleus::approximate_c_hdr(wf.Anuc());
 // auto rho = Nucleus::fermiNuclearDensity_tcN(t, c, 1, wf.rgrid);
-// double Gf = FPC::GFe11;
+// double Gf = PhysConst::GFe11;
 // double Cc = (Gf / sqrt(8.)) * (-wf.Nnuc()); // Qw/(-N)
 // DiracOperator hpnc(Cc, rho, GammaMatrix::g5);
 

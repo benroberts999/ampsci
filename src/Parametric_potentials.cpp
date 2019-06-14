@@ -1,6 +1,6 @@
 #include "Parametric_potentials.hpp"
 #include "AtomInfo.hpp"
-#include "FPC_physicalConstants.hpp"
+#include "PhysConst_constants.hpp"
 #include <cmath>
 #include <iostream>
 

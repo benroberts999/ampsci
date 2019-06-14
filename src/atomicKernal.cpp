@@ -3,11 +3,11 @@
 #include "ChronoTimer.hpp"
 #include "ContinuumOrbitals.hpp"
 #include "ElectronOrbitals.hpp"
-#include "FPC_physicalConstants.hpp"
 #include "FileIO_fileReadWrite.hpp"
 #include "Grid.hpp"
 #include "HartreeFockClass.hpp"
 #include "Parametric_potentials.hpp"
+#include "PhysConst_constants.hpp"
 #include <cmath>
 #include <iostream>
 #include <tuple>
@@ -72,10 +72,10 @@ int main(int argc, char *argv[]) {
     qmax = qmin;
 
   // Convert units for input q and dE range into atomic units
-  double keV = (1.e3 / FPC::Hartree_eV);
+  double keV = (1.e3 / PhysConst::Hartree_eV);
   demin *= keV;
   demax *= keV;
-  double qMeV = (1.e6 / (FPC::Hartree_eV * FPC::c));
+  double qMeV = (1.e6 / (PhysConst::Hartree_eV * PhysConst::c));
   qmin *= qMeV;
   qmax *= qMeV;
 
@@ -147,7 +147,8 @@ int main(int argc, char *argv[]) {
     double rinf = wf.rinf(phi);
     printf("%2i)%7s %2i  %3.0f %3i  %5.0e  %11.5f %12.0f %10.2f   (%.2f)\n",
            i++, phi.symbol().c_str(), phi.k, rinf, phi.its, phi.eps, phi.en,
-           phi.en * FPC::Hartree_invcm, phi.en * FPC::Hartree_eV, phi.occ_frac);
+           phi.en * PhysConst::Hartree_invcm, phi.en * PhysConst::Hartree_eV,
+           phi.occ_frac);
   }
   //////////////////////////////////////////////////
 

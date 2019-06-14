@@ -1,12 +1,11 @@
 #include "AtomInfo.hpp"
 #include "ChronoTimer.hpp"
 #include "ElectronOrbitals.hpp"
-#include "FPC_physicalConstants.hpp"
 #include "FileIO_fileReadWrite.hpp"
-
 #include "HartreeFockClass.hpp"
 #include "NumCalc_quadIntegrate.hpp"
 #include "Parametric_potentials.hpp"
+#include "PhysConst_constants.hpp"
 #include <cmath>
 #include <fstream>
 #include <iostream>
@@ -158,8 +157,8 @@ int main(int argc, char *argv[]) {
       double eni = phi.en;
       double enT = val_states[i++].en;
       printf("%7s %2i  %3.0f %3i  %5.0e  %13.7f  %11.4f %8.2f%%\n", njl, phi.k,
-             rinf, phi.its, phi.eps, eni, (eni - en0) * FPC::Hartree_invcm,
-             100. * (enT - eni) / enT);
+             rinf, phi.its, phi.eps, eni,
+             (eni - en0) * PhysConst::Hartree_invcm, 100. * (enT - eni) / enT);
     }
 
     printf("\nValence: {%i, %.3f, %.3f}\n", Z, H, d);

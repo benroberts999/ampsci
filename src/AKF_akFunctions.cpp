@@ -2,9 +2,9 @@
 #include "AtomInfo.hpp"
 #include "ContinuumOrbitals.hpp"
 #include "ElectronOrbitals.hpp"
-#include "FPC_physicalConstants.hpp"
 #include "FileIO_fileReadWrite.hpp"
 #include "NumCalc_quadIntegrate.hpp"
+#include "PhysConst_constants.hpp"
 #include "SBF_sphericalBessel.hpp"
 #include "Wigner_369j.hpp"
 #include <cmath>
@@ -53,8 +53,8 @@ XXX This mean we MUST use exponential Grid! Fix this! XXX
   int num_states = (int)AK[0].size(); // nk
   int qsteps = (int)AK[0][0].size();  // q
 
-  double qMeV = (1.e6 / (FPC::Hartree_eV * FPC::c));
-  double keV = (1.e3 / FPC::Hartree_eV);
+  double qMeV = (1.e6 / (PhysConst::Hartree_eV * PhysConst::c));
+  double keV = (1.e3 / PhysConst::Hartree_eV);
 
   std::ofstream ofile;
   ofile.open(fname + ".txt");
