@@ -12,6 +12,9 @@
 #include <cmath>
 #include <iostream>
 #include <tuple>
+//
+
+#include "CoulombIntegrals.hpp"
 
 int main(int argc, char *argv[]) {
   ChronoTimer timer; // start the overall timer
@@ -259,6 +262,45 @@ int main(int argc, char *argv[]) {
       std::cout << A_tmp * factor << "\n";
     }
   }
+
+  Coulomb coulomb;
+
+  coulomb.initialise_v_abkr(wf.core_orbitals, wf.core_orbitals);
+  for (auto &a : coulomb.nka_list) {
+    std::cout << a.n << " " << a.k << "\n";
+  }
+  std::cout << "\n";
+  for (auto &a : coulomb.nkb_list) {
+    std::cout << a.n << " " << a.k << "\n";
+  }
+
+  for (auto &phi : wf.valence_orbitals) {
+    coulomb.extend_v_abkr(phi, wf.core_orbitals);
+  }
+  std::cout << "\n";
+
+  std::cout << "\n";
+
+  for (auto &a : coulomb.nka_list) {
+    std::cout << a.n << " " << a.k << "\n";
+  }
+  std::cout << "\n";
+  for (auto &a : coulomb.nkb_list) {
+    std::cout << a.n << " " << a.k << "\n";
+  }
+
+  coulomb.form_v_abk(wf.core_orbitals, wf.core_orbitals);
+  for (auto &phi : wf.valence_orbitals) {
+    coulomb.form_v_abk(phi, wf.core_orbitals);
+  }
+
+  auto l = coulomb.get_angular_L_kiakibk(0, 1, 1);
+  std::cout << l << "\n";
+
+  auto &vabk =
+      coulomb.get_vabk_r(wf.valence_orbitals[0], wf.core_orbitals[0], 0);
+  for (auto x : vabk)
+    std::cout << x << "\n";
 
   return 0;
 }

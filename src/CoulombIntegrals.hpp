@@ -48,9 +48,9 @@ public:
   void initialise_v_abkr(const std::vector<DiracSpinor> &a_orbitals,
                          const std::vector<DiracSpinor> &b_orbitals);
   void initialise_v_abkr(const std::vector<DiracSpinor> &orbitals);
-
   void extend_v_abkr(const DiracSpinor &phi_a,
                      const std::vector<DiracSpinor> &b_orbitals);
+
   void calculate_angular(int ki);
   double get_angular_C_kiakibk(int kia, int kib, int k);
   const std::vector<double> &get_angular_C_kiakib_k(int kia, int kib);
