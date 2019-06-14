@@ -86,6 +86,7 @@ public: // comparitor overloads
   }
   bool operator<=(const DiracSpinor &other) const { return !(*this > other); }
 
+public: // Operator overloads
   double operator*(const DiracSpinor &other) const {
     int pinf = 0; // XXX goes to ngp...ok?
 

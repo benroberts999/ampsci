@@ -1,6 +1,6 @@
 #include "HartreeFockClass.hpp"
 #include "AtomInfo.hpp"
-#include "CoulombFunctions.hpp"
+#include "CoulombIntegrals.hpp"
 #include "DiracSpinor.hpp"
 #include "ElectronOrbitals.hpp"
 #include "Grid.hpp"

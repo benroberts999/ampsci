@@ -77,7 +77,7 @@ BASE = $(addprefix $(OD)/, \
 )
 
 HF = $(addprefix $(OD)/, \
- HartreeFockClass.o CoulombFunctions.o Parametric_potentials.o \
+ HartreeFockClass.o CoulombIntegrals.o Parametric_potentials.o \
 )
 
 CNTM = $(addprefix $(OD)/, \
