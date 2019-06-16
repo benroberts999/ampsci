@@ -158,18 +158,18 @@ inline std::string Grid::gridParameters() const {
 
 //******************************************************************************
 inline void Grid::form_loglinear_grid()
-/*
-Roughly, grid is logarithmically spaced below r=b, and linear above.
-Definition:
-  dr/du = r/(b+r)
-  => u_0 = r0 + b*ln(r0)
-  du = (in_rmax-in_r0+b*log(in_rmax/in_r0))/(in_ngp-1)
-  du is constant (step-size for uniformly spaced grid)
-Typically (and by default), b = 4 (unit units/bohr radius)
-*/
+// Roughly, grid is logarithmically spaced below r=b, and linear above.
+// Definition:
+//   dr/du = r/(b+r)
+//   => u_0 = r0 + b*ln(r0)
+//   du = (in_rmax-in_r0+b*log(in_rmax/in_r0))/(in_ngp-1)
+//   du is constant (step-size for uniformly spaced grid)
+// Typically (and by default), b = 4 (unit units/bohr radius)
 {
-  if (b == 0)
+  if (b == 0) {
     std::cerr << "FAIL 164 in Grid: Cant have b=0 for LogLinear Grid!\n";
+    std::abort();
+  }
 
   // initial points:
   r.push_back(r0);
@@ -184,14 +184,18 @@ Typically (and by default), b = 4 (unit units/bohr radius)
     // Integrate dr/dt to find r:
     double delta_r = 1.;
     int ii = 0; // to count number of iterations
-    while (delta_r > (r0 * 1.e-15)) {
+    while (fabs(delta_r) > (r_tmp * 1.0e-17)) {
       double delta_u = u - (r_tmp + b * log(r_tmp));
       double drdu_tmp = r_tmp / (r_tmp + b);
       delta_r = delta_u * drdu_tmp;
       r_tmp += delta_r;
-      ii++;
-      if (ii > 30)
+      if (++ii > 20) {
+        if (fabs(delta_r / r_tmp) > 1.0e-6) {
+          std::cerr << "WARNING Grid:194: Converge? " << i << " " << r_tmp
+                    << " " << delta_r / r_tmp << "\n";
+        }
         break; // usually converges in ~ 2 or 3 steps!
+      }
     }
     r.push_back(r_tmp);
     drduor.push_back(1. / (b + r_tmp));
@@ -201,13 +205,11 @@ Typically (and by default), b = 4 (unit units/bohr radius)
 
 //******************************************************************************
 inline void Grid::form_logarithmic_grid()
-/*
-Standard exponential (logarithmic) grid.
-Uses:
-  dr/du = r0 * exp(u)
-  =>  r = r0 * exp(u)
-      u = i*du for i=0,1,2,...
-*/
+// Standard exponential (logarithmic) grid.
+// Uses:
+//   dr/du = r0 * exp(u)
+//   =>  r = r0 * exp(u)
+//       u = i*du for i=0,1,2,...
 {
   for (std::size_t i = 0; i < ngp; i++)
     drdu.push_back(r0 * exp(double(i) * du));

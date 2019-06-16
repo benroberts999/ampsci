@@ -26,17 +26,17 @@ public:
   std::vector<State> nkb_list;
   // if valence-core, a MUST be the valence state! OK????
 
-  std::vector<int> ki_list;
-  std::vector<int> twoj_list;
   int m_largest_ki = -1; //-1 not valid, but need 0>x to hold true first time
 
   std::vector<std::vector<std::vector<std::vector<double>>>> m_v_abkr;
   std::vector<std::vector<std::vector<double>>> m_angular_L_kakbk;
   std::vector<std::vector<std::vector<double>>> m_angular_C_kakbk;
 
-  // nb: this not const, cos used in construction!
+  // nb: this not const, cos used in construction! [make private]
   std::vector<std::vector<double>> &get_vab_kr(const DiracSpinor &phi_a,
                                                const DiracSpinor &phi_b);
+
+  std::size_t find_index(const DiracSpinor &phi) const;
 
   const std::vector<double> &get_vabk_r(const DiracSpinor &phi_a,
                                         const DiracSpinor &phi_b, int k);

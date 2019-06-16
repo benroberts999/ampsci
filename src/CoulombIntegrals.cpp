@@ -62,25 +62,8 @@ std::vector<std::vector<double>> &Coulomb::get_vab_kr(const DiracSpinor &phi_a,
 // Uses symmetry, v_ab = v_ba
 // nb: this not const, cos used in construction!
 {
-
-  if (std::find(nka_list.begin(), nka_list.end(), State(phi_a.n, phi_a.k)) ==
-      nka_list.end()) {
-    // phi_a not in nka list (means I should swap phi_a and phi_b)
-  }
-
-  auto ia =
-      std::find(nka_list.begin(), nka_list.end(), State(phi_a.n, phi_a.k)) -
-      nka_list.begin();
-  auto ib =
-      std::find(nkb_list.begin(), nkb_list.end(), State(phi_b.n, phi_b.k)) -
-      nkb_list.begin();
-  if (ia == (int)nka_list.size()) {
-    ia = std::find(nkb_list.begin(), nkb_list.end(), State(phi_a.n, phi_a.k)) -
-         nkb_list.begin();
-    ib = std::find(nka_list.begin(), nka_list.end(), State(phi_b.n, phi_b.k)) -
-         nka_list.begin();
-  }
-
+  auto ia = find_index(phi_a);
+  auto ib = find_index(phi_b);
   return (phi_a > phi_b) ? m_v_abkr[ia][ib] : m_v_abkr[ib][ia];
 }
 
@@ -90,22 +73,25 @@ const std::vector<double> &Coulomb::get_vabk_r(const DiracSpinor &phi_a,
 // returns v^k_ab  (v_abk[r] - 1D vector)
 // Uses symmetry, v_ab = v_ba
 {
-  auto ia =
-      std::find(nka_list.begin(), nka_list.end(), State(phi_a.n, phi_a.k)) -
-      nka_list.begin();
-  auto ib =
-      std::find(nkb_list.begin(), nkb_list.end(), State(phi_b.n, phi_b.k)) -
-      nkb_list.begin();
-  if (ia == (int)nka_list.size()) {
-    ia = std::find(nkb_list.begin(), nkb_list.end(), State(phi_a.n, phi_a.k)) -
-         nkb_list.begin();
-    ib = std::find(nka_list.begin(), nka_list.end(), State(phi_b.n, phi_b.k)) -
-         nka_list.begin();
-  }
-
+  auto ia = find_index(phi_a);
+  auto ib = find_index(phi_b);
   int kmin = abs(phi_a.twoj() - phi_b.twoj()) / 2; // kmin
   return (phi_a > phi_b) ? m_v_abkr[ia][ib][k - kmin]
                          : m_v_abkr[ib][ia][k - kmin];
+}
+
+//******************************************************************************
+std::size_t Coulomb::find_index(const DiracSpinor &phi) const {
+  // This is very slow..is there another way?
+
+  auto ia = std::find(nka_list.begin(), nka_list.end(), State(phi.n, phi.k));
+  std::size_t index = (std::size_t)std::distance(nka_list.begin(), ia);
+  if (ia == nka_list.end()) {
+    // in case of core-core, always found in nkalist!
+    ia = std::find(nkb_list.begin(), nkb_list.end(), State(phi.n, phi.k));
+    index = (std::size_t)std::distance(nkb_list.begin(), ia);
+  }
+  return index;
 }
 
 //******************************************************************************
@@ -122,10 +108,16 @@ void Coulomb::form_v_abk(const DiracSpinor &phi_a,
   for (const auto &phi_b : b_orbitals) {
     if (phi_b > phi_a)
       continue;
+    // So, If I ONLY update phi_a, does this still work?
+    // Or, it only updates some of them!? XXX
+    // This only reasonable if I loop through ALL phi_a !?? Think so!
+    // Fine if phi_a valence and phi_b core, but not otherwise! XXX
+    // XXX NO! Not even fine then! core can be "larger" than valence!
     auto tjb = phi_b.twoj();
     auto &vabk = get_vab_kr(phi_a, phi_b);
     int k = abs(tja - tjb) / 2; // kmin
     for (auto &vab_k : vabk) {
+      // XXX only calculate if angular is non-zero! XXX
       calculate_v_abk(phi_a, phi_b, k, vab_k);
       k++;
     }
@@ -150,6 +142,18 @@ void Coulomb::initialise_v_abkr(const std::vector<DiracSpinor> &orbitals) {
   }
 }
 
+/*
+SO:
+  when call initialise with two same vectors, only do psi>psi'
+  BUT, when different vectors, need do all!
+  Extend: need do all too.
+  NOTE: if two different vectors, will they be stored correctly?
+  // psi' > psi ok???
+  One way: allocate memory for all! (2x what I need in worst case)
+  but only calculate for those w/ psi>psi'
+  OR: don't allow extend! Send fully-formed list of states..
+*/
+
 //******************************************************************************
 void Coulomb::extend_v_abkr(const DiracSpinor &phi_a,
                             const std::vector<DiracSpinor> &b_orbitals)
@@ -166,6 +170,9 @@ void Coulomb::extend_v_abkr(const DiracSpinor &phi_a,
   //
   // }
 
+  // XXX This assumes that b_orbitals have already been initilised, and only
+  // phi_a is new! XXX
+
   // First, make sure not already in list (SAFETY)
   State nk{phi_a.n, phi_a.k};
   if (std::find(nka_list.begin(), nka_list.end(), nk) != nka_list.end())
@@ -174,9 +181,7 @@ void Coulomb::extend_v_abkr(const DiracSpinor &phi_a,
   // add orbital info to list:
   nka_list.push_back(nk);
   auto ki = phi_a.k_index();
-  ki_list.push_back(ki);
   auto tja = AtomInfo::twojFromIndex(ki);
-  twoj_list.push_back(tja);
 
   // extend m_v_abkr array
   auto ngp = phi_a.p_rgrid->ngp;
@@ -184,6 +189,9 @@ void Coulomb::extend_v_abkr(const DiracSpinor &phi_a,
   for (const auto &phi_b : b_orbitals) {
     if (phi_b > phi_a)
       continue; // not break, may not be in order
+    // XXX NOTE: IS THIS OK?? What if valence state is 'smaller', like 4f?
+    // XXX May not work if adding one at a time!
+    // Just neever add one at a time? But might only have one valence at a time
     auto tjb = phi_b.twoj();
     std::size_t num_k = (tja > tjb) ? (tjb + 1) : (tja + 1);
     va_bkr.emplace_back(
@@ -237,6 +245,7 @@ double Coulomb::get_angular_C_kiakibk(int kia, int kib, int k) {
       abs(AtomInfo::twojFromIndex(kia) - AtomInfo::twojFromIndex(kib)) / 2;
   return kia > kib ? m_angular_C_kakbk[kia][kib][k - kmin]
                    : m_angular_C_kakbk[kib][kia][k - kmin];
+  // XXX have a check for k outside range? XXX A macro?
 }
 //******************************************************************************
 const std::vector<double> &Coulomb::get_angular_C_kiakib_k(int kia, int kib) {
@@ -250,9 +259,10 @@ double Coulomb::get_angular_L_kiakibk(int kia, int kib, int k) {
       abs(AtomInfo::twojFromIndex(kia) - AtomInfo::twojFromIndex(kib)) / 2;
   return kia > kib ? m_angular_L_kakbk[kia][kib][k - kmin]
                    : m_angular_L_kakbk[kib][kia][k - kmin];
+  // XXX have a check for k outside range? XXX A macro?
 }
 //******************************************************************************
 const std::vector<double> &Coulomb::get_angular_L_kiakib_k(int kia, int kib) {
-  // note:output is of-set by k_min!
+  // note:output is off-set by k_min!
   return kia > kib ? m_angular_L_kakbk[kia][kib] : m_angular_L_kakbk[kib][kia];
 }
