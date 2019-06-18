@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+enum class OrbitalType { core, valence }; // xxx just test
+
 //******************************************************************************
 struct EOnken { // name OK? too short?
   int n;

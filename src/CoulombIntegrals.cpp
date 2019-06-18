@@ -4,7 +4,296 @@
 #include <vector>
 
 //******************************************************************************
-void Coulomb::calculate_v_abk(const DiracSpinor &phi_a,
+Coulomb::Coulomb(const std::vector<DiracSpinor> &in_core,
+                 const std::vector<DiracSpinor> &in_valence = {})
+    : c_orbs_ptr(&in_core), v_orbs_ptr(&in_valence),
+      rgrid_ptr((in_core.size() > 0) ? in_core.front().p_rgrid
+                                     : in_valence.front().p_rgrid) {
+  // Call initialise here?
+  std::cout << "Called A\n";
+  std::cout << "core: " << c_orbs_ptr->size() << "\n";
+  std::cout << "Val : " << v_orbs_ptr->size() << "\n";
+  std::cout << "core: *" << c_orbs_ptr << "\n";
+  std::cout << "Val : *" << v_orbs_ptr << "\n";
+  initialise_core_core();
+}
+
+//******************************************************************************
+void Coulomb::initialise_core_core() {
+  // XXX should only be able to call this once?
+  auto ngp = rgrid_ptr->ngp;
+  m_y_abkr.reserve(c_orbs_ptr->size());
+  for (std::size_t ia = 0; ia < c_orbs_ptr->size(); ia++) {
+    auto tja = (*c_orbs_ptr)[ia].twoj();
+    std::vector<std::vector<std::vector<double>>> ya_bkr;
+    for (std::size_t ib = 0; ib <= ia; ib++) {
+      auto tjb = (*c_orbs_ptr)[ib].twoj();
+      std::size_t num_k = (tja > tjb) ? (tjb + 1) : (tja + 1);
+      ya_bkr.emplace_back(
+          std::vector<std::vector<double>>(num_k, std::vector<double>(ngp)));
+    }
+    m_y_abkr.push_back(ya_bkr);
+    calculate_angular((*c_orbs_ptr)[ia].k_index());
+  }
+}
+//------------------------------------------------------------------------------
+void Coulomb::initialise_core_valence() {
+  // can call this more than once..
+
+  auto ngp = rgrid_ptr->ngp;
+  for (std::size_t iv = num_initialised_vc; iv < v_orbs_ptr->size(); iv++) {
+    auto tjv = (*v_orbs_ptr)[iv].twoj();
+    std::vector<std::vector<std::vector<double>>> va_bkr;
+    for (const auto &phi_c : *c_orbs_ptr) {
+      auto tjc = phi_c.twoj();
+      std::size_t num_k = (tjv > tjc) ? (tjc + 1) : (tjv + 1);
+      va_bkr.emplace_back(
+          std::vector<std::vector<double>>(num_k, std::vector<double>(ngp)));
+    }
+    m_y_vckr.push_back(va_bkr);
+    calculate_angular((*v_orbs_ptr)[iv].k_index());
+  }
+  num_initialised_vc = v_orbs_ptr->size();
+}
+//------------------------------------------------------------------------------
+void Coulomb::initialise_valence_valence() {
+  auto ngp = rgrid_ptr->ngp;
+
+  for (std::size_t iv = num_initialised_vv; iv < v_orbs_ptr->size(); iv++) {
+    auto tjv = (*v_orbs_ptr)[iv].twoj();
+    std::vector<std::vector<std::vector<double>>> vv_wkr;
+    for (std::size_t iw = 0; iw <= iv; iw++) {
+      auto tjw = (*v_orbs_ptr)[iw].twoj();
+      std::size_t num_k = (tjv > tjw) ? (tjw + 1) : (tjv + 1);
+      vv_wkr.emplace_back(
+          std::vector<std::vector<double>>(num_k, std::vector<double>(ngp)));
+    }
+    m_y_vwkr.push_back(vv_wkr);
+    calculate_angular((*v_orbs_ptr)[iv].k_index());
+  }
+  num_initialised_vv = v_orbs_ptr->size();
+}
+
+//******************************************************************************
+std::size_t Coulomb::find_core_index(const DiracSpinor &phi) const {
+  // This is very slow..is there another way?
+  auto ia = std::find(c_orbs_ptr->begin(), c_orbs_ptr->end(), phi);
+  return (std::size_t)std::distance(c_orbs_ptr->begin(), ia);
+}
+//------------------------------------------------------------------------------
+std::size_t Coulomb::find_valence_index(const DiracSpinor &phi) const {
+  auto ia = std::find(v_orbs_ptr->begin(), v_orbs_ptr->end(), phi);
+  return (std::size_t)std::distance(v_orbs_ptr->begin(), ia);
+}
+
+//******************************************************************************
+void Coulomb::calculate_core_core() {
+
+  for (std::size_t ia = 0; ia < c_orbs_ptr->size(); ia++) {
+    const auto &phi_a = (*c_orbs_ptr)[ia];
+    auto tja = phi_a.twoj();
+    auto kia = phi_a.k_index();
+    for (std::size_t ib = 0; ib <= ia; ib++) {
+      const auto &phi_b = (*c_orbs_ptr)[ib];
+      auto tjb = phi_b.twoj();
+      auto kib = phi_b.k_index();
+      auto kmin = abs(tja - tjb) / 2; // kmin
+      auto num_k = (tja > tjb) ? (tjb + 1) : (tja + 1);
+      const auto &Lk = get_angular_L_kiakib_k(kia, kib);
+      for (int ik = 0; ik < num_k; ik++) {
+        if (Lk[ik] == 0)
+          continue;
+        calculate_y_ijk(phi_a, phi_b, kmin + ik, m_y_abkr[ia][ib][ik]);
+      }
+    }
+  }
+}
+//******************************************************************************
+void Coulomb::calculate_valence_valence() {
+  // XXX this is same as core-core; just call it, passing in different orbs!
+  // (internally; externally, call seperate functions, without passing!)
+  initialise_valence_valence(); // call this each time?
+  for (std::size_t iv = 0; iv < v_orbs_ptr->size(); iv++) {
+    const auto &phi_v = (*v_orbs_ptr)[iv];
+    auto tjv = phi_v.twoj();
+    auto kiv = phi_v.k_index();
+    for (std::size_t iw = 0; iw <= iv; iw++) {
+      const auto &phi_w = (*v_orbs_ptr)[iw];
+      auto tjw = phi_w.twoj();
+      auto kiw = phi_w.k_index();
+      auto kmin = abs(tjv - tjw) / 2; // kmin
+      auto num_k = (tjv > tjw) ? (tjw + 1) : (tjv + 1);
+      const auto &Lk = get_angular_L_kiakib_k(kiv, kiw);
+      for (int ik = 0; ik < num_k; ik++) {
+        if (Lk[ik] == 0)
+          continue;
+        calculate_y_ijk(phi_v, phi_w, kmin + ik, m_y_vwkr[iv][iw][ik]);
+      }
+    }
+  }
+}
+//******************************************************************************
+void Coulomb::calculate_core_valence() {
+  // XXX this is same as core-core; just call it, passing in different orbs!
+  // (internally; externally, call seperate functions, without passing!)
+  initialise_core_valence(); // call this each time?
+
+  for (std::size_t iv = 0; iv < v_orbs_ptr->size(); iv++) {
+    const auto &phi_v = (*v_orbs_ptr)[iv];
+    auto tjv = phi_v.twoj();
+    auto kiv = phi_v.k_index();
+    for (std::size_t ic = 0; ic < c_orbs_ptr->size(); ic++) {
+      const auto &phi_c = (*c_orbs_ptr)[ic];
+      auto tjc = phi_c.twoj();
+      auto kic = phi_c.k_index();
+      auto kmin = abs(tjc - tjv) / 2; // kmin
+      auto num_k = (tjc > tjv) ? (tjv + 1) : (tjc + 1);
+      const auto &Lk = get_angular_L_kiakib_k(kic, kiv);
+      for (int ik = 0; ik < num_k; ik++) {
+        if (Lk[ik] == 0)
+          continue;
+        calculate_y_ijk(phi_c, phi_v, kmin + ik, m_y_vckr[iv][ic][ik]);
+      }
+    }
+  }
+}
+
+//******************************************************************************
+const std::vector<std::vector<double>> &
+Coulomb::get_y_abk(std::size_t a, std::size_t b) const {
+  return (a > b) ? m_y_abkr[a][b] : m_y_abkr[a][b];
+}
+//------------------------------------------------------------------------------
+const std::vector<std::vector<double>> &
+Coulomb::get_y_vwk(std::size_t v, std::size_t w) const {
+  return (v > w) ? m_y_abkr[v][w] : m_y_abkr[w][v];
+}
+//------------------------------------------------------------------------------
+const std::vector<std::vector<double>> &
+Coulomb::get_y_vck(std::size_t v, std::size_t c) const {
+  return m_y_vckr[v][c];
+}
+//******************************************************************************
+const std::vector<std::vector<double>> &
+Coulomb::get_y_ijk(const DiracSpinor &phi_i, const DiracSpinor &phi_j) const {
+
+  auto i = find_core_index(phi_i);
+  bool ival = false;
+  if (i == c_orbs_ptr->size()) {
+    i = find_valence_index(phi_i);
+    ival = true;
+  }
+  auto j = find_core_index(phi_j);
+  bool jval = false;
+  if (j == c_orbs_ptr->size()) {
+    j = find_valence_index(phi_j);
+    jval = true;
+  }
+  if (!ival && !jval)
+    return (i > j) ? m_y_abkr[i][j] : m_y_abkr[i][j];
+  if (ival && !jval)
+    return m_y_vckr[i][j];
+  if (!ival && jval)
+    return m_y_vckr[j][i];
+  return (i > j) ? m_y_vckr[i][j] : m_y_vckr[i][j];
+}
+//------------------------------------------------------------------------------
+const std::vector<double> &Coulomb::get_y_ijk(const DiracSpinor &phi_i,
+                                              const DiracSpinor &phi_j,
+                                              int k) const {
+  auto tji = phi_i.twoj();
+  auto tjj = phi_j.twoj();
+  auto kmin = abs(tji - tjj) / 2; // kmin
+  auto kmax = (tji + tjj) / 2;    // kmax
+  if (k > kmax || k < kmin) {
+    std::cerr << "FAIL 214 in CI; bad k\n";
+    std::abort();
+  }
+  const auto &tmp = get_y_ijk(phi_i, phi_j);
+  return tmp[k - kmin];
+}
+
+//******************************************************************************
+void Coulomb::calculate_angular(int ki)
+// Extend the angular coeficient (AND calculate it!)
+{
+  if (ki <= m_largest_ki)
+    return;
+  auto prev_largest_ki = m_largest_ki;
+  m_largest_ki = ki;
+  for (auto kia = prev_largest_ki + 1; kia <= m_largest_ki; kia++) {
+    auto tja = AtomInfo::twojFromIndex(kia);
+    auto la = AtomInfo::lFromIndex(kia);
+    std::vector<std::vector<double>> C_ka_kbk;
+    std::vector<std::vector<double>> L_ka_kbk;
+    for (auto kib = 0; kib <= kia; kib++) {
+      auto tjb = AtomInfo::twojFromIndex(kib);
+      auto lb = AtomInfo::lFromIndex(kib);
+      auto kmin = (tja - tjb) / 2; // don't need abs, as m\leq n => ja\geq jb
+      auto kmax = (tja + tjb) / 2;
+      std::vector<double> C_k(kmax - kmin + 1, 0);
+      std::vector<double> L_k(kmax - kmin + 1, 0);
+      for (auto k = kmin; k <= kmax; k++) {
+        if (Wigner::parity(la, lb, k) == 0)
+          continue;
+        int ik = k - kmin;
+        auto tjs = Wigner::threej_2(tja, tjb, 2 * k, -1, 1, 0);
+        // auto sign = ((tja + 1) / 2 % 2 == 0) ? 1 : -1;
+        C_k[ik] = sqrt((tja + 1) * (tjb + 1)) * tjs; // XXX no sign!
+        L_k[ik] = tjs * tjs;
+      } // k
+      C_ka_kbk.push_back(C_k);
+      L_ka_kbk.push_back(L_k);
+    }
+    m_angular_C_kakbk.push_back(C_ka_kbk);
+    m_angular_L_kakbk.push_back(L_ka_kbk);
+  }
+}
+
+//******************************************************************************
+double Coulomb::get_angular_C_kiakibk(const DiracSpinor &phi_a,
+                                      const DiracSpinor &phi_b, int k) const {
+  auto kia = phi_a.k_index();
+  auto kib = phi_b.k_index();
+  int kmin =
+      abs(AtomInfo::twojFromIndex(kia) - AtomInfo::twojFromIndex(kib)) / 2;
+  int kmax =
+      abs(AtomInfo::twojFromIndex(kia) + AtomInfo::twojFromIndex(kib)) / 2;
+  if (k < kmin || k > kmax)
+    return 0;
+  return kia > kib ? m_angular_C_kakbk[kia][kib][k - kmin]
+                   : m_angular_C_kakbk[kib][kia][k - kmin];
+}
+//******************************************************************************
+const std::vector<double> &Coulomb::get_angular_C_kiakib_k(int kia,
+                                                           int kib) const {
+  // note:output is of-set by k_min!
+  return kia > kib ? m_angular_C_kakbk[kia][kib] : m_angular_C_kakbk[kib][kia];
+}
+
+//******************************************************************************
+double Coulomb::get_angular_L_kiakibk(const DiracSpinor &phi_a,
+                                      const DiracSpinor &phi_b, int k) const {
+  auto kia = phi_a.k_index();
+  auto kib = phi_b.k_index();
+  int kmin =
+      abs(AtomInfo::twojFromIndex(kia) - AtomInfo::twojFromIndex(kib)) / 2;
+  int kmax =
+      abs(AtomInfo::twojFromIndex(kia) + AtomInfo::twojFromIndex(kib)) / 2;
+  if (k < kmin || k > kmax)
+    return 0;
+  return kia > kib ? m_angular_L_kakbk[kia][kib][k - kmin]
+                   : m_angular_L_kakbk[kib][kia][k - kmin];
+}
+//******************************************************************************
+const std::vector<double> &Coulomb::get_angular_L_kiakib_k(int kia,
+                                                           int kib) const {
+  // note:output is off-set by k_min!
+  return kia > kib ? m_angular_L_kakbk[kia][kib] : m_angular_L_kakbk[kib][kia];
+}
+
+//******************************************************************************
+void Coulomb::calculate_y_ijk(const DiracSpinor &phi_a,
                               const DiracSpinor &phi_b, const int k,
                               std::vector<double> &vabk)
 // This is static
@@ -53,216 +342,4 @@ void Coulomb::calculate_v_abk(const DiracSpinor &phi_a,
   for (std::size_t i = irmax; i < phi_a.p_rgrid->ngp; i++) {
     vabk[i] = 0; // maybe not needed?
   }
-}
-
-//******************************************************************************
-std::vector<std::vector<double>> &Coulomb::get_vab_kr(const DiracSpinor &phi_a,
-                                                      const DiracSpinor &phi_b)
-// returns v_ab  (v_ab[k][r] - 2D vector)
-// Uses symmetry, v_ab = v_ba
-// nb: this not const, cos used in construction!
-{
-  auto ia = find_index(phi_a);
-  auto ib = find_index(phi_b);
-  return (phi_a > phi_b) ? m_v_abkr[ia][ib] : m_v_abkr[ib][ia];
-}
-
-//******************************************************************************
-const std::vector<double> &Coulomb::get_vabk_r(const DiracSpinor &phi_a,
-                                               const DiracSpinor &phi_b, int k)
-// returns v^k_ab  (v_abk[r] - 1D vector)
-// Uses symmetry, v_ab = v_ba
-{
-  auto ia = find_index(phi_a);
-  auto ib = find_index(phi_b);
-  int kmin = abs(phi_a.twoj() - phi_b.twoj()) / 2; // kmin
-  return (phi_a > phi_b) ? m_v_abkr[ia][ib][k - kmin]
-                         : m_v_abkr[ib][ia][k - kmin];
-}
-
-//******************************************************************************
-std::size_t Coulomb::find_index(const DiracSpinor &phi) const {
-  // This is very slow..is there another way?
-
-  auto ia = std::find(nka_list.begin(), nka_list.end(), State(phi.n, phi.k));
-  std::size_t index = (std::size_t)std::distance(nka_list.begin(), ia);
-  if (ia == nka_list.end()) {
-    // in case of core-core, always found in nkalist!
-    ia = std::find(nkb_list.begin(), nkb_list.end(), State(phi.n, phi.k));
-    index = (std::size_t)std::distance(nkb_list.begin(), ia);
-  }
-  return index;
-}
-
-//******************************************************************************
-void Coulomb::form_v_abk(const std::vector<DiracSpinor> &a_orbitals,
-                         const std::vector<DiracSpinor> &b_orbitals) {
-  for (const auto &phi_a : a_orbitals) {
-    form_v_abk(phi_a, b_orbitals);
-  }
-}
-//******************************************************************************
-void Coulomb::form_v_abk(const DiracSpinor &phi_a,
-                         const std::vector<DiracSpinor> &b_orbitals) {
-  auto tja = phi_a.twoj();
-  for (const auto &phi_b : b_orbitals) {
-    if (phi_b > phi_a)
-      continue;
-    // So, If I ONLY update phi_a, does this still work?
-    // Or, it only updates some of them!? XXX
-    // This only reasonable if I loop through ALL phi_a !?? Think so!
-    // Fine if phi_a valence and phi_b core, but not otherwise! XXX
-    // XXX NO! Not even fine then! core can be "larger" than valence!
-    auto tjb = phi_b.twoj();
-    auto &vabk = get_vab_kr(phi_a, phi_b);
-    int k = abs(tja - tjb) / 2; // kmin
-    for (auto &vab_k : vabk) {
-      // XXX only calculate if angular is non-zero! XXX
-      calculate_v_abk(phi_a, phi_b, k, vab_k);
-      k++;
-    }
-  }
-}
-
-//******************************************************************************
-void Coulomb::initialise_v_abkr(const std::vector<DiracSpinor> &a_orbitals,
-                                const std::vector<DiracSpinor> &b_orbitals) {
-  for (const auto &phi_b : b_orbitals) {
-    nkb_list.emplace_back(phi_b.n, phi_b.k);
-  }
-  for (const auto &phi_a : a_orbitals) {
-    extend_v_abkr(phi_a, b_orbitals);
-  }
-}
-//******************************************************************************
-void Coulomb::initialise_v_abkr(const std::vector<DiracSpinor> &orbitals) {
-  for (const auto &phi : orbitals) {
-    nkb_list.emplace_back(phi.n, phi.k);
-    extend_v_abkr(phi, orbitals);
-  }
-}
-
-/*
-SO:
-  when call initialise with two same vectors, only do psi>psi'
-  BUT, when different vectors, need do all!
-  Extend: need do all too.
-  NOTE: if two different vectors, will they be stored correctly?
-  // psi' > psi ok???
-  One way: allocate memory for all! (2x what I need in worst case)
-  but only calculate for those w/ psi>psi'
-  OR: don't allow extend! Send fully-formed list of states..
-*/
-
-//******************************************************************************
-void Coulomb::extend_v_abkr(const DiracSpinor &phi_a,
-                            const std::vector<DiracSpinor> &b_orbitals)
-// Prepare new orbital
-{
-
-  // // XXX This adds all the phi_a's to the list.. but not the phi_b's!
-  // // If phi_a is in {b_orbs}, then all fine!
-  // // If phi_a is not in {b_orbs}, means we need to add b_obs first!
-  // // This is annoyingly slow....
-  // if (std::find(b_orbitals.begin(), b_orbitals.end(), phi_a) ==
-  //     b_orbitals.end()) {
-  //   // means phi_a is NOT in phi_b
-  //
-  // }
-
-  // XXX This assumes that b_orbitals have already been initilised, and only
-  // phi_a is new! XXX
-
-  // First, make sure not already in list (SAFETY)
-  State nk{phi_a.n, phi_a.k};
-  if (std::find(nka_list.begin(), nka_list.end(), nk) != nka_list.end())
-    return;
-
-  // add orbital info to list:
-  nka_list.push_back(nk);
-  auto ki = phi_a.k_index();
-  auto tja = AtomInfo::twojFromIndex(ki);
-
-  // extend m_v_abkr array
-  auto ngp = phi_a.p_rgrid->ngp;
-  std::vector<std::vector<std::vector<double>>> va_bkr;
-  for (const auto &phi_b : b_orbitals) {
-    if (phi_b > phi_a)
-      continue; // not break, may not be in order
-    // XXX NOTE: IS THIS OK?? What if valence state is 'smaller', like 4f?
-    // XXX May not work if adding one at a time!
-    // Just neever add one at a time? But might only have one valence at a time
-    auto tjb = phi_b.twoj();
-    std::size_t num_k = (tja > tjb) ? (tjb + 1) : (tja + 1);
-    va_bkr.emplace_back(
-        std::vector<std::vector<double>>(num_k, std::vector<double>(ngp)));
-  }
-  m_v_abkr.push_back(va_bkr);
-
-  calculate_angular(ki);
-}
-
-//******************************************************************************
-void Coulomb::calculate_angular(int ki)
-// Extend the angular coeficient (AND calculate it!)
-{
-  if (ki <= m_largest_ki)
-    return;
-  auto prev_largest_ki = m_largest_ki;
-  m_largest_ki = ki;
-  for (auto kia = prev_largest_ki + 1; kia <= m_largest_ki; kia++) {
-    auto tja = AtomInfo::twojFromIndex(kia);
-    auto la = AtomInfo::lFromIndex(kia);
-    std::vector<std::vector<double>> C_ka_kbk;
-    std::vector<std::vector<double>> L_ka_kbk;
-    for (auto kib = 0; kib <= kia; kib++) {
-      auto tjb = AtomInfo::twojFromIndex(kib);
-      auto lb = AtomInfo::lFromIndex(kib);
-      auto kmin = (tja - tjb) / 2; // don't need abs, as m\leq n => ja\geq jb
-      auto kmax = (tja + tjb) / 2;
-      std::vector<double> C_k(kmax - kmin + 1, 0);
-      std::vector<double> L_k(kmax - kmin + 1, 0);
-      for (auto k = kmin; k <= kmax; k++) {
-        if (Wigner::parity(la, lb, k) == 0)
-          continue;
-        int ik = k - kmin;
-        auto tjs = Wigner::threej_2(tja, tjb, 2 * k, -1, 1, 0);
-        // auto sign = ((tja + 1) / 2 % 2 == 0) ? 1 : -1;
-        C_k[ik] = sqrt((tja + 1) * (tjb + 1)) * tjs; // XXX no sign!
-        L_k[ik] = tjs * tjs;
-      } // k
-      C_ka_kbk.push_back(C_k);
-      L_ka_kbk.push_back(L_k);
-    }
-    m_angular_C_kakbk.push_back(C_ka_kbk);
-    m_angular_L_kakbk.push_back(L_ka_kbk);
-  }
-}
-
-//******************************************************************************
-double Coulomb::get_angular_C_kiakibk(int kia, int kib, int k) {
-  int kmin =
-      abs(AtomInfo::twojFromIndex(kia) - AtomInfo::twojFromIndex(kib)) / 2;
-  return kia > kib ? m_angular_C_kakbk[kia][kib][k - kmin]
-                   : m_angular_C_kakbk[kib][kia][k - kmin];
-  // XXX have a check for k outside range? XXX A macro?
-}
-//******************************************************************************
-const std::vector<double> &Coulomb::get_angular_C_kiakib_k(int kia, int kib) {
-  // note:output is of-set by k_min!
-  return kia > kib ? m_angular_C_kakbk[kia][kib] : m_angular_C_kakbk[kib][kia];
-}
-
-//******************************************************************************
-double Coulomb::get_angular_L_kiakibk(int kia, int kib, int k) {
-  int kmin =
-      abs(AtomInfo::twojFromIndex(kia) - AtomInfo::twojFromIndex(kib)) / 2;
-  return kia > kib ? m_angular_L_kakbk[kia][kib][k - kmin]
-                   : m_angular_L_kakbk[kib][kia][k - kmin];
-  // XXX have a check for k outside range? XXX A macro?
-}
-//******************************************************************************
-const std::vector<double> &Coulomb::get_angular_L_kiakib_k(int kia, int kib) {
-  // note:output is off-set by k_min!
-  return kia > kib ? m_angular_L_kakbk[kia][kib] : m_angular_L_kakbk[kib][kia];
 }

@@ -416,14 +416,14 @@ void HartreeFock::form_vbb0()
 // Don't call this as well as form_vabk_core, not needed (won't break though)
 {
   for (std::size_t b = 0; b < m_num_core_states; b++) {
-    Coulomb::calculate_v_abk(p_wf->core_orbitals[b], p_wf->core_orbitals[b], 0,
+    Coulomb::calculate_y_ijk(p_wf->core_orbitals[b], p_wf->core_orbitals[b], 0,
                              m_arr_v_abk_r[b][b][0]);
   }
 }
 
 //******************************************************************************
 void HartreeFock::form_vabk_core()
-// Calculates [calls calculate_v_abk] and stores the v^k_ab Hartree-Fock
+// Calculates [calls calculate_y_ijk] and stores the v^k_ab Hartree-Fock
 // sreening functions for (a,b) in the core.
 // Takes advantage of a/b symmetry.
 // Skips if Lambda=0 (integral=0 from angles) Note: only for core-core states!
@@ -439,7 +439,7 @@ void HartreeFock::form_vabk_core()
         if (get_Lambda_kiakibk_v2(kappa_index_list[a], kappa_index_list[b], k,
                                   kmin) == 0)
           continue;
-        Coulomb::calculate_v_abk(p_wf->core_orbitals[a], p_wf->core_orbitals[b],
+        Coulomb::calculate_y_ijk(p_wf->core_orbitals[a], p_wf->core_orbitals[b],
                                  k, m_arr_v_abk_r[a][b][k - kmin]);
       } // k
     }   // b
@@ -448,7 +448,7 @@ void HartreeFock::form_vabk_core()
 
 //******************************************************************************
 void HartreeFock::form_vabk_valence(const DiracSpinor &phi)
-// Calculates [calls calculate_v_abk] and stores the Hartree-Fock screening
+// Calculates [calls calculate_y_ijk] and stores the Hartree-Fock screening
 // functions v^k_wb for a single (given) valence state (w=valence, b=core).
 // Stores in m_arr_v_abk_r
 {
@@ -461,7 +461,7 @@ void HartreeFock::form_vabk_valence(const DiracSpinor &phi)
     for (int k = kmin; k <= kmax; k++) {
       if (get_Lambda_kiakibk_v2(ki, kappa_index_list[b], k, kmin) == 0)
         continue;
-      Coulomb::calculate_v_abk(phi, p_wf->core_orbitals[b], k,
+      Coulomb::calculate_y_ijk(phi, p_wf->core_orbitals[b], k,
                                m_arr_vw_bk_r[b][k - kmin]);
     } // k
   }   // b

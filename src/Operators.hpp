@@ -35,7 +35,7 @@ class HyperfineOperator : public DiracOperator {
 public:
   HyperfineOperator(double muN, double IN, double rN, const Grid &rgrid,
                     double (*hfs_F)(double, double) = &hfs_default_F)
-      : DiracOperator(-0.5 * (muN / IN) * FPC::alpha / FPC::m_p,
+      : DiracOperator(-0.5 * (muN / IN) * PhysConst::alpha / PhysConst::m_p,
                       hfs_v(rN, rgrid, hfs_F), DiracMatrix(0, 1, -1, 0), 0,
                       true) {}
 };

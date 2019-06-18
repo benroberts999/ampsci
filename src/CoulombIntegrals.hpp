@@ -1,59 +1,74 @@
 #pragma once
 #include "DiracSpinor.hpp"
+#include "Grid.hpp"
 #include "NumCalc_quadIntegrate.hpp"
 #include "Wigner_369j.hpp"
 #include <vector>
 
+// * Add ability to just update a single integral
+// * (all integrals involving given orbital)
+
 class Coulomb {
-public:
-  static void calculate_v_abk(const DiracSpinor &phi_a,
+
+public: // constructor + static functions
+  Coulomb(const std::vector<DiracSpinor> &in_core,
+          const std::vector<DiracSpinor> &in_valence);
+  Coulomb(const std::vector<DiracSpinor> &in_orbitals);
+
+  static void calculate_y_ijk(const DiracSpinor &phi_a,
                               const DiracSpinor &phi_b, const int k,
                               std::vector<double> &vabk);
 
-  struct State {
-    const int n;
-    const int k;
-    State(int in_n, int in_k) : n(in_n), k(in_k) {}
-    bool operator==(const State &other) const {
-      return n == other.n && k == other.k;
-    }
-    bool operator!=(const State &other) const { return !(*this == other); }
-  };
+public: // functions
+  void calculate_core_core();
+  void calculate_valence_valence();
+  void calculate_core_valence();
 
-  // hold a list of all states currently calculated, give them unique index
-  // Index is equal to index of this list!
-  std::vector<State> nka_list;
-  std::vector<State> nkb_list;
-  // if valence-core, a MUST be the valence state! OK????
+  // NOTE: these take kappa-index! not kappa!
+  double get_angular_C_kiakibk(const DiracSpinor &phi_a,
+                               const DiracSpinor &phi_b, int k) const;
+  double get_angular_L_kiakibk(const DiracSpinor &phi_a,
+                               const DiracSpinor &phi_b, int k) const;
+
+  const std::vector<double> &get_y_ijk(const DiracSpinor &phi_i,
+                                       const DiracSpinor &phi_j, int k) const;
+
+private: // functions
+  void initialise_core_core();
+  void initialise_core_valence();
+  void initialise_valence_valence();
+  void calculate_angular(int ki);
+
+  std::size_t find_valence_index(const DiracSpinor &phi) const;
+  std::size_t find_core_index(const DiracSpinor &phi) const;
+
+  const std::vector<std::vector<double>> &get_y_abk(std::size_t a,
+                                                    std::size_t b) const;
+  const std::vector<std::vector<double>> &get_y_vck(std::size_t a,
+                                                    std::size_t b) const;
+  const std::vector<std::vector<double>> &get_y_vwk(std::size_t a,
+                                                    std::size_t b) const;
+
+  const std::vector<std::vector<double>> &
+  get_y_ijk(const DiracSpinor &phi_i, const DiracSpinor &phi_j) const;
+
+  const std::vector<double> &get_angular_C_kiakib_k(int kia, int kib) const;
+  const std::vector<double> &get_angular_L_kiakib_k(int kia, int kib) const;
+
+private: // data
+  std::size_t num_initialised_vv = 0;
+  std::size_t num_initialised_vc = 0;
+
+  const std::vector<DiracSpinor> *const c_orbs_ptr;
+  const std::vector<DiracSpinor> *const v_orbs_ptr;
+  const Grid *const rgrid_ptr;
 
   int m_largest_ki = -1; //-1 not valid, but need 0>x to hold true first time
 
-  std::vector<std::vector<std::vector<std::vector<double>>>> m_v_abkr;
+  std::vector<std::vector<std::vector<std::vector<double>>>> m_y_abkr;
+  std::vector<std::vector<std::vector<std::vector<double>>>> m_y_vckr;
+  std::vector<std::vector<std::vector<std::vector<double>>>> m_y_vwkr;
+
   std::vector<std::vector<std::vector<double>>> m_angular_L_kakbk;
   std::vector<std::vector<std::vector<double>>> m_angular_C_kakbk;
-
-  // nb: this not const, cos used in construction! [make private]
-  std::vector<std::vector<double>> &get_vab_kr(const DiracSpinor &phi_a,
-                                               const DiracSpinor &phi_b);
-
-  std::size_t find_index(const DiracSpinor &phi) const;
-
-  const std::vector<double> &get_vabk_r(const DiracSpinor &phi_a,
-                                        const DiracSpinor &phi_b, int k);
-  void form_v_abk(const std::vector<DiracSpinor> &a_orbitals,
-                  const std::vector<DiracSpinor> &b_orbitals);
-  void form_v_abk(const DiracSpinor &phi_a,
-                  const std::vector<DiracSpinor> &b_orbitals);
-
-  void initialise_v_abkr(const std::vector<DiracSpinor> &a_orbitals,
-                         const std::vector<DiracSpinor> &b_orbitals);
-  void initialise_v_abkr(const std::vector<DiracSpinor> &orbitals);
-  void extend_v_abkr(const DiracSpinor &phi_a,
-                     const std::vector<DiracSpinor> &b_orbitals);
-
-  void calculate_angular(int ki);
-  double get_angular_C_kiakibk(int kia, int kib, int k);
-  const std::vector<double> &get_angular_C_kiakib_k(int kia, int kib);
-  double get_angular_L_kiakibk(int kia, int kib, int k);
-  const std::vector<double> &get_angular_L_kiakib_k(int kia, int kib);
 };

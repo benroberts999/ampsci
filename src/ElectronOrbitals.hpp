@@ -6,8 +6,6 @@
 
 enum class NucleusType { Fermi, spherical, zero };
 
-enum class OrbitalType { core, valence }; // xxx just test
-
 //******************************************************************************
 class ElectronOrbitals {
 

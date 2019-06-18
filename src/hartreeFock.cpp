@@ -263,25 +263,10 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  // Coulomb coulomb;
-  //
-  // coulomb.initialise_v_abkr(wf.core_orbitals, wf.core_orbitals);
-  // coulomb.extend_v_abkr(wf.valence_orbitals.back(), wf.core_orbitals);
-  // auto x = coulomb.get_vabk_r(wf.core_orbitals.front(),
-  //                             wf.valence_orbitals.back(), 3);
-  // std::cout << ":"
-  //           << abs(wf.core_orbitals.front().twoj() -
-  //                  wf.valence_orbitals.back().twoj()) /
-  //                  2
-  //           << "\n";
-  // std::cout << ":"
-  //           << abs(wf.core_orbitals.front().twoj() +
-  //                  wf.valence_orbitals.back().twoj()) /
-  //                  2
-  //           << "\n";
-  // std::cout << x.size() << "\n";
-  // for (auto &y : x)
-  //   std::cout << y << "\n";
+  Coulomb cints({}, wf.valence_orbitals);
+  cints.calculate_core_core();
+  cints.calculate_core_valence();
+  cints.calculate_valence_valence();
 
   return 0;
 }
