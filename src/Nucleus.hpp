@@ -45,6 +45,10 @@ inline double c_hdr_formula_rrms_t(double rrms, double t = 2.3)
 // 4 ln(3) = 4.39445, pi^2 = 9.8696
 {
   double a = t / 4.39445;
+  if (rrms < t) {
+    // this is little dodgy? but formula prob only works large A
+    return sqrt((5. / 3) * rrms * rrms);
+  }
   return sqrt((5. / 3) * rrms * rrms - (7. / 3) * (9.8696 * a * a));
 }
 
