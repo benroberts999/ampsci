@@ -116,10 +116,9 @@ int main(int argc, char *argv[]) {
 
   if (run_test) {
     std::cout << "Test orthonormality [log-scale, should all read 0]:\n";
-
     for (int i = 0; i < 3; i++) {
-      auto tmp_b = (i == 2) ? wf.valence_orbitals : wf.core_orbitals;
-      auto tmp_a = (i == 0) ? wf.core_orbitals : wf.valence_orbitals;
+      const auto &tmp_b = (i == 2) ? wf.valence_orbitals : wf.core_orbitals;
+      const auto &tmp_a = (i == 0) ? wf.core_orbitals : wf.valence_orbitals;
       // Core-Core:
       if (i == 0)
         std::cout << "\nCore-Core\n    ";
@@ -263,9 +262,9 @@ int main(int argc, char *argv[]) {
   }
 
   // Coulomb cint(wf.core_orbitals, wf.valence_orbitals);
-  // // cint.calculate_core_core();
-  // cint.calculate_core_valence();
-  // // cint.calculate_valence_valence();
+  // // cint.form_core_core();
+  // cint.form_core_valence();
+  // // cint.form_valence_valence();
   //
   // for (const auto &psi_c : wf.core_orbitals) {
   //   for (const auto &psi_v : wf.valence_orbitals) {

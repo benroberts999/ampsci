@@ -25,21 +25,21 @@ class Coulomb {
 public: // constructor + static functions
   Coulomb(const std::vector<DiracSpinor> &in_core,
           const std::vector<DiracSpinor> &in_valence);
-  Coulomb(const std::vector<DiracSpinor> &in_orbitals);
 
   static void calculate_y_ijk(const DiracSpinor &phi_a,
                               const DiracSpinor &phi_b, const int k,
                               std::vector<double> &vabk);
 
+public: // functions
+  void form_core_core();
+  void form_valence_valence();
+  void form_core_valence();
+
+  // MUST calculate values first!
   std::vector<double> calculate_R_abcd_k(const DiracSpinor &psi_a,
                                          const DiracSpinor &psi_b,
                                          const DiracSpinor &psi_c,
                                          const DiracSpinor &psi_d) const;
-
-public: // functions
-  void calculate_core_core();
-  void calculate_valence_valence();
-  void calculate_core_valence();
 
   // getters
   double get_angular_C_kiakibk(const DiracSpinor &phi_a,
@@ -56,6 +56,7 @@ private: // functions
   void initialise_valence_valence();
   void calculate_angular(int ki);
 
+  // write another that returns pair <int, bool> = <index, val?> ?
   std::size_t find_valence_index(const DiracSpinor &phi) const;
   std::size_t find_core_index(const DiracSpinor &phi) const;
 

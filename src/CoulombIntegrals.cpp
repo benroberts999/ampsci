@@ -99,7 +99,7 @@ std::size_t Coulomb::find_valence_index(const DiracSpinor &phi) const {
 }
 
 //******************************************************************************
-void Coulomb::calculate_core_core()
+void Coulomb::form_core_core()
 // Calls calculate_y_ijk, fills the core-core C int arrays
 // Note: symmety: y_ij = y_ji, therefore only calculates y_ij with i >= j
 {
@@ -123,7 +123,7 @@ void Coulomb::calculate_core_core()
   }
 }
 //******************************************************************************
-void Coulomb::calculate_valence_valence()
+void Coulomb::form_valence_valence()
 // Calls calculate_y_ijk, fills the valence-valence C int arrays
 // Note: symmety: y_ij = y_ji, therefore only calculates y_ij with i >= j
 {
@@ -148,7 +148,7 @@ void Coulomb::calculate_valence_valence()
   }
 }
 //******************************************************************************
-void Coulomb::calculate_core_valence()
+void Coulomb::form_core_valence()
 // Calls calculate_y_ijk, fills the core-valence C int arrays
 // Note: no symmetry here! y_ij != y_ji [j and i same index, NOT same orbital!]
 {
@@ -335,16 +335,20 @@ std::vector<double> Coulomb::calculate_R_abcd_k(const DiracSpinor &psi_a,
 
   auto pinf = std::min(psi_a.pinf, psi_c.pinf);
 
-  std::vector<double> R(kmax + 1, 0);
+  // For now, this returns. Later, might be faster to swap to in/out param!
+  // (To avoid huge amount of re-alocating memory)
+  // Actually, typically only need to call this once (for each a,b,c,d)
+  // So, will be equally as fast with nRVO
+  std::vector<double> Rabcd(kmax + 1, 0);
 
   const auto &ybd_kr = get_y_ijk(psi_b, psi_d);
   for (int k = kmin; k <= kmax; k++) {
     const auto &ybdk_r = ybd_kr[k - kmin];
     auto ffy = NumCalc::integrate(psi_a.f, psi_c.f, ybdk_r, drdu, 1, 0, pinf);
     auto ggy = NumCalc::integrate(psi_a.g, psi_c.g, ybdk_r, drdu, 1, 0, pinf);
-    R[k] = (ffy + ggy) * du;
+    Rabcd[k] = (ffy + ggy) * du;
   }
-  return R;
+  return Rabcd;
 }
 
 //******************************************************************************
@@ -352,16 +356,16 @@ void Coulomb::calculate_y_ijk(const DiracSpinor &phi_a,
                               const DiracSpinor &phi_b, const int k,
                               std::vector<double> &vabk)
 // This is static
-// Calculalates v^k_ab screening function.
+// Calculalates y^k_ab screening function.
 // Note: should only call for a>=b, and for k's with non-zero angular coefs
 // (nothing bad will happen otherwise, but no point!)
-// Since v_ab = v_ba
+// Since y_ab = y_ba
 //
-// Stores in vabk (reference to whatever) - must already be sized corectly!
+// Stores in vabk (in/out parameter, reference to whatever)
 //
 // r_min := min(r,r')
 // rho(r') := fa(r')*fb(r') + ga(r')gb(r')
-// v^k_ab(r) = Int_0^inf [r_min^k/r_max^(k+1)]*rho(f') dr'
+// y^k_ab(r) = Int_0^inf [r_min^k/r_max^(k+1)]*rho(f') dr'
 //           = Int_0^r [r'^k/r^(k+1)]*rho(r') dr'
 //             + Int_r^inf [r^k/r'^(k+1)]*rho(r') dr'
 //          := A(r)/r^(k+1) + B(r)*r^k
@@ -369,10 +373,13 @@ void Coulomb::calculate_y_ijk(const DiracSpinor &phi_a,
 // B(r0)  = Int_0^inf [r^k/r'^(k+1)]*rho(r') dr'
 // A(r_n) = A(r_{n-1}) + (rho(r_{n-1})*r_{n-1}^k)*dr
 // B(r_n) = A(r_{n-1}) + (rho(r_{n-1})/r_{n-1}^(k+1))*dr
-// v^k_ab(rn) = A(rn)/rn^(k+1) + B(rn)*rn^k
+// y^k_ab(rn) = A(rn)/rn^(k+1) + B(rn)*rn^k
 {
   auto &grid = phi_a.p_rgrid; // just save typing
   auto du = grid->du;
+  auto ngp = grid->ngp;
+  vabk.resize(ngp); // for safety
+
   auto irmax = std::min(phi_a.pinf, phi_b.pinf);
 
   double Ax = 0, Bx = 0; // A, B defined in equations/comments above
@@ -383,7 +390,7 @@ void Coulomb::calculate_y_ijk(const DiracSpinor &phi_a,
 
   // For "direct" part, can't cut!
   if (phi_a == phi_b)
-    irmax = grid->ngp;
+    irmax = ngp;
 
   vabk[0] = Bx * du;
   for (std::size_t i = 1; i < irmax; i++) {
@@ -393,7 +400,7 @@ void Coulomb::calculate_y_ijk(const DiracSpinor &phi_a,
     Bx = Bx - Fdr / pow(grid->r[i - 1], k + 1);
     vabk[i] = du * (Ax / pow(grid->r[i], k + 1) + Bx * pow(grid->r[i], k));
   }
-  for (std::size_t i = irmax; i < grid->ngp; i++) {
+  for (std::size_t i = irmax; i < ngp; i++) {
     vabk[i] = 0; // this doesn't happen in psi_a = psi_b
   }
 }
