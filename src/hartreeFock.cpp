@@ -13,8 +13,7 @@
 #include <iostream>
 #include <tuple>
 //
-
-#include "CoulombIntegrals.hpp"
+#include "CoulombIntegrals.hpp" //for testing
 
 int main(int argc, char *argv[]) {
   ChronoTimer timer; // start the overall timer
@@ -263,10 +262,21 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  Coulomb cints({}, wf.valence_orbitals);
-  cints.calculate_core_core();
-  cints.calculate_core_valence();
-  cints.calculate_valence_valence();
+  // Coulomb cint(wf.core_orbitals, wf.valence_orbitals);
+  // // cint.calculate_core_core();
+  // cint.calculate_core_valence();
+  // // cint.calculate_valence_valence();
+  //
+  // for (const auto &psi_c : wf.core_orbitals) {
+  //   for (const auto &psi_v : wf.valence_orbitals) {
+  //     std::cout << psi_v.symbol() << "|" << psi_c.symbol() << ": ";
+  //     auto R = cint.calculate_R_abcd_k(psi_c, psi_v, psi_v, psi_c);
+  //     for (auto r : R)
+  //       printf("%9.4e  ", r);
+  //     std::cout << "\n";
+  //   }
+  //   std::cout << "\n";
+  // }
 
   return 0;
 }
