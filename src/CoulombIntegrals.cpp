@@ -103,7 +103,9 @@ void Coulomb::form_core_core()
 // Calls calculate_y_ijk, fills the core-core C int arrays
 // Note: symmety: y_ij = y_ji, therefore only calculates y_ij with i >= j
 {
-  for (std::size_t ia = 0; ia < c_orbs_ptr->size(); ia++) {
+  auto Ncore = c_orbs_ptr->size();
+#pragma omp parallel for
+  for (std::size_t ia = 0; ia < Ncore; ia++) {
     const auto &phi_a = (*c_orbs_ptr)[ia];
     auto tja = phi_a.twoj();
     auto kia = phi_a.k_index();
@@ -128,7 +130,9 @@ void Coulomb::form_valence_valence()
 // Note: symmety: y_ij = y_ji, therefore only calculates y_ij with i >= j
 {
   initialise_valence_valence(); // call this each time?
-  for (std::size_t iv = 0; iv < v_orbs_ptr->size(); iv++) {
+  auto Nval = v_orbs_ptr->size();
+#pragma omp parallel for
+  for (std::size_t iv = 0; iv < Nval; iv++) {
     const auto &phi_v = (*v_orbs_ptr)[iv];
     auto tjv = phi_v.twoj();
     auto kiv = phi_v.k_index();
@@ -153,7 +157,9 @@ void Coulomb::form_core_valence()
 // Note: no symmetry here! y_ij != y_ji [j and i same index, NOT same orbital!]
 {
   initialise_core_valence(); // call this each time?
-  for (std::size_t iv = 0; iv < v_orbs_ptr->size(); iv++) {
+  auto Nval = v_orbs_ptr->size();
+#pragma omp parallel for // two-level?
+  for (std::size_t iv = 0; iv < Nval; iv++) {
     const auto &phi_v = (*v_orbs_ptr)[iv];
     auto tjv = phi_v.twoj();
     auto kiv = phi_v.k_index();
