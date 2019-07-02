@@ -267,17 +267,7 @@ void HartreeFock::starting_approx_core(const std::string &in_core)
 // Starting approx for HF. Uses Green parametric
 // Later, can put other options if you want.
 {
-  // make sure correct size (should already)
-  p_wf->vdir.clear();
-  p_wf->vdir.reserve(p_rgrid->ngp);
-  int Z = p_wf->Znuc();
-  // Get default values for Green potential [should be fitted to HF core orbs]
-  double Gh, Gd; // Green potential parameters
-  Parametric::defaultGreenCore(Z, Gh, Gd);
-  // Fill the the potential, using Greens Parametric
-  for (auto r : p_rgrid->r) {
-    p_wf->vdir.emplace_back(Parametric::green(Z, r, Gh, Gd));
-  }
+  p_wf->vdir = Parametric::defaultGreenPotential(p_wf->Znuc(), p_rgrid->r);
   p_wf->solveInitialCore(in_core, 3);
 }
 

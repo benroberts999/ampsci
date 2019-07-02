@@ -19,10 +19,13 @@ ElectronOrbitals::ElectronOrbitals(int in_z, int in_a, int in_ngp, double rmin,
       m_alpha(PhysConst::alpha * var_alpha), m_Z(in_z),
       m_A((in_a < 0) ? AtomInfo::defaultA(m_Z) : in_a) {
   // Use Fermi nucleus by default, unless A=0 is given
-  if (m_A > 0)
+  if (m_A > 15) {
     formNuclearPotential(NucleusType::Fermi);
-  else
+  } else if (m_A > 0) {
+    formNuclearPotential(NucleusType::spherical);
+  } else {
     formNuclearPotential(NucleusType::zero);
+  }
 }
 
 //******************************************************************************
