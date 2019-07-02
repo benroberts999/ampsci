@@ -6,9 +6,8 @@
 #include <string>
 #include <vector>
 
-// XXX Add option to "extend" grid (good for Continuum)
-// ===> just give drdu (dr = drdu*du, r_i = r_i-1 + dr)
-// Need be careful w/ rmax. Technically dont need this! XXX
+// XXX Note: Should update this to fill r, drdu, drduor AS CONSTS using Lambda!
+// Fix the "extendedGrid to extend using a specific grid-type?"
 
 enum class GridType { loglinear, logarithmic, linear };
 
@@ -21,6 +20,11 @@ public:
   const std::size_t ngp; // Number of Grid Points
   const double du;       // Uniform grid step size
 
+public:
+  const GridType gridtype;
+  const double b;
+
+  // XXX Make these const!
   std::vector<double> r;      // Grid values r[i]
   std::vector<double> drdu;   // Jacobian (dr/du)[i]
   std::vector<double> drduor; // Convinient: (1/r)*(dr/du)[i]
@@ -29,7 +33,7 @@ public:
   Grid(double in_r0, double in_rmax, std::size_t in_ngp, GridType in_gridtype,
        double in_b = 0);
 
-  int getIndex(double x, bool require_nearest = false) const;
+  std::size_t getIndex(double x, bool require_nearest = false) const;
 
   std::string gridParameters() const;
 
@@ -41,51 +45,24 @@ public:
                                       double in_du, GridType in_gridtype,
                                       double in_b = 0);
 
+protected:
+  // secondary constructor: used for derivated class
+  Grid(const Grid &t_gr, const double new_rmax);
+
 private:
   void form_loglinear_grid();
   void form_logarithmic_grid();
   void form_linear_grid();
-
-private:
-  const GridType gridtype;
-  const double b;
 };
 
 //******************************************************************************
-inline double Grid::calc_du_from_ngp(double r0, double rmax, std::size_t ngp,
-                                     GridType gridtype, double b) {
-  if (ngp == 1)
-    return 0;
-  switch (gridtype) {
-  case GridType::loglinear:
-    if (b == 0)
-      std::cerr << "\nFAIL57 in Grid: cant have b=0 for log-linear grid!\n";
-    return (rmax - r0 + b * log(rmax / r0)) / (double(ngp - 1));
-  case GridType::logarithmic:
-    return log(rmax / r0) / double(ngp - 1);
-  case GridType::linear:
-    return (rmax - r0) / double(ngp - 1);
-  }
-  std::cerr << "\nFAIL 63 in Grid: wrong type?\n";
-  return 1.;
-}
-
-//******************************************************************************
-inline std::size_t Grid::calc_ngp_from_du(double r0, double rmax, double du,
-                                          GridType gridtype, double b) {
-  switch (gridtype) {
-  case GridType::loglinear:
-    if (b == 0)
-      std::cerr << "\nFAIL57 in Grid: cant have b=0 for log-linear grid!\n";
-    return std::size_t((rmax - r0 + b * log(rmax / r0)) / du) + 2;
-  case GridType::logarithmic:
-    return std::size_t(log(rmax / r0) / du) + 2;
-  case GridType::linear:
-    return std::size_t((rmax - r0) / du) + 2;
-  }
-  std::cerr << "\nFAIL 84 in Grid: wrong type?\n";
-  return 1;
-}
+class ExtendedGrid : public Grid {
+  // For now, can only extend using linear method. Could update later (but no
+  // real need)
+public:
+  ExtendedGrid(const Grid &t_gr, const double new_rmax)
+      : Grid(t_gr, new_rmax) {}
+};
 
 //******************************************************************************
 inline Grid::Grid(double in_r0, double in_rmax, std::size_t in_ngp,
@@ -115,24 +92,77 @@ inline Grid::Grid(double in_r0, double in_rmax, std::size_t in_ngp,
   }
 }
 
+//------------------------------------------------------------------------------
 //******************************************************************************
-inline int Grid::getIndex(double x, bool require_nearest) const
+// This initialiser is only used by the derived class "ExtendedGrid"
+// For now, grid is just extended linearly (or truncated)
+inline Grid::Grid(const Grid &t_gr, const double new_rmax)
+    : r0(t_gr.r0), // thing
+      rmax([&]() {
+        return (new_rmax >= t_gr.rmax) ? new_rmax
+                                       : t_gr.r[t_gr.getIndex(new_rmax)];
+      }()), // thing
+      ngp([&]() {
+        return (new_rmax >= t_gr.rmax)
+                   ? t_gr.ngp + std::size_t((new_rmax - t_gr.rmax) / t_gr.du)
+                   : t_gr.getIndex(new_rmax);
+      }()),                    // thing
+      du(t_gr.du),             // thing
+      gridtype(t_gr.gridtype), // thing
+      b(t_gr.b),               // thing
+      r([&]() {
+        if (new_rmax >= t_gr.rmax) {
+          return [&]() {
+            // extend radial vector:
+            auto tmp_r = t_gr.r;
+            auto r_i = t_gr.rmax;
+            for (auto i = t_gr.ngp; i < this->ngp; i++) {
+              r_i += du;
+              tmp_r.push_back(r_i);
+            }
+            return tmp_r;
+          }();
+        }
+        return std::vector<double>(t_gr.r.begin(), t_gr.r.begin() + this->ngp);
+      }()), // thing
+      drdu([&]() {
+        if (new_rmax > t_gr.rmax) {
+          auto temp_drdu = t_gr.drdu;
+          temp_drdu.resize(this->ngp, 1.0);
+          return temp_drdu;
+        }
+        return std::vector<double>(t_gr.drdu.begin(),
+                                   t_gr.drdu.begin() + this->ngp);
+      }()), // thing
+      drduor([&]() {
+        std::vector<double> temp_drduor;
+        for (std::size_t i = 0; i < this->ngp; i++) {
+          temp_drduor.push_back(this->drdu[i] / this->r[i]);
+        }
+        return temp_drduor;
+      }()) // thing
+{}
+
+//******************************************************************************
+inline std::size_t Grid::getIndex(double x, bool require_nearest) const
 // Returns index correspoding to given value
 // Note: finds NEXT LARGEST grid point (greater then or equal to.),
 // unluess require_nearest=true, when will give closest point.
 // For linear or exponential, faster to use formula.
 // But for log-linear, can't.
-// I don't think this works for "backwards" grids, maybe not negative grids
-// either
+// I don't think this works for "backwards" grids, maybe not negative
+// grids either
 {
 
   auto low = std::lower_bound(r.begin(), r.end(), x);
-  auto index = (int)(low - r.begin());
+  // auto index = (int)(low - r.begin());
+  auto index = std::size_t(std::distance(r.begin(), low));
 
   if (!require_nearest || index == 0)
     return index;
 
-  // Must resturn /nearest/ index (we have (in order): r[i-1], x, r[i])
+  // Must resturn /nearest/ index (we have (in order): r[i-1], x,
+  // r[i])
   if (fabs(x - r[index - 1]) < fabs(r[index] - x))
     return index - 1;
   else
@@ -158,8 +188,8 @@ inline std::string Grid::gridParameters() const {
 
 //******************************************************************************
 inline void Grid::form_loglinear_grid()
-// Roughly, grid is logarithmically spaced below r=b, and linear above.
-// Definition:
+// Roughly, grid is logarithmically spaced below r=b, and linear
+// above. Definition:
 //   dr/du = r/(b+r)
 //   => u_0 = r0 + b*ln(r0)
 //   du = (in_rmax-in_r0+b*log(in_rmax/in_r0))/(in_ngp-1)
@@ -225,4 +255,40 @@ inline void Grid::form_linear_grid() {
     drduor.push_back(1. / tmp_r);
   }
   drdu.resize(ngp, 1.);
+}
+
+//******************************************************************************
+inline double Grid::calc_du_from_ngp(double r0, double rmax, std::size_t ngp,
+                                     GridType gridtype, double b) {
+  if (ngp == 1)
+    return 0;
+  switch (gridtype) {
+  case GridType::loglinear:
+    if (b == 0)
+      std::cerr << "\nFAIL57 in Grid: cant have b=0 for log-linear grid!\n";
+    return (rmax - r0 + b * log(rmax / r0)) / (double(ngp - 1));
+  case GridType::logarithmic:
+    return log(rmax / r0) / double(ngp - 1);
+  case GridType::linear:
+    return (rmax - r0) / double(ngp - 1);
+  }
+  std::cerr << "\nFAIL 63 in Grid: wrong type?\n";
+  return 1.;
+}
+
+//******************************************************************************
+inline std::size_t Grid::calc_ngp_from_du(double r0, double rmax, double du,
+                                          GridType gridtype, double b) {
+  switch (gridtype) {
+  case GridType::loglinear:
+    if (b == 0)
+      std::cerr << "\nFAIL57 in Grid: cant have b=0 for log-linear grid!\n";
+    return std::size_t((rmax - r0 + b * log(rmax / r0)) / du) + 2;
+  case GridType::logarithmic:
+    return std::size_t(log(rmax / r0) / du) + 2;
+  case GridType::linear:
+    return std::size_t((rmax - r0) / du) + 2;
+  }
+  std::cerr << "\nFAIL 84 in Grid: wrong type?\n";
+  return 1;
 }
