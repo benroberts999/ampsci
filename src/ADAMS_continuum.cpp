@@ -1,5 +1,7 @@
 #include "ADAMS_continuum.hpp"
 #include "ADAMS_bound.hpp"
+#include "DiracSpinor.hpp"
+#include "Grid.hpp"
 #include <cmath>
 
 namespace ADAMS {
@@ -20,11 +22,13 @@ Also, need at least ~10 points per half-period. More points for higher energy!
 */
 
 //******************************************************************************
-int solveContinuum(std::vector<double> &f, std::vector<double> &g, double ec,
-                   const std::vector<double> &v, int ka,
-                   const std::vector<double> &rc,
-                   const std::vector<double> &drdt, double h, std::size_t NGPb,
-                   std::size_t NGPc, std::size_t i_asym, double alpha)
+// int solveContinuum(std::vector<double> &f, std::vector<double> &g, double ec,
+//                    const std::vector<double> &v, int ka,
+//                    const std::vector<double> &rc,
+//                    const std::vector<double> &drdt, double h, std::size_t
+//                    NGPb, std::size_t NGPc, std::size_t i_asym, double alpha)
+int solveContinuum(DiracSpinor &phi, const std::vector<double> &v,
+                   const Grid &ext_grid, std::size_t i_asym, double alpha)
 /*
 Solves Dirac equation for continuum state, for given energy, ec
 by integrating outwards from 0
@@ -35,28 +39,36 @@ NGPc is grid for continuum (only for solving). NGPc >> NGPb
 */
 {
 
+  auto NGPb = phi.p_rgrid->ngp;
+  auto NGPc = ext_grid.ngp;
+
   // Perform the "outwards integration"
-  std::vector<double> fc(NGPc), gc(NGPc);
-  outwardAM(fc, gc, ec, v, ka, rc, drdt, h, (int)NGPc - 1, alpha);
+  // std::vector<double> fc(ext_grid.ngp), gc(ext_grid.ngp);
+
+  DiracSpinor psic(phi.n, phi.k, ext_grid);
+  psic.en = phi.en;
+
+  outwardAM(psic.f, psic.g, psic.en, v, psic.k, ext_grid.r, ext_grid.drdu,
+            ext_grid.du, (int)NGPc - 1, alpha);
 
   // Find a better (lower) asymptotic region:
-  i_asym = findAsymptoticRegion(fc, rc, NGPb, NGPc, i_asym);
+  i_asym = findAsymptoticRegion(psic.f, ext_grid.r, NGPb, NGPc, i_asym);
 
   // Find amplitude of large-r (asymptotic region) sine-like wf
-  double amp = findSineAmplitude(fc, rc, NGPc, i_asym);
+  double amp = findSineAmplitude(psic.f, ext_grid.r, NGPc, i_asym);
 
   // Calculate normalisation coeficient, D, and re-scaling factor:
   // D = Sqrt[alpha/(pi*eps)] <-- Amplitude of large-r p(r)
   // eps = Sqrt[en/(en+2mc^2)]
   double al2 = pow(alpha, 2);
-  double ceps = sqrt(ec / (ec * al2 + 2.)); // c*eps = eps/alpha
+  double ceps = sqrt(psic.en / (psic.en * al2 + 2.)); // c*eps = eps/alpha
   double D = 1. / sqrt(M_PI * ceps);
   double sf = D / amp; // re-scale factor
 
   // Normalise the wfs, and transfer back to shorter arrays:
   for (std::size_t i = 0; i < NGPb; i++) {
-    f[i] = sf * fc[i];
-    g[i] = sf * gc[i]; // xxx check?
+    phi.f[i] = sf * psic.f[i];
+    phi.g[i] = sf * psic.g[i];
   }
 
   return 0;
