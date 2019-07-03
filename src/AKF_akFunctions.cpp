@@ -15,10 +15,10 @@ namespace AKF {
 
 //******************************************************************************
 double CLkk(int L, int ka, int kb)
-/*
-Angular coeficient (nb: is already squared)
-C_{k}^{k',L} = [j][j'][L] * (j,j',L, -1/,1/2,0)^2 * pi(l+l'+L)
-*/
+// /*
+// Angular coeficient (nb: is already squared)
+// C_{k}^{k',L} = [j][j'][L] * (j,j',L, -1/,1/2,0)^2 * pi(l+l'+L)
+// */
 {
   int la = AtomInfo::l_k(ka);
   int lb = AtomInfo::l_k(kb);
@@ -43,11 +43,11 @@ void writeToTextFile(std::string fname,
                      const std::vector<std::vector<std::vector<float>>> &AK,
                      const std::vector<std::string> &nklst, double qmin,
                      double qmax, double demin, double demax)
-/*
-Writes the K factor to a text-file, in GNU-plot readable format
-XXX NOTE: Re-creates grids! Could use Grid class!
-XXX This mean we MUST use exponential Grid! Fix this! XXX
-*/
+// /*
+// Writes the K factor to a text-file, in GNU-plot readable format
+// XXX NOTE: Re-creates grids! Could use Grid class!
+// XXX This mean we MUST use exponential Grid! Fix this! XXX
+// */
 {
   int desteps = (int)AK.size();       // dE
   int num_states = (int)AK[0].size(); // nk
@@ -92,13 +92,13 @@ int akReadWrite(std::string fname, bool write,
                 std::vector<std::vector<std::vector<float>>> &AK,
                 std::vector<std::string> &nklst, double &qmin, double &qmax,
                 double &dEmin, double &dEmax)
-/*
-Writes K function (+ all required size etc.) values to a binary file.
-The binary file is read by other programs (e.g., dmeXSection)
-Uses FileIO_fileReadWrite
-XXX NOTE: Re-creates grids! Could use Grid class!
-XXX This mean we MUST use exponential Grid! Fix this! XXX
-*/
+// /*
+// Writes K function (+ all required size etc.) values to a binary file.
+// The binary file is read by other programs (e.g., dmeXSection)
+// Uses FileIO_fileReadWrite
+// XXX NOTE: Re-creates grids! Could use Grid class!
+// XXX This mean we MUST use exponential Grid! Fix this! XXX
+// */
 {
   FileIO::RoW row = write ? FileIO::write : FileIO::read;
 
@@ -148,12 +148,10 @@ int calculateK_nk(const ElectronOrbitals &wf, std::size_t is, int max_L,
                   double dE,
                   std::vector<std::vector<std::vector<double>>> &jLqr_f,
                   std::vector<float> &AK_nk_q, double)
-/*
-Calculates the atomic factor for a given core state (is) and energy.
-Note: dE = I + ec is depositied energy, not cntm energy
-Zeff is '-1' by default. If Zeff > 0, will solve w/ Zeff model
-Zeff no longer works at main() level.
-*/
+// Calculates the atomic factor for a given core state (is) and energy.
+// Note: dE = I + ec is depositied energy, not cntm energy
+// Zeff is '-1' by default. If Zeff > 0, will solve w/ Zeff model
+// Zeff no longer works at main() level.
 {
   ContinuumOrbitals cntm(wf); // create cntm object [survives locally only]
   auto &psi = wf.core_orbitals[is];
@@ -172,10 +170,6 @@ Zeff no longer works at main() level.
     lc_min = 0;
   if (ec > 0) {
     cntm.solveLocalContinuum(ec, lc_min, lc_max);
-    // if (Zeff > 0)
-    //   cntm.solveZeffContinuum(ec, Zeff, lc_min, lc_max); // Zeff version
-    // else
-    //   cntm.solveLocalContinuum(ec, lc_min, lc_max);
   }
 
   double x_ocf = psi.occ_frac; // occupancy fraction. Usually 1
@@ -183,22 +177,20 @@ Zeff no longer works at main() level.
   // Generate AK for each L, lc, and q
   // L and lc are summed, not stored indevidually
   for (int L = 0; L <= max_L; L++) {
-    for (auto ic = 0ul; ic < cntm.kappa.size(); ic++) {
-      int kc = cntm.kappa[ic];
+    for (const auto &phic : cntm.orbitals) {
+      int kc = phic.k;
       double dC_Lkk = CLkk(L, k, kc);
       if (dC_Lkk == 0)
         continue;
       //#pragma omp parallel for
       for (int iq = 0; iq < qsteps; iq++) {
         double a = 0.;
-        if (cntm.f.size() > 0) {
-          auto maxj = psi.pinf; // don't bother going further
-          double af = NumCalc::integrate(psi.f, cntm.f[ic], jLqr_f[L][iq],
-                                         wf.rgrid.drdu, 1., 0, maxj);
-          double ag = NumCalc::integrate(psi.g, cntm.g[ic], jLqr_f[L][iq],
-                                         wf.rgrid.drdu, 1., 0, maxj);
-          a = af + ag;
-        }
+        auto maxj = psi.pinf; // don't bother going further
+        double af = NumCalc::integrate(psi.f, phic.f, jLqr_f[L][iq],
+                                       wf.rgrid.drdu, 1., 0, maxj);
+        double ag = NumCalc::integrate(psi.g, phic.g, jLqr_f[L][iq],
+                                       wf.rgrid.drdu, 1., 0, maxj);
+        a = af + ag;
         AK_nk_q[iq] += (float)(dC_Lkk * pow(a * wf.rgrid.du, 2) * x_ocf);
       } // q
     }   // END loop over cntm states (ic)
@@ -210,13 +202,11 @@ Zeff no longer works at main() level.
 int calculateKpw_nk(const ElectronOrbitals &wf, std::size_t nk, double dE,
                     std::vector<std::vector<double>> &jl_qr,
                     std::vector<float> &tmpK_q)
-/*
-For plane-wave final state.
-Only has f-part....Can restore g-part, but need to be sure of plane-wave!
-Chi(q) - Int[ f_nk*j_l(qr)*r , {r,0,inf}]
-Should be called once per initial state
-
-*/
+// /*
+// For plane-wave final state.
+// Only has f-part....Can restore g-part, but need to be sure of plane-wave!
+// Chi(q) - Int[ f_nk*j_l(qr)*r , {r,0,inf}]
+// Should be called once per initial state
 {
 
   auto &psi = wf.core_orbitals[nk];
@@ -246,10 +236,10 @@ Should be called once per initial state
 void sphericalBesselTable(std::vector<std::vector<std::vector<double>>> &jLqr_f,
                           int max_L, const std::vector<double> &q_array,
                           const std::vector<double> &r)
-/*
-Creates a look-up table w/ spherical Bessel functions. For speed.
-Uses SBF_sphericalBessel
-*/
+// /*
+// Creates a look-up table w/ spherical Bessel functions. For speed.
+// Uses SBF_sphericalBessel
+// */
 {
   std::cout << std::endl;
   int ngp = (int)r.size();

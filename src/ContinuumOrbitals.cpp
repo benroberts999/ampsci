@@ -17,13 +17,7 @@ ContinuumOrbitals::ContinuumOrbitals(const ElectronOrbitals &wf, int izion)
 //  states!
 // If none given, will assume izion should be 1! Not 100% always!
 {
-  // Grid:
   auto NGPb = wf.rgrid.ngp;
-  // h = wf.rgrid.du;
-  // r.clear();
-  // r = wf.rgrid.r;
-  // drdt.clear();
-  // drdt = wf.rgrid.drdu;
 
   // Check Zion. Will normally be 0 for neutral atom. Make -1
   double tmp_Zion =
@@ -115,21 +109,11 @@ int ContinuumOrbitals::solveLocalContinuum(double ec, int min_l, int max_l)
     phi.en = ec;
     ADAMS::solveContinuum(phi, vc, cgrid, i_asym, alpha);
 
-    f.push_back(phi.f);
-    g.push_back(phi.g);
-    en.push_back(phi.en);
-    kappa.push_back(phi.k);
     orbitals.push_back(phi);
   }
 
-  return 0; // XXX code?
+  return 0;
 }
 
 //******************************************************************************
-void ContinuumOrbitals::clear() {
-  orbitals.clear();
-  f.clear();
-  g.clear();
-  en.clear();
-  kappa.clear();
-}
+void ContinuumOrbitals::clear() { orbitals.clear(); }
