@@ -9,9 +9,7 @@ Coulomb::Coulomb(const std::vector<DiracSpinor> &in_core,
     : c_orbs_ptr(&in_core), v_orbs_ptr(&in_valence),
       rgrid_ptr((in_core.size() > 0) ? in_core.front().p_rgrid
                                      : in_valence.front().p_rgrid) {
-  initialise_core_core(); // must be only time this is called
-  // Core orbitals must not change after this has been called!
-  // [orbital functions themselves can change, but not the vector]
+  initialise_core_core();
   // Valence orbitals may change (new orbitals added) - but pointer to val.
   // orbitals remains const
 }
@@ -90,12 +88,13 @@ void Coulomb::initialise_valence_valence()
 }
 
 //******************************************************************************
-std::size_t Coulomb::find_core_index(const DiracSpinor &phi) const {
-  // This finds the array index of a particular orbital
-  // Note: if orbital is not in the list (e.g., if called with a valence orbital
-  // instead of a core orbital), will return [size_of_orbitals], which is an
-  // invalid index (can cause undefined behaviour!) This is very slow..is there
-  // another way?
+std::size_t Coulomb::find_core_index(const DiracSpinor &phi) const
+// This finds the array index of a particular orbital
+// Note: if orbital is not in the list (e.g., if called with a valence orbital
+// instead of a core orbital), will return [size_of_orbitals], which is an
+// invalid index (can cause undefined behaviour!) This is very slow..is there
+// another way?
+{
   auto ia = std::find(c_orbs_ptr->begin(), c_orbs_ptr->end(), phi);
   return (std::size_t)std::distance(c_orbs_ptr->begin(), ia);
 }
@@ -103,6 +102,19 @@ std::size_t Coulomb::find_core_index(const DiracSpinor &phi) const {
 std::size_t Coulomb::find_valence_index(const DiracSpinor &phi) const {
   auto ia = std::find(v_orbs_ptr->begin(), v_orbs_ptr->end(), phi);
   return (std::size_t)std::distance(v_orbs_ptr->begin(), ia);
+}
+//------------------------------------------------------------------------------
+std::size_t Coulomb::find_either_index(const DiracSpinor &phi,
+                                       bool &valenceQ) const {
+  auto ia = std::find(c_orbs_ptr->begin(), c_orbs_ptr->end(), phi);
+  auto i = (std::size_t)std::distance(c_orbs_ptr->begin(), ia);
+  valenceQ = false;
+  if (i == c_orbs_ptr->size()) {
+    valenceQ = true;
+    ia = std::find(v_orbs_ptr->begin(), v_orbs_ptr->end(), phi);
+    i = (std::size_t)std::distance(v_orbs_ptr->begin(), ia);
+  }
+  return i;
 }
 
 //******************************************************************************
@@ -132,6 +144,35 @@ void Coulomb::form_core_core()
   }
 }
 //******************************************************************************
+void Coulomb::form_core_core(const DiracSpinor &phi_a)
+// Calls calculate_y_ijk, only for terms involving psi_a!
+// Note: symmety: y_ij = y_ji, therefore only calculates y_ij with i >= j
+// NOTE: ONLY call this if we only need to update one!
+// Inneficient to call it for each orbital, since only need for a<=b !
+{
+  auto Ncore = c_orbs_ptr->size();
+  auto ia = find_core_index(phi_a); // slow?
+  auto tja = phi_a.twoj();
+  auto kia = phi_a.k_index();
+
+#pragma omp parallel for
+  for (std::size_t ib = 0; ib < Ncore; ib++) {
+    const auto &phi_b = (*c_orbs_ptr)[ib];
+    auto tjb = phi_b.twoj();
+    auto kib = phi_b.k_index();
+    auto kmin = abs(tja - tjb) / 2;
+    auto num_k = (tja > tjb) ? (tjb + 1) : (tja + 1);
+    const auto &Lk = get_angular_L_kiakib_k(kia, kib);
+    for (int ik = 0; ik < num_k; ik++) {
+      if (Lk[ik] == 0)
+        continue;
+      auto &yab = ia > ib ? m_y_abkr[ia][ib][ik] : m_y_abkr[ib][ia][ik];
+      calculate_y_ijk(phi_a, phi_b, kmin + ik, yab);
+    }
+  }
+}
+
+//******************************************************************************
 void Coulomb::form_valence_valence()
 // Calls calculate_y_ijk, fills the valence-valence C int arrays
 // Note: symmety: y_ij = y_ji, therefore only calculates y_ij with i >= j
@@ -158,6 +199,39 @@ void Coulomb::form_valence_valence()
     }
   }
 }
+//******************************************************************************
+void Coulomb::form_core_valence(const DiracSpinor &phi_n)
+// Calls calculate_y_ijk, only for terms involving phi_n!
+// If phi_n is valence, calculates phi_n-core integrals
+// If phi_n is core, calculates valence-phi_n integrals
+{
+  initialise_core_valence();
+
+  bool n_valenceQ{};
+  auto in = find_either_index(phi_n, n_valenceQ);
+  auto tjn = phi_n.twoj();
+  auto kin = phi_n.k_index();
+
+  //"other" orbital set (opposite to phi_n):
+  const auto &orbs = n_valenceQ ? *c_orbs_ptr : *v_orbs_ptr;
+
+#pragma omp parallel for
+  for (std::size_t im = 0; im < orbs.size(); im++) {
+    const auto &phi_m = orbs[im];
+    auto tjm = phi_m.twoj();
+    auto kim = phi_m.k_index();
+    auto kmin = abs(tjm - tjn) / 2;
+    auto num_k = (tjm > tjn) ? (tjn + 1) : (tjm + 1);
+    const auto &Lk = get_angular_L_kiakib_k(kim, kin);
+    for (int ik = 0; ik < num_k; ik++) {
+      if (Lk[ik] == 0)
+        continue;
+      auto &yvc = n_valenceQ ? m_y_vckr[in][im][ik] : m_y_vckr[im][in][ik];
+      calculate_y_ijk(phi_m, phi_n, kmin + ik, yvc);
+    }
+  }
+}
+
 //******************************************************************************
 void Coulomb::form_core_valence()
 // Calls calculate_y_ijk, fills the core-valence C int arrays
@@ -205,18 +279,10 @@ Coulomb::get_y_vck(std::size_t v, std::size_t c) const {
 const std::vector<std::vector<double>> &
 Coulomb::get_y_ijk(const DiracSpinor &phi_i, const DiracSpinor &phi_j) const {
 
-  auto i = find_core_index(phi_i);
-  bool ival = false;
-  if (i == c_orbs_ptr->size()) {
-    i = find_valence_index(phi_i);
-    ival = true;
-  }
-  auto j = find_core_index(phi_j);
-  bool jval = false;
-  if (j == c_orbs_ptr->size()) {
-    j = find_valence_index(phi_j);
-    jval = true;
-  }
+  bool ival{}, jval{};
+  auto i = find_either_index(phi_i, ival);
+  auto j = find_either_index(phi_j, jval);
+
   if (!ival && !jval)
     return (i > j) ? m_y_abkr[i][j] : m_y_abkr[i][j];
   if (ival && !jval)

@@ -34,8 +34,10 @@ public: // constructor + static functions
 
 public: // functions
   void form_core_core();
+  void form_core_core(const DiracSpinor &psi_a);
   void form_valence_valence();
   void form_core_valence();
+  void form_core_valence(const DiracSpinor &psi_n);
 
   // MUST calculate values first!
   std::vector<double> calculate_R_abcd_k(const DiracSpinor &psi_a,
@@ -63,6 +65,7 @@ private: // functions
   // write another that returns pair <int, bool> = <index, val?> ?
   std::size_t find_valence_index(const DiracSpinor &phi) const;
   std::size_t find_core_index(const DiracSpinor &phi) const;
+  std::size_t find_either_index(const DiracSpinor &phi, bool &valenceQ) const;
 
   const std::vector<std::vector<double>> &get_y_abk(std::size_t a,
                                                     std::size_t b) const;
