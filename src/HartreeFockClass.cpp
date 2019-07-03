@@ -24,14 +24,22 @@ Solves all core and valence states.
 //******************************************************************************
 HartreeFock::HartreeFock(ElectronOrbitals &wf, const std::string &in_core,
                          double eps_HF, bool in_ExcludeExchange)
-    : p_wf(&wf), p_rgrid(&wf.rgrid), m_excludeExchange(in_ExcludeExchange) {
+    : p_wf(&wf), p_rgrid(&wf.rgrid),
+      m_cint(Coulomb(wf.rgrid, wf.core_orbitals, wf.valence_orbitals)),
+      m_excludeExchange(in_ExcludeExchange) {
 
   m_eps_HF = eps_HF;
-  if (eps_HF > 1)
+  if (fabs(eps_HF) > 1)
     m_eps_HF = pow(10, -1 * eps_HF); // can give as log..
 
-  starting_approx_core(in_core);
+  // If core doesn't exist, do initial core.
+  // If core already exists, don't re-solve!
+  // Note: I don't check if core's match..
+  if (wf.core_orbitals.size() == 0)
+    starting_approx_core(in_core);
   m_num_core_states = p_wf->core_orbitals.size();
+
+  m_cint.initialise_core_core();
 
   // store l, 2j, and "kappa_index" in arrays for faster/easier access
   twoj_list.reserve(m_num_core_states);
@@ -65,23 +73,28 @@ void HartreeFock::hartree_fock_core() {
   // Start the HF itterative procedure:
   int hits = 1;
   double t_eps;
-  double eta = eta1;
+  double eta = 1.0;
   for (; hits < MAX_HART_ITS; hits++) {
     DEBUG(std::cerr << "HF core it: " << hits << "\n";)
-    if (hits == 4)
+    if (hits == 2)
+      eta = eta1;
+    else if (hits == 4)
       eta = eta2;
-    if (hits == 16)
+    else if (hits == 16)
       eta = 0.5 * (eta1 + eta2);
-    if (hits == 32)
+    else if (hits == 32)
       eta = eta1;
 
-    // Form new v_dir and v_ex:
+    // Store old vdir/vex
     vdir_old = p_wf->vdir;
     vex_old = vex_core;
 
+    // Form new v_dir and v_ex:
     form_vabk_core();
     form_vdir(p_wf->vdir, false);
     form_approx_vex_core(vex_core);
+    if (hits == 1)
+      vex_old = vex_core; // We didn't have old vex before
 
     for (std::size_t j = 0; j < p_rgrid->ngp; j++) {
       p_wf->vdir[j] = eta * p_wf->vdir[j] + (1. - eta) * vdir_old[j];

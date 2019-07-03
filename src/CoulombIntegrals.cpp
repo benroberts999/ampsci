@@ -15,14 +15,21 @@ Coulomb::Coulomb(const std::vector<DiracSpinor> &in_core,
   // Valence orbitals may change (new orbitals added) - but pointer to val.
   // orbitals remains const
 }
+//******************************************************************************
+Coulomb::Coulomb(const Grid &in_grid, const std::vector<DiracSpinor> &in_core,
+                 const std::vector<DiracSpinor> &in_valence = {})
+    : c_orbs_ptr(&in_core), v_orbs_ptr(&in_valence), rgrid_ptr(&in_grid)
+// This should probably be the default one...
+{
+  initialise_core_core();
+}
 
 //******************************************************************************
 void Coulomb::initialise_core_core()
 // Initialises memory (sizes arays) used to store core-core y^k_ab C ints
-// Must only be called once! (from constructor)
 {
-  // XXX should only be able to call this once?
   auto ngp = rgrid_ptr->ngp;
+  m_y_abkr.clear();
   m_y_abkr.reserve(c_orbs_ptr->size());
   for (std::size_t ia = 0; ia < c_orbs_ptr->size(); ia++) {
     auto tja = (*c_orbs_ptr)[ia].twoj();

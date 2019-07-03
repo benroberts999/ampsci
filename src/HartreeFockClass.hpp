@@ -1,6 +1,8 @@
 #pragma once
+#include "CoulombIntegrals.hpp"
 #include <string>
 #include <vector>
+// class Coulomb;
 class ElectronOrbitals;
 class DiracSpinor;
 class Grid;
@@ -24,6 +26,7 @@ Requires re-writing the valence part (a little)
 */
 
 class HartreeFock {
+  friend class Coulomb;
 
 public:
   HartreeFock(ElectronOrbitals &wf, const std::string &in_core,
@@ -40,6 +43,8 @@ public:
 private:
   ElectronOrbitals *const p_wf;
   const Grid *const p_rgrid;
+
+  Coulomb m_cint;
 
   double m_eps_HF = 1.e-8;
 

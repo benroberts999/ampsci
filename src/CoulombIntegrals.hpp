@@ -14,8 +14,8 @@ y^k_ij(r)   := Int_0^inf [r_min^k/r_max^(k+1)]*rho(f') dr'
 rho(r')     := fi(r')*fj(r') + gi(r')gj(r')
 Lambda^k_ij := 3js((ji,jj,k),(-1/2,1/2,0))^2 * parity(li+lj+k)
 
-m_C_kakbk "C" (just parity + [j] + 3js, no sign!)
-so, C = | <k||C^k||k'> |  (abs value)
+m_C_kakbk "C" (just parity + [j] + 3js, no sign term!)
+so, C =
 C^k_ij = Sqrt([ji][jj]) * 3js((ji,jj,k),(-1/2,1/2,0)) * parity(li+lj+k)
 
 */
@@ -24,6 +24,8 @@ class Coulomb {
 
 public: // constructor + static functions
   Coulomb(const std::vector<DiracSpinor> &in_core,
+          const std::vector<DiracSpinor> &in_valence);
+  Coulomb(const Grid &in_grid, const std::vector<DiracSpinor> &in_core,
           const std::vector<DiracSpinor> &in_valence);
 
   static void calculate_y_ijk(const DiracSpinor &phi_a,
@@ -50,8 +52,10 @@ public: // functions
   const std::vector<double> &get_y_ijk(const DiracSpinor &phi_i,
                                        const DiracSpinor &phi_j, int k) const;
 
-private: // functions
+public: // functions
   void initialise_core_core();
+
+private: // functions
   void initialise_core_valence();
   void initialise_valence_valence();
   void calculate_angular(int ki);
