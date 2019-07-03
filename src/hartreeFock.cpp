@@ -168,9 +168,11 @@ int main(int argc, char *argv[]) {
       for (auto &psi : tmp_orbs) {
         auto k = psi.k;
         DiracOperator z3(hf.get_vex(psi));
+        // auto vexPsi = (z3 * psi);
+        auto vexPsi = hf.vex_psia(psi);
         DiracOperator x_b(c, DiracMatrix(0, 1 - k, 1 + k, 0), 0, true);
         auto rhs = (w * psi) + (x_a * (x_b * psi)) + (y * psi) + (z1 * psi) +
-                   (z2 * psi) + (z3 * psi);
+                   (z2 * psi) + vexPsi;
         double R = psi * rhs;
         double ens = psi.en;
         double fracdiff = (R - ens) / ens;
