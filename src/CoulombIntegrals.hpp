@@ -46,13 +46,14 @@ public: // functions
                                          const DiracSpinor &psi_d) const;
 
   // getters
-  double get_angular_C_kiakibk(const DiracSpinor &phi_a,
-                               const DiracSpinor &phi_b, int k) const;
-  double get_angular_L_kiakibk(const DiracSpinor &phi_a,
-                               const DiracSpinor &phi_b, int k) const;
+
+  const std::vector<double> &get_angular_C_kiakib_k(int kia, int kib) const;
+  const std::vector<double> &get_angular_L_kiakib_k(int kia, int kib) const;
 
   const std::vector<double> &get_y_ijk(const DiracSpinor &phi_i,
                                        const DiracSpinor &phi_j, int k) const;
+  const std::vector<std::vector<double>> &
+  get_y_ijk(const DiracSpinor &phi_i, const DiracSpinor &phi_j) const;
 
 public: // functions
   void initialise_core_core();
@@ -73,12 +74,6 @@ private: // functions
                                                     std::size_t b) const;
   const std::vector<std::vector<double>> &get_y_vwk(std::size_t a,
                                                     std::size_t b) const;
-
-  const std::vector<std::vector<double>> &
-  get_y_ijk(const DiracSpinor &phi_i, const DiracSpinor &phi_j) const;
-
-  const std::vector<double> &get_angular_C_kiakib_k(int kia, int kib) const;
-  const std::vector<double> &get_angular_L_kiakib_k(int kia, int kib) const;
 
 private: // data
   const std::vector<DiracSpinor> *const c_orbs_ptr;

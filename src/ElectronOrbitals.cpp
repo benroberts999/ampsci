@@ -207,7 +207,10 @@ bool ElectronOrbitals::isInCore(int n, int k) const
 }
 
 //******************************************************************************
-std::size_t ElectronOrbitals::getStateIndex(int n, int k) const {
+std::size_t ElectronOrbitals::getStateIndex(int n, int k,
+                                            bool &is_valence) const {
+
+  is_valence = false;
   for (auto &tmp_orbitals : {core_orbitals, valence_orbitals}) {
     // How does this work?
     // Is is making a copy of core_orbitals + valence_orbitals ?
@@ -217,6 +220,7 @@ std::size_t ElectronOrbitals::getStateIndex(int n, int k) const {
       if (n == phi.n && k == phi.k)
         return i;
     }
+    is_valence = true;
   }
   std::cerr << "\nFAIL 290 in EO: Couldn't find state n,k=" << n << "," << k
             << "\n";

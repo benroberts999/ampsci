@@ -284,12 +284,12 @@ Coulomb::get_y_ijk(const DiracSpinor &phi_i, const DiracSpinor &phi_j) const {
   auto j = find_either_index(phi_j, jval);
 
   if (!ival && !jval)
-    return (i > j) ? m_y_abkr[i][j] : m_y_abkr[i][j];
+    return (i > j) ? m_y_abkr[i][j] : m_y_abkr[j][i];
   if (ival && !jval)
     return m_y_vckr[i][j];
   if (!ival && jval)
     return m_y_vckr[j][i];
-  return (i > j) ? m_y_vckr[i][j] : m_y_vckr[i][j];
+  return (i > j) ? m_y_vckr[i][j] : m_y_vckr[j][i];
 }
 //------------------------------------------------------------------------------
 const std::vector<double> &Coulomb::get_y_ijk(const DiracSpinor &phi_i,
@@ -356,20 +356,21 @@ void Coulomb::calculate_angular(int ki)
   }
 }
 
-//******************************************************************************
-double Coulomb::get_angular_C_kiakibk(const DiracSpinor &phi_a,
-                                      const DiracSpinor &phi_b, int k) const {
-  auto kia = phi_a.k_index();
-  auto kib = phi_b.k_index();
-  int kmin =
-      abs(AtomInfo::twojFromIndex(kia) - AtomInfo::twojFromIndex(kib)) / 2;
-  int kmax =
-      abs(AtomInfo::twojFromIndex(kia) + AtomInfo::twojFromIndex(kib)) / 2;
-  if (k < kmin || k > kmax)
-    return 0;
-  return kia > kib ? m_C_kakbk[kia][kib][k - kmin]
-                   : m_C_kakbk[kib][kia][k - kmin];
-}
+// //******************************************************************************
+// double Coulomb::get_angular_C_kiakibk(const DiracSpinor &phi_a,
+//                                       const DiracSpinor &phi_b, int k) const
+//                                       {
+//   auto kia = phi_a.k_index();
+//   auto kib = phi_b.k_index();
+//   int kmin =
+//       abs(AtomInfo::twojFromIndex(kia) - AtomInfo::twojFromIndex(kib)) / 2;
+//   int kmax =
+//       abs(AtomInfo::twojFromIndex(kia) + AtomInfo::twojFromIndex(kib)) / 2;
+//   if (k < kmin || k > kmax)
+//     return 0;
+//   return kia > kib ? m_C_kakbk[kia][kib][k - kmin]
+//                    : m_C_kakbk[kib][kia][k - kmin];
+// }
 //******************************************************************************
 const std::vector<double> &Coulomb::get_angular_C_kiakib_k(int kia,
                                                            int kib) const {
@@ -377,20 +378,21 @@ const std::vector<double> &Coulomb::get_angular_C_kiakib_k(int kia,
   return kia > kib ? m_C_kakbk[kia][kib] : m_C_kakbk[kib][kia];
 }
 
-//******************************************************************************
-double Coulomb::get_angular_L_kiakibk(const DiracSpinor &phi_a,
-                                      const DiracSpinor &phi_b, int k) const {
-  auto kia = phi_a.k_index();
-  auto kib = phi_b.k_index();
-  int kmin =
-      abs(AtomInfo::twojFromIndex(kia) - AtomInfo::twojFromIndex(kib)) / 2;
-  int kmax =
-      abs(AtomInfo::twojFromIndex(kia) + AtomInfo::twojFromIndex(kib)) / 2;
-  if (k < kmin || k > kmax)
-    return 0;
-  return kia > kib ? m_L_kakbk[kia][kib][k - kmin]
-                   : m_L_kakbk[kib][kia][k - kmin];
-}
+// //******************************************************************************
+// double Coulomb::get_angular_L_kiakibk(const DiracSpinor &phi_a,
+//                                       const DiracSpinor &phi_b, int k) const
+//                                       {
+//   auto kia = phi_a.k_index();
+//   auto kib = phi_b.k_index();
+//   int kmin =
+//       abs(AtomInfo::twojFromIndex(kia) - AtomInfo::twojFromIndex(kib)) / 2;
+//   int kmax =
+//       abs(AtomInfo::twojFromIndex(kia) + AtomInfo::twojFromIndex(kib)) / 2;
+//   if (k < kmin || k > kmax)
+//     return 0;
+//   return kia > kib ? m_L_kakbk[kia][kib][k - kmin]
+//                    : m_L_kakbk[kib][kia][k - kmin];
+// }
 //******************************************************************************
 const std::vector<double> &Coulomb::get_angular_L_kiakib_k(int kia,
                                                            int kib) const {
