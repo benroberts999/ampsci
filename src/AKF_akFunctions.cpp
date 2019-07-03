@@ -1,7 +1,7 @@
 #include "AKF_akFunctions.hpp"
 #include "AtomInfo.hpp"
 #include "ContinuumOrbitals.hpp"
-#include "ElectronOrbitals.hpp"
+#include "Wavefunction.hpp"
 #include "FileIO_fileReadWrite.hpp"
 #include "NumCalc_quadIntegrate.hpp"
 #include "PhysConst_constants.hpp"
@@ -144,7 +144,7 @@ int akReadWrite(std::string fname, bool write,
 }
 
 //******************************************************************************
-int calculateK_nk(const ElectronOrbitals &wf, std::size_t is, int max_L,
+int calculateK_nk(const Wavefunction &wf, std::size_t is, int max_L,
                   double dE,
                   std::vector<std::vector<std::vector<double>>> &jLqr_f,
                   std::vector<float> &AK_nk_q, double)
@@ -199,7 +199,7 @@ int calculateK_nk(const ElectronOrbitals &wf, std::size_t is, int max_L,
 }
 
 //******************************************************************************
-int calculateKpw_nk(const ElectronOrbitals &wf, std::size_t nk, double dE,
+int calculateKpw_nk(const Wavefunction &wf, std::size_t nk, double dE,
                     std::vector<std::vector<double>> &jl_qr,
                     std::vector<float> &tmpK_q)
 // /*

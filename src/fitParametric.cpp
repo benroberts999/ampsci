@@ -1,6 +1,6 @@
 #include "AtomInfo.hpp"
 #include "ChronoTimer.hpp"
-#include "ElectronOrbitals.hpp"
+#include "Wavefunction.hpp"
 #include "FileIO_fileReadWrite.hpp"
 #include "HartreeFockClass.hpp"
 #include "NumCalc_quadIntegrate.hpp"
@@ -77,7 +77,7 @@ int main(int argc, char *argv[]) {
   std::cout << "*********************************************************\n";
 
   if (do_HF) {
-    ElectronOrbitals hfwf(Z, A, ngp, r0, rmax);
+    Wavefunction hfwf(Z, A, ngp, r0, rmax);
     HartreeFock hf(hfwf, str_core, 1.e-9);
     for (auto &phi : hfwf.core_orbitals) {
       // // don't fit for both j=l+/-1/2, just one!
@@ -98,7 +98,7 @@ int main(int argc, char *argv[]) {
       printf("Tietz: \n  t=%7.5f  g=%7.5f\n\n", H, d);
 
     // Now, solve using the above-found best-fit parameters:
-    ElectronOrbitals wf(Z, A, ngp, r0, rmax);
+    Wavefunction wf(Z, A, ngp, r0, rmax);
     if (green)
       for (auto r : wf.rgrid.r)
         wf.vdir.push_back(Parametric::green(Z, r, H, d));
@@ -137,7 +137,7 @@ int main(int argc, char *argv[]) {
       printf("Tietz: \n  t=%7.5f  g=%7.5f\n\n", H, d);
 
     // Now, solve using the above-found best-fit parameters:
-    ElectronOrbitals wf(Z, A, ngp, r0, rmax);
+    Wavefunction wf(Z, A, ngp, r0, rmax);
     if (green)
       for (auto r : wf.rgrid.r)
         wf.vdir.push_back(Parametric::green(Z, r, H, d));
@@ -210,7 +210,7 @@ std::tuple<double, double> performFit(const std::vector<EOnken> &states, int Z,
       double H = Hmin + n * dH;
       for (int m = 0; m < n_array; m++) {
         double d = dmin + m * dd;
-        ElectronOrbitals wf(Z, A, ngp, r0, rmax);
+        Wavefunction wf(Z, A, ngp, r0, rmax);
         if (green)
           for (auto r : wf.rgrid.r)
             wf.vdir.push_back(Parametric::green(Z, r, H, d));

@@ -2,7 +2,7 @@
 #include "AtomInfo.hpp"
 #include "ChronoTimer.hpp"
 #include "ContinuumOrbitals.hpp"
-#include "ElectronOrbitals.hpp"
+#include "Wavefunction.hpp"
 #include "FileIO_fileReadWrite.hpp"
 #include "Grid.hpp"
 #include "HartreeFockClass.hpp"
@@ -102,7 +102,7 @@ int main(int argc, char *argv[]) {
   }
 
   // Generate the orbitals object:
-  ElectronOrbitals wf(Z, A, ngp, r0, rmax, varalpha);
+  Wavefunction wf(Z, A, ngp, r0, rmax, varalpha);
 
   // outut file name (excluding extension):
   std::string fname = "ak-" + Z_str + "_" + label;

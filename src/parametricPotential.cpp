@@ -1,6 +1,6 @@
 #include "AtomInfo.hpp"
 #include "ChronoTimer.hpp"
-#include "ElectronOrbitals.hpp"
+#include "Wavefunction.hpp"
 #include "FileIO_fileReadWrite.hpp"
 #include "Parametric_potentials.hpp"
 #include "PhysConst_constants.hpp"
@@ -57,7 +57,7 @@ int main(int argc, char *argv[]) {
     printf("%3.0f%% Tietz potential: T=%.4f  g=%.4f\n", Tf * 100., Tt, Tg);
 
   // Generate the orbitals object:
-  ElectronOrbitals wf(Z, A, ngp, r0, rmax, varalpha);
+  Wavefunction wf(Z, A, ngp, r0, rmax, varalpha);
 
   std::cout << wf.rgrid.gridParameters() << "\n";
 

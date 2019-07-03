@@ -2,7 +2,7 @@
 #include "ADAMS_bound.hpp"
 #include "ADAMS_continuum.hpp"
 #include "AtomInfo.hpp"
-#include "ElectronOrbitals.hpp"
+#include "Wavefunction.hpp"
 #include "Grid.hpp"
 #include "PhysConst_constants.hpp"
 #include <cmath>
@@ -10,7 +10,7 @@
 #include <vector>
 
 //******************************************************************************
-ContinuumOrbitals::ContinuumOrbitals(const ElectronOrbitals &wf, int izion)
+ContinuumOrbitals::ContinuumOrbitals(const Wavefunction &wf, int izion)
     : p_rgrid(&wf.rgrid), Z(wf.Znuc()), Zion(izion), alpha(wf.get_alpha())
 // Initialise object:
 //  * Copies grid and potential info, since these must always match bound

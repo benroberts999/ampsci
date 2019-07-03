@@ -287,7 +287,7 @@ int findPracticalInfinity(const double en, const std::vector<double> &v,
   while ((en - v[pinf]) * r[pinf] * r[pinf] + alr < 0) {
     --pinf;
     DEBUG(if (pinf == 0) {
-      std::cerr << "Fail290 in EO: pinf underflowed?\n";
+      std::cerr << "Fail290 in WF: pinf underflowed?\n";
       std::cin.get();
     })
   }

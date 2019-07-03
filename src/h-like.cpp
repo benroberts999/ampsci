@@ -3,7 +3,7 @@
 #include "DiracOperator.hpp"
 #include "Operators.hpp"
 // #include "DiracSpinor.hpp"
-#include "ElectronOrbitals.hpp"
+#include "Wavefunction.hpp"
 #include "FileIO_fileReadWrite.hpp"
 #include "NumCalc_quadIntegrate.hpp"
 #include <cmath>
@@ -31,7 +31,7 @@ int main(int argc, char *argv[]) {
   printf("*************************************************\n");
 
   // Generate the orbitals object:
-  ElectronOrbitals wf(Z, A, ngp, r0, rmax, varalpha);
+  Wavefunction wf(Z, A, ngp, r0, rmax, varalpha);
 
   // Solve the Dirac equation for H-like ions:
   for (int n = 1; n <= n_max; n++) {

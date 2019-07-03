@@ -48,7 +48,7 @@ all: checkObj checkXdir $(ALLEXES)
 
 # All programs depend on these generic common headers:
 COMH = $(addprefix $(ID)/, \
- DiracSpinor.hpp DiracOperator.hpp ElectronOrbitals.hpp Operators.hpp \
+ DiracSpinor.hpp DiracOperator.hpp Wavefunction.hpp Operators.hpp \
  Nucleus.hpp \
  AtomInfo.hpp PhysConst_constants.hpp FileIO_fileReadWrite.hpp \
  NumCalc_quadIntegrate.hpp Grid.hpp Matrix_linalg.hpp ChronoTimer.hpp \
@@ -73,7 +73,7 @@ $(OD)/dummy.o: $(ID)/dummy.cpp $(COMH) $(ID)/otherHeader.hpp
 # Hust to save typing: Many programs depend on these combos:
 
 BASE = $(addprefix $(OD)/, \
- ADAMS_bound.o ElectronOrbitals.o \
+ ADAMS_bound.o Wavefunction.o \
 )
 
 HF = $(addprefix $(OD)/, \

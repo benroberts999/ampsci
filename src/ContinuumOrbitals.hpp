@@ -1,13 +1,13 @@
 #pragma once
 #include "DiracSpinor.hpp"
 #include <vector>
-class ElectronOrbitals;
+class Wavefunction;
 class Grid;
 
 class ContinuumOrbitals {
 
 public:
-  ContinuumOrbitals(const ElectronOrbitals &wf, int izion = 1);
+  ContinuumOrbitals(const Wavefunction &wf, int izion = 1);
   // takes in grid, v from here
 
   int solveLocalContinuum(double ec, int min_l, int max_l);

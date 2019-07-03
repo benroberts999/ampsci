@@ -38,10 +38,26 @@ inline int parity(int la, int lb, int k)
 inline int triangle(double j1, double j2, double J)
 // Triangle rule.
 {
-  int two_j1 = (int)round(2 * j1);
-  int two_j2 = (int)round(2 * j2);
-  int two_J = (int)round(2 * J);
-  if ((two_j1 + two_j2 < two_J) || (std::abs(two_j1 - two_j2) > two_J))
+  if ((j1 + j2 < J) || (fabs(j1 - j2) > J))
+    return 0;
+  return 1;
+}
+
+inline int triangle(int j1, int j2, int J) {
+  // nb: can be called with wither j or twoj!
+  if ((j1 + j2 < J) || (abs(j1 - j2) > J))
+    return 0;
+  return 1;
+}
+
+inline int sumsToZero(int m1, int m2, int m3) {
+  if (m1 + m2 + m3 != 0)
+    return 0;
+  return 1;
+}
+
+inline int sumsToZero(double m1, double m2, double m3) {
+  if (fabs(m1 + m2 + m3) > 0.0001)
     return 0;
   return 1;
 }
@@ -55,6 +71,8 @@ inline double threej(double j1, double j2, double j3, double m1, double m2,
 // Note: this function takes DOUBLE values.
 // Works for l and j (integer and half-integer)
 {
+  if (triangle(j1, j2, j3) * sumsToZero(m1, m2, m3) == 0)
+    return 0;
   int two_j1 = (int)round(2 * j1);
   int two_j2 = (int)round(2 * j2);
   int two_j3 = (int)round(2 * j3);
@@ -72,6 +90,8 @@ inline double threej_1(int j1, int j2, int j3, int m1, int m2, int m3)
 // Note: this function takes INTEGER values, only works for l (not half-integer
 // j)!
 {
+  if (triangle(j1, j2, j3) * sumsToZero(m1, m2, m3) == 0)
+    return 0;
   return gsl_sf_coupling_3j(2 * j1, 2 * j2, 2 * j3, 2 * m1, 2 * m2, 2 * m3);
 }
 
@@ -84,6 +104,9 @@ inline double threej_2(int two_j1, int two_j2, int two_j3, int two_m1,
 // Note: this function takes INTEGER values, that have already multiplied by 2!
 // Works for l and j (integer and half-integer)
 {
+  if (triangle(two_j1, two_j2, two_j3) * sumsToZero(two_m1, two_m2, two_m3) ==
+      0)
+    return 0;
   return gsl_sf_coupling_3j(two_j1, two_j2, two_j3, two_m1, two_m2, two_m3);
 }
 
@@ -95,6 +118,8 @@ inline double cg(double j1, double m1, double j2, double m2, double J, double M)
 // Note: this function takes DOUBLE values.
 // Works for l and j (integer and half-integer)
 {
+  if (triangle(j1, j2, J) * sumsToZero(m1, m2, -M) == 0)
+    return 0;
   int two_j1 = (int)round(2 * j1);
   int two_j2 = (int)round(2 * j2);
   int two_m1 = (int)round(2 * m1);
@@ -117,6 +142,8 @@ inline double cg_1(int j1, int m1, int j2, int m2, int J, int M)
 // Note: this function takes INTEGER values, only works for l (not half-integer
 // j)!
 {
+  if (triangle(j1, j2, J) * sumsToZero(m1, m2, -M) == 0)
+    return 0;
   int sign = -1;
   if ((j1 - j2 + M) % 2 == 0)
     sign = 1;
@@ -133,6 +160,8 @@ inline double cg_2(int two_j1, int two_m1, int two_j2, int two_m2, int two_J,
 // Note: this function takes INTEGER values, that have already multiplied by 2!
 // Works for l and j (integer and half-integer)
 {
+  if (triangle(two_j1, two_j2, two_J) * sumsToZero(two_m1, two_m2, -two_M) == 0)
+    return 0;
   int sign = -1;
   if ((two_j1 - two_j2 + two_M) % 4 == 0)
     sign = 1; // mod 4 (instead 2), since x2

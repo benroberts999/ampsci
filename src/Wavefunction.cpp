@@ -1,5 +1,5 @@
-// class ElectronOrbitals::
-#include "ElectronOrbitals.hpp"
+// class Wavefunction::
+#include "Wavefunction.hpp"
 #include "ADAMS_bound.hpp"
 #include "AtomInfo.hpp"
 #include "DiracSpinor.hpp"
@@ -13,7 +13,7 @@
 #include <vector>
 
 //******************************************************************************
-ElectronOrbitals::ElectronOrbitals(int in_z, int in_a, int in_ngp, double rmin,
+Wavefunction::Wavefunction(int in_z, int in_a, int in_ngp, double rmin,
                                    double rmax, double var_alpha)
     : rgrid(rmin, rmax, (std::size_t)in_ngp, GridType::loglinear, 3.5),
       m_alpha(PhysConst::alpha * var_alpha), m_Z(in_z),
@@ -29,7 +29,7 @@ ElectronOrbitals::ElectronOrbitals(int in_z, int in_a, int in_ngp, double rmin,
 }
 
 //******************************************************************************
-void ElectronOrbitals::solveDirac(DiracSpinor &psi, double e_a,
+void Wavefunction::solveDirac(DiracSpinor &psi, double e_a,
                                   const std::vector<double> &vex,
                                   int log_dele_or) const
 // Uses ADAMS::solveDBS to solve Dirac Eqn for local potential (Vnuc + Vdir)
@@ -64,7 +64,7 @@ void ElectronOrbitals::solveDirac(DiracSpinor &psi, double e_a,
   return;
 }
 //------------------------------------------------------------------------------
-void ElectronOrbitals::solveDirac(DiracSpinor &psi, double e_a,
+void Wavefunction::solveDirac(DiracSpinor &psi, double e_a,
                                   int log_dele_or) const
 // Overloaded version; see above
 // This one doesn't have exchange potential
@@ -74,7 +74,7 @@ void ElectronOrbitals::solveDirac(DiracSpinor &psi, double e_a,
 }
 
 //******************************************************************************
-void ElectronOrbitals::determineCore(const std::string &str_core_in)
+void Wavefunction::determineCore(const std::string &str_core_in)
 // Takes in a string list for the core configuration, outputs an int list
 // Takes in previous closed shell (noble), + 'rest' (or just the rest)
 // E.g:
@@ -196,7 +196,7 @@ void ElectronOrbitals::determineCore(const std::string &str_core_in)
 }
 
 //******************************************************************************
-bool ElectronOrbitals::isInCore(int n, int k) const
+bool Wavefunction::isInCore(int n, int k) const
 // Checks if given state is in the core.
 {
   for (auto &phi : core_orbitals) {
@@ -207,7 +207,7 @@ bool ElectronOrbitals::isInCore(int n, int k) const
 }
 
 //******************************************************************************
-std::size_t ElectronOrbitals::getStateIndex(int n, int k,
+std::size_t Wavefunction::getStateIndex(int n, int k,
                                             bool &is_valence) const {
 
   is_valence = false;
@@ -222,13 +222,13 @@ std::size_t ElectronOrbitals::getStateIndex(int n, int k,
     }
     is_valence = true;
   }
-  std::cerr << "\nFAIL 290 in EO: Couldn't find state n,k=" << n << "," << k
+  std::cerr << "\nFAIL 290 in WF: Couldn't find state n,k=" << n << "," << k
             << "\n";
   std::abort();
 }
 
 //******************************************************************************
-int ElectronOrbitals::maxCore_n(int ka) const
+int Wavefunction::maxCore_n(int ka) const
 // Returns the largest n for states with kappa = ka in the core
 // Note: ka is optional input; if none given, will be 0 (& not used)
 // (used for energy guesses)
@@ -245,13 +245,13 @@ int ElectronOrbitals::maxCore_n(int ka) const
 }
 
 //******************************************************************************
-void ElectronOrbitals::solveInitialCore(std::string str_core, int log_dele_or)
+void Wavefunction::solveInitialCore(std::string str_core, int log_dele_or)
 // Solves the Dirac eqn for each state in the core
 // Only for local potential (direct part)
 // HartreeFockClass.cpp has routines for Hartree Fock
 {
   if (core_orbitals.size() > 0) {
-    std::cerr << "Fail 254 in ElectronOrbitals:solveInitialCore: States "
+    std::cerr << "Fail 254 in Wavefunction:solveInitialCore: States "
                  "already exist! "
               << core_orbitals.size() << "\n";
     std::abort();
@@ -292,7 +292,7 @@ void ElectronOrbitals::solveInitialCore(std::string str_core, int log_dele_or)
       }
     }
     if (ic == num_core_shell.size()) {
-      std::cout << "FAIL 254 in ElectronOrbitals:solveInitialCore\n";
+      std::cout << "FAIL 254 in Wavefunction:solveInitialCore\n";
       std::abort();
     }
     phi.occ_frac = double(num_core_shell[ic]) / (4 * l + 2);
@@ -300,7 +300,7 @@ void ElectronOrbitals::solveInitialCore(std::string str_core, int log_dele_or)
 }
 
 //******************************************************************************
-void ElectronOrbitals::solveNewValence(int n, int k, double en_a,
+void Wavefunction::solveNewValence(int n, int k, double en_a,
                                        int log_dele_or)
 // Update to take a list ok nken's ?
 {
@@ -314,7 +314,7 @@ void ElectronOrbitals::solveNewValence(int n, int k, double en_a,
 }
 
 //******************************************************************************
-void ElectronOrbitals::orthonormaliseOrbitals(
+void Wavefunction::orthonormaliseOrbitals(
     std::vector<DiracSpinor> &tmp_orbs, int num_its)
 // Note: this function is static
 // Forces ALL orbitals to be orthogonal to each other, and normal
@@ -377,7 +377,7 @@ void ElectronOrbitals::orthonormaliseOrbitals(
 }
 
 //******************************************************************************
-void ElectronOrbitals::orthonormaliseWrtCore(DiracSpinor &psi_v) const
+void Wavefunction::orthonormaliseWrtCore(DiracSpinor &psi_v) const
 // Force given orbital to be orthogonal to all core orbitals
 // [After the core is 'frozen', don't touch core orbitals!]
 // |v> --> |v> - sum_c |c><c|v>
@@ -419,7 +419,7 @@ void ElectronOrbitals::orthonormaliseWrtCore(DiracSpinor &psi_v) const
 }
 
 //******************************************************************************
-double ElectronOrbitals::enGuessCore(int n, int l) const
+double Wavefunction::enGuessCore(int n, int l) const
 // Private
 // Energy guess for core states. Not perfect, good enough
 // tot_el = total electrons BELOW
@@ -463,7 +463,7 @@ double ElectronOrbitals::enGuessCore(int n, int l) const
 }
 
 //******************************************************************************
-double ElectronOrbitals::enGuessVal(int n, int ka) const
+double Wavefunction::enGuessVal(int n, int ka) const
 // Energy guess for valence states. Not perfect, good enough
 {
   int maxn = maxCore_n();
@@ -483,7 +483,7 @@ double ElectronOrbitals::enGuessVal(int n, int ka) const
 }
 
 //******************************************************************************
-void ElectronOrbitals::formNuclearPotential(NucleusType nucleus_type, double rc,
+void Wavefunction::formNuclearPotential(NucleusType nucleus_type, double rc,
                                             double t) {
   vnuc.clear();
   switch (nucleus_type) {
@@ -508,14 +508,14 @@ void ElectronOrbitals::formNuclearPotential(NucleusType nucleus_type, double rc,
     vnuc = Nucleus::sphericalNuclearPotential(m_Z, 0., rgrid.r);
     break;
   default:
-    std::cerr << "\nFail EO:755 - invalid nucleus type?\n";
+    std::cerr << "\nFail WF:755 - invalid nucleus type?\n";
   }
   m_c = rc;
   m_t = t;
 }
 
 //******************************************************************************
-std::string ElectronOrbitals::nuclearParams() const {
+std::string Wavefunction::nuclearParams() const {
   // std::string output;
   std::ostringstream output;
   if (m_c == 0 && m_t == 0) {
@@ -531,7 +531,7 @@ std::string ElectronOrbitals::nuclearParams() const {
 
 //******************************************************************************
 std::vector<std::size_t>
-ElectronOrbitals::sortedEnergyList(const std::vector<DiracSpinor> &tmp_orbs,
+Wavefunction::sortedEnergyList(const std::vector<DiracSpinor> &tmp_orbs,
                                    bool do_sort) const
 // Outouts a list of integers corresponding to the states
 // sorted by energy (lowest energy first)
@@ -559,7 +559,7 @@ ElectronOrbitals::sortedEnergyList(const std::vector<DiracSpinor> &tmp_orbs,
 }
 
 //******************************************************************************
-void ElectronOrbitals::printCore(bool sorted) const
+void Wavefunction::printCore(bool sorted) const
 // prints core orbitals
 {
   int Zion = Znuc() - Ncore();
@@ -585,7 +585,7 @@ void ElectronOrbitals::printCore(bool sorted) const
 }
 
 //******************************************************************************
-void ElectronOrbitals::printValence(
+void Wavefunction::printValence(
     bool sorted, const std::vector<DiracSpinor> &in_orbitals) const
 // prints valence orbitals
 {
@@ -617,7 +617,7 @@ void ElectronOrbitals::printValence(
 
 //******************************************************************************
 std::vector<std::vector<int>>
-ElectronOrbitals::listOfStates_nk(int num_val, int la, int lb,
+Wavefunction::listOfStates_nk(int num_val, int la, int lb,
                                   bool skip_core) const
 // Creates a list of states (usually valence states to solve for)
 // In form {{n,ka},...}

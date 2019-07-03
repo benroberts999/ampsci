@@ -9,10 +9,10 @@ enum class NucleusType { Fermi, spherical, zero };
 static bool dummy_bool{};
 
 //******************************************************************************
-class ElectronOrbitals {
+class Wavefunction {
 
 public:
-  ElectronOrbitals(int in_z, int in_a, int in_ngp, double rmin, double rmax,
+  Wavefunction(int in_z, int in_a, int in_ngp, double rmin, double rmax,
                    double var_alpha = 1);
 
 public:

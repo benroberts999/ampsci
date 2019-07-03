@@ -2,7 +2,7 @@
 #include "AtomInfo.hpp"
 #include "CoulombIntegrals.hpp"
 #include "DiracSpinor.hpp"
-#include "ElectronOrbitals.hpp"
+#include "Wavefunction.hpp"
 #include "Grid.hpp"
 #include "NumCalc_quadIntegrate.hpp"
 #include "Parametric_potentials.hpp"
@@ -22,7 +22,7 @@ Solves all core and valence states.
 #endif // DEBUG
 
 //******************************************************************************
-HartreeFock::HartreeFock(ElectronOrbitals &wf, const std::string &in_core,
+HartreeFock::HartreeFock(Wavefunction &wf, const std::string &in_core,
                          double eps_HF, bool in_ExcludeExchange)
     : p_wf(&wf), p_rgrid(&wf.rgrid),
       m_cint(Coulomb(wf.rgrid, wf.core_orbitals, wf.valence_orbitals)),
