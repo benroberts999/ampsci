@@ -1,11 +1,11 @@
 #include "AtomInfo.hpp"
 #include "ChronoTimer.hpp"
-#include "Wavefunction.hpp"
 #include "FileIO_fileReadWrite.hpp"
 #include "HartreeFockClass.hpp"
 #include "NumCalc_quadIntegrate.hpp"
 #include "Parametric_potentials.hpp"
 #include "PhysConst_constants.hpp"
+#include "Wavefunction.hpp"
 #include <cmath>
 #include <fstream>
 #include <iostream>
@@ -14,9 +14,9 @@
 Finds the best-fit parameter values for the Green or Tietz potentials
 */
 
-std::tuple<double, double> performFit(const std::vector<EOnken> &states, int Z,
-                                      int A, int ngp, double r0, double rmax,
-                                      bool green, bool fit_worst);
+std::tuple<double, double> performFit(const std::vector<DiracSEnken> &states,
+                                      int Z, int A, int ngp, double r0,
+                                      double rmax, bool green, bool fit_worst);
 
 //******************************************************************************
 int main(int argc, char *argv[]) {
@@ -31,8 +31,8 @@ int main(int argc, char *argv[]) {
   int ngp;
   double r0, rmax;
   int igreen;
-  std::vector<EOnken> states;
-  std::vector<EOnken> val_states;
+  std::vector<DiracSEnken> states;
+  std::vector<DiracSEnken> val_states;
   bool fit_worst;
 
   auto in_str_list = FileIO::readInputFile_byEntry(input_file);
@@ -50,7 +50,7 @@ int main(int argc, char *argv[]) {
     for (std::size_t i = n_els; i < in_str_list.size(); i += 3) {
       auto tv = std::vector<std::string>(in_str_list.begin() + i,
                                          in_str_list.begin() + i + 3);
-      EOnken tmp;
+      DiracSEnken tmp;
       auto tp2 = std::forward_as_tuple(tmp.n, tmp.k, tmp.en);
       FileIO::stringstreamVectorIntoTuple(tv, tp2);
       val_states.push_back(tmp);
@@ -170,9 +170,9 @@ int main(int argc, char *argv[]) {
 }
 
 //******************************************************************************
-std::tuple<double, double> performFit(const std::vector<EOnken> &states, int Z,
-                                      int A, int ngp, double r0, double rmax,
-                                      bool green, bool fit_worst) {
+std::tuple<double, double> performFit(const std::vector<DiracSEnken> &states,
+                                      int Z, int A, int ngp, double r0,
+                                      double rmax, bool green, bool fit_worst) {
 
   std::cout << "Performing fit (for ";
   if (green)

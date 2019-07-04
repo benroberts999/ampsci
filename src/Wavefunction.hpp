@@ -13,7 +13,7 @@ class Wavefunction {
 
 public:
   Wavefunction(int in_z, int in_a, int in_ngp, double rmin, double rmax,
-                   double var_alpha = 1);
+               double var_alpha = 1);
 
 public:
   // orbitals:
@@ -35,9 +35,12 @@ private:
   // nuclus info:
   double m_c, m_t;
 
+  std::vector<NonRelSEConfig> m_core_configs;
+
   // number of electrons in each core shell (non-rel)
-  std::vector<int> num_core_shell; // XXX This is dumb - try to fix!?
-  int num_core_electrons = 0;      // Nc = N - M
+
+  // std::vector<int> num_core_shell; // XXX This is dumb - try to fix!?
+  int num_core_electrons = 0; // Nc = N - M
   std::string m_core_string = "";
 
 public:

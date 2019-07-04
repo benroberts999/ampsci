@@ -8,6 +8,7 @@
 #include "PhysConst_constants.hpp"
 #include <algorithm> //for sort
 #include <cmath>
+#include <locale> //isdigit
 #include <sstream>
 #include <string>
 #include <vector>
@@ -71,16 +72,10 @@ void Wavefunction::solveDirac(DiracSpinor &psi, double e_a,
 }
 
 //******************************************************************************
-void Wavefunction::determineCore(const std::string &str_core_in)
-// Takes in a string list for the core configuration, outputs an int list
-// Takes in previous closed shell (noble), + 'rest' (or just the rest)
-// E.g:
-//   Core of Cs: Xe
-//   Core of Gold: Xe 4f14 5d10
-// 'rest' is in form nLm : n=n, L=l, m=number of electrons in that nl shell.
-// NOTE: Only works up to n=9, and l=5 [h] XXX
+static std::vector<NonRelSEConfig> core_parser(const std::string &str_core_in)
+// Heler function for below.
+// Move to Atom Info ?
 {
-
   // If there's a 'Noble-Gas' term, replace it with full config
   // Otherwise, 'first-term' remains unchanges
   auto found = str_core_in.find(",");
@@ -101,93 +96,90 @@ void Wavefunction::determineCore(const std::string &str_core_in)
     }
   }
 
-  bool bad_core = false;
+  std::vector<NonRelSEConfig> core_configs;
   for (const auto &term : term_str_list) {
-    // Parse string, determine config for this term
-
     bool term_ok = true;
-    if (term.size() < 3)
-      term_ok = false;
-
-    int n{0}, m{0};
+    std::size_t l_position = 0;
+    for (const auto &c : term) {
+      if (!std::isdigit(c))
+        break;
+      ++l_position;
+    }
+    int n{0}, num{0}, l{-1};
     try {
-      // xxx here: nlm: n must be <9. l must be 1 digit. ok?
-      n = std::stoi(term.substr(0, 1));
-      m = std::stoi(term.substr(2));
+      n = std::stoi(term.substr(0, l_position - 0));
+      num = std::stoi(term.substr(l_position + 1));
+      if (l_position == term.size())
+        throw;
+      l = AtomInfo::symbol_to_l(term.substr(l_position, 1));
     } catch (...) {
       term_ok = false;
     }
-    std::string strl = term.substr(1, 1);
-    int l = AtomInfo::symbol_to_l(strl);
+    NonRelSEConfig new_config(n, l, num);
 
-    // Check if this term is valid
-    if (l + 1 > n || l < 0 || n < 1)
-      term_ok = false;
-
-    if (!term_ok) {
+    if (!term_ok || n <= 0) {
       std::cout << "Problem with core: " << str_core_in << "\n";
       std::cerr << "invalid core term: " << term << "\n";
       std::abort();
     }
 
-    std::vector<int> single_core_term; //'extra' core parts
-    // Form int list for this term:
-    // Note has entry for every term (most of them zero)
-    // Ineficient, but doesn't matter
-    for (int in = 0; in <= n; in++) {
-      for (int il = 0; il < in; il++) {
-        if (in == n && il == l)
-          single_core_term.push_back(m);
-        else
-          single_core_term.push_back(0);
-      }
+    if (num == 0)
+      continue;
+    auto ia = std::find(core_configs.begin(), core_configs.end(), new_config);
+    if (ia == core_configs.end()) {
+      core_configs.push_back(new_config);
+    } else {
+      *ia += new_config;
     }
+  }
+  return core_configs;
+}
 
-    // Merge this term with the existing core:
-    auto size = std::max(single_core_term.size(), num_core_shell.size());
-    single_core_term.resize(size);
-    num_core_shell.resize(size);
-    for (std::size_t j = 0; j < num_core_shell.size(); j++) {
-      num_core_shell[j] += single_core_term[j];
-      if (num_core_shell[j] > 4 * AtomInfo::core_l[j] + 2 ||
-          num_core_shell[j] < 0)
-        bad_core = true;
+//******************************************************************************
+void Wavefunction::determineCore(const std::string &str_core_in)
+// Takes in a string list for the core configuration, outputs an int list
+// Takes in previous closed shell (noble), + 'rest' (or just the rest)
+// E.g:
+//   Core of Cs: Xe
+//   Core of Gold: Xe 4f14 5d10
+// 'rest' is in form nLm : n=n, L=l, m=number of electrons in that nl shell.
+{
+
+  m_core_configs = core_parser(str_core_in);
+
+  bool bad_core = false;
+  m_core_string = "";
+  for (auto config : m_core_configs) {
+    if (!config.ok()) {
+      m_core_string += " **";
+      bad_core = true;
     }
+    m_core_string += config.symbol();
+    if (config != m_core_configs.back())
+      m_core_string += ",";
   }
 
   if (bad_core) {
     std::cout << "Problem with core: " << str_core_in << " = \n";
-    for (std::size_t j = 0; j < num_core_shell.size(); j++) {
-      auto num = num_core_shell[j];
-      auto n = AtomInfo::core_n[j];
-      auto l = AtomInfo::core_l[j];
-      if (num == 0)
-        continue;
-      if (num > 4 * l + 2 || l + 1 > n || num < 0)
-        std::cout << " **";
-      std::cout << n << AtomInfo::l_symbol(l) << num << ",";
-    }
-    std::cout << "\n";
+    std::cout << m_core_string << "\n";
     std::cout << "In this house, we obey the Pauli exclusion principle!\n";
     std::abort();
   }
 
   // Count number of electrons in the core
   num_core_electrons = 0;
-  for (int &num : num_core_shell)
-    num_core_electrons += num;
+  for (const auto &config : m_core_configs) {
+    num_core_electrons += config.num;
+  }
 
   if (num_core_electrons > m_Z) {
     std::cout << "Problem with core: " << str_core_in << "\n";
+    std::cout << "= " << m_core_string << "\n";
+    std::cout << "= " << AtomInfo::niceCoreOutput(m_core_string) << "\n";
     std::cout << "Too many electrons: N_core=" << num_core_electrons
               << ", Z=" << m_Z << "\n";
     std::abort();
   }
-
-  // store full core config list
-  m_core_string = str_core;
-  // XXX Would be nice to "merge" any duplicates (but retain input order)
-  // i.e. so that "...,5p6,...,5p-1" --> "...,5p5,..."
 
   return;
 }
@@ -255,17 +247,18 @@ void Wavefunction::solveInitialCore(std::string str_core, int log_dele_or)
 
   determineCore(str_core);
 
-  for (std::size_t i = 0; i < num_core_shell.size(); i++) {
-    int num = num_core_shell[i];
+  for (const auto &config : m_core_configs) {
+    int num = config.num;
     if (num == 0)
       continue;
-    int n = AtomInfo::core_n[i];
-    int l = AtomInfo::core_l[i];
+    int n = config.n;
+    int l = config.l;
     double en_a = enGuessCore(n, l);
     int k1 = l; // j = l-1/2
     if (k1 != 0) {
       core_orbitals.emplace_back(DiracSpinor{n, k1, rgrid});
       solveDirac(core_orbitals.back(), en_a, log_dele_or);
+      core_orbitals.back().occ_frac = double(num) / (4 * l + 2);
       en_a = 0.95 * core_orbitals.back().en;
       if (en_a > 0)
         en_a = enGuessCore(n, l);
@@ -273,25 +266,7 @@ void Wavefunction::solveInitialCore(std::string str_core, int log_dele_or)
     int k2 = -(l + 1); // j=l+1/2
     core_orbitals.emplace_back(DiracSpinor{n, k2, rgrid});
     solveDirac(core_orbitals.back(), en_a, log_dele_or);
-  }
-
-  // occupancy fraction for each core state (avg of Non-rel states!):
-  for (auto &phi : core_orbitals) {
-    int n = phi.n;
-    int l = phi.l();
-    // Find the correct core list index (to determine filling factor):
-    auto ic = num_core_shell.size();
-    for (std::size_t j = 0; j < num_core_shell.size(); j++) {
-      if (n == AtomInfo::core_n[j] && l == AtomInfo::core_l[j]) {
-        ic = j;
-        break;
-      }
-    }
-    if (ic == num_core_shell.size()) {
-      std::cout << "FAIL 254 in Wavefunction:solveInitialCore\n";
-      std::abort();
-    }
-    phi.occ_frac = double(num_core_shell[ic]) / (4 * l + 2);
+    core_orbitals.back().occ_frac = double(num) / (4 * l + 2);
   }
 }
 
@@ -391,25 +366,25 @@ void Wavefunction::orthonormaliseWrtCore(DiracSpinor &psi_v) const
 double Wavefunction::enGuessCore(int n, int l) const
 // Private
 // Energy guess for core states. Not perfect, good enough
-// tot_el = total electrons BELOW
+// num_el_below = total electrons BELOW
 // num = num electrons in THIS shell
 {
-  int tot_el = 0;
-  int num = 0;
-  for (std::size_t i = 0; i < num_core_shell.size(); i++) {
-    if (l == AtomInfo::core_l[i] && n == AtomInfo::core_n[i]) {
-      num = num_core_shell[i];
+  int num_el_below = 0;
+  int num_el_this = 0;
+  for (const auto &config : m_core_configs) {
+    if (l == config.l && n == config.l) {
+      num_el_this = config.num;
       break;
     }
-    tot_el += num_core_shell[i];
+    num_el_below += config.num;
   }
 
   // effective Z (for energy guess) -- not perfect!
-  double Zeff = (m_Z - tot_el - num);
+  double Zeff = (m_Z - num_el_below - num_el_this);
   if (l == 1) {
-    Zeff = 1. + (m_Z - tot_el - 0.5 * num);
+    Zeff = 1. + (m_Z - num_el_below - 0.5 * num_el_this);
   } else if (l == 2) {
-    Zeff = 1. + (m_Z - tot_el - 0.5 * num);
+    Zeff = 1. + (m_Z - num_el_below - 0.5 * num_el_this);
   }
   if (Zeff < 1.0) {
     Zeff = 1.;
@@ -424,7 +399,7 @@ double Wavefunction::enGuessCore(int n, int l) const
     en_a *= 1.25;
   } else if (n == maxCore_n()) {
     en_a *= 1.5;
-  } else if (n == maxCore_n() + 1 && l == 0 && num == 2) {
+  } else if (n == maxCore_n() + 1 && l == 0 && num_el_this == 2) {
     en_a = -0.5 * pow(Zeff, 2);
   }
 

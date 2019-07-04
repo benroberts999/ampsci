@@ -150,16 +150,6 @@ constexpr int twojFromIndex(int i) { return (i % 2 == 0) ? i + 1 : i; }
 constexpr int lFromIndex(int i) { return (i % 2 == 0) ? i / 2 : (i + 1) / 2; }
 //******************************************************************************
 
-// XXX This is a bad/limiting solution:
-// two issues: a) retrive (n,l) from index
-// b) parsing the input string [not big deal, n typically <7]
-const std::array<int, 45> core_n = {
-    1, 2, 2, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 7, 7,
-    7, 7, 7, 7, 7, 8, 8, 8, 8, 8, 8, 8, 8, 9, 9, 9, 9, 9, 9, 9, 9, 9};
-const std::array<int, 45> core_l = {
-    0, 0, 1, 0, 1, 2, 0, 1, 2, 3, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 5, 0, 1,
-    2, 3, 4, 5, 6, 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7, 8};
-
 // Note: this requires that all Nobel Gasses are listed FIRST, in order
 // (Assumed by "niceCoreOutput" function that this matches nobelGasses
 static const std::array<std::pair<std::string, std::string>, 12> nobelGasses = {
@@ -222,3 +212,43 @@ inline double diracen(double z, double n, int k,
 }
 
 } // namespace AtomInfo
+
+//******************************************************************************
+struct NonRelSEConfig {
+  int n;
+  int l;
+  int num;
+  NonRelSEConfig(int in_n, int in_l, int in_num)
+      : n(in_n), l(in_l), num(in_num) {}
+  NonRelSEConfig() {}
+  std::string symbol() {
+    return std::to_string(n) + AtomInfo::l_symbol(l) + std::to_string(num);
+  }
+
+  bool ok() {
+    if (l + 1 > n || l < 0 || n < 1 || num < 0 || num > 4 * l + 2)
+      return false;
+    return true;
+  }
+
+  // comparitor overloads:
+  bool operator==(const NonRelSEConfig &other) const {
+    return n == other.n && l == other.l;
+  }
+  bool operator!=(const NonRelSEConfig &other) const {
+    return !(*this == other);
+  }
+  NonRelSEConfig &operator+=(const NonRelSEConfig &other) {
+    this->num += other.num;
+    return *this;
+  }
+};
+
+struct DiracSEnken { // name OK? too short?
+  int n;
+  int k;
+  double en;
+  DiracSEnken(int in_n, int in_k, double in_en = 0)
+      : n(in_n), k(in_k), en(in_en){};
+  DiracSEnken(){}; // never used? make above const!
+};

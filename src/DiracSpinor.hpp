@@ -6,18 +6,6 @@
 #include <vector>
 
 //******************************************************************************
-struct EOnken { // name OK? too short?
-  int n;
-  int k;
-  double en;
-  // double num; // double, because can be fraction! <- num_electrons in shell!
-  // XXX Add occupation fraction (or number of electrons)?
-  // Then, could use for Core!
-  EOnken(int in_n, int in_k, double in_en = 0) : n(in_n), k(in_k), en(in_en){};
-  EOnken(){}; // never used? make above const!
-};
-
-//******************************************************************************
 class DiracSpinor {
 
 public: // Data
