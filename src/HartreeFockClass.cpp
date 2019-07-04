@@ -2,10 +2,10 @@
 #include "AtomInfo.hpp"
 #include "CoulombIntegrals.hpp"
 #include "DiracSpinor.hpp"
-#include "Wavefunction.hpp"
 #include "Grid.hpp"
 #include "NumCalc_quadIntegrate.hpp"
 #include "Parametric_potentials.hpp"
+#include "Wavefunction.hpp"
 #include "Wigner_369j.hpp"
 #include <cmath>
 #include <vector>
@@ -401,7 +401,8 @@ const std::vector<double> &HartreeFock::get_vex(const DiracSpinor &psi) const {
 
 //******************************************************************************
 DiracSpinor HartreeFock::vex_psia(const DiracSpinor &phi_a) const
-//
+// calculates V_ex Psi_a (returns new Dirac Spinor)
+// Psi_a can be any orbital (so long as coulomb integrals exist!)
 {
   auto ki_a = phi_a.k_index();
   auto twoj_a = phi_a.twoj();
@@ -415,17 +416,6 @@ DiracSpinor HartreeFock::vex_psia(const DiracSpinor &phi_a) const
     int kmin = abs(twoj_a - tjb) / 2;
     int kmax = (twoj_a + tjb) / 2;
     const auto &vabk = m_cint.get_y_ijk(phi_b, phi_a);
-
-    // hold "fraction" psi_a*psi_b/(psi_a^2):
-    // std::vector<double> v_Fab(p_rgrid->ngp);
-    // for (std::size_t i = 0; i < irmax; i++) {
-    //   // This is the approximte part! Divides by psi_a
-    //   if (fabs(phi_a.f[i]) < 1.e-3)
-    //     continue;
-    //   double fac_top = phi_a.f[i] * phi_b.f[i] + phi_a.g[i] * phi_b.g[i];
-    //   double fac_bot = phi_a.f[i] * phi_a.f[i] + phi_a.g[i] * phi_a.g[i];
-    //   v_Fab[i] = -1. * x_tjbp1 * fac_top / fac_bot;
-    // } // r
     const auto &L_ab_k = m_cint.get_angular_L_kiakib_k(ki_a, phi_b.k_index());
     for (int k = kmin; k <= kmax; k++) {
       if (L_ab_k[k - kmin] == 0)

@@ -5,17 +5,16 @@
 #include <string>
 #include <vector>
 
-enum class OrbitalType { core, valence }; // xxx just test
-
 //******************************************************************************
 struct EOnken { // name OK? too short?
   int n;
   int k;
   double en;
+  // double num; // double, because can be fraction! <- num_electrons in shell!
   // XXX Add occupation fraction (or number of electrons)?
   // Then, could use for Core!
   EOnken(int in_n, int in_k, double in_en = 0) : n(in_n), k(in_k), en(in_en){};
-  EOnken(){};
+  EOnken(){}; // never used? make above const!
 };
 
 //******************************************************************************
@@ -24,7 +23,12 @@ class DiracSpinor {
 public: // Data
   DiracSpinor(int in_n, int in_k, const Grid &rgrid, bool imaginary_g = true)
       : n(in_n), k(in_k), pinf(rgrid.ngp - 1), p_rgrid(&rgrid),
-        imaginary_g(imaginary_g) {
+        imaginary_g(imaginary_g), // things
+        m_twoj(AtomInfo::twoj_k(in_k)), m_l(AtomInfo::l_k(in_k)),
+        m_parity(AtomInfo::parity_k(in_k)),
+        m_k_index(AtomInfo::indexFromKappa(in_k))
+  //
+  {
     f.resize(rgrid.ngp, 0);
     g.resize(rgrid.ngp, 0);
   }
@@ -39,23 +43,26 @@ public: // Data
   std::size_t pinf;
   const Grid *const p_rgrid;
 
-  // determines relative sign in radial integral
-  // Make private?
-  const bool imaginary_g; // true by default. If false, means upper comp is i
-
-  // XXX pointer back to vdir? Vex? wf? valence/core/virtual?
-  // Valence/core/virtual would be super useful! XXX
+  // determines relative sign in radial integral:
+  // true by default. If false, means upper comp is i
+  const bool imaginary_g;
 
   int its = -1;
   double eps = -1;
   double occ_frac = -1;
 
+private:
+  const int m_twoj;
+  const int m_l;
+  const int m_parity;
+  const int m_k_index;
+
 public: // Methods
-  int l() const { return AtomInfo::l_k(k); }
-  double j() const { return AtomInfo::j_k(k); }
-  int twoj() const { return AtomInfo::twoj_k(k); }
-  int parity() const { return AtomInfo::parity_k(k); }
-  int k_index() const { return AtomInfo::indexFromKappa(k); }
+  int l() const { return m_l; }
+  double j() const { return double(m_twoj) / 2; }
+  int twoj() const { return m_twoj; }
+  int parity() const { return m_parity; }
+  int k_index() const { return m_k_index; }
 
   std::string symbol(bool gnuplot = false) const {
     // Readable symbol (s_1/2, p_{3/2} etc.).
@@ -64,6 +71,14 @@ public: // Methods
     std::string ostring2 = gnuplot ? "_{" + std::to_string(twoj()) + "/2}"
                                    : "_" + std::to_string(twoj()) + "/2";
     return ostring1 + ostring2;
+  }
+
+  void normalise() {
+    double norm = 1. / sqrt((*this) * (*this));
+    for (auto &fa_r : f)
+      fa_r *= norm;
+    for (auto &ga_r : g)
+      ga_r *= norm;
   }
 
 public: // comparitor overloads

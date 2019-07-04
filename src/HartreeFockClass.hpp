@@ -56,8 +56,6 @@ private:
   std::vector<std::vector<double>> vex_core;
   std::vector<std::vector<double>> vex_val;
 
-  std::vector<std::vector<std::vector<double>>> m_arr_Lambda_nmk;
-
 private:
   void hartree_fock_core();
   void starting_approx_core(const std::string &in_core);

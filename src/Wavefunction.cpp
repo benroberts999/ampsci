@@ -14,11 +14,11 @@
 
 //******************************************************************************
 Wavefunction::Wavefunction(int in_z, int in_a, int in_ngp, double rmin,
-                                   double rmax, double var_alpha)
+                           double rmax, double var_alpha)
     : rgrid(rmin, rmax, (std::size_t)in_ngp, GridType::loglinear, 3.5),
       m_alpha(PhysConst::alpha * var_alpha), m_Z(in_z),
       m_A((in_a < 0) ? AtomInfo::defaultA(m_Z) : in_a) {
-  // Use Fermi nucleus by default, unless A=0 is given
+  // Make Vnuc const?
   if (m_A > 15) {
     formNuclearPotential(NucleusType::Fermi);
   } else if (m_A > 0) {
@@ -30,8 +30,8 @@ Wavefunction::Wavefunction(int in_z, int in_a, int in_ngp, double rmin,
 
 //******************************************************************************
 void Wavefunction::solveDirac(DiracSpinor &psi, double e_a,
-                                  const std::vector<double> &vex,
-                                  int log_dele_or) const
+                              const std::vector<double> &vex,
+                              int log_dele_or) const
 // Uses ADAMS::solveDBS to solve Dirac Eqn for local potential (Vnuc + Vdir)
 // If no e_a is given, will use the existing one!
 // (Usually, a better guess should be given, using P.T.)
@@ -41,7 +41,6 @@ void Wavefunction::solveDirac(DiracSpinor &psi, double e_a,
 // so, here, vex = [sum_b vex_a (psi_b/psi_a)]
 // This is not ideal..
 {
-
   std::vector<double> v_a = vnuc;
   if (vdir.size() != 0) {
     for (std::size_t i = 0; i < rgrid.ngp; i++) {
@@ -53,19 +52,17 @@ void Wavefunction::solveDirac(DiracSpinor &psi, double e_a,
       v_a[i] += vex[i];
     }
   }
-
   if (e_a != 0) {
     psi.en = e_a;
   } else if (psi.en == 0) {
     psi.en = enGuessVal(psi.n, psi.k);
   }
   ADAMS::solveDBS(psi, v_a, rgrid, m_alpha, log_dele_or);
-
-  return;
 }
+
 //------------------------------------------------------------------------------
 void Wavefunction::solveDirac(DiracSpinor &psi, double e_a,
-                                  int log_dele_or) const
+                              int log_dele_or) const
 // Overloaded version; see above
 // This one doesn't have exchange potential
 {
@@ -207,8 +204,7 @@ bool Wavefunction::isInCore(int n, int k) const
 }
 
 //******************************************************************************
-std::size_t Wavefunction::getStateIndex(int n, int k,
-                                            bool &is_valence) const {
+std::size_t Wavefunction::getStateIndex(int n, int k, bool &is_valence) const {
 
   is_valence = false;
   for (auto &tmp_orbitals : {core_orbitals, valence_orbitals}) {
@@ -300,8 +296,7 @@ void Wavefunction::solveInitialCore(std::string str_core, int log_dele_or)
 }
 
 //******************************************************************************
-void Wavefunction::solveNewValence(int n, int k, double en_a,
-                                       int log_dele_or)
+void Wavefunction::solveNewValence(int n, int k, double en_a, int log_dele_or)
 // Update to take a list ok nken's ?
 {
   valence_orbitals.emplace_back(DiracSpinor{n, k, rgrid});
@@ -314,8 +309,8 @@ void Wavefunction::solveNewValence(int n, int k, double en_a,
 }
 
 //******************************************************************************
-void Wavefunction::orthonormaliseOrbitals(
-    std::vector<DiracSpinor> &tmp_orbs, int num_its)
+void Wavefunction::orthonormaliseOrbitals(std::vector<DiracSpinor> &in_orbs,
+                                          int num_its)
 // Note: this function is static
 // Forces ALL orbitals to be orthogonal to each other, and normal
 // Note: workes best if run twice!
@@ -334,46 +329,42 @@ void Wavefunction::orthonormaliseOrbitals(
 // Note: This allows wfs to extend past pinf!
 // ==> This causes the possible orthog issues..
 {
-  auto Ns = tmp_orbs.size();
-  auto ngp = tmp_orbs[0].p_rgrid->ngp;
-  std::vector<std::vector<double>> c_ab(Ns, std::vector<double>(Ns));
+  auto Ns = in_orbs.size();
+  auto ngp = in_orbs.front().p_rgrid->ngp;
 
+  std::vector<std::vector<double>> c_ab(Ns, std::vector<double>(Ns));
   // Calculate c_ab = <a|b>  [only for b>a -- symmetric]
   for (std::size_t a = 0; a < Ns; a++) {
     for (auto b = a + 1; b < Ns; b++) {
-      if (tmp_orbs[a].k != tmp_orbs[b].k)
+      if (in_orbs[a].k != in_orbs[b].k)
         continue;
-      c_ab[a][b] = 0.5 * (tmp_orbs[a] * tmp_orbs[b]);
+      c_ab[a][b] = 0.5 * (in_orbs[a] * in_orbs[b]);
     }
   }
 
   // Orthogonalise orbitals:
   for (std::size_t a = 0; a < Ns; a++) {
     for (std::size_t b = 0; b < Ns; b++) {
-      if (tmp_orbs[a].k != tmp_orbs[b].k)
+      if (in_orbs[a].k != in_orbs[b].k)
         continue;
       if (a == b)
         continue;
       // c_ab = c_ba : only calc'd half:
       double cab = (a < b) ? c_ab[a][b] : c_ab[b][a];
       for (std::size_t ir = 0; ir < ngp; ir++) {
-        tmp_orbs[a].f[ir] -= cab * tmp_orbs[b].f[ir];
-        tmp_orbs[a].g[ir] -= cab * tmp_orbs[b].g[ir];
+        in_orbs[a].f[ir] -= cab * in_orbs[b].f[ir];
+        in_orbs[a].g[ir] -= cab * in_orbs[b].g[ir];
       }
     }
   }
 
-  for (auto &psi : tmp_orbs) {
-    double norm = 1. / sqrt(psi * psi);
-    for (auto &fa_r : psi.f)
-      fa_r *= norm;
-    for (auto &ga_r : psi.g)
-      ga_r *= norm;
+  for (auto &psi : in_orbs) {
+    psi.normalise();
   }
 
   // If necisary: repeat
   if (num_its > 1)
-    orthonormaliseOrbitals(tmp_orbs, num_its - 1);
+    orthonormaliseOrbitals(in_orbs, num_its - 1);
 }
 
 //******************************************************************************
@@ -383,39 +374,17 @@ void Wavefunction::orthonormaliseWrtCore(DiracSpinor &psi_v) const
 // |v> --> |v> - sum_c |c><c|v>
 // note: here, c denotes core orbitals
 {
-
-  auto Nc = core_orbitals.size();
-
-  // Calculate the coeficients <c|v> = A_cv
-  std::vector<double> A_vc; //(num_states_below);
-  A_vc.reserve(Nc);
-  for (const auto &phi_c : core_orbitals) {
-    if (psi_v.k != phi_c.k) {
-      A_vc.push_back(0.);
-      continue;
-    }
-    A_vc.emplace_back((psi_v * phi_c)); // no 0.5 here
-  }
-
   // Orthogonalise:
-  for (std::size_t ic = 0; ic < Nc; ic++) {
-    const auto &psi_c = core_orbitals[ic];
+  for (const auto &psi_c : core_orbitals) {
     if (psi_v.k != psi_c.k)
       continue;
-    const double Avc = A_vc[ic];
+    const double Avc = psi_v * psi_c;
     for (std::size_t ir = 0; ir < psi_v.pinf; ir++) {
-      // Probably an algorithm for this!
       psi_v.f[ir] -= Avc * psi_c.f[ir];
       psi_v.g[ir] -= Avc * psi_c.g[ir];
     }
   }
-
-  // Re-normalise the valence orbital:
-  const double norm = 1. / sqrt((psi_v * psi_v));
-  for (auto &fv_r : psi_v.f)
-    fv_r *= norm;
-  for (auto &gv_r : psi_v.g)
-    gv_r *= norm;
+  psi_v.normalise();
 }
 
 //******************************************************************************
@@ -484,7 +453,7 @@ double Wavefunction::enGuessVal(int n, int ka) const
 
 //******************************************************************************
 void Wavefunction::formNuclearPotential(NucleusType nucleus_type, double rc,
-                                            double t) {
+                                        double t) {
   vnuc.clear();
   switch (nucleus_type) {
   case NucleusType::Fermi:
@@ -532,7 +501,7 @@ std::string Wavefunction::nuclearParams() const {
 //******************************************************************************
 std::vector<std::size_t>
 Wavefunction::sortedEnergyList(const std::vector<DiracSpinor> &tmp_orbs,
-                                   bool do_sort) const
+                               bool do_sort) const
 // Outouts a list of integers corresponding to the states
 // sorted by energy (lowest energy first)
 {
@@ -617,8 +586,7 @@ void Wavefunction::printValence(
 
 //******************************************************************************
 std::vector<std::vector<int>>
-Wavefunction::listOfStates_nk(int num_val, int la, int lb,
-                                  bool skip_core) const
+Wavefunction::listOfStates_nk(int num_val, int la, int lb, bool skip_core) const
 // Creates a list of states (usually valence states to solve for)
 // In form {{n,ka},...}
 // Outputs n and l, from min-max l (or from 0-> max l)
