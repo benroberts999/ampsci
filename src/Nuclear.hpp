@@ -1,4 +1,5 @@
 #pragma once
+#include "Nuclear_DataTable.hpp"
 #include "NumCalc_quadIntegrate.hpp"
 #include "PhysConst_constants.hpp"
 #include <cmath>
@@ -6,14 +7,54 @@
 #include <vector>
 class Grid;
 
-/*
-Add data tables of change radii ? etc.
-e.g.: https://www-nds.iaea.org/radii/ (or Mathematrica?)
-*/
+namespace Nuclear {
 
-enum class NucleusType { Fermi, spherical, zero };
+enum class Type { Fermi, spherical, zero };
 
-namespace Nucleus {
+//******************************************************************************
+inline Isotope findIsotopeData(int z, int a) {
+  for (const auto &nucleus : NuclearDataTable) {
+    if (nucleus.Z == z && nucleus.A == a)
+      return nucleus;
+  }
+  return Isotope{z, a, -1, 0, 0, -1};
+}
+
+inline double find_rrms(int z, int a) {
+  auto nuc = findIsotopeData(z, a);
+  if (!nuc.r_ok()) {
+    std::cerr << "\nWARNING 29 in Nuclear: bad radius! r=0\n";
+    return 0;
+  }
+  return nuc.r_rms;
+}
+
+inline double find_mu(int z, int a) {
+  auto nuc = findIsotopeData(z, a);
+  if (!nuc.mu_ok()) {
+    std::cerr << "\nWARNING 39 in Nuclear: bad mu_N! mu=0\n";
+    return 0;
+  }
+  return nuc.mu;
+}
+
+inline double find_parity(int z, int a) {
+  auto nuc = findIsotopeData(z, a);
+  if (!nuc.parity_ok()) {
+    std::cerr << "\nWARNING 39 in Nuclear: bad parity! pi=0\n";
+    return 0;
+  }
+  return nuc.parity;
+}
+
+inline double find_spin(int z, int a) {
+  auto nuc = findIsotopeData(z, a);
+  if (!nuc.I_ok()) {
+    std::cerr << "\nWARNING 39 in Nuclear: bad spin! I=-1\n";
+    return 0;
+  }
+  return nuc.I_N;
+}
 
 //******************************************************************************
 inline double approximate_r_rms(int A)
@@ -32,8 +73,8 @@ inline double approximate_r_rms(int A)
     rN = 2.4312; // 7-Li
   else if (A < 10)
     rN = 1.15 * pow(A, 0.333);
-  else if (A == 133) // 133-Cs
-    rN = 4.8041;
+  // else if (A == 133) // 133-Cs
+  //   rN = 4.8041;
   else
     rN = 0.836 * pow(A, 0.333) + 0.570;
 
@@ -64,20 +105,21 @@ inline double rrms_formula_c_t(double c, double t = 2.3)
   return sqrt(0.2 * (3. * c * c + 7. * a * a * 9.8696));
 }
 
-//******************************************************************************
-inline double approximate_c_hdr(int A, double t = 2.3)
-// approximate formula for half-density radius (c) - used for Fermi distro
-// nb: returns in Fermi
-{
-  double r = approximate_r_rms(A);
-  return c_hdr_formula_rrms_t(r, t);
-}
+// //******************************************************************************
+// inline double approximate_c_hdr(int A, double t = 2.3)
+// // approximate formula for half-density radius (c) - used for Fermi distro
+// // nb: returns in Fermi
+// {
+//   double r = approximate_r_rms(A);
+//   return c_hdr_formula_rrms_t(r, t);
+// }
 
+const double default_t = 2.30;
 //******************************************************************************
 inline double approximate_t_skin(int)
 // skin-thickness. Always same?
 {
-  return 2.30;
+  return default_t;
 }
 
 //******************************************************************************
@@ -187,4 +229,4 @@ fermiNuclearDensity_tcN(double t, double c, double Z_norm, const Grid &grid)
   return rho;
 }
 
-} // namespace Nucleus
+} // namespace Nuclear

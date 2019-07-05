@@ -1,7 +1,7 @@
 #pragma once
 #include "DiracSpinor.hpp"
 #include "Grid.hpp"
-#include "Nucleus.hpp"
+#include "Nuclear.hpp"
 #include <string>
 #include <vector>
 
@@ -78,7 +78,7 @@ public:
                                            bool skip_core = true) const;
 
 public:
-  void formNuclearPotential(NucleusType nucleus_type, double rc = 0,
+  void formNuclearPotential(Nuclear::Type nucleus_type, double rc = 0,
                             double t = 0);
 
   void solveDirac(DiracSpinor &psi, double e_a, const std::vector<double> &vex,

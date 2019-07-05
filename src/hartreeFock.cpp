@@ -3,7 +3,7 @@
 #include "DiracOperator.hpp"
 #include "FileIO_fileReadWrite.hpp"
 #include "HartreeFockClass.hpp"
-#include "Nucleus.hpp"
+#include "Nuclear.hpp"
 #include "NumCalc_quadIntegrate.hpp"
 #include "Operators.hpp"
 #include "Parametric_potentials.hpp"
@@ -210,8 +210,9 @@ int main(int argc, char *argv[]) {
 
   bool testpnc = false;
   if (testpnc) {
-    double t = 2.3;
-    double c = Nucleus::approximate_c_hdr(wf.Anuc());
+    double t = Nuclear::default_t; // approximate_t_skin(wf.Anuc());
+    auto r_rms = Nuclear::find_rrms(wf.Znuc(), wf.Anuc());
+    double c = Nuclear::c_hdr_formula_rrms_t(r_rms);
     PNCnsiOperator hpnc(c, t, wf.rgrid, -wf.Nnuc());
     E1Operator he1(wf.rgrid);
 
@@ -246,11 +247,15 @@ int main(int argc, char *argv[]) {
 
   bool test_hfs = false;
   if (test_hfs) {
-    // Test hfs and Operator [hard-coded for Rb]
-    double muN = 2.751818;                  // XXX Rb
-    double IN = (3. / 2.);                  // XXX Rb
-    auto r_rms = 4.1989 / PhysConst::aB_fm; // XXX Rb
-    // auto r_rms = Nucleus::approximate_r_rms(wf.Anuc());
+    std::cout << "\nHyperfine:\n";
+
+    double muN = Nuclear::find_mu(wf.Znuc(), wf.Anuc());
+    double IN = Nuclear::find_spin(wf.Znuc(), wf.Anuc());
+    auto r_rms_fm = Nuclear::find_rrms(wf.Znuc(), wf.Anuc());
+    // 4.1989
+    auto r_rms = r_rms_fm / PhysConst::aB_fm;
+    std::cout << "mu=" << muN << ", I=" << IN << " ,r=" << r_rms_fm << "\n";
+
     std::cout << "Gridpoints below Rrms: " << wf.rgrid.getIndex(r_rms) << "\n";
 
     // example for using lambda

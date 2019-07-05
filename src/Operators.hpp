@@ -1,7 +1,7 @@
 #pragma once
 #include "DiracOperator.hpp"
 #include "Grid.hpp"
-#include "Nucleus.hpp"
+#include "Nuclear.hpp"
 #include "PhysConst_constants.hpp"
 #include <cmath>
 #include <vector>
@@ -70,13 +70,13 @@ class PNCnsiOperator : public DiracOperator {
 public:
   PNCnsiOperator(double c, double t, const Grid &rgrid, double factor = 1)
       : DiracOperator(factor * PhysConst::GFe11 / sqrt(8.),
-                      Nucleus::fermiNuclearDensity_tcN(t, c, 1, rgrid),
+                      Nuclear::fermiNuclearDensity_tcN(t, c, 1, rgrid),
                       GammaMatrix::g5) {}
 };
 
 // double t = 2.3;
-// double c = Nucleus::approximate_c_hdr(wf.Anuc());
-// auto rho = Nucleus::fermiNuclearDensity_tcN(t, c, 1, wf.rgrid);
+// double c = Nuclear::approximate_c_hdr(wf.Anuc());
+// auto rho = Nuclear::fermiNuclearDensity_tcN(t, c, 1, wf.rgrid);
 // double Gf = PhysConst::GFe11;
 // double Cc = (Gf / sqrt(8.)) * (-wf.Nnuc()); // Qw/(-N)
 // DiracOperator hpnc(Cc, rho, GammaMatrix::g5);

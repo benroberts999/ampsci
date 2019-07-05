@@ -11,7 +11,6 @@ namespace AtomInfo {
 
 //******************************************************************************
 struct Element {
-  // XXX add default rms radii to this too!
   int Z;
   std::string symbol;
   int A;

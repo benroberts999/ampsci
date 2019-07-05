@@ -4,7 +4,7 @@
 #include "AtomInfo.hpp"
 #include "DiracSpinor.hpp"
 #include "Grid.hpp"
-#include "Nucleus.hpp"
+#include "Nuclear.hpp"
 #include "PhysConst_constants.hpp"
 #include <algorithm> //for sort
 #include <cmath>
@@ -21,11 +21,11 @@ Wavefunction::Wavefunction(int in_z, int in_a, int in_ngp, double rmin,
       m_A((in_a < 0) ? AtomInfo::defaultA(m_Z) : in_a) {
   // Make Vnuc const?
   if (m_A > 15) {
-    formNuclearPotential(NucleusType::Fermi);
+    formNuclearPotential(Nuclear::Type::Fermi);
   } else if (m_A > 0) {
-    formNuclearPotential(NucleusType::spherical);
+    formNuclearPotential(Nuclear::Type::spherical);
   } else {
-    formNuclearPotential(NucleusType::zero);
+    formNuclearPotential(Nuclear::Type::zero);
   }
 }
 
@@ -429,29 +429,35 @@ double Wavefunction::enGuessVal(int n, int ka) const
 }
 
 //******************************************************************************
-void Wavefunction::formNuclearPotential(NucleusType nucleus_type, double rc,
+void Wavefunction::formNuclearPotential(Nuclear::Type nucleus_type, double rc,
                                         double t) {
   vnuc.clear();
   switch (nucleus_type) {
-  case NucleusType::Fermi:
+  case Nuclear::Type::Fermi:
     if (t == 0)
-      t = Nucleus::approximate_t_skin(m_A);
-    if (rc == 0)
-      rc = Nucleus::approximate_c_hdr(m_A);
-    vnuc = Nucleus::fermiNuclearPotential(m_Z, t, rc, rgrid.r);
+      t = Nuclear::approximate_t_skin(m_A);
+    if (rc == 0) {
+      auto rrms = Nuclear::find_rrms(m_Z, m_A);
+      if (rrms == 0)
+        rrms = Nuclear::approximate_r_rms(m_A);
+      rc = Nuclear::c_hdr_formula_rrms_t(rrms, t);
+    }
+    vnuc = Nuclear::fermiNuclearPotential(m_Z, t, rc, rgrid.r);
     break;
-  case NucleusType::spherical:
+  case Nuclear::Type::spherical:
     if (rc == 0) {
       // note: still called rc, but is r_N here!
-      rc = Nucleus::approximate_r_rms(m_A);
+      rc = Nuclear::find_rrms(m_Z, m_A);
+      if (rc == 0)
+        rc = Nuclear::approximate_r_rms(m_A);
     }
     t = 0;
-    vnuc = Nucleus::sphericalNuclearPotential(m_Z, rc, rgrid.r);
+    vnuc = Nuclear::sphericalNuclearPotential(m_Z, rc, rgrid.r);
     break;
-  case NucleusType::zero:
+  case Nuclear::Type::zero:
     rc = 0;
     t = 0;
-    vnuc = Nucleus::sphericalNuclearPotential(m_Z, 0., rgrid.r);
+    vnuc = Nuclear::sphericalNuclearPotential(m_Z, 0., rgrid.r);
     break;
   default:
     std::cerr << "\nFail WF:755 - invalid nucleus type?\n";
@@ -462,14 +468,13 @@ void Wavefunction::formNuclearPotential(NucleusType nucleus_type, double rc,
 
 //******************************************************************************
 std::string Wavefunction::nuclearParams() const {
-  // std::string output;
   std::ostringstream output;
   if (m_c == 0 && m_t == 0) {
     output << "Zero-size nucleus";
   } else if (m_t == 0) {
     output << "Spherical nucleus; r_rms = " << m_c;
   } else {
-    output << "Fermi nucleus; r_rms = " << Nucleus::rrms_formula_c_t(m_c, m_t)
+    output << "Fermi nucleus; r_rms = " << Nuclear::rrms_formula_c_t(m_c, m_t)
            << ", c=" << m_c << ", t=" << m_t;
   }
   return output.str();
