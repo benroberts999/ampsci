@@ -199,20 +199,22 @@ bool Wavefunction::isInCore(int n, int k) const
 std::size_t Wavefunction::getStateIndex(int n, int k, bool &is_valence) const {
 
   is_valence = false;
-  for (auto &tmp_orbitals : {core_orbitals, valence_orbitals}) {
-    // How does this work?
-    // Is is making a copy of core_orbitals + valence_orbitals ?
-    // If so, have to be careful not to use this deep in a loop!!!
-    for (std::size_t i = 0; i < tmp_orbitals.size(); i++) {
-      auto &phi = tmp_orbitals[i];
+  for (const auto p_orbs : {&core_orbitals, &valence_orbitals}) {
+    std::size_t count = 0;
+    for (const auto &phi : *p_orbs) {
       if (n == phi.n && k == phi.k)
-        return i;
+        return count;
+      ++count;
     }
     is_valence = true;
   }
   std::cerr << "\nFAIL 290 in WF: Couldn't find state n,k=" << n << "," << k
             << "\n";
   std::abort();
+}
+std::size_t Wavefunction::getStateIndex(const DiracSpinor &psi,
+                                        bool &is_valence) const {
+  return getStateIndex(psi.n, psi.k, is_valence);
 }
 
 //******************************************************************************
@@ -560,7 +562,7 @@ void Wavefunction::printValence(
 }
 
 //******************************************************************************
-std::vector<std::vector<int>>
+std::vector<DiracSEnken>
 Wavefunction::listOfStates_nk(int num_val, int la, int lb, bool skip_core) const
 // Creates a list of states (usually valence states to solve for)
 // In form {{n,ka},...}
@@ -569,17 +571,13 @@ Wavefunction::listOfStates_nk(int num_val, int la, int lb, bool skip_core) const
 // This will be number of states above the core (skips states which are in the
 // core)
 {
-  std::vector<std::vector<int>> lst;
+  std::vector<DiracSEnken> lst;
   auto l_min = la;
   auto l_max = lb;
   if (lb == 0) {
     l_min = 0;
     l_max = la;
   }
-
-  // XXX a) Add energy guess for valence/core!
-  // XXX b) Change to give list of nken's !
-  // XXX Then: send this list to solvers
 
   auto min_ik = AtomInfo::indexFromKappa(-l_min - 1);
   auto max_ik = AtomInfo::indexFromKappa(-l_max - 1);
@@ -590,7 +588,7 @@ Wavefunction::listOfStates_nk(int num_val, int la, int lb, bool skip_core) const
     for (int n = n_min, count = 0; count < num_val; n++) {
       if (isInCore(n, k) && skip_core)
         continue;
-      lst.push_back({n, k});
+      lst.emplace_back(n, k);
       ++count;
     }
   }

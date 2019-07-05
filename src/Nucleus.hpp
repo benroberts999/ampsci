@@ -11,6 +11,8 @@ Add data tables of change radii ? etc.
 e.g.: https://www-nds.iaea.org/radii/ (or Mathematrica?)
 */
 
+enum class NucleusType { Fermi, spherical, zero };
+
 namespace Nucleus {
 
 //******************************************************************************

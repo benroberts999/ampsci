@@ -52,8 +52,9 @@ int main(int argc, char *argv[]) {
   if (exclude_exchange)
     std::cout << "\nRunning Hartree (excluding exchange) for ";
   else
-    std::cout << "\nRunning Hartree-Fock for " << wf.atom() << "\n";
-  std::cout << wf.nuclearParams() << "\n"
+    std::cout << "\nRunning Hartree-Fock for ";
+  std::cout << wf.atom() << "\n"
+            << wf.nuclearParams() << "\n"
             << wf.rgrid.gridParameters() << "\n"
             << "********************************************************\n";
 
@@ -71,12 +72,11 @@ int main(int argc, char *argv[]) {
   // Solve for the valence states:
   timer.start();
   for (const auto &nk : val_lst) {
-    int n = nk[0];
-    int k = nk[1];
-    hf.solveNewValence(n, k);
+    hf.solveNewValence(nk.n, nk.k);
   }
   if (val_lst.size() > 0)
     std::cout << "Valence: " << timer.lap_reading_str() << "\n";
+  // wf.orthonormaliseOrbitals(wf.valence_orbitals, 2);
 
   // Output results:
   std::cout << "\nHartree Fock: " << wf.atom() << "\n";
@@ -97,7 +97,7 @@ int main(int argc, char *argv[]) {
     auto basis_lst = wf.listOfStates_nk(6, 3);
     std::vector<DiracSpinor> basis = wf.core_orbitals;
     for (const auto &nk : basis_lst) {
-      basis.emplace_back(DiracSpinor(nk[0], nk[1], wf.rgrid));
+      basis.emplace_back(DiracSpinor(nk.n, nk.k, wf.rgrid));
       auto tmp_vex = std::vector<double>{};
       hf.solveValence(basis.back(), tmp_vex);
     }
@@ -107,6 +107,20 @@ int main(int argc, char *argv[]) {
   }
 
   if (run_test) {
+
+    std::cout << "Test approximate exchange potential\n"
+              << "calculates: <psi| V_ex - V_ex^approx |psi>\n"
+              << "(Note: this is lower-bound on error!)\n";
+    for (const auto p_orbs : {&wf.core_orbitals, &wf.valence_orbitals}) {
+      for (const auto &psi : *p_orbs) {
+        DiracOperator z3(hf.get_vex(psi));
+        auto dPsi_appoax = (z3 * psi);
+        auto dPsi_real = hf.vex_psia(psi);
+        auto delta_e = psi * dPsi_real - psi * dPsi_appoax;
+        std::cout << psi.symbol() << " " << delta_e << "\n";
+      }
+    }
+
     std::cout << "Test orthonormality [log-scale, should all read 0]:\n";
     for (int i = 0; i < 3; i++) {
       const auto &tmp_b = (i == 2) ? wf.valence_orbitals : wf.core_orbitals;
