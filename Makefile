@@ -48,14 +48,16 @@ all: checkObj checkXdir $(ALLEXES)
 
 # All programs depend on these generic common headers:
 COMH = $(addprefix $(ID)/, \
- DiracSpinor.h Nucleus.h \
- ATI_atomInfo.h FPC_physicalConstants.h FileIO_fileReadWrite.h \
- NumCalc_quadIntegrate.h Grid.h Matrix_linalg.h ChronoTimer.h Wigner_369j.h \
+ DiracSpinor.hpp DiracOperator.hpp Wavefunction.hpp Operators.hpp \
+ Nucleus.hpp \
+ AtomInfo.hpp PhysConst_constants.hpp FileIO_fileReadWrite.hpp \
+ NumCalc_quadIntegrate.hpp Grid.hpp Matrix_linalg.hpp ChronoTimer.hpp \
+ Wigner_369j.hpp \
 )
 
 # Rule for files that have .cpp AND a .h file
 # They depend 'only' on their own header, + generic common headers
-$(OD)/%.o: $(ID)/%.cpp $(ID)/%.h $(COMH)
+$(OD)/%.o: $(ID)/%.cpp $(ID)/%.hpp $(COMH)
 	$(COMP)
 
 # Rule for files that _don't_ have a .h header. (mains)
@@ -64,22 +66,22 @@ $(OD)/%.o: $(ID)/%.cpp $(COMH)
 	$(COMP)
 
 # Here: List rules for any other progs that don't fit above rules?
-$(OD)/dummy.o: $(ID)/dummy.cpp $(COMH) $(ID)/otherHeader.h
+$(OD)/dummy.o: $(ID)/dummy.cpp $(COMH) $(ID)/otherHeader.hpp
 	$(COMP)
 
 ################################################################################
 # Hust to save typing: Many programs depend on these combos:
 
 BASE = $(addprefix $(OD)/, \
- ADAMS_solveLocalBS.o ElectronOrbitals.o \
+ ADAMS_bound.o Wavefunction.o \
 )
 
 HF = $(addprefix $(OD)/, \
- HartreeFockClass.o PRM_parametricPotentials.o \
+ HartreeFockClass.o CoulombIntegrals.o Parametric_potentials.o \
 )
 
 CNTM = $(addprefix $(OD)/, \
- ADAMS_solveLocalContinuum.o ContinuumOrbitals.o \
+ ADAMS_continuum.o ContinuumOrbitals.o \
 )
 
 ################################################################################
@@ -89,11 +91,11 @@ $(XD)/h-like: $(BASE) $(OD)/h-like.o
 	$(LINK)
 
 $(XD)/fitParametric: $(BASE) $(HF) $(OD)/fitParametric.o \
-$(OD)/PRM_parametricPotentials.o
+$(OD)/Parametric_potentials.o
 	$(LINK)
 
 $(XD)/parametricPotential: $(BASE) $(OD)/parametricPotential.o \
-$(OD)/PRM_parametricPotentials.o
+$(OD)/Parametric_potentials.o
 	$(LINK)
 
 $(XD)/atomicKernal: $(BASE) $(CNTM) $(HF) \

@@ -14,6 +14,12 @@ static_assert(
 void solveDBS(DiracSpinor &psi, const std::vector<double> &v, const Grid &rgrid,
               const double alpha, int log_dele = 0);
 
+void diracODE_regularAtOrigin(DiracSpinor &phi, const double en,
+                              const std::vector<double> &v, const double alpha);
+void diracODE_regularAtInfinity(DiracSpinor &phi, const double en,
+                                const std::vector<double> &v,
+                                const double alpha);
+
 int findPracticalInfinity(const double en, const std::vector<double> &v,
                           const std::vector<double> &r, const double alr);
 
@@ -42,7 +48,7 @@ double smallEnergyChangePT(const double en, const double anorm,
                            double alpha, int count_toofew, int count_toomany,
                            double low_en, double high_en);
 
-void outwardAM(std::vector<double> &p, std::vector<double> &q, const double en,
+void outwardAM(std::vector<double> &f, std::vector<double> &g, const double en,
                const std::vector<double> &v, const int ka,
                const std::vector<double> &r, const std::vector<double> &drdt,
                const double h, const int ctp, const double alpha);

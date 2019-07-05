@@ -1,6 +1,6 @@
 #pragma once
-#include "FPC_physicalConstants.h"
-#include "NumCalc_quadIntegrate.h"
+#include "NumCalc_quadIntegrate.hpp"
+#include "PhysConst_constants.hpp"
 #include <cmath>
 #include <gsl/gsl_sf_fermi_dirac.h>
 #include <vector>
@@ -10,6 +10,8 @@ class Grid;
 Add data tables of change radii ? etc.
 e.g.: https://www-nds.iaea.org/radii/ (or Mathematrica?)
 */
+
+enum class NucleusType { Fermi, spherical, zero };
 
 namespace Nucleus {
 
@@ -42,10 +44,24 @@ inline double approximate_r_rms(int A)
 inline double c_hdr_formula_rrms_t(double rrms, double t = 2.3)
 // Calculates half-density radius, given rms charge radius, and t.
 // Formula from Ginges, Volotka, Fritzsche, Phys. Rev. A 96, 1 (2017).
+// 4 ln(3) = 4.39445, pi^2 = 9.8696
+{
+  double a = t / 4.39445;
+  if (rrms < t) {
+    // this is little dodgy? but formula prob only works large A
+    return sqrt((5. / 3) * rrms * rrms);
+  }
+  return sqrt((5. / 3) * rrms * rrms - (7. / 3) * (9.8696 * a * a));
+}
+
+//******************************************************************************
+inline double rrms_formula_c_t(double c, double t = 2.3)
+// Calculates  rms charge radius, given half-density radius (c), and t.
+// Formula from Ginges, Volotka, Fritzsche, Phys. Rev. A 96, 1 (2017).
 // 4 ln(3) = 4.39445, pi^2 = 9.87
 {
   double a = t / 4.39445;
-  return sqrt((5. / 3) * rrms * rrms - (7. / 3) * (9.87 * a * a));
+  return sqrt(0.2 * (3. * c * c + 7. * a * a * 9.8696));
 }
 
 //******************************************************************************
@@ -75,7 +91,7 @@ sphericalNuclearPotential(double Z, double rnuc,
   std::vector<double> vnuc;
   vnuc.reserve(rgrid.size());
 
-  double rN = rnuc / FPC::aB_fm;
+  double rN = rnuc / PhysConst::aB_fm;
 
   // Fill the vnuc array with spherical nuclear potantial
   double rn2 = pow(rN, 2);
@@ -124,9 +140,9 @@ fermiNuclearPotential(double Z, double t, double c,
   double pi2 = pow(M_PI, 2);
   for (auto r : rgrid) {
     double t_v = -Z / r;
-    double roa = FPC::aB_fm * r / a; // convert fm <-> atomic
+    double roa = PhysConst::aB_fm * r / a; // convert fm <-> atomic
     if (roa < 30. + coa) {
-      double roa = FPC::aB_fm * r / a; // convert fm <-> atomic
+      double roa = PhysConst::aB_fm * r / a; // convert fm <-> atomic
       double coa2 = pow(coa, 2);
       double xF1 = gsl_sf_fermi_dirac_1(roa - coa);
       double xF2 = gsl_sf_fermi_dirac_2(roa - coa);
@@ -152,7 +168,7 @@ fermiNuclearDensity_tcN(double t, double c, double Z_norm, const Grid &grid)
   double a = 0.22756 * t;
   double coa = c / a;
   for (auto r : grid.r) {
-    double roa = FPC::aB_fm * r / a;
+    double roa = PhysConst::aB_fm * r / a;
     if (roa < 30. + coa) {
       rho.emplace_back(1. / (1. + exp(roa - coa)));
     } else {

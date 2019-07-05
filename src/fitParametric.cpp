@@ -1,12 +1,11 @@
-#include "ATI_atomInfo.h"
-#include "ChronoTimer.h"
-#include "ElectronOrbitals.h"
-#include "FPC_physicalConstants.h"
-#include "FileIO_fileReadWrite.h"
-
-#include "HartreeFockClass.h"
-#include "NumCalc_quadIntegrate.h"
-#include "PRM_parametricPotentials.h"
+#include "AtomInfo.hpp"
+#include "ChronoTimer.hpp"
+#include "FileIO_fileReadWrite.hpp"
+#include "HartreeFockClass.hpp"
+#include "NumCalc_quadIntegrate.hpp"
+#include "Parametric_potentials.hpp"
+#include "PhysConst_constants.hpp"
+#include "Wavefunction.hpp"
 #include <cmath>
 #include <fstream>
 #include <iostream>
@@ -15,17 +14,9 @@
 Finds the best-fit parameter values for the Green or Tietz potentials
 */
 
-struct nken {
-  int n;
-  int k;
-  double en;
-  nken(int in_n, int in_k, double in_en) : n(in_n), k(in_k), en(in_en){};
-  nken(){};
-};
-
-std::tuple<double, double> performFit(const std::vector<nken> &states, int Z,
-                                      int A, int ngp, double r0, double rmax,
-                                      bool green, bool fit_worst);
+std::tuple<double, double> performFit(const std::vector<DiracSEnken> &states,
+                                      int Z, int A, int ngp, double r0,
+                                      double rmax, bool green, bool fit_worst);
 
 //******************************************************************************
 int main(int argc, char *argv[]) {
@@ -40,8 +31,8 @@ int main(int argc, char *argv[]) {
   int ngp;
   double r0, rmax;
   int igreen;
-  std::vector<nken> states;
-  std::vector<nken> val_states;
+  std::vector<DiracSEnken> states;
+  std::vector<DiracSEnken> val_states;
   bool fit_worst;
 
   auto in_str_list = FileIO::readInputFile_byEntry(input_file);
@@ -59,7 +50,7 @@ int main(int argc, char *argv[]) {
     for (std::size_t i = n_els; i < in_str_list.size(); i += 3) {
       auto tv = std::vector<std::string>(in_str_list.begin() + i,
                                          in_str_list.begin() + i + 3);
-      nken tmp;
+      DiracSEnken tmp;
       auto tp2 = std::forward_as_tuple(tmp.n, tmp.k, tmp.en);
       FileIO::stringstreamVectorIntoTuple(tv, tp2);
       val_states.push_back(tmp);
@@ -70,7 +61,7 @@ int main(int argc, char *argv[]) {
   if (str_core == "na")
     do_HF = false;
 
-  int Z = ATI::get_z(Z_str);
+  int Z = AtomInfo::get_z(Z_str);
   if (Z == 0)
     return 2;
 
@@ -86,9 +77,9 @@ int main(int argc, char *argv[]) {
   std::cout << "*********************************************************\n";
 
   if (do_HF) {
-    ElectronOrbitals hfwf(Z, A, ngp, r0, rmax);
+    Wavefunction hfwf(Z, A, ngp, r0, rmax);
     HartreeFock hf(hfwf, str_core, 1.e-9);
-    for (auto &phi : hfwf.orbitals) {
+    for (auto &phi : hfwf.core_orbitals) {
       // // don't fit for both j=l+/-1/2, just one!
       // if (phi.k < 0 && phi.k != -1)
       //   continue;
@@ -107,21 +98,21 @@ int main(int argc, char *argv[]) {
       printf("Tietz: \n  t=%7.5f  g=%7.5f\n\n", H, d);
 
     // Now, solve using the above-found best-fit parameters:
-    ElectronOrbitals wf(Z, A, ngp, r0, rmax);
+    Wavefunction wf(Z, A, ngp, r0, rmax);
     if (green)
       for (auto r : wf.rgrid.r)
-        wf.vdir.push_back(PRM::green(Z, r, H, d));
+        wf.vdir.push_back(Parametric::green(Z, r, H, d));
     else
       for (auto r : wf.rgrid.r)
-        wf.vdir.push_back(PRM::tietz(Z, r, H, d));
+        wf.vdir.push_back(Parametric::tietz(Z, r, H, d));
     for (auto &nk : states) {
-      wf.solveLocalDirac(nk.n, nk.k, nk.en);
+      wf.solveNewValence(nk.n, nk.k, nk.en);
     }
 
     printf(" nl_j    k  Rinf its   eps     En (au)    \n");
     // double en0 = wf.orbitals.front().en;
     int i = 0;
-    for (auto &phi : wf.orbitals) {
+    for (auto &phi : wf.core_orbitals) {
       auto njl = phi.symbol().c_str();
       double rinf = wf.rinf(phi);
       double eni = phi.en;
@@ -146,28 +137,28 @@ int main(int argc, char *argv[]) {
       printf("Tietz: \n  t=%7.5f  g=%7.5f\n\n", H, d);
 
     // Now, solve using the above-found best-fit parameters:
-    ElectronOrbitals wf(Z, A, ngp, r0, rmax);
+    Wavefunction wf(Z, A, ngp, r0, rmax);
     if (green)
       for (auto r : wf.rgrid.r)
-        wf.vdir.push_back(PRM::green(Z, r, H, d));
+        wf.vdir.push_back(Parametric::green(Z, r, H, d));
     else
       for (auto r : wf.rgrid.r)
-        wf.vdir.push_back(PRM::tietz(Z, r, H, d));
+        wf.vdir.push_back(Parametric::tietz(Z, r, H, d));
     for (auto &nk : val_states) {
-      wf.solveLocalDirac(nk.n, nk.k, nk.en);
+      wf.solveNewValence(nk.n, nk.k, nk.en);
     }
 
     printf(" nl_j    k  Rinf its   eps     En (au)        En (/cm)\n");
-    double en0 = wf.orbitals.front().en;
+    double en0 = wf.valence_orbitals.front().en;
     int i = 0;
-    for (auto &phi : wf.orbitals) {
+    for (auto &phi : wf.valence_orbitals) {
       auto njl = phi.symbol().c_str();
       double rinf = wf.rinf(phi);
       double eni = phi.en;
       double enT = val_states[i++].en;
       printf("%7s %2i  %3.0f %3i  %5.0e  %13.7f  %11.4f %8.2f%%\n", njl, phi.k,
-             rinf, phi.its, phi.eps, eni, (eni - en0) * FPC::Hartree_invcm,
-             100. * (enT - eni) / enT);
+             rinf, phi.its, phi.eps, eni,
+             (eni - en0) * PhysConst::Hartree_invcm, 100. * (enT - eni) / enT);
     }
 
     printf("\nValence: {%i, %.3f, %.3f}\n", Z, H, d);
@@ -179,9 +170,9 @@ int main(int argc, char *argv[]) {
 }
 
 //******************************************************************************
-std::tuple<double, double> performFit(const std::vector<nken> &states, int Z,
-                                      int A, int ngp, double r0, double rmax,
-                                      bool green, bool fit_worst) {
+std::tuple<double, double> performFit(const std::vector<DiracSEnken> &states,
+                                      int Z, int A, int ngp, double r0,
+                                      double rmax, bool green, bool fit_worst) {
 
   std::cout << "Performing fit (for ";
   if (green)
@@ -219,30 +210,30 @@ std::tuple<double, double> performFit(const std::vector<nken> &states, int Z,
       double H = Hmin + n * dH;
       for (int m = 0; m < n_array; m++) {
         double d = dmin + m * dd;
-        ElectronOrbitals wf(Z, A, ngp, r0, rmax);
+        Wavefunction wf(Z, A, ngp, r0, rmax);
         if (green)
           for (auto r : wf.rgrid.r)
-            wf.vdir.push_back(PRM::green(Z, r, H, d));
+            wf.vdir.push_back(Parametric::green(Z, r, H, d));
         else
           for (auto r : wf.rgrid.r)
-            wf.vdir.push_back(PRM::tietz(Z, r, H, d));
+            wf.vdir.push_back(Parametric::tietz(Z, r, H, d));
         // fits for the worst state
         double fx = 0;
         if (fit_worst) {
           for (std::size_t ns = 0; ns < states.size(); ns++) {
-            wf.solveLocalDirac(states[ns].n, states[ns].k, states[ns].en);
-            auto fx2 = fabs((wf.orbitals[ns].en - states[ns].en) /
-                            (wf.orbitals[ns].en + states[ns].en));
+            wf.solveNewValence(states[ns].n, states[ns].k, states[ns].en);
+            auto fx2 = fabs((wf.valence_orbitals[ns].en - states[ns].en) /
+                            (wf.valence_orbitals[ns].en + states[ns].en));
             if (fx2 > fx)
               fx = fx2;
           }
         } else {
           // sum-of-squares
           for (std::size_t ns = 0; ns < states.size(); ns++) {
-            wf.solveLocalDirac(states[ns].n, states[ns].k, states[ns].en);
+            wf.solveNewValence(states[ns].n, states[ns].k, states[ns].en);
             // fx += pow(wf.orbitals[ns].en - states[ns].en, 2);
-            fx += pow((wf.orbitals[ns].en - states[ns].en) /
-                          (wf.orbitals[ns].en + states[ns].en),
+            fx += pow((wf.valence_orbitals[ns].en - states[ns].en) /
+                          (wf.valence_orbitals[ns].en + states[ns].en),
                       2);
           }
         }

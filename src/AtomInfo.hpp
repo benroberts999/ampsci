@@ -7,51 +7,76 @@
 #include <utility>
 #include <vector>
 
-namespace ATI {
+namespace AtomInfo {
+
+//******************************************************************************
+struct Element {
+  // XXX add default rms radii to this too!
+  int Z;
+  std::string symbol;
+  int A;
+  Element(int inZ, std::string insymbol, int inA)
+      : Z(inZ), symbol(insymbol), A(inA) {}
+};
 
 // Default values for A for each atom.
-// Note: array index matches Z, so first entry is blank.
 // Goes up to E120 (Z=120)
-// static const int
-// XXX Make this a pair? Or a struct? (then, can put other default nuclear
-// defaults inside as well!)
-static const std::size_t MAX_Z = 121;
-static const std::array<int, MAX_Z> A = {
-    0,   1,   4,   7,   9,   11,  12,  14,  16,  19,  20,  23,  24,  27,
-    28,  31,  32,  35,  40,  39,  40,  45,  48,  51,  52,  55,  56,  59,
-    59,  64,  65,  70,  73,  75,  79,  80,  84,  85,  88,  89,  91,  93,
-    96,  97,  101, 103, 106, 108, 112, 115, 119, 122, 128, 127, 131, 133,
-    137, 139, 140, 141, 144, 145, 150, 152, 157, 159, 162, 165, 167, 169,
-    173, 175, 178, 181, 184, 186, 190, 192, 195, 197, 201, 204, 207, 209,
-    209, 210, 222, 223, 226, 227, 232, 231, 238, 237, 244, 243, 247, 247,
-    251, 252, 257, 258, 259, 262, 267, 270, 269, 270, 270, 278, 281, 281,
-    285, 286, 289, 289, 293, 293, 294, 315, 320};
+static const std::vector<Element> periodic_table = {
+    {1, "H", 1},      {2, "He", 4},     {3, "Li", 7},       {4, "Be", 9},
+    {5, "B", 11},     {6, "C", 12},     {7, "N", 14},       {8, "O", 16},
+    {9, "F", 19},     {10, "Ne", 20},   {11, "Na", 23},     {12, "Mg", 24},
+    {13, "Al", 27},   {14, "Si", 28},   {15, "P", 31},      {16, "S", 32},
+    {17, "Cl", 35},   {18, "Ar", 40},   {19, "K", 39},      {20, "Ca", 40},
+    {21, "Sc", 45},   {22, "Ti", 48},   {23, "V", 51},      {24, "Cr", 52},
+    {25, "Mn", 55},   {26, "Fe", 56},   {27, "Co", 59},     {28, "Ni", 59},
+    {29, "Cu", 64},   {30, "Zn", 65},   {31, "Ga", 70},     {32, "Ge", 73},
+    {33, "As", 75},   {34, "Se", 79},   {35, "Br", 80},     {36, "Kr", 84},
+    {37, "Rb", 85},   {38, "Sr", 88},   {39, "Y", 89},      {40, "Zr", 91},
+    {41, "Nb", 93},   {42, "Mo", 96},   {43, "Tc", 97},     {44, "Ru", 101},
+    {45, "Rh", 103},  {46, "Pd", 106},  {47, "Ag", 108},    {48, "Cd", 112},
+    {49, "In", 115},  {50, "Sn", 119},  {51, "Sb", 122},    {52, "Te", 128},
+    {53, "I", 127},   {54, "Xe", 131},  {55, "Cs", 133},    {56, "Ba", 137},
+    {57, "La", 139},  {58, "Ce", 140},  {59, "Pr", 141},    {60, "Nd", 144},
+    {61, "Pm", 145},  {62, "Sm", 150},  {63, "Eu", 152},    {64, "Gd", 157},
+    {65, "Tb", 159},  {66, "Dy", 162},  {67, "Ho", 165},    {68, "Er", 167},
+    {69, "Tm", 169},  {70, "Yb", 173},  {71, "Lu", 175},    {72, "Hf", 178},
+    {73, "Ta", 181},  {74, "W", 184},   {75, "Re", 186},    {76, "Os", 190},
+    {77, "Ir", 192},  {78, "Pt", 195},  {79, "Au", 197},    {80, "Hg", 201},
+    {81, "Tl", 204},  {82, "Pb", 207},  {83, "Bi", 209},    {84, "Po", 209},
+    {85, "At", 210},  {86, "Rn", 222},  {87, "Fr", 223},    {88, "Ra", 226},
+    {89, "Ac", 227},  {90, "Th", 232},  {91, "Pa", 231},    {92, "U", 238},
+    {93, "Np", 237},  {94, "Pu", 244},  {95, "Am", 243},    {96, "Cm", 247},
+    {97, "Bk", 247},  {98, "Cf", 251},  {99, "Es", 252},    {100, "Fm", 257},
+    {101, "Md", 258}, {102, "No", 259}, {103, "Lr", 262},   {104, "Rf", 267},
+    {105, "Db", 270}, {106, "Sg", 269}, {107, "Bh", 270},   {108, "Hs", 270},
+    {109, "Mt", 278}, {110, "Ds", 281}, {111, "Rg", 281},   {112, "Cn", 285},
+    {113, "Nh", 286}, {114, "Fl", 289}, {115, "Mc", 289},   {116, "Lv", 293},
+    {117, "Ts", 293}, {118, "Og", 294}, {119, "E119", 315}, {120, "E120", 320}};
 
-static const std::array<std::string, MAX_Z> atom_name_z = {
-    "0",  "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",    "Ne",
-    "Na", "Mg", "Al", "Si", "P",  "S",  "Cl", "Ar", "K",  "Ca",   "Sc",
-    "Ti", "V",  "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn", "Ga",   "Ge",
-    "As", "Se", "Br", "Kr", "Rb", "Sr", "Y",  "Zr", "Nb", "Mo",   "Tc",
-    "Ru", "Rh", "Pd", "Ag", "Cd", "In", "Sn", "Sb", "Te", "I",    "Xe",
-    "Cs", "Ba", "La", "Ce", "Pr", "Nd", "Pm", "Sm", "Eu", "Gd",   "Tb",
-    "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re",   "Os",
-    "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po", "At", "Rn",   "Fr",
-    "Ra", "Ac", "Th", "Pa", "U",  "Np", "Pu", "Am", "Cm", "Bk",   "Cf",
-    "Es", "Fm", "Md", "No", "Lr", "Rf", "Db", "Sg", "Bh", "Hs",   "Mt",
-    "Ds", "Rg", "Cn", "Nh", "Fl", "Mc", "Lv", "Ts", "Og", "E119", "E120"};
-
-constexpr int defaultA(int Z) { return (Z < (int)MAX_Z && Z > 0) ? A[Z] : 0; }
+inline int defaultA(int Z)
+// c++14: can make constexpr ?
+{
+  for (auto &atom : periodic_table) {
+    if (atom.Z == Z)
+      return atom.A;
+  }
+  return 0;
+}
 
 inline std::string atomicSymbol(int Z) {
-  return (Z < (int)MAX_Z && Z > 0) ? atom_name_z[Z] : std::to_string(Z);
+  for (auto &atom : periodic_table) {
+    if (atom.Z == Z)
+      return atom.symbol;
+  }
+  return std::to_string(Z);
 }
 
 // Given an atomic symbol (H, He, etc.), will return Z
 // Note: Symbol must be exact, including capitalisation
 inline int get_z(const std::string &at) {
-  for (int z = 0; z < (int)MAX_Z; z++) {
-    if (at == atom_name_z[z])
-      return z;
+  for (auto &atom : periodic_table) {
+    if (atom.symbol == at)
+      return atom.Z;
   }
   int z = 0;
   try {
@@ -65,6 +90,7 @@ inline int get_z(const std::string &at) {
   return z;
 }
 
+//******************************************************************************
 static const std::string spectroscopic_notation = "spdfghiklmnoqrtuvwxyzabc";
 static const std::string Spectroscopic_Notation = "SPDFGHIKLMNOQRTUVWXYZABC";
 
@@ -86,11 +112,12 @@ inline int symbol_to_l(const std::string &l_str) {
     // Can work if given an int as a string:
     l = std::stoi(l_str);
   } catch (...) { // don't abort here (might get nice error message later)
-    std::cerr << "\nFAIL ATI::69 Invalid l: " << l_str << "?\n";
+    std::cerr << "\nFAIL AtomInfo::69 Invalid l: " << l_str << "?\n";
   }
   return l;
 }
 
+//******************************************************************************
 constexpr int l_k(int ka) { return (ka > 0) ? ka : -ka - 1; }
 constexpr int twoj_k(int ka) { return (ka > 0) ? 2 * ka - 1 : -2 * ka - 1; }
 constexpr double j_k(int ka) {
@@ -123,20 +150,11 @@ constexpr int twojFromIndex(int i) { return (i % 2 == 0) ? i + 1 : i; }
 constexpr int lFromIndex(int i) { return (i % 2 == 0) ? i / 2 : (i + 1) / 2; }
 //******************************************************************************
 
-// XXX This is a bad/limiting solution:
-// two issues: a) retrive (n,l) from index
-// b) parsing the input string [not big deal, n typically <7]
-const std::array<int, 45> core_n = {
-    1, 2, 2, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 7, 7,
-    7, 7, 7, 7, 7, 8, 8, 8, 8, 8, 8, 8, 8, 9, 9, 9, 9, 9, 9, 9, 9, 9};
-const std::array<int, 45> core_l = {
-    0, 0, 1, 0, 1, 2, 0, 1, 2, 3, 0, 1, 2, 3, 4, 0, 1, 2, 3, 4, 5, 0, 1,
-    2, 3, 4, 5, 6, 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7, 8};
-
 // Note: this requires that all Nobel Gasses are listed FIRST, in order
 // (Assumed by "niceCoreOutput" function that this matches nobelGasses
-static const std::array<std::pair<std::string, std::string>, 11> nobelGasses = {
-    std::make_pair("[He]", "1s2"), /**/ //
+static const std::array<std::pair<std::string, std::string>, 12> nobelGasses = {
+    std::make_pair("[He]", "1s2"),
+    /**/ //
     std::make_pair("[Ne]", "1s2,2s2,2p6"),
     std::make_pair("[Ar]", "1s2,2s2,2p6,3s2,3p6"),
     std::make_pair("[Kr]", "1s2,2s2,2p6,3s2,3p6,3d10,4s2,4p6"),
@@ -152,7 +170,8 @@ static const std::array<std::pair<std::string, std::string>, 11> nobelGasses = {
     std::make_pair(
         "[Hg]", "1s2,2s2,2p6,3s2,3p6,3d10,4s2,4p6,4d10,5s2,5p6,4f14,5d10,6s2"),
     std::make_pair("[Cn]", "1s2,2s2,2p6,3s2,3p6,3d10,4s2,4p6,4d10,5s2,5p6,"
-                           "4f14,5d10,6s2,6p6,5f14,6d10,7s2")};
+                           "4f14,5d10,6s2,6p6,5f14,6d10,7s2"),
+    std::make_pair("[]", "1s0")};
 
 inline std::string coreConfig(const std::string &in_ng) {
   // Note: must return SAME string if no matching Nobel Gas found
@@ -192,4 +211,44 @@ inline double diracen(double z, double n, int k,
   return -w2 / (2 * d) - (0.5 * a2 * w2 + 1. - sqrt(1. + a2 * w2)) * (c2 / d);
 }
 
-} // namespace ATI
+} // namespace AtomInfo
+
+//******************************************************************************
+struct NonRelSEConfig {
+  int n;
+  int l;
+  int num;
+  NonRelSEConfig(int in_n, int in_l, int in_num)
+      : n(in_n), l(in_l), num(in_num) {}
+  NonRelSEConfig() {}
+  std::string symbol() {
+    return std::to_string(n) + AtomInfo::l_symbol(l) + std::to_string(num);
+  }
+
+  bool ok() {
+    if (l + 1 > n || l < 0 || n < 1 || num < 0 || num > 4 * l + 2)
+      return false;
+    return true;
+  }
+
+  // comparitor overloads:
+  bool operator==(const NonRelSEConfig &other) const {
+    return n == other.n && l == other.l;
+  }
+  bool operator!=(const NonRelSEConfig &other) const {
+    return !(*this == other);
+  }
+  NonRelSEConfig &operator+=(const NonRelSEConfig &other) {
+    this->num += other.num;
+    return *this;
+  }
+};
+
+struct DiracSEnken { // name OK? too short?
+  int n;
+  int k;
+  double en;
+  DiracSEnken(int in_n, int in_k, double in_en = 0)
+      : n(in_n), k(in_k), en(in_en){};
+  DiracSEnken(){}; // never used? make above const!
+};

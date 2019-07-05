@@ -1,10 +1,11 @@
-#include "PRM_parametricPotentials.h"
-#include "ATI_atomInfo.h"
-#include "FPC_physicalConstants.h"
+#include "Parametric_potentials.hpp"
+#include "AtomInfo.hpp"
+#include "PhysConst_constants.hpp"
 #include <cmath>
 #include <iostream>
+#include <vector>
 
-namespace PRM {
+namespace Parametric {
 
 //******************************************************************************
 double green(int Z, double r, double H, double d)
@@ -211,35 +212,18 @@ Crude quadratic fit used for other Z values.
   return 0;
 }
 
-} // namespace PRM
+//******************************************************************************
+std::vector<double> defaultGreenPotential(int z,
+                                          const std::vector<double> &r_array) {
+  double Gh, Gd; // Green potential parameters
+  Parametric::defaultGreenCore(z, Gh, Gd);
+  // Fill the the potential, using Greens Parametric
+  std::vector<double> v;
+  v.reserve(r_array.size());
+  for (const auto r : r_array) {
+    v.emplace_back(Parametric::green(z, r, Gh, Gd));
+  }
+  return v;
+}
 
-// //******************************************************************************
-// // "Approximate" (expansion) solution for Thomas-Fermi potential for neutral
-// atom double TFapprox(int i, int Z){
-// // for pure coulomb.. - infinitesimal nucleus (can change)
-// // Agrees very will with GREEN parametric potential [Checked for Cs only]
-// // Potential corresponds to V^N-1 potential
-// 	double x;
-// 	double phi;
-// 	double vTF;
-// 	if (i==0){
-// //		vTF=-Z/(r0);			// ?? or let it be infinite??..
-// This shouldn't be used
-// 		vTF=-Z/(0.01*r0);			// ?? or let it be
-// infinite??.. This shouldn't be used
-// 	}
-// 	else if ((i>0)and(i<NGP)){
-// //		x=1.12950781018323*r(i)*pow(Z,1/3.);
-// 		x=1.12950781018323*r(i)*cbrt(Z);
-// 		phi=1./(1+0.02747*pow(x,0.5)+1.243*x-0.1486*pow(x,1.5)
-//           +0.2302*pow(x,2)+0.007298*pow(x,2.5)+0.006944*pow(x,3)
-//         );
-// //		vTF = -((Z-1)*phi+1)/r(i);
-// 		vTF = -(0.95)*((Z-1)*phi+1)/r(i);
-// 	}
-// 	else{
-// 		printf("FAILURE: Wrong gridpoint used for TFapprox(i=%i)\n",i);
-// 		return 0;
-// 	}
-// 	return vTF;
-// }
+} // namespace Parametric

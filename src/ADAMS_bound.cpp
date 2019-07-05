@@ -1,8 +1,8 @@
-#include "ADAMS_solveLocalBS.h"
-#include "DiracSpinor.h"
-#include "Grid.h"
-#include "Matrix_linalg.h"
-#include "NumCalc_quadIntegrate.h"
+#include "ADAMS_bound.hpp"
+#include "DiracSpinor.hpp"
+#include "Grid.hpp"
+#include "Matrix_linalg.hpp"
+#include "NumCalc_quadIntegrate.hpp"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -32,6 +32,7 @@ static const AdamsCoefs<AMO> AMcoef; // Adamns-Moulton coeficients
 // weighting function for meshing in/out solutions
 // nb: must be positive, but i may be negative (?) [ctp - d_ctp]
 static auto weight = [](int i) { return 1. / double(i * i + 1); };
+static const double alr = 600; // 'assymptotically large r [kinda..]' (=800)
 
 //******************************************************************************
 void solveDBS(DiracSpinor &psi, const std::vector<double> &v, const Grid &rgrid,
@@ -74,7 +75,6 @@ void solveDBS(DiracSpinor &psi, const std::vector<double> &v, const Grid &rgrid,
 {
   // Parameters.
   static const int max_its = 99; // Max # attempts at converging [sove bs] (30)
-  static const double alr = 800; // 'assymptotically large r [kinda..]' (=800)
   static const double lfrac_de = 0.12; // 'large' energy variations (0.1 => 10%)
   static const int d_ctp = 4;          // Num points past ctp +/- d_ctp.
 
@@ -170,6 +170,38 @@ void solveDBS(DiracSpinor &psi, const std::vector<double> &v, const Grid &rgrid,
 }
 
 //******************************************************************************
+void diracODE_regularAtOrigin(DiracSpinor &phi, const double en,
+                              const std::vector<double> &v,
+                              const double alpha) {
+  const auto &gr = phi.p_rgrid;
+  if (en != 0)
+    phi.en = en;
+  auto pinf = findPracticalInfinity(phi.en, v, gr->r, alr);
+  outwardAM(phi.f, phi.g, phi.en, v, phi.k, gr->r, gr->drdu, gr->du, pinf,
+            alpha);
+  // for safety: make sure zerod! (I may re-use existing orbitals!)
+  for (std::size_t i = pinf; i < gr->ngp; i++) {
+    phi.f[i] = 0;
+    phi.g[i] = 0;
+  }
+}
+//******************************************************************************
+void diracODE_regularAtInfinity(DiracSpinor &phi, const double en,
+                                const std::vector<double> &v,
+                                const double alpha) {
+  const auto &gr = phi.p_rgrid;
+  if (en != 0)
+    phi.en = en;
+  auto pinf = findPracticalInfinity(phi.en, v, gr->r, alr);
+  inwardAM(phi.f, phi.g, phi.en, v, phi.k, gr->r, gr->drdu, gr->du, 0, pinf,
+           alpha);
+  for (std::size_t i = pinf; i < gr->ngp; i++) {
+    phi.f[i] = 0;
+    phi.g[i] = 0;
+  }
+}
+
+//******************************************************************************
 void largeEnergyChange(double &en, int &count_toomany, int &count_toofew,
                        double &high_en, double &low_en, double lfrac_de,
                        bool toomany_nodes)
@@ -255,7 +287,7 @@ int findPracticalInfinity(const double en, const std::vector<double> &v,
   while ((en - v[pinf]) * r[pinf] * r[pinf] + alr < 0) {
     --pinf;
     DEBUG(if (pinf == 0) {
-      std::cerr << "Fail290 in EO: pinf underflowed?\n";
+      std::cerr << "Fail290 in WF: pinf underflowed?\n";
       std::cin.get();
     })
   }
@@ -348,7 +380,7 @@ void joinInOutSolutions(std::vector<double> &f, std::vector<double> &g,
 }
 
 // Adams putward Coeficients
-const int NOL = 1; // # of outdir runs [finds first NOL*AMO+1 points (3)]
+static const int NOL = 1; // # of outdir runs [finds first NOL*AMO+1 points (3)]
 //******************************************************************************
 void outwardAM(std::vector<double> &f, std::vector<double> &g, const double en,
                const std::vector<double> &v, const int ka,

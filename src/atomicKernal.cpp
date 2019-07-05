@@ -1,13 +1,13 @@
-#include "AKF_akFunctions.h"
-#include "ATI_atomInfo.h"
-#include "ChronoTimer.h"
-#include "ContinuumOrbitals.h"
-#include "ElectronOrbitals.h"
-#include "FPC_physicalConstants.h"
-#include "FileIO_fileReadWrite.h"
-#include "Grid.h"
-#include "HartreeFockClass.h"
-#include "PRM_parametricPotentials.h"
+#include "AKF_akFunctions.hpp"
+#include "AtomInfo.hpp"
+#include "ChronoTimer.hpp"
+#include "ContinuumOrbitals.hpp"
+#include "Wavefunction.hpp"
+#include "FileIO_fileReadWrite.hpp"
+#include "Grid.hpp"
+#include "HartreeFockClass.hpp"
+#include "Parametric_potentials.hpp"
+#include "PhysConst_constants.hpp"
 #include <cmath>
 #include <iostream>
 #include <tuple>
@@ -72,10 +72,10 @@ int main(int argc, char *argv[]) {
     qmax = qmin;
 
   // Convert units for input q and dE range into atomic units
-  double keV = (1.e3 / FPC::Hartree_eV);
+  double keV = (1.e3 / PhysConst::Hartree_eV);
   demin *= keV;
   demax *= keV;
-  double qMeV = (1.e6 / (FPC::Hartree_eV * FPC::c));
+  double qMeV = (1.e6 / (PhysConst::Hartree_eV * PhysConst::c));
   qmin *= qMeV;
   qmax *= qMeV;
 
@@ -84,7 +84,7 @@ int main(int argc, char *argv[]) {
   Grid qgrid(qmin, qmax, qsteps, GridType::logarithmic);
 
   // Look-up atomic number, Z
-  int Z = ATI::get_z(Z_str);
+  int Z = AtomInfo::get_z(Z_str);
 
   // Make sure h (large-r step size) is small enough to
   // calculate (normalise) cntm functions with energy = demax
@@ -102,7 +102,7 @@ int main(int argc, char *argv[]) {
   }
 
   // Generate the orbitals object:
-  ElectronOrbitals wf(Z, A, ngp, r0, rmax, varalpha);
+  Wavefunction wf(Z, A, ngp, r0, rmax, varalpha);
 
   // outut file name (excluding extension):
   std::string fname = "ak-" + Z_str + "_" + label;
@@ -122,9 +122,7 @@ int main(int argc, char *argv[]) {
   else
     printf("Using Hartree Fock (converge to %.0e)\n", hart_del);
 
-  std::cout << "Radial ";
-  wf.rgrid.print();
-  std::cout << "\n";
+  std::cout << "Radial " << wf.rgrid.gridParameters() << "\n\n";
 
   // Do Hartree-fock (or parametric potential) for Core
   timer.start();
@@ -136,7 +134,7 @@ int main(int argc, char *argv[]) {
     // Fill the electron part of the (local/direct) potential
     wf.vdir.reserve(wf.rgrid.ngp);
     for (auto r : wf.rgrid.r)
-      wf.vdir.push_back(PRM::green(Z, r, Gh, Gd));
+      wf.vdir.push_back(Parametric::green(Z, r, Gh, Gd));
     wf.solveInitialCore(str_core); // solves w/ Green
   }
   std::cout << "Time for HF: " << timer.lap_reading_str() << "\n";
@@ -145,27 +143,28 @@ int main(int argc, char *argv[]) {
   std::cout << "\n     state  k Rinf its    eps      En (au)     En (/cm)    "
             << "En (eV)   Oc.Frac.\n";
   int i = 0;
-  for (auto &phi : wf.orbitals) {
+  for (auto &phi : wf.core_orbitals) {
     double rinf = wf.rinf(phi);
     printf("%2i)%7s %2i  %3.0f %3i  %5.0e  %11.5f %12.0f %10.2f   (%.2f)\n",
            i++, phi.symbol().c_str(), phi.k, rinf, phi.its, phi.eps, phi.en,
-           phi.en * FPC::Hartree_invcm, phi.en * FPC::Hartree_eV, phi.occ_frac);
+           phi.en * PhysConst::Hartree_invcm, phi.en * PhysConst::Hartree_eV,
+           phi.occ_frac);
   }
   //////////////////////////////////////////////////
 
   // Arrays to store results for outputting later:
   std::vector<std::vector<std::vector<float>>> AK; // float ok?
-  int num_states = (int)wf.orbitals.size();
+  int num_states = (int)wf.core_orbitals.size();
   AK.resize(desteps, std::vector<std::vector<float>>(
                          num_states, std::vector<float>(qsteps)));
 
   // Store state info (each orbital) [just useful for plotting!]
   std::vector<std::string> nklst; // human-readiable state labels (easy
                                   // plotting)
-  nklst.reserve(wf.orbitals.size());
+  nklst.reserve(wf.core_orbitals.size());
   // for (auto i : wf.stateIndexList)
   //   nklst.emplace_back(wf.seTermSymbol(i, true));
-  for (auto &phi : wf.orbitals)
+  for (auto &phi : wf.core_orbitals)
     nklst.emplace_back(phi.symbol(true));
 
   // pre-calculate the spherical Bessel function look-up table for efficiency
@@ -188,8 +187,9 @@ int main(int argc, char *argv[]) {
   for (int ide = 0; ide < desteps; ide++) {
     double dE = Egrid.r[ide];
     // Loop over core (bound) states:
-    for (auto is : wf.stateIndexList) {
-      int l = wf.orbitals[is].l(); // lorb(is);
+    // for (auto is : wf.stateIndexList) {
+    for (std::size_t is = 0; is < wf.core_orbitals.size(); is++) {
+      int l = wf.core_orbitals[is].l(); // lorb(is);
       if (l > max_l)
         continue;
       if (plane_wave)

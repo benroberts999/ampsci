@@ -1,5 +1,5 @@
-#include "FileIO_fileReadWrite.h"
-#include "Wigner_369j.h"
+#include "FileIO_fileReadWrite.hpp"
+#include "Wigner_369j.hpp"
 #include <iostream>
 #include <sstream>
 #include <string>
