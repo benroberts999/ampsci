@@ -16,7 +16,7 @@ struct Isotope {
       : Z(z), A(a), r_rms(r), mu(m), parity(p), I_N(i) {}
 
   bool r_ok() { return (r_rms <= 0) ? false : true; }
-  bool mu_ok() { return (mu == 0 && I_N > 0.00001) ? false : true; }
+  bool mu_ok() { return (mu == 0 && (I_N != 0)) ? false : true; }
   bool parity_ok() { return (parity == 0) ? false : true; }
   bool I_ok() { return (I_N < 0) ? false : true; }
 };
