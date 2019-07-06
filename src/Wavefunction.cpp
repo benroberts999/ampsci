@@ -71,69 +71,70 @@ void Wavefunction::solveDirac(DiracSpinor &psi, double e_a,
   return solveDirac(psi, e_a, empty_vec, log_dele_or);
 }
 
-//******************************************************************************
-static std::vector<NonRelSEConfig> core_parser(const std::string &str_core_in)
-// Heler function for below.
-// Move to Atom Info ?
-{
-  // If there's a 'Noble-Gas' term, replace it with full config
-  // Otherwise, 'first-term' remains unchanges
-  auto found = str_core_in.find(",");
-  if (found > str_core_in.length())
-    found = str_core_in.length();
-  auto first_term = str_core_in.substr(0, found);
-  auto rest = str_core_in.substr(found);
-  auto str_core = AtomInfo::coreConfig(first_term) + rest;
-
-  // Move comma-seperated string into an array (vector)
-  std::vector<std::string> term_str_list;
-  {
-    std::stringstream ss(str_core);
-    while (ss.good()) {
-      std::string substr;
-      getline(ss, substr, ',');
-      term_str_list.push_back(substr);
-    }
-  }
-
-  std::vector<NonRelSEConfig> core_configs;
-  for (const auto &term : term_str_list) {
-    bool term_ok = true;
-    std::size_t l_position = 0;
-    for (const auto &c : term) {
-      if (!std::isdigit(c))
-        break;
-      ++l_position;
-    }
-    int n{0}, num{0}, l{-1};
-    try {
-      n = std::stoi(term.substr(0, l_position - 0));
-      num = std::stoi(term.substr(l_position + 1));
-      if (l_position == term.size())
-        throw;
-      l = AtomInfo::symbol_to_l(term.substr(l_position, 1));
-    } catch (...) {
-      term_ok = false;
-    }
-    NonRelSEConfig new_config(n, l, num);
-
-    if (!term_ok || n <= 0) {
-      std::cout << "Problem with core: " << str_core_in << "\n";
-      std::cerr << "invalid core term: " << term << "\n";
-      std::abort();
-    }
-
-    if (num == 0)
-      continue;
-    auto ia = std::find(core_configs.begin(), core_configs.end(), new_config);
-    if (ia == core_configs.end()) {
-      core_configs.push_back(new_config);
-    } else {
-      *ia += new_config;
-    }
-  }
-  return core_configs;
-}
+// //******************************************************************************
+// static std::vector<NonRelSEConfig> core_parser(const std::string
+// &str_core_in)
+// // Heler function for below.
+// // Move to Atom Info ?
+// {
+//   // If there's a 'Noble-Gas' term, replace it with full config
+//   // Otherwise, 'first-term' remains unchanges
+//   auto found = str_core_in.find(",");
+//   if (found > str_core_in.length())
+//     found = str_core_in.length();
+//   auto first_term = str_core_in.substr(0, found);
+//   auto rest = str_core_in.substr(found);
+//   auto str_core = AtomInfo::coreConfig(first_term) + rest;
+//
+//   // Move comma-seperated string into an array (vector)
+//   std::vector<std::string> term_str_list;
+//   {
+//     std::stringstream ss(str_core);
+//     while (ss.good()) {
+//       std::string substr;
+//       getline(ss, substr, ',');
+//       term_str_list.push_back(substr);
+//     }
+//   }
+//
+//   std::vector<NonRelSEConfig> core_configs;
+//   for (const auto &term : term_str_list) {
+//     bool term_ok = true;
+//     std::size_t l_position = 0;
+//     for (const auto &c : term) {
+//       if (!std::isdigit(c))
+//         break;
+//       ++l_position;
+//     }
+//     int n{0}, num{0}, l{-1};
+//     try {
+//       n = std::stoi(term.substr(0, l_position - 0));
+//       num = std::stoi(term.substr(l_position + 1));
+//       if (l_position == term.size())
+//         throw;
+//       l = AtomInfo::symbol_to_l(term.substr(l_position, 1));
+//     } catch (...) {
+//       term_ok = false;
+//     }
+//     NonRelSEConfig new_config(n, l, num);
+//
+//     if (!term_ok || n <= 0) {
+//       std::cout << "Problem with core: " << str_core_in << "\n";
+//       std::cerr << "invalid core term: " << term << "\n";
+//       std::abort();
+//     }
+//
+//     if (num == 0)
+//       continue;
+//     auto ia = std::find(core_configs.begin(), core_configs.end(),
+//     new_config); if (ia == core_configs.end()) {
+//       core_configs.push_back(new_config);
+//     } else {
+//       *ia += new_config;
+//     }
+//   }
+//   return core_configs;
+// }
 
 //******************************************************************************
 void Wavefunction::determineCore(const std::string &str_core_in)
@@ -145,7 +146,7 @@ void Wavefunction::determineCore(const std::string &str_core_in)
 // 'rest' is in form nLm : n=n, L=l, m=number of electrons in that nl shell.
 {
 
-  m_core_configs = core_parser(str_core_in);
+  m_core_configs = AtomInfo::core_parser(str_core_in);
 
   bool bad_core = false;
   m_core_string = "";
@@ -487,24 +488,25 @@ Wavefunction::sortedEnergyList(const std::vector<DiracSpinor> &tmp_orbs,
 // Outouts a list of integers corresponding to the states
 // sorted by energy (lowest energy first)
 {
-  std::vector<std::vector<double>> t_en;
+
+  using DoubleInt = std::pair<double, std::size_t>;
+  std::vector<DoubleInt> t_en;
   for (std::size_t i = 0; i < tmp_orbs.size(); i++) {
-    t_en.push_back({tmp_orbs[i].en, (double)i + 0.1});
-    //+0.1 to prevent rounding error when going from double -> int
+    t_en.emplace_back(tmp_orbs[i].en, i);
   }
 
-  // Function pointer: sort 2D vector by first col
-  auto sortCol = [](const std::vector<double> &v1,
-                    const std::vector<double> &v2) { return v1[0] > v2[0]; };
+  // Sort list of Pairs by first element in the pair:
+  auto compareThePair = [](const DoubleInt &di1, const DoubleInt &di2) {
+    return di1.first < di2.first;
+  };
 
   if (do_sort)
-    std::sort(t_en.rbegin(), t_en.rend(), sortCol);
+    std::sort(t_en.begin(), t_en.end(), compareThePair);
 
   // overwrite list with sorted list
   std::vector<std::size_t> sorted_list;
-  for (const auto &el : t_en) {
-    sorted_list.push_back(std::size_t(el[1]));
-  }
+  std::for_each(t_en.begin(), t_en.end(),
+                [&](const DoubleInt &el) { sorted_list.push_back(el.second); });
 
   return sorted_list;
 }

@@ -83,10 +83,8 @@ inline void ChronoTimer::reset() {
 
 //******************************************************************************
 inline double ChronoTimer::lap_reading_ms() const
-/*
-Returns value for current riming run (lap)
-Returns double (milliseconds)
-*/
+// Returns value for current riming run (lap)
+// Returns double (milliseconds)
 {
 
   if (!running)
@@ -99,7 +97,7 @@ Returns double (milliseconds)
       std::chrono::duration_cast<std::chrono::microseconds>(tcurrent - tstart)
           .count();
 
-  return ((double)duration) * 1.e-3;
+  return ((double)duration) * 1.0e-3;
 }
 
 //******************************************************************************

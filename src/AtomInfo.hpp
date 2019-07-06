@@ -1,4 +1,5 @@
 #pragma once
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <iostream>
@@ -55,28 +56,33 @@ static const std::vector<Element> periodic_table = {
 inline int defaultA(int Z)
 // c++14: can make constexpr ?
 {
-  for (auto &atom : periodic_table) {
-    if (atom.Z == Z)
-      return atom.A;
-  }
-  return 0;
+  static auto match_Z = [Z](const Element &atom) { return atom.Z == Z; };
+  auto atom =
+      std::find_if(periodic_table.begin(), periodic_table.end(), match_Z);
+  if (atom == periodic_table.end())
+    return 0;
+  return atom->A;
 }
 
 inline std::string atomicSymbol(int Z) {
-  for (auto &atom : periodic_table) {
-    if (atom.Z == Z)
-      return atom.symbol;
-  }
-  return std::to_string(Z);
+  static auto match_Z = [Z](const Element &atom) { return atom.Z == Z; };
+  auto atom =
+      std::find_if(periodic_table.begin(), periodic_table.end(), match_Z);
+  if (atom == periodic_table.end())
+    return std::to_string(Z);
+  return atom->symbol;
 }
 
 // Given an atomic symbol (H, He, etc.), will return Z
 // Note: Symbol must be exact, including capitalisation
 inline int get_z(const std::string &at) {
-  for (auto &atom : periodic_table) {
-    if (atom.symbol == at)
-      return atom.Z;
-  }
+
+  static auto match_At = [=](const Element &atom) { return atom.symbol == at; };
+  auto atom =
+      std::find_if(periodic_table.begin(), periodic_table.end(), match_At);
+  if (atom != periodic_table.end())
+    return atom->Z;
+
   int z = 0;
   try {
     z = std::stoi(at);
@@ -151,7 +157,8 @@ constexpr int lFromIndex(int i) { return (i % 2 == 0) ? i / 2 : (i + 1) / 2; }
 
 // Note: this requires that all Nobel Gasses are listed FIRST, in order
 // (Assumed by "niceCoreOutput" function that this matches nobelGasses
-static const std::array<std::pair<std::string, std::string>, 12> nobelGasses = {
+using StringPair = std::pair<std::string, std::string>;
+static const std::array<StringPair, 12> nobelGasses = {
     std::make_pair("[He]", "1s2"),
     /**/ //
     std::make_pair("[Ne]", "1s2,2s2,2p6"),
@@ -175,11 +182,12 @@ static const std::array<std::pair<std::string, std::string>, 12> nobelGasses = {
 inline std::string coreConfig(const std::string &in_ng) {
   // Note: must return SAME string if no matching Nobel Gas found
   // (so that this doesn't break if I give it a full term list)
-  for (auto &ng : nobelGasses) {
-    if (in_ng == ng.first)
-      return ng.second;
-  }
-  return in_ng;
+  auto match_ng = [&](const StringPair &ng) { return ng.first == in_ng; };
+  auto ng_config =
+      std::find_if(nobelGasses.begin(), nobelGasses.end(), match_ng);
+  if (ng_config == nobelGasses.end())
+    return in_ng;
+  return ng_config->second;
 }
 
 inline std::string niceCoreOutput(const std::string &full_core) {
@@ -251,3 +259,67 @@ struct DiracSEnken { // name OK? too short?
       : n(in_n), k(in_k), en(in_en){};
   DiracSEnken(){}; // never used? make above const!
 };
+
+namespace AtomInfo {
+//******************************************************************************
+inline std::vector<NonRelSEConfig> core_parser(const std::string &str_core_in)
+// Heler function for below.
+// Move to Atom Info ?
+{
+  // If there's a 'Noble-Gas' term, replace it with full config
+  // Otherwise, 'first-term' remains unchanges
+  auto found = str_core_in.find(",");
+  if (found > str_core_in.length())
+    found = str_core_in.length();
+  auto first_term = str_core_in.substr(0, found);
+  auto rest = str_core_in.substr(found);
+  auto str_core = AtomInfo::coreConfig(first_term) + rest;
+
+  // Move comma-seperated string into an array (vector)
+  std::vector<std::string> term_str_list;
+  {
+    std::stringstream ss(str_core);
+    while (ss.good()) {
+      std::string substr;
+      getline(ss, substr, ',');
+      term_str_list.push_back(substr);
+    }
+  }
+
+  std::vector<NonRelSEConfig> core_configs;
+  for (const auto &term : term_str_list) {
+    bool term_ok = true;
+    // find position of 'l'
+    auto l_ptr = std::find_if(term.begin(), term.end(),
+                              [](const char &c) { return !std::isdigit(c); });
+    auto l_position = std::size_t(l_ptr - term.begin());
+    int n{0}, num{0}, l{-1};
+    try {
+      n = std::stoi(term.substr(0, l_position - 0));
+      num = std::stoi(term.substr(l_position + 1));
+      if (l_position == term.size())
+        throw;
+      l = AtomInfo::symbol_to_l(term.substr(l_position, 1));
+    } catch (...) {
+      term_ok = false;
+    }
+    NonRelSEConfig new_config(n, l, num);
+
+    if (!term_ok || n <= 0) {
+      std::cout << "Problem with core: " << str_core_in << "\n";
+      std::cerr << "invalid core term: " << term << "\n";
+      std::abort();
+    }
+
+    if (num == 0)
+      continue;
+    auto ia = std::find(core_configs.begin(), core_configs.end(), new_config);
+    if (ia == core_configs.end()) {
+      core_configs.push_back(new_config);
+    } else {
+      *ia += new_config;
+    }
+  }
+  return core_configs;
+}
+} // namespace AtomInfo
