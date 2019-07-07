@@ -10,34 +10,34 @@ class DiracSpinor {
 
 public: // Data
   DiracSpinor(int in_n, int in_k, const Grid &rgrid, bool imaginary_g = true)
-      : n(in_n), k(in_k), pinf(rgrid.ngp - 1), p_rgrid(&rgrid),
-        imaginary_g(imaginary_g), // things
-        m_twoj(AtomInfo::twoj_k(in_k)), m_l(AtomInfo::l_k(in_k)),
-        m_parity(AtomInfo::parity_k(in_k)),
-        m_k_index(AtomInfo::indexFromKappa(in_k))
-  //
-  {
-    f.resize(rgrid.ngp, 0);
-    g.resize(rgrid.ngp, 0);
-  }
-
-  std::vector<double> f;
-  std::vector<double> g;
-  double en = 0;
+      : p_rgrid(&rgrid),                      //
+        n(in_n), k(in_k), en(0.0),            //
+        f(std::vector<double>(rgrid.ngp, 0)), //
+        g(f),                                 //
+        pinf(rgrid.ngp - 1),                  //
+        imaginary_g(imaginary_g),             //
+        its(-1), eps(-1), occ_frac(0),        //
+        m_twoj(AtomInfo::twoj_k(in_k)),       //
+        m_l(AtomInfo::l_k(in_k)),             //
+        m_parity(AtomInfo::parity_k(in_k)),   //
+        m_k_index(AtomInfo::indexFromKappa(in_k)) {}
+  const Grid *const p_rgrid;
 
   const int n;
   const int k;
 
+  double en = 0;
+  std::vector<double> f;
+  std::vector<double> g;
   std::size_t pinf;
-  const Grid *const p_rgrid;
 
   // determines relative sign in radial integral:
   // true by default. If false, means upper comp is i
   const bool imaginary_g;
 
-  int its = -1;
-  double eps = -1;
-  double occ_frac = -1;
+  int its;
+  double eps;
+  double occ_frac;
 
 private:
   const int m_twoj;

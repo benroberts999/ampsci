@@ -225,9 +225,8 @@ struct NonRelSEConfig {
   int n;
   int l;
   int num;
-  NonRelSEConfig(int in_n, int in_l, int in_num)
+  NonRelSEConfig(int in_n = 0, int in_l = -1, int in_num = 0)
       : n(in_n), l(in_l), num(in_num) {}
-  NonRelSEConfig() {}
   std::string symbol() {
     return std::to_string(n) + AtomInfo::l_symbol(l) + std::to_string(num);
   }
@@ -255,9 +254,8 @@ struct DiracSEnken { // name OK? too short?
   int n;
   int k;
   double en;
-  DiracSEnken(int in_n, int in_k, double in_en = 0)
+  DiracSEnken(int in_n = 0, int in_k = 0, double in_en = 0)
       : n(in_n), k(in_k), en(in_en){};
-  DiracSEnken(){}; // never used? make above const!
 };
 
 namespace AtomInfo {

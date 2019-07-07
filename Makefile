@@ -10,8 +10,11 @@ CXX=g++
 OPT=-O3
 OMP=-fopenmp
 
-WARN=-Wpedantic -Wall -Wextra -Wdouble-promotion -Wconversion
+WARN=-Wpedantic -Wall -Wextra -Wdouble-promotion -Wconversion -Wformat=2 -Wlogical-op #-Weffc++
+# -Wshadow  
+# -Wfloat-equal 
 # -fmax-errors=n # useful when changing a lot
+# -Wsign-conversion
 
 ifeq ($(CXX),clang++)
   WARN += -Wno-sign-conversion
