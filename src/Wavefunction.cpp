@@ -27,6 +27,11 @@ Wavefunction::Wavefunction(int in_z, int in_a, int in_ngp, double rmin,
   } else {
     formNuclearPotential(Nuclear::Type::zero);
   }
+
+  if (m_Z * m_alpha > 1) {
+    std::cerr << "Alpha too large, Za=" << m_Z * m_alpha << "\n";
+    std::abort();
+  }
 }
 
 //******************************************************************************

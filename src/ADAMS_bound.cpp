@@ -100,6 +100,7 @@ void solveDBS(DiracSpinor &psi, const std::vector<double> &v, const Grid &rgrid,
   double t_en = psi.en;
   int t_pinf = 0;
   double t_eps = 1;
+  double t_eps_prev = 1;
   double anorm = 0;
   int t_its = 1;
   for (; t_its < max_its; ++t_its) {
@@ -135,8 +136,11 @@ void solveDBS(DiracSpinor &psi, const std::vector<double> &v, const Grid &rgrid,
                     << " delta=" << t_eps * t_en << " eps=" << t_eps << "\n";
           std::cin.get();)
 
-    if (t_eps < eps_goal && correct_nodes)
+    auto getting_worse = (t_its > 3 && t_eps >= t_eps_prev && correct_nodes);
+    auto converged = (t_eps < eps_goal && correct_nodes);
+    if (converged || getting_worse)
       break;
+    t_eps_prev = t_eps;
   } // END itterations
 
   // If never got correct nodes, never calc'd norm constant.

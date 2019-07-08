@@ -26,11 +26,10 @@ HartreeFock::HartreeFock(Wavefunction &wf, const std::string &in_core,
                          double eps_HF, bool in_ExcludeExchange)
     : p_wf(&wf), p_rgrid(&wf.rgrid),
       m_cint(Coulomb(wf.rgrid, wf.core_orbitals, wf.valence_orbitals)),
+      m_eps_HF([=]() { // can give as log..
+        return (fabs(eps_HF) < 1) ? eps_HF : pow(10, -1 * eps_HF);
+      }()),
       m_excludeExchange(in_ExcludeExchange) {
-
-  m_eps_HF = eps_HF;
-  if (fabs(eps_HF) > 1)
-    m_eps_HF = pow(10, -1 * eps_HF); // can give as log..
 
   // If core doesn't exist, do initial core. otherwise, don't re-solve!
   // (Note: I don't check if core's match..)
@@ -46,6 +45,12 @@ HartreeFock::HartreeFock(Wavefunction &wf, const std::string &in_core,
 //******************************************************************************
 void HartreeFock::hartree_fock_core() {
 
+  if (p_wf->core_orbitals.size() == 0) {
+    // If H-like, kill "initial" vdir (Green potential)
+    p_wf->vdir = std::vector<double>(p_wf->rgrid.ngp, 0);
+    return;
+  }
+
   static const double eta1 = 0.35;
   static const double eta2 = 0.7; // this value after 4 its
   // don't include all pts in PT for new e guess:
@@ -60,7 +65,8 @@ void HartreeFock::hartree_fock_core() {
 
   // Start the HF itterative procedure:
   int hits = 1;
-  double t_eps;
+  double t_eps = 1.0;
+  auto t_eps_prev = 1.0;
   double eta = 1.0;
   for (; hits < MAX_HART_ITS; hits++) {
     DEBUG(std::cerr << "HF core it: " << hits << "\n";)
@@ -105,23 +111,25 @@ void HartreeFock::hartree_fock_core() {
       }
       del_e *= p_rgrid->du * de_stride;
       double en_guess = (en_old < -del_e) ? en_old + del_e : en_old;
-      p_wf->solveDirac(phi, en_guess, vex_core[i], 3);
+      p_wf->solveDirac(phi, en_guess, vex_core[i], 6);
       double state_eps = fabs((phi.en - en_old) / en_old);
       // convergance based on worst orbital:
       DEBUG(printf(" --- %2i,%2i: en=%11.5f  HFeps = %.0e;  Adams = %.0e[%2i]  "
                    "(%4i)\n",
                    phi.n, phi.k, phi.en, state_eps, phi.eps, phi.its,
                    (int)phi.pinf);)
-      if (state_eps > t_eps)
-        t_eps = state_eps;
+      t_eps = (state_eps > t_eps) ? state_eps : t_eps;
     } // core states
     DEBUG(std::cerr << "HF core it: " << hits << ": eps=" << t_eps << "\n\n";
           std::cin.get();)
 
     // Force all core orbitals to be orthogonal to each other
     p_wf->orthonormaliseOrbitals(p_wf->core_orbitals, 1);
-    if (t_eps < m_eps_HF)
+    auto getting_worse = (hits > 20 && t_eps > t_eps_prev);
+    auto converged = (t_eps < m_eps_HF);
+    if (converged || getting_worse)
       break;
+    t_eps_prev = t_eps;
   } // hits
   if (verbose)
     printf("\rHF core        it:%3i eps=%6.1e              \n", hits, t_eps);
@@ -129,7 +137,7 @@ void HartreeFock::hartree_fock_core() {
   // Now, re-solve core orbitals with higher precission
   for (std::size_t i = 0; i < p_wf->core_orbitals.size(); i++) {
     p_wf->solveDirac(p_wf->core_orbitals[i], p_wf->core_orbitals[i].en,
-                     vex_core[i], 14);
+                     vex_core[i], 15);
   }
   p_wf->orthonormaliseOrbitals(p_wf->core_orbitals, 2);
 }
@@ -167,7 +175,7 @@ void HartreeFock::solveValence(DiracSpinor &phi, std::vector<double> &vexa)
   auto vexa_old = vexa;
 
   int hits = 1;
-  double eps = -1;
+  double eps = -1, eps_prev = -1;
   double eta = eta1;
   for (; hits < MAX_HART_ITS; hits++) {
     if (hits == 4)
@@ -190,12 +198,16 @@ void HartreeFock::solveValence(DiracSpinor &phi, std::vector<double> &vexa)
     }
     en_new_guess = en_old + en_new_guess * p_rgrid->du * de_stride;
     // Solve Dirac using new potential:
-    p_wf->solveDirac(phi, en_new_guess, vexa, 3);
+    p_wf->solveDirac(phi, en_new_guess, vexa, 6);
     eps = fabs((phi.en - en_old) / en_old);
     // Force valence states to be orthogonal to core:
     p_wf->orthonormaliseWrtCore(phi);
-    if (eps < m_eps_HF)
+
+    auto getting_worse = (hits > 20 && eps >= eps_prev);
+    auto converged = (eps < m_eps_HF);
+    if (converged || getting_worse)
       break;
+    eps_prev = eps;
   }
   if (verbose)
     printf("\rHF val: %2i %2i | %3i eps=%6.1e  en=%11.8f\n", phi.n, kappa, hits,

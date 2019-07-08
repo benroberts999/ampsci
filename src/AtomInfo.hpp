@@ -158,9 +158,9 @@ constexpr int lFromIndex(int i) { return (i % 2 == 0) ? i / 2 : (i + 1) / 2; }
 // Note: this requires that all Nobel Gasses are listed FIRST, in order
 // (Assumed by "niceCoreOutput" function that this matches nobelGasses
 using StringPair = std::pair<std::string, std::string>;
-static const std::array<StringPair, 12> nobelGasses = {
-    std::make_pair("[He]", "1s2"),
-    /**/ //
+static const std::array<StringPair, 13> nobelGasses = {
+    std::make_pair("[H-like]", ""), //
+    std::make_pair("[He]", "1s2"),  //
     std::make_pair("[Ne]", "1s2,2s2,2p6"),
     std::make_pair("[Ar]", "1s2,2s2,2p6,3s2,3p6"),
     std::make_pair("[Kr]", "1s2,2s2,2p6,3s2,3p6,3d10,4s2,4p6"),
@@ -191,10 +191,10 @@ inline std::string coreConfig(const std::string &in_ng) {
 }
 
 inline std::string niceCoreOutput(const std::string &full_core) {
-  // nb: there are 7 _actual_ nobel gasses.
+  // nb: there are 8 _actual_ nobel gasses (including H-like).
   // Only want actual nobel gasses in 'nice' output
   std::string nice_core = full_core;
-  for (int i = 6; i >= 0; i--) { // loop backwards (so can break)
+  for (int i = 7; i >= 0; i--) { // loop backwards (so can break)
     auto &ng_fullterm = nobelGasses[i].second;
     if (full_core.rfind(ng_fullterm, 0) == 0) {
       nice_core = nobelGasses[i].first + full_core.substr(ng_fullterm.length());
@@ -286,6 +286,8 @@ inline std::vector<NonRelSEConfig> core_parser(const std::string &str_core_in)
 
   std::vector<NonRelSEConfig> core_configs;
   for (const auto &term : term_str_list) {
+    if (term == "")
+      continue;
     bool term_ok = true;
     // find position of 'l'
     auto l_ptr = std::find_if(term.begin(), term.end(),

@@ -28,8 +28,8 @@ class HartreeFock {
   friend class Coulomb;
 
 public:
-  HartreeFock(Wavefunction &wf, const std::string &in_core,
-              double eps_HF = 1.e-8, bool in_ExcludeExchange = false);
+  HartreeFock(Wavefunction &wf, const std::string &in_core, double eps_HF = 0.,
+              bool in_ExcludeExchange = false);
 
   void solveNewValence(int n, int kappa);
   void solveValence(DiracSpinor &phi, std::vector<double> &vexa);
@@ -47,7 +47,7 @@ private:
 
   Coulomb m_cint;
 
-  double m_eps_HF = 1.e-8;
+  const double m_eps_HF;
 
   static const int MAX_HART_ITS = 99;
   const bool m_excludeExchange; // for testing
