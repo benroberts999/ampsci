@@ -356,21 +356,6 @@ void Coulomb::calculate_angular(int ki)
   }
 }
 
-// //******************************************************************************
-// double Coulomb::get_angular_C_kiakibk(const DiracSpinor &phi_a,
-//                                       const DiracSpinor &phi_b, int k) const
-//                                       {
-//   auto kia = phi_a.k_index();
-//   auto kib = phi_b.k_index();
-//   int kmin =
-//       abs(AtomInfo::twojFromIndex(kia) - AtomInfo::twojFromIndex(kib)) / 2;
-//   int kmax =
-//       abs(AtomInfo::twojFromIndex(kia) + AtomInfo::twojFromIndex(kib)) / 2;
-//   if (k < kmin || k > kmax)
-//     return 0;
-//   return kia > kib ? m_C_kakbk[kia][kib][k - kmin]
-//                    : m_C_kakbk[kib][kia][k - kmin];
-// }
 //******************************************************************************
 const std::vector<double> &Coulomb::get_angular_C_kiakib_k(int kia,
                                                            int kib) const {
@@ -378,21 +363,6 @@ const std::vector<double> &Coulomb::get_angular_C_kiakib_k(int kia,
   return kia > kib ? m_C_kakbk[kia][kib] : m_C_kakbk[kib][kia];
 }
 
-// //******************************************************************************
-// double Coulomb::get_angular_L_kiakibk(const DiracSpinor &phi_a,
-//                                       const DiracSpinor &phi_b, int k) const
-//                                       {
-//   auto kia = phi_a.k_index();
-//   auto kib = phi_b.k_index();
-//   int kmin =
-//       abs(AtomInfo::twojFromIndex(kia) - AtomInfo::twojFromIndex(kib)) / 2;
-//   int kmax =
-//       abs(AtomInfo::twojFromIndex(kia) + AtomInfo::twojFromIndex(kib)) / 2;
-//   if (k < kmin || k > kmax)
-//     return 0;
-//   return kia > kib ? m_L_kakbk[kia][kib][k - kmin]
-//                    : m_L_kakbk[kib][kia][k - kmin];
-// }
 //******************************************************************************
 const std::vector<double> &Coulomb::get_angular_L_kiakib_k(int kia,
                                                            int kib) const {

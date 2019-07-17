@@ -1,11 +1,10 @@
 #include "AtomInfo.hpp"
 #include "ChronoTimer.hpp"
 #include "DiracOperator.hpp"
-#include "Operators.hpp"
-// #include "DiracSpinor.hpp"
-#include "Wavefunction.hpp"
 #include "FileIO_fileReadWrite.hpp"
 #include "NumCalc_quadIntegrate.hpp"
+#include "Operators.hpp"
+#include "Wavefunction.hpp"
 #include <cmath>
 #include <iostream>
 #include <tuple>

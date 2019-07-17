@@ -1,13 +1,12 @@
 #include "AKF_akFunctions.hpp"
 #include "AtomInfo.hpp"
 #include "ContinuumOrbitals.hpp"
-#include "Wavefunction.hpp"
 #include "FileIO_fileReadWrite.hpp"
 #include "NumCalc_quadIntegrate.hpp"
 #include "PhysConst_constants.hpp"
 #include "SBF_sphericalBessel.hpp"
+#include "Wavefunction.hpp"
 #include "Wigner_369j.hpp"
-#include <cmath>
 #include <fstream>
 #include <iostream>
 
@@ -144,8 +143,7 @@ int akReadWrite(std::string fname, bool write,
 }
 
 //******************************************************************************
-int calculateK_nk(const Wavefunction &wf, std::size_t is, int max_L,
-                  double dE,
+int calculateK_nk(const Wavefunction &wf, std::size_t is, int max_L, double dE,
                   std::vector<std::vector<std::vector<double>>> &jLqr_f,
                   std::vector<float> &AK_nk_q, double)
 // Calculates the atomic factor for a given core state (is) and energy.

@@ -10,14 +10,18 @@ CXX=g++
 OPT=-O3
 OMP=-fopenmp
 
-WARN=-Wpedantic -Wall -Wextra -Wdouble-promotion -Wconversion -Wformat=2 -Wlogical-op #-Weffc++
-# -Wshadow  
-# -Wfloat-equal 
-# -fmax-errors=n # useful when changing a lot
+WARN=-Wpedantic -Wall -Wextra -Wdouble-promotion -Wconversion
+# -Weffc++
+# -Wshadow
+# -Wfloat-equal
 # -Wsign-conversion
+# -fmax-errors=n # useful when changing a lot
 
 ifeq ($(CXX),clang++)
-  WARN += -Wno-sign-conversion
+  WARN += -Wno-sign-conversion -Wheader-hygiene
+endif
+ifeq ($(CXX),g++)
+  WARN += -Wlogical-op
 endif
 
 # Useful for tests:
@@ -49,27 +53,115 @@ all: checkObj checkXdir $(ALLEXES)
 ################################################################################
 ## Dependencies:
 
-# All programs depend on these generic common headers:
-COMH = $(addprefix $(ID)/, \
- DiracSpinor.hpp DiracOperator.hpp Wavefunction.hpp Operators.hpp \
- Nuclear.hpp Nuclear_DataTable.hpp \
- AtomInfo.hpp PhysConst_constants.hpp FileIO_fileReadWrite.hpp \
- NumCalc_quadIntegrate.hpp Grid.hpp Matrix_linalg.hpp ChronoTimer.hpp \
- Wigner_369j.hpp \
-)
+# # All programs depend on these generic common headers:
+# COMH = $(addprefix $(ID)/, \
+#  DiracSpinor.hpp DiracOperator.hpp Wavefunction.hpp Operators.hpp \
+#  Nuclear.hpp Nuclear_DataTable.hpp \
+#  AtomInfo.hpp PhysConst_constants.hpp FileIO_fileReadWrite.hpp \
+#  NumCalc_quadIntegrate.hpp Grid.hpp Matrix_linalg.hpp ChronoTimer.hpp \
+#  Wigner_369j.hpp \
+# )
 
-# Rule for files that have .cpp AND a .h file
-# They depend 'only' on their own header, + generic common headers
-$(OD)/%.o: $(ID)/%.cpp $(ID)/%.hpp $(COMH)
+# # Rule for files that have .cpp AND a .h file
+# # They depend 'only' on their own header, + generic common headers
+# $(OD)/%.o: $(ID)/%.cpp $(ID)/%.hpp $(COMH)
+# 	$(COMP)
+#
+# # Rule for files that _don't_ have a .h header. (mains)
+# # These also depend on the common headers
+# $(OD)/%.o: $(ID)/%.cpp $(COMH)
+# 	$(COMP)
+#
+# 	# Here: List rules for any other progs that don't fit above rules?
+# $(OD)/dummy.o: $(ID)/dummy.cpp $(COMH) $(ID)/otherHeader.hpp
+# 	$(COMP)
+
+$(OD)/ADAMS_bound.o: $(ID)/ADAMS_bound.cpp $(ID)/ADAMS_bound.hpp \
+$(ID)/DiracSpinor.hpp $(ID)/Grid.hpp $(ID)/Matrix_linalg.hpp \
+$(ID)/NumCalc_quadIntegrate.hpp
 	$(COMP)
 
-# Rule for files that _don't_ have a .h header. (mains)
-# These also depend on the common headers
-$(OD)/%.o: $(ID)/%.cpp $(COMH)
+$(OD)/ADAMS_continuum.o: $(ID)/ADAMS_continuum.cpp $(ID)/ADAMS_bound.hpp \
+$(ID)/ADAMS_continuum.hpp $(ID)/DiracSpinor.hpp $(ID)/Grid.hpp \
+$(ID)/NumCalc_quadIntegrate.hpp
 	$(COMP)
 
-# Here: List rules for any other progs that don't fit above rules?
-$(OD)/dummy.o: $(ID)/dummy.cpp $(COMH) $(ID)/otherHeader.hpp
+$(OD)/AKF_akFunctions.o: $(ID)/AKF_akFunctions.cpp $(ID)/AKF_akFunctions.hpp \
+$(ID)/AtomInfo.hpp $(ID)/ContinuumOrbitals.hpp $(ID)/Wavefunction.hpp \
+$(ID)/FileIO_fileReadWrite.hpp $(ID)/NumCalc_quadIntegrate.hpp \
+$(ID)/PhysConst_constants.hpp $(ID)/SBF_sphericalBessel.hpp \
+$(ID)/Wigner_369j.hpp
+	$(COMP)
+
+$(OD)/atomicKernal.o: $(ID)/atomicKernal.cpp $(ID)/AKF_akFunctions.hpp \
+$(ID)/AtomInfo.hpp $(ID)/ChronoTimer.hpp $(ID)/ContinuumOrbitals.hpp \
+$(ID)/FileIO_fileReadWrite.hpp $(ID)/Grid.hpp $(ID)/HartreeFockClass.hpp \
+$(ID)/Parametric_potentials.hpp $(ID)/PhysConst_constants.hpp \
+$(ID)/Wavefunction.hpp
+	$(COMP)
+
+$(OD)/ContinuumOrbitals.o: $(ID)/ContinuumOrbitals.cpp \
+$(ID)/ContinuumOrbitals.hpp $(ID)/ADAMS_bound.hpp $(ID)/ADAMS_continuum.hpp \
+$(ID)/AtomInfo.hpp $(ID)/Wavefunction.hpp $(ID)/Grid.hpp \
+$(ID)/PhysConst_constants.hpp
+	$(COMP)
+
+$(OD)/CoulombIntegrals.o: $(ID)/CoulombIntegrals.cpp $(ID)/CoulombIntegrals.hpp\
+$(ID)/DiracSpinor.hpp $(ID)/NumCalc_quadIntegrate.hpp
+	$(COMP)
+
+$(OD)/dmeXSection.o: $(ID)/dmeXSection.cpp $(ID)/AKF_akFunctions.hpp \
+$(ID)/ChronoTimer.hpp \
+$(ID)/FileIO_fileReadWrite.hpp $(ID)/Grid.hpp $(ID)/NumCalc_quadIntegrate.hpp \
+$(ID)/PhysConst_constants.hpp $(ID)/StandardHaloModel.hpp
+	$(COMP)
+
+$(OD)/fitParametric.o: $(ID)/fitParametric.cpp $(ID)/AKF_akFunctions.hpp \
+$(ID)/AtomInfo.hpp $(ID)/ChronoTimer.hpp $(ID)/FileIO_fileReadWrite.hpp \
+$(ID)/HartreeFockClass.hpp $(ID)/NumCalc_quadIntegrate.hpp \
+$(ID)/Parametric_potentials.hpp $(ID)/PhysConst_constants.hpp \
+$(ID)/Wavefunction.hpp
+	$(COMP)
+
+$(OD)/h-like.o: $(ID)/h-like.cpp $(ID)/AtomInfo.hpp $(ID)/ChronoTimer.hpp \
+$(ID)/DiracOperator.hpp $(ID)/FileIO_fileReadWrite.hpp \
+$(ID)/NumCalc_quadIntegrate.hpp $(ID)/Operators.hpp $(ID)/Wavefunction.hpp
+	$(COMP)
+
+$(OD)/hartreeFock.o: $(ID)/hartreeFock.cpp $(ID)/AtomInfo.hpp \
+$(ID)/ChronoTimer.hpp $(ID)/DiracOperator.hpp $(ID)/FileIO_fileReadWrite.hpp \
+$(ID)/HartreeFockClass.hpp $(ID)/Nuclear.hpp $(ID)/NumCalc_quadIntegrate.hpp \
+$(ID)/Operators.hpp $(ID)/Parametric_potentials.hpp \
+$(ID)/PhysConst_constants.hpp $(ID)/Wavefunction.hpp
+	$(COMP)
+
+$(OD)/HartreeFockClass.o: $(ID)/HartreeFockClass.cpp $(ID)/HartreeFockClass.hpp\
+$(ID)/AtomInfo.hpp $(ID)/CoulombIntegrals.hpp \
+$(ID)/DiracSpinor.hpp $(ID)/Grid.hpp $(ID)/NumCalc_quadIntegrate.hpp \
+$(ID)/Parametric_potentials.hpp $(ID)/Wavefunction.hpp $(ID)/Wigner_369j.hpp
+	$(COMP)
+
+$(OD)/Parametric_potentials.o: $(ID)/Parametric_potentials.cpp\
+$(ID)/Parametric_potentials.hpp $(ID)/AtomInfo.hpp $(ID)/PhysConst_constants.hpp
+	$(COMP)
+
+$(OD)/parametricPotential.o: $(ID)/parametricPotential.cpp \
+$(ID)/AtomInfo.hpp $(ID)/ChronoTimer.hpp $(ID)/Wavefunction.hpp \
+$(ID)/FileIO_fileReadWrite.hpp $(ID)/Parametric_potentials.hpp \
+$(ID)/PhysConst_constants.hpp
+	$(COMP)
+
+$(OD)/StandardHaloModel.o: $(ID)/StandardHaloModel.cpp \
+$(ID)/StandardHaloModel.hpp $(ID)/Grid.hpp
+	$(COMP)
+
+$(OD)/Wavefunction.o: $(ID)/Wavefunction.cpp $(ID)/Wavefunction.hpp \
+$(ID)/ADAMS_bound.hpp $(ID)/AtomInfo.hpp $(ID)/DiracSpinor.hpp $(ID)/Grid.hpp \
+$(ID)/Nuclear.hpp $(ID)/PhysConst_constants.hpp
+	$(COMP)
+
+$(OD)/wigner.o: $(ID)/wigner.cpp $(ID)/FileIO_fileReadWrite.hpp \
+$(ID)/Wigner_369j.hpp
 	$(COMP)
 
 ################################################################################
