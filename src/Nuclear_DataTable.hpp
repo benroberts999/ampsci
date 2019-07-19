@@ -15,10 +15,10 @@ struct Isotope {
   Isotope(int z, int a, double r, double m, int p, double i)
       : Z(z), A(a), r_rms(r), mu(m), parity(p), I_N(i) {}
 
-  bool r_ok() { return (r_rms <= 0) ? false : true; }
-  bool mu_ok() { return (mu == 0 && (I_N != 0)) ? false : true; }
-  bool parity_ok() { return (parity == 0) ? false : true; }
-  bool I_ok() { return (I_N < 0) ? false : true; }
+  bool r_ok() const { return (r_rms <= 0) ? false : true; }
+  bool mu_ok() const { return (mu == 0 && (I_N != 0)) ? false : true; }
+  bool parity_ok() const { return (parity == 0) ? false : true; }
+  bool I_ok() const { return (I_N < 0) ? false : true; }
 };
 
 // Note: rms charge radii  from:

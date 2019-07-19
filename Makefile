@@ -44,7 +44,7 @@ LINK=$(CXX) -o $@ $^ $(CXXFLAGS) $(LIBS)
 #Allow exectuables to be placed in another directory:
 ALLEXES = $(addprefix $(XD)/, \
  h-like fitParametric parametricPotential atomicKernal \
- hartreeFock wigner dmeXSection \
+ hartreeFock wigner dmeXSection nuclearData \
 )
 
 #Default make rule:
@@ -164,6 +164,11 @@ $(OD)/wigner.o: $(ID)/wigner.cpp $(ID)/FileIO_fileReadWrite.hpp \
 $(ID)/Wigner_369j.hpp
 	$(COMP)
 
+
+$(OD)/nuclearData.o: $(ID)/nuclearData.cpp $(ID)/Nuclear.hpp \
+$(ID)/Nuclear_DataTable.hpp $(ID)/AtomInfo.hpp
+	$(COMP)
+
 ################################################################################
 # Hust to save typing: Many programs depend on these combos:
 
@@ -205,6 +210,9 @@ $(OD)/AKF_akFunctions.o $(OD)/StandardHaloModel.o
 	$(LINK)
 
 $(XD)/wigner: $(OD)/wigner.o
+	$(LINK)
+
+$(XD)/nuclearData: $(OD)/nuclearData.o
 	$(LINK)
 
 ################################################################################

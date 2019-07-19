@@ -20,6 +20,15 @@ inline Isotope findIsotopeData(int z, int a) {
   return Isotope{z, a, -1, 0, 0, -1};
 }
 
+inline std::vector<Isotope> findIsotopeList(int z) {
+  std::vector<Isotope> isotopes;
+  for (const auto &nucleus : NuclearDataTable) {
+    if (nucleus.Z == z)
+      isotopes.push_back(nucleus);
+  }
+  return isotopes;
+}
+
 inline double find_rrms(int z, int a) {
   auto nuc = findIsotopeData(z, a);
   if (!nuc.r_ok()) {
@@ -104,15 +113,6 @@ inline double rrms_formula_c_t(double c, double t = 2.3)
   double a = t / 4.39445;
   return sqrt(0.2 * (3. * c * c + 7. * a * a * 9.8696));
 }
-
-// //******************************************************************************
-// inline double approximate_c_hdr(int A, double t = 2.3)
-// // approximate formula for half-density radius (c) - used for Fermi distro
-// // nb: returns in Fermi
-// {
-//   double r = approximate_r_rms(A);
-//   return c_hdr_formula_rrms_t(r, t);
-// }
 
 const double default_t = 2.30;
 //******************************************************************************
