@@ -64,6 +64,7 @@ public:
     return AtomInfo::atomicSymbol(m_Z) + ", Z=" + std::to_string(m_Z) +
            " A=" + std::to_string(m_A);
   }
+  std::string atomicSymbol() const { return AtomInfo::atomicSymbol(m_Z); }
   void printCore(bool sorted = true) const;
   void printValence(bool sorted = true,
                     const std::vector<DiracSpinor> &tmp_orbitals = {}) const;

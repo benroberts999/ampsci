@@ -18,7 +18,7 @@ UserInput::UserInput(const std::string &infile)                      //
 }
 
 std::stringstream UserInput::find(const std::string &block,
-                                  const std::string &option) {
+                                  const std::string &option) const {
   auto output = std::stringstream("InputNotFound");
   bool already_found = false; // allows for warning if input given twice
   for (const auto &el : m_user_input) {
@@ -39,7 +39,7 @@ std::stringstream UserInput::find(const std::string &block,
   return output;
 }
 
-void UserInput::print() {
+void UserInput::print() const {
   for (const auto &item : m_user_input) {
     std::cout << item.first << ":\n";
     for (const auto &entry : item.second) {

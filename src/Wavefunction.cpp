@@ -1,4 +1,3 @@
-// class Wavefunction::
 #include "Wavefunction.hpp"
 #include "ADAMS_bound.hpp"
 #include "AtomInfo.hpp"
@@ -8,7 +7,7 @@
 #include "PhysConst_constants.hpp"
 #include <algorithm> //for sort
 #include <cmath>
-#include <locale> //isdigit
+// #include <locale> //isdigit
 #include <sstream>
 #include <string>
 #include <vector>
@@ -75,71 +74,6 @@ void Wavefunction::solveDirac(DiracSpinor &psi, double e_a,
   std::vector<double> empty_vec;
   return solveDirac(psi, e_a, empty_vec, log_dele_or);
 }
-
-// //******************************************************************************
-// static std::vector<NonRelSEConfig> core_parser(const std::string
-// &str_core_in)
-// // Heler function for below.
-// // Move to Atom Info ?
-// {
-//   // If there's a 'Noble-Gas' term, replace it with full config
-//   // Otherwise, 'first-term' remains unchanges
-//   auto found = str_core_in.find(",");
-//   if (found > str_core_in.length())
-//     found = str_core_in.length();
-//   auto first_term = str_core_in.substr(0, found);
-//   auto rest = str_core_in.substr(found);
-//   auto str_core = AtomInfo::coreConfig(first_term) + rest;
-//
-//   // Move comma-seperated string into an array (vector)
-//   std::vector<std::string> term_str_list;
-//   {
-//     std::stringstream ss(str_core);
-//     while (ss.good()) {
-//       std::string substr;
-//       getline(ss, substr, ',');
-//       term_str_list.push_back(substr);
-//     }
-//   }
-//
-//   std::vector<NonRelSEConfig> core_configs;
-//   for (const auto &term : term_str_list) {
-//     bool term_ok = true;
-//     std::size_t l_position = 0;
-//     for (const auto &c : term) {
-//       if (!std::isdigit(c))
-//         break;
-//       ++l_position;
-//     }
-//     int n{0}, num{0}, l{-1};
-//     try {
-//       n = std::stoi(term.substr(0, l_position - 0));
-//       num = std::stoi(term.substr(l_position + 1));
-//       if (l_position == term.size())
-//         throw;
-//       l = AtomInfo::symbol_to_l(term.substr(l_position, 1));
-//     } catch (...) {
-//       term_ok = false;
-//     }
-//     NonRelSEConfig new_config(n, l, num);
-//
-//     if (!term_ok || n <= 0) {
-//       std::cout << "Problem with core: " << str_core_in << "\n";
-//       std::cerr << "invalid core term: " << term << "\n";
-//       std::abort();
-//     }
-//
-//     if (num == 0)
-//       continue;
-//     auto ia = std::find(core_configs.begin(), core_configs.end(),
-//     new_config); if (ia == core_configs.end()) {
-//       core_configs.push_back(new_config);
-//     } else {
-//       *ia += new_config;
-//     }
-//   }
-//   return core_configs;
-// }
 
 //******************************************************************************
 void Wavefunction::determineCore(const std::string &str_core_in)
@@ -571,6 +505,7 @@ void Wavefunction::printValence(
            phi.en *PhysConst::Hartree_invcm);
     printf(" %10.2f\n", (phi.en - e0) * PhysConst::Hartree_invcm);
   }
+  std::cout << "\n";
 }
 
 //******************************************************************************

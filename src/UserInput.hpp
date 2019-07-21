@@ -21,14 +21,27 @@ private:
   std::vector<StringVectorPair> m_user_input;
 
 private:
-  std::stringstream find(const std::string &block, const std::string &option);
+  std::stringstream find(const std::string &block,
+                         const std::string &option) const;
 
 public:
-  void print();
+  void print() const;
+
+  std::vector<std::string> module_list() const {
+    std::vector<std::string> output;
+    for (const auto &entry : m_user_input) {
+      auto block = entry.first;
+      auto pos = block.find("Module::");
+      if (pos == 0) {
+        output.push_back(block);
+      }
+    }
+    return output;
+  }
 
   template <typename T>
   inline T get(const std::string &block, const std::string &option,
-               const T &default_value) {
+               const T &default_value) const {
     auto a = find(block, option);
     if (a.str() == "InputNotFound")
       return default_value;
@@ -36,7 +49,7 @@ public:
   }
 
   template <typename T>
-  inline T get(const std::string &block, const std::string &option)
+  inline T get(const std::string &block, const std::string &option) const
   // No default value; user input is complulsory
   {
     auto a = find(block, option);
@@ -49,6 +62,7 @@ public:
   }
 };
 
+//******************************************************************************
 template <typename T>
 inline T get_impl(std::stringstream &ss, const std::string &in) {
   T val;
