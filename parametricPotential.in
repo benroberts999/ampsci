@@ -1,9 +1,9 @@
-Rb 0              ! Z, A(=0 for default)
-[Kr]              ! Core configuration (comma separated)
+Cs 0              ! Z, A(=0 for default)
+[Xe]              ! Core configuration (comma separated)
 1.e-5 100. 2000   ! r0, rmax, num_points
-1 5.5 1.11        ! green H d *
+1 0 0             ! green H d *
 0 0 0             ! Tietz t g
-0  1              ! max n and l (valence)
+7  1              ! max n and l (valence)
 !!!!!!!!!!!!!!!!!!!
 !
 !Fraction of each potential to use (normalised inside program)

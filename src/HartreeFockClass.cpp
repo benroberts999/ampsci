@@ -22,6 +22,37 @@ Solves all core and valence states.
 #endif // DEBUG
 
 //******************************************************************************
+HartreeFock::HartreeFock(HFMethod method, Wavefunction &wf,
+                         const std::string &in_core, double eps_HF, double h_d,
+                         double g_t)
+    //
+    : p_wf(&wf), p_rgrid(&wf.rgrid),
+      m_cint(Coulomb(wf.rgrid, wf.core_orbitals, wf.valence_orbitals)),
+      m_eps_HF([=]() { // can give as log..
+        return (fabs(eps_HF) < 1) ? eps_HF : pow(10, -1 * eps_HF);
+      }()),
+      m_excludeExchange(
+          [=]() { return (method == HFMethod::HartreeFock) ? false : true; }())
+//
+{
+
+  if (method == HFMethod::Hartree || method == HFMethod::HartreeFock) {
+    if (wf.core_orbitals.size() == 0)
+      starting_approx_core(in_core, 5);
+    m_cint.initialise_core_core();
+    vex_core.resize(p_wf->core_orbitals.size(),
+                    std::vector<double>(p_rgrid->ngp));
+    hartree_fock_core();
+  } else {
+    starting_approx_core(in_core, 15, method, h_d, g_t);
+    m_cint.initialise_core_core();
+    vex_core.resize(p_wf->core_orbitals.size(),
+                    std::vector<double>(p_rgrid->ngp));
+    m_cint.form_core_core();
+  }
+}
+
+//******************************************************************************
 HartreeFock::HartreeFock(Wavefunction &wf, const std::string &in_core,
                          double eps_HF, bool in_ExcludeExchange)
     : p_wf(&wf), p_rgrid(&wf.rgrid),
@@ -30,6 +61,10 @@ HartreeFock::HartreeFock(Wavefunction &wf, const std::string &in_core,
         return (fabs(eps_HF) < 1) ? eps_HF : pow(10, -1 * eps_HF);
       }()),
       m_excludeExchange(in_ExcludeExchange) {
+
+  // XXX This is old onoe, should remove soon!
+  std::cout << "\n\nWARNING: USING OLD HF CONSTRUCTOR!\n\n";
+  std::cin.get();
 
   // If core doesn't exist, do initial core. otherwise, don't re-solve!
   // (Note: I don't check if core's match..)
@@ -40,6 +75,20 @@ HartreeFock::HartreeFock(Wavefunction &wf, const std::string &in_core,
 
   // Run HF for all core states
   hartree_fock_core();
+}
+
+//******************************************************************************
+HFMethod HartreeFock::parseMethod(std::string in_method) {
+  if (in_method == "HartreeFock")
+    return HFMethod::HartreeFock;
+  if (in_method == "Hartree")
+    return HFMethod::Hartree;
+  if (in_method == "GreenPRM")
+    return HFMethod::GreenPRM;
+  if (in_method == "TietzPRM")
+    return HFMethod::TietzPRM;
+  std::cout << "Warning: HF Method: " << in_method << " ?? Defaulting to HF\n";
+  return HFMethod::HartreeFock;
 }
 
 //******************************************************************************
@@ -55,9 +104,6 @@ void HartreeFock::hartree_fock_core() {
   static const double eta2 = 0.7; // this value after 4 its
   // don't include all pts in PT for new e guess:
   static const std::size_t de_stride = 5;
-
-  vex_core.resize(p_wf->core_orbitals.size(),
-                  std::vector<double>(p_rgrid->ngp));
 
   // initialise 'old' potentials
   auto vdir_old = p_wf->vdir;
@@ -198,7 +244,7 @@ void HartreeFock::solveValence(DiracSpinor &phi, std::vector<double> &vexa)
     }
     en_new_guess = en_old + en_new_guess * p_rgrid->du * de_stride;
     // Solve Dirac using new potential:
-    p_wf->solveDirac(phi, en_new_guess, vexa, 6);
+    p_wf->solveDirac(phi, en_new_guess, vexa, 12);
     eps = fabs((phi.en - en_old) / en_old);
     // Force valence states to be orthogonal to core:
     p_wf->orthonormaliseWrtCore(phi);
@@ -275,12 +321,30 @@ double HartreeFock::calculateCoreEnergy() const
 }
 
 //******************************************************************************
-void HartreeFock::starting_approx_core(const std::string &in_core)
+// void HartreeFock::starting_approx_core(const std::string &in_core)
+// // Starting approx for HF. Uses Green parametric
+// // Later, can put other options if you want.
+// {
+//   p_wf->vdir = Parametric::GreenPotential(p_wf->Znuc(), p_rgrid->r);
+//   p_wf->solveInitialCore(in_core, 3);
+// }
+
+void HartreeFock::starting_approx_core(const std::string &in_core,
+                                       int log_converge, HFMethod method,
+                                       double h_g, double d_t)
 // Starting approx for HF. Uses Green parametric
 // Later, can put other options if you want.
 {
-  p_wf->vdir = Parametric::defaultGreenPotential(p_wf->Znuc(), p_rgrid->r);
-  p_wf->solveInitialCore(in_core, 3);
+
+  if (method == HFMethod::GreenPRM) {
+    p_wf->vdir = Parametric::GreenPotential(p_wf->Znuc(), p_rgrid->r, h_g, d_t);
+  } else if (method == HFMethod::TietzPRM) {
+    p_wf->vdir = Parametric::TietzPotential(p_wf->Znuc(), p_rgrid->r, h_g, d_t);
+  } else {
+    std::cerr << "FAIL 321: Wrong core starting approx method \n";
+    std::abort();
+  }
+  p_wf->solveInitialCore(in_core, log_converge);
 }
 
 //******************************************************************************

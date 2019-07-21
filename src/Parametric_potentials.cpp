@@ -213,15 +213,30 @@ Crude quadratic fit used for other Z values.
 }
 
 //******************************************************************************
-std::vector<double> defaultGreenPotential(int z,
-                                          const std::vector<double> &r_array) {
-  double Gh, Gd; // Green potential parameters
-  Parametric::defaultGreenCore(z, Gh, Gd);
+std::vector<double> GreenPotential(int z, const std::vector<double> &r_array,
+                                   double h, double d) {
+  // double Gh, Gd; // Green potential parameters
+  if (fabs(h * d) < 1.0e-6)
+    defaultGreenCore(z, h, d);
   // Fill the the potential, using Greens Parametric
   std::vector<double> v;
   v.reserve(r_array.size());
   for (const auto r : r_array) {
-    v.emplace_back(Parametric::green(z, r, Gh, Gd));
+    v.push_back(green(z, r, h, d));
+  }
+  return v;
+}
+
+std::vector<double> TietzPotential(int z, const std::vector<double> &r_array,
+                                   double g, double t) {
+  // double Gh, Gd; // Green potential parameters
+  if (fabs(g * t) < 1.0e-6)
+    defaultTietz(z, t, g);
+  // Fill the the potential, using Greens Parametric
+  std::vector<double> v;
+  v.reserve(r_array.size());
+  for (const auto r : r_array) {
+    v.push_back(tietz(z, r, g, t));
   }
   return v;
 }

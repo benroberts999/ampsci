@@ -31,23 +31,36 @@ int main(int argc, char *argv[]) {
   auto eps_HF = input.get("HartreeFock", "Convergence", 1.0e-14);
   auto num_val = input.get("HartreeFock", "num_val", 0);
   auto l_max = input.get("HartreeFock", "l_max", 0);
-  auto exclude_exchange = input.get("HartreeFock", "excludeExchange", false);
 
   auto Z = AtomInfo::get_z(atom);
   Wavefunction wf(Z, A, ngp, r0, rmax, varalpha);
 
-  if (exclude_exchange)
-    std::cout << "\nRunning Hartree (excluding exchange) for ";
-  else
-    std::cout << "\nRunning Hartree-Fock for ";
+  std::cout << "\nRunning for ";
   std::cout << wf.atom() << "\n"
             << wf.nuclearParams() << "\n"
             << wf.rgrid.gridParameters() << "\n"
             << "********************************************************\n";
 
+  // Parse input for HF method
+  auto HF_method = HartreeFock::parseMethod(
+      input.get<std::string>("HartreeFock", "Method", "HartreeFock"));
+  double H_d = 0.0, g_t = 0.0;
+  if (HF_method == HFMethod::GreenPRM) {
+    H_d = input.get("HartreeFock", "Green_H", 0.0);
+    g_t = input.get("HartreeFock", "Green_d", 0.0);
+    std::cout << "Using Greens Parametric Potential\n";
+  } else if (HF_method == HFMethod::TietzPRM) {
+    H_d = input.get("HartreeFock", "Tietz_g", 0.0);
+    g_t = input.get("HartreeFock", "Tietz_t", 0.0);
+    std::cout << "Using Greens Tietz Potential\n";
+  } else if (HF_method == HFMethod::Hartree) {
+    std::cout << "Using Hartree Method (no Exchange)\n";
+  }
+
   // Solve Hartree equations for the core:
-  timer.start(); // start the timer for HF
-  HartreeFock hf(wf, str_core, eps_HF, exclude_exchange);
+  timer.start();
+  HartreeFock hf(HF_method, wf, str_core, eps_HF, H_d, g_t);
+
   double core_energy = hf.calculateCoreEnergy();
   std::cout << "core: " << timer.lap_reading_str() << "\n";
 

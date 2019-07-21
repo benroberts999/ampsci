@@ -24,12 +24,32 @@ Requires re-writing the valence part (a little)
   vex[a]      := [v_ex*psi_a](r) *(psi_a/psi_a^2) (approx exchange)
 */
 
+enum class HFMethod { HartreeFock, Hartree, GreenPRM, TietzPRM };
+
 class HartreeFock {
   friend class Coulomb;
 
 public:
+  static HFMethod parseMethod(std::string in_method);
+  //  {
+  //   if (in_method == "HartreeFock")
+  //     return HFMethod::HartreeFock;
+  //   if (in_method == "Hartree")
+  //     return HFMethod::Hartree;
+  //   if (in_method == "GreenPRM")
+  //     return HFMethod::GreenPRM;
+  //   if (in_method == "TietzPRM")
+  //     return HFMethod::TietzPRM;
+  //   std::cout << "Warning: HF Method: " << in_method
+  //             << " ?? Defaulting to HF\n";
+  //   return HFMethod::HartreeFock;
+  // }
+
   HartreeFock(Wavefunction &wf, const std::string &in_core, double eps_HF = 0.,
               bool in_ExcludeExchange = false);
+
+  HartreeFock(HFMethod method, Wavefunction &wf, const std::string &in_core,
+              double eps_HF = 0, double h_d = 0, double g_t = 0);
 
   void solveNewValence(int n, int kappa);
   void solveValence(DiracSpinor &phi, std::vector<double> &vexa);
@@ -58,7 +78,9 @@ private:
 
 private:
   void hartree_fock_core();
-  void starting_approx_core(const std::string &in_core);
+  void starting_approx_core(const std::string &in_core, int log_converge = 3,
+                            HFMethod method = HFMethod::GreenPRM,
+                            double h_g = 0, double d_t = 0);
 
   void form_vdir(std::vector<double> &vdir, bool re_scale = false) const;
   void form_approx_vex_core(std::vector<std::vector<double>> &vex) const;
