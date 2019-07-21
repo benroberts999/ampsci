@@ -1,17 +1,15 @@
 #include "AtomInfo.hpp"
 #include "ChronoTimer.hpp"
 #include "DiracOperator.hpp"
-#include "FileIO_fileReadWrite.hpp"
 #include "HartreeFockClass.hpp"
 #include "Nuclear.hpp"
-#include "NumCalc_quadIntegrate.hpp"
 #include "Operators.hpp"
-#include "Parametric_potentials.hpp"
 #include "PhysConst_constants.hpp"
+#include "UserInput.hpp"
 #include "Wavefunction.hpp"
-#include <cmath>
+#include <fstream>
 #include <iostream>
-#include <tuple>
+#include <string>
 
 int main(int argc, char *argv[]) {
   ChronoTimer timer; // start the overall timer
@@ -19,34 +17,23 @@ int main(int argc, char *argv[]) {
   std::string input_file = (argc > 1) ? argv[1] : "hartreeFock.in";
   std::cout << "Reading input from: " << input_file << "\n";
 
-  // Input options
-  std::string Z_str;
-  int A;
-  std::string str_core;
-  double r0, rmax;
-  int ngp;
-  double eps_HF;      // HF convergance
-  int num_val, l_max; // valence states to calc
-  double varalpha, varalpha2;
-  bool exclude_exchange;
-  bool run_test;
+  // // // Input options
+  UserInput input(input_file);
+  auto atom = input.get<std::string>("Atom", "Z");
+  auto varalpha = sqrt(input.get("Atom", "varAlpha2", 1.0));
+  auto A = input.get("Nucleus", "A", -1);
+  auto r0 = input.get("Grid", "r0", 1.0e-5);
+  auto rmax = input.get("Grid", "rmax", 150.0);
+  auto ngp = input.get("Grid", "ngp", 1600);
+  auto str_core = input.get<std::string>("HartreeFock", "Core");
+  auto eps_HF = input.get("HartreeFock", "Convergance", 1.0e-14);
+  auto num_val = input.get("HartreeFock", "num_val", 0);
+  auto l_max = input.get("HartreeFock", "l_max", 0);
+  auto exclude_exchange = input.get("HartreeFock", "excludeExchange", false);
 
-  { // Open and read the input file:
-    int i_excl_ex, i_tests;
-    auto tp =
-        std::forward_as_tuple(Z_str, A, str_core, r0, rmax, ngp, eps_HF,
-                              num_val, l_max, varalpha2, i_excl_ex, i_tests);
-    FileIO::setInputParameters(input_file, tp);
-    exclude_exchange = i_excl_ex == 1 ? true : false;
-    run_test = i_tests == 1 ? true : false;
-  }
+  bool run_test = input.get("HartreeFock", "run_test", false);
 
-  // Change varAlph^2 to varalph
-  if (varalpha2 == 0)
-    varalpha2 = 1.e-10;
-  varalpha = sqrt(varalpha2);
-  int Z = AtomInfo::get_z(Z_str);
-
+  auto Z = AtomInfo::get_z(atom);
   Wavefunction wf(Z, A, ngp, r0, rmax, varalpha);
 
   if (exclude_exchange)

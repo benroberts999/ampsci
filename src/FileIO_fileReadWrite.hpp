@@ -1,4 +1,5 @@
 #pragma once
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <sstream>
@@ -51,8 +52,9 @@ inline std::vector<std::string> readInputFile_byEntry(const std::string &fname)
     while (ss >> entry) {
       if (entry.at(0) == '!' || entry.at(0) == '#')
         break;
-      else
-        entry_list.push_back(entry);
+      if (entry.size() >= 2 && entry.at(0) == '/' && entry.at(1) == '/')
+        break;
+      entry_list.push_back(entry);
     }
   }
   return entry_list;
@@ -69,12 +71,93 @@ inline std::vector<std::string> readInputFile_byLine(const std::string &fname)
   while (getline(file, line) && (file.is_open())) { // redundant?
     if (line == "")
       continue;
-    if (line.at(0) == '!' || line.at(0) == '#') {
+    if (line.at(0) == '!' || line.at(0) == '#')
       continue;
-    } else {
-      entry_list.push_back(line);
+    if (line.size() >= 2 && line.at(0) == '/' && line.at(1) == '/')
+      continue;
+    entry_list.push_back(line);
+  }
+  return entry_list;
+}
+
+//******************************************************************************
+inline std::string readInputFile(const std::string &fname) {
+  std::ifstream f(fname); // taking file as inputstream
+  std::string str;
+  if (f) {
+    std::ostringstream ss;
+    ss << f.rdbuf(); // reading data
+    str = ss.str();
+  }
+  return str;
+}
+
+//******************************************************************************
+inline std::string removeCommentsAndSpaces(const std::string &input)
+// Note: also squashes lines, except for semi-colons
+{
+  std::string lines = "";
+  {
+    std::string line;
+    std::stringstream stream1(input);
+    while (std::getline(stream1, line, '\n')) {
+      auto comm1 = line.find("!");
+      auto comm2 = line.find("#");
+      auto comm3 = line.find("//");
+      auto comm = std::min(comm1, std::min(comm2, comm3));
+      lines += line.substr(0, comm);
     }
   }
+
+  // remove spaces
+  lines.erase(std::remove_if(lines.begin(), lines.end(),
+                             [](unsigned char x) { return x == ' '; }),
+              lines.end());
+  return lines;
+}
+
+//******************************************************************************
+inline std::vector<std::pair<std::string, std::string>>
+splitInput_byBraces(const std::string &input) {
+
+  std::vector<std::pair<std::string, std::string>> output;
+
+  auto lines = removeCommentsAndSpaces(input);
+
+  std::size_t previous_end = 0;
+  while (true) {
+    auto beg = lines.find("{", previous_end);
+    auto end = lines.find("}", beg);
+    if (beg == std::string::npos)
+      break;
+    if (end == std::string::npos) {
+      std::cerr << "\nFAIL 114 in FileIO: Bad file format (missing '}'?)\n";
+      break;
+    }
+    auto identifier = lines.substr(previous_end, beg - previous_end);
+    auto options = lines.substr(beg + 1, end - beg - 1);
+    output.push_back(std::make_pair(identifier, options));
+    previous_end = end + 1;
+  }
+
+  return output;
+}
+
+//******************************************************************************
+inline std::vector<std::string> splitInput_bySemiColon(const std::string &input)
+// ...
+{
+  std::vector<std::string> entry_list;
+
+  auto lines = removeCommentsAndSpaces(input);
+
+  // after removing comments, break up by ';'
+  std::stringstream stream2(lines);
+  std::string entry;
+  while (std::getline(stream2, entry, ';')) {
+    entry_list.push_back(entry);
+  }
+
   return entry_list;
 }
 

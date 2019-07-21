@@ -129,9 +129,9 @@ $(ID)/NumCalc_quadIntegrate.hpp $(ID)/Operators.hpp $(ID)/Wavefunction.hpp
 	$(COMP)
 
 $(OD)/hartreeFock.o: $(ID)/hartreeFock.cpp $(ID)/AtomInfo.hpp \
-$(ID)/ChronoTimer.hpp $(ID)/DiracOperator.hpp $(ID)/FileIO_fileReadWrite.hpp \
-$(ID)/HartreeFockClass.hpp $(ID)/Nuclear.hpp $(ID)/NumCalc_quadIntegrate.hpp \
-$(ID)/Operators.hpp $(ID)/Parametric_potentials.hpp \
+$(ID)/ChronoTimer.hpp $(ID)/DiracOperator.hpp $(ID)/UserInput.hpp \
+$(ID)/HartreeFockClass.hpp $(ID)/Nuclear.hpp \
+$(ID)/Operators.hpp  \
 $(ID)/PhysConst_constants.hpp $(ID)/Wavefunction.hpp
 	$(COMP)
 
@@ -153,6 +153,10 @@ $(ID)/PhysConst_constants.hpp
 
 $(OD)/StandardHaloModel.o: $(ID)/StandardHaloModel.cpp \
 $(ID)/StandardHaloModel.hpp $(ID)/Grid.hpp
+	$(COMP)
+
+$(OD)/UserInput.o: $(ID)/UserInput.cpp $(ID)/UserInput.hpp \
+$(ID)/FileIO_fileReadWrite.hpp
 	$(COMP)
 
 $(OD)/Wavefunction.o: $(ID)/Wavefunction.cpp $(ID)/Wavefunction.hpp \
@@ -202,7 +206,7 @@ $(XD)/atomicKernal: $(BASE) $(CNTM) $(HF) \
 $(OD)/atomicKernal.o $(OD)/AKF_akFunctions.o
 	$(LINK)
 
-$(XD)/hartreeFock: $(BASE) $(HF) $(OD)/hartreeFock.o
+$(XD)/hartreeFock: $(BASE) $(HF) $(OD)/hartreeFock.o $(OD)/UserInput.o
 	$(LINK)
 
 $(XD)/dmeXSection: $(BASE) $(CNTM) $(HF) $(OD)/dmeXSection.o \

@@ -1,9 +1,46 @@
-Cs -1              ! Z, A(=-1 for default, 0 for '0 nuc')
-[Xe]               ! Core configuration (comma separated)
-1.e-5 150 1600     ! r0, rmax, num_points
-1.e-14             ! HF convergence. [0 for max its]
-2 1                ! number of valence states for each l (and l)
-1                  ! var(alpha^2). (<<1 for non-rel. =1 for normal.)
-0                  ! Exclude exchange (1=yes)? (Hartree) Testing only!
-0                  ! run tests? 1=yes [orthog + <a|H|a>]
-###################
+Atom{
+  Z = Cs;
+  varAlpha2 = 1.00;
+}
+
+Nucleus{
+}
+
+HartreeFock{
+  Core = [Xe];
+  num_val = 2;
+  l_max = 1;
+  excludeExchange = false; //xxx temp (method)
+  //run_test = true; ///XXX temp
+  //valence = 3sp;
+  // Green etc; "method"
+}
+
+Grid{
+  r0=1.e-5;
+  rmax = 150.;
+  ngp = 1600;
+}
+
+///////////////////////////////////////
+// Following is not implemented yet:
+
+MatrixElements::hfs{ //can list multiple
+  // any extra options
+  diagonal;
+  off-diagonal;
+}
+
+Module::AtomicKernal{
+  Emin = ; Emax = x; Esteps = 50;
+  qmin = ; qmax = x; qsteps = 50;
+  max_l_bound = ;
+  max_L = ;
+  output = text/binary/both;
+  label = test;
+}
+
+Module::Tests{
+  orthonormality;
+  Hamiltonian;
+}
