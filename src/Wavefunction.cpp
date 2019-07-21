@@ -380,7 +380,7 @@ double Wavefunction::enGuessCore(int n, int l) const
   int num_el_below = 0;
   int num_el_this = 0;
   for (const auto &config : m_core_configs) {
-    if (l == config.l && n == config.l) {
+    if (l == config.l && n == config.n) {
       num_el_this = config.num;
       break;
     }
@@ -403,13 +403,13 @@ double Wavefunction::enGuessCore(int n, int l) const
     en_a *= 0.5;
   }
 
-  if (n == maxCore_n() - 1) {
-    en_a *= 1.25;
-  } else if (n == maxCore_n()) {
-    en_a *= 1.5;
-  } else if (n == maxCore_n() + 1 && l == 0 && num_el_this == 2) {
-    en_a = -0.5 * pow(Zeff, 2);
-  }
+  // if (n == maxCore_n() - 1) {
+  //   en_a *= 1.25;
+  // } else if (n == maxCore_n()) {
+  //   en_a *= 1.5;
+  // } else if (n == maxCore_n() + 1 && l == 0 && num_el_this == 2) {
+  //   en_a = -0.5 * pow(Zeff, 2);
+  // }
 
   return en_a;
 }
