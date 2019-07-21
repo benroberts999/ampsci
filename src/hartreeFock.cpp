@@ -14,12 +14,12 @@
 #include "RunModule.hpp"
 
 int main(int argc, char *argv[]) {
-  ChronoTimer timer; // start the overall timer
+  ChronoTimer timer;
 
   std::string input_file = (argc > 1) ? argv[1] : "hartreeFock.in";
   std::cout << "Reading input from: " << input_file << "\n";
 
-  // // // Input options
+  // Input options
   UserInput input(input_file);
   auto atom = input.get<std::string>("Atom", "Z");
   auto varalpha = sqrt(input.get("Atom", "varAlpha2", 1.0));
@@ -32,8 +32,6 @@ int main(int argc, char *argv[]) {
   auto num_val = input.get("HartreeFock", "num_val", 0);
   auto l_max = input.get("HartreeFock", "l_max", 0);
   auto exclude_exchange = input.get("HartreeFock", "excludeExchange", false);
-
-  // bool run_test = input.get("HartreeFock", "run_test", false);
 
   auto Z = AtomInfo::get_z(atom);
   Wavefunction wf(Z, A, ngp, r0, rmax, varalpha);

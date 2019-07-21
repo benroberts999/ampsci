@@ -338,9 +338,6 @@ double Wavefunction::enGuessCore(int n, int l) const
       en_a *= 3.5;
   }
 
-  // std::cout << n << " " << l << " " << en_a << " " << Zeff << " "
-  //           << num_el_below << "\n";
-
   return en_a;
 }
 
