@@ -322,12 +322,7 @@ double Wavefunction::enGuessCore(int n, int l) const
   }
 
   // effective Z (for energy guess) -- not perfect!
-  double Zeff = (m_Z - num_el_below - num_el_this);
-  if (l == 1) {
-    Zeff = 1. + (m_Z - num_el_below - 0.5 * num_el_this);
-  } else if (l == 2) {
-    Zeff = 1. + (m_Z - num_el_below - 0.5 * num_el_this);
-  }
+  double Zeff = 1.0 + (m_Z - num_el_below - 0.5 * num_el_this);
   if (Zeff < 1.0) {
     Zeff = 1.;
   }
@@ -336,14 +331,15 @@ double Wavefunction::enGuessCore(int n, int l) const
   if (n > 1) {
     en_a *= 0.5;
   }
+  if (Zeff < 10) {
+    if (l == 0)
+      en_a *= 2.5;
+    if (l == 1)
+      en_a *= 3.5;
+  }
 
-  // if (n == maxCore_n() - 1) {
-  //   en_a *= 1.25;
-  // } else if (n == maxCore_n()) {
-  //   en_a *= 1.5;
-  // } else if (n == maxCore_n() + 1 && l == 0 && num_el_this == 2) {
-  //   en_a = -0.5 * pow(Zeff, 2);
-  // }
+  // std::cout << n << " " << l << " " << en_a << " " << Zeff << " "
+  //           << num_el_below << "\n";
 
   return en_a;
 }
