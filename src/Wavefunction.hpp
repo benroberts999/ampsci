@@ -70,6 +70,7 @@ public:
                     const std::vector<DiracSpinor> &tmp_orbitals = {}) const;
   bool isInCore(int n, int k) const;
   int maxCore_n(int ka_in = 0) const;
+  int maxCore_l() const;
 
   std::vector<std::size_t>
   sortedEnergyList(const std::vector<DiracSpinor> &tmp_orbs,

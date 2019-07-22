@@ -1,7 +1,9 @@
+#pragma once
 #include "AtomInfo.hpp"
 #include "ChronoTimer.hpp"
 #include "DiracOperator.hpp"
 #include "HartreeFockClass.hpp"
+#include "Module_atomicKernal.hpp"
 #include "Nuclear.hpp"
 #include "Operators.hpp"
 #include "PhysConst_constants.hpp"
@@ -11,14 +13,15 @@
 #include <iostream>
 #include <string>
 
-void Module_orthonormality(const Wavefunction &wf);
-void Module_Hamiltonian(const Wavefunction &wf, const HartreeFock &hf);
-void Module_WriteOrbitals(const Wavefunction &wf, const std::string &label);
+inline void Module_orthonormality(const Wavefunction &wf);
+inline void Module_Hamiltonian(const Wavefunction &wf, const HartreeFock &hf);
+inline void Module_WriteOrbitals(const Wavefunction &wf,
+                                 const std::string &label);
 
 // Use enums to avoid looping through by specialising template?
 //******************************************************************************
-void RunModule(const std::string &module, const UserInput &input,
-               const Wavefunction &wf, const HartreeFock &hf) //
+inline void RunModule(const std::string &module, const UserInput &input,
+                      const Wavefunction &wf, const HartreeFock &hf) //
 {
   //
   if (module == "Module::Tests") {
@@ -28,11 +31,13 @@ void RunModule(const std::string &module, const UserInput &input,
       Module_Hamiltonian(wf, hf);
   } else if (module == "Module::WriteOrbitals") {
     Module_WriteOrbitals(wf, input.get<std::string>(module, "label", ""));
+  } else if (module == "Module::AtomicKernal") {
+    Module::atomicKernal(input, wf);
   }
 }
 
 //******************************************************************************
-void Module_orthonormality(const Wavefunction &wf) {
+inline void Module_orthonormality(const Wavefunction &wf) {
   std::cout << "Test orthonormality [log-scale, should all read 0]:\n";
   for (int i = 0; i < 3; i++) {
     const auto &tmp_b = (i == 2) ? wf.valence_orbitals : wf.core_orbitals;
@@ -77,7 +82,7 @@ void Module_orthonormality(const Wavefunction &wf) {
 }
 
 //******************************************************************************
-void Module_Hamiltonian(const Wavefunction &wf, const HartreeFock &hf) {
+inline void Module_Hamiltonian(const Wavefunction &wf, const HartreeFock &hf) {
   std::cout << "\nTesting wavefunctions: <n|H|n>  (numerical error)\n";
   double c = 1. / wf.get_alpha();
   DiracOperator w(c, GammaMatrix::g5, 1, true);
@@ -103,7 +108,8 @@ void Module_Hamiltonian(const Wavefunction &wf, const HartreeFock &hf) {
 }
 
 //******************************************************************************
-void Module_WriteOrbitals(const Wavefunction &wf, const std::string &label) {
+inline void Module_WriteOrbitals(const Wavefunction &wf,
+                                 const std::string &label) {
   std::string oname = wf.atomicSymbol() + "-orbitals";
   if (label != "")
     oname += "_" + label;

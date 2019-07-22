@@ -100,6 +100,13 @@ $(ID)/Parametric_potentials.hpp $(ID)/PhysConst_constants.hpp \
 $(ID)/Wavefunction.hpp
 	$(COMP)
 
+$(OD)/Module_atomicKernal.o: $(ID)/Module_atomicKernal.cpp \
+$(ID)/Module_atomicKernal.hpp $(ID)/AKF_akFunctions.hpp \
+$(ID)/AtomInfo.hpp $(ID)/ChronoTimer.hpp $(ID)/ContinuumOrbitals.hpp \
+$(ID)/Grid.hpp $(ID)/PhysConst_constants.hpp \
+$(ID)/Wavefunction.hpp
+	$(COMP)
+
 $(OD)/ContinuumOrbitals.o: $(ID)/ContinuumOrbitals.cpp \
 $(ID)/ContinuumOrbitals.hpp $(ID)/ADAMS_bound.hpp $(ID)/ADAMS_continuum.hpp \
 $(ID)/AtomInfo.hpp $(ID)/Wavefunction.hpp $(ID)/Grid.hpp \
@@ -131,7 +138,7 @@ $(ID)/NumCalc_quadIntegrate.hpp $(ID)/Operators.hpp $(ID)/Wavefunction.hpp
 $(OD)/hartreeFock.o: $(ID)/hartreeFock.cpp $(ID)/AtomInfo.hpp \
 $(ID)/ChronoTimer.hpp $(ID)/DiracOperator.hpp $(ID)/UserInput.hpp \
 $(ID)/HartreeFockClass.hpp $(ID)/Nuclear.hpp \
-$(ID)/Operators.hpp  \
+$(ID)/Operators.hpp \
 $(ID)/PhysConst_constants.hpp $(ID)/Wavefunction.hpp
 	$(COMP)
 
@@ -206,7 +213,9 @@ $(XD)/atomicKernal: $(BASE) $(CNTM) $(HF) \
 $(OD)/atomicKernal.o $(OD)/AKF_akFunctions.o
 	$(LINK)
 
-$(XD)/hartreeFock: $(BASE) $(HF) $(OD)/hartreeFock.o $(OD)/UserInput.o
+# XXX remove cntm etc; add 'Modules'
+$(XD)/hartreeFock: $(BASE) $(HF) $(CNTM) $(OD)/hartreeFock.o $(OD)/UserInput.o \
+$(OD)/AKF_akFunctions.o $(OD)/Module_atomicKernal.o
 	$(LINK)
 
 $(XD)/dmeXSection: $(BASE) $(CNTM) $(HF) $(OD)/dmeXSection.o \

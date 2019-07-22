@@ -9,8 +9,8 @@ Nucleus{
 HartreeFock{
   Core = [Xe];
   num_val = 2;
-  l_max = 1;
-  Convergence = 1.e-12;
+  l_max = 3;
+  Convergence = 1.e-16;
   OrthonormaliseValence = false;
   //Method = GreenPRM;
   //Green_H = 4.8311;
@@ -26,19 +26,23 @@ Grid{
 ///////////////////////////////////////
 // Following is not implemented yet:
 
-MatrixElements::hfs{ //can list multiple
+//MatrixElements::hfs
+{ //can list multiple
   // any extra options
   diagonal;
   off-diagonal;
 }
 
-Module::AtomicKernal{
-  Emin = ; Emax = x; Esteps = 50;
-  qmin = ; qmax = x; qsteps = 50;
-  max_l_bound = ;
-  max_L = ;
-  output = text/binary/both;
-  label = test;
+//Module::AtomicKernal
+{
+  Emin = 0.01; Emax = 4.0; Esteps = 25;
+  qmin = 0.001; qmax = 4.0; qsteps = 100;
+  max_l_bound = 1;
+  max_L = 2;
+  output_text = true; 
+  output_binary = true;
+  label = test_new;
+  use_plane_waves = false;
 }
 
 //Module::Tests

@@ -165,13 +165,22 @@ int Wavefunction::maxCore_n(int ka) const
 // Note: if you give it l instead of kappa, still works!
 {
   int max_n = 0;
-  for (auto &phi : core_orbitals) {
+  for (const auto &phi : core_orbitals) {
     if (phi.k != ka && ka != 0)
       continue;
     if (phi.n > max_n)
       max_n = phi.n;
   }
   return max_n;
+}
+//******************************************************************************
+int Wavefunction::maxCore_l() const {
+  int max_l = 0;
+  for (const auto &phi : core_orbitals) {
+    if (phi.l() > max_l)
+      max_l = phi.l();
+  }
+  return max_l;
 }
 
 //******************************************************************************
