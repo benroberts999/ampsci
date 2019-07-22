@@ -1,7 +1,6 @@
 #pragma once
-#include "Grid.hpp"
 #include <vector>
-// class Grid;
+class Grid;
 
 namespace SHMCONSTS {
 const double VESC = 550.; // galactic escape velocity [1804.01231]

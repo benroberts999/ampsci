@@ -1,6 +1,7 @@
 #pragma once
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <cmath>
 #include <iostream>
 #include <sstream>
@@ -322,4 +323,37 @@ inline std::vector<NonRelSEConfig> core_parser(const std::string &str_core_in)
   }
   return core_configs;
 }
+
+//******************************************************************************
+inline std::vector<DiracSEnken> listOfStates_nk(const std::string &in_list) {
+  std::vector<DiracSEnken> state_list;
+
+  std::string n_str_previous = "";
+  std::string n_str = "";
+  for (char c : in_list) {
+    if (std::isdigit(c)) {
+      n_str += c;
+    } else {
+      if (n_str == "")
+        n_str = n_str_previous;
+      int n_max = 0;
+      try {
+        n_max = std::stoi(n_str);
+      } catch (...) {
+      }
+      auto l_str = std::string(1, c);
+      auto l = AtomInfo::symbol_to_l(l_str);
+
+      for (int n = l + 1; n <= n_max; ++n) {
+        if (l != 0)
+          state_list.emplace_back(n, l);
+        state_list.emplace_back(n, -l - 1);
+      }
+      n_str_previous = n_str;
+      n_str = "";
+    }
+  }
+  return state_list;
+}
+
 } // namespace AtomInfo

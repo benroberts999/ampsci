@@ -52,32 +52,22 @@ HartreeFock::HartreeFock(HFMethod method, Wavefunction &wf,
   }
 }
 
-//******************************************************************************
-HartreeFock::HartreeFock(Wavefunction &wf, const std::string &in_core,
+//------------------------------------------------------------------------------
+// Overload (to allow new HF object for seperate basis..)
+// very hacky temp solution!
+HartreeFock::HartreeFock(Wavefunction &wf,
+                         const std::vector<DiracSpinor> &val_orbitals,
                          double eps_HF, bool in_ExcludeExchange)
     : p_wf(&wf), p_rgrid(&wf.rgrid),
-      m_cint(Coulomb(wf.rgrid, wf.core_orbitals, wf.valence_orbitals)),
+      m_cint(Coulomb(wf.rgrid, wf.core_orbitals, val_orbitals)),
       m_eps_HF([=]() { // can give as log..
         return (fabs(eps_HF) < 1) ? eps_HF : pow(10, -1 * eps_HF);
       }()),
-      m_excludeExchange(in_ExcludeExchange) {
-
-  // XXX This is old onoe, should remove soon!
-  std::cout << "\n\nWARNING: USING OLD HF CONSTRUCTOR!\n\n";
-  std::cin.get();
-
-  // If core doesn't exist, do initial core. otherwise, don't re-solve!
-  // (Note: I don't check if core's match..)
-  if (wf.core_orbitals.size() == 0)
-    starting_approx_core(in_core);
-
+      m_excludeExchange(in_ExcludeExchange)
+// Core must already exist to use this one!
+// Call it something else??
+{
   m_cint.initialise_core_core();
-
-  vex_core.resize(p_wf->core_orbitals.size(),
-                  std::vector<double>(p_rgrid->ngp));
-
-  // Run HF for all core states
-  hartree_fock_core();
 }
 
 //******************************************************************************
@@ -488,23 +478,26 @@ DiracSpinor HartreeFock::vex_psia(const DiracSpinor &phi_a) const
 
   DiracSpinor vexPsi(phi_a.n, phi_a.k, *(phi_a.p_rgrid));
 
-  for (const auto &phi_b : p_wf->core_orbitals) {
-    auto tjb = phi_b.twoj();
-    double x_tjbp1 = (tjb + 1) * phi_b.occ_frac;
-    auto irmax = std::min(phi_a.pinf, phi_b.pinf);
-    int kmin = abs(twoj_a - tjb) / 2;
-    int kmax = (twoj_a + tjb) / 2;
-    const auto &vabk = m_cint.get_y_ijk(phi_b, phi_a);
-    const auto &L_ab_k = m_cint.get_angular_L_kiakib_k(ki_a, phi_b.k_index());
-    for (int k = kmin; k <= kmax; k++) {
-      if (L_ab_k[k - kmin] == 0)
-        continue;
-      for (std::size_t i = 0; i < irmax; i++) {
-        auto v = -x_tjbp1 * L_ab_k[k - kmin] * vabk[k - kmin][i];
-        vexPsi.f[i] += v * phi_b.f[i];
-        vexPsi.g[i] += v * phi_b.g[i];
-      } // r
-    }   // k
-  }     // b
+  if (!m_excludeExchange) {
+    for (const auto &phi_b : p_wf->core_orbitals) {
+      auto tjb = phi_b.twoj();
+      double x_tjbp1 = (tjb + 1) * phi_b.occ_frac;
+      auto irmax = std::min(phi_a.pinf, phi_b.pinf);
+      int kmin = abs(twoj_a - tjb) / 2;
+      int kmax = (twoj_a + tjb) / 2;
+      const auto &vabk = m_cint.get_y_ijk(phi_b, phi_a);
+      const auto &L_ab_k = m_cint.get_angular_L_kiakib_k(ki_a, phi_b.k_index());
+      for (int k = kmin; k <= kmax; k++) {
+        if (L_ab_k[k - kmin] == 0)
+          continue;
+        for (std::size_t i = 0; i < irmax; i++) {
+          auto v = -x_tjbp1 * L_ab_k[k - kmin] * vabk[k - kmin][i];
+          vexPsi.f[i] += v * phi_b.f[i];
+          vexPsi.g[i] += v * phi_b.g[i];
+        } // r
+      }   // k
+    }     // b
+  }
+
   return vexPsi;
 }

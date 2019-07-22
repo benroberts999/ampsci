@@ -1,56 +1,59 @@
-Atom{
+Atom {
   Z = Cs;
   varAlpha2 = 1.00;
 }
 
-Nucleus{
-}
-
-HartreeFock{
+HartreeFock {
   Core = [Xe];
-  num_val = 2;
-  l_max = 3;
-  Convergence = 1.e-16;
-  OrthonormaliseValence = false;
-  //Method = GreenPRM;
-  //Green_H = 4.8311;
-  //Green_d = 0.9392;
+  valence = 7sp;
+  // OrthonormaliseValence = false;
+  // Convergence = 1.e-16;
 }
 
-Grid{
-  r0=1.e-5;
+Nucleus {
+  // A=0;
+}
+
+Grid {
+  r0 = 1.e-6;
   rmax = 150.;
   ngp = 1600;
 }
 
-///////////////////////////////////////
-// Following is not implemented yet:
-
-//MatrixElements::hfs
-{ //can list multiple
-  // any extra options
-  diagonal;
-  off-diagonal;
-}
-
-//Module::AtomicKernal
+/////////////////////////////////////////////////////////////////
+// Module::AtomicKernal
 {
-  Emin = 0.01; Emax = 4.0; Esteps = 25;
-  qmin = 0.001; qmax = 4.0; qsteps = 100;
+  Emin = 0.01;
+  Emax = 4.0;
+  Esteps = 25;
+  qmin = 0.001;
+  qmax = 4.0;
+  qsteps = 100;
   max_l_bound = 1;
   max_L = 2;
-  output_text = true; 
+  output_text = true;
   output_binary = true;
   label = test_new;
   use_plane_waves = false;
 }
 
-//Module::Tests
+// Module::Tests
 {
-  Hamiltonian=false;
+  orthonormal = false;
+  Hamiltonian = true;
 }
 
-//Module::WriteOrbitals
-{
+// Module::WriteOrbitals
+{ //
   label = lab;
+}
+
+///////////////////////////////////////
+// Following is not implemented yet:
+
+// MatrixElements::hfs
+{ // can list multiple
+  // any extra options
+  diagonal;
+  off_diagonal;
 }

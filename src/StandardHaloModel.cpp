@@ -3,9 +3,6 @@
 #include <cmath>
 #include <vector>
 
-// make this work w/ Grid?
-// Give it a grid [v], it returns an array [f(v)]
-
 using namespace SHMCONSTS;
 
 StandardHaloModel::StandardHaloModel(double in_cosphi, double dves, double dv0)

@@ -32,11 +32,12 @@ class HartreeFock {
 public:
   static HFMethod parseMethod(std::string in_method);
 
-  HartreeFock(Wavefunction &wf, const std::string &in_core, double eps_HF = 0.,
-              bool in_ExcludeExchange = false);
-
   HartreeFock(HFMethod method, Wavefunction &wf, const std::string &in_core,
               double eps_HF = 0, double h_d = 0, double g_t = 0);
+
+  // for HF basis:
+  HartreeFock(Wavefunction &wf, const std::vector<DiracSpinor> &val_orbitals,
+              double eps_HF = 0.0, bool in_ExcludeExchange = false);
 
   void solveNewValence(int n, int kappa);
   void solveValence(DiracSpinor &phi, std::vector<double> &vexa);

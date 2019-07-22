@@ -2,6 +2,7 @@
 #include "ChronoTimer.hpp"
 #include "DiracOperator.hpp"
 #include "HartreeFockClass.hpp"
+#include "Module_runModules.hpp"
 #include "Nuclear.hpp"
 #include "Operators.hpp"
 #include "PhysConst_constants.hpp"
@@ -10,8 +11,6 @@
 #include <fstream>
 #include <iostream>
 #include <string>
-
-#include "RunModule.hpp"
 
 int main(int argc, char *argv[]) {
   ChronoTimer timer;
@@ -23,14 +22,10 @@ int main(int argc, char *argv[]) {
   UserInput input(input_file);
   auto atom = input.get<std::string>("Atom", "Z");
   auto varalpha = sqrt(input.get("Atom", "varAlpha2", 1.0));
-  auto A = input.get("Nucleus", "A", -1);
   auto r0 = input.get("Grid", "r0", 1.0e-5);
   auto rmax = input.get("Grid", "rmax", 150.0);
   auto ngp = input.get("Grid", "ngp", 1600);
-  auto str_core = input.get<std::string>("HartreeFock", "Core");
-  auto eps_HF = input.get("HartreeFock", "Convergence", 1.0e-14);
-  auto num_val = input.get("HartreeFock", "num_val", 0);
-  auto l_max = input.get("HartreeFock", "l_max", 0);
+  auto A = input.get("Nucleus", "A", -1);
 
   auto Z = AtomInfo::get_z(atom);
   Wavefunction wf(Z, A, ngp, r0, rmax, varalpha);
@@ -42,8 +37,12 @@ int main(int argc, char *argv[]) {
             << "********************************************************\n";
 
   // Parse input for HF method
+  auto str_core = input.get<std::string>("HartreeFock", "Core");
+  auto eps_HF = input.get("HartreeFock", "Convergence", 0.0);
   auto HF_method = HartreeFock::parseMethod(
       input.get<std::string>("HartreeFock", "Method", "HartreeFock"));
+
+  // For when using Hartree, or a parametric potential:
   double H_d = 0.0, g_t = 0.0;
   if (HF_method == HFMethod::GreenPRM) {
     H_d = input.get("HartreeFock", "Green_H", 0.0);
@@ -65,14 +64,16 @@ int main(int argc, char *argv[]) {
   std::cout << "core: " << timer.lap_reading_str() << "\n";
 
   // Create list of valence states to solve for
-  if ((int)wf.Ncore() >= wf.Znuc())
-    num_val = 0;
-  auto val_lst = wf.listOfStates_nk(num_val, l_max);
+  auto in_valence_str = input.get<std::string>("HartreeFock", "valence", "");
+  if (wf.Ncore() >= wf.Znuc())
+    in_valence_str = "";
+  auto val_lst = AtomInfo::listOfStates_nk(in_valence_str);
 
   // Solve for the valence states:
   timer.start();
   for (const auto &nk : val_lst) {
-    hf.solveNewValence(nk.n, nk.k);
+    if (!wf.isInCore(nk.n, nk.k))
+      hf.solveNewValence(nk.n, nk.k);
   }
   if (val_lst.size() > 0)
     std::cout << "Valence: " << timer.lap_reading_str() << "\n";
@@ -88,18 +89,16 @@ int main(int argc, char *argv[]) {
             << " au;  = " << core_energy * PhysConst::Hartree_invcm << "/cm\n";
   wf.printValence(sorted);
 
-  // std::cout << "\n Total time: " << timer.reading_str() << "\n";
-
   {
     auto modules = input.module_list();
     for (const auto &module : modules) {
       timer.start();
-      RunModule(module, input, wf, hf);
+      Module::runModule(module, input, wf, hf);
       std::cout << module << " time: " << timer.lap_reading_str() << "\n";
     }
   }
 
-  std::cout << "\n Total time: " << timer.reading_str() << "\n";
+  std::cout << "Total time: " << timer.reading_str() << "\n";
 
   //*********************************************************
   //               TESTS
@@ -107,12 +106,16 @@ int main(int argc, char *argv[]) {
 
   bool test_hf_basis = false;
   if (test_hf_basis) {
-    auto basis_lst = wf.listOfStates_nk(6, 3);
+    auto basis_lst = AtomInfo::listOfStates_nk("9spdf");
     std::vector<DiracSpinor> basis = wf.core_orbitals;
+    HartreeFock hfbasis(wf, basis, eps_HF);
+    hfbasis.verbose = false;
     for (const auto &nk : basis_lst) {
+      if (wf.isInCore(nk.n, nk.k))
+        continue;
       basis.emplace_back(DiracSpinor(nk.n, nk.k, wf.rgrid));
       auto tmp_vex = std::vector<double>{};
-      hf.solveValence(basis.back(), tmp_vex);
+      hfbasis.solveValence(basis.back(), tmp_vex);
     }
     wf.orthonormaliseOrbitals(basis, 2);
     wf.printValence(false, basis);

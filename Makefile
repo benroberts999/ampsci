@@ -43,12 +43,15 @@ LINK=$(CXX) -o $@ $^ $(CXXFLAGS) $(LIBS)
 ################################################################################
 #Allow exectuables to be placed in another directory:
 ALLEXES = $(addprefix $(XD)/, \
- h-like fitParametric parametricPotential atomicKernal \
- hartreeFock wigner dmeXSection nuclearData \
+ h-like fitParametric hartreeFock wigner dmeXSection nuclearData \
+)
+
+DEFAULTEXES = $(addprefix $(XD)/, \
+ hartreeFock wigner nuclearData \
 )
 
 #Default make rule:
-all: checkObj checkXdir $(ALLEXES)
+all: checkObj checkXdir $(DEFAULTEXES)
 
 ################################################################################
 ## Dependencies:
@@ -93,11 +96,9 @@ $(ID)/PhysConst_constants.hpp $(ID)/SBF_sphericalBessel.hpp \
 $(ID)/Wigner_369j.hpp
 	$(COMP)
 
-$(OD)/atomicKernal.o: $(ID)/atomicKernal.cpp $(ID)/AKF_akFunctions.hpp \
-$(ID)/AtomInfo.hpp $(ID)/ChronoTimer.hpp $(ID)/ContinuumOrbitals.hpp \
-$(ID)/FileIO_fileReadWrite.hpp $(ID)/Grid.hpp $(ID)/HartreeFockClass.hpp \
-$(ID)/Parametric_potentials.hpp $(ID)/PhysConst_constants.hpp \
-$(ID)/Wavefunction.hpp
+$(OD)/Module_runModules.o: $(ID)/Module_runModules.cpp $(ID)/Module_runModules.hpp \
+$(ID)/DiracOperator.hpp $(ID)/HartreeFockClass.hpp $(ID)/Module_atomicKernal.hpp \
+$(ID)/Operators.hpp $(ID)/UserInput.hpp $(ID)/Wavefunction.hpp
 	$(COMP)
 
 $(OD)/Module_atomicKernal.o: $(ID)/Module_atomicKernal.cpp \
@@ -152,12 +153,6 @@ $(OD)/Parametric_potentials.o: $(ID)/Parametric_potentials.cpp\
 $(ID)/Parametric_potentials.hpp $(ID)/AtomInfo.hpp $(ID)/PhysConst_constants.hpp
 	$(COMP)
 
-$(OD)/parametricPotential.o: $(ID)/parametricPotential.cpp \
-$(ID)/AtomInfo.hpp $(ID)/ChronoTimer.hpp $(ID)/Wavefunction.hpp \
-$(ID)/FileIO_fileReadWrite.hpp $(ID)/Parametric_potentials.hpp \
-$(ID)/PhysConst_constants.hpp
-	$(COMP)
-
 $(OD)/StandardHaloModel.o: $(ID)/StandardHaloModel.cpp \
 $(ID)/StandardHaloModel.hpp $(ID)/Grid.hpp
 	$(COMP)
@@ -205,17 +200,8 @@ $(XD)/fitParametric: $(BASE) $(HF) $(OD)/fitParametric.o \
 $(OD)/Parametric_potentials.o
 	$(LINK)
 
-$(XD)/parametricPotential: $(BASE) $(OD)/parametricPotential.o \
-$(OD)/Parametric_potentials.o
-	$(LINK)
-
-$(XD)/atomicKernal: $(BASE) $(CNTM) $(HF) \
-$(OD)/atomicKernal.o $(OD)/AKF_akFunctions.o
-	$(LINK)
-
-# XXX remove cntm etc; add 'Modules'
 $(XD)/hartreeFock: $(BASE) $(HF) $(CNTM) $(OD)/hartreeFock.o $(OD)/UserInput.o \
-$(OD)/AKF_akFunctions.o $(OD)/Module_atomicKernal.o
+$(OD)/AKF_akFunctions.o $(OD)/Module_runModules.o $(OD)/Module_atomicKernal.o
 	$(LINK)
 
 $(XD)/dmeXSection: $(BASE) $(CNTM) $(HF) $(OD)/dmeXSection.o \

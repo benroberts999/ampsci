@@ -78,7 +78,7 @@ int main(int argc, char *argv[]) {
 
   if (do_HF) {
     Wavefunction hfwf(Z, A, ngp, r0, rmax);
-    HartreeFock hf(hfwf, str_core, 1.e-9);
+    HartreeFock hf(HFMethod::HartreeFock, hfwf, str_core, 1.e-9);
     for (auto &phi : hfwf.core_orbitals) {
       // // don't fit for both j=l+/-1/2, just one!
       // if (phi.k < 0 && phi.k != -1)
