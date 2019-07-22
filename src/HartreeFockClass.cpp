@@ -1,12 +1,12 @@
 #include "HartreeFockClass.hpp"
-#include "AtomInfo.hpp"
 #include "CoulombIntegrals.hpp"
 #include "DiracSpinor.hpp"
 #include "Grid.hpp"
 #include "NumCalc_quadIntegrate.hpp"
 #include "Parametric_potentials.hpp"
+#include "Physics/AtomInfo.hpp"
+#include "Physics/Wigner_369j.hpp"
 #include "Wavefunction.hpp"
-#include "Wigner_369j.hpp"
 #include <cmath>
 #include <vector>
 /*

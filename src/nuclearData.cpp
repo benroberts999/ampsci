@@ -1,5 +1,5 @@
-#include "AtomInfo.hpp"
-#include "Nuclear.hpp"
+#include "Physics/AtomInfo.hpp"
+#include "Physics/Nuclear.hpp"
 #include <iostream>
 
 void instructions() {

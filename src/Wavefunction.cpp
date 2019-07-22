@@ -1,13 +1,12 @@
 #include "Wavefunction.hpp"
-#include "ADAMS_bound.hpp"
-#include "AtomInfo.hpp"
+#include "Adams/Adams_bound.hpp"
 #include "DiracSpinor.hpp"
 #include "Grid.hpp"
-#include "Nuclear.hpp"
-#include "PhysConst_constants.hpp"
+#include "Physics/AtomInfo.hpp"
+#include "Physics/Nuclear.hpp"
+#include "Physics/PhysConst_constants.hpp"
 #include <algorithm> //for sort
 #include <cmath>
-// #include <locale> //isdigit
 #include <sstream>
 #include <string>
 #include <vector>
@@ -37,7 +36,7 @@ Wavefunction::Wavefunction(int in_z, int in_a, int in_ngp, double rmin,
 void Wavefunction::solveDirac(DiracSpinor &psi, double e_a,
                               const std::vector<double> &vex,
                               int log_dele_or) const
-// Uses ADAMS::solveDBS to solve Dirac Eqn for local potential (Vnuc + Vdir)
+// Uses Adams::solveDBS to solve Dirac Eqn for local potential (Vnuc + Vdir)
 // If no e_a is given, will use the existing one!
 // (Usually, a better guess should be given, using P.T.)
 // Note: optionally takes in exchange potential! (see overloaded above)
@@ -62,7 +61,7 @@ void Wavefunction::solveDirac(DiracSpinor &psi, double e_a,
   } else if (psi.en == 0) {
     psi.en = enGuessVal(psi.n, psi.k);
   }
-  ADAMS::solveDBS(psi, v_a, rgrid, m_alpha, log_dele_or);
+  Adams::solveDBS(psi, v_a, rgrid, m_alpha, log_dele_or);
 }
 
 //------------------------------------------------------------------------------

@@ -4,7 +4,7 @@
 class DiracSpinor;
 class Grid;
 
-namespace ADAMS {
+namespace Adams {
 
 const int AMO = 8;
 static_assert(

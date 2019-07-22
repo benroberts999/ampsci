@@ -102,10 +102,8 @@ inline double ChronoTimer::lap_reading_ms() const
 
 //******************************************************************************
 inline double ChronoTimer::reading_ms() const
-/*
-Returns total value for timnig run
-Returns double (milliseconds)
-*/
+// Returns total value for timnig run
+// Returns double (milliseconds)
 {
   return lap_reading_ms() + total_time_ms;
 }
@@ -121,10 +119,8 @@ inline std::string ChronoTimer::lap_reading_str() const {
 
 //******************************************************************************
 inline std::string ChronoTimer::convertHR(double t) const
-/*
-Convers double (in ms) into formmated 2 d.p. string in units of either
-ms, s, mins, or hours, depending on size.
-*/
+// Convers double (in ms) into formmated 2 d.p. string in units of either
+// ms, s, mins, or hours, depending on size.
 {
   double ot;
 

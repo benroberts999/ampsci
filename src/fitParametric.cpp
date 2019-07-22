@@ -1,10 +1,10 @@
-#include "AtomInfo.hpp"
 #include "ChronoTimer.hpp"
 #include "FileIO_fileReadWrite.hpp"
 #include "HartreeFockClass.hpp"
 #include "NumCalc_quadIntegrate.hpp"
 #include "Parametric_potentials.hpp"
-#include "PhysConst_constants.hpp"
+#include "Physics/AtomInfo.hpp"
+#include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction.hpp"
 #include <cmath>
 #include <fstream>

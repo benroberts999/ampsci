@@ -3,7 +3,7 @@
 #include "../ContinuumOrbitals.hpp"
 #include "../Grid.hpp"
 #include "../HartreeFockClass.hpp"
-#include "../PhysConst_constants.hpp"
+#include "../Physics/PhysConst_constants.hpp"
 #include "../UserInput.hpp"
 #include "../Wavefunction.hpp"
 #include "AKF_akFunctions.hpp"

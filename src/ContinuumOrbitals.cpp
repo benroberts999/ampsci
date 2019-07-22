@@ -1,10 +1,10 @@
 #include "ContinuumOrbitals.hpp"
-#include "ADAMS_bound.hpp"
-#include "ADAMS_continuum.hpp"
-#include "AtomInfo.hpp"
-#include "Wavefunction.hpp"
+#include "Adams/Adams_bound.hpp"
+#include "Adams/Adams_continuum.hpp"
 #include "Grid.hpp"
-#include "PhysConst_constants.hpp"
+#include "Physics/AtomInfo.hpp"
+#include "Physics/PhysConst_constants.hpp"
+#include "Wavefunction.hpp"
 #include <cmath>
 #include <string>
 #include <vector>
@@ -107,7 +107,7 @@ int ContinuumOrbitals::solveLocalContinuum(double ec, int min_l, int max_l)
 
     DiracSpinor phi(0, k, *p_rgrid);
     phi.en = ec;
-    ADAMS::solveContinuum(phi, vc, cgrid, i_asym, alpha);
+    Adams::solveContinuum(phi, vc, cgrid, i_asym, alpha);
 
     orbitals.push_back(phi);
   }

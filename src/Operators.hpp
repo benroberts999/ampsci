@@ -1,8 +1,8 @@
 #pragma once
 #include "DiracOperator.hpp"
 #include "Grid.hpp"
-#include "Nuclear.hpp"
-#include "PhysConst_constants.hpp"
+#include "Physics/Nuclear.hpp"
+#include "Physics/PhysConst_constants.hpp"
 #include <cmath>
 #include <vector>
 

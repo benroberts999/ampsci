@@ -5,7 +5,7 @@ OD =./obj
 XD =.
 
 CXX=g++
-# CXX=clang++
+#CXX=clang++
 
 OPT=-O3
 OMP=-fopenmp
@@ -23,9 +23,6 @@ endif
 ifeq ($(CXX),g++)
   WARN += -Wlogical-op
 endif
-
-# Useful for tests:
-#clang++ -c -std=c++11 -O3 -Wpedantic -Wall -Wextra -Wdouble-promotion -Wconversion src/FILE -o ./junk.jnk
 
 CXXFLAGS= -std=c++11 $(OPT) $(OMP) $(WARN)
 LIBS=-lgsl -lgslcblas
@@ -56,45 +53,22 @@ all: checkObj checkXdir $(DEFAULTEXES)
 ################################################################################
 ## Dependencies:
 
-# # All programs depend on these generic common headers:
-# COMH = $(addprefix $(ID)/, \
-#  DiracSpinor.hpp DiracOperator.hpp Wavefunction.hpp Operators.hpp \
-#  Nuclear.hpp Nuclear_DataTable.hpp \
-#  AtomInfo.hpp PhysConst_constants.hpp FileIO_fileReadWrite.hpp \
-#  NumCalc_quadIntegrate.hpp Grid.hpp Matrix_linalg.hpp ChronoTimer.hpp \
-#  Wigner_369j.hpp \
-# )
-
-# # Rule for files that have .cpp AND a .h file
-# # They depend 'only' on their own header, + generic common headers
-# $(OD)/%.o: $(ID)/%.cpp $(ID)/%.hpp $(COMH)
-# 	$(COMP)
-#
-# # Rule for files that _don't_ have a .h header. (mains)
-# # These also depend on the common headers
-# $(OD)/%.o: $(ID)/%.cpp $(COMH)
-# 	$(COMP)
-#
-# 	# Here: List rules for any other progs that don't fit above rules?
-# $(OD)/dummy.o: $(ID)/dummy.cpp $(COMH) $(ID)/otherHeader.hpp
-# 	$(COMP)
-
-$(OD)/ADAMS_bound.o: $(ID)/ADAMS_bound.cpp $(ID)/ADAMS_bound.hpp \
+$(OD)/Adams_bound.o: $(ID)/Adams/Adams_bound.cpp $(ID)/Adams/Adams_bound.hpp \
 $(ID)/DiracSpinor.hpp $(ID)/Grid.hpp $(ID)/Matrix_linalg.hpp \
 $(ID)/NumCalc_quadIntegrate.hpp
 	$(COMP)
 
-$(OD)/ADAMS_continuum.o: $(ID)/ADAMS_continuum.cpp $(ID)/ADAMS_bound.hpp \
-$(ID)/ADAMS_continuum.hpp $(ID)/DiracSpinor.hpp $(ID)/Grid.hpp \
-$(ID)/NumCalc_quadIntegrate.hpp
+$(OD)/Adams_continuum.o: $(ID)/Adams/Adams_continuum.cpp \
+$(ID)/Adams/Adams_bound.hpp $(ID)/Adams/Adams_continuum.hpp\
+$(ID)/DiracSpinor.hpp $(ID)/Grid.hpp $(ID)/NumCalc_quadIntegrate.hpp
 	$(COMP)
 
 $(OD)/AKF_akFunctions.o: $(ID)/DMionisation/AKF_akFunctions.cpp \
 $(ID)/DMionisation/AKF_akFunctions.hpp \
-$(ID)/AtomInfo.hpp $(ID)/ContinuumOrbitals.hpp $(ID)/Wavefunction.hpp \
+$(ID)/Physics/AtomInfo.hpp $(ID)/ContinuumOrbitals.hpp $(ID)/Wavefunction.hpp \
 $(ID)/FileIO_fileReadWrite.hpp $(ID)/NumCalc_quadIntegrate.hpp \
-$(ID)/PhysConst_constants.hpp $(ID)/DMionisation/SBF_sphericalBessel.hpp \
-$(ID)/Wigner_369j.hpp
+$(ID)/Physics/PhysConst_constants.hpp \
+$(ID)/DMionisation/SBF_sphericalBessel.hpp $(ID)/Physics/Wigner_369j.hpp
 	$(COMP)
 
 $(OD)/Module_runModules.o: $(ID)/Module_runModules.cpp \
@@ -104,16 +78,17 @@ $(ID)/Operators.hpp $(ID)/UserInput.hpp $(ID)/Wavefunction.hpp
 	$(COMP)
 
 $(OD)/Module_atomicKernal.o: $(ID)/DMionisation/Module_atomicKernal.cpp \
-$(ID)/DMionisation/Module_atomicKernal.hpp $(ID)/DMionisation/AKF_akFunctions.hpp \
-$(ID)/AtomInfo.hpp $(ID)/ChronoTimer.hpp $(ID)/ContinuumOrbitals.hpp \
-$(ID)/Grid.hpp $(ID)/PhysConst_constants.hpp \
+$(ID)/DMionisation/Module_atomicKernal.hpp \
+$(ID)/DMionisation/AKF_akFunctions.hpp \
+$(ID)/Physics/AtomInfo.hpp $(ID)/ChronoTimer.hpp $(ID)/ContinuumOrbitals.hpp \
+$(ID)/Grid.hpp $(ID)/Physics/PhysConst_constants.hpp \
 $(ID)/Wavefunction.hpp
 	$(COMP)
 
 $(OD)/ContinuumOrbitals.o: $(ID)/ContinuumOrbitals.cpp \
-$(ID)/ContinuumOrbitals.hpp $(ID)/ADAMS_bound.hpp $(ID)/ADAMS_continuum.hpp \
-$(ID)/AtomInfo.hpp $(ID)/Wavefunction.hpp $(ID)/Grid.hpp \
-$(ID)/PhysConst_constants.hpp
+$(ID)/ContinuumOrbitals.hpp $(ID)/Adams/Adams_bound.hpp \
+$(ID)/Adams/Adams_continuum.hpp $(ID)/Physics/AtomInfo.hpp \
+$(ID)/Wavefunction.hpp $(ID)/Grid.hpp $(ID)/Physics/PhysConst_constants.hpp
 	$(COMP)
 
 $(OD)/CoulombIntegrals.o: $(ID)/CoulombIntegrals.cpp $(ID)/CoulombIntegrals.hpp\
@@ -123,31 +98,31 @@ $(ID)/DiracSpinor.hpp $(ID)/NumCalc_quadIntegrate.hpp
 $(OD)/dmeXSection.o: $(ID)/DMionisation/dmeXSection.cpp \
 $(ID)/DMionisation/AKF_akFunctions.hpp $(ID)/ChronoTimer.hpp \
 $(ID)/FileIO_fileReadWrite.hpp $(ID)/Grid.hpp $(ID)/NumCalc_quadIntegrate.hpp \
-$(ID)/PhysConst_constants.hpp $(ID)/DMionisation/StandardHaloModel.hpp
+$(ID)/Physics/PhysConst_constants.hpp $(ID)/DMionisation/StandardHaloModel.hpp
 	$(COMP)
 
 $(OD)/fitParametric.o: $(ID)/fitParametric.cpp \
-$(ID)/AtomInfo.hpp $(ID)/ChronoTimer.hpp $(ID)/FileIO_fileReadWrite.hpp \
+$(ID)/Physics/AtomInfo.hpp $(ID)/ChronoTimer.hpp $(ID)/FileIO_fileReadWrite.hpp\
 $(ID)/HartreeFockClass.hpp $(ID)/NumCalc_quadIntegrate.hpp \
-$(ID)/Parametric_potentials.hpp $(ID)/PhysConst_constants.hpp \
+$(ID)/Parametric_potentials.hpp $(ID)/Physics/PhysConst_constants.hpp \
 $(ID)/Wavefunction.hpp
 	$(COMP)
 
-$(OD)/hartreeFock.o: $(ID)/hartreeFock.cpp $(ID)/AtomInfo.hpp \
+$(OD)/hartreeFock.o: $(ID)/hartreeFock.cpp $(ID)/Physics/AtomInfo.hpp \
 $(ID)/ChronoTimer.hpp $(ID)/DiracOperator.hpp $(ID)/UserInput.hpp \
-$(ID)/HartreeFockClass.hpp $(ID)/Nuclear.hpp \
+$(ID)/HartreeFockClass.hpp $(ID)/Physics/Nuclear.hpp \
 $(ID)/Operators.hpp \
-$(ID)/PhysConst_constants.hpp $(ID)/Wavefunction.hpp
+$(ID)/Physics/PhysConst_constants.hpp $(ID)/Wavefunction.hpp
 	$(COMP)
 
 $(OD)/HartreeFockClass.o: $(ID)/HartreeFockClass.cpp $(ID)/HartreeFockClass.hpp\
-$(ID)/AtomInfo.hpp $(ID)/CoulombIntegrals.hpp \
-$(ID)/DiracSpinor.hpp $(ID)/Grid.hpp $(ID)/NumCalc_quadIntegrate.hpp \
-$(ID)/Parametric_potentials.hpp $(ID)/Wavefunction.hpp $(ID)/Wigner_369j.hpp
+$(ID)/Physics/AtomInfo.hpp $(ID)/CoulombIntegrals.hpp $(ID)/DiracSpinor.hpp \
+$(ID)/Grid.hpp $(ID)/NumCalc_quadIntegrate.hpp $(ID)/Wavefunction.hpp \
+$(ID)/Parametric_potentials.hpp $(ID)/Physics/Wigner_369j.hpp
 	$(COMP)
 
-$(OD)/Parametric_potentials.o: $(ID)/Parametric_potentials.cpp\
-$(ID)/Parametric_potentials.hpp $(ID)/AtomInfo.hpp $(ID)/PhysConst_constants.hpp
+$(OD)/Parametric_potentials.o: $(ID)/Parametric_potentials.cpp \
+$(ID)/Parametric_potentials.hpp
 	$(COMP)
 
 $(OD)/StandardHaloModel.o: $(ID)/DMionisation/StandardHaloModel.cpp \
@@ -159,23 +134,23 @@ $(ID)/FileIO_fileReadWrite.hpp
 	$(COMP)
 
 $(OD)/Wavefunction.o: $(ID)/Wavefunction.cpp $(ID)/Wavefunction.hpp \
-$(ID)/ADAMS_bound.hpp $(ID)/AtomInfo.hpp $(ID)/DiracSpinor.hpp $(ID)/Grid.hpp \
-$(ID)/Nuclear.hpp $(ID)/PhysConst_constants.hpp
+$(ID)/Adams/Adams_bound.hpp $(ID)/Physics/AtomInfo.hpp $(ID)/DiracSpinor.hpp \
+$(ID)/Grid.hpp $(ID)/Physics/Nuclear.hpp $(ID)/Physics/PhysConst_constants.hpp
 	$(COMP)
 
 $(OD)/wigner.o: $(ID)/wigner.cpp $(ID)/FileIO_fileReadWrite.hpp \
-$(ID)/Wigner_369j.hpp
+$(ID)/Physics/Wigner_369j.hpp
 	$(COMP)
 
-$(OD)/nuclearData.o: $(ID)/nuclearData.cpp $(ID)/Nuclear.hpp \
-$(ID)/Nuclear_DataTable.hpp $(ID)/AtomInfo.hpp
+$(OD)/nuclearData.o: $(ID)/nuclearData.cpp $(ID)/Physics/Nuclear.hpp \
+$(ID)/Physics/Nuclear_DataTable.hpp $(ID)/Physics/AtomInfo.hpp
 	$(COMP)
 
 ################################################################################
 # Hust to save typing: Many programs depend on these combos:
 
 BASE = $(addprefix $(OD)/, \
- ADAMS_bound.o Wavefunction.o \
+ Adams_bound.o Wavefunction.o \
 )
 
 HF = $(addprefix $(OD)/, \
@@ -183,7 +158,11 @@ HF = $(addprefix $(OD)/, \
 )
 
 CNTM = $(addprefix $(OD)/, \
- ADAMS_continuum.o ContinuumOrbitals.o \
+ Adams_continuum.o ContinuumOrbitals.o \
+)
+
+MODS = $(addprefix $(OD)/, \
+ Module_runModules.o Module_atomicKernal.o AKF_akFunctions.o\
 )
 
 ################################################################################
@@ -197,7 +176,7 @@ $(OD)/Parametric_potentials.o
 	$(LINK)
 
 $(XD)/hartreeFock: $(BASE) $(HF) $(CNTM) $(OD)/hartreeFock.o $(OD)/UserInput.o \
-$(OD)/AKF_akFunctions.o $(OD)/Module_runModules.o $(OD)/Module_atomicKernal.o
+$(MODS)
 	$(LINK)
 
 $(XD)/dmeXSection: $(BASE) $(CNTM) $(HF) $(OD)/dmeXSection.o \

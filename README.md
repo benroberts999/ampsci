@@ -41,10 +41,6 @@ Note: makes use of GSL libraries: https://www.gnu.org/software/gsl/
 The above instructions are for linux (ubuntu). For windows, the easiest way (for me, anyway) is to make use of the recent 'windows subsystem for linux'. Instructions on installation/use here: https://www.roberts999.com/posts/2018/11/wsl-coding-windows-ubuntu
 Then, the compilation + use can proceed as per above.
 
-## h-like
-
- * An example that solves for H-like ions
-
 ## hartreeFock
 
  * Solves relativistic Hartree Fock potential for core + valence states
@@ -94,12 +90,6 @@ E.g. (V^N-1):
    * Do not use quote marks in input file. Lines marked '!' or '#' are comments
  * 3j symbols must start with '('; 6,9j with '{', and CG with '<' (this is how code knows which symbol to calculate).
  * but, each number can be seperated by any symbol (space, comma etc.)
-
-## parametricPotential
-
- * Solves Dirac equation using Green/Tietz parametric potentials
- * You can give it parameters (H,g,t,d), or it will use defaults
- * Optionally: give it the core configuration (As in 'hartreeFock' program)
 
 ## fitParametric
 

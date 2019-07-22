@@ -1,8 +1,8 @@
-#include "ADAMS_bound.hpp"
-#include "DiracSpinor.hpp"
-#include "Grid.hpp"
-#include "Matrix_linalg.hpp"
-#include "NumCalc_quadIntegrate.hpp"
+#include "Adams_bound.hpp"
+#include "../DiracSpinor.hpp"
+#include "../Grid.hpp"
+#include "../Matrix_linalg.hpp"
+#include "../NumCalc_quadIntegrate.hpp"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -18,7 +18,7 @@ solveDBS is the main routine that is called from elsewhere.
 All other functions called by solveDBS.
 */
 
-namespace ADAMS {
+namespace Adams {
 
 #define DO_DEBUG false
 #if DO_DEBUG
@@ -633,4 +633,4 @@ void adamsMoulton(std::vector<double> &f, std::vector<double> &g,
   return;
 } // END adamsmoulton
 
-} // namespace ADAMS
+} // namespace Adams

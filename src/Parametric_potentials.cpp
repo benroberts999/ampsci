@@ -1,6 +1,4 @@
 #include "Parametric_potentials.hpp"
-#include "AtomInfo.hpp"
-#include "PhysConst_constants.hpp"
 #include <cmath>
 #include <iostream>
 #include <vector>
@@ -34,7 +32,6 @@ double tietz(int Z, double r, double t, double g)
 int defaultGreenCore(int z, double &H, double &d)
 // Fitted to match HF closed-shell core energies - aid convergance!
 {
-  // double zHd[18][3]
   std::vector<std::vector<double>> zHd = {
       {2, 12.275, 3.552},     {3, 3.248, 2.518},       {5, 6.812, 4.535},
       {11, 3.001, 1.038},     {13, 9.837, 2.99813},    {19, 5.55771, 1.65891},
@@ -78,11 +75,9 @@ int defaultGreenCore(int z, double &H, double &d)
 
 //******************************************************************************
 int defaultGreen(int z, double &H, double &d)
-/*
-Default values for Green potential parameters.
-Determined by fitting the 5 lowest J=1/2 states.
-Crude quadratic fit used for other Z values.
-*/
+// Default values for Green potential parameters.
+// Determined by fitting the 5 lowest J=1/2 states.
+// Crude quadratic fit used for other Z values.
 {
 
   if (z == 3) {
@@ -141,11 +136,9 @@ Crude quadratic fit used for other Z values.
 
 //******************************************************************************
 int defaultTietz(int z, double &t, double &g)
-/*
-Default values for Green potential parameters.
-Determined by fitting the 5 lowest J=1/2 states.
-Crude quadratic fit used for other Z values.
-*/
+// Default values for Green potential parameters.
+// Determined by fitting the 5 lowest J=1/2 states.
+// Crude quadratic fit used for other Z values.
 {
   if (z == 3) {
     t = 0.10000;

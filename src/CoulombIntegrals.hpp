@@ -1,7 +1,7 @@
 #pragma once
 #include "Grid.hpp"
 #include "NumCalc_quadIntegrate.hpp"
-#include "Wigner_369j.hpp"
+#include "Physics/Wigner_369j.hpp"
 #include <vector>
 class DiracSpinor;
 

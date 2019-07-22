@@ -1,7 +1,7 @@
 #pragma once
-#include "AtomInfo.hpp"
 #include "Grid.hpp"
 #include "NumCalc_quadIntegrate.hpp"
+#include "Physics/AtomInfo.hpp"
 #include <string>
 #include <vector>
 

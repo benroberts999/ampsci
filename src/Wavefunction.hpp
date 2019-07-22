@@ -1,7 +1,7 @@
 #pragma once
 #include "DiracSpinor.hpp"
 #include "Grid.hpp"
-#include "Nuclear.hpp"
+#include "Physics/Nuclear.hpp"
 #include <string>
 #include <vector>
 
