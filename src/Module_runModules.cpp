@@ -1,7 +1,7 @@
 #include "Module_runModules.hpp"
+#include "./DMionisation/Module_atomicKernal.hpp"
 #include "DiracOperator.hpp"
 #include "HartreeFockClass.hpp"
-#include "Module_atomicKernal.hpp"
 #include "Operators.hpp"
 #include "UserInput.hpp"
 #include "Wavefunction.hpp"

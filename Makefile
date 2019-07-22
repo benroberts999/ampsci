@@ -43,11 +43,11 @@ LINK=$(CXX) -o $@ $^ $(CXXFLAGS) $(LIBS)
 ################################################################################
 #Allow exectuables to be placed in another directory:
 ALLEXES = $(addprefix $(XD)/, \
- h-like fitParametric hartreeFock wigner dmeXSection nuclearData \
+ fitParametric hartreeFock wigner dmeXSection nuclearData \
 )
 
 DEFAULTEXES = $(addprefix $(XD)/, \
- hartreeFock wigner nuclearData \
+ hartreeFock wigner nuclearData dmeXSection \
 )
 
 #Default make rule:
@@ -89,20 +89,22 @@ $(ID)/ADAMS_continuum.hpp $(ID)/DiracSpinor.hpp $(ID)/Grid.hpp \
 $(ID)/NumCalc_quadIntegrate.hpp
 	$(COMP)
 
-$(OD)/AKF_akFunctions.o: $(ID)/AKF_akFunctions.cpp $(ID)/AKF_akFunctions.hpp \
+$(OD)/AKF_akFunctions.o: $(ID)/DMionisation/AKF_akFunctions.cpp \
+$(ID)/DMionisation/AKF_akFunctions.hpp \
 $(ID)/AtomInfo.hpp $(ID)/ContinuumOrbitals.hpp $(ID)/Wavefunction.hpp \
 $(ID)/FileIO_fileReadWrite.hpp $(ID)/NumCalc_quadIntegrate.hpp \
-$(ID)/PhysConst_constants.hpp $(ID)/SBF_sphericalBessel.hpp \
+$(ID)/PhysConst_constants.hpp $(ID)/DMionisation/SBF_sphericalBessel.hpp \
 $(ID)/Wigner_369j.hpp
 	$(COMP)
 
-$(OD)/Module_runModules.o: $(ID)/Module_runModules.cpp $(ID)/Module_runModules.hpp \
-$(ID)/DiracOperator.hpp $(ID)/HartreeFockClass.hpp $(ID)/Module_atomicKernal.hpp \
+$(OD)/Module_runModules.o: $(ID)/Module_runModules.cpp \
+$(ID)/Module_runModules.hpp $(ID)/DiracOperator.hpp $(ID)/HartreeFockClass.hpp \
+$(ID)/DMionisation/Module_atomicKernal.hpp \
 $(ID)/Operators.hpp $(ID)/UserInput.hpp $(ID)/Wavefunction.hpp
 	$(COMP)
 
-$(OD)/Module_atomicKernal.o: $(ID)/Module_atomicKernal.cpp \
-$(ID)/Module_atomicKernal.hpp $(ID)/AKF_akFunctions.hpp \
+$(OD)/Module_atomicKernal.o: $(ID)/DMionisation/Module_atomicKernal.cpp \
+$(ID)/DMionisation/Module_atomicKernal.hpp $(ID)/DMionisation/AKF_akFunctions.hpp \
 $(ID)/AtomInfo.hpp $(ID)/ChronoTimer.hpp $(ID)/ContinuumOrbitals.hpp \
 $(ID)/Grid.hpp $(ID)/PhysConst_constants.hpp \
 $(ID)/Wavefunction.hpp
@@ -118,22 +120,17 @@ $(OD)/CoulombIntegrals.o: $(ID)/CoulombIntegrals.cpp $(ID)/CoulombIntegrals.hpp\
 $(ID)/DiracSpinor.hpp $(ID)/NumCalc_quadIntegrate.hpp
 	$(COMP)
 
-$(OD)/dmeXSection.o: $(ID)/dmeXSection.cpp $(ID)/AKF_akFunctions.hpp \
-$(ID)/ChronoTimer.hpp \
+$(OD)/dmeXSection.o: $(ID)/DMionisation/dmeXSection.cpp \
+$(ID)/DMionisation/AKF_akFunctions.hpp $(ID)/ChronoTimer.hpp \
 $(ID)/FileIO_fileReadWrite.hpp $(ID)/Grid.hpp $(ID)/NumCalc_quadIntegrate.hpp \
-$(ID)/PhysConst_constants.hpp $(ID)/StandardHaloModel.hpp
+$(ID)/PhysConst_constants.hpp $(ID)/DMionisation/StandardHaloModel.hpp
 	$(COMP)
 
-$(OD)/fitParametric.o: $(ID)/fitParametric.cpp $(ID)/AKF_akFunctions.hpp \
+$(OD)/fitParametric.o: $(ID)/fitParametric.cpp \
 $(ID)/AtomInfo.hpp $(ID)/ChronoTimer.hpp $(ID)/FileIO_fileReadWrite.hpp \
 $(ID)/HartreeFockClass.hpp $(ID)/NumCalc_quadIntegrate.hpp \
 $(ID)/Parametric_potentials.hpp $(ID)/PhysConst_constants.hpp \
 $(ID)/Wavefunction.hpp
-	$(COMP)
-
-$(OD)/h-like.o: $(ID)/h-like.cpp $(ID)/AtomInfo.hpp $(ID)/ChronoTimer.hpp \
-$(ID)/DiracOperator.hpp $(ID)/FileIO_fileReadWrite.hpp \
-$(ID)/NumCalc_quadIntegrate.hpp $(ID)/Operators.hpp $(ID)/Wavefunction.hpp
 	$(COMP)
 
 $(OD)/hartreeFock.o: $(ID)/hartreeFock.cpp $(ID)/AtomInfo.hpp \
@@ -153,8 +150,8 @@ $(OD)/Parametric_potentials.o: $(ID)/Parametric_potentials.cpp\
 $(ID)/Parametric_potentials.hpp $(ID)/AtomInfo.hpp $(ID)/PhysConst_constants.hpp
 	$(COMP)
 
-$(OD)/StandardHaloModel.o: $(ID)/StandardHaloModel.cpp \
-$(ID)/StandardHaloModel.hpp $(ID)/Grid.hpp
+$(OD)/StandardHaloModel.o: $(ID)/DMionisation/StandardHaloModel.cpp \
+$(ID)/DMionisation/StandardHaloModel.hpp $(ID)/Grid.hpp
 	$(COMP)
 
 $(OD)/UserInput.o: $(ID)/UserInput.cpp $(ID)/UserInput.hpp \
@@ -169,7 +166,6 @@ $(ID)/Nuclear.hpp $(ID)/PhysConst_constants.hpp
 $(OD)/wigner.o: $(ID)/wigner.cpp $(ID)/FileIO_fileReadWrite.hpp \
 $(ID)/Wigner_369j.hpp
 	$(COMP)
-
 
 $(OD)/nuclearData.o: $(ID)/nuclearData.cpp $(ID)/Nuclear.hpp \
 $(ID)/Nuclear_DataTable.hpp $(ID)/AtomInfo.hpp

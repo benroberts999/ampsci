@@ -1,12 +1,12 @@
 #include "AKF_akFunctions.hpp"
-#include "AtomInfo.hpp"
-#include "ContinuumOrbitals.hpp"
-#include "FileIO_fileReadWrite.hpp"
-#include "NumCalc_quadIntegrate.hpp"
-#include "PhysConst_constants.hpp"
+#include "../AtomInfo.hpp"
+#include "../ContinuumOrbitals.hpp"
+#include "../FileIO_fileReadWrite.hpp"
+#include "../NumCalc_quadIntegrate.hpp"
+#include "../PhysConst_constants.hpp"
+#include "../Wavefunction.hpp"
+#include "../Wigner_369j.hpp"
 #include "SBF_sphericalBessel.hpp"
-#include "Wavefunction.hpp"
-#include "Wigner_369j.hpp"
 #include <fstream>
 #include <iostream>
 
