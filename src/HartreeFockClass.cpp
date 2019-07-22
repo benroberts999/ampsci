@@ -73,6 +73,9 @@ HartreeFock::HartreeFock(Wavefunction &wf, const std::string &in_core,
 
   m_cint.initialise_core_core();
 
+  vex_core.resize(p_wf->core_orbitals.size(),
+                  std::vector<double>(p_rgrid->ngp));
+
   // Run HF for all core states
   hartree_fock_core();
 }

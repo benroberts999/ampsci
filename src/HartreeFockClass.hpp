@@ -31,19 +31,6 @@ class HartreeFock {
 
 public:
   static HFMethod parseMethod(std::string in_method);
-  //  {
-  //   if (in_method == "HartreeFock")
-  //     return HFMethod::HartreeFock;
-  //   if (in_method == "Hartree")
-  //     return HFMethod::Hartree;
-  //   if (in_method == "GreenPRM")
-  //     return HFMethod::GreenPRM;
-  //   if (in_method == "TietzPRM")
-  //     return HFMethod::TietzPRM;
-  //   std::cout << "Warning: HF Method: " << in_method
-  //             << " ?? Defaulting to HF\n";
-  //   return HFMethod::HartreeFock;
-  // }
 
   HartreeFock(Wavefunction &wf, const std::string &in_core, double eps_HF = 0.,
               bool in_ExcludeExchange = false);
