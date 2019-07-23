@@ -2,6 +2,7 @@
 #include "./DMionisation/Module_atomicKernal.hpp"
 #include "DiracOperator.hpp"
 #include "HartreeFockClass.hpp"
+#include "Module_matrixElements.hpp"
 #include "Operators.hpp"
 #include "UserInput.hpp"
 #include "Wavefunction.hpp"
@@ -16,13 +17,18 @@ void runModule(const std::string &module, const UserInput &input,
                const Wavefunction &wf,
                const HartreeFock &hf) //
 {
-  //
-  if (module == "Module::Tests") {
+  // ds
+  if (module.substr(0, 14) == "MatrixElements") {
+    matrixElements(module, input, wf);
+  } else if (module == "Module::Tests") {
     Module_tests(input, wf, hf);
   } else if (module == "Module::WriteOrbitals") {
     Module_WriteOrbitals(input, wf, hf);
   } else if (module == "Module::AtomicKernal") {
     atomicKernal(input, wf);
+  } else {
+    std::cerr << "\nWARNING: Module `" << module
+              << "' not known. Spelling mistake?\n";
   }
 }
 

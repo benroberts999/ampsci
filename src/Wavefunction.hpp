@@ -60,6 +60,10 @@ public:
     return AtomInfo::niceCoreOutput(m_core_string);
   }
   std::string nuclearParams() const;
+  double get_rrms() const { return Nuclear::rrms_formula_c_t(m_c, m_t); };
+  double get_c() const { return m_c; };
+  double get_t() const { return m_t; };
+
   std::string atom() const {
     return AtomInfo::atomicSymbol(m_Z) + ", Z=" + std::to_string(m_Z) +
            " A=" + std::to_string(m_A);

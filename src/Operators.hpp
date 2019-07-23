@@ -17,7 +17,7 @@
 // DiracOperator(DiracMatrix(a, b, c, d), imag?)
 
 //******************************************************************************
-static inline double hfs_default_F(double r, double rN) {
+static inline double hfs_SphericalBall_F(double r, double rN) {
   return (r > rN) ? 1. / (r * r) : r / (rN * rN * rN);
 }
 
@@ -34,7 +34,7 @@ static inline std::vector<double> hfs_v(double rN, const Grid &rgrid,
 class HyperfineOperator : public DiracOperator {
 public:
   HyperfineOperator(double muN, double IN, double rN, const Grid &rgrid,
-                    double (*hfs_F)(double, double) = &hfs_default_F)
+                    double (*hfs_F)(double, double) = &hfs_SphericalBall_F)
       : DiracOperator(-0.5 * (muN / IN) * PhysConst::alpha / PhysConst::m_p,
                       hfs_v(rN, rgrid, hfs_F), DiracMatrix(0, 1, -1, 0), 0,
                       true) {}

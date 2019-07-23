@@ -27,39 +27,14 @@ private:
 public:
   void print() const;
 
-  std::vector<std::string> module_list() const {
-    std::vector<std::string> output;
-    for (const auto &entry : m_user_input) {
-      auto block = entry.first;
-      auto pos = block.find("Module::");
-      if (pos == 0) {
-        output.push_back(block);
-      }
-    }
-    return output;
-  }
+  std::vector<std::string> module_list() const;
 
   template <typename T>
-  inline T get(const std::string &block, const std::string &option,
-               const T &default_value) const {
-    auto a = find(block, option);
-    if (a.str() == "InputNotFound")
-      return default_value;
-    return get_impl<T>(a, block + "/" + option);
-  }
+  T get(const std::string &block, const std::string &option,
+        const T &default_value) const;
 
   template <typename T>
-  inline T get(const std::string &block, const std::string &option) const
-  // No default value; user input is complulsory
-  {
-    auto a = find(block, option);
-    if (a.str() == "InputNotFound") {
-      std::cerr << "\nFAIL: Missing required input: " << block << "/" << option
-                << " (compulsory)\n";
-      std::abort();
-    }
-    return get_impl<T>(a, block + "/" + option);
-  }
+  T get(const std::string &block, const std::string &option) const;
 };
 
 //******************************************************************************
@@ -85,4 +60,27 @@ template <> inline bool get_impl(std::stringstream &ss, const std::string &in) {
   std::cerr << "\nWARNING 44 in UserInput: " << in << "=" << ss.str()
             << " invalid?\n";
   std::abort();
+}
+
+//******************************************************************************
+template <typename T>
+T UserInput::get(const std::string &block, const std::string &option,
+                 const T &default_value) const {
+  auto a = find(block, option);
+  if (a.str() == "InputNotFound")
+    return default_value;
+  return get_impl<T>(a, block + "/" + option);
+}
+
+template <typename T>
+T UserInput::get(const std::string &block, const std::string &option) const
+// No default value; user input is complulsory
+{
+  auto a = find(block, option);
+  if (a.str() == "InputNotFound") {
+    std::cerr << "\nFAIL: Missing required input: " << block << "/" << option
+              << " (compulsory)\n";
+    std::abort();
+  }
+  return get_impl<T>(a, block + "/" + option);
 }

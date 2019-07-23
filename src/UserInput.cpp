@@ -6,6 +6,7 @@
 #include <utility>
 #include <vector>
 
+//******************************************************************************
 UserInput::UserInput(const std::string &infile)                      //
     : m_filename(infile), m_raw_input(FileIO::readInputFile(infile)) //
 {
@@ -17,6 +18,7 @@ UserInput::UserInput(const std::string &infile)                      //
   }
 }
 
+//******************************************************************************
 std::stringstream UserInput::find(const std::string &block,
                                   const std::string &option) const {
   auto output = std::stringstream("InputNotFound");
@@ -39,6 +41,21 @@ std::stringstream UserInput::find(const std::string &block,
   return output;
 }
 
+//******************************************************************************
+std::vector<std::string> UserInput::module_list() const {
+  std::vector<std::string> output;
+  for (const auto &entry : m_user_input) {
+    auto block = entry.first;
+    auto pos1 = block.find("Module::");
+    auto pos2 = block.find("MatrixElements::");
+    if (pos1 == 0 || pos2 == 0) {
+      output.push_back(block);
+    }
+  }
+  return output;
+}
+
+//******************************************************************************
 void UserInput::print() const {
   for (const auto &item : m_user_input) {
     std::cout << item.first << ":\n";
