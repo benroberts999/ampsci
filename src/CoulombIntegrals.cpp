@@ -263,7 +263,7 @@ void Coulomb::form_core_valence()
 //******************************************************************************
 const std::vector<std::vector<double>> &
 Coulomb::get_y_abk(std::size_t a, std::size_t b) const {
-  return (a > b) ? m_y_abkr[a][b] : m_y_abkr[a][b];
+  return (a > b) ? m_y_abkr[a][b] : m_y_abkr[b][a];
 }
 //------------------------------------------------------------------------------
 const std::vector<std::vector<double>> &
