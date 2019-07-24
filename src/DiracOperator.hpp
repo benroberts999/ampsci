@@ -142,6 +142,8 @@ public: // Data
   const DiracMatrix g = GammaMatrix::ident;
   const int diff_order = 0;
   const bool imaginary = false;
+  // const rank = 0;   // max delta_j
+  // const parity = 1; // gives allowed delta_l (??)
 
 public: // Methods
   DiracSpinor operate(const DiracSpinor &phi) const;

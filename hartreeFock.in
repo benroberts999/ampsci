@@ -1,6 +1,6 @@
 Atom {
   Z = Cs;
-  varAlpha2 = 1.00;
+  varAlpha2 = 1.0;
 }
 HartreeFock {
   Core = [Xe];
@@ -12,18 +12,21 @@ Nucleus {}
 
 Grid {
   r0 = 1.e-6;
-  rmax = 100.;
-  ngp = 1000;
+  rmax = 150.;
+  ngp = 1600;
 }
 
 MatrixElements::hfs {
-  F(r) = ball; // ball, shell, pointlike, VolotkaBW
+  F(r) = VolotkaBW; // ball, shell, pointlike, VolotkaBW
   mu;
-  I;
+  I = 3.5;
   rrms = 5.61;
-  l = 3;  // VolotkaBW XXX?? work out from parity!?
+  parity = -1;
   gl = 1; // VolotkaBW
 }
+
+// MatrixElements::r { power = -1; }
+// MatrixElements::r { power = -1; } // XXX THIS DOESN"T WORK!!!
 
 /////////////////////////////////////////////////////////////////
 // Module::AtomicKernal

@@ -25,13 +25,6 @@ class HyperfineOperator : public DiracOperator {
   using FuncType = std::function<double(double, double)>;
 
 public: // F(r) functions XXX NOTE: not F, include 1/r^2 !!!
-  // static inline double sphericalBall_F(double r, double rN) {
-  //   return (r > rN) ? 1. / (r * r) : r / (rN * rN * rN);
-  // }
-  // static inline double sphericalShell_F(double r, double rN) {
-  //   return (r > rN) ? 1. / (r * r) : 0.0;
-  // }
-  // static inline double pointlike_F(double r, double) { return 1. / (r * r); }
   static inline auto sphericalBall_F() -> FuncType {
     return [=](double r, double rN) {
       return (r > rN) ? 1. / (r * r) : r / (rN * rN * rN);
