@@ -93,7 +93,7 @@ int main(int argc, char *argv[]) {
     auto modules = input.module_list();
     for (const auto &module : modules) {
       timer.start();
-      Module::runModule(module, input, wf, hf);
+      Module::runModule(module, wf, hf);
       // std::cout << module << " time: " << timer.lap_reading_str() << "\n";
     }
   }

@@ -12,16 +12,16 @@
 namespace Module {
 
 //******************************************************************************
-void atomicKernal(const UserInput &input, const Wavefunction &wf) {
+void atomicKernal(const UserInputBlock &input, const Wavefunction &wf) {
   ChronoTimer timer; // start the overall timer
 
-  auto demin = input.get<double>(ThisModule, "Emin");
-  auto demax = input.get<double>(ThisModule, "Emax");
-  auto desteps = input.get<int>(ThisModule, "Esteps");
+  auto demin = input.get<double>("Emin");
+  auto demax = input.get<double>("Emax");
+  auto desteps = input.get<int>("Esteps");
 
-  auto qmin = input.get<double>(ThisModule, "qmin");
-  auto qmax = input.get<double>(ThisModule, "qmax");
-  auto qsteps = input.get<int>(ThisModule, "qsteps");
+  auto qmin = input.get<double>("qmin");
+  auto qmax = input.get<double>("qmax");
+  auto qsteps = input.get<int>("qsteps");
 
   // allow for single-step in dE or q grid
   if (desteps == 1)
@@ -42,20 +42,20 @@ void atomicKernal(const UserInput &input, const Wavefunction &wf) {
   Grid qgrid(qmin, qmax, qsteps, GridType::logarithmic);
 
   auto max_l_core = wf.maxCore_l();
-  auto max_l = input.get<int>(ThisModule, "max_l_bound", max_l_core);
+  auto max_l = input.get<int>("max_l_bound", max_l_core);
   if (max_l < 0 || max_l > max_l_core)
     max_l = max_l_core;
-  auto max_L = input.get<int>(ThisModule, "max_L");
+  auto max_L = input.get<int>("max_L");
 
-  bool plane_wave = input.get<bool>(ThisModule, "use_plane_waves", false);
+  bool plane_wave = input.get<bool>("use_plane_waves", false);
   if (plane_wave)
     max_L = max_l; // for spherical bessel.
 
-  auto label = input.get<std::string>(ThisModule, "label", "");
+  auto label = input.get<std::string>("label", "");
 
   // output format
-  auto text_out = input.get<bool>(ThisModule, "output_text", false);
-  auto bin_out = input.get<bool>(ThisModule, "output_binary", false);
+  auto text_out = input.get<bool>("output_text", false);
+  auto bin_out = input.get<bool>("output_binary", false);
   if (!text_out && !bin_out)
     bin_out = true; // print message?
 

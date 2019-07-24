@@ -13,21 +13,21 @@
 namespace Module {
 
 //******************************************************************************
-void runModule(const std::string &module, const UserInput &input,
-               const Wavefunction &wf,
+void runModule(const UserInputBlock &module_input, const Wavefunction &wf,
                const HartreeFock &hf) //
 {
   // ds
-  if (module.substr(0, 14) == "MatrixElements") {
-    matrixElements(module, input, wf);
-  } else if (module == "Module::Tests") {
-    Module_tests(input, wf, hf);
-  } else if (module == "Module::WriteOrbitals") {
-    Module_WriteOrbitals(input, wf, hf);
-  } else if (module == "Module::AtomicKernal") {
-    atomicKernal(input, wf);
+  auto module_name = module_input.name();
+  if (module_name.substr(0, 14) == "MatrixElements") {
+    matrixElements(module_input, wf);
+  } else if (module_name == "Module::Tests") {
+    Module_tests(module_input, wf, hf);
+  } else if (module_name == "Module::WriteOrbitals") {
+    Module_WriteOrbitals(module_input, wf, hf);
+  } else if (module_name == "Module::AtomicKernal") {
+    atomicKernal(module_input, wf);
   } else {
-    std::cerr << "\nWARNING: Module `" << module
+    std::cerr << "\nWARNING: Module `" << module_name
               << "' not known. Spelling mistake?\n";
   }
 }
@@ -36,12 +36,12 @@ void runModule(const std::string &module, const UserInput &input,
 // Below: some basic modules:
 
 //******************************************************************************
-void Module_tests(const UserInput &input, const Wavefunction &wf,
+void Module_tests(const UserInputBlock &input, const Wavefunction &wf,
                   const HartreeFock &hf) {
   std::string ThisModule = "Module::Tests";
-  if (input.get(ThisModule, "orthonormal", true))
+  if (input.get("orthonormal", true))
     Module_Tests_orthonormality(wf);
-  if (input.get(ThisModule, "Hamiltonian", false))
+  if (input.get("Hamiltonian", false))
     Module_Tests_Hamiltonian(wf, hf);
 }
 
@@ -120,11 +120,11 @@ void Module_Tests_Hamiltonian(const Wavefunction &wf, const HartreeFock &hf) {
 }
 
 //******************************************************************************
-void Module_WriteOrbitals(const UserInput &input, const Wavefunction &wf,
+void Module_WriteOrbitals(const UserInputBlock &input, const Wavefunction &wf,
                           const HartreeFock &) {
   const std::string ThisModule = "Module::WriteOrbitals";
 
-  auto label = input.get<std::string>(ThisModule, "label", "");
+  auto label = input.get<std::string>("label", "");
   std::string oname = wf.atomicSymbol() + "-orbitals";
   if (label != "")
     oname += "_" + label;

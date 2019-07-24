@@ -1,43 +1,59 @@
 #pragma once
+// #include "FileIO_fileReadWrite.hpp"
 #include <iostream>
 #include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
 
-template <typename T> T get_impl(std::stringstream &ss, const std::string &in);
+//******************************************************************************
+class UserInputBlock {
 
+public:
+  UserInputBlock(const std::string &in_block_name,
+                 const std::vector<std::string> &in_input_options)
+      : m_block_name(in_block_name), m_input_options(in_input_options) {}
+
+  template <typename T>
+  T get(const std::string &option, const T &default_value) const;
+  template <typename T> T get(const std::string &option) const;
+
+  const std::string &name() const { return m_block_name; }
+
+  void print() const;
+
+private:
+  std::string m_block_name;
+  std::vector<std::string> m_input_options;
+
+  std::stringstream find_option(const std::string &in_option) const;
+};
+
+//******************************************************************************
 class UserInput {
-
-  using StringPair = std::pair<std::string, std::string>;
-  using StringVectorPair = std::pair<std::string, std::vector<std::string>>;
 
 public:
   UserInput(const std::string &infile);
 
-private:
-  const std::string m_filename;
-  const std::string m_raw_input;
-  std::vector<StringVectorPair> m_user_input;
-
-private:
-  std::stringstream find(const std::string &block,
-                         const std::string &option) const;
-
-public:
-  void print() const;
-
-  std::vector<std::string> module_list() const;
-
   template <typename T>
-  T get(const std::string &block, const std::string &option,
+  T get(const std::string &in_block, const std::string &option,
         const T &default_value) const;
 
   template <typename T>
-  T get(const std::string &block, const std::string &option) const;
+  T get(const std::string &in_block, const std::string &option) const;
+
+  std::vector<UserInputBlock> module_list() const;
+
+  void print() const;
+
+private:
+  std::string m_filename;
+  std::vector<UserInputBlock> m_blocks;
 };
 
 //******************************************************************************
+//******************************************************************************
+namespace UserInputHelper {
 template <typename T>
 inline T get_impl(std::stringstream &ss, const std::string &in) {
   T val;
@@ -61,26 +77,46 @@ template <> inline bool get_impl(std::stringstream &ss, const std::string &in) {
             << " invalid?\n";
   std::abort();
 }
+} // namespace UserInputHelper
 
 //******************************************************************************
 template <typename T>
-T UserInput::get(const std::string &block, const std::string &option,
-                 const T &default_value) const {
-  auto a = find(block, option);
-  if (a.str() == "InputNotFound")
+T UserInputBlock::get(const std::string &option, const T &default_value) const {
+  auto option_ss = find_option(option);
+  if (option_ss.str() == "InputNotFound")
     return default_value;
-  return get_impl<T>(a, block + "/" + option);
+  return UserInputHelper::get_impl<T>(option_ss, m_block_name + '/' + option);
+}
+template <typename T>
+T UserInputBlock::get(const std::string &option) const
+// No default value; user input is complulsory
+{
+  auto option_ss = find_option(option);
+  if (option_ss.str() == "InputNotFound") {
+    std::cerr << "\nFAIL: Missing required input: " << m_block_name << "/"
+              << option << " (compulsory)\n";
+    std::abort();
+  }
+  return UserInputHelper::get_impl<T>(option_ss, m_block_name + '/' + option);
 }
 
 template <typename T>
-T UserInput::get(const std::string &block, const std::string &option) const
-// No default value; user input is complulsory
-{
-  auto a = find(block, option);
-  if (a.str() == "InputNotFound") {
-    std::cerr << "\nFAIL: Missing required input: " << block << "/" << option
-              << " (compulsory)\n";
-    std::abort();
+T UserInput::get(const std::string &in_block, const std::string &option,
+                 const T &default_value) const {
+  for (const auto &block : m_blocks) {
+    if (in_block == block.name())
+      return block.get<T>(option, default_value);
   }
-  return get_impl<T>(a, block + "/" + option);
+  return default_value;
+}
+
+template <typename T>
+T UserInput::get(const std::string &in_block, const std::string &option) const {
+  for (const auto &block : m_blocks) {
+    if (in_block == block.name())
+      return block.get<T>(option);
+  }
+  std::cerr << "\nFAIL: Missing required input: " << in_block << "/" << option
+            << " (compulsory)\n";
+  std::abort();
 }

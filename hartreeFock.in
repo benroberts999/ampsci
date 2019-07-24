@@ -1,35 +1,35 @@
 Atom {
   Z = Cs;
-  varAlpha2 = 1.0;
+  //varAlpha2 = 1.0;
 }
 HartreeFock {
   Core = [Xe];
-  valence = 7sp;
+  valence = 7sp5d4f;
   // OrthonormaliseValence = false;
-  // Convergence = 1.e-16;
+  Convergence = 1.e-16;
 }
+
 Nucleus {}
 
 Grid {
-  r0 = 1.e-6;
+  r0 = 1.e-5;
   rmax = 150.;
   ngp = 1600;
 }
 
 MatrixElements::hfs {
-  F(r) = VolotkaBW; // ball, shell, pointlike, VolotkaBW
+  F(r) = ball; // ball, shell, pointlike, VolotkaBW
   mu;
-  I = 3.5;
-  rrms = 5.61;
-  parity = -1;
-  gl = 1; // VolotkaBW
+  I;
+  rrms;
+  parity;
+  gl; // VolotkaBW
 }
 
-// MatrixElements::r { power = -1; }
-// MatrixElements::r { power = -1; } // XXX THIS DOESN"T WORK!!!
+MatrixElements::r { power = 1; }
 
 /////////////////////////////////////////////////////////////////
-// Module::AtomicKernal
+//Module::AtomicKernal
 {
   Emin = 0.01;
   Emax = 4.0;
@@ -55,9 +55,3 @@ Hamiltonian = true;
   label = lab;
 }
 
-///////////////////////////////////////
-// Following is not implemented yet:
-
-// MatrixElements::r { // can list multiple
-power = 1;
-}
