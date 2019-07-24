@@ -85,6 +85,11 @@ $(ID)/Grid.hpp $(ID)/Physics/PhysConst_constants.hpp \
 $(ID)/Wavefunction.hpp
 	$(COMP)
 
+$(OD)/Module_matrixElements.o: $(ID)/Module_matrixElements.cpp \
+$(ID)/Module_matrixElements.hpp $(ID)/Physics/PhysConst_constants.hpp \
+$(ID)/Wavefunction.hpp $(ID)/Physics/Nuclear.hpp
+	$(COMP)
+
 $(OD)/ContinuumOrbitals.o: $(ID)/ContinuumOrbitals.cpp \
 $(ID)/ContinuumOrbitals.hpp $(ID)/Adams/Adams_bound.hpp \
 $(ID)/Adams/Adams_continuum.hpp $(ID)/Physics/AtomInfo.hpp \
@@ -162,7 +167,8 @@ CNTM = $(addprefix $(OD)/, \
 )
 
 MODS = $(addprefix $(OD)/, \
- Module_runModules.o Module_atomicKernal.o AKF_akFunctions.o\
+ Module_runModules.o Module_atomicKernal.o AKF_akFunctions.o \
+ Module_matrixElements.o \
 )
 
 ################################################################################

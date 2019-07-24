@@ -94,11 +94,11 @@ int main(int argc, char *argv[]) {
     for (const auto &module : modules) {
       timer.start();
       Module::runModule(module, input, wf, hf);
-      std::cout << module << " time: " << timer.lap_reading_str() << "\n";
+      // std::cout << module << " time: " << timer.lap_reading_str() << "\n";
     }
   }
 
-  std::cout << "Total time: " << timer.reading_str() << "\n";
+  std::cout << "\nTotal time: " << timer.reading_str() << "\n";
 
   //*********************************************************
   //               TESTS
@@ -159,32 +159,33 @@ int main(int argc, char *argv[]) {
     std::cout << "\n Total time: " << timer.reading_str() << "\n";
   }
 
-  bool test_hfs = false;
-  if (test_hfs) {
-    std::cout << "\nHyperfine:\n";
-
-    double muN = Nuclear::find_mu(wf.Znuc(), wf.Anuc());
-    double IN = Nuclear::find_spin(wf.Znuc(), wf.Anuc());
-    auto r_rms_fm = Nuclear::find_rrms(wf.Znuc(), wf.Anuc());
-    // 4.1989
-    auto r_rms = r_rms_fm / PhysConst::aB_fm;
-    std::cout << "mu=" << muN << ", I=" << IN << " ,r=" << r_rms_fm << "\n";
-
-    std::cout << "Gridpoints below Rrms: " << wf.rgrid.getIndex(r_rms) << "\n";
-
-    // example for using lambda
-    auto l1 = [](double r, double) { return 1. / (r * r); };
-    // auto l1 = [](double r, double rN) { return r > rN ? 1. / (r * r) : 0.;
-    // };
-    HyperfineOperator vhfs(muN, IN, r_rms, wf.rgrid, l1);
-    for (auto phi : wf.valence_orbitals) {
-      auto A_tmp = phi * (vhfs * phi);
-      double j = phi.j();
-      auto factor = PhysConst::Hartree_MHz * phi.k / (j * (j + 1.));
-      std::cout << phi.symbol() << ": ";
-      std::cout << A_tmp * factor << "\n";
-    }
-  }
+  // bool test_hfs = false;
+  // if (test_hfs) {
+  //   std::cout << "\nHyperfine:\n";
+  //
+  //   double muN = Nuclear::find_mu(wf.Znuc(), wf.Anuc());
+  //   double IN = Nuclear::find_spin(wf.Znuc(), wf.Anuc());
+  //   auto r_rms_fm = Nuclear::find_rrms(wf.Znuc(), wf.Anuc());
+  //   // 4.1989
+  //   auto r_rms = r_rms_fm / PhysConst::aB_fm;
+  //   std::cout << "mu=" << muN << ", I=" << IN << " ,r=" << r_rms_fm << "\n";
+  //
+  //   std::cout << "Gridpoints below Rrms: " << wf.rgrid.getIndex(r_rms) <<
+  //   "\n";
+  //
+  //   // example for using lambda
+  //   auto l1 = [](double r, double) { return 1. / (r * r); };
+  //   // auto l1 = [](double r, double rN) { return r > rN ? 1. / (r * r) : 0.;
+  //   // };
+  //   HyperfineOperator vhfs(muN, IN, r_rms, wf.rgrid, l1);
+  //   for (auto phi : wf.valence_orbitals) {
+  //     auto A_tmp = phi * (vhfs * phi);
+  //     double j = phi.j();
+  //     auto factor = PhysConst::Hartree_MHz * phi.k / (j * (j + 1.));
+  //     std::cout << phi.symbol() << ": ";
+  //     std::cout << A_tmp * factor << "\n";
+  //   }
+  // }
 
   return 0;
 }

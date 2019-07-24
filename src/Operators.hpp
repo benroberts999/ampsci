@@ -5,6 +5,8 @@
 #include "Physics/PhysConst_constants.hpp"
 #include <cmath>
 #include <vector>
+//
+#include <functional> //for BW
 
 // Classes (inherit from DriacOperator)
 
@@ -17,27 +19,76 @@
 // DiracOperator(DiracMatrix(a, b, c, d), imag?)
 
 //******************************************************************************
-static inline double hfs_SphericalBall_F(double r, double rN) {
-  return (r > rN) ? 1. / (r * r) : r / (rN * rN * rN);
-}
-
-static inline std::vector<double> hfs_v(double rN, const Grid &rgrid,
-                                        double (*hfs_F)(double, double)) {
-  std::vector<double> invr2;
-  invr2.reserve(rgrid.ngp);
-  for (auto r : rgrid.r) {
-    invr2.push_back(hfs_F(r, rN));
-  }
-  return invr2;
-}
 
 class HyperfineOperator : public DiracOperator {
-public:
+
+  using FuncType = std::function<double(double, double)>;
+
+public: // F(r) functions XXX NOTE: not F, include 1/r^2 !!!
+  // static inline double sphericalBall_F(double r, double rN) {
+  //   return (r > rN) ? 1. / (r * r) : r / (rN * rN * rN);
+  // }
+  // static inline double sphericalShell_F(double r, double rN) {
+  //   return (r > rN) ? 1. / (r * r) : 0.0;
+  // }
+  // static inline double pointlike_F(double r, double) { return 1. / (r * r); }
+  static inline auto sphericalBall_F() -> FuncType {
+    return [=](double r, double rN) {
+      return (r > rN) ? 1. / (r * r) : r / (rN * rN * rN);
+    };
+  }
+  static inline auto sphericalShell_F() -> FuncType {
+    return [=](double r, double rN) { return (r > rN) ? 1. / (r * r) : 0.0; };
+  }
+  static inline auto pointlike_F() -> FuncType {
+    return [=](double r, double) { return 1. / (r * r); };
+  }
+
+  static inline auto generate_F_BW(double mu, double I_nuc, double l_pn,
+                                   double g_l) -> FuncType
+  // Function that returns generates + returns F_BW Bohr-Weiskopf
+  // gl = 1 for proton, =0 for neutron. Double allowed for testing..
+  // mu is in units of Nuclear Magneton!
+  {
+    const auto two_I = 2 * int(I_nuc + 0.0001);
+    const auto two_l = 2 * int(l_pn + 0.0001);
+    const double g_s =
+        4.0 * mu * (two_I + 2) -
+        g_l * (1.0 * two_I * (two_I + 2) + 0.5 * two_l * (2 * two_l + 1));
+    const double factor =
+        (two_I == two_l + 1) // assert?
+            ? g_s * (1 - two_I) / (4.0 * (two_I + 2)) + g_l * 0.5 * (two_I - 1)
+            : g_s * (3 + two_I) / (4.0 * (two_I + 2)) +
+                  g_l * 0.5 * two_I * (two_I + 3) / (two_I + 2);
+    return [=](double r, double rN) {
+      return (r > rN) ? 1. / (r * r)
+                      : (r / (rN * rN * rN)) *
+                            (1.0 - (3.0 / mu) * std::log(r / rN) * factor);
+    };
+    // return lam;
+  }
+
+private: // helper
+  static inline std::vector<double> F(double rN, const Grid &rgrid,
+                                      FuncType hfs_F) {
+    std::vector<double> invr2;
+    invr2.reserve(rgrid.ngp);
+    for (auto r : rgrid.r) {
+      invr2.push_back(hfs_F(r, rN));
+    }
+    return invr2;
+  }
+
+public: // constructor
+  // HyperfineOperator(double muN, double IN, double rN, const Grid &rgrid)
+  //     : DiracOperator(-0.5 * (muN / IN) * PhysConst::alpha / PhysConst::m_p,
+  //                     F(rN, rgrid, sphericalBall_F()), DiracMatrix(0, 1, -1,
+  //                     0), 0, true) {}
+  // // use overload, because "default function" doesn't work?
   HyperfineOperator(double muN, double IN, double rN, const Grid &rgrid,
-                    double (*hfs_F)(double, double) = &hfs_SphericalBall_F)
+                    FuncType hfs_F = sphericalBall_F())
       : DiracOperator(-0.5 * (muN / IN) * PhysConst::alpha / PhysConst::m_p,
-                      hfs_v(rN, rgrid, hfs_F), DiracMatrix(0, 1, -1, 0), 0,
-                      true) {}
+                      F(rN, rgrid, hfs_F), DiracMatrix(0, 1, -1, 0), 0, true) {}
 };
 
 //******************************************************************************

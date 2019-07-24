@@ -12,8 +12,17 @@ Nucleus {}
 
 Grid {
   r0 = 1.e-6;
-  rmax = 150.;
-  ngp = 1600;
+  rmax = 100.;
+  ngp = 1000;
+}
+
+MatrixElements::hfs {
+  F(r) = ball; // ball, shell, pointlike, VolotkaBW
+  mu;
+  I;
+  rrms = 5.61;
+  l = 3;  // VolotkaBW XXX?? work out from parity!?
+  gl = 1; // VolotkaBW
 }
 
 /////////////////////////////////////////////////////////////////
@@ -46,11 +55,6 @@ Hamiltonian = true;
 ///////////////////////////////////////
 // Following is not implemented yet:
 
-MatrixElements::hfs { // can list multiple
-  mu = 4.0;
-  I = 1;
-}
-
-MatrixElements::r { // can list multiple
-  power = 1;
+// MatrixElements::r { // can list multiple
+power = 1;
 }

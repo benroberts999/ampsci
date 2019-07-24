@@ -506,7 +506,6 @@ void Wavefunction::printValence(
            phi.en *PhysConst::Hartree_invcm);
     printf(" %10.2f\n", (phi.en - e0) * PhysConst::Hartree_invcm);
   }
-  std::cout << "\n";
 }
 
 //******************************************************************************
