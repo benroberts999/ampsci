@@ -49,7 +49,7 @@ public:
   double rinf(const DiracSpinor &phi) const { return rgrid.r[phi.pinf]; };
   int getRadialIndex(double r_target) const {
     return (int)rgrid.getIndex(r_target, true);
-  };
+  }
 
   std::size_t getStateIndex(int n, int k, bool &is_valence = dummy_bool) const;
   std::size_t getStateIndex(const DiracSpinor &psi,
@@ -61,8 +61,8 @@ public:
   }
   std::string nuclearParams() const;
   double get_rrms() const { return Nuclear::rrms_formula_c_t(m_c, m_t); };
-  double get_c() const { return m_c; };
-  double get_t() const { return m_t; };
+  double get_c() const { return m_c; }
+  double get_t() const { return m_t; }
 
   std::string atom() const {
     return AtomInfo::atomicSymbol(m_Z) + ", Z=" + std::to_string(m_Z) +
