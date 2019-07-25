@@ -83,7 +83,7 @@ int main(int argc, char *argv[]) {
 
   // Output results:
   std::cout << "\nHartree Fock: " << wf.atom() << "\n";
-  bool sorted = true;
+  bool sorted = input.get("HartreeFock", "sortOutput", true);
   wf.printCore(sorted);
   std::cout << "E_core = " << core_energy
             << " au;  = " << core_energy * PhysConst::Hartree_invcm << "/cm\n";

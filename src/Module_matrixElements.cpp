@@ -50,14 +50,15 @@ DiracOperator generateOperator(const std::string &operator_str,
 
     auto mu = input.get("mu", default_mu);
     auto I_nuc = input.get("I", default_I);
-    auto r_nucfm = input.get("rrms", default_rfm);
+    auto r_rmsfm = input.get("rrms", default_rfm);
+    auto r_nucfm = std::sqrt(5. / 3) * r_rmsfm;
     auto r_nucau = r_nucfm / PhysConst::aB_fm;
     auto Fr_str = input.get<std::string>("F(r)", "ball");
 
     std::cout << "Hyperfine structure:\n"
               << "Using " << Fr_str << " nuclear distro for F(r)\n"
-              << "w/ mu = " << mu << ", I = " << I_nuc << ", rrms = " << r_nucfm
-              << "fm = " << r_nucau << "au\n";
+              << "w/ mu = " << mu << ", I = " << I_nuc << ", r_N = " << r_nucfm
+              << "fm = " << r_nucau << "au  (r_rms=" << r_rmsfm << "fm)\n";
     std::cout << "Units: MHz\n";
 
     auto Fr = HyperfineOperator::sphericalBall_F();
