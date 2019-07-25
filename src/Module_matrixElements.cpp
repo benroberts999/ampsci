@@ -100,7 +100,7 @@ DiracOperator generateOperator(const std::string &operator_str,
 
       Fr = HyperfineOperator::generate_F_BW_doublyOdd(mu, I_nuc, mu1, I1, l1,
                                                       gl1, I2, l2);
-    } else if (Fr_str != "shell") {
+    } else if (Fr_str != "ball") {
       std::cout << "FAIL: in " << ThisModule << " " << Fr_str
                 << " invalid nuclear distro. Check spelling\n";
       return DiracOperator(0);
