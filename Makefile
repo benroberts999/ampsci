@@ -87,7 +87,8 @@ $(ID)/Wavefunction.hpp
 
 $(OD)/Module_matrixElements.o: $(ID)/Module_matrixElements.cpp \
 $(ID)/Module_matrixElements.hpp $(ID)/Physics/PhysConst_constants.hpp \
-$(ID)/Wavefunction.hpp $(ID)/Physics/Nuclear.hpp
+$(ID)/Physics/Nuclear.hpp $(ID)/Operators.hpp $(ID)/UserInput.hpp  \
+$(ID)/HartreeFockClass.hpp $(ID)/Wavefunction.hpp
 	$(COMP)
 
 $(OD)/ContinuumOrbitals.o: $(ID)/ContinuumOrbitals.cpp \

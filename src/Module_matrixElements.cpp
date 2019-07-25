@@ -8,6 +8,8 @@
 #include "Wavefunction.hpp"
 #include <iostream>
 #include <string>
+//
+#include <fstream>
 
 namespace Module {
 
@@ -64,13 +66,14 @@ DiracOperator generateOperator(const std::string &operator_str,
     auto Fr = HyperfineOperator::sphericalBall_F();
     if (Fr_str == "shell")
       Fr = HyperfineOperator::sphericalShell_F();
-    if (Fr_str == "pointlike")
+    else if (Fr_str == "pointlike")
       Fr = HyperfineOperator::pointlike_F();
-    if (Fr_str == "VolotkaBW") {
+    else if (Fr_str == "VolotkaBW") {
       auto default_pi = Nuclear::find_parity(wf.Znuc(), wf.Anuc());
       auto pi = input.get("parity", default_pi);
       auto l_tmp = int(I_nuc + 0.5 + 0.0001);
       auto l = ((l_tmp % 2 == 0) == (pi == 1)) ? l_tmp : l_tmp - 1;
+      l = input.get("l", l); // can override derived 'l' (not recommended)
       auto gl = input.get<int>("gl");
       std::cout << "Bohr-Weiskopf (Volotka formula) for valence";
       if (gl == 1)
@@ -81,8 +84,38 @@ DiracOperator generateOperator(const std::string &operator_str,
         std::cout << " gl=" << gl << "??? program will run, but prob wrong!\n";
       std::cout << "with l=" << l << "\n";
       Fr = HyperfineOperator::generate_F_BW(mu, I_nuc, l, gl);
+    } else if (Fr_str == "doublyOddBW") {
+
+      auto mu1 = input.get<double>("mu1");
+      auto gl1 = input.get<int>("gl1"); // 1 or 0 (p or n)
+      if (gl1 != 0 && gl1 != 1) {
+        std::cout << "FAIL: in " << ThisModule << " " << Fr_str
+                  << "; have gl1=" << gl1 << " but need 1 or 0\n";
+        return DiracOperator(0);
+      }
+      auto l1 = input.get<double>("l1");
+      auto l2 = input.get<double>("l2");
+      auto I1 = input.get<double>("I1");
+      auto I2 = input.get<double>("I2");
+
+      Fr = HyperfineOperator::generate_F_BW_doublyOdd(mu, I_nuc, mu1, I1, l1,
+                                                      gl1, I2, l2);
+    } else if (Fr_str != "shell") {
+      std::cout << "FAIL: in " << ThisModule << " " << Fr_str
+                << " invalid nuclear distro. Check spelling\n";
+      return DiracOperator(0);
     }
+
     auto unit = PhysConst::Hartree_MHz;
+
+    auto print_FQ = input.get<bool>("printF", false);
+    if (print_FQ) {
+      std::ofstream of(Fr_str + ".txt");
+      for (auto r : wf.rgrid.r) {
+        of << r * PhysConst::aB_fm << " "
+           << Fr(r * PhysConst::aB_fm, r_nucau * PhysConst::aB_fm) << "\n";
+      }
+    }
 
     // Later can add different distro's; ball is default:
     return HyperfineOperator(mu * unit, I_nuc, r_nucau, wf.rgrid, Fr);

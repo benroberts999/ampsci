@@ -1,15 +1,17 @@
 Atom {
   Z = Cs;
-  //varAlpha2 = 1.0;
+  varAlpha2;
 }
+
 HartreeFock {
   Core = [Xe];
   valence = 7sp5d4f;
+  sortOutput = true;
   // OrthonormaliseValence = false;
-  Convergence = 1.e-16;
+  // Convergence = 1.e-16;
 }
 
-Nucleus {}
+Nucleus { A; }
 
 Grid {
   r0 = 1.e-5;
@@ -17,7 +19,11 @@ Grid {
   ngp = 1600;
 }
 
-MatrixElements::hfs {
+/////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////
+
+// MatrixElements::hfs
+{
   F(r) = ball; // ball, shell, pointlike, VolotkaBW
   mu;
   I;
@@ -26,10 +32,23 @@ MatrixElements::hfs {
   gl; // VolotkaBW
 }
 
-MatrixElements::r { power = 1; }
+// MatrixElements::hfs
+{
+  F(r) = doublyOddBW; // ball, shell, pointlike, VolotkaBW, doublyOddBW
+  mu;
+  I;
+  rrms;
+  mu1 = 4.00;
+  I1 = 4.5;
+  l1 = 5.;
+  gl1 = 1;
+  I2 = 0.5;
+  l2 = 1.;
+  printF = true;
+}
 
 /////////////////////////////////////////////////////////////////
-//Module::AtomicKernal
+// Module::AtomicKernal
 {
   Emin = 0.01;
   Emax = 4.0;
@@ -45,13 +64,13 @@ MatrixElements::r { power = 1; }
   use_plane_waves = false;
 }
 
-// Module::Tests {
-orthonormal = false;
-Hamiltonian = true;
+// Module::Tests
+{
+  orthonormal = false;
+  Hamiltonian = true;
 }
 
 // Module::WriteOrbitals
 { //
   label = lab;
 }
-

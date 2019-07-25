@@ -2,9 +2,13 @@
 #include <string>
 class Wavefunction;
 class UserInputBlock;
+class UserInput;
 class HartreeFock;
 
 namespace Module {
+
+void runModules(const UserInput &input, const Wavefunction &wf,
+                const HartreeFock &hf);
 
 void runModule(const UserInputBlock &input, const Wavefunction &wf,
                const HartreeFock &hf);

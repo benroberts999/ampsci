@@ -13,6 +13,15 @@
 namespace Module {
 
 //******************************************************************************
+void runModules(const UserInput &input, const Wavefunction &wf,
+                const HartreeFock &hf) {
+  auto modules = input.module_list();
+  for (const auto &module : modules) {
+    runModule(module, wf, hf);
+  }
+}
+
+//******************************************************************************
 void runModule(const UserInputBlock &module_input, const Wavefunction &wf,
                const HartreeFock &hf) //
 {
