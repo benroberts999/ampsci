@@ -19,47 +19,36 @@ integer angular momentum (l).
 */
 
 //******************************************************************************
-inline int l_k(int ka) { return (ka > 0) ? ka : -ka - 1; }
-inline int twoj_k(int ka) { return (ka > 0) ? 2 * ka - 1 : -2 * ka - 1; }
-inline double j_k(int ka) {
+constexpr int l_k(int ka) { return (ka > 0) ? ka : -ka - 1; }
+constexpr int twoj_k(int ka) { return (ka > 0) ? 2 * ka - 1 : -2 * ka - 1; }
+constexpr double j_k(int ka) {
   return (ka > 0) ? double(ka) - 0.5 : double(-ka) - 0.5;
 }
 
 //******************************************************************************
-inline int parity(int la, int lb, int k)
+constexpr int parity(int la, int lb, int k)
 // Parity rule. Returns 1 only if la+lb+k is even
 {
-  if ((la + lb + k) % 2 == 0)
-    return 1;
-  return 0;
+  return ((la + lb + k) % 2 == 0) ? 1 : 0;
 }
 
 //******************************************************************************
-inline int triangle(double j1, double j2, double J)
+constexpr int triangle(double j1, double j2, double J)
 // Triangle rule.
 {
-  if ((j1 + j2 < J) || (fabs(j1 - j2) > J))
-    return 0;
-  return 1;
+  return ((j1 + j2 < J) || (fabs(j1 - j2) > J)) ? 0 : 1;
 }
-
-inline int triangle(int j1, int j2, int J) {
+constexpr int triangle(int j1, int j2, int J) {
   // nb: can be called with wither j or twoj!
-  if ((j1 + j2 < J) || (abs(j1 - j2) > J))
-    return 0;
-  return 1;
+  return ((j1 + j2 < J) || (abs(j1 - j2) > J)) ? 0 : 1;
 }
 
-inline int sumsToZero(int m1, int m2, int m3) {
-  if (m1 + m2 + m3 != 0)
-    return 0;
-  return 1;
+constexpr int sumsToZero(int m1, int m2, int m3) {
+  return (m1 + m2 + m3 != 0) ? 0 : 1;
 }
 
-inline int sumsToZero(double m1, double m2, double m3) {
-  if (fabs(m1 + m2 + m3) > 0.0001)
-    return 0;
-  return 1;
+constexpr int sumsToZero(double m1, double m2, double m3) {
+  return (fabs(m1 + m2 + m3) > 0.00001) ? 0 : 1;
 }
 
 //******************************************************************************

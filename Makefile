@@ -58,6 +58,9 @@ $(ID)/DiracSpinor.hpp $(ID)/Grid.hpp $(ID)/Matrix_linalg.hpp \
 $(ID)/NumCalc_quadIntegrate.hpp
 	$(COMP)
 
+$(OD)/AtomInfo.o: $(ID)/Physics/AtomInfo.cpp $(ID)/Physics/AtomInfo.hpp
+	$(COMP)
+
 $(OD)/Adams_continuum.o: $(ID)/Adams/Adams_continuum.cpp \
 $(ID)/Adams/Adams_bound.hpp $(ID)/Adams/Adams_continuum.hpp\
 $(ID)/DiracSpinor.hpp $(ID)/Grid.hpp $(ID)/NumCalc_quadIntegrate.hpp
@@ -156,7 +159,7 @@ $(ID)/Physics/Nuclear_DataTable.hpp $(ID)/Physics/AtomInfo.hpp
 # Hust to save typing: Many programs depend on these combos:
 
 BASE = $(addprefix $(OD)/, \
- Adams_bound.o Wavefunction.o \
+ Adams_bound.o Wavefunction.o AtomInfo.o\
 )
 
 HF = $(addprefix $(OD)/, \
@@ -175,9 +178,6 @@ MODS = $(addprefix $(OD)/, \
 ################################################################################
 # Link + build all final programs
 
-$(XD)/h-like: $(BASE) $(OD)/h-like.o
-	$(LINK)
-
 $(XD)/fitParametric: $(BASE) $(HF) $(OD)/fitParametric.o \
 $(OD)/Parametric_potentials.o
 	$(LINK)
@@ -193,7 +193,7 @@ $(OD)/AKF_akFunctions.o $(OD)/StandardHaloModel.o
 $(XD)/wigner: $(OD)/wigner.o
 	$(LINK)
 
-$(XD)/nuclearData: $(OD)/nuclearData.o
+$(XD)/nuclearData: $(OD)/nuclearData.o $(OD)/AtomInfo.o
 	$(LINK)
 
 ################################################################################

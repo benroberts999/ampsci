@@ -158,7 +158,7 @@ fermiNuclearPotential(double Z, double t, double c,
 //   B = r * Int[ rho(x) x , {x,r,infty}]
 // rho_0 is found by either:
 //   * V(infinity) = -Z/r , or equivilantly
-//   * \int rho(r) d^3r = Z
+//   * int rho(r) d^3r = Z
 //
 // Depends on:
 //   * t: skin thickness [90 to 10% fall-off range]
