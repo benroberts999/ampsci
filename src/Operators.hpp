@@ -42,24 +42,30 @@ public: // F(r) functions XXX NOTE: not F, include 1/r^2 !!!
   // gl = 1 for proton, =0 for neutron. Double allowed for testing..
   // mu is in units of Nuclear Magneton!
   {
-    const auto two_I = 2 * int(I_nuc + 0.0001);
-    const auto two_l = 2 * int(l_pn + 0.0001);
+    const auto two_I = int(2 * I_nuc + 0.0001);
+    const auto two_l = int(2 * l_pn + 0.0001);
     auto g_l = double(gl); // just safety
     auto gI = mu / I_nuc;
     auto K = (l_pn * (l_pn + 1.0) - (3. / 4.)) / (I_nuc * (I_nuc + 1.0));
     const double g_s = (2.0 * gI - g_l * (K + 1.0)) / (1.0 - K);
-    std::cout << "gs=" << g_s << "\n";
+    std::cout << "BW using: gl=" << g_l << ", gs=" << g_s << ", l=" << l_pn
+              << ", gI=" << gI << " (I=" << I_nuc << ")\n";
     const double factor =
-        (two_I == two_l + 1) // assert?
+        (two_I == two_l + 1)
             ? g_s * (1 - two_I) / (4.0 * (two_I + 2)) + g_l * 0.5 * (two_I - 1)
             : g_s * (3 + two_I) / (4.0 * (two_I + 2)) +
                   g_l * 0.5 * two_I * (two_I + 3) / (two_I + 2);
+    if (two_I != two_l + 1 && two_I != two_l - 1) {
+      std::cerr << "\nFAIL:59 in HyperfineOperator (generate_F_BW):\n "
+                   "we must have I = l +/- 1/2, but we have: I,l = "
+                << I_nuc << "," << l_pn << "\n";
+      return [](double, double) { return 0.0; };
+    }
     return [=](double r, double rN) {
       return (r > rN) ? 1. / (r * r)
                       : (r / (rN * rN * rN)) *
                             (1.0 - (3.0 / mu) * std::log(r / rN) * factor);
     };
-    // return lam;
   }
 
   static inline auto generate_F_BW_doublyOdd(double mut, double It, double mu1,
@@ -77,7 +83,7 @@ public: // F(r) functions XXX NOTE: not F, include 1/r^2 !!!
     auto g2 = (g1 * (K + 1.0) - 2.0 * gt) / (K - 1.0);
     auto mu2 = g2 * I2;
     auto gl2 = (gl1 == 0) ? 1 : 0;
-    auto F1 = generate_F_BW(mu1, I1, l1, gl1); // will these survive??
+    auto F1 = generate_F_BW(mu1, I1, l1, gl1);
     auto F2 = generate_F_BW(mu2, I2, l2, gl2);
     return [=](double r, double rN) {
       return (0.5 / gt) * (g1 * F1(r, rN) + g2 * F2(r, rN) +
