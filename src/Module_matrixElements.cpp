@@ -74,7 +74,8 @@ DiracOperator generateOperator(const std::string &operator_str,
       auto l_tmp = int(I_nuc + 0.5 + 0.0001);
       auto l = ((l_tmp % 2 == 0) == (pi == 1)) ? l_tmp : l_tmp - 1;
       l = input.get("l", l); // can override derived 'l' (not recommended)
-      auto gl = input.get<int>("gl");
+      auto gl_default = wf.Znuc() % 2 == 0 ? 0 : 1; // unparied proton?
+      auto gl = input.get<int>("gl", gl_default);
       std::cout << "Bohr-Weiskopf (Volotka formula) for valence";
       if (gl == 1)
         std::cout << " proton ";
