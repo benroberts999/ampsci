@@ -211,11 +211,19 @@ std::vector<DiracSEnken> listOfStates_nk(const std::string &in_list) {
       auto l_str = std::string(1, c);
       auto l = AtomInfo::symbol_to_l(l_str);
 
-      for (int n = l + 1; n <= n_max; ++n) {
-        if (l != 0)
+      // for (int n = l + 1; n <= n_max; ++n) {
+      //   if (l != 0)
+      //     state_list.emplace_back(n, l);
+      //   state_list.emplace_back(n, -l - 1);
+      // }
+
+      if (l != 0) {
+        for (int n = l + 1; n <= n_max; ++n)
           state_list.emplace_back(n, l);
-        state_list.emplace_back(n, -l - 1);
       }
+      for (int n = l + 1; n <= n_max; ++n)
+        state_list.emplace_back(n, -l - 1);
+
       n_str_previous = n_str;
       n_str = "";
     }

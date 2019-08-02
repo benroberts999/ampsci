@@ -9,6 +9,9 @@
 #include <fstream>
 #include <iostream>
 #include <string>
+//
+#include "Physics/PhysConst_constants.hpp"
+#include <cmath>
 
 namespace Module {
 
@@ -18,6 +21,34 @@ void runModules(const UserInput &input, const Wavefunction &wf,
   auto modules = input.module_list();
   for (const auto &module : modules) {
     runModule(module, wf, hf);
+  }
+}
+
+//******************************************************************************
+void Module_BohrWeisskopf(const UserInputBlock &input, const Wavefunction &wf)
+//
+{
+  UserInputBlock point_in("MatrixElements::hfs", input);
+  UserInputBlock ball_in("MatrixElements::hfs", input);
+  UserInputBlock BW_in("MatrixElements::hfs", input);
+  point_in.add("F(r)=pointlike");
+  ball_in.add("F(r)=ball");
+  if (wf.Anuc() % 2 == 0)
+    BW_in.add("F(r)=doublyOddBW");
+  else
+    BW_in.add("F(r)=VolotkaBW");
+  auto point = matrixElements(point_in, wf);
+  auto ball = matrixElements(ball_in, wf);
+  auto bohrW = matrixElements(BW_in, wf);
+
+  std::cout << "\nTabulate Bohr-Weisskopf effect: " << wf.atom() << "\n"
+            << "state :   point     ball       BW     F_BW\n";
+  // 7s_1/2: 6191.47  6024.86  6082.32  -7.5899
+  for (unsigned i = 0; i < point.size(); i++) {
+    auto nlj = wf.valence_orbitals[i].symbol();
+    auto Fbw = ((bohrW[i] / point[i]) - 1.0) * M_PI * PhysConst::c;
+    printf("%6s: %7.2f  %7.2f  %7.2f  %7.3f\n", nlj.c_str(), point[i], ball[i],
+           bohrW[i], Fbw);
   }
 }
 
@@ -35,6 +66,8 @@ void runModule(const UserInputBlock &module_input, const Wavefunction &wf,
     Module_WriteOrbitals(module_input, wf, hf);
   } else if (module_name == "Module::AtomicKernal") {
     atomicKernal(module_input, wf);
+  } else if (module_name == "Module::BohrWeisskopf") {
+    Module_BohrWeisskopf(module_input, wf);
   } else {
     std::cerr << "\nWARNING: Module `" << module_name
               << "' not known. Spelling mistake?\n";

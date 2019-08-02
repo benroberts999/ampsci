@@ -13,7 +13,8 @@
 
 namespace Module {
 
-void matrixElements(const UserInputBlock &input, const Wavefunction &wf) {
+std::vector<double> matrixElements(const UserInputBlock &input,
+                                   const Wavefunction &wf) {
 
   // XXX For now, only works for diagonal, just RADIAL INT!
   // XXX Need better way to deal with angular part? Output either RadInt of
@@ -25,6 +26,8 @@ void matrixElements(const UserInputBlock &input, const Wavefunction &wf) {
   std::cout << "\n" << ThisModule << " Operator: " << operator_str << "\n";
   auto h = generateOperator(operator_str, input, wf);
 
+  std::vector<double> matrix_elements; // good idea?
+  matrix_elements.reserve(wf.valence_orbitals.size());
   for (const auto &psi : wf.valence_orbitals) {
 
     auto factor = 1.0;
@@ -32,8 +35,11 @@ void matrixElements(const UserInputBlock &input, const Wavefunction &wf) {
       double j = psi.j();
       factor = psi.k / (j * (j + 1.));
     }
-    std::cout << psi.symbol() << " ; R = " << psi * (h * psi) * factor << "\n";
+    auto me = psi * (h * psi) * factor;
+    matrix_elements.push_back(me);
+    std::cout << psi.symbol() << " ; R = " << me << "\n";
   }
+  return matrix_elements; // make this optional somehow?
 } // namespace Module
 
 //******************************************************************************
@@ -57,10 +63,12 @@ DiracOperator generateOperator(const std::string &operator_str,
     auto r_nucau = r_nucfm / PhysConst::aB_fm;
     auto Fr_str = input.get<std::string>("F(r)", "ball");
 
-    std::cout << "Hyperfine structure:\n"
+    std::cout << "Hyperfine structure: " << wf.atom() << "\n"
               << "Using " << Fr_str << " nuclear distro for F(r)\n"
               << "w/ mu = " << mu << ", I = " << I_nuc << ", r_N = " << r_nucfm
               << "fm = " << r_nucau << "au  (r_rms=" << r_rmsfm << "fm)\n";
+    std::cout << "Points inside nucleus: " << wf.getRadialIndex(r_nucau)
+              << "\n";
     std::cout << "Units: MHz\n";
 
     auto Fr = HyperfineOperator::sphericalBall_F();
