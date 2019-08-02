@@ -61,64 +61,98 @@ public: // Methods
     return ostring1 + ostring2;
   }
 
-  void normalise() {
-    double norm = 1. / sqrt((*this) * (*this));
-    for (auto &fa_r : f)
-      fa_r *= norm;
-    for (auto &ga_r : g)
-      ga_r *= norm;
+  double norm() const { return sqrt((*this) * (*this)); }
+
+  void scale(const double factor) {
+    for (auto &f_r : f)
+      f_r *= factor;
+    for (auto &g_r : g)
+      g_r *= factor;
   }
 
-public: // comparitor overloads
-  // Define the custom comparitors (based on n and k)
-  // Is there a way to do this all together?
-  bool operator==(const DiracSpinor &other) const {
-    return n == other.n && k == other.k;
+  void normalise(double norm_to = 1.0) {
+    double rescale_factor = norm_to / norm();
+    scale(rescale_factor);
   }
-  bool operator!=(const DiracSpinor &other) const { return !(*this == other); }
-
-  // Note: these are a little slow
-  bool operator<(const DiracSpinor &other) const {
-    if (n == other.n)
-      return AtomInfo::indexFromKappa(k) < AtomInfo::indexFromKappa(other.k);
-    return n < other.n;
-  }
-  bool operator>=(const DiracSpinor &other) const { return !(*this < other); }
-  bool operator>(const DiracSpinor &other) const {
-    if (n == other.n)
-      return AtomInfo::indexFromKappa(k) > AtomInfo::indexFromKappa(other.k);
-    return n > other.n;
-  }
-  bool operator<=(const DiracSpinor &other) const { return !(*this > other); }
 
 public: // Operator overloads
-  double operator*(const DiracSpinor &other) const {
-    int pinf = 0; // XXX goes to ngp...ok?
-
+  double operator*(const DiracSpinor &rhs) const {
     // Change the relative sign based in Complex f or g component
     // (includes complex conjugation of lhs)
-    int ffs = ((!this->imaginary_g) && (other.imaginary_g)) ? -1 : 1;
-    int ggs = ((this->imaginary_g) && (!other.imaginary_g)) ? -1 : 1;
-
-    auto ff =
-        NumCalc::integrate(this->f, other.f, this->p_rgrid->drdu, 1, 0, pinf);
-    auto gg =
-        NumCalc::integrate(this->g, other.g, this->p_rgrid->drdu, 1, 0, pinf);
-    return (ffs * ff + ggs * gg) * this->p_rgrid->du;
+    int ffs = ((!imaginary_g) && rhs.imaginary_g) ? -1 : 1;
+    int ggs = (imaginary_g && !rhs.imaginary_g) ? -1 : 1;
+    auto ff = NumCalc::integrate(f, rhs.f, p_rgrid->drdu, 1, 0, 0);
+    auto gg = NumCalc::integrate(g, rhs.g, p_rgrid->drdu, 1, 0, 0);
+    return (ffs * ff + ggs * gg) * p_rgrid->du;
   }
-  DiracSpinor operator+(const DiracSpinor &other) const {
-    DiracSpinor sum(other.n, other.k, *other.p_rgrid, other.imaginary_g);
-    sum.pinf = other.pinf; //?
-    sum.en = other.en;     //?
-    if (other.imaginary_g != this->imaginary_g) {
-      std::cerr << "\nFAIL92 in DiracSpinor. Trying to add (re,im)+(im,re)!\n";
-      std::cout << other.imaginary_g << " " << this->imaginary_g << "\n";
-      std::abort();
+
+  DiracSpinor &operator+=(const DiracSpinor &rhs) {
+    for (std::size_t i = 0; i < p_rgrid->ngp; i++)
+      f[i] += rhs.f[i];
+    for (std::size_t i = 0; i < p_rgrid->ngp; i++)
+      g[i] += rhs.g[i];
+    return *this;
+  }
+  friend DiracSpinor operator+(DiracSpinor lhs, const DiracSpinor &rhs) {
+    lhs += rhs;
+    return lhs;
+  }
+  DiracSpinor &operator-=(const DiracSpinor &rhs) {
+    for (std::size_t i = 0; i < p_rgrid->ngp; i++)
+      f[i] -= rhs.f[i];
+    for (std::size_t i = 0; i < p_rgrid->ngp; i++)
+      g[i] -= rhs.g[i];
+    return *this;
+  }
+  friend DiracSpinor operator-(DiracSpinor lhs, const DiracSpinor &rhs) {
+    lhs -= rhs;
+    return lhs;
+  }
+
+  DiracSpinor &operator*=(const double x) {
+    scale(x);
+    return *this;
+  }
+  friend DiracSpinor operator*(DiracSpinor lhs, const double x) {
+    lhs *= x;
+    return lhs;
+  }
+  friend DiracSpinor operator*(const double x, DiracSpinor rhs) {
+    rhs *= x;
+    return rhs;
+  }
+  //
+  DiracSpinor &operator=(const DiracSpinor &other) {
+    if (this != &other) {
+      en = other.en;
+      f = other.f;
+      g = other.g;
+      pinf = other.pinf;
     }
-    for (std::size_t i = 0; i < other.p_rgrid->ngp; i++) {
-      sum.f[i] = this->f[i] + other.f[i];
-      sum.g[i] = this->g[i] + other.g[i];
-    }
-    return sum;
+    return *this;
   }
 };
+
+//******************************************************************************
+// comparitor overloads:
+
+inline bool operator==(const DiracSpinor &lhs, const DiracSpinor &rhs) {
+  return lhs.n == rhs.n && lhs.k == rhs.k;
+}
+inline bool operator!=(const DiracSpinor &lhs, const DiracSpinor &rhs) {
+  return !(lhs == rhs);
+}
+inline bool operator<(const DiracSpinor &lhs, const DiracSpinor &rhs) {
+  if (lhs.n == rhs.n)
+    return AtomInfo::indexFromKappa(lhs.k) < AtomInfo::indexFromKappa(rhs.k);
+  return lhs.n < rhs.n;
+}
+inline bool operator>(const DiracSpinor &lhs, const DiracSpinor &rhs) {
+  return rhs < lhs;
+}
+inline bool operator<=(const DiracSpinor &lhs, const DiracSpinor &rhs) {
+  return !(lhs > rhs);
+}
+inline bool operator>=(const DiracSpinor &lhs, const DiracSpinor &rhs) {
+  return !(lhs < rhs);
+}
