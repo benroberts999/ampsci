@@ -233,4 +233,51 @@ inline double integrate(const C &f1, const C &f2, const C &f3, const C &f4,
 
 } // END integrate 4
 
+//******************************************************************************
+enum Direction { zero_to_r, r_to_inf };
+template <Direction direction, typename Real>
+inline void
+additivePIntegral(std::vector<Real> &answer, const std::vector<Real> &f,
+                  const std::vector<Real> &g, const std::vector<Real> &h,
+                  const Grid &gr, std::size_t pinf = 0)
+//  answer(r) += f(r) * Int[g(r')*h(r') , {r',0,r}]
+// Note '+=' - this is additive!
+// Note: vector answer must ALREADY exist, and be correctly initialised!
+// XXX later: be able to call with just f,g or just g ?
+{
+  const auto size = g.size();
+  if (pinf == 0 || pinf >= size)
+    pinf = size - 1;
+  const auto max = static_cast<int>(pinf); // must be signed
+
+  constexpr const bool forward = (direction == zero_to_r);
+  constexpr const int inc = forward ? +1 : -1;
+  const int init = forward ? 0 : max;
+  const int fin = forward ? max : 0;
+
+  Real x = init < max ? 0.5 * g[init] * h[init] * gr.drdu[init] : 0.0;
+  answer[init] += f[init] * x * gr.du;
+  for (int i = init + inc; i != fin + inc; i += inc) {
+    if (i < pinf) {
+      x += 0.5 * (g[i - inc] * h[i - inc] * gr.drdu[i - inc] +
+                  g[i] * h[i] * gr.drdu[i]);
+    }
+    answer[i] += f[i] * x * gr.du;
+  }
+  if (fin < max)
+    answer[fin] += 0.5 * f[fin] * g[fin] * h[fin] * gr.drdu[fin] * gr.du;
+}
+//---
+template <Direction direction, typename Real>
+std::vector<Real> partialIntegral(const std::vector<Real> &f,
+                                  const std::vector<Real> &g,
+                                  const std::vector<Real> &h, const Grid &gr,
+                                  std::size_t pinf = 0)
+//
+{
+  std::vector<Real> answer(f.size(), 0.0);
+  additivePIntegral(answer, f, g, h, gr, pinf);
+  return answer;
+}
+
 } // namespace NumCalc
