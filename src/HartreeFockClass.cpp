@@ -237,13 +237,13 @@ void HartreeFock::solveValence(DiracSpinor &phi, std::vector<double> &vexa)
     }
     en_new_guess = en_old + en_new_guess * p_rgrid->du * de_stride;
     // Solve Dirac using new potential:
-    p_wf->solveDirac(phi, en_new_guess, vexa, 12);
+    p_wf->solveDirac(phi, en_new_guess, vexa, 15);
     eps = fabs((phi.en - en_old) / en_old);
     // Force valence states to be orthogonal to core:
     p_wf->orthonormaliseWrtCore(phi);
 
     auto getting_worse = (hits > 20 && eps >= eps_prev);
-    auto converged = (eps < m_eps_HF);
+    auto converged = (eps <= m_eps_HF);
     if (converged || getting_worse)
       break;
     eps_prev = eps;
@@ -476,8 +476,10 @@ DiracSpinor HartreeFock::vex_psia(const DiracSpinor &phi_a) const
   auto ki_a = phi_a.k_index();
   auto twoj_a = phi_a.twoj();
 
+  // XXX Add overload, so can re-use memory!
   DiracSpinor vexPsi(phi_a.n, phi_a.k, *(phi_a.p_rgrid));
 
+  std::size_t init = phi_a.k == -1 ? 0 : 1; //?
   if (!m_excludeExchange) {
     for (const auto &phi_b : p_wf->core_orbitals) {
       auto tjb = phi_b.twoj();
@@ -490,7 +492,7 @@ DiracSpinor HartreeFock::vex_psia(const DiracSpinor &phi_a) const
       for (int k = kmin; k <= kmax; k++) {
         if (L_ab_k[k - kmin] == 0)
           continue;
-        for (std::size_t i = 0; i < irmax; i++) {
+        for (auto i = init; i < irmax; i++) {
           auto v = -x_tjbp1 * L_ab_k[k - kmin] * vabk[k - kmin][i];
           vexPsi.f[i] += v * phi_b.f[i];
           vexPsi.g[i] += v * phi_b.g[i];

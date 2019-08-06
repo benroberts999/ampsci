@@ -189,6 +189,7 @@ void diracODE_regularAtOrigin(DiracSpinor &phi, const double en,
     phi.f[i] = 0;
     phi.g[i] = 0;
   }
+  phi.pinf = pinf;
 }
 //******************************************************************************
 void diracODE_regularAtInfinity(DiracSpinor &phi, const double en,
@@ -204,6 +205,7 @@ void diracODE_regularAtInfinity(DiracSpinor &phi, const double en,
     phi.f[i] = 0;
     phi.g[i] = 0;
   }
+  phi.pinf = pinf;
 }
 
 //******************************************************************************
