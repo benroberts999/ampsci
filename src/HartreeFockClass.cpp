@@ -1,8 +1,11 @@
 #include "HartreeFockClass.hpp"
+#include "Adams/Adams_bound.hpp"
 #include "CoulombIntegrals.hpp"
+#include "DiracOperator.hpp"
 #include "DiracSpinor.hpp"
 #include "Grid.hpp"
 #include "NumCalc_quadIntegrate.hpp"
+#include "Operators.hpp"
 #include "Parametric_potentials.hpp"
 #include "Physics/AtomInfo.hpp"
 #include "Physics/Wigner_369j.hpp"
@@ -171,7 +174,7 @@ void HartreeFock::hartree_fock_core() {
     t_eps_prev = t_eps;
   } // hits
   if (verbose)
-    printf("\rHF core        it:%3i eps=%6.1e              \n", hits, t_eps);
+    printf("\rHF core      it:%3i eps=%6.1e              \n", hits, t_eps);
 
   // Now, re-solve core orbitals with higher precission
   for (std::size_t i = 0; i < p_wf->core_orbitals.size(); i++) {
@@ -179,6 +182,9 @@ void HartreeFock::hartree_fock_core() {
                      vex_core[i], 15);
   }
   p_wf->orthonormaliseOrbitals(p_wf->core_orbitals, 2);
+
+  if (!m_excludeExchange)
+    refine_core_orbitals_exchange();
 }
 
 //******************************************************************************
@@ -198,7 +204,6 @@ void HartreeFock::solveValence(DiracSpinor &phi, std::vector<double> &vexa)
 // Does not store vex (must be done outside)
 // Can be used to generate a set of virtual/basis orbitals
 {
-
   auto kappa = phi.k;
   int twoJplus1 = AtomInfo::twoj_k(kappa) + 1;
   phi.occ_frac = 1. / twoJplus1;
@@ -255,6 +260,9 @@ void HartreeFock::solveValence(DiracSpinor &phi, std::vector<double> &vexa)
   // Re-solve w/ higher precission
   p_wf->solveDirac(phi, phi.en, vexa, 15);
   p_wf->orthonormaliseWrtCore(phi);
+
+  if (!m_excludeExchange)
+    refine_valence_orbital_exchange(phi);
 }
 
 //******************************************************************************
@@ -502,4 +510,230 @@ DiracSpinor HartreeFock::vex_psia(const DiracSpinor &phi_a) const
   }
 
   return vexPsi;
+}
+
+//******************************************************************************
+//******************************************************************************
+//******************************************************************************
+
+//******************************************************************************
+void HartreeFock::iterate_core_orbital(
+    DiracSpinor &phi, const std::vector<double> &vl, const double alpha,
+    const DiracOperator &cg5dr, const DiracOperator &inv_r,
+    const DiracOperator &c2Img0, const DiracOperator &Vnuc,
+    const DiracOperator &Vd, const DiracOperator &fVdir0) const {
+
+  const auto eps_target = 1.0e-14;
+
+  const int n = phi.n;
+  const int k = phi.k;
+  const double c = 1. / alpha;
+
+  const DiracOperator cg5_pmk(c, DiracMatrix(0, 1 - k, 1 + k, 0), 0, true);
+
+  const int max_ini = 99;
+  double prev_inner_eps = 1.0;
+  auto phi0 = DiracSpinor(n, k, *(phi.p_rgrid));
+  auto phiI = DiracSpinor(n, k, *(phi.p_rgrid));
+  for (int ini = 0; ini <= max_ini; ini++) {
+
+    auto en = phi.en;
+    const auto vexPsi = vex_psia(phi);
+    const auto Sr = (fVdir0 * phi) - (Vd * phi) - vexPsi;
+
+    const auto rhs = (phi * (cg5dr * phi))               //
+                     + (phi * (inv_r * (cg5_pmk * phi))) //
+                     + (phi * (c2Img0 * phi))            //
+                     + (phi * (Vnuc * phi))              //
+                     + (phi * (Vd * phi))                //
+                     + (phi * vexPsi);                   //
+    en = rhs;                                            //(phi * rhs);
+
+    auto inner_eps = fabs((en - phi.en) / phi.en);
+    bool inner_converged = (inner_eps <= eps_target || ini == max_ini);
+    bool inner_getting_worse = (inner_eps > 1.1 * prev_inner_eps && ini > 10);
+    if (prev_inner_eps > inner_eps)
+      prev_inner_eps = inner_eps;
+    if (inner_converged || inner_getting_worse) {
+      phi.en = en;
+      phi.eps = inner_eps;
+      phi.its = ini;
+      break;
+    }
+
+    Adams::diracODE_regularAtOrigin(phi0, en, vl, alpha);
+    Adams::diracODE_regularAtInfinity(phiI, en, vl, alpha);
+    yfun(phi, phiI, phi0, Sr);
+    phi.normalise();
+
+    phi.en = en;
+  }
+}
+
+//******************************************************************************
+inline void HartreeFock::refine_valence_orbital_exchange(DiracSpinor &phi) {
+
+  auto eps_target = 1.0e-14;
+  const auto a_damp = 0.1;
+
+  double c = 1. / p_wf->get_alpha();
+  DiracOperator cg5dr(c, GammaMatrix::g5, 1, true);
+  RadialOperator inv_r(p_wf->rgrid, -1);
+  DiracOperator c2Img0(c * c, DiracMatrix(0, 0, 0, -2));
+  DiracOperator Vnuc(p_wf->vnuc);
+  DiracOperator Vd(p_wf->vdir);
+
+  const int n = phi.n;
+  const int k = phi.k;
+  DiracOperator cg5_pmk(c, DiracMatrix(0, 1 - k, 1 + k, 0), 0, true);
+
+  auto vl = p_wf->vnuc;
+  for (unsigned i = 0; i < vl.size(); i++) {
+    vl[i] += p_wf->vdir[i];
+  }
+
+  auto prev_en = phi.en;
+
+  m_cint.form_core_valence(phi); // only needed if not already done!
+
+  double eps_prev = 1.0;
+  auto en = phi.en;
+
+  auto phi0 = DiracSpinor(n, k, p_wf->rgrid);
+  auto phiI = DiracSpinor(n, k, p_wf->rgrid);
+
+  for (int it = 0; it < 99; ++it) {
+    auto vexPsi = vex_psia(phi);
+    auto Sr = -1.0 * vexPsi;
+
+    auto rhs = (cg5dr * phi) + (inv_r * (cg5_pmk * phi)) + (c2Img0 * phi) +
+               (Vnuc * phi) + (Vd * phi) + vexPsi;
+    en = phi * rhs;
+    auto eps = fabs((prev_en - en) / en);
+
+    bool getting_worse = (it > 20 && eps >= 2.0 * eps_prev);
+    bool converged = (eps <= eps_target && it > 0);
+    if (converged || getting_worse || it == 98) {
+      phi.en = en;
+      phi.eps = eps;
+      phi.its = it;
+      // std::cout << phi.symbol() << " " << it << "*: de= " << en - prev_en
+      //           << "    en=" << en << "  eps=" << eps << "\n";
+      if (verbose)
+        printf("\rrefine: %2i %2i | %3i eps=%6.1e  en=%11.8f\n", n, k, it, eps,
+               phi.en);
+      break;
+    }
+    if (eps < eps_prev)
+      eps_prev = eps;
+    prev_en = en;
+
+    auto oldphi = phi;
+    Adams::diracODE_regularAtOrigin(phi0, en, vl, p_wf->get_alpha());
+    Adams::diracODE_regularAtInfinity(phiI, en, vl, p_wf->get_alpha());
+    yfun(phi, phiI, phi0, Sr);
+
+    phi.normalise();
+    phi = a_damp * oldphi + (1.0 - a_damp) * phi;
+
+    phi.en = en;
+    p_wf->orthonormaliseWrtCore(phi);
+    m_cint.form_core_valence(phi);
+  }
+  p_wf->orthonormaliseWrtCore(phi);
+
+  return;
+}
+
+//******************************************************************************
+inline void HartreeFock::refine_core_orbitals_exchange() {
+
+  const double c = 1. / p_wf->get_alpha();
+  const DiracOperator cg5dr(c, GammaMatrix::g5, 1, true);
+  const RadialOperator inv_r(p_wf->rgrid, -1);
+  const DiracOperator c2Img0(c * c, DiracMatrix(0, 0, 0, -2));
+  const DiracOperator Vnuc(p_wf->vnuc);
+
+  const double eps_target = 1.0e-14;
+
+  m_cint.form_core_core(); // only needed if not already done!
+
+  const auto a_damp = 0.2;
+  double prev_eps = 1.0;
+  auto total_its = 0;
+  for (int it = 0; it < 250; it++) {
+
+    const auto f_core = double(p_wf->Ncore() - 1) / double(p_wf->Ncore());
+    const DiracOperator fVdir0(f_core, p_wf->vdir); // for energy guess
+    auto vl_tmp = p_wf->vnuc;
+    for (unsigned i = 0; i < vl_tmp.size(); i++) {
+      vl_tmp[i] += f_core * p_wf->vdir[i];
+    }
+    const auto vl = vl_tmp;
+    const DiracOperator Vd(p_wf->vdir);
+
+    std::vector<double> prior_en_list;
+    for (auto &phi : p_wf->core_orbitals) {
+      // note: can't parallelise -- not thread safe
+      prior_en_list.push_back(phi.en);
+      auto oldphi = phi;
+      iterate_core_orbital(phi, vl, p_wf->get_alpha(), cg5dr, inv_r, c2Img0,
+                           Vnuc, Vd, fVdir0);
+      phi = (1.0 - a_damp) * phi + a_damp * oldphi;
+    }
+
+    double eps = 0.0;
+    auto tot_inner_its = 0;
+    for (std::size_t i = 0; i < p_wf->core_orbitals.size(); i++) {
+      auto en_this = p_wf->core_orbitals[i].en;
+      tot_inner_its += p_wf->core_orbitals[i].its;
+      auto en_prev = prior_en_list[i];
+      auto d_eps = fabs((en_prev - en_this) / en_this);
+      if (d_eps > eps)
+        eps = d_eps;
+    }
+    if (eps < prev_eps)
+      prev_eps = eps;
+
+    total_its += tot_inner_its;
+
+    bool getting_worse = (it > 20 && eps > 1.1 * prev_eps);
+    bool converged = ((eps <= eps_target && it > 0) || it == 98);
+    if (converged || getting_worse) {
+      // std::cout << it << "*:Core:   eps=" << eps << "\n";
+      if (verbose)
+        printf("\rrefine core  it:%3i eps=%6.1e              \n", it, eps);
+      break;
+    }
+    p_wf->orthonormaliseOrbitals(p_wf->core_orbitals);
+    m_cint.form_core_core();
+    form_vdir(p_wf->vdir);
+  }
+  p_wf->orthonormaliseOrbitals(p_wf->core_orbitals, 2);
+}
+
+//******************************************************************************
+void HartreeFock::yfun(DiracSpinor &phi, const DiracSpinor &phi1,
+                       const DiracSpinor &phi2, const DiracSpinor &Sr) const {
+
+  // Wronskian. Note: in current method: only need the SIGN
+  int pp = int(0.65 * double(phi1.pinf));
+  auto w2 = (phi1.f[pp] * phi2.g[pp] - phi2.f[pp] * phi1.g[pp]);
+
+  // save typing:
+  const auto &gr = *phi.p_rgrid;
+  constexpr auto ztr = NumCalc::zero_to_r;
+  constexpr auto rti = NumCalc::r_to_inf;
+
+  phi *= 0.0;
+  // XXX add back pinf! faster? Correct?
+  NumCalc::additivePIntegral<ztr>(phi.f, phi1.f, phi2.f, Sr.f, gr);
+  NumCalc::additivePIntegral<ztr>(phi.f, phi1.f, phi2.g, Sr.g, gr);
+  NumCalc::additivePIntegral<rti>(phi.f, phi2.f, phi1.f, Sr.f, gr);
+  NumCalc::additivePIntegral<rti>(phi.f, phi2.f, phi1.g, Sr.g, gr);
+  NumCalc::additivePIntegral<ztr>(phi.g, phi1.g, phi2.f, Sr.f, gr);
+  NumCalc::additivePIntegral<ztr>(phi.g, phi1.g, phi2.g, Sr.g, gr);
+  NumCalc::additivePIntegral<rti>(phi.g, phi2.g, phi1.f, Sr.f, gr);
+  NumCalc::additivePIntegral<rti>(phi.g, phi2.g, phi1.g, Sr.g, gr);
+  phi *= (1.0 / w2);
 }

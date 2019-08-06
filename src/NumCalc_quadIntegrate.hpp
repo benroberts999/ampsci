@@ -2,6 +2,7 @@
 #include <array>
 #include <iostream>
 #include <vector>
+class Grid;
 
 namespace NumCalc {
 
@@ -258,10 +259,8 @@ additivePIntegral(std::vector<Real> &answer, const std::vector<Real> &f,
   Real x = init < max ? 0.5 * g[init] * h[init] * gr.drdu[init] : 0.0;
   answer[init] += f[init] * x * gr.du;
   for (int i = init + inc; i != fin + inc; i += inc) {
-    if (i < pinf) {
-      x += 0.5 * (g[i - inc] * h[i - inc] * gr.drdu[i - inc] +
-                  g[i] * h[i] * gr.drdu[i]);
-    }
+    x += 0.5 * (g[i - inc] * h[i - inc] * gr.drdu[i - inc] +
+                g[i] * h[i] * gr.drdu[i]);
     answer[i] += f[i] * x * gr.du;
   }
   if (fin < max)

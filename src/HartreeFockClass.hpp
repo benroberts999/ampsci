@@ -4,6 +4,7 @@
 #include <vector>
 class Wavefunction;
 class DiracSpinor;
+class DiracOperator;
 class Grid;
 
 /*
@@ -74,4 +75,15 @@ private:
   void form_approx_vex_core(std::vector<std::vector<double>> &vex) const;
   void form_approx_vex_a(const DiracSpinor &phi_a,
                          std::vector<double> &vex_a) const;
+
+  void refine_core_orbitals_exchange();
+  void refine_valence_orbital_exchange(DiracSpinor &phi);
+  void iterate_core_orbital(DiracSpinor &phi, const std::vector<double> &vl,
+                            const double alpha, const DiracOperator &cg5dr,
+                            const DiracOperator &inv_r,
+                            const DiracOperator &c2Img0,
+                            const DiracOperator &Vnuc, const DiracOperator &Vd,
+                            const DiracOperator &fVdir0) const;
+  void yfun(DiracSpinor &phi, const DiracSpinor &phi1, const DiracSpinor &phi2,
+            const DiracSpinor &Sr) const;
 };
