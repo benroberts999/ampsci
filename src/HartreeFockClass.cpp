@@ -38,7 +38,8 @@ HartreeFock::HartreeFock(HFMethod method, Wavefunction &wf,
         return (method == HFMethod::HartreeFock || method == HFMethod::ApproxHF)
                    ? false
                    : true;
-      }())
+      }()), //
+      m_method(method)
 //
 {
 
@@ -70,7 +71,8 @@ HartreeFock::HartreeFock(Wavefunction &wf,
       m_eps_HF([=]() { // can give as log..
         return (fabs(eps_HF) < 1) ? eps_HF : pow(10, -1 * eps_HF);
       }()),
-      m_excludeExchange(in_ExcludeExchange)
+      m_excludeExchange(in_ExcludeExchange), //
+      m_method(HFMethod::HartreeFock)
 // Core must already exist to use this one!
 // Call it something else??
 {
@@ -101,6 +103,8 @@ void HartreeFock::hartree_fock_core() {
     p_wf->vdir = std::vector<double>(p_wf->rgrid.ngp, 0);
     return;
   }
+
+  double eps_target_HF = (m_method == HFMethod::ApproxHF) ? m_eps_HF : 1.0e-5;
 
   static const double eta1 = 0.35;
   static const double eta2 = 0.7; // this value after 4 its
@@ -175,7 +179,7 @@ void HartreeFock::hartree_fock_core() {
     // Force all core orbitals to be orthogonal to each other
     p_wf->orthonormaliseOrbitals(p_wf->core_orbitals, 1);
     auto getting_worse = (hits > 20 && t_eps > t_eps_prev);
-    auto converged = (t_eps < m_eps_HF);
+    auto converged = (t_eps < eps_target_HF);
     if (converged || getting_worse)
       break;
     t_eps_prev = t_eps;
@@ -214,6 +218,8 @@ void HartreeFock::solveValence(DiracSpinor &phi, std::vector<double> &vexa)
   auto kappa = phi.k;
   int twoJplus1 = AtomInfo::twoj_k(kappa) + 1;
   phi.occ_frac = 1. / twoJplus1;
+
+  double eps_target_HF = (m_method == HFMethod::ApproxHF) ? m_eps_HF : 1.0e-5;
 
   static const double eta1 = 0.35;
   static const double eta2 = 0.7; // this value after 4 its
@@ -255,7 +261,7 @@ void HartreeFock::solveValence(DiracSpinor &phi, std::vector<double> &vexa)
     p_wf->orthonormaliseWrtCore(phi);
 
     auto getting_worse = (hits > 20 && eps >= eps_prev);
-    auto converged = (eps <= m_eps_HF);
+    auto converged = (eps <= eps_target_HF);
     if (converged || getting_worse)
       break;
     eps_prev = eps;

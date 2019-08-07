@@ -60,6 +60,7 @@ private:
 
   static const int MAX_HART_ITS = 99;
   const bool m_excludeExchange; // for testing
+  const HFMethod m_method;
 
   // The "localised"/approximate HF potential:
   std::vector<std::vector<double>> appr_vex_core;
