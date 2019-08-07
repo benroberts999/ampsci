@@ -34,6 +34,8 @@ int main(int argc, char *argv[]) {
   std::vector<DiracSEnken> states;
   std::vector<DiracSEnken> val_states;
   bool fit_worst;
+  GridParameters gp(ngp, r0, rmax, 3.5, GridType::loglinear);
+  Nuclear::Parameters nuc_params(Z, A); // just gets default values
 
   auto in_str_list = FileIO::readInputFile_byEntry(input_file);
   {
@@ -77,7 +79,7 @@ int main(int argc, char *argv[]) {
   std::cout << "*********************************************************\n";
 
   if (do_HF) {
-    Wavefunction hfwf(Z, A, ngp, r0, rmax);
+    Wavefunction hfwf(Z, gp, nuc_params);
     HartreeFock hf(HFMethod::HartreeFock, hfwf, str_core, 1.e-9);
     for (auto &phi : hfwf.core_orbitals) {
       // // don't fit for both j=l+/-1/2, just one!
@@ -98,7 +100,7 @@ int main(int argc, char *argv[]) {
       printf("Tietz: \n  t=%7.5f  g=%7.5f\n\n", H, d);
 
     // Now, solve using the above-found best-fit parameters:
-    Wavefunction wf(Z, A, ngp, r0, rmax);
+    Wavefunction wf(Z, gp, nuc_params);
     if (green)
       for (auto r : wf.rgrid.r)
         wf.vdir.push_back(Parametric::green(Z, r, H, d));
@@ -137,7 +139,7 @@ int main(int argc, char *argv[]) {
       printf("Tietz: \n  t=%7.5f  g=%7.5f\n\n", H, d);
 
     // Now, solve using the above-found best-fit parameters:
-    Wavefunction wf(Z, A, ngp, r0, rmax);
+    Wavefunction wf(Z, gp, nuc_params);
     if (green)
       for (auto r : wf.rgrid.r)
         wf.vdir.push_back(Parametric::green(Z, r, H, d));
@@ -210,7 +212,7 @@ std::tuple<double, double> performFit(const std::vector<DiracSEnken> &states,
       double H = Hmin + n * dH;
       for (int m = 0; m < n_array; m++) {
         double d = dmin + m * dd;
-        Wavefunction wf(Z, A, ngp, r0, rmax);
+        Wavefunction wf(Z, gp, nuc_params);
         if (green)
           for (auto r : wf.rgrid.r)
             wf.vdir.push_back(Parametric::green(Z, r, H, d));

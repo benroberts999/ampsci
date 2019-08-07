@@ -11,6 +11,16 @@
 
 enum class GridType { loglinear, logarithmic, linear };
 
+struct GridParameters {
+  std::size_t ngp;
+  double r0, rmax, b;
+  GridType type;
+  GridParameters(std::size_t ngp, double r0, double rmax, double b = 3.5,
+                 GridType type = GridType::loglinear)
+      : ngp(ngp), r0(r0), rmax(rmax), b(b), type(type) //
+  {}
+};
+
 //******************************************************************************
 class Grid {
 
@@ -32,6 +42,7 @@ public:
 public:
   Grid(double in_r0, double in_rmax, std::size_t in_ngp, GridType in_gridtype,
        double in_b = 0);
+  Grid(const GridParameters &in);
 
   std::size_t getIndex(double x, bool require_nearest = false) const;
 
@@ -44,6 +55,16 @@ public:
   static std::size_t calc_ngp_from_du(double in_r0, double in_rmax,
                                       double in_du, GridType in_gridtype,
                                       double in_b = 0);
+
+  static inline GridType parseType(const std::string &str_type) {
+    if (str_type == "loglinear")
+      return GridType::loglinear;
+    if (str_type == "logarithmic")
+      return GridType::logarithmic;
+    if (str_type == "linear")
+      return GridType::linear;
+    return GridType::loglinear;
+  }
 
 protected:
   // secondary constructor: used for derivated class
@@ -65,6 +86,29 @@ public:
 };
 
 //******************************************************************************
+inline Grid::Grid(const GridParameters &in)
+    : r0(in.r0), rmax(in.rmax), ngp(in.ngp),
+      du(calc_du_from_ngp(in.r0, in.rmax, in.ngp, in.type, in.b)),
+      gridtype(in.type), b(in.b) {
+  r.reserve(ngp);
+  drdu.reserve(ngp);   // Jacobian:
+  drduor.reserve(ngp); //(1/r)*du/dr (just for convinience)
+
+  switch (gridtype) {
+  case GridType::loglinear:
+    form_loglinear_grid();
+    break;
+  case GridType::logarithmic:
+    form_logarithmic_grid();
+    break;
+  case GridType::linear:
+    form_linear_grid();
+    break;
+  default:
+    std::cerr << "\n FAIL 49 in Grid: no grid type?\n";
+  }
+}
+//------------------------------------------------------------------------------
 inline Grid::Grid(double in_r0, double in_rmax, std::size_t in_ngp,
                   GridType in_gridtype, double in_b)
     : r0(in_r0), rmax(in_rmax), ngp(in_ngp),

@@ -1,22 +1,29 @@
 Atom {
   Z = Cs;
+  A;
   varAlpha2;
 }
 
-Nucleus { A; }
-
 HartreeFock {
-  Core = [Xe];
+  core = [Xe];
   valence = 7sp5d;
   sortOutput;
-  Method; // HartreeFock(dflt), ApproxHF, Hartree, GreenPRM, TietzPRM
-  Convergence = 1.0e-12;
+  method; // HartreeFock(dflt), ApproxHF, Hartree, GreenPRM, TietzPRM
+  convergence = 1.0e-13;
+}
+
+Nucleus {
+  rrms;
+  skin_t;
+  type; // Fermi (dflt), spherical, zero
 }
 
 Grid {
-  r0 = 1.0e-5;
-  rmax = 150.;
-  ngp = 2000;
+  r0 = 1e-5;
+  rmax = 150.0;
+  ngp = 1600;
+  type; // loglinear(dflt), logarithmic, linear
+  b;
 }
 
 /////////////////////////////////////////////////////////////////
@@ -32,23 +39,25 @@ Grid {
   gl; // VolotkaBW
 }
 
-// MatrixElements::hfs
+// Module::BohrWeisskopf
 {
-  F(r) = doublyOddBW; // ball, shell, pointlike, VolotkaBW, doublyOddBW
   mu;
   I;
   rrms;
+  // only used for doubly-odd (current values for 212-Fr)
   mu1 = 4.00;
   I1 = 4.5;
   l1 = 5.;
   gl1 = 1;
   I2 = 0.5;
   l2 = 1.;
-  printF = true;
+  printF = false;
 }
 
 // MatrixElements::r
 { power = 1; }
+// MatrixElements::r
+{ power = -1; }
 
 /////////////////////////////////////////////////////////////////
 // Module::AtomicKernal

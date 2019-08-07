@@ -19,17 +19,30 @@ int main(int argc, char *argv[]) {
 
   // Input options
   UserInput input(input_file);
+
   auto atom = input.get<std::string>("Atom", "Z");
+  auto Z = AtomInfo::get_z(atom);
+  auto A = input.get("Atom", "A", -1);
   auto varalpha = sqrt(input.get("Atom", "varAlpha2", 1.0));
   if (varalpha == 0)
     varalpha = 1.0e-16;
+
   auto r0 = input.get("Grid", "r0", 1.0e-5);
   auto rmax = input.get("Grid", "rmax", 150.0);
   auto ngp = input.get("Grid", "ngp", 1600);
-  auto A = input.get("Nucleus", "A", -1);
+  auto b = input.get("Grid", "b", 3.5);
+  auto grid_type =
+      Grid::parseType(input.get<std::string>("Grid", "type", "loglinear"));
+  GridParameters grid_params(ngp, r0, rmax, b, grid_type);
 
-  auto Z = AtomInfo::get_z(atom);
-  Wavefunction wf(Z, A, ngp, r0, rmax, varalpha);
+  A = input.get("Nucleus", "A", A); /*over-writes "atom" A*/
+  auto nuc_type =
+      Nuclear::parseType(input.get<std::string>("Nucleus", "type", "Fermi"));
+  auto rrms = input.get("Nucleus", "rrms", -1.0); /*<0 means lookup default*/
+  auto skint = input.get("Nucleus", "skin_t", -1.0);
+  Nuclear::Parameters nuc_params(Z, A, nuc_type, rrms, skint);
+
+  Wavefunction wf(Z, grid_params, nuc_params, varalpha);
 
   std::cout << "\nRunning for ";
   std::cout << wf.atom() << "\n"
@@ -38,10 +51,10 @@ int main(int argc, char *argv[]) {
             << "********************************************************\n";
 
   // Parse input for HF method
-  auto str_core = input.get<std::string>("HartreeFock", "Core");
-  auto eps_HF = input.get("HartreeFock", "Convergence", 0.0);
+  auto str_core = input.get<std::string>("HartreeFock", "core");
+  auto eps_HF = input.get("HartreeFock", "convergence", 0.0);
   auto HF_method = HartreeFock::parseMethod(
-      input.get<std::string>("HartreeFock", "Method", "HartreeFock"));
+      input.get<std::string>("HartreeFock", "method", "HartreeFock"));
 
   // For when using Hartree, or a parametric potential:
   double H_d = 0.0, g_t = 0.0;

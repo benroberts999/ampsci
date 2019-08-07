@@ -11,8 +11,8 @@ static bool dummy_bool{};
 class Wavefunction {
 
 public:
-  Wavefunction(int in_z, int in_a, int in_ngp, double rmin, double rmax,
-               double var_alpha = 1);
+  Wavefunction(int in_z, const GridParameters &gridparams,
+               const Nuclear::Parameters &nuc_params, double var_alpha = 1);
 
 public:
   // orbitals:
@@ -21,21 +21,20 @@ public:
 
   const Grid rgrid;
 
-  // Potentials
-  std::vector<double> vnuc; // make const?
-  std::vector<double> vdir; // direct/local part of the electron potential
-
 private:
   // store internal value for alpha (allows variation)
   const double m_alpha;
   // Atom info:
-  const int m_Z, m_A;
-  // nuclus info:
-  double m_c, m_t;
+  const int m_Z, m_A; /*don't need A twice (its inside nucl params!)*/
+  Nuclear::Parameters m_nuc_params;
 
+public:
+  const std::vector<double> vnuc;
+  std::vector<double> vdir; // direct/local part of the electron potential
+
+private:
   // Core configuration (non-rel terms)
   std::vector<NonRelSEConfig> m_core_configs;
-
   int num_core_electrons = 0; // Nc = N - M
   std::string m_core_string = "";
 
@@ -60,9 +59,6 @@ public:
     return AtomInfo::niceCoreOutput(m_core_string);
   }
   std::string nuclearParams() const;
-  double get_rrms() const { return Nuclear::rrms_formula_c_t(m_c, m_t); };
-  double get_c() const { return m_c; }
-  double get_t() const { return m_t; }
 
   std::string atom() const {
     return AtomInfo::atomicSymbol(m_Z) + ", Z=" + std::to_string(m_Z) +
@@ -84,8 +80,8 @@ public:
                                            bool skip_core = true) const;
 
 public:
-  void formNuclearPotential(Nuclear::Type nucleus_type, double rc = 0,
-                            double t = 0);
+  // void formNuclearPotential(Nuclear::Type nucleus_type, double rc = 0,
+  //                           double t = 0);
 
   void solveDirac(DiracSpinor &psi, double e_a, const std::vector<double> &vex,
                   int log_dele_or = 0) const;

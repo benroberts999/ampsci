@@ -1,15 +1,31 @@
 #pragma once
 #include "../Grid.hpp"
 #include "../NumCalc_quadIntegrate.hpp"
+#include "AtomInfo.hpp" //:(
 #include "Nuclear_DataTable.hpp"
 #include "PhysConst_constants.hpp"
 #include <cmath>
 #include <gsl/gsl_sf_fermi_dirac.h>
+#include <string>
 #include <vector>
 
 namespace Nuclear {
 
 enum class Type { Fermi, spherical, zero };
+
+inline Type parseType(const std::string &str_type) {
+  if (str_type == "Fermi")
+    return Type::Fermi;
+  if (str_type == "spherical")
+    return Type::spherical;
+  if (str_type == "zero")
+    return Type::zero;
+  if (str_type == "point")
+    return Type::zero;
+  if (str_type == "pointlike")
+    return Type::zero;
+  return Type::Fermi;
+}
 
 //******************************************************************************
 inline Isotope findIsotopeData(int z, int a) {
@@ -32,7 +48,7 @@ inline std::vector<Isotope> findIsotopeList(int z) {
 inline double find_rrms(int z, int a) {
   auto nuc = findIsotopeData(z, a);
   if (!nuc.r_ok()) {
-    std::cerr << "\nWARNING 29 in Nuclear: bad radius! r=0\n";
+    // std::cerr << "\nWARNING 29 in Nuclear: bad radius! r=0\n";
     return 0;
   }
   return nuc.r_rms;
@@ -60,7 +76,7 @@ inline double find_spin(int z, int a) {
   auto nuc = findIsotopeData(z, a);
   if (!nuc.I_ok()) {
     std::cerr << "\nWARNING 39 in Nuclear: bad spin! I=-1\n";
-    return 0;
+    return -1.0;
   }
   return nuc.I_N;
 }
@@ -227,6 +243,62 @@ fermiNuclearDensity_tcN(double t, double c, double Z_norm, const Grid &grid)
   }
 
   return rho;
+}
+
+struct Parameters {
+  int z, a;
+  Nuclear::Type type;
+  double t;
+  double r_rms;
+  Parameters(int z, int in_a, Nuclear::Type type = Type::Fermi,
+             double inrrms = -1.0, double in_t = -1.0)
+      : z(z),                                         //
+        a((in_a < 0) ? AtomInfo::defaultA(z) : in_a), //
+        type(type),                                   //
+        t(in_t <= 0 ? approximate_t_skin(a) : in_t),  //
+        r_rms(inrrms)                                 //
+  {
+    if (r_rms < 0) {
+      r_rms = Nuclear::find_rrms(z, a);
+      if (r_rms <= 0)
+        r_rms = Nuclear::approximate_r_rms(a);
+    }
+  }
+};
+
+//******************************************************************************
+inline std::vector<double> formPotential(Parameters params, int z, int,
+                                         const std::vector<double> &r) {
+
+  auto nucleus_type = params.type;
+  auto r_rms = params.r_rms;
+  auto t = params.t;
+
+  // if (t <= 0)
+  //   t = Nuclear::approximate_t_skin(a);
+  // if (r_rms < 0) {
+  //   r_rms = Nuclear::find_rrms(z, a);
+  //   if (r_rms < 0)
+  //     r_rms = Nuclear::approximate_r_rms(a);
+  // }
+
+  switch (nucleus_type) {
+
+  case Nuclear::Type::Fermi: {
+    auto chdr = Nuclear::c_hdr_formula_rrms_t(r_rms, t);
+    return Nuclear::fermiNuclearPotential(z, t, chdr, r);
+  }
+  case Nuclear::Type::spherical: {
+    auto r_n = Nuclear::c_hdr_formula_rrms_t(r_rms, 0.0); // right?
+    return Nuclear::sphericalNuclearPotential(z, r_n, r);
+  }
+  case Nuclear::Type::zero:
+    return Nuclear::sphericalNuclearPotential(z, 0.0, r);
+
+  default:
+    std::cerr << "\nFAIL WF:755 - invalid nucleus type?\n";
+    std::abort();
+  }
 }
 
 } // namespace Nuclear
