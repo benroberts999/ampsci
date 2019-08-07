@@ -25,7 +25,7 @@ Requires re-writing the valence part (a little)
   vex[a]      := [v_ex*psi_a](r) *(psi_a/psi_a^2) (approx exchange)
 */
 
-enum class HFMethod { HartreeFock, Hartree, GreenPRM, TietzPRM };
+enum class HFMethod { HartreeFock, ApproxHF, Hartree, GreenPRM, TietzPRM };
 
 class HartreeFock {
   friend class Coulomb;
@@ -62,8 +62,8 @@ private:
   const bool m_excludeExchange; // for testing
 
   // The "localised"/approximate HF potential:
-  std::vector<std::vector<double>> vex_core;
-  std::vector<std::vector<double>> vex_val;
+  std::vector<std::vector<double>> appr_vex_core;
+  std::vector<std::vector<double>> appr_vex_val;
 
 private:
   void hartree_fock_core();
@@ -76,6 +76,13 @@ private:
   void form_approx_vex_a(const DiracSpinor &phi_a,
                          std::vector<double> &vex_a) const;
 
+  void solve_inhomog_Green(DiracSpinor &phi, const double en,
+                           const std::vector<double> &v, const double alpha,
+                           const DiracSpinor &source) const;
+  void solve_inhomog_Green(DiracSpinor &phi, DiracSpinor &phi1,
+                           DiracSpinor &phi2, const double en,
+                           const std::vector<double> &v, const double alpha,
+                           const DiracSpinor &source) const;
   void refine_core_orbitals_exchange();
   void refine_valence_orbital_exchange(DiracSpinor &phi);
   void iterate_core_orbital(DiracSpinor &phi, const std::vector<double> &vl,

@@ -17,11 +17,10 @@ template <typename T>
 inline std::vector<T> derivative(const std::vector<T> &f,
                                  const std::vector<T> &drdt, const T dt,
                                  const int order = 1)
-/*
-df/dr = df/dt * dt/dr = (df/dt) / (dr/dt) = (df/di) * (di/dt) / (dr/dt) =
-= (df/di)  / (dt * dr/dt)
-coeficients from: http://en.wikipedia.org/wiki/Finite_difference_coefficient
-*/
+// df/dr = df/dt * dt/dr = (df/dt) / (dr/dt)
+//       = (df/di) * (di/dt) / (dr/dt)
+//       = (df/di) / (dt * dr/dt)
+// coeficients from: http://en.wikipedia.org/wiki/Finite_difference_coefficient
 {
 
   std::size_t ngp = f.size();
@@ -266,14 +265,12 @@ additivePIntegral(std::vector<Real> &answer, const std::vector<Real> &f,
   if (fin < max)
     answer[fin] += 0.5 * f[fin] * g[fin] * h[fin] * gr.drdu[fin] * gr.du;
 }
-//---
+//------------------------------------------------------------------------------
 template <Direction direction, typename Real>
 std::vector<Real> partialIntegral(const std::vector<Real> &f,
                                   const std::vector<Real> &g,
                                   const std::vector<Real> &h, const Grid &gr,
-                                  std::size_t pinf = 0)
-//
-{
+                                  std::size_t pinf = 0) {
   std::vector<Real> answer(f.size(), 0.0);
   additivePIntegral(answer, f, g, h, gr, pinf);
   return answer;

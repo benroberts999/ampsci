@@ -3,20 +3,20 @@ Atom {
   varAlpha2;
 }
 
-HartreeFock {
-  Core = [Xe];
-  valence = 7sp5d4f;
-  sortOutput = true;
-  // OrthonormaliseValence = false;
-  // Convergence = 1.e-16;
-}
-
 Nucleus { A; }
 
+HartreeFock {
+  Core = [Xe];
+  valence = 7sp5d;
+  sortOutput;
+  Method; // HartreeFock(dflt), ApproxHF, Hartree, GreenPRM, TietzPRM
+  Convergence = 1.0e-12;
+}
+
 Grid {
-  r0 = 1.e-5;
+  r0 = 1.0e-5;
   rmax = 150.;
-  ngp = 1600;
+  ngp = 2000;
 }
 
 /////////////////////////////////////////////////////////////////
@@ -47,6 +47,9 @@ Grid {
   printF = true;
 }
 
+// MatrixElements::r
+{ power = 1; }
+
 /////////////////////////////////////////////////////////////////
 // Module::AtomicKernal
 {
@@ -66,7 +69,7 @@ Grid {
 
 // Module::Tests
 {
-  orthonormal = false;
+  orthonormal = true;
   Hamiltonian = true;
 }
 

@@ -460,8 +460,10 @@ void Wavefunction::printCore(bool sorted) const
   if (Zion != 0)
     std::cout << "-" << Zion;
   std::cout << ")\n";
-  std::cout << "     state   k   Rinf its   eps       En (au)      En (/cm)\n";
+  if (Ncore() < 1)
+    return;
 
+  std::cout << "     state   k   Rinf its   eps       En (au)      En (/cm)\n";
   auto index_list = sortedEnergyList(core_orbitals, sorted);
   for (auto i : index_list) {
     auto &phi = core_orbitals[i];

@@ -8,7 +8,6 @@
 #include "Physics/PhysConst_constants.hpp"
 #include "UserInput.hpp"
 #include "Wavefunction.hpp"
-// #include <fstream>
 #include <iostream>
 #include <string>
 
@@ -22,6 +21,8 @@ int main(int argc, char *argv[]) {
   UserInput input(input_file);
   auto atom = input.get<std::string>("Atom", "Z");
   auto varalpha = sqrt(input.get("Atom", "varAlpha2", 1.0));
+  if (varalpha == 0)
+    varalpha = 1.0e-16;
   auto r0 = input.get("Grid", "r0", 1.0e-5);
   auto rmax = input.get("Grid", "rmax", 150.0);
   auto ngp = input.get("Grid", "ngp", 1600);
@@ -99,9 +100,9 @@ int main(int argc, char *argv[]) {
 
   bool test_hf_basis = false;
   if (test_hf_basis) {
-    auto basis_lst = AtomInfo::listOfStates_nk("9spdf");
+    auto basis_lst = AtomInfo::listOfStates_nk("9spd8f");
     std::vector<DiracSpinor> basis = wf.core_orbitals;
-    HartreeFock hfbasis(wf, basis, eps_HF);
+    HartreeFock hfbasis(wf, basis, 1.0e-6);
     hfbasis.verbose = false;
     for (const auto &nk : basis_lst) {
       if (wf.isInCore(nk.n, nk.k))
