@@ -133,16 +133,16 @@ void Module_Tests_orthonormality(const Wavefunction &wf) {
 void Module_Tests_Hamiltonian(const Wavefunction &wf) {
   std::cout << "\nTesting wavefunctions: <n|H|n>  (numerical error)\n";
   double c = 1. / wf.get_alpha();
-  DiracOperator w(c, GammaMatrix::g5, 1, true);
+  ScalarOperator w(c, GammaMatrix::g5, 1, true);
   RadialOperator x_a(wf.rgrid, -1);
-  DiracOperator y(c * c, DiracMatrix(0, 0, 0, -2));
-  DiracOperator z1(wf.vnuc);
-  DiracOperator z2(wf.vdir);
+  ScalarOperator y(c * c, DiracMatrix(0, 0, 0, -2));
+  ScalarOperator z1(wf.vnuc);
+  ScalarOperator z2(wf.vdir);
   for (const auto tmp_orbs : {&wf.core_orbitals, &wf.valence_orbitals}) {
     for (const auto &psi : *tmp_orbs) {
       auto k = psi.k;
       auto vexPsi = wf.get_VexPsi(psi);
-      DiracOperator x_b(c, DiracMatrix(0, 1 - k, 1 + k, 0), 0, true);
+      ScalarOperator x_b(c, DiracMatrix(0, 1 - k, 1 + k, 0), 0, true);
       auto rhs = (w * psi) + (x_a * (x_b * psi)) + (y * psi) + (z1 * psi) +
                  (z2 * psi) + vexPsi;
       double R = psi * rhs;

@@ -524,9 +524,9 @@ DiracSpinor HartreeFock::vex_psia(const DiracSpinor &phi_a) const
 //******************************************************************************
 void HartreeFock::iterate_core_orbital(
     DiracSpinor &phi, const std::vector<double> &vl, const double alpha,
-    const DiracOperator &cg5dr, const DiracOperator &inv_r,
-    const DiracOperator &c2Img0, const DiracOperator &Vnuc,
-    const DiracOperator &Vd, const DiracOperator &fVdir0) const {
+    const ScalarOperator &cg5dr, const ScalarOperator &inv_r,
+    const ScalarOperator &c2Img0, const ScalarOperator &Vnuc,
+    const ScalarOperator &Vd, const ScalarOperator &fVdir0) const {
 
   const auto eps_target = m_eps_HF;
 
@@ -534,7 +534,7 @@ void HartreeFock::iterate_core_orbital(
   const int k = phi.k;
   const double c = 1. / alpha;
 
-  const DiracOperator cg5_pmk(c, DiracMatrix(0, 1 - k, 1 + k, 0), 0, true);
+  const ScalarOperator cg5_pmk(c, DiracMatrix(0, 1 - k, 1 + k, 0), 0, true);
 
   const int max_ini = 99;
   double prev_inner_eps = 1.0;
@@ -585,12 +585,12 @@ inline void HartreeFock::refine_valence_orbital_exchange(DiracSpinor &phi) {
 
   // This is the Dirac Hamiltonian...ugly way of doing it....
   double c = 1. / p_wf->get_alpha();
-  DiracOperator cg5dr(c, GammaMatrix::g5, 1, true);
+  ScalarOperator cg5dr(c, GammaMatrix::g5, 1, true);
   RadialOperator inv_r(p_wf->rgrid, -1);
-  DiracOperator c2Img0(c * c, DiracMatrix(0, 0, 0, -2));
-  DiracOperator Vnuc(p_wf->vnuc);
-  DiracOperator Vd(p_wf->vdir);
-  DiracOperator cg5_pmk(c, DiracMatrix(0, 1 - k, 1 + k, 0), 0, true);
+  ScalarOperator c2Img0(c * c, DiracMatrix(0, 0, 0, -2));
+  ScalarOperator Vnuc(p_wf->vnuc);
+  ScalarOperator Vd(p_wf->vdir);
+  ScalarOperator cg5_pmk(c, DiracMatrix(0, 1 - k, 1 + k, 0), 0, true);
 
   auto vl = p_wf->vnuc;
   for (unsigned i = 0; i < vl.size(); i++) {
@@ -643,10 +643,10 @@ inline void HartreeFock::refine_valence_orbital_exchange(DiracSpinor &phi) {
 inline void HartreeFock::refine_core_orbitals_exchange() {
 
   const double c = 1. / p_wf->get_alpha();
-  const DiracOperator cg5dr(c, GammaMatrix::g5, 1, true);
+  const ScalarOperator cg5dr(c, GammaMatrix::g5, 1, true);
   const RadialOperator inv_r(p_wf->rgrid, -1);
-  const DiracOperator c2Img0(c * c, DiracMatrix(0, 0, 0, -2));
-  const DiracOperator Vnuc(p_wf->vnuc);
+  const ScalarOperator c2Img0(c * c, DiracMatrix(0, 0, 0, -2));
+  const ScalarOperator Vnuc(p_wf->vnuc);
 
   const double eps_target = m_eps_HF;
 
@@ -659,13 +659,13 @@ inline void HartreeFock::refine_core_orbitals_exchange() {
   for (int it = 0; it < 250; it++) {
 
     const auto f_core = double(p_wf->Ncore() - 1) / double(p_wf->Ncore());
-    const DiracOperator fVdir0(f_core, p_wf->vdir); // for energy guess
+    const ScalarOperator fVdir0(f_core, p_wf->vdir); // for energy guess
     auto vl_tmp = p_wf->vnuc;
     for (unsigned i = 0; i < vl_tmp.size(); i++) {
       vl_tmp[i] += f_core * p_wf->vdir[i];
     }
     const auto vl = vl_tmp;
-    const DiracOperator Vd(p_wf->vdir);
+    const ScalarOperator Vd(p_wf->vdir);
 
     std::vector<double> prior_en_list;
     for (auto &phi : p_wf->core_orbitals) {

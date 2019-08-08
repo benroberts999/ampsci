@@ -125,7 +125,8 @@ $(ID)/Physics/Nuclear.hpp $(ID)/Operators.hpp $(ID)/Wavefunction.hpp
 $(OD)/HartreeFockClass.o: $(ID)/HartreeFockClass.cpp $(ID)/HartreeFockClass.hpp\
 $(ID)/Physics/AtomInfo.hpp $(ID)/CoulombIntegrals.hpp $(ID)/DiracSpinor.hpp \
 $(ID)/Grid.hpp $(ID)/NumCalc_quadIntegrate.hpp $(ID)/Wavefunction.hpp \
-$(ID)/Parametric_potentials.hpp $(ID)/Physics/Wigner_369j.hpp
+$(ID)/Parametric_potentials.hpp $(ID)/Physics/Wigner_369j.hpp \
+$(ID)/DiracOperator.hpp $(ID)/Operators.hpp
 	$(COMP)
 
 $(OD)/Parametric_potentials.o: $(ID)/Parametric_potentials.cpp \

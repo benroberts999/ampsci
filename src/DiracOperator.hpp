@@ -49,7 +49,7 @@ struct DiracMatrix
     if (this->imaginary && other.imaginary) {
       imag = true;
     } else if (this->imaginary || other.imaginary) {
-      std::cerr << "FAIL 50 in DiracOperator. Cannot mix real and imaginary "
+      std::cerr << "FAIL 50 in ScalarOperator. Cannot mix real and imaginary "
                    "Dirac Matrices! \n";
       this->print();
       std::cerr << "+\n";
@@ -67,7 +67,7 @@ struct DiracMatrix
     if (this->imaginary && other.imaginary) {
       imag = true;
     } else if (this->imaginary || other.imaginary) {
-      std::cerr << "FAIL 50 in DiracOperator. Cannot mix real and imaginary "
+      std::cerr << "FAIL 50 in ScalarOperator. Cannot mix real and imaginary "
                    "Dirac Matrices! \n";
       this->print();
       std::cerr << "-\n";
@@ -99,41 +99,41 @@ const DiracMatrix g5(0, 1, 1, 0);
 } // namespace GammaMatrix
 
 //******************************************************************************
-class DiracOperator {
+class ScalarOperator {
   // XXX at the moment, two ways can be imaginary..
   // it's own, and from Dirac matrix....... OK?? XXX
   // Various contructors: (all after v are optional)
-  // DiracOperator(C, v, DiracMatrix(a, b, c, d), diff_order, imag?)
-  // DiracOperator(C, DiracMatrix(a, b, c, d), diff_order, imag?)
-  // DiracOperator(v, DiracMatrix(a, b, c, d), diff_order, imag?)
-  // DiracOperator(DiracMatrix(a, b, c, d), diff_order, imag?)
-  // DiracOperator(diff_order, imag?)
-  // DiracOperator(DiracMatrix(a, b, c, d), imag?)
+  // ScalarOperator(C, v, DiracMatrix(a, b, c, d), diff_order, imag?)
+  // ScalarOperator(C, DiracMatrix(a, b, c, d), diff_order, imag?)
+  // ScalarOperator(v, DiracMatrix(a, b, c, d), diff_order, imag?)
+  // ScalarOperator(DiracMatrix(a, b, c, d), diff_order, imag?)
+  // ScalarOperator(diff_order, imag?)
+  // ScalarOperator(DiracMatrix(a, b, c, d), imag?)
 
 public: // Constructors
-  DiracOperator(double in_coef, const std::vector<double> &in_v,
-                const DiracMatrix &in_g = GammaMatrix::ident, int in_diff = 0,
-                bool in_imag = false)
+  ScalarOperator(double in_coef, const std::vector<double> &in_v,
+                 const DiracMatrix &in_g = GammaMatrix::ident, int in_diff = 0,
+                 bool in_imag = false)
       : coef(in_coef), v(in_v), g(in_g), diff_order(in_diff),
         imaginary(in_imag) {}
 
-  DiracOperator(double in_coef, const DiracMatrix &in_g = GammaMatrix::ident,
-                int in_diff = 0, bool in_imag = false)
+  ScalarOperator(double in_coef, const DiracMatrix &in_g = GammaMatrix::ident,
+                 int in_diff = 0, bool in_imag = false)
       : coef(in_coef), g(in_g), diff_order(in_diff), imaginary(in_imag) {}
 
-  DiracOperator(const std::vector<double> &in_v,
-                const DiracMatrix &in_g = GammaMatrix::ident, int in_diff = 0,
-                bool in_imag = false)
+  ScalarOperator(const std::vector<double> &in_v,
+                 const DiracMatrix &in_g = GammaMatrix::ident, int in_diff = 0,
+                 bool in_imag = false)
       : v(in_v), g(in_g), diff_order(in_diff), imaginary(in_imag) {}
 
-  DiracOperator(DiracMatrix in_g = GammaMatrix::ident, int in_diff = 0,
-                bool in_imag = false)
+  ScalarOperator(DiracMatrix in_g = GammaMatrix::ident, int in_diff = 0,
+                 bool in_imag = false)
       : g(in_g), diff_order(in_diff), imaginary(in_imag) {}
 
-  DiracOperator(int in_diff = 0, bool in_imag = false)
+  ScalarOperator(int in_diff = 0, bool in_imag = false)
       : diff_order(in_diff), imaginary(in_imag) {}
 
-  DiracOperator(DiracMatrix in_g = GammaMatrix::ident, bool in_imag = false)
+  ScalarOperator(DiracMatrix in_g = GammaMatrix::ident, bool in_imag = false)
       : g(in_g), imaginary(in_imag) {}
 
 public: // Data
@@ -147,14 +147,14 @@ public: // Data
 
 public: // Methods
   DiracSpinor operate(const DiracSpinor &phi) const;
-  DiracOperator HermetianConjugate() const;
+  ScalarOperator HermetianConjugate() const;
 
 public: // Operator overloads
   DiracSpinor operator*(const DiracSpinor &phi) const { return operate(phi); }
 };
 
 //******************************************************************************
-inline DiracSpinor DiracOperator::operate(const DiracSpinor &phi) const {
+inline DiracSpinor ScalarOperator::operate(const DiracSpinor &phi) const {
 
   // Note: matrix must be either diagonal or off-diagonal
   // This isn't checked or enforced yet!??!?
@@ -163,8 +163,9 @@ inline DiracSpinor DiracOperator::operate(const DiracSpinor &phi) const {
   // Diagonal operator swaps f,g, so swaps which comp is imagingary
   auto g_imag = off_diag ? !phi.imaginary_g : phi.imaginary_g;
   // Also: if operator is itself imaginary, also swaps!
-  if (imaginary)
+  if (imaginary) {
     g_imag = !g_imag;
+  }
 
   // if imag, sign of "g" changes (unless f was img, then sign of f changes)
   const auto g_sign = (imaginary && phi.imaginary_g) ? -1 : 1;
@@ -211,10 +212,24 @@ inline DiracSpinor DiracOperator::operate(const DiracSpinor &phi) const {
 }
 
 //******************************************************************************
-inline DiracOperator DiracOperator::HermetianConjugate() const {
+inline ScalarOperator ScalarOperator::HermetianConjugate() const {
   // Transpose the Dirac Matrix:
   const auto gT = DiracMatrix(g.e00, g.e10, g.e01, g.e11, g.imaginary);
   // complex conjugate:
   const auto sign = (imaginary) ? -1 : 1;
-  return DiracOperator(sign * coef, v, gT, diff_order, imaginary);
+  return ScalarOperator(sign * coef, v, gT, diff_order, imaginary);
 }
+
+//******************************************************************************
+class DiracOperator {
+  DiracOperator() = delete;
+  int rank;
+  int parity;
+  double constant;
+
+public:
+  double virtual reducedME(const DiracSpinor &Fa, const DiracSpinor &Fb);
+  // template <typename Oper>
+  // double static reducedME(const DiracSpinor &Fa, const Oper h,
+  //                         const DiracSpinor &Fb); //?
+};

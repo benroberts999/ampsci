@@ -4,7 +4,7 @@
 #include <vector>
 class Wavefunction;
 class DiracSpinor;
-class DiracOperator;
+class ScalarOperator;
 class Grid;
 
 /*
@@ -87,11 +87,11 @@ private:
   void refine_core_orbitals_exchange();
   void refine_valence_orbital_exchange(DiracSpinor &phi);
   void iterate_core_orbital(DiracSpinor &phi, const std::vector<double> &vl,
-                            const double alpha, const DiracOperator &cg5dr,
-                            const DiracOperator &inv_r,
-                            const DiracOperator &c2Img0,
-                            const DiracOperator &Vnuc, const DiracOperator &Vd,
-                            const DiracOperator &fVdir0) const;
+                            const double alpha, const ScalarOperator &cg5dr,
+                            const ScalarOperator &inv_r,
+                            const ScalarOperator &c2Img0,
+                            const ScalarOperator &Vnuc, const ScalarOperator &Vd,
+                            const ScalarOperator &fVdir0) const;
   void yfun(DiracSpinor &phi, const DiracSpinor &phi1, const DiracSpinor &phi2,
             const DiracSpinor &Sr) const;
 };

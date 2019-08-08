@@ -43,7 +43,7 @@ std::vector<double> matrixElements(const UserInputBlock &input,
 } // namespace Module
 
 //******************************************************************************
-DiracOperator generateOperator(const std::string &operator_str,
+ScalarOperator generateOperator(const std::string &operator_str,
                                const UserInputBlock &input,
                                const Wavefunction &wf) {
   //
@@ -100,7 +100,7 @@ DiracOperator generateOperator(const std::string &operator_str,
       if (gl1 != 0 && gl1 != 1) {
         std::cout << "FAIL: in " << ThisModule << " " << Fr_str
                   << "; have gl1=" << gl1 << " but need 1 or 0\n";
-        return DiracOperator(0);
+        return ScalarOperator(0);
       }
       auto l1 = input.get<double>("l1");
       auto l2 = input.get<double>("l2");
@@ -112,7 +112,7 @@ DiracOperator generateOperator(const std::string &operator_str,
     } else if (Fr_str != "ball") {
       std::cout << "FAIL: in " << ThisModule << " " << Fr_str
                 << " invalid nuclear distro. Check spelling\n";
-      return DiracOperator(0);
+      return ScalarOperator(0);
     }
 
     auto unit = PhysConst::Hartree_MHz;
@@ -138,7 +138,7 @@ DiracOperator generateOperator(const std::string &operator_str,
 
   std::cerr << "\nFAILED to find operator: " << ThisModule
             << " in generateOperator. Returning NULL operator (0)\n";
-  return DiracOperator(0); // null operator
+  return ScalarOperator(0); // null operator
 }
 
 } // namespace Module

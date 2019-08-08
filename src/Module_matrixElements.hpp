@@ -12,7 +12,7 @@ namespace Module {
 std::vector<double> matrixElements(const UserInputBlock &input,
                                    const Wavefunction &wf);
 
-DiracOperator generateOperator(const std::string &operator_str,
+ScalarOperator generateOperator(const std::string &operator_str,
                                const UserInputBlock &input,
                                const Wavefunction &wf);
 
