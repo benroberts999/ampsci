@@ -1,11 +1,8 @@
 #include "ChronoTimer.hpp"
-#include "DiracOperator.hpp"
-#include "HartreeFockClass.hpp"
 #include "Module_runModules.hpp"
 #include "Operators.hpp"
 #include "Physics/AtomInfo.hpp"
 #include "Physics/Nuclear.hpp"
-#include "Physics/PhysConst_constants.hpp"
 #include "UserInput.hpp"
 #include "Wavefunction.hpp"
 #include <iostream>
@@ -29,7 +26,7 @@ int main(int argc, char *argv[]) {
 
   auto r0 = input.get("Grid", "r0", 1.0e-5);
   auto rmax = input.get("Grid", "rmax", 150.0);
-  auto ngp = input.get("Grid", "ngp", 1600);
+  auto ngp = input.get("Grid", "ngp", 1600ul);
   auto b = input.get("Grid", "b", 3.5);
   auto grid_type =
       Grid::parseType(input.get<std::string>("Grid", "type", "loglinear"));
@@ -44,8 +41,7 @@ int main(int argc, char *argv[]) {
 
   Wavefunction wf(Z, grid_params, nuc_params, varalpha);
 
-  std::cout << "\nRunning for ";
-  std::cout << wf.atom() << "\n"
+  std::cout << "\nRunning for " << wf.atom() << "\n"
             << wf.nuclearParams() << "\n"
             << wf.rgrid.gridParameters() << "\n"
             << "********************************************************\n";
@@ -72,38 +68,28 @@ int main(int argc, char *argv[]) {
 
   // Solve Hartree equations for the core:
   timer.start();
-  HartreeFock hf(HF_method, wf, str_core, eps_HF, H_d, g_t);
-
-  double core_energy = hf.calculateCoreEnergy();
+  wf.hartreeFockCore(HF_method, str_core, eps_HF, H_d, g_t);
   std::cout << "core: " << timer.lap_reading_str() << "\n";
 
-  // Create list of valence states to solve for
-  auto in_valence_str = input.get<std::string>("HartreeFock", "valence", "");
-  if (wf.Ncore() >= wf.Znuc())
-    in_valence_str = "";
-  auto val_lst = AtomInfo::listOfStates_nk(in_valence_str);
-
   // Solve for the valence states:
+  auto valence_list = (wf.Ncore() < wf.Znuc())
+                          ? input.get<std::string>("HartreeFock", "valence", "")
+                          : "";
   timer.start();
-  for (const auto &nk : val_lst) {
-    if (!wf.isInCore(nk.n, nk.k))
-      hf.solveNewValence(nk.n, nk.k);
-  }
-  if (val_lst.size() > 0)
+  wf.hartreeFockValence(valence_list);
+  if (!wf.valence_orbitals.empty()) {
+    if (input.get("HartreeFock", "orthonormaliseValence", false))
+      wf.orthonormaliseOrbitals(wf.valence_orbitals, 2);
     std::cout << "Valence: " << timer.lap_reading_str() << "\n";
-
-  if (input.get("HartreeFock", "OrthonormaliseValence", false))
-    wf.orthonormaliseOrbitals(wf.valence_orbitals, 2);
+  }
 
   // Output results:
   std::cout << "\nHartree Fock: " << wf.atom() << "\n";
-  bool sorted = input.get("HartreeFock", "sortOutput", true);
+  auto sorted = input.get("HartreeFock", "sortOutput", true);
   wf.printCore(sorted);
-  std::cout << "E_core = " << core_energy
-            << " au;  = " << core_energy * PhysConst::Hartree_invcm << "/cm\n";
   wf.printValence(sorted);
 
-  Module::runModules(input, wf, hf);
+  Module::runModules(input, wf);
 
   std::cout << "\nTotal time: " << timer.reading_str() << "\n";
 

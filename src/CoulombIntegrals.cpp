@@ -7,8 +7,8 @@
 Coulomb::Coulomb(const std::vector<DiracSpinor> &in_core,
                  const std::vector<DiracSpinor> &in_valence = {})
     : c_orbs_ptr(&in_core), v_orbs_ptr(&in_valence),
-      rgrid_ptr((in_core.size() > 0) ? in_core.front().p_rgrid
-                                     : in_valence.front().p_rgrid) {
+      rgrid_ptr(in_core.empty() ? in_valence.front().p_rgrid
+                                : in_core.front().p_rgrid) {
   initialise_core_core();
   // Valence orbitals may change (new orbitals added) - but pointer to val.
   // orbitals remains const

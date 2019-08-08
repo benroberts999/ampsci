@@ -81,8 +81,9 @@ public: // Operator overloads
     // (includes complex conjugation of lhs)
     int ffs = ((!imaginary_g) && rhs.imaginary_g) ? -1 : 1;
     int ggs = (imaginary_g && !rhs.imaginary_g) ? -1 : 1;
-    auto ff = NumCalc::integrate(f, rhs.f, p_rgrid->drdu, 1, 0, 0);
-    auto gg = NumCalc::integrate(g, rhs.g, p_rgrid->drdu, 1, 0, 0);
+    auto imax = 0; // std::min(pinf, rhs.pinf) + 1;
+    auto ff = NumCalc::integrate(f, rhs.f, p_rgrid->drdu, 1, 0, imax);
+    auto gg = NumCalc::integrate(g, rhs.g, p_rgrid->drdu, 1, 0, imax);
     return (ffs * ff + ggs * gg) * p_rgrid->du;
   }
 

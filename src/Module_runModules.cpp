@@ -16,11 +16,10 @@
 namespace Module {
 
 //******************************************************************************
-void runModules(const UserInput &input, const Wavefunction &wf,
-                const HartreeFock &hf) {
+void runModules(const UserInput &input, const Wavefunction &wf) {
   auto modules = input.module_list();
   for (const auto &module : modules) {
-    runModule(module, wf, hf);
+    runModule(module, wf);
   }
 }
 
@@ -43,8 +42,7 @@ void Module_BohrWeisskopf(const UserInputBlock &input, const Wavefunction &wf)
 
   std::cout << "\nTabulate Bohr-Weisskopf effect: " << wf.atom() << "\n"
             << "state :   point     ball       BW     F_BW\n";
-  // 7s_1/2: 6191.47  6024.86  6082.32  -7.5899
-  for (unsigned i = 0; i < point.size(); i++) {
+  for (auto i = 0ul; i < point.size(); i++) {
     auto nlj = wf.valence_orbitals[i].symbol();
     auto Fbw = ((bohrW[i] / point[i]) - 1.0) * M_PI * PhysConst::c;
     printf("%6s: %7.2f  %7.2f  %7.2f  %7.3f\n", nlj.c_str(), point[i], ball[i],
@@ -53,17 +51,15 @@ void Module_BohrWeisskopf(const UserInputBlock &input, const Wavefunction &wf)
 }
 
 //******************************************************************************
-void runModule(const UserInputBlock &module_input, const Wavefunction &wf,
-               const HartreeFock &hf) //
+void runModule(const UserInputBlock &module_input, const Wavefunction &wf) //
 {
-  // ds
   auto module_name = module_input.name();
   if (module_name.substr(0, 14) == "MatrixElements") {
     matrixElements(module_input, wf);
   } else if (module_name == "Module::Tests") {
-    Module_tests(module_input, wf, hf);
+    Module_tests(module_input, wf);
   } else if (module_name == "Module::WriteOrbitals") {
-    Module_WriteOrbitals(module_input, wf, hf);
+    Module_WriteOrbitals(module_input, wf);
   } else if (module_name == "Module::AtomicKernal") {
     atomicKernal(module_input, wf);
   } else if (module_name == "Module::BohrWeisskopf") {
@@ -78,13 +74,12 @@ void runModule(const UserInputBlock &module_input, const Wavefunction &wf,
 // Below: some basic modules:
 
 //******************************************************************************
-void Module_tests(const UserInputBlock &input, const Wavefunction &wf,
-                  const HartreeFock &hf) {
+void Module_tests(const UserInputBlock &input, const Wavefunction &wf) {
   std::string ThisModule = "Module::Tests";
   if (input.get("orthonormal", true))
     Module_Tests_orthonormality(wf);
   if (input.get("Hamiltonian", false))
-    Module_Tests_Hamiltonian(wf, hf);
+    Module_Tests_Hamiltonian(wf);
 }
 
 //------------------------------------------------------------------------------
@@ -97,7 +92,7 @@ void Module_Tests_orthonormality(const Wavefunction &wf) {
     const auto &tmp_b = (i == 2) ? wf.valence_orbitals : wf.core_orbitals;
     const auto &tmp_a = (i == 0) ? wf.core_orbitals : wf.valence_orbitals;
 
-    if (tmp_b.size() == 0 || tmp_a.size() == 0)
+    if (tmp_b.empty() || tmp_a.empty())
       continue;
 
     // Core-Core:
@@ -135,7 +130,7 @@ void Module_Tests_orthonormality(const Wavefunction &wf) {
 }
 
 //------------------------------------------------------------------------------
-void Module_Tests_Hamiltonian(const Wavefunction &wf, const HartreeFock &hf) {
+void Module_Tests_Hamiltonian(const Wavefunction &wf) {
   std::cout << "\nTesting wavefunctions: <n|H|n>  (numerical error)\n";
   double c = 1. / wf.get_alpha();
   DiracOperator w(c, GammaMatrix::g5, 1, true);
@@ -144,26 +139,23 @@ void Module_Tests_Hamiltonian(const Wavefunction &wf, const HartreeFock &hf) {
   DiracOperator z1(wf.vnuc);
   DiracOperator z2(wf.vdir);
   for (const auto tmp_orbs : {&wf.core_orbitals, &wf.valence_orbitals}) {
-    for (auto &psi : *tmp_orbs) {
+    for (const auto &psi : *tmp_orbs) {
       auto k = psi.k;
-      // DiracOperator z3(hf.get_vex(psi));
-      auto vexPsi = hf.vex_psia(psi);
+      auto vexPsi = wf.get_VexPsi(psi);
       DiracOperator x_b(c, DiracMatrix(0, 1 - k, 1 + k, 0), 0, true);
       auto rhs = (w * psi) + (x_a * (x_b * psi)) + (y * psi) + (z1 * psi) +
                  (z2 * psi) + vexPsi;
       double R = psi * rhs;
       double ens = psi.en;
       double fracdiff = (R - ens) / ens;
-      printf("<%i% i|H|%i% i> = %17.11f, E = "
-             "%17.11f; % .0e\n",
-             psi.n, psi.k, psi.n, psi.k, R, ens, fracdiff);
+      printf("<%i% i|H|%i% i> = %17.11f, E = %17.11f; % .0e\n", psi.n, psi.k,
+             psi.n, psi.k, R, ens, fracdiff);
     }
   }
 }
 
 //******************************************************************************
-void Module_WriteOrbitals(const UserInputBlock &input, const Wavefunction &wf,
-                          const HartreeFock &) {
+void Module_WriteOrbitals(const UserInputBlock &input, const Wavefunction &wf) {
   const std::string ThisModule = "Module::WriteOrbitals";
 
   auto label = input.get<std::string>("label", "");

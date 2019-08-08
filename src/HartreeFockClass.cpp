@@ -42,10 +42,10 @@ HartreeFock::HartreeFock(HFMethod method, Wavefunction &wf,
       m_method(method)
 //
 {
-
+  // XXX Update this so that you can create HF class, THEN solve for core later
   if (method == HFMethod::Hartree || method == HFMethod::HartreeFock ||
       method == HFMethod::ApproxHF) {
-    if (wf.core_orbitals.size() == 0)
+    if (wf.core_orbitals.empty())
       starting_approx_core(in_core, 5);
     m_cint.initialise_core_core();
     appr_vex_core.resize(p_wf->core_orbitals.size(),
@@ -98,7 +98,7 @@ HFMethod HartreeFock::parseMethod(std::string in_method) {
 //******************************************************************************
 void HartreeFock::hartree_fock_core() {
 
-  if (p_wf->core_orbitals.size() == 0) {
+  if (p_wf->core_orbitals.empty()) {
     // If H-like, kill "initial" vdir (Green potential)
     p_wf->vdir = std::vector<double>(p_wf->rgrid.ngp, 0);
     return;

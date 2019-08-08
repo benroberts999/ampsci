@@ -24,7 +24,7 @@ ifeq ($(CXX),g++)
   WARN += -Wlogical-op
 endif
 
-CXXFLAGS= -std=c++11 $(OPT) $(OMP) $(WARN)
+CXXFLAGS= -std=c++14 $(OPT) $(OMP) $(WARN)
 LIBS=-lgsl -lgslcblas
 
 MSAN = -fsanitize=memory
@@ -119,9 +119,7 @@ $(ID)/Wavefunction.hpp
 
 $(OD)/hartreeFock.o: $(ID)/hartreeFock.cpp $(ID)/Physics/AtomInfo.hpp \
 $(ID)/ChronoTimer.hpp $(ID)/DiracOperator.hpp $(ID)/UserInput.hpp \
-$(ID)/HartreeFockClass.hpp $(ID)/Physics/Nuclear.hpp \
-$(ID)/Operators.hpp \
-$(ID)/Physics/PhysConst_constants.hpp $(ID)/Wavefunction.hpp
+$(ID)/Physics/Nuclear.hpp $(ID)/Operators.hpp $(ID)/Wavefunction.hpp
 	$(COMP)
 
 $(OD)/HartreeFockClass.o: $(ID)/HartreeFockClass.cpp $(ID)/HartreeFockClass.hpp\

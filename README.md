@@ -12,21 +12,18 @@ allowing non-relativistic approximation.
 
  * Wavefunctions are in form psi = (1/r) [f,ig], (using Dirac basis)
 
-The part that solves the Dirac eigenvalue DE is based on book by W. Johnson,
-with a few extensions that improve numerical stability and accuracy
- [W. R. Johnson, Atomic Structure Theory (Springer, New York, 2007).]
-
 ### Compiling and use:
 
+ * Uses c++14
  * All programs compiled using the Makefile
  (run _$make_ or _$make programName_)
  * Must have LAPACK, GSL libraries installed already (see below)
  * Must create a directory called _./obj/_
-   * code places object files inside here
+   * code places object files inside here, but doesn't create the directory
  * All executables run like _$./programName_. By default, placed in same
-  directory as makefile (can change this in make)
- * All programs have input options, stored and read from 'programName.in' file
-   (can also give a different input file on runtime, e.g., to read input from
+  directory as makefile (you may change this in the Makefile)
+ * All programs have input options, stored and read from a file.
+By default, the input file name is: 'programName.in' (but can also give a different input file on runtime, e.g., to read input from
     `otherFile.txt`: _$./programName otherFile.txt_)
  * Note: below just tells how to use existing programs, to see how they work,
  see the comments/instructions inside the source code (all in /src/)
@@ -54,8 +51,7 @@ E.g. (V^N-1):
    * For Tl: '[Xe],4f14,5d10,6s2' OR '[Hg]'
    * For I (V^N): '[Cd],5p5' OR '[Xe],5p-1'
 
-
-## atomicKernal
+## atomicKernal (module inside hartreeFock program)
 
  * Calculates the "Atomic Kernal" (for scattering/ionisation) for each core
  orbital, as a function of momentum transfer (q), and energy deposition (dE).
@@ -96,3 +92,15 @@ E.g. (V^N-1):
  * Finds the best-fit parameters for two-parameter parametric potentials
    (Green, or Tietz potentials)
  * Takes input/target states from fitParametric.in
+
+###  General Input options for hartreeFock:
+
+Input (plain text files). See "hartreeFock.in" for example.
+
+ May re-name this file (e.g., to "filename.txt"), then run as:
+ $ ./hartreeFock filename.txt
+ (Otherwise, program will assume file name is 'hartreeFock.in')
+ Leave option blank (without '='), or delete/comment-out to use default value.
+ Uses c++-style comments.
+ Order of input doesn't matter (but which block they're in does).
+ For now, no spell-checker, so mispelt options will likely just be ignored.

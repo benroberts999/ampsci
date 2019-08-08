@@ -89,7 +89,7 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  if (states.size() > 0) {
+  if (!states.empty()) {
     double H, d;
     std::tie(H, d) = performFit(states, Z, A, ngp, r0, rmax, green, fit_worst);
 
@@ -126,7 +126,7 @@ int main(int argc, char *argv[]) {
     printf("\nCore: {%i, %.3f, %.3f}\n", Z, H, d);
   }
 
-  if (val_states.size() > 0) {
+  if (!val_states.empty()) {
     std::cout << "\n";
     double H, d;
     std::tie(H, d) =

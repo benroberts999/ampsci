@@ -129,6 +129,9 @@ bool Wavefunction::isInCore(int n, int k) const
   }
   return false;
 }
+bool Wavefunction::isInCore(const DiracSpinor &phi) const {
+  return isInCore(phi.n, phi.k);
+}
 
 //******************************************************************************
 std::size_t Wavefunction::getStateIndex(int n, int k, bool &is_valence) const {
@@ -184,11 +187,11 @@ void Wavefunction::solveInitialCore(std::string str_core, int log_dele_or)
 // Only for local potential (direct part)
 // HartreeFockClass.cpp has routines for Hartree Fock
 {
-  if (core_orbitals.size() > 0) {
-    std::cerr << "Fail 254 in Wavefunction:solveInitialCore: States "
+  if (!core_orbitals.empty()) {
+    std::cerr << "WARNING 254 in Wavefunction:solveInitialCore: States "
                  "already exist! "
               << core_orbitals.size() << "\n";
-    std::abort();
+    return;
   }
 
   determineCore(str_core);
@@ -251,36 +254,31 @@ void Wavefunction::orthonormaliseOrbitals(std::vector<DiracSpinor> &in_orbs,
 // ==> This causes the possible orthog issues..
 {
   auto Ns = in_orbs.size();
-  auto ngp = in_orbs.front().p_rgrid->ngp;
 
-  std::vector<std::vector<double>> c_ab(Ns, std::vector<double>(Ns));
   // Calculate c_ab = <a|b>  [only for b>a -- symmetric]
+  std::vector<std::vector<double>> c_ab(Ns, std::vector<double>(Ns));
   for (std::size_t a = 0; a < Ns; a++) {
+    const auto &phi_a = in_orbs[a];
     for (auto b = a + 1; b < Ns; b++) {
-      if (in_orbs[a].k != in_orbs[b].k)
+      const auto &phi_b = in_orbs[b];
+      if (phi_a.k != phi_b.k) //|| phi_a.n == phi_b.n - can't happen!
         continue;
       c_ab[a][b] = 0.5 * (in_orbs[a] * in_orbs[b]);
     }
   }
+  // note: above loop executes psia*psib half as many times as below would
 
-  // Orthogonalise orbitals:
+  // Orthogonalise + re-norm orbitals:
   for (std::size_t a = 0; a < Ns; a++) {
+    auto &phi_a = in_orbs[a];
     for (std::size_t b = 0; b < Ns; b++) {
-      if (in_orbs[a].k != in_orbs[b].k)
+      const auto &phi_b = in_orbs[b];
+      if (phi_a.k != phi_b.k || phi_a.n == phi_b.n)
         continue;
-      if (a == b)
-        continue;
-      // c_ab = c_ba : only calc'd half:
       double cab = (a < b) ? c_ab[a][b] : c_ab[b][a];
-      for (std::size_t ir = 0; ir < ngp; ir++) {
-        in_orbs[a].f[ir] -= cab * in_orbs[b].f[ir];
-        in_orbs[a].g[ir] -= cab * in_orbs[b].g[ir];
-      }
+      phi_a -= cab * phi_b;
     }
-  }
-
-  for (auto &psi : in_orbs) {
-    psi.normalise();
+    phi_a.normalise();
   }
 
   // If necisary: repeat
@@ -299,11 +297,7 @@ void Wavefunction::orthonormaliseWrtCore(DiracSpinor &psi_v) const
   for (const auto &psi_c : core_orbitals) {
     if (psi_v.k != psi_c.k)
       continue;
-    const double Avc = psi_v * psi_c;
-    for (std::size_t ir = 0; ir < psi_v.pinf; ir++) {
-      psi_v.f[ir] -= Avc * psi_c.f[ir];
-      psi_v.g[ir] -= Avc * psi_c.g[ir];
-    }
+    psi_v -= (psi_v * psi_c) * psi_c;
   }
   psi_v.normalise();
 }
@@ -365,51 +359,9 @@ double Wavefunction::enGuessVal(int n, int ka) const
   return -0.5 / pow(neff, 2);
 }
 
-// //******************************************************************************
-// void Wavefunction::formNuclearPotential(Nuclear::Type nucleus_type, double
-// rc,
-//                                         double t) {
-//   vnuc.clear();
-//   switch (nucleus_type) {
-//   case Nuclear::Type::Fermi:
-//     if (t <= 0)
-//       t = Nuclear::approximate_t_skin(m_A);
-//     if (rc <= 0) {
-//       auto rrms = Nuclear::find_rrms(m_Z, m_A);
-//       if (rrms <= 0)
-//         rrms = Nuclear::approximate_r_rms(m_A);
-//       rc = Nuclear::c_hdr_formula_rrms_t(rrms, t);
-//     }
-//     vnuc = Nuclear::fermiNuclearPotential(m_Z, t, rc, rgrid.r);
-//     break;
-//   case Nuclear::Type::spherical:
-//     if (rc <= 0) {
-//       // note: still called rc, but is r_N here!
-//       rc = Nuclear::find_rrms(m_Z, m_A);
-//       if (rc <= 0)
-//         rc = Nuclear::approximate_r_rms(m_A);
-//     }
-//     t = 0;
-//     vnuc = Nuclear::sphericalNuclearPotential(m_Z, rc, rgrid.r);
-//     break;
-//   case Nuclear::Type::zero:
-//     rc = 0;
-//     t = 0;
-//     vnuc = Nuclear::sphericalNuclearPotential(m_Z, 0., rgrid.r);
-//     break;
-//   default:
-//     std::cerr << "\nFail WF:755 - invalid nucleus type?\n";
-//   }
-//   m_c = rc;
-//   m_t = t;
-// }
-
 //******************************************************************************
 std::string Wavefunction::nuclearParams() const {
   std::ostringstream output;
-
-  // Nuclear::Type type;
-  // double r_rms, t;
 
   auto rrms = m_nuc_params.r_rms;
   auto t = m_nuc_params.t;
@@ -430,19 +382,6 @@ std::string Wavefunction::nuclearParams() const {
            << ", t = " << t;
     break;
   }
-
-  // if (m_nuc_params.type == Nuclear::Type::zero) {
-  //   output << "Zero-size nucleus";
-  // } else
-  //
-  //   else if (m_t == 0) {
-  //     output << "Spherical nucleus; r_rms = " << m_c;
-  //   }
-  // else {
-  //   output << "Fermi nucleus; r_rms = " << Nuclear::rrms_formula_c_t(m_c,
-  //   m_t)
-  //          << ", c=" << m_c << ", t=" << m_t;
-  // }
   return output.str();
 }
 
@@ -502,6 +441,12 @@ void Wavefunction::printCore(bool sorted) const
       std::cout << "\n";
     }
   }
+  if (m_pHF) {
+    auto core_energy = coreEnergyHF();
+    std::cout << "E_core = " << core_energy
+              << " au;  = " << core_energy * PhysConst::Hartree_invcm
+              << "/cm\n";
+  }
 }
 
 //******************************************************************************
@@ -509,9 +454,9 @@ void Wavefunction::printValence(
     bool sorted, const std::vector<DiracSpinor> &in_orbitals) const
 // prints valence orbitals
 {
-  auto tmp_orbs = (in_orbitals.size() == 0) ? valence_orbitals : in_orbitals;
+  auto tmp_orbs = (in_orbitals.empty()) ? valence_orbitals : in_orbitals;
 
-  if (tmp_orbs.size() == 0)
+  if (tmp_orbs.empty())
     return;
 
   std::cout << "Val: state   "

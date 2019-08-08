@@ -1,7 +1,9 @@
 #pragma once
 #include "DiracSpinor.hpp"
 #include "Grid.hpp"
+#include "HartreeFockClass.hpp" // forward decl..
 #include "Physics/Nuclear.hpp"
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -18,7 +20,6 @@ public:
   // orbitals:
   std::vector<DiracSpinor> core_orbitals;
   std::vector<DiracSpinor> valence_orbitals;
-
   const Grid rgrid;
 
 private:
@@ -27,6 +28,7 @@ private:
   // Atom info:
   const int m_Z, m_A; /*don't need A twice (its inside nucl params!)*/
   Nuclear::Parameters m_nuc_params;
+  std::unique_ptr<HartreeFock> m_pHF = nullptr;
 
 public:
   const std::vector<double> vnuc;
@@ -50,6 +52,37 @@ public:
     return (int)rgrid.getIndex(r_target, true);
   }
 
+  void hartreeFockCore(HFMethod method, const std::string &in_core,
+                       double eps_HF = 0, double h_d = 0, double g_t = 0) {
+    // XXX Update this (and HF) so that it doesn't re-Create m_pHF
+    // AND, so that can re-run core!
+    m_pHF = std::make_unique<HartreeFock>(
+        HartreeFock(method, *this, in_core, eps_HF, h_d, g_t));
+  }
+  auto coreEnergyHF() const {
+    if (m_pHF == nullptr) {
+      std::cerr
+          << "WARNING 62: Cant call coreEnergyHF before hartreeFockCore\n";
+      return 0.0;
+    }
+    return m_pHF->calculateCoreEnergy();
+  }
+  void hartreeFockValence(const std::string &in_valence_str) {
+    if (m_pHF == nullptr) {
+      std::cerr << "WARNING 62: Cant call hartreeFockValence before "
+                   "hartreeFockCore\n";
+      return;
+    }
+    auto val_lst = AtomInfo::listOfStates_nk(in_valence_str);
+    for (const auto &nk : val_lst) {
+      if (!isInCore(nk.n, nk.k))
+        m_pHF->solveNewValence(nk.n, nk.k);
+    }
+  }
+  auto get_VexPsi(const DiracSpinor &psi) const { // XXX add check!?
+    return m_pHF->vex_psia(psi);
+  }
+
   std::size_t getStateIndex(int n, int k, bool &is_valence = dummy_bool) const;
   std::size_t getStateIndex(const DiracSpinor &psi,
                             bool &is_valence = dummy_bool) const;
@@ -69,6 +102,7 @@ public:
   void printValence(bool sorted = true,
                     const std::vector<DiracSpinor> &tmp_orbitals = {}) const;
   bool isInCore(int n, int k) const;
+  bool isInCore(const DiracSpinor &phi) const;
   int maxCore_n(int ka_in = 0) const;
   int maxCore_l() const;
 
@@ -80,9 +114,6 @@ public:
                                            bool skip_core = true) const;
 
 public:
-  // void formNuclearPotential(Nuclear::Type nucleus_type, double rc = 0,
-  //                           double t = 0);
-
   void solveDirac(DiracSpinor &psi, double e_a, const std::vector<double> &vex,
                   int log_dele_or = 0) const;
   void solveDirac(DiracSpinor &psi, double e_a = 0, int log_dele_or = 0) const;

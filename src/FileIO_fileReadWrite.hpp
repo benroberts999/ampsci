@@ -93,6 +93,14 @@ inline std::string readInputFile(const std::string &fname) {
 }
 
 //******************************************************************************
+inline void removeBlockComments(std::string &input) {
+  for (auto posi = input.find("/*"); posi != std::string::npos;
+       posi = input.find("/*")) {
+    auto posf = input.find("*/");
+    input = input.substr(0, posi) + input.substr(posf + 2);
+  }
+}
+//******************************************************************************
 inline std::string removeCommentsAndSpaces(const std::string &input)
 // Note: also squashes lines, except for semi-colons
 {
@@ -108,6 +116,8 @@ inline std::string removeCommentsAndSpaces(const std::string &input)
       lines += line.substr(0, comm);
     }
   }
+
+  removeBlockComments(lines);
 
   // remove spaces
   lines.erase(std::remove_if(lines.begin(), lines.end(),

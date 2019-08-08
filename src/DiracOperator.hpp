@@ -195,7 +195,7 @@ inline DiracSpinor DiracOperator::operate(const DiracSpinor &phi) const {
   }
 
   // Multiply by radial vector:
-  if (v.size() > 0) {
+  if (!v.empty()) {
     for (std::size_t i = 0; i < phi.p_rgrid->ngp; i++) {
       dPhi.f[i] *= v[i];
       dPhi.g[i] *= v[i];

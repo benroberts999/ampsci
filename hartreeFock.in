@@ -28,6 +28,17 @@ Grid {
 
 /////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////
+/*
+Modules:
+  Each Module/MatrixElements will be run in order.
+  You can comment-out just the block name, and the block will be skiped.
+*/
+
+// Module::Tests
+{
+  orthonormal = true;
+  Hamiltonian = true;
+}
 
 // MatrixElements::hfs
 {
@@ -74,12 +85,6 @@ Grid {
   output_binary = true;
   label = test_new;
   use_plane_waves = false;
-}
-
-// Module::Tests
-{
-  orthonormal = true;
-  Hamiltonian = true;
 }
 
 // Module::WriteOrbitals
