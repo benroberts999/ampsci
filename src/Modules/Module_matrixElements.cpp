@@ -1,11 +1,11 @@
 #include "Module_matrixElements.hpp"
-#include "DiracOperator.hpp"
-#include "HartreeFockClass.hpp"
-#include "Operators.hpp"
-#include "Physics/Nuclear.hpp"
-#include "Physics/PhysConst_constants.hpp"
-#include "UserInput.hpp"
-#include "Wavefunction.hpp"
+#include "../DiracOperator.hpp"
+#include "../HartreeFockClass.hpp"
+#include "../Operators.hpp"
+#include "../Physics/Nuclear.hpp"
+#include "../Physics/PhysConst_constants.hpp"
+#include "../UserInput.hpp"
+#include "../Wavefunction.hpp"
 #include <iostream>
 #include <string>
 //

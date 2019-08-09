@@ -1,5 +1,5 @@
 #pragma once
-#include "DiracOperator.hpp"
+#include "../DiracOperator.hpp"
 #include <string>
 #include <vector>
 class Wavefunction;

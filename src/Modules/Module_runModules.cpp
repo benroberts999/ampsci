@@ -1,16 +1,17 @@
 #include "Module_runModules.hpp"
-#include "./DMionisation/Module_atomicKernal.hpp"
-#include "DiracOperator.hpp"
-#include "HartreeFockClass.hpp"
+#include "../DMionisation/Module_atomicKernal.hpp"
+#include "../DiracOperator.hpp"
+#include "../HartreeFockClass.hpp"
+#include "../Operators.hpp"
+#include "../UserInput.hpp"
+#include "../Wavefunction.hpp"
+#include "Module_fitParametric.hpp"
 #include "Module_matrixElements.hpp"
-#include "Operators.hpp"
-#include "UserInput.hpp"
-#include "Wavefunction.hpp"
 #include <fstream>
 #include <iostream>
 #include <string>
 //
-#include "Physics/PhysConst_constants.hpp"
+#include "../Physics/PhysConst_constants.hpp"
 #include <cmath>
 
 namespace Module {
@@ -22,6 +23,31 @@ void runModules(const UserInput &input, const Wavefunction &wf) {
     runModule(module, wf);
   }
 }
+
+//******************************************************************************
+void runModule(const UserInputBlock &module_input, const Wavefunction &wf) //
+{
+  auto module_name = module_input.name();
+  if (module_name.substr(0, 14) == "MatrixElements") {
+    matrixElements(module_input, wf);
+  } else if (module_name == "Module::Tests") {
+    Module_tests(module_input, wf);
+  } else if (module_name == "Module::WriteOrbitals") {
+    Module_WriteOrbitals(module_input, wf);
+  } else if (module_name == "Module::AtomicKernal") {
+    atomicKernal(module_input, wf);
+  } else if (module_name == "Module::FitParametric") {
+    fitParametric(module_input, wf);
+  } else if (module_name == "Module::BohrWeisskopf") {
+    Module_BohrWeisskopf(module_input, wf);
+  } else {
+    std::cerr << "\nWARNING: Module `" << module_name
+              << "' not known. Spelling mistake?\n";
+  }
+}
+
+//******************************************************************************
+// Below: some basic modules:
 
 //******************************************************************************
 void Module_BohrWeisskopf(const UserInputBlock &input, const Wavefunction &wf)
@@ -51,29 +77,6 @@ void Module_BohrWeisskopf(const UserInputBlock &input, const Wavefunction &wf)
 }
 
 //******************************************************************************
-void runModule(const UserInputBlock &module_input, const Wavefunction &wf) //
-{
-  auto module_name = module_input.name();
-  if (module_name.substr(0, 14) == "MatrixElements") {
-    matrixElements(module_input, wf);
-  } else if (module_name == "Module::Tests") {
-    Module_tests(module_input, wf);
-  } else if (module_name == "Module::WriteOrbitals") {
-    Module_WriteOrbitals(module_input, wf);
-  } else if (module_name == "Module::AtomicKernal") {
-    atomicKernal(module_input, wf);
-  } else if (module_name == "Module::BohrWeisskopf") {
-    Module_BohrWeisskopf(module_input, wf);
-  } else {
-    std::cerr << "\nWARNING: Module `" << module_name
-              << "' not known. Spelling mistake?\n";
-  }
-}
-
-//******************************************************************************
-// Below: some basic modules:
-
-//******************************************************************************
 void Module_tests(const UserInputBlock &input, const Wavefunction &wf) {
   std::string ThisModule = "Module::Tests";
   if (input.get("orthonormal", true))
@@ -84,7 +87,7 @@ void Module_tests(const UserInputBlock &input, const Wavefunction &wf) {
 
 //------------------------------------------------------------------------------
 void Module_Tests_orthonormality(const Wavefunction &wf) {
-  std::cout << "Test orthonormality: ";
+  std::cout << "\nTest orthonormality: ";
   std::cout << "log10(|1 - <a|a>|) or log10(|<a|b>|)\n";
   std::cout << "(should all read zero).\n";
 
@@ -158,12 +161,13 @@ void Module_Tests_Hamiltonian(const Wavefunction &wf) {
 void Module_WriteOrbitals(const UserInputBlock &input, const Wavefunction &wf) {
   const std::string ThisModule = "Module::WriteOrbitals";
 
+  std::cout << "\n Running: " << ThisModule << "\n";
   auto label = input.get<std::string>("label", "");
   std::string oname = wf.atomicSymbol() + "-orbitals";
   if (label != "")
     oname += "_" + label;
-  oname += ".txt";
 
+  oname += ".txt";
   std::ofstream of(oname);
   of << "r ";
   for (auto &psi : wf.core_orbitals)
@@ -171,6 +175,7 @@ void Module_WriteOrbitals(const UserInputBlock &input, const Wavefunction &wf) {
   for (auto &psi : wf.valence_orbitals)
     of << "\"" << psi.symbol(true) << "\" ";
   of << "\n";
+  of << "# f block\n";
   for (std::size_t i = 0; i < wf.rgrid.ngp; i++) {
     of << wf.rgrid.r[i] << " ";
     for (auto &psi : wf.core_orbitals)
@@ -179,6 +184,21 @@ void Module_WriteOrbitals(const UserInputBlock &input, const Wavefunction &wf) {
       of << psi.f[i] << " ";
     of << "\n";
   }
+  of << "\n# g block\n";
+  for (std::size_t i = 0; i < wf.rgrid.ngp; i++) {
+    of << wf.rgrid.r[i] << " ";
+    for (auto &psi : wf.core_orbitals)
+      of << psi.g[i] << " ";
+    for (auto &psi : wf.valence_orbitals)
+      of << psi.g[i] << " ";
+    of << "\n";
+  }
+  of << "\n# density block\n";
+  auto rho = wf.coreDensity();
+  for (std::size_t i = 0; i < wf.rgrid.ngp; i++) {
+    of << wf.rgrid.r[i] << " " << rho[i] << "\n";
+  }
+  of.close();
   std::cout << "Orbitals written to file: " << oname << "\n";
 }
 

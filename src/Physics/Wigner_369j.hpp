@@ -36,11 +36,11 @@ constexpr int parity(int la, int lb, int k)
 constexpr int triangle(double j1, double j2, double J)
 // Triangle rule.
 {
-  return ((j1 + j2 < J) || (fabs(j1 - j2) > J)) ? 0 : 1;
+  return ((j1 + j2 < J) || (std::fabs(j1 - j2) > J)) ? 0 : 1;
 }
 constexpr int triangle(int j1, int j2, int J) {
   // nb: can be called with wither j or twoj!
-  return ((j1 + j2 < J) || (abs(j1 - j2) > J)) ? 0 : 1;
+  return ((j1 + j2 < J) || (std::abs(j1 - j2) > J)) ? 0 : 1;
 }
 
 constexpr int sumsToZero(int m1, int m2, int m3) {
@@ -48,7 +48,7 @@ constexpr int sumsToZero(int m1, int m2, int m3) {
 }
 
 constexpr int sumsToZero(double m1, double m2, double m3) {
-  return (fabs(m1 + m2 + m3) > 0.00001) ? 0 : 1;
+  return ((m1 + m2 + m3) > 0.00001 || (m1 + m2 + m3) < -0.00001) ? 0 : 1;
 }
 
 //******************************************************************************

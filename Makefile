@@ -74,9 +74,9 @@ $(ID)/Physics/PhysConst_constants.hpp \
 $(ID)/DMionisation/SBF_sphericalBessel.hpp $(ID)/Physics/Wigner_369j.hpp
 	$(COMP)
 
-$(OD)/Module_runModules.o: $(ID)/Module_runModules.cpp \
-$(ID)/Module_runModules.hpp $(ID)/DiracOperator.hpp $(ID)/HartreeFockClass.hpp \
-$(ID)/DMionisation/Module_atomicKernal.hpp \
+$(OD)/Module_runModules.o: $(ID)/Modules/Module_runModules.cpp \
+$(ID)/Modules/Module_runModules.hpp $(ID)/DiracOperator.hpp $(ID)/HartreeFockClass.hpp \
+$(ID)/DMionisation/Module_atomicKernal.hpp $(ID)/Modules/Module_fitParametric.hpp \
 $(ID)/Operators.hpp $(ID)/UserInput.hpp $(ID)/Wavefunction.hpp
 	$(COMP)
 
@@ -88,10 +88,15 @@ $(ID)/Grid.hpp $(ID)/Physics/PhysConst_constants.hpp \
 $(ID)/Wavefunction.hpp
 	$(COMP)
 
-$(OD)/Module_matrixElements.o: $(ID)/Module_matrixElements.cpp \
-$(ID)/Module_matrixElements.hpp $(ID)/Physics/PhysConst_constants.hpp \
+$(OD)/Module_matrixElements.o: $(ID)/Modules/Module_matrixElements.cpp \
+$(ID)/Modules/Module_matrixElements.hpp $(ID)/Physics/PhysConst_constants.hpp \
 $(ID)/Physics/Nuclear.hpp $(ID)/Operators.hpp $(ID)/UserInput.hpp  \
 $(ID)/HartreeFockClass.hpp $(ID)/Wavefunction.hpp
+	$(COMP)
+
+$(OD)/Module_fitParametric.o: $(ID)/Modules/Module_fitParametric.cpp \
+$(ID)/Modules/Module_fitParametric.hpp $(ID)/Modules/Module_fitParametric.hpp \
+$(ID)/Physics/Nuclear.hpp $(ID)/Grid.hpp $(ID)/Wavefunction.hpp
 	$(COMP)
 
 $(OD)/ContinuumOrbitals.o: $(ID)/ContinuumOrbitals.cpp \
@@ -119,7 +124,8 @@ $(ID)/Wavefunction.hpp
 
 $(OD)/hartreeFock.o: $(ID)/hartreeFock.cpp $(ID)/Physics/AtomInfo.hpp \
 $(ID)/ChronoTimer.hpp $(ID)/DiracOperator.hpp $(ID)/UserInput.hpp \
-$(ID)/Physics/Nuclear.hpp $(ID)/Operators.hpp $(ID)/Wavefunction.hpp
+$(ID)/Physics/Nuclear.hpp $(ID)/Operators.hpp $(ID)/Wavefunction.hpp \
+$(ID)/Grid.hpp
 	$(COMP)
 
 $(OD)/HartreeFockClass.o: $(ID)/HartreeFockClass.cpp $(ID)/HartreeFockClass.hpp\
@@ -171,7 +177,7 @@ CNTM = $(addprefix $(OD)/, \
 
 MODS = $(addprefix $(OD)/, \
  Module_runModules.o Module_atomicKernal.o AKF_akFunctions.o \
- Module_matrixElements.o \
+ Module_matrixElements.o Module_fitParametric.o \
 )
 
 ################################################################################
