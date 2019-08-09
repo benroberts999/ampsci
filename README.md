@@ -87,11 +87,10 @@ E.g. (V^N-1):
  * 3j symbols must start with '('; 6,9j with '{', and CG with '<' (this is how code knows which symbol to calculate).
  * but, each number can be seperated by any symbol (space, comma etc.)
 
-## fitParametric
+## fitParametric (module inside hartreeFock program)
 
  * Finds the best-fit parameters for two-parameter parametric potentials
    (Green, or Tietz potentials)
- * Takes input/target states from fitParametric.in
 
 ###  General Input options for hartreeFock:
 

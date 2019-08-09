@@ -51,35 +51,14 @@ public:
   int getRadialIndex(double r_target) const {
     return (int)rgrid.getIndex(r_target, true);
   }
+  auto get_nucParams() const { return m_nuc_params; } //??
 
   void hartreeFockCore(HFMethod method, const std::string &in_core,
-                       double eps_HF = 0, double h_d = 0, double g_t = 0) {
-    // XXX Update this (and HF) so that it doesn't re-Create m_pHF
-    // AND, so that can re-run core!
-    m_pHF = std::make_unique<HartreeFock>(
-        HartreeFock(method, *this, in_core, eps_HF, h_d, g_t));
-  }
-  auto coreEnergyHF() const {
-    if (m_pHF == nullptr) {
-      std::cerr
-          << "WARNING 62: Cant call coreEnergyHF before hartreeFockCore\n";
-      return 0.0;
-    }
-    return m_pHF->calculateCoreEnergy();
-  }
-  void hartreeFockValence(const std::string &in_valence_str) {
-    if (m_pHF == nullptr) {
-      std::cerr << "WARNING 62: Cant call hartreeFockValence before "
-                   "hartreeFockCore\n";
-      return;
-    }
-    auto val_lst = AtomInfo::listOfStates_nk(in_valence_str);
-    for (const auto &nk : val_lst) {
-      if (!isInCore(nk.n, nk.k))
-        m_pHF->solveNewValence(nk.n, nk.k);
-    }
-  }
-  auto get_VexPsi(const DiracSpinor &psi) const { // XXX add check!?
+                       double eps_HF = 0, double h_d = 0, double g_t = 0);
+  auto coreEnergyHF() const;
+  void hartreeFockValence(const std::string &in_valence_str);
+  auto get_VexPsi(const DiracSpinor &psi) const {
+    // XXX add check!? XXX
     return m_pHF->vex_psia(psi);
   }
 

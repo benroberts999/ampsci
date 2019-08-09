@@ -1,5 +1,6 @@
 #include "ChronoTimer.hpp"
-#include "Module_runModules.hpp"
+#include "Grid.hpp"
+#include "Modules/Module_runModules.hpp"
 #include "Operators.hpp"
 #include "Physics/AtomInfo.hpp"
 #include "Physics/Nuclear.hpp"
@@ -32,7 +33,7 @@ int main(int argc, char *argv[]) {
       Grid::parseType(input.get<std::string>("Grid", "type", "loglinear"));
   GridParameters grid_params(ngp, r0, rmax, b, grid_type);
 
-  A = input.get("Nucleus", "A", A); /*over-writes "atom" A*/
+  A = input.get("Nucleus", "A", A); // over-writes "atom" A
   auto nuc_type =
       Nuclear::parseType(input.get<std::string>("Nucleus", "type", "Fermi"));
   auto rrms = input.get("Nucleus", "rrms", -1.0); /*<0 means lookup default*/

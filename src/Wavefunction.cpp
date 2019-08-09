@@ -120,6 +120,38 @@ void Wavefunction::determineCore(const std::string &str_core_in)
 }
 
 //******************************************************************************
+void Wavefunction::hartreeFockCore(HFMethod method, const std::string &in_core,
+                                   double eps_HF, double h_d, double g_t) {
+  // XXX Update this (and HF) so that it doesn't re-Create m_pHF
+  // AND, so that can re-run core!
+  m_pHF = std::make_unique<HartreeFock>(
+      HartreeFock(method, *this, in_core, eps_HF, h_d, g_t));
+}
+
+//******************************************************************************
+auto Wavefunction::coreEnergyHF() const {
+  if (m_pHF == nullptr) {
+    std::cerr << "WARNING 62: Cant call coreEnergyHF before hartreeFockCore\n";
+    return 0.0;
+  }
+  return m_pHF->calculateCoreEnergy();
+}
+
+//******************************************************************************
+void Wavefunction::hartreeFockValence(const std::string &in_valence_str) {
+  if (m_pHF == nullptr) {
+    std::cerr << "WARNING 62: Cant call hartreeFockValence before "
+                 "hartreeFockCore\n";
+    return;
+  }
+  auto val_lst = AtomInfo::listOfStates_nk(in_valence_str);
+  for (const auto &nk : val_lst) {
+    if (!isInCore(nk.n, nk.k))
+      m_pHF->solveNewValence(nk.n, nk.k);
+  }
+}
+
+//******************************************************************************
 bool Wavefunction::isInCore(int n, int k) const
 // Checks if given state is in the core.
 {
@@ -263,7 +295,7 @@ void Wavefunction::orthonormaliseOrbitals(std::vector<DiracSpinor> &in_orbs,
       const auto &phi_b = in_orbs[b];
       if (phi_a.k != phi_b.k) //|| phi_a.n == phi_b.n - can't happen!
         continue;
-      c_ab[a][b] = 0.5 * (in_orbs[a] * in_orbs[b]);
+      c_ab[a][b] = 0.5 * (phi_a * phi_b);
     }
   }
   // note: above loop executes psia*psib half as many times as below would

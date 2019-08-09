@@ -88,6 +88,31 @@ Modules:
 }
 
 // Module::WriteOrbitals
-{ //
+{
   label = lab;
 }
+
+
+// Module::FitParametric
+{
+  method = Green; //Green, Tietz
+  statesToFit = core; //core, valence, both
+  fitWorst = false; //worst, squares
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
