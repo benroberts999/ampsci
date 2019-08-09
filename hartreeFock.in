@@ -6,7 +6,7 @@ Atom {
 
 HartreeFock {
   core = [Xe];
-  valence = 7sp5d;
+  valence = 7sp;
   sortOutput;
   method; // HartreeFock(dflt), ApproxHF, Hartree, GreenPRM, TietzPRM
   convergence = 1.0e-13;
@@ -66,9 +66,9 @@ Modules:
 }
 
 // MatrixElements::r
-{ power = 1; }
+// { power = 1; }
 // MatrixElements::r
-{ power = -1; }
+// { power = -1; }
 
 /////////////////////////////////////////////////////////////////
 // Module::AtomicKernal
@@ -89,30 +89,16 @@ Modules:
 
 // Module::WriteOrbitals
 {
-  label = lab;
+  // Plot in GNUPLOT like: (e.g.)
+  // plot for [i=2:20] "file.txt" u 1:i every :::0::0  w l t columnheader(i)
+  // plot for [i=2:20] "file.txt" u 1:i every :::1::1  w l t columnheader(i)
+  // plot "file.txt" u 1:2 every :::2::2  w l t "Core Density"
+  label = outputLabel;
 }
-
 
 // Module::FitParametric
 {
-  method = Green; //Green, Tietz
-  statesToFit = core; //core, valence, both
-  fitWorst = false; //worst, squares
+  method = Green;     // Green, Tietz
+  statesToFit = core; // core, valence, both
+  fitWorst = false;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

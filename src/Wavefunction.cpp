@@ -545,3 +545,15 @@ Wavefunction::listOfStates_nk(int num_val, int la, int lb, bool skip_core) const
   }
   return lst;
 }
+
+//******************************************************************************
+std::vector<double> Wavefunction::coreDensity() const {
+  std::vector<double> rho(rgrid.ngp, 0.0);
+  for (const auto &phi : core_orbitals) {
+    auto f = double(phi.twoj() + 1) * phi.occ_frac;
+    for (auto i = 0ul; i < rgrid.ngp; i++) {
+      rho[i] += f * (phi.f[i] * phi.f[i] + phi.g[i] * phi.g[i]);
+    }
+  }
+  return rho;
+}

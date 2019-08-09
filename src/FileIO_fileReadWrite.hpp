@@ -97,7 +97,11 @@ inline void removeBlockComments(std::string &input) {
   for (auto posi = input.find("/*"); posi != std::string::npos;
        posi = input.find("/*")) {
     auto posf = input.find("*/");
-    input = input.substr(0, posi) + input.substr(posf + 2);
+    if (posf != std::string::npos) {
+      input = input.substr(0, posi) + input.substr(posf + 2);
+    } else {
+      input = input.substr(0, posi);
+    }
   }
 }
 //******************************************************************************

@@ -53,10 +53,6 @@ public:
   }
   auto get_nucParams() const { return m_nuc_params; } //??
 
-  void hartreeFockCore(HFMethod method, const std::string &in_core,
-                       double eps_HF = 0, double h_d = 0, double g_t = 0);
-  auto coreEnergyHF() const;
-  void hartreeFockValence(const std::string &in_valence_str);
   auto get_VexPsi(const DiracSpinor &psi) const {
     // XXX add check!? XXX
     return m_pHF->vex_psia(psi);
@@ -92,6 +88,8 @@ public:
   std::vector<DiracSEnken> listOfStates_nk(int num_val, int la, int lb = 0,
                                            bool skip_core = true) const;
 
+  std::vector<double> coreDensity() const;
+
 public:
   void solveDirac(DiracSpinor &psi, double e_a, const std::vector<double> &vex,
                   int log_dele_or = 0) const;
@@ -104,9 +102,13 @@ public:
                                      int num_its = 1);
   void orthonormaliseWrtCore(DiracSpinor &psi_v) const;
 
-private:
-  void determineCore(const std::string &str_core_in);
-
+  void hartreeFockCore(HFMethod method, const std::string &in_core,
+                       double eps_HF = 0, double h_d = 0, double g_t = 0);
+  auto coreEnergyHF() const;
+  void hartreeFockValence(const std::string &in_valence_str);
   double enGuessCore(int n, int l) const;
   double enGuessVal(int n, int ka) const;
+
+private:
+  void determineCore(const std::string &str_core_in);
 };

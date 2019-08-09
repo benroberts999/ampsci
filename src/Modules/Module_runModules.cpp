@@ -87,7 +87,7 @@ void Module_tests(const UserInputBlock &input, const Wavefunction &wf) {
 
 //------------------------------------------------------------------------------
 void Module_Tests_orthonormality(const Wavefunction &wf) {
-  std::cout << "Test orthonormality: ";
+  std::cout << "\nTest orthonormality: ";
   std::cout << "log10(|1 - <a|a>|) or log10(|<a|b>|)\n";
   std::cout << "(should all read zero).\n";
 
@@ -161,12 +161,13 @@ void Module_Tests_Hamiltonian(const Wavefunction &wf) {
 void Module_WriteOrbitals(const UserInputBlock &input, const Wavefunction &wf) {
   const std::string ThisModule = "Module::WriteOrbitals";
 
+  std::cout << "\n Running: " << ThisModule << "\n";
   auto label = input.get<std::string>("label", "");
   std::string oname = wf.atomicSymbol() + "-orbitals";
   if (label != "")
     oname += "_" + label;
-  oname += ".txt";
 
+  oname += ".txt";
   std::ofstream of(oname);
   of << "r ";
   for (auto &psi : wf.core_orbitals)
@@ -174,6 +175,7 @@ void Module_WriteOrbitals(const UserInputBlock &input, const Wavefunction &wf) {
   for (auto &psi : wf.valence_orbitals)
     of << "\"" << psi.symbol(true) << "\" ";
   of << "\n";
+  of << "# f block\n";
   for (std::size_t i = 0; i < wf.rgrid.ngp; i++) {
     of << wf.rgrid.r[i] << " ";
     for (auto &psi : wf.core_orbitals)
@@ -182,6 +184,21 @@ void Module_WriteOrbitals(const UserInputBlock &input, const Wavefunction &wf) {
       of << psi.f[i] << " ";
     of << "\n";
   }
+  of << "\n# g block\n";
+  for (std::size_t i = 0; i < wf.rgrid.ngp; i++) {
+    of << wf.rgrid.r[i] << " ";
+    for (auto &psi : wf.core_orbitals)
+      of << psi.g[i] << " ";
+    for (auto &psi : wf.valence_orbitals)
+      of << psi.g[i] << " ";
+    of << "\n";
+  }
+  of << "\n# density block\n";
+  auto rho = wf.coreDensity();
+  for (std::size_t i = 0; i < wf.rgrid.ngp; i++) {
+    of << wf.rgrid.r[i] << " " << rho[i] << "\n";
+  }
+  of.close();
   std::cout << "Orbitals written to file: " << oname << "\n";
 }
 
