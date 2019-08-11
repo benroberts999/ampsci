@@ -2,6 +2,7 @@
 #include "Grid.hpp"
 #include "NumCalc_quadIntegrate.hpp"
 #include "Physics/AtomInfo.hpp"
+#include <cmath>
 #include <string>
 #include <vector>
 

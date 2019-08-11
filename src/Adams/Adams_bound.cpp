@@ -1,8 +1,8 @@
 #include "Adams_bound.hpp"
-#include "../DiracSpinor.hpp"
-#include "../Grid.hpp"
-#include "../Matrix_linalg.hpp"
-#include "../NumCalc_quadIntegrate.hpp"
+#include "DiracSpinor.hpp"
+#include "Grid.hpp"
+#include "Matrix_linalg.hpp"
+#include "NumCalc_quadIntegrate.hpp"
 #include <algorithm>
 #include <array>
 #include <cmath>

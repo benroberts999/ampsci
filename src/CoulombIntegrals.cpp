@@ -1,6 +1,7 @@
 #include "CoulombIntegrals.hpp"
 #include "DiracSpinor.hpp"
 #include "NumCalc_quadIntegrate.hpp"
+#include <algorithm>
 #include <vector>
 
 //******************************************************************************
@@ -298,7 +299,7 @@ const std::vector<double> &Coulomb::get_y_ijk(const DiracSpinor &phi_i,
   auto tji = phi_i.twoj();
   auto tjj = phi_j.twoj();
   auto kmin = std::abs(tji - tjj) / 2; // kmin
-  auto kmax = (tji + tjj) / 2;    // kmax
+  auto kmax = (tji + tjj) / 2;         // kmax
   if (k > kmax || k < kmin) {
     std::cerr << "FAIL 214 in CI; bad k\n";
     std::abort();
@@ -449,7 +450,8 @@ void Coulomb::calculate_y_ijk(const DiracSpinor &phi_a,
                                     phi_a.g[i - 1] * phi_b.g[i - 1]);
     Ax = Ax + Fdr * std::pow(grid->r[i - 1], k);
     Bx = Bx - Fdr / std::pow(grid->r[i - 1], k + 1);
-    vabk[i] = du * (Ax / std::pow(grid->r[i], k + 1) + Bx * std::pow(grid->r[i], k));
+    vabk[i] =
+        du * (Ax / std::pow(grid->r[i], k + 1) + Bx * std::pow(grid->r[i], k));
   }
   for (std::size_t i = irmax; i < ngp; i++) {
     vabk[i] = 0; // this doesn't happen in psi_a = psi_b

@@ -486,35 +486,39 @@ DiracSpinor HartreeFock::vex_psia(const DiracSpinor &phi_a) const
 // calculates V_ex Psi_a (returns new Dirac Spinor)
 // Psi_a can be any orbital (so long as coulomb integrals exist!)
 {
+  DiracSpinor vexPsi(phi_a.n, phi_a.k, *(phi_a.p_rgrid));
+  vex_psia(phi_a, vexPsi);
+  return vexPsi;
+}
+void HartreeFock::vex_psia(const DiracSpinor &phi_a, DiracSpinor &vexPsi) const
+// calculates V_ex Psi_a (returns new Dirac Spinor)
+// Psi_a can be any orbital (so long as coulomb integrals exist!)
+{
+  vexPsi *= 0.0;
+  if (m_excludeExchange)
+    return;
+
   auto ki_a = phi_a.k_index();
   auto twoj_a = phi_a.twoj();
-
-  // XXX Add overload, so can re-use memory!
-  DiracSpinor vexPsi(phi_a.n, phi_a.k, *(phi_a.p_rgrid));
-
   std::size_t init = phi_a.k == -1 ? 0 : 1; //?
-  if (!m_excludeExchange) {
-    for (const auto &phi_b : p_wf->core_orbitals) {
-      auto tjb = phi_b.twoj();
-      double x_tjbp1 = (tjb + 1) * phi_b.occ_frac;
-      auto irmax = std::min(phi_a.pinf, phi_b.pinf);
-      int kmin = std::abs(twoj_a - tjb) / 2;
-      int kmax = (twoj_a + tjb) / 2;
-      const auto &vabk = m_cint.get_y_ijk(phi_b, phi_a);
-      const auto &L_ab_k = m_cint.get_angular_L_kiakib_k(ki_a, phi_b.k_index());
-      for (int k = kmin; k <= kmax; k++) {
-        if (L_ab_k[k - kmin] == 0)
-          continue;
-        for (auto i = init; i < irmax; i++) {
-          auto v = -x_tjbp1 * L_ab_k[k - kmin] * vabk[k - kmin][i];
-          vexPsi.f[i] += v * phi_b.f[i];
-          vexPsi.g[i] += v * phi_b.g[i];
-        } // r
-      }   // k
-    }     // b
-  }
-
-  return vexPsi;
+  for (const auto &phi_b : p_wf->core_orbitals) {
+    auto tjb = phi_b.twoj();
+    double x_tjbp1 = (tjb + 1) * phi_b.occ_frac;
+    auto irmax = std::min(phi_a.pinf, phi_b.pinf);
+    int kmin = std::abs(twoj_a - tjb) / 2;
+    int kmax = (twoj_a + tjb) / 2;
+    const auto &vabk = m_cint.get_y_ijk(phi_b, phi_a);
+    const auto &L_ab_k = m_cint.get_angular_L_kiakib_k(ki_a, phi_b.k_index());
+    for (int k = kmin; k <= kmax; k++) {
+      if (L_ab_k[k - kmin] == 0)
+        continue;
+      for (auto i = init; i < irmax; i++) {
+        auto v = -x_tjbp1 * L_ab_k[k - kmin] * vabk[k - kmin][i];
+        vexPsi.f[i] += v * phi_b.f[i];
+        vexPsi.g[i] += v * phi_b.g[i];
+      } // r
+    }   // k
+  }     // b
 }
 
 //******************************************************************************
@@ -540,10 +544,10 @@ void HartreeFock::iterate_core_orbital(
   double prev_inner_eps = 1.0;
   auto phi0 = DiracSpinor(n, k, *(phi.p_rgrid));
   auto phiI = DiracSpinor(n, k, *(phi.p_rgrid));
+  auto vexPsi = DiracSpinor(n, k, *(phi.p_rgrid));
   for (int ini = 0; ini <= max_ini; ini++) {
 
-    // auto en = phi.en;
-    const auto vexPsi = vex_psia(phi);
+    vex_psia(phi, vexPsi);
     const auto Sr = (fVdir0 * phi) - (Vd * phi) - vexPsi;
 
     // Energy guess: expectation value of Hamiltonian:
@@ -603,8 +607,11 @@ inline void HartreeFock::refine_valence_orbital_exchange(DiracSpinor &phi) {
   auto en = phi.en;
   auto phi0 = DiracSpinor(n, k, p_wf->rgrid);
   auto phiI = DiracSpinor(n, k, p_wf->rgrid);
-  for (int it = 0; it < 99; ++it) {
-    auto vexPsi = vex_psia(phi);
+  auto vexPsi = DiracSpinor(n, k, p_wf->rgrid);
+  const auto max_its = 99;
+  for (int it = 0; it <= max_its; ++it) {
+    // auto vexPsi = vex_psia(phi);
+    vex_psia(phi, vexPsi);
     auto Sr = -1.0 * vexPsi;
     // Energy guess: expectation value of Hamiltonian:
     // There is probably a better way to do this
@@ -614,7 +621,7 @@ inline void HartreeFock::refine_valence_orbital_exchange(DiracSpinor &phi) {
     auto eps = fabs((prev_en - en) / en);
     bool getting_worse = (it > 20 && eps >= 2.0 * eps_prev);
     bool converged = (eps <= eps_target && it > 0);
-    if (converged || getting_worse || it == 98) {
+    if (converged || getting_worse || it == max_its) {
       phi.en = en;
       phi.eps = eps;
       phi.its = it;
@@ -654,9 +661,9 @@ inline void HartreeFock::refine_core_orbitals_exchange() {
 
   const auto a_damp = 0.2;
   double prev_eps = 1.0;
-  auto total_its = 0;
 
-  for (int it = 0; it < 250; it++) {
+  const auto max_its = 99;
+  for (int it = 0; it <= max_its; it++) {
 
     const auto f_core = double(p_wf->Ncore() - 1) / double(p_wf->Ncore());
     const DiracOperator fVdir0(f_core, p_wf->vdir); // for energy guess
@@ -671,17 +678,15 @@ inline void HartreeFock::refine_core_orbitals_exchange() {
     for (auto &phi : p_wf->core_orbitals) {
       // note: can't parallelise -- not thread safe
       prior_en_list.push_back(phi.en);
-      auto oldphi = phi;
+      auto oldphi = phi; // re-use? nb: n,k each time!
       iterate_core_orbital(phi, vl, p_wf->get_alpha(), cg5dr, inv_r, c2Img0,
                            Vnuc, Vd, fVdir0);
       phi = (1.0 - a_damp) * phi + a_damp * oldphi;
     }
 
     double eps = 0.0;
-    auto tot_inner_its = 0;
     for (std::size_t i = 0; i < p_wf->core_orbitals.size(); i++) {
       auto en_this = p_wf->core_orbitals[i].en;
-      tot_inner_its += p_wf->core_orbitals[i].its;
       auto en_prev = prior_en_list[i];
       auto d_eps = fabs((en_prev - en_this) / en_this);
       if (d_eps > eps)
@@ -690,12 +695,9 @@ inline void HartreeFock::refine_core_orbitals_exchange() {
     if (eps < prev_eps)
       prev_eps = eps;
 
-    total_its += tot_inner_its;
-
     bool getting_worse = (it > 20 && eps > 1.1 * prev_eps);
-    bool converged = ((eps <= eps_target && it > 0) || it == 98);
+    bool converged = ((eps <= eps_target && it > 0) || it == max_its);
     if (converged || getting_worse) {
-      // std::cout << it << "*:Core:   eps=" << eps << "\n";
       if (verbose)
         printf("\rrefine core  it:%3i eps=%6.1e              \n", it, eps);
       break;
@@ -748,7 +750,6 @@ void HartreeFock::yfun(DiracSpinor &phi, const DiracSpinor &phi1,
   constexpr auto rti = NumCalc::r_to_inf;
 
   phi *= 0.0;
-  // XXX add back pinf! faster? Correct?
   NumCalc::additivePIntegral<ztr>(phi.f, phi1.f, phi2.f, Sr.f, gr, phi1.pinf);
   NumCalc::additivePIntegral<ztr>(phi.f, phi1.f, phi2.g, Sr.g, gr, phi1.pinf);
   NumCalc::additivePIntegral<rti>(phi.f, phi2.f, phi1.f, Sr.f, gr, phi1.pinf);

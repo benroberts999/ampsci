@@ -1,6 +1,6 @@
 #include "Adams_continuum.hpp"
-#include "../DiracSpinor.hpp"
-#include "../Grid.hpp"
+#include "DiracSpinor.hpp"
+#include "Grid.hpp"
 #include "Adams_bound.hpp"
 #include <cmath>
 

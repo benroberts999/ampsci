@@ -1,17 +1,17 @@
 #include "Module_runModules.hpp"
-#include "../DMionisation/Module_atomicKernal.hpp"
-#include "../DiracOperator.hpp"
-#include "../HartreeFockClass.hpp"
-#include "../Operators.hpp"
-#include "../UserInput.hpp"
-#include "../Wavefunction.hpp"
+#include "DMionisation/Module_atomicKernal.hpp"
+#include "DiracOperator.hpp"
+#include "HartreeFockClass.hpp"
+#include "Operators.hpp"
+#include "UserInput.hpp"
+#include "Wavefunction.hpp"
 #include "Module_fitParametric.hpp"
 #include "Module_matrixElements.hpp"
 #include <fstream>
 #include <iostream>
 #include <string>
 //
-#include "../Physics/PhysConst_constants.hpp"
+#include "Physics/PhysConst_constants.hpp"
 #include <cmath>
 
 namespace Module {

@@ -24,7 +24,7 @@ ifeq ($(CXX),g++)
   WARN += -Wlogical-op
 endif
 
-CXXFLAGS= -std=c++14 $(OPT) $(OMP) $(WARN)
+CXXFLAGS= -std=c++14 $(OPT) $(OMP) $(WARN) -I./src/
 LIBS=-lgsl -lgslcblas
 
 MSAN = -fsanitize=memory
@@ -74,31 +74,6 @@ $(ID)/Physics/PhysConst_constants.hpp \
 $(ID)/DMionisation/SBF_sphericalBessel.hpp $(ID)/Physics/Wigner_369j.hpp
 	$(COMP)
 
-$(OD)/Module_runModules.o: $(ID)/Modules/Module_runModules.cpp \
-$(ID)/Modules/Module_runModules.hpp $(ID)/DiracOperator.hpp $(ID)/HartreeFockClass.hpp \
-$(ID)/DMionisation/Module_atomicKernal.hpp $(ID)/Modules/Module_fitParametric.hpp \
-$(ID)/Operators.hpp $(ID)/UserInput.hpp $(ID)/Wavefunction.hpp
-	$(COMP)
-
-$(OD)/Module_atomicKernal.o: $(ID)/DMionisation/Module_atomicKernal.cpp \
-$(ID)/DMionisation/Module_atomicKernal.hpp \
-$(ID)/DMionisation/AKF_akFunctions.hpp \
-$(ID)/Physics/AtomInfo.hpp $(ID)/ChronoTimer.hpp $(ID)/ContinuumOrbitals.hpp \
-$(ID)/Grid.hpp $(ID)/Physics/PhysConst_constants.hpp \
-$(ID)/Wavefunction.hpp
-	$(COMP)
-
-$(OD)/Module_matrixElements.o: $(ID)/Modules/Module_matrixElements.cpp \
-$(ID)/Modules/Module_matrixElements.hpp $(ID)/Physics/PhysConst_constants.hpp \
-$(ID)/Physics/Nuclear.hpp $(ID)/Operators.hpp $(ID)/UserInput.hpp  \
-$(ID)/HartreeFockClass.hpp $(ID)/Wavefunction.hpp
-	$(COMP)
-
-$(OD)/Module_fitParametric.o: $(ID)/Modules/Module_fitParametric.cpp \
-$(ID)/Modules/Module_fitParametric.hpp $(ID)/Modules/Module_fitParametric.hpp \
-$(ID)/Physics/Nuclear.hpp $(ID)/Grid.hpp $(ID)/Wavefunction.hpp
-	$(COMP)
-
 $(OD)/ContinuumOrbitals.o: $(ID)/ContinuumOrbitals.cpp \
 $(ID)/ContinuumOrbitals.hpp $(ID)/Adams/Adams_bound.hpp \
 $(ID)/Adams/Adams_continuum.hpp $(ID)/Physics/AtomInfo.hpp \
@@ -122,6 +97,9 @@ $(ID)/Parametric_potentials.hpp $(ID)/Physics/PhysConst_constants.hpp \
 $(ID)/Wavefunction.hpp
 	$(COMP)
 
+$(OD)/Grid.o: $(ID)/Grid.cpp $(ID)/Grid.hpp
+	$(COMP)
+
 $(OD)/hartreeFock.o: $(ID)/hartreeFock.cpp $(ID)/Physics/AtomInfo.hpp \
 $(ID)/ChronoTimer.hpp $(ID)/DiracOperator.hpp $(ID)/UserInput.hpp \
 $(ID)/Physics/Nuclear.hpp $(ID)/Operators.hpp $(ID)/Wavefunction.hpp \
@@ -134,12 +112,42 @@ $(ID)/Grid.hpp $(ID)/NumCalc_quadIntegrate.hpp $(ID)/Wavefunction.hpp \
 $(ID)/Parametric_potentials.hpp $(ID)/Physics/Wigner_369j.hpp
 	$(COMP)
 
+$(OD)/Module_runModules.o: $(ID)/Modules/Module_runModules.cpp \
+$(ID)/Modules/Module_runModules.hpp $(ID)/DiracOperator.hpp \
+$(ID)/HartreeFockClass.hpp $(ID)/DMionisation/Module_atomicKernal.hpp \
+$(ID)/Modules/Module_fitParametric.hpp $(ID)/Operators.hpp \
+$(ID)/UserInput.hpp $(ID)/Wavefunction.hpp
+	$(COMP)
+
+$(OD)/Module_atomicKernal.o: $(ID)/DMionisation/Module_atomicKernal.cpp \
+$(ID)/DMionisation/Module_atomicKernal.hpp \
+$(ID)/DMionisation/AKF_akFunctions.hpp \
+$(ID)/Physics/AtomInfo.hpp $(ID)/ChronoTimer.hpp $(ID)/ContinuumOrbitals.hpp \
+$(ID)/Grid.hpp $(ID)/Physics/PhysConst_constants.hpp \
+$(ID)/Wavefunction.hpp
+	$(COMP)
+
+$(OD)/Module_matrixElements.o: $(ID)/Modules/Module_matrixElements.cpp \
+$(ID)/Modules/Module_matrixElements.hpp $(ID)/Physics/PhysConst_constants.hpp \
+$(ID)/Physics/Nuclear.hpp $(ID)/Operators.hpp $(ID)/UserInput.hpp  \
+$(ID)/HartreeFockClass.hpp $(ID)/Wavefunction.hpp
+	$(COMP)
+
+$(OD)/Module_fitParametric.o: $(ID)/Modules/Module_fitParametric.cpp \
+$(ID)/Modules/Module_fitParametric.hpp $(ID)/Modules/Module_fitParametric.hpp \
+$(ID)/Physics/Nuclear.hpp $(ID)/Grid.hpp $(ID)/Wavefunction.hpp
+	$(COMP)
+
+$(OD)/nuclearData.o: $(ID)/nuclearData.cpp $(ID)/Physics/Nuclear.hpp \
+$(ID)/Physics/Nuclear_DataTable.hpp $(ID)/Physics/AtomInfo.hpp
+	$(COMP)
+
 $(OD)/Parametric_potentials.o: $(ID)/Parametric_potentials.cpp \
 $(ID)/Parametric_potentials.hpp
 	$(COMP)
 
 $(OD)/StandardHaloModel.o: $(ID)/DMionisation/StandardHaloModel.cpp \
-$(ID)/DMionisation/StandardHaloModel.hpp $(ID)/Grid.hpp
+$(ID)/DMionisation/StandardHaloModel.hpp
 	$(COMP)
 
 $(OD)/UserInput.o: $(ID)/UserInput.cpp $(ID)/UserInput.hpp \
@@ -155,15 +163,12 @@ $(OD)/wigner.o: $(ID)/wigner.cpp $(ID)/FileIO_fileReadWrite.hpp \
 $(ID)/Physics/Wigner_369j.hpp
 	$(COMP)
 
-$(OD)/nuclearData.o: $(ID)/nuclearData.cpp $(ID)/Physics/Nuclear.hpp \
-$(ID)/Physics/Nuclear_DataTable.hpp $(ID)/Physics/AtomInfo.hpp
-	$(COMP)
 
 ################################################################################
-# Hust to save typing: Many programs depend on these combos:
+# Just to save typing: Many programs depend on these combos:
 
 BASE = $(addprefix $(OD)/, \
- Adams_bound.o Wavefunction.o AtomInfo.o\
+ Adams_bound.o Wavefunction.o AtomInfo.o Grid.o\
 )
 
 HF = $(addprefix $(OD)/, \
@@ -186,8 +191,8 @@ $(XD)/fitParametric: $(BASE) $(HF) $(OD)/fitParametric.o \
 $(OD)/Parametric_potentials.o
 	$(LINK)
 
-$(XD)/hartreeFock: $(BASE) $(HF) $(CNTM) $(OD)/hartreeFock.o $(OD)/UserInput.o \
-$(MODS)
+$(XD)/hartreeFock: $(BASE) $(HF) $(CNTM) $(OD)/hartreeFock.o \
+$(OD)/UserInput.o $(MODS)
 	$(LINK)
 
 $(XD)/dmeXSection: $(BASE) $(CNTM) $(HF) $(OD)/dmeXSection.o \

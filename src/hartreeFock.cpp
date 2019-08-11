@@ -30,7 +30,7 @@ int main(int argc, char *argv[]) {
   auto ngp = input.get("Grid", "ngp", 1600ul);
   auto b = input.get("Grid", "b", 3.5);
   auto grid_type =
-      Grid::parseType(input.get<std::string>("Grid", "type", "loglinear"));
+      GridParameters::parseType(input.get<std::string>("Grid", "type", "loglinear"));
   GridParameters grid_params(ngp, r0, rmax, b, grid_type);
 
   A = input.get("Nucleus", "A", A); // over-writes "atom" A

@@ -1,9 +1,9 @@
-#include "../ChronoTimer.hpp"
-#include "../FileIO_fileReadWrite.hpp"
-#include "../Grid.hpp"
-#include "../NumCalc_quadIntegrate.hpp"
-#include "../Physics/PhysConst_constants.hpp"
 #include "AKF_akFunctions.hpp"
+#include "ChronoTimer.hpp"
+#include "FileIO_fileReadWrite.hpp"
+#include "Grid.hpp"
+#include "NumCalc_quadIntegrate.hpp"
+#include "Physics/PhysConst_constants.hpp"
 #include "StandardHaloModel.hpp"
 #include <cmath>
 #include <fstream>
@@ -52,7 +52,7 @@ double quickExp(double x) {
   if (x < 0.25)
     return 1. + x + 0.5 * x * x + 0.16666667 * std::pow(x, 3) +
            0.041666667 * std::pow(x, 4);
-  return exp(x);
+  return std::exp(x);
 }
 
 //******************************************************************************
@@ -456,7 +456,8 @@ Optionally further integrates into energy bins
   for (std::size_t i = 0; i < desteps; i++) {
     double Eobs = Egrid.r[i];
     double sigma =
-        (alpha * std::sqrt(Eobs * E_to_keV) + beta * (Eobs * E_to_keV)) / E_to_keV;
+        (alpha * std::sqrt(Eobs * E_to_keV) + beta * (Eobs * E_to_keV)) /
+        E_to_keV;
     for (auto Eer : Egrid.r) {
       double g = gaussian(sigma, Eobs - Eer);
       if (Eer < E_thresh_HW || Eobs < E_thresh_HW)
@@ -708,7 +709,7 @@ Mostly, coming from:
 
   // Acceptance
   // Fig. 1 of Phys. Rev. D 90, 062009 (2014).
-  auto Aacc = [](double s1) { return 0.88 * (1. - exp(-0.33 * s1)); };
+  auto Aacc = [](double s1) { return 0.88 * (1. - std::exp(-0.33 * s1)); };
 
   // Gaussian s1 (PE) resolution
   double sigma_pmt = 0.5 * (1 + sPMT_err * 0.05);

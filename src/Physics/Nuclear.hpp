@@ -1,8 +1,9 @@
 #pragma once
-#include "../Grid.hpp"
-#include "../NumCalc_quadIntegrate.hpp"
+// #include "Grid.hpp"
 #include "AtomInfo.hpp" //:(
+#include "Grid.hpp"
 #include "Nuclear_DataTable.hpp"
+#include "NumCalc_quadIntegrate.hpp"
 #include "PhysConst_constants.hpp"
 #include <cmath>
 #include <gsl/gsl_sf_fermi_dirac.h>

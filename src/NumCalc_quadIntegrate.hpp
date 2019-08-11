@@ -1,8 +1,8 @@
 #pragma once
+#include "Grid.hpp"
 #include <array>
 #include <iostream>
 #include <vector>
-class Grid;
 
 namespace NumCalc {
 
