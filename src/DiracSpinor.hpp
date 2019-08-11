@@ -61,7 +61,7 @@ public: // Methods
     return ostring1 + ostring2;
   }
 
-  double norm() const { return sqrt((*this) * (*this)); }
+  double norm() const { return std::sqrt((*this) * (*this)); }
 
   void scale(const double factor) {
     for (auto &f_r : f)

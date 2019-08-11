@@ -15,9 +15,9 @@ struct GridParameters {
   std::size_t ngp;
   double r0, rmax, b;
   GridType type;
-  GridParameters(std::size_t ngp, double r0, double rmax, double b = 3.5,
-                 GridType type = GridType::loglinear)
-      : ngp(ngp), r0(r0), rmax(rmax), b(b), type(type) //
+  GridParameters(std::size_t inngp, double inr0, double inrmax,
+                 double inb = 3.5, GridType intype = GridType::loglinear)
+      : ngp(inngp), r0(inr0), rmax(inrmax), b(inb), type(intype) //
   {}
 };
 
@@ -87,27 +87,7 @@ public:
 
 //******************************************************************************
 inline Grid::Grid(const GridParameters &in)
-    : r0(in.r0), rmax(in.rmax), ngp(in.ngp),
-      du(calc_du_from_ngp(in.r0, in.rmax, in.ngp, in.type, in.b)),
-      gridtype(in.type), b(in.b) {
-  r.reserve(ngp);
-  drdu.reserve(ngp);   // Jacobian:
-  drduor.reserve(ngp); //(1/r)*du/dr (just for convinience)
-
-  switch (gridtype) {
-  case GridType::loglinear:
-    form_loglinear_grid();
-    break;
-  case GridType::logarithmic:
-    form_logarithmic_grid();
-    break;
-  case GridType::linear:
-    form_linear_grid();
-    break;
-  default:
-    std::cerr << "\n FAIL 49 in Grid: no grid type?\n";
-  }
-}
+    : Grid(in.r0, in.rmax, in.ngp, in.type, in.b) {}
 //------------------------------------------------------------------------------
 inline Grid::Grid(double in_r0, double in_rmax, std::size_t in_ngp,
                   GridType in_gridtype, double in_b)
@@ -207,7 +187,7 @@ inline std::size_t Grid::getIndex(double x, bool require_nearest) const
 
   // Must resturn /nearest/ index (we have (in order): r[i-1], x,
   // r[i])
-  if (fabs(x - r[index - 1]) < fabs(r[index] - x))
+  if (std::fabs(x - r[index - 1]) < std::fabs(r[index] - x))
     return index - 1;
   else
     return index;
@@ -240,7 +220,7 @@ inline void Grid::form_loglinear_grid()
 //   du is constant (step-size for uniformly spaced grid)
 // Typically (and by default), b = 4 (unit units/bohr radius)
 {
-  if (b == 0) {
+  if (b <= 0) {
     std::cerr << "FAIL 164 in Grid: Cant have b=0 for LogLinear Grid!\n";
     std::abort();
   }
@@ -251,20 +231,20 @@ inline void Grid::form_loglinear_grid()
   drdu.push_back(drduor[0] * r0);
 
   // Use iterative method from Dzuba code to calculate r grid
-  double u = r0 + b * log(r0);
+  double u = r0 + b * std::log(r0);
   for (std::size_t i = 1; i < ngp; i++) {
     u += du;
     double r_tmp = r[i - 1];
     // Integrate dr/dt to find r:
     double delta_r = 1.;
     int ii = 0; // to count number of iterations
-    while (fabs(delta_r) > (r_tmp * 1.0e-17)) {
-      double delta_u = u - (r_tmp + b * log(r_tmp));
+    while (std::fabs(delta_r) > (r_tmp * 1.0e-17)) {
+      double delta_u = u - (r_tmp + b * std::log(r_tmp));
       double drdu_tmp = r_tmp / (r_tmp + b);
       delta_r = delta_u * drdu_tmp;
       r_tmp += delta_r;
       if (++ii > 20) {
-        if (fabs(delta_r / r_tmp) > 1.0e-6) {
+        if (std::fabs(delta_r / r_tmp) > 1.0e-6) {
           std::cerr << "WARNING Grid:194: Converge? " << i << " " << r_tmp
                     << " " << delta_r / r_tmp << "\n";
         }
@@ -286,7 +266,7 @@ inline void Grid::form_logarithmic_grid()
 //       u = i*du for i=0,1,2,...
 {
   for (std::size_t i = 0; i < ngp; i++)
-    drdu.push_back(r0 * exp(double(i) * du));
+    drdu.push_back(r0 * std::exp(double(i) * du));
   r = drdu;
   drduor.resize(ngp, 1.);
 }
@@ -308,11 +288,11 @@ inline double Grid::calc_du_from_ngp(double r0, double rmax, std::size_t ngp,
     return 0;
   switch (gridtype) {
   case GridType::loglinear:
-    if (b == 0)
+    if (b <= 0)
       std::cerr << "\nFAIL57 in Grid: cant have b=0 for log-linear grid!\n";
-    return (rmax - r0 + b * log(rmax / r0)) / (double(ngp - 1));
+    return (rmax - r0 + b * std::log(rmax / r0)) / (double(ngp - 1));
   case GridType::logarithmic:
-    return log(rmax / r0) / double(ngp - 1);
+    return std::log(rmax / r0) / double(ngp - 1);
   case GridType::linear:
     return (rmax - r0) / double(ngp - 1);
   }
@@ -325,11 +305,11 @@ inline std::size_t Grid::calc_ngp_from_du(double r0, double rmax, double du,
                                           GridType gridtype, double b) {
   switch (gridtype) {
   case GridType::loglinear:
-    if (b == 0)
+    if (b <= 0)
       std::cerr << "\nFAIL57 in Grid: cant have b=0 for log-linear grid!\n";
-    return std::size_t((rmax - r0 + b * log(rmax / r0)) / du) + 2;
+    return std::size_t((rmax - r0 + b * std::log(rmax / r0)) / du) + 2;
   case GridType::logarithmic:
-    return std::size_t(log(rmax / r0) / du) + 2;
+    return std::size_t(std::log(rmax / r0) / du) + 2;
   case GridType::linear:
     return std::size_t((rmax - r0) / du) + 2;
   }

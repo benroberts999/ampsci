@@ -139,7 +139,7 @@ class PNCnsiOperator : public DiracOperator {
   // To get (Qw/-N), multiply by (-N) [can go into optional 'factor']
 public:
   PNCnsiOperator(double c, double t, const Grid &rgrid, double factor = 1)
-      : DiracOperator(factor * PhysConst::GFe11 / sqrt(8.),
+      : DiracOperator(factor * PhysConst::GFe11 / std::sqrt(8.),
                       Nuclear::fermiNuclearDensity_tcN(t, c, 1, rgrid),
                       GammaMatrix::g5) {}
 };
@@ -148,7 +148,7 @@ public:
 // double c = Nuclear::approximate_c_hdr(wf.Anuc());
 // auto rho = Nuclear::fermiNuclearDensity_tcN(t, c, 1, wf.rgrid);
 // double Gf = PhysConst::GFe11;
-// double Cc = (Gf / sqrt(8.)) * (-wf.Nnuc()); // Qw/(-N)
+// double Cc = (Gf / std::sqrt(8.)) * (-wf.Nnuc()); // Qw/(-N)
 // DiracOperator hpnc(Cc, rho, GammaMatrix::g5);
 
 //******************************************************************************
@@ -182,7 +182,7 @@ public:
           std::vector<double> f_r;
           f_r.reserve(rgrid.ngp);
           for (auto r : rgrid.r) {
-            f_r.push_back(pow(r, n));
+            f_r.push_back(std::pow(r, n));
           }
           return f_r;
         }()) {}
@@ -192,7 +192,7 @@ public:
           std::vector<double> f_r;
           f_r.reserve(rgrid.ngp);
           for (auto r : rgrid.r) {
-            f_r.push_back(pow(r, x));
+            f_r.push_back(std::pow(r, x));
           }
           return f_r;
         }()) {}

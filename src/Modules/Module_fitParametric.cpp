@@ -150,8 +150,8 @@ std::tuple<double, double> fitParametric_performFit(
           // sum-of-squares
           for (std::size_t ns = 0; ns < states.size(); ns++) {
             wf.solveNewValence(states[ns].n, states[ns].k, states[ns].en);
-            // fx += pow(wf.orbitals[ns].en - states[ns].en, 2);
-            fx += pow((wf.valence_orbitals[ns].en - states[ns].en) /
+            // fx += std::pow(wf.orbitals[ns].en - states[ns].en, 2);
+            fx += std::pow((wf.valence_orbitals[ns].en - states[ns].en) /
                           (wf.valence_orbitals[ns].en + states[ns].en),
                       2);
           }

@@ -357,7 +357,7 @@ double Wavefunction::enGuessCore(int n, int l) const
     Zeff = 1.;
   }
 
-  double en_a = -0.5 * pow(Zeff / n, 2);
+  double en_a = -0.5 * std::pow(Zeff / n, 2);
   if (n > 1) {
     en_a *= 0.5;
   }
@@ -385,10 +385,10 @@ double Wavefunction::enGuessVal(int n, int ka) const
   if (l == 1)
     neff += 0.5 * x;
   if (l == 2)
-    neff += 2. * pow(x, 0.5);
+    neff += 2. * std::pow(x, 0.5);
   if (l >= 3)
     neff += 4. * x;
-  return -0.5 / pow(neff, 2);
+  return -0.5 / std::pow(neff, 2);
 }
 
 //******************************************************************************

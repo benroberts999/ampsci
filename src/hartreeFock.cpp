@@ -21,7 +21,7 @@ int main(int argc, char *argv[]) {
   auto atom = input.get<std::string>("Atom", "Z");
   auto Z = AtomInfo::get_z(atom);
   auto A = input.get("Atom", "A", -1);
-  auto varalpha = sqrt(input.get("Atom", "varAlpha2", 1.0));
+  auto varalpha = std::sqrt(input.get("Atom", "varAlpha2", 1.0));
   if (varalpha == 0)
     varalpha = 1.0e-16;
 

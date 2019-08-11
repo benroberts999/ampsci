@@ -121,10 +121,10 @@ double diracen(double z, double n, int k, double alpha) {
   double a2 = alpha * alpha;
   double c2 = 1. / a2;
   double za2 = z * z * a2;
-  double g = sqrt(k * k - za2);
-  double w2 = z * z / pow(g + n - fabs((double)k), 2);
+  double g = std::sqrt(k * k - za2);
+  double w2 = z * z / std::pow(g + n - fabs((double)k), 2);
   double d = 1. + a2 * w2;
-  return -w2 / (2 * d) - (0.5 * a2 * w2 + 1. - sqrt(1. + a2 * w2)) * (c2 / d);
+  return -w2 / (2 * d) - (0.5 * a2 * w2 + 1. - std::sqrt(1. + a2 * w2)) * (c2 / d);
 }
 
 //******************************************************************************

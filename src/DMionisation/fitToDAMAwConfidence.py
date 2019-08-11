@@ -62,10 +62,10 @@ def writeFavourdedRegion(filename, data0, data_min, data_max, nsig):
             data_min[i][1] = 1.e-7
             # just a v. small number.. [destructive!!] ??
         se = Obs/(S0/se0)
-        arg_min = pow(dObs/Obs,2) + pow(dS_min/S0,2)
-        arg_max = pow(dObs/Obs,2) + pow(dS_max/S0,2)
-        er_min = m.sqrt(arg_min)*se
-        er_max = m.sqrt(arg_max)*se
+        arg_min = std::pow(dObs/Obs,2) + std::pow(dS_min/S0,2)
+        arg_max = std::pow(dObs/Obs,2) + std::pow(dS_max/S0,2)
+        er_min = m.std::sqrt(arg_min)*se
+        er_max = m.std::sqrt(arg_max)*se
         se_min = se0*(Obs-dObs)/(data_max[i][1])
         se_max = se0*(Obs+dObs)/data_min[i][1]
         #out.append([Mx, se, se-er_min, se+er_max])

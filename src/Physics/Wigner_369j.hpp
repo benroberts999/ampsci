@@ -101,7 +101,7 @@ inline double threej_2(int two_j1, int two_j2, int two_j3, int two_m1,
 
 //******************************************************************************
 inline double cg(double j1, double m1, double j2, double m2, double J, double M)
-// <j1 m1, j2 m2 | J M> = (-1)^(j1-j2+M) * Sqrt(2J+1) * (j1 j2  J)
+// <j1 m1, j2 m2 | J M> = (-1)^(j1-j2+M) * std::sqrt(2J+1) * (j1 j2  J)
 // .                                                    (m1 m2 -M)
 // (Last term is 3j symbol)
 // Note: this function takes DOUBLE values.
@@ -118,14 +118,14 @@ inline double cg(double j1, double m1, double j2, double m2, double J, double M)
   int sign = -1;
   if ((two_j1 - two_j2 + two_M) % 4 == 0)
     sign = 1; // mod 4 (instead 2), since x2
-  return sign * sqrt(two_J + 1.) *
+  return sign * std::sqrt(two_J + 1.) *
          gsl_sf_coupling_3j(two_j1, two_j2, two_J, two_m1, two_m2, -two_M);
 }
 
 //------------------------------------------------------------------------------
 inline double cg_1(int j1, int m1, int j2, int m2, int J, int M)
 // Calculates Clebsh-Gordon coeficient:
-// <j1 m1, j2 m2 | J M> = (-1)^(j1-j2+M) * Sqrt(2J+1) * (j1 j2  J)
+// <j1 m1, j2 m2 | J M> = (-1)^(j1-j2+M) * std::sqrt(2J+1) * (j1 j2  J)
 // .                                                    (m1 m2 -M)
 // (Last term is 3j symbol)
 // Note: this function takes INTEGER values, only works for l (not half-integer
@@ -136,14 +136,14 @@ inline double cg_1(int j1, int m1, int j2, int m2, int J, int M)
   int sign = -1;
   if ((j1 - j2 + M) % 2 == 0)
     sign = 1;
-  return sign * sqrt(2. * J + 1.) *
+  return sign * std::sqrt(2. * J + 1.) *
          gsl_sf_coupling_3j(2 * j1, 2 * j2, 2 * J, 2 * m1, 2 * m2, -2 * M);
 }
 
 //------------------------------------------------------------------------------
 inline double cg_2(int two_j1, int two_m1, int two_j2, int two_m2, int two_J,
                    int two_M)
-// <j1 m1, j2 m2 | J M> = (-1)^(j1-j2+M) * Sqrt(2J+1) * (j1 j2  J)
+// <j1 m1, j2 m2 | J M> = (-1)^(j1-j2+M) * std::sqrt(2J+1) * (j1 j2  J)
 // .                                                    (m1 m2 -M)
 // (Last term is 3j symbol)
 // Note: this function takes INTEGER values, that have already multiplied by 2!
@@ -154,7 +154,7 @@ inline double cg_2(int two_j1, int two_m1, int two_j2, int two_m2, int two_J,
   int sign = -1;
   if ((two_j1 - two_j2 + two_M) % 4 == 0)
     sign = 1; // mod 4 (instead 2), since x2
-  return sign * sqrt(two_J + 1.) *
+  return sign * std::sqrt(two_J + 1.) *
          gsl_sf_coupling_3j(two_j1, two_j2, two_J, two_m1, two_m2, -two_M);
 }
 
@@ -277,7 +277,7 @@ inline double Ck_kk(int k, int ka, int kb)
   auto two_ja = twoj_k(ka);
   auto two_jb = twoj_k(kb);
   auto sign = ((two_ja + 1) / 2 % 2 == 0) ? 1 : -1;
-  auto f = sqrt((two_ja + 1) * (two_jb + 1));
+  auto f = std::sqrt((two_ja + 1) * (two_jb + 1));
   auto g = gsl_sf_coupling_3j(two_ja, two_jb, 2 * k, -1, 1, 0);
   return sign * f * g;
 }

@@ -29,7 +29,7 @@ ContinuumOrbitals::ContinuumOrbitals(const Wavefunction &wf, int izion)
   // NOTE: I _could_ have izion = (tmp_Zion +1). But easier for now to just
   // input z_ion (sometimes, might want to do something different)
   double scale = 1;
-  if (fabs(tmp_Zion - izion) > 0.01)
+  if (std::fabs(tmp_Zion - izion) > 0.01)
     scale = double(Z - izion) / (wf.rgrid.r[NGPb - 5] * wf.vdir[NGPb - 5]);
 
   // Local part of the potential:
@@ -46,7 +46,7 @@ ContinuumOrbitals::ContinuumOrbitals(const Wavefunction &wf, int izion)
   // r->inf, v(r) = -Z_ion/r
   tmp_Zion = -1 * wf.rgrid.r[NGPb - 5] * v[NGPb - 5];
 
-  if (fabs(tmp_Zion - Zion) > 0.01) {
+  if (std::fabs(tmp_Zion - Zion) > 0.01) {
     std::cout << "\nWARNING: [cntm] Zion incorrect?? Is this OK??\n";
     std::cout << "Zion=" << tmp_Zion << " = "
               << -1 * wf.rgrid.r[NGPb - 5] * v[NGPb - 5] << " " << izion
@@ -72,10 +72,10 @@ int ContinuumOrbitals::solveLocalContinuum(double ec, int min_l, int max_l)
 
   // Find 'inital guess' for asymptotic region:
   double lam = 1.0e7; // XXX ???
-  double r_asym = (Zion + sqrt(4. * lam * ec + pow(Zion, 2))) / (2. * ec);
+  double r_asym = (Zion + std::sqrt(4. * lam * ec + std::pow(Zion, 2))) / (2. * ec);
 
   // Check if 'h' is small enough for oscillating region:
-  double h_target = (M_PI / 15) / sqrt(2. * ec);
+  double h_target = (M_PI / 15) / std::sqrt(2. * ec);
   auto h = p_rgrid->du;
   if (h > h_target) {
     std::cout << "WARNING 61 CntOrb: Grid not dense enough for ec=" << ec

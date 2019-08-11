@@ -24,7 +24,7 @@ double tietz(int Z, double r, double t, double g)
   if (r == 0)
     return 0;
   return (-1. / r) *
-             (1. + (double(Z) - 1.) * exp(-g * r) / pow(1. + t * r, 2)) +
+             (1. + (double(Z) - 1.) * exp(-g * r) / std::pow(1. + t * r, 2)) +
          double(Z) / r;
 }
 
@@ -129,8 +129,8 @@ int defaultGreen(int z, double &H, double &d)
   }
 
   // If not one of the defaults, use crude model fit
-  H = 0.665356 + 0.0747058 * z - 0.000155671 * pow(z, 2);
-  d = 0.433183 + 0.0103617 * z - 0.0000531958 * pow(z, 2);
+  H = 0.665356 + 0.0747058 * z - 0.000155671 * std::pow(z, 2);
+  d = 0.433183 + 0.0103617 * z - 0.0000531958 * std::pow(z, 2);
   return 0;
 }
 
@@ -200,8 +200,8 @@ int defaultTietz(int z, double &t, double &g)
   }
 
   // If not one of the defaults, use crude model fit
-  t = 0.33991 + 0.0495393 * z - 0.000272772 * pow(z, 2);
-  g = 1.14316 - 0.028863 * z + 0.000205713 * pow(z, 2);
+  t = 0.33991 + 0.0495393 * z - 0.000272772 * std::pow(z, 2);
+  g = 1.14316 - 0.028863 * z + 0.000205713 * std::pow(z, 2);
   return 0;
 }
 
@@ -209,7 +209,7 @@ int defaultTietz(int z, double &t, double &g)
 std::vector<double> GreenPotential(int z, const std::vector<double> &r_array,
                                    double h, double d) {
   // double Gh, Gd; // Green potential parameters
-  if (fabs(h * d) < 1.0e-6)
+  if (std::fabs(h * d) < 1.0e-6)
     defaultGreenCore(z, h, d);
   // Fill the the potential, using Greens Parametric
   std::vector<double> v;
@@ -223,7 +223,7 @@ std::vector<double> GreenPotential(int z, const std::vector<double> &r_array,
 std::vector<double> TietzPotential(int z, const std::vector<double> &r_array,
                                    double g, double t) {
   // double Gh, Gd; // Green potential parameters
-  if (fabs(g * t) < 1.0e-6)
+  if (std::fabs(g * t) < 1.0e-6)
     defaultTietz(z, t, g);
   // Fill the the potential, using Greens Parametric
   std::vector<double> v;

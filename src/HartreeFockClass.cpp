@@ -32,7 +32,7 @@ HartreeFock::HartreeFock(HFMethod method, Wavefunction &wf,
     : p_wf(&wf), p_rgrid(&wf.rgrid),
       m_cint(Coulomb(wf.rgrid, wf.core_orbitals, wf.valence_orbitals)),
       m_eps_HF([=]() { // can give as log..
-        return (fabs(eps_HF) < 1) ? eps_HF : pow(10, -1 * eps_HF);
+        return (std::fabs(eps_HF) < 1) ? eps_HF : std::pow(10, -1 * eps_HF);
       }()),
       m_excludeExchange([=]() {
         return (method == HFMethod::HartreeFock || method == HFMethod::ApproxHF)
@@ -69,7 +69,7 @@ HartreeFock::HartreeFock(Wavefunction &wf,
     : p_wf(&wf), p_rgrid(&wf.rgrid),
       m_cint(Coulomb(wf.rgrid, wf.core_orbitals, val_orbitals)),
       m_eps_HF([=]() { // can give as log..
-        return (fabs(eps_HF) < 1) ? eps_HF : pow(10, -1 * eps_HF);
+        return (std::fabs(eps_HF) < 1) ? eps_HF : std::pow(10, -1 * eps_HF);
       }()),
       m_excludeExchange(in_ExcludeExchange), //
       m_method(HFMethod::HartreeFock)
@@ -310,7 +310,7 @@ double HartreeFock::calculateCoreEnergy() const
       if (b > a)
         continue;
       double y = (a == b) ? 1 : 2;
-      int kmin = abs(tja - tjb) / 2;
+      int kmin = std::abs(tja - tjb) / 2;
       int kmax = (tja + tjb) / 2;
       auto &vabk = m_cint.get_y_ijk(phi_a, phi_b);
       const auto &L_abk =
@@ -429,7 +429,7 @@ void HartreeFock::form_approx_vex_a(const DiracSpinor &phi_a,
       auto tjb = phi_b.twoj();
       double x_tjbp1 = (tjb + 1) * phi_b.occ_frac;
       auto irmax = std::min(phi_a.pinf, phi_b.pinf);
-      int kmin = abs(twoj_a - tjb) / 2;
+      int kmin = std::abs(twoj_a - tjb) / 2;
       int kmax = (twoj_a + tjb) / 2;
       const auto &vabk = m_cint.get_y_ijk(phi_b, phi_a);
 
@@ -437,7 +437,7 @@ void HartreeFock::form_approx_vex_a(const DiracSpinor &phi_a,
       std::vector<double> v_Fab(p_rgrid->ngp);
       for (std::size_t i = 0; i < irmax; i++) {
         // This is the approximte part! Divides by psi_a
-        if (fabs(phi_a.f[i]) < 1.e-3)
+        if (std::fabs(phi_a.f[i]) < 1.e-3)
           continue;
         double fac_top = phi_a.f[i] * phi_b.f[i] + phi_a.g[i] * phi_b.g[i];
         double fac_bot = phi_a.f[i] * phi_a.f[i] + phi_a.g[i] * phi_a.g[i];
@@ -498,7 +498,7 @@ DiracSpinor HartreeFock::vex_psia(const DiracSpinor &phi_a) const
       auto tjb = phi_b.twoj();
       double x_tjbp1 = (tjb + 1) * phi_b.occ_frac;
       auto irmax = std::min(phi_a.pinf, phi_b.pinf);
-      int kmin = abs(twoj_a - tjb) / 2;
+      int kmin = std::abs(twoj_a - tjb) / 2;
       int kmax = (twoj_a + tjb) / 2;
       const auto &vabk = m_cint.get_y_ijk(phi_b, phi_a);
       const auto &L_ab_k = m_cint.get_angular_L_kiakib_k(ki_a, phi_b.k_index());

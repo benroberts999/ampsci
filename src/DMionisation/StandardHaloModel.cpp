@@ -31,17 +31,17 @@ double StandardHaloModel::fv(double v) const
   double vl = v_sun + veorb * COSBETA * cosphi;
 
   // Norm const * v^2:
-  double A = m_normConst * pow(v, 2);
+  double A = m_normConst * std::pow(v, 2);
 
-  double arg1 = -pow((v - vl) / v0, 2);
+  double arg1 = -std::pow((v - vl) / v0, 2);
 
   if (v <= 0) {
     return 0;
   } else if (v < vesc - vl) { // here
-    double arg2 = -pow((v + vl) / v0, 2);
+    double arg2 = -std::pow((v + vl) / v0, 2);
     return A * (exp(arg1) - exp(arg2));
   } else if (v < vesc + vl) { // here
-    double arg2 = -pow(vesc / v0, 2);
+    double arg2 = -std::pow(vesc / v0, 2);
     return A * (exp(arg1) - exp(arg2));
   } else {
     return 0;

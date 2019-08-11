@@ -61,7 +61,7 @@ void atomicKernal(const UserInputBlock &input, const Wavefunction &wf) {
 
   // Make sure h (large-r step size) is small enough to
   // calculate (normalise) cntm functions with energy = demax
-  double du_target = (M_PI / 20.) / sqrt(2. * demax);
+  double du_target = (M_PI / 20.) / std::sqrt(2. * demax);
   auto du = wf.rgrid.du;
   if (du > du_target) {
     auto new_ngp = Grid::calc_ngp_from_du(wf.rgrid.r0, wf.rgrid.rmax, du_target,
