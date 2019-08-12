@@ -257,6 +257,27 @@ integrate(const std::initializer_list<const std::vector<C> *const> vecs,
     Rint_e += cq[i] * vecs_i(end - i - 1);
 
   return (Rint_m + dq_inv * (Rint_s + Rint_e)) * dt;
+}
+
+//******************************************************************************
+template <typename C>
+inline std::vector<C>
+sumVecs(const std::initializer_list<const std::vector<C> *const> vecs) {
+
+  auto vecs_i = [&vecs](std::size_t i) {
+    C vvv = 0.0;
+    for (const auto &v : vecs)
+      vvv += (*v)[i];
+    return vvv;
+  };
+
+  std::vector<C> ovec;
+  auto size = (**(vecs.begin())).size();
+  ovec.reserve(size);
+  for (auto i = 0ul; i < size; i++) {
+    ovec.push_back(vecs_i(i));
+  }
+  return ovec;
 
 } // END integrate 4
 

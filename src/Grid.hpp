@@ -59,6 +59,15 @@ public:
                                       double in_du, GridType in_gridtype,
                                       double in_b = 0);
 
+  std::vector<double> inverse_r() const {
+    std::vector<double> invr;
+    invr.reserve(ngp);
+    for (const auto ir : r) {
+      invr.push_back(1.0 / ir);
+    }
+    return invr;
+  }
+
 protected:
   // secondary constructor: used for derivated class
   Grid(const Grid &t_gr, const double new_rmax);

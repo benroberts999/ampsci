@@ -248,11 +248,11 @@ protected:
       : rank(k), parity(pi), constant(c), vec(inv), diff_order(d_order) //
         {};
 
-public:
+private:
   const int rank;
   const OperatorParity parity;
   const double constant;
-  const std::vector<double> vec;
+  const std::vector<double> vec; // useful to be able to update this!
   const int diff_order;
   // private:
   //   const Grid *const p_rgrid; //??
@@ -294,20 +294,38 @@ protected:
       rhs_g = &(*new_rhs_f);
     }
 
-    auto Rff = (cff == 0.0) ? 0.0
-                            : NumCalc::integrate(Fa.f, *rhs_f, vec, gr.drdu,
-                                                 1.0, 0, irmax);
-    auto Rgg = (cgg == 0.0) ? 0.0
-                            : NumCalc::integrate(Fa.g, *rhs_g, vec, gr.drdu,
-                                                 1.0, 0, irmax);
-    auto Rfg = (cfg == 0.0) ? 0.0
-                            : NumCalc::integrate(Fa.f, *rhs_g, vec, gr.drdu,
-                                                 1.0, 0, irmax);
-    auto Rgf = (cgf == 0.0) ? 0.0
-                            : NumCalc::integrate(Fa.g, *rhs_f, vec, gr.drdu,
-                                                 1.0, 0, irmax);
+    // XXX dodgy hack..
+    if (!vec.empty()) {
+      auto Rff = (cff == 0.0) ? 0.0
+                              : NumCalc::integrate(Fa.f, *rhs_f, vec, gr.drdu,
+                                                   1.0, 0, irmax);
+      auto Rgg = (cgg == 0.0) ? 0.0
+                              : NumCalc::integrate(Fa.g, *rhs_g, vec, gr.drdu,
+                                                   1.0, 0, irmax);
+      auto Rfg = (cfg == 0.0) ? 0.0
+                              : NumCalc::integrate(Fa.f, *rhs_g, vec, gr.drdu,
+                                                   1.0, 0, irmax);
+      auto Rgf = (cgf == 0.0) ? 0.0
+                              : NumCalc::integrate(Fa.g, *rhs_f, vec, gr.drdu,
+                                                   1.0, 0, irmax);
 
-    return constant * (cff * Rff + cgg * Rgg + cfg * Rfg + cgf * Rgf) * gr.du;
+      return constant * (cff * Rff + cgg * Rgg + cfg * Rfg + cgf * Rgf) * gr.du;
+    } else {
+      auto Rff = (cff == 0.0)
+                     ? 0.0
+                     : NumCalc::integrate(Fa.f, *rhs_f, gr.drdu, 1.0, 0, irmax);
+      auto Rgg = (cgg == 0.0)
+                     ? 0.0
+                     : NumCalc::integrate(Fa.g, *rhs_g, gr.drdu, 1.0, 0, irmax);
+      auto Rfg = (cfg == 0.0)
+                     ? 0.0
+                     : NumCalc::integrate(Fa.f, *rhs_g, gr.drdu, 1.0, 0, irmax);
+      auto Rgf = (cgf == 0.0)
+                     ? 0.0
+                     : NumCalc::integrate(Fa.g, *rhs_f, gr.drdu, 1.0, 0, irmax);
+
+      return constant * (cff * Rff + cgg * Rgg + cfg * Rfg + cgf * Rgf) * gr.du;
+    }
   }
 
 protected:
@@ -331,7 +349,7 @@ public:
   virtual double reducedME(const DiracSpinor &Fa,
                            const DiracSpinor &Fb) const override {
     auto inv_threej = std::sqrt(Fb.twoj() + 1.0);
-    return inv_threej * radialIntegral(Fa, Fb);
+    return inv_threej * matrixEl(Fa, Fb);
   }
   virtual double matrixEl(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
     return radialIntegral(Fa, Fb);
@@ -346,4 +364,57 @@ protected:
   double virtual angularCgg(int, int) const override { return c_gg; }
   double virtual angularCfg(int, int) const override { return c_fg; }
   double virtual angularCgf(int, int) const override { return c_gf; }
+};
+
+class DirectHamiltonian //: public ScalarOperator // need say Dirac here?
+// H_D = [V(r)         -c(dr - k/r)]
+//       [c(dr + k/r)   V(r) - 2c^2]
+//     = V(r) + c g5 k/r + c d_r (0,-1,1,0) + c^2 (0,0,0,-2)
+//     = sum of 4 scalar operators
+// nb: V = v_nuc + v_dir
+{
+public:
+  DirectHamiltonian(
+      const Grid &gr,
+      const std::initializer_list<const std::vector<double> *const> vs,
+      double alpha)      //
+      :                  // ScalarOperator(OperatorParity::even, 1.0, {}), //
+        cl(1.0 / alpha), //
+        v(std::make_unique<ScalarOperator>(
+            ScalarOperator(OperatorParity::even, 1.0, NumCalc::sumVecs(vs),
+                           GammaMatrix::ident, 0))),
+        cg5or(std::make_unique<ScalarOperator>(ScalarOperator(
+            OperatorParity::even, cl, gr.inverse_r(), GammaMatrix::g5, 0))),
+        cdr(std::make_unique<ScalarOperator>(ScalarOperator(
+            OperatorParity::even, cl, {}, DiracMatrix(0, -1, 1, 0), 1))),
+        c2(std::make_unique<ScalarOperator>(ScalarOperator(
+            OperatorParity::even, cl * cl, {}, DiracMatrix(0, 0, 0, -2))))
+  //
+  {
+    updateV(vs);
+  }
+
+  void
+  updateV(const std::initializer_list<const std::vector<double> *const> vs) {
+    v = std::make_unique<ScalarOperator>(
+        ScalarOperator(OperatorParity::even, 1.0, NumCalc::sumVecs(vs),
+                       GammaMatrix::ident, 0));
+  }
+
+  // ScalarOperator(OperatorParity::even, 1.0, in_v, GammaMatrix::ident,
+  //                in_diff)
+public:
+  virtual double reducedME(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
+    auto inv_threej = std::sqrt(Fb.twoj() + 1.0);
+    return inv_threej * matrixEl(Fa, Fb);
+  }
+  virtual double matrixEl(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
+    return v->matrixEl(Fa, Fb) + Fb.k * cg5or->matrixEl(Fa, Fb) +
+           cdr->matrixEl(Fa, Fb) + c2->matrixEl(Fa, Fb);
+  }
+
+private:
+  const double cl;
+  std::unique_ptr<ScalarOperator> v = nullptr;
+  const std::unique_ptr<ScalarOperator> cg5or, cdr, c2;
 };

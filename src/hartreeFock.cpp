@@ -92,6 +92,11 @@ int main(int argc, char *argv[]) {
 
   Module::runModules(input, wf);
 
+  DirectHamiltonian Hd(wf.rgrid, {&wf.vnuc, &wf.vdir}, wf.get_alpha());
+  for (const auto &phi : wf.core_orbitals) {
+    std::cout << Hd.reducedME(phi, phi) << "\n";
+  }
+
   //*********************************************************
   //               TESTS
   //*********************************************************
