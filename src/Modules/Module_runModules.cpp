@@ -135,20 +135,22 @@ void Module_Tests_orthonormality(const Wavefunction &wf) {
 //------------------------------------------------------------------------------
 void Module_Tests_Hamiltonian(const Wavefunction &wf) {
   std::cout << "\nTesting wavefunctions: <n|H|n>  (numerical error)\n";
-  double c = 1. / wf.get_alpha();
-  ScalarOperator_old w(c, GammaMatrix::g5, 1, true);
-  RadialOperator x_a(wf.rgrid, -1);
-  ScalarOperator_old y(c * c, DiracMatrix(0, 0, 0, -2));
-  ScalarOperator_old z1(wf.vnuc);
-  ScalarOperator_old z2(wf.vdir);
+  // double c = 1. / wf.get_alpha();
+  // ScalarOperator_old w(c, GammaMatrix::g5, 1, true);
+  // RadialOperator x_a(wf.rgrid, -1);
+  // ScalarOperator_old y(c * c, DiracMatrix(0, 0, 0, -2));
+  // ScalarOperator_old z1(wf.vnuc);
+  // ScalarOperator_old z2(wf.vdir);
+  DirectHamiltonian Hd(wf.rgrid, {&wf.vnuc, &wf.vdir}, wf.get_alpha());
   for (const auto tmp_orbs : {&wf.core_orbitals, &wf.valence_orbitals}) {
     for (const auto &psi : *tmp_orbs) {
-      auto k = psi.k;
-      auto vexPsi = wf.get_VexPsi(psi);
-      ScalarOperator_old x_b(c, DiracMatrix(0, 1 - k, 1 + k, 0), 0, true);
-      auto rhs = (w * psi) + (x_a * (x_b * psi)) + (y * psi) + (z1 * psi) +
-                 (z2 * psi) + vexPsi;
-      double R = psi * rhs;
+      // auto k = psi.k;
+      // auto vexPsi = wf.get_VexPsi(psi);
+      // ScalarOperator_old x_b(c, DiracMatrix(0, 1 - k, 1 + k, 0), 0, true);
+      // auto rhs = (w * psi) + (x_a * (x_b * psi)) + (y * psi) + (z1 * psi) +
+      //            (z2 * psi) + vexPsi;
+      // double R = psi * rhs;
+      double R = Hd.matrixEl(psi, psi) + psi * wf.get_VexPsi(psi);
       double ens = psi.en;
       double fracdiff = (R - ens) / ens;
       printf("<%i% i|H|%i% i> = %17.11f, E = %17.11f; % .0e\n", psi.n, psi.k,

@@ -342,8 +342,8 @@ public:
   ScalarOperator(OperatorParity pi, double in_coef,
                  const std::vector<double> &in_v,
                  const DiracMatrix &in_g = GammaMatrix::ident, int in_diff = 0)
-      : DiracOperator(0, pi, in_coef, in_v, in_diff), c_ff(in_g.e00),
-        c_fg(in_g.e01), c_gf(in_g.e10), c_gg(in_g.e11) {}
+      : DiracOperator(0, pi, in_coef, in_v, in_diff), //
+        c_ff(in_g.e00), c_fg(in_g.e01), c_gf(in_g.e10), c_gg(in_g.e11) {}
 
 public:
   virtual double reducedME(const DiracSpinor &Fa,
@@ -366,7 +366,8 @@ protected:
   double virtual angularCgf(int, int) const override { return c_gf; }
 };
 
-class DirectHamiltonian //: public ScalarOperator // need say Dirac here?
+//******************************************************************************
+class DirectHamiltonian : public ScalarOperator // need say Dirac here?
 // H_D = [V(r)         -c(dr - k/r)]
 //       [c(dr + k/r)   V(r) - 2c^2]
 //     = V(r) + c g5 k/r + c d_r (0,-1,1,0) + c^2 (0,0,0,-2)
@@ -377,14 +378,15 @@ public:
   DirectHamiltonian(
       const Grid &gr,
       const std::initializer_list<const std::vector<double> *const> vs,
-      double alpha)      //
-      :                  // ScalarOperator(OperatorParity::even, 1.0, {}), //
-        cl(1.0 / alpha), //
+      double alpha)                                    //
+      : ScalarOperator(OperatorParity::even, 1.0, {}), //
+        cl(1.0 / alpha),                               //
         v(std::make_unique<ScalarOperator>(
             ScalarOperator(OperatorParity::even, 1.0, NumCalc::sumVecs(vs),
-                           GammaMatrix::ident, 0))),
-        cg5or(std::make_unique<ScalarOperator>(ScalarOperator(
-            OperatorParity::even, cl, gr.inverse_r(), GammaMatrix::g5, 0))),
+                           GammaMatrix::ident))),
+        cg5or(std::make_unique<ScalarOperator>(
+            ScalarOperator(OperatorParity::even, cl, gr.inverse_r(),
+                           DiracMatrix(0, 1, 1, 0), 0))),
         cdr(std::make_unique<ScalarOperator>(ScalarOperator(
             OperatorParity::even, cl, {}, DiracMatrix(0, -1, 1, 0), 1))),
         c2(std::make_unique<ScalarOperator>(ScalarOperator(
@@ -401,8 +403,6 @@ public:
                        GammaMatrix::ident, 0));
   }
 
-  // ScalarOperator(OperatorParity::even, 1.0, in_v, GammaMatrix::ident,
-  //                in_diff)
 public:
   virtual double reducedME(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
     auto inv_threej = std::sqrt(Fb.twoj() + 1.0);
@@ -410,7 +410,8 @@ public:
   }
   virtual double matrixEl(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
     return v->matrixEl(Fa, Fb) + Fb.k * cg5or->matrixEl(Fa, Fb) +
-           cdr->matrixEl(Fa, Fb) + c2->matrixEl(Fa, Fb);
+           +2.0 * cdr->matrixEl(Fa, Fb) + c2->matrixEl(Fa, Fb);
+    // XXX Why extra 2 here??
   }
 
 private:

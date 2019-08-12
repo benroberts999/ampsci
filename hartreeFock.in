@@ -34,8 +34,7 @@ Modules:
   You can comment-out just the block name, and the block will be skiped.
 */
 
-// Module::Tests
-{
+Module::Tests {
   orthonormal = true;
   Hamiltonian = true;
 }

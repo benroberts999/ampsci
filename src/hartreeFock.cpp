@@ -92,10 +92,14 @@ int main(int argc, char *argv[]) {
 
   Module::runModules(input, wf);
 
-  DirectHamiltonian Hd(wf.rgrid, {&wf.vnuc, &wf.vdir}, wf.get_alpha());
-  for (const auto &phi : wf.core_orbitals) {
-    std::cout << Hd.reducedME(phi, phi) << "\n";
-  }
+  // DirectHamiltonian Hd(wf.rgrid, {&wf.vnuc, &wf.vdir}, wf.get_alpha());
+  // for (const auto &phi : wf.core_orbitals) {
+  //   auto Hdd = Hd.matrixEl(phi, phi);
+  //   std::cout << Hdd << " +  ";
+  //   auto vexP = wf.get_VexPsi(phi);
+  //   std::cout << phi * vexP << " = ";
+  //   std::cout << Hdd + phi * vexP << "\n";
+  // }
 
   //*********************************************************
   //               TESTS
