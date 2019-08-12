@@ -1,9 +1,9 @@
-#include "../ChronoTimer.hpp"
-#include "../FileIO_fileReadWrite.hpp"
-#include "../Grid.hpp"
-#include "../NumCalc_quadIntegrate.hpp"
-#include "../Physics/PhysConst_constants.hpp"
 #include "AKF_akFunctions.hpp"
+#include "ChronoTimer.hpp"
+#include "FileIO_fileReadWrite.hpp"
+#include "Grid.hpp"
+#include "NumCalc_quadIntegrate.hpp"
+#include "Physics/PhysConst_constants.hpp"
 #include "StandardHaloModel.hpp"
 #include <cmath>
 #include <fstream>
@@ -50,9 +50,9 @@ double quickExp(double x) {
   if (x < 0.05)
     return 1. + x + 0.5 * x * x;
   if (x < 0.25)
-    return 1. + x + 0.5 * x * x + 0.16666667 * pow(x, 3) +
-           0.041666667 * pow(x, 4);
-  return exp(x);
+    return 1. + x + 0.5 * x * x + 0.16666667 * std::pow(x, 3) +
+           0.041666667 * std::pow(x, 4);
+  return std::exp(x);
 }
 
 //******************************************************************************
@@ -132,7 +132,7 @@ double F_chi_2_heavy(double, double)
 double F_chi_2_light(double, double q)
 // Limit of light mediatior (mu << q)
 {
-  // return 1. / pow(q, 4);
+  // return 1. / std::pow(q, 4);
   return 1. / (q * q * q * q); // wow. MUCH faster? wtf compiler can't fix?
 }
 double F_chi_2_intermediate(double mu, double q) {
@@ -256,7 +256,7 @@ Output in units of sig-bar_e
 Uses a function pointer for DM form factor. F_chi_2(mu,q) := |F_chi|^2
 */
 {
-  double arg = pow(mx * v, 2) - 2. * mx * E;
+  double arg = std::pow(mx * v, 2) - 2. * mx * E;
   if (arg < 0)
     return 0;
   std::size_t num_states = (Ke_nq.size());
@@ -264,8 +264,8 @@ Uses a function pointer for DM form factor. F_chi_2(mu,q) := |F_chi|^2
 
   double mu = mv * PhysConst::c;
 
-  double qminus = mx * v - sqrt(arg);
-  double qplus = mx * v + sqrt(arg);
+  double qminus = mx * v - std::sqrt(arg);
+  double qplus = mx * v + std::sqrt(arg);
   if (qminus > qgrid.rmax || qplus < qgrid.r0)
     return 0;
 
@@ -282,7 +282,7 @@ Uses a function pointer for DM form factor. F_chi_2(mu,q) := |F_chi|^2
   }   // states
 
   double A = 0.5; // in units of sig-bar_e !
-  dsdE *= (A / pow(v, 2)) * qgrid.du;
+  dsdE *= (A / std::pow(v, 2)) * qgrid.du;
   return dsdE;
 }
 
@@ -298,7 +298,7 @@ Note: only takes _part_ of the K array! (for given E)
 */
 {
   std::size_t vsteps = arr_fv.size();
-  double vmin = sqrt(2 * E / mx);
+  double vmin = std::sqrt(2 * E / mx);
   double dsvdE = 0;
   for (std::size_t iv = 0; iv < vsteps; iv++) {
     double v = double(iv + 1) * dv;
@@ -409,7 +409,8 @@ convolvedRate(const std::vector<double> &in_rate, const Grid &in_grid,
   std::vector<double> out_rate; //(Nout);
   out_rate.reserve(Nout);
   for (std::size_t i = 0; i < Nout; i++) {
-    double g = NumCalc::integrate(in_rate, f_conv[i], in_grid.drdu, in_grid.du);
+    double g =
+        NumCalc::integrate({&in_rate, &f_conv[i], &in_grid.drdu}, in_grid.du);
     out_rate.push_back(convert_units * g);
   }
 
@@ -456,7 +457,8 @@ Optionally further integrates into energy bins
   for (std::size_t i = 0; i < desteps; i++) {
     double Eobs = Egrid.r[i];
     double sigma =
-        (alpha * sqrt(Eobs * E_to_keV) + beta * (Eobs * E_to_keV)) / E_to_keV;
+        (alpha * std::sqrt(Eobs * E_to_keV) + beta * (Eobs * E_to_keV)) /
+        E_to_keV;
     for (auto Eer : Egrid.r) {
       double g = gaussian(sigma, Eobs - Eer);
       if (Eer < E_thresh_HW || Eobs < E_thresh_HW)
@@ -651,8 +653,8 @@ Mostly, coming from:
   // NofE: Conversion between energy recoil and PhotoElectrons
   // From: Fig. 2 of Phys. Rev. D 90, 062009 (2014).
   auto NofE = [](double E_au, double err) {
-    double max = 1.23 * pow(E_au * E_to_keV, 1.43482);
-    double min = 0.75 * pow(E_au * E_to_keV, 1.63265);
+    double max = 1.23 * std::pow(E_au * E_to_keV, 1.43482);
+    double min = 0.75 * std::pow(E_au * E_to_keV, 1.63265);
     double a = 0.5 * (err + 1.);
     double b = 1. - a;
     return a * max + b * min;
@@ -708,7 +710,7 @@ Mostly, coming from:
 
   // Acceptance
   // Fig. 1 of Phys. Rev. D 90, 062009 (2014).
-  auto Aacc = [](double s1) { return 0.88 * (1. - exp(-0.33 * s1)); };
+  auto Aacc = [](double s1) { return 0.88 * (1. - std::exp(-0.33 * s1)); };
 
   // Gaussian s1 (PE) resolution
   double sigma_pmt = 0.5 * (1 + sPMT_err * 0.05);
@@ -728,7 +730,7 @@ Mostly, coming from:
     double A_acc = Aacc(s1);
     G_n[0] = 0;
     for (std::size_t n = 1; n < n_max; n++) {
-      double sigma = sqrt((double)n) * sigma_pmt;
+      double sigma = std::sqrt((double)n) * sigma_pmt;
       // GA_s1_n[is1]
       G_n[n] = gaussian(sigma, s1 - (double)n) * A_acc;
     }
@@ -778,8 +780,8 @@ Mostly, coming from:
   std::vector<std::vector<double>> rate(n_mv, std::vector<double>(n_mx));
   for (std::size_t imv = 0; imv < n_mv; imv++) {
     for (std::size_t imx = 0; imx < n_mx; imx++) {
-      rate[imv][imx] = NumCalc::integrate(dS_mv_mx_s1[imv][imx], s1grid.drdu,
-                                          s1grid.du, is1_a, is1_b);
+      rate[imv][imx] = NumCalc::integrate(
+          {&dS_mv_mx_s1[imv][imx], &s1grid.drdu}, s1grid.du, is1_a, is1_b);
     }
   }
 
@@ -1012,7 +1014,7 @@ int main(int argc, char *argv[]) {
   int num_cp = do_anMod ? 3 : 1; // just 1 v. dist? or 3 (for an mod.)?
   std::vector<std::vector<double>> arr_fv(num_cp, std::vector<double>(vsteps));
   for (int icp = 0; icp < num_cp; icp++) {
-    double cosp = icp == 0 ? 0 : pow(-1, icp); // 0, -1, 1
+    double cosp = icp == 0 ? 0 : std::pow(-1, icp); // 0, -1, 1
     StandardHaloModel shm(cosp, dvesc, dv0);
     for (int i = 0; i < vsteps; i++) {
       double v = (i + 1) * dv; // don't include zero
@@ -1061,8 +1063,8 @@ int main(int argc, char *argv[]) {
             << "ds.v/dE conversion factor: " << dsvdE_to_cm3keVday
             << "   cm^3/keV/day\n\n";
 
-  double al_x = (sqrt(sbe_1e37_cm2) / PhysConst::aB_cm) *
-                (PhysConst::alpha / sqrt(16. * M_PI));
+  double al_x = (std::sqrt(sbe_1e37_cm2) / PhysConst::aB_cm) *
+                (PhysConst::alpha / std::sqrt(16. * M_PI));
   double al_xH = al_x / (PhysConst::m_e_MeV * PhysConst::alpha2);
   std::cout << "Note: sig-bar_e =  " << sbe_1e37_cm2 << "cm2 corresponds to:\n"
             << " Light mediator: al_x = " << al_x << "\n"

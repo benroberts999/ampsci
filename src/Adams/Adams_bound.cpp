@@ -1,8 +1,8 @@
 #include "Adams_bound.hpp"
-#include "../DiracSpinor.hpp"
-#include "../Grid.hpp"
-#include "../Matrix_linalg.hpp"
-#include "../NumCalc_quadIntegrate.hpp"
+#include "DiracSpinor.hpp"
+#include "Grid.hpp"
+#include "Matrix_linalg.hpp"
+#include "NumCalc_quadIntegrate.hpp"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -32,7 +32,7 @@ static const AdamsCoefs<AMO> AMcoef; // Adamns-Moulton coeficients
 // weighting function for meshing in/out solutions
 // nb: must be positive, but i may be negative (?) [ctp - d_ctp]
 static auto weight = [](int i) { return 1. / double(i * i + 1); };
-static const double alr = 600; // 'assymptotically large r [kinda..]' (=800)
+static const double cALR = 600; // 'assymptotically large r [kinda..]' (=800)
 
 //******************************************************************************
 void solveDBS(DiracSpinor &psi, const std::vector<double> &v, const Grid &rgrid,
@@ -79,9 +79,9 @@ void solveDBS(DiracSpinor &psi, const std::vector<double> &v, const Grid &rgrid,
   static const int d_ctp = 4;          // Num points past ctp +/- d_ctp.
 
   // Convergance goal. Default: 1e-14
-  const double eps_goal = (log_dele > 0) ? pow(10, -log_dele) : 1.e-14;
+  const double eps_goal = (log_dele > 0) ? std::pow(10, -log_dele) : 1.e-14;
 
-  DEBUG(if (!(abs(psi.k) <= psi.n && psi.k != psi.n)) {
+  DEBUG(if (!(std::abs(psi.k) <= psi.n && psi.k != psi.n)) {
     std::cerr << "\nFail96 in Adams: bad state " << psi.symbol() << "\n";
     return;
   })
@@ -104,7 +104,7 @@ void solveDBS(DiracSpinor &psi, const std::vector<double> &v, const Grid &rgrid,
   double anorm = 0;
   int t_its = 1;
   for (; t_its < max_its; ++t_its) {
-    t_pinf = findPracticalInfinity(t_en, v, rgrid.r, alr);
+    t_pinf = findPracticalInfinity(t_en, v, rgrid.r, cALR);
     const int ctp = findClassicalTurningPoint(t_en, v, t_pinf, d_ctp);
 
     // Find solution (f,g) to DE for given energy:
@@ -161,7 +161,7 @@ void solveDBS(DiracSpinor &psi, const std::vector<double> &v, const Grid &rgrid,
   psi.its = t_its;
 
   // normalises the orbital (and zero's after pinf)
-  const double an = 1. / sqrt(anorm);
+  const double an = 1. / std::sqrt(anorm);
   for (auto i = 0ul; i < psi.pinf; i++) {
     psi.f[i] = an * psi.f[i];
     psi.g[i] = an * psi.g[i];
@@ -181,8 +181,8 @@ void diracODE_regularAtOrigin(DiracSpinor &phi, const double en,
   const auto &gr = phi.p_rgrid;
   if (en != 0)
     phi.en = en;
-  auto pinf = findPracticalInfinity(phi.en, v, gr->r, alr);
-  outwardAM(phi.f, phi.g, phi.en, v, phi.k, gr->r, gr->drdu, gr->du, pinf,
+  auto pinf = findPracticalInfinity(phi.en, v, gr->r, cALR);
+  outwardAM(phi.f, phi.g, phi.en, v, phi.k, gr->r, gr->drdu, gr->du, pinf - 1,
             alpha);
   // for safety: make sure zerod! (I may re-use existing orbitals!)
   for (std::size_t i = pinf; i < gr->ngp; i++) {
@@ -196,10 +196,10 @@ void diracODE_regularAtInfinity(DiracSpinor &phi, const double en,
                                 const std::vector<double> &v,
                                 const double alpha) {
   const auto &gr = phi.p_rgrid;
-  if (en != 0)
+  if (en < 0)
     phi.en = en;
-  auto pinf = findPracticalInfinity(phi.en, v, gr->r, alr);
-  inwardAM(phi.f, phi.g, phi.en, v, phi.k, gr->r, gr->drdu, gr->du, 0, pinf,
+  auto pinf = findPracticalInfinity(phi.en, v, gr->r, cALR);
+  inwardAM(phi.f, phi.g, phi.en, v, phi.k, gr->r, gr->drdu, gr->du, 0, pinf - 1,
            alpha);
   for (std::size_t i = pinf; i < gr->ngp; i++) {
     phi.f[i] = 0;
@@ -238,8 +238,8 @@ void largeEnergyChange(double &en, int &count_toomany, int &count_toofew,
 double calcNorm(const std::vector<double> &f, const std::vector<double> &g,
                 const std::vector<double> &drdu, const double du,
                 const int pinf) {
-  double anormF = NumCalc::integrate(f, f, drdu, 1., 0, pinf);
-  double anormG = NumCalc::integrate(g, g, drdu, 1., 0, pinf);
+  double anormF = NumCalc::integrate({&f, &f, &drdu}, 1.0, 0, pinf);
+  double anormG = NumCalc::integrate({&g, &g, &drdu}, 1.0, 0, pinf);
   return (anormF + anormG) * du;
 }
 
@@ -342,7 +342,7 @@ void trialDiracSolution(std::vector<double> &f, std::vector<double> &g,
 {
   outwardAM(f, g, en, v, ka, gr.r, gr.drdu, gr.du, ctp + d_ctp, alpha);
   std::vector<double> f_in(gr.ngp), g_in(gr.ngp);
-  inwardAM(f_in, g_in, en, v, ka, gr.r, gr.drdu, gr.du, ctp - d_ctp, pinf,
+  inwardAM(f_in, g_in, en, v, ka, gr.r, gr.drdu, gr.du, ctp - d_ctp, pinf - 1,
            alpha);
   joinInOutSolutions(f, g, dg, f_in, g_in, ctp, d_ctp, pinf);
 }
@@ -380,7 +380,7 @@ void joinInOutSolutions(std::vector<double> &f, std::vector<double> &g,
     f[i] = a * f[i] + b * f_in[i] * rescale;
     g[i] = a * g[i] + b * g_in[i] * rescale;
   }
-  for (int i = ctp + d_ctp + 1; i <= pinf; i++) {
+  for (int i = ctp + d_ctp + 1; i < pinf; i++) {
     f[i] = f_in[i] * rescale;
     g[i] = g_in[i] * rescale;
   }
@@ -402,15 +402,15 @@ void outwardAM(std::vector<double> &f, std::vector<double> &g, const double en,
 
   double az = -1 * v[1] * r[1] * alpha; //  Z = -1 * v[AMO] * r[AMO]
   // take average? Or maybe update each point?? Or lowest?
-  double ga = sqrt(ka * ka - az * az);
+  double ga = std::sqrt(ka * ka - az * az);
 
   // initial wf values
   // P(r) = r^gamma u(r) // f(r) = P(r)
   // Q(r) = r^gamma v(r) // g(r) = -Q(r)
   double u0 = 1;
   double v0 = (ka > 0) ? -(ga + ka) / az : az / (ga - ka);
-  f[0] = pow(r[0], ga) * u0;
-  g[0] = -pow(r[0], ga) * v0;
+  f[0] = std::pow(r[0], ga) * u0;
+  g[0] = -std::pow(r[0], ga) * v0;
 
   // loop through and find first NOL*AMO points of wf
   for (int ln = 0; ln < NOL; ln++) {
@@ -470,7 +470,7 @@ void outwardAM(std::vector<double> &f, std::vector<double> &g, const double en,
 
     // writes wavefunction: P= r^gamma u(r) etc..
     for (int i = 0; i < AMO; i++) {
-      double r_ga = pow(r[i + i0], ga);
+      double r_ga = std::pow(r[i + i0], ga);
       f[i + i0] = r_ga * us[i];
       g[i + i0] = -r_ga * vs[i];
     }
@@ -508,7 +508,7 @@ void inwardAM(std::vector<double> &f, std::vector<double> &g, const double en,
   const double cc = 1. / alpha;
   const double c2 = 1. / alpha2;
 
-  const double lambda = sqrt(-en * (2. + en * alpha2));
+  const double lambda = std::sqrt(-en * (2. + en * alpha2));
   const double zeta = -v[pinf] * r[pinf];
   const double sigma = (1. + en * alpha2) * (zeta / lambda);
   const double Ren = en + c2; // total relativistic energy
@@ -524,15 +524,16 @@ void inwardAM(std::vector<double> &f, std::vector<double> &g, const double en,
     ax[i] = (ka + (i + 1 - sigma) * Ren * alpha2 - zeta * lambda * alpha2) *
             bx[i] * cc / ((i + 1) * lambda);
     if (i < (NX - 1))
-      bx[i + 1] = (ka2 - pow((double(i + 1) - sigma), 2) - zeta2 * alpha2) *
-                  bx[i] / (2 * (i + 1) * lambda);
+      bx[i + 1] =
+          (ka2 - std::pow((double(i + 1) - sigma), 2) - zeta2 * alpha2) *
+          bx[i] / (2 * (i + 1) * lambda);
   }
 
   // Generates last `AMO' points for P and Q [actually AMO+1?]
-  double f1 = sqrt(1. + en * alpha2 * 0.5);
-  double f2 = sqrt(-en * 0.5) * alpha;
+  double f1 = std::sqrt(1. + en * alpha2 * 0.5);
+  double f2 = std::sqrt(-en * 0.5) * alpha;
   for (int i = pinf; i >= (pinf - AMO); i--) {
-    double rfac = pow(r[i], sigma) * exp(-lambda * r[i]);
+    double rfac = std::pow(r[i], sigma) * exp(-lambda * r[i]);
     double ps = 1.;
     double qs = 0.;
     double rk = 1.;
@@ -542,7 +543,7 @@ void inwardAM(std::vector<double> &f, std::vector<double> &g, const double en,
       rk *= r[i];
       ps += (ax[k] / rk);
       qs += (bx[k] / rk);
-      xe = fmax(fabs(ax[k] / ps), fabs(bx[k] / qs)) / rk;
+      xe = fmax(std::fabs(ax[k] / ps), std::fabs(bx[k] / qs)) / rk;
       if (xe < NXEPSP)
         break;
     }

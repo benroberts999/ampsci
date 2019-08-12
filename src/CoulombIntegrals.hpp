@@ -16,7 +16,7 @@ Lambda^k_ij := 3js((ji,jj,k),(-1/2,1/2,0))^2 * parity(li+lj+k)
 
 m_C_kakbk "C" (just parity + [j] + 3js, no sign term!)
 so, C =
-C^k_ij = Sqrt([ji][jj]) * 3js((ji,jj,k),(-1/2,1/2,0)) * parity(li+lj+k)
+C^k_ij = std::sqrt([ji][jj]) * 3js((ji,jj,k),(-1/2,1/2,0)) * parity(li+lj+k)
 
 */
 

@@ -1,17 +1,17 @@
 #include "Module_runModules.hpp"
-#include "../DMionisation/Module_atomicKernal.hpp"
-#include "../DiracOperator.hpp"
-#include "../HartreeFockClass.hpp"
-#include "../Operators.hpp"
-#include "../UserInput.hpp"
-#include "../Wavefunction.hpp"
+#include "DMionisation/Module_atomicKernal.hpp"
+#include "DiracOperator.hpp"
+#include "HartreeFockClass.hpp"
 #include "Module_fitParametric.hpp"
 #include "Module_matrixElements.hpp"
+#include "Operators.hpp"
+#include "UserInput.hpp"
+#include "Wavefunction.hpp"
 #include <fstream>
 #include <iostream>
 #include <string>
 //
-#include "../Physics/PhysConst_constants.hpp"
+#include "Physics/PhysConst_constants.hpp"
 #include <cmath>
 
 namespace Module {
@@ -121,11 +121,11 @@ void Module_Tests_orthonormality(const Wavefunction &wf) {
         }
         double xo = (psi_a * psi_b);
         if (psi_a.n == psi_b.n)
-          xo -= 1;
+          xo -= 1.0;
         if (xo == 0)
           printf("   0");
         else
-          printf(" %+3.0f", log10(fabs(xo)));
+          printf(" %+3.0f", log10(std::fabs(xo)));
       }
       std::cout << "\n";
     }

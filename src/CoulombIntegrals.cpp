@@ -1,6 +1,7 @@
 #include "CoulombIntegrals.hpp"
 #include "DiracSpinor.hpp"
 #include "NumCalc_quadIntegrate.hpp"
+#include <algorithm>
 #include <vector>
 
 //******************************************************************************
@@ -132,7 +133,7 @@ void Coulomb::form_core_core()
       const auto &phi_b = (*c_orbs_ptr)[ib];
       auto tjb = phi_b.twoj();
       auto kib = phi_b.k_index();
-      auto kmin = abs(tja - tjb) / 2;
+      auto kmin = std::abs(tja - tjb) / 2;
       auto num_k = (tja > tjb) ? (tjb + 1) : (tja + 1);
       const auto &Lk = get_angular_L_kiakib_k(kia, kib);
       for (int ik = 0; ik < num_k; ik++) {
@@ -160,7 +161,7 @@ void Coulomb::form_core_core(const DiracSpinor &phi_a)
     const auto &phi_b = (*c_orbs_ptr)[ib];
     auto tjb = phi_b.twoj();
     auto kib = phi_b.k_index();
-    auto kmin = abs(tja - tjb) / 2;
+    auto kmin = std::abs(tja - tjb) / 2;
     auto num_k = (tja > tjb) ? (tjb + 1) : (tja + 1);
     const auto &Lk = get_angular_L_kiakib_k(kia, kib);
     for (int ik = 0; ik < num_k; ik++) {
@@ -188,7 +189,7 @@ void Coulomb::form_valence_valence()
       const auto &phi_w = (*v_orbs_ptr)[iw];
       auto tjw = phi_w.twoj();
       auto kiw = phi_w.k_index();
-      auto kmin = abs(tjv - tjw) / 2;
+      auto kmin = std::abs(tjv - tjw) / 2;
       auto num_k = (tjv > tjw) ? (tjw + 1) : (tjv + 1);
       const auto &Lk = get_angular_L_kiakib_k(kiv, kiw);
       for (int ik = 0; ik < num_k; ik++) {
@@ -220,7 +221,7 @@ void Coulomb::form_core_valence(const DiracSpinor &phi_n)
     const auto &phi_m = orbs[im];
     auto tjm = phi_m.twoj();
     auto kim = phi_m.k_index();
-    auto kmin = abs(tjm - tjn) / 2;
+    auto kmin = std::abs(tjm - tjn) / 2;
     auto num_k = (tjm > tjn) ? (tjn + 1) : (tjm + 1);
     const auto &Lk = get_angular_L_kiakib_k(kim, kin);
     for (int ik = 0; ik < num_k; ik++) {
@@ -248,7 +249,7 @@ void Coulomb::form_core_valence()
       const auto &phi_c = (*c_orbs_ptr)[ic];
       auto tjc = phi_c.twoj();
       auto kic = phi_c.k_index();
-      auto kmin = abs(tjc - tjv) / 2;
+      auto kmin = std::abs(tjc - tjv) / 2;
       auto num_k = (tjc > tjv) ? (tjv + 1) : (tjc + 1);
       const auto &Lk = get_angular_L_kiakib_k(kic, kiv);
       for (int ik = 0; ik < num_k; ik++) {
@@ -297,8 +298,8 @@ const std::vector<double> &Coulomb::get_y_ijk(const DiracSpinor &phi_i,
                                               int k) const {
   auto tji = phi_i.twoj();
   auto tjj = phi_j.twoj();
-  auto kmin = abs(tji - tjj) / 2; // kmin
-  auto kmax = (tji + tjj) / 2;    // kmax
+  auto kmin = std::abs(tji - tjj) / 2; // kmin
+  auto kmax = (tji + tjj) / 2;         // kmax
   if (k > kmax || k < kmin) {
     std::cerr << "FAIL 214 in CI; bad k\n";
     std::abort();
@@ -318,7 +319,7 @@ void Coulomb::calculate_angular(int ki)
 // kia >= kib Always use getter functions to access array. Definitions: L =
 // Lambda^k_ij := 3js((ji,jj,k),(-1/2,1/2,0))^2 * parity(li+lj+k) C = |
 // <k||C^k||k'> |
-//   = Sqrt([ji][jj]) * 3js((ji,jj,k),(-1/2,1/2,0)) * parity(li+lj+k)
+//   = std::sqrt([ji][jj]) * 3js((ji,jj,k),(-1/2,1/2,0)) * parity(li+lj+k)
 // Note: C is abs value) - if sign needed, do seperately [sign NOT symmetric!]
 // Also:
 // k_min = |j - j'|; k_max = |j + j'|
@@ -345,7 +346,7 @@ void Coulomb::calculate_angular(int ki)
           continue;
         int ik = k - kmin;
         auto tjs = Wigner::threej_2(tja, tjb, 2 * k, -1, 1, 0);
-        C_k[ik] = sqrt((tja + 1) * (tjb + 1)) * tjs; // nb: no sign!
+        C_k[ik] = std::sqrt((tja + 1) * (tjb + 1)) * tjs; // nb: no sign!
         L_k[ik] = tjs * tjs;
       } // k
       C_ka_kbk.push_back(C_k);
@@ -379,8 +380,8 @@ std::vector<double> Coulomb::calculate_R_abcd_k(const DiracSpinor &psi_a,
 // Symmetry: a<->c, and b<->d
 // NOTE: NOT offset by k_min, so will calculate for k=0,1,2,...,k_max
 {
-  auto kmin = abs(psi_b.twoj() - psi_d.twoj()) / 2;
-  auto kmax = abs(psi_b.twoj() + psi_d.twoj()) / 2;
+  auto kmin = std::abs(psi_b.twoj() - psi_d.twoj()) / 2;
+  auto kmax = std::abs(psi_b.twoj() + psi_d.twoj()) / 2;
   const auto &drdu = psi_a.p_rgrid->drdu; // save typing
   const auto du = psi_a.p_rgrid->du;
 
@@ -395,8 +396,10 @@ std::vector<double> Coulomb::calculate_R_abcd_k(const DiracSpinor &psi_a,
   const auto &ybd_kr = get_y_ijk(psi_b, psi_d);
   for (int k = kmin; k <= kmax; k++) {
     const auto &ybdk_r = ybd_kr[k - kmin];
-    auto ffy = NumCalc::integrate(psi_a.f, psi_c.f, ybdk_r, drdu, 1, 0, pinf);
-    auto ggy = NumCalc::integrate(psi_a.g, psi_c.g, ybdk_r, drdu, 1, 0, pinf);
+    auto ffy =
+        NumCalc::integrate({&psi_a.f, &psi_c.f, &ybdk_r, &drdu}, 1.0, 0, pinf);
+    auto ggy =
+        NumCalc::integrate({&psi_a.g, &psi_c.g, &ybdk_r, &drdu}, 1.0, 0, pinf);
     Rabcd[k] = (ffy + ggy) * du;
   }
   return Rabcd;
@@ -436,7 +439,7 @@ void Coulomb::calculate_y_ijk(const DiracSpinor &phi_a,
   double Ax = 0, Bx = 0; // A, B defined in equations/comments above
   for (std::size_t i = 0; i < irmax; i++) {
     Bx += grid->drdu[i] * (phi_a.f[i] * phi_b.f[i] + phi_a.g[i] * phi_b.g[i]) /
-          pow(grid->r[i], k + 1);
+          std::pow(grid->r[i], k + 1);
   }
 
   // For "direct" part, can't cut!
@@ -447,9 +450,10 @@ void Coulomb::calculate_y_ijk(const DiracSpinor &phi_a,
   for (std::size_t i = 1; i < irmax; i++) {
     auto Fdr = grid->drdu[i - 1] * (phi_a.f[i - 1] * phi_b.f[i - 1] +
                                     phi_a.g[i - 1] * phi_b.g[i - 1]);
-    Ax = Ax + Fdr * pow(grid->r[i - 1], k);
-    Bx = Bx - Fdr / pow(grid->r[i - 1], k + 1);
-    vabk[i] = du * (Ax / pow(grid->r[i], k + 1) + Bx * pow(grid->r[i], k));
+    Ax = Ax + Fdr * std::pow(grid->r[i - 1], k);
+    Bx = Bx - Fdr / std::pow(grid->r[i - 1], k + 1);
+    vabk[i] =
+        du * (Ax / std::pow(grid->r[i], k + 1) + Bx * std::pow(grid->r[i], k));
   }
   for (std::size_t i = irmax; i < ngp; i++) {
     vabk[i] = 0; // this doesn't happen in psi_a = psi_b

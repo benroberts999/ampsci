@@ -1,13 +1,13 @@
 #pragma once
+#include "Grid.hpp"
 #include <array>
 #include <iostream>
 #include <vector>
-class Grid;
 
 namespace NumCalc {
 
 // Quadrature integration order [1,13], only odd
-static const std::size_t Nquad = 3;
+constexpr std::size_t Nquad = 3;
 static_assert(
     Nquad >= 1 && Nquad <= 13 && Nquad % 2 != 0,
     "\nFAIL10 in NumCalc: Nquad must be in [1,13], and must be odd\n");
@@ -104,28 +104,23 @@ template <> struct QintCoefs<1> {
 };
 
 // instantiate coefs for correct Nquad order:
-static const QintCoefs<Nquad> quintcoef;
-static const auto &cq = quintcoef.cq;
-static const auto dq_inv = quintcoef.dq_inv;
+constexpr QintCoefs<Nquad> quintcoef;
+constexpr auto cq = quintcoef.cq;
+constexpr auto dq_inv = quintcoef.dq_inv;
 //******************************************************************************
 template <typename C>
 inline double integrate(const C &f1, const double dt = 1., std::size_t beg = 0,
                         std::size_t end = 0)
-/*
-Note: includes no safety checks!
-Integrates from (point) beg to end-1 (i.e., not including end)
-Require:
-  * (beg-end) > 2*Nquad
-  * end - Nquad > Nquad
-  * beg + 2*Nquad
-*/
+// Note: includes no safety checks!
+// Integrates from (point) beg to end-1 (i.e., not including end)
+// Require:
+//   * (beg-end) > 2*Nquad
+//   * end - Nquad > Nquad
+//   * beg + 2*Nquad
 {
 
   if (end == 0)
     end = f1.size();
-
-  // if (end - beg < 2 * Nquad)
-  //   std::cerr << "\nFAIL 71 in INT: interval too small\n";
 
   double Rint_s = 0;
   for (std::size_t i = 0; i < Nquad; i++)
@@ -228,6 +223,38 @@ inline double integrate(const C &f1, const C &f2, const C &f3, const C &f4,
   for (std::size_t i = 0; i < Nquad; i++)
     Rint_e += cq[i] * f1[end - i - 1] * f2[end - i - 1] * f3[end - i - 1] *
               f4[end - i - 1];
+
+  return (Rint_m + dq_inv * (Rint_s + Rint_e)) * dt;
+
+} // END integrate 4
+
+//******************************************************************************
+template <typename C>
+inline C
+integrate(const std::initializer_list<const std::vector<C> *const> vecs,
+          const C dt = 1.0, std::size_t beg = 0, std::size_t end = 0) {
+
+  auto vecs_i = [&vecs](std::size_t i) {
+    C vvv = 1.0;
+    for (const auto &v : vecs)
+      vvv *= (*v)[i];
+    return vvv;
+  };
+
+  if (end == 0)
+    end = (**(vecs.begin())).size();
+
+  double Rint_s = 0;
+  for (std::size_t i = 0; i < Nquad; i++)
+    Rint_s += cq[i] * vecs_i(beg + i);
+
+  double Rint_m = 0;
+  for (auto i = beg + Nquad; i < end - Nquad; i++)
+    Rint_m += vecs_i(i);
+
+  double Rint_e = 0;
+  for (std::size_t i = 0; i < Nquad; i++)
+    Rint_e += cq[i] * vecs_i(end - i - 1);
 
   return (Rint_m + dq_inv * (Rint_s + Rint_e)) * dt;
 

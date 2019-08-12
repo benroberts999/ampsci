@@ -1,10 +1,10 @@
 #include "Module_fitParametric.hpp"
-#include "../Grid.hpp"
-#include "../HartreeFockClass.hpp"
-#include "../Parametric_potentials.hpp"
-#include "../Physics/Nuclear.hpp"
-#include "../UserInput.hpp"
-#include "../Wavefunction.hpp"
+#include "Grid.hpp"
+#include "HartreeFockClass.hpp"
+#include "Parametric_potentials.hpp"
+#include "Physics/Nuclear.hpp"
+#include "UserInput.hpp"
+#include "Wavefunction.hpp"
 #include <iostream>
 #include <tuple>
 #include <vector>
@@ -150,10 +150,10 @@ std::tuple<double, double> fitParametric_performFit(
           // sum-of-squares
           for (std::size_t ns = 0; ns < states.size(); ns++) {
             wf.solveNewValence(states[ns].n, states[ns].k, states[ns].en);
-            // fx += pow(wf.orbitals[ns].en - states[ns].en, 2);
-            fx += pow((wf.valence_orbitals[ns].en - states[ns].en) /
-                          (wf.valence_orbitals[ns].en + states[ns].en),
-                      2);
+            // fx += std::pow(wf.orbitals[ns].en - states[ns].en, 2);
+            fx += std::pow((wf.valence_orbitals[ns].en - states[ns].en) /
+                               (wf.valence_orbitals[ns].en + states[ns].en),
+                           2);
           }
         }
         array[n][m][0] = fx;

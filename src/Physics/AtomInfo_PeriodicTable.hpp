@@ -58,8 +58,7 @@ static const std::vector<Element> periodic_table = {
 // (Assumed by "niceCoreOutput" function that this matches nobelGasses)
 // Nothing functional will break if not, just won't necisarily find 'nicest'
 // output format
-using StringPair = std::pair<std::string, std::string>;
-static const std::array<StringPair, 13> nobelGasses = {
+static const std::array<std::pair<std::string, std::string>, 13> nobelGasses = {
     std::make_pair("[H-like]", ""), //
     std::make_pair("[He]", "1s2"),  //
     std::make_pair("[Ne]", "1s2,2s2,2p6"),

@@ -1,6 +1,6 @@
 #include "Adams_continuum.hpp"
-#include "../DiracSpinor.hpp"
-#include "../Grid.hpp"
+#include "DiracSpinor.hpp"
+#include "Grid.hpp"
 #include "Adams_bound.hpp"
 #include <cmath>
 
@@ -50,9 +50,9 @@ int solveContinuum(DiracSpinor &phi, const std::vector<double> &v,
   // Calculate normalisation coeficient, D, and re-scaling factor:
   // D = Sqrt[alpha/(pi*eps)] <-- Amplitude of large-r p(r)
   // eps = Sqrt[en/(en+2mc^2)]
-  double al2 = pow(alpha, 2);
-  double ceps = sqrt(psic.en / (psic.en * al2 + 2.)); // c*eps = eps/alpha
-  double D = 1. / sqrt(M_PI * ceps);
+  double al2 = std::pow(alpha, 2);
+  double ceps = std::sqrt(psic.en / (psic.en * al2 + 2.)); // c*eps = eps/alpha
+  double D = 1. / std::sqrt(M_PI * ceps);
   double sf = D / amp; // re-scale factor
 
   // Normalise the wfs, and transfer back to shorter arrays:
@@ -84,12 +84,12 @@ double findSineAmplitude(std::vector<double> &pc, const std::vector<double> &rc,
     double y0 = 0, y1 = 0, y2 = 0, y3 = 0, y4 = 0;
     double x0 = 0, x1 = 0, x2 = 0, x3 = 0, x4 = 0;
     for (std::size_t i = i_asym + 1; i < NGPc - 1; i++) {
-      if (fabs(pc[i]) < fabs(pc[i - 1])) {
-        y0 = fabs(pc[i - 3]);
-        y1 = fabs(pc[i - 2]);
-        y2 = fabs(pc[i - 1]);
-        y3 = fabs(pc[i]);
-        y4 = fabs(pc[i + 1]);
+      if (std::fabs(pc[i]) < std::fabs(pc[i - 1])) {
+        y0 = std::fabs(pc[i - 3]);
+        y1 = std::fabs(pc[i - 2]);
+        y2 = std::fabs(pc[i - 1]);
+        y3 = std::fabs(pc[i]);
+        y4 = std::fabs(pc[i + 1]);
         x0 = rc[i - 3];
         x1 = rc[i - 2];
         x2 = rc[i - 1];
@@ -146,7 +146,7 @@ findAsymptoticRegion(std::vector<double> &pc, const std::vector<double> &rc,
           break;
         }
       }
-      if (fabs(wk1 - wk2) < 1.e-4) {
+      if (std::fabs(wk1 - wk2) < 1.e-4) {
         // check for "convergence"
         i_asym = i;
         break;
@@ -166,11 +166,11 @@ double fitQuadratic(double x1, double x2, double x3, double y1, double y2,
 // Note: the given 3 points _MUST_ be close to maximum, otherwise, fit wont work
 {
   if (y1 < 0)
-    y1 = fabs(y1);
+    y1 = std::fabs(y1);
   if (y2 < 0)
-    y2 = fabs(y2);
+    y2 = std::fabs(y2);
   if (y3 < 0)
-    y3 = fabs(y3);
+    y3 = std::fabs(y3);
 
   double d = (x1 - x2) * (x1 - x3) * (x2 - x3);
   double Ad = x3 * (x2 * (x2 - x3) * y1 + x1 * (-x1 + x3) * y2) +

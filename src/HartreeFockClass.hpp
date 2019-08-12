@@ -47,6 +47,7 @@ public:
 
   const std::vector<double> &get_vex(const DiracSpinor &psi) const;
   DiracSpinor vex_psia(const DiracSpinor &phi_a) const;
+  void vex_psia(const DiracSpinor &phi_a, DiracSpinor &vexPsi) const;
 
   bool verbose = true;
 

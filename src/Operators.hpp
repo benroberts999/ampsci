@@ -106,8 +106,8 @@ public: // constructor
   HyperfineOperator(double muN, double IN, double rN, const Grid &rgrid,
                     Func_R2_R hfs_F = sphericalBall_F())
       : ScalarOperator(-0.5 * (muN / IN) * PhysConst::alpha / PhysConst::m_p,
-                      RadialFunc(rN, rgrid, hfs_F), DiracMatrix(0, 1, -1, 0), 0,
-                      true) {}
+                       RadialFunc(rN, rgrid, hfs_F), DiracMatrix(0, 1, -1, 0),
+                       0, true) {}
 };
 
 //******************************************************************************
@@ -139,17 +139,17 @@ class PNCnsiOperator : public ScalarOperator {
   // To get (Qw/-N), multiply by (-N) [can go into optional 'factor']
 public:
   PNCnsiOperator(double c, double t, const Grid &rgrid, double factor = 1)
-      : ScalarOperator(factor * PhysConst::GFe11 / sqrt(8.),
-                      Nuclear::fermiNuclearDensity_tcN(t, c, 1, rgrid),
-                      GammaMatrix::g5) {}
+      : ScalarOperator(factor * PhysConst::GFe11 / std::sqrt(8.),
+                       Nuclear::fermiNuclearDensity_tcN(t, c, 1, rgrid),
+                       GammaMatrix::g5) {}
 };
 
 // double t = 2.3;
 // double c = Nuclear::approximate_c_hdr(wf.Anuc());
 // auto rho = Nuclear::fermiNuclearDensity_tcN(t, c, 1, wf.rgrid);
 // double Gf = PhysConst::GFe11;
-// double Cc = (Gf / sqrt(8.)) * (-wf.Nnuc()); // Qw/(-N)
-// ScalarOperator hpnc(Cc, rho, GammaMatrix::g5);
+// double Cc = (Gf / std::sqrt(8.)) * (-wf.Nnuc()); // Qw/(-N)
+// DiracOperator hpnc(Cc, rho, GammaMatrix::g5);
 
 //******************************************************************************
 class RadialOperator : public ScalarOperator {
@@ -182,7 +182,7 @@ public:
           std::vector<double> f_r;
           f_r.reserve(rgrid.ngp);
           for (auto r : rgrid.r) {
-            f_r.push_back(pow(r, n));
+            f_r.push_back(std::pow(r, n));
           }
           return f_r;
         }()) {}
@@ -192,7 +192,7 @@ public:
           std::vector<double> f_r;
           f_r.reserve(rgrid.ngp);
           for (auto r : rgrid.r) {
-            f_r.push_back(pow(r, x));
+            f_r.push_back(std::pow(r, x));
           }
           return f_r;
         }()) {}

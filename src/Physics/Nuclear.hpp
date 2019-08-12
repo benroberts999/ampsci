@@ -1,8 +1,9 @@
 #pragma once
-#include "../Grid.hpp"
-#include "../NumCalc_quadIntegrate.hpp"
+// #include "Grid.hpp"
 #include "AtomInfo.hpp" //:(
+#include "Grid.hpp"
 #include "Nuclear_DataTable.hpp"
+#include "NumCalc_quadIntegrate.hpp"
 #include "PhysConst_constants.hpp"
 #include <cmath>
 #include <gsl/gsl_sf_fermi_dirac.h>
@@ -97,11 +98,11 @@ inline double approximate_r_rms(int A)
   else if (A == 7)
     rN = 2.4312; // 7-Li
   else if (A < 10)
-    rN = 1.15 * pow(A, 0.333);
+    rN = 1.15 * std::pow(A, 0.333);
   // else if (A == 133) // 133-Cs
   //   rN = 4.8041;
   else
-    rN = 0.836 * pow(A, 0.333) + 0.570;
+    rN = 0.836 * std::pow(A, 0.333) + 0.570;
 
   return rN;
 }
@@ -115,9 +116,9 @@ inline double c_hdr_formula_rrms_t(double rrms, double t = 2.3)
   double a = t / 4.39445;
   if (rrms < t) {
     // this is little dodgy? but formula prob only works large A
-    return sqrt((5. / 3) * rrms * rrms);
+    return std::sqrt((5. / 3) * rrms * rrms);
   }
-  return sqrt((5. / 3) * rrms * rrms - (7. / 3) * (9.8696 * a * a));
+  return std::sqrt((5. / 3) * rrms * rrms - (7. / 3) * (9.8696 * a * a));
 }
 
 //******************************************************************************
@@ -127,7 +128,7 @@ inline double rrms_formula_c_t(double c, double t = 2.3)
 // 4 ln(3) = 4.39445, pi^2 = 9.87
 {
   double a = t / 4.39445;
-  return sqrt(0.2 * (3. * c * c + 7. * a * a * 9.8696));
+  return std::sqrt(0.2 * (3. * c * c + 7. * a * a * 9.8696));
 }
 
 const double default_t = 2.30;
@@ -152,8 +153,8 @@ sphericalNuclearPotential(double Z, double rnuc,
   double rN = rnuc / PhysConst::aB_fm;
 
   // Fill the vnuc array with spherical nuclear potantial
-  double rn2 = pow(rN, 2);
-  double rn3 = pow(rN, 3);
+  double rn2 = std::pow(rN, 2);
+  double rn3 = std::pow(rN, 3);
   for (auto r : rgrid) {
     double temp_v = (r < rN) ? Z * (r * r - 3. * rn2) / (2. * rn3) : -Z / r;
     vnuc.push_back(temp_v);
@@ -195,16 +196,16 @@ fermiNuclearPotential(double Z, double t, double c,
   double coa = c / a;
   // Use GSL for the Complete Fermi-Dirac Integrals:
   double F2 = gsl_sf_fermi_dirac_2(coa);
-  double pi2 = pow(M_PI, 2);
+  double pi2 = std::pow(M_PI, 2);
   for (auto r : rgrid) {
     double t_v = -Z / r;
     double roa = PhysConst::aB_fm * r / a; // convert fm <-> atomic
     if (roa < 30. + coa) {
-      double roa = PhysConst::aB_fm * r / a; // convert fm <-> atomic
-      double coa2 = pow(coa, 2);
+      // double roa = PhysConst::aB_fm * r / a; // convert fm <-> atomic
+      double coa2 = std::pow(coa, 2);
       double xF1 = gsl_sf_fermi_dirac_1(roa - coa);
       double xF2 = gsl_sf_fermi_dirac_2(roa - coa);
-      double tX = -pow(roa, 3) - 2 * coa * (pi2 + coa2) +
+      double tX = -std::pow(roa, 3) - 2 * coa * (pi2 + coa2) +
                   roa * (pi2 + 3 * coa2) + 6 * roa * xF1 - 12 * xF2;
       t_v += t_v * tX / (12. * F2);
     }
@@ -235,7 +236,8 @@ fermiNuclearDensity_tcN(double t, double c, double Z_norm, const Grid &grid)
   }
 
   double Norm =
-      NumCalc::integrate(grid.r, grid.r, rho, grid.drdu, grid.du) * 4. * M_PI;
+      NumCalc::integrate({&grid.r, &grid.r, &rho, &grid.drdu}, grid.du) * 4.0 *
+      M_PI;
   double rho0 = Z_norm / Norm;
 
   for (auto &rhoi : rho) {
