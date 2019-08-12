@@ -1,6 +1,7 @@
 #pragma once
 #include <chrono>
 #include <iomanip> // setprecision
+#include <iostream>
 #include <sstream> // stringstream
 #include <string>
 /*
@@ -30,10 +31,11 @@ Usage:
 
 class ChronoTimer {
 public:
-  ChronoTimer(bool auto_start = true);
+  ChronoTimer(const std::string &in_name = "");
   void start();
   void stop();
   void reset();
+  ~ChronoTimer();
 
   double reading_ms() const;
   double lap_reading_ms() const;
@@ -41,6 +43,7 @@ public:
   std::string lap_reading_str() const;
 
 private:
+  std::string name;
   bool running;
   std::chrono::high_resolution_clock::time_point tstart;
   std::string convertHR(double t) const;
@@ -48,10 +51,14 @@ private:
 };
 
 //******************************************************************************
-inline ChronoTimer::ChronoTimer(bool auto_start)
-    : running(false), total_time_ms(0) {
-  if (auto_start)
-    start(); // true by default
+inline ChronoTimer::ChronoTimer(const std::string &in_name)
+    : name(in_name), running(false), total_time_ms(0) {
+  start();
+}
+//******************************************************************************
+inline ChronoTimer::~ChronoTimer() {
+  if (name != "")
+    std::cout << name << ": T = " << reading_str() << "\n";
 }
 
 //******************************************************************************

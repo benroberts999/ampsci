@@ -2,11 +2,11 @@
 #include "DMionisation/Module_atomicKernal.hpp"
 #include "DiracOperator.hpp"
 #include "HartreeFockClass.hpp"
+#include "Module_fitParametric.hpp"
+#include "Module_matrixElements.hpp"
 #include "Operators.hpp"
 #include "UserInput.hpp"
 #include "Wavefunction.hpp"
-#include "Module_fitParametric.hpp"
-#include "Module_matrixElements.hpp"
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -121,7 +121,7 @@ void Module_Tests_orthonormality(const Wavefunction &wf) {
         }
         double xo = (psi_a * psi_b);
         if (psi_a.n == psi_b.n)
-          xo -= 1;
+          xo -= 1.0;
         if (xo == 0)
           printf("   0");
         else

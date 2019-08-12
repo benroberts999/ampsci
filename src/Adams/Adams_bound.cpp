@@ -182,7 +182,7 @@ void diracODE_regularAtOrigin(DiracSpinor &phi, const double en,
   if (en != 0)
     phi.en = en;
   auto pinf = findPracticalInfinity(phi.en, v, gr->r, cALR);
-  outwardAM(phi.f, phi.g, phi.en, v, phi.k, gr->r, gr->drdu, gr->du, pinf,
+  outwardAM(phi.f, phi.g, phi.en, v, phi.k, gr->r, gr->drdu, gr->du, pinf - 1,
             alpha);
   // for safety: make sure zerod! (I may re-use existing orbitals!)
   for (std::size_t i = pinf; i < gr->ngp; i++) {
@@ -199,7 +199,7 @@ void diracODE_regularAtInfinity(DiracSpinor &phi, const double en,
   if (en < 0)
     phi.en = en;
   auto pinf = findPracticalInfinity(phi.en, v, gr->r, cALR);
-  inwardAM(phi.f, phi.g, phi.en, v, phi.k, gr->r, gr->drdu, gr->du, 0, pinf,
+  inwardAM(phi.f, phi.g, phi.en, v, phi.k, gr->r, gr->drdu, gr->du, 0, pinf - 1,
            alpha);
   for (std::size_t i = pinf; i < gr->ngp; i++) {
     phi.f[i] = 0;
@@ -238,8 +238,8 @@ void largeEnergyChange(double &en, int &count_toomany, int &count_toofew,
 double calcNorm(const std::vector<double> &f, const std::vector<double> &g,
                 const std::vector<double> &drdu, const double du,
                 const int pinf) {
-  double anormF = NumCalc::integrate(f, f, drdu, 1., 0, pinf);
-  double anormG = NumCalc::integrate(g, g, drdu, 1., 0, pinf);
+  double anormF = NumCalc::integrate({&f, &f, &drdu}, 1.0, 0, pinf);
+  double anormG = NumCalc::integrate({&g, &g, &drdu}, 1.0, 0, pinf);
   return (anormF + anormG) * du;
 }
 
@@ -342,7 +342,7 @@ void trialDiracSolution(std::vector<double> &f, std::vector<double> &g,
 {
   outwardAM(f, g, en, v, ka, gr.r, gr.drdu, gr.du, ctp + d_ctp, alpha);
   std::vector<double> f_in(gr.ngp), g_in(gr.ngp);
-  inwardAM(f_in, g_in, en, v, ka, gr.r, gr.drdu, gr.du, ctp - d_ctp, pinf,
+  inwardAM(f_in, g_in, en, v, ka, gr.r, gr.drdu, gr.du, ctp - d_ctp, pinf - 1,
            alpha);
   joinInOutSolutions(f, g, dg, f_in, g_in, ctp, d_ctp, pinf);
 }
@@ -380,7 +380,7 @@ void joinInOutSolutions(std::vector<double> &f, std::vector<double> &g,
     f[i] = a * f[i] + b * f_in[i] * rescale;
     g[i] = a * g[i] + b * g_in[i] * rescale;
   }
-  for (int i = ctp + d_ctp + 1; i <= pinf; i++) {
+  for (int i = ctp + d_ctp + 1; i < pinf; i++) {
     f[i] = f_in[i] * rescale;
     g[i] = g_in[i] * rescale;
   }

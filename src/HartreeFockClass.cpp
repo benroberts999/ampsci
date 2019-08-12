@@ -301,10 +301,10 @@ double HartreeFock::calculateCoreEnergy() const
       double xtjbp1 = (tjb + 1) * phi_b.occ_frac;
       auto irmax = std::min(phi_a.pinf, phi_b.pinf);
       auto &v0bb = m_cint.get_y_ijk(phi_b, phi_b, 0);
-      double R0f2 = NumCalc::integrate(phi_a.f, phi_a.f, v0bb, p_rgrid->drdu, 1,
-                                       0, irmax);
-      double R0g2 = NumCalc::integrate(phi_a.g, phi_a.g, v0bb, p_rgrid->drdu, 1,
-                                       0, irmax);
+      double R0f2 = NumCalc::integrate(
+          {&phi_a.f, &phi_a.f, &v0bb, &p_rgrid->drdu}, 1.0, 0, irmax);
+      double R0g2 = NumCalc::integrate(
+          {&phi_a.g, &phi_a.g, &v0bb, &p_rgrid->drdu}, 1.0, 0, irmax);
       E2 += xtjap1 * xtjbp1 * (R0f2 + R0g2);
       // take advantage of symmetry for third term:
       if (b > a)
@@ -321,9 +321,9 @@ double HartreeFock::calculateCoreEnergy() const
           continue;
         int ik = k - kmin;
         double R0f3 =
-            NumCalc::integrate(phi_a.f, phi_b.f, vabk[ik], p_rgrid->drdu);
+            NumCalc::integrate({&phi_a.f, &phi_b.f, &vabk[ik], &p_rgrid->drdu});
         double R0g3 =
-            NumCalc::integrate(phi_a.g, phi_b.g, vabk[ik], p_rgrid->drdu);
+            NumCalc::integrate({&phi_a.g, &phi_b.g, &vabk[ik], &p_rgrid->drdu});
         E3 += y * xtjap1 * xtjbp1 * L_abk[k - kmin] * (R0f3 + R0g3);
       }
     }

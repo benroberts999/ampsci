@@ -10,8 +10,7 @@
 #include <string>
 
 int main(int argc, char *argv[]) {
-  ChronoTimer timer;
-
+  ChronoTimer timer("hartreeFock");
   std::string input_file = (argc > 1) ? argv[1] : "hartreeFock.in";
   std::cout << "Reading input from: " << input_file << "\n";
 
@@ -29,8 +28,8 @@ int main(int argc, char *argv[]) {
   auto rmax = input.get("Grid", "rmax", 150.0);
   auto ngp = input.get("Grid", "ngp", 1600ul);
   auto b = input.get("Grid", "b", 3.5);
-  auto grid_type =
-      GridParameters::parseType(input.get<std::string>("Grid", "type", "loglinear"));
+  auto grid_type = GridParameters::parseType(
+      input.get<std::string>("Grid", "type", "loglinear"));
   GridParameters grid_params(ngp, r0, rmax, b, grid_type);
 
   A = input.get("Nucleus", "A", A); // over-writes "atom" A
@@ -68,9 +67,10 @@ int main(int argc, char *argv[]) {
   }
 
   // Solve Hartree equations for the core:
-  timer.start();
-  wf.hartreeFockCore(HF_method, str_core, eps_HF, H_d, g_t);
-  std::cout << "core: " << timer.lap_reading_str() << "\n";
+  {
+    ChronoTimer t("Core");
+    wf.hartreeFockCore(HF_method, str_core, eps_HF, H_d, g_t);
+  }
 
   // Solve for the valence states:
   auto valence_list = (wf.Ncore() < wf.Znuc())
@@ -91,8 +91,6 @@ int main(int argc, char *argv[]) {
   wf.printValence(sorted);
 
   Module::runModules(input, wf);
-
-  std::cout << "\nTotal time: " << timer.reading_str() << "\n";
 
   //*********************************************************
   //               TESTS

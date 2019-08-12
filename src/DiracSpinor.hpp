@@ -69,6 +69,14 @@ public: // Methods
       f_r *= factor;
     for (auto &g_r : g)
       g_r *= factor;
+    // for (std::size_t i = 0; i < pinf; ++i)
+    //   f[i] *= factor;
+    // for (std::size_t i = 0; i < pinf; ++i)
+    //   g[i] *= factor;
+    // for (std::size_t i = pinf; i < p_rgrid->ngp; ++i) {
+    //   f[i] = 0.0;
+    //   g[i] = 0.0;
+    // }
   }
 
   void normalise(double norm_to = 1.0) {
@@ -78,20 +86,27 @@ public: // Methods
 
 public: // Operator overloads
   double operator*(const DiracSpinor &rhs) const {
+    // XXX This is slow??? And one of the most critial parts!
     // Change the relative sign based in Complex f or g component
     // (includes complex conjugation of lhs)
     int ffs = ((!imaginary_g) && rhs.imaginary_g) ? -1 : 1;
     int ggs = (imaginary_g && !rhs.imaginary_g) ? -1 : 1;
-    auto imax = 0; // std::min(pinf, rhs.pinf) + 1;
-    auto ff = NumCalc::integrate(f, rhs.f, p_rgrid->drdu, 1, 0, imax);
-    auto gg = NumCalc::integrate(g, rhs.g, p_rgrid->drdu, 1, 0, imax);
+    auto imax = p_rgrid->ngp; // std::min(pinf, rhs.pinf); //XXX
+    // XX Actually makes a difference here!
+    // auto ff = NumCalc::integrate({&f, &rhs.f, &p_rgrid->drdu}, 1.0, 0, imax);
+    // auto gg = NumCalc::integrate({&g, &rhs.g, &p_rgrid->drdu}, 1.0, 0, imax);
+    auto ff = NumCalc::integrate(f, rhs.f, p_rgrid->drdu, 1.0, 0, imax);
+    auto gg = NumCalc::integrate(g, rhs.g, p_rgrid->drdu, 1.0, 0, imax);
     return (ffs * ff + ggs * gg) * p_rgrid->du;
   }
 
   DiracSpinor &operator+=(const DiracSpinor &rhs) {
-    for (std::size_t i = 0; i < p_rgrid->ngp; i++)
+    auto imax = p_rgrid->ngp; // std::min(pinf, rhs.pinf); //XXX
+    // auto imax = std::max(pinf, rhs.pinf); // XXX
+    // pinf = imax;
+    for (std::size_t i = 0; i < imax; i++)
       f[i] += rhs.f[i];
-    for (std::size_t i = 0; i < p_rgrid->ngp; i++)
+    for (std::size_t i = 0; i < imax; i++)
       g[i] += rhs.g[i];
     return *this;
   }
@@ -100,9 +115,13 @@ public: // Operator overloads
     return lhs;
   }
   DiracSpinor &operator-=(const DiracSpinor &rhs) {
-    for (std::size_t i = 0; i < p_rgrid->ngp; i++)
+    auto imax = p_rgrid->ngp; // std::min(pinf, rhs.pinf); //XXX
+    // auto imax = std::max(pinf, rhs.pinf); // XXX WHY this make slow??
+    // auto imax = (pinf > rhs.pinf) ? pinf : rhs.pinf;
+    // pinf = imax;
+    for (std::size_t i = 0; i < imax; i++)
       f[i] -= rhs.f[i];
-    for (std::size_t i = 0; i < p_rgrid->ngp; i++)
+    for (std::size_t i = 0; i < imax; i++)
       g[i] -= rhs.g[i];
     return *this;
   }

@@ -236,7 +236,8 @@ fermiNuclearDensity_tcN(double t, double c, double Z_norm, const Grid &grid)
   }
 
   double Norm =
-      NumCalc::integrate(grid.r, grid.r, rho, grid.drdu, grid.du) * 4. * M_PI;
+      NumCalc::integrate({&grid.r, &grid.r, &rho, &grid.drdu}, grid.du) * 4.0 *
+      M_PI;
   double rho0 = Z_norm / Norm;
 
   for (auto &rhoi : rho) {
