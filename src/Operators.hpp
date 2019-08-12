@@ -11,15 +11,15 @@
 // Classes (inherit from DriacOperator)
 
 // Various contructors: (all after v are optional)
-// ScalarOperator(C, v, DiracMatrix(a, b, c, d), diff_order, imag?)
-// ScalarOperator(C, DiracMatrix(a, b, c, d), diff_order, imag?)
-// ScalarOperator(v, DiracMatrix(a, b, c, d), diff_order, imag?)
-// ScalarOperator(DiracMatrix(a, b, c, d), diff_order, imag?)
-// ScalarOperator(diff_order, imag?)
-// ScalarOperator(DiracMatrix(a, b, c, d), imag?)
+// ScalarOperator_old(C, v, DiracMatrix(a, b, c, d), diff_order, imag?)
+// ScalarOperator_old(C, DiracMatrix(a, b, c, d), diff_order, imag?)
+// ScalarOperator_old(v, DiracMatrix(a, b, c, d), diff_order, imag?)
+// ScalarOperator_old(DiracMatrix(a, b, c, d), diff_order, imag?)
+// ScalarOperator_old(diff_order, imag?)
+// ScalarOperator_old(DiracMatrix(a, b, c, d), imag?)
 
 //******************************************************************************
-class HyperfineOperator : public ScalarOperator {
+class HyperfineOperator : public ScalarOperator_old {
 
   using Func_R2_R = std::function<double(double, double)>; // save typing
 
@@ -105,41 +105,41 @@ private: // helper
 public: // constructor
   HyperfineOperator(double muN, double IN, double rN, const Grid &rgrid,
                     Func_R2_R hfs_F = sphericalBall_F())
-      : ScalarOperator(-0.5 * (muN / IN) * PhysConst::alpha / PhysConst::m_p,
+      : ScalarOperator_old(-0.5 * (muN / IN) * PhysConst::alpha / PhysConst::m_p,
                        RadialFunc(rN, rgrid, hfs_F), DiracMatrix(0, 1, -1, 0),
                        0, true) {}
 };
 
 //******************************************************************************
-class PrOperator : public ScalarOperator {
+class PrOperator : public ScalarOperator_old {
   // Pr = -i (d/dr)
 public:
-  PrOperator() : ScalarOperator(-1, GammaMatrix::ident, 1, true) {}
+  PrOperator() : ScalarOperator_old(-1, GammaMatrix::ident, 1, true) {}
 };
 
 //******************************************************************************
-class DerivativeOperator : public ScalarOperator {
+class DerivativeOperator : public ScalarOperator_old {
   // = (d^n/dr^n), for any n>=0
 public:
   DerivativeOperator(int d_order)
-      : ScalarOperator(GammaMatrix::ident, d_order) {}
+      : ScalarOperator_old(GammaMatrix::ident, d_order) {}
 };
 
 //******************************************************************************
-class E1Operator : public ScalarOperator {
+class E1Operator : public ScalarOperator_old {
   // d_E1 = -er = -|e|r = -r
 public:
-  E1Operator(const Grid &rgrid) : ScalarOperator(-1, rgrid.r) {}
+  E1Operator(const Grid &rgrid) : ScalarOperator_old(-1, rgrid.r) {}
 };
 
 //******************************************************************************
-class PNCnsiOperator : public ScalarOperator {
+class PNCnsiOperator : public ScalarOperator_old {
   // PNCnsi = (Gf*10^11/2sqrt[2]) * rho(r) * gamma5
   // Ouput is in units of (Qw * 1.e-11.)
   // To get (Qw/-N), multiply by (-N) [can go into optional 'factor']
 public:
   PNCnsiOperator(double c, double t, const Grid &rgrid, double factor = 1)
-      : ScalarOperator(factor * PhysConst::GFe11 / std::sqrt(8.),
+      : ScalarOperator_old(factor * PhysConst::GFe11 / std::sqrt(8.),
                        Nuclear::fermiNuclearDensity_tcN(t, c, 1, rgrid),
                        GammaMatrix::g5) {}
 };
@@ -152,13 +152,13 @@ public:
 // DiracOperator hpnc(Cc, rho, GammaMatrix::g5);
 
 //******************************************************************************
-class RadialOperator : public ScalarOperator {
+class RadialOperator : public ScalarOperator_old {
   // = some function of r
   // Pass only grid to just get r, or
   // either pass a lambda/function [f(r)], or a number, n, (for r^n)
 public:
   RadialOperator(const Grid &rgrid, double (*f)(double r))
-      : ScalarOperator([&]() {
+      : ScalarOperator_old([&]() {
           std::vector<double> f_r;
           f_r.reserve(rgrid.ngp);
           for (auto r : rgrid.r) {
@@ -168,7 +168,7 @@ public:
         }()) {}
 
   RadialOperator(const Grid &rgrid)
-      : ScalarOperator([&]() {
+      : ScalarOperator_old([&]() {
           std::vector<double> f_r;
           f_r.reserve(rgrid.ngp);
           for (auto r : rgrid.r) {
@@ -178,7 +178,7 @@ public:
         }()) {}
 
   RadialOperator(const Grid &rgrid, int n)
-      : ScalarOperator([&]() {
+      : ScalarOperator_old([&]() {
           std::vector<double> f_r;
           f_r.reserve(rgrid.ngp);
           for (auto r : rgrid.r) {
@@ -188,7 +188,7 @@ public:
         }()) {}
 
   RadialOperator(const Grid &rgrid, double x)
-      : ScalarOperator([&]() {
+      : ScalarOperator_old([&]() {
           std::vector<double> f_r;
           f_r.reserve(rgrid.ngp);
           for (auto r : rgrid.r) {

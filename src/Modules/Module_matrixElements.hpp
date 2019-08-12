@@ -12,7 +12,7 @@ namespace Module {
 std::vector<double> matrixElements(const UserInputBlock &input,
                                    const Wavefunction &wf);
 
-ScalarOperator generateOperator(const std::string &operator_str,
+ScalarOperator_old generateOperator(const std::string &operator_str,
                                const UserInputBlock &input,
                                const Wavefunction &wf);
 

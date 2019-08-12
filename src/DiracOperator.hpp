@@ -1,7 +1,13 @@
 #pragma once
 #include "DiracSpinor.hpp"
 #include "NumCalc_quadIntegrate.hpp"
+#include "Physics/Wigner_369j.hpp"
+#include <algorithm>
+// #include <functional>
+#include <memory>
 #include <vector>
+//
+#include <iostream>
 
 //******************************************************************************
 struct DiracMatrix
@@ -49,8 +55,9 @@ struct DiracMatrix
     if (this->imaginary && other.imaginary) {
       imag = true;
     } else if (this->imaginary || other.imaginary) {
-      std::cerr << "FAIL 50 in ScalarOperator. Cannot mix real and imaginary "
-                   "Dirac Matrices! \n";
+      std::cerr
+          << "FAIL 50 in ScalarOperator_old. Cannot mix real and imaginary "
+             "Dirac Matrices! \n";
       this->print();
       std::cerr << "+\n";
       other.print();
@@ -67,8 +74,9 @@ struct DiracMatrix
     if (this->imaginary && other.imaginary) {
       imag = true;
     } else if (this->imaginary || other.imaginary) {
-      std::cerr << "FAIL 50 in ScalarOperator. Cannot mix real and imaginary "
-                   "Dirac Matrices! \n";
+      std::cerr
+          << "FAIL 50 in ScalarOperator_old. Cannot mix real and imaginary "
+             "Dirac Matrices! \n";
       this->print();
       std::cerr << "-\n";
       other.print();
@@ -99,41 +107,43 @@ const DiracMatrix g5(0, 1, 1, 0);
 } // namespace GammaMatrix
 
 //******************************************************************************
-class ScalarOperator {
+class ScalarOperator_old {
   // XXX at the moment, two ways can be imaginary..
   // it's own, and from Dirac matrix....... OK?? XXX
   // Various contructors: (all after v are optional)
-  // ScalarOperator(C, v, DiracMatrix(a, b, c, d), diff_order, imag?)
-  // ScalarOperator(C, DiracMatrix(a, b, c, d), diff_order, imag?)
-  // ScalarOperator(v, DiracMatrix(a, b, c, d), diff_order, imag?)
-  // ScalarOperator(DiracMatrix(a, b, c, d), diff_order, imag?)
-  // ScalarOperator(diff_order, imag?)
-  // ScalarOperator(DiracMatrix(a, b, c, d), imag?)
+  // ScalarOperator_old(C, v, DiracMatrix(a, b, c, d), diff_order, imag?)
+  // ScalarOperator_old(C, DiracMatrix(a, b, c, d), diff_order, imag?)
+  // ScalarOperator_old(v, DiracMatrix(a, b, c, d), diff_order, imag?)
+  // ScalarOperator_old(DiracMatrix(a, b, c, d), diff_order, imag?)
+  // ScalarOperator_old(diff_order, imag?)
+  // ScalarOperator_old(DiracMatrix(a, b, c, d), imag?)
 
 public: // Constructors
-  ScalarOperator(double in_coef, const std::vector<double> &in_v,
-                 const DiracMatrix &in_g = GammaMatrix::ident, int in_diff = 0,
-                 bool in_imag = false)
+  ScalarOperator_old(double in_coef, const std::vector<double> &in_v,
+                     const DiracMatrix &in_g = GammaMatrix::ident,
+                     int in_diff = 0, bool in_imag = false)
       : coef(in_coef), v(in_v), g(in_g), diff_order(in_diff),
         imaginary(in_imag) {}
 
-  ScalarOperator(double in_coef, const DiracMatrix &in_g = GammaMatrix::ident,
-                 int in_diff = 0, bool in_imag = false)
+  ScalarOperator_old(double in_coef,
+                     const DiracMatrix &in_g = GammaMatrix::ident,
+                     int in_diff = 0, bool in_imag = false)
       : coef(in_coef), g(in_g), diff_order(in_diff), imaginary(in_imag) {}
 
-  ScalarOperator(const std::vector<double> &in_v,
-                 const DiracMatrix &in_g = GammaMatrix::ident, int in_diff = 0,
-                 bool in_imag = false)
+  ScalarOperator_old(const std::vector<double> &in_v,
+                     const DiracMatrix &in_g = GammaMatrix::ident,
+                     int in_diff = 0, bool in_imag = false)
       : v(in_v), g(in_g), diff_order(in_diff), imaginary(in_imag) {}
 
-  ScalarOperator(DiracMatrix in_g = GammaMatrix::ident, int in_diff = 0,
-                 bool in_imag = false)
+  ScalarOperator_old(DiracMatrix in_g = GammaMatrix::ident, int in_diff = 0,
+                     bool in_imag = false)
       : g(in_g), diff_order(in_diff), imaginary(in_imag) {}
 
-  ScalarOperator(int in_diff = 0, bool in_imag = false)
+  ScalarOperator_old(int in_diff = 0, bool in_imag = false)
       : diff_order(in_diff), imaginary(in_imag) {}
 
-  ScalarOperator(DiracMatrix in_g = GammaMatrix::ident, bool in_imag = false)
+  ScalarOperator_old(DiracMatrix in_g = GammaMatrix::ident,
+                     bool in_imag = false)
       : g(in_g), imaginary(in_imag) {}
 
 public: // Data
@@ -147,14 +157,14 @@ public: // Data
 
 public: // Methods
   DiracSpinor operate(const DiracSpinor &phi) const;
-  ScalarOperator HermetianConjugate() const;
+  ScalarOperator_old HermetianConjugate() const;
 
 public: // Operator overloads
   DiracSpinor operator*(const DiracSpinor &phi) const { return operate(phi); }
 };
 
 //******************************************************************************
-inline DiracSpinor ScalarOperator::operate(const DiracSpinor &phi) const {
+inline DiracSpinor ScalarOperator_old::operate(const DiracSpinor &phi) const {
 
   // Note: matrix must be either diagonal or off-diagonal
   // This isn't checked or enforced yet!??!?
@@ -212,24 +222,128 @@ inline DiracSpinor ScalarOperator::operate(const DiracSpinor &phi) const {
 }
 
 //******************************************************************************
-inline ScalarOperator ScalarOperator::HermetianConjugate() const {
+inline ScalarOperator_old ScalarOperator_old::HermetianConjugate() const {
   // Transpose the Dirac Matrix:
   const auto gT = DiracMatrix(g.e00, g.e10, g.e01, g.e11, g.imaginary);
   // complex conjugate:
   const auto sign = (imaginary) ? -1 : 1;
-  return ScalarOperator(sign * coef, v, gT, diff_order, imaginary);
+  return ScalarOperator_old(sign * coef, v, gT, diff_order, imaginary);
 }
 
+// static inline auto Rint()
+//     -> std::function<double(const std::vector<double> &pa,
+//                             const std::vector<double> &pb)> {
+//   return [&](const std::vector<double> &pa, const std::vector<double> &pb) {
+//     return NumCalc::integrate(pa, pb, gr.drdu, 1.0, 0, irmax);
+//   };
+// }
+
 //******************************************************************************
+enum class OperatorParity { even, odd };
+
 class DiracOperator {
-  DiracOperator() = delete;
-  int rank;
-  int parity;
-  double constant;
+protected:
+  DiracOperator(int k, OperatorParity pi, double c,
+                const std::vector<double> &inv, int d_order)
+      : rank(k), parity(pi), constant(c), vec(inv), diff_order(d_order) //
+        {};
 
 public:
-  double virtual reducedME(const DiracSpinor &Fa, const DiracSpinor &Fb);
-  // template <typename Oper>
-  // double static reducedME(const DiracSpinor &Fa, const Oper h,
-  //                         const DiracSpinor &Fb); //?
+  const int rank;
+  const OperatorParity parity;
+  const double constant;
+  const std::vector<double> vec;
+  const int diff_order;
+  // private:
+  //   const Grid *const p_rgrid; //??
+
+public:
+  virtual double reducedME(const DiracSpinor &Fa,
+                           const DiracSpinor &Fb) const = 0;
+  // virtual double matrixEl(const DiracSpinor &Fa,
+  //                         const DiracSpinor &Fb) const = 0;
+
+protected:
+  double radialIntegral(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
+    if (rank < std::abs(Fa.twoj() - Fb.twoj()) / 2)
+      return 0.0;
+    if ((parity == OperatorParity::even) != (Fa.parity() == Fb.parity()))
+      return 0.0;
+
+    auto ka = Fa.k;
+    auto kb = Fb.k;
+    auto cff = angularCff(ka, kb);
+    auto cgg = angularCgg(ka, kb);
+    auto cfg = angularCfg(ka, kb);
+    auto cgf = angularCgf(ka, kb);
+    const auto &gr = *(Fa.p_rgrid);
+    const auto irmax = std::min(Fa.pinf, Fb.pinf); // check if slow?
+
+    const std::vector<double> *rhs_f = &(Fb.f);
+    const std::vector<double> *rhs_g = &(Fb.g);
+
+    // XXX - what about derivative ?? pointers!
+    std::unique_ptr<const std::vector<double>> new_rhs_f = nullptr;
+    std::unique_ptr<const std::vector<double>> new_rhs_g = nullptr;
+    if (diff_order > 0) {
+      new_rhs_f = std::make_unique<std::vector<double>>(
+          NumCalc::derivative(Fb.f, gr.drdu, gr.du, diff_order));
+      new_rhs_g = std::make_unique<std::vector<double>>(
+          NumCalc::derivative(Fb.g, gr.drdu, gr.du, diff_order));
+      rhs_f = &(*new_rhs_f); // don't cry
+      rhs_g = &(*new_rhs_f);
+    }
+
+    auto Rff = (cff == 0.0) ? 0.0
+                            : NumCalc::integrate(Fa.f, *rhs_f, vec, gr.drdu,
+                                                 1.0, 0, irmax);
+    auto Rgg = (cgg == 0.0) ? 0.0
+                            : NumCalc::integrate(Fa.g, *rhs_g, vec, gr.drdu,
+                                                 1.0, 0, irmax);
+    auto Rfg = (cfg == 0.0) ? 0.0
+                            : NumCalc::integrate(Fa.f, *rhs_g, vec, gr.drdu,
+                                                 1.0, 0, irmax);
+    auto Rgf = (cgf == 0.0) ? 0.0
+                            : NumCalc::integrate(Fa.g, *rhs_f, vec, gr.drdu,
+                                                 1.0, 0, irmax);
+
+    return constant * (cff * Rff + cgg * Rgg + cfg * Rfg + cgf * Rgf) * gr.du;
+  }
+
+protected:
+  double virtual angularCff(int /*k_a*/, int /*k_b*/) const { return 1.0; }
+  double virtual angularCgg(int, int) const { return 1.0; }
+  double virtual angularCfg(int, int) const { return 0.0; }
+  double virtual angularCgf(int, int) const { return 0.0; }
+  // XXX Add lookup table for 3j, 6j etc?
+};
+
+//------------------------------------------------------------------------------
+class ScalarOperator : public DiracOperator {
+public:
+  ScalarOperator(OperatorParity pi, double in_coef,
+                 const std::vector<double> &in_v,
+                 const DiracMatrix &in_g = GammaMatrix::ident, int in_diff = 0)
+      : DiracOperator(0, pi, in_coef, in_v, in_diff), c_ff(in_g.e00),
+        c_fg(in_g.e01), c_gf(in_g.e10), c_gg(in_g.e11) {}
+
+public:
+  virtual double reducedME(const DiracSpinor &Fa,
+                           const DiracSpinor &Fb) const override {
+    auto inv_threej = std::sqrt(Fb.twoj() + 1.0);
+    return inv_threej * radialIntegral(Fa, Fb);
+  }
+  virtual double matrixEl(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
+    return radialIntegral(Fa, Fb);
+  }
+
+private:
+  // const bool imaginary; // XXX ok??
+  const double c_ff, c_fg, c_gf, c_gg;
+
+protected:
+  double virtual angularCff(int, int) const override { return c_ff; }
+  double virtual angularCgg(int, int) const override { return c_gg; }
+  double virtual angularCfg(int, int) const override { return c_fg; }
+  double virtual angularCgf(int, int) const override { return c_gf; }
 };
