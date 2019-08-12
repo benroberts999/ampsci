@@ -254,14 +254,10 @@ private:
   const double constant;
   const std::vector<double> vec; // useful to be able to update this!
   const int diff_order;
-  // private:
-  //   const Grid *const p_rgrid; //??
 
 public:
   virtual double reducedME(const DiracSpinor &Fa,
                            const DiracSpinor &Fb) const = 0;
-  // virtual double matrixEl(const DiracSpinor &Fa,
-  //                         const DiracSpinor &Fb) const = 0;
 
 protected:
   double radialIntegral(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
@@ -277,55 +273,37 @@ protected:
     auto cfg = angularCfg(ka, kb);
     auto cgf = angularCgf(ka, kb);
     const auto &gr = *(Fa.p_rgrid);
-    const auto irmax = std::min(Fa.pinf, Fb.pinf); // check if slow?
+    const auto irmax = std::min(Fa.pinf, Fb.pinf);
 
+    // Strangeness here to account for possible derivatives
     const std::vector<double> *rhs_f = &(Fb.f);
     const std::vector<double> *rhs_g = &(Fb.g);
-
-    // XXX - what about derivative ?? pointers!
     std::unique_ptr<const std::vector<double>> new_rhs_f = nullptr;
     std::unique_ptr<const std::vector<double>> new_rhs_g = nullptr;
     if (diff_order > 0) {
+      // rhs_f is either a pointer to F_input, OR (in case of deriv, F')
       new_rhs_f = std::make_unique<std::vector<double>>(
           NumCalc::derivative(Fb.f, gr.drdu, gr.du, diff_order));
       new_rhs_g = std::make_unique<std::vector<double>>(
           NumCalc::derivative(Fb.g, gr.drdu, gr.du, diff_order));
-      rhs_f = &(*new_rhs_f); // don't cry
+      rhs_f = &(*new_rhs_f); // don't cry // .get() method?
       rhs_g = &(*new_rhs_f);
     }
 
-    // XXX dodgy hack..
-    if (!vec.empty()) {
-      auto Rff = (cff == 0.0) ? 0.0
-                              : NumCalc::integrate(Fa.f, *rhs_f, vec, gr.drdu,
-                                                   1.0, 0, irmax);
-      auto Rgg = (cgg == 0.0) ? 0.0
-                              : NumCalc::integrate(Fa.g, *rhs_g, vec, gr.drdu,
-                                                   1.0, 0, irmax);
-      auto Rfg = (cfg == 0.0) ? 0.0
-                              : NumCalc::integrate(Fa.f, *rhs_g, vec, gr.drdu,
-                                                   1.0, 0, irmax);
-      auto Rgf = (cgf == 0.0) ? 0.0
-                              : NumCalc::integrate(Fa.g, *rhs_f, vec, gr.drdu,
-                                                   1.0, 0, irmax);
-
-      return constant * (cff * Rff + cgg * Rgg + cfg * Rfg + cgf * Rgf) * gr.du;
-    } else {
-      auto Rff = (cff == 0.0)
-                     ? 0.0
-                     : NumCalc::integrate(Fa.f, *rhs_f, gr.drdu, 1.0, 0, irmax);
-      auto Rgg = (cgg == 0.0)
-                     ? 0.0
-                     : NumCalc::integrate(Fa.g, *rhs_g, gr.drdu, 1.0, 0, irmax);
-      auto Rfg = (cfg == 0.0)
-                     ? 0.0
-                     : NumCalc::integrate(Fa.f, *rhs_g, gr.drdu, 1.0, 0, irmax);
-      auto Rgf = (cgf == 0.0)
-                     ? 0.0
-                     : NumCalc::integrate(Fa.g, *rhs_f, gr.drdu, 1.0, 0, irmax);
-
-      return constant * (cff * Rff + cgg * Rgg + cfg * Rfg + cgf * Rgf) * gr.du;
-    }
+    // XXX how to do this if vec is empty?
+    auto Rff = (cff == 0.0) ? 0.0
+                            : NumCalc::integrate(Fa.f, *rhs_f, vec, gr.drdu,
+                                                 1.0, 0, irmax);
+    auto Rgg = (cgg == 0.0) ? 0.0
+                            : NumCalc::integrate(Fa.g, *rhs_g, vec, gr.drdu,
+                                                 1.0, 0, irmax);
+    auto Rfg = (cfg == 0.0) ? 0.0
+                            : NumCalc::integrate(Fa.f, *rhs_g, vec, gr.drdu,
+                                                 1.0, 0, irmax);
+    auto Rgf = (cgf == 0.0) ? 0.0
+                            : NumCalc::integrate(Fa.g, *rhs_f, vec, gr.drdu,
+                                                 1.0, 0, irmax);
+    return constant * (cff * Rff + cgg * Rgg + cfg * Rfg + cgf * Rgf) * gr.du;
   }
 
 protected:
@@ -333,7 +311,7 @@ protected:
   double virtual angularCgg(int, int) const { return 1.0; }
   double virtual angularCfg(int, int) const { return 0.0; }
   double virtual angularCgf(int, int) const { return 0.0; }
-  // XXX Add lookup table for 3j, 6j etc?
+  // XXX Add lookup table for 3j, 6j etc? ==> in derived classes
 };
 
 //------------------------------------------------------------------------------
@@ -356,7 +334,6 @@ public:
   }
 
 private:
-  // const bool imaginary; // XXX ok??
   const double c_ff, c_fg, c_gf, c_gg;
 
 protected:
@@ -367,55 +344,47 @@ protected:
 };
 
 //******************************************************************************
-class DirectHamiltonian : public ScalarOperator // need say Dirac here?
-// H_D = [V(r)         -c(dr - k/r)]
-//       [c(dr + k/r)   V(r) - 2c^2]
-//     = V(r) + c g5 k/r + c d_r (0,-1,1,0) + c^2 (0,0,0,-2)
-//     = sum of 4 scalar operators
-// nb: V = v_nuc + v_dir
-{
+class DirectHamiltonian : public ScalarOperator {
+
 public:
-  DirectHamiltonian(
-      const Grid &gr,
-      const std::initializer_list<const std::vector<double> *const> vs,
-      double alpha)                                    //
+  DirectHamiltonian(const std::vector<double> &vn,
+                    const std::vector<double> &vd, const double alpha)
       : ScalarOperator(OperatorParity::even, 1.0, {}), //
-        cl(1.0 / alpha),                               //
-        v(std::make_unique<ScalarOperator>(
-            ScalarOperator(OperatorParity::even, 1.0, NumCalc::sumVecs(vs),
-                           GammaMatrix::ident))),
-        cg5or(std::make_unique<ScalarOperator>(
-            ScalarOperator(OperatorParity::even, cl, gr.inverse_r(),
-                           DiracMatrix(0, 1, 1, 0), 0))),
-        cdr(std::make_unique<ScalarOperator>(ScalarOperator(
-            OperatorParity::even, cl, {}, DiracMatrix(0, -1, 1, 0), 1))),
-        c2(std::make_unique<ScalarOperator>(ScalarOperator(
-            OperatorParity::even, cl * cl, {}, DiracMatrix(0, 0, 0, -2))))
+        cl(1.0 / alpha), vnuc(vn),                     // invr(gr.inverse_r()),
+        vdir(vd), tmp_f(std::vector<double>(vn.size(), 0.0))
   //
-  {
-    updateV(vs);
-  }
-
-  void
-  updateV(const std::initializer_list<const std::vector<double> *const> vs) {
-    v = std::make_unique<ScalarOperator>(
-        ScalarOperator(OperatorParity::even, 1.0, NumCalc::sumVecs(vs),
-                       GammaMatrix::ident, 0));
-  }
+  {}
 
 public:
-  virtual double reducedME(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
+  void updateVdir(const std::vector<double> &in_vdir) { vdir = in_vdir; }
+
+public:
+  double reducedME(const DiracSpinor &Fa,
+                   const DiracSpinor &Fb) const override {
     auto inv_threej = std::sqrt(Fb.twoj() + 1.0);
     return inv_threej * matrixEl(Fa, Fb);
   }
-  virtual double matrixEl(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
-    return v->matrixEl(Fa, Fb) + Fb.k * cg5or->matrixEl(Fa, Fb) +
-           +2.0 * cdr->matrixEl(Fa, Fb) + c2->matrixEl(Fa, Fb);
-    // XXX Why extra 2 here??
+  double matrixEl(const DiracSpinor &Fa, const DiracSpinor &Fb) const override {
+    if (Fa.k != Fb.k)
+      return 0.0;
+    const auto &drdu = Fa.p_rgrid->drdu;
+    tmp_f = NumCalc::derivative(Fa.f, drdu, Fa.p_rgrid->du, 1);
+    const auto max = Fa.pinf;
+    for (std::size_t i = 0; i < max; i++) {
+      tmp_f[i] += (Fa.k * Fa.f[i] / Fa.p_rgrid->r[i]) - cl * Fa.g[i];
+    }
+    auto Hz = 2.0 * cl * NumCalc::integrate(Fa.g, tmp_f, drdu, 1.0, 0, max);
+    auto Hw = NumCalc::integrate(Fa.f, Fa.f, vnuc, drdu, 1.0, 0, max) +
+              NumCalc::integrate(Fa.g, Fa.g, vnuc, drdu, 1.0, 0, max) +
+              NumCalc::integrate(Fa.f, Fa.f, vdir, drdu, 1.0, 0, max) +
+              NumCalc::integrate(Fa.g, Fa.g, vdir, drdu, 1.0, 0, max);
+    return (Hw + Hz) * Fa.p_rgrid->du;
   }
 
 private:
   const double cl;
-  std::unique_ptr<ScalarOperator> v = nullptr;
-  const std::unique_ptr<ScalarOperator> cg5or, cdr, c2;
+  const std::vector<double> vnuc;
+  // const std::vector<double> invr;
+  std::vector<double> vdir;
+  mutable std::vector<double> tmp_f;
 };

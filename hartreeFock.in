@@ -9,7 +9,7 @@ HartreeFock {
   valence = 7sp;
   sortOutput;
   method; // HartreeFock(dflt), ApproxHF, Hartree, GreenPRM, TietzPRM
-  convergence = 1.0e-13;
+  convergence = 1.0e-14;
 }
 
 Nucleus {
@@ -34,7 +34,8 @@ Modules:
   You can comment-out just the block name, and the block will be skiped.
 */
 
-Module::Tests {
+// Module::Tests
+{
   orthonormal = true;
   Hamiltonian = true;
 }

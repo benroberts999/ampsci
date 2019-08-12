@@ -527,41 +527,37 @@ void HartreeFock::vex_psia(const DiracSpinor &phi_a, DiracSpinor &vexPsi) const
 
 //******************************************************************************
 void HartreeFock::iterate_core_orbital(
-    DiracSpinor &phi, const std::vector<double> &vl, const double alpha,
-    const ScalarOperator_old &cg5dr, const ScalarOperator_old &inv_r,
-    const ScalarOperator_old &c2Img0, const ScalarOperator_old &Vnuc,
-    const ScalarOperator_old &Vd, const ScalarOperator_old &fVdir0) const {
+    DiracSpinor &phi, const std::vector<double> &vl,
+    // const double alpha,
+    // const ScalarOperator_old &cg5dr, const ScalarOperator_old &inv_r,
+    // const ScalarOperator_old &c2Img0, const ScalarOperator_old &Vnuc,
+    const DirectHamiltonian &Hd, const ScalarOperator_old &Vd,
+    const ScalarOperator_old &fVdir0) const {
 
   const auto eps_target = m_eps_HF;
 
   const int n = phi.n;
   const int k = phi.k;
-  const double c = 1. / alpha;
+  // const double c = 1. / alpha;
 
-  const ScalarOperator_old cg5_pmk(c, DiracMatrix(0, 1 - k, 1 + k, 0), 0, true);
+  // const ScalarOperator_old cg5_pmk(c, DiracMatrix(0, 1 - k, 1 + k, 0), 0,
+  // true);
 
-  const int max_ini = 99;
+  // DirectHamiltonian Hd(Vnuc.v, Vd.v, alpha);
+
   double prev_inner_eps = 1.0;
   auto phi0 = DiracSpinor(n, k, *(phi.p_rgrid));
   auto phiI = DiracSpinor(n, k, *(phi.p_rgrid));
   auto vexPsi = DiracSpinor(n, k, *(phi.p_rgrid));
-  for (int ini = 0; ini <= max_ini; ini++) {
+  for (int ini = 0; ini <= MAX_HART_ITS; ini++) {
 
     vex_psia(phi, vexPsi);
     const auto Sr = (fVdir0 * phi) - (Vd * phi) - vexPsi;
 
-    // Energy guess: expectation value of Hamiltonian:
-    // There is probably a better way to do this
-    const auto H_expect = (phi * (cg5dr * phi))               //
-                          + (phi * (inv_r * (cg5_pmk * phi))) //
-                          + (phi * (c2Img0 * phi))            //
-                          + (phi * (Vnuc * phi))              //
-                          + (phi * (Vd * phi))                //
-                          + (phi * vexPsi);                   //
-    auto en = H_expect;                                       //(phi * rhs);
+    auto en = Hd.matrixEl(phi, phi) + phi * vexPsi;
 
     auto inner_eps = fabs((en - phi.en) / phi.en);
-    bool inner_converged = (inner_eps <= eps_target || ini == max_ini);
+    bool inner_converged = (inner_eps <= eps_target || ini == MAX_HART_ITS);
     bool inner_getting_worse = (inner_eps > 1.1 * prev_inner_eps && ini > 10);
     if (prev_inner_eps > inner_eps)
       prev_inner_eps = inner_eps;
@@ -587,19 +583,12 @@ inline void HartreeFock::refine_valence_orbital_exchange(DiracSpinor &phi) {
   const int n = phi.n;
   const int k = phi.k;
 
-  // This is the Dirac Hamiltonian...ugly way of doing it....
-  double c = 1. / p_wf->get_alpha();
-  ScalarOperator_old cg5dr(c, GammaMatrix::g5, 1, true);
-  RadialOperator inv_r(p_wf->rgrid, -1);
-  ScalarOperator_old c2Img0(c * c, DiracMatrix(0, 0, 0, -2));
-  ScalarOperator_old Vnuc(p_wf->vnuc);
-  ScalarOperator_old Vd(p_wf->vdir);
-  ScalarOperator_old cg5_pmk(c, DiracMatrix(0, 1 - k, 1 + k, 0), 0, true);
-
   auto vl = p_wf->vnuc;
   for (unsigned i = 0; i < vl.size(); i++) {
     vl[i] += p_wf->vdir[i];
   }
+
+  DirectHamiltonian Hd(p_wf->vnuc, p_wf->vdir, p_wf->get_alpha());
 
   auto prev_en = phi.en;
   m_cint.form_core_valence(phi); // only needed if not already done!
@@ -608,20 +597,15 @@ inline void HartreeFock::refine_valence_orbital_exchange(DiracSpinor &phi) {
   auto phi0 = DiracSpinor(n, k, p_wf->rgrid);
   auto phiI = DiracSpinor(n, k, p_wf->rgrid);
   auto vexPsi = DiracSpinor(n, k, p_wf->rgrid);
-  const auto max_its = 99;
-  for (int it = 0; it <= max_its; ++it) {
-    // auto vexPsi = vex_psia(phi);
+  for (int it = 0; it <= MAX_HART_ITS; ++it) {
     vex_psia(phi, vexPsi);
     auto Sr = -1.0 * vexPsi;
-    // Energy guess: expectation value of Hamiltonian:
-    // There is probably a better way to do this
-    const auto H_expect = (cg5dr * phi) + (inv_r * (cg5_pmk * phi)) +
-                          (c2Img0 * phi) + (Vnuc * phi) + (Vd * phi) + vexPsi;
-    en = phi * H_expect;
+    en = Hd.matrixEl(phi, phi) + phi * vexPsi;
+
     auto eps = fabs((prev_en - en) / en);
     bool getting_worse = (it > 20 && eps >= 2.0 * eps_prev);
     bool converged = (eps <= eps_target && it > 0);
-    if (converged || getting_worse || it == max_its) {
+    if (converged || getting_worse || it == MAX_HART_ITS) {
       phi.en = en;
       phi.eps = eps;
       phi.its = it;
@@ -649,38 +633,34 @@ inline void HartreeFock::refine_valence_orbital_exchange(DiracSpinor &phi) {
 //******************************************************************************
 inline void HartreeFock::refine_core_orbitals_exchange() {
 
-  const double c = 1. / p_wf->get_alpha();
-  const ScalarOperator_old cg5dr(c, GammaMatrix::g5, 1, true);
-  const RadialOperator inv_r(p_wf->rgrid, -1);
-  const ScalarOperator_old c2Img0(c * c, DiracMatrix(0, 0, 0, -2));
-  const ScalarOperator_old Vnuc(p_wf->vnuc);
-
   const double eps_target = m_eps_HF;
 
   m_cint.form_core_core(); // only needed if not already done!
 
+  DirectHamiltonian Hd(p_wf->vnuc, p_wf->vdir, p_wf->get_alpha());
+
   const auto a_damp = 0.2;
   double prev_eps = 1.0;
 
-  const auto max_its = 99;
-  for (int it = 0; it <= max_its; it++) {
+  for (int it = 0; it <= MAX_HART_ITS; it++) {
 
     const auto f_core = double(p_wf->Ncore() - 1) / double(p_wf->Ncore());
-    const ScalarOperator_old fVdir0(f_core, p_wf->vdir); // for energy guess
+
     auto vl_tmp = p_wf->vnuc;
     for (unsigned i = 0; i < vl_tmp.size(); i++) {
       vl_tmp[i] += f_core * p_wf->vdir[i];
     }
     const auto vl = vl_tmp;
-    const ScalarOperator_old Vd(p_wf->vdir);
+    // these two used for Source: ineficient! XXX
+    const ScalarOperator_old fVdir0(f_core, p_wf->vdir); // for Source Term
+    const ScalarOperator_old Vd(p_wf->vdir);             // for Source Term
 
     std::vector<double> prior_en_list;
     for (auto &phi : p_wf->core_orbitals) {
       // note: can't parallelise -- not thread safe
       prior_en_list.push_back(phi.en);
       auto oldphi = phi; // re-use? nb: n,k each time!
-      iterate_core_orbital(phi, vl, p_wf->get_alpha(), cg5dr, inv_r, c2Img0,
-                           Vnuc, Vd, fVdir0);
+      iterate_core_orbital(phi, vl, Hd, Vd, fVdir0);
       phi = (1.0 - a_damp) * phi + a_damp * oldphi;
     }
 
@@ -696,7 +676,7 @@ inline void HartreeFock::refine_core_orbitals_exchange() {
       prev_eps = eps;
 
     bool getting_worse = (it > 20 && eps > 1.1 * prev_eps);
-    bool converged = ((eps <= eps_target && it > 0) || it == max_its);
+    bool converged = ((eps <= eps_target && it > 0) || it == MAX_HART_ITS);
     if (converged || getting_worse) {
       if (verbose)
         printf("\rrefine core  it:%3i eps=%6.1e              \n", it, eps);
@@ -705,6 +685,7 @@ inline void HartreeFock::refine_core_orbitals_exchange() {
     p_wf->orthonormaliseOrbitals(p_wf->core_orbitals);
     m_cint.form_core_core();
     form_vdir(p_wf->vdir);
+    Hd.updateVdir(p_wf->vdir);
   }
   p_wf->orthonormaliseOrbitals(p_wf->core_orbitals, 2);
 }
