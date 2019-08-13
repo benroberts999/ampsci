@@ -1,12 +1,12 @@
 #include "AKF_akFunctions.hpp"
-#include "AtomInfo.hpp"
 #include "ContinuumOrbitals.hpp"
 #include "FileIO_fileReadWrite.hpp"
 #include "NumCalc_quadIntegrate.hpp"
-#include "PhysConst_constants.hpp"
+#include "Physics/AtomInfo.hpp"
+#include "Physics/PhysConst_constants.hpp"
+#include "Physics/Wigner_369j.hpp"
 #include "SBF_sphericalBessel.hpp"
 #include "Wavefunction.hpp"
-#include "Wigner_369j.hpp"
 #include <fstream>
 #include <iostream>
 
@@ -23,18 +23,16 @@ double CLkk(int L, int ka, int kb)
   int lb = AtomInfo::l_k(kb);
   int two_ja = AtomInfo::twoj_k(ka);
   int two_jb = AtomInfo::twoj_k(kb);
-  double ja = 0.5 * two_ja;
-  double jb = 0.5 * two_jb;
 
   if ((la + lb + L) % 2 != 0)
     return 0; // Parity rule
-  if ((la + lb < L) || (abs(la - lb) > L))
+  if ((la + lb < L) || (std::abs(la - lb) > L))
     return 0; // triangle rule (l)
   // Note: triangle rule included in 3j, so this is not needed (but faster)
   // But, parity rule not included in 3j, so must be checked!
 
-  double tjB = Wigner::threej(jb, ja, L, -0.5, 0.5, 0);
-  return (2 * ja + 1) * (2 * jb + 1) * (2 * L + 1) * pow(tjB, 2);
+  double tjs = Wigner::threej_2(two_jb, two_ja, 2 * L, -1, 1, 0);
+  return (two_ja + 1) * (two_jb + 1) * (2 * L + 1) * tjs * tjs;
 }
 
 //******************************************************************************
@@ -67,11 +65,11 @@ void writeToTextFile(std::string fname,
       double x = double(k) / (qsteps - 1);
       if (qsteps == 1)
         x = 0;
-      double q = qmin * pow(qmax / qmin, x);
+      double q = qmin * std::pow(qmax / qmin, x);
       double y = double(i) / (desteps - 1);
       if (desteps == 1)
         y = 0;
-      double dE = demin * pow(demax / demin, y);
+      double dE = demin * std::pow(demax / demin, y);
       ofile << dE / keV << " " << q / qMeV << " ";
       float sum = 0.f;
       for (int j = 0; j < num_states; j++) {
@@ -184,12 +182,12 @@ int calculateK_nk(const Wavefunction &wf, std::size_t is, int max_L, double dE,
       for (int iq = 0; iq < qsteps; iq++) {
         double a = 0.;
         auto maxj = psi.pinf; // don't bother going further
-        double af = NumCalc::integrate(psi.f, phic.f, jLqr_f[L][iq],
-                                       wf.rgrid.drdu, 1., 0, maxj);
-        double ag = NumCalc::integrate(psi.g, phic.g, jLqr_f[L][iq],
-                                       wf.rgrid.drdu, 1., 0, maxj);
+        double af = NumCalc::integrate(
+            {&psi.f, &phic.f, &jLqr_f[L][iq], &wf.rgrid.drdu}, 1.0, 0, maxj);
+        double ag = NumCalc::integrate(
+            {&psi.g, &phic.g, &jLqr_f[L][iq], &wf.rgrid.drdu}, 1.0, 0, maxj);
         a = af + ag;
-        AK_nk_q[iq] += (float)(dC_Lkk * pow(a * wf.rgrid.du, 2) * x_ocf);
+        AK_nk_q[iq] += (float)(dC_Lkk * std::pow(a * wf.rgrid.du, 2) * x_ocf);
       } // q
     }   // END loop over cntm states (ic)
   }     // end L loop
@@ -220,11 +218,12 @@ int calculateKpw_nk(const Wavefunction &wf, std::size_t nk, double dE,
     return 0;
 
   for (auto iq = 0ul; iq < qsteps; iq++) {
-    double chi_q = NumCalc::integrate(psi.f, jl_qr[iq], wf.rgrid.r,
-                                      wf.rgrid.drdu, wf.rgrid.du, 0, maxir);
-    tmpK_q[iq] =
-        (float)((2. / M_PI) * (twoj + 1) * pow(chi_q, 2) * sqrt(2. * eps));
-    // tmpK_q[iq] = pow(4*3.14159,2)*pow(chi_q,2); // just cf KOPP
+    double chi_q =
+        NumCalc::integrate({&psi.f, &jl_qr[iq], &wf.rgrid.r, &wf.rgrid.drdu},
+                           wf.rgrid.du, 0, maxir);
+    tmpK_q[iq] = (float)((2. / M_PI) * (twoj + 1) * std::pow(chi_q, 2) *
+                         std::sqrt(2. * eps));
+    // tmpK_q[iq] = std::pow(4*3.14159,2)*std::pow(chi_q,2); // just cf KOPP
   }
 
   return 0;

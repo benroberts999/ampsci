@@ -1,10 +1,10 @@
 #pragma once
-#include <iostream>
 #include <vector>
 
 namespace Nuclear {
 
-struct Isotope {
+class Isotope {
+public:
   const int Z;
   const int A;
   const double r_rms; // in Fermi (fm, e-15m)

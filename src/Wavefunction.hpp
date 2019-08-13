@@ -1,7 +1,9 @@
 #pragma once
 #include "DiracSpinor.hpp"
 #include "Grid.hpp"
-#include "Nuclear.hpp"
+#include "HartreeFockClass.hpp" // forward decl..
+#include "Physics/Nuclear.hpp"
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -11,31 +13,30 @@ static bool dummy_bool{};
 class Wavefunction {
 
 public:
-  Wavefunction(int in_z, int in_a, int in_ngp, double rmin, double rmax,
-               double var_alpha = 1);
+  Wavefunction(int in_z, const GridParameters &gridparams,
+               const Nuclear::Parameters &nuc_params, double var_alpha = 1);
 
 public:
   // orbitals:
   std::vector<DiracSpinor> core_orbitals;
   std::vector<DiracSpinor> valence_orbitals;
-
   const Grid rgrid;
-
-  // Potentials
-  std::vector<double> vnuc; // make const?
-  std::vector<double> vdir; // direct/local part of the electron potential
 
 private:
   // store internal value for alpha (allows variation)
   const double m_alpha;
   // Atom info:
-  const int m_Z, m_A;
-  // nuclus info:
-  double m_c, m_t;
+  const int m_Z, m_A; /*don't need A twice (its inside nucl params!)*/
+  Nuclear::Parameters m_nuc_params;
+  std::unique_ptr<HartreeFock> m_pHF = nullptr;
 
+public:
+  const std::vector<double> vnuc;
+  std::vector<double> vdir; // direct/local part of the electron potential
+
+private:
   // Core configuration (non-rel terms)
   std::vector<NonRelSEConfig> m_core_configs;
-
   int num_core_electrons = 0; // Nc = N - M
   std::string m_core_string = "";
 
@@ -49,7 +50,13 @@ public:
   double rinf(const DiracSpinor &phi) const { return rgrid.r[phi.pinf]; };
   int getRadialIndex(double r_target) const {
     return (int)rgrid.getIndex(r_target, true);
-  };
+  }
+  auto get_nucParams() const { return m_nuc_params; } //??
+
+  auto get_VexPsi(const DiracSpinor &psi) const {
+    // XXX add check!? XXX
+    return m_pHF->vex_psia(psi);
+  }
 
   std::size_t getStateIndex(int n, int k, bool &is_valence = dummy_bool) const;
   std::size_t getStateIndex(const DiracSpinor &psi,
@@ -60,15 +67,19 @@ public:
     return AtomInfo::niceCoreOutput(m_core_string);
   }
   std::string nuclearParams() const;
+
   std::string atom() const {
     return AtomInfo::atomicSymbol(m_Z) + ", Z=" + std::to_string(m_Z) +
            " A=" + std::to_string(m_A);
   }
+  std::string atomicSymbol() const { return AtomInfo::atomicSymbol(m_Z); }
   void printCore(bool sorted = true) const;
   void printValence(bool sorted = true,
                     const std::vector<DiracSpinor> &tmp_orbitals = {}) const;
   bool isInCore(int n, int k) const;
+  bool isInCore(const DiracSpinor &phi) const;
   int maxCore_n(int ka_in = 0) const;
+  int maxCore_l() const;
 
   std::vector<std::size_t>
   sortedEnergyList(const std::vector<DiracSpinor> &tmp_orbs,
@@ -77,10 +88,9 @@ public:
   std::vector<DiracSEnken> listOfStates_nk(int num_val, int la, int lb = 0,
                                            bool skip_core = true) const;
 
-public:
-  void formNuclearPotential(Nuclear::Type nucleus_type, double rc = 0,
-                            double t = 0);
+  std::vector<double> coreDensity() const;
 
+public:
   void solveDirac(DiracSpinor &psi, double e_a, const std::vector<double> &vex,
                   int log_dele_or = 0) const;
   void solveDirac(DiracSpinor &psi, double e_a = 0, int log_dele_or = 0) const;
@@ -92,9 +102,13 @@ public:
                                      int num_its = 1);
   void orthonormaliseWrtCore(DiracSpinor &psi_v) const;
 
-private:
-  void determineCore(const std::string &str_core_in);
-
+  void hartreeFockCore(HFMethod method, const std::string &in_core,
+                       double eps_HF = 0, double h_d = 0, double g_t = 0);
+  auto coreEnergyHF() const;
+  void hartreeFockValence(const std::string &in_valence_str);
   double enGuessCore(int n, int l) const;
   double enGuessVal(int n, int ka) const;
+
+private:
+  void determineCore(const std::string &str_core_in);
 };

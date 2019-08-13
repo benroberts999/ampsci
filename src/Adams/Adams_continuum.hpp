@@ -3,7 +3,7 @@
 class DiracSpinor;
 class Grid;
 
-namespace ADAMS {
+namespace Adams {
 
 double fitQuadratic(double x1, double x2, double x3, double y1, double y2,
                     double y3);
@@ -19,4 +19,4 @@ std::size_t findAsymptoticRegion(std::vector<double> &pc,
                                  std::size_t NGPb, std::size_t NGPc,
                                  std::size_t i_asym);
 
-} // namespace ADAMS
+} // namespace Adams

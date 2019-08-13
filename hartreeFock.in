@@ -1,9 +1,104 @@
-Cs -1              ! Z, A(=-1 for default, 0 for '0 nuc')
-[Xe]               ! Core configuration (comma separated)
-1.e-5 150 1600     ! r0, rmax, num_points
-1.e-14             ! HF convergence. [0 for max its]
-2 1                ! number of valence states for each l (and l)
-1                  ! var(alpha^2). (<<1 for non-rel. =1 for normal.)
-0                  ! Exclude exchange (1=yes)? (Hartree) Testing only!
-0                  ! run tests? 1=yes [orthog + <a|H|a>]
-###################
+Atom {
+  Z = Cs;
+  A;
+  varAlpha2;
+}
+
+HartreeFock {
+  core = [Xe];
+  valence = 7sp;
+  sortOutput;
+  method; // HartreeFock(dflt), ApproxHF, Hartree, GreenPRM, TietzPRM
+  convergence = 1.0e-14;
+}
+
+Nucleus {
+  rrms;
+  skin_t;
+  type; // Fermi (dflt), spherical, zero
+}
+
+Grid {
+  r0 = 1e-5;
+  rmax = 150.0;
+  ngp = 1600;
+  type; // loglinear(dflt), logarithmic, linear
+  b;
+}
+
+/////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////
+/*
+Modules:
+  Each Module/MatrixElements will be run in order.
+  You can comment-out just the block name, and the block will be skiped.
+*/
+
+// Module::Tests
+{
+  orthonormal = true;
+  Hamiltonian = true;
+}
+
+// MatrixElements::hfs
+{
+  F(r) = ball; // ball, shell, pointlike, VolotkaBW
+  mu;
+  I;
+  rrms;
+  parity;
+  gl; // VolotkaBW
+}
+
+// Module::BohrWeisskopf
+{
+  mu;
+  I;
+  rrms;
+  // only used for doubly-odd (current values for 212-Fr)
+  mu1 = 4.00;
+  I1 = 4.5;
+  l1 = 5.;
+  gl1 = 1;
+  I2 = 0.5;
+  l2 = 1.;
+  printF = false;
+}
+
+// MatrixElements::r
+// { power = 1; }
+// MatrixElements::r
+// { power = -1; }
+
+/////////////////////////////////////////////////////////////////
+// Module::AtomicKernal
+{
+  Emin = 0.01;
+  Emax = 4.0;
+  Esteps = 25;
+  qmin = 0.001;
+  qmax = 4.0;
+  qsteps = 100;
+  max_l_bound = 1;
+  max_L = 2;
+  output_text = true;
+  output_binary = true;
+  label = test_new;
+  use_plane_waves = false;
+}
+
+// Module::WriteOrbitals
+{
+  // Plot in GNUPLOT like: (e.g.)
+  // plot for [i=2:20] "file.txt" u 1:i every :::0::0  w l t columnheader(i)
+  // plot for [i=2:20] "file.txt" u 1:i every :::1::1  w l t columnheader(i)
+  // plot "file.txt" u 1:2 every :::2::2  w l t "Core Density"
+  label = outputLabel;
+}
+
+// Module::FitParametric
+{
+  method = Green;     // Green, Tietz
+  statesToFit = core; // core, valence, both
+  fitWorst = false;
+}

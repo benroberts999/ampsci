@@ -1,6 +1,4 @@
 #include "Parametric_potentials.hpp"
-#include "AtomInfo.hpp"
-#include "PhysConst_constants.hpp"
 #include <cmath>
 #include <iostream>
 #include <vector>
@@ -26,7 +24,7 @@ double tietz(int Z, double r, double t, double g)
   if (r == 0)
     return 0;
   return (-1. / r) *
-             (1. + (double(Z) - 1.) * exp(-g * r) / pow(1. + t * r, 2)) +
+             (1. + (double(Z) - 1.) * exp(-g * r) / std::pow(1. + t * r, 2)) +
          double(Z) / r;
 }
 
@@ -34,7 +32,6 @@ double tietz(int Z, double r, double t, double g)
 int defaultGreenCore(int z, double &H, double &d)
 // Fitted to match HF closed-shell core energies - aid convergance!
 {
-  // double zHd[18][3]
   std::vector<std::vector<double>> zHd = {
       {2, 12.275, 3.552},     {3, 3.248, 2.518},       {5, 6.812, 4.535},
       {11, 3.001, 1.038},     {13, 9.837, 2.99813},    {19, 5.55771, 1.65891},
@@ -78,11 +75,9 @@ int defaultGreenCore(int z, double &H, double &d)
 
 //******************************************************************************
 int defaultGreen(int z, double &H, double &d)
-/*
-Default values for Green potential parameters.
-Determined by fitting the 5 lowest J=1/2 states.
-Crude quadratic fit used for other Z values.
-*/
+// Default values for Green potential parameters.
+// Determined by fitting the 5 lowest J=1/2 states.
+// Crude quadratic fit used for other Z values.
 {
 
   if (z == 3) {
@@ -134,18 +129,16 @@ Crude quadratic fit used for other Z values.
   }
 
   // If not one of the defaults, use crude model fit
-  H = 0.665356 + 0.0747058 * z - 0.000155671 * pow(z, 2);
-  d = 0.433183 + 0.0103617 * z - 0.0000531958 * pow(z, 2);
+  H = 0.665356 + 0.0747058 * z - 0.000155671 * std::pow(z, 2);
+  d = 0.433183 + 0.0103617 * z - 0.0000531958 * std::pow(z, 2);
   return 0;
 }
 
 //******************************************************************************
 int defaultTietz(int z, double &t, double &g)
-/*
-Default values for Green potential parameters.
-Determined by fitting the 5 lowest J=1/2 states.
-Crude quadratic fit used for other Z values.
-*/
+// Default values for Green potential parameters.
+// Determined by fitting the 5 lowest J=1/2 states.
+// Crude quadratic fit used for other Z values.
 {
   if (z == 3) {
     t = 0.10000;
@@ -207,21 +200,36 @@ Crude quadratic fit used for other Z values.
   }
 
   // If not one of the defaults, use crude model fit
-  t = 0.33991 + 0.0495393 * z - 0.000272772 * pow(z, 2);
-  g = 1.14316 - 0.028863 * z + 0.000205713 * pow(z, 2);
+  t = 0.33991 + 0.0495393 * z - 0.000272772 * std::pow(z, 2);
+  g = 1.14316 - 0.028863 * z + 0.000205713 * std::pow(z, 2);
   return 0;
 }
 
 //******************************************************************************
-std::vector<double> defaultGreenPotential(int z,
-                                          const std::vector<double> &r_array) {
-  double Gh, Gd; // Green potential parameters
-  Parametric::defaultGreenCore(z, Gh, Gd);
+std::vector<double> GreenPotential(int z, const std::vector<double> &r_array,
+                                   double h, double d) {
+  // double Gh, Gd; // Green potential parameters
+  if (std::fabs(h * d) < 1.0e-6)
+    defaultGreenCore(z, h, d);
   // Fill the the potential, using Greens Parametric
   std::vector<double> v;
   v.reserve(r_array.size());
   for (const auto r : r_array) {
-    v.emplace_back(Parametric::green(z, r, Gh, Gd));
+    v.push_back(green(z, r, h, d));
+  }
+  return v;
+}
+
+std::vector<double> TietzPotential(int z, const std::vector<double> &r_array,
+                                   double g, double t) {
+  // double Gh, Gd; // Green potential parameters
+  if (std::fabs(g * t) < 1.0e-6)
+    defaultTietz(z, t, g);
+  // Fill the the potential, using Greens Parametric
+  std::vector<double> v;
+  v.reserve(r_array.size());
+  for (const auto r : r_array) {
+    v.push_back(tietz(z, r, g, t));
   }
   return v;
 }

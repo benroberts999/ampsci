@@ -1,35 +1,29 @@
-// class Wavefunction::
 #include "Wavefunction.hpp"
-#include "ADAMS_bound.hpp"
-#include "AtomInfo.hpp"
+#include "Adams/Adams_bound.hpp"
 #include "DiracSpinor.hpp"
 #include "Grid.hpp"
-#include "Nuclear.hpp"
-#include "PhysConst_constants.hpp"
+#include "Physics/AtomInfo.hpp"
+#include "Physics/Nuclear.hpp"
+#include "Physics/PhysConst_constants.hpp"
 #include <algorithm> //for sort
 #include <cmath>
-#include <locale> //isdigit
 #include <sstream>
 #include <string>
 #include <vector>
 
 //******************************************************************************
-Wavefunction::Wavefunction(int in_z, int in_a, int in_ngp, double rmin,
-                           double rmax, double var_alpha)
-    : rgrid(rmin, rmax, (std::size_t)in_ngp, GridType::loglinear, 3.5),
-      m_alpha(PhysConst::alpha * var_alpha), m_Z(in_z),
-      m_A((in_a < 0) ? AtomInfo::defaultA(m_Z) : in_a) {
-  // Make Vnuc const?
-  if (m_A > 15) {
-    formNuclearPotential(Nuclear::Type::Fermi);
-  } else if (m_A > 0) {
-    formNuclearPotential(Nuclear::Type::spherical);
-  } else {
-    formNuclearPotential(Nuclear::Type::zero);
-  }
-
+Wavefunction::Wavefunction(int z, const GridParameters &gridparams,
+                           const Nuclear::Parameters &nuc_params,
+                           double var_alpha)
+    : rgrid({gridparams}),                                        //
+      m_alpha(PhysConst::alpha * var_alpha),                      //
+      m_Z(z), m_A(nuc_params.a),                                  //
+      m_nuc_params(nuc_params),                                   //
+      vnuc(Nuclear::formPotential(nuc_params, m_Z, m_A, rgrid.r)) //
+//
+{
   if (m_Z * m_alpha > 1) {
-    std::cerr << "Alpha too large, Za=" << m_Z * m_alpha << "\n";
+    std::cerr << "Alpha too large: Z*alpha=" << m_Z * m_alpha << "\n";
     std::abort();
   }
 }
@@ -38,7 +32,7 @@ Wavefunction::Wavefunction(int in_z, int in_a, int in_ngp, double rmin,
 void Wavefunction::solveDirac(DiracSpinor &psi, double e_a,
                               const std::vector<double> &vex,
                               int log_dele_or) const
-// Uses ADAMS::solveDBS to solve Dirac Eqn for local potential (Vnuc + Vdir)
+// Uses Adams::solveDBS to solve Dirac Eqn for local potential (Vnuc + Vdir)
 // If no e_a is given, will use the existing one!
 // (Usually, a better guess should be given, using P.T.)
 // Note: optionally takes in exchange potential! (see overloaded above)
@@ -63,7 +57,7 @@ void Wavefunction::solveDirac(DiracSpinor &psi, double e_a,
   } else if (psi.en == 0) {
     psi.en = enGuessVal(psi.n, psi.k);
   }
-  ADAMS::solveDBS(psi, v_a, rgrid, m_alpha, log_dele_or);
+  Adams::solveDBS(psi, v_a, rgrid, m_alpha, log_dele_or);
 }
 
 //------------------------------------------------------------------------------
@@ -75,71 +69,6 @@ void Wavefunction::solveDirac(DiracSpinor &psi, double e_a,
   std::vector<double> empty_vec;
   return solveDirac(psi, e_a, empty_vec, log_dele_or);
 }
-
-// //******************************************************************************
-// static std::vector<NonRelSEConfig> core_parser(const std::string
-// &str_core_in)
-// // Heler function for below.
-// // Move to Atom Info ?
-// {
-//   // If there's a 'Noble-Gas' term, replace it with full config
-//   // Otherwise, 'first-term' remains unchanges
-//   auto found = str_core_in.find(",");
-//   if (found > str_core_in.length())
-//     found = str_core_in.length();
-//   auto first_term = str_core_in.substr(0, found);
-//   auto rest = str_core_in.substr(found);
-//   auto str_core = AtomInfo::coreConfig(first_term) + rest;
-//
-//   // Move comma-seperated string into an array (vector)
-//   std::vector<std::string> term_str_list;
-//   {
-//     std::stringstream ss(str_core);
-//     while (ss.good()) {
-//       std::string substr;
-//       getline(ss, substr, ',');
-//       term_str_list.push_back(substr);
-//     }
-//   }
-//
-//   std::vector<NonRelSEConfig> core_configs;
-//   for (const auto &term : term_str_list) {
-//     bool term_ok = true;
-//     std::size_t l_position = 0;
-//     for (const auto &c : term) {
-//       if (!std::isdigit(c))
-//         break;
-//       ++l_position;
-//     }
-//     int n{0}, num{0}, l{-1};
-//     try {
-//       n = std::stoi(term.substr(0, l_position - 0));
-//       num = std::stoi(term.substr(l_position + 1));
-//       if (l_position == term.size())
-//         throw;
-//       l = AtomInfo::symbol_to_l(term.substr(l_position, 1));
-//     } catch (...) {
-//       term_ok = false;
-//     }
-//     NonRelSEConfig new_config(n, l, num);
-//
-//     if (!term_ok || n <= 0) {
-//       std::cout << "Problem with core: " << str_core_in << "\n";
-//       std::cerr << "invalid core term: " << term << "\n";
-//       std::abort();
-//     }
-//
-//     if (num == 0)
-//       continue;
-//     auto ia = std::find(core_configs.begin(), core_configs.end(),
-//     new_config); if (ia == core_configs.end()) {
-//       core_configs.push_back(new_config);
-//     } else {
-//       *ia += new_config;
-//     }
-//   }
-//   return core_configs;
-// }
 
 //******************************************************************************
 void Wavefunction::determineCore(const std::string &str_core_in)
@@ -191,6 +120,38 @@ void Wavefunction::determineCore(const std::string &str_core_in)
 }
 
 //******************************************************************************
+void Wavefunction::hartreeFockCore(HFMethod method, const std::string &in_core,
+                                   double eps_HF, double h_d, double g_t) {
+  // XXX Update this (and HF) so that it doesn't re-Create m_pHF
+  // AND, so that can re-run core!
+  m_pHF = std::make_unique<HartreeFock>(
+      HartreeFock(method, *this, in_core, eps_HF, h_d, g_t));
+}
+
+//******************************************************************************
+auto Wavefunction::coreEnergyHF() const {
+  if (m_pHF == nullptr) {
+    std::cerr << "WARNING 62: Cant call coreEnergyHF before hartreeFockCore\n";
+    return 0.0;
+  }
+  return m_pHF->calculateCoreEnergy();
+}
+
+//******************************************************************************
+void Wavefunction::hartreeFockValence(const std::string &in_valence_str) {
+  if (m_pHF == nullptr) {
+    std::cerr << "WARNING 62: Cant call hartreeFockValence before "
+                 "hartreeFockCore\n";
+    return;
+  }
+  auto val_lst = AtomInfo::listOfStates_nk(in_valence_str);
+  for (const auto &nk : val_lst) {
+    if (!isInCore(nk.n, nk.k))
+      m_pHF->solveNewValence(nk.n, nk.k);
+  }
+}
+
+//******************************************************************************
 bool Wavefunction::isInCore(int n, int k) const
 // Checks if given state is in the core.
 {
@@ -199,6 +160,9 @@ bool Wavefunction::isInCore(int n, int k) const
       return true;
   }
   return false;
+}
+bool Wavefunction::isInCore(const DiracSpinor &phi) const {
+  return isInCore(phi.n, phi.k);
 }
 
 //******************************************************************************
@@ -231,13 +195,22 @@ int Wavefunction::maxCore_n(int ka) const
 // Note: if you give it l instead of kappa, still works!
 {
   int max_n = 0;
-  for (auto &phi : core_orbitals) {
+  for (const auto &phi : core_orbitals) {
     if (phi.k != ka && ka != 0)
       continue;
     if (phi.n > max_n)
       max_n = phi.n;
   }
   return max_n;
+}
+//******************************************************************************
+int Wavefunction::maxCore_l() const {
+  int max_l = 0;
+  for (const auto &phi : core_orbitals) {
+    if (phi.l() > max_l)
+      max_l = phi.l();
+  }
+  return max_l;
 }
 
 //******************************************************************************
@@ -246,11 +219,11 @@ void Wavefunction::solveInitialCore(std::string str_core, int log_dele_or)
 // Only for local potential (direct part)
 // HartreeFockClass.cpp has routines for Hartree Fock
 {
-  if (core_orbitals.size() > 0) {
-    std::cerr << "Fail 254 in Wavefunction:solveInitialCore: States "
+  if (!core_orbitals.empty()) {
+    std::cerr << "WARNING 254 in Wavefunction:solveInitialCore: States "
                  "already exist! "
               << core_orbitals.size() << "\n";
-    std::abort();
+    return;
   }
 
   determineCore(str_core);
@@ -313,36 +286,31 @@ void Wavefunction::orthonormaliseOrbitals(std::vector<DiracSpinor> &in_orbs,
 // ==> This causes the possible orthog issues..
 {
   auto Ns = in_orbs.size();
-  auto ngp = in_orbs.front().p_rgrid->ngp;
 
-  std::vector<std::vector<double>> c_ab(Ns, std::vector<double>(Ns));
   // Calculate c_ab = <a|b>  [only for b>a -- symmetric]
+  std::vector<std::vector<double>> c_ab(Ns, std::vector<double>(Ns));
   for (std::size_t a = 0; a < Ns; a++) {
+    const auto &phi_a = in_orbs[a];
     for (auto b = a + 1; b < Ns; b++) {
-      if (in_orbs[a].k != in_orbs[b].k)
+      const auto &phi_b = in_orbs[b];
+      if (phi_a.k != phi_b.k) //|| phi_a.n == phi_b.n - can't happen!
         continue;
-      c_ab[a][b] = 0.5 * (in_orbs[a] * in_orbs[b]);
+      c_ab[a][b] = 0.5 * (phi_a * phi_b);
     }
   }
+  // note: above loop executes psia*psib half as many times as below would
 
-  // Orthogonalise orbitals:
+  // Orthogonalise + re-norm orbitals:
   for (std::size_t a = 0; a < Ns; a++) {
+    auto &phi_a = in_orbs[a];
     for (std::size_t b = 0; b < Ns; b++) {
-      if (in_orbs[a].k != in_orbs[b].k)
+      const auto &phi_b = in_orbs[b];
+      if (phi_a.k != phi_b.k || phi_a.n == phi_b.n)
         continue;
-      if (a == b)
-        continue;
-      // c_ab = c_ba : only calc'd half:
       double cab = (a < b) ? c_ab[a][b] : c_ab[b][a];
-      for (std::size_t ir = 0; ir < ngp; ir++) {
-        in_orbs[a].f[ir] -= cab * in_orbs[b].f[ir];
-        in_orbs[a].g[ir] -= cab * in_orbs[b].g[ir];
-      }
+      phi_a -= cab * phi_b;
     }
-  }
-
-  for (auto &psi : in_orbs) {
-    psi.normalise();
+    phi_a.normalise();
   }
 
   // If necisary: repeat
@@ -361,11 +329,7 @@ void Wavefunction::orthonormaliseWrtCore(DiracSpinor &psi_v) const
   for (const auto &psi_c : core_orbitals) {
     if (psi_v.k != psi_c.k)
       continue;
-    const double Avc = psi_v * psi_c;
-    for (std::size_t ir = 0; ir < psi_v.pinf; ir++) {
-      psi_v.f[ir] -= Avc * psi_c.f[ir];
-      psi_v.g[ir] -= Avc * psi_c.g[ir];
-    }
+    psi_v -= (psi_v * psi_c) * psi_c;
   }
   psi_v.normalise();
 }
@@ -380,7 +344,7 @@ double Wavefunction::enGuessCore(int n, int l) const
   int num_el_below = 0;
   int num_el_this = 0;
   for (const auto &config : m_core_configs) {
-    if (l == config.l && n == config.l) {
+    if (l == config.l && n == config.n) {
       num_el_this = config.num;
       break;
     }
@@ -388,27 +352,20 @@ double Wavefunction::enGuessCore(int n, int l) const
   }
 
   // effective Z (for energy guess) -- not perfect!
-  double Zeff = (m_Z - num_el_below - num_el_this);
-  if (l == 1) {
-    Zeff = 1. + (m_Z - num_el_below - 0.5 * num_el_this);
-  } else if (l == 2) {
-    Zeff = 1. + (m_Z - num_el_below - 0.5 * num_el_this);
-  }
+  double Zeff = 1.0 + (m_Z - num_el_below - 0.5 * num_el_this);
   if (Zeff < 1.0) {
     Zeff = 1.;
   }
 
-  double en_a = -0.5 * pow(Zeff / n, 2);
+  double en_a = -0.5 * std::pow(Zeff / n, 2);
   if (n > 1) {
     en_a *= 0.5;
   }
-
-  if (n == maxCore_n() - 1) {
-    en_a *= 1.25;
-  } else if (n == maxCore_n()) {
-    en_a *= 1.5;
-  } else if (n == maxCore_n() + 1 && l == 0 && num_el_this == 2) {
-    en_a = -0.5 * pow(Zeff, 2);
+  if (Zeff < 10) {
+    if (l == 0)
+      en_a *= 2.5;
+    if (l == 1)
+      en_a *= 3.5;
   }
 
   return en_a;
@@ -428,60 +385,34 @@ double Wavefunction::enGuessVal(int n, int ka) const
   if (l == 1)
     neff += 0.5 * x;
   if (l == 2)
-    neff += 2. * pow(x, 0.5);
+    neff += 2. * std::pow(x, 0.5);
   if (l >= 3)
     neff += 4. * x;
-  return -0.5 / pow(neff, 2);
-}
-
-//******************************************************************************
-void Wavefunction::formNuclearPotential(Nuclear::Type nucleus_type, double rc,
-                                        double t) {
-  vnuc.clear();
-  switch (nucleus_type) {
-  case Nuclear::Type::Fermi:
-    if (t == 0)
-      t = Nuclear::approximate_t_skin(m_A);
-    if (rc == 0) {
-      auto rrms = Nuclear::find_rrms(m_Z, m_A);
-      if (rrms == 0)
-        rrms = Nuclear::approximate_r_rms(m_A);
-      rc = Nuclear::c_hdr_formula_rrms_t(rrms, t);
-    }
-    vnuc = Nuclear::fermiNuclearPotential(m_Z, t, rc, rgrid.r);
-    break;
-  case Nuclear::Type::spherical:
-    if (rc == 0) {
-      // note: still called rc, but is r_N here!
-      rc = Nuclear::find_rrms(m_Z, m_A);
-      if (rc == 0)
-        rc = Nuclear::approximate_r_rms(m_A);
-    }
-    t = 0;
-    vnuc = Nuclear::sphericalNuclearPotential(m_Z, rc, rgrid.r);
-    break;
-  case Nuclear::Type::zero:
-    rc = 0;
-    t = 0;
-    vnuc = Nuclear::sphericalNuclearPotential(m_Z, 0., rgrid.r);
-    break;
-  default:
-    std::cerr << "\nFail WF:755 - invalid nucleus type?\n";
-  }
-  m_c = rc;
-  m_t = t;
+  return -0.5 / std::pow(neff, 2);
 }
 
 //******************************************************************************
 std::string Wavefunction::nuclearParams() const {
   std::ostringstream output;
-  if (m_c == 0 && m_t == 0) {
-    output << "Zero-size nucleus";
-  } else if (m_t == 0) {
-    output << "Spherical nucleus; r_rms = " << m_c;
-  } else {
-    output << "Fermi nucleus; r_rms = " << Nuclear::rrms_formula_c_t(m_c, m_t)
-           << ", c=" << m_c << ", t=" << m_t;
+
+  auto rrms = m_nuc_params.r_rms;
+  auto t = m_nuc_params.t;
+
+  switch (m_nuc_params.type) {
+  case Nuclear::Type::zero:
+    output << "Zero-size nucleus; ";
+    break;
+  case Nuclear::Type::spherical:
+    output << "Spherical nucleus; "
+           << " r_rms = " << rrms
+           << ", r_charge = " << Nuclear::c_hdr_formula_rrms_t(rrms, 0);
+    break;
+  case Nuclear::Type::Fermi:
+    output << "Fermi nucleus; "
+           << " r_rms = " << rrms
+           << ", c_hdr = " << Nuclear::c_hdr_formula_rrms_t(rrms, t)
+           << ", t = " << t;
+    break;
   }
   return output.str();
 }
@@ -525,8 +456,10 @@ void Wavefunction::printCore(bool sorted) const
   if (Zion != 0)
     std::cout << "-" << Zion;
   std::cout << ")\n";
-  std::cout << "     state   k   Rinf its   eps       En (au)      En (/cm)\n";
+  if (Ncore() < 1)
+    return;
 
+  std::cout << "     state   k   Rinf its   eps       En (au)      En (/cm)\n";
   auto index_list = sortedEnergyList(core_orbitals, sorted);
   for (auto i : index_list) {
     auto &phi = core_orbitals[i];
@@ -540,6 +473,12 @@ void Wavefunction::printCore(bool sorted) const
       std::cout << "\n";
     }
   }
+  if (m_pHF) {
+    auto core_energy = coreEnergyHF();
+    std::cout << "E_core = " << core_energy
+              << " au;  = " << core_energy * PhysConst::Hartree_invcm
+              << "/cm\n";
+  }
 }
 
 //******************************************************************************
@@ -547,9 +486,9 @@ void Wavefunction::printValence(
     bool sorted, const std::vector<DiracSpinor> &in_orbitals) const
 // prints valence orbitals
 {
-  auto tmp_orbs = (in_orbitals.size() == 0) ? valence_orbitals : in_orbitals;
+  auto tmp_orbs = (in_orbitals.empty()) ? valence_orbitals : in_orbitals;
 
-  if (tmp_orbs.size() == 0)
+  if (tmp_orbs.empty())
     return;
 
   std::cout << "Val: state   "
@@ -605,4 +544,16 @@ Wavefunction::listOfStates_nk(int num_val, int la, int lb, bool skip_core) const
     }
   }
   return lst;
+}
+
+//******************************************************************************
+std::vector<double> Wavefunction::coreDensity() const {
+  std::vector<double> rho(rgrid.ngp, 0.0);
+  for (const auto &phi : core_orbitals) {
+    auto f = double(phi.twoj() + 1) * phi.occ_frac;
+    for (auto i = 0ul; i < rgrid.ngp; i++) {
+      rho[i] += f * (phi.f[i] * phi.f[i] + phi.g[i] * phi.g[i]);
+    }
+  }
+  return rho;
 }

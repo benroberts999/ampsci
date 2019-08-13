@@ -6,7 +6,8 @@ obj/*.o
 !.gitignore
 !Makefile
 !makefile
-!*.dat
-!*.in
-!*.b
 !*.md
+!hartreeFock.in
+!dmeXsection.in
+!fitParametric.in
+!testWig.in
