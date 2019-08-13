@@ -48,8 +48,10 @@ private:
 
 public: // Methods
   int l() const { return m_l; }
-  double j() const { return double(m_twoj) / 2; }
+  double j() const { return 0.5 * double(m_twoj); }
+  double jjp1() const { return j() * (j() + 1); }
   int twoj() const { return m_twoj; }
+  int twojp1() const { return m_twoj + 1; }
   int parity() const { return m_parity; }
   int k_index() const { return m_k_index; }
 

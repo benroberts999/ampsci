@@ -309,9 +309,12 @@ public:
     auto Rfg = (cfg == 0.0) ? 0.0
                             : NumCalc::integrate(Fa.f, *rhs_g, vec, gr.drdu,
                                                  1.0, 0, irmax);
-    auto Rgf = (cgf == 0.0) ? 0.0
-                            : NumCalc::integrate(Fa.g, *rhs_f, vec, gr.drdu,
-                                                 1.0, 0, irmax);
+    // Check here if Fa=Fb. If so, Rgf = Rfg!
+    auto Rgf = (cgf == 0.0)
+                   ? 0.0
+                   : (Fa == Fb) ? Rfg
+                                : NumCalc::integrate(Fa.g, *rhs_f, vec, gr.drdu,
+                                                     1.0, 0, irmax);
     return constant * (cff * Rff + cgg * Rgg + cfg * Rfg + cgf * Rgf) * gr.du;
   }
 
