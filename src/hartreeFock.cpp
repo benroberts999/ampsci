@@ -8,8 +8,6 @@
 #include "Wavefunction.hpp"
 #include <iostream>
 #include <string>
-//
-#include "NumCalc_quadIntegrate.hpp"
 
 int main(int argc, char *argv[]) {
   ChronoTimer timer("hartreeFock");
@@ -93,33 +91,6 @@ int main(int argc, char *argv[]) {
   wf.printValence(sorted);
 
   Module::runModules(input, wf);
-
-  // DirectHamiltonian Hd(wf.vnuc, wf.vdir, wf.get_alpha());
-  // for (const auto phi : wf.valence_orbitals) {
-  //   // std::cout << (Hd.matrixEl(phi, phi) + phi * wf.get_VexPsi(phi) -
-  //   phi.en)
-  //   // /
-  //   //                  phi.en
-  //   //           << "\n";
-  //   printf("%.7f\n", Hd.matrixEl(phi, phi) + phi * wf.get_VexPsi(phi));
-  // }
-
-  // for (const auto phi : wf.core_orbitals) {
-  //   auto df = NumCalc::derivative(phi.f, wf.rgrid.drdu, wf.rgrid.du, 1);
-  //   std::cout << (2.0 / wf.get_alpha()) *
-  //                    NumCalc::integrate(phi.g, df, wf.rgrid.drdu,
-  //                    wf.rgrid.du)
-  //             << " ";
-  //   std::cout << (2.0 / wf.get_alpha() / wf.get_alpha()) *
-  //                    NumCalc::integrate(phi.g, phi.g, wf.rgrid.drdu,
-  //                                       wf.rgrid.du)
-  //             << " ";
-  //   auto invr = wf.rgrid.inverse_r();
-  //   std::cout << (2.0 / wf.get_alpha()) * phi.k *
-  //                    NumCalc::integrate(phi.f, phi.g, invr, wf.rgrid.drdu,
-  //                                       wf.rgrid.du)
-  //             << "\n";
-  // }
 
   //*********************************************************
   //               TESTS

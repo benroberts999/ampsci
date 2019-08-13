@@ -24,6 +24,11 @@ constexpr int twoj_k(int ka) { return (ka > 0) ? 2 * ka - 1 : -2 * ka - 1; }
 constexpr double j_k(int ka) {
   return (ka > 0) ? double(ka) - 0.5 : double(-ka) - 0.5;
 }
+constexpr int l_tilde_k(int ka) {
+  // "Complimentary l (l for lower component)"
+  // l-tilde = (2j-l) = l +/- 1, for j = l +/- 1/2
+  return (ka > 0) ? ka - 1 : -ka;
+}
 
 //******************************************************************************
 constexpr int parity(int la, int lb, int k)
@@ -280,6 +285,45 @@ inline double Ck_kk(int k, int ka, int kb)
   auto f = std::sqrt((two_ja + 1) * (two_jb + 1));
   auto g = gsl_sf_coupling_3j(two_ja, two_jb, 2 * k, -1, 1, 0);
   return sign * f * g;
+}
+//******************************************************************************
+inline double Ck_2j2j(int k, int two_ja, int two_jb)
+// Reduced (relativistic) angular ME:
+// <ka||C^k||kb> = (-1)^(ja+1/2) * 3js(ja jb k, -1/2 1/2 0) * Pi
+// Note: takes in two*j!
+// NOTE: DOESNT check parity! Only use if that's already known to be true
+{
+  auto sign = ((two_ja + 1) / 2 % 2 == 0) ? 1 : -1;
+  auto f = std::sqrt((two_ja + 1) * (two_jb + 1));
+  auto g = gsl_sf_coupling_3j(two_ja, two_jb, 2 * k, -1, 1, 0);
+  return sign * f * g;
+}
+//******************************************************************************
+inline double S_kk(int ka, int kb)
+// Reduced spin angular ME: (for spin 1/2!)
+// <ka||S||kb> = d(la,lb) * (-1)^{ja+la+3/2} * Sqrt([ja][jb](3/2)) *
+//             *  sjs{ja, 1, jb,  1/2, la, 1/2}
+// Special 6j case:
+// sjs{ja, 1, jb,  1/2, la, 1/2}
+//    = 0.5 (-1)^{ka+kb} * Sqrt(abs[{(ka-1)^2 - kb^2}/{3ka(1+2ka)}])
+//     * triangle rule for j!
+// At least ~least 20% faster
+{
+  auto la = l_k(ka);
+  if (la != l_k(kb))
+    return 0.0;
+  auto tja = twoj_k(ka);
+  auto tjb = twoj_k(kb);
+  if (triangle(tja, 2, tjb) == 0)
+    return 0;
+  auto sign = (((tja + 2 * la + 3) / 2) % 2 == 0) ? 1 : -1;
+  auto f = std::sqrt((tja + 1) * (tjb + 1) * 1.5);
+  // auto sixj = gsl_sf_coupling_6j(tja, 2, tjb, 1, 2 * la, 1);
+  auto sixj_sign = ((ka + kb) % 2 == 0) ? 1.0 : -1.0;
+  auto sixj = 0.5 * sixj_sign *
+              std::sqrt(std::fabs(((ka - 1) * (ka - 1) - kb * kb) /
+                                  (3.0 * ka * (1.0 + 2.0 * ka))));
+  return sign * f * sixj;
 }
 
 } // namespace Wigner

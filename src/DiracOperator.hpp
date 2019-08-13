@@ -259,7 +259,16 @@ public:
   virtual double reducedME(const DiracSpinor &Fa,
                            const DiracSpinor &Fb) const = 0;
 
-protected:
+  bool isZero(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
+    // checks rank and parity
+    if (rank < std::abs(Fa.twoj() - Fb.twoj()) / 2)
+      return true;
+    if ((parity == OperatorParity::even) != (Fa.parity() == Fb.parity()))
+      return true;
+    return false; /*may still be zero*/
+  }
+
+public:
   double radialIntegral(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
     if (rank < std::abs(Fa.twoj() - Fb.twoj()) / 2)
       return 0.0;
@@ -307,10 +316,10 @@ protected:
   }
 
 protected:
-  double virtual angularCff(int /*k_a*/, int /*k_b*/) const { return 1.0; }
-  double virtual angularCgg(int, int) const { return 1.0; }
-  double virtual angularCfg(int, int) const { return 0.0; }
-  double virtual angularCgf(int, int) const { return 0.0; }
+  virtual double angularCff(int /*k_a*/, int /*k_b*/) const { return 1.0; }
+  virtual double angularCgg(int, int) const { return 1.0; }
+  virtual double angularCfg(int, int) const { return 0.0; }
+  virtual double angularCgf(int, int) const { return 0.0; }
   // XXX Add lookup table for 3j, 6j etc? ==> in derived classes
 };
 
@@ -341,50 +350,4 @@ protected:
   double virtual angularCgg(int, int) const override { return c_gg; }
   double virtual angularCfg(int, int) const override { return c_fg; }
   double virtual angularCgf(int, int) const override { return c_gf; }
-};
-
-//******************************************************************************
-class DirectHamiltonian : public ScalarOperator {
-
-public:
-  DirectHamiltonian(const std::vector<double> &vn,
-                    const std::vector<double> &vd, const double alpha)
-      : ScalarOperator(OperatorParity::even, 1.0, {}), //
-        cl(1.0 / alpha), vnuc(vn),                     // invr(gr.inverse_r()),
-        vdir(vd), tmp_f(std::vector<double>(vn.size(), 0.0))
-  //
-  {}
-
-public:
-  void updateVdir(const std::vector<double> &in_vdir) { vdir = in_vdir; }
-
-public:
-  double reducedME(const DiracSpinor &Fa,
-                   const DiracSpinor &Fb) const override {
-    auto inv_threej = std::sqrt(Fb.twoj() + 1.0);
-    return inv_threej * matrixEl(Fa, Fb);
-  }
-  double matrixEl(const DiracSpinor &Fa, const DiracSpinor &Fb) const override {
-    if (Fa.k != Fb.k)
-      return 0.0;
-    const auto &drdu = Fa.p_rgrid->drdu;
-    tmp_f = NumCalc::derivative(Fa.f, drdu, Fa.p_rgrid->du, 1);
-    const auto max = Fa.pinf;
-    for (std::size_t i = 0; i < max; i++) {
-      tmp_f[i] += (Fa.k * Fa.f[i] / Fa.p_rgrid->r[i]) - cl * Fa.g[i];
-    }
-    auto Hz = 2.0 * cl * NumCalc::integrate(Fa.g, tmp_f, drdu, 1.0, 0, max);
-    auto Hw = NumCalc::integrate(Fa.f, Fa.f, vnuc, drdu, 1.0, 0, max) +
-              NumCalc::integrate(Fa.g, Fa.g, vnuc, drdu, 1.0, 0, max) +
-              NumCalc::integrate(Fa.f, Fa.f, vdir, drdu, 1.0, 0, max) +
-              NumCalc::integrate(Fa.g, Fa.g, vdir, drdu, 1.0, 0, max);
-    return (Hw + Hz) * Fa.p_rgrid->du;
-  }
-
-private:
-  const double cl;
-  const std::vector<double> vnuc;
-  // const std::vector<double> invr;
-  std::vector<double> vdir;
-  mutable std::vector<double> tmp_f;
 };

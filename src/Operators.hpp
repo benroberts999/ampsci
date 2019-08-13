@@ -3,6 +3,7 @@
 #include "Grid.hpp"
 #include "Physics/Nuclear.hpp"
 #include "Physics/PhysConst_constants.hpp"
+#include "Physics/Wigner_369j.hpp"
 #include <cmath>
 #include <vector>
 //
@@ -10,14 +11,101 @@
 
 // Classes (inherit from DriacOperator)
 
-// Various contructors: (all after v are optional)
-// ScalarOperator_old(C, v, DiracMatrix(a, b, c, d), diff_order, imag?)
-// ScalarOperator_old(C, DiracMatrix(a, b, c, d), diff_order, imag?)
-// ScalarOperator_old(v, DiracMatrix(a, b, c, d), diff_order, imag?)
-// ScalarOperator_old(DiracMatrix(a, b, c, d), diff_order, imag?)
-// ScalarOperator_old(diff_order, imag?)
-// ScalarOperator_old(DiracMatrix(a, b, c, d), imag?)
+//******************************************************************************
+class E1Operator_lform : public DiracOperator
+// \v{d} = -e \v{r}   [e=|e|=1]
+// <a||d||b> = R (-1)^{ja+1/2} Sqrt([ja][jb]) tjs(ja,jb,1, -1/2,1/2,0)
+//           = R <ja||C^k||jb>
+// R = -e Int[ r(fafb + gagb) ]dr
+{
+public:
+  E1Operator_lform(const Grid &gr)
+      : DiracOperator(1, OperatorParity::odd, -1.0, gr.r, 0) {}
 
+  double reducedME(const DiracSpinor &Fa,
+                   const DiracSpinor &Fb) const override {
+    auto Rab = radialIntegral(Fa, Fb);
+    // move to lookup table?
+    auto Cab = Wigner::Ck_2j2j(1, Fa.twoj(), Fb.twoj());
+    return Rab * Cab;
+  }
+};
+
+//******************************************************************************
+class E1Operator_vform : public DiracOperator
+// d_v = (ie/w\alpha) \v{\alpha}   [\v{\a} = g0\v{g}]
+// <a||dv||b> = -2e/(w alpha) Int[ fagb <ka||s||-kb> - gafb <-ka||s||kb>]
+{
+public:
+  E1Operator_vform(const Grid &gr)
+      : DiracOperator(1, OperatorParity::odd, -1.0,
+                      // very dumb..
+                      std::vector<double>(gr.ngp, 1.0), 0) {}
+
+  double reducedME(const DiracSpinor &Fa,
+                   const DiracSpinor &Fb) const override {
+    if (Fa.k == Fb.k)
+      return 0;
+    auto Rab = radialIntegral(Fa, Fb);
+    auto omega = Fa.en - Fb.en;
+    return 2.0 * PhysConst::c * Rab / omega; /*c global? or var-c ?*/
+  }
+
+private:
+  virtual double angularCff(int, int) const { return 0; }
+  virtual double angularCgg(int, int) const { return 0; }
+  virtual double angularCfg(int ka, int kb) const {
+    return Wigner::S_kk(ka, -kb);
+  }
+  virtual double angularCgf(int ka, int kb) const {
+    return -Wigner::S_kk(-ka, kb);
+  }
+};
+
+//******************************************************************************
+class DirectHamiltonian : public ScalarOperator {
+  // Direct part of Radial Hamiltonian operator.
+public:
+  DirectHamiltonian(const std::vector<double> &vn,
+                    const std::vector<double> &vd, const double alpha)
+      : ScalarOperator(OperatorParity::even, 1.0, {}), cl(1.0 / alpha),
+        vnuc(vn), vdir(vd), tmp_f(std::vector<double>(vn.size(), 0.0)) {}
+
+public:
+  void updateVdir(const std::vector<double> &in_vdir) { vdir = in_vdir; }
+
+public:
+  double reducedME(const DiracSpinor &Fa,
+                   const DiracSpinor &Fb) const override {
+    auto inv_threej = std::sqrt(Fb.twoj() + 1.0);
+    return inv_threej * matrixEl(Fa, Fb);
+  }
+  double matrixEl(const DiracSpinor &Fa, const DiracSpinor &Fb) const override {
+    if (Fa.k != Fb.k)
+      return 0.0;
+    const auto &drdu = Fa.p_rgrid->drdu;
+    tmp_f = NumCalc::derivative(Fa.f, drdu, Fa.p_rgrid->du, 1);
+    const auto max = Fa.pinf;
+    for (std::size_t i = 0; i < max; i++) {
+      tmp_f[i] += (Fa.k * Fa.f[i] / Fa.p_rgrid->r[i]) - cl * Fa.g[i];
+    }
+    auto Hz = 2.0 * cl * NumCalc::integrate(Fa.g, tmp_f, drdu, 1.0, 0, max);
+    auto Hw = NumCalc::integrate(Fa.f, Fa.f, vnuc, drdu, 1.0, 0, max) +
+              NumCalc::integrate(Fa.g, Fa.g, vnuc, drdu, 1.0, 0, max) +
+              NumCalc::integrate(Fa.f, Fa.f, vdir, drdu, 1.0, 0, max) +
+              NumCalc::integrate(Fa.g, Fa.g, vdir, drdu, 1.0, 0, max);
+    return (Hw + Hz) * Fa.p_rgrid->du;
+  }
+
+private:
+  const double cl;
+  const std::vector<double> vnuc;
+  std::vector<double> vdir;
+  mutable std::vector<double> tmp_f;
+};
+
+//******************************************************************************
+// OLD - slowly remove these
 //******************************************************************************
 class HyperfineOperator : public ScalarOperator_old {
 
@@ -105,9 +193,9 @@ private: // helper
 public: // constructor
   HyperfineOperator(double muN, double IN, double rN, const Grid &rgrid,
                     Func_R2_R hfs_F = sphericalBall_F())
-      : ScalarOperator_old(-0.5 * (muN / IN) * PhysConst::alpha / PhysConst::m_p,
-                       RadialFunc(rN, rgrid, hfs_F), DiracMatrix(0, 1, -1, 0),
-                       0, true) {}
+      : ScalarOperator_old(
+            -0.5 * (muN / IN) * PhysConst::alpha / PhysConst::m_p,
+            RadialFunc(rN, rgrid, hfs_F), DiracMatrix(0, 1, -1, 0), 0, true) {}
 };
 
 //******************************************************************************
@@ -140,8 +228,8 @@ class PNCnsiOperator : public ScalarOperator_old {
 public:
   PNCnsiOperator(double c, double t, const Grid &rgrid, double factor = 1)
       : ScalarOperator_old(factor * PhysConst::GFe11 / std::sqrt(8.),
-                       Nuclear::fermiNuclearDensity_tcN(t, c, 1, rgrid),
-                       GammaMatrix::g5) {}
+                           Nuclear::fermiNuclearDensity_tcN(t, c, 1, rgrid),
+                           GammaMatrix::g5) {}
 };
 
 // double t = 2.3;
