@@ -69,6 +69,9 @@ Modules:
   printF = false;
 }
 
+// Module::pnc
+{ transition = 6, -1, 5, 2; }
+
 // MatrixElements::r
 // { power = 1; }
 // MatrixElements::r

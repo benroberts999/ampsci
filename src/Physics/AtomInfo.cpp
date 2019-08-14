@@ -124,7 +124,8 @@ double diracen(double z, double n, int k, double alpha) {
   double g = std::sqrt(k * k - za2);
   double w2 = z * z / std::pow(g + n - fabs((double)k), 2);
   double d = 1. + a2 * w2;
-  return -w2 / (2 * d) - (0.5 * a2 * w2 + 1. - std::sqrt(1. + a2 * w2)) * (c2 / d);
+  return -w2 / (2 * d) -
+         (0.5 * a2 * w2 + 1. - std::sqrt(1. + a2 * w2)) * (c2 / d);
 }
 
 //******************************************************************************
@@ -173,9 +174,10 @@ std::vector<NonRelSEConfig> core_parser(const std::string &str_core_in)
     }
     NonRelSEConfig new_config(n, l, num);
 
-    if (!term_ok || n <= 0) {
+    if (!term_ok || n <= 0 || l < 0) {
       std::cout << "Problem with core: " << str_core_in << "\n";
       std::cerr << "invalid core term: " << term << "\n";
+      // continue;
       std::abort();
     }
 
@@ -188,6 +190,9 @@ std::vector<NonRelSEConfig> core_parser(const std::string &str_core_in)
       *ia += new_config;
     }
   }
+  while (!core_configs.empty() && core_configs.back().num == 0)
+    core_configs.pop_back();
+
   return core_configs;
 }
 
@@ -203,7 +208,7 @@ std::vector<DiracSEnken> listOfStates_nk(const std::string &in_list) {
     } else {
       if (n_str == "")
         n_str = n_str_previous;
-      int n_max = 0;
+      int n_max = -1;
       try {
         n_max = std::stoi(n_str);
       } catch (...) {

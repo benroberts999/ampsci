@@ -61,6 +61,8 @@ public:
   std::size_t getStateIndex(int n, int k, bool &is_valence = dummy_bool) const;
   std::size_t getStateIndex(const DiracSpinor &psi,
                             bool &is_valence = dummy_bool) const;
+  const DiracSpinor &getState(int n, int k,
+                              bool &is_valence = dummy_bool) const;
 
   std::string coreConfiguration() const { return m_core_string; }
   std::string coreConfiguration_nice() const {

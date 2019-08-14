@@ -38,7 +38,7 @@ public:
 
 //******************************************************************************
 class E1Operator : public DiracOperator
-// \v{d} = -e \v{r}   [e=|e|=1]
+// v{d} = -e v{r}   [e=|e|=1]
 // <a||d||b> = R (-1)^{ja+1/2} Sqrt([ja][jb]) tjs(ja,jb,1, -1/2,1/2,0)
 //           = R <ja||C^k||jb>
 // R = -e Int[ r(fafb + gagb) ]dr
@@ -58,14 +58,14 @@ public:
 
 //******************************************************************************
 class E1Operator_vform : public DiracOperator
-// d_v = (ie/w\alpha) \v{\alpha}   [\v{\a} = g0\v{g}]
+// d_v = (ie/w alpha) v{alpha}   [v{a} = g0v{g}]
 // <a||dv||b> = -2e/(w alpha) Int[ fagb <ka||s||-kb> - gafb <-ka||s||kb>]
 {
 public:
-  E1Operator_vform(const Grid &gr)
+  E1Operator_vform(const Grid &gr, const double alpha = PhysConst::alpha)
       : DiracOperator(1, OperatorParity::odd, -1.0,
-                      // very dumb..
-                      std::vector<double>(gr.ngp, 1.0), 0) {}
+                      std::vector<double>(gr.ngp, 1.0), 0),
+        m_c(1.0 / alpha) {}
 
   double reducedME(const DiracSpinor &Fa,
                    const DiracSpinor &Fb) const override {
@@ -73,7 +73,7 @@ public:
       return 0;
     auto Rab = radialIntegral(Fa, Fb);
     auto omega = Fa.en - Fb.en;
-    return 2.0 * PhysConst::c * Rab / omega; /*c global? or var-c ?*/
+    return 2.0 * m_c * Rab / omega; // includes var-alpha
   }
 
 private:
@@ -85,6 +85,9 @@ private:
   virtual double angularCgf(int ka, int kb) const {
     return -Wigner::S_kk(-ka, kb);
   }
+
+private:
+  double m_c; // speed of light (including var-alpha)
 };
 
 //******************************************************************************
@@ -92,7 +95,7 @@ class HyperfineOperator : public DiracOperator {
 
   using Func_R2_R = std::function<double(double, double)>; // save typing
 
-public: // F(r) functions XXX NOTE: not F, include 1/r^2 !!!
+public: // F(r) functions. NOTE: includes 1/r^2 !
   static inline auto sphericalBall_F() -> Func_R2_R {
     return [=](double r, double rN) {
       return (r > rN) ? 1. / (r * r) : r / (rN * rN * rN);
@@ -176,26 +179,21 @@ public: // constructor
       : DiracOperator(1, OperatorParity::even, muN * PhysConst::muN_CGS / IN,
                       RadialFunc(rN, rgrid, hfs_F), 0),
         Inuc(IN) {}
-  // XXX Check sign!
 
   double reducedME(const DiracSpinor &Fa,
                    const DiracSpinor &Fb) const override {
     auto Rab = radialIntegral(Fa, Fb);
     return Rab * (Fa.k + Fb.k) * Wigner::Ck_kk(1, -Fa.k, Fb.k);
-    // XXX Check sign!
   }
 
   double hfsA(const DiracSpinor &Fa) {
     auto Raa = radialIntegral(Fa, Fa);
     return PhysConst::Hartree_MHz * Raa * Fa.k / (Fa.jjp1());
-    // XXX Put in terms of reducedME! ?
-    // XXX Check sign!
     // nb: in MHz
   }
-  static double hfsA2(const DiracOperator *h, const DiracSpinor &Fa) {
+  static double hfsA(const DiracOperator *h, const DiracSpinor &Fa) {
     auto Raa = h->radialIntegral(Fa, Fa);
     return PhysConst::Hartree_MHz * Raa * Fa.k / (Fa.jjp1());
-    // return Raa;
   }
 
   double de_F(const DiracSpinor &Fa, double jF) {

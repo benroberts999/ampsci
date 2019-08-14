@@ -59,8 +59,8 @@ static const std::vector<Element> periodic_table = {
 // Nothing functional will break if not, just won't necisarily find 'nicest'
 // output format
 static const std::array<std::pair<std::string, std::string>, 13> nobelGasses = {
-    std::make_pair("[H-like]", ""), //
-    std::make_pair("[He]", "1s2"),  //
+    std::make_pair("[]", ""),      //
+    std::make_pair("[He]", "1s2"), //
     std::make_pair("[Ne]", "1s2,2s2,2p6"),
     std::make_pair("[Ar]", "1s2,2s2,2p6,3s2,3p6"),
     std::make_pair("[Kr]", "1s2,2s2,2p6,3s2,3p6,3d10,4s2,4p6"),

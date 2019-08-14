@@ -10,7 +10,7 @@
 #include <string>
 
 int main(int argc, char *argv[]) {
-  ChronoTimer timer("hartreeFock");
+  ChronoTimer timer("\nhartreeFock");
   std::string input_file = (argc > 1) ? argv[1] : "hartreeFock.in";
   std::cout << "Reading input from: " << input_file << "\n";
 
@@ -66,8 +66,7 @@ int main(int argc, char *argv[]) {
     std::cout << "Using Hartree Method (no Exchange)\n";
   }
 
-  // Solve Hartree equations for the core:
-  {
+  { // Solve Hartree equations for the core:
     ChronoTimer t("Core");
     wf.hartreeFockCore(HF_method, str_core, eps_HF, H_d, g_t);
   }
@@ -76,12 +75,13 @@ int main(int argc, char *argv[]) {
   auto valence_list = (wf.Ncore() < wf.Znuc())
                           ? input.get<std::string>("HartreeFock", "valence", "")
                           : "";
-  timer.start();
-  wf.hartreeFockValence(valence_list);
-  if (!wf.valence_orbitals.empty()) {
+
+  if (valence_list != "") {
+    // 'if' is only for output format, nothing bad happens if below are called
+    ChronoTimer t("Valence");
+    wf.hartreeFockValence(valence_list);
     if (input.get("HartreeFock", "orthonormaliseValence", false))
       wf.orthonormaliseOrbitals(wf.valence_orbitals, 2);
-    std::cout << "Valence: " << timer.lap_reading_str() << "\n";
   }
 
   // Output results:
@@ -114,43 +114,6 @@ int main(int argc, char *argv[]) {
     }
     wf.orthonormaliseOrbitals(basis, 2);
     wf.printValence(false, basis);
-    std::cout << "\n Total time: " << timer.reading_str() << "\n";
-  }
-
-  bool testpnc = false;
-  if (testpnc) {
-    double t = Nuclear::default_t; // approximate_t_skin(wf.Anuc());
-    auto r_rms = Nuclear::find_rrms(wf.Znuc(), wf.Anuc());
-    double c = Nuclear::c_hdr_formula_rrms_t(r_rms);
-    PNCnsiOperator hpnc(c, t, wf.rgrid, -wf.Nnuc());
-    E1Operator he1(wf.rgrid);
-
-    double Ac = -1.0 / (2.0 * std::sqrt(3.0)); // angular coef
-    auto a6s_i = wf.getStateIndex(6, -1);
-    auto a7s_i = wf.getStateIndex(7, -1);
-    auto &a6s = wf.valence_orbitals[a6s_i];
-    auto &a7s = wf.valence_orbitals[a7s_i];
-    std::cout << "E_pnc: " << wf.Anuc() << "-"
-              << AtomInfo::atomicSymbol(wf.Znuc()) << " " << a6s.symbol()
-              << " -> " << a7s.symbol() << "\n";
-
-    double pnc = 0;
-    for (int i = 0; i < 2; i++) {
-      auto &tmp_orbs = (i == 0) ? wf.core_orbitals : wf.valence_orbitals;
-      for (auto &np : tmp_orbs) {
-        if (np.k != 1)
-          continue; // p_1/2 only
-        // <7s|d|np><np|hw|6s>/dE6s + <7s|hw|np><np|d|6s>/dE7s
-        double pnc1 = Ac * he1.reducedME(a7s, np) * hpnc.reducedME(np, a6s) /
-                      (a6s.en - np.en);
-        double pnc2 = Ac * he1.reducedME(np, a6s) * hpnc.reducedME(a7s, np) /
-                      (a7s.en - np.en);
-        std::cout << "n=" << np.n << " pnc= " << pnc1 << " + " << pnc2 << " ="
-                  << pnc1 + pnc2 << "\n";
-        pnc += pnc1 + pnc2;
-      }
-    }
-    std::cout << "Total= " << pnc << "\n";
     std::cout << "\n Total time: " << timer.reading_str() << "\n";
   }
 

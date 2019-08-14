@@ -3,12 +3,9 @@
 #include "NumCalc_quadIntegrate.hpp"
 #include "Physics/Wigner_369j.hpp"
 #include <algorithm>
-// #include <functional>
 #include <memory>
 #include <string>
 #include <vector>
-//
-#include <iostream>
 
 //******************************************************************************
 struct DiracMatrix

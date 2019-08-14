@@ -130,7 +130,7 @@ void Wavefunction::hartreeFockCore(HFMethod method, const std::string &in_core,
 
 //******************************************************************************
 auto Wavefunction::coreEnergyHF() const {
-  if (m_pHF == nullptr) {
+  if (!m_pHF) {
     std::cerr << "WARNING 62: Cant call coreEnergyHF before hartreeFockCore\n";
     return 0.0;
   }
@@ -139,7 +139,7 @@ auto Wavefunction::coreEnergyHF() const {
 
 //******************************************************************************
 void Wavefunction::hartreeFockValence(const std::string &in_valence_str) {
-  if (m_pHF == nullptr) {
+  if (!m_pHF) {
     std::cerr << "WARNING 62: Cant call hartreeFockValence before "
                  "hartreeFockCore\n";
     return;
@@ -180,11 +180,18 @@ std::size_t Wavefunction::getStateIndex(int n, int k, bool &is_valence) const {
   }
   std::cerr << "\nFAIL 290 in WF: Couldn't find state n,k=" << n << "," << k
             << "\n";
-  std::abort();
+  // std::abort();
+  return std::max(core_orbitals.size(), valence_orbitals.size()); // invalid
 }
 std::size_t Wavefunction::getStateIndex(const DiracSpinor &psi,
                                         bool &is_valence) const {
   return getStateIndex(psi.n, psi.k, is_valence);
+}
+//******************************************************************************
+const DiracSpinor &Wavefunction::getState(int n, int k,
+                                          bool &is_valence) const {
+  auto index = getStateIndex(n, k, is_valence);
+  return is_valence ? valence_orbitals[index] : core_orbitals[index];
 }
 
 //******************************************************************************

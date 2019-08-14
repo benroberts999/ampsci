@@ -7,6 +7,7 @@
 #include "Operators.hpp"
 #include "UserInput.hpp"
 #include "Wavefunction.hpp"
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -40,6 +41,8 @@ void runModule(const UserInputBlock &module_input, const Wavefunction &wf) //
     fitParametric(module_input, wf);
   } else if (module_name == "Module::BohrWeisskopf") {
     Module_BohrWeisskopf(module_input, wf);
+  } else if (module_name == "Module::pnc") {
+    Module_testPNC(module_input, wf);
   } else {
     std::cerr << "\nWARNING: Module `" << module_name
               << "' not known. Spelling mistake?\n";
@@ -71,9 +74,9 @@ void Module_BohrWeisskopf(const UserInputBlock &input, const Wavefunction &wf)
             << "\n"
             << "state :     point       ball         BW |   F_ball      F_BW\n";
   for (const auto &phi : wf.valence_orbitals) {
-    auto Ap = HyperfineOperator::hfsA2(hp.get(), phi);
-    auto Ab = HyperfineOperator::hfsA2(hb.get(), phi);
-    auto Aw = HyperfineOperator::hfsA2(hw.get(), phi);
+    auto Ap = HyperfineOperator::hfsA(hp.get(), phi);
+    auto Ab = HyperfineOperator::hfsA(hb.get(), phi);
+    auto Aw = HyperfineOperator::hfsA(hw.get(), phi);
     auto Fball = ((Ab / Ap) - 1.0) * M_PI * PhysConst::c;
     auto Fbw = ((Aw / Ap) - 1.0) * M_PI * PhysConst::c;
     printf("%6s: %9.3f  %9.3f  %9.3f | %8.4f  %8.4f\n", phi.symbol().c_str(),
@@ -151,6 +154,70 @@ void Module_Tests_Hamiltonian(const Wavefunction &wf) {
              psi.n, psi.k, Haa, ens, fracdiff);
     }
   }
+}
+
+//******************************************************************************
+void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf) {
+  const std::string ThisModule = "Module::PNC";
+
+  // ChronoTimer("pnc");
+  auto t_dflt = Nuclear::default_t;
+  auto r_rms = Nuclear::find_rrms(wf.Znuc(), wf.Anuc());
+  auto c_dflt = Nuclear::c_hdr_formula_rrms_t(r_rms);
+  auto t = input.get("t", t_dflt);
+  auto c = input.get("c", c_dflt);
+
+  auto transition_str = input.get<std::string>("transition");
+  replace(transition_str.begin(), transition_str.end(), ',', ' ');
+  auto ss = std::stringstream(transition_str);
+  int na, ka, nb, kb;
+  ss >> na >> ka >> nb >> kb;
+
+  auto ncore = wf.maxCore_n();
+  auto main_n = input.get("nmain", ncore + 4);
+
+  PNCnsiOperator hpnc(c, t, wf.rgrid, -wf.Nnuc());
+  E1Operator he1(wf.rgrid);
+
+  const auto &a6s = wf.getState(na, ka);
+  const auto &a7s = wf.getState(nb, kb);
+  std::cout << "\nE_pnc: " << wf.atom() << ": " << a6s.symbol() << " -> "
+            << a7s.symbol() << "\n";
+
+  auto tja = a6s.twoj();
+  auto tjb = a7s.twoj();
+  auto twom = std::min(tja, tjb);
+  auto c10 = Wigner::threej_2(tjb, 2, tja, -twom, 0, twom) *
+             Wigner::threej_2(tja, 0, tja, -twom, 0, twom);
+  auto c01 = Wigner::threej_2(tjb, 0, tjb, -twom, 0, twom) *
+             Wigner::threej_2(tjb, 2, tja, -twom, 0, twom);
+
+  double pnc = 0, core = 0, main = 0;
+  for (int i = 0; i < 2; i++) {
+    auto &tmp_orbs = (i == 0) ? wf.core_orbitals : wf.valence_orbitals;
+    for (auto &np : tmp_orbs) {
+      // <7s|d|np><np|hw|6s>/dE6s + <7s|hw|np><np|d|6s>/dE7s
+      if (np == a7s || np == a6s)
+        continue;
+      if (hpnc.isZero(np, a6s) && hpnc.isZero(np, a7s))
+        continue;
+      double pnc1 = c10 * he1.reducedME(a7s, np) * hpnc.reducedME(np, a6s) /
+                    (a6s.en - np.en);
+      double pnc2 = c01 * hpnc.reducedME(a7s, np) * he1.reducedME(np, a6s) /
+                    (a7s.en - np.en);
+      std::cout << np.symbol() << ", pnc= ";
+      printf("%12.5e + %12.5e = %12.5e\n", pnc1, pnc2, pnc1 + pnc2);
+      pnc += pnc1 + pnc2;
+      if (np.n == main_n)
+        main = pnc - core;
+    }
+    if (i == 0)
+      core = pnc;
+  }
+  std::cout << "Core= " << core << "\n";
+  std::cout << "Main= " << main << "\n";
+  std::cout << "Tail= " << pnc - main - core << "\n";
+  std::cout << "Total= " << pnc << "\n";
 }
 
 //******************************************************************************

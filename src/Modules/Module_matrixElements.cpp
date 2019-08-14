@@ -135,7 +135,8 @@ std::unique_ptr<DiracOperator> generateOperator(const std::string &operator_str,
     if (gauge != "vform")
       return std::make_unique<E1Operator>(E1Operator(wf.rgrid));
     std::cout << "(v-form [velocity gauge])\n";
-    return std::make_unique<E1Operator_vform>(E1Operator_vform(wf.rgrid));
+    return std::make_unique<E1Operator_vform>(
+        E1Operator_vform(wf.rgrid, wf.get_alpha()));
   } else if (operator_str == "r") {
     auto power = input.get("power", 1.0);
     std::cout << "r^(" << power << ")\n";
