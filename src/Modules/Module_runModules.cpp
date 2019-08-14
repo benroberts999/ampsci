@@ -62,17 +62,22 @@ void Module_BohrWeisskopf(const UserInputBlock &input, const Wavefunction &wf)
     BW_in.add("F(r)=doublyOddBW");
   else
     BW_in.add("F(r)=VolotkaBW");
-  auto point = matrixElements(point_in, wf);
-  auto ball = matrixElements(ball_in, wf);
-  auto bohrW = matrixElements(BW_in, wf);
 
-  std::cout << "\nTabulate Bohr-Weisskopf effect: " << wf.atom() << "\n"
-            << "state :   point     ball       BW     F_BW\n";
-  for (auto i = 0ul; i < point.size(); i++) {
-    auto nlj = wf.valence_orbitals[i].symbol();
-    auto Fbw = ((bohrW[i] / point[i]) - 1.0) * M_PI * PhysConst::c;
-    printf("%6s: %7.2f  %7.2f  %7.2f  %7.3f\n", nlj.c_str(), point[i], ball[i],
-           bohrW[i], Fbw);
+  auto hp = generateOperator("hfs", point_in, wf);
+  auto hb = generateOperator("hfs", ball_in, wf);
+  auto hw = generateOperator("hfs", BW_in, wf);
+
+  std::cout << "\nTabulate A (Mhz), Bohr-Weisskopf effect: " << wf.atom()
+            << "\n"
+            << "state :     point       ball         BW |   F_ball      F_BW\n";
+  for (const auto &phi : wf.valence_orbitals) {
+    auto Ap = HyperfineOperator::hfsA2(hp.get(), phi);
+    auto Ab = HyperfineOperator::hfsA2(hb.get(), phi);
+    auto Aw = HyperfineOperator::hfsA2(hw.get(), phi);
+    auto Fball = ((Ab / Ap) - 1.0) * M_PI * PhysConst::c;
+    auto Fbw = ((Aw / Ap) - 1.0) * M_PI * PhysConst::c;
+    printf("%6s: %9.3f  %9.3f  %9.3f | %8.4f  %8.4f\n", phi.symbol().c_str(),
+           Ap, Ab, Aw, Fball, Fbw);
   }
 }
 

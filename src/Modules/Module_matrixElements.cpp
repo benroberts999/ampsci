@@ -6,46 +6,49 @@
 #include "Physics/PhysConst_constants.hpp"
 #include "UserInput.hpp"
 #include "Wavefunction.hpp"
-#include <iostream>
-#include <string>
-//
 #include <fstream>
+#include <iostream>
+#include <memory>
+#include <string>
 
 namespace Module {
 
-std::vector<double> matrixElements(const UserInputBlock &input,
-                                   const Wavefunction &wf) {
-
-  // XXX For now, only works for diagonal, just RADIAL INT!
-  // XXX Need better way to deal with angular part? Output either RadInt of
-  // RedMatEl
+void matrixElements(const UserInputBlock &input, const Wavefunction &wf) {
 
   std::string ThisModule = "MatrixElements::";
   auto operator_str = input.name().substr(ThisModule.length());
 
-  std::cout << "\n" << ThisModule << " Operator: " << operator_str << "\n";
+  std::cout << "\n"
+            << ThisModule << " (reduced) Operator: " << operator_str << "\n";
   auto h = generateOperator(operator_str, input, wf);
 
-  std::vector<double> matrix_elements; // good idea?
-  matrix_elements.reserve(wf.valence_orbitals.size());
-  for (const auto &psi : wf.valence_orbitals) {
+  bool print_both = input.get("printBoth", false);
+  bool diagonal_only = input.get("onlyDiagonal", false);
 
-    auto factor = 1.0;
-    if (operator_str == "hfs") { // XXX temp work-around
-      double j = psi.j();
-      factor = psi.k / (j * (j + 1.));
+  auto units = input.get<std::string>("units", "au");
+  double un = 1.0;
+  if (units == "MHz")
+    un = PhysConst::Hartree_MHz;
+
+  for (const auto &phia : wf.valence_orbitals) {
+    for (const auto &phib : wf.valence_orbitals) {
+      if (h->isZero(phia, phib))
+        continue;
+      if (diagonal_only && phib != phia)
+        continue;
+      if (!print_both && phib < phia)
+        continue;
+      // auto me = h->reducedME(phia, phib);
+      std::cout << h->rme_symbol(phia, phib) << ": ";
+      printf("%12.5e\n", h->reducedME(phia, phib) * un);
     }
-    auto me = psi * (h * psi) * factor;
-    matrix_elements.push_back(me);
-    std::cout << psi.symbol() << " ; R = " << me << "\n";
   }
-  return matrix_elements; // make this optional somehow?
 } // namespace Module
 
 //******************************************************************************
-ScalarOperator_old generateOperator(const std::string &operator_str,
-                                    const UserInputBlock &input,
-                                    const Wavefunction &wf) {
+std::unique_ptr<DiracOperator> generateOperator(const std::string &operator_str,
+                                                const UserInputBlock &input,
+                                                const Wavefunction &wf) {
   //
   const std::string ThisModule = "MatrixElements::" + operator_str;
 
@@ -63,13 +66,13 @@ ScalarOperator_old generateOperator(const std::string &operator_str,
     auto r_nucau = r_nucfm / PhysConst::aB_fm;
     auto Fr_str = input.get<std::string>("F(r)", "ball");
 
-    std::cout << "Hyperfine structure: " << wf.atom() << "\n"
+    std::cout << "\nHyperfine structure: " << wf.atom() << "\n"
               << "Using " << Fr_str << " nuclear distro for F(r)\n"
               << "w/ mu = " << mu << ", I = " << I_nuc << ", r_N = " << r_nucfm
               << "fm = " << r_nucau << "au  (r_rms=" << r_rmsfm << "fm)\n";
     std::cout << "Points inside nucleus: " << wf.getRadialIndex(r_nucau)
               << "\n";
-    std::cout << "Units: MHz\n";
+    // std::cout << "Units: MHz\n";
 
     auto Fr = HyperfineOperator::sphericalBall_F();
     if (Fr_str == "shell")
@@ -100,7 +103,7 @@ ScalarOperator_old generateOperator(const std::string &operator_str,
       if (gl1 != 0 && gl1 != 1) {
         std::cout << "FAIL: in " << ThisModule << " " << Fr_str
                   << "; have gl1=" << gl1 << " but need 1 or 0\n";
-        return ScalarOperator_old(0);
+        return std::make_unique<NullOperator>(NullOperator());
       }
       auto l1 = input.get<double>("l1");
       auto l2 = input.get<double>("l2");
@@ -112,10 +115,8 @@ ScalarOperator_old generateOperator(const std::string &operator_str,
     } else if (Fr_str != "ball") {
       std::cout << "FAIL: in " << ThisModule << " " << Fr_str
                 << " invalid nuclear distro. Check spelling\n";
-      return ScalarOperator_old(0);
+      return std::make_unique<NullOperator>(NullOperator());
     }
-
-    auto unit = PhysConst::Hartree_MHz;
 
     auto print_FQ = input.get<bool>("printF", false);
     if (print_FQ) {
@@ -126,20 +127,34 @@ ScalarOperator_old generateOperator(const std::string &operator_str,
       }
     }
 
-    // Later can add different distro's; ball is default:
-    return HyperfineOperator(mu * unit, I_nuc, r_nucau, wf.rgrid, Fr);
+    // auto unit = PhysConst::Hartree_MHz;
+    return std::make_unique<HyperfineOperator>(
+        HyperfineOperator(mu, I_nuc, r_nucau, wf.rgrid, Fr));
   } else if (operator_str == "E1") {
-    return E1Operator(wf.rgrid);
+    auto gauge = input.get<std::string>("gauge", "lform");
+    if (gauge != "vform")
+      return std::make_unique<E1Operator>(E1Operator(wf.rgrid));
+    std::cout << "(v-form [velocity gauge])\n";
+    return std::make_unique<E1Operator_vform>(E1Operator_vform(wf.rgrid));
   } else if (operator_str == "r") {
     auto power = input.get("power", 1.0);
-    std::cout << ThisModule << ": r^(" << power << ")\n";
-    return RadialOperator(wf.rgrid, power);
-    // return RadialOperator(const Grid &rgrid, const double n);
+    std::cout << "r^(" << power << ")\n";
+    return std::make_unique<RadialFuncOperator>(
+        RadialFuncOperator(wf.rgrid, power));
+  } else if (operator_str == "pnc") {
+    double tdflt = Nuclear::default_t; // approximate_t_skin(wf.Anuc());
+    auto r_rms = Nuclear::find_rrms(wf.Znuc(), wf.Anuc());
+    double cdflt = Nuclear::c_hdr_formula_rrms_t(r_rms);
+    auto c = input.get("c", cdflt);
+    auto t = input.get("t", tdflt);
+    std::cout << "PNC [-i(Q/N)e-11]\n";
+    return std::make_unique<PNCnsiOperator>(
+        PNCnsiOperator(c, t, wf.rgrid, -wf.Nnuc()));
   }
 
   std::cerr << "\nFAILED to find operator: " << ThisModule
             << " in generateOperator. Returning NULL operator (0)\n";
-  return ScalarOperator_old(0); // null operator
+  return std::make_unique<NullOperator>(NullOperator());
 }
 
 } // namespace Module

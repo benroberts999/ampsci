@@ -58,10 +58,14 @@ public: // Methods
   std::string symbol(bool gnuplot = false) const {
     // Readable symbol (s_1/2, p_{3/2} etc.).
     // gnuplot-firndly '{}' braces optional.
-    std::string ostring1 = std::to_string(n) + AtomInfo::l_symbol(l());
-    std::string ostring2 = gnuplot ? "_{" + std::to_string(twoj()) + "/2}"
-                                   : "_" + std::to_string(twoj()) + "/2";
+    std::string ostring1 = std::to_string(n) + AtomInfo::l_symbol(m_l);
+    std::string ostring2 = gnuplot ? "_{" + std::to_string(m_twoj) + "/2}"
+                                   : "_" + std::to_string(m_twoj) + "/2";
     return ostring1 + ostring2;
+  }
+  std::string shortSymbol() const {
+    std::string pm = (k < 0) ? "+" : "-";
+    return std::to_string(n) + AtomInfo::l_symbol(m_l) + pm;
   }
 
   double norm() const { return std::sqrt((*this) * (*this)); }
@@ -142,6 +146,15 @@ public: // Operator overloads
   }
   friend DiracSpinor operator*(const double x, DiracSpinor rhs) {
     rhs *= x;
+    return rhs;
+  }
+  friend DiracSpinor operator*(const std::vector<double> v, DiracSpinor rhs) {
+    // friend?
+    auto size = rhs.p_rgrid->ngp;
+    for (auto i = 0ul; i < size; i++) {
+      rhs.f[i] *= v[i];
+      rhs.g[i] *= v[i];
+    }
     return rhs;
   }
   //

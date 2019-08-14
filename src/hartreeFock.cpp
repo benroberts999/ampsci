@@ -48,7 +48,7 @@ int main(int argc, char *argv[]) {
 
   // Parse input for HF method
   auto str_core = input.get<std::string>("HartreeFock", "core");
-  auto eps_HF = input.get("HartreeFock", "convergence", 0.0);
+  auto eps_HF = input.get("HartreeFock", "convergence", 1.0e-8);
   auto HF_method = HartreeFock::parseMethod(
       input.get<std::string>("HartreeFock", "method", "HartreeFock"));
 
@@ -90,7 +90,10 @@ int main(int argc, char *argv[]) {
   wf.printCore(sorted);
   wf.printValence(sorted);
 
-  Module::runModules(input, wf);
+  {
+    // ChronoTimer tmr("modules");
+    Module::runModules(input, wf);
+  }
 
   //*********************************************************
   //               TESTS
@@ -122,7 +125,7 @@ int main(int argc, char *argv[]) {
     PNCnsiOperator hpnc(c, t, wf.rgrid, -wf.Nnuc());
     E1Operator he1(wf.rgrid);
 
-    double Ac = 2. / 6.; // angular coef
+    double Ac = -1.0 / (2.0 * std::sqrt(3.0)); // angular coef
     auto a6s_i = wf.getStateIndex(6, -1);
     auto a7s_i = wf.getStateIndex(7, -1);
     auto &a6s = wf.valence_orbitals[a6s_i];
@@ -138,11 +141,11 @@ int main(int argc, char *argv[]) {
         if (np.k != 1)
           continue; // p_1/2 only
         // <7s|d|np><np|hw|6s>/dE6s + <7s|hw|np><np|d|6s>/dE7s
-        double pnc1 =
-            Ac * (a7s * (he1 * np)) * (np * (hpnc * a6s)) / (a6s.en - np.en);
-        double pnc2 =
-            Ac * (a7s * (hpnc * np)) * (np * (he1 * a6s)) / (a7s.en - np.en);
-        std::cout << "n=" << np.n << " pnc= " << pnc1 << " + " << pnc2 << " = "
+        double pnc1 = Ac * he1.reducedME(a7s, np) * hpnc.reducedME(np, a6s) /
+                      (a6s.en - np.en);
+        double pnc2 = Ac * he1.reducedME(np, a6s) * hpnc.reducedME(a7s, np) /
+                      (a7s.en - np.en);
+        std::cout << "n=" << np.n << " pnc= " << pnc1 << " + " << pnc2 << " ="
                   << pnc1 + pnc2 << "\n";
         pnc += pnc1 + pnc2;
       }

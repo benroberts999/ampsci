@@ -5,6 +5,7 @@
 class Wavefunction;
 class DiracSpinor;
 class ScalarOperator_old;
+class ScalarOperator;
 class Grid;
 class DirectHamiltonian;
 
@@ -90,8 +91,7 @@ private:
   void refine_valence_orbital_exchange(DiracSpinor &phi);
   void iterate_core_orbital(DiracSpinor &phi, const std::vector<double> &vl,
                             const DirectHamiltonian &Hd,
-                            const ScalarOperator_old &Vd,
-                            const ScalarOperator_old &fVdir0) const;
+                            const std::vector<double> &fVdir0) const;
   void yfun(DiracSpinor &phi, const DiracSpinor &phi1, const DiracSpinor &phi2,
             const DiracSpinor &Sr) const;
 };

@@ -117,12 +117,12 @@ $(OD)/Module_runModules.o: $(ID)/Modules/Module_runModules.cpp \
 $(ID)/Modules/Module_runModules.hpp $(ID)/DiracOperator.hpp \
 $(ID)/HartreeFockClass.hpp $(ID)/DMionisation/Module_atomicKernal.hpp \
 $(ID)/Modules/Module_fitParametric.hpp $(ID)/Operators.hpp \
-$(ID)/UserInput.hpp $(ID)/Wavefunction.hpp
+$(ID)/UserInput.hpp $(ID)/Wavefunction.hpp $(ID)/DiracSpinor.hpp
 	$(COMP)
 
 $(OD)/Module_atomicKernal.o: $(ID)/DMionisation/Module_atomicKernal.cpp \
 $(ID)/DMionisation/Module_atomicKernal.hpp \
-$(ID)/DMionisation/AKF_akFunctions.hpp \
+$(ID)/DMionisation/AKF_akFunctions.hpp $(ID)/DiracSpinor.hpp \
 $(ID)/Physics/AtomInfo.hpp $(ID)/ChronoTimer.hpp $(ID)/ContinuumOrbitals.hpp \
 $(ID)/Grid.hpp $(ID)/Physics/PhysConst_constants.hpp \
 $(ID)/Wavefunction.hpp
@@ -131,7 +131,7 @@ $(ID)/Wavefunction.hpp
 $(OD)/Module_matrixElements.o: $(ID)/Modules/Module_matrixElements.cpp \
 $(ID)/Modules/Module_matrixElements.hpp $(ID)/Physics/PhysConst_constants.hpp \
 $(ID)/Physics/Nuclear.hpp $(ID)/Operators.hpp $(ID)/UserInput.hpp  \
-$(ID)/HartreeFockClass.hpp $(ID)/Wavefunction.hpp
+$(ID)/HartreeFockClass.hpp $(ID)/Wavefunction.hpp $(ID)/DiracSpinor.hpp
 	$(COMP)
 
 $(OD)/Module_fitParametric.o: $(ID)/Modules/Module_fitParametric.cpp \
