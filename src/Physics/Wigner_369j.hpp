@@ -105,6 +105,22 @@ inline double threej_2(int two_j1, int two_j2, int two_j3, int two_m1,
 }
 
 //******************************************************************************
+inline double special_threej_2(int two_j1, int two_j2, int two_k)
+// special (common) 3js case:  (ja jb k, -0.5, 0.5, 0)
+{
+  if (triangle(two_j1, two_j2, two_k) == 0)
+    return 0.0;
+  if (two_k == 0) {
+    auto s = ((two_j1 + 2) % 4 == 0) ? 1.0 : -1.0;
+    return s / std::sqrt(two_j1 + 1);
+  }
+  // else if(two_k == 1){
+  // XXX Simple formula??
+  // }
+  return gsl_sf_coupling_3j(two_j1, two_j2, two_k, -1, 1, 0);
+}
+
+//******************************************************************************
 inline double cg(double j1, double m1, double j2, double m2, double J, double M)
 // <j1 m1, j2 m2 | J M> = (-1)^(j1-j2+M) * std::sqrt(2J+1) * (j1 j2  J)
 // .                                                    (m1 m2 -M)
@@ -273,7 +289,7 @@ inline double ninej_2(int two_j1, int two_j2, int two_j3, int two_j4,
 //******************************************************************************
 inline double Ck_kk(int k, int ka, int kb)
 // Reduced (relativistic) angular ME:
-// <ka||C^k||kb> = (-1)^(ja+1/2) * 3js(ja jb k, -1/2 1/2 0) * Pi
+// <ka||C^k||kb> = (-1)^(ja+1/2) * srt([ja][jb]) * 3js(ja jb k, -1/2 1/2 0) * Pi
 // Note: takes in kappa! (not j!)
 {
   if (parity(l_k(ka), l_k(kb), k) == 0) {
@@ -283,19 +299,23 @@ inline double Ck_kk(int k, int ka, int kb)
   auto two_jb = twoj_k(kb);
   auto sign = ((two_ja + 1) / 2 % 2 == 0) ? 1 : -1;
   auto f = std::sqrt((two_ja + 1) * (two_jb + 1));
-  auto g = gsl_sf_coupling_3j(two_ja, two_jb, 2 * k, -1, 1, 0);
+  // auto g = gsl_sf_coupling_3j(two_ja, two_jb, 2 * k, -1, 1, 0);
+  auto g = special_threej_2(two_ja, two_jb, 2 * k);
+  // XXX might be better formula (particularly for k=0,1 case!)
+  // constexpr??
   return sign * f * g;
 }
 //******************************************************************************
 inline double Ck_2j2j(int k, int two_ja, int two_jb)
 // Reduced (relativistic) angular ME:
-// <ka||C^k||kb> = (-1)^(ja+1/2) * 3js(ja jb k, -1/2 1/2 0) * Pi
+// <ka||C^k||kb> = (-1)^(ja+1/2) * srt([ja][jb]) * 3js(ja jb k, -1/2 1/2 0) * Pi
 // Note: takes in two*j!
 // NOTE: DOESNT check parity! Only use if that's already known to be true
 {
   auto sign = ((two_ja + 1) / 2 % 2 == 0) ? 1 : -1;
   auto f = std::sqrt((two_ja + 1) * (two_jb + 1));
-  auto g = gsl_sf_coupling_3j(two_ja, two_jb, 2 * k, -1, 1, 0);
+  // auto g = gsl_sf_coupling_3j(two_ja, two_jb, 2 * k, -1, 1, 0);
+  auto g = special_threej_2(two_ja, two_jb, 2 * k);
   return sign * f * g;
 }
 //******************************************************************************

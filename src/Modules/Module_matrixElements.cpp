@@ -44,8 +44,8 @@ std::vector<double> matrixElements(const UserInputBlock &input,
 
 //******************************************************************************
 ScalarOperator_old generateOperator(const std::string &operator_str,
-                               const UserInputBlock &input,
-                               const Wavefunction &wf) {
+                                    const UserInputBlock &input,
+                                    const Wavefunction &wf) {
   //
   const std::string ThisModule = "MatrixElements::" + operator_str;
 
@@ -134,6 +134,7 @@ ScalarOperator_old generateOperator(const std::string &operator_str,
     auto power = input.get("power", 1.0);
     std::cout << ThisModule << ": r^(" << power << ")\n";
     return RadialOperator(wf.rgrid, power);
+    // return RadialOperator(const Grid &rgrid, const double n);
   }
 
   std::cerr << "\nFAILED to find operator: " << ThisModule

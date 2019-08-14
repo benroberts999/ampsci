@@ -5,11 +5,36 @@
 #include "Physics/PhysConst_constants.hpp"
 #include "Physics/Wigner_369j.hpp"
 #include <cmath>
+#include <functional>
 #include <vector>
-//
-#include <functional> //for BW
+
+// XXX move impl into cpp !! XXX
 
 // Classes (inherit from DriacOperator)
+
+//******************************************************************************
+class RadialFuncOperator : public ScalarOperator {
+  // = some function of r
+  // Pass only grid to just get r, or
+  // either pass a lambda/function [f(r)], or a number, n, (for r^n)
+  // Explicitely even with rank 0, so ...
+public:
+  std::vector<double> fillVec(const Grid &gr, std::function<double(double)> f) {
+    std::vector<double> f_r;
+    f_r.reserve(gr.ngp);
+    for (auto r : gr.r)
+      f_r.push_back(f(r));
+    return f_r;
+  }
+
+public:
+  RadialFuncOperator(const Grid &rgrid, std::function<double(double)> f)
+      : ScalarOperator(OperatorParity::even, 1.0, fillVec(rgrid, f)) {}
+  RadialFuncOperator(const Grid &rgrid, const double n)
+      : ScalarOperator(OperatorParity::even, 1.0, fillVec(rgrid, [n](double r) {
+                         return std::pow(r, n);
+                       })) {}
+};
 
 //******************************************************************************
 class E1Operator_lform : public DiracOperator
@@ -148,26 +173,33 @@ private: // helper
 public: // constructor
   HyperfineOperator_new(double muN, double IN, double rN, const Grid &rgrid,
                         Func_R2_R hfs_F = sphericalBall_F())
-      : DiracOperator(1, OperatorParity::even, -muN * PhysConst::muN_CGS / IN,
-                      RadialFunc(rN, rgrid, hfs_F), 0) {
-    std::cout << "Careul, not checked!\n XXX \n";
-    std::cout << "Careul, not checked!\n XXX \n";
-    std::cout << "Careul, not checked!\n XXX \n";
-    std::cout << "Careul, not checked!\n XXX \n";
-  }
+      : DiracOperator(1, OperatorParity::even, muN * PhysConst::muN_CGS / IN,
+                      RadialFunc(rN, rgrid, hfs_F), 0),
+        Inuc(IN) {}
+  // XXX Check sign!
 
   double reducedME(const DiracSpinor &Fa,
                    const DiracSpinor &Fb) const override {
     auto Rab = radialIntegral(Fa, Fb);
     return Rab * (Fa.k + Fb.k) * Wigner::Ck_kk(1, -Fa.k, Fb.k);
-    // XXX not checked!
+    // XXX Check sign!
   }
 
   double hfsA(const DiracSpinor &Fa) {
     auto Raa = radialIntegral(Fa, Fa);
-    return Raa / (Fa.jjp1());
+    return PhysConst::Hartree_MHz * Raa * Fa.k / (Fa.jjp1());
+    // XXX Put in terms of reducedME! ?
     // XXX Check sign!
+    // nb: in MHz
   }
+
+  double de_F(const DiracSpinor &Fa, double jF) {
+    auto Ahfs = hfsA(Fa); // nb: in MHz
+    return 0.5 * Ahfs * (jF * (jF + 1.0) - Fa.jjp1() - Inuc * (Inuc + 1.0));
+  }
+
+private:
+  double Inuc;
 
 private:
   virtual double angularCff(int, int) const { return 0; }
