@@ -72,15 +72,17 @@ void Module_BohrWeisskopf(const UserInputBlock &input, const Wavefunction &wf)
 
   std::cout << "\nTabulate A (Mhz), Bohr-Weisskopf effect: " << wf.atom()
             << "\n"
-            << "state :     point       ball         BW |   F_ball      F_BW\n";
+            << "state :     point       ball         BW |   F_ball      F_BW   "
+               "  eps(BW)\n";
   for (const auto &phi : wf.valence_orbitals) {
     auto Ap = HyperfineOperator::hfsA(hp.get(), phi);
     auto Ab = HyperfineOperator::hfsA(hb.get(), phi);
     auto Aw = HyperfineOperator::hfsA(hw.get(), phi);
     auto Fball = ((Ab / Ap) - 1.0) * M_PI * PhysConst::c;
     auto Fbw = ((Aw / Ap) - 1.0) * M_PI * PhysConst::c;
-    printf("%6s: %9.3f  %9.3f  %9.3f | %8.4f  %8.4f\n", phi.symbol().c_str(),
-           Ap, Ab, Aw, Fball, Fbw);
+    printf("%6s: %9.1f  %9.1f  %9.1f | %8.4f  %8.4f   %9.6f\n",
+           phi.symbol().c_str(), Ap, Ab, Aw, Fball, Fbw,
+           -Fbw / (M_PI * PhysConst::c));
   }
 }
 
