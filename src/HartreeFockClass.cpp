@@ -105,13 +105,9 @@ void HartreeFock::hartree_fock_core() {
     return;
   }
 
-  double eps_target_HF = (m_method == HFMethod::ApproxHF) ? m_eps_HF : 1.0e-5;
-  bool do_refine = true;
-  if (p_wf->core_orbitals.size() == 1) {
-    // in this case, "Approximate" method is "exact" (And green fails???)
-    eps_target_HF = m_eps_HF;
-    do_refine = false;
-  }
+  bool do_refine =
+      (m_method == HFMethod::HartreeFock) && (p_wf->core_orbitals.size() > 1);
+  double eps_target_HF = do_refine ? 1.0e-5 : m_eps_HF;
 
   static const double eta1 = 0.35;
   static const double eta2 = 0.7; // this value after 4 its
@@ -201,7 +197,7 @@ void HartreeFock::hartree_fock_core() {
   }
   p_wf->orthonormaliseOrbitals(p_wf->core_orbitals, 2);
 
-  if (!m_excludeExchange && do_refine)
+  if (do_refine)
     refine_core_orbitals_exchange();
 }
 
@@ -510,7 +506,7 @@ void HartreeFock::vex_psia(const DiracSpinor &phi_a, DiracSpinor &vexPsi) const
   std::size_t init = phi_a.k == -1 ? 0 : 1; //?
   for (const auto &phi_b : p_wf->core_orbitals) {
     auto tjb = phi_b.twoj();
-    double x_tjbp1 = (tjb + 1) * phi_b.occ_frac;
+    double x_tjbp1 = (phi_a == phi_b) ? (tjb + 1) : (tjb + 1) * phi_b.occ_frac;
     auto irmax = std::min(phi_a.pinf, phi_b.pinf);
     int kmin = std::abs(twoj_a - tjb) / 2;
     int kmax = (twoj_a + tjb) / 2;
@@ -554,13 +550,6 @@ void HartreeFock::iterate_core_orbital(
     const auto Sr = (fVdir0 * phi) - (vd * phi) - vexPsi;
 
     auto en = Hd.matrixEl(phi, phi) + (phi * vexPsi);
-    // if (en > 0) {
-    //   // XXX Need for Li? Why??
-    //   // XXX Doesn't solve issue..
-    //   phi.eps = 1.0;
-    //   phi.its = MAX_HART_ITS;
-    //   break;
-    // }
 
     auto inner_eps = fabs((en - phi.en) / phi.en);
     bool inner_converged = (inner_eps <= eps_target || ini == MAX_HART_ITS);
@@ -581,7 +570,8 @@ void HartreeFock::iterate_core_orbital(
   }
   DEBUG(printf(" refine--- %2i,%2i: en=%11.5f  HFeps = %.0e;  %2i  "
                "(%4i)\n",
-               phi.n, phi.k, phi.en, phi.eps, phi.its, (int)phi.pinf);)
+               phi.n, phi.k, phi.en, phi.eps, phi.its, (int)phi.pinf);
+        std::cin.get();)
 }
 
 //******************************************************************************
