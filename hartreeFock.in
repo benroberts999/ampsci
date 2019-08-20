@@ -9,7 +9,7 @@ HartreeFock {
   valence = 7sp;
   sortOutput;
   method; // HartreeFock(dflt), ApproxHF, Hartree, GreenPRM, TietzPRM
-  convergence = 1.0e-15;
+  convergence = 1.0e-12;
 }
 
 Nucleus {
@@ -19,8 +19,8 @@ Nucleus {
 }
 
 Grid {
-  r0 = 1e-5;
-  rmax = 150.0;
+  r0 = 1e-6;
+  rmax = 120.0;
   ngp = 1600;
   type; // loglinear(dflt), logarithmic, linear
   b;

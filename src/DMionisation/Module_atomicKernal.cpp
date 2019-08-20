@@ -1,4 +1,5 @@
 #include "Module_atomicKernal.hpp"
+#include "AKF_akFunctions.hpp"
 #include "ChronoTimer.hpp"
 #include "ContinuumOrbitals.hpp"
 #include "Grid.hpp"
@@ -6,7 +7,6 @@
 #include "Physics/PhysConst_constants.hpp"
 #include "UserInput.hpp"
 #include "Wavefunction.hpp"
-#include "AKF_akFunctions.hpp"
 #include <iostream>
 
 namespace Module {
@@ -65,7 +65,7 @@ void atomicKernal(const UserInputBlock &input, const Wavefunction &wf) {
   auto du = wf.rgrid.du;
   if (du > du_target) {
     auto new_ngp = Grid::calc_ngp_from_du(wf.rgrid.r0, wf.rgrid.rmax, du_target,
-                                          GridType::loglinear, 3.5);
+                                          GridType::loglinear, 4.0);
     auto old_ngp = wf.rgrid.ngp;
     // ngp = (int)new_ngp;
     std::cerr

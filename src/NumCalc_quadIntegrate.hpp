@@ -7,7 +7,7 @@
 namespace NumCalc {
 
 // Quadrature integration order [1,13], only odd
-constexpr std::size_t Nquad = 3;
+constexpr std::size_t Nquad = 7;
 static_assert(
     Nquad >= 1 && Nquad <= 13 && Nquad % 2 != 0,
     "\nFAIL10 in NumCalc: Nquad must be in [1,13], and must be odd\n");

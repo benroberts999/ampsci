@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
   auto r0 = input.get("Grid", "r0", 1.0e-5);
   auto rmax = input.get("Grid", "rmax", 150.0);
   auto ngp = input.get("Grid", "ngp", 1600ul);
-  auto b = input.get("Grid", "b", 3.5);
+  auto b = input.get("Grid", "b", 4.0);
   auto grid_type = GridParameters::parseType(
       input.get<std::string>("Grid", "type", "loglinear"));
   GridParameters grid_params(ngp, r0, rmax, b, grid_type);
