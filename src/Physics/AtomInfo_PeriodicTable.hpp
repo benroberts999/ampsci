@@ -16,7 +16,7 @@ struct Element {
   int Z;
   std::string symbol;
   int A;
-  Element(int inZ, std::string insymbol, int inA)
+  Element(int inZ, const std::string &insymbol, int inA)
       : Z(inZ), symbol(insymbol), A(inA) {}
 };
 

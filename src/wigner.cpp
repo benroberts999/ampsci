@@ -111,7 +111,7 @@ int main(int num_in, char *argv[]) {
     }
   }
 
-  for (auto input : input_list) {
+  for (const auto &input : input_list) {
     calculateSingleTerm(input);
     std::cout << "\n";
   }

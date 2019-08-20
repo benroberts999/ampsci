@@ -81,7 +81,7 @@ HartreeFock::HartreeFock(Wavefunction &wf,
 }
 
 //******************************************************************************
-HFMethod HartreeFock::parseMethod(std::string in_method) {
+HFMethod HartreeFock::parseMethod(const std::string &in_method) {
   if (in_method == "HartreeFock")
     return HFMethod::HartreeFock;
   if (in_method == "ApproxHF")
@@ -303,7 +303,7 @@ double HartreeFock::calculateCoreEnergy() const
       auto tjb = phi_b.twoj();
       double xtjbp1 = (tjb + 1) * phi_b.occ_frac;
       auto irmax = std::min(phi_a.pinf, phi_b.pinf);
-      auto &v0bb = m_cint.get_y_ijk(phi_b, phi_b, 0);
+      const auto &v0bb = m_cint.get_y_ijk(phi_b, phi_b, 0);
       double R0f2 = NumCalc::integrate(
           {&phi_a.f, &phi_a.f, &v0bb, &p_rgrid->drdu}, 1.0, 0, irmax);
       double R0g2 = NumCalc::integrate(
@@ -593,14 +593,14 @@ inline void HartreeFock::refine_valence_orbital_exchange(DiracSpinor &phi) {
   auto prev_en = phi.en;
   m_cint.form_core_valence(phi); // only needed if not already done!
   double eps_prev = 1.0;
-  auto en = phi.en;
+  // auto en = phi.en;
   auto phi0 = DiracSpinor(n, k, p_wf->rgrid);
   auto phiI = DiracSpinor(n, k, p_wf->rgrid);
   auto vexPsi = DiracSpinor(n, k, p_wf->rgrid);
   for (int it = 0; it <= MAX_HART_ITS; ++it) {
     vex_psia(phi, vexPsi);
     auto Sr = -1.0 * vexPsi;
-    en = Hd.matrixEl(phi, phi) + phi * vexPsi;
+    auto en = Hd.matrixEl(phi, phi) + phi * vexPsi;
 
     auto eps = fabs((prev_en - en) / en);
     bool getting_worse = (it > 20 && eps >= 2.0 * eps_prev);

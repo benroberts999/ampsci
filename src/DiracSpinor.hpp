@@ -148,7 +148,7 @@ public: // Operator overloads
     rhs *= x;
     return rhs;
   }
-  friend DiracSpinor operator*(const std::vector<double> v, DiracSpinor rhs) {
+  friend DiracSpinor operator*(const std::vector<double> &v, DiracSpinor rhs) {
     // friend?
     auto size = rhs.p_rgrid->ngp;
     for (auto i = 0ul; i < size; i++) {

@@ -5,15 +5,15 @@
 #include "Module_fitParametric.hpp"
 #include "Module_matrixElements.hpp"
 #include "Operators.hpp"
+#include "Physics/PhysConst_constants.hpp"
 #include "UserInput.hpp"
 #include "Wavefunction.hpp"
 #include <algorithm>
+#include <cmath>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <string>
-//
-#include "Physics/PhysConst_constants.hpp"
-#include <cmath>
 
 namespace Module {
 
@@ -28,7 +28,7 @@ void runModules(const UserInput &input, const Wavefunction &wf) {
 //******************************************************************************
 void runModule(const UserInputBlock &module_input, const Wavefunction &wf) //
 {
-  auto module_name = module_input.name();
+  const auto &module_name = module_input.name();
   if (module_name.substr(0, 14) == "MatrixElements") {
     matrixElements(module_input, wf);
   } else if (module_name == "Module::Tests") {
@@ -135,7 +135,7 @@ void Module_Tests_orthonormality(const Wavefunction &wf) {
         if (xo == 0)
           printf("   0");
         else
-          printf(" %+3.0f", log10(std::fabs(xo)));
+          printf(" %+3.0f", std::log10(std::fabs(xo)));
       }
       std::cout << "\n";
     }

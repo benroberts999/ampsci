@@ -221,7 +221,8 @@ int Wavefunction::maxCore_l() const {
 }
 
 //******************************************************************************
-void Wavefunction::solveInitialCore(std::string str_core, int log_dele_or)
+void Wavefunction::solveInitialCore(const std::string &str_core,
+                                    int log_dele_or)
 // Solves the Dirac eqn for each state in the core
 // Only for local potential (direct part)
 // HartreeFockClass.cpp has routines for Hartree Fock

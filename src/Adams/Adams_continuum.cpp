@@ -1,7 +1,7 @@
 #include "Adams_continuum.hpp"
+#include "Adams_bound.hpp"
 #include "DiracSpinor.hpp"
 #include "Grid.hpp"
-#include "Adams_bound.hpp"
 #include <cmath>
 
 namespace Adams {
@@ -133,9 +133,10 @@ findAsymptoticRegion(std::vector<double> &pc, const std::vector<double> &rc,
     if (xb * xa < 0) {
       // Use linear extrapolation to find exact r of the zero:
       double r1 = (rc[i] * pc[i - 1] - rc[i - 1] * pc[i]) / (pc[i - 1] - pc[i]);
-      double ya = xb, yb = xb;
+      // double ya = xb,
+      auto yb = xb;
       for (std::size_t j = i + 1; j < NGPc; j++) {
-        ya = yb;
+        auto ya = yb;
         yb = pc[j];
         if (ya * yb < 0) {
           // Use linear extrapolation to find exact r of the next zero:

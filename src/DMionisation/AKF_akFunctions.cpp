@@ -36,7 +36,7 @@ double CLkk(int L, int ka, int kb)
 }
 
 //******************************************************************************
-void writeToTextFile(std::string fname,
+void writeToTextFile(const std::string &fname,
                      const std::vector<std::vector<std::vector<float>>> &AK,
                      const std::vector<std::string> &nklst, double qmin,
                      double qmax, double demin, double demax)
@@ -56,7 +56,7 @@ void writeToTextFile(std::string fname,
   std::ofstream ofile;
   ofile.open(fname + ".txt");
   ofile << "dE(keV) q(MeV) ";
-  for (auto nk : nklst) {
+  for (const auto &nk : nklst) {
     ofile << nk << " ";
   }
   ofile << "Sum\n\n";

@@ -49,12 +49,11 @@ UserInput::UserInput(const std::string &infile) : m_filename(infile) {
 std::vector<UserInputBlock> UserInput::module_list() const {
   std::vector<UserInputBlock> out_module_list;
   for (const auto &block : m_blocks) {
-    auto name = block.name();
+    const auto &name = block.name();
     auto pos1 = name.find("Module::");
     auto pos2 = name.find("MatrixElements::");
-    if (pos1 == 0 || pos2 == 0) {
+    if (pos1 == 0 || pos2 == 0)
       out_module_list.push_back(block);
-    }
   }
   return out_module_list;
 }

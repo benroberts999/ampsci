@@ -21,7 +21,9 @@ ifeq ($(CXX),clang++)
   WARN += -Wno-sign-conversion -Wheader-hygiene
 endif
 ifeq ($(CXX),g++)
-  WARN += -Wlogical-op
+  WARN += -Wsuggest-override
+#-Wsuggest-final-types -Wsuggest-final-methods
+#-Wsuggest-attribute=const -Wsuggest-attribute=pure
 endif
 
 CXXFLAGS= -std=c++14 $(OPT) $(OMP) $(WARN) -I./src/

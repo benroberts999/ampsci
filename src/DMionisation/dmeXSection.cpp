@@ -143,7 +143,7 @@ double F_chi_2_intermediate(double mu, double q) {
 //******************************************************************************
 void writeForGnuplot_mvBlock(const DoubleVec3D &X_mv_mx_x, const Grid &mvgrid,
                              const Grid &mxgrid, const Grid &Egrid,
-                             std::string fname, double y_unit_convert,
+                             const std::string &fname, double y_unit_convert,
                              double x_unit_convert = E_to_keV)
 // Write to gnu-plot formatted text file.
 // Each column is a m_chi (DM mass). Each block is different m_v
@@ -422,7 +422,7 @@ void doDAMA(const DoubleVec3D &dsv_mv_mx_E, const Grid &mvgrid,
             const Grid &mxgrid, const Grid &Egrid, bool do_anMod,
             bool write_dSdE, bool write_SofM, double dres, double err_PEkeV,
             double Atot, double iEbin, double fEbin, double wEbin,
-            std::string label)
+            const std::string &label)
 /*
 Takes in <ds.v>/dE, and calculated dS/dE, for DAMA.
 Depending on above, will be either S_0 or S_m (mod. amplitude)
@@ -638,7 +638,8 @@ Optionally further integrates into energy bins
 void doXe100(const DoubleVec3D &dsv_mv_mx_E, const Grid &mvgrid,
              const Grid &mxgrid, const Grid &Egrid, double Atot, double N_err,
              double sPMT_err, bool write_dSds1, bool do_anMod,
-             bool write_integrated, double s1_a, double s1_b, std::string label)
+             bool write_integrated, double s1_a, double s1_b,
+             const std::string &label)
 /*
 Mostly, coming from:
  - The XENON100 Collaboration, Phys. Rev. D 90, 062009 (2014).

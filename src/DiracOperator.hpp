@@ -241,7 +241,7 @@ public:
   double reducedME(const DiracSpinor &, const DiracSpinor &) const override {
     return 0.0;
   }
-  double matrixEl(const DiracSpinor &, const DiracSpinor &) const {
+  double matrixEl(const DiracSpinor &, const DiracSpinor &) const override {
     return 0.0;
   }
 };

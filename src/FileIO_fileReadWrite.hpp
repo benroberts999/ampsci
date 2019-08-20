@@ -24,12 +24,13 @@ namespace FileIO {
 // https://stackoverflow.com/questions/1198260/iterate-over-tuple/23142715
 template <std::size_t I = 0, typename... Tp>
 inline typename std::enable_if<I == sizeof...(Tp), void>::type
-stringstreamVectorIntoTuple(std::vector<std::string>, std::tuple<Tp...> &) {}
+stringstreamVectorIntoTuple(const std::vector<std::string> &,
+                            std::tuple<Tp...> &) {}
 
 template <std::size_t I = 0, typename... Tp>
     inline typename std::enable_if <
     I<sizeof...(Tp), void>::type
-    stringstreamVectorIntoTuple(std::vector<std::string> lst,
+    stringstreamVectorIntoTuple(const std::vector<std::string> &lst,
                                 std::tuple<Tp...> &t) {
   if (I > lst.size())
     std::cerr << "\nFAIL 34 in FileIO: list shorter than tuple\n";
@@ -113,9 +114,9 @@ inline std::string removeCommentsAndSpaces(const std::string &input)
     std::string line;
     std::stringstream stream1(input);
     while (std::getline(stream1, line, '\n')) {
-      auto comm1 = line.find("!");
-      auto comm2 = line.find("#");
-      auto comm3 = line.find("//");
+      auto comm1 = line.find('!'); // nb: char, NOT string literal!
+      auto comm2 = line.find('#');
+      auto comm3 = line.find("//"); // str literal here
       auto comm = std::min(comm1, std::min(comm2, comm3));
       lines += line.substr(0, comm);
     }
@@ -140,8 +141,8 @@ splitInput_byBraces(const std::string &input) {
 
   std::size_t previous_end = 0;
   while (true) {
-    auto beg = lines.find("{", previous_end);
-    auto end = lines.find("}", beg);
+    auto beg = lines.find('{', previous_end);
+    auto end = lines.find('}', beg);
     if (beg == std::string::npos)
       break;
     if (end == std::string::npos) {
@@ -177,7 +178,7 @@ inline std::vector<std::string> splitInput_bySemiColon(const std::string &input)
 
 //******************************************************************************
 template <typename... Tp>
-void setInputParameters(std::string infile, std::tuple<Tp...> &tp) {
+void setInputParameters(const std::string &infile, std::tuple<Tp...> &tp) {
   auto input = readInputFile_byEntry(infile);
   if (sizeof...(Tp) > input.size()) {
     // Note: for now, I allow a longer-than-needed input list.

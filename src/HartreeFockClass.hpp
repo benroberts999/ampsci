@@ -33,7 +33,7 @@ class HartreeFock {
   friend class Coulomb;
 
 public:
-  static HFMethod parseMethod(std::string in_method);
+  static HFMethod parseMethod(const std::string &in_method);
 
   HartreeFock(HFMethod method, Wavefunction &wf, const std::string &in_core,
               double eps_HF = 0, double h_d = 0, double g_t = 0);
