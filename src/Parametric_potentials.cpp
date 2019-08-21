@@ -209,10 +209,8 @@ int defaultTietz(int z, double &t, double &g)
 std::vector<double> GreenPotential(int z, const std::vector<double> &r_array,
                                    double h, double d) {
   // double Gh, Gd; // Green potential parameters
-  if (std::fabs(h * d) < 1.0e-6) {
+  if (std::fabs(h * d) < 1.0e-6)
     defaultGreenCore(z, h, d);
-    std::cout << "Default Green PRM parameters: H=" << h << ", d=" << d << "\n";
-  }
   // Fill the the potential, using Greens Parametric
   std::vector<double> v;
   v.reserve(r_array.size());
@@ -225,10 +223,8 @@ std::vector<double> GreenPotential(int z, const std::vector<double> &r_array,
 std::vector<double> TietzPotential(int z, const std::vector<double> &r_array,
                                    double g, double t) {
   // double Gh, Gd; // Green potential parameters
-  if (std::fabs(g * t) < 1.0e-6) {
+  if (std::fabs(g * t) < 1.0e-6)
     defaultTietz(z, t, g);
-    std::cout << "Default Green PRM parameters: g=" << g << ", t=" << t << "\n";
-  }
   // Fill the the potential, using Greens Parametric
   std::vector<double> v;
   v.reserve(r_array.size());
