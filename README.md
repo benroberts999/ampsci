@@ -1,16 +1,13 @@
 # Relativistic, self-consistent atomic structure code.
 
 Solves the Dirac equation for atomic systems using the Hartree-Fock method.
-Fully relativistic, includes finite-nuclear size, and can
-solve for continuum states (energy normalisation).
+Fully relativistic, includes finite-nuclear size, and can solve for continuum states (energy normalisation).
 
- * With reasonable choices for the integration grids, typically converges
-to better than a few parts in 10^16
+ * With reasonable choices for the integration grids, typically converges to better than a few parts in 10^16
 
- * Includes an option to vary the effective speed of light -
-allowing non-relativistic approximation.
+ * Includes an option to vary the effective speed of light - allowing non-relativistic approximation.
 
- * Wavefunctions are in form psi = (1/r) [f,ig], (using Dirac basis)
+ * Orbitals are in form psi = (1/r) [f,ig], (using Dirac basis)
 
 ### Compiling and use:
 
@@ -27,7 +24,7 @@ By default, the input file name is: 'programName.in' (but can also give a differ
     `otherFile.txt`: _$./programName otherFile.txt_)
  * Note: below just tells how to use existing programs, to see how they work,
  see the comments/instructions inside the source code (all in /src/)
- * Tested with g++ and clang++.
+ * Tested with g++, clang++, and icpc.
 
 Note: makes use of GSL libraries: https://www.gnu.org/software/gsl/
 

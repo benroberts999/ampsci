@@ -27,23 +27,20 @@ Solves all core and valence states.
 //******************************************************************************
 HartreeFock::HartreeFock(HFMethod method, Wavefunction &wf,
                          const std::string &in_core, double eps_HF, double h_d,
-                         double g_t)
-    //
+                         double g_t) //
     : p_wf(&wf), p_rgrid(&wf.rgrid),
       m_cint(Coulomb(wf.rgrid, wf.core_orbitals, wf.valence_orbitals)),
       m_eps_HF([=]() { // can give as log..
         return (std::fabs(eps_HF) < 1) ? eps_HF : std::pow(10, -1 * eps_HF);
-      }()),
+      }()), //
       m_excludeExchange([=]() {
         return (method == HFMethod::HartreeFock || method == HFMethod::ApproxHF)
                    ? false
                    : true;
-      }()), //
-      m_method(method)
-//
+      }()),            //
+      m_method(method) //
 {
   // XXX Update this so that you can create HF class, THEN solve for core later
-  // if(wf.Z)
   if (method == HFMethod::Hartree || method == HFMethod::HartreeFock ||
       method == HFMethod::ApproxHF) {
     if (wf.core_orbitals.empty())
@@ -53,6 +50,7 @@ HartreeFock::HartreeFock(HFMethod method, Wavefunction &wf,
                          std::vector<double>(p_rgrid->ngp));
     hartree_fock_core();
   } else {
+    // using parametric potential only:
     starting_approx_core(in_core, 15, method, h_d, g_t);
     m_cint.initialise_core_core();
     appr_vex_core.resize(p_wf->core_orbitals.size(),
@@ -180,7 +178,8 @@ void HartreeFock::hartree_fock_core() {
           std::cin.get();)
 
     // Force all core orbitals to be orthogonal to each other
-    p_wf->orthonormaliseOrbitals(p_wf->core_orbitals, 1);
+    if (m_explicitOrthog)
+      p_wf->orthonormaliseOrbitals(p_wf->core_orbitals, 1);
     auto getting_worse = (hits > 20 && t_eps > t_eps_prev && t_eps < 1.e-5);
     auto converged = (t_eps < eps_target_HF);
     if (converged || getting_worse)
@@ -195,7 +194,8 @@ void HartreeFock::hartree_fock_core() {
     p_wf->solveDirac(p_wf->core_orbitals[i], p_wf->core_orbitals[i].en,
                      appr_vex_core[i], 15);
   }
-  p_wf->orthonormaliseOrbitals(p_wf->core_orbitals, 2);
+  if (m_explicitOrthog)
+    p_wf->orthonormaliseOrbitals(p_wf->core_orbitals, 2);
 
   if (do_refine)
     refine_core_orbitals_exchange();
@@ -261,7 +261,8 @@ void HartreeFock::solveValence(DiracSpinor &phi, std::vector<double> &vexa)
     p_wf->solveDirac(phi, en_new_guess, vexa, 15);
     eps = fabs((phi.en - en_old) / en_old);
     // Force valence states to be orthogonal to core:
-    p_wf->orthonormaliseWrtCore(phi);
+    if (m_explicitOrthog)
+      p_wf->orthonormaliseWrtCore(phi);
 
     auto getting_worse = (hits > 20 && eps >= eps_prev && eps < 1.e-5);
     auto converged = (eps <= eps_target_HF);
@@ -275,7 +276,8 @@ void HartreeFock::solveValence(DiracSpinor &phi, std::vector<double> &vexa)
 
   // Re-solve w/ higher precission
   p_wf->solveDirac(phi, phi.en, vexa, 15);
-  p_wf->orthonormaliseWrtCore(phi);
+  if (m_explicitOrthog)
+    p_wf->orthonormaliseWrtCore(phi);
 
   if (!m_excludeExchange && p_wf->core_orbitals.size() != 0)
     refine_valence_orbital_exchange(phi);
@@ -594,7 +596,6 @@ inline void HartreeFock::refine_valence_orbital_exchange(DiracSpinor &phi) {
   auto prev_en = phi.en;
   m_cint.form_core_valence(phi); // only needed if not already done!
   double eps_prev = 1.0;
-  // auto en = phi.en;
   auto phi0 = DiracSpinor(n, k, p_wf->rgrid);
   auto phiI = DiracSpinor(n, k, p_wf->rgrid);
   auto vexPsi = DiracSpinor(n, k, p_wf->rgrid);
@@ -624,10 +625,15 @@ inline void HartreeFock::refine_valence_orbital_exchange(DiracSpinor &phi) {
     phi.normalise();
     phi = a_damp * oldphi + (1.0 - a_damp) * phi;
     phi.en = en;
-    p_wf->orthonormaliseWrtCore(phi);
+    if (m_explicitOrthog) {
+      p_wf->orthonormaliseWrtCore(phi);
+    } else {
+      phi.normalise();
+    }
     m_cint.form_core_valence(phi);
   }
-  p_wf->orthonormaliseWrtCore(phi);
+  if (m_explicitOrthog)
+    p_wf->orthonormaliseWrtCore(phi);
   return;
 }
 
@@ -642,21 +648,17 @@ inline void HartreeFock::refine_core_orbitals_exchange() {
 
   const auto a_damp = 0.2;
   double prev_eps = 1.0;
+  auto size = p_wf->rgrid.ngp;
+  std::vector<double> fVdir0(size), vl(size);
+  const auto f_core = double(p_wf->Ncore() - 1) / double(p_wf->Ncore());
 
   for (int it = 0; it <= MAX_HART_ITS; it++) {
 
-    const auto f_core = double(p_wf->Ncore() - 1) / double(p_wf->Ncore());
-
-    auto vl = p_wf->vnuc;
-    auto size = vl.size();
-    std::vector<double> fVdir0; // allocate once outside?
-    fVdir0.reserve(size);
-    for (unsigned i = 0; i < size; i++) {
+    for (auto i = 0ul; i < size; i++) {
       auto fvd = f_core * p_wf->vdir[i];
-      vl[i] += fvd;
-      fVdir0.push_back(fvd);
+      vl[i] = p_wf->vnuc[i] + fvd;
+      fVdir0[i] = fvd;
     }
-    // const auto vl = vl_tmp;
 
     std::vector<double> prior_en_list;
     for (auto &phi : p_wf->core_orbitals) {
@@ -685,12 +687,14 @@ inline void HartreeFock::refine_core_orbitals_exchange() {
         printf("refine core  it:%3i eps=%6.1e              \n", it, eps);
       break;
     }
-    p_wf->orthonormaliseOrbitals(p_wf->core_orbitals);
+    if (m_explicitOrthog)
+      p_wf->orthonormaliseOrbitals(p_wf->core_orbitals);
     m_cint.form_core_core();
     form_vdir(p_wf->vdir);
     Hd.updateVdir(p_wf->vdir);
   }
-  p_wf->orthonormaliseOrbitals(p_wf->core_orbitals, 2);
+  if (m_explicitOrthog)
+    p_wf->orthonormaliseOrbitals(p_wf->core_orbitals, 2);
 }
 
 //******************************************************************************
