@@ -181,7 +181,7 @@ void HartreeFock::hartree_fock_core() {
 
     // Force all core orbitals to be orthogonal to each other
     p_wf->orthonormaliseOrbitals(p_wf->core_orbitals, 1);
-    auto getting_worse = (hits > 20 && t_eps > t_eps_prev);
+    auto getting_worse = (hits > 20 && t_eps > t_eps_prev && t_eps < 1.e-5);
     auto converged = (t_eps < eps_target_HF);
     if (converged || getting_worse)
       break;
@@ -263,7 +263,7 @@ void HartreeFock::solveValence(DiracSpinor &phi, std::vector<double> &vexa)
     // Force valence states to be orthogonal to core:
     p_wf->orthonormaliseWrtCore(phi);
 
-    auto getting_worse = (hits > 20 && eps >= eps_prev);
+    auto getting_worse = (hits > 20 && eps >= eps_prev && eps < 1.e-5);
     auto converged = (eps <= eps_target_HF);
     if (converged || getting_worse)
       break;
@@ -553,7 +553,8 @@ void HartreeFock::iterate_core_orbital(
 
     auto inner_eps = fabs((en - phi.en) / phi.en);
     bool inner_converged = (inner_eps <= eps_target || ini == MAX_HART_ITS);
-    bool inner_getting_worse = (inner_eps > 1.1 * prev_inner_eps && ini > 10);
+    bool inner_getting_worse =
+        (inner_eps > 1.1 * prev_inner_eps && ini > 10 && inner_eps < 1.e-5);
 
     if (prev_inner_eps > inner_eps)
       prev_inner_eps = inner_eps;
@@ -603,7 +604,7 @@ inline void HartreeFock::refine_valence_orbital_exchange(DiracSpinor &phi) {
     auto en = Hd.matrixEl(phi, phi) + phi * vexPsi;
 
     auto eps = fabs((prev_en - en) / en);
-    bool getting_worse = (it > 20 && eps >= 2.0 * eps_prev);
+    bool getting_worse = (it > 20 && eps >= 2.0 * eps_prev && eps < 1.e-5);
     bool converged = (eps <= eps_target && it > 0);
     if (converged || getting_worse || it == MAX_HART_ITS) {
       phi.en = en;
@@ -677,7 +678,7 @@ inline void HartreeFock::refine_core_orbitals_exchange() {
     if (eps < prev_eps)
       prev_eps = eps;
 
-    bool getting_worse = (it > 20 && eps > 1.1 * prev_eps);
+    bool getting_worse = (it > 20 && eps > 1.1 * prev_eps && eps < 1.e-5);
     bool converged = ((eps <= eps_target && it > 0) || it == MAX_HART_ITS);
     if (converged || getting_worse) {
       if (verbose)

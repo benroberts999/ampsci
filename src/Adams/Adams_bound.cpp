@@ -136,8 +136,8 @@ void solveDBS(DiracSpinor &psi, const std::vector<double> &v, const Grid &rgrid,
                     << " delta=" << t_eps * t_en << " eps=" << t_eps << "\n";
           std::cin.get();)
 
-    auto getting_worse =
-        (t_its > 10 && t_eps >= 1.2 * t_eps_prev && correct_nodes);
+    auto getting_worse = (t_its > 10 && t_eps >= 1.2 * t_eps_prev &&
+                          correct_nodes && t_eps < 1.e-5);
     auto converged = (t_eps < eps_goal && correct_nodes);
     if (converged || getting_worse)
       break;
