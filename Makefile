@@ -6,7 +6,7 @@ CXX=g++
 UseOpenMP=yes
 
 #release, dev, debug (changes warnings + optimisation level)
-Build=release
+Build=dev
 #Build=dev
 
 #optional: set directory for executables (by default: current directory)
