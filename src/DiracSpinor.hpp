@@ -2,8 +2,10 @@
 #include "Grid.hpp"
 #include "NumCalc_quadIntegrate.hpp"
 #include "Physics/AtomInfo.hpp"
+#include <algorithm>
 #include <cmath>
 #include <string>
+#include <utility>
 #include <vector>
 
 //******************************************************************************
@@ -88,6 +90,18 @@ public: // Methods
   void normalise(double norm_to = 1.0) {
     double rescale_factor = norm_to / norm();
     scale(rescale_factor);
+  }
+
+  auto r0pinfratio() const {
+    auto max_abs_compare = [](double a, double b) {
+      return std::fabs(a) < std::fabs(b);
+    };
+    auto max_pos =
+        std::max_element(f.begin(), f.begin() + pinf, max_abs_compare);
+    auto r0_ratio = f[0] / *max_pos;
+    auto pinf_ratio = f[pinf - 1] / *max_pos;
+    return std::make_pair(r0_ratio, pinf_ratio);
+    // nb: do i care about ratio to max? or just value?
   }
 
 public: // Operator overloads
