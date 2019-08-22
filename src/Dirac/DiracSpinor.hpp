@@ -1,9 +1,11 @@
 #pragma once
-#include "Grid.hpp"
-#include "NumCalc_quadIntegrate.hpp"
+#include "Maths/Grid.hpp"
+#include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/AtomInfo.hpp"
+#include <algorithm>
 #include <cmath>
 #include <string>
+#include <utility>
 #include <vector>
 
 //******************************************************************************
@@ -48,18 +50,24 @@ private:
 
 public: // Methods
   int l() const { return m_l; }
-  double j() const { return double(m_twoj) / 2; }
+  double j() const { return 0.5 * double(m_twoj); }
+  double jjp1() const { return j() * (j() + 1); }
   int twoj() const { return m_twoj; }
+  int twojp1() const { return m_twoj + 1; }
   int parity() const { return m_parity; }
   int k_index() const { return m_k_index; }
 
   std::string symbol(bool gnuplot = false) const {
     // Readable symbol (s_1/2, p_{3/2} etc.).
     // gnuplot-firndly '{}' braces optional.
-    std::string ostring1 = std::to_string(n) + AtomInfo::l_symbol(l());
-    std::string ostring2 = gnuplot ? "_{" + std::to_string(twoj()) + "/2}"
-                                   : "_" + std::to_string(twoj()) + "/2";
+    std::string ostring1 = std::to_string(n) + AtomInfo::l_symbol(m_l);
+    std::string ostring2 = gnuplot ? "_{" + std::to_string(m_twoj) + "/2}"
+                                   : "_" + std::to_string(m_twoj) + "/2";
     return ostring1 + ostring2;
+  }
+  std::string shortSymbol() const {
+    std::string pm = (k < 0) ? "+" : "-";
+    return std::to_string(n) + AtomInfo::l_symbol(m_l) + pm;
   }
 
   double norm() const { return std::sqrt((*this) * (*this)); }
@@ -82,6 +90,18 @@ public: // Methods
   void normalise(double norm_to = 1.0) {
     double rescale_factor = norm_to / norm();
     scale(rescale_factor);
+  }
+
+  auto r0pinfratio() const {
+    auto max_abs_compare = [](double a, double b) {
+      return std::fabs(a) < std::fabs(b);
+    };
+    auto max_pos =
+        std::max_element(f.begin(), f.begin() + pinf, max_abs_compare);
+    auto r0_ratio = f[0] / *max_pos;
+    auto pinf_ratio = f[pinf - 1] / *max_pos;
+    return std::make_pair(r0_ratio, pinf_ratio);
+    // nb: do i care about ratio to max? or just value?
   }
 
 public: // Operator overloads
@@ -140,6 +160,15 @@ public: // Operator overloads
   }
   friend DiracSpinor operator*(const double x, DiracSpinor rhs) {
     rhs *= x;
+    return rhs;
+  }
+  friend DiracSpinor operator*(const std::vector<double> &v, DiracSpinor rhs) {
+    // friend?
+    auto size = rhs.p_rgrid->ngp;
+    for (auto i = 0ul; i < size; i++) {
+      rhs.f[i] *= v[i];
+      rhs.g[i] *= v[i];
+    }
     return rhs;
   }
   //

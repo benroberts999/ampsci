@@ -1,18 +1,19 @@
 #include "Module_runModules.hpp"
 #include "DMionisation/Module_atomicKernal.hpp"
-#include "DiracOperator.hpp"
-#include "HartreeFockClass.hpp"
+#include "Dirac/DiracOperator.hpp"
+#include "HF/HartreeFockClass.hpp"
 #include "Module_fitParametric.hpp"
 #include "Module_matrixElements.hpp"
-#include "Operators.hpp"
-#include "UserInput.hpp"
-#include "Wavefunction.hpp"
+#include "Dirac/Operators.hpp"
+#include "Physics/PhysConst_constants.hpp"
+#include "IO/UserInput.hpp"
+#include "Dirac/Wavefunction.hpp"
+#include <algorithm>
+#include <cmath>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <string>
-//
-#include "Physics/PhysConst_constants.hpp"
-#include <cmath>
 
 namespace Module {
 
@@ -27,7 +28,7 @@ void runModules(const UserInput &input, const Wavefunction &wf) {
 //******************************************************************************
 void runModule(const UserInputBlock &module_input, const Wavefunction &wf) //
 {
-  auto module_name = module_input.name();
+  const auto &module_name = module_input.name();
   if (module_name.substr(0, 14) == "MatrixElements") {
     matrixElements(module_input, wf);
   } else if (module_name == "Module::Tests") {
@@ -40,6 +41,8 @@ void runModule(const UserInputBlock &module_input, const Wavefunction &wf) //
     fitParametric(module_input, wf);
   } else if (module_name == "Module::BohrWeisskopf") {
     Module_BohrWeisskopf(module_input, wf);
+  } else if (module_name == "Module::pnc") {
+    Module_testPNC(module_input, wf);
   } else {
     std::cerr << "\nWARNING: Module `" << module_name
               << "' not known. Spelling mistake?\n";
@@ -62,17 +65,26 @@ void Module_BohrWeisskopf(const UserInputBlock &input, const Wavefunction &wf)
     BW_in.add("F(r)=doublyOddBW");
   else
     BW_in.add("F(r)=VolotkaBW");
-  auto point = matrixElements(point_in, wf);
-  auto ball = matrixElements(ball_in, wf);
-  auto bohrW = matrixElements(BW_in, wf);
 
-  std::cout << "\nTabulate Bohr-Weisskopf effect: " << wf.atom() << "\n"
-            << "state :   point     ball       BW     F_BW\n";
-  for (auto i = 0ul; i < point.size(); i++) {
-    auto nlj = wf.valence_orbitals[i].symbol();
-    auto Fbw = ((bohrW[i] / point[i]) - 1.0) * M_PI * PhysConst::c;
-    printf("%6s: %7.2f  %7.2f  %7.2f  %7.3f\n", nlj.c_str(), point[i], ball[i],
-           bohrW[i], Fbw);
+  auto hp = generateOperator("hfs", point_in, wf);
+  auto hb = generateOperator("hfs", ball_in, wf);
+  auto hw = generateOperator("hfs", BW_in, wf);
+
+  std::cout
+      << "\nTabulate A (Mhz), Bohr-Weisskopf effect: " << wf.atom() << "\n"
+      << "state :         point          ball            BW |   F_ball    "
+         "  F_BW   "
+         "  eps(BW)\n";
+  for (const auto &phi : wf.valence_orbitals) {
+    auto Ap = HyperfineOperator::hfsA(hp.get(), phi);
+    auto Ab = HyperfineOperator::hfsA(hb.get(), phi);
+    auto Aw = HyperfineOperator::hfsA(hw.get(), phi);
+    auto Fball = ((Ab / Ap) - 1.0) * M_PI * PhysConst::c;
+    auto Fbw = ((Aw / Ap) - 1.0) * M_PI * PhysConst::c;
+    // printf("%6s: %9.1f  %9.1f  %9.1f | %8.4f  %8.4f   %9.6f\n",
+    printf("%7s: %12.5e  %12.5e  %12.5e | %8.4f  %8.4f   %9.6f\n",
+           phi.symbol().c_str(), Ap, Ab, Aw, Fball, Fbw,
+           -Fbw / (M_PI * PhysConst::c));
   }
 }
 
@@ -125,7 +137,7 @@ void Module_Tests_orthonormality(const Wavefunction &wf) {
         if (xo == 0)
           printf("   0");
         else
-          printf(" %+3.0f", log10(std::fabs(xo)));
+          printf(" %+3.0f", std::log10(std::fabs(xo)));
       }
       std::cout << "\n";
     }
@@ -146,6 +158,70 @@ void Module_Tests_Hamiltonian(const Wavefunction &wf) {
              psi.n, psi.k, Haa, ens, fracdiff);
     }
   }
+}
+
+//******************************************************************************
+void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf) {
+  const std::string ThisModule = "Module::PNC";
+
+  // ChronoTimer("pnc");
+  auto t_dflt = Nuclear::default_t;
+  auto r_rms = Nuclear::find_rrms(wf.Znuc(), wf.Anuc());
+  auto c_dflt = Nuclear::c_hdr_formula_rrms_t(r_rms);
+  auto t = input.get("t", t_dflt);
+  auto c = input.get("c", c_dflt);
+
+  auto transition_str = input.get<std::string>("transition");
+  replace(transition_str.begin(), transition_str.end(), ',', ' ');
+  auto ss = std::stringstream(transition_str);
+  int na, ka, nb, kb;
+  ss >> na >> ka >> nb >> kb;
+
+  auto ncore = wf.maxCore_n();
+  auto main_n = input.get("nmain", ncore + 4);
+
+  PNCnsiOperator hpnc(c, t, wf.rgrid, -wf.Nnuc());
+  E1Operator he1(wf.rgrid);
+
+  const auto &a6s = wf.getState(na, ka);
+  const auto &a7s = wf.getState(nb, kb);
+  std::cout << "\nE_pnc: " << wf.atom() << ": " << a6s.symbol() << " -> "
+            << a7s.symbol() << "\n";
+
+  auto tja = a6s.twoj();
+  auto tjb = a7s.twoj();
+  auto twom = std::min(tja, tjb);
+  auto c10 = Wigner::threej_2(tjb, 2, tja, -twom, 0, twom) *
+             Wigner::threej_2(tja, 0, tja, -twom, 0, twom);
+  auto c01 = Wigner::threej_2(tjb, 0, tjb, -twom, 0, twom) *
+             Wigner::threej_2(tjb, 2, tja, -twom, 0, twom);
+
+  double pnc = 0, core = 0, main = 0;
+  for (int i = 0; i < 2; i++) {
+    auto &tmp_orbs = (i == 0) ? wf.core_orbitals : wf.valence_orbitals;
+    for (auto &np : tmp_orbs) {
+      // <7s|d|np><np|hw|6s>/dE6s + <7s|hw|np><np|d|6s>/dE7s
+      if (np == a7s || np == a6s)
+        continue;
+      if (hpnc.isZero(np, a6s) && hpnc.isZero(np, a7s))
+        continue;
+      double pnc1 = c10 * he1.reducedME(a7s, np) * hpnc.reducedME(np, a6s) /
+                    (a6s.en - np.en);
+      double pnc2 = c01 * hpnc.reducedME(a7s, np) * he1.reducedME(np, a6s) /
+                    (a7s.en - np.en);
+      std::cout << np.symbol() << ", pnc= ";
+      printf("%12.5e + %12.5e = %12.5e\n", pnc1, pnc2, pnc1 + pnc2);
+      pnc += pnc1 + pnc2;
+      if (np.n == main_n)
+        main = pnc - core;
+    }
+    if (i == 0)
+      core = pnc;
+  }
+  std::cout << "Core= " << core << "\n";
+  std::cout << "Main= " << main << "\n";
+  std::cout << "Tail= " << pnc - main - core << "\n";
+  std::cout << "Total= " << pnc << "\n";
 }
 
 //******************************************************************************

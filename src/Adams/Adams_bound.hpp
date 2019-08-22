@@ -6,7 +6,7 @@ class Grid;
 
 namespace Adams {
 
-const int AMO = 8;
+const int AMO = 5;
 static_assert(
     AMO >= 5 && AMO <= 8,
     "\nFAIL 8 in Adams (.h): parameter AMO must be between 5 and 8\n");
@@ -144,4 +144,4 @@ template <> struct AdamsCoefs<5> {
   const int OId = 60;
 };
 
-} // namespace ADAMS
+} // namespace Adams

@@ -1,10 +1,10 @@
-#include "ContinuumOrbitals.hpp"
+#include "Dirac/ContinuumOrbitals.hpp"
 #include "Adams/Adams_bound.hpp"
 #include "Adams/Adams_continuum.hpp"
-#include "Grid.hpp"
+#include "Maths/Grid.hpp"
 #include "Physics/AtomInfo.hpp"
 #include "Physics/PhysConst_constants.hpp"
-#include "Wavefunction.hpp"
+#include "Dirac/Wavefunction.hpp"
 #include <cmath>
 #include <string>
 #include <vector>

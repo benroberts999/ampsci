@@ -1,4 +1,4 @@
-#include "FileIO_fileReadWrite.hpp"
+#include "IO/FileIO_fileReadWrite.hpp"
 #include "Physics/Wigner_369j.hpp"
 #include <iostream>
 #include <sstream>
@@ -111,7 +111,7 @@ int main(int num_in, char *argv[]) {
     }
   }
 
-  for (auto input : input_list) {
+  for (const auto &input : input_list) {
     calculateSingleTerm(input);
     std::cout << "\n";
   }

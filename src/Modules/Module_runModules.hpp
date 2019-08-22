@@ -16,5 +16,6 @@ void Module_Tests_orthonormality(const Wavefunction &wf);
 void Module_Tests_Hamiltonian(const Wavefunction &wf);
 void Module_WriteOrbitals(const UserInputBlock &input, const Wavefunction &wf);
 void Module_BohrWeisskopf(const UserInputBlock &input, const Wavefunction &wf);
+void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf);
 
 } // namespace Module

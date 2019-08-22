@@ -11,7 +11,7 @@ struct GridParameters {
   double r0, rmax, b;
   GridType type;
   GridParameters(std::size_t inngp, double inr0, double inrmax,
-                 double inb = 3.5, GridType intype = GridType::loglinear)
+                 double inb = 4.0, GridType intype = GridType::loglinear)
       : ngp(inngp), r0(inr0), rmax(inrmax), b(inb), type(intype) //
   {}
   static inline GridType parseType(const std::string &str_type) {

@@ -1,10 +1,11 @@
 #pragma once
-#include "CoulombIntegrals.hpp"
+#include "HF/CoulombIntegrals.hpp"
 #include <string>
 #include <vector>
 class Wavefunction;
 class DiracSpinor;
 class ScalarOperator_old;
+class ScalarOperator;
 class Grid;
 class DirectHamiltonian;
 
@@ -32,7 +33,7 @@ class HartreeFock {
   friend class Coulomb;
 
 public:
-  static HFMethod parseMethod(std::string in_method);
+  static HFMethod parseMethod(const std::string &in_method);
 
   HartreeFock(HFMethod method, Wavefunction &wf, const std::string &in_core,
               double eps_HF = 0, double h_d = 0, double g_t = 0);
@@ -64,6 +65,8 @@ private:
   const bool m_excludeExchange; // for testing
   const HFMethod m_method;
 
+  const bool m_explicitOrthog = true;
+
   // The "localised"/approximate HF potential:
   std::vector<std::vector<double>> appr_vex_core;
   std::vector<std::vector<double>> appr_vex_val;
@@ -90,8 +93,7 @@ private:
   void refine_valence_orbital_exchange(DiracSpinor &phi);
   void iterate_core_orbital(DiracSpinor &phi, const std::vector<double> &vl,
                             const DirectHamiltonian &Hd,
-                            const ScalarOperator_old &Vd,
-                            const ScalarOperator_old &fVdir0) const;
+                            const std::vector<double> &fVdir0) const;
   void yfun(DiracSpinor &phi, const DiracSpinor &phi1, const DiracSpinor &phi2,
             const DiracSpinor &Sr) const;
 };

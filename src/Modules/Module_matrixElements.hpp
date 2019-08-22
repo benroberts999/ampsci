@@ -1,5 +1,6 @@
 #pragma once
-#include "DiracOperator.hpp"
+#include "Dirac/DiracOperator.hpp"
+#include <memory>
 #include <string>
 #include <vector>
 class Wavefunction;
@@ -8,12 +9,10 @@ class UserInputBlock;
 
 namespace Module {
 
-// void
-std::vector<double> matrixElements(const UserInputBlock &input,
-                                   const Wavefunction &wf);
+void matrixElements(const UserInputBlock &input, const Wavefunction &wf);
 
-ScalarOperator_old generateOperator(const std::string &operator_str,
-                               const UserInputBlock &input,
-                               const Wavefunction &wf);
+std::unique_ptr<DiracOperator> generateOperator(const std::string &operator_str,
+                                                const UserInputBlock &input,
+                                                const Wavefunction &wf);
 
 } // namespace Module

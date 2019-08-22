@@ -1,6 +1,6 @@
 #pragma once
 #include "Physics/Nuclear.hpp"
-#include "Wavefunction.hpp"
+#include "Dirac/Wavefunction.hpp"
 #include <tuple>
 #include <vector>
 class UserInputBlock;
