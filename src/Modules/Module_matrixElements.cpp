@@ -1,11 +1,11 @@
 #include "Module_matrixElements.hpp"
 #include "Dirac/DiracOperator.hpp"
-#include "HF/HartreeFockClass.hpp"
 #include "Dirac/Operators.hpp"
+#include "Dirac/Wavefunction.hpp"
+#include "HF/HartreeFockClass.hpp"
+#include "IO/UserInput.hpp"
 #include "Physics/Nuclear.hpp"
 #include "Physics/PhysConst_constants.hpp"
-#include "IO/UserInput.hpp"
-#include "Dirac/Wavefunction.hpp"
 #include <fstream>
 #include <iostream>
 #include <memory>
@@ -18,14 +18,16 @@ void matrixElements(const UserInputBlock &input, const Wavefunction &wf) {
   std::string ThisModule = "MatrixElements::";
   auto operator_str = input.name().substr(ThisModule.length());
 
+  const bool radial_int = input.get("radialIntegral", false);
+  auto which_str = radial_int ? "(radial integral). " : "(reduced). ";
   std::cout << "\n"
-            << ThisModule << " (reduced) Operator: " << operator_str << "\n";
-  auto h = generateOperator(operator_str, input, wf);
+            << ThisModule << which_str << " Operator: " << operator_str << "\n";
+  const auto h = generateOperator(operator_str, input, wf);
 
-  bool print_both = input.get("printBoth", false);
-  bool diagonal_only = input.get("onlyDiagonal", false);
+  const bool print_both = input.get("printBoth", false);
+  const bool diagonal_only = input.get("onlyDiagonal", false);
 
-  auto units = input.get<std::string>("units", "au");
+  const auto units = input.get<std::string>("units", "au");
   double un = 1.0;
   if (units == "MHz")
     un = PhysConst::Hartree_MHz;
@@ -38,9 +40,11 @@ void matrixElements(const UserInputBlock &input, const Wavefunction &wf) {
         continue;
       if (!print_both && phib < phia)
         continue;
-      // auto me = h->reducedME(phia, phib);
       std::cout << h->rme_symbol(phia, phib) << ": ";
-      printf("%12.5e\n", h->reducedME(phia, phib) * un);
+      if (radial_int)
+        printf("%12.5e\n", h->radialIntegral(phia, phib) * un);
+      else
+        printf("%12.5e\n", h->reducedME(phia, phib));
     }
   }
 } // namespace Module
@@ -151,6 +155,8 @@ std::unique_ptr<DiracOperator> generateOperator(const std::string &operator_str,
     std::cout << "PNC [-i(Q/N)e-11]\n";
     return std::make_unique<PNCnsiOperator>(
         PNCnsiOperator(c, t, wf.rgrid, -wf.Nnuc()));
+  } else if (operator_str == "M1") {
+    return std::make_unique<M1Operator>(M1Operator());
   }
 
   std::cerr << "\nFAILED to find operator: " << ThisModule
