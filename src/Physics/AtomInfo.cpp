@@ -135,7 +135,7 @@ std::vector<NonRelSEConfig> core_parser(const std::string &str_core_in)
 {
   // If there's a 'Noble-Gas' term, replace it with full config
   // Otherwise, 'first-term' remains unchanges
-  auto found = str_core_in.find(",");
+  auto found = str_core_in.find(',');
   if (found > str_core_in.length())
     found = str_core_in.length();
   auto first_term = str_core_in.substr(0, found);

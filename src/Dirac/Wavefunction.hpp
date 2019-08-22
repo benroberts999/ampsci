@@ -1,7 +1,7 @@
 #pragma once
-#include "DiracSpinor.hpp"
-#include "Grid.hpp"
-#include "HartreeFockClass.hpp" // forward decl..
+#include "Dirac/DiracSpinor.hpp"
+#include "Maths/Grid.hpp"
+#include "HF/HartreeFockClass.hpp" // forward decl..
 #include "Physics/Nuclear.hpp"
 #include <memory>
 #include <string>
@@ -97,7 +97,7 @@ public:
                   int log_dele_or = 0) const;
   void solveDirac(DiracSpinor &psi, double e_a = 0, int log_dele_or = 0) const;
 
-  void solveInitialCore(std::string str_core_in, int log_dele_or = 0);
+  void solveInitialCore(const std::string &str_core_in, int log_dele_or = 0);
   void solveNewValence(int n, int k, double en_a = 0, int log_dele_or = 0);
 
   static void orthonormaliseOrbitals(std::vector<DiracSpinor> &tmp_orbs,

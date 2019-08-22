@@ -1,10 +1,10 @@
 #include "Module_fitParametric.hpp"
-#include "Grid.hpp"
-#include "HartreeFockClass.hpp"
-#include "Parametric_potentials.hpp"
+#include "Maths/Grid.hpp"
+#include "HF/HartreeFockClass.hpp"
+#include "Physics/Parametric_potentials.hpp"
 #include "Physics/Nuclear.hpp"
-#include "UserInput.hpp"
-#include "Wavefunction.hpp"
+#include "IO/UserInput.hpp"
+#include "Dirac/Wavefunction.hpp"
 #include <iostream>
 #include <tuple>
 #include <vector>

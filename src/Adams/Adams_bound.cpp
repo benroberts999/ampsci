@@ -1,8 +1,8 @@
 #include "Adams_bound.hpp"
-#include "DiracSpinor.hpp"
-#include "Grid.hpp"
-#include "Matrix_linalg.hpp"
-#include "NumCalc_quadIntegrate.hpp"
+#include "Dirac/DiracSpinor.hpp"
+#include "Maths/Grid.hpp"
+#include "Maths/Matrix_linalg.hpp"
+#include "Maths/NumCalc_quadIntegrate.hpp"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -32,7 +32,7 @@ static const AdamsCoefs<AMO> AMcoef; // Adamns-Moulton coeficients
 // weighting function for meshing in/out solutions
 // nb: must be positive, but i may be negative (?) [ctp - d_ctp]
 static auto weight = [](int i) { return 1. / double(i * i + 1); };
-static const double cALR = 600; // 'assymptotically large r [kinda..]' (=800)
+static const double cALR = 800; // 'assymptotically large r [kinda..]' (=800)
 
 //******************************************************************************
 void solveDBS(DiracSpinor &psi, const std::vector<double> &v, const Grid &rgrid,
@@ -136,8 +136,8 @@ void solveDBS(DiracSpinor &psi, const std::vector<double> &v, const Grid &rgrid,
                     << " delta=" << t_eps * t_en << " eps=" << t_eps << "\n";
           std::cin.get();)
 
-    auto getting_worse =
-        (t_its > 10 && t_eps >= 1.2 * t_eps_prev && correct_nodes);
+    auto getting_worse = (t_its > 10 && t_eps >= 1.2 * t_eps_prev &&
+                          correct_nodes && t_eps < 1.e-5);
     auto converged = (t_eps < eps_goal && correct_nodes);
     if (converged || getting_worse)
       break;
@@ -400,17 +400,17 @@ void outwardAM(std::vector<double> &f, std::vector<double> &g, const double en,
 {
   const double c2 = 1. / (alpha * alpha);
 
-  double az = -1 * v[1] * r[1] * alpha; //  Z = -1 * v[AMO] * r[AMO]
+  double az0 = -1 * v[0] * r[0] * alpha; //  Z = -1 * v[AMO] * r[AMO]
   // take average? Or maybe update each point?? Or lowest?
-  double ga = std::sqrt(ka * ka - az * az);
+  double ga0 = std::sqrt(ka * ka - az0 * az0);
 
   // initial wf values
   // P(r) = r^gamma u(r) // f(r) = P(r)
   // Q(r) = r^gamma v(r) // g(r) = -Q(r)
   double u0 = 1;
-  double v0 = (ka > 0) ? -(ga + ka) / az : az / (ga - ka);
-  f[0] = std::pow(r[0], ga) * u0;
-  g[0] = -std::pow(r[0], ga) * v0;
+  double v0 = (ka > 0) ? -(ga0 + ka) / az0 : az0 / (ga0 - ka);
+  f[0] = std::pow(r[0], ga0) * u0;
+  g[0] = -std::pow(r[0], ga0) * v0;
 
   // loop through and find first NOL*AMO points of wf
   for (int ln = 0; ln < NOL; ln++) {
@@ -418,14 +418,17 @@ void outwardAM(std::vector<double> &f, std::vector<double> &g, const double en,
 
     // defines/populates em expansion coeficients (then inverts)
     std::array<double, AMO> coefa, coefb, coefc, coefd;
+    std::array<double, AMO> ga;
     Matrix::SqMatrix em(AMO);
     const auto oid_du = AMcoef.OId * du;
     for (int i = 0; i < AMO; i++) {
+      auto az = -1 * v[i + i0] * r[i + i0] * alpha;
+      ga[i] = std::sqrt(ka * ka - az * az);
       double dror = drdu[i + i0] / r[i + i0];
-      coefa[i] = (-oid_du * (ga + ka) * dror);
+      coefa[i] = (-oid_du * (ga[i] + ka) * dror);
       coefb[i] = (-oid_du * (en + 2 * c2 - v[i + i0]) * drdu[i + i0] * alpha);
       coefc[i] = (oid_du * (en - v[i + i0]) * drdu[i + i0] * alpha);
-      coefd[i] = (-oid_du * (ga - ka) * dror);
+      coefd[i] = (-oid_du * (ga[i] - ka) * dror);
       for (int j = 0; j < AMO; j++) {
         em[i][j] = AMcoef.OIe[i][j];
       }
@@ -470,7 +473,7 @@ void outwardAM(std::vector<double> &f, std::vector<double> &g, const double en,
 
     // writes wavefunction: P= r^gamma u(r) etc..
     for (int i = 0; i < AMO; i++) {
-      double r_ga = std::pow(r[i + i0], ga);
+      double r_ga = std::pow(r[i + i0], ga[i]);
       f[i + i0] = r_ga * us[i];
       g[i + i0] = -r_ga * vs[i];
     }
@@ -492,7 +495,7 @@ void outwardAM(std::vector<double> &f, std::vector<double> &g, const double en,
 // order of the expansion coeficients in 'inwardAM'  (15 orig.)
 static const int NX = 15;
 // PRIMARY convergance for expansion in `inwardAM'' (10^-8)
-static const double NXEPSP = 1.e-10;
+static const double NXEPSP = 1.e-14;
 //******************************************************************
 void inwardAM(std::vector<double> &f, std::vector<double> &g, const double en,
               const std::vector<double> &v, const int ka,
@@ -543,16 +546,14 @@ void inwardAM(std::vector<double> &f, std::vector<double> &g, const double en,
       rk *= r[i];
       ps += (ax[k] / rk);
       qs += (bx[k] / rk);
-      xe = fmax(std::fabs(ax[k] / ps), std::fabs(bx[k] / qs)) / rk;
-      if (xe < NXEPSP)
+      xe = std::fmax(std::fabs(ax[k] / ps), std::fabs(bx[k] / qs)) / rk;
+      if (xe < NXEPSP) {
         break;
+      }
     }
-    DEBUG({
-      const double nxepss = 1.e-3;
-      if (xe > nxepss)
-        std::cerr << "WARNING: Asymp. expansion in inwardAM didn't converge: "
-                  << i << " " << xe << "\n";
-    })
+    DEBUG(if (xe > 1.e-3) std::cerr
+              << "WARNING: Asymp. expansion in inwardAM didn't converge: " << i
+              << " " << xe << "\n";)
     f[i] = rfac * (f1 * ps + f2 * qs);
     g[i] = rfac * (f1 * qs - f2 * ps);
   }

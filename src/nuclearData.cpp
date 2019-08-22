@@ -31,7 +31,7 @@ void printData(const Nuclear::Isotope &nuc) {
   std::cout << "\n";
 }
 
-int parse_A(std::string A_str, int z = 0) {
+int parse_A(const std::string &A_str, int z = 0) {
   int a = 0;
   try {
     a = std::stoi(A_str);

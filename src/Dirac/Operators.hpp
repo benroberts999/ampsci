@@ -1,6 +1,7 @@
 #pragma once
-#include "DiracOperator.hpp"
-#include "Grid.hpp"
+#include "Dirac/DiracOperator.hpp"
+#include "Maths/Grid.hpp"
+// #include "Maths/SphericalBessel.hpp"
 #include "Physics/Nuclear.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Physics/Wigner_369j.hpp"
@@ -19,7 +20,8 @@ class RadialFuncOperator : public ScalarOperator {
   // either pass a lambda/function [f(r)], or a number, n, (for r^n)
   // Explicitely even with rank 0, so ...
 public:
-  std::vector<double> fillVec(const Grid &gr, std::function<double(double)> f) {
+  std::vector<double> fillVec(const Grid &gr,
+                              const std::function<double(double)> &f) {
     std::vector<double> f_r;
     f_r.reserve(gr.ngp);
     for (auto r : gr.r)
@@ -28,7 +30,7 @@ public:
   }
 
 public:
-  RadialFuncOperator(const Grid &rgrid, std::function<double(double)> f)
+  RadialFuncOperator(const Grid &rgrid, const std::function<double(double)> &f)
       : ScalarOperator(OperatorParity::even, 1.0, fillVec(rgrid, f)) {}
   RadialFuncOperator(const Grid &rgrid, const double n)
       : ScalarOperator(OperatorParity::even, 1.0, fillVec(rgrid, [n](double r) {
@@ -77,18 +79,58 @@ public:
   }
 
 private:
-  virtual double angularCff(int, int) const { return 0; }
-  virtual double angularCgg(int, int) const { return 0; }
-  virtual double angularCfg(int ka, int kb) const {
+  virtual double angularCff(int, int) const override { return 0; }
+  virtual double angularCgg(int, int) const override { return 0; }
+  virtual double angularCfg(int ka, int kb) const override {
     return Wigner::S_kk(ka, -kb);
   }
-  virtual double angularCgf(int ka, int kb) const {
+  virtual double angularCgf(int ka, int kb) const override {
     return -Wigner::S_kk(-ka, kb);
   }
 
 private:
   double m_c; // speed of light (including var-alpha)
 };
+
+// //******************************************************************************
+// class M1Operator : public DiracOperator
+// // M1 = mu . B
+// // <a||M1||b> = 3 (ka + kb) <-ka||C^1||kb> Int [(fagb+gafb)j_1(kr)]
+// // k = w/c, j1 is first spherical bessel
+// // Two options; a) different operator for each w
+// // b) generate jL each call
+// {
+// public:
+//   M1Operator(const Grid &gr, double omega)
+//       : DiracOperator(1, OperatorParity::even, 3.0,
+//                       SphericalBessel::fillBesselVec(1, set_kr(omega, gr)),
+//                       0) {
+//   }
+//
+//   double reducedME(const DiracSpinor &Fa,
+//                    const DiracSpinor &Fb) const override {
+//     auto Rab = radialIntegral(Fa, Fb);
+//     auto Cab = (Fa.k + Fb.k) * Wigner::Ck_kk(1, -Fa.k, Fb.k);
+//     return Rab * Cab / PhysConst::alpha / PhysConst::muB_CGS; //???
+//   }
+//
+// private:
+//   virtual double angularCff(int, int) const override { return 0; }
+//   virtual double angularCgg(int, int) const override { return 0; }
+//   virtual double angularCfg(int, int) const override { return 1.0; }
+//   virtual double angularCgf(int, int) const override { return 1.0; }
+//
+// private:
+//   // std::vector<double> kr;
+//   std::vector<double> set_kr(double omega, const Grid &gr) {
+//     std::vector<double> kr;
+//     kr.reserve(gr.ngp);
+//     for (const auto &r : gr.r) {
+//       kr.push_back(r * omega * PhysConst::alpha); // this? or var-alpha?
+//     }
+//     return kr;
+//   }
+// };
 
 //******************************************************************************
 class HyperfineOperator : public DiracOperator {
@@ -165,7 +207,7 @@ public: // F(r) functions. NOTE: includes 1/r^2 !
 
 private: // helper
   static inline std::vector<double> RadialFunc(double rN, const Grid &rgrid,
-                                               Func_R2_R hfs_F) {
+                                               const Func_R2_R &hfs_F) {
     std::vector<double> rfunc;
     rfunc.reserve(rgrid.ngp);
     for (auto r : rgrid.r)
@@ -175,7 +217,7 @@ private: // helper
 
 public: // constructor
   HyperfineOperator(double muN, double IN, double rN, const Grid &rgrid,
-                    Func_R2_R hfs_F = sphericalBall_F())
+                    const Func_R2_R &hfs_F = sphericalBall_F())
       : DiracOperator(1, OperatorParity::even, muN * PhysConst::muN_CGS / IN,
                       RadialFunc(rN, rgrid, hfs_F), 0),
         Inuc(IN) {}
@@ -205,10 +247,10 @@ private:
   double Inuc;
 
 private:
-  virtual double angularCff(int, int) const { return 0; }
-  virtual double angularCgg(int, int) const { return 0; }
-  virtual double angularCfg(int, int) const { return 1.0; }
-  virtual double angularCgf(int, int) const { return 1.0; }
+  virtual double angularCff(int, int) const override { return 0; }
+  virtual double angularCgg(int, int) const override { return 0; }
+  virtual double angularCfg(int, int) const override { return 1.0; }
+  virtual double angularCgf(int, int) const override { return 1.0; }
 };
 
 //******************************************************************************

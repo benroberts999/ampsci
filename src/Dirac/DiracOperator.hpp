@@ -1,6 +1,6 @@
 #pragma once
-#include "DiracSpinor.hpp"
-#include "NumCalc_quadIntegrate.hpp"
+#include "Dirac/DiracSpinor.hpp"
+#include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/Wigner_369j.hpp"
 #include <algorithm>
 #include <memory>
@@ -111,7 +111,7 @@ enum class OperatorParity { even, odd };
 class DiracOperator {
 protected:
   DiracOperator(int k, OperatorParity pi, double c,
-                const std::vector<double> &inv, int d_order)
+                const std::vector<double> &inv, int d_order = 0)
       : rank(k), parity(pi), constant(c), vec(inv), diff_order(d_order) //
         {};
 
@@ -138,7 +138,8 @@ public:
   const std::vector<double> &getv() const { return vec; }
 
 public:
-  double radialIntegral(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
+  virtual double radialIntegral(const DiracSpinor &Fa,
+                                const DiracSpinor &Fb) const {
     if (isZero(Fa, Fb))
       return 0.0;
 
@@ -241,7 +242,7 @@ public:
   double reducedME(const DiracSpinor &, const DiracSpinor &) const override {
     return 0.0;
   }
-  double matrixEl(const DiracSpinor &, const DiracSpinor &) const {
+  double matrixEl(const DiracSpinor &, const DiracSpinor &) const override {
     return 0.0;
   }
 };
