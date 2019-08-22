@@ -2,7 +2,6 @@
 #include "Dirac/DiracOperator.hpp"
 #include "Dirac/Operators.hpp"
 #include "Dirac/Wavefunction.hpp"
-#include "HF/HartreeFockClass.hpp"
 #include "IO/UserInput.hpp"
 #include "Physics/Nuclear.hpp"
 #include "Physics/PhysConst_constants.hpp"

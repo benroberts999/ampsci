@@ -1,15 +1,15 @@
 #include "HF/HartreeFockClass.hpp"
 #include "Adams/Adams_bound.hpp"
-#include "HF/CoulombIntegrals.hpp"
 #include "Dirac/DiracOperator.hpp"
 #include "Dirac/DiracSpinor.hpp"
+#include "Dirac/Operators.hpp"
+#include "Dirac/Wavefunction.hpp"
+#include "HF/CoulombIntegrals.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
-#include "Dirac/Operators.hpp"
+// #include "Physics/AtomInfo.hpp"
 #include "Physics/Parametric_potentials.hpp"
-#include "Physics/AtomInfo.hpp"
 #include "Physics/Wigner_369j.hpp"
-#include "Dirac/Wavefunction.hpp"
 #include <cmath>
 #include <vector>
 /*
@@ -219,7 +219,7 @@ void HartreeFock::solveValence(DiracSpinor &phi, std::vector<double> &vexa)
 // Can be used to generate a set of virtual/basis orbitals
 {
   auto kappa = phi.k;
-  int twoJplus1 = AtomInfo::twoj_k(kappa) + 1;
+  int twoJplus1 = phi.twojp1();
   phi.occ_frac = 1. / twoJplus1;
 
   double eps_target_HF = (m_method == HFMethod::ApproxHF) ? m_eps_HF : 1.0e-5;

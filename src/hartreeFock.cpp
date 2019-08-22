@@ -1,11 +1,10 @@
-#include "IO/ChronoTimer.hpp"
-#include "Dirac/Operators.hpp"
 #include "Dirac/Wavefunction.hpp"
+#include "IO/ChronoTimer.hpp"
+#include "IO/UserInput.hpp"
 #include "Maths/Grid.hpp"
 #include "Modules/Module_runModules.hpp"
 #include "Physics/AtomInfo.hpp"
 #include "Physics/Nuclear.hpp"
-#include "IO/UserInput.hpp"
 #include <iostream>
 #include <string>
 
