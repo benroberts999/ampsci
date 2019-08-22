@@ -1,5 +1,5 @@
-#include "UserInput.hpp"
-#include "FileIO_fileReadWrite.hpp"
+#include "IO/UserInput.hpp"
+#include "IO/FileIO_fileReadWrite.hpp"
 #include <iostream>
 #include <sstream>
 #include <string>

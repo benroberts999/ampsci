@@ -1,6 +1,6 @@
 #pragma once
-#include "Grid.hpp"
-#include "NumCalc_quadIntegrate.hpp"
+#include "Maths/Grid.hpp"
+#include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/AtomInfo.hpp"
 #include <algorithm>
 #include <cmath>

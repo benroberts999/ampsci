@@ -1,5 +1,5 @@
 #pragma once
-#include "DiracSpinor.hpp"
+#include "Dirac/DiracSpinor.hpp"
 #include <vector>
 class Wavefunction;
 class Grid;

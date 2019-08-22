@@ -1,7 +1,7 @@
-#include "Wavefunction.hpp"
+#include "Dirac/Wavefunction.hpp"
 #include "Adams/Adams_bound.hpp"
-#include "DiracSpinor.hpp"
-#include "Grid.hpp"
+#include "Dirac/DiracSpinor.hpp"
+#include "Maths/Grid.hpp"
 #include "Physics/AtomInfo.hpp"
 #include "Physics/Nuclear.hpp"
 #include "Physics/PhysConst_constants.hpp"
@@ -225,7 +225,7 @@ void Wavefunction::solveInitialCore(const std::string &str_core,
                                     int log_dele_or)
 // Solves the Dirac eqn for each state in the core
 // Only for local potential (direct part)
-// HartreeFockClass.cpp has routines for Hartree Fock
+// HF/HartreeFockClass.cpp has routines for Hartree Fock
 {
   if (!core_orbitals.empty()) {
     std::cerr << "WARNING 254 in Wavefunction:solveInitialCore: States "

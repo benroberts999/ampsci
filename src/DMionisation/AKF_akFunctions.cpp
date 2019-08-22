@@ -1,12 +1,12 @@
 #include "AKF_akFunctions.hpp"
-#include "ContinuumOrbitals.hpp"
-#include "FileIO_fileReadWrite.hpp"
-#include "NumCalc_quadIntegrate.hpp"
+#include "Dirac/ContinuumOrbitals.hpp"
+#include "IO/FileIO_fileReadWrite.hpp"
+#include "Maths/SphericalBessel.hpp"
+#include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/AtomInfo.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Physics/Wigner_369j.hpp"
-#include "SBF_sphericalBessel.hpp"
-#include "Wavefunction.hpp"
+#include "Dirac/Wavefunction.hpp"
 #include <fstream>
 #include <iostream>
 
@@ -235,7 +235,7 @@ void sphericalBesselTable(std::vector<std::vector<std::vector<double>>> &jLqr_f,
                           const std::vector<double> &r)
 // /*
 // Creates a look-up table w/ spherical Bessel functions. For speed.
-// Uses SBF_sphericalBessel
+// Uses SphericalBessel
 // */
 {
   std::cout << std::endl;
@@ -251,7 +251,7 @@ void sphericalBesselTable(std::vector<std::vector<std::vector<double>>> &jLqr_f,
     for (int iq = 0; iq < qsteps; iq++) {
       double q = q_array[iq];
       for (int ir = 0; ir < ngp; ir++) {
-        double tmp = SBF::JL(L, q * r[ir]);
+        double tmp = SphericalBessel::JL(L, q * r[ir]);
         // If q(dr) is too large, "missing" j_L oscillations
         //(overstepping them). This helps to fix that.
         // By averaging the J_L function. Note: only works if wf is smooth
@@ -267,7 +267,7 @@ void sphericalBesselTable(std::vector<std::vector<std::vector<double>>> &jLqr_f,
             double b = (i + 1.) / (num_extra + 1.);
             double a = 1. - b;
             double qrtmp = q * (a * r[ir] + b * r[ir + 1]);
-            tmp += SBF::JL(L, qrtmp);
+            tmp += SphericalBessel::JL(L, qrtmp);
           }
           tmp /= (num_extra + 1);
         }

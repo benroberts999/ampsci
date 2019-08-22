@@ -1,8 +1,8 @@
 #include "Adams_bound.hpp"
-#include "DiracSpinor.hpp"
-#include "Grid.hpp"
-#include "Matrix_linalg.hpp"
-#include "NumCalc_quadIntegrate.hpp"
+#include "Dirac/DiracSpinor.hpp"
+#include "Maths/Grid.hpp"
+#include "Maths/Matrix_linalg.hpp"
+#include "Maths/NumCalc_quadIntegrate.hpp"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -32,7 +32,7 @@ static const AdamsCoefs<AMO> AMcoef; // Adamns-Moulton coeficients
 // weighting function for meshing in/out solutions
 // nb: must be positive, but i may be negative (?) [ctp - d_ctp]
 static auto weight = [](int i) { return 1. / double(i * i + 1); };
-static const double cALR = 600; // 'assymptotically large r [kinda..]' (=800)
+static const double cALR = 800; // 'assymptotically large r [kinda..]' (=800)
 
 //******************************************************************************
 void solveDBS(DiracSpinor &psi, const std::vector<double> &v, const Grid &rgrid,

@@ -1,5 +1,5 @@
 #pragma once
-#include "CoulombIntegrals.hpp"
+#include "HF/CoulombIntegrals.hpp"
 #include <string>
 #include <vector>
 class Wavefunction;

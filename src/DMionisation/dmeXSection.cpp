@@ -1,8 +1,8 @@
 #include "AKF_akFunctions.hpp"
-#include "ChronoTimer.hpp"
-#include "FileIO_fileReadWrite.hpp"
-#include "Grid.hpp"
-#include "NumCalc_quadIntegrate.hpp"
+#include "IO/ChronoTimer.hpp"
+#include "IO/FileIO_fileReadWrite.hpp"
+#include "Maths/Grid.hpp"
+#include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "StandardHaloModel.hpp"
 #include <cmath>

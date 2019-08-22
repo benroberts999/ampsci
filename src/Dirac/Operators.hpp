@@ -1,6 +1,7 @@
 #pragma once
-#include "DiracOperator.hpp"
-#include "Grid.hpp"
+#include "Dirac/DiracOperator.hpp"
+#include "Maths/Grid.hpp"
+// #include "Maths/SphericalBessel.hpp"
 #include "Physics/Nuclear.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Physics/Wigner_369j.hpp"
@@ -90,6 +91,46 @@ private:
 private:
   double m_c; // speed of light (including var-alpha)
 };
+
+// //******************************************************************************
+// class M1Operator : public DiracOperator
+// // M1 = mu . B
+// // <a||M1||b> = 3 (ka + kb) <-ka||C^1||kb> Int [(fagb+gafb)j_1(kr)]
+// // k = w/c, j1 is first spherical bessel
+// // Two options; a) different operator for each w
+// // b) generate jL each call
+// {
+// public:
+//   M1Operator(const Grid &gr, double omega)
+//       : DiracOperator(1, OperatorParity::even, 3.0,
+//                       SphericalBessel::fillBesselVec(1, set_kr(omega, gr)),
+//                       0) {
+//   }
+//
+//   double reducedME(const DiracSpinor &Fa,
+//                    const DiracSpinor &Fb) const override {
+//     auto Rab = radialIntegral(Fa, Fb);
+//     auto Cab = (Fa.k + Fb.k) * Wigner::Ck_kk(1, -Fa.k, Fb.k);
+//     return Rab * Cab / PhysConst::alpha / PhysConst::muB_CGS; //???
+//   }
+//
+// private:
+//   virtual double angularCff(int, int) const override { return 0; }
+//   virtual double angularCgg(int, int) const override { return 0; }
+//   virtual double angularCfg(int, int) const override { return 1.0; }
+//   virtual double angularCgf(int, int) const override { return 1.0; }
+//
+// private:
+//   // std::vector<double> kr;
+//   std::vector<double> set_kr(double omega, const Grid &gr) {
+//     std::vector<double> kr;
+//     kr.reserve(gr.ngp);
+//     for (const auto &r : gr.r) {
+//       kr.push_back(r * omega * PhysConst::alpha); // this? or var-alpha?
+//     }
+//     return kr;
+//   }
+// };
 
 //******************************************************************************
 class HyperfineOperator : public DiracOperator {

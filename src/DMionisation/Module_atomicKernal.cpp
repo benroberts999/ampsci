@@ -1,12 +1,12 @@
 #include "Module_atomicKernal.hpp"
 #include "AKF_akFunctions.hpp"
-#include "ChronoTimer.hpp"
-#include "ContinuumOrbitals.hpp"
-#include "Grid.hpp"
-#include "HartreeFockClass.hpp"
+#include "IO/ChronoTimer.hpp"
+#include "Dirac/ContinuumOrbitals.hpp"
+#include "Maths/Grid.hpp"
+#include "HF/HartreeFockClass.hpp"
 #include "Physics/PhysConst_constants.hpp"
-#include "UserInput.hpp"
-#include "Wavefunction.hpp"
+#include "IO/UserInput.hpp"
+#include "Dirac/Wavefunction.hpp"
 #include <iostream>
 
 namespace Module {

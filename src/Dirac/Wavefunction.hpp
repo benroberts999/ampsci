@@ -1,7 +1,7 @@
 #pragma once
-#include "DiracSpinor.hpp"
-#include "Grid.hpp"
-#include "HartreeFockClass.hpp" // forward decl..
+#include "Dirac/DiracSpinor.hpp"
+#include "Maths/Grid.hpp"
+#include "HF/HartreeFockClass.hpp" // forward decl..
 #include "Physics/Nuclear.hpp"
 #include <memory>
 #include <string>

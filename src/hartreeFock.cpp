@@ -1,11 +1,11 @@
-#include "ChronoTimer.hpp"
-#include "Grid.hpp"
+#include "IO/ChronoTimer.hpp"
+#include "Dirac/Operators.hpp"
+#include "Dirac/Wavefunction.hpp"
+#include "Maths/Grid.hpp"
 #include "Modules/Module_runModules.hpp"
-#include "Operators.hpp"
 #include "Physics/AtomInfo.hpp"
 #include "Physics/Nuclear.hpp"
-#include "UserInput.hpp"
-#include "Wavefunction.hpp"
+#include "IO/UserInput.hpp"
 #include <iostream>
 #include <string>
 
@@ -17,13 +17,16 @@ int main(int argc, char *argv[]) {
   // Input options
   UserInput input(input_file);
 
+  // Get + setup atom parameters
   auto atom = input.get<std::string>("Atom", "Z");
   auto Z = AtomInfo::get_z(atom);
   auto A = input.get("Atom", "A", -1);
-  auto varalpha = std::sqrt(input.get("Atom", "varAlpha2", 1.0));
-  if (varalpha == 0)
-    varalpha = 1.0e-16;
+  auto varAlpha2 = input.get("Atom", "varAlpha2", 1.0);
+  if (varAlpha2 <= 0)
+    varAlpha2 = 1.0e-25;
+  auto varalpha = std::sqrt(varAlpha2);
 
+  // Get + setup Grid parameters
   auto r0 = input.get("Grid", "r0", 1.0e-5);
   auto rmax = input.get("Grid", "rmax", 150.0);
   auto ngp = input.get("Grid", "ngp", 1600ul);
@@ -32,6 +35,7 @@ int main(int argc, char *argv[]) {
       input.get<std::string>("Grid", "type", "loglinear"));
   GridParameters grid_params(ngp, r0, rmax, b, grid_type);
 
+  // Get + setup nuclear parameters
   A = input.get("Nucleus", "A", A); // over-writes "atom" A
   auto nuc_type =
       Nuclear::parseType(input.get<std::string>("Nucleus", "type", "Fermi"));
@@ -39,6 +43,7 @@ int main(int argc, char *argv[]) {
   auto skint = input.get("Nucleus", "skin_t", -1.0);
   Nuclear::Parameters nuc_params(Z, A, nuc_type, rrms, skint);
 
+  // create wavefunction object
   Wavefunction wf(Z, grid_params, nuc_params, varalpha);
 
   std::cout << "\nRunning for " << wf.atom() << "\n"
@@ -48,7 +53,7 @@ int main(int argc, char *argv[]) {
 
   // Parse input for HF method
   auto str_core = input.get<std::string>("HartreeFock", "core");
-  auto eps_HF = input.get("HartreeFock", "convergence", 1.0e-8);
+  auto eps_HF = input.get("HartreeFock", "convergence", 1.0e-12);
   auto HF_method = HartreeFock::parseMethod(
       input.get<std::string>("HartreeFock", "method", "HartreeFock"));
 
@@ -75,7 +80,6 @@ int main(int argc, char *argv[]) {
   auto valence_list = (wf.Ncore() < wf.Znuc())
                           ? input.get<std::string>("HartreeFock", "valence", "")
                           : "";
-
   if (valence_list != "") {
     // 'if' is only for output format, nothing bad happens if below are called
     ChronoTimer t("Valence");
@@ -90,10 +94,8 @@ int main(int argc, char *argv[]) {
   wf.printCore(sorted);
   wf.printValence(sorted);
 
-  {
-    // ChronoTimer tmr("modules");
-    Module::runModules(input, wf);
-  }
+  // run each of the modules
+  Module::runModules(input, wf);
 
   //*********************************************************
   //               TESTS

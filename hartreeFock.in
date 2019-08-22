@@ -7,9 +7,8 @@ Atom {
 HartreeFock {
   core = [Xe];
   valence = 7sp;
-  sortOutput;
   method; // HartreeFock(dflt), ApproxHF, Hartree, GreenPRM, TietzPRM
-  convergence = 1.0e-12;
+  convergence;
 }
 
 Nucleus {
@@ -28,30 +27,16 @@ Grid {
 
 /////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////
-/*
-Modules:
-  Each Module/MatrixElements will be run in order.
-  You can comment-out just the block name, and the block will be skiped.
-*/
+// Modules:
+//   Each Module/MatrixElements will be run in order.
+//   You can comment-out just the block name, and the block will be skiped.
 
 // MatrixElements::E1 {}
-// MatrixElements::E1 { gauge = vform; }
-// MatrixElements::pnc{}
 
 // Module::Tests
 {
   orthonormal = true;
   Hamiltonian = true;
-}
-
-// MatrixElements::hfs
-{
-  F(r) = ball; // ball, shell, pointlike, VolotkaBW
-  mu;
-  I;
-  rrms;
-  parity;
-  gl; // VolotkaBW
 }
 
 // Module::BohrWeisskopf
@@ -69,13 +54,12 @@ Modules:
   printF = false;
 }
 
-// Module::pnc
-{ transition = 6, -1, 5, 2; }
-
-// MatrixElements::r
-// { power = 1; }
-// MatrixElements::r
-// { power = -1; }
+// Module::WriteOrbitals
+{ label = outputLabel; }
+// Plot in GNUPLOT like: (e.g.)
+// plot for [i=2:20] "file.txt" u 1:i every :::0::0  w l t columnheader(i)
+// plot for [i=2:20] "file.txt" u 1:i every :::1::1  w l t columnheader(i)
+// plot "file.txt" u 1:2 every :::2::2  w l t "Core Density"
 
 /////////////////////////////////////////////////////////////////
 // Module::AtomicKernal
@@ -92,15 +76,6 @@ Modules:
   output_binary = true;
   label = test_new;
   use_plane_waves = false;
-}
-
-// Module::WriteOrbitals
-{
-  // Plot in GNUPLOT like: (e.g.)
-  // plot for [i=2:20] "file.txt" u 1:i every :::0::0  w l t columnheader(i)
-  // plot for [i=2:20] "file.txt" u 1:i every :::1::1  w l t columnheader(i)
-  // plot "file.txt" u 1:2 every :::2::2  w l t "Core Density"
-  label = outputLabel;
 }
 
 // Module::FitParametric
