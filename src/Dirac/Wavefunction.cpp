@@ -504,7 +504,7 @@ void Wavefunction::printValence(
 
   std::cout
       << "Val: state   "
-      << "k   Rinf its   eps       En (au)        En (/cm)     En (/cm)\n";
+      << "k   Rinf its   eps         En (au)        En (/cm)   En (/cm)\n";
   auto index_list = sortedEnergyList(tmp_orbs, sorted);
   for (auto i : index_list) {
     const auto &phi = tmp_orbs[i];

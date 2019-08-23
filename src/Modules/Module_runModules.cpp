@@ -136,6 +136,7 @@ void Module_Tests_orthonormality(const Wavefunction &wf) {
           printf("   0");
         else
           printf(" %+3.0f", std::log10(std::fabs(xo)));
+        // printf(" %+5.1e", std::fabs(xo));
       }
       std::cout << "\n";
     }
