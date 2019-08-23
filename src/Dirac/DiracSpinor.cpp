@@ -10,16 +10,16 @@
 
 //******************************************************************************
 DiracSpinor::DiracSpinor(int in_n, int in_k, const Grid &rgrid, bool in_imag_g)
-    : p_rgrid(&rgrid),                      //
-      n(in_n), k(in_k), en(0.0),            //
-      f(std::vector<double>(rgrid.ngp, 0)), //
-      g(f),                                 //
-      pinf(rgrid.ngp - 1),                  //
-      imaginary_g(in_imag_g),               //
-      its(-1), eps(-1), occ_frac(0),        //
-      m_twoj(AtomInfo::twoj_k(in_k)),       //
-      m_l(AtomInfo::l_k(in_k)),             //
-      m_parity(AtomInfo::parity_k(in_k)),   //
+    : p_rgrid(&rgrid),                        //
+      n(in_n), k(in_k), en(0.0),              //
+      f(std::vector<double>(rgrid.ngp, 0.0)), //
+      g(f),                                   //
+      pinf(rgrid.ngp - 1),                    //
+      imaginary_g(in_imag_g),                 //
+      its(-1), eps(-1), occ_frac(0),          //
+      m_twoj(AtomInfo::twoj_k(in_k)),         //
+      m_l(AtomInfo::l_k(in_k)),               //
+      m_parity(AtomInfo::parity_k(in_k)),     //
       m_k_index(AtomInfo::indexFromKappa(in_k)) {}
 
 //******************************************************************************
@@ -42,18 +42,14 @@ double DiracSpinor::norm() const { return std::sqrt((*this) * (*this)); }
 
 //******************************************************************************
 void DiracSpinor::scale(const double factor) {
-  for (auto &f_r : f)
-    f_r *= factor;
-  for (auto &g_r : g)
-    g_r *= factor;
-  // for (std::size_t i = 0; i < pinf; ++i)
-  //   f[i] *= factor;
-  // for (std::size_t i = 0; i < pinf; ++i)
-  //   g[i] *= factor;
-  // for (std::size_t i = pinf; i < p_rgrid->ngp; ++i) {
-  //   f[i] = 0.0;
-  //   g[i] = 0.0;
-  // }
+  // for (auto &f_r : f)
+  //   f_r *= factor;
+  // for (auto &g_r : g)
+  //   g_r *= factor;
+  for (std::size_t i = 0; i < pinf; ++i)
+    f[i] *= factor;
+  for (std::size_t i = 0; i < pinf; ++i)
+    g[i] *= factor;
 }
 
 //******************************************************************************
@@ -82,17 +78,18 @@ double operator*(const DiracSpinor &lhs, const DiracSpinor &rhs) {
   // (includes complex conjugation of lhs)
   int ffs = ((!lhs.imaginary_g) && rhs.imaginary_g) ? -1 : 1;
   int ggs = (lhs.imaginary_g && !rhs.imaginary_g) ? -1 : 1;
-  auto imax = lhs.p_rgrid->ngp; // std::min(pinf, rhs.pinf); //XXX
+  // auto imax = lhs.p_rgrid->ngp; // std::min(pinf, rhs.pinf); //XXX
+  auto imax = std::min(lhs.pinf, rhs.pinf); // XXX
   auto ff = NumCalc::integrate(lhs.f, rhs.f, lhs.p_rgrid->drdu, 1.0, 0, imax);
   auto gg = NumCalc::integrate(lhs.g, rhs.g, lhs.p_rgrid->drdu, 1.0, 0, imax);
   return (ffs * ff + ggs * gg) * lhs.p_rgrid->du;
 }
 
 DiracSpinor &DiracSpinor::operator+=(const DiracSpinor &rhs) {
-  auto imax = p_rgrid->ngp;
-  // std::min(pinf, rhs.pinf); //XXX
+  // auto imax = p_rgrid->ngp;
   // auto imax = std::max(pinf, rhs.pinf); // XXX
   // pinf = imax;
+  auto imax = std::min(pinf, rhs.pinf); // XXX
   for (std::size_t i = 0; i < imax; i++)
     f[i] += rhs.f[i];
   for (std::size_t i = 0; i < imax; i++)
@@ -104,10 +101,11 @@ DiracSpinor operator+(DiracSpinor lhs, const DiracSpinor &rhs) {
   return lhs;
 }
 DiracSpinor &DiracSpinor::operator-=(const DiracSpinor &rhs) {
-  auto imax = p_rgrid->ngp; // std::min(pinf, rhs.pinf); //XXX
-  // auto imax = std::max(pinf, rhs.pinf); // XXX WHY this make slow??
-  // auto imax = (pinf > rhs.pinf) ? pinf : rhs.pinf;
+  // auto imax = p_rgrid->ngp; // std::min(pinf, rhs.pinf); //XXX
+  // auto imax = pinf;
+  // auto imax = std::max(pinf, rhs.pinf); // XXX
   // pinf = imax;
+  auto imax = std::min(pinf, rhs.pinf); // XXX
   for (std::size_t i = 0; i < imax; i++)
     f[i] -= rhs.f[i];
   for (std::size_t i = 0; i < imax; i++)
@@ -132,8 +130,9 @@ DiracSpinor operator*(const double x, DiracSpinor rhs) {
   return rhs;
 }
 DiracSpinor operator*(const std::vector<double> &v, DiracSpinor rhs) {
-  auto size = rhs.p_rgrid->ngp;
-  for (auto i = 0ul; i < size; i++) {
+  // auto max = rhs.p_rgrid->ngp;
+  auto max = rhs.pinf;
+  for (auto i = 0ul; i < max; i++) {
     rhs.f[i] *= v[i];
     rhs.g[i] *= v[i];
   }
