@@ -12,13 +12,13 @@
 class DiracSpinor {
 
 public: // Data
-  DiracSpinor(int in_n, int in_k, const Grid &rgrid, bool imaginary_g = true)
+  DiracSpinor(int in_n, int in_k, const Grid &rgrid, bool in_imag_g = true)
       : p_rgrid(&rgrid),                      //
         n(in_n), k(in_k), en(0.0),            //
         f(std::vector<double>(rgrid.ngp, 0)), //
         g(f),                                 //
         pinf(rgrid.ngp - 1),                  //
-        imaginary_g(imaginary_g),             //
+        imaginary_g(in_imag_g),               //
         its(-1), eps(-1), occ_frac(0),        //
         m_twoj(AtomInfo::twoj_k(in_k)),       //
         m_l(AtomInfo::l_k(in_k)),             //

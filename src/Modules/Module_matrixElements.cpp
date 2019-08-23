@@ -98,7 +98,7 @@ std::unique_ptr<DiracOperator> generateOperator(const std::string &operator_str,
       else
         std::cout << " gl=" << gl << "??? program will run, but prob wrong!\n";
       std::cout << "with l=" << l << "\n";
-      Fr = HyperfineOperator::generate_F_BW(mu, I_nuc, l, gl);
+      Fr = HyperfineOperator::volotkaBW_F(mu, I_nuc, l, gl);
     } else if (Fr_str == "doublyOddBW") {
 
       auto mu1 = input.get<double>("mu1");
@@ -113,8 +113,8 @@ std::unique_ptr<DiracOperator> generateOperator(const std::string &operator_str,
       auto I1 = input.get<double>("I1");
       auto I2 = input.get<double>("I2");
 
-      Fr = HyperfineOperator::generate_F_BW_doublyOdd(mu, I_nuc, mu1, I1, l1,
-                                                      gl1, I2, l2);
+      Fr =
+          HyperfineOperator::doublyOddBW_F(mu, I_nuc, mu1, I1, l1, gl1, I2, l2);
     } else if (Fr_str != "ball") {
       std::cout << "FAIL: in " << ThisModule << " " << Fr_str
                 << " invalid nuclear distro. Check spelling\n";

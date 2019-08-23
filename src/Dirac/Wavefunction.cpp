@@ -467,53 +467,49 @@ void Wavefunction::printCore(bool sorted) const
   if (Ncore() < 1)
     return;
 
-  std::cout << "     state   k   Rinf its   eps       En (au)      En (/cm)\n";
+  std::cout
+      << "     state   k   Rinf its   eps         En (au)        En (/cm)\n";
   auto index_list = sortedEnergyList(core_orbitals, sorted);
   for (auto i : index_list) {
-    auto &phi = core_orbitals[i];
-    double r_inf = rinf(phi);
-    printf("%2i) %7s %2i  %5.1f %2i  %5.0e %13.7f %13.1f", int(i),
+    const auto &phi = core_orbitals[i];
+    auto r_inf = rinf(phi);
+    printf("%2i) %7s %2i  %5.1f %2i  %5.0e %15.9f %15.3f", int(i),
            phi.symbol().c_str(), phi.k, r_inf, phi.its, phi.eps, phi.en,
            phi.en *PhysConst::Hartree_invcm);
-    if (phi.occ_frac < 1.0) {
-      printf("     (%4.2f)\n", phi.occ_frac);
-    } else {
+    if (phi.occ_frac < 1.0)
+      printf("     [%4.2f]\n", phi.occ_frac);
+    else
       std::cout << "\n";
-    }
   }
   if (m_pHF) {
     auto core_energy = coreEnergyHF();
-    std::cout << "E_core = " << core_energy
-              << " au;  = " << core_energy * PhysConst::Hartree_invcm
-              << "/cm\n";
+    printf("E_core = %.8g au; = %.8g /cm\n", core_energy,
+           core_energy * PhysConst::Hartree_invcm);
   }
 }
 
 //******************************************************************************
 void Wavefunction::printValence(
-    bool sorted, const std::vector<DiracSpinor> &in_orbitals) const
-// prints valence orbitals
-{
+    bool sorted, const std::vector<DiracSpinor> &in_orbitals) const {
   auto tmp_orbs = (in_orbitals.empty()) ? valence_orbitals : in_orbitals;
-
   if (tmp_orbs.empty())
     return;
 
-  std::cout << "Val: state   "
-            << "k   Rinf its   eps       En (au)      En (/cm)   En (/cm)\n";
-
   // Find lowest valence energy:
-  double e0 = 0;
+  auto e0 = 0.0;
   for (auto &phi : tmp_orbs) {
     if (phi.en < e0)
       e0 = phi.en;
   }
 
+  std::cout
+      << "Val: state   "
+      << "k   Rinf its   eps       En (au)        En (/cm)     En (/cm)\n";
   auto index_list = sortedEnergyList(tmp_orbs, sorted);
   for (auto i : index_list) {
-    auto &phi = tmp_orbs[i];
-    double r_inf = rinf(phi);
-    printf("%2i) %7s %2i  %5.1f %2i  %5.0e %13.7f %13.1f", int(i),
+    const auto &phi = tmp_orbs[i];
+    auto r_inf = rinf(phi);
+    printf("%2i) %7s %2i  %5.1f %2i  %5.0e %15.9f %15.3f", int(i),
            phi.symbol().c_str(), phi.k, r_inf, phi.its, phi.eps, phi.en,
            phi.en *PhysConst::Hartree_invcm);
     printf(" %10.2f\n", (phi.en - e0) * PhysConst::Hartree_invcm);

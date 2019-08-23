@@ -106,8 +106,10 @@ public:
 
   double radialIntegral(const DiracSpinor &Fa,
                         const DiracSpinor &Fb) const override {
-    std::cout << "warning: M1 not working yet!\n";
+    // std::cout << "warning: M1 not working yet!\n";
     auto abs_omega = std::fabs(Fa.en - Fb.en);
+    if (abs_omega == 0)
+      return 0;
     // always zero if w=zero?
     const auto &gr = *(Fa.p_rgrid);
     auto j1kr = SphericalBessel::fillBesselVec(1, set_kr(abs_omega, gr));
@@ -118,7 +120,8 @@ public:
     const auto irmax = std::min(Fa.pinf, Fb.pinf);
     auto Rfg = NumCalc::integrate(Fa.f, Fb.g, j1kr, gr.drdu, 1.0, 0, irmax);
     auto Rgf = NumCalc::integrate(Fa.g, Fb.f, j1kr, gr.drdu, 1.0, 0, irmax);
-    return 3.0 * (Rfg + Rgf) * gr.du;
+    return 3.0 * (Rfg + Rgf) * gr.du / (PhysConst::alpha2 * abs_omega);
+    // ??? XXX
   }
 
   double reducedME(const DiracSpinor &Fa,
@@ -127,7 +130,7 @@ public:
       return 0.0;
     auto Rab = radialIntegral(Fa, Fb);
     auto Cab = (Fa.k + Fb.k) * Wigner::Ck_kk(1, -Fa.k, Fb.k);
-    return Rab * Cab / PhysConst::alpha / PhysConst::muB_CGS; //???
+    return Rab * Cab; // / PhysConst::muB_CGS; //???
   }
 
 private:
@@ -160,7 +163,7 @@ public: // F(r) functions. NOTE: includes 1/r^2 !
     return [=](double r, double) { return 1. / (r * r); };
   }
 
-  static inline auto generate_F_BW(double mu, double I_nuc, double l_pn, int gl)
+  static inline auto volotkaBW_F(double mu, double I_nuc, double l_pn, int gl)
       -> Func_R2_R
   // Function that returns generates + returns F_BW Bohr-Weiskopf
   // gl = 1 for proton, =0 for neutron. Double allowed for testing..
@@ -180,7 +183,7 @@ public: // F(r) functions. NOTE: includes 1/r^2 !
             : g_s * (3 + two_I) / (4.0 * (two_I + 2)) +
                   g_l * 0.5 * two_I * (two_I + 3) / (two_I + 2);
     if (two_I != two_l + 1 && two_I != two_l - 1) {
-      std::cerr << "\nFAIL:59 in HyperfineOperator (generate_F_BW):\n "
+      std::cerr << "\nFAIL:59 in HyperfineOperator (volotkaBW_F):\n "
                    "we must have I = l +/- 1/2, but we have: I,l = "
                 << I_nuc << "," << l_pn << "\n";
       return [](double, double) { return 0.0; };
@@ -192,13 +195,13 @@ public: // F(r) functions. NOTE: includes 1/r^2 !
     };
   }
 
-  static inline auto generate_F_BW_doublyOdd(double mut, double It, double mu1,
-                                             double I1, double l1, int gl1,
-                                             double I2, double l2) -> Func_R2_R
+  static inline auto doublyOddBW_F(double mut, double It, double mu1, double I1,
+                                   double l1, int gl1, double I2, double l2)
+      -> Func_R2_R
   // F(r) * g = 0.5 [ g1F1 + g2F2 + (g1F1 - g2F2) * K]
   // K = [I1(I1+1) - I2(I2+1)] / [I(I+1)]
   // return F(r) [divide by g]
-  // generate_F_BW(mu, I, l, g_l); //gl is 1 or 0
+  // volotkaBW_F(mu, I, l, g_l); //gl is 1 or 0
   // g2 : from: g = 0.5 [ g1 + g2 + (g1 - g2) * K]
   {
     auto K = (I1 * (I1 + 1.0) - I2 * (I2 + 1.0)) / (It * (It + 1.0));
@@ -207,8 +210,8 @@ public: // F(r) functions. NOTE: includes 1/r^2 !
     auto g2 = (g1 * (K + 1.0) - 2.0 * gt) / (K - 1.0);
     auto mu2 = g2 * I2;
     auto gl2 = (gl1 == 0) ? 1 : 0;
-    auto F1 = generate_F_BW(mu1, I1, l1, gl1);
-    auto F2 = generate_F_BW(mu2, I2, l2, gl2);
+    auto F1 = volotkaBW_F(mu1, I1, l1, gl1);
+    auto F2 = volotkaBW_F(mu2, I2, l2, gl2);
     return [=](double r, double rN) {
       return (0.5 / gt) * (g1 * F1(r, rN) + g2 * F2(r, rN) +
                            K * (g1 * F1(r, rN) - g2 * F2(r, rN)));

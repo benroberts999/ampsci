@@ -18,7 +18,7 @@ XD=.
 ID=./src
 OD=./obj
 
-WARN=-Wall -Wpedantic -Wextra -Wdouble-promotion -Wconversion
+WARN=-Wall -Wpedantic -Wextra -Wdouble-promotion -Wconversion -Wshadow
 # -Weffc++
 # -Wshadow
 # -Wfloat-equal

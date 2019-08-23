@@ -2,8 +2,8 @@
 // #include "Maths/Grid.hpp"
 #include "AtomInfo.hpp" //:(
 #include "Maths/Grid.hpp"
-#include "Nuclear_DataTable.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
+#include "Nuclear_DataTable.hpp"
 #include "PhysConst_constants.hpp"
 #include <cmath>
 #include <gsl/gsl_sf_fermi_dirac.h>
@@ -252,13 +252,13 @@ struct Parameters {
   Nuclear::Type type;
   double t;
   double r_rms;
-  Parameters(int z, int in_a, Nuclear::Type type = Type::Fermi,
-             double inrrms = -1.0, double in_t = -1.0)
-      : z(z),                                         //
+  Parameters(int in_z, int in_a, Nuclear::Type in_type = Type::Fermi,
+             double in_rrms = -1.0, double in_t = -1.0)
+      : z(in_z),                                      //
         a((in_a < 0) ? AtomInfo::defaultA(z) : in_a), //
-        type(type),                                   //
+        type(in_type),                                //
         t(in_t <= 0 ? approximate_t_skin(a) : in_t),  //
-        r_rms(inrrms)                                 //
+        r_rms(in_rrms)                                //
   {
     if (r_rms < 0) {
       r_rms = Nuclear::find_rrms(z, a);
