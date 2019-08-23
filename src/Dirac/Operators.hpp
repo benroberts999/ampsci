@@ -14,7 +14,7 @@
 // Classes (inherit from DriacOperator)
 
 //******************************************************************************
-class RadialFuncOperator : public ScalarOperator {
+class RadialFuncOperator final : public ScalarOperator {
   // = some function of r
   // Pass only grid to just get r, or
   // either pass a lambda/function [f(r)], or a number, n, (for r^n)
@@ -39,7 +39,7 @@ public:
 };
 
 //******************************************************************************
-class E1Operator : public DiracOperator
+class E1Operator final : public DiracOperator
 // v{d} = -e v{r}   [e=|e|=1]
 // <a||d||b> = R (-1)^{ja+1/2} Sqrt([ja][jb]) tjs(ja,jb,1, -1/2,1/2,0)
 //           = R <ja||C^k||jb>
@@ -59,7 +59,7 @@ public:
 };
 
 //******************************************************************************
-class E1Operator_vform : public DiracOperator
+class E1Operator_vform final : public DiracOperator
 // d_v = (ie/w alpha) v{alpha}   [v{a} = g0v{g}]
 // <a||dv||b> = -2e/(w alpha) Int[ fagb <ka||s||-kb> - gafb <-ka||s||kb>]
 {
@@ -93,7 +93,7 @@ private:
 };
 
 //******************************************************************************
-class M1Operator : public DiracOperator
+class M1Operator final : public DiracOperator
 // M1 = mu . B
 // <a||M1||b> = (ka + kb) <-ka||C^1||kb> Int [3(fagb+gafb)j_1(kr)]
 // k = w/c, j1 is first spherical bessel
@@ -146,7 +146,7 @@ private:
 };
 
 //******************************************************************************
-class HyperfineOperator : public DiracOperator {
+class HyperfineOperator final : public DiracOperator {
 
   using Func_R2_R = std::function<double(double, double)>; // save typing
 
@@ -267,7 +267,7 @@ private:
 };
 
 //******************************************************************************
-class DirectHamiltonian : public ScalarOperator {
+class DirectHamiltonian final : public ScalarOperator {
   // Direct part of Radial Hamiltonian operator.
 public:
   DirectHamiltonian(const std::vector<double> &vn,
@@ -311,7 +311,7 @@ private:
 };
 
 //******************************************************************************
-class PNCnsiOperator : public ScalarOperator {
+class PNCnsiOperator final : public ScalarOperator {
   // PNCnsi = (Gf*10^11/2sqrt[2]) * rho(r) * gamma5
   // Ouput is in units of (Qw * 1.e-11.)
   // To get (Qw/-N), multiply by (-N) [can go into optional 'factor']

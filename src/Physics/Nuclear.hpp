@@ -64,7 +64,7 @@ inline double find_mu(int z, int a) {
   return nuc.mu;
 }
 
-inline double find_parity(int z, int a) {
+inline int find_parity(int z, int a) {
   auto nuc = findIsotopeData(z, a);
   if (!nuc.parity_ok()) {
     std::cerr << "\nWARNING 39 in Nuclear: bad parity! pi=0\n";
