@@ -500,7 +500,10 @@ void HartreeFock::vex_psia(const DiracSpinor &phi_a, DiracSpinor &vexPsi) const
 // calculates V_ex Psi_a (returns new Dirac Spinor)
 // Psi_a can be any orbital (so long as coulomb integrals exist!)
 {
+  vexPsi.pinf = phi_a.f.size(); // silly hack. Make sure vexPsi = 0 after pinf
   vexPsi *= 0.0;
+  vexPsi.pinf = phi_a.pinf;
+
   if (m_excludeExchange)
     return;
 
@@ -582,7 +585,7 @@ void HartreeFock::iterate_core_orbital(
 inline void HartreeFock::refine_valence_orbital_exchange(DiracSpinor &phi) {
 
   auto eps_target = m_eps_HF;
-  const auto a_damp = (phi.l() <= 1) ? 0.1 : 0.275;
+  const auto a_damp = (phi.l() <= 1) ? 0.275 : 0.275;
 
   const int n = phi.n;
   const int k = phi.k;
@@ -605,14 +608,6 @@ inline void HartreeFock::refine_valence_orbital_exchange(DiracSpinor &phi) {
     auto Sr = -1.0 * vexPsi;
     auto en = Hd.matrixEl(phi, phi) + phi * vexPsi;
     auto eps = std::fabs((prev_en - en) / en);
-
-    // if (phi.l() == 2) {
-    //   std::cout << phi.symbol() << " " << phi.en << " -> " << en << " = "
-    //             << Hd.matrixEl(phi, phi) << " + " << phi * vexPsi
-    //             << "   eps=" << eps << "\n";
-    // }
-    // printf("refine: %2i %2i | %3i eps=%6.1e  en=%11.8f\n", n, k, it, eps,
-    //        phi.en);
 
     bool getting_worse = (it > 20 && eps >= 2.0 * eps_prev && eps < 1.e-5);
     bool converged = (eps <= eps_target && it > 0);

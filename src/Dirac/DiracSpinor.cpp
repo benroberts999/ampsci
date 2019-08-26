@@ -8,15 +8,16 @@
 #include <utility>
 #include <vector>
 
-constexpr bool update_pinf = true;
+constexpr bool update_pinf = false; // for psi += psi'
 
 //******************************************************************************
-DiracSpinor::DiracSpinor(int in_n, int in_k, const Grid &rgrid, bool in_imag_g)
+DiracSpinor::DiracSpinor(int in_n, int in_k, const Grid &rgrid,
+                         bool in_imag_g)
     : p_rgrid(&rgrid),                        //
       n(in_n), k(in_k), en(0.0),              //
       f(std::vector<double>(rgrid.ngp, 0.0)), //
       g(f),                                   //
-      pinf(rgrid.ngp - 1),                    //
+      pinf(rgrid.ngp),                        //
       imaginary_g(in_imag_g),                 //
       its(-1), eps(-1), occ_frac(0),          //
       m_twoj(AtomInfo::twoj_k(in_k)),         //
@@ -48,6 +49,12 @@ void DiracSpinor::scale(const double factor) {
     f[i] *= factor;
   for (std::size_t i = 0; i < pinf; ++i)
     g[i] *= factor;
+  // // XXX Need this for some reason!??
+  // Means something beyond pinf is hapenning!?!? XXX XXX
+  for (std::size_t i = pinf; i < f.size(); ++i)
+    f[i] = 0;
+  for (std::size_t i = pinf; i < f.size(); ++i)
+    g[i] = 0;
 }
 
 //******************************************************************************
@@ -74,18 +81,20 @@ double operator*(const DiracSpinor &lhs, const DiracSpinor &rhs) {
   // XXX This is slow??? And one of the most critial parts!
   // Change the relative sign based in Complex f or g component
   // (includes complex conjugation of lhs)
-  int ffs = ((!lhs.imaginary_g) && rhs.imaginary_g) ? -1 : 1;
-  int ggs = (lhs.imaginary_g && !rhs.imaginary_g) ? -1 : 1;
   auto imax = std::min(lhs.pinf, rhs.pinf);
   auto ff = NumCalc::integrate(lhs.f, rhs.f, lhs.p_rgrid->drdu, 1.0, 0, imax);
   auto gg = NumCalc::integrate(lhs.g, rhs.g, lhs.p_rgrid->drdu, 1.0, 0, imax);
-  return (ffs * ff + ggs * gg) * lhs.p_rgrid->du;
+  // int ffs = ((!lhs.imaginary_g) && rhs.imaginary_g) ? -1 : 1;
+  // int ggs = (lhs.imaginary_g && !rhs.imaginary_g) ? -1 : 1;
+  // return (ffs * ff + ggs * gg) * lhs.p_rgrid->du;
+  return (ff + gg) * lhs.p_rgrid->du;
 }
 
 DiracSpinor &DiracSpinor::operator+=(const DiracSpinor &rhs) {
-  // XXX Here: pinf update_pinf
-  auto imax = update_pinf ? std::max(pinf, rhs.pinf) : pinf;
-  pinf = imax; // does nothing if !update_pinf
+  // // XXX Here: pinf update_pinf
+  if (update_pinf)
+    pinf = std::max(pinf, rhs.pinf);
+  auto imax = std::min(pinf, rhs.pinf); // shouldn't be needed, but safer
   for (std::size_t i = 0; i < imax; i++)
     f[i] += rhs.f[i];
   for (std::size_t i = 0; i < imax; i++)
@@ -98,8 +107,10 @@ DiracSpinor operator+(DiracSpinor lhs, const DiracSpinor &rhs) {
 }
 DiracSpinor &DiracSpinor::operator-=(const DiracSpinor &rhs) {
   // XXX Here: pinf update_pinf
-  auto imax = update_pinf ? std::max(pinf, rhs.pinf) : pinf;
-  pinf = imax; // does nothing if !update_pinf
+  if (update_pinf)
+    pinf = std::max(pinf, rhs.pinf);
+  auto imax = std::min(pinf, rhs.pinf); // shouldn't be needed, but safer
+
   for (std::size_t i = 0; i < imax; i++)
     f[i] -= rhs.f[i];
   for (std::size_t i = 0; i < imax; i++)
