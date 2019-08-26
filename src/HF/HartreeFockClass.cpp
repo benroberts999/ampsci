@@ -547,7 +547,7 @@ void HartreeFock::iterate_core_orbital(
   auto phi0 = DiracSpinor(n, k, *(phi.p_rgrid));
   auto phiI = DiracSpinor(n, k, *(phi.p_rgrid));
   auto vexPsi = DiracSpinor(n, k, *(phi.p_rgrid));
-  for (int ini = 0; ini <= MAX_HART_ITS; ini++) {
+  for (int ini = 1; ini <= MAX_HART_ITS; ini++) {
 
     vex_psia(phi, vexPsi);
     const auto Sr = (fVdir0 * phi) - (vd * phi) - vexPsi;

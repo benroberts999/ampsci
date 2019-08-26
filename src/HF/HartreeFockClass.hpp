@@ -65,8 +65,8 @@ private:
   const bool m_excludeExchange; // for testing
   const HFMethod m_method;
 
-  const bool m_explicitOrthog_cc = true; //??
-  const bool m_explicitOrthog_cv = true; //??
+  const bool m_explicitOrthog_cc = false; //??
+  const bool m_explicitOrthog_cv = false; //??
 
   // The "localised"/approximate HF potential:
   std::vector<std::vector<double>> appr_vex_core;

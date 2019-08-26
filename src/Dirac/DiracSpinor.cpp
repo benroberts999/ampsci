@@ -8,6 +8,8 @@
 #include <utility>
 #include <vector>
 
+constexpr bool update_pinf = true;
+
 //******************************************************************************
 DiracSpinor::DiracSpinor(int in_n, int in_k, const Grid &rgrid, bool in_imag_g)
     : p_rgrid(&rgrid),                        //
@@ -42,10 +44,6 @@ double DiracSpinor::norm() const { return std::sqrt((*this) * (*this)); }
 
 //******************************************************************************
 void DiracSpinor::scale(const double factor) {
-  // for (auto &f_r : f)
-  //   f_r *= factor;
-  // for (auto &g_r : g)
-  //   g_r *= factor;
   for (std::size_t i = 0; i < pinf; ++i)
     f[i] *= factor;
   for (std::size_t i = 0; i < pinf; ++i)
@@ -78,18 +76,16 @@ double operator*(const DiracSpinor &lhs, const DiracSpinor &rhs) {
   // (includes complex conjugation of lhs)
   int ffs = ((!lhs.imaginary_g) && rhs.imaginary_g) ? -1 : 1;
   int ggs = (lhs.imaginary_g && !rhs.imaginary_g) ? -1 : 1;
-  // auto imax = lhs.p_rgrid->ngp; // std::min(pinf, rhs.pinf); //XXX
-  auto imax = std::min(lhs.pinf, rhs.pinf); // XXX
+  auto imax = std::min(lhs.pinf, rhs.pinf);
   auto ff = NumCalc::integrate(lhs.f, rhs.f, lhs.p_rgrid->drdu, 1.0, 0, imax);
   auto gg = NumCalc::integrate(lhs.g, rhs.g, lhs.p_rgrid->drdu, 1.0, 0, imax);
   return (ffs * ff + ggs * gg) * lhs.p_rgrid->du;
 }
 
 DiracSpinor &DiracSpinor::operator+=(const DiracSpinor &rhs) {
-  // auto imax = p_rgrid->ngp;
-  // auto imax = std::max(pinf, rhs.pinf); // XXX
-  // pinf = imax;
-  auto imax = std::min(pinf, rhs.pinf); // XXX
+  // XXX Here: pinf update_pinf
+  auto imax = update_pinf ? std::max(pinf, rhs.pinf) : pinf;
+  pinf = imax; // does nothing if !update_pinf
   for (std::size_t i = 0; i < imax; i++)
     f[i] += rhs.f[i];
   for (std::size_t i = 0; i < imax; i++)
@@ -101,11 +97,9 @@ DiracSpinor operator+(DiracSpinor lhs, const DiracSpinor &rhs) {
   return lhs;
 }
 DiracSpinor &DiracSpinor::operator-=(const DiracSpinor &rhs) {
-  // auto imax = p_rgrid->ngp; // std::min(pinf, rhs.pinf); //XXX
-  // auto imax = pinf;
-  // auto imax = std::max(pinf, rhs.pinf); // XXX
-  // pinf = imax;
-  auto imax = std::min(pinf, rhs.pinf); // XXX
+  // XXX Here: pinf update_pinf
+  auto imax = update_pinf ? std::max(pinf, rhs.pinf) : pinf;
+  pinf = imax; // does nothing if !update_pinf
   for (std::size_t i = 0; i < imax; i++)
     f[i] -= rhs.f[i];
   for (std::size_t i = 0; i < imax; i++)
@@ -130,7 +124,6 @@ DiracSpinor operator*(const double x, DiracSpinor rhs) {
   return rhs;
 }
 DiracSpinor operator*(const std::vector<double> &v, DiracSpinor rhs) {
-  // auto max = rhs.p_rgrid->ngp;
   auto max = rhs.pinf;
   for (auto i = 0ul; i < max; i++) {
     rhs.f[i] *= v[i];
