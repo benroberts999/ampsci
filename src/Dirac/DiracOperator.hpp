@@ -115,6 +115,9 @@ protected:
       : rank(k), parity(pi), constant(c), vec(inv), diff_order(d_order) //
         {};
 
+public:
+  virtual ~DiracOperator() = default;
+
 private:
   const int rank;
   const OperatorParity parity;
