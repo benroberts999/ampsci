@@ -585,7 +585,7 @@ void HartreeFock::iterate_core_orbital(
 inline void HartreeFock::refine_valence_orbital_exchange(DiracSpinor &phi) {
 
   auto eps_target = m_eps_HF;
-  const auto a_damp = (phi.l() <= 1) ? 0.275 : 0.275;
+  const auto a_damp = 0.275;
 
   const int n = phi.n;
   const int k = phi.k;
