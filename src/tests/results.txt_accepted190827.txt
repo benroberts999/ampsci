@@ -17,8 +17,8 @@ Running for Cs, Z=55 A=133
 Fermi nucleus;  r_rms = 4.8041, c_hdr = 5.67073, t = 2.3
 Log-linear (b=4) grid: 1e-06->120, N=1600, du=0.121583
 ********************************************************
-HF core      it: 12 eps=3.8e-06              
-refine core  it: 20 eps=6.2e-13              
+HF core      it: 12 eps=3.8e-06
+refine core  it: 20 eps=6.2e-13
 Core: T = 318.96 ms
 HF val:  6 -1 |  12 eps=3.4e-06  en=-0.12736439
 refine:  6 -1 |   4 eps=1.0e-13  en=-0.12736549
@@ -98,8 +98,8 @@ Running for Cs, Z=55 A=133
 Fermi nucleus;  r_rms = 4.8041, c_hdr = 5.67073, t = 2.3
 Log-linear (b=4) grid: 1e-08->250, N=20000, du=0.0172893
 ********************************************************
-HF core      it: 12 eps=3.8e-06              
-refine core  it: 24 eps=4.9e-13              
+HF core      it: 12 eps=3.8e-06
+refine core  it: 24 eps=4.9e-13
 Core: T = 3.42 s
 HF val:  6 -1 |  12 eps=3.4e-06  en=-0.12736683
 refine:  6 -1 |   6 eps=4.8e-13  en=-0.12736801
@@ -176,8 +176,8 @@ Running for Cs, Z=55 A=133
 Fermi nucleus;  r_rms = 4.8041, c_hdr = 5.67073, t = 2.3
 Log-linear (b=4) grid: 1e-07->120, N=2000, du=0.101862
 ********************************************************
-HF core      it: 13 eps=2.3e-06              
-refine core  it: 27 eps=7.2e-13              
+HF core      it: 13 eps=2.3e-06
+refine core  it: 27 eps=7.2e-13
 Core: T = 722.72 ms
 
 Hartree Fock: Cs, Z=55 A=133
@@ -226,8 +226,8 @@ Running for Fr, Z=87 A=223
 Fermi nucleus;  r_rms = 5.6951, c_hdr = 6.91003, t = 2.3
 Log-linear (b=4) grid: 1e-06->120, N=1600, du=0.121583
 ********************************************************
-HF core      it: 14 eps=4.9e-06              
-refine core  it: 24 eps=1.4e-11              
+HF core      it: 14 eps=4.9e-06
+refine core  it: 24 eps=1.4e-11
 Core: T = 707.69 ms
 HF val:  7 -1 |  12 eps=4.4e-06  en=-0.13106467
 refine:  7 -1 |   7 eps=3.9e-13  en=-0.13106946
@@ -311,8 +311,8 @@ Running for Fr, Z=87 A=223
 Fermi nucleus;  r_rms = 5.6951, c_hdr = 6.91003, t = 2.3
 Log-linear (b=4) grid: 1e-07->120, N=2000, du=0.101862
 ********************************************************
-HF core      it: 14 eps=9.8e-06              
-refine core  it: 29 eps=8.9e-12              
+HF core      it: 14 eps=9.8e-06
+refine core  it: 29 eps=8.9e-12
 Core: T = 1.28 s
 
 Hartree Fock: Fr, Z=87 A=223
@@ -366,7 +366,7 @@ Running for Fr, Z=87 A=223
 Fermi nucleus;  r_rms = 5.6951, c_hdr = 6.91003, t = 2.3
 Log-linear (b=4) grid: 1e-07->120, N=2000, du=0.101862
 ********************************************************
-HF core      it: 16 eps=9.2e-13              
+HF core      it: 16 eps=9.2e-13
 Core: T = 7.09 ms
 HF val:  2 -1 |   8 eps=6.6e-06  en=-1056.48740018
 refine:  2 -1 |   4 eps=3.5e-13  en=-1056.49136918
