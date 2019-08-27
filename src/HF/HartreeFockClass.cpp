@@ -650,7 +650,7 @@ inline void HartreeFock::refine_core_orbitals_exchange() {
 
   DirectHamiltonian Hd(p_wf->vnuc, p_wf->vdir, p_wf->get_alpha());
 
-  const auto a_damp = 0.2;
+  auto a_damp = 0.3;
 
   double prev_eps = 1.0;
   auto size = p_wf->rgrid.ngp;
@@ -658,6 +658,8 @@ inline void HartreeFock::refine_core_orbitals_exchange() {
   const auto f_core = double(p_wf->Ncore() - 1) / double(p_wf->Ncore());
 
   for (int it = 0; it <= MAX_HART_ITS; it++) {
+    if (it == 10 || it == 30)
+      a_damp *= 1.5;
 
     for (auto i = 0ul; i < size; i++) {
       auto fvd = f_core * p_wf->vdir[i];
