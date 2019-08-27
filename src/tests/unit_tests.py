@@ -16,6 +16,17 @@ if os.path.exists(outfname):
         os.remove(old_name)
     os.rename(outfname,old_name)
 
+import subprocess
+import datetime
+output = open(outfname,"a")
+git_long = subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode('ascii').strip()
+git_short = subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('ascii').strip()
+branch = subprocess.check_output(['git', 'name-rev', '--name-only', 'HEAD']).decode('ascii').strip()
+output.write(datetime.datetime.now().strftime("%Y-%m-%d %H:%M")+"\n")
+output.write("git branch: "+branch+"\n")
+output.write("git commit: "+git_long+" ["+git_short+"]\n"+output_seperator+"\n\n")
+output.close()
+
 input_list = content.split(split)
 #first item in list is blank (before first '#TEST#')
 input_list.pop(0)
