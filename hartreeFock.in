@@ -18,9 +18,9 @@ Nucleus {
 }
 
 Grid {
-  r0 = 1e-6;
+  r0 = 1e-7;
   rmax = 120.0;
-  ngp = 1600;
+  ngp = 2000;
   type; // loglinear(dflt), logarithmic, linear
   b;
 }
@@ -36,7 +36,8 @@ Grid {
 // Module::Tests
 {
   orthonormal = true;
-  Hamiltonian = true;
+  orthonormal_all = false;
+  Hamiltonian = false;
 }
 
 // Module::BohrWeisskopf

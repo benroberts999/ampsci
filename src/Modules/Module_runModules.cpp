@@ -12,6 +12,7 @@
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <sstream>
 #include <string>
 
 namespace Module {
@@ -89,18 +90,24 @@ void Module_BohrWeisskopf(const UserInputBlock &input, const Wavefunction &wf)
 //******************************************************************************
 void Module_tests(const UserInputBlock &input, const Wavefunction &wf) {
   std::string ThisModule = "Module::Tests";
-  if (input.get("orthonormal", true))
-    Module_Tests_orthonormality(wf);
+  auto othon = input.get("orthonormal", true);
+  auto othon_all = input.get("orthonormal_all", false);
+  if (othon || othon_all)
+    Module_Tests_orthonormality(wf, othon_all);
   if (input.get("Hamiltonian", false))
     Module_Tests_Hamiltonian(wf);
 }
 
 //------------------------------------------------------------------------------
-void Module_Tests_orthonormality(const Wavefunction &wf) {
+void Module_Tests_orthonormality(const Wavefunction &wf, const bool print_all) {
   std::cout << "\nTest orthonormality: ";
-  std::cout << "log10(|1 - <a|a>|) or log10(|<a|b>|)\n";
-  std::cout << "(should all read zero).\n";
+  if (print_all) {
+    std::cout << "log10(|1 - <a|a>|) or log10(|<a|b>|)\n";
+    std::cout << "(should all read zero).";
+  }
+  std::cout << "\n";
 
+  std::stringstream buffer;
   for (int i = 0; i < 3; i++) {
     const auto &tmp_b = (i == 2) ? wf.valence_orbitals : wf.core_orbitals;
     const auto &tmp_a = (i == 0) ? wf.core_orbitals : wf.valence_orbitals;
@@ -109,38 +116,59 @@ void Module_Tests_orthonormality(const Wavefunction &wf) {
       continue;
 
     // Core-Core:
-    if (i == 0)
-      std::cout << "\nCore-Core\n    ";
-    else if (i == 1)
-      std::cout << "\nValence-Core\n    ";
-    else
-      std::cout << "\nValence-Valence\n    ";
-    for (auto &psi_b : tmp_b)
-      printf("%2i%2i", psi_b.n, psi_b.k);
-    std::cout << "\n";
+    if (print_all) {
+      if (i == 0)
+        std::cout << "\nCore-Core\n    ";
+      else if (i == 1)
+        std::cout << "\nValence-Core\n    ";
+      else
+        std::cout << "\nValence-Valence\n    ";
+    }
+    auto worst_xo = 0.0;
+    std::string worst_braket = "";
+    if (print_all) {
+      for (auto &psi_b : tmp_b)
+        printf("%2i%2i", psi_b.n, psi_b.k);
+      std::cout << "\n";
+    }
     for (auto &psi_a : tmp_a) {
-      printf("%2i%2i", psi_a.n, psi_a.k);
+      if (print_all)
+        printf("%2i%2i", psi_a.n, psi_a.k);
       for (auto &psi_b : tmp_b) {
         if (psi_b > psi_a) {
-          std::cout << "    ";
+          if (print_all)
+            std::cout << "    ";
           continue;
         }
         if (psi_a.k != psi_b.k) {
-          std::cout << "    ";
+          if (print_all)
+            std::cout << "    ";
           continue;
         }
         double xo = (psi_a * psi_b);
-        if (psi_a.n == psi_b.n)
+        if (psi_a.n == psi_b.n) {
           xo -= 1.0;
-        if (xo == 0)
-          printf("   0");
-        else
-          printf(" %+3.0f", std::log10(std::fabs(xo)));
-        // printf(" %+5.1e", std::fabs(xo));
-      }
-      std::cout << "\n";
-    }
-  }
+        } else {
+          if (std::abs(xo) > std::abs(worst_xo)) {
+            worst_xo = xo;
+            worst_braket = "<" + psi_a.symbol() + "|" + psi_b.symbol() + ">";
+          }
+        }
+        if (print_all) {
+          if (xo == 0)
+            printf("   0");
+          else
+            printf(" %+3.0f", std::log10(std::fabs(xo)));
+        }
+      } // psi_b
+      if (print_all)
+        std::cout << "\n";
+    } // Psi_a
+    buffer << worst_braket << " = " << worst_xo << "\n";
+  } // cc, cv, vv
+  if (print_all)
+    std::cout << "\n";
+  std::cout << buffer.str();
 }
 
 //------------------------------------------------------------------------------

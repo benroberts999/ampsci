@@ -154,8 +154,9 @@ MatrixElements::hfs {
 
 Module::Tests {
   // tests of numerical errors:
-  orthonormal = true; // check orthonormality
-  Hamiltonian = true; // check eigenvalues of Hamiltonian
+  orthonormal = true;     // check orthonormality (true by default)
+  orthonormal_all = true; // check orthonormality + print all <a|b> 's
+  Hamiltonian = true;     // check eigenvalues of Hamiltonian
 }
 
 Module::BohrWeisskopf {
