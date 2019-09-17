@@ -75,7 +75,6 @@ std::unique_ptr<DiracOperator> generateOperator(const std::string &operator_str,
               << "fm = " << r_nucau << "au  (r_rms=" << r_rmsfm << "fm)\n";
     std::cout << "Points inside nucleus: " << wf.getRadialIndex(r_nucau)
               << "\n";
-    // std::cout << "Units: MHz\n";
 
     auto Fr = HyperfineOperator::sphericalBall_F();
     if (Fr_str == "shell")
@@ -97,7 +96,7 @@ std::unique_ptr<DiracOperator> generateOperator(const std::string &operator_str,
         std::cout << " neturon ";
       else
         std::cout << " gl=" << gl << "??? program will run, but prob wrong!\n";
-      std::cout << "with l=" << l << "\n";
+      std::cout << "with l=" << l << " (pi=" << pi << ")\n";
       Fr = HyperfineOperator::volotkaBW_F(mu, I_nuc, l, gl);
     } else if (Fr_str == "doublyOddBW") {
 
@@ -130,7 +129,6 @@ std::unique_ptr<DiracOperator> generateOperator(const std::string &operator_str,
       }
     }
 
-    // auto unit = PhysConst::Hartree_MHz;
     return std::make_unique<HyperfineOperator>(
         HyperfineOperator(mu, I_nuc, r_nucau, wf.rgrid, Fr));
   } else if (operator_str == "E1") {
