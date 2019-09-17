@@ -48,37 +48,29 @@ inline std::vector<Isotope> findIsotopeList(int z) {
 
 inline double find_rrms(int z, int a) {
   auto nuc = findIsotopeData(z, a);
-  if (!nuc.r_ok()) {
-    // std::cerr << "\nWARNING 29 in Nuclear: bad radius! r=0\n";
+  if (!nuc.r_ok())
     return 0;
-  }
   return nuc.r_rms;
 }
 
 inline double find_mu(int z, int a) {
   auto nuc = findIsotopeData(z, a);
-  if (!nuc.mu_ok()) {
-    std::cerr << "\nWARNING 39 in Nuclear: bad mu_N! mu=0\n";
+  if (!nuc.mu_ok())
     return 0;
-  }
   return nuc.mu;
 }
 
 inline int find_parity(int z, int a) {
   auto nuc = findIsotopeData(z, a);
-  if (!nuc.parity_ok()) {
-    std::cerr << "\nWARNING 39 in Nuclear: bad parity! pi=0\n";
+  if (!nuc.parity_ok())
     return 0;
-  }
   return nuc.parity;
 }
 
 inline double find_spin(int z, int a) {
   auto nuc = findIsotopeData(z, a);
-  if (!nuc.I_ok()) {
-    std::cerr << "\nWARNING 39 in Nuclear: bad spin! I=-1\n";
+  if (!nuc.I_ok())
     return -1.0;
-  }
   return nuc.I_N;
 }
 
@@ -99,8 +91,6 @@ inline double approximate_r_rms(int A)
     rN = 2.4312; // 7-Li
   else if (A < 10)
     rN = 1.15 * std::pow(A, 0.333);
-  // else if (A == 133) // 133-Cs
-  //   rN = 4.8041;
   else
     rN = 0.836 * std::pow(A, 0.333) + 0.570;
 
@@ -275,14 +265,6 @@ inline std::vector<double> formPotential(Parameters params, int z, int,
   auto nucleus_type = params.type;
   auto r_rms = params.r_rms;
   auto t = params.t;
-
-  // if (t <= 0)
-  //   t = Nuclear::approximate_t_skin(a);
-  // if (r_rms < 0) {
-  //   r_rms = Nuclear::find_rrms(z, a);
-  //   if (r_rms < 0)
-  //     r_rms = Nuclear::approximate_r_rms(a);
-  // }
 
   switch (nucleus_type) {
 
