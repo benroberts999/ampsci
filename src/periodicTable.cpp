@@ -4,7 +4,8 @@
 
 void instructions() {
   std::cout << "Input is Z A; Z may be int or string. e.g.: \n "
-               "$./nuclearData Cs 133\n"
+               "$./periodicTable Cs 133\n"
+               "A is optional;\n"
                "Leave A blank (or put 0) to get dafault A value.\n"
                "Put 'all' to list all available A values.\n"
                "Note: numbers come from online database, and have some errors, "
