@@ -59,6 +59,9 @@ double diracen(double z, double n, int k, double alpha = 0.00729735256635);
 
 std::vector<NonRelSEConfig> core_parser(const std::string &str_core_in);
 
+std::string guessCoreConfigStr(const int total_core_electrons);
+std::vector<NonRelSEConfig> core_guess(const int total_core_electrons);
+
 std::vector<DiracSEnken> listOfStates_nk(const std::string &in_list);
 
 //******************************************************************************

@@ -66,6 +66,7 @@ int main(int num_in, char *argv[]) {
     isotopes.push_back(Nuclear::findIsotopeData(z, a));
   }
 
+  std::cout << AtomInfo::guessCoreConfigStr(z) << "\n";
   for (const auto &nuc : isotopes) {
     std::cout << "\n";
     printData(nuc);
