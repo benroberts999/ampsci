@@ -2,8 +2,8 @@
 // #include "Maths/Grid.hpp"
 #include "AtomInfo.hpp" //:(
 #include "Maths/Grid.hpp"
-#include "Nuclear_DataTable.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
+#include "Nuclear_DataTable.hpp"
 #include "PhysConst_constants.hpp"
 #include <cmath>
 #include <gsl/gsl_sf_fermi_dirac.h>
@@ -48,37 +48,29 @@ inline std::vector<Isotope> findIsotopeList(int z) {
 
 inline double find_rrms(int z, int a) {
   auto nuc = findIsotopeData(z, a);
-  if (!nuc.r_ok()) {
-    // std::cerr << "\nWARNING 29 in Nuclear: bad radius! r=0\n";
+  if (!nuc.r_ok())
     return 0;
-  }
   return nuc.r_rms;
 }
 
 inline double find_mu(int z, int a) {
   auto nuc = findIsotopeData(z, a);
-  if (!nuc.mu_ok()) {
-    std::cerr << "\nWARNING 39 in Nuclear: bad mu_N! mu=0\n";
+  if (!nuc.mu_ok())
     return 0;
-  }
   return nuc.mu;
 }
 
-inline double find_parity(int z, int a) {
+inline int find_parity(int z, int a) {
   auto nuc = findIsotopeData(z, a);
-  if (!nuc.parity_ok()) {
-    std::cerr << "\nWARNING 39 in Nuclear: bad parity! pi=0\n";
+  if (!nuc.parity_ok())
     return 0;
-  }
   return nuc.parity;
 }
 
 inline double find_spin(int z, int a) {
   auto nuc = findIsotopeData(z, a);
-  if (!nuc.I_ok()) {
-    std::cerr << "\nWARNING 39 in Nuclear: bad spin! I=-1\n";
+  if (!nuc.I_ok())
     return -1.0;
-  }
   return nuc.I_N;
 }
 
@@ -99,8 +91,6 @@ inline double approximate_r_rms(int A)
     rN = 2.4312; // 7-Li
   else if (A < 10)
     rN = 1.15 * std::pow(A, 0.333);
-  // else if (A == 133) // 133-Cs
-  //   rN = 4.8041;
   else
     rN = 0.836 * std::pow(A, 0.333) + 0.570;
 
@@ -252,13 +242,13 @@ struct Parameters {
   Nuclear::Type type;
   double t;
   double r_rms;
-  Parameters(int z, int in_a, Nuclear::Type type = Type::Fermi,
-             double inrrms = -1.0, double in_t = -1.0)
-      : z(z),                                         //
+  Parameters(int in_z, int in_a, Nuclear::Type in_type = Type::Fermi,
+             double in_rrms = -1.0, double in_t = -1.0)
+      : z(in_z),                                      //
         a((in_a < 0) ? AtomInfo::defaultA(z) : in_a), //
-        type(type),                                   //
+        type(in_type),                                //
         t(in_t <= 0 ? approximate_t_skin(a) : in_t),  //
-        r_rms(inrrms)                                 //
+        r_rms(in_rrms)                                //
   {
     if (r_rms < 0) {
       r_rms = Nuclear::find_rrms(z, a);
@@ -275,14 +265,6 @@ inline std::vector<double> formPotential(Parameters params, int z, int,
   auto nucleus_type = params.type;
   auto r_rms = params.r_rms;
   auto t = params.t;
-
-  // if (t <= 0)
-  //   t = Nuclear::approximate_t_skin(a);
-  // if (r_rms < 0) {
-  //   r_rms = Nuclear::find_rrms(z, a);
-  //   if (r_rms < 0)
-  //     r_rms = Nuclear::approximate_r_rms(a);
-  // }
 
   switch (nucleus_type) {
 

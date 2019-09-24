@@ -131,7 +131,6 @@ double diracen(double z, double n, int k, double alpha) {
 //******************************************************************************
 std::vector<NonRelSEConfig> core_parser(const std::string &str_core_in)
 // Heler function for below.
-// Move to Atom Info ?
 {
   // If there's a 'Noble-Gas' term, replace it with full config
   // Otherwise, 'first-term' remains unchanges
@@ -189,6 +188,58 @@ std::vector<NonRelSEConfig> core_parser(const std::string &str_core_in)
     } else {
       *ia += new_config;
     }
+  }
+  while (!core_configs.empty() && core_configs.back().num == 0)
+    core_configs.pop_back();
+
+  return core_configs;
+}
+
+//------------------------------------------------------------------------------
+std::string guessCoreConfigStr(const int total_core_electrons) {
+
+  auto core_configs = core_guess(total_core_electrons);
+
+  std::vector<int> nobel_gas_list = {118, 86, 54, 36, 18, 10, 2, 0};
+  std::vector<std::string> ng_symb_list = {"[Og]", "[Rn]", "[Xe]", "[Kr]",
+                                           "[Ar]", "[Ne]", "[He]", "[]"};
+
+  switch (total_core_electrons) {
+    // A few over-writes for common 'different' ones
+    // Lanthenides/Actinides still possibly incorrect
+  case 29: // Cu
+    return "[Ar],3d10,4s1";
+  case 47: // Ag
+    return "[Kr],4d10,5s1";
+  case 79: // Au
+    return "[Xe],4f14,5d10,6s1";
+  }
+
+  std::string output_config = "";
+  auto index = 0u;
+  for (auto n_ng : nobel_gas_list) {
+    std::string ng = ng_symb_list[index++];
+    if (n_ng > total_core_electrons)
+      continue;
+    auto ng_config = core_guess(n_ng);
+    output_config += ng;
+    for (auto i = ng_config.size(); i < core_configs.size(); ++i) {
+      output_config += "," + core_configs[i].symbol();
+    }
+    break;
+  }
+  return output_config;
+}
+
+//------------------------------------------------------------------------------
+std::vector<NonRelSEConfig> core_guess(const int total_core_electrons) {
+  auto core_configs = AtomInfo::core_parser(AtomInfo::filling_order);
+  auto nel = total_core_electrons;
+  for (auto &c : core_configs) {
+    if (c.num > nel) {
+      c.num = nel;
+    }
+    nel -= c.num;
   }
   while (!core_configs.empty() && core_configs.back().num == 0)
     core_configs.pop_back();

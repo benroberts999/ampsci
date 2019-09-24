@@ -1,11 +1,10 @@
 #include "Module_matrixElements.hpp"
 #include "Dirac/DiracOperator.hpp"
-#include "HF/HartreeFockClass.hpp"
 #include "Dirac/Operators.hpp"
+#include "Dirac/Wavefunction.hpp"
+#include "IO/UserInput.hpp"
 #include "Physics/Nuclear.hpp"
 #include "Physics/PhysConst_constants.hpp"
-#include "IO/UserInput.hpp"
-#include "Dirac/Wavefunction.hpp"
 #include <fstream>
 #include <iostream>
 #include <memory>
@@ -18,14 +17,16 @@ void matrixElements(const UserInputBlock &input, const Wavefunction &wf) {
   std::string ThisModule = "MatrixElements::";
   auto operator_str = input.name().substr(ThisModule.length());
 
+  const bool radial_int = input.get("radialIntegral", false);
+  auto which_str = radial_int ? "(radial integral). " : "(reduced). ";
   std::cout << "\n"
-            << ThisModule << " (reduced) Operator: " << operator_str << "\n";
-  auto h = generateOperator(operator_str, input, wf);
+            << ThisModule << which_str << " Operator: " << operator_str << "\n";
+  const auto h = generateOperator(operator_str, input, wf);
 
-  bool print_both = input.get("printBoth", false);
-  bool diagonal_only = input.get("onlyDiagonal", false);
+  const bool print_both = input.get("printBoth", false);
+  const bool diagonal_only = input.get("onlyDiagonal", false);
 
-  auto units = input.get<std::string>("units", "au");
+  const auto units = input.get<std::string>("units", "au");
   double un = 1.0;
   if (units == "MHz")
     un = PhysConst::Hartree_MHz;
@@ -38,9 +39,11 @@ void matrixElements(const UserInputBlock &input, const Wavefunction &wf) {
         continue;
       if (!print_both && phib < phia)
         continue;
-      // auto me = h->reducedME(phia, phib);
       std::cout << h->rme_symbol(phia, phib) << ": ";
-      printf("%12.5e\n", h->reducedME(phia, phib) * un);
+      if (radial_int)
+        printf("%12.5e\n", h->radialIntegral(phia, phib) * un);
+      else
+        printf("%12.5e\n", h->reducedME(phia, phib));
     }
   }
 } // namespace Module
@@ -72,7 +75,6 @@ std::unique_ptr<DiracOperator> generateOperator(const std::string &operator_str,
               << "fm = " << r_nucau << "au  (r_rms=" << r_rmsfm << "fm)\n";
     std::cout << "Points inside nucleus: " << wf.getRadialIndex(r_nucau)
               << "\n";
-    // std::cout << "Units: MHz\n";
 
     auto Fr = HyperfineOperator::sphericalBall_F();
     if (Fr_str == "shell")
@@ -94,8 +96,8 @@ std::unique_ptr<DiracOperator> generateOperator(const std::string &operator_str,
         std::cout << " neturon ";
       else
         std::cout << " gl=" << gl << "??? program will run, but prob wrong!\n";
-      std::cout << "with l=" << l << "\n";
-      Fr = HyperfineOperator::generate_F_BW(mu, I_nuc, l, gl);
+      std::cout << "with l=" << l << " (pi=" << pi << ")\n";
+      Fr = HyperfineOperator::volotkaBW_F(mu, I_nuc, l, gl);
     } else if (Fr_str == "doublyOddBW") {
 
       auto mu1 = input.get<double>("mu1");
@@ -110,8 +112,8 @@ std::unique_ptr<DiracOperator> generateOperator(const std::string &operator_str,
       auto I1 = input.get<double>("I1");
       auto I2 = input.get<double>("I2");
 
-      Fr = HyperfineOperator::generate_F_BW_doublyOdd(mu, I_nuc, mu1, I1, l1,
-                                                      gl1, I2, l2);
+      Fr =
+          HyperfineOperator::doublyOddBW_F(mu, I_nuc, mu1, I1, l1, gl1, I2, l2);
     } else if (Fr_str != "ball") {
       std::cout << "FAIL: in " << ThisModule << " " << Fr_str
                 << " invalid nuclear distro. Check spelling\n";
@@ -127,7 +129,6 @@ std::unique_ptr<DiracOperator> generateOperator(const std::string &operator_str,
       }
     }
 
-    // auto unit = PhysConst::Hartree_MHz;
     return std::make_unique<HyperfineOperator>(
         HyperfineOperator(mu, I_nuc, r_nucau, wf.rgrid, Fr));
   } else if (operator_str == "E1") {
@@ -151,6 +152,8 @@ std::unique_ptr<DiracOperator> generateOperator(const std::string &operator_str,
     std::cout << "PNC [-i(Q/N)e-11]\n";
     return std::make_unique<PNCnsiOperator>(
         PNCnsiOperator(c, t, wf.rgrid, -wf.Nnuc()));
+  } else if (operator_str == "M1") {
+    return std::make_unique<M1Operator>(M1Operator());
   }
 
   std::cerr << "\nFAILED to find operator: " << ThisModule

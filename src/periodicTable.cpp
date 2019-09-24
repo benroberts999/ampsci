@@ -4,7 +4,8 @@
 
 void instructions() {
   std::cout << "Input is Z A; Z may be int or string. e.g.: \n "
-               "$./nuclearData Cs 133\n"
+               "$./periodicTable Cs 133\n"
+               "A is optional;\n"
                "Leave A blank (or put 0) to get dafault A value.\n"
                "Put 'all' to list all available A values.\n"
                "Note: numbers come from online database, and have some errors, "
@@ -56,9 +57,11 @@ int main(int num_in, char *argv[]) {
 
   std::string z_str = argv[1];
   const auto z = AtomInfo::get_z(z_str);
+  z_str = AtomInfo::atomicSymbol(z);
   std::string a_str = (num_in > 2) ? argv[2] : "0";
 
   std::vector<Nuclear::Isotope> isotopes;
+  int a_default = parse_A("0", z);
   if (a_str == "all" || a_str == "list") {
     isotopes = Nuclear::findIsotopeList(z);
   } else {
@@ -66,6 +69,13 @@ int main(int num_in, char *argv[]) {
     isotopes.push_back(Nuclear::findIsotopeData(z, a));
   }
 
+  std::cout << "\n"
+            << z_str << ".   Z = " << z << ";  A = " << a_default
+            << " (default)\n\n";
+  std::cout << "Electron config: " << AtomInfo::guessCoreConfigStr(z)
+            << "   (guess)\n";
+
+  std::cout << "\nIsotpe data:";
   for (const auto &nuc : isotopes) {
     std::cout << "\n";
     printData(nuc);

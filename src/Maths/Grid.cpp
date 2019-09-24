@@ -7,6 +7,21 @@
 #include <vector>
 
 //******************************************************************************
+GridParameters::GridParameters(std::size_t inngp, double inr0, double inrmax,
+                               double inb, GridType intype)
+    : ngp(inngp), r0(inr0), rmax(inrmax), b(inb), type(intype) {}
+//------------------------------------------------------------------------------
+GridType GridParameters::parseType(const std::string &str_type) {
+  if (str_type == "loglinear")
+    return GridType::loglinear;
+  if (str_type == "logarithmic")
+    return GridType::logarithmic;
+  if (str_type == "linear")
+    return GridType::linear;
+  return GridType::loglinear;
+}
+
+//******************************************************************************
 Grid::Grid(const GridParameters &in)
     : Grid(in.r0, in.rmax, in.ngp, in.type, in.b) {}
 //------------------------------------------------------------------------------
@@ -112,6 +127,16 @@ std::string Grid::gridParameters() const {
   }
   out << "grid: " << r0 << "->" << rmax << ", N=" << ngp << ", du=" << du;
   return out.str();
+}
+
+//******************************************************************************
+std::vector<double> Grid::inverse_r() const {
+  std::vector<double> invr;
+  invr.reserve(ngp);
+  for (const auto ir : r) {
+    invr.push_back(1.0 / ir);
+  }
+  return invr;
 }
 
 //******************************************************************************

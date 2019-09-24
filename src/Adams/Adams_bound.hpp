@@ -6,11 +6,6 @@ class Grid;
 
 namespace Adams {
 
-const int AMO = 5;
-static_assert(
-    AMO >= 5 && AMO <= 8,
-    "\nFAIL 8 in Adams (.h): parameter AMO must be between 5 and 8\n");
-
 void solveDBS(DiracSpinor &psi, const std::vector<double> &v, const Grid &rgrid,
               const double alpha, int log_dele = 0);
 
@@ -35,7 +30,7 @@ void trialDiracSolution(std::vector<double> &f, std::vector<double> &g,
 int countNodes(const std::vector<double> &f, const int maxi);
 
 void largeEnergyChange(double &en, int &count_toomany, int &count_toofew,
-                       double &high_en, double &low_en, double lfrac_de,
+                       double &high_en, double &low_en, double frac_de,
                        bool toomany_nodes);
 
 double calcNorm(const std::vector<double> &f, const std::vector<double> &g,

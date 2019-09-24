@@ -295,8 +295,8 @@ additivePIntegral(std::vector<Real> &answer, const std::vector<Real> &f,
 {
   const auto size = g.size();
   if (pinf == 0 || pinf >= size)
-    pinf = size - 1;
-  const auto max = static_cast<int>(pinf); // must be signed
+    pinf = size;
+  const auto max = static_cast<int>(pinf - 1); // must be signed
 
   constexpr const bool forward = (direction == zero_to_r);
   constexpr const int inc = forward ? +1 : -1;

@@ -4,6 +4,7 @@
 
 // Fix the "extendedGrid to extend using a specific grid-type?"
 
+//******************************************************************************
 enum class GridType { loglinear, logarithmic, linear };
 
 struct GridParameters {
@@ -11,18 +12,8 @@ struct GridParameters {
   double r0, rmax, b;
   GridType type;
   GridParameters(std::size_t inngp, double inr0, double inrmax,
-                 double inb = 4.0, GridType intype = GridType::loglinear)
-      : ngp(inngp), r0(inr0), rmax(inrmax), b(inb), type(intype) //
-  {}
-  static inline GridType parseType(const std::string &str_type) {
-    if (str_type == "loglinear")
-      return GridType::loglinear;
-    if (str_type == "logarithmic")
-      return GridType::logarithmic;
-    if (str_type == "linear")
-      return GridType::linear;
-    return GridType::loglinear;
-  }
+                 double inb = 4.0, GridType intype = GridType::loglinear);
+  static GridType parseType(const std::string &str_type);
 };
 
 //******************************************************************************
@@ -59,14 +50,7 @@ public:
                                       double in_du, GridType in_gridtype,
                                       double in_b = 0);
 
-  std::vector<double> inverse_r() const {
-    std::vector<double> invr;
-    invr.reserve(ngp);
-    for (const auto ir : r) {
-      invr.push_back(1.0 / ir);
-    }
-    return invr;
-  }
+  std::vector<double> inverse_r() const;
 
 protected:
   // secondary constructor: used for derivated class

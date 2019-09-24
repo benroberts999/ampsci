@@ -1,6 +1,7 @@
 #include "HF/CoulombIntegrals.hpp"
 #include "Dirac/DiracSpinor.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
+#include "Physics/AtomInfo.hpp"
 #include <algorithm>
 #include <vector>
 

@@ -1,7 +1,7 @@
 #pragma once
 #include "Dirac/DiracSpinor.hpp"
-#include "Maths/Grid.hpp"
 #include "HF/HartreeFockClass.hpp" // forward decl..
+#include "Maths/Grid.hpp"
 #include "Physics/Nuclear.hpp"
 #include <memory>
 #include <string>
@@ -112,5 +112,5 @@ public:
   double enGuessVal(int n, int ka) const;
 
 private:
-  void determineCore(const std::string &str_core_in);
+  void determineCore(std::string str_core_in);
 };

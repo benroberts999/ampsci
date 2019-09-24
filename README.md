@@ -48,11 +48,12 @@ Then, the compilation + use can proceed as per above.
 
 ## Other programs:
 
-### nuclearData
+### periodicTable
 
- * looks up nuclear data from table and writes to screen. Takes input in one line from command line.
+ * Gives info regarding particular element, including Z, default A, and electron configuration. Takes input in one line from command line.
+ * Also looks up nuclear data from table and writes to screen.
  * Input is Z A; Z may be int or string. e.g.:
-   * _$./nuclearData Cs 133_
+   * _$./periodicTable Cs 133_
  * Leave A blank (or put 0) to get default A value.
  * Put 'all' to list all available A values.
  * Note: numbers come from online database, and have some errors, so should be checked if needed.
