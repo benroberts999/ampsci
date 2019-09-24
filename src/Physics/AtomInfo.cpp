@@ -204,6 +204,17 @@ std::string guessCoreConfigStr(const int total_core_electrons) {
   std::vector<std::string> ng_symb_list = {"[Og]", "[Rn]", "[Xe]", "[Kr]",
                                            "[Ar]", "[Ne]", "[He]", "[]"};
 
+  switch (total_core_electrons) {
+    // A few over-writes for common 'different' ones
+    // Lanthenides/Actinides still possibly incorrect
+  case 29: // Cu
+    return "[Ar],3d10,4s1";
+  case 47: // Ag
+    return "[Kr],4d10,5s1";
+  case 79: // Au
+    return "[Xe],4f14,5d10,6s1";
+  }
+
   std::string output_config = "";
   auto index = 0u;
   for (auto n_ng : nobel_gas_list) {
