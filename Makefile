@@ -64,11 +64,11 @@ LINK=$(CXX) -o $@ $^ $(CXXFLAGS) $(LIBS)
 ################################################################################
 #Allow exectuables to be placed in another directory:
 ALLEXES = $(addprefix $(XD)/, \
- fitParametric hartreeFock wigner dmeXSection nuclearData \
+ fitParametric hartreeFock wigner dmeXSection periodicTable \
 )
 
 DEFAULTEXES = $(addprefix $(XD)/, \
- hartreeFock wigner nuclearData dmeXSection \
+ hartreeFock wigner periodicTable dmeXSection \
 )
 
 #Default make rule:
@@ -144,7 +144,7 @@ $(ID)/Modules/Module_matrixElements.hpp $(ID)/Physics/PhysConst_constants.hpp \
 $(ID)/Physics/Nuclear.hpp $(ID)/Dirac/Operators.hpp
 	$(COMP)
 
-$(OD)/nuclearData.o: $(ID)/nuclearData.cpp $(ID)/Physics/Nuclear.hpp \
+$(OD)/periodicTable.o: $(ID)/periodicTable.cpp $(ID)/Physics/Nuclear.hpp \
 $(ID)/Physics/Nuclear_DataTable.hpp
 	$(COMP)
 
@@ -203,7 +203,7 @@ $(OD)/AKF_akFunctions.o $(OD)/StandardHaloModel.o
 $(XD)/wigner: $(OD)/wigner.o
 	$(LINK)
 
-$(XD)/nuclearData: $(OD)/nuclearData.o $(OD)/AtomInfo.o
+$(XD)/periodicTable: $(OD)/periodicTable.o $(OD)/AtomInfo.o
 	$(LINK)
 
 ################################################################################
