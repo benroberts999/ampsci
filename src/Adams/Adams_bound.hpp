@@ -67,6 +67,44 @@ void joinInOutSolutions(std::vector<double> &f, std::vector<double> &g,
                         const int d_ctp, const int pinf);
 
 //******************************************************************************
+class DiracMatrix {
+  // Notation:
+  // df = af - bg
+  // df = -cf + dg
+  // XXX Needs fair amount of clean-up
+  // XXX Could use this to pass around v, alpha, etc.
+public:
+  DiracMatrix(const std::vector<double> &in_r, const std::vector<double> &in_dr,
+              const std::vector<double> &in_v, const int in_k,
+              const double in_en,
+              const double in_alpha)
+      : r(&in_r),   //
+        dr(&in_dr), //
+        v(&in_v),   //                                 //
+        k(in_k), en(in_en), alpha(in_alpha), c2(1.0 / in_alpha / in_alpha) //
+  {}
+
+  void update_en(double new_en) { en = new_en; }
+
+  // update a and d for off-diag additional potential (magnetic form-fac, QED)
+  double a(std::size_t i) const { return (double(-k)) * (*dr)[i] / (*r)[i]; }
+  double b(std::size_t i) const {
+    return -alpha * (en + 2.0 * c2 - (*v)[i]) * (*dr)[i];
+  }
+  double c(std::size_t i) const { return alpha * (en - (*v)[i]) * (*dr)[i]; }
+  double d(std::size_t i) const { return double(k) * (*dr)[i] / (*r)[i]; }
+
+private:
+  const std::vector<double> *const r;
+  const std::vector<double> *const dr;
+  const std::vector<double> *const v;
+  const int k;
+  double en;
+  const double alpha;
+  const double c2;
+};
+
+//******************************************************************************
 template <int N> struct AdamsCoefs {};
 //------------------------------------------------------------------------------
 template <> struct AdamsCoefs<8> {

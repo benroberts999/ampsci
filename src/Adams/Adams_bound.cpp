@@ -414,8 +414,6 @@ void outwardAM(std::vector<double> &f, std::vector<double> &g, const double en,
 // Then, it then call ADAMS-MOULTON, to finish
 // (from num_loops*AMO+1 to nf = ctp+d_ctp)
 {
-  const double c2 = 1. / (alpha * alpha);
-
   const double az0 = -1 * v[0] * r[0] * alpha;
   const auto ka2 = (double)(ka * ka);
   const double ga0 = std::sqrt(ka2 - az0 * az0);
@@ -427,6 +425,8 @@ void outwardAM(std::vector<double> &f, std::vector<double> &g, const double en,
   auto v0 = (ka > 0) ? -(ga0 + ka) / az0 : az0 / (ga0 - ka);
   f[0] = std::pow(r[0], ga0) * u0;
   g[0] = -std::pow(r[0], ga0) * v0;
+
+  DiracMatrix Hd(r, drdu, v, ka, en, alpha);
 
   // loop through and find first Param::num_loops*AMO points of wf
   for (int ln = 0; ln < Param::num_loops; ln++) {
@@ -441,10 +441,10 @@ void outwardAM(std::vector<double> &f, std::vector<double> &g, const double en,
       const auto az = -v[i + i0] * r[i + i0] * alpha;
       ga[i] = std::sqrt(ka * ka - az * az);
       const auto dror = drdu[i + i0] / r[i + i0];
-      coefa[i] = (-oid_du * (ga[i] + ka) * dror);
-      coefb[i] = (-oid_du * (en + 2 * c2 - v[i + i0]) * drdu[i + i0] * alpha);
-      coefc[i] = (oid_du * (en - v[i + i0]) * drdu[i + i0] * alpha);
-      coefd[i] = (-oid_du * (ga[i] - ka) * dror);
+      coefa[i] = oid_du * (Hd.a(i + i0) - ga[i] * dror);
+      coefb[i] = oid_du * Hd.b(i + i0);
+      coefc[i] = oid_du * Hd.c(i + i0);
+      coefd[i] = oid_du * (Hd.d(i + i0) - ga[i] * dror);
       for (int j = 0; j < Param::AMO; j++) {
         em[i][j] = Param::AMcoef.OIe[i][j];
       }
@@ -514,9 +514,10 @@ void inwardAM(std::vector<double> &f, std::vector<double> &g, const double en,
               const std::vector<double> &r, const std::vector<double> &drdu,
               const double du, const int nf, const int pinf, const double alpha)
 // Program to start the INWARD integration.
-// Starts from Pinf, and uses an expansion(?) to go to (pinf-AMO)
-// Then, it then call ADAMS-MOULTON, to finish
-// (from num_loops*AMO+1 to nf = ctp-d_ctp)
+// Starts from Pinf, and uses an expansion [WKB approx] to go to (pinf-AMO)
+// i.e., gets last AMO points
+// Then, it then call ADAMS-MOULTON, to finish (from num_loops*AMO+1
+//   to nf = ctp-d_ctp)
 {
 
   const auto alpha2 = alpha * alpha;
@@ -585,7 +586,6 @@ void adamsMoulton(std::vector<double> &f, std::vector<double> &g,
 //   * nf is end (final) point for integration (nf=ctp+/-d_ctp)
 {
 
-  const double c2 = 1. / (alpha * alpha);     // c^2 - just to shorten code
   const auto nosteps = std::abs(nf - ni) + 1; // number of integration steps
   const auto inc = (nf > ni) ? 1 : -1;        //'increment' for integration
   if (nf == ni) {
@@ -593,16 +593,16 @@ void adamsMoulton(std::vector<double> &f, std::vector<double> &g,
     return;
   }
 
+  DiracMatrix Hd(r, drdu, v, ka, en, alpha);
+
   // create arrays for wf derivatives
   const auto ngp = r.size();
   std::vector<double> df(ngp), dg(ngp);
   std::array<double, Param::AMO> am_coef;
   int k1 = ni - inc * Param::AMO; // nb: k1 is iterated
   for (auto i = 0; i < Param::AMO; i++) {
-    const double dror = drdu[k1] / r[k1];
-    df[i] = inc * ((-ka * dror * f[k1]) +
-                   (alpha * ((en + 2 * c2) - v[k1]) * drdu[k1] * g[k1]));
-    dg[i] = inc * (ka * dror * g[k1] - alpha * (en - v[k1]) * drdu[k1] * f[k1]);
+    df[i] = inc * (Hd.a(k1) * f[k1] - Hd.b(k1) * g[k1]);
+    dg[i] = inc * (Hd.d(k1) * g[k1] - Hd.c(k1) * f[k1]);
     am_coef[i] = du * Param::AMcoef.AMd * Param::AMcoef.AMa[i];
     k1 += inc;
   }
@@ -611,11 +611,10 @@ void adamsMoulton(std::vector<double> &f, std::vector<double> &g,
   const double a0 = du * Param::AMcoef.AMd * Param::AMcoef.AMaa;
   int k2 = ni;
   for (int i = 0; i < nosteps; i++) {
-    const double dror = drdu[k2] / r[k2];
-    const double dai = -inc * (ka * dror);
-    const double dbi = -inc * alpha * (en + 2 * c2 - v[k2]) * drdu[k2];
-    const double dci = inc * alpha * (en - v[k2]) * drdu[k2];
-    const double ddi = -dai;
+    const double dai = inc * Hd.a(k2);
+    const double dbi = inc * Hd.b(k2);
+    const double dci = inc * Hd.c(k2);
+    const double ddi = inc * Hd.d(k2);
     const double det_inv = 1. / (1. - a0 * a0 * (dbi * dci - dai * ddi));
     double sp = f[k2 - inc];
     double sq = -g[k2 - inc];
