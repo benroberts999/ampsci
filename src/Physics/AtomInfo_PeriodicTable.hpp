@@ -4,8 +4,6 @@
 #include <utility>
 #include <vector>
 
-// DATA
-
 namespace AtomInfo {
 
 static const std::string spectroscopic_notation = "spdfghiklmnoqrtuvwxyzabc";
@@ -82,42 +80,5 @@ static const std::array<std::pair<std::string, std::string>, 13> nobelGasses = {
     std::make_pair("[Cn]", "1s2,2s2,2p6,3s2,3p6,3d10,4s2,4p6,4d10,5s2,5p6,"
                            "4f14,5d10,6s2,6p6,5f14,6d10,7s2"),
     std::make_pair("[]", "1s0")};
-
-void printTable() {
-
-  auto spaces = [](int n) {
-    for (int i = 0; i < n; ++i)
-      std::cout << "    ";
-    return n;
-  };
-
-  int row = 1;
-  int col = 1;
-  for (const auto &el : periodic_table) {
-
-    // printf("%2i ", col);
-    if (row == 1 && col == 2) {
-      col += spaces(17);
-    } else if (row < 4 && col == 3) {
-      col += spaces(10);
-    } else if (row > 5) {
-      if (col == 3) {
-        std::cout << " * ";
-        col++;
-        continue;
-      } else if ((el.Z > 57 && el.Z < 72) || (el.Z > 89 && el.Z < 104)) {
-        continue;
-      }
-    }
-    printf("%3s ", el.symbol.c_str());
-    ++col;
-
-    if (col > 18) {
-      ++row;
-      col = 0;
-      std::cout << "\n---\n";
-    }
-  }
-}
 
 } // namespace AtomInfo

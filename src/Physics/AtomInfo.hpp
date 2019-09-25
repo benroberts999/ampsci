@@ -64,6 +64,8 @@ std::vector<NonRelSEConfig> core_guess(const int total_core_electrons);
 
 std::vector<DiracSEnken> listOfStates_nk(const std::string &in_list);
 
+void printTable();
+
 //******************************************************************************
 constexpr int l_k(int ka) { return (ka > 0) ? ka : -ka - 1; }
 constexpr int twoj_k(int ka) { return (ka > 0) ? 2 * ka - 1 : -2 * ka - 1; }

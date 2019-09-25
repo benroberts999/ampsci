@@ -60,7 +60,7 @@ int get_z(const std::string &at) {
   }
   if (z <= 0) {
     std::cerr << "Invalid atom/Z: " << at << "\n";
-    std::abort();
+    z = 0;
   }
   return z;
 }
@@ -285,6 +285,90 @@ std::vector<DiracSEnken> listOfStates_nk(const std::string &in_list) {
     }
   }
   return state_list;
+}
+
+//******************************************************************************
+static inline std::string helper_s(const Element &el) {
+  auto sym = el.symbol;
+  auto sym_buff = (sym.length() == 1) ? std::string("  ") : std::string(" ");
+  return sym_buff + sym + " ";
+}
+static inline std::string helper_z(const Element &el) {
+  auto z_str = std::to_string(el.Z);
+  auto Z_buff = (el.Z < 10) ? std::string("  ")
+                            : (el.Z < 100) ? std::string(" ") : std::string("");
+  return Z_buff + z_str + " ";
+}
+
+//******************************************************************************
+void printTable() {
+
+  std::string output = "";
+  std::string output_s = "";
+  std::string output_z = "";
+
+  std::string output_s_l = "";
+  std::string output_z_l = "";
+  std::string output_s_a = "";
+  std::string output_z_a = "";
+
+  auto spaces2 = [](int n) {
+    std::string buff = "";
+    for (int i = 0; i < n; ++i)
+      buff += "    ";
+    return buff;
+  };
+
+  int row = 1;
+  int col = 1;
+  for (const auto &el : periodic_table) {
+    if (el.Z > 118)
+      break;
+
+    // printf("%2i ", col);
+    if (row == 1 && col == 2) {
+      col += 16; // spaces(16);
+      output_s += spaces2(16);
+      output_z += spaces2(16);
+    } else if (row < 4 && col == 3) {
+      col += 10; // spaces(10);
+      output_s += spaces2(10);
+      output_z += spaces2(10);
+    } else if (row > 5) {
+      if (col == 2) {
+        output_s += " *  ";
+        output_z += "    ";
+        col++;
+        // continue;
+      }
+      if (el.Z >= 57 && el.Z < 72) {
+        output_s_l += helper_s(el);
+        output_z_l += helper_z(el);
+        continue;
+      } else if (el.Z >= 89 && el.Z < 104) {
+        output_s_a += helper_s(el);
+        output_z_a += helper_z(el);
+        continue;
+      }
+    }
+
+    output_s += helper_s(el);
+    output_z += helper_z(el);
+    ++col;
+
+    if (col > 17 || el.Z == 118) {
+      ++row;
+      col = 0;
+      output += output_s + "\n" + output_z + "\n"; // extra space?
+      output_s.clear();
+      output_z.clear();
+    }
+  }
+  std::cout << "\n" << output << "\n";
+  std::cout << "      * " << output_s_l << "\n";
+  std::cout << "        " << output_z_l << "\n";
+  std::cout << "      * " << output_s_a << "\n";
+  std::cout << "        " << output_z_a << "\n\n";
 }
 
 } // namespace AtomInfo

@@ -85,7 +85,8 @@ $(OD)/Adams_continuum.o: $(ID)/Adams/Adams_continuum.cpp \
 $(ID)/Adams/Adams_continuum.hpp
 	$(COMP)
 
-$(OD)/AtomInfo.o: $(ID)/Physics/AtomInfo.cpp $(ID)/Physics/AtomInfo.hpp
+$(OD)/AtomInfo.o: $(ID)/Physics/AtomInfo.cpp $(ID)/Physics/AtomInfo.hpp \
+$(ID)/Physics/AtomInfo_PeriodicTable.hpp
 	$(COMP)
 
 $(OD)/AKF_akFunctions.o: $(ID)/DMionisation/AKF_akFunctions.cpp \
@@ -145,7 +146,8 @@ $(ID)/Physics/Nuclear.hpp $(ID)/Dirac/Operators.hpp
 	$(COMP)
 
 $(OD)/periodicTable.o: $(ID)/periodicTable.cpp $(ID)/Physics/Nuclear.hpp \
-$(ID)/Physics/Nuclear_DataTable.hpp
+$(ID)/Physics/Nuclear_DataTable.hpp $(ID)/Physics/AtomInfo.hpp \
+$(ID)/Physics/AtomInfo_PeriodicTable.hpp
 	$(COMP)
 
 $(OD)/Parametric_potentials.o: $(ID)/Physics/Parametric_potentials.cpp \

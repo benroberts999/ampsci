@@ -3,13 +3,13 @@
 #include <iostream>
 
 void instructions() {
-  std::cout << "Input is Z A; Z may be int or string. e.g.: \n "
-               "$./periodicTable Cs 133\n"
-               "A is optional;\n"
-               "Leave A blank (or put 0) to get dafault A value.\n"
-               "Put 'all' to list all available A values.\n"
-               "Note: numbers come from online database, and have some errors, "
-               "so should be checked if needed.\n";
+  std::cout
+      << "Usage:\n"
+         "$./periodicTable            Prints periodic table\n"
+         "$./periodicTable Cs         Info for Cs with default A\n"
+         "$./periodicTable Cs 137     Info for Cs-137\n"
+         "$./periodicTable Cs all     Info for all available Cs isotopes\n"
+         "(Note: numbers come from online database, and should be checked)\n";
 }
 
 void printData(const Nuclear::Isotope &nuc) {
@@ -52,11 +52,16 @@ int main(int num_in, char *argv[]) {
 
   if (num_in <= 1) {
     instructions();
+    AtomInfo::printTable();
     return 1;
   }
 
   std::string z_str = argv[1];
   const auto z = AtomInfo::get_z(z_str);
+  if (z == 0) {
+    instructions();
+    return 1;
+  }
   z_str = AtomInfo::atomicSymbol(z);
   std::string a_str = (num_in > 2) ? argv[2] : "0";
 
