@@ -81,6 +81,8 @@ int main(int num_in, char *argv[]) {
             << "   (guess)\n";
 
   std::cout << "\nIsotpe data:";
+  if (isotopes.size() == 0)
+    std::cout << " none known\n";
   for (const auto &nuc : isotopes) {
     std::cout << "\n";
     printData(nuc);
