@@ -201,8 +201,8 @@ void diracODE_regularAtOrigin(DiracSpinor &phi, const double en,
   if (en != 0)
     phi.en = en;
   const auto pinf = findPracticalInfinity(phi.en, v, gr->r, Param::cALR);
-  outwardAM(phi.f, phi.g, phi.en, v, phi.k, gr->r, gr->drdu, gr->du, pinf - 1,
-            alpha);
+  DiracMatrix Hd(*gr, v, phi.k, phi.en, alpha);
+  outwardAM(phi.f, phi.g, Hd, pinf - 1);
   // for safety: make sure zerod! (I may re-use existing orbitals!)
   for (std::size_t i = pinf; i < gr->ngp; i++) {
     phi.f[i] = 0;
@@ -218,8 +218,8 @@ void diracODE_regularAtInfinity(DiracSpinor &phi, const double en,
   if (en < 0)
     phi.en = en;
   const auto pinf = findPracticalInfinity(phi.en, v, gr->r, Param::cALR);
-  inwardAM(phi.f, phi.g, phi.en, v, phi.k, gr->r, gr->drdu, gr->du, 0, pinf - 1,
-           alpha);
+  DiracMatrix Hd(*gr, v, phi.k, phi.en, alpha);
+  inwardAM(phi.f, phi.g, Hd, 0, pinf - 1);
   for (std::size_t i = pinf; i < gr->ngp; i++) {
     phi.f[i] = 0;
     phi.g[i] = 0;
@@ -357,10 +357,10 @@ void trialDiracSolution(std::vector<double> &f, std::vector<double> &g,
 // Then, joins solutions, including weighted meshing around ctp +/ d_ctp
 // Also: stores dg [the difference: (gout-gin)], which is used for PT
 {
-  outwardAM(f, g, en, v, ka, gr.r, gr.drdu, gr.du, ctp + d_ctp, alpha);
+  DiracMatrix Hd(gr, v, ka, en, alpha);
+  outwardAM(f, g, Hd, ctp + d_ctp);
   std::vector<double> f_in(gr.ngp), g_in(gr.ngp);
-  inwardAM(f_in, g_in, en, v, ka, gr.r, gr.drdu, gr.du, ctp - d_ctp, pinf - 1,
-           alpha);
+  inwardAM(f_in, g_in, Hd, ctp - d_ctp, pinf - 1);
   joinInOutSolutions(f, g, dg, f_in, g_in, ctp, d_ctp, pinf);
 }
 
@@ -405,15 +405,19 @@ void joinInOutSolutions(std::vector<double> &f, std::vector<double> &g,
 }
 
 //******************************************************************************
-void outwardAM(std::vector<double> &f, std::vector<double> &g, const double en,
-               const std::vector<double> &v, const int ka,
-               const std::vector<double> &r, const std::vector<double> &drdu,
-               const double du, const int nf, const double alpha)
+void outwardAM(std::vector<double> &f, std::vector<double> &g,
+               const DiracMatrix &Hd, const int nf)
 // Program to start the OUTWARD integration.
 // Starts from 0, and uses an expansion(?) to go to (num_loops*AMO).
 // Then, it then call ADAMS-MOULTON, to finish
 // (from num_loops*AMO+1 to nf = ctp+d_ctp)
 {
+  const auto &r = Hd.pgr->r;
+  const auto &drduor = Hd.pgr->drduor;
+  const auto du = Hd.pgr->du;
+  const auto &v = *(Hd.v);
+  const auto alpha = Hd.alpha;
+  const auto ka = Hd.k;
   const double az0 = -1 * v[0] * r[0] * alpha;
   const auto ka2 = (double)(ka * ka);
   const double ga0 = std::sqrt(ka2 - az0 * az0);
@@ -426,7 +430,7 @@ void outwardAM(std::vector<double> &f, std::vector<double> &g, const double en,
   f[0] = std::pow(r[0], ga0) * u0;
   g[0] = -std::pow(r[0], ga0) * v0;
 
-  DiracMatrix Hd(r, drdu, v, ka, en, alpha);
+  // DiracMatrix Hd(r, drdu, v, ka, en, alpha);
 
   // loop through and find first Param::num_loops*AMO points of wf
   for (int ln = 0; ln < Param::num_loops; ln++) {
@@ -440,7 +444,7 @@ void outwardAM(std::vector<double> &f, std::vector<double> &g, const double en,
     for (int i = 0; i < Param::AMO; i++) {
       const auto az = -v[i + i0] * r[i + i0] * alpha;
       ga[i] = std::sqrt(ka * ka - az * az);
-      const auto dror = drdu[i + i0] / r[i + i0];
+      const auto dror = drduor[i + i0];
       coefa[i] = oid_du * (Hd.a(i + i0) - ga[i] * dror);
       coefb[i] = oid_du * Hd.b(i + i0);
       coefc[i] = oid_du * Hd.c(i + i0);
@@ -503,22 +507,27 @@ void outwardAM(std::vector<double> &f, std::vector<double> &g, const double en,
   // Call adamsmoulton to finish integration from (num_loops*AMO) to ctp+d_ctp
   const auto na = Param::num_loops * Param::AMO + 1;
   if (nf > na)
-    adamsMoulton(f, g, en, v, ka, r, drdu, du, na, nf, alpha);
+    adamsMoulton(f, g, Hd, na, nf);
 
   return;
 }
 
 //******************************************************************
-void inwardAM(std::vector<double> &f, std::vector<double> &g, const double en,
-              const std::vector<double> &v, const int ka,
-              const std::vector<double> &r, const std::vector<double> &drdu,
-              const double du, const int nf, const int pinf, const double alpha)
+void inwardAM(std::vector<double> &f, std::vector<double> &g,
+              const DiracMatrix &Hd, const int nf, const int pinf)
 // Program to start the INWARD integration.
 // Starts from Pinf, and uses an expansion [WKB approx] to go to (pinf-AMO)
 // i.e., gets last AMO points
 // Then, it then call ADAMS-MOULTON, to finish (from num_loops*AMO+1
 //   to nf = ctp-d_ctp)
 {
+
+  // short-cuts
+  const auto alpha = Hd.alpha;
+  const auto ka = Hd.k;
+  const auto en = Hd.en;
+  const auto &r = Hd.pgr->r;
+  const auto &v = *(Hd.v);
 
   const auto alpha2 = alpha * alpha;
   const auto cc = 1. / alpha;
@@ -571,16 +580,12 @@ void inwardAM(std::vector<double> &f, std::vector<double> &g, const double en,
   }
 
   if ((pinf - Param::AMO - 1) >= nf)
-    adamsMoulton(f, g, en, v, ka, r, drdu, du, pinf - Param::AMO - 1, nf,
-                 alpha);
+    adamsMoulton(f, g, Hd, pinf - Param::AMO - 1, nf);
 }
 
 //******************************************************************************
 void adamsMoulton(std::vector<double> &f, std::vector<double> &g,
-                  const double en, const std::vector<double> &v, const int ka,
-                  const std::vector<double> &r, const std::vector<double> &drdu,
-                  const double du, const int ni, const int nf,
-                  const double alpha)
+                  const DiracMatrix &Hd, const int ni, const int nf)
 // program finishes the INWARD/OUTWARD integrations (ADAMS-MOULTON)
 //   * ni is starting (initial) point for integration
 //   * nf is end (final) point for integration (nf=ctp+/-d_ctp)
@@ -593,10 +598,9 @@ void adamsMoulton(std::vector<double> &f, std::vector<double> &g,
     return;
   }
 
-  DiracMatrix Hd(r, drdu, v, ka, en, alpha);
-
+  const auto du = Hd.pgr->du;
   // create arrays for wf derivatives
-  const auto ngp = r.size();
+  const auto ngp = Hd.pgr->ngp;
   std::vector<double> df(ngp), dg(ngp);
   std::array<double, Param::AMO> am_coef;
   int k1 = ni - inc * Param::AMO; // nb: k1 is iterated
@@ -636,5 +640,27 @@ void adamsMoulton(std::vector<double> &f, std::vector<double> &g,
   }
 
 } // END adamsmoulton
+
+//******************************************************************************
+//******************************************************************************
+DiracMatrix::DiracMatrix(const Grid &in_grid, const std::vector<double> &in_v,
+                         const int in_k, const double in_en,
+                         const double in_alpha)
+    : pgr(&in_grid), v(&in_v), k(in_k), en(in_en), alpha(in_alpha),
+      c2(1.0 / in_alpha / in_alpha) {}
+
+// update a and d for off-diag additional potential (magnetic form-fac, QED)
+double DiracMatrix::a(std::size_t i) const {
+  return (double(-k)) * pgr->drduor[i];
+}
+double DiracMatrix::b(std::size_t i) const {
+  return -alpha * (en + 2.0 * c2 - (*v)[i]) * pgr->drdu[i];
+}
+double DiracMatrix::c(std::size_t i) const {
+  return alpha * (en - (*v)[i]) * pgr->drdu[i];
+}
+double DiracMatrix::d(std::size_t i) const {
+  return double(k) * pgr->drduor[i];
+}
 
 } // namespace Adams

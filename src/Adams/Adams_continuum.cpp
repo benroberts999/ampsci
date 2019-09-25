@@ -33,13 +33,11 @@ int solveContinuum(DiracSpinor &phi, const std::vector<double> &v,
   auto NGPc = ext_grid.ngp;
 
   // Perform the "outwards integration"
-  // std::vector<double> fc(ext_grid.ngp), gc(ext_grid.ngp);
-
   DiracSpinor psic(phi.n, phi.k, ext_grid);
   psic.en = phi.en;
 
-  outwardAM(psic.f, psic.g, psic.en, v, psic.k, ext_grid.r, ext_grid.drdu,
-            ext_grid.du, (int)NGPc - 1, alpha);
+  DiracMatrix Hd(ext_grid, v, psic.k, psic.en, alpha);
+  outwardAM(psic.f, psic.g, Hd, (int)NGPc - 1);
 
   // Find a better (lower) asymptotic region:
   i_asym = findAsymptoticRegion(psic.f, ext_grid.r, NGPb, NGPc, i_asym);

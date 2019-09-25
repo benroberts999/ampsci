@@ -1,4 +1,5 @@
 #pragma once
+// #include "Maths/Grid.hpp"
 #include <array>
 #include <vector>
 class DiracSpinor;
@@ -6,6 +7,28 @@ class Grid;
 
 namespace Adams {
 
+//******************************************************************************
+class DiracMatrix {
+  // Notation:
+  // df = af - bg
+  // dg = -cf + dg
+public:
+  DiracMatrix(const Grid &in_grid, const std::vector<double> &in_v,
+              const int in_k, const double in_en, const double in_alpha);
+
+  const Grid *const pgr;
+  const std::vector<double> *const v;
+  const int k;
+  const double en, alpha, c2;
+
+  // update a and d for off-diag additional potential (magnetic form-fac, QED)
+  double a(std::size_t i) const;
+  double b(std::size_t i) const;
+  double c(std::size_t i) const;
+  double d(std::size_t i) const;
+};
+
+//******************************************************************************
 void solveDBS(DiracSpinor &psi, const std::vector<double> &v, const Grid &rgrid,
               const double alpha, int log_dele = 0);
 
@@ -43,66 +66,20 @@ double smallEnergyChangePT(const double en, const double anorm,
                            double alpha, int count_toofew, int count_toomany,
                            double low_en, double high_en);
 
-void outwardAM(std::vector<double> &f, std::vector<double> &g, const double en,
-               const std::vector<double> &v, const int ka,
-               const std::vector<double> &r, const std::vector<double> &drdt,
-               const double h, const int ctp, const double alpha);
+void outwardAM(std::vector<double> &f, std::vector<double> &g,
+               const DiracMatrix &Hd, const int final);
 
-void inwardAM(std::vector<double> &f, std::vector<double> &g, const double en,
-              const std::vector<double> &v, const int ka,
-              const std::vector<double> &r, const std::vector<double> &drdt,
-              const double h, const int ctp, const int pinf,
-              const double alpha);
+void inwardAM(std::vector<double> &f, std::vector<double> &g,
+              const DiracMatrix &Hd, const int ctp, const int pinf);
 
 void adamsMoulton(std::vector<double> &f, std::vector<double> &g,
-                  const double en, const std::vector<double> &v, const int ka,
-                  const std::vector<double> &r, const std::vector<double> &drdu,
-                  const double du, const int ni, const int nf,
-                  const double alpha);
+                  const DiracMatrix &Hd, const int ni, const int nf);
 
 void joinInOutSolutions(std::vector<double> &f, std::vector<double> &g,
                         std::vector<double> &dg,
                         const std::vector<double> &f_in,
                         const std::vector<double> &g_in, const int ctp,
                         const int d_ctp, const int pinf);
-
-//******************************************************************************
-class DiracMatrix {
-  // Notation:
-  // df = af - bg
-  // df = -cf + dg
-  // XXX Needs fair amount of clean-up
-  // XXX Could use this to pass around v, alpha, etc.
-public:
-  DiracMatrix(const std::vector<double> &in_r, const std::vector<double> &in_dr,
-              const std::vector<double> &in_v, const int in_k,
-              const double in_en,
-              const double in_alpha)
-      : r(&in_r),   //
-        dr(&in_dr), //
-        v(&in_v),   //                                 //
-        k(in_k), en(in_en), alpha(in_alpha), c2(1.0 / in_alpha / in_alpha) //
-  {}
-
-  void update_en(double new_en) { en = new_en; }
-
-  // update a and d for off-diag additional potential (magnetic form-fac, QED)
-  double a(std::size_t i) const { return (double(-k)) * (*dr)[i] / (*r)[i]; }
-  double b(std::size_t i) const {
-    return -alpha * (en + 2.0 * c2 - (*v)[i]) * (*dr)[i];
-  }
-  double c(std::size_t i) const { return alpha * (en - (*v)[i]) * (*dr)[i]; }
-  double d(std::size_t i) const { return double(k) * (*dr)[i] / (*r)[i]; }
-
-private:
-  const std::vector<double> *const r;
-  const std::vector<double> *const dr;
-  const std::vector<double> *const v;
-  const int k;
-  double en;
-  const double alpha;
-  const double c2;
-};
 
 //******************************************************************************
 template <int N> struct AdamsCoefs {};
