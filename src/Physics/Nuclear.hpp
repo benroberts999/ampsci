@@ -1,5 +1,4 @@
 #pragma once
-// #include "Maths/Grid.hpp"
 #include "AtomInfo.hpp" //:(
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
@@ -12,7 +11,7 @@
 
 namespace Nuclear {
 
-enum class Type { Fermi, spherical, zero };
+enum class Type { Fermi, spherical, point };
 
 inline Type parseType(const std::string &str_type) {
   if (str_type == "Fermi")
@@ -20,11 +19,11 @@ inline Type parseType(const std::string &str_type) {
   if (str_type == "spherical")
     return Type::spherical;
   if (str_type == "zero")
-    return Type::zero;
+    return Type::point;
   if (str_type == "point")
-    return Type::zero;
+    return Type::point;
   if (str_type == "pointlike")
-    return Type::zero;
+    return Type::point;
   return Type::Fermi;
 }
 
@@ -79,36 +78,23 @@ inline double approximate_r_rms(int A)
 // Returns approximate root-mean-square charge radius in fm [1.e-15 m]
 // https://www.sciencedirect.com/science/article/pii/S0092640X12000265
 // https://www-nds.iaea.org/radii/
-// Few light elements (H, He, Li) are hard-coded for common A
-// Also: Cs-133 is hard-coded.
 {
-  double rN;
-  if (A == 1)
-    rN = 0.8791; // 1-H
-  else if (A == 4)
-    rN = 1.6757; // 4-He
-  else if (A == 7)
-    rN = 2.4312; // 7-Li
-  else if (A < 10)
-    rN = 1.15 * std::pow(A, 0.333);
-  else
-    rN = 0.836 * std::pow(A, 0.333) + 0.570;
-
-  return rN;
+  return (A < 10) ? 1.15 * std::pow(A, 0.333)
+                  : 0.836 * std::pow(A, 0.333) + 0.570;
 }
 
 //******************************************************************************
 inline double c_hdr_formula_rrms_t(double rrms, double t = 2.3)
 // Calculates half-density radius, given rms charge radius, and t.
 // Formula from Ginges, Volotka, Fritzsche, Phys. Rev. A 96, 1 (2017).
-// 4 ln(3) = 4.39445, pi^2 = 9.8696
+// 4 ln(3) = 4.394449155, pi^2 = 9.86960440
 {
-  double a = t / 4.39445;
+  const double a = t / 4.394449155;
   if (rrms < t) {
     // this is little dodgy? but formula prob only works large A
     return std::sqrt((5. / 3) * rrms * rrms);
   }
-  return std::sqrt((5. / 3) * rrms * rrms - (7. / 3) * (9.8696 * a * a));
+  return std::sqrt((5. / 3) * rrms * rrms - (7. / 3) * (9.86960440 * a * a));
 }
 
 //******************************************************************************
@@ -117,17 +103,14 @@ inline double rrms_formula_c_t(double c, double t = 2.3)
 // Formula from Ginges, Volotka, Fritzsche, Phys. Rev. A 96, 1 (2017).
 // 4 ln(3) = 4.39445, pi^2 = 9.87
 {
-  double a = t / 4.39445;
-  return std::sqrt(0.2 * (3. * c * c + 7. * a * a * 9.8696));
+  const double a = t / 4.394449155;
+  return std::sqrt(0.2 * (3.0 * c * c + 7.0 * a * a * 9.86960440));
 }
 
-const double default_t = 2.30;
 //******************************************************************************
-inline double approximate_t_skin(int)
 // skin-thickness. Always same?
-{
-  return default_t;
-}
+constexpr double default_t = 2.30;
+inline constexpr double approximate_t_skin(int) { return default_t; }
 
 //******************************************************************************
 inline std::vector<double>
@@ -140,13 +123,12 @@ sphericalNuclearPotential(double Z, double rnuc,
   std::vector<double> vnuc;
   vnuc.reserve(rgrid.size());
 
-  double rN = rnuc / PhysConst::aB_fm;
-
   // Fill the vnuc array with spherical nuclear potantial
-  double rn2 = std::pow(rN, 2);
-  double rn3 = std::pow(rN, 3);
+  const double rN = rnuc / PhysConst::aB_fm; // convert fm -> au
+  const double rn2 = rN * rN;
+  const double rn3 = rn2 * rN;
   for (auto r : rgrid) {
-    double temp_v = (r < rN) ? Z * (r * r - 3. * rn2) / (2. * rn3) : -Z / r;
+    double temp_v = (r < rN) ? Z * (r * r - 3.0 * rn2) / (2.0 * rn3) : -Z / r;
     vnuc.push_back(temp_v);
   }
 
@@ -172,8 +154,7 @@ fermiNuclearPotential(double Z, double t, double c,
 //     note: t = a[4 ln(3)]
 //   * c: half-density raius [rho(c)=0.5 rho0]
 //
-// t and c are input values. In 'fermi' of fm (femto metres)
-// If provided with 0, will use 'default' values, approx. formula.
+// t and c are input values. In 'fermi' of fm (fempto metres)
 //
 // V(r) is expressed in terms of Complete Fermi-Dirac intagrals.
 // These are computed using the GSL libraries.
@@ -182,28 +163,28 @@ fermiNuclearPotential(double Z, double t, double c,
   std::vector<double> vnuc;
   vnuc.reserve(rgrid.size());
 
-  double a = 0.22756 * t; // t = a*[4 ln(3)]
-  double coa = c / a;
+  const double a = 0.2275598067 * t; // t = a*[4 ln(3)]
+  const double coa = c / a;
   // Use GSL for the Complete Fermi-Dirac Integrals:
-  double F2 = gsl_sf_fermi_dirac_2(coa);
-  double pi2 = std::pow(M_PI, 2);
+  const double F2 = gsl_sf_fermi_dirac_2(coa);
+  const double pi2 = M_PI * M_PI;
   for (auto r : rgrid) {
     double t_v = -Z / r;
-    double roa = PhysConst::aB_fm * r / a; // convert fm <-> atomic
-    if (roa < 30. + coa) {
-      // double roa = PhysConst::aB_fm * r / a; // convert fm <-> atomic
-      double coa2 = std::pow(coa, 2);
+    const double roa = PhysConst::aB_fm * r / a; // convert fm <-> atomic
+    const double roc = r / c * PhysConst::aB_fm;
+    if (roc < 10.0) {
+      double coa2 = coa * coa;
       double xF1 = gsl_sf_fermi_dirac_1(roa - coa);
       double xF2 = gsl_sf_fermi_dirac_2(roa - coa);
       double tX = -std::pow(roa, 3) - 2 * coa * (pi2 + coa2) +
                   roa * (pi2 + 3 * coa2) + 6 * roa * xF1 - 12 * xF2;
-      t_v += t_v * tX / (12. * F2);
+      t_v += t_v * tX / (12.0 * F2);
     }
     vnuc.push_back(t_v);
   }
 
   return vnuc;
-} // namespace Nucleus
+}
 
 //******************************************************************************
 inline std::vector<double>
@@ -214,14 +195,15 @@ fermiNuclearDensity_tcN(double t, double c, double Z_norm, const Grid &grid)
   std::vector<double> rho;
   rho.reserve(grid.ngp);
 
-  double a = 0.22756 * t;
-  double coa = c / a;
+  const double a = 0.2275598067 * t;
+  const double coa = c / a;
   for (auto r : grid.r) {
-    double roa = PhysConst::aB_fm * r / a;
-    if (roa < 30. + coa) {
-      rho.emplace_back(1. / (1. + exp(roa - coa)));
+    const double roa = PhysConst::aB_fm * r / a;
+    const double roc = r / c * PhysConst::aB_fm;
+    if (roc < 10.0) {
+      rho.push_back(1.0 / (1.0 + std::exp(roa - coa)));
     } else {
-      rho.push_back(0.);
+      rho.push_back(0.0);
     }
   }
 
@@ -230,13 +212,14 @@ fermiNuclearDensity_tcN(double t, double c, double Z_norm, const Grid &grid)
       M_PI;
   double rho0 = Z_norm / Norm;
 
-  for (auto &rhoi : rho) {
+  for (auto &rhoi : rho)
     rhoi *= rho0;
-  }
 
   return rho;
 }
 
+//******************************************************************************
+// Needs to be in this position.. dumb. Make .cpp?
 struct Parameters {
   int z, a;
   Nuclear::Type type;
@@ -262,9 +245,9 @@ struct Parameters {
 inline std::vector<double> formPotential(Parameters params, int z, int,
                                          const std::vector<double> &r) {
 
-  auto nucleus_type = params.type;
-  auto r_rms = params.r_rms;
-  auto t = params.t;
+  const auto nucleus_type = params.type;
+  const auto r_rms = params.r_rms;
+  const auto t = params.t;
 
   switch (nucleus_type) {
 
@@ -276,11 +259,11 @@ inline std::vector<double> formPotential(Parameters params, int z, int,
     auto r_n = Nuclear::c_hdr_formula_rrms_t(r_rms, 0.0); // right?
     return Nuclear::sphericalNuclearPotential(z, r_n, r);
   }
-  case Nuclear::Type::zero:
+  case Nuclear::Type::point:
     return Nuclear::sphericalNuclearPotential(z, 0.0, r);
 
   default:
-    std::cerr << "\nFAIL WF:755 - invalid nucleus type?\n";
+    std::cerr << "\nFAIL Nuclear:266 - invalid nucleus type?\n";
     std::abort();
   }
 }

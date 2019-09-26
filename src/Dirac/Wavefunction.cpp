@@ -418,8 +418,8 @@ std::string Wavefunction::nuclearParams() const {
   auto t = m_nuc_params.t;
 
   switch (m_nuc_params.type) {
-  case Nuclear::Type::zero:
-    output << "Zero-size nucleus; ";
+  case Nuclear::Type::point:
+    output << "Point-like nucleus; ";
     break;
   case Nuclear::Type::spherical:
     output << "Spherical nucleus; "
