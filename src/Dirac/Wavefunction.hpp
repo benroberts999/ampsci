@@ -2,6 +2,7 @@
 #include "Dirac/DiracSpinor.hpp"
 #include "HF/HartreeFockClass.hpp" // forward decl..
 #include "Maths/Grid.hpp"
+#include "Physics/AtomInfo.hpp" // NonRelSEConfig
 #include "Physics/Nuclear.hpp"
 #include <memory>
 #include <string>
