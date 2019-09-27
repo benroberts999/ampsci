@@ -18,7 +18,9 @@ struct Parameters {
   Nuclear::Type type;
   double t;
   double r_rms;
-  Parameters(int in_z, int in_a, Nuclear::Type in_type = Type::Fermi,
+  // Parameters(int in_z, int in_a, Nuclear::Type in_type = Type::Fermi,
+  //            double in_rrms = -1.0, double in_t = -1.0);
+  Parameters(int in_z, int in_a, std::string str_type = "Fermi",
              double in_rrms = -1.0, double in_t = -1.0);
 };
 

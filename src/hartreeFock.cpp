@@ -21,23 +21,19 @@ int main(int argc, char *argv[]) {
   auto Z = AtomInfo::get_z(atom);
   auto A = input.get("Atom", "A", -1);
   auto varAlpha2 = input.get("Atom", "varAlpha2", 1.0);
-  if (varAlpha2 <= 0)
-    varAlpha2 = 1.0e-25;
-  auto varalpha = std::sqrt(varAlpha2);
+  auto varalpha = (varAlpha2 > 0) ? std::sqrt(varAlpha2) : 1.0e-25;
 
   // Get + setup Grid parameters
   auto r0 = input.get("Grid", "r0", 1.0e-5);
   auto rmax = input.get("Grid", "rmax", 150.0);
   auto ngp = input.get("Grid", "ngp", 1600ul);
   auto b = input.get("Grid", "b", 4.0);
-  auto grid_type = GridParameters::parseType(
-      input.get<std::string>("Grid", "type", "loglinear"));
+  auto grid_type = input.get<std::string>("Grid", "type", "loglinear");
   GridParameters grid_params(ngp, r0, rmax, b, grid_type);
 
   // Get + setup nuclear parameters
   A = input.get("Nucleus", "A", A); // over-writes "atom" A
-  auto nuc_type =
-      Nuclear::parseType(input.get<std::string>("Nucleus", "type", "Fermi"));
+  auto nuc_type = input.get<std::string>("Nucleus", "type", "Fermi");
   auto rrms = input.get("Nucleus", "rrms", -1.0); /*<0 means lookup default*/
   auto skint = input.get("Nucleus", "skin_t", -1.0);
   Nuclear::Parameters nuc_params(Z, A, nuc_type, rrms, skint);

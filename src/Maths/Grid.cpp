@@ -8,6 +8,9 @@
 
 //******************************************************************************
 GridParameters::GridParameters(std::size_t inngp, double inr0, double inrmax,
+                               double inb, std::string str_type)
+    : ngp(inngp), r0(inr0), rmax(inrmax), b(inb), type(parseType(str_type)) {}
+GridParameters::GridParameters(std::size_t inngp, double inr0, double inrmax,
                                double inb, GridType intype)
     : ngp(inngp), r0(inr0), rmax(inrmax), b(inb), type(intype) {}
 //------------------------------------------------------------------------------
@@ -29,7 +32,8 @@ Grid::Grid(double in_r0, double in_rmax, std::size_t in_ngp,
            GridType in_gridtype, double in_b)
     : r0(in_r0), rmax(in_rmax), ngp(in_ngp),
       du(calc_du_from_ngp(in_r0, in_rmax, in_ngp, in_gridtype, in_b)),
-      gridtype(in_gridtype), b(in_b),      //
+      gridtype(in_gridtype),               //
+      b(in_b),                             //
       r(form_r(gridtype, r0, ngp, du, b)), //
       drduor(form_drduor(gridtype, r, b)), //
       drdu(form_drdu(gridtype, r, drduor)) //

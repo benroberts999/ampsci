@@ -13,6 +13,8 @@ struct GridParameters {
   GridType type;
   GridParameters(std::size_t inngp, double inr0, double inrmax,
                  double inb = 4.0, GridType intype = GridType::loglinear);
+  GridParameters(std::size_t inngp, double inr0, double inrmax,
+                 double inb = 4.0, std::string str_type = "loglinear");
   static GridType parseType(const std::string &str_type);
 };
 

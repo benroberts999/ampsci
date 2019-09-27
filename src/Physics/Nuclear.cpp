@@ -27,11 +27,11 @@ Type parseType(const std::string &str_type) {
 }
 
 //******************************************************************************
-Parameters::Parameters(int in_z, int in_a, Type in_type, double in_rrms,
+Parameters::Parameters(int in_z, int in_a, std::string str_type, double in_rrms,
                        double in_t)
     : z(in_z),                                      //
       a((in_a < 0) ? AtomInfo::defaultA(z) : in_a), //
-      type(in_type),                                //
+      type(parseType(str_type)),                    //
       t(in_t <= 0 ? approximate_t_skin(a) : in_t),  //
       r_rms(in_rrms)                                //
 {
@@ -233,7 +233,6 @@ std::vector<double> fermiNuclearDensity_tcN(double t, double c, double Z_norm,
 //******************************************************************************
 std::vector<double> formPotential(Parameters params, int z, int,
                                   const std::vector<double> &r) {
-
   const auto nucleus_type = params.type;
   const auto r_rms = params.r_rms;
   const auto t = params.t;
