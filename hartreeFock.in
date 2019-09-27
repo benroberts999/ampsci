@@ -14,7 +14,7 @@ HartreeFock {
 Nucleus {
   rrms;
   skin_t;
-  type; // Fermi (dflt), spherical, zero
+  type; // Fermi (dflt), spherical, point
 }
 
 Grid {

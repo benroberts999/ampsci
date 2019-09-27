@@ -64,12 +64,13 @@ LINK=$(CXX) -o $@ $^ $(CXXFLAGS) $(LIBS)
 ################################################################################
 #Allow exectuables to be placed in another directory:
 ALLEXES = $(addprefix $(XD)/, \
- fitParametric hartreeFock wigner dmeXSection periodicTable \
+ hartreeFock wigner dmeXSection periodicTable \
 )
 
 DEFAULTEXES = $(addprefix $(XD)/, \
- hartreeFock wigner periodicTable dmeXSection \
+ hartreeFock wigner periodicTable \
 )
+#dmeXSection
 
 #Default make rule:
 all: checkObj checkXdir $(DEFAULTEXES) doneMessage
@@ -145,13 +146,17 @@ $(ID)/Modules/Module_matrixElements.hpp $(ID)/Physics/PhysConst_constants.hpp \
 $(ID)/Physics/Nuclear.hpp $(ID)/Dirac/Operators.hpp
 	$(COMP)
 
-$(OD)/periodicTable.o: $(ID)/periodicTable.cpp $(ID)/Physics/Nuclear.hpp \
-$(ID)/Physics/Nuclear_DataTable.hpp $(ID)/Physics/AtomInfo.hpp \
-$(ID)/Physics/AtomInfo_PeriodicTable.hpp
+$(OD)/Nuclear.o: $(ID)/Physics/Nuclear.cpp $(ID)/Physics/Nuclear.hpp \
+$(ID)/Physics/Nuclear_DataTable.hpp
 	$(COMP)
 
 $(OD)/Parametric_potentials.o: $(ID)/Physics/Parametric_potentials.cpp \
 $(ID)/Physics/Parametric_potentials.hpp
+	$(COMP)
+
+$(OD)/periodicTable.o: $(ID)/periodicTable.cpp $(ID)/Physics/Nuclear.hpp \
+$(ID)/Physics/Nuclear_DataTable.hpp $(ID)/Physics/AtomInfo.hpp \
+$(ID)/Physics/AtomInfo_PeriodicTable.hpp
 	$(COMP)
 
 $(OD)/StandardHaloModel.o: $(ID)/DMionisation/StandardHaloModel.cpp \
@@ -170,12 +175,11 @@ $(OD)/wigner.o: $(ID)/wigner.cpp $(ID)/IO/FileIO_fileReadWrite.hpp \
 $(ID)/Physics/Wigner_369j.hpp
 	$(COMP)
 
-
 ################################################################################
 # Just to save typing: Many programs depend on these combos:
 
 BASE = $(addprefix $(OD)/, \
- Adams_bound.o Wavefunction.o DiracSpinor.o AtomInfo.o Grid.o \
+ Adams_bound.o Wavefunction.o DiracSpinor.o AtomInfo.o Nuclear.o Grid.o \
 )
 
 HF = $(addprefix $(OD)/, \
@@ -205,7 +209,7 @@ $(OD)/AKF_akFunctions.o $(OD)/StandardHaloModel.o
 $(XD)/wigner: $(OD)/wigner.o
 	$(LINK)
 
-$(XD)/periodicTable: $(OD)/periodicTable.o $(OD)/AtomInfo.o
+$(XD)/periodicTable: $(OD)/periodicTable.o $(OD)/AtomInfo.o $(OD)/Nuclear.o
 	$(LINK)
 
 ################################################################################
@@ -214,8 +218,6 @@ checkObj:
 	@if [ ! -d $(OD) ]; then \
 	  echo '\n ERROR: Directory: '$(OD)' doesnt exist - please create it!\n'; \
 	  false; \
-	else \
-	  echo 'Compiling..'; \
 	fi
 
 checkXdir:

@@ -1,13 +1,15 @@
 #include "Module_fitParametric.hpp"
-#include "Maths/Grid.hpp"
-#include "HF/HartreeFockClass.hpp"
-#include "Physics/Parametric_potentials.hpp"
-#include "Physics/Nuclear.hpp"
-#include "IO/UserInput.hpp"
 #include "Dirac/Wavefunction.hpp"
+#include "HF/HartreeFockClass.hpp"
+#include "IO/UserInput.hpp"
+#include "Maths/Grid.hpp"
+#include "Physics/Nuclear.hpp"
+#include "Physics/Parametric_potentials.hpp"
+#include "Physics/PhysConst_constants.hpp"
 #include <iostream>
 #include <tuple>
 #include <vector>
+
 namespace Module {
 //******************************************************************************
 void fitParametric(const UserInputBlock &input, const Wavefunction &wf) {
