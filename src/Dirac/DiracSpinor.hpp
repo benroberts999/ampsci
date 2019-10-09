@@ -8,7 +8,7 @@ class Grid;
 class DiracSpinor {
 
 public: // Data
-  DiracSpinor(int in_n, int in_k, const Grid &rgrid, bool in_imag_g = true);
+  DiracSpinor(int in_n, int in_k, const Grid &rgrid);
 
   // Would be better if some of this were private... getters/setters.....
   const Grid *const p_rgrid;
@@ -18,11 +18,6 @@ public: // Data
   std::vector<double> f;
   std::vector<double> g;
   std::size_t pinf;
-
-  // determines relative sign in radial integral:
-  // true by default. If false, means upper comp is i
-  // XXX Kill this! ?
-  const bool imaginary_g;
 
   int its;
   double eps;
@@ -48,6 +43,7 @@ public: // Methods
 
   double norm() const;
   void scale(const double factor);
+  void scale(const std::vector<double> &v);
   void normalise(double norm_to = 1.0);
   std::pair<double, double> r0pinfratio() const;
 
@@ -63,6 +59,8 @@ public:
   DiracSpinor &operator*=(const double x);
   friend DiracSpinor operator*(DiracSpinor lhs, const double x);
   friend DiracSpinor operator*(const double x, DiracSpinor rhs);
+
+  DiracSpinor &operator*=(const std::vector<double> &v);
   friend DiracSpinor operator*(const std::vector<double> &v, DiracSpinor rhs);
 
   DiracSpinor &operator=(const DiracSpinor &other);

@@ -11,14 +11,12 @@
 constexpr bool update_pinf = false; // for psi += psi'
 
 //******************************************************************************
-DiracSpinor::DiracSpinor(int in_n, int in_k, const Grid &rgrid,
-                         bool in_imag_g)
+DiracSpinor::DiracSpinor(int in_n, int in_k, const Grid &rgrid)
     : p_rgrid(&rgrid),                        //
       n(in_n), k(in_k), en(0.0),              //
       f(std::vector<double>(rgrid.ngp, 0.0)), //
       g(f),                                   //
       pinf(rgrid.ngp),                        //
-      imaginary_g(in_imag_g),                 //
       its(-1), eps(-1), occ_frac(0),          //
       m_twoj(AtomInfo::twoj_k(in_k)),         //
       m_l(AtomInfo::l_k(in_k)),               //
@@ -56,6 +54,13 @@ void DiracSpinor::scale(const double factor) {
   for (std::size_t i = pinf; i < f.size(); ++i)
     g[i] = 0;
 }
+//------------------------------------------------------------------------------
+void DiracSpinor::scale(const std::vector<double> &v) {
+  for (std::size_t i = 0; i < pinf; ++i) {
+    f[i] *= v[i];
+    g[i] *= v[i];
+  }
+}
 
 //******************************************************************************
 void DiracSpinor::normalise(double norm_to) {
@@ -78,15 +83,10 @@ std::pair<double, double> DiracSpinor::r0pinfratio() const {
 //******************************************************************************
 //******************************************************************************
 double operator*(const DiracSpinor &lhs, const DiracSpinor &rhs) {
-  // XXX This is slow??? And one of the most critial parts!
-  // Change the relative sign based in Complex f or g component
-  // (includes complex conjugation of lhs)
+  // Note: ONLY radial part ("F" radial spinor)
   auto imax = std::min(lhs.pinf, rhs.pinf);
   auto ff = NumCalc::integrate(lhs.f, rhs.f, lhs.p_rgrid->drdu, 1.0, 0, imax);
   auto gg = NumCalc::integrate(lhs.g, rhs.g, lhs.p_rgrid->drdu, 1.0, 0, imax);
-  // int ffs = ((!lhs.imaginary_g) && rhs.imaginary_g) ? -1 : 1;
-  // int ggs = (lhs.imaginary_g && !rhs.imaginary_g) ? -1 : 1;
-  // return (ffs * ff + ggs * gg) * lhs.p_rgrid->du;
   return (ff + gg) * lhs.p_rgrid->du;
 }
 
@@ -134,12 +134,13 @@ DiracSpinor operator*(const double x, DiracSpinor rhs) {
   rhs *= x;
   return rhs;
 }
+
+DiracSpinor &DiracSpinor::operator*=(const std::vector<double> &v) {
+  scale(v);
+  return *this;
+}
 DiracSpinor operator*(const std::vector<double> &v, DiracSpinor rhs) {
-  auto max = rhs.pinf;
-  for (auto i = 0ul; i < max; i++) {
-    rhs.f[i] *= v[i];
-    rhs.g[i] *= v[i];
-  }
+  rhs *= v;
   return rhs;
 }
 

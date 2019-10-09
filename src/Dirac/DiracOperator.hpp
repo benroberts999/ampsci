@@ -130,10 +130,14 @@ public:
                            const DiracSpinor &Fb) const = 0;
 
   bool isZero(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
+    return isZero(Fa.k, Fb.k);
+  }
+  bool isZero(const int ka, int kb) const {
     // checks rank and parity
-    if (rank < std::abs(Fa.twoj() - Fb.twoj()) / 2)
+    if (rank < std::abs(Wigner::twoj_k(ka) - Wigner::twoj_k(kb)) / 2)
       return true;
-    if ((parity == OperatorParity::even) != (Fa.parity() == Fb.parity()))
+    if ((parity == OperatorParity::even) !=
+        (Wigner::parity_k(ka) == Wigner::parity_k(kb)))
       return true;
     return false; /*may still be zero*/
   }
@@ -141,54 +145,63 @@ public:
   const std::vector<double> &getv() const { return vec; }
 
 public:
-  virtual double radialIntegral(const DiracSpinor &Fa,
-                                const DiracSpinor &Fb) const {
+  //****************************************************************************
+  double radialIntegral(const DiracSpinor &Fa, const DiracSpinor &Fb) const
+  // could implement this directly (as before), to avoid the an unnecisary
+  // allocation of extra spinor! Woule be ~10% faster to implement seperately
+  // with allocation
+  {
     if (isZero(Fa, Fb))
       return 0.0;
-
-    auto ka = Fa.k;
-    auto kb = Fb.k;
-    auto cff = angularCff(ka, kb);
-    auto cgg = angularCgg(ka, kb);
-    auto cfg = angularCfg(ka, kb);
-    auto cgf = angularCgf(ka, kb);
-    const auto &gr = *(Fa.p_rgrid);
-    const auto irmax = std::min(Fa.pinf, Fb.pinf);
-
-    // Strangeness here to account for possible derivatives
-    const std::vector<double> *rhs_f = &(Fb.f);
-    const std::vector<double> *rhs_g = &(Fb.g);
-    std::unique_ptr<const std::vector<double>> new_rhs_f = nullptr;
-    std::unique_ptr<const std::vector<double>> new_rhs_g = nullptr;
-    if (diff_order > 0) {
-      // rhs_f is either a pointer to F_input, OR (in case of deriv, F')
-      new_rhs_f = std::make_unique<std::vector<double>>(
-          NumCalc::derivative(Fb.f, gr.drdu, gr.du, diff_order));
-      new_rhs_g = std::make_unique<std::vector<double>>(
-          NumCalc::derivative(Fb.g, gr.drdu, gr.du, diff_order));
-      rhs_f = new_rhs_f.get();
-      rhs_g = new_rhs_f.get();
-    }
-
-    // XXX how to do this if vec is empty?
-    auto Rff = (cff == 0.0) ? 0.0
-                            : NumCalc::integrate(Fa.f, *rhs_f, vec, gr.drdu,
-                                                 1.0, 0, irmax);
-    auto Rgg = (cgg == 0.0) ? 0.0
-                            : NumCalc::integrate(Fa.g, *rhs_g, vec, gr.drdu,
-                                                 1.0, 0, irmax);
-    auto Rfg = (cfg == 0.0) ? 0.0
-                            : NumCalc::integrate(Fa.f, *rhs_g, vec, gr.drdu,
-                                                 1.0, 0, irmax);
-    // Check here if Fa=Fb. If so, Rgf = Rfg!
-    auto Rgf = (cgf == 0.0)
-                   ? 0.0
-                   : (Fa == Fb) ? Rfg
-                                : NumCalc::integrate(Fa.g, *rhs_f, vec, gr.drdu,
-                                                     1.0, 0, irmax);
-    return constant * (cff * Rff + cgg * Rgg + cfg * Rfg + cgf * Rgf) * gr.du;
+    return Fa * radial_rhs(Fa.k, Fb);
   }
 
+  // XXX Now, add "reduced_rhs" ? No, just "angular_factor"
+  //****************************************************************************
+  virtual DiracSpinor radial_rhs(const int k_lhs, const DiracSpinor &Fb) const
+  // psi1 * dPsi2 = h.radialIntegral(psi1,psi2)
+  // Because of angular factor, _may_ depend on kappa of 'lhs'
+  {
+    // Note: n and kappa from original psi, but not meaningful!
+    const auto &gr = *(Fb.p_rgrid);
+    DiracSpinor dPsi(Fb.n, Fb.k, gr);
+    if (isZero(k_lhs, Fb.k))
+      return dPsi;
+
+    auto cff = angularCff(k_lhs, Fb.k);
+    auto cgg = angularCgg(k_lhs, Fb.k);
+    auto cfg = angularCfg(k_lhs, Fb.k);
+    auto cgf = angularCgf(k_lhs, Fb.k);
+
+    // Strangeness here to account for possible derivatives
+    // (I am trying to avoid doing a copy when no derivative)
+    // Copy is unavoidable when calcing derivative, but that's rare!
+    const std::vector<double> *rhs_f = &(Fb.f);
+    const std::vector<double> *rhs_g = &(Fb.g);
+    std::unique_ptr<const std::vector<double>> dummy_df = nullptr;
+    std::unique_ptr<const std::vector<double>> dummy_dg = nullptr;
+    if (diff_order > 0) {
+      // rhs_f is either a pointer to F_input, OR (in case of deriv, F')
+      dummy_df = std::make_unique<std::vector<double>>(
+          NumCalc::derivative(Fb.f, gr.drdu, gr.du, diff_order));
+      dummy_dg = std::make_unique<std::vector<double>>(
+          NumCalc::derivative(Fb.g, gr.drdu, gr.du, diff_order));
+      rhs_f = dummy_df.get();
+      rhs_g = dummy_dg.get();
+    }
+
+    for (unsigned i = 0; i < Fb.pinf; i++) {
+      dPsi.f[i] = constant * (cff * (*rhs_f)[i] + cfg * (*rhs_g)[i]);
+      dPsi.g[i] = constant * (cgf * (*rhs_f)[i] + cgg * (*rhs_g)[i]);
+    }
+    if (!vec.empty()) {
+      dPsi *= vec;
+    }
+
+    return dPsi;
+  }
+
+  //****************************************************************************
   std::string rme_symbol(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
     return std::string("<") + Fa.shortSymbol() + "|h|" + Fb.shortSymbol() + ">";
   }

@@ -148,7 +148,9 @@ std::unique_ptr<DiracOperator> generateOperator(const std::string &operator_str,
     return std::make_unique<PNCnsiOperator>(
         PNCnsiOperator(c, t, wf.rgrid, -wf.Nnuc()));
   } else if (operator_str == "M1") {
-    return std::make_unique<M1Operator>(M1Operator());
+    std::cout << "Sorry, check back soon for M1 :(\n";
+    // return std::make_unique<M1Operator>(M1Operator());
+    return std::make_unique<NullOperator>(NullOperator());
   }
 
   std::cerr << "\nFAILED to find operator: " << ThisModule
