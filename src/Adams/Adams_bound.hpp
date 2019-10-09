@@ -1,5 +1,4 @@
 #pragma once
-// #include "Maths/Grid.hpp"
 #include <array>
 #include <vector>
 class DiracSpinor;

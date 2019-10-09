@@ -1,5 +1,6 @@
 #include "HF/HartreeFockClass.hpp"
-#include "Adams/Adams_bound.hpp"
+// #include "Adams/Adams_bound.hpp"
+#include "Adams/Adams_Greens.hpp"
 #include "Dirac/DiracOperator.hpp"
 #include "Dirac/DiracSpinor.hpp"
 #include "Dirac/Operators.hpp"
@@ -571,7 +572,7 @@ void HartreeFock::iterate_core_orbital(
       break;
     }
 
-    solve_inhomog_Green(phi, phi0, phiI, en, vl, p_wf->get_alpha(), Sr);
+    Adams::solve_inhomog(phi, phi0, phiI, en, vl, p_wf->get_alpha(), Sr);
     phi.normalise();
     phi.en = en;
   }
@@ -625,7 +626,7 @@ inline void HartreeFock::refine_valence_orbital_exchange(DiracSpinor &phi) {
     prev_en = en;
 
     auto oldphi = phi;
-    solve_inhomog_Green(phi, phi0, phiI, en, vl, p_wf->get_alpha(), Sr);
+    Adams::solve_inhomog(phi, phi0, phiI, en, vl, p_wf->get_alpha(), Sr);
     phi.normalise();
     phi = a_damp * oldphi + (1.0 - a_damp) * phi;
     phi.en = en;
@@ -702,58 +703,4 @@ inline void HartreeFock::refine_core_orbitals_exchange() {
   }
   if (m_explicitOrthog_cc)
     p_wf->orthonormaliseOrbitals(p_wf->core_orbitals, 2);
-}
-
-//******************************************************************************
-void HartreeFock::solve_inhomog_Green(DiracSpinor &phi, const double en,
-                                      const std::vector<double> &v,
-                                      const double alpha,
-                                      const DiracSpinor &source) const
-// make static!?
-// NOTE: returns NON-normalised function!
-{
-  auto phi0 = DiracSpinor(phi.n, phi.k, *phi.p_rgrid);
-  auto phiI = DiracSpinor(phi.n, phi.k, *phi.p_rgrid);
-  solve_inhomog_Green(phi, phi0, phiI, en, v, alpha, source);
-}
-//------------------------------------------------------------------------------
-void HartreeFock::solve_inhomog_Green(DiracSpinor &phi, DiracSpinor &phi0,
-                                      DiracSpinor &phiI, const double en,
-                                      const std::vector<double> &v,
-                                      const double alpha,
-                                      const DiracSpinor &source) const
-// make static!?
-// NOTE: returns NON-normalised function!
-{
-  Adams::diracODE_regularAtOrigin(phi0, en, v, alpha);
-  Adams::diracODE_regularAtInfinity(phiI, en, v, alpha);
-  yfun(phi, phiI, phi0, alpha, source);
-}
-
-//******************************************************************************
-void HartreeFock::yfun(DiracSpinor &phi, const DiracSpinor &phi1,
-                       const DiracSpinor &phi2, const double alpha,
-                       const DiracSpinor &Sr) const {
-
-  // Wronskian. Note: in current method: only need the SIGN
-  int pp = int(0.65 * double(phi1.pinf));
-  auto w2 = (phi1.f[pp] * phi2.g[pp] - phi2.f[pp] * phi1.g[pp]);
-  // XXX test making this non-constant over r?
-
-  // save typing:
-  const auto &gr = *phi.p_rgrid;
-  constexpr auto ztr = NumCalc::zero_to_r;
-  constexpr auto rti = NumCalc::r_to_inf;
-
-  phi *= 0.0;
-  NumCalc::additivePIntegral<ztr>(phi.f, phi1.f, phi2.f, Sr.f, gr, phi1.pinf);
-  NumCalc::additivePIntegral<ztr>(phi.f, phi1.f, phi2.g, Sr.g, gr, phi1.pinf);
-  NumCalc::additivePIntegral<rti>(phi.f, phi2.f, phi1.f, Sr.f, gr, phi1.pinf);
-  NumCalc::additivePIntegral<rti>(phi.f, phi2.f, phi1.g, Sr.g, gr, phi1.pinf);
-  NumCalc::additivePIntegral<ztr>(phi.g, phi1.g, phi2.f, Sr.f, gr, phi1.pinf);
-  NumCalc::additivePIntegral<ztr>(phi.g, phi1.g, phi2.g, Sr.g, gr, phi1.pinf);
-  NumCalc::additivePIntegral<rti>(phi.g, phi2.g, phi1.f, Sr.f, gr, phi1.pinf);
-  NumCalc::additivePIntegral<rti>(phi.g, phi2.g, phi1.g, Sr.g, gr, phi1.pinf);
-  phi *= (alpha / w2);
-  // std::cout << phi * phi << "\n";
 }

@@ -83,18 +83,9 @@ private:
   void form_approx_vex_a(const DiracSpinor &phi_a,
                          std::vector<double> &vex_a) const;
 
-  void solve_inhomog_Green(DiracSpinor &phi, const double en,
-                           const std::vector<double> &v, const double alpha,
-                           const DiracSpinor &source) const;
-  void solve_inhomog_Green(DiracSpinor &phi, DiracSpinor &phi1,
-                           DiracSpinor &phi2, const double en,
-                           const std::vector<double> &v, const double alpha,
-                           const DiracSpinor &source) const;
   void refine_core_orbitals_exchange();
   void refine_valence_orbital_exchange(DiracSpinor &phi);
   void iterate_core_orbital(DiracSpinor &phi, const std::vector<double> &vl,
                             const DirectHamiltonian &Hd,
                             const std::vector<double> &fVdir0) const;
-  void yfun(DiracSpinor &phi, const DiracSpinor &phi1, const DiracSpinor &phi2,
-            const double alpha, const DiracSpinor &Sr) const;
 };

@@ -83,7 +83,11 @@ $(ID)/Maths/Matrix_linalg.hpp $(ID)/Maths/NumCalc_quadIntegrate.hpp
 	$(COMP)
 
 $(OD)/Adams_continuum.o: $(ID)/Adams/Adams_continuum.cpp \
-$(ID)/Adams/Adams_continuum.hpp
+$(ID)/Adams/Adams_continuum.hpp $(ID)/Adams/Adams_bound.hpp
+	$(COMP)
+
+$(OD)/Adams_Greens.o: $(ID)/Adams/Adams_Greens.cpp \
+$(ID)/Adams/Adams_Greens.hpp $(ID)/Adams/Adams_bound.hpp
 	$(COMP)
 
 $(OD)/AtomInfo.o: $(ID)/Physics/AtomInfo.cpp $(ID)/Physics/AtomInfo.hpp \
@@ -123,7 +127,7 @@ $(ID)/Physics/Nuclear.hpp $(ID)/Maths/Grid.hpp
 $(OD)/HartreeFockClass.o: $(ID)/HF/HartreeFockClass.cpp \
 $(ID)/HF/HartreeFockClass.hpp $(ID)/Physics/Wigner_369j.hpp \
 $(ID)/Dirac/Operators.hpp $(ID)/Dirac/DiracOperator.hpp \
-$(ID)/Maths/NumCalc_quadIntegrate.hpp
+$(ID)/Maths/NumCalc_quadIntegrate.hpp $(ID)/Adams/Adams_Greens.hpp
 	$(COMP)
 
 $(OD)/Module_runModules.o: $(ID)/Modules/Module_runModules.cpp \
@@ -184,6 +188,7 @@ BASE = $(addprefix $(OD)/, \
 
 HF = $(addprefix $(OD)/, \
  HartreeFockClass.o CoulombIntegrals.o Parametric_potentials.o \
+ Adams_Greens.o \
 )
 
 CNTM = $(addprefix $(OD)/, \
