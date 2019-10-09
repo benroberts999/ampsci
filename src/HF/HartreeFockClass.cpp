@@ -727,12 +727,13 @@ void HartreeFock::solve_inhomog_Green(DiracSpinor &phi, DiracSpinor &phi0,
 {
   Adams::diracODE_regularAtOrigin(phi0, en, v, alpha);
   Adams::diracODE_regularAtInfinity(phiI, en, v, alpha);
-  yfun(phi, phiI, phi0, source);
+  yfun(phi, phiI, phi0, alpha, source);
 }
 
 //******************************************************************************
 void HartreeFock::yfun(DiracSpinor &phi, const DiracSpinor &phi1,
-                       const DiracSpinor &phi2, const DiracSpinor &Sr) const {
+                       const DiracSpinor &phi2, const double alpha,
+                       const DiracSpinor &Sr) const {
 
   // Wronskian. Note: in current method: only need the SIGN
   int pp = int(0.65 * double(phi1.pinf));
@@ -753,5 +754,6 @@ void HartreeFock::yfun(DiracSpinor &phi, const DiracSpinor &phi1,
   NumCalc::additivePIntegral<ztr>(phi.g, phi1.g, phi2.g, Sr.g, gr, phi1.pinf);
   NumCalc::additivePIntegral<rti>(phi.g, phi2.g, phi1.f, Sr.f, gr, phi1.pinf);
   NumCalc::additivePIntegral<rti>(phi.g, phi2.g, phi1.g, Sr.g, gr, phi1.pinf);
-  phi *= (1.0 / w2);
+  phi *= (alpha / w2);
+  // std::cout << phi * phi << "\n";
 }

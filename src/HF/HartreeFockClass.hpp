@@ -96,5 +96,5 @@ private:
                             const DirectHamiltonian &Hd,
                             const std::vector<double> &fVdir0) const;
   void yfun(DiracSpinor &phi, const DiracSpinor &phi1, const DiracSpinor &phi2,
-            const DiracSpinor &Sr) const;
+            const double alpha, const DiracSpinor &Sr) const;
 };
