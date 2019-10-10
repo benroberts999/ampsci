@@ -9,10 +9,6 @@
 #include <functional>
 #include <vector>
 
-// XXX move impl into cpp !! XXX
-
-// Classes (inherit from DriacOperator)
-
 //******************************************************************************
 class RadialFuncOperator final : public ScalarOperator {
   // = some function of r
@@ -49,12 +45,9 @@ public:
   E1Operator(const Grid &gr)
       : DiracOperator(1, OperatorParity::odd, -1.0, gr.r, 0) {}
 
-  double reducedME(const DiracSpinor &Fa,
-                   const DiracSpinor &Fb) const override {
-    auto Rab = radialIntegral(Fa, Fb);
-    // move to lookup table?
-    auto Cab = Wigner::Ck_2j2j(1, Fa.twoj(), Fb.twoj());
-    return Rab * Cab;
+  double angularRME(const DiracSpinor &Fa,
+                    const DiracSpinor &Fb) const override {
+    return Wigner::Ck_2j2j(1, Fa.twoj(), Fb.twoj());
   }
 };
 
@@ -69,13 +62,12 @@ public:
                       std::vector<double>(gr.ngp, 1.0), 0),
         m_c(1.0 / alpha) {}
 
-  double reducedME(const DiracSpinor &Fa,
-                   const DiracSpinor &Fb) const override {
+  double angularRME(const DiracSpinor &Fa,
+                    const DiracSpinor &Fb) const override {
     if (Fa.k == Fb.k)
       return 0;
-    auto Rab = radialIntegral(Fa, Fb);
     auto omega = Fa.en - Fb.en;
-    return 2.0 * m_c * Rab / omega; // includes var-alpha
+    return 2.0 * m_c / omega; // includes var-alpha
   }
 
 private:
@@ -235,10 +227,9 @@ public: // constructor
                       RadialFunc(rN, rgrid, hfs_F), 0),
         Inuc(IN) {}
 
-  double reducedME(const DiracSpinor &Fa,
-                   const DiracSpinor &Fb) const override {
-    auto Rab = radialIntegral(Fa, Fb);
-    return Rab * (Fa.k + Fb.k) * Wigner::Ck_kk(1, -Fa.k, Fb.k);
+  double angularRME(const DiracSpinor &Fa,
+                    const DiracSpinor &Fb) const override {
+    return (Fa.k + Fb.k) * Wigner::Ck_kk(1, -Fa.k, Fb.k);
   }
 
   double hfsA(const DiracSpinor &Fa) {
@@ -281,11 +272,6 @@ public:
   const std::vector<double> &getVnuc() const { return vnuc; }
 
 public:
-  double reducedME(const DiracSpinor &Fa,
-                   const DiracSpinor &Fb) const override {
-    auto inv_threej = std::sqrt(Fb.twoj() + 1.0);
-    return inv_threej * matrixEl(Fa, Fb);
-  }
   double matrixEl(const DiracSpinor &Fa, const DiracSpinor &Fb) const override {
     if (Fa.k != Fb.k)
       return 0.0;
@@ -302,6 +288,9 @@ public:
               NumCalc::integrate(Fa.g, Fa.g, vdir, drdu, 1.0, 0, max);
     return (Hw + Hz) * Fa.p_rgrid->du;
   }
+
+  // do this for speed? dumb? only call 'matrixEl' for Hd ?
+  DiracSpinor radial_rhs(const DiracSpinor &Fa, const DiracSpinor &Fb) = delete;
 
 private:
   const double cl;
