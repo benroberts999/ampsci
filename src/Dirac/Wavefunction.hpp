@@ -104,6 +104,7 @@ public:
   static void orthonormaliseOrbitals(std::vector<DiracSpinor> &tmp_orbs,
                                      int num_its = 1);
   void orthonormaliseWrtCore(DiracSpinor &psi_v) const;
+  void orthogonaliseWrtCore(DiracSpinor &psi_v) const;
 
   void hartreeFockCore(HFMethod method, const std::string &in_core,
                        double eps_HF = 0, double h_d = 0, double g_t = 0);

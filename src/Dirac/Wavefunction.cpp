@@ -338,18 +338,21 @@ void Wavefunction::orthonormaliseOrbitals(std::vector<DiracSpinor> &in_orbs,
 }
 
 //******************************************************************************
+void Wavefunction::orthogonaliseWrtCore(DiracSpinor &psi_v) const {
+  for (const auto &psi_c : core_orbitals) {
+    if (psi_v.k != psi_c.k)
+      continue;
+    psi_v -= (psi_v * psi_c) * psi_c;
+  }
+}
+//******************************************************************************
 void Wavefunction::orthonormaliseWrtCore(DiracSpinor &psi_v) const
 // Force given orbital to be orthogonal to all core orbitals
 // [After the core is 'frozen', don't touch core orbitals!]
 // |v> --> |v> - sum_c |c><c|v>
 // note: here, c denotes core orbitals
 {
-  // Orthogonalise:
-  for (const auto &psi_c : core_orbitals) {
-    if (psi_v.k != psi_c.k)
-      continue;
-    psi_v -= (psi_v * psi_c) * psi_c;
-  }
+  orthogonaliseWrtCore(psi_v);
   psi_v.normalise();
 }
 

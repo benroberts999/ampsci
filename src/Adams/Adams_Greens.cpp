@@ -20,6 +20,15 @@ XXX Update to accept operators?
 */
 
 namespace Adams {
+
+DiracSpinor solve_inhomog(const int kappa, const double en,
+                          const std::vector<double> &v, const double alpha,
+                          const DiracSpinor &source) {
+  auto phi = DiracSpinor(0, kappa, *source.p_rgrid);
+  solve_inhomog(phi, en, v, alpha, source);
+  return phi;
+}
+
 //******************************************************************************
 void solve_inhomog(DiracSpinor &phi, const double en,
                    const std::vector<double> &v, const double alpha,

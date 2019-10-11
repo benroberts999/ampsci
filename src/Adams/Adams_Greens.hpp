@@ -1,6 +1,6 @@
 #pragma once
+#include "Dirac/DiracSpinor.hpp"
 #include <vector>
-
 class DiracSpinor;
 
 namespace Adams {
@@ -8,6 +8,10 @@ namespace Adams {
 void solve_inhomog(DiracSpinor &phi, const double en,
                    const std::vector<double> &v, const double alpha,
                    const DiracSpinor &source);
+
+DiracSpinor solve_inhomog(const int kappa, const double en,
+                          const std::vector<double> &v, const double alpha,
+                          const DiracSpinor &source);
 
 //------------------------------------------------------------------------------
 void solve_inhomog(DiracSpinor &phi, DiracSpinor &phi0, DiracSpinor &phiI,
