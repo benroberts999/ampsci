@@ -498,7 +498,7 @@ DiracSpinor HartreeFock::vex_psia(const DiracSpinor &phi_a) const
   return vexPsi;
 }
 void HartreeFock::vex_psia(const DiracSpinor &phi_a, DiracSpinor &vexPsi) const
-// calculates V_ex Psi_a (returns new Dirac Spinor)
+// calculates V_ex Psi_a
 // Psi_a can be any orbital (so long as coulomb integrals exist!)
 {
   vexPsi.pinf = phi_a.f.size(); // silly hack. Make sure vexPsi = 0 after pinf
@@ -529,6 +529,44 @@ void HartreeFock::vex_psia(const DiracSpinor &phi_a, DiracSpinor &vexPsi) const
       } // r
     }   // k
   }     // b
+}
+
+// -----------------------------------------------------------------------------
+DiracSpinor HartreeFock::vex_psia_any(const DiracSpinor &phi_a) const
+// calculates V_ex Psi_a (returns new Dirac Spinor)
+// Psi_a can be any orbital (Calculates coulomb integrals here!)
+{
+  DiracSpinor vexPsi(phi_a.n, phi_a.k, *(phi_a.p_rgrid));
+
+  std::vector<double> vabk(phi_a.p_rgrid->ngp);
+
+  // auto ki_a = phi_a.k_index();
+  auto twoj_a = phi_a.twoj();
+  auto la = phi_a.l();
+  std::size_t init = 0; // phi_a.k == -1 ? 0 : 1; //?
+  for (const auto &phi_b : p_wf->core_orbitals) {
+    auto tjb = phi_b.twoj();
+    auto lb = phi_b.l();
+    double x_tjbp1 = (phi_a == phi_b) ? (tjb + 1) : (tjb + 1) * phi_b.occ_frac;
+    auto irmax = std::min(phi_a.pinf, phi_b.pinf);
+    int kmin = std::abs(twoj_a - tjb) / 2;
+    int kmax = (twoj_a + tjb) / 2;
+    for (int k = kmin; k <= kmax; k++) {
+      auto parity = Wigner::parity(la, lb, k);
+      if (parity == 0)
+        continue;
+      auto tjs = Wigner::threej_2(tjb, twoj_a, 2 * k, -1, 1, 0); // XXX lookup!
+      if (tjs == 0)
+        continue;
+      Coulomb::calculate_y_ijk(phi_b, phi_a, k, vabk);
+      for (auto i = init; i < irmax; i++) {
+        auto v = -x_tjbp1 * tjs * tjs * vabk[i];
+        vexPsi.f[i] += v * phi_b.f[i];
+        vexPsi.g[i] += v * phi_b.g[i];
+      } // r
+    }   // k
+  }     // b
+  return vexPsi;
 }
 
 //******************************************************************************
