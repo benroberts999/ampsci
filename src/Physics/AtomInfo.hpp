@@ -12,8 +12,13 @@ struct NonRelSEConfig {
   NonRelSEConfig(int in_n = 0, int in_l = -1, int in_num = 0)
       : n(in_n), l(in_l), num(in_num) {}
 
-  std::string symbol();
-  bool ok();
+  std::string symbol() const;
+  bool ok() const;
+
+  double frac() const {
+    int filling = 2 * (2 * l + 1);
+    return (num < filling) ? double(num) / double(filling) : 1;
+  };
 
   // comparitor overloads:
   bool operator==(const NonRelSEConfig &other) const {
@@ -44,6 +49,7 @@ namespace AtomInfo {
 int defaultA(int Z);
 
 std::string atomicSymbol(int Z);
+std::string atomicName(int Z);
 
 int get_z(const std::string &at);
 

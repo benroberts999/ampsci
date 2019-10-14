@@ -1,6 +1,7 @@
 #include "Physics/AtomInfo.hpp"
 #include "Physics/Nuclear.hpp"
 #include <iostream>
+#include <vector>
 
 void instructions() {
   std::cout
@@ -64,6 +65,7 @@ int main(int num_in, char *argv[]) {
   }
   z_str = AtomInfo::atomicSymbol(z);
   std::string a_str = (num_in > 2) ? argv[2] : "0";
+  auto name = AtomInfo::atomicName(z);
 
   std::vector<Nuclear::Isotope> isotopes;
   int a_default = parse_A("0", z);
@@ -74,11 +76,20 @@ int main(int num_in, char *argv[]) {
     isotopes.push_back(Nuclear::findIsotopeData(z, a));
   }
 
+  auto core_str = AtomInfo::guessCoreConfigStr(z);
+  auto core_vec = AtomInfo::core_parser(core_str);
+
   std::cout << "\n"
-            << z_str << ".   Z = " << z << ";  A = " << a_default
-            << " (default)\n\n";
-  std::cout << "Electron config: " << AtomInfo::guessCoreConfigStr(z)
-            << "   (guess)\n";
+            << z_str << ",  " << name << ".\n"
+            << "Z = " << z << ";  A = " << a_default << " (default)\n\n";
+  std::cout << "Electron config: " << core_str << "   (guess)\n"
+            << " = ";
+  for (const auto &term : core_vec) {
+    if (term.frac() < 1)
+      std::cout << "| ";
+    std::cout << term.symbol() << " ";
+  }
+  std::cout << "\n";
 
   std::cout << "\nIsotpe data:";
   if (isotopes.size() == 0)

@@ -10,11 +10,11 @@
 #include <vector>
 
 //******************************************************************************
-std::string NonRelSEConfig::symbol() {
+std::string NonRelSEConfig::symbol() const {
   return std::to_string(n) + AtomInfo::l_symbol(l) + std::to_string(num);
 }
 
-bool NonRelSEConfig::ok() {
+bool NonRelSEConfig::ok() const {
   if (l + 1 > n || l < 0 || n < 1 || num < 0 || num > 4 * l + 2)
     return false;
   return true;
@@ -41,6 +41,15 @@ std::string atomicSymbol(int Z) {
   if (atom == periodic_table.end())
     return std::to_string(Z);
   return atom->symbol;
+}
+
+std::string atomicName(int Z) {
+  static auto match_Z = [Z](const Element &atom) { return atom.Z == Z; };
+  auto atom =
+      std::find_if(periodic_table.begin(), periodic_table.end(), match_Z);
+  if (atom == periodic_table.end())
+    return std::string("E") + std::to_string(Z);
+  return atom->name;
 }
 
 // Given an atomic symbol (H, He, etc.), will return Z
