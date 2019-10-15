@@ -1,5 +1,5 @@
-#include "Nuclear.hpp"  //:(
-#include "AtomInfo.hpp" //:(
+#include "Nuclear.hpp"
+#include "AtomInfo.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Nuclear_DataTable.hpp"
@@ -33,6 +33,21 @@ Type parseType(const std::string &str_type) {
 Parameters::Parameters(int in_z, int in_a, std::string str_type, double in_rrms,
                        double in_t)
     : z(in_z),                                      //
+      a((in_a < 0) ? AtomInfo::defaultA(z) : in_a), //
+      type(parseType(str_type)),                    //
+      t(in_t <= 0 ? approximate_t_skin(a) : in_t),  //
+      r_rms(in_rrms)                                //
+{
+  if (r_rms < 0) {
+    r_rms = find_rrms(z, a);
+    if (r_rms <= 0)
+      r_rms = approximate_r_rms(a);
+  }
+}
+//------------
+Parameters::Parameters(const std::string &z_str, int in_a, std::string str_type,
+                       double in_rrms, double in_t)
+    : z(AtomInfo::get_z(z_str)),                    //
       a((in_a < 0) ? AtomInfo::defaultA(z) : in_a), //
       type(parseType(str_type)),                    //
       t(in_t <= 0 ? approximate_t_skin(a) : in_t),  //

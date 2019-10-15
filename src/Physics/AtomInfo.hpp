@@ -51,6 +51,7 @@ int defaultA(int Z);
 std::string atomicSymbol(int Z);
 std::string atomicName(int Z);
 
+inline int get_z(int z) { return z; }
 int get_z(const std::string &at);
 
 std::string l_symbol(int l);

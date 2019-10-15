@@ -7,6 +7,8 @@
 #include <memory>
 #include <string>
 #include <vector>
+//
+#include "Physics/PhysConst_constants.hpp"
 
 static bool dummy_bool{};
 
@@ -14,11 +16,23 @@ static bool dummy_bool{};
 class Wavefunction {
 
 public:
-  Wavefunction(int in_z, const GridParameters &gridparams,
-               const Nuclear::Parameters &nuc_params, double var_alpha = 1);
+  template <typename T>
+  Wavefunction(T in_z, const GridParameters &gridparams,
+               const Nuclear::Parameters &nuc_params, double var_alpha = 1.0)
+      : rgrid({gridparams}),                                        //
+        m_alpha(PhysConst::alpha * var_alpha),                      //
+        m_Z(AtomInfo::get_z(in_z)),                                 //
+        m_A(nuc_params.a),                                          //
+        m_nuc_params(nuc_params),                                   //
+        vnuc(Nuclear::formPotential(nuc_params, m_Z, m_A, rgrid.r)) //
+  {
+    if (m_alpha * m_Z > 1.0) {
+      std::cerr << "Alpha too large: Z*alpha=" << m_Z * m_alpha << "\n";
+      std::abort();
+    }
+  }
 
 public:
-  // orbitals:
   std::vector<DiracSpinor> core_orbitals;
   std::vector<DiracSpinor> valence_orbitals;
   const Grid rgrid;
@@ -38,8 +52,8 @@ public:
 private:
   // Core configuration (non-rel terms)
   std::vector<NonRelSEConfig> m_core_configs;
-  int num_core_electrons = 0; // Nc = N - M
-  std::string m_core_string = "";
+  int num_core_electrons = 0;     // Nc = N - M
+  std::string m_core_string = ""; // alive?
 
 public:
   // Rule is: if function is single-line, define here. Else, in .cpp

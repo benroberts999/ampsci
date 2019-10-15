@@ -1,12 +1,10 @@
 #include "Dirac/Wavefunction.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/UserInput.hpp"
-#include "Maths/Grid.hpp"
 #include "Modules/Module_runModules.hpp"
-#include "Physics/AtomInfo.hpp"
-#include "Physics/Nuclear.hpp"
 #include <iostream>
 #include <string>
+// #include "Physics/AtomInfo.hpp" //need for testing basis only
 
 int main(int argc, char *argv[]) {
   ChronoTimer timer("\nhartreeFock");
@@ -17,11 +15,12 @@ int main(int argc, char *argv[]) {
   UserInput input(input_file);
 
   // Get + setup atom parameters
-  auto atom = input.get<std::string>("Atom", "Z");
-  auto Z = AtomInfo::get_z(atom);
-  auto A = input.get("Atom", "A", -1);
-  auto varAlpha2 = input.get("Atom", "varAlpha2", 1.0);
-  auto varalpha = (varAlpha2 > 0) ? std::sqrt(varAlpha2) : 1.0e-25;
+  auto atom_Z = input.get<std::string>("Atom", "Z");
+  auto atom_A = input.get("Atom", "A", -1);
+  auto var_alpha = [&]() {
+    auto varAlpha2 = input.get("Atom", "varAlpha2", 1.0);
+    return (varAlpha2 > 0) ? std::sqrt(varAlpha2) : 1.0e-25;
+  }();
 
   // Get + setup Grid parameters
   auto r0 = input.get("Grid", "r0", 1.0e-5);
@@ -29,17 +28,16 @@ int main(int argc, char *argv[]) {
   auto ngp = input.get("Grid", "ngp", 1600ul);
   auto b = input.get("Grid", "b", 4.0);
   auto grid_type = input.get<std::string>("Grid", "type", "loglinear");
-  GridParameters grid_params(ngp, r0, rmax, b, grid_type);
 
   // Get + setup nuclear parameters
-  A = input.get("Nucleus", "A", A); // over-writes "atom" A
+  atom_A = input.get("Nucleus", "A", atom_A); // over-writes "atom" A
   auto nuc_type = input.get<std::string>("Nucleus", "type", "Fermi");
   auto rrms = input.get("Nucleus", "rrms", -1.0); /*<0 means lookup default*/
   auto skint = input.get("Nucleus", "skin_t", -1.0);
-  Nuclear::Parameters nuc_params(Z, A, nuc_type, rrms, skint);
 
   // create wavefunction object
-  Wavefunction wf(Z, grid_params, nuc_params, varalpha);
+  Wavefunction wf(atom_Z, {ngp, r0, rmax, b, grid_type},
+                  {atom_Z, atom_A, nuc_type, rrms, skint}, var_alpha);
 
   std::cout << "\nRunning for " << wf.atom() << "\n"
             << wf.nuclearParams() << "\n"
@@ -47,7 +45,7 @@ int main(int argc, char *argv[]) {
             << "********************************************************\n";
 
   // Parse input for HF method
-  auto str_core = input.get<std::string>("HartreeFock", "core");
+  auto str_core = input.get<std::string>("HartreeFock", "core", "[]");
   auto eps_HF = input.get("HartreeFock", "convergence", 1.0e-12);
   auto HF_method = HartreeFock::parseMethod(
       input.get<std::string>("HartreeFock", "method", "HartreeFock"));
@@ -96,23 +94,24 @@ int main(int argc, char *argv[]) {
   //               TESTS
   //*********************************************************
 
-  bool test_hf_basis = false;
-  if (test_hf_basis) {
-    auto basis_lst = AtomInfo::listOfStates_nk("9spd8f");
-    std::vector<DiracSpinor> basis = wf.core_orbitals;
-    HartreeFock hfbasis(wf, basis, 1.0e-6);
-    hfbasis.verbose = false;
-    for (const auto &nk : basis_lst) {
-      if (wf.isInCore(nk.n, nk.k))
-        continue;
-      basis.emplace_back(DiracSpinor(nk.n, nk.k, wf.rgrid));
-      auto tmp_vex = std::vector<double>{};
-      hfbasis.solveValence(basis.back(), tmp_vex);
-    }
-    wf.orthonormaliseOrbitals(basis, 2);
-    wf.printValence(false, basis);
-    std::cout << "\n Total time: " << timer.reading_str() << "\n";
-  }
+  // // needs: #include "Physics/AtomInfo.hpp" (for AtomInfo::listOfStates_nk)
+  // bool test_hf_basis = false;
+  // if (test_hf_basis) {
+  //   auto basis_lst = AtomInfo::listOfStates_nk("9spd8f");
+  //   std::vector<DiracSpinor> basis = wf.core_orbitals;
+  //   HartreeFock hfbasis(wf, basis, 1.0e-6);
+  //   hfbasis.verbose = false;
+  //   for (const auto &nk : basis_lst) {
+  //     if (wf.isInCore(nk.n, nk.k))
+  //       continue;
+  //     basis.emplace_back(DiracSpinor(nk.n, nk.k, wf.rgrid));
+  //     auto tmp_vex = std::vector<double>{};
+  //     hfbasis.solveValence(basis.back(), tmp_vex);
+  //   }
+  //   wf.orthonormaliseOrbitals(basis, 2);
+  //   wf.printValence(false, basis);
+  //   std::cout << "\n Total time: " << timer.reading_str() << "\n";
+  // }
 
   return 0;
 }

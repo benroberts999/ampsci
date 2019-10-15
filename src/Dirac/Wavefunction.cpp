@@ -12,23 +12,6 @@
 #include <vector>
 
 //******************************************************************************
-Wavefunction::Wavefunction(int z, const GridParameters &gridparams,
-                           const Nuclear::Parameters &nuc_params,
-                           double var_alpha)
-    : rgrid({gridparams}),                                        //
-      m_alpha(PhysConst::alpha * var_alpha),                      //
-      m_Z(z), m_A(nuc_params.a),                                  //
-      m_nuc_params(nuc_params),                                   //
-      vnuc(Nuclear::formPotential(nuc_params, m_Z, m_A, rgrid.r)) //
-//
-{
-  if (m_Z * m_alpha > 1) {
-    std::cerr << "Alpha too large: Z*alpha=" << m_Z * m_alpha << "\n";
-    std::abort();
-  }
-}
-
-//******************************************************************************
 void Wavefunction::solveDirac(DiracSpinor &psi, double e_a,
                               const std::vector<double> &vex,
                               int log_dele_or) const
