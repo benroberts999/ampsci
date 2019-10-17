@@ -1,10 +1,10 @@
 #include "Adams_Greens.hpp"
 #include "Adams_bound.hpp"
 #include "Dirac/DiracSpinor.hpp"
+#include "DiracODE.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include <vector>
-
 /*
 
 Solve inhomogenous Dirac equation:
@@ -19,7 +19,7 @@ XXX Update to accept operators?
 
 */
 
-namespace Adams {
+namespace DiracODE {
 
 DiracSpinor solve_inhomog(const int kappa, const double en,
                           const std::vector<double> &v, const double alpha,
@@ -46,11 +46,12 @@ void solve_inhomog(DiracSpinor &phi, DiracSpinor &phi0, DiracSpinor &phiI,
 // Overload of the above. Faster, since doesn't need to allocate for phi0 and
 // phiI
 {
-  diracODE_regularAtOrigin(phi0, en, v, alpha);
-  diracODE_regularAtInfinity(phiI, en, v, alpha);
-  GreenSolution(phi, phiI, phi0, alpha, source);
+  regularAtOrigin(phi0, en, v, alpha);
+  regularAtInfinity(phiI, en, v, alpha);
+  Adams::GreenSolution(phi, phiI, phi0, alpha, source);
 }
 
+namespace Adams {
 //******************************************************************************
 void GreenSolution(DiracSpinor &phi, const DiracSpinor &phiI,
                    const DiracSpinor &phi0, const double alpha,
@@ -80,3 +81,4 @@ void GreenSolution(DiracSpinor &phi, const DiracSpinor &phiI,
 }
 
 } // namespace Adams
+} // namespace DiracODE

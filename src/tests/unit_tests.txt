@@ -94,3 +94,22 @@ Grid {
   ngp = 2000;
 }
 Module::Tests{}
+
+###########################################
+#TEST# MEs
+
+Atom { Z = Cs; }
+HartreeFock {
+  core = [Xe];
+  valence = 7sp;
+}
+Grid {
+  r0 = 1e-7;
+  rmax = 120.0;
+  ngp = 2000;
+}
+Module::Tests{}
+MatrixElements::E1 {}
+MatrixElements::E1 {gauge=vform;}
+MatrixElements::pnc {}
+MatrixElements::hfs {}

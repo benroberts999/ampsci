@@ -1,5 +1,6 @@
 #include "Adams_bound.hpp"
 #include "Dirac/DiracSpinor.hpp"
+#include "DiracODE.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/Matrix_linalg.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
@@ -14,11 +15,9 @@ Program to solve single-electron bound-state Dirac problem for a (given)
 local, central potential.
 Based on method presented in book by W. Johnson.
 Employs the Adams-Moulton method.
-solveDBS is the main routine that is called from elsewhere.
-All other functions called by solveDBS.
+boundState is the main routine that is called from elsewhere.
+All other functions called by boundState.
 */
-
-namespace Adams {
 
 #define DO_DEBUG false
 #if DO_DEBUG
@@ -27,37 +26,12 @@ namespace Adams {
 #define DEBUG(x)
 #endif // DEBUG
 
+namespace DiracODE {
+
+using namespace Adams;
 //******************************************************************************
-// Parameters used for Adams-Moulton mehtod:
-namespace Param {
-
-constexpr int AMO = 5;            // Adams-Moulton (between 5 and 8)
-constexpr AdamsCoefs<AMO> AMcoef; // Adamns-Moulton coeficients [defined .h]
-constexpr double cALR = 875;      // 'assymptotically large r [kinda..]' (=800)
-constexpr int max_its = 99;       // Max # attempts at converging [sove bs] (30)
-constexpr double lfrac_de = 0.12; // 'large' energy variations (0.1 => 10%)
-constexpr int d_ctp = 4;          // Num points past ctp +/- d_ctp.
-
-// order of the expansion coeficients in 'inwardAM'  (15 orig.)
-constexpr int nx = 15;
-// convergance for expansion in `inwardAM'' (10^-8)
-constexpr double nx_eps = 1.e-14;
-// # of outdir runs [finds first Param::num_loops*AMO+1 points (3)]
-constexpr int num_loops = 1;
-
-// weighting function for meshing in/out solutions
-// nb: must be positive, but i may be negative (?) [ctp - d_ctp]
-static auto weight = [](int i) { return 1. / double(i * i + 1); };
-
-static_assert(
-    Param::AMO >= 5 && Param::AMO <= 8,
-    "\nFAIL 8 in Adams (.h): parameter AMO must be between 5 and 8\n");
-
-} // namespace Param
-
-//******************************************************************************
-void solveDBS(DiracSpinor &psi, const std::vector<double> &v, const Grid &rgrid,
-              const double alpha, int log_dele)
+void boundState(DiracSpinor &psi, const std::vector<double> &v,
+                const Grid &rgrid, const double alpha, int log_dele)
 // Solves local, spherical bound state dirac equation using Adams-Moulton
 // method. Based on method presented in book by W. R. Johnson:
 //   W. R. Johnson, Atomic Structure Theory (Springer, New York, 2007)
@@ -107,10 +81,7 @@ void solveDBS(DiracSpinor &psi, const std::vector<double> &v, const Grid &rgrid,
   // orbital should have (n-l-1) nodes:
   const int required_nodes = psi.n - psi.l() - 1;
   bool correct_nodes = false;
-  // Number of times there was too many/too few nodes:
-  int count_toomany = 0, count_toofew = 0;
-  // Upper and lower energy window before correct # nodes
-  double high_en = 0, low_en = 0;
+  TrackEnGuess sofar; // track higest/lowest energy guesses etc.
 
   // Start eigenvalue iterations:
   double t_en = psi.en;
@@ -120,32 +91,31 @@ void solveDBS(DiracSpinor &psi, const std::vector<double> &v, const Grid &rgrid,
   double anorm = 1.0;
   int t_its = 1;
   for (; t_its < Param::max_its; ++t_its) {
-    t_pinf = findPracticalInfinity(t_en, v, rgrid.r, Param::cALR);
-    const int ctp = findClassicalTurningPoint(t_en, v, t_pinf, Param::d_ctp);
+    t_pinf = Adams::findPracticalInfinity(t_en, v, rgrid.r, Param::cALR);
+    const int ctp =
+        Adams::findClassicalTurningPoint(t_en, v, t_pinf, Param::d_ctp);
 
     // Find solution (f,g) to DE for given energy:
     // Also stores dg (gout-gin) for PT [used for PT to find better e]
     std::vector<double> dg(2 * Param::d_ctp + 1);
-    trialDiracSolution(psi.f, psi.g, dg, t_en, psi.k, v, rgrid, ctp,
-                       Param::d_ctp, t_pinf, alpha);
+    Adams::trialDiracSolution(psi.f, psi.g, dg, t_en, psi.k, v, rgrid, ctp,
+                              Param::d_ctp, t_pinf, alpha);
 
-    const int counted_nodes = countNodes(psi.f, t_pinf);
+    const int counted_nodes = Adams::countNodes(psi.f, t_pinf);
 
     // If correct number of nodes, use PT to make minor energy adjustment.
     // Otherwise, make large adjustmunt until correct # of nodes
     const double en_old = t_en;
     if (counted_nodes == required_nodes) {
       correct_nodes = true;
-      anorm = calcNorm(psi.f, psi.g, rgrid.drdu, rgrid.du, t_pinf);
-      t_en = smallEnergyChangePT(en_old, anorm, psi.f, dg, ctp, Param::d_ctp,
-                                 alpha, count_toofew, count_toomany, low_en,
-                                 high_en);
+      anorm = Adams::calcNorm(psi.f, psi.g, rgrid.drdu, rgrid.du, t_pinf);
+      t_en = Adams::smallEnergyChangePT(en_old, anorm, psi.f, dg, ctp,
+                                        Param::d_ctp, alpha, sofar);
     } else {
       correct_nodes = false;
       const bool toomany_nodes =
           (counted_nodes > required_nodes) ? true : false;
-      largeEnergyChange(t_en, count_toomany, count_toofew, high_en, low_en,
-                        Param::lfrac_de, toomany_nodes);
+      Adams::largeEnergyChange(&t_en, &sofar, Param::lfrac_de, toomany_nodes);
     }
     t_eps = fabs((t_en - en_old) / en_old);
 
@@ -166,10 +136,10 @@ void solveDBS(DiracSpinor &psi, const std::vector<double> &v, const Grid &rgrid,
   // This is rare - means a failure. But hopefully, failure will go away after
   // a few more HF iterations..If we don't norm wf, HF will fail.
   if (!correct_nodes) {
-    anorm = calcNorm(psi.f, psi.g, rgrid.drdu, rgrid.du, t_pinf);
-    DEBUG(std::cerr << "\nFAIL-148: wrong nodes:" << countNodes(psi.f, t_pinf)
-                    << "/" << required_nodes << " for " << psi.symbol()
-                    << "\n";)
+    anorm = Adams::calcNorm(psi.f, psi.g, rgrid.drdu, rgrid.du, t_pinf);
+    DEBUG(std::cerr << "\nFAIL-148: wrong nodes:"
+                    << Adams::countNodes(psi.f, t_pinf) << "/" << required_nodes
+                    << " for " << psi.symbol() << "\n";)
   }
 
   // store energy etc.
@@ -194,32 +164,15 @@ void solveDBS(DiracSpinor &psi, const std::vector<double> &v, const Grid &rgrid,
 }
 
 //******************************************************************************
-void diracODE_regularAtOrigin(DiracSpinor &phi, const double en,
-                              const std::vector<double> &v,
-                              const double alpha) {
+void regularAtOrigin(DiracSpinor &phi, const double en,
+                     const std::vector<double> &v, const double alpha) {
   const auto &gr = phi.p_rgrid;
   if (en != 0)
     phi.en = en;
-  const auto pinf = findPracticalInfinity(phi.en, v, gr->r, Param::cALR);
-  DiracMatrix Hd(*gr, v, phi.k, phi.en, alpha);
-  outwardAM(phi.f, phi.g, Hd, pinf - 1);
+  const auto pinf = Adams::findPracticalInfinity(phi.en, v, gr->r, Param::cALR);
+  Adams::DiracMatrix Hd(*gr, v, phi.k, phi.en, alpha);
+  Adams::outwardAM(phi.f, phi.g, Hd, pinf - 1);
   // for safety: make sure zerod! (I may re-use existing orbitals!)
-  for (std::size_t i = pinf; i < gr->ngp; i++) {
-    phi.f[i] = 0;
-    phi.g[i] = 0;
-  }
-  phi.pinf = pinf;
-}
-//******************************************************************************
-void diracODE_regularAtInfinity(DiracSpinor &phi, const double en,
-                                const std::vector<double> &v,
-                                const double alpha) {
-  const auto &gr = phi.p_rgrid;
-  if (en < 0)
-    phi.en = en;
-  const auto pinf = findPracticalInfinity(phi.en, v, gr->r, Param::cALR);
-  DiracMatrix Hd(*gr, v, phi.k, phi.en, alpha);
-  inwardAM(phi.f, phi.g, Hd, 0, pinf - 1);
   for (std::size_t i = pinf; i < gr->ngp; i++) {
     phi.f[i] = 0;
     phi.g[i] = 0;
@@ -228,29 +181,49 @@ void diracODE_regularAtInfinity(DiracSpinor &phi, const double en,
 }
 
 //******************************************************************************
-void largeEnergyChange(double &en, int &count_toomany, int &count_toofew,
-                       double &high_en, double &low_en, double frac_de,
+void regularAtInfinity(DiracSpinor &phi, const double en,
+                       const std::vector<double> &v, const double alpha) {
+  const auto &gr = phi.p_rgrid;
+  if (en < 0)
+    phi.en = en;
+  const auto pinf = Adams::findPracticalInfinity(phi.en, v, gr->r, Param::cALR);
+  Adams::DiracMatrix Hd(*gr, v, phi.k, phi.en, alpha);
+  Adams::inwardAM(phi.f, phi.g, Hd, 0, pinf - 1);
+  for (std::size_t i = pinf; i < gr->ngp; i++) {
+    phi.f[i] = 0;
+    phi.g[i] = 0;
+  }
+  phi.pinf = pinf;
+}
+
+//******************************************************************************
+//******************************************************************************
+namespace Adams {
+
+//******************************************************************************
+void largeEnergyChange(double *en, TrackEnGuess *sofar_ptr, double frac_de,
                        bool toomany_nodes)
 // wf did not have correct number of nodes. Make a large energy adjustment
 // toomany_nodes=true means there were too many nodes
 {
+  auto &sofar = *sofar_ptr; // for ease of typing only
+  auto etemp = *en;
   if (toomany_nodes) {
-    ++count_toomany;
-    if ((count_toomany == 1) || (en < high_en))
-      high_en = en;
-    double etemp = (1. + frac_de) * en;
-    if ((count_toofew != 0) && (etemp < low_en))
-      etemp = 0.5 * (high_en + low_en);
-    en = etemp;
+    ++sofar.count_toomany;
+    if ((sofar.count_toomany == 1) || (*en < sofar.high_en))
+      sofar.high_en = *en;
+    etemp *= (1.0 + frac_de);
+    if ((sofar.count_toofew != 0) && (etemp < sofar.low_en))
+      etemp = 0.5 * (sofar.high_en + sofar.low_en);
   } else {
-    ++count_toofew;
-    if ((count_toofew == 1) || (en > low_en))
-      low_en = en;
-    double etemp = (1. - frac_de) * en;
-    if ((count_toomany != 0) && (etemp > high_en))
-      etemp = 0.5 * (high_en + low_en);
-    en = etemp;
+    ++sofar.count_toofew;
+    if ((sofar.count_toofew == 1) || (*en > sofar.low_en))
+      sofar.low_en = *en;
+    etemp *= (1.0 - frac_de);
+    if ((sofar.count_toomany != 0) && (etemp > sofar.high_en))
+      etemp = 0.5 * (sofar.high_en + sofar.low_en);
   }
+  *en = etemp;
 }
 
 //******************************************************************************
@@ -265,14 +238,14 @@ double calcNorm(const std::vector<double> &f, const std::vector<double> &g,
 //******************************************************************************
 double smallEnergyChangePT(const double en, const double anorm,
                            const std::vector<double> &f,
-                           const std::vector<double> &dg, int ctp, int d_ctp,
-                           double alpha, int count_toofew, int count_toomany,
-                           double low_en, double high_en)
+                           const std::vector<double> &dg, const int ctp,
+                           const int d_ctp, const double alpha,
+                           const TrackEnGuess &sofar)
 // delta E = c*f(r)*[g_out(r)-g_in(r)] - evaluate at ctp
 // nb: wf not yet normalised (anorm is input param)!
 {
   double p_del_q = f[ctp] * dg[d_ctp];
-  double denom = 1.;
+  double denom = 1.0;
   // weighted average around ctp:
   for (int i = 1; i <= d_ctp; i++) {
     const auto w = Param::weight(i);
@@ -284,16 +257,13 @@ double smallEnergyChangePT(const double en, const double anorm,
   const double de = p_del_q / (alpha * anorm * denom);
   double new_en = en + de;
 
-  if ((count_toofew != 0) && (new_en < low_en)) {
-    new_en = 0.5 * (en + low_en);
-  } else if ((count_toomany != 0) && (new_en > high_en)) {
-    new_en = 0.5 * (en + high_en);
+  if ((sofar.count_toofew != 0) && (new_en < sofar.low_en)) {
+    new_en = 0.5 * (en + sofar.low_en);
+  } else if ((sofar.count_toomany != 0) && (new_en > sofar.high_en)) {
+    new_en = 0.5 * (en + sofar.high_en);
   } else if (new_en > 0) {
     // This only happens v. rarely. nodes correct, but P.T. gives silly result!
-    if (de > 0)
-      new_en = 0.9 * en;
-    else
-      new_en = 1.1 * en;
+    new_en = (de > 0) ? 0.9 * en : 1.1 * en;
   }
 
   return new_en;
@@ -429,8 +399,6 @@ void outwardAM(std::vector<double> &f, std::vector<double> &g,
   auto v0 = (ka > 0) ? -(ga0 + ka) / az0 : az0 / (ga0 - ka);
   f[0] = std::pow(r[0], ga0) * u0;
   g[0] = -std::pow(r[0], ga0) * v0;
-
-  // DiracMatrix Hd(r, drdu, v, ka, en, alpha);
 
   // loop through and find first Param::num_loops*AMO points of wf
   for (int ln = 0; ln < Param::num_loops; ln++) {
@@ -664,3 +632,4 @@ double DiracMatrix::d(std::size_t i) const {
 }
 
 } // namespace Adams
+} // namespace DiracODE

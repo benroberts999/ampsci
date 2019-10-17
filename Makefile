@@ -79,14 +79,16 @@ all: checkObj checkXdir $(DEFAULTEXES) doneMessage
 ## Dependencies: ... this is getting dumb... CMAKE?
 
 $(OD)/Adams_bound.o: $(ID)/Adams/Adams_bound.cpp $(ID)/Adams/Adams_bound.hpp \
+$(ID)/Adams/DiracODE.hpp $(ID)/Adams/Adams_coefs.hpp \
 $(ID)/Maths/Matrix_linalg.hpp $(ID)/Maths/NumCalc_quadIntegrate.hpp
 	$(COMP)
 
 $(OD)/Adams_continuum.o: $(ID)/Adams/Adams_continuum.cpp \
-$(ID)/Adams/Adams_continuum.hpp $(ID)/Adams/Adams_bound.hpp
+$(ID)/Adams/Adams_continuum.hpp $(ID)/Adams/DiracODE.hpp \
+$(ID)/Adams/Adams_bound.hpp
 	$(COMP)
 
-$(OD)/Adams_Greens.o: $(ID)/Adams/Adams_Greens.cpp \
+$(OD)/Adams_Greens.o: $(ID)/Adams/Adams_Greens.cpp $(ID)/Adams/DiracODE.hpp \
 $(ID)/Adams/Adams_Greens.hpp $(ID)/Adams/Adams_bound.hpp
 	$(COMP)
 
@@ -101,7 +103,8 @@ $(ID)/Physics/PhysConst_constants.hpp $(ID)/Maths/SphericalBessel.hpp
 	$(COMP)
 
 $(OD)/ContinuumOrbitals.o: $(ID)/Dirac/ContinuumOrbitals.cpp \
-$(ID)/Dirac/ContinuumOrbitals.hpp $(ID)/Physics/PhysConst_constants.hpp
+$(ID)/Dirac/ContinuumOrbitals.hpp $(ID)/Adams/DiracODE.hpp \
+$(ID)/Physics/PhysConst_constants.hpp
 	$(COMP)
 
 $(OD)/CoulombIntegrals.o: $(ID)/HF/CoulombIntegrals.cpp \
@@ -127,7 +130,7 @@ $(ID)/Physics/Nuclear.hpp $(ID)/Maths/Grid.hpp
 $(OD)/HartreeFockClass.o: $(ID)/HF/HartreeFockClass.cpp \
 $(ID)/HF/HartreeFockClass.hpp $(ID)/Physics/Wigner_369j.hpp \
 $(ID)/Dirac/Operators.hpp $(ID)/Dirac/DiracOperator.hpp \
-$(ID)/Maths/NumCalc_quadIntegrate.hpp $(ID)/Adams/Adams_Greens.hpp
+$(ID)/Maths/NumCalc_quadIntegrate.hpp $(ID)/Adams/DiracODE.hpp
 	$(COMP)
 
 $(OD)/Module_runModules.o: $(ID)/Modules/Module_runModules.cpp \
@@ -172,6 +175,7 @@ $(ID)/IO/FileIO_fileReadWrite.hpp
 	$(COMP)
 
 $(OD)/Wavefunction.o: $(ID)/Dirac/Wavefunction.cpp $(ID)/Dirac/Wavefunction.hpp\
+$(ID)/Adams/DiracODE.hpp \
 $(ID)/Physics/Nuclear.hpp $(ID)/Physics/PhysConst_constants.hpp
 	$(COMP)
 

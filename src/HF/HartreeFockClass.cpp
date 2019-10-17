@@ -1,6 +1,5 @@
 #include "HF/HartreeFockClass.hpp"
-// #include "Adams/Adams_bound.hpp"
-#include "Adams/Adams_Greens.hpp"
+#include "Adams/DiracODE.hpp"
 #include "Dirac/DiracOperator.hpp"
 #include "Dirac/DiracSpinor.hpp"
 #include "Dirac/Operators.hpp"
@@ -610,7 +609,7 @@ void HartreeFock::iterate_core_orbital(
       break;
     }
 
-    Adams::solve_inhomog(phi, phi0, phiI, en, vl, p_wf->get_alpha(), Sr);
+    DiracODE::solve_inhomog(phi, phi0, phiI, en, vl, p_wf->get_alpha(), Sr);
     phi.normalise();
     phi.en = en;
   }
@@ -664,7 +663,7 @@ inline void HartreeFock::refine_valence_orbital_exchange(DiracSpinor &phi) {
     prev_en = en;
 
     auto oldphi = phi;
-    Adams::solve_inhomog(phi, phi0, phiI, en, vl, p_wf->get_alpha(), Sr);
+    DiracODE::solve_inhomog(phi, phi0, phiI, en, vl, p_wf->get_alpha(), Sr);
     phi.normalise();
     phi = a_damp * oldphi + (1.0 - a_damp) * phi;
     phi.en = en;

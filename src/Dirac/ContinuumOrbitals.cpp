@@ -1,10 +1,9 @@
 #include "Dirac/ContinuumOrbitals.hpp"
-#include "Adams/Adams_bound.hpp"
-#include "Adams/Adams_continuum.hpp"
+#include "Adams/DiracODE.hpp"
+#include "Dirac/Wavefunction.hpp"
 #include "Maths/Grid.hpp"
 #include "Physics/AtomInfo.hpp"
 #include "Physics/PhysConst_constants.hpp"
-#include "Dirac/Wavefunction.hpp"
 #include <cmath>
 #include <string>
 #include <vector>
@@ -72,7 +71,8 @@ int ContinuumOrbitals::solveLocalContinuum(double ec, int min_l, int max_l)
 
   // Find 'inital guess' for asymptotic region:
   double lam = 1.0e7; // XXX ???
-  double r_asym = (Zion + std::sqrt(4. * lam * ec + std::pow(Zion, 2))) / (2. * ec);
+  double r_asym =
+      (Zion + std::sqrt(4. * lam * ec + std::pow(Zion, 2))) / (2. * ec);
 
   // Check if 'h' is small enough for oscillating region:
   double h_target = (M_PI / 15) / std::sqrt(2. * ec);
@@ -107,7 +107,7 @@ int ContinuumOrbitals::solveLocalContinuum(double ec, int min_l, int max_l)
 
     DiracSpinor phi(0, k, *p_rgrid);
     phi.en = ec;
-    Adams::solveContinuum(phi, vc, cgrid, i_asym, alpha);
+    DiracODE::solveContinuum(phi, vc, cgrid, i_asym, alpha);
 
     orbitals.push_back(phi);
   }

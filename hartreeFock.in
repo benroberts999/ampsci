@@ -32,6 +32,7 @@ Grid {
 //   You can comment-out just the block name, and the block will be skiped.
 
 // MatrixElements::E1 {}
+// MatrixElements::E1 { gauge = vform; }
 
 // Module::Tests
 {

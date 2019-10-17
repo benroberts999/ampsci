@@ -1,14 +1,16 @@
 #include "Adams_continuum.hpp"
 #include "Adams_bound.hpp"
 #include "Dirac/DiracSpinor.hpp"
+#include "DiracODE.hpp"
 #include "Maths/Grid.hpp"
 #include <cmath>
 
-namespace Adams {
+namespace DiracODE {
+using namespace Adams;
 
-// Program to solve single-electron continuum-state Dirac problem for a (given)
-// local, central potential.
-// Uses "outwardAM" (from adamsSolveLocalBS.cpp) to solve dirac equation
+// Program to solve single-electron continuum-state Dirac problem for a
+// (given) local, central potential. Uses "outwardAM" (from
+// adamsSolveLocalBS.cpp) to solve dirac equation
 //
 // Normalises wavefunction by solving all the way out to asymptotic region,
 // where solution should be sinosoidal. Then, matches amplitude with low-r
@@ -62,6 +64,7 @@ int solveContinuum(DiracSpinor &phi, const std::vector<double> &v,
   return 0;
 }
 
+namespace Adams {
 //******************************************************************************
 double findSineAmplitude(std::vector<double> &pc, const std::vector<double> &rc,
                          std::size_t NGPc, std::size_t i_asym)
@@ -160,9 +163,9 @@ double fitQuadratic(double x1, double x2, double x3, double y1, double y2,
                     double y3)
 // Takes in three points, and fits them to a quadratic function.
 // Returns y-value for vertex of quadratic.
-// Used for finding the amplitude of a sine/cosine function, given thee points.
-// i.e., will return amplitude of since function.
-// Note: the given 3 points _MUST_ be close to maximum, otherwise, fit wont work
+// Used for finding the amplitude of a sine/cosine function, given thee
+// points. i.e., will return amplitude of since function. Note: the given 3
+// points _MUST_ be close to maximum, otherwise, fit wont work
 {
   if (y1 < 0)
     y1 = std::fabs(y1);
@@ -192,3 +195,4 @@ double fitQuadratic(double x1, double x2, double x3, double y1, double y2,
 }
 
 } // namespace Adams
+} // namespace DiracODE

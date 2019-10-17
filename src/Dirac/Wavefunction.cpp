@@ -1,5 +1,5 @@
 #include "Dirac/Wavefunction.hpp"
-#include "Adams/Adams_bound.hpp"
+#include "Adams/DiracODE.hpp"
 #include "Dirac/DiracSpinor.hpp"
 #include "Maths/Grid.hpp"
 #include "Physics/AtomInfo.hpp"
@@ -15,7 +15,7 @@
 void Wavefunction::solveDirac(DiracSpinor &psi, double e_a,
                               const std::vector<double> &vex,
                               int log_dele_or) const
-// Uses Adams::solveDBS to solve Dirac Eqn for local potential (Vnuc + Vdir)
+// Uses Adams::boundState to solve Dirac Eqn for local potential (Vnuc + Vdir)
 // If no e_a is given, will use the existing one!
 // (Usually, a better guess should be given, using P.T.)
 // Note: optionally takes in exchange potential! (see overloaded above)
@@ -40,7 +40,7 @@ void Wavefunction::solveDirac(DiracSpinor &psi, double e_a,
   } else if (psi.en == 0) {
     psi.en = enGuessVal(psi.n, psi.k);
   }
-  Adams::solveDBS(psi, v_a, rgrid, m_alpha, log_dele_or);
+  DiracODE::boundState(psi, v_a, rgrid, m_alpha, log_dele_or);
 }
 
 //------------------------------------------------------------------------------
