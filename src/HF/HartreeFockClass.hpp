@@ -86,11 +86,11 @@ private:
 
   void refine_core_orbitals_exchange();
   void refine_valence_orbital_exchange(DiracSpinor &phi);
-  void iterate_core_orbital(DiracSpinor &phi, const std::vector<double> &vl,
-                            const DirectHamiltonian &Hd,
-                            const std::vector<double> &fVdir0) const;
+  // void iterate_core_orbital(DiracSpinor &phi, const std::vector<double> &vl,
+  //                           const DirectHamiltonian &Hd,
+  //                           const std::vector<double> &fVdir0) const;
 
   // XXX
   void hf_orbital(DiracSpinor &phi, double en, const std::vector<double> &vl,
-                  const DiracSpinor &vx_phi, const double damp_orb) const;
+                  const DiracSpinor &vx_phi) const;
 };

@@ -576,22 +576,17 @@ DiracSpinor HartreeFock::vex_psia_any(const DiracSpinor &phi_a) const
 //******************************************************************************
 void HartreeFock::hf_orbital(DiracSpinor &phi, double en,
                              const std::vector<double> &vl,
-                             const DiracSpinor &vx_phi,
-                             const double damp_orb) const
+                             const DiracSpinor &vx_phi) const
 //  (H0 + Vl - Vx)Psi = 0    Vl is local (Vnuc + fVdir), Vx is non-local
 //  (H0 + Vd)Psi = +VxPsi    // XXX Note strange sign!!!
 {
-  // std::unique_ptr
-  // XXX If damp_orb is non-zero, copy phi
-  auto phi_old = phi;
   DiracSpinor phi0(phi.n, phi.k, *(phi.p_rgrid)); // XXX make input? Save alocs?
   DiracSpinor phiI(phi.n, phi.k, *(phi.p_rgrid));
   const auto alpha = p_wf->get_alpha();
   DiracODE::solve_inhomog(phi, phi0, phiI, en, vl, alpha, vx_phi);
-  // auto old_en = en;
   auto eps = 1.0;
   int tries = 0;
-  for (; tries < 99; ++tries) {
+  for (; tries < 32; ++tries) {
     DiracSpinor phi_hat(phi.n, phi.k, *(phi.p_rgrid));
     DiracODE::Adams::GreenSolution(phi_hat, phiI, phi0, alpha, phi);
     // make small adjustments to energy to normalise psi:
@@ -600,78 +595,25 @@ void HartreeFock::hf_orbital(DiracSpinor &phi, double en,
     phi -= (2.0 * delta_E) * phi_hat;
     en += delta_E;
     eps = std::abs(delta_E / en);
-    if (eps < 1.0e-17)
+    if (eps < 1.0e-16) //&& tries > 2
       break;
   }
   phi.en = en;
   phi.eps = eps;
   phi.its = tries;
-  if (damp_orb > 0)
-    phi = (1.0 - damp_orb) * phi + damp_orb * phi_old; // damp en? no?
-  phi.normalise();                                     // ?
+  phi.normalise(); // ?
 }
 
 //******************************************************************************
 //******************************************************************************
 //******************************************************************************
-
-//******************************************************************************
-void HartreeFock::iterate_core_orbital(
-    DiracSpinor &phi, const std::vector<double> &vl,
-    const DirectHamiltonian &Hd, const std::vector<double> &fVdir0) const {
-
-  // const auto eps_target = m_eps_HF;
-  //
-  // const int n = phi.n;
-  // const int k = phi.k;
-  //
-  // const auto &vd = Hd.getVdir();
-  //
-  // double prev_inner_eps = 1.0;
-  // auto phi0 = DiracSpinor(n, k, *(phi.p_rgrid));
-  // auto phiI = DiracSpinor(n, k, *(phi.p_rgrid));
-  // auto vexPsi = DiracSpinor(n, k, *(phi.p_rgrid));
-  // for (int ini = 1; ini <= 1; ini++) {
-  //
-  //   vex_psia(phi, vexPsi);
-  //   const auto Sr = (fVdir0 * phi) - (vd * phi) - vexPsi;
-  //
-  //   // auto en = 0.5 * (phi.en + Hd.matrixEl(phi, phi) + (phi * vexPsi));
-  //   // auto en = phi.en;
-  //
-  //   // DiracODE::solve_inhomog(phi, phi0, phiI, en, vl, p_wf->get_alpha(),
-  //   Sr); hf_orbital(phi, phi.en, vl, Sr, 0);
-  //   // phi.normalise();
-  //   // phi.en = en;
-  //
-  //   // auto inner_eps = fabs((en - phi.en) / phi.en);
-  //   // bool inner_converged = (inner_eps <= eps_target || ini ==
-  //   MAX_HART_ITS);
-  //   // bool inner_getting_worse =
-  //   //     (inner_eps > 1.1 * prev_inner_eps && ini > 10 && inner_eps
-  //   < 1.e-5);
-  //   //
-  //   // if (prev_inner_eps > inner_eps)
-  //   //   prev_inner_eps = inner_eps;
-  //   // if (inner_converged || inner_getting_worse) {
-  //   //   // phi.en = en;
-  //   //   // phi.eps = inner_eps;
-  //   //   // phi.its = ini;
-  //   //   break;
-  //   // }
-  // }
-  // DEBUG(printf(" refine--- %2i,%2i: en=%11.5f  HFeps = %.0e;  %2i  "
-  //              "(%4i)\n",
-  //              phi.n, phi.k, phi.en, phi.eps, phi.its, (int)phi.pinf);
-  //       std::cin.get();)
-}
 
 //******************************************************************************
 inline void HartreeFock::refine_valence_orbital_exchange(DiracSpinor &phi) {
 
   auto eps_target = m_eps_HF;
   // const auto a_damp = 0.275;
-  const auto a_damp = 0.8;
+  auto a_damp = 0.775;
 
   const int n = phi.n;
   const int k = phi.k;
@@ -692,22 +634,23 @@ inline void HartreeFock::refine_valence_orbital_exchange(DiracSpinor &phi) {
   auto phiI = DiracSpinor(n, k, p_wf->rgrid);
   auto vexPsi = DiracSpinor(n, k, p_wf->rgrid);
   auto vexPsi_prev = vx_appr * phi; // DiracSpinor(n, k, p_wf->rgrid);
-  for (int it = 0; it <= MAX_HART_ITS; ++it) {
+  for (int it = 0; it <= MAX_HART_ITS; ++it) { // MAX_HART_ITS
+    if (it == 10)
+      a_damp = 0.6;
+    else if (it == 15)
+      a_damp = 0.4;
     vex_psia(phi, vexPsi);
     auto Sr = -1.0 * vexPsi;
-    // auto en = 1.0 * phi.en + 0.0 * (Hd.matrixEl(phi, phi) + phi * vexPsi);
 
     auto oldphi = phi;
     auto de = (phi_zero * vexPsi - phi * vexPsi_zero) / (phi * phi_zero);
-    // std::cout << phi_zero.en << "  + de=" << de << " = " << phi_zero.en + de
-    //           << "\n";
-    hf_orbital(phi, phi_zero.en + de, vl, Sr, 0);
+    hf_orbital(phi, phi_zero.en + de, vl, Sr);
 
     auto eps = std::fabs((prev_en - phi.en) / phi.en);
     // std::cout << eps << " " << phi.en << "\n";
     prev_en = phi.en;
 
-    bool getting_worse = (it > 20 && eps >= 2.0 * eps_prev && eps < 1.e-5);
+    bool getting_worse = (it > 20 && eps > 1.1 * eps_prev && eps < 1.e-5);
     bool converged = (eps <= eps_target && it > 0);
     if (converged || getting_worse || it == MAX_HART_ITS) {
       if (verbose)
@@ -725,7 +668,6 @@ inline void HartreeFock::refine_valence_orbital_exchange(DiracSpinor &phi) {
     } else {
       phi.normalise();
     }
-    // vex_psia(phi, vexPsi_prev); // new psi, prev vex
     m_cint.form_core_valence(phi);
   }
   // std::cin.get();
@@ -775,7 +717,7 @@ inline void HartreeFock::refine_core_orbitals_exchange() {
       auto de1 = (phi0 * (vd * phi) - phi0 * (vd0 * phi)) / (phi0 * phi);
       auto de2 = (phi0 * vexPsi - phi0 * (vx_appr * phi)) / (phi0 * phi);
       auto en = phi0.en + de1 + de2;
-      hf_orbital(phi, en, vl, Sr, 0);
+      hf_orbital(phi, en, vl, Sr);
       phi = (1.0 - a_damp) * phi + a_damp * oldphi;
       phi.normalise();
     }
@@ -792,7 +734,7 @@ inline void HartreeFock::refine_core_orbitals_exchange() {
     if (eps < prev_eps)
       prev_eps = eps;
 
-    bool getting_worse = (it > 20 && eps > 1.1 * prev_eps && eps < 1.e-5);
+    bool getting_worse = (it > 20 && eps > 2.0 * prev_eps && eps < 1.e-6);
     bool converged = ((eps <= eps_target && it > 0) || it == MAX_HART_ITS);
     if (converged || getting_worse) {
       if (verbose)
