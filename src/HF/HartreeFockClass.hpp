@@ -51,6 +51,7 @@ public:
   DiracSpinor vex_psia(const DiracSpinor &phi_a) const;
   void vex_psia(const DiracSpinor &phi_a, DiracSpinor &vexPsi) const;
   DiracSpinor vex_psia_any(const DiracSpinor &phi_a) const;
+  void vex_psia_any(const DiracSpinor &phi_a, DiracSpinor *vexPsi_ptr) const;
 
   bool verbose = true;
 
