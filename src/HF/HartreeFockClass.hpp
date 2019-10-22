@@ -51,7 +51,9 @@ public:
   DiracSpinor vex_psia(const DiracSpinor &phi_a) const;
   void vex_psia(const DiracSpinor &phi_a, DiracSpinor &vexPsi) const;
   DiracSpinor vex_psia_any(const DiracSpinor &phi_a) const;
-  void vex_psia_any(const DiracSpinor &phi_a, DiracSpinor *vexPsi_ptr) const;
+  void vex_psia_any(const DiracSpinor &phi_a, DiracSpinor *vexPsi_ptr,
+                    int k_cut = 99) const;
+  // void vex0_any(const DiracSpinor &phi_a, std::vector<double> &vex0) const;
 
   bool verbose = true;
 
@@ -87,11 +89,9 @@ private:
 
   void refine_core_orbitals_exchange();
   void refine_valence_orbital_exchange(DiracSpinor &phi);
-  // void iterate_core_orbital(DiracSpinor &phi, const std::vector<double> &vl,
-  //                           const DirectHamiltonian &Hd,
-  //                           const std::vector<double> &fVdir0) const;
 
   // XXX
   void hf_orbital(DiracSpinor &phi, double en, const std::vector<double> &vl,
-                  const DiracSpinor &vx_phi) const;
+                  const DiracSpinor &vx_phi,
+                  const std::vector<double> &v0 = {}) const;
 };
