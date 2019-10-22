@@ -66,7 +66,7 @@ private:
   const double m_eps_HF;
 
   static const int MAX_HART_ITS = 99;
-  const bool m_excludeExchange; // for testing
+  const bool m_excludeExchange;
   const HFMethod m_method;
 
   const bool m_explicitOrthog_cc = false; //??

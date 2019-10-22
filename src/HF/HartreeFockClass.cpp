@@ -1,9 +1,9 @@
 #include "HF/HartreeFockClass.hpp"
 #include "Adams/Adams_Greens.hpp"
 #include "Adams/DiracODE.hpp"
-#include "Dirac/DiracOperator.hpp"
+// #include "Dirac/DiracOperator.hpp"
 #include "Dirac/DiracSpinor.hpp"
-#include "Dirac/Operators.hpp"
+// #include "Dirac/Operators.hpp"
 #include "Dirac/Wavefunction.hpp"
 #include "HF/CoulombIntegrals.hpp"
 #include "Maths/Grid.hpp"
@@ -552,7 +552,6 @@ void HartreeFock::vex_psia_any(const DiracSpinor &phi_a,
 // calculates V_ex Psi_a (returns new Dirac Spinor)
 // Psi_a can be any orbital (Calculates coulomb integrals here!)
 {
-  // DiracSpinor vexPsi(phi_a.n, phi_a.k, *(phi_a.p_rgrid));
 
   std::vector<double> vabk(phi_a.p_rgrid->ngp);
   // XXX ALSO move this!
@@ -588,45 +587,15 @@ void HartreeFock::vex_psia_any(const DiracSpinor &phi_a,
       } // r
     }   // k
   }     // b
-  // return vexPsi;
 }
 DiracSpinor HartreeFock::vex_psia_any(const DiracSpinor &phi_a) const
 // calculates V_ex Psi_a (returns new Dirac Spinor)
 // Psi_a can be any orbital (Calculates coulomb integrals here!)
 {
   DiracSpinor vexPsi(phi_a.n, phi_a.k, *(phi_a.p_rgrid));
-
-  // XXX ALSO do this one!
-  // std::vector<double> vabk(phi_a.p_rgrid->ngp);
-
   vex_psia_any(phi_a, &vexPsi);
   return vexPsi;
 }
-
-// //******************************************************************************
-// void HartreeFock::vex0_any(const DiracSpinor &phi_a,
-//                            std::vector<double> &vex0) const
-// // XXX ONLY does a=b part!
-// // Note: ONLY call for phi_a in the core!
-// {
-//   vex0.resize(phi_a.p_rgrid->ngp);
-//   auto ki_a = phi_a.k_index();
-//   auto tja = phi_a.twoj();
-//   double x_tjbp1 = (tja + 1);
-//   auto irmax = phi_a.pinf;
-//   int k = 0;
-//   // auto tjs = Wigner::threej_2(tja, tja, 2 * k, -1, 1, 0);
-//   // Coulomb::calculate_y_ijk(phi_a, phi_a, k, vex0);
-//   const auto &vabk = m_cint.get_y_ijk(phi_a, phi_a, k);
-//   const auto &L_ab_k = m_cint.get_angular_L_kiakib_k(ki_a, ki_a);
-//   vex0[0] = 0; //?
-//   for (auto i = 1ul; i < irmax; i++) {
-//     vex0[i] = -x_tjbp1 * L_ab_k[0] * vabk[i];
-//   } // r
-//   // for (auto i = irmax; i < phi_a.p_rgrid->ngp; i++) {
-//   //   vex0[i] = 0.0;
-//   // }
-// }
 
 //******************************************************************************
 //******************************************************************************
@@ -641,43 +610,46 @@ void HartreeFock::hf_orbital(DiracSpinor &phi, double en,
 //  (H0 + Vl + Vx)Psi = 0
 //  (H0 + Vl)Psi = -VxPsi
 // Vl is local (e.g., Vnuc + fVdir), Vx is non-local (e.g., (1-f)Vdir + Vex)
-// v0 = (1-f)Vdir
+// where v0 = (1-f)Vdir  [f=1 for valence states!, so v0 may be empty]
+// Small energy adjustmenets (and wfs), solve:
+// (Hl - e) dF = de * F -VxPsi
+// e -> e+de, F->F+dF
 {
   constexpr bool include_dF_exch = true;
+
   DiracSpinor phi0(phi.n, phi.k, *(phi.p_rgrid));
   DiracSpinor phiI(phi.n, phi.k, *(phi.p_rgrid));
-  const auto alpha = (p_wf->get_alpha());
+  const auto alpha = p_wf->get_alpha();
   DiracODE::solve_inhomog(phi, phi0, phiI, en, vl, alpha, -1.0 * vx_phi);
-  auto eps = std::abs((phi.en - en) / en); // only when no adjustements
-  int tries = 0;
-  constexpr bool make_adjustments = true;
+
   // make small adjustments to energy to normalise psi:
-  DiracSpinor phi_hat(phi.n, phi.k, *(phi.p_rgrid));
-  auto VxFh = phi_hat; // only need if making adjustments!
-  DiracODE::solve_inhomog(phi_hat, phi0, phiI, en, vl, alpha, -1.0 * vx_phi);
-  for (; tries < MAX_HART_ITS && make_adjustments; ++tries) {
-    DiracODE::Adams::GreenSolution(phi_hat, phiI, phi0, alpha, phi);
-    if (include_dF_exch) {
-      auto de1 = 0.5 * (phi * phi - 1.0) / (phi * phi_hat);
-      vex_psia_any(phi_hat, &VxFh, 0); // make non-allocating version!
-      if (!v0.empty()) {
-        VxFh += v0 * phi_hat; // v0 = (1-f)Vd;
-      }
-      VxFh *= (1.0 / de1);
-      DiracODE::Adams::GreenSolution(phi_hat, phiI, phi0, alpha, phi - VxFh);
-    }
-    auto delta_N = phi * phi - 1.0;
-    auto delta_E = 0.5 * delta_N / (phi * phi_hat);
-    phi -= (1.0 * delta_E) * phi_hat;
-    en += delta_E;
-    eps = std::abs(delta_E / en);
+  DiracSpinor del_phi(phi.n, phi.k, *(phi.p_rgrid));
+  DiracSpinor VxFh(phi.n, phi.k, *(phi.p_rgrid));
+  DiracODE::Adams::GreenSolution(del_phi, phiI, phi0, alpha, phi);
+  auto del_E = 0.5 * (phi * phi - 1.0) / (phi * del_phi);
+  auto eps = std::abs(del_E / en);
+  int tries = 0;
+  for (; tries < MAX_HART_ITS; ++tries) { // MAX_HART_ITS
     if (eps < m_eps_HF)
       break;
+    if (include_dF_exch) {
+      vex_psia_any(del_phi, &VxFh, 0); // make non-allocating version!
+      if (!v0.empty())
+        VxFh += v0 * del_phi; // v0 = (1-f)Vd;
+      DiracODE::Adams::GreenSolution(del_phi, phiI, phi0, alpha,
+                                     del_E * phi - VxFh);
+    }
+    auto delta_Norm = phi * phi - 1.0;
+    auto de0 = del_E;
+    del_E = 0.5 * de0 * delta_Norm / (phi * del_phi);
+    eps = std::abs(del_E / en);
+    en += del_E;
+    phi -= (1.0 * del_E / de0) * del_phi;
   }
   phi.en = en;
   phi.eps = eps;
   phi.its = tries;
-  phi.normalise();
+  // phi.normalise(); //? Not needed
 }
 
 //******************************************************************************
@@ -689,11 +661,13 @@ inline void HartreeFock::refine_valence_orbital_exchange(DiracSpinor &phi) {
 
   auto eps_target = m_eps_HF;
 
-  auto damper = rampedDamp(0.85, 0.3, 5, 30);
+  auto damper = rampedDamp(0.7, 0.2, 5, 20);
   double extra_damp = 0.0;
 
   auto vl = NumCalc::sumVecs({&(p_wf->vnuc), &(p_wf->vdir)});
-  DirectHamiltonian Hd(p_wf->vnuc, p_wf->vdir, p_wf->get_alpha());
+
+  auto phi_zero = phi;
+  auto vexPsi_zero = get_vex(phi) * phi;
 
   auto prev_en = phi.en;
   m_cint.form_core_valence(phi); // only needed if not already done!
@@ -709,14 +683,15 @@ inline void HartreeFock::refine_valence_orbital_exchange(DiracSpinor &phi) {
 
     vex_psia(phi, vexPsi);
     auto oldphi = phi;
-    auto en = Hd.matrixEl(phi, phi) + (phi * vexPsi);
+    auto en = phi_zero.en +
+              (phi_zero * vexPsi - phi * vexPsi_zero) / (phi * phi_zero);
     hf_orbital(phi, en, vl, vexPsi);
     eps = std::fabs((prev_en - phi.en) / phi.en);
     prev_en = phi.en;
 
     if (it > 20 && eps > 1.5 * best_eps) {
       ++worse_count;
-      extra_damp = extra_damp > 0 ? 0 : 0.4;
+      extra_damp = extra_damp > 0 ? 0 : 0.1;
     } else {
       worse_count = 0;
     }
@@ -726,6 +701,9 @@ inline void HartreeFock::refine_valence_orbital_exchange(DiracSpinor &phi) {
 
     if (eps < best_eps)
       best_eps = eps;
+
+    DEBUG(std::cout << it << " " << eps << " " << phi.en << " "
+                    << en - phi_zero.en << " " << phi * phi << "\n";)
 
     phi = (1.0 - a_damp) * phi + a_damp * oldphi;
     if (m_explicitOrthog_cv) {
@@ -739,6 +717,7 @@ inline void HartreeFock::refine_valence_orbital_exchange(DiracSpinor &phi) {
   if (m_explicitOrthog_cv)
     p_wf->orthonormaliseWrtCore(phi);
 
+  DEBUG(std::cin.get();)
   if (verbose)
     printf("refine: %2i %2i | %3i eps=%6.1e  en=%11.8f\n", phi.n, phi.k, it,
            eps, phi.en);
@@ -758,6 +737,18 @@ inline void HartreeFock::refine_core_orbitals_exchange() {
   const auto f_core = double(p_wf->Ncore() - 1) / double(p_wf->Ncore());
   const auto &vd = p_wf->vdir;
 
+  // Store arrays of intitial Psi and VexPsi, and VdirPsi (for En guess)
+  // And allocate arrays for VexPsi, so can //-ise it loop (over orbs)!
+  const auto core_zero = p_wf->core_orbitals;
+  std::vector<DiracSpinor> vexCore_zero;
+  const auto vd0 = p_wf->vdir;
+  std::vector<DiracSpinor> vexF_list;
+  for (std::size_t i = 0; i < p_wf->core_orbitals.size(); ++i) {
+    auto &phi = p_wf->core_orbitals[i];
+    vexCore_zero.push_back(get_vex(phi) * phi);
+    vexF_list.push_back(DiracSpinor(phi.n, phi.k, *(phi.p_rgrid)));
+  }
+
   int it = 0;
   double eps = 0.0;
   double best_eps = 1.0;
@@ -766,20 +757,30 @@ inline void HartreeFock::refine_core_orbitals_exchange() {
   for (; it <= MAX_HART_ITS; it++) {
     auto a_damp = damper(it) + extra_damp;
 
+    // re-calculate each Vl = vnuc + fvdir, v0 = (1-f)vdir:
     for (auto i = 0ul; i < p_wf->rgrid.ngp; i++) {
       vl[i] = p_wf->vnuc[i] + f_core * vd[i];
       v0[i] = (1.0 - f_core) * vd[i];
     }
 
-    const DirectHamiltonian Hd(p_wf->vnuc, vd, p_wf->get_alpha());
+    // re-calculate each VexPsi:
+    for (std::size_t i = 0; i < p_wf->core_orbitals.size(); ++i) {
+      const auto &phi = p_wf->core_orbitals[i];
+      vex_psia(phi, vexF_list[i]);
+    }
 
     eps = 0.0;
+#pragma omp parallel for
     for (std::size_t i = 0; i < p_wf->core_orbitals.size(); ++i) {
       auto &phi = p_wf->core_orbitals[i];
+      auto &phi_zero = core_zero[i];
+      auto &vexPsi_zero = vexCore_zero[i];
+
       auto oldphi = phi;
-      auto vexPsi = DiracSpinor(phi.n, phi.k, *(phi.p_rgrid));
-      vex_psia(phi, vexPsi);
-      auto en = Hd.matrixEl(phi, phi) + (phi * vexPsi);
+      const auto &vexPsi = vexF_list[i];
+      auto en = phi_zero.en + (phi_zero * vexPsi - phi * vexPsi_zero +
+                               phi_zero * (vd * phi) - phi * (vd0 * phi_zero)) /
+                                  (phi * phi_zero);
       const auto v_nonlocal = v0 * phi + vexPsi;
       hf_orbital(phi, en, vl, v_nonlocal, v0);
       phi = (1.0 - a_damp) * phi + a_damp * oldphi;
