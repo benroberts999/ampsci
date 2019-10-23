@@ -6,9 +6,9 @@ Atom {
 
 HartreeFock {
   core = [Xe];
-  valence = 6sp;
+  valence = 7sp;
   method; // HartreeFock(dflt), ApproxHF, Hartree, GreenPRM, TietzPRM
-  convergence = 1.e-13;
+  //  convergence = 1.e-13;
 }
 
 Nucleus {
@@ -36,8 +36,8 @@ Grid {
 
 Module::Tests {
   orthonormal = true;
-  orthonormal_all = false;
-  Hamiltonian = true;
+  // orthonormal_all = true;
+  // Hamiltonian = true;
 }
 
 // Module::BohrWeisskopf

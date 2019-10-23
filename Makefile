@@ -18,6 +18,11 @@ XD=.
 ID=./src
 OD=./obj
 
+# runs make in //
+ifneq ($(Build),debug)
+  MAKEFLAGS += -j12
+endif
+
 WARN=-Wall -Wpedantic -Wextra -Wdouble-promotion -Wconversion -Wshadow
 # -Weffc++
 # -Wfloat-equal

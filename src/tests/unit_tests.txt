@@ -10,7 +10,9 @@ Grid {
   rmax = 120.0;
   ngp = 1600;
 }
-Module::Tests{}
+Module::Tests{
+  Hamiltonian = true;
+}
 
 
 ###########################################
