@@ -50,9 +50,9 @@ public:
   const std::vector<double> &get_vex(const DiracSpinor &psi) const;
   DiracSpinor vex_psia(const DiracSpinor &phi_a) const;
   void vex_psia(const DiracSpinor &phi_a, DiracSpinor &vexPsi) const;
-  DiracSpinor vex_psia_any(const DiracSpinor &phi_a) const;
+  // DiracSpinor vex_psia_any(const DiracSpinor &phi_a) const;
   void vex_psia_any(const DiracSpinor &phi_a, DiracSpinor *vexPsi_ptr,
-                    int k_cut = 99) const;
+                    const std::vector<DiracSpinor> &core, int k_cut = 99) const;
   // void vex0_any(const DiracSpinor &phi_a, std::vector<double> &vex0) const;
 
   bool verbose = true;
@@ -93,5 +93,6 @@ private:
   // XXX
   void hf_orbital(DiracSpinor &phi, double en, const std::vector<double> &vl,
                   const DiracSpinor &vx_phi,
+                  const std::vector<DiracSpinor> &core,
                   const std::vector<double> &v0 = {}) const;
 };
