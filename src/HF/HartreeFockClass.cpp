@@ -12,6 +12,7 @@
 #include "Physics/Wigner_369j.hpp"
 #include <cmath>
 #include <functional>
+#include <utility>
 #include <vector>
 /*
 Calculates self-consistent Hartree-Fock potential, including exchange.
@@ -743,17 +744,21 @@ inline void HartreeFock::refine_core_orbitals_exchange() {
   std::vector<DiracSpinor> vexCore_zero;
   const auto vd0 = p_wf->vdir;
   std::vector<DiracSpinor> vexF_list;
-  for (std::size_t i = 0; i < p_wf->core_orbitals.size(); ++i) {
+  const auto Ncore = p_wf->core_orbitals.size();
+  std::vector<double> eps_lst(Ncore, 0.0);
+  for (std::size_t i = 0; i < Ncore; ++i) {
     auto &phi = p_wf->core_orbitals[i];
     vexCore_zero.push_back(get_vex(phi) * phi);
     vexF_list.push_back(DiracSpinor(phi.n, phi.k, *(phi.p_rgrid)));
   }
 
-  int it = 0;
   double eps = 0.0;
   double best_eps = 1.0;
-  std::size_t worst_index;
+  double best_worst_eps = 1.0;
+  std::size_t worst_index = 0;
+  std::size_t best_index = 0;
   int worse_count = 0;
+  int it = 0;
   for (; it <= MAX_HART_ITS; it++) {
     auto a_damp = damper(it) + extra_damp;
 
@@ -764,19 +769,23 @@ inline void HartreeFock::refine_core_orbitals_exchange() {
     }
 
     // re-calculate each VexPsi:
-    for (std::size_t i = 0; i < p_wf->core_orbitals.size(); ++i) {
+    for (std::size_t i = 0; i < Ncore; ++i) {
       const auto &phi = p_wf->core_orbitals[i];
       vex_psia(phi, vexF_list[i]);
     }
 
-    eps = 0.0;
+// There is a race condition here somewhere???
+// Code get slightly (tiny) diff results for eps each run??
+// Actual one? Or just eps??
 #pragma omp parallel for
-    for (std::size_t i = 0; i < p_wf->core_orbitals.size(); ++i) {
+    for (std::size_t i = 0; i < Ncore; ++i) {
+      // if (it > 1 && eps_lst[i] < eps_target)
+      //   continue;
       auto &phi = p_wf->core_orbitals[i];
-      auto &phi_zero = core_zero[i];
-      auto &vexPsi_zero = vexCore_zero[i];
+      const auto &phi_zero = core_zero[i];
+      const auto &vexPsi_zero = vexCore_zero[i];
 
-      auto oldphi = phi;
+      const auto oldphi = phi;
       const auto &vexPsi = vexF_list[i];
       auto en = phi_zero.en + (phi_zero * vexPsi - phi * vexPsi_zero +
                                phi_zero * (vd * phi) - phi * (vd0 * phi_zero)) /
@@ -786,26 +795,39 @@ inline void HartreeFock::refine_core_orbitals_exchange() {
       phi = (1.0 - a_damp) * phi + a_damp * oldphi;
       phi.normalise();
       auto d_eps = std::fabs((oldphi.en - phi.en) / phi.en);
-      if (d_eps > eps) {
-        eps = d_eps;
+      eps_lst[i] = d_eps;
+    }
+
+    eps = eps_lst[0];
+    best_eps = eps_lst[0];
+    for (std::size_t i = 1; i < Ncore; ++i) {
+      auto t_eps = eps_lst[i];
+      if (t_eps >= eps) {
+        eps = t_eps;
         worst_index = i;
       }
+      if (t_eps < best_eps) {
+        best_eps = t_eps;
+        best_index = i;
+      }
     }
-    DEBUG(std::cout << it << " " << eps << " "
-                    << p_wf->core_orbitals[worst_index].symbol() << "\n";)
+    DEBUG(std::cout << eps_target << " " << eps << " "
+                    << p_wf->core_orbitals[worst_index].symbol() << " -- "
+                    << " " << beps << " "
+                    << p_wf->core_orbitals[bindex].symbol() << "\n";)
 
-    if (it > 20 && eps > 1.5 * best_eps) {
+    if (it > 20 && eps > 1.5 * best_worst_eps) {
       ++worse_count;
       extra_damp = extra_damp > 0 ? 0 : 0.4;
     } else {
       worse_count = 0;
     }
     const bool converged = (eps <= eps_target && it > 0);
-    if (converged || worse_count > 2)
+    if (converged || worse_count > 3)
       break;
 
-    if (eps < best_eps)
-      best_eps = eps;
+    if (eps < best_worst_eps)
+      best_worst_eps = eps;
     if (m_explicitOrthog_cc)
       p_wf->orthonormaliseOrbitals(p_wf->core_orbitals);
     m_cint.form_core_core();
@@ -815,6 +837,7 @@ inline void HartreeFock::refine_core_orbitals_exchange() {
     p_wf->orthonormaliseOrbitals(p_wf->core_orbitals, 2);
 
   if (verbose)
-    printf("refine core  it:%3i eps=%6.1e    [%s]         \n", it, eps,
-           p_wf->core_orbitals[worst_index].symbol().c_str());
+    printf("refine core  it:%3i eps=%6.1e for %s  [%6.1e for %s]\n", //
+           it, eps, p_wf->core_orbitals[worst_index].symbol().c_str(), best_eps,
+           p_wf->core_orbitals[best_index].symbol().c_str());
 }
