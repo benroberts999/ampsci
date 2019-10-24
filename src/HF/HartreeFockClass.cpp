@@ -562,20 +562,17 @@ void HartreeFock::vex_psia(const DiracSpinor &phi_a, DiracSpinor &vexPsi) const
 }
 
 // -----------------------------------------------------------------------------
-// DiracSpinor HartreeFock::vex_psia_any(const DiracSpinor &phi_a) const
-void HartreeFock::vex_psia_any(const DiracSpinor &phi_a,
-                               DiracSpinor *vexPsi_ptr,
-                               const std::vector<DiracSpinor> &core,
-                               int k_cut) const
+DiracSpinor HartreeFock::vex_psia_any(const DiracSpinor &phi_a,
+                                      const std::vector<DiracSpinor> &core,
+                                      int k_cut) const
 // calculates V_ex Psi_a (returns new Dirac Spinor)
 // Psi_a can be any orbital (Calculates coulomb integrals here!)
-// make static!?
 {
+  DiracSpinor vexPsi(phi_a.n, phi_a.k, *(phi_a.p_rgrid));
+  vexPsi.pinf = phi_a.pinf;
 
   std::vector<double> vabk(phi_a.p_rgrid->ngp);
   // XXX ALSO move this!
-
-  auto &vexPsi = *vexPsi_ptr;
 
   auto tja = phi_a.twoj();
   auto la = phi_a.l();
@@ -606,15 +603,9 @@ void HartreeFock::vex_psia_any(const DiracSpinor &phi_a,
       } // r
     }   // k
   }     // b
+
+  return vexPsi;
 }
-// DiracSpinor HartreeFock::vex_psia_any(const DiracSpinor &phi_a) const
-// // calculates V_ex Psi_a (returns new Dirac Spinor)
-// // Psi_a can be any orbital (Calculates coulomb integrals here!)
-// {
-//   DiracSpinor vexPsi(phi_a.n, phi_a.k, *(phi_a.p_rgrid));
-//   vex_psia_any(phi_a, &vexPsi);
-//   return vexPsi;
-// }
 
 //******************************************************************************
 //******************************************************************************
@@ -645,7 +636,7 @@ void HartreeFock::hf_orbital(DiracSpinor &phi, double en,
 
   // make small adjustments to energy to normalise psi:
   DiracSpinor del_phi(phi.n, phi.k, *(phi.p_rgrid));
-  DiracSpinor VxFh(phi.n, phi.k, *(phi.p_rgrid));
+  // DiracSpinor VxFh(phi.n, phi.k, *(phi.p_rgrid));
   DiracODE::Adams::GreenSolution(del_phi, phiI, phi0, alpha, phi);
   auto del_E = 0.5 * (phi * phi - 1.0) / (phi * del_phi);
   auto eps = std::abs(del_E / en);
@@ -654,7 +645,7 @@ void HartreeFock::hf_orbital(DiracSpinor &phi, double en,
     if (eps < m_eps_HF)
       break;
     if (include_dF_exch) {
-      vex_psia_any(del_phi, &VxFh, core, 0);
+      auto VxFh = vex_psia_any(del_phi, core, 0);
       if (!v0.empty())
         VxFh += v0 * del_phi; // v0 = (1-f)Vd;
       DiracODE::Adams::GreenSolution(del_phi, phiI, phi0, alpha,

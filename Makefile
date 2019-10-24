@@ -51,7 +51,7 @@ ifneq ($(UseOpenMP),yes)
 	WARN+=-Wno-unknown-pragmas
 endif
 
-CXXFLAGS= -std=c++17 $(OPT) $(OMP) $(WARN) -I$(ID)
+CXXFLAGS= -std=c++14 $(OPT) $(OMP) $(WARN) -I$(ID)
 LIBS=-lgsl -lgslcblas
 
 #These should be used with clang in debug mode only

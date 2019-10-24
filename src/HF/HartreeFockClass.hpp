@@ -54,8 +54,9 @@ public:
   DiracSpinor vex_psia(const DiracSpinor &phi_a) const;
   void vex_psia(const DiracSpinor &phi_a, DiracSpinor &vexPsi) const;
 
-  void vex_psia_any(const DiracSpinor &phi_a, DiracSpinor *vexPsi_ptr,
-                    const std::vector<DiracSpinor> &core, int k_cut = 99) const;
+  DiracSpinor vex_psia_any(const DiracSpinor &phi_a,
+                           const std::vector<DiracSpinor> &core,
+                           int k_cut = 99) const;
 
   bool verbose = true;
 
