@@ -6,8 +6,8 @@ CXX=g++
 UseOpenMP=yes
 
 #release, dev, debug (changes warnings + optimisation level)
-#Build=release
-Build=dev
+Build=release
+#Build=dev
 
 #optional: set directory for executables (by default: current directory)
 XD=.
@@ -51,7 +51,7 @@ ifneq ($(UseOpenMP),yes)
 	WARN+=-Wno-unknown-pragmas
 endif
 
-CXXFLAGS= -std=c++17 $(OPT) $(OMP) $(WARN) -I$(ID)
+CXXFLAGS= -std=c++14 $(OPT) $(OMP) $(WARN) -I$(ID)
 LIBS=-lgsl -lgslcblas
 
 #These should be used with clang in debug mode only
