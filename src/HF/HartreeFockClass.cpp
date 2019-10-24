@@ -37,6 +37,44 @@ static inline auto rampedDamp(double a_beg, double a_end, int beg, int end) {
 }
 
 //******************************************************************************
+DiracSpinor HartreeFock::solveMixedState(const DiracSpinor &phi0, const int k,
+                                         const double omega,
+                                         const std::vector<double> &vl,
+                                         const double alpha,
+                                         const std::vector<DiracSpinor> &core,
+                                         const DiracSpinor &hphi0,
+                                         const std::vector<double> &v0)
+//
+{
+
+  // XXX double-check sign of a) v0, abd b) overall sign!
+  auto dF = DiracODE::solve_inhomog(k, phi0.en - omega, vl, alpha, hphi0);
+  // std::cout << phi0.en << " " << phi0.en - omega << "\n";
+
+  auto damper = rampedDamp(0.9, 0.8, 30, 100);
+  auto dF20 = std::abs(dF * dF); // monitor convergance
+  auto VxdF0 = 0.0 * dF;
+  double a = 0.9;
+  for (int x = 0; x < 250; x++) {
+    // a = damper(x);
+    auto VxdF = -(1.0 - a) * vex_psia_any(dF, core) + a * VxdF0;
+    if (!v0.empty()) {
+      VxdF += v0 * dF; //+ or - ?
+    }
+    VxdF0 = VxdF;
+    DiracODE::solve_inhomog(dF, phi0.en - omega, vl, alpha, hphi0 + VxdF);
+    auto dF2 = std::abs(dF * dF);
+    auto eps = std::abs((dF2 - dF20) / dF2);
+    if (eps < 1.0e-10) {
+      // std::cout << x << " " << eps << "\n";
+      break;
+    }
+    dF20 = dF2;
+  }
+  return dF; // put rhs = hphi0 instead of -hphi0
+}
+
+//******************************************************************************
 HartreeFock::HartreeFock(HFMethod method, Wavefunction &wf,
                          const std::string &in_core, double eps_HF, double h_d,
                          double g_t) //
@@ -564,7 +602,7 @@ void HartreeFock::vex_psia(const DiracSpinor &phi_a, DiracSpinor &vexPsi) const
 // -----------------------------------------------------------------------------
 DiracSpinor HartreeFock::vex_psia_any(const DiracSpinor &phi_a,
                                       const std::vector<DiracSpinor> &core,
-                                      int k_cut) const
+                                      int k_cut)
 // calculates V_ex Psi_a (returns new Dirac Spinor)
 // Psi_a can be any orbital (Calculates coulomb integrals here!)
 {

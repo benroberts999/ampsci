@@ -6,7 +6,7 @@ Atom {
 
 HartreeFock {
   core = [Xe];
-  valence = 7sp;
+  valence = 7s16p5d;
   method; // HartreeFock(dflt), ApproxHF, Hartree, GreenPRM, TietzPRM
   //  convergence = 1.e-13;
 }
@@ -19,8 +19,8 @@ Nucleus {
 
 Grid {
   r0 = 1e-6;
-  rmax = 120.0;
-  ngp = 2000;
+  rmax = 500.0;
+  ngp = 5000;
   type; // loglinear(dflt), logarithmic, linear
   b;
 }
@@ -40,6 +40,7 @@ Module::Tests {
   // Hamiltonian = true;
 }
 
+Module::pnc { transition = 6, -1, 7, -1; }
 // Module::BohrWeisskopf
 {
   mu;

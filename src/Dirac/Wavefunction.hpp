@@ -43,6 +43,8 @@ private:
   // Atom info:
   const int m_Z, m_A; /*don't need A twice (its inside nucl params!)*/
   Nuclear::Parameters m_nuc_params;
+
+public:
   std::unique_ptr<HartreeFock> m_pHF = nullptr;
 
 public:

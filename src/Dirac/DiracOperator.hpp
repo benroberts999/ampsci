@@ -173,7 +173,7 @@ public:
   {
     // Note: n and kappa from original psi, but not meaningful!
     const auto &gr = *(Fb.p_rgrid);
-    DiracSpinor dPsi(Fb.n, Fb.k, gr);
+    DiracSpinor dPsi(0, Fa.k, gr); // XX?
     if (isZero(Fa.k, Fb.k))
       return dPsi;
 
