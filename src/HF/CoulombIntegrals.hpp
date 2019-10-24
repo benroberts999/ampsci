@@ -57,9 +57,9 @@ public: // functions
 
 public: // functions
   void initialise_core_core();
+  void initialise_core_valence();
 
 private: // functions
-  void initialise_core_valence();
   void initialise_valence_valence();
   void calculate_angular(int ki);
 

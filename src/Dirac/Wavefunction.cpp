@@ -140,9 +140,10 @@ void Wavefunction::hartreeFockValence(const std::string &in_valence_str) {
   }
   auto val_lst = AtomInfo::listOfStates_nk(in_valence_str);
   for (const auto &nk : val_lst) {
-    if (!isInCore(nk.n, nk.k))
-      m_pHF->solveNewValence(nk.n, nk.k);
+    if (!isInCore(nk.n, nk.k) && !isInValence(nk.n, nk.k))
+      valence_orbitals.emplace_back(DiracSpinor{nk.n, nk.k, rgrid});
   }
+  m_pHF->solveValence();
 }
 
 //******************************************************************************
@@ -157,6 +158,15 @@ bool Wavefunction::isInCore(int n, int k) const
 }
 bool Wavefunction::isInCore(const DiracSpinor &phi) const {
   return isInCore(phi.n, phi.k);
+}
+bool Wavefunction::isInValence(int n, int k) const
+// Checks if given state is in the valence list.
+{
+  for (auto &phi : valence_orbitals) {
+    if (n == phi.n && k == phi.k)
+      return true;
+  }
+  return false;
 }
 
 //******************************************************************************

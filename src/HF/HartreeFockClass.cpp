@@ -10,7 +10,6 @@
 #include "Physics/Wigner_369j.hpp"
 #include <cmath>
 #include <functional>
-#include <utility>
 #include <vector>
 /*
 Calculates self-consistent Hartree-Fock potential, including exchange.
@@ -41,7 +40,8 @@ static inline auto rampedDamp(double a_beg, double a_end, int beg, int end) {
 HartreeFock::HartreeFock(HFMethod method, Wavefunction &wf,
                          const std::string &in_core, double eps_HF, double h_d,
                          double g_t) //
-    : p_wf(&wf), p_rgrid(&wf.rgrid),
+    : p_wf(&wf),                     //
+      p_rgrid(&wf.rgrid),
       m_cint(Coulomb(wf.rgrid, wf.core_orbitals, wf.valence_orbitals)),
       m_eps_HF([=]() { // can give as log..
         return (std::fabs(eps_HF) < 1) ? eps_HF : std::pow(10, -1 * eps_HF);
@@ -53,21 +53,30 @@ HartreeFock::HartreeFock(HFMethod method, Wavefunction &wf,
       }()),            //
       m_method(method) //
 {
+
+  auto param = (method == HFMethod::GreenPRM || method == HFMethod::TietzPRM);
+  auto log_eps_init = param ? 15 : 5;
+
+  if (wf.core_orbitals.empty() || param)
+    starting_approx_core(in_core, log_eps_init, method, h_d, g_t);
+
+  m_cint.initialise_core_core();
+  appr_vex_core.resize(p_wf->core_orbitals.size(),
+                       std::vector<double>(p_rgrid->ngp));
+
   // XXX Update this so that you can create HF class, THEN solve for core later
-  if (method == HFMethod::Hartree || method == HFMethod::HartreeFock ||
-      method == HFMethod::ApproxHF) {
-    if (wf.core_orbitals.empty())
-      starting_approx_core(in_core, 5);
-    m_cint.initialise_core_core();
-    appr_vex_core.resize(p_wf->core_orbitals.size(),
-                         std::vector<double>(p_rgrid->ngp));
-    hartree_fock_core();
-  } else {
-    // using parametric potential only:
-    starting_approx_core(in_core, 15, method, h_d, g_t);
-    m_cint.initialise_core_core();
-    appr_vex_core.resize(p_wf->core_orbitals.size(),
-                         std::vector<double>(p_rgrid->ngp));
+  switch (method) {
+  case HFMethod::HartreeFock:
+    hf_core_approx(1.0e-5);
+    hf_core_refine();
+    break;
+  case HFMethod::ApproxHF:
+    hf_core_approx(m_eps_HF);
+    break;
+  case HFMethod::Hartree:
+    hf_core_approx(m_eps_HF);
+    break;
+  default:
     m_cint.form_core_core();
   }
 }
@@ -108,17 +117,48 @@ HFMethod HartreeFock::parseMethod(const std::string &in_method) {
 }
 
 //******************************************************************************
-void HartreeFock::hartree_fock_core() {
+void HartreeFock::starting_approx_core(const std::string &in_core,
+                                       int log_converge, HFMethod method,
+                                       double h_g, double d_t)
+// Starting approx for HF. Uses Green parametric
+// Later, can put other options if you want.
+{
+  if (method != HFMethod::TietzPRM) {
+    if (std::fabs(h_g * h_g) < 1.0e-6)
+      Parametric::defaultGreenCore(p_wf->Znuc(), h_g, d_t);
+    p_wf->vdir = Parametric::GreenPotential(p_wf->Znuc(), p_rgrid->r, h_g, d_t);
+  } else {
+    if (std::fabs(h_g * h_g) < 1.0e-6)
+      Parametric::defaultTietz(p_wf->Znuc(), d_t, h_g); // nb: g/t swaped!
+    p_wf->vdir = Parametric::TietzPotential(p_wf->Znuc(), p_rgrid->r, h_g, d_t);
+  }
 
+  p_wf->solveInitialCore(in_core, log_converge);
   if (p_wf->core_orbitals.empty()) {
     // If H-like, kill "initial" vdir (Green potential)
     p_wf->vdir = std::vector<double>(p_wf->rgrid.ngp, 0);
+  }
+}
+
+//******************************************************************************
+EpsIts HartreeFock::hf_valence(DiracSpinor &phi, std::vector<double> &vexa) {
+
+  auto do_refine =
+      (m_method == HFMethod::HartreeFock && !p_wf->core_orbitals.empty());
+  auto eps_target_HF = do_refine ? 1.0e-5 : m_eps_HF;
+
+  auto ei = hf_valence_approx(phi, vexa, eps_target_HF);
+  if (do_refine)
+    ei = hf_valence_refine(phi);
+  return ei;
+}
+
+//******************************************************************************
+void HartreeFock::hf_core_approx(const double eps_target_HF) {
+
+  if (p_wf->core_orbitals.empty()) {
     return;
   }
-
-  bool do_refine =
-      (m_method == HFMethod::HartreeFock) && (p_wf->core_orbitals.size() > 1);
-  double eps_target_HF = do_refine ? 1.0e-5 : m_eps_HF;
 
   auto damper = rampedDamp(0.7, 0.2, 3, 10);
   // don't include all pts in PT for new e guess:
@@ -132,7 +172,7 @@ void HartreeFock::hartree_fock_core() {
   int hits = 1;
   double t_eps = 1.0;
   auto t_eps_prev = 1.0;
-  for (; hits < MAX_HART_ITS; hits++) {
+  for (; hits < m_max_hf_its; hits++) {
     DEBUG(std::cerr << "HF core it: " << hits << "\n";)
     auto eta = damper(hits);
 
@@ -190,7 +230,7 @@ void HartreeFock::hartree_fock_core() {
       break;
     t_eps_prev = t_eps;
   } // hits
-  if (verbose)
+  if (verbose && m_method != HFMethod::HartreeFock)
     printf("HF core      it:%3i eps=%6.1e\n", hits, t_eps);
 
   // Now, re-solve core orbitals with higher precission
@@ -200,35 +240,51 @@ void HartreeFock::hartree_fock_core() {
   }
   if (m_explicitOrthog_cc)
     p_wf->orthonormaliseOrbitals(p_wf->core_orbitals, 2);
-
-  if (do_refine)
-    refine_core_orbitals_exchange();
 }
 
 //******************************************************************************
-void HartreeFock::solveNewValence(int n, int kappa) {
+void HartreeFock::solveValence() {
 
-  p_wf->valence_orbitals.emplace_back(DiracSpinor{n, kappa, p_wf->rgrid});
-  // Solve local dirac Eq:
-  auto &phi = p_wf->valence_orbitals.back();
-  appr_vex_val.emplace_back(std::vector<double>{});
-  auto &vexa = appr_vex_val.back();
-  solveValence(phi, vexa);
+  const auto Nval = p_wf->valence_orbitals.size();
+  appr_vex_val.resize(Nval);
+  m_cint.initialise_core_valence();
+
+  std::vector<EpsIts> eis(Nval);
+
+#pragma omp parallel for
+  for (std::size_t i = 0; i < Nval; i++) {
+    eis[i] = hf_valence(p_wf->valence_orbitals[i], appr_vex_val[i]);
+  }
+
+  double eps_worst = 0.0, eps_best = 10.0;
+  std::size_t i_worst = 0, i_best = 0;
+  for (std::size_t i = 0; i < Nval; i++) {
+    const auto &ei = eis[i];
+    if (ei.eps >= eps_worst) {
+      eps_worst = ei.eps;
+      i_worst = i;
+    }
+    if (ei.eps < eps_best) {
+      eps_best = ei.eps;
+      i_best = i;
+    }
+  }
+  if (verbose)
+    printf("HF valence:  %3i eps=%6.1e for %s  [%6.1e for %s w/%3i]\n", //
+           eis[i_worst].its, eis[i_worst].eps,
+           p_wf->valence_orbitals[i_worst].symbol().c_str(), eis[i_best].eps,
+           p_wf->valence_orbitals[i_best].symbol().c_str(), eis[i_best].its);
 }
 
 //******************************************************************************
-void HartreeFock::solveValence(DiracSpinor &phi, std::vector<double> &vexa)
+EpsIts HartreeFock::hf_valence_approx(DiracSpinor &phi,
+                                      std::vector<double> &vexa,
+                                      double eps_target_HF)
 // Solves HF for given orbital phi, in frozen core.
 // Does not store vex (must be done outside)
 // Can be used to generate a set of virtual/basis orbitals
 {
-  auto kappa = phi.k;
-  int twoJplus1 = phi.twojp1();
-  phi.occ_frac = 1. / twoJplus1;
-
-  bool do_refine =
-      (m_method == HFMethod::HartreeFock && !p_wf->core_orbitals.empty());
-  double eps_target_HF = do_refine ? 1.0e-5 : m_eps_HF;
+  phi.occ_frac = 1. / phi.twojp1();
 
   auto damper = rampedDamp(0.7, 0.2, 2, 6);
   // don't include all pts in PT for new e guess
@@ -239,9 +295,11 @@ void HartreeFock::solveValence(DiracSpinor &phi, std::vector<double> &vexa)
 
   auto vexa_old = vexa;
 
+  p_wf->solveDirac(phi, 0, 15);
+
   double eps = -1, eps_prev = -1;
   int hits = 1;
-  for (; hits < MAX_HART_ITS; hits++) {
+  for (; hits < m_max_hf_its; hits++) {
     auto eta = damper(hits);
 
     double en_old = phi.en;
@@ -273,17 +331,12 @@ void HartreeFock::solveValence(DiracSpinor &phi, std::vector<double> &vexa)
       break;
     eps_prev = eps;
   }
-  if (verbose)
-    printf("HF val: %2i %2i | %3i eps=%6.1e  en=%11.8f\n", phi.n, kappa, hits,
-           eps, phi.en);
+  DEBUG(printf("HF val: %2i %2i | %3i eps=%6.1e  en=%11.8f\n", phi.n, phi.k,
+               hits, eps, phi.en);)
 
-  // Re-solve w/ higher precission
-  p_wf->solveDirac(phi, phi.en, vexa, 15);
   if (m_explicitOrthog_cv)
     p_wf->orthonormaliseWrtCore(phi);
-
-  if (do_refine)
-    refine_valence_orbital_exchange(phi);
+  return {eps, hits};
 }
 
 //******************************************************************************
@@ -338,24 +391,6 @@ double HartreeFock::calculateCoreEnergy() const
 }
 
 //******************************************************************************
-void HartreeFock::starting_approx_core(const std::string &in_core,
-                                       int log_converge, HFMethod method,
-                                       double h_g, double d_t)
-// Starting approx for HF. Uses Green parametric
-// Later, can put other options if you want.
-{
-  if (method == HFMethod::GreenPRM) {
-    p_wf->vdir = Parametric::GreenPotential(p_wf->Znuc(), p_rgrid->r, h_g, d_t);
-  } else if (method == HFMethod::TietzPRM) {
-    p_wf->vdir = Parametric::TietzPotential(p_wf->Znuc(), p_rgrid->r, h_g, d_t);
-  } else {
-    std::cerr << "FAIL 321: Wrong core starting approx method \n";
-    std::abort();
-  }
-  p_wf->solveInitialCore(in_core, log_converge);
-}
-
-//******************************************************************************
 void HartreeFock::form_vdir(std::vector<double> &vdir, bool re_scale) const
 // Forms the direct part of the potential.
 // Must call either form_vbb0 or form_vabk_core first!
@@ -407,11 +442,11 @@ void HartreeFock::form_approx_vex_a(const DiracSpinor &phi_a,
 // This vex_a is then a local potential (different for each state!) that can
 // be used as an addition to local direct potential to solve Dirac Eq. as
 // normal. In theory, this is exact. Clearly, however, there is an issue when
-// psi_a is small. Luckily, however, we don't care as much when psi_a is small!
-// Also, since v_ex is already small (compared to vdir), we can make good
-// approximation. Therefore, I only calculate vex_a when a=b, or when |psi_a|
-// > 1.e3 Further, largest part of v_ex is when a=b. In this case, the factor=1
-// is exact!
+// psi_a is small. Luckily, however, we don't care as much when psi_a is
+// small! Also, since v_ex is already small (compared to vdir), we can make
+// good approximation. Therefore, I only calculate vex_a when a=b, or when
+// |psi_a| > 1.e3 Further, largest part of v_ex is when a=b. In this case, the
+// factor=1 is exact!
 {
   for (auto &va : vex_a) {
     va = 0;
@@ -615,7 +650,7 @@ void HartreeFock::hf_orbital(DiracSpinor &phi, double en,
   auto del_E = 0.5 * (phi * phi - 1.0) / (phi * del_phi);
   auto eps = std::abs(del_E / en);
   int tries = 0;
-  for (; tries < MAX_HART_ITS; ++tries) { // MAX_HART_ITS
+  for (; tries < m_max_hf_its; ++tries) { // m_max_hf_its
     if (eps < m_eps_HF)
       break;
     if (include_dF_exch) {
@@ -643,7 +678,10 @@ void HartreeFock::hf_orbital(DiracSpinor &phi, double en,
 //******************************************************************************
 
 //******************************************************************************
-inline void HartreeFock::refine_valence_orbital_exchange(DiracSpinor &phi) {
+EpsIts HartreeFock::hf_valence_refine(DiracSpinor &phi) {
+
+  if (p_wf->core_orbitals.empty())
+    return {0, 0};
 
   auto eps_target = m_eps_HF;
 
@@ -664,7 +702,7 @@ inline void HartreeFock::refine_valence_orbital_exchange(DiracSpinor &phi) {
   int it = 0;
   double eps = 1.0;
   int worse_count = 0;
-  for (; it <= MAX_HART_ITS; ++it) {
+  for (; it <= m_max_hf_its; ++it) {
     auto a_damp = damper(it) + extra_damp;
 
     vex_psia(phi, vexPsi);
@@ -703,15 +741,17 @@ inline void HartreeFock::refine_valence_orbital_exchange(DiracSpinor &phi) {
   if (m_explicitOrthog_cv)
     p_wf->orthonormaliseWrtCore(phi);
 
-  DEBUG(std::cin.get();)
-  if (verbose)
-    printf("refine: %2i %2i | %3i eps=%6.1e  en=%11.8f\n", phi.n, phi.k, it,
-           eps, phi.en);
-  return;
+  DEBUG(printf("refine: %2i %2i | %3i eps=%6.1e  en=%11.8f\n", phi.n, phi.k, it,
+               eps, phi.en);)
+  return {eps, it};
 }
 
 //******************************************************************************
-inline void HartreeFock::refine_core_orbitals_exchange() {
+inline void HartreeFock::hf_core_refine() {
+
+  if (p_wf->core_orbitals.empty()) {
+    return;
+  }
 
   const double eps_target = m_eps_HF;
   m_cint.form_core_core(); // only needed if not already done!
@@ -745,7 +785,7 @@ inline void HartreeFock::refine_core_orbitals_exchange() {
   std::size_t best_index = 0;
   int worse_count = 0;
   int it = 0;
-  for (; it <= MAX_HART_ITS; it++) {
+  for (; it <= m_max_hf_its; it++) {
     auto a_damp = damper(it) + extra_damp;
 
     // re-calculate each Vl = vnuc + fvdir, v0 = (1-f)vdir:
@@ -821,7 +861,7 @@ inline void HartreeFock::refine_core_orbitals_exchange() {
     p_wf->orthonormaliseOrbitals(p_wf->core_orbitals, 2);
 
   if (verbose)
-    printf("refine core  it:%3i eps=%6.1e for %s  [%6.1e for %s]\n", //
+    printf("HF core:  it:%3i eps=%6.1e for %s  [%6.1e for %s]\n", //
            it, eps, p_wf->core_orbitals[worst_index].symbol().c_str(), best_eps,
            p_wf->core_orbitals[best_index].symbol().c_str());
 }

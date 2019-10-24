@@ -42,7 +42,7 @@ int main(int argc, char *argv[]) {
   std::cout << "\nRunning for " << wf.atom() << "\n"
             << wf.nuclearParams() << "\n"
             << wf.rgrid.gridParameters() << "\n"
-            << "********************************************************\n";
+            << "********************************************************\n\n";
 
   // Parse input for HF method
   auto str_core = input.get<std::string>("HartreeFock", "core", "[]");
@@ -68,6 +68,7 @@ int main(int argc, char *argv[]) {
     ChronoTimer t("Core");
     wf.hartreeFockCore(HF_method, str_core, eps_HF, H_d, g_t);
   }
+  std::cout << "\n";
 
   // Solve for the valence states:
   auto valence_list = (wf.Ncore() < wf.Znuc())
@@ -106,7 +107,7 @@ int main(int argc, char *argv[]) {
   //       continue;
   //     basis.emplace_back(DiracSpinor(nk.n, nk.k, wf.rgrid));
   //     auto tmp_vex = std::vector<double>{};
-  //     hfbasis.solveValence(basis.back(), tmp_vex);
+  //     hfbasis.hf_valence_approx(basis.back(), tmp_vex);
   //   }
   //   wf.orthonormaliseOrbitals(basis, 2);
   //   wf.printValence(false, basis);
