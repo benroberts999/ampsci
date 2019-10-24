@@ -11,7 +11,8 @@
 
 namespace Nuclear {
 
-constexpr auto FourLn3 = 4.0 * std::log(3.0);
+constexpr auto FourLn3 = 4.0 * 1.098612289;
+// 4.0 * std::log(3.0);
 constexpr auto Pi2 = M_PI * M_PI;
 
 //******************************************************************************

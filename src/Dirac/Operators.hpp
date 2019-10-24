@@ -290,7 +290,8 @@ public:
   }
 
   // do this for speed? dumb? only call 'matrixEl' for Hd ?
-  DiracSpinor radial_rhs(const DiracSpinor &Fa, const DiracSpinor &Fb) = delete;
+  // DiracSpinor radial_rhs(const DiracSpinor &Fa,
+  //                        const DiracSpinor &Fb) const override = delete;
 
 private:
   const double cl;

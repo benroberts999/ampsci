@@ -164,8 +164,8 @@ public:
   // RME = <a||h||b> = angular(a,b) * radial_int(a,b)
   virtual double angularRME(const DiracSpinor &, const DiracSpinor &) const = 0;
 
-  virtual DiracSpinor radial_rhs(const DiracSpinor &Fa,
-                                 const DiracSpinor &Fb) const final // final ?
+  DiracSpinor radial_rhs(const DiracSpinor &Fa,
+                         const DiracSpinor &Fb) const // final ?
   // psi1 * dPsi2 = h.radialIntegral(psi1,psi2)
   // Because of angular factor, _may_ depend on kappa of 'lhs'
   // Usually, will not over-write this. But in some cases, might be better
