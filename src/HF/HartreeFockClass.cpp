@@ -564,7 +564,7 @@ void HartreeFock::vex_psia(const DiracSpinor &phi_a, DiracSpinor &vexPsi) const
 // -----------------------------------------------------------------------------
 DiracSpinor HartreeFock::vex_psia_any(const DiracSpinor &phi_a,
                                       const std::vector<DiracSpinor> &core,
-                                      int k_cut) const
+                                      int k_cut) // static
 // calculates V_ex Psi_a (returns new Dirac Spinor)
 // Psi_a can be any orbital (Calculates coulomb integrals here!)
 {
@@ -615,7 +615,7 @@ DiracSpinor HartreeFock::vex_psia_any(const DiracSpinor &phi_a,
 void HartreeFock::hf_orbital(DiracSpinor &phi, double en,
                              const std::vector<double> &vl,
                              const DiracSpinor &vx_phi,
-                             const std::vector<DiracSpinor> &core,
+                             const std::vector<DiracSpinor> &static_core,
                              const std::vector<double> &v0) const
 // Solve Dirac Equation (Eigenvalue): (move to DiracODE??)
 //  (H0 + Vl + Vx)Psi = 0
@@ -625,12 +625,14 @@ void HartreeFock::hf_orbital(DiracSpinor &phi, double en,
 // Small energy adjustmenets (and wfs), solve:
 // (Hl - e) dF = de * F -VxPsi
 // e -> e+de, F->F+dF
-// Static!?
+// Core is input so can call in a thread-safe way! (with a 'old_core' copy)
+// Only used in dE from dF
 {
-  constexpr bool include_dF_exch = true;
 
+  // pull these outside? But make sure thread safe!
   DiracSpinor phi0(phi.n, phi.k, *(phi.p_rgrid));
   DiracSpinor phiI(phi.n, phi.k, *(phi.p_rgrid));
+
   const auto alpha = p_wf->get_alpha();
   DiracODE::solve_inhomog(phi, phi0, phiI, en, vl, alpha, -1.0 * vx_phi);
 
@@ -644,8 +646,9 @@ void HartreeFock::hf_orbital(DiracSpinor &phi, double en,
   for (; tries < m_max_hf_its; ++tries) { // m_max_hf_its
     if (eps < m_eps_HF)
       break;
-    if (include_dF_exch) {
-      auto VxFh = vex_psia_any(del_phi, core, 0);
+    // if (m_include_exch_dF_for_dE)
+    {
+      auto VxFh = vex_psia_any(del_phi, static_core, 0);
       if (!v0.empty())
         VxFh += v0 * del_phi; // v0 = (1-f)Vd;
       DiracODE::Adams::GreenSolution(del_phi, phiI, phi0, alpha,
