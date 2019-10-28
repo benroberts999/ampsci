@@ -632,25 +632,29 @@ void HartreeFock::hf_orbital(DiracSpinor &phi, double en,
   // pull these outside? But make sure thread safe!
   DiracSpinor phi0(phi.n, phi.k, *(phi.p_rgrid));
   DiracSpinor phiI(phi.n, phi.k, *(phi.p_rgrid));
+  DiracSpinor VxFh(phi.n, phi.k, *(phi.p_rgrid));
 
   const auto alpha = p_wf->get_alpha();
   DiracODE::solve_inhomog(phi, phi0, phiI, en, vl, alpha, -1.0 * vx_phi);
 
   // make small adjustments to energy to normalise psi:
   DiracSpinor del_phi(phi.n, phi.k, *(phi.p_rgrid));
-  // DiracSpinor VxFh(phi.n, phi.k, *(phi.p_rgrid));
   DiracODE::Adams::GreenSolution(del_phi, phiI, phi0, alpha, phi);
+  // should del_phi = del_e * del_phi, but makes it worse?
+  // nb: after first it, becomes correct.
   auto del_E = 0.5 * (phi * phi - 1.0) / (phi * del_phi);
   auto eps = std::abs(del_E / en);
   int tries = 0;
   for (; tries < m_max_hf_its; ++tries) { // m_max_hf_its
     if (eps < m_eps_HF)
       break;
-    // if (m_include_exch_dF_for_dE)
     {
-      auto VxFh = vex_psia_any(del_phi, static_core, 0);
-      if (!v0.empty())
-        VxFh += v0 * del_phi; // v0 = (1-f)Vd;
+      if (!v0.empty()) {     // essentially, for core:
+        VxFh = v0 * del_phi; // v0 = (1-f)Vd;
+      } else {               // essentially, for valence
+        VxFh = vex_psia_any(del_phi, static_core, 0);
+      }
+      // Depends very strengely on VxFh...
       DiracODE::Adams::GreenSolution(del_phi, phiI, phi0, alpha,
                                      del_E * phi - VxFh);
     }
@@ -677,15 +681,15 @@ EpsIts HartreeFock::hf_valence_refine(DiracSpinor &phi) {
   if (p_wf->core_orbitals.empty())
     return {0, 0};
 
-  auto eps_target = m_eps_HF;
+  const auto eps_target = m_eps_HF;
 
   auto damper = rampedDamp(0.7, 0.1, 5, 25);
   double extra_damp = 0.0;
 
-  auto vl = NumCalc::sumVecs({&(p_wf->vnuc), &(p_wf->vdir)});
+  const auto vl = NumCalc::sumVecs({&(p_wf->vnuc), &(p_wf->vdir)});
 
-  auto phi_zero = phi;
-  auto vexPsi_zero = get_vex(phi) * phi;
+  const auto phi_zero = phi;
+  const auto vexPsi_zero = get_vex(phi) * phi;
 
   auto prev_en = phi.en;
   m_cint.form_core_valence(phi); // only needed if not already done!
