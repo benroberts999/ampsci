@@ -19,7 +19,7 @@ public:
   std::vector<double> fillVec(const Grid &gr,
                               const std::function<double(double)> &f) {
     std::vector<double> f_r;
-    f_r.reserve(gr.ngp);
+    f_r.reserve(gr.num_points);
     for (auto r : gr.r)
       f_r.push_back(f(r));
     return f_r;
@@ -59,7 +59,7 @@ class E1Operator_vform final : public DiracOperator
 public:
   E1Operator_vform(const Grid &gr, const double alpha = PhysConst::alpha)
       : DiracOperator(1, OperatorParity::odd, -1.0,
-                      std::vector<double>(gr.ngp, 1.0), 0),
+                      std::vector<double>(gr.num_points, 1.0), 0),
         m_c(1.0 / alpha) {}
 
   double angularRME(const DiracSpinor &Fa,
@@ -129,7 +129,7 @@ private:
 //   // std::vector<double> kr;
 //   std::vector<double> set_kr(double omega, const Grid &gr) const {
 //     std::vector<double> kr;
-//     kr.reserve(gr.ngp);
+//     kr.reserve(gr.num_points);
 //     for (const auto &r : gr.r) {
 //       kr.push_back(r * omega * PhysConst::alpha); // this? or var-alpha?
 //     }
@@ -214,7 +214,7 @@ private: // helper
   static inline std::vector<double> RadialFunc(double rN, const Grid &rgrid,
                                                const Func_R2_R &hfs_F) {
     std::vector<double> rfunc;
-    rfunc.reserve(rgrid.ngp);
+    rfunc.reserve(rgrid.num_points);
     for (auto r : rgrid.r)
       rfunc.push_back(hfs_F(r, rN));
     return rfunc;

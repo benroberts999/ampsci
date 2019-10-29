@@ -151,9 +151,9 @@ void writeForGnuplot_mvBlock(const DoubleVec3D &X_mv_mx_x, const Grid &mvgrid,
   std::ofstream of(fname.c_str());
   of << "# sigma^bar_e = " << sbe_1e37_cm2 << " cm^2\n";
 
-  auto n_mv = mvgrid.ngp;
-  auto n_mx = mxgrid.ngp;
-  auto desteps = Egrid.ngp; //.ngp;
+  auto n_mv = mvgrid.num_points;
+  auto n_mx = mxgrid.num_points;
+  auto desteps = Egrid.num_points; //.num_points;
 
   of << "# m_v blocks: ";
   for (auto imv = 0ul; imv < n_mv; imv++) {
@@ -208,9 +208,9 @@ void writeForGnuplot_mxBlock(const DoubleVec3D &X_mv_mx_x, const Grid &mvgrid,
   std::ofstream of(fname.c_str());
   of << "# sigma^bar_e = " << sbe_1e37_cm2 << " cm^2\n";
 
-  std::size_t n_mv = mvgrid.ngp;
-  std::size_t n_mx = mxgrid.ngp;
-  std::size_t desteps = Egrid.ngp; // ngp;
+  std::size_t n_mv = mvgrid.num_points;
+  std::size_t n_mx = mxgrid.num_points;
+  std::size_t desteps = Egrid.num_points; // num_points;
 
   of << "# m_x blocks: ";
   for (std::size_t imx = 0; imx < n_mx; imx++) {
@@ -260,7 +260,7 @@ Uses a function pointer for DM form factor. F_chi_2(mu,q) := |F_chi|^2
   if (arg < 0)
     return 0;
   std::size_t num_states = (Ke_nq.size());
-  std::size_t qsteps = qgrid.ngp;
+  std::size_t qsteps = qgrid.num_points;
 
   double mu = mv * PhysConst::c;
 
@@ -322,7 +322,7 @@ Note: mv<0 means "heavy" mediator [Fx=1]
 */
 {
   // Loop through E, create dsvde array
-  std::size_t desteps = Egrid.ngp;
+  std::size_t desteps = Egrid.num_points;
   for (std::size_t ie = 0; ie < desteps; ie++) {
     double E = Egrid.r[ie];
     // Do v (and q) integrations:
@@ -346,9 +346,9 @@ Note: If doing annual modulation, then will calculate:
 instead
 */
 {
-  std::size_t n_mv = mvgrid.ngp;
-  std::size_t n_mx = mxgrid.ngp;
-  std::size_t desteps = Egrid.ngp;
+  std::size_t n_mv = mvgrid.num_points;
+  std::size_t n_mx = mxgrid.num_points;
+  std::size_t desteps = Egrid.num_points;
 
   dsv_mv_mx_E.resize(n_mv, std::vector<std::vector<double>>(
                                n_mx, std::vector<double>(desteps)));
@@ -431,9 +431,9 @@ Optionally further integrates into energy bins
 */
 {
   std::cout << "\n*** Doing S1 for DAMA ***\n";
-  std::size_t n_mv = mvgrid.ngp;
-  std::size_t n_mx = mxgrid.ngp;
-  std::size_t desteps = Egrid.ngp;
+  std::size_t n_mv = mvgrid.num_points;
+  std::size_t n_mx = mxgrid.num_points;
+  std::size_t desteps = Egrid.num_points;
 
   // DAMA resolution/threshold parameters:
   // Hardware threshold: should be between [-1,1]
@@ -648,8 +648,8 @@ Mostly, coming from:
 {
 
   std::cout << "\n*** Doing S1 for Xe100 ***\n\n";
-  std::size_t n_mv = mvgrid.ngp;
-  std::size_t n_mx = mxgrid.ngp;
+  std::size_t n_mv = mvgrid.num_points;
+  std::size_t n_mx = mxgrid.num_points;
 
   // NofE: Conversion between energy recoil and PhotoElectrons
   // From: Fig. 2 of Phys. Rev. D 90, 062009 (2014).
@@ -667,7 +667,7 @@ Mostly, coming from:
   for (std::size_t n = 0; n < n_max; n++) {
     // I don't use n=0; but P must be rectangular..
     std::vector<double> Pn;
-    Pn.reserve(Egrid.ngp);
+    Pn.reserve(Egrid.num_points);
     for (auto E : Egrid.r) {
       auto Ne = NofE(E, N_err);
       Pn.push_back(Pois((int)n, Ne));
@@ -704,9 +704,9 @@ Mostly, coming from:
   // S has units counts/day/s1 [s1=PE]
 
   // create s1 grid
-  std::size_t num_s1 = Egrid.ngp; // use same number of points!
-  double s1min = 1.;              // Threshold...  always 1 or above
-  double s1max = 15.;             // 6 kev gives less than 16 PE
+  std::size_t num_s1 = Egrid.num_points; // use same number of points!
+  double s1min = 1.;                     // Threshold...  always 1 or above
+  double s1max = 15.;                    // 6 kev gives less than 16 PE
   Grid s1grid(s1min, s1max, num_s1, GridType::logarithmic);
 
   // Acceptance
@@ -808,14 +808,14 @@ Mostly, coming from:
   fn = fn + range;
 
   // Write as function of Mx (for each Mv)
-  if (mxgrid.ngp > 1) {
+  if (mxgrid.num_points > 1) {
     auto fn_S1 = fn + "_mx-mv_" + label + ".out";
     std::ofstream of(fn_S1);
     of << "# Integrated rate for Xe100 (" << s1_a << " - " << s1_b << " PE)."
        << " units: counts/day/kg\n";
     of << "# sigma^bar_e = " << sbe_1e37_cm2 << " cm^2\n";
     of << "Mx(GeV)\\Mv(MeV) ";
-    for (std::size_t imv = 0; imv < mvgrid.ngp; imv++) {
+    for (std::size_t imv = 0; imv < mvgrid.num_points; imv++) {
       double mv = mvgrid.r[imv];
       if (mv >= 0)
         of << "\"" << std::fixed << std::setprecision(2) << mv * M_to_MeV
@@ -824,10 +824,10 @@ Mostly, coming from:
         of << "\"infty MeV\"   ";
     }
     of << "\n";
-    for (std::size_t imx = 0; imx < mxgrid.ngp; imx++) {
+    for (std::size_t imx = 0; imx < mxgrid.num_points; imx++) {
       of << std::scientific << std::setprecision(4);
       of << mxgrid.r[imx] * M_to_GeV << " ";
-      for (std::size_t imv = 0; imv < mvgrid.ngp; imv++) {
+      for (std::size_t imv = 0; imv < mvgrid.num_points; imv++) {
         of << std::scientific << std::setprecision(4) << rate[imv][imx] << " ";
       }
       of << "\n";
@@ -838,23 +838,23 @@ Mostly, coming from:
   }
 
   // Write as function of Mv (for each Mx)
-  if (mvgrid.ngp > 1) {
+  if (mvgrid.num_points > 1) {
     auto fn_S1 = fn + "_mv-mx_" + label + ".out";
     std::ofstream of(fn_S1);
     of << "# Integrated rate for Xe100 (" << s1_a << " - " << s1_b << " PE)."
        << " units: counts/day/kg\n";
     of << "# sigma^bar_e = " << sbe_1e37_cm2 << " cm^2\n";
     of << "Mv(MeV)\\Mx(GeV) ";
-    for (std::size_t imx = 0; imx < mxgrid.ngp; imx++) {
+    for (std::size_t imx = 0; imx < mxgrid.num_points; imx++) {
       double mx = mxgrid.r[imx];
       of << "\"" << std::fixed << std::setprecision(2) << mx * M_to_GeV
          << " GeV\"   ";
     }
     of << "\n";
-    for (std::size_t imv = 0; imv < mvgrid.ngp; imv++) {
+    for (std::size_t imv = 0; imv < mvgrid.num_points; imv++) {
       of << std::scientific << std::setprecision(4);
       of << mvgrid.r[imv] * M_to_MeV << " ";
-      for (std::size_t imx = 0; imx < mxgrid.ngp; imx++) {
+      for (std::size_t imx = 0; imx < mxgrid.num_points; imx++) {
         of << std::scientific << std::setprecision(4) << rate[imv][imx] << " ";
       }
       of << "\n";

@@ -25,9 +25,11 @@ int main(int argc, char *argv[]) {
   // Get + setup Grid parameters
   auto r0 = input.get("Grid", "r0", 1.0e-5);
   auto rmax = input.get("Grid", "rmax", 150.0);
-  auto ngp = input.get("Grid", "ngp", 1600ul);
+  auto num_points = input.get("Grid", "num_points", 1600ul);
   auto b = input.get("Grid", "b", 4.0);
   auto grid_type = input.get<std::string>("Grid", "type", "loglinear");
+  if (b <= r0 || b >= rmax)
+    grid_type = "logarithmic";
 
   // Get + setup nuclear parameters
   atom_A = input.get("Nucleus", "A", atom_A); // over-writes "atom" A
@@ -36,7 +38,7 @@ int main(int argc, char *argv[]) {
   auto skint = input.get("Nucleus", "skin_t", -1.0);
 
   // create wavefunction object
-  Wavefunction wf(atom_Z, {ngp, r0, rmax, b, grid_type},
+  Wavefunction wf(atom_Z, {num_points, r0, rmax, b, grid_type},
                   {atom_Z, atom_A, nuc_type, rrms, skint}, var_alpha);
 
   std::cout << "\nRunning for " << wf.atom() << "\n"
@@ -59,16 +61,15 @@ int main(int argc, char *argv[]) {
   } else if (HF_method == HFMethod::TietzPRM) {
     H_d = input.get("HartreeFock", "Tietz_g", 0.0);
     g_t = input.get("HartreeFock", "Tietz_t", 0.0);
-    std::cout << "Using Greens Tietz Potential\n";
+    std::cout << "Using Tietz Parametric Potential\n";
   } else if (HF_method == HFMethod::Hartree) {
     std::cout << "Using Hartree Method (no Exchange)\n";
   }
 
   { // Solve Hartree equations for the core:
-    ChronoTimer t("Core");
+    ChronoTimer t(" ");
     wf.hartreeFockCore(HF_method, str_core, eps_HF, H_d, g_t);
   }
-  std::cout << "\n";
 
   // Solve for the valence states:
   auto valence_list = (wf.Ncore() < wf.Znuc())
@@ -76,7 +77,7 @@ int main(int argc, char *argv[]) {
                           : "";
   if (valence_list != "") {
     // 'if' is only for output format, nothing bad happens if below are called
-    ChronoTimer t("Valence");
+    ChronoTimer t(" ");
     wf.hartreeFockValence(valence_list);
     if (input.get("HartreeFock", "orthonormaliseValence", false))
       wf.orthonormaliseOrbitals(wf.valence_orbitals, 2);

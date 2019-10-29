@@ -71,8 +71,9 @@ struct TrackEnGuess {
 int findPracticalInfinity(const double en, const std::vector<double> &v,
                           const std::vector<double> &r, const double alr);
 
-int findClassicalTurningPoint(const double en, const std::vector<double> &v,
-                              const int pinf, const int d_ctp);
+int findClassicalTurninum_pointsoint(const double en,
+                                     const std::vector<double> &v,
+                                     const int pinf, const int d_ctp);
 
 void trialDiracSolution(std::vector<double> &f, std::vector<double> &g,
                         std::vector<double> &dg, const double en, const int ka,
