@@ -224,7 +224,7 @@ std::vector<double> fermiNuclearDensity_tcN(double t, double c, double Z_norm,
 // Znorm = Z for nuclear chare density; Z_norm = 1 for nuclear density.
 {
   std::vector<double> rho;
-  rho.reserve(grid.ngp);
+  rho.reserve(grid.num_points);
 
   // form un-normalised rho:
   const double a = t / FourLn3;

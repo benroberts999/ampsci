@@ -23,26 +23,30 @@ inline std::vector<T> derivative(const std::vector<T> &f,
 // coeficients from: http://en.wikipedia.org/wiki/Finite_difference_coefficient
 {
 
-  std::size_t ngp = f.size();
-  std::vector<T> df(ngp);
+  std::size_t num_points = f.size();
+  std::vector<T> df(num_points);
 
   df[0] = (f[1] - f[0]) / (dt * drdt[0]);
-  df[ngp - 1] = (f[ngp - 1] - f[ngp - 2]) / (dt * drdt[ngp - 1]);
+  df[num_points - 1] =
+      (f[num_points - 1] - f[num_points - 2]) / (dt * drdt[num_points - 1]);
 
   df[1] = (f[2] - f[0]) / (2 * dt * drdt[1]);
-  df[ngp - 2] = (f[ngp - 1] - f[ngp - 3]) / (2 * dt * drdt[ngp - 2]);
+  df[num_points - 2] =
+      (f[num_points - 1] - f[num_points - 3]) / (2 * dt * drdt[num_points - 2]);
 
   df[2] = (f[0] - 8 * f[1] + 8 * f[3] - f[4]) / (12 * dt * drdt[2]);
-  df[ngp - 3] = (f[ngp - 5] - 8 * f[ngp - 4] + 8 * f[ngp - 2] - f[ngp - 1]) /
-                (12 * dt * drdt[ngp - 3]);
+  df[num_points - 3] = (f[num_points - 5] - 8 * f[num_points - 4] +
+                        8 * f[num_points - 2] - f[num_points - 1]) /
+                       (12 * dt * drdt[num_points - 3]);
 
   df[3] = (-1 * f[0] + 9 * f[1] - 45 * f[2] + 45 * f[4] - 9 * f[5] + 1 * f[6]) /
           (60 * dt * drdt[3]);
-  df[ngp - 4] = (-1 * f[ngp - 7] + 9 * f[ngp - 6] - 45 * f[ngp - 5] +
-                 45 * f[ngp - 3] - 9 * f[ngp - 2] + 1 * f[ngp - 1]) /
-                (60 * dt * drdt[ngp - 4]);
+  df[num_points - 4] =
+      (-1 * f[num_points - 7] + 9 * f[num_points - 6] - 45 * f[num_points - 5] +
+       45 * f[num_points - 3] - 9 * f[num_points - 2] + 1 * f[num_points - 1]) /
+      (60 * dt * drdt[num_points - 4]);
 
-  for (std::size_t i = 4; i < (ngp - 4); i++) {
+  for (std::size_t i = 4; i < (num_points - 4); i++) {
     df[i] = ((1. / 8) * f[i - 4] - (4. / 3) * f[i - 3] + 7 * f[i - 2] -
              28 * f[i - 1] - (1. / 8) * f[i + 4] + (4. / 3) * f[i + 3] -
              7 * f[i + 2] + 28 * f[i + 1]) /

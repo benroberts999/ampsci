@@ -93,7 +93,7 @@ void boundState(DiracSpinor &psi, const std::vector<double> &v,
   for (; t_its < Param::max_its; ++t_its) {
     t_pinf = Adams::findPracticalInfinity(t_en, v, rgrid.r, Param::cALR);
     const int ctp =
-        Adams::findClassicalTurningPoint(t_en, v, t_pinf, Param::d_ctp);
+        Adams::findClassicalTurninum_pointsoint(t_en, v, t_pinf, Param::d_ctp);
 
     // Find solution (f,g) to DE for given energy:
     // Also stores dg (gout-gin) for PT [used for PT to find better e]
@@ -155,7 +155,7 @@ void boundState(DiracSpinor &psi, const std::vector<double> &v,
     psi.g[i] = an * psi.g[i];
   }
   // Explicitely set 'tail' to zero (we may be re-using orbital)
-  for (auto i = psi.pinf; i < rgrid.ngp; i++) {
+  for (auto i = psi.pinf; i < rgrid.num_points; i++) {
     psi.f[i] = 0;
     psi.g[i] = 0;
   }
@@ -173,7 +173,7 @@ void regularAtOrigin(DiracSpinor &phi, const double en,
   Adams::DiracMatrix Hd(*gr, v, phi.k, phi.en, alpha);
   Adams::outwardAM(phi.f, phi.g, Hd, pinf - 1);
   // for safety: make sure zerod! (I may re-use existing orbitals!)
-  for (std::size_t i = pinf; i < gr->ngp; i++) {
+  for (std::size_t i = pinf; i < gr->num_points; i++) {
     phi.f[i] = 0;
     phi.g[i] = 0;
   }
@@ -189,7 +189,7 @@ void regularAtInfinity(DiracSpinor &phi, const double en,
   const auto pinf = Adams::findPracticalInfinity(phi.en, v, gr->r, Param::cALR);
   Adams::DiracMatrix Hd(*gr, v, phi.k, phi.en, alpha);
   Adams::inwardAM(phi.f, phi.g, Hd, 0, pinf - 1);
-  for (std::size_t i = pinf; i < gr->ngp; i++) {
+  for (std::size_t i = pinf; i < gr->num_points; i++) {
     phi.f[i] = 0;
     phi.g[i] = 0;
   }
@@ -273,7 +273,7 @@ double smallEnergyChangePT(const double en, const double anorm,
 int findPracticalInfinity(const double en, const std::vector<double> &v,
                           const std::vector<double> &r, const double alr)
 // Find the practical infinity 'pinf'
-// Step backwards from the last point (ngp-1) until
+// Step backwards from the last point (num_points-1) until
 // (V(r) - E)*r^2 >  alr    (alr = "asymptotically large r")
 // XXX Note: unsafe, and a little slow. Would be better to use
 // std::lower_bound.. but would need lambda or something for r^2 part?
@@ -290,8 +290,9 @@ int findPracticalInfinity(const double en, const std::vector<double> &v,
 }
 
 //******************************************************************************
-int findClassicalTurningPoint(const double en, const std::vector<double> &v,
-                              const int pinf, const int d_ctp)
+int findClassicalTurninum_pointsoint(const double en,
+                                     const std::vector<double> &v,
+                                     const int pinf, const int d_ctp)
 // Finds classical turning point 'ctp'
 // Enforced to be between (0+ctp) and (pinf-ctp)
 //  V(r) > E        [nb: both V and E are <0]
@@ -329,7 +330,7 @@ void trialDiracSolution(std::vector<double> &f, std::vector<double> &g,
 {
   DiracMatrix Hd(gr, v, ka, en, alpha);
   outwardAM(f, g, Hd, ctp + d_ctp);
-  std::vector<double> f_in(gr.ngp), g_in(gr.ngp);
+  std::vector<double> f_in(gr.num_points), g_in(gr.num_points);
   inwardAM(f_in, g_in, Hd, ctp - d_ctp, pinf - 1);
   joinInOutSolutions(f, g, dg, f_in, g_in, ctp, d_ctp, pinf);
 }
@@ -568,8 +569,8 @@ void adamsMoulton(std::vector<double> &f, std::vector<double> &g,
 
   const auto du = Hd.pgr->du;
   // create arrays for wf derivatives
-  const auto ngp = Hd.pgr->ngp;
-  std::vector<double> df(ngp), dg(ngp);
+  const auto num_points = Hd.pgr->num_points;
+  std::vector<double> df(num_points), dg(num_points);
   std::array<double, Param::AMO> am_coef;
   int k1 = ni - inc * Param::AMO; // nb: k1 is iterated
   for (auto i = 0; i < Param::AMO; i++) {

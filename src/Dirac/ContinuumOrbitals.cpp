@@ -16,11 +16,11 @@ ContinuumOrbitals::ContinuumOrbitals(const Wavefunction &wf, int izion)
 //  states!
 // If none given, will assume izion should be 1! Not 100% always!
 {
-  auto NGPb = wf.rgrid.ngp;
+  auto num_pointsb = wf.rgrid.num_points;
 
   // Check Zion. Will normally be 0 for neutral atom. Make -1
-  double tmp_Zion =
-      -1 * wf.rgrid.r[NGPb - 5] * (wf.vnuc[NGPb - 5] + wf.vdir[NGPb - 5]);
+  double tmp_Zion = -1 * wf.rgrid.r[num_pointsb - 5] *
+                    (wf.vnuc[num_pointsb - 5] + wf.vdir[num_pointsb - 5]);
 
   // Note: Because I don't include exchange, need to re-scale the potential
   // Assumes z_ion=1 (i.e., one electron ejected from otherwise neutral atom)
@@ -29,13 +29,14 @@ ContinuumOrbitals::ContinuumOrbitals(const Wavefunction &wf, int izion)
   // input z_ion (sometimes, might want to do something different)
   double scale = 1;
   if (std::fabs(tmp_Zion - izion) > 0.01)
-    scale = double(Z - izion) / (wf.rgrid.r[NGPb - 5] * wf.vdir[NGPb - 5]);
+    scale = double(Z - izion) /
+            (wf.rgrid.r[num_pointsb - 5] * wf.vdir[num_pointsb - 5]);
 
   // Local part of the potential:
   v.clear();
   v = wf.vnuc;
   if (wf.vdir.size() != 0) {
-    for (auto i = 0ul; i < NGPb; i++) {
+    for (auto i = 0ul; i < num_pointsb; i++) {
       v[i] += wf.vdir[i] * scale;
     }
   }
@@ -43,13 +44,13 @@ ContinuumOrbitals::ContinuumOrbitals(const Wavefunction &wf, int izion)
   // Re-Check overal charge of atom (-1)
   // For neutral atom, should be 1 (usually, since cntm is ionisation state)
   // r->inf, v(r) = -Z_ion/r
-  tmp_Zion = -1 * wf.rgrid.r[NGPb - 5] * v[NGPb - 5];
+  tmp_Zion = -1 * wf.rgrid.r[num_pointsb - 5] * v[num_pointsb - 5];
 
   if (std::fabs(tmp_Zion - Zion) > 0.01) {
     std::cout << "\nWARNING: [cntm] Zion incorrect?? Is this OK??\n";
     std::cout << "Zion=" << tmp_Zion << " = "
-              << -1 * wf.rgrid.r[NGPb - 5] * v[NGPb - 5] << " " << izion
-              << "\n";
+              << -1 * wf.rgrid.r[num_pointsb - 5] * v[num_pointsb - 5] << " "
+              << izion << "\n";
     std::cin.get();
   }
 }
@@ -65,7 +66,8 @@ int ContinuumOrbitals::solveLocalContinuum(double ec, int max_l)
 int ContinuumOrbitals::solveLocalContinuum(double ec, int min_l, int max_l)
 // Solved the Dirac equation for local potential for positive energy (no mc2)
 // continuum (un-bound) states [partial waves].
-//  * Goes well past NGP, looks for asymptotic region, where wf is sinosoidal
+//  * Goes well past num_points, looks for asymptotic region, where wf is
+//  sinosoidal
 //  * Uses fit to known exact H-like for normalisation.
 {
 
@@ -90,7 +92,7 @@ int ContinuumOrbitals::solveLocalContinuum(double ec, int min_l, int max_l)
   ExtendedGrid cgrid(*p_rgrid, 1.2 * r_asym);
 
   auto vc = v;
-  for (auto i = p_rgrid->ngp; i < cgrid.ngp; i++) {
+  for (auto i = p_rgrid->num_points; i < cgrid.num_points; i++) {
     vc.push_back(-Zion / cgrid.r[i]);
   }
 

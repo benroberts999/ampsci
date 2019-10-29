@@ -100,7 +100,7 @@ HartreeFock::HartreeFock(HFMethod method, Wavefunction &wf,
 
   m_cint.initialise_core_core();
   appr_vex_core.resize(p_wf->core_orbitals.size(),
-                       std::vector<double>(p_rgrid->ngp));
+                       std::vector<double>(p_rgrid->num_points));
 
   // XXX Update this so that you can create HF class, THEN solve for core later
   switch (method) {
@@ -174,7 +174,7 @@ void HartreeFock::starting_approx_core(const std::string &in_core,
   p_wf->solveInitialCore(in_core, log_converge);
   if (p_wf->core_orbitals.empty()) {
     // If H-like, kill "initial" vdir (Green potential)
-    p_wf->vdir = std::vector<double>(p_wf->rgrid.ngp, 0);
+    p_wf->vdir = std::vector<double>(p_wf->rgrid.num_points, 0);
   }
 }
 
@@ -225,7 +225,7 @@ void HartreeFock::hf_core_approx(const double eps_target_HF) {
     if (hits == 1)
       vex_old = appr_vex_core; // We didn't have old vex before
 
-    for (std::size_t j = 0; j < p_rgrid->ngp; j++) {
+    for (std::size_t j = 0; j < p_rgrid->num_points; j++) {
       p_wf->vdir[j] = (1.0 - eta) * p_wf->vdir[j] + eta * vdir_old[j];
       for (std::size_t i = 0; i < p_wf->core_orbitals.size(); i++) {
         appr_vex_core[i][j] =
@@ -329,7 +329,7 @@ EpsIts HartreeFock::hf_valence_approx(DiracSpinor &phi,
   static const std::size_t de_stride = 5;
 
   vexa.clear();
-  vexa.resize(p_rgrid->ngp, 0);
+  vexa.resize(p_rgrid->num_points, 0);
 
   auto vexa_old = vexa;
 
@@ -346,7 +346,7 @@ EpsIts HartreeFock::hf_valence_approx(DiracSpinor &phi,
     m_cint.form_core_valence(phi);
     form_approx_vex_a(phi, vexa);
 
-    for (std::size_t i = 0; i < p_rgrid->ngp; i++) {
+    for (std::size_t i = 0; i < p_rgrid->num_points; i++) {
       vexa[i] = (1.0 - eta) * vexa[i] + eta * vexa_old[i];
     }
     // Use P.T. to calculate energy change:
@@ -444,7 +444,7 @@ void HartreeFock::form_vdir(std::vector<double> &vdir, bool re_scale) const
   for (const auto &phi_b : p_wf->core_orbitals) {
     const double f_sf = sf * (phi_b.twoj() + 1) * phi_b.occ_frac;
     const auto &v0bb = m_cint.get_y_ijk(phi_b, phi_b, 0);
-    for (std::size_t i = 0; i < p_rgrid->ngp; i++) {
+    for (std::size_t i = 0; i < p_rgrid->num_points; i++) {
       vdir[i] += v0bb[i] * f_sf;
     }
   }
@@ -509,7 +509,7 @@ void HartreeFock::form_approx_vex_a(const DiracSpinor &phi_a,
       const auto &vabk = m_cint.get_y_ijk(phi_b, phi_a);
 
       // hold "fraction" psi_a*psi_b/(psi_a^2):
-      std::vector<double> v_Fab(p_rgrid->ngp);
+      std::vector<double> v_Fab(p_rgrid->num_points);
       for (std::size_t i = 0; i < irmax; i++) {
         // This is the approximte part! Divides by psi_a
         if (std::fabs(phi_a.f[i]) < 1.e-3)
@@ -602,14 +602,14 @@ void HartreeFock::vex_psia(const DiracSpinor &phi_a, DiracSpinor &vexPsi) const
 // -----------------------------------------------------------------------------
 DiracSpinor HartreeFock::vex_psia_any(const DiracSpinor &phi_a,
                                       const std::vector<DiracSpinor> &core,
-                                      int k_cut)
+                                      int k_cut) // static
 // calculates V_ex Psi_a (returns new Dirac Spinor)
 // Psi_a can be any orbital (Calculates coulomb integrals here!)
 {
   DiracSpinor vexPsi(phi_a.n, phi_a.k, *(phi_a.p_rgrid));
   vexPsi.pinf = phi_a.pinf;
 
-  std::vector<double> vabk(phi_a.p_rgrid->ngp);
+  std::vector<double> vabk(phi_a.p_rgrid->num_points);
   // XXX ALSO move this!
 
   auto tja = phi_a.twoj();
@@ -653,7 +653,7 @@ DiracSpinor HartreeFock::vex_psia_any(const DiracSpinor &phi_a,
 void HartreeFock::hf_orbital(DiracSpinor &phi, double en,
                              const std::vector<double> &vl,
                              const DiracSpinor &vx_phi,
-                             const std::vector<DiracSpinor> &core,
+                             const std::vector<DiracSpinor> &static_core,
                              const std::vector<double> &v0) const
 // Solve Dirac Equation (Eigenvalue): (move to DiracODE??)
 //  (H0 + Vl + Vx)Psi = 0
@@ -663,29 +663,36 @@ void HartreeFock::hf_orbital(DiracSpinor &phi, double en,
 // Small energy adjustmenets (and wfs), solve:
 // (Hl - e) dF = de * F -VxPsi
 // e -> e+de, F->F+dF
-// Static!?
+// Core is input so can call in a thread-safe way! (with a 'old_core' copy)
+// Only used in dE from dF
 {
-  constexpr bool include_dF_exch = true;
 
+  // pull these outside? But make sure thread safe!
   DiracSpinor phi0(phi.n, phi.k, *(phi.p_rgrid));
   DiracSpinor phiI(phi.n, phi.k, *(phi.p_rgrid));
+  DiracSpinor VxFh(phi.n, phi.k, *(phi.p_rgrid));
+
   const auto alpha = p_wf->get_alpha();
   DiracODE::solve_inhomog(phi, phi0, phiI, en, vl, alpha, -1.0 * vx_phi);
 
   // make small adjustments to energy to normalise psi:
   DiracSpinor del_phi(phi.n, phi.k, *(phi.p_rgrid));
-  // DiracSpinor VxFh(phi.n, phi.k, *(phi.p_rgrid));
   DiracODE::Adams::GreenSolution(del_phi, phiI, phi0, alpha, phi);
+  // should del_phi = del_e * del_phi, but makes it worse?
+  // nb: after first it, becomes correct.
   auto del_E = 0.5 * (phi * phi - 1.0) / (phi * del_phi);
   auto eps = std::abs(del_E / en);
   int tries = 0;
   for (; tries < m_max_hf_its; ++tries) { // m_max_hf_its
     if (eps < m_eps_HF)
       break;
-    if (include_dF_exch) {
-      auto VxFh = vex_psia_any(del_phi, core, 0);
-      if (!v0.empty())
-        VxFh += v0 * del_phi; // v0 = (1-f)Vd;
+    {
+      if (!v0.empty()) {     // essentially, for core:
+        VxFh = v0 * del_phi; // v0 = (1-f)Vd;
+      } else {               // essentially, for valence
+        VxFh = vex_psia_any(del_phi, static_core, 0);
+      }
+      // Depends very strengely on VxFh...
       DiracODE::Adams::GreenSolution(del_phi, phiI, phi0, alpha,
                                      del_E * phi - VxFh);
     }
@@ -712,15 +719,15 @@ EpsIts HartreeFock::hf_valence_refine(DiracSpinor &phi) {
   if (p_wf->core_orbitals.empty())
     return {0, 0};
 
-  auto eps_target = m_eps_HF;
+  const auto eps_target = m_eps_HF;
 
   auto damper = rampedDamp(0.7, 0.1, 5, 25);
   double extra_damp = 0.0;
 
-  auto vl = NumCalc::sumVecs({&(p_wf->vnuc), &(p_wf->vdir)});
+  const auto vl = NumCalc::sumVecs({&(p_wf->vnuc), &(p_wf->vdir)});
 
-  auto phi_zero = phi;
-  auto vexPsi_zero = get_vex(phi) * phi;
+  const auto phi_zero = phi;
+  const auto vexPsi_zero = get_vex(phi) * phi;
 
   auto prev_en = phi.en;
   m_cint.form_core_valence(phi); // only needed if not already done!
@@ -787,8 +794,8 @@ inline void HartreeFock::hf_core_refine() {
   auto damper = rampedDamp(0.8, 0.1, 5, 30);
   double extra_damp = 0;
 
-  std::vector<double> vl(p_wf->rgrid.ngp); // Vnuc + fVd
-  std::vector<double> v0(p_wf->rgrid.ngp); // (1-f)Vd
+  std::vector<double> vl(p_wf->rgrid.num_points); // Vnuc + fVd
+  std::vector<double> v0(p_wf->rgrid.num_points); // (1-f)Vd
   const auto f_core = double(p_wf->Ncore() - 1) / double(p_wf->Ncore());
   const auto &vd = p_wf->vdir;
 
@@ -818,7 +825,7 @@ inline void HartreeFock::hf_core_refine() {
     auto a_damp = damper(it) + extra_damp;
 
     // re-calculate each Vl = vnuc + fvdir, v0 = (1-f)vdir:
-    for (auto i = 0ul; i < p_wf->rgrid.ngp; i++) {
+    for (auto i = 0ul; i < p_wf->rgrid.num_points; i++) {
       vl[i] = p_wf->vnuc[i] + f_core * vd[i];
       v0[i] = (1.0 - f_core) * vd[i];
     }

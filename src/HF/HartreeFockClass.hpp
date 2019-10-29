@@ -70,17 +70,17 @@ public:
 private:
   Wavefunction *const p_wf;
   const Grid *const p_rgrid;
-
   Coulomb m_cint;
 
-  const double m_eps_HF;
+  static constexpr int m_max_hf_its = 99;
 
-  static const int m_max_hf_its = 99;
+  // Optionally force orthogonalisation. False by default.
+  static constexpr bool m_explicitOrthog_cc = false;
+  static constexpr bool m_explicitOrthog_cv = false;
+
+  const double m_eps_HF;
   const bool m_excludeExchange;
   const HFMethod m_method;
-
-  const bool m_explicitOrthog_cc = false; //??
-  const bool m_explicitOrthog_cv = false; //??
 
   // The "localised"/approximate HF potential:
   std::vector<std::vector<double>> appr_vex_core;

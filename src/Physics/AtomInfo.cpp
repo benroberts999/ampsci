@@ -102,8 +102,10 @@ int symbol_to_l(const std::string &l_str) {
 std::string coreConfig(const std::string &in_ng) {
   // Note: must return SAME string if no matching Nobel Gas found
   // (so that this doesn't break if I give it a full term list)
-  using StringPair = std::pair<std::string, std::string>;
-  auto match_ng = [&](const StringPair &ng) { return ng.first == in_ng; };
+  using Strinum_pointsair = std::pair<std::string, std::string>;
+  auto match_ng = [&](const Strinum_pointsair &ng) {
+    return ng.first == in_ng;
+  };
   auto ng_config =
       std::find_if(nobelGasses.begin(), nobelGasses.end(), match_ng);
   if (ng_config == nobelGasses.end())
