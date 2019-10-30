@@ -20,9 +20,9 @@ Nucleus {
 Grid {
   r0 = 1e-6;
   rmax = 120.0;
-  ngp = 2000;
+  num_points = 2000;
   type; // loglinear(dflt), logarithmic, linear
-  b;
+  b;    // b<0, or b>rmax will use logarithmic
 }
 
 /////////////////////////////////////////////////////////////////

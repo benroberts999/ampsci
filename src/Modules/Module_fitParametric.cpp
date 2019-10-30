@@ -42,10 +42,10 @@ void fitParametric(const UserInputBlock &input, const Wavefunction &wf) {
     double H, d;
     auto Z = wf.Znuc();
     // auto A = wf.Anuc();
-    auto ngp = wf.rgrid.ngp;
+    auto num_points = wf.rgrid.num_points;
     auto r0 = wf.rgrid.r0;
     auto rmax = wf.rgrid.rmax;
-    GridParameters gp(ngp, r0, rmax, wf.rgrid.b, wf.rgrid.gridtype);
+    GridParameters gp(num_points, r0, rmax, wf.rgrid.b, wf.rgrid.gridtype);
     auto nuc_params = wf.get_nucParams();
 
     std::tie(H, d) =

@@ -7,12 +7,13 @@
 #include <vector>
 
 //******************************************************************************
-GridParameters::GridParameters(std::size_t inngp, double inr0, double inrmax,
-                               double inb, std::string str_type)
-    : ngp(inngp), r0(inr0), rmax(inrmax), b(inb), type(parseType(str_type)) {}
-GridParameters::GridParameters(std::size_t inngp, double inr0, double inrmax,
-                               double inb, GridType intype)
-    : ngp(inngp), r0(inr0), rmax(inrmax), b(inb), type(intype) {}
+GridParameters::GridParameters(std::size_t innum_points, double inr0,
+                               double inrmax, double inb, std::string str_type)
+    : num_points(innum_points), r0(inr0), rmax(inrmax), b(inb),
+      type(parseType(str_type)) {}
+GridParameters::GridParameters(std::size_t innum_points, double inr0,
+                               double inrmax, double inb, GridType intype)
+    : num_points(innum_points), r0(inr0), rmax(inrmax), b(inb), type(intype) {}
 //------------------------------------------------------------------------------
 GridType GridParameters::parseType(const std::string &str_type) {
   if (str_type == "loglinear")
@@ -26,17 +27,18 @@ GridType GridParameters::parseType(const std::string &str_type) {
 
 //******************************************************************************
 Grid::Grid(const GridParameters &in)
-    : Grid(in.r0, in.rmax, in.ngp, in.type, in.b) {}
+    : Grid(in.r0, in.rmax, in.num_points, in.type, in.b) {}
 //------------------------------------------------------------------------------
-Grid::Grid(double in_r0, double in_rmax, std::size_t in_ngp,
+Grid::Grid(double in_r0, double in_rmax, std::size_t in_num_points,
            GridType in_gridtype, double in_b)
-    : r0(in_r0), rmax(in_rmax), ngp(in_ngp),
-      du(calc_du_from_ngp(in_r0, in_rmax, in_ngp, in_gridtype, in_b)),
-      gridtype(in_gridtype),               //
-      b(in_b),                             //
-      r(form_r(gridtype, r0, ngp, du, b)), //
-      drduor(form_drduor(gridtype, r, b)), //
-      drdu(form_drdu(gridtype, r, drduor)) //
+    : r0(in_r0), rmax(in_rmax), num_points(in_num_points),
+      du(calc_du_from_num_points(in_r0, in_rmax, in_num_points, in_gridtype,
+                                 in_b)),
+      gridtype(in_gridtype),                      //
+      b(in_b),                                    //
+      r(form_r(gridtype, r0, num_points, du, b)), //
+      drduor(form_drduor(gridtype, r, b)),        //
+      drdu(form_drdu(gridtype, r, drduor))        //
 {}
 //------------------------------------------------------------------------------
 
@@ -50,11 +52,12 @@ Grid::Grid(const Grid &t_gr, const double new_rmax)
         return (new_rmax >= t_gr.rmax) ? new_rmax
                                        : t_gr.r[t_gr.getIndex(new_rmax)];
       }()), // rmax
-      ngp([&]() {
+      num_points([&]() {
         return (new_rmax >= t_gr.rmax)
-                   ? t_gr.ngp + std::size_t((new_rmax - t_gr.rmax) / t_gr.du)
+                   ? t_gr.num_points +
+                         std::size_t((new_rmax - t_gr.rmax) / t_gr.du)
                    : t_gr.getIndex(new_rmax);
-      }()),                    // ngp
+      }()),                    // num_points
       du(t_gr.du),             // du
       gridtype(t_gr.gridtype), // gridtype
       b(t_gr.b),               // b
@@ -64,18 +67,19 @@ Grid::Grid(const Grid &t_gr, const double new_rmax)
             // extend radial vector:
             auto tmp_r = t_gr.r;
             auto r_i = t_gr.rmax;
-            for (auto i = t_gr.ngp; i < this->ngp; i++) {
+            for (auto i = t_gr.num_points; i < this->num_points; i++) {
               r_i += du;
               tmp_r.push_back(r_i);
             }
             return tmp_r;
           }();
         }
-        return std::vector<double>(t_gr.r.begin(), t_gr.r.begin() + this->ngp);
+        return std::vector<double>(t_gr.r.begin(),
+                                   t_gr.r.begin() + this->num_points);
       }()), // r
       drduor([&]() {
         std::vector<double> temp_drduor = t_gr.drduor;
-        for (auto i = t_gr.ngp; i < this->ngp; i++) {
+        for (auto i = t_gr.num_points; i < this->num_points; i++) {
           temp_drduor.push_back(1.0 / this->r[i]);
         }
         return temp_drduor;
@@ -83,11 +87,11 @@ Grid::Grid(const Grid &t_gr, const double new_rmax)
       drdu([&]() {
         if (new_rmax > t_gr.rmax) {
           auto temp_drdu = t_gr.drdu;
-          temp_drdu.resize(this->ngp, 1.0);
+          temp_drdu.resize(this->num_points, 1.0);
           return temp_drdu;
         }
         return std::vector<double>(t_gr.drdu.begin(),
-                                   t_gr.drdu.begin() + this->ngp);
+                                   t_gr.drdu.begin() + this->num_points);
       }()) // drdu
 {}
 
@@ -129,14 +133,15 @@ std::string Grid::gridParameters() const {
   case GridType::loglinear:
     out << "Log-linear (b=" << b << ") ";
   }
-  out << "grid: " << r0 << "->" << rmax << ", N=" << ngp << ", du=" << du;
+  out << "grid: " << r0 << "->" << rmax << ", N=" << num_points
+      << ", du=" << du;
   return out.str();
 }
 
 //******************************************************************************
 std::vector<double> Grid::inverse_r() const {
   std::vector<double> invr;
-  invr.reserve(ngp);
+  invr.reserve(num_points);
   for (const auto ir : r) {
     invr.push_back(1.0 / ir);
   }
@@ -145,16 +150,16 @@ std::vector<double> Grid::inverse_r() const {
 
 //******************************************************************************
 std::vector<double> Grid::form_r(const GridType type, const double r0,
-                                 const std::size_t ngp, const double du,
+                                 const std::size_t num_points, const double du,
                                  const double b) {
   std::vector<double> r;
-  r.reserve(ngp);
+  r.reserve(num_points);
 
   if (type == GridType::loglinear) {
     r.push_back(r0);
     auto u = r0 + b * std::log(r0);
     auto r_prev = r0;
-    for (auto i = 1ul; i < ngp; i++) {
+    for (auto i = 1ul; i < num_points; i++) {
       u += du;
       double r_tmp = r_prev;
       // Integrate dr/dt to find r:
@@ -177,11 +182,11 @@ std::vector<double> Grid::form_r(const GridType type, const double r0,
       r_prev = r_tmp;
     }
   } else if (type == GridType::logarithmic) {
-    for (std::size_t i = 0; i < ngp; i++) {
+    for (std::size_t i = 0; i < num_points; i++) {
       r.push_back(r0 * std::exp(double(i) * du));
     }
   } else if (type == GridType::linear) {
-    for (std::size_t i = 0; i < ngp; i++) {
+    for (std::size_t i = 0; i < num_points; i++) {
       double tmp_r = r0 + double(i) * du;
       r.push_back(tmp_r);
     }
@@ -236,27 +241,28 @@ std::vector<double> Grid::form_drdu(const GridType type,
 }
 
 //******************************************************************************
-double Grid::calc_du_from_ngp(double r0, double rmax, std::size_t ngp,
-                              GridType gridtype, double b) {
-  if (ngp == 1)
+double Grid::calc_du_from_num_points(double r0, double rmax,
+                                     std::size_t num_points, GridType gridtype,
+                                     double b) {
+  if (num_points == 1)
     return 0;
   switch (gridtype) {
   case GridType::loglinear:
     if (b <= 0)
       std::cerr << "\nFAIL57 in Grid: cant have b=0 for log-linear grid!\n";
-    return (rmax - r0 + b * std::log(rmax / r0)) / (double(ngp - 1));
+    return (rmax - r0 + b * std::log(rmax / r0)) / (double(num_points - 1));
   case GridType::logarithmic:
-    return std::log(rmax / r0) / double(ngp - 1);
+    return std::log(rmax / r0) / double(num_points - 1);
   case GridType::linear:
-    return (rmax - r0) / double(ngp - 1);
+    return (rmax - r0) / double(num_points - 1);
   }
   std::cerr << "\nFAIL 63 in Grid: wrong type?\n";
   return 1.;
 }
 
 //******************************************************************************
-std::size_t Grid::calc_ngp_from_du(double r0, double rmax, double du,
-                                   GridType gridtype, double b) {
+std::size_t Grid::calc_num_points_from_du(double r0, double rmax, double du,
+                                          GridType gridtype, double b) {
   switch (gridtype) {
   case GridType::loglinear:
     if (b <= 0)

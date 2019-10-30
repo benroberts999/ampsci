@@ -28,7 +28,7 @@ Coulomb::Coulomb(const Grid &in_grid, const std::vector<DiracSpinor> &in_core,
 void Coulomb::initialise_core_core()
 // Initialises memory (sizes arays) used to store core-core y^k_ab C ints
 {
-  auto ngp = rgrid_ptr->ngp;
+  auto num_points = rgrid_ptr->num_points;
   m_y_abkr.clear();
   m_y_abkr.reserve(c_orbs_ptr->size());
   for (std::size_t ia = 0; ia < c_orbs_ptr->size(); ia++) {
@@ -37,8 +37,8 @@ void Coulomb::initialise_core_core()
     for (std::size_t ib = 0; ib <= ia; ib++) {
       auto tjb = (*c_orbs_ptr)[ib].twoj();
       std::size_t num_k = (tja > tjb) ? (tjb + 1) : (tja + 1);
-      ya_bkr.emplace_back(
-          std::vector<std::vector<double>>(num_k, std::vector<double>(ngp)));
+      ya_bkr.emplace_back(std::vector<std::vector<double>>(
+          num_k, std::vector<double>(num_points)));
     }
     m_y_abkr.push_back(ya_bkr);
     calculate_angular((*c_orbs_ptr)[ia].k_index());
@@ -51,15 +51,15 @@ void Coulomb::initialise_core_valence()
 // Must be called after new valence orbitals are constructed before can
 // calculate the new integrals (for now, this happens automatically)
 {
-  auto ngp = rgrid_ptr->ngp;
+  auto num_points = rgrid_ptr->num_points;
   for (std::size_t iv = num_initialised_vc; iv < v_orbs_ptr->size(); iv++) {
     auto tjv = (*v_orbs_ptr)[iv].twoj();
     std::vector<std::vector<std::vector<double>>> va_bkr;
     for (const auto &phi_c : *c_orbs_ptr) {
       auto tjc = phi_c.twoj();
       std::size_t num_k = (tjv > tjc) ? (tjc + 1) : (tjv + 1);
-      va_bkr.emplace_back(
-          std::vector<std::vector<double>>(num_k, std::vector<double>(ngp)));
+      va_bkr.emplace_back(std::vector<std::vector<double>>(
+          num_k, std::vector<double>(num_points)));
     }
     m_y_vckr.push_back(va_bkr);
     calculate_angular((*v_orbs_ptr)[iv].k_index());
@@ -73,15 +73,15 @@ void Coulomb::initialise_valence_valence()
 // Must be called after new valence orbitals are constructed before can
 // calculate the new integrals (for now, this happens automatically)
 {
-  auto ngp = rgrid_ptr->ngp;
+  auto num_points = rgrid_ptr->num_points;
   for (std::size_t iv = num_initialised_vv; iv < v_orbs_ptr->size(); iv++) {
     auto tjv = (*v_orbs_ptr)[iv].twoj();
     std::vector<std::vector<std::vector<double>>> vv_wkr;
     for (std::size_t iw = 0; iw <= iv; iw++) {
       auto tjw = (*v_orbs_ptr)[iw].twoj();
       std::size_t num_k = (tjv > tjw) ? (tjw + 1) : (tjv + 1);
-      vv_wkr.emplace_back(
-          std::vector<std::vector<double>>(num_k, std::vector<double>(ngp)));
+      vv_wkr.emplace_back(std::vector<std::vector<double>>(
+          num_k, std::vector<double>(num_points)));
     }
     m_y_vwkr.push_back(vv_wkr);
     calculate_angular((*v_orbs_ptr)[iv].k_index());
@@ -397,10 +397,16 @@ std::vector<double> Coulomb::calculate_R_abcd_k(const DiracSpinor &psi_a,
   const auto &ybd_kr = get_y_ijk(psi_b, psi_d);
   for (int k = kmin; k <= kmax; k++) {
     const auto &ybdk_r = ybd_kr[k - kmin];
+    // auto ffy =
+    //     NumCalc::integrate({&psi_a.f, &psi_c.f, &ybdk_r, &drdu}, 1.0, 0,
+    //     pinf);
+    // auto ggy =
+    //     NumCalc::integrate({&psi_a.g, &psi_c.g, &ybdk_r, &drdu}, 1.0, 0,
+    //     pinf);
     auto ffy =
-        NumCalc::integrate({&psi_a.f, &psi_c.f, &ybdk_r, &drdu}, 1.0, 0, pinf);
+        NumCalc::integrate_any(1.0, 0, pinf, psi_a.f, psi_c.f, ybdk_r, drdu);
     auto ggy =
-        NumCalc::integrate({&psi_a.g, &psi_c.g, &ybdk_r, &drdu}, 1.0, 0, pinf);
+        NumCalc::integrate_any(1.0, 0, pinf, psi_a.g, psi_c.g, ybdk_r, drdu);
     Rabcd[k] = (ffy + ggy) * du;
   }
   return Rabcd;
@@ -432,8 +438,8 @@ void Coulomb::calculate_y_ijk(const DiracSpinor &phi_a,
 {
   auto &grid = phi_a.p_rgrid; // just save typing
   auto du = grid->du;
-  auto ngp = grid->ngp;
-  vabk.resize(ngp); // for safety
+  auto num_points = grid->num_points;
+  vabk.resize(num_points); // for safety
 
   auto irmax = std::min(phi_a.pinf, phi_b.pinf);
 
@@ -445,7 +451,7 @@ void Coulomb::calculate_y_ijk(const DiracSpinor &phi_a,
 
   // For "direct" part, can't cut!
   if (phi_a == phi_b)
-    irmax = ngp;
+    irmax = num_points;
 
   vabk[0] = Bx * du;
   for (std::size_t i = 1; i < irmax; i++) {
@@ -456,7 +462,7 @@ void Coulomb::calculate_y_ijk(const DiracSpinor &phi_a,
     vabk[i] =
         du * (Ax / std::pow(grid->r[i], k + 1) + Bx * std::pow(grid->r[i], k));
   }
-  for (std::size_t i = irmax; i < ngp; i++) {
+  for (std::size_t i = irmax; i < num_points; i++) {
     vabk[i] = 0; // this doesn't happen in psi_a = psi_b
   }
 }

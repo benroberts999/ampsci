@@ -24,17 +24,7 @@ void Wavefunction::solveDirac(DiracSpinor &psi, double e_a,
 // so, here, vex = [sum_b vex_a (psi_b/psi_a)]
 // This is not ideal..
 {
-  std::vector<double> v_a = vnuc;
-  if (vdir.size() != 0) {
-    for (std::size_t i = 0; i < rgrid.ngp; i++) {
-      v_a[i] += vdir[i];
-    }
-  }
-  if (vex.size() != 0) {
-    for (std::size_t i = 0; i < rgrid.ngp; i++) {
-      v_a[i] += vex[i];
-    }
-  }
+  auto v_a = NumCalc::add_vectors(vnuc, vdir, vex);
   if (e_a != 0) {
     psi.en = e_a;
   } else if (psi.en == 0) {
@@ -559,10 +549,10 @@ Wavefunction::listOfStates_nk(int num_val, int la, int lb, bool skip_core) const
 
 //******************************************************************************
 std::vector<double> Wavefunction::coreDensity() const {
-  std::vector<double> rho(rgrid.ngp, 0.0);
+  std::vector<double> rho(rgrid.num_points, 0.0);
   for (const auto &phi : core_orbitals) {
     auto f = double(phi.twoj() + 1) * phi.occ_frac;
-    for (auto i = 0ul; i < rgrid.ngp; i++) {
+    for (auto i = 0ul; i < rgrid.num_points; i++) {
       rho[i] += f * (phi.f[i] * phi.f[i] + phi.g[i] * phi.g[i]);
     }
   }

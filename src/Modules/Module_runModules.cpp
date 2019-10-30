@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cmath>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <memory>
 #include <sstream>
@@ -164,7 +165,11 @@ void Module_Tests_orthonormality(const Wavefunction &wf, const bool print_all) {
       if (print_all)
         std::cout << "\n";
     } // Psi_a
-    buffer << worst_braket << " = " << worst_xo << "\n";
+    if (worst_braket != "") {
+      std::string eq = worst_xo > 0 ? " =  " : " = ";
+      buffer << worst_braket << eq << std::setprecision(2) << std::scientific
+             << worst_xo << "\n";
+    }
   } // cc, cv, vv
   if (print_all)
     std::cout << "\n";
@@ -270,7 +275,7 @@ void Module_WriteOrbitals(const UserInputBlock &input, const Wavefunction &wf) {
     of << "\"" << psi.symbol(true) << "\" ";
   of << "\n";
   of << "# f block\n";
-  for (std::size_t i = 0; i < wf.rgrid.ngp; i++) {
+  for (std::size_t i = 0; i < wf.rgrid.num_points; i++) {
     of << wf.rgrid.r[i] << " ";
     for (auto &psi : wf.core_orbitals)
       of << psi.f[i] << " ";
@@ -279,7 +284,7 @@ void Module_WriteOrbitals(const UserInputBlock &input, const Wavefunction &wf) {
     of << "\n";
   }
   of << "\n# g block\n";
-  for (std::size_t i = 0; i < wf.rgrid.ngp; i++) {
+  for (std::size_t i = 0; i < wf.rgrid.num_points; i++) {
     of << wf.rgrid.r[i] << " ";
     for (auto &psi : wf.core_orbitals)
       of << psi.g[i] << " ";
@@ -289,7 +294,7 @@ void Module_WriteOrbitals(const UserInputBlock &input, const Wavefunction &wf) {
   }
   of << "\n# density block\n";
   auto rho = wf.coreDensity();
-  for (std::size_t i = 0; i < wf.rgrid.ngp; i++) {
+  for (std::size_t i = 0; i < wf.rgrid.num_points; i++) {
     of << wf.rgrid.r[i] << " " << rho[i] << "\n";
   }
   of.close();
