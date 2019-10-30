@@ -230,8 +230,8 @@ void largeEnergyChange(double *en, TrackEnGuess *sofar_ptr, double frac_de,
 double calcNorm(const std::vector<double> &f, const std::vector<double> &g,
                 const std::vector<double> &drdu, const double du,
                 const int pinf) {
-  const auto anormF = NumCalc::integrate({&f, &f, &drdu}, 1.0, 0, pinf);
-  const auto anormG = NumCalc::integrate({&g, &g, &drdu}, 1.0, 0, pinf);
+  const auto anormF = NumCalc::integrate_any(1.0, 0, pinf, f, f, drdu);
+  const auto anormG = NumCalc::integrate_any(1.0, 0, pinf, g, g, drdu);
   return (anormF + anormG) * du;
 }
 

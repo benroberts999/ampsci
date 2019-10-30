@@ -84,9 +84,10 @@ std::pair<double, double> DiracSpinor::r0pinfratio() const {
 //******************************************************************************
 double operator*(const DiracSpinor &lhs, const DiracSpinor &rhs) {
   // Note: ONLY radial part ("F" radial spinor)
-  auto imax = std::min(lhs.pinf, rhs.pinf);
-  auto ff = NumCalc::integrate(lhs.f, rhs.f, lhs.p_rgrid->drdu, 1.0, 0, imax);
-  auto gg = NumCalc::integrate(lhs.g, rhs.g, lhs.p_rgrid->drdu, 1.0, 0, imax);
+  const auto imax = std::min(lhs.pinf, rhs.pinf);
+  const auto &dr = lhs.p_rgrid->drdu;
+  const auto ff = NumCalc::integrate_any(1.0, 0, imax, lhs.f, rhs.f, dr);
+  const auto gg = NumCalc::integrate_any(1.0, 0, imax, lhs.g, rhs.g, dr);
   return (ff + gg) * lhs.p_rgrid->du;
 }
 

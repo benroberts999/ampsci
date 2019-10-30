@@ -233,37 +233,6 @@ inline double integrate(const C &f1, const C &f2, const C &f3, const C &f4,
 } // END integrate 4
 
 //******************************************************************************
-template <typename C>
-inline C
-integrate(const std::initializer_list<const std::vector<C> *const> vecs,
-          const C dt = 1.0, std::size_t beg = 0, std::size_t end = 0) {
-
-  auto vecs_i = [&vecs](std::size_t i) {
-    C vvv = 1.0;
-    for (const auto &v : vecs)
-      vvv *= (*v)[i];
-    return vvv;
-  };
-
-  if (end == 0)
-    end = (**(vecs.begin())).size();
-
-  double Rint_s = 0;
-  for (std::size_t i = 0; i < Nquad; i++)
-    Rint_s += cq[i] * vecs_i(beg + i);
-
-  double Rint_m = 0;
-  for (auto i = beg + Nquad; i < end - Nquad; i++)
-    Rint_m += vecs_i(i);
-
-  double Rint_e = 0;
-  for (std::size_t i = 0; i < Nquad; i++)
-    Rint_e += cq[i] * vecs_i(end - i - 1);
-
-  return (Rint_m + dq_inv * (Rint_s + Rint_e)) * dt;
-}
-
-//******************************************************************************
 enum Direction { zero_to_r, r_to_inf };
 template <Direction direction, typename Real>
 inline void
@@ -334,17 +303,46 @@ T add_vectors(const T &zeroth, const Args &... args) {
   helper::vector_adder(out, args...);
   return out;
 }
+//******************************************************************************
+namespace helper {
+template <typename Real>
+void mult_b_to_a(std::vector<Real> &a, const std::vector<Real> &b) {
+  const auto size = std::min(a.size(), b.size());
+  for (auto i = 0ul; i < size; ++i)
+    a[i] *= b[i];
+}
+template <typename Real> void mult_b_to_a(Real &a, const Real &b) { a *= b; }
+template <typename T> //
+void vector_multer(T &) {
+  return;
+}
 
-// //******************************************************************************
-// template <typename... Args>
-// double integrate_new(const double dt, const std::size_t beg,
-//                      const std::size_t end, const Args &... args)
-// //
-// {
-//   //
-//   const auto v = add_vectors(args...);
-//   return integrate(v, dt, beg, end);
-// }
+template <typename T, typename... Args>
+void vector_multer(T &out, const T &first, const Args &... args) {
+  mult_b_to_a(out, first);
+  vector_multer(out, args...);
+}
+} // namespace helper
+
+template <typename T, typename... Args>
+T mult_vectors(const T &zeroth, const Args &... args) {
+  auto out = zeroth; // copy
+  helper::vector_multer(out, args...);
+  return out;
+}
+
+//******************************************************************************
+template <typename... Args>
+double integrate_any(const double dt, const std::size_t beg,
+                     const std::size_t end, const Args &... args) {
+  const auto v = mult_vectors(args...);
+  return integrate(v, dt, beg, end);
+}
+inline double integrate_any(const double dt, const std::size_t beg,
+                            const std::size_t end,
+                            const std::vector<double> &v) {
+  return integrate(v, dt, beg, end);
+}
 
 //******************************************************************************
 //******************************************************************************

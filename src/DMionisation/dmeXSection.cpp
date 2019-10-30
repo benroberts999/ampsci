@@ -410,7 +410,10 @@ convolvedRate(const std::vector<double> &in_rate, const Grid &in_grid,
   out_rate.reserve(Nout);
   for (std::size_t i = 0; i < Nout; i++) {
     double g =
-        NumCalc::integrate({&in_rate, &f_conv[i], &in_grid.drdu}, in_grid.du);
+        // NumCalc::integrate({&in_rate, &f_conv[i], &in_grid.drdu},
+        // in_grid.du);
+        NumCalc::integrate_any(in_grid.du, 0, 0, in_rate, f_conv[i],
+                               in_grid.drdu);
     out_rate.push_back(convert_units * g);
   }
 
@@ -781,8 +784,8 @@ Mostly, coming from:
   std::vector<std::vector<double>> rate(n_mv, std::vector<double>(n_mx));
   for (std::size_t imv = 0; imv < n_mv; imv++) {
     for (std::size_t imx = 0; imx < n_mx; imx++) {
-      rate[imv][imx] = NumCalc::integrate(
-          {&dS_mv_mx_s1[imv][imx], &s1grid.drdu}, s1grid.du, is1_a, is1_b);
+      rate[imv][imx] = NumCalc::integrate_any(
+          s1grid.du, is1_a, is1_b, dS_mv_mx_s1[imv][imx], s1grid.drdu);
     }
   }
 
