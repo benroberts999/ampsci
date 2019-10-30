@@ -264,28 +264,6 @@ integrate(const std::initializer_list<const std::vector<C> *const> vecs,
 }
 
 //******************************************************************************
-template <typename C>
-inline std::vector<C>
-sumVecs(const std::initializer_list<const std::vector<C> *const> vecs) {
-
-  auto vecs_i = [&vecs](std::size_t i) {
-    C vvv = 0.0;
-    for (const auto &v : vecs)
-      vvv += (*v)[i];
-    return vvv;
-  };
-
-  std::vector<C> ovec;
-  auto size = (**(vecs.begin())).size();
-  ovec.reserve(size);
-  for (auto i = 0ul; i < size; i++) {
-    ovec.push_back(vecs_i(i));
-  }
-  return ovec;
-
-} // END integrate 4
-
-//******************************************************************************
 enum Direction { zero_to_r, r_to_inf };
 template <Direction direction, typename Real>
 inline void
@@ -327,5 +305,48 @@ std::vector<Real> partialIntegral(const std::vector<Real> &f,
   additivePIntegral(answer, f, g, h, gr, pinf);
   return answer;
 }
+
+//******************************************************************************
+namespace helper {
+template <typename Real>
+void add_b_to_a(std::vector<Real> &a, const std::vector<Real> &b) {
+  const auto size = std::min(a.size(), b.size());
+  for (auto i = 0ul; i < size; ++i)
+    a[i] += b[i];
+}
+template <typename Real> void add_b_to_a(Real &a, const Real &b) { a += b; }
+
+template <typename T> //
+void vector_adder(T &) {
+  return;
+}
+
+template <typename T, typename... Args>
+void vector_adder(T &out, const T &first, const Args &... args) {
+  add_b_to_a(out, first);
+  vector_adder(out, args...);
+}
+} // namespace helper
+
+template <typename T, typename... Args>
+T add_vectors(const T &zeroth, const Args &... args) {
+  auto out = zeroth; // copy
+  helper::vector_adder(out, args...);
+  return out;
+}
+
+// //******************************************************************************
+// template <typename... Args>
+// double integrate_new(const double dt, const std::size_t beg,
+//                      const std::size_t end, const Args &... args)
+// //
+// {
+//   //
+//   const auto v = add_vectors(args...);
+//   return integrate(v, dt, beg, end);
+// }
+
+//******************************************************************************
+//******************************************************************************
 
 } // namespace NumCalc

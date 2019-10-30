@@ -697,7 +697,8 @@ EpsIts HartreeFock::hf_valence_refine(DiracSpinor &phi) {
   auto damper = rampedDamp(0.7, 0.1, 5, 25);
   double extra_damp = 0.0;
 
-  const auto vl = NumCalc::sumVecs({&(p_wf->vnuc), &(p_wf->vdir)});
+  // const auto vl = NumCalc::sumVecs({&(p_wf->vnuc), &(p_wf->vdir)});
+  const auto vl = NumCalc::add_vectors(p_wf->vnuc, p_wf->vdir);
 
   const auto phi_zero = phi;
   const auto vexPsi_zero = get_vex(phi) * phi;
