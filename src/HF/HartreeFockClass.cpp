@@ -8,6 +8,7 @@
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/Parametric_potentials.hpp"
 #include "Physics/Wigner_369j.hpp"
+#include <algorithm>
 #include <cmath>
 #include <functional>
 #include <vector>
@@ -283,6 +284,9 @@ void HartreeFock::hf_core_approx(const double eps_target_HF) {
 //******************************************************************************
 void HartreeFock::solveValence() {
 
+  if (p_wf->valence_orbitals.empty())
+    return;
+
   const auto Nval = p_wf->valence_orbitals.size();
   appr_vex_val.resize(Nval);
   m_cint.initialise_core_valence();
@@ -490,10 +494,17 @@ void HartreeFock::form_approx_vex_a(const DiracSpinor &phi_a,
     va = 0;
   }
 
-  auto ki_a = phi_a.k_index();
-  auto twoj_a = phi_a.twoj();
+  const auto ki_a = phi_a.k_index();
+  const auto twoj_a = phi_a.twoj();
 
   bool a_in_coreQ = false;
+
+  static auto max_abs = [](double a, double b) {
+    return (std::abs(a) < std::abs(b));
+  };
+  const auto max =
+      std::abs(*std::max_element(phi_a.f.begin(), phi_a.f.end(), max_abs));
+  const auto cut_off = 0.003 * max;
 
   if (!m_excludeExchange) {
     for (const auto &phi_b : p_wf->core_orbitals) { // b!=a
@@ -501,21 +512,21 @@ void HartreeFock::form_approx_vex_a(const DiracSpinor &phi_a,
         a_in_coreQ = true;
         continue;
       }
-      auto tjb = phi_b.twoj();
-      double x_tjbp1 = (tjb + 1) * phi_b.occ_frac;
-      auto irmax = std::min(phi_a.pinf, phi_b.pinf);
-      int kmin = std::abs(twoj_a - tjb) / 2;
-      int kmax = (twoj_a + tjb) / 2;
+      const auto tjb = phi_b.twoj();
+      const double x_tjbp1 = (tjb + 1) * phi_b.occ_frac;
+      const auto irmax = std::min(phi_a.pinf, phi_b.pinf);
+      const int kmin = std::abs(twoj_a - tjb) / 2;
+      const int kmax = (twoj_a + tjb) / 2;
       const auto &vabk = m_cint.get_y_ijk(phi_b, phi_a);
 
       // hold "fraction" psi_a*psi_b/(psi_a^2):
       std::vector<double> v_Fab(p_rgrid->num_points);
       for (std::size_t i = 0; i < irmax; i++) {
         // This is the approximte part! Divides by psi_a
-        if (std::fabs(phi_a.f[i]) < 1.e-3)
+        if (std::abs(phi_a.f[i]) < cut_off)
           continue;
-        double fac_top = phi_a.f[i] * phi_b.f[i] + phi_a.g[i] * phi_b.g[i];
-        double fac_bot = phi_a.f[i] * phi_a.f[i] + phi_a.g[i] * phi_a.g[i];
+        const auto fac_top = phi_a.f[i] * phi_b.f[i] + phi_a.g[i] * phi_b.g[i];
+        const auto fac_bot = phi_a.f[i] * phi_a.f[i] + phi_a.g[i] * phi_a.g[i];
         v_Fab[i] = -1. * x_tjbp1 * fac_top / fac_bot;
       } // r
       const auto &L_ab_k = m_cint.get_angular_L_kiakib_k(ki_a, phi_b.k_index());
@@ -533,10 +544,10 @@ void HartreeFock::form_approx_vex_a(const DiracSpinor &phi_a,
 
   // now, do a=b, ONLY if a is in the core!
   if (a_in_coreQ) {
-    double x_tjap1 = (twoj_a + 1); // no occ_frac here
-    int kmax = twoj_a;
+    const double x_tjap1 = (twoj_a + 1); // no occ_frac here
+    const int kmax = twoj_a;
     const auto &vaak = m_cint.get_y_ijk(phi_a, phi_a);
-    auto irmax = phi_a.pinf;
+    const auto irmax = phi_a.pinf;
     const auto &L_ab_k = m_cint.get_angular_L_kiakib_k(ki_a, ki_a);
     for (int k = 0; k <= kmax; k++) {
       if (L_ab_k[k] == 0)
