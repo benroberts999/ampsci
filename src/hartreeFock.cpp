@@ -44,7 +44,7 @@ int main(int argc, char *argv[]) {
   std::cout << "\nRunning for " << wf.atom() << "\n"
             << wf.nuclearParams() << "\n"
             << wf.rgrid.gridParameters() << "\n"
-            << "********************************************************\n\n";
+            << "********************************************************\n";
 
   // Parse input for HF method
   auto str_core = input.get<std::string>("HartreeFock", "core", "[]");
@@ -67,7 +67,7 @@ int main(int argc, char *argv[]) {
   }
 
   { // Solve Hartree equations for the core:
-    ChronoTimer t(" ");
+    ChronoTimer t(" core");
     wf.hartreeFockCore(HF_method, str_core, eps_HF, H_d, g_t);
   }
 
@@ -77,7 +77,7 @@ int main(int argc, char *argv[]) {
                           : "";
   if (valence_list != "") {
     // 'if' is only for output format, nothing bad happens if below are called
-    ChronoTimer t(" ");
+    ChronoTimer t("  val");
     wf.hartreeFockValence(valence_list);
     if (input.get("HartreeFock", "orthonormaliseValence", false))
       wf.orthonormaliseOrbitals(wf.valence_orbitals, 2);

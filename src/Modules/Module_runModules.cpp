@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cmath>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <memory>
 #include <sstream>
@@ -164,7 +165,11 @@ void Module_Tests_orthonormality(const Wavefunction &wf, const bool print_all) {
       if (print_all)
         std::cout << "\n";
     } // Psi_a
-    buffer << worst_braket << " = " << worst_xo << "\n";
+    if (worst_braket != "") {
+      std::string eq = worst_xo > 0 ? " =  " : " = ";
+      buffer << worst_braket << eq << std::setprecision(2) << std::scientific
+             << worst_xo << "\n";
+    }
   } // cc, cv, vv
   if (print_all)
     std::cout << "\n";
