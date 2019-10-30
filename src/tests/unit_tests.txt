@@ -8,7 +8,7 @@ HartreeFock {
 Grid {
   r0 = 1e-6;
   rmax = 120.0;
-  ngp = 1600;
+  num_points = 1600;
 }
 Module::Tests{
   Hamiltonian = true;
@@ -26,9 +26,11 @@ HartreeFock {
 Grid {
   r0 = 1e-8;
   rmax = 250.0;
-  ngp = 20000;
+  num_points = 20000;
 }
-Module::Tests{}
+Module::Tests{
+  Hamiltonian = true;
+}
 
 
 ###########################################
@@ -39,7 +41,7 @@ HartreeFock { core = [Xe], 6s1; }
 Grid {
   r0 = 1e-7;
   rmax = 120.0;
-  ngp = 2000;
+  num_points = 2000;
 }
 Module::Tests{}
 
@@ -54,7 +56,7 @@ HartreeFock {
 Grid {
   r0 = 1e-6;
   rmax = 120.0;
-  ngp = 1600;
+  num_points = 1600;
 }
 Module::Tests{}
 
@@ -66,7 +68,7 @@ HartreeFock { core = [Rn], 7s1; }
 Grid {
   r0 = 1e-7;
   rmax = 120.0;
-  ngp = 2000;
+  num_points = 2000;
 }
 Module::Tests{}
 
@@ -81,7 +83,7 @@ HartreeFock {
 Grid {
   r0 = 1e-7;
   rmax = 120.0;
-  ngp = 2000;
+  num_points = 2000;
 }
 Module::Tests{}
 
@@ -93,7 +95,7 @@ HartreeFock { core = [Xe], 5p-1; }
 Grid {
   r0 = 1e-7;
   rmax = 100.0;
-  ngp = 2000;
+  num_points = 2000;
 }
 Module::Tests{}
 
@@ -108,7 +110,7 @@ HartreeFock {
 Grid {
   r0 = 1e-7;
   rmax = 120.0;
-  ngp = 2000;
+  num_points = 2000;
 }
 Module::Tests{}
 MatrixElements::E1 {}
