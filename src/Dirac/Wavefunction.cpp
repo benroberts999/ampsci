@@ -24,17 +24,7 @@ void Wavefunction::solveDirac(DiracSpinor &psi, double e_a,
 // so, here, vex = [sum_b vex_a (psi_b/psi_a)]
 // This is not ideal..
 {
-  std::vector<double> v_a = vnuc;
-  if (vdir.size() != 0) {
-    for (std::size_t i = 0; i < rgrid.num_points; i++) {
-      v_a[i] += vdir[i];
-    }
-  }
-  if (vex.size() != 0) {
-    for (std::size_t i = 0; i < rgrid.num_points; i++) {
-      v_a[i] += vex[i];
-    }
-  }
+  auto v_a = NumCalc::add_vectors(vnuc, vdir, vex);
   if (e_a != 0) {
     psi.en = e_a;
   } else if (psi.en == 0) {

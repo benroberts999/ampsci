@@ -233,63 +233,6 @@ inline double integrate(const C &f1, const C &f2, const C &f3, const C &f4,
 } // END integrate 4
 
 //******************************************************************************
-template <typename C>
-inline C
-integrate(const std::initializer_list<const std::vector<C> *const> vecs,
-          const C dt = 1.0, std::size_t beg = 0, std::size_t end = 0) {
-
-  auto vecs_i = [&vecs](std::size_t i) {
-    C vvv = 1.0;
-    for (const auto &v : vecs)
-      vvv *= (*v)[i];
-    return vvv;
-  };
-
-  if (end == 0)
-    end = (**(vecs.begin())).size();
-
-  double Rint_s = 0;
-  for (std::size_t i = 0; i < Nquad; i++)
-    Rint_s += cq[i] * vecs_i(beg + i);
-
-  double Rint_m = 0;
-  for (auto i = beg + Nquad; i < end - Nquad; i++)
-    Rint_m += vecs_i(i);
-
-  double Rint_e = 0;
-  for (std::size_t i = 0; i < Nquad; i++)
-    Rint_e += cq[i] * vecs_i(end - i - 1);
-
-  return (Rint_m + dq_inv * (Rint_s + Rint_e)) * dt;
-}
-
-//******************************************************************************
-template <typename C>
-inline std::vector<C>
-sumVecs(const std::initializer_list<const std::vector<C> *const> vecs) {
-
-  auto vecs_i = [&vecs](std::size_t i) {
-    C vvv = 0.0;
-    for (const auto &v : vecs)
-      vvv += (*v)[i];
-    return vvv;
-  };
-
-  std::vector<C> ovec;
-  auto size = (**(vecs.begin())).size();
-  ovec.reserve(size);
-  for (auto i = 0ul; i < size; i++) {
-    ovec.push_back(vecs_i(i));
-  }
-  return ovec;
-}
-//******************************************************************************
-template <typename C> void scaleVec(std::vector<C> &vec, C x) {
-  for (auto &v : vec)
-    v *= x;
-}
-
-//******************************************************************************
 enum Direction { zero_to_r, r_to_inf };
 template <Direction direction, typename Real>
 inline void
@@ -331,5 +274,81 @@ std::vector<Real> partialIntegral(const std::vector<Real> &f,
   additivePIntegral(answer, f, g, h, gr, pinf);
   return answer;
 }
+
+//******************************************************************************
+namespace helper {
+template <typename Real>
+void add_b_to_a(std::vector<Real> &a, const std::vector<Real> &b) {
+  const auto size = std::min(a.size(), b.size());
+  for (auto i = 0ul; i < size; ++i)
+    a[i] += b[i];
+}
+template <typename Real> void add_b_to_a(Real &a, const Real &b) { a += b; }
+
+template <typename T> //
+void vector_adder(T &) {
+  return;
+}
+
+template <typename T, typename... Args>
+void vector_adder(T &out, const T &first, const Args &... args) {
+  add_b_to_a(out, first);
+  vector_adder(out, args...);
+}
+} // namespace helper
+
+template <typename T, typename... Args>
+T add_vectors(const T &zeroth, const Args &... args) {
+  auto out = zeroth; // copy
+  helper::vector_adder(out, args...);
+  return out;
+}
+//******************************************************************************
+namespace helper {
+template <typename Real>
+void mult_b_to_a(std::vector<Real> &a, const std::vector<Real> &b) {
+  const auto size = std::min(a.size(), b.size());
+  for (auto i = 0ul; i < size; ++i)
+    a[i] *= b[i];
+}
+template <typename Real> void mult_b_to_a(Real &a, const Real &b) { a *= b; }
+template <typename T> //
+void vector_multer(T &) {
+  return;
+}
+
+template <typename T, typename... Args>
+void vector_multer(T &out, const T &first, const Args &... args) {
+  mult_b_to_a(out, first);
+  vector_multer(out, args...);
+}
+} // namespace helper
+
+template <typename T, typename... Args>
+T mult_vectors(const T &zeroth, const Args &... args) {
+  auto out = zeroth; // copy
+  helper::vector_multer(out, args...);
+  return out;
+}
+
+//******************************************************************************
+template <typename... Args>
+double integrate_any(const double dt, const std::size_t beg,
+                     const std::size_t end, const Args &... args) {
+  const auto v = mult_vectors(args...);
+  return integrate(v, dt, beg, end);
+}
+inline double integrate_any(const double dt, const std::size_t beg,
+                            const std::size_t end,
+                            const std::vector<double> &v) {
+  return integrate(v, dt, beg, end);
+}
+
+inline void scaleVec(std::vector<double> &vec, const double x) {
+  for (auto &v : vec)
+    v *= x;
+}
+//******************************************************************************
+//******************************************************************************
 
 } // namespace NumCalc

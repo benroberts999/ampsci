@@ -67,7 +67,7 @@ DiracSpinor HartreeFock::solveMixedState(const DiracSpinor &phi0, const int k,
     // a = damper(x);
     auto vx = form_approx_vex_any(dF, core);
     NumCalc::scaleVec(vx, 1.3); // better w/ 1.25 .. not sure why?
-    auto v = NumCalc::sumVecs({&vl, &vx});
+    auto v = NumCalc::add_vectors(vl, vx);
 
     const auto l = (1.0 - a);
     const auto VexchdF = vex_psia_any(dF, core);
@@ -414,10 +414,10 @@ double HartreeFock::calculateCoreEnergy() const
       const double xtjbp1 = (tjb + 1) * phi_b.occ_frac;
       const auto irmax = std::min(phi_a.pinf, phi_b.pinf);
       const auto &v0bb = m_cint.get_y_ijk(phi_b, phi_b, 0);
-      auto R0f2 = NumCalc::integrate(
-          {&phi_a.f, &phi_a.f, &v0bb, &p_rgrid->drdu}, 1.0, 0, irmax);
-      auto R0g2 = NumCalc::integrate(
-          {&phi_a.g, &phi_a.g, &v0bb, &p_rgrid->drdu}, 1.0, 0, irmax);
+      auto R0f2 = NumCalc::integrate_any(1.0, 0, irmax, phi_a.f, phi_a.f, v0bb,
+                                         p_rgrid->drdu);
+      auto R0g2 = NumCalc::integrate_any(1.0, 0, irmax, phi_a.g, phi_a.g, v0bb,
+                                         p_rgrid->drdu);
       e2 += xtjap1 * xtjbp1 * (R0f2 + R0g2);
       // take advantage of symmetry for third term:
       if (phi_b > phi_a)
@@ -432,10 +432,10 @@ double HartreeFock::calculateCoreEnergy() const
         if (L_abk[k - kmin] == 0)
           continue;
         const auto ik = k - kmin;
-        double R0f3 =
-            NumCalc::integrate({&phi_a.f, &phi_b.f, &vabk[ik], &p_rgrid->drdu});
-        double R0g3 =
-            NumCalc::integrate({&phi_a.g, &phi_b.g, &vabk[ik], &p_rgrid->drdu});
+        double R0f3 = NumCalc::integrate_any(1.0, 0, 0, phi_a.f, phi_b.f,
+                                             vabk[ik], p_rgrid->drdu);
+        double R0g3 = NumCalc::integrate_any(1.0, 0, 0, phi_a.g, phi_b.g,
+                                             vabk[ik], p_rgrid->drdu);
         e3 += y * xtjap1 * xtjbp1 * L_abk[k - kmin] * (R0f3 + R0g3);
       }
     }
@@ -808,7 +808,8 @@ EpsIts HartreeFock::hf_valence_refine(DiracSpinor &phi) {
   auto damper = rampedDamp(0.7, 0.1, 5, 25);
   double extra_damp = 0.0;
 
-  const auto vl = NumCalc::sumVecs({&(p_wf->vnuc), &(p_wf->vdir)});
+  // const auto vl = NumCalc::sumVecs({&(p_wf->vnuc), &(p_wf->vdir)});
+  const auto vl = NumCalc::add_vectors(p_wf->vnuc, p_wf->vdir);
 
   const auto phi_zero = phi;
   const auto vexPsi_zero = get_vex(phi) * phi;
