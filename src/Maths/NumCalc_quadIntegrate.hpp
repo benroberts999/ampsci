@@ -282,8 +282,12 @@ sumVecs(const std::initializer_list<const std::vector<C> *const> vecs) {
     ovec.push_back(vecs_i(i));
   }
   return ovec;
-
-} // END integrate 4
+}
+//******************************************************************************
+template <typename C> void scaleVec(std::vector<C> &vec, C x) {
+  for (auto &v : vec)
+    v *= x;
+}
 
 //******************************************************************************
 enum Direction { zero_to_r, r_to_inf };

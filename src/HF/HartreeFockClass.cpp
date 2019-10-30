@@ -43,31 +43,43 @@ DiracSpinor HartreeFock::solveMixedState(const DiracSpinor &phi0, const int k,
                                          const std::vector<double> &vl,
                                          const double alpha,
                                          const std::vector<DiracSpinor> &core,
-                                         const DiracSpinor &hphi0,
-                                         const std::vector<double> &v0)
+                                         const DiracSpinor &hphi0)
 //
 {
 
   // XXX double-check sign of a) v0, abd b) overall sign!
-  auto dF = DiracODE::solve_inhomog(k, phi0.en - omega, vl, alpha, hphi0);
   // std::cout << phi0.en << " " << phi0.en - omega << "\n";
 
-  auto damper = rampedDamp(0.9, 0.8, 30, 100);
+  /*
+   * added vx (approx vex).
+   * Works, and converges faster + smoothly.
+   * BUT doesn't work as well!? Still works pretty good!
+   */
+
+  // auto damper = rampedDamp(0.5, 0.1, 1, 10);
+
+  auto dF = DiracODE::solve_inhomog(k, phi0.en - omega, vl, alpha, hphi0);
   auto dF20 = std::abs(dF * dF); // monitor convergance
   auto VxdF0 = 0.0 * dF;
-  double a = 0.9;
-  for (int x = 0; x < 250; x++) {
+  // auto VxdF0 = vex_psia_any(dF, core);
+  double a = 0.0;
+  for (int x = 0; x < 1000; x++) {
     // a = damper(x);
-    auto VxdF = -(1.0 - a) * vex_psia_any(dF, core) + a * VxdF0;
-    if (!v0.empty()) {
-      VxdF += v0 * dF; //+ or - ?
-    }
+    auto vx = form_approx_vex_any(dF, core);
+    NumCalc::scaleVec(vx, 1.3); // better w/ 1.25 .. not sure why?
+    auto v = NumCalc::sumVecs({&vl, &vx});
+
+    const auto l = (1.0 - a);
+    const auto VexchdF = vex_psia_any(dF, core);
+    const auto vx0dF = (vx * dF);
+    const auto VxdF = a * VxdF0 + l * (VexchdF - vx0dF);
     VxdF0 = VxdF;
-    DiracODE::solve_inhomog(dF, phi0.en - omega, vl, alpha, hphi0 + VxdF);
+
+    DiracODE::solve_inhomog(dF, phi0.en - omega, v, alpha, hphi0 - VxdF);
     auto dF2 = std::abs(dF * dF);
     auto eps = std::abs((dF2 - dF20) / dF2);
-    if (eps < 1.0e-10) {
-      // std::cout << x << " " << eps << "\n";
+    if (eps < 1.0e-10 || x == 999) {
+      std::cout << x << " " << eps << "\n";
       break;
     }
     dF20 = dF2;
@@ -577,7 +589,7 @@ std::vector<double> HartreeFock::form_approx_vex_any(
   };
   const auto max =
       std::abs(*std::max_element(phi_a.f.begin(), phi_a.f.end(), max_abs));
-  const auto cut_off = 0.003 * max;
+  const auto cut_off = 0.01 * max;
 
   for (const auto &phi_b : core) {
     const auto tjb = phi_b.twoj();

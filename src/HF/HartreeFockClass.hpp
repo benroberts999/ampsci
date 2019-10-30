@@ -36,11 +36,12 @@ class HartreeFock {
   friend class Coulomb;
 
 public:
-  static DiracSpinor
-  solveMixedState(const DiracSpinor &phi0, const int k, const double omega,
-                  const std::vector<double> &vl, const double alpha,
-                  const std::vector<DiracSpinor> &core,
-                  const DiracSpinor &hphi0, const std::vector<double> &v0);
+  static DiracSpinor solveMixedState(const DiracSpinor &phi0, const int k,
+                                     const double omega,
+                                     const std::vector<double> &vl,
+                                     const double alpha,
+                                     const std::vector<DiracSpinor> &core,
+                                     const DiracSpinor &hphi0);
 
 public:
   static HFMethod parseMethod(const std::string &in_method);

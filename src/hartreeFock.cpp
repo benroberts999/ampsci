@@ -152,15 +152,15 @@ int main(int argc, char *argv[]) {
     auto vxb = wf.m_pHF->get_vex(aB);
 
     auto del_A_dag = HartreeFock::solveMixedState(aA, hA_dag.k, 0, v, alpha,
-                                                  wf.core_orbitals, hA_dag, {});
+                                                  wf.core_orbitals, hA_dag);
     auto del_B = HartreeFock::solveMixedState(aB, hB.k, 0, v, alpha,
-                                              wf.core_orbitals, hB, {});
+                                              wf.core_orbitals, hB);
 
     auto om = std::fabs(aA.en - aB.en);
     auto xA = HartreeFock::solveMixedState(aA, e1A.k, -om, v, alpha,
-                                           wf.core_orbitals, e1A, {});
+                                           wf.core_orbitals, e1A);
     auto yB = HartreeFock::solveMixedState(aB, e1B.k, om, v, alpha,
-                                           wf.core_orbitals, e1B, {});
+                                           wf.core_orbitals, e1B);
 
     auto tja = aA.twoj();
     auto tjb = aB.twoj();
