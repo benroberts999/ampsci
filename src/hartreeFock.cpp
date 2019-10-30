@@ -116,11 +116,19 @@ int main(int argc, char *argv[]) {
   //   wf.printValence(false, basis);
   //   std::cout << "\n Total time: " << timer.reading_str() << "\n";
   // }
-  int nb = 7;
-  int kb = -1;
-  const auto &aA = wf.getState(6, -1);
+  auto transition_str = input.get<std::string>("Module::pnc", "transition");
+  std::cout << transition_str << "\n";
+  replace(transition_str.begin(), transition_str.end(), ',', ' ');
+  auto ss = std::stringstream(transition_str);
+  int na, ka, nb, kb;
+  ss >> na >> ka >> nb >> kb;
+
+  // int nb = 7;
+  // int kb = -1;
+  const auto &aA = wf.getState(na, ka);
   const auto &aB = wf.getState(nb, kb);
-  const auto &a6p1 = wf.getState(6, 1);   // dummy
+  // XXX this is dumb: change 'redRHS'
+  const auto &a6p1 = wf.getState(6, -ka); // dummy
   const auto &a6p3 = wf.getState(6, -kb); // dummy
 
   // auto k1 = 1;
@@ -130,17 +138,14 @@ int main(int argc, char *argv[]) {
   E1Operator he1(wf.rgrid);
   auto hpnc = PNCnsiOperator(5.67073, 2.3, wf.rgrid, -wf.Nnuc());
 
-  auto v = wf.vnuc;
-  for (unsigned i = 0; i < v.size(); i++) {
-    v[i] += wf.vdir[i];
-  }
+  auto v = NumCalc::add_vectors(wf.vnuc, wf.vdir);
 
   auto v1 = 0.0, v2 = 0.0;
   {
     double sa1 = -1.0 * std::pow(-1, (aA.twoj() - a6p1.twoj()) / 2);
+    /*minus 1 comes from cc of REDUCED matrix element! (have 'lhs' instead)*/
     std::cout << "sa1=" << sa1 << "\n";
     auto hA_dag = sa1 * hpnc.reduced_rhs(a6p1, aA);
-    /*minus 1 comes from cc of REDUCED matrix element! (have 'lhs' instead)*/
     auto hB = +1.0 * hpnc.reduced_rhs(a6p3, aB);
 
     double sa2 = std::pow(-1, (aA.twoj() - a6p3.twoj()) / 2);
