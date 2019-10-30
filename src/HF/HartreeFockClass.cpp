@@ -561,6 +561,67 @@ void HartreeFock::form_approx_vex_a(const DiracSpinor &phi_a,
 }
 
 //******************************************************************************
+std::vector<double> HartreeFock::form_approx_vex_any(
+    const DiracSpinor &phi_a, const std::vector<DiracSpinor> &core, int k_cut)
+//
+{
+
+  std::vector<double> vex(phi_a.p_rgrid->num_points);
+  std::vector<double> vabk;
+
+  const auto tja = phi_a.twoj();
+  const auto la = phi_a.l();
+
+  static auto max_abs = [](double a, double b) {
+    return (std::abs(a) < std::abs(b));
+  };
+  const auto max =
+      std::abs(*std::max_element(phi_a.f.begin(), phi_a.f.end(), max_abs));
+  const auto cut_off = 0.003 * max;
+
+  for (const auto &phi_b : core) {
+    const auto tjb = phi_b.twoj();
+    const auto lb = phi_b.l();
+    const double x_tjbp1 = (tjb + 1) * phi_b.occ_frac; // when in core??
+    const auto irmax = std::min(phi_a.pinf, phi_b.pinf);
+    const int kmin = std::abs(tja - tjb) / 2;
+    int kmax = (tja + tjb) / 2;
+    if (kmax > k_cut)
+      kmax = k_cut;
+
+    // hold "fraction" psi_a*psi_b/(psi_a^2):
+    std::vector<double> v_Fab(phi_a.p_rgrid->num_points);
+    for (std::size_t i = 0; i < irmax; i++) {
+      // This is the approximte part! Divides by psi_a
+      if (std::abs(phi_a.f[i]) < cut_off)
+        continue;
+      const auto fac_top = phi_a.f[i] * phi_b.f[i] + phi_a.g[i] * phi_b.g[i];
+      const auto fac_bot = phi_a.f[i] * phi_a.f[i] + phi_a.g[i] * phi_a.g[i];
+      v_Fab[i] = -1. * x_tjbp1 * fac_top / fac_bot;
+    } // r
+
+    for (int k = kmin; k <= kmax; k++) {
+      const auto parity = Wigner::parity(la, lb, k);
+      if (parity == 0)
+        continue;
+      const auto tjs = Wigner::threej_2(tjb, tja, 2 * k, -1, 1, 0);
+      if (tjs == 0)
+        continue;
+      const auto tjs2 = tjs * tjs;
+      Coulomb::calculate_y_ijk(phi_b, phi_a, k, vabk);
+
+      for (std::size_t i = 0; i < irmax; i++) {
+        if (v_Fab[i] == 0)
+          continue;
+        vex[i] += tjs2 * vabk[i] * v_Fab[i];
+      } // r
+    }   // k
+  }     // b
+
+  return vex;
+}
+
+//******************************************************************************
 const std::vector<double> &HartreeFock::get_vex(const DiracSpinor &psi) const {
   bool valenceQ{};
   auto i = p_wf->getStateIndex(psi.n, psi.k, valenceQ);
