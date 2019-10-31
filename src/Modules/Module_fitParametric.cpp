@@ -1,4 +1,4 @@
-#include "Module_fitParametric.hpp"
+#include "Modules/Module_fitParametric.hpp"
 #include "Dirac/Wavefunction.hpp"
 #include "HF/HartreeFockClass.hpp"
 #include "IO/UserInput.hpp"

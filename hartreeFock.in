@@ -36,7 +36,6 @@ Grid {
 
 Module::Tests {
   orthonormal = true;
-  // orthonormal_all = true;
   // Hamiltonian = true;
 }
 

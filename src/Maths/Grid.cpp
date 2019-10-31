@@ -8,7 +8,8 @@
 
 //******************************************************************************
 GridParameters::GridParameters(std::size_t innum_points, double inr0,
-                               double inrmax, double inb, std::string str_type)
+                               double inrmax, double inb,
+                               const std::string &str_type)
     : num_points(innum_points), r0(inr0), rmax(inrmax), b(inb),
       type(parseType(str_type)) {}
 GridParameters::GridParameters(std::size_t innum_points, double inr0,
