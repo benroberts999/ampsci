@@ -2,11 +2,13 @@
 #include "Adams/DiracODE.hpp"
 #include "Dirac/DiracSpinor.hpp"
 #include "Maths/Grid.hpp"
+#include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/AtomInfo.hpp"
 #include "Physics/Nuclear.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include <algorithm> //for sort
 #include <cmath>
+#include <iostream>
 #include <sstream>
 #include <string>
 #include <vector>

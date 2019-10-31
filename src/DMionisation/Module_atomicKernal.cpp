@@ -1,5 +1,5 @@
-#include "Module_atomicKernal.hpp"
-#include "AKF_akFunctions.hpp"
+#include "DMionisation/Module_atomicKernal.hpp"
+#include "DMionisation/AKF_akFunctions.hpp"
 #include "Dirac/ContinuumOrbitals.hpp"
 #include "Dirac/Wavefunction.hpp"
 #include "HF/HartreeFockClass.hpp"
