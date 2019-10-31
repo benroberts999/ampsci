@@ -1,4 +1,5 @@
 #pragma once
+#include <cmath>
 #include <vector>
 
 namespace Nuclear {
@@ -12,11 +13,13 @@ public:
   const int parity;   // +/-1
   const double I_N;   // Nuclear spin. value is -1 if unknown
 
-  Isotope(int z, int a, double r, double m, int p, double i)
-      : Z(z), A(a), r_rms(r), mu(m), parity(p), I_N(i) {}
+  Isotope(int inz, int ina, double inr, double inm, int inp, double ini)
+      : Z(inz), A(ina), r_rms(inr), mu(inm), parity(inp), I_N(ini) {}
 
   bool r_ok() const { return (r_rms <= 0) ? false : true; }
-  bool mu_ok() const { return (mu == 0 && (I_N != 0)) ? false : true; }
+  bool mu_ok() const {
+    return (std::fabs(mu) < 1.e-6 && (I_N > 0)) ? false : true;
+  }
   bool parity_ok() const { return (parity == 0) ? false : true; }
   bool I_ok() const { return (I_N < 0) ? false : true; }
 };

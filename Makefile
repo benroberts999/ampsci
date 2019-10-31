@@ -6,8 +6,8 @@ CXX=g++
 UseOpenMP=yes
 
 #release, dev, debug (changes warnings + optimisation level)
+#Build=release
 Build=dev
-#Build=dev
 
 #optional: set directory for executables (by default: current directory)
 XD=.
@@ -18,9 +18,13 @@ XD=.
 ID=./src
 OD=./obj
 
-WARN=-Wall -Wpedantic -Wextra -Wdouble-promotion -Wconversion
+# runs make in //
+ifneq ($(Build),debug)
+  MAKEFLAGS += -j12
+endif
+
+WARN=-Wall -Wpedantic -Wextra -Wdouble-promotion -Wconversion -Wshadow
 # -Weffc++
-# -Wshadow
 # -Wfloat-equal
 # -Wsign-conversion
 
@@ -28,8 +32,7 @@ ifeq ($(CXX),clang++)
   WARN += -Wno-sign-conversion -Wheader-hygiene
 endif
 ifeq ($(CXX),g++)
-  WARN += -Wsuggest-override
-#-Wsuggest-final-types -Wsuggest-final-methods
+  WARN += -Wsuggest-override -Wsuggest-final-types -Wsuggest-final-methods
 endif
 
 OPT=-O3
@@ -66,111 +69,106 @@ LINK=$(CXX) -o $@ $^ $(CXXFLAGS) $(LIBS)
 ################################################################################
 #Allow exectuables to be placed in another directory:
 ALLEXES = $(addprefix $(XD)/, \
- fitParametric hartreeFock wigner dmeXSection nuclearData \
+ hartreeFock wigner dmeXSection periodicTable \
 )
 
 DEFAULTEXES = $(addprefix $(XD)/, \
- hartreeFock wigner nuclearData dmeXSection \
+ hartreeFock wigner periodicTable \
 )
+#dmeXSection
 
 #Default make rule:
-all: checkObj checkXdir $(DEFAULTEXES)
+all: checkObj checkXdir $(DEFAULTEXES) doneMessage
 
 ################################################################################
 ## Dependencies: ... this is getting dumb... CMAKE?
 
 $(OD)/Adams_bound.o: $(ID)/Adams/Adams_bound.cpp $(ID)/Adams/Adams_bound.hpp \
-$(ID)/Dirac/DiracSpinor.hpp $(ID)/Maths/Grid.hpp $(ID)/Maths/Matrix_linalg.hpp \
-$(ID)/Maths/NumCalc_quadIntegrate.hpp
-	$(COMP)
-
-$(OD)/AtomInfo.o: $(ID)/Physics/AtomInfo.cpp $(ID)/Physics/AtomInfo.hpp
+$(ID)/Adams/DiracODE.hpp $(ID)/Adams/Adams_coefs.hpp \
+$(ID)/Maths/Matrix_linalg.hpp $(ID)/Maths/NumCalc_quadIntegrate.hpp
 	$(COMP)
 
 $(OD)/Adams_continuum.o: $(ID)/Adams/Adams_continuum.cpp \
-$(ID)/Adams/Adams_bound.hpp $(ID)/Adams/Adams_continuum.hpp\
-$(ID)/Dirac/DiracSpinor.hpp $(ID)/Maths/Grid.hpp $(ID)/Maths/NumCalc_quadIntegrate.hpp
+$(ID)/Adams/Adams_continuum.hpp $(ID)/Adams/DiracODE.hpp \
+$(ID)/Adams/Adams_bound.hpp
+	$(COMP)
+
+$(OD)/Adams_Greens.o: $(ID)/Adams/Adams_Greens.cpp $(ID)/Adams/DiracODE.hpp \
+$(ID)/Adams/Adams_Greens.hpp $(ID)/Adams/Adams_bound.hpp
+	$(COMP)
+
+$(OD)/AtomInfo.o: $(ID)/Physics/AtomInfo.cpp $(ID)/Physics/AtomInfo.hpp \
+$(ID)/Physics/AtomInfo_PeriodicTable.hpp
 	$(COMP)
 
 $(OD)/AKF_akFunctions.o: $(ID)/DMionisation/AKF_akFunctions.cpp \
-$(ID)/DMionisation/AKF_akFunctions.hpp \
-$(ID)/Physics/AtomInfo.hpp $(ID)/Dirac/ContinuumOrbitals.hpp $(ID)/Dirac/Wavefunction.hpp \
+$(ID)/DMionisation/AKF_akFunctions.hpp $(ID)/Physics/Wigner_369j.hpp \
 $(ID)/IO/FileIO_fileReadWrite.hpp $(ID)/Maths/NumCalc_quadIntegrate.hpp \
-$(ID)/Physics/PhysConst_constants.hpp \
-$(ID)/Maths/SphericalBessel.hpp $(ID)/Physics/Wigner_369j.hpp
+$(ID)/Physics/PhysConst_constants.hpp $(ID)/Maths/SphericalBessel.hpp
 	$(COMP)
 
 $(OD)/ContinuumOrbitals.o: $(ID)/Dirac/ContinuumOrbitals.cpp \
-$(ID)/Dirac/ContinuumOrbitals.hpp $(ID)/Adams/Adams_bound.hpp \
-$(ID)/Adams/Adams_continuum.hpp $(ID)/Physics/AtomInfo.hpp \
-$(ID)/Dirac/Wavefunction.hpp $(ID)/Maths/Grid.hpp $(ID)/Physics/PhysConst_constants.hpp
+$(ID)/Dirac/ContinuumOrbitals.hpp $(ID)/Adams/DiracODE.hpp \
+$(ID)/Physics/PhysConst_constants.hpp
 	$(COMP)
 
-$(OD)/CoulombIntegrals.o: $(ID)/HF/CoulombIntegrals.cpp $(ID)/HF/CoulombIntegrals.hpp\
-$(ID)/Dirac/DiracSpinor.hpp $(ID)/Maths/NumCalc_quadIntegrate.hpp
+$(OD)/CoulombIntegrals.o: $(ID)/HF/CoulombIntegrals.cpp \
+$(ID)/HF/CoulombIntegrals.hpp $(ID)/Maths/NumCalc_quadIntegrate.hpp
+	$(COMP)
+
+$(OD)/DiracSpinor.o: $(ID)/Dirac/DiracSpinor.cpp $(ID)/Dirac/DiracSpinor.hpp \
+$(ID)/Maths/NumCalc_quadIntegrate.hpp
 	$(COMP)
 
 $(OD)/dmeXSection.o: $(ID)/DMionisation/dmeXSection.cpp \
-$(ID)/DMionisation/AKF_akFunctions.hpp $(ID)/IO/ChronoTimer.hpp \
-$(ID)/IO/FileIO_fileReadWrite.hpp $(ID)/Maths/Grid.hpp $(ID)/Maths/NumCalc_quadIntegrate.hpp \
-$(ID)/Physics/PhysConst_constants.hpp $(ID)/DMionisation/StandardHaloModel.hpp
-	$(COMP)
-
-$(OD)/fitParametric.o: $(ID)/fitParametric.cpp \
-$(ID)/Physics/AtomInfo.hpp $(ID)/IO/ChronoTimer.hpp $(ID)/IO/FileIO_fileReadWrite.hpp\
-$(ID)/HF/HartreeFockClass.hpp $(ID)/Maths/NumCalc_quadIntegrate.hpp \
-$(ID)/Physics/Parametric_potentials.hpp $(ID)/Physics/PhysConst_constants.hpp \
-$(ID)/Dirac/Wavefunction.hpp
+$(ID)/IO/FileIO_fileReadWrite.hpp $(ID)/Maths/NumCalc_quadIntegrate.hpp \
+$(ID)/Physics/PhysConst_constants.hpp
 	$(COMP)
 
 $(OD)/Grid.o: $(ID)/Maths/Grid.cpp $(ID)/Maths/Grid.hpp
 	$(COMP)
 
 $(OD)/hartreeFock.o: $(ID)/hartreeFock.cpp $(ID)/Physics/AtomInfo.hpp \
-$(ID)/IO/ChronoTimer.hpp $(ID)/Dirac/DiracOperator.hpp $(ID)/IO/UserInput.hpp \
-$(ID)/Physics/Nuclear.hpp $(ID)/Dirac/Operators.hpp $(ID)/Dirac/Wavefunction.hpp \
-$(ID)/Maths/Grid.hpp
+$(ID)/Physics/Nuclear.hpp $(ID)/Maths/Grid.hpp
 	$(COMP)
 
-$(OD)/HartreeFockClass.o: $(ID)/HF/HartreeFockClass.cpp $(ID)/HF/HartreeFockClass.hpp\
-$(ID)/Physics/AtomInfo.hpp $(ID)/HF/CoulombIntegrals.hpp $(ID)/Dirac/DiracSpinor.hpp \
-$(ID)/Maths/Grid.hpp $(ID)/Maths/NumCalc_quadIntegrate.hpp $(ID)/Dirac/Wavefunction.hpp \
-$(ID)/Physics/Parametric_potentials.hpp $(ID)/Physics/Wigner_369j.hpp \
-$(ID)/Dirac/DiracOperator.hpp $(ID)/Dirac/Operators.hpp
+$(OD)/HartreeFockClass.o: $(ID)/HF/HartreeFockClass.cpp \
+$(ID)/HF/HartreeFockClass.hpp $(ID)/Physics/Wigner_369j.hpp \
+$(ID)/Dirac/Operators.hpp $(ID)/Dirac/DiracOperator.hpp \
+$(ID)/Maths/NumCalc_quadIntegrate.hpp $(ID)/Adams/DiracODE.hpp
 	$(COMP)
 
 $(OD)/Module_runModules.o: $(ID)/Modules/Module_runModules.cpp \
 $(ID)/Modules/Module_runModules.hpp $(ID)/Dirac/DiracOperator.hpp \
-$(ID)/HF/HartreeFockClass.hpp $(ID)/DMionisation/Module_atomicKernal.hpp \
-$(ID)/Modules/Module_fitParametric.hpp $(ID)/Dirac/Operators.hpp \
-$(ID)/IO/UserInput.hpp $(ID)/Dirac/Wavefunction.hpp $(ID)/Dirac/DiracSpinor.hpp
+$(ID)/Dirac/Operators.hpp
 	$(COMP)
 
 $(OD)/Module_atomicKernal.o: $(ID)/DMionisation/Module_atomicKernal.cpp \
 $(ID)/DMionisation/Module_atomicKernal.hpp \
-$(ID)/DMionisation/AKF_akFunctions.hpp $(ID)/Dirac/DiracSpinor.hpp \
-$(ID)/Physics/AtomInfo.hpp $(ID)/IO/ChronoTimer.hpp $(ID)/Dirac/ContinuumOrbitals.hpp \
-$(ID)/Maths/Grid.hpp $(ID)/Physics/PhysConst_constants.hpp \
-$(ID)/Dirac/Wavefunction.hpp
-	$(COMP)
-
-$(OD)/Module_matrixElements.o: $(ID)/Modules/Module_matrixElements.cpp \
-$(ID)/Modules/Module_matrixElements.hpp $(ID)/Physics/PhysConst_constants.hpp \
-$(ID)/Physics/Nuclear.hpp $(ID)/Dirac/Operators.hpp $(ID)/IO/UserInput.hpp  \
-$(ID)/HF/HartreeFockClass.hpp $(ID)/Dirac/Wavefunction.hpp $(ID)/Dirac/DiracSpinor.hpp
+$(ID)/DMionisation/AKF_akFunctions.hpp $(ID)/Physics/PhysConst_constants.hpp
 	$(COMP)
 
 $(OD)/Module_fitParametric.o: $(ID)/Modules/Module_fitParametric.cpp \
 $(ID)/Modules/Module_fitParametric.hpp $(ID)/Modules/Module_fitParametric.hpp \
-$(ID)/Physics/Nuclear.hpp $(ID)/Maths/Grid.hpp $(ID)/Dirac/Wavefunction.hpp
+$(ID)/Physics/Nuclear.hpp
 	$(COMP)
 
-$(OD)/nuclearData.o: $(ID)/nuclearData.cpp $(ID)/Physics/Nuclear.hpp \
-$(ID)/Physics/Nuclear_DataTable.hpp $(ID)/Physics/AtomInfo.hpp
+$(OD)/Module_matrixElements.o: $(ID)/Modules/Module_matrixElements.cpp \
+$(ID)/Modules/Module_matrixElements.hpp $(ID)/Physics/PhysConst_constants.hpp \
+$(ID)/Physics/Nuclear.hpp $(ID)/Dirac/Operators.hpp
+	$(COMP)
+
+$(OD)/Nuclear.o: $(ID)/Physics/Nuclear.cpp $(ID)/Physics/Nuclear.hpp \
+$(ID)/Physics/Nuclear_DataTable.hpp
 	$(COMP)
 
 $(OD)/Parametric_potentials.o: $(ID)/Physics/Parametric_potentials.cpp \
 $(ID)/Physics/Parametric_potentials.hpp
+	$(COMP)
+
+$(OD)/periodicTable.o: $(ID)/periodicTable.cpp $(ID)/Physics/Nuclear.hpp \
+$(ID)/Physics/Nuclear_DataTable.hpp $(ID)/Physics/AtomInfo.hpp \
+$(ID)/Physics/AtomInfo_PeriodicTable.hpp
 	$(COMP)
 
 $(OD)/StandardHaloModel.o: $(ID)/DMionisation/StandardHaloModel.cpp \
@@ -181,25 +179,25 @@ $(OD)/UserInput.o: $(ID)/IO/UserInput.cpp $(ID)/IO/UserInput.hpp \
 $(ID)/IO/FileIO_fileReadWrite.hpp
 	$(COMP)
 
-$(OD)/Wavefunction.o: $(ID)/Dirac/Wavefunction.cpp $(ID)/Dirac/Wavefunction.hpp \
-$(ID)/Adams/Adams_bound.hpp $(ID)/Physics/AtomInfo.hpp $(ID)/Dirac/DiracSpinor.hpp \
-$(ID)/Maths/Grid.hpp $(ID)/Physics/Nuclear.hpp $(ID)/Physics/PhysConst_constants.hpp
+$(OD)/Wavefunction.o: $(ID)/Dirac/Wavefunction.cpp $(ID)/Dirac/Wavefunction.hpp\
+$(ID)/Adams/DiracODE.hpp \
+$(ID)/Physics/Nuclear.hpp $(ID)/Physics/PhysConst_constants.hpp
 	$(COMP)
 
 $(OD)/wigner.o: $(ID)/wigner.cpp $(ID)/IO/FileIO_fileReadWrite.hpp \
 $(ID)/Physics/Wigner_369j.hpp
 	$(COMP)
 
-
 ################################################################################
 # Just to save typing: Many programs depend on these combos:
 
 BASE = $(addprefix $(OD)/, \
- Adams_bound.o Wavefunction.o AtomInfo.o Grid.o\
+ Adams_bound.o Wavefunction.o DiracSpinor.o AtomInfo.o Nuclear.o Grid.o \
 )
 
 HF = $(addprefix $(OD)/, \
  HartreeFockClass.o CoulombIntegrals.o Parametric_potentials.o \
+ Adams_Greens.o \
 )
 
 CNTM = $(addprefix $(OD)/, \
@@ -214,10 +212,6 @@ MODS = $(addprefix $(OD)/, \
 ################################################################################
 # Link + build all final programs
 
-$(XD)/fitParametric: $(BASE) $(HF) $(OD)/fitParametric.o \
-$(OD)/Parametric_potentials.o
-	$(LINK)
-
 $(XD)/hartreeFock: $(BASE) $(HF) $(CNTM) $(OD)/hartreeFock.o \
 $(OD)/UserInput.o $(MODS)
 	$(LINK)
@@ -229,7 +223,7 @@ $(OD)/AKF_akFunctions.o $(OD)/StandardHaloModel.o
 $(XD)/wigner: $(OD)/wigner.o
 	$(LINK)
 
-$(XD)/nuclearData: $(OD)/nuclearData.o $(OD)/AtomInfo.o
+$(XD)/periodicTable: $(OD)/periodicTable.o $(OD)/AtomInfo.o $(OD)/Nuclear.o
 	$(LINK)
 
 ################################################################################
@@ -238,8 +232,6 @@ checkObj:
 	@if [ ! -d $(OD) ]; then \
 	  echo '\n ERROR: Directory: '$(OD)' doesnt exist - please create it!\n'; \
 	  false; \
-	else \
-	  echo 'OK'; \
 	fi
 
 checkXdir:
@@ -247,6 +239,9 @@ checkXdir:
 		echo '\n ERROR: Directory: '$(XD)' doesnt exist - please create it!\n'; \
 		false; \
 	fi
+
+doneMessage:
+		@echo 'done'
 
 .PHONY: clean do_the_chicken_dance checkObj checkXdir
 clean:

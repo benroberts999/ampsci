@@ -4,10 +4,7 @@
 #include <vector>
 class Wavefunction;
 class DiracSpinor;
-class ScalarOperator_old;
-class ScalarOperator;
 class Grid;
-class DirectHamiltonian;
 
 /*
 Calculates self-consistent Hartree-Fock potential, including exchange.
@@ -27,8 +24,14 @@ Requires re-writing the valence part (a little)
   vex[a]      := [v_ex*psi_a](r) *(psi_a/psi_a^2) (approx exchange)
 */
 
+struct EpsIts {
+  double eps;
+  int its;
+};
+
 enum class HFMethod { HartreeFock, ApproxHF, Hartree, GreenPRM, TietzPRM };
 
+//******************************************************************************
 class HartreeFock {
   friend class Coulomb;
 
@@ -42,37 +45,42 @@ public:
   HartreeFock(Wavefunction &wf, const std::vector<DiracSpinor> &val_orbitals,
               double eps_HF = 0.0, bool in_ExcludeExchange = false);
 
-  void solveNewValence(int n, int kappa);
-  void solveValence(DiracSpinor &phi, std::vector<double> &vexa);
+  void solveValence();
 
   double calculateCoreEnergy() const;
 
   const std::vector<double> &get_vex(const DiracSpinor &psi) const;
+
   DiracSpinor vex_psia(const DiracSpinor &phi_a) const;
   void vex_psia(const DiracSpinor &phi_a, DiracSpinor &vexPsi) const;
+
+  static DiracSpinor vex_psia_any(const DiracSpinor &phi_a,
+                                  const std::vector<DiracSpinor> &core,
+                                  int k_cut = 99);
 
   bool verbose = true;
 
 private:
   Wavefunction *const p_wf;
   const Grid *const p_rgrid;
-
   Coulomb m_cint;
 
+  static constexpr int m_max_hf_its = 99;
+
+  // Optionally force orthogonalisation. False by default.
+  static constexpr bool m_explicitOrthog_cc = false;
+  static constexpr bool m_explicitOrthog_cv = false;
+
   const double m_eps_HF;
-
-  static const int MAX_HART_ITS = 99;
-  const bool m_excludeExchange; // for testing
+  const bool m_excludeExchange;
   const HFMethod m_method;
-
-  const bool m_explicitOrthog = true;
 
   // The "localised"/approximate HF potential:
   std::vector<std::vector<double>> appr_vex_core;
   std::vector<std::vector<double>> appr_vex_val;
 
 private:
-  void hartree_fock_core();
+  void hf_core_approx(const double eps_target_HF);
   void starting_approx_core(const std::string &in_core, int log_converge = 3,
                             HFMethod method = HFMethod::GreenPRM,
                             double h_g = 0, double d_t = 0);
@@ -82,18 +90,15 @@ private:
   void form_approx_vex_a(const DiracSpinor &phi_a,
                          std::vector<double> &vex_a) const;
 
-  void solve_inhomog_Green(DiracSpinor &phi, const double en,
-                           const std::vector<double> &v, const double alpha,
-                           const DiracSpinor &source) const;
-  void solve_inhomog_Green(DiracSpinor &phi, DiracSpinor &phi1,
-                           DiracSpinor &phi2, const double en,
-                           const std::vector<double> &v, const double alpha,
-                           const DiracSpinor &source) const;
-  void refine_core_orbitals_exchange();
-  void refine_valence_orbital_exchange(DiracSpinor &phi);
-  void iterate_core_orbital(DiracSpinor &phi, const std::vector<double> &vl,
-                            const DirectHamiltonian &Hd,
-                            const std::vector<double> &fVdir0) const;
-  void yfun(DiracSpinor &phi, const DiracSpinor &phi1, const DiracSpinor &phi2,
-            const DiracSpinor &Sr) const;
+  void hf_core_refine();
+
+  EpsIts hf_valence(DiracSpinor &phi, std::vector<double> &vexa);
+  EpsIts hf_valence_approx(DiracSpinor &phi, std::vector<double> &vexa,
+                           double eps_target_HF);
+  EpsIts hf_valence_refine(DiracSpinor &phi);
+
+  void hf_orbital(DiracSpinor &phi, double en, const std::vector<double> &vl,
+                  const DiracSpinor &vx_phi,
+                  const std::vector<DiracSpinor> &core,
+                  const std::vector<double> &v0 = {}) const;
 };

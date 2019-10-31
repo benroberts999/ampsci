@@ -1,12 +1,12 @@
 #include "AKF_akFunctions.hpp"
 #include "Dirac/ContinuumOrbitals.hpp"
+#include "Dirac/Wavefunction.hpp"
 #include "IO/FileIO_fileReadWrite.hpp"
-#include "Maths/SphericalBessel.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
+#include "Maths/SphericalBessel.hpp"
 #include "Physics/AtomInfo.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Physics/Wigner_369j.hpp"
-#include "Dirac/Wavefunction.hpp"
 #include <fstream>
 #include <iostream>
 
@@ -182,10 +182,10 @@ int calculateK_nk(const Wavefunction &wf, std::size_t is, int max_L, double dE,
       for (int iq = 0; iq < qsteps; iq++) {
         double a = 0.;
         auto maxj = psi.pinf; // don't bother going further
-        double af = NumCalc::integrate(
-            {&psi.f, &phic.f, &jLqr_f[L][iq], &wf.rgrid.drdu}, 1.0, 0, maxj);
-        double ag = NumCalc::integrate(
-            {&psi.g, &phic.g, &jLqr_f[L][iq], &wf.rgrid.drdu}, 1.0, 0, maxj);
+        double af = NumCalc::integrate_any(1.0, 0, maxj, psi.f, phic.f,
+                                           jLqr_f[L][iq], wf.rgrid.drdu);
+        double ag = NumCalc::integrate_any(1.0, 0, maxj, psi.g, phic.g,
+                                           jLqr_f[L][iq], wf.rgrid.drdu);
         a = af + ag;
         AK_nk_q[iq] += (float)(dC_Lkk * std::pow(a * wf.rgrid.du, 2) * x_ocf);
       } // q
@@ -218,9 +218,8 @@ int calculateKpw_nk(const Wavefunction &wf, std::size_t nk, double dE,
     return 0;
 
   for (auto iq = 0ul; iq < qsteps; iq++) {
-    double chi_q =
-        NumCalc::integrate({&psi.f, &jl_qr[iq], &wf.rgrid.r, &wf.rgrid.drdu},
-                           wf.rgrid.du, 0, maxir);
+    double chi_q = NumCalc::integrate_any(wf.rgrid.du, 0, maxir, psi.f,
+                                          jl_qr[iq], wf.rgrid.r, wf.rgrid.drdu);
     tmpK_q[iq] = (float)((2. / M_PI) * (twoj + 1) * std::pow(chi_q, 2) *
                          std::sqrt(2. * eps));
     // tmpK_q[iq] = std::pow(4*3.14159,2)*std::pow(chi_q,2); // just cf KOPP
@@ -239,24 +238,24 @@ void sphericalBesselTable(std::vector<std::vector<std::vector<double>>> &jLqr_f,
 // */
 {
   std::cout << std::endl;
-  int ngp = (int)r.size();
+  int num_points = (int)r.size();
   int qsteps = (int)q_array.size();
 
   jLqr_f.resize(max_L + 1, std::vector<std::vector<double>>(
-                               qsteps, std::vector<double>(ngp)));
+                               qsteps, std::vector<double>(num_points)));
   for (int L = 0; L <= max_L; L++) {
     std::cout << "\rCalculating spherical Bessel look-up table for L=" << L
               << "/" << max_L << " .. " << std::flush;
 #pragma omp parallel for
     for (int iq = 0; iq < qsteps; iq++) {
       double q = q_array[iq];
-      for (int ir = 0; ir < ngp; ir++) {
+      for (int ir = 0; ir < num_points; ir++) {
         double tmp = SphericalBessel::JL(L, q * r[ir]);
         // If q(dr) is too large, "missing" j_L oscillations
         //(overstepping them). This helps to fix that.
         // By averaging the J_L function. Note: only works if wf is smooth
         int num_extra = 0;
-        if (ir < ngp - 1) {
+        if (ir < num_points - 1) {
           double qdrop = q * (r[ir + 1] - r[ir]) / M_PI;
           double min_qdrop = 0.01; // require 100 pts per half wavelength!
           if (qdrop > min_qdrop)

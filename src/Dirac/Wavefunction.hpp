@@ -1,11 +1,14 @@
 #pragma once
 #include "Dirac/DiracSpinor.hpp"
-#include "Maths/Grid.hpp"
 #include "HF/HartreeFockClass.hpp" // forward decl..
+#include "Maths/Grid.hpp"
+#include "Physics/AtomInfo.hpp" // NonRelSEConfig
 #include "Physics/Nuclear.hpp"
 #include <memory>
 #include <string>
 #include <vector>
+//
+#include "Physics/PhysConst_constants.hpp"
 
 static bool dummy_bool{};
 
@@ -13,11 +16,23 @@ static bool dummy_bool{};
 class Wavefunction {
 
 public:
-  Wavefunction(int in_z, const GridParameters &gridparams,
-               const Nuclear::Parameters &nuc_params, double var_alpha = 1);
+  template <typename T>
+  Wavefunction(T in_z, const GridParameters &gridparams,
+               const Nuclear::Parameters &nuc_params, double var_alpha = 1.0)
+      : rgrid({gridparams}),                                        //
+        m_alpha(PhysConst::alpha * var_alpha),                      //
+        m_Z(AtomInfo::get_z(in_z)),                                 //
+        m_A(nuc_params.a),                                          //
+        m_nuc_params(nuc_params),                                   //
+        vnuc(Nuclear::formPotential(nuc_params, m_Z, m_A, rgrid.r)) //
+  {
+    if (m_alpha * m_Z > 1.0) {
+      std::cerr << "Alpha too large: Z*alpha=" << m_Z * m_alpha << "\n";
+      std::abort();
+    }
+  }
 
 public:
-  // orbitals:
   std::vector<DiracSpinor> core_orbitals;
   std::vector<DiracSpinor> valence_orbitals;
   const Grid rgrid;
@@ -37,8 +52,8 @@ public:
 private:
   // Core configuration (non-rel terms)
   std::vector<NonRelSEConfig> m_core_configs;
-  int num_core_electrons = 0; // Nc = N - M
-  std::string m_core_string = "";
+  int num_core_electrons = 0;     // Nc = N - M
+  std::string m_core_string = ""; // alive?
 
 public:
   // Rule is: if function is single-line, define here. Else, in .cpp
@@ -79,6 +94,7 @@ public:
   void printValence(bool sorted = true,
                     const std::vector<DiracSpinor> &tmp_orbitals = {}) const;
   bool isInCore(int n, int k) const;
+  bool isInValence(int n, int k) const;
   bool isInCore(const DiracSpinor &phi) const;
   int maxCore_n(int ka_in = 0) const;
   int maxCore_l() const;
@@ -103,6 +119,7 @@ public:
   static void orthonormaliseOrbitals(std::vector<DiracSpinor> &tmp_orbs,
                                      int num_its = 1);
   void orthonormaliseWrtCore(DiracSpinor &psi_v) const;
+  void orthogonaliseWrtCore(DiracSpinor &psi_v) const;
 
   void hartreeFockCore(HFMethod method, const std::string &in_core,
                        double eps_HF = 0, double h_d = 0, double g_t = 0);
@@ -112,5 +129,5 @@ public:
   double enGuessVal(int n, int ka) const;
 
 private:
-  void determineCore(const std::string &str_core_in);
+  void determineCore(std::string str_core_in);
 };

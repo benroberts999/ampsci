@@ -1,14 +1,16 @@
 #include "Physics/AtomInfo.hpp"
 #include "Physics/Nuclear.hpp"
 #include <iostream>
+#include <vector>
 
 void instructions() {
-  std::cout << "Input is Z A; Z may be int or string. e.g.: \n "
-               "$./nuclearData Cs 133\n"
-               "Leave A blank (or put 0) to get dafault A value.\n"
-               "Put 'all' to list all available A values.\n"
-               "Note: numbers come from online database, and have some errors, "
-               "so should be checked if needed.\n";
+  std::cout
+      << "Usage:\n"
+         "$./periodicTable            Prints periodic table\n"
+         "$./periodicTable Cs         Info for Cs with default A\n"
+         "$./periodicTable Cs 137     Info for Cs-137\n"
+         "$./periodicTable Cs all     Info for all available Cs isotopes\n"
+         "(Note: numbers come from online database, and should be checked)\n";
 }
 
 void printData(const Nuclear::Isotope &nuc) {
@@ -51,14 +53,22 @@ int main(int num_in, char *argv[]) {
 
   if (num_in <= 1) {
     instructions();
+    AtomInfo::printTable();
     return 1;
   }
 
   std::string z_str = argv[1];
   const auto z = AtomInfo::get_z(z_str);
+  if (z == 0) {
+    instructions();
+    return 1;
+  }
+  z_str = AtomInfo::atomicSymbol(z);
   std::string a_str = (num_in > 2) ? argv[2] : "0";
+  auto name = AtomInfo::atomicName(z);
 
   std::vector<Nuclear::Isotope> isotopes;
+  int a_default = parse_A("0", z);
   if (a_str == "all" || a_str == "list") {
     isotopes = Nuclear::findIsotopeList(z);
   } else {
@@ -66,6 +76,24 @@ int main(int num_in, char *argv[]) {
     isotopes.push_back(Nuclear::findIsotopeData(z, a));
   }
 
+  auto core_str = AtomInfo::guessCoreConfigStr(z);
+  auto core_vec = AtomInfo::core_parser(core_str);
+
+  std::cout << "\n"
+            << z_str << ",  " << name << ".\n"
+            << "Z = " << z << ";  A = " << a_default << " (default)\n\n";
+  std::cout << "Electron config: " << core_str << "   (guess)\n"
+            << " = ";
+  for (const auto &term : core_vec) {
+    if (term.frac() < 1)
+      std::cout << "| ";
+    std::cout << term.symbol() << " ";
+  }
+  std::cout << "\n";
+
+  std::cout << "\nIsotpe data:";
+  if (isotopes.size() == 0)
+    std::cout << " none known\n";
   for (const auto &nuc : isotopes) {
     std::cout << "\n";
     printData(nuc);

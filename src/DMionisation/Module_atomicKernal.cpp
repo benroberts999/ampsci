@@ -1,12 +1,12 @@
 #include "Module_atomicKernal.hpp"
 #include "AKF_akFunctions.hpp"
-#include "IO/ChronoTimer.hpp"
 #include "Dirac/ContinuumOrbitals.hpp"
-#include "Maths/Grid.hpp"
-#include "HF/HartreeFockClass.hpp"
-#include "Physics/PhysConst_constants.hpp"
-#include "IO/UserInput.hpp"
 #include "Dirac/Wavefunction.hpp"
+#include "HF/HartreeFockClass.hpp"
+#include "IO/ChronoTimer.hpp"
+#include "IO/UserInput.hpp"
+#include "Maths/Grid.hpp"
+#include "Physics/PhysConst_constants.hpp"
 #include <iostream>
 
 namespace Module {
@@ -64,15 +64,15 @@ void atomicKernal(const UserInputBlock &input, const Wavefunction &wf) {
   double du_target = (M_PI / 20.) / std::sqrt(2. * demax);
   auto du = wf.rgrid.du;
   if (du > du_target) {
-    auto new_ngp = Grid::calc_ngp_from_du(wf.rgrid.r0, wf.rgrid.rmax, du_target,
-                                          GridType::loglinear, 4.0);
-    auto old_ngp = wf.rgrid.ngp;
-    // ngp = (int)new_ngp;
+    auto new_num_points = Grid::calc_num_points_from_du(
+        wf.rgrid.r0, wf.rgrid.rmax, du_target, GridType::loglinear, 4.0);
+    auto old_num_points = wf.rgrid.num_points;
+    // num_points = (int)new_num_points;
     std::cerr
         << "\nWARNING 118: Grid not dense enough for contimuum state with "
         << "ec=" << demax << "au\n";
-    std::cerr << "You should update ngp from " << old_ngp << " --> " << new_ngp
-              << "\n";
+    std::cerr << "You should update num_points from " << old_num_points
+              << " --> " << new_num_points << "\n";
     std::cerr << "Program will continue, but may fail\n";
   }
 

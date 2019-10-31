@@ -12,8 +12,13 @@ struct NonRelSEConfig {
   NonRelSEConfig(int in_n = 0, int in_l = -1, int in_num = 0)
       : n(in_n), l(in_l), num(in_num) {}
 
-  std::string symbol();
-  bool ok();
+  std::string symbol() const;
+  bool ok() const;
+
+  double frac() const {
+    int filling = 2 * (2 * l + 1);
+    return (num < filling) ? double(num) / double(filling) : 1;
+  };
 
   // comparitor overloads:
   bool operator==(const NonRelSEConfig &other) const {
@@ -44,7 +49,9 @@ namespace AtomInfo {
 int defaultA(int Z);
 
 std::string atomicSymbol(int Z);
+std::string atomicName(int Z);
 
+inline int get_z(int z) { return z; }
 int get_z(const std::string &at);
 
 std::string l_symbol(int l);
@@ -59,7 +66,12 @@ double diracen(double z, double n, int k, double alpha = 0.00729735256635);
 
 std::vector<NonRelSEConfig> core_parser(const std::string &str_core_in);
 
+std::string guessCoreConfigStr(const int total_core_electrons);
+std::vector<NonRelSEConfig> core_guess(const int total_core_electrons);
+
 std::vector<DiracSEnken> listOfStates_nk(const std::string &in_list);
+
+void printTable();
 
 //******************************************************************************
 constexpr int l_k(int ka) { return (ka > 0) ? ka : -ka - 1; }

@@ -52,7 +52,7 @@ Nucleus {
 // up (using the A value given above. A can also be given in this block)
 // rrms: nuclear charge radius (in femptometres = 10^-15m)
 // type: Which distribution to use for nucleus? Options are:
-// Fermi (default), spherical, zero
+// Fermi (default), spherical, point
 // skin_t: skin thickness [only used by Fermi distro] 2.3 by default
 
 Grid {
@@ -154,8 +154,9 @@ MatrixElements::hfs {
 
 Module::Tests {
   // tests of numerical errors:
-  orthonormal = true; // check orthonormality
-  Hamiltonian = true; // check eigenvalues of Hamiltonian
+  orthonormal = true;     // check orthonormality (true by default)
+  orthonormal_all = true; // check orthonormality + print all <a|b> 's
+  Hamiltonian = true;     // check eigenvalues of Hamiltonian
 }
 
 Module::BohrWeisskopf {

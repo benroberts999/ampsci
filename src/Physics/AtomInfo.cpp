@@ -10,11 +10,11 @@
 #include <vector>
 
 //******************************************************************************
-std::string NonRelSEConfig::symbol() {
+std::string NonRelSEConfig::symbol() const {
   return std::to_string(n) + AtomInfo::l_symbol(l) + std::to_string(num);
 }
 
-bool NonRelSEConfig::ok() {
+bool NonRelSEConfig::ok() const {
   if (l + 1 > n || l < 0 || n < 1 || num < 0 || num > 4 * l + 2)
     return false;
   return true;
@@ -43,6 +43,15 @@ std::string atomicSymbol(int Z) {
   return atom->symbol;
 }
 
+std::string atomicName(int Z) {
+  static auto match_Z = [Z](const Element &atom) { return atom.Z == Z; };
+  auto atom =
+      std::find_if(periodic_table.begin(), periodic_table.end(), match_Z);
+  if (atom == periodic_table.end())
+    return std::string("E") + std::to_string(Z);
+  return atom->name;
+}
+
 // Given an atomic symbol (H, He, etc.), will return Z
 // Note: Symbol must be exact, including capitalisation
 int get_z(const std::string &at) {
@@ -60,7 +69,7 @@ int get_z(const std::string &at) {
   }
   if (z <= 0) {
     std::cerr << "Invalid atom/Z: " << at << "\n";
-    std::abort();
+    z = 0;
   }
   return z;
 }
@@ -93,8 +102,10 @@ int symbol_to_l(const std::string &l_str) {
 std::string coreConfig(const std::string &in_ng) {
   // Note: must return SAME string if no matching Nobel Gas found
   // (so that this doesn't break if I give it a full term list)
-  using StringPair = std::pair<std::string, std::string>;
-  auto match_ng = [&](const StringPair &ng) { return ng.first == in_ng; };
+  using Strinum_pointsair = std::pair<std::string, std::string>;
+  auto match_ng = [&](const Strinum_pointsair &ng) {
+    return ng.first == in_ng;
+  };
   auto ng_config =
       std::find_if(nobelGasses.begin(), nobelGasses.end(), match_ng);
   if (ng_config == nobelGasses.end())
@@ -131,7 +142,6 @@ double diracen(double z, double n, int k, double alpha) {
 //******************************************************************************
 std::vector<NonRelSEConfig> core_parser(const std::string &str_core_in)
 // Heler function for below.
-// Move to Atom Info ?
 {
   // If there's a 'Noble-Gas' term, replace it with full config
   // Otherwise, 'first-term' remains unchanges
@@ -196,6 +206,58 @@ std::vector<NonRelSEConfig> core_parser(const std::string &str_core_in)
   return core_configs;
 }
 
+//------------------------------------------------------------------------------
+std::string guessCoreConfigStr(const int total_core_electrons) {
+
+  auto core_configs = core_guess(total_core_electrons);
+
+  std::vector<int> nobel_gas_list = {118, 86, 54, 36, 18, 10, 2, 0};
+  std::vector<std::string> ng_symb_list = {"[Og]", "[Rn]", "[Xe]", "[Kr]",
+                                           "[Ar]", "[Ne]", "[He]", "[]"};
+
+  switch (total_core_electrons) {
+    // A few over-writes for common 'different' ones
+    // Lanthenides/Actinides still possibly incorrect
+  case 29: // Cu
+    return "[Ar],3d10,4s1";
+  case 47: // Ag
+    return "[Kr],4d10,5s1";
+  case 79: // Au
+    return "[Xe],4f14,5d10,6s1";
+  }
+
+  std::string output_config = "";
+  auto index = 0u;
+  for (auto n_ng : nobel_gas_list) {
+    std::string ng = ng_symb_list[index++];
+    if (n_ng > total_core_electrons)
+      continue;
+    auto ng_config = core_guess(n_ng);
+    output_config += ng;
+    for (auto i = ng_config.size(); i < core_configs.size(); ++i) {
+      output_config += "," + core_configs[i].symbol();
+    }
+    break;
+  }
+  return output_config;
+}
+
+//------------------------------------------------------------------------------
+std::vector<NonRelSEConfig> core_guess(const int total_core_electrons) {
+  auto core_configs = AtomInfo::core_parser(AtomInfo::filling_order);
+  auto nel = total_core_electrons;
+  for (auto &c : core_configs) {
+    if (c.num > nel) {
+      c.num = nel;
+    }
+    nel -= c.num;
+  }
+  while (!core_configs.empty() && core_configs.back().num == 0)
+    core_configs.pop_back();
+
+  return core_configs;
+}
+
 //******************************************************************************
 std::vector<DiracSEnken> listOfStates_nk(const std::string &in_list) {
   std::vector<DiracSEnken> state_list;
@@ -234,6 +296,90 @@ std::vector<DiracSEnken> listOfStates_nk(const std::string &in_list) {
     }
   }
   return state_list;
+}
+
+//******************************************************************************
+static inline std::string helper_s(const Element &el) {
+  auto sym = el.symbol;
+  auto sym_buff = (sym.length() == 1) ? std::string("  ") : std::string(" ");
+  return sym_buff + sym + " ";
+}
+static inline std::string helper_z(const Element &el) {
+  auto z_str = std::to_string(el.Z);
+  auto Z_buff = (el.Z < 10) ? std::string("  ")
+                            : (el.Z < 100) ? std::string(" ") : std::string("");
+  return Z_buff + z_str + " ";
+}
+
+//******************************************************************************
+void printTable() {
+
+  std::string output = "";
+  std::string output_s = "";
+  std::string output_z = "";
+
+  std::string output_s_l = "";
+  std::string output_z_l = "";
+  std::string output_s_a = "";
+  std::string output_z_a = "";
+
+  auto spaces2 = [](int n) {
+    std::string buff = "";
+    for (int i = 0; i < n; ++i)
+      buff += "    ";
+    return buff;
+  };
+
+  int row = 1;
+  int col = 1;
+  for (const auto &el : periodic_table) {
+    if (el.Z > 118)
+      break;
+
+    // printf("%2i ", col);
+    if (row == 1 && col == 2) {
+      col += 16; // spaces(16);
+      output_s += spaces2(16);
+      output_z += spaces2(16);
+    } else if (row < 4 && col == 3) {
+      col += 10; // spaces(10);
+      output_s += spaces2(10);
+      output_z += spaces2(10);
+    } else if (row > 5) {
+      if (col == 2) {
+        output_s += " *  ";
+        output_z += "    ";
+        col++;
+        // continue;
+      }
+      if (el.Z >= 57 && el.Z < 72) {
+        output_s_l += helper_s(el);
+        output_z_l += helper_z(el);
+        continue;
+      } else if (el.Z >= 89 && el.Z < 104) {
+        output_s_a += helper_s(el);
+        output_z_a += helper_z(el);
+        continue;
+      }
+    }
+
+    output_s += helper_s(el);
+    output_z += helper_z(el);
+    ++col;
+
+    if (col > 17 || el.Z == 118) {
+      ++row;
+      col = 0;
+      output += output_s + "\n" + output_z + "\n"; // extra space?
+      output_s.clear();
+      output_z.clear();
+    }
+  }
+  std::cout << "\n" << output << "\n";
+  std::cout << "      * " << output_s_l << "\n";
+  std::cout << "        " << output_z_l << "\n";
+  std::cout << "      * " << output_s_a << "\n";
+  std::cout << "        " << output_z_a << "\n\n";
 }
 
 } // namespace AtomInfo

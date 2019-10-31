@@ -23,26 +23,30 @@ inline std::vector<T> derivative(const std::vector<T> &f,
 // coeficients from: http://en.wikipedia.org/wiki/Finite_difference_coefficient
 {
 
-  std::size_t ngp = f.size();
-  std::vector<T> df(ngp);
+  std::size_t num_points = f.size();
+  std::vector<T> df(num_points);
 
   df[0] = (f[1] - f[0]) / (dt * drdt[0]);
-  df[ngp - 1] = (f[ngp - 1] - f[ngp - 2]) / (dt * drdt[ngp - 1]);
+  df[num_points - 1] =
+      (f[num_points - 1] - f[num_points - 2]) / (dt * drdt[num_points - 1]);
 
   df[1] = (f[2] - f[0]) / (2 * dt * drdt[1]);
-  df[ngp - 2] = (f[ngp - 1] - f[ngp - 3]) / (2 * dt * drdt[ngp - 2]);
+  df[num_points - 2] =
+      (f[num_points - 1] - f[num_points - 3]) / (2 * dt * drdt[num_points - 2]);
 
   df[2] = (f[0] - 8 * f[1] + 8 * f[3] - f[4]) / (12 * dt * drdt[2]);
-  df[ngp - 3] = (f[ngp - 5] - 8 * f[ngp - 4] + 8 * f[ngp - 2] - f[ngp - 1]) /
-                (12 * dt * drdt[ngp - 3]);
+  df[num_points - 3] = (f[num_points - 5] - 8 * f[num_points - 4] +
+                        8 * f[num_points - 2] - f[num_points - 1]) /
+                       (12 * dt * drdt[num_points - 3]);
 
   df[3] = (-1 * f[0] + 9 * f[1] - 45 * f[2] + 45 * f[4] - 9 * f[5] + 1 * f[6]) /
           (60 * dt * drdt[3]);
-  df[ngp - 4] = (-1 * f[ngp - 7] + 9 * f[ngp - 6] - 45 * f[ngp - 5] +
-                 45 * f[ngp - 3] - 9 * f[ngp - 2] + 1 * f[ngp - 1]) /
-                (60 * dt * drdt[ngp - 4]);
+  df[num_points - 4] =
+      (-1 * f[num_points - 7] + 9 * f[num_points - 6] - 45 * f[num_points - 5] +
+       45 * f[num_points - 3] - 9 * f[num_points - 2] + 1 * f[num_points - 1]) /
+      (60 * dt * drdt[num_points - 4]);
 
-  for (std::size_t i = 4; i < (ngp - 4); i++) {
+  for (std::size_t i = 4; i < (num_points - 4); i++) {
     df[i] = ((1. / 8) * f[i - 4] - (4. / 3) * f[i - 3] + 7 * f[i - 2] -
              28 * f[i - 1] - (1. / 8) * f[i + 4] + (4. / 3) * f[i + 3] -
              7 * f[i + 2] + 28 * f[i + 1]) /
@@ -229,59 +233,6 @@ inline double integrate(const C &f1, const C &f2, const C &f3, const C &f4,
 } // END integrate 4
 
 //******************************************************************************
-template <typename C>
-inline C
-integrate(const std::initializer_list<const std::vector<C> *const> vecs,
-          const C dt = 1.0, std::size_t beg = 0, std::size_t end = 0) {
-
-  auto vecs_i = [&vecs](std::size_t i) {
-    C vvv = 1.0;
-    for (const auto &v : vecs)
-      vvv *= (*v)[i];
-    return vvv;
-  };
-
-  if (end == 0)
-    end = (**(vecs.begin())).size();
-
-  double Rint_s = 0;
-  for (std::size_t i = 0; i < Nquad; i++)
-    Rint_s += cq[i] * vecs_i(beg + i);
-
-  double Rint_m = 0;
-  for (auto i = beg + Nquad; i < end - Nquad; i++)
-    Rint_m += vecs_i(i);
-
-  double Rint_e = 0;
-  for (std::size_t i = 0; i < Nquad; i++)
-    Rint_e += cq[i] * vecs_i(end - i - 1);
-
-  return (Rint_m + dq_inv * (Rint_s + Rint_e)) * dt;
-}
-
-//******************************************************************************
-template <typename C>
-inline std::vector<C>
-sumVecs(const std::initializer_list<const std::vector<C> *const> vecs) {
-
-  auto vecs_i = [&vecs](std::size_t i) {
-    C vvv = 0.0;
-    for (const auto &v : vecs)
-      vvv += (*v)[i];
-    return vvv;
-  };
-
-  std::vector<C> ovec;
-  auto size = (**(vecs.begin())).size();
-  ovec.reserve(size);
-  for (auto i = 0ul; i < size; i++) {
-    ovec.push_back(vecs_i(i));
-  }
-  return ovec;
-
-} // END integrate 4
-
-//******************************************************************************
 enum Direction { zero_to_r, r_to_inf };
 template <Direction direction, typename Real>
 inline void
@@ -295,8 +246,8 @@ additivePIntegral(std::vector<Real> &answer, const std::vector<Real> &f,
 {
   const auto size = g.size();
   if (pinf == 0 || pinf >= size)
-    pinf = size - 1;
-  const auto max = static_cast<int>(pinf); // must be signed
+    pinf = size;
+  const auto max = static_cast<int>(pinf - 1); // must be signed
 
   constexpr const bool forward = (direction == zero_to_r);
   constexpr const int inc = forward ? +1 : -1;
@@ -323,5 +274,77 @@ std::vector<Real> partialIntegral(const std::vector<Real> &f,
   additivePIntegral(answer, f, g, h, gr, pinf);
   return answer;
 }
+
+//******************************************************************************
+namespace helper {
+template <typename Real>
+void add_b_to_a(std::vector<Real> &a, const std::vector<Real> &b) {
+  const auto size = std::min(a.size(), b.size());
+  for (auto i = 0ul; i < size; ++i)
+    a[i] += b[i];
+}
+template <typename Real> void add_b_to_a(Real &a, const Real &b) { a += b; }
+
+template <typename T> //
+void vector_adder(T &) {
+  return;
+}
+
+template <typename T, typename... Args>
+void vector_adder(T &out, const T &first, const Args &... args) {
+  add_b_to_a(out, first);
+  vector_adder(out, args...);
+}
+} // namespace helper
+
+template <typename T, typename... Args>
+T add_vectors(const T &zeroth, const Args &... args) {
+  auto out = zeroth; // copy
+  helper::vector_adder(out, args...);
+  return out;
+}
+//******************************************************************************
+namespace helper {
+template <typename Real>
+void mult_b_to_a(std::vector<Real> &a, const std::vector<Real> &b) {
+  const auto size = std::min(a.size(), b.size());
+  for (auto i = 0ul; i < size; ++i)
+    a[i] *= b[i];
+}
+template <typename Real> void mult_b_to_a(Real &a, const Real &b) { a *= b; }
+template <typename T> //
+void vector_multer(T &) {
+  return;
+}
+
+template <typename T, typename... Args>
+void vector_multer(T &out, const T &first, const Args &... args) {
+  mult_b_to_a(out, first);
+  vector_multer(out, args...);
+}
+} // namespace helper
+
+template <typename T, typename... Args>
+T mult_vectors(const T &zeroth, const Args &... args) {
+  auto out = zeroth; // copy
+  helper::vector_multer(out, args...);
+  return out;
+}
+
+//******************************************************************************
+template <typename... Args>
+double integrate_any(const double dt, const std::size_t beg,
+                     const std::size_t end, const Args &... args) {
+  const auto v = mult_vectors(args...);
+  return integrate(v, dt, beg, end);
+}
+inline double integrate_any(const double dt, const std::size_t beg,
+                            const std::size_t end,
+                            const std::vector<double> &v) {
+  return integrate(v, dt, beg, end);
+}
+
+//******************************************************************************
+//******************************************************************************
 
 } // namespace NumCalc

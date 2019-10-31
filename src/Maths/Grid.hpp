@@ -4,25 +4,18 @@
 
 // Fix the "extendedGrid to extend using a specific grid-type?"
 
+//******************************************************************************
 enum class GridType { loglinear, logarithmic, linear };
 
 struct GridParameters {
-  std::size_t ngp;
+  std::size_t num_points;
   double r0, rmax, b;
   GridType type;
-  GridParameters(std::size_t inngp, double inr0, double inrmax,
-                 double inb = 4.0, GridType intype = GridType::loglinear)
-      : ngp(inngp), r0(inr0), rmax(inrmax), b(inb), type(intype) //
-  {}
-  static inline GridType parseType(const std::string &str_type) {
-    if (str_type == "loglinear")
-      return GridType::loglinear;
-    if (str_type == "logarithmic")
-      return GridType::logarithmic;
-    if (str_type == "linear")
-      return GridType::linear;
-    return GridType::loglinear;
-  }
+  GridParameters(std::size_t innum_points, double inr0, double inrmax,
+                 double inb = 4.0, GridType intype = GridType::loglinear);
+  GridParameters(std::size_t innum_points, double inr0, double inrmax,
+                 double inb = 4.0, std::string str_type = "loglinear");
+  static GridType parseType(const std::string &str_type);
 };
 
 //******************************************************************************
@@ -30,10 +23,10 @@ struct GridParameters {
 class Grid {
 
 public:
-  const double r0;       // Minimum grid value
-  const double rmax;     // Maximum grid value
-  const std::size_t ngp; // Number of Grid Points
-  const double du;       // Uniform grid step size
+  const double r0;              // Minimum grid value
+  const double rmax;            // Maximum grid value
+  const std::size_t num_points; // Number of Grid Points
+  const double du;              // Uniform grid step size
 
 public:
   const GridType gridtype;
@@ -43,8 +36,8 @@ public:
   const std::vector<double> drdu;   // Jacobian (dr/du)[i]
 
 public:
-  Grid(double in_r0, double in_rmax, std::size_t in_ngp, GridType in_gridtype,
-       double in_b = 0);
+  Grid(double in_r0, double in_rmax, std::size_t in_num_points,
+       GridType in_gridtype, double in_b = 0);
   Grid(const GridParameters &in);
 
   std::size_t getIndex(double x, bool require_nearest = false) const;
@@ -52,21 +45,14 @@ public:
   std::string gridParameters() const;
 
   // Static functions: can be called outside of instantialised object
-  static double calc_du_from_ngp(double in_r0, double in_rmax,
-                                 std::size_t in_ngp, GridType in_gridtype,
-                                 double in_b = 0);
-  static std::size_t calc_ngp_from_du(double in_r0, double in_rmax,
-                                      double in_du, GridType in_gridtype,
-                                      double in_b = 0);
+  static double calc_du_from_num_points(double in_r0, double in_rmax,
+                                        std::size_t in_num_points,
+                                        GridType in_gridtype, double in_b = 0);
+  static std::size_t calc_num_points_from_du(double in_r0, double in_rmax,
+                                             double in_du, GridType in_gridtype,
+                                             double in_b = 0);
 
-  std::vector<double> inverse_r() const {
-    std::vector<double> invr;
-    invr.reserve(ngp);
-    for (const auto ir : r) {
-      invr.push_back(1.0 / ir);
-    }
-    return invr;
-  }
+  std::vector<double> inverse_r() const;
 
 protected:
   // secondary constructor: used for derivated class
@@ -74,8 +60,8 @@ protected:
 
 private: // helper fns
   static std::vector<double> form_r(const GridType type, const double r0,
-                                    const std::size_t ngp, const double du,
-                                    const double b);
+                                    const std::size_t num_points,
+                                    const double du, const double b);
   static std::vector<double> form_drduor(const GridType type,
                                          const std::vector<double> &in_r,
                                          const double b);

@@ -24,10 +24,16 @@ constexpr int twoj_k(int ka) { return (ka > 0) ? 2 * ka - 1 : -2 * ka - 1; }
 constexpr double j_k(int ka) {
   return (ka > 0) ? double(ka) - 0.5 : double(-ka) - 0.5;
 }
+constexpr int parity_k(int ka) {
+  return (ka % 2 == 0) ? ((ka > 0) ? 1 : -1) : ((ka < 0) ? 1 : -1);
+}
 constexpr int l_tilde_k(int ka) {
   // "Complimentary l (l for lower component)"
   // l-tilde = (2j-l) = l +/- 1, for j = l +/- 1/2
   return (ka > 0) ? ka - 1 : -ka;
+}
+constexpr int kappa_twojl(int twoj, int l) {
+  return ((2 * l - twoj) * (twoj + 1)) / 2;
 }
 
 //******************************************************************************
