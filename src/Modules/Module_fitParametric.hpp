@@ -1,10 +1,11 @@
 #pragma once
-#include "Physics/Nuclear.hpp"
-#include "Dirac/Wavefunction.hpp"
+#include "Physics/Nuclear.hpp" //Nuclear::Parameters
 #include <tuple>
 #include <vector>
 class UserInputBlock;
+class Wavefunction;
 struct DiracSEnken;
+struct GridParameters;
 
 namespace Module {
 std::tuple<double, double> fitParametric_performFit(

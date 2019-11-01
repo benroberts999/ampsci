@@ -3,7 +3,6 @@
 class Wavefunction;
 class UserInputBlock;
 class UserInput;
-// class HartreeFock;
 
 namespace Module {
 

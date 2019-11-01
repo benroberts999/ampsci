@@ -1,11 +1,11 @@
 #pragma once
-#include "Dirac/DiracOperator.hpp"
 #include <memory>
 #include <string>
 #include <vector>
 class Wavefunction;
 class HartreeFock;
 class UserInputBlock;
+class DiracOperator;
 
 namespace Module {
 

@@ -1,6 +1,5 @@
 #pragma once
 #include "Adams_coefs.hpp"
-#include "DiracODE.hpp"
 #include <vector>
 class DiracSpinor;
 class Grid;
