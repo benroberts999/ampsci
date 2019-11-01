@@ -87,7 +87,8 @@ template <> inline bool get_impl(std::stringstream &ss, const std::string &in) {
 template <typename T>
 T UserInputBlock::get(const std::string &option, const T &default_value) const {
   auto option_ss = find_option(option);
-  if (option_ss.str() == "InputNotFound")
+  if (option_ss.str() == "InputNotFound" || option_ss.str() == "default" ||
+      option_ss.str() == "dflt")
     return default_value;
   return UserInputHelper::get_impl<T>(option_ss, m_block_name + '/' + option);
 }
@@ -100,7 +101,7 @@ T UserInputBlock::get(const std::string &option) const
     std::cerr << "\nError: Missing required input: " << m_block_name << "/"
               << option << " (compulsory)\n";
     // std::abort();
-    std::cout << "Enter input value now:\n" << option << "=";
+    std::cout << "Enter input value now, or ctrl+c to quit:\n" << option << "=";
     option_ss.str("");
     std::string tmp;
     std::cin >> tmp;
