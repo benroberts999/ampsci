@@ -37,6 +37,7 @@ Grid {
 Module::Tests {
   orthonormal = true;
   // Hamiltonian = true;
+  // boundaries = true;
 }
 
 // Module::BohrWeisskopf

@@ -24,6 +24,7 @@ public:
   const std::string &name() const { return m_block_name; }
 
   void print() const;
+  bool checkBlock(const std::vector<std::string> &options) const;
   void add(const std::string &new_in) { m_input_options.push_back(new_in); }
 
 private:
@@ -49,6 +50,8 @@ public:
   std::vector<UserInputBlock> module_list() const;
 
   void print() const;
+  bool check(const std::string &in_block,
+             const std::vector<std::string> &options) const;
 
 private:
   std::string m_filename;

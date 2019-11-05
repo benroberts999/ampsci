@@ -15,6 +15,7 @@ int main(int argc, char *argv[]) {
   UserInput input(input_file);
 
   // Get + setup atom parameters
+  auto input_ok = input.check("Atom", {"Z", "A", "varAlpha2"});
   auto atom_Z = input.get<std::string>("Atom", "Z");
   auto atom_A = input.get("Atom", "A", -1);
   auto var_alpha = [&]() {
@@ -23,6 +24,8 @@ int main(int argc, char *argv[]) {
   }();
 
   // Get + setup Grid parameters
+  input_ok = input_ok &&
+             input.check("Grid", {"r0", "rmax", "num_points", "type", "b"});
   auto r0 = input.get("Grid", "r0", 1.0e-5);
   auto rmax = input.get("Grid", "rmax", 150.0);
   auto num_points = input.get("Grid", "num_points", 1600ul);
@@ -32,6 +35,8 @@ int main(int argc, char *argv[]) {
     grid_type = "logarithmic";
 
   // Get + setup nuclear parameters
+  input_ok =
+      input_ok && input.check("Nucleus", {"A", "rrms", "skin_t", "type"});
   atom_A = input.get("Nucleus", "A", atom_A); // over-writes "atom" A
   auto nuc_type = input.get<std::string>("Nucleus", "type", "Fermi");
   auto rrms = input.get("Nucleus", "rrms", -1.0); /*<0 means lookup default*/
@@ -41,17 +46,24 @@ int main(int argc, char *argv[]) {
   Wavefunction wf(atom_Z, {num_points, r0, rmax, b, grid_type},
                   {atom_Z, atom_A, nuc_type, rrms, skint}, var_alpha);
 
-  std::cout << "\nRunning for " << wf.atom() << "\n"
-            << wf.nuclearParams() << "\n"
-            << wf.rgrid.gridParameters() << "\n"
-            << "********************************************************\n";
-
   // Parse input for HF method
+  input_ok =
+      input_ok &&
+      input.check("HartreeFock", {"core", "valence", "convergence", "method",
+                                  "Green_H", "Green_d", "Tietz_g", "Tietz_t",
+                                  "orthonormaliseValence", "sortOutput"});
   auto str_core = input.get<std::string>("HartreeFock", "core", "[]");
   auto eps_HF = input.get("HartreeFock", "convergence", 1.0e-12);
   auto HF_method = HartreeFock::parseMethod(
       input.get<std::string>("HartreeFock", "method", "HartreeFock"));
 
+  if (!input_ok)
+    return 1;
+
+  std::cout << "\nRunning for " << wf.atom() << "\n"
+            << wf.nuclearParams() << "\n"
+            << wf.rgrid.gridParameters() << "\n"
+            << "********************************************************\n";
   // For when using Hartree, or a parametric potential:
   double H_d = 0.0, g_t = 0.0;
   if (HF_method == HFMethod::GreenPRM) {

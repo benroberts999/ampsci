@@ -14,6 +14,7 @@ void Module_tests(const UserInputBlock &input, const Wavefunction &wf);
 void Module_Tests_orthonormality(const Wavefunction &wf,
                                  const bool print_all = true);
 void Module_Tests_Hamiltonian(const Wavefunction &wf);
+void Module_test_r0pinf(const Wavefunction &wf);
 void Module_WriteOrbitals(const UserInputBlock &input, const Wavefunction &wf);
 void Module_BohrWeisskopf(const UserInputBlock &input, const Wavefunction &wf);
 void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf);

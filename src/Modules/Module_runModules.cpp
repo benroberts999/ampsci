@@ -91,12 +91,33 @@ void Module_BohrWeisskopf(const UserInputBlock &input, const Wavefunction &wf)
 //******************************************************************************
 void Module_tests(const UserInputBlock &input, const Wavefunction &wf) {
   std::string ThisModule = "Module::Tests";
+  input.checkBlock(
+      {"orthonormal", "orthonormal_all", "Hamiltonian", "boundaries"});
   auto othon = input.get("orthonormal", true);
   auto othon_all = input.get("orthonormal_all", false);
   if (othon || othon_all)
     Module_Tests_orthonormality(wf, othon_all);
   if (input.get("Hamiltonian", false))
     Module_Tests_Hamiltonian(wf);
+  if (input.get("boundaries", false))
+    Module_test_r0pinf(wf);
+}
+
+//------------------------------------------------------------------------------
+void Module_test_r0pinf(const Wavefunction &wf) {
+  std::cout << "\nTesting boundaries r0 and pinf: f(r)/f_max\n";
+  std::cout << " State    f(r0)   f(pinf)   pinf/Rinf\n";
+  // for (const auto &phi : wf.core_orbitals)
+  for (const auto tmp_orbs : {&wf.core_orbitals, &wf.valence_orbitals}) {
+    for (const auto &phi : *tmp_orbs) {
+      auto ratios = phi.r0pinfratio();
+      printf("%7s:  %.0e   %.0e   %5i/%6.2f\n", phi.symbol().c_str(),
+             std::abs(ratios.first), std::abs(ratios.second), (int)phi.pinf,
+             wf.rgrid.r[phi.pinf]);
+      // std::cout << ratios.first << " " << ratios.second << "\n";
+    }
+    std::cout << "--------------\n";
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -196,6 +217,8 @@ void Module_Tests_Hamiltonian(const Wavefunction &wf) {
 void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf) {
   const std::string ThisModule = "Module::PNC";
 
+  input.checkBlock({"t", "c", "transition", "nmain"});
+
   // ChronoTimer("pnc");
   auto t_dflt = Nuclear::default_t;
   auto r_rms = Nuclear::find_rrms(wf.Znuc(), wf.Anuc());
@@ -259,6 +282,7 @@ void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf) {
 //******************************************************************************
 void Module_WriteOrbitals(const UserInputBlock &input, const Wavefunction &wf) {
   const std::string ThisModule = "Module::WriteOrbitals";
+  input.checkBlock({"label"});
 
   std::cout << "\n Running: " << ThisModule << "\n";
   auto label = input.get<std::string>("label", "");
