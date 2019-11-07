@@ -165,9 +165,22 @@ protected:
   //****************************************************************************
   //****************************************************************************
 public:
-  // angularRME: links radiation integral to RME.
+  // angularF: links radiation integral to RME.
+  // XXX rename to angularFactor!
   // RME = <a||h||b> = angular(a,b) * radial_int(a,b)
-  virtual double angularRME(const DiracSpinor &, const DiracSpinor &) const = 0;
+  virtual double angularF(const DiracSpinor &, const DiracSpinor &) const = 0;
+
+  double rme3js(const DiracSpinor &Fa, const DiracSpinor &Fb, int two_mb,
+                int two_q = 0)
+  // rme3js = (-1)^{ja-ma} (ja, k, jb,\ -ma, q, mb)
+  {
+    // -ma + mb + q = 0;
+    auto two_ma = two_mb - two_q;
+    // sig = (-1)^(ja - ma)
+    auto sig = ((Fa.twoj() - two_ma) / 2) % 2 == 0 ? 1 : -1;
+    return sig * Wigner::threej_2(Fa.twoj(), 2 * rank, Fb.twoj(), two_ma, two_q,
+                                  two_mb);
+  }
 
   DiracSpinor radial_rhs(const DiracSpinor &Fa,
                          const DiracSpinor &Fb) const // final ?
@@ -178,7 +191,8 @@ public:
   {
     // Note: n and kappa from original psi, but not meaningful!
     const auto &gr = *(Fb.p_rgrid);
-    DiracSpinor dPsi(Fb.n, Fb.k, gr);
+    DiracSpinor dPsi(0, Fa.k, gr); // XXX should be Fa.kappa ??
+    // XXX Need be super careful! other methods (ME) might use rad_rhs.kappa?
     if (isZero(Fa.k, Fb.k))
       return dPsi;
 
@@ -216,7 +230,7 @@ public:
 
   DiracSpinor reduced_rhs(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
     // useful?
-    return angularRME(Fa, Fb) * radial_rhs(Fa, Fb);
+    return angularF(Fa, Fb) * radial_rhs(Fa, Fb);
   }
   double radialIntegral(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
     if (isZero(Fa.k, Fb.k))
@@ -224,7 +238,7 @@ public:
     return Fa * radial_rhs(Fa, Fb);
   }
   double reducedME(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
-    return angularRME(Fa, Fb) * (Fa * radial_rhs(Fa, Fb));
+    return angularF(Fa, Fb) * (Fa * radial_rhs(Fa, Fb));
   }
 };
 
@@ -248,8 +262,8 @@ public:
         c_fg(0.0), c_gf(0.0), c_gg(1.0) {}
 
 public:
-  virtual double angularRME(const DiracSpinor &Fa,
-                            const DiracSpinor &Fb) const override {
+  virtual double angularF(const DiracSpinor &Fa,
+                          const DiracSpinor &Fb) const override {
     return (Fa.twoj() == Fb.twoj()) ? std::sqrt(Fb.twoj() + 1.0) : 0.0;
   }
 

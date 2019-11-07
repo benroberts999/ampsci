@@ -45,8 +45,7 @@ public:
   E1Operator(const Grid &gr)
       : DiracOperator(1, OperatorParity::odd, -1.0, gr.r, 0) {}
 
-  double angularRME(const DiracSpinor &Fa,
-                    const DiracSpinor &Fb) const override {
+  double angularF(const DiracSpinor &Fa, const DiracSpinor &Fb) const override {
     return Wigner::Ck_2j2j(1, Fa.twoj(), Fb.twoj());
   }
 };
@@ -62,8 +61,7 @@ public:
                       std::vector<double>(gr.num_points, 1.0), 0),
         m_c(1.0 / alpha) {}
 
-  double angularRME(const DiracSpinor &Fa,
-                    const DiracSpinor &Fb) const override {
+  double angularF(const DiracSpinor &Fa, const DiracSpinor &Fb) const override {
     if (Fa.k == Fb.k)
       return 0;
     auto omega = Fa.en - Fb.en;
@@ -227,8 +225,7 @@ public: // constructor
                       RadialFunc(rN, rgrid, hfs_F), 0),
         Inuc(IN) {}
 
-  double angularRME(const DiracSpinor &Fa,
-                    const DiracSpinor &Fb) const override {
+  double angularF(const DiracSpinor &Fa, const DiracSpinor &Fb) const override {
     return (Fa.k + Fb.k) * Wigner::Ck_kk(1, -Fa.k, Fb.k);
   }
 
