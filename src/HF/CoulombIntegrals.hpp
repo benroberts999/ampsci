@@ -1,9 +1,7 @@
 #pragma once
-#include "Maths/Grid.hpp"
-#include "Maths/NumCalc_quadIntegrate.hpp"
-#include "Physics/Wigner_369j.hpp"
 #include <vector>
 class DiracSpinor;
+class Grid;
 
 // * Add ability to just update a single integral
 // * (all integrals involving given orbital)

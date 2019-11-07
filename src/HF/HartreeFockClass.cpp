@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <cmath>
 #include <functional>
+#include <iostream>
 #include <vector>
 /*
 Calculates self-consistent Hartree-Fock potential, including exchange.

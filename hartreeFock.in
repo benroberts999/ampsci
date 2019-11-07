@@ -36,8 +36,8 @@ Grid {
 
 Module::Tests {
   orthonormal = true;
-  // orthonormal_all = true;
   // Hamiltonian = true;
+  // boundaries = true;
 }
 
 Module::pnc { transition = 6, -1, 7, -1; }

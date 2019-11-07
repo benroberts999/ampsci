@@ -1,4 +1,4 @@
-#include "DiracSpinor.hpp"
+#include "Dirac/DiracSpinor.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/AtomInfo.hpp"

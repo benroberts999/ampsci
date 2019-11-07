@@ -1,5 +1,4 @@
 #pragma once
-#include "DiracODE.hpp"
 #include <vector>
 class DiracSpinor;
 class Grid;

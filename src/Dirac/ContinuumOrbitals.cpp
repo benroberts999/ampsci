@@ -1,5 +1,6 @@
 #include "Dirac/ContinuumOrbitals.hpp"
 #include "Adams/DiracODE.hpp"
+#include "Dirac/DiracSpinor.hpp"
 #include "Dirac/Wavefunction.hpp"
 #include "Maths/Grid.hpp"
 #include "Physics/AtomInfo.hpp"

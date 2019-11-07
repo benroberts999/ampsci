@@ -1,4 +1,5 @@
 #include "AtomInfo.hpp"
+#include "AtomInfo_PeriodicTable.hpp"
 #include <algorithm>
 #include <array>
 #include <cctype> //char from string

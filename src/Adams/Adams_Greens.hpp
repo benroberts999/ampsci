@@ -1,5 +1,4 @@
 #pragma once
-#include "DiracODE.hpp"
 class DiracSpinor;
 
 namespace DiracODE {

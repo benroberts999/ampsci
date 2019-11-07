@@ -1,8 +1,12 @@
 #include "HF/CoulombIntegrals.hpp"
 #include "Dirac/DiracSpinor.hpp"
+#include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/AtomInfo.hpp"
+#include "Physics/Wigner_369j.hpp"
 #include <algorithm>
+#include <cmath>
+#include <iostream>
 #include <vector>
 
 //******************************************************************************
