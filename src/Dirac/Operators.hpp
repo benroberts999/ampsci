@@ -310,5 +310,5 @@ public:
       : ScalarOperator(OperatorParity::odd,
                        factor * PhysConst::GFe11 / std::sqrt(8.),
                        Nuclear::fermiNuclearDensity_tcN(t, c, 1, rgrid),
-                       GammaMatrix::ig5) {}
+                       GammaMatrix::ig5, 0, OperatorC::imaginary) {}
 };

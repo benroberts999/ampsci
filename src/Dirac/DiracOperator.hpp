@@ -8,6 +8,7 @@
 #include <vector>
 
 enum class OperatorParity { even, odd };
+enum class OperatorC { real, imaginary };
 
 //******************************************************************************
 struct DiracMatrix
@@ -112,8 +113,10 @@ const DiracMatrix ig5(0, 1, -1, 0); /*?*/
 class DiracOperator {
 protected:
   DiracOperator(int k, OperatorParity pi, double c = 1,
-                const std::vector<double> &inv = {}, int d_order = 0)
-      : rank(k), parity(pi), constant(c), vec(inv), diff_order(d_order) //
+                const std::vector<double> &inv = {}, int d_order = 0,
+                OperatorC RorI = OperatorC::real)
+      : rank(k), parity(pi), constant(c), vec(inv), diff_order(d_order),
+        opC(RorI) //
         {};
 
 public:
@@ -125,6 +128,7 @@ private:
   const double constant;
   const std::vector<double> vec; // useful to be able to update this! ?
   const int diff_order;
+  const OperatorC opC;
 
 public:
   bool isZero(const int ka, int kb) const {
@@ -142,6 +146,7 @@ public:
 
   const std::vector<double> &getv() const { return vec; }
   double getc() const { return constant; }
+  bool imaginaryQ() { return (opC == OperatorC::imaginary); }
 
   std::string rme_symbol(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
     return std::string("<") + Fa.shortSymbol() + "||h||" + Fb.shortSymbol() +
@@ -229,8 +234,9 @@ class ScalarOperator : public DiracOperator {
 public:
   ScalarOperator(OperatorParity pi, double in_coef,
                  const std::vector<double> &in_v = {},
-                 const DiracMatrix &in_g = GammaMatrix::ident, int in_diff = 0)
-      : DiracOperator(0, pi, in_coef, in_v, in_diff), c_ff(in_g.e00),
+                 const DiracMatrix &in_g = GammaMatrix::ident, int in_diff = 0,
+                 OperatorC rori = OperatorC::real)
+      : DiracOperator(0, pi, in_coef, in_v, in_diff, rori), c_ff(in_g.e00),
         c_fg(in_g.e01), c_gf(in_g.e10), c_gg(in_g.e11) {}
 
   ScalarOperator(const std::vector<double> &in_v)
