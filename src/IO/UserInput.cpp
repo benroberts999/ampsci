@@ -12,7 +12,27 @@ void UserInputBlock::print() const {
     std::cout << option << "\n";
   }
 }
+//******************************************************************************
+bool UserInputBlock::checkBlock(const std::vector<std::string> &list) const {
 
+  bool all_ok = true;
+  for (const auto &entry : m_input_options) {
+    // c==20, use stringview here
+    auto pos = entry.find("=");
+    auto option = pos < entry.length() ? entry.substr(0, pos) : entry;
+    // For each option in
+    auto isoption = [&](std::string a) { return option == a; };
+    auto bad_option = !std::any_of(list.begin(), list.end(), isoption);
+    if (bad_option) {
+      all_ok = false;
+      std::cerr << "\nWARNING: Unclear input option in " << m_block_name
+                << ": `" << option << "'\n --> " << entry << "\n"
+                << "Option may be ignored!\n"
+                << "Check spelling (or update list of options)\n";
+    }
+  }
+  return all_ok;
+}
 //******************************************************************************
 std::stringstream
 UserInputBlock::find_option(const std::string &in_option) const {
@@ -63,4 +83,15 @@ void UserInput::print() const {
   for (const auto &block : m_blocks) {
     block.print();
   }
+}
+//******************************************************************************
+bool UserInput::check(const std::string &in_block,
+                      const std::vector<std::string> &options) const {
+
+  for (const auto &block : m_blocks) {
+    if (block.name() == in_block)
+      return block.checkBlock(options);
+  }
+  std::cout << "\nWARNING: Didn't find block: ``" << in_block << "'' -- ok?\n";
+  return false;
 }
