@@ -47,10 +47,6 @@ DiracSpinor HartreeFock::solveMixedState(const DiracSpinor &phi0, const int k,
                                          const DiracSpinor &hphi0)
 //
 {
-
-  // XXX double-check sign of a) v0, abd b) overall sign!
-  // std::cout << phi0.en << " " << phi0.en - omega << "\n";
-
   /*
    * added vx (approx vex).
    * Works, and converges faster + smoothly.
@@ -59,7 +55,8 @@ DiracSpinor HartreeFock::solveMixedState(const DiracSpinor &phi0, const int k,
    * IS there a missing angular factor somewhere? VxdF vs hphi0 ??
    */
 
-  auto dF = DiracODE::solve_inhomog(k, phi0.en - omega, vl, alpha, hphi0);
+  auto dF =
+      DiracODE::solve_inhomog(k, phi0.en - omega, vl, alpha, -1.0 * hphi0);
   auto dF20 = std::abs(dF * dF); // monitor convergance
   // auto VxdF0 = 0.0 * dF;
   for (int x = 0; x < 50; x++) {
@@ -76,7 +73,7 @@ DiracSpinor HartreeFock::solveMixedState(const DiracSpinor &phi0, const int k,
 
     const auto VxdF = vex_psia_any(dF, core) - (vx * dF);
 
-    DiracODE::solve_inhomog(dF, phi0.en - omega, v, alpha, hphi0 - VxdF);
+    DiracODE::solve_inhomog(dF, phi0.en - omega, v, alpha, -1.0 * hphi0 - VxdF);
     auto dF2 = std::abs(dF * dF);
     auto eps = std::abs((dF2 - dF20) / dF2);
     if (eps < 1.0e-9 || x == 49) {
