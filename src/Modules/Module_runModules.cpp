@@ -271,7 +271,7 @@ void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf) {
         printf("%7s, pnc= %12.5e + %12.5e = %12.5e\n", np.symbol().c_str(),
                pnc1, pnc2, pnc1 + pnc2);
         pnc += pnc1 + pnc2;
-        if (np.n == main_n)
+        if (np.n <= main_n && np.n > ncore)
           main = pnc - core;
       }
       if (i == 0)
