@@ -6,9 +6,8 @@ Atom {
 
 HartreeFock {
   core = [Xe];
-  valence = 7s10p5d;
+  valence = 7sp;
   method; // HartreeFock(dflt), ApproxHF, Hartree, GreenPRM, TietzPRM
-  //  convergence = 1.e-13;
 }
 
 Nucleus {
@@ -18,11 +17,11 @@ Nucleus {
 }
 
 Grid {
-  r0 = 1e-7;
-  rmax = 260.0;
+  r0 = 1e-6;
+  rmax = 120.0;
   num_points = 2000;
-  type;   // loglinear(dflt), logarithmic, linear
-  b = -1; // b<0, or b>rmax will use logarithmic
+  type; // loglinear(dflt), logarithmic, linear
+  b;    // b<0, or b>rmax will use logarithmic
 }
 
 /////////////////////////////////////////////////////////////////
@@ -31,17 +30,17 @@ Grid {
 //   Each Module/MatrixElements will be run in order.
 //   You can comment-out just the block name, and the block will be skiped.
 
-// MatrixElements::E1 {}
-// MatrixElements::E1 { gauge = vform; }
-
 Module::Tests {
   orthonormal = true;
   // Hamiltonian = true;
   // boundaries = true;
 }
 
-Module::pnc { transition = 6, -1, 7, -1; }
-Module::pnc { transition = 6, -1, 5, 2; }
+// MatrixElements::E1 {}
+// MatrixElements::E1 { gauge = vform; }
+
+// Module::pnc { transition = 6, -1, 7, -1; }
+// Module::pnc { transition = 6, -1, 5, 2; }
 
 // Module::BohrWeisskopf
 {

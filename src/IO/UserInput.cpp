@@ -87,11 +87,9 @@ void UserInput::print() const {
 //******************************************************************************
 bool UserInput::check(const std::string &in_block,
                       const std::vector<std::string> &options) const {
-
   for (const auto &block : m_blocks) {
     if (block.name() == in_block)
       return block.checkBlock(options);
   }
-  std::cout << "\nWARNING: Didn't find block: ``" << in_block << "'' -- ok?\n";
-  return false;
+  return true;
 }

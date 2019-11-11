@@ -242,17 +242,19 @@ void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf) {
 
   const auto &aA = wf.getState(na, ka);
   const auto &aB = wf.getState(nb, kb);
-  std::cout << "\nE_pnc: " << wf.atom() << ": " << aA.symbol() << " -> "
-            << aB.symbol() << "\n\n";
+  std::cout << "\n********************************************** \n";
+  std::cout << "E_pnc: " << wf.atom() << ":   A = " << aA.symbol()
+            << "   -->   B = " << aB.symbol() << "\n\n";
 
   auto tja = aA.twoj();
   auto tjb = aB.twoj();
   auto twom = std::min(tja, tjb);
-  auto c10 = hpnc.rme3js(tja, tja, twom) * he1.rme3js(tja, tjb, twom);
-  auto c01 = he1.rme3js(tja, tjb, twom) * hpnc.rme3js(tjb, tjb, twom);
+  auto c10 = he1.rme3js(tja, tjb, twom) * hpnc.rme3js(tjb, tjb, twom);
+  auto c01 = hpnc.rme3js(tja, tja, twom) * he1.rme3js(tja, tjb, twom);
 
   {
     std::cout << "Sum-over-states method (HF valence):\n";
+    std::cout << " <A|d|n><n|hw|B>/dEB + <A|hw|n><n|d|B>/dEA\n";
     double pnc = 0, core = 0, main = 0;
     for (int i = 0; i < 2; i++) {
       auto &tmp_orbs = (i == 0) ? wf.core_orbitals : wf.valence_orbitals;
@@ -262,14 +264,14 @@ void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf) {
           continue;
         if (hpnc.isZero(np.k, aA.k) && hpnc.isZero(np.k, aB.k))
           continue;
-        double pnc1 = c10 * he1.reducedME(aB, np) * hpnc.reducedME(np, aA) /
-                      (aA.en - np.en);
-        double pnc2 = c01 * hpnc.reducedME(aB, np) * he1.reducedME(np, aA) /
+        double pnc1 = c10 * he1.reducedME(aA, np) * hpnc.reducedME(np, aB) /
                       (aB.en - np.en);
-        std::cout << np.symbol() << ", pnc= ";
-        printf("%12.5e + %12.5e = %12.5e\n", pnc1, pnc2, pnc1 + pnc2);
+        double pnc2 = c01 * hpnc.reducedME(aA, np) * he1.reducedME(np, aB) /
+                      (aA.en - np.en);
+        printf("%7s, pnc= %12.5e + %12.5e = %12.5e\n", np.symbol().c_str(),
+               pnc1, pnc2, pnc1 + pnc2);
         pnc += pnc1 + pnc2;
-        if (np.n == main_n)
+        if (np.n <= main_n && np.n > ncore)
           main = pnc - core;
       }
       if (i == 0)
@@ -291,28 +293,26 @@ void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf) {
     auto e1A = he1.reduced_lhs(-aB.k, aA);
     auto e1B = he1.reduced_rhs(-aA.k, aB);
 
-    auto vxa = wf.m_pHF->get_vex(aA);
-    auto vxb = wf.m_pHF->get_vex(aB);
-
     auto del_A_dag = HartreeFock::solveMixedState(aA, hA_dag.k, 0, v, alpha,
                                                   wf.core_orbitals, hA_dag);
     auto del_B = HartreeFock::solveMixedState(aB, hB.k, 0, v, alpha,
                                               wf.core_orbitals, hB);
 
-    auto om = std::fabs(aA.en - aB.en);
-    auto xA = HartreeFock::solveMixedState(aA, e1A.k, -om, v, alpha,
+    auto omega = aB.en - aA.en;
+    auto xA = HartreeFock::solveMixedState(aA, e1A.k, -omega, v, alpha,
                                            wf.core_orbitals, e1A);
-    auto yB = HartreeFock::solveMixedState(aB, e1B.k, om, v, alpha,
+    auto yB = HartreeFock::solveMixedState(aB, e1B.k, omega, v, alpha,
                                            wf.core_orbitals, e1B);
 
-    auto pnc1_w = c10 * he1.reducedME(del_A_dag, aB);
-    auto pnc2_w = c01 * he1.reducedME(aA, del_B);
+    auto pnc1_w = c01 * he1.reducedME(del_A_dag, aB);
+    auto pnc2_w = c10 * he1.reducedME(aA, del_B);
 
-    std::cout << "\n<dA |d| B> + <A |d| dB> = ";
+    std::cout << "\nMixed states method: \n";
+    std::cout << "<dA |d| B> + <A |d| dB> = ";
     std::cout << pnc1_w << " + " << pnc2_w << " = " << pnc1_w + pnc2_w << "\n";
 
-    auto pnc1_d = c10 * hpnc.reducedME(aA, yB);
-    auto pnc2_d = c01 * hpnc.reducedME(xA, aB);
+    auto pnc1_d = c01 * hpnc.reducedME(aA, yB);
+    auto pnc2_d = c10 * hpnc.reducedME(xA, aB);
     std::cout << "<A |h|Y_B> + <X_A|h| B> = ";
     std::cout << pnc1_d << " + " << pnc2_d << " = " << pnc1_d + pnc2_d << "\n";
 
@@ -324,11 +324,8 @@ void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf) {
     wf.orthogonaliseWrtCore(del_A_dag);
     wf.orthogonaliseWrtCore(del_B);
     // Core contribution:
-    auto pnc1_c = pnc1_w - c10 * he1.reducedME(del_A_dag, aB);
-    auto pnc2_c = pnc2_w - c01 * he1.reducedME(aA, del_B);
-    // orthog wrt 'main':
-    // auto ncore = wf.maxCore_n();
-    // auto main_n = ncore + 4;
+    auto pnc1_c = pnc1_w - c01 * he1.reducedME(del_A_dag, aB);
+    auto pnc2_c = pnc2_w - c10 * he1.reducedME(aA, del_B);
     for (const auto &phiv : wf.valence_orbitals) {
       if (phiv.n > main_n)
         continue;
@@ -340,7 +337,7 @@ void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf) {
       }
     }
 
-    // Min contribution:
+    // Main contribution:
     auto pnc1_m = pnc1_w - pnc1_c - c10 * he1.reducedME(del_A_dag, aB);
     auto pnc2_m = pnc2_w - pnc2_c - c01 * he1.reducedME(aA, del_B);
 
