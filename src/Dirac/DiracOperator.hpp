@@ -68,7 +68,7 @@ public:
 
   const std::vector<double> &getv() const { return vec; }
   double getc() const { return constant; }
-  bool imaginaryQ() { return (opC == OperatorC::imaginary); }
+  bool imaginaryQ() const { return (opC == OperatorC::imaginary); }
 
   std::string rme_symbol(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
 
@@ -89,11 +89,14 @@ public:
   virtual double angularF(const int, const int) const = 0;
   DiracSpinor radial_rhs(const int kappa_a, const DiracSpinor &Fb) const;
   // ME = rme3js * RME
-  double rme3js(const DiracSpinor &Fa, const DiracSpinor &Fb, int two_mb,
+  double rme3js(const int twoja, const int twojb, int two_mb,
                 int two_q = 0) const;
 
   DiracSpinor reduced_rhs(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
   DiracSpinor reduced_rhs(const int ka, const DiracSpinor &Fb) const;
+
+  DiracSpinor reduced_lhs(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
+  DiracSpinor reduced_lhs(const int ka, const DiracSpinor &Fb) const;
 
   double radialIntegral(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
   double reducedME(const DiracSpinor &Fa, const DiracSpinor &Fb) const;

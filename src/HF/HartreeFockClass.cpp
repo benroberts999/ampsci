@@ -80,7 +80,7 @@ DiracSpinor HartreeFock::solveMixedState(const DiracSpinor &phi0, const int k,
     auto dF2 = std::abs(dF * dF);
     auto eps = std::abs((dF2 - dF20) / dF2);
     if (eps < 1.0e-9 || x == 49) {
-      std::cout << x << " " << eps << "\n";
+      // std::cout << x << " " << eps << "\n";
       break;
     }
     dF20 = dF2;

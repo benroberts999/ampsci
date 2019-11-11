@@ -219,6 +219,7 @@ void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf) {
 
   input.checkBlock({"t", "c", "transition", "nmain"});
 
+  // std::cout << "\nPNC test:\n";
   // ChronoTimer("pnc");
   auto t_dflt = Nuclear::default_t;
   auto r_rms = Nuclear::find_rrms(wf.Znuc(), wf.Anuc());
@@ -227,7 +228,7 @@ void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf) {
   auto c = input.get("c", c_dflt);
 
   auto transition_str = input.get<std::string>("transition");
-  replace(transition_str.begin(), transition_str.end(), ',', ' ');
+  std::replace(transition_str.begin(), transition_str.end(), ',', ' ');
   auto ss = std::stringstream(transition_str);
   int na, ka, nb, kb;
   ss >> na >> ka >> nb >> kb;
@@ -237,46 +238,119 @@ void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf) {
 
   PNCnsiOperator hpnc(c, t, wf.rgrid, -wf.Nnuc());
   E1Operator he1(wf.rgrid);
+  auto alpha = wf.get_alpha();
 
-  const auto &a6s = wf.getState(na, ka);
-  const auto &a7s = wf.getState(nb, kb);
-  std::cout << "\nE_pnc: " << wf.atom() << ": " << a6s.symbol() << " -> "
-            << a7s.symbol() << "\n";
+  const auto &aA = wf.getState(na, ka);
+  const auto &aB = wf.getState(nb, kb);
+  std::cout << "\nE_pnc: " << wf.atom() << ": " << aA.symbol() << " -> "
+            << aB.symbol() << "\n\n";
 
-  auto tja = a6s.twoj();
-  auto tjb = a7s.twoj();
+  auto tja = aA.twoj();
+  auto tjb = aB.twoj();
   auto twom = std::min(tja, tjb);
-  auto c10 = Wigner::threej_2(tjb, 2, tja, -twom, 0, twom) *
-             Wigner::threej_2(tja, 0, tja, -twom, 0, twom);
-  auto c01 = Wigner::threej_2(tjb, 0, tjb, -twom, 0, twom) *
-             Wigner::threej_2(tjb, 2, tja, -twom, 0, twom);
+  auto c10 = hpnc.rme3js(tja, tja, twom) * he1.rme3js(tja, tjb, twom);
+  auto c01 = he1.rme3js(tja, tjb, twom) * hpnc.rme3js(tjb, tjb, twom);
 
-  double pnc = 0, core = 0, main = 0;
-  for (int i = 0; i < 2; i++) {
-    auto &tmp_orbs = (i == 0) ? wf.core_orbitals : wf.valence_orbitals;
-    for (auto &np : tmp_orbs) {
-      // <7s|d|np><np|hw|6s>/dE6s + <7s|hw|np><np|d|6s>/dE7s
-      if (np == a7s || np == a6s)
-        continue;
-      if (hpnc.isZero(np.k, a6s.k) && hpnc.isZero(np.k, a7s.k))
-        continue;
-      double pnc1 = c10 * he1.reducedME(a7s, np) * hpnc.reducedME(np, a6s) /
-                    (a6s.en - np.en);
-      double pnc2 = c01 * hpnc.reducedME(a7s, np) * he1.reducedME(np, a6s) /
-                    (a7s.en - np.en);
-      std::cout << np.symbol() << ", pnc= ";
-      printf("%12.5e + %12.5e = %12.5e\n", pnc1, pnc2, pnc1 + pnc2);
-      pnc += pnc1 + pnc2;
-      if (np.n == main_n)
-        main = pnc - core;
+  {
+    std::cout << "Sum-over-states method (HF valence):\n";
+    double pnc = 0, core = 0, main = 0;
+    for (int i = 0; i < 2; i++) {
+      auto &tmp_orbs = (i == 0) ? wf.core_orbitals : wf.valence_orbitals;
+      for (auto &np : tmp_orbs) {
+        // <7s|d|np><np|hw|6s>/dE6s + <7s|hw|np><np|d|6s>/dE7s
+        if (np == aB || np == aA)
+          continue;
+        if (hpnc.isZero(np.k, aA.k) && hpnc.isZero(np.k, aB.k))
+          continue;
+        double pnc1 = c10 * he1.reducedME(aB, np) * hpnc.reducedME(np, aA) /
+                      (aA.en - np.en);
+        double pnc2 = c01 * hpnc.reducedME(aB, np) * he1.reducedME(np, aA) /
+                      (aB.en - np.en);
+        std::cout << np.symbol() << ", pnc= ";
+        printf("%12.5e + %12.5e = %12.5e\n", pnc1, pnc2, pnc1 + pnc2);
+        pnc += pnc1 + pnc2;
+        if (np.n == main_n)
+          main = pnc - core;
+      }
+      if (i == 0)
+        core = pnc;
     }
-    if (i == 0)
-      core = pnc;
+    std::cout << "Core= " << core << "\n";
+    std::cout << "Main= " << main << "\n";
+    std::cout << "Tail= " << pnc - main - core << "\n";
+    std::cout << "Total= " << pnc << "\n";
   }
-  std::cout << "Core= " << core << "\n";
-  std::cout << "Main= " << main << "\n";
-  std::cout << "Tail= " << pnc - main - core << "\n";
-  std::cout << "Total= " << pnc << "\n";
+
+  {
+    auto v = NumCalc::add_vectors(wf.vnuc, wf.vdir);
+    auto v1 = 0.0, v2 = 0.0;
+
+    auto hA_dag = hpnc.reduced_lhs(-aA.k, aA);
+    auto hB = hpnc.reduced_rhs(-aB.k, aB);
+
+    auto e1A = he1.reduced_lhs(-aB.k, aA);
+    auto e1B = he1.reduced_rhs(-aA.k, aB);
+
+    auto vxa = wf.m_pHF->get_vex(aA);
+    auto vxb = wf.m_pHF->get_vex(aB);
+
+    auto del_A_dag = HartreeFock::solveMixedState(aA, hA_dag.k, 0, v, alpha,
+                                                  wf.core_orbitals, hA_dag);
+    auto del_B = HartreeFock::solveMixedState(aB, hB.k, 0, v, alpha,
+                                              wf.core_orbitals, hB);
+
+    auto om = std::fabs(aA.en - aB.en);
+    auto xA = HartreeFock::solveMixedState(aA, e1A.k, -om, v, alpha,
+                                           wf.core_orbitals, e1A);
+    auto yB = HartreeFock::solveMixedState(aB, e1B.k, om, v, alpha,
+                                           wf.core_orbitals, e1B);
+
+    auto pnc1_w = c10 * he1.reducedME(del_A_dag, aB);
+    auto pnc2_w = c01 * he1.reducedME(aA, del_B);
+
+    std::cout << "\n<dA |d| B> + <A |d| dB> = ";
+    std::cout << pnc1_w << " + " << pnc2_w << " = " << pnc1_w + pnc2_w << "\n";
+
+    auto pnc1_d = c10 * hpnc.reducedME(aA, yB);
+    auto pnc2_d = c01 * hpnc.reducedME(xA, aB);
+    std::cout << "<A |h|Y_B> + <X_A|h| B> = ";
+    std::cout << pnc1_d << " + " << pnc2_d << " = " << pnc1_d + pnc2_d << "\n";
+
+    v1 = pnc1_w + pnc2_w;
+    v2 = pnc1_d + pnc2_d;
+    std::cout << "eps = " << (v1 - v2) / (0.5 * (v1 + v2)) << "\n";
+
+    // orthog wrt core:
+    wf.orthogonaliseWrtCore(del_A_dag);
+    wf.orthogonaliseWrtCore(del_B);
+    // Core contribution:
+    auto pnc1_c = pnc1_w - c10 * he1.reducedME(del_A_dag, aB);
+    auto pnc2_c = pnc2_w - c01 * he1.reducedME(aA, del_B);
+    // orthog wrt 'main':
+    // auto ncore = wf.maxCore_n();
+    // auto main_n = ncore + 4;
+    for (const auto &phiv : wf.valence_orbitals) {
+      if (phiv.n > main_n)
+        continue;
+      if (phiv.k == del_A_dag.k) {
+        del_A_dag -= (del_A_dag * phiv) * phiv;
+      }
+      if (phiv.k == del_B.k) {
+        del_B -= (del_B * phiv) * phiv;
+      }
+    }
+
+    // Min contribution:
+    auto pnc1_m = pnc1_w - pnc1_c - c10 * he1.reducedME(del_A_dag, aB);
+    auto pnc2_m = pnc2_w - pnc2_c - c01 * he1.reducedME(aA, del_B);
+
+    std::cout << "\n<dA'|d| B>  +  <A |d|dB'>  (by force orthog):\n";
+    std::cout << "core : " << pnc1_c + pnc2_c << "\n";
+    std::cout << "main : " << pnc1_m + pnc2_m << "\n";
+    std::cout << "tail : "
+              << pnc1_w - pnc1_m - pnc1_c + pnc2_w - pnc2_m - pnc2_c << "\n";
+    std::cout << "Total: " << v1 << "\n";
+  }
 }
 
 //******************************************************************************

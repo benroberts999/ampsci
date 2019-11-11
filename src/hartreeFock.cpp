@@ -130,115 +130,119 @@ int main(int argc, char *argv[]) {
   //   wf.printValence(false, basis);
   //   std::cout << "\n Total time: " << timer.reading_str() << "\n";
   // }
-  auto transition_str = input.get<std::string>("Module::pnc", "transition");
-  std::cout << transition_str << "\n";
-  std::replace(transition_str.begin(), transition_str.end(), ',', ' ');
-  auto ss = std::stringstream(transition_str);
-  int na, ka, nb, kb;
-  ss >> na >> ka >> nb >> kb;
 
-  // int nb = 7;
-  // int kb = -1;
-  const auto &aA = wf.getState(na, ka);
-  const auto &aB = wf.getState(nb, kb);
-  // XXX this is dumb: change 'redRHS'
-  const auto &a6p1 = wf.getState(6, -ka); // dummy
-  const auto &a6p3 = wf.getState(6, -kb); // dummy
-
-  // auto k1 = 1;
-  // auto k2 = -2;
-  auto alpha = wf.get_alpha();
-
-  E1Operator he1(wf.rgrid);
-  auto hpnc = PNCnsiOperator(5.67073, 2.3, wf.rgrid, -wf.Nnuc());
-
-  auto v = NumCalc::add_vectors(wf.vnuc, wf.vdir);
-
-  auto v1 = 0.0, v2 = 0.0;
-  {
-    double sa1 = -1.0 * std::pow(-1, (aA.twoj() - a6p1.twoj()) / 2);
-    /*minus 1 comes from cc of REDUCED matrix element! (have 'lhs' instead)*/
-    std::cout << "sa1=" << sa1 << "\n";
-    auto hA_dag = sa1 * hpnc.reduced_rhs(a6p1, aA);
-    auto hB = +1.0 * hpnc.reduced_rhs(a6p3, aB);
-
-    double sa2 = std::pow(-1, (aA.twoj() - a6p3.twoj()) / 2);
-    std::cout << "sa2=" << sa2 << "\n";
-    auto e1A = sa2 * he1.reduced_rhs(a6p3, aA);
-    auto e1B = he1.reduced_rhs(a6p1, aB);
-
-    auto vxa = wf.m_pHF->get_vex(aA);
-    auto vxb = wf.m_pHF->get_vex(aB);
-
-    auto del_A_dag = HartreeFock::solveMixedState(aA, hA_dag.k, 0, v, alpha,
-                                                  wf.core_orbitals, hA_dag);
-    auto del_B = HartreeFock::solveMixedState(aB, hB.k, 0, v, alpha,
-                                              wf.core_orbitals, hB);
-
-    auto om = std::fabs(aA.en - aB.en);
-    auto xA = HartreeFock::solveMixedState(aA, e1A.k, -om, v, alpha,
-                                           wf.core_orbitals, e1A);
-    auto yB = HartreeFock::solveMixedState(aB, e1B.k, om, v, alpha,
-                                           wf.core_orbitals, e1B);
-
-    auto tja = aA.twoj();
-    auto tjb = aB.twoj();
-    auto twom = std::min(tja, tjb);
-    auto ss1 = std::pow(-1, (tja + tja - 2 * twom) / 2);
-    auto ss2 = std::pow(-1, (tja + tjb - 2 * twom) / 2);
-    std::cout << ss1 << " " << ss2 << " (ss)\n";
-    auto c10 = Wigner::threej_2(tjb, 2, tja, -twom, 0, twom) *
-               Wigner::threej_2(tja, 0, tja, -twom, 0, twom) * ss2;
-    auto c01 = Wigner::threej_2(tjb, 0, tjb, -twom, 0, twom) *
-               Wigner::threej_2(tjb, 2, tja, -twom, 0, twom) * ss1;
-
-    // XXX "reducedME" not quite right! Already 3js in del_A_dag!
-    auto pnc1_w = c10 * he1.reducedME(del_A_dag, aB);
-    auto pnc2_w = c01 * he1.reducedME(aA, del_B);
-
-    std::cout << "\n<dA |d| B> + <A |d| dB> = ";
-    std::cout << pnc1_w << " + " << pnc2_w << " = " << pnc1_w + pnc2_w << "\n";
-
-    auto pnc1_d = c01 * hpnc.reducedME(aA, yB);
-    auto pnc2_d = c10 * hpnc.reducedME(xA, aB);
-    std::cout << "<A |h|Y_B> + <X_A|h| B> = ";
-    std::cout << pnc1_d << " + " << pnc2_d << " = " << pnc1_d + pnc2_d << "\n";
-
-    v1 = pnc1_w + pnc2_w;
-    v2 = pnc1_d + pnc2_d;
-    std::cout << "eps = " << (v1 - v2) / (0.5 * (v1 + v2)) << "\n";
-
-    // orthog wrt core:
-    wf.orthogonaliseWrtCore(del_A_dag);
-    wf.orthogonaliseWrtCore(del_B);
-    // Core contribution:
-    auto pnc1_c = pnc1_w - c10 * he1.reducedME(del_A_dag, aB);
-    auto pnc2_c = pnc2_w - c01 * he1.reducedME(aA, del_B);
-    // orthog wrt 'main':
-    auto ncore = wf.maxCore_n();
-    auto main_n = ncore + 4;
-    for (const auto &phiv : wf.valence_orbitals) {
-      if (phiv.n > main_n)
-        continue;
-      if (phiv.k == del_A_dag.k) {
-        del_A_dag -= (del_A_dag * phiv) * phiv;
-      }
-      if (phiv.k == del_B.k) {
-        del_B -= (del_B * phiv) * phiv;
-      }
-    }
-
-    // Min contribution:
-    auto pnc1_m = pnc1_w - pnc1_c - c10 * he1.reducedME(del_A_dag, aB);
-    auto pnc2_m = pnc2_w - pnc2_c - c01 * he1.reducedME(aA, del_B);
-
-    std::cout << "\n<dA'|d| B>  +  <A |d|dB'>  (by force orthog):\n";
-    std::cout << "core : " << pnc1_c + pnc2_c << "\n";
-    std::cout << "main : " << pnc1_m + pnc2_m << "\n";
-    std::cout << "tail : "
-              << pnc1_w - pnc1_m - pnc1_c + pnc2_w - pnc2_m - pnc2_c << "\n";
-    std::cout << "Total: " << v1 << "\n";
-  }
+  // auto transition_str = input.get<std::string>("Module::pnc", "transition");
+  // std::cout << transition_str << "\n";
+  // std::replace(transition_str.begin(), transition_str.end(), ',', ' ');
+  // auto ss = std::stringstream(transition_str);
+  // int na, ka, nb, kb;
+  // ss >> na >> ka >> nb >> kb;
+  //
+  // // int nb = 7;
+  // // int kb = -1;
+  // const auto &aA = wf.getState(na, ka);
+  // const auto &aB = wf.getState(nb, kb);
+  //
+  // // auto k1 = 1;
+  // // auto k2 = -2;
+  // auto alpha = wf.get_alpha();
+  //
+  // E1Operator he1(wf.rgrid);
+  // auto hpnc = PNCnsiOperator(5.67073, 2.3, wf.rgrid, -wf.Nnuc());
+  //
+  // auto v = NumCalc::add_vectors(wf.vnuc, wf.vdir);
+  // auto v1 = 0.0, v2 = 0.0;
+  // {
+  //
+  //   auto hA_dag = hpnc.reduced_lhs(-aA.k, aA);
+  //   auto hB = hpnc.reduced_rhs(-aB.k, aB);
+  //
+  //   // double sa2 = std::pow(-1, (aA.twoj() - a6p3.twoj()) / 2);
+  //   // std::cout << "sa2=" << sa2 << "\n";
+  //   auto e1A = he1.reduced_lhs(-aB.k, aA);
+  //   auto e1B = he1.reduced_rhs(-aA.k, aB);
+  //
+  //   auto vxa = wf.m_pHF->get_vex(aA);
+  //   auto vxb = wf.m_pHF->get_vex(aB);
+  //
+  //   auto del_A_dag = HartreeFock::solveMixedState(aA, hA_dag.k, 0, v, alpha,
+  //                                                 wf.core_orbitals, hA_dag);
+  //   auto del_B = HartreeFock::solveMixedState(aB, hB.k, 0, v, alpha,
+  //                                             wf.core_orbitals, hB);
+  //
+  //   auto om = std::fabs(aA.en - aB.en);
+  //   auto xA = HartreeFock::solveMixedState(aA, e1A.k, -om, v, alpha,
+  //                                          wf.core_orbitals, e1A);
+  //   auto yB = HartreeFock::solveMixedState(aB, e1B.k, om, v, alpha,
+  //                                          wf.core_orbitals, e1B);
+  //
+  //   auto tja = aA.twoj();
+  //   auto tjb = aB.twoj();
+  //   auto twom = std::min(tja, tjb);
+  //   // auto ss1 = std::pow(-1, (tja + tja - 2 * twom) / 2);
+  //   // auto ss2 = std::pow(-1, (tja + tjb - 2 * twom) / 2);
+  //   // std::cout << ss1 << " " << ss2 << " (ss)\n";
+  //
+  //   auto c10 = hpnc.rme3js(tja, tja, twom) * he1.rme3js(tja, tjb, twom);
+  //   auto c01 = he1.rme3js(tja, tjb, twom) * hpnc.rme3js(tjb, tjb, twom);
+  //
+  //   // auto c10 = Wigner::threej_2(tjb, 2, tja, -twom, 0, twom) *
+  //   //            Wigner::threej_2(tja, 0, tja, -twom, 0, twom) * ss2;
+  //   // auto c01 = Wigner::threej_2(tjb, 0, tjb, -twom, 0, twom) *
+  //   //            Wigner::threej_2(tjb, 2, tja, -twom, 0, twom) * ss1;
+  //
+  //   // XXX "reducedME" not quite right! Already 3js in del_A_dag!
+  //   auto pnc1_w = c10 * he1.reducedME(del_A_dag, aB);
+  //   auto pnc2_w = c01 * he1.reducedME(aA, del_B);
+  //
+  //   std::cout << "\n<dA |d| B> + <A |d| dB> = ";
+  //   std::cout << pnc1_w << " + " << pnc2_w << " = " << pnc1_w + pnc2_w <<
+  //   "\n";
+  //
+  //   // auto c10d = hpnc.rme3js(aA, a6p1, twom) * he1.rme3js(a6p1, aB, twom);
+  //   // auto c01d = he1.rme3js(aA, a6p1, twom) * hpnc.rme3js(a6p1, aB, twom);
+  //
+  //   auto pnc1_d = c10 * hpnc.reducedME(aA, yB);
+  //   auto pnc2_d = c01 * hpnc.reducedME(xA, aB);
+  //   std::cout << "<A |h|Y_B> + <X_A|h| B> = ";
+  //   std::cout << pnc1_d << " + " << pnc2_d << " = " << pnc1_d + pnc2_d <<
+  //   "\n";
+  //
+  //   v1 = pnc1_w + pnc2_w;
+  //   v2 = pnc1_d + pnc2_d;
+  //   std::cout << "eps = " << (v1 - v2) / (0.5 * (v1 + v2)) << "\n";
+  //
+  //   // orthog wrt core:
+  //   wf.orthogonaliseWrtCore(del_A_dag);
+  //   wf.orthogonaliseWrtCore(del_B);
+  //   // Core contribution:
+  //   auto pnc1_c = pnc1_w - c10 * he1.reducedME(del_A_dag, aB);
+  //   auto pnc2_c = pnc2_w - c01 * he1.reducedME(aA, del_B);
+  //   // orthog wrt 'main':
+  //   auto ncore = wf.maxCore_n();
+  //   auto main_n = ncore + 4;
+  //   for (const auto &phiv : wf.valence_orbitals) {
+  //     if (phiv.n > main_n)
+  //       continue;
+  //     if (phiv.k == del_A_dag.k) {
+  //       del_A_dag -= (del_A_dag * phiv) * phiv;
+  //     }
+  //     if (phiv.k == del_B.k) {
+  //       del_B -= (del_B * phiv) * phiv;
+  //     }
+  //   }
+  //
+  //   // Min contribution:
+  //   auto pnc1_m = pnc1_w - pnc1_c - c10 * he1.reducedME(del_A_dag, aB);
+  //   auto pnc2_m = pnc2_w - pnc2_c - c01 * he1.reducedME(aA, del_B);
+  //
+  //   std::cout << "\n<dA'|d| B>  +  <A |d|dB'>  (by force orthog):\n";
+  //   std::cout << "core : " << pnc1_c + pnc2_c << "\n";
+  //   std::cout << "main : " << pnc1_m + pnc2_m << "\n";
+  //   std::cout << "tail : "
+  //             << pnc1_w - pnc1_m - pnc1_c + pnc2_w - pnc2_m - pnc2_c << "\n";
+  //   std::cout << "Total: " << v1 << "\n";
+  // }
   return 0;
 }
 

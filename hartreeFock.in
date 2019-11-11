@@ -19,7 +19,7 @@ Nucleus {
 
 Grid {
   r0 = 1e-7;
-  rmax = 320.0;
+  rmax = 260.0;
   num_points = 2000;
   type;   // loglinear(dflt), logarithmic, linear
   b = -1; // b<0, or b>rmax will use logarithmic
@@ -41,6 +41,8 @@ Module::Tests {
 }
 
 Module::pnc { transition = 6, -1, 7, -1; }
+Module::pnc { transition = 6, -1, 5, 2; }
+
 // Module::BohrWeisskopf
 {
   mu;

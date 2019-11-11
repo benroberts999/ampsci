@@ -25,15 +25,14 @@ std::string DiracOperator::rme_symbol(const DiracSpinor &Fa,
 }
 
 //******************************************************************************
-double DiracOperator::rme3js(const DiracSpinor &Fa, const DiracSpinor &Fb,
-                             int two_mb, int two_q) const
+double DiracOperator::rme3js(const int twoja, const int twojb, int two_mb,
+                             int two_q) const
 // rme3js = (-1)^{ja-ma} (ja, k, jb,\ -ma, q, mb)
 {
   auto two_ma = two_mb - two_q; // -ma + mb + q = 0;
   // sig = (-1)^(ja - ma)
-  auto sig = ((Fa.twoj() - two_ma) / 2) % 2 == 0 ? 1 : -1;
-  return sig * Wigner::threej_2(Fa.twoj(), 2 * rank, Fb.twoj(), two_ma, two_q,
-                                two_mb);
+  auto sig = ((twoja - two_ma) / 2) % 2 == 0 ? 1 : -1;
+  return sig * Wigner::threej_2(twoja, 2 * rank, twojb, -two_ma, two_q, two_mb);
 }
 
 DiracSpinor DiracOperator::reduced_rhs(const DiracSpinor &Fa,
@@ -44,6 +43,20 @@ DiracSpinor DiracOperator::reduced_rhs(const DiracSpinor &Fa,
 DiracSpinor DiracOperator::reduced_rhs(const int ka,
                                        const DiracSpinor &Fb) const {
   return (angularF(ka, Fb.k)) * radial_rhs(ka, Fb);
+}
+
+DiracSpinor DiracOperator::reduced_lhs(const DiracSpinor &Fa,
+                                       const DiracSpinor &Fb) const {
+  auto sdc = StateDepConst(Fb, Fa);
+  int s = imaginaryQ() ? -1 : 1;
+  auto x = Wigner::evenQ_2(Fa.twoj() - Fb.twoj()) ? s : -s;
+  return (sdc * x * angularF(Fb.k, Fa.k)) * radial_rhs(Fa.k, Fb);
+}
+DiracSpinor DiracOperator::reduced_lhs(const int ka,
+                                       const DiracSpinor &Fb) const {
+  int s = imaginaryQ() ? -1 : 1;
+  auto x = Wigner::evenQ_2(Wigner::twoj_k(ka) - Fb.twoj()) ? s : -s;
+  return (x * angularF(Fb.k, ka)) * radial_rhs(ka, Fb);
 }
 
 double DiracOperator::radialIntegral(const DiracSpinor &Fa,
