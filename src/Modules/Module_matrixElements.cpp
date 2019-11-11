@@ -33,7 +33,7 @@ void matrixElements(const UserInputBlock &input, const Wavefunction &wf) {
 
   for (const auto &phia : wf.valence_orbitals) {
     for (const auto &phib : wf.valence_orbitals) {
-      if (h->isZero(phia, phib))
+      if (h->isZero(phia.k, phib.k))
         continue;
       if (diagonal_only && phib != phia)
         continue;

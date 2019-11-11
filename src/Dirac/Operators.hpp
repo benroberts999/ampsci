@@ -45,8 +45,9 @@ public:
   E1Operator(const Grid &gr)
       : DiracOperator(1, OperatorParity::odd, -1.0, gr.r, 0) {}
 
-  double angularF(const DiracSpinor &Fa, const DiracSpinor &Fb) const override {
-    return Wigner::Ck_2j2j(1, Fa.twoj(), Fb.twoj());
+  double angularF(const int ka, const int kb) const override {
+    // return Wigner::Ck_2j2j(1, Wigner::twoj_k(ka), Wigner::twoj_k(kb));
+    return Wigner::Ck_kk(1, ka, kb);
   }
 };
 
@@ -61,11 +62,14 @@ public:
                       std::vector<double>(gr.num_points, 1.0), 0),
         m_c(1.0 / alpha) {}
 
-  double angularF(const DiracSpinor &Fa, const DiracSpinor &Fb) const override {
-    if (Fa.k == Fb.k)
+  double angularF(const int ka, const int kb) const override {
+    // if (Fa.k == Fb.k)
+    //   return 0;
+    // auto omega = Fa.en - Fb.en;
+    // return 2.0 * m_c / omega; // includes var-alpha
+    if (ka == kb)
       return 0;
-    auto omega = Fa.en - Fb.en;
-    return 2.0 * m_c / omega; // includes var-alpha
+    return 1.0; // includes var-alpha
   }
 
 private:
@@ -76,6 +80,13 @@ private:
   }
   virtual double angularCgf(int ka, int kb) const override {
     return -Wigner::S_kk(-ka, kb);
+  }
+  virtual double StateDepConst(const DiracSpinor &Fa,
+                               const DiracSpinor &Fb) const override {
+    if (Fa.k == Fb.k)
+      return 0;
+    auto omega = Fa.en - Fb.en;
+    return 2.0 * m_c / omega; // includes var-alpha
   }
 
 private:
@@ -225,8 +236,8 @@ public: // constructor
                       RadialFunc(rN, rgrid, hfs_F), 0),
         Inuc(IN) {}
 
-  double angularF(const DiracSpinor &Fa, const DiracSpinor &Fb) const override {
-    return (Fa.k + Fb.k) * Wigner::Ck_kk(1, -Fa.k, Fb.k);
+  double angularF(const int ka, const int kb) const override {
+    return (ka + kb) * Wigner::Ck_kk(1, -ka, kb);
   }
 
   double hfsA(const DiracSpinor &Fa) {
@@ -307,5 +318,5 @@ public:
       : ScalarOperator(OperatorParity::odd,
                        factor * PhysConst::GFe11 / std::sqrt(8.),
                        Nuclear::fermiNuclearDensity_tcN(t, c, 1, rgrid),
-                       GammaMatrix::ig5, 0, OperatorC::imaginary) {}
+                       {0, 1, -1, 0}, 0, OperatorC::imaginary) {}
 };

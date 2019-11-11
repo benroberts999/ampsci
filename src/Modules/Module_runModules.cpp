@@ -258,7 +258,7 @@ void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf) {
       // <7s|d|np><np|hw|6s>/dE6s + <7s|hw|np><np|d|6s>/dE7s
       if (np == a7s || np == a6s)
         continue;
-      if (hpnc.isZero(np, a6s) && hpnc.isZero(np, a7s))
+      if (hpnc.isZero(np.k, a6s.k) && hpnc.isZero(np.k, a7s.k))
         continue;
       double pnc1 = c10 * he1.reducedME(a7s, np) * hpnc.reducedME(np, a6s) /
                     (a6s.en - np.en);
