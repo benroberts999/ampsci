@@ -12,9 +12,14 @@ struct GridParameters {
   double r0, rmax, b;
   GridType type;
   GridParameters(std::size_t innum_points, double inr0, double inrmax,
-                 double inb = 4.0, GridType intype = GridType::loglinear);
+                 double inb = 4.0, GridType intype = GridType::loglinear,
+                 double indu = 0);
+
+  // indu is optional. Only used if innum_points = 0 [then, uses du to find N]
   GridParameters(std::size_t innum_points, double inr0, double inrmax,
-                 double inb = 4.0, const std::string &str_type = "loglinear");
+                 double inb = 4.0, const std::string &str_type = "loglinear",
+                 double indu = 0);
+
   static GridType parseType(const std::string &str_type);
 };
 

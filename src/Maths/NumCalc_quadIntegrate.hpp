@@ -344,6 +344,10 @@ inline double integrate_any(const double dt, const std::size_t beg,
   return integrate(v, dt, beg, end);
 }
 
+inline void scaleVec(std::vector<double> &vec, const double x) {
+  for (auto &v : vec)
+    v *= x;
+}
 //******************************************************************************
 //******************************************************************************
 

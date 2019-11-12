@@ -16,7 +16,7 @@ ifeq ($(CXX),clang++)
   WARN += -Wno-sign-conversion -Wheader-hygiene
 endif
 ifeq ($(CXX),g++)
-  WARN += -Wsuggest-override -Wsuggest-final-types -Wsuggest-final-methods
+  WARN += -Wsuggest-override -Wsuggest-final-types #-Wsuggest-final-methods
 endif
 
 # Changes to optimisation based on build setting:

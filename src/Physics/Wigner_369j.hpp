@@ -36,6 +36,9 @@ constexpr int kappa_twojl(int twoj, int l) {
   return ((2 * l - twoj) * (twoj + 1)) / 2;
 }
 
+constexpr bool evenQ(int a) { return (a % 2 == 0); }
+constexpr bool evenQ_2(int two_a) { return (two_a % 4 == 0); }
+
 //******************************************************************************
 constexpr int parity(int la, int lb, int k)
 // Parity rule. Returns 1 only if la+lb+k is even

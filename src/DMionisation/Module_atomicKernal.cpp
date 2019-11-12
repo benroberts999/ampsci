@@ -15,6 +15,10 @@ namespace Module {
 void atomicKernal(const UserInputBlock &input, const Wavefunction &wf) {
   ChronoTimer timer; // start the overall timer
 
+  input.checkBlock({"Emin", "Emax", "Esteps", "qmin", "qmax", "qsteps",
+                    "max_l_bound", "max_L", "use_plane_waves", "label",
+                    "output_text", "output_binary"});
+
   auto demin = input.get<double>("Emin");
   auto demax = input.get<double>("Emax");
   auto desteps = input.get<int>("Esteps");
