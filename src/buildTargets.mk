@@ -46,7 +46,7 @@ CNTM = $(addprefix $(OD)/, \
 
 MODS = $(addprefix $(OD)/, \
  Module_runModules.o Module_atomicKernal.o AKF_akFunctions.o \
- Module_matrixElements.o Module_fitParametric.o \
+ Module_matrixElements.o Module_fitParametric.o Module_pnc.o \
 )
 
 ################################################################################

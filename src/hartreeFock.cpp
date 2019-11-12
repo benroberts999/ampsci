@@ -24,11 +24,14 @@ int main(int argc, char *argv[]) {
   }();
 
   // Get + setup Grid parameters
-  input_ok = input_ok &&
-             input.check("Grid", {"r0", "rmax", "num_points", "type", "b"});
+  input_ok = input_ok && input.check("Grid", {"r0", "rmax", "num_points",
+                                              "type", "b", "fixed_du"});
   auto r0 = input.get("Grid", "r0", 1.0e-5);
   auto rmax = input.get("Grid", "rmax", 150.0);
   auto num_points = input.get("Grid", "num_points", 1600ul);
+  auto du_tmp = input.get("Grid", "fixed_du", -1.0); // >0 means calc num_points
+  if (du_tmp > 0)
+    num_points = 0;
   auto b = input.get("Grid", "b", 4.0);
   auto grid_type = input.get<std::string>("Grid", "type", "loglinear");
   if (b <= r0 || b >= rmax)
@@ -43,7 +46,7 @@ int main(int argc, char *argv[]) {
   auto skint = input.get("Nucleus", "skin_t", -1.0);
 
   // create wavefunction object
-  Wavefunction wf(atom_Z, {num_points, r0, rmax, b, grid_type},
+  Wavefunction wf(atom_Z, {num_points, r0, rmax, b, grid_type, du_tmp},
                   {atom_Z, atom_A, nuc_type, rrms, skint}, var_alpha);
 
   // Parse input for HF method

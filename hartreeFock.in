@@ -1,13 +1,13 @@
 Atom {
   Z = Cs;
-  A;
-  varAlpha2;
+  A = default;
+  // varAlpha2;
 }
 
 HartreeFock {
   core = [Xe];
   valence = 7sp;
-  method; // HartreeFock(dflt), ApproxHF, Hartree, GreenPRM, TietzPRM
+  // method; // HartreeFock(dflt), ApproxHF, Hartree, GreenPRM, TietzPRM
 }
 
 Nucleus {
@@ -20,6 +20,7 @@ Grid {
   r0 = 1e-6;
   rmax = 120.0;
   num_points = 2000;
+  // fixed_du = 0.1;     // over-writes num_points
   type; // loglinear(dflt), logarithmic, linear
   b;    // b<0, or b>rmax will use logarithmic
 }

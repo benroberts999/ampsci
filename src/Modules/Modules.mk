@@ -20,3 +20,9 @@ $(SD)/Modules/Module_matrixElements.hpp $(SD)/Dirac/DiracOperator.hpp \
 $(SD)/Dirac/Operators.hpp $(SD)/Dirac/Wavefunction.hpp $(SD)/IO/UserInput.hpp \
 $(SD)/Physics/Nuclear.hpp $(SD)/Physics/PhysConst_constants.hpp
 	$(COMP)
+
+$(OD)/Module_pnc.o: $(SD)/Modules/Module_pnc.cpp \
+$(SD)/Modules/Module_runModules.hpp  \
+$(SD)/Dirac/DiracOperator.hpp $(SD)/Dirac/Operators.hpp \
+$(SD)/Dirac/Wavefunction.hpp $(SD)/IO/UserInput.hpp
+	$(COMP)

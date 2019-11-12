@@ -9,12 +9,26 @@
 //******************************************************************************
 GridParameters::GridParameters(std::size_t innum_points, double inr0,
                                double inrmax, double inb,
-                               const std::string &str_type)
-    : num_points(innum_points), r0(inr0), rmax(inrmax), b(inb),
+                               const std::string &str_type, double indu)
+    : num_points(innum_points == 0
+                     ? Grid::calc_num_points_from_du(inr0, inrmax, indu,
+                                                     parseType(str_type), inb)
+                     : innum_points), //
+      r0(inr0),                       //
+      rmax(inrmax),                   //
+      b(inb),                         //
       type(parseType(str_type)) {}
+// indu is optional. Only used if innum_points = 0
 GridParameters::GridParameters(std::size_t innum_points, double inr0,
-                               double inrmax, double inb, GridType intype)
-    : num_points(innum_points), r0(inr0), rmax(inrmax), b(inb), type(intype) {}
+                               double inrmax, double inb, GridType intype,
+                               double indu)
+    : num_points(innum_points == 0 ? Grid::calc_num_points_from_du(
+                                         inr0, inrmax, indu, intype, inb)
+                                   : innum_points), //
+      r0(inr0),                                     //
+      rmax(inrmax),                                 //
+      b(inb),                                       //
+      type(intype) {}
 //------------------------------------------------------------------------------
 GridType GridParameters::parseType(const std::string &str_type) {
   if (str_type == "loglinear")
