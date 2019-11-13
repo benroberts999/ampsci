@@ -1,12 +1,63 @@
-#include "Wigner_369j.hpp"
+#pragma once
+#include "Physics/Wigner_369j.hpp"
+#include <algorithm>
+#include <iostream>
 #include <vector>
 
 namespace Angular {
 
 //******************************************************************************
 // "Helper" functions
-constexpr int twoj(int ji) { return 2 * ji + 1; }
+constexpr int twoj(int jindex) { return 2 * jindex + 1; }
 constexpr int jindex(int twoj) { return (twoj - 1) / 2; }
+constexpr int jindex_kappa(int ka) { return (ka > 0) ? ka - 1 : -ka - 1; }
+
+//******************************************************************************
+class Ck_ab {
+  // Lookup table for Ckab, and 3j symbols.
+  // Ckab      = (-1)^{ja+1/2} * tildeCkab
+  // tildeCkab = Sqrt([ja][jb]) * 3j(ja,jb,k, -1/2,1/2,0)pi
+
+public:
+  Ck_ab(const int in_max_K = 0, const int in_max_twoj = 0) {
+    fill_maxK_twojmax(in_max_K, in_max_twoj);
+  }
+
+public:
+  void fill_maxK_twojmax(const int in_max_K, const int in_max_twoj);
+
+  // These will calculate values if they don't exist yet
+  double get_tildeCkab(int k, int ka, int kb);
+  double get_Ckab(int k, int ka, int kb);
+  double get_3jkab(int k, int ka, int kb);
+
+  // Use const versions if sure value already exists (will segfault otherwise)
+  double get_tildeCkab_const(int k, int ka, int kb) const;
+  double get_Ckab_const(int k, int ka, int kb) const;
+  double get_3jkab_const(int k, int ka, int kb) const;
+
+private:
+  std::vector<std::vector<std::vector<double>>> m_3j_k_a_b;
+  std::vector<std::vector<double>> m_Rjab_a_b; // Sqrt([ja][jb])
+  int m_max_jindex_sofar = -1;
+  int m_max_k_sofar = -1;
+};
+
+//******************************************************************************
+
+//******************************************************************************
+
+//******************************************************************************
+
+//******************************************************************************
+
+//******************************************************************************
+
+//******************************************************************************
+// I think this (below) works - but was written a while ago (not used):
+// Can be made better/
+//******************************************************************************
+
 inline int max4(int a, int b, int c, int d) {
   return std::max(std::max(a, b), std::max(c, d));
 }

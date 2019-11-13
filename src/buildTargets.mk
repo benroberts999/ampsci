@@ -32,7 +32,7 @@ include $(SD)/main.mk
 
 BASE = $(addprefix $(OD)/, \
  Adams_bound.o Wavefunction.o DiracSpinor.o AtomInfo.o Nuclear.o Grid.o \
- DiracOperator.o \
+ DiracOperator.o Angular.o \
 )
 
 HF = $(addprefix $(OD)/, \
