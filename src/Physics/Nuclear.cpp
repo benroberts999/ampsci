@@ -1,9 +1,9 @@
-#include "Nuclear.hpp"
-#include "AtomInfo.hpp"
+#include "Physics/Nuclear.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
-#include "Nuclear_DataTable.hpp"
-#include "PhysConst_constants.hpp"
+#include "Physics/AtomInfo.hpp"
+#include "Physics/Nuclear_DataTable.hpp"
+#include "Physics/PhysConst_constants.hpp"
 #include <cmath>
 #include <gsl/gsl_sf_fermi_dirac.h>
 #include <string>
@@ -31,7 +31,8 @@ Type parseType(const std::string &str_type) {
 }
 
 //******************************************************************************
-Parameters::Parameters(int in_z, int in_a, std::string str_type, double in_rrms,
+Parameters::Parameters(int in_z, int in_a, const std::string &str_type,
+                       double in_rrms,
                        double in_t)
     : z(in_z),                                      //
       a((in_a < 0) ? AtomInfo::defaultA(z) : in_a), //
@@ -46,8 +47,8 @@ Parameters::Parameters(int in_z, int in_a, std::string str_type, double in_rrms,
   }
 }
 //------------
-Parameters::Parameters(const std::string &z_str, int in_a, std::string str_type,
-                       double in_rrms, double in_t)
+Parameters::Parameters(const std::string &z_str, int in_a,
+                       const std::string &str_type, double in_rrms, double in_t)
     : z(AtomInfo::get_z(z_str)),                    //
       a((in_a < 0) ? AtomInfo::defaultA(z) : in_a), //
       type(parseType(str_type)),                    //

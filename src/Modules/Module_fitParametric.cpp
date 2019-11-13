@@ -1,4 +1,4 @@
-#include "Module_fitParametric.hpp"
+#include "Modules/Module_fitParametric.hpp"
 #include "Dirac/Wavefunction.hpp"
 #include "HF/HartreeFockClass.hpp"
 #include "IO/UserInput.hpp"
@@ -13,6 +13,8 @@
 namespace Module {
 //******************************************************************************
 void fitParametric(const UserInputBlock &input, const Wavefunction &wf) {
+
+  input.checkBlock({"statesToFit", "method", "fitWorst"});
 
   auto which_states = input.get<std::string>("statesToFit", "core");
   auto which_method = input.get<std::string>("method", "Green");

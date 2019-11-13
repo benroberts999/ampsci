@@ -1,5 +1,4 @@
 #pragma once
-#include "AtomInfo_PeriodicTable.hpp"
 #include <array>
 #include <string>
 #include <vector>

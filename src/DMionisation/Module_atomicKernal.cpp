@@ -1,5 +1,5 @@
-#include "Module_atomicKernal.hpp"
-#include "AKF_akFunctions.hpp"
+#include "DMionisation/Module_atomicKernal.hpp"
+#include "DMionisation/AKF_akFunctions.hpp"
 #include "Dirac/ContinuumOrbitals.hpp"
 #include "Dirac/Wavefunction.hpp"
 #include "HF/HartreeFockClass.hpp"
@@ -14,6 +14,10 @@ namespace Module {
 //******************************************************************************
 void atomicKernal(const UserInputBlock &input, const Wavefunction &wf) {
   ChronoTimer timer; // start the overall timer
+
+  input.checkBlock({"Emin", "Emax", "Esteps", "qmin", "qmax", "qsteps",
+                    "max_l_bound", "max_L", "use_plane_waves", "label",
+                    "output_text", "output_binary"});
 
   auto demin = input.get<double>("Emin");
   auto demax = input.get<double>("Emax");

@@ -117,3 +117,19 @@ MatrixElements::E1 {}
 MatrixElements::E1 {gauge=vform;}
 MatrixElements::pnc {}
 MatrixElements::hfs {}
+
+###########################################
+#TEST# pnc
+
+Atom { Z = Cs; }
+HartreeFock {
+  core = [Xe];
+  valence = 7s12p5d;
+}
+Grid {
+  r0 = 1e-7;
+  rmax = 300.0;
+  num_points = 10000;
+}
+Module::pnc { transition = 6, -1, 7, -1; }
+Module::pnc { transition = 6, -1, 5, 2; }

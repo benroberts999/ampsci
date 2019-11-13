@@ -1,4 +1,4 @@
-#include "Module_matrixElements.hpp"
+#include "Modules/Module_matrixElements.hpp"
 #include "Dirac/DiracOperator.hpp"
 #include "Dirac/Operators.hpp"
 #include "Dirac/Wavefunction.hpp"
@@ -33,7 +33,7 @@ void matrixElements(const UserInputBlock &input, const Wavefunction &wf) {
 
   for (const auto &phia : wf.valence_orbitals) {
     for (const auto &phib : wf.valence_orbitals) {
-      if (h->isZero(phia, phib))
+      if (h->isZero(phia.k, phib.k))
         continue;
       if (diagonal_only && phib != phia)
         continue;
@@ -55,7 +55,17 @@ std::unique_ptr<DiracOperator> generateOperator(const std::string &operator_str,
   //
   const std::string ThisModule = "MatrixElements::" + operator_str;
 
+  std::vector<std::string> check_list = {"radialIntegral", "printBoth",
+                                         "onlyDiagonal", "units"};
+  auto jointCheck = [&](const std::vector<std::string> &in) {
+    check_list.insert(check_list.end(), in.begin(), in.end());
+    return check_list;
+  };
+
   if (operator_str == "hfs") {
+    input.checkBlock(
+        jointCheck({"mu", "I", "rrms", "F(r)", "parity", "l", "gl", "mu1",
+                    "gl1", "l1", "l2", "I1", "I2", "printF"}));
 
     auto isotope = Nuclear::findIsotopeData(wf.Znuc(), wf.Anuc());
     auto mu = input.get("mu", isotope.mu);
@@ -127,6 +137,7 @@ std::unique_ptr<DiracOperator> generateOperator(const std::string &operator_str,
     return std::make_unique<HyperfineOperator>(
         HyperfineOperator(mu, I_nuc, r_nucau, wf.rgrid, Fr));
   } else if (operator_str == "E1") {
+    input.checkBlock(jointCheck({"gauge"}));
     auto gauge = input.get<std::string>("gauge", "lform");
     if (gauge != "vform")
       return std::make_unique<E1Operator>(E1Operator(wf.rgrid));
@@ -134,11 +145,13 @@ std::unique_ptr<DiracOperator> generateOperator(const std::string &operator_str,
     return std::make_unique<E1Operator_vform>(
         E1Operator_vform(wf.rgrid, wf.get_alpha()));
   } else if (operator_str == "r") {
+    input.checkBlock(jointCheck({"power"}));
     auto power = input.get("power", 1.0);
     std::cout << "r^(" << power << ")\n";
     return std::make_unique<RadialFuncOperator>(
         RadialFuncOperator(wf.rgrid, power));
   } else if (operator_str == "pnc") {
+    input.checkBlock(jointCheck({"c", "t"}));
     double tdflt = Nuclear::default_t; // approximate_t_skin(wf.Anuc());
     auto r_rms = Nuclear::find_rrms(wf.Znuc(), wf.Anuc());
     double cdflt = Nuclear::c_hdr_formula_rrms_t(r_rms);

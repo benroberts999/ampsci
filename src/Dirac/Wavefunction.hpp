@@ -4,11 +4,11 @@
 #include "Maths/Grid.hpp"
 #include "Physics/AtomInfo.hpp" // NonRelSEConfig
 #include "Physics/Nuclear.hpp"
+#include "Physics/PhysConst_constants.hpp" //PhysConst::alpha
+#include <iostream>
 #include <memory>
 #include <string>
 #include <vector>
-//
-#include "Physics/PhysConst_constants.hpp"
 
 static bool dummy_bool{};
 
@@ -43,6 +43,8 @@ private:
   // Atom info:
   const int m_Z, m_A; /*don't need A twice (its inside nucl params!)*/
   Nuclear::Parameters m_nuc_params;
+
+public:
   std::unique_ptr<HartreeFock> m_pHF = nullptr;
 
 public:

@@ -1,5 +1,5 @@
 #pragma once
-#include "HF/CoulombIntegrals.hpp"
+#include "HF/CoulombIntegrals.hpp" //for m_cint
 #include <string>
 #include <vector>
 class Wavefunction;
@@ -36,6 +36,14 @@ class HartreeFock {
   friend class Coulomb;
 
 public:
+  static DiracSpinor solveMixedState(const DiracSpinor &phi0, const int k,
+                                     const double omega,
+                                     const std::vector<double> &vl,
+                                     const double alpha,
+                                     const std::vector<DiracSpinor> &core,
+                                     const DiracSpinor &hphi0);
+
+public:
   static HFMethod parseMethod(const std::string &in_method);
 
   HartreeFock(HFMethod method, Wavefunction &wf, const std::string &in_core,
@@ -57,6 +65,9 @@ public:
   static DiracSpinor vex_psia_any(const DiracSpinor &phi_a,
                                   const std::vector<DiracSpinor> &core,
                                   int k_cut = 99);
+  static std::vector<double>
+  form_approx_vex_any(const DiracSpinor &phi_a,
+                      const std::vector<DiracSpinor> &core, int k_cut = 99);
 
   bool verbose = true;
 

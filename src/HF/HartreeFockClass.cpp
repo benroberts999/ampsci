@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <cmath>
 #include <functional>
+#include <iostream>
 #include <vector>
 /*
 Calculates self-consistent Hartree-Fock potential, including exchange.
@@ -35,6 +36,53 @@ static inline auto rampedDamp(double a_beg, double a_end, int beg, int end) {
       return a_beg;
     return (a_end * (i - beg) + a_beg * (end - i)) / (end - beg);
   };
+}
+
+//******************************************************************************
+DiracSpinor HartreeFock::solveMixedState(const DiracSpinor &phi0, const int k,
+                                         const double omega,
+                                         const std::vector<double> &vl,
+                                         const double alpha,
+                                         const std::vector<DiracSpinor> &core,
+                                         const DiracSpinor &hphi0)
+//
+{
+  /*
+   * added vx (approx vex).
+   * Works, and converges faster + smoothly.
+   * BUT doesn't work as well!? Still works pretty good!
+   * Works v. well with better grid, so think it's fine.
+   * IS there a missing angular factor somewhere? VxdF vs hphi0 ??
+   */
+
+  auto dF =
+      DiracODE::solve_inhomog(k, phi0.en - omega, vl, alpha, -1.0 * hphi0);
+  auto dF20 = std::abs(dF * dF); // monitor convergance
+  // auto VxdF0 = 0.0 * dF;
+  for (int x = 0; x < 50; x++) {
+    auto vx = form_approx_vex_any(dF, core);
+    NumCalc::scaleVec(vx, 1.3); // better w/ 1.25 .. not sure why?
+    auto v = NumCalc::add_vectors(vl, vx);
+
+    // double a = 0.5;
+    // const auto l = (1.0 - a);
+    // const auto VexchdF = vex_psia_any(dF, core);
+    // const auto vx0dF = (vx * dF);
+    // const auto VxdF = a * VxdF0 + l * (VexchdF - vx0dF);
+    // VxdF0 = VxdF;
+
+    const auto VxdF = vex_psia_any(dF, core) - (vx * dF);
+
+    DiracODE::solve_inhomog(dF, phi0.en - omega, v, alpha, -1.0 * hphi0 - VxdF);
+    auto dF2 = std::abs(dF * dF);
+    auto eps = std::abs((dF2 - dF20) / dF2);
+    if (eps < 1.0e-9 || x == 49) {
+      // std::cout << x << " " << eps << "\n";
+      break;
+    }
+    dF20 = dF2;
+  }
+  return dF; // put rhs = hphi0 instead of -hphi0
 }
 
 //******************************************************************************
@@ -520,6 +568,67 @@ void HartreeFock::form_approx_vex_a(const DiracSpinor &phi_a,
       }
     } // k
   }   // if a in core
+}
+
+//******************************************************************************
+std::vector<double> HartreeFock::form_approx_vex_any(
+    const DiracSpinor &phi_a, const std::vector<DiracSpinor> &core, int k_cut)
+//
+{
+
+  std::vector<double> vex(phi_a.p_rgrid->num_points);
+  std::vector<double> vabk;
+
+  const auto tja = phi_a.twoj();
+  const auto la = phi_a.l();
+
+  static auto max_abs = [](double a, double b) {
+    return (std::abs(a) < std::abs(b));
+  };
+  const auto max =
+      std::abs(*std::max_element(phi_a.f.begin(), phi_a.f.end(), max_abs));
+  const auto cut_off = 0.01 * max;
+
+  for (const auto &phi_b : core) {
+    const auto tjb = phi_b.twoj();
+    const auto lb = phi_b.l();
+    const double x_tjbp1 = (tjb + 1) * phi_b.occ_frac; // when in core??
+    const auto irmax = std::min(phi_a.pinf, phi_b.pinf);
+    const int kmin = std::abs(tja - tjb) / 2;
+    int kmax = (tja + tjb) / 2;
+    if (kmax > k_cut)
+      kmax = k_cut;
+
+    // hold "fraction" psi_a*psi_b/(psi_a^2):
+    std::vector<double> v_Fab(phi_a.p_rgrid->num_points);
+    for (std::size_t i = 0; i < irmax; i++) {
+      // This is the approximte part! Divides by psi_a
+      if (std::abs(phi_a.f[i]) < cut_off)
+        continue;
+      const auto fac_top = phi_a.f[i] * phi_b.f[i] + phi_a.g[i] * phi_b.g[i];
+      const auto fac_bot = phi_a.f[i] * phi_a.f[i] + phi_a.g[i] * phi_a.g[i];
+      v_Fab[i] = -1. * x_tjbp1 * fac_top / fac_bot;
+    } // r
+
+    for (int k = kmin; k <= kmax; k++) {
+      const auto parity = Wigner::parity(la, lb, k);
+      if (parity == 0)
+        continue;
+      const auto tjs = Wigner::threej_2(tjb, tja, 2 * k, -1, 1, 0);
+      if (tjs == 0)
+        continue;
+      const auto tjs2 = tjs * tjs;
+      Coulomb::calculate_y_ijk(phi_b, phi_a, k, vabk);
+
+      for (std::size_t i = 0; i < irmax; i++) {
+        if (v_Fab[i] == 0)
+          continue;
+        vex[i] += tjs2 * vabk[i] * v_Fab[i];
+      } // r
+    }   // k
+  }     // b
+
+  return vex;
 }
 
 //******************************************************************************
