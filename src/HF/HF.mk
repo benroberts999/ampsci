@@ -3,7 +3,7 @@
 $(OD)/CoulombIntegrals.o: $(SD)/HF/CoulombIntegrals.cpp \
 $(SD)/HF/CoulombIntegrals.hpp $(SD)/Dirac/DiracSpinor.hpp \
 $(SD)/Maths/Grid.hpp $(SD)/Maths/NumCalc_quadIntegrate.hpp \
-$(SD)/Physics/AtomInfo.hpp $(SD)/Physics/Wigner_369j.hpp
+$(SD)/Physics/AtomData.hpp $(SD)/Physics/Wigner_369j.hpp
 	$(COMP)
 
 $(OD)/HartreeFockClass.o: $(SD)/HF/HartreeFockClass.cpp \

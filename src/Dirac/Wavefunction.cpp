@@ -3,8 +3,8 @@
 #include "Dirac/DiracSpinor.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
-#include "Physics/AtomInfo.hpp"
-#include "Physics/Nuclear.hpp"
+#include "Physics/AtomData.hpp"
+#include "Physics/NuclearPotentials.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include <algorithm> //for sort
 #include <cmath>
@@ -61,12 +61,12 @@ void Wavefunction::determineCore(std::string str_core_in)
   if (first_char == "0" || first_char == "-") {
     try {
       auto m = std::stoi(str_core_in);
-      str_core_in = AtomInfo::guessCoreConfigStr(m_Z + m);
+      str_core_in = AtomData::guessCoreConfigStr(m_Z + m);
     } catch (...) {
     }
   }
 
-  m_core_configs = AtomInfo::core_parser(str_core_in);
+  m_core_configs = AtomData::core_parser(str_core_in);
 
   bool bad_core = false;
   m_core_string = "";
@@ -96,7 +96,7 @@ void Wavefunction::determineCore(std::string str_core_in)
   if (num_core_electrons > m_Z) {
     std::cout << "Problem with core: " << str_core_in << "\n";
     std::cout << "= " << m_core_string << "\n";
-    std::cout << "= " << AtomInfo::niceCoreOutput(m_core_string) << "\n";
+    std::cout << "= " << AtomData::niceCoreOutput(m_core_string) << "\n";
     std::cout << "Too many electrons: N_core=" << num_core_electrons
               << ", Z=" << m_Z << "\n";
     std::abort();
@@ -130,7 +130,7 @@ void Wavefunction::hartreeFockValence(const std::string &in_valence_str) {
                  "hartreeFockCore\n";
     return;
   }
-  auto val_lst = AtomInfo::listOfStates_nk(in_valence_str);
+  auto val_lst = AtomData::listOfStates_nk(in_valence_str);
   for (const auto &nk : val_lst) {
     if (!isInCore(nk.n, nk.k) && !isInValence(nk.n, nk.k))
       valence_orbitals.emplace_back(DiracSpinor{nk.n, nk.k, rgrid});
@@ -383,7 +383,7 @@ double Wavefunction::enGuessVal(int n, int ka) const
 // Energy guess for valence states. Not perfect, good enough
 {
   int maxn = maxCore_n();
-  int l = AtomInfo::l_k(ka);
+  int l = AtomData::l_k(ka);
   int dn = n - maxn;
   double neff = 1. + dn;
   double x = 1;
@@ -533,11 +533,11 @@ Wavefunction::listOfStates_nk(int num_val, int la, int lb, bool skip_core) const
     l_max = la;
   }
 
-  auto min_ik = AtomInfo::indexFromKappa(-l_min - 1);
-  auto max_ik = AtomInfo::indexFromKappa(-l_max - 1);
+  auto min_ik = AtomData::indexFromKappa(-l_min - 1);
+  auto max_ik = AtomData::indexFromKappa(-l_max - 1);
   for (int ik = min_ik; ik <= max_ik; ik++) {
-    auto k = AtomInfo::kappaFromIndex(ik);
-    auto l = AtomInfo::l_k(k);
+    auto k = AtomData::kappaFromIndex(ik);
+    auto l = AtomData::l_k(k);
     auto n_min = l + 1;
     for (int n = n_min, count = 0; count < num_val; n++) {
       if (isInCore(n, k) && skip_core)

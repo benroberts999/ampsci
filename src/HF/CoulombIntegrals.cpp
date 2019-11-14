@@ -2,7 +2,7 @@
 #include "Dirac/DiracSpinor.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
-#include "Physics/AtomInfo.hpp"
+#include "Physics/AtomData.hpp"
 #include "Physics/Wigner_369j.hpp"
 #include <algorithm>
 #include <cmath>
@@ -335,13 +335,13 @@ void Coulomb::calculate_angular(int ki)
   auto prev_largest_ki = m_largest_ki;
   m_largest_ki = ki;
   for (auto kia = prev_largest_ki + 1; kia <= m_largest_ki; kia++) {
-    auto tja = AtomInfo::twojFromIndex(kia);
-    auto la = AtomInfo::lFromIndex(kia);
+    auto tja = AtomData::twojFromIndex(kia);
+    auto la = AtomData::lFromIndex(kia);
     std::vector<std::vector<double>> C_ka_kbk;
     std::vector<std::vector<double>> L_ka_kbk;
     for (auto kib = 0; kib <= kia; kib++) {
-      auto tjb = AtomInfo::twojFromIndex(kib);
-      auto lb = AtomInfo::lFromIndex(kib);
+      auto tjb = AtomData::twojFromIndex(kib);
+      auto lb = AtomData::lFromIndex(kib);
       auto kmin = (tja - tjb) / 2; // don't need abs, as b\leq a => ja\geq jb
       auto kmax = (tja + tjb) / 2;
       std::vector<double> C_k(kmax - kmin + 1, 0);

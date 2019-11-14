@@ -3,7 +3,7 @@
 #include "Dirac/DiracSpinor.hpp"
 #include "Dirac/Wavefunction.hpp"
 #include "Maths/Grid.hpp"
-#include "Physics/AtomInfo.hpp"
+#include "Physics/AtomData.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include <cmath>
 #include <string>
@@ -98,8 +98,8 @@ int ContinuumOrbitals::solveLocalContinuum(double ec, int min_l, int max_l)
   }
 
   for (int i = 0; true; ++i) { // loop through each k state
-    auto k = AtomInfo::kappaFromIndex(i);
-    auto l = AtomInfo::l_k(k);
+    auto k = AtomData::kappaFromIndex(i);
+    auto l = AtomData::l_k(k);
     if (l < min_l)
       continue;
     if (l > max_l)

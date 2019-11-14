@@ -4,7 +4,7 @@
 #include <utility>
 #include <vector>
 
-namespace AtomInfo {
+namespace AtomData {
 
 static const std::string spectroscopic_notation = "spdfghiklmnoqrtuvwxyzabc";
 static const std::string Spectroscopic_Notation = "SPDFGHIKLMNOQRTUVWXYZABC";
@@ -173,4 +173,4 @@ static const std::array<std::pair<std::string, std::string>, 13> nobelGasses = {
                            "4f14,5d10,6s2,6p6,5f14,6d10,7s2"),
     std::make_pair("[]", "1s0")};
 
-} // namespace AtomInfo
+} // namespace AtomData
