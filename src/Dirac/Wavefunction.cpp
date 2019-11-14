@@ -32,7 +32,7 @@ void Wavefunction::solveDirac(DiracSpinor &psi, double e_a,
   } else if (psi.en == 0) {
     psi.en = enGuessVal(psi.n, psi.k);
   }
-  DiracODE::boundState(psi, v_a, rgrid, m_alpha, log_dele_or);
+  DiracODE::boundState(psi, psi.en, v_a, m_alpha, log_dele_or);
 }
 
 //------------------------------------------------------------------------------

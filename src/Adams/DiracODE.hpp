@@ -5,8 +5,9 @@ class Grid;
 
 namespace DiracODE {
 
-void boundState(DiracSpinor &psi, const std::vector<double> &v,
-                const Grid &rgrid, const double alpha, int log_dele = 0);
+void boundState(DiracSpinor &psi, const double en0,
+                const std::vector<double> &v, const double alpha,
+                int log_dele = 0);
 
 void regularAtOrigin(DiracSpinor &phi, const double en,
                      const std::vector<double> &v, const double alpha);
