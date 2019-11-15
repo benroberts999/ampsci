@@ -3,6 +3,7 @@
 src/*~
 !obj/
 obj/*.o
+!doc/
 !.gitignore
 !Makefile
 !makefile

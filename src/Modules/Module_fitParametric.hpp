@@ -1,5 +1,5 @@
 #pragma once
-#include "Physics/Nuclear.hpp" //Nuclear::Parameters
+#include "Physics/NuclearPotentials.hpp" //Nuclear::Parameters
 #include <tuple>
 #include <vector>
 class UserInputBlock;

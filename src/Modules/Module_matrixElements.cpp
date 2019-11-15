@@ -3,7 +3,7 @@
 #include "Dirac/Operators.hpp"
 #include "Dirac/Wavefunction.hpp"
 #include "IO/UserInput.hpp"
-#include "Physics/Nuclear.hpp"
+#include "Physics/NuclearPotentials.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include <fstream>
 #include <iostream>

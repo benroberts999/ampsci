@@ -4,6 +4,13 @@
 
 namespace Nuclear {
 
+// skin-thickness. Always same?
+constexpr double default_t = 2.30;
+
+constexpr auto FourLn3 = 4.0 * 1.098612289;
+// 4.0 * std::log(3.0);
+constexpr auto Pi2 = M_PI * M_PI;
+
 class Isotope {
 public:
   const int Z;
@@ -23,6 +30,20 @@ public:
   bool parity_ok() const { return (parity == 0) ? false : true; }
   bool I_ok() const { return (I_N < 0) ? false : true; }
 };
+
+//******************************************************************************
+Isotope findIsotopeData(int z, int a);
+std::vector<Isotope> findIsotopeList(int z);
+double find_rrms(int z, int a);
+double find_mu(int z, int a);
+int find_parity(int z, int a);
+double find_spin(int z, int a);
+
+//******************************************************************************
+double approximate_r_rms(int a);
+double c_hdr_formula_rrms_t(double rrms, double t = default_t);
+double rrms_formula_c_t(double c, double t = default_t);
+double approximate_t_skin(int a); // constexpr ?
 
 // Note: rms charge radii  from:
 // https://doi.org/10.1016/j.adt.2011.12.006

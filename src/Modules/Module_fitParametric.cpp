@@ -3,7 +3,7 @@
 #include "HF/HartreeFockClass.hpp"
 #include "IO/UserInput.hpp"
 #include "Maths/Grid.hpp"
-#include "Physics/Nuclear.hpp"
+#include "Physics/NuclearPotentials.hpp"
 #include "Physics/Parametric_potentials.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include <iostream>
