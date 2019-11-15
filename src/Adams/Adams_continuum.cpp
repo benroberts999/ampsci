@@ -21,8 +21,9 @@ using namespace Adams;
 //   * Find asymptotic region + normalise...better?
 
 //******************************************************************************
-int solveContinuum(DiracSpinor &phi, const std::vector<double> &v,
-                   const Grid &ext_grid, std::size_t i_asym, double alpha)
+void solveContinuum(DiracSpinor &phi, const std::vector<double> &v,
+                    const Grid &ext_grid, const double r_asym0,
+                    const double alpha)
 // Solves Dirac equation for continuum state, for given energy, ec
 // by integrating outwards from 0
 // ec > 0
@@ -31,6 +32,9 @@ int solveContinuum(DiracSpinor &phi, const std::vector<double> &v,
 // num_pointsc is grid for continuum (only for solving). num_pointsc >>
 // num_pointsb
 {
+  // guess as asymptotic region:
+  auto i_asym = ext_grid.getIndex(r_asym0); // - 1;
+
   auto num_pointsb = phi.p_rgrid->num_points;
   auto num_pointsc = ext_grid.num_points;
 
@@ -61,8 +65,6 @@ int solveContinuum(DiracSpinor &phi, const std::vector<double> &v,
     phi.f[i] = sf * psic.f[i];
     phi.g[i] = sf * psic.g[i];
   }
-
-  return 0;
 }
 
 namespace Adams {

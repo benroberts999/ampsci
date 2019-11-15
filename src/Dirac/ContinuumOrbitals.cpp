@@ -105,12 +105,12 @@ int ContinuumOrbitals::solveLocalContinuum(double ec, int min_l, int max_l)
     if (l > max_l)
       break;
 
-    // guess as asymptotic region:
-    auto i_asym = cgrid.getIndex(r_asym); // - 1;
+    // // guess as asymptotic region:
+    // auto i_asym = cgrid.getIndex(r_asym); // - 1;
 
     DiracSpinor phi(0, k, *p_rgrid);
     phi.en = ec;
-    DiracODE::solveContinuum(phi, vc, cgrid, i_asym, alpha);
+    DiracODE::solveContinuum(phi, vc, cgrid, r_asym, alpha);
 
     orbitals.push_back(phi);
   }
