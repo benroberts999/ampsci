@@ -42,7 +42,7 @@ Then, the compilation + use can proceed as per above.
   May re-name this file (e.g., to "filename.txt"), then run as:
     * _$ ./hartreeFock filename.txt_
     * (Otherwise, program will assume file name is 'hartreeFock.in')
- * see README_input for a full list of input options + descriptions
+ * see doc/ folder for a full list of input options + descriptions
 
 --------------------------------------------------------------------------------
 
@@ -68,7 +68,7 @@ Usage: (examples)
  * Note: numbers come from online database, and have some errors,
 so should be checked if needed.
 
- Or, enter 'c' Data to print list of physics constants)
+ Or, enter 'c' to print list of physics constants
   * _$./periodicTable c_        Prints values for some handy physical constants
 
 Note: ground-state electron configurations are "guessed", and can sometimes be incorrect.
