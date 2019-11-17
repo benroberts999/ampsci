@@ -35,7 +35,7 @@ Atom{Z=Cs;A=default;}
 ```
 
 * All available inputs for each input block are listed below
-  * Inputs are taken in as either text, boolean (true/false), integers, or real numbers. (Don't use inverted comma's/quote marks)
+  * Inputs are taken in as either text, boolean (true/false), integers, or real numbers. (Don't use inverted commas/quote marks)
   * These will be denoted by [t], [b], [i], [r]
 
 ## Atom
