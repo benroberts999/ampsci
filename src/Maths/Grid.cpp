@@ -171,13 +171,14 @@ std::vector<double> Grid::form_r(const GridType type, const double r0,
   r.reserve(num_points);
 
   if (type == GridType::loglinear) {
+    // u = r + b ln(r), du/dr = r/(b+r)
     r.push_back(r0);
     auto u = r0 + b * std::log(r0);
     auto r_prev = r0;
     for (auto i = 1ul; i < num_points; i++) {
       u += du;
       double r_tmp = r_prev;
-      // Integrate dr/dt to find r:
+      // Solve eq. u = r + b ln(r) to find r
       double delta_r = 1.0;
       int ii = 0; // to count number of iterations
       while (std::fabs(delta_r) > (r_tmp * 1.0e-17)) {

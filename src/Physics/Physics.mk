@@ -4,7 +4,8 @@ $(OD)/AtomData.o: $(SD)/Physics/AtomData.cpp $(SD)/Physics/AtomData.hpp \
 $(SD)/Physics/AtomData_PeriodicTable.hpp
 	$(COMP)
 
-$(OD)/Nuclear.o: $(SD)/Physics/NuclearPotentials.cpp $(SD)/Physics/NuclearPotentials.hpp \
+$(OD)/Nuclear.o: $(SD)/Physics/NuclearPotentials.cpp \
+$(SD)/Physics/NuclearPotentials.hpp \
 $(SD)/Maths/Grid.hpp $(SD)/Maths/NumCalc_quadIntegrate.hpp \
 $(SD)/Physics/AtomData.hpp $(SD)/Physics/NuclearData.hpp \
 $(SD)/Physics/PhysConst_constants.hpp

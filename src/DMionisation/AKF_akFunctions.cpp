@@ -6,7 +6,7 @@
 #include "Maths/SphericalBessel.hpp"
 #include "Physics/AtomData.hpp"
 #include "Physics/PhysConst_constants.hpp"
-#include "Physics/Wigner_369j.hpp"
+#include "Angular/Wigner_369j.hpp"
 #include <fstream>
 #include <iostream>
 

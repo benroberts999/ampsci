@@ -1,4 +1,5 @@
 #!/bin/bash
+ask_each=false
 for file in $(find src -name '*.cpp' -or -name '*.hpp'); do
   while true; do
     rm -f obj/junk_abcde123_gnu.o
@@ -28,9 +29,13 @@ for file in $(find src -name '*.cpp' -or -name '*.hpp'); do
   #
     echo ""
     echo "Finished: "$file
-    echo "Press enter to continue, or any other key to re-check $file:"
-    read -p "... " redo
-    if [ "$redo" == "" ]; then
+    if $ask_each; then
+      echo "Press enter to continue, or any other key to re-check $file:"
+      read -p "... " redo
+      if [ "$redo" == "" ]; then
+        break;
+      fi
+    else
       break;
     fi
   done

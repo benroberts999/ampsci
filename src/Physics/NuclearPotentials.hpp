@@ -9,6 +9,7 @@ namespace Nuclear {
 enum class Type { Fermi, spherical, point };
 
 Type parseType(const std::string &str_type);
+std::string parseType(Type type);
 
 struct Parameters {
   int z, a;

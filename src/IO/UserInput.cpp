@@ -18,7 +18,7 @@ bool UserInputBlock::checkBlock(const std::vector<std::string> &list) const {
   bool all_ok = true;
   for (const auto &entry : m_input_options) {
     // c==20, use stringview here
-    auto pos = entry.find("=");
+    auto pos = entry.find('=');
     auto option = pos < entry.length() ? entry.substr(0, pos) : entry;
     // For each option in
     auto isoption = [&](std::string a) { return option == a; };

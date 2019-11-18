@@ -17,6 +17,7 @@ all: checkObj checkXdir $(DEFAULTEXES) doneMessage
 
 # Dependencies for each object target, broken by sub-directories:
 include $(SD)/Adams/Adams.mk
+include $(SD)/Angular/Angular.mk
 include $(SD)/Dirac/Dirac.mk
 include $(SD)/DMionisation/DMionisation.mk
 include $(SD)/HF/HF.mk
@@ -32,7 +33,7 @@ include $(SD)/main.mk
 
 BASE = $(addprefix $(OD)/, \
  Adams_bound.o Wavefunction.o DiracSpinor.o AtomData.o Nuclear.o Grid.o \
- DiracOperator.o NuclearData.o \
+ DiracOperator.o NuclearData.o Angular.o \
 )
 
 HF = $(addprefix $(OD)/, \

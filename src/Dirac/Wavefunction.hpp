@@ -54,8 +54,8 @@ public:
 private:
   // Core configuration (non-rel terms)
   std::vector<NonRelSEConfig> m_core_configs;
-  int num_core_electrons = 0;     // Nc = N - M
-  std::string m_core_string = ""; // alive?
+  int num_core_electrons = 0; // Nc = N - M
+  std::string m_core_string = "";
 
 public:
   // Rule is: if function is single-line, define here. Else, in .cpp
@@ -64,11 +64,9 @@ public:
   int Anuc() const { return m_A; }
   int Nnuc() const { return (m_A > m_Z) ? (m_A - m_Z) : 0; }
   int Ncore() const { return num_core_electrons; }
-  double rinf(const DiracSpinor &phi) const { return rgrid.r[phi.pinf]; };
-  int getRadialIndex(double r_target) const {
-    return (int)rgrid.getIndex(r_target, true);
+  const Nuclear::Parameters &get_nuclearParameters() const {
+    return m_nuc_params;
   }
-  auto get_nucParams() const { return m_nuc_params; } //??
 
   auto get_VexPsi(const DiracSpinor &psi) const {
     // XXX add check!? XXX
@@ -76,8 +74,6 @@ public:
   }
 
   std::size_t getStateIndex(int n, int k, bool &is_valence = dummy_bool) const;
-  std::size_t getStateIndex(const DiracSpinor &psi,
-                            bool &is_valence = dummy_bool) const;
   const DiracSpinor &getState(int n, int k,
                               bool &is_valence = dummy_bool) const;
 

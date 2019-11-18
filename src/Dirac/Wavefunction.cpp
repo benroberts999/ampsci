@@ -179,10 +179,6 @@ std::size_t Wavefunction::getStateIndex(int n, int k, bool &is_valence) const {
   // std::abort();
   return std::max(core_orbitals.size(), valence_orbitals.size()); // invalid
 }
-std::size_t Wavefunction::getStateIndex(const DiracSpinor &psi,
-                                        bool &is_valence) const {
-  return getStateIndex(psi.n, psi.k, is_valence);
-}
 //******************************************************************************
 const DiracSpinor &Wavefunction::getState(int n, int k,
                                           bool &is_valence) const {
@@ -471,7 +467,7 @@ void Wavefunction::printCore(bool sorted) const
   auto index_list = sortedEnergyList(core_orbitals, sorted);
   for (auto i : index_list) {
     const auto &phi = core_orbitals[i];
-    auto r_inf = rinf(phi);
+    auto r_inf = rgrid.r[phi.pinf]; // rinf(phi);
     printf("%2i) %7s %2i  %5.1f %2i  %5.0e %15.9f %15.3f", int(i),
            phi.symbol().c_str(), phi.k, r_inf, phi.its, phi.eps, phi.en,
            phi.en *PhysConst::Hartree_invcm);
@@ -507,7 +503,7 @@ void Wavefunction::printValence(
   auto index_list = sortedEnergyList(tmp_orbs, sorted);
   for (auto i : index_list) {
     const auto &phi = tmp_orbs[i];
-    auto r_inf = rinf(phi);
+    auto r_inf = rgrid.r[phi.pinf]; // rinf(phi);
     printf("%2i) %7s %2i  %5.1f %2i  %5.0e %15.9f %15.3f", int(i),
            phi.symbol().c_str(), phi.k, r_inf, phi.its, phi.eps, phi.en,
            phi.en *PhysConst::Hartree_invcm);

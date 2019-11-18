@@ -25,6 +25,15 @@ Type parseType(const std::string &str_type) {
     return Type::point;
   return Type::Fermi;
 }
+std::string parseType(Type type) {
+  if (type == Type::Fermi)
+    return "Fermi";
+  if (type == Type::spherical)
+    return "spherical";
+  if (type == Type::point)
+    return "pointlike";
+  return "Fermi";
+}
 
 //******************************************************************************
 Parameters::Parameters(int in_z, int in_a, const std::string &str_type,

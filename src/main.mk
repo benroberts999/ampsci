@@ -11,5 +11,5 @@ $(SD)/Physics/AtomData_PeriodicTable.hpp $(SD)/Physics/PhysConst_constants.hpp
 	$(COMP)
 
 $(OD)/wigner.o: $(SD)/wigner.cpp $(SD)/IO/FileIO_fileReadWrite.hpp \
-$(SD)/Physics/Wigner_369j.hpp
+$(SD)/Angular/Wigner_369j.hpp
 	$(COMP)

@@ -337,13 +337,12 @@ void printTable() {
     if (el.Z > 118)
       break;
 
-    // printf("%2i ", col);
     if (row == 1 && col == 2) {
-      col += 16; // spaces(16);
+      col += 16;
       output_s += spaces2(16);
       output_z += spaces2(16);
     } else if (row < 4 && col == 3) {
-      col += 10; // spaces(10);
+      col += 10;
       output_s += spaces2(10);
       output_z += spaces2(10);
     } else if (row > 5) {
@@ -351,7 +350,6 @@ void printTable() {
         output_s += " *  ";
         output_z += "    ";
         col++;
-        // continue;
       }
       if (el.Z >= 57 && el.Z < 72) {
         output_s_l += helper_s(el);
@@ -371,7 +369,11 @@ void printTable() {
     if (col > 17 || el.Z == 118) {
       ++row;
       col = 0;
-      output += output_s + "\n" + output_z + "\n"; // extra space?
+      // output += std::string(output_s + "\n" + output_z + "\n");
+      output += output_s;
+      output += "\n";
+      output += output_z;
+      output += "\n";
       output_s.clear();
       output_z.clear();
     }
