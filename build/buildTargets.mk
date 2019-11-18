@@ -31,21 +31,21 @@ include $(SD)/main.mk
 ################################################################################
 # Just to save typing: Many programs depend on these combos:
 
-BASE = $(addprefix $(OD)/, \
+BASE = $(addprefix $(BD)/, \
  Adams_bound.o Wavefunction.o DiracSpinor.o AtomData.o Nuclear.o Grid.o \
  DiracOperator.o NuclearData.o Angular.o \
 )
 
-HF = $(addprefix $(OD)/, \
+HF = $(addprefix $(BD)/, \
  HartreeFockClass.o CoulombIntegrals.o Parametric_potentials.o \
  Adams_Greens.o \
 )
 
-CNTM = $(addprefix $(OD)/, \
+CNTM = $(addprefix $(BD)/, \
  Adams_continuum.o ContinuumOrbitals.o \
 )
 
-MODS = $(addprefix $(OD)/, \
+MODS = $(addprefix $(BD)/, \
  Module_runModules.o Module_atomicKernal.o AKF_akFunctions.o \
  Module_matrixElements.o Module_fitParametric.o Module_pnc.o \
 )
@@ -53,27 +53,27 @@ MODS = $(addprefix $(OD)/, \
 ################################################################################
 # Link + build all final programs
 
-$(XD)/hartreeFock: $(BASE) $(HF) $(CNTM) $(OD)/hartreeFock.o \
-$(OD)/UserInput.o $(MODS)
+$(XD)/hartreeFock: $(BASE) $(HF) $(CNTM) $(BD)/hartreeFock.o \
+$(BD)/UserInput.o $(MODS)
 	$(LINK)
 
-$(XD)/dmeXSection: $(BASE) $(CNTM) $(HF) $(OD)/dmeXSection.o \
-$(OD)/AKF_akFunctions.o $(OD)/StandardHaloModel.o
+$(XD)/dmeXSection: $(BASE) $(CNTM) $(HF) $(BD)/dmeXSection.o \
+$(BD)/AKF_akFunctions.o $(BD)/StandardHaloModel.o
 	$(LINK)
 
-$(XD)/wigner: $(OD)/wigner.o
+$(XD)/wigner: $(BD)/wigner.o
 	$(LINK)
 
-$(XD)/periodicTable: $(OD)/periodicTable.o $(OD)/AtomData.o \
-$(OD)/NuclearData.o
+$(XD)/periodicTable: $(BD)/periodicTable.o $(BD)/AtomData.o \
+$(BD)/NuclearData.o
 	$(LINK)
 
 ################################################################################
 ################################################################################
 
 checkObj:
-	@if [ ! -d $(OD) ]; then \
-	  echo '\n ERROR: Directory: '$(OD)' doesnt exist - please create it!\n'; \
+	@if [ ! -d $(BD) ]; then \
+	  echo '\n ERROR: Directory: '$(BD)' doesnt exist - please create it!\n'; \
 	  false; \
 	fi
 
@@ -88,6 +88,6 @@ doneMessage:
 
 .PHONY: clean do_the_chicken_dance checkObj checkXdir
 clean:
-	rm -f $(ALLEXES) $(OD)/*.o
+	rm -f $(ALLEXES) $(BD)/*.o
 do_the_chicken_dance:
 	@echo 'Why would I do that?'

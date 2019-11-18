@@ -19,14 +19,14 @@ XD=.
 ################################################################################
 ## Set directories for source files (SD), and output object files (OD)
 SD=./src
-OD=./obj
+BD=./build
 
 ## c++ standard. must be at least c++14
 CXXSTD=-std=c++14
 #CXXSTD=-std=c++17
 
 ## Build config + options:
-include $(SD)/buildOptions.mk
+include $(BD)/buildOptions.mk
 
 ## Build targets (must update if new programs/files are added):
-include $(SD)/buildTargets.mk
+include $(BD)/buildTargets.mk
