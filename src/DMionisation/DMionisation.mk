@@ -4,7 +4,7 @@ $(OD)/AKF_akFunctions.o: $(SD)/DMionisation/AKF_akFunctions.cpp \
 $(SD)/DMionisation/AKF_akFunctions.hpp \
 $(SD)/Dirac/ContinuumOrbitals.hpp $(SD)/Dirac/Wavefunction.hpp \
 $(SD)/IO/FileIO_fileReadWrite.hpp $(SD)/Maths/NumCalc_quadIntegrate.hpp \
-$(SD)/Maths/SphericalBessel.hpp $(SD)/Physics/AtomInfo.hpp \
+$(SD)/Maths/SphericalBessel.hpp $(SD)/Physics/AtomData.hpp \
 $(SD)/Physics/PhysConst_constants.hpp $(SD)/Physics/Wigner_369j.hpp
 	$(COMP)
 

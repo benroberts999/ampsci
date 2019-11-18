@@ -3,6 +3,11 @@
 src/*~
 !obj/
 obj/*.o
+!doc/
+doc/*
+!doc/*.md
+!doc/*.tex
+!doc/*.pdf
 !.gitignore
 !Makefile
 !makefile

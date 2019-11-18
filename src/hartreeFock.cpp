@@ -4,7 +4,7 @@
 #include "Modules/Module_runModules.hpp"
 #include <iostream>
 #include <string>
-// #include "Physics/AtomInfo.hpp" //need for testing basis only
+// #include "Physics/AtomData.hpp" //need for testing basis only
 
 int main(int argc, char *argv[]) {
   ChronoTimer timer("\nhartreeFock");
@@ -111,10 +111,10 @@ int main(int argc, char *argv[]) {
   //               TESTS
   //*********************************************************
 
-  // // needs: #include "Physics/AtomInfo.hpp" (for AtomInfo::listOfStates_nk)
+  // // needs: #include "Physics/AtomData.hpp" (for AtomData::listOfStates_nk)
   // bool test_hf_basis = false;
   // if (test_hf_basis) {
-  //   auto basis_lst = AtomInfo::listOfStates_nk("9spd8f");
+  //   auto basis_lst = AtomData::listOfStates_nk("9spd8f");
   //   std::vector<DiracSpinor> basis = wf.core_orbitals;
   //   HartreeFock hfbasis(wf, basis, 1.0e-6);
   //   hfbasis.verbose = false;

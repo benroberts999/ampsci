@@ -3,8 +3,8 @@
 #include "Dirac/DiracSpinor.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
-#include "Physics/AtomInfo.hpp"
-#include "Physics/Nuclear.hpp"
+#include "Physics/AtomData.hpp"
+#include "Physics/NuclearPotentials.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include <algorithm> //for sort
 #include <cmath>
@@ -32,7 +32,7 @@ void Wavefunction::solveDirac(DiracSpinor &psi, double e_a,
   } else if (psi.en == 0) {
     psi.en = enGuessVal(psi.n, psi.k);
   }
-  DiracODE::boundState(psi, v_a, rgrid, m_alpha, log_dele_or);
+  DiracODE::boundState(psi, psi.en, v_a, m_alpha, log_dele_or);
 }
 
 //------------------------------------------------------------------------------
@@ -61,12 +61,12 @@ void Wavefunction::determineCore(std::string str_core_in)
   if (first_char == "0" || first_char == "-") {
     try {
       auto m = std::stoi(str_core_in);
-      str_core_in = AtomInfo::guessCoreConfigStr(m_Z + m);
+      str_core_in = AtomData::guessCoreConfigStr(m_Z + m);
     } catch (...) {
     }
   }
 
-  m_core_configs = AtomInfo::core_parser(str_core_in);
+  m_core_configs = AtomData::core_parser(str_core_in);
 
   bool bad_core = false;
   m_core_string = "";
@@ -96,7 +96,7 @@ void Wavefunction::determineCore(std::string str_core_in)
   if (num_core_electrons > m_Z) {
     std::cout << "Problem with core: " << str_core_in << "\n";
     std::cout << "= " << m_core_string << "\n";
-    std::cout << "= " << AtomInfo::niceCoreOutput(m_core_string) << "\n";
+    std::cout << "= " << AtomData::niceCoreOutput(m_core_string) << "\n";
     std::cout << "Too many electrons: N_core=" << num_core_electrons
               << ", Z=" << m_Z << "\n";
     std::abort();
@@ -130,7 +130,7 @@ void Wavefunction::hartreeFockValence(const std::string &in_valence_str) {
                  "hartreeFockCore\n";
     return;
   }
-  auto val_lst = AtomInfo::listOfStates_nk(in_valence_str);
+  auto val_lst = AtomData::listOfStates_nk(in_valence_str);
   for (const auto &nk : val_lst) {
     if (!isInCore(nk.n, nk.k) && !isInValence(nk.n, nk.k))
       valence_orbitals.emplace_back(DiracSpinor{nk.n, nk.k, rgrid});
@@ -178,10 +178,6 @@ std::size_t Wavefunction::getStateIndex(int n, int k, bool &is_valence) const {
             << "\n";
   // std::abort();
   return std::max(core_orbitals.size(), valence_orbitals.size()); // invalid
-}
-std::size_t Wavefunction::getStateIndex(const DiracSpinor &psi,
-                                        bool &is_valence) const {
-  return getStateIndex(psi.n, psi.k, is_valence);
 }
 //******************************************************************************
 const DiracSpinor &Wavefunction::getState(int n, int k,
@@ -383,7 +379,7 @@ double Wavefunction::enGuessVal(int n, int ka) const
 // Energy guess for valence states. Not perfect, good enough
 {
   int maxn = maxCore_n();
-  int l = AtomInfo::l_k(ka);
+  int l = AtomData::l_k(ka);
   int dn = n - maxn;
   double neff = 1. + dn;
   double x = 1;
@@ -471,7 +467,7 @@ void Wavefunction::printCore(bool sorted) const
   auto index_list = sortedEnergyList(core_orbitals, sorted);
   for (auto i : index_list) {
     const auto &phi = core_orbitals[i];
-    auto r_inf = rinf(phi);
+    auto r_inf = rgrid.r[phi.pinf]; // rinf(phi);
     printf("%2i) %7s %2i  %5.1f %2i  %5.0e %15.9f %15.3f", int(i),
            phi.symbol().c_str(), phi.k, r_inf, phi.its, phi.eps, phi.en,
            phi.en *PhysConst::Hartree_invcm);
@@ -507,7 +503,7 @@ void Wavefunction::printValence(
   auto index_list = sortedEnergyList(tmp_orbs, sorted);
   for (auto i : index_list) {
     const auto &phi = tmp_orbs[i];
-    auto r_inf = rinf(phi);
+    auto r_inf = rgrid.r[phi.pinf]; // rinf(phi);
     printf("%2i) %7s %2i  %5.1f %2i  %5.0e %15.9f %15.3f", int(i),
            phi.symbol().c_str(), phi.k, r_inf, phi.its, phi.eps, phi.en,
            phi.en *PhysConst::Hartree_invcm);
@@ -533,11 +529,11 @@ Wavefunction::listOfStates_nk(int num_val, int la, int lb, bool skip_core) const
     l_max = la;
   }
 
-  auto min_ik = AtomInfo::indexFromKappa(-l_min - 1);
-  auto max_ik = AtomInfo::indexFromKappa(-l_max - 1);
+  auto min_ik = AtomData::indexFromKappa(-l_min - 1);
+  auto max_ik = AtomData::indexFromKappa(-l_max - 1);
   for (int ik = min_ik; ik <= max_ik; ik++) {
-    auto k = AtomInfo::kappaFromIndex(ik);
-    auto l = AtomInfo::l_k(k);
+    auto k = AtomData::kappaFromIndex(ik);
+    auto l = AtomData::l_k(k);
     auto n_min = l + 1;
     for (int n = n_min, count = 0; count < num_val; n++) {
       if (isInCore(n, k) && skip_core)

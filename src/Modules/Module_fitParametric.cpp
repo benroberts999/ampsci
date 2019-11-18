@@ -3,7 +3,7 @@
 #include "HF/HartreeFockClass.hpp"
 #include "IO/UserInput.hpp"
 #include "Maths/Grid.hpp"
-#include "Physics/Nuclear.hpp"
+#include "Physics/NuclearPotentials.hpp"
 #include "Physics/Parametric_potentials.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include <iostream>
@@ -48,7 +48,7 @@ void fitParametric(const UserInputBlock &input, const Wavefunction &wf) {
     auto r0 = wf.rgrid.r0;
     auto rmax = wf.rgrid.rmax;
     GridParameters gp(num_points, r0, rmax, wf.rgrid.b, wf.rgrid.gridtype);
-    auto nuc_params = wf.get_nucParams();
+    auto nuc_params = wf.get_nuclearParameters();
 
     std::tie(H, d) =
         fitParametric_performFit(states, Z, gp, nuc_params, green, fit_worst);
@@ -78,7 +78,8 @@ void fitParametric(const UserInputBlock &input, const Wavefunction &wf) {
     int i = 0;
     for (auto &phi : wf_prm.valence_orbitals) {
       auto njl = phi.symbol().c_str();
-      double rinf = wf.rinf(phi);
+      // double rinf = wf.rinf(phi);
+      double rinf = wf.rgrid.r[phi.pinf];
       double eni = phi.en;
       double enT = states[i++].en;
       printf("%7s %2i  %3.0f %3i  %5.0e  %13.7f  %11.4f %8.2f%%\n", njl, phi.k,

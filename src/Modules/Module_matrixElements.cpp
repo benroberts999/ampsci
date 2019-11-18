@@ -3,7 +3,7 @@
 #include "Dirac/Operators.hpp"
 #include "Dirac/Wavefunction.hpp"
 #include "IO/UserInput.hpp"
-#include "Physics/Nuclear.hpp"
+#include "Physics/NuclearPotentials.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include <fstream>
 #include <iostream>
@@ -79,7 +79,7 @@ std::unique_ptr<DiracOperator> generateOperator(const std::string &operator_str,
               << "Using " << Fr_str << " nuclear distro for F(r)\n"
               << "w/ mu = " << mu << ", I = " << I_nuc << ", r_N = " << r_nucfm
               << "fm = " << r_nucau << "au  (r_rms=" << r_rmsfm << "fm)\n";
-    std::cout << "Points inside nucleus: " << wf.getRadialIndex(r_nucau)
+    std::cout << "Points inside nucleus: " << wf.rgrid.getIndex(r_nucau)
               << "\n";
 
     auto Fr = HyperfineOperator::sphericalBall_F();

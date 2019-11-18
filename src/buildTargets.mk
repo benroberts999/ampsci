@@ -31,8 +31,8 @@ include $(SD)/main.mk
 # Just to save typing: Many programs depend on these combos:
 
 BASE = $(addprefix $(OD)/, \
- Adams_bound.o Wavefunction.o DiracSpinor.o AtomInfo.o Nuclear.o Grid.o \
- DiracOperator.o Angular.o \
+ Adams_bound.o Wavefunction.o DiracSpinor.o AtomData.o Nuclear.o Grid.o \
+ DiracOperator.o NuclearData.o Angular.o \
 )
 
 HF = $(addprefix $(OD)/, \
@@ -63,7 +63,8 @@ $(OD)/AKF_akFunctions.o $(OD)/StandardHaloModel.o
 $(XD)/wigner: $(OD)/wigner.o
 	$(LINK)
 
-$(XD)/periodicTable: $(OD)/periodicTable.o $(OD)/AtomInfo.o $(OD)/Nuclear.o
+$(XD)/periodicTable: $(OD)/periodicTable.o $(OD)/AtomData.o \
+$(OD)/NuclearData.o
 	$(LINK)
 
 ################################################################################
