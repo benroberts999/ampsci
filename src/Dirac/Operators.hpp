@@ -4,7 +4,7 @@
 #include "Maths/SphericalBessel.hpp"
 #include "Physics/NuclearPotentials.hpp"
 #include "Physics/PhysConst_constants.hpp"
-#include "Physics/Wigner_369j.hpp"
+#include "Angular/Wigner_369j.hpp"
 #include <cmath>
 #include <functional>
 #include <vector>

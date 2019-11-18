@@ -17,6 +17,7 @@ all: checkObj checkXdir $(DEFAULTEXES) doneMessage
 
 # Dependencies for each object target, broken by sub-directories:
 include $(SD)/Adams/Adams.mk
+include $(SD)/Angular/Angular.mk
 include $(SD)/Dirac/Dirac.mk
 include $(SD)/DMionisation/DMionisation.mk
 include $(SD)/HF/HF.mk

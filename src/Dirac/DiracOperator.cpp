@@ -1,6 +1,6 @@
 #include "Dirac/DiracOperator.hpp"
 #include "Dirac/DiracSpinor.hpp"
-#include "Physics/Wigner_369j.hpp"
+#include "Angular/Wigner_369j.hpp"
 #include <algorithm>
 #include <cmath>
 #include <iostream>
