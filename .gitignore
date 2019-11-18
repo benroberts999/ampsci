@@ -8,6 +8,7 @@ doc/*
 !doc/*.md
 !doc/*.tex
 !doc/*.pdf
+!doc/*.sh
 !.gitignore
 !Makefile
 !makefile

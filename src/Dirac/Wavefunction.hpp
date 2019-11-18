@@ -43,8 +43,6 @@ private:
   // Atom info:
   const int m_Z, m_A; /*don't need A twice (its inside nucl params!)*/
   Nuclear::Parameters m_nuc_params;
-
-public:
   std::unique_ptr<HartreeFock> m_pHF = nullptr;
 
 public:
@@ -57,7 +55,7 @@ private:
   int num_core_electrons = 0; // Nc = N - M
   std::string m_core_string = "";
 
-public:
+public: // const methods: "views" into WF object
   // Rule is: if function is single-line, define here. Else, in .cpp
   double get_alpha() const { return m_alpha; }
   int Znuc() const { return m_Z; }
@@ -97,14 +95,15 @@ public:
   int maxCore_n(int ka_in = 0) const;
   int maxCore_l() const;
 
-  std::vector<std::size_t>
-  sortedEnergyList(const std::vector<DiracSpinor> &tmp_orbs,
-                   bool do_sort = false) const;
-
+  // not static, since skip_core. Make static version??
   std::vector<DiracSEnken> listOfStates_nk(int num_val, int la, int lb = 0,
                                            bool skip_core = true) const;
 
   std::vector<double> coreDensity() const;
+
+  static std::vector<std::size_t>
+  sortedEnergyList(const std::vector<DiracSpinor> &tmp_orbs,
+                   bool do_sort = false);
 
 public:
   void solveDirac(DiracSpinor &psi, double e_a, const std::vector<double> &vex,

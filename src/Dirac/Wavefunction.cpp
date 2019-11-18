@@ -423,7 +423,8 @@ std::string Wavefunction::nuclearParams() const {
 //******************************************************************************
 std::vector<std::size_t>
 Wavefunction::sortedEnergyList(const std::vector<DiracSpinor> &tmp_orbs,
-                               bool do_sort) const
+                               bool do_sort)
+// Static
 // Outouts a list of integers corresponding to the states
 // sorted by energy (lowest energy first)
 {

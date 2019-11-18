@@ -110,7 +110,7 @@ int ContinuumOrbitals::solveLocalContinuum(double ec, int min_l, int max_l)
 
     DiracSpinor phi(0, k, *p_rgrid);
     phi.en = ec;
-    DiracODE::solveContinuum(phi, vc, cgrid, r_asym, alpha);
+    DiracODE::solveContinuum(phi, ec, vc, cgrid, r_asym, alpha);
 
     orbitals.push_back(phi);
   }

@@ -71,7 +71,7 @@ void boundState(DiracSpinor &psi, const double en0,
 {
 
   // Convergance goal. Default: 1e-14
-  const double eps_goal = (log_dele > 0) ? std::pow(10, -log_dele) : 1.e-14;
+  const double eps_goal = std::pow(10, -std::abs(log_dele));
 
   DEBUG(if (!(std::abs(psi.k) <= psi.n && psi.k != psi.n)) {
     std::cerr << "\nFail96 in Adams: bad state " << psi.symbol() << "\n";
