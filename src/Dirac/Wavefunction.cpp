@@ -319,21 +319,24 @@ void Wavefunction::orthonormaliseOrbitals(std::vector<DiracSpinor> &in_orbs,
 }
 
 //******************************************************************************
-void Wavefunction::orthogonaliseWrtCore(DiracSpinor &psi_v) const {
-  for (const auto &psi_c : core_orbitals) {
+void Wavefunction::orthogonaliseWrt(DiracSpinor &psi_v,
+                                    const std::vector<DiracSpinor> &in_orbs) {
+  for (const auto &psi_c : in_orbs) {
     if (psi_v.k != psi_c.k)
       continue;
     psi_v -= (psi_v * psi_c) * psi_c;
   }
 }
 //******************************************************************************
-void Wavefunction::orthonormaliseWrtCore(DiracSpinor &psi_v) const
+void Wavefunction::orthonormaliseWrt(DiracSpinor &psi_v,
+                                     const std::vector<DiracSpinor> &in_orbs)
+// Static.
 // Force given orbital to be orthogonal to all core orbitals
 // [After the core is 'frozen', don't touch core orbitals!]
 // |v> --> |v> - sum_c |c><c|v>
 // note: here, c denotes core orbitals
 {
-  orthogonaliseWrtCore(psi_v);
+  orthogonaliseWrt(psi_v, in_orbs);
   psi_v.normalise();
 }
 
@@ -381,16 +384,16 @@ double Wavefunction::enGuessVal(int n, int ka) const
   int maxn = maxCore_n();
   int l = AtomData::l_k(ka);
   int dn = n - maxn;
-  double neff = 1. + dn;
+  double neff = 1.0 + dn;
   double x = 1;
   if (maxn < 4)
     x = 0.25;
   if (l == 1)
     neff += 0.5 * x;
   if (l == 2)
-    neff += 2. * std::pow(x, 0.5);
+    neff += 2.0 * std::pow(x, 0.5);
   if (l >= 3)
-    neff += 4. * x;
+    neff += 4.0 * x;
   return -0.5 / std::pow(neff, 2);
 }
 

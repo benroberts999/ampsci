@@ -130,8 +130,8 @@ void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf) {
     // Find the core+main contributions by forcing mixed-states to be orthoganal
     // to the core/main states:
     // orthog wrt core:
-    wf.orthogonaliseWrtCore(del_A_dag);
-    wf.orthogonaliseWrtCore(del_B);
+    wf.orthogonaliseWrt(del_A_dag, wf.core_orbitals);
+    wf.orthogonaliseWrt(del_B, wf.core_orbitals);
     // Core contribution:
     auto pnc1_c = pnc1_w - c01 * he1.reducedME(del_A_dag, aB);
     auto pnc2_c = pnc2_w - c10 * he1.reducedME(aA, del_B);

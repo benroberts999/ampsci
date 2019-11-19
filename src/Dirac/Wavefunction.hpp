@@ -38,10 +38,8 @@ public:
   const Grid rgrid;
 
 private:
-  // store internal value for alpha (allows variation)
-  const double m_alpha;
-  // Atom info:
-  const int m_Z, m_A; /*don't need A twice (its inside nucl params!)*/
+  const double m_alpha; // store internal value for alpha (allows variation)
+  const int m_Z, m_A;
   Nuclear::Parameters m_nuc_params;
   std::unique_ptr<HartreeFock> m_pHF = nullptr;
 
@@ -115,13 +113,16 @@ public:
 
   static void orthonormaliseOrbitals(std::vector<DiracSpinor> &tmp_orbs,
                                      int num_its = 1);
-  void orthonormaliseWrtCore(DiracSpinor &psi_v) const;
-  void orthogonaliseWrtCore(DiracSpinor &psi_v) const;
+  static void orthonormaliseWrt(DiracSpinor &psi_v,
+                                const std::vector<DiracSpinor> &in_orbs);
+  static void orthogonaliseWrt(DiracSpinor &psi_v,
+                               const std::vector<DiracSpinor> &in_orbs);
 
   void hartreeFockCore(HFMethod method, const std::string &in_core,
                        double eps_HF = 0, double h_d = 0, double g_t = 0);
   auto coreEnergyHF() const;
   void hartreeFockValence(const std::string &in_valence_str);
+
   double enGuessCore(int n, int l) const;
   double enGuessVal(int n, int ka) const;
 
