@@ -1,6 +1,6 @@
 #include "Dirac/DiracOperator.hpp"
-#include "Dirac/DiracSpinor.hpp"
 #include "Angular/Wigner_369j.hpp"
+#include "Dirac/DiracSpinor.hpp"
 #include <algorithm>
 #include <cmath>
 #include <iostream>
@@ -50,13 +50,13 @@ DiracSpinor DiracOperator::reduced_lhs(const DiracSpinor &Fa,
   auto sdc = StateDepConst(Fb, Fa);
   int s = imaginaryQ() ? -1 : 1;
   auto x = Wigner::evenQ_2(Fa.twoj() - Fb.twoj()) ? s : -s;
-  return (sdc * x * angularF(Fb.k, Fa.k)) * radial_rhs(Fa.k, Fb);
+  return (sdc * x * angularF(Fa.k, Fb.k)) * radial_rhs(Fa.k, Fb);
 }
 DiracSpinor DiracOperator::reduced_lhs(const int ka,
                                        const DiracSpinor &Fb) const {
   int s = imaginaryQ() ? -1 : 1;
   auto x = Wigner::evenQ_2(Wigner::twoj_k(ka) - Fb.twoj()) ? s : -s;
-  return (x * angularF(Fb.k, ka)) * radial_rhs(ka, Fb);
+  return (x * angularF(ka, Fb.k)) * radial_rhs(ka, Fb);
 }
 
 double DiracOperator::radialIntegral(const DiracSpinor &Fa,
