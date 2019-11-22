@@ -31,8 +31,8 @@ namespace DiracODE {
 
 using namespace Adams;
 //******************************************************************************
-void boundState(DiracSpinor &psi, const std::vector<double> &v,
-                const Grid &rgrid, const double alpha, int log_dele)
+void boundState(DiracSpinor &psi, const double en0,
+                const std::vector<double> &v, const double alpha, int log_dele)
 // Solves local, spherical bound state dirac equation using Adams-Moulton
 // method. Based on method presented in book by W. R. Johnson:
 //   W. R. Johnson, Atomic Structure Theory (Springer, New York, 2007)
@@ -71,7 +71,7 @@ void boundState(DiracSpinor &psi, const std::vector<double> &v,
 {
 
   // Convergance goal. Default: 1e-14
-  const double eps_goal = (log_dele > 0) ? std::pow(10, -log_dele) : 1.e-14;
+  const double eps_goal = std::pow(10, -std::abs(log_dele));
 
   DEBUG(if (!(std::abs(psi.k) <= psi.n && psi.k != psi.n)) {
     std::cerr << "\nFail96 in Adams: bad state " << psi.symbol() << "\n";
@@ -79,13 +79,15 @@ void boundState(DiracSpinor &psi, const std::vector<double> &v,
   })
   DEBUG(std::cerr << "Start: " << psi.symbol() << ", en=" << psi.en << "\n";)
 
+  const auto &rgrid = *psi.p_rgrid;
+
   // orbital should have (n-l-1) nodes:
   const int required_nodes = psi.n - psi.l() - 1;
   bool correct_nodes = false;
   TrackEnGuess sofar; // track higest/lowest energy guesses etc.
 
   // Start eigenvalue iterations:
-  double t_en = psi.en;
+  double t_en = en0; // set initial energy guss
   int t_pinf = 0;
   double t_eps = 1.0;
   double t_eps_prev = 1.0;

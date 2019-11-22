@@ -1,5 +1,5 @@
-#include "AtomInfo.hpp"
-#include "AtomInfo_PeriodicTable.hpp"
+#include "AtomData.hpp"
+#include "AtomData_PeriodicTable.hpp"
 #include <algorithm>
 #include <array>
 #include <cctype> //char from string
@@ -12,7 +12,7 @@
 
 //******************************************************************************
 std::string NonRelSEConfig::symbol() const {
-  return std::to_string(n) + AtomInfo::l_symbol(l) + std::to_string(num);
+  return std::to_string(n) + AtomData::l_symbol(l) + std::to_string(num);
 }
 
 bool NonRelSEConfig::ok() const {
@@ -22,7 +22,7 @@ bool NonRelSEConfig::ok() const {
 }
 
 //******************************************************************************
-namespace AtomInfo {
+namespace AtomData {
 
 int defaultA(int Z)
 // c++14: can make constexpr ?
@@ -94,7 +94,7 @@ int symbol_to_l(const std::string &l_str) {
     // Can work if given an int as a string:
     l = std::stoi(l_str);
   } catch (...) { // don't abort here (might get nice error message later)
-    std::cerr << "\nFAIL AtomInfo::69 Invalid l: " << l_str << "?\n";
+    std::cerr << "\nFAIL AtomData::69 Invalid l: " << l_str << "?\n";
   }
   return l;
 }
@@ -151,7 +151,7 @@ std::vector<NonRelSEConfig> core_parser(const std::string &str_core_in)
     found = str_core_in.length();
   auto first_term = str_core_in.substr(0, found);
   auto rest = str_core_in.substr(found);
-  auto str_core = AtomInfo::coreConfig(first_term) + rest;
+  auto str_core = AtomData::coreConfig(first_term) + rest;
 
   // Move comma-seperated string into an array (vector)
   std::vector<std::string> term_str_list;
@@ -179,7 +179,7 @@ std::vector<NonRelSEConfig> core_parser(const std::string &str_core_in)
       num = std::stoi(term.substr(l_position + 1));
       if (l_position == term.size())
         throw;
-      l = AtomInfo::symbol_to_l(term.substr(l_position, 1));
+      l = AtomData::symbol_to_l(term.substr(l_position, 1));
     } catch (...) {
       term_ok = false;
     }
@@ -245,7 +245,7 @@ std::string guessCoreConfigStr(const int total_core_electrons) {
 
 //------------------------------------------------------------------------------
 std::vector<NonRelSEConfig> core_guess(const int total_core_electrons) {
-  auto core_configs = AtomInfo::core_parser(AtomInfo::filling_order);
+  auto core_configs = AtomData::core_parser(AtomData::filling_order);
   auto nel = total_core_electrons;
   for (auto &c : core_configs) {
     if (c.num > nel) {
@@ -277,7 +277,7 @@ std::vector<DiracSEnken> listOfStates_nk(const std::string &in_list) {
       } catch (...) {
       }
       auto l_str = std::string(1, c);
-      auto l = AtomInfo::symbol_to_l(l_str);
+      auto l = AtomData::symbol_to_l(l_str);
 
       // for (int n = l + 1; n <= n_max; ++n) {
       //   if (l != 0)
@@ -337,13 +337,12 @@ void printTable() {
     if (el.Z > 118)
       break;
 
-    // printf("%2i ", col);
     if (row == 1 && col == 2) {
-      col += 16; // spaces(16);
+      col += 16;
       output_s += spaces2(16);
       output_z += spaces2(16);
     } else if (row < 4 && col == 3) {
-      col += 10; // spaces(10);
+      col += 10;
       output_s += spaces2(10);
       output_z += spaces2(10);
     } else if (row > 5) {
@@ -351,7 +350,6 @@ void printTable() {
         output_s += " *  ";
         output_z += "    ";
         col++;
-        // continue;
       }
       if (el.Z >= 57 && el.Z < 72) {
         output_s_l += helper_s(el);
@@ -371,7 +369,11 @@ void printTable() {
     if (col > 17 || el.Z == 118) {
       ++row;
       col = 0;
-      output += output_s + "\n" + output_z + "\n"; // extra space?
+      // output += std::string(output_s + "\n" + output_z + "\n");
+      output += output_s;
+      output += "\n";
+      output += output_z;
+      output += "\n";
       output_s.clear();
       output_z.clear();
     }
@@ -383,4 +385,4 @@ void printTable() {
   std::cout << "        " << output_z_a << "\n\n";
 }
 
-} // namespace AtomInfo
+} // namespace AtomData

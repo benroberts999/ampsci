@@ -9,12 +9,26 @@
 //******************************************************************************
 GridParameters::GridParameters(std::size_t innum_points, double inr0,
                                double inrmax, double inb,
-                               const std::string &str_type)
-    : num_points(innum_points), r0(inr0), rmax(inrmax), b(inb),
+                               const std::string &str_type, double indu)
+    : num_points(innum_points == 0
+                     ? Grid::calc_num_points_from_du(inr0, inrmax, indu,
+                                                     parseType(str_type), inb)
+                     : innum_points), //
+      r0(inr0),                       //
+      rmax(inrmax),                   //
+      b(inb),                         //
       type(parseType(str_type)) {}
+// indu is optional. Only used if innum_points = 0
 GridParameters::GridParameters(std::size_t innum_points, double inr0,
-                               double inrmax, double inb, GridType intype)
-    : num_points(innum_points), r0(inr0), rmax(inrmax), b(inb), type(intype) {}
+                               double inrmax, double inb, GridType intype,
+                               double indu)
+    : num_points(innum_points == 0 ? Grid::calc_num_points_from_du(
+                                         inr0, inrmax, indu, intype, inb)
+                                   : innum_points), //
+      r0(inr0),                                     //
+      rmax(inrmax),                                 //
+      b(inb),                                       //
+      type(intype) {}
 //------------------------------------------------------------------------------
 GridType GridParameters::parseType(const std::string &str_type) {
   if (str_type == "loglinear")
@@ -157,13 +171,14 @@ std::vector<double> Grid::form_r(const GridType type, const double r0,
   r.reserve(num_points);
 
   if (type == GridType::loglinear) {
+    // u = r + b ln(r), du/dr = r/(b+r)
     r.push_back(r0);
     auto u = r0 + b * std::log(r0);
     auto r_prev = r0;
     for (auto i = 1ul; i < num_points; i++) {
       u += du;
       double r_tmp = r_prev;
-      // Integrate dr/dt to find r:
+      // Solve eq. u = r + b ln(r) to find r
       double delta_r = 1.0;
       int ii = 0; // to count number of iterations
       while (std::fabs(delta_r) > (r_tmp * 1.0e-17)) {

@@ -1,7 +1,7 @@
 #include "Dirac/DiracSpinor.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
-#include "Physics/AtomInfo.hpp"
+#include "Physics/AtomData.hpp"
 #include <algorithm>
 #include <cmath>
 #include <string>
@@ -18,16 +18,16 @@ DiracSpinor::DiracSpinor(int in_n, int in_k, const Grid &rgrid)
       g(f),                                          //
       pinf(rgrid.num_points),                        //
       its(-1), eps(-1), occ_frac(0),                 //
-      m_twoj(AtomInfo::twoj_k(in_k)),                //
-      m_l(AtomInfo::l_k(in_k)),                      //
-      m_parity(AtomInfo::parity_k(in_k)),            //
-      m_k_index(AtomInfo::indexFromKappa(in_k)) {}
+      m_twoj(AtomData::twoj_k(in_k)),                //
+      m_l(AtomData::l_k(in_k)),                      //
+      m_parity(AtomData::parity_k(in_k)),            //
+      m_k_index(AtomData::indexFromKappa(in_k)) {}
 
 //******************************************************************************
 std::string DiracSpinor::symbol(bool gnuplot) const {
   // Readable symbol (s_1/2, p_{3/2} etc.).
   // gnuplot-firndly '{}' braces optional.
-  std::string ostring1 = std::to_string(n) + AtomInfo::l_symbol(m_l);
+  std::string ostring1 = std::to_string(n) + AtomData::l_symbol(m_l);
   std::string ostring2 = gnuplot ? "_{" + std::to_string(m_twoj) + "/2}"
                                  : "_" + std::to_string(m_twoj) + "/2";
   return ostring1 + ostring2;
@@ -35,7 +35,7 @@ std::string DiracSpinor::symbol(bool gnuplot) const {
 
 std::string DiracSpinor::shortSymbol() const {
   std::string pm = (k < 0) ? "+" : "-";
-  return std::to_string(n) + AtomInfo::l_symbol(m_l) + pm;
+  return std::to_string(n) + AtomData::l_symbol(m_l) + pm;
 }
 
 //******************************************************************************
@@ -169,7 +169,7 @@ bool operator!=(const DiracSpinor &lhs, const DiracSpinor &rhs) {
 
 bool operator<(const DiracSpinor &lhs, const DiracSpinor &rhs) {
   if (lhs.n == rhs.n)
-    return AtomInfo::indexFromKappa(lhs.k) < AtomInfo::indexFromKappa(rhs.k);
+    return AtomData::indexFromKappa(lhs.k) < AtomData::indexFromKappa(rhs.k);
   return lhs.n < rhs.n;
 }
 

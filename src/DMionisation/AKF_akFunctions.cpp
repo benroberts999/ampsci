@@ -4,9 +4,9 @@
 #include "IO/FileIO_fileReadWrite.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Maths/SphericalBessel.hpp"
-#include "Physics/AtomInfo.hpp"
+#include "Physics/AtomData.hpp"
 #include "Physics/PhysConst_constants.hpp"
-#include "Physics/Wigner_369j.hpp"
+#include "Angular/Wigner_369j.hpp"
 #include <fstream>
 #include <iostream>
 
@@ -19,10 +19,10 @@ double CLkk(int L, int ka, int kb)
 // C_{k}^{k',L} = [j][j'][L] * (j,j',L, -1/,1/2,0)^2 * pi(l+l'+L)
 // */
 {
-  int la = AtomInfo::l_k(ka);
-  int lb = AtomInfo::l_k(kb);
-  int two_ja = AtomInfo::twoj_k(ka);
-  int two_jb = AtomInfo::twoj_k(kb);
+  int la = AtomData::l_k(ka);
+  int lb = AtomData::l_k(kb);
+  int two_ja = AtomData::twoj_k(ka);
+  int two_jb = AtomData::twoj_k(kb);
 
   if ((la + lb + L) % 2 != 0)
     return 0; // Parity rule

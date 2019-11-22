@@ -1,5 +1,6 @@
-#include "Physics/AtomInfo.hpp"
-#include "Physics/Nuclear.hpp"
+#include "Physics/AtomData.hpp"
+#include "Physics/NuclearData.hpp"
+#include "Physics/PhysConst_constants.hpp"
 #include <iostream>
 #include <vector>
 
@@ -11,11 +12,12 @@ void instructions() {
          "$./periodicTable Cs 137     Info for Cs-137\n"
          "$./periodicTable Cs all     Info for all available Cs isotopes\n"
          "(Note: numbers come from online database, and should be checked)\n";
+  std::cout << "(Or, enter 'c' to print list of physics constants)\n";
 }
 
 void printData(const Nuclear::Isotope &nuc) {
 
-  std::cout << AtomInfo::atomicSymbol(nuc.Z) << "-" << nuc.A << " (Z=" << nuc.Z
+  std::cout << AtomData::atomicSymbol(nuc.Z) << "-" << nuc.A << " (Z=" << nuc.Z
             << ", A=" << nuc.A << ")\n";
 
   std::cout << "r_rms = ";
@@ -44,8 +46,24 @@ int parse_A(const std::string &A_str, int z = 0) {
   }
 
   if (a <= 0)
-    a = AtomInfo::defaultA(z);
+    a = AtomData::defaultA(z);
   return a;
+}
+//******************************************************************************
+void printConstants() //
+{
+  std::cout << "\n";
+  printf("1/alpha = %.9f\n", PhysConst::c);
+  printf("alpha   = %.14f\n", PhysConst::alpha);
+  printf("c       = %.0f m/s\n", PhysConst::c_SI);
+  printf("hbar    = %.10e Js\n", PhysConst::hbar_SI);
+  printf("mp/me   = %.8f\n", PhysConst::m_p);
+  printf("me      = %.10f MeV\n", PhysConst::m_e_MeV);
+  printf("aB      = %.12e m\n", PhysConst::aB_m);
+  printf("Hy      = %.12f eV = %.12e Hz\n", PhysConst::Hartree_eV,
+         PhysConst::Hartree_Hz);
+  std::cout << "\n";
+  return;
 }
 
 //******************************************************************************
@@ -53,19 +71,25 @@ int main(int num_in, char *argv[]) {
 
   if (num_in <= 1) {
     instructions();
-    AtomInfo::printTable();
+    AtomData::printTable();
     return 1;
   }
 
   std::string z_str = argv[1];
-  const auto z = AtomInfo::get_z(z_str);
+
+  if (z_str.substr(0, 1) == "c") {
+    printConstants();
+    return 0;
+  }
+
+  const auto z = AtomData::get_z(z_str);
   if (z == 0) {
     instructions();
     return 1;
   }
-  z_str = AtomInfo::atomicSymbol(z);
+  z_str = AtomData::atomicSymbol(z);
   std::string a_str = (num_in > 2) ? argv[2] : "0";
-  auto name = AtomInfo::atomicName(z);
+  auto name = AtomData::atomicName(z);
 
   std::vector<Nuclear::Isotope> isotopes;
   int a_default = parse_A("0", z);
@@ -76,8 +100,8 @@ int main(int num_in, char *argv[]) {
     isotopes.push_back(Nuclear::findIsotopeData(z, a));
   }
 
-  auto core_str = AtomInfo::guessCoreConfigStr(z);
-  auto core_vec = AtomInfo::core_parser(core_str);
+  auto core_str = AtomData::guessCoreConfigStr(z);
+  auto core_vec = AtomData::core_parser(core_str);
 
   std::cout << "\n"
             << z_str << ",  " << name << ".\n"

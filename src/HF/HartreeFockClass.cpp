@@ -1,13 +1,13 @@
 #include "HF/HartreeFockClass.hpp"
 #include "Adams/Adams_Greens.hpp"
 #include "Adams/DiracODE.hpp"
+#include "Angular/Wigner_369j.hpp"
 #include "Dirac/DiracSpinor.hpp"
 #include "Dirac/Wavefunction.hpp"
 #include "HF/CoulombIntegrals.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/Parametric_potentials.hpp"
-#include "Physics/Wigner_369j.hpp"
 #include <algorithm>
 #include <cmath>
 #include <functional>
@@ -54,12 +54,13 @@ DiracSpinor HartreeFock::solveMixedState(const DiracSpinor &phi0, const int k,
    * Works v. well with better grid, so think it's fine.
    * IS there a missing angular factor somewhere? VxdF vs hphi0 ??
    */
-
+  const int max_its = 50;
   auto dF =
       DiracODE::solve_inhomog(k, phi0.en - omega, vl, alpha, -1.0 * hphi0);
+  // here: if no exchange, return dF? XXX
   auto dF20 = std::abs(dF * dF); // monitor convergance
   // auto VxdF0 = 0.0 * dF;
-  for (int x = 0; x < 50; x++) {
+  for (int x = 0; true; x++) {
     auto vx = form_approx_vex_any(dF, core);
     NumCalc::scaleVec(vx, 1.3); // better w/ 1.25 .. not sure why?
     auto v = NumCalc::add_vectors(vl, vx);
@@ -76,7 +77,7 @@ DiracSpinor HartreeFock::solveMixedState(const DiracSpinor &phi0, const int k,
     DiracODE::solve_inhomog(dF, phi0.en - omega, v, alpha, -1.0 * hphi0 - VxdF);
     auto dF2 = std::abs(dF * dF);
     auto eps = std::abs((dF2 - dF20) / dF2);
-    if (eps < 1.0e-9 || x == 49) {
+    if (eps < 1.0e-9 || x == max_its) {
       // std::cout << x << " " << eps << "\n";
       break;
     }
@@ -347,7 +348,7 @@ EpsIts HartreeFock::hf_valence_approx(DiracSpinor &phi,
 
   auto vexa_old = vexa;
 
-  p_wf->solveDirac(phi, 0, 15);
+  p_wf->solveDirac(phi, 0, {}, 15);
 
   double eps = -1, eps_prev = -1;
   int hits = 1;
@@ -375,7 +376,7 @@ EpsIts HartreeFock::hf_valence_approx(DiracSpinor &phi,
     eps = fabs((phi.en - en_old) / en_old);
     // Force valence state to be orthogonal to core:
     if (m_explicitOrthog_cv)
-      p_wf->orthonormaliseWrtCore(phi);
+      Wavefunction::orthonormaliseWrt(phi, p_wf->core_orbitals);
 
     auto getting_worse = (hits > 20 && eps >= eps_prev && eps < 1.e-5);
     auto converged = (eps <= eps_target_HF);
@@ -387,7 +388,7 @@ EpsIts HartreeFock::hf_valence_approx(DiracSpinor &phi,
                hits, eps, phi.en);)
 
   if (m_explicitOrthog_cv)
-    p_wf->orthonormaliseWrtCore(phi);
+    Wavefunction::orthonormaliseWrt(phi, p_wf->core_orbitals);
   return {eps, hits};
 }
 
@@ -850,7 +851,7 @@ EpsIts HartreeFock::hf_valence_refine(DiracSpinor &phi) {
 
     phi = (1.0 - a_damp) * phi + a_damp * oldphi;
     if (m_explicitOrthog_cv) {
-      p_wf->orthonormaliseWrtCore(phi);
+      Wavefunction::orthonormaliseWrt(phi, p_wf->core_orbitals);
     } else {
       phi.normalise();
     }
@@ -858,7 +859,7 @@ EpsIts HartreeFock::hf_valence_refine(DiracSpinor &phi) {
   } // End HF its
 
   if (m_explicitOrthog_cv)
-    p_wf->orthonormaliseWrtCore(phi);
+    Wavefunction::orthonormaliseWrt(phi, p_wf->core_orbitals);
 
   DEBUG(printf("refine: %2i %2i | %3i eps=%6.1e  en=%11.8f\n", phi.n, phi.k, it,
                eps, phi.en);)

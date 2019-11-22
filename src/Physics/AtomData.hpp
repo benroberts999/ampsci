@@ -43,7 +43,7 @@ struct DiracSEnken { // name OK? too short?
 
 //******************************************************************************
 //******************************************************************************
-namespace AtomInfo {
+namespace AtomData {
 
 int defaultA(int Z);
 
@@ -104,4 +104,4 @@ constexpr int kappaFromIndex(int i) {
 constexpr int twojFromIndex(int i) { return (i % 2 == 0) ? i + 1 : i; }
 constexpr int lFromIndex(int i) { return (i % 2 == 0) ? i / 2 : (i + 1) / 2; }
 
-} // namespace AtomInfo
+} // namespace AtomData

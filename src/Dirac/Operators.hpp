@@ -2,9 +2,9 @@
 #include "Dirac/DiracOperator.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/SphericalBessel.hpp"
-#include "Physics/Nuclear.hpp"
+#include "Physics/NuclearPotentials.hpp"
 #include "Physics/PhysConst_constants.hpp"
-#include "Physics/Wigner_369j.hpp"
+#include "Angular/Wigner_369j.hpp"
 #include <cmath>
 #include <functional>
 #include <vector>
