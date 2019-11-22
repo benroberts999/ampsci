@@ -38,7 +38,7 @@ BASE = $(addprefix $(BD)/, \
 
 HF = $(addprefix $(BD)/, \
  HartreeFockClass.o CoulombIntegrals.o Parametric_potentials.o \
- Adams_Greens.o \
+ Adams_Greens.o ExternalField.o \
 )
 
 CNTM = $(addprefix $(BD)/, \

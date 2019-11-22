@@ -10,10 +10,10 @@
 
 //******************************************************************************
 bool DiracOperator::isZero(const int ka, int kb) const {
-  // checks rank and parity
-  if (rank < std::abs(Wigner::twoj_k(ka) - Wigner::twoj_k(kb)) / 2)
+  // checks m_rank and m_parity
+  if (m_rank < std::abs(Wigner::twoj_k(ka) - Wigner::twoj_k(kb)) / 2)
     return true;
-  if ((parity == OperatorParity::even) !=
+  if ((m_parity == OperatorParity::even) !=
       (Wigner::parity_k(ka) == Wigner::parity_k(kb)))
     return true;
   return false; /*may still be zero*/
@@ -32,7 +32,8 @@ double DiracOperator::rme3js(const int twoja, const int twojb, int two_mb,
   auto two_ma = two_mb - two_q; // -ma + mb + q = 0;
   // sig = (-1)^(ja - ma)
   auto sig = ((twoja - two_ma) / 2) % 2 == 0 ? 1 : -1;
-  return sig * Wigner::threej_2(twoja, 2 * rank, twojb, -two_ma, two_q, two_mb);
+  return sig *
+         Wigner::threej_2(twoja, 2 * m_rank, twojb, -two_ma, two_q, two_mb);
 }
 
 DiracSpinor DiracOperator::reduced_rhs(const DiracSpinor &Fa,
