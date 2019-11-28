@@ -761,12 +761,12 @@ void HartreeFock::hf_orbital(DiracSpinor &phi, double en,
   DiracSpinor phi0(phi.n, phi.k, *(phi.p_rgrid));
   DiracSpinor phiI(phi.n, phi.k, *(phi.p_rgrid));
   DiracSpinor VxFh(phi.n, phi.k, *(phi.p_rgrid));
+  DiracSpinor del_phi(phi.n, phi.k, *(phi.p_rgrid));
 
   const auto alpha = p_wf->get_alpha();
   DiracODE::solve_inhomog(phi, phi0, phiI, en, vl, alpha, -1.0 * vx_phi);
 
   // make small adjustments to energy to normalise psi:
-  DiracSpinor del_phi(phi.n, phi.k, *(phi.p_rgrid));
   DiracODE::Adams::GreenSolution(del_phi, phiI, phi0, alpha, phi);
   // should del_phi = del_e * del_phi, but makes it worse?
   // nb: after first it, becomes correct.
