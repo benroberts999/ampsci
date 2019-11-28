@@ -106,9 +106,9 @@ void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf) {
                                               wf.core_orbitals, hB);
 
     auto omega = aB.en - aA.en;
-    auto xA = HartreeFock::solveMixedState(aA, e1A.k, -omega, v, alpha,
+    auto xA = HartreeFock::solveMixedState(aA, e1A.k, omega, v, alpha,
                                            wf.core_orbitals, e1A);
-    auto yB = HartreeFock::solveMixedState(aB, e1B.k, omega, v, alpha,
+    auto yB = HartreeFock::solveMixedState(aB, e1B.k, -omega, v, alpha,
                                            wf.core_orbitals, e1B);
 
     auto pnc1_w = c01 * he1.reducedME(del_A_dag, aB);

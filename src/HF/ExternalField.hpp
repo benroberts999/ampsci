@@ -11,7 +11,9 @@ enum class dPsiType { X, Y };
 class ExternalField {
 public:
   ExternalField(const DiracOperator *const h,
-                const std::vector<DiracSpinor> &core, const double omega = 0);
+                const std::vector<DiracSpinor> &core,
+                const std::vector<double> &vl, const double alpha,
+                const double omega = 0);
 
 private:
   // dPhi = X exp(-iwt) + Y exp(+iwt)
@@ -24,6 +26,8 @@ private:
 
   const DiracOperator *const m_h; //??
   const std::vector<DiracSpinor> *const p_core;
+  const std::vector<double> m_vl;
+  const double m_alpha;
   const double m_omega;
   const bool static_fieldQ;
   const int m_rank;
@@ -41,4 +45,7 @@ public:
   // does it matter if a or b is in the core?
   double dV_ab(const DiracSpinor &phia, const DiracSpinor &phib);
   DiracSpinor dV_ab_rhs(const DiracSpinor &phia, const DiracSpinor &phib);
+
+private:
+  std::size_t core_index(const DiracSpinor &phic);
 };

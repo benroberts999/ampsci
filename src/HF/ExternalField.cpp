@@ -2,16 +2,18 @@
 #include "Angular/Wigner_369j.hpp"
 #include "Dirac/DiracOperator.hpp"
 #include "Dirac/DiracSpinor.hpp"
+#include "HF/HartreeFockClass.hpp"
 #include <algorithm>
 #include <vector>
 
 //******************************************************************************
 ExternalField::ExternalField(const DiracOperator *const h,
                              const std::vector<DiracSpinor> &core,
+                             const std::vector<double> &vl, const double alpha,
                              const double omega)
-    : m_h(h), p_core(&core), m_omega(omega),                        //
-      static_fieldQ(std::abs(omega) > 0 ? false : true),            //
-      m_rank(h->rank()), m_pi(h->parity()), m_imag(h->imaginaryQ()) //
+    : m_h(h), p_core(&core), m_vl(vl), m_alpha(alpha), m_omega(omega), //
+      static_fieldQ(std::abs(omega) > 0 ? false : true),               //
+      m_rank(h->rank()), m_pi(h->parity()), m_imag(h->imaginaryQ())    //
 // I think omega must be >0 ?? enforce?
 {
   m_X.resize(core.size());
@@ -43,12 +45,17 @@ ExternalField::ExternalField(const DiracOperator *const h,
     std::cout << "\n";
   }
 }
+//******************************************************************************
+std::size_t ExternalField::core_index(const DiracSpinor &phic) {
+  // XXX Note: no bounds checking here!
+  return static_cast<std::size_t>(
+      std::find(p_core->cbegin(), p_core->cend(), phic) - p_core->cbegin());
+}
 
 //******************************************************************************
 const std::vector<DiracSpinor> &
 ExternalField::get_dPsis(const DiracSpinor &phic, dPsiType XorY) {
-  auto index = static_cast<std::size_t>(
-      std::find(p_core->cbegin(), p_core->cend(), phic) - p_core->cbegin());
+  auto index = core_index(phic);
   return XorY == dPsiType::X ? m_X[index] : m_Y[index];
 }
 
@@ -61,7 +68,39 @@ const DiracSpinor &ExternalField::get_dPsi_x(const DiracSpinor &phic,
 }
 
 //******************************************************************************
-void ExternalField::solve_TDHFcore() {}
+void ExternalField::solve_TDHFcore() {
+
+#pragma omp parallel for
+  for (auto ic = 0u; ic < p_core->size(); ic++) {
+    const auto &phic = (*p_core)[ic];
+    auto &dPsis_X = m_X[ic];
+    for (auto &Xx : dPsis_X) {
+      auto x = Xx.k;
+      const auto hPsic = m_h->reduced_rhs(x, phic); // always same!?
+      Xx = HartreeFock::solveMixedState(phic, x, m_omega, m_vl, m_alpha,
+                                        *p_core, hPsic);
+    }
+    if (!static_fieldQ) {
+      auto &dPsis_Y = m_Y[ic];
+      for (auto &Yx : dPsis_Y) {
+        auto x = Yx.k;
+        const auto hPsic = m_h->reduced_rhs(x, phic); // always same!?
+        Yx = HartreeFock::solveMixedState(phic, x, -m_omega, m_vl, m_alpha,
+                                          *p_core, hPsic);
+      }
+    }
+  }
+
+  // for (const auto &phic : *p_core) {
+  //   auto &dPsi = get_dPsis(phic, dPsiType::X);
+  //   for (const auto &Xx : dPsi) {
+  //     std::cout << phic.symbol() << " " << Xx.symbol() << " " << Xx * Xx << "
+  //     "
+  //               << Xx * phic << "\n";
+  //   }
+  // }
+  //
+}
 
 //******************************************************************************
 // does it matter if a or b is in the core?

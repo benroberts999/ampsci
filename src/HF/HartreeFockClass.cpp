@@ -25,6 +25,8 @@ Solves all core and valence states.
 #define DEBUG(x)
 #endif // DEBUG
 
+#define PRINT_EPS false
+
 //******************************************************************************
 // For non-constant damping
 // Slowly ramps the damping factor from a_beg to a_end over interval (beg, end)
@@ -54,31 +56,36 @@ DiracSpinor HartreeFock::solveMixedState(const DiracSpinor &phi0, const int k,
    * Works v. well with better grid, so think it's fine.
    * IS there a missing angular factor somewhere? VxdF vs hphi0 ??
    */
-  const int max_its = 50;
+
+  auto damper = rampedDamp(0.7, 0.5, 5, 15);
+
+  const int max_its = 100;
   auto dF =
-      DiracODE::solve_inhomog(k, phi0.en - omega, vl, alpha, -1.0 * hphi0);
+      DiracODE::solve_inhomog(k, phi0.en + omega, vl, alpha, -1.0 * hphi0);
   // here: if no exchange, return dF? XXX
   auto dF20 = std::abs(dF * dF); // monitor convergance
-  // auto VxdF0 = 0.0 * dF;
+  auto dF0 = dF;
   for (int x = 0; true; x++) {
     auto vx = form_approx_vex_any(dF, core);
-    NumCalc::scaleVec(vx, 1.3); // better w/ 1.25 .. not sure why?
+    // NumCalc::scaleVec(vx, 1.0); // better w/ 1.25 .. not sure why?
     auto v = NumCalc::add_vectors(vl, vx);
 
-    // double a = 0.5;
-    // const auto l = (1.0 - a);
-    // const auto VexchdF = vex_psia_any(dF, core);
-    // const auto vx0dF = (vx * dF);
-    // const auto VxdF = a * VxdF0 + l * (VexchdF - vx0dF);
-    // VxdF0 = VxdF;
+    const auto rhs = (vx * dF) - vex_psia_any(dF, core) - hphi0;
+    DiracODE::solve_inhomog(dF, phi0.en + omega, v, alpha, rhs);
 
-    const auto VxdF = vex_psia_any(dF, core) - (vx * dF);
+    const auto a = damper(x);
+    const auto l = (1.0 - a);
+    dF = l * dF + a * dF0;
+    dF0 = dF;
 
-    DiracODE::solve_inhomog(dF, phi0.en - omega, v, alpha, -1.0 * hphi0 - VxdF);
     auto dF2 = std::abs(dF * dF);
     auto eps = std::abs((dF2 - dF20) / dF2);
-    if (eps < 1.0e-9 || x == max_its) {
-      // std::cout << x << " " << eps << "\n";
+    if (eps < 1.0e-8 || x == max_its) {
+#if PRINT_EPS
+      std::cout << x << " " << eps << "\n";
+      if (x == max_its)
+        std::cout << "************\n";
+#endif
       break;
     }
     dF20 = dF2;
