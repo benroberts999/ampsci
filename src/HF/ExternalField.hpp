@@ -9,9 +9,9 @@ class DiracOperator;
 enum class dPsiType { X, Y };
 
 class ExternalField {
-
+public:
   ExternalField(const DiracOperator *const h,
-                const std::vector<DiracSpinor> &core, const double omega);
+                const std::vector<DiracSpinor> &core, const double omega = 0);
 
 private:
   // dPhi = X exp(-iwt) + Y exp(+iwt)
@@ -25,6 +25,7 @@ private:
   const DiracOperator *const m_h; //??
   const std::vector<DiracSpinor> *const p_core;
   const double m_omega;
+  const bool static_fieldQ;
   const int m_rank;
   const int m_pi;
   const bool m_imag;

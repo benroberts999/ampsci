@@ -25,8 +25,8 @@ ifeq ($(Build),release)
   WARN=-w
 endif
 ifeq ($(Build),debug)
-  UseOpenMP=no
-	WARN+=-Wno-unknown-pragmas
+#  UseOpenMP=no
+#	WARN+=-Wno-unknown-pragmas
 	OPT=-O0 -g
 endif
 

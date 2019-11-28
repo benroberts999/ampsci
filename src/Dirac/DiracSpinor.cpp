@@ -27,7 +27,8 @@ DiracSpinor::DiracSpinor(int in_n, int in_k, const Grid &rgrid)
 std::string DiracSpinor::symbol(bool gnuplot) const {
   // Readable symbol (s_1/2, p_{3/2} etc.).
   // gnuplot-firndly '{}' braces optional.
-  std::string ostring1 = std::to_string(n) + AtomData::l_symbol(m_l);
+  std::string ostring1 = (n > 0) ? std::to_string(n) + AtomData::l_symbol(m_l)
+                                 : AtomData::l_symbol(m_l);
   std::string ostring2 = gnuplot ? "_{" + std::to_string(m_twoj) + "/2}"
                                  : "_" + std::to_string(m_twoj) + "/2";
   return ostring1 + ostring2;
@@ -35,7 +36,8 @@ std::string DiracSpinor::symbol(bool gnuplot) const {
 
 std::string DiracSpinor::shortSymbol() const {
   std::string pm = (k < 0) ? "+" : "-";
-  return std::to_string(n) + AtomData::l_symbol(m_l) + pm;
+  return n > 0 ? std::to_string(n) + AtomData::l_symbol(m_l) + pm
+               : AtomData::l_symbol(m_l) + pm;
 }
 
 //******************************************************************************

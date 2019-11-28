@@ -27,6 +27,7 @@ constexpr double j_k(int ka) {
 constexpr int parity_k(int ka) {
   return (ka % 2 == 0) ? ((ka > 0) ? 1 : -1) : ((ka < 0) ? 1 : -1);
 }
+constexpr int parity_l(int l) { return (l % 2 == 0) ? 1 : -1; }
 constexpr int l_tilde_k(int ka) {
   // "Complimentary l (l for lower component)"
   // l-tilde = (2j-l) = l +/- 1, for j = l +/- 1/2
