@@ -21,9 +21,9 @@ XD=.
 SD=./src
 BD=./build
 
-## c++ standard. must be at least c++14
-CXXSTD=-std=c++14
-#CXXSTD=-std=c++17
+## c++ standard. must be at least c++14 ==> 17
+CXXSTD=-std=c++17
+#CXXSTD=-std=c++14
 
 ## Build config + options:
 include $(BD)/buildOptions.mk

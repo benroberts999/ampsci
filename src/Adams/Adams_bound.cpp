@@ -281,10 +281,10 @@ int findPracticalInfinity(const double en, const std::vector<double> &v,
 // XXX Note: unsafe, and a little slow. Would be better to use
 // std::lower_bound.. but would need lambda or something for r^2 part?
 {
-  auto pinf = r.size() - 6;
-  while ((en - v[pinf]) * r[pinf] * r[pinf] + alr < 0) {
+  auto pinf = r.size() - 5;
+  while ((en - v[pinf - 1]) * r[pinf - 1] * r[pinf - 1] + alr < 0) {
     --pinf;
-    DEBUG(if (pinf == 0) {
+    DEBUG(if (pinf <= 1) {
       std::cerr << "Fail290 in WF: pinf underflowed?\n";
       std::cin.get();
     })

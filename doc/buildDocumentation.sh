@@ -5,12 +5,20 @@ echo "# Code documentation:" > $file
 echo "" >> $file
 echo "(very unfinished..)" >> $file
 echo "" >> $file
+echo "------------" >> $file
+echo "" >> $file
 
 cat $src/Dirac/Dirac.md >> $file
 echo "" >> $file
 echo "---" >> $file
 echo "" >> $file
+
 cat $src/Adams/Adams.md >> $file
 echo "" >> $file
-echo "---" >> $file
+echo "------------" >> $file
+echo "" >> $file
+
+cat $src/Angular/Angular.md >> $file
+echo "" >> $file
+echo "------------" >> $file
 echo "" >> $file
