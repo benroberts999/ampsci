@@ -5,8 +5,6 @@
 #include <iostream>
 #include <string>
 // #include "Physics/AtomData.hpp" //need for testing basis only
-#include "Dirac/Operators.hpp"
-#include "HF/ExternalField.hpp"
 
 int main(int argc, char *argv[]) {
   ChronoTimer timer("\nhartreeFock");
@@ -120,35 +118,11 @@ int main(int argc, char *argv[]) {
   // run each of the modules
   Module::runModules(input, wf);
 
-  auto h = E1Operator(wf.rgrid);
-
-  auto tdhf = ExternalField(&h, wf.core_orbitals,
-                            NumCalc::add_vectors(wf.vnuc, wf.vdir),
-                            wf.get_alpha(), 0.1);
-
-  tdhf.solve_TDHFcore();
-
-  auto psis = wf.getState(3, -1);
-  auto psip = wf.getState(3, 1);
-  auto dpsis = tdhf.get_dPsi_x(psis, dPsiType::X, 1);
-  auto dpsisY = tdhf.get_dPsi_x(psis, dPsiType::Y, 1);
-
-  auto metha = psip * dpsis;
-  auto methb = h.reducedME(psip, psis) / (psis.en - psip.en + 0.1);
-  std::cout << metha << " - " << methb << " => "
-            << 2.0 * (metha - methb) / (metha + methb) << "\n";
-
-  metha = dpsisY * psip;
-  methb = h.reducedME(psis, psip) / (psis.en - psip.en - 0.1);
-  std::cout << metha << " - " << methb << " => "
-            << 2.0 * (metha - methb) / (metha + methb) << "\n";
-
   //*********************************************************
   //               TESTS
   //*********************************************************
 
-  // needs: #include "Physics/AtomData.hpp" (for AtomData::listOfStates_nk)
-  //
+  // // needs: #include "Physics/AtomData.hpp" (for AtomData::listOfStates_nk)
   // bool test_hf_basis = false;
   // if (test_hf_basis) {
   //   auto basis_lst = AtomData::listOfStates_nk("9spd8f");
