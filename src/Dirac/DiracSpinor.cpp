@@ -9,6 +9,7 @@
 #include <vector>
 
 constexpr bool update_pinf = false; // for psi += psi'
+// XXX If true, sets all to num_points! [when damping orbitals!?]
 
 //******************************************************************************
 DiracSpinor::DiracSpinor(int in_n, int in_k, const Grid &rgrid)
@@ -111,7 +112,6 @@ DiracSpinor &DiracSpinor::operator-=(const DiracSpinor &rhs) {
   if (update_pinf)
     pinf = std::max(pinf, rhs.pinf);
   auto imax = std::min(pinf, rhs.pinf); // shouldn't be needed, but safer
-
   for (std::size_t i = 0; i < imax; i++)
     f[i] -= rhs.f[i];
   for (std::size_t i = 0; i < imax; i++)
@@ -169,7 +169,7 @@ bool operator!=(const DiracSpinor &lhs, const DiracSpinor &rhs) {
 
 bool operator<(const DiracSpinor &lhs, const DiracSpinor &rhs) {
   if (lhs.n == rhs.n)
-    return AtomData::indexFromKappa(lhs.k) < AtomData::indexFromKappa(rhs.k);
+    return lhs.m_k_index < rhs.m_k_index;
   return lhs.n < rhs.n;
 }
 
