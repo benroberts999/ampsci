@@ -18,14 +18,9 @@ Calculates self-consistent Hartree-Fock potential, including exchange.
 Solves all core and valence states.
 */
 
-#define DO_DEBUG false
-#if DO_DEBUG
-#define DEBUG(x) x
-#else
-#define DEBUG(x)
-#endif // DEBUG
-
-#define PRINT_EPS false
+// Print-outs (for debugging) - work better without OMP
+constexpr bool print_final_eps = false;
+constexpr bool print_each_eps = false;
 
 //******************************************************************************
 // For non-constant damping
@@ -47,25 +42,18 @@ DiracSpinor HartreeFock::solveMixedState(const DiracSpinor &phi0, const int k,
                                          const double alpha,
                                          const std::vector<DiracSpinor> &core,
                                          const DiracSpinor &hphi0)
-//
+// Solves:  (H - e - w)X = -h*psi for X
 {
-  /*
-   * added vx (approx vex).
-   * Works, and converges faster + smoothly.
-   * BUT doesn't work as well!? Still works pretty good!
-   * Works v. well with better grid, so think it's fine.
-   * IS there a missing angular factor somewhere? VxdF vs hphi0 ??
-   */
-
-  auto damper = rampedDamp(0.7, 0.5, 5, 15);
-
+  auto damper = rampedDamp(0.6, 0.4, 3, 15);
   const int max_its = 100;
+  const double eps_target = 1.0e-8;
+
   auto dF =
       DiracODE::solve_inhomog(k, phi0.en + omega, vl, alpha, -1.0 * hphi0);
   // here: if no exchange, return dF? XXX
   auto dF20 = std::abs(dF * dF); // monitor convergance
   auto dF0 = dF;
-  for (int x = 0; true; x++) {
+  for (int its = 0; true; its++) {
     auto vx = form_approx_vex_any(dF, core);
     // NumCalc::scaleVec(vx, 1.0); // better w/ 1.25 .. not sure why?
     auto v = NumCalc::add_vectors(vl, vx);
@@ -73,19 +61,24 @@ DiracSpinor HartreeFock::solveMixedState(const DiracSpinor &phi0, const int k,
     const auto rhs = (vx * dF) - vex_psia_any(dF, core) - hphi0;
     DiracODE::solve_inhomog(dF, phi0.en + omega, v, alpha, rhs);
 
-    const auto a = damper(x);
+    const auto a = damper(its);
     const auto l = (1.0 - a);
     dF = l * dF + a * dF0;
     dF0 = dF;
 
     auto dF2 = std::abs(dF * dF);
     auto eps = std::abs((dF2 - dF20) / dF2);
-    if (eps < 1.0e-8 || x == max_its) {
-#if PRINT_EPS
-      std::cout << x << " " << eps << "\n";
-      if (x == max_its)
-        std::cout << "************\n";
-#endif
+    if constexpr (print_each_eps) {
+      std::cout << __LINE__ << "| " << phi0.symbol() << " " << its << " " << eps
+                << "\n";
+    }
+    if (eps < eps_target || its == max_its) {
+      if constexpr (print_final_eps) {
+        std::cout << __LINE__ << "| " << phi0.symbol() << " " << its << " "
+                  << eps << "\n";
+        if (its == max_its)
+          std::cout << "************\n";
+      }
       break;
     }
     dF20 = dF2;
@@ -230,7 +223,6 @@ void HartreeFock::hf_core_approx(const double eps_target_HF) {
   double t_eps = 1.0;
   auto t_eps_prev = 1.0;
   for (; hits < m_max_hf_its; hits++) {
-    DEBUG(std::cerr << "HF core it: " << hits << "\n";)
     auto eta = damper(hits);
 
     // Store old vdir/vex
@@ -270,13 +262,18 @@ void HartreeFock::hf_core_approx(const double eps_target_HF) {
       double state_eps = fabs((phi.en - en_old) / en_old);
       // convergance based on worst orbital:
       t_eps = (state_eps > t_eps) ? state_eps : t_eps;
-      DEBUG(printf(" --- %2i,%2i: en=%11.5f  HFeps = %.0e;  Adams = %.0e[%2i]  "
-                   "(%4i)\n",
-                   phi.n, phi.k, phi.en, state_eps, phi.eps, phi.its,
-                   (int)phi.pinf);)
+      if constexpr (print_each_eps) {
+        std::cout << __LINE__ << "| ";
+        printf(" --- %2i,%2i: en=%11.5f  HFeps = %.0e;  Adams = %.0e[%2i]  "
+               "(%4i)\n",
+               phi.n, phi.k, phi.en, state_eps, phi.eps, phi.its,
+               (int)phi.pinf);
+      }
     } // core states
-    DEBUG(std::cerr << "HF core it: " << hits << ": eps=" << t_eps << "\n\n";
-          std::cin.get();)
+    if constexpr (print_each_eps) {
+      std::cerr << __LINE__ << "| "
+                << "HF core it: " << hits << ": eps=" << t_eps << "\n";
+    }
 
     // Force all core orbitals to be orthogonal to each other
     if (m_explicitOrthog_cc)
@@ -391,8 +388,10 @@ EpsIts HartreeFock::hf_valence_approx(DiracSpinor &phi,
       break;
     eps_prev = eps;
   }
-  DEBUG(printf("HF val: %2i %2i | %3i eps=%6.1e  en=%11.8f\n", phi.n, phi.k,
-               hits, eps, phi.en);)
+  if constexpr (print_final_eps) {
+    printf("HF val: %2i %2i | %3i eps=%6.1e  en=%11.8f\n", phi.n, phi.k, hits,
+           eps, phi.en);
+  }
 
   if (m_explicitOrthog_cv)
     Wavefunction::orthonormaliseWrt(phi, p_wf->core_orbitals);
@@ -853,8 +852,10 @@ EpsIts HartreeFock::hf_valence_refine(DiracSpinor &phi) {
     if (eps < best_eps)
       best_eps = eps;
 
-    DEBUG(std::cout << it << " " << eps << " " << phi.en << " "
-                    << en - phi_zero.en << " " << phi * phi << "\n";)
+    if constexpr (print_each_eps) {
+      std::cout << __LINE__ << "| " << it << " " << eps << " " << phi.en << " "
+                << en - phi_zero.en << " " << phi * phi << "\n";
+    }
 
     phi = (1.0 - a_damp) * phi + a_damp * oldphi;
     if (m_explicitOrthog_cv) {
@@ -868,8 +869,10 @@ EpsIts HartreeFock::hf_valence_refine(DiracSpinor &phi) {
   if (m_explicitOrthog_cv)
     Wavefunction::orthonormaliseWrt(phi, p_wf->core_orbitals);
 
-  DEBUG(printf("refine: %2i %2i | %3i eps=%6.1e  en=%11.8f\n", phi.n, phi.k, it,
-               eps, phi.en);)
+  if constexpr (print_final_eps) {
+    printf("refine: %2i %2i | %3i eps=%6.1e  en=%11.8f\n", phi.n, phi.k, it,
+           eps, phi.en);
+  }
   return {eps, it};
 }
 
@@ -962,10 +965,12 @@ inline void HartreeFock::hf_core_refine() {
         best_index = i;
       }
     }
-    DEBUG(std::cout << eps_target << " " << eps << " "
-                    << p_wf->core_orbitals[worst_index].symbol() << " -- "
-                    << " " << beps << " "
-                    << p_wf->core_orbitals[bindex].symbol() << "\n";)
+    if constexpr (print_each_eps) {
+      std::cout << __LINE__ << "| " << eps_target << " " << eps << " "
+                << p_wf->core_orbitals[worst_index].symbol() << " -- "
+                << " " << best_eps << " "
+                << p_wf->core_orbitals[best_index].symbol() << "\n";
+    }
 
     if (it > 20 && eps > 1.5 * best_worst_eps) {
       ++worse_count;
