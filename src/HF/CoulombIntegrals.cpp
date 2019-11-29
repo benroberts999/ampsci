@@ -1,13 +1,48 @@
 #include "HF/CoulombIntegrals.hpp"
+#include "Angular/Angular.hpp"
+#include "Angular/Wigner_369j.hpp"
 #include "Dirac/DiracSpinor.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/AtomData.hpp"
-#include "Angular/Wigner_369j.hpp"
 #include <algorithm>
 #include <cmath>
 #include <iostream>
 #include <vector>
+
+//******************************************************************************
+double Coulomb::Qk_abcd_any(const DiracSpinor &psi_a, const DiracSpinor &psi_b,
+                            const DiracSpinor &psi_c, const DiracSpinor &psi_d,
+                            const int k) {
+
+  auto tCac = Wigner::tildeCk_kk(k, psi_a.k, psi_c.k);
+  if (tCac == 0.0)
+    return 0.0;
+  auto tCbd = Wigner::tildeCk_kk(k, psi_b.k, psi_d.k);
+  if (tCbd == 0.0)
+    return 0.0;
+  auto Rkabcd = Rk_abcd_any(psi_a, psi_b, psi_c, psi_d, k);
+  auto m1tk = Wigner::evenQ(k) ? 1 : -1;
+  return m1tk * tCac * tCbd * Rkabcd;
+}
+
+double Coulomb::Rk_abcd_any(const DiracSpinor &psi_a, const DiracSpinor &psi_b,
+                            const DiracSpinor &psi_c, const DiracSpinor &psi_d,
+                            const int k) //
+{
+  //
+  auto imax = Angular::max4(psi_a.pinf, psi_b.pinf, psi_c.pinf, psi_d.pinf);
+  const auto &drdu = psi_a.p_rgrid->drdu; // save typing
+  const auto du = psi_a.p_rgrid->du;
+
+  std::vector<double> yk_bd; // XXX Can already exist!
+  calculate_y_ijk(psi_b, psi_d, k, yk_bd);
+  auto Rff =
+      NumCalc::integrate_any(1.0, 0, imax, psi_a.f, psi_c.f, yk_bd, drdu);
+  auto Rgg =
+      NumCalc::integrate_any(1.0, 0, imax, psi_a.g, psi_c.g, yk_bd, drdu);
+  return (Rff + Rgg) * du;
+}
 
 //******************************************************************************
 Coulomb::Coulomb(const std::vector<DiracSpinor> &in_core,

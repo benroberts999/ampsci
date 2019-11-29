@@ -43,6 +43,13 @@ public: // functions
                                          const DiracSpinor &psi_c,
                                          const DiracSpinor &psi_d) const;
 
+  static double Rk_abcd_any(const DiracSpinor &psi_a, const DiracSpinor &psi_b,
+                            const DiracSpinor &psi_c, const DiracSpinor &psi_d,
+                            const int k);
+  static double Qk_abcd_any(const DiracSpinor &psi_a, const DiracSpinor &psi_b,
+                            const DiracSpinor &psi_c, const DiracSpinor &psi_d,
+                            const int k);
+
   // getters
 
   const std::vector<double> &get_angular_C_kiakib_k(int kia, int kib) const;

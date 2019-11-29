@@ -1,4 +1,5 @@
 #pragma once
+#include "Angular/Angular.hpp"
 #include <vector>
 class DiracSpinor;
 class DiracOperator;
@@ -33,6 +34,9 @@ private:
   const int m_rank;
   const int m_pi;
   const bool m_imag;
+
+  // XXX Answer seems to depend on kmax here?????
+  Angular::SixJ m_6j = Angular::SixJ(m_rank, 7); // XXX temp!
 
 public:
   const std::vector<DiracSpinor> &get_dPsis(const DiracSpinor &phic,

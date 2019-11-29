@@ -121,27 +121,41 @@ int main(int argc, char *argv[]) {
   Module::runModules(input, wf);
 
   auto h = E1Operator(wf.rgrid);
+  // auto h = HyperfineOperator(1.0, 1.0, 4.0 / PhysConst::aB_fm, wf.rgrid);
+  // auto h = PNCnsiOperator(5.0, 2.3, wf.rgrid);
 
   auto tdhf = ExternalField(&h, wf.core_orbitals,
                             NumCalc::add_vectors(wf.vnuc, wf.vdir),
-                            wf.get_alpha(), 0.1);
+                            wf.get_alpha(), 0.0);
 
   tdhf.solve_TDHFcore();
 
-  auto psis = wf.getState(3, -1);
-  auto psip = wf.getState(3, 1);
-  auto dpsis = tdhf.get_dPsi_x(psis, dPsiType::X, 1);
-  auto dpsisY = tdhf.get_dPsi_x(psis, dPsiType::Y, 1);
+  auto psis = wf.getState(6, -1);
+  auto psip = wf.getState(6, 1);
 
-  auto metha = psip * dpsis;
-  auto methb = h.reducedME(psip, psis) / (psis.en - psip.en + 0.1);
-  std::cout << metha << " - " << methb << " => "
-            << 2.0 * (metha - methb) / (metha + methb) << "\n";
+  auto me = h.reducedME(psis, psip);
+  auto dv = tdhf.dV_ab(psis, psip);
+  // / std::sqrt(h.rme3js(psis.twoj(), psip.twoj(), 1));
+  // std::cout << tdhf.dV_ab(psis, psip) << "\n";
+  // std::cout << tdhf.dV_ab(psis, psip) /
+  //                  std::sqrt(h.rme3js(psis.twoj(), psip.twoj(), 1))
+  //           << "\n";
+  std::cout << me << " " << me + dv << "\n";
 
-  metha = dpsisY * psip;
-  methb = h.reducedME(psis, psip) / (psis.en - psip.en - 0.1);
-  std::cout << metha << " - " << methb << " => "
-            << 2.0 * (metha - methb) / (metha + methb) << "\n";
+  // auto psis = wf.getState(3, -1);
+  // auto psip = wf.getState(3, 1);
+  // auto dpsis = tdhf.get_dPsi_x(psis, dPsiType::X, 1);
+  // auto dpsisY = tdhf.get_dPsi_x(psis, dPsiType::Y, 1);
+  //
+  // auto metha = psip * dpsis;
+  // auto methb = h.reducedME(psip, psis) / (psis.en - psip.en + 0.1);
+  // std::cout << metha << " - " << methb << " => "
+  //           << 2.0 * (metha - methb) / (metha + methb) << "\n";
+  //
+  // metha = dpsisY * psip;
+  // methb = h.reducedME(psis, psip) / (psis.en - psip.en - 0.1);
+  // std::cout << metha << " - " << methb << " => "
+  //           << 2.0 * (metha - methb) / (metha + methb) << "\n";
 
   //*********************************************************
   //               TESTS

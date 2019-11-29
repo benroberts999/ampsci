@@ -12,7 +12,7 @@ constexpr int twoj(int jindex) { return 2 * jindex + 1; }
 constexpr int jindex(int twoj) { return (twoj - 1) / 2; }
 constexpr int jindex_kappa(int ka) { return (ka > 0) ? ka - 1 : -ka - 1; }
 
-template <typename T> inline int max4(T a, T b, T c, T d) {
+template <typename T> inline T max4(T a, T b, T c, T d) {
   return std::max(std::max(a, b), std::max(c, d));
 }
 template <typename T> inline T min4(T a, T b, T c, T d) {

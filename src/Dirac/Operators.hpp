@@ -1,10 +1,10 @@
 #pragma once
+#include "Angular/Wigner_369j.hpp"
 #include "Dirac/DiracOperator.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/SphericalBessel.hpp"
 #include "Physics/NuclearPotentials.hpp"
 #include "Physics/PhysConst_constants.hpp"
-#include "Angular/Wigner_369j.hpp"
 #include <cmath>
 #include <functional>
 #include <vector>
@@ -316,7 +316,7 @@ class PNCnsiOperator final : public ScalarOperator {
 public:
   PNCnsiOperator(double c, double t, const Grid &rgrid, double factor = 1)
       : ScalarOperator(OperatorParity::odd,
-                       factor * PhysConst::GFe11 / std::sqrt(8.),
+                       factor * PhysConst::GFe11 / std::sqrt(8.0),
                        Nuclear::fermiNuclearDensity_tcN(t, c, 1, rgrid),
                        {0, 1, -1, 0}, 0, OperatorC::imaginary) {}
 };
