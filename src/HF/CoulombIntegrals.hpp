@@ -1,4 +1,5 @@
 #pragma once
+#include <tuple>
 #include <vector>
 class DiracSpinor;
 class Grid;
@@ -49,6 +50,13 @@ public: // functions
   static double Qk_abcd_any(const DiracSpinor &psi_a, const DiracSpinor &psi_b,
                             const DiracSpinor &psi_c, const DiracSpinor &psi_d,
                             const int k);
+
+  static bool Qk_abcd_rhs(DiracSpinor &Q_rhs, const DiracSpinor &psi_a,
+                          const DiracSpinor &psi_b, const DiracSpinor &psi_c,
+                          const DiracSpinor &psi_d, const int k);
+  static DiracSpinor Rk_bcd_rhs(const DiracSpinor &psi_b,
+                                const DiracSpinor &psi_c,
+                                const DiracSpinor &psi_d, const int k);
 
   // getters
 

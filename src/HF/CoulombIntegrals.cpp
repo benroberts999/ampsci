@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <tuple>
 #include <vector>
 
 //******************************************************************************
@@ -42,6 +43,36 @@ double Coulomb::Rk_abcd_any(const DiracSpinor &psi_a, const DiracSpinor &psi_b,
   auto Rgg =
       NumCalc::integrate_any(1.0, 0, imax, psi_a.g, psi_c.g, yk_bd, drdu);
   return (Rff + Rgg) * du;
+}
+
+// XXXXXXXXXX ??
+DiracSpinor Coulomb::Rk_bcd_rhs(const DiracSpinor &psi_b,
+                                const DiracSpinor &psi_c,
+                                const DiracSpinor &psi_d,
+                                const int k) //
+{
+  // make rhs an in/out parameter??
+  // does 2 allocations [3v's: 2 for DS, onr for y]
+  std::vector<double> yk_bd; // XXX Can already exist!
+  calculate_y_ijk(psi_b, psi_d, k, yk_bd);
+  return yk_bd * psi_c;
+}
+
+bool Coulomb::Qk_abcd_rhs(DiracSpinor &Q_rhs, const DiracSpinor &psi_a,
+                          const DiracSpinor &psi_b, const DiracSpinor &psi_c,
+                          const DiracSpinor &psi_d, const int k) {
+
+  auto tCac = Wigner::tildeCk_kk(k, psi_a.k, psi_c.k);
+
+  auto tCbd = Wigner::tildeCk_kk(k, psi_b.k, psi_d.k);
+  bool ok = (tCac == 0.0 || tCbd == 0.0) ? false : true;
+
+  if (ok)
+    Q_rhs = Rk_bcd_rhs(psi_b, psi_c, psi_d, k); // xxx
+  auto m1tk = Wigner::evenQ(k) ? 1 : -1;
+  Q_rhs *= (m1tk * tCac * tCbd);
+
+  return ok;
 }
 
 //******************************************************************************

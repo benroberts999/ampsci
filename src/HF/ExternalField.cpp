@@ -179,6 +179,14 @@ double ExternalField::dV_ab(const DiracSpinor &phi_alpha,
       const auto m1jaljbe = Wigner::evenQ_2(tjalpha + tjbeta) ? 1 : -1;
       const auto Qkabcd =
           Coulomb::Qk_abcd_any(phi_alpha, phi_b, phi_a, phi_beta, k);
+      // auto Qkabcd = 0.0;
+      // {
+      //   auto Qka_bcdrhs = phi_alpha;
+      //   auto ok = Coulomb::Qk_abcd_rhs(Qka_bcdrhs, phi_alpha, phi_b, phi_a,
+      //                                  phi_beta, k);
+      //   if (ok)
+      //     Qkabcd = phi_alpha * Qka_bcdrhs;
+      // }
       rme_sum_dirX_c += m1jaljbe * Qkabcd;
       // exchange part:
       const auto bmc = std::abs(tjalpha - tjbeta);
