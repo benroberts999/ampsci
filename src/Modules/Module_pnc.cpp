@@ -100,15 +100,15 @@ void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf) {
     auto e1A = he1.reduced_lhs(-aB.k, aA);
     auto e1B = he1.reduced_rhs(-aA.k, aB);
 
-    auto del_A_dag = HartreeFock::solveMixedState(aA, hA_dag.k, 0, v, alpha,
+    auto del_A_dag = HartreeFock::solveMixedState(hA_dag.k, aA, 0, v, alpha,
                                                   wf.core_orbitals, hA_dag);
-    auto del_B = HartreeFock::solveMixedState(aB, hB.k, 0, v, alpha,
+    auto del_B = HartreeFock::solveMixedState(hB.k, aB, 0, v, alpha,
                                               wf.core_orbitals, hB);
 
     auto omega = aB.en - aA.en;
-    auto xA = HartreeFock::solveMixedState(aA, e1A.k, omega, v, alpha,
+    auto xA = HartreeFock::solveMixedState(e1A.k, aA, omega, v, alpha,
                                            wf.core_orbitals, e1A);
-    auto yB = HartreeFock::solveMixedState(aB, e1B.k, -omega, v, alpha,
+    auto yB = HartreeFock::solveMixedState(e1B.k, aB, -omega, v, alpha,
                                            wf.core_orbitals, e1B);
 
     auto pnc1_w = c01 * he1.reducedME(del_A_dag, aB);

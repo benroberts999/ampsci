@@ -95,7 +95,7 @@ class SixJ
 // any k
 {
 public:
-  SixJ(int in_max_k, int in_max_twoj) { fill(in_max_k, in_max_twoj); }
+  SixJ(int in_max_k = 0, int in_max_twoj = 1) { fill(in_max_k, in_max_twoj); }
   void fill(int in_max_k, int in_max_twoj);
 
   // Thread-safe, but will seg-fault if 6j doesn't exist

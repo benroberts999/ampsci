@@ -124,14 +124,15 @@ int main(int argc, char *argv[]) {
   // auto h = HyperfineOperator(1.0, 1.0, 4.0 / PhysConst::aB_fm, wf.rgrid);
   // auto h = PNCnsiOperator(5.0, 2.3, wf.rgrid);
 
+  auto omega = 0.0000000000001;
   auto tdhf = ExternalField(&h, wf.core_orbitals,
                             NumCalc::add_vectors(wf.vnuc, wf.vdir),
-                            wf.get_alpha(), 0.0);
+                            wf.get_alpha(), omega);
 
   tdhf.solve_TDHFcore();
 
-  auto psis = wf.getState(6, -1);
-  auto psip = wf.getState(6, 1);
+  const auto &psis = wf.getState(6, -1);
+  const auto &psip = wf.getState(6, 1);
 
   auto me = h.reducedME(psis, psip);
   auto dv = tdhf.dV_ab(psis, psip);
@@ -142,18 +143,18 @@ int main(int argc, char *argv[]) {
   //           << "\n";
   std::cout << me << " " << me + dv << "\n";
 
-  // auto psis = wf.getState(3, -1);
-  // auto psip = wf.getState(3, 1);
-  // auto dpsis = tdhf.get_dPsi_x(psis, dPsiType::X, 1);
-  // auto dpsisY = tdhf.get_dPsi_x(psis, dPsiType::Y, 1);
+  // auto &psis2 = wf.getState(2, -1);
+  // auto &psip2 = wf.getState(2, 1);
+  // auto dpsisX = tdhf.get_dPsi_x(psis2, dPsiType::X, psip2.k);
+  // auto dpsisY = tdhf.get_dPsi_x(psis2, dPsiType::Y, psip2.k);
   //
-  // auto metha = psip * dpsis;
-  // auto methb = h.reducedME(psip, psis) / (psis.en - psip.en + 0.1);
+  // auto metha = psip2 * dpsisX;
+  // auto methb = h.reducedME(psip2, psis2) / (psis2.en - psip2.en + omega);
   // std::cout << metha << " - " << methb << " => "
   //           << 2.0 * (metha - methb) / (metha + methb) << "\n";
   //
-  // metha = dpsisY * psip;
-  // methb = h.reducedME(psis, psip) / (psis.en - psip.en - 0.1);
+  // metha = dpsisY * psip2;
+  // methb = h.reducedME(psis2, psip2) / (psis2.en - psip2.en - omega);
   // std::cout << metha << " - " << methb << " => "
   //           << 2.0 * (metha - methb) / (metha + methb) << "\n";
 

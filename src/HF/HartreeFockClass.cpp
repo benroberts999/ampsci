@@ -36,26 +36,34 @@ static inline auto rampedDamp(double a_beg, double a_end, int beg, int end) {
 }
 
 //******************************************************************************
-DiracSpinor HartreeFock::solveMixedState(const DiracSpinor &phi0, const int k,
+DiracSpinor HartreeFock::solveMixedState(const int k, const DiracSpinor &phi0,
                                          const double omega,
                                          const std::vector<double> &vl,
                                          const double alpha,
                                          const std::vector<DiracSpinor> &core,
-                                         const DiracSpinor &hphi0)
+                                         const DiracSpinor &hphi0) {
+  auto dF = DiracSpinor(0, k, *(phi0.p_rgrid));
+  solveMixedState(dF, phi0, omega, vl, alpha, core, hphi0);
+  return dF;
+}
+//------------------------------------------------------------------------------
+DiracSpinor HartreeFock::solveMixedState(
+    DiracSpinor &dF, const DiracSpinor &phi0, const double omega,
+    const std::vector<double> &vl, const double alpha,
+    const std::vector<DiracSpinor> &core, const DiracSpinor &hphi0)
 // Solves:  (H - e - w)X = -h*psi for X
 {
   auto damper = rampedDamp(0.6, 0.4, 3, 15);
   const int max_its = 100;
   const double eps_target = 1.0e-8;
 
-  auto dF =
-      DiracODE::solve_inhomog(k, phi0.en + omega, vl, alpha, -1.0 * hphi0);
+  DiracODE::solve_inhomog(dF, phi0.en + omega, vl, alpha, -1.0 * hphi0);
   // here: if no exchange, return dF? XXX
   auto dF20 = std::abs(dF * dF); // monitor convergance
   auto dF0 = dF;
   for (int its = 0; true; its++) {
     auto vx = form_approx_vex_any(dF, core);
-    // NumCalc::scaleVec(vx, 1.0); // better w/ 1.25 .. not sure why?
+    // NumCalc::scaleVec(vx, 1.2); // better w/ 1.25 .. not sure why?
     auto v = NumCalc::add_vectors(vl, vx);
 
     const auto rhs = (vx * dF) - vex_psia_any(dF, core) - hphi0;
@@ -75,7 +83,7 @@ DiracSpinor HartreeFock::solveMixedState(const DiracSpinor &phi0, const int k,
     if (eps < eps_target || its == max_its) {
       if constexpr (print_final_eps) {
         std::cout << __LINE__ << "| " << phi0.symbol() << " " << its << " "
-                  << eps << "\n";
+                  << eps << "   (<dF|dF>=" << dF2 << ")\n";
         if (its == max_its)
           std::cout << "************\n";
       }
@@ -83,7 +91,7 @@ DiracSpinor HartreeFock::solveMixedState(const DiracSpinor &phi0, const int k,
     }
     dF20 = dF2;
   }
-  return dF; // put rhs = hphi0 instead of -hphi0
+  return dF;
 }
 
 //******************************************************************************
