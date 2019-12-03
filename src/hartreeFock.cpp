@@ -5,6 +5,7 @@
 #include <iostream>
 #include <string>
 // #include "Physics/AtomData.hpp" //need for testing basis only
+#include "Maths/Splines.hpp"
 
 int main(int argc, char *argv[]) {
   ChronoTimer timer("\nhartreeFock");
@@ -48,6 +49,9 @@ int main(int argc, char *argv[]) {
   // create wavefunction object
   Wavefunction wf(atom_Z, {num_points, r0, rmax, b, grid_type, du_tmp},
                   {atom_Z, atom_A, nuc_type, rrms, skint}, var_alpha);
+
+  BSplines(10, 4, wf.rgrid, 1.0e-4, 45.0);
+  return 1;
 
   // Parse input for HF method
   input_ok =

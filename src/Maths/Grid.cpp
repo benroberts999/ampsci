@@ -121,14 +121,15 @@ std::size_t Grid::getIndex(double x, bool require_nearest) const
 // grids either
 {
   auto low = std::lower_bound(r.begin(), r.end(), x);
-  // auto index = (int)(low - r.begin());
   auto index = std::size_t(std::distance(r.begin(), low));
+
+  if (index >= r.size())
+    index--;
 
   if (!require_nearest || index == 0)
     return index;
 
-  // Must resturn /nearest/ index (we have (in order): r[i-1], x,
-  // r[i])
+  // Must resturn /nearest/ index (we have (in order): r[i-1], x, r[i])
   if (std::fabs(x - r[index - 1]) < std::fabs(r[index] - x))
     return index - 1;
   else

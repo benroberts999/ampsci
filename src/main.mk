@@ -2,7 +2,7 @@
 
 $(BD)/hartreeFock.o: $(SD)/hartreeFock.cpp $(SD)/Dirac/Wavefunction.hpp \
 $(SD)/IO/ChronoTimer.hpp $(SD)/IO/UserInput.hpp \
-$(SD)/Modules/Module_runModules.hpp
+$(SD)/Modules/Module_runModules.hpp $(SD)/Maths/Splines.hpp
 	$(COMP)
 
 $(BD)/periodicTable.o: $(SD)/periodicTable.cpp \
