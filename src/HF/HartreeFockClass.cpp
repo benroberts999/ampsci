@@ -188,6 +188,16 @@ void HartreeFock::starting_approx_core(const std::string &in_core,
     // If H-like, kill "initial" vdir (Green potential)
     p_wf->vdir = std::vector<double>(p_wf->rgrid.num_points, 0);
   }
+
+  if constexpr (print_final_eps) {
+    auto worst =
+        std::max_element(p_wf->core_orbitals.begin(), p_wf->core_orbitals.end(),
+                         [](const DiracSpinor &a, const DiracSpinor &b) {
+                           return a.eps < b.eps;
+                         });
+    std::cout << "Initial core: " << worst->symbol() << " eps=" << worst->eps
+              << "\n";
+  }
 }
 
 //******************************************************************************
@@ -286,6 +296,9 @@ void HartreeFock::hf_core_approx(const double eps_target_HF) {
   } // hits
   if (verbose && m_method != HFMethod::HartreeFock)
     printf("HF core      it:%3i eps=%6.1e\n", hits, t_eps);
+  if constexpr (print_final_eps) {
+    printf("HF core (approx)  it:%3i eps=%6.1e\n", hits, t_eps);
+  }
 
   // Now, re-solve core orbitals with higher precission
   for (std::size_t i = 0; i < p_wf->core_orbitals.size(); i++) {
@@ -795,7 +808,8 @@ void HartreeFock::hf_orbital(DiracSpinor &phi, double en,
   phi.en = en;
   phi.eps = eps;
   phi.its = tries;
-  // phi.normalise(); //? Not needed
+  if (tries == 0 || tries == m_max_hf_its - 1)
+    phi.normalise(); //? Not needed
 }
 
 //******************************************************************************
@@ -810,7 +824,7 @@ EpsIts HartreeFock::hf_valence_refine(DiracSpinor &phi) {
 
   const auto eps_target = m_eps_HF;
 
-  auto damper = rampedDamp(0.7, 0.1, 5, 25);
+  auto damper = rampedDamp(0.8, 0.2, 5, 25);
   double extra_damp = 0.0;
 
   // const auto vl = NumCalc::sumVecs({&(p_wf->vnuc), &(p_wf->vdir)});
@@ -885,7 +899,7 @@ inline void HartreeFock::hf_core_refine() {
 
   const double eps_target = m_eps_HF;
   m_cint.form_core_core(); // only needed if not already done!
-  auto damper = rampedDamp(0.8, 0.1, 5, 30);
+  auto damper = rampedDamp(0.8, 0.2, 5, 30);
   double extra_damp = 0;
 
   std::vector<double> vl(p_wf->rgrid.num_points); // Vnuc + fVd
@@ -966,10 +980,17 @@ inline void HartreeFock::hf_core_refine() {
       }
     }
     if constexpr (print_each_eps) {
-      std::cout << __LINE__ << "| " << eps_target << " " << eps << " "
+      std::cout << __LINE__ << "| " << it << " " << eps << " "
                 << p_wf->core_orbitals[worst_index].symbol() << " -- "
                 << " " << best_eps << " "
                 << p_wf->core_orbitals[best_index].symbol() << "\n";
+    }
+    if constexpr (print_final_eps) {
+      if (std::isnan(eps))
+        std::cout << __LINE__ << "| eps is NaN: " << it << " " << eps << " "
+                  << p_wf->core_orbitals[worst_index].symbol() << " -- "
+                  << " " << best_eps << " "
+                  << p_wf->core_orbitals[best_index].symbol() << "\n";
     }
 
     if (it > 20 && eps > 1.5 * best_worst_eps) {
