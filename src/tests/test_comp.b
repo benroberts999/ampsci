@@ -8,7 +8,7 @@ for file in $(find src -name '*.cpp' -or -name '*.hpp'); do
     echo "Compiling file: "$file
     echo ""
     echo "with GNU..."
-    g++ -std=c++14 -c -Wno-unknown-pragmas -Wpedantic -Wall -Wextra -Wdouble-promotion -Wconversion -Wlogical-op $file -o build/junk_abcde123_gnu.o -I./src/
+    g++ -std=c++17 -c -Wno-unknown-pragmas -Wpedantic -Wall -Wextra -Wdouble-promotion -Wconversion -Wlogical-op $file -o build/junk_abcde123_gnu.o -I./src/
     if test -f "junk_abcde123_gnu.o"; then
       echo "done"
     fi
@@ -16,7 +16,7 @@ for file in $(find src -name '*.cpp' -or -name '*.hpp'); do
   #
     echo ""
     echo "with CLANG..."
-    clang++ -std=c++14 -c -Wno-unknown-pragmas -Wpedantic -Wall -Wextra -Wdouble-promotion -Wconversion -Wno-sign-conversion -Wheader-hygiene $file -o build/junk_abcde123_clang.o -I./src/
+    clang++ -std=c++17 -c -Wno-unknown-pragmas -Wpedantic -Wall -Wextra -Wdouble-promotion -Wconversion -Wno-sign-conversion -Wheader-hygiene $file -o build/junk_abcde123_clang.o -I./src/
     if test -f "junk_abcde123_clang.o"; then
       echo "done clang"
     fi
