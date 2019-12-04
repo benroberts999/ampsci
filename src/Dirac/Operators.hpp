@@ -299,15 +299,17 @@ public:
   double matrixEl(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
     if (Fa.k != Fb.k)
       return 0.0;
+    // return matrixEl(Fa);
     const auto max = std::min(Fa.pinf, Fb.pinf);
     const auto &drdu = Fa.p_rgrid->drdu;
 
     auto dfb = NumCalc::derivative(Fb.f, drdu, Fa.p_rgrid->du, 1);
     auto dgb = NumCalc::derivative(Fb.g, drdu, Fa.p_rgrid->du, 1);
+
     for (std::size_t i = 0; i < max; i++) {
       auto r = Fa.p_rgrid->r[i];
-      dgb[i] = (cl * Fb.k * Fb.g[i] / r) - dgb[i];
-      dfb[i] = (cl * Fb.k * Fb.f[i] / r) - dfb[i] - 2.0 * cl * cl * Fb.g[i];
+      dgb[i] = (Fb.k * Fb.g[i] / r) - dgb[i];
+      dfb[i] = (Fb.k * Fb.f[i] / r) + dfb[i] - 2.0 * cl * Fb.g[i];
     }
     auto FaDFb = NumCalc::integrate(Fa.f, dgb, drdu, 1.0, 0, max) +
                  NumCalc::integrate(Fa.g, dfb, drdu, 1.0, 0, max);
@@ -318,7 +320,8 @@ public:
                NumCalc::integrate(Fa.g, Fa.g, vdir, drdu, 1.0, 0, max);
 
     // auto gagb = NumCalc::integrate(Fa.g, Fb.g, drdu, 1.0, 0, max);
-    return (Vab + FaDFb) * Fa.p_rgrid->du;
+    return (Vab + cl * FaDFb) * Fa.p_rgrid->du;
+    // return (Vab + ckonr + DFaFb) * Fa.p_rgrid->du;
   }
 
   // do this for speed? dumb? only call 'matrixEl' for Hd ?
