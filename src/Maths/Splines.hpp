@@ -6,6 +6,7 @@ class Grid;
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include <algorithm>
 #include <fstream>
+#include <gsl/gsl_bspline.h>
 
 class BSplines {
 public:
@@ -19,13 +20,14 @@ public:
                                     : in_grid.getIndex(in_rmax)) //
   {
     // constuct_knots();
-    construct_splines();
+    // construct_splines();
+    construct_splines_gsl();
     write_splines();
   }
 
 private:
-  const int m_number_n;
-  const int m_order_k;
+  const std::size_t m_number_n;
+  const std::size_t m_order_k;
   const Grid *const m_rgrid_ptr;
   const std::size_t m_rmin_index;
   const std::size_t m_rmax_index; // inclusive
@@ -41,18 +43,10 @@ public:
     for (int i = 0; i < k; ++i) {
       knots_t.push_back(m_rmin_index); // right? or  t = 0.0?
     }
-    // for (int i = 0; i < m_number_n - 1; ++i) {
-    //   auto ti = static_cast<std::size_t>((double(i) / double(m_number_n)) *
-    //                                      double(m_rmax_index));
-    //   knots_t.push_back(ti);
-    // }
-    // for (int i = -1; i < k; ++i) {
-    //   knots_t.push_back(m_rmax_index);
-    // }
-    for (int i = 0; i < m_number_n - k; ++i) {
+    for (int i = 0; i < m_number_n - k - 1; ++i) {
       auto ti = static_cast<std::size_t>(
-          (double(i + m_rmin_index) / double(m_number_n - k - 1)) *
-          double(m_rmax_index));
+          (double(i + m_rmin_index + 1) / double(m_number_n - k)) *
+          double(m_rmax_index - 1));
       knots_t.push_back(ti);
     }
     for (int i = 0; i < k; ++i) {
@@ -72,46 +66,40 @@ public:
     std::cout << "\n";
   }
 
-  void construct_splines() {
-    // std::vector<std::vector<double>> B_prev(m_number_n); //
-    m_Bk.resize(m_number_n);
-    auto knots = constuct_knots(1);
-    for (auto i = 0; i < m_number_n; ++i) {
-      auto &Bi = m_Bk[i];
-      for (std::size_t ir = 0; ir < m_rgrid_ptr->num_points; ++ir) {
-        auto Br = (knots[i] <= ir && ir < knots[i + 1]) ? 1.0 : 0.0;
-        Bi.push_back(Br);
-      }
-    }
-    // auto B_prev = m_Bk;
+  void construct_splines_gsl() {
 
-    for (int k = 2; k <= m_order_k; k++) {
-      m_knots_t = constuct_knots(k);
-      auto B_prev = m_Bk;
-      for (std::size_t i = 0; i < (std::size_t)m_number_n; ++i) {
-        for (std::size_t ir = 0; ir < m_rgrid_ptr->num_points; ++ir) {
-          // auto r0 = m_rgrid_ptr->r[0];
-          auto ri = m_rgrid_ptr->r[ir];
-          auto rti = m_rgrid_ptr->r[m_knots_t[i]];
-          auto rtipk = m_rgrid_ptr->r[m_knots_t[i + k]];
-          auto rtip1 = m_rgrid_ptr->r[m_knots_t[i + 1]];
-          auto rtipkp1 = m_rgrid_ptr->r[m_knots_t[i + k + 1]]; //??
-          auto ratio_1 = (ri - rti) / (rtipk - rti);
-          auto ratio_2 = (rtipkp1 - ri) / (rtipkp1 - rtip1);
-          auto Bki = ratio_1 * B_prev[i][ir];
-          // std::cout << i << " ";
-          // printf("%.1e, %.1e, %.1e, %.1e, %.1e | %.1e | %.1e, %.1e : ", ri,
-          // rti,
-          //        rtip1, rtipkp1, rtipk, B_prev[i][ir], ratio_1, ratio_2);
-          // std::cout << Bki << " ";
-          if (i + 1 < (std::size_t)m_number_n)
-            Bki += ratio_2 * B_prev[i + 1][ir];
-          // std::cout << Bki << "\n";
-          // std::cout << i << " " << ir << " " << ratio_1 << " " << ratio_2
-          //           << "\n";
-          m_Bk[i][ir] = Bki;
-        }
-        // std::cin.get();
+    const auto nbreak = m_number_n + 2 - m_order_k;
+
+    gsl_bspline_workspace *bw;
+    gsl_vector *B;
+    bw = gsl_bspline_alloc(m_order_k, nbreak);
+    B = gsl_vector_alloc(m_number_n);
+
+    // gsl_bspline_knots_uniform(0.01, 10.0, bw);
+
+    gsl_vector *breakpts;
+    breakpts = gsl_vector_alloc(nbreak);
+    for (int i = 0; i < nbreak; i++) {
+      auto dindex = (double(i + m_rmin_index) / double(nbreak - 1)) *
+                    double(m_rmax_index);
+      auto r = m_rgrid_ptr->r[int(dindex)];
+      std::cout << r << "\n";
+      gsl_vector_set(breakpts, i, r);
+    }
+    gsl_bspline_knots(breakpts, bw);
+    std::cout << "\n\n";
+
+    m_Bk.resize(m_number_n);
+    for (int j = 0; j < m_number_n; ++j) {
+      m_Bk[j].resize(m_rgrid_ptr->num_points);
+    }
+
+    for (std::size_t ir = 0; ir < m_rgrid_ptr->num_points; ++ir) {
+      auto r = m_rgrid_ptr->r[ir];
+      gsl_bspline_eval(r, B, bw);
+      for (int j = 0; j < m_number_n; ++j) {
+        double Bj = gsl_vector_get(B, j);
+        m_Bk[j][ir] = Bj;
       }
     }
   }

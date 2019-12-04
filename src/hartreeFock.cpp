@@ -50,7 +50,7 @@ int main(int argc, char *argv[]) {
   Wavefunction wf(atom_Z, {num_points, r0, rmax, b, grid_type, du_tmp},
                   {atom_Z, atom_A, nuc_type, rrms, skint}, var_alpha);
 
-  BSplines(10, 2, wf.rgrid, 0, 0);
+  BSplines(10, 5, wf.rgrid, 0, 0);
   return 1;
 
   // Parse input for HF method
