@@ -1,10 +1,10 @@
 #pragma once
+#include "Angular/Wigner_369j.hpp"
 #include "Dirac/DiracOperator.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/SphericalBessel.hpp"
 #include "Physics/NuclearPotentials.hpp"
 #include "Physics/PhysConst_constants.hpp"
-#include "Angular/Wigner_369j.hpp"
 #include <cmath>
 #include <functional>
 #include <vector>
@@ -268,6 +268,7 @@ private:
 //******************************************************************************
 class DirectHamiltonian final : public ScalarOperator {
   // Direct part of Radial Hamiltonian operator.
+  // XXX THIS SHOULD !!NOT!! be a ScalarOperator!!!
 public:
   DirectHamiltonian(const std::vector<double> &vn,
                     const std::vector<double> &vd, const double alpha)
@@ -280,9 +281,7 @@ public:
   const std::vector<double> &getVnuc() const { return vnuc; }
 
 public:
-  double matrixEl(const DiracSpinor &Fa, const DiracSpinor &Fb) const override {
-    if (Fa.k != Fb.k)
-      return 0.0;
+  double matrixEl(const DiracSpinor &Fa) const {
     const auto &drdu = Fa.p_rgrid->drdu;
     tmp_f = NumCalc::derivative(Fa.f, drdu, Fa.p_rgrid->du, 1);
     const auto max = Fa.pinf;
@@ -295,6 +294,31 @@ public:
               NumCalc::integrate(Fa.f, Fa.f, vdir, drdu, 1.0, 0, max) +
               NumCalc::integrate(Fa.g, Fa.g, vdir, drdu, 1.0, 0, max);
     return (Hw + Hz) * Fa.p_rgrid->du;
+  }
+
+  double matrixEl(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
+    if (Fa.k != Fb.k)
+      return 0.0;
+    const auto max = std::min(Fa.pinf, Fb.pinf);
+    const auto &drdu = Fa.p_rgrid->drdu;
+
+    auto dfb = NumCalc::derivative(Fb.f, drdu, Fa.p_rgrid->du, 1);
+    auto dgb = NumCalc::derivative(Fb.g, drdu, Fa.p_rgrid->du, 1);
+    for (std::size_t i = 0; i < max; i++) {
+      auto r = Fa.p_rgrid->r[i];
+      dgb[i] = (cl * Fb.k * Fb.g[i] / r) - dgb[i];
+      dfb[i] = (cl * Fb.k * Fb.f[i] / r) - dfb[i] - 2.0 * cl * cl * Fb.g[i];
+    }
+    auto FaDFb = NumCalc::integrate(Fa.f, dgb, drdu, 1.0, 0, max) +
+                 NumCalc::integrate(Fa.g, dfb, drdu, 1.0, 0, max);
+
+    auto Vab = NumCalc::integrate(Fa.f, Fa.f, vnuc, drdu, 1.0, 0, max) +
+               NumCalc::integrate(Fa.g, Fa.g, vnuc, drdu, 1.0, 0, max) +
+               NumCalc::integrate(Fa.f, Fa.f, vdir, drdu, 1.0, 0, max) +
+               NumCalc::integrate(Fa.g, Fa.g, vdir, drdu, 1.0, 0, max);
+
+    // auto gagb = NumCalc::integrate(Fa.g, Fb.g, drdu, 1.0, 0, max);
+    return (Vab + FaDFb) * Fa.p_rgrid->du;
   }
 
   // do this for speed? dumb? only call 'matrixEl' for Hd ?

@@ -35,7 +35,7 @@ Grid {
 
 Module::Tests {
   orthonormal = true;
-  // Hamiltonian = true;
+  Hamiltonian = true;
   // boundaries = true;
 }
 
