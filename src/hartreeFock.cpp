@@ -5,6 +5,9 @@
 #include "Modules/Module_runModules.hpp"
 #include <iostream>
 #include <string>
+//
+#include "Dirac/Operators.hpp"
+#include "testSplines.hpp"
 
 int main(int argc, char *argv[]) {
   ChronoTimer timer("\nhartreeFock");
@@ -122,12 +125,23 @@ int main(int argc, char *argv[]) {
   auto k_spl = input.get("Basis", "order", 0ul);
   auto r0_spl = input.get("Basis", "r0", 0.0);
   auto rmax_spl = input.get("Basis", "rmax", 0.0);
-  auto print_spl = input.get("Basis", "print", false);
+  // auto print_spl = input.get("Basis", "print", false);
 
   if (k_spl > 0 && n_spl >= k_spl && basis_ok) {
     BSplines bspl(n_spl, k_spl, wf.rgrid, r0_spl, rmax_spl);
-    if (print_spl)
-      bspl.write_splines("Bspl.txt");
+    auto basis = test_splines(bspl, -1);
+
+    auto Hd = DirectHamiltonian(wf.vnuc, wf.vdir, wf.get_alpha());
+
+    for (const auto &phi : basis) {
+      for (const auto &phib : basis) {
+        // auto me = Hd.matrixEl(phi, phib);
+        auto me = phi * phib;
+        printf("%.1e ", me);
+        // printf("%s/%s ", phi.symbol().c_str(), phib.symbol().c_str());
+      }
+      std::cout << "\n";
+    }
   }
 
   // run each of the modules

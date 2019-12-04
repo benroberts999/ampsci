@@ -1,6 +1,6 @@
 # Dependencies for each 'Main'
 
-$(BD)/hartreeFock.o: $(SD)/hartreeFock.cpp $(SD)/Dirac/Wavefunction.hpp \
+$(BD)/hartreeFock.o: $(SD)/hartreeFock.cpp $(SD)/testSplines.hpp $(SD)/Dirac/Wavefunction.hpp \
 $(SD)/IO/ChronoTimer.hpp $(SD)/IO/UserInput.hpp \
 $(SD)/Modules/Module_runModules.hpp $(SD)/Maths/BSplines.hpp
 	$(COMP)

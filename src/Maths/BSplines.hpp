@@ -1,3 +1,4 @@
+#pragma once
 #include "Maths/Grid.hpp"
 #include <algorithm>
 #include <fstream>
@@ -58,16 +59,19 @@ private: // data
   std::vector<std::pair<std::size_t, std::size_t>> m_ends;
 
 public:
+  std::size_t get_n() const { return m_number_n; }
+  std::size_t get_k() const { return m_order_k; }
+  const Grid &get_grid() const { return *m_rgrid_ptr; }
   //****************************************************************************
-  const std::vector<double> &get_spline(std::size_t n) {
+  const std::vector<double> &get_spline(std::size_t n) const {
     return m_Bk[n]; // add bounds-check?
   }
-  const std::pair<std::size_t, std::size_t> &get_ends(std::size_t n) {
+  const std::pair<std::size_t, std::size_t> &get_ends(std::size_t n) const {
     return m_ends[n]; // add bounds-check?
   }
 
   //****************************************************************************
-  void write_splines(const std::string ofname = "Bspl.txt") {
+  void write_splines(const std::string ofname = "Bspl.txt") const {
     std::ofstream of(ofname);
 
     for (std::size_t ir = 0; ir < m_rgrid_ptr->num_points; ++ir) {
@@ -84,7 +88,7 @@ public:
   }
 
   //****************************************************************************
-  void print_knots() {
+  void print_knots() const {
     std::cout << "Break points:\n ";
     int n_rows_to_print = 7;
     int count = 0;
@@ -124,7 +128,7 @@ private:
   }
 
   //----------------------------------------------------------------------------
-  std::vector<double> break_points(std::size_t nbreaks) {
+  std::vector<double> break_points(std::size_t nbreaks) const {
     std::vector<double> breaks;
     for (std::size_t i = 0; i < nbreaks; i++) {
       auto dindex = (double(i) / double(nbreaks - 1)) *
