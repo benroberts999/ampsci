@@ -40,6 +40,18 @@ GridType GridParameters::parseType(const std::string &str_type) {
   return GridType::loglinear;
 }
 
+std::string GridParameters::parseType(GridType type) {
+  switch (type) {
+  case GridType::linear:
+    return "linear";
+  case GridType::logarithmic:
+    return "logarithmic";
+  case GridType::loglinear:
+    return "log-linear";
+  }
+  return "?GridType?";
+}
+
 //******************************************************************************
 Grid::Grid(const GridParameters &in)
     : Grid(in.r0, in.rmax, in.num_points, in.type, in.b) {}

@@ -1,11 +1,10 @@
 #include "Dirac/Wavefunction.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/UserInput.hpp"
+#include "Maths/BSplines.hpp"
 #include "Modules/Module_runModules.hpp"
 #include <iostream>
 #include <string>
-// #include "Physics/AtomData.hpp" //need for testing basis only
-#include "Maths/Splines.hpp"
 
 int main(int argc, char *argv[]) {
   ChronoTimer timer("\nhartreeFock");
@@ -49,9 +48,6 @@ int main(int argc, char *argv[]) {
   // create wavefunction object
   Wavefunction wf(atom_Z, {num_points, r0, rmax, b, grid_type, du_tmp},
                   {atom_Z, atom_A, nuc_type, rrms, skint}, var_alpha);
-
-  BSplines(10, 5, wf.rgrid, 0, 0);
-  return 1;
 
   // Parse input for HF method
   input_ok =
@@ -118,6 +114,21 @@ int main(int argc, char *argv[]) {
   auto sorted = input.get("HartreeFock", "sortOutput", true);
   wf.printCore(sorted);
   wf.printValence(sorted);
+
+  // Get + setup nuclear parameters
+  auto basis_ok =
+      input.check("Basis", {"number", "order", "r0", "rmax", "print"});
+  auto n_spl = input.get("Basis", "number", 0ul);
+  auto k_spl = input.get("Basis", "order", 0ul);
+  auto r0_spl = input.get("Basis", "r0", 0.0);
+  auto rmax_spl = input.get("Basis", "rmax", 0.0);
+  auto print_spl = input.get("Basis", "print", false);
+
+  if (k_spl > 0 && n_spl >= k_spl && basis_ok) {
+    BSplines bspl(n_spl, k_spl, wf.rgrid, r0_spl, rmax_spl);
+    if (print_spl)
+      bspl.write_splines("Bspl.txt");
+  }
 
   // run each of the modules
   Module::runModules(input, wf);
