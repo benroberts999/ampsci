@@ -7,7 +7,7 @@ Atom {
 HartreeFock {
   core = [Xe];
   valence = 7sp;
-  // method; // HartreeFock(dflt), ApproxHF, Hartree, GreenPRM, TietzPRM
+  method = GreenPRM; // HartreeFock(dflt), ApproxHF, Hartree, GreenPRM, TietzPRM
 }
 
 // dV { a_eff = 0.0; } //effective pol. op.
@@ -28,8 +28,8 @@ Grid {
 }
 
 Basis {
-  number = 10;
-  order = 6;
+  number = 6;
+  order = 4;
   r0 = 0;
   rmax = 0;
   print = true;

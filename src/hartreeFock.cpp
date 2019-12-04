@@ -7,6 +7,7 @@
 #include <string>
 //
 #include "Dirac/Operators.hpp"
+#include "Maths/Matrix_linalg.hpp"
 #include "testSplines.hpp"
 
 int main(int argc, char *argv[]) {
@@ -133,15 +134,31 @@ int main(int argc, char *argv[]) {
 
     auto Hd = DirectHamiltonian(wf.vnuc, wf.vdir, wf.get_alpha());
 
-    for (const auto &phi : basis) {
-      for (const auto &phib : basis) {
-        // auto me = Hd.matrixEl(phi, phib);
-        auto me = phi * phib;
-        printf("%.1e ", me);
+    std::cout << "\n\n";
+    Matrix::SqMatrix Aij((int)basis.size());
+    Matrix::SqMatrix Sij((int)basis.size());
+    for (auto i = 0; i < (int)basis.size(); i++) {
+      // const auto &si = basis[i];
+      const auto &si = wf.core_orbitals[i];
+      for (auto j = 0; j < (int)basis.size(); j++) {
+        // const auto &sj = basis[j];
+        const auto &sj = wf.core_orbitals[j];
+        auto aij = Hd.matrixEl(si, sj);
+        auto aji = Hd.matrixEl(sj, si);
+        std::cout << si.symbol() << "," << sj.symbol() << " : " << aij << " "
+                  << aji << " " << aij - aji << "\n";
+        auto sij = si * sj;
+        Aij[i][j] = aij; // / std::sqrt((si * si) * (sj * sj));
+        Sij[i][j] = sij;
+        // printf("%.1e ", aij);
         // printf("%s/%s ", phi.symbol().c_str(), phib.symbol().c_str());
       }
       std::cout << "\n";
     }
+    std::cout << "\n\n";
+
+    auto m = Aij * Sij;
+    Aij.print();
   }
 
   // run each of the modules
