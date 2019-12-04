@@ -131,9 +131,10 @@ public:
     return (std::abs(ka) == std::abs(kb)) ? std::sqrt(2.0 * std::abs(ka)) : 0.0;
   }
 
-  virtual double matrixEl(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
-    return radialIntegral(Fa, Fb);
-  }
+  // virtual double matrixEl(const DiracSpinor &Fa, const DiracSpinor &Fb) const
+  // {
+  //   return radialIntegral(Fa, Fb);
+  // }
 
 private:
   const double c_ff, c_fg, c_gf, c_gg;
