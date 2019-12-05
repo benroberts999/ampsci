@@ -1,5 +1,6 @@
 #pragma once
 #include "Maths/Grid.hpp"
+#include "Maths/NumCalc_quadIntegrate.hpp"
 #include <algorithm>
 #include <fstream>
 #include <gsl/gsl_bspline.h>
@@ -39,8 +40,9 @@ public:
 
   ~BSplines() {
     gsl_bspline_free(gsl_bspl_work);
-    gsl_vector_free(gsl_bspl_vec);
     gsl_vector_free(gsl_breakpts_vec);
+    gsl_vector_free(gsl_bspl_vec);
+    gsl_matrix_free(gsl_bspl_deriv_mat);
   }
 
 private: // data
@@ -51,11 +53,13 @@ private: // data
   const std::size_t m_rmax_index; // inclusive
 
   gsl_bspline_workspace *gsl_bspl_work;
-  gsl_vector *gsl_bspl_vec;
   gsl_vector *gsl_breakpts_vec;
+  gsl_vector *gsl_bspl_vec;
+  gsl_matrix *gsl_bspl_deriv_mat;
 
   std::vector<double> m_knots;
   std::vector<std::vector<double>> m_Bk;
+  std::vector<std::vector<double>> m_dBkdr;
   std::vector<std::pair<std::size_t, std::size_t>> m_ends;
 
 public:
@@ -70,17 +74,49 @@ public:
     return m_ends[n]; // add bounds-check?
   }
 
+  void derivitate(const int n_deriv = 1) {
+
+    // m_dBkdr.clear();
+    // for (auto &Bk : m_Bk) {
+    //   m_dBkdr.push_back(
+    //       NumCalc::derivative(Bk, m_rgrid_ptr->drdu, m_rgrid_ptr->du,
+    //       n_deriv));
+    // }
+    // Almost correct /\, but small deviations at small r, large r?
+
+    m_dBkdr.clear();
+    m_dBkdr.resize(m_number_n);
+    for (auto &dBkdr : m_dBkdr) {
+      dBkdr.resize(m_rgrid_ptr->num_points);
+    }
+
+    gsl_bspl_deriv_mat = gsl_matrix_alloc(m_number_n, n_deriv + 1);
+    for (std::size_t ir = 0; ir < m_rgrid_ptr->num_points; ++ir) {
+      if (ir < m_rmin_index || ir > m_rmax_index)
+        continue;
+      auto r = m_rgrid_ptr->r[ir];
+      gsl_bspline_deriv_eval(r, n_deriv, gsl_bspl_deriv_mat, gsl_bspl_work);
+      for (std::size_t j = 0; j < m_number_n; ++j) {
+        double Bj = gsl_matrix_get(gsl_bspl_deriv_mat, j, n_deriv);
+        m_dBkdr[j][ir] = Bj;
+      }
+    }
+  }
+
   //****************************************************************************
-  void write_splines(const std::string ofname = "Bspl.txt") const {
+  void write_splines(const std::string ofname = "Bspl.txt",
+                     bool deriv = false) const {
     std::ofstream of(ofname);
+
+    const auto &splines = (deriv) ? m_dBkdr : m_Bk;
 
     for (std::size_t ir = 0; ir < m_rgrid_ptr->num_points; ++ir) {
       of << m_rgrid_ptr->r[ir] << " ";
       auto sum = 0.0;
-      for (const auto &Bi : m_Bk) {
+      for (const auto &Bi : splines) {
         sum += Bi[ir];
       }
-      for (const auto &Bi : m_Bk) {
+      for (const auto &Bi : splines) {
         of << Bi[ir] << " ";
       }
       of << sum << "\n";

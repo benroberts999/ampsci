@@ -150,6 +150,8 @@ int main(int argc, char *argv[]) {
 
         auto aij = Hd.matrixEl(si, sj) + (si * VexPsi_j);
         auto aji = Hd.matrixEl(sj, si) + (sj * VexPsi_i);
+        aij = std::abs(aij) < 1.e-10 ? 0.0 : aij;
+        aji = std::abs(aji) < 1.e-10 ? 0.0 : aji;
         if (si.k != sj.k) {
           aij = 0;
           aji = 0;

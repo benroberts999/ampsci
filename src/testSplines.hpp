@@ -6,7 +6,7 @@
 #include <iostream>
 #include <string>
 
-inline std::vector<DiracSpinor> test_splines(const BSplines &bspl, int kappa) {
+inline std::vector<DiracSpinor> test_splines(BSplines &bspl, int kappa) {
 
   bspl.write_splines("Bspl.txt");
 
@@ -30,5 +30,8 @@ inline std::vector<DiracSpinor> test_splines(const BSplines &bspl, int kappa) {
       phi.pinf = pinf;
     }
   }
+
+  bspl.derivitate();
+  bspl.write_splines("Bspl_deriv2.txt", true);
   return basis;
 }
