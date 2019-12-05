@@ -47,9 +47,9 @@ double DiracSpinor::norm() const { return std::sqrt((*this) * (*this)); }
 
 //******************************************************************************
 void DiracSpinor::scale(const double factor) {
-  for (std::size_t i = p0; i < pinf; ++i)
+  for (std::size_t i = 0; i < pinf; ++i)
     f[i] *= factor;
-  for (std::size_t i = p0; i < pinf; ++i)
+  for (std::size_t i = 0; i < pinf; ++i)
     g[i] *= factor;
   // // XXX Need this for some reason!??
   // Means something beyond pinf is hapenning!?!? XXX XXX
@@ -150,12 +150,12 @@ DiracSpinor operator*(const std::vector<double> &v, DiracSpinor rhs) {
 }
 
 DiracSpinor &DiracSpinor::operator=(const DiracSpinor &other) {
-  // XXX Update n and kappa!?
+  // XXX Update kappa and n???
   if (this != &other) {
     en = other.en;
     f = other.f;
     g = other.g;
-    p0 = other.pinf;
+    p0 = other.p0;
     pinf = other.pinf;
   }
   return *this;
