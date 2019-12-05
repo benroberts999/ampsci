@@ -130,7 +130,9 @@ int main(int argc, char *argv[]) {
 
   if (k_spl > 0 && n_spl >= k_spl && basis_ok) {
     BSplines bspl(n_spl, k_spl, wf.rgrid, r0_spl, rmax_spl);
+
     auto basis = test_splines(bspl, -1);
+    // auto basis = wf.core_orbitals;
 
     auto Hd = DirectHamiltonian(wf.vnuc, wf.vdir, wf.get_alpha());
 
@@ -138,27 +140,38 @@ int main(int argc, char *argv[]) {
     Matrix::SqMatrix Aij((int)basis.size());
     Matrix::SqMatrix Sij((int)basis.size());
     for (auto i = 0; i < (int)basis.size(); i++) {
-      // const auto &si = basis[i];
-      const auto &si = wf.core_orbitals[i];
+      const auto &si = basis[i];
+      // const auto &si = wf.core_orbitals[i];
       for (auto j = 0; j < (int)basis.size(); j++) {
-        // const auto &sj = basis[j];
-        const auto &sj = wf.core_orbitals[j];
-        auto aij = Hd.matrixEl(si, sj);
-        auto aji = Hd.matrixEl(sj, si);
-        std::cout << si.symbol() << "," << sj.symbol() << " : " << aij << " "
-                  << aji << " " << aij - aji << "\n";
+        const auto &sj = basis[j];
+        // const auto &sj = wf.core_orbitals[j];
+        auto VexPsi_j = HartreeFock::vex_psia_any(sj, wf.core_orbitals);
+        auto VexPsi_i = HartreeFock::vex_psia_any(si, wf.core_orbitals);
+
+        auto aij = Hd.matrixEl(si, sj) + (si * VexPsi_j);
+        auto aji = Hd.matrixEl(sj, si) + (sj * VexPsi_i);
+        if (si.k != sj.k) {
+          aij = 0;
+          aji = 0;
+        } else {
+          std::cout << si.symbol() << "," << sj.symbol() << " : ";
+          printf("%9.2e %9.2e %9.2e\n", aij, aji, aij - aji);
+        }
         auto sij = si * sj;
         Aij[i][j] = aij; // / std::sqrt((si * si) * (sj * sj));
         Sij[i][j] = sij;
-        // printf("%.1e ", aij);
-        // printf("%s/%s ", phi.symbol().c_str(), phib.symbol().c_str());
       }
       std::cout << "\n";
     }
     std::cout << "\n\n";
 
-    auto m = Aij * Sij;
+    Aij.clip_low(1.0e-8);
+
+    auto m = Aij.inverse() * Sij;
+    m.clip_low(1.0e-10);
     Aij.print();
+    std::cout << "\n";
+    m.print();
   }
 
   // run each of the modules

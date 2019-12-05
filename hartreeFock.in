@@ -7,7 +7,8 @@ Atom {
 HartreeFock {
   core = [Xe];
   valence = 7sp;
-  method = GreenPRM; // HartreeFock(dflt), ApproxHF, Hartree, GreenPRM, TietzPRM
+  method =
+      HartreeFock; // HartreeFock(dflt), ApproxHF, Hartree, GreenPRM, TietzPRM
 }
 
 // dV { a_eff = 0.0; } //effective pol. op.
@@ -19,17 +20,17 @@ Nucleus {
 }
 
 Grid {
-  r0 = 1e-6;
+  r0 = 1e-7;
   rmax = 120.0;
-  num_points = 2000;
+  num_points = 5000;
   // fixed_du = 0.1;     // over-writes num_points
-  type; // loglinear(dflt), logarithmic, linear
-  b;    // b<0, or b>rmax will use logarithmic
+  type = logarithmic; // loglinear(dflt), logarithmic, linear
+  b;                  // b<0, or b>rmax will use logarithmic
 }
 
 Basis {
-  number = 6;
-  order = 4;
+  number = 12;
+  order = 7;
   r0 = 0;
   rmax = 0;
   print = true;

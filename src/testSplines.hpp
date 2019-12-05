@@ -20,12 +20,14 @@ inline std::vector<DiracSpinor> test_splines(const BSplines &bspl, int kappa) {
     auto &phi = basis[i];
     if (i < n_spl) {
       phi.f = bspl.get_spline(i);
-      // std::cout << i << ": ";
-      // std::cout << phi.f[10] << " " << phi.f[11] << " " << phi.f[12] << "\n";
+      auto [p0, pinf] = bspl.get_ends(i);
+      phi.pinf = pinf;
+      phi.p0 = p0;
     } else {
       phi.g = bspl.get_spline(i - n_spl);
-      // std::cout << i - n_spl << "\n";
-      // std::cout << phi.g[10] << " " << phi.g[11] << " " << phi.g[12] << "\n";
+      auto [p0, pinf] = bspl.get_ends(i - n_spl);
+      phi.p0 = p0;
+      phi.pinf = pinf;
     }
   }
   return basis;

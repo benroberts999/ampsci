@@ -17,6 +17,7 @@ DiracSpinor::DiracSpinor(int in_n, int in_k, const Grid &rgrid)
       n(in_n), k(in_k), en(0.0),                     //
       f(std::vector<double>(rgrid.num_points, 0.0)), //
       g(f),                                          //
+      p0(0),                                         //
       pinf(rgrid.num_points),                        //
       its(-1), eps(-1), occ_frac(0),                 //
       m_twoj(AtomData::twoj_k(in_k)),                //
@@ -46,9 +47,9 @@ double DiracSpinor::norm() const { return std::sqrt((*this) * (*this)); }
 
 //******************************************************************************
 void DiracSpinor::scale(const double factor) {
-  for (std::size_t i = 0; i < pinf; ++i)
+  for (std::size_t i = p0; i < pinf; ++i)
     f[i] *= factor;
-  for (std::size_t i = 0; i < pinf; ++i)
+  for (std::size_t i = p0; i < pinf; ++i)
     g[i] *= factor;
   // // XXX Need this for some reason!??
   // Means something beyond pinf is hapenning!?!? XXX XXX
@@ -77,7 +78,7 @@ std::pair<double, double> DiracSpinor::r0pinfratio() const {
     return std::fabs(a) < std::fabs(b);
   };
   auto max_pos = std::max_element(f.begin(), f.begin() + pinf, max_abs_compare);
-  auto r0_ratio = f[0] / *max_pos;
+  auto r0_ratio = f[p0] / *max_pos;
   auto pinf_ratio = f[pinf - 1] / *max_pos;
   return std::make_pair(r0_ratio, pinf_ratio);
   // nb: do i care about ratio to max? or just value?
@@ -87,10 +88,11 @@ std::pair<double, double> DiracSpinor::r0pinfratio() const {
 //******************************************************************************
 double operator*(const DiracSpinor &lhs, const DiracSpinor &rhs) {
   // Note: ONLY radial part ("F" radial spinor)
+  const auto imin = std::max(lhs.p0, rhs.p0);
   const auto imax = std::min(lhs.pinf, rhs.pinf);
   const auto &dr = lhs.p_rgrid->drdu;
-  const auto ff = NumCalc::integrate_any(1.0, 0, imax, lhs.f, rhs.f, dr);
-  const auto gg = NumCalc::integrate_any(1.0, 0, imax, lhs.g, rhs.g, dr);
+  const auto ff = NumCalc::integrate_any(1.0, imin, imax, lhs.f, rhs.f, dr);
+  const auto gg = NumCalc::integrate_any(1.0, imin, imax, lhs.g, rhs.g, dr);
   return (ff + gg) * lhs.p_rgrid->du;
 }
 
@@ -148,10 +150,12 @@ DiracSpinor operator*(const std::vector<double> &v, DiracSpinor rhs) {
 }
 
 DiracSpinor &DiracSpinor::operator=(const DiracSpinor &other) {
+  // XXX Update n and kappa!?
   if (this != &other) {
     en = other.en;
     f = other.f;
     g = other.g;
+    p0 = other.pinf;
     pinf = other.pinf;
   }
   return *this;
