@@ -303,8 +303,8 @@ public:
     const auto max = std::min(Fa.pinf, Fb.pinf);
     const auto &drdu = Fa.p_rgrid->drdu;
 
-    auto dfb = NumCalc::derivative(Fb.f, drdu, Fa.p_rgrid->du, 1);
-    auto dgb = NumCalc::derivative(Fb.g, drdu, Fa.p_rgrid->du, 1);
+    auto dfb = NumCalc::derivative(Fb.f, drdu, Fb.p_rgrid->du, 1);
+    auto dgb = NumCalc::derivative(Fb.g, drdu, Fb.p_rgrid->du, 1);
 
     for (std::size_t i = 0; i < max; i++) {
       auto r = Fa.p_rgrid->r[i];
@@ -314,10 +314,10 @@ public:
     auto FaDFb = NumCalc::integrate(Fa.f, dgb, drdu, 1.0, 0, max) +
                  NumCalc::integrate(Fa.g, dfb, drdu, 1.0, 0, max);
 
-    auto Vab = NumCalc::integrate(Fa.f, Fa.f, vnuc, drdu, 1.0, 0, max) +
-               NumCalc::integrate(Fa.g, Fa.g, vnuc, drdu, 1.0, 0, max) +
-               NumCalc::integrate(Fa.f, Fa.f, vdir, drdu, 1.0, 0, max) +
-               NumCalc::integrate(Fa.g, Fa.g, vdir, drdu, 1.0, 0, max);
+    auto Vab = NumCalc::integrate(Fa.f, Fb.f, vnuc, drdu, 1.0, 0, max) +
+               NumCalc::integrate(Fa.g, Fb.g, vnuc, drdu, 1.0, 0, max) +
+               NumCalc::integrate(Fa.f, Fb.f, vdir, drdu, 1.0, 0, max) +
+               NumCalc::integrate(Fa.g, Fb.g, vdir, drdu, 1.0, 0, max);
 
     // auto gagb = NumCalc::integrate(Fa.g, Fb.g, drdu, 1.0, 0, max);
     return (Vab + cl * FaDFb) * Fa.p_rgrid->du;
