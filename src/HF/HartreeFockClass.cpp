@@ -774,6 +774,7 @@ void HartreeFock::hf_orbital(DiracSpinor &phi, double en,
   DiracSpinor phiI(phi.n, phi.k, *(phi.p_rgrid));
   DiracSpinor VxFh(phi.n, phi.k, *(phi.p_rgrid));
   DiracSpinor del_phi(phi.n, phi.k, *(phi.p_rgrid));
+  const auto eps_target = 1.0e-16; // m_eps_HF;
 
   const auto alpha = p_wf->get_alpha();
   DiracODE::solve_inhomog(phi, phi0, phiI, en, vl, alpha, -1.0 * vx_phi);
@@ -785,16 +786,16 @@ void HartreeFock::hf_orbital(DiracSpinor &phi, double en,
   auto del_E = 0.5 * (phi * phi - 1.0) / (phi * del_phi);
   auto eps = std::abs(del_E / en);
   int tries = 0;
-  for (; tries < m_max_hf_its; ++tries) { // m_max_hf_its
-    if (eps < m_eps_HF)
+  for (; tries <= m_max_hf_its; ++tries) { // m_max_hf_its
+    if (eps < eps_target)
       break;
     {
-      if (!v0.empty()) {     // essentially, for core:
-        VxFh = v0 * del_phi; // v0 = (1-f)Vd;
-      } else {               // essentially, for valence
-        VxFh = vex_psia_any(del_phi, static_core, 0);
+      if (!v0.empty()) { // essentially, for core:
+        // v0 = (1-f)Vd;
+        VxFh = v0 * del_phi + vex_psia_any(del_phi, static_core, 1);
+      } else { // essentially, for valence
+        VxFh = vex_psia_any(del_phi, static_core, 1);
       }
-      // Depends very strengely on VxFh...
       DiracODE::Adams::GreenSolution(del_phi, phiI, phi0, alpha,
                                      del_E * phi - VxFh);
     }
@@ -808,7 +809,7 @@ void HartreeFock::hf_orbital(DiracSpinor &phi, double en,
   phi.en = en;
   phi.eps = eps;
   phi.its = tries;
-  if (tries == 0 || tries == m_max_hf_its - 1)
+  if (tries == 0 || tries == m_max_hf_its)
     phi.normalise(); //? Not needed
 }
 
