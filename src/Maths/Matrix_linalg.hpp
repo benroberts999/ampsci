@@ -80,6 +80,21 @@ public:
     }
   }
 
+  void make_symmetric() {
+    *this += this->transpose();
+    this->scale(0.5);
+  }
+
+  double check_symmetric() {
+    double worst = 0.0;
+    auto AmATr = *this - this->transpose();
+    for (int i = 0; i < n * n; i++) {
+      auto val = std::abs(AmATr.m->data[i]);
+      worst = (val > worst) ? val : worst;
+    }
+    return worst;
+  }
+
   void print() {
     // mostly for testing
     for (int i = 0; i < n; ++i) {

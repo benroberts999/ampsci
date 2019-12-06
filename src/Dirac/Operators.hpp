@@ -301,6 +301,7 @@ public:
       return 0.0;
     // return matrixEl(Fa);
     const auto max = std::min(Fa.pinf, Fb.pinf);
+    const auto min = std::max(Fa.p0, Fb.p0);
     const auto &drdu = Fa.p_rgrid->drdu;
 
     auto dfb = NumCalc::derivative(Fb.f, drdu, Fb.p_rgrid->du, 1);
@@ -311,13 +312,13 @@ public:
       dgb[i] = (Fb.k * Fb.g[i] / r) - dgb[i];
       dfb[i] = (Fb.k * Fb.f[i] / r) + dfb[i] - 2.0 * cl * Fb.g[i];
     }
-    auto FaDFb = NumCalc::integrate(Fa.f, dgb, drdu, 1.0, 0, max) +
-                 NumCalc::integrate(Fa.g, dfb, drdu, 1.0, 0, max);
+    auto FaDFb = NumCalc::integrate(Fa.f, dgb, drdu, 1.0, min, max) +
+                 NumCalc::integrate(Fa.g, dfb, drdu, 1.0, min, max);
 
-    auto Vab = NumCalc::integrate(Fa.f, Fb.f, vnuc, drdu, 1.0, 0, max) +
-               NumCalc::integrate(Fa.g, Fb.g, vnuc, drdu, 1.0, 0, max) +
-               NumCalc::integrate(Fa.f, Fb.f, vdir, drdu, 1.0, 0, max) +
-               NumCalc::integrate(Fa.g, Fb.g, vdir, drdu, 1.0, 0, max);
+    auto Vab = NumCalc::integrate(Fa.f, Fb.f, vnuc, drdu, 1.0, min, max) +
+               NumCalc::integrate(Fa.g, Fb.g, vnuc, drdu, 1.0, min, max) +
+               NumCalc::integrate(Fa.f, Fb.f, vdir, drdu, 1.0, min, max) +
+               NumCalc::integrate(Fa.g, Fb.g, vdir, drdu, 1.0, min, max);
 
     // auto gagb = NumCalc::integrate(Fa.g, Fb.g, drdu, 1.0, 0, max);
     return (Vab + cl * FaDFb) * Fa.p_rgrid->du;

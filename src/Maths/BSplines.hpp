@@ -70,6 +70,9 @@ public:
   const std::vector<double> &get_spline(std::size_t n) const {
     return m_Bk[n]; // add bounds-check?
   }
+  const std::vector<double> &get_spline_deriv(std::size_t n) const {
+    return m_dBkdr[n]; // add bounds-check?
+  }
   const std::pair<std::size_t, std::size_t> &get_ends(std::size_t n) const {
     return m_ends[n]; // add bounds-check?
   }

@@ -129,9 +129,10 @@ int main(int argc, char *argv[]) {
   // auto print_spl = input.get("Basis", "print", false);
 
   if (k_spl > 0 && n_spl >= k_spl && basis_ok) {
-    BSplines bspl(n_spl, k_spl, wf.rgrid, r0_spl, rmax_spl);
+    // BSplines bspl(n_spl, k_spl, wf.rgrid, r0_spl, rmax_spl);
 
-    auto basis = test_splines(bspl, -1);
+    auto basis = test_splines(-1, n_spl, k_spl, r0_spl, rmax_spl, wf.rgrid);
+    // std::cin.get();
     // auto basis = wf.core_orbitals;
 
     auto Hd = DirectHamiltonian(wf.vnuc, wf.vdir, wf.get_alpha());
@@ -148,6 +149,7 @@ int main(int argc, char *argv[]) {
         auto VexPsi_j = HartreeFock::vex_psia_any(sj, wf.core_orbitals);
         auto VexPsi_i = HartreeFock::vex_psia_any(si, wf.core_orbitals);
 
+        // Vex seems to make incredibly small contribution??
         auto aij = Hd.matrixEl(si, sj) + (si * VexPsi_j);
         auto aji = Hd.matrixEl(sj, si) + (sj * VexPsi_i);
         aij = std::abs(aij) < 1.e-10 ? 0.0 : aij;
@@ -157,7 +159,9 @@ int main(int argc, char *argv[]) {
           aji = 0;
         } else {
           std::cout << si.symbol() << "," << sj.symbol() << " : ";
-          printf("%9.2e %9.2e %9.2e\n", aij, aji, aij - aji);
+          printf("%9.2e %9.2e %9.2e\n", aij, aji,
+                 2.0 * (aij - aji) / (aij + aji));
+          std::cout << si * VexPsi_j << " <--\n";
         }
         auto sij = si * sj;
         Aij[i][j] = aij; // / std::sqrt((si * si) * (sj * sj));
@@ -167,11 +171,18 @@ int main(int argc, char *argv[]) {
     }
     std::cout << "\n\n";
 
-    Aij.clip_low(1.0e-8);
+    // Aij.clip_low(1.0e-9); //?
+    Aij.print();
+    std::cout << "\n";
+    Aij.make_symmetric(); //?
+    Aij.print();
+
+    std::cout << Aij.check_symmetric() << "\n";
+    std::cout << Sij.check_symmetric() << "\n";
 
     auto m = Aij.inverse() * Sij;
     m.clip_low(1.0e-10);
-    Aij.print();
+    // Aij.print();
     std::cout << "\n";
     m.print();
   }
