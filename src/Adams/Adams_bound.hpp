@@ -10,9 +10,9 @@ namespace Adams {
 //******************************************************************************
 // Parameters used for Adams-Moulton mehtod:
 namespace Param {
-constexpr int AMO = 6;            // Adams-Moulton (between 5 and 8)
+constexpr int AMO = 7;            // Adams-Moulton (between 5 and 8)
 constexpr AdamsCoefs<AMO> AMcoef; // Adamns-Moulton coeficients [defined .h]
-constexpr double cALR = 1000;     // 'assymptotically large r [kinda..]' (=800)
+constexpr double cALR = 550;      // 'assymptotically large r [kinda..]' (=800)
 constexpr int max_its = 99;       // Max # attempts at converging [sove bs] (30)
 constexpr double lfrac_de = 0.12; // 'large' energy variations (0.1 => 10%)
 constexpr int d_ctp = 4;          // Num points past ctp +/- d_ctp.

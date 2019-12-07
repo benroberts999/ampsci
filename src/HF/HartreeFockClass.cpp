@@ -775,6 +775,7 @@ void HartreeFock::hf_orbital(DiracSpinor &phi, double en,
   DiracSpinor VxFh(phi.n, phi.k, *(phi.p_rgrid));
   DiracSpinor del_phi(phi.n, phi.k, *(phi.p_rgrid));
   const auto eps_target = 1.0e-16; // m_eps_HF;
+  const auto k_max = 1;            // max k for Vex into del_E
 
   const auto alpha = p_wf->get_alpha();
   DiracODE::solve_inhomog(phi, phi0, phiI, en, vl, alpha, -1.0 * vx_phi);
@@ -792,9 +793,9 @@ void HartreeFock::hf_orbital(DiracSpinor &phi, double en,
     {
       if (!v0.empty()) { // essentially, for core:
         // v0 = (1-f)Vd;
-        VxFh = v0 * del_phi + vex_psia_any(del_phi, static_core, 1);
+        VxFh = v0 * del_phi + vex_psia_any(del_phi, static_core, k_max);
       } else { // essentially, for valence
-        VxFh = vex_psia_any(del_phi, static_core, 1);
+        VxFh = vex_psia_any(del_phi, static_core, k_max);
       }
       DiracODE::Adams::GreenSolution(del_phi, phiI, phi0, alpha,
                                      del_E * phi - VxFh);
@@ -905,7 +906,8 @@ inline void HartreeFock::hf_core_refine() {
 
   std::vector<double> vl(p_wf->rgrid.num_points); // Vnuc + fVd
   std::vector<double> v0(p_wf->rgrid.num_points); // (1-f)Vd
-  const auto f_core = double(p_wf->Ncore() - 1) / double(p_wf->Ncore());
+  const auto f_core_tmp = double(p_wf->Ncore() - 1) / double(p_wf->Ncore());
+  const auto f_core = 0.5 * (1.0 + f_core_tmp);
   const auto &vd = p_wf->vdir;
 
   // Store arrays of intitial Psi and VexPsi, and VdirPsi (for En guess)
