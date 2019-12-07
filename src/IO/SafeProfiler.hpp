@@ -9,7 +9,7 @@
 namespace SafeProfiler {
 
 constexpr bool do_profile = false;
-// auto sp1 = SafeProfiler::profile(__func__);
+// auto sp = SafeProfiler::profile(__func__);
 // #include "IO/SafeProfiler.hpp"
 
 struct StrDoubleUnsigned {
@@ -46,7 +46,6 @@ class ProfileLog {
     }
   }
   std::vector<std::pair<std::string, std::chrono::microseconds>> m_log;
-  // std::vector<std::tuple<std::string, double, unsigned>> m_log_sorted;
   std::vector<StrDoubleUnsigned> m_log_sorted;
 
   void write_log() {
@@ -63,10 +62,18 @@ class ProfileLog {
     }
     std::ofstream of(fname + ext);
     std::cout << "\nProfile:\n";
-    for (const auto &[name, time, count] : m_log_sorted) {
+    const auto *p_worst = &(m_log_sorted.front());
+    for (const auto &item : m_log_sorted) {
+      const auto &[name, time, count] = item;
       std::cout << name << " x " << count << " = " << time / 1000.0 << " ms\n";
       of << name << " x " << count << " = " << time / 1000.0 << " ms\n";
+      if (time >= p_worst->d) {
+        p_worst = &item;
+      }
     }
+    const auto &[name, time, count] = *p_worst;
+    std::cout << "\n ** Worst: \n";
+    std::cout << name << " x " << count << " = " << time / 1000.0 << " ms\n";
   }
 };
 
@@ -96,7 +103,11 @@ public:
   }
 };
 
-struct BlankClass {};
+struct BlankClass {
+  ~BlankClass() {
+    // this is just so doesn't complain about unused variable
+  }
+};
 
 inline auto profile(const char *in_name, const char *extra = "") {
   if constexpr (do_profile)
