@@ -8,7 +8,7 @@
 
 namespace SafeProfiler {
 
-constexpr bool do_profile = true;
+constexpr bool do_profile = false;
 // auto sp1 = SafeProfiler::profile(__func__);
 // #include "IO/SafeProfiler.hpp"
 
