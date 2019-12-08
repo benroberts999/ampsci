@@ -4,6 +4,9 @@
 #include <gsl/gsl_linalg.h>
 #include <iostream>
 #include <vector>
+//
+#include <gsl/gsl_eigen.h>
+#include <gsl/gsl_math.h>
 
 /*
 Eigen probably better option!
@@ -317,6 +320,127 @@ inline Vector solve_Axeqb(SqMatrix &Am, const Vector &b) {
   gsl_linalg_LU_decomp(Am.m, Am.perm, &s);
   gsl_linalg_LU_solve(Am.m, Am.perm, b.vec, x.vec);
   return x;
+}
+
+inline void test() {
+  double data[] = {1.0,     1 / 2.0, 1 / 3.0, 1 / 4.0, 1 / 2.0, 1 / 3.0,
+                   1 / 4.0, 1 / 5.0, 1 / 3.0, 1 / 4.0, 1 / 5.0, 1 / 6.0,
+                   1 / 4.0, 1 / 5.0, 1 / 6.0, 1 / 7.0};
+
+  gsl_matrix_view m = gsl_matrix_view_array(data, 4, 4);
+
+  gsl_vector *eval = gsl_vector_alloc(4);
+  gsl_matrix *evec = gsl_matrix_alloc(4, 4);
+
+  gsl_eigen_symmv_workspace *w = gsl_eigen_symmv_alloc(4);
+
+  gsl_eigen_symmv(&m.matrix, eval, evec, w);
+
+  gsl_eigen_symmv_free(w);
+
+  gsl_eigen_symmv_sort(eval, evec, GSL_EIGEN_SORT_ABS_ASC);
+
+  {
+    int i;
+
+    for (i = 0; i < 4; i++) {
+      double eval_i = gsl_vector_get(eval, i);
+      gsl_vector_view evec_i = gsl_matrix_column(evec, i);
+
+      printf("eigenvalue = %g\n", eval_i);
+      printf("eigenvector = \n");
+      gsl_vector_fprintf(stdout, &evec_i.vector, "%g");
+    }
+  }
+
+  gsl_vector_free(eval);
+  gsl_matrix_free(evec);
+}
+
+inline void test2(const SqMatrix &B) {
+  // No. Use: Real Generalized Nonsymmetric Eigensystems
+
+  // double data[] = {-1.0, 1.0, -1.0, 1.0, -8.0, 4.0,  -2.0, 1.0,
+  // 27.0, 9.0, 3.0,  1.0, 64.0, 16.0, 4.0,  1.0};
+  //   eigenvalue = -6.41391 + 0i
+  // eigenvalue = 5.54555 + 3.08545i
+  // eigenvalue = 5.54555 + -3.08545i
+  // eigenvalue = 2.3228 + 0i
+
+  // gsl_matrix_view m = gsl_matrix_view_array(B.m, B.n, B.n);
+
+  gsl_vector_complex *eval = gsl_vector_complex_alloc(B.n);
+  gsl_matrix_complex *evec = gsl_matrix_complex_alloc(B.n, B.n);
+
+  gsl_eigen_nonsymmv_workspace *w = gsl_eigen_nonsymmv_alloc(B.n);
+
+  gsl_eigen_nonsymmv(B.m, eval, evec, w);
+
+  gsl_eigen_nonsymmv_free(w);
+
+  gsl_eigen_nonsymmv_sort(eval, evec, GSL_EIGEN_SORT_VAL_DESC);
+
+  {
+
+    for (int i = 0; i < B.n; i++) {
+      gsl_complex eval_i = gsl_vector_complex_get(eval, i);
+      gsl_vector_complex_view evec_i = gsl_matrix_complex_column(evec, i);
+
+      printf("eigenvalue %i = %g + %gi\n", i, GSL_REAL(eval_i),
+             GSL_IMAG(eval_i));
+      // printf("eigenvector = \n");
+      // for (j = 0; j < 4; ++j) {
+      //   gsl_complex z = gsl_vector_complex_get(&evec_i.vector, j);
+      //   printf("%g + %gi\n", GSL_REAL(z), GSL_IMAG(z));
+      // }
+    }
+  }
+
+  gsl_vector_complex_free(eval);
+  gsl_matrix_complex_free(evec);
+}
+
+inline void test3(const SqMatrix &B, const SqMatrix &S) {
+  // No. Use: Real Generalized Nonsymmetric Eigensystems
+
+  // double data[] = {-1.0, 1.0, -1.0, 1.0, -8.0, 4.0,  -2.0, 1.0,
+  // 27.0, 9.0, 3.0,  1.0, 64.0, 16.0, 4.0,  1.0};
+  //   eigenvalue = -6.41391 + 0i
+  // eigenvalue = 5.54555 + 3.08545i
+  // eigenvalue = 5.54555 + -3.08545i
+  // eigenvalue = 2.3228 + 0i
+
+  // gsl_matrix_view m = gsl_matrix_view_array(B.m, B.n, B.n);
+  const auto n = B.n;
+
+  gsl_eigen_gen_workspace *work = gsl_eigen_gen_alloc(n);
+
+  // I think this is not needed:
+  gsl_eigen_gen_params(0, 0, 0, work);
+
+  gsl_vector_complex *alpha = gsl_vector_complex_alloc(B.n);
+  gsl_vector *beta = gsl_vector_alloc(B.n);
+  gsl_eigen_gen(B.m, S.m, alpha, beta, work);
+
+  std::vector<double> evals;
+  for (int i = 0; i < B.n; i++) {
+    gsl_complex eval_ai = gsl_vector_complex_get(alpha, i);
+    double eval_bi = gsl_vector_get(beta, i);
+    // gsl_vector_complex_view evec_i = gsl_matrix_complex_column(evec, i);
+
+    auto evr = GSL_REAL(eval_ai) / eval_bi;
+    auto evi = GSL_IMAG(eval_ai) / eval_bi;
+    evals.push_back(evr);
+    // printf("eigenvalue %i = %g + %gi\n", i, evr, evi);
+  }
+  std::sort(evals.begin(), evals.end());
+  for (const auto &ev : evals) {
+    std::cout << ev << "\n";
+  }
+
+  gsl_eigen_gen_free(work);
+  gsl_vector_complex_free(alpha);
+  gsl_vector_free(beta);
 }
 
 } // namespace LinAlg

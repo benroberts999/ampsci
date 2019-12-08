@@ -120,117 +120,131 @@ int main(int argc, char *argv[]) {
   wf.printValence(sorted);
 
   // Get + setup nuclear parameters
-  auto basis_ok =
-      input.check("Basis", {"number", "order", "r0", "rmax", "print"});
+  // auto basis_ok =
+  input.check("Basis", {"number", "order", "r0", "rmax", "print"});
   auto n_spl = input.get("Basis", "number", 0ul);
   auto k_spl = input.get("Basis", "order", 0ul);
   auto r0_spl = input.get("Basis", "r0", 0.0);
   auto rmax_spl = input.get("Basis", "rmax", 0.0);
   // auto print_spl = input.get("Basis", "print", false);
 
-  if (k_spl > 0 && n_spl >= k_spl && basis_ok) {
-    // BSplines bspl(n_spl, k_spl, wf.rgrid, r0_spl, rmax_spl);
+  // if (k_spl > 0 && n_spl >= k_spl && basis_ok) {
+  // BSplines bspl(n_spl, k_spl, wf.rgrid, r0_spl, rmax_spl);
 
-    auto basis = test_splines(-1, n_spl, k_spl, r0_spl, rmax_spl, wf.rgrid);
-    // std::cin.get();
-    // auto basis = wf.core_orbitals;
+  auto basis = test_splines(-1, n_spl, k_spl, r0_spl, rmax_spl, wf.rgrid);
+  // std::cin.get();
+  // auto basis = wf.core_orbitals;
 
-    auto Hd = DirectHamiltonian(wf.vnuc, wf.vdir, wf.get_alpha());
+  auto Hd = DirectHamiltonian(wf.vnuc, wf.vdir, wf.get_alpha());
 
-    std::cout << "\n\n";
-    LinAlg::SqMatrix Aij((int)basis.size());
-    LinAlg::SqMatrix Sij((int)basis.size());
-    for (auto i = 0; i < (int)basis.size(); i++) {
-      const auto &si = basis[i];
-      // const auto &si = wf.core_orbitals[i];
-      for (auto j = 0; j < (int)basis.size(); j++) {
-        const auto &sj = basis[j];
-        // const auto &sj = wf.core_orbitals[j];
-        auto VexPsi_j = HartreeFock::vex_psia_any(sj, wf.core_orbitals);
-        auto VexPsi_i = HartreeFock::vex_psia_any(si, wf.core_orbitals);
+  std::cout << "\n\n";
+  LinAlg::SqMatrix Aij((int)basis.size());
+  LinAlg::SqMatrix Sij((int)basis.size());
+  for (auto i = 0; i < (int)basis.size(); i++) {
+    const auto &si = basis[i];
+    // const auto &si = wf.core_orbitals[i];
+    for (auto j = 0; j < (int)basis.size(); j++) {
+      const auto &sj = basis[j];
+      // const auto &sj = wf.core_orbitals[j];
+      auto VexPsi_j = HartreeFock::vex_psia_any(sj, wf.core_orbitals);
+      auto VexPsi_i = HartreeFock::vex_psia_any(si, wf.core_orbitals);
 
-        // Vex seems to make incredibly small contribution??
-        auto aij = Hd.matrixEl(si, sj) + (si * VexPsi_j);
-        auto aji = Hd.matrixEl(sj, si) + (sj * VexPsi_i);
-        aij = std::abs(aij) < 1.e-10 ? 0.0 : aij;
-        aji = std::abs(aji) < 1.e-10 ? 0.0 : aji;
-        if (si.k != sj.k) {
-          aij = 0;
-          aji = 0;
-        } else {
-          std::cout << si.symbol() << "," << sj.symbol() << " : ";
-          printf("%9.2e %9.2e %9.2e\n", aij, aji,
-                 2.0 * (aij - aji) / (aij + aji));
-          std::cout << si * VexPsi_j << " <--\n";
-        }
-        auto sij = si * sj;
-        Aij[i][j] = aij; // / std::sqrt((si * si) * (sj * sj));
-        Sij[i][j] = sij;
+      // Vex seems to make incredibly small contribution??
+      auto aij = Hd.matrixEl(si, sj) + (si * VexPsi_j);
+      auto aji = Hd.matrixEl(sj, si) + (sj * VexPsi_i);
+      aij = std::abs(aij) < 1.e-10 ? 0.0 : aij;
+      aji = std::abs(aji) < 1.e-10 ? 0.0 : aji;
+      if (si.k != sj.k) {
+        aij = 0;
+        aji = 0;
+      } else {
+        // std::cout << si.symbol() << "," << sj.symbol() << " : ";
+        // printf("%9.2e %9.2e %9.2e\n", aij, aji,
+        //        2.0 * (aij - aji) / (aij + aji));
+        // std::cout << si * VexPsi_j << " <--\n";
       }
-      std::cout << "\n";
+      auto sij = si * sj;
+      Aij[i][j] = aij; // / std::sqrt((si * si) * (sj * sj));
+      Sij[i][j] = sij;
     }
-    std::cout << "\n\n";
-
-    // Aij.clip_low(1.0e-9); //?
-    Aij.print();
-    std::cout << "\n";
-    Aij.make_symmetric(); //?
-    Aij.print();
-
-    std::cout << Aij.check_symmetric() << "\n";
-    std::cout << Sij.check_symmetric() << "\n";
-
-    auto m = Aij.inverse() * Sij;
-    m.clip_low(1.0e-10);
-    // Aij.print();
-    std::cout << "\n";
-    m.print();
-
-    std::cout << "\n";
-    std::cout << "\n";
-    auto m1 = Aij;
-    Aij.invert();
-    auto m2 = Aij;
-    auto m3 = m1 * m2;
-    m3.clip_low(1.0e-14);
-    m3.print();
-
-    LinAlg::Vector v(m3.n);
-    for (int i = 0; i < m3.n; ++i) {
-      v[i] = i * 1.5;
-    }
-    auto v2 = m3 * v;
-    for (int i = 0; i < m3.n; ++i) {
-      std::cout << v2[i] << "\n";
-    }
+    // std::cout << "\n";
   }
+  std::cout << "\nFilled Matrix\n\n";
 
-  std::cout << "\n";
-  std::cout << "\n";
-  std::cout << "\n";
-  std::cout << "\n";
+  // Aij.clip_low(1.0e-8); //?
+  // Sij.clip_low(1.0e-8); //?
 
-  LinAlg::SqMatrix Am = {0.18, 0.60, 0.57, 0.96, 0.41, 0.24, 0.99, 0.58,
-            0.14, 0.30, 0.97, 0.66, 0.51, 0.13, 0.19, 0.85};
-  LinAlg::Vector Vb = {1.0, 2.0, 3.0, 4.0};
-  // auto l = {0.18, 0.60, 0.57, 0.96, 0.41, 0.24, 0.99, 0.58,
+  // Aij.make_symmetric();
+  auto Sinv = Sij.inverse();
+  auto Bij = Sinv * Aij;
+  // Bij.print();
+  auto worst = Bij.check_symmetric();
+  std::cout << worst << "\n";
+
+  LinAlg::SqMatrix Xx = {-1.0, 1.0, -1.0, 1.0, -8.0, 4.0,  -2.0, 1.0,
+                         27.0, 9.0, 3.0,  1.0, 64.0, 16.0, 4.0,  1.0};
+  LinAlg::test3(Aij, Sij);
+
+  //   // Aij.clip_low(1.0e-9); //?
+  //   Aij.print();
+  //   std::cout << "\n";
+  //   Aij.make_symmetric(); //?
+  //   Aij.print();
+  //
+  //   std::cout << Aij.check_symmetric() << "\n";
+  //   std::cout << Sij.check_symmetric() << "\n";
+  //
+  //   auto m = Aij.inverse() * Sij;
+  //   m.clip_low(1.0e-10);
+  //   // Aij.print();
+  //   std::cout << "\n";
+  //   m.print();
+  //
+  //   std::cout << "\n";
+  //   std::cout << "\n";
+  //   auto m1 = Aij;
+  //   Aij.invert();
+  //   auto m2 = Aij;
+  //   auto m3 = m1 * m2;
+  //   m3.clip_low(1.0e-14);
+  //   m3.print();
+  //
+  //   LinAlg::Vector v(m3.n);
+  //   for (int i = 0; i < m3.n; ++i) {
+  //     v[i] = i * 1.5;
+  //   }
+  //   auto v2 = m3 * v;
+  //   for (int i = 0; i < m3.n; ++i) {
+  //     std::cout << v2[i] << "\n";
+  //   }
+
+  //
+  // std::cout << "\n";
+  // std::cout << "\n";
+  // std::cout << "\n";
+  // std::cout << "\n";
+  //
+  // LinAlg::SqMatrix Am = {0.18, 0.60, 0.57, 0.96, 0.41, 0.24, 0.99, 0.58,
   //           0.14, 0.30, 0.97, 0.66, 0.51, 0.13, 0.19, 0.85};
-  // auto l2 = {1.0, 2.0, 3.0, 4.0};
-  // for (int i = 0; i < 16; ++i) {
-  //   Am.m->data[i] = l[i];
-  // }
-  // int i = 0;
-  // for (auto en : l) {
-  //   Am.m->data[i] = en;
-  //   ++i;
-  // }
-  // i = 0;
-  // for (auto en : l2) {
-  //   Vb[i] = en;
-  //   ++i;
-  // }
-  auto Vx = LinAlg::solve_Axeqb(Am, Vb);
-  Vx.print();
+  // LinAlg::Vector Vb = {1.0, 2.0, 3.0, 4.0};
+  // // auto l = {0.18, 0.60, 0.57, 0.96, 0.41, 0.24, 0.99, 0.58,
+  // //           0.14, 0.30, 0.97, 0.66, 0.51, 0.13, 0.19, 0.85};
+  // // auto l2 = {1.0, 2.0, 3.0, 4.0};
+  // // for (int i = 0; i < 16; ++i) {
+  // //   Am.m->data[i] = l[i];
+  // // }
+  // // int i = 0;
+  // // for (auto en : l) {
+  // //   Am.m->data[i] = en;
+  // //   ++i;
+  // // }
+  // // i = 0;
+  // // for (auto en : l2) {
+  // //   Vb[i] = en;
+  // //   ++i;
+  // // }
+  // auto Vx = LinAlg::solve_Axeqb(Am, Vb);
+  // Vx.print();
 
   // run each of the modules
   Module::runModules(input, wf);

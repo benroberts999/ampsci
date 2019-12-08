@@ -28,10 +28,10 @@ Grid {
 }
 
 Basis {
-  number = 9;
-  order = 7;
-  r0 = 1.0e-4;
-  rmax = 50.0;
+  number = 100;
+  order = 10;
+  r0;
+  rmax = 40.;
   print = true;
 }
 
