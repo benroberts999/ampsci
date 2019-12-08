@@ -2,11 +2,13 @@
 #include "Angular/Angular.hpp"
 #include "Angular/Wigner_369j.hpp"
 #include "Dirac/DiracSpinor.hpp"
+#include "IO/SafeProfiler.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/AtomData.hpp"
 #include <algorithm>
 #include <cmath>
+#include <functional>
 #include <iostream>
 #include <tuple>
 #include <vector>
@@ -178,6 +180,7 @@ std::size_t Coulomb::find_valence_index(const DiracSpinor &phi) const {
 //------------------------------------------------------------------------------
 std::size_t Coulomb::find_either_index(const DiracSpinor &phi,
                                        bool &valenceQ) const {
+  auto sp1 = SafeProfiler::profile(__func__);
   auto ia = std::find(c_orbs_ptr->begin(), c_orbs_ptr->end(), phi);
   auto i = (std::size_t)std::distance(c_orbs_ptr->begin(), ia);
   valenceQ = false;
@@ -194,6 +197,7 @@ void Coulomb::form_core_core()
 // Calls calculate_y_ijk, fills the core-core C int arrays
 // Note: symmety: y_ij = y_ji, therefore only calculates y_ij with i >= j
 {
+  auto sp1 = SafeProfiler::profile(__func__, "a");
   auto Ncore = c_orbs_ptr->size();
 #pragma omp parallel for
   for (std::size_t ia = 0; ia < Ncore; ia++) {
@@ -222,6 +226,7 @@ void Coulomb::form_core_core(const DiracSpinor &phi_a)
 // NOTE: ONLY call this if we only need to update one!
 // Inneficient to call it for each orbital, since only need for a<=b !
 {
+  auto sp1 = SafeProfiler::profile(__func__, "b");
   auto Ncore = c_orbs_ptr->size();
   auto ia = find_core_index(phi_a); // slow?
   auto tja = phi_a.twoj();
@@ -249,6 +254,7 @@ void Coulomb::form_valence_valence()
 // Calls calculate_y_ijk, fills the valence-valence C int arrays
 // Note: symmety: y_ij = y_ji, therefore only calculates y_ij with i >= j
 {
+  auto sp1 = SafeProfiler::profile(__func__);
   initialise_valence_valence(); // call this each time?
   auto Nval = v_orbs_ptr->size();
 #pragma omp parallel for
@@ -277,6 +283,7 @@ void Coulomb::form_core_valence(const DiracSpinor &phi_n)
 // If phi_n is valence, calculates phi_n-core integrals
 // If phi_n is core, calculates valence-phi_n integrals
 {
+  auto sp1 = SafeProfiler::profile(__func__, "a");
   initialise_core_valence();
 
   bool n_valenceQ{};
@@ -309,6 +316,7 @@ void Coulomb::form_core_valence()
 // Calls calculate_y_ijk, fills the core-valence C int arrays
 // Note: no symmetry here! y_ij != y_ji [j and i same index, NOT same orbital!]
 {
+  auto sp1 = SafeProfiler::profile(__func__, "b");
   initialise_core_valence(); // call this each time?
   auto Nval = v_orbs_ptr->size();
 #pragma omp parallel for // two-level?
@@ -350,6 +358,7 @@ Coulomb::get_y_vck(std::size_t v, std::size_t c) const {
 //******************************************************************************
 const std::vector<std::vector<double>> &
 Coulomb::get_y_ijk(const DiracSpinor &phi_i, const DiracSpinor &phi_j) const {
+  auto sp1 = SafeProfiler::profile(__func__, "a");
 
   bool ival{}, jval{};
   auto i = find_either_index(phi_i, ival);
@@ -367,6 +376,7 @@ Coulomb::get_y_ijk(const DiracSpinor &phi_i, const DiracSpinor &phi_j) const {
 const std::vector<double> &Coulomb::get_y_ijk(const DiracSpinor &phi_i,
                                               const DiracSpinor &phi_j,
                                               int k) const {
+  auto sp1 = SafeProfiler::profile(__func__, "b");
   auto tji = phi_i.twoj();
   auto tjj = phi_j.twoj();
   auto kmin = std::abs(tji - tjj) / 2; // kmin
@@ -396,6 +406,7 @@ void Coulomb::calculate_angular(int ki)
 // k_min = |j - j'|; k_max = |j + j'|
 // num_k = (j' + 1) if j>j', (j + 1) if j'>j;
 {
+  auto sp1 = SafeProfiler::profile(__func__);
   if (ki <= m_largest_ki)
     return;
   auto prev_largest_ki = m_largest_ki;
@@ -451,6 +462,7 @@ std::vector<double> Coulomb::calculate_R_abcd_k(const DiracSpinor &psi_a,
 // Symmetry: a<->c, and b<->d
 // NOTE: NOT offset by k_min, so will calculate for k=0,1,2,...,k_max
 {
+  auto sp1 = SafeProfiler::profile(__func__);
   auto kmin = std::abs(psi_b.twoj() - psi_d.twoj()) / 2;
   auto kmax = std::abs(psi_b.twoj() + psi_d.twoj()) / 2;
   const auto &drdu = psi_a.p_rgrid->drdu; // save typing
@@ -467,12 +479,6 @@ std::vector<double> Coulomb::calculate_R_abcd_k(const DiracSpinor &psi_a,
   const auto &ybd_kr = get_y_ijk(psi_b, psi_d);
   for (int k = kmin; k <= kmax; k++) {
     const auto &ybdk_r = ybd_kr[k - kmin];
-    // auto ffy =
-    //     NumCalc::integrate({&psi_a.f, &psi_c.f, &ybdk_r, &drdu}, 1.0, 0,
-    //     pinf);
-    // auto ggy =
-    //     NumCalc::integrate({&psi_a.g, &psi_c.g, &ybdk_r, &drdu}, 1.0, 0,
-    //     pinf);
     auto ffy =
         NumCalc::integrate_any(1.0, 0, pinf, psi_a.f, psi_c.f, ybdk_r, drdu);
     auto ggy =
@@ -480,6 +486,27 @@ std::vector<double> Coulomb::calculate_R_abcd_k(const DiracSpinor &psi_a,
     Rabcd[k] = (ffy + ggy) * du;
   }
   return Rabcd;
+}
+
+//******************************************************************************
+static inline std::function<double(double)> make_powk(const int k) {
+  if (k == 0)
+    return [](double) { return 1.0; };
+  if (k == 1)
+    return [](double x) { return x; };
+  if (k == 2)
+    return [](double x) { return x * x; };
+  if (k == 3)
+    return [](double x) { return x * x * x; };
+  if (k == 4)
+    return [](double x) { return x * x * x * x; };
+  if (k == 5)
+    return [](double x) { return x * x * x * x * x; };
+  if (k == 6)
+    return [](double x) { return x * x * x * x * x * x; };
+  if (k == 6)
+    return [](double x) { return x * x * x * x * x * x * x; };
+  return [=](double x) { return std::pow(x, k); };
 }
 
 //******************************************************************************
@@ -506,6 +533,7 @@ void Coulomb::calculate_y_ijk(const DiracSpinor &phi_a,
 // B(r_n) = A(r_{n-1}) + (rho(r_{n-1})/r_{n-1}^(k+1))*dr
 // y^k_ab(rn) = A(rn)/rn^(k+1) + B(rn)*rn^k
 {
+  auto sp1 = SafeProfiler::profile(__func__);
   auto &grid = phi_a.p_rgrid; // just save typing
   auto du = grid->du;
   auto num_points = grid->num_points;
@@ -513,10 +541,14 @@ void Coulomb::calculate_y_ijk(const DiracSpinor &phi_a,
 
   auto irmax = std::min(phi_a.pinf, phi_b.pinf);
 
-  double Ax = 0, Bx = 0; // A, B defined in equations/comments above
+  double Ax = 0.0, Bx = 0.0; // A, B defined in equations/comments above
+
+  auto powk = make_powk(k);
+  auto powkp1 = make_powk(k + 1);
+
   for (std::size_t i = 0; i < irmax; i++) {
     Bx += grid->drdu[i] * (phi_a.f[i] * phi_b.f[i] + phi_a.g[i] * phi_b.g[i]) /
-          std::pow(grid->r[i], k + 1);
+          powkp1(grid->r[i]);
   }
 
   // For "direct" part, can't cut!
@@ -525,12 +557,15 @@ void Coulomb::calculate_y_ijk(const DiracSpinor &phi_a,
 
   vabk[0] = Bx * du;
   for (std::size_t i = 1; i < irmax; i++) {
+    auto rm1_to_k = powk(grid->r[i - 1]);
+    auto inv_rm1_to_kp1 = 1.0 / (rm1_to_k * grid->r[i - 1]);
+    auto r_to_k = powk(grid->r[i]);
+    auto inv_r_to_kp1 = 1.0 / (r_to_k * grid->r[i]);
     auto Fdr = grid->drdu[i - 1] * (phi_a.f[i - 1] * phi_b.f[i - 1] +
                                     phi_a.g[i - 1] * phi_b.g[i - 1]);
-    Ax = Ax + Fdr * std::pow(grid->r[i - 1], k);
-    Bx = Bx - Fdr / std::pow(grid->r[i - 1], k + 1);
-    vabk[i] =
-        du * (Ax / std::pow(grid->r[i], k + 1) + Bx * std::pow(grid->r[i], k));
+    Ax += Fdr * rm1_to_k;
+    Bx -= Fdr * inv_rm1_to_kp1;
+    vabk[i] = du * (Ax * inv_r_to_kp1 + Bx * r_to_k);
   }
   for (std::size_t i = irmax; i < num_points; i++) {
     vabk[i] = 0; // this doesn't happen in psi_a = psi_b

@@ -38,6 +38,11 @@ void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf) {
 
   const auto &aA = wf.getState(na, ka);
   const auto &aB = wf.getState(nb, kb);
+  if (aA.n != na || aB.n != nb) {
+    std::cerr << "\nFAIL 43 in Module:PNC\n"
+              << "Couldn't find requested state: is it in valence list?\n";
+    return;
+  }
   std::cout << "\n********************************************** \n";
   std::cout << "E_pnc: " << wf.atom() << ":   A = " << aA.symbol()
             << "   -->   B = " << aB.symbol() << "\n\n";
