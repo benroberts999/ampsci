@@ -138,8 +138,8 @@ int main(int argc, char *argv[]) {
     auto Hd = DirectHamiltonian(wf.vnuc, wf.vdir, wf.get_alpha());
 
     std::cout << "\n\n";
-    Matrix::SqMatrix Aij((int)basis.size());
-    Matrix::SqMatrix Sij((int)basis.size());
+    LinAlg::SqMatrix Aij((int)basis.size());
+    LinAlg::SqMatrix Sij((int)basis.size());
     for (auto i = 0; i < (int)basis.size(); i++) {
       const auto &si = basis[i];
       // const auto &si = wf.core_orbitals[i];
@@ -185,7 +185,52 @@ int main(int argc, char *argv[]) {
     // Aij.print();
     std::cout << "\n";
     m.print();
+
+    std::cout << "\n";
+    std::cout << "\n";
+    auto m1 = Aij;
+    Aij.invert();
+    auto m2 = Aij;
+    auto m3 = m1 * m2;
+    m3.clip_low(1.0e-14);
+    m3.print();
+
+    LinAlg::Vector v(m3.n);
+    for (int i = 0; i < m3.n; ++i) {
+      v[i] = i * 1.5;
+    }
+    auto v2 = m3 * v;
+    for (int i = 0; i < m3.n; ++i) {
+      std::cout << v2[i] << "\n";
+    }
   }
+
+  std::cout << "\n";
+  std::cout << "\n";
+  std::cout << "\n";
+  std::cout << "\n";
+
+  LinAlg::SqMatrix Am = {0.18, 0.60, 0.57, 0.96, 0.41, 0.24, 0.99, 0.58,
+            0.14, 0.30, 0.97, 0.66, 0.51, 0.13, 0.19, 0.85};
+  LinAlg::Vector Vb = {1.0, 2.0, 3.0, 4.0};
+  // auto l = {0.18, 0.60, 0.57, 0.96, 0.41, 0.24, 0.99, 0.58,
+  //           0.14, 0.30, 0.97, 0.66, 0.51, 0.13, 0.19, 0.85};
+  // auto l2 = {1.0, 2.0, 3.0, 4.0};
+  // for (int i = 0; i < 16; ++i) {
+  //   Am.m->data[i] = l[i];
+  // }
+  // int i = 0;
+  // for (auto en : l) {
+  //   Am.m->data[i] = en;
+  //   ++i;
+  // }
+  // i = 0;
+  // for (auto en : l2) {
+  //   Vb[i] = en;
+  //   ++i;
+  // }
+  auto Vx = LinAlg::solve_Axeqb(Am, Vb);
+  Vx.print();
 
   // run each of the modules
   Module::runModules(input, wf);

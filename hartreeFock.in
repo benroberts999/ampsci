@@ -28,7 +28,7 @@ Grid {
 }
 
 Basis {
-  number = 14;
+  number = 9;
   order = 7;
   r0 = 1.0e-4;
   rmax = 50.0;

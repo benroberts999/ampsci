@@ -418,7 +418,7 @@ void outwardAM(std::vector<double> &f, std::vector<double> &g,
     // defines/populates em expansion coeficients (then inverts)
     std::array<double, Param::AMO> coefa, coefb, coefc, coefd;
     std::array<double, Param::AMO> ga;
-    Matrix::SqMatrix em(Param::AMO);
+    LinAlg::SqMatrix em(Param::AMO);
     const auto oid_du = Param::AMcoef.OId * du;
     for (int i = 0; i < Param::AMO; i++) {
       const auto az = -v[i + i0] * r[i + i0] * alpha;
@@ -438,7 +438,7 @@ void outwardAM(std::vector<double> &f, std::vector<double> &g,
 
     // defines/populates fm, s coefs
     std::array<double, Param::AMO> s;
-    Matrix::SqMatrix fm(Param::AMO);
+    LinAlg::SqMatrix fm(Param::AMO);
     for (int i = 0; i < Param::AMO; i++) {
       s[i] = -Param::AMcoef.OIa[i] * u0;
       for (int j = 0; j < Param::AMO; j++) {

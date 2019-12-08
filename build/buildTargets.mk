@@ -11,7 +11,7 @@ DEFAULTEXES = $(addprefix $(XD)/, \
 )
 
 #Default make rule:
-all: checkObj checkXdir $(DEFAULTEXES) doneMessage
+all: checkObj checkXdir $(DEFAULTEXES)
 
 ################################################################################
 
@@ -82,9 +82,6 @@ checkXdir:
 		echo '\n ERROR: Directory: '$(XD)' doesnt exist - please create it!\n'; \
 		false; \
 	fi
-
-doneMessage:
-		@echo 'done'
 
 .PHONY: clean do_the_chicken_dance checkObj checkXdir
 clean:
