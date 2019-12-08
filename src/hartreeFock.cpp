@@ -36,7 +36,7 @@ int main(int argc, char *argv[]) {
   auto du_tmp = input.get("Grid", "fixed_du", -1.0); // >0 means calc num_points
   if (du_tmp > 0)
     num_points = 0;
-  auto b = input.get("Grid", "b", 4.0);
+  auto b = input.get("Grid", "b", 20.0);
   auto grid_type = input.get<std::string>("Grid", "type", "loglinear");
   if (b <= r0 || b >= rmax)
     grid_type = "logarithmic";

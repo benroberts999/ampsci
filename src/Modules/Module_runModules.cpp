@@ -203,13 +203,20 @@ void Module_Tests_Hamiltonian(const Wavefunction &wf) {
 
   DirectHamiltonian Hd(wf.vnuc, wf.vdir, wf.get_alpha());
   for (const auto tmp_orbs : {&wf.core_orbitals, &wf.valence_orbitals}) {
+    double worst_eps = 0.0;
+    const DiracSpinor *worst_psi = nullptr;
     for (const auto &psi : *tmp_orbs) {
       double Haa = Hd.matrixEl(psi, psi) + psi * wf.get_VexPsi(psi);
       double ens = psi.en;
       double fracdiff = (Haa - ens) / ens;
       printf("<%i% i|H|%i% i> = %17.11f, E = %17.11f; % .0e\n", psi.n, psi.k,
              psi.n, psi.k, Haa, ens, fracdiff);
+      if (std::abs(fracdiff) >= std::abs(worst_eps)) {
+        worst_eps = fracdiff;
+        worst_psi = &psi;
+      }
     }
+    std::cout << worst_psi->symbol() << ": eps=" << worst_eps << "\n";
   }
 }
 
