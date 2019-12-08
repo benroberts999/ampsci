@@ -38,13 +38,9 @@ public:
   const Grid rgrid;
 
 private:
-  // store internal value for alpha (allows variation)
-  const double m_alpha;
-  // Atom info:
-  const int m_Z, m_A; /*don't need A twice (its inside nucl params!)*/
+  const double m_alpha; // store internal value for alpha (allows variation)
+  const int m_Z, m_A;
   Nuclear::Parameters m_nuc_params;
-
-public:
   std::unique_ptr<HartreeFock> m_pHF = nullptr;
 
 public:
@@ -57,7 +53,7 @@ private:
   int num_core_electrons = 0; // Nc = N - M
   std::string m_core_string = "";
 
-public:
+public: // const methods: "views" into WF object
   // Rule is: if function is single-line, define here. Else, in .cpp
   double get_alpha() const { return m_alpha; }
   int Znuc() const { return m_Z; }
@@ -97,14 +93,15 @@ public:
   int maxCore_n(int ka_in = 0) const;
   int maxCore_l() const;
 
-  std::vector<std::size_t>
-  sortedEnergyList(const std::vector<DiracSpinor> &tmp_orbs,
-                   bool do_sort = false) const;
-
+  // not static, since skip_core. Make static version??
   std::vector<DiracSEnken> listOfStates_nk(int num_val, int la, int lb = 0,
                                            bool skip_core = true) const;
 
   std::vector<double> coreDensity() const;
+
+  static std::vector<std::size_t>
+  sortedEnergyList(const std::vector<DiracSpinor> &tmp_orbs,
+                   bool do_sort = false);
 
 public:
   void solveDirac(DiracSpinor &psi, double e_a, const std::vector<double> &vex,
@@ -116,13 +113,16 @@ public:
 
   static void orthonormaliseOrbitals(std::vector<DiracSpinor> &tmp_orbs,
                                      int num_its = 1);
-  void orthonormaliseWrtCore(DiracSpinor &psi_v) const;
-  void orthogonaliseWrtCore(DiracSpinor &psi_v) const;
+  static void orthonormaliseWrt(DiracSpinor &psi_v,
+                                const std::vector<DiracSpinor> &in_orbs);
+  static void orthogonaliseWrt(DiracSpinor &psi_v,
+                               const std::vector<DiracSpinor> &in_orbs);
 
   void hartreeFockCore(HFMethod method, const std::string &in_core,
                        double eps_HF = 0, double h_d = 0, double g_t = 0);
   auto coreEnergyHF() const;
   void hartreeFockValence(const std::string &in_valence_str);
+
   double enGuessCore(int n, int l) const;
   double enGuessVal(int n, int ka) const;
 

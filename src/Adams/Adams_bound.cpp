@@ -2,6 +2,7 @@
 #include "Adams/Adams_coefs.hpp"
 #include "Adams/DiracODE.hpp"
 #include "Dirac/DiracSpinor.hpp"
+#include "IO/SafeProfiler.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/Matrix_linalg.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
@@ -69,9 +70,10 @@ void boundState(DiracSpinor &psi, const double en0,
 //   psi := (1/r) {f O_k, ig O_(-k)}
 //
 {
+  auto sp = SafeProfiler::profile(__func__);
 
   // Convergance goal. Default: 1e-14
-  const double eps_goal = (log_dele > 0) ? std::pow(10, -log_dele) : 1.e-14;
+  const double eps_goal = std::pow(10, -std::abs(log_dele));
 
   DEBUG(if (!(std::abs(psi.k) <= psi.n && psi.k != psi.n)) {
     std::cerr << "\nFail96 in Adams: bad state " << psi.symbol() << "\n";
@@ -169,6 +171,7 @@ void boundState(DiracSpinor &psi, const double en0,
 //******************************************************************************
 void regularAtOrigin(DiracSpinor &phi, const double en,
                      const std::vector<double> &v, const double alpha) {
+  auto sp = SafeProfiler::profile(__func__);
   const auto &gr = phi.p_rgrid;
   if (en != 0)
     phi.en = en;
@@ -186,6 +189,7 @@ void regularAtOrigin(DiracSpinor &phi, const double en,
 //******************************************************************************
 void regularAtInfinity(DiracSpinor &phi, const double en,
                        const std::vector<double> &v, const double alpha) {
+  auto sp = SafeProfiler::profile(__func__);
   const auto &gr = phi.p_rgrid;
   if (en < 0)
     phi.en = en;
@@ -247,6 +251,7 @@ double smallEnergyChangePT(const double en, const double anorm,
 // delta E = c*f(r)*[g_out(r)-g_in(r)] - evaluate at ctp
 // nb: wf not yet normalised (anorm is input param)!
 {
+  auto sp = SafeProfiler::profile(__func__);
   double p_del_q = f[ctp] * dg[d_ctp];
   double denom = 1.0;
   // weighted average around ctp:
@@ -281,15 +286,15 @@ int findPracticalInfinity(const double en, const std::vector<double> &v,
 // XXX Note: unsafe, and a little slow. Would be better to use
 // std::lower_bound.. but would need lambda or something for r^2 part?
 {
-  auto pinf = r.size() - 1;
-  while ((en - v[pinf]) * r[pinf] * r[pinf] + alr < 0) {
+  auto pinf = r.size() - 5;
+  while ((en - v[pinf - 1]) * r[pinf - 1] * r[pinf - 1] + alr < 0) {
     --pinf;
-    DEBUG(if (pinf == 0) {
+    DEBUG(if (pinf <= 1) {
       std::cerr << "Fail290 in WF: pinf underflowed?\n";
       std::cin.get();
     })
   }
-  return (int)pinf;
+  return (int)pinf + 5;
 }
 
 //******************************************************************************
@@ -331,6 +336,7 @@ void trialDiracSolution(std::vector<double> &f, std::vector<double> &g,
 // Then, joins solutions, including weighted meshing around ctp +/ d_ctp
 // Also: stores dg [the difference: (gout-gin)], which is used for PT
 {
+  auto sp = SafeProfiler::profile(__func__);
   DiracMatrix Hd(gr, v, ka, en, alpha);
   outwardAM(f, g, Hd, ctp + d_ctp);
   std::vector<double> f_in(gr.num_points), g_in(gr.num_points);
@@ -386,6 +392,7 @@ void outwardAM(std::vector<double> &f, std::vector<double> &g,
 // Then, it then call ADAMS-MOULTON, to finish
 // (from num_loops*AMO+1 to nf = ctp+d_ctp)
 {
+  auto sp = SafeProfiler::profile(__func__);
   const auto &r = Hd.pgr->r;
   const auto &drduor = Hd.pgr->drduor;
   const auto du = Hd.pgr->du;
@@ -493,7 +500,7 @@ void inwardAM(std::vector<double> &f, std::vector<double> &g,
 // Then, it then call ADAMS-MOULTON, to finish (from num_loops*AMO+1
 //   to nf = ctp-d_ctp)
 {
-
+  auto sp = SafeProfiler::profile(__func__);
   // short-cuts
   const auto alpha = Hd.alpha;
   const auto ka = Hd.k;
@@ -562,7 +569,7 @@ void adamsMoulton(std::vector<double> &f, std::vector<double> &g,
 //   * ni is starting (initial) point for integration
 //   * nf is end (final) point for integration (nf=ctp+/-d_ctp)
 {
-
+  auto sp1 = SafeProfiler::profile(__func__);
   const auto nosteps = std::abs(nf - ni) + 1; // number of integration steps
   const auto inc = (nf > ni) ? 1 : -1;        //'increment' for integration
   if (nf == ni) {

@@ -1,13 +1,14 @@
 /*
 !src/
 src/*~
-!obj/
-obj/*.o
+!build/
+build/*.o
 !doc/
 doc/*
 !doc/*.md
 !doc/*.tex
 !doc/*.pdf
+!doc/*.sh
 !.gitignore
 !Makefile
 !makefile

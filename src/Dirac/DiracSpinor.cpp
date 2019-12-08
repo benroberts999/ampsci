@@ -9,6 +9,7 @@
 #include <vector>
 
 constexpr bool update_pinf = false; // for psi += psi'
+// XXX If true, sets all to num_points! [when damping orbitals!?]
 
 //******************************************************************************
 DiracSpinor::DiracSpinor(int in_n, int in_k, const Grid &rgrid)
@@ -27,7 +28,8 @@ DiracSpinor::DiracSpinor(int in_n, int in_k, const Grid &rgrid)
 std::string DiracSpinor::symbol(bool gnuplot) const {
   // Readable symbol (s_1/2, p_{3/2} etc.).
   // gnuplot-firndly '{}' braces optional.
-  std::string ostring1 = std::to_string(n) + AtomData::l_symbol(m_l);
+  std::string ostring1 = (n > 0) ? std::to_string(n) + AtomData::l_symbol(m_l)
+                                 : AtomData::l_symbol(m_l);
   std::string ostring2 = gnuplot ? "_{" + std::to_string(m_twoj) + "/2}"
                                  : "_" + std::to_string(m_twoj) + "/2";
   return ostring1 + ostring2;
@@ -35,7 +37,8 @@ std::string DiracSpinor::symbol(bool gnuplot) const {
 
 std::string DiracSpinor::shortSymbol() const {
   std::string pm = (k < 0) ? "+" : "-";
-  return std::to_string(n) + AtomData::l_symbol(m_l) + pm;
+  return n > 0 ? std::to_string(n) + AtomData::l_symbol(m_l) + pm
+               : AtomData::l_symbol(m_l) + pm;
 }
 
 //******************************************************************************
@@ -111,7 +114,6 @@ DiracSpinor &DiracSpinor::operator-=(const DiracSpinor &rhs) {
   if (update_pinf)
     pinf = std::max(pinf, rhs.pinf);
   auto imax = std::min(pinf, rhs.pinf); // shouldn't be needed, but safer
-
   for (std::size_t i = 0; i < imax; i++)
     f[i] -= rhs.f[i];
   for (std::size_t i = 0; i < imax; i++)
@@ -169,7 +171,7 @@ bool operator!=(const DiracSpinor &lhs, const DiracSpinor &rhs) {
 
 bool operator<(const DiracSpinor &lhs, const DiracSpinor &rhs) {
   if (lhs.n == rhs.n)
-    return AtomData::indexFromKappa(lhs.k) < AtomData::indexFromKappa(rhs.k);
+    return lhs.m_k_index < rhs.m_k_index;
   return lhs.n < rhs.n;
 }
 

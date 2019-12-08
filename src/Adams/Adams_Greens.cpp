@@ -2,6 +2,7 @@
 #include "Adams_bound.hpp"
 #include "Dirac/DiracSpinor.hpp"
 #include "DiracODE.hpp"
+#include "IO/SafeProfiler.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include <vector>
@@ -24,6 +25,7 @@ namespace DiracODE {
 DiracSpinor solve_inhomog(const int kappa, const double en,
                           const std::vector<double> &v, const double alpha,
                           const DiracSpinor &source) {
+  auto sp = SafeProfiler::profile(__func__, "0");
   auto phi = DiracSpinor(0, kappa, *source.p_rgrid);
   solve_inhomog(phi, en, v, alpha, source);
   return phi;
@@ -35,6 +37,7 @@ void solve_inhomog(DiracSpinor &phi, const double en,
                    const DiracSpinor &source)
 // NOTE: returns NON-normalised function!
 {
+  auto sp = SafeProfiler::profile(__func__, "a");
   auto phi0 = DiracSpinor(phi.n, phi.k, *phi.p_rgrid);
   auto phiI = DiracSpinor(phi.n, phi.k, *phi.p_rgrid);
   solve_inhomog(phi, phi0, phiI, en, v, alpha, source);
@@ -46,6 +49,7 @@ void solve_inhomog(DiracSpinor &phi, DiracSpinor &phi0, DiracSpinor &phiI,
 // Overload of the above. Faster, since doesn't need to allocate for phi0 and
 // phiI
 {
+  auto sp = SafeProfiler::profile(__func__, "b");
   regularAtOrigin(phi0, en, v, alpha);
   regularAtInfinity(phiI, en, v, alpha);
   Adams::GreenSolution(phi, phiI, phi0, alpha, source);
@@ -56,7 +60,7 @@ namespace Adams {
 void GreenSolution(DiracSpinor &phi, const DiracSpinor &phiI,
                    const DiracSpinor &phi0, const double alpha,
                    const DiracSpinor &Sr) {
-
+  auto sp = SafeProfiler::profile(__func__);
   // Wronskian. Note: in current method: only need the SIGN
   int pp = int(0.65 * double(phiI.pinf));
   auto w2 = (phiI.f[pp] * phi0.g[pp] - phi0.f[pp] * phiI.g[pp]);

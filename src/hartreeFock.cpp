@@ -32,7 +32,7 @@ int main(int argc, char *argv[]) {
   auto du_tmp = input.get("Grid", "fixed_du", -1.0); // >0 means calc num_points
   if (du_tmp > 0)
     num_points = 0;
-  auto b = input.get("Grid", "b", 4.0);
+  auto b = input.get("Grid", "b", 0.33 * rmax);
   auto grid_type = input.get<std::string>("Grid", "type", "loglinear");
   if (b <= r0 || b >= rmax)
     grid_type = "logarithmic";
@@ -84,6 +84,17 @@ int main(int argc, char *argv[]) {
   { // Solve Hartree equations for the core:
     ChronoTimer t(" core");
     wf.hartreeFockCore(HF_method, str_core, eps_HF, H_d, g_t);
+  }
+
+  // Adds effective polarision potential to direct potential
+  // (After HF core, before HF valence)
+  auto a_eff = input.get("dV", "a_eff", 0.0);
+  if (a_eff > 0) { // a=0.61 works well for Cs ns, n=6-18
+    auto r_cut = input.get("dV", "r_cut", 1.0);
+    auto dV = [=](double x) { return -0.5 * a_eff / (x * x * x * x + r_cut); };
+    for (auto i = 0u; i < wf.rgrid.num_points; ++i) {
+      wf.vdir[i] += dV(wf.rgrid.r[i]);
+    }
   }
 
   // Solve for the valence states:

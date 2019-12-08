@@ -12,8 +12,11 @@ constexpr int twoj(int jindex) { return 2 * jindex + 1; }
 constexpr int jindex(int twoj) { return (twoj - 1) / 2; }
 constexpr int jindex_kappa(int ka) { return (ka > 0) ? ka - 1 : -ka - 1; }
 
-inline int max4(int a, int b, int c, int d) {
+template <typename T> inline int max4(T a, T b, T c, T d) {
   return std::max(std::max(a, b), std::max(c, d));
+}
+template <typename T> inline T min4(T a, T b, T c, T d) {
+  return std::min(std::min(a, b), std::min(c, d));
 }
 inline int min_lambda_tj(int tja, int tjb, int tjc, int tjd) {
   return std::max(std::abs(tja - tjd), std::abs(tjb - tjc)) / 2;

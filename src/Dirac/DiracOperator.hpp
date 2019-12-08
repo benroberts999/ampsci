@@ -48,7 +48,7 @@ protected:
   DiracOperator(int k, OperatorParity pi, double c = 1,
                 const std::vector<double> &inv = {}, int d_order = 0,
                 OperatorC RorI = OperatorC::real)
-      : rank(k), parity(pi), constant(c), vec(inv), diff_order(d_order),
+      : m_rank(k), m_parity(pi), constant(c), vec(inv), diff_order(d_order),
         opC(RorI) //
         {};
 
@@ -56,8 +56,8 @@ public:
   virtual ~DiracOperator() = default;
 
 private:
-  const int rank;
-  const OperatorParity parity;
+  const int m_rank;
+  const OperatorParity m_parity;
   const double constant;
   const std::vector<double> vec; // useful to be able to update this! ?
   const int diff_order;
@@ -68,7 +68,10 @@ public:
 
   const std::vector<double> &getv() const { return vec; }
   double getc() const { return constant; }
+
   bool imaginaryQ() const { return (opC == OperatorC::imaginary); }
+  int rank() const { return m_rank; }
+  int parity() const { return (m_parity == OperatorParity::even) ? 1 : -1; }
 
   std::string rme_symbol(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
 
@@ -128,9 +131,10 @@ public:
     return (std::abs(ka) == std::abs(kb)) ? std::sqrt(2.0 * std::abs(ka)) : 0.0;
   }
 
-  virtual double matrixEl(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
-    return radialIntegral(Fa, Fb);
-  }
+  // virtual double matrixEl(const DiracSpinor &Fa, const DiracSpinor &Fb) const
+  // {
+  //   return radialIntegral(Fa, Fb);
+  // }
 
 private:
   const double c_ff, c_fg, c_gf, c_gg;

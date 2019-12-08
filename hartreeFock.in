@@ -10,6 +10,8 @@ HartreeFock {
   // method; // HartreeFock(dflt), ApproxHF, Hartree, GreenPRM, TietzPRM
 }
 
+// dV { a_eff = 0.0; } //effective pol. op.
+
 Nucleus {
   rrms;
   skin_t;

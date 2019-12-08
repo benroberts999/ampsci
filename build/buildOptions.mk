@@ -25,8 +25,8 @@ ifeq ($(Build),release)
   WARN=-w
 endif
 ifeq ($(Build),debug)
-  UseOpenMP=no
-	WARN+=-Wno-unknown-pragmas
+#  UseOpenMP=no
+#	WARN+=-Wno-unknown-pragmas
 	OPT=-O0 -g
 endif
 
@@ -41,11 +41,15 @@ LIBS=-lgsl -lgslcblas
 
 #These should be used with clang in debug mode only
 MSAN = -fsanitize=memory
-ASAN = -fsanitize=address
+ASAN = -fsanitize=address -fsanitize=leak
 TSAN = -fsanitize=thread
 USAN = -fsanitize=undefined -fsanitize=unsigned-integer-overflow
-#CXXFLAGS += -g $(MSAN) -fno-omit-frame-pointer
+ifeq ($(Build)+$(CXX),debug+clang++)
+	CXXFLAGS += -g $(ASAN) -fno-omit-frame-pointer
+endif
+# echo $(Build)+$(CXX)
 # MSAN_SYMBOLIZER_PATH=/usr/lib/llvm-6.0/bin/llvm-symbolizer ./hartreeFock
+# ASAN_SYMBOLIZER_PATH=/usr/bin/llvm-symbolizer ./hartreeFock
 
 #Command to compile objects and link them
 COMP=$(CXX) -c -o $@ $< $(CXXFLAGS)

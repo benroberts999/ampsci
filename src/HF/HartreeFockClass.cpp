@@ -1,13 +1,14 @@
 #include "HF/HartreeFockClass.hpp"
 #include "Adams/Adams_Greens.hpp"
 #include "Adams/DiracODE.hpp"
+#include "Angular/Wigner_369j.hpp"
 #include "Dirac/DiracSpinor.hpp"
 #include "Dirac/Wavefunction.hpp"
 #include "HF/CoulombIntegrals.hpp"
+#include "IO/SafeProfiler.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/Parametric_potentials.hpp"
-#include "Angular/Wigner_369j.hpp"
 #include <algorithm>
 #include <cmath>
 #include <functional>
@@ -18,12 +19,9 @@ Calculates self-consistent Hartree-Fock potential, including exchange.
 Solves all core and valence states.
 */
 
-#define DO_DEBUG false
-#if DO_DEBUG
-#define DEBUG(x) x
-#else
-#define DEBUG(x)
-#endif // DEBUG
+// Print-outs (for debugging) - work better without OMP
+constexpr bool print_final_eps = false;
+constexpr bool print_each_eps = false;
 
 //******************************************************************************
 // For non-constant damping
@@ -45,39 +43,44 @@ DiracSpinor HartreeFock::solveMixedState(const DiracSpinor &phi0, const int k,
                                          const double alpha,
                                          const std::vector<DiracSpinor> &core,
                                          const DiracSpinor &hphi0)
-//
+// Solves:  (H - e - w)X = -h*psi for X
 {
-  /*
-   * added vx (approx vex).
-   * Works, and converges faster + smoothly.
-   * BUT doesn't work as well!? Still works pretty good!
-   * Works v. well with better grid, so think it's fine.
-   * IS there a missing angular factor somewhere? VxdF vs hphi0 ??
-   */
+  auto sp = SafeProfiler::profile(__func__);
+  auto damper = rampedDamp(0.6, 0.4, 3, 15);
+  const int max_its = 100;
+  const double eps_target = 1.0e-8;
 
   auto dF =
-      DiracODE::solve_inhomog(k, phi0.en - omega, vl, alpha, -1.0 * hphi0);
+      DiracODE::solve_inhomog(k, phi0.en + omega, vl, alpha, -1.0 * hphi0);
+  // here: if no exchange, return dF? XXX
   auto dF20 = std::abs(dF * dF); // monitor convergance
-  // auto VxdF0 = 0.0 * dF;
-  for (int x = 0; x < 50; x++) {
+  auto dF0 = dF;
+  for (int its = 0; true; its++) {
     auto vx = form_approx_vex_any(dF, core);
-    NumCalc::scaleVec(vx, 1.3); // better w/ 1.25 .. not sure why?
+    // NumCalc::scaleVec(vx, 1.0); // better w/ 1.25 .. not sure why?
     auto v = NumCalc::add_vectors(vl, vx);
 
-    // double a = 0.5;
-    // const auto l = (1.0 - a);
-    // const auto VexchdF = vex_psia_any(dF, core);
-    // const auto vx0dF = (vx * dF);
-    // const auto VxdF = a * VxdF0 + l * (VexchdF - vx0dF);
-    // VxdF0 = VxdF;
+    const auto rhs = (vx * dF) - vex_psia_any(dF, core) - hphi0;
+    DiracODE::solve_inhomog(dF, phi0.en + omega, v, alpha, rhs);
 
-    const auto VxdF = vex_psia_any(dF, core) - (vx * dF);
+    const auto a = damper(its);
+    const auto l = (1.0 - a);
+    dF = l * dF + a * dF0;
+    dF0 = dF;
 
-    DiracODE::solve_inhomog(dF, phi0.en - omega, v, alpha, -1.0 * hphi0 - VxdF);
     auto dF2 = std::abs(dF * dF);
     auto eps = std::abs((dF2 - dF20) / dF2);
-    if (eps < 1.0e-9 || x == 49) {
-      // std::cout << x << " " << eps << "\n";
+    if constexpr (print_each_eps) {
+      std::cout << __LINE__ << "| " << phi0.symbol() << " " << its << " " << eps
+                << "\n";
+    }
+    if (eps < eps_target || its == max_its) {
+      if constexpr (print_final_eps) {
+        std::cout << __LINE__ << "| " << phi0.symbol() << " " << its << " "
+                  << eps << "\n";
+        if (its == max_its)
+          std::cout << "************\n";
+      }
       break;
     }
     dF20 = dF2;
@@ -172,6 +175,7 @@ void HartreeFock::starting_approx_core(const std::string &in_core,
 // Starting approx for HF. Uses Green parametric
 // Later, can put other options if you want.
 {
+  auto sp = SafeProfiler::profile(__func__);
   if (method != HFMethod::TietzPRM) {
     if (std::fabs(h_g * h_g) < 1.0e-6)
       Parametric::defaultGreenCore(p_wf->Znuc(), h_g, d_t);
@@ -187,11 +191,21 @@ void HartreeFock::starting_approx_core(const std::string &in_core,
     // If H-like, kill "initial" vdir (Green potential)
     p_wf->vdir = std::vector<double>(p_wf->rgrid.num_points, 0);
   }
+
+  if constexpr (print_final_eps) {
+    auto worst =
+        std::max_element(p_wf->core_orbitals.begin(), p_wf->core_orbitals.end(),
+                         [](const DiracSpinor &a, const DiracSpinor &b) {
+                           return a.eps < b.eps;
+                         });
+    std::cout << "Initial core: " << worst->symbol() << " eps=" << worst->eps
+              << "\n";
+  }
 }
 
 //******************************************************************************
 EpsIts HartreeFock::hf_valence(DiracSpinor &phi, std::vector<double> &vexa) {
-
+  auto sp = SafeProfiler::profile(__func__);
   auto do_refine =
       (m_method == HFMethod::HartreeFock && !p_wf->core_orbitals.empty());
   auto eps_target_HF = do_refine ? 1.0e-5 : m_eps_HF;
@@ -204,7 +218,7 @@ EpsIts HartreeFock::hf_valence(DiracSpinor &phi, std::vector<double> &vexa) {
 
 //******************************************************************************
 void HartreeFock::hf_core_approx(const double eps_target_HF) {
-
+  auto sp = SafeProfiler::profile(__func__);
   if (p_wf->core_orbitals.empty()) {
     return;
   }
@@ -222,7 +236,6 @@ void HartreeFock::hf_core_approx(const double eps_target_HF) {
   double t_eps = 1.0;
   auto t_eps_prev = 1.0;
   for (; hits < m_max_hf_its; hits++) {
-    DEBUG(std::cerr << "HF core it: " << hits << "\n";)
     auto eta = damper(hits);
 
     // Store old vdir/vex
@@ -262,13 +275,18 @@ void HartreeFock::hf_core_approx(const double eps_target_HF) {
       double state_eps = fabs((phi.en - en_old) / en_old);
       // convergance based on worst orbital:
       t_eps = (state_eps > t_eps) ? state_eps : t_eps;
-      DEBUG(printf(" --- %2i,%2i: en=%11.5f  HFeps = %.0e;  Adams = %.0e[%2i]  "
-                   "(%4i)\n",
-                   phi.n, phi.k, phi.en, state_eps, phi.eps, phi.its,
-                   (int)phi.pinf);)
+      if constexpr (print_each_eps) {
+        std::cout << __LINE__ << "| ";
+        printf(" --- %2i,%2i: en=%11.5f  HFeps = %.0e;  Adams = %.0e[%2i]  "
+               "(%4i)\n",
+               phi.n, phi.k, phi.en, state_eps, phi.eps, phi.its,
+               (int)phi.pinf);
+      }
     } // core states
-    DEBUG(std::cerr << "HF core it: " << hits << ": eps=" << t_eps << "\n\n";
-          std::cin.get();)
+    if constexpr (print_each_eps) {
+      std::cerr << __LINE__ << "| "
+                << "HF core it: " << hits << ": eps=" << t_eps << "\n";
+    }
 
     // Force all core orbitals to be orthogonal to each other
     if (m_explicitOrthog_cc)
@@ -281,6 +299,9 @@ void HartreeFock::hf_core_approx(const double eps_target_HF) {
   } // hits
   if (verbose && m_method != HFMethod::HartreeFock)
     printf("HF core      it:%3i eps=%6.1e\n", hits, t_eps);
+  if constexpr (print_final_eps) {
+    printf("HF core (approx)  it:%3i eps=%6.1e\n", hits, t_eps);
+  }
 
   // Now, re-solve core orbitals with higher precission
   for (std::size_t i = 0; i < p_wf->core_orbitals.size(); i++) {
@@ -293,6 +314,7 @@ void HartreeFock::hf_core_approx(const double eps_target_HF) {
 
 //******************************************************************************
 void HartreeFock::solveValence() {
+  auto sp = SafeProfiler::profile(__func__);
 
   if (p_wf->valence_orbitals.empty())
     return;
@@ -336,6 +358,7 @@ EpsIts HartreeFock::hf_valence_approx(DiracSpinor &phi,
 // Does not store vex (must be done outside)
 // Can be used to generate a set of virtual/basis orbitals
 {
+  auto sp = SafeProfiler::profile(__func__);
   phi.occ_frac = 1. / phi.twojp1();
 
   auto damper = rampedDamp(0.7, 0.2, 2, 6);
@@ -347,7 +370,7 @@ EpsIts HartreeFock::hf_valence_approx(DiracSpinor &phi,
 
   auto vexa_old = vexa;
 
-  p_wf->solveDirac(phi, 0, 15);
+  p_wf->solveDirac(phi, 0, {}, 15);
 
   double eps = -1, eps_prev = -1;
   int hits = 1;
@@ -375,7 +398,7 @@ EpsIts HartreeFock::hf_valence_approx(DiracSpinor &phi,
     eps = fabs((phi.en - en_old) / en_old);
     // Force valence state to be orthogonal to core:
     if (m_explicitOrthog_cv)
-      p_wf->orthonormaliseWrtCore(phi);
+      Wavefunction::orthonormaliseWrt(phi, p_wf->core_orbitals);
 
     auto getting_worse = (hits > 20 && eps >= eps_prev && eps < 1.e-5);
     auto converged = (eps <= eps_target_HF);
@@ -383,11 +406,13 @@ EpsIts HartreeFock::hf_valence_approx(DiracSpinor &phi,
       break;
     eps_prev = eps;
   }
-  DEBUG(printf("HF val: %2i %2i | %3i eps=%6.1e  en=%11.8f\n", phi.n, phi.k,
-               hits, eps, phi.en);)
+  if constexpr (print_final_eps) {
+    printf("HF val: %2i %2i | %3i eps=%6.1e  en=%11.8f\n", phi.n, phi.k, hits,
+           eps, phi.en);
+  }
 
   if (m_explicitOrthog_cv)
-    p_wf->orthonormaliseWrtCore(phi);
+    Wavefunction::orthonormaliseWrt(phi, p_wf->core_orbitals);
   return {eps, hits};
 }
 
@@ -451,6 +476,7 @@ void HartreeFock::form_vdir(std::vector<double> &vdir, bool re_scale) const
 // Hartree potential (local, same each state, no exchange).
 // re_scale=false by default
 {
+  auto sp = SafeProfiler::profile(__func__);
   for (auto &v_dir : vdir) {
     v_dir = 0;
   }
@@ -471,6 +497,7 @@ void HartreeFock::form_approx_vex_core(
 // NOTE: Must call form_vabk_core first!
 // Doesn't calculate, assumes m_arr_v_abk_r array exists + is up-to-date
 {
+  auto sp = SafeProfiler::profile(__func__);
 #pragma omp parallel for
   for (std::size_t a = 0; a < p_wf->core_orbitals.size(); a++) {
     form_approx_vex_a(p_wf->core_orbitals[a], vex[a]);
@@ -500,6 +527,7 @@ void HartreeFock::form_approx_vex_a(const DiracSpinor &phi_a,
 // |psi_a| > 1.e3 Further, largest part of v_ex is when a=b. In this case, the
 // factor=1 is exact!
 {
+  auto sp = SafeProfiler::profile(__func__);
   for (auto &va : vex_a) {
     va = 0;
   }
@@ -575,6 +603,7 @@ std::vector<double> HartreeFock::form_approx_vex_any(
     const DiracSpinor &phi_a, const std::vector<DiracSpinor> &core, int k_cut)
 //
 {
+  auto sp = SafeProfiler::profile(__func__);
 
   std::vector<double> vex(phi_a.p_rgrid->num_points);
   std::vector<double> vabk;
@@ -651,6 +680,7 @@ void HartreeFock::vex_psia(const DiracSpinor &phi_a, DiracSpinor &vexPsi) const
 // calculates V_ex Psi_a
 // Psi_a can be any orbital (so long as coulomb integrals exist!)
 {
+  auto sp = SafeProfiler::profile(__func__);
   vexPsi.pinf = phi_a.f.size(); // silly hack. Make sure vexPsi = 0 after pinf
   vexPsi *= 0.0;
   vexPsi.pinf = phi_a.pinf;
@@ -688,6 +718,7 @@ DiracSpinor HartreeFock::vex_psia_any(const DiracSpinor &phi_a,
 // calculates V_ex Psi_a (returns new Dirac Spinor)
 // Psi_a can be any orbital (Calculates coulomb integrals here!)
 {
+  auto sp = SafeProfiler::profile(__func__);
   DiracSpinor vexPsi(phi_a.n, phi_a.k, *(phi_a.p_rgrid));
   vexPsi.pinf = phi_a.pinf;
 
@@ -748,33 +779,35 @@ void HartreeFock::hf_orbital(DiracSpinor &phi, double en,
 // Core is input so can call in a thread-safe way! (with a 'old_core' copy)
 // Only used in dE from dF
 {
-
+  auto sp = SafeProfiler::profile(__func__);
   // pull these outside? But make sure thread safe!
   DiracSpinor phi0(phi.n, phi.k, *(phi.p_rgrid));
   DiracSpinor phiI(phi.n, phi.k, *(phi.p_rgrid));
   DiracSpinor VxFh(phi.n, phi.k, *(phi.p_rgrid));
+  DiracSpinor del_phi(phi.n, phi.k, *(phi.p_rgrid));
+  const auto eps_target = 1.0e-16; // m_eps_HF;
+  const auto k_max = 1;            // max k for Vex into del_E
 
   const auto alpha = p_wf->get_alpha();
   DiracODE::solve_inhomog(phi, phi0, phiI, en, vl, alpha, -1.0 * vx_phi);
 
   // make small adjustments to energy to normalise psi:
-  DiracSpinor del_phi(phi.n, phi.k, *(phi.p_rgrid));
   DiracODE::Adams::GreenSolution(del_phi, phiI, phi0, alpha, phi);
   // should del_phi = del_e * del_phi, but makes it worse?
   // nb: after first it, becomes correct.
   auto del_E = 0.5 * (phi * phi - 1.0) / (phi * del_phi);
   auto eps = std::abs(del_E / en);
   int tries = 0;
-  for (; tries < m_max_hf_its; ++tries) { // m_max_hf_its
-    if (eps < m_eps_HF)
+  for (; tries <= m_max_hf_its; ++tries) { // m_max_hf_its
+    if (eps < eps_target)
       break;
     {
-      if (!v0.empty()) {     // essentially, for core:
-        VxFh = v0 * del_phi; // v0 = (1-f)Vd;
-      } else {               // essentially, for valence
-        VxFh = vex_psia_any(del_phi, static_core, 0);
+      if (!v0.empty()) { // essentially, for core:
+        // v0 = (1-f)Vd;
+        VxFh = v0 * del_phi + vex_psia_any(del_phi, static_core, k_max);
+      } else { // essentially, for valence
+        VxFh = vex_psia_any(del_phi, static_core, k_max);
       }
-      // Depends very strengely on VxFh...
       DiracODE::Adams::GreenSolution(del_phi, phiI, phi0, alpha,
                                      del_E * phi - VxFh);
     }
@@ -788,7 +821,8 @@ void HartreeFock::hf_orbital(DiracSpinor &phi, double en,
   phi.en = en;
   phi.eps = eps;
   phi.its = tries;
-  // phi.normalise(); //? Not needed
+  if (tries == 0 || tries == m_max_hf_its)
+    phi.normalise(); //? Not needed
 }
 
 //******************************************************************************
@@ -797,13 +831,13 @@ void HartreeFock::hf_orbital(DiracSpinor &phi, double en,
 
 //******************************************************************************
 EpsIts HartreeFock::hf_valence_refine(DiracSpinor &phi) {
-
+  auto sp = SafeProfiler::profile(__func__);
   if (p_wf->core_orbitals.empty())
     return {0, 0};
 
   const auto eps_target = m_eps_HF;
 
-  auto damper = rampedDamp(0.7, 0.1, 5, 25);
+  auto damper = rampedDamp(0.8, 0.2, 5, 25);
   double extra_damp = 0.0;
 
   // const auto vl = NumCalc::sumVecs({&(p_wf->vnuc), &(p_wf->vdir)});
@@ -845,12 +879,14 @@ EpsIts HartreeFock::hf_valence_refine(DiracSpinor &phi) {
     if (eps < best_eps)
       best_eps = eps;
 
-    DEBUG(std::cout << it << " " << eps << " " << phi.en << " "
-                    << en - phi_zero.en << " " << phi * phi << "\n";)
+    if constexpr (print_each_eps) {
+      std::cout << __LINE__ << "| " << it << " " << eps << " " << phi.en << " "
+                << en - phi_zero.en << " " << phi * phi << "\n";
+    }
 
     phi = (1.0 - a_damp) * phi + a_damp * oldphi;
     if (m_explicitOrthog_cv) {
-      p_wf->orthonormaliseWrtCore(phi);
+      Wavefunction::orthonormaliseWrt(phi, p_wf->core_orbitals);
     } else {
       phi.normalise();
     }
@@ -858,28 +894,31 @@ EpsIts HartreeFock::hf_valence_refine(DiracSpinor &phi) {
   } // End HF its
 
   if (m_explicitOrthog_cv)
-    p_wf->orthonormaliseWrtCore(phi);
+    Wavefunction::orthonormaliseWrt(phi, p_wf->core_orbitals);
 
-  DEBUG(printf("refine: %2i %2i | %3i eps=%6.1e  en=%11.8f\n", phi.n, phi.k, it,
-               eps, phi.en);)
+  if constexpr (print_final_eps) {
+    printf("refine: %2i %2i | %3i eps=%6.1e  en=%11.8f\n", phi.n, phi.k, it,
+           eps, phi.en);
+  }
   return {eps, it};
 }
 
 //******************************************************************************
 inline void HartreeFock::hf_core_refine() {
-
+  auto sp = SafeProfiler::profile(__func__);
   if (p_wf->core_orbitals.empty()) {
     return;
   }
 
   const double eps_target = m_eps_HF;
   m_cint.form_core_core(); // only needed if not already done!
-  auto damper = rampedDamp(0.8, 0.1, 5, 30);
+  auto damper = rampedDamp(0.8, 0.2, 5, 30);
   double extra_damp = 0;
 
   std::vector<double> vl(p_wf->rgrid.num_points); // Vnuc + fVd
   std::vector<double> v0(p_wf->rgrid.num_points); // (1-f)Vd
-  const auto f_core = double(p_wf->Ncore() - 1) / double(p_wf->Ncore());
+  const auto f_core_tmp = double(p_wf->Ncore() - 1) / double(p_wf->Ncore());
+  const auto f_core = 0.5 * (1.0 + f_core_tmp);
   const auto &vd = p_wf->vdir;
 
   // Store arrays of intitial Psi and VexPsi, and VdirPsi (for En guess)
@@ -954,10 +993,19 @@ inline void HartreeFock::hf_core_refine() {
         best_index = i;
       }
     }
-    DEBUG(std::cout << eps_target << " " << eps << " "
-                    << p_wf->core_orbitals[worst_index].symbol() << " -- "
-                    << " " << beps << " "
-                    << p_wf->core_orbitals[bindex].symbol() << "\n";)
+    if constexpr (print_each_eps) {
+      std::cout << __LINE__ << "| " << it << " " << eps << " "
+                << p_wf->core_orbitals[worst_index].symbol() << " -- "
+                << " " << best_eps << " "
+                << p_wf->core_orbitals[best_index].symbol() << "\n";
+    }
+    if constexpr (print_final_eps) {
+      if (std::isnan(eps))
+        std::cout << __LINE__ << "| eps is NaN: " << it << " " << eps << " "
+                  << p_wf->core_orbitals[worst_index].symbol() << " -- "
+                  << " " << best_eps << " "
+                  << p_wf->core_orbitals[best_index].symbol() << "\n";
+    }
 
     if (it > 20 && eps > 1.5 * best_worst_eps) {
       ++worse_count;
