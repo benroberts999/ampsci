@@ -140,32 +140,19 @@ int main(int argc, char *argv[]) {
   std::cout << "\n\n";
   LinAlg::SqMatrix Aij((int)basis.size());
   LinAlg::SqMatrix Sij((int)basis.size());
+#pragma omp parallel for
   for (auto i = 0; i < (int)basis.size(); i++) {
     const auto &si = basis[i];
-    // const auto &si = wf.core_orbitals[i];
     for (auto j = 0; j < (int)basis.size(); j++) {
       const auto &sj = basis[j];
-      // const auto &sj = wf.core_orbitals[j];
       auto VexPsi_j = HartreeFock::vex_psia_any(sj, wf.core_orbitals);
-      auto VexPsi_i = HartreeFock::vex_psia_any(si, wf.core_orbitals);
+      // auto VexPsi_i = HartreeFock::vex_psia_any(si, wf.core_orbitals);
 
       // Vex seems to make incredibly small contribution??
       auto aij = Hd.matrixEl(si, sj) + (si * VexPsi_j);
-      auto aji = Hd.matrixEl(sj, si) + (sj * VexPsi_i);
-      aij = std::abs(aij) < 1.e-10 ? 0.0 : aij;
-      aji = std::abs(aji) < 1.e-10 ? 0.0 : aji;
-      if (si.k != sj.k) {
-        aij = 0;
-        aji = 0;
-      } else {
-        // std::cout << si.symbol() << "," << sj.symbol() << " : ";
-        // printf("%9.2e %9.2e %9.2e\n", aij, aji,
-        //        2.0 * (aij - aji) / (aij + aji));
-        // std::cout << si * VexPsi_j << " <--\n";
-      }
-      auto sij = si * sj;
+      // auto aji = Hd.matrixEl(sj, si) + (sj * VexPsi_i);
       Aij[i][j] = aij; // / std::sqrt((si * si) * (sj * sj));
-      Sij[i][j] = sij;
+      Sij[i][j] = si * sj;
     }
     // std::cout << "\n";
   }
@@ -175,14 +162,14 @@ int main(int argc, char *argv[]) {
   // Sij.clip_low(1.0e-8); //?
 
   // Aij.make_symmetric();
-  auto Sinv = Sij.inverse();
-  auto Bij = Sinv * Aij;
-  // Bij.print();
-  auto worst = Bij.check_symmetric();
-  std::cout << worst << "\n";
+  // auto Sinv = Sij.inverse();
+  // auto Bij = Sinv * Aij;
+  // // Bij.print();
+  // auto worst = Bij.check_symmetric();
 
-  LinAlg::SqMatrix Xx = {-1.0, 1.0, -1.0, 1.0, -8.0, 4.0,  -2.0, 1.0,
-                         27.0, 9.0, 3.0,  1.0, 64.0, 16.0, 4.0,  1.0};
+  std::cout << "Worst A:" << Aij.check_symmetric() << "\n";
+  std::cout << "Worst S:" << Sij.check_symmetric() << "\n";
+
   LinAlg::test3(Aij, Sij);
 
   //   // Aij.clip_low(1.0e-9); //?

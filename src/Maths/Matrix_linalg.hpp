@@ -434,8 +434,11 @@ inline void test3(const SqMatrix &B, const SqMatrix &S) {
     // printf("eigenvalue %i = %g + %gi\n", i, evr, evi);
   }
   std::sort(evals.begin(), evals.end());
+  auto icount = 0;
   for (const auto &ev : evals) {
-    std::cout << ev << "\n";
+    if (icount++ < int(evals.size() / 2))
+      continue;
+    std::cout << icount << " " << ev << "\n";
   }
 
   gsl_eigen_gen_free(work);

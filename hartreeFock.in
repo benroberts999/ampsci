@@ -23,16 +23,16 @@ Grid {
   rmax = 120.0;
   num_points = 2000;
   // fixed_du = 0.1;     // over-writes num_points
-  type = logarithmic; // loglinear(dflt), logarithmic, linear
-  b;                  // b<0, or b>rmax will use logarithmic
+  // type = logarithmic; // loglinear(dflt), logarithmic, linear
+  b; // b<0, or b>rmax will use logarithmic
 }
 
 Basis {
-  number = 100;
-  order = 10;
-  r0;
-  rmax = 40.;
-  print = true;
+  number = 40;
+  order = 4;
+  // r0 = 1.0e-4;
+  // rmax = 50.0;
+  print = false;
 }
 
 /////////////////////////////////////////////////////////////////
