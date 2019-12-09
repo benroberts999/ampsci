@@ -40,7 +40,7 @@ inline std::vector<DiracSpinor> test_splines(int kappa, std::size_t n_spl,
     phi.f = Bi;
 
     auto gtmp = NumCalc::mult_vectors(rgrid.inverse_r(), Bi);
-    NumCalc::scaleVec(gtmp, double(kappa));
+    NumCalc::scaleVec(gtmp, double(-kappa));
     phi.g = NumCalc::add_vectors(dBi, gtmp);
     NumCalc::scaleVec(phi.g, 0.5 * alpha);
 
@@ -59,7 +59,7 @@ inline std::vector<DiracSpinor> test_splines(int kappa, std::size_t n_spl,
     auto dBi = bspl.get_spline_deriv(i);
     phi.g = Bi;
     auto ftmp = NumCalc::mult_vectors(rgrid.inverse_r(), Bi);
-    NumCalc::scaleVec(ftmp, double(-kappa));
+    NumCalc::scaleVec(ftmp, double(kappa));
     phi.f = NumCalc::add_vectors(dBi, ftmp);
     NumCalc::scaleVec(phi.f, 0.5 * alpha);
     auto [p0, pinf] = bspl.get_ends(i);
