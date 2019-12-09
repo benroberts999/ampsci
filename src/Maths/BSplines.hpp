@@ -35,7 +35,7 @@ public:
               << m_rgrid_ptr->r[m_rmax_index] << "  (";
     std::cout << m_rmin_index << " -> " << m_rmax_index << ")\n";
     construct_splines_gsl();
-    print_knots();
+    // print_knots();
   }
 
   ~BSplines() {
@@ -59,7 +59,8 @@ private: // data
 
   std::vector<double> m_knots;
   std::vector<std::vector<double>> m_Bk;
-  std::vector<std::vector<double>> m_dBkdr;
+  std::vector<std::vector<double>> m_dBkdr1;
+  std::vector<std::vector<double>> m_dBkdr2;
   std::vector<std::pair<std::size_t, std::size_t>> m_ends;
 
 public:
@@ -71,13 +72,16 @@ public:
     return m_Bk[n]; // add bounds-check?
   }
   const std::vector<double> &get_spline_deriv(std::size_t n) const {
-    return m_dBkdr[n]; // add bounds-check?
+    return m_dBkdr1[n]; // add bounds-check?
+  }
+  const std::vector<double> &get_spline_deriv2(std::size_t n) const {
+    return m_dBkdr2[n]; // add bounds-check?
   }
   const std::pair<std::size_t, std::size_t> &get_ends(std::size_t n) const {
     return m_ends[n]; // add bounds-check?
   }
 
-  void derivitate(const int n_deriv = 1) {
+  void derivitate() {
 
     // m_dBkdr.clear();
     // for (auto &Bk : m_Bk) {
@@ -87,21 +91,31 @@ public:
     // }
     // Almost correct /\, but small deviations at small r, large r?
 
-    m_dBkdr.clear();
-    m_dBkdr.resize(m_number_n);
-    for (auto &dBkdr : m_dBkdr) {
+    auto n_max_deriv = 2;
+
+    m_dBkdr1.clear();
+    m_dBkdr1.resize(m_number_n);
+    for (auto &dBkdr : m_dBkdr1) {
       dBkdr.resize(m_rgrid_ptr->num_points);
     }
+    m_dBkdr2 = m_dBkdr1;
 
-    gsl_bspl_deriv_mat = gsl_matrix_alloc(m_number_n, n_deriv + 1);
+    gsl_bspl_deriv_mat = gsl_matrix_alloc(m_number_n, n_max_deriv + 1);
     for (std::size_t ir = 0; ir < m_rgrid_ptr->num_points; ++ir) {
       if (ir < m_rmin_index || ir > m_rmax_index)
         continue;
       auto r = m_rgrid_ptr->r[ir];
-      gsl_bspline_deriv_eval(r, n_deriv, gsl_bspl_deriv_mat, gsl_bspl_work);
+
+      gsl_bspline_deriv_eval(r, n_max_deriv, gsl_bspl_deriv_mat, gsl_bspl_work);
+
       for (std::size_t j = 0; j < m_number_n; ++j) {
-        double Bj = gsl_matrix_get(gsl_bspl_deriv_mat, j, n_deriv);
-        m_dBkdr[j][ir] = Bj;
+        double Bj = gsl_matrix_get(gsl_bspl_deriv_mat, j, 1);
+        m_dBkdr1[j][ir] = Bj;
+      }
+
+      for (std::size_t j = 0; j < m_number_n; ++j) {
+        double Bj = gsl_matrix_get(gsl_bspl_deriv_mat, j, 2);
+        m_dBkdr2[j][ir] = Bj;
       }
     }
   }
@@ -111,7 +125,7 @@ public:
                      bool deriv = false) const {
     std::ofstream of(ofname);
 
-    const auto &splines = (deriv) ? m_dBkdr : m_Bk;
+    const auto &splines = (deriv) ? m_dBkdr1 : m_Bk;
 
     for (std::size_t ir = 0; ir < m_rgrid_ptr->num_points; ++ir) {
       of << m_rgrid_ptr->r[ir] << " ";

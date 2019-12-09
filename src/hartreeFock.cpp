@@ -135,7 +135,8 @@ int main(int argc, char *argv[]) {
   // if (k_spl > 0 && n_spl >= k_spl && basis_ok) {
   // BSplines bspl(n_spl, k_spl, wf.rgrid, r0_spl, rmax_spl);
 
-  auto basis = test_splines(-1, n_spl, k_spl, r0_spl, rmax_spl, wf.rgrid);
+  auto [basis, d_basis] = test_splines(-1, n_spl, k_spl, r0_spl, rmax_spl,
+                                       wf.rgrid, wf.get_alpha());
   // std::cin.get();
   // auto basis = wf.core_orbitals;
 
@@ -153,15 +154,17 @@ int main(int argc, char *argv[]) {
       auto VexPsi_j = HartreeFock::vex_psia_any(sj, wf.core_orbitals);
 
       auto aij =
-          Hd.matrixEl(si, sj) + 0.5 * ((si * VexPsi_j) + (sj * VexPsi_i));
-      // auto aij = 0 * Hd.matrixEl(si, sj) + (si * VexPsi_j);
+          Hd.matrixEl_noD1(si, sj) + 0.5 * ((si * VexPsi_j) + (sj * VexPsi_i));
+      aij -= (si * d_basis[j] + d_basis[i] * sj) / wf.get_alpha();
 
-      Aij[i][j] = aij; // / std::sqrt((si * si) * (sj * sj));
+      // auto aij =
+      //     Hd.matrixEl(si, sj) + 0.0 * ((si * VexPsi_j) + (sj * VexPsi_i));
+
+      Aij[i][j] = aij;
       Sij[i][j] = si * sj;
     }
-    // std::cout << "\n";
   }
-  std::cout << "\nFilled Matrix\n\n";
+  // std::cout << "\nFilled Matrix\n\n";
 
   // Aij.clip_low(1.0e-9); //?
   // Sij.clip_low(1.0e-8); //?
@@ -173,7 +176,7 @@ int main(int argc, char *argv[]) {
 
   LinAlg::test3(Aij, Sij);
 
-  LinAlg::test2(Sij.inverse() * Aij);
+  // LinAlg::test2(Sij.inverse() * Aij);
 
   //*********************************************************
   //               TESTS

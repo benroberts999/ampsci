@@ -1,12 +1,12 @@
 Atom {
   Z = Cs;
   A = default;
-  // varAlpha2;
+  varAlpha2 = 0.0001;
 }
 
 HartreeFock {
   core = [Xe];
-  valence = 7sp;
+  valence = 7s;
   method; // HartreeFock(dflt), ApproxHF, Hartree, GreenPRM, TietzPRM
 }
 
@@ -19,8 +19,8 @@ Nucleus {
 }
 
 Grid {
-  r0 = 1e-6;
-  rmax = 90.0;
+  r0 = 1e-7;
+  rmax = 80.0;
   num_points = 2000;
   // fixed_du = 0.1;     // over-writes num_points
   type = logarithmic; // loglinear(dflt), logarithmic, linear
@@ -28,10 +28,10 @@ Grid {
 }
 
 Basis {
-  number = 50;
-  order = 6;
+  number = 75;
+  order = 7;
   // r0 = 1.0e-6;
-  rmax = 50.0;
+  rmax = 70.0;
   print = false;
 }
 
@@ -43,7 +43,7 @@ Basis {
 
 Module::Tests {
   orthonormal = true;
-  Hamiltonian = true;
+  // Hamiltonian = true;
   // boundaries = true;
 }
 
