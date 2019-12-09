@@ -415,9 +415,9 @@ std::vector<double> Coulomb::calculate_R_abcd_k(const DiracSpinor &psi_a,
   for (int k = kmin; k <= kmax; k++) {
     const auto &ybdk_r = ybd_kr[k - kmin];
     auto ffy =
-        NumCalc::integrate_any(1.0, 0, pinf, psi_a.f, psi_c.f, ybdk_r, drdu);
+        NumCalc::integrate(1.0, 0, pinf, psi_a.f, psi_c.f, ybdk_r, drdu);
     auto ggy =
-        NumCalc::integrate_any(1.0, 0, pinf, psi_a.g, psi_c.g, ybdk_r, drdu);
+        NumCalc::integrate(1.0, 0, pinf, psi_a.g, psi_c.g, ybdk_r, drdu);
     Rabcd[k] = (ffy + ggy) * du;
   }
   return Rabcd;

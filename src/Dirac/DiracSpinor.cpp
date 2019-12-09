@@ -91,8 +91,8 @@ double operator*(const DiracSpinor &lhs, const DiracSpinor &rhs) {
   const auto imin = std::max(lhs.p0, rhs.p0);
   const auto imax = std::min(lhs.pinf, rhs.pinf);
   const auto &dr = lhs.p_rgrid->drdu;
-  const auto ff = NumCalc::integrate_any(1.0, imin, imax, lhs.f, rhs.f, dr);
-  const auto gg = NumCalc::integrate_any(1.0, imin, imax, lhs.g, rhs.g, dr);
+  const auto ff = NumCalc::integrate(1.0, imin, imax, lhs.f, rhs.f, dr);
+  const auto gg = NumCalc::integrate(1.0, imin, imax, lhs.g, rhs.g, dr);
   return (ff + gg) * lhs.p_rgrid->du;
 }
 

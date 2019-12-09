@@ -342,15 +342,15 @@ public:
       dgb[i] -= (kappa * Fb.g[i] / r);
     }
 
-    auto D1m2 = NumCalc::integrate(Fa.f, dgb, drdu, 1.0, min, max) +
-                NumCalc::integrate(Fb.f, dga, drdu, 1.0, min, max);
+    auto D1m2 = NumCalc::integrate(1.0, min, max, Fa.f, dgb, drdu) +
+                NumCalc::integrate(1.0, min, max, Fb.f, dga, drdu);
 
-    auto Sab = NumCalc::integrate(Fa.g, Fb.g, drdu, 1.0, min, max);
+    auto Sab = NumCalc::integrate(1.0, min, max, Fa.g, Fb.g, drdu);
 
-    auto Vab = NumCalc::integrate(Fa.f, Fb.f, vnuc, drdu, 1.0, min, max) +
-               NumCalc::integrate(Fa.g, Fb.g, vnuc, drdu, 1.0, min, max) +
-               NumCalc::integrate(Fa.f, Fb.f, vdir, drdu, 1.0, min, max) +
-               NumCalc::integrate(Fa.g, Fb.g, vdir, drdu, 1.0, min, max);
+    auto Vab = NumCalc::integrate(1.0, min, max, Fa.f, Fb.f, vnuc, drdu) +
+               NumCalc::integrate(1.0, min, max, Fa.g, Fb.g, vnuc, drdu) +
+               NumCalc::integrate(1.0, min, max, Fa.f, Fb.f, vdir, drdu) +
+               NumCalc::integrate(1.0, min, max, Fa.g, Fb.g, vdir, drdu);
 
     return (Vab - cl * (D1m2 + 2.0 * cl * Sab)) * Fa.p_rgrid->du;
   }
@@ -372,15 +372,15 @@ public:
       dgb[i] *= (kappa / r);
     }
 
-    auto D2 = NumCalc::integrate(Fa.f, dgb, drdu, 1.0, min, max) +
-              NumCalc::integrate(Fb.f, dga, drdu, 1.0, min, max);
+    auto D2 = NumCalc::integrate(1.0, min, max, Fa.f, dgb, drdu) +
+              NumCalc::integrate(1.0, min, max, Fb.f, dga, drdu);
 
-    auto Sab = NumCalc::integrate(Fa.g, Fb.g, drdu, 1.0, min, max);
+    auto Sab = NumCalc::integrate(1.0, min, max, Fa.g, Fb.g, drdu);
 
-    auto Vab = NumCalc::integrate(Fa.f, Fb.f, vnuc, drdu, 1.0, min, max) +
-               NumCalc::integrate(Fa.g, Fb.g, vnuc, drdu, 1.0, min, max) +
-               NumCalc::integrate(Fa.f, Fb.f, vdir, drdu, 1.0, min, max) +
-               NumCalc::integrate(Fa.g, Fb.g, vdir, drdu, 1.0, min, max);
+    auto Vab = NumCalc::integrate(1.0, min, max, Fa.f, Fb.f, vnuc, drdu) +
+               NumCalc::integrate(1.0, min, max, Fa.g, Fb.g, vnuc, drdu) +
+               NumCalc::integrate(1.0, min, max, Fa.f, Fb.f, vdir, drdu) +
+               NumCalc::integrate(1.0, min, max, Fa.g, Fb.g, vdir, drdu);
 
     return (Vab + cl * (D2 - 2.0 * cl * Sab)) * Fa.p_rgrid->du;
   }
