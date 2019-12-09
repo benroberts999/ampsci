@@ -123,20 +123,31 @@ inline double integrate(const C &f1, const double dt = 1., std::size_t beg = 0,
 //   * beg + 2*Nquad
 {
 
+  auto max_grid = f1.size();
   if (end == 0)
-    end = f1.size();
+    end = max_grid;
 
-  double Rint_s = 0;
-  for (std::size_t i = 0; i < Nquad; i++)
-    Rint_s += cq[i] * f1[beg + i];
+  double Rint_s = 0.0;
+  for (std::size_t i = beg; i < Nquad; i++) {
+    std::cout << i << " " << cq[i] << "\n";
+    Rint_s += cq[i] * f1[i];
+  }
+  std::cout << "\n";
 
-  double Rint_m = 0;
-  for (auto i = beg + Nquad; i < end - Nquad; i++)
+  double Rint_m = 0.0;
+  auto end_mid = std::min(max_grid - Nquad, end);
+  for (auto i = Nquad; i < end_mid; i++)
     Rint_m += f1[i];
 
   double Rint_e = 0;
   for (std::size_t i = 0; i < Nquad; i++)
-    Rint_e += cq[i] * f1[end - i - 1];
+    Rint_e += cq[i] * f1[max_grid - i - 1];
+
+  for (std::size_t i = end_mid; i < end; i++) {
+    std::cout << end_mid + Nquad - i - 1 << " " << cq[end_mid + Nquad - i - 1]
+              << "\n";
+    Rint_e += cq[end_mid + Nquad - i - 1] * f1[i];
+  }
 
   return (Rint_m + dq_inv * (Rint_s + Rint_e)) * dt;
 
