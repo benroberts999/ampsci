@@ -473,9 +473,11 @@ void Coulomb::calculate_y_ijk(const DiracSpinor &phi_a,
   auto num_points = grid->num_points;
   vabk.resize(num_points); // for safety
 
-  auto irmax = std::min(phi_a.pinf, phi_b.pinf);
+  // auto irmax = std::max(phi_a.pinf, phi_b.pinf);
+  auto irmax = num_points;
 
-  double Ax = 0.0, Bx = 0.0; // A, B defined in equations/comments above
+  double Ax = 0.0,
+         Bx = 0.0; // A, B defined in equations/comments above
 
   auto powk = make_powk(k);
   auto powkp1 = make_powk(k + 1);
@@ -486,8 +488,8 @@ void Coulomb::calculate_y_ijk(const DiracSpinor &phi_a,
   }
 
   // For "direct" part, can't cut!
-  if (phi_a == phi_b)
-    irmax = num_points;
+  // if (phi_a == phi_b)
+  // irmax = num_points;
 
   vabk[0] = Bx * du;
   for (std::size_t i = 1; i < irmax; i++) {

@@ -720,7 +720,7 @@ DiracSpinor HartreeFock::vex_psia_any(const DiracSpinor &phi_a,
 {
   auto sp = SafeProfiler::profile(__func__);
   DiracSpinor vexPsi(phi_a.n, phi_a.k, *(phi_a.p_rgrid));
-  vexPsi.pinf = phi_a.pinf;
+  // vexPsi.pinf = phi_a.p_rgrid->num_points; // phi_a.pinf;
 
   std::vector<double> vabk(phi_a.p_rgrid->num_points);
   // XXX ALSO move this!
@@ -732,7 +732,7 @@ DiracSpinor HartreeFock::vex_psia_any(const DiracSpinor &phi_a,
     auto tjb = phi_b.twoj();
     auto lb = phi_b.l();
     double x_tjbp1 = (phi_a == phi_b) ? (tjb + 1) : (tjb + 1) * phi_b.occ_frac;
-    auto irmax = std::min(phi_a.pinf, phi_b.pinf);
+    auto irmax = vabk.size(); // std::min(phi_a.pinf, phi_b.pinf);
     int kmin = std::abs(tja - tjb) / 2;
     if (kmin > k_cut)
       continue;
