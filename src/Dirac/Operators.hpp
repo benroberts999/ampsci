@@ -288,11 +288,11 @@ public:
     for (std::size_t i = 0; i < max; i++) {
       tmp_f[i] += (Fa.k * Fa.f[i] / Fa.p_rgrid->r[i]) - cl * Fa.g[i];
     }
-    auto Hz = 2.0 * cl * NumCalc::integrate(Fa.g, tmp_f, drdu, 1.0, 0, max);
-    auto Hw = NumCalc::integrate(Fa.f, Fa.f, vnuc, drdu, 1.0, 0, max) +
-              NumCalc::integrate(Fa.g, Fa.g, vnuc, drdu, 1.0, 0, max) +
-              NumCalc::integrate(Fa.f, Fa.f, vdir, drdu, 1.0, 0, max) +
-              NumCalc::integrate(Fa.g, Fa.g, vdir, drdu, 1.0, 0, max);
+    auto Hz = 2.0 * cl * NumCalc::integrate(1.0, 0, max, Fa.g, tmp_f, drdu);
+    auto Hw = NumCalc::integrate(1.0, 0, max, Fa.f, Fa.f, vnuc, drdu) +
+              NumCalc::integrate(1.0, 0, max, Fa.g, Fa.g, vnuc, drdu) +
+              NumCalc::integrate(1.0, 0, max, Fa.f, Fa.f, vdir, drdu) +
+              NumCalc::integrate(1.0, 0, max, Fa.g, Fa.g, vdir, drdu);
     return (Hw + Hz) * Fa.p_rgrid->du;
   }
 
@@ -311,13 +311,13 @@ public:
       dgb[i] = (Fb.k * Fb.g[i] / r) - dgb[i];
       dfb[i] = (Fb.k * Fb.f[i] / r) + dfb[i] - 2.0 * cl * Fb.g[i];
     }
-    auto FaDFb = NumCalc::integrate(Fa.f, dgb, drdu, 1.0, 0, max) +
-                 NumCalc::integrate(Fa.g, dfb, drdu, 1.0, 0, max);
+    auto FaDFb = NumCalc::integrate(1.0, 0, max, Fa.f, dgb, drdu) +
+                 NumCalc::integrate(1.0, 0, max, Fa.g, dfb, drdu);
 
-    auto Vab = NumCalc::integrate(Fa.f, Fb.f, vnuc, drdu, 1.0, 0, max) +
-               NumCalc::integrate(Fa.g, Fb.g, vnuc, drdu, 1.0, 0, max) +
-               NumCalc::integrate(Fa.f, Fb.f, vdir, drdu, 1.0, 0, max) +
-               NumCalc::integrate(Fa.g, Fb.g, vdir, drdu, 1.0, 0, max);
+    auto Vab = NumCalc::integrate(1.0, 0, max, Fa.f, Fb.f, vnuc, drdu) +
+               NumCalc::integrate(1.0, 0, max, Fa.g, Fb.g, vnuc, drdu) +
+               NumCalc::integrate(1.0, 0, max, Fa.f, Fb.f, vdir, drdu) +
+               NumCalc::integrate(1.0, 0, max, Fa.g, Fb.g, vdir, drdu);
 
     // auto gagb = NumCalc::integrate(Fa.g, Fb.g, drdu, 1.0, 0, max);
     return (Vab + cl * FaDFb) * Fa.p_rgrid->du;
