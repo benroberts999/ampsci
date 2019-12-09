@@ -468,7 +468,8 @@ std::vector<double> Coulomb::calculate_R_abcd_k(const DiracSpinor &psi_a,
   const auto &drdu = psi_a.p_rgrid->drdu; // save typing
   const auto du = psi_a.p_rgrid->du;
 
-  auto pinf = std::min(psi_a.pinf, psi_c.pinf);
+  auto pinf = std::min(psi_a.pinf, psi_c.pinf); // XXX Check!
+  // auto p0 = std::max(psi_a.p0, psi_c.p0);       // XXX Check!
 
   // For now, this returns. Later, might be faster to swap to in/out param!
   // (To avoid huge amount of re-alocating memory)
@@ -539,7 +540,7 @@ void Coulomb::calculate_y_ijk(const DiracSpinor &phi_a,
   auto num_points = grid->num_points;
   vabk.resize(num_points); // for safety
 
-  auto irmax = std::min(phi_a.pinf, phi_b.pinf);
+  auto irmax = num_points; // std::min(phi_a.pinf, phi_b.pinf);
 
   double Ax = 0.0, Bx = 0.0; // A, B defined in equations/comments above
 
@@ -551,9 +552,9 @@ void Coulomb::calculate_y_ijk(const DiracSpinor &phi_a,
           powkp1(grid->r[i]);
   }
 
-  // For "direct" part, can't cut!
-  if (phi_a == phi_b)
-    irmax = num_points;
+  // // For "direct" part, can't cut!
+  // if (phi_a == phi_b)
+  //   irmax = num_points;
 
   vabk[0] = Bx * du;
   for (std::size_t i = 1; i < irmax; i++) {
@@ -567,7 +568,7 @@ void Coulomb::calculate_y_ijk(const DiracSpinor &phi_a,
     Bx -= Fdr * inv_rm1_to_kp1;
     vabk[i] = du * (Ax * inv_r_to_kp1 + Bx * r_to_k);
   }
-  for (std::size_t i = irmax; i < num_points; i++) {
-    vabk[i] = 0; // this doesn't happen in psi_a = psi_b
-  }
+  // for (std::size_t i = irmax; i < num_points; i++) {
+  //   vabk[i] = 0; // this doesn't happen in psi_a = psi_b
+  // }
 }

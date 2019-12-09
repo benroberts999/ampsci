@@ -443,12 +443,11 @@ double HartreeFock::calculateCoreEnergy() const
     for (const auto &phi_b : p_wf->core_orbitals) {
       const auto tjb = phi_b.twoj();
       const double xtjbp1 = (tjb + 1) * phi_b.occ_frac;
-      const auto irmax = std::min(phi_a.pinf, phi_b.pinf);
       const auto &v0bb = m_cint.get_y_ijk(phi_b, phi_b, 0);
-      auto R0f2 = NumCalc::integrate_any(1.0, 0, irmax, phi_a.f, phi_a.f, v0bb,
-                                         p_rgrid->drdu);
-      auto R0g2 = NumCalc::integrate_any(1.0, 0, irmax, phi_a.g, phi_a.g, v0bb,
-                                         p_rgrid->drdu);
+      auto R0f2 = NumCalc::integrate_any(1.0, 0, phi_a.pinf, phi_a.f, phi_a.f,
+                                         v0bb, p_rgrid->drdu);
+      auto R0g2 = NumCalc::integrate_any(1.0, 0, phi_a.pinf, phi_a.g, phi_a.g,
+                                         v0bb, p_rgrid->drdu);
       e2 += xtjap1 * xtjbp1 * (R0f2 + R0g2);
       // take advantage of symmetry for third term:
       if (phi_b > phi_a)
@@ -599,7 +598,7 @@ void HartreeFock::form_approx_vex_a(const DiracSpinor &phi_a,
       if (L_ab_k[k] == 0)
         continue;
       for (std::size_t i = 0; i < irmax; i++) {
-        // nb: need to 'cut' here, or fails w/ f states...
+        // nb: need to 'cut' here, or fails w/ f states... ?? XX
         vex_a[i] += -1 * L_ab_k[k] * vaak[k][i] * x_tjap1;
       }
     } // k
@@ -691,7 +690,7 @@ void HartreeFock::vex_psia(const DiracSpinor &phi_a, DiracSpinor &vexPsi) const
   auto sp = SafeProfiler::profile(__func__);
   vexPsi.pinf = phi_a.f.size(); // silly hack. Make sure vexPsi = 0 after pinf
   vexPsi *= 0.0;
-  vexPsi.pinf = phi_a.pinf;
+  // vexPsi.pinf = phi_a.pinf;
 
   if (m_excludeExchange)
     return;
@@ -702,7 +701,7 @@ void HartreeFock::vex_psia(const DiracSpinor &phi_a, DiracSpinor &vexPsi) const
   for (const auto &phi_b : p_wf->core_orbitals) {
     auto tjb = phi_b.twoj();
     double x_tjbp1 = (phi_a == phi_b) ? (tjb + 1) : (tjb + 1) * phi_b.occ_frac;
-    auto irmax = std::min(phi_a.pinf, phi_b.pinf);
+    // auto irmax = phi_b.pinf; // std::min(phi_a.pinf, phi_b.pinf);
     int kmin = std::abs(twoj_a - tjb) / 2;
     int kmax = (twoj_a + tjb) / 2;
     const auto &vabk = m_cint.get_y_ijk(phi_b, phi_a);
@@ -710,7 +709,7 @@ void HartreeFock::vex_psia(const DiracSpinor &phi_a, DiracSpinor &vexPsi) const
     for (int k = kmin; k <= kmax; k++) {
       if (L_ab_k[k - kmin] == 0)
         continue;
-      for (auto i = init; i < irmax; i++) {
+      for (auto i = init; i < phi_b.pinf; i++) {
         auto v = -x_tjbp1 * L_ab_k[k - kmin] * vabk[k - kmin][i];
         vexPsi.f[i] += v * phi_b.f[i];
         vexPsi.g[i] += v * phi_b.g[i];
@@ -728,19 +727,17 @@ DiracSpinor HartreeFock::vex_psia_any(const DiracSpinor &phi_a,
 {
   auto sp = SafeProfiler::profile(__func__);
   DiracSpinor vexPsi(phi_a.n, phi_a.k, *(phi_a.p_rgrid));
-  vexPsi.pinf = phi_a.pinf;
+  // vexPsi.pinf = phi_a.pinf;
 
   std::vector<double> vabk(phi_a.p_rgrid->num_points);
   // XXX ALSO move this!
 
   auto tja = phi_a.twoj();
   auto la = phi_a.l();
-  std::size_t init = 1; //?
   for (const auto &phi_b : core) {
     auto tjb = phi_b.twoj();
     auto lb = phi_b.l();
     double x_tjbp1 = (phi_a == phi_b) ? (tjb + 1) : (tjb + 1) * phi_b.occ_frac;
-    auto irmax = std::min(phi_a.pinf, phi_b.pinf);
     int kmin = std::abs(tja - tjb) / 2;
     if (kmin > k_cut)
       continue;
@@ -755,7 +752,7 @@ DiracSpinor HartreeFock::vex_psia_any(const DiracSpinor &phi_a,
       if (tjs == 0)
         continue;
       Coulomb::calculate_y_ijk(phi_b, phi_a, k, vabk);
-      for (auto i = init; i < irmax; i++) {
+      for (auto i = 0u; i < phi_b.pinf; i++) {
         auto v = -x_tjbp1 * tjs * tjs * vabk[i];
         vexPsi.f[i] += v * phi_b.f[i];
         vexPsi.g[i] += v * phi_b.g[i];
