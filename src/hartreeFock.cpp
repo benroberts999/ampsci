@@ -119,6 +119,10 @@ int main(int argc, char *argv[]) {
   wf.printCore(sorted);
   wf.printValence(sorted);
 
+  // run each of the modules
+  Module::runModules(input, wf);
+  // return 1;
+
   // Get + setup nuclear parameters
   // auto basis_ok =
   input.check("Basis", {"number", "order", "r0", "rmax", "print"});
@@ -146,9 +150,11 @@ int main(int argc, char *argv[]) {
     for (auto j = 0; j < (int)basis.size(); j++) {
       const auto &sj = basis[j];
       auto VexPsi_j = HartreeFock::vex_psia_any(sj, wf.core_orbitals);
-      // auto VexPsi_i = HartreeFock::vex_psia_any(si, wf.core_orbitals);
+      auto VexPsi_i = HartreeFock::vex_psia_any(si, wf.core_orbitals);
 
       // Vex seems to make incredibly small contribution??
+      // auto aij = Hd.matrixEl(si, sj) + 0.5 * (si * VexPsi_j + (sj *
+      // VexPsi_i));
       auto aij = Hd.matrixEl(si, sj) + (si * VexPsi_j);
       // auto aji = Hd.matrixEl(sj, si) + (sj * VexPsi_i);
       Aij[i][j] = aij; // / std::sqrt((si * si) * (sj * sj));
@@ -158,83 +164,15 @@ int main(int argc, char *argv[]) {
   }
   std::cout << "\nFilled Matrix\n\n";
 
-  // Aij.clip_low(1.0e-8); //?
+  // Aij.clip_low(1.0e-9); //?
   // Sij.clip_low(1.0e-8); //?
-
-  // Aij.make_symmetric();
-  // auto Sinv = Sij.inverse();
-  // auto Bij = Sinv * Aij;
-  // // Bij.print();
-  // auto worst = Bij.check_symmetric();
+  // Aij.make_symmetric(); //?
 
   std::cout << "Worst A:" << Aij.check_symmetric() << "\n";
   std::cout << "Worst S:" << Sij.check_symmetric() << "\n";
+  // std::cin.get();
 
   LinAlg::test3(Aij, Sij);
-
-  //   // Aij.clip_low(1.0e-9); //?
-  //   Aij.print();
-  //   std::cout << "\n";
-  //   Aij.make_symmetric(); //?
-  //   Aij.print();
-  //
-  //   std::cout << Aij.check_symmetric() << "\n";
-  //   std::cout << Sij.check_symmetric() << "\n";
-  //
-  //   auto m = Aij.inverse() * Sij;
-  //   m.clip_low(1.0e-10);
-  //   // Aij.print();
-  //   std::cout << "\n";
-  //   m.print();
-  //
-  //   std::cout << "\n";
-  //   std::cout << "\n";
-  //   auto m1 = Aij;
-  //   Aij.invert();
-  //   auto m2 = Aij;
-  //   auto m3 = m1 * m2;
-  //   m3.clip_low(1.0e-14);
-  //   m3.print();
-  //
-  //   LinAlg::Vector v(m3.n);
-  //   for (int i = 0; i < m3.n; ++i) {
-  //     v[i] = i * 1.5;
-  //   }
-  //   auto v2 = m3 * v;
-  //   for (int i = 0; i < m3.n; ++i) {
-  //     std::cout << v2[i] << "\n";
-  //   }
-
-  //
-  // std::cout << "\n";
-  // std::cout << "\n";
-  // std::cout << "\n";
-  // std::cout << "\n";
-  //
-  // LinAlg::SqMatrix Am = {0.18, 0.60, 0.57, 0.96, 0.41, 0.24, 0.99, 0.58,
-  //           0.14, 0.30, 0.97, 0.66, 0.51, 0.13, 0.19, 0.85};
-  // LinAlg::Vector Vb = {1.0, 2.0, 3.0, 4.0};
-  // // auto l = {0.18, 0.60, 0.57, 0.96, 0.41, 0.24, 0.99, 0.58,
-  // //           0.14, 0.30, 0.97, 0.66, 0.51, 0.13, 0.19, 0.85};
-  // // auto l2 = {1.0, 2.0, 3.0, 4.0};
-  // // for (int i = 0; i < 16; ++i) {
-  // //   Am.m->data[i] = l[i];
-  // // }
-  // // int i = 0;
-  // // for (auto en : l) {
-  // //   Am.m->data[i] = en;
-  // //   ++i;
-  // // }
-  // // i = 0;
-  // // for (auto en : l2) {
-  // //   Vb[i] = en;
-  // //   ++i;
-  // // }
-  // auto Vx = LinAlg::solve_Axeqb(Am, Vb);
-  // Vx.print();
-
-  // run each of the modules
-  Module::runModules(input, wf);
 
   //*********************************************************
   //               TESTS

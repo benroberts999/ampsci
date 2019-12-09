@@ -26,10 +26,9 @@ inline std::vector<DiracSpinor> test_splines(int kappa, std::size_t n_spl,
 
   auto imin = static_cast<std::size_t>(std::abs(kappa));
   auto imax = n_spl - 1;
-  auto half_n_orbs = (imax - imin);
+  // auto half_n_orbs = (imax - imin);
 
   auto n_count = 1;
-
   for (auto i = imin; i < imax; i++) {
 
     basis.emplace_back(n_count++, kappa, rgrid);
@@ -38,11 +37,13 @@ inline std::vector<DiracSpinor> test_splines(int kappa, std::size_t n_spl,
     auto Bi = bspl.get_spline(i);
     auto dBi = bspl.get_spline_deriv(i);
     phi.f = Bi;
+    // NumCalc::scaleVec(phi.f, -1.0);
 
     auto gtmp = NumCalc::mult_vectors(rgrid.inverse_r(), Bi);
-    NumCalc::scaleVec(gtmp, double(-kappa));
+    NumCalc::scaleVec(gtmp, double(kappa));
     phi.g = NumCalc::add_vectors(dBi, gtmp);
     NumCalc::scaleVec(phi.g, 0.5 * alpha);
+    // phi *= -1;
 
     auto [p0, pinf] = bspl.get_ends(i);
     phi.pinf = pinf;
@@ -59,9 +60,11 @@ inline std::vector<DiracSpinor> test_splines(int kappa, std::size_t n_spl,
     auto dBi = bspl.get_spline_deriv(i);
     phi.g = Bi;
     auto ftmp = NumCalc::mult_vectors(rgrid.inverse_r(), Bi);
-    NumCalc::scaleVec(ftmp, double(kappa));
+    NumCalc::scaleVec(ftmp, double(-kappa));
     phi.f = NumCalc::add_vectors(dBi, ftmp);
     NumCalc::scaleVec(phi.f, 0.5 * alpha);
+    // phi *= -1;
+
     auto [p0, pinf] = bspl.get_ends(i);
     phi.pinf = pinf;
     phi.p0 = p0;

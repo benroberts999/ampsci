@@ -439,6 +439,8 @@ inline void test3(const SqMatrix &B, const SqMatrix &S) {
     if (icount++ < int(evals.size() / 2))
       continue;
     std::cout << icount << " " << ev << "\n";
+    if (icount > int(evals.size() / 2) + 10)
+      break;
   }
 
   gsl_eigen_gen_free(work);
