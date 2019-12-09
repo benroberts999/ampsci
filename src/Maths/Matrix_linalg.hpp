@@ -378,16 +378,22 @@ inline void test2(const SqMatrix &B) {
 
   gsl_eigen_nonsymmv_free(w);
 
-  gsl_eigen_nonsymmv_sort(eval, evec, GSL_EIGEN_SORT_VAL_DESC);
+  gsl_eigen_nonsymmv_sort(eval, evec, GSL_EIGEN_SORT_VAL_ASC);
 
   {
 
     for (int i = 0; i < B.n; i++) {
-      gsl_complex eval_i = gsl_vector_complex_get(eval, i);
-      gsl_vector_complex_view evec_i = gsl_matrix_complex_column(evec, i);
+      if (i < int(B.n / 2))
+        continue;
+      if (i > int(B.n / 2) + 10)
+        break;
 
-      printf("eigenvalue %i = %g + %gi\n", i, GSL_REAL(eval_i),
-             GSL_IMAG(eval_i));
+      gsl_complex eval_i = gsl_vector_complex_get(eval, i);
+      // gsl_vector_complex_view evec_i = gsl_matrix_complex_column(evec, i);
+
+      // printf("eigenvalue %i = %g + %gi\n", i, GSL_REAL(eval_i),
+      //        GSL_IMAG(eval_i));
+      printf("eigenvalue %i = %g\n", i, GSL_REAL(eval_i));
       // printf("eigenvector = \n");
       // for (j = 0; j < 4; ++j) {
       //   gsl_complex z = gsl_vector_complex_get(&evec_i.vector, j);
@@ -429,7 +435,7 @@ inline void test3(const SqMatrix &B, const SqMatrix &S) {
     // gsl_vector_complex_view evec_i = gsl_matrix_complex_column(evec, i);
 
     auto evr = GSL_REAL(eval_ai) / eval_bi;
-    auto evi = GSL_IMAG(eval_ai) / eval_bi;
+    // auto evi = GSL_IMAG(eval_ai) / eval_bi;
     evals.push_back(evr);
     // printf("eigenvalue %i = %g + %gi\n", i, evr, evi);
   }

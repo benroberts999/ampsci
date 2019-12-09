@@ -147,16 +147,15 @@ int main(int argc, char *argv[]) {
 #pragma omp parallel for
   for (auto i = 0; i < (int)basis.size(); i++) {
     const auto &si = basis[i];
+    auto VexPsi_i = HartreeFock::vex_psia_any(si, wf.core_orbitals);
     for (auto j = 0; j < (int)basis.size(); j++) {
       const auto &sj = basis[j];
       auto VexPsi_j = HartreeFock::vex_psia_any(sj, wf.core_orbitals);
-      auto VexPsi_i = HartreeFock::vex_psia_any(si, wf.core_orbitals);
 
-      // Vex seems to make incredibly small contribution??
-      // auto aij = Hd.matrixEl(si, sj) + 0.5 * (si * VexPsi_j + (sj *
-      // VexPsi_i));
-      auto aij = Hd.matrixEl(si, sj) + (si * VexPsi_j);
-      // auto aji = Hd.matrixEl(sj, si) + (sj * VexPsi_i);
+      auto aij =
+          Hd.matrixEl(si, sj) + 0.5 * ((si * VexPsi_j) + (sj * VexPsi_i));
+      // auto aij = 0 * Hd.matrixEl(si, sj) + (si * VexPsi_j);
+
       Aij[i][j] = aij; // / std::sqrt((si * si) * (sj * sj));
       Sij[i][j] = si * sj;
     }
@@ -173,6 +172,8 @@ int main(int argc, char *argv[]) {
   // std::cin.get();
 
   LinAlg::test3(Aij, Sij);
+
+  LinAlg::test2(Sij.inverse() * Aij);
 
   //*********************************************************
   //               TESTS
