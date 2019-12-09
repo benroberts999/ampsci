@@ -752,7 +752,8 @@ DiracSpinor HartreeFock::vex_psia_any(const DiracSpinor &phi_a,
       if (tjs == 0)
         continue;
       Coulomb::calculate_y_ijk(phi_b, phi_a, k, vabk);
-      for (auto i = 0u; i < phi_b.pinf; i++) {
+      // XXX here? of not 1, fails sometimes for f states???
+      for (auto i = 1u; i < phi_b.pinf; i++) {
         auto v = -x_tjbp1 * tjs * tjs * vabk[i];
         vexPsi.f[i] += v * phi_b.f[i];
         vexPsi.g[i] += v * phi_b.g[i];

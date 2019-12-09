@@ -215,18 +215,20 @@ double ExternalField::dV_ab(const DiracSpinor &phi_alpha,
   double rme_sum_dirY = 0.0;
   double rme_sum_excY = 0.0;
   if (!static_fieldQ) {
-#pragma omp parallel for
+    // #pragma omp parallel for
     for (auto ic = 0u; ic < p_core->size(); ic++) {
       const auto &phi_b = (*p_core)[ic];
       const auto tjb = phi_b.twoj();
       const auto &Y_betas = get_dPsis(phi_b, dPsiType::Y);
       double rme_sum_dirY_c = 0.0;
       double rme_sum_excY_c = 0.0;
+      // std::cout << phi_b.symbol() << "\n";
       for (const auto &phi_beta : Y_betas) {
         const auto tjbeta = phi_beta.twoj();
         const auto m1jaljbe = Wigner::evenQ_2(tjalpha + tjbeta) ? 1 : -1;
         const auto Qkabcd =
             Coulomb::Qk_abcd_any(phi_alpha, phi_b, phi_a, phi_beta, k);
+        // std::cout << " " << phi_beta.symbol() << " " << Qkabcd << "\n";
         rme_sum_dirY_c += m1jaljbe * Qkabcd;
         // exchange part:
         const auto amd = std::abs(tja - tjbeta);
