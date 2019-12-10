@@ -407,7 +407,7 @@ inline void test2(const SqMatrix &B) {
 }
 
 inline void test3(const SqMatrix &B, const SqMatrix &S) {
-  // No. Use: Real Generalized Nonsymmetric Eigensystems
+  // Using: Real Generalized Nonsymmetric Eigensystems
 
   // double data[] = {-1.0, 1.0, -1.0, 1.0, -8.0, 4.0,  -2.0, 1.0,
   // 27.0, 9.0, 3.0,  1.0, 64.0, 16.0, 4.0,  1.0};
@@ -452,6 +452,43 @@ inline void test3(const SqMatrix &B, const SqMatrix &S) {
   gsl_eigen_gen_free(work);
   gsl_vector_complex_free(alpha);
   gsl_vector_free(beta);
+}
+
+inline void test4(SqMatrix &A, SqMatrix &B) {
+  // Real Generalized Bymmetric-Definite Eigensystems
+
+  const auto n = A.n;
+
+  gsl_eigen_gensymm_workspace *work = gsl_eigen_gensymm_alloc(n);
+  gsl_vector *eval = gsl_vector_alloc(A.n);
+
+  // This function computes the eigenvalues of the real generalized
+  // symmetric-definite matrix pair (A, B), and stores them in eval, using the
+  // method outlined above. On output, B contains its Cholesky decomposition
+  // and A is destroyed.
+  gsl_eigen_gensymm(A.m, B.m, eval, work);
+
+  {
+    std::vector<double> evals;
+    for (int i = 0; i < A.n; i++) {
+      evals.push_back(gsl_vector_get(eval, i));
+    }
+    std::sort(evals.begin(), evals.end());
+    auto icount1 = 0;
+    auto icount2 = 0;
+    for (const auto &ev : evals) {
+      icount1++;
+      if (ev < -137.0 * 137.0)
+        continue;
+      icount2++;
+      std::cout << icount1 << " " << ev << "\n";
+      if (icount2 > 10)
+        break;
+    }
+  }
+
+  gsl_eigen_gensymm_free(work);
+  gsl_vector_free(eval);
 }
 
 } // namespace LinAlg

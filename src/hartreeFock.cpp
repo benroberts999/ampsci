@@ -166,15 +166,15 @@ int main(int argc, char *argv[]) {
   }
   // std::cout << "\nFilled Matrix\n\n";
 
-  // Aij.clip_low(1.0e-9); //?
-  // Sij.clip_low(1.0e-8); //?
+  Aij.clip_low(1.0e-8); //?
+  Sij.clip_low(1.0e-8); //?
   // Aij.make_symmetric(); //?
 
   std::cout << "Worst A:" << Aij.check_symmetric() << "\n";
   std::cout << "Worst S:" << Sij.check_symmetric() << "\n";
   // std::cin.get();
 
-  LinAlg::test3(Aij, Sij);
+  LinAlg::test4(Aij, Sij);
 
   // LinAlg::test2(Sij.inverse() * Aij);
 

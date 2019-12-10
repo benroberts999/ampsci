@@ -20,18 +20,18 @@ Nucleus {
 
 Grid {
   r0 = 1e-7;
-  rmax = 80.0;
-  num_points = 2000;
+  rmax = 50.0;
+  num_points = 1000;
   // fixed_du = 0.1;     // over-writes num_points
   type = logarithmic; // loglinear(dflt), logarithmic, linear
   b;                  // b<0, or b>rmax will use logarithmic
 }
 
 Basis {
-  number = 75;
+  number = 60;
   order = 7;
   // r0 = 1.0e-6;
-  rmax = 70.0;
+  // rmax = 50.0;
   print = false;
 }
 
