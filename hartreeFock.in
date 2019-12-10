@@ -1,7 +1,7 @@
 Atom {
   Z = Cs;
   A = default;
-  varAlpha2 = 0.0001;
+  varAlpha2 = 0.1;
 }
 
 HartreeFock {
@@ -21,7 +21,7 @@ Nucleus {
 Grid {
   r0 = 1e-7;
   rmax = 50.0;
-  num_points = 1000;
+  num_points = 2000;
   // fixed_du = 0.1;     // over-writes num_points
   type = logarithmic; // loglinear(dflt), logarithmic, linear
   b;                  // b<0, or b>rmax will use logarithmic
