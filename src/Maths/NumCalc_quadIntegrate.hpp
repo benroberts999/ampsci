@@ -1,5 +1,6 @@
 #pragma once
 #include "Maths/Grid.hpp"
+#include "Maths/NumCalc_coeficients.hpp"
 #include <array>
 #include <iostream>
 #include <vector>
@@ -11,6 +12,11 @@ constexpr std::size_t Nquad = 13;
 static_assert(
     Nquad >= 1 && Nquad <= 13 && Nquad % 2 != 0,
     "\nFAIL10 in NumCalc: Nquad must be in [1,13], and must be odd\n");
+
+// instantiate coefs for correct Nquad order:
+constexpr QintCoefs<Nquad> quintcoef;
+constexpr auto cq = quintcoef.cq;
+constexpr auto dq_inv = quintcoef.dq_inv;
 
 //******************************************************************************
 template <typename T>
@@ -60,59 +66,6 @@ inline std::vector<T> derivative(const std::vector<T> &f,
 }
 
 //******************************************************************************
-// Define the coeficients for quadrature integration:
-template <std::size_t N> struct QintCoefs {};
-
-template <> struct QintCoefs<13> {
-  static constexpr std::size_t N = 13;
-  static constexpr std::array<double, N> cq{
-      {1382741929621, 9535909891802, -5605325192308, 28323664941310,
-       -32865015189975, 53315213499588, -41078125154304, 39022895874876,
-       -13155015007785, 12465244770050, 3283609164916, 5551687979302,
-       5206230892907}};
-  static constexpr double dq_inv = 1.0 / 5230697472000;
-};
-template <> struct QintCoefs<11> {
-  static constexpr std::size_t N = 11;
-  static constexpr std::array<double, N> cq{
-      {262747265, 1637546484, -454944189, 3373884696, -2145575886, 3897945600,
-       -1065220914, 1942518504, 636547389, 1021256716, 952327935}};
-  static constexpr double dq_inv = 1.0 / 958003200;
-};
-template <> struct QintCoefs<9> {
-  static constexpr std::size_t N = 9;
-  static constexpr std::array<double, N> cq{{2082753, 11532470, 261166,
-                                             16263486, -1020160, 12489922,
-                                             5095890, 7783754, 7200319}};
-  static constexpr double dq_inv = 1.0 / 7257600;
-};
-template <> struct QintCoefs<7> {
-  static constexpr std::size_t N = 7;
-  static constexpr std::array<double, N> cq{
-      {36799, 176648, 54851, 177984, 89437, 130936, 119585}};
-  static constexpr double dq_inv = 1.0 / 120960;
-};
-template <> struct QintCoefs<5> {
-  static constexpr std::size_t N = 5;
-  static constexpr std::array<double, N> cq{{475, 1902, 1104, 1586, 1413}};
-  static constexpr double dq_inv = 1.0 / 1440;
-};
-template <> struct QintCoefs<3> {
-  static constexpr std::size_t N = 3;
-  static constexpr std::array<double, N> cq{{9, 28, 23}};
-  static constexpr double dq_inv = 1.0 / 24;
-};
-template <> struct QintCoefs<1> {
-  static constexpr std::size_t N = 1;
-  static constexpr std::array<double, N> cq{{1}};
-  static constexpr double dq_inv = 1.0 / 2;
-};
-
-// instantiate coefs for correct Nquad order:
-constexpr QintCoefs<Nquad> quintcoef;
-constexpr auto cq = quintcoef.cq;
-constexpr auto dq_inv = quintcoef.dq_inv;
-//******************************************************************************
 template <typename C>
 inline double integrate_single(const C &f1, const double dt = 1.,
                                std::size_t beg = 0, std::size_t end = 0)
@@ -122,6 +75,9 @@ inline double integrate_single(const C &f1, const double dt = 1.,
 //   * (beg-end) > 2*Nquad
 //   * end - Nquad > Nquad
 //   * beg + 2*Nquad
+// NB: end-point corrections only applied if beg < Nquad, end > max - nquad
+// Not sure if this is best choice - but it ensures that:
+// int_{a->b} + int_{b->c} = int_{a->c}
 {
 
   auto max_grid = f1.size();
@@ -139,9 +95,6 @@ inline double integrate_single(const C &f1, const double dt = 1.,
     Rint_m += f1[i];
 
   double Rint_e = 0;
-  for (std::size_t i = 0; i < Nquad; i++)
-    Rint_e += cq[i] * f1[max_grid - i - 1];
-
   for (std::size_t i = end_mid; i < end; i++) {
     Rint_e += cq[end_mid + Nquad - i - 1] * f1[i];
   }

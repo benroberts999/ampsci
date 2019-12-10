@@ -386,6 +386,7 @@ double Wavefunction::enGuessVal(int n, int ka) const
   int dn = n - maxn;
   double neff = 1.0 + dn;
   double x = 1;
+  auto Z_eff = m_Z - num_core_electrons;
   if (maxn < 4)
     x = 0.25;
   if (l == 1)
@@ -394,7 +395,7 @@ double Wavefunction::enGuessVal(int n, int ka) const
     neff += 2.0 * std::pow(x, 0.5);
   if (l >= 3)
     neff += 4.0 * x;
-  return -0.5 / std::pow(neff, 2);
+  return -0.5 * Z_eff * Z_eff / std::pow(neff, 2);
 }
 
 //******************************************************************************
