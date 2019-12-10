@@ -174,19 +174,19 @@ int main(int argc, char *argv[]) {
   std::cout << "Worst S:" << Sij.check_symmetric() << "\n";
   // std::cin.get();
 
-  // auto [e_values, e_vectors] = LinAlg::realSymmetricEigensystem(Aij, Sij);
-  auto [e_values, jnk, e_vectors, jnk2] =
-      LinAlg::realNonSymmetricEigensystem(Aij, Sij);
+  auto [e_values, e_vectors] = LinAlg::realSymmetricEigensystem(Aij, Sij);
+  // auto [e_values, jnk, e_vectors, jnk2] =
+  //     LinAlg::realNonSymmetricEigensystem(Aij, Sij);
 
   auto icount2 = 0;
   for (int i = 0; i < e_values.n; i++) {
     auto ev = e_values[i];
-    // if (ev < -137.0 * 137.0)
-    //   continue;
+    if (ev < -137.0 * 137.0)
+      continue;
     icount2++;
     std::cout << i << " " << ev << "\n  ";
-    // if (icount2 > 3)
-    //   break;
+    if (icount2 > 10)
+      break;
     // for (int j = 0; j < e_values.n; j++) {
     //   std::cout << j << " " << e_vectors[i][j] << "\n";
     // }
