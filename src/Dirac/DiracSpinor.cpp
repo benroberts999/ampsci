@@ -151,7 +151,11 @@ DiracSpinor operator*(const std::vector<double> &v, DiracSpinor rhs) {
 
 DiracSpinor &DiracSpinor::operator=(const DiracSpinor &other) {
   // XXX Update kappa and n???
-  if (this != &other) {
+  if (*this != other) {
+    std::cerr << "FAIL 155 in Dirac! Copy asignment\n";
+    std::abort();
+  }
+  if (this != &other) { // same memory location
     en = other.en;
     f = other.f;
     g = other.g;
