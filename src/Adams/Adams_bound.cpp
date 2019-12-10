@@ -4,7 +4,7 @@
 #include "Dirac/DiracSpinor.hpp"
 #include "IO/SafeProfiler.hpp"
 #include "Maths/Grid.hpp"
-#include "Maths/Matrix_linalg.hpp"
+#include "Maths/LinAlg_MatrixVector.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include <algorithm>
 #include <array>

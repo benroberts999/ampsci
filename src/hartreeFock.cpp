@@ -7,7 +7,7 @@
 #include <string>
 //
 #include "Dirac/Operators.hpp"
-#include "Maths/Matrix_linalg.hpp"
+#include "Maths/LinAlg_MatrixVector.hpp"
 #include "testSplines.hpp"
 
 int main(int argc, char *argv[]) {
@@ -174,7 +174,24 @@ int main(int argc, char *argv[]) {
   std::cout << "Worst S:" << Sij.check_symmetric() << "\n";
   // std::cin.get();
 
-  LinAlg::test4(Aij, Sij);
+  // auto [e_values, e_vectors] = LinAlg::realSymmetricEigensystem(Aij, Sij);
+  auto [e_values, jnk, e_vectors, jnk2] =
+      LinAlg::realNonSymmetricEigensystem(Aij, Sij);
+
+  auto icount2 = 0;
+  for (int i = 0; i < e_values.n; i++) {
+    auto ev = e_values[i];
+    // if (ev < -137.0 * 137.0)
+    //   continue;
+    icount2++;
+    std::cout << i << " " << ev << "\n  ";
+    // if (icount2 > 3)
+    //   break;
+    // for (int j = 0; j < e_values.n; j++) {
+    //   std::cout << j << " " << e_vectors[i][j] << "\n";
+    // }
+    // std::cout << "\n";
+  }
 
   // LinAlg::test2(Sij.inverse() * Aij);
 

@@ -28,8 +28,8 @@ Grid {
 }
 
 Basis {
-  number = 60;
-  order = 7;
+  number = 20;
+  order = 4;
   // r0 = 1.0e-6;
   // rmax = 50.0;
   print = false;

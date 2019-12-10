@@ -7,6 +7,8 @@
 //
 #include <gsl/gsl_eigen.h>
 #include <gsl/gsl_math.h>
+#include <tuple>
+#include <utility>
 
 /*
 Eigen probably better option!
@@ -322,173 +324,165 @@ inline Vector solve_Axeqb(SqMatrix &Am, const Vector &b) {
   return x;
 }
 
-inline void test() {
-  double data[] = {1.0,     1 / 2.0, 1 / 3.0, 1 / 4.0, 1 / 2.0, 1 / 3.0,
-                   1 / 4.0, 1 / 5.0, 1 / 3.0, 1 / 4.0, 1 / 5.0, 1 / 6.0,
-                   1 / 4.0, 1 / 5.0, 1 / 6.0, 1 / 7.0};
+//*****************************************************************************
+//*****************************************************************************
+[[nodiscard]] inline std::pair<Vector, SqMatrix>
+realSymmetricEigensystem(SqMatrix &A, bool sort = true) {
+  // Solves Av = ev for eigenvalues e and eigenvectors v
+  // for Real Symmetric Matrices using GSL:
+  // https://www.gnu.org/software/gsl/doc/html/eigen.html#real-symmetric-matrices
+  // Note: This destroys A and B matrices (see below for details).
 
-  gsl_matrix_view m = gsl_matrix_view_array(data, 4, 4);
+  const auto n = A.n;
+  std::pair<Vector, SqMatrix> eigen_vv = std::make_pair(n, n);
+  auto &[e_values, e_vectors] = eigen_vv;
 
-  gsl_vector *eval = gsl_vector_alloc(4);
-  gsl_matrix *evec = gsl_matrix_alloc(4, 4);
+  // This function computes the eigenvalues and eigenvectors of the real
+  // generalized symmetric-definite matrix pair (A, B), and stores them in eval
+  // and evec respectively. The computed eigenvectors are normalized to have
+  // unit magnitude. On output, B contains its Cholesky decomposition and A is
+  // destroyed.
+  gsl_eigen_symmv_workspace *work = gsl_eigen_symmv_alloc(n);
+  gsl_eigen_symmv(A.m, e_values.vec, e_vectors.m, work);
+  gsl_eigen_symmv_free(work);
 
-  gsl_eigen_symmv_workspace *w = gsl_eigen_symmv_alloc(4);
+  if (sort)
+    gsl_eigen_symmv_sort(e_values.vec, e_vectors.m, GSL_EIGEN_SORT_VAL_ASC);
 
-  gsl_eigen_symmv(&m.matrix, eval, evec, w);
-
-  gsl_eigen_symmv_free(w);
-
-  gsl_eigen_symmv_sort(eval, evec, GSL_EIGEN_SORT_ABS_ASC);
-
-  {
-    int i;
-
-    for (i = 0; i < 4; i++) {
-      double eval_i = gsl_vector_get(eval, i);
-      gsl_vector_view evec_i = gsl_matrix_column(evec, i);
-
-      printf("eigenvalue = %g\n", eval_i);
-      printf("eigenvector = \n");
-      gsl_vector_fprintf(stdout, &evec_i.vector, "%g");
-    }
-  }
-
-  gsl_vector_free(eval);
-  gsl_matrix_free(evec);
+  return eigen_vv;
 }
 
-inline void test2(const SqMatrix &B) {
-  // No. Use: Real Generalized Nonsymmetric Eigensystems
-
-  // double data[] = {-1.0, 1.0, -1.0, 1.0, -8.0, 4.0,  -2.0, 1.0,
-  // 27.0, 9.0, 3.0,  1.0, 64.0, 16.0, 4.0,  1.0};
-  //   eigenvalue = -6.41391 + 0i
-  // eigenvalue = 5.54555 + 3.08545i
-  // eigenvalue = 5.54555 + -3.08545i
-  // eigenvalue = 2.3228 + 0i
-
-  // gsl_matrix_view m = gsl_matrix_view_array(B.m, B.n, B.n);
-
-  gsl_vector_complex *eval = gsl_vector_complex_alloc(B.n);
-  gsl_matrix_complex *evec = gsl_matrix_complex_alloc(B.n, B.n);
-
-  gsl_eigen_nonsymmv_workspace *w = gsl_eigen_nonsymmv_alloc(B.n);
-
-  gsl_eigen_nonsymmv(B.m, eval, evec, w);
-
-  gsl_eigen_nonsymmv_free(w);
-
-  gsl_eigen_nonsymmv_sort(eval, evec, GSL_EIGEN_SORT_VAL_ASC);
-
-  {
-
-    for (int i = 0; i < B.n; i++) {
-      if (i < int(B.n / 2))
-        continue;
-      if (i > int(B.n / 2) + 10)
-        break;
-
-      gsl_complex eval_i = gsl_vector_complex_get(eval, i);
-      // gsl_vector_complex_view evec_i = gsl_matrix_complex_column(evec, i);
-
-      // printf("eigenvalue %i = %g + %gi\n", i, GSL_REAL(eval_i),
-      //        GSL_IMAG(eval_i));
-      printf("eigenvalue %i = %g\n", i, GSL_REAL(eval_i));
-      // printf("eigenvector = \n");
-      // for (j = 0; j < 4; ++j) {
-      //   gsl_complex z = gsl_vector_complex_get(&evec_i.vector, j);
-      //   printf("%g + %gi\n", GSL_REAL(z), GSL_IMAG(z));
-      // }
-    }
-  }
-
-  gsl_vector_complex_free(eval);
-  gsl_matrix_complex_free(evec);
-}
-
-inline void test3(const SqMatrix &B, const SqMatrix &S) {
-  // Using: Real Generalized Nonsymmetric Eigensystems
-
-  // double data[] = {-1.0, 1.0, -1.0, 1.0, -8.0, 4.0,  -2.0, 1.0,
-  // 27.0, 9.0, 3.0,  1.0, 64.0, 16.0, 4.0,  1.0};
-  //   eigenvalue = -6.41391 + 0i
-  // eigenvalue = 5.54555 + 3.08545i
-  // eigenvalue = 5.54555 + -3.08545i
-  // eigenvalue = 2.3228 + 0i
-
-  // gsl_matrix_view m = gsl_matrix_view_array(B.m, B.n, B.n);
-  const auto n = B.n;
-
-  gsl_eigen_gen_workspace *work = gsl_eigen_gen_alloc(n);
-
-  // I think this is not needed:
-  gsl_eigen_gen_params(0, 0, 0, work);
-
-  gsl_vector_complex *alpha = gsl_vector_complex_alloc(B.n);
-  gsl_vector *beta = gsl_vector_alloc(B.n);
-  gsl_eigen_gen(B.m, S.m, alpha, beta, work);
-
-  std::vector<double> evals;
-  for (int i = 0; i < B.n; i++) {
-    gsl_complex eval_ai = gsl_vector_complex_get(alpha, i);
-    double eval_bi = gsl_vector_get(beta, i);
-    // gsl_vector_complex_view evec_i = gsl_matrix_complex_column(evec, i);
-
-    auto evr = GSL_REAL(eval_ai) / eval_bi;
-    // auto evi = GSL_IMAG(eval_ai) / eval_bi;
-    evals.push_back(evr);
-    // printf("eigenvalue %i = %g + %gi\n", i, evr, evi);
-  }
-  std::sort(evals.begin(), evals.end());
-  auto icount = 0;
-  for (const auto &ev : evals) {
-    if (icount++ < int(evals.size() / 2))
-      continue;
-    std::cout << icount << " " << ev << "\n";
-    if (icount > int(evals.size() / 2) + 10)
-      break;
-  }
-
-  gsl_eigen_gen_free(work);
-  gsl_vector_complex_free(alpha);
-  gsl_vector_free(beta);
-}
-
-inline void test4(SqMatrix &A, SqMatrix &B) {
-  // Real Generalized Bymmetric-Definite Eigensystems
+//*****************************************************************************
+//------------------------------------------------------------------------------
+[[nodiscard]] inline std::tuple<Vector, Vector, SqMatrix, SqMatrix>
+realNonSymmetricEigensystem(SqMatrix &A, bool sort = true) {
+  // Solves for Av = ev
+  // for Real Nonsymmetric Matrices, using GSL:
+  // https://www.gnu.org/software/gsl/doc/html/eigen.html#real-nonsymmetric-matrices
+  // In general, e-values will be complex
+  // Note: A is destroyed and should not be used afterwards!
 
   const auto n = A.n;
 
-  gsl_eigen_gensymm_workspace *work = gsl_eigen_gensymm_alloc(n);
-  gsl_vector *eval = gsl_vector_alloc(A.n);
+  gsl_eigen_nonsymmv_workspace *work = gsl_eigen_nonsymmv_alloc(n);
+  gsl_vector_complex *eval = gsl_vector_complex_alloc(n);
+  gsl_matrix_complex *evec = gsl_matrix_complex_alloc(n, n);
 
-  // This function computes the eigenvalues of the real generalized
-  // symmetric-definite matrix pair (A, B), and stores them in eval, using the
-  // method outlined above. On output, B contains its Cholesky decomposition
-  // and A is destroyed.
-  gsl_eigen_gensymm(A.m, B.m, eval, work);
+  gsl_eigen_nonsymmv_params(0, work); // I think this is not needed
+  gsl_eigen_nonsymmv(A.m, eval, evec, work);
 
-  {
-    std::vector<double> evals;
-    for (int i = 0; i < A.n; i++) {
-      evals.push_back(gsl_vector_get(eval, i));
-    }
-    std::sort(evals.begin(), evals.end());
-    auto icount1 = 0;
-    auto icount2 = 0;
-    for (const auto &ev : evals) {
-      icount1++;
-      if (ev < -137.0 * 137.0)
-        continue;
-      icount2++;
-      std::cout << icount1 << " " << ev << "\n";
-      if (icount2 > 10)
-        break;
+  if (sort)
+    gsl_eigen_nonsymmv_sort(eval, evec, GSL_EIGEN_SORT_ABS_ASC);
+  //(can only sort by ABS here, unfortunately)
+
+  std::pair<Vector, SqMatrix> eigen_vvR = std::make_pair(n, n);
+  std::pair<Vector, SqMatrix> eigen_vvI = std::make_pair(n, n);
+
+  std::tuple<Vector, Vector, SqMatrix, SqMatrix> eigen_vv =
+      std::make_tuple(n, n, n, n);
+  auto &[eval_R, eval_I, evec_R, evec_I] = eigen_vv;
+
+  for (int i = 0; i < n; ++i) {
+    gsl_complex evali = gsl_vector_complex_get(eval, i);
+    eval_R[i] = (GSL_REAL(evali));
+    eval_I[i] = (GSL_IMAG(evali));
+    gsl_vector_complex_view evec_i = gsl_matrix_complex_column(evec, i);
+    for (int j = 0; j < n; ++j) {
+      gsl_complex z = gsl_vector_complex_get(&evec_i.vector, j);
+      evec_R[i][j] = GSL_REAL(z);
+      evec_I[i][j] = GSL_IMAG(z);
     }
   }
 
-  gsl_eigen_gensymm_free(work);
-  gsl_vector_free(eval);
+  gsl_eigen_nonsymmv_free(work);
+  gsl_vector_complex_free(eval);
+  gsl_matrix_complex_free(evec);
+
+  return eigen_vv;
+}
+
+//------------------------------------------------------------------------------
+[[nodiscard]] inline std::tuple<Vector, Vector, SqMatrix, SqMatrix>
+realNonSymmetricEigensystem(SqMatrix &A, SqMatrix &B, bool sort = true) {
+  // Solves for Av = eBv
+  // for Real Generalized Nonsymmetric Eigensystems, using GSL:
+  // https://www.gnu.org/software/gsl/doc/html/eigen.html#real-generalized-nonsymmetric-eigensystems
+  // In general, e-values will be complex
+  // Note: A and B are destroyed and should not be used afterwards!
+
+  const auto n = A.n;
+
+  gsl_eigen_genv_workspace *work = gsl_eigen_genv_alloc(n);
+  gsl_vector_complex *alpha = gsl_vector_complex_alloc(n);
+  gsl_vector *beta = gsl_vector_alloc(n);
+  gsl_matrix_complex *evec = gsl_matrix_complex_alloc(n, n);
+
+  // This function computes eigenvalues and right eigenvectors of the n-by-n
+  // real generalized nonsymmetric matrix pair (A, B). The eigenvalues are
+  // stored in (alpha, beta) and the eigenvectors are stored in evec. The
+  // computed eigenvectors are normalized to have unit magnitude. On output,
+  // (A, B) contains the generalized Schur form (S, T).
+  // gsl_eigen_gen_params(0, 0, 0, work); // I think this is not needed
+  gsl_eigen_genv(A.m, B.m, alpha, beta, evec, work);
+  // eigen value is = alpha/beta
+
+  if (sort)
+    gsl_eigen_genv_sort(alpha, beta, evec, GSL_EIGEN_SORT_ABS_ASC);
+  //(can only sort by ABS here, unfortunately)
+
+  std::pair<Vector, SqMatrix> eigen_vvR = std::make_pair(n, n);
+  std::pair<Vector, SqMatrix> eigen_vvI = std::make_pair(n, n);
+
+  std::tuple<Vector, Vector, SqMatrix, SqMatrix> eigen_vv =
+      std::make_tuple(n, n, n, n);
+  auto &[eval_R, eval_I, evec_R, evec_I] = eigen_vv;
+
+  for (int i = 0; i < n; ++i) {
+    gsl_complex alphai = gsl_vector_complex_get(alpha, i);
+    double betai = gsl_vector_get(beta, i);
+    eval_R[i] = (GSL_REAL(alphai) / betai);
+    eval_I[i] = (GSL_IMAG(alphai) / betai);
+    gsl_vector_complex_view evec_i = gsl_matrix_complex_column(evec, i);
+    for (int j = 0; j < n; ++j) {
+      gsl_complex z = gsl_vector_complex_get(&evec_i.vector, j);
+      evec_R[i][j] = GSL_REAL(z);
+      evec_I[i][j] = GSL_IMAG(z);
+    }
+  }
+
+  gsl_eigen_genv_free(work);
+  gsl_vector_complex_free(alpha);
+  gsl_vector_free(beta);
+  gsl_matrix_complex_free(evec);
+
+  return eigen_vv;
+}
+
+//------------------------------------------------------------------------------
+[[nodiscard]] inline std::pair<Vector, SqMatrix>
+realSymmetricEigensystem(SqMatrix &A, SqMatrix &B, bool sort = true) {
+  // Solves Av = eBv for eigenvalues e and eigenvectors v
+  // for Real Generalized Symmetric-Definite Eigensystems using GSL:
+  // https://www.gnu.org/software/gsl/doc/html/eigen.html#real-generalized-symmetric-definite-eigensystems
+  // Note: This destroys A and B matrices (see below for details).
+
+  const auto n = A.n;
+  std::pair<Vector, SqMatrix> eigen_vv = std::make_pair(n, n);
+  auto &[e_values, e_vectors] = eigen_vv;
+
+  // This function computes the eigenvalues and eigenvectors of the real
+  // generalized symmetric-definite matrix pair (A, B), and stores them in
+  // eval and evec respectively. The computed eigenvectors are normalized to
+  // have unit magnitude. On output, B contains its Cholesky decomposition and
+  // A is destroyed.
+  gsl_eigen_gensymmv_workspace *work = gsl_eigen_gensymmv_alloc(n);
+  gsl_eigen_gensymmv(A.m, B.m, e_values.vec, e_vectors.m, work);
+  gsl_eigen_gensymmv_free(work);
+
+  if (sort)
+    gsl_eigen_symmv_sort(e_values.vec, e_vectors.m, GSL_EIGEN_SORT_VAL_ASC);
+
+  return eigen_vv;
 }
 
 } // namespace LinAlg
