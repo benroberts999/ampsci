@@ -100,7 +100,7 @@ DiracSpinor &DiracSpinor::operator+=(const DiracSpinor &rhs) {
   // // XXX Here: pinf update_pinf
   if (update_pinf)
     pinf = std::max(pinf, rhs.pinf);
-  auto imax = std::min(pinf, rhs.pinf); // shouldn't be needed, but safer
+  auto imax = std::max(pinf, rhs.pinf); // shouldn't be needed, but safer
   for (std::size_t i = 0; i < imax; i++)
     f[i] += rhs.f[i];
   for (std::size_t i = 0; i < imax; i++)

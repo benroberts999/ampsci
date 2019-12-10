@@ -8,6 +8,7 @@
 //
 #include "Dirac/Operators.hpp"
 #include "Maths/LinAlg_MatrixVector.hpp"
+#include "Physics/AtomData.hpp"
 #include "testSplines.hpp"
 
 int main(int argc, char *argv[]) {
@@ -123,6 +124,12 @@ int main(int argc, char *argv[]) {
   Module::runModules(input, wf);
   // return 1;
 
+  auto nklst = AtomData::listOfMaxn_k("6sp2sd3f");
+  for (const auto &nk : nklst) {
+    std::cout << nk.n << " " << nk.k << "\n";
+  }
+  // return 1;
+
   // Get + setup nuclear parameters
   // auto basis_ok =
   input.check("Basis", {"number", "order", "r0", "rmax", "print"});
@@ -135,63 +142,77 @@ int main(int argc, char *argv[]) {
   // if (k_spl > 0 && n_spl >= k_spl && basis_ok) {
   // BSplines bspl(n_spl, k_spl, wf.rgrid, r0_spl, rmax_spl);
 
-  auto [basis, d_basis] = test_splines(-1, n_spl, k_spl, r0_spl, rmax_spl,
-                                       wf.rgrid, wf.get_alpha());
-  // std::cin.get();
-  // auto basis = wf.core_orbitals;
+  auto bb = form_basis(n_spl, "15sp", k_spl, r0_spl, rmax_spl, wf);
 
   auto Hd = DirectHamiltonian(wf.vnuc, wf.vdir, wf.get_alpha());
 
-  std::cout << "\n\n";
-  LinAlg::SqMatrix Aij((int)basis.size());
-  LinAlg::SqMatrix Sij((int)basis.size());
-#pragma omp parallel for
-  for (auto i = 0; i < (int)basis.size(); i++) {
-    const auto &si = basis[i];
-    auto VexPsi_i = HartreeFock::vex_psia_any(si, wf.core_orbitals);
-    for (auto j = 0; j < (int)basis.size(); j++) {
-      const auto &sj = basis[j];
-      auto VexPsi_j = HartreeFock::vex_psia_any(sj, wf.core_orbitals);
-
-      auto aij =
-          Hd.matrixEl_noD1(si, sj) + 0.5 * ((si * VexPsi_j) + (sj * VexPsi_i));
-      aij -= (si * d_basis[j] + d_basis[i] * sj) / wf.get_alpha();
-
-      // auto aij =
-      //     Hd.matrixEl(si, sj) + 0.0 * ((si * VexPsi_j) + (sj * VexPsi_i));
-
-      Aij[i][j] = aij;
-      Sij[i][j] = si * sj;
-    }
+  for (auto &b : bb) {
+    std::cout << b.symbol() << " " << b.en << " " << b.norm() << "\n";
+    // b.normalise();
+    // auto VexPsi_i = HartreeFock::vex_psia_any(b, wf.core_orbitals);
+    // std::cout << Hd.matrixEl(b, b) + (b * VexPsi_i) << "\n";
   }
-  // std::cout << "\nFilled Matrix\n\n";
 
-  Aij.clip_low(1.0e-8); //?
-  Sij.clip_low(1.0e-8); //?
-  // Aij.make_symmetric(); //?
+  return 1;
 
-  std::cout << "Worst A:" << Aij.check_symmetric() << "\n";
-  std::cout << "Worst S:" << Sij.check_symmetric() << "\n";
-  // std::cin.get();
-
-  auto [e_values, e_vectors] = LinAlg::realSymmetricEigensystem(Aij, Sij);
-  // auto [e_values, jnk, e_vectors, jnk2] =
-  //     LinAlg::realNonSymmetricEigensystem(Aij, Sij);
-
-  auto icount2 = 0;
-  for (int i = 0; i < e_values.n; i++) {
-    auto ev = e_values[i];
-    if (ev < -137.0 * 137.0)
-      continue;
-    icount2++;
-    std::cout << i << " " << ev << "\n  ";
-    if (icount2 > 10)
-      break;
-    // for (int j = 0; j < e_values.n; j++) {
-    //   std::cout << j << " " << e_vectors[i][j] << "\n";
-    // }
-    // std::cout << "\n";
-  }
+  //   auto [basis, d_basis] = form_spline_basis(-1, n_spl, k_spl, r0_spl,
+  //   rmax_spl,
+  //                                             wf.rgrid, wf.get_alpha());
+  //   // std::cin.get();
+  //   // auto basis = wf.core_orbitals;
+  //
+  //   std::cout << "\n\n";
+  //   LinAlg::SqMatrix Aij((int)basis.size());
+  //   LinAlg::SqMatrix Sij((int)basis.size());
+  // #pragma omp parallel for
+  //   for (auto i = 0; i < (int)basis.size(); i++) {
+  //     const auto &si = basis[i];
+  //     auto VexPsi_i = HartreeFock::vex_psia_any(si, wf.core_orbitals);
+  //     for (auto j = 0; j < (int)basis.size(); j++) {
+  //       const auto &sj = basis[j];
+  //       auto VexPsi_j = HartreeFock::vex_psia_any(sj, wf.core_orbitals);
+  //
+  //       auto aij =
+  //           Hd.matrixEl_noD1(si, sj) + 0.5 * ((si * VexPsi_j) + (sj *
+  //           VexPsi_i));
+  //       aij -= (si * d_basis[j] + d_basis[i] * sj) / wf.get_alpha();
+  //
+  //       // auto aij =
+  //       //     Hd.matrixEl(si, sj) + 0.5 * ((si * VexPsi_j) + (sj *
+  //       VexPsi_i));
+  //
+  //       Aij[i][j] = aij;
+  //       Sij[i][j] = si * sj;
+  //     }
+  //   }
+  //   // std::cout << "\nFilled Matrix\n\n";
+  //
+  //   // Aij.clip_low(1.0e-8); //?
+  //   // Sij.clip_low(1.0e-8); //?
+  //   // Aij.make_symmetric(); //?
+  //
+  //   std::cout << "Worst A:" << Aij.check_symmetric() << "\n";
+  //   std::cout << "Worst S:" << Sij.check_symmetric() << "\n";
+  //   // std::cin.get();
+  //
+  //   auto [e_values, e_vectors] = LinAlg::realSymmetricEigensystem(Aij, Sij);
+  //   // auto [e_values, jnk, e_vectors, jnk2] =
+  //   //     LinAlg::realNonSymmetricEigensystem(Aij, Sij);
+  //
+  //   auto icount2 = 0;
+  //   for (int i = 0; i < e_values.n; i++) {
+  //     auto ev = e_values[i];
+  //     if (ev < -137.0 * 137.0)
+  //       continue;
+  //     icount2++;
+  //     std::cout << i << " " << ev << "\n  ";
+  //     if (icount2 > 10)
+  //       break;
+  //     // for (int j = 0; j < e_values.n; j++) {
+  //     //   std::cout << j << " " << e_vectors[i][j] << "\n";
+  //     // }
+  //     // std::cout << "\n";
+  //   }
 
   // LinAlg::test2(Sij.inverse() * Aij);
 
