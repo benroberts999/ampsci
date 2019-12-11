@@ -25,7 +25,8 @@ public:
 
 public:
   SqMatrix(int in_n);
-  template <typename T> SqMatrix(const std::initializer_list<T> &l);
+  // template <typename T>
+  SqMatrix(const std::initializer_list<double> &l);
   ~SqMatrix();
   // copy+/assignment: doesn't copy LU etc!
   SqMatrix(const SqMatrix &matrix);           // copy constructor;

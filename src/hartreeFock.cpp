@@ -124,32 +124,25 @@ int main(int argc, char *argv[]) {
   // Module::runModules(input, wf);
   // return 1;
 
-  auto nklst = AtomData::listOfMaxn_k("6sp2sd3f");
-  for (const auto &nk : nklst) {
-    std::cout << nk.n << " " << nk.k << "\n";
-  }
-  // return 1;
-
   // Get + setup nuclear parameters
   // auto basis_ok =
-  input.check("Basis", {"number", "order", "r0", "rmax", "print"});
+  input.check("Basis", {"number", "order", "r0", "rmax", "print", "states"});
   auto n_spl = input.get("Basis", "number", 0ul);
   auto k_spl = input.get("Basis", "order", 0ul);
   auto r0_spl = input.get("Basis", "r0", 0.0);
   auto rmax_spl = input.get("Basis", "rmax", 0.0);
+  auto basis_states = input.get<std::string>("Basis", "states", "");
   // auto print_spl = input.get("Basis", "print", false);
 
   // if (k_spl > 0 && n_spl >= k_spl && basis_ok) {
   // BSplines bspl(n_spl, k_spl, wf.rgrid, r0_spl, rmax_spl);
 
-  auto bb = form_basis(n_spl, "15sp", k_spl, r0_spl, rmax_spl, wf);
+  auto bb = form_basis(n_spl, basis_states, k_spl, r0_spl, rmax_spl, wf);
 
   auto Hd = DirectHamiltonian(wf.vnuc, wf.vdir, wf.get_alpha());
 
   for (auto &bx : bb) {
     std::cout << bx.symbol() << " ";
-    bx.normalise();
-    std::cout << "[" << bx.p0 << "," << bx.pinf << ") :";
     auto VexPsi_i = HartreeFock::vex_psia_any(bx, wf.core_orbitals);
     auto Hbb = Hd.matrixEl(bx, bx) + (bx * VexPsi_i);
     printf("%.5e, %.5e, %.1e\n", bx.en, Hbb, (Hbb - bx.en) / bx.en);

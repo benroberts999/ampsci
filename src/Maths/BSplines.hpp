@@ -27,13 +27,14 @@ public:
                 << m_number_n << "\n";
       // std::abort();
     }
-    std::cout << "Constructing " << m_number_n << " B-splines of order "
-              << m_order_k << " on: \n "
-              << GridParameters::parseType(m_rgrid_ptr->gridtype)
-              << " sub-grid: ";
-    std::cout << m_rgrid_ptr->r[m_rmin_index] << " -> "
-              << m_rgrid_ptr->r[m_rmax_index] << "  (";
-    std::cout << m_rmin_index << " -> " << m_rmax_index << ")\n";
+    if (verbose) {
+      std::cout << "B-splines: " << m_number_n << " of order " << m_order_k
+                << ". " << GridParameters::parseType(m_rgrid_ptr->gridtype)
+                << " subgrid ";
+      std::cout << m_rgrid_ptr->r[m_rmin_index] << ","
+                << m_rgrid_ptr->r[m_rmax_index] << "=[";
+      std::cout << m_rmin_index << "," << m_rmax_index << "]\n";
+    }
     construct_splines_gsl();
     // print_knots();
   }
@@ -63,6 +64,8 @@ private: // data
   std::vector<std::vector<double>> m_dBkdr2;
   std::vector<std::pair<std::size_t, std::size_t>> m_ends;
 
+  bool verbose = false;
+
 public:
   std::size_t get_n() const { return m_number_n; }
   std::size_t get_k() const { return m_order_k; }
@@ -82,14 +85,6 @@ public:
   }
 
   void derivitate() {
-
-    // m_dBkdr.clear();
-    // for (auto &Bk : m_Bk) {
-    //   m_dBkdr.push_back(
-    //       NumCalc::derivative(Bk, m_rgrid_ptr->drdu, m_rgrid_ptr->du,
-    //       n_deriv));
-    // }
-    // Almost correct /\, but small deviations at small r, large r?
 
     auto n_max_deriv = 2;
 

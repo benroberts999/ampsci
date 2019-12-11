@@ -24,13 +24,13 @@ inline auto form_spline_basis(const int kappa, const std::size_t n_states,
   BSplines bspl(n_spl, k_spl, rgrid, r0_spl, rmax_spl);
   bspl.derivitate();
 
-  std::pair<std::vector<DiracSpinor>, std::vector<DiracSpinor>> basis_both;
-  auto &[basis, d_basis_g] = basis_both;
+  // std::pair<std::vector<DiracSpinor>, std::vector<DiracSpinor>> basis_both;
+  // auto &[basis, d_basis_g] = basis_both;
 
-  // auto n_count = 1;
+  std::vector<DiracSpinor> basis;
+
   for (auto i = imin; i < imax; i++) {
-    basis.emplace_back(0, kappa, rgrid);
-    auto &phi = basis.back();
+    auto &phi = basis.emplace_back(0, kappa, rgrid);
 
     auto Bi = bspl.get_spline(i);
     auto dBi = bspl.get_spline_deriv(i);
@@ -46,8 +46,7 @@ inline auto form_spline_basis(const int kappa, const std::size_t n_states,
   }
 
   for (auto i = imin; i < imax; i++) {
-    basis.emplace_back(0, kappa, rgrid);
-    auto &phi = basis.back();
+    auto &phi = basis.emplace_back(0, kappa, rgrid);
 
     auto Bi = bspl.get_spline(i);
     auto dBi = bspl.get_spline_deriv(i);
@@ -62,40 +61,35 @@ inline auto form_spline_basis(const int kappa, const std::size_t n_states,
     phi.p0 = p0;
   }
 
-  // n_count = 1;
-  for (auto i = imin; i < imax; i++) {
-    d_basis_g.emplace_back(0, kappa, rgrid);
-    auto &phi = d_basis_g.back();
+  // // n_count = 1;
+  // for (auto i = imin; i < imax; i++) {
+  //   d_basis_g.emplace_back(0, kappa, rgrid);
+  //   auto &phi = d_basis_g.back();
+  //   auto Bi = bspl.get_spline(i);
+  //   auto dBi = bspl.get_spline_deriv(i);
+  //   auto d2Bi = bspl.get_spline_deriv2(i);
+  //   auto dBior = NumCalc::mult_vectors(rgrid.inverse_r(), dBi);
+  //   auto tmp = NumCalc::mult_vectors(rgrid.inverse_r(), Bi);
+  //   auto Bor2 = NumCalc::mult_vectors(rgrid.inverse_r(), tmp);
+  //   NumCalc::scaleVec(dBior, double(kappa));
+  //   NumCalc::scaleVec(Bor2, double(-kappa));
+  //   phi.f = NumCalc::add_vectors(d2Bi, dBior, Bor2);
+  //   NumCalc::scaleVec(phi.f, 0.5 * alpha);
+  //   auto [p0, pinf] = bspl.get_ends(i);
+  //   phi.pinf = pinf;
+  //   phi.p0 = p0;
+  // }
+  // for (auto i = imin; i < imax; i++) {
+  //   d_basis_g.emplace_back(0, kappa, rgrid);
+  //   auto &phi = d_basis_g.back();
+  //   auto dBi = bspl.get_spline_deriv(i);
+  //   phi.f = dBi;
+  //   auto [p0, pinf] = bspl.get_ends(i);
+  //   phi.pinf = pinf;
+  //   phi.p0 = p0;
+  // }
 
-    auto Bi = bspl.get_spline(i);
-    auto dBi = bspl.get_spline_deriv(i);
-    auto d2Bi = bspl.get_spline_deriv2(i);
-    auto dBior = NumCalc::mult_vectors(rgrid.inverse_r(), dBi);
-    auto tmp = NumCalc::mult_vectors(rgrid.inverse_r(), Bi);
-    auto Bor2 = NumCalc::mult_vectors(rgrid.inverse_r(), tmp);
-    NumCalc::scaleVec(dBior, double(kappa));
-    NumCalc::scaleVec(Bor2, double(-kappa));
-    phi.f = NumCalc::add_vectors(d2Bi, dBior, Bor2);
-    NumCalc::scaleVec(phi.f, 0.5 * alpha);
-
-    auto [p0, pinf] = bspl.get_ends(i);
-    phi.pinf = pinf;
-    phi.p0 = p0;
-  }
-
-  for (auto i = imin; i < imax; i++) {
-    d_basis_g.emplace_back(0, kappa, rgrid);
-    auto &phi = d_basis_g.back();
-
-    auto dBi = bspl.get_spline_deriv(i);
-    phi.f = dBi;
-
-    auto [p0, pinf] = bspl.get_ends(i);
-    phi.pinf = pinf;
-    phi.p0 = p0;
-  }
-
-  return basis_both;
+  return basis;
 }
 
 inline auto form_basis(const std::size_t n_spl, const std::string &states_str,
@@ -114,30 +108,20 @@ inline auto form_basis(const std::size_t n_spl, const std::string &states_str,
     auto l = AtomData::l_k(kappa);
     auto max_n = nk.n;
     auto min_n = l + 1;
-    // auto n_states = max_n - min_n + 1;
-    // std::cout << max_n << " " << min_n << " " << n_states << " " << k_spl
-    //           << "\n";
-    auto [b_basis, d_basis] = form_spline_basis(
-        kappa, n_spl, k_spl, r0_spl, rmax_spl, wf.rgrid, wf.get_alpha());
 
-    // (void)d_basis; // XXX
+    // auto [b_basis, d_basis] = form_spline_basis(
+    //     kappa, n_spl, k_spl, r0_spl, rmax_spl, wf.rgrid, wf.get_alpha());
+    auto spl_basis = form_spline_basis(kappa, n_spl, k_spl, r0_spl, rmax_spl,
+                                       wf.rgrid, wf.get_alpha());
 
-    LinAlg::SqMatrix Aij((int)b_basis.size());
-    LinAlg::SqMatrix Sij((int)b_basis.size());
+    LinAlg::SqMatrix Aij((int)spl_basis.size());
+    LinAlg::SqMatrix Sij((int)spl_basis.size());
 #pragma omp parallel for
-    for (auto i = 0; i < (int)b_basis.size(); i++) {
-      const auto &si = b_basis[i];
+    for (auto i = 0; i < (int)spl_basis.size(); i++) {
+      const auto &si = spl_basis[i];
       auto VexPsi_i = HartreeFock::vex_psia_any(si, wf.core_orbitals);
-      for (auto j = 0; j < (int)b_basis.size(); j++) {
-        const auto &sj = b_basis[j];
-        // auto VexPsi_j = HartreeFock::vex_psia_any(sj, wf.core_orbitals);
-
-        // auto aij = Hd.matrixEl_noD1(si, sj) +
-        //            0.5 * ((si * VexPsi_j) + (sj * VexPsi_i));
-        // aij -= (si * d_basis[j] + d_basis[i] * sj) / wf.get_alpha();
-
-        // auto aij =
-        //     Hd.matrixEl(si, sj) + 0.5 * ((si * VexPsi_j) + (sj * VexPsi_i));
+      for (auto j = 0; j < (int)spl_basis.size(); j++) {
+        const auto &sj = spl_basis[j];
 
         // auto aij = Hd.matrixEl_noD1(si, sj) + (sj * VexPsi_i);
         // aij -= (si * d_basis[j] + d_basis[i] * sj) / wf.get_alpha();
@@ -148,40 +132,31 @@ inline auto form_basis(const std::size_t n_spl, const std::string &states_str,
         Sij[i][j] = si * sj;
       }
     }
-
-    Aij.make_symmetric();
-    std::cout << Aij.check_symmetric() << "\n";
-    // std::cin.get();
+    Aij.make_symmetric(); // very slight asymmetry from exchange pot.
 
     auto [e_values, e_vectors] = LinAlg::realSymmetricEigensystem(Aij, Sij);
 
-    // auto tmp = e_vectors.transpose();
-    // e_vectors = tmp; //?
-
-    const auto negmc2 = -1.0 / (wf.get_alpha() * wf.get_alpha());
+    const auto neg_mc2 = -1.0 / (wf.get_alpha() * wf.get_alpha());
     auto pqn = min_n - 1;
     auto pqn_pstrn = -min_n + 1;
     for (int i = 0; i < e_values.n; i++) {
-      // std::cout << i << " " << pqn << " " << pqn_pstrn << "\n";
       const auto &en = e_values[i];
       const auto &pvec = e_vectors[i];
-      if (en > negmc2)
-        pqn++;
-      else
-        pqn_pstrn--;
-      if (en > negmc2 && pqn > max_n) {
-        break; // XXX positron states too!
+      if (en > neg_mc2) {
+        if (++pqn > max_n)
+          continue;
+      } else {
+        if (--pqn_pstrn < -max_n)
+          continue;
       }
-      auto &phi = (en > negmc2)
+      auto &phi = (en > neg_mc2)
                       ? basis.emplace_back(pqn, kappa, wf.rgrid)
                       : basis_positron.emplace_back(pqn_pstrn, kappa, wf.rgrid);
       phi.en = en;
-      phi.p0 = b_basis[0].p0;
-      phi.pinf = b_basis[0].pinf;
-      for (std::size_t ib = 0; ib < b_basis.size(); ++ib) {
-        // XXX This isn't working!
-        // phi += pvec[ib] * b_basis[ib];
-        phi += e_vectors[ib][i] * b_basis[ib];
+      phi.p0 = spl_basis[0].p0;
+      phi.pinf = spl_basis[0].pinf;
+      for (std::size_t ib = 0; ib < spl_basis.size(); ++ib) {
+        phi += pvec[ib] * spl_basis[ib];
       }
       phi.normalise();
     }

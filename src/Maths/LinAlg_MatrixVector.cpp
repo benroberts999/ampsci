@@ -1,6 +1,7 @@
 #include "LinAlg_MatrixVector.hpp"
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <gsl/gsl_eigen.h>
 #include <gsl/gsl_linalg.h>
 #include <gsl/gsl_math.h>
@@ -16,8 +17,8 @@ namespace LinAlg {
 // class SqMatrix:
 SqMatrix::SqMatrix(int in_n) : n(in_n), m(gsl_matrix_alloc(in_n, in_n)) {}
 
-template <typename T>
-SqMatrix::SqMatrix(const std::initializer_list<T> &l)
+// template <typename T>
+SqMatrix::SqMatrix(const std::initializer_list<double> &l)
     : n((int)std::sqrt((int)l.size())), m(gsl_matrix_alloc(n, n)) {
   auto i = 0;
   for (auto el : l)
@@ -101,6 +102,7 @@ void SqMatrix::print() {
   for (int i = 0; i < n; ++i) {
     for (int j = 0; j < n; ++j) {
       printf("%8.1e ", (*this)[i][j]);
+      // std::cout << (long)&((*this)[i][j]) << " ";
     }
     std::cout << "\n";
   }
@@ -326,6 +328,9 @@ Vector solve_Axeqb(SqMatrix &Am, const Vector &b) {
 }
 
 //*****************************************************************************
+// Eigensystems using GSL. NOTE: e-vectors are stored in COLUMNS (not rows) of
+// matrix! Therefore, we transpose the matrix (duuumb)
+//*****************************************************************************
 std::pair<Vector, SqMatrix> realSymmetricEigensystem(SqMatrix &A, bool sort) {
   // Solves Av = ev for eigenvalues e and eigenvectors v
   // for Real Symmetric Matrices using GSL:
@@ -347,6 +352,9 @@ std::pair<Vector, SqMatrix> realSymmetricEigensystem(SqMatrix &A, bool sort) {
 
   if (sort)
     gsl_eigen_symmv_sort(e_values.vec, e_vectors.m, GSL_EIGEN_SORT_VAL_ASC);
+
+  auto tmp = e_vectors.transpose();
+  e_vectors = tmp;
 
   return eigen_vv;
 }
@@ -374,6 +382,9 @@ std::pair<Vector, SqMatrix> realSymmetricEigensystem(SqMatrix &A, SqMatrix &B,
 
   if (sort)
     gsl_eigen_symmv_sort(e_values.vec, e_vectors.m, GSL_EIGEN_SORT_VAL_ASC);
+
+  auto tmp = e_vectors.transpose();
+  e_vectors = tmp;
 
   return eigen_vv;
 }
@@ -415,7 +426,7 @@ realNonSymmetricEigensystem(SqMatrix &A, bool sort) {
     for (int j = 0; j < n; ++j) {
       gsl_complex z = gsl_vector_complex_get(&evec_i.vector, j);
       evec_R[i][j] = GSL_REAL(z);
-      evec_I[i][j] = GSL_IMAG(z);
+      evec_I[i][j] = GSL_IMAG(z); // already ok? check!
     }
   }
 
@@ -471,7 +482,7 @@ realNonSymmetricEigensystem(SqMatrix &A, SqMatrix &B, bool sort) {
     for (int j = 0; j < n; ++j) {
       gsl_complex z = gsl_vector_complex_get(&evec_i.vector, j);
       evec_R[i][j] = GSL_REAL(z);
-      evec_I[i][j] = GSL_IMAG(z);
+      evec_I[i][j] = GSL_IMAG(z); // already ok? check!
     }
   }
 
