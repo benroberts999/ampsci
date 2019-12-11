@@ -8,7 +8,7 @@
 #include <utility>
 #include <vector>
 
-constexpr bool update_pinf = false; // for psi += psi'
+constexpr bool update_pinf = true; // for psi += psi'
 // XXX If true, sets all to num_points! [when damping orbitals!?]
 
 //******************************************************************************
@@ -96,6 +96,11 @@ double operator*(const DiracSpinor &lhs, const DiracSpinor &rhs) {
 
 DiracSpinor &DiracSpinor::operator+=(const DiracSpinor &rhs) {
   // // XXX Here: pinf update_pinf
+  if (this->k != rhs.k) {
+    std::cerr
+        << "Fail 100 in DiracSpinor: cannot add spinors of different kappa!\n";
+    std::abort();
+  }
   if (update_pinf)
     pinf = std::max(pinf, rhs.pinf);
   auto imax = std::min(pinf, rhs.pinf); // shouldn't be needed, but safer
@@ -111,6 +116,11 @@ DiracSpinor operator+(DiracSpinor lhs, const DiracSpinor &rhs) {
 }
 DiracSpinor &DiracSpinor::operator-=(const DiracSpinor &rhs) {
   // XXX Here: pinf update_pinf
+  if (this->k != rhs.k) {
+    std::cerr
+        << "Fail 121 in DiracSpinor: cannot add spinors of different kappa!\n";
+    std::abort();
+  }
   if (update_pinf)
     pinf = std::max(pinf, rhs.pinf);
   auto imax = std::min(pinf, rhs.pinf); // shouldn't be needed, but safer
@@ -148,7 +158,12 @@ DiracSpinor operator*(const std::vector<double> &v, DiracSpinor rhs) {
 }
 
 DiracSpinor &DiracSpinor::operator=(const DiracSpinor &other) {
-  if (this != &other) {
+  if (*this != other) { // same n and kappa
+    std::cerr
+        << "Fail 152 in DiracSpinor: cannot assign spinors of different nk\n";
+    std::abort();
+  }
+  if (this != &other) { // same memory location
     en = other.en;
     f = other.f;
     g = other.g;
