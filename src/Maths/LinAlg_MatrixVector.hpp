@@ -40,7 +40,7 @@ public:
   void clip_low(double value);
   void clip_high(double value);
 
-  void make_symmetric();
+  void make_symmetric(); // change to "symmetrise"
   double check_symmetric();
   void print();
 
@@ -82,14 +82,20 @@ public:
   void clip_high(const double value);
   void print();
 
+  // add inner product, outerproduct
+
   double &operator[](int i) const;
   Vector &operator+=(const Vector rhs);
-  friend Vector operator+(Vector lhs, const Vector &rhs);
+  [[nodiscard]] friend Vector operator+(Vector lhs, const Vector &rhs);
   Vector &operator-=(const Vector rhs);
-  friend Vector operator-(Vector lhs, const Vector &rhs);
+  [[nodiscard]] friend Vector operator-(Vector lhs, const Vector &rhs);
   Vector &operator*=(const double x);
-  friend Vector operator*(const double x, Vector rhs);
-  friend Vector operator*(const SqMatrix &Aij, const Vector &bj);
+  [[nodiscard]] friend Vector operator*(const double x, Vector rhs);
+  [[nodiscard]] friend Vector operator*(const SqMatrix &Aij, const Vector &bj);
+
+  [[nodiscard]] friend double inner_produce(const Vector &a, const Vector &b);
+  [[nodiscard]] friend double operator*(const Vector &a, const Vector &b);
+  [[nodiscard]] friend SqMatrix outer_produce(const Vector &a, const Vector &b);
 };
 
 //******************************************************************************

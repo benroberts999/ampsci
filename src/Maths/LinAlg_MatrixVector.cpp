@@ -287,6 +287,28 @@ Vector operator*(const SqMatrix &Aij, const Vector &bj) {
   return ci;
 }
 
+double inner_produce(const Vector &a, const Vector &b) {
+  auto ip = 0.0;
+  for (auto i = 0; i < a.n; ++i) {
+    ip += a[i] * b[i];
+  }
+  return ip;
+}
+
+double operator*(const Vector &a, const Vector &b) {
+  return inner_produce(a, b);
+}
+
+SqMatrix outer_produce(const Vector &a, const Vector &b) {
+  SqMatrix op(a.n);
+  for (auto i = 0; i < a.n; ++i) {
+    for (auto j = 0; j < a.n; ++j) {
+      op[i][j] = a[i] * b[j];
+    }
+  }
+  return op;
+}
+
 //******************************************************************************
 //******************************************************************************
 // Solve LinAlg equations:
