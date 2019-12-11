@@ -47,20 +47,24 @@ double DiracSpinor::norm() const { return std::sqrt((*this) * (*this)); }
 
 //******************************************************************************
 void DiracSpinor::scale(const double factor) {
-  for (std::size_t i = 0; i < pinf; ++i)
+  for (std::size_t i = p0; i < pinf; ++i)
     f[i] *= factor;
-  for (std::size_t i = 0; i < pinf; ++i)
+  for (std::size_t i = p0; i < pinf; ++i)
     g[i] *= factor;
   // // XXX Need this for some reason!??
   // Means something beyond pinf is hapenning!?!? XXX XXX
-  for (std::size_t i = pinf; i < f.size(); ++i)
+  for (std::size_t i = pinf; i < f.size(); ++i) { // shouln't be needed!
     f[i] = 0;
-  for (std::size_t i = pinf; i < f.size(); ++i)
     g[i] = 0;
+  }
+  for (std::size_t i = 0; i < p0; ++i) { // shouln't be needed!
+    f[i] = 0;
+    g[i] = 0;
+  }
 }
 //------------------------------------------------------------------------------
 void DiracSpinor::scale(const std::vector<double> &v) {
-  for (std::size_t i = 0; i < pinf; ++i) {
+  for (std::size_t i = p0; i < pinf; ++i) {
     f[i] *= v[i];
     g[i] *= v[i];
   }
@@ -103,12 +107,15 @@ DiracSpinor &DiracSpinor::operator+=(const DiracSpinor &rhs) {
         << "Fail 100 in DiracSpinor: cannot add spinors of different kappa!\n";
     std::abort();
   }
-  if (update_pinf)
+  if (update_pinf) {
     pinf = std::max(pinf, rhs.pinf);
-  auto imax = std::max(pinf, rhs.pinf); // shouldn't be needed, but safer
-  for (std::size_t i = 0; i < imax; i++)
+    p0 = std::min(p0, rhs.p0);
+  }
+  auto imax = std::min(pinf, rhs.pinf); // shouldn't be needed, but safer
+  auto imin = std::max(p0, rhs.p0);     // shouldn't be needed, but safer
+  for (std::size_t i = imin; i < imax; i++)
     f[i] += rhs.f[i];
-  for (std::size_t i = 0; i < imax; i++)
+  for (std::size_t i = imin; i < imax; i++)
     g[i] += rhs.g[i];
   return *this;
 }
@@ -123,12 +130,15 @@ DiracSpinor &DiracSpinor::operator-=(const DiracSpinor &rhs) {
         << "Fail 121 in DiracSpinor: cannot add spinors of different kappa!\n";
     std::abort();
   }
-  if (update_pinf)
+  if (update_pinf) {
     pinf = std::max(pinf, rhs.pinf);
+    p0 = std::min(p0, rhs.p0);
+  }
   auto imax = std::min(pinf, rhs.pinf); // shouldn't be needed, but safer
-  for (std::size_t i = 0; i < imax; i++)
+  auto imin = std::max(p0, rhs.p0);     // shouldn't be needed, but safer
+  for (std::size_t i = imin; i < imax; i++)
     f[i] -= rhs.f[i];
-  for (std::size_t i = 0; i < imax; i++)
+  for (std::size_t i = imin; i < imax; i++)
     g[i] -= rhs.g[i];
   return *this;
 }
@@ -171,6 +181,7 @@ DiracSpinor &DiracSpinor::operator=(const DiracSpinor &other) {
     g = other.g;
     p0 = other.p0;
     pinf = other.pinf;
+    occ_frac = other.occ_frac;
   }
   return *this;
 }

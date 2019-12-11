@@ -121,7 +121,7 @@ int main(int argc, char *argv[]) {
   wf.printValence(sorted);
 
   // run each of the modules
-  Module::runModules(input, wf);
+  // Module::runModules(input, wf);
   // return 1;
 
   auto nklst = AtomData::listOfMaxn_k("6sp2sd3f");
@@ -146,12 +146,17 @@ int main(int argc, char *argv[]) {
 
   auto Hd = DirectHamiltonian(wf.vnuc, wf.vdir, wf.get_alpha());
 
-  for (auto &b : bb) {
-    std::cout << b.symbol() << " " << b.en << " " << b.norm() << "\n";
-    // b.normalise();
-    // auto VexPsi_i = HartreeFock::vex_psia_any(b, wf.core_orbitals);
-    // std::cout << Hd.matrixEl(b, b) + (b * VexPsi_i) << "\n";
+  for (auto &bx : bb) {
+    std::cout << bx.symbol() << " ";
+    bx.normalise();
+    std::cout << "[" << bx.p0 << "," << bx.pinf << ") :";
+    auto VexPsi_i = HartreeFock::vex_psia_any(bx, wf.core_orbitals);
+    auto Hbb = Hd.matrixEl(bx, bx) + (bx * VexPsi_i);
+    printf("%.5e, %.5e, %.1e\n", bx.en, Hbb, (Hbb - bx.en) / bx.en);
   }
+
+  wf.valence_orbitals = bb;
+  Module::runModules(input, wf);
 
   return 1;
 

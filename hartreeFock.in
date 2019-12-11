@@ -6,7 +6,7 @@ Atom {
 
 HartreeFock {
   core = [Xe];
-  valence = 7sp;
+  valence = 0sp;
   method; // HartreeFock(dflt), ApproxHF, Hartree, GreenPRM, TietzPRM
 }
 
@@ -20,18 +20,18 @@ Nucleus {
 
 Grid {
   r0 = 1e-7;
-  rmax = 150.0;
+  rmax = 75.0;
   num_points = 3000;
   // fixed_du = 0.1;     // over-writes num_points
-  type = logarithmic; // loglinear(dflt), logarithmic, linear
-  b;                  // b<0, or b>rmax will use logarithmic
+  type; // loglinear(dflt), logarithmic, linear
+  // b = 20.0; // b<0, or b>rmax will use logarithmic
 }
 
 Basis {
-  number = 90;
-  order = 7;
+  number = 70;
+  order = 9;
   // r0 = 1.0e-6;
-  rmax = 150.0;
+  rmax = 70.0;
   print = false;
 }
 
@@ -68,8 +68,7 @@ Module::Tests {
   printF = false;
 }
 
-// Module::WriteOrbitals
-{ label = outputLabel; }
+// Module::WriteOrbitals { label = outputLabel; }
 // Plot in GNUPLOT like: (e.g.)
 // plot for [i=2:20] "file.txt" u 1:i every :::0::0  w l t columnheader(i)
 // plot for [i=2:20] "file.txt" u 1:i every :::1::1  w l t columnheader(i)

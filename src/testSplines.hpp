@@ -98,7 +98,7 @@ inline auto form_spline_basis(const int kappa, const std::size_t n_states,
   return basis_both;
 }
 
-inline auto form_basis(const int n_spl, const std::string &states_str,
+inline auto form_basis(const std::size_t n_spl, const std::string &states_str,
                        const std::size_t k_spl, const double r0_spl,
                        const double rmax_spl, const Wavefunction &wf) {
   //
@@ -120,6 +120,8 @@ inline auto form_basis(const int n_spl, const std::string &states_str,
     auto [b_basis, d_basis] = form_spline_basis(
         kappa, n_spl, k_spl, r0_spl, rmax_spl, wf.rgrid, wf.get_alpha());
 
+    // (void)d_basis; // XXX
+
     LinAlg::SqMatrix Aij((int)b_basis.size());
     LinAlg::SqMatrix Sij((int)b_basis.size());
 #pragma omp parallel for
@@ -128,21 +130,33 @@ inline auto form_basis(const int n_spl, const std::string &states_str,
       auto VexPsi_i = HartreeFock::vex_psia_any(si, wf.core_orbitals);
       for (auto j = 0; j < (int)b_basis.size(); j++) {
         const auto &sj = b_basis[j];
-        auto VexPsi_j = HartreeFock::vex_psia_any(sj, wf.core_orbitals);
+        // auto VexPsi_j = HartreeFock::vex_psia_any(sj, wf.core_orbitals);
 
         // auto aij = Hd.matrixEl_noD1(si, sj) +
         //            0.5 * ((si * VexPsi_j) + (sj * VexPsi_i));
         // aij -= (si * d_basis[j] + d_basis[i] * sj) / wf.get_alpha();
 
-        auto aij =
-            Hd.matrixEl(si, sj) + 0.5 * ((si * VexPsi_j) + (sj * VexPsi_i));
+        // auto aij =
+        //     Hd.matrixEl(si, sj) + 0.5 * ((si * VexPsi_j) + (sj * VexPsi_i));
+
+        // auto aij = Hd.matrixEl_noD1(si, sj) + (sj * VexPsi_i);
+        // aij -= (si * d_basis[j] + d_basis[i] * sj) / wf.get_alpha();
+
+        auto aij = Hd.matrixEl(si, sj) + (sj * VexPsi_i);
 
         Aij[i][j] = aij;
         Sij[i][j] = si * sj;
       }
     }
 
+    Aij.make_symmetric();
+    std::cout << Aij.check_symmetric() << "\n";
+    // std::cin.get();
+
     auto [e_values, e_vectors] = LinAlg::realSymmetricEigensystem(Aij, Sij);
+
+    // auto tmp = e_vectors.transpose();
+    // e_vectors = tmp; //?
 
     const auto negmc2 = -1.0 / (wf.get_alpha() * wf.get_alpha());
     auto pqn = min_n - 1;
@@ -162,10 +176,14 @@ inline auto form_basis(const int n_spl, const std::string &states_str,
                       ? basis.emplace_back(pqn, kappa, wf.rgrid)
                       : basis_positron.emplace_back(pqn_pstrn, kappa, wf.rgrid);
       phi.en = en;
+      phi.p0 = b_basis[0].p0;
+      phi.pinf = b_basis[0].pinf;
       for (std::size_t ib = 0; ib < b_basis.size(); ++ib) {
         // XXX This isn't working!
-        phi += pvec[ib] * b_basis[ib];
+        // phi += pvec[ib] * b_basis[ib];
+        phi += e_vectors[ib][i] * b_basis[ib];
       }
+      phi.normalise();
     }
 
   } // end loop over kappa
