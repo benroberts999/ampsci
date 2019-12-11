@@ -5,7 +5,7 @@ $(SD)/Modules/Module_runModules.hpp $(SD)/DMionisation/Module_atomicKernal.hpp \
 $(SD)/Dirac/DiracOperator.hpp $(SD)/Dirac/Operators.hpp \
 $(SD)/Dirac/Wavefunction.hpp $(SD)/IO/UserInput.hpp \
 $(SD)/Modules/Module_fitParametric.hpp $(SD)/Modules/Module_matrixElements.hpp \
-$(SD)/Physics/PhysConst_constants.hpp
+$(SD)/Physics/PhysConst_constants.hpp $(SD)/HF/HartreeFockClass.hpp
 	$(COMP)
 
 $(BD)/Module_fitParametric.o: $(SD)/Modules/Module_fitParametric.cpp \

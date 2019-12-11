@@ -1,8 +1,11 @@
+#pragma once
 #include "Dirac/DiracSpinor.hpp"
+#include "Dirac/Operators.hpp"
 #include "Dirac/Wavefunction.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "Maths/BSplines.hpp"
 #include "Maths/Grid.hpp"
+#include "Maths/LinAlg_MatrixVector.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/AtomData.hpp"
 
@@ -10,6 +13,17 @@
 #include <iostream>
 #include <string>
 #include <utility>
+
+/*
+
+
+for (auto &bx : bb) {
+  std::cout << bx.symbol() << " ";
+  auto VexPsi_i = HartreeFock::vex_psia_any(bx, wf.core_orbitals);
+  auto Hbb = Hd.matrixEl(bx, bx) + (bx * VexPsi_i);
+  printf("%.5e, %.5e, %.1e\n", bx.en, Hbb, (Hbb - bx.en) / bx.en);
+}
+*/
 
 inline auto form_spline_basis(const int kappa, const std::size_t n_states,
                               const std::size_t k_spl, const double r0_spl,
@@ -23,9 +37,6 @@ inline auto form_spline_basis(const int kappa, const std::size_t n_states,
   // uses sepperate B-splines for each partial wave! OK?
   BSplines bspl(n_spl, k_spl, rgrid, r0_spl, rmax_spl);
   bspl.derivitate();
-
-  // std::pair<std::vector<DiracSpinor>, std::vector<DiracSpinor>> basis_both;
-  // auto &[basis, d_basis_g] = basis_both;
 
   std::vector<DiracSpinor> basis;
 
@@ -61,38 +72,10 @@ inline auto form_spline_basis(const int kappa, const std::size_t n_states,
     phi.p0 = p0;
   }
 
-  // // n_count = 1;
-  // for (auto i = imin; i < imax; i++) {
-  //   d_basis_g.emplace_back(0, kappa, rgrid);
-  //   auto &phi = d_basis_g.back();
-  //   auto Bi = bspl.get_spline(i);
-  //   auto dBi = bspl.get_spline_deriv(i);
-  //   auto d2Bi = bspl.get_spline_deriv2(i);
-  //   auto dBior = NumCalc::mult_vectors(rgrid.inverse_r(), dBi);
-  //   auto tmp = NumCalc::mult_vectors(rgrid.inverse_r(), Bi);
-  //   auto Bor2 = NumCalc::mult_vectors(rgrid.inverse_r(), tmp);
-  //   NumCalc::scaleVec(dBior, double(kappa));
-  //   NumCalc::scaleVec(Bor2, double(-kappa));
-  //   phi.f = NumCalc::add_vectors(d2Bi, dBior, Bor2);
-  //   NumCalc::scaleVec(phi.f, 0.5 * alpha);
-  //   auto [p0, pinf] = bspl.get_ends(i);
-  //   phi.pinf = pinf;
-  //   phi.p0 = p0;
-  // }
-  // for (auto i = imin; i < imax; i++) {
-  //   d_basis_g.emplace_back(0, kappa, rgrid);
-  //   auto &phi = d_basis_g.back();
-  //   auto dBi = bspl.get_spline_deriv(i);
-  //   phi.f = dBi;
-  //   auto [p0, pinf] = bspl.get_ends(i);
-  //   phi.pinf = pinf;
-  //   phi.p0 = p0;
-  // }
-
   return basis;
 }
 
-inline auto form_basis(const std::size_t n_spl, const std::string &states_str,
+inline auto form_basis(const std::string &states_str, const std::size_t n_spl,
                        const std::size_t k_spl, const double r0_spl,
                        const double rmax_spl, const Wavefunction &wf) {
   //
@@ -109,8 +92,6 @@ inline auto form_basis(const std::size_t n_spl, const std::string &states_str,
     auto max_n = nk.n;
     auto min_n = l + 1;
 
-    // auto [b_basis, d_basis] = form_spline_basis(
-    //     kappa, n_spl, k_spl, r0_spl, rmax_spl, wf.rgrid, wf.get_alpha());
     auto spl_basis = form_spline_basis(kappa, n_spl, k_spl, r0_spl, rmax_spl,
                                        wf.rgrid, wf.get_alpha());
 
@@ -122,9 +103,6 @@ inline auto form_basis(const std::size_t n_spl, const std::string &states_str,
       auto VexPsi_i = HartreeFock::vex_psia_any(si, wf.core_orbitals);
       for (auto j = 0; j < (int)spl_basis.size(); j++) {
         const auto &sj = spl_basis[j];
-
-        // auto aij = Hd.matrixEl_noD1(si, sj) + (sj * VexPsi_i);
-        // aij -= (si * d_basis[j] + d_basis[i] * sj) / wf.get_alpha();
 
         auto aij = Hd.matrixEl(si, sj) + (sj * VexPsi_i);
 

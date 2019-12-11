@@ -1,15 +1,9 @@
 #include "Dirac/Wavefunction.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/UserInput.hpp"
-#include "Maths/BSplines.hpp"
 #include "Modules/Module_runModules.hpp"
 #include <iostream>
 #include <string>
-//
-#include "Dirac/Operators.hpp"
-#include "Maths/LinAlg_MatrixVector.hpp"
-#include "Physics/AtomData.hpp"
-#include "testSplines.hpp"
 
 int main(int argc, char *argv[]) {
   ChronoTimer timer("\nhartreeFock");
@@ -120,122 +114,21 @@ int main(int argc, char *argv[]) {
   wf.printCore(sorted);
   wf.printValence(sorted);
 
-  // run each of the modules
-  // Module::runModules(input, wf);
-  // return 1;
-
-  // Get + setup nuclear parameters
-  // auto basis_ok =
-  input.check("Basis", {"number", "order", "r0", "rmax", "print", "states"});
+  input.check("Basis", {"number", "order", "r0", "rmax", "states", "print"});
   auto n_spl = input.get("Basis", "number", 0ul);
   auto k_spl = input.get("Basis", "order", 0ul);
   auto r0_spl = input.get("Basis", "r0", 0.0);
   auto rmax_spl = input.get("Basis", "rmax", 0.0);
   auto basis_states = input.get<std::string>("Basis", "states", "");
-  // auto print_spl = input.get("Basis", "print", false);
-
-  // if (k_spl > 0 && n_spl >= k_spl && basis_ok) {
-  // BSplines bspl(n_spl, k_spl, wf.rgrid, r0_spl, rmax_spl);
-
-  auto bb = form_basis(n_spl, basis_states, k_spl, r0_spl, rmax_spl, wf);
-
-  auto Hd = DirectHamiltonian(wf.vnuc, wf.vdir, wf.get_alpha());
-
-  for (auto &bx : bb) {
-    std::cout << bx.symbol() << " ";
-    auto VexPsi_i = HartreeFock::vex_psia_any(bx, wf.core_orbitals);
-    auto Hbb = Hd.matrixEl(bx, bx) + (bx * VexPsi_i);
-    printf("%.5e, %.5e, %.1e\n", bx.en, Hbb, (Hbb - bx.en) / bx.en);
+  auto print = input.get("Basis", "print", false);
+  if (n_spl > 0) {
+    wf.formBasis(basis_states, n_spl, k_spl, r0_spl, rmax_spl);
+    if (print)
+      wf.printBasis();
   }
 
-  wf.valence_orbitals = bb;
+  // run each of the modules
   Module::runModules(input, wf);
-
-  return 1;
-
-  //   auto [basis, d_basis] = form_spline_basis(-1, n_spl, k_spl, r0_spl,
-  //   rmax_spl,
-  //                                             wf.rgrid, wf.get_alpha());
-  //   // std::cin.get();
-  //   // auto basis = wf.core_orbitals;
-  //
-  //   std::cout << "\n\n";
-  //   LinAlg::SqMatrix Aij((int)basis.size());
-  //   LinAlg::SqMatrix Sij((int)basis.size());
-  // #pragma omp parallel for
-  //   for (auto i = 0; i < (int)basis.size(); i++) {
-  //     const auto &si = basis[i];
-  //     auto VexPsi_i = HartreeFock::vex_psia_any(si, wf.core_orbitals);
-  //     for (auto j = 0; j < (int)basis.size(); j++) {
-  //       const auto &sj = basis[j];
-  //       auto VexPsi_j = HartreeFock::vex_psia_any(sj, wf.core_orbitals);
-  //
-  //       auto aij =
-  //           Hd.matrixEl_noD1(si, sj) + 0.5 * ((si * VexPsi_j) + (sj *
-  //           VexPsi_i));
-  //       aij -= (si * d_basis[j] + d_basis[i] * sj) / wf.get_alpha();
-  //
-  //       // auto aij =
-  //       //     Hd.matrixEl(si, sj) + 0.5 * ((si * VexPsi_j) + (sj *
-  //       VexPsi_i));
-  //
-  //       Aij[i][j] = aij;
-  //       Sij[i][j] = si * sj;
-  //     }
-  //   }
-  //   // std::cout << "\nFilled Matrix\n\n";
-  //
-  //   // Aij.clip_low(1.0e-8); //?
-  //   // Sij.clip_low(1.0e-8); //?
-  //   // Aij.make_symmetric(); //?
-  //
-  //   std::cout << "Worst A:" << Aij.check_symmetric() << "\n";
-  //   std::cout << "Worst S:" << Sij.check_symmetric() << "\n";
-  //   // std::cin.get();
-  //
-  //   auto [e_values, e_vectors] = LinAlg::realSymmetricEigensystem(Aij, Sij);
-  //   // auto [e_values, jnk, e_vectors, jnk2] =
-  //   //     LinAlg::realNonSymmetricEigensystem(Aij, Sij);
-  //
-  //   auto icount2 = 0;
-  //   for (int i = 0; i < e_values.n; i++) {
-  //     auto ev = e_values[i];
-  //     if (ev < -137.0 * 137.0)
-  //       continue;
-  //     icount2++;
-  //     std::cout << i << " " << ev << "\n  ";
-  //     if (icount2 > 10)
-  //       break;
-  //     // for (int j = 0; j < e_values.n; j++) {
-  //     //   std::cout << j << " " << e_vectors[i][j] << "\n";
-  //     // }
-  //     // std::cout << "\n";
-  //   }
-
-  // LinAlg::test2(Sij.inverse() * Aij);
-
-  //*********************************************************
-  //               TESTS
-  //*********************************************************
-
-  // // needs: #include "Physics/AtomData.hpp" (for AtomData::listOfStates_nk)
-  // bool test_hf_basis = false;
-  // if (test_hf_basis) {
-  //   auto basis_lst = AtomData::listOfStates_nk("9spd8f");
-  //   std::vector<DiracSpinor> basis = wf.core_orbitals;
-  //   HartreeFock hfbasis(wf, basis, 1.0e-6);
-  //   hfbasis.verbose = false;
-  //   for (const auto &nk : basis_lst) {
-  //     if (wf.isInCore(nk.n, nk.k))
-  //       continue;
-  //     basis.emplace_back(DiracSpinor(nk.n, nk.k, wf.rgrid));
-  //     auto tmp_vex = std::vector<double>{};
-  //     hfbasis.hf_valence_approx(basis.back(), tmp_vex);
-  //   }
-  //   wf.orthonormaliseOrbitals(basis, 2);
-  //   wf.printValence(false, basis);
-  //   std::cout << "\n Total time: " << timer.reading_str() << "\n";
-  // }
 
   return 0;
 }
