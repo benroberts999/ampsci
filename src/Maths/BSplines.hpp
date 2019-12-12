@@ -178,8 +178,9 @@ private:
   //----------------------------------------------------------------------------
   std::vector<double> break_points(std::size_t nbreaks) const {
     std::vector<double> breaks;
-    for (std::size_t i = 0; i < nbreaks; i++) {
-      auto dindex = (double(i) / double(nbreaks - 1)) *
+    breaks.push_back(0.0);
+    for (std::size_t i = 1; i < nbreaks; i++) {
+      auto dindex = (double(i - 1) / double(nbreaks - 2)) *
                     double(m_rmax_index - m_rmin_index);
       auto r = m_rgrid_ptr->r[m_rmin_index + std::size_t(dindex)];
       breaks.push_back(r);
