@@ -12,8 +12,6 @@
 #include <sstream>
 #include <string>
 #include <vector>
-//
-#include "testSplines.hpp"
 
 //******************************************************************************
 void Wavefunction::solveDirac(DiracSpinor &psi, double e_a,

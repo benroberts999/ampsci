@@ -17,10 +17,16 @@ $(SD)/Maths/Grid.hpp $(SD)/Maths/NumCalc_quadIntegrate.hpp \
 $(SD)/Physics/AtomData.hpp
 	$(COMP)
 
+$(BD)/BSplineBasis.o: $(SD)/Dirac/BSplineBasis.cpp $(SD)/Dirac/BSplineBasis.hpp\
+$(SD)/Maths/LinAlg_MatrixVector.hpp $(SD)/Maths/BSplines.hpp \
+$(SD)/Dirac/Operators.hpp \
+$(SD)/Dirac/Wavefunction.hpp $(SD)/Dirac/DiracSpinor.hpp $(SD)/Maths/Grid.hpp \
+$(SD)/Maths/NumCalc_quadIntegrate.hpp $(SD)/Physics/AtomData.hpp
+	$(COMP)
+
 $(BD)/Wavefunction.o: $(SD)/Dirac/Wavefunction.cpp $(SD)/Dirac/Wavefunction.hpp\
 $(SD)/Adams/DiracODE.hpp $(SD)/Dirac/DiracSpinor.hpp $(SD)/Maths/Grid.hpp \
 $(SD)/Maths/NumCalc_quadIntegrate.hpp $(SD)/Physics/AtomData.hpp \
-$(SD)/Physics/NuclearPotentials.hpp $(SD)/Physics/PhysConst_constants.hpp \
-$(SD)/Maths/LinAlg_MatrixVector.hpp $(SD)/Maths/BSplines.hpp \
-$(SD)/testSplines.hpp #temp!
+$(SD)/Dirac/BSplineBasis.hpp \
+$(SD)/Physics/NuclearPotentials.hpp $(SD)/Physics/PhysConst_constants.hpp
 	$(COMP)

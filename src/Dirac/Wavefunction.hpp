@@ -1,4 +1,5 @@
 #pragma once
+#include "Dirac/BSplineBasis.hpp"
 #include "Dirac/DiracSpinor.hpp"
 #include "HF/HartreeFockClass.hpp" // forward decl..
 #include "Maths/Grid.hpp"
@@ -9,8 +10,6 @@
 #include <memory>
 #include <string>
 #include <vector>
-//
-// #include "testSplines.hpp"
 
 static bool dummy_bool{};
 

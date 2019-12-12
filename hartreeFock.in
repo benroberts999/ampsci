@@ -1,13 +1,13 @@
 Atom {
   Z = Cs;
   A = default;
-  // varAlpha2 = 0.01;
+  // varAlpha2;
 }
 
 HartreeFock {
   core = [Xe];
-  valence = 7sp6d5f;
-  method; // HartreeFock(dflt), ApproxHF, Hartree, GreenPRM, TietzPRM
+  valence = 7sp;
+  // method; // HartreeFock(dflt), ApproxHF, Hartree, GreenPRM, TietzPRM
 }
 
 // dV { a_eff = 0.0; } //effective pol. op.
@@ -19,22 +19,22 @@ Nucleus {
 }
 
 Grid {
-  r0 = 1e-7;
+  r0 = 1e-6;
   rmax = 120.0;
   num_points = 2000;
   // fixed_du = 0.1;     // over-writes num_points
-  // type = logarithmic; // loglinear(dflt), logarithmic, linear
-  // b = 20.0; // b<0, or b>rmax will use logarithmic
+  type; // loglinear(dflt), logarithmic, linear
+  b;    // b<0, or b>rmax will use logarithmic
 }
 
-Basis {
-  number = 50;
-  order = 7;
-  r0 = 1.0e-5;
-  rmax = 50.0;
-  print = true;
-  states = 10s9p8d7f;
-}
+// Basis {
+//   number = 50;
+//   order = 7;
+//   r0 = 1.0e-5;
+//   rmax = 50.0;
+//   print = true;
+//   states = 10s9p8d7f;
+// }
 
 /////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////
@@ -42,10 +42,10 @@ Basis {
 //   Each Module/MatrixElements will be run in order.
 //   You can comment-out just the block name, and the block will be skiped.
 
-Module::Tests{
-    // orthonormal = true;
-    // Hamiltonian = true;
-    // boundaries = true;
+Module::Tests {
+  orthonormal = true;
+  // Hamiltonian = true;
+  // boundaries = true;
 }
 
 // MatrixElements::E1 {}
@@ -69,7 +69,8 @@ Module::Tests{
   printF = false;
 }
 
-// Module::WriteOrbitals { label = outputLabel; }
+// Module::WriteOrbitals
+{ label = outputLabel; }
 // Plot in GNUPLOT like: (e.g.)
 // plot for [i=2:20] "file.txt" u 1:i every :::0::0  w l t columnheader(i)
 // plot for [i=2:20] "file.txt" u 1:i every :::1::1  w l t columnheader(i)
