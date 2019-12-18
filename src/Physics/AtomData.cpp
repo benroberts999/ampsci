@@ -303,7 +303,7 @@ std::vector<DiracSEnken> listOfStates_nk(const std::string &in_list) {
 std::vector<DiracSEnken> listOfMaxn_k(const std::string &in_list) {
   std::vector<DiracSEnken> state_list;
 
-  std::string n_str_previous = "";
+  std::string n_str_previous = "999";
   std::string n_str = "";
   for (char c : in_list) {
     if (std::isdigit(c)) {
