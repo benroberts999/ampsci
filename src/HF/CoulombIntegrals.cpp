@@ -439,7 +439,7 @@ static inline std::function<double(double)> make_powk(const int k) {
     return [](double x) { return x * x * x * x * x; };
   if (k == 6)
     return [](double x) { return x * x * x * x * x * x; };
-  if (k == 6)
+  if (k == 7)
     return [](double x) { return x * x * x * x * x * x * x; };
   return [=](double x) { return std::pow(x, k); };
 }
