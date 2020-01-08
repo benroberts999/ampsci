@@ -50,6 +50,9 @@ public: // functions
   static double Qk_abcd_any(const DiracSpinor &psi_a, const DiracSpinor &psi_b,
                             const DiracSpinor &psi_c, const DiracSpinor &psi_d,
                             const int k);
+  static double Zk_abcd_any(const DiracSpinor &Fa, const DiracSpinor &Fb,
+                            const DiracSpinor &Fc, const DiracSpinor &Fd,
+                            const int k);
 
   static bool Qk_abcd_rhs(DiracSpinor &Q_rhs, const DiracSpinor &psi_a,
                           const DiracSpinor &psi_b, const DiracSpinor &psi_c,

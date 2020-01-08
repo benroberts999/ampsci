@@ -14,6 +14,35 @@
 #include <vector>
 
 //******************************************************************************
+double Coulomb::Zk_abcd_any(const DiracSpinor &Fa, const DiracSpinor &Fb,
+                            const DiracSpinor &Fc, const DiracSpinor &Fd,
+                            const int k) {
+  // Z^k_abcd = s ( Q^k_abcd + sum_l [k] 6j * Q^l_abdc)
+
+  auto s = Wigner::evenQ_2(Fa.twoj() + Fb.twoj() + 2) ? 1 : -1;
+  auto Qk_abcd = Qk_abcd_any(Fa, Fb, Fc, Fd, k);
+
+  auto tkp1 = 2 * k + 1;
+
+  auto min_twol = std::max(std::abs(Fd.twoj() - Fa.twoj()),
+                           std::abs(Fc.twoj() - Fb.twoj()));
+
+  auto max_twol = std::min(Fd.twoj() + Fa.twoj(), Fc.twoj() + Fb.twoj());
+
+  double sum = 0.0;
+  for (int tl = min_twol; tl <= max_twol; tl += 2) {
+    auto sixj = Wigner::sixj_2(Fc.twoj(), Fa.twoj(), 2 * k, //
+                               Fd.twoj(), Fb.twoj(), tl);
+    if (sixj == 0)
+      continue;
+    auto Ql_abdc = Qk_abcd_any(Fa, Fb, Fd, Fc, tl / 2);
+    sum += sixj * Ql_abdc;
+  }
+
+  return s * (Qk_abcd + tkp1 * sum);
+}
+
+//******************************************************************************
 double Coulomb::Qk_abcd_any(const DiracSpinor &psi_a, const DiracSpinor &psi_b,
                             const DiracSpinor &psi_c, const DiracSpinor &psi_d,
                             const int k) {
