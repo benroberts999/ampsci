@@ -15,10 +15,10 @@ public:
   BSplines(std::size_t in_n, std::size_t in_k, const Grid &in_grid,
            double in_r0,
            double in_rmax)
-      : m_number_n(in_n),                      //
-        m_order_k(in_k),                       //
-        m_rgrid_ptr(&in_grid),                 //
-        m_rmin_index(in_grid.getIndex(in_r0)), //
+      : m_number_n(in_n),                          //
+        m_order_k(in_k),                           //
+        m_rgrid_ptr(&in_grid),                     //
+        m_rmin_index(in_grid.getIndex(in_r0) + 1), //
         m_rmax_index(in_rmax <= 0.0 ? in_grid.num_points - 1
                                     : in_grid.getIndex(in_rmax)) //
   {
