@@ -174,16 +174,23 @@ std::size_t Wavefunction::getStateIndex(int n, int k, bool &is_valence) const {
     }
     is_valence = true;
   }
-  std::cerr << "\nFAIL 290 in WF: Couldn't find state n,k=" << n << "," << k
-            << "\n";
-  // std::abort();
+  // std::cerr << "\nFAIL 290 in WF: Couldn't find state n,k=" << n << "," << k
+  //           << "\n";
+  // // std::abort();
   return std::max(core_orbitals.size(), valence_orbitals.size()); // invalid
 }
 //******************************************************************************
-const DiracSpinor &Wavefunction::getState(int n, int k,
+const DiracSpinor *Wavefunction::getState(int n, int k,
                                           bool &is_valence) const {
   auto index = getStateIndex(n, k, is_valence);
-  return is_valence ? valence_orbitals[index] : core_orbitals[index];
+  if (is_valence) {
+    if (index < valence_orbitals.size())
+      return &valence_orbitals[index];
+  }
+  if (index < core_orbitals.size())
+    return &core_orbitals[index];
+  return nullptr;
+  // XXX return POINTER!
 }
 
 //******************************************************************************
@@ -386,6 +393,7 @@ double Wavefunction::enGuessVal(int n, int ka) const
   int dn = n - maxn;
   double neff = 1.0 + dn;
   double x = 1;
+  auto Z_eff = m_Z - num_core_electrons;
   if (maxn < 4)
     x = 0.25;
   if (l == 1)
@@ -394,7 +402,7 @@ double Wavefunction::enGuessVal(int n, int ka) const
     neff += 2.0 * std::pow(x, 0.5);
   if (l >= 3)
     neff += 4.0 * x;
-  return -0.5 / std::pow(neff, 2);
+  return -0.5 * Z_eff * Z_eff / std::pow(neff, 2);
 }
 
 //******************************************************************************
@@ -516,6 +524,29 @@ void Wavefunction::printValence(
 }
 
 //******************************************************************************
+void Wavefunction::printBasis(bool sorted) const {
+
+  std::cout << "Basis: \n";
+  std::cout << "     State   k   Rinf       En(Basis)      En(HF)\n";
+  auto index_list = sortedEnergyList(basis, sorted);
+  for (auto i : index_list) {
+    const auto &phi = basis[i];
+    auto r_inf = rgrid.r[phi.pinf - 1];
+
+    const auto *hf_phi = getState(phi.n, phi.k);
+    if (hf_phi != nullptr) {
+      // found HF state
+      auto eps = 2.0 * (phi.en - hf_phi->en) / (phi.en + hf_phi->en);
+      printf("%2i) %7s %2i  %5.1f %18.7f  %13.7f  %6.0e\n", int(i),
+             phi.symbol().c_str(), phi.k, r_inf, phi.en, hf_phi->en, eps);
+    } else {
+      printf("%2i) %7s %2i  %5.1f %18.7f\n", int(i), phi.symbol().c_str(),
+             phi.k, r_inf, phi.en);
+    }
+  }
+}
+
+//******************************************************************************
 std::vector<DiracSEnken>
 Wavefunction::listOfStates_nk(int num_val, int la, int lb, bool skip_core) const
 // Creates a list of states (usually valence states to solve for)
@@ -559,4 +590,11 @@ std::vector<double> Wavefunction::coreDensity() const {
     }
   }
   return rho;
+}
+
+//******************************************************************************
+void Wavefunction::formBasis(const std::string &states_str,
+                             const std::size_t n_spl, const std::size_t k_spl,
+                             const double r0_spl, const double rmax_spl) {
+  basis = form_basis(states_str, n_spl, k_spl, r0_spl, rmax_spl, *this);
 }

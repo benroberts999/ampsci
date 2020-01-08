@@ -40,10 +40,8 @@ double Coulomb::Rk_abcd_any(const DiracSpinor &psi_a, const DiracSpinor &psi_b,
 
   std::vector<double> yk_bd; // XXX Can already exist!
   calculate_y_ijk(psi_b, psi_d, k, yk_bd);
-  auto Rff =
-      NumCalc::integrate_any(1.0, 0, imax, psi_a.f, psi_c.f, yk_bd, drdu);
-  auto Rgg =
-      NumCalc::integrate_any(1.0, 0, imax, psi_a.g, psi_c.g, yk_bd, drdu);
+  auto Rff = NumCalc::integrate(1.0, 0, imax, psi_a.f, psi_c.f, yk_bd, drdu);
+  auto Rgg = NumCalc::integrate(1.0, 0, imax, psi_a.g, psi_c.g, yk_bd, drdu);
   return (Rff + Rgg) * du;
 }
 
@@ -480,10 +478,8 @@ std::vector<double> Coulomb::calculate_R_abcd_k(const DiracSpinor &psi_a,
   const auto &ybd_kr = get_y_ijk(psi_b, psi_d);
   for (int k = kmin; k <= kmax; k++) {
     const auto &ybdk_r = ybd_kr[k - kmin];
-    auto ffy =
-        NumCalc::integrate_any(1.0, 0, pinf, psi_a.f, psi_c.f, ybdk_r, drdu);
-    auto ggy =
-        NumCalc::integrate_any(1.0, 0, pinf, psi_a.g, psi_c.g, ybdk_r, drdu);
+    auto ffy = NumCalc::integrate(1.0, 0, pinf, psi_a.f, psi_c.f, ybdk_r, drdu);
+    auto ggy = NumCalc::integrate(1.0, 0, pinf, psi_a.g, psi_c.g, ybdk_r, drdu);
     Rabcd[k] = (ffy + ggy) * du;
   }
   return Rabcd;
@@ -505,7 +501,7 @@ static inline std::function<double(double)> make_powk(const int k) {
     return [](double x) { return x * x * x * x * x; };
   if (k == 6)
     return [](double x) { return x * x * x * x * x * x; };
-  if (k == 6)
+  if (k == 7)
     return [](double x) { return x * x * x * x * x * x * x; };
   return [=](double x) { return std::pow(x, k); };
 }
@@ -542,7 +538,8 @@ void Coulomb::calculate_y_ijk(const DiracSpinor &phi_a,
 
   auto irmax = num_points; // std::min(phi_a.pinf, phi_b.pinf);
 
-  double Ax = 0.0, Bx = 0.0; // A, B defined in equations/comments above
+  double Ax = 0.0,
+         Bx = 0.0; // A, B defined in equations/comments above
 
   auto powk = make_powk(k);
   auto powkp1 = make_powk(k + 1);

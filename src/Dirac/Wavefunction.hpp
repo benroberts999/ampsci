@@ -1,4 +1,5 @@
 #pragma once
+#include "Dirac/BSplineBasis.hpp"
 #include "Dirac/DiracSpinor.hpp"
 #include "HF/HartreeFockClass.hpp" // forward decl..
 #include "Maths/Grid.hpp"
@@ -35,6 +36,7 @@ public:
 public:
   std::vector<DiracSpinor> core_orbitals;
   std::vector<DiracSpinor> valence_orbitals;
+  std::vector<DiracSpinor> basis;
   const Grid rgrid;
 
 private:
@@ -70,7 +72,7 @@ public: // const methods: "views" into WF object
   }
 
   std::size_t getStateIndex(int n, int k, bool &is_valence = dummy_bool) const;
-  const DiracSpinor &getState(int n, int k,
+  const DiracSpinor *getState(int n, int k,
                               bool &is_valence = dummy_bool) const;
 
   std::string coreConfiguration() const { return m_core_string; }
@@ -87,6 +89,7 @@ public: // const methods: "views" into WF object
   void printCore(bool sorted = true) const;
   void printValence(bool sorted = true,
                     const std::vector<DiracSpinor> &tmp_orbitals = {}) const;
+  void printBasis(bool sorted = false) const;
   bool isInCore(int n, int k) const;
   bool isInValence(int n, int k) const;
   bool isInCore(const DiracSpinor &phi) const;
@@ -125,6 +128,10 @@ public:
 
   double enGuessCore(int n, int l) const;
   double enGuessVal(int n, int ka) const;
+
+  void formBasis(const std::string &states_str, const std::size_t n_spl,
+                 const std::size_t k_spl, const double r0_spl,
+                 const double rmax_spl);
 
 private:
   void determineCore(std::string str_core_in);

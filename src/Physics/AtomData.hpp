@@ -69,6 +69,7 @@ std::string guessCoreConfigStr(const int total_core_electrons);
 std::vector<NonRelSEConfig> core_guess(const int total_core_electrons);
 
 std::vector<DiracSEnken> listOfStates_nk(const std::string &in_list);
+std::vector<DiracSEnken> listOfMaxn_k(const std::string &in_list);
 
 void printTable();
 

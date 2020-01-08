@@ -3,6 +3,7 @@
 #include "Dirac/DiracOperator.hpp"
 #include "Dirac/Operators.hpp"
 #include "Dirac/Wavefunction.hpp"
+#include "HF/HartreeFockClass.hpp"
 #include "IO/UserInput.hpp"
 #include "Modules/Module_fitParametric.hpp"
 #include "Modules/Module_matrixElements.hpp"
@@ -72,8 +73,7 @@ void Module_BohrWeisskopf(const UserInputBlock &input, const Wavefunction &wf)
   auto hw = generateOperator("hfs", BW_in, wf);
 
   std::cout << "\nTabulate A (Mhz), Bohr-Weisskopf effect: " << wf.atom()
-            << "\n"
-            << "state :         point         ball           BW |   F_ball   "
+            << "\nstate :         point         ball           SP |   F_ball   "
                "  F_BW   eps(BW)\n";
   for (const auto &phi : wf.valence_orbitals) {
     auto Ap = HyperfineOperator::hfsA(hp.get(), phi);
@@ -85,6 +85,21 @@ void Module_BohrWeisskopf(const UserInputBlock &input, const Wavefunction &wf)
     printf("%7s: %12.5e %12.5e %12.5e | %8.4f %8.4f %9.6f\n",
            phi.symbol().c_str(), Ap, Ab, Aw, Fball, Fbw,
            -Fbw / (M_PI * PhysConst::c));
+  }
+
+  if (!wf.basis.empty())
+    std::cout << "\nTest hfs using basis (pointlike):\n";
+  for (const auto &phi : wf.basis) {
+    auto Abasis = HyperfineOperator::hfsA(hp.get(), phi);
+    // auto Abasis = hp.get()->radialIntegral(phi, phi);
+    printf("%7s: %12.5e ", phi.symbol().c_str(), Abasis);
+    const auto *hf_phi = wf.getState(phi.n, phi.k);
+    if (hf_phi != nullptr) {
+      auto Ahf = HyperfineOperator::hfsA(hp.get(), *hf_phi);
+      auto delta = 2.0 * (Abasis - Ahf) / (Abasis + Ahf);
+      printf(" %12.5e  %8.1e", Ahf, delta);
+    }
+    std::cout << "\n";
   }
 }
 
@@ -130,9 +145,18 @@ void Module_Tests_orthonormality(const Wavefunction &wf, const bool print_all) {
   std::cout << "\n";
 
   std::stringstream buffer;
-  for (int i = 0; i < 3; i++) {
-    const auto &tmp_b = (i == 2) ? wf.valence_orbitals : wf.core_orbitals;
-    const auto &tmp_a = (i == 0) ? wf.core_orbitals : wf.valence_orbitals;
+  for (int i = 0; i < 6; i++) {
+    // const auto &tmp_b = (i == 2) ? wf.valence_orbitals : wf.core_orbitals;
+    // const auto &tmp_a = (i == 0) ? wf.core_orbitals : wf.valence_orbitals;
+
+    const auto &tmp_b = (i == 2 || i == 4)
+                            ? wf.valence_orbitals
+                            : (i != 5) ? wf.core_orbitals : wf.basis;
+    // core, core, valence, core, valence, basis
+
+    const auto &tmp_a =
+        (i == 0) ? wf.core_orbitals : (i < 3) ? wf.valence_orbitals : wf.basis;
+    // core, valence, valence, basis, basis
 
     if (tmp_b.empty() || tmp_a.empty())
       continue;
@@ -143,9 +167,29 @@ void Module_Tests_orthonormality(const Wavefunction &wf, const bool print_all) {
         std::cout << "\nCore-Core\n    ";
       else if (i == 1)
         std::cout << "\nValence-Core\n    ";
-      else
+      else if (i == 2)
         std::cout << "\nValence-Valence\n    ";
+      else if (i == 3)
+        std::cout << "\nBasis-core\n    ";
+      else if (i == 4)
+        std::cout << "\nBasis-Valence\n    ";
+      else if (i == 5)
+        std::cout << "\nBasis-Basis\n    ";
+    } else {
+      if (i == 0)
+        buffer << "cc ";
+      else if (i == 1)
+        buffer << "vc ";
+      else if (i == 2)
+        buffer << "vv ";
+      else if (i == 3)
+        buffer << "bc ";
+      else if (i == 4)
+        buffer << "bv ";
+      else if (i == 5)
+        buffer << "bb ";
     }
+
     auto worst_xo = 0.0;
     std::string worst_braket = "";
     if (print_all) {
@@ -157,7 +201,7 @@ void Module_Tests_orthonormality(const Wavefunction &wf, const bool print_all) {
       if (print_all)
         printf("%2i%2i", psi_a.n, psi_a.k);
       for (auto &psi_b : tmp_b) {
-        if (psi_b > psi_a) {
+        if (psi_b > psi_a && (&tmp_b == &tmp_a)) {
           if (print_all)
             std::cout << "    ";
           continue;
@@ -189,8 +233,9 @@ void Module_Tests_orthonormality(const Wavefunction &wf, const bool print_all) {
     if (worst_braket != "") {
       std::string eq = worst_xo > 0 ? " =  " : " = ";
       buffer << worst_braket << eq << std::setprecision(2) << std::scientific
-             << worst_xo << "\n";
+             << worst_xo;
     }
+    buffer << "\n";
   } // cc, cv, vv
   if (print_all)
     std::cout << "\n";
@@ -202,14 +247,22 @@ void Module_Tests_Hamiltonian(const Wavefunction &wf) {
   std::cout << "\nTesting wavefunctions: <n|H|n>  (numerical error)\n";
 
   DirectHamiltonian Hd(wf.vnuc, wf.vdir, wf.get_alpha());
-  for (const auto tmp_orbs : {&wf.core_orbitals, &wf.valence_orbitals}) {
+  for (const auto tmp_orbs :
+       {&wf.core_orbitals, &wf.valence_orbitals, &wf.basis}) {
+    if (tmp_orbs->empty())
+      continue;
     double worst_eps = 0.0;
     const DiracSpinor *worst_psi = nullptr;
     for (const auto &psi : *tmp_orbs) {
-      double Haa = Hd.matrixEl(psi, psi) + psi * wf.get_VexPsi(psi);
+      double Haa_d = Hd.matrixEl(psi, psi);
+      double Haa_x =
+          (tmp_orbs != &wf.basis)
+              ? psi * wf.get_VexPsi(psi)
+              : psi * HartreeFock::vex_psia_any(psi, wf.core_orbitals);
+      auto Haa = Haa_d + Haa_x;
       double ens = psi.en;
       double fracdiff = (Haa - ens) / ens;
-      printf("<%i% i|H|%i% i> = %17.11f, E = %17.11f; % .0e\n", psi.n, psi.k,
+      printf("<%2i% i|H|%2i% i> = %17.11f, E = %17.11f; % .0e\n", psi.n, psi.k,
              psi.n, psi.k, Haa, ens, fracdiff);
       if (std::abs(fracdiff) >= std::abs(worst_eps)) {
         worst_eps = fracdiff;

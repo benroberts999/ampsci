@@ -2,7 +2,7 @@
 
 $(BD)/Adams_bound.o: $(SD)/Adams/Adams_bound.cpp $(SD)/Adams/Adams_bound.hpp \
 $(SD)/Adams/Adams_coefs.hpp $(SD)/Dirac/DiracSpinor.hpp \
-$(SD)/Adams/DiracODE.hpp $(SD)/Maths/Grid.hpp $(SD)/Maths/Matrix_linalg.hpp \
+$(SD)/Adams/DiracODE.hpp $(SD)/Maths/Grid.hpp $(SD)/Maths/LinAlg_MatrixVector.hpp \
 $(SD)/Maths/NumCalc_quadIntegrate.hpp $(SD)/IO/SafeProfiler.hpp
 	$(COMP)
 

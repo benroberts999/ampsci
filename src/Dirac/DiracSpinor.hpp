@@ -17,6 +17,7 @@ public: // Data
   double en = 0;
   std::vector<double> f;
   std::vector<double> g;
+  std::size_t p0; // usually just zero
   std::size_t pinf;
 
   int its;

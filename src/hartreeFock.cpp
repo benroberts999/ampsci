@@ -117,6 +117,19 @@ int main(int argc, char *argv[]) {
   wf.printCore(sorted);
   wf.printValence(sorted);
 
+  input.check("Basis", {"number", "order", "r0", "rmax", "states", "print"});
+  auto n_spl = input.get("Basis", "number", 0ul);
+  auto k_spl = input.get("Basis", "order", 0ul);
+  auto r0_spl = input.get("Basis", "r0", 0.0);
+  auto rmax_spl = input.get("Basis", "rmax", 0.0);
+  auto basis_states = input.get<std::string>("Basis", "states", "");
+  auto print = input.get("Basis", "print", false);
+  if (n_spl > 0) {
+    wf.formBasis(basis_states, n_spl, k_spl, r0_spl, rmax_spl);
+    if (print)
+      wf.printBasis();
+  }
+
   // run each of the modules
   Module::runModules(input, wf);
 
@@ -131,11 +144,11 @@ int main(int argc, char *argv[]) {
 
   tdhf.solve_TDHFcore();
 
-  const auto &psis = wf.getState(6, -1);
-  const auto &psip = wf.getState(6, 1);
+  const auto *psis = wf.getState(6, -1);
+  const auto *psip = wf.getState(6, 1);
 
-  auto me = h.reducedME(psis, psip);
-  auto dv = tdhf.dV_ab(psis, psip);
+  auto me = h.reducedME(*psis, *psip);
+  auto dv = tdhf.dV_ab(*psis, *psip);
   // / std::sqrt(h.rme3js(psis.twoj(), psip.twoj(), 1));
   // std::cout << tdhf.dV_ab(psis, psip) << "\n";
   // std::cout << tdhf.dV_ab(psis, psip) /

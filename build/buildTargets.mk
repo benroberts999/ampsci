@@ -11,7 +11,7 @@ DEFAULTEXES = $(addprefix $(XD)/, \
 )
 
 #Default make rule:
-all: checkObj checkXdir $(DEFAULTEXES) doneMessage
+all: checkObj checkXdir $(DEFAULTEXES)
 
 ################################################################################
 
@@ -33,7 +33,7 @@ include $(SD)/main.mk
 
 BASE = $(addprefix $(BD)/, \
  Adams_bound.o Wavefunction.o DiracSpinor.o AtomData.o Nuclear.o Grid.o \
- DiracOperator.o NuclearData.o Angular.o \
+ DiracOperator.o NuclearData.o Angular.o LinAlg_MatrixVector.o BSplineBasis.o \
 )
 
 HF = $(addprefix $(BD)/, \
@@ -82,9 +82,6 @@ checkXdir:
 		echo '\n ERROR: Directory: '$(XD)' doesnt exist - please create it!\n'; \
 		false; \
 	fi
-
-doneMessage:
-		@echo 'done'
 
 .PHONY: clean do_the_chicken_dance checkObj checkXdir
 clean:

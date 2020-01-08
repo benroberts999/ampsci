@@ -21,6 +21,7 @@ struct GridParameters {
                  double indu = 0);
 
   static GridType parseType(const std::string &str_type);
+  static std::string parseType(GridType type);
 };
 
 //******************************************************************************

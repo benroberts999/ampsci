@@ -4,7 +4,7 @@
 #include "Dirac/DiracSpinor.hpp"
 #include "IO/SafeProfiler.hpp"
 #include "Maths/Grid.hpp"
-#include "Maths/Matrix_linalg.hpp"
+#include "Maths/LinAlg_MatrixVector.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include <algorithm>
 #include <array>
@@ -237,8 +237,8 @@ void largeEnergyChange(double *en, TrackEnGuess *sofar_ptr, double frac_de,
 double calcNorm(const std::vector<double> &f, const std::vector<double> &g,
                 const std::vector<double> &drdu, const double du,
                 const int pinf) {
-  const auto anormF = NumCalc::integrate_any(1.0, 0, pinf, f, f, drdu);
-  const auto anormG = NumCalc::integrate_any(1.0, 0, pinf, g, g, drdu);
+  const auto anormF = NumCalc::integrate(1.0, 0, pinf, f, f, drdu);
+  const auto anormG = NumCalc::integrate(1.0, 0, pinf, g, g, drdu);
   return (anormF + anormG) * du;
 }
 
@@ -418,7 +418,7 @@ void outwardAM(std::vector<double> &f, std::vector<double> &g,
     // defines/populates em expansion coeficients (then inverts)
     std::array<double, Param::AMO> coefa, coefb, coefc, coefd;
     std::array<double, Param::AMO> ga;
-    Matrix::SqMatrix em(Param::AMO);
+    LinAlg::SqMatrix em(Param::AMO);
     const auto oid_du = Param::AMcoef.OId * du;
     for (int i = 0; i < Param::AMO; i++) {
       const auto az = -v[i + i0] * r[i + i0] * alpha;
@@ -438,7 +438,7 @@ void outwardAM(std::vector<double> &f, std::vector<double> &g,
 
     // defines/populates fm, s coefs
     std::array<double, Param::AMO> s;
-    Matrix::SqMatrix fm(Param::AMO);
+    LinAlg::SqMatrix fm(Param::AMO);
     for (int i = 0; i < Param::AMO; i++) {
       s[i] = -Param::AMcoef.OIa[i] * u0;
       for (int j = 0; j < Param::AMO; j++) {

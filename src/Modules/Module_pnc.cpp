@@ -36,8 +36,8 @@ void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf) {
   E1Operator he1(wf.rgrid);
   auto alpha = wf.get_alpha();
 
-  const auto &aA = wf.getState(na, ka);
-  const auto &aB = wf.getState(nb, kb);
+  const auto &aA = *(wf.getState(na, ka));
+  const auto &aB = *(wf.getState(nb, kb));
   if (aA.n != na || aB.n != nb) {
     std::cerr << "\nFAIL 43 in Module:PNC\n"
               << "Couldn't find requested state: is it in valence list?\n";
