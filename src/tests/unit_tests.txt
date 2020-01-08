@@ -133,3 +133,27 @@ Grid {
 }
 Module::pnc { transition = 6, -1, 7, -1; }
 Module::pnc { transition = 6, -1, 5, 2; }
+
+###########################################
+#TEST# basis
+
+Atom { Z = Cs; }
+HartreeFock {
+  core = [Xe];
+  valence = 9sp7d;
+}
+Grid {
+  r0 = 1e-6;
+  rmax = 200.0;
+  num_points = 2000;
+}
+Basis {
+  number = 50;
+  order = 7;
+  r0 = 1.0e-5;
+  rmax = 40.0;
+  print = true;
+  states = 12spd;
+}
+Module::Tests {}
+Module::BohrWeisskopf {}

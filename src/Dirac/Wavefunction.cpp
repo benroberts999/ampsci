@@ -527,7 +527,7 @@ void Wavefunction::printValence(
 void Wavefunction::printBasis(bool sorted) const {
 
   std::cout << "Basis: \n";
-  std::cout << "     State   k   Rinf       En(Basis)       En(HF)\n";
+  std::cout << "     State   k   Rinf       En(Basis)      En(HF)\n";
   auto index_list = sortedEnergyList(basis, sorted);
   for (auto i : index_list) {
     const auto &phi = basis[i];
@@ -537,10 +537,10 @@ void Wavefunction::printBasis(bool sorted) const {
     if (hf_phi != nullptr) {
       // found HF state
       auto eps = 2.0 * (phi.en - hf_phi->en) / (phi.en + hf_phi->en);
-      printf("%2i) %7s %2i  %5.1f   %13.7f   %13.7f    %.0e\n", int(i),
+      printf("%2i) %7s %2i  %5.1f %18.7f  %13.7f  %6.0e\n", int(i),
              phi.symbol().c_str(), phi.k, r_inf, phi.en, hf_phi->en, eps);
     } else {
-      printf("%2i) %7s %2i  %5.1f   %13.7f\n", int(i), phi.symbol().c_str(),
+      printf("%2i) %7s %2i  %5.1f %18.7f\n", int(i), phi.symbol().c_str(),
              phi.k, r_inf, phi.en);
     }
   }

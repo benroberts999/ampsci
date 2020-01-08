@@ -73,8 +73,7 @@ void Module_BohrWeisskopf(const UserInputBlock &input, const Wavefunction &wf)
   auto hw = generateOperator("hfs", BW_in, wf);
 
   std::cout << "\nTabulate A (Mhz), Bohr-Weisskopf effect: " << wf.atom()
-            << "\n"
-            << "state :         point         ball           BW |   F_ball   "
+            << "\nstate :         point         ball           SP |   F_ball   "
                "  F_BW   eps(BW)\n";
   for (const auto &phi : wf.valence_orbitals) {
     auto Ap = HyperfineOperator::hfsA(hp.get(), phi);
@@ -86,6 +85,21 @@ void Module_BohrWeisskopf(const UserInputBlock &input, const Wavefunction &wf)
     printf("%7s: %12.5e %12.5e %12.5e | %8.4f %8.4f %9.6f\n",
            phi.symbol().c_str(), Ap, Ab, Aw, Fball, Fbw,
            -Fbw / (M_PI * PhysConst::c));
+  }
+
+  if (!wf.basis.empty())
+    std::cout << "\nTest hfs using basis (pointlike):\n";
+  for (const auto &phi : wf.basis) {
+    auto Abasis = HyperfineOperator::hfsA(hp.get(), phi);
+    // auto Abasis = hp.get()->radialIntegral(phi, phi);
+    printf("%7s: %12.5e ", phi.symbol().c_str(), Abasis);
+    const auto *hf_phi = wf.getState(phi.n, phi.k);
+    if (hf_phi != nullptr) {
+      auto Ahf = HyperfineOperator::hfsA(hp.get(), *hf_phi);
+      auto delta = 2.0 * (Abasis - Ahf) / (Abasis + Ahf);
+      printf(" %12.5e  %8.1e", Ahf, delta);
+    }
+    std::cout << "\n";
   }
 }
 
@@ -219,8 +233,9 @@ void Module_Tests_orthonormality(const Wavefunction &wf, const bool print_all) {
     if (worst_braket != "") {
       std::string eq = worst_xo > 0 ? " =  " : " = ";
       buffer << worst_braket << eq << std::setprecision(2) << std::scientific
-             << worst_xo << "\n";
+             << worst_xo;
     }
+    buffer << "\n";
   } // cc, cv, vv
   if (print_all)
     std::cout << "\n";
