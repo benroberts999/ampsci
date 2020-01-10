@@ -23,6 +23,9 @@ std::vector<DiracSpinor> form_basis(const std::string &states_str,
 
   const auto nklst = AtomData::listOfMaxn_k(states_str);
 
+  std::cout << "\nConstructing B-spline basis with N=" << n_spl
+            << ", k=" << k_spl << ". Storing: " << states_str << "\n";
+
   for (const auto &nk : nklst) {
     const auto max_n = nk.n;
     const auto kappa = nk.k;
@@ -36,6 +39,11 @@ std::vector<DiracSpinor> form_basis(const std::string &states_str,
 
     expand_basis_orbitals(&basis, &basis_positron, spl_basis, kappa, max_n,
                           e_values, e_vectors, wf);
+  }
+
+  if (!basis.empty()) {
+    printf("Spline cavity: (%7.1e,%5.1f)aB.\n", basis.front().r0(),
+           basis.front().rinf());
   }
 
   return basis;
