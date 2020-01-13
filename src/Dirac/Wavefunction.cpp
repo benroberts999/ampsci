@@ -167,11 +167,13 @@ void Wavefunction::radiativePotential(double x_Euh, double x_SE, double rcut,
   if (x_SE > 0) {
     std::cout << "Forming Self-Energy (electric high-f) potential "
               << "(scale=" << x_SE << ")\n";
+
 #pragma omp parallel for
-    for (std::size_t i = 0; i < imax; ++i) {
+    for (std::size_t i = 0; i < imax; i++) {
       auto r = rgrid.r[i];
-      auto v_SE = RadiativePotential::vSEh(r, rN_rad, m_Z, m_alpha);
-      vnuc[i] -= x_SE * v_SE;
+      auto v_SE_h = RadiativePotential::vSEh(r, rN_rad, m_Z, m_alpha);
+      auto v_SE_l = RadiativePotential::vSEl(r, rN_rad, m_Z, m_alpha);
+      vnuc[i] -= x_SE * (v_SE_h + v_SE_l);
     }
   }
 
@@ -214,7 +216,8 @@ std::size_t Wavefunction::getStateIndex(int n, int k, bool &is_valence) const {
     }
     is_valence = true;
   }
-  // std::cerr << "\nFAIL 290 in WF: Couldn't find state n,k=" << n << "," << k
+  // std::cerr << "\nFAIL 290 in WF: Couldn't find state n,k=" << n << "," <<
+  // k
   //           << "\n";
   // // std::abort();
   return std::max(core_orbitals.size(), valence_orbitals.size()); // invalid

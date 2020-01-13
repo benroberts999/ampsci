@@ -49,4 +49,6 @@ double gslfunc_SEh_smallr(double t, void *p);
 
 double vSEh(double r, double rN, double z, double alpha);
 
+double vSEl(double r, double rN, double z, double alpha);
+
 } // namespace RadiativePotential

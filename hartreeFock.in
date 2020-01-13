@@ -21,7 +21,7 @@ Nucleus {
 // RadPot {
 //   x_Euh = 0.0;
 //   x_SE = 0.0;
-//   rcut = 0.1;
+//   rcut = 0.5;
 // }
 
 Grid {

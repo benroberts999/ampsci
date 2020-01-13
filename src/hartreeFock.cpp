@@ -85,7 +85,7 @@ int main(int argc, char *argv[]) {
       input_ok && input.check("RadPot", {"x_Euh", "x_SE", "rcut", "scale_rN"});
   auto x_Euh = input.get("RadPot", "x_Euh", 0.0);
   auto x_SE = input.get("RadPot", "x_SE", 0.0);
-  auto rcut = input.get("RadPot", "rcut", 0.1);
+  auto rcut = input.get("RadPot", "rcut", 0.5);
   auto scale_rN = input.get("RadPot", "scale_rN", 1.0);
   if (input_ok)
     wf.radiativePotential(x_Euh, x_SE, rcut, scale_rN);

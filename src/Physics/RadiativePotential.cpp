@@ -164,8 +164,8 @@ double gslfunc_SEh_larger(double t, void *p) {
           (rA / (rN * rN * rN)) * gb_I2(t, r, rN, z, alpha));
 }
 
+//******************************************************************************
 static Fit_AB fit_AB;
-
 double vSEh(double r, double rN, double z, double alpha) {
 
   static constexpr double abs_err_lim = 0.0;
@@ -200,6 +200,25 @@ double vSEh(double r, double rN, double z, double alpha) {
   //           << ", d=" << abs_err / int_result << "\n";
 
   return pre_factor * int_result;
+}
+
+double vSEl(double r, double rN, double z, double alpha) {
+  //
+  auto l = 0; // XXX
+  auto bl = fit_AB.Bl(l, z * alpha);
+
+  auto pre_factor =
+      -1.5 * bl * z * z * alpha * alpha * alpha / (rN * rN * rN * r);
+
+  auto f = [=](double x) {
+    auto arg_neg = z * std::abs(r - x);
+    auto arg_pos = z * (r + x);
+    auto a = (arg_neg + 1.0) * std::exp(-arg_neg);
+    auto b = (arg_pos + 1.0) * std::exp(-arg_pos);
+    return x * (a - b);
+  };
+
+  return pre_factor * NumCalc::num_integrate(f, 0.0, rN, 1000, NumCalc::linear);
 }
 
 } // namespace RadiativePotential
