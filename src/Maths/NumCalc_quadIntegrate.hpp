@@ -2,6 +2,8 @@
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_coeficients.hpp"
 #include <array>
+#include <cmath>
+#include <functional>
 #include <iostream>
 #include <vector>
 
@@ -219,5 +221,51 @@ inline void scaleVec(std::vector<double> &vec, const double x) {
 }
 //******************************************************************************
 //******************************************************************************
+
+enum t_grid { linear, logarithmic };
+// XXX Add logarithmic grid
+
+static inline std::function<double(long unsigned)> linx(double a, double dt) {
+  return [=](long unsigned i) { return a + double(i) * dt; };
+}
+
+static inline std::function<double(long unsigned)> one() {
+  return [=](long unsigned) { return 1.0; };
+}
+
+static inline std::function<double(long unsigned)> logx(double a, double dt) {
+  return [=](long unsigned i) { return a * std::exp(double(i) * dt); };
+}
+
+//******************************************************************************
+inline double num_integrate(std::function<double(double)> f, double a, double b,
+                            long unsigned n_pts, t_grid type = linear) {
+  //
+
+  const auto dt = (type == linear) ? (b - a) / double(n_pts - 1)
+                                   : std::log(b / a) / double(n_pts - 1);
+
+  std::function<double(long unsigned)> x =
+      (type == linear) ? linx(a, dt) : logx(a, dt);
+  std::function<double(long unsigned)> dxdt =
+      (type == linear) ? one() : logx(a, dt);
+
+  double Rint_s = 0.0;
+  for (long unsigned i = 0; i < Nquad; i++) {
+    Rint_s += cq[i] * f(x(i)) * dxdt(i);
+  }
+
+  double Rint_m = 0.0;
+  for (auto i = Nquad; i < n_pts - Nquad; i++) {
+    Rint_m += f(x(i)) * dxdt(i);
+  }
+
+  double Rint_e = 0;
+  for (auto i = n_pts - Nquad; i < n_pts; i++) {
+    Rint_e += cq[n_pts - i - 1] * f(x(i)) * dxdt(i);
+  }
+
+  return (Rint_m + dq_inv * (Rint_s + Rint_e)) * dt;
+}
 
 } // namespace NumCalc
