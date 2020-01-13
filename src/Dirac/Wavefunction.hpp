@@ -46,7 +46,8 @@ private:
   std::unique_ptr<HartreeFock> m_pHF = nullptr;
 
 public:
-  const std::vector<double> vnuc;
+  // const
+  std::vector<double> vnuc;
   std::vector<double> vdir; // direct/local part of the electron potential
 
 private:
@@ -125,6 +126,8 @@ public:
                        double eps_HF = 0, double h_d = 0, double g_t = 0);
   auto coreEnergyHF() const;
   void hartreeFockValence(const std::string &in_valence_str);
+
+  void radiativePotential(double scale_Ueh, double scale_rN);
 
   double enGuessCore(int n, int l) const;
   double enGuessVal(int n, int ka) const;

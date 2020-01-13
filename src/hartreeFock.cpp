@@ -48,6 +48,12 @@ int main(int argc, char *argv[]) {
   Wavefunction wf(atom_Z, {num_points, r0, rmax, b, grid_type, du_tmp},
                   {atom_Z, atom_A, nuc_type, rrms, skint}, var_alpha);
 
+  // Use QED radiatve potential?
+  input_ok = input_ok && input.check("RadPot", {"x_Euh", "scale_rN"});
+  auto x_Euh = input.get("RadPot", "x_Euh", 0.0);
+  auto scale_rN = input.get("RadPot", "scale_rN", 1.0);
+  wf.radiativePotential(x_Euh, scale_rN);
+
   // Parse input for HF method
   input_ok =
       input_ok &&

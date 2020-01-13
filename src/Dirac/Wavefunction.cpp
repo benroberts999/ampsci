@@ -6,6 +6,7 @@
 #include "Physics/AtomData.hpp"
 #include "Physics/NuclearPotentials.hpp"
 #include "Physics/PhysConst_constants.hpp"
+#include "Physics/RadiativePotential.hpp"
 #include <algorithm> //for sort
 #include <cmath>
 #include <iostream>
@@ -136,6 +137,20 @@ void Wavefunction::hartreeFockValence(const std::string &in_valence_str) {
       valence_orbitals.emplace_back(DiracSpinor{nk.n, nk.k, rgrid});
   }
   m_pHF->solveValence();
+}
+
+//******************************************************************************
+void Wavefunction::radiativePotential(double scale_Ueh, double scale_rN) {
+  // XXX Let this work even if r_rms=0 !!
+  auto rN_rad =
+      scale_rN * m_nuc_params.r_rms * std::sqrt(5.0 / 3.0) / PhysConst::aB_fm;
+  if (scale_Ueh > 0) {
+    for (std::size_t i = 0; i < rgrid.num_points; ++i) {
+      auto r = rgrid.r[i];
+      auto v_Euh = RadiativePotential::vEuhling(r, rN_rad, m_Z, m_alpha);
+      vnuc[i] -= scale_Ueh * v_Euh;
+    }
+  }
 }
 
 //******************************************************************************

@@ -18,6 +18,8 @@ Nucleus {
   type; // Fermi (dflt), spherical, point
 }
 
+// RadPot { x_Euh = 1.0; }
+
 Grid {
   r0 = 1e-6;
   rmax = 120.0;
