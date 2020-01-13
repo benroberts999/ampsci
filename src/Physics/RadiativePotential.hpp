@@ -2,20 +2,35 @@
 
 namespace RadiativePotential {
 
-// Routines return the first approximation which has an absolute error
-// smaller than abs_err_lim or a relative error smaller than rel_err_lim.
-// Note that this is an either-or constraint, not simultaneous. To compute to
-// a specified absolute error, set epsrel to zero (etc.)
-static constexpr double abs_err_lim = 1.0e-3;
-static constexpr double rel_err_lim = 1.0e-6;
-// max_num_subintvls < size(gsl_int_wrk)
-static constexpr unsigned long max_num_subintvls = 500; //?
-
-//*******************************
+//******************************************************************************
 struct RadPot_params {
   double r, rN, z, alpha;
 };
 
+struct Fit_AB {
+  // [1] J. S. M. Ginges and J. C. Berengut, Phys. Rev. A 93, 052509 (2016).
+  // [1] V. V. Flambaum and J. S. M. Ginges, Phys. Rev. A 72, 052115 (2005).
+  double a0 = 1.071, a1 = 0.0, a2 = -1.976, a3 = -2.128, a4 = 0.169;
+  double bsp0 = 0.074, bsp1 = 0.35, bsp2 = 0.0;
+  double bd0 = 0.056, bd1 = 0.050, bd2 = 0.195;
+  //
+  double Al(int l, double za) {
+    auto x = za - 80.0 / 137.036;
+    if (l < 2)
+      return a0 + (a1 * x) + (a2 * x * x) + (a3 * x * x * x) +
+             (a4 * x * x * x * x);
+    return 0.0;
+  }
+  double Bl(int l, double za) {
+    if (l < 2)
+      return bsp0 + (bsp1 * za) + (bsp2 * za * za);
+    if (l == 2)
+      return bd0 + (bd1 * za) + (bd2 * za * za);
+    return 0.0;
+  }
+};
+
+//******************************************************************************
 double vEuhcommon(double t, double chi);
 double vEuhf_smallr(double r, double rN, double chi);
 double vEuhf_larger(double r, double rN, double chi);
@@ -23,5 +38,15 @@ double gslfunc_Ueh_smallr(double t, void *p);
 double gslfunc_Ueh_larger(double t, void *p);
 
 double vEuhling(double r, double rN, double z, double alpha);
+
+//******************************************************************************
+double gb_GSEh_smallr(double r, double rN, double chi);
+double gb_GSEh_larger(double r, double rN, double chi);
+double gb_I1(double t, double z, double alpha);
+double gb_I2(double t, double r, double rN, double z, double alpha);
+
+double gslfunc_SEh_smallr(double t, void *p);
+
+double vSEh(double r, double rN, double z, double alpha);
 
 } // namespace RadiativePotential

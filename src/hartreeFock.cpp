@@ -48,12 +48,6 @@ int main(int argc, char *argv[]) {
   Wavefunction wf(atom_Z, {num_points, r0, rmax, b, grid_type, du_tmp},
                   {atom_Z, atom_A, nuc_type, rrms, skint}, var_alpha);
 
-  // Use QED radiatve potential?
-  input_ok = input_ok && input.check("RadPot", {"x_Euh", "scale_rN"});
-  auto x_Euh = input.get("RadPot", "x_Euh", 0.0);
-  auto scale_rN = input.get("RadPot", "scale_rN", 1.0);
-  wf.radiativePotential(x_Euh, scale_rN);
-
   // Parse input for HF method
   input_ok =
       input_ok &&
@@ -85,6 +79,16 @@ int main(int argc, char *argv[]) {
   } else if (HF_method == HFMethod::Hartree) {
     std::cout << "Using Hartree Method (no Exchange)\n";
   }
+
+  // Use QED radiatve potential?
+  input_ok =
+      input_ok && input.check("RadPot", {"x_Euh", "x_SE", "rcut", "scale_rN"});
+  auto x_Euh = input.get("RadPot", "x_Euh", 0.0);
+  auto x_SE = input.get("RadPot", "x_SE", 0.0);
+  auto rcut = input.get("RadPot", "rcut", 0.1);
+  auto scale_rN = input.get("RadPot", "scale_rN", 1.0);
+  if (input_ok)
+    wf.radiativePotential(x_Euh, x_SE, rcut, scale_rN);
 
   { // Solve Hartree equations for the core:
     ChronoTimer t(" core");

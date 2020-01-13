@@ -140,17 +140,42 @@ void Wavefunction::hartreeFockValence(const std::string &in_valence_str) {
 }
 
 //******************************************************************************
-void Wavefunction::radiativePotential(double scale_Ueh, double scale_rN) {
-  // XXX Let this work even if r_rms=0 !!
+void Wavefunction::radiativePotential(double x_Euh, double x_SE, double rcut,
+                                      double scale_rN) {
+
+  if (x_Euh > 0 || x_SE > 0) {
+    std::cout << "\nIncluding QED radiative potential (up to r=" << rcut
+              << "):\n";
+  }
+
+  const auto imax = rgrid.getIndex(rcut);
+
   auto rN_rad =
       scale_rN * m_nuc_params.r_rms * std::sqrt(5.0 / 3.0) / PhysConst::aB_fm;
-  if (scale_Ueh > 0) {
-    for (std::size_t i = 0; i < rgrid.num_points; ++i) {
+
+  if (x_Euh > 0) {
+    std::cout << "Forming Euhling potential "
+              << "(scale=" << x_SE << ")\n";
+#pragma omp parallel for
+    for (std::size_t i = 0; i < imax; ++i) {
       auto r = rgrid.r[i];
       auto v_Euh = RadiativePotential::vEuhling(r, rN_rad, m_Z, m_alpha);
-      vnuc[i] -= scale_Ueh * v_Euh;
+      vnuc[i] -= x_Euh * v_Euh;
     }
   }
+
+  if (x_SE > 0) {
+    std::cout << "Forming Self-Energy (electric high-f) potential "
+              << "(scale=" << x_SE << ")\n";
+#pragma omp parallel for
+    for (std::size_t i = 0; i < imax; ++i) {
+      auto r = rgrid.r[i];
+      auto v_SE = RadiativePotential::vSEh(r, rN_rad, m_Z, m_alpha);
+      vnuc[i] -= x_SE * v_SE;
+    }
+  }
+
+  std::cout << "\n";
 }
 
 //******************************************************************************
