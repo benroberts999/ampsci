@@ -98,7 +98,7 @@ void boundState(DiracSpinor &psi, const double en0,
   for (; t_its < Param::max_its; ++t_its) {
     t_pinf = Adams::findPracticalInfinity(t_en, v, rgrid.r, Param::cALR);
     const int ctp =
-        Adams::findClassicalTurninum_pointsoint(t_en, v, t_pinf, Param::d_ctp);
+        Adams::findClassicalTurningPoint(t_en, v, t_pinf, Param::d_ctp);
 
     // Find solution (f,g) to DE for given energy:
     // Also stores dg (gout-gin) for PT [used for PT to find better e]
@@ -298,9 +298,8 @@ int findPracticalInfinity(const double en, const std::vector<double> &v,
 }
 
 //******************************************************************************
-int findClassicalTurninum_pointsoint(const double en,
-                                     const std::vector<double> &v,
-                                     const int pinf, const int d_ctp)
+int findClassicalTurningPoint(const double en, const std::vector<double> &v,
+                              const int pinf, const int d_ctp)
 // Finds classical turning point 'ctp'
 // Enforced to be between (0+ctp) and (pinf-ctp)
 //  V(r) > E        [nb: both V and E are <0]

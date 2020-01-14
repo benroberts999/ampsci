@@ -21,7 +21,7 @@ Nucleus {
 // RadPot {
 //   x_Ueh = 0.0;
 //   x_SEe = 0.0;
-//   x_SEm = 0.0;
+//   x_SEm = 0.0; // Not yet coded in!
 //   rcut = 0.5;
 // }
 

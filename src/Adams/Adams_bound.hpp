@@ -70,7 +70,7 @@ struct TrackEnGuess {
 int findPracticalInfinity(const double en, const std::vector<double> &v,
                           const std::vector<double> &r, const double alr);
 
-int findClassicalTurninum_pointsoint(const double en,
+int findClassicalTurningPoint(const double en,
                                      const std::vector<double> &v,
                                      const int pinf, const int d_ctp);
 

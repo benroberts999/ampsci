@@ -2,6 +2,7 @@
 #include "Adams/DiracODE.hpp"
 #include "Dirac/DiracSpinor.hpp"
 #include "Maths/Grid.hpp"
+#include "Maths/Interpolator.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/AtomData.hpp"
 #include "Physics/NuclearPotentials.hpp"
@@ -168,10 +169,24 @@ void Wavefunction::radiativePotential(double x_Ueh, double x_SEe, double x_SEm,
     // This is slow. Do a fit/smoothing something??
     std::cout << "Forming Self-Energy (electric high-f) potential (scale="
               << x_SEe << ")\n";
+
+    // The SE high-f part is very slow. We calculate it every few points only,
+    // and then interpolate the intermediate points
+    const std::size_t stride = 6;
+    const auto tmp_max = imax / stride;
+    std::vector<double> x(tmp_max), y(tmp_max);
+#pragma omp parallel for
+    for (std::size_t i = 0; i < tmp_max; ++i) {
+      auto r = rgrid.r[i * stride];
+      auto v_SE_h = RadiativePotential::vSEh(r, rN_rad, m_Z, m_alpha);
+      x[i] = r;
+      y[i] = v_SE_h;
+    }
+    auto vec_SE_h = Interpolator::interpolate(x, y, rgrid.r);
 #pragma omp parallel for
     for (std::size_t i = 0; i < imax; i++) {
       auto r = rgrid.r[i];
-      auto v_SE_h = RadiativePotential::vSEh(r, rN_rad, m_Z, m_alpha);
+      auto v_SE_h = vec_SE_h[i];
       auto v_SE_l = RadiativePotential::vSEl(r, rN_rad, m_Z, m_alpha);
       vnuc[i] -= x_SEe * (v_SE_h + v_SE_l);
     }
