@@ -108,15 +108,19 @@ Nucleus {
 * type: Which distribution to use for nucleus? Options are: Fermi (default), spherical, point
 * skin_t: skin thickness [only used by Fermi distro]
 
-## QED Radiative Potential (just Uehling potential)
+## QED Radiative Potential [Ginges/Flambaum Method]
 ```cpp
 RadPot {
-  x_Euh;    //[r] default = 0.0
+  x_Ueh;    //[r] default = 0.0
+  x_SE;     //[r] default = 0.0
+  rcut;     //[r] default = 0.5
   scale_rN; //[r] default = 1.0
 }
 //nb: all of these are optional, hence entire block can be omitted
 ```
 * Adds Euhling potential (to nuclear potential) Vnuc(r) += -x_Euh*Veuh(r)
+* Adds G/F Self-energy potential. [Just electric, magnetic to come soon]
+* rcut: Only calculates potential for v<rcut [for speed]
 * scale_rN: finite nucleus effects: rN = rN * scale_rN (for testing only)
 
 ## Grid

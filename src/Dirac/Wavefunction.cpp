@@ -140,10 +140,10 @@ void Wavefunction::hartreeFockValence(const std::string &in_valence_str) {
 }
 
 //******************************************************************************
-void Wavefunction::radiativePotential(double x_Euh, double x_SE, double rcut,
+void Wavefunction::radiativePotential(double x_Ueh, double x_SE, double rcut,
                                       double scale_rN) {
 
-  if (x_Euh > 0 || x_SE > 0) {
+  if (x_Ueh > 0 || x_SE > 0) {
     std::cout << "\nIncluding QED radiative potential (up to r=" << rcut
               << "):\n";
   }
@@ -153,14 +153,14 @@ void Wavefunction::radiativePotential(double x_Euh, double x_SE, double rcut,
   auto rN_rad =
       scale_rN * m_nuc_params.r_rms * std::sqrt(5.0 / 3.0) / PhysConst::aB_fm;
 
-  if (x_Euh > 0) {
-    std::cout << "Forming Euhling potential "
+  if (x_Ueh > 0) {
+    std::cout << "Forming Uehling potential "
               << "(scale=" << x_SE << ")\n";
 #pragma omp parallel for
     for (std::size_t i = 0; i < imax; ++i) {
       auto r = rgrid.r[i];
-      auto v_Euh = RadiativePotential::vEuhling(r, rN_rad, m_Z, m_alpha);
-      vnuc[i] -= x_Euh * v_Euh;
+      auto v_Ueh = RadiativePotential::vUehling(r, rN_rad, m_Z, m_alpha);
+      vnuc[i] -= x_Ueh * v_Ueh;
     }
   }
 

@@ -8,7 +8,8 @@
 
 namespace RadiativePotential {
 
-double vEuhcommon(double t, double chi) {
+//------------------------------------------------------------------------------
+double vUehcommon(double t, double chi) {
   auto t2 = t * t;
   auto chi3 = chi * chi * chi;
   auto a = std::sqrt(t2 - 1.0);
@@ -17,14 +18,15 @@ double vEuhcommon(double t, double chi) {
   return a * b * c;
 }
 
-double vEuhf_smallr(double r, double rN, double chi) {
+//------------------------------------------------------------------------------
+double vUehf_smallr(double r, double rN, double chi) {
   // nb: a part can be removed and done analyitcally
   auto a = (r / rN) * chi;
   auto b = std::exp(-chi) * (1.0 + chi);
   auto c = std::sinh(a);
   return a - b * c;
 }
-double vEuhf_larger(double r, double rN, double chi) {
+double vUehf_larger(double r, double rN, double chi) {
   const auto tmp = (r / rN) * chi;
   const auto a = std::exp(-tmp);
   // const auto b = chi * std::cosh(chi) - sinh(chi); // XXX unstable small chi
@@ -36,24 +38,26 @@ double vEuhf_larger(double r, double rN, double chi) {
   return a * b;
 }
 
+//------------------------------------------------------------------------------
 double gslfunc_Ueh_smallr(double t, void *p) {
   const auto [r, rN, z, alpha] = *(static_cast<RadPot_params *>(p));
   (void)z;
   const auto chi = 2.0 * t * rN / alpha;
-  const auto g = vEuhcommon(t, chi);
-  const auto f = vEuhf_smallr(r, rN, chi);
+  const auto g = vUehcommon(t, chi);
+  const auto f = vUehf_smallr(r, rN, chi);
   return f * g;
 }
 double gslfunc_Ueh_larger(double t, void *p) {
   const auto [r, rN, z, alpha] = *(static_cast<RadPot_params *>(p));
   (void)z;
   const auto chi = 2.0 * t * rN / alpha;
-  const auto g = vEuhcommon(t, chi);
-  const auto f = vEuhf_larger(r, rN, chi);
+  const auto g = vUehcommon(t, chi);
+  const auto f = vUehf_larger(r, rN, chi);
   return f * g;
 }
 
-double vEuhling(double r, double rN, double z, double alpha) {
+//------------------------------------------------------------------------------
+double vUehling(double r, double rN, double z, double alpha) {
 
   // Routines return the first approximation which has an absolute error
   // smaller than abs_err_lim or a relative error smaller than rel_err_lim.
@@ -115,20 +119,15 @@ double gb_I2(double t, double r, double rN, double z, double alpha) {
     auto arg1 = (std::abs(r - x) + rA) * ttoa;
     auto arg2 = (r + x + rA) * ttoa;
     auto a = -std::expint(-arg1) + std::expint(-arg2);
-    // std::cout << -std::expint(-arg1) << " " << std::expint(-arg2) << "\n";
     return x * a;
   };
 
-  // std::cout << "f(0)=" << f(0.0) << " " << f(1.0e-7) << " " << f(rN) << "\n";
-
   return expr * NumCalc::num_integrate(f, 0.0, rN, 1000, NumCalc::linear);
-  // return expr *
-  //        NumCalc::num_integrate(f, 1.0e-7, rN, 5000, NumCalc::logarithmic);
 }
 
-// double gb_GSEh_smallr(double r, double rN, double chi) {
+//------------------------------------------------------------------------------
 double gb_GSEh_larger(double r, double rN, double chi) {
-  // Essentially duplicate of Euhling, but swapped large/small r ?
+  // Essentially duplicate of Uehling, but swapped large/small r ?
   const auto chi3 = chi * chi * chi;
   auto a = std::exp(-chi * r / rN) * 2.0 / chi3;
   const auto b = (chi < 0.5) ? chi3 / 3.0 + (chi3 * chi * chi) / 30.0 +
@@ -137,9 +136,8 @@ double gb_GSEh_larger(double r, double rN, double chi) {
   return a * b;
 }
 
-// double gb_GSEh_larger(double r, double rN, double chi) {
 double gb_GSEh_smallr(double r, double rN, double chi) {
-  // Essentially duplicate of Euhling, but swapped large/small r ?
+  // Essentially duplicate of Uehling, but swapped large/small r ?
   const auto chi3 = chi * chi * chi;
   auto a = 2.0 / chi3;
   auto b = (chi * r / rN);
@@ -147,6 +145,7 @@ double gb_GSEh_smallr(double r, double rN, double chi) {
   return a * (b - c);
 }
 
+//------------------------------------------------------------------------------
 double gslfunc_SEh_smallr(double t, void *p) {
   const auto [r, rN, z, alpha] = *(static_cast<RadPot_params *>(p));
   const auto chi = 2.0 * t * rN / alpha;
@@ -196,12 +195,10 @@ double vSEh(double r, double rN, double z, double alpha) {
 
   auto pre_factor = -1.5 * al * (alpha / M_PI) * z / r;
 
-  // std::cout << r << " " << pre_factor * int_result
-  //           << ", d=" << abs_err / int_result << "\n";
-
   return pre_factor * int_result;
 }
 
+//------------------------------------------------------------------------------
 double vSEl(double r, double rN, double z, double alpha) {
   //
   auto l = 0; // XXX

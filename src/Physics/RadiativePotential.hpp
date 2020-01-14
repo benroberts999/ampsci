@@ -31,24 +31,26 @@ struct Fit_AB {
 };
 
 //******************************************************************************
-double vEuhcommon(double t, double chi);
-double vEuhf_smallr(double r, double rN, double chi);
-double vEuhf_larger(double r, double rN, double chi);
+// Uehling (vaccuum pol.)
+double vUehling(double r, double rN, double z, double alpha);
+
+// Uehling helper functions:
+double vUehcommon(double t, double chi);
+double vUehf_smallr(double r, double rN, double chi);
+double vUehf_larger(double r, double rN, double chi);
 double gslfunc_Ueh_smallr(double t, void *p);
 double gslfunc_Ueh_larger(double t, void *p);
 
-double vEuhling(double r, double rN, double z, double alpha);
-
 //******************************************************************************
+// Self-energy (electric)
+double vSEh(double r, double rN, double z, double alpha);
+double vSEl(double r, double rN, double z, double alpha);
+
+// Self-energy helper functions:
 double gb_GSEh_smallr(double r, double rN, double chi);
 double gb_GSEh_larger(double r, double rN, double chi);
 double gb_I1(double t, double z, double alpha);
 double gb_I2(double t, double r, double rN, double z, double alpha);
-
 double gslfunc_SEh_smallr(double t, void *p);
-
-double vSEh(double r, double rN, double z, double alpha);
-
-double vSEl(double r, double rN, double z, double alpha);
 
 } // namespace RadiativePotential

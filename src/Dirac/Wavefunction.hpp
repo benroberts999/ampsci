@@ -127,7 +127,7 @@ public:
   auto coreEnergyHF() const;
   void hartreeFockValence(const std::string &in_valence_str);
 
-  void radiativePotential(double x_Euh, double x_SE, double rcut,
+  void radiativePotential(double x_Ueh, double x_SE, double rcut,
                           double scale_rN);
 
   double enGuessCore(int n, int l) const;
