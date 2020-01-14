@@ -113,7 +113,9 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
   auto &[Aij, Sij] = A_and_S;
 
   // XXX Move this into wf ??
-  auto Hd = DirectHamiltonian(wf.vnuc, wf.vdir, wf.get_alpha());
+  // auto Hd = DirectHamiltonian(wf.vnuc, wf.vdir, wf.get_alpha());
+  auto Hd = RadialHamiltonian(wf.rgrid, wf.get_alpha());
+  Hd.set_v(-1, wf.vnuc, wf.vdir); // same each kappa
 
 #pragma omp parallel for
   for (auto i = 0; i < (int)spl_basis.size(); i++) {

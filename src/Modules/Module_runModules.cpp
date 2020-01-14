@@ -246,7 +246,10 @@ void Module_Tests_orthonormality(const Wavefunction &wf, const bool print_all) {
 void Module_Tests_Hamiltonian(const Wavefunction &wf) {
   std::cout << "\nTesting wavefunctions: <n|H|n>  (numerical error)\n";
 
-  DirectHamiltonian Hd(wf.vnuc, wf.vdir, wf.get_alpha());
+  // DirectHamiltonian Hd(wf.vnuc, wf.vdir, wf.get_alpha());
+  auto Hd = RadialHamiltonian(wf.rgrid, wf.get_alpha());
+  Hd.set_v(-1, wf.vnuc, wf.vdir); // same each kappa
+
   for (const auto tmp_orbs :
        {&wf.core_orbitals, &wf.valence_orbitals, &wf.basis}) {
     if (tmp_orbs->empty())

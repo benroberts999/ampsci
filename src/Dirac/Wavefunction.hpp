@@ -12,7 +12,6 @@
 #include <vector>
 
 static bool dummy_bool{};
-
 //******************************************************************************
 class Wavefunction {
 
