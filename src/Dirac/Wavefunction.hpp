@@ -48,7 +48,8 @@ private:
 public:
   // const
   std::vector<double> vnuc;
-  std::vector<double> vdir; // direct/local part of the electron potential
+  std::vector<double> vdir;    // direct/local part of the electron potential
+  std::vector<double> Hse_mag; // magnetic form-factor
 
 private:
   // Core configuration (non-rel terms)
@@ -127,7 +128,7 @@ public:
   auto coreEnergyHF() const;
   void hartreeFockValence(const std::string &in_valence_str);
 
-  void radiativePotential(double x_Ueh, double x_SE, double rcut,
+  void radiativePotential(double x_Ueh, double x_SEe, double x_SEm, double rcut,
                           double scale_rN);
 
   double enGuessCore(int n, int l) const;

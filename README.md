@@ -3,17 +3,14 @@
 Solves the Dirac equation for atomic systems using the Hartree-Fock method.
 Fully relativistic, includes finite-nuclear size, and can solve for continuum states (energy normalisation).
 
- * With reasonable choices for the integration grids, energies typically converge to better than a few parts in 10^16, and HF to 10^13
- * Includes an option to vary the effective speed of light - allowing non-relativistic approximation.
- * Orbitals are in form psi = (1/r) [f,ig], (using Dirac basis)
 
 ### Compilation:
 
  * All programs compiled using the Makefile (run _$make_ or _$make programName_)
  * Install make on ubutnu: _$sudo apt-get install make_
- * Tested with g++, clang++, and icpc. (requires c++14)
+ * Tested with g++, clang++, and icpc. (requires c++17)
 
-Note: makes use of GSL libraries: https://www.gnu.org/software/gsl/, and LAPACK. These must be installed for the code to run
+Note: makes use of GSL libraries (tested with ver:2.4): https://www.gnu.org/software/gsl/, and LAPACK. These must be installed for the code to run
 
   * For example, install GSL with ubuntu: _$sudo apt-get install libgsl-dev_
   * And LAPACK/BLAS: _$sudo apt-get install libatlas-base-dev liblapack-dev libblas-dev_
@@ -32,9 +29,10 @@ Then, the compilation + use can proceed as per above.
     * (Otherwise, program will assume file name is 'hartreeFock.in')
  * see doc/ folder for a full list of input options + descriptions
 
+
 ## Documentation
 
- * Documentation is in doc/ directory. Contains three documents:
+ * Documentation is in doc/ directory (best viewed with a markdown reader or on GitHub). Contains three documents:
  * 01-hartreeFock_input -- How to use the code (input options + descriptions)
  * 02-diracSCAS_method  -- What the code does (description of physics)
  * 03-diracSCAS_code    -- Documentation for code objects/functions etc. [coming "soon" (not soon)]

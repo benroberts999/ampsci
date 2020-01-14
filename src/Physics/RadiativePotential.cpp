@@ -84,7 +84,7 @@ double vUehling(double r, double rN, double z, double alpha) {
   // Allocates a workspace sufficient to hold n double precision
   // intervals, their integration results and error estimates.
   gsl_integration_workspace *gsl_int_wrk =
-      gsl_integration_workspace_alloc(max_num_subintvls + 1); // -1 ?
+      gsl_integration_workspace_alloc(max_num_subintvls + 1);
   // nb: i allocate + destroy wrk EACH r... doesn't much matter though...
 
   double int_result, abs_err;
@@ -183,7 +183,7 @@ double vSEh(double r, double rN, double z, double alpha) {
   f_gsl.params = &params;
 
   gsl_integration_workspace *gsl_int_wrk =
-      gsl_integration_workspace_alloc(max_num_subintvls + 1); // -1 ?
+      gsl_integration_workspace_alloc(max_num_subintvls + 1);
 
   double int_result, abs_err;
   gsl_integration_qagiu(&f_gsl, 1.0, abs_err_lim, rel_err_lim,
@@ -216,6 +216,55 @@ double vSEl(double r, double rN, double z, double alpha) {
   };
 
   return pre_factor * NumCalc::num_integrate(f, 0.0, rN, 1000, NumCalc::linear);
+}
+
+//******************************************************************************
+double seJmag(double x, double y) {
+  const auto y3 = y * y * y;
+  const auto sihncosh =
+      (y < 0.5) ? -y3 / 3.0 - (y3 * y * y) / 30.0 - (y3 * y3 * y) / 840.0
+                : sinh(y) - y * std::cosh(y);
+  return std::exp(-x) * (1.0 + x) * sihncosh + y3 / 3.0;
+}
+
+double gslfunc_SEmag(double t, void *p) {
+  const auto [r, rN, z, alpha] = *(static_cast<RadPot_params *>(p));
+  (void)z;
+  const auto chi = 2.0 * t * rN / alpha;
+  const auto eta = 2.0 * t * r / alpha;
+  const auto factor =
+      1.0 / (chi * chi * chi * eta * eta * std::sqrt(t * t - 1.0));
+  return (r <= rN) ? factor * seJmag(chi, eta) : factor * seJmag(eta, chi);
+}
+
+//------------------------------------------------------------------------------
+double vSE_Hmag(double r, double rN, double z, double alpha) {
+
+  static constexpr double abs_err_lim = 0.0;
+  static constexpr double rel_err_lim = 1.0e-6;
+  static constexpr unsigned long max_num_subintvls = 750; //?
+
+  gsl_set_error_handler_off(); //?
+  if (rN <= 0) {
+    rN = 1.0e-7;
+  }
+
+  RadPot_params params = {r, rN, z, alpha};
+
+  gsl_function f_gsl;
+  f_gsl.function = &gslfunc_SEmag;
+  f_gsl.params = &params;
+
+  gsl_integration_workspace *gsl_int_wrk =
+      gsl_integration_workspace_alloc(max_num_subintvls + 1);
+
+  double int_result, abs_err;
+  gsl_integration_qagiu(&f_gsl, 1.0, abs_err_lim, rel_err_lim,
+                        max_num_subintvls, gsl_int_wrk, &int_result, &abs_err);
+  gsl_integration_workspace_free(gsl_int_wrk);
+
+  const auto pre_factor = 3.0 * z / M_PI;
+  return pre_factor * int_result;
 }
 
 } // namespace RadiativePotential

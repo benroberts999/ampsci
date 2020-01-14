@@ -140,22 +140,22 @@ void Wavefunction::hartreeFockValence(const std::string &in_valence_str) {
 }
 
 //******************************************************************************
-void Wavefunction::radiativePotential(double x_Ueh, double x_SE, double rcut,
-                                      double scale_rN) {
+void Wavefunction::radiativePotential(double x_Ueh, double x_SEe, double x_SEm,
+                                      double rcut, double scale_rN) {
 
-  if (x_Ueh > 0 || x_SE > 0) {
+  if (x_Ueh > 0 || x_SEe > 0 || x_SEm > 0) {
     std::cout << "\nIncluding QED radiative potential (up to r=" << rcut
               << "):\n";
+  } else {
+    return;
   }
 
   const auto imax = rgrid.getIndex(rcut);
-
   auto rN_rad =
       scale_rN * m_nuc_params.r_rms * std::sqrt(5.0 / 3.0) / PhysConst::aB_fm;
 
   if (x_Ueh > 0) {
-    std::cout << "Forming Uehling potential "
-              << "(scale=" << x_SE << ")\n";
+    std::cout << "Forming Uehling potential (scale=" << x_Ueh << ")\n";
 #pragma omp parallel for
     for (std::size_t i = 0; i < imax; ++i) {
       auto r = rgrid.r[i];
@@ -164,16 +164,29 @@ void Wavefunction::radiativePotential(double x_Ueh, double x_SE, double rcut,
     }
   }
 
-  if (x_SE > 0) {
-    std::cout << "Forming Self-Energy (electric high-f) potential "
-              << "(scale=" << x_SE << ")\n";
-
+  if (x_SEe > 0) {
+    // This is slow. Do a fit/smoothing something??
+    std::cout << "Forming Self-Energy (electric high-f) potential (scale="
+              << x_SEe << ")\n";
 #pragma omp parallel for
     for (std::size_t i = 0; i < imax; i++) {
       auto r = rgrid.r[i];
       auto v_SE_h = RadiativePotential::vSEh(r, rN_rad, m_Z, m_alpha);
       auto v_SE_l = RadiativePotential::vSEl(r, rN_rad, m_Z, m_alpha);
-      vnuc[i] -= x_SE * (v_SE_h + v_SE_l);
+      vnuc[i] -= x_SEe * (v_SE_h + v_SE_l);
+    }
+  }
+
+  if (x_SEm > 0) {
+    std::cout << "Forming Self-Energy (magnetic) potential "
+              << "(scale=" << x_SEm << ")\n";
+    Hse_mag.clear(); // ensure zero'd
+    Hse_mag.resize(rgrid.num_points);
+#pragma omp parallel for
+    for (std::size_t i = 0; i < imax; i++) {
+      auto r = rgrid.r[i];
+      auto Hr = RadiativePotential::vSE_Hmag(r, rN_rad, m_Z, m_alpha);
+      Hse_mag[i] += x_SEm * Hr; // nb: plus!
     }
   }
 

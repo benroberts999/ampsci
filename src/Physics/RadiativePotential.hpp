@@ -46,11 +46,20 @@ double gslfunc_Ueh_larger(double t, void *p);
 double vSEh(double r, double rN, double z, double alpha);
 double vSEl(double r, double rN, double z, double alpha);
 
-// Self-energy helper functions:
+// Self-energy (elec) helper functions:
 double gb_GSEh_smallr(double r, double rN, double chi);
 double gb_GSEh_larger(double r, double rN, double chi);
 double gb_I1(double t, double z, double alpha);
 double gb_I2(double t, double r, double rN, double z, double alpha);
 double gslfunc_SEh_smallr(double t, void *p);
+
+//******************************************************************************
+// Self-energy, magnetic form factor (off-diagonal H function)
+double vSE_Hmag(double r, double rN, double z, double alpha);
+
+// Self-energy (mag) helper functions:
+double vSE_Hmag(double r, double rN, double z, double alpha);
+double seJmag(double x, double y);
+double gslfunc_SEmag(double t, void *p);
 
 } // namespace RadiativePotential

@@ -81,14 +81,15 @@ int main(int argc, char *argv[]) {
   }
 
   // Use QED radiatve potential?
-  input_ok =
-      input_ok && input.check("RadPot", {"x_Ueh", "x_SE", "rcut", "scale_rN"});
+  input_ok = input_ok && input.check("RadPot", {"x_Ueh", "x_SEe", "x_SEm",
+                                                "rcut", "scale_rN"});
   auto x_Ueh = input.get("RadPot", "x_Ueh", 0.0);
-  auto x_SE = input.get("RadPot", "x_SE", 0.0);
+  auto x_SEe = input.get("RadPot", "x_SEe", 0.0);
+  auto x_SEm = input.get("RadPot", "x_SEm", 0.0);
   auto rcut = input.get("RadPot", "rcut", 0.5);
   auto scale_rN = input.get("RadPot", "scale_rN", 1.0);
   if (input_ok)
-    wf.radiativePotential(x_Ueh, x_SE, rcut, scale_rN);
+    wf.radiativePotential(x_Ueh, x_SEe, x_SEm, rcut, scale_rN);
 
   { // Solve Hartree equations for the core:
     ChronoTimer t(" core");
