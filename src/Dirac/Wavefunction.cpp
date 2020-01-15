@@ -141,10 +141,11 @@ void Wavefunction::hartreeFockValence(const std::string &in_valence_str) {
 }
 
 //******************************************************************************
-void Wavefunction::radiativePotential(double x_Ueh, double x_SEe, double x_SEm,
-                                      double rcut, double scale_rN) {
+void Wavefunction::radiativePotential(double x_Ueh, double x_SEe_h,
+                                      double x_SEe_l, double x_SEm, double rcut,
+                                      double scale_rN) {
 
-  if (x_Ueh > 0 || x_SEe > 0 || x_SEm > 0) {
+  if (x_Ueh > 0 || x_SEe_h > 0 || x_SEe_l > 0 || x_SEm > 0) {
     std::cout << "\nIncluding QED radiative potential (up to r=" << rcut
               << "):\n";
   } else {
@@ -165,11 +166,9 @@ void Wavefunction::radiativePotential(double x_Ueh, double x_SEe, double x_SEm,
     }
   }
 
-  if (x_SEe > 0) {
-    // This is slow. Do a fit/smoothing something??
+  if (x_SEe_h > 0) {
     std::cout << "Forming Self-Energy (electric high-f) potential (scale="
-              << x_SEe << ")\n";
-
+              << x_SEe_h << ")\n";
     // The SE high-f part is very slow. We calculate it every few points only,
     // and then interpolate the intermediate points
     const std::size_t stride = 6;
@@ -177,30 +176,35 @@ void Wavefunction::radiativePotential(double x_Ueh, double x_SEe, double x_SEm,
     std::vector<double> x(tmp_max), y(tmp_max);
 #pragma omp parallel for
     for (std::size_t i = 0; i < tmp_max; ++i) {
-      auto r = rgrid.r[i * stride];
-      auto v_SE_h = RadiativePotential::vSEh(r, rN_rad, m_Z, m_alpha);
-      x[i] = r;
-      y[i] = v_SE_h;
+      x[i] = rgrid.r[i * stride];
+      y[i] = RadiativePotential::vSEh(x[i], rN_rad, m_Z, m_alpha);
     }
     auto vec_SE_h = Interpolator::interpolate(x, y, rgrid.r);
+    for (std::size_t i = 0; i < imax; i++) {
+      vnuc[i] -= x_SEe_h * vec_SE_h[i];
+    }
+  }
+
+  if (x_SEe_l > 0) {
+    std::cout << "Forming Self-Energy (electric low-f) potential (scale="
+              << x_SEe_l << ")\n";
 #pragma omp parallel for
     for (std::size_t i = 0; i < imax; i++) {
-      auto r = rgrid.r[i];
-      auto v_SE_h = vec_SE_h[i];
-      auto v_SE_l = RadiativePotential::vSEl(r, rN_rad, m_Z, m_alpha);
-      vnuc[i] -= x_SEe * (v_SE_h + v_SE_l);
+      auto v_SE_l = RadiativePotential::vSEl(rgrid.r[i], rN_rad, m_Z, m_alpha);
+      vnuc[i] -= x_SEe_l * v_SE_l;
     }
   }
 
   if (x_SEm > 0) {
     std::cout << "Forming Self-Energy (magnetic) potential "
               << "(scale=" << x_SEm << ")\n";
+    std::cout << "\nXXXX \n WARNiNG: For now: this is only included in BASIS, "
+                 "not HF\n XXXXX \n";
     Hse_mag.clear(); // ensure zero'd
     Hse_mag.resize(rgrid.num_points);
 #pragma omp parallel for
     for (std::size_t i = 0; i < imax; i++) {
-      auto r = rgrid.r[i];
-      auto Hr = RadiativePotential::vSE_Hmag(r, rN_rad, m_Z, m_alpha);
+      auto Hr = RadiativePotential::vSE_Hmag(rgrid.r[i], rN_rad, m_Z, m_alpha);
       Hse_mag[i] += x_SEm * Hr; // nb: plus!
     }
   }

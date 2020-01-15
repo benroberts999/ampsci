@@ -102,7 +102,6 @@ Nucleus {
   rrms;    //[r] will loop-up default value based on Z,A
   skin_t;  //[r] default = 2.3
 }
-//nb: all of these are optional, hence entire block can be omitted
 ```
 * rrms: nuclear root-mean-square charge radius (in femptometres = 10^-15m)
 * type: Which distribution to use for nucleus? Options are: Fermi (default), spherical, point
@@ -111,17 +110,20 @@ Nucleus {
 ## QED Radiative Potential [Ginges/Flambaum Method]
 ```cpp
 RadPot {
-  x_Ueh;    //[r] default = 0.0
-  x_SE;     //[r] default = 0.0
-  rcut;     //[r] default = 0.5
+  Ueh;      //[r] default = 0.0 //Uehling (vac pol)
+  SE_h;     //[r] default = 0.0 //high-f SE
+  SE_l;     //[r] default = 0.0 //low-f SE
+  SE_m;     //[r] default = 0.0 //Magnetic SE
+  rcut;     //[r] default = 1.0
   scale_rN; //[r] default = 1.0
 }
-//nb: all of these are optional, hence entire block can be omitted
 ```
-* Adds Euhling potential (to nuclear potential) Vnuc(r) += -x_Euh*Veuh(r)
-* Adds G/F Self-energy potential. [Just electric, magnetic to come soon]
-* rcut: Only calculates potential for v<rcut [for speed]
+* Adds QED radiative potential to Hamiltonian.
+* Each factor is a scale; 0 means don't include. 1 means include full potential. Any positive number is valid.
+* nb: For now, magnetic part is only included into the basis, not into HF
+* rcut: Only calculates potential for r < rcut [for speed; rcut in au]
 * scale_rN: finite nucleus effects: rN = rN * scale_rN (for testing only)
+
 
 ## Grid
 ```cpp
@@ -130,7 +132,7 @@ Grid {
   rmax;       //[r] default = 150.0
   num_points; //[i] default = 1600
   type;       //[t] default = loglinear
-  b;          //[r] default = 4.0
+  b;          //[r] default = rmax/3
   fixed_du;   //[r] default = -1. du>0 means calculate num_points
 }
 ```
@@ -140,6 +142,7 @@ Grid {
 * type: What type of grid to use? options are: loglinear (default), logarithmic, linear
   * Note: 'linear' grid requires a _very_ large number of points to work, and should essentially never be used.
 * b: only used for loglinear grid; the grid is roughly logarithmic below this value, and linear after it. Default is 4.0 (atomic units). If b<0 or b>rmax, will revert to using a logarithmic grid
+
 
 ## B-spline basis
 ```cpp
@@ -151,7 +154,6 @@ Basis {
   print;  //[b] default = false
   states; //[t] default = ""
 }
-//nb: all of these are optional, hence entire block can be omitted
 ```
 * Constructs basis using _number_ splines of order _order_
 * on sub-grid (r0,rmax) [if zero, will use full grid]

@@ -220,6 +220,10 @@ double vSEl(double r, double rN, double z, double alpha) {
   };
 
   return pre_factor * NumCalc::num_integrate(f, 0.0, rN, 1000, NumCalc::linear);
+
+  // This is the "point-nucleus" version. Gives same result!
+  // auto pre_factor2 = -bl * z * z * z * z * alpha * alpha * alpha;
+  // return pre_factor2 * std::exp(-z * r);
 }
 
 //******************************************************************************
