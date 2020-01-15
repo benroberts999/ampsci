@@ -1,6 +1,7 @@
 #include "Modules/Module_runModules.hpp"
 #include "DMionisation/Module_atomicKernal.hpp"
 #include "Dirac/DiracOperator.hpp"
+#include "Dirac/Hamiltonian.hpp"
 #include "Dirac/Operators.hpp"
 #include "Dirac/Wavefunction.hpp"
 #include "HF/HartreeFockClass.hpp"
