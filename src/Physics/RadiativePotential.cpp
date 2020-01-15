@@ -268,7 +268,7 @@ double vSE_Hmag(double r, double rN, double z, double alpha) {
                         max_num_subintvls, gsl_int_wrk, &int_result, &abs_err);
   gsl_integration_workspace_free(gsl_int_wrk);
 
-  const auto pre_factor = 3.0 * z / M_PI;
+  const auto pre_factor = 3.0 * z * alpha / M_PI; // XXX check!
   return pre_factor * int_result;
 }
 
