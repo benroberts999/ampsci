@@ -66,6 +66,11 @@ public: // const methods: "views" into WF object
   const Nuclear::Parameters &get_nuclearParameters() const {
     return m_nuc_params;
   }
+  bool exclude_exchangeQ() const {
+    if (m_pHF == nullptr)
+      return true;
+    return m_pHF->m_excludeExchange;
+  }
 
   auto get_VexPsi(const DiracSpinor &psi) const {
     // XXX add check!? XXX

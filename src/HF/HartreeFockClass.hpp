@@ -83,9 +83,12 @@ private:
   static constexpr bool m_explicitOrthog_cv = false;
 
   const double m_eps_HF;
+
+public: // blahhhhh
   const bool m_excludeExchange;
   const HFMethod m_method;
 
+private:
   // The "localised"/approximate HF potential:
   std::vector<std::vector<double>> appr_vex_core;
   std::vector<std::vector<double>> appr_vex_val;

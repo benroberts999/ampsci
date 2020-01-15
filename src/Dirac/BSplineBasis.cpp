@@ -112,10 +112,13 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
       std::make_pair(n_spl, n_spl);
   auto &[Aij, Sij] = A_and_S;
 
+  auto excl_exch = wf.exclude_exchangeQ();
+
   // XXX Move this into wf ??
   // auto Hd = DirectHamiltonian(wf.vnuc, wf.vdir, wf.get_alpha());
   auto Hd = RadialHamiltonian(wf.rgrid, wf.get_alpha());
   Hd.set_v(-1, wf.vnuc, wf.vdir); // same each kappa
+  Hd.set_v_mag(wf.Hse_mag);       // same each kappa
 
 #pragma omp parallel for
   for (auto i = 0; i < (int)spl_basis.size(); i++) {
@@ -124,7 +127,9 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
     for (auto j = 0; j < (int)spl_basis.size(); j++) {
       const auto &sj = spl_basis[j];
 
-      auto aij = Hd.matrixEl(si, sj) + (sj * VexPsi_i);
+      auto aij = Hd.matrixEl(si, sj);
+      if (!excl_exch)
+        aij += (sj * VexPsi_i);
 
       Aij[i][j] = aij;
       Sij[i][j] = si * sj;
