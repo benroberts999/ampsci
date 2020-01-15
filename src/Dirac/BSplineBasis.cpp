@@ -111,7 +111,9 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
 
   std::pair<LinAlg::SqMatrix, LinAlg::SqMatrix> A_and_S =
       std::make_pair(n_spl, n_spl);
-  auto &[Aij, Sij] = A_and_S;
+  // auto &[Aij, Sij] = A_and_S; //XXX error w/ clang? Why?
+  auto &Aij = A_and_S.first;
+  auto &Sij = A_and_S.second;
 
   auto excl_exch = wf.exclude_exchangeQ();
 

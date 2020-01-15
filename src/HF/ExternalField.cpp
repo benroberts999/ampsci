@@ -71,7 +71,7 @@ const DiracSpinor &ExternalField::get_dPsi_x(const DiracSpinor &phic,
 void ExternalField::solve_TDHFcore() {
 
 #pragma omp parallel for
-  for (auto ic = 0u; ic < p_core->size(); ic++) {
+  for (auto ic = 0ul; ic < p_core->size(); ic++) {
     const auto &phic = (*p_core)[ic];
     auto &dPsis_X = m_X[ic];
     for (auto &Xx : dPsis_X) {

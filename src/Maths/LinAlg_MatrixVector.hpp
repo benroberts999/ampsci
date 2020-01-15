@@ -87,16 +87,16 @@ public:
 
   double &operator[](int i) const;
   Vector &operator+=(const Vector rhs);
-  [[nodiscard]] friend Vector operator+(Vector lhs, const Vector &rhs);
+  friend Vector operator+(Vector lhs, const Vector &rhs);
   Vector &operator-=(const Vector rhs);
-  [[nodiscard]] friend Vector operator-(Vector lhs, const Vector &rhs);
+  friend Vector operator-(Vector lhs, const Vector &rhs);
   Vector &operator*=(const double x);
-  [[nodiscard]] friend Vector operator*(const double x, Vector rhs);
-  [[nodiscard]] friend Vector operator*(const SqMatrix &Aij, const Vector &bj);
+  friend Vector operator*(const double x, Vector rhs);
+  friend Vector operator*(const SqMatrix &Aij, const Vector &bj);
 
-  [[nodiscard]] friend double inner_produce(const Vector &a, const Vector &b);
-  [[nodiscard]] friend double operator*(const Vector &a, const Vector &b);
-  [[nodiscard]] friend SqMatrix outer_produce(const Vector &a, const Vector &b);
+  friend double inner_produce(const Vector &a, const Vector &b);
+  friend double operator*(const Vector &a, const Vector &b);
+  friend SqMatrix outer_produce(const Vector &a, const Vector &b);
 };
 
 //******************************************************************************

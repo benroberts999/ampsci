@@ -7,8 +7,8 @@ UseOpenMP=yes
 #UseOpenMP=no
 
 ## Build mode (changes warnings + optimisation level)
-#Build=release
-Build=dev
+Build=release
+#Build=dev
 #Build=debug
 
 ## Optional: set directory for executables (by default: current directory)

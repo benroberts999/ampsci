@@ -157,3 +157,32 @@ Basis {
 }
 Module::Tests {}
 Module::BohrWeisskopf {}
+
+###########################################
+#TEST# QED
+
+Atom { Z = Cs; }
+HartreeFock {
+  core = [Xe];
+  valence = 7sp;
+}
+RadPot {
+  Ueh = 1.0;
+  SE_h = 1.0;
+  SE_l = 1.0;
+  SE_m = 1.0;
+  rcut = 1.0;
+}
+Grid {
+  r0 = 1e-6;
+  rmax = 120.0;
+  num_points = 2000;
+}
+Basis {
+  number = 50;
+  order = 7;
+  r0 = 1.0e-5;
+  rmax = 50.0;
+  print = true;
+  states = 8sp;
+}

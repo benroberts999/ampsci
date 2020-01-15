@@ -10,13 +10,17 @@ Fully relativistic, includes finite-nuclear size, and can solve for continuum st
  * Install make on ubutnu: _$sudo apt-get install make_
  * Tested with g++, clang++, and icpc. (requires c++17)
 
-Note: makes use of GSL libraries (tested with ver:2.4): https://www.gnu.org/software/gsl/, and LAPACK. These must be installed for the code to run
+Note: makes use of GSL libraries (tested with ver:2.4): https://www.gnu.org/software/gsl/, and LAPACK. These must be installed for the code to run.
 
   * For example, install GSL with ubuntu: _$sudo apt-get install libgsl-dev_
   * And LAPACK/BLAS: _$sudo apt-get install libatlas-base-dev liblapack-dev libblas-dev_
 
 The above instructions are for linux (ubuntu). For windows, the easiest way (for me, anyway) is to make use of the recent 'windows subsystem for linux'. Instructions on installation/use here: https://www.roberts999.com/posts/2018/11/wsl-coding-windows-ubuntu
 Then, the compilation + use can proceed as per above.
+
+ * **NOTE:** If you get the following error message on compile:
+_error: unsupported option -fopenmp_
+change '_UseOpenMP=yes_' to '_UseOpenMP=no_' in Makefile
 
 
 ## hartreeFock (main program)
