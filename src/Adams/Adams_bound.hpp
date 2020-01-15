@@ -43,10 +43,12 @@ class DiracMatrix {
   // dg = -cf + dg
 public:
   DiracMatrix(const Grid &in_grid, const std::vector<double> &in_v,
-              const int in_k, const double in_en, const double in_alpha);
+              const int in_k, const double in_en, const double in_alpha,
+              const std::vector<double> &Hmag = {});
 
   const Grid *const pgr;
   const std::vector<double> *const v;
+  const std::vector<double> *const Hmag;
   const int k;
   const double en, alpha, c2;
 
@@ -70,13 +72,13 @@ struct TrackEnGuess {
 int findPracticalInfinity(const double en, const std::vector<double> &v,
                           const std::vector<double> &r, const double alr);
 
-int findClassicalTurningPoint(const double en,
-                                     const std::vector<double> &v,
-                                     const int pinf, const int d_ctp);
+int findClassicalTurningPoint(const double en, const std::vector<double> &v,
+                              const int pinf, const int d_ctp);
 
 void trialDiracSolution(std::vector<double> &f, std::vector<double> &g,
                         std::vector<double> &dg, const double en, const int ka,
-                        const std::vector<double> &v, const Grid &gr,
+                        const std::vector<double> &v,
+                        const std::vector<double> &H_mag, const Grid &gr,
                         const int ctp, const int d_ctp, const int pinf,
                         const double alpha);
 

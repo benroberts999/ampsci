@@ -120,7 +120,6 @@ RadPot {
 ```
 * Adds QED radiative potential to Hamiltonian.
 * Each factor is a scale; 0 means don't include. 1 means include full potential. Any positive number is valid.
-* nb: For now, magnetic part is only included into the basis, not into HF
 * rcut: Only calculates potential for r < rcut [for speed; rcut in au]
 * scale_rN: finite nucleus effects: rN = rN * scale_rN (for testing only)
 

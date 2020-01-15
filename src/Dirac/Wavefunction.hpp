@@ -47,8 +47,8 @@ private:
 public:
   // const
   std::vector<double> vnuc;
-  std::vector<double> vdir;    // direct/local part of the electron potential
-  std::vector<double> Hse_mag; // magnetic form-factor
+  std::vector<double> vdir; // direct/local part of the electron potential
+  std::vector<double> Hse_mag = {}; // magnetic form-factor
 
 private:
   // Core configuration (non-rel terms)

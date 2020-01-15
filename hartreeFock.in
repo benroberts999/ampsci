@@ -22,7 +22,7 @@ Nucleus {
 //   Ueh = 0.0;
 //   SE_h = 0.0;
 //   SE_l = 0.0;
-//   SE_m = 0.0; // Only included in basis, not HF
+//   SE_m = 0.0;
 //   rcut = 1.0;
 // }
 

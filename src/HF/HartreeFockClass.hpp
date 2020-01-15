@@ -112,7 +112,7 @@ private:
   EpsIts hf_valence_refine(DiracSpinor &phi);
 
   void hf_orbital(DiracSpinor &phi, double en, const std::vector<double> &vl,
-                  const DiracSpinor &vx_phi,
+                  const std::vector<double> &H_mag, const DiracSpinor &vx_phi,
                   const std::vector<DiracSpinor> &core,
                   const std::vector<double> &v0 = {}) const;
 };

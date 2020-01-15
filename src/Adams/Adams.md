@@ -1,5 +1,7 @@
 # Adams
 
+ * NB: H_mag is off-diagonal addition to Dirac Hamiltonian (to include magnetic part of QED corrections.) Typically, included in functions right after v [documentation not updated for this]
+
 ## DiracODE::
 
  * All free functions in namespace _DiracODE::_
@@ -37,7 +39,7 @@ void solve_inhomog(DiracSpinor &phi, const double en,
      const std::vector<double> &v, const double alpha,
      const DiracSpinor &source);
 
-void solve_inhomog(DiracSpinor &phi, DiracSpinor &phi0, 
+void solve_inhomog(DiracSpinor &phi, DiracSpinor &phi0,
      DiracSpinor &phiI, const double en,
      const std::vector<double> &v, const double alpha,
      const DiracSpinor &source);
@@ -45,6 +47,6 @@ void solve_inhomog(DiracSpinor &phi, DiracSpinor &phi0,
 
 * Functions to solve in-homogeneous Dirac equation: (H-en)Phi = Source, where H (and v) contain only local terms [see "Method" documentation], for constant energy en
 * Three overloads do the exact same things, but some are optimised to avoid re-allocating DiracSpinors if the already exist
-* These routines solve also for phi0, phiI, which are solutions to homogeneous equation  (H-en)Phi = 0 [reg @ origin, and infinity, respectively]. 
+* These routines solve also for phi0, phiI, which are solutions to homogeneous equation  (H-en)Phi = 0 [reg @ origin, and infinity, respectively].
   * The first two throw these solutions away, the third keeps them (in some cases they can be re-used)
   * These Spinors are solved internally and over-written, they don't need to be solved first (i.e., they are out parameters, not in/out parameters)

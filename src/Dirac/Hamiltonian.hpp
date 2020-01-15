@@ -45,7 +45,7 @@ public:
   //         (c10, c11)
   double derivMat_00(int k, double, std::size_t i) const {
     auto h = m_v_mag.empty() ? 0.0 : m_v_mag[i] * m_gr->drdu[i];
-    return (double(-k)) * m_gr->drduor[i] + h;
+    return (double(-k)) * m_gr->drduor[i] + h * m_gr->drdu[i];
   }
   double derivMat_01(int k, double en, std::size_t i) const {
     const auto &v = get_v(k);
@@ -57,7 +57,7 @@ public:
   }
   double derivMat_12(int k, double, std::size_t i) const {
     auto h = m_v_mag.empty() ? 0.0 : m_v_mag[i] * m_gr->drdu[i];
-    return double(k) * m_gr->drduor[i] - h;
+    return double(k) * m_gr->drduor[i] - h * m_gr->drdu[i];
   }
 
   double matrixEl(const DiracSpinor &Fa, const DiracSpinor &Fb) const {

@@ -34,7 +34,7 @@ void Wavefunction::solveDirac(DiracSpinor &psi, double e_a,
   } else if (psi.en == 0) {
     psi.en = enGuessVal(psi.n, psi.k);
   }
-  DiracODE::boundState(psi, psi.en, v_a, m_alpha, log_dele_or);
+  DiracODE::boundState(psi, psi.en, v_a, Hse_mag, m_alpha, log_dele_or);
 }
 
 //------------------------------------------------------------------------------
@@ -198,8 +198,6 @@ void Wavefunction::radiativePotential(double x_Ueh, double x_SEe_h,
   if (x_SEm > 0) {
     std::cout << "Forming Self-Energy (magnetic) potential "
               << "(scale=" << x_SEm << ")\n";
-    std::cout << "\nXXXX \n WARNiNG: For now: this is only included in BASIS, "
-                 "not HF\n XXXXX \n";
     Hse_mag.clear(); // ensure zero'd
     Hse_mag.resize(rgrid.num_points);
 #pragma omp parallel for

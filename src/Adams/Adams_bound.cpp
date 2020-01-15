@@ -33,7 +33,8 @@ namespace DiracODE {
 using namespace Adams;
 //******************************************************************************
 void boundState(DiracSpinor &psi, const double en0,
-                const std::vector<double> &v, const double alpha, int log_dele)
+                const std::vector<double> &v, const std::vector<double> &H_mag,
+                const double alpha, int log_dele)
 // Solves local, spherical bound state dirac equation using Adams-Moulton
 // method. Based on method presented in book by W. R. Johnson:
 //   W. R. Johnson, Atomic Structure Theory (Springer, New York, 2007)
@@ -103,8 +104,8 @@ void boundState(DiracSpinor &psi, const double en0,
     // Find solution (f,g) to DE for given energy:
     // Also stores dg (gout-gin) for PT [used for PT to find better e]
     std::vector<double> dg(2 * Param::d_ctp + 1);
-    Adams::trialDiracSolution(psi.f, psi.g, dg, t_en, psi.k, v, rgrid, ctp,
-                              Param::d_ctp, t_pinf, alpha);
+    Adams::trialDiracSolution(psi.f, psi.g, dg, t_en, psi.k, v, H_mag, rgrid,
+                              ctp, Param::d_ctp, t_pinf, alpha);
 
     const int counted_nodes = Adams::countNodes(psi.f, t_pinf);
 
@@ -170,13 +171,14 @@ void boundState(DiracSpinor &psi, const double en0,
 
 //******************************************************************************
 void regularAtOrigin(DiracSpinor &phi, const double en,
-                     const std::vector<double> &v, const double alpha) {
+                     const std::vector<double> &v,
+                     const std::vector<double> &H_mag, const double alpha) {
   auto sp = SafeProfiler::profile(__func__);
   const auto &gr = phi.p_rgrid;
   if (en != 0)
     phi.en = en;
   const auto pinf = Adams::findPracticalInfinity(phi.en, v, gr->r, Param::cALR);
-  Adams::DiracMatrix Hd(*gr, v, phi.k, phi.en, alpha);
+  Adams::DiracMatrix Hd(*gr, v, phi.k, phi.en, alpha, H_mag);
   Adams::outwardAM(phi.f, phi.g, Hd, pinf - 1);
   // for safety: make sure zerod! (I may re-use existing orbitals!)
   for (std::size_t i = pinf; i < gr->num_points; i++) {
@@ -188,13 +190,14 @@ void regularAtOrigin(DiracSpinor &phi, const double en,
 
 //******************************************************************************
 void regularAtInfinity(DiracSpinor &phi, const double en,
-                       const std::vector<double> &v, const double alpha) {
+                       const std::vector<double> &v,
+                       const std::vector<double> &H_mag, const double alpha) {
   auto sp = SafeProfiler::profile(__func__);
   const auto &gr = phi.p_rgrid;
   if (en < 0)
     phi.en = en;
   const auto pinf = Adams::findPracticalInfinity(phi.en, v, gr->r, Param::cALR);
-  Adams::DiracMatrix Hd(*gr, v, phi.k, phi.en, alpha);
+  Adams::DiracMatrix Hd(*gr, v, phi.k, phi.en, alpha, H_mag);
   Adams::inwardAM(phi.f, phi.g, Hd, 0, pinf - 1);
   for (std::size_t i = pinf; i < gr->num_points; i++) {
     phi.f[i] = 0;
@@ -327,7 +330,8 @@ int countNodes(const std::vector<double> &f, const int pinf)
 //******************************************************************************
 void trialDiracSolution(std::vector<double> &f, std::vector<double> &g,
                         std::vector<double> &dg, const double en, const int ka,
-                        const std::vector<double> &v, const Grid &gr,
+                        const std::vector<double> &v,
+                        const std::vector<double> &H_mag, const Grid &gr,
                         const int ctp, const int d_ctp, const int pinf,
                         const double alpha)
 // Performs inward (from pinf) and outward (from r0) integrations for given
@@ -336,7 +340,7 @@ void trialDiracSolution(std::vector<double> &f, std::vector<double> &g,
 // Also: stores dg [the difference: (gout-gin)], which is used for PT
 {
   auto sp = SafeProfiler::profile(__func__);
-  DiracMatrix Hd(gr, v, ka, en, alpha);
+  DiracMatrix Hd(gr, v, ka, en, alpha, H_mag);
   outwardAM(f, g, Hd, ctp + d_ctp);
   std::vector<double> f_in(gr.num_points), g_in(gr.num_points);
   inwardAM(f_in, g_in, Hd, ctp - d_ctp, pinf - 1);
@@ -623,13 +627,16 @@ void adamsMoulton(std::vector<double> &f, std::vector<double> &g,
 //******************************************************************************
 DiracMatrix::DiracMatrix(const Grid &in_grid, const std::vector<double> &in_v,
                          const int in_k, const double in_en,
-                         const double in_alpha)
-    : pgr(&in_grid), v(&in_v), k(in_k), en(in_en), alpha(in_alpha),
-      c2(1.0 / in_alpha / in_alpha) {}
+                         const double in_alpha,
+                         const std::vector<double> &in_Hmag)
+    : pgr(&in_grid), v(&in_v), Hmag(in_Hmag.empty() ? nullptr : &in_Hmag),
+      k(in_k), en(in_en), alpha(in_alpha), c2(1.0 / in_alpha / in_alpha) {}
 
 // update a and d for off-diag additional potential (magnetic form-fac, QED)
 double DiracMatrix::a(std::size_t i) const {
-  return (double(-k)) * pgr->drduor[i];
+  const auto h_mag = (Hmag == nullptr) ? 0.0 : (*Hmag)[i];
+  return (double(-k)) * pgr->drduor[i] + h_mag * pgr->drdu[i];
+  // return (double(-k)) * pgr->drduor[i];
 }
 double DiracMatrix::b(std::size_t i) const {
   return -alpha * (en + 2.0 * c2 - (*v)[i]) * pgr->drdu[i];
@@ -638,7 +645,9 @@ double DiracMatrix::c(std::size_t i) const {
   return alpha * (en - (*v)[i]) * pgr->drdu[i];
 }
 double DiracMatrix::d(std::size_t i) const {
-  return double(k) * pgr->drduor[i];
+  const auto h_mag = (Hmag == nullptr) ? 0.0 : (*Hmag)[i];
+  // return double(k) * pgr->drduor[i];
+  return double(k) * pgr->drduor[i] - h_mag * pgr->drdu[i];
 }
 
 } // namespace Adams

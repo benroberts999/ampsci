@@ -44,7 +44,7 @@ void solveContinuum(DiracSpinor &phi, const double en,
   DiracSpinor psic(phi.n, phi.k, ext_grid);
   psic.en = phi.en;
 
-  DiracMatrix Hd(ext_grid, v, psic.k, psic.en, alpha);
+  DiracMatrix Hd(ext_grid, v, psic.k, psic.en, alpha, {});
   outwardAM(psic.f, psic.g, Hd, (int)num_pointsc - 1);
 
   // Find a better (lower) asymptotic region:
