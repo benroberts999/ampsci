@@ -274,7 +274,8 @@ void Module_Tests_Hamiltonian(const Wavefunction &wf) {
         worst_psi = &psi;
       }
     }
-    std::cout << worst_psi->symbol() << ": eps=" << worst_eps << "\n";
+    if (worst_psi != nullptr)
+      std::cout << worst_psi->symbol() << ": eps=" << worst_eps << "\n";
   }
 }
 

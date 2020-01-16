@@ -24,7 +24,7 @@ for file in $(find src -name '*.cpp' -or -name '*.hpp'); do
   #
     echo ""
     echo "clang tidy:"
-    clang-tidy $file -checks=clang-analyzer-*,openmp-*,performance-* -- -I./src/
+    clang-tidy $file -extra-arg=-std=c++17 -checks=clang-analyzer-*,openmp-*,performance-* -- -I./src/
     echo "done"
   #
     echo ""

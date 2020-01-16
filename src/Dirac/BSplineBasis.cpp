@@ -71,8 +71,8 @@ form_spline_basis(const int kappa, const std::size_t n_states,
   for (auto i = imin; i < imax; i++) {
     auto &phi = basis.emplace_back(0, kappa, rgrid);
 
-    auto Bi = bspl.get_spline(i);
-    auto dBi = bspl.get_spline_deriv(i);
+    const auto &Bi = bspl.get_spline(i);
+    const auto &dBi = bspl.get_spline_deriv(i);
     phi.f = Bi;
     auto gtmp = NumCalc::mult_vectors(rgrid.inverse_r(), Bi);
     NumCalc::scaleVec(gtmp, double(kappa));
@@ -87,8 +87,8 @@ form_spline_basis(const int kappa, const std::size_t n_states,
   for (auto i = imin; i < imax; i++) {
     auto &phi = basis.emplace_back(0, kappa, rgrid);
 
-    auto Bi = bspl.get_spline(i);
-    auto dBi = bspl.get_spline_deriv(i);
+    const auto &Bi = bspl.get_spline(i);
+    const auto &dBi = bspl.get_spline_deriv(i);
     phi.g = Bi;
     auto ftmp = NumCalc::mult_vectors(rgrid.inverse_r(), Bi);
     NumCalc::scaleVec(ftmp, double(-kappa));

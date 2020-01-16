@@ -238,8 +238,9 @@ static inline std::function<double(long unsigned)> logx(double a, double dt) {
 }
 
 //******************************************************************************
-inline double num_integrate(std::function<double(double)> f, double a, double b,
-                            long unsigned n_pts, t_grid type = linear) {
+inline double num_integrate(const std::function<double(double)> &f, double a,
+                            double b, long unsigned n_pts,
+                            t_grid type = linear) {
   //
 
   const auto dt = (type == linear) ? (b - a) / double(n_pts - 1)
