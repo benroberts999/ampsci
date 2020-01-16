@@ -27,9 +27,7 @@ void matrixElements(const UserInputBlock &input, const Wavefunction &wf) {
   const bool diagonal_only = input.get("onlyDiagonal", false);
 
   const auto units = input.get<std::string>("units", "au");
-  double un = 1.0;
-  if (units == "MHz")
-    un = PhysConst::Hartree_MHz;
+  const auto unit = units == "MHz" ? PhysConst::Hartree_MHz : 1.0;
 
   for (const auto &phia : wf.valence_orbitals) {
     for (const auto &phib : wf.valence_orbitals) {
@@ -41,9 +39,9 @@ void matrixElements(const UserInputBlock &input, const Wavefunction &wf) {
         continue;
       std::cout << h->rme_symbol(phia, phib) << ": ";
       if (radial_int)
-        printf("%12.5e\n", h->radialIntegral(phia, phib) * un);
+        printf("%12.5e\n", h->radialIntegral(phia, phib) * unit);
       else
-        printf("%12.5e\n", h->reducedME(phia, phib));
+        printf("%12.5e\n", h->reducedME(phia, phib) * unit);
     }
   }
 } // namespace Module
