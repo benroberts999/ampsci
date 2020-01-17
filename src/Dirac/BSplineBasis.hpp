@@ -6,6 +6,8 @@ class DiracSpinor;
 class Wavefunction;
 class Grid;
 
+namespace SplineBasis {
+
 // Forms the basis orbitals (expanded in terms of splines)
 std::vector<DiracSpinor> form_basis(const std::string &states_str,
                                     const std::size_t n_spl,
@@ -32,3 +34,4 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
                            const LinAlg::Vector &e_values,
                            const LinAlg::SqMatrix &e_vectors,
                            const Wavefunction &wf);
+} // namespace SplineBasis

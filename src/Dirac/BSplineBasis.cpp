@@ -13,12 +13,15 @@
 #include <string>
 #include <utility>
 
+namespace SplineBasis {
+
 //******************************************************************************
-std::vector<DiracSpinor> form_basis(const std::string &states_str,
-                                    const std::size_t n_spl,
-                                    const std::size_t k_spl,
-                                    const double r0_spl, const double rmax_spl,
-                                    const Wavefunction &wf) {
+std::vector<DiracSpinor>
+form_basis(const std::string &states_str, const std::size_t n_spl,
+           const std::size_t k_spl, const double r0_spl, const double rmax_spl,
+           const Wavefunction &wf)
+// Forms the pseudo-spectrum basis by diagonalising Hamiltonian over B-splines
+{
   std::vector<DiracSpinor> basis;
   std::vector<DiracSpinor> basis_positron;
 
@@ -55,8 +58,9 @@ std::vector<DiracSpinor> form_basis(const std::string &states_str,
 std::vector<DiracSpinor>
 form_spline_basis(const int kappa, const std::size_t n_states,
                   const std::size_t k_spl, const double r0_spl,
-                  const double rmax_spl, const Grid &rgrid,
-                  const double alpha) {
+                  const double rmax_spl, const Grid &rgrid, const double alpha)
+// Forms the "base" basis of B-splines (DKB/Reno Method)
+{
   //
   const auto imin = static_cast<std::size_t>(std::abs(kappa));
   const auto n_spl = n_states + imin + 1;
@@ -117,11 +121,10 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
 
   auto excl_exch = wf.exclude_exchangeQ();
 
-  // XXX Move this into wf ??
-  // auto Hd = DirectHamiltonian(wf.vnuc, wf.vdir, wf.get_alpha());
+  // Move this into wf ??
   auto Hd = RadialHamiltonian(wf.rgrid, wf.get_alpha());
   Hd.set_v(-1, wf.vnuc, wf.vdir); // same each kappa
-  Hd.set_v_mag(wf.Hse_mag);       // same each kappa
+  Hd.set_v_mag(wf.Hse_mag);       // Magnetic QED form-factor [usually empty]
 
 #pragma omp parallel for
   for (auto i = 0; i < (int)spl_basis.size(); i++) {
@@ -149,7 +152,10 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
                            const int kappa, const int max_n,
                            const LinAlg::Vector &e_values,
                            const LinAlg::SqMatrix &e_vectors,
-                           const Wavefunction &wf) {
+                           const Wavefunction &wf)
+// Expands the pseudo-spectrum basis in terms of B-spline basis and expansion
+// coeficient found from diagonalising the Hamiltonian over Bsplns
+{
   auto l = AtomData::l_k(kappa);
   auto min_n = l + 1;
 
@@ -179,10 +185,4 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
   }
 }
 
-//******************************************************************************
-
-//******************************************************************************
-
-//******************************************************************************
-
-//******************************************************************************
+} // namespace SplineBasis
