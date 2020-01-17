@@ -161,13 +161,31 @@ int main(int argc, char *argv[]) {
   // tdhf.solve_TDHFcore();
 
   const auto *psis = wf.getState(6, -1);
-  const auto *psip = wf.getState(6, 1);
+  const auto *psip1 = wf.getState(6, 1);
+  const auto *psip3 = wf.getState(6, -2);
 
-  auto me = h.reducedME(*psis, *psip);
-  for (int i = 0; i < 25; i++) {
+  auto me1 = h.reducedME(*psis, *psip1);
+  auto me3 = h.reducedME(*psis, *psip3);
+
+  std::cout << h.angularF((*psis).k, (*psip1).k) << " "
+            << h.radialIntegral(*psis, *psip1) << "\n";
+  std::cout << h.angularF((*psis).k, (*psip3).k) << " "
+            << h.radialIntegral(*psis, *psip3) << "\n";
+
+  auto prev = 1.0;
+  auto targ = 1.0e-6;
+  for (int i = 0; i < 99; i++) {
     tdhf.solve_TDHFcore_matrix(wf);
-    auto dv = tdhf.dV_ab(*psis, *psip);
-    std::cout << me << " " << me + dv << "\n";
+    auto dv1 = tdhf.dV_ab(*psis, *psip1);
+    auto dv3 = tdhf.dV_ab(*psis, *psip3);
+    auto del = std::abs(std::max(std::abs(dv3 / me3), std::abs(dv1 / me1)));
+    auto eps = std::abs((del - prev) / prev);
+    prev = del;
+    std::cout << me1 << " + " << dv1 << " = " << me1 + dv1 << "\n";
+    std::cout << me3 << " + " << dv3 << " = " << me3 + dv3 << "\n";
+    std::cout << eps << "\n";
+    if (eps < targ)
+      break;
   }
 
   // auto &psis2 = wf.getState(2, -1);

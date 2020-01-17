@@ -48,6 +48,7 @@ public:
 
   // does it matter if a or b is in the core?
   double dV_ab(const DiracSpinor &phia, const DiracSpinor &phib);
+  double dV_ab_Y(const DiracSpinor &phia, const DiracSpinor &phib);
   DiracSpinor dV_ab_rhs(const DiracSpinor &phia, const DiracSpinor &phib);
 
 private:
