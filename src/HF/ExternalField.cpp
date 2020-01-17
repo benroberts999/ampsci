@@ -3,10 +3,13 @@
 #include "Angular/Wigner_369j.hpp"
 #include "Dirac/DiracOperator.hpp"
 #include "Dirac/DiracSpinor.hpp"
+#include "Dirac/Wavefunction.hpp"
 #include "HF/HartreeFockClass.hpp"
 #include "IO/ChronoTimer.hpp"
 #include <algorithm>
 #include <vector>
+//
+#include "Dirac/BSplineBasis.hpp" // XXX add to make
 
 //******************************************************************************
 ExternalField::ExternalField(const DiracOperator *const h,
@@ -66,8 +69,8 @@ std::size_t ExternalField::core_index(const DiracSpinor &phic) {
 }
 
 //******************************************************************************
-const std::vector<DiracSpinor> &
-ExternalField::get_dPsis(const DiracSpinor &phic, dPsiType XorY) {
+std::vector<DiracSpinor> &ExternalField::get_dPsis(const DiracSpinor &phic,
+                                                   dPsiType XorY) {
   auto index = core_index(phic);
   return XorY == dPsiType::X ? m_X[index] : m_Y[index];
 }
@@ -148,6 +151,81 @@ void ExternalField::solve_TDHFcore() {
 }
 
 //******************************************************************************
+void ExternalField::solve_TDHFcore_matrix(const Wavefunction &wf) {
+  //
+
+  ChronoTimer timer("solve_TDHFcore_matrix");
+
+  const std::size_t nspl = 40;
+  const std::size_t kspl = 5;
+  const double rmax = 30.0; //?
+
+  // XXX Do not need to construct basis each time! Just do once (each kappa)
+
+  // A := H - (e-w)S
+  // b := -h -dV +deS_c
+
+  for (const auto &phic : *p_core) {
+    auto &dPsi = get_dPsis(phic, dPsiType::X);
+    auto de = m_h->reducedME(phic, phic); // no dV ?
+    for (auto &Xx : dPsi) {
+      auto basis = SplineBasis::form_spline_basis(
+          Xx.k, nspl, kspl, phic.r0(), rmax, *(phic.p_rgrid), m_alpha);
+      LinAlg::Vector bi((int)basis.size());
+      for (int i = 0; i < (int)basis.size(); ++i) {
+        const auto &xi = basis[i];
+        // fill LHS vector, b
+        auto hi = m_h->reducedME(xi, phic);
+        auto dV = 0.0; // dV_ab(xi, phic); // XXX NO! Using X's, updated!
+        // std::cout << "dV=" << dV << "\n";
+        // auto dV = 0.0;                                        // XXX
+        auto deS = (xi.k == phic.k) ? de * (xi * phic) : 0.0; // reduced? OK?
+        bi[i] = -hi - dV + deS;
+      }
+      auto [Hij, Sij] = SplineBasis::fill_Hamiltonian_matrix(basis, wf);
+      auto Aij = Hij - (phic.en - m_omega) * Sij;
+
+      auto c = LinAlg::solve_Axeqb(Aij, bi);
+
+      Xx.scale(0.25); // or 0.5, for DAMP!
+      for (int i = 0; i < (int)basis.size(); ++i) {
+        Xx += 0.75 * c[i] * basis[i];
+      }
+    }
+  }
+
+  for (const auto &phic : *p_core) {
+    auto &dPsi = get_dPsis(phic, dPsiType::Y);
+    auto de = m_h->reducedME(phic, phic); // no dV ?
+    for (auto &Yy : dPsi) {
+      auto basis = SplineBasis::form_spline_basis(
+          Yy.k, nspl, kspl, phic.r0(), rmax, *(phic.p_rgrid), m_alpha);
+      LinAlg::Vector bi((int)basis.size());
+      for (int i = 0; i < (int)basis.size(); ++i) {
+        const auto &yi = basis[i];
+        // fill LHS vector, b
+        auto hi = m_h->reducedME(yi, phic); // ?? XXX
+        auto dV =
+            0.0; // dV_ab(yi, phic);          // XXX NO! Using X's, updated!
+        // std::cout << "dV=" << dV << "\n";
+        // auto dV = 0.0;                                        // XXX
+        auto deS = (yi.k == phic.k) ? de * (yi * phic) : 0.0; // reduced? OK?
+        bi[i] = -hi - dV + deS;
+      }
+      auto [Hij, Sij] = SplineBasis::fill_Hamiltonian_matrix(basis, wf);
+      auto Aij = Hij - (phic.en + m_omega) * Sij;
+
+      auto c = LinAlg::solve_Axeqb(Aij, bi);
+
+      Yy.scale(0.25); // or 0.5, for DAMP!
+      for (int i = 0; i < (int)basis.size(); ++i) {
+        Yy += 0.75 * c[i] * basis[i];
+      }
+    }
+  }
+}
+
+//******************************************************************************
 // does it matter if a or b is in the core?
 double ExternalField::dV_ab(const DiracSpinor &phi_alpha,
                             const DiracSpinor &phi_a) {
@@ -156,7 +234,7 @@ double ExternalField::dV_ab(const DiracSpinor &phi_alpha,
   // is very fast! [solve_TDHFcore is ~2000x slower]
   // XXX Am I accounting for 3j symbol twice?? [using projections of dPsi??]
 
-  ChronoTimer timer("dV_ab");
+  // ChronoTimer timer("dV_ab");
 
   const auto k = m_h->rank();
   const auto m1tkp1 = Wigner::evenQ(k + 1) ? 1 : -1;
@@ -262,8 +340,8 @@ double ExternalField::dV_ab(const DiracSpinor &phi_alpha,
   rme_sum_dir *= m1tkp1 / tkp1;
   rme_sum_exc *= m1tkp1;
 
-  std::cout << rme_sum_dirX << " " << rme_sum_dirY << " / " << rme_sum_excX
-            << " " << rme_sum_excY << "\n";
+  // std::cout << rme_sum_dirX << " " << rme_sum_dirY << " / " << rme_sum_excX
+  //           << " " << rme_sum_excY << "\n";
 
   return rme_sum_dir + rme_sum_exc;
 }

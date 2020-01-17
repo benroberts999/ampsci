@@ -185,4 +185,44 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
   }
 }
 
+//------------------------------------------------------------------------------
+void expand_basis_orbitals_2(std::vector<DiracSpinor> *basis,
+                             std::vector<DiracSpinor> *basis_positron,
+                             const std::vector<DiracSpinor> &spl_basis,
+                             const int kappa, const int max_n,
+                             const LinAlg::Vector &e_values,
+                             const LinAlg::SqMatrix &e_vectors,
+                             const Wavefunction &wf)
+// Expands the pseudo-spectrum basis in terms of B-spline basis and expansion
+// coeficient found from diagonalising the Hamiltonian over Bsplns
+{
+  auto l = AtomData::l_k(kappa);
+  auto min_n = l + 1;
+
+  const auto neg_mc2 = -1.0 / (wf.get_alpha() * wf.get_alpha());
+  auto pqn = min_n - 1;
+  auto pqn_pstrn = -min_n + 1;
+  for (int i = 0; i < e_values.n; i++) {
+    const auto &en = e_values[i];
+    const auto &pvec = e_vectors[i];
+    if (en > neg_mc2) {
+      if (++pqn > max_n)
+        continue;
+    } else {
+      if (--pqn_pstrn < -max_n)
+        continue;
+    }
+    auto &phi = (en > neg_mc2)
+                    ? basis->emplace_back(pqn, kappa, wf.rgrid)
+                    : basis_positron->emplace_back(pqn_pstrn, kappa, wf.rgrid);
+    phi.en = en;
+    phi.p0 = spl_basis[0].p0;
+    phi.pinf = spl_basis[0].pinf;
+    for (std::size_t ib = 0; ib < spl_basis.size(); ++ib) {
+      phi += pvec[ib] * spl_basis[ib];
+    }
+    phi.normalise();
+  }
+}
+
 } // namespace SplineBasis

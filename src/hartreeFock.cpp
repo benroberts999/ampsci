@@ -149,24 +149,26 @@ int main(int argc, char *argv[]) {
   // auto h = HyperfineOperator(1.0, 1.0, 4.0 / PhysConst::aB_fm, wf.rgrid);
   // auto h = PNCnsiOperator(5.0, 2.3, wf.rgrid);
 
-  auto omega = 0.0000000000001;
+  auto omega = 0.00;
   auto tdhf = ExternalField(&h, wf.core_orbitals,
                             NumCalc::add_vectors(wf.vnuc, wf.vdir),
                             wf.get_alpha(), omega);
 
-  tdhf.solve_TDHFcore();
+  // tdhf.solve_TDHFcore();
+  // tdhf.solve_TDHFcore_matrix(wf);
+  // tdhf.solve_TDHFcore_matrix(wf);
+  // tdhf.solve_TDHFcore();
+  // tdhf.solve_TDHFcore();
 
   const auto *psis = wf.getState(6, -1);
   const auto *psip = wf.getState(6, 1);
 
   auto me = h.reducedME(*psis, *psip);
-  auto dv = tdhf.dV_ab(*psis, *psip);
-  // / std::sqrt(h.rme3js(psis.twoj(), psip.twoj(), 1));
-  // std::cout << tdhf.dV_ab(psis, psip) << "\n";
-  // std::cout << tdhf.dV_ab(psis, psip) /
-  //                  std::sqrt(h.rme3js(psis.twoj(), psip.twoj(), 1))
-  //           << "\n";
-  std::cout << me << " " << me + dv << "\n";
+  for (int i = 0; i < 25; i++) {
+    tdhf.solve_TDHFcore_matrix(wf);
+    auto dv = tdhf.dV_ab(*psis, *psip);
+    std::cout << me << " " << me + dv << "\n";
+  }
 
   // auto &psis2 = wf.getState(2, -1);
   // auto &psip2 = wf.getState(2, 1);

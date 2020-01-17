@@ -322,8 +322,6 @@ Vector solve_Axeqb(SqMatrix &Am, const Vector &b) {
   // gsl_linalg_LU_decomp(Am.m, Am.perm, &s);          // XXX do twice?
   // gsl_linalg_LU_solve(Am.m, Am.perm, b.vec, x.vec); // use Am.m_LU ?
   gsl_linalg_LU_solve(Am.m_LU, Am.perm, b.vec, x.vec);
-  std::cout << " \n\n XXX solve_AxeqbNOT CHECKED YET!  - " << __LINE__
-            << "\n\n";
   return x;
 }
 

@@ -3,6 +3,7 @@
 #include <vector>
 class DiracSpinor;
 class DiracOperator;
+class Wavefunction;
 
 // Allow it to do RPA daigram-style as well!
 //(needs a basis)
@@ -38,12 +39,12 @@ private:
   Angular::SixJ m_6j; // = Angular::SixJ(m_rank, 7); // XXX temp!
 
 public:
-  const std::vector<DiracSpinor> &get_dPsis(const DiracSpinor &phic,
-                                            dPsiType XorY);
+  std::vector<DiracSpinor> &get_dPsis(const DiracSpinor &phic, dPsiType XorY);
   const DiracSpinor &get_dPsi_x(const DiracSpinor &phic, dPsiType XorY,
                                 const int kappa_x);
 
   void solve_TDHFcore();
+  void solve_TDHFcore_matrix(const Wavefunction &wf);
 
   // does it matter if a or b is in the core?
   double dV_ab(const DiracSpinor &phia, const DiracSpinor &phib);
