@@ -83,6 +83,18 @@ HartreeFock {
 * convergence: level we try to converge to.
 * orthonormaliseValence: true/false. Orthogonalise valence states? false by default. Only really for testing
 
+## dV (effective polarisation potential)
+```cpp
+dV {
+  a_eff;  //[r] default = 0.0, typical ~1
+  r_cut;  //[r] default = 1.0
+}
+//nb: all of these are optional, hence entire block can be omitted
+```
+* Effective polarisation potential:
+* dV = -0.5 * a_eff / (r^4 + r_cut)
+* nb: Added to direct potential _after_ HF for core, but _before_ HF for valence
+
 ## Nucleus
 ```cpp
 Nucleus {
@@ -90,11 +102,27 @@ Nucleus {
   rrms;    //[r] will loop-up default value based on Z,A
   skin_t;  //[r] default = 2.3
 }
-//nb: all of these are optional, hence entire block can be omitted
 ```
 * rrms: nuclear root-mean-square charge radius (in femptometres = 10^-15m)
 * type: Which distribution to use for nucleus? Options are: Fermi (default), spherical, point
 * skin_t: skin thickness [only used by Fermi distro]
+
+## QED Radiative Potential [Ginges/Flambaum Method]
+```cpp
+RadPot {
+  Ueh;      //[r] default = 0.0 //Uehling (vac pol)
+  SE_h;     //[r] default = 0.0 //high-f SE
+  SE_l;     //[r] default = 0.0 //low-f SE
+  SE_m;     //[r] default = 0.0 //Magnetic SE
+  rcut;     //[r] default = 1.0
+  scale_rN; //[r] default = 1.0
+}
+```
+* Adds QED radiative potential to Hamiltonian.
+* Each factor is a scale; 0 means don't include. 1 means include full potential. Any positive number is valid.
+* rcut: Only calculates potential for r < rcut [for speed; rcut in au]
+* scale_rN: finite nucleus effects: rN = rN * scale_rN (for testing only)
+
 
 ## Grid
 ```cpp
@@ -103,7 +131,7 @@ Grid {
   rmax;       //[r] default = 150.0
   num_points; //[i] default = 1600
   type;       //[t] default = loglinear
-  b;          //[r] default = 4.0
+  b;          //[r] default = rmax/3
   fixed_du;   //[r] default = -1. du>0 means calculate num_points
 }
 ```
@@ -113,6 +141,26 @@ Grid {
 * type: What type of grid to use? options are: loglinear (default), logarithmic, linear
   * Note: 'linear' grid requires a _very_ large number of points to work, and should essentially never be used.
 * b: only used for loglinear grid; the grid is roughly logarithmic below this value, and linear after it. Default is 4.0 (atomic units). If b<0 or b>rmax, will revert to using a logarithmic grid
+
+
+## B-spline basis
+```cpp
+Basis {
+  number; //[i] default = 0
+  order;  //[i] default = 0
+  r0;     //[r] default = 0
+  rmax;   //[r] default = 0
+  print;  //[b] default = false
+  states; //[t] default = ""
+}
+```
+* Constructs basis using _number_ splines of order _order_
+* on sub-grid (r0,rmax) [if zero, will use full grid]
+* If print = true, will print basis energies
+* states: which basis states to store
+  * e.g., "7sp5df" will store s and p states up to n=7, and d and f up to n=5
+  * spd will store _all_ (number) states for l<=2
+
 
 ## Modules and MatrixElements
 
@@ -227,8 +275,7 @@ Performs a 2D fit to determine the best-fit values for the given two-parameter p
 Module::pnc {
     //Calculates pnc amplitude {na,ka}->{nb,kb}
     //(these states must exist as valence states in HF!).
-    // Uses sum-over-states method (just using the HF states as a basis),
-    // and the Solving-Equations method (without RPA for now).
+    // Uses sum-over-states and Solving-Equations methods (without RPA).
     transition = na, ka, nb, ka; //[t] - required
 }
 ```

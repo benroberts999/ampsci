@@ -1,6 +1,7 @@
 #include "Modules/Module_runModules.hpp"
 #include "DMionisation/Module_atomicKernal.hpp"
 #include "Dirac/DiracOperator.hpp"
+#include "Dirac/Hamiltonian.hpp"
 #include "Dirac/Operators.hpp"
 #include "Dirac/Wavefunction.hpp"
 #include "HF/HartreeFockClass.hpp"
@@ -246,7 +247,11 @@ void Module_Tests_orthonormality(const Wavefunction &wf, const bool print_all) {
 void Module_Tests_Hamiltonian(const Wavefunction &wf) {
   std::cout << "\nTesting wavefunctions: <n|H|n>  (numerical error)\n";
 
-  DirectHamiltonian Hd(wf.vnuc, wf.vdir, wf.get_alpha());
+  // DirectHamiltonian Hd(wf.vnuc, wf.vdir, wf.get_alpha());
+  auto Hd = RadialHamiltonian(wf.rgrid, wf.get_alpha());
+  Hd.set_v(-1, wf.vnuc, wf.vdir); // same each kappa
+  Hd.set_v_mag(wf.Hse_mag);
+
   for (const auto tmp_orbs :
        {&wf.core_orbitals, &wf.valence_orbitals, &wf.basis}) {
     if (tmp_orbs->empty())
@@ -269,7 +274,8 @@ void Module_Tests_Hamiltonian(const Wavefunction &wf) {
         worst_psi = &psi;
       }
     }
-    std::cout << worst_psi->symbol() << ": eps=" << worst_eps << "\n";
+    if (worst_psi != nullptr)
+      std::cout << worst_psi->symbol() << ": eps=" << worst_eps << "\n";
   }
 }
 

@@ -59,7 +59,11 @@ DiracSpinor HartreeFock::solveMixedState(
   const int max_its = 100;
   const double eps_target = 1.0e-8;
 
-  DiracODE::solve_inhomog(dF, phi0.en + omega, vl, alpha, -1.0 * hphi0);
+  const std::vector<double> H_mag = {}; // XXX Add Magnetic FF (QED)?
+  DiracODE::solve_inhomog(dF, phi0.en + omega, vl, H_mag, alpha, -1.0 * hphi0);
+  // auto dF = DiracODE::solve_inhomog(k, phi0.en + omega, vl, H_mag,
+  // alpha, -1.0 * hphi0);
+
   // here: if no exchange, return dF? XXX
   auto dF20 = std::abs(dF * dF); // monitor convergance
   auto dF0 = dF;
@@ -69,7 +73,7 @@ DiracSpinor HartreeFock::solveMixedState(
     auto v = NumCalc::add_vectors(vl, vx);
 
     const auto rhs = (vx * dF) - vex_psia_any(dF, core) - hphi0;
-    DiracODE::solve_inhomog(dF, phi0.en + omega, v, alpha, rhs);
+    DiracODE::solve_inhomog(dF, phi0.en + omega, v, H_mag, alpha, rhs);
 
     const auto a = damper(its);
     const auto l = (1.0 - a);
@@ -432,6 +436,7 @@ double HartreeFock::calculateCoreEnergy() const
 //   R^k_abcd = Integral [f_a*f_c + g_a*g_c] * v^k_bd
 //   R^0_abab is not absymmetric
 //   R^k_abba _is_ ab symmetric
+// XXX Note: doesn't include H_mag (well, not directly anyway)!
 {
   double Etot = 0;
   for (const auto &phi_a : p_wf->core_orbitals) {
@@ -771,6 +776,7 @@ DiracSpinor HartreeFock::vex_psia_any(const DiracSpinor &phi_a,
 //******************************************************************************
 void HartreeFock::hf_orbital(DiracSpinor &phi, double en,
                              const std::vector<double> &vl,
+                             const std::vector<double> &H_mag,
                              const DiracSpinor &vx_phi,
                              const std::vector<DiracSpinor> &static_core,
                              const std::vector<double> &v0) const
@@ -795,7 +801,7 @@ void HartreeFock::hf_orbital(DiracSpinor &phi, double en,
   const auto k_max = 1;            // max k for Vex into del_E
 
   const auto alpha = p_wf->get_alpha();
-  DiracODE::solve_inhomog(phi, phi0, phiI, en, vl, alpha, -1.0 * vx_phi);
+  DiracODE::solve_inhomog(phi, phi0, phiI, en, vl, H_mag, alpha, -1.0 * vx_phi);
 
   // make small adjustments to energy to normalise psi:
   DiracODE::Adams::GreenSolution(del_phi, phiI, phi0, alpha, phi);
@@ -869,7 +875,7 @@ EpsIts HartreeFock::hf_valence_refine(DiracSpinor &phi) {
     auto oldphi = phi;
     auto en = phi_zero.en +
               (phi_zero * vexPsi - phi * vexPsi_zero) / (phi * phi_zero);
-    hf_orbital(phi, en, vl, vexPsi, p_wf->core_orbitals);
+    hf_orbital(phi, en, vl, p_wf->Hse_mag, vexPsi, p_wf->core_orbitals);
     eps = std::fabs((prev_en - phi.en) / phi.en);
     prev_en = phi.en;
 
@@ -980,7 +986,7 @@ inline void HartreeFock::hf_core_refine() {
                                phi_zero * (vd * phi) - phi * (vd0 * phi_zero)) /
                                   (phi * phi_zero);
       const auto v_nonlocal = v0 * phi + vexPsi;
-      hf_orbital(phi, en, vl, v_nonlocal, core_prev, v0);
+      hf_orbital(phi, en, vl, p_wf->Hse_mag, v_nonlocal, core_prev, v0);
       phi = (1.0 - a_damp) * phi + a_damp * oldphi;
       phi.normalise();
       auto d_eps = std::fabs((oldphi.en - phi.en) / phi.en);

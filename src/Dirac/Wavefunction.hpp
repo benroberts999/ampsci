@@ -12,7 +12,6 @@
 #include <vector>
 
 static bool dummy_bool{};
-
 //******************************************************************************
 class Wavefunction {
 
@@ -46,8 +45,10 @@ private:
   std::unique_ptr<HartreeFock> m_pHF = nullptr;
 
 public:
-  const std::vector<double> vnuc;
+  // const
+  std::vector<double> vnuc;
   std::vector<double> vdir; // direct/local part of the electron potential
+  std::vector<double> Hse_mag = {}; // magnetic form-factor
 
 private:
   // Core configuration (non-rel terms)
@@ -64,6 +65,11 @@ public: // const methods: "views" into WF object
   int Ncore() const { return num_core_electrons; }
   const Nuclear::Parameters &get_nuclearParameters() const {
     return m_nuc_params;
+  }
+  bool exclude_exchangeQ() const {
+    if (m_pHF == nullptr)
+      return true;
+    return m_pHF->m_excludeExchange;
   }
 
   auto get_VexPsi(const DiracSpinor &psi) const {
@@ -125,6 +131,9 @@ public:
                        double eps_HF = 0, double h_d = 0, double g_t = 0);
   auto coreEnergyHF() const;
   void hartreeFockValence(const std::string &in_valence_str);
+
+  void radiativePotential(double x_Ueh, double x_SEe_h, double x_SEe_l,
+                          double x_SEm, double rcut, double scale_rN);
 
   double enGuessCore(int n, int l) const;
   double enGuessVal(int n, int ka) const;

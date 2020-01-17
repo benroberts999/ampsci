@@ -96,6 +96,46 @@ void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf) {
   }
 
   {
+    std::cout << "\nSum-over-states method (basis):\n";
+    std::cout << " <A|d|n><n|hw|B>/dEB + <A|hw|n><n|d|B>/dEA\n";
+    double pnc = 0, core = 0, main = 0;
+    for (auto &np : wf.basis) {
+      // <7s|d|np><np|hw|6s>/dE6s + <7s|hw|np><np|d|6s>/dE7s
+      if (np == aB || np == aA)
+        continue;
+      if (hpnc.isZero(np.k, aA.k) && hpnc.isZero(np.k, aB.k))
+        continue;
+      double pnc1 = c10 * he1.reducedME(aA, np) * hpnc.reducedME(np, aB) /
+                    (aB.en - np.en);
+      double pnc2 = c01 * hpnc.reducedME(aA, np) * he1.reducedME(np, aB) /
+                    (aA.en - np.en);
+      if (np.n <= main_n)
+        printf("%7s, pnc= %12.5e + %12.5e = %12.5e\n", np.symbol().c_str(),
+               pnc1, pnc2, pnc1 + pnc2);
+      pnc += pnc1 + pnc2;
+      if (np.n <= ncore)
+        core = pnc;
+      if (np.n <= main_n && np.n > ncore)
+        main = pnc - core;
+      if (np.n == main_n)
+        main_ok = true;
+      if (np.n > max_n_main)
+        max_n_main = np.n;
+    }
+    std::cout << "...(only printing core+main)\n";
+
+    std::cout << "Core = " << core << "\n";
+    if (main_ok) {
+      std::cout << "Main = " << main << "\n";
+      std::cout << "Tail = " << pnc - main - core << "\n";
+    } else {
+      std::cout << "Rest*= " << pnc - core << " ";
+      std::cout << "    *(didnt have full main, nmax=" << max_n_main << ")\n";
+    }
+    std::cout << "Total= " << pnc << "\n";
+  }
+
+  {
     auto v = NumCalc::add_vectors(wf.vnuc, wf.vdir);
     auto v1 = 0.0, v2 = 0.0;
 

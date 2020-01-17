@@ -48,6 +48,9 @@ public: // Methods
   void normalise(double norm_to = 1.0);
   std::pair<double, double> r0pinfratio() const;
 
+  double r0() const;
+  double rinf() const;
+
 public:
   // Operator overloads
   friend double operator*(const DiracSpinor &lhs, const DiracSpinor &rhs);

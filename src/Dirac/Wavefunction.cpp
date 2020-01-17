@@ -2,10 +2,12 @@
 #include "Adams/DiracODE.hpp"
 #include "Dirac/DiracSpinor.hpp"
 #include "Maths/Grid.hpp"
+#include "Maths/Interpolator.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/AtomData.hpp"
 #include "Physics/NuclearPotentials.hpp"
 #include "Physics/PhysConst_constants.hpp"
+#include "Physics/RadiativePotential.hpp"
 #include <algorithm> //for sort
 #include <cmath>
 #include <iostream>
@@ -32,7 +34,7 @@ void Wavefunction::solveDirac(DiracSpinor &psi, double e_a,
   } else if (psi.en == 0) {
     psi.en = enGuessVal(psi.n, psi.k);
   }
-  DiracODE::boundState(psi, psi.en, v_a, m_alpha, log_dele_or);
+  DiracODE::boundState(psi, psi.en, v_a, Hse_mag, m_alpha, log_dele_or);
 }
 
 //------------------------------------------------------------------------------
@@ -139,6 +141,76 @@ void Wavefunction::hartreeFockValence(const std::string &in_valence_str) {
 }
 
 //******************************************************************************
+void Wavefunction::radiativePotential(double x_Ueh, double x_SEe_h,
+                                      double x_SEe_l, double x_SEm, double rcut,
+                                      double scale_rN) {
+
+  if (x_Ueh > 0 || x_SEe_h > 0 || x_SEe_l > 0 || x_SEm > 0) {
+    std::cout << "\nIncluding QED radiative potential (up to r=" << rcut
+              << "):\n";
+  } else {
+    return;
+  }
+
+  const auto imax = rgrid.getIndex(rcut);
+  auto rN_rad =
+      scale_rN * m_nuc_params.r_rms * std::sqrt(5.0 / 3.0) / PhysConst::aB_fm;
+
+  if (x_Ueh > 0) {
+    std::cout << "Forming Uehling potential (scale=" << x_Ueh << ")\n";
+#pragma omp parallel for
+    for (std::size_t i = 0; i < imax; ++i) {
+      auto r = rgrid.r[i];
+      auto v_Ueh = RadiativePotential::vUehling(r, rN_rad, m_Z, m_alpha);
+      vnuc[i] -= x_Ueh * v_Ueh;
+    }
+  }
+
+  if (x_SEe_h > 0) {
+    std::cout << "Forming Self-Energy (electric high-f) potential (scale="
+              << x_SEe_h << ")\n";
+    // The SE high-f part is very slow. We calculate it every few points only,
+    // and then interpolate the intermediate points
+    const std::size_t stride = 6;
+    const auto tmp_max = imax / stride;
+    std::vector<double> x(tmp_max), y(tmp_max);
+#pragma omp parallel for
+    for (std::size_t i = 0; i < tmp_max; ++i) {
+      x[i] = rgrid.r[i * stride];
+      y[i] = RadiativePotential::vSEh(x[i], rN_rad, m_Z, m_alpha);
+    }
+    auto vec_SE_h = Interpolator::interpolate(x, y, rgrid.r);
+    for (std::size_t i = 0; i < imax; i++) {
+      vnuc[i] -= x_SEe_h * vec_SE_h[i];
+    }
+  }
+
+  if (x_SEe_l > 0) {
+    std::cout << "Forming Self-Energy (electric low-f) potential (scale="
+              << x_SEe_l << ")\n";
+#pragma omp parallel for
+    for (std::size_t i = 0; i < imax; i++) {
+      auto v_SE_l = RadiativePotential::vSEl(rgrid.r[i], rN_rad, m_Z, m_alpha);
+      vnuc[i] -= x_SEe_l * v_SE_l;
+    }
+  }
+
+  if (x_SEm > 0) {
+    std::cout << "Forming Self-Energy (magnetic) potential "
+              << "(scale=" << x_SEm << ")\n";
+    Hse_mag.clear(); // ensure zero'd
+    Hse_mag.resize(rgrid.num_points);
+#pragma omp parallel for
+    for (std::size_t i = 0; i < imax; i++) {
+      auto Hr = RadiativePotential::vSE_Hmag(rgrid.r[i], rN_rad, m_Z, m_alpha);
+      Hse_mag[i] += x_SEm * Hr; // nb: plus!
+    }
+  }
+
+  std::cout << "\n";
+}
+
+//******************************************************************************
 bool Wavefunction::isInCore(int n, int k) const
 // Checks if given state is in the core.
 {
@@ -174,7 +246,8 @@ std::size_t Wavefunction::getStateIndex(int n, int k, bool &is_valence) const {
     }
     is_valence = true;
   }
-  // std::cerr << "\nFAIL 290 in WF: Couldn't find state n,k=" << n << "," << k
+  // std::cerr << "\nFAIL 290 in WF: Couldn't find state n,k=" << n << "," <<
+  // k
   //           << "\n";
   // // std::abort();
   return std::max(core_orbitals.size(), valence_orbitals.size()); // invalid
@@ -596,5 +669,6 @@ std::vector<double> Wavefunction::coreDensity() const {
 void Wavefunction::formBasis(const std::string &states_str,
                              const std::size_t n_spl, const std::size_t k_spl,
                              const double r0_spl, const double rmax_spl) {
-  basis = form_basis(states_str, n_spl, k_spl, r0_spl, rmax_spl, *this);
+  basis = SplineBasis::form_basis(states_str, n_spl, k_spl, r0_spl, rmax_spl,
+                                  *this);
 }

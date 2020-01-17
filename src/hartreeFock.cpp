@@ -83,6 +83,18 @@ int main(int argc, char *argv[]) {
     std::cout << "Using Hartree Method (no Exchange)\n";
   }
 
+  // Use QED radiatve potential?
+  input_ok = input_ok && input.check("RadPot", {"Ueh", "SE_h", "SE_l", "SE_m",
+                                                "rcut", "scale_rN"});
+  auto x_Ueh = input.get("RadPot", "Ueh", 0.0);
+  auto x_SEe_h = input.get("RadPot", "SE_h", 0.0);
+  auto x_SEe_l = input.get("RadPot", "SE_l", 0.0);
+  auto x_SEm = input.get("RadPot", "SE_m", 0.0);
+  auto rcut = input.get("RadPot", "rcut", 1.0);
+  auto scale_rN = input.get("RadPot", "scale_rN", 1.0);
+  if (input_ok)
+    wf.radiativePotential(x_Ueh, x_SEe_h, x_SEe_l, x_SEm, rcut, scale_rN);
+
   { // Solve Hartree equations for the core:
     ChronoTimer t(" core");
     wf.hartreeFockCore(HF_method, str_core, eps_HF, H_d, g_t);

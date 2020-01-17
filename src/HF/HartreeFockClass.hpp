@@ -89,9 +89,12 @@ private:
   static constexpr bool m_explicitOrthog_cv = false;
 
   const double m_eps_HF;
+
+public: // blahhhhh
   const bool m_excludeExchange;
   const HFMethod m_method;
 
+private:
   // The "localised"/approximate HF potential:
   std::vector<std::vector<double>> appr_vex_core;
   std::vector<std::vector<double>> appr_vex_val;
@@ -115,7 +118,7 @@ private:
   EpsIts hf_valence_refine(DiracSpinor &phi);
 
   void hf_orbital(DiracSpinor &phi, double en, const std::vector<double> &vl,
-                  const DiracSpinor &vx_phi,
+                  const std::vector<double> &H_mag, const DiracSpinor &vx_phi,
                   const std::vector<DiracSpinor> &core,
                   const std::vector<double> &v0 = {}) const;
 };

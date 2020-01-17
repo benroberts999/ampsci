@@ -215,3 +215,7 @@ bool operator<=(const DiracSpinor &lhs, const DiracSpinor &rhs) {
 bool operator>=(const DiracSpinor &lhs, const DiracSpinor &rhs) {
   return !(lhs < rhs);
 }
+
+//******************************************************************************
+double DiracSpinor::r0() const { return p_rgrid->r[p0]; }
+double DiracSpinor::rinf() const { return p_rgrid->r[pinf - 1]; }

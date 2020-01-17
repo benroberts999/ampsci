@@ -23,35 +23,38 @@ XXX Update to accept operators?
 namespace DiracODE {
 
 DiracSpinor solve_inhomog(const int kappa, const double en,
-                          const std::vector<double> &v, const double alpha,
+                          const std::vector<double> &v,
+                          const std::vector<double> &H_mag, const double alpha,
                           const DiracSpinor &source) {
   auto sp = SafeProfiler::profile(__func__, "0");
   auto phi = DiracSpinor(0, kappa, *source.p_rgrid);
-  solve_inhomog(phi, en, v, alpha, source);
+  solve_inhomog(phi, en, v, H_mag, alpha, source);
   return phi;
 }
 
 //******************************************************************************
 void solve_inhomog(DiracSpinor &phi, const double en,
-                   const std::vector<double> &v, const double alpha,
+                   const std::vector<double> &v,
+                   const std::vector<double> &H_mag, const double alpha,
                    const DiracSpinor &source)
 // NOTE: returns NON-normalised function!
 {
   auto sp = SafeProfiler::profile(__func__, "a");
   auto phi0 = DiracSpinor(phi.n, phi.k, *phi.p_rgrid);
   auto phiI = DiracSpinor(phi.n, phi.k, *phi.p_rgrid);
-  solve_inhomog(phi, phi0, phiI, en, v, alpha, source);
+  solve_inhomog(phi, phi0, phiI, en, v, H_mag, alpha, source);
 }
 //------------------------------------------------------------------------------
 void solve_inhomog(DiracSpinor &phi, DiracSpinor &phi0, DiracSpinor &phiI,
                    const double en, const std::vector<double> &v,
-                   const double alpha, const DiracSpinor &source)
+                   const std::vector<double> &H_mag, const double alpha,
+                   const DiracSpinor &source)
 // Overload of the above. Faster, since doesn't need to allocate for phi0 and
 // phiI
 {
   auto sp = SafeProfiler::profile(__func__, "b");
-  regularAtOrigin(phi0, en, v, alpha);
-  regularAtInfinity(phiI, en, v, alpha);
+  regularAtOrigin(phi0, en, v, H_mag, alpha);
+  regularAtInfinity(phiI, en, v, H_mag, alpha);
   Adams::GreenSolution(phi, phiI, phi0, alpha, source);
 }
 

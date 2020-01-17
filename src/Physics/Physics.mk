@@ -18,3 +18,7 @@ $(SD)/Physics/NuclearData.hpp
 $(BD)/Parametric_potentials.o: $(SD)/Physics/Parametric_potentials.cpp \
 $(SD)/Physics/Parametric_potentials.hpp
 	$(COMP)
+
+$(BD)/RadiativePotential.o: $(SD)/Physics/RadiativePotential.cpp \
+$(SD)/Physics/RadiativePotential.hpp
+	$(COMP)

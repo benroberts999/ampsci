@@ -265,136 +265,137 @@ private:
   virtual double angularCgf(int, int) const override { return 1.0; }
 };
 
-//******************************************************************************
-class DirectHamiltonian final : public ScalarOperator {
-  // Direct part of Radial Hamiltonian operator.
-  // XXX THIS SHOULD !!NOT!! be a ScalarOperator!!!
-public:
-  DirectHamiltonian(const std::vector<double> &vn,
-                    const std::vector<double> &vd, const double alpha)
-      : ScalarOperator(OperatorParity::even, 1.0, {}), cl(1.0 / alpha),
-        vnuc(vn), vdir(vd), tmp_f(std::vector<double>(vn.size(), 0.0)) {}
-
-public:
-  void updateVdir(const std::vector<double> &in_vdir) { vdir = in_vdir; }
-  const std::vector<double> &getVdir() const { return vdir; }
-  const std::vector<double> &getVnuc() const { return vnuc; }
-
-public:
-  double matrixEl(const DiracSpinor &Fa) const {
-    std::cout << "called?\n";
-    std::cin.get();
-    return matrixEl(Fa, Fa);
-    // const auto &drdu = Fa.p_rgrid->drdu;
-    // tmp_f = NumCalc::derivative(Fa.f, drdu, Fa.p_rgrid->du, 1);
-    // const auto max = Fa.pinf;
-    // for (std::size_t i = 0; i < max; i++) {
-    //   tmp_f[i] += (Fa.k * Fa.f[i] / Fa.p_rgrid->r[i]) - cl * Fa.g[i];
-    // }
-    // auto Hz = 2.0 * cl * NumCalc::integrate(Fa.g, tmp_f, drdu, 1.0, 0, max);
-    // auto Hw = NumCalc::integrate(Fa.f, Fa.f, vnuc, drdu, 1.0, 0, max) +
-    //           NumCalc::integrate(Fa.g, Fa.g, vnuc, drdu, 1.0, 0, max) +
-    //           NumCalc::integrate(Fa.f, Fa.f, vdir, drdu, 1.0, 0, max) +
-    //           NumCalc::integrate(Fa.g, Fa.g, vdir, drdu, 1.0, 0, max);
-    // return (Hw + Hz) * Fa.p_rgrid->du;
-  }
-
-  // double matrixEl(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
-  //   if (Fa.k != Fb.k)
-  //     return 0.0;
-  //   // return matrixEl(Fa);
-  //   const auto max = std::min(Fa.pinf, Fb.pinf);
-  //   const auto min = std::max(Fa.p0, Fb.p0);
-  //   const auto &drdu = Fa.p_rgrid->drdu;
-  //
-  //   auto dfb = NumCalc::derivative(Fb.f, drdu, Fb.p_rgrid->du, 1);
-  //   auto dgb = NumCalc::derivative(Fb.g, drdu, Fb.p_rgrid->du, 1);
-  //
-  //   for (std::size_t i = 0; i < max; i++) {
-  //     auto r = Fa.p_rgrid->r[i];
-  //     dgb[i] = (Fb.k * Fb.g[i] / r) - dgb[i];
-  //     dfb[i] = (Fb.k * Fb.f[i] / r) + dfb[i] - 2.0 * cl * Fb.g[i];
-  //   }
-  //   auto FaDFb = NumCalc::integrate(Fa.f, dgb, drdu, 1.0, min, max) +
-  //                NumCalc::integrate(Fa.g, dfb, drdu, 1.0, min, max);
-  //
-  //   auto Vab = NumCalc::integrate(Fa.f, Fb.f, vnuc, drdu, 1.0, min, max) +
-  //              NumCalc::integrate(Fa.g, Fb.g, vnuc, drdu, 1.0, min, max) +
-  //              NumCalc::integrate(Fa.f, Fb.f, vdir, drdu, 1.0, min, max) +
-  //              NumCalc::integrate(Fa.g, Fb.g, vdir, drdu, 1.0, min, max);
-  //
-  //   return (Vab + cl * FaDFb) * Fa.p_rgrid->du;
-  // }
-  double matrixEl(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
-    if (Fa.k != Fb.k)
-      return 0.0;
-    const auto kappa = Fa.k;
-    const auto max = std::min(Fa.pinf, Fb.pinf);
-    const auto min = std::max(Fa.p0, Fb.p0);
-    const auto &drdu = Fa.p_rgrid->drdu;
-
-    auto dga = NumCalc::derivative(Fa.g, drdu, Fb.p_rgrid->du, 1);
-    auto dgb = NumCalc::derivative(Fb.g, drdu, Fb.p_rgrid->du, 1);
-
-    for (std::size_t i = 0; i < max; i++) {
-      auto r = Fa.p_rgrid->r[i];
-      dga[i] -= (kappa * Fa.g[i] / r);
-      dgb[i] -= (kappa * Fb.g[i] / r);
-    }
-
-    auto D1m2 = NumCalc::integrate(1.0, min, max, Fa.f, dgb, drdu) +
-                NumCalc::integrate(1.0, min, max, Fb.f, dga, drdu);
-
-    auto Sab = NumCalc::integrate(1.0, min, max, Fa.g, Fb.g, drdu);
-
-    auto Vab = NumCalc::integrate(1.0, min, max, Fa.f, Fb.f, vnuc, drdu) +
-               NumCalc::integrate(1.0, min, max, Fa.g, Fb.g, vnuc, drdu) +
-               NumCalc::integrate(1.0, min, max, Fa.f, Fb.f, vdir, drdu) +
-               NumCalc::integrate(1.0, min, max, Fa.g, Fb.g, vdir, drdu);
-
-    return (Vab - cl * (D1m2 + 2.0 * cl * Sab)) * Fa.p_rgrid->du;
-  }
-
-  double matrixEl_noD1(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
-    if (Fa.k != Fb.k)
-      return 0.0;
-    const auto kappa = Fa.k;
-    const auto max = std::min(Fa.pinf, Fb.pinf);
-    const auto min = std::max(Fa.p0, Fb.p0);
-    const auto &drdu = Fa.p_rgrid->drdu;
-
-    auto dga = Fa.g;
-    auto dgb = Fb.g;
-
-    for (std::size_t i = 0; i < max; i++) {
-      auto r = Fa.p_rgrid->r[i];
-      dga[i] *= (kappa / r);
-      dgb[i] *= (kappa / r);
-    }
-
-    auto D2 = NumCalc::integrate(1.0, min, max, Fa.f, dgb, drdu) +
-              NumCalc::integrate(1.0, min, max, Fb.f, dga, drdu);
-
-    auto Sab = NumCalc::integrate(1.0, min, max, Fa.g, Fb.g, drdu);
-
-    auto Vab = NumCalc::integrate(1.0, min, max, Fa.f, Fb.f, vnuc, drdu) +
-               NumCalc::integrate(1.0, min, max, Fa.g, Fb.g, vnuc, drdu) +
-               NumCalc::integrate(1.0, min, max, Fa.f, Fb.f, vdir, drdu) +
-               NumCalc::integrate(1.0, min, max, Fa.g, Fb.g, vdir, drdu);
-
-    return (Vab + cl * (D2 - 2.0 * cl * Sab)) * Fa.p_rgrid->du;
-  }
-
-  // do this for speed? dumb? only call 'matrixEl' for Hd ?
-  // DiracSpinor radial_rhs(const DiracSpinor &Fa,
-  //                        const DiracSpinor &Fb) const override = delete;
-
-private:
-  const double cl;
-  const std::vector<double> vnuc;
-  std::vector<double> vdir;
-  mutable std::vector<double> tmp_f;
-};
+// //******************************************************************************
+// class DirectHamiltonian final : public ScalarOperator {
+//   // Direct part of Radial Hamiltonian operator.
+//   // XXX THIS SHOULD !!NOT!! be a ScalarOperator!!!
+// public:
+//   DirectHamiltonian(const std::vector<double> &vn,
+//                     const std::vector<double> &vd, const double alpha)
+//       : ScalarOperator(OperatorParity::even, 1.0, {}), cl(1.0 / alpha),
+//         vnuc(vn), vdir(vd), tmp_f(std::vector<double>(vn.size(), 0.0)) {}
+//
+// public:
+//   void updateVdir(const std::vector<double> &in_vdir) { vdir = in_vdir; }
+//   const std::vector<double> &getVdir() const { return vdir; }
+//   const std::vector<double> &getVnuc() const { return vnuc; }
+//
+// public:
+//   double matrixEl(const DiracSpinor &Fa) const {
+//     std::cout << "called?\n";
+//     std::cin.get();
+//     return matrixEl(Fa, Fa);
+//     // const auto &drdu = Fa.p_rgrid->drdu;
+//     // tmp_f = NumCalc::derivative(Fa.f, drdu, Fa.p_rgrid->du, 1);
+//     // const auto max = Fa.pinf;
+//     // for (std::size_t i = 0; i < max; i++) {
+//     //   tmp_f[i] += (Fa.k * Fa.f[i] / Fa.p_rgrid->r[i]) - cl * Fa.g[i];
+//     // }
+//     // auto Hz = 2.0 * cl * NumCalc::integrate(Fa.g, tmp_f, drdu, 1.0, 0,
+//     max);
+//     // auto Hw = NumCalc::integrate(Fa.f, Fa.f, vnuc, drdu, 1.0, 0, max) +
+//     //           NumCalc::integrate(Fa.g, Fa.g, vnuc, drdu, 1.0, 0, max) +
+//     //           NumCalc::integrate(Fa.f, Fa.f, vdir, drdu, 1.0, 0, max) +
+//     //           NumCalc::integrate(Fa.g, Fa.g, vdir, drdu, 1.0, 0, max);
+//     // return (Hw + Hz) * Fa.p_rgrid->du;
+//   }
+//
+//   // double matrixEl(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
+//   //   if (Fa.k != Fb.k)
+//   //     return 0.0;
+//   //   // return matrixEl(Fa);
+//   //   const auto max = std::min(Fa.pinf, Fb.pinf);
+//   //   const auto min = std::max(Fa.p0, Fb.p0);
+//   //   const auto &drdu = Fa.p_rgrid->drdu;
+//   //
+//   //   auto dfb = NumCalc::derivative(Fb.f, drdu, Fb.p_rgrid->du, 1);
+//   //   auto dgb = NumCalc::derivative(Fb.g, drdu, Fb.p_rgrid->du, 1);
+//   //
+//   //   for (std::size_t i = 0; i < max; i++) {
+//   //     auto r = Fa.p_rgrid->r[i];
+//   //     dgb[i] = (Fb.k * Fb.g[i] / r) - dgb[i];
+//   //     dfb[i] = (Fb.k * Fb.f[i] / r) + dfb[i] - 2.0 * cl * Fb.g[i];
+//   //   }
+//   //   auto FaDFb = NumCalc::integrate(Fa.f, dgb, drdu, 1.0, min, max) +
+//   //                NumCalc::integrate(Fa.g, dfb, drdu, 1.0, min, max);
+//   //
+//   //   auto Vab = NumCalc::integrate(Fa.f, Fb.f, vnuc, drdu, 1.0, min, max) +
+//   //              NumCalc::integrate(Fa.g, Fb.g, vnuc, drdu, 1.0, min, max) +
+//   //              NumCalc::integrate(Fa.f, Fb.f, vdir, drdu, 1.0, min, max) +
+//   //              NumCalc::integrate(Fa.g, Fb.g, vdir, drdu, 1.0, min, max);
+//   //
+//   //   return (Vab + cl * FaDFb) * Fa.p_rgrid->du;
+//   // }
+//   double matrixEl(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
+//     if (Fa.k != Fb.k)
+//       return 0.0;
+//     const auto kappa = Fa.k;
+//     const auto max = std::min(Fa.pinf, Fb.pinf);
+//     const auto min = std::max(Fa.p0, Fb.p0);
+//     const auto &drdu = Fa.p_rgrid->drdu;
+//
+//     auto dga = NumCalc::derivative(Fa.g, drdu, Fb.p_rgrid->du, 1);
+//     auto dgb = NumCalc::derivative(Fb.g, drdu, Fb.p_rgrid->du, 1);
+//
+//     for (std::size_t i = 0; i < max; i++) {
+//       auto r = Fa.p_rgrid->r[i];
+//       dga[i] -= (kappa * Fa.g[i] / r);
+//       dgb[i] -= (kappa * Fb.g[i] / r);
+//     }
+//
+//     auto D1m2 = NumCalc::integrate(1.0, min, max, Fa.f, dgb, drdu) +
+//                 NumCalc::integrate(1.0, min, max, Fb.f, dga, drdu);
+//
+//     auto Sab = NumCalc::integrate(1.0, min, max, Fa.g, Fb.g, drdu);
+//
+//     auto Vab = NumCalc::integrate(1.0, min, max, Fa.f, Fb.f, vnuc, drdu) +
+//                NumCalc::integrate(1.0, min, max, Fa.g, Fb.g, vnuc, drdu) +
+//                NumCalc::integrate(1.0, min, max, Fa.f, Fb.f, vdir, drdu) +
+//                NumCalc::integrate(1.0, min, max, Fa.g, Fb.g, vdir, drdu);
+//
+//     return (Vab - cl * (D1m2 + 2.0 * cl * Sab)) * Fa.p_rgrid->du;
+//   }
+//
+//   double matrixEl_noD1(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
+//     if (Fa.k != Fb.k)
+//       return 0.0;
+//     const auto kappa = Fa.k;
+//     const auto max = std::min(Fa.pinf, Fb.pinf);
+//     const auto min = std::max(Fa.p0, Fb.p0);
+//     const auto &drdu = Fa.p_rgrid->drdu;
+//
+//     auto dga = Fa.g;
+//     auto dgb = Fb.g;
+//
+//     for (std::size_t i = 0; i < max; i++) {
+//       auto r = Fa.p_rgrid->r[i];
+//       dga[i] *= (kappa / r);
+//       dgb[i] *= (kappa / r);
+//     }
+//
+//     auto D2 = NumCalc::integrate(1.0, min, max, Fa.f, dgb, drdu) +
+//               NumCalc::integrate(1.0, min, max, Fb.f, dga, drdu);
+//
+//     auto Sab = NumCalc::integrate(1.0, min, max, Fa.g, Fb.g, drdu);
+//
+//     auto Vab = NumCalc::integrate(1.0, min, max, Fa.f, Fb.f, vnuc, drdu) +
+//                NumCalc::integrate(1.0, min, max, Fa.g, Fb.g, vnuc, drdu) +
+//                NumCalc::integrate(1.0, min, max, Fa.f, Fb.f, vdir, drdu) +
+//                NumCalc::integrate(1.0, min, max, Fa.g, Fb.g, vdir, drdu);
+//
+//     return (Vab + cl * (D2 - 2.0 * cl * Sab)) * Fa.p_rgrid->du;
+//   }
+//
+//   // do this for speed? dumb? only call 'matrixEl' for Hd ?
+//   // DiracSpinor radial_rhs(const DiracSpinor &Fa,
+//   //                        const DiracSpinor &Fb) const override = delete;
+//
+// private:
+//   const double cl;
+//   const std::vector<double> vnuc;
+//   std::vector<double> vdir;
+//   mutable std::vector<double> tmp_f;
+// };
 
 //******************************************************************************
 class PNCnsiOperator final : public ScalarOperator {

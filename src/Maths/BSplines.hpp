@@ -116,7 +116,7 @@ public:
   }
 
   //****************************************************************************
-  void write_splines(const std::string ofname = "Bspl.txt",
+  void write_splines(const std::string &ofname = "Bspl.txt",
                      bool deriv = false) const {
     std::ofstream of(ofname);
 

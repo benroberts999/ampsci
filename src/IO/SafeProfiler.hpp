@@ -5,6 +5,7 @@
 #include <iostream>
 #include <string>
 #include <utility>
+#include <vector>
 
 namespace SafeProfiler {
 
@@ -14,7 +15,7 @@ constexpr bool do_profile = false;
 
 struct StrDoubleUnsigned {
   StrDoubleUnsigned(std::string is, double id, unsigned iu)
-      : s(is), d(id), u(iu) {}
+      : s(std::move(is)), d(id), u(iu) {}
   std::string s;
   double d;
   unsigned u;
