@@ -137,7 +137,8 @@ inline double special_threej_2(int two_j1, int two_j2, int two_k)
   if (triangle(two_j1, two_j2, two_k) == 0)
     return 0.0;
   if (two_k == 0) {
-    auto s = ((two_j1 + 2) % 4 == 0) ? 1.0 : -1.0;
+    // auto s = ((two_j1 + 1) % 4 == 0) ? 1.0 : -1.0;
+    auto s = evenQ_2(two_j1 + 1) ? 1.0 : -1.0;
     return s / std::sqrt(two_j1 + 1);
   }
   // else if(two_k == 1){
