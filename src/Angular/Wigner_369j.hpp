@@ -137,7 +137,8 @@ inline double special_threej_2(int two_j1, int two_j2, int two_k)
   if (triangle(two_j1, two_j2, two_k) == 0)
     return 0.0;
   if (two_k == 0) {
-    auto s = ((two_j1 + 2) % 4 == 0) ? 1.0 : -1.0;
+    // auto s = ((two_j1 + 1) % 4 == 0) ? 1.0 : -1.0;
+    auto s = evenQ_2(two_j1 + 1) ? 1.0 : -1.0;
     return s / std::sqrt(two_j1 + 1);
   }
   // else if(two_k == 1){
@@ -323,14 +324,19 @@ inline double Ck_kk(int k, int ka, int kb)
   }
   auto two_ja = twoj_k(ka);
   auto two_jb = twoj_k(kb);
-  auto sign = ((two_ja + 1) / 2 % 2 == 0) ? 1 : -1;
+  // auto sign = ((two_ja + 1) / 2 % 2 == 0) ? 1 : -1;
+  auto sign = evenQ_2(two_ja + 1) ? 1 : -1;
   auto f = std::sqrt((two_ja + 1) * (two_jb + 1));
-  // auto g = gsl_sf_coupling_3j(two_ja, two_jb, 2 * k, -1, 1, 0);
   auto g = special_threej_2(two_ja, two_jb, 2 * k);
-  // XXX might be better formula (particularly for k=0,1 case!)
-  // constexpr??
   return sign * f * g;
 }
+
+inline double tildeCk_kk(int k, int ka, int kb) {
+  // tildeCk_kk = (-1)^{ja+1/2}*Ck_kk
+  auto m1tjph = evenQ_2(twoj_k(ka) + 1) ? 1 : -1;
+  return m1tjph * Ck_kk(k, ka, kb);
+}
+
 //******************************************************************************
 inline double Ck_2j2j(int k, int two_ja, int two_jb)
 // Reduced (relativistic) angular ME:
@@ -338,7 +344,8 @@ inline double Ck_2j2j(int k, int two_ja, int two_jb)
 // Note: takes in two*j!
 // NOTE: DOESNT check parity! Only use if that's already known to be true
 {
-  auto sign = ((two_ja + 1) / 2 % 2 == 0) ? 1 : -1;
+  // auto sign = (((two_ja + 1) / 2) % 2 == 0) ? 1 : -1;
+  auto sign = evenQ_2(two_ja + 1) ? 1 : -1;
   auto f = std::sqrt((two_ja + 1) * (two_jb + 1));
   // auto g = gsl_sf_coupling_3j(two_ja, two_jb, 2 * k, -1, 1, 0);
   auto g = special_threej_2(two_ja, two_jb, 2 * k);
