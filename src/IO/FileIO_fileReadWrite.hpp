@@ -128,6 +128,10 @@ inline std::string removeCommentsAndSpaces(const std::string &input)
   lines.erase(std::remove_if(lines.begin(), lines.end(),
                              [](unsigned char x) { return x == ' '; }),
               lines.end());
+  // remove tabs
+  lines.erase(std::remove_if(lines.begin(), lines.end(),
+                             [](unsigned char x) { return x == '\t'; }),
+              lines.end());
   return lines;
 }
 
