@@ -174,8 +174,11 @@ int main(int argc, char *argv[]) {
 
   auto prev = 1.0;
   auto targ = 1.0e-6;
-  for (int i = 0; i < 99; i++) {
-    tdhf.solve_TDHFcore_matrix(wf);
+  auto max_its = 100;
+  // tdhf.solve_TDHFcore();
+  for (int i = 0; i < max_its; i++) {
+    // tdhf.solve_TDHFcore_matrix(wf);
+    tdhf.solve_TDHFcore();
     auto dv1 = tdhf.dV_ab(*psis, *psip1);
     auto dv3 = tdhf.dV_ab(*psis, *psip3);
     auto del = std::abs(std::max(std::abs(dv3 / me3), std::abs(dv1 / me1)));
@@ -183,7 +186,7 @@ int main(int argc, char *argv[]) {
     prev = del;
     std::cout << me1 << " + " << dv1 << " = " << me1 + dv1 << "\n";
     std::cout << me3 << " + " << dv3 << " = " << me3 + dv3 << "\n";
-    std::cout << eps << "\n";
+    std::cout << i << " : " << eps << "\n";
     if (eps < targ)
       break;
   }

@@ -54,12 +54,14 @@ public: // functions
                             const DiracSpinor &Fc, const DiracSpinor &Fd,
                             const int k);
 
-  static bool Qk_abcd_rhs(DiracSpinor &Q_rhs, const DiracSpinor &psi_a,
-                          const DiracSpinor &psi_b, const DiracSpinor &psi_c,
-                          const DiracSpinor &psi_d, const int k);
-  static DiracSpinor Rk_bcd_rhs(const DiracSpinor &psi_b,
-                                const DiracSpinor &psi_c,
-                                const DiracSpinor &psi_d, const int k);
+  static DiracSpinor Qk_abcd_rhs(const DiracSpinor &psi_a,
+                                 const DiracSpinor &psi_b,
+                                 const DiracSpinor &psi_c,
+                                 const DiracSpinor &psi_d, const int k);
+  static DiracSpinor Rk_abcd_rhs(const DiracSpinor &psi_a,
+                                 const DiracSpinor &psi_b,
+                                 const DiracSpinor &psi_c,
+                                 const DiracSpinor &psi_d, const int k);
 
   // getters
 

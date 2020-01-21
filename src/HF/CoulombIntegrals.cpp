@@ -58,6 +58,7 @@ double Coulomb::Qk_abcd_any(const DiracSpinor &psi_a, const DiracSpinor &psi_b,
   return m1tk * tCac * tCbd * Rkabcd;
 }
 
+//******************************************************************************
 double Coulomb::Rk_abcd_any(const DiracSpinor &psi_a, const DiracSpinor &psi_b,
                             const DiracSpinor &psi_c, const DiracSpinor &psi_d,
                             const int k) //
@@ -74,35 +75,42 @@ double Coulomb::Rk_abcd_any(const DiracSpinor &psi_a, const DiracSpinor &psi_b,
   return (Rff + Rgg) * du;
 }
 
-// XXXXXXXXXX ??
-DiracSpinor Coulomb::Rk_bcd_rhs(const DiracSpinor &psi_b,
-                                const DiracSpinor &psi_c,
-                                const DiracSpinor &psi_d,
-                                const int k) //
+//******************************************************************************
+DiracSpinor
+Coulomb::Rk_abcd_rhs(const DiracSpinor &psi_a, const DiracSpinor &psi_b,
+                     const DiracSpinor &psi_c, const DiracSpinor &psi_d,
+                     const int k) //
 {
   // make rhs an in/out parameter??
   // does 2 allocations [3v's: 2 for DS, onr for y]
   std::vector<double> yk_bd; // XXX Can already exist!
   calculate_y_ijk(psi_b, psi_d, k, yk_bd);
-  return yk_bd * psi_c;
+  auto out = psi_a;
+  out.f = psi_c.f;
+  out.g = psi_c.g;
+  return yk_bd * out; // correct kappa??
 }
 
-bool Coulomb::Qk_abcd_rhs(DiracSpinor &Q_rhs, const DiracSpinor &psi_a,
-                          const DiracSpinor &psi_b, const DiracSpinor &psi_c,
-                          const DiracSpinor &psi_d, const int k) {
-
+//******************************************************************************
+DiracSpinor Coulomb::Qk_abcd_rhs(const DiracSpinor &psi_a,
+                                 const DiracSpinor &psi_b,
+                                 const DiracSpinor &psi_c,
+                                 const DiracSpinor &psi_d, const int k) {
+  // XXX have bool! can skip!
   auto tCac = Wigner::tildeCk_kk(k, psi_a.k, psi_c.k);
-
+  if (tCac == 0.0)
+    return 0.0 * psi_a;
   auto tCbd = Wigner::tildeCk_kk(k, psi_b.k, psi_d.k);
-  bool ok = (tCac == 0.0 || tCbd == 0.0) ? false : true;
-
-  if (ok)
-    Q_rhs = Rk_bcd_rhs(psi_b, psi_c, psi_d, k); // xxx
+  if (tCbd == 0.0)
+    return 0.0 * psi_a;
+  auto Rk_bcd = Rk_abcd_rhs(psi_a, psi_b, psi_c, psi_d, k);
   auto m1tk = Wigner::evenQ(k) ? 1 : -1;
-  Q_rhs *= (m1tk * tCac * tCbd);
-
-  return ok;
+  return m1tk * tCac * tCbd * Rk_bcd;
 }
+
+//******************************************************************************
+//******************************************************************************
+//******************************************************************************
 
 //******************************************************************************
 Coulomb::Coulomb(const std::vector<DiracSpinor> &in_core,

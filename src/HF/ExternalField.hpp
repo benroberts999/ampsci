@@ -50,6 +50,8 @@ public:
   double dV_ab(const DiracSpinor &phia, const DiracSpinor &phib);
   double dV_ab_Y(const DiracSpinor &phia, const DiracSpinor &phib);
   DiracSpinor dV_ab_rhs(const DiracSpinor &phia, const DiracSpinor &phib);
+  DiracSpinor dV_ab_Y_rhs(const DiracSpinor &phi_alpha,
+                          const DiracSpinor &phi_a);
 
 private:
   std::size_t core_index(const DiracSpinor &phic);
