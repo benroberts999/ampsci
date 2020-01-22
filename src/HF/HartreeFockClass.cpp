@@ -24,19 +24,6 @@ constexpr bool print_final_eps = false;
 constexpr bool print_each_eps = false;
 
 //******************************************************************************
-// For non-constant damping
-// Slowly ramps the damping factor from a_beg to a_end over interval (beg, end)
-static inline auto rampedDamp(double a_beg, double a_end, int beg, int end) {
-  return [=](int i) {
-    if (i >= end)
-      return a_end;
-    if (i <= beg)
-      return a_beg;
-    return (a_end * (i - beg) + a_beg * (end - i)) / (end - beg);
-  };
-}
-
-//******************************************************************************
 DiracSpinor HartreeFock::solveMixedState(const int k, const DiracSpinor &phi0,
                                          const double omega,
                                          const std::vector<double> &vl,

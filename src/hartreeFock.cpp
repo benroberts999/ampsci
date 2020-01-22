@@ -165,7 +165,9 @@ int main(int argc, char *argv[]) {
   const auto *psip3 = wf.getState(6, -2);
 
   auto me1 = h.reducedME(*psis, *psip1);
+  auto me1b = h.reducedME(*psip1, *psis);
   auto me3 = h.reducedME(*psis, *psip3);
+  auto me3b = h.reducedME(*psip3, *psis);
 
   std::cout << h.angularF((*psis).k, (*psip1).k) << " "
             << h.radialIntegral(*psis, *psip1) << "\n";
@@ -173,19 +175,22 @@ int main(int argc, char *argv[]) {
             << h.radialIntegral(*psis, *psip3) << "\n";
 
   auto prev = 1.0;
-  auto targ = 1.0e-6;
+  auto targ = 1.0e-8;
   auto max_its = 100;
-  // tdhf.solve_TDHFcore();
   for (int i = 0; i < max_its; i++) {
     // tdhf.solve_TDHFcore_matrix(wf);
     tdhf.solve_TDHFcore();
     auto dv1 = tdhf.dV_ab(*psis, *psip1);
+    auto dv1b = tdhf.dV_ab(*psip1, *psis);
     auto dv3 = tdhf.dV_ab(*psis, *psip3);
+    auto dv3b = tdhf.dV_ab(*psip3, *psis);
     auto del = std::abs(std::max(std::abs(dv3 / me3), std::abs(dv1 / me1)));
     auto eps = std::abs((del - prev) / prev);
     prev = del;
     std::cout << me1 << " + " << dv1 << " = " << me1 + dv1 << "\n";
+    std::cout << me1b << " + " << dv1b << " = " << me1b + dv1b << "\n";
     std::cout << me3 << " + " << dv3 << " = " << me3 + dv3 << "\n";
+    std::cout << me3b << " + " << dv3b << " = " << me3b + dv3b << "\n";
     std::cout << i << " : " << eps << "\n";
     if (eps < targ)
       break;
