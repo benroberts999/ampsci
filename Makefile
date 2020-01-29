@@ -15,6 +15,14 @@ Build=release
 XD=.
 
 ################################################################################
+# If compiler cannot find correct libraries/headers, add the paths here.
+# (Adds to -I and -L on comiple and link, respectively)
+# Current defaults are for UQ's getafix to find correct GSL headers/libraries
+
+#ExtraInclude=/opt/gsl/2.1/gnu/include
+#ExtraLink=/opt/gsl/2.1/gnu/lib/
+
+################################################################################
 ## None of the below options should need changing
 ################################################################################
 ## Set directories for source files (SD), and output object files (OD)
