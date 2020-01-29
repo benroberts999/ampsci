@@ -25,8 +25,8 @@ ifeq ($(Build),release)
   WARN=-w
 endif
 ifeq ($(Build),debug)
-#  UseOpenMP=no
-#	WARN+=-Wno-unknown-pragmas
+  UseOpenMP=no
+	WARN+=-Wno-unknown-pragmas
 	OPT=-O0 -g
 endif
 
@@ -38,6 +38,15 @@ endif
 
 CXXFLAGS= $(CXXSTD) $(OPT) $(OMP) $(WARN) -I$(SD)
 LIBS=-lgsl -lgslcblas
+
+ifneq ($(ExtraInclude),)
+	tmpInc = $(addprefix -I,$(ExtraInclude))
+	CXXFLAGS+= $(tmpInc)
+endif
+ifneq ($(ExtraLink),)
+  tmpLink = $(addprefix -L,$(ExtraLink))
+	LIBS+= $(tmpLink)
+endif
 
 #These should be used with clang in debug mode only
 MSAN = -fsanitize=memory
