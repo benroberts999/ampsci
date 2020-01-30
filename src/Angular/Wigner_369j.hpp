@@ -327,8 +327,8 @@ inline double Ck_kk(int k, int ka, int kb)
   // auto sign = ((two_ja + 1) / 2 % 2 == 0) ? 1 : -1;
   auto sign = evenQ_2(two_ja + 1) ? 1 : -1;
   auto f = std::sqrt((two_ja + 1) * (two_jb + 1));
-  // auto g = special_threej_2(two_ja, two_jb, 2 * k);
-  auto g = gsl_sf_coupling_3j(two_ja, two_jb, 2 * k, -1, 1, 0);
+  auto g = special_threej_2(two_ja, two_jb, 2 * k);
+  // auto g = gsl_sf_coupling_3j(two_ja, two_jb, 2 * k, -1, 1, 0);
   return sign * f * g;
 }
 

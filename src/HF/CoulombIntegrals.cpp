@@ -85,9 +85,10 @@ Coulomb::Rk_abcd_rhs(const DiracSpinor &psi_a, const DiracSpinor &psi_b,
   // does 2 allocations [3v's: 2 for DS, onr for y]
   std::vector<double> yk_bd; // XXX Can already exist!
   calculate_y_ijk(psi_b, psi_d, k, yk_bd);
-  auto imax = Angular::max4(psi_a.pinf, psi_b.pinf, psi_c.pinf, psi_d.pinf);
+  // auto imax = Angular::max4(psi_a.pinf, psi_b.pinf, psi_c.pinf, psi_d.pinf);
   auto out = psi_a;
-  out.pinf = imax;
+  // out.pinf = imax;
+  out.pinf = psi_c.pinf;
   out.f = psi_c.f;
   out.g = psi_c.g;
   return yk_bd * out; // correct kappa??

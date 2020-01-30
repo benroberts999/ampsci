@@ -83,7 +83,7 @@ void ExternalField::solve_TDHFcore() {
   auto tmp_Y = m_Y;
 
   static bool first = true;
-  auto a_damp = first ? 0.0 : 0.5;
+  auto a_damp = first ? 0.0 : 0.75;
 
   // auto damper = rampedDamp(0.5, 0.3, 4, 10);
 
@@ -101,14 +101,15 @@ void ExternalField::solve_TDHFcore() {
           Xx.k, phic, m_omega, m_vl, m_alpha, *p_core, hPsic + dVpsic);
       Xx = a_damp * Xx + (1.0 - a_damp) * newX;
     }
-    // if (!static_fieldQ) { // XXX No, because of H.C. ?? also must be real?
     auto &dPsis_Y = tmp_Y[ic];
     for (auto &Yx : dPsis_Y) {
       auto hPsic = m_h->reduced_rhs(Yx.k, phic); // always same!?
-      // auto hPsic = m_h->reduced_lhs(Yx.k, phic); // always same!?
-      if (m_h->imaginaryQ())
-        hPsic *= -1.0;
+
+      // if (m_h->imaginaryQ())
+      //   hPsic *= -1.0;
+
       auto dVpsic = dV_ab_rhs(Yx, phic, true);
+
       auto newY = HartreeFock::solveMixedState(
           Yx.k, phic, -m_omega, m_vl, m_alpha, *p_core, hPsic + dVpsic);
       Yx = a_damp * Yx + (1.0 - a_damp) * newY;
@@ -134,8 +135,8 @@ DiracSpinor ExternalField::dV_ab_rhs(const DiracSpinor &phi_alpha,
 
   // dV_ab_rhs and dV_ab_rhs_Y very similar!
 
-  auto ChiType = conj ? dPsiType::X : dPsiType::Y;
-  auto EtaType = conj ? dPsiType::Y : dPsiType::X;
+  const auto ChiType = conj ? dPsiType::X : dPsiType::Y;
+  const auto EtaType = conj ? dPsiType::Y : dPsiType::X;
 
   const auto k = m_h->rank();
   // const auto m1tkp1 = Wigner::evenQ(k + 1) ? 1 : -1;
@@ -143,130 +144,75 @@ DiracSpinor ExternalField::dV_ab_rhs(const DiracSpinor &phi_alpha,
 
   const auto tjalpha = phi_alpha.twoj();
   const auto tja = phi_a.twoj();
+  const auto Ckala = Wigner::Ck_kk(k, phi_alpha.k, phi_a.k);
 
-  auto rme_sum_dirX = 0.0 * phi_alpha;
-  auto rme_sum_excX = 0.0 * phi_alpha;
+  auto rme_sum_dir = 0.0 * phi_alpha;
+  auto rme_sum_exc = 0.0 * phi_alpha;
 #pragma omp parallel for
-  for (auto ic = 0u; ic < p_core->size(); ic++) {
-    const auto &phi_b = (*p_core)[ic];
+  for (auto ib = 0ul; ib < p_core->size(); ib++) {
+    // for (const auto &phi_b : *p_core) {
+    const auto &phi_b = (*p_core)[ib];
     const auto tjb = phi_b.twoj();
     const auto &X_betas = get_dPsis(phi_b, ChiType);
-    auto rme_sum_dirX_c = 0.0 * phi_alpha;
-    auto rme_sum_excX_c = 0.0 * phi_alpha;
-    for (const auto &phi_beta : X_betas) {
-      const auto tjbeta = phi_beta.twoj();
-      // const auto m1jaljbe = Wigner::evenQ_2(tjalpha + tjbeta) ? 1 : -1;
-      // const auto Qkabcd =
-      //     Coulomb::Qk_abcd_rhs(phi_alpha, phi_b, phi_a, phi_beta, k);
-      // rme_sum_dirX_c += m1jaljbe * Qkabcd;
-      const auto Ckala = Wigner::Ck_kk(k, phi_alpha.k, phi_a.k);
-      const auto Ckbeb = Wigner::Ck_kk(k, phi_beta.k, phi_b.k);
+    const auto &Y_betas = get_dPsis(phi_b, EtaType);
+    auto rme_sum_dir_c = 0.0 * phi_alpha;
+    auto rme_sum_exc_c = 0.0 * phi_alpha;
+
+    for (auto ibeta = 0ul; ibeta < X_betas.size(); ++ibeta) {
+      const auto &X_beta = X_betas[ibeta];
+      const auto &Y_beta = Y_betas[ibeta];
+      const auto tjbeta = X_beta.twoj();
+
+      const auto Ckbeb = Wigner::Ck_kk(k, X_beta.k, phi_b.k);
       const auto Rkabcd =
-          Coulomb::Rk_abcd_rhs(phi_alpha, phi_b, phi_a, phi_beta, k);
-      rme_sum_dirX_c += (Ckala * Ckbeb) * Rkabcd;
-      // exchange part:
-      const auto bmc = std::abs(tjalpha - tjbeta);
-      const auto bpc = tjalpha + tjbeta;
-      const auto amd = std::abs(tja - tjb);
-      const auto apd = tja + tjb;
-      const auto l_min = 0;  // std::max(amd, bmc) / 2; // XXX
-      const auto l_max = 20; // std::min(apd, bpc) / 2; // XXX
-      for (int l = l_min; l <= l_max; ++l) {
-        // const auto m1jaljb = Wigner::evenQ_2(tjalpha + tjb) ? 1 : -1;
-        // const auto sixj = m_6j.get_6j(tja, tjalpha, tjbeta, tjb, k, l);
-        // if (sixj == 0)
-        //   continue;
-        // const auto Qlabcd =
-        //     Coulomb::Qk_abcd_rhs(phi_alpha, phi_a, phi_beta, phi_b, k);
-        // rme_sum_excX_c += m1jaljb * sixj * Qlabcd;
-        // // const auto sixj = m_6j.get_6j(tja, tjb, tjbeta, tjalpha, l, k);
-        // // const auto sixj = m_6j.get_6j(tja, tjalpha, tjbeta, tjb, k, l);
-        const auto sixj =
-            Wigner::sixj_2(tja, tjb, 2 * l, tjbeta, tjalpha, 2 * k);
+          Coulomb::Rk_abcd_rhs(phi_alpha, phi_b, phi_a, X_beta + Y_beta, k);
+      rme_sum_dir_c += (Ckala * Ckbeb) * Rkabcd;
+
+      // exchange part (X):
+      const auto l_min_X =
+          std::max(std::abs(tjalpha - tjbeta), std::abs(tja - tjb)) / 2;
+      const auto l_max_X = std::min((tjalpha + tjbeta), (tja + tjb)) / 2;
+
+      for (int l = l_min_X; l <= l_max_X; ++l) {
+        const auto sixj = m_6j.get_6j_mutable(tja, tjalpha, tjbeta, tjb, k, l);
         if (sixj == 0)
           continue;
         const auto m1kpl = Wigner::evenQ(k + l) ? 1 : -1;
         const auto Ckba = Wigner::Ck_kk(l, phi_b.k, phi_a.k);
-        const auto Ckalbe = Wigner::Ck_kk(l, phi_alpha.k, phi_beta.k);
+        const auto Ckalbe = Wigner::Ck_kk(l, phi_alpha.k, X_beta.k);
         const auto Rk =
-            Coulomb::Rk_abcd_rhs(phi_alpha, phi_a, phi_beta, phi_b, l);
-        rme_sum_excX_c += (m1kpl * Ckba * Ckalbe * sixj) * Rk;
+            Coulomb::Rk_abcd_rhs(phi_alpha, phi_a, X_beta, phi_b, l);
+        rme_sum_exc_c += (m1kpl * Ckba * Ckalbe * sixj) * Rk;
+      }
+
+      // exchange part (Y):
+      const auto l_min_Y =
+          std::max(std::abs(tjalpha - tjb), std::abs(tja - tjbeta)) / 2;
+      const auto l_max_Y = std::min((tjalpha + tjb), (tja + tjbeta)) / 2;
+
+      for (int l = l_min_Y; l <= l_max_Y; ++l) {
+        const auto sixj = m_6j.get_6j(tja, tjalpha, tjb, tjbeta, k, l);
+        if (sixj == 0)
+          continue;
+        const auto m1kpl = Wigner::evenQ(k + l) ? 1 : -1;
+        const auto Ckbea = Wigner::Ck_kk(l, Y_beta.k, phi_a.k);
+        const auto Ckbal = Wigner::Ck_kk(l, phi_b.k, phi_alpha.k);
+        const auto Rk =
+            Coulomb::Rk_abcd_rhs(phi_alpha, phi_a, phi_b, Y_beta, l);
+        rme_sum_exc_c += (m1kpl * Ckbea * Ckbal * sixj) * Rk;
       }
     }
 #pragma omp critical(sum_X_core)
     {
-      rme_sum_dirX += rme_sum_dirX_c;
-      rme_sum_excX += rme_sum_excX_c;
+      rme_sum_dir += rme_sum_dir_c;
+      rme_sum_exc += rme_sum_exc_c;
     }
   }
 
-  auto rme_sum_dirY = 0.0 * phi_alpha;
-  auto rme_sum_excY = 0.0 * phi_alpha;
-  // if (!static_fieldQ) {
-#pragma omp parallel for
-  for (auto ic = 0u; ic < p_core->size(); ic++) {
-    const auto &phi_b = (*p_core)[ic];
-    const auto tjb = phi_b.twoj();
-    const auto &Y_betas = get_dPsis(phi_b, EtaType);
-    auto rme_sum_dirY_c = 0.0 * phi_alpha;
-    auto rme_sum_excY_c = 0.0 * phi_alpha;
-    for (const auto &phi_beta : Y_betas) {
-      const auto tjbeta = phi_beta.twoj();
-      // const auto m1jaljbe = Wigner::evenQ_2(tjalpha + tjbeta) ? 1 : -1;
-      // const auto Qkabcd =
-      //     Coulomb::Qk_abcd_rhs(phi_alpha, phi_b, phi_a, phi_beta, k);
-      // rme_sum_dirY_c += m1jaljbe * Qkabcd;
-      const auto Ckala = Wigner::Ck_kk(k, phi_alpha.k, phi_a.k);
-      const auto Ckbeb = Wigner::Ck_kk(k, phi_beta.k, phi_b.k);
-      const auto Rkabcd =
-          Coulomb::Rk_abcd_rhs(phi_alpha, phi_b, phi_a, phi_beta, k);
-      rme_sum_dirY_c += (Ckala * Ckbeb) * Rkabcd;
-      // exchange part:
-      const auto amd = std::abs(tja - tjbeta);
-      const auto apd = tja + tjbeta;
-      const auto bmc = std::abs(tjalpha - tjb);
-      const auto bpc = tjalpha + tjb;
-      const auto l_min = 0;  // std::max(amd, bmc) / 2;
-      const auto l_max = 20; // std::min(apd, bpc) / 2;
-      for (int l = l_min; l <= l_max; ++l) {
-        // const auto m1jaljb = Wigner::evenQ_2(tjbeta + tjb) ? 1 : -1;
-        // const auto sixj = m_6j.get_6j(tja, tjalpha, tjb, tjbeta, k, l);
-        // if (sixj == 0)
-        //   continue;
-        // const auto Qlabcd =
-        //     Coulomb::Qk_abcd_rhs(phi_alpha, phi_a, phi_b, phi_beta, l);
-        // rme_sum_excY_c += m1jaljb * sixj * Qlabcd;
-        // // const auto sixj = m_6j.get_6j(tja, tjbeta, tjb, tjalpha, l, k);
-        // // const auto sixj = m_6j.get_6j(tja, tjalpha, tjb, tjbeta, k, l);
-        const auto sixj =
-            Wigner::sixj_2(tja, tjbeta, 2 * l, tjb, tjalpha, 2 * k);
-        if (sixj == 0)
-          continue;
-        const auto m1kpl = Wigner::evenQ(k + l) ? 1 : -1;
-        const auto Ckbea = Wigner::Ck_kk(l, phi_beta.k, phi_a.k);
-        const auto Ckbal = Wigner::Ck_kk(l, phi_b.k, phi_alpha.k);
-        const auto Rk =
-            Coulomb::Rk_abcd_rhs(phi_alpha, phi_a, phi_b, phi_beta, l);
-        rme_sum_excY_c += (m1kpl * Ckbea * Ckbal * sixj) * Rk;
-      }
-    }
-#pragma omp critical(sum_Y_core)
-    {
-      rme_sum_dirY += rme_sum_dirY_c;
-      rme_sum_excY += rme_sum_excY_c;
-    }
-  }
-  // } else {
-  //   rme_sum_dirY = rme_sum_dirX;
-  //   rme_sum_excY = rme_sum_excX;
-  // }
-  auto rme_sum_dir = rme_sum_dirX + rme_sum_dirY; // Works w/ - ??
-  auto rme_sum_exc = rme_sum_excX + rme_sum_excY;
-  // rme_sum_dir *= m1tkp1 / tkp1;
   rme_sum_dir *= 1.0 / tkp1;
-  // rme_sum_exc *= m1tkp1;
+  // // rme_sum_exc *= m1tkp1;
 
-  return rme_sum_dir + rme_sum_exc;
+  return rme_sum_dir - rme_sum_exc;
 }
 
 //******************************************************************************
@@ -284,15 +230,15 @@ void ExternalField::solve_TDHFcore_matrix(const Wavefunction &wf) {
 
   ChronoTimer timer("solve_TDHFcore_matrix");
 
-  const std::size_t nspl = 50;
-  const std::size_t kspl = 7;
+  const std::size_t nspl = 40;
+  const std::size_t kspl = 5;
   const double rmin = 1.0e-4; //?
-  const double rmax = 50.0;   //?
+  const double rmax = 40.0;   //?
 
   // A := H - (e-w)S
   // b := -h -dV +deS_c
 
-  auto a_damp = first ? 0.0 : 0.5;
+  auto a_damp = first ? 0.0 : 0.75;
 
   auto max_ki = 0;
   for (const auto &Px : m_X) {
@@ -311,94 +257,80 @@ void ExternalField::solve_TDHFcore_matrix(const Wavefunction &wf) {
   }
 
   auto tmp_X = m_X;
-  // #pragma omp parallel for
+  auto tmp_Y = m_Y;
+#pragma omp parallel for
   for (std::size_t ic = 0; ic < p_core->size(); ic++) {
     const auto &phic = (*p_core)[ic];
-    // auto &dPsi = get_dPsis(phic, dPsiType::X);
-    auto &dPsi = tmp_X[ic];
-    auto de = m_h->reducedME(phic, phic); // no dV ?
-    for (auto &Xx : dPsi) {
+    auto &dPsiX = tmp_X[ic];
+    auto &dPsiY = tmp_Y[ic];
+    auto de = 0.0; // m_h->reducedME(phic, phic); // no dV ?
+    // for (auto &Xx : dPsi)
+    for (auto ibeta = 0ul; ibeta < dPsiX.size(); ++ibeta) {
+      auto &Xx = dPsiX[ibeta];
+      auto &Yx = dPsiY[ibeta];
       auto ki = Angular::indexFromKappa(Xx.k);
       const auto &basis = basis_kappa[ki];
 
-      LinAlg::Vector bi((int)basis.size());
+      LinAlg::Vector bi_X((int)basis.size());
+      LinAlg::Vector bi_Y((int)basis.size());
       for (int i = 0; i < (int)basis.size(); ++i) {
         const auto &xi = basis[i];
         // fill LHS vector, b
         auto hi = m_h->reducedME(xi, phic);
+        auto hi_dag = m_h->reducedME(xi, phic); //??? XXX
         auto dV = first ? 0.0 : dV_ab(xi, phic);
-        auto deS = (xi.k == phic.k) ? de * (xi * phic) : 0.0; // reduced? OK?
-        bi[i] = -hi - dV + deS;
+        auto dV_dag = first ? 0.0 : dV_ab(xi, phic, true);
+        // auto deS = (xi.k == phic.k) ? de * (xi * phic) : 0.0; // reduced? OK?
+        bi_X[i] = -hi - dV;         // + deS;
+        bi_Y[i] = -hi_dag - dV_dag; // + deS;
       }
-      auto [Hij, Sij] = SplineBasis::fill_Hamiltonian_matrix(basis, wf);
-      auto Aij = Hij - (phic.en - m_omega) * Sij;
+      const auto [Hij, Sij] = SplineBasis::fill_Hamiltonian_matrix(basis, wf);
+      auto Aij_X = Hij - (phic.en - m_omega) * Sij;
+      auto Aij_Y = Hij - (phic.en + m_omega) * Sij;
 
-      // auto tm = std::min(phic.twoj(), phic.twoj());
-      // auto rme_factor = m_h->rme3js(Xx.twoj(), phic.twoj(), tm, 0); //??
-      // // Aij *= (1.0 / rme_factor);
-      // bi *= rme_factor;
-      // std::cout << rme_factor << "\n";
-      // auto f = ((Xx.twoj() + 1.0) * (phic.twoj() + 1.0));
-      // std::cout << f * rme_factor << "\n";
-      // bi *= rme_factor;
-      // if (rme_factor == 0)
-      //   continue;
-
-      auto c = LinAlg::solve_Axeqb(Aij, bi);
-      // c *= rme_factor;
+      auto c_X = LinAlg::solve_Axeqb(Aij_X, bi_X);
+      auto c_Y = LinAlg::solve_Axeqb(Aij_Y, bi_Y);
 
       Xx.scale(a_damp); // or 0.5, for DAMP!
+      Yx.scale(a_damp); // or 0.5, for DAMP!
       for (int i = 0; i < (int)basis.size(); ++i) {
-        Xx += (1.0 - a_damp) * c[i] * basis[i];
+        Xx += (1.0 - a_damp) * c_X[i] * basis[i];
+        Yx += (1.0 - a_damp) * c_Y[i] * basis[i];
       }
     }
   }
 
-  // if (!static_fieldQ) {
-  auto tmp_Y = m_Y;
-  for (std::size_t ic = 0; ic < p_core->size(); ic++) {
-    const auto &phic = (*p_core)[ic];
-    auto &dPsi = tmp_Y[ic];
-    auto de = m_h->reducedME(phic, phic); // no dV ?
-    for (auto &Yy : dPsi) {
-      auto ki = Angular::indexFromKappa(Yy.k);
-      const auto &basis = basis_kappa[ki];
-      LinAlg::Vector bi((int)basis.size());
-      for (int i = 0; i < (int)basis.size(); ++i) {
-        const auto &yi = basis[i];
-        // fill LHS vector, b
-        // auto hi = m_h->reducedME(phic, yi); // ?? XXX
-        auto hi = m_h->reducedME(yi, phic); // ?? XXX
-        auto dV = first ? 0.0 : dV_ab(yi, phic, true);
-        // auto dV = dV_ab_Y(phic, yi);
-        auto deS = (yi.k == phic.k) ? de * (yi * phic) : 0.0; // reduced? OK?
-        bi[i] = -hi - dV + deS;
-      }
-      auto [Hij, Sij] = SplineBasis::fill_Hamiltonian_matrix(basis, wf);
-      auto Aij = Hij - (phic.en + m_omega) * Sij;
+  //   auto tmp_Y = m_Y;
+  // #pragma omp parallel for
+  //   for (std::size_t ic = 0; ic < p_core->size(); ic++) {
+  //     const auto &phic = (*p_core)[ic];
+  //     auto &dPsi = tmp_Y[ic];
+  //     auto de = m_h->reducedME(phic, phic); // no dV ?
+  //     for (auto &Yy : dPsi) {
+  //       auto ki = Angular::indexFromKappa(Yy.k);
+  //       const auto &basis = basis_kappa[ki];
+  //       LinAlg::Vector bi((int)basis.size());
+  //       for (int i = 0; i < (int)basis.size(); ++i) {
+  //         const auto &yi = basis[i];
+  //         // fill LHS vector, b
+  //         auto hi = m_h->reducedME(yi, phic); // ?? XXX
+  //         auto dV = first ? 0.0 : dV_ab(yi, phic, true);
+  //         auto deS = (yi.k == phic.k) ? de * (yi * phic) : 0.0; // reduced?
+  //         OK? bi[i] = -hi - dV + deS;
+  //       }
+  //       auto [Hij, Sij] = SplineBasis::fill_Hamiltonian_matrix(basis, wf);
+  //       auto Aij = Hij - (phic.en + m_omega) * Sij;
+  //
+  //       auto c = LinAlg::solve_Axeqb(Aij, bi);
+  //
+  //       Yy.scale(a_damp); // or 0.5, for DAMP!
+  //       for (int i = 0; i < (int)basis.size(); ++i) {
+  //         Yy += (1.0 - a_damp) * c[i] * basis[i]; // XXX -ve
+  //       }
+  //     }
+  //   }
 
-      // auto tm = std::min(phic.twoj(), phic.twoj());
-      // auto rme_factor = m_h->rme3js(phic.twoj(), Yy.twoj(), tm, 0); //??
-      // // // Aij *= (1.0 / rme_factor);
-      // bi *= rme_factor;
-      // std::cout << rme_factor << "\n";
-      // auto f = ((Yy.twoj() + 1.0) * (phic.twoj() + 1.0));
-      // std::cout << f * rme_factor << "\n";
-      // bi *= rme_factor;
-      // if (rme_factor == 0)
-      //   continue;
-
-      auto c = LinAlg::solve_Axeqb(Aij, bi);
-      // c *= rme_factor;
-
-      Yy.scale(a_damp); // or 0.5, for DAMP!
-      for (int i = 0; i < (int)basis.size(); ++i) {
-        Yy += (1.0 - a_damp) * c[i] * basis[i]; // XXX -ve
-      }
-    }
-  }
   m_Y = tmp_Y;
-  // }
   m_X = tmp_X;
   first = false;
 }
