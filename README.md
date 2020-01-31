@@ -8,7 +8,7 @@ Fully relativistic, includes finite-nuclear size, and can solve for continuum st
 
  * All programs compiled using the Makefile (run _$make_ or _$make programName_)
  * Install make on ubutnu: _$sudo apt-get install make_
- * Tested with g++, clang++, and icpc. (requires c++17)
+ * Tested with g++ and clang++ (requires c++17)
 
 Note: makes use of GSL libraries (tested with ver:2.4): https://www.gnu.org/software/gsl/, and LAPACK. These must be installed for the code to run.
 
@@ -22,6 +22,13 @@ Then, the compilation + use can proceed as per above.
 _error: unsupported option -fopenmp_
 change '_UseOpenMP=yes_' to '_UseOpenMP=no_' in Makefile
 
+ * Sometimes, the compiler will not be able to find the correct libraries (particular, e.g., on clusters). In this case, there are two options in the Makfefile: **ExtraInclude** and **ExtraLink**
+ * These add paths to include the correct directories for both -I "includes" (for compilation), and -L link flags (for linking libraries) in Makefile. These can be a little tricky to get right (don't include the -I or -L)
+ * The current defaults are setup to link/compile correctly on UQ's getafix server - you just need to uncomment the two lines in Makefile (remember to load the correct getafix modules, we need 'gnu' and 'gsl')
+ * If you get this error (for example), that's why:
+  _error: too few arguments to function ‘int gsl_bspline_deriv_eval_
+
+--------------------------------------------------------------------------------
 
 ## hartreeFock (main program)
 
