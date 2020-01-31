@@ -83,12 +83,11 @@ void ExternalField::solve_TDHFcore() {
   auto tmp_Y = m_Y;
 
   static bool first = true;
-  auto a_damp = first ? 0.0 : 0.75;
+  auto a_damp = first ? 0.75 : 0.75;
 
   // auto damper = rampedDamp(0.5, 0.3, 4, 10);
 
   // XXX Doesn't include de yet
-  // XXX Wrong by some factor? is it dV, or X/Y that is out?
 
 #pragma omp parallel for
   for (auto ic = 0ul; ic < p_core->size(); ic++) {
@@ -96,22 +95,18 @@ void ExternalField::solve_TDHFcore() {
     auto &dPsis_X = tmp_X[ic];
     for (auto &Xx : dPsis_X) {
       const auto hPsic = m_h->reduced_rhs(Xx.k, phic); // always same!?
-      auto dVpsic = dV_ab_rhs(Xx, phic);
-      auto newX = HartreeFock::solveMixedState(
+      const auto dVpsic = dV_ab_rhs(Xx, phic);
+      const auto newX = HartreeFock::solveMixedState(
           Xx.k, phic, m_omega, m_vl, m_alpha, *p_core, hPsic + dVpsic);
       Xx = a_damp * Xx + (1.0 - a_damp) * newX;
     }
     auto &dPsis_Y = tmp_Y[ic];
     for (auto &Yx : dPsis_Y) {
-      auto hPsic = m_h->reduced_rhs(Yx.k, phic); // always same!?
-
-      // if (m_h->imaginaryQ())
-      //   hPsic *= -1.0;
-
-      auto dVpsic = dV_ab_rhs(Yx, phic, true);
-
-      auto newY = HartreeFock::solveMixedState(
-          Yx.k, phic, -m_omega, m_vl, m_alpha, *p_core, hPsic + dVpsic);
+      const auto hPsic = m_h->reduced_rhs(Yx.k, phic); // always same!?
+      const auto dVpsic = dV_ab_rhs(Yx, phic, true);
+      const auto s = m_h->imaginaryQ() ? -1 : 1;
+      const auto newY = HartreeFock::solveMixedState(
+          Yx.k, phic, -m_omega, m_vl, m_alpha, *p_core, s * (hPsic + dVpsic));
       Yx = a_damp * Yx + (1.0 - a_damp) * newY;
     }
   }
@@ -133,13 +128,10 @@ double ExternalField::dV_ab(const DiracSpinor &phi_alpha,
 DiracSpinor ExternalField::dV_ab_rhs(const DiracSpinor &phi_alpha,
                                      const DiracSpinor &phi_a, bool conj) {
 
-  // dV_ab_rhs and dV_ab_rhs_Y very similar!
-
   const auto ChiType = conj ? dPsiType::X : dPsiType::Y;
   const auto EtaType = conj ? dPsiType::Y : dPsiType::X;
 
   const auto k = m_h->rank();
-  // const auto m1tkp1 = Wigner::evenQ(k + 1) ? 1 : -1;
   const auto tkp1 = double(2 * k + 1);
 
   const auto tjalpha = phi_alpha.twoj();
@@ -150,7 +142,6 @@ DiracSpinor ExternalField::dV_ab_rhs(const DiracSpinor &phi_alpha,
   auto rme_sum_exc = 0.0 * phi_alpha;
 #pragma omp parallel for
   for (auto ib = 0ul; ib < p_core->size(); ib++) {
-    // for (const auto &phi_b : *p_core) {
     const auto &phi_b = (*p_core)[ib];
     const auto tjb = phi_b.twoj();
     const auto &X_betas = get_dPsis(phi_b, ChiType);
@@ -210,9 +201,8 @@ DiracSpinor ExternalField::dV_ab_rhs(const DiracSpinor &phi_alpha,
   }
 
   rme_sum_dir *= 1.0 / tkp1;
-  // // rme_sum_exc *= m1tkp1;
 
-  return rme_sum_dir - rme_sum_exc;
+  return rme_sum_dir - 0 * rme_sum_exc;
 }
 
 //******************************************************************************
@@ -230,15 +220,15 @@ void ExternalField::solve_TDHFcore_matrix(const Wavefunction &wf) {
 
   ChronoTimer timer("solve_TDHFcore_matrix");
 
-  const std::size_t nspl = 40;
-  const std::size_t kspl = 5;
-  const double rmin = 1.0e-4; //?
+  const std::size_t nspl = 60;
+  const std::size_t kspl = 6;
+  const double rmin = 1.0e-5; //?
   const double rmax = 40.0;   //?
 
   // A := H - (e-w)S
   // b := -h -dV +deS_c
 
-  auto a_damp = first ? 0.0 : 0.75;
+  auto a_damp = first ? 0.75 : 0.75;
 
   auto max_ki = 0;
   for (const auto &Px : m_X) {
@@ -264,7 +254,6 @@ void ExternalField::solve_TDHFcore_matrix(const Wavefunction &wf) {
     auto &dPsiX = tmp_X[ic];
     auto &dPsiY = tmp_Y[ic];
     auto de = 0.0; // m_h->reducedME(phic, phic); // no dV ?
-    // for (auto &Xx : dPsi)
     for (auto ibeta = 0ul; ibeta < dPsiX.size(); ++ibeta) {
       auto &Xx = dPsiX[ibeta];
       auto &Yx = dPsiY[ibeta];
@@ -276,13 +265,14 @@ void ExternalField::solve_TDHFcore_matrix(const Wavefunction &wf) {
       for (int i = 0; i < (int)basis.size(); ++i) {
         const auto &xi = basis[i];
         // fill LHS vector, b
-        auto hi = m_h->reducedME(xi, phic);
-        auto hi_dag = m_h->reducedME(xi, phic); //??? XXX
-        auto dV = first ? 0.0 : dV_ab(xi, phic);
-        auto dV_dag = first ? 0.0 : dV_ab(xi, phic, true);
+        const auto hi = m_h->reducedME(xi, phic);
+        const auto hi_dag = m_h->reducedME(xi, phic); //??? XXX
+        const auto dV = first ? 0.0 : dV_ab(xi, phic);
+        const auto dV_dag = first ? 0.0 : dV_ab(xi, phic, true);
+        const auto s = m_h->imaginaryQ() ? -1 : 1;
         // auto deS = (xi.k == phic.k) ? de * (xi * phic) : 0.0; // reduced? OK?
-        bi_X[i] = -hi - dV;         // + deS;
-        bi_Y[i] = -hi_dag - dV_dag; // + deS;
+        bi_X[i] = -hi - dV;               // + deS;
+        bi_Y[i] = -s * (hi_dag + dV_dag); // + deS;
       }
       const auto [Hij, Sij] = SplineBasis::fill_Hamiltonian_matrix(basis, wf);
       auto Aij_X = Hij - (phic.en - m_omega) * Sij;
@@ -299,36 +289,6 @@ void ExternalField::solve_TDHFcore_matrix(const Wavefunction &wf) {
       }
     }
   }
-
-  //   auto tmp_Y = m_Y;
-  // #pragma omp parallel for
-  //   for (std::size_t ic = 0; ic < p_core->size(); ic++) {
-  //     const auto &phic = (*p_core)[ic];
-  //     auto &dPsi = tmp_Y[ic];
-  //     auto de = m_h->reducedME(phic, phic); // no dV ?
-  //     for (auto &Yy : dPsi) {
-  //       auto ki = Angular::indexFromKappa(Yy.k);
-  //       const auto &basis = basis_kappa[ki];
-  //       LinAlg::Vector bi((int)basis.size());
-  //       for (int i = 0; i < (int)basis.size(); ++i) {
-  //         const auto &yi = basis[i];
-  //         // fill LHS vector, b
-  //         auto hi = m_h->reducedME(yi, phic); // ?? XXX
-  //         auto dV = first ? 0.0 : dV_ab(yi, phic, true);
-  //         auto deS = (yi.k == phic.k) ? de * (yi * phic) : 0.0; // reduced?
-  //         OK? bi[i] = -hi - dV + deS;
-  //       }
-  //       auto [Hij, Sij] = SplineBasis::fill_Hamiltonian_matrix(basis, wf);
-  //       auto Aij = Hij - (phic.en + m_omega) * Sij;
-  //
-  //       auto c = LinAlg::solve_Axeqb(Aij, bi);
-  //
-  //       Yy.scale(a_damp); // or 0.5, for DAMP!
-  //       for (int i = 0; i < (int)basis.size(); ++i) {
-  //         Yy += (1.0 - a_damp) * c[i] * basis[i]; // XXX -ve
-  //       }
-  //     }
-  //   }
 
   m_Y = tmp_Y;
   m_X = tmp_X;

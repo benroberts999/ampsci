@@ -147,7 +147,7 @@ int main(int argc, char *argv[]) {
 
   auto h = E1Operator(wf.rgrid);
   // auto h = HyperfineOperator(1.0, 1.0, 4.0 / PhysConst::aB_fm, wf.rgrid);
-  // auto h = PNCnsiOperator(5.0, 2.3, wf.rgrid);
+  // auto h = PNCnsiOperator(5.67073, 2.3, wf.rgrid);
 
   auto omega = 0.00;
   auto tdhf = ExternalField(&h, wf.core_orbitals,
@@ -184,9 +184,8 @@ int main(int argc, char *argv[]) {
     auto dv1b = tdhf.dV_ab(*psip1, *psis);
     auto dv3 = tdhf.dV_ab(*psis, *psip3);
     auto dv3b = tdhf.dV_ab(*psip3, *psis);
-    auto del = std::abs(std::max(std::abs(dv3 / me3), std::abs(dv1 / me1)));
-    auto eps = std::abs((del - prev) / prev);
-    prev = del;
+    auto eps = std::abs((dv1 - prev) / prev);
+    prev = dv1;
     std::cout << me1 << " + " << dv1 << " = " << me1 + dv1 << "\n";
     std::cout << me1b << " + " << dv1b << " = " << me1b + dv1b << "\n";
     std::cout << me3 << " + " << dv3 << " = " << me3 + dv3 << "\n";
