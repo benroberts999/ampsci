@@ -112,8 +112,12 @@ void ExternalField::solve_TDHFcore() {
       auto rhs = hPsic + dVpsic;
       if (Xx.k == phic.k && !imag)
         rhs -= dePsic;
-      const auto newX = HartreeFock::solveMixedState(Xx.k, phic, m_omega, m_vl,
-                                                     m_alpha, *p_core, rhs);
+      auto newX = Xx;
+      HartreeFock::solveMixedState(newX, phic, m_omega, m_vl, m_alpha, *p_core,
+                                   rhs);
+      // const auto newX = HartreeFock::solveMixedState(Xx.k, phic, m_omega,
+      // m_vl,
+      //                                                m_alpha, *p_core, rhs);
       Xx = a_damp * Xx + (1.0 - a_damp) * newX;
       auto p = std::abs((newX * Xx) / (Xx * Xx) - 1.0);
       if (p > c_conv)
@@ -127,8 +131,12 @@ void ExternalField::solve_TDHFcore() {
       auto rhs = s * (hPsic + dVpsic);
       if (Yx.k == phic.k && !imag)
         rhs -= dePsic_dag;
-      const auto newY = HartreeFock::solveMixedState(Yx.k, phic, -m_omega, m_vl,
-                                                     m_alpha, *p_core, rhs);
+      auto newY = Yx;
+      HartreeFock::solveMixedState(newY, phic, -m_omega, m_vl, m_alpha, *p_core,
+                                   rhs);
+      // const auto newY = HartreeFock::solveMixedState(Yx.k, phic, -m_omega,
+      // m_vl,
+      //                                                m_alpha, *p_core, rhs);
       Yx = a_damp * Yx + (1.0 - a_damp) * newY;
       auto p = std::abs((newY * Yx) / (Yx * Yx) - 1.0);
       if (p > c_conv)
@@ -238,7 +246,7 @@ DiracSpinor ExternalField::dV_ab_rhs(const DiracSpinor &phi_n,
 
   rme_sum_dir *= 1.0 / tkp1;
 
-  return rme_sum_dir - rme_sum_exc;
+  return rme_sum_dir - 0 * rme_sum_exc;
   // return rme_sum_dir - 0.8314 * rme_sum_exc;
   // XXX Fudge factor!?
 }
