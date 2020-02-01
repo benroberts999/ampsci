@@ -31,8 +31,8 @@ Grid {
   rmax = 100.0;
   num_points = 1000;
   // fixed_du = 0.1;     // over-writes num_points
-  type; // loglinear(dflt), logarithmic, linear
-  b;    // b<0, or b>rmax will use logarithmic
+  type = logarithmic; // loglinear(dflt), logarithmic, linear
+  b;                  // b<0, or b>rmax will use logarithmic
 }
 
 // Basis {

@@ -180,6 +180,7 @@ int main(int argc, char *argv[]) {
   for (int i = 0; i < max_its; i++) {
     // tdhf.solve_TDHFcore_matrix(wf);
     tdhf.solve_TDHFcore();
+    // std::cin.get();
     auto dv1 = tdhf.dV_ab(*psis, *psip1);
     auto dv1b = tdhf.dV_ab(*psip1, *psis);
     auto dv3 = tdhf.dV_ab(*psis, *psip3);
