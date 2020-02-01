@@ -88,16 +88,28 @@ void ExternalField::solve_TDHFcore() {
   // auto damper = rampedDamp(0.5, 0.3, 4, 10);
 
   // XXX Doesn't include de yet
+  const auto imag = m_h->imaginaryQ();
 
 #pragma omp parallel for
   for (auto ic = 0ul; ic < p_core->size(); ic++) {
     const auto &phic = (*p_core)[ic];
+
+    const auto de0 = m_h->reducedME(phic, phic);
+    const auto de1 = dV_ab(phic, phic);
+    const auto de1_dag = dV_ab(phic, phic, true);
+
+    auto dePsic = (de0 + de1) * phic;
+    auto dePsic_dag = (de0 + de1_dag) * phic;
+
     auto &dPsis_X = tmp_X[ic];
     for (auto &Xx : dPsis_X) {
       const auto hPsic = m_h->reduced_rhs(Xx.k, phic); // always same!?
       const auto dVpsic = dV_ab_rhs(Xx, phic);
-      const auto newX = HartreeFock::solveMixedState(
-          Xx.k, phic, m_omega, m_vl, m_alpha, *p_core, hPsic + dVpsic);
+      auto rhs = hPsic + dVpsic;
+      if (Xx.k == phic.k && !imag)
+        rhs -= dePsic;
+      const auto newX = HartreeFock::solveMixedState(Xx.k, phic, m_omega, m_vl,
+                                                     m_alpha, *p_core, rhs);
       Xx = a_damp * Xx + (1.0 - a_damp) * newX;
     }
     auto &dPsis_Y = tmp_Y[ic];
@@ -105,8 +117,11 @@ void ExternalField::solve_TDHFcore() {
       const auto hPsic = m_h->reduced_rhs(Yx.k, phic); // always same!?
       const auto dVpsic = dV_ab_rhs(Yx, phic, true);
       const auto s = m_h->imaginaryQ() ? -1 : 1;
-      const auto newY = HartreeFock::solveMixedState(
-          Yx.k, phic, -m_omega, m_vl, m_alpha, *p_core, s * (hPsic + dVpsic));
+      auto rhs = s * (hPsic + dVpsic);
+      if (Yx.k == phic.k && !imag)
+        rhs -= dePsic_dag;
+      const auto newY = HartreeFock::solveMixedState(Yx.k, phic, -m_omega, m_vl,
+                                                     m_alpha, *p_core, rhs);
       Yx = a_damp * Yx + (1.0 - a_damp) * newY;
     }
   }
@@ -255,6 +270,8 @@ void ExternalField::solve_TDHFcore_matrix(const Wavefunction &wf) {
         k, nspl, kspl, rmin, rmax, *((*p_core)[0].p_rgrid), m_alpha));
   }
 
+  const auto imag = m_h->imaginaryQ();
+
   auto tmp_X = m_X;
   auto tmp_Y = m_Y;
 #pragma omp parallel for
@@ -262,11 +279,13 @@ void ExternalField::solve_TDHFcore_matrix(const Wavefunction &wf) {
     const auto &phic = (*p_core)[ic];
     auto &dPsiX = tmp_X[ic];
     auto &dPsiY = tmp_Y[ic];
-    auto de = 0.0; // m_h->reducedME(phic, phic); // no dV ?
+    const auto de0 = m_h->reducedME(phic, phic);
+    const auto de1 = dV_ab(phic, phic);
+    const auto de1_dag = dV_ab(phic, phic, true);
     for (auto ibeta = 0ul; ibeta < dPsiX.size(); ++ibeta) {
       auto &Xx = dPsiX[ibeta];
       auto &Yx = dPsiY[ibeta];
-      auto ki = Angular::indexFromKappa(Xx.k);
+      const auto ki = Angular::indexFromKappa(Xx.k);
       const auto &basis = basis_kappa[ki];
 
       LinAlg::Vector bi_X((int)basis.size());
@@ -275,20 +294,21 @@ void ExternalField::solve_TDHFcore_matrix(const Wavefunction &wf) {
         const auto &xi = basis[i];
         // fill LHS vector, b
         const auto hi = m_h->reducedME(xi, phic);
-        const auto hi_dag = m_h->reducedME(xi, phic); //??? XXX
         const auto dV = first ? 0.0 : dV_ab(xi, phic);
         const auto dV_dag = first ? 0.0 : dV_ab(xi, phic, true);
-        const auto s = m_h->imaginaryQ() ? -1 : 1;
-        // auto deS = (xi.k == phic.k) ? de * (xi * phic) : 0.0; // reduced? OK?
-        bi_X[i] = -hi - dV;               // + deS;
-        bi_Y[i] = -s * (hi_dag + dV_dag); // + deS;
+        const auto s = imag ? -1 : 1;
+        const auto Sic = (xi.k == phic.k && !imag) ? (xi * phic) : 0.0;
+        const auto deS = (de0 + de1) * Sic;
+        const auto deS_dag = (de0 + de1_dag) * Sic;
+        bi_X[i] = -hi - dV + deS;
+        bi_Y[i] = -s * (hi + dV_dag) + deS_dag;
       }
       const auto [Hij, Sij] = SplineBasis::fill_Hamiltonian_matrix(basis, wf);
       auto Aij_X = Hij - (phic.en - m_omega) * Sij;
       auto Aij_Y = Hij - (phic.en + m_omega) * Sij;
 
-      auto c_X = LinAlg::solve_Axeqb(Aij_X, bi_X);
-      auto c_Y = LinAlg::solve_Axeqb(Aij_Y, bi_Y);
+      const auto c_X = LinAlg::solve_Axeqb(Aij_X, bi_X);
+      const auto c_Y = LinAlg::solve_Axeqb(Aij_Y, bi_Y);
 
       Xx.scale(a_damp); // or 0.5, for DAMP!
       Yx.scale(a_damp); // or 0.5, for DAMP!

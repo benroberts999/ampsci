@@ -146,7 +146,7 @@ int main(int argc, char *argv[]) {
   Module::runModules(input, wf);
 
   auto h = E1Operator(wf.rgrid);
-  // auto h = HyperfineOperator(1.0, 1.0, 4.0 / PhysConst::aB_fm, wf.rgrid);
+  // auto h = HyperfineOperator(1.0, 0.5, 4.0 / PhysConst::aB_fm, wf.rgrid);
   // auto h = PNCnsiOperator(5.67073, 2.3, wf.rgrid);
 
   auto omega = 0.00;
@@ -174,8 +174,8 @@ int main(int argc, char *argv[]) {
   std::cout << h.angularF((*psis).k, (*psip3).k) << " "
             << h.radialIntegral(*psis, *psip3) << "\n";
 
-  auto prev = 1.0;
-  auto targ = 1.0e-8;
+  auto prev = 0.0;
+  auto targ = 1.0e-6;
   auto max_its = 100;
   for (int i = 0; i < max_its; i++) {
     // tdhf.solve_TDHFcore_matrix(wf);
