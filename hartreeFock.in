@@ -6,7 +6,7 @@ Atom {
 
 HartreeFock {
   core = [Xe];
-  valence = 6sp;
+  valence = 7sp;
   // method; // HartreeFock(dflt), ApproxHF, Hartree, GreenPRM, TietzPRM
 }
 
@@ -27,8 +27,8 @@ Nucleus {
 // }
 
 Grid {
-  r0 = 1e-5;
-  rmax = 100.0;
+  r0 = 1e-7;
+  rmax = 120.0;
   num_points = 1000;
   // fixed_du = 0.1;     // over-writes num_points
   type = logarithmic; // loglinear(dflt), logarithmic, linear

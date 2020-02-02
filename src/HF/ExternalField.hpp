@@ -43,7 +43,7 @@ public:
   const DiracSpinor &get_dPsi_x(const DiracSpinor &phic, dPsiType XorY,
                                 const int kappa_x);
 
-  void solve_TDHFcore();
+  void solve_TDHFcore(int max_its = 100);
   void solve_TDHFcore_matrix(const Wavefunction &wf);
 
   // does it matter if a or b is in the core?

@@ -42,7 +42,7 @@ DiracSpinor HartreeFock::solveMixedState(
 // Solves:  (H - e - w)X = -h*psi for X
 {
   auto sp = SafeProfiler::profile(__func__);
-  auto damper = rampedDamp(0.66, 0.33, 3, 15);
+  auto damper = rampedDamp(0.8, 0.33, 3, 15);
   const int max_its = 100;
   const double eps_target = 1.0e-5; // XXX Make input!
 

@@ -177,23 +177,45 @@ int main(int argc, char *argv[]) {
   auto prev = 0.0;
   auto targ = 1.0e-6;
   auto max_its = 100;
-  for (int i = 0; i < max_its; i++) {
+  // for (int i = 0; i < max_its; i++) {
+  //   // tdhf.solve_TDHFcore_matrix(wf);
+  //   tdhf.solve_TDHFcore();
+  //   // std::cin.get();
+  //   auto dv1 = tdhf.dV_ab(*psis, *psip1);
+  //   auto dv1b = tdhf.dV_ab(*psip1, *psis);
+  //   auto dv3 = tdhf.dV_ab(*psis, *psip3);
+  //   auto dv3b = tdhf.dV_ab(*psip3, *psis);
+  //   auto eps = std::abs((dv1 - prev) / prev);
+  //   prev = dv1;
+  //   std::cout << me1 << " + " << dv1 << " = " << me1 + dv1 << "\n";
+  //   std::cout << me1b << " + " << dv1b << " = " << me1b + dv1b << "\n";
+  //   std::cout << me3 << " + " << dv3 << " = " << me3 + dv3 << "\n";
+  //   std::cout << me3b << " + " << dv3b << " = " << me3b + dv3b << "\n";
+  //   std::cout << i << " : " << eps << "\n";
+  //   if (eps < targ)
+  //     break;
+  // }
+  {
     // tdhf.solve_TDHFcore_matrix(wf);
-    tdhf.solve_TDHFcore();
+    tdhf.solve_TDHFcore(1);
     // std::cin.get();
+    auto dv1_0 = tdhf.dV_ab(*psis, *psip1);
+    auto dv1b_0 = tdhf.dV_ab(*psip1, *psis);
+    auto dv3_0 = tdhf.dV_ab(*psis, *psip3);
+    auto dv3b_0 = tdhf.dV_ab(*psip3, *psis);
+    tdhf.solve_TDHFcore();
     auto dv1 = tdhf.dV_ab(*psis, *psip1);
     auto dv1b = tdhf.dV_ab(*psip1, *psis);
     auto dv3 = tdhf.dV_ab(*psis, *psip3);
     auto dv3b = tdhf.dV_ab(*psip3, *psis);
-    auto eps = std::abs((dv1 - prev) / prev);
-    prev = dv1;
-    std::cout << me1 << " + " << dv1 << " = " << me1 + dv1 << "\n";
-    std::cout << me1b << " + " << dv1b << " = " << me1b + dv1b << "\n";
-    std::cout << me3 << " + " << dv3 << " = " << me3 + dv3 << "\n";
-    std::cout << me3b << " + " << dv3b << " = " << me3b + dv3b << "\n";
-    std::cout << i << " : " << eps << "\n";
-    if (eps < targ)
-      break;
+    std::cout << me1 << " + " << dv1 << " = " << me1 + dv1 << "  ("
+              << me1 + dv1_0 << ")\n";
+    std::cout << me1b << " + " << dv1b << " = " << me1b + dv1b << "  ("
+              << me1b + dv1b_0 << ")\n";
+    std::cout << me3 << " + " << dv3 << " = " << me3 + dv3 << "  ("
+              << me3 + dv3_0 << ")\n";
+    std::cout << me3b << " + " << dv3b << " = " << me3b + dv3b << "  ("
+              << me3b + dv3b_0 << ")\n";
   }
 
   // auto &psis2 = wf.getState(2, -1);

@@ -74,84 +74,92 @@ const DiracSpinor &ExternalField::get_dPsi_x(const DiracSpinor &phic,
 }
 
 //******************************************************************************
-void ExternalField::solve_TDHFcore() {
-  // XXX THIS should have omega inside! ?
-  //
+void ExternalField::solve_TDHFcore(int max_its) {
+
   ChronoTimer timer("solve_TDHFcore");
 
-  auto tmp_X = m_X;
-  auto tmp_Y = m_Y;
+  const double converge_targ = 1.0e-3;
+  const auto damper = rampedDamp(0.75, 0.5, 4, 15);
 
-  static bool first = true;
-  auto a_damp = first ? 0.5 : 0.5;
-
-  // auto damper = rampedDamp(0.5, 0.3, 4, 10);
-
-  // XXX Doesn't include de yet
   const auto imag = m_h->imaginaryQ();
 
-  auto convg = 0.0;
+  // the h Psi_c terms don't change, so calculate them just once?
+  // No quicker, and much messier...
+  // auto hPsi = m_X;
+  // for (auto ic = 0ul; ic < p_core->size(); ic++) {
+  //   const auto &phic = (*p_core)[ic];
+  //   for (auto j = 0ul; j < hPsi[ic].size(); j++) {
+  //     const auto &Xx = m_X[ic][j];
+  //     hPsi[ic][j] = m_h->reduced_rhs(Xx.k, phic);
+  //   }
+  // }
 
+  auto eps = 0.0;
+  for (int it = 0; it < max_its; it++) {
+    eps = 0.0;
+    const auto a_damp = (it == 0) ? 0.0 : damper(it);
+
+    auto tmp_X = m_X;
+    auto tmp_Y = m_Y;
 #pragma omp parallel for
-  for (auto ic = 0ul; ic < p_core->size(); ic++) {
-    const auto &phic = (*p_core)[ic];
+    for (auto ic = 0ul; ic < p_core->size(); ic++) {
+      const auto &phic = (*p_core)[ic];
 
-    auto c_conv = 0.0;
+      auto eps_c = 0.0;
 
-    const auto de0 = m_h->reducedME(phic, phic);
-    const auto de1 = dV_ab(phic, phic);
-    const auto de1_dag = dV_ab(phic, phic, true);
+      // these also a) always the same
+      // b) always 0 in many cases!
+      const auto de0 = m_h->reducedME(phic, phic);
+      const auto de1 = dV_ab(phic, phic);
+      const auto de1_dag = dV_ab(phic, phic, true);
 
-    auto dePsic = (de0 + de1) * phic;
-    auto dePsic_dag = (de0 + de1_dag) * phic;
+      const auto dePsic = (de0 + de1) * phic;
+      const auto dePsic_dag = (de0 + de1_dag) * phic;
 
-    auto &dPsis_X = tmp_X[ic];
-    for (auto &Xx : dPsis_X) {
-      const auto hPsic = m_h->reduced_rhs(Xx.k, phic); // always same!?
-      const auto dVpsic = dV_ab_rhs(Xx, phic);
-      auto rhs = hPsic + dVpsic;
-      if (Xx.k == phic.k && !imag)
-        rhs -= dePsic;
-      auto newX = Xx;
-      HartreeFock::solveMixedState(newX, phic, m_omega, m_vl, m_alpha, *p_core,
-                                   rhs);
-      // const auto newX = HartreeFock::solveMixedState(Xx.k, phic, m_omega,
-      // m_vl,
-      //                                                m_alpha, *p_core, rhs);
-      Xx = a_damp * Xx + (1.0 - a_damp) * newX;
-      auto p = std::abs((newX * Xx) / (Xx * Xx) - 1.0);
-      if (p > c_conv)
-        c_conv = p;
-    }
-    auto &dPsis_Y = tmp_Y[ic];
-    for (auto &Yx : dPsis_Y) {
-      const auto hPsic = m_h->reduced_rhs(Yx.k, phic); // always same!?
-      const auto dVpsic = dV_ab_rhs(Yx, phic, true);
-      const auto s = m_h->imaginaryQ() ? -1 : 1;
-      auto rhs = s * (hPsic + dVpsic);
-      if (Yx.k == phic.k && !imag)
-        rhs -= dePsic_dag;
-      auto newY = Yx;
-      HartreeFock::solveMixedState(newY, phic, -m_omega, m_vl, m_alpha, *p_core,
-                                   rhs);
-      // const auto newY = HartreeFock::solveMixedState(Yx.k, phic, -m_omega,
-      // m_vl,
-      //                                                m_alpha, *p_core, rhs);
-      Yx = a_damp * Yx + (1.0 - a_damp) * newY;
-      auto p = std::abs((newY * Yx) / (Yx * Yx) - 1.0);
-      if (p > c_conv)
-        c_conv = p;
-    }
+      for (auto j = 0ul; j < tmp_X[ic].size(); j++) {
+        auto &Xx = tmp_X[ic][j];
+        const auto &oldX = m_X[ic][j];
+        const auto hPsic = m_h->reduced_rhs(Xx.k, phic); // always same!! XX
+        // const auto &hPsic = hPsi[ic][j];
+        const auto dVpsic = dV_ab_rhs(Xx, phic);
+        auto rhs = hPsic + dVpsic;
+        if (Xx.k == phic.k && !imag)
+          rhs -= dePsic;
+        HartreeFock::solveMixedState(Xx, phic, m_omega, m_vl, m_alpha, *p_core,
+                                     rhs);
+        Xx = a_damp * oldX + (1.0 - a_damp) * Xx;
+        const auto delta = std::abs((oldX * Xx) / (Xx * Xx) - 1.0);
+        if (delta > eps_c)
+          eps_c = delta;
+      }
+      for (auto j = 0ul; j < tmp_Y[ic].size(); j++) {
+        auto &Yx = tmp_Y[ic][j];
+        const auto &oldY = m_Y[ic][j];
+        const auto hPsic = m_h->reduced_rhs(Yx.k, phic); // always same!! XX
+        // const auto &hPsic = hPsi[ic][j];
+        const auto dVpsic = dV_ab_rhs(Yx, phic, true);
+        const auto s = m_h->imaginaryQ() ? -1 : 1;
+        auto rhs = s * (hPsic + dVpsic);
+        if (Yx.k == phic.k && !imag)
+          rhs -= dePsic_dag;
+        HartreeFock::solveMixedState(Yx, phic, -m_omega, m_vl, m_alpha, *p_core,
+                                     rhs);
+        Yx = a_damp * oldY + (1.0 - a_damp) * Yx;
+        const auto delta = std::abs((oldY * Yx) / (Yx * Yx) - 1.0);
+        if (delta > eps_c)
+          eps_c = delta;
+      }
 #pragma omp critical(compare)
-    if (c_conv > convg) {
-      convg = c_conv;
+      if (eps_c > eps) {
+        eps = eps_c; // worst epsilon in core
+      }
     }
+    m_X = tmp_X;
+    m_Y = tmp_Y;
+    printf("TDHF (w=%.3f): %2i  %.1e\n", m_omega, it, eps);
+    if (it > 0 && eps < converge_targ)
+      break;
   }
-  std::cout << "conv: " << convg << "\n";
-
-  m_X = tmp_X;
-  m_Y = tmp_Y;
-  first = false;
 }
 
 //******************************************************************************
@@ -207,6 +215,7 @@ DiracSpinor ExternalField::dV_ab_rhs(const DiracSpinor &phi_n,
       const auto l_max_X = std::min((tjn + tjbeta), (tjm + tjb)) / 2;
 
       for (int l = l_min_X; l <= l_max_X; ++l) {
+        auto ll = 1.0 / (2 * l + 1); // XXX ???
         const auto sixj = m_6j.get_6j_mutable(tjm, tjn, tjbeta, tjb, k, l);
         if (sixj == 0)
           continue;
@@ -216,7 +225,7 @@ DiracSpinor ExternalField::dV_ab_rhs(const DiracSpinor &phi_n,
         if (Ckba == 0 || Ckalbe == 0)
           continue;
         const auto Rk = Coulomb::Rk_abcd_rhs(phi_n, phi_m, X_beta, phi_b, l);
-        rme_sum_exc_c += (s * m1kpl * Ckba * Ckalbe * sixj) * Rk;
+        rme_sum_exc_c += (ll * s * m1kpl * Ckba * Ckalbe * sixj) * Rk;
       }
 
       // exchange part (Y):
@@ -225,6 +234,7 @@ DiracSpinor ExternalField::dV_ab_rhs(const DiracSpinor &phi_n,
       const auto l_max_Y = std::min((tjn + tjb), (tjm + tjbeta)) / 2;
 
       for (int l = l_min_Y; l <= l_max_Y; ++l) {
+        auto ll = 1.0 / (2 * l + 1); // XXX ???
         const auto sixj = m_6j.get_6j(tjm, tjn, tjb, tjbeta, k, l);
         if (sixj == 0)
           continue;
@@ -234,7 +244,7 @@ DiracSpinor ExternalField::dV_ab_rhs(const DiracSpinor &phi_n,
         if (Ckbea == 0 || Ckbal == 0)
           continue;
         const auto Rk = Coulomb::Rk_abcd_rhs(phi_n, phi_m, phi_b, Y_beta, l);
-        rme_sum_exc_c += (s * m1kpl * Ckbea * Ckbal * sixj) * Rk;
+        rme_sum_exc_c += (ll * s * m1kpl * Ckbea * Ckbal * sixj) * Rk;
       }
     }
 #pragma omp critical(sum_X_core)
@@ -246,7 +256,7 @@ DiracSpinor ExternalField::dV_ab_rhs(const DiracSpinor &phi_n,
 
   rme_sum_dir *= 1.0 / tkp1;
 
-  return rme_sum_dir - 0 * rme_sum_exc;
+  return rme_sum_dir - rme_sum_exc;
   // return rme_sum_dir - 0.8314 * rme_sum_exc;
   // XXX Fudge factor!?
 }
@@ -274,7 +284,7 @@ void ExternalField::solve_TDHFcore_matrix(const Wavefunction &wf) {
   // A := H - (e-w)S
   // b := -h -dV +deS_c
 
-  auto a_damp = first ? 0.5 : 0.5;
+  auto a_damp = first ? 0.0 : 0.5;
 
   auto max_ki = 0;
   for (const auto &Px : m_X) {
