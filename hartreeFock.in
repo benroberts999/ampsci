@@ -27,9 +27,9 @@ Nucleus {
 // }
 
 Grid {
-  r0 = 1e-7;
-  rmax = 120.0;
-  num_points = 1000;
+  r0 = 1e-5;
+  rmax = 80.0;
+  num_points = 750;
   // fixed_du = 0.1;     // over-writes num_points
   type = logarithmic; // loglinear(dflt), logarithmic, linear
   b;                  // b<0, or b>rmax will use logarithmic

@@ -149,10 +149,9 @@ int main(int argc, char *argv[]) {
   // auto h = HyperfineOperator(1.0, 0.5, 4.0 / PhysConst::aB_fm, wf.rgrid);
   // auto h = PNCnsiOperator(5.67073, 2.3, wf.rgrid);
 
-  auto omega = 0.00;
-  auto tdhf = ExternalField(&h, wf.core_orbitals,
-                            NumCalc::add_vectors(wf.vnuc, wf.vdir),
-                            wf.get_alpha(), omega);
+  auto tdhf =
+      ExternalField(&h, wf.core_orbitals,
+                    NumCalc::add_vectors(wf.vnuc, wf.vdir), wf.get_alpha());
 
   // tdhf.solve_TDHFcore();
   // tdhf.solve_TDHFcore_matrix(wf);
@@ -174,12 +173,14 @@ int main(int argc, char *argv[]) {
   std::cout << h.angularF((*psis).k, (*psip3).k) << " "
             << h.radialIntegral(*psis, *psip3) << "\n";
 
-  auto prev = 0.0;
-  auto targ = 1.0e-6;
-  auto max_its = 100;
+  auto omega = 0.01;
+
+  // auto prev = 0.0;
+  // auto targ = 1.0e-6;
+  // auto max_its = 100;
   // for (int i = 0; i < max_its; i++) {
-  //   // tdhf.solve_TDHFcore_matrix(wf);
-  //   tdhf.solve_TDHFcore();
+  //   tdhf.solve_TDHFcore_matrix(wf, omega);
+  //   // tdhf.solve_TDHFcore(omega);
   //   // std::cin.get();
   //   auto dv1 = tdhf.dV_ab(*psis, *psip1);
   //   auto dv1b = tdhf.dV_ab(*psip1, *psis);
@@ -195,15 +196,43 @@ int main(int argc, char *argv[]) {
   //   if (eps < targ)
   //     break;
   // }
+
+  // tdhf.solve_TDHFcore(0.00);
+  // tdhf.print();
+  // return 1;
+
+  // {
+  //   // tdhf.solve_TDHFcore_matrix(wf);
+  //   tdhf.solve_TDHFcore(0.0, 1);
+  //   // std::cin.get();
+  //   auto dv1_0 = tdhf.dV_ab(*psis, *psip1);
+  //   auto dv1b_0 = tdhf.dV_ab(*psip1, *psis);
+  //   auto dv3_0 = tdhf.dV_ab(*psis, *psip3);
+  //   auto dv3b_0 = tdhf.dV_ab(*psip3, *psis);
+  //   tdhf.solve_TDHFcore(0.0);
+  //   auto dv1 = tdhf.dV_ab(*psis, *psip1);
+  //   auto dv1b = tdhf.dV_ab(*psip1, *psis);
+  //   auto dv3 = tdhf.dV_ab(*psis, *psip3);
+  //   auto dv3b = tdhf.dV_ab(*psip3, *psis);
+  //   std::cout << me1 << " + " << dv1 << " = " << me1 + dv1 << "  ("
+  //             << me1 + dv1_0 << ")\n";
+  //   std::cout << me1b << " + " << dv1b << " = " << me1b + dv1b << "  ("
+  //             << me1b + dv1b_0 << ")\n";
+  //   std::cout << me3 << " + " << dv3 << " = " << me3 + dv3 << "  ("
+  //             << me3 + dv3_0 << ")\n";
+  //   std::cout << me3b << " + " << dv3b << " = " << me3b + dv3b << "  ("
+  //             << me3b + dv3b_0 << ")\n";
+  // }
   {
-    // tdhf.solve_TDHFcore_matrix(wf);
-    tdhf.solve_TDHFcore(1);
+    // tdhf.solve_TDHFcore_matrix(wf, omega, 1);
+    tdhf.solve_TDHFcore(omega, 1);
     // std::cin.get();
     auto dv1_0 = tdhf.dV_ab(*psis, *psip1);
     auto dv1b_0 = tdhf.dV_ab(*psip1, *psis);
     auto dv3_0 = tdhf.dV_ab(*psis, *psip3);
     auto dv3b_0 = tdhf.dV_ab(*psip3, *psis);
-    tdhf.solve_TDHFcore();
+    tdhf.solve_TDHFcore(omega);
+    // tdhf.solve_TDHFcore_matrix(wf, omega);
     auto dv1 = tdhf.dV_ab(*psis, *psip1);
     auto dv1b = tdhf.dV_ab(*psip1, *psis);
     auto dv3 = tdhf.dV_ab(*psis, *psip3);

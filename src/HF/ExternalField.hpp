@@ -14,8 +14,7 @@ class ExternalField {
 public:
   ExternalField(const DiracOperator *const h,
                 const std::vector<DiracSpinor> &core,
-                const std::vector<double> &vl, const double alpha,
-                const double omega = 0);
+                const std::vector<double> &vl, const double alpha);
 
 private:
   // dPhi = X exp(-iwt) + Y exp(+iwt)
@@ -30,8 +29,8 @@ private:
   const std::vector<DiracSpinor> *const p_core;
   const std::vector<double> m_vl;
   const double m_alpha;
-  const double m_omega;
-  const bool static_fieldQ;
+  // const double m_omega;
+  // const bool static_fieldQ;
   const int m_rank;
   const int m_pi;
   const bool m_imag;
@@ -43,8 +42,9 @@ public:
   const DiracSpinor &get_dPsi_x(const DiracSpinor &phic, dPsiType XorY,
                                 const int kappa_x);
 
-  void solve_TDHFcore(int max_its = 100);
-  void solve_TDHFcore_matrix(const Wavefunction &wf);
+  void solve_TDHFcore(const double omega, int max_its = 30);
+  void solve_TDHFcore_matrix(const Wavefunction &wf, const double omega,
+                             const int max_its = 30);
 
   // does it matter if a or b is in the core?
   double dV_ab(const DiracSpinor &phia, const DiracSpinor &phib,
@@ -54,6 +54,8 @@ public:
                         bool conj = false);
   // DiracSpinor dV_ab_Y_rhs(const DiracSpinor &phi_alpha,
   //                         const DiracSpinor &phi_a);
+
+  void print() const;
 
 private:
   std::size_t core_index(const DiracSpinor &phic);

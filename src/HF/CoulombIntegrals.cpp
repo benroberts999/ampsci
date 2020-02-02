@@ -84,14 +84,15 @@ Coulomb::Rk_abcd_rhs(const DiracSpinor &psi_a, const DiracSpinor &psi_b,
   // make rhs an in/out parameter??
   // does 2 allocations [3v's: 2 for DS, onr for y]
   std::vector<double> yk_bd; // XXX Can already exist!
-  calculate_y_ijk(psi_b, psi_d, k, yk_bd);
-  // auto imax = Angular::max4(psi_a.pinf, psi_b.pinf, psi_c.pinf, psi_d.pinf);
-  auto out = psi_a;
-  // out.pinf = imax;
+  calculate_y_ijk(psi_b, psi_d, k, yk_bd, psi_c.pinf);
+  auto out = DiracSpinor(0, psi_a.k, *(psi_a.p_rgrid));
   out.pinf = psi_c.pinf;
-  out.f = psi_c.f;
-  out.g = psi_c.g;
-  return yk_bd * out; // correct kappa??
+  // out.f = psi_c.f;
+  // out.g = psi_c.g;
+  // out *= yk_bd;
+  out.f = NumCalc::mult_vectors(psi_c.f, yk_bd);
+  out.g = NumCalc::mult_vectors(psi_c.g, yk_bd);
+  return out;
 }
 
 //******************************************************************************
@@ -549,7 +550,7 @@ static inline std::function<double(double)> make_powk(const int k) {
 //******************************************************************************
 void Coulomb::calculate_y_ijk(const DiracSpinor &phi_a,
                               const DiracSpinor &phi_b, const int k,
-                              std::vector<double> &vabk)
+                              std::vector<double> &vabk, const std::size_t maxi)
 // This is static
 // Calculalates y^k_ab screening function.
 // Note: should only call for a>=b, and for k's with non-zero angular coefs
@@ -571,12 +572,13 @@ void Coulomb::calculate_y_ijk(const DiracSpinor &phi_a,
 // y^k_ab(rn) = A(rn)/rn^(k+1) + B(rn)*rn^k
 {
   auto sp1 = SafeProfiler::profile(__func__);
-  auto &grid = phi_a.p_rgrid; // just save typing
-  auto du = grid->du;
-  auto num_points = grid->num_points;
+  const auto &grid = phi_a.p_rgrid; // just save typing
+  const auto du = grid->du;
+  const auto num_points = grid->num_points;
   vabk.resize(num_points); // for safety
 
-  auto irmax = num_points; // std::min(phi_a.pinf, phi_b.pinf);
+  // auto irmax = num_points; // std::min(phi_a.pinf, phi_b.pinf);
+  const auto irmax = (maxi == 0 || maxi > num_points) ? num_points : maxi;
 
   double Ax = 0.0,
          Bx = 0.0; // A, B defined in equations/comments above
@@ -591,7 +593,6 @@ void Coulomb::calculate_y_ijk(const DiracSpinor &phi_a,
 
   // // For "direct" part, can't cut!
   // if (phi_a == phi_b)
-  //   irmax = num_points;
 
   vabk[0] = Bx * du;
   for (std::size_t i = 1; i < irmax; i++) {
@@ -605,7 +606,7 @@ void Coulomb::calculate_y_ijk(const DiracSpinor &phi_a,
     Bx -= Fdr * inv_rm1_to_kp1;
     vabk[i] = du * (Ax * inv_r_to_kp1 + Bx * r_to_k);
   }
-  // for (std::size_t i = irmax; i < num_points; i++) {
-  //   vabk[i] = 0; // this doesn't happen in psi_a = psi_b
-  // }
+  for (std::size_t i = irmax; i < num_points; i++) {
+    vabk[i] = 0; // this doesn't happen in psi_a = psi_b
+  }
 }
