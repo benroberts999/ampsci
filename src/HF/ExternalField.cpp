@@ -11,6 +11,7 @@
 #include <vector>
 //
 #include "Dirac/BSplineBasis.hpp" // XXX add to make
+#include <memory>
 
 //******************************************************************************
 ExternalField::ExternalField(const DiracOperator *const h,
@@ -79,10 +80,11 @@ void ExternalField::solve_TDHFcore(const double omega, const int max_its) {
 
   ChronoTimer timer("solve_TDHFcore");
 
-  const double converge_targ = 1.0e-3;
-  const auto damper = rampedDamp(0.75, 0.25, 4, 15);
+  const double converge_targ = 1.0e-9;
+  // const auto damper = rampedDamp(0.5, 0.5, 4, 20);
 
-  const bool static_fieldQ = omega == 0;
+  // const bool staticQ = omega == 0;
+  const bool staticQ = std::abs(omega) < 1.0e-10;
 
   const auto imag = m_h->imaginaryQ();
 
@@ -101,7 +103,7 @@ void ExternalField::solve_TDHFcore(const double omega, const int max_its) {
   for (int it = 0; it < max_its; it++) {
     ChronoTimer timer2("solve_TDHFcore: iterations");
     eps = 0.0;
-    const auto a_damp = (it == 0) ? 0.5 : damper(it);
+    const auto a_damp = (it == 0) ? 0.0 : 0.5; // damper(it);
 
     auto tmp_X = m_X;
     auto tmp_Y = m_Y;
@@ -131,13 +133,12 @@ void ExternalField::solve_TDHFcore(const double omega, const int max_its) {
           rhs -= dePsic;
         HartreeFock::solveMixedState(Xx, phic, omega, m_vl, m_alpha, *p_core,
                                      rhs);
-        // Xx *= std::sqrt(2.0 * m_h->rank() + 1.0);
         Xx = a_damp * oldX + (1.0 - a_damp) * Xx;
-        const auto delta = std::abs((oldX * Xx) / (Xx * Xx) - 1.0);
+        const auto delta = (Xx - oldX) * (Xx - oldX) / (Xx * Xx);
         if (delta > eps_c)
           eps_c = delta;
       }
-      if (!static_fieldQ) {
+      if (!staticQ) {
         // if (true) {
         for (auto j = 0ul; j < tmp_Y[ic].size(); j++) {
           auto &Yx = tmp_Y[ic][j];
@@ -145,20 +146,19 @@ void ExternalField::solve_TDHFcore(const double omega, const int max_its) {
           const auto hPsic = m_h->reduced_rhs(Yx.k, phic); // always same!! XX
           // const auto &hPsic = hPsi[ic][j];
           const auto dVpsic = dV_ab_rhs(Yx, phic, true);
-          const auto s = m_h->imaginaryQ() ? -1 : 1;
+          auto s = m_h->imaginaryQ() ? -1 : 1;
           auto rhs = s * (hPsic + dVpsic);
           if (Yx.k == phic.k && !imag)
             rhs -= dePsic_dag;
           HartreeFock::solveMixedState(Yx, phic, -omega, m_vl, m_alpha, *p_core,
                                        rhs);
-          // Yx *= std::sqrt(2.0 * m_h->rank() + 1.0);
           Yx = a_damp * oldY + (1.0 - a_damp) * Yx;
-          // const auto delta = std::abs((oldY * Yx) / (Yx * Yx) - 1.0);
-          // if (delta > eps_c)
-          //   eps_c = delta;
         }
       } else {
-        tmp_Y[ic] = tmp_X[ic]; // XXX Imaginary? x -1 !!?
+        auto s = m_h->imaginaryQ() ? -1 : 1;
+        for (auto j = 0ul; j < tmp_Y[ic].size(); j++) {
+          tmp_Y[ic][j] = s * tmp_X[ic][j];
+        }
       }
 #pragma omp critical(compare)
       if (eps_c > eps) {
@@ -177,6 +177,9 @@ void ExternalField::solve_TDHFcore(const double omega, const int max_its) {
 // does it matter if a or b is in the core?
 double ExternalField::dV_ab(const DiracSpinor &phi_n, const DiracSpinor &phi_m,
                             bool conj) {
+  // conj = phi_m.en >= phi_n.en; // auto conj! XXX "correct" but broken?
+  conj = phi_m.en <= phi_n.en; // auto conj! XXX "wrong" but works?
+  // XXX What about when imag??
   return phi_n * dV_ab_rhs(phi_n, phi_m, conj);
 }
 
@@ -193,9 +196,7 @@ DiracSpinor ExternalField::dV_ab_rhs(const DiracSpinor &phi_n,
   const auto tjn = phi_n.twoj();
   const auto tjm = phi_m.twoj();
   const auto Ckala = Wigner::Ck_kk(k, phi_n.k, phi_m.k);
-  // const auto Ckala = Wigner::Ck_kk(k, phi_m.k, phi_n.k);
 
-  // auto dVFm = 0.0 * phi_n;
   auto dVFm = DiracSpinor(0, phi_n.k, *(phi_n.p_rgrid));
   dVFm.pinf = phi_m.pinf;
 
@@ -205,7 +206,6 @@ DiracSpinor ExternalField::dV_ab_rhs(const DiracSpinor &phi_n,
     const auto tjb = phi_b.twoj();
     const auto &X_betas = get_dPsis(phi_b, ChiType);
     const auto &Y_betas = get_dPsis(phi_b, EtaType);
-    // auto dVFm_c = 0.0 * phi_n;
     auto dVFm_c = DiracSpinor(0, phi_n.k, *(phi_n.p_rgrid));
     dVFm_c.pinf = phi_m.pinf;
 
@@ -215,27 +215,26 @@ DiracSpinor ExternalField::dV_ab_rhs(const DiracSpinor &phi_n,
       const auto tjbeta = X_beta.twoj();
 
       const auto Ckbeb = Wigner::Ck_kk(k, X_beta.k, phi_b.k);
-      // const auto Ckbeb = Wigner::Ck_kk(k, phi_b.k, X_beta.k);
       if (Ckala != 0 && Ckbeb != 0) {
         const auto Rkabcd =
             Coulomb::Rk_abcd_rhs(phi_n, phi_b, phi_m, X_beta + Y_beta, k);
         dVFm_c += (Ckala * Ckbeb / tkp1) * Rkabcd;
       }
 
-      auto s = Wigner::evenQ_2(tjn + tjb + 2) ? 1 : -1;
-      // s = 0;
       // continue;
 
-      // exchange part (X):
-      const auto l_min_X =
-          std::max(std::abs(tjn - tjbeta), std::abs(tjm - tjb)) / 2;
-      auto l_max_X = std::min((tjn + tjbeta), (tjm + tjb)) / 2;
-      // l_max_X = 0;
+      auto s = Wigner::evenQ_2(tjn + tjb + 2) ? 1 : -1;
+      // auto s = Wigner::evenQ_2(tjn + tjbeta + 2) ? 1 : -1;
 
-      for (int l = l_min_X; l <= l_max_X; l += 1) {
-        auto ll = 1.0; /// (2 * l + 1); // XXX ???
-        // auto ll = Wigner::evenQ_2(tjm + tjn) ? -1 : 1;
-        // const auto sixj = m_6j.get_6j_mutable(tjm, tjn, tjbeta, tjb, k, l);
+      auto tmp_min = 0;
+      auto tmp_max = 1;
+
+      // exchange part (X):
+      // const auto l_min_X =
+      //     std::max(std::abs(tjn - tjbeta), std::abs(tjm - tjb)) / 2;
+      // auto l_max_X = std::min((tjn + tjbeta), (tjm + tjb)) / 2;
+
+      for (int l = tmp_min; l <= tmp_max; ++l) {
         const auto sixj = Wigner::sixj_2(tjm, tjn, 2 * k, tjbeta, tjb, 2 * l);
         if (sixj == 0)
           continue;
@@ -244,24 +243,16 @@ DiracSpinor ExternalField::dV_ab_rhs(const DiracSpinor &phi_n,
         const auto Ckalbe = Wigner::Ck_kk(l, phi_n.k, X_beta.k);
         if (Ckba == 0 || Ckalbe == 0)
           continue;
-        // XXX This ONLY involves core y_mb^l (when m in core..)!!!
-        const auto Rk = Coulomb::Rk_abcd_rhs(phi_n, phi_m, Y_beta, phi_b, l);
-        dVFm_c += (ll * s * m1kpl * Ckba * Ckalbe * sixj) * Rk;
+        const auto Rk = Coulomb::Rk_abcd_rhs(phi_n, phi_m, X_beta, phi_b, l);
+        dVFm_c += (s * m1kpl * Ckba * Ckalbe * sixj) * Rk;
       }
 
       // exchange part (Y):
-      const auto l_min_Y =
-          std::max(std::abs(tjn - tjb), std::abs(tjm - tjbeta)) / 2;
-      auto l_max_Y = std::min((tjn + tjb), (tjm + tjbeta)) / 2;
-      // l_max_Y = 0;
+      // const auto l_min_Y =
+      //     std::max(std::abs(tjn - tjb), std::abs(tjm - tjbeta)) / 2;
+      // auto l_max_Y = std::min((tjn + tjb), (tjm + tjbeta)) / 2;
 
-      for (int l = l_min_Y; l <= l_max_Y; l += 1) {
-        auto ll = 1.0; // / (2 * l + 1); // XXX ???
-        // const auto sixj = m_6j.get_6j(tjn, tjm, tjbeta, tjb, k, l);
-        // const auto sixj = Wigner::sixj_2(tjm, tjn, 2 * l, tjb, tjbeta,
-        //                                  2 * k); // XXX swapped l and k
-        // XXX When I swap l and k, becomes symmetric (but wrong) -- probably
-        // just reverting to 'direct-only'....
+      for (int l = tmp_min; l <= tmp_max; ++l) {
         const auto sixj = Wigner::sixj_2(tjm, tjn, 2 * k, tjb, tjbeta, 2 * l);
         if (sixj == 0)
           continue;
@@ -270,8 +261,8 @@ DiracSpinor ExternalField::dV_ab_rhs(const DiracSpinor &phi_n,
         const auto Ckbal = Wigner::Ck_kk(l, phi_n.k, phi_b.k);
         if (Ckbea == 0 || Ckbal == 0)
           continue;
-        const auto Rk = Coulomb::Rk_abcd_rhs(phi_n, phi_m, phi_b, X_beta, l);
-        dVFm_c += (ll * s * m1kpl * Ckbea * Ckbal * sixj) * Rk;
+        const auto Rk = Coulomb::Rk_abcd_rhs(phi_n, phi_m, phi_b, Y_beta, l);
+        dVFm_c += (s * m1kpl * Ckbea * Ckbal * sixj) * Rk;
       }
     }
 #pragma omp critical(sum_X_core)
@@ -297,12 +288,13 @@ void ExternalField::solve_TDHFcore_matrix(const Wavefunction &wf,
   // This is just for testing?? Very slow. Should give same as reg method!
 
   ChronoTimer timer("solve_TDHFcore_matrix");
-  const bool static_fieldQ = omega == 0;
+  // const bool staticQ = omega == 0;
+  const bool staticQ = std::abs(omega) < 1.0e-10;
 
-  const std::size_t nspl = 40;
-  const std::size_t kspl = 5;
+  const std::size_t nspl = 75;
+  const std::size_t kspl = 6;
   const double rmin = 1.0e-5; //?
-  const double rmax = 30.0;   //?
+  const double rmax = 45.0;   //?
 
   // A := H - (e-w)S
   // b := -h -dV +deS_c
@@ -325,14 +317,14 @@ void ExternalField::solve_TDHFcore_matrix(const Wavefunction &wf,
 
   const auto imag = m_h->imaginaryQ();
 
-  const double converge_targ = 1.0e-3;
-  const auto damper = rampedDamp(0.5, 0.5, 4, 15);
+  const double converge_targ = 1.0e-4;
+  // const auto damper = rampedDamp(0.5, 0.5, 4, 15);
 
   auto eps = 0.0;
   for (int it = 0; it < max_its; it++) {
     ChronoTimer timer2("solve_TDHFcore: iterations");
     eps = 0.0;
-    const auto a_damp = (it == 0) ? 0.5 : damper(it);
+    const auto a_damp = (it == 0) ? 0.0 : 0.5; // damper(it);
 
     auto tmp_X = m_X;
     auto tmp_Y = m_Y;
@@ -356,6 +348,7 @@ void ExternalField::solve_TDHFcore_matrix(const Wavefunction &wf,
           const auto &xi = basis[i];
           // fill LHS vector, b
           const auto hi = m_h->reducedME(xi, phic);
+          // const auto hidag = m_h->reducedME(phic, xi); //??
           const auto dV = dV_ab(xi, phic);
           const auto dV_dag = dV_ab(xi, phic, true);
           const auto s = imag ? -1 : 1;
@@ -364,18 +357,19 @@ void ExternalField::solve_TDHFcore_matrix(const Wavefunction &wf,
           const auto deS_dag = (de0 + de1_dag) * Sic;
           bi_X[i] = -hi - dV + deS;
           bi_Y[i] = -s * (hi + dV_dag) + deS_dag;
+          // bi_Y[i] = -hidag - s * dV_dag + deS_dag; //???
         }
         const auto [Hij, Sij] = SplineBasis::fill_Hamiltonian_matrix(basis, wf);
 
         auto Aij_X = Hij - (phic.en + omega) * Sij;
-        const auto c_X = LinAlg::solve_Axeqb(Aij_X, bi_X);
-
         auto Aij_Y = Hij - (phic.en - omega) * Sij;
-        const auto c_Y = static_fieldQ ? c_X : LinAlg::solve_Axeqb(Aij_Y, bi_Y);
-        // XXX Image, -ve??
 
-        Xx.scale(a_damp); // or 0.5, for DAMP!
-        Yx.scale(a_damp); // or 0.5, for DAMP!
+        auto s = m_h->imaginaryQ() ? -1 : 1;
+        const auto c_X = LinAlg::solve_Axeqb(Aij_X, bi_X);
+        const auto c_Y = staticQ ? s * c_X : LinAlg::solve_Axeqb(Aij_Y, bi_Y);
+
+        Xx.scale(a_damp);
+        Yx.scale(a_damp);
         for (int i = 0; i < (int)basis.size(); ++i) {
           Xx += (1.0 - a_damp) * c_X[i] * basis[i];
           Yx += (1.0 - a_damp) * c_Y[i] * basis[i];
@@ -387,7 +381,7 @@ void ExternalField::solve_TDHFcore_matrix(const Wavefunction &wf,
       for (auto ibeta = 0ul; ibeta < tmp_X[ic].size(); ++ibeta) {
         const auto &dphi = tmp_X[ic][ibeta];
         const auto &dphi0 = m_X[ic][ibeta];
-        const auto eps_c = std::abs((dphi0 * dphi) / (dphi * dphi) - 1.0);
+        const auto eps_c = (dphi - dphi0) * (dphi - dphi0) / (dphi * dphi);
         if (eps_c > eps)
           eps = eps_c;
       }
@@ -421,4 +415,116 @@ void ExternalField::print() const {
     }
     of << "\n";
   }
+}
+
+//******************************************************************************
+
+//******************************************************************************
+
+//******************************************************************************
+//******************************************************************************
+
+//******************************************************************************
+
+//******************************************************************************
+
+//******************************************************************************
+//******************************************************************************
+
+//******************************************************************************
+double ExternalField::dX_nm_bbe_rhs(const DiracSpinor &phi_n,
+                                    const DiracSpinor &phi_m,
+                                    const DiracSpinor &phi_b,
+                                    const DiracSpinor &X_beta) {
+
+  const auto k = m_h->rank();
+  const auto tkp1 = double(2 * k + 1);
+
+  double dX_nm_bbe = 0.0;
+
+  const auto tjn = phi_n.twoj();
+  const auto tjm = phi_m.twoj();
+  const auto Ckala = Wigner::Ck_kk(k, phi_n.k, phi_m.k);
+
+  const auto tjb = phi_b.twoj();
+  const auto tjbeta = X_beta.twoj();
+  const auto Ckbeb = Wigner::Ck_kk(k, X_beta.k, phi_b.k);
+
+  if (Ckala != 0 && Ckbeb != 0) {
+    const auto Rkabcd = Coulomb::Rk_abcd_any(phi_n, phi_b, phi_m, X_beta, k);
+    dX_nm_bbe += (Ckala * Ckbeb / tkp1) * Rkabcd;
+  }
+
+  auto s = Wigner::evenQ_2(tjn + tjbeta + 2) ? 1 : -1;
+
+  // exchange part (X):
+  auto l_min_X = std::max(std::abs(tjn - tjbeta), std::abs(tjm - tjb)) / 2;
+  auto l_max_X = std::min((tjn + tjbeta), (tjm + tjb)) / 2;
+
+  l_min_X = 0;
+  l_max_X = 20;
+
+  for (int l = l_min_X; l <= l_max_X; ++l) {
+    const auto sixj = Wigner::sixj_2(tjm, tjn, 2 * k, tjbeta, tjb, 2 * l);
+    if (sixj == 0)
+      continue;
+    const auto m1kpl = Wigner::evenQ(k + l) ? 1 : -1;
+    const auto Ckba = Wigner::Ck_kk(l, phi_m.k, phi_b.k);
+    const auto Ckalbe = Wigner::Ck_kk(l, phi_n.k, X_beta.k);
+    if (Ckba == 0 || Ckalbe == 0)
+      continue;
+    const auto Rk = Coulomb::Rk_abcd_any(phi_n, phi_m, X_beta, phi_b, l);
+    dX_nm_bbe += (s * m1kpl * Ckba * Ckalbe * sixj) * Rk;
+  }
+
+  return dX_nm_bbe;
+}
+
+//******************************************************************************
+double ExternalField::dY_nm_bbe_rhs(const DiracSpinor &phi_n,
+                                    const DiracSpinor &phi_m,
+                                    const DiracSpinor &phi_b,
+                                    const DiracSpinor &Y_beta) {
+
+  const auto k = m_h->rank();
+  const auto tkp1 = double(2 * k + 1);
+
+  double dY_nm_bbe = 0.0;
+
+  const auto tjn = phi_n.twoj();
+  const auto tjm = phi_m.twoj();
+  const auto Ckala = Wigner::Ck_kk(k, phi_n.k, phi_m.k);
+
+  const auto tjb = phi_b.twoj();
+  const auto tjbeta = Y_beta.twoj();
+  const auto Ckbeb = Wigner::Ck_kk(k, Y_beta.k, phi_b.k);
+
+  if (Ckala != 0 && Ckbeb != 0) {
+    const auto Rkabcd = Coulomb::Rk_abcd_any(phi_n, phi_b, phi_m, Y_beta, k);
+    dY_nm_bbe += (Ckala * Ckbeb / tkp1) * Rkabcd;
+  }
+
+  auto s = Wigner::evenQ_2(tjn + tjbeta + 2) ? 1 : -1;
+
+  // exchange part (Y):
+  auto l_min_Y = std::max(std::abs(tjn - tjb), std::abs(tjm - tjbeta)) / 2;
+  auto l_max_Y = std::min((tjn + tjb), (tjm + tjbeta)) / 2;
+
+  l_min_Y = 0;
+  l_max_Y = 20;
+
+  for (int l = l_min_Y; l <= l_max_Y; ++l) {
+    const auto sixj = Wigner::sixj_2(tjm, tjn, 2 * k, tjb, tjbeta, 2 * l);
+    if (sixj == 0)
+      continue;
+    const auto m1kpl = Wigner::evenQ(k + l) ? 1 : -1;
+    const auto Ckbea = Wigner::Ck_kk(l, phi_m.k, Y_beta.k);
+    const auto Ckbal = Wigner::Ck_kk(l, phi_n.k, phi_b.k);
+    if (Ckbea == 0 || Ckbal == 0)
+      continue;
+    const auto Rk = Coulomb::Rk_abcd_any(phi_n, phi_m, phi_b, Y_beta, l);
+    dY_nm_bbe += (s * m1kpl * Ckbea * Ckbal * sixj) * Rk;
+  }
+
+  return dY_nm_bbe;
 }

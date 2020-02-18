@@ -55,6 +55,11 @@ public:
   // DiracSpinor dV_ab_Y_rhs(const DiracSpinor &phi_alpha,
   //                         const DiracSpinor &phi_a);
 
+  double dX_nm_bbe_rhs(const DiracSpinor &phi_n, const DiracSpinor &phi_m,
+                       const DiracSpinor &phi_b, const DiracSpinor &X_beta);
+  double dY_nm_bbe_rhs(const DiracSpinor &phi_n, const DiracSpinor &phi_m,
+                       const DiracSpinor &phi_b, const DiracSpinor &Y_beta);
+
   void print() const;
 
 private:
