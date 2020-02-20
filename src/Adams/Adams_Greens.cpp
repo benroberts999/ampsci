@@ -64,17 +64,26 @@ void GreenSolution(DiracSpinor &phi, const DiracSpinor &phiI,
                    const DiracSpinor &phi0, const double alpha,
                    const DiracSpinor &Sr) {
   auto sp = SafeProfiler::profile(__func__);
-  // Wronskian. Note: in current method: only need the SIGN
-  int pp = int(0.65 * double(phiI.pinf));
+
+  // Wronskian:
+  auto pp = int(0.65 * double(phiI.pinf));
   auto w2 = (phiI.f[pp] * phi0.g[pp] - phi0.f[pp] * phiI.g[pp]);
-  // XXX test making this non-constant over r?
+
+  // std::vector<double> invW2(phiI.f.size());
+  // for (std::size_t i = 0; i < phiI.pinf; ++i) {
+  //   auto w2_i = alpha / (phiI.f[i] * phi0.g[i] - phi0.f[i] * phiI.g[i]);
+  //   auto w2_p = alpha / w2;
+  //   invW2[i] = (1.0 * w2_i + 5.0 * w2_p) / 6.0;
+  // }
 
   // save typing:
   const auto &gr = *phi.p_rgrid;
   constexpr auto ztr = NumCalc::zero_to_r;
   constexpr auto rti = NumCalc::r_to_inf;
 
+  phi.pinf = gr.num_points;
   phi *= 0.0;
+  phi.pinf = phiI.pinf;
   NumCalc::additivePIntegral<ztr>(phi.f, phiI.f, phi0.f, Sr.f, gr, phiI.pinf);
   NumCalc::additivePIntegral<ztr>(phi.f, phiI.f, phi0.g, Sr.g, gr, phiI.pinf);
   NumCalc::additivePIntegral<rti>(phi.f, phi0.f, phiI.f, Sr.f, gr, phiI.pinf);
@@ -84,7 +93,7 @@ void GreenSolution(DiracSpinor &phi, const DiracSpinor &phiI,
   NumCalc::additivePIntegral<rti>(phi.g, phi0.g, phiI.f, Sr.f, gr, phiI.pinf);
   NumCalc::additivePIntegral<rti>(phi.g, phi0.g, phiI.g, Sr.g, gr, phiI.pinf);
   phi *= (alpha / w2);
-  // std::cout << phi * phi << "\n";
+  // phi *= invW2;
 }
 
 } // namespace Adams
