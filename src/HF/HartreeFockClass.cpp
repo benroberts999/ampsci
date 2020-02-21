@@ -29,22 +29,25 @@ DiracSpinor HartreeFock::solveMixedState(const int k, const DiracSpinor &phi0,
                                          const std::vector<double> &vl,
                                          const double alpha,
                                          const std::vector<DiracSpinor> &core,
-                                         const DiracSpinor &hphi0) {
+                                         const DiracSpinor &hphi0,
+                                         const double eps_target) {
   auto dF = DiracSpinor(0, k, *(phi0.p_rgrid));
-  solveMixedState(dF, phi0, omega, vl, alpha, core, hphi0);
+  solveMixedState(dF, phi0, omega, vl, alpha, core, hphi0, eps_target);
   return dF;
 }
 //------------------------------------------------------------------------------
-DiracSpinor HartreeFock::solveMixedState(
-    DiracSpinor &dF, const DiracSpinor &phi0, const double omega,
-    const std::vector<double> &vl, const double alpha,
-    const std::vector<DiracSpinor> &core, const DiracSpinor &hphi0)
+DiracSpinor
+HartreeFock::solveMixedState(DiracSpinor &dF, const DiracSpinor &phi0,
+                             const double omega, const std::vector<double> &vl,
+                             const double alpha,
+                             const std::vector<DiracSpinor> &core,
+                             const DiracSpinor &hphi0, const double eps_target)
 // Solves:  (H - e - w)X = -h*psi for X
 {
   auto sp = SafeProfiler::profile(__func__);
   auto damper = rampedDamp(0.8, 0.33, 3, 15);
   const int max_its = 100;
-  const double eps_target = 1.0e-5; // XXX Make input!
+  // const double eps_target = 1.0e-3; // XXX Make input!
 
   auto dF20 = std::abs(dF * dF); // monitor convergance
   auto dF0 = dF;

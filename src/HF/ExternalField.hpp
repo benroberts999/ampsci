@@ -42,7 +42,7 @@ public:
   const DiracSpinor &get_dPsi_x(const DiracSpinor &phic, dPsiType XorY,
                                 const int kappa_x);
 
-  void solve_TDHFcore(const double omega, int max_its = 30);
+  void solve_TDHFcore(const double omega, int max_its = 100);
   void solve_TDHFcore_matrix(const Wavefunction &wf, const double omega,
                              const int max_its = 30);
 
