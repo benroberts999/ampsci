@@ -8,6 +8,8 @@
 #include <cmath>
 #include <iostream>
 #include <string>
+//
+#include "HF/ExternalField.hpp"
 
 namespace Module {
 
@@ -16,6 +18,8 @@ void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf) {
   const std::string ThisModule = "Module::PNC";
 
   input.checkBlock({"t", "c", "transition", "nmain"});
+
+  bool print_all = true;
 
   auto t_dflt = Nuclear::default_t;
   auto r_rms = Nuclear::find_rrms(wf.Znuc(), wf.Anuc());
@@ -36,6 +40,11 @@ void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf) {
   E1Operator he1(wf.rgrid);
   auto alpha = wf.get_alpha();
 
+  auto dVE1 = ExternalField(&he1, wf.core_orbitals,
+                            NumCalc::add_vectors(wf.vnuc, wf.vdir), alpha);
+  auto dVpnc = ExternalField(&hpnc, wf.core_orbitals,
+                             NumCalc::add_vectors(wf.vnuc, wf.vdir), alpha);
+
   const auto &aA = *(wf.getState(na, ka));
   const auto &aB = *(wf.getState(nb, kb));
   if (aA.n != na || aB.n != nb) {
@@ -45,7 +54,16 @@ void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf) {
   }
   std::cout << "\n********************************************** \n";
   std::cout << "E_pnc: " << wf.atom() << ":   A = " << aA.symbol()
-            << "   -->   B = " << aB.symbol() << "\n\n";
+            << "   ,   B = " << aB.symbol() << "\n\n";
+  {
+    auto omega = std::abs(aA.en - aB.en);
+    // omega = 0.0844;
+    // omega = 0.0;
+    if (false) {
+      dVE1.solve_TDHFcore(omega);
+      dVpnc.solve_TDHFcore(0.0);
+    }
+  }
 
   auto tja = aA.twoj();
   auto tjb = aB.twoj();
@@ -67,12 +85,17 @@ void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf) {
           continue;
         if (hpnc.isZero(np.k, aA.k) && hpnc.isZero(np.k, aB.k))
           continue;
-        double pnc1 = c10 * he1.reducedME(aA, np) * hpnc.reducedME(np, aB) /
-                      (aB.en - np.en);
-        double pnc2 = c01 * hpnc.reducedME(aA, np) * he1.reducedME(np, aB) /
-                      (aA.en - np.en);
-        printf("%7s, pnc= %12.5e + %12.5e = %12.5e\n", np.symbol().c_str(),
-               pnc1, pnc2, pnc1 + pnc2);
+        auto dAp = he1.reducedME(aA, np) + dVE1.dV_ab(aA, np);
+        auto hpB = hpnc.reducedME(np, aB) + dVpnc.dV_ab(np, aB);
+        auto hAp = hpnc.reducedME(aA, np) + dVpnc.dV_ab(aA, np);
+        auto dpB = he1.reducedME(np, aB) + dVE1.dV_ab(np, aB);
+        // std::cout << hpnc.reducedME(np, aB) + dVpnc.dV_ab(np, aB) << "\n";
+        // std::cout << hpnc.reducedME(aA, np) + dVpnc.dV_ab(aA, np) << "\n";
+        double pnc1 = c10 * dAp * hpB / (aB.en - np.en);
+        double pnc2 = c01 * hAp * dpB / (aA.en - np.en);
+        if (print_all)
+          printf("%7s, pnc= %12.5e + %12.5e = %12.5e\n", np.symbol().c_str(),
+                 pnc1, pnc2, pnc1 + pnc2);
         pnc += pnc1 + pnc2;
         if (np.n <= main_n && np.n > ncore)
           main = pnc - core;
@@ -105,11 +128,16 @@ void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf) {
         continue;
       if (hpnc.isZero(np.k, aA.k) && hpnc.isZero(np.k, aB.k))
         continue;
-      double pnc1 = c10 * he1.reducedME(aA, np) * hpnc.reducedME(np, aB) /
-                    (aB.en - np.en);
-      double pnc2 = c01 * hpnc.reducedME(aA, np) * he1.reducedME(np, aB) /
-                    (aA.en - np.en);
-      if (np.n <= main_n)
+      auto dAp = he1.reducedME(aA, np) + dVE1.dV_ab(aA, np);
+      auto hpB = hpnc.reducedME(np, aB) + dVpnc.dV_ab(np, aB);
+      auto hAp = hpnc.reducedME(aA, np) + dVpnc.dV_ab(aA, np);
+      auto dpB = he1.reducedME(np, aB) + dVE1.dV_ab(np, aB);
+      // std::cout << hpnc.reducedME(np, aB) << " " << dVpnc.dV_ab(np, aB) <<
+      // "\n"; std::cout << hpnc.reducedME(aA, np) << " " << dVpnc.dV_ab(aA, np)
+      // << "\n";
+      double pnc1 = c10 * dAp * hpB / (aB.en - np.en);
+      double pnc2 = c01 * hAp * dpB / (aA.en - np.en);
+      if (np.n <= main_n && print_all)
         printf("%7s, pnc= %12.5e + %12.5e = %12.5e\n", np.symbol().c_str(),
                pnc1, pnc2, pnc1 + pnc2);
       pnc += pnc1 + pnc2;
@@ -122,7 +150,8 @@ void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf) {
       if (np.n > max_n_main)
         max_n_main = np.n;
     }
-    std::cout << "...(only printing core+main)\n";
+    if (print_all)
+      std::cout << "...(only printing core+main)\n";
 
     std::cout << "Core = " << core << "\n";
     if (main_ok) {
@@ -145,6 +174,16 @@ void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf) {
     auto e1A = he1.reduced_lhs(-aB.k, aA);
     auto e1B = he1.reduced_rhs(-aA.k, aB);
 
+    // XXX LHS!
+    // hA_dag += dVpnc.dV_ab_rhs(hA_dag, aA, true);
+    // hB += dVpnc.dV_ab_rhs(hB, aB, false);
+    // e1A += dVE1.dV_ab_rhs(e1A, aA, true);
+    // e1B += dVE1.dV_ab_rhs(e1B, aB, true);
+    hA_dag += dVpnc.dV_ab_lhs(hA_dag, aA);
+    hB += dVpnc.dV_ab_rhs(hB, aB);
+    e1A += dVE1.dV_ab_lhs(e1A, aA);
+    e1B += dVE1.dV_ab_rhs(e1B, aB);
+
     auto del_A_dag = HartreeFock::solveMixedState(hA_dag.k, aA, 0, v, alpha,
                                                   wf.core_orbitals, hA_dag);
     auto del_B = HartreeFock::solveMixedState(hB.k, aB, 0, v, alpha,
@@ -156,8 +195,13 @@ void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf) {
     auto yB = HartreeFock::solveMixedState(e1B.k, aB, -omega, v, alpha,
                                            wf.core_orbitals, e1B);
 
+    // auto pnc1_w =
+    //     c01 * (he1.reducedME(del_A_dag, aB) + dVE1.dV_ab(del_A_dag, aB));
+    // auto pnc2_w = c10 * (he1.reducedME(aA, del_B) + dVE1.dV_ab(aA, del_B));
     auto pnc1_w = c01 * he1.reducedME(del_A_dag, aB);
     auto pnc2_w = c10 * he1.reducedME(aA, del_B);
+    pnc1_w += c01 * dVE1.dV_ab(del_A_dag, aB);
+    pnc2_w += c10 * dVE1.dV_ab(aA, del_B);
 
     std::cout << "\nMixed states method: \n";
     std::cout << "<dA |d| B> + <A |d| dB> = ";
@@ -165,6 +209,8 @@ void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf) {
 
     auto pnc1_d = c01 * hpnc.reducedME(aA, yB);
     auto pnc2_d = c10 * hpnc.reducedME(xA, aB);
+    pnc1_d += c01 * dVpnc.dV_ab(aA, yB);
+    pnc2_d += c10 * dVpnc.dV_ab(xA, aB);
     std::cout << "<A |h|Y_B> + <X_A|h| B> = ";
     std::cout << pnc1_d << " + " << pnc2_d << " = " << pnc1_d + pnc2_d << "\n";
 

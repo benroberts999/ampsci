@@ -144,6 +144,7 @@ int main(int argc, char *argv[]) {
 
   // run each of the modules
   Module::runModules(input, wf);
+  return 1;
 
   auto h = E1Operator(wf.rgrid);
   // auto h = HyperfineOperator(1.0, 0.5, 4.0 / PhysConst::aB_fm, wf.rgrid);

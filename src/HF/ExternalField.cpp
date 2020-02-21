@@ -182,6 +182,14 @@ double ExternalField::dV_ab(const DiracSpinor &phi_n, const DiracSpinor &phi_m,
 }
 
 //******************************************************************************
+DiracSpinor ExternalField::dV_ab_lhs(const DiracSpinor &phi_n,
+                                     const DiracSpinor &phi_m, bool conj) {
+  auto s = m_h->imaginaryQ() ? -1 : 1;
+  auto x = Wigner::evenQ_2(phi_n.twoj() - phi_m.twoj()) ? 1 : -1;
+  return s * x * dV_ab_rhs(phi_n, phi_m, conj);
+}
+
+//******************************************************************************
 DiracSpinor ExternalField::dV_ab_rhs(const DiracSpinor &phi_n,
                                      const DiracSpinor &phi_m, bool conj) {
 
