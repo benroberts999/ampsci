@@ -21,7 +21,13 @@ void matrixElements(const UserInputBlock &input, const Wavefunction &wf) {
   // nb: "check" is done in 'generate operator'
 
   const bool radial_int = input.get("radialIntegral", false);
-  auto which_str = radial_int ? "(radial integral). " : "(reduced). ";
+
+  // spacial case: HFS A (MHz)
+  bool AhfsQ = (operator_str == "hfs" && !radial_int);
+
+  auto which_str =
+      radial_int ? "(radial integral). " : AhfsQ ? " A (MHz). " : "(reduced). ";
+
   std::cout << "\n"
             << ThisModule << which_str << " Operator: " << operator_str << "\n";
   const auto h = generateOperator(operator_str, input, wf);
@@ -34,7 +40,7 @@ void matrixElements(const UserInputBlock &input, const Wavefunction &wf) {
   const bool eachFreqQ = omega < 0;
 
   const auto units = input.get<std::string>("units", "au");
-  const auto unit = units == "MHz" ? PhysConst::Hartree_MHz : 1.0;
+  const auto unit = units == "MHz" || AhfsQ ? PhysConst::Hartree_MHz : 1.0;
 
   auto rpa =
       ExternalField(h.get(), wf.core_orbitals,
@@ -46,31 +52,33 @@ void matrixElements(const UserInputBlock &input, const Wavefunction &wf) {
     rpa.solve_TDHFcore(omega);
   }
 
-  for (const auto &phia : wf.valence_orbitals) {
-    for (const auto &phib : wf.valence_orbitals) {
-      if (h->isZero(phia.k, phib.k))
+  for (const auto &Fa : wf.valence_orbitals) {
+    for (const auto &Fb : wf.valence_orbitals) {
+      if (h->isZero(Fa.k, Fb.k))
         continue;
-      if (diagonal_only && phib != phia)
+      if (diagonal_only && Fb != Fa)
         continue;
-      if (!print_both && phib < phia)
+      if (!print_both && Fb < Fa)
         continue;
       if (eachFreqQ && rpaQ) {
-        auto w = std::abs(phia.en - phib.en);
+        auto w = std::abs(Fa.en - Fb.en);
         rpa0.reZero();
         rpa0.solve_TDHFcore(w, 1, false);
         rpa.solve_TDHFcore(w);
       }
-      std::cout << h->rme_symbol(phia, phib) << ": ";
+      std::cout << h->rme_symbol(Fa, Fb) << ": ";
+      // Special case: HFS A:
+      auto a = AhfsQ ? 0.5 / Fa.jjp1() / Wigner::Ck_kk(1, -Fa.k, Fb.k) : 1.0;
       if (radial_int) {
-        printf("%13.6e\n", h->radialIntegral(phia, phib) * unit);
+        printf("%13.6e\n", h->radialIntegral(Fa, Fb) * unit);
       } else if (rpaQ) {
-        auto dV = rpa.dV_ab(phia, phib);
-        auto dV0 = rpa0.dV_ab(phia, phib);
-        printf("%13.6e  %13.6e  %13.6e\n", h->reducedME(phia, phib) * unit,
-               (h->reducedME(phia, phib) + dV0) * unit,
-               (h->reducedME(phia, phib) + dV) * unit);
+        auto dV = rpa.dV_ab(Fa, Fb);
+        auto dV0 = rpa0.dV_ab(Fa, Fb);
+        printf("%13.6e  %13.6e  %13.6e\n", h->reducedME(Fa, Fb) * a * unit,
+               (h->reducedME(Fa, Fb) + dV0) * unit * a,
+               (h->reducedME(Fa, Fb) + dV) * unit * a);
       } else {
-        printf("%13.6e\n", h->reducedME(phia, phib) * unit);
+        printf("%13.6e\n", h->reducedME(Fa, Fb) * unit * a);
       }
     }
   }
