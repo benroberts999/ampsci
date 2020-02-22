@@ -524,6 +524,7 @@ Coulomb::calculate_R_abcd_k(const DiracSpinor &Fa, const DiracSpinor &Fb,
 
 //******************************************************************************
 //******************************************************************************
+// Templates for faster method to calculate r^k
 template <int k> static inline double powk_new(const double x) {
   return x * powk_new<k - 1>(x);
 }
@@ -535,9 +536,7 @@ static inline void yk_ijk(const int l, const DiracSpinor &Fa,
                           const DiracSpinor &Fb, std::vector<double> &vabk,
                           const std::size_t maxi)
 // Calculalates y^k_ab screening function.
-// Note: should only call for a>=b, and for k's with non-zero angular coefs
-// (nothing bad will happen otherwise, but no point!)
-// Since y_ab = y_ba
+// Note: is symmetric: y_ab = y_ba
 //
 // Stores in vabk (in/out parameter, reference to whatever)
 //
@@ -552,14 +551,16 @@ static inline void yk_ijk(const int l, const DiracSpinor &Fa,
 // A(r_n) = A(r_{n-1}) + (rho(r_{n-1})*r_{n-1}^k)*dr
 // B(r_n) = A(r_{n-1}) + (rho(r_{n-1})/r_{n-1}^(k+1))*dr
 // y^k_ab(rn) = A(rn)/rn^(k+1) + B(rn)*rn^k
+//
+// Also uses Quadrature integer rules! (Defined in NumCalc)
 {
   const auto &gr = Fa.p_rgrid; // just save typing
   const auto du = gr->du;
   const auto num_points = gr->num_points;
   vabk.resize(num_points); // for safety
-
   const auto irmax = (maxi == 0 || maxi > num_points) ? num_points : maxi;
 
+  // faster method to calculate r^k
   auto powk = [=](double x) {
     if constexpr (k < 0)
       return std::pow(x, l);
@@ -567,26 +568,38 @@ static inline void yk_ijk(const int l, const DiracSpinor &Fa,
       return powk_new<k>(x);
   };
 
+  // Quadrature integration weights:
+  auto w = [=](std::size_t i) {
+    if (i < NumCalc::Nquad)
+      return NumCalc::dq_inv * NumCalc::cq[i];
+    if (i < num_points - NumCalc::Nquad)
+      return 1.0;
+    return NumCalc::dq_inv * NumCalc::cq[num_points - i - 1];
+  };
+
   double Ax = 0.0, Bx = 0.0;
-  for (std::size_t i = 0; i < irmax; i++) {
-    Bx += gr->drduor[i] * (Fa.f[i] * Fb.f[i] + Fa.g[i] * Fb.g[i]) /
+
+  const auto bmax = std::min(Fa.pinf, Fb.pinf);
+  for (std::size_t i = 0; i < bmax; i++) {
+    Bx += w(i) * gr->drduor[i] * (Fa.f[i] * Fb.f[i] + Fa.g[i] * Fb.g[i]) /
           powk(gr->r[i]);
   }
 
   vabk[0] = Bx * du * powk(gr->r[0]);
   for (std::size_t i = 1; i < irmax; i++) {
-    auto rm1_to_k = powk(gr->r[i - 1]);
-    auto inv_rm1_to_kp1 = 1.0 / (rm1_to_k * gr->r[i - 1]);
-    auto r_to_k = powk(gr->r[i]);
-    auto inv_r_to_kp1 = 1.0 / (r_to_k * gr->r[i]);
-    auto Fdr = gr->drdu[i - 1] *
-               (Fa.f[i - 1] * Fb.f[i - 1] + Fa.g[i - 1] * Fb.g[i - 1]);
-    Ax += Fdr * rm1_to_k;
-    Bx -= Fdr * inv_rm1_to_kp1;
+    const auto rm1_to_k = powk(gr->r[i - 1]);
+    const auto inv_rm1_to_kp1 = 1.0 / (rm1_to_k * gr->r[i - 1]);
+    const auto r_to_k = powk(gr->r[i]);
+    const auto inv_r_to_kp1 = 1.0 / (r_to_k * gr->r[i]);
+    const auto Fdr = gr->drdu[i - 1] *
+                     (Fa.f[i - 1] * Fb.f[i - 1] + Fa.g[i - 1] * Fb.g[i - 1]);
+    const auto wi = w(i - 1);
+    Ax += wi * Fdr * rm1_to_k;
+    Bx -= wi * Fdr * inv_rm1_to_kp1;
     vabk[i] = du * (Ax * inv_r_to_kp1 + Bx * r_to_k);
   }
   for (std::size_t i = irmax; i < num_points; i++) {
-    vabk[i] = 0;
+    vabk[i] = 0.0;
   }
 }
 
@@ -608,6 +621,14 @@ void Coulomb::calculate_y_ijk(const DiracSpinor &Fa, const DiracSpinor &Fb,
     yk_ijk<3>(k, Fa, Fb, vabk, maxi);
   else if (k == 4)
     yk_ijk<4>(k, Fa, Fb, vabk, maxi);
+  else if (k == 5)
+    yk_ijk<5>(k, Fa, Fb, vabk, maxi);
+  else if (k == 6)
+    yk_ijk<6>(k, Fa, Fb, vabk, maxi);
+  else if (k == 7)
+    yk_ijk<7>(k, Fa, Fb, vabk, maxi);
+  else if (k == 8)
+    yk_ijk<8>(k, Fa, Fb, vabk, maxi);
   else
     yk_ijk<-1>(k, Fa, Fb, vabk, maxi);
 }
