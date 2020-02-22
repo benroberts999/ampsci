@@ -50,6 +50,17 @@ ExternalField::ExternalField(const DiracOperator *const h,
   auto max_tj_dPsi = max_tj_core->twoj() + 2 * m_rank;
   m_6j.fill(m_rank, max_tj_dPsi);
 }
+
+//******************************************************************************
+void ExternalField::reZero() {
+  for (auto &mx : m_X) {
+    for (auto &m : mx) {
+      m *= 0.0;
+    }
+  }
+  m_Y = m_X;
+}
+
 //******************************************************************************
 std::size_t ExternalField::core_index(const DiracSpinor &phic) {
   // XXX Note: no bounds checking here!
@@ -74,11 +85,12 @@ const DiracSpinor &ExternalField::get_dPsi_x(const DiracSpinor &phic,
 }
 
 //******************************************************************************
-void ExternalField::solve_TDHFcore(const double omega, const int max_its) {
+void ExternalField::solve_TDHFcore(const double omega, const int max_its,
+                                   const bool print) {
 
   // nb: dV_ab_rhs takes 5-10x longer than any other part of this routine!
 
-  ChronoTimer timer("solve_TDHFcore");
+  // ChronoTimer timer("solve_TDHFcore");
 
   const double converge_targ = 1.0e-9;
   const auto damper = rampedDamp(0.5, 0.25, 1, 10);
@@ -163,12 +175,14 @@ void ExternalField::solve_TDHFcore(const double omega, const int max_its) {
     }
     m_X = tmp_X;
     m_Y = tmp_Y;
-    printf("TDHF (w=%.3f): %2i  %.1e\r", omega, it, eps);
+    if (print)
+      printf("TDHF (w=%.3f): %2i  %.1e\r", omega, it, eps);
     std::cout << std::flush;
     if (it > 0 && eps < converge_targ)
       break;
   }
-  std::cout << "\n";
+  if (print)
+    std::cout << "\n";
 }
 
 //******************************************************************************

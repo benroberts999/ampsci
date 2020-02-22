@@ -38,11 +38,13 @@ private:
   Angular::SixJ m_6j; // = Angular::SixJ(m_rank, 7); // XXX temp!
 
 public:
+  void reZero();
   std::vector<DiracSpinor> &get_dPsis(const DiracSpinor &phic, dPsiType XorY);
   const DiracSpinor &get_dPsi_x(const DiracSpinor &phic, dPsiType XorY,
                                 const int kappa_x);
 
-  void solve_TDHFcore(const double omega, int max_its = 100);
+  void solve_TDHFcore(const double omega, int max_its = 100,
+                      const bool print = true);
   void solve_TDHFcore_matrix(const Wavefunction &wf, const double omega,
                              const int max_its = 30);
 

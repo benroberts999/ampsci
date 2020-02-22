@@ -1,16 +1,12 @@
 Atom {
   Z = Cs;
-  A = default;
-  // varAlpha2;
+  A;
 }
 
 HartreeFock {
   core = [Xe];
   valence = 7sp;
-  // method; // HartreeFock(dflt), ApproxHF, Hartree, GreenPRM, TietzPRM
 }
-
-// dV { a_eff = 0.0; } //effective pol. op.
 
 Nucleus {
   rrms;
@@ -18,31 +14,35 @@ Nucleus {
   type; // Fermi (dflt), spherical, point
 }
 
-// RadPot {
-//   Ueh = 0.0;
-//   SE_h = 0.0;
-//   SE_l = 0.0;
-//   SE_m = 0.0;
-//   rcut = 1.0;
-// }
-
 Grid {
   r0 = 1e-6;
   rmax = 120.0;
-  num_points = 3000;
+  num_points = 2000;
   // fixed_du = 0.1;     // over-writes num_points
-  type = logarithmic; // loglinear(dflt), logarithmic, linear
-  b;                  // b<0, or b>rmax will use logarithmic
+  type; // loglinear(dflt), logarithmic, linear
+  b;    // b<0, or b>rmax will use logarithmic
 }
 
-// Basis {
-//   number = 50;
-//   order = 7;
-//   r0 = 1.0e-5;
-//   rmax = 50.0;
-//   print = true;
-//   states = 10s9p8d7f;
-// }
+// dV { a_eff = 0.0; } //effective pol. op.
+
+// RadPot
+{
+  Ueh = 1.0;
+  SE_h = 1.0;
+  SE_l = 1.0;
+  SE_m = 1.0;
+  rcut = 5.0;
+}
+
+// Basis
+{
+  number = 50;
+  order = 7;
+  r0 = 1.0e-5;
+  rmax = 50.0;
+  print = true;
+  states = 10s9p8d7f;
+}
 
 /////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////
@@ -56,7 +56,7 @@ Module::Tests {
   // boundaries = true;
 }
 
-// MatrixElements::E1 {}
+// MatrixElements::E1{}
 // MatrixElements::E1 { gauge = vform; }
 
 // Module::pnc { transition = 6, -1, 7, -1; }

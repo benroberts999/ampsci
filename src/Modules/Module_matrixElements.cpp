@@ -9,6 +9,8 @@
 #include <iostream>
 #include <memory>
 #include <string>
+//
+#include "HF/ExternalField.hpp"
 
 namespace Module {
 
@@ -16,6 +18,7 @@ void matrixElements(const UserInputBlock &input, const Wavefunction &wf) {
 
   std::string ThisModule = "MatrixElements::";
   auto operator_str = input.name().substr(ThisModule.length());
+  // nb: "check" is done in 'generate operator'
 
   const bool radial_int = input.get("radialIntegral", false);
   auto which_str = radial_int ? "(radial integral). " : "(reduced). ";
@@ -26,8 +29,22 @@ void matrixElements(const UserInputBlock &input, const Wavefunction &wf) {
   const bool print_both = input.get("printBoth", false);
   const bool diagonal_only = input.get("onlyDiagonal", false);
 
+  const bool rpaQ = input.get("rpa", true);
+  const auto omega = input.get("omega", 0.0);
+  const bool eachFreqQ = omega < 0;
+
   const auto units = input.get<std::string>("units", "au");
   const auto unit = units == "MHz" ? PhysConst::Hartree_MHz : 1.0;
+
+  auto rpa =
+      ExternalField(h.get(), wf.core_orbitals,
+                    NumCalc::add_vectors(wf.vnuc, wf.vdir), wf.get_alpha());
+  auto rpa0 = rpa; // for first-order
+
+  if (!eachFreqQ && rpaQ) {
+    rpa0.solve_TDHFcore(omega, 1, false);
+    rpa.solve_TDHFcore(omega);
+  }
 
   for (const auto &phia : wf.valence_orbitals) {
     for (const auto &phib : wf.valence_orbitals) {
@@ -37,11 +54,24 @@ void matrixElements(const UserInputBlock &input, const Wavefunction &wf) {
         continue;
       if (!print_both && phib < phia)
         continue;
+      if (eachFreqQ && rpaQ) {
+        auto w = std::abs(phia.en - phib.en);
+        rpa0.reZero();
+        rpa0.solve_TDHFcore(w, 1, false);
+        rpa.solve_TDHFcore(w);
+      }
       std::cout << h->rme_symbol(phia, phib) << ": ";
-      if (radial_int)
-        printf("%12.5e\n", h->radialIntegral(phia, phib) * unit);
-      else
-        printf("%12.5e\n", h->reducedME(phia, phib) * unit);
+      if (radial_int) {
+        printf("%13.6e\n", h->radialIntegral(phia, phib) * unit);
+      } else if (rpaQ) {
+        auto dV = rpa.dV_ab(phia, phib);
+        auto dV0 = rpa0.dV_ab(phia, phib);
+        printf("%13.6e  %13.6e  %13.6e\n", h->reducedME(phia, phib) * unit,
+               (h->reducedME(phia, phib) + dV0) * unit,
+               (h->reducedME(phia, phib) + dV) * unit);
+      } else {
+        printf("%13.6e\n", h->reducedME(phia, phib) * unit);
+      }
     }
   }
 } // namespace Module
@@ -53,8 +83,8 @@ std::unique_ptr<DiracOperator> generateOperator(const std::string &operator_str,
   //
   const std::string ThisModule = "MatrixElements::" + operator_str;
 
-  std::vector<std::string> check_list = {"radialIntegral", "printBoth",
-                                         "onlyDiagonal", "units"};
+  std::vector<std::string> check_list = {
+      "radialIntegral", "printBoth", "onlyDiagonal", "units", "rpa", "omega"};
   auto jointCheck = [&](const std::vector<std::string> &in) {
     check_list.insert(check_list.end(), in.begin(), in.end());
     return check_list;
