@@ -21,7 +21,7 @@ Requires re-writing the valence part (a little)
   v^k_ab(r)   := Int_0^inf [r_min^k/r_max^(k+1)]*rho(f') dr'
   rho(r')     := fa(r')*fb(r') + ga(r')gb(r')
   Lambda^k_ab := 3js((ja,jb,k),(-1/2,1/2,0))^2 * parity(la+lb+k)
-  vex[a]      := [v_ex*psi_a](r) *(psi_a/psi_a^2) (approx exchange)
+  vex[a]      := [v_ex*Fa](r) *(Fa/Fa^2) (approx exchange)
 */
 
 struct EpsIts {
@@ -50,15 +50,15 @@ class HartreeFock {
 
 public:
   static DiracSpinor
-  solveMixedState(const int k, const DiracSpinor &phi0, const double omega,
+  solveMixedState(const int k, const DiracSpinor &Fa, const double omega,
                   const std::vector<double> &vl, const double alpha,
-                  const std::vector<DiracSpinor> &core,
-                  const DiracSpinor &hphi0, const double eps_target = 1.0e-9);
+                  const std::vector<DiracSpinor> &core, const DiracSpinor &hFa,
+                  const double eps_target = 1.0e-9);
   static DiracSpinor
-  solveMixedState(DiracSpinor &dF, const DiracSpinor &phi0, const double omega,
+  solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
                   const std::vector<double> &vl, const double alpha,
-                  const std::vector<DiracSpinor> &core,
-                  const DiracSpinor &hphi0, const double eps_target = 1.0e-9);
+                  const std::vector<DiracSpinor> &core, const DiracSpinor &hFa,
+                  const double eps_target = 1.0e-9);
 
 public:
   static HFMethod parseMethod(const std::string &in_method);
@@ -76,14 +76,14 @@ public:
 
   const std::vector<double> &get_vex(const DiracSpinor &psi) const;
 
-  DiracSpinor vex_psia(const DiracSpinor &phi_a) const;
-  void vex_psia(const DiracSpinor &phi_a, DiracSpinor &vexPsi) const;
+  DiracSpinor vex_psia(const DiracSpinor &Fa) const;
+  void vex_psia(const DiracSpinor &Fa, DiracSpinor &vexPsi) const;
 
-  static DiracSpinor vex_psia_any(const DiracSpinor &phi_a,
+  static DiracSpinor vex_psia_any(const DiracSpinor &Fa,
                                   const std::vector<DiracSpinor> &core,
                                   int k_cut = 99);
   static std::vector<double>
-  form_approx_vex_any(const DiracSpinor &phi_a,
+  form_approx_vex_any(const DiracSpinor &Fa,
                       const std::vector<DiracSpinor> &core, int k_cut = 99);
 
   bool verbose = true;
@@ -118,7 +118,7 @@ private:
 
   void form_vdir(std::vector<double> &vdir, bool re_scale = false) const;
   void form_approx_vex_core(std::vector<std::vector<double>> &vex) const;
-  void form_approx_vex_a(const DiracSpinor &phi_a,
+  void form_approx_vex_a(const DiracSpinor &Fa,
                          std::vector<double> &vex_a) const;
 
   void hf_core_refine();

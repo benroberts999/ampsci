@@ -27,52 +27,49 @@ public: // constructor + static functions
   Coulomb(const Grid &in_grid, const std::vector<DiracSpinor> &in_core,
           const std::vector<DiracSpinor> &in_valence);
 
-  static void calculate_y_ijk(const DiracSpinor &phi_a,
-                              const DiracSpinor &phi_b, const int k,
-                              std::vector<double> &vabk,
+  static void calculate_y_ijk(const DiracSpinor &Fa, const DiracSpinor &Fb,
+                              const int k, std::vector<double> &vabk,
                               const std::size_t maxi = 0);
 
 public: // functions
   void form_core_core();
-  void form_core_core(const DiracSpinor &psi_a);
+  void form_core_core(const DiracSpinor &Fa);
   void form_valence_valence();
   void form_core_valence();
-  void form_core_valence(const DiracSpinor &psi_n);
+  void form_core_valence(const DiracSpinor &Fn);
 
   // MUST calculate values first!
-  std::vector<double> calculate_R_abcd_k(const DiracSpinor &psi_a,
-                                         const DiracSpinor &psi_b,
-                                         const DiracSpinor &psi_c,
-                                         const DiracSpinor &psi_d) const;
+  std::vector<double> calculate_R_abcd_k(const DiracSpinor &Fa,
+                                         const DiracSpinor &Fb,
+                                         const DiracSpinor &Fc,
+                                         const DiracSpinor &Fd) const;
 
-  static double Rk_abcd_any(const DiracSpinor &psi_a, const DiracSpinor &psi_b,
-                            const DiracSpinor &psi_c, const DiracSpinor &psi_d,
+  static double Rk_abcd_any(const DiracSpinor &Fa, const DiracSpinor &Fb,
+                            const DiracSpinor &Fc, const DiracSpinor &Fd,
                             const int k);
-  static double Qk_abcd_any(const DiracSpinor &psi_a, const DiracSpinor &psi_b,
-                            const DiracSpinor &psi_c, const DiracSpinor &psi_d,
+  static double Qk_abcd_any(const DiracSpinor &Fa, const DiracSpinor &Fb,
+                            const DiracSpinor &Fc, const DiracSpinor &Fd,
                             const int k);
   static double Zk_abcd_any(const DiracSpinor &Fa, const DiracSpinor &Fb,
                             const DiracSpinor &Fc, const DiracSpinor &Fd,
                             const int k);
 
-  static DiracSpinor Qk_abcd_rhs(const DiracSpinor &psi_a,
-                                 const DiracSpinor &psi_b,
-                                 const DiracSpinor &psi_c,
-                                 const DiracSpinor &psi_d, const int k);
-  static DiracSpinor Rk_abcd_rhs(const DiracSpinor &psi_a,
-                                 const DiracSpinor &psi_b,
-                                 const DiracSpinor &psi_c,
-                                 const DiracSpinor &psi_d, const int k);
+  static DiracSpinor Qk_abcd_rhs(const DiracSpinor &Fa, const DiracSpinor &Fb,
+                                 const DiracSpinor &Fc, const DiracSpinor &Fd,
+                                 const int k);
+  static DiracSpinor Rk_abcd_rhs(const DiracSpinor &Fa, const DiracSpinor &Fb,
+                                 const DiracSpinor &Fc, const DiracSpinor &Fd,
+                                 const int k);
 
   // getters
 
   const std::vector<double> &get_angular_C_kiakib_k(int kia, int kib) const;
   const std::vector<double> &get_angular_L_kiakib_k(int kia, int kib) const;
 
-  const std::vector<double> &get_y_ijk(const DiracSpinor &phi_i,
-                                       const DiracSpinor &phi_j, int k) const;
+  const std::vector<double> &get_y_ijk(const DiracSpinor &Fi,
+                                       const DiracSpinor &Fj, int k) const;
   const std::vector<std::vector<double>> &
-  get_y_ijk(const DiracSpinor &phi_i, const DiracSpinor &phi_j) const;
+  get_y_ijk(const DiracSpinor &Fi, const DiracSpinor &Fj) const;
 
 public: // functions
   void initialise_core_core();
@@ -83,9 +80,9 @@ private: // functions
   void calculate_angular(int ki);
 
   // write another that returns pair <int, bool> = <index, val?> ?
-  std::size_t find_valence_index(const DiracSpinor &phi) const;
-  std::size_t find_core_index(const DiracSpinor &phi) const;
-  std::size_t find_either_index(const DiracSpinor &phi, bool &valenceQ) const;
+  std::size_t find_valence_index(const DiracSpinor &Fa) const;
+  std::size_t find_core_index(const DiracSpinor &Fa) const;
+  std::size_t find_either_index(const DiracSpinor &Fa, bool &valenceQ) const;
 
   const std::vector<std::vector<double>> &get_y_abk(std::size_t a,
                                                     std::size_t b) const;
