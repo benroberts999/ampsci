@@ -420,30 +420,17 @@ Coulomb::calculate_R_abcd_k(const DiracSpinor &Fa, const DiracSpinor &Fb,
 }
 
 //******************************************************************************
-static inline std::function<double(double)> make_powk(const int k) {
-  if (k == 0)
-    return [](double) { return 1.0; };
-  if (k == 1)
-    return [](double x) { return x; };
-  if (k == 2)
-    return [](double x) { return x * x; };
-  if (k == 3)
-    return [](double x) { return x * x * x; };
-  if (k == 4)
-    return [](double x) { return x * x * x * x; };
-  if (k == 5)
-    return [](double x) { return x * x * x * x * x; };
-  if (k == 6)
-    return [](double x) { return x * x * x * x * x * x; };
-  if (k == 7)
-    return [](double x) { return x * x * x * x * x * x * x; };
-  return [=](double x) { return std::pow(x, k); };
+//******************************************************************************
+template <int k> static inline double powk_new(const double x) {
+  return x * powk_new<k - 1>(x);
 }
+template <> inline double powk_new<0>(const double) { return 1.0; }
 
 //******************************************************************************
-void Coulomb::calculate_y_ijk(const DiracSpinor &Fa, const DiracSpinor &Fb,
-                              const int k, std::vector<double> &vabk)
-// This is static
+template <int k>
+static inline void yk_ijk(const int l, const DiracSpinor &Fa,
+                          const DiracSpinor &Fb, std::vector<double> &vabk,
+                          const std::size_t maxi)
 // Calculalates y^k_ab screening function.
 // Note: should only call for a>=b, and for k's with non-zero angular coefs
 // (nothing bad will happen otherwise, but no point!)
@@ -463,22 +450,24 @@ void Coulomb::calculate_y_ijk(const DiracSpinor &Fa, const DiracSpinor &Fb,
 // B(r_n) = A(r_{n-1}) + (rho(r_{n-1})/r_{n-1}^(k+1))*dr
 // y^k_ab(rn) = A(rn)/rn^(k+1) + B(rn)*rn^k
 {
-  auto sp1 = SafeProfiler::profile(__func__);
-  auto &gr = Fa.p_rgrid; // just save typing
-  auto du = gr->du;
-  auto num_points = gr->num_points;
+  const auto &gr = Fa.p_rgrid; // just save typing
+  const auto du = gr->du;
+  const auto num_points = gr->num_points;
   vabk.resize(num_points); // for safety
 
-  auto irmax = num_points; // std::min(Fa.pinf, Fb.pinf);
+  const auto irmax = (maxi == 0 || maxi > num_points) ? num_points : maxi;
+
+  auto powk = [=](double x) {
+    if constexpr (k < 0)
+      return std::pow(x, l);
+    else
+      return powk_new<k>(x);
+  };
 
   double Ax = 0.0, Bx = 0.0;
-
-  auto powk = make_powk(k);
-  auto powkp1 = make_powk(k + 1);
-
   for (std::size_t i = 0; i < irmax; i++) {
-    Bx += gr->drdu[i] * (Fa.f[i] * Fb.f[i] + Fa.g[i] * Fb.g[i]) /
-          powkp1(gr->r[i]);
+    Bx += gr->drduor[i] * (Fa.f[i] * Fb.f[i] + Fa.g[i] * Fb.g[i]) /
+          powk(gr->r[i]);
   }
 
   vabk[0] = Bx * du * powk(gr->r[0]);
@@ -493,4 +482,29 @@ void Coulomb::calculate_y_ijk(const DiracSpinor &Fa, const DiracSpinor &Fb,
     Bx -= Fdr * inv_rm1_to_kp1;
     vabk[i] = du * (Ax * inv_r_to_kp1 + Bx * r_to_k);
   }
+  for (std::size_t i = irmax; i < num_points; i++) {
+    vabk[i] = 0;
+  }
+}
+
+//******************************************************************************
+void Coulomb::calculate_y_ijk(const DiracSpinor &Fa, const DiracSpinor &Fb,
+                              const int k, std::vector<double> &vabk,
+                              const std::size_t maxi)
+// This is static
+{
+  auto sp1 = SafeProfiler::profile(__func__);
+
+  if (k == 0)
+    yk_ijk<0>(k, Fa, Fb, vabk, maxi);
+  else if (k == 1)
+    yk_ijk<1>(k, Fa, Fb, vabk, maxi);
+  else if (k == 2)
+    yk_ijk<2>(k, Fa, Fb, vabk, maxi);
+  else if (k == 3)
+    yk_ijk<3>(k, Fa, Fb, vabk, maxi);
+  else if (k == 4)
+    yk_ijk<4>(k, Fa, Fb, vabk, maxi);
+  else
+    yk_ijk<-1>(k, Fa, Fb, vabk, maxi);
 }

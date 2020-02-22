@@ -27,7 +27,8 @@ public: // constructor + static functions
           const std::vector<DiracSpinor> &in_valence);
 
   static void calculate_y_ijk(const DiracSpinor &Fa, const DiracSpinor &Fb,
-                              const int k, std::vector<double> &vabk);
+                              const int k, std::vector<double> &vabk,
+                              const std::size_t maxi = 0);
 
 public: // functions
   void form_core_core();
