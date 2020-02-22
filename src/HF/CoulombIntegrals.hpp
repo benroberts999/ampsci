@@ -26,32 +26,31 @@ public: // constructor + static functions
   Coulomb(const Grid &in_grid, const std::vector<DiracSpinor> &in_core,
           const std::vector<DiracSpinor> &in_valence);
 
-  static void calculate_y_ijk(const DiracSpinor &phi_a,
-                              const DiracSpinor &phi_b, const int k,
-                              std::vector<double> &vabk);
+  static void calculate_y_ijk(const DiracSpinor &Fa, const DiracSpinor &Fb,
+                              const int k, std::vector<double> &vabk);
 
 public: // functions
   void form_core_core();
-  void form_core_core(const DiracSpinor &psi_a);
+  void form_core_core(const DiracSpinor &Fa);
   void form_valence_valence();
   void form_core_valence();
-  void form_core_valence(const DiracSpinor &psi_n);
+  void form_core_valence(const DiracSpinor &Fn);
 
   // MUST calculate values first!
-  std::vector<double> calculate_R_abcd_k(const DiracSpinor &psi_a,
-                                         const DiracSpinor &psi_b,
-                                         const DiracSpinor &psi_c,
-                                         const DiracSpinor &psi_d) const;
+  std::vector<double> calculate_R_abcd_k(const DiracSpinor &Fa,
+                                         const DiracSpinor &Fb,
+                                         const DiracSpinor &Fc,
+                                         const DiracSpinor &Fd) const;
 
   // getters
 
   const std::vector<double> &get_angular_C_kiakib_k(int kia, int kib) const;
   const std::vector<double> &get_angular_L_kiakib_k(int kia, int kib) const;
 
-  const std::vector<double> &get_y_ijk(const DiracSpinor &phi_i,
-                                       const DiracSpinor &phi_j, int k) const;
+  const std::vector<double> &get_y_ijk(const DiracSpinor &Fi,
+                                       const DiracSpinor &Fj, int k) const;
   const std::vector<std::vector<double>> &
-  get_y_ijk(const DiracSpinor &phi_i, const DiracSpinor &phi_j) const;
+  get_y_ijk(const DiracSpinor &Fi, const DiracSpinor &Fj) const;
 
 public: // functions
   void initialise_core_core();
