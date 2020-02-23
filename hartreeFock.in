@@ -18,7 +18,6 @@ Grid {
   r0 = 1e-6;
   rmax = 120.0;
   num_points = 2000;
-  // fixed_du = 0.1;     // over-writes num_points
   type; // loglinear(dflt), logarithmic, linear
   b;    // b<0, or b>rmax will use logarithmic
 }
@@ -49,12 +48,14 @@ Grid {
 
 Module::Tests{}
 
-// MatrixElements::E1{}
+// MatrixElements::E1 {}
 // MatrixElements::E1 { gauge = vform; }
-// MatrixElements::hfs {}
+// MatrixElements::hfs { F(r) = pointlike; rpa = false; }
 
 // Module::pnc { transition = 6, -1, 7, -1; }
 // Module::pnc { transition = 6, -1, 5, 2; }
+
+/////////////////////////////////////////////////////////////////
 
 // Module::BohrWeisskopf
 {

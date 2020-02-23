@@ -37,10 +37,10 @@ void matrixElements(const UserInputBlock &input, const Wavefunction &wf) {
 
   const bool rpaQ = input.get("rpa", true);
   const auto omega = input.get("omega", 0.0);
-  const bool eachFreqQ = omega < 0;
+  const bool eachFreqQ = omega < 0.0;
 
-  const auto units = input.get<std::string>("units", "au");
-  const auto unit = units == "MHz" || AhfsQ ? PhysConst::Hartree_MHz : 1.0;
+  const auto units = input.get<std::string>("units", "au"); // can remove?
+  const auto unit = (units == "MHz" || AhfsQ) ? PhysConst::Hartree_MHz : 1.0;
 
   auto rpa =
       ExternalField(h.get(), wf.core_orbitals,
@@ -51,15 +51,18 @@ void matrixElements(const UserInputBlock &input, const Wavefunction &wf) {
     rpa.solve_TDHFcore(omega, 1, false);
     rpa0 = std::make_unique<ExternalField>(rpa); // store first-order snapshot
     rpa.solve_TDHFcore(omega);
+  } else {
+    rpa0 = std::make_unique<ExternalField>(rpa); // Solved later
   }
 
-  for (const auto &Fa : wf.valence_orbitals) {
-    for (const auto &Fb : wf.valence_orbitals) {
+  // Fb -> Fa = <a||h||b>
+  for (const auto &Fb : wf.valence_orbitals) {
+    for (const auto &Fa : wf.valence_orbitals) {
       if (h->isZero(Fa.k, Fb.k))
         continue;
       if (diagonal_only && Fb != Fa)
         continue;
-      if (!print_both && Fb < Fa)
+      if (!print_both && Fb > Fa)
         continue;
       if (eachFreqQ && rpaQ) {
         auto w = std::abs(Fa.en - Fb.en);
@@ -83,7 +86,7 @@ void matrixElements(const UserInputBlock &input, const Wavefunction &wf) {
       }
     }
   }
-} // namespace Module
+}
 
 //******************************************************************************
 std::unique_ptr<DiracOperator> generateOperator(const std::string &operator_str,
