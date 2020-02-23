@@ -45,10 +45,11 @@ void matrixElements(const UserInputBlock &input, const Wavefunction &wf) {
   auto rpa =
       ExternalField(h.get(), wf.core_orbitals,
                     NumCalc::add_vectors(wf.vnuc, wf.vdir), wf.get_alpha());
-  auto rpa0 = rpa; // for first-order
+  std::unique_ptr<ExternalField> rpa0; // for first-order
 
   if (!eachFreqQ && rpaQ) {
-    rpa0.solve_TDHFcore(omega, 1, false);
+    rpa.solve_TDHFcore(omega, 1, false);
+    rpa0 = std::make_unique<ExternalField>(rpa); // store first-order snapshot
     rpa.solve_TDHFcore(omega);
   }
 
@@ -62,9 +63,9 @@ void matrixElements(const UserInputBlock &input, const Wavefunction &wf) {
         continue;
       if (eachFreqQ && rpaQ) {
         auto w = std::abs(Fa.en - Fb.en);
-        rpa0.reZero();
-        rpa0.solve_TDHFcore(w, 1, false);
-        rpa.solve_TDHFcore(w);
+        rpa0->reZero();
+        rpa0->solve_TDHFcore(w, 1, false); // wastes a little time
+        rpa.solve_TDHFcore(w); // re-solve at new frequency (not from scratch)
       }
       std::cout << h->rme_symbol(Fa, Fb) << ": ";
       // Special case: HFS A:
@@ -73,7 +74,7 @@ void matrixElements(const UserInputBlock &input, const Wavefunction &wf) {
         printf("%13.6e\n", h->radialIntegral(Fa, Fb) * unit);
       } else if (rpaQ) {
         auto dV = rpa.dV_ab(Fa, Fb);
-        auto dV0 = rpa0.dV_ab(Fa, Fb);
+        auto dV0 = rpa0->dV_ab(Fa, Fb);
         printf("%13.6e  %13.6e  %13.6e\n", h->reducedME(Fa, Fb) * a * unit,
                (h->reducedME(Fa, Fb) + dV0) * unit * a,
                (h->reducedME(Fa, Fb) + dV) * unit * a);

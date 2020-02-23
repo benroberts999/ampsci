@@ -5,10 +5,7 @@ class DiracSpinor;
 class DiracOperator;
 class Wavefunction;
 
-// Allow it to do RPA daigram-style as well!
-//(needs a basis)
-
-enum class dPsiType { X, Y };
+enum class dPsiType { X, Y }; // add conj?
 
 class ExternalField {
 public:
@@ -27,43 +24,42 @@ private:
 
   const DiracOperator *const m_h; //??
   const std::vector<DiracSpinor> *const p_core;
-  const std::vector<double> m_vl;
+  const std::vector<double> m_vl; // Add H_mag ?
   const double m_alpha;
-  // const double m_omega;
-  // const bool static_fieldQ;
   const int m_rank;
   const int m_pi;
   const bool m_imag;
 
-  Angular::SixJ m_6j; // = Angular::SixJ(m_rank, 7); // XXX temp!
+  Angular::SixJ m_6j; // used?
 
 public:
-  void reZero();
-  std::vector<DiracSpinor> &get_dPsis(const DiracSpinor &phic, dPsiType XorY);
-  const DiracSpinor &get_dPsi_x(const DiracSpinor &phic, dPsiType XorY,
-                                const int kappa_x);
-
   void solve_TDHFcore(const double omega, int max_its = 100,
                       const bool print = true);
   void solve_TDHFcore_matrix(const Wavefunction &wf, const double omega,
-                             const int max_its = 30);
+                             const int max_its = 25);
+  void reZero();
 
   // does it matter if a or b is in the core?
-  double dV_ab(const DiracSpinor &phia, const DiracSpinor &phib,
-               bool conj = false);
-  // double dV_ab_Y(const DiracSpinor &phia, const DiracSpinor &phib);
-  DiracSpinor dV_ab_rhs(const DiracSpinor &phia, const DiracSpinor &phib,
-                        bool conj = false);
-  // DiracSpinor dV_ab_Y_rhs(const DiracSpinor &phi_alpha,
-  //                         const DiracSpinor &phi_a);
+  double dV_ab(const DiracSpinor &Fa, const DiracSpinor &Fb, bool conj) const;
+  double dV_ab(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
 
-  double dX_nm_bbe_rhs(const DiracSpinor &phi_n, const DiracSpinor &phi_m,
-                       const DiracSpinor &phi_b, const DiracSpinor &X_beta);
-  double dY_nm_bbe_rhs(const DiracSpinor &phi_n, const DiracSpinor &phi_m,
-                       const DiracSpinor &phi_b, const DiracSpinor &Y_beta);
+  DiracSpinor dV_ab_rhs(const DiracSpinor &Fa, const DiracSpinor &Fb,
+                        bool conj = false) const;
+
+  // make const? Private?
+  const std::vector<DiracSpinor> &get_dPsis(const DiracSpinor &Fc,
+                                            dPsiType XorY) const;
+  const DiracSpinor &get_dPsi_x(const DiracSpinor &Fc, dPsiType XorY,
+                                const int kappa_x) const;
+
+  // For "full" matrix version: not ready...
+  double dX_nm_bbe_rhs(const DiracSpinor &Fn, const DiracSpinor &Fm,
+                       const DiracSpinor &Fb, const DiracSpinor &X_beta) const;
+  double dY_nm_bbe_rhs(const DiracSpinor &Fn, const DiracSpinor &Fm,
+                       const DiracSpinor &Fb, const DiracSpinor &Y_beta) const;
 
   void print() const;
 
 private:
-  std::size_t core_index(const DiracSpinor &phic);
+  std::size_t core_index(const DiracSpinor &Fc) const;
 };
