@@ -178,12 +178,14 @@ MatrixElements::ExampleOperator { //this is not a real operator..
   onlyDiagonal;   //[t] default = false
   radialIntegral; //[b] default = false
   units;          //[t] default = au
+  rpa;            //[b] default = true
 }
 ```
 * printBoth: Print <a|h|b> and <b|h|a> ? false by default. (For _some_ operators, e.g., involving derivatives, this is a good test of numerical error. For most operators, values will be trivially the same; reduced matrix elements, sign may be different.)
 * onlyDiagonal: If true, will only print diagonal MEs <a|h|a>
 * radialIntegral: calculate radial integral, or reduced matrix elements (difference depends on definition of operator in the code)
 * units: can only be 'au' or 'MHz'. MHz only makes sense for some operators (e.g., hfs), and is just for convenience
+* rpa: Include RPA (core polarisation) corrections to MEs, using TDHF method (note: mostly works, but not 100% yet)
 
 ### Available operators:
 
