@@ -48,7 +48,7 @@ template <> struct QintCoefs<3> {
 template <> struct QintCoefs<1> {
   static constexpr std::size_t N = 1;
   static constexpr std::array<double, N> cq{{1}};
-  static constexpr double dq_inv = 1.0 / 2;
+  static constexpr double dq_inv = 1.0; // technically, this is 'zero'
 };
 
 } // namespace NumCalc

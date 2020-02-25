@@ -9,6 +9,8 @@
 #include <iostream>
 #include <memory>
 #include <string>
+//
+#include "HF/ExternalField.hpp"
 
 namespace Module {
 
@@ -16,9 +18,16 @@ void matrixElements(const UserInputBlock &input, const Wavefunction &wf) {
 
   std::string ThisModule = "MatrixElements::";
   auto operator_str = input.name().substr(ThisModule.length());
+  // nb: "check" is done in 'generate operator'
 
   const bool radial_int = input.get("radialIntegral", false);
-  auto which_str = radial_int ? "(radial integral). " : "(reduced). ";
+
+  // spacial case: HFS A (MHz)
+  bool AhfsQ = (operator_str == "hfs" && !radial_int);
+
+  auto which_str =
+      radial_int ? "(radial integral). " : AhfsQ ? " A (MHz). " : "(reduced). ";
+
   std::cout << "\n"
             << ThisModule << which_str << " Operator: " << operator_str << "\n";
   const auto h = generateOperator(operator_str, input, wf);
@@ -26,25 +35,58 @@ void matrixElements(const UserInputBlock &input, const Wavefunction &wf) {
   const bool print_both = input.get("printBoth", false);
   const bool diagonal_only = input.get("onlyDiagonal", false);
 
-  const auto units = input.get<std::string>("units", "au");
-  const auto unit = units == "MHz" ? PhysConst::Hartree_MHz : 1.0;
+  const bool rpaQ = input.get("rpa", true);
+  const auto omega = input.get("omega", 0.0);
+  const bool eachFreqQ = omega < 0.0;
 
-  for (const auto &phia : wf.valence_orbitals) {
-    for (const auto &phib : wf.valence_orbitals) {
-      if (h->isZero(phia.k, phib.k))
+  const auto units = input.get<std::string>("units", "au"); // can remove?
+  const auto unit = (units == "MHz" || AhfsQ) ? PhysConst::Hartree_MHz : 1.0;
+
+  auto rpa =
+      ExternalField(h.get(), wf.core_orbitals,
+                    NumCalc::add_vectors(wf.vnuc, wf.vdir), wf.get_alpha());
+  std::unique_ptr<ExternalField> rpa0; // for first-order
+
+  if (!eachFreqQ && rpaQ) {
+    rpa.solve_TDHFcore(omega, 1, false);
+    rpa0 = std::make_unique<ExternalField>(rpa); // store first-order snapshot
+    rpa.solve_TDHFcore(omega);
+  } else {
+    rpa0 = std::make_unique<ExternalField>(rpa); // Solved later
+  }
+
+  // Fb -> Fa = <a||h||b>
+  for (const auto &Fb : wf.valence_orbitals) {
+    for (const auto &Fa : wf.valence_orbitals) {
+      if (h->isZero(Fa.k, Fb.k))
         continue;
-      if (diagonal_only && phib != phia)
+      if (diagonal_only && Fb != Fa)
         continue;
-      if (!print_both && phib < phia)
+      if (!print_both && Fb > Fa)
         continue;
-      std::cout << h->rme_symbol(phia, phib) << ": ";
-      if (radial_int)
-        printf("%12.5e\n", h->radialIntegral(phia, phib) * unit);
-      else
-        printf("%12.5e\n", h->reducedME(phia, phib) * unit);
+      if (eachFreqQ && rpaQ) {
+        auto w = std::abs(Fa.en - Fb.en);
+        rpa0->reZero();
+        rpa0->solve_TDHFcore(w, 1, false); // wastes a little time
+        rpa.solve_TDHFcore(w); // re-solve at new frequency (not from scratch)
+      }
+      std::cout << h->rme_symbol(Fa, Fb) << ": ";
+      // Special case: HFS A:
+      auto a = AhfsQ ? 0.5 / Fa.jjp1() / Wigner::Ck_kk(1, -Fa.k, Fb.k) : 1.0;
+      if (radial_int) {
+        printf("%13.6e\n", h->radialIntegral(Fa, Fb) * unit);
+      } else if (rpaQ) {
+        auto dV = rpa.dV_ab(Fa, Fb);
+        auto dV0 = rpa0->dV_ab(Fa, Fb);
+        printf("%13.6e  %13.6e  %13.6e\n", h->reducedME(Fa, Fb) * a * unit,
+               (h->reducedME(Fa, Fb) + dV0) * unit * a,
+               (h->reducedME(Fa, Fb) + dV) * unit * a);
+      } else {
+        printf("%13.6e\n", h->reducedME(Fa, Fb) * unit * a);
+      }
     }
   }
-} // namespace Module
+}
 
 //******************************************************************************
 std::unique_ptr<DiracOperator> generateOperator(const std::string &operator_str,
@@ -53,8 +95,8 @@ std::unique_ptr<DiracOperator> generateOperator(const std::string &operator_str,
   //
   const std::string ThisModule = "MatrixElements::" + operator_str;
 
-  std::vector<std::string> check_list = {"radialIntegral", "printBoth",
-                                         "onlyDiagonal", "units"};
+  std::vector<std::string> check_list = {
+      "radialIntegral", "printBoth", "onlyDiagonal", "units", "rpa", "omega"};
   auto jointCheck = [&](const std::vector<std::string> &in) {
     check_list.insert(check_list.end(), in.begin(), in.end());
     return check_list;

@@ -59,7 +59,7 @@ void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf) {
     auto omega = std::abs(aA.en - aB.en);
     // omega = 0.0844;
     // omega = 0.0;
-    if (false) {
+    if (true) {
       dVE1.solve_TDHFcore(omega);
       dVpnc.solve_TDHFcore(0.0);
     }
@@ -118,7 +118,7 @@ void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf) {
     std::cout << "Total= " << pnc << "\n";
   }
 
-  {
+  if (!wf.basis.empty()) {
     std::cout << "\nSum-over-states method (basis):\n";
     std::cout << " <A|d|n><n|hw|B>/dEB + <A|hw|n><n|d|B>/dEA\n";
     double pnc = 0, core = 0, main = 0;
@@ -179,9 +179,9 @@ void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf) {
     // hB += dVpnc.dV_ab_rhs(hB, aB, false);
     // e1A += dVE1.dV_ab_rhs(e1A, aA, true);
     // e1B += dVE1.dV_ab_rhs(e1B, aB, true);
-    hA_dag += dVpnc.dV_ab_lhs(hA_dag, aA);
+    hA_dag += dVpnc.dV_ab_rhs(hA_dag, aA, true);
     hB += dVpnc.dV_ab_rhs(hB, aB);
-    e1A += dVE1.dV_ab_lhs(e1A, aA);
+    e1A += dVE1.dV_ab_rhs(e1A, aA, true);
     e1B += dVE1.dV_ab_rhs(e1B, aB);
 
     auto del_A_dag = HartreeFock::solveMixedState(hA_dag.k, aA, 0, v, alpha,

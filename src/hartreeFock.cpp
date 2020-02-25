@@ -4,9 +4,6 @@
 #include "Modules/Module_runModules.hpp"
 #include <iostream>
 #include <string>
-// #include "Physics/AtomData.hpp" //need for testing basis only
-#include "Dirac/Operators.hpp"
-#include "HF/ExternalField.hpp"
 
 int main(int argc, char *argv[]) {
   ChronoTimer timer("\nhartreeFock");
@@ -145,95 +142,6 @@ int main(int argc, char *argv[]) {
   // run each of the modules
   Module::runModules(input, wf);
   return 1;
-
-  auto h = E1Operator(wf.rgrid);
-  // auto h = HyperfineOperator(1.0, 0.5, 4.0 / PhysConst::aB_fm, wf.rgrid);
-  // auto h = PNCnsiOperator(5.67073, 2.3, wf.rgrid);
-
-  auto tdhf =
-      ExternalField(&h, wf.core_orbitals,
-                    NumCalc::add_vectors(wf.vnuc, wf.vdir), wf.get_alpha());
-
-  const auto *psis = wf.getState(6, -1);
-  const auto *psip1 = wf.getState(6, 1);
-  const auto *psip3 = wf.getState(6, -2);
-
-  auto me1 = h.reducedME(*psis, *psip1);
-  auto me1b = h.reducedME(*psip1, *psis);
-  auto me3 = h.reducedME(*psis, *psip3);
-  auto me3b = h.reducedME(*psip3, *psis);
-
-  std::cout << h.angularF((*psis).k, (*psip1).k) << " "
-            << h.radialIntegral(*psis, *psip1) << "\n";
-  std::cout << h.angularF((*psis).k, (*psip3).k) << " "
-            << h.radialIntegral(*psis, *psip3) << "\n";
-
-  auto omega = 0.00;
-
-  {
-    // tdhf.solve_TDHFcore_matrix(wf, omega, 1);
-    tdhf.solve_TDHFcore(omega, 1);
-
-    auto dv1_0 = tdhf.dV_ab(*psis, *psip1);
-    auto dv1b_0 = tdhf.dV_ab(*psip1, *psis);
-    auto dv3_0 = tdhf.dV_ab(*psis, *psip3);
-    auto dv3b_0 = tdhf.dV_ab(*psip3, *psis);
-
-    tdhf.solve_TDHFcore(omega);
-    // tdhf.solve_TDHFcore_matrix(wf, omega);
-
-    auto dv1 = tdhf.dV_ab(*psis, *psip1);
-    auto dv1b = tdhf.dV_ab(*psip1, *psis);
-    auto dv3 = tdhf.dV_ab(*psis, *psip3);
-    auto dv3b = tdhf.dV_ab(*psip3, *psis);
-    std::cout << me1 << " + " << dv1 << " = " << me1 + dv1 << "  ("
-              << me1 + dv1_0 << ")\n";
-    std::cout << me1b << " + " << dv1b << " = " << me1b + dv1b << "  ("
-              << me1b + dv1b_0 << ")\n";
-    std::cout << me3 << " + " << dv3 << " = " << me3 + dv3 << "  ("
-              << me3 + dv3_0 << ")\n";
-    std::cout << me3b << " + " << dv3b << " = " << me3b + dv3b << "  ("
-              << me3b + dv3b_0 << ")\n";
-  }
-
-  // auto &psis2 = wf.getState(2, -1);
-  // auto &psip2 = wf.getState(2, 1);
-  // auto dpsisX = tdhf.get_dPsi_x(psis2, dPsiType::X, psip2.k);
-  // auto dpsisY = tdhf.get_dPsi_x(psis2, dPsiType::Y, psip2.k);
-  //
-  // auto metha = psip2 * dpsisX;
-  // auto methb = h.reducedME(psip2, psis2) / (psis2.en - psip2.en + omega);
-  // std::cout << metha << " - " << methb << " => "
-  //           << 2.0 * (metha - methb) / (metha + methb) << "\n";
-  //
-  // metha = dpsisY * psip2;
-  // methb = h.reducedME(psis2, psip2) / (psis2.en - psip2.en - omega);
-  // std::cout << metha << " - " << methb << " => "
-  //           << 2.0 * (metha - methb) / (metha + methb) << "\n";
-
-  //*********************************************************
-  //               TESTS
-  //*********************************************************
-
-  // needs: #include "Physics/AtomData.hpp" (for AtomData::listOfStates_nk)
-  //
-  // bool test_hf_basis = false;
-  // if (test_hf_basis) {
-  //   auto basis_lst = AtomData::listOfStates_nk("9spd8f");
-  //   std::vector<DiracSpinor> basis = wf.core_orbitals;
-  //   HartreeFock hfbasis(wf, basis, 1.0e-6);
-  //   hfbasis.verbose = false;
-  //   for (const auto &nk : basis_lst) {
-  //     if (wf.isInCore(nk.n, nk.k))
-  //       continue;
-  //     basis.emplace_back(DiracSpinor(nk.n, nk.k, wf.rgrid));
-  //     auto tmp_vex = std::vector<double>{};
-  //     hfbasis.hf_valence_approx(basis.back(), tmp_vex);
-  //   }
-  //   wf.orthonormaliseOrbitals(basis, 2);
-  //   wf.printValence(false, basis);
-  //   std::cout << "\n Total time: " << timer.reading_str() << "\n";
-  // }
 
   return 0;
 }

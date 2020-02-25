@@ -19,7 +19,8 @@ $(SD)/Physics/PhysConst_constants.hpp
 $(BD)/Module_matrixElements.o: $(SD)/Modules/Module_matrixElements.cpp \
 $(SD)/Modules/Module_matrixElements.hpp $(SD)/Dirac/DiracOperator.hpp \
 $(SD)/Dirac/Operators.hpp $(SD)/Dirac/Wavefunction.hpp $(SD)/IO/UserInput.hpp \
-$(SD)/Physics/NuclearPotentials.hpp $(SD)/Physics/PhysConst_constants.hpp
+$(SD)/Physics/NuclearPotentials.hpp $(SD)/Physics/PhysConst_constants.hpp \
+$(SD)/HF/ExternalField.hpp
 	$(COMP)
 
 $(BD)/Module_pnc.o: $(SD)/Modules/Module_pnc.cpp \
