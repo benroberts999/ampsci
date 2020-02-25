@@ -109,14 +109,14 @@ void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf) {
                     (aB.en - np.en);
       double pnc2 = c01 * hpnc.reducedME(aA, np) * he1.reducedME(np, aB) /
                     (aA.en - np.en);
-      if (np.n <= main_n)
-        // printf("%7s, pnc= %12.5e + %12.5e = %12.5e\n", np.symbol().c_str(),
-        //        pnc1, pnc2, pnc1 + pnc2);
-        pnc += pnc1 + pnc2;
+      // if (np.n <= main_n)
+      // printf("%7s, pnc= %12.5e + %12.5e = %12.5e\n", np.symbol().c_str(),
+      //        pnc1, pnc2, pnc1 + pnc2);
+      pnc += pnc1 + pnc2;
       if (np.n <= ncore)
-        core = pnc;
+        core += pnc1 + pnc2;
       if (np.n <= main_n && np.n > ncore)
-        main = pnc - core;
+        main += pnc1 + pnc2;
       if (np.n == main_n)
         main_ok = true;
       if (np.n > max_n_main)
