@@ -33,7 +33,7 @@ private:
   Angular::SixJ m_6j; // used?
 
 public:
-  void solve_TDHFcore(const double omega, int max_its = 100,
+  void solve_TDHFcore(const double omega, int max_its = 300,
                       const bool print = true);
   void solve_TDHFcore_matrix(const Wavefunction &wf, const double omega,
                              const int max_its = 25);

@@ -91,8 +91,10 @@ void ExternalField::solve_TDHFcore(const double omega, const int max_its,
 
   // ChronoTimer timer("solve_TDHFcore");
 
-  const double converge_targ = 1.0e-9;
-  const auto damper = rampedDamp(0.5, 0.25, 1, 10);
+  const double converge_targ = 1.0e-7;
+  // const auto damper = rampedDamp(0.5, 0.25, 1, 10);
+  // const auto damper = rampedDamp(0.75, 0.25, 1, 15);
+  const auto damper = rampedDamp(0.75, 0.25, 1, 15);
 
   const bool staticQ = std::abs(omega) < 1.0e-10;
 
@@ -109,9 +111,12 @@ void ExternalField::solve_TDHFcore(const double omega, const int max_its,
   }
 
   auto eps = 0.0;
+  double ceiling_eps = 1.0;
+  int worse_count = 0;
+  double extra_damp = 0.0;
   for (int it = 1; it <= max_its; it++) {
     eps = 0.0;
-    const auto a_damp = (it == 1) ? 0.0 : damper(it);
+    const auto a_damp = (it == 1) ? 0.0 : damper(it) + extra_damp;
 
     // eps for solveMixedState - doesn't need to be small!
     const auto eps_ms = (it == 1) ? 1.0e-6 : 1.0e-2;
@@ -173,11 +178,22 @@ void ExternalField::solve_TDHFcore(const double omega, const int max_its,
     }
     m_X = tmp_X;
     m_Y = tmp_Y;
+
     if (print)
       printf("TDHF (w=%.3f): %2i  %.1e\r", omega, it, eps);
     std::cout << std::flush;
-    if (it > 0 && eps < converge_targ)
+
+    if ((it > 1 && eps < converge_targ) || worse_count > 3)
       break;
+
+    if (it > 20 && eps > 2.0 * ceiling_eps) {
+      ++worse_count;
+      extra_damp = (it % 2) ? 0.7 : 0.3;
+    } else {
+      worse_count = 0;
+    }
+    if (eps < ceiling_eps)
+      ceiling_eps = eps;
   }
   if (print)
     std::cout << "\n";
