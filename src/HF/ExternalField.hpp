@@ -40,11 +40,13 @@ public:
   void reZero();
 
   // does it matter if a or b is in the core?
-  double dV_ab(const DiracSpinor &Fa, const DiracSpinor &Fb, bool conj) const;
+  double dV_ab(const DiracSpinor &Fa, const DiracSpinor &Fb, bool conj,
+               const DiracSpinor *const Fexcl = nullptr) const;
   double dV_ab(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
 
   DiracSpinor dV_ab_rhs(const DiracSpinor &Fa, const DiracSpinor &Fb,
-                        bool conj = false) const;
+                        bool conj = false,
+                        const DiracSpinor *const Fexcl = nullptr) const;
 
   // make const? Private?
   const std::vector<DiracSpinor> &get_dPsis(const DiracSpinor &Fc,

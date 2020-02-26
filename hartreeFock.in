@@ -5,7 +5,7 @@ Atom {
 
 HartreeFock {
   core = [Xe];
-  valence = 7s12p;
+  valence = 7sp;
 }
 
 Nucleus {
@@ -15,9 +15,9 @@ Nucleus {
 }
 
 Grid {
-  r0 = 1e-7;
-  rmax = 300.0;
-  num_points = 5000;
+  r0 = 1e-6;
+  rmax = 120.0;
+  num_points = 2000;
   type; // loglinear(dflt), logarithmic, linear
   b;    // b<0, or b>rmax will use logarithmic
 }
@@ -33,26 +33,27 @@ Grid {
   rcut = 5.0;
 }
 
-Basis {
-  number = 90;
-  order = 9;
-  r0 = 1.0e-6;
+// Basis
+{
+  number = 50;
+  order = 7;
+  r0 = 1.0e-5;
   rmax = 50.0;
-  print = false;
-  states = p;
+  print = true;
+  states = 10s9p8d7f;
 }
 
 /////////////////////////////////////////////////////////////////
 // Modules:
 
-Module::Tests {}
+Module::Tests{}
 
 // MatrixElements::E1 {}
 // MatrixElements::E1 { gauge = vform; }
 // MatrixElements::hfs { F(r) = pointlike; rpa = false; }
 
-Module::pnc { transition = 6, -1, 7, -1; }
-// Module::pnc { transition = 6, -1, 5, 2; }
+// Module::pnc { transition = 6, -1, 7, -1; rpa = true;}
+// Module::pnc { transition = 6, -1, 5, 2; rpa = true; }
 
 /////////////////////////////////////////////////////////////////
 
