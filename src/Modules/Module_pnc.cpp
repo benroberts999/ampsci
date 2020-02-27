@@ -17,7 +17,7 @@ namespace Module {
 void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf) {
   const std::string ThisModule = "Module::PNC";
 
-  input.checkBlock({"t", "c", "transition", "nmain", "rpa"});
+  input.checkBlock({"t", "c", "transition", "nmain", "rpa", "omega"});
 
   bool print_all = false;
 
@@ -60,7 +60,8 @@ void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf) {
   auto dVpnc = ExternalField(&hpnc, wf.core_orbitals,
                              NumCalc::add_vectors(wf.vnuc, wf.vdir), alpha);
   if (rpaQ) {
-    auto omega = std::abs(aA.en - aB.en);
+    auto omega_dflt = std::abs(aA.en - aB.en);
+    auto omega = input.get("omega", omega_dflt);
     dVE1.solve_TDHFcore(omega);
     dVpnc.solve_TDHFcore(0.0);
   }
@@ -91,8 +92,6 @@ void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf) {
         auto hpB = hpnc.reducedME(np, aB) + dVpnc.dV_ab(np, aB, dVconj);
         auto hAp = hpnc.reducedME(aA, np) + dVpnc.dV_ab(aA, np, dVconj);
         auto dpB = he1.reducedME(np, aB) + dVE1.dV_ab(np, aB, dVconj);
-        // std::cout << hpnc.reducedME(np, aB) + dVpnc.dV_ab(np, aB) << "\n";
-        // std::cout << hpnc.reducedME(aA, np) + dVpnc.dV_ab(aA, np) << "\n";
         double pnc1 = c10 * dAp * hpB / (aB.en - np.en);
         double pnc2 = c01 * hAp * dpB / (aA.en - np.en);
         if (print_all)
@@ -125,7 +124,6 @@ void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf) {
     std::cout << " <A|d|n><n|hw|B>/dEB + <A|hw|n><n|d|B>/dEA\n";
     double pnc = 0, core = 0, main = 0;
     for (auto &np : wf.basis) {
-      // <7s|d|np><np|hw|6s>/dE6s + <7s|hw|np><np|d|6s>/dE7s
       if (np == aB || np == aA)
         continue;
       if (hpnc.isZero(np.k, aA.k) && hpnc.isZero(np.k, aB.k))
@@ -138,9 +136,6 @@ void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf) {
       auto hpB = hpnc.reducedME(np, aB) + dVpnc.dV_ab(np, aB, dVconj, excl);
       auto hAp = hpnc.reducedME(aA, np) + dVpnc.dV_ab(aA, np, dVconj, excl);
       auto dpB = he1.reducedME(np, aB) + dVE1.dV_ab(np, aB, dVconj, excl);
-      // std::cout << hpnc.reducedME(np, aB) << " " << dVpnc.dV_ab(np, aB) <<
-      // "\n"; std::cout << hpnc.reducedME(aA, np) << " " << dVpnc.dV_ab(aA, np)
-      // << "\n";
       double pnc1 = c10 * dAp * hpB / (aB.en - np.en);
       double pnc2 = c01 * hAp * dpB / (aA.en - np.en);
       if (np.n <= main_n && print_all)
@@ -174,29 +169,28 @@ void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf) {
     auto v = NumCalc::add_vectors(wf.vnuc, wf.vdir);
     auto v1 = 0.0, v2 = 0.0;
 
-    auto hA_dag = hpnc.reduced_lhs(-aA.k, aA);
+    auto hA = hpnc.reduced_lhs(-aA.k, aA);
     auto hB = hpnc.reduced_rhs(-aB.k, aB);
 
     auto e1A = he1.reduced_lhs(-aB.k, aA);
     auto e1B = he1.reduced_rhs(-aA.k, aB);
 
-    // XXX LHS!
-    hA_dag -= dVpnc.dV_ab_rhs(hA_dag, aA, false);
+    // XXX LHS! ?
+    hA -= dVpnc.dV_ab_rhs(hA, aA, false);
     hB += dVpnc.dV_ab_rhs(hB, aB, false);
-
     e1A += dVE1.dV_ab_rhs(e1A, aA, !dVconj);
     e1B += dVE1.dV_ab_rhs(e1B, aB, dVconj);
 
-    auto yA_w = HartreeFock::solveMixedState(hA_dag.k, aA, 0, v, alpha,
-                                             wf.core_orbitals, hA_dag);
+    auto yA_w = HartreeFock::solveMixedState(hA.k, aA, 0, v, alpha,
+                                             wf.core_orbitals, hA);
     auto xB_w = HartreeFock::solveMixedState(hB.k, aB, 0, v, alpha,
                                              wf.core_orbitals, hB);
 
-    auto omega = aB.en - aA.en;
-    auto yA_d = HartreeFock::solveMixedState(e1A.k, aA, omega, v, alpha,
-                                             wf.core_orbitals, e1A);
-    auto xB_d = HartreeFock::solveMixedState(e1B.k, aB, -omega, v, alpha,
+    auto omegaSE = aA.en - aB.en;
+    auto xB_d = HartreeFock::solveMixedState(e1B.k, aB, omegaSE, v, alpha,
                                              wf.core_orbitals, e1B);
+    auto yA_d = HartreeFock::solveMixedState(e1A.k, aA, -omegaSE, v, alpha,
+                                             wf.core_orbitals, e1A);
 
     auto pnc1_w = c01 * he1.reducedME(yA_w, aB);
     auto pnc2_w = c10 * he1.reducedME(aA, xB_w);
@@ -248,16 +242,20 @@ void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf) {
         c01 * (he1.reducedME(aA, xB_w) + dVE1.dV_ab(aA, xB_w, dVconj));
 
     std::cout << "\n<dA'|d| B>  +  <A |d|dB'>  (by force orthog):\n";
-    std::cout << "core : " << pnc1_c + pnc2_c << "\n";
+    printf("core :%10.7f  (=%10.7f %+10.7f)\n", pnc1_c + pnc2_c, pnc1_c,
+           pnc2_c);
     if (main_ok) {
-      std::cout << "main : " << pnc1_m + pnc2_m << "\n";
+      printf("main :%10.7f  (=%10.7f %+10.7f)\n", pnc1_m + pnc2_m, pnc1_m,
+             pnc2_m);
     } else {
-      std::cout << "main*: " << pnc1_m + pnc2_m << " ";
+      printf("main*:%10.7f  (=%10.7f %+10.7f)", pnc1_m + pnc2_m, pnc1_m,
+             pnc2_m);
       std::cout << "    *(didnt have full main, nmax=" << max_n_main << ")\n";
     }
-    std::cout << "tail : "
-              << pnc1_w - pnc1_m - pnc1_c + pnc2_w - pnc2_m - pnc2_c << "\n";
-    std::cout << "Total: " << v1 << "\n";
+    printf("tail :%10.7f  (=%10.7f %+10.7f)\n",
+           pnc1_w - pnc1_m - pnc1_c + pnc2_w - pnc2_m - pnc2_c,
+           pnc1_w - pnc1_m - pnc1_c, pnc2_w - pnc2_m - pnc2_c);
+    printf("Total:%10.7f  (=%10.7f %+10.7f)\n", v1, pnc1_w, pnc2_w);
   }
 }
 
