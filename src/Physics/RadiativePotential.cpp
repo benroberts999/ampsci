@@ -4,10 +4,16 @@
 #include <cmath>
 #include <gsl/gsl_errno.h> //?
 #include <gsl/gsl_integration.h>
+#include <gsl/gsl_sf_expint.h>
 #include <iostream>
-// E1(x) = -std::expint(-x)
 
 namespace RadiativePotential {
+
+double ExpInt1(double x) {
+  // E1(x) = -std::expint(-x)
+  // return -std::expint(-x);
+  return gsl_sf_expint_E1(x);
+}
 
 //------------------------------------------------------------------------------
 double vUehcommon(double t, double chi) {
@@ -111,7 +117,6 @@ double gb_I1(double t, double z, double alpha) {
 }
 
 double gb_I2(double t, double r, double rN, double z, double alpha) {
-  // E1(x) = -std::expint(-x)
   auto za = z * alpha;
   auto ttoa = 2.0 * t / alpha;
   double rA = 0.07 * za * za * alpha;
@@ -120,7 +125,7 @@ double gb_I2(double t, double r, double rN, double z, double alpha) {
   auto f = [=](double x) {
     auto arg1 = (std::abs(r - x) + rA) * ttoa;
     auto arg2 = (r + x + rA) * ttoa;
-    auto a = -std::expint(-arg1) + std::expint(-arg2);
+    auto a = ExpInt1(arg1) - ExpInt1(arg2);
     return x * a;
   };
 
