@@ -1,4 +1,5 @@
 #include "Angular/Angular.hpp"
+#include "Angular/Wigner_369j.hpp"
 
 namespace Angular {
 //******************************************************************************
