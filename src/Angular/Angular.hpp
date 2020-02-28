@@ -1,5 +1,4 @@
 #pragma once
-#include "Angular/Wigner_369j.hpp"
 #include <algorithm>
 #include <iostream>
 #include <vector>

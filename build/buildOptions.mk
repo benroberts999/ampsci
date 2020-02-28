@@ -1,9 +1,30 @@
 # Options + settings for makefile for each 'Main'
 
-# runs make in //
-ifneq ($(Build),debug)
-  MAKEFLAGS += -j12
+## will return the Operating system name
+detected_OS := $(shell uname -s)
+$(info )
+$(info Detected operating system: $(detected_OS))
+## Certain options for MacOS
+ifeq ($(detected_OS),Darwin)
+  $(info You are using a mac - sorry, no OpenMP support just yet!)
+  UseOpenMP=no
 endif
+
+
+
+# runs make in //
+ifeq ($(Build),debug)
+  ParallelBuild=0
+endif
+ifneq ($(ParallelBuild),)
+ifneq ($(ParallelBuild),0)
+ifneq ($(ParallelBuild),1)
+  MAKEFLAGS += -j$(ParallelBuild)
+  $(info Compiling in parallel with N=$(ParallelBuild) cores)
+endif
+endif
+endif
+$(info )
 
 #Warnings:
 WARN=-Wall -Wpedantic -Wextra -Wdouble-promotion -Wconversion -Wshadow
@@ -26,26 +47,29 @@ ifeq ($(Build),release)
 endif
 ifeq ($(Build),debug)
   UseOpenMP=no
-	WARN+=-Wno-unknown-pragmas
-	OPT=-O0 -g
+  WARN+=-Wno-unknown-pragmas
+  OPT=-O0 -g
 endif
 
 OMP=-fopenmp
 ifneq ($(UseOpenMP),yes)
   OMP=
-	WARN+=-Wno-unknown-pragmas
+  WARN+=-Wno-unknown-pragmas
 endif
 
 CXXFLAGS= $(CXXSTD) $(OPT) $(OMP) $(WARN) -I$(SD)
 LIBS=-lgsl -lgslcblas
 
 ifneq ($(ExtraInclude),)
-	tmpInc = $(addprefix -I,$(ExtraInclude))
-	CXXFLAGS+= $(tmpInc)
+  tmpInc = $(addprefix -I,$(ExtraInclude))
+  CXXFLAGS+= $(tmpInc)
 endif
 ifneq ($(ExtraLink),)
   tmpLink = $(addprefix -L,$(ExtraLink))
-	LIBS+= $(tmpLink)
+  LIBS+= $(tmpLink)
+endif
+ifneq ($(ExtraFlags),)
+  CXXFLAGS+= $(ExtraFlags)
 endif
 
 #These should be used with clang in debug mode only
