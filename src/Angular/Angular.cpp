@@ -1,5 +1,10 @@
 #include "Angular/Angular.hpp"
 #include "Angular/Wigner_369j.hpp"
+// NB: These headers MUST be in this order; otherwise fails to compile
+// on macOS... what :\ At least it works now....
+// Perhaps something to do with cmath vs math.h conflict???
+// math.h might be included by gsl, which is in Wigner_369j...
+// Can only reproduce issue on mac..yay
 
 namespace Angular {
 //******************************************************************************

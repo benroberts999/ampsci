@@ -67,5 +67,6 @@ constexpr double muB_CGS = 0.5 * alpha; // Gaussian CGS-derived
 // Nulcear magneton (in atomic units):
 constexpr double muN_SI = muB_SI / m_p;
 constexpr double muN_CGS = muB_CGS / m_p;
+constexpr double muN_CGS_MHz = Hartree_MHz * muB_CGS / m_p;
 
 } // namespace PhysConst

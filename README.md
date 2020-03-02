@@ -8,14 +8,16 @@ Fully relativistic, includes finite-nuclear size, and can solve for continuum st
 
  * All programs compiled using the Makefile (run _$make_ or _$make programName_)
  * Install make on ubutnu: _$sudo apt-get install make_
- * Tested with g++ and clang++ (requires c++17)
+ * Tested with g++ and clang++ on linux and mac (requires c++17)
 
 Note: makes use of GSL libraries (tested with ver:2.4): https://www.gnu.org/software/gsl/, and LAPACK. These must be installed for the code to run.
 
   * For example, install GSL with ubuntu: _$sudo apt-get install libgsl-dev_
   * And LAPACK/BLAS: _$sudo apt-get install libatlas-base-dev liblapack-dev libblas-dev_
+  * On mac: Just use homebrew to install gsl: _$brew install gsl_
+  * (homebrew is a package manager; install from https://brew.sh/)
 
-The above instructions are for linux (ubuntu). For windows, the easiest way (for me, anyway) is to make use of the recent 'windows subsystem for linux'. Instructions on installation/use here: https://www.roberts999.com/posts/2018/11/wsl-coding-windows-ubuntu
+For windows, the easiest way (for me, anyway) is to make use of the recent 'windows subsystem for linux'. Instructions on installation/use here: https://www.roberts999.com/posts/2018/11/wsl-coding-windows-ubuntu
 Then, the compilation + use can proceed as per above.
 
  * **NOTE:** If you get the following error message on compile:

@@ -7,6 +7,7 @@
 #include "Physics/PhysConst_constants.hpp"
 #include <cmath>
 #include <functional>
+#include <string>
 #include <vector>
 
 //******************************************************************************
@@ -32,6 +33,8 @@ public:
       : ScalarOperator(OperatorParity::even, 1.0, fillVec(rgrid, [n](double r) {
                          return std::pow(r, n);
                        })) {}
+  std::string name() const override { return "RadialFunction"; }
+  std::string units() const override { return "au"; }
 };
 
 //******************************************************************************
@@ -49,6 +52,7 @@ public:
     // return Wigner::Ck_2j2j(1, Wigner::twoj_k(ka), Wigner::twoj_k(kb));
     return Wigner::Ck_kk(1, ka, kb);
   }
+  std::string name() const override { return "E1"; }
 };
 
 //******************************************************************************
@@ -61,6 +65,7 @@ public:
       : DiracOperator(1, OperatorParity::odd, -1.0,
                       std::vector<double>(gr.num_points, 1.0), 0),
         m_c(1.0 / alpha) {}
+  std::string name() const override { return "E1v"; }
 
   double angularF(const int ka, const int kb) const override {
     // if (Fa.k == Fb.k)
@@ -232,22 +237,31 @@ private: // helper
 public: // constructor
   HyperfineOperator(double muN, double IN, double rN, const Grid &rgrid,
                     const Func_R2_R &hfs_F = sphericalBall_F())
-      : DiracOperator(1, OperatorParity::even, muN * PhysConst::muN_CGS / IN,
+      : DiracOperator(1, OperatorParity::even,
+                      muN * PhysConst::muN_CGS_MHz / IN,
                       RadialFunc(rN, rgrid, hfs_F), 0),
         Inuc(IN) {}
+  std::string name() const override { return "hfs"; }
+  std::string units() const override { return "MHz"; }
 
   double angularF(const int ka, const int kb) const override {
     return (ka + kb) * Wigner::Ck_kk(1, -ka, kb);
   }
 
+  static double convertRMEtoA(const DiracSpinor &Fa, const DiracSpinor &Fb) {
+    return 0.5 / Fa.jjp1() / Wigner::Ck_kk(1, -Fa.k, Fb.k);
+    // Correct for diag. Off diag? Prob not defined?
+  }
+
   double hfsA(const DiracSpinor &Fa) {
     auto Raa = radialIntegral(Fa, Fa);
-    return PhysConst::Hartree_MHz * Raa * Fa.k / (Fa.jjp1());
+    return Raa * Fa.k / (Fa.jjp1());
     // nb: in MHz
   }
+
   static double hfsA(const DiracOperator *h, const DiracSpinor &Fa) {
     auto Raa = h->radialIntegral(Fa, Fa);
-    return PhysConst::Hartree_MHz * Raa * Fa.k / (Fa.jjp1());
+    return Raa * Fa.k / (Fa.jjp1());
   }
 
   double de_F(const DiracSpinor &Fa, double jF) {
@@ -408,4 +422,6 @@ public:
                        factor * PhysConst::GFe11 / std::sqrt(8.0),
                        Nuclear::fermiNuclearDensity_tcN(t, c, 1, rgrid),
                        {0, 1, -1, 0}, 0, OperatorC::imaginary) {}
+  std::string name() const override { return "pnc-nsi"; }
+  std::string units() const override { return "(-Qw/N)e-11"; }
 };
