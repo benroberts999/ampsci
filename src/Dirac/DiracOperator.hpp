@@ -75,6 +75,9 @@ public:
 
   std::string rme_symbol(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
 
+  virtual std::string name() const { return "Operator"; };
+  virtual std::string units() const { return "au"; };
+
 protected:
   // These are needed for radial integrals
   // Usually just constants, but can also be functions

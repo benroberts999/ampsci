@@ -28,9 +28,10 @@ void matrixElements(const UserInputBlock &input, const Wavefunction &wf) {
   auto which_str =
       radial_int ? "(radial integral). " : AhfsQ ? " A (MHz). " : "(reduced). ";
 
+  const auto h = generateOperator(operator_str, input, wf);
   std::cout << "\n"
             << ThisModule << which_str << " Operator: " << operator_str << "\n";
-  const auto h = generateOperator(operator_str, input, wf);
+  std::cout << "Units: " << h->units() << "\n";
 
   const bool print_both = input.get("printBoth", false);
   const bool diagonal_only = input.get("onlyDiagonal", false);
@@ -39,8 +40,8 @@ void matrixElements(const UserInputBlock &input, const Wavefunction &wf) {
   const auto omega = input.get("omega", 0.0);
   const bool eachFreqQ = omega < 0.0;
 
-  const auto units = input.get<std::string>("units", "au"); // can remove?
-  const auto unit = (units == "MHz" || AhfsQ) ? PhysConst::Hartree_MHz : 1.0;
+  // const auto units = input.get<std::string>("units", "au"); // can remove?
+  // const auto unit = (units == "MHz" || AhfsQ) ? PhysConst::Hartree_MHz : 1.0;
 
   auto rpa =
       ExternalField(h.get(), wf.core_orbitals,
@@ -72,17 +73,17 @@ void matrixElements(const UserInputBlock &input, const Wavefunction &wf) {
       }
       std::cout << h->rme_symbol(Fa, Fb) << ": ";
       // Special case: HFS A:
-      auto a = AhfsQ ? 0.5 / Fa.jjp1() / Wigner::Ck_kk(1, -Fa.k, Fb.k) : 1.0;
+      auto a = AhfsQ ? HyperfineOperator::convertRMEtoA(Fa, Fb) : 1.0;
       if (radial_int) {
-        printf("%13.6e\n", h->radialIntegral(Fa, Fb) * unit);
+        printf("%13.6e\n", h->radialIntegral(Fa, Fb));
       } else if (rpaQ) {
         auto dV = rpa.dV_ab(Fa, Fb);
         auto dV0 = rpa0->dV_ab(Fa, Fb);
-        printf("%13.6e  %13.6e  %13.6e\n", h->reducedME(Fa, Fb) * a * unit,
-               (h->reducedME(Fa, Fb) + dV0) * unit * a,
-               (h->reducedME(Fa, Fb) + dV) * unit * a);
+        printf("%13.6e  %13.6e  %13.6e\n", h->reducedME(Fa, Fb) * a,
+               (h->reducedME(Fa, Fb) + dV0) * a,
+               (h->reducedME(Fa, Fb) + dV) * a);
       } else {
-        printf("%13.6e\n", h->reducedME(Fa, Fb) * unit * a);
+        printf("%13.6e\n", h->reducedME(Fa, Fb) * a);
       }
     }
   }
