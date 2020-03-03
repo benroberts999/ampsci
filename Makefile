@@ -1,5 +1,6 @@
 ## Which compiler: (g++, clang++) [no spaces]
 CXX=g++
+#CXX=g++-9
 #CXX=clang++
 
 ## Use OpenMP (parallelisation) yes/no:
@@ -20,11 +21,18 @@ XD=.
 ################################################################################
 # If compiler cannot find correct libraries/headers, add the paths here.
 # (Adds to -I and -L on compile and link; don't include the "-L" or "-I" here)
-# Current defaults are for UQ's getafix to find correct GSL headers/libraries
+ExtraInclude=
+ExtraLink=
+ExtraFlags=
 
-#ExtraInclude=/opt/gsl/2.1/gnu/include
-#ExtraLink=/opt/gsl/2.1/gnu/lib/
-#ExtraFlags=
+## These are to get UQ's getafix to find correct GSL headers/libraries:
+# ExtraInclude=/opt/gsl/2.1/gnu/include
+# ExtraLink=/opt/gsl/2.1/gnu/lib/
+
+## Using GCC on macOS, I had to add the folowing
+## (exact pathname might be different in youyr case)
+# ExtraInclude=/usr/local/opt/gnu-scientific-library/include
+# ExtraLink=/usr/local/opt/gnu-scientific-library/lib
 
 ################################################################################
 ## None of the below options should need changing
