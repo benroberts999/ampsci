@@ -21,10 +21,14 @@ XD=.
 ################################################################################
 ## Path to the GSL library. Try first with these blank. Exact path will depend
 ## on where GSL has been installed. Usually, this can be left blank.
+## nb: do not leave a trailing space after the line
 
 PathForGSL=
-# PathForGSL=/opt/gsl/2.1/gnu # uncomment for getafix
-# PathForGSL=/usr/local/opt/gnu-scientific-library #macbook
+## uncomment for getafix:
+# PathForGSL=/opt/gsl/2.1/gnu
+## uncomment for macbook:
+# PathForGSL=/usr/local/opt/gnu-scientific-library
+
 
 ################################################################################
 ## If compiler cannot find correct libraries/headers, add the paths here.

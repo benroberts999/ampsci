@@ -18,7 +18,7 @@ echo "" >> $file
 echo "------------" >> $file
 echo "" >> $file
 
-cat $src/Angular/Angular.md >> $file
-echo "" >> $file
-echo "------------" >> $file
-echo "" >> $file
+# cat $src/Angular/Angular.md >> $file
+# echo "" >> $file
+# echo "------------" >> $file
+# echo "" >> $file

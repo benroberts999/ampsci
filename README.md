@@ -1,34 +1,65 @@
 # Relativistic, self-consistent atomic structure code.
 
 Solves the Dirac equation for atomic systems using the Hartree-Fock method.
-Fully relativistic, includes finite-nuclear size, and can solve for continuum states (energy normalisation).
+Fully relativistic, includes finite-nuclear size, can solve for continuum states (energy normalisation), and can include QED corrections via the Ginges-Flambaum radiative potential method. Calculates ionisation cross sections with high values for energy/momentum transfer.
 
 
-### Compilation:
+### Documentation
 
- * All programs compiled using the Makefile (run _$make_ or _$make programName_)
- * Install make on ubutnu: _$sudo apt-get install make_
+ * Documentation is in doc/ directory (best viewed with a markdown reader or on GitHub). Contains three documents:
+ * 01-hartreeFock_input -- How to use the code (input options + descriptions)
+ * 02-diracSCAS_method  -- What the code does (description of physics)
+ * 03-diracSCAS_code    -- Documentation for code objects/functions etc. [very preliminary]
+
+--------------------------------------------------------------------------------
+
+## Compilation:
+
+ * All programs compiled using the Makefile (run _$make_)
+ * The file _Makefile_ has some basic compilation options. It's currently set up to work on most linux systems, you may need to change a few options for others (see below)
  * Tested with g++ and clang++ on linux and mac (requires c++17)
 
 Note: makes use of GSL libraries (tested with ver:2.4): https://www.gnu.org/software/gsl/, and LAPACK. These must be installed for the code to run.
 
-  * For example, install GSL with ubuntu: _$sudo apt-get install libgsl-dev_
-  * And LAPACK/BLAS: _$sudo apt-get install libatlas-base-dev liblapack-dev libblas-dev_
-  * On mac: Just use homebrew to install gsl: _$brew install gsl_
-  * (homebrew is a package manager; install from https://brew.sh/)
 
-For windows, the easiest way (for me, anyway) is to make use of the recent 'windows subsystem for linux'. Instructions on installation/use here: https://www.roberts999.com/posts/2018/11/wsl-coding-windows-ubuntu
-Then, the compilation + use can proceed as per above.
+### Compilation: Linux:
 
- * **NOTE:** If you get the following error message on compile:
-_error: unsupported option -fopenmp_
-change '_UseOpenMP=yes_' to '_UseOpenMP=no_' in Makefile
+  * Instructions for ubuntu; similar commands for other flavours
+  * Install make: _$sudo apt-get install make_
+  * Install GSL libraries: _$sudo apt-get install libgsl-dev_
+  * May also need LAPACK/BLAS libraries: _$sudo apt-get install libatlas-base-dev liblapack-dev libblas-dev_
+  * Install the compiler: _$sudo apt-get install g++_ and/or _$sudo apt-get install clang++_
+
+
+### Compilation: MacOS:
+
+  * On mac: use homebrew to install gsl: _$brew install gsl_
+  * (homebrew is a package manager; install from _https://brew.sh/_)
+  * Seems to work best with the homebrew version of gcc. Install as: _$brew install gcc_
+  * Note: you may need to change the compiler from `g++` to `g++-9` (or similar), or update your environment variables, since calling g++ on mac actually calls clang++ by default
+  * You might have to tell the compiler how to link to the GSL library; see below
+
+
+### Compilation: Windows:
+
+For windows, the easiest way (for me, anyway) is to use the 'windows subsystem for linux' (requires Windows10). Instructions on installation/use here: https://www.roberts999.com/posts/2018/11/wsl-coding-windows-ubuntu.
+Then, the compilation + use can proceed as per Linux above.
+
+### Compilation: Other:
+
+ * NOTE: If you get the following error message on compile, change '_UseOpenMP=yes_' to '_UseOpenMP=no_' in Makefile:
+   * **_error: unsupported option -fopenmp_**
+
+ * **Linking to GSL**: If GSL library is not installed in _/usr/local/_, you have to tell the compiler where to find the GSL files. Do this by setting the _PathForGSL=_ option in Makefile. Common exaples:
+   * _PathForGSL=/opt/gsl/2.1/gnu_  # For UQ's getafix cluster
+   * _PathForGSL=/usr/local/opt/gnu-scientific-library_ # For my macbook
+   * Note: the exact path may differ for you, depending on where GSL was installed
 
  * Sometimes, the compiler will not be able to find the correct libraries (particular, e.g., on clusters). In this case, there are two options in the Makfefile: **ExtraInclude** and **ExtraLink**
- * These add paths to include the correct directories for both -I "includes" (for compilation), and -L link flags (for linking libraries) in Makefile. These can be a little tricky to get right (don't include the -I or -L)
- * The current defaults are setup to link/compile correctly on UQ's getafix server - you just need to uncomment the two lines in Makefile (remember to load the correct getafix modules, we need 'gnu' and 'gsl')
- * If you get this error (for example), that's why:
-  _error: too few arguments to function ‘int gsl_bspline_deriv_eval_
+   * These add paths to include the correct directories for both -I "includes" (for compilation), and -L link flags (for linking libraries) in Makefile. These can be a little tricky to get right (don't include the -I or -L)
+
+ * NOTE: If you get the following error, it is because the code is linking to a very old version of GSL. You might need to update GSL. If you have updated GSL (to at least version 2.0) and still get the message, the code is probably linking against the wrong version of GSL; see above to point the compiler to the correct version
+   * **_error: too few arguments to function ‘int gsl_bspline_deriv_eval_**
 
 --------------------------------------------------------------------------------
 
@@ -37,18 +68,10 @@ change '_UseOpenMP=yes_' to '_UseOpenMP=no_' in Makefile
  * Solves relativistic Hartree-Fock potential for core + valence states
  * Input taken from a plain text file.
  * See "hartreeFock.in" for minimal input example.
-  May re-name this file (e.g., to "filename.txt"), then run as:
+  You may re-name this file (e.g., to "filename.txt"), then run as:
     * _$ ./hartreeFock filename.txt_
-    * (Otherwise, program will assume file name is 'hartreeFock.in')
- * see doc/ folder for a full list of input options + descriptions
-
-
-## Documentation
-
- * Documentation is in doc/ directory (best viewed with a markdown reader or on GitHub). Contains three documents:
- * 01-hartreeFock_input -- How to use the code (input options + descriptions)
- * 02-diracSCAS_method  -- What the code does (description of physics)
- * 03-diracSCAS_code    -- Documentation for code objects/functions etc. [coming "soon" (not soon)]
+    * (If no input filename is given, program will assume input filename is 'hartreeFock.in')
+ * See _doc/01-hartreeFock_input.md_ for a full list of input options + descriptions
 
 --------------------------------------------------------------------------------
 

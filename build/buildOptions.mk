@@ -1,16 +1,16 @@
 # Options + settings for makefile for each 'Main'
 
-# ## will return the Operating system name
-# detected_OS := $(shell uname -s)
-# $(info )
-# $(info Detected operating system: $(detected_OS))
-# ## Certain options for MacOS
-# ifeq ($(detected_OS),Darwin)
-#   $(info You are using a mac - sorry, no OpenMP support just yet!)
-#   UseOpenMP=no
-# endif
-
-
+## will return the Operating system name
+detected_OS := $(shell uname -s)
+$(info )
+$(info Detected operating system: $(detected_OS))
+## Certain options for MacOS
+ifeq ($(detected_OS),Darwin)
+ifeq ($(CXX),clang++)
+  $(info You are using a mac - in order to use openMP, you must use g++!)
+  UseOpenMP=no
+endif
+endif
 
 # runs make in //
 ifeq ($(Build),debug)
@@ -51,11 +51,15 @@ ifeq ($(Build),debug)
   OPT=-O0 -g
 endif
 
+# If not using openMP, turn off 'unkown pragmas' warning.
 OMP=-fopenmp
 ifneq ($(UseOpenMP),yes)
   OMP=
   WARN+=-Wno-unknown-pragmas
 endif
+
+################################################################################
+# Linking + Compiling:
 
 CXXFLAGS= $(CXXSTD) $(OPT) $(OMP) $(WARN) -I$(SD)
 LIBS=-lgsl -lgslcblas
