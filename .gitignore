@@ -17,3 +17,4 @@ doc/*
 !dmeXsection.in
 !fitParametric.in
 !testWig.in
+!.clang-format

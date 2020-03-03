@@ -22,6 +22,7 @@ ExternalField::ExternalField(const DiracOperator *const h,
 // w>0 typically. Allowed to be -ve for tests?
 {
 
+  bool print = false;
   m_X.resize(core.size());
   for (auto ic = 0u; ic < core.size(); ic++) {
     const auto &Fc = core[ic];
@@ -30,25 +31,30 @@ ExternalField::ExternalField(const DiracOperator *const h,
     const auto tjmin_tmp = tj_c - 2 * m_rank;
     const auto tjmin = tjmin_tmp < 1 ? 1 : tjmin_tmp;
     const auto tjmax = tj_c + 2 * m_rank;
+    if (print)
+      std::cout << "|" << Fc.symbol() << ">  -->  ";
     for (int tj = tjmin; tj <= tjmax; tj += 2) {
       const auto l_minus = (tj - 1) / 2;
       const auto pi_chla = Wigner::parity_l(l_minus) * pi_ch;
       const auto l = (pi_chla == 1) ? l_minus : l_minus + 1;
-      // XXX Add option to restrict l = lc ?
       const auto kappa = Wigner::kappa_twojl(tj, l);
       m_X[ic].emplace_back(0, kappa, *(Fc.p_rgrid));
       m_X[ic].back().pinf = Fc.pinf;
+      if (print)
+        std::cout << "|" << m_X[ic].back().symbol() << "> + ";
     }
+    if (print)
+      std::cout << "\n";
   }
   m_Y = m_X;
 
-  // Fill 6s symbol look-up table
-  auto max_twoj = [](const auto &a, const auto &b) {
-    return a.twoj() < b.twoj();
-  };
-  auto max_tj_core = std::max_element(core.cbegin(), core.cend(), max_twoj);
-  auto max_tj_dPsi = max_tj_core->twoj() + 2 * m_rank;
-  m_6j.fill(m_rank, max_tj_dPsi);
+  // // Fill 6s symbol look-up table
+  // auto max_twoj = [](const auto &a, const auto &b) {
+  //   return a.twoj() < b.twoj();
+  // };
+  // auto max_tj_core = std::max_element(core.cbegin(), core.cend(), max_twoj);
+  // auto max_tj_dPsi = max_tj_core->twoj() + 2 * m_rank;
+  // m_6j.fill(m_rank, max_tj_dPsi);
 }
 
 //******************************************************************************
@@ -89,10 +95,9 @@ const DiracSpinor &ExternalField::get_dPsi_x(const DiracSpinor &Fc,
 void ExternalField::solve_TDHFcore(const double omega, const int max_its,
                                    const bool print) {
 
-  // ChronoTimer timer("solve_TDHFcore");
-
   const double converge_targ = 1.0e-9;
-  const auto damper = rampedDamp(0.5, 0.25, 1, 10);
+  // const auto damper = rampedDamp(0.5, 0.25, 1, 10);
+  const auto damper = rampedDamp(0.75, 0.25, 1, 20);
 
   const bool staticQ = std::abs(omega) < 1.0e-10;
 
@@ -109,9 +114,12 @@ void ExternalField::solve_TDHFcore(const double omega, const int max_its,
   }
 
   auto eps = 0.0;
+  double ceiling_eps = 1.0;
+  int worse_count = 0;
+  double extra_damp = 0.0;
   for (int it = 1; it <= max_its; it++) {
     eps = 0.0;
-    const auto a_damp = (it == 1) ? 0.0 : damper(it);
+    const auto a_damp = (it == 1) ? 0.0 : damper(it) + extra_damp;
 
     // eps for solveMixedState - doesn't need to be small!
     const auto eps_ms = (it == 1) ? 1.0e-6 : 1.0e-2;
@@ -173,11 +181,22 @@ void ExternalField::solve_TDHFcore(const double omega, const int max_its,
     }
     m_X = tmp_X;
     m_Y = tmp_Y;
+
     if (print)
       printf("TDHF (w=%.3f): %2i  %.1e\r", omega, it, eps);
     std::cout << std::flush;
-    if (it > 0 && eps < converge_targ)
+
+    if ((it > 1 && eps < converge_targ) || worse_count > 3)
       break;
+
+    if (it > 20 && eps > 2.0 * ceiling_eps) {
+      ++worse_count;
+      extra_damp = (it % 2) ? 0.7 : 0.3;
+    } else {
+      worse_count = 0;
+    }
+    if (eps < ceiling_eps)
+      ceiling_eps = eps;
   }
   if (print)
     std::cout << "\n";
@@ -186,9 +205,9 @@ void ExternalField::solve_TDHFcore(const double omega, const int max_its,
 //******************************************************************************
 // does it matter if a or b is in the core?
 double ExternalField::dV_ab(const DiracSpinor &Fn, const DiracSpinor &Fm,
-                            bool conj) const {
+                            bool conj, const DiracSpinor *const Fexcl) const {
   auto s = conj && m_h->imaginaryQ() ? -1 : 1;
-  return s * Fn * dV_ab_rhs(Fn, Fm, conj);
+  return s * Fn * dV_ab_rhs(Fn, Fm, conj, Fexcl);
 }
 
 double ExternalField::dV_ab(const DiracSpinor &Fn,
@@ -201,7 +220,8 @@ double ExternalField::dV_ab(const DiracSpinor &Fn,
 
 //******************************************************************************
 DiracSpinor ExternalField::dV_ab_rhs(const DiracSpinor &Fn,
-                                     const DiracSpinor &Fm, bool conj) const {
+                                     const DiracSpinor &Fm, bool conj,
+                                     const DiracSpinor *const Fexcl) const {
 
   const auto ChiType = conj ? dPsiType::X : dPsiType::Y;
   const auto EtaType = conj ? dPsiType::Y : dPsiType::X;
@@ -224,6 +244,9 @@ DiracSpinor ExternalField::dV_ab_rhs(const DiracSpinor &Fn,
     const auto &Y_betas = get_dPsis(Fb, EtaType);
     auto dVFm_c = DiracSpinor(0, Fn.k, *(Fn.p_rgrid));
     dVFm_c.pinf = Fm.pinf;
+
+    if (Fexcl && (*Fexcl) == Fb)
+      continue;
 
     for (auto ibeta = 0ul; ibeta < X_betas.size(); ++ibeta) {
       const auto &X_beta = X_betas[ibeta];

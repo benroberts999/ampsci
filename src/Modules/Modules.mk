@@ -24,6 +24,7 @@ $(SD)/HF/ExternalField.hpp
 	$(COMP)
 
 $(BD)/Module_pnc.o: $(SD)/Modules/Module_pnc.cpp \
+$(SD)/HF/ExternalField.hpp \
 $(SD)/Modules/Module_runModules.hpp  \
 $(SD)/Dirac/DiracOperator.hpp $(SD)/Dirac/Operators.hpp \
 $(SD)/Dirac/Wavefunction.hpp $(SD)/IO/UserInput.hpp

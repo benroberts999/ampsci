@@ -21,6 +21,7 @@ private:
   // j(x)=j(c)-k,...,j(c)+k.  And: pi(x) = pi(c)*pi(h)
   std::vector<std::vector<DiracSpinor>> m_X; // X[core_state][kappa_x]
   std::vector<std::vector<DiracSpinor>> m_Y;
+  // can just write these to disk! Read them in, continue as per normal
 
   const DiracOperator *const m_h; //??
   const std::vector<DiracSpinor> *const p_core;
@@ -30,7 +31,7 @@ private:
   const int m_pi;
   const bool m_imag;
 
-  Angular::SixJ m_6j; // used?
+  // Angular::SixJ m_6j; // used?
 
 public:
   void solve_TDHFcore(const double omega, int max_its = 100,
@@ -40,11 +41,13 @@ public:
   void reZero();
 
   // does it matter if a or b is in the core?
-  double dV_ab(const DiracSpinor &Fa, const DiracSpinor &Fb, bool conj) const;
+  double dV_ab(const DiracSpinor &Fa, const DiracSpinor &Fb, bool conj,
+               const DiracSpinor *const Fexcl = nullptr) const;
   double dV_ab(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
 
   DiracSpinor dV_ab_rhs(const DiracSpinor &Fa, const DiracSpinor &Fb,
-                        bool conj = false) const;
+                        bool conj = false,
+                        const DiracSpinor *const Fexcl = nullptr) const;
 
   // make const? Private?
   const std::vector<DiracSpinor> &get_dPsis(const DiracSpinor &Fc,

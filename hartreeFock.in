@@ -52,8 +52,8 @@ Module::Tests{}
 // MatrixElements::E1 { gauge = vform; }
 // MatrixElements::hfs { F(r) = pointlike; rpa = false; }
 
-// Module::pnc { transition = 6, -1, 7, -1; }
-// Module::pnc { transition = 6, -1, 5, 2; }
+// Module::pnc { transition = 6, -1, 7, -1; rpa = true;}
+// Module::pnc { transition = 6, -1, 5, 2; rpa = true; }
 
 /////////////////////////////////////////////////////////////////
 

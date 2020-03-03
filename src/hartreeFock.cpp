@@ -141,6 +141,7 @@ int main(int argc, char *argv[]) {
 
   // run each of the modules
   Module::runModules(input, wf);
+  return 1;
 
   return 0;
 }
