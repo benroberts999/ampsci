@@ -1,16 +1,16 @@
 ## Which compiler: (g++, clang++) [no spaces]
 CXX=g++
-#CXX=g++-9
-#CXX=clang++
+# CXX=g++-9
+# CXX=clang++
 
 ## Use OpenMP (parallelisation) yes/no:
 UseOpenMP=yes
-#UseOpenMP=no
+# UseOpenMP=no
 
 ## Build mode (changes warnings + optimisation level)
 Build=release
-#Build=dev
-#Build=debug
+# Build=dev
+# Build=debug
 
 ## Compile in parallel with n cores (Faster, but makes reading errors difficult)
 ParallelBuild=6
@@ -19,20 +19,19 @@ ParallelBuild=6
 XD=.
 
 ################################################################################
-# If compiler cannot find correct libraries/headers, add the paths here.
-# (Adds to -I and -L on compile and link; don't include the "-L" or "-I" here)
+## Path to the GSL library. Try first with these blank. Exact path will depend
+## on where GSL has been installed. Usually, this can be left blank.
+
+# PathForGSL=/opt/gsl/2.1/gnu # uncomment for getafix
+# PathForGSL=/usr/local/opt/gnu-scientific-library #macbook
+
+################################################################################
+## If compiler cannot find correct libraries/headers, add the paths here.
+## (Adds to -I and -L on compile and link; don't include the "-L" or "-I" here)
+## Usually, these will be blank.
 ExtraInclude=
 ExtraLink=
 ExtraFlags=
-
-## These are to get UQ's getafix to find correct GSL headers/libraries:
-# ExtraInclude=/opt/gsl/2.1/gnu/include
-# ExtraLink=/opt/gsl/2.1/gnu/lib/
-
-## Using GCC on macOS, I had to add the folowing
-## (exact pathname might be different in youyr case)
-# ExtraInclude=/usr/local/opt/gnu-scientific-library/include
-# ExtraLink=/usr/local/opt/gnu-scientific-library/lib
 
 ################################################################################
 ## None of the below options should need changing

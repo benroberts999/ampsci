@@ -1,14 +1,14 @@
 # Options + settings for makefile for each 'Main'
 
-## will return the Operating system name
-detected_OS := $(shell uname -s)
-$(info )
-$(info Detected operating system: $(detected_OS))
-## Certain options for MacOS
-ifeq ($(detected_OS),Darwin)
-  $(info You are using a mac - sorry, no OpenMP support just yet!)
-  UseOpenMP=no
-endif
+# ## will return the Operating system name
+# detected_OS := $(shell uname -s)
+# $(info )
+# $(info Detected operating system: $(detected_OS))
+# ## Certain options for MacOS
+# ifeq ($(detected_OS),Darwin)
+#   $(info You are using a mac - sorry, no OpenMP support just yet!)
+#   UseOpenMP=no
+# endif
 
 
 
@@ -60,6 +60,13 @@ endif
 CXXFLAGS= $(CXXSTD) $(OPT) $(OMP) $(WARN) -I$(SD)
 LIBS=-lgsl -lgslcblas
 
+# GSL location (if different from assumed default)
+ifneq ($(PathForGSL),)
+  CXXFLAGS+=-I$(PathForGSL)/include/
+  LIBS+=-L$(PathForGSL)/lib/
+endif
+
+# Any other "extra" includes:
 ifneq ($(ExtraInclude),)
   tmpInc = $(addprefix -I,$(ExtraInclude))
   CXXFLAGS+= $(tmpInc)
