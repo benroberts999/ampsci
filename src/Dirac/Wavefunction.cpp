@@ -668,7 +668,8 @@ std::vector<double> Wavefunction::coreDensity() const {
 //******************************************************************************
 void Wavefunction::formBasis(const std::string &states_str,
                              const std::size_t n_spl, const std::size_t k_spl,
-                             const double r0_spl, const double rmax_spl) {
+                             const double r0_spl, const double rmax_spl,
+                             const bool positronQ) {
   basis = SplineBasis::form_basis(states_str, n_spl, k_spl, r0_spl, rmax_spl,
-                                  *this);
+                                  *this, positronQ);
 }

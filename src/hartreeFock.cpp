@@ -126,22 +126,23 @@ int main(int argc, char *argv[]) {
   wf.printCore(sorted);
   wf.printValence(sorted);
 
-  input.check("Basis", {"number", "order", "r0", "rmax", "states", "print"});
+  input.check("Basis",
+              {"number", "order", "r0", "rmax", "states", "print", "positron"});
   auto n_spl = input.get("Basis", "number", 0ul);
   auto k_spl = input.get("Basis", "order", 0ul);
   auto r0_spl = input.get("Basis", "r0", 0.0);
   auto rmax_spl = input.get("Basis", "rmax", 0.0);
   auto basis_states = input.get<std::string>("Basis", "states", "");
   auto print = input.get("Basis", "print", false);
+  auto positronQ = input.get("Basis", "positron", false);
   if (n_spl > 0) {
-    wf.formBasis(basis_states, n_spl, k_spl, r0_spl, rmax_spl);
+    wf.formBasis(basis_states, n_spl, k_spl, r0_spl, rmax_spl, positronQ);
     if (print)
       wf.printBasis();
   }
 
   // run each of the modules
   Module::runModules(input, wf);
-  return 1;
 
   return 0;
 }

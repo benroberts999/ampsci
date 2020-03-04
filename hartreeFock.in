@@ -39,8 +39,9 @@ Grid {
   order = 7;
   r0 = 1.0e-5;
   rmax = 50.0;
-  print = true;
-  states = 10s9p8d7f;
+  print = false;
+  positron = false;
+  states = 40spd;
 }
 
 /////////////////////////////////////////////////////////////////

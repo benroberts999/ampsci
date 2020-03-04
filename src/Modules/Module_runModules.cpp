@@ -107,8 +107,8 @@ void Module_BohrWeisskopf(const UserInputBlock &input, const Wavefunction &wf)
 //******************************************************************************
 void Module_tests(const UserInputBlock &input, const Wavefunction &wf) {
   std::string ThisModule = "Module::Tests";
-  input.checkBlock(
-      {"orthonormal", "orthonormal_all", "Hamiltonian", "boundaries"});
+  input.checkBlock({"orthonormal", "orthonormal_all", "Hamiltonian",
+                    "boundaries", "sumRules"});
   auto othon = input.get("orthonormal", true);
   auto othon_all = input.get("orthonormal_all", false);
   if (othon || othon_all)
@@ -117,6 +117,80 @@ void Module_tests(const UserInputBlock &input, const Wavefunction &wf) {
     Module_Tests_Hamiltonian(wf);
   if (input.get("boundaries", false))
     Module_test_r0pinf(wf);
+  if (input.get("sumRules", false))
+    Module_test_BasisSumRules(wf);
+}
+
+//------------------------------------------------------------------------------
+void Module_test_BasisSumRules(const Wavefunction &wf) {
+
+  if (wf.basis.empty())
+    return;
+
+  std::cout << "\nTesting basis (sum rules):\n";
+  std::cout << "(must include +ve energy states. Works best for pure Coloumb "
+               "functions)\n";
+
+  auto rhat = E1Operator(wf.rgrid);             // vector E1
+  auto r2hat = RadialFuncOperator(wf.rgrid, 2); // scalar r^2
+
+  auto comp_l = [](const auto &Fa, const auto &Fb) { return Fa.l() < Fb.l(); };
+  auto max_l = std::max_element(wf.basis.begin(), wf.basis.end(), comp_l)->l();
+
+  std::cout << "TKR sum rule\n";
+  auto Fa = wf.basis.front();
+  for (int l = 0; l <= max_l; l++) {
+    auto sum_el = 0.0;
+    auto sum_p = 0.0;
+    for (const auto &Fn : wf.basis) {
+      if (Fn == Fa)
+        continue;
+      auto f = (Fn.k == l) ? l : (Fn.k == -l - 1) ? l + 1 : 0;
+      if (f == 0)
+        continue;
+      auto w = Fn.en - Fa.en;
+      // auto Ran = rhat.radialIntegral(Fa, Fn);
+      auto Ran = Fa * (wf.rgrid.r * Fn);
+      auto term = f * w * Ran * Ran / (2 * l + 1);
+      if (Fn.n > 0)
+        sum_el += term;
+      else
+        sum_p += term;
+    }
+    printf("l=%1i, sum = %10.6f%+10.6f = %8.1e\n", l, sum_el, sum_p,
+           sum_el + sum_p);
+  }
+
+  auto comp_ki = [](const auto &Fa, const auto &Fb) {
+    return Fa.k_index() < Fb.k_index();
+  };
+  auto max_ki =
+      std::max_element(wf.basis.begin(), wf.basis.end(), comp_ki)->k_index();
+
+  std::cout << "Drake-Goldman sum rules: w^n |<a|r|b>|^2  (n=0,1,2)\n";
+  for (int ki = 0; ki <= max_ki; ki++) {
+    auto kappa = Wigner::kappaFromIndex(ki);
+    auto comp_k = [=](const auto &Fn) { return Fn.k == kappa; };
+    auto Fa = *std::find_if(wf.basis.begin(), wf.basis.end(), comp_k);
+    // need to have l_n = la+1 terms, or sum doesn't work:
+    if (Fa.l() == max_l)
+      continue;
+    std::cout << "kappa: " << kappa << " (" << Fa.symbol() << ")\n";
+    for (int i = 0; i < 3; i++) {
+      auto sum = 0.0;
+      for (const auto &Fn : wf.basis) {
+        auto w = Fn.en - Fa.en;
+        auto Ran = rhat.reducedME(Fa, Fn);
+        double c = 1.0 / (2 * std::abs(Fa.k));
+        auto term = std::pow(w, i) * Ran * Ran * c;
+        sum += term;
+      }
+      if (i == 2)
+        sum *= wf.get_alpha() * wf.get_alpha() / 3;
+      auto s0 = (i == 0) ? r2hat.radialIntegral(Fa, Fa) : (i == 1) ? 0.0 : 1.0;
+      printf("%i: sum=%9.6f, exact=%+9.6f, diff=%8.1e\n", i, sum, s0, sum - s0);
+    }
+  }
 }
 
 //------------------------------------------------------------------------------

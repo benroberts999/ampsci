@@ -140,7 +140,7 @@ public:
 
   void formBasis(const std::string &states_str, const std::size_t n_spl,
                  const std::size_t k_spl, const double r0_spl,
-                 const double rmax_spl);
+                 const double rmax_spl, const bool positronQ = false);
 
 private:
   void determineCore(std::string str_core_in);

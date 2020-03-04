@@ -19,7 +19,7 @@ namespace SplineBasis {
 std::vector<DiracSpinor>
 form_basis(const std::string &states_str, const std::size_t n_spl,
            const std::size_t k_spl, const double r0_spl, const double rmax_spl,
-           const Wavefunction &wf)
+           const Wavefunction &wf, const bool positronQ)
 // Forms the pseudo-spectrum basis by diagonalising Hamiltonian over B-splines
 {
   std::vector<DiracSpinor> basis;
@@ -50,8 +50,13 @@ form_basis(const std::string &states_str, const std::size_t n_spl,
            basis.front().rinf());
   }
 
+  // Optionally add positron basis to end of basis. Prob not best way?
+  if (positronQ) {
+    for (const auto &Fp : basis_positron)
+      basis.push_back(Fp);
+  }
+
   return basis;
-  // basis_positron is ignored for now, but it is calculated
 }
 
 //******************************************************************************

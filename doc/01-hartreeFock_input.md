@@ -148,17 +148,19 @@ Grid {
 ## B-spline basis
 ```cpp
 Basis {
-  number; //[i] default = 0
-  order;  //[i] default = 0
-  r0;     //[r] default = 0
-  rmax;   //[r] default = 0
-  print;  //[b] default = false
-  states; //[t] default = ""
+  number;   //[i] default = 0
+  order;    //[i] default = 0
+  r0;       //[r] default = 0
+  rmax;     //[r] default = 0
+  print;    //[b] default = false
+  positron; //[b] default = false
+  states;   //[t] default = ""
 }
 ```
 * Constructs basis using _number_ splines of order _order_
 * on sub-grid (r0,rmax) [if zero, will use full grid]
 * If print = true, will print basis energies
+* positron: include negative energy states into basis
 * states: which basis states to store
   * e.g., "7sp5df" will store s and p states up to n=7, and d and f up to n=5
   * spd will store _all_ (number) states for l<=2
@@ -241,13 +243,14 @@ Module::Tests { // tests of numerical errors:
   orthonormal_all; //[b] Print all <a|b>'s. default = false
   Hamiltonian;     //[b] check eigenvalues of Hamiltonian. default = false
   boundaries;      //[b] check f(rmax)/fmax. default = false
+  sumRules;        //[b] Tests basis by evaluating sum rules
 }
 ```
 
 ```cpp
 Module::BohrWeisskopf { //Calculates BW effect for Ball/Single-particle
-  // Takes same input at MatrixElements::hfs*
-  // *Except for F(r), since it runs for each F(r)
+  // Takes same input at MatrixElements::hfs
+  // Except for F(r), since it runs for each F(r)
 }
 ```
 ```cpp
@@ -278,9 +281,8 @@ Performs a 2D fit to determine the best-fit values for the given two-parameter p
 ```cpp
 Module::pnc {
     //Calculates pnc amplitude {na,ka}->{nb,kb}
-    //(these states must exist as valence states in HF!).
-    // Uses sum-over-states and Solving-Equations methods (without RPA).
     transition = na, ka, nb, ka; //[t] - required
+    rpa;  //[b] true by default: include rpa/core-pol?
 }
 ```
 

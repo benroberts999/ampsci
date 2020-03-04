@@ -9,11 +9,10 @@ class Grid;
 namespace SplineBasis {
 
 // Forms the basis orbitals (expanded in terms of splines)
-std::vector<DiracSpinor> form_basis(const std::string &states_str,
-                                    const std::size_t n_spl,
-                                    const std::size_t k_spl,
-                                    const double r0_spl, const double rmax_spl,
-                                    const Wavefunction &wf);
+std::vector<DiracSpinor>
+form_basis(const std::string &states_str, const std::size_t n_spl,
+           const std::size_t k_spl, const double r0_spl, const double rmax_spl,
+           const Wavefunction &wf, const bool positronQ = false);
 
 // Forms the underlying spline basis (which is not kept)
 std::vector<DiracSpinor>
