@@ -1,3 +1,4 @@
+#pragma once
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_spline.h>
 #include <iostream>
@@ -7,9 +8,9 @@
 
 namespace Interpolator {
 
-std::vector<double> interpolate(const std::vector<double> &x_in,
-                                const std::vector<double> &y_in,
-                                const std::vector<double> &x_out) {
+inline std::vector<double> interpolate(const std::vector<double> &x_in,
+                                       const std::vector<double> &y_in,
+                                       const std::vector<double> &x_out) {
   // NOTE: Interpolates, but does NOT extrapolate!
   // Everything outseide the region (xmin,xmax)_in will be zero
 

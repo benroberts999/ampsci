@@ -1,6 +1,9 @@
 #include "Dirac/Wavefunction.hpp"
 #include "IO/ChronoTimer.hpp"
+#include "IO/FileIO_fileReadWrite.hpp" //for 'ExtraPotential'
 #include "IO/UserInput.hpp"
+#include "Maths/Interpolator.hpp"          //for 'ExtraPotential'
+#include "Maths/NumCalc_quadIntegrate.hpp" //for 'ExtraPotential'
 #include "Modules/Module_runModules.hpp"
 #include <iostream>
 #include <string>
@@ -44,9 +47,14 @@ int main(int argc, char *argv[]) {
   auto rrms = input.get("Nucleus", "rrms", -1.0); /*<0 means lookup default*/
   auto skint = input.get("Nucleus", "skin_t", -1.0);
 
-  // create wavefunction object
+  // Create wavefunction object
   Wavefunction wf(atom_Z, {num_points, r0, rmax, b, grid_type, du_tmp},
                   {atom_Z, atom_A, nuc_type, rrms, skint}, var_alpha);
+
+  std::cout << "\nRunning for " << wf.atom() << "\n"
+            << wf.nuclearParams() << "\n"
+            << wf.rgrid.gridParameters() << "\n"
+            << "********************************************************\n";
 
   // Parse input for HF method
   input_ok =
@@ -54,18 +62,13 @@ int main(int argc, char *argv[]) {
       input.check("HartreeFock", {"core", "valence", "convergence", "method",
                                   "Green_H", "Green_d", "Tietz_g", "Tietz_t",
                                   "orthonormaliseValence", "sortOutput"});
+  if (!input_ok)
+    return 1;
   auto str_core = input.get<std::string>("HartreeFock", "core", "[]");
   auto eps_HF = input.get("HartreeFock", "convergence", 1.0e-12);
   auto HF_method = HartreeFock::parseMethod(
       input.get<std::string>("HartreeFock", "method", "HartreeFock"));
 
-  if (!input_ok)
-    return 1;
-
-  std::cout << "\nRunning for " << wf.atom() << "\n"
-            << wf.nuclearParams() << "\n"
-            << wf.rgrid.gridParameters() << "\n"
-            << "********************************************************\n";
   // For when using Hartree, or a parametric potential:
   double H_d = 0.0, g_t = 0.0;
   if (HF_method == HFMethod::GreenPRM) {
@@ -80,7 +83,7 @@ int main(int argc, char *argv[]) {
     std::cout << "Using Hartree Method (no Exchange)\n";
   }
 
-  // Use QED radiatve potential?
+  // Inlcude QED radiatve potential?
   input_ok = input_ok && input.check("RadPot", {"Ueh", "SE_h", "SE_l", "SE_m",
                                                 "rcut", "scale_rN"});
   auto x_Ueh = input.get("RadPot", "Ueh", 0.0);
@@ -92,17 +95,44 @@ int main(int argc, char *argv[]) {
   if (input_ok)
     wf.radiativePotential(x_Ueh, x_SEe_h, x_SEe_l, x_SEm, rcut, scale_rN);
 
+  // Inlcude extra potential (read in from text file):
+  // Note: interpolated onto grid, but NOT extrapolated (zero outside region!)
+  input_ok = input_ok &&
+             input.check("ExtraPotential", {"filename", "factor", "beforeHF"});
+  auto ep_fname = input.get<std::string>("ExtraPotential", "filename", "");
+  auto ep_factor = input.get("ExtraPotential", "factor", 0.0);
+  auto ep_beforeHF = input.get("ExtraPotential", "beforeHF", false);
+  auto extra_pot = ep_fname != "" && std::abs(ep_factor) > 0.0;
+  std::vector<double> Vextra;
+  if (extra_pot) {
+    const auto &[x, y] = FileIO::readFile_xy_PoV("testIn.txt");
+    Vextra = Interpolator::interpolate(x, y, wf.rgrid.r);
+    NumCalc::scaleVec(Vextra, ep_factor);
+  }
+
+  // Add "extra potential", before HF (core + valence)
+  if (extra_pot && ep_beforeHF) {
+    wf.vnuc = NumCalc::add_vectors(wf.vnuc, Vextra);
+  }
+
   { // Solve Hartree equations for the core:
     ChronoTimer t(" core");
     wf.hartreeFockCore(HF_method, str_core, eps_HF, H_d, g_t);
   }
 
+  // Add "extra potential", after HF (only valence)
+  if (extra_pot && !ep_beforeHF) {
+    wf.vdir = NumCalc::add_vectors(wf.vdir, Vextra);
+  }
+
   // Adds effective polarision potential to direct potential
   // (After HF core, before HF valence)
-  auto a_eff = input.get("dV", "a_eff", 0.0);
-  if (a_eff > 0) { // a=0.61 works well for Cs ns, n=6-18
-    auto r_cut = input.get("dV", "r_cut", 1.0);
-    auto dV = [=](double x) { return -0.5 * a_eff / (x * x * x * x + r_cut); };
+  auto a_eff = input.get("dVpol", "a_eff", 0.0);
+  if (std::abs(a_eff) > 0.0) {
+    auto r_cut = input.get("dVpol", "r_cut", 1.0);
+    auto a4 = r_cut * r_cut * r_cut * r_cut;
+    auto dV = [=](auto x) { return -0.5 * a_eff / (x * x * x * x + a4); };
+    // auto dV = [=](auto x) { return -0.5 * a_eff / std::pow(x + r_cut, 4); };
     for (auto i = 0u; i < wf.rgrid.num_points; ++i) {
       wf.vdir[i] += dV(wf.rgrid.r[i]);
     }

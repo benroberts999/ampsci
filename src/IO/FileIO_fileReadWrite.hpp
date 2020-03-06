@@ -82,6 +82,73 @@ inline std::vector<std::string> readInputFile_byLine(const std::string &fname)
 }
 
 //******************************************************************************
+inline std::vector<std::pair<double, double>>
+readFile_xy_VoP(const std::string &fname)
+// Reads each line from a file into a vector of {x,y} points
+// Lines beginning with '!' or '#' are comments
+// Could generalise this to any number of points?
+{
+  std::vector<std::pair<double, double>> out_list;
+  std::ifstream file(fname);
+  std::string line = "";
+  while (getline(file, line) && (file.is_open())) { // redundant?
+    if (line == "")
+      continue;
+    if (line.at(0) == '!' || line.at(0) == '#')
+      continue;
+    if (line.size() >= 2 && line.at(0) == '/' && line.at(1) == '/')
+      continue;
+    std::stringstream ss(line);
+    double x, y;
+    ss >> x >> y;
+    out_list.emplace_back(x, y);
+  }
+  return out_list;
+}
+//------------------------------------------------------------------------------
+inline std::pair<std::vector<double>, std::vector<double>>
+readFile_xy_PoV(const std::string &fname)
+// Reads each line from a file;
+// Returns a pair of a vectors {{x},{y}}
+// Lines beginning with '!' or '#' are comments
+{
+  std::pair<std::vector<double>, std::vector<double>> out_list;
+  std::ifstream file(fname);
+  std::string line = "";
+  while (getline(file, line) && (file.is_open())) { // redundant?
+    if (line == "")
+      continue;
+    if (line.at(0) == '!' || line.at(0) == '#')
+      continue;
+    if (line.size() >= 2 && line.at(0) == '/' && line.at(1) == '/')
+      continue;
+    std::stringstream ss(line);
+    double x, y;
+    ss >> x >> y;
+    out_list.first.push_back(x);
+    out_list.second.push_back(y);
+  }
+  return out_list;
+}
+
+//------------------------------------------------------------------------------
+inline void writeFile_xy(const std::vector<double> &x,
+                         const std::vector<double> &y,
+                         const std::string &fname) {
+  //
+  if (x.size() != y.size()) {
+    std::cout << "Warning 139 in FileIO: trying to write {x,y} vectors of "
+                 "different lengths!\n";
+  }
+  std::ofstream file(fname);
+  auto max = std::min(x.size(), y.size());
+  for (auto i = 0ul; i < max; ++i) {
+    file << x[i] << " " << y[i] << "\n";
+  }
+  //
+}
+
+//******************************************************************************
 inline std::string readInputFile(const std::string &fname) {
   std::ifstream f(fname); // taking file as inputstream
   std::string str;
@@ -132,6 +199,15 @@ inline std::string removeCommentsAndSpaces(const std::string &input)
   lines.erase(std::remove_if(lines.begin(), lines.end(),
                              [](unsigned char x) { return x == '\t'; }),
               lines.end());
+
+  // remove ' and "
+  lines.erase(std::remove_if(lines.begin(), lines.end(),
+                             [](unsigned char x) { return x == '\''; }),
+              lines.end());
+  lines.erase(std::remove_if(lines.begin(), lines.end(),
+                             [](unsigned char x) { return x == '\"'; }),
+              lines.end());
+
   return lines;
 }
 

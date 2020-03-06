@@ -55,6 +55,7 @@ Atom {
 * varAlpha2: scale factor for (inverse) speed of light^2 [alpha in atomic un.]: alpha^2 = varAlpha2 * alpha_real^2.
   * default=1. put a very small number to achieve non-relativistic limit (useful for tests)
 
+
 ## HartreeFock
 ```cpp
 HartreeFock {
@@ -85,17 +86,6 @@ HartreeFock {
 * convergence: level we try to converge to.
 * orthonormaliseValence: true/false. Orthogonalise valence states? false by default. Only really for testing
 
-## dV (effective polarisation potential)
-```cpp
-dV {
-  a_eff;  //[r] default = 0.0, typical ~1
-  r_cut;  //[r] default = 1.0
-}
-//nb: all of these are optional, hence entire block can be omitted
-```
-* Effective polarisation potential:
-* dV = -0.5 * a_eff / (r^4 + r_cut)
-* nb: Added to direct potential _after_ HF for core, but _before_ HF for valence
 
 ## Nucleus
 ```cpp
@@ -108,22 +98,6 @@ Nucleus {
 * rrms: nuclear root-mean-square charge radius (in femptometres = 10^-15m)
 * type: Which distribution to use for nucleus? Options are: Fermi (default), spherical, point
 * skin_t: skin thickness [only used by Fermi distro]
-
-## QED Radiative Potential [Ginges/Flambaum Method]
-```cpp
-RadPot {
-  Ueh;      //[r] default = 0.0 //Uehling (vac pol)
-  SE_h;     //[r] default = 0.0 //high-f SE
-  SE_l;     //[r] default = 0.0 //low-f SE
-  SE_m;     //[r] default = 0.0 //Magnetic SE
-  rcut;     //[r] default = 1.0
-  scale_rN; //[r] default = 1.0
-}
-```
-* Adds QED radiative potential to Hamiltonian.
-* Each factor is a scale; 0 means don't include. 1 means include full potential. Any positive number is valid.
-* rcut: Only calculates potential for r < rcut [for speed; rcut in au]
-* scale_rN: finite nucleus effects: rN = rN * scale_rN (for testing only)
 
 
 ## Grid
@@ -143,6 +117,52 @@ Grid {
 * type: What type of grid to use? options are: loglinear (default), logarithmic, linear
   * Note: 'linear' grid requires a _very_ large number of points to work, and should essentially never be used.
 * b: only used for loglinear grid; the grid is roughly logarithmic below this value, and linear after it. Default is 4.0 (atomic units). If b<0 or b>rmax, will revert to using a logarithmic grid
+
+
+## dVpol (effective polarisation potential)
+```cpp
+dVpol {
+  a_eff;  //[r] default = 0.0, typical ~1
+  r_cut;  //[r] default = 1.0
+}
+//nb: all of these are optional, hence entire block can be omitted
+```
+* Effective polarisation potential:
+* dV = -0.5 * a_eff / (r^4 + r_cut^4)
+* nb: Added to direct potential _after_ HF for core, but _before_ HF for valence
+
+
+## ExtraPotential (read from text file)
+```cpp
+ExtraPotential {
+  filename; //[t] default = ""
+  factor;   //[r] default = 0.0
+  beforeHF; //[b] default = false
+}
+//nb: all of these are optional, hence entire block can be omitted
+```
+* Reads in extra potential from text file (space separated: 'x y' format):
+* Interpolated these points onto the grid (but does NOT extrapolate,
+  potential is assumed to be zero outside the given range)
+* Potential is multiplied by 'factor'
+* May be added before or after HF (if before: added to vnuc, if after: to vdir)
+
+
+## QED Radiative Potential [Ginges/Flambaum Method]
+```cpp
+RadPot {
+  Ueh;      //[r] default = 0.0 //Uehling (vac pol)
+  SE_h;     //[r] default = 0.0 //high-f SE
+  SE_l;     //[r] default = 0.0 //low-f SE
+  SE_m;     //[r] default = 0.0 //Magnetic SE
+  rcut;     //[r] default = 1.0
+  scale_rN; //[r] default = 1.0
+}
+```
+* Adds QED radiative potential to Hamiltonian.
+* Each factor is a scale; 0 means don't include. 1 means include full potential. Any positive number is valid.
+* rcut: Only calculates potential for r < rcut [for speed; rcut in au]
+* scale_rN: finite nucleus effects: rN = rN * scale_rN (for testing only)
 
 
 ## B-spline basis
@@ -191,6 +211,7 @@ MatrixElements::ExampleOperator { //this is not a real operator..
 * units: can only be 'au' or 'MHz'. MHz only makes sense for some operators (e.g., hfs), and is just for convenience
 * rpa: Include RPA (core polarisation) corrections to MEs, using TDHF method (note: mostly works, but not 100% yet)
 
+
 ### Available operators:
 
 ```cpp
@@ -235,6 +256,8 @@ MatrixElements::hfs { // Magnetic dipole hyperfine structure constant A
   l2 = 1.;
 }
 ```
+
+
 ### Modules:
 
 ```cpp

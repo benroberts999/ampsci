@@ -138,31 +138,33 @@ void Module_test_BasisSumRules(const Wavefunction &wf) {
   auto max_l = std::max_element(wf.basis.begin(), wf.basis.end(), comp_l)->l();
 
   std::cout << "TKR sum rule\n";
-  auto Fa = wf.basis.front();
-  for (int l = 0; l <= max_l; l++) {
-    auto sum_el = 0.0;
-    auto sum_p = 0.0;
-    for (const auto &Fn : wf.basis) {
-      if (Fn == Fa)
-        continue;
-      auto f = (Fn.k == l) ? l : (Fn.k == -l - 1) ? l + 1 : 0;
-      if (f == 0)
-        continue;
-      auto w = Fn.en - Fa.en;
-      // auto Ran = rhat.radialIntegral(Fa, Fn);
-      auto Ran = Fa * (wf.rgrid.r * Fn);
-      auto term = f * w * Ran * Ran / (2 * l + 1);
-      if (Fn.n > 0)
-        sum_el += term;
-      else
-        sum_p += term;
+  {
+    auto Fa = wf.basis.front();
+    for (int l = 0; l <= max_l; l++) {
+      auto sum_el = 0.0;
+      auto sum_p = 0.0;
+      for (const auto &Fn : wf.basis) {
+        if (Fn == Fa)
+          continue;
+        auto f = (Fn.k == l) ? l : (Fn.k == -l - 1) ? l + 1 : 0;
+        if (f == 0)
+          continue;
+        auto w = Fn.en - Fa.en;
+        // auto Ran = rhat.radialIntegral(Fa, Fn);
+        auto Ran = Fa * (wf.rgrid.r * Fn);
+        auto term = f * w * Ran * Ran / (2 * l + 1);
+        if (Fn.n > 0)
+          sum_el += term;
+        else
+          sum_p += term;
+      }
+      printf("l=%1i, sum = %10.6f%+10.6f = %8.1e\n", l, sum_el, sum_p,
+             sum_el + sum_p);
     }
-    printf("l=%1i, sum = %10.6f%+10.6f = %8.1e\n", l, sum_el, sum_p,
-           sum_el + sum_p);
   }
 
-  auto comp_ki = [](const auto &Fa, const auto &Fb) {
-    return Fa.k_index() < Fb.k_index();
+  auto comp_ki = [](const auto &Fm, const auto &Fn) {
+    return Fm.k_index() < Fn.k_index();
   };
   auto max_ki =
       std::max_element(wf.basis.begin(), wf.basis.end(), comp_ki)->k_index();
