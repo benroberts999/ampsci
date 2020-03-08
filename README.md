@@ -15,11 +15,15 @@ Fully relativistic, includes finite-nuclear size, can solve for continuum states
 
 ## Compilation:
 
+ * Copy "doc/Makefile.example" from doc/ directory to the working directory, and rename to -> "Makefile"
+    * e.g.: _$cp ./doc/Makefile.example ./Makefile_
+ * (This is so you can make any necessary changes, and they won't be overwritten if you re pull from git)
+
  * All programs compiled using the Makefile (run _$make_)
  * The file _Makefile_ has some basic compilation options. It's currently set up to work on most linux systems, you may need to change a few options for others (see below)
  * Tested with g++ and clang++ on linux and mac (requires c++17)
 
-Note: makes use of GSL libraries (tested with ver:2.4): https://www.gnu.org/software/gsl/, and LAPACK. These must be installed for the code to run.
+Note: makes use of GSL libraries (requires ver>2.0, tested with ver:2.4): https://www.gnu.org/software/gsl/, and LAPACK. These must be installed for the code to run.
 
 
 ### Compilation: Linux:
@@ -67,10 +71,12 @@ Then, the compilation + use can proceed as per Linux above.
 
  * Solves relativistic Hartree-Fock potential for core + valence states
  * Input taken from a plain text file.
- * See "hartreeFock.in" for minimal input example.
-  You may re-name this file (e.g., to "filename.txt"), then run as:
+ * An example input file is included: doc/hartreeFock.in.example
+    * e.g.: _cp ./doc/hartreeFock.in.example ./hartreeFock.in_
+ * You may re-name this file (e.g., to "filename.txt"), then run as:
     * _$ ./hartreeFock filename.txt_
-    * (If no input filename is given, program will assume input filename is 'hartreeFock.in')
+    * If no input filename is given, program will assume input filename is 'hartreeFock.in':
+    * _$ ./hartreeFock_
  * See _doc/01-hartreeFock_input.md_ for a full list of input options + descriptions
 
 --------------------------------------------------------------------------------

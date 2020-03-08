@@ -4,13 +4,13 @@
 detected_OS := $(shell uname -s)
 $(info )
 $(info Detected operating system: $(detected_OS))
-## Certain options for MacOS
-ifeq ($(detected_OS),Darwin)
-ifeq ($(CXX),clang++)
-  $(info You are using a mac - in order to use openMP, you must use g++!)
-  UseOpenMP=no
-endif
-endif
+# ## Certain options for MacOS
+# ifeq ($(detected_OS),Darwin)
+# ifeq ($(CXX),clang++)
+#   $(info You are using a mac - in order to use openMP, you must use g++!)
+#   UseOpenMP=no
+# endif
+# endif
 
 # runs make in //
 ifeq ($(Build),debug)
@@ -27,8 +27,7 @@ endif
 $(info )
 
 #Warnings:
-WARN=-Wall -Wpedantic -Wextra -Wdouble-promotion -Wconversion -Wshadow
-# -Weffc++
+WARN=-Wall -Wpedantic -Wextra -Wdouble-promotion -Wconversion -Wshadow -Weffc++
 # -Wfloat-equal
 # -Wsign-conversion
 

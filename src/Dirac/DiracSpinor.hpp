@@ -9,6 +9,9 @@ class DiracSpinor {
 
 public: // Data
   DiracSpinor(int in_n, int in_k, const Grid &rgrid);
+  DiracSpinor &operator=(const DiracSpinor &); // copy assignment
+  DiracSpinor(const DiracSpinor &) = default;  // copy constructor
+  ~DiracSpinor() = default;
 
   // Would be better if some of this were private... getters/setters.....
   const Grid *const p_rgrid;
@@ -66,8 +69,6 @@ public:
 
   DiracSpinor &operator*=(const std::vector<double> &v);
   friend DiracSpinor operator*(const std::vector<double> &v, DiracSpinor rhs);
-
-  DiracSpinor &operator=(const DiracSpinor &other);
 
   // comparitor overloads:
   friend bool operator==(const DiracSpinor &lhs, const DiracSpinor &rhs);

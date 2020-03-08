@@ -13,14 +13,18 @@ public:
                 const std::vector<DiracSpinor> &core,
                 const std::vector<double> &vl, const double alpha);
 
+  ExternalField &operator=(const ExternalField &) = delete;
+  ExternalField(const ExternalField &) = default;
+  ~ExternalField() = default;
+
 private:
   // dPhi = X exp(-iwt) + Y exp(+iwt)
   // (H - e - w)X = -(h + dV - de)Phi
   // (H - e + w)Y = -(h* + dV* - de)Phi
   // X_c = sum_x X_x,
   // j(x)=j(c)-k,...,j(c)+k.  And: pi(x) = pi(c)*pi(h)
-  std::vector<std::vector<DiracSpinor>> m_X; // X[core_state][kappa_x]
-  std::vector<std::vector<DiracSpinor>> m_Y;
+  std::vector<std::vector<DiracSpinor>> m_X = {};
+  std::vector<std::vector<DiracSpinor>> m_Y = {};
   // can just write these to disk! Read them in, continue as per normal
 
   const DiracOperator *const m_h; //??

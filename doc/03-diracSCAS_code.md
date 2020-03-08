@@ -123,4 +123,3 @@ void solve_inhomog(DiracSpinor &phi, DiracSpinor &phi0,
   * These Spinors are solved internally and over-written, they don't need to be solved first (i.e., they are out parameters, not in/out parameters)
 
 ------------
-

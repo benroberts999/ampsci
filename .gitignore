@@ -8,13 +8,7 @@ doc/*
 !doc/*.md
 !doc/*.tex
 !doc/*.pdf
-!doc/*.sh
+!doc/*.example
 !.gitignore
-!Makefile
-!makefile
 !*.md
-!hartreeFock.in
-!dmeXsection.in
-!fitParametric.in
-!testWig.in
 !.clang-format

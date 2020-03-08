@@ -45,7 +45,7 @@ public:
 private:
   std::string name;
   bool running;
-  std::chrono::high_resolution_clock::time_point tstart;
+  std::chrono::high_resolution_clock::time_point tstart{};
   std::string convertHR(double t) const;
   double total_time_ms;
 };

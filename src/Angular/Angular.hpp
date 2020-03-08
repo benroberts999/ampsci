@@ -56,8 +56,8 @@ public:
   double get_3jkab(int k, int ka, int kb) const;
 
 private:
-  std::vector<std::vector<std::vector<double>>> m_3j_k_a_b;
-  std::vector<std::vector<double>> m_Rjab_a_b; // Sqrt([ja][jb])
+  std::vector<std::vector<std::vector<double>>> m_3j_k_a_b = {};
+  std::vector<std::vector<double>> m_Rjab_a_b = {}; // Sqrt([ja][jb])
   int m_max_jindex_sofar = -1;
   int m_max_k_sofar = -1;
 };
@@ -79,7 +79,7 @@ private:
   const int m_k;
   int max_ji_sofar;
   std::vector<std::vector<std::vector<std::vector<std::vector<double>>>>>
-      m_k_a_bcdl;
+      m_k_a_bcdl = {};
 
 public:
   double get_6j(int tja, int tjb, int tjc, int tjd, int l) const;
@@ -113,7 +113,7 @@ public:
 private:
   int max_k_sofar = -1;
   int max_tj_sofar = -1;
-  std::vector<SixJTable_constk> m_sixj_k;
+  std::vector<SixJTable_constk> m_sixj_k = {};
 };
 
 } // namespace Angular

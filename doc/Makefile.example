@@ -14,8 +14,8 @@ UseOpenMP=yes
 # UseOpenMP=no
 
 ## Build mode (changes warnings + optimisation level)
-# Build=release
-Build=dev
+Build=release
+# Build=dev
 # Build=debug
 
 ## Compile in parallel with n cores (Faster, but makes reading errors difficult)

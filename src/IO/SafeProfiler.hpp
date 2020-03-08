@@ -21,6 +21,7 @@ struct StrDoubleUnsigned {
   unsigned u;
 };
 
+//******************************************************************************
 class ProfileLog {
   friend class Profiler;
   ProfileLog(){};
@@ -46,8 +47,8 @@ class ProfileLog {
       write_log();
     }
   }
-  std::vector<std::pair<std::string, std::chrono::microseconds>> m_log;
-  std::vector<StrDoubleUnsigned> m_log_sorted;
+  std::vector<std::pair<std::string, std::chrono::microseconds>> m_log = {};
+  std::vector<StrDoubleUnsigned> m_log_sorted = {};
 
   void write_log() {
     const std::string title = "ProfileLog";
@@ -78,6 +79,7 @@ class ProfileLog {
   }
 };
 
+//******************************************************************************
 class Profiler {
   friend class ProfileLog;
   const std::string name;
@@ -104,12 +106,14 @@ public:
   }
 };
 
+//******************************************************************************
 struct BlankClass {
   ~BlankClass() {
     // this is just so doesn't complain about unused variable
   }
 };
 
+//******************************************************************************
 inline auto profile(const char *in_name, const char *extra = "") {
   if constexpr (do_profile)
     return Profiler(in_name, extra);

@@ -33,9 +33,9 @@ public:
   }
 
 public:
-  std::vector<DiracSpinor> core_orbitals;
-  std::vector<DiracSpinor> valence_orbitals;
-  std::vector<DiracSpinor> basis;
+  std::vector<DiracSpinor> core_orbitals = {};
+  std::vector<DiracSpinor> valence_orbitals = {};
+  std::vector<DiracSpinor> basis = {};
   const Grid rgrid;
 
 private:
@@ -46,13 +46,13 @@ private:
 
 public:
   // const
-  std::vector<double> vnuc;
-  std::vector<double> vdir; // direct/local part of the electron potential
+  std::vector<double> vnuc = {};
+  std::vector<double> vdir = {}; // direct/local part of the electron potential
   std::vector<double> Hse_mag = {}; // magnetic form-factor
 
 private:
   // Core configuration (non-rel terms)
-  std::vector<NonRelSEConfig> m_core_configs;
+  std::vector<NonRelSEConfig> m_core_configs = {};
   int num_core_electrons = 0; // Nc = N - M
   std::string m_core_string = "";
 

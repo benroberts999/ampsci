@@ -27,6 +27,10 @@ public: // constructor + static functions
   Coulomb(const Grid &in_grid, const std::vector<DiracSpinor> &in_core,
           const std::vector<DiracSpinor> &in_valence);
 
+  Coulomb &operator=(const Coulomb &) = delete; // copy assignment
+  Coulomb(const Coulomb &) = default;           // copy constructor
+  ~Coulomb() = default;
+
   static void calculate_y_ijk(const DiracSpinor &Fa, const DiracSpinor &Fb,
                               const int k, std::vector<double> &vabk,
                               const std::size_t maxi = 0);
@@ -102,10 +106,10 @@ private: // data
 
   // Arrays to store Coulomb integrals. Note: highly non-rectangular
   // Make use of symmety (where appropriate)
-  std::vector<std::vector<std::vector<std::vector<double>>>> m_y_abkr;
-  std::vector<std::vector<std::vector<std::vector<double>>>> m_y_vckr;
-  std::vector<std::vector<std::vector<std::vector<double>>>> m_y_vwkr;
+  std::vector<std::vector<std::vector<std::vector<double>>>> m_y_abkr = {};
+  std::vector<std::vector<std::vector<std::vector<double>>>> m_y_vckr = {};
+  std::vector<std::vector<std::vector<std::vector<double>>>> m_y_vwkr = {};
   // Angular coeficients:
-  std::vector<std::vector<std::vector<double>>> m_L_kakbk;
-  std::vector<std::vector<std::vector<double>>> m_C_kakbk;
+  std::vector<std::vector<std::vector<double>>> m_L_kakbk = {};
+  std::vector<std::vector<std::vector<double>>> m_C_kakbk = {};
 };

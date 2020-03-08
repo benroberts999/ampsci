@@ -70,6 +70,10 @@ public:
   HartreeFock(Wavefunction &wf, const std::vector<DiracSpinor> &val_orbitals,
               double eps_HF = 0.0, bool in_ExcludeExchange = false);
 
+  HartreeFock &operator=(const HartreeFock &) = delete; // copy assignment
+  HartreeFock(const HartreeFock &) = default;           // copy constructor
+  ~HartreeFock() = default;
+
   void solveValence();
 
   double calculateCoreEnergy() const;
@@ -107,8 +111,8 @@ public: // blahhhhh
 
 private:
   // The "localised"/approximate HF potential:
-  std::vector<std::vector<double>> appr_vex_core;
-  std::vector<std::vector<double>> appr_vex_val;
+  std::vector<std::vector<double>> appr_vex_core = {};
+  std::vector<std::vector<double>> appr_vex_val = {};
 
 private:
   void hf_core_approx(const double eps_target_HF);

@@ -39,6 +39,9 @@ public:
     // print_knots();
   }
 
+  BSplines &operator=(const BSplines &) = delete; // copy assignment
+  BSplines(const BSplines &) = delete;            // copy constructor
+
   ~BSplines() {
     gsl_bspline_free(gsl_bspl_work);
     gsl_vector_free(gsl_breakpts_vec);
@@ -53,16 +56,16 @@ private: // data
   const std::size_t m_rmin_index;
   const std::size_t m_rmax_index; // inclusive
 
-  gsl_bspline_workspace *gsl_bspl_work;
-  gsl_vector *gsl_breakpts_vec;
-  gsl_vector *gsl_bspl_vec;
-  gsl_matrix *gsl_bspl_deriv_mat;
+  gsl_bspline_workspace *gsl_bspl_work = nullptr;
+  gsl_vector *gsl_breakpts_vec = nullptr;
+  gsl_vector *gsl_bspl_vec = nullptr;
+  gsl_matrix *gsl_bspl_deriv_mat = nullptr;
 
-  std::vector<double> m_knots;
-  std::vector<std::vector<double>> m_Bk;
-  std::vector<std::vector<double>> m_dBkdr1;
-  std::vector<std::vector<double>> m_dBkdr2;
-  std::vector<std::pair<std::size_t, std::size_t>> m_ends;
+  std::vector<double> m_knots = {};
+  std::vector<std::vector<double>> m_Bk = {};
+  std::vector<std::vector<double>> m_dBkdr1 = {};
+  std::vector<std::vector<double>> m_dBkdr2 = {};
+  std::vector<std::pair<std::size_t, std::size_t>> m_ends = {};
 
   bool verbose = false;
 

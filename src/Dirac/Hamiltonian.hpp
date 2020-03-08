@@ -17,13 +17,17 @@ private:
   const Grid *const m_gr;
   // const int m_z;
   const double m_alpha, m_c, m_c2;
-  std::vector<std::vector<double>> m_Vk;
-  std::vector<double> m_v_mag;
+  std::vector<std::vector<double>> m_Vk = {};
+  std::vector<double> m_v_mag = {};
 
 public:
   RadialHamiltonian(const Grid &rgrid, const double in_alpha)
       : m_gr(&rgrid), m_alpha(in_alpha), m_c(1.0 / m_alpha), m_c2(m_c * m_c),
         m_Vk({}), m_v_mag({}) {}
+
+  RadialHamiltonian &operator=(const RadialHamiltonian &) = delete;
+  RadialHamiltonian(const RadialHamiltonian &) = default;
+  ~RadialHamiltonian() = default;
 
   template <typename... Args> //
   void set_v(const int kappa, const Args &... args) {
