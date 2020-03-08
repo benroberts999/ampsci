@@ -47,6 +47,8 @@ public:
   template <typename T>
   T get(const std::string &in_block, const std::string &option) const;
 
+  const UserInputBlock &get(const std::string &in_block) const;
+
   std::vector<UserInputBlock> module_list() const;
 
   void print() const;

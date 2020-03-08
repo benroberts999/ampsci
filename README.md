@@ -10,6 +10,7 @@ Fully relativistic, includes finite-nuclear size, can solve for continuum states
  * 01-hartreeFock_input -- How to use the code (input options + descriptions)
  * 02-diracSCAS_method  -- What the code does (description of physics)
  * 03-diracSCAS_code    -- Documentation for code objects/functions etc. [very preliminary]
+ * Also: contains "Makefile.example" and "hartreeFock.in.example": copy these to the main directory and remove the ".example"
 
 --------------------------------------------------------------------------------
 

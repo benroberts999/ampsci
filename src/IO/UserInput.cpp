@@ -66,6 +66,17 @@ UserInput::UserInput(const std::string &infile) : m_filename(infile) {
 }
 
 //******************************************************************************
+const UserInputBlock &UserInput::get(const std::string &in_block) const {
+  for (const auto &block : m_blocks) {
+    if (in_block == block.name())
+      return block;
+  }
+  std::cerr << "\nFAIL55: Missing required input: " << in_block
+            << " (compulsory)\n";
+  std::abort();
+}
+
+//******************************************************************************
 std::vector<UserInputBlock> UserInput::module_list() const {
   std::vector<UserInputBlock> out_module_list;
   for (const auto &block : m_blocks) {
