@@ -13,11 +13,6 @@ Solve inhomogenous Dirac equation:
 
 S (source) is spinor
 
-H_0 includes v_nuc, but not v_el
-Usually, V = V_dir, but can be any LOCAL potential.
-
-XXX Update to accept operators?
-
 */
 
 namespace DiracODE {

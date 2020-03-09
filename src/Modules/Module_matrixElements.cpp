@@ -67,7 +67,7 @@ void matrixElements(const UserInputBlock &input, const Wavefunction &wf) {
         continue;
       if (eachFreqQ && rpaQ) {
         auto w = std::abs(Fa.en - Fb.en);
-        rpa0->reZero();
+        rpa0->clear_dPsi();
         rpa0->solve_TDHFcore(w, 1, false); // wastes a little time
         rpa.solve_TDHFcore(w); // re-solve at new frequency (not from scratch)
       }

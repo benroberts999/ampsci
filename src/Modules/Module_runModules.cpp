@@ -336,10 +336,11 @@ void Module_Tests_Hamiltonian(const Wavefunction &wf) {
     const DiracSpinor *worst_psi = nullptr;
     for (const auto &psi : *tmp_orbs) {
       double Haa_d = Hd.matrixEl(psi, psi);
-      double Haa_x =
-          (tmp_orbs != &wf.basis)
-              ? psi * wf.get_VexPsi(psi)
-              : psi * HartreeFock::vex_psia_any(psi, wf.core_orbitals);
+      // double Haa_x =
+      //     (tmp_orbs != &wf.basis)
+      //         ? psi * wf.get_VexPsi(psi)
+      //         : psi * HartreeFock::vex_psia_any(psi, wf.core_orbitals);
+      double Haa_x = psi * HartreeFock::vex_psia_any(psi, wf.core_orbitals);
       auto Haa = Haa_d + Haa_x;
       double ens = psi.en;
       double fracdiff = (Haa - ens) / ens;

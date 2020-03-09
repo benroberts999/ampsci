@@ -2,23 +2,26 @@
 #include <cmath>
 #include <gsl/gsl_sf_coupling.h>
 
-namespace Wigner {
-
-/*
+/*!
+@brief
+Calculate wigner 3,6,9-J symbols + Clebsh-Gordon coefs etc..
+@details
 Wrapper functions to calculate wigner 3,6,9-J symbols.
 Uses GSL:
 https://www.gnu.org/software/gsl/doc/html/specfunc.html?highlight=3j#coupling-coefficients
 NOTE:
 Since j always integer or half-integer, GSL inputs are always integer.
 Three versions of each symbol:
- * 'regular', takes in double. Converts to integer safely. Slower (marginally),
+ - 'regular', takes in double. Converts to integer safely. Slower (marginally),
     but easier
- * '_1' version takes integers as-is. Only work for
-integer angular momentum (l).
- * and '_2' version, takes in 2*j (as an integer). Works for l and j
+ - '_1' version takes integers as-is. Only work for integer angular momentum
+(l).
+ - and '_2' version, takes in 2*j (as an integer). Works for l and j
 */
+namespace Wigner {
 
 //******************************************************************************
+//! @brief returns l given kappa (all folliwing do similar)
 constexpr int l_k(int ka) { return (ka > 0) ? ka : -ka - 1; }
 constexpr int twoj_k(int ka) { return (ka > 0) ? 2 * ka - 1 : -2 * ka - 1; }
 constexpr double j_k(int ka) {
@@ -28,11 +31,9 @@ constexpr int parity_k(int ka) {
   return (ka % 2 == 0) ? ((ka > 0) ? 1 : -1) : ((ka < 0) ? 1 : -1);
 }
 constexpr int parity_l(int l) { return (l % 2 == 0) ? 1 : -1; }
-constexpr int l_tilde_k(int ka) {
-  // "Complimentary l (l for lower component)"
-  // l-tilde = (2j-l) = l +/- 1, for j = l +/- 1/2
-  return (ka > 0) ? ka - 1 : -ka;
-}
+//! @brief "Complimentary" l (l for lower component). l-tilde = (2j-l) = l +/-
+//! 1, for j = l +/- 1/2
+constexpr int l_tilde_k(int ka) { return (ka > 0) ? ka - 1 : -ka; }
 constexpr int kappa_twojl(int twoj, int l) {
   return ((2 * l - twoj) * (twoj + 1)) / 2;
 }
@@ -43,6 +44,7 @@ constexpr int kappa_twojl(int twoj, int l) {
 // kappa: -1  1 -2  2 -3  3 -4  4 ...
 // index:  0  1  2  3  4  5  6  7 ...
 // kappa(i) = (-1,i+1)*(int(i/2)+1)
+//! @brief kappa index. kappa=-1,1,-2,...; index=0,1,2.
 constexpr int indexFromKappa(int ka) {
   return (ka < 0) ? -2 * ka - 2 : 2 * ka - 1;
 }
@@ -53,22 +55,23 @@ constexpr int twojFromIndex(int i) { return (i % 2 == 0) ? i + 1 : i; }
 constexpr int lFromIndex(int i) { return (i % 2 == 0) ? i / 2 : (i + 1) / 2; }
 
 //******************************************************************************
+//! @brief Returns true if a is even
 constexpr bool evenQ(int a) { return (a % 2 == 0); }
+//! @brief Returns true if a is even, given 2*a (i.e., true if two_a/2 is even)
 constexpr bool evenQ_2(int two_a) { return (two_a % 4 == 0); }
 
 //******************************************************************************
-constexpr int parity(int la, int lb, int k)
-// Parity rule. Returns 1 only if la+lb+k is even
-{
+//! @brief Parity rule. Returns 1 only if la+lb+k is even
+constexpr int parity(int la, int lb, int k) {
   return ((la + lb + k) % 2 == 0) ? 1 : 0;
 }
 
 //******************************************************************************
-constexpr int triangle(double j1, double j2, double J)
-// Triangle rule.
-{
+//! @brief Returns 1 if triangle rule is satisfied
+constexpr int triangle(double j1, double j2, double J) {
   return ((j1 + j2 < J) || (std::fabs(j1 - j2) > J)) ? 0 : 1;
 }
+//! @brief Returns 1 if triangle rule is satisfied. nb: works with j OR twoj!
 constexpr int triangle(int j1, int j2, int J) {
   // nb: can be called with wither j or twoj!
   return ((j1 + j2 < J) || (std::abs(j1 - j2) > J)) ? 0 : 1;
@@ -83,14 +86,13 @@ constexpr int sumsToZero(double m1, double m2, double m3) {
 }
 
 //******************************************************************************
+//! @brief Calculates wigner 3j symbol: Works for l and j (integer and
+//! half-integer)
+/*! @details
+   \f[ \begin{pmatrix}j1&j2&j3\\m1&m2&m3\end{pmatrix} \f]
+*/
 inline double threej(double j1, double j2, double j3, double m1, double m2,
-                     double m3)
-// Calculates wigner 3j symbol:
-//   (j1 j2 j3)
-//   (m1 m2 m3)
-// Note: this function takes DOUBLE values.
-// Works for l and j (integer and half-integer)
-{
+                     double m3) {
   if (triangle(j1, j2, j3) * sumsToZero(m1, m2, m3) == 0)
     return 0;
   int two_j1 = (int)round(2 * j1);
@@ -104,11 +106,7 @@ inline double threej(double j1, double j2, double j3, double m1, double m2,
 
 //------------------------------------------------------------------------------
 inline double threej_1(int j1, int j2, int j3, int m1, int m2, int m3)
-// Calculates wigner 3j symbol:
-//   (j1 j2 j3)
-//   (m1 m2 m3)
-// Note: this function takes INTEGER values, only works for l (not half-integer
-// j)!
+//! @brief Calculates wigner 3j symbol: only works for l (not half-integer j)!
 {
   if (triangle(j1, j2, j3) * sumsToZero(m1, m2, m3) == 0)
     return 0;
@@ -116,14 +114,10 @@ inline double threej_1(int j1, int j2, int j3, int m1, int m2, int m3)
 }
 
 //------------------------------------------------------------------------------
+//! @brief Calculates wigner 3j symbol: takes INTEGER values, that have already
+//! multiplied by 2. Works for l and j (integer and half-integer).
 inline double threej_2(int two_j1, int two_j2, int two_j3, int two_m1,
-                       int two_m2, int two_m3)
-// Calculates wigner 3j symbol:
-//   (j1 j2 j3)
-//   (m1 m2 m3)
-// Note: this function takes INTEGER values, that have already multiplied by 2!
-// Works for l and j (integer and half-integer)
-{
+                       int two_m2, int two_m3) {
   if (triangle(two_j1, two_j2, two_j3) * sumsToZero(two_m1, two_m2, two_m3) ==
       0)
     return 0;
@@ -131,9 +125,11 @@ inline double threej_2(int two_j1, int two_j2, int two_j3, int two_m1,
 }
 
 //******************************************************************************
-inline double special_threej_2(int two_j1, int two_j2, int two_k)
-// special (common) 3js case:  (ja jb k, -0.5, 0.5, 0)
-{
+//!@brief  Special (common) 3js case:  (j1 j2 k, -0.5, 0.5, 0)
+/*! @details
+   \f[ \begin{pmatrix}j1&j2&k\\-1/2&1/2&0\end{pmatrix} \f]
+*/
+inline double special_threej_2(int two_j1, int two_j2, int two_k) {
   if (triangle(two_j1, two_j2, two_k) == 0)
     return 0.0;
   if (two_k == 0) {
@@ -148,6 +144,7 @@ inline double special_threej_2(int two_j1, int two_j2, int two_k)
 }
 
 //******************************************************************************
+//!@brief Clebsh-Gordon coeficient <j1 m1, j2 m2 | J M>
 inline double cg(double j1, double m1, double j2, double m2, double J, double M)
 // <j1 m1, j2 m2 | J M> = (-1)^(j1-j2+M) * std::sqrt(2J+1) * (j1 j2  J)
 // .                                                    (m1 m2 -M)
@@ -207,6 +204,7 @@ inline double cg_2(int two_j1, int two_m1, int two_j2, int two_m2, int two_J,
 }
 
 //******************************************************************************
+//!@brief 6j symbol {j1 j2 j3 \\ j4 j5 j6}
 inline double sixj(double j1, double j2, double j3, double j4, double j5,
                    double j6)
 // Calculates wigner 6j symbol:
@@ -314,6 +312,7 @@ inline double ninej_2(int two_j1, int two_j2, int two_j3, int two_j4,
 }
 
 //******************************************************************************
+//!@brief Reduced (relativistic) angular ME: <ka||C^k||kb>
 inline double Ck_kk(int k, int ka, int kb)
 // Reduced (relativistic) angular ME:
 // <ka||C^k||kb> = (-1)^(ja+1/2) * srt([ja][jb]) * 3js(ja jb k, -1/2 1/2 0) * Pi
@@ -353,6 +352,7 @@ inline double Ck_2j2j(int k, int two_ja, int two_jb)
   return sign * f * g;
 }
 //******************************************************************************
+//!@brief Reduced spin angular ME: (for spin 1/2): <ka||S||kb>
 inline double S_kk(int ka, int kb)
 // Reduced spin angular ME: (for spin 1/2!)
 // <ka||S||kb> = d(la,lb) * (-1)^{ja+la+3/2} * Sqrt([ja][jb](3/2)) *

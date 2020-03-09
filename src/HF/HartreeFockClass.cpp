@@ -145,25 +145,6 @@ HartreeFock::HartreeFock(HFMethod method, Wavefunction &wf,
   }
 }
 
-//------------------------------------------------------------------------------
-// Overload (to allow new HF object for seperate basis..)
-// very hacky temp solution!
-HartreeFock::HartreeFock(Wavefunction &wf,
-                         const std::vector<DiracSpinor> &val_orbitals,
-                         double eps_HF, bool in_ExcludeExchange)
-    : p_wf(&wf), p_rgrid(&wf.rgrid),
-      m_cint(Coulomb(wf.rgrid, wf.core_orbitals, val_orbitals)),
-      m_eps_HF([=]() { // can give as log..
-        return (std::fabs(eps_HF) < 1) ? eps_HF : std::pow(10, -1 * eps_HF);
-      }()),
-      m_excludeExchange(in_ExcludeExchange), //
-      m_method(HFMethod::HartreeFock)
-// Core must already exist to use this one!
-// Call it something else??
-{
-  m_cint.initialise_core_core();
-}
-
 //******************************************************************************
 HFMethod HartreeFock::parseMethod(const std::string &in_method) {
   if (in_method == "HartreeFock")

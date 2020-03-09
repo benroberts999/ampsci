@@ -7,16 +7,6 @@ class DiracSpinor;
 class Grid;
 
 /*
-Calculates self-consistent Hartree-Fock potential, including exchange.
-Solves all core and valence states.
-
-Note: can run without exchange (Hartree) - for tests only.
-(Still, non-local potential, 'vex' different for each core state)
-
-XXX Have option to give a list of valence states!
-Can solve them to some degree in parallel
-Requires re-writing the valence part (a little)
-
   Definitions:
   v^k_ab(r)   := Int_0^inf [r_min^k/r_max^(k+1)]*rho(f') dr'
   rho(r')     := fa(r')*fb(r') + ga(r')gb(r')
@@ -45,50 +35,43 @@ static inline auto rampedDamp(double a_beg, double a_end, int beg, int end) {
 }
 
 //******************************************************************************
+
+//! @brief
+//! Solves relativistic Hartree-Fock equations
+
+/*! @details
+\par Construction
+Requires Wavefunction object, and string core configuration (e.g., '[Xe],6s2')
+\par Usage
+Will solve HF equations for the core when constructed.
+Note: it constructs the wf.core-orbitals vector... this is probably not the
+right way to do it.
+*/
+
 class HartreeFock {
   friend class Coulomb;
 
 public:
-  static DiracSpinor
-  solveMixedState(const int k, const DiracSpinor &Fa, const double omega,
-                  const std::vector<double> &vl, const double alpha,
-                  const std::vector<DiracSpinor> &core, const DiracSpinor &hFa,
-                  const double eps_target = 1.0e-9);
-  static DiracSpinor
-  solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
-                  const std::vector<double> &vl, const double alpha,
-                  const std::vector<DiracSpinor> &core, const DiracSpinor &hFa,
-                  const double eps_target = 1.0e-9);
-
-public:
-  static HFMethod parseMethod(const std::string &in_method);
-
+  //! @brief HFMethod is enum class, eps_HF si convergence goal. h_d & g_t are
+  //! parametric potential parameters (only used if method=Green/Teitz).
+  //! Note: solves for HF core obitals (+populates them) on construct
   HartreeFock(HFMethod method, Wavefunction &wf, const std::string &in_core,
-              double eps_HF = 0, double h_d = 0, double g_t = 0);
+              double eps_HF = 0.0, double h_d = 0.0, double g_t = 0.0);
 
-  // for HF basis:
-  HartreeFock(Wavefunction &wf, const std::vector<DiracSpinor> &val_orbitals,
-              double eps_HF = 0.0, bool in_ExcludeExchange = false);
-
-  HartreeFock &operator=(const HartreeFock &) = delete; // copy assignment
-  HartreeFock(const HartreeFock &) = default;           // copy constructor
-  ~HartreeFock() = default;
-
+  //! @brief Solves HF for valence list; valence states must already be present
+  //! in WaveFunction (bad, instead, give it a vector of DiracSpinors!)
   void solveValence();
 
   double calculateCoreEnergy() const;
 
-  const std::vector<double> &get_vex(const DiracSpinor &psi) const;
-
-  DiracSpinor vex_psia(const DiracSpinor &Fa) const;
-  void vex_psia(const DiracSpinor &Fa, DiracSpinor &vexPsi) const;
-
+public:
+  //! @brief Calculates V_exch * Fa, for any orbital Fa (calculated Coulomb
+  //! integral). Needs existing orbital Fa, and the core orbitals. k_cut is max
+  //! multipolarity to sum over for exchange term [can limit to ~1 (e.g.) for
+  //! speed when high accuracy is not required]
   static DiracSpinor vex_psia_any(const DiracSpinor &Fa,
                                   const std::vector<DiracSpinor> &core,
                                   int k_cut = 99);
-  static std::vector<double>
-  form_approx_vex_any(const DiracSpinor &Fa,
-                      const std::vector<DiracSpinor> &core, int k_cut = 99);
 
   bool verbose = true;
 
@@ -120,6 +103,10 @@ private:
                             HFMethod method = HFMethod::GreenPRM,
                             double h_g = 0, double d_t = 0);
 
+  DiracSpinor vex_psia(const DiracSpinor &Fa) const;
+  void vex_psia(const DiracSpinor &Fa, DiracSpinor &vexFa) const;
+  const std::vector<double> &get_vex(const DiracSpinor &psi) const;
+
   void form_vdir(std::vector<double> &vdir, bool re_scale = false) const;
   void form_approx_vex_core(std::vector<std::vector<double>> &vex) const;
   void form_approx_vex_a(const DiracSpinor &Fa,
@@ -136,4 +123,47 @@ private:
                   const std::vector<double> &H_mag, const DiracSpinor &vx_phi,
                   const std::vector<DiracSpinor> &core,
                   const std::vector<double> &v0 = {}) const;
+
+public:
+  HartreeFock &operator=(const HartreeFock &) = delete; // copy assignment
+  HartreeFock(const HartreeFock &) = default;           // copy constructor
+  ~HartreeFock() = default;
+
+public:
+  //! @brief Solves Mixed States (Dalgarno-Lewis) equation, inhomogenous
+  //! equation, with Hartree-Fock hamiltonian, including exchange
+  /*! @details
+  Solves
+  \f[ (H_{\rm HF} - \epsilon - \omega)\delta\phi = -\hat h \phi \f]
+  for \f$\delta\phi\f$ (dF).
+  Requires kappa angular momentum number of solution (dF), unperturbed orbital
+  Fa, a local potential (vl, typically vnuc + vdir), set of core electrons (for
+  exchange). Note sign on hFa (this is \f$\hat h \phi\f$, not \f$-\hat h
+  \phi\f$). eps_target is convergance goal for soling the inhomogenous dif.
+  equation.
+  */
+  static DiracSpinor
+  solveMixedState(const int k, const DiracSpinor &Fa, const double omega,
+                  const std::vector<double> &vl, const double alpha,
+                  const std::vector<DiracSpinor> &core, const DiracSpinor &hFa,
+                  const double eps_target = 1.0e-9);
+  //! @brief Solves Mixed States (Dalgarno-Lewis equation)
+  /*! @details
+  As above, but starts with existing solution dF (may be 'zero'). If existing
+  solution is already axproximate solution, this allows equation to be solved
+  much quicker.
+  */
+  static DiracSpinor
+  solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
+                  const std::vector<double> &vl, const double alpha,
+                  const std::vector<DiracSpinor> &core, const DiracSpinor &hFa,
+                  const double eps_target = 1.0e-9);
+
+  //! @brief Convers string (name) of method (HartreeFock, Hartree etc.) to enum
+  static HFMethod parseMethod(const std::string &in_method);
+
+private:
+  static std::vector<double>
+  form_approx_vex_any(const DiracSpinor &Fa,
+                      const std::vector<DiracSpinor> &core, int k_cut = 99);
 };

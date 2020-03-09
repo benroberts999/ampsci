@@ -5,17 +5,36 @@ class DiracSpinor;
 class DiracOperator;
 class Wavefunction;
 
-enum class dPsiType { X, Y }; // add conj?
+enum class dPsiType { X, Y };
+
+//! @brief
+//! Uses time-dependent Hartree-Fock method to include core-polarisation
+//! (RPA) corrections to matrix elements of some external field operator.
+
+/*! @details
+Solves set of TDHF equations
+\f[ (H -\epsilon \pm \omega)\delta\psi_b = -(\delta V  + \delta\epsilon_c)\psi_b
+\f] self consistantly for each electron in the core to determine dV. (See
+'Method' document for detailed physics description). There is an option to limit
+the maximum number of iterations; set to 1 to get the first-order correction
+(nb: no damping is used for first iteration).
+\par Construction
+Requires a pointer to an operator (h), a set of core orbitals [taken as const
+reference], a local potential (vl, typically vnuc + vdir), and the value of
+alpha (fine structure constant).
+\par Usage
+solve_TDHFcore(omega) solves TDHF eqs for given frequency. Frequency should be
+positive, but is allowed to be negative (use as a test only, with care). Can be
+run again with a different frequency, typically does not need to be re-started
+from scratch. Then, dV_ab(Fa,Fb) returns the correction to the matrix element:
+\f[ \langle \phi_a || \delta V || \phi_b \rangle \f]
+*/
 
 class ExternalField {
 public:
   ExternalField(const DiracOperator *const h,
                 const std::vector<DiracSpinor> &core,
                 const std::vector<double> &vl, const double alpha);
-
-  ExternalField &operator=(const ExternalField &) = delete;
-  ExternalField(const ExternalField &) = default;
-  ~ExternalField() = default;
 
 private:
   // dPhi = X exp(-iwt) + Y exp(+iwt)
@@ -38,35 +57,60 @@ private:
   // Angular::SixJ m_6j; // used?
 
 public:
+  //! @brief Solves TDHF equations self-consistantly for core electrons at
+  //! frequency omega.
+  //! @details Solves TDHF equations self-consistantly for core electrons at
+  //! frequency omega. Will iterate up to a maximum of max_its. Set max_its=1 to
+  //! get first-order correction [note: no dampling is used for first
+  //! itteration]. If print=true, will write progress to screen
   void solve_TDHFcore(const double omega, int max_its = 100,
                       const bool print = true);
+
+  //! @brief Uses itterative matrix method; for tests only
   void solve_TDHFcore_matrix(const Wavefunction &wf, const double omega,
                              const int max_its = 25);
-  void reZero();
 
-  // does it matter if a or b is in the core?
+  //! @brief Clears the dPsi orbitals (sets to zero)
+  void clear_dPsi();
+
+  //! @brief Calculate reduced matrix element <a||dV||b> or <a||dV*||b>.
+  //! Will exclude orbital 'Fexcl' from sum over core (for tests only)
   double dV_ab(const DiracSpinor &Fa, const DiracSpinor &Fb, bool conj,
                const DiracSpinor *const Fexcl = nullptr) const;
+
+  //! @brief As above, but automatically determines if 'conjugate' version
+  //! reuired (Based on sign of [en_a-en_b])
   double dV_ab(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
 
+  //! @brief Returns "reduced partial matrix element RHS": dV||Fb}.
+  //! Note: Fa * dV_ab_rhs(..) equiv to dV_ab(..)
   DiracSpinor dV_ab_rhs(const DiracSpinor &Fa, const DiracSpinor &Fb,
                         bool conj = false,
                         const DiracSpinor *const Fexcl = nullptr) const;
 
-  // make const? Private?
+  //! @brief Returns const reference to dPsi orbitals for given core orbital Fc
   const std::vector<DiracSpinor> &get_dPsis(const DiracSpinor &Fc,
                                             dPsiType XorY) const;
+  //! @brief Returns const reference to dPsi orbital of given kappa
   const DiracSpinor &get_dPsi_x(const DiracSpinor &Fc, dPsiType XorY,
                                 const int kappa_x) const;
 
-  // For "full" matrix version: not ready...
+  //! @brief Writes dPsi (f-component) to textfile
+  void print(const std::string &ofname = "dPsi.txt") const;
+
+private:
+  // Calculate indevidual (4 electron) partial contributions to the
+  // dV (reduced) matrix element (for Matrix method: not used yet)
   double dX_nm_bbe_rhs(const DiracSpinor &Fn, const DiracSpinor &Fm,
                        const DiracSpinor &Fb, const DiracSpinor &X_beta) const;
   double dY_nm_bbe_rhs(const DiracSpinor &Fn, const DiracSpinor &Fm,
                        const DiracSpinor &Fb, const DiracSpinor &Y_beta) const;
 
-  void print() const;
-
 private:
   std::size_t core_index(const DiracSpinor &Fc) const;
+
+public:
+  ExternalField &operator=(const ExternalField &) = delete;
+  ExternalField(const ExternalField &) = default;
+  ~ExternalField() = default;
 };

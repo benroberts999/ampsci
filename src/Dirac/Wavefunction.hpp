@@ -72,10 +72,10 @@ public: // const methods: "views" into WF object
     return m_pHF->m_excludeExchange;
   }
 
-  auto get_VexPsi(const DiracSpinor &psi) const {
-    // XXX add check!? XXX
-    return m_pHF->vex_psia(psi);
-  }
+  // auto get_VexPsi(const DiracSpinor &psi) const {
+  //   // XXX add check!? XXX
+  //   return m_pHF->vex_psia(psi);
+  // }
 
   std::size_t getStateIndex(int n, int k, bool &is_valence = dummy_bool) const;
   const DiracSpinor *getState(int n, int k,

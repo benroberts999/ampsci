@@ -58,7 +58,8 @@ ExternalField::ExternalField(const DiracOperator *const h,
 }
 
 //******************************************************************************
-void ExternalField::reZero() {
+void ExternalField::clear_dPsi() {
+  // re-set p0/pinf? no need.
   for (auto &mx : m_X) {
     for (auto &m : mx) {
       m *= 0.0;
@@ -427,8 +428,8 @@ void ExternalField::solve_TDHFcore_matrix(const Wavefunction &wf,
 }
 
 //******************************************************************************
-void ExternalField::print() const {
-  std::ofstream of("dPsi.txt");
+void ExternalField::print(const std::string &ofname) const {
+  std::ofstream of(ofname);
   const auto &gr = *((p_core->front()).p_rgrid);
   for (auto i = 0ul; i < gr.num_points; ++i) {
     of << gr.r[i] << " ";

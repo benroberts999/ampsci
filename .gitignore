@@ -9,6 +9,7 @@ doc/*
 !doc/*.tex
 !doc/*.pdf
 !doc/*.example
+!doc/Doxyfile
 !.gitignore
 !*.md
 !.clang-format
