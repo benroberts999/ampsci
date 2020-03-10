@@ -672,7 +672,7 @@ void HartreeFock::vex_psia(const DiracSpinor &Fa, DiracSpinor &vexPsi) const
   auto sp = SafeProfiler::profile(__func__);
   vexPsi.pinf = Fa.f.size(); // silly hack. Make sure vexPsi = 0 after pinf
   vexPsi *= 0.0;
-  // vexPsi.pinf = Fa.pinf;
+  vexPsi.pinf = Fa.pinf;
 
   if (m_excludeExchange)
     return;
@@ -689,7 +689,8 @@ void HartreeFock::vex_psia(const DiracSpinor &Fa, DiracSpinor &vexPsi) const
     for (int k = kmin; k <= kmax; k++) {
       if (L_ab_k[k - kmin] == 0)
         continue;
-      for (auto i = 0u; i < Fb.pinf; i++) {
+      auto max = std::min(Fb.pinf, Fa.pinf);
+      for (auto i = 0u; i < max; i++) {
         auto v = -x_tjbp1 * L_ab_k[k - kmin] * vabk[k - kmin][i];
         vexPsi.f[i] += v * Fb.f[i];
         vexPsi.g[i] += v * Fb.g[i];
@@ -707,7 +708,7 @@ DiracSpinor HartreeFock::vex_psia_any(const DiracSpinor &Fa,
 {
   auto sp = SafeProfiler::profile(__func__);
   DiracSpinor vexPsi(Fa.n, Fa.k, *(Fa.p_rgrid));
-  // vexPsi.pinf = Fa.pinf;
+  vexPsi.pinf = Fa.pinf;
 
   std::vector<double> vabk(Fa.p_rgrid->num_points);
   // XXX ALSO move this!
@@ -732,7 +733,8 @@ DiracSpinor HartreeFock::vex_psia_any(const DiracSpinor &Fa,
       if (tjs == 0)
         continue;
       Coulomb::calculate_y_ijk(Fb, Fa, k, vabk);
-      for (auto i = 0u; i < Fb.pinf; i++) {
+      auto max = std::min(Fb.pinf, Fa.pinf);
+      for (auto i = 0u; i < max; i++) {
         auto v = -x_tjbp1 * tjs * tjs * vabk[i];
         vexPsi.f[i] += v * Fb.f[i];
         vexPsi.g[i] += v * Fb.g[i];
