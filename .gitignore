@@ -10,6 +10,7 @@ doc/*
 !doc/*.pdf
 !doc/*.example
 !doc/Doxyfile
+!doc/DoxygenLayout.xml
 !.gitignore
 !*.md
 !.clang-format
