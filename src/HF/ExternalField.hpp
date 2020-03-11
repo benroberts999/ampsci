@@ -1,5 +1,5 @@
 #pragma once
-#include "Angular/Angular.hpp"
+#include "Angular/Angular_tables.hpp"
 #include <vector>
 class DiracSpinor;
 class DiracOperator;

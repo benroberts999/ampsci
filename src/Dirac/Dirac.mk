@@ -9,7 +9,7 @@ $(SD)/Physics/AtomData.hpp $(SD)/Physics/PhysConst_constants.hpp
 
 $(BD)/DiracOperator.o: $(SD)/Dirac/DiracOperator.cpp \
 $(SD)/Dirac/DiracOperator.hpp $(SD)/Dirac/DiracSpinor.cpp \
-$(SD)/Dirac/DiracSpinor.hpp $(SD)/Angular/Wigner_369j.hpp
+$(SD)/Dirac/DiracSpinor.hpp $(SD)/Angular/Angular_369j.hpp
 	$(COMP)
 
 $(BD)/DiracSpinor.o: $(SD)/Dirac/DiracSpinor.cpp $(SD)/Dirac/DiracSpinor.hpp \

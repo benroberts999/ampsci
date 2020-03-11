@@ -1,6 +1,6 @@
 #include "HF/CoulombIntegrals.hpp"
-#include "Angular/Angular.hpp"
-#include "Angular/Wigner_369j.hpp"
+#include "Angular/Angular_tables.hpp"
+#include "Angular/Angular_369j.hpp"
 #include "Dirac/DiracSpinor.hpp"
 #include "IO/SafeProfiler.hpp"
 #include "Maths/Grid.hpp"
@@ -19,7 +19,7 @@ double Coulomb::Zk_abcd_any(const DiracSpinor &Fa, const DiracSpinor &Fb,
                             const int k) {
   // Z^k_abcd = s ( Q^k_abcd + sum_l [k] 6j * Q^l_abdc)
 
-  auto s = Wigner::evenQ_2(Fa.twoj() + Fb.twoj() + 2) ? 1 : -1;
+  auto s = Angular::evenQ_2(Fa.twoj() + Fb.twoj() + 2) ? 1 : -1;
   auto Qk_abcd = Qk_abcd_any(Fa, Fb, Fc, Fd, k);
 
   auto tkp1 = 2 * k + 1;
@@ -31,7 +31,7 @@ double Coulomb::Zk_abcd_any(const DiracSpinor &Fa, const DiracSpinor &Fb,
 
   double sum = 0.0;
   for (int tl = min_twol; tl <= max_twol; tl += 2) {
-    auto sixj = Wigner::sixj_2(Fc.twoj(), Fa.twoj(), 2 * k, //
+    auto sixj = Angular::sixj_2(Fc.twoj(), Fa.twoj(), 2 * k, //
                                Fd.twoj(), Fb.twoj(), tl);
     if (sixj == 0)
       continue;
@@ -47,14 +47,14 @@ double Coulomb::Qk_abcd_any(const DiracSpinor &Fa, const DiracSpinor &Fb,
                             const DiracSpinor &Fc, const DiracSpinor &Fd,
                             const int k) {
 
-  auto tCac = Wigner::tildeCk_kk(k, Fa.k, Fc.k);
+  auto tCac = Angular::tildeCk_kk(k, Fa.k, Fc.k);
   if (tCac == 0.0)
     return 0.0;
-  auto tCbd = Wigner::tildeCk_kk(k, Fb.k, Fd.k);
+  auto tCbd = Angular::tildeCk_kk(k, Fb.k, Fd.k);
   if (tCbd == 0.0)
     return 0.0;
   auto Rkabcd = Rk_abcd_any(Fa, Fb, Fc, Fd, k);
-  auto m1tk = Wigner::evenQ(k) ? 1 : -1;
+  auto m1tk = Angular::evenQ(k) ? 1 : -1;
   return m1tk * tCac * tCbd * Rkabcd;
 }
 
@@ -99,14 +99,14 @@ DiracSpinor Coulomb::Qk_abcd_rhs(const DiracSpinor &Fa, const DiracSpinor &Fb,
                                  const DiracSpinor &Fc, const DiracSpinor &Fd,
                                  const int k) {
   // XXX have bool! can skip!
-  auto tCac = Wigner::tildeCk_kk(k, Fa.k, Fc.k);
+  auto tCac = Angular::tildeCk_kk(k, Fa.k, Fc.k);
   if (tCac == 0.0)
     return 0.0 * Fa;
-  auto tCbd = Wigner::tildeCk_kk(k, Fb.k, Fd.k);
+  auto tCbd = Angular::tildeCk_kk(k, Fb.k, Fd.k);
   if (tCbd == 0.0)
     return 0.0 * Fa;
   auto Rk_bcd = Rk_abcd_rhs(Fa, Fb, Fc, Fd, k);
-  auto m1tk = Wigner::evenQ(k) ? 1 : -1;
+  auto m1tk = Angular::evenQ(k) ? 1 : -1;
   return m1tk * tCac * tCbd * Rk_bcd;
 }
 
@@ -460,10 +460,10 @@ void Coulomb::calculate_angular(int ki)
       std::vector<double> C_k(kmax - kmin + 1, 0);
       std::vector<double> L_k(kmax - kmin + 1, 0);
       for (auto k = kmin; k <= kmax; k++) {
-        if (Wigner::parity(la, lb, k) == 0)
+        if (Angular::parity(la, lb, k) == 0)
           continue;
         int ik = k - kmin;
-        auto tjs = Wigner::threej_2(tja, tjb, 2 * k, -1, 1, 0);
+        auto tjs = Angular::threej_2(tja, tjb, 2 * k, -1, 1, 0);
         C_k[ik] = std::sqrt((tja + 1) * (tjb + 1)) * tjs; // nb: no sign!
         L_k[ik] = tjs * tjs;
       } // k

@@ -11,31 +11,30 @@ constexpr int twoj(int jindex) { return 2 * jindex + 1; }
 constexpr int jindex(int twoj) { return (twoj - 1) / 2; }
 constexpr int jindex_kappa(int ka) { return (ka > 0) ? ka - 1 : -ka - 1; }
 
-constexpr int indexFromKappa(int ka) {
-  return (ka < 0) ? -2 * ka - 2 : 2 * ka - 1;
-}
-constexpr int kappaFromIndex(int i) {
-  return (i % 2 == 0) ? -(i + 2) / 2 : (i + 1) / 2;
-}
-
 template <typename T> inline T max4(T a, T b, T c, T d) {
   return std::max(std::max(a, b), std::max(c, d));
+  // Actually faster than c++17s: std::max({a,b,c,d})? Probs not.
 }
 template <typename T> inline T min4(T a, T b, T c, T d) {
   return std::min(std::min(a, b), std::min(c, d));
 }
-inline int min_lambda_tj(int tja, int tjb, int tjc, int tjd) {
-  return std::max(std::abs(tja - tjd), std::abs(tjb - tjc)) / 2;
-}
-inline int max_lambda_tj(int tja, int tjb, int tjc, int tjd) {
-  return std::min((tja + tjd), (tjb + tjc)) / 2;
-}
 
 //******************************************************************************
+/*!
+@brief Lookup table for C^k and 3j symbols (special m=1/2, q=0 case)
+@details
+  - Builds 3j symbol lookup table for given maximum k and maximum j (2j)
+  - 3j symbols, special case: (ja jb k \\ -1/2, 1/2, 0)
+  - Ck_ab      := \f$C^k_{ab} = <ka||C^k||kb>\f$ [symmetric up to +/- sign]
+  - TildeCk_ab := \f$(-1)^{ja+1/2} C^k_{ab}\f$ [symmetric]
+  - Slightly faster than calculating on-the-fly, but adds some overhead
+\par Construction
+  - Needs max k and two*j values. Will build look-up tables for all possible
+symbols.
+\par Usage
+  - Note: Functions take k and kappa_a, kappa_b as input!
+*/
 class Ck_ab {
-  // Lookup table for Ckab, and 3j symbols.
-  // Ckab      = (-1)^{ja+1/2} * tildeCkab
-  // tildeCkab = Sqrt([ja][jb]) * 3j(ja,jb,k, -1/2,1/2,0)pi
 
 public:
   Ck_ab(const int in_max_K = 0, const int in_max_twoj = 0) {
@@ -43,16 +42,21 @@ public:
   }
 
 public:
+  //! @brief Extends existing look-up table to new maximum K and twoj.
+  //! @details nb: called on construction automatically, you only need to call
+  //! this if you need to extend the table after original construction (rare)
   void fill_maxK_twojmax(const int in_max_K, const int in_max_twoj);
 
-  // These will calculate values if they don't exist yet
-  double get_tildeCkab_mutable(int k, int ka, int kb);
+  //! @brief 'mutable' getters will calculate values if they don't exist yet
+  //! @details Safer, but NOT thread safe
   double get_Ckab_mutable(int k, int ka, int kb);
+  double get_tildeCkab_mutable(int k, int ka, int kb);
   double get_3jkab_mutable(int k, int ka, int kb);
 
-  // Use const versions if sure value already exists (will segfault otherwise)
-  double get_tildeCkab(int k, int ka, int kb) const;
+  //! @brief Use const versions if sure value already exists
+  //! @details Note: undefined behaviour to call if the value doesn't exist yet
   double get_Ckab(int k, int ka, int kb) const;
+  double get_tildeCkab(int k, int ka, int kb) const;
   double get_3jkab(int k, int ka, int kb) const;
 
 private:
@@ -95,6 +99,21 @@ public:
 };
 
 //******************************************************************************
+/*!
+@brief Lookup table for 6j symbols
+@details
+  - Lookup table for 6j symbols: { ja, jb, k \\ jc, jd, l}
+  - j's half-integer (called using integer 2j). Integer k and l
+  - Much faster than calculating on the fly.
+  - Stores 6j symbols up to + including given max_K and max_2j (stores all
+allowed l)
+\par Construction
+  - Needs max k and two*j values. Will build look-up tables for all possible
+symbols.
+\par Usage
+  - Note: Functions take k and {two*j} as input! Also: note input order (strange
+order..)
+*/
 class SixJ
 //  { ja, jb, k}
 //  { jc, jd, l}
@@ -102,12 +121,13 @@ class SixJ
 {
 public:
   SixJ(int in_max_k = 0, int in_max_twoj = 1) { fill(in_max_k, in_max_twoj); }
+  //! @brief Extends existing look-up table to new maximum K and twoj.
   void fill(int in_max_k, int in_max_twoj);
 
-  // Thread-safe, but will seg-fault if 6j doesn't exist
+  //! @brief Thread-safe, but will seg-fault if 6j doesn't exist
   double get_6j(int tja, int tjb, int tjc, int tjd, int k, int l) const;
 
-  // Will calculate + store 6j if it doesn't exist, but not thread-safe
+  //! @brief Will calculate + store 6j if it doesn't exist, but not thread-safe
   double get_6j_mutable(int tja, int tjb, int tjc, int tjd, int k, int l);
 
 private:
@@ -145,7 +165,7 @@ private:
 //               auto l_min = std::max(amd, bmc) / 2;
 //               auto l_max = std::min(apd, bpc) / 2;
 //               for (int l = l_min; l <= l_max; ++l) {
-//                 out += Wigner::sixj_2(tja, tjb, 2 * k, tjc, tjd, 2 * l);
+//                 out += Angular::sixj_2(tja, tjb, 2 * k, tjc, tjd, 2 * l);
 //                 // out += sj.get_6j(tja, tjb, tjc, tjd, k, l);
 //                 //
 //                 // std::cout << tja << "," << tjb << "," << tjc << "," << tjd
@@ -154,7 +174,7 @@ private:
 //                 //           << k << "," << l << " :: ";
 //                 // // auto v1 = sj.get_6j_mutable(tja, tjb, tjc, tjd, k, l);
 //                 // auto v1 = sj.get_6j(tja, tjb, tjc, tjd, k, l);
-//                 // auto v2 = Wigner::sixj_2(tja, tjb, 2 * k, tjc, tjd, 2 *
+//                 // auto v2 = Angular::sixj_2(tja, tjb, 2 * k, tjc, tjd, 2 *
 //                 l);
 //                 // std::cout << v1 << " " << v2 << " = " << v1 - v2 << "\n";
 //                 // if (std::abs(v1 - v2) > 1.e-10)

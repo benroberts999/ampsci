@@ -1,5 +1,5 @@
 #include "IO/FileIO_fileReadWrite.hpp"
-#include "Angular/Wigner_369j.hpp"
+#include "Angular/Angular_369j.hpp"
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -52,7 +52,7 @@ void calculateSingleTerm(const std::string &input) {
       instructions(input);
       return;
     }
-    double cgc = Wigner::threej(v[0], v[1], v[2], v[3], v[4], v[5]);
+    double cgc = Angular::threej(v[0], v[1], v[2], v[3], v[4], v[5]);
     std::cout << "3j symbol:\n";
     printf("(%4.1f%4.1f%4.1f)\n", v[0], v[1], v[2]);
     printf("(%4.1f%4.1f%4.1f) = %.6f\n", v[3], v[4], v[5], cgc);
@@ -62,19 +62,19 @@ void calculateSingleTerm(const std::string &input) {
       return;
     }
     std::cout << "Clebschscgh Gordon coeficient:\n";
-    double cgc = Wigner::cg(v[0], v[1], v[2], v[3], v[4], v[5]);
+    double cgc = Angular::cg(v[0], v[1], v[2], v[3], v[4], v[5]);
     printf("<%.1f %.1f, %.1f %.1f| %.1f %.1f> = %f\n", v[0], v[1], v[2], v[3],
            v[4], v[5], cgc);
   } else if (input.substr(0, 1) == "{") {
     if (v.size() == 6) {
       std::cout << "6j symbol:\n";
-      double cgc = Wigner::sixj(v[0], v[1], v[2], v[3], v[4], v[5]);
+      double cgc = Angular::sixj(v[0], v[1], v[2], v[3], v[4], v[5]);
       printf("{%4.1f%4.1f%4.1f}\n", v[0], v[1], v[2]);
       printf("{%4.1f%4.1f%4.1f} = %.6f\n", v[3], v[4], v[5], cgc);
     } else if (v.size() == 9) {
       std::cout << "9j symbol:\n";
       double cgc =
-          Wigner::ninej(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8]);
+          Angular::ninej(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8]);
       printf("{%4.1f%4.1f%4.1f}\n", v[0], v[1], v[2]);
       printf("{%4.1f%4.1f%4.1f} = %.6f\n", v[3], v[4], v[5], cgc);
       printf("{%4.1f%4.1f%4.1f}\n", v[6], v[7], v[8]);

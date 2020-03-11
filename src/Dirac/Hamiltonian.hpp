@@ -1,5 +1,5 @@
 #pragma once
-#include "Angular/Wigner_369j.hpp"
+#include "Angular/Angular_369j.hpp"
 #include "Dirac/DiracSpinor.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
@@ -31,7 +31,7 @@ public:
 
   template <typename... Args> //
   void set_v(const int kappa, const Args &... args) {
-    auto ki = Wigner::indexFromKappa(kappa);
+    auto ki = Angular::indexFromKappa(kappa);
     if ((int)m_Vk.size() < ki + 1)
       m_Vk.resize(ki + 1); // XXX may set some to zero??
     m_Vk[ki] = NumCalc::add_vectors(args...);
@@ -39,7 +39,7 @@ public:
   void set_v_mag(const std::vector<double> &vin) { m_v_mag = vin; }
 
   const std::vector<double> &get_v(int kappa = -1) const {
-    auto ki = Wigner::indexFromKappa(kappa);
+    auto ki = Angular::indexFromKappa(kappa);
     return ((int)m_Vk.size() < ki + 1) ? m_Vk.back() : m_Vk[ki];
   }
   const std::vector<double> &get_v_mag() const { return m_v_mag; }

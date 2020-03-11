@@ -1,7 +1,7 @@
 #include "HF/HartreeFockClass.hpp"
 #include "Adams/Adams_Greens.hpp"
 #include "Adams/DiracODE.hpp"
-#include "Angular/Wigner_369j.hpp"
+#include "Angular/Angular_369j.hpp"
 #include "Dirac/DiracSpinor.hpp"
 #include "Dirac/Wavefunction.hpp"
 #include "HF/CoulombIntegrals.hpp"
@@ -629,10 +629,10 @@ std::vector<double> HartreeFock::form_approx_vex_any(
     } // r
 
     for (int k = kmin; k <= kmax; k++) {
-      const auto parity = Wigner::parity(la, lb, k);
+      const auto parity = Angular::parity(la, lb, k);
       if (parity == 0)
         continue;
-      const auto tjs = Wigner::threej_2(tjb, tja, 2 * k, -1, 1, 0);
+      const auto tjs = Angular::threej_2(tjb, tja, 2 * k, -1, 1, 0);
       if (tjs == 0)
         continue;
       const auto tjs2 = tjs * tjs;
@@ -726,10 +726,10 @@ DiracSpinor HartreeFock::vex_psia_any(const DiracSpinor &Fa,
     if (kmax > k_cut)
       kmax = k_cut;
     for (int k = kmin; k <= kmax; k++) {
-      auto parity = Wigner::parity(la, lb, k);
+      auto parity = Angular::parity(la, lb, k);
       if (parity == 0)
         continue;
-      auto tjs = Wigner::threej_2(tjb, tja, 2 * k, -1, 1, 0); // XXX lookup!
+      auto tjs = Angular::threej_2(tjb, tja, 2 * k, -1, 1, 0); // XXX lookup!
       if (tjs == 0)
         continue;
       Coulomb::calculate_y_ijk(Fb, Fa, k, vabk);

@@ -1,9 +1,9 @@
-#include "Angular/Angular.hpp"
-#include "Angular/Wigner_369j.hpp"
+#include "Angular/Angular_tables.hpp"
+#include "Angular/Angular_369j.hpp"
 // NB: These headers MUST be in this order; otherwise fails to compile
 // on macOS... what :\ At least it works now....
 // Perhaps something to do with cmath vs math.h conflict???
-// math.h might be included by gsl, which is in Wigner_369j...
+// math.h might be included by gsl, which is in Angular_369j...
 // Can only reproduce issue on mac..yay
 
 namespace Angular {
@@ -33,7 +33,7 @@ void Ck_ab::fill_maxK_twojmax(const int in_max_K, const int in_max_twoj) {
       for (int jib = 0; jib <= jia; jib++) {
         auto tja = 2 * jia + 1;
         auto tjb = 2 * jib + 1;
-        m_3j_k_a_b[k][jia].push_back(Wigner::special_threej_2(tja, tjb, 2 * k));
+        m_3j_k_a_b[k][jia].push_back(Angular::special_threej_2(tja, tjb, 2 * k));
       }
     }
   }
@@ -47,7 +47,7 @@ double Ck_ab::get_tildeCkab_mutable(int k, int ka, int kb) {
   auto jia = jindex_kappa(ka);
   auto jib = jindex_kappa(kb);
   // parity:
-  auto pi_ok = Wigner::evenQ(Wigner::l_k(ka) + Wigner::l_k(kb) + k);
+  auto pi_ok = Angular::evenQ(Angular::l_k(ka) + Angular::l_k(kb) + k);
   if (!pi_ok)
     return 0;
 
@@ -62,7 +62,7 @@ double Ck_ab::get_tildeCkab(int k, int ka, int kb) const {
   auto jia = jindex_kappa(ka);
   auto jib = jindex_kappa(kb);
   // parity:
-  auto pi_ok = Wigner::evenQ(Wigner::l_k(ka) + Wigner::l_k(kb) + k);
+  auto pi_ok = Angular::evenQ(Angular::l_k(ka) + Angular::l_k(kb) + k);
   if (!pi_ok)
     return 0;
   return (jia > jib) ? m_3j_k_a_b[k][jia][jib] * m_Rjab_a_b[jia][jib]
@@ -71,12 +71,12 @@ double Ck_ab::get_tildeCkab(int k, int ka, int kb) const {
 
 //******************************************************************************
 double Ck_ab::get_Ckab_mutable(int k, int ka, int kb) {
-  auto s = Wigner::evenQ_2(Wigner::twoj_k(ka) + 1) ? 1.0 : -1.0;
+  auto s = Angular::evenQ_2(Angular::twoj_k(ka) + 1) ? 1.0 : -1.0;
   return s * get_tildeCkab_mutable(k, ka, kb);
 }
 
 double Ck_ab::get_Ckab(int k, int ka, int kb) const {
-  auto s = Wigner::evenQ_2(Wigner::twoj_k(ka) + 1) ? 1.0 : -1.0;
+  auto s = Angular::evenQ_2(Angular::twoj_k(ka) + 1) ? 1.0 : -1.0;
   return s * get_tildeCkab(k, ka, kb);
 }
 
@@ -176,7 +176,7 @@ void SixJTable_constk::fill(const int tj_max) {
           ka_bcd_l.reserve(std::abs(lambda_max - lambda_min + 1));
           for (auto l = lambda_min; l <= lambda_max; l++) {
             ka_bcd_l.push_back(
-                Wigner::sixj_2(tja, tjb, 2 * m_k, tjc, tjd, 2 * l));
+                Angular::sixj_2(tja, tjb, 2 * m_k, tjc, tjd, 2 * l));
           }
           ka_bc_dl.push_back(ka_bcd_l);
         }

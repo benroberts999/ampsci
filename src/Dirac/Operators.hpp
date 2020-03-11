@@ -1,5 +1,5 @@
 #pragma once
-#include "Angular/Wigner_369j.hpp"
+#include "Angular/Angular_369j.hpp"
 #include "Dirac/DiracOperator.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/SphericalBessel.hpp"
@@ -49,8 +49,8 @@ public:
       : DiracOperator(1, OperatorParity::odd, -1.0, gr.r, 0) {}
 
   double angularF(const int ka, const int kb) const override {
-    // return Wigner::Ck_2j2j(1, Wigner::twoj_k(ka), Wigner::twoj_k(kb));
-    return Wigner::Ck_kk(1, ka, kb);
+    // return Angular::Ck_2j2j(1, Angular::twoj_k(ka), Angular::twoj_k(kb));
+    return Angular::Ck_kk(1, ka, kb);
   }
   std::string name() const override { return "E1"; }
 };
@@ -81,10 +81,10 @@ private:
   virtual double angularCff(int, int) const override { return 0; }
   virtual double angularCgg(int, int) const override { return 0; }
   virtual double angularCfg(int ka, int kb) const override {
-    return Wigner::S_kk(ka, -kb);
+    return Angular::S_kk(ka, -kb);
   }
   virtual double angularCgf(int ka, int kb) const override {
-    return -Wigner::S_kk(-ka, kb);
+    return -Angular::S_kk(-ka, kb);
   }
   virtual double StateDepConst(const DiracSpinor &Fa,
                                const DiracSpinor &Fb) const override {
@@ -135,7 +135,7 @@ private:
 //     if (isZero(Fa, Fb))
 //       return 0.0;
 //     auto Rab = radialIntegral(Fa, Fb);
-//     auto Cab = (Fa.k + Fb.k) * Wigner::Ck_kk(1, -Fa.k, Fb.k);
+//     auto Cab = (Fa.k + Fb.k) * Angular::Ck_kk(1, -Fa.k, Fb.k);
 //     return Rab * Cab; // / PhysConst::muB_CGS; //???
 //   }
 //
@@ -245,11 +245,11 @@ public: // constructor
   std::string units() const override { return "MHz"; }
 
   double angularF(const int ka, const int kb) const override {
-    return (ka + kb) * Wigner::Ck_kk(1, -ka, kb);
+    return (ka + kb) * Angular::Ck_kk(1, -ka, kb);
   }
 
   static double convertRMEtoA(const DiracSpinor &Fa, const DiracSpinor &Fb) {
-    return 0.5 / Fa.jjp1() / Wigner::Ck_kk(1, -Fa.k, Fb.k);
+    return 0.5 / Fa.jjp1() / Angular::Ck_kk(1, -Fa.k, Fb.k);
     // Correct for diag. Off diag? Prob not defined?
   }
 

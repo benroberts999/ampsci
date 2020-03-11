@@ -6,7 +6,7 @@
 #include "Maths/SphericalBessel.hpp"
 #include "Physics/AtomData.hpp"
 #include "Physics/PhysConst_constants.hpp"
-#include "Angular/Wigner_369j.hpp"
+#include "Angular/Angular_369j.hpp"
 #include <fstream>
 #include <iostream>
 
@@ -31,7 +31,7 @@ double CLkk(int L, int ka, int kb)
   // Note: triangle rule included in 3j, so this is not needed (but faster)
   // But, parity rule not included in 3j, so must be checked!
 
-  double tjs = Wigner::threej_2(two_jb, two_ja, 2 * L, -1, 1, 0);
+  double tjs = Angular::threej_2(two_jb, two_ja, 2 * L, -1, 1, 0);
   return (two_ja + 1) * (two_jb + 1) * (2 * L + 1) * tjs * tjs;
 }
 

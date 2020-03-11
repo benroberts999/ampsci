@@ -18,7 +18,7 @@ Three versions of each symbol:
 (l).
  - and '_2' version, takes in 2*j (as an integer). Works for l and j
 */
-namespace Wigner {
+namespace Angular {
 
 //******************************************************************************
 //! @brief returns l given kappa (all folliwing do similar)
@@ -54,6 +54,16 @@ constexpr int kappaFromIndex(int i) {
 constexpr int twojFromIndex(int i) { return (i % 2 == 0) ? i + 1 : i; }
 constexpr int lFromIndex(int i) { return (i % 2 == 0) ? i / 2 : (i + 1) / 2; }
 
+//******************************************************************************
+
+//! @brief Minimum/Maximum 'l' allowed in {a,b,k \ c,d,l} 6j symbol
+inline int min_lambda_tj(int tja, int tjb, int tjc, int tjd) {
+  return std::max(std::abs(tja - tjd), std::abs(tjb - tjc)) / 2;
+}
+//! @brief Minimum/Maximum 'l' allowed in {a,b,k \ c,d,l} 6j symbol
+inline int max_lambda_tj(int tja, int tjb, int tjc, int tjd) {
+  return std::min((tja + tjd), (tjb + tjc)) / 2;
+}
 //******************************************************************************
 //! @brief Returns true if a is even
 constexpr bool evenQ(int a) { return (a % 2 == 0); }
@@ -380,4 +390,4 @@ inline double S_kk(int ka, int kb)
   return sign * f * sixj;
 }
 
-} // namespace Wigner
+} // namespace Angular

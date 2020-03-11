@@ -5,7 +5,7 @@ $(SD)/DMionisation/AKF_akFunctions.hpp \
 $(SD)/Dirac/ContinuumOrbitals.hpp $(SD)/Dirac/Wavefunction.hpp \
 $(SD)/IO/FileIO_fileReadWrite.hpp $(SD)/Maths/NumCalc_quadIntegrate.hpp \
 $(SD)/Maths/SphericalBessel.hpp $(SD)/Physics/AtomData.hpp \
-$(SD)/Physics/PhysConst_constants.hpp $(SD)/Angular/Wigner_369j.hpp
+$(SD)/Physics/PhysConst_constants.hpp $(SD)/Angular/Angular_369j.hpp
 	$(COMP)
 
 $(BD)/dmeXSection.o: $(SD)/DMionisation/dmeXSection.cpp \

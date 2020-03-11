@@ -1,5 +1,5 @@
 #include "Dirac/DiracOperator.hpp"
-#include "Angular/Wigner_369j.hpp"
+#include "Angular/Angular_369j.hpp"
 #include "Dirac/DiracSpinor.hpp"
 #include <algorithm>
 #include <cmath>
@@ -11,10 +11,10 @@
 //******************************************************************************
 bool DiracOperator::isZero(const int ka, int kb) const {
   // checks m_rank and m_parity
-  if (m_rank < std::abs(Wigner::twoj_k(ka) - Wigner::twoj_k(kb)) / 2)
+  if (m_rank < std::abs(Angular::twoj_k(ka) - Angular::twoj_k(kb)) / 2)
     return true;
   if ((m_parity == OperatorParity::even) !=
-      (Wigner::parity_k(ka) == Wigner::parity_k(kb)))
+      (Angular::parity_k(ka) == Angular::parity_k(kb)))
     return true;
   return false; /*may still be zero*/
 }
@@ -33,7 +33,7 @@ double DiracOperator::rme3js(const int twoja, const int twojb, int two_mb,
   // sig = (-1)^(ja - ma)
   auto sig = ((twoja - two_ma) / 2) % 2 == 0 ? 1 : -1;
   return sig *
-         Wigner::threej_2(twoja, 2 * m_rank, twojb, -two_ma, two_q, two_mb);
+         Angular::threej_2(twoja, 2 * m_rank, twojb, -two_ma, two_q, two_mb);
 }
 
 DiracSpinor DiracOperator::reduced_rhs(const DiracSpinor &Fa,
@@ -50,13 +50,13 @@ DiracSpinor DiracOperator::reduced_lhs(const DiracSpinor &Fa,
                                        const DiracSpinor &Fb) const {
   auto sdc = StateDepConst(Fb, Fa);
   int s = imaginaryQ() ? -1 : 1;
-  auto x = Wigner::evenQ_2(Fa.twoj() - Fb.twoj()) ? s : -s;
+  auto x = Angular::evenQ_2(Fa.twoj() - Fb.twoj()) ? s : -s;
   return (sdc * x * angularF(Fa.k, Fb.k)) * radial_rhs(Fa.k, Fb);
 }
 DiracSpinor DiracOperator::reduced_lhs(const int ka,
                                        const DiracSpinor &Fb) const {
   int s = imaginaryQ() ? -1 : 1;
-  auto x = Wigner::evenQ_2(Wigner::twoj_k(ka) - Fb.twoj()) ? s : -s;
+  auto x = Angular::evenQ_2(Angular::twoj_k(ka) - Fb.twoj()) ? s : -s;
   return (x * angularF(ka, Fb.k)) * radial_rhs(ka, Fb);
 }
 

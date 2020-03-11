@@ -171,7 +171,7 @@ void Module_test_BasisSumRules(const Wavefunction &wf) {
 
   std::cout << "Drake-Goldman sum rules: w^n |<a|r|b>|^2  (n=0,1,2)\n";
   for (int ki = 0; ki <= max_ki; ki++) {
-    auto kappa = Wigner::kappaFromIndex(ki);
+    auto kappa = Angular::kappaFromIndex(ki);
     auto comp_k = [=](const auto &Fn) { return Fn.k == kappa; };
     auto Fa = *std::find_if(wf.basis.begin(), wf.basis.end(), comp_k);
     // need to have l_n = la+1 terms, or sum doesn't work:

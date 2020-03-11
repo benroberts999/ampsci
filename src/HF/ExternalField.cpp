@@ -1,6 +1,6 @@
 #include "ExternalField.hpp"
-#include "Angular/Angular.hpp"
-#include "Angular/Wigner_369j.hpp"
+#include "Angular/Angular_tables.hpp"
+#include "Angular/Angular_369j.hpp"
 #include "Dirac/DiracOperator.hpp"
 #include "Dirac/DiracSpinor.hpp"
 #include "Dirac/Wavefunction.hpp"
@@ -35,9 +35,9 @@ ExternalField::ExternalField(const DiracOperator *const h,
       std::cout << "|" << Fc.symbol() << ">  -->  ";
     for (int tj = tjmin; tj <= tjmax; tj += 2) {
       const auto l_minus = (tj - 1) / 2;
-      const auto pi_chla = Wigner::parity_l(l_minus) * pi_ch;
+      const auto pi_chla = Angular::parity_l(l_minus) * pi_ch;
       const auto l = (pi_chla == 1) ? l_minus : l_minus + 1;
-      const auto kappa = Wigner::kappa_twojl(tj, l);
+      const auto kappa = Angular::kappa_twojl(tj, l);
       m_X[ic].emplace_back(0, kappa, *(Fc.p_rgrid));
       m_X[ic].back().pinf = Fc.pinf;
       if (print)
@@ -232,7 +232,7 @@ DiracSpinor ExternalField::dV_ab_rhs(const DiracSpinor &Fn,
 
   const auto tjn = Fn.twoj();
   const auto tjm = Fm.twoj();
-  const auto Ckala = Wigner::Ck_kk(k, Fn.k, Fm.k);
+  const auto Ckala = Angular::Ck_kk(k, Fn.k, Fm.k);
 
   auto dVFm = DiracSpinor(0, Fn.k, *(Fn.p_rgrid));
   dVFm.pinf = Fm.pinf; //?
@@ -254,14 +254,14 @@ DiracSpinor ExternalField::dV_ab_rhs(const DiracSpinor &Fn,
       const auto &Y_beta = Y_betas[ibeta];
       const auto tjbeta = X_beta.twoj();
 
-      const auto Ckbeb = Wigner::Ck_kk(k, X_beta.k, Fb.k);
+      const auto Ckbeb = Angular::Ck_kk(k, X_beta.k, Fb.k);
       if (Ckala != 0 && Ckbeb != 0) {
         const auto Rkabcd =
             Coulomb::Rk_abcd_rhs(Fn, Fb, Fm, X_beta + Y_beta, k);
         dVFm_c += (Ckala * Ckbeb / tkp1) * Rkabcd;
       }
 
-      const auto s = Wigner::evenQ_2(tjbeta - tjm) ? 1 : -1;
+      const auto s = Angular::evenQ_2(tjbeta - tjm) ? 1 : -1;
 
       // exchange part (X):
       const auto l_min_X =
@@ -269,12 +269,12 @@ DiracSpinor ExternalField::dV_ab_rhs(const DiracSpinor &Fn,
       auto l_max_X = std::min((tjn + tjbeta), (tjm + tjb)) / 2;
 
       for (int l = l_min_X; l <= l_max_X; ++l) {
-        const auto sixj = Wigner::sixj_2(tjm, tjn, 2 * k, tjbeta, tjb, 2 * l);
+        const auto sixj = Angular::sixj_2(tjm, tjn, 2 * k, tjbeta, tjb, 2 * l);
         if (sixj == 0)
           continue;
-        const auto m1kpl = Wigner::evenQ(k + l) ? 1 : -1;
-        const auto Ckba = Wigner::Ck_kk(l, Fm.k, Fb.k);
-        const auto Ckalbe = Wigner::Ck_kk(l, Fn.k, X_beta.k);
+        const auto m1kpl = Angular::evenQ(k + l) ? 1 : -1;
+        const auto Ckba = Angular::Ck_kk(l, Fm.k, Fb.k);
+        const auto Ckalbe = Angular::Ck_kk(l, Fn.k, X_beta.k);
         if (Ckba == 0 || Ckalbe == 0)
           continue;
         const auto Rk = Coulomb::Rk_abcd_rhs(Fn, Fm, X_beta, Fb, l);
@@ -287,12 +287,12 @@ DiracSpinor ExternalField::dV_ab_rhs(const DiracSpinor &Fn,
       auto l_max_Y = std::min((tjn + tjb), (tjm + tjbeta)) / 2;
 
       for (int l = l_min_Y; l <= l_max_Y; ++l) {
-        const auto sixj = Wigner::sixj_2(tjm, tjn, 2 * k, tjb, tjbeta, 2 * l);
+        const auto sixj = Angular::sixj_2(tjm, tjn, 2 * k, tjb, tjbeta, 2 * l);
         if (sixj == 0)
           continue;
-        const auto m1kpl = Wigner::evenQ(k + l) ? 1 : -1;
-        const auto Ckbea = Wigner::Ck_kk(l, Fm.k, Y_beta.k);
-        const auto Ckbal = Wigner::Ck_kk(l, Fn.k, Fb.k);
+        const auto m1kpl = Angular::evenQ(k + l) ? 1 : -1;
+        const auto Ckbea = Angular::Ck_kk(l, Fm.k, Y_beta.k);
+        const auto Ckbal = Angular::Ck_kk(l, Fn.k, Fb.k);
         if (Ckbea == 0 || Ckbal == 0)
           continue;
         const auto Rk = Coulomb::Rk_abcd_rhs(Fn, Fm, Fb, Y_beta, l);
@@ -473,18 +473,18 @@ double ExternalField::dX_nm_bbe_rhs(const DiracSpinor &Fn,
 
   const auto tjn = Fn.twoj();
   const auto tjm = Fm.twoj();
-  const auto Ckala = Wigner::Ck_kk(k, Fn.k, Fm.k);
+  const auto Ckala = Angular::Ck_kk(k, Fn.k, Fm.k);
 
   const auto tjb = Fb.twoj();
   const auto tjbeta = X_beta.twoj();
-  const auto Ckbeb = Wigner::Ck_kk(k, X_beta.k, Fb.k);
+  const auto Ckbeb = Angular::Ck_kk(k, X_beta.k, Fb.k);
 
   if (Ckala != 0 && Ckbeb != 0) {
     const auto Rkabcd = Coulomb::Rk_abcd_any(Fn, Fb, Fm, X_beta, k);
     dX_nm_bbe += (Ckala * Ckbeb / tkp1) * Rkabcd;
   }
 
-  auto s = Wigner::evenQ_2(tjn + tjbeta + 2) ? 1 : -1;
+  auto s = Angular::evenQ_2(tjn + tjbeta + 2) ? 1 : -1;
 
   // exchange part (X):
   auto l_min_X = std::max(std::abs(tjn - tjbeta), std::abs(tjm - tjb)) / 2;
@@ -494,12 +494,12 @@ double ExternalField::dX_nm_bbe_rhs(const DiracSpinor &Fn,
   l_max_X = 20;
 
   for (int l = l_min_X; l <= l_max_X; ++l) {
-    const auto sixj = Wigner::sixj_2(tjm, tjn, 2 * k, tjbeta, tjb, 2 * l);
+    const auto sixj = Angular::sixj_2(tjm, tjn, 2 * k, tjbeta, tjb, 2 * l);
     if (sixj == 0)
       continue;
-    const auto m1kpl = Wigner::evenQ(k + l) ? 1 : -1;
-    const auto Ckba = Wigner::Ck_kk(l, Fm.k, Fb.k);
-    const auto Ckalbe = Wigner::Ck_kk(l, Fn.k, X_beta.k);
+    const auto m1kpl = Angular::evenQ(k + l) ? 1 : -1;
+    const auto Ckba = Angular::Ck_kk(l, Fm.k, Fb.k);
+    const auto Ckalbe = Angular::Ck_kk(l, Fn.k, X_beta.k);
     if (Ckba == 0 || Ckalbe == 0)
       continue;
     const auto Rk = Coulomb::Rk_abcd_any(Fn, Fm, X_beta, Fb, l);
@@ -522,18 +522,18 @@ double ExternalField::dY_nm_bbe_rhs(const DiracSpinor &Fn,
 
   const auto tjn = Fn.twoj();
   const auto tjm = Fm.twoj();
-  const auto Ckala = Wigner::Ck_kk(k, Fn.k, Fm.k);
+  const auto Ckala = Angular::Ck_kk(k, Fn.k, Fm.k);
 
   const auto tjb = Fb.twoj();
   const auto tjbeta = Y_beta.twoj();
-  const auto Ckbeb = Wigner::Ck_kk(k, Y_beta.k, Fb.k);
+  const auto Ckbeb = Angular::Ck_kk(k, Y_beta.k, Fb.k);
 
   if (Ckala != 0 && Ckbeb != 0) {
     const auto Rkabcd = Coulomb::Rk_abcd_any(Fn, Fb, Fm, Y_beta, k);
     dY_nm_bbe += (Ckala * Ckbeb / tkp1) * Rkabcd;
   }
 
-  auto s = Wigner::evenQ_2(tjn + tjbeta + 2) ? 1 : -1;
+  auto s = Angular::evenQ_2(tjn + tjbeta + 2) ? 1 : -1;
 
   // exchange part (Y):
   auto l_min_Y = std::max(std::abs(tjn - tjb), std::abs(tjm - tjbeta)) / 2;
@@ -543,12 +543,12 @@ double ExternalField::dY_nm_bbe_rhs(const DiracSpinor &Fn,
   l_max_Y = 20;
 
   for (int l = l_min_Y; l <= l_max_Y; ++l) {
-    const auto sixj = Wigner::sixj_2(tjm, tjn, 2 * k, tjb, tjbeta, 2 * l);
+    const auto sixj = Angular::sixj_2(tjm, tjn, 2 * k, tjb, tjbeta, 2 * l);
     if (sixj == 0)
       continue;
-    const auto m1kpl = Wigner::evenQ(k + l) ? 1 : -1;
-    const auto Ckbea = Wigner::Ck_kk(l, Fm.k, Y_beta.k);
-    const auto Ckbal = Wigner::Ck_kk(l, Fn.k, Fb.k);
+    const auto m1kpl = Angular::evenQ(k + l) ? 1 : -1;
+    const auto Ckbea = Angular::Ck_kk(l, Fm.k, Y_beta.k);
+    const auto Ckbal = Angular::Ck_kk(l, Fn.k, Fb.k);
     if (Ckbea == 0 || Ckbal == 0)
       continue;
     const auto Rk = Coulomb::Rk_abcd_any(Fn, Fm, Fb, Y_beta, l);
