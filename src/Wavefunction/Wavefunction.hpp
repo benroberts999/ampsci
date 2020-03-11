@@ -1,6 +1,6 @@
 #pragma once
-#include "Dirac/BSplineBasis.hpp"
-#include "Dirac/DiracSpinor.hpp"
+#include "Wavefunction/BSplineBasis.hpp"
+#include "Wavefunction/DiracSpinor.hpp"
 #include "HF/HartreeFockClass.hpp" // forward decl..
 #include "Maths/Grid.hpp"
 #include "Physics/AtomData.hpp" // NonRelSEConfig

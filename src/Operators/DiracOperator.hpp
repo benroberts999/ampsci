@@ -1,5 +1,5 @@
 #pragma once
-#include "Dirac/DiracSpinor.hpp"
+#include "Wavefunction/DiracSpinor.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include <cmath>
 #include <string>

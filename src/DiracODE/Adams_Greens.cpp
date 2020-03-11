@@ -1,6 +1,6 @@
 #include "Adams_Greens.hpp"
 #include "Adams_bound.hpp"
-#include "Dirac/DiracSpinor.hpp"
+#include "Wavefunction/DiracSpinor.hpp"
 #include "DiracODE.hpp"
 #include "IO/SafeProfiler.hpp"
 #include "Maths/Grid.hpp"

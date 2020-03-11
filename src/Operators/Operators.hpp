@@ -1,6 +1,6 @@
 #pragma once
 #include "Angular/Angular_369j.hpp"
-#include "Dirac/DiracOperator.hpp"
+#include "Operators/DiracOperator.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/SphericalBessel.hpp"
 #include "Physics/NuclearPotentials.hpp"

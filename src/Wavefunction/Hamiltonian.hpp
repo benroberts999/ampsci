@@ -1,6 +1,6 @@
 #pragma once
 #include "Angular/Angular_369j.hpp"
-#include "Dirac/DiracSpinor.hpp"
+#include "Wavefunction/DiracSpinor.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include <cmath>

@@ -4,12 +4,15 @@ Solves the Dirac equation for atomic systems using the Hartree-Fock method.
 Fully relativistic, includes finite-nuclear size, can solve for continuum states (energy normalisation), and can include QED corrections via the Ginges-Flambaum radiative potential method. Calculates ionisation cross sections with high values for energy/momentum transfer.
 
 
-### Documentation
+## Documentation
 
  * Documentation is in doc/ directory (best viewed with a markdown reader or on GitHub). Contains a few documents:
  * 01-hartreeFock_input -- How to use the code (input options + descriptions)
  * 02-diracSCAS_method  -- What the code does (description of physics)
  * Also: contains "Makefile.example" and "hartreeFock.in.example": copy these to the main directory and remove the ".example"
+
+  * Code documentation is available on github: [benroberts999.github.io/diracSCAS/](https://benroberts999.github.io/diracSCAS/)
+  * (This is very preliminary, and auto-generated, so may not be complete etc.)
 
 --------------------------------------------------------------------------------
 

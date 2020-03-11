@@ -1,4 +1,4 @@
-#include "Dirac/Wavefunction.hpp"
+#include "Wavefunction/Wavefunction.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/FileIO_fileReadWrite.hpp" //for 'ExtraPotential'
 #include "IO/UserInput.hpp"

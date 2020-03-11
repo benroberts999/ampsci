@@ -1,7 +1,7 @@
-#include "Adams/Adams_continuum.hpp"
-#include "Adams/Adams_bound.hpp"
-#include "Adams/DiracODE.hpp"
-#include "Dirac/DiracSpinor.hpp"
+#include "DiracODE/Adams_continuum.hpp"
+#include "DiracODE/Adams_bound.hpp"
+#include "DiracODE/DiracODE.hpp"
+#include "Wavefunction/DiracSpinor.hpp"
 #include "Maths/Grid.hpp"
 #include <cmath>
 

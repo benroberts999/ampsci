@@ -7,7 +7,7 @@
 #include <iostream>
 #include <utility>
 // class Grid;
-// #include "Dirac/DiracSpinor.hpp"
+// #include "Wavefunction/DiracSpinor.hpp"
 // #include "Maths/NumCalc_quadIntegrate.hpp"
 
 class BSplines {

@@ -1,16 +1,16 @@
 #include "ExternalField.hpp"
 #include "Angular/Angular_tables.hpp"
 #include "Angular/Angular_369j.hpp"
-#include "Dirac/DiracOperator.hpp"
-#include "Dirac/DiracSpinor.hpp"
-#include "Dirac/Wavefunction.hpp"
+#include "Operators/DiracOperator.hpp"
+#include "Wavefunction/DiracSpinor.hpp"
+#include "Wavefunction/Wavefunction.hpp"
 #include "HF/HartreeFockClass.hpp"
 #include "IO/ChronoTimer.hpp"
 #include <algorithm>
 #include <fstream>
 #include <vector>
 //
-#include "Dirac/BSplineBasis.hpp" // XXX add to make
+#include "Wavefunction/BSplineBasis.hpp" // XXX add to make
 #include <memory>
 
 //******************************************************************************

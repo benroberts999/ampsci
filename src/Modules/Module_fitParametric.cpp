@@ -1,5 +1,5 @@
 #include "Modules/Module_fitParametric.hpp"
-#include "Dirac/Wavefunction.hpp"
+#include "Wavefunction/Wavefunction.hpp"
 #include "HF/HartreeFockClass.hpp"
 #include "IO/UserInput.hpp"
 #include "Maths/Grid.hpp"

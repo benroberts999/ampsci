@@ -1,6 +1,6 @@
 #include "DMionisation/AKF_akFunctions.hpp"
-#include "Dirac/ContinuumOrbitals.hpp"
-#include "Dirac/Wavefunction.hpp"
+#include "Wavefunction/ContinuumOrbitals.hpp"
+#include "Wavefunction/Wavefunction.hpp"
 #include "IO/FileIO_fileReadWrite.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Maths/SphericalBessel.hpp"

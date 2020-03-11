@@ -1,8 +1,8 @@
 #include "Modules/Module_runModules.hpp"
 //
-#include "Dirac/DiracOperator.hpp"
-#include "Dirac/Operators.hpp"
-#include "Dirac/Wavefunction.hpp"
+#include "Operators/DiracOperator.hpp"
+#include "Operators/Operators.hpp"
+#include "Wavefunction/Wavefunction.hpp"
 #include "IO/UserInput.hpp"
 #include <algorithm>
 #include <cmath>

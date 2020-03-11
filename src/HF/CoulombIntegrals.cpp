@@ -1,7 +1,7 @@
 #include "HF/CoulombIntegrals.hpp"
 #include "Angular/Angular_tables.hpp"
 #include "Angular/Angular_369j.hpp"
-#include "Dirac/DiracSpinor.hpp"
+#include "Wavefunction/DiracSpinor.hpp"
 #include "IO/SafeProfiler.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"

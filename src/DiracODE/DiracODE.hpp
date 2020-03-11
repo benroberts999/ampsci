@@ -5,7 +5,7 @@ class Grid;
 
 /*!
 @brief
-Solve Dirac equation. Functions defined in "<Adams/DiracODE.hpp>"
+Solve Dirac equation. Functions defined in "<DiracODE/DiracODE.hpp>"
 @details
   - v is local potential (e.g., v = v_dir + v_nuc)
   - H_mag is off-diagonal magnetic form factor (QED radiative potential); enter
