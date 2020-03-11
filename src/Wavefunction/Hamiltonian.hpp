@@ -1,18 +1,21 @@
 #pragma once
 #include "Angular/Angular_369j.hpp"
-#include "Wavefunction/DiracSpinor.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
+#include "Wavefunction/DiracSpinor.hpp"
 #include <cmath>
 #include <vector>
 
-// XXX Same as parity-even, scalar operator?
-// Derive from one?
-
 //******************************************************************************
+//! @brief Stores local radial Dirac Hamiltonian, inlcuding off-diagonal QED
+//! magnetic form factor
+/*! @details
+Stores local potential v. Has provision for different v for each kappa.
+In this case, must be set for each kappa! If called with index(kappa) > max,
+will return max
+  - On construct, just forms empty "free" Hamiltonian w/ v=0
+*/
 class RadialHamiltonian {
-  // must be set for each kappa!
-  // If called with index(kappa) > max, will return max
 private:
   const Grid *const m_gr;
   // const int m_z;
@@ -29,6 +32,9 @@ public:
   RadialHamiltonian(const RadialHamiltonian &) = default;
   ~RadialHamiltonian() = default;
 
+  //! @brief Sets the local potential
+  //! @details Takes any number of vectors. Typical: set_v(kappa,vdir,vnuc).
+  //! Must be set for each kappa (or, just -1 if all the same)
   template <typename... Args> //
   void set_v(const int kappa, const Args &... args) {
     auto ki = Angular::indexFromKappa(kappa);
@@ -36,18 +42,21 @@ public:
       m_Vk.resize(ki + 1); // XXX may set some to zero??
     m_Vk[ki] = NumCalc::add_vectors(args...);
   }
+  //! @brief Sets the QED magnetic form factor
   void set_v_mag(const std::vector<double> &vin) { m_v_mag = vin; }
 
+  //! Returns v for given kappa; if kappa>max_kappa, returns for max_kappa
   const std::vector<double> &get_v(int kappa = -1) const {
     auto ki = Angular::indexFromKappa(kappa);
     return ((int)m_Vk.size() < ki + 1) ? m_Vk.back() : m_Vk[ki];
   }
   const std::vector<double> &get_v_mag() const { return m_v_mag; }
   double get_alpha() const { return m_alpha; }
-  // double get_z() const { return m_z; }
 
   // d_r F = (c00, c01)F
   //         (c10, c11)
+  //! @brief derivative matrix @details defined:
+  //! d_r F = (c00, c01 \ c10, c11)F. nb: only off-diag terms contain energy
   double derivMat_00(int k, double, std::size_t i) const {
     auto h = m_v_mag.empty() ? 0.0 : m_v_mag[i] * m_gr->drdu[i];
     return (double(-k)) * m_gr->drduor[i] + h * m_gr->drdu[i];
@@ -65,6 +74,7 @@ public:
     return double(k) * m_gr->drduor[i] - h * m_gr->drdu[i];
   }
 
+  //! <Fa|H|Fb>
   double matrixEl(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
     if (Fa.k != Fb.k)
       return 0.0;

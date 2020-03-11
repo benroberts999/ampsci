@@ -1,9 +1,9 @@
 #include "Modules/Module_runModules.hpp"
 //
-#include "Operators/DiracOperator.hpp"
-#include "Operators/Operators.hpp"
-#include "Wavefunction/Wavefunction.hpp"
 #include "IO/UserInput.hpp"
+#include "DiracOperator/DiracOperator.hpp"
+#include "DiracOperator/Operators.hpp"
+#include "Wavefunction/Wavefunction.hpp"
 #include <algorithm>
 #include <cmath>
 #include <iostream>
@@ -38,8 +38,8 @@ void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf) {
 
   auto rpaQ = input.get("rpa", false);
 
-  PNCnsiOperator hpnc(c, t, wf.rgrid, -wf.Nnuc());
-  E1Operator he1(wf.rgrid);
+  DiracOperator::PNCnsiOperator hpnc(c, t, wf.rgrid, -wf.Nnuc());
+  DiracOperator::E1Operator he1(wf.rgrid);
   auto alpha = wf.get_alpha();
 
   auto pA = wf.getState(na, ka);

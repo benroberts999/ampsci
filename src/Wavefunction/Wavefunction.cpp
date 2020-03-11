@@ -1,6 +1,5 @@
 #include "Wavefunction/Wavefunction.hpp"
 #include "DiracODE/DiracODE.hpp"
-#include "Wavefunction/DiracSpinor.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/Interpolator.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
@@ -8,6 +7,7 @@
 #include "Physics/NuclearPotentials.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Physics/RadiativePotential.hpp"
+#include "Wavefunction/DiracSpinor.hpp"
 #include <algorithm> //for sort
 #include <cmath>
 #include <iostream>
@@ -620,7 +620,7 @@ void Wavefunction::printBasis(bool sorted) const {
 }
 
 //******************************************************************************
-std::vector<DiracSEnken>
+std::vector<AtomData::DiracSEnken>
 Wavefunction::listOfStates_nk(int num_val, int la, int lb, bool skip_core) const
 // Creates a list of states (usually valence states to solve for)
 // In form {{n,ka},...}
@@ -629,7 +629,7 @@ Wavefunction::listOfStates_nk(int num_val, int la, int lb, bool skip_core) const
 // This will be number of states above the core (skips states which are in the
 // core)
 {
-  std::vector<DiracSEnken> lst;
+  std::vector<AtomData::DiracSEnken> lst;
   auto l_min = la;
   auto l_max = lb;
   if (lb == 0) {

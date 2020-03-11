@@ -2,6 +2,7 @@
 #include <cmath>
 #include <vector>
 
+//! Data and useful functions. Radii all in Fermi (fm, e-15m)
 namespace Nuclear {
 
 // skin-thickness. Always same?
@@ -11,14 +12,18 @@ constexpr auto FourLn3 = 4.0 * 1.098612289;
 // 4.0 * std::log(3.0);
 constexpr auto Pi2 = M_PI * M_PI;
 
+//! Stores relevant isotope data
 class Isotope {
 public:
   const int Z;
   const int A;
-  const double r_rms; // in Fermi (fm, e-15m)
-  const double mu;    // in nuclear magnetons
-  const int parity;   // +/-1
-  const double I_N;   // Nuclear spin. value is -1 if unknown
+  //! root-mean-square charge radius, in Fermi (fm, e-15m)
+  const double r_rms;
+  //! Magnetic dipole moment, in nuclear magnetons
+  const double mu;
+  const int parity; // +/-1
+  //! Nuclear spin. value is -1 if unknown
+  const double I_N;
 
   Isotope(int inz, int ina, double inr, double inm, int inp, double ini)
       : Z(inz), A(ina), r_rms(inr), mu(inm), parity(inp), I_N(ini) {}
@@ -32,17 +37,26 @@ public:
 };
 
 //******************************************************************************
+//! Looks up + returns an isotope from the list. If not in list, partially blank
 Isotope findIsotopeData(int z, int a);
+//! Returns all known isotopes of given atom
 std::vector<Isotope> findIsotopeList(int z);
+//! Looks up default value of r_rms for given isotope. Returns 0 if not found.
 double find_rrms(int z, int a);
+//! As above, for dipole moment
 double find_mu(int z, int a);
+//! As above, for parity
 int find_parity(int z, int a);
+//! As above, for nuclear spin. Returns -1 if not found
 double find_spin(int z, int a);
 
 //******************************************************************************
-double approximate_r_rms(int a);
+//! Calculates c from rrms and t
 double c_hdr_formula_rrms_t(double rrms, double t = default_t);
+//! Calculates rrms from c and t
 double rrms_formula_c_t(double c, double t = default_t);
+double approximate_r_rms(int a);
+//! just returns 2.3
 double approximate_t_skin(int a); // constexpr ?
 
 // Note: rms charge radii  from:

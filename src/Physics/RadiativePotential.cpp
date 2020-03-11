@@ -7,13 +7,154 @@
 #include <gsl/gsl_sf_expint.h>
 #include <iostream>
 
-namespace RadiativePotential {
-
-double ExpInt1(double x) {
+static inline double ExpInt1(double x) {
   // E1(x) = -std::expint(-x)
   // return -std::expint(-x);
   return gsl_sf_expint_E1(x);
 }
+
+namespace RadiativePotential {
+using namespace Helper;
+
+//******************************************************************************
+double vUehling(double r, double rN, double z, double alpha) {
+  auto sp1 = SafeProfiler::profile(__func__);
+
+  // Routines return the first approximation which has an absolute error
+  // smaller than abs_err_lim or a relative error smaller than rel_err_lim.
+  // Note that this is an either-or constraint, not simultaneous. To compute to
+  // a specified absolute error, set epsrel to zero (etc.)
+  static constexpr double abs_err_lim = 0;
+  static constexpr double rel_err_lim = 1.0e-6;
+  // max_num_subintvls < size(gsl_int_wrk)
+  static constexpr unsigned long max_num_subintvls = 750; //?
+
+  gsl_set_error_handler_off(); //?
+  if (rN <= 0) {
+    rN = 1.0e-7;
+  }
+
+  RadPot_params params = {r, rN, z, alpha};
+
+  gsl_function f_gsl;
+  f_gsl.function = (r < rN) ? &gslfunc_Ueh_smallr : &gslfunc_Ueh_larger;
+  f_gsl.params = &params;
+
+  // This workspace handles the memory for the subinterval ranges, results and
+  // error estimates. max_num_subintvls < size(gsl_int_wrk)
+  // Allocates a workspace sufficient to hold n double precision
+  // intervals, their integration results and error estimates.
+  gsl_integration_workspace *gsl_int_wrk =
+      gsl_integration_workspace_alloc(max_num_subintvls + 1);
+  // nb: i allocate + destroy wrk EACH r... doesn't much matter though...
+
+  double int_result, abs_err;
+  gsl_integration_qagiu(&f_gsl, 1.0, abs_err_lim, rel_err_lim,
+                        max_num_subintvls, gsl_int_wrk, &int_result, &abs_err);
+  gsl_integration_workspace_free(gsl_int_wrk);
+
+  auto pre_factor = z * (alpha / M_PI) / r;
+
+  return pre_factor * int_result;
+}
+
+//******************************************************************************
+static Fit_AB fit_AB;
+double vSEh(double r, double rN, double z, double alpha) {
+  auto sp1 = SafeProfiler::profile(__func__);
+
+  static constexpr double abs_err_lim = 0.0;
+  static constexpr double rel_err_lim = 1.0e-3;
+  static constexpr unsigned long max_num_subintvls = 1000; //?
+
+  gsl_set_error_handler_off(); //?
+  if (rN <= 0) {
+    rN = 1.0e-7;
+  }
+
+  RadPot_params params = {r, rN, z, alpha};
+
+  gsl_function f_gsl;
+  f_gsl.function = (r < rN) ? &gslfunc_SEh_smallr : &gslfunc_SEh_larger;
+  f_gsl.params = &params;
+
+  gsl_integration_workspace *gsl_int_wrk =
+      gsl_integration_workspace_alloc(max_num_subintvls + 1);
+
+  double int_result, abs_err;
+  gsl_integration_qagiu(&f_gsl, 1.0, abs_err_lim, rel_err_lim,
+                        max_num_subintvls, gsl_int_wrk, &int_result, &abs_err);
+  gsl_integration_workspace_free(gsl_int_wrk);
+
+  auto l = 0; // XXX
+  auto al = fit_AB.Al(l, z * alpha);
+
+  auto pre_factor = -1.5 * al * (alpha / M_PI) * z / r;
+
+  return pre_factor * int_result;
+}
+
+//------------------------------------------------------------------------------
+double vSEl(double r, double rN, double z, double alpha) {
+  auto sp1 = SafeProfiler::profile(__func__);
+  //
+  auto l = 0; // XXX
+  auto bl = fit_AB.Bl(l, z * alpha);
+
+  auto pre_factor =
+      -1.5 * bl * z * z * alpha * alpha * alpha / (rN * rN * rN * r);
+
+  auto f = [=](double x) {
+    auto arg_neg = z * std::abs(r - x);
+    auto arg_pos = z * (r + x);
+    auto a = (arg_neg + 1.0) * std::exp(-arg_neg);
+    auto b = (arg_pos + 1.0) * std::exp(-arg_pos);
+    return x * (a - b);
+  };
+
+  return pre_factor * NumCalc::num_integrate(f, 0.0, rN, 1000, NumCalc::linear);
+
+  // This is the "point-nucleus" version. Gives same result!
+  // auto pre_factor2 = -bl * z * z * z * z * alpha * alpha * alpha;
+  // return pre_factor2 * std::exp(-z * r);
+}
+
+//******************************************************************************
+double vSE_Hmag(double r, double rN, double z, double alpha) {
+  auto sp1 = SafeProfiler::profile(__func__);
+
+  static constexpr double abs_err_lim = 0.0;
+  static constexpr double rel_err_lim = 1.0e-6;
+  static constexpr unsigned long max_num_subintvls = 750; //?
+
+  gsl_set_error_handler_off(); //?
+  if (rN <= 0) {
+    rN = 1.0e-7;
+  }
+
+  RadPot_params params = {r, rN, z, alpha};
+
+  gsl_function f_gsl;
+  f_gsl.function = &gslfunc_SEmag;
+  f_gsl.params = &params;
+
+  gsl_integration_workspace *gsl_int_wrk =
+      gsl_integration_workspace_alloc(max_num_subintvls + 1);
+
+  double int_result, abs_err;
+  gsl_integration_qagiu(&f_gsl, 1.0, abs_err_lim, rel_err_lim,
+                        max_num_subintvls, gsl_int_wrk, &int_result, &abs_err);
+  gsl_integration_workspace_free(gsl_int_wrk);
+
+  const auto pre_factor = 3.0 * z * alpha / M_PI; // XXX check!
+  return pre_factor * int_result;
+}
+} // namespace RadiativePotential
+
+//******************************************************************************
+//******************************************************************************
+namespace RadiativePotential {
+namespace Helper {
 
 //------------------------------------------------------------------------------
 double vUehcommon(double t, double chi) {
@@ -61,48 +202,6 @@ double gslfunc_Ueh_larger(double t, void *p) {
   const auto g = vUehcommon(t, chi);
   const auto f = vUehf_larger(r, rN, chi);
   return f * g;
-}
-
-//------------------------------------------------------------------------------
-double vUehling(double r, double rN, double z, double alpha) {
-  auto sp1 = SafeProfiler::profile(__func__);
-
-  // Routines return the first approximation which has an absolute error
-  // smaller than abs_err_lim or a relative error smaller than rel_err_lim.
-  // Note that this is an either-or constraint, not simultaneous. To compute to
-  // a specified absolute error, set epsrel to zero (etc.)
-  static constexpr double abs_err_lim = 0;
-  static constexpr double rel_err_lim = 1.0e-6;
-  // max_num_subintvls < size(gsl_int_wrk)
-  static constexpr unsigned long max_num_subintvls = 750; //?
-
-  gsl_set_error_handler_off(); //?
-  if (rN <= 0) {
-    rN = 1.0e-7;
-  }
-
-  RadPot_params params = {r, rN, z, alpha};
-
-  gsl_function f_gsl;
-  f_gsl.function = (r < rN) ? &gslfunc_Ueh_smallr : &gslfunc_Ueh_larger;
-  f_gsl.params = &params;
-
-  // This workspace handles the memory for the subinterval ranges, results and
-  // error estimates. max_num_subintvls < size(gsl_int_wrk)
-  // Allocates a workspace sufficient to hold n double precision
-  // intervals, their integration results and error estimates.
-  gsl_integration_workspace *gsl_int_wrk =
-      gsl_integration_workspace_alloc(max_num_subintvls + 1);
-  // nb: i allocate + destroy wrk EACH r... doesn't much matter though...
-
-  double int_result, abs_err;
-  gsl_integration_qagiu(&f_gsl, 1.0, abs_err_lim, rel_err_lim,
-                        max_num_subintvls, gsl_int_wrk, &int_result, &abs_err);
-  gsl_integration_workspace_free(gsl_int_wrk);
-
-  auto pre_factor = z * (alpha / M_PI) / r;
-
-  return pre_factor * int_result;
 }
 
 //******************************************************************************
@@ -171,67 +270,6 @@ double gslfunc_SEh_larger(double t, void *p) {
 }
 
 //******************************************************************************
-static Fit_AB fit_AB;
-double vSEh(double r, double rN, double z, double alpha) {
-  auto sp1 = SafeProfiler::profile(__func__);
-
-  static constexpr double abs_err_lim = 0.0;
-  static constexpr double rel_err_lim = 1.0e-3;
-  static constexpr unsigned long max_num_subintvls = 1000; //?
-
-  gsl_set_error_handler_off(); //?
-  if (rN <= 0) {
-    rN = 1.0e-7;
-  }
-
-  RadPot_params params = {r, rN, z, alpha};
-
-  gsl_function f_gsl;
-  f_gsl.function = (r < rN) ? &gslfunc_SEh_smallr : &gslfunc_SEh_larger;
-  f_gsl.params = &params;
-
-  gsl_integration_workspace *gsl_int_wrk =
-      gsl_integration_workspace_alloc(max_num_subintvls + 1);
-
-  double int_result, abs_err;
-  gsl_integration_qagiu(&f_gsl, 1.0, abs_err_lim, rel_err_lim,
-                        max_num_subintvls, gsl_int_wrk, &int_result, &abs_err);
-  gsl_integration_workspace_free(gsl_int_wrk);
-
-  auto l = 0; // XXX
-  auto al = fit_AB.Al(l, z * alpha);
-
-  auto pre_factor = -1.5 * al * (alpha / M_PI) * z / r;
-
-  return pre_factor * int_result;
-}
-
-//------------------------------------------------------------------------------
-double vSEl(double r, double rN, double z, double alpha) {
-  auto sp1 = SafeProfiler::profile(__func__);
-  //
-  auto l = 0; // XXX
-  auto bl = fit_AB.Bl(l, z * alpha);
-
-  auto pre_factor =
-      -1.5 * bl * z * z * alpha * alpha * alpha / (rN * rN * rN * r);
-
-  auto f = [=](double x) {
-    auto arg_neg = z * std::abs(r - x);
-    auto arg_pos = z * (r + x);
-    auto a = (arg_neg + 1.0) * std::exp(-arg_neg);
-    auto b = (arg_pos + 1.0) * std::exp(-arg_pos);
-    return x * (a - b);
-  };
-
-  return pre_factor * NumCalc::num_integrate(f, 0.0, rN, 1000, NumCalc::linear);
-
-  // This is the "point-nucleus" version. Gives same result!
-  // auto pre_factor2 = -bl * z * z * z * z * alpha * alpha * alpha;
-  // return pre_factor2 * std::exp(-z * r);
-}
-
-//******************************************************************************
 double seJmag(double x, double y) {
   const auto y3 = y * y * y;
   const auto sihncosh =
@@ -250,35 +288,5 @@ double gslfunc_SEmag(double t, void *p) {
   return (r <= rN) ? factor * seJmag(chi, eta) : factor * seJmag(eta, chi);
 }
 
-//------------------------------------------------------------------------------
-double vSE_Hmag(double r, double rN, double z, double alpha) {
-  auto sp1 = SafeProfiler::profile(__func__);
-
-  static constexpr double abs_err_lim = 0.0;
-  static constexpr double rel_err_lim = 1.0e-6;
-  static constexpr unsigned long max_num_subintvls = 750; //?
-
-  gsl_set_error_handler_off(); //?
-  if (rN <= 0) {
-    rN = 1.0e-7;
-  }
-
-  RadPot_params params = {r, rN, z, alpha};
-
-  gsl_function f_gsl;
-  f_gsl.function = &gslfunc_SEmag;
-  f_gsl.params = &params;
-
-  gsl_integration_workspace *gsl_int_wrk =
-      gsl_integration_workspace_alloc(max_num_subintvls + 1);
-
-  double int_result, abs_err;
-  gsl_integration_qagiu(&f_gsl, 1.0, abs_err_lim, rel_err_lim,
-                        max_num_subintvls, gsl_int_wrk, &int_result, &abs_err);
-  gsl_integration_workspace_free(gsl_int_wrk);
-
-  const auto pre_factor = 3.0 * z * alpha / M_PI; // XXX check!
-  return pre_factor * int_result;
-}
-
+} // namespace Helper
 } // namespace RadiativePotential

@@ -1,11 +1,11 @@
 #include "ExternalField.hpp"
-#include "Angular/Angular_tables.hpp"
 #include "Angular/Angular_369j.hpp"
-#include "Operators/DiracOperator.hpp"
-#include "Wavefunction/DiracSpinor.hpp"
-#include "Wavefunction/Wavefunction.hpp"
+#include "Angular/Angular_tables.hpp"
+#include "DiracOperator/DiracOperator.hpp"
 #include "HF/HartreeFockClass.hpp"
 #include "IO/ChronoTimer.hpp"
+#include "Wavefunction/DiracSpinor.hpp"
+#include "Wavefunction/Wavefunction.hpp"
 #include <algorithm>
 #include <fstream>
 #include <vector>
@@ -14,7 +14,7 @@
 #include <memory>
 
 //******************************************************************************
-ExternalField::ExternalField(const DiracOperator *const h,
+ExternalField::ExternalField(const DiracOperator::TensorOperator *const h,
                              const std::vector<DiracSpinor> &core,
                              const std::vector<double> &vl, const double alpha)
     : m_h(h), p_core(&core), m_vl(vl), m_alpha(alpha), m_rank(h->rank()),

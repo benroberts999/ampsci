@@ -5,14 +5,16 @@
 class Wavefunction;
 class HartreeFock;
 class UserInputBlock;
-class DiracOperator;
+namespace DiracOperator {
+class TensorOperator;
+}
 
 namespace Module {
 
 void matrixElements(const UserInputBlock &input, const Wavefunction &wf);
 
-std::unique_ptr<DiracOperator> generateOperator(const std::string &operator_str,
-                                                const UserInputBlock &input,
-                                                const Wavefunction &wf);
+std::unique_ptr<DiracOperator::TensorOperator>
+generateOperator(const std::string &operator_str, const UserInputBlock &input,
+                 const Wavefunction &wf);
 
 } // namespace Module

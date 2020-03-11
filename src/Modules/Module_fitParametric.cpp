@@ -1,11 +1,12 @@
 #include "Modules/Module_fitParametric.hpp"
-#include "Wavefunction/Wavefunction.hpp"
 #include "HF/HartreeFockClass.hpp"
 #include "IO/UserInput.hpp"
 #include "Maths/Grid.hpp"
+#include "Physics/AtomData.hpp"
 #include "Physics/NuclearPotentials.hpp"
 #include "Physics/Parametric_potentials.hpp"
 #include "Physics/PhysConst_constants.hpp"
+#include "Wavefunction/Wavefunction.hpp"
 #include <iostream>
 #include <tuple>
 #include <vector>
@@ -21,7 +22,7 @@ void fitParametric(const UserInputBlock &input, const Wavefunction &wf) {
 
   auto fit_worst = input.get("fitWorst", true);
 
-  std::vector<DiracSEnken> states;
+  std::vector<AtomData::DiracSEnken> states;
   // bool fit_worst = true; // XXX update to be input?
 
   if (which_states == "core" || which_states == "both") {
@@ -94,9 +95,11 @@ void fitParametric(const UserInputBlock &input, const Wavefunction &wf) {
 }
 
 //******************************************************************************
-std::tuple<double, double> fitParametric_performFit(
-    const std::vector<DiracSEnken> &states, int Z, const GridParameters &gp,
-    const Nuclear::Parameters &nuc_params, bool green, bool fit_worst) {
+std::tuple<double, double>
+fitParametric_performFit(const std::vector<AtomData::DiracSEnken> &states,
+                         int Z, const GridParameters &gp,
+                         const Nuclear::Parameters &nuc_params, bool green,
+                         bool fit_worst) {
 
   std::cout << "\nPerforming fit (for ";
   if (green)

@@ -3,7 +3,11 @@
 #include <string>
 #include <vector>
 
+//! Useful atomic data/functions. Most self-explanatory
+namespace AtomData {
+
 //******************************************************************************
+//! Stores none relativistic single-eletron config {n, l, number}
 struct NonRelSEConfig {
   int n;
   int l;
@@ -33,6 +37,7 @@ struct NonRelSEConfig {
 };
 
 //******************************************************************************
+//! Stores relativistic single-eletron state {n, kappa, energy}
 struct DiracSEnken { // name OK? too short?
   int n;
   int k;
@@ -43,8 +48,8 @@ struct DiracSEnken { // name OK? too short?
 
 //******************************************************************************
 //******************************************************************************
-namespace AtomData {
 
+//! Looks up default A (most common) for given Z
 int defaultA(int Z);
 
 std::string atomicSymbol(int Z);
@@ -57,20 +62,27 @@ std::string l_symbol(int l);
 
 int symbol_to_l(const std::string &l_str);
 
+//! Given a nobel-gas conifg (e.g., '[Xe]') returns full electron config
 std::string coreConfig(const std::string &in_ng);
 
+//! Given a full electron config., returns nicer format by recognising nobel gas
 std::string niceCoreOutput(const std::string &full_core);
 
+//! Exact H-like energy
 double diracen(double z, double n, int k, double alpha = 0.00729735256635);
 
+//! parses strong core configuration into list of NonRelSEConfig
 std::vector<NonRelSEConfig> core_parser(const std::string &str_core_in);
 
 std::string guessCoreConfigStr(const int total_core_electrons);
 std::vector<NonRelSEConfig> core_guess(const int total_core_electrons);
 
+//! Generates a list of DiracSEnken from string: full list
 std::vector<DiracSEnken> listOfStates_nk(const std::string &in_list);
+//! Generates a list of DiracSEnken from string: just max n for each kappa
 std::vector<DiracSEnken> listOfMaxn_k(const std::string &in_list);
 
+//! Prints a periodic table to screen
 void printTable();
 
 //******************************************************************************

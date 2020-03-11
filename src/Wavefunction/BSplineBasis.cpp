@@ -1,7 +1,7 @@
 #include "BSplineBasis.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Hamiltonian.hpp"
-// #include "Operators/Operators.hpp"
+// #include "DiracOperator/Operators.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "Maths/BSplines.hpp"
 #include "Maths/Grid.hpp"

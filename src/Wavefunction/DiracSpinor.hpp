@@ -5,26 +5,65 @@
 class Grid;
 
 //******************************************************************************
+/*!
+@brief Stores radial Dirac spinor: F_nk = (f, g)
+@details
+\f[
+\psi_{n\kappa m} = \frac{1}{r}
+\begin{pmatrix}
+  f_{n\kappa}(r)\,\Omega_{\kappa m}\\
+  g_{n\kappa}(r)\,\Omega_{-\kappa m}
+\end{pmatrix},
+\quad
+F_{n\kappa} =
+\begin{pmatrix}
+  f_{n\kappa}(r)\\
+  g_{n\kappa}(r)
+\end{pmatrix}
+\f]
+
+\par  Construction.
+Takes in constant n and k=kappa values + grid
+  - A pointer to the Grid is stored (to avoid many copies of Grid)
+  - This means Grid must survive [ensured to be true, see WF class]
+
+\par Operator Overloads
+  - Intuative operator overloads are provided (Fa, Fb are DiracSpinors):
+  - v * Fa, where v is a double or vector works the obvious way
+  - Fa * Fb = <Fa|Fb>
+  - Fa == Fb returns true if {na,ka}=={nb,kb}
+  - Fa > Fb : first compares n, and then kappa (via kappa_index)
+  - Fa +/- Fb : Adds/subtracts the two spinors (and updates p0/pinf)
+  - You can make copies: auto Fnew = Fa
+  - And you can re-asign: Fb = Fa (provided Fa and Fb have same n and kappa!)
+*/
 class DiracSpinor {
 
-public: // Data
+public:
   DiracSpinor(int in_n, int in_k, const Grid &rgrid);
-  DiracSpinor &operator=(const DiracSpinor &); // copy assignment
-  DiracSpinor(const DiracSpinor &) = default;  // copy constructor
-  ~DiracSpinor() = default;
 
-  // Would be better if some of this were private... getters/setters.....
+  //! Raw pointer to Grid; links F[i] to F(r)
   const Grid *const p_rgrid;
+  //! Principal quantum number
   const int n;
+  //! Dirac quantum number, kappa
   const int k;
-  double en = 0;
+  //! Single-particle energy, not including rest energy
+  double en = 0.0;
+  //! Upper (large) radial component
   std::vector<double> f;
+  //! Lower (small) radial component
   std::vector<double> g;
-  std::size_t p0; // usually just zero
+  //! `practical zero': p0 is first non-zero point for f(r) [usually p0=0]
+  std::size_t p0;
+  //! `practical infinity': pinf is last non-zero point for f(r)
   std::size_t pinf;
 
+  //! Number of iterations until energy convergence (for latest routine only)
   int its;
+  //! Fractional energy convergence: eps = |(en'-en)/en|
   double eps;
+  //! Occupation fraction. =1 for closed shells. =1/(2j+1) for valence
   double occ_frac;
 
 private:
@@ -33,25 +72,36 @@ private:
   const int m_parity;
   const int m_k_index;
 
-public: // Methods
+public:
+  //! Orbital angular momentum Q number
   int l() const { return m_l; }
-  // double j() const { return 0.5 * double(m_twoj); }
+  //! j(j+1)
   double jjp1() const { return 0.25 * double(m_twoj * (m_twoj + 2)); }
   int twoj() const { return m_twoj; }
+  //! 2j+1
   int twojp1() const { return m_twoj + 1; }
+  //! (-1)^l, returns +/- 1
   int parity() const { return m_parity; }
+  //! kappa index (see Angular)
   int k_index() const { return m_k_index; }
 
+  //! Single-electron term symbol (e.g., 6s_1/2). Gnuplot=true => 6s_{1/2}
   std::string symbol(bool gnuplot = false) const;
+  //! e.g., 6p_1/2 => 6p-, 6p_3/2 => 6p+
   std::string shortSymbol() const;
 
+  //! norm = Sqrt[<a|a>]
   double norm() const;
   void scale(const double factor);
   void scale(const std::vector<double> &v);
+  //! By default normalises to 1, but can normalise to other number.
   void normalise(double norm_to = 1.0);
+  //! Returns [f[p0]/f_max , f[pinf]/f_max] - for tests
   std::pair<double, double> r0pinfratio() const;
 
+  //! r0 = r[p0] (in atomic units)
   double r0() const;
+  //! rinf = r[pinf]
   double rinf() const;
 
 public:
@@ -77,4 +127,8 @@ public:
   friend bool operator>(const DiracSpinor &lhs, const DiracSpinor &rhs);
   friend bool operator<=(const DiracSpinor &lhs, const DiracSpinor &rhs);
   friend bool operator>=(const DiracSpinor &lhs, const DiracSpinor &rhs);
+
+  DiracSpinor &operator=(const DiracSpinor &);
+  DiracSpinor(const DiracSpinor &) = default;
+  ~DiracSpinor() = default;
 };

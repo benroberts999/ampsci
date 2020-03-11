@@ -2,7 +2,7 @@
 
 $(BD)/Module_runModules.o: $(SD)/Modules/Module_runModules.cpp \
 $(SD)/Modules/Module_runModules.hpp $(SD)/DMionisation/Module_atomicKernal.hpp \
-$(SD)/Operators/DiracOperator.hpp $(SD)/Operators/Operators.hpp \
+$(SD)/DiracOperator/DiracOperator.hpp $(SD)/DiracOperator/Operators.hpp \
 $(SD)/Wavefunction/Hamiltonian.hpp \
 $(SD)/Wavefunction/Wavefunction.hpp $(SD)/IO/UserInput.hpp \
 $(SD)/Modules/Module_fitParametric.hpp $(SD)/Modules/Module_matrixElements.hpp \
@@ -17,8 +17,8 @@ $(SD)/Physics/PhysConst_constants.hpp
 	$(COMP)
 
 $(BD)/Module_matrixElements.o: $(SD)/Modules/Module_matrixElements.cpp \
-$(SD)/Modules/Module_matrixElements.hpp $(SD)/Operators/DiracOperator.hpp \
-$(SD)/Operators/Operators.hpp $(SD)/Wavefunction/Wavefunction.hpp $(SD)/IO/UserInput.hpp \
+$(SD)/Modules/Module_matrixElements.hpp $(SD)/DiracOperator/DiracOperator.hpp \
+$(SD)/DiracOperator/Operators.hpp $(SD)/Wavefunction/Wavefunction.hpp $(SD)/IO/UserInput.hpp \
 $(SD)/Physics/NuclearPotentials.hpp $(SD)/Physics/PhysConst_constants.hpp \
 $(SD)/HF/ExternalField.hpp
 	$(COMP)
@@ -26,6 +26,6 @@ $(SD)/HF/ExternalField.hpp
 $(BD)/Module_pnc.o: $(SD)/Modules/Module_pnc.cpp \
 $(SD)/HF/ExternalField.hpp \
 $(SD)/Modules/Module_runModules.hpp  \
-$(SD)/Operators/DiracOperator.hpp $(SD)/Operators/Operators.hpp \
+$(SD)/DiracOperator/DiracOperator.hpp $(SD)/DiracOperator/Operators.hpp \
 $(SD)/Wavefunction/Wavefunction.hpp $(SD)/IO/UserInput.hpp
 	$(COMP)

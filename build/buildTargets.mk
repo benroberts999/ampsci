@@ -19,7 +19,7 @@ all: checkObj checkXdir $(DEFAULTEXES)
 include $(SD)/DiracODE/DiracODE.mk
 include $(SD)/Angular/Angular.mk
 include $(SD)/Wavefunction/Wavefunction.mk
-include $(SD)/Operators/Operators.mk
+include $(SD)/DiracOperator/DiracOperator.mk
 include $(SD)/DMionisation/DMionisation.mk
 include $(SD)/HF/HF.mk
 include $(SD)/IO/IO.mk

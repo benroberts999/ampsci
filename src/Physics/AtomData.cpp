@@ -11,6 +11,9 @@
 #include <vector>
 
 //******************************************************************************
+namespace AtomData {
+
+//******************************************************************************
 std::string NonRelSEConfig::symbol() const {
   return std::to_string(n) + AtomData::l_symbol(l) + std::to_string(num);
 }
@@ -22,8 +25,6 @@ bool NonRelSEConfig::ok() const {
 }
 
 //******************************************************************************
-namespace AtomData {
-
 int defaultA(int Z)
 // c++14: can make constexpr ?
 {

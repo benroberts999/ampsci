@@ -1,14 +1,14 @@
 #include "Modules/Module_runModules.hpp"
 #include "DMionisation/Module_atomicKernal.hpp"
-#include "Operators/DiracOperator.hpp"
-#include "Wavefunction/Hamiltonian.hpp"
-#include "Operators/Operators.hpp"
-#include "Wavefunction/Wavefunction.hpp"
 #include "HF/HartreeFockClass.hpp"
 #include "IO/UserInput.hpp"
 #include "Modules/Module_fitParametric.hpp"
 #include "Modules/Module_matrixElements.hpp"
+#include "DiracOperator/DiracOperator.hpp"
+#include "DiracOperator/Operators.hpp"
 #include "Physics/PhysConst_constants.hpp"
+#include "Wavefunction/Hamiltonian.hpp"
+#include "Wavefunction/Wavefunction.hpp"
 #include <algorithm>
 #include <cmath>
 #include <fstream>
@@ -59,6 +59,8 @@ void runModule(const UserInputBlock &module_input, const Wavefunction &wf) //
 void Module_BohrWeisskopf(const UserInputBlock &input, const Wavefunction &wf)
 //
 {
+  using namespace DiracOperator;
+
   UserInputBlock point_in("MatrixElements::hfs", input);
   UserInputBlock ball_in("MatrixElements::hfs", input);
   UserInputBlock BW_in("MatrixElements::hfs", input);
@@ -131,8 +133,8 @@ void Module_test_BasisSumRules(const Wavefunction &wf) {
   std::cout << "(must include +ve energy states. Works best for pure Coloumb "
                "functions)\n";
 
-  auto rhat = E1Operator(wf.rgrid);             // vector E1
-  auto r2hat = RadialFuncOperator(wf.rgrid, 2); // scalar r^2
+  auto rhat = DiracOperator::E1Operator(wf.rgrid);             // vector E1
+  auto r2hat = DiracOperator::RadialFuncOperator(wf.rgrid, 2); // scalar r^2
 
   auto comp_l = [](const auto &Fa, const auto &Fb) { return Fa.l() < Fb.l(); };
   auto max_l = std::max_element(wf.basis.begin(), wf.basis.end(), comp_l)->l();

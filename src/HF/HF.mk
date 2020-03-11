@@ -11,7 +11,7 @@ $(SD)/IO/SafeProfiler.hpp
 $(BD)/ExternalField.o: \
 $(SD)/HF/ExternalField.cpp $(SD)/HF/ExternalField.hpp \
 $(SD)/HF/CoulombIntegrals.hpp $(SD)/HF/HartreeFockClass.hpp\
-$(SD)/Wavefunction/DiracSpinor.hpp $(SD)/Operators/DiracOperator.hpp \
+$(SD)/Wavefunction/DiracSpinor.hpp $(SD)/DiracOperator/DiracOperator.hpp \
 $(SD)/Maths/Grid.hpp $(SD)/Maths/NumCalc_quadIntegrate.hpp \
 $(SD)/Angular/Angular_tables.hpp $(SD)/IO/SafeProfiler.hpp
 	$(COMP)

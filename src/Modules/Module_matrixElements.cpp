@@ -1,10 +1,10 @@
 #include "Modules/Module_matrixElements.hpp"
-#include "Operators/DiracOperator.hpp"
-#include "Operators/Operators.hpp"
-#include "Wavefunction/Wavefunction.hpp"
+#include "DiracOperator/DiracOperator.hpp"
+#include "DiracOperator/Operators.hpp"
 #include "IO/UserInput.hpp"
 #include "Physics/NuclearPotentials.hpp"
 #include "Physics/PhysConst_constants.hpp"
+#include "Wavefunction/Wavefunction.hpp"
 #include <fstream>
 #include <iostream>
 #include <memory>
@@ -73,7 +73,8 @@ void matrixElements(const UserInputBlock &input, const Wavefunction &wf) {
       }
       std::cout << h->rme_symbol(Fa, Fb) << ": ";
       // Special case: HFS A:
-      auto a = AhfsQ ? HyperfineOperator::convertRMEtoA(Fa, Fb) : 1.0;
+      auto a =
+          AhfsQ ? DiracOperator::HyperfineOperator::convertRMEtoA(Fa, Fb) : 1.0;
       if (radial_int) {
         printf("%13.6e\n", h->radialIntegral(Fa, Fb));
       } else if (rpaQ) {
@@ -90,9 +91,10 @@ void matrixElements(const UserInputBlock &input, const Wavefunction &wf) {
 }
 
 //******************************************************************************
-std::unique_ptr<DiracOperator> generateOperator(const std::string &operator_str,
-                                                const UserInputBlock &input,
-                                                const Wavefunction &wf) {
+std::unique_ptr<DiracOperator::TensorOperator>
+generateOperator(const std::string &operator_str, const UserInputBlock &input,
+                 const Wavefunction &wf) {
+  using namespace DiracOperator;
   //
   const std::string ThisModule = "MatrixElements::" + operator_str;
 

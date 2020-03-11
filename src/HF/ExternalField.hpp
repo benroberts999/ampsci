@@ -2,7 +2,9 @@
 #include "Angular/Angular_tables.hpp"
 #include <vector>
 class DiracSpinor;
-class DiracOperator;
+namespace DiracOperator {
+class TensorOperator;
+}
 class Wavefunction;
 
 enum class dPsiType { X, Y };
@@ -32,7 +34,7 @@ from scratch. Then, dV_ab(Fa,Fb) returns the correction to the matrix element:
 
 class ExternalField {
 public:
-  ExternalField(const DiracOperator *const h,
+  ExternalField(const DiracOperator::TensorOperator *const h,
                 const std::vector<DiracSpinor> &core,
                 const std::vector<double> &vl, const double alpha);
 
@@ -46,7 +48,7 @@ private:
   std::vector<std::vector<DiracSpinor>> m_Y = {};
   // can just write these to disk! Read them in, continue as per normal
 
-  const DiracOperator *const m_h; //??
+  const DiracOperator::TensorOperator *const m_h; //??
   const std::vector<DiracSpinor> *const p_core;
   const std::vector<double> m_vl; // Add H_mag ?
   const double m_alpha;
