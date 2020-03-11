@@ -2,9 +2,10 @@
 #include <cmath>
 #include <gsl/gsl_sf_bessel.h>
 #include <vector>
-/*
-Wrappers for returning Spherical Bessel functions.
-An "exact" version, and an approx version (good to ~ 1.e-9)
+
+/*!
+@brief Wrappers for returning Spherical Bessel functions.
+@details Has an "exact" version, and a faster approx version (good to ~ 1.e-9)
 */
 
 namespace SphericalBessel {
@@ -63,6 +64,7 @@ template <typename T> T exactGSL_JL(int L, T x) {
 }
 
 //******************************************************************************
+//! Creates a vector of Jl(r) for given r
 template <typename T> //
 std::vector<T> fillBesselVec(const int l, const std::vector<T> &xvec) {
   std::vector<T> Jl_vec;

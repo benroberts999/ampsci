@@ -74,7 +74,7 @@ void matrixElements(const UserInputBlock &input, const Wavefunction &wf) {
       std::cout << h->rme_symbol(Fa, Fb) << ": ";
       // Special case: HFS A:
       auto a =
-          AhfsQ ? DiracOperator::HyperfineOperator::convertRMEtoA(Fa, Fb) : 1.0;
+          AhfsQ ? DiracOperator::Hyperfine::convertRMEtoA(Fa, Fb) : 1.0;
       if (radial_int) {
         printf("%13.6e\n", h->radialIntegral(Fa, Fb));
       } else if (rpaQ) {
@@ -125,11 +125,11 @@ generateOperator(const std::string &operator_str, const UserInputBlock &input,
     std::cout << "Points inside nucleus: " << wf.rgrid.getIndex(r_nucau)
               << "\n";
 
-    auto Fr = HyperfineOperator::sphericalBall_F();
+    auto Fr = Hyperfine::sphericalBall_F();
     if (Fr_str == "shell")
-      Fr = HyperfineOperator::sphericalShell_F();
+      Fr = Hyperfine::sphericalShell_F();
     else if (Fr_str == "pointlike")
-      Fr = HyperfineOperator::pointlike_F();
+      Fr = Hyperfine::pointlike_F();
     else if (Fr_str == "VolotkaBW") {
       auto pi = input.get("parity", isotope.parity);
       auto l_tmp = int(I_nuc + 0.5 + 0.0001);
@@ -145,7 +145,7 @@ generateOperator(const std::string &operator_str, const UserInputBlock &input,
       else
         std::cout << " gl=" << gl << "??? program will run, but prob wrong!\n";
       std::cout << "with l=" << l << " (pi=" << pi << ")\n";
-      Fr = HyperfineOperator::volotkaBW_F(mu, I_nuc, l, gl);
+      Fr = Hyperfine::volotkaBW_F(mu, I_nuc, l, gl);
     } else if (Fr_str == "doublyOddBW") {
 
       auto mu1 = input.get<double>("mu1");
@@ -161,7 +161,7 @@ generateOperator(const std::string &operator_str, const UserInputBlock &input,
       auto I2 = input.get<double>("I2");
 
       Fr =
-          HyperfineOperator::doublyOddBW_F(mu, I_nuc, mu1, I1, l1, gl1, I2, l2);
+          Hyperfine::doublyOddBW_F(mu, I_nuc, mu1, I1, l1, gl1, I2, l2);
     } else if (Fr_str != "ball") {
       std::cout << "FAIL: in " << ThisModule << " " << Fr_str
                 << " invalid nuclear distro. Check spelling\n";
@@ -177,22 +177,22 @@ generateOperator(const std::string &operator_str, const UserInputBlock &input,
       }
     }
 
-    return std::make_unique<HyperfineOperator>(
-        HyperfineOperator(mu, I_nuc, r_nucau, wf.rgrid, Fr));
+    return std::make_unique<Hyperfine>(
+        Hyperfine(mu, I_nuc, r_nucau, wf.rgrid, Fr));
   } else if (operator_str == "E1") {
     input.checkBlock(jointCheck({"gauge"}));
     auto gauge = input.get<std::string>("gauge", "lform");
     if (gauge != "vform")
-      return std::make_unique<E1Operator>(E1Operator(wf.rgrid));
+      return std::make_unique<E1>(E1(wf.rgrid));
     std::cout << "(v-form [velocity gauge])\n";
-    return std::make_unique<E1Operator_vform>(
-        E1Operator_vform(wf.rgrid, wf.get_alpha()));
+    return std::make_unique<E1_vform>(
+        E1_vform(wf.rgrid, wf.get_alpha()));
   } else if (operator_str == "r") {
     input.checkBlock(jointCheck({"power"}));
     auto power = input.get("power", 1.0);
     std::cout << "r^(" << power << ")\n";
-    return std::make_unique<RadialFuncOperator>(
-        RadialFuncOperator(wf.rgrid, power));
+    return std::make_unique<RadialF>(
+        RadialF(wf.rgrid, power));
   } else if (operator_str == "pnc") {
     input.checkBlock(jointCheck({"c", "t"}));
     double tdflt = Nuclear::default_t; // approximate_t_skin(wf.Anuc());
@@ -201,8 +201,8 @@ generateOperator(const std::string &operator_str, const UserInputBlock &input,
     auto c = input.get("c", cdflt);
     auto t = input.get("t", tdflt);
     std::cout << "PNC [-i(Q/N)e-11]\n";
-    return std::make_unique<PNCnsiOperator>(
-        PNCnsiOperator(c, t, wf.rgrid, -wf.Nnuc()));
+    return std::make_unique<PNCnsi>(
+        PNCnsi(c, t, wf.rgrid, -wf.Nnuc()));
   } else if (operator_str == "M1") {
     std::cout << "Sorry, check back soon for M1 :(\n";
     // return std::make_unique<M1Operator>(M1Operator());

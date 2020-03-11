@@ -38,8 +38,8 @@ void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf) {
 
   auto rpaQ = input.get("rpa", false);
 
-  DiracOperator::PNCnsiOperator hpnc(c, t, wf.rgrid, -wf.Nnuc());
-  DiracOperator::E1Operator he1(wf.rgrid);
+  DiracOperator::PNCnsi hpnc(c, t, wf.rgrid, -wf.Nnuc());
+  DiracOperator::E1 he1(wf.rgrid);
   auto alpha = wf.get_alpha();
 
   auto pA = wf.getState(na, ka);

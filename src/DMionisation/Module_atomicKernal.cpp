@@ -1,12 +1,12 @@
 #include "DMionisation/Module_atomicKernal.hpp"
 #include "DMionisation/AKF_akFunctions.hpp"
-#include "Wavefunction/ContinuumOrbitals.hpp"
-#include "Wavefunction/Wavefunction.hpp"
 #include "HF/HartreeFockClass.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/UserInput.hpp"
 #include "Maths/Grid.hpp"
 #include "Physics/PhysConst_constants.hpp"
+#include "Wavefunction/ContinuumOrbitals.hpp"
+#include "Wavefunction/Wavefunction.hpp"
 #include <iostream>
 
 namespace Module {
@@ -42,8 +42,16 @@ void atomicKernal(const UserInputBlock &input, const Wavefunction &wf) {
   qmax *= qMeV;
 
   // Set up the E and q grids
-  Grid Egrid(demin, demax, desteps, GridType::logarithmic);
-  Grid qgrid(qmin, qmax, qsteps, GridType::logarithmic);
+  // Grid Egrid(demin, demax, desteps, GridType::logarithmic);
+  // Grid qgrid(qmin, qmax, qsteps, GridType::logarithmic);
+
+  // GridParameters(std::size_t innum_points, double inr0, double inrmax,
+  //                double inb = 4.0, GridType intype = GridType::loglinear,
+  //                double indu = 0);
+  std::cout << "WARNING 51 in AK: I updated Grid calls, but didn't test "
+               "them!\n Should check! XXX\n";
+  Grid Egrid({(std::size_t)desteps, demin, demax, 0, GridType::logarithmic});
+  Grid qgrid({(std::size_t)qsteps, qmin, qmax, 0, GridType::logarithmic});
 
   auto max_l_core = wf.maxCore_l();
   auto max_l = input.get<int>("max_l_bound", max_l_core);

@@ -7,6 +7,7 @@
 #include <iostream>
 #include <vector>
 
+//! Numerical integration and differentiation. Bit of a mess right now..
 namespace NumCalc {
 
 // Quadrature integration order [1,13], only odd

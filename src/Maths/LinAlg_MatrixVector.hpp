@@ -5,13 +5,12 @@
 #include <tuple>
 #include <utility>
 #include <vector>
-// #include <iostream>
-// #include <algorithm>
-// #include <array>
 
+//! Defines SqMatrix, Vector, and linear-algebra solvers (incl Eigensystems)
 namespace LinAlg {
 
 //******************************************************************************
+//! Basic Square matrix class of constant construct-time size
 class SqMatrix {
 
 public:
@@ -36,18 +35,27 @@ public:
   void LU_decompose();
 
 public:
+  //! Constructs a diagonal matrix with values value
   void make_diag(double value = 1.0);
   void scale(double value);
+  //! All values with |Mij|<value are set to zero
   void clip_low(double value);
+  //! All values with |Mij|>value are set to +/-value
   void clip_high(double value);
 
-  void make_symmetric(); // change to "symmetrise"
+  //! Forces Matrix to be symmetric by: Mij -> (Mij + Mji)/2
+  void make_symmetric(); // change to "symmetrise"?
+  //! Returns largest elemt of matrix [Mij - Mji]; zero if symmetric
   double check_symmetric();
+  //! Prints Matrix to screen
   void print();
 
+  //! Returns the transpose of matrix: not destructive
   [[nodiscard]] SqMatrix transpose() const;
   double determinant(); // changes m_LU
-  void invert();        // nb: destructive!
+  //! Inverts the matrix: nb: destructive!
+  void invert();
+  //! Returns the inverce of matrix: not destructive
   [[nodiscard]] SqMatrix inverse() const;
 
   double *operator[](int i) const;
@@ -61,6 +69,7 @@ public:
 };
 
 //******************************************************************************
+//! Basic vector class of constant construct-time size
 class Vector {
 public:
   const int n;
@@ -72,12 +81,8 @@ public:
   Vector(const int in_n);
   template <typename T> Vector(const std::initializer_list<T> &l);
   Vector &operator=(const Vector &other); // copy assignment
-
-  Vector(const Vector &other); // copy constructor;
-
+  Vector(const Vector &other);            // copy constructor;
   ~Vector();
-
-  // Vector(const Vector &vector); // copy constructor
 
   void clip_low(const double value);
   void clip_high(const double value);
@@ -102,20 +107,30 @@ public:
 //******************************************************************************
 //******************************************************************************
 
+//! Solves Matrix equationL A*x = b for x
 Vector solve_Axeqb(SqMatrix &Am, const Vector &b);
 
 //------------------------------------------------------------------------------
-// Eigensystems: Note: A and B are destroyed! Don't use afterwards
-// (Can't avoid this without needless copy)
+//! @brief Solves Av = ev for eigenvalues e and eigenvectors v
+//! for Real Symmetric Matrices
+//! @details Eigensystems: Note: A and B are destroyed! Don't use afterwards
+//! (Can't avoid this without needless copy). Optionally sorts e and v by e
 [[nodiscard]] std::pair<Vector, SqMatrix>
 realSymmetricEigensystem(SqMatrix &A, bool sort = true);
 
+//! @brief Solves Av = eBv for eigenvalues e and eigenvectors v for Real
+//! Generalized Symmetric-Definite Eigensystems
 [[nodiscard]] std::pair<Vector, SqMatrix>
 realSymmetricEigensystem(SqMatrix &A, SqMatrix &B, bool sort = true);
 
+//! @briefSolves for Av = ev for Real Nonsymmetric Matrices.
+//! @details e and v are complex; returned as {real, imag} (seperate
+//! vectors/Matrix)
 [[nodiscard]] std::tuple<Vector, Vector, SqMatrix, SqMatrix>
 realNonSymmetricEigensystem(SqMatrix &A, bool sort = true);
 
+//! @brief Solves Av = eBv for eigenvalues e and eigenvectors v for Real
+//! Generalized Non-Symmetric-Definite Eigensystems.
 [[nodiscard]] std::tuple<Vector, Vector, SqMatrix, SqMatrix>
 realNonSymmetricEigensystem(SqMatrix &A, SqMatrix &B, bool sort = true);
 

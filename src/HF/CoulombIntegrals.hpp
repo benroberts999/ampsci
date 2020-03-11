@@ -7,7 +7,10 @@ class Grid;
 // * Add ability to just update a single integral
 // * (all integrals involving given orbital)
 
-/*
+//! @brief Calculates + stores Coulomb integrals, with \f$y_{ab}^k\f$ look-up
+/*! @details
+  - Needs a good clean-up, lots of dead code etc.
+
 Definitions:
 y^k_ij(r)   := Int_0^inf [r_min^k/r_max^(k+1)]*rho(f') dr'
 rho(r')     := fi(r')*fj(r') + gi(r')gj(r')
@@ -15,10 +18,8 @@ Lambda^k_ij := 3js((ji,jj,k),(-1/2,1/2,0))^2 * parity(li+lj+k)
 
 m_C_kakbk "C" (just parity + [j] + 3js, no sign term!)
 so, C =
-C^k_ij = std::sqrt([ji][jj]) * 3js((ji,jj,k),(-1/2,1/2,0)) * parity(li+lj+k)
-
+C^k_ij = sqrt([ji][jj]) * 3js((ji,jj,k),(-1/2,1/2,0)) * parity(li+lj+k)
 */
-
 class Coulomb {
 
 public: // constructor + static functions

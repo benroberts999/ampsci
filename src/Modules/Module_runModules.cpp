@@ -80,9 +80,9 @@ void Module_BohrWeisskopf(const UserInputBlock &input, const Wavefunction &wf)
             << "\n       |A:      Point         Ball           SP |e:    "
                "Ball         SP\n";
   for (const auto &phi : wf.valence_orbitals) {
-    auto Ap = HyperfineOperator::hfsA(hp.get(), phi);
-    auto Ab = HyperfineOperator::hfsA(hb.get(), phi);
-    auto Aw = HyperfineOperator::hfsA(hw.get(), phi);
+    auto Ap = Hyperfine::hfsA(hp.get(), phi);
+    auto Ab = Hyperfine::hfsA(hb.get(), phi);
+    auto Aw = Hyperfine::hfsA(hw.get(), phi);
     auto Fball = ((Ab / Ap) - 1.0) * 100.0; //* M_PI * PhysConst::c;
     auto Fbw = ((Aw / Ap) - 1.0) * 100.0;   //* M_PI * PhysConst::c;
     // printf("%6s: %9.1f  %9.1f  %9.1f | %8.4f  %8.4f   %9.6f\n",
@@ -93,12 +93,12 @@ void Module_BohrWeisskopf(const UserInputBlock &input, const Wavefunction &wf)
   if (!wf.basis.empty())
     std::cout << "\nTest hfs using basis (pointlike):\n";
   for (const auto &phi : wf.basis) {
-    auto Abasis = HyperfineOperator::hfsA(hp.get(), phi);
+    auto Abasis = Hyperfine::hfsA(hp.get(), phi);
     // auto Abasis = hp.get()->radialIntegral(phi, phi);
     printf("%7s: %12.5e ", phi.symbol().c_str(), Abasis);
     const auto *hf_phi = wf.getState(phi.n, phi.k);
     if (hf_phi != nullptr) {
-      auto Ahf = HyperfineOperator::hfsA(hp.get(), *hf_phi);
+      auto Ahf = Hyperfine::hfsA(hp.get(), *hf_phi);
       auto delta = 2.0 * (Abasis - Ahf) / (Abasis + Ahf);
       printf(" %12.5e  %8.1e", Ahf, delta);
     }
@@ -133,8 +133,8 @@ void Module_test_BasisSumRules(const Wavefunction &wf) {
   std::cout << "(must include +ve energy states. Works best for pure Coloumb "
                "functions)\n";
 
-  auto rhat = DiracOperator::E1Operator(wf.rgrid);             // vector E1
-  auto r2hat = DiracOperator::RadialFuncOperator(wf.rgrid, 2); // scalar r^2
+  auto rhat = DiracOperator::E1(wf.rgrid);             // vector E1
+  auto r2hat = DiracOperator::RadialF(wf.rgrid, 2); // scalar r^2
 
   auto comp_l = [](const auto &Fa, const auto &Fb) { return Fa.l() < Fb.l(); };
   auto max_l = std::max_element(wf.basis.begin(), wf.basis.end(), comp_l)->l();

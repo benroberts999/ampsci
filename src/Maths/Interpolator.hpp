@@ -6,13 +6,17 @@
 
 // https://www.gnu.org/software/gsl/doc/html/interp.html
 
+//! Interpolates functions using cubic splines. Uses GSL
 namespace Interpolator {
 
+//! @brief Interpolates {xin,yin} onto {xout}
+//! @details Takes set of points {xin, yin}, interpolates and evaluates new y
+//! values at positions defined by {x_out}; returns as vector.
+//!  - NOTE: Interpolates, but does NOT extrapolate! Everything outseide the
+//!  region (xmin,xmax)_in will be zero
 inline std::vector<double> interpolate(const std::vector<double> &x_in,
                                        const std::vector<double> &y_in,
                                        const std::vector<double> &x_out) {
-  // NOTE: Interpolates, but does NOT extrapolate!
-  // Everything outseide the region (xmin,xmax)_in will be zero
 
   gsl_set_error_handler_off(); //?
 

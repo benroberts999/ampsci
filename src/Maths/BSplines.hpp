@@ -6,12 +6,12 @@
 #include <gsl/gsl_bspline.h>
 #include <iostream>
 #include <utility>
-// class Grid;
-// #include "Wavefunction/DiracSpinor.hpp"
-// #include "Maths/NumCalc_quadIntegrate.hpp"
 
+//! @brief Uses GSL to generate set of B-splines and their derivatives
+//! @details Splines are generates upon construction; derivates are not
 class BSplines {
 public:
+  //! n is number of spines, k is order. r0/rmax are first/last internal knots
   BSplines(std::size_t in_n, std::size_t in_k, const Grid &in_grid,
            double in_r0,
            double in_rmax)
@@ -74,19 +74,24 @@ public:
   std::size_t get_k() const { return m_order_k; }
   const Grid &get_grid() const { return *m_rgrid_ptr; }
   //****************************************************************************
+  //! returns nth spline
   const std::vector<double> &get_spline(std::size_t n) const {
     return m_Bk[n]; // add bounds-check?
   }
+  //! returns first-order derivative of nth spline
   const std::vector<double> &get_spline_deriv(std::size_t n) const {
     return m_dBkdr1[n]; // add bounds-check?
   }
+  //! returns second-order derivative of nth spline
   const std::vector<double> &get_spline_deriv2(std::size_t n) const {
     return m_dBkdr2[n]; // add bounds-check?
   }
+  //! returns [first,last] non-zero grid point of nth spline ("p0,pinf")
   const std::pair<std::size_t, std::size_t> &get_ends(std::size_t n) const {
     return m_ends[n]; // add bounds-check?
   }
 
+  //! Calculates + stores 1st and 2nd order derivatives
   void derivitate() {
 
     auto n_max_deriv = 2;
@@ -119,6 +124,7 @@ public:
   }
 
   //****************************************************************************
+  //! Writes splines to text file
   void write_splines(const std::string &ofname = "Bspl.txt",
                      bool deriv = false) const {
     std::ofstream of(ofname);
