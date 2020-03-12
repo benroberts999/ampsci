@@ -40,6 +40,10 @@ void matrixElements(const UserInputBlock &input, const Wavefunction &wf) {
   const auto omega = input.get("omega", 0.0);
   const bool eachFreqQ = omega < 0.0;
 
+  const auto factor = input.get("factor", 1.0);
+  if (factor != 1.0)
+    std::cout << "With extra factor: " << factor << "\n";
+
   // const auto units = input.get<std::string>("units", "au"); // can remove?
   // const auto unit = (units == "MHz" || AhfsQ) ? PhysConst::Hartree_MHz : 1.0;
 
@@ -73,8 +77,8 @@ void matrixElements(const UserInputBlock &input, const Wavefunction &wf) {
       }
       std::cout << h->rme_symbol(Fa, Fb) << ": ";
       // Special case: HFS A:
-      auto a =
-          AhfsQ ? DiracOperator::Hyperfine::convertRMEtoA(Fa, Fb) : 1.0;
+      auto a = AhfsQ ? DiracOperator::Hyperfine::convertRMEtoA(Fa, Fb) : 1.0;
+      a *= factor;
       if (radial_int) {
         printf("%13.6e\n", h->radialIntegral(Fa, Fb));
       } else if (rpaQ) {
@@ -99,7 +103,8 @@ generateOperator(const std::string &operator_str, const UserInputBlock &input,
   const std::string ThisModule = "MatrixElements::" + operator_str;
 
   std::vector<std::string> check_list = {
-      "radialIntegral", "printBoth", "onlyDiagonal", "units", "rpa", "omega"};
+      "radialIntegral", "printBoth", "onlyDiagonal", "units", "rpa",
+      "omega",          "factor"};
   auto jointCheck = [&](const std::vector<std::string> &in) {
     check_list.insert(check_list.end(), in.begin(), in.end());
     return check_list;
@@ -160,8 +165,7 @@ generateOperator(const std::string &operator_str, const UserInputBlock &input,
       auto I1 = input.get<double>("I1");
       auto I2 = input.get<double>("I2");
 
-      Fr =
-          Hyperfine::doublyOddBW_F(mu, I_nuc, mu1, I1, l1, gl1, I2, l2);
+      Fr = Hyperfine::doublyOddBW_F(mu, I_nuc, mu1, I1, l1, gl1, I2, l2);
     } else if (Fr_str != "ball") {
       std::cout << "FAIL: in " << ThisModule << " " << Fr_str
                 << " invalid nuclear distro. Check spelling\n";
@@ -185,14 +189,12 @@ generateOperator(const std::string &operator_str, const UserInputBlock &input,
     if (gauge != "vform")
       return std::make_unique<E1>(E1(wf.rgrid));
     std::cout << "(v-form [velocity gauge])\n";
-    return std::make_unique<E1_vform>(
-        E1_vform(wf.rgrid, wf.get_alpha()));
+    return std::make_unique<E1_vform>(E1_vform(wf.rgrid, wf.get_alpha()));
   } else if (operator_str == "r") {
     input.checkBlock(jointCheck({"power"}));
     auto power = input.get("power", 1.0);
     std::cout << "r^(" << power << ")\n";
-    return std::make_unique<RadialF>(
-        RadialF(wf.rgrid, power));
+    return std::make_unique<RadialF>(RadialF(wf.rgrid, power));
   } else if (operator_str == "pnc") {
     input.checkBlock(jointCheck({"c", "t"}));
     double tdflt = Nuclear::default_t; // approximate_t_skin(wf.Anuc());
@@ -201,8 +203,7 @@ generateOperator(const std::string &operator_str, const UserInputBlock &input,
     auto c = input.get("c", cdflt);
     auto t = input.get("t", tdflt);
     std::cout << "PNC [-i(Q/N)e-11]\n";
-    return std::make_unique<PNCnsi>(
-        PNCnsi(c, t, wf.rgrid, -wf.Nnuc()));
+    return std::make_unique<PNCnsi>(PNCnsi(c, t, wf.rgrid, -wf.Nnuc()));
   } else if (operator_str == "M1") {
     std::cout << "Sorry, check back soon for M1 :(\n";
     // return std::make_unique<M1Operator>(M1Operator());
