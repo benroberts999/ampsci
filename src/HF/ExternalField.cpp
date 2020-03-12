@@ -490,8 +490,8 @@ double ExternalField::dX_nm_bbe_rhs(const DiracSpinor &Fn,
   auto l_min_X = std::max(std::abs(tjn - tjbeta), std::abs(tjm - tjb)) / 2;
   auto l_max_X = std::min((tjn + tjbeta), (tjm + tjb)) / 2;
 
-  l_min_X = 0;
-  l_max_X = 20;
+  // l_min_X = 0;
+  // l_max_X = 20;
 
   for (int l = l_min_X; l <= l_max_X; ++l) {
     const auto sixj = Angular::sixj_2(tjm, tjn, 2 * k, tjbeta, tjb, 2 * l);
@@ -539,8 +539,8 @@ double ExternalField::dY_nm_bbe_rhs(const DiracSpinor &Fn,
   auto l_min_Y = std::max(std::abs(tjn - tjb), std::abs(tjm - tjbeta)) / 2;
   auto l_max_Y = std::min((tjn + tjb), (tjm + tjbeta)) / 2;
 
-  l_min_Y = 0;
-  l_max_Y = 20;
+  // l_min_Y = 0;
+  // l_max_Y = 20;
 
   for (int l = l_min_Y; l <= l_max_Y; ++l) {
     const auto sixj = Angular::sixj_2(tjm, tjn, 2 * k, tjb, tjbeta, 2 * l);

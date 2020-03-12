@@ -1,14 +1,14 @@
 #include "HF/HartreeFockClass.hpp"
+#include "Angular/Angular_369j.hpp"
 #include "DiracODE/Adams_Greens.hpp"
 #include "DiracODE/DiracODE.hpp"
-#include "Angular/Angular_369j.hpp"
-#include "Wavefunction/DiracSpinor.hpp"
-#include "Wavefunction/Wavefunction.hpp"
 #include "HF/CoulombIntegrals.hpp"
 #include "IO/SafeProfiler.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/Parametric_potentials.hpp"
+#include "Wavefunction/DiracSpinor.hpp"
+#include "Wavefunction/Wavefunction.hpp"
 #include <algorithm>
 #include <cmath>
 #include <functional>
@@ -661,18 +661,18 @@ DiracSpinor HartreeFock::vex_psia(const DiracSpinor &Fa) const
 // calculates V_ex Fa (returns new Dirac Spinor)
 // Fa can be any orbital (so long as coulomb integrals exist!)
 {
-  DiracSpinor vexPsi(Fa.n, Fa.k, *(Fa.p_rgrid));
-  vex_psia(Fa, vexPsi);
-  return vexPsi;
+  DiracSpinor VxFa(Fa.n, Fa.k, *(Fa.p_rgrid));
+  vex_psia(Fa, VxFa);
+  return VxFa;
 }
-void HartreeFock::vex_psia(const DiracSpinor &Fa, DiracSpinor &vexPsi) const
+void HartreeFock::vex_psia(const DiracSpinor &Fa, DiracSpinor &VxFa) const
 // calculates V_ex Fa
 // Fa can be any orbital (so long as coulomb integrals exist!)
 {
   auto sp = SafeProfiler::profile(__func__);
-  vexPsi.pinf = Fa.f.size(); // silly hack. Make sure vexPsi = 0 after pinf
-  vexPsi *= 0.0;
-  vexPsi.pinf = Fa.pinf;
+  VxFa.pinf = Fa.f.size(); // silly hack. Make sure VxFa = 0 after pinf
+  VxFa *= 0.0;
+  VxFa.pinf = Fa.pinf; // updated below
 
   if (m_excludeExchange)
     return;
@@ -680,6 +680,7 @@ void HartreeFock::vex_psia(const DiracSpinor &Fa, DiracSpinor &vexPsi) const
   auto ki_a = Fa.k_index();
   auto twoj_a = Fa.twoj();
   for (const auto &Fb : p_wf->core_orbitals) {
+    VxFa.pinf = std::max(VxFa.pinf, Fb.pinf);
     auto tjb = Fb.twoj();
     double x_tjbp1 = (Fa == Fb) ? (tjb + 1) : (tjb + 1) * Fb.occ_frac;
     int kmin = std::abs(twoj_a - tjb) / 2;
@@ -689,11 +690,11 @@ void HartreeFock::vex_psia(const DiracSpinor &Fa, DiracSpinor &vexPsi) const
     for (int k = kmin; k <= kmax; k++) {
       if (L_ab_k[k - kmin] == 0)
         continue;
-      auto max = std::min(Fb.pinf, Fa.pinf);
+      auto max = Fb.pinf; // std::min(Fb.pinf, Fa.pinf);
       for (auto i = 0u; i < max; i++) {
         auto v = -x_tjbp1 * L_ab_k[k - kmin] * vabk[k - kmin][i];
-        vexPsi.f[i] += v * Fb.f[i];
-        vexPsi.g[i] += v * Fb.g[i];
+        VxFa.f[i] += v * Fb.f[i];
+        VxFa.g[i] += v * Fb.g[i];
       } // r
     }   // k
   }     // b
@@ -707,8 +708,9 @@ DiracSpinor HartreeFock::vex_psia_any(const DiracSpinor &Fa,
 // Fa can be any orbital (Calculates coulomb integrals here!)
 {
   auto sp = SafeProfiler::profile(__func__);
-  DiracSpinor vexPsi(Fa.n, Fa.k, *(Fa.p_rgrid));
-  vexPsi.pinf = Fa.pinf;
+  DiracSpinor VxFa(Fa.n, Fa.k, *(Fa.p_rgrid));
+  VxFa.pinf = Fa.pinf; // nb: updated below!
+  // note: VxFa.pinf can be larger than psi.pinf!
 
   std::vector<double> vabk(Fa.p_rgrid->num_points);
   // XXX ALSO move this!
@@ -716,6 +718,7 @@ DiracSpinor HartreeFock::vex_psia_any(const DiracSpinor &Fa,
   auto tja = Fa.twoj();
   auto la = Fa.l();
   for (const auto &Fb : core) {
+    VxFa.pinf = std::max(Fb.pinf, VxFa.pinf);
     auto tjb = Fb.twoj();
     auto lb = Fb.l();
     double x_tjbp1 = (Fa == Fb) ? (tjb + 1) : (tjb + 1) * Fb.occ_frac;
@@ -732,17 +735,17 @@ DiracSpinor HartreeFock::vex_psia_any(const DiracSpinor &Fa,
       auto tjs = Angular::threej_2(tjb, tja, 2 * k, -1, 1, 0); // XXX lookup!
       if (tjs == 0)
         continue;
-      Coulomb::calculate_y_ijk(Fb, Fa, k, vabk);
-      auto max = std::min(Fb.pinf, Fa.pinf);
+      auto max = Fb.pinf;
+      Coulomb::calculate_y_ijk(Fb, Fa, k, vabk, max);
       for (auto i = 0u; i < max; i++) {
         auto v = -x_tjbp1 * tjs * tjs * vabk[i];
-        vexPsi.f[i] += v * Fb.f[i];
-        vexPsi.g[i] += v * Fb.g[i];
+        VxFa.f[i] += v * Fb.f[i];
+        VxFa.g[i] += v * Fb.g[i];
       } // r
     }   // k
   }     // b
 
-  return vexPsi;
+  return VxFa;
 }
 
 //******************************************************************************
@@ -838,17 +841,17 @@ EpsIts HartreeFock::hf_valence_refine(DiracSpinor &Fa) {
   double best_eps = 1.0;
   // auto Gzero = DiracSpinor(Fa.n, Fa.k, p_wf->rgrid);
   // auto Ginf = DiracSpinor(Fa.n, Fa.k, p_wf->rgrid);
-  auto vexPsi = DiracSpinor(Fa.n, Fa.k, p_wf->rgrid);
+  auto VxFa = DiracSpinor(Fa.n, Fa.k, p_wf->rgrid);
   int it = 0;
   double eps = 1.0;
   int worse_count = 0;
   for (; it <= m_max_hf_its; ++it) {
     auto a_damp = damper(it) + extra_damp;
 
-    vex_psia(Fa, vexPsi);
+    vex_psia(Fa, VxFa);
     auto oldphi = Fa;
-    auto en = Fzero.en + (Fzero * vexPsi - Fa * vexFzero) / (Fa * Fzero);
-    hf_orbital(Fa, en, vl, p_wf->Hse_mag, vexPsi, p_wf->core_orbitals);
+    auto en = Fzero.en + (Fzero * VxFa - Fa * vexFzero) / (Fa * Fzero);
+    hf_orbital(Fa, en, vl, p_wf->Hse_mag, VxFa, p_wf->core_orbitals);
     eps = std::fabs((prev_en - Fa.en) / Fa.en);
     prev_en = Fa.en;
 
@@ -954,11 +957,11 @@ inline void HartreeFock::hf_core_refine() {
 
       // const auto oldphi = Fa;
       const auto oldphi = core_prev[i];
-      const auto &vexPsi = vexF_list[i];
-      auto en = Fzero.en + (Fzero * vexPsi - Fa * vexFzero + Fzero * (vd * Fa) -
+      const auto &VxFa = vexF_list[i];
+      auto en = Fzero.en + (Fzero * VxFa - Fa * vexFzero + Fzero * (vd * Fa) -
                             Fa * (vd0 * Fzero)) /
                                (Fa * Fzero);
-      const auto v_nonlocal = v0 * Fa + vexPsi;
+      const auto v_nonlocal = v0 * Fa + VxFa;
       hf_orbital(Fa, en, vl, p_wf->Hse_mag, v_nonlocal, core_prev, v0);
       Fa = (1.0 - a_damp) * Fa + a_damp * oldphi;
       Fa.normalise();

@@ -412,8 +412,7 @@ convolvedRate(const std::vector<double> &in_rate, const Grid &in_grid,
     double g =
         // NumCalc::integrate({&in_rate, &f_conv[i], &in_grid.drdu},
         // in_grid.du);
-        NumCalc::integrate(in_grid.du, 0, 0, in_rate, f_conv[i],
-                               in_grid.drdu);
+        NumCalc::integrate(in_grid.du, 0, 0, in_rate, f_conv[i], in_grid.drdu);
     out_rate.push_back(convert_units * g);
   }
 
@@ -710,7 +709,10 @@ Mostly, coming from:
   std::size_t num_s1 = Egrid.num_points; // use same number of points!
   double s1min = 1.;                     // Threshold...  always 1 or above
   double s1max = 15.;                    // 6 kev gives less than 16 PE
-  Grid s1grid(s1min, s1max, num_s1, GridType::logarithmic);
+  // Grid s1grid(s1min, s1max, num_s1, GridType::logarithmic);
+  std::cout << "\nWARNING: Change Grid construction, not tested! XXX\n";
+  // Grid s1grid(s1min, s1max, num_s1, GridType::logarithmic);
+  Grid s1grid({num_s1, s1min, s1max, 0, GridType::logarithmic});
 
   // Acceptance
   // Fig. 1 of Phys. Rev. D 90, 062009 (2014).
@@ -784,8 +786,8 @@ Mostly, coming from:
   std::vector<std::vector<double>> rate(n_mv, std::vector<double>(n_mx));
   for (std::size_t imv = 0; imv < n_mv; imv++) {
     for (std::size_t imx = 0; imx < n_mx; imx++) {
-      rate[imv][imx] = NumCalc::integrate(
-          s1grid.du, is1_a, is1_b, dS_mv_mx_s1[imv][imx], s1grid.drdu);
+      rate[imv][imx] = NumCalc::integrate(s1grid.du, is1_a, is1_b,
+                                          dS_mv_mx_s1[imv][imx], s1grid.drdu);
     }
   }
 
@@ -948,7 +950,8 @@ int main(int argc, char *argv[]) {
   mxmax /= M_to_GeV;
   if (n_mx == 1)
     mxmax = mxmin;
-  Grid mxgrid(mxmin, mxmax, n_mx, GridType::logarithmic);
+  // Grid mxgrid(mxmin, mxmax, n_mx, GridType::logarithmic);
+  Grid mxgrid({n_mx, mxmin, mxmax, 0, GridType::logarithmic});
 
   // Append 'l'('h') to label for light(heavy) mediator
   switch (mediator) {
@@ -983,7 +986,7 @@ int main(int argc, char *argv[]) {
     mvmin /= M_to_MeV;
     mvmax /= M_to_MeV;
   }
-  Grid mvgrid(mvmin, mvmax, n_mv, GridType::logarithmic);
+  Grid mvgrid({n_mv, mvmin, mvmax, 0, GridType::logarithmic});
 
   // Energy bins for integrating/averaging (convert units)
   iEbin /= E_to_keV;
@@ -1006,8 +1009,10 @@ int main(int argc, char *argv[]) {
   if (num_states != nklst.size())
     return 1; // just sanity check
   // Create the E and q grids:
-  Grid Egrid(demin, demax, desteps, GridType::logarithmic);
-  Grid qgrid(qmin, qmax, qsteps, GridType::logarithmic);
+  // Grid Egrid(demin, demax, desteps, GridType::logarithmic);
+  // Grid qgrid(qmin, qmax, qsteps, GridType::logarithmic);
+  Grid Egrid({desteps, demin, demax, 0, GridType::logarithmic});
+  Grid qgrid({qsteps, qmin, qmax, 0, GridType::logarithmic});
 
   // Grid of SHM vel. distro f_v(v). Can use to change vel profiles
   // Note: SHM is in km/s units, both for v and f!

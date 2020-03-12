@@ -11,8 +11,9 @@ Fully relativistic, includes finite-nuclear size, can solve for continuum states
  * 02-diracSCAS_method  -- What the code does (description of physics)
  * Also: contains "Makefile.example" and "hartreeFock.in.example": copy these to the main directory and remove the ".example"
 
-  * Code documentation is available on github: [benroberts999.github.io/diracSCAS/](https://benroberts999.github.io/diracSCAS/)
-  * (This is very preliminary, and auto-generated, so may not be complete etc.)
+ * Code documentation is available on github: [benroberts999.github.io/diracSCAS/](https://benroberts999.github.io/diracSCAS/)
+ * (This is very preliminary, and auto-generated, so may not be complete etc.)
+ * The code itself is on GitHub: [github.com/benroberts999/diracSCAS](https://github.com/benroberts999/diracSCAS)
 
 --------------------------------------------------------------------------------
 

@@ -12,12 +12,12 @@ class Grid;
   - Needs a good clean-up, lots of dead code etc.
 
 Definitions:
-y^k_ij(r)   := Int_0^inf [r_min^k/r_max^(k+1)]*rho(f') dr'
-rho(r')     := fi(r')*fj(r') + gi(r')gj(r')
-Lambda^k_ij := 3js((ji,jj,k),(-1/2,1/2,0))^2 * parity(li+lj+k)
+  - y^k_ij(r)   := Int_0^inf [r_min^k/r_max^(k+1)]*rho(f') dr'
+  - rho(r')     := fi(r')*fj(r') + gi(r')gj(r')
+  - Lambda^k_ij := 3js((ji,jj,k),(-1/2,1/2,0))^2 * parity(li+lj+k)
 
-m_C_kakbk "C" (just parity + [j] + 3js, no sign term!)
-so, C =
+  - m_C_kakbk "C" (just parity + [j] + 3js, no sign term!)
+  - so, C =
 C^k_ij = sqrt([ji][jj]) * 3js((ji,jj,k),(-1/2,1/2,0)) * parity(li+lj+k)
 */
 class Coulomb {
@@ -32,29 +32,39 @@ public: // constructor + static functions
   Coulomb(const Coulomb &) = default;           // copy constructor
   ~Coulomb() = default;
 
+  //! Calculates Hartree Screening functions \f$y^k_{ab}(r)\f$
   static void calculate_y_ijk(const DiracSpinor &Fa, const DiracSpinor &Fb,
                               const int k, std::vector<double> &vabk,
                               const std::size_t maxi = 0);
 
-public: // functions
+public:
+  //! Forms/updtaes yk_ab matrix for all core a and b
   void form_core_core();
+  //! Updates yk_ab matrix: only terms involving Fa (Fa in core)
   void form_core_core(const DiracSpinor &Fa);
+  //! Forms/updtaes yk_vw matrix for all valence v and w
   void form_valence_valence();
+  //! Forms/updtaes yk_va matrix for all valence v and core a
   void form_core_valence();
+  //! Forms/updtaes yk_va matrix, only terms involving Fn
   void form_core_valence(const DiracSpinor &Fn);
 
   // MUST calculate values first!
+  //! Calculates R^k_abcd for all k. y^k_ab must already exist!
   std::vector<double> calculate_R_abcd_k(const DiracSpinor &Fa,
                                          const DiracSpinor &Fb,
                                          const DiracSpinor &Fc,
                                          const DiracSpinor &Fd) const;
 
+  //! Calculates R^k_abcd for given k. From scratch (calculates y)
   static double Rk_abcd_any(const DiracSpinor &Fa, const DiracSpinor &Fb,
                             const DiracSpinor &Fc, const DiracSpinor &Fd,
                             const int k);
+  //! Calculates Q^k_abcd for given k. From scratch (calculates y)
   static double Qk_abcd_any(const DiracSpinor &Fa, const DiracSpinor &Fb,
                             const DiracSpinor &Fc, const DiracSpinor &Fd,
                             const int k);
+  //! Calculates Z^k_abcd for given k. From scratch (calculates y)
   static double Zk_abcd_any(const DiracSpinor &Fa, const DiracSpinor &Fb,
                             const DiracSpinor &Fc, const DiracSpinor &Fd,
                             const int k);
@@ -68,16 +78,21 @@ public: // functions
 
   // getters
 
+  //! Look-up for angular factor. This should be replaced with Angular version!
   const std::vector<double> &get_angular_C_kiakib_k(int kia, int kib) const;
+  //! Look-up for angular factor. This should be replaced with Angular version!
   const std::vector<double> &get_angular_L_kiakib_k(int kia, int kib) const;
-
+  //! Look-up for y^k_ij (core or valence, given k); must exist already
   const std::vector<double> &get_y_ijk(const DiracSpinor &Fi,
                                        const DiracSpinor &Fj, int k) const;
+  //! Look-up for y^k_ij (core or valence). Returns all k. Must exist already
   const std::vector<std::vector<double>> &
   get_y_ijk(const DiracSpinor &Fi, const DiracSpinor &Fj) const;
 
-public: // functions
+public:
+  //! Sizes the relvant y and angular matrix for core-core integrals
   void initialise_core_core();
+  //! Sizes the relvant y and angular matrix for core-valence integrals
   void initialise_core_valence();
 
 private: // functions

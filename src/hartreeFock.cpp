@@ -1,10 +1,10 @@
-#include "Wavefunction/Wavefunction.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/FileIO_fileReadWrite.hpp" //for 'ExtraPotential'
 #include "IO/UserInput.hpp"
 #include "Maths/Interpolator.hpp"          //for 'ExtraPotential'
 #include "Maths/NumCalc_quadIntegrate.hpp" //for 'ExtraPotential'
 #include "Modules/Module_runModules.hpp"
+#include "Wavefunction/Wavefunction.hpp"
 #include <iostream>
 #include <string>
 
@@ -84,25 +84,25 @@ int main(int argc, char *argv[]) {
   }
 
   // Inlcude QED radiatve potential?
-  input_ok = input_ok && input.check("RadPot", {"Ueh", "SE_h", "SE_l", "SE_m",
-                                                "rcut", "scale_rN"});
+  auto qed_ok = input.check(
+      "RadPot", {"Ueh", "SE_h", "SE_l", "SE_m", "rcut", "scale_rN"});
   auto x_Ueh = input.get("RadPot", "Ueh", 0.0);
   auto x_SEe_h = input.get("RadPot", "SE_h", 0.0);
   auto x_SEe_l = input.get("RadPot", "SE_l", 0.0);
   auto x_SEm = input.get("RadPot", "SE_m", 0.0);
   auto rcut = input.get("RadPot", "rcut", 1.0);
   auto scale_rN = input.get("RadPot", "scale_rN", 1.0);
-  if (input_ok)
+  if (qed_ok)
     wf.radiativePotential(x_Ueh, x_SEe_h, x_SEe_l, x_SEm, rcut, scale_rN);
 
   // Inlcude extra potential (read in from text file):
   // Note: interpolated onto grid, but NOT extrapolated (zero outside region!)
-  input_ok = input_ok &&
-             input.check("ExtraPotential", {"filename", "factor", "beforeHF"});
+  auto extra_ok =
+      input.check("ExtraPotential", {"filename", "factor", "beforeHF"});
   auto ep_fname = input.get<std::string>("ExtraPotential", "filename", "");
   auto ep_factor = input.get("ExtraPotential", "factor", 0.0);
   auto ep_beforeHF = input.get("ExtraPotential", "beforeHF", false);
-  auto extra_pot = ep_fname != "" && std::abs(ep_factor) > 0.0;
+  auto extra_pot = ep_fname != "" && std::abs(ep_factor) > 0.0 && extra_ok;
   std::vector<double> Vextra;
   if (extra_pot) {
     const auto &[x, y] = FileIO::readFile_xy_PoV("testIn.txt");
@@ -127,8 +127,9 @@ int main(int argc, char *argv[]) {
 
   // Adds effective polarision potential to direct potential
   // (After HF core, before HF valence)
+  auto Vpol_ok = input.check("dVpol", {"a_eff", "r_cut"});
   auto a_eff = input.get("dVpol", "a_eff", 0.0);
-  if (std::abs(a_eff) > 0.0) {
+  if (std::abs(a_eff) > 0.0 && Vpol_ok) {
     auto r_cut = input.get("dVpol", "r_cut", 1.0);
     auto a4 = r_cut * r_cut * r_cut * r_cut;
     auto dV = [=](auto x) { return -0.5 * a_eff / (x * x * x * x + a4); };
@@ -156,8 +157,8 @@ int main(int argc, char *argv[]) {
   wf.printCore(sorted);
   wf.printValence(sorted);
 
-  input.check("Basis",
-              {"number", "order", "r0", "rmax", "states", "print", "positron"});
+  auto basis_ok = input.check("Basis", {"number", "order", "r0", "rmax",
+                                        "states", "print", "positron"});
   auto n_spl = input.get("Basis", "number", 0ul);
   auto k_spl = input.get("Basis", "order", 0ul);
   auto r0_spl = input.get("Basis", "r0", 0.0);
@@ -165,7 +166,7 @@ int main(int argc, char *argv[]) {
   auto basis_states = input.get<std::string>("Basis", "states", "");
   auto print = input.get("Basis", "print", false);
   auto positronQ = input.get("Basis", "positron", false);
-  if (n_spl > 0) {
+  if (n_spl > 0 && basis_ok) {
     wf.formBasis(basis_states, n_spl, k_spl, r0_spl, rmax_spl, positronQ);
     if (print)
       wf.printBasis();
