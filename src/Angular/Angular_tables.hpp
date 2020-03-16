@@ -59,6 +59,9 @@ public:
   double get_tildeCkab(int k, int ka, int kb) const;
   double get_3jkab(int k, int ka, int kb) const;
 
+  //! Lambda^k_ij := 3js((ji,jj,k),(-1/2,1/2,0))^2 * parity(li+lj+k)
+  double get_Lambdakab(int k, int ka, int kb) const;
+
 private:
   std::vector<std::vector<std::vector<double>>> m_3j_k_a_b = {};
   std::vector<std::vector<double>> m_Rjab_a_b = {}; // Sqrt([ja][jb])

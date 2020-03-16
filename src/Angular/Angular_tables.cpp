@@ -33,7 +33,8 @@ void Ck_ab::fill_maxK_twojmax(const int in_max_K, const int in_max_twoj) {
       for (int jib = 0; jib <= jia; jib++) {
         auto tja = 2 * jia + 1;
         auto tjb = 2 * jib + 1;
-        m_3j_k_a_b[k][jia].push_back(Angular::special_threej_2(tja, tjb, 2 * k));
+        m_3j_k_a_b[k][jia].push_back(
+            Angular::special_threej_2(tja, tjb, 2 * k));
       }
     }
   }
@@ -94,6 +95,14 @@ double Ck_ab::get_3jkab(int k, int ka, int kb) const {
   auto jia = jindex_kappa(ka);
   auto jib = jindex_kappa(kb);
   return (jia > jib) ? m_3j_k_a_b[k][jia][jib] : m_3j_k_a_b[k][jib][jia];
+}
+
+double Ck_ab::get_Lambdakab(int k, int ka, int kb) const {
+  const auto pi_ok = Angular::evenQ(Angular::l_k(ka) + Angular::l_k(kb) + k);
+  if (!pi_ok)
+    return 0.0;
+  const auto tjs = get_3jkab(k, ka, kb);
+  return tjs * tjs;
 }
 
 //******************************************************************************
