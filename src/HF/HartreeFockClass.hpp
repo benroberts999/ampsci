@@ -5,6 +5,8 @@
 class Wavefunction;
 class DiracSpinor;
 class Grid;
+//
+#include "HF/CoulombNew.hpp" //for m_cint
 
 /*
   Definitions:
