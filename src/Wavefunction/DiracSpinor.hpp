@@ -128,6 +128,20 @@ public:
   friend bool operator<=(const DiracSpinor &lhs, const DiracSpinor &rhs);
   friend bool operator>=(const DiracSpinor &lhs, const DiracSpinor &rhs);
 
+  // Custom comparitors
+  static bool comp_l(const DiracSpinor &lhs, const DiracSpinor &rhs) {
+    return lhs.m_l < rhs.m_l;
+  }
+  static bool comp_j(const DiracSpinor &lhs, const DiracSpinor &rhs) {
+    return lhs.m_twoj < rhs.m_twoj;
+  }
+  static bool comp_ki(const DiracSpinor &lhs, const DiracSpinor &rhs) {
+    return lhs.m_k_index < rhs.m_k_index;
+  }
+  static bool comp_en(const DiracSpinor &lhs, const DiracSpinor &rhs) {
+    return lhs.en < rhs.en;
+  }
+
   DiracSpinor &operator=(const DiracSpinor &);
   DiracSpinor(const DiracSpinor &) = default;
   ~DiracSpinor() = default;
