@@ -46,6 +46,8 @@ void runModule(const UserInputBlock &module_input, const Wavefunction &wf) //
     Module_BohrWeisskopf(module_input, wf);
   } else if (module_name == "Module::pnc") {
     Module_testPNC(module_input, wf);
+  } else if (module_name == "Module::lifetimes") {
+    Module_lifeimtes(module_input, wf);
   } else {
     std::cerr << "\nWARNING: Module `" << module_name
               << "' not known. Spelling mistake?\n";

@@ -271,6 +271,11 @@ Module::Tests { // tests of numerical errors:
 ```
 
 ```cpp
+Module::lifetimes{}
+```
+Calculates (E1) lifetimes of states. Note: uses HF energies (prints all data to screen)
+
+```cpp
 Module::BohrWeisskopf { //Calculates BW effect for Ball/Single-particle
   // Takes same input at MatrixElements::hfs
   // Except for F(r), since it runs for each F(r)

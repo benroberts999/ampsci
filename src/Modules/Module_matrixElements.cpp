@@ -216,4 +216,35 @@ generateOperator(const std::string &operator_str, const UserInputBlock &input,
   return std::make_unique<NullOperator>(NullOperator());
 }
 
+//******************************************************************************
+void Module_lifeimtes(const UserInputBlock &, const Wavefunction &wf) {
+  std::cout << "\nLifetimes (E1 only):\n";
+
+  DiracOperator::E1 he1(wf.rgrid);
+  auto alpha = wf.get_alpha();
+  auto alpha3 = alpha * alpha * alpha;
+  auto dVE1 = HF::ExternalField(&he1, wf.core_orbitals,
+                                NumCalc::add_vectors(wf.vnuc, wf.vdir), alpha);
+
+  auto to_s = PhysConst::time_s;
+
+  for (const auto &Fa : wf.valence_orbitals) {
+    std::cout << "\n" << Fa.symbol() << "\n";
+    auto Gamma = 0.0;
+    for (const auto &Fn : wf.valence_orbitals) {
+      if (Fn.en >= Fa.en || he1.isZero(Fn.k, Fa.k))
+        continue;
+      auto w = Fa.en - Fn.en;
+      dVE1.solve_TDHFcore(w);
+      auto d = he1.reducedME(Fn, Fa) + dVE1.dV_ab(Fn, Fa);
+      auto g_n = (4.0 / 3) * w * w * w * d * d / (Fa.twojp1());
+      Gamma += g_n;
+      std::cout << " --> " << Fn.symbol() << ": ";
+      printf("w=%7.5f, |d|=%7.5f, g=%10.4eau\n", w, std::abs(d), g_n * alpha3);
+    }
+    printf("Gamma = %10.4e = %10.4e\n", Gamma * alpha3, Gamma * alpha3 / to_s);
+    printf("tau = %10.4e\n", to_s / alpha3 / Gamma);
+  }
+}
+
 } // namespace Module

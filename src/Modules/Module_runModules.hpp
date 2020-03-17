@@ -19,6 +19,8 @@ void Module_WriteOrbitals(const UserInputBlock &input, const Wavefunction &wf);
 void Module_BohrWeisskopf(const UserInputBlock &input, const Wavefunction &wf);
 void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf);
 
+void Module_lifeimtes(const UserInputBlock &input, const Wavefunction &wf);
+
 void Module_test_BasisSumRules(const Wavefunction &wf);
 
 } // namespace Module
