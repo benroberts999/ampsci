@@ -53,7 +53,7 @@ private:
   const double m_alpha; // store internal value for alpha (allows variation)
   const int m_Z, m_A;
   Nuclear::Parameters m_nuc_params;
-  std::unique_ptr<HartreeFock> m_pHF = nullptr;
+  std::unique_ptr<HF::HartreeFock> m_pHF = nullptr;
 
 public:
   //! Nuclear potential
@@ -130,7 +130,7 @@ public: // const methods: "views" into WF object
   std::vector<double> coreDensity() const;
 
   //! Performs hartree-Fock procedure for core: note: poplulates core
-  void hartreeFockCore(HFMethod method, const std::string &in_core,
+  void hartreeFockCore(HF::Method method, const std::string &in_core,
                        double eps_HF = 0, double h_d = 0, double g_t = 0);
 
   auto coreEnergyHF() const;

@@ -66,20 +66,20 @@ int main(int argc, char *argv[]) {
     return 1;
   auto str_core = input.get<std::string>("HartreeFock", "core", "[]");
   auto eps_HF = input.get("HartreeFock", "convergence", 1.0e-12);
-  auto HF_method = HartreeFock::parseMethod(
+  auto HF_method = HF::parseMethod(
       input.get<std::string>("HartreeFock", "method", "HartreeFock"));
 
   // For when using Hartree, or a parametric potential:
   double H_d = 0.0, g_t = 0.0;
-  if (HF_method == HFMethod::GreenPRM) {
+  if (HF_method == HF::Method::GreenPRM) {
     H_d = input.get("HartreeFock", "Green_H", 0.0);
     g_t = input.get("HartreeFock", "Green_d", 0.0);
     std::cout << "Using Greens Parametric Potential\n";
-  } else if (HF_method == HFMethod::TietzPRM) {
+  } else if (HF_method == HF::Method::TietzPRM) {
     H_d = input.get("HartreeFock", "Tietz_g", 0.0);
     g_t = input.get("HartreeFock", "Tietz_t", 0.0);
     std::cout << "Using Tietz Parametric Potential\n";
-  } else if (HF_method == HFMethod::Hartree) {
+  } else if (HF_method == HF::Method::Hartree) {
     std::cout << "Using Hartree Method (no Exchange)\n";
   }
 

@@ -2,6 +2,7 @@
 #include "Wavefunction/DiracSpinor.hpp"
 #include <vector>
 
+//! Functions (+classes) for computing Coulomb integrals
 namespace Coulomb {
 
 //! Calculates Hartree Screening functions \f$y^k_{ab}(r)\f$

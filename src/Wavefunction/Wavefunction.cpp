@@ -108,12 +108,13 @@ void Wavefunction::determineCore(std::string str_core_in)
 }
 
 //******************************************************************************
-void Wavefunction::hartreeFockCore(HFMethod method, const std::string &in_core,
-                                   double eps_HF, double h_d, double g_t) {
+void Wavefunction::hartreeFockCore(HF::Method method,
+                                   const std::string &in_core, double eps_HF,
+                                   double h_d, double g_t) {
   // XXX Update this (and HF) so that it doesn't re-Create m_pHF
   // AND, so that can re-run core!
-  m_pHF = std::make_unique<HartreeFock>(
-      HartreeFock(method, *this, in_core, eps_HF, h_d, g_t));
+  m_pHF = std::make_unique<HF::HartreeFock>(
+      HF::HartreeFock(method, *this, in_core, eps_HF, h_d, g_t));
 }
 
 //******************************************************************************

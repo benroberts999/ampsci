@@ -48,16 +48,17 @@ void matrixElements(const UserInputBlock &input, const Wavefunction &wf) {
   // const auto unit = (units == "MHz" || AhfsQ) ? PhysConst::Hartree_MHz : 1.0;
 
   auto rpa =
-      ExternalField(h.get(), wf.core_orbitals,
-                    NumCalc::add_vectors(wf.vnuc, wf.vdir), wf.get_alpha());
-  std::unique_ptr<ExternalField> rpa0; // for first-order
+      HF::ExternalField(h.get(), wf.core_orbitals,
+                        NumCalc::add_vectors(wf.vnuc, wf.vdir), wf.get_alpha());
+  std::unique_ptr<HF::ExternalField> rpa0; // for first-order
 
   if (!eachFreqQ && rpaQ) {
     rpa.solve_TDHFcore(omega, 1, false);
-    rpa0 = std::make_unique<ExternalField>(rpa); // store first-order snapshot
+    rpa0 =
+        std::make_unique<HF::ExternalField>(rpa); // store first-order snapshot
     rpa.solve_TDHFcore(omega);
   } else {
-    rpa0 = std::make_unique<ExternalField>(rpa); // Solved later
+    rpa0 = std::make_unique<HF::ExternalField>(rpa); // Solved later
   }
 
   // Fb -> Fa = <a||h||b>

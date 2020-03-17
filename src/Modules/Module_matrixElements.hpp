@@ -3,7 +3,9 @@
 #include <string>
 #include <vector>
 class Wavefunction;
-class HartreeFock;
+// namespace HF {
+// class HartreeFock;
+// }
 class UserInputBlock;
 namespace DiracOperator {
 class TensorOperator;

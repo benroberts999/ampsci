@@ -2,7 +2,7 @@
 #include "Angular/Angular_369j.hpp"
 #include "Angular/Angular_tables.hpp"
 #include "DiracOperator/DiracOperator.hpp"
-#include "HF/Coulomb.hpp"
+#include "Coulomb/Coulomb.hpp"
 #include "HF/HartreeFockClass.hpp"
 #include "HF/MixedStates.hpp"
 #include "IO/ChronoTimer.hpp"
@@ -14,6 +14,8 @@
 //
 #include "Wavefunction/BSplineBasis.hpp" // XXX add to make
 #include <memory>
+
+namespace HF {
 
 //******************************************************************************
 ExternalField::ExternalField(const DiracOperator::TensorOperator *const h,
@@ -559,3 +561,5 @@ double ExternalField::dY_nm_bbe_rhs(const DiracSpinor &Fn,
 
   return dY_nm_bbe;
 }
+
+} // namespace HF

@@ -1,11 +1,11 @@
 #include "Modules/Module_runModules.hpp"
 #include "DMionisation/Module_atomicKernal.hpp"
+#include "DiracOperator/DiracOperator.hpp"
+#include "DiracOperator/Operators.hpp"
 #include "HF/HartreeFockClass.hpp"
 #include "IO/UserInput.hpp"
 #include "Modules/Module_fitParametric.hpp"
 #include "Modules/Module_matrixElements.hpp"
-#include "DiracOperator/DiracOperator.hpp"
-#include "DiracOperator/Operators.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/Hamiltonian.hpp"
 #include "Wavefunction/Wavefunction.hpp"
@@ -133,7 +133,7 @@ void Module_test_BasisSumRules(const Wavefunction &wf) {
   std::cout << "(must include +ve energy states. Works best for pure Coloumb "
                "functions)\n";
 
-  auto rhat = DiracOperator::E1(wf.rgrid);             // vector E1
+  auto rhat = DiracOperator::E1(wf.rgrid);          // vector E1
   auto r2hat = DiracOperator::RadialF(wf.rgrid, 2); // scalar r^2
 
   auto comp_l = [](const auto &Fa, const auto &Fb) { return Fa.l() < Fb.l(); };
@@ -341,8 +341,8 @@ void Module_Tests_Hamiltonian(const Wavefunction &wf) {
       // double Haa_x =
       //     (tmp_orbs != &wf.basis)
       //         ? psi * wf.get_VexPsi(psi)
-      //         : psi * HartreeFock::vex_psia_any(psi, wf.core_orbitals);
-      double Haa_x = psi * HartreeFock::vex_psia_any(psi, wf.core_orbitals);
+      //         : psi * vex_psia_any(psi, wf.core_orbitals);
+      double Haa_x = psi * HF::vex_psia_any(psi, wf.core_orbitals);
       auto Haa = Haa_d + Haa_x;
       double ens = psi.en;
       double fracdiff = (Haa - ens) / ens;

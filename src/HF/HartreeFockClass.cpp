@@ -1,9 +1,9 @@
 #include "HF/HartreeFockClass.hpp"
 #include "Angular/Angular_369j.hpp"
+#include "Coulomb/Coulomb.hpp"
+#include "Coulomb/YkTable.hpp"
 #include "DiracODE/Adams_Greens.hpp"
 #include "DiracODE/DiracODE.hpp"
-#include "HF/Coulomb.hpp"
-#include "HF/YkTable.hpp"
 #include "IO/SafeProfiler.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
@@ -16,8 +16,26 @@
 #include <iostream>
 #include <vector>
 
+namespace HF {
+
 //******************************************************************************
-HartreeFock::HartreeFock(HFMethod method, Wavefunction &wf,
+Method parseMethod(const std::string &in_method) {
+  if (in_method == "HartreeFock")
+    return Method::HartreeFock;
+  if (in_method == "ApproxHF")
+    return Method::ApproxHF;
+  if (in_method == "Hartree")
+    return Method::Hartree;
+  if (in_method == "GreenPRM")
+    return Method::GreenPRM;
+  if (in_method == "TietzPRM")
+    return Method::TietzPRM;
+  std::cout << "Warning: HF Method: " << in_method << " ?? Defaulting to HF\n";
+  return Method::HartreeFock;
+}
+
+//******************************************************************************
+HartreeFock::HartreeFock(Method method, Wavefunction &wf,
                          const std::string &in_core, double eps_HF, double h_d,
                          double g_t)                               //
     : p_wf(&wf),                                                   //
@@ -26,14 +44,14 @@ HartreeFock::HartreeFock(HFMethod method, Wavefunction &wf,
         return (std::fabs(eps_HF) < 1) ? eps_HF : std::pow(10, -1 * eps_HF);
       }()), //
       m_excludeExchange([=]() {
-        return (method == HFMethod::HartreeFock || method == HFMethod::ApproxHF)
+        return (method == Method::HartreeFock || method == Method::ApproxHF)
                    ? false
                    : true;
       }()),            //
       m_method(method) //
 {
 
-  auto param = (method == HFMethod::GreenPRM || method == HFMethod::TietzPRM);
+  auto param = (method == Method::GreenPRM || method == Method::TietzPRM);
   auto log_eps_init = param ? 15 : 5;
 
   if (wf.core_orbitals.empty() || param)
@@ -44,14 +62,14 @@ HartreeFock::HartreeFock(HFMethod method, Wavefunction &wf,
 
   // XXX Update this so that you can create HF class, THEN solve for core later
   switch (method) {
-  case HFMethod::HartreeFock:
+  case Method::HartreeFock:
     hf_core_approx(1.0e-5);
     hf_core_refine();
     break;
-  case HFMethod::ApproxHF:
+  case Method::ApproxHF:
     hf_core_approx(m_eps_HF);
     break;
-  case HFMethod::Hartree:
+  case Method::Hartree:
     hf_core_approx(m_eps_HF);
     break;
   default:
@@ -60,30 +78,14 @@ HartreeFock::HartreeFock(HFMethod method, Wavefunction &wf,
 }
 
 //******************************************************************************
-HFMethod HartreeFock::parseMethod(const std::string &in_method) {
-  if (in_method == "HartreeFock")
-    return HFMethod::HartreeFock;
-  if (in_method == "ApproxHF")
-    return HFMethod::ApproxHF;
-  if (in_method == "Hartree")
-    return HFMethod::Hartree;
-  if (in_method == "GreenPRM")
-    return HFMethod::GreenPRM;
-  if (in_method == "TietzPRM")
-    return HFMethod::TietzPRM;
-  std::cout << "Warning: HF Method: " << in_method << " ?? Defaulting to HF\n";
-  return HFMethod::HartreeFock;
-}
-
-//******************************************************************************
 void HartreeFock::starting_approx_core(const std::string &in_core,
-                                       int log_converge, HFMethod method,
+                                       int log_converge, Method method,
                                        double h_g, double d_t)
 // Starting approx for HF. Uses Green parametric
 // Later, can put other options if you want.
 {
   auto sp = SafeProfiler::profile(__func__);
-  if (method != HFMethod::TietzPRM) {
+  if (method != Method::TietzPRM) {
     if (std::fabs(h_g * h_g) < 1.0e-6)
       Parametric::defaultGreenCore(p_wf->Znuc(), h_g, d_t);
     p_wf->vdir = Parametric::GreenPotential(p_wf->Znuc(), p_rgrid->r, h_g, d_t);
@@ -114,7 +116,7 @@ void HartreeFock::starting_approx_core(const std::string &in_core,
 EpsIts HartreeFock::hf_valence(DiracSpinor &Fa, std::vector<double> &vexa) {
   auto sp = SafeProfiler::profile(__func__);
   auto do_refine =
-      (m_method == HFMethod::HartreeFock && !p_wf->core_orbitals.empty());
+      (m_method == Method::HartreeFock && !p_wf->core_orbitals.empty());
   auto eps_target_HF = do_refine ? 1.0e-5 : m_eps_HF;
 
   auto ei = hf_valence_approx(Fa, vexa, eps_target_HF);
@@ -205,7 +207,7 @@ void HartreeFock::hf_core_approx(const double eps_target_HF) {
       break;
     t_eps_prev = t_eps;
   } // hits
-  if (verbose && m_method != HFMethod::HartreeFock)
+  if (verbose && m_method != Method::HartreeFock)
     printf("HF core      it:%3i eps=%6.1e\n", hits, t_eps);
   if constexpr (print_final_eps) {
     printf("HF core (approx)  it:%3i eps=%6.1e\n", hits, t_eps);
@@ -303,7 +305,7 @@ EpsIts HartreeFock::hf_valence_approx(DiracSpinor &Fa,
     p_wf->solveDirac(Fa, en_new_guess, vexa, 15);
     eps = fabs((Fa.en - en_old) / en_old);
     // Force valence state to be orthogonal to core:
-    if (m_explicitOrthog_cv)
+    if constexpr (m_explicitOrthog_cv)
       Wavefunction::orthonormaliseWrt(Fa, p_wf->core_orbitals);
 
     auto getting_worse = (hits > 20 && eps >= eps_prev && eps < 1.e-5);
@@ -317,7 +319,7 @@ EpsIts HartreeFock::hf_valence_approx(DiracSpinor &Fa,
            eps, Fa.en);
   }
 
-  if (m_explicitOrthog_cv)
+  if constexpr (m_explicitOrthog_cv)
     Wavefunction::orthonormaliseWrt(Fa, p_wf->core_orbitals);
   return {eps, hits};
 }
@@ -502,9 +504,12 @@ void HartreeFock::form_approx_vex_a(const DiracSpinor &Fa,
   }   // if a in core
 }
 
-//******************************************************************************
-std::vector<double> HartreeFock::form_approx_vex_any(
-    const DiracSpinor &Fa, const std::vector<DiracSpinor> &core, int k_cut) {
+//------------------------------------------------------------------------------
+std::vector<double> form_approx_vex_any(const DiracSpinor &Fa,
+                                        const std::vector<DiracSpinor> &core,
+                                        int k_cut)
+// Free function
+{
   auto sp = SafeProfiler::profile(__func__);
 
   std::vector<double> vex(Fa.p_rgrid->num_points);
@@ -613,9 +618,9 @@ void HartreeFock::vex_psia(const DiracSpinor &Fa, DiracSpinor &VxFa) const
 }
 
 // -----------------------------------------------------------------------------
-DiracSpinor HartreeFock::vex_psia_any(const DiracSpinor &Fa,
-                                      const std::vector<DiracSpinor> &core,
-                                      int k_cut) // static
+DiracSpinor vex_psia_any(const DiracSpinor &Fa,
+                         const std::vector<DiracSpinor> &core,
+                         int k_cut) // Free Function
 // calculates V_ex Fa (returns new Dirac Spinor)
 // Fa can be any orbital (Calculates coulomb integrals here!)
 {
@@ -689,7 +694,8 @@ void HartreeFock::hf_orbital(DiracSpinor &Fa, double en,
   DiracSpinor VxFh(Fa.n, Fa.k, *(Fa.p_rgrid));
   DiracSpinor dFa(Fa.n, Fa.k, *(Fa.p_rgrid));
   const auto eps_target = 1.0e-16; // m_eps_HF;
-  const auto k_max = 1;            // max k for Vex into dEa
+  // const auto k_max = 1;            // max k for Vex into dEa
+  const auto k_max = 4; // max k for Vex into dEa
 
   const auto alpha = p_wf->get_alpha();
   DiracODE::solve_inhomog(Fa, Gzero, Ginf, en, vl, H_mag, alpha, -1.0 * vx_phi);
@@ -782,14 +788,14 @@ EpsIts HartreeFock::hf_valence_refine(DiracSpinor &Fa) {
     }
 
     Fa = (1.0 - a_damp) * Fa + a_damp * oldphi;
-    if (m_explicitOrthog_cv) {
+    if constexpr (m_explicitOrthog_cv) {
       Wavefunction::orthonormaliseWrt(Fa, p_wf->core_orbitals);
     } else {
       Fa.normalise();
     }
   } // End HF its
 
-  if (m_explicitOrthog_cv)
+  if constexpr (m_explicitOrthog_cv)
     Wavefunction::orthonormaliseWrt(Fa, p_wf->core_orbitals);
 
   if constexpr (print_final_eps) {
@@ -807,7 +813,6 @@ inline void HartreeFock::hf_core_refine() {
   }
 
   const double eps_target = m_eps_HF;
-  // m_Yab.form_core_core(); // only needed if not already done!
   m_Yab.update_y_ints(); // only needed if not already done!
   auto damper = rampedDamp(0.8, 0.2, 5, 30);
   double extra_damp = 0;
@@ -929,3 +934,5 @@ inline void HartreeFock::hf_core_refine() {
            it, eps, p_wf->core_orbitals[worst_index].symbol().c_str(), best_eps,
            p_wf->core_orbitals[best_index].symbol().c_str());
 }
+
+} // namespace HF

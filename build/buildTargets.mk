@@ -16,9 +16,9 @@ all: checkObj checkXdir $(DEFAULTEXES)
 ################################################################################
 
 # Dependencies for each object target, broken by sub-directories:
-include $(SD)/DiracODE/DiracODE.mk
 include $(SD)/Angular/Angular.mk
-include $(SD)/Wavefunction/Wavefunction.mk
+include $(SD)/Coulomb/Coulomb.mk
+include $(SD)/DiracODE/DiracODE.mk
 include $(SD)/DiracOperator/DiracOperator.mk
 include $(SD)/DMionisation/DMionisation.mk
 include $(SD)/HF/HF.mk
@@ -26,6 +26,7 @@ include $(SD)/IO/IO.mk
 include $(SD)/Maths/Maths.mk
 include $(SD)/Modules/Modules.mk
 include $(SD)/Physics/Physics.mk
+include $(SD)/Wavefunction/Wavefunction.mk
 # Dependencies for each 'main' object target
 include $(SD)/main.mk
 

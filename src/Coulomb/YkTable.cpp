@@ -1,7 +1,7 @@
 #include "YkTable.hpp"
 #include "Angular/Angular_369j.hpp"
 #include "Angular/Angular_tables.hpp"
-#include "HF/Coulomb.hpp"
+#include "Coulomb/Coulomb.hpp"
 #include "IO/SafeProfiler.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
@@ -51,7 +51,7 @@ std::pair<int, int> YkTable::k_minmax(const DiracSpinor &a,
 const std::vector<double> &YkTable::get_yk_ab(const int k,
                                               const DiracSpinor &Fa,
                                               const DiracSpinor &Fb) const {
-  const auto [kmin, kmax] = k_minmax(Fa, Fb);
+  const auto &[kmin, kmax] = k_minmax(Fa, Fb);
   const auto ik = std::size_t(k - kmin);
   const auto &yab = get_y_ab(Fa, Fb);
   if constexpr (check_bounds) {
@@ -99,8 +99,9 @@ void YkTable::update_y_ints() {
     const auto b_max = m_aisb ? ia : b_size - 1;
     for (std::size_t ib = 0; ib <= b_max; ib++) {
       const auto &Fb = (*m_b_orbs)[ib];
-      auto rmaxi = (Fb == Fa) ? 0 : std::min(Fa.pinf, Fb.pinf); // XXX check?
-      const auto [kmin, kmax] = k_minmax(Fa, Fb);
+      auto rmaxi = 0;
+      //(Fb == Fa) ? 0 : std::min(Fa.pinf, Fb.pinf); // XXX check?
+      const auto &[kmin, kmax] = k_minmax(Fa, Fb); // weird that this works?
       for (auto k = kmin; k <= kmax; k++) {
         const auto Lk = m_Ck.get_Lambdakab(k, Fa.k, Fb.k);
         if (Lk == 0)
@@ -136,9 +137,9 @@ void YkTable::update_y_ints(const DiracSpinor &Fn) {
 #pragma omp parallel for
   for (std::size_t im = 0; im < m_size; im++) {
     const auto &Fm = m_orbs[im];
-    auto rmaxi = (Fm == Fn) ? 0 : std::min(Fm.pinf, Fn.pinf); // XXX check?
-    const auto [kmin, kmax] = k_minmax(Fm, Fn);
-    //
+    // auto rmaxi = (Fm == Fn) ? 0 : std::min(Fm.pinf, Fn.pinf); // XXX check?
+    auto rmaxi = 0;
+    const auto &[kmin, kmax] = k_minmax(Fm, Fn);
     for (auto k = kmin; k <= kmax; k++) {
       const auto Lk = m_Ck.get_Lambdakab(k, Fn.k, Fm.k);
       if (Lk == 0)
@@ -173,7 +174,7 @@ void YkTable::resize_y() {
     m_y_abkr[ia].resize(b_max + 1);
     for (std::size_t ib = 0; ib <= b_max; ib++) {
       const auto &Fb = (*m_b_orbs)[ib];
-      const auto [kmin, kmax] = k_minmax(Fa, Fb);
+      const auto &[kmin, kmax] = k_minmax(Fa, Fb);
       const auto num_k = kmax - kmin + 1;
       m_y_abkr[ia][ib].resize(num_k);
       for (auto &yk_ab_r : m_y_abkr[ia][ib]) {

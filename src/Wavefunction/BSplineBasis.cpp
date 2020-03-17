@@ -2,12 +2,12 @@
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Hamiltonian.hpp"
 // #include "DiracOperator/Operators.hpp"
-#include "Wavefunction/Wavefunction.hpp"
 #include "Maths/BSplines.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/LinAlg_MatrixVector.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/AtomData.hpp"
+#include "Wavefunction/Wavefunction.hpp"
 #include <algorithm>
 #include <iostream>
 #include <string>
@@ -134,7 +134,7 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
 #pragma omp parallel for
   for (auto i = 0; i < (int)spl_basis.size(); i++) {
     const auto &si = spl_basis[i];
-    auto VexPsi_i = HartreeFock::vex_psia_any(si, wf.core_orbitals);
+    auto VexPsi_i = HF::vex_psia_any(si, wf.core_orbitals);
     for (auto j = 0; j < (int)spl_basis.size(); j++) {
       const auto &sj = spl_basis[j];
 

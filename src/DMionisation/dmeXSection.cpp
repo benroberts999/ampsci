@@ -951,7 +951,7 @@ int main(int argc, char *argv[]) {
   if (n_mx == 1)
     mxmax = mxmin;
   // Grid mxgrid(mxmin, mxmax, n_mx, GridType::logarithmic);
-  Grid mxgrid({n_mx, mxmin, mxmax, 0, GridType::logarithmic});
+  Grid mxgrid({std::size_t(n_mx), mxmin, mxmax, 0, GridType::logarithmic});
 
   // Append 'l'('h') to label for light(heavy) mediator
   switch (mediator) {
@@ -986,7 +986,7 @@ int main(int argc, char *argv[]) {
     mvmin /= M_to_MeV;
     mvmax /= M_to_MeV;
   }
-  Grid mvgrid({n_mv, mvmin, mvmax, 0, GridType::logarithmic});
+  Grid mvgrid({std::size_t(n_mv), mvmin, mvmax, 0, GridType::logarithmic});
 
   // Energy bins for integrating/averaging (convert units)
   iEbin /= E_to_keV;

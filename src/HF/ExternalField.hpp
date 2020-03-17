@@ -7,6 +7,8 @@ class TensorOperator;
 }
 class Wavefunction;
 
+namespace HF {
+
 enum class dPsiType { X, Y };
 
 //! @brief
@@ -116,3 +118,5 @@ public:
   ExternalField(const ExternalField &) = default;
   ~ExternalField() = default;
 };
+
+} // namespace HF

@@ -2,7 +2,7 @@
 #include "Angular/Angular_369j.hpp"
 #include "DiracODE/Adams_Greens.hpp"
 #include "DiracODE/DiracODE.hpp"
-#include "HF/Coulomb.hpp"
+#include "Coulomb/Coulomb.hpp"
 #include "HF/HartreeFockClass.hpp"
 #include "IO/SafeProfiler.hpp"
 #include "Maths/Grid.hpp"
@@ -43,9 +43,9 @@ DiracSpinor solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa,
   if (dF20 == 0) {
     DiracODE::solve_inhomog(dF, Fa.en + omega, vl, H_mag, alpha, -1 * hFa);
   } else {
-    const auto vx0 = HartreeFock::form_approx_vex_any(dF, core);
+    const auto vx0 = form_approx_vex_any(dF, core);
     const auto v0 = NumCalc::add_vectors(vl, vx0);
-    const auto rhs0 = (vx0 * dF) - HartreeFock::vex_psia_any(dF, core) - hFa;
+    const auto rhs0 = (vx0 * dF) - vex_psia_any(dF, core) - hFa;
     DiracODE::solve_inhomog(dF, Fa.en + omega, v0, H_mag, alpha, rhs0);
     // const auto a = 0.0;
     // const auto l = (1.0 - a);
@@ -56,10 +56,10 @@ DiracSpinor solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa,
   dF0 = dF;
 
   for (int its = 0; true; its++) {
-    const auto vx = HartreeFock::form_approx_vex_any(dF, core);
+    const auto vx = form_approx_vex_any(dF, core);
     const auto v = NumCalc::add_vectors(vl, vx);
 
-    const auto rhs = (vx * dF) - HartreeFock::vex_psia_any(dF, core) - hFa;
+    const auto rhs = (vx * dF) - vex_psia_any(dF, core) - hFa;
     DiracODE::solve_inhomog(dF, Fa.en + omega, v, H_mag, alpha, rhs);
 
     const auto a = damper(its);
