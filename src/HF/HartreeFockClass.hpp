@@ -1,12 +1,12 @@
 #pragma once
-#include "HF/CoulombIntegrals.hpp" //for m_cint
+#include "HF/CoulombIntegrals.hpp" //for m_Yab
 #include <string>
 #include <vector>
 class Wavefunction;
 class DiracSpinor;
 class Grid;
 //
-#include "HF/CoulombNew.hpp" //for m_cint
+#include "HF/CoulombNew.hpp" //for m_Yab
 
 /*
   Definitions:
@@ -80,7 +80,8 @@ public:
 private:
   Wavefunction *const p_wf;
   const Grid *const p_rgrid;
-  Coulomb m_cint;
+  // Coulomb m_Yab;
+  YkTable m_Yab;
 
   static constexpr int m_max_hf_its = 99;
 

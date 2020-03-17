@@ -95,28 +95,28 @@ void YkTable::update_y_ints() { //
   a_size = m_a_orbs->size();
   b_size = m_b_orbs->size();
 
-  // #pragma omp parallel for
+#pragma omp parallel for
   for (std::size_t ia = 0; ia < a_size; ia++) {
-    std::cerr << __LINE__ << "\n";
+    // std::cerr << __LINE__ << "\n";
     const auto &Fa = (*m_a_orbs)[ia];
-    std::cerr << __LINE__ << "\n";
-    std::cerr << Fa.symbol() << " -- ";
+    // std::cerr << __LINE__ << "\n";
+    // std::cerr << Fa.symbol() << " -- ";
     const auto b_max = m_aisb ? ia : b_size - 1;
     for (std::size_t ib = 0; ib <= b_max; ib++) {
       const auto &Fb = (*m_b_orbs)[ib];
-      std::cerr << Fb.symbol() << "\n";
+      // std::cerr << Fb.symbol() << "\n";
       auto rmaxi = (Fb == Fa) ? 0 : std::min(Fa.pinf, Fb.pinf); // XXX check?
       const auto [kmin, kmax] = k_minmax(Fa, Fb);
       for (auto k = kmin; k <= kmax; k++) {
-        std::cerr << k << " " << __LINE__ << "\n";
+        // std::cerr << k << " " << __LINE__ << "\n";
         const auto Lk = m_Ck.get_Lambdakab(k, Fa.k, Fb.k);
-        std::cerr << __LINE__ << "\n";
+        // std::cerr << __LINE__ << "\n";
         if (Lk == 0)
           continue;
         const auto ik = std::size_t(k - kmin);
-        std::cerr << "\n" << __LINE__ << "\n";
+        // std::cerr << "\n" << __LINE__ << "\n";
         CoulombInts::yk_ab(Fa, Fb, k, m_y_abkr[ia][ib][ik], rmaxi);
-        std::cerr << __LINE__ << "\n";
+        // std::cerr << __LINE__ << "\n";
       }
     }
   }

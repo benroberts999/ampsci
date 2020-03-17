@@ -38,8 +38,7 @@ BASE = $(addprefix $(BD)/, \
 )
 
 HF = $(addprefix $(BD)/, \
- HartreeFockClass.o CoulombIntegrals.o CoulombNew.o CoulombInts.o \
- Parametric_potentials.o \
+ HartreeFockClass.o CoulombNew.o CoulombInts.o Parametric_potentials.o \
  Adams_Greens.o ExternalField.o RadiativePotential.o \
 )
 

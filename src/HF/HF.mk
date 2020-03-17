@@ -1,12 +1,12 @@
 # Dependencies for HF
 
-$(BD)/CoulombIntegrals.o: \
-$(SD)/HF/CoulombIntegrals.cpp $(SD)/HF/CoulombIntegrals.hpp \
-$(SD)/Wavefunction/DiracSpinor.hpp $(SD)/Maths/Grid.hpp \
-$(SD)/Maths/NumCalc_quadIntegrate.hpp \
-$(SD)/Physics/AtomData.hpp $(SD)/Angular/Angular_369j.hpp \
-$(SD)/IO/SafeProfiler.hpp
-	$(COMP)
+# $(BD)/CoulombIntegrals.o: \
+# $(SD)/HF/CoulombIntegrals.cpp $(SD)/HF/CoulombIntegrals.hpp \
+# $(SD)/Wavefunction/DiracSpinor.hpp $(SD)/Maths/Grid.hpp \
+# $(SD)/Maths/NumCalc_quadIntegrate.hpp \
+# $(SD)/Physics/AtomData.hpp $(SD)/Angular/Angular_369j.hpp \
+# $(SD)/IO/SafeProfiler.hpp
+# 	$(COMP)
 
 $(BD)/CoulombInts.o: \
 $(SD)/HF/CoulombInts.cpp $(SD)/HF/CoulombInts.hpp \
@@ -35,7 +35,8 @@ $(BD)/HartreeFockClass.o: \
 $(SD)/HF/HartreeFockClass.cpp $(SD)/HF/HartreeFockClass.hpp \
 $(SD)/DiracODE/Adams_Greens.hpp $(SD)/DiracODE/DiracODE.hpp \
 $(SD)/Wavefunction/DiracSpinor.hpp $(SD)/Wavefunction/Wavefunction.hpp \
-$(SD)/HF/CoulombIntegrals.hpp $(SD)/Maths/Grid.hpp\
+$(SD)/HF/CoulombNew.hpp \
+$(SD)/HF/CoulombInts.hpp $(SD)/Maths/Grid.hpp\
 $(SD)/Maths/NumCalc_quadIntegrate.hpp $(SD)/Physics/Parametric_potentials.hpp \
 $(SD)/Angular/Angular_369j.hpp $(SD)/IO/SafeProfiler.hpp
 	$(COMP)

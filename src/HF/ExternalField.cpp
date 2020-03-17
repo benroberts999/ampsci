@@ -2,6 +2,7 @@
 #include "Angular/Angular_369j.hpp"
 #include "Angular/Angular_tables.hpp"
 #include "DiracOperator/DiracOperator.hpp"
+#include "HF/CoulombInts.hpp"
 #include "HF/HartreeFockClass.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
@@ -257,7 +258,7 @@ DiracSpinor ExternalField::dV_ab_rhs(const DiracSpinor &Fn,
       const auto Ckbeb = Angular::Ck_kk(k, X_beta.k, Fb.k);
       if (Ckala != 0 && Ckbeb != 0) {
         const auto Rkabcd =
-            Coulomb::Rk_abcd_rhs(Fn, Fb, Fm, X_beta + Y_beta, k);
+            CoulombInts::Rk_abcd_rhs(Fn, Fb, Fm, X_beta + Y_beta, k);
         dVFm_c += (Ckala * Ckbeb / tkp1) * Rkabcd;
       }
 
@@ -277,7 +278,7 @@ DiracSpinor ExternalField::dV_ab_rhs(const DiracSpinor &Fn,
         const auto Ckalbe = Angular::Ck_kk(l, Fn.k, X_beta.k);
         if (Ckba == 0 || Ckalbe == 0)
           continue;
-        const auto Rk = Coulomb::Rk_abcd_rhs(Fn, Fm, X_beta, Fb, l);
+        const auto Rk = CoulombInts::Rk_abcd_rhs(Fn, Fm, X_beta, Fb, l);
         dVFm_c += (s * m1kpl * Ckba * Ckalbe * sixj) * Rk;
       }
 
@@ -295,7 +296,7 @@ DiracSpinor ExternalField::dV_ab_rhs(const DiracSpinor &Fn,
         const auto Ckbal = Angular::Ck_kk(l, Fn.k, Fb.k);
         if (Ckbea == 0 || Ckbal == 0)
           continue;
-        const auto Rk = Coulomb::Rk_abcd_rhs(Fn, Fm, Fb, Y_beta, l);
+        const auto Rk = CoulombInts::Rk_abcd_rhs(Fn, Fm, Fb, Y_beta, l);
         dVFm_c += (s * m1kpl * Ckbea * Ckbal * sixj) * Rk;
       }
     }
@@ -480,7 +481,7 @@ double ExternalField::dX_nm_bbe_rhs(const DiracSpinor &Fn,
   const auto Ckbeb = Angular::Ck_kk(k, X_beta.k, Fb.k);
 
   if (Ckala != 0 && Ckbeb != 0) {
-    const auto Rkabcd = Coulomb::Rk_abcd_any(Fn, Fb, Fm, X_beta, k);
+    const auto Rkabcd = CoulombInts::Rk_abcd(Fn, Fb, Fm, X_beta, k);
     dX_nm_bbe += (Ckala * Ckbeb / tkp1) * Rkabcd;
   }
 
@@ -502,7 +503,7 @@ double ExternalField::dX_nm_bbe_rhs(const DiracSpinor &Fn,
     const auto Ckalbe = Angular::Ck_kk(l, Fn.k, X_beta.k);
     if (Ckba == 0 || Ckalbe == 0)
       continue;
-    const auto Rk = Coulomb::Rk_abcd_any(Fn, Fm, X_beta, Fb, l);
+    const auto Rk = CoulombInts::Rk_abcd(Fn, Fm, X_beta, Fb, l);
     dX_nm_bbe += (s * m1kpl * Ckba * Ckalbe * sixj) * Rk;
   }
 
@@ -529,7 +530,7 @@ double ExternalField::dY_nm_bbe_rhs(const DiracSpinor &Fn,
   const auto Ckbeb = Angular::Ck_kk(k, Y_beta.k, Fb.k);
 
   if (Ckala != 0 && Ckbeb != 0) {
-    const auto Rkabcd = Coulomb::Rk_abcd_any(Fn, Fb, Fm, Y_beta, k);
+    const auto Rkabcd = CoulombInts::Rk_abcd(Fn, Fb, Fm, Y_beta, k);
     dY_nm_bbe += (Ckala * Ckbeb / tkp1) * Rkabcd;
   }
 
@@ -551,7 +552,7 @@ double ExternalField::dY_nm_bbe_rhs(const DiracSpinor &Fn,
     const auto Ckbal = Angular::Ck_kk(l, Fn.k, Fb.k);
     if (Ckbea == 0 || Ckbal == 0)
       continue;
-    const auto Rk = Coulomb::Rk_abcd_any(Fn, Fm, Fb, Y_beta, l);
+    const auto Rk = CoulombInts::Rk_abcd(Fn, Fm, Fb, Y_beta, l);
     dY_nm_bbe += (s * m1kpl * Ckbea * Ckbal * sixj) * Rk;
   }
 
