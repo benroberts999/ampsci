@@ -8,8 +8,15 @@ $(SD)/Physics/AtomData.hpp $(SD)/Angular/Angular_369j.hpp \
 $(SD)/IO/SafeProfiler.hpp
 	$(COMP)
 
+$(BD)/CoulombInts.o: \
+$(SD)/HF/CoulombInts.cpp $(SD)/HF/CoulombInts.hpp \
+$(SD)/Wavefunction/DiracSpinor.hpp $(SD)/Maths/Grid.hpp \
+$(SD)/Maths/NumCalc_quadIntegrate.hpp $(SD)/Angular/Angular_369j.hpp \
+$(SD)/IO/SafeProfiler.hpp
+	$(COMP)
+
 $(BD)/CoulombNew.o: \
-$(SD)/HF/CoulombNew.cpp $(SD)/HF/CoulombNew.hpp \
+$(SD)/HF/CoulombNew.cpp $(SD)/HF/CoulombNew.hpp $(SD)/HF/CoulombInts.hpp \
 $(SD)/Wavefunction/DiracSpinor.hpp $(SD)/Maths/Grid.hpp \
 $(SD)/Maths/NumCalc_quadIntegrate.hpp \
 $(SD)/Angular/Angular_tables.hpp $(SD)/Angular/Angular_369j.hpp \

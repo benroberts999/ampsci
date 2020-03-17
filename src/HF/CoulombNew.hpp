@@ -1,34 +1,19 @@
 #pragma once
+#include "Angular/Angular_tables.hpp"
+#include "Wavefunction/DiracSpinor.hpp"
 #include <utility>
 #include <vector>
-// class DiracSpinor;
-// class Grid;
-#include "Angular/Angular_tables.hpp"
-//
-#include "Maths/Grid.hpp"
-#include "Wavefunction/DiracSpinor.hpp"
-#include <cmath>
 
 constexpr static bool check_bounds = true;
 
-class CoulombNew {
+class YkTable {
 public:
-  CoulombNew(const Grid *const in_grid,
-             const std::vector<DiracSpinor> *const in_a_orbs,
-             const std::vector<DiracSpinor> *const in_b_orbs = nullptr)
-      : m_a_orbs(in_a_orbs),                                    //
-        m_b_orbs(in_b_orbs == nullptr ? in_a_orbs : in_b_orbs), //
-        m_grid(in_grid),                                        //
-        m_aisb([&]() {
-          return (in_b_orbs == nullptr || in_a_orbs == in_b_orbs) ? true
-                                                                  : false;
-        }()) //
-  {
-    update_y_ints();
-  }
-  CoulombNew &operator=(const CoulombNew &) = default;
-  CoulombNew(const CoulombNew &) = default;
-  ~CoulombNew() = default;
+  YkTable(const Grid *const in_grid,
+          const std::vector<DiracSpinor> *const in_a_orbs,
+          const std::vector<DiracSpinor> *const in_b_orbs = nullptr);
+  YkTable &operator=(const YkTable &) = default;
+  YkTable(const YkTable &) = default;
+  ~YkTable() = default;
 
 private:
   const std::vector<DiracSpinor> *const m_a_orbs;
@@ -58,11 +43,6 @@ private:
   void resize_y();
 
 public:
-  //! Calculates Hartree Screening functions \f$y^k_{ab}(r)\f$
-  static void calculate_y_ijk(const DiracSpinor &Fa, const DiracSpinor &Fb,
-                              const int k, std::vector<double> &vabk,
-                              const std::size_t maxi = 0);
-
   static std::pair<int, int> k_minmax(const DiracSpinor &a,
                                       const DiracSpinor &b);
 };

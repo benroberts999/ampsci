@@ -1,11 +1,11 @@
 #include "HF/CoulombIntegrals.hpp"
-#include "Angular/Angular_tables.hpp"
 #include "Angular/Angular_369j.hpp"
-#include "Wavefunction/DiracSpinor.hpp"
+#include "Angular/Angular_tables.hpp"
 #include "IO/SafeProfiler.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/AtomData.hpp"
+#include "Wavefunction/DiracSpinor.hpp"
 #include <algorithm>
 #include <cmath>
 #include <functional>
@@ -32,7 +32,7 @@ double Coulomb::Zk_abcd_any(const DiracSpinor &Fa, const DiracSpinor &Fb,
   double sum = 0.0;
   for (int tl = min_twol; tl <= max_twol; tl += 2) {
     auto sixj = Angular::sixj_2(Fc.twoj(), Fa.twoj(), 2 * k, //
-                               Fd.twoj(), Fb.twoj(), tl);
+                                Fd.twoj(), Fb.twoj(), tl);
     if (sixj == 0)
       continue;
     auto Ql_abdc = Qk_abcd_any(Fa, Fb, Fd, Fc, tl / 2);

@@ -1,5 +1,7 @@
 #include "CoulombNew.hpp"
+#include "Angular/Angular_369j.hpp"
 #include "Angular/Angular_tables.hpp"
+#include "HF/CoulombInts.hpp"
 #include "IO/SafeProfiler.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
@@ -10,7 +12,21 @@
 #include <vector>
 
 //******************************************************************************
-int CoulombNew::max_tj() const {
+YkTable::YkTable(const Grid *const in_grid,
+                 const std::vector<DiracSpinor> *const in_a_orbs,
+                 const std::vector<DiracSpinor> *const in_b_orbs)
+    : m_a_orbs(in_a_orbs),                                    //
+      m_b_orbs(in_b_orbs == nullptr ? in_a_orbs : in_b_orbs), //
+      m_grid(in_grid),                                        //
+      m_aisb([&]() {
+        return (in_b_orbs == nullptr || in_a_orbs == in_b_orbs) ? true : false;
+      }()) //
+{
+  update_y_ints();
+}
+
+//******************************************************************************
+int YkTable::max_tj() const {
   auto comp2j = [](const auto &a, const auto &b) {
     return a.twoj() < b.twoj();
   };
@@ -26,16 +42,16 @@ int CoulombNew::max_tj() const {
 }
 
 //******************************************************************************
-std::pair<int, int> CoulombNew::k_minmax(const DiracSpinor &a,
-                                         const DiracSpinor &b) {
+std::pair<int, int> YkTable::k_minmax(const DiracSpinor &a,
+                                      const DiracSpinor &b) {
   return std::make_pair(std::abs(a.twoj() - b.twoj()) / 2,
                         (a.twoj() + b.twoj()) / 2);
 }
 
 //******************************************************************************
-const std::vector<double> &CoulombNew::get_yk_ab(const int k,
-                                                 const DiracSpinor &Fa,
-                                                 const DiracSpinor &Fb) const {
+const std::vector<double> &YkTable::get_yk_ab(const int k,
+                                              const DiracSpinor &Fa,
+                                              const DiracSpinor &Fb) const {
   const auto [kmin, kmax] = k_minmax(Fa, Fb);
   const auto ik = std::size_t(k - kmin);
   const auto &yab = get_y_ab(Fa, Fb);
@@ -50,7 +66,7 @@ const std::vector<double> &CoulombNew::get_yk_ab(const int k,
 }
 //------------------------------------------------------------------------------
 const std::vector<std::vector<double>> &
-CoulombNew::get_y_ab(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
+YkTable::get_y_ab(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
   const auto a = std::find(m_a_orbs->begin(), m_a_orbs->end(), Fa);
   const auto b = std::find(m_b_orbs->begin(), m_b_orbs->end(), Fb);
   if constexpr (check_bounds) {
@@ -69,7 +85,7 @@ CoulombNew::get_y_ab(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
 }
 
 //******************************************************************************
-void CoulombNew::update_y_ints() { //
+void YkTable::update_y_ints() { //
   resize_y();
   const auto tj_max = max_tj();
   const auto k_max = tj_max;
@@ -99,14 +115,14 @@ void CoulombNew::update_y_ints() { //
           continue;
         const auto ik = std::size_t(k - kmin);
         std::cerr << "\n" << __LINE__ << "\n";
-        calculate_y_ijk(Fa, Fb, k, m_y_abkr[ia][ib][ik], rmaxi);
+        CoulombInts::yk_ab(Fa, Fb, k, m_y_abkr[ia][ib][ik], rmaxi);
         std::cerr << __LINE__ << "\n";
       }
     }
   }
 }
 //******************************************************************************
-void CoulombNew::update_y_ints(const DiracSpinor &Fn) {
+void YkTable::update_y_ints(const DiracSpinor &Fn) {
   //
   bool nisa = true;
   auto n = std::find(m_a_orbs->begin(), m_a_orbs->end(), Fn);
@@ -140,21 +156,21 @@ void CoulombNew::update_y_ints(const DiracSpinor &Fn) {
       const auto ik = std::size_t(k - kmin);
       if (m_aisb) {
         if (in > im)
-          calculate_y_ijk(Fm, Fn, k, m_y_abkr[in][im][ik], rmaxi);
+          CoulombInts::yk_ab(Fm, Fn, k, m_y_abkr[in][im][ik], rmaxi);
         else
-          calculate_y_ijk(Fm, Fn, k, m_y_abkr[im][in][ik], rmaxi);
+          CoulombInts::yk_ab(Fm, Fn, k, m_y_abkr[im][in][ik], rmaxi);
       } else {
         if (nisa)
-          calculate_y_ijk(Fm, Fn, k, m_y_abkr[in][im][ik], rmaxi);
+          CoulombInts::yk_ab(Fm, Fn, k, m_y_abkr[in][im][ik], rmaxi);
         else
-          calculate_y_ijk(Fm, Fn, k, m_y_abkr[im][in][ik], rmaxi);
+          CoulombInts::yk_ab(Fm, Fn, k, m_y_abkr[im][in][ik], rmaxi);
       } // misa
     }   // k
   }     // m
 }
 
 //******************************************************************************
-void CoulombNew::resize_y() { //
+void YkTable::resize_y() { //
   if (m_a_orbs->size() == a_size && m_b_orbs->size() == b_size)
     return; // XXX
   a_size = m_a_orbs->size();
@@ -175,115 +191,4 @@ void CoulombNew::resize_y() { //
       }
     }
   }
-}
-
-//******************************************************************************
-//******************************************************************************
-// Templates for faster method to calculate r^k
-template <int k> static inline double powk_new(const double x) {
-  return x * powk_new<k - 1>(x);
-}
-template <> inline double powk_new<0>(const double) { return 1.0; }
-
-//******************************************************************************
-template <int k>
-static inline void yk_ijk(const int l, const DiracSpinor &Fa,
-                          const DiracSpinor &Fb, std::vector<double> &vabk,
-                          const std::size_t maxi)
-// Calculalates y^k_ab screening function.
-// Note: is symmetric: y_ab = y_ba
-//
-// Stores in vabk (in/out parameter, reference to whatever)
-//
-// r_min := min(r,r')
-// rho(r') := fa(r')*fb(r') + ga(r')gb(r')
-// y^k_ab(r) = Int_0^inf [r_min^k/r_max^(k+1)]*rho(f') dr'
-//           = Int_0^r [r'^k/r^(k+1)]*rho(r') dr'
-//             + Int_r^inf [r^k/r'^(k+1)]*rho(r') dr'
-//          := A(r)/r^(k+1) + B(r)*r^k
-// A(r0)  = 0
-// B(r0)  = Int_0^inf [r^k/r'^(k+1)]*rho(r') dr'
-// A(r_n) = A(r_{n-1}) + (rho(r_{n-1})*r_{n-1}^k)*dr
-// B(r_n) = A(r_{n-1}) + (rho(r_{n-1})/r_{n-1}^(k+1))*dr
-// y^k_ab(rn) = A(rn)/rn^(k+1) + B(rn)*rn^k
-//
-// Also uses Quadrature integer rules! (Defined in NumCalc)
-{
-  const auto &gr = Fa.p_rgrid; // just save typing
-  const auto du = gr->du;
-  const auto num_points = gr->num_points;
-  vabk.resize(num_points); // for safety
-  const auto irmax = (maxi == 0 || maxi > num_points) ? num_points : maxi;
-
-  // faster method to calculate r^k
-  auto powk = [=](double x) {
-    if constexpr (k < 0)
-      return std::pow(x, l);
-    else
-      return powk_new<k>(x);
-  };
-
-  // Quadrature integration weights:
-  auto w = [=](std::size_t i) {
-    if (i < NumCalc::Nquad)
-      return NumCalc::dq_inv * NumCalc::cq[i];
-    if (i < num_points - NumCalc::Nquad)
-      return 1.0;
-    return NumCalc::dq_inv * NumCalc::cq[num_points - i - 1];
-  };
-
-  double Ax = 0.0, Bx = 0.0;
-
-  const auto bmax = std::min(Fa.pinf, Fb.pinf);
-  for (std::size_t i = 0; i < bmax; i++) {
-    Bx += w(i) * gr->drduor[i] * (Fa.f[i] * Fb.f[i] + Fa.g[i] * Fb.g[i]) /
-          powk(gr->r[i]);
-  }
-
-  vabk[0] = Bx * du * powk(gr->r[0]);
-  for (std::size_t i = 1; i < irmax; i++) {
-    const auto rm1_to_k = powk(gr->r[i - 1]);
-    const auto inv_rm1_to_kp1 = 1.0 / (rm1_to_k * gr->r[i - 1]);
-    const auto r_to_k = powk(gr->r[i]);
-    const auto inv_r_to_kp1 = 1.0 / (r_to_k * gr->r[i]);
-    const auto Fdr = gr->drdu[i - 1] *
-                     (Fa.f[i - 1] * Fb.f[i - 1] + Fa.g[i - 1] * Fb.g[i - 1]);
-    const auto wi = w(i - 1);
-    Ax += wi * Fdr * rm1_to_k;
-    Bx -= wi * Fdr * inv_rm1_to_kp1;
-    vabk[i] = du * (Ax * inv_r_to_kp1 + Bx * r_to_k);
-  }
-  for (std::size_t i = irmax; i < num_points; i++) {
-    vabk[i] = 0.0;
-  }
-}
-
-//******************************************************************************
-void CoulombNew::calculate_y_ijk(const DiracSpinor &Fa, const DiracSpinor &Fb,
-                                 const int k, std::vector<double> &vabk,
-                                 const std::size_t maxi)
-// This is static
-{
-  auto sp1 = SafeProfiler::profile(__func__);
-
-  if (k == 0)
-    yk_ijk<0>(k, Fa, Fb, vabk, maxi);
-  else if (k == 1)
-    yk_ijk<1>(k, Fa, Fb, vabk, maxi);
-  else if (k == 2)
-    yk_ijk<2>(k, Fa, Fb, vabk, maxi);
-  else if (k == 3)
-    yk_ijk<3>(k, Fa, Fb, vabk, maxi);
-  else if (k == 4)
-    yk_ijk<4>(k, Fa, Fb, vabk, maxi);
-  else if (k == 5)
-    yk_ijk<5>(k, Fa, Fb, vabk, maxi);
-  else if (k == 6)
-    yk_ijk<6>(k, Fa, Fb, vabk, maxi);
-  else if (k == 7)
-    yk_ijk<7>(k, Fa, Fb, vabk, maxi);
-  else if (k == 8)
-    yk_ijk<8>(k, Fa, Fb, vabk, maxi);
-  else
-    yk_ijk<-1>(k, Fa, Fb, vabk, maxi);
 }
