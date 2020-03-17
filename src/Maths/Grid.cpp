@@ -167,13 +167,13 @@ std::string Grid::gridParameters() const {
 }
 
 //******************************************************************************
-std::vector<double> Grid::inverse_r() const {
-  std::vector<double> invr;
-  invr.reserve(num_points);
+std::vector<double> Grid::rpow(double k) const {
+  std::vector<double> rk;
+  rk.reserve(num_points);
   for (const auto ir : r) {
-    invr.push_back(1.0 / ir);
+    rk.push_back(std::pow(ir, k));
   }
-  return invr;
+  return rk;
 }
 
 //******************************************************************************

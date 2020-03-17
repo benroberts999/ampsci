@@ -60,6 +60,25 @@ public:
 };
 
 //******************************************************************************
+//! E^k (electric multipole) operator
+class Ek final : public TensorOperator {
+public:
+  Ek(const Grid &gr, const int k)
+      : TensorOperator(k, Angular::evenQ(k) ? Parity::even : Parity::odd, -1.0,
+                       gr.rpow(k), 0),
+        m_k(k) {}
+  double angularF(const int ka, const int kb) const override {
+    return Angular::Ck_kk(m_k, ka, kb);
+  }
+  std::string name() const override {
+    return std::string("E") + std::to_string(m_k);
+  }
+
+private:
+  int m_k;
+};
+
+//******************************************************************************
 //! @brief Electric dipole operator, v-form:
 //! \f$ \frac{ie}{\omega \alpha} \vec{\alpha}\f$
 /*! @details

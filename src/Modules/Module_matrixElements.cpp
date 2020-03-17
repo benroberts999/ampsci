@@ -30,7 +30,7 @@ void matrixElements(const UserInputBlock &input, const Wavefunction &wf) {
 
   const auto h = generateOperator(operator_str, input, wf);
   std::cout << "\n"
-            << ThisModule << which_str << " Operator: " << operator_str << "\n";
+            << ThisModule << which_str << " Operator: " << h->name() << "\n";
   std::cout << "Units: " << h->units() << "\n";
 
   const bool print_both = input.get("printBoth", false);
@@ -189,8 +189,12 @@ generateOperator(const std::string &operator_str, const UserInputBlock &input,
     auto gauge = input.get<std::string>("gauge", "lform");
     if (gauge != "vform")
       return std::make_unique<E1>(E1(wf.rgrid));
-    std::cout << "(v-form [velocity gauge])\n";
+    // std::cout << "(v-form [velocity gauge])\n";
     return std::make_unique<E1_vform>(E1_vform(wf.rgrid, wf.get_alpha()));
+  } else if (operator_str == "Ek") {
+    input.checkBlock(jointCheck({"k"}));
+    auto k = input.get("k", 1);
+    return std::make_unique<Ek>(Ek(wf.rgrid, k));
   } else if (operator_str == "r") {
     input.checkBlock(jointCheck({"power"}));
     auto power = input.get("power", 1.0);
@@ -217,13 +221,25 @@ generateOperator(const std::string &operator_str, const UserInputBlock &input,
 }
 
 //******************************************************************************
-void Module_lifeimtes(const UserInputBlock &, const Wavefunction &wf) {
-  std::cout << "\nLifetimes (E1 only):\n";
+void Module_lifeimtes(const UserInputBlock &input, const Wavefunction &wf) {
+  std::cout << "\nLifetimes:\n";
+
+  input.checkBlock({"E1", "E2"});
+  auto doE1 = input.get("E1", true);
+  auto doE2 = input.get("E2", false);
+  if (doE1 && !doE2)
+    std::cout << "Including E1 only.\n";
+  if (!doE1 && doE2)
+    std::cout << "Including E2 only.\n";
 
   DiracOperator::E1 he1(wf.rgrid);
+  DiracOperator::Ek he2(wf.rgrid, 2);
   auto alpha = wf.get_alpha();
   auto alpha3 = alpha * alpha * alpha;
+  auto alpha2 = alpha * alpha;
   auto dVE1 = HF::ExternalField(&he1, wf.core_orbitals,
+                                NumCalc::add_vectors(wf.vnuc, wf.vdir), alpha);
+  auto dVE2 = HF::ExternalField(&he2, wf.core_orbitals,
                                 NumCalc::add_vectors(wf.vnuc, wf.vdir), alpha);
 
   auto to_s = PhysConst::time_s;
@@ -231,19 +247,39 @@ void Module_lifeimtes(const UserInputBlock &, const Wavefunction &wf) {
   for (const auto &Fa : wf.valence_orbitals) {
     std::cout << "\n" << Fa.symbol() << "\n";
     auto Gamma = 0.0;
-    for (const auto &Fn : wf.valence_orbitals) {
-      if (Fn.en >= Fa.en || he1.isZero(Fn.k, Fa.k))
-        continue;
-      auto w = Fa.en - Fn.en;
-      dVE1.solve_TDHFcore(w);
-      auto d = he1.reducedME(Fn, Fa) + dVE1.dV_ab(Fn, Fa);
-      auto g_n = (4.0 / 3) * w * w * w * d * d / (Fa.twojp1());
-      Gamma += g_n;
-      std::cout << " --> " << Fn.symbol() << ": ";
-      printf("w=%7.5f, |d|=%7.5f, g=%10.4eau\n", w, std::abs(d), g_n * alpha3);
+
+    if (doE1) {
+      for (const auto &Fn : wf.valence_orbitals) {
+        if (Fn.en >= Fa.en || he1.isZero(Fn.k, Fa.k))
+          continue;
+        auto w = Fa.en - Fn.en;
+        dVE1.solve_TDHFcore(w, 40);
+        auto d = he1.reducedME(Fn, Fa) + dVE1.dV_ab(Fn, Fa);
+        auto g_n = (4.0 / 3) * w * w * w * d * d / (Fa.twojp1());
+        Gamma += g_n;
+        std::cout << "  E1 --> " << Fn.symbol() << ": ";
+        printf("w=%7.5f, |d|=%7.5f, g=%10.4eau\n", w, std::abs(d),
+               g_n * alpha3);
+      }
     }
-    printf("Gamma = %10.4e = %10.4e\n", Gamma * alpha3, Gamma * alpha3 / to_s);
-    printf("tau = %10.4e\n", to_s / alpha3 / Gamma);
+    if (doE2) {
+      for (const auto &Fn : wf.valence_orbitals) {
+        if (Fn.en >= Fa.en || he2.isZero(Fn.k, Fa.k))
+          continue;
+        auto w = Fa.en - Fn.en;
+        dVE2.solve_TDHFcore(w, 40);
+        auto d = he2.reducedME(Fn, Fa) + dVE2.dV_ab(Fn, Fa);
+        auto g_n = (1.0 / 15) * w * w * w * w * w * d * d / (Fa.twojp1());
+        Gamma += g_n * alpha2;
+        std::cout << "  E2 --> " << Fn.symbol() << ": ";
+        printf("w=%7.5f, |q|=%7.5f, g=%10.4eau\n", w, std::abs(d),
+               g_n * alpha3);
+      }
+    }
+
+    printf("Gamma = %10.4eau = %10.4e/s\n", Gamma * alpha3,
+           Gamma * alpha3 / to_s);
+    printf("tau = %10.4es\n", to_s / alpha3 / Gamma);
   }
 }
 

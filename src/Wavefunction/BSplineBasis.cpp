@@ -1,12 +1,11 @@
 #include "BSplineBasis.hpp"
-#include "Wavefunction/DiracSpinor.hpp"
-#include "Wavefunction/Hamiltonian.hpp"
-// #include "DiracOperator/Operators.hpp"
 #include "Maths/BSplines.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/LinAlg_MatrixVector.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/AtomData.hpp"
+#include "Wavefunction/DiracSpinor.hpp"
+#include "Wavefunction/Hamiltonian.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include <algorithm>
 #include <iostream>
@@ -83,7 +82,7 @@ form_spline_basis(const int kappa, const std::size_t n_states,
     const auto &Bi = bspl.get_spline(i);
     const auto &dBi = bspl.get_spline_deriv(i);
     phi.f = Bi;
-    auto gtmp = NumCalc::mult_vectors(rgrid.inverse_r(), Bi);
+    auto gtmp = NumCalc::mult_vectors(rgrid.rpow(-1), Bi);
     NumCalc::scaleVec(gtmp, double(kappa));
     phi.g = NumCalc::add_vectors(dBi, gtmp);
     NumCalc::scaleVec(phi.g, 0.5 * alpha);
@@ -99,7 +98,7 @@ form_spline_basis(const int kappa, const std::size_t n_states,
     const auto &Bi = bspl.get_spline(i);
     const auto &dBi = bspl.get_spline_deriv(i);
     phi.g = Bi;
-    auto ftmp = NumCalc::mult_vectors(rgrid.inverse_r(), Bi);
+    auto ftmp = NumCalc::mult_vectors(rgrid.rpow(-1), Bi);
     NumCalc::scaleVec(ftmp, double(-kappa));
     phi.f = NumCalc::add_vectors(dBi, ftmp);
     NumCalc::scaleVec(phi.f, 0.5 * alpha);

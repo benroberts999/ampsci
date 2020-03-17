@@ -76,7 +76,7 @@ public:
                                              double in_b = 0);
 
   //! Calculates+returns vector of 1/r
-  std::vector<double> inverse_r() const;
+  std::vector<double> rpow(double k) const;
 
 protected:
   // secondary constructor: used for derivated class

@@ -221,6 +221,12 @@ MatrixElements::E1 { //Electric dipole operator:
 ```
 
 ```cpp
+MatrixElements::Ek { //Electric multipole operator:
+  k; //[i] default = 1
+}
+```
+
+```cpp
 MatrixElements::r { //scalar r
   power; //[r] default = 1. Will calc <|r^n|>.
 }
@@ -271,9 +277,12 @@ Module::Tests { // tests of numerical errors:
 ```
 
 ```cpp
-Module::lifetimes{}
+Module::lifetimes{
+  E1;   //[b] Include E1 transitions. default = true
+  E1;   //[b] Include E2 transitions. default = false
+}
 ```
-Calculates (E1) lifetimes of states. Note: uses HF energies (prints all data to screen)
+Calculates lifetimes of valence states. Note: uses HF energies (prints all data to screen)
 
 ```cpp
 Module::BohrWeisskopf { //Calculates BW effect for Ball/Single-particle

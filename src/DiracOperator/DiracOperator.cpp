@@ -18,6 +18,8 @@ bool TensorOperator::isZero(const int ka, int kb) const {
   if ((m_parity == Parity::even) !=
       (Angular::parity_k(ka) == Angular::parity_k(kb)))
     return true;
+  if (angularF(ka, kb) == 0)
+    return true;
   return false; /*may still be zero*/
 }
 
