@@ -694,8 +694,8 @@ void HartreeFock::hf_orbital(DiracSpinor &Fa, double en,
   DiracSpinor VxFh(Fa.n, Fa.k, *(Fa.p_rgrid));
   DiracSpinor dFa(Fa.n, Fa.k, *(Fa.p_rgrid));
   const auto eps_target = 1.0e-16; // m_eps_HF;
-  // const auto k_max = 1;            // max k for Vex into dEa
-  const auto k_max = 4; // max k for Vex into dEa
+  const auto k_max = 1;            // max k for Vex into dEa
+  // const auto k_max = 4; // max k for Vex into dEa
 
   const auto alpha = p_wf->get_alpha();
   DiracODE::solve_inhomog(Fa, Gzero, Ginf, en, vl, H_mag, alpha, -1.0 * vx_phi);
