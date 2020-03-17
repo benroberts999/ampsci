@@ -1,4 +1,4 @@
-#include "CoulombInts.hpp"
+#include "Coulomb.hpp"
 #include "Angular/Angular_tables.hpp"
 #include "IO/SafeProfiler.hpp"
 #include "Maths/Grid.hpp"
@@ -11,7 +11,7 @@
 #include <tuple>
 #include <vector>
 
-namespace CoulombInts {
+namespace Coulomb {
 
 //******************************************************************************
 // Templates for faster method to calculate r^k
@@ -129,6 +129,41 @@ void yk_ab(const DiracSpinor &Fa, const DiracSpinor &Fb, const int k,
 }
 
 //******************************************************************************
+double Rk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
+               const DiracSpinor &Fc, const DiracSpinor &Fd,
+               const int k) //
+{
+  const auto yk_bd = yk_ab(Fb, Fd, k, std::min(Fa.pinf, Fc.pinf));
+  return Rk_abcd(Fa, Fc, yk_bd);
+}
+//------------------------------------------------------------------------------
+double Rk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fc,
+               const std::vector<double> &yk_bd) {
+  const auto &drdu = Fa.p_rgrid->drdu;
+  const auto i0 = std::max(Fa.p0, Fc.p0);
+  const auto imax = std::min(Fa.pinf, Fc.pinf);
+  const auto Rff = NumCalc::integrate(1.0, i0, imax, Fa.f, Fc.f, yk_bd, drdu);
+  const auto Rgg = NumCalc::integrate(1.0, i0, imax, Fa.g, Fc.g, yk_bd, drdu);
+  return (Rff + Rgg) * Fa.p_rgrid->du;
+}
+
+//******************************************************************************
+DiracSpinor Rk_abcd_rhs(const DiracSpinor &Fa, const DiracSpinor &Fb,
+                        const DiracSpinor &Fc, const DiracSpinor &Fd,
+                        const int k) {
+  const auto ykbd = yk_ab(Fb, Fd, k, Fc.pinf);
+  return Rk_abcd_rhs(Fa, Fc, ykbd);
+}
+//------------------------------------------------------------------------------
+DiracSpinor Rk_abcd_rhs(const DiracSpinor &Fa, const DiracSpinor &Fc,
+                        const std::vector<double> &ykbd) {
+  auto out = DiracSpinor(0, Fa.k, *(Fa.p_rgrid));
+  out.pinf = Fc.pinf;
+  out.f = NumCalc::mult_vectors(Fc.f, ykbd);
+  out.g = NumCalc::mult_vectors(Fc.g, ykbd);
+  return out;
+}
+
 //******************************************************************************
 double Zk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
                const DiracSpinor &Fc, const DiracSpinor &Fd, const int k) {
@@ -172,35 +207,4 @@ double Qk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
   return m1tk * tCac * tCbd * Rkabcd;
 }
 
-//******************************************************************************
-double Rk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
-               const DiracSpinor &Fc, const DiracSpinor &Fd,
-               const int k) //
-{
-  const auto yk_bd = yk_ab(Fb, Fd, k, std::min(Fa.pinf, Fc.pinf));
-  return Rk_abcd(Fa, Fc, yk_bd);
-}
-//------------------------------------------------------------------------------
-double Rk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fc,
-               const std::vector<double> &yk_bd) {
-  const auto &drdu = Fa.p_rgrid->drdu;
-  const auto i0 = std::max(Fa.p0, Fc.p0);
-  const auto imax = std::min(Fa.pinf, Fc.pinf);
-  const auto Rff = NumCalc::integrate(1.0, i0, imax, Fa.f, Fc.f, yk_bd, drdu);
-  const auto Rgg = NumCalc::integrate(1.0, i0, imax, Fa.g, Fc.g, yk_bd, drdu);
-  return (Rff + Rgg) * Fa.p_rgrid->du;
-}
-
-//******************************************************************************
-DiracSpinor Rk_abcd_rhs(const DiracSpinor &Fa, const DiracSpinor &Fb,
-                        const DiracSpinor &Fc, const DiracSpinor &Fd,
-                        const int k) {
-  const auto yk_bd = yk_ab(Fb, Fd, k, Fc.pinf);
-  auto out = DiracSpinor(0, Fa.k, *(Fa.p_rgrid));
-  out.pinf = Fc.pinf;
-  out.f = NumCalc::mult_vectors(Fc.f, yk_bd);
-  out.g = NumCalc::mult_vectors(Fc.g, yk_bd);
-  return out;
-}
-
-} // namespace CoulombInts
+} // namespace Coulomb

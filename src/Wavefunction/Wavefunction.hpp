@@ -83,7 +83,7 @@ public: // const methods: "views" into WF object
   bool exclude_exchangeQ() const {
     if (m_pHF == nullptr)
       return true;
-    return m_pHF->m_excludeExchange;
+    return m_pHF->excludeExchangeQ();
   }
 
   std::size_t getStateIndex(int n, int k, bool &is_valence = dummy_bool) const;

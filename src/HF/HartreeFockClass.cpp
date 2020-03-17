@@ -2,8 +2,8 @@
 #include "Angular/Angular_369j.hpp"
 #include "DiracODE/Adams_Greens.hpp"
 #include "DiracODE/DiracODE.hpp"
-#include "HF/CoulombInts.hpp"
-#include "HF/CoulombNew.hpp"
+#include "HF/Coulomb.hpp"
+#include "HF/YkTable.hpp"
 #include "IO/SafeProfiler.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
@@ -15,91 +15,6 @@
 #include <functional>
 #include <iostream>
 #include <vector>
-/*
-Calculates self-consistent Hartree-Fock potential, including exchange.
-Solves all core and valence states.
-*/
-
-// Print-outs (for debugging) - work better without OMP
-constexpr bool print_final_eps = false;
-constexpr bool print_each_eps = false;
-
-//******************************************************************************
-DiracSpinor HartreeFock::solveMixedState(const int k, const DiracSpinor &Fa,
-                                         const double omega,
-                                         const std::vector<double> &vl,
-                                         const double alpha,
-                                         const std::vector<DiracSpinor> &core,
-                                         const DiracSpinor &hFa,
-                                         const double eps_target) {
-  auto dF = DiracSpinor(0, k, *(Fa.p_rgrid));
-  solveMixedState(dF, Fa, omega, vl, alpha, core, hFa, eps_target);
-  return dF;
-}
-//------------------------------------------------------------------------------
-DiracSpinor
-HartreeFock::solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa,
-                             const double omega, const std::vector<double> &vl,
-                             const double alpha,
-                             const std::vector<DiracSpinor> &core,
-                             const DiracSpinor &hFa, const double eps_target)
-// Solves:  (H - e - w)X = -h*Fa for X
-{
-  auto sp = SafeProfiler::profile(__func__);
-  auto damper = rampedDamp(0.8, 0.33, 3, 15);
-  const int max_its = 100;
-  // const double eps_target = 1.0e-3; // XXX Make input!
-
-  auto dF20 = std::abs(dF * dF); // monitor convergance
-  auto dF0 = dF;
-
-  const std::vector<double> H_mag = {}; // XXX Add Magnetic FF (QED)?
-  if (dF20 == 0) {
-    DiracODE::solve_inhomog(dF, Fa.en + omega, vl, H_mag, alpha, -1 * hFa);
-  } else {
-    const auto vx0 = form_approx_vex_any(dF, core);
-    const auto v0 = NumCalc::add_vectors(vl, vx0);
-    const auto rhs0 = (vx0 * dF) - vex_psia_any(dF, core) - hFa;
-    DiracODE::solve_inhomog(dF, Fa.en + omega, v0, H_mag, alpha, rhs0);
-    // const auto a = 0.0;
-    // const auto l = (1.0 - a);
-    // dF = l * dF + a * dF0;
-  }
-
-  dF20 = std::abs(dF * dF);
-  dF0 = dF;
-
-  for (int its = 0; true; its++) {
-    const auto vx = form_approx_vex_any(dF, core);
-    const auto v = NumCalc::add_vectors(vl, vx);
-
-    const auto rhs = (vx * dF) - vex_psia_any(dF, core) - hFa;
-    DiracODE::solve_inhomog(dF, Fa.en + omega, v, H_mag, alpha, rhs);
-
-    const auto a = damper(its);
-    const auto l = (1.0 - a);
-    dF = l * dF + a * dF0;
-    dF0 = dF;
-
-    auto dF2 = std::abs(dF * dF);
-    auto eps = std::abs((dF2 - dF20) / dF2);
-    if constexpr (print_each_eps) {
-      std::cout << __LINE__ << "| " << Fa.symbol() << " " << its << " " << eps
-                << "\n";
-    }
-    if (eps < eps_target || its == max_its) {
-      if constexpr (print_final_eps) {
-        std::cout << __LINE__ << "| " << Fa.symbol() << " " << its << " " << eps
-                  << "   (<dF|dF>=" << dF2 << ")\n";
-        if (its == max_its)
-          std::cout << "************\n";
-      }
-      break;
-    }
-    dF20 = dF2;
-  }
-  return dF;
-}
 
 //******************************************************************************
 HartreeFock::HartreeFock(HFMethod method, Wavefunction &wf,
@@ -124,7 +39,6 @@ HartreeFock::HartreeFock(HFMethod method, Wavefunction &wf,
   if (wf.core_orbitals.empty() || param)
     starting_approx_core(in_core, log_eps_init, method, h_d, g_t);
 
-  // m_Yab.initialise_core_core();
   appr_vex_core.resize(p_wf->core_orbitals.size(),
                        std::vector<double>(p_rgrid->num_points));
 
@@ -238,7 +152,6 @@ void HartreeFock::hf_core_approx(const double eps_target_HF) {
     vex_old = appr_vex_core;
 
     // Form new v_dir and v_ex:
-    // m_Yab.form_core_core();
     m_Yab.update_y_ints();
     form_vdir(p_wf->vdir, false);
     form_approx_vex_core(appr_vex_core);
@@ -316,7 +229,6 @@ void HartreeFock::solveValence() {
 
   const auto Nval = p_wf->valence_orbitals.size();
   appr_vex_val.resize(Nval);
-  // m_Yab.initialise_core_valence();
 
   std::vector<EpsIts> eis(Nval);
 
@@ -375,8 +287,6 @@ EpsIts HartreeFock::hf_valence_approx(DiracSpinor &Fa,
     double en_old = Fa.en;
     vexa_old = vexa;
 
-    // m_Yab.form_core_valence(Fa);
-    // form_approx_vex_a(Fa, vexa);
     vexa = form_approx_vex_any(Fa, p_wf->core_orbitals);
 
     for (std::size_t i = 0; i < p_rgrid->num_points; i++) {
@@ -432,7 +342,6 @@ double HartreeFock::calculateCoreEnergy() const
     for (const auto &Fb : p_wf->core_orbitals) {
       const auto tjb = Fb.twoj();
       const double xtjbp1 = (tjb + 1) * Fb.occ_frac;
-      // const auto &v0bb = m_Yab.get_y_ijk(Fb, Fb, 0);
       const auto &v0bb = m_Yab.get_yk_ab(0, Fb, Fb);
       auto R0f2 =
           NumCalc::integrate(1.0, 0, Fa.pinf, Fa.f, Fa.f, v0bb, p_rgrid->drdu);
@@ -445,13 +354,9 @@ double HartreeFock::calculateCoreEnergy() const
       const double y = (Fa == Fb) ? 1.0 : 2.0;
       const int kmin = std::abs(tja - tjb) / 2; // XXX Update
       const int kmax = (tja + tjb) / 2;
-      // const auto &vabk = m_Yab.get_y_ijk(Fa, Fb);
       const auto &vabk = m_Yab.get_y_ab(Fa, Fb);
-      // const auto &L_abk =
-      //     m_Yab.get_angular_L_kiakib_k(Fa.k_index(), Fb.k_index());
       for (auto k = kmin; k <= kmax; k++) {
-        const auto Labk = m_Yab.m_Ck.get_Lambdakab(k, Fa.k, Fb.k);
-        // if (L_abk[k - kmin] == 0)
+        const auto Labk = m_Yab.Ck().get_Lambdakab(k, Fa.k, Fb.k);
         if (Labk == 0)
           continue;
         const auto ik = k - kmin;
@@ -483,7 +388,6 @@ void HartreeFock::form_vdir(std::vector<double> &vdir, bool re_scale) const
   const double sf = re_scale ? (1.0 - 1.0 / p_wf->Ncore()) : 1.0;
   for (const auto &Fb : p_wf->core_orbitals) {
     const double f_sf = sf * (Fb.twoj() + 1) * Fb.occ_frac;
-    // const auto &v0bb = m_Yab.get_y_ijk(Fb, Fb, 0);
     const auto &v0bb = m_Yab.get_yk_ab(0, Fb, Fb);
     for (std::size_t i = 0; i < p_rgrid->num_points; i++) {
       vdir[i] += v0bb[i] * f_sf;
@@ -556,7 +460,6 @@ void HartreeFock::form_approx_vex_a(const DiracSpinor &Fa,
       const auto irmax = std::min(Fa.pinf, Fb.pinf);
       const int kmin = std::abs(twoj_a - tjb) / 2;
       const int kmax = (twoj_a + tjb) / 2;
-      // const auto &vabk = m_Yab.get_y_ijk(Fb, Fa);
       const auto &vabk = m_Yab.get_y_ab(Fb, Fa);
 
       // hold "fraction" Fa*Fb/(Fa^2):
@@ -569,10 +472,8 @@ void HartreeFock::form_approx_vex_a(const DiracSpinor &Fa,
         const auto fac_bot = Fa.f[i] * Fa.f[i] + Fa.g[i] * Fa.g[i];
         v_Fab[i] = -x_tjbp1 * fac_top / fac_bot;
       } // r
-      // const auto &L_ab_k = m_Yab.get_angular_L_kiakib_k(ki_a, Fb.k_index());
       for (int k = kmin; k <= kmax; k++) {
-        const auto Labk = m_Yab.m_Ck.get_Lambdakab(k, Fa.k, Fb.k);
-        // if (L_ab_k[k - kmin] == 0)
+        const auto Labk = m_Yab.Ck().get_Lambdakab(k, Fa.k, Fb.k);
         if (Labk == 0)
           continue;
         for (std::size_t i = 0; i < irmax; i++) {
@@ -586,12 +487,10 @@ void HartreeFock::form_approx_vex_a(const DiracSpinor &Fa,
   if (a_in_coreQ) {
     const double x_tjap1 = (twoj_a + 1); // no occ_frac here ?
     const int kmax = twoj_a;
-    // const auto &vaak = m_Yab.get_y_ijk(Fa, Fa);
     const auto &vaak = m_Yab.get_y_ab(Fa, Fa);
     const auto irmax = Fa.pinf; // p_rgrid->num_points;
-    // const auto &L_ab_k = m_Yab.get_angular_L_kiakib_k(ki_a, ki_a);
     for (int k = 0; k <= kmax; k++) {
-      const auto Labk = m_Yab.m_Ck.get_Lambdakab(k, Fa.k, Fa.k);
+      const auto Labk = m_Yab.Ck().get_Lambdakab(k, Fa.k, Fa.k);
       if (Labk == 0)
         continue;
       for (std::size_t i = 0; i < irmax; i++) {
@@ -650,7 +549,7 @@ std::vector<double> HartreeFock::form_approx_vex_any(
       if (tjs == 0)
         continue;
       const auto tjs2 = tjs * tjs;
-      CoulombInts::yk_ab(Fb, Fa, k, vabk);
+      Coulomb::yk_ab(Fb, Fa, k, vabk);
 
       for (std::size_t i = 0; i < irmax; i++) {
         if (v_Fab[i] == 0)
@@ -691,7 +590,6 @@ void HartreeFock::vex_psia(const DiracSpinor &Fa, DiracSpinor &VxFa) const
   if (m_excludeExchange)
     return;
 
-  // auto ki_a = Fa.k_index();
   auto twoj_a = Fa.twoj();
   for (const auto &Fb : p_wf->core_orbitals) {
     VxFa.pinf = std::max(VxFa.pinf, Fb.pinf);
@@ -699,11 +597,9 @@ void HartreeFock::vex_psia(const DiracSpinor &Fa, DiracSpinor &VxFa) const
     double x_tjbp1 = (Fa == Fb) ? (tjb + 1) : (tjb + 1) * Fb.occ_frac;
     int kmin = std::abs(twoj_a - tjb) / 2;
     int kmax = (twoj_a + tjb) / 2;
-    // const auto &vabk = m_Yab.get_y_ijk(Fb, Fa);
     const auto &vabk = m_Yab.get_y_ab(Fb, Fa);
-    // const auto &L_ab_k = m_Yab.get_angular_L_kiakib_k(ki_a, Fb.k_index());
     for (int k = kmin; k <= kmax; k++) {
-      const auto Labk = m_Yab.m_Ck.get_Lambdakab(k, Fa.k, Fb.k);
+      const auto Labk = m_Yab.Ck().get_Lambdakab(k, Fa.k, Fb.k);
       if (Labk == 0)
         continue;
       auto max = Fb.pinf; // std::min(Fb.pinf, Fa.pinf);
@@ -752,7 +648,7 @@ DiracSpinor HartreeFock::vex_psia_any(const DiracSpinor &Fa,
       if (tjs == 0)
         continue;
       auto max = Fb.pinf;
-      CoulombInts::yk_ab(Fb, Fa, k, vabk, max);
+      Coulomb::yk_ab(Fb, Fa, k, vabk, max);
       for (auto i = 0u; i < max; i++) {
         auto v = -x_tjbp1 * tjs * tjs * vabk[i];
         VxFa.f[i] += v * Fb.f[i];
@@ -846,14 +742,12 @@ EpsIts HartreeFock::hf_valence_refine(DiracSpinor &Fa) {
   auto damper = rampedDamp(0.8, 0.2, 5, 25);
   double extra_damp = 0.0;
 
-  // const auto vl = NumCalc::sumVecs({&(p_wf->vnuc), &(p_wf->vdir)});
   const auto vl = NumCalc::add_vectors(p_wf->vnuc, p_wf->vdir);
 
   const auto Fzero = Fa;
   const auto vexFzero = get_vex(Fa) * Fa;
 
   auto prev_en = Fa.en;
-  // m_Yab.form_core_valence(Fa); // only needed if not already done!
   double best_eps = 1.0;
   auto VxFa = DiracSpinor(Fa.n, Fa.k, p_wf->rgrid);
   int it = 0;
@@ -862,7 +756,6 @@ EpsIts HartreeFock::hf_valence_refine(DiracSpinor &Fa) {
   for (; it <= m_max_hf_its; ++it) {
     auto a_damp = damper(it) + extra_damp;
 
-    // vex_psia(Fa, VxFa);
     VxFa = vex_psia_any(Fa, p_wf->core_orbitals);
     auto oldphi = Fa;
     auto en = Fzero.en + (Fzero * VxFa - Fa * vexFzero) / (Fa * Fzero);
@@ -894,7 +787,6 @@ EpsIts HartreeFock::hf_valence_refine(DiracSpinor &Fa) {
     } else {
       Fa.normalise();
     }
-    // m_Yab.form_core_valence(Fa);
   } // End HF its
 
   if (m_explicitOrthog_cv)
@@ -1026,7 +918,6 @@ inline void HartreeFock::hf_core_refine() {
       best_worst_eps = eps;
     if (m_explicitOrthog_cc)
       p_wf->orthonormaliseOrbitals(p_wf->core_orbitals);
-    // m_Yab.form_core_core();
     m_Yab.update_y_ints();
     form_vdir(p_wf->vdir);
   }

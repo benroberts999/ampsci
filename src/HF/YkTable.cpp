@@ -1,7 +1,7 @@
-#include "CoulombNew.hpp"
+#include "YkTable.hpp"
 #include "Angular/Angular_369j.hpp"
 #include "Angular/Angular_tables.hpp"
-#include "HF/CoulombInts.hpp"
+#include "HF/Coulomb.hpp"
 #include "IO/SafeProfiler.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
@@ -10,6 +10,8 @@
 #include <cmath>
 #include <utility>
 #include <vector>
+
+namespace Coulomb {
 
 //******************************************************************************
 YkTable::YkTable(const Grid *const in_grid,
@@ -27,18 +29,15 @@ YkTable::YkTable(const Grid *const in_grid,
 
 //******************************************************************************
 int YkTable::max_tj() const {
-  auto comp2j = [](const auto &a, const auto &b) {
-    return a.twoj() < b.twoj();
-  };
   if (m_a_orbs->size() == 0)
     return 0;
-  const auto maxtj_a =
-      std::max_element(m_a_orbs->cbegin(), m_a_orbs->cend(), comp2j)->twoj();
+  const auto maxtj_a = std::max_element(m_a_orbs->cbegin(), m_a_orbs->cend(),
+                                        DiracSpinor::comp_j);
   if (m_aisb || m_b_orbs->size() == 0)
-    return maxtj_a;
-  const auto maxtj_b =
-      std::max_element(m_b_orbs->cbegin(), m_b_orbs->cend(), comp2j)->twoj();
-  return std::max(maxtj_a, maxtj_b);
+    return maxtj_a->twoj();
+  const auto maxtj_b = std::max_element(m_b_orbs->cbegin(), m_b_orbs->cend(),
+                                        DiracSpinor::comp_j);
+  return std::max(maxtj_a->twoj(), maxtj_b->twoj());
 }
 
 //******************************************************************************
@@ -85,11 +84,10 @@ YkTable::get_y_ab(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
 }
 
 //******************************************************************************
-void YkTable::update_y_ints() { //
+void YkTable::update_y_ints() {
   resize_y();
   const auto tj_max = max_tj();
-  const auto k_max = tj_max;
-  // k_min = |j - j'|; k_max = |j + j'|
+  const auto k_max = tj_max; // k_max = |j + j'| = 2*j_max
   m_Ck.fill_maxK_twojmax(k_max, tj_max);
 
   a_size = m_a_orbs->size();
@@ -97,29 +95,21 @@ void YkTable::update_y_ints() { //
 
 #pragma omp parallel for
   for (std::size_t ia = 0; ia < a_size; ia++) {
-    // std::cerr << __LINE__ << "\n";
     const auto &Fa = (*m_a_orbs)[ia];
-    // std::cerr << __LINE__ << "\n";
-    // std::cerr << Fa.symbol() << " -- ";
     const auto b_max = m_aisb ? ia : b_size - 1;
     for (std::size_t ib = 0; ib <= b_max; ib++) {
       const auto &Fb = (*m_b_orbs)[ib];
-      // std::cerr << Fb.symbol() << "\n";
       auto rmaxi = (Fb == Fa) ? 0 : std::min(Fa.pinf, Fb.pinf); // XXX check?
       const auto [kmin, kmax] = k_minmax(Fa, Fb);
       for (auto k = kmin; k <= kmax; k++) {
-        // std::cerr << k << " " << __LINE__ << "\n";
         const auto Lk = m_Ck.get_Lambdakab(k, Fa.k, Fb.k);
-        // std::cerr << __LINE__ << "\n";
         if (Lk == 0)
           continue;
         const auto ik = std::size_t(k - kmin);
-        // std::cerr << "\n" << __LINE__ << "\n";
-        CoulombInts::yk_ab(Fa, Fb, k, m_y_abkr[ia][ib][ik], rmaxi);
-        // std::cerr << __LINE__ << "\n";
-      }
-    }
-  }
+        Coulomb::yk_ab(Fa, Fb, k, m_y_abkr[ia][ib][ik], rmaxi);
+      } // k
+    }   // b
+  }     // a
 }
 //******************************************************************************
 void YkTable::update_y_ints(const DiracSpinor &Fn) {
@@ -156,23 +146,23 @@ void YkTable::update_y_ints(const DiracSpinor &Fn) {
       const auto ik = std::size_t(k - kmin);
       if (m_aisb) {
         if (in > im)
-          CoulombInts::yk_ab(Fm, Fn, k, m_y_abkr[in][im][ik], rmaxi);
+          Coulomb::yk_ab(Fm, Fn, k, m_y_abkr[in][im][ik], rmaxi);
         else
-          CoulombInts::yk_ab(Fm, Fn, k, m_y_abkr[im][in][ik], rmaxi);
+          Coulomb::yk_ab(Fm, Fn, k, m_y_abkr[im][in][ik], rmaxi);
       } else {
         if (nisa)
-          CoulombInts::yk_ab(Fm, Fn, k, m_y_abkr[in][im][ik], rmaxi);
+          Coulomb::yk_ab(Fm, Fn, k, m_y_abkr[in][im][ik], rmaxi);
         else
-          CoulombInts::yk_ab(Fm, Fn, k, m_y_abkr[im][in][ik], rmaxi);
+          Coulomb::yk_ab(Fm, Fn, k, m_y_abkr[im][in][ik], rmaxi);
       } // misa
     }   // k
   }     // m
 }
 
 //******************************************************************************
-void YkTable::resize_y() { //
+void YkTable::resize_y() {
   if (m_a_orbs->size() == a_size && m_b_orbs->size() == b_size)
-    return; // XXX
+    return;
   a_size = m_a_orbs->size();
   b_size = m_b_orbs->size();
 
@@ -186,9 +176,11 @@ void YkTable::resize_y() { //
       const auto [kmin, kmax] = k_minmax(Fa, Fb);
       const auto num_k = kmax - kmin + 1;
       m_y_abkr[ia][ib].resize(num_k);
-      for (auto &yakb_r : m_y_abkr[ia][ib]) {
-        yakb_r.resize(m_grid->num_points);
-      }
-    }
-  }
+      for (auto &yk_ab_r : m_y_abkr[ia][ib]) {
+        yk_ab_r.resize(m_grid->num_points);
+      } // k
+    }   // b
+  }     // a
 }
+
+} // namespace Coulomb

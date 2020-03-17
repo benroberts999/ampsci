@@ -1,15 +1,15 @@
 #include "Modules/Module_runModules.hpp"
 //
-#include "IO/UserInput.hpp"
 #include "DiracOperator/DiracOperator.hpp"
 #include "DiracOperator/Operators.hpp"
+#include "HF/ExternalField.hpp"
+#include "HF/MixedStates.hpp"
+#include "IO/UserInput.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include <algorithm>
 #include <cmath>
 #include <iostream>
 #include <string>
-//
-#include "HF/ExternalField.hpp"
 
 namespace Module {
 
@@ -186,16 +186,16 @@ void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf) {
     e1A += dVE1.dV_ab_rhs(e1A, aA, !dVconj);
     e1B += dVE1.dV_ab_rhs(e1B, aB, dVconj);
 
-    auto yA_w = HartreeFock::solveMixedState(hA.k, aA, 0, v, alpha,
-                                             wf.core_orbitals, hA);
-    auto xB_w = HartreeFock::solveMixedState(hB.k, aB, 0, v, alpha,
-                                             wf.core_orbitals, hB);
+    auto yA_w =
+        HF::solveMixedState(hA.k, aA, 0, v, alpha, wf.core_orbitals, hA);
+    auto xB_w =
+        HF::solveMixedState(hB.k, aB, 0, v, alpha, wf.core_orbitals, hB);
 
     auto omegaSE = aA.en - aB.en;
-    auto xB_d = HartreeFock::solveMixedState(e1B.k, aB, omegaSE, v, alpha,
-                                             wf.core_orbitals, e1B);
-    auto yA_d = HartreeFock::solveMixedState(e1A.k, aA, -omegaSE, v, alpha,
-                                             wf.core_orbitals, e1A);
+    auto xB_d = HF::solveMixedState(e1B.k, aB, omegaSE, v, alpha,
+                                    wf.core_orbitals, e1B);
+    auto yA_d = HF::solveMixedState(e1A.k, aA, -omegaSE, v, alpha,
+                                    wf.core_orbitals, e1A);
 
     auto pnc1_w = c01 * he1.reducedME(yA_w, aB);
     auto pnc2_w = c10 * he1.reducedME(aA, xB_w);

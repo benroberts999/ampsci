@@ -38,8 +38,8 @@ BASE = $(addprefix $(BD)/, \
 )
 
 HF = $(addprefix $(BD)/, \
- HartreeFockClass.o CoulombNew.o CoulombInts.o Parametric_potentials.o \
- Adams_Greens.o ExternalField.o RadiativePotential.o \
+ HartreeFockClass.o YkTable.o Coulomb.o Parametric_potentials.o \
+ Adams_Greens.o MixedStates.o ExternalField.o RadiativePotential.o \
 )
 
 CNTM = $(addprefix $(BD)/, \
