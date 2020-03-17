@@ -313,7 +313,7 @@ void HartreeFock::solveValence() {
 
   const auto Nval = p_wf->valence_orbitals.size();
   appr_vex_val.resize(Nval);
-  m_cint.initialise_core_valence();
+  // m_cint.initialise_core_valence();
 
   std::vector<EpsIts> eis(Nval);
 
@@ -372,8 +372,9 @@ EpsIts HartreeFock::hf_valence_approx(DiracSpinor &Fa,
     double en_old = Fa.en;
     vexa_old = vexa;
 
-    m_cint.form_core_valence(Fa);
-    form_approx_vex_a(Fa, vexa);
+    // m_cint.form_core_valence(Fa);
+    // form_approx_vex_a(Fa, vexa);
+    vexa = form_approx_vex_any(Fa, p_wf->core_orbitals);
 
     for (std::size_t i = 0; i < p_rgrid->num_points; i++) {
       vexa[i] = (1.0 - eta) * vexa[i] + eta * vexa_old[i];
@@ -837,10 +838,8 @@ EpsIts HartreeFock::hf_valence_refine(DiracSpinor &Fa) {
   const auto vexFzero = get_vex(Fa) * Fa;
 
   auto prev_en = Fa.en;
-  m_cint.form_core_valence(Fa); // only needed if not already done!
+  // m_cint.form_core_valence(Fa); // only needed if not already done!
   double best_eps = 1.0;
-  // auto Gzero = DiracSpinor(Fa.n, Fa.k, p_wf->rgrid);
-  // auto Ginf = DiracSpinor(Fa.n, Fa.k, p_wf->rgrid);
   auto VxFa = DiracSpinor(Fa.n, Fa.k, p_wf->rgrid);
   int it = 0;
   double eps = 1.0;
@@ -848,7 +847,8 @@ EpsIts HartreeFock::hf_valence_refine(DiracSpinor &Fa) {
   for (; it <= m_max_hf_its; ++it) {
     auto a_damp = damper(it) + extra_damp;
 
-    vex_psia(Fa, VxFa);
+    // vex_psia(Fa, VxFa);
+    VxFa = vex_psia_any(Fa, p_wf->core_orbitals);
     auto oldphi = Fa;
     auto en = Fzero.en + (Fzero * VxFa - Fa * vexFzero) / (Fa * Fzero);
     hf_orbital(Fa, en, vl, p_wf->Hse_mag, VxFa, p_wf->core_orbitals);
@@ -879,7 +879,7 @@ EpsIts HartreeFock::hf_valence_refine(DiracSpinor &Fa) {
     } else {
       Fa.normalise();
     }
-    m_cint.form_core_valence(Fa);
+    // m_cint.form_core_valence(Fa);
   } // End HF its
 
   if (m_explicitOrthog_cv)
