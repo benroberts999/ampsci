@@ -34,8 +34,8 @@ form_basis(const std::string &states_str, const std::size_t n_spl,
   for (const auto &nk : nklst) {
     const auto max_n = nk.n;
     const auto kappa = nk.k;
-    auto kmin = AtomData::l_k(kappa) + 3;
-    auto k = k_spl < kmin ? kmin : k_spl;
+    const auto kmin = std::size_t(AtomData::l_k(kappa) + 3);
+    const auto k = k_spl < kmin ? kmin : k_spl;
     if (k_spl < kmin) {
       std::cout << "Spline: for kappa=" << kappa << ", k -> " << k << "\n";
     }

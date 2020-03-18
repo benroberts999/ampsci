@@ -124,11 +124,19 @@ MatrixElements::hfs {}
 Atom { Z = Cs; }
 HartreeFock {
   core = [Xe];
-  valence = 7s12p5d;
+  valence = 7s10p5d;
+}
+Basis {
+  number = 90;
+  order = 7;
+  r0 = 1.0e-6;
+  rmax = 75.0;
+  print = false;
+  states = p;
 }
 Grid {
   r0 = 1e-7;
-  rmax = 300.0;
+  rmax = 150.0;
   num_points = 10000;
 }
 Module::pnc { transition = 6, -1, 7, -1; }
@@ -186,3 +194,27 @@ Basis {
   print = true;
   states = 8sp;
 }
+
+###########################################
+#TEST# SecondOrder
+
+Atom { Z = Cs; }
+HartreeFock {
+  core = [Xe];
+  valence = 7sp;
+}
+Basis {
+  number = 50;
+  order = 7;
+  r0 = 1.0e-4;
+  rmax = 40.0;
+  print = false;
+  states = 40spdf;
+}
+Grid {
+  r0 = 1e-6;
+  rmax = 120.0;
+  num_points = 2000;
+}
+Module::Tests {  }
+Module::SecondOrder {  }
