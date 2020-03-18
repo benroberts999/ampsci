@@ -106,12 +106,18 @@ void writeOrbitals(const UserInputBlock &input, const Wavefunction &wf) {
 }
 
 //******************************************************************************
-void SecondOrder(const UserInputBlock &, const Wavefunction &wf) {
+void SecondOrder(const UserInputBlock &input, const Wavefunction &wf) {
+
+  input.checkBlock({"lmax", "kmax"});
+  auto kmax = input.get("kmax", 10);
+  auto lmax = input.get("lmax", 10);
 
   for (const auto &v : wf.valence_orbitals) {
+    if (v.l() > lmax)
+      continue;
 
     double delta = 0.0;
-    for (int k = 0; k < 10; ++k) {
+    for (int k = 0; k <= kmax; ++k) {
       auto f = (2 * k + 1) * v.twojp1();
       double sigma_k = 0.0;
 #pragma omp parallel for
