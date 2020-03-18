@@ -207,4 +207,19 @@ double Qk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
   return m1tk * tCac * tCbd * Rkabcd;
 }
 
+//******************************************************************************
+double Xk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
+               const DiracSpinor &Fc, const DiracSpinor &Fd, const int k) {
+
+  auto tCac = Angular::Ck_kk(k, Fa.k, Fc.k);
+  if (tCac == 0.0)
+    return 0.0;
+  auto tCbd = Angular::Ck_kk(k, Fb.k, Fd.k);
+  if (tCbd == 0.0)
+    return 0.0;
+  auto Rkabcd = Rk_abcd(Fa, Fb, Fc, Fd, k);
+  auto m1tk = Angular::evenQ(k) ? 1 : -1;
+  return m1tk * tCac * tCbd * Rkabcd;
+}
+
 } // namespace Coulomb

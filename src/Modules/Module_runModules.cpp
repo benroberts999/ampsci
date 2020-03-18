@@ -1,4 +1,5 @@
 #include "Modules/Module_runModules.hpp"
+#include "Coulomb/Coulomb.hpp"
 #include "DMionisation/Module_atomicKernal.hpp"
 #include "DiracOperator/DiracOperator.hpp"
 #include "DiracOperator/Operators.hpp"
@@ -50,9 +51,11 @@ void runModule(const UserInputBlock &module_input, const Wavefunction &wf) //
     calculatePNC(module_input, wf);
   } else if (module_name == "Module::lifetimes") {
     calculateLifetimes(module_input, wf);
+  } else if (module_name == "Module::SecondOrder") {
+    SecondOrder(module_input, wf);
   } else {
-    std::cerr << "\nWARNING: Module `" << module_name
-              << "' not known. Spelling mistake?\n";
+    std::cerr << "\nWARNING: Module " << module_name
+              << " not known. Spelling mistake?\n";
   }
 }
 
@@ -100,6 +103,49 @@ void writeOrbitals(const UserInputBlock &input, const Wavefunction &wf) {
   }
   of.close();
   std::cout << "Orbitals written to file: " << oname << "\n";
+}
+
+//******************************************************************************
+void SecondOrder(const UserInputBlock &, const Wavefunction &wf) {
+
+  for (const auto &v : wf.valence_orbitals) {
+
+    double delta = 0.0;
+    for (int k = 0; k < 10; ++k) {
+      auto f = (2 * k + 1) * v.twojp1();
+      double sigma_k = 0.0;
+#pragma omp parallel for
+      for (auto ib = 0ul; ib < wf.core_orbitals.size(); ib++) {
+        double sigma_b = 0.0;
+        const auto &b = wf.core_orbitals[ib];
+        for (const auto &n : wf.basis) {
+          if (wf.isInCore(n))
+            continue;
+
+          for (const auto &a : wf.core_orbitals) {
+            auto zx = Coulomb::Zk_abcd(v, n, a, b, k) *
+                      Coulomb::Xk_abcd(v, n, a, b, k);
+            auto dele = v.en + n.en - a.en - b.en;
+            sigma_b += zx / dele;
+          }
+          for (const auto &m : wf.basis) {
+            if (wf.isInCore(m))
+              continue;
+            auto zx = Coulomb::Zk_abcd(m, n, v, b, k) *
+                      Coulomb::Xk_abcd(m, n, v, b, k);
+            auto dele = m.en + n.en - v.en - b.en;
+            sigma_b -= zx / dele;
+          }
+        }
+
+#pragma omp critical(sum)
+        { sigma_k += sigma_b; }
+      }
+      delta += sigma_k / f;
+    } // k
+    std::cout << v.en << " + " << delta << " = " << (v.en + delta) << " = "
+              << (v.en + delta) * PhysConst::Hartree_invcm << "\n";
+  }
 }
 
 } // namespace Module

@@ -32,6 +32,11 @@ DiracSpinor Rk_abcd_rhs(const DiracSpinor &Fa, const DiracSpinor &Fc,
 //! Calculates Q^k_abcd for given k. From scratch (calculates y)
 double Qk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
                const DiracSpinor &Fc, const DiracSpinor &Fd, const int k);
+
+//! Calculates X^k_abcd for given k. From scratch (calculates y)
+double Xk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
+               const DiracSpinor &Fc, const DiracSpinor &Fd, const int k);
+
 //! Calculates Z^k_abcd for given k. From scratch (calculates y)
 //! @details
 //! \f[ Z^k_abcd = (-1)^{ja+jb+1} * ( Q^k_abcd + \sum_l [k] 6j * Q^l_abdc) \f]
