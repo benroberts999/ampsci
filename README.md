@@ -56,9 +56,9 @@ Then, the compilation + use can proceed as per Linux above.
 ### Compilation: Other:
 
  * NOTE: If you get the following error message on compile, change '_UseOpenMP=yes_' to '_UseOpenMP=no_' in Makefile:
-   * **_error: unsupported option -fopenmp_**
+   * **error: unsupported option -fopenmp**
 
- * **Linking to GSL**: If GSL library is not installed in _/usr/local/_, you have to tell the compiler where to find the GSL files. Do this by setting the _PathForGSL=_ option in Makefile. Common exaples:
+ * **Linking to GSL**: If GSL library is not installed in _/usr/local/_, you have to tell the compiler where to find the GSL files. Do this by setting the _PathForGSL_ option in Makefile. Common exaples:
    * _PathForGSL=/opt/gsl/2.1/gnu_  # For UQ's getafix cluster
    * _PathForGSL=/usr/local/opt/gnu-scientific-library_ # For my macbook
    * Note: the exact path may differ for you, depending on where GSL was installed
@@ -67,7 +67,7 @@ Then, the compilation + use can proceed as per Linux above.
    * These add paths to include the correct directories for both -I "includes" (for compilation), and -L link flags (for linking libraries) in Makefile. These can be a little tricky to get right (don't include the -I or -L)
 
  * NOTE: If you get the following error, it is because the code is linking to a very old version of GSL. You might need to update GSL. If you have updated GSL (to at least version 2.0) and still get the message, the code is probably linking against the wrong version of GSL; see above to point the compiler to the correct version
-   * **_error: too few arguments to function ‘int gsl_bspline_deriv_eval_**
+   * **error: too few arguments to function ‘int gsl_bspline_deriv_eval**
 
 --------------------------------------------------------------------------------
 

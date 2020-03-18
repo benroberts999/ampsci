@@ -113,7 +113,7 @@ public: // const methods: "views" into WF object
   //! Prints table of core orbitals + energies etc. Optionally sorted by energy
   void printCore(bool sorted = true) const;
 
-  //! @breif Prints table of valence orbitals + energies etc. Optionally sorted
+  //! @brief Prints table of valence orbitals + energies etc. Optionally sorted
   //! by energy
   //! @details Can optionally give it any list of orbitals to print
   void printValence(bool sorted = true,

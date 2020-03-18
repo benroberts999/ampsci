@@ -4,7 +4,7 @@ class Wavefunction;
 class UserInputBlock;
 class UserInput;
 
-//! @breif Modules are run using calculated atomic wavefunctions
+//! @brief Modules are run using calculated atomic wavefunctions
 /*! @details
 After the pogram has generated wavefunctions (Hartree-Fock etc), any number of
 modules can then be run (see input documentation for how to run them).
