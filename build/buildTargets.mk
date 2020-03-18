@@ -47,10 +47,12 @@ CNTM = $(addprefix $(BD)/, \
  Adams_continuum.o ContinuumOrbitals.o \
 )
 
-MODS = $(addprefix $(BD)/, \
- Module_runModules.o Module_atomicKernal.o AKF_akFunctions.o \
- Module_matrixElements.o Module_fitParametric.o Module_pnc.o \
-)
+MODS = $(MODULELIST)
+
+# $(addprefix $(BD)/, \
+#  Module_runModules.o Module_atomicKernal.o AKF_akFunctions.o \
+#  Module_matrixElements.o Module_fitParametric.o Module_pnc.o Module_tests.o \
+# )
 
 ################################################################################
 # Link + build all final programs

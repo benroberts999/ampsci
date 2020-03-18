@@ -3,9 +3,6 @@
 #include <string>
 #include <vector>
 class Wavefunction;
-// namespace HF {
-// class HartreeFock;
-// }
 class UserInputBlock;
 namespace DiracOperator {
 class TensorOperator;
@@ -13,8 +10,16 @@ class TensorOperator;
 
 namespace Module {
 
+//! Calculates matrix elements of any tensor operator, with RPA
 void matrixElements(const UserInputBlock &input, const Wavefunction &wf);
 
+void calculateBohrWeisskopf(const UserInputBlock &input,
+                            const Wavefunction &wf);
+
+//! Calculates state lifetimes (using E1 and E2 only). nb: HF energies
+void calculateLifetimes(const UserInputBlock &input, const Wavefunction &wf);
+
+//! Returns a ptr to the requested operator, with given properties
 std::unique_ptr<DiracOperator::TensorOperator>
 generateOperator(const std::string &operator_str, const UserInputBlock &input,
                  const Wavefunction &wf);

@@ -52,7 +52,7 @@ void fitParametric(const UserInputBlock &input, const Wavefunction &wf) {
     auto nuc_params = wf.get_nuclearParameters();
 
     std::tie(H, d) =
-        fitParametric_performFit(states, Z, gp, nuc_params, green, fit_worst);
+        FitParametric::performFit(states, Z, gp, nuc_params, green, fit_worst);
 
     std::cout << "\nBest fit parameters (core) for ";
     if (green)
@@ -96,10 +96,10 @@ void fitParametric(const UserInputBlock &input, const Wavefunction &wf) {
 
 //******************************************************************************
 std::tuple<double, double>
-fitParametric_performFit(const std::vector<AtomData::DiracSEnken> &states,
-                         int Z, const GridParameters &gp,
-                         const Nuclear::Parameters &nuc_params, bool green,
-                         bool fit_worst) {
+FitParametric::performFit(const std::vector<AtomData::DiracSEnken> &states,
+                          int Z, const GridParameters &gp,
+                          const Nuclear::Parameters &nuc_params, bool green,
+                          bool fit_worst) {
 
   std::cout << "\nPerforming fit (for ";
   if (green)

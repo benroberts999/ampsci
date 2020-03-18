@@ -1,6 +1,7 @@
 #include "Modules/Module_matrixElements.hpp"
 #include "DiracOperator/DiracOperator.hpp"
 #include "DiracOperator/Operators.hpp"
+#include "HF/ExternalField.hpp"
 #include "IO/UserInput.hpp"
 #include "Physics/NuclearPotentials.hpp"
 #include "Physics/PhysConst_constants.hpp"
@@ -9,11 +10,10 @@
 #include <iostream>
 #include <memory>
 #include <string>
-//
-#include "HF/ExternalField.hpp"
 
 namespace Module {
 
+//******************************************************************************
 void matrixElements(const UserInputBlock &input, const Wavefunction &wf) {
 
   std::string ThisModule = "MatrixElements::";
@@ -92,6 +92,57 @@ void matrixElements(const UserInputBlock &input, const Wavefunction &wf) {
         printf("%13.6e\n", h->reducedME(Fa, Fb) * a);
       }
     }
+  }
+}
+
+//******************************************************************************
+void calculateBohrWeisskopf(const UserInputBlock &input, const Wavefunction &wf)
+//
+{
+  using namespace DiracOperator;
+
+  UserInputBlock point_in("MatrixElements::hfs", input);
+  UserInputBlock ball_in("MatrixElements::hfs", input);
+  UserInputBlock BW_in("MatrixElements::hfs", input);
+  point_in.add("F(r)=pointlike");
+  ball_in.add("F(r)=ball");
+  if (wf.Anuc() % 2 == 0)
+    BW_in.add("F(r)=doublyOddBW");
+  else
+    BW_in.add("F(r)=VolotkaBW");
+
+  auto hp = generateOperator("hfs", point_in, wf);
+  auto hb = generateOperator("hfs", ball_in, wf);
+  auto hw = generateOperator("hfs", BW_in, wf);
+
+  std::cout << "\nTabulate A (Mhz), and Bohr-Weisskopf effect eps(%): "
+            << wf.atom()
+            << "\n       |A:      Point         Ball           SP |e:    "
+               "Ball         SP\n";
+  for (const auto &phi : wf.valence_orbitals) {
+    auto Ap = Hyperfine::hfsA(hp.get(), phi);
+    auto Ab = Hyperfine::hfsA(hb.get(), phi);
+    auto Aw = Hyperfine::hfsA(hw.get(), phi);
+    auto Fball = ((Ab / Ap) - 1.0) * 100.0; //* M_PI * PhysConst::c;
+    auto Fbw = ((Aw / Ap) - 1.0) * 100.0;   //* M_PI * PhysConst::c;
+    // printf("%6s: %9.1f  %9.1f  %9.1f | %8.4f  %8.4f   %9.6f\n",
+    printf("%7s| %12.5e %12.5e %12.5e | %9.5f  %9.5f \n", phi.symbol().c_str(),
+           Ap, Ab, Aw, Fball, Fbw);
+  }
+
+  if (!wf.basis.empty())
+    std::cout << "\nTest hfs using basis (pointlike):\n";
+  for (const auto &phi : wf.basis) {
+    auto Abasis = Hyperfine::hfsA(hp.get(), phi);
+    // auto Abasis = hp.get()->radialIntegral(phi, phi);
+    printf("%7s: %12.5e ", phi.symbol().c_str(), Abasis);
+    const auto *hf_phi = wf.getState(phi.n, phi.k);
+    if (hf_phi != nullptr) {
+      auto Ahf = Hyperfine::hfsA(hp.get(), *hf_phi);
+      auto delta = 2.0 * (Abasis - Ahf) / (Abasis + Ahf);
+      printf(" %12.5e  %8.1e", Ahf, delta);
+    }
+    std::cout << "\n";
   }
 }
 
@@ -221,7 +272,7 @@ generateOperator(const std::string &operator_str, const UserInputBlock &input,
 }
 
 //******************************************************************************
-void Module_lifeimtes(const UserInputBlock &input, const Wavefunction &wf) {
+void calculateLifetimes(const UserInputBlock &input, const Wavefunction &wf) {
   std::cout << "\nLifetimes:\n";
 
   input.checkBlock({"E1", "E2"});

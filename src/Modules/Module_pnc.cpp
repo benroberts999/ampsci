@@ -1,5 +1,4 @@
-#include "Modules/Module_runModules.hpp"
-//
+#include "Modules/Module_pnc.hpp"
 #include "DiracOperator/DiracOperator.hpp"
 #include "DiracOperator/Operators.hpp"
 #include "HF/ExternalField.hpp"
@@ -14,7 +13,7 @@
 namespace Module {
 
 //******************************************************************************
-void Module_testPNC(const UserInputBlock &input, const Wavefunction &wf) {
+void calculatePNC(const UserInputBlock &input, const Wavefunction &wf) {
   const std::string ThisModule = "Module::PNC";
 
   input.checkBlock({"t", "c", "transition", "nmain", "rpa", "omega"});

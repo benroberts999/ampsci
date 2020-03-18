@@ -1,19 +1,26 @@
 #pragma once
-#include "Physics/NuclearPotentials.hpp" //Nuclear::Parameters
 #include <tuple>
 #include <vector>
 class UserInputBlock;
 class Wavefunction;
-// struct DiracSEnken;
-#include "Physics/AtomData.hpp"
 struct GridParameters;
+namespace AtomData {
+class DiracSEnken;
+}
+namespace Nuclear {
+class Parameters;
+}
 
 namespace Module {
-std::tuple<double, double>
-fitParametric_performFit(const std::vector<AtomData::DiracSEnken> &states,
-                         int Z, const GridParameters &gp,
-                         const Nuclear::Parameters &nuc_params, bool green,
-                         bool fit_worst);
 
+//! Performs fit to Greens/Teitz parametric potential. See input example
 void fitParametric(const UserInputBlock &input, const Wavefunction &wf);
+
+namespace FitParametric {
+std::tuple<double, double>
+performFit(const std::vector<AtomData::DiracSEnken> &states, int Z,
+           const GridParameters &gp, const Nuclear::Parameters &nuc_params,
+           bool green, bool fit_worst);
+}
+
 } // namespace Module
