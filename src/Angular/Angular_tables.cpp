@@ -6,6 +6,8 @@
 // math.h might be included by gsl, which is in Angular_369j...
 // Can only reproduce issue on mac..yay
 
+#pragma GCC diagnostic ignored "-Wsign-conversion"
+
 namespace Angular {
 //******************************************************************************
 void Ck_ab::fill_maxK_twojmax(const int in_max_K, const int in_max_twoj) {

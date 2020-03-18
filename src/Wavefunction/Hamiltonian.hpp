@@ -37,8 +37,8 @@ public:
   //! Must be set for each kappa (or, just -1 if all the same)
   template <typename... Args> //
   void set_v(const int kappa, const Args &... args) {
-    auto ki = Angular::indexFromKappa(kappa);
-    if ((int)m_Vk.size() < ki + 1)
+    auto ki = std::size_t(Angular::indexFromKappa(kappa));
+    if (m_Vk.size() < ki + 1)
       m_Vk.resize(ki + 1); // XXX may set some to zero??
     m_Vk[ki] = NumCalc::add_vectors(args...);
   }
@@ -47,8 +47,8 @@ public:
 
   //! Returns v for given kappa; if kappa>max_kappa, returns for max_kappa
   const std::vector<double> &get_v(int kappa = -1) const {
-    auto ki = Angular::indexFromKappa(kappa);
-    return ((int)m_Vk.size() < ki + 1) ? m_Vk.back() : m_Vk[ki];
+    auto ki = std::size_t(Angular::indexFromKappa(kappa));
+    return (m_Vk.size() < ki + 1) ? m_Vk.back() : m_Vk[ki];
   }
   const std::vector<double> &get_v_mag() const { return m_v_mag; }
   double get_alpha() const { return m_alpha; }

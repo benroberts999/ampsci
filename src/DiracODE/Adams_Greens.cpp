@@ -1,10 +1,10 @@
 #include "Adams_Greens.hpp"
 #include "Adams_bound.hpp"
-#include "Wavefunction/DiracSpinor.hpp"
 #include "DiracODE.hpp"
 #include "IO/SafeProfiler.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
+#include "Wavefunction/DiracSpinor.hpp"
 #include <vector>
 /*
 
@@ -61,7 +61,7 @@ void GreenSolution(DiracSpinor &phi, const DiracSpinor &phiI,
   auto sp = SafeProfiler::profile(__func__);
 
   // Wronskian:
-  auto pp = int(0.65 * double(phiI.pinf));
+  auto pp = std::size_t(0.65 * double(phiI.pinf));
   auto w2 = (phiI.f[pp] * phi0.g[pp] - phi0.f[pp] * phiI.g[pp]);
 
   // std::vector<double> invW2(phiI.f.size());

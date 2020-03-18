@@ -78,8 +78,8 @@ YkTable::get_y_ab(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
       std::abort();
     }
   }
-  const std::size_t ia = a - m_a_orbs->begin();
-  const std::size_t ib = b - m_b_orbs->begin();
+  const auto ia = std::size_t(a - m_a_orbs->begin());
+  const auto ib = std::size_t(b - m_b_orbs->begin());
   return (m_aisb && ib > ia) ? m_y_abkr[ib][ia] : m_y_abkr[ia][ib];
 }
 
@@ -174,7 +174,7 @@ void YkTable::resize_y() {
     for (std::size_t ib = 0; ib <= b_max; ib++) {
       const auto &Fb = (*m_b_orbs)[ib];
       const auto &[kmin, kmax] = k_minmax(Fa, Fb);
-      const auto num_k = kmax - kmin + 1;
+      const auto num_k = std::size_t(kmax - kmin + 1);
       m_y_abkr[ia][ib].resize(num_k);
       for (auto &yk_ab_r : m_y_abkr[ia][ib]) {
         yk_ab_r.resize(m_grid->num_points);

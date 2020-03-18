@@ -94,7 +94,7 @@ public:
   //! Calculates + stores 1st and 2nd order derivatives
   void derivitate() {
 
-    auto n_max_deriv = 2;
+    auto n_max_deriv = 2ul;
 
     m_dBkdr1.clear();
     m_dBkdr1.resize(m_number_n);

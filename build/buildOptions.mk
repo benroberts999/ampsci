@@ -27,13 +27,12 @@ endif
 $(info )
 
 #Warnings:
-WARN=-Wall -Wpedantic -Wextra -Wdouble-promotion -Wconversion -Wshadow -Weffc++
+WARN=-Wall -Wpedantic -Wextra -Wdouble-promotion -Wconversion -Wshadow -Weffc++ -Wsign-conversion
 # -Wfloat-equal
-# -Wsign-conversion
 
 # Changes to warning based on compiler:
 ifeq ($(CXX),clang++)
-  WARN += -Wno-sign-conversion -Wheader-hygiene
+  WARN += -Wheader-hygiene
 endif
 ifeq ($(CXX),g++)
   WARN += -Wsuggest-override -Wsuggest-final-types #-Wsuggest-final-methods

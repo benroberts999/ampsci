@@ -5,10 +5,10 @@ class UserInputBlock;
 class Wavefunction;
 struct GridParameters;
 namespace AtomData {
-class DiracSEnken;
+struct DiracSEnken;
 }
 namespace Nuclear {
-class Parameters;
+struct Parameters;
 }
 
 namespace Module {

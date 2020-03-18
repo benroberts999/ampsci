@@ -308,12 +308,12 @@ inline void binary_str_rw(std::fstream &stream, std::string &value, RoW row) {
     std::size_t temp_len = value.length();
     stream.write(reinterpret_cast<const char *>(&temp_len),
                  sizeof(std::size_t));
-    stream.write(value.c_str(), value.length());
+    stream.write(value.c_str(), long(value.length()));
   } else if (row == read) {
     std::size_t temp_len;
     stream.read(reinterpret_cast<char *>(&temp_len), sizeof(std::size_t));
     char *tvalue = new char[temp_len + 1];
-    stream.read(tvalue, temp_len);
+    stream.read(tvalue, long(temp_len));
     tvalue[temp_len] = '\0'; // null 'end of string' character
     value = tvalue;
     delete[] tvalue;

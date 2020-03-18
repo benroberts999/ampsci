@@ -9,6 +9,8 @@
 #include "Wavefunction/Wavefunction.hpp"
 #include <iostream>
 
+#pragma GCC diagnostic ignored "-Wsign-conversion"
+
 namespace Module {
 
 //******************************************************************************

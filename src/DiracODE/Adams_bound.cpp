@@ -1,16 +1,19 @@
 #include "DiracODE/Adams_bound.hpp"
 #include "DiracODE/Adams_coefs.hpp"
 #include "DiracODE/DiracODE.hpp"
-#include "Wavefunction/DiracSpinor.hpp"
 #include "IO/SafeProfiler.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/LinAlg_MatrixVector.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
+#include "Wavefunction/DiracSpinor.hpp"
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <iostream>
 #include <vector>
+
+// Unfortunately, seems too messy to fix this
+#pragma GCC diagnostic ignored "-Wsign-conversion"
 
 /*
 Program to solve single-electron bound-state Dirac problem for a (given)

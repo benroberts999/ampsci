@@ -82,7 +82,7 @@ void fitParametric(const UserInputBlock &input, const Wavefunction &wf) {
       // double rinf = wf.rinf(phi);
       double rinf = wf.rgrid.r[phi.pinf - 1];
       double eni = phi.en;
-      double enT = states[i++].en;
+      double enT = states[std::size_t(i++)].en;
       printf("%7s %2i  %3.0f %3i  %5.0e  %13.7f  %11.4f %8.2f%%\n", njl, phi.k,
              rinf, phi.its, phi.eps, eni,
              (eni - en0) * PhysConst::Hartree_invcm, 100. * (enT - eni) / enT);

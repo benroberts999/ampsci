@@ -81,7 +81,8 @@ std::pair<double, double> DiracSpinor::r0pinfratio() const {
   auto max_abs_compare = [](double a, double b) {
     return std::fabs(a) < std::fabs(b);
   };
-  auto max_pos = std::max_element(f.begin(), f.begin() + pinf, max_abs_compare);
+  auto max_pos =
+      std::max_element(f.begin(), f.begin() + long(pinf), max_abs_compare);
   auto r0_ratio = f[p0] / *max_pos;
   auto pinf_ratio = f[pinf - 1] / *max_pos;
   return std::make_pair(r0_ratio, pinf_ratio);

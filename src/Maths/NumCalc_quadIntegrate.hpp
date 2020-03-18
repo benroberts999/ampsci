@@ -125,17 +125,18 @@ additivePIntegral(std::vector<Real> &answer, const std::vector<Real> &f,
 
   constexpr const bool forward = (direction == zero_to_r);
   constexpr const int inc = forward ? +1 : -1;
-  const int init = forward ? 0 : max;
-  const int fin = forward ? max : 0;
+  const auto init = forward ? 0ul : std::size_t(max);
+  const auto fin = forward ? std::size_t(max) : 0ul;
 
-  Real x = init < max ? 0.5 * g[init] * h[init] * gr.drdu[init] : 0.0;
+  Real x = int(init) < max ? 0.5 * g[init] * h[init] * gr.drdu[init] : 0.0;
   answer[init] += f[init] * x * gr.du;
-  for (int i = init + inc; i != fin + inc; i += inc) {
-    x += 0.5 * (g[i - inc] * h[i - inc] * gr.drdu[i - inc] +
-                g[i] * h[i] * gr.drdu[i]);
-    answer[i] += f[i] * x * gr.du;
+  for (auto i = int(init) + inc; i != int(fin) + inc; i += inc) {
+    const auto im = std::size_t(i - inc);
+    const auto i2 = std::size_t(i);
+    x += 0.5 * (g[im] * h[im] * gr.drdu[im] + g[i2] * h[i2] * gr.drdu[i2]);
+    answer[i2] += f[i2] * x * gr.du;
   }
-  if (fin < max)
+  if (int(fin) < max)
     answer[fin] += 0.5 * f[fin] * g[fin] * h[fin] * gr.drdu[fin] * gr.du;
 }
 //------------------------------------------------------------------------------

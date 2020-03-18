@@ -13,6 +13,8 @@
 #include <string>
 #include <vector>
 
+#pragma GCC diagnostic ignored "-Wsign-conversion"
+
 // Convert FROM a.u. (hb=e=me=1, c=1/alpha) TO relativistic (hb=c=1)
 const double E_to_keV = PhysConst::Hartree_eV / 1000.; // au -> keV (energy)
 const double Q_to_MeV =

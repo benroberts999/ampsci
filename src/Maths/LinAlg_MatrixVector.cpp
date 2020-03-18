@@ -10,6 +10,8 @@
 #include <utility>
 #include <vector>
 
+#pragma GCC diagnostic ignored "-Wsign-conversion"
+
 namespace LinAlg {
 
 //******************************************************************************

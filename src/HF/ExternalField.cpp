@@ -1,19 +1,18 @@
 #include "ExternalField.hpp"
 #include "Angular/Angular_369j.hpp"
 #include "Angular/Angular_tables.hpp"
-#include "DiracOperator/DiracOperator.hpp"
 #include "Coulomb/Coulomb.hpp"
+#include "DiracOperator/DiracOperator.hpp"
 #include "HF/HartreeFockClass.hpp"
 #include "HF/MixedStates.hpp"
 #include "IO/ChronoTimer.hpp"
+#include "Wavefunction/BSplineBasis.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include <algorithm>
 #include <fstream>
-#include <vector>
-//
-#include "Wavefunction/BSplineBasis.hpp" // XXX add to make
 #include <memory>
+#include <vector>
 
 namespace HF {
 
@@ -344,7 +343,7 @@ void ExternalField::solve_TDHFcore_matrix(const Wavefunction &wf,
     }
   }
   std::vector<std::vector<DiracSpinor>> basis_kappa;
-  basis_kappa.reserve(max_ki + 1);
+  basis_kappa.reserve(std::size_t(max_ki + 1));
   for (int ki = 0; ki <= max_ki; ki++) {
     auto k = Angular::kappaFromIndex(ki);
     basis_kappa.push_back(SplineBasis::form_spline_basis(
@@ -375,12 +374,12 @@ void ExternalField::solve_TDHFcore_matrix(const Wavefunction &wf,
       for (auto ibeta = 0ul; ibeta < dPsiX.size(); ++ibeta) {
         auto &Xx = dPsiX[ibeta];
         auto &Yx = dPsiY[ibeta];
-        const auto ki = Angular::indexFromKappa(Xx.k);
+        const auto ki = std::size_t(Angular::indexFromKappa(Xx.k));
         const auto &basis = basis_kappa[ki];
 
         LinAlg::Vector bi_X((int)basis.size());
         LinAlg::Vector bi_Y((int)basis.size());
-        for (int i = 0; i < (int)basis.size(); ++i) {
+        for (auto i = 0ul; i < basis.size(); ++i) {
           const auto &xi = basis[i];
           // fill LHS vector, b
           const auto hi = m_h->reducedME(xi, Fc);
@@ -391,9 +390,9 @@ void ExternalField::solve_TDHFcore_matrix(const Wavefunction &wf,
           const auto Sic = (xi.k == Fc.k && !imag) ? (xi * Fc) : 0.0;
           const auto deS = (de0 + de1) * Sic;
           const auto deS_dag = (de0 + de1_dag) * Sic;
-          bi_X[i] = -s * hi - dV + deS; // why s here? check above??
+          bi_X[int(i)] = -s * hi - dV + deS; // why s here? check above??
           // bi_Y[i] = -s * (s * hi + dV_dag) + deS_dag;
-          bi_Y[i] = -s * hidag - s * dV_dag + deS_dag; //???
+          bi_Y[int(i)] = -s * hidag - s * dV_dag + deS_dag; //???
         }
         const auto [Hij, Sij] = SplineBasis::fill_Hamiltonian_matrix(basis, wf);
 
@@ -406,9 +405,9 @@ void ExternalField::solve_TDHFcore_matrix(const Wavefunction &wf,
 
         Xx.scale(a_damp);
         Yx.scale(a_damp);
-        for (int i = 0; i < (int)basis.size(); ++i) {
-          Xx += (1.0 - a_damp) * c_X[i] * basis[i];
-          Yx += (1.0 - a_damp) * c_Y[i] * basis[i];
+        for (auto i = 0ul; i < basis.size(); ++i) {
+          Xx += (1.0 - a_damp) * c_X[int(i)] * basis[i];
+          Yx += (1.0 - a_damp) * c_Y[int(i)] * basis[i];
         }
       }
     }

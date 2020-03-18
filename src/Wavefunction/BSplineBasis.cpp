@@ -12,6 +12,8 @@
 #include <string>
 #include <utility>
 
+#pragma GCC diagnostic ignored "-Wsign-conversion"
+
 namespace SplineBasis {
 
 //******************************************************************************

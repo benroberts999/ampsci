@@ -80,15 +80,15 @@ int get_z(const std::string &at) {
 // Short function that returns orbital term given l
 std::string l_symbol(int l) {
   if (l < (int)spectroscopic_notation.length() && l >= 0)
-    return spectroscopic_notation.substr(l, 1);
+    return spectroscopic_notation.substr(static_cast<unsigned long>(l), 1);
   else
     return "[" + std::to_string(l) + "]";
 }
 
 int symbol_to_l(const std::string &l_str) {
-  for (int i = 0; i < (int)spectroscopic_notation.length(); i++) {
+  for (auto i = 0ul; i < spectroscopic_notation.length(); i++) {
     if (spectroscopic_notation.substr(i, 1) == l_str)
-      return i;
+      return int(i);
   }
   int l = -1;
   try {
@@ -120,9 +120,10 @@ std::string niceCoreOutput(const std::string &full_core) {
   // Only want actual nobel gasses in 'nice' output
   std::string nice_core = full_core;
   for (int i = 7; i >= 0; i--) { // loop backwards (so can break)
-    auto &ng_fullterm = nobelGasses[i].second;
+    auto &ng_fullterm = nobelGasses[std::size_t(i)].second;
     if (full_core.rfind(ng_fullterm, 0) == 0) {
-      nice_core = nobelGasses[i].first + full_core.substr(ng_fullterm.length());
+      nice_core = nobelGasses[std::size_t(i)].first +
+                  full_core.substr(ng_fullterm.length());
       break;
     }
   }

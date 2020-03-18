@@ -361,7 +361,7 @@ double HartreeFock::calculateCoreEnergy() const
         const auto Labk = m_Yab.Ck().get_Lambdakab(k, Fa.k, Fb.k);
         if (Labk == 0)
           continue;
-        const auto ik = k - kmin;
+        const auto ik = std::size_t(k - kmin);
         double R0f3 =
             NumCalc::integrate(1.0, 0, 0, Fa.f, Fb.f, vabk[ik], p_rgrid->drdu);
         double R0g3 =
@@ -478,8 +478,9 @@ void HartreeFock::form_approx_vex_a(const DiracSpinor &Fa,
         const auto Labk = m_Yab.Ck().get_Lambdakab(k, Fa.k, Fb.k);
         if (Labk == 0)
           continue;
+        const auto ik = std::size_t(k - kmin);
         for (std::size_t i = 0; i < irmax; i++) {
-          vex_a[i] += Labk * vabk[k - kmin][i] * v_Fab[i];
+          vex_a[i] += Labk * vabk[ik][i] * v_Fab[i];
         } // r
       }   // k
     }     // b
@@ -498,7 +499,7 @@ void HartreeFock::form_approx_vex_a(const DiracSpinor &Fa,
       for (std::size_t i = 0; i < irmax; i++) {
         // nb: If I don't 'cut' here, or fails w/ f states... ?? XX
         // Of course, cutting is fine. But WHY FAIL??
-        vex_a[i] += -Labk * vaak[k][i] * x_tjap1;
+        vex_a[i] += -Labk * vaak[std::size_t(k)][i] * x_tjap1;
       }
     } // k
   }   // if a in core
@@ -609,7 +610,7 @@ void HartreeFock::vex_psia(const DiracSpinor &Fa, DiracSpinor &VxFa) const
         continue;
       auto max = Fb.pinf; // std::min(Fb.pinf, Fa.pinf);
       for (auto i = 0u; i < max; i++) {
-        auto v = -x_tjbp1 * Labk * vabk[k - kmin][i];
+        auto v = -x_tjbp1 * Labk * vabk[std::size_t(k - kmin)][i];
         VxFa.f[i] += v * Fb.f[i];
         VxFa.g[i] += v * Fb.g[i];
       } // r

@@ -102,7 +102,7 @@ Grid::Grid(const Grid &t_gr, const double new_rmax)
           }();
         }
         return std::vector<double>(t_gr.r.begin(),
-                                   t_gr.r.begin() + this->num_points);
+                                   t_gr.r.begin() + long(this->num_points));
       }()), // r
       drduor([&]() {
         std::vector<double> temp_drduor = t_gr.drduor;
@@ -118,7 +118,7 @@ Grid::Grid(const Grid &t_gr, const double new_rmax)
           return temp_drdu;
         }
         return std::vector<double>(t_gr.drdu.begin(),
-                                   t_gr.drdu.begin() + this->num_points);
+                                   t_gr.drdu.begin() + long(this->num_points));
       }()) // drdu
 {}
 
