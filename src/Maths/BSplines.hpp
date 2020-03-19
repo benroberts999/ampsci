@@ -8,7 +8,9 @@
 #include <utility>
 
 //! @brief Uses GSL to generate set of B-splines and their derivatives
-//! @details Splines are generates upon construction; derivates are not
+/*! @details Splines are generates upon construction; derivates are not.
+Uses GSL: https://www.gnu.org/software/gsl/doc/html/bspline.html
+*/
 class BSplines {
 public:
   //! n is number of spines, k is order. r0/rmax are first/last internal knots
@@ -37,6 +39,7 @@ public:
     }
     construct_splines_gsl();
     // print_knots();
+    // write_splines();
   }
 
   BSplines &operator=(const BSplines &) = delete; // copy assignment
@@ -146,6 +149,7 @@ public:
 
   //****************************************************************************
   void print_knots() const {
+    // Actually 'break points', not knots...?
     std::cout << "Break points:\n ";
     int n_rows_to_print = 7;
     int count = 0;
@@ -165,6 +169,8 @@ private:
   //****************************************************************************
   void construct_splines_gsl() {
     setup_splines();
+    // print_knots();
+    // std::cin.get();
     calculate_splines();
     set_end_points();
   }
@@ -188,12 +194,21 @@ private:
   std::vector<double> break_points(std::size_t nbreaks) const {
     std::vector<double> breaks;
     breaks.push_back(0.0);
-    for (std::size_t i = 1; i < nbreaks; i++) {
-      auto dindex = (double(i - 1) / double(nbreaks - 2)) *
-                    double(m_rmax_index - m_rmin_index);
-      auto r = m_rgrid_ptr->r[m_rmin_index + std::size_t(dindex)];
-      breaks.push_back(r);
+
+    // Set breakpoints logarithically - breaks don't align with grid
+    // auto r0 = m_rgrid_ptr->r[m_rmin_index];
+    // auto rmax = m_rgrid_ptr->r[m_rmax_index];
+    // auto points = NumCalc::logarithmic_range(r0, rmax, nbreaks - 1);
+    // for (auto p : points) {
+    //   breaks.push_back(p);
+    // }
+
+    // Set breakpoints according to grid (line exactly w/ points)
+    auto points = NumCalc::even_range(m_rmin_index, m_rmax_index, nbreaks - 1);
+    for (auto p : points) {
+      breaks.push_back(m_rgrid_ptr->r[p]);
     }
+
     return breaks;
   }
 

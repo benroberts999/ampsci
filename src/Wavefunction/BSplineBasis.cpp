@@ -62,6 +62,21 @@ form_basis(const std::string &states_str, const std::size_t n_spl,
       basis.push_back(Fp);
   }
 
+  for (auto &Fp : basis) {
+    auto l = Fp.l();
+    if (l == 0)
+      continue;
+    auto comp = [=](const auto &Fa) { return Fa.l() == l - 1; };
+    auto prev = std::find_if(basis.begin(), basis.end(), comp);
+    if (prev == basis.end())
+      continue;
+    if (Fp.en < prev->en) {
+      std::cout << "WARNING: "
+                << "Spurious state?? " << Fp.symbol() << " " << Fp.en << "\n";
+      // Fp *= 0.0;
+    }
+  }
+
   return basis;
 }
 
@@ -74,7 +89,7 @@ form_spline_basis(const int kappa, const std::size_t n_states,
 {
   //
   const auto imin = static_cast<std::size_t>(std::abs(kappa));
-  const auto n_spl = n_states + imin + 1;
+  const auto n_spl = n_states + imin;
   const auto imax = n_spl - 1;
 
   // uses sepperate B-splines for each partial wave! OK?

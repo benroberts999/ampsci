@@ -271,4 +271,35 @@ inline double num_integrate(const std::function<double(double)> &f, double a,
   return (Rint_m + dq_inv * (Rint_s + Rint_e)) * dt;
 }
 
+//******************************************************************************
+template <typename T>
+std::vector<T> even_range(T first, T last, std::size_t number) {
+  std::vector<T> range;
+  range.reserve(number);
+  auto interval = double(last - first);
+  range.push_back(first); // guarentee first is first
+  for (auto i = 1ul; i < number - 1; ++i) {
+    auto eps = double(i) / double(number - 1);
+    auto value = double(first) + (eps * interval);
+    range.push_back(static_cast<T>(value));
+  }
+  range.push_back(last); // guarentee last is last
+  return range;
+}
+//******************************************************************************
+template <typename T>
+std::vector<T> logarithmic_range(T first, T last, std::size_t number) {
+  std::vector<T> range;
+  range.reserve(number);
+  auto ratio = double(last) / double(first);
+  range.push_back(first);
+  for (auto i = 1ul; i < number - 1; ++i) {
+    auto eps = double(i) / double(number - 1);
+    auto value = double(first) * std::exp(std::log(ratio) * eps);
+    range.push_back(static_cast<T>(value));
+  }
+  range.push_back(last);
+  return range;
+}
+
 } // namespace NumCalc
