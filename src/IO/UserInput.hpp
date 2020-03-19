@@ -5,6 +5,8 @@
 #include <utility>
 #include <vector>
 
+// Set 'help' option to print out all available options
+
 //******************************************************************************
 class UserInputBlock {
 

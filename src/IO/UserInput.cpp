@@ -23,12 +23,21 @@ bool UserInputBlock::checkBlock(const std::vector<std::string> &list) const {
     // For each option in
     auto isoption = [&](std::string a) { return option == a; };
     auto bad_option = !std::any_of(list.begin(), list.end(), isoption);
-    if (bad_option) {
+    auto help = (option == "Help" || option == "help") ? true : false;
+    if (bad_option && !help) {
       all_ok = false;
       std::cerr << "\nWARNING: Unclear input option in " << m_block_name
                 << ": `" << option << "'\n --> " << entry << "\n"
                 << "Option may be ignored!\n"
                 << "Check spelling (or update list of options)\n";
+      help = true;
+    }
+    if (help) {
+      std::cout << "Available " << m_block_name << " options are:\n\n "
+                << m_block_name << "{ ";
+      std::for_each(list.begin(), list.end(),
+                    [](const auto &s) { std::cout << s << "; "; });
+      std::cout << " }\n\n";
     }
   }
   return all_ok;
