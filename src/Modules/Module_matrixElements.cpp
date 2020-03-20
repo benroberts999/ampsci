@@ -1,5 +1,6 @@
 #include "Modules/Module_matrixElements.hpp"
 #include "Coulomb/Coulomb.hpp"
+#include "Coulomb/YkTable.hpp"
 #include "DiracOperator/DiracOperator.hpp"
 #include "DiracOperator/Operators.hpp"
 #include "HF/ExternalField.hpp"
@@ -159,6 +160,8 @@ void SecondOrder(const UserInputBlock &input, const Wavefunction &wf) {
     std::cout << "FAIL 125 in Module::SecondOrder: There is no basis! - I need "
                  "a basis to calculate MBPT. Try again.\n";
 
+  // auto Yk = Coulomb::YkTable(&wf.rgrid, &wf.basis, &core);
+
   for (const auto &v : wf.valence_orbitals) {
     if (v.l() > lmax)
       continue;
@@ -174,19 +177,32 @@ void SecondOrder(const UserInputBlock &input, const Wavefunction &wf) {
         for (const auto &n : wf.basis) {
           if (wf.isInCore(n))
             continue;
-
           for (const auto &a : core) {
-            auto zx = Coulomb::Wk_abcd(v, n, a, b, k) *
-                      Coulomb::Qk_abcd(v, n, a, b, k);
-            auto dele = v.en + n.en - a.en - b.en;
+            const auto zx = Coulomb::Wk_abcd(v, n, a, b, k) *
+                            Coulomb::Qk_abcd(v, n, a, b, k);
+            // const auto [kmin_nb, kmax_nb] = Yk.k_minmax(n, b);
+            // if (k < kmin_nb || k > kmax_nb)
+            //   continue;
+            // const auto &yknb = Yk.get_yk_ab(k, n, b);
+            // const auto &yna = Yk.get_y_ab(n, a);
+            // const auto zx = Coulomb::Wk_abcd(v, n, a, b, k, yknb, yna) *
+            //                 Coulomb::Qk_abcd(v, n, a, b, k, yknb);
+            const auto dele = v.en + n.en - a.en - b.en;
             sigma_k += zx / dele;
           } // a
           for (const auto &m : wf.basis) {
             if (wf.isInCore(m))
               continue;
-            auto zx = Coulomb::Wk_abcd(v, b, m, n, k) *
-                      Coulomb::Qk_abcd(v, b, m, n, k);
-            auto dele = m.en + n.en - v.en - b.en;
+            const auto zx = Coulomb::Wk_abcd(v, b, m, n, k) *
+                            Coulomb::Qk_abcd(v, b, m, n, k);
+            // const auto [kmin_nb, kmax_nb] = Yk.k_minmax(n, b);
+            // if (k < kmin_nb || k > kmax_nb)
+            //   continue;
+            // const auto &ykbn = Yk.get_yk_ab(k, n, b);
+            // const auto &ybm = Yk.get_y_ab(m, b);
+            // const auto zx = Coulomb::Wk_abcd(v, b, m, n, k, ykbn, ybm) *
+            //                 Coulomb::Qk_abcd(v, b, m, n, k, ykbn);
+            const auto dele = m.en + n.en - v.en - b.en;
             sigma_k -= zx / dele;
           } // m
         }   // n

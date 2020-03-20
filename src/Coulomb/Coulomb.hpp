@@ -33,6 +33,10 @@ DiracSpinor Rk_abcd_rhs(const DiracSpinor &Fa, const DiracSpinor &Fc,
 double Qk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
                const DiracSpinor &Fc, const DiracSpinor &Fd, const int k);
 
+double Qk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
+               const DiracSpinor &Fc, const DiracSpinor &Fd, const int k,
+               const std::vector<double> &ykbd);
+
 //! Calculates X^k_abcd for given k. From scratch (calculates y)
 double Xk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
                const DiracSpinor &Fc, const DiracSpinor &Fd, const int k);
@@ -48,5 +52,10 @@ double Zk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
 //! \f[ W^k_abcd = Q^k_abcd + \sum_l [k] 6j * Q^l_abdc \f]
 double Wk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
                const DiracSpinor &Fc, const DiracSpinor &Fd, const int k);
+
+double Wk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
+               const DiracSpinor &Fc, const DiracSpinor &Fd, const int k,
+               const std::vector<double> &ykbd,
+               const std::vector<std::vector<double>> &ybc);
 
 } // namespace Coulomb

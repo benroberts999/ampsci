@@ -6,7 +6,7 @@
 
 namespace Coulomb {
 
-constexpr static bool check_bounds = false;
+constexpr static bool check_bounds = true;
 
 //! @brief Calculates + stores Hartree Y functions + Angular (w/ look-up)
 /*! @details
