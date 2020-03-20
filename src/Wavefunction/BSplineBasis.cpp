@@ -19,8 +19,8 @@ namespace SplineBasis {
 //******************************************************************************
 std::vector<DiracSpinor>
 form_basis(const std::string &states_str, const std::size_t n_spl,
-           const std::size_t k_spl, const double r0_spl, const double rmax_spl,
-           const Wavefunction &wf, const bool positronQ)
+           const std::size_t k_spl, const double r0_spl, const double r0_eps,
+           const double rmax_spl, const Wavefunction &wf, const bool positronQ)
 // Forms the pseudo-spectrum basis by diagonalising Hamiltonian over B-splines
 {
   std::vector<DiracSpinor> basis;
@@ -37,9 +37,22 @@ form_basis(const std::string &states_str, const std::size_t n_spl,
     const auto kmin = std::size_t(AtomData::l_k(kappa) + 3);
     const auto k = k_spl < kmin ? kmin : k_spl;
     if (k_spl < kmin) {
-      std::cout << "Spline: for kappa=" << kappa << ", k -> " << k << "\n";
+      printf(" Splines: for kappa=%2i, k -> %i\n", kappa, int(k));
     }
-    const auto spl_basis = form_spline_basis(kappa, n_spl, k, r0_spl, rmax_spl,
+
+    // Chose larger r0 depending on core density:
+    auto l_tmp = AtomData::l_k(kappa);
+    if (l_tmp > wf.maxCore_l())
+      l_tmp = wf.maxCore_l();
+    auto [rmin_l, rmax_l] = wf.lminmax_core_range(l_tmp, r0_eps);
+    (void)rmax_l;
+    auto r0_eff = std::max(rmin_l, r0_spl);
+    auto print = true;
+    if (r0_eff > r0_spl && print) {
+      printf(" Splines: for kappa=%2i, r0 -> %.2e\n", kappa, r0_eff);
+    }
+
+    const auto spl_basis = form_spline_basis(kappa, n_spl, k, r0_eff, rmax_spl,
                                              wf.rgrid, wf.get_alpha());
 
     auto [Aij, Sij] = fill_Hamiltonian_matrix(spl_basis, wf);

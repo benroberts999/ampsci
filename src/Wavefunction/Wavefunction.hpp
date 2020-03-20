@@ -9,6 +9,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 static bool dummy_bool{};
@@ -145,7 +146,8 @@ public: // const methods: "views" into WF object
   //! Calculates + populates basis [see BSplineBasis]
   void formBasis(const std::string &states_str, const std::size_t n_spl,
                  const std::size_t k_spl, const double r0_spl,
-                 const double rmax_spl, const bool positronQ = false);
+                 const double r0_eps, const double rmax_spl,
+                 const bool positronQ = false);
 
   //! @brief Solves Dirac bound state problem, with optional 'extra' potential
   //! log_eps is log_10(convergence_target).
@@ -172,6 +174,14 @@ public: // const methods: "views" into WF object
   //! (exactly) OrthoGonalises psi_v against of any orbitals (no Norm).
   static void orthogonaliseWrt(DiracSpinor &psi_v,
                                const std::vector<DiracSpinor> &in_orbs);
+
+  //! @brief Returns [min,max] r values for which the core density (given l) is
+  //! larger than cutoff (= eps*max_value)
+  //! @details Returns the r values (au) for which the value of rho =
+  //! \sum|psi^2|(r) drops below cutoff. Sum goes over all m for given l.
+  //! Cut-off defined as eps*max, where max is maximum value for rho(r). Returns
+  //! for each l in the core.
+  std::tuple<double, double> lminmax_core_range(int l, double eps = 0.0) const;
 
 private:
   void determineCore(std::string str_core_in);

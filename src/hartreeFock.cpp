@@ -157,17 +157,19 @@ int main(int argc, char *argv[]) {
   wf.printCore(sorted);
   wf.printValence(sorted);
 
-  auto basis_ok = input.check("Basis", {"number", "order", "r0", "rmax",
-                                        "states", "print", "positron"});
+  auto basis_ok = input.check("Basis", {"number", "order", "r0", "r0_eps",
+                                        "rmax", "states", "print", "positron"});
   auto n_spl = input.get("Basis", "number", 0ul);
   auto k_spl = input.get("Basis", "order", 0ul);
   auto r0_spl = input.get("Basis", "r0", 0.0);
+  auto r0_eps = input.get("Basis", "r0_eps", 0.0);
   auto rmax_spl = input.get("Basis", "rmax", 0.0);
   auto basis_states = input.get<std::string>("Basis", "states", "");
   auto print = input.get("Basis", "print", false);
   auto positronQ = input.get("Basis", "positron", false);
   if (n_spl > 0 && basis_ok) {
-    wf.formBasis(basis_states, n_spl, k_spl, r0_spl, rmax_spl, positronQ);
+    wf.formBasis(basis_states, n_spl, k_spl, r0_spl, r0_eps, rmax_spl,
+                 positronQ);
     if (print)
       wf.printBasis();
   }

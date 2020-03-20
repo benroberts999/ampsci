@@ -15,19 +15,20 @@ class BSplines {
 public:
   //! n is number of spines, k is order. r0/rmax are first/last internal knots
   BSplines(std::size_t in_n, std::size_t in_k, const Grid &in_grid,
-           double in_r0,
-           double in_rmax)
-      : m_number_n(in_n),                          //
-        m_order_k(in_k),                           //
-        m_rgrid_ptr(&in_grid),                     //
+           double in_r0, double in_rmax)
+      : m_number_n(in_n),      //
+        m_order_k(in_k),       //
+        m_rgrid_ptr(&in_grid), //
+        // min_index must be at least 1
         m_rmin_index(in_grid.getIndex(in_r0) + 1), //
-        m_rmax_index(in_rmax <= 0.0 ? in_grid.num_points - 1
-                                    : in_grid.getIndex(in_rmax)) //
+        // max_index must be at least 2 below num_points
+        m_rmax_index(in_rmax <= 0.0 ? in_grid.num_points - 2
+                                    : in_grid.getIndex(in_rmax) - 1) //
   {
-    if (in_k > in_n) {
+    if (in_n != 0 && (in_k > in_n || in_k == 0)) {
       std::cerr << "Fail 24 in BSplines: k>n ? " << m_order_k << " "
                 << m_number_n << "\n";
-      // std::abort();
+      std::abort();
     }
     if (verbose) {
       std::cout << "B-splines: " << m_number_n << " of order " << m_order_k
@@ -64,7 +65,7 @@ private: // data
   gsl_vector *gsl_bspl_vec = nullptr;
   gsl_matrix *gsl_bspl_deriv_mat = nullptr;
 
-  std::vector<double> m_knots = {};
+  std::vector<double> m_breaks = {};
   std::vector<std::vector<double>> m_Bk = {};
   std::vector<std::vector<double>> m_dBkdr1 = {};
   std::vector<std::vector<double>> m_dBkdr2 = {};
@@ -150,17 +151,33 @@ public:
   //****************************************************************************
   void print_knots() const {
     // Actually 'break points', not knots...?
-    std::cout << "Break points:\n ";
-    int n_rows_to_print = 7;
-    int count = 0;
-    for (const auto &t : m_knots) {
-      printf("%.1e ", t);
-      ++count;
-      if (count % n_rows_to_print == 0)
-        std::cout << "\n ";
+    {
+      std::cout << "Break points:\n ";
+      int n_rows_to_print = 9;
+      int count = 0;
+      for (const auto &t : m_breaks) {
+        printf("%.1e ", t);
+        ++count;
+        if (count % n_rows_to_print == 0)
+          std::cout << "\n ";
+      }
+      if (count % n_rows_to_print != 0)
+        std::cout << "\n";
     }
-    if (count % n_rows_to_print != 0)
-      std::cout << "\n";
+    {
+      std::cout << "Knots:\n ";
+      int n_rows_to_print = 9;
+      int count = 0;
+      while (count < int(m_number_n + m_order_k)) {
+        auto t = gsl_bspl_work->knots->data[count];
+        printf("%.1e ", t);
+        ++count;
+        if (count % n_rows_to_print == 0)
+          std::cout << "\n ";
+      }
+      if (count % n_rows_to_print != 0)
+        std::cout << "\n";
+    }
   }
 
   //****************************************************************************
@@ -169,8 +186,6 @@ private:
   //****************************************************************************
   void construct_splines_gsl() {
     setup_splines();
-    // print_knots();
-    // std::cin.get();
     calculate_splines();
     set_end_points();
   }
@@ -181,11 +196,11 @@ private:
 
     gsl_bspl_work = gsl_bspline_alloc(m_order_k, nbreak);
     gsl_bspl_vec = gsl_vector_alloc(m_number_n);
-    m_knots = break_points(nbreak);
+    m_breaks = break_points(nbreak);
 
     gsl_breakpts_vec = gsl_vector_alloc(nbreak);
     for (std::size_t i = 0; i < nbreak; i++) {
-      gsl_vector_set(gsl_breakpts_vec, i, m_knots[i]);
+      gsl_vector_set(gsl_breakpts_vec, i, m_breaks[i]);
     }
     gsl_bspline_knots(gsl_breakpts_vec, gsl_bspl_work);
   }
@@ -196,18 +211,19 @@ private:
     breaks.push_back(0.0);
 
     // Set breakpoints logarithically - breaks don't align with grid
-    // auto r0 = m_rgrid_ptr->r[m_rmin_index];
-    // auto rmax = m_rgrid_ptr->r[m_rmax_index];
-    // auto points = NumCalc::logarithmic_range(r0, rmax, nbreaks - 1);
-    // for (auto p : points) {
-    //   breaks.push_back(p);
-    // }
-
-    // Set breakpoints according to grid (line exactly w/ points)
-    auto points = NumCalc::even_range(m_rmin_index, m_rmax_index, nbreaks - 1);
+    auto r0 = m_rgrid_ptr->r[m_rmin_index];
+    auto rmax = m_rgrid_ptr->r[m_rmax_index + 1]; // one more, ensure in range
+    auto points = NumCalc::logarithmic_range(r0, rmax, nbreaks - 1);
     for (auto p : points) {
-      breaks.push_back(m_rgrid_ptr->r[p]);
+      breaks.push_back(p);
     }
+
+    // // Set breakpoints according to grid (line exactly w/ points)
+    // auto points =
+    //     NumCalc::even_range(m_rmin_index - 1, m_rmax_index + 1, nbreaks - 1);
+    // for (auto p : points) {
+    //   breaks.push_back(m_rgrid_ptr->r[p]);
+    // }
 
     return breaks;
   }

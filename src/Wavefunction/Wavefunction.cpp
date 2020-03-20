@@ -13,6 +13,7 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 //******************************************************************************
@@ -422,6 +423,29 @@ void Wavefunction::orthonormaliseWrt(DiracSpinor &psi_v,
 }
 
 //******************************************************************************
+std::tuple<double, double> Wavefunction::lminmax_core_range(int l,
+                                                            double eps) const {
+
+  std::vector<double> rho_l(rgrid.num_points);
+  for (const auto &Fc : core_orbitals) {
+    if (Fc.l() == l)
+      rho_l = NumCalc::add_vectors(rho_l, Fc.rho());
+  }
+  // find maximum rho:
+  auto max = std::max_element(rho_l.begin(), rho_l.end());
+  // find first position that rho=|psi^2| reaches cut-off
+  auto cut = eps * (*max);
+  auto lam = [=](const auto &v) { return cut < v; };
+  auto first = std::find_if(rho_l.begin(), rho_l.end(), lam);
+  auto last = std::find_if(rho_l.rbegin(), rho_l.rend(), lam);
+  auto index_first = std::size_t(first - rho_l.begin());
+  auto index_last = std::size_t(rho_l.rend() - last);
+  // std::cout << l << " " << index_first << " " << rgrid.r[index_first] << " -
+  // "<< index_last << " " << rgrid.r[index_last] << "\n";
+  return {rgrid.r[index_first], rgrid.r[index_last]};
+}
+
+//******************************************************************************
 double Wavefunction::enGuessCore(int n, int l) const
 // Private
 // Energy guess for core states. Not perfect, good enough
@@ -601,21 +625,23 @@ void Wavefunction::printValence(
 void Wavefunction::printBasis(bool sorted) const {
 
   std::cout << "Basis: \n";
-  std::cout << "     State   k   Rinf       En(Basis)      En(HF)\n";
+  std::cout
+      << "     State   k  R0     Rinf          En(Basis)         En(HF)\n";
   auto index_list = sortedEnergyList(basis, sorted);
   for (auto i : index_list) {
     const auto &phi = basis[i];
+    auto r_0 = rgrid.r[phi.p0];
     auto r_inf = rgrid.r[phi.pinf - 1];
 
     const auto *hf_phi = getState(phi.n, phi.k);
     if (hf_phi != nullptr) {
       // found HF state
       auto eps = 2.0 * (phi.en - hf_phi->en) / (phi.en + hf_phi->en);
-      printf("%2i) %7s %2i  %5.1f %18.7f  %13.7f  %6.0e\n", int(i),
-             phi.symbol().c_str(), phi.k, r_inf, phi.en, hf_phi->en, eps);
+      printf("%2i) %7s %2i  %5.0e %5.1f %18.7f  %13.7f  %6.0e\n", int(i),
+             phi.symbol().c_str(), phi.k, r_0, r_inf, phi.en, hf_phi->en, eps);
     } else {
-      printf("%2i) %7s %2i  %5.1f %18.7f\n", int(i), phi.symbol().c_str(),
-             phi.k, r_inf, phi.en);
+      printf("%2i) %7s %2i  %5.0e %5.1f %18.7f\n", int(i), phi.symbol().c_str(),
+             phi.k, r_0, r_inf, phi.en);
     }
   }
 }
@@ -669,8 +695,8 @@ std::vector<double> Wavefunction::coreDensity() const {
 //******************************************************************************
 void Wavefunction::formBasis(const std::string &states_str,
                              const std::size_t n_spl, const std::size_t k_spl,
-                             const double r0_spl, const double rmax_spl,
-                             const bool positronQ) {
-  basis = SplineBasis::form_basis(states_str, n_spl, k_spl, r0_spl, rmax_spl,
-                                  *this, positronQ);
+                             const double r0_spl, const double r0_eps,
+                             const double rmax_spl, const bool positronQ) {
+  basis = SplineBasis::form_basis(states_str, n_spl, k_spl, r0_spl, r0_eps,
+                                  rmax_spl, *this, positronQ);
 }

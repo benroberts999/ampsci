@@ -99,6 +99,9 @@ public:
   //! Returns [f[p0]/f_max , f[pinf]/f_max] - for tests
   std::pair<double, double> r0pinfratio() const;
 
+  //! rho(r) = sum_m |Psi^2|(r) = (2j+1) * x_occ * |Psi^2|(r)
+  std::vector<double> rho() const;
+
   //! r0 = r[p0] (in atomic units)
   double r0() const;
   //! rinf = r[pinf]

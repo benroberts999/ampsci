@@ -19,6 +19,9 @@ void calculateBohrWeisskopf(const UserInputBlock &input,
 //! Calculates state lifetimes (using E1 and E2 only). nb: HF energies
 void calculateLifetimes(const UserInputBlock &input, const Wavefunction &wf);
 
+//! Module: Calculates 2nd order energy shift for valence states
+void SecondOrder(const UserInputBlock &input, const Wavefunction &wf);
+
 //! Returns a ptr to the requested operator, with given properties
 std::unique_ptr<DiracOperator::TensorOperator>
 generateOperator(const std::string &operator_str, const UserInputBlock &input,

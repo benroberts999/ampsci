@@ -171,6 +171,7 @@ Basis {
   number;   //[i] default = 0
   order;    //[i] default = 0
   r0;       //[r] default = 0
+  r0_eps;   //[r] default = 0
   rmax;     //[r] default = 0
   print;    //[b] default = false
   positron; //[b] default = false
@@ -179,6 +180,7 @@ Basis {
 ```
 * Constructs basis using _number_ splines of order _order_
 * on sub-grid (r0,rmax) [if zero, will use full grid]
+* r0_eps: Only calculate splines for r where relative core density is larger than r0_eps (updates r0 for each l). Typically ~1.0e-8. Set to zero to use r0.
 * If print = true, will print basis energies
 * positron: include negative energy states into basis
 * states: which basis states to store
@@ -262,6 +264,11 @@ MatrixElements::hfs { // Magnetic dipole hyperfine structure constant A
   l2 = 1.;
 }
 ```
+
+```cpp
+MatrixElements::Sigma2 {}
+```
+Alias for Module::SecondOrder; see module for options
 
 
 ### Modules:

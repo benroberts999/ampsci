@@ -1,5 +1,4 @@
 #include "Modules/Module_runModules.hpp"
-#include "Coulomb/Coulomb.hpp"
 #include "DMionisation/Module_atomicKernal.hpp"
 #include "DiracOperator/DiracOperator.hpp"
 #include "DiracOperator/Operators.hpp"
@@ -103,72 +102,6 @@ void writeOrbitals(const UserInputBlock &input, const Wavefunction &wf) {
   }
   of.close();
   std::cout << "Orbitals written to file: " << oname << "\n";
-}
-
-//******************************************************************************
-void SecondOrder(const UserInputBlock &input, const Wavefunction &wf) {
-
-  input.checkBlock({"lmax", "kmax"});
-  auto kmax = input.get("kmax", 10);
-  auto lmax = input.get("lmax", 10);
-
-  // std::vector<DiracSpinor> core;
-  // for (const auto &Fb : wf.basis) {
-  //   if (wf.isInCore(Fb))
-  //     core.push_back(Fb);
-  // }
-  const auto &core = wf.core_orbitals;
-
-  std::cout << "\nMBPT(2): Valence energy shifts.\n";
-  std::cout << "Matrix elements <v|Sigma(2)|v>:\n";
-
-  if (wf.basis.empty())
-    std::cout << "FAIL 125 in Module::SecondOrder: There is no basis! - I need "
-                 "a basis to calculate MBPT. Try again.\n";
-
-  for (const auto &v : wf.valence_orbitals) {
-    if (v.l() > lmax)
-      continue;
-
-    double delta = 0.0;
-    for (int k = 0; k <= kmax; ++k) {
-      auto f = 1.0 * v.twojp1();
-      double sigma_k = 0.0;
-#pragma omp parallel for
-      for (auto ib = 0ul; ib < core.size(); ib++) {
-        double sigma_b = 0.0;
-        const auto &b = core[ib];
-        for (const auto &n : wf.basis) {
-          if (wf.isInCore(n))
-            continue;
-
-          for (const auto &a : core) {
-            auto zx = Coulomb::Zk_abcd(v, n, a, b, k) *
-                      Coulomb::Xk_abcd(v, n, a, b, k);
-            auto dele = v.en + n.en - a.en - b.en;
-            sigma_b += zx / dele;
-          } // a
-          for (const auto &m : wf.basis) {
-            if (wf.isInCore(m))
-              continue;
-            auto zx = Coulomb::Zk_abcd(m, n, v, b, k) *
-                      Coulomb::Xk_abcd(m, n, v, b, k);
-            auto dele = m.en + n.en - v.en - b.en;
-            sigma_b -= zx / dele;
-          } // m
-        }   // n
-
-#pragma omp critical(sum)
-        { sigma_k += sigma_b / (2 * k + 1); }
-      } // b
-      delta += sigma_k / f;
-    } // k
-
-    printf("%7s| %9.6f %+9.6f = %9.6f = %9.2f\n", v.symbol().c_str(), v.en,
-           delta, (v.en + delta), (v.en + delta) * PhysConst::Hartree_invcm);
-    if (std::abs(delta / v.en) > 0.5)
-      std::cout << "      *** Warning: delta V. large?\n";
-  }
 }
 
 } // namespace Module

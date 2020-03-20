@@ -43,6 +43,8 @@ namespace SplineBasis {
   - n_spl: Number of splines (nb: underlying spline set is larger, see [1])
   - k_spl: k order of the B-splines. NB: must have \f$k\geq l_{\rm max}+3\f$ [1]
   - r0_spl: first internal knot (basis orbitals only non-zero after this point)
+  - r0_eps: Only calculate splines for r where relative core density larger than
+ r0_eps (updates r0 for each l). Typically ~1.0e-8. Set to zero to use r0_spl.
   - rmax_spl: last internal knot (basis orbitals only non-zero before this
   point)
   - wf: Wavefunction object: needed to form Hartree-Fock Hamiltonian
@@ -55,8 +57,9 @@ explicitely, unless you are trying to do something different to usual.
 */
 std::vector<DiracSpinor>
 form_basis(const std::string &states_str, const std::size_t n_spl,
-           const std::size_t k_spl, const double r0_spl, const double rmax_spl,
-           const Wavefunction &wf, const bool positronQ = false);
+           const std::size_t k_spl, const double r0_spl, const double r0_eps,
+           const double rmax_spl, const Wavefunction &wf,
+           const bool positronQ = false);
 
 //! Forms the underlying spline basis (which is not kept)
 std::vector<DiracSpinor>

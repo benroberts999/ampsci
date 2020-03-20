@@ -31,7 +31,4 @@ void runModule(const UserInputBlock &input, const Wavefunction &wf);
 //! Module: writes orbitals to text file (gnuplot format)
 void writeOrbitals(const UserInputBlock &input, const Wavefunction &wf);
 
-//! Module: Calculates 2nd order energy shift for valence states
-void SecondOrder(const UserInputBlock &input, const Wavefunction &wf);
-
 } // namespace Module
