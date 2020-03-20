@@ -36,6 +36,21 @@ namespace Tests {
 //------------------------------------------------------------------------------
 void basisSumRules(const Wavefunction &wf) {
 
+  // if (!wf.basis.empty())
+  //   std::cout << "\nTest hfs using basis (pointlike):\n";
+  // for (const auto &phi : wf.basis) {
+  //   auto Abasis = Hyperfine::hfsA(hp.get(), phi);
+  //   // auto Abasis = hp.get()->radialIntegral(phi, phi);
+  //   printf("%7s: %12.5e ", phi.symbol().c_str(), Abasis);
+  //   const auto *hf_phi = wf.getState(phi.n, phi.k);
+  //   if (hf_phi != nullptr) {
+  //     auto Ahf = Hyperfine::hfsA(hp.get(), *hf_phi);
+  //     auto delta = 2.0 * (Abasis - Ahf) / (Abasis + Ahf);
+  //     printf(" %12.5e  %8.1e", Ahf, delta);
+  //   }
+  //   std::cout << "\n";
+  // }
+
   if (wf.basis.empty())
     return;
 

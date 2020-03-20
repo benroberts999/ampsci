@@ -43,4 +43,10 @@ double Xk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
 double Zk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
                const DiracSpinor &Fc, const DiracSpinor &Fd, const int k);
 
+//! Calculates W^k_abcd for given k. From scratch (calculates y)
+//! @details
+//! \f[ W^k_abcd = Q^k_abcd + \sum_l [k] 6j * Q^l_abdc \f]
+double Wk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
+               const DiracSpinor &Fc, const DiracSpinor &Fd, const int k);
+
 } // namespace Coulomb

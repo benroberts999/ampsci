@@ -136,21 +136,6 @@ void calculateBohrWeisskopf(const UserInputBlock &input, const Wavefunction &wf)
     printf("%7s| %12.5e %12.5e %12.5e | %9.5f  %9.5f \n", phi.symbol().c_str(),
            Ap, Ab, Aw, Fball, Fbw);
   }
-
-  if (!wf.basis.empty())
-    std::cout << "\nTest hfs using basis (pointlike):\n";
-  for (const auto &phi : wf.basis) {
-    auto Abasis = Hyperfine::hfsA(hp.get(), phi);
-    // auto Abasis = hp.get()->radialIntegral(phi, phi);
-    printf("%7s: %12.5e ", phi.symbol().c_str(), Abasis);
-    const auto *hf_phi = wf.getState(phi.n, phi.k);
-    if (hf_phi != nullptr) {
-      auto Ahf = Hyperfine::hfsA(hp.get(), *hf_phi);
-      auto delta = 2.0 * (Abasis - Ahf) / (Abasis + Ahf);
-      printf(" %12.5e  %8.1e", Ahf, delta);
-    }
-    std::cout << "\n";
-  }
 }
 
 //******************************************************************************
@@ -178,8 +163,6 @@ void SecondOrder(const UserInputBlock &input, const Wavefunction &wf) {
     if (v.l() > lmax)
       continue;
 
-    // double delta = 0.0;
-
     std::vector<double> delta_b(core.size());
 #pragma omp parallel for
     for (auto ib = 0ul; ib < core.size(); ib++) {
@@ -193,16 +176,16 @@ void SecondOrder(const UserInputBlock &input, const Wavefunction &wf) {
             continue;
 
           for (const auto &a : core) {
-            auto zx = Coulomb::Zk_abcd(v, n, a, b, k) *
-                      Coulomb::Xk_abcd(v, n, a, b, k);
+            auto zx = Coulomb::Wk_abcd(v, n, a, b, k) *
+                      Coulomb::Qk_abcd(v, n, a, b, k);
             auto dele = v.en + n.en - a.en - b.en;
             sigma_k += zx / dele;
           } // a
           for (const auto &m : wf.basis) {
             if (wf.isInCore(m))
               continue;
-            auto zx = Coulomb::Zk_abcd(m, n, v, b, k) *
-                      Coulomb::Xk_abcd(m, n, v, b, k);
+            auto zx = Coulomb::Wk_abcd(v, b, m, n, k) *
+                      Coulomb::Qk_abcd(v, b, m, n, k);
             auto dele = m.en + n.en - v.en - b.en;
             sigma_k -= zx / dele;
           } // m

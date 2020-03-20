@@ -170,15 +170,19 @@ double Zk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
   // Z^k_abcd = s ( Q^k_abcd + sum_l [k] 6j * Q^l_abdc)
 
   auto s = Angular::evenQ_2(Fa.twoj() + Fb.twoj() + 2) ? 1 : -1;
+  return s * Wk_abcd(Fa, Fb, Fc, Fd, k);
+}
+
+//******************************************************************************
+double Wk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
+               const DiracSpinor &Fc, const DiracSpinor &Fd, const int k) {
+  // W^k_abcd = Q^k_abcd + sum_l [k] 6j * Q^l_abdc
+
   auto Qkabcd = Qk_abcd(Fa, Fb, Fc, Fd, k);
-
   auto tkp1 = 2 * k + 1;
-
   auto min_twol = std::max(std::abs(Fd.twoj() - Fa.twoj()),
                            std::abs(Fc.twoj() - Fb.twoj()));
-
   auto max_twol = std::min(Fd.twoj() + Fa.twoj(), Fc.twoj() + Fb.twoj());
-
   double sum = 0.0;
   for (int tl = min_twol; tl <= max_twol; tl += 2) {
     auto sixj = Angular::sixj_2(Fc.twoj(), Fa.twoj(), 2 * k, //
@@ -188,8 +192,7 @@ double Zk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
     auto Qlabdc = Qk_abcd(Fa, Fb, Fd, Fc, tl / 2);
     sum += sixj * Qlabdc;
   }
-
-  return s * (Qkabcd + tkp1 * sum);
+  return (Qkabcd + tkp1 * sum);
 }
 
 //******************************************************************************
@@ -210,7 +213,7 @@ double Qk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
 //******************************************************************************
 double Xk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
                const DiracSpinor &Fc, const DiracSpinor &Fd, const int k) {
-
+  // implement in terms of Q instead ..but check!
   auto tCac = Angular::Ck_kk(k, Fa.k, Fc.k);
   if (tCac == 0.0)
     return 0.0;
