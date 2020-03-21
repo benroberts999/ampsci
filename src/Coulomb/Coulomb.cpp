@@ -208,11 +208,12 @@ double Wk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
 double Wk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
                const DiracSpinor &Fc, const DiracSpinor &Fd, const int k,
                const std::vector<double> &ykbd,
-               const std::vector<std::vector<double>> &ybc) {
+               const std::vector<std::vector<double>> &ybc,
+               const Angular::Ck_ab &Ck, const Angular::SixJ &sixj) {
   // W^k_abcd = Q^k_abcd + sum_l [k] 6j * Q^l_abdc
   auto sp1 = SafeProfiler::profile(__func__, "yk");
 
-  const auto Qkabcd = Qk_abcd(Fa, Fb, Fc, Fd, k, ykbd);
+  const auto Qkabcd = Qk_abcd(Fa, Fb, Fc, Fd, k, ykbd, Ck);
   const auto tkp1 = 2 * k + 1;
 
   double sum = 0.0;
@@ -221,15 +222,49 @@ double Wk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
   for (const auto &ybc_l : ybc) {
     const auto l = min_l + count;
     ++count;
-    const auto sixj = Angular::sixj_2(Fc.twoj(), Fa.twoj(), 2 * k, //
-                                      Fd.twoj(), Fb.twoj(), 2 * l);
-    if (sixj == 0)
+    // const auto sj = Angular::sixj_2(Fc.twoj(), Fa.twoj(), 2 * k, //
+    //                                 Fd.twoj(), Fb.twoj(), 2 * l);
+    // only very slight speedup
+    const auto sj =
+        sixj.get_6j(Fc.twoj(), Fa.twoj(), Fd.twoj(), Fb.twoj(), k, l);
+    if (sj == 0.0)
       continue;
-    const auto Qlabdc = Qk_abcd(Fa, Fb, Fc, Fd, k, ybc_l);
-    sum += sixj * Qlabdc;
+    const auto Qlabdc = Qk_abcd(Fa, Fb, Fd, Fc, l, ybc_l, Ck);
+    sum += sj * Qlabdc;
   }
 
   return (Qkabcd + tkp1 * sum);
+}
+//******************************************************************************
+double Wk_abcd_mQ(const DiracSpinor &Fa, const DiracSpinor &Fb,
+                  const DiracSpinor &Fc, const DiracSpinor &Fd, const int k,
+                  // const std::vector<double> &ykbd,
+                  const std::vector<std::vector<double>> &ybc,
+                  const Angular::Ck_ab &Ck, const Angular::SixJ &sixj) {
+  // W^k_abcd = Q^k_abcd + sum_l [k] 6j * Q^l_abdc
+  auto sp1 = SafeProfiler::profile(__func__, "yk");
+
+  // const auto Qkabcd = Qk_abcd(Fa, Fb, Fc, Fd, k, ykbd, Ck);
+  const auto tkp1 = 2 * k + 1;
+
+  double sum = 0.0;
+  const auto min_l = std::abs(Fb.twoj() - Fc.twoj()) / 2;
+  auto count = 0;
+  for (const auto &ybc_l : ybc) {
+    const auto l = min_l + count;
+    ++count;
+    // const auto sj = Angular::sixj_2(Fc.twoj(), Fa.twoj(), 2 * k, //
+    //                                 Fd.twoj(), Fb.twoj(), 2 * l);
+    // only very slight speedup
+    const auto sj =
+        sixj.get_6j(Fc.twoj(), Fa.twoj(), Fd.twoj(), Fb.twoj(), k, l);
+    if (sj == 0.0)
+      continue;
+    const auto Qlabdc = Qk_abcd(Fa, Fb, Fd, Fc, l, ybc_l, Ck);
+    sum += sj * Qlabdc;
+  }
+
+  return (tkp1 * sum);
 }
 
 //******************************************************************************
@@ -250,12 +285,14 @@ double Qk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
 //******************************************************************************
 double Qk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
                const DiracSpinor &Fc, const DiracSpinor &Fd, const int k,
-               const std::vector<double> &ykbd) {
+               const std::vector<double> &ykbd, const Angular::Ck_ab &Ck) {
   auto sp1 = SafeProfiler::profile(__func__, "yk");
-  const auto tCac = Angular::tildeCk_kk(k, Fa.k, Fc.k);
+  // const auto tCac = Angular::tildeCk_kk(k, Fa.k, Fc.k);
+  const auto tCac = Ck.get_tildeCkab(k, Fa.k, Fc.k);
   if (tCac == 0.0)
     return 0.0;
-  const auto tCbd = Angular::tildeCk_kk(k, Fb.k, Fd.k);
+  // const auto tCbd = Angular::tildeCk_kk(k, Fb.k, Fd.k);
+  const auto tCbd = Ck.get_tildeCkab(k, Fb.k, Fd.k);
   if (tCbd == 0.0)
     return 0.0;
   const auto Rkabcd = Rk_abcd(Fa, Fc, ykbd);

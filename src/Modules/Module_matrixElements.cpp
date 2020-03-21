@@ -142,66 +142,78 @@ void calculateBohrWeisskopf(const UserInputBlock &input, const Wavefunction &wf)
 //******************************************************************************
 void SecondOrder(const UserInputBlock &input, const Wavefunction &wf) {
 
-  input.checkBlock({"lmax", "kmax"});
-  auto kmax = input.get("kmax", 10);
-  auto lmax = input.get("lmax", 10);
+  input.checkBlock({"lmax", "kmax", "nmin_core"});
 
-  // std::vector<DiracSpinor> core;
-  // for (const auto &Fb : wf.basis) {
-  //   if (wf.isInCore(Fb))
-  //     core.push_back(Fb);
-  // }
-  const auto &core = wf.core_orbitals;
+  const auto lmax_v = input.get("lmax_v", 99);
+  const auto nmin_core = input.get("nmin_core", 1);
+
+  std::vector<DiracSpinor> core;
+  for (const auto &Fb : wf.basis) {
+    if (wf.isInCore(Fb) && Fb.n >= nmin_core)
+      core.push_back(Fb);
+  }
+  // const auto &core = wf.core_orbitals;
 
   std::cout << "\nMBPT(2): Valence energy shifts.\n";
   std::cout << "Matrix elements <v|Sigma(2)|v>:\n";
 
-  if (wf.basis.empty())
+  if (wf.basis.empty()) {
     std::cout << "FAIL 125 in Module::SecondOrder: There is no basis! - I need "
                  "a basis to calculate MBPT. Try again.\n";
+    return;
+  }
 
-  // auto Yk = Coulomb::YkTable(&wf.rgrid, &wf.basis, &core);
+  const auto maxtj =
+      std::max_element(wf.basis.cbegin(), wf.basis.cend(), DiracSpinor::comp_j)
+          ->twoj();
+  const auto kmax = input.get("kmax", maxtj);
+
+  const auto Yk = Coulomb::YkTable(&wf.rgrid, &wf.basis, &core);
+  const auto sixJ = Angular::SixJ(kmax, maxtj); //?
+  const auto &Ck = Yk.Ck();
 
   for (const auto &v : wf.valence_orbitals) {
-    if (v.l() > lmax)
+    if (v.l() > lmax_v)
       continue;
 
     std::vector<double> delta_b(core.size());
 #pragma omp parallel for
     for (auto ib = 0ul; ib < core.size(); ib++) {
+      const auto &b = core[ib];
       double sigma_b = 0.0;
       for (int k = 0; k <= kmax; ++k) {
         double sigma_k = 0.0;
-        auto f = (2 * k + 1) * v.twojp1();
-        const auto &b = core[ib];
+        const auto f = (2 * k + 1) * v.twojp1();
         for (const auto &n : wf.basis) {
           if (wf.isInCore(n))
             continue;
           for (const auto &a : core) {
-            const auto zx = Coulomb::Wk_abcd(v, n, a, b, k) *
-                            Coulomb::Qk_abcd(v, n, a, b, k);
-            // const auto [kmin_nb, kmax_nb] = Yk.k_minmax(n, b);
-            // if (k < kmin_nb || k > kmax_nb)
-            //   continue;
-            // const auto &yknb = Yk.get_yk_ab(k, n, b);
-            // const auto &yna = Yk.get_y_ab(n, a);
-            // const auto zx = Coulomb::Wk_abcd(v, n, a, b, k, yknb, yna) *
-            //                 Coulomb::Qk_abcd(v, n, a, b, k, yknb);
+            const auto [kmin_nb, kmax_nb] = Yk.k_minmax(n, b);
+            if (k < kmin_nb || k > kmax_nb)
+              continue;
+            const auto &yknb = Yk.get_yk_ab(k, n, b);
+            const auto Qk = Coulomb::Qk_abcd(v, n, a, b, k, yknb, Ck);
+            if (Qk == 0.0)
+              continue;
+            const auto &yna = Yk.get_y_ab(n, a);
+            const auto zx =
+                (Qk + Coulomb::Wk_abcd_mQ(v, n, a, b, k, yna, Ck, sixJ)) * Qk;
             const auto dele = v.en + n.en - a.en - b.en;
             sigma_k += zx / dele;
           } // a
           for (const auto &m : wf.basis) {
             if (wf.isInCore(m))
               continue;
-            const auto zx = Coulomb::Wk_abcd(v, b, m, n, k) *
-                            Coulomb::Qk_abcd(v, b, m, n, k);
-            // const auto [kmin_nb, kmax_nb] = Yk.k_minmax(n, b);
-            // if (k < kmin_nb || k > kmax_nb)
-            //   continue;
-            // const auto &ykbn = Yk.get_yk_ab(k, n, b);
-            // const auto &ybm = Yk.get_y_ab(m, b);
-            // const auto zx = Coulomb::Wk_abcd(v, b, m, n, k, ykbn, ybm) *
-            //                 Coulomb::Qk_abcd(v, b, m, n, k, ykbn);
+            const auto [kmin_nb, kmax_nb] = Yk.k_minmax(n, b);
+            if (k < kmin_nb || k > kmax_nb)
+              continue;
+            const auto &ykbn = Yk.get_yk_ab(k, n, b);
+            const auto Qk = Coulomb::Qk_abcd(v, b, m, n, k, ykbn, Ck);
+            if (Qk == 0.0)
+              continue;
+            const auto &ybm = Yk.get_y_ab(m, b);
+            const auto zx =
+                (Qk + Coulomb::Wk_abcd_mQ(v, b, m, n, k, ybm, Ck, sixJ)) * Qk;
             const auto dele = m.en + n.en - v.en - b.en;
             sigma_k -= zx / dele;
           } // m
@@ -215,8 +227,8 @@ void SecondOrder(const UserInputBlock &input, const Wavefunction &wf) {
 
     printf("%7s| %9.6f %+9.6f = %9.6f = %9.2f\n", v.symbol().c_str(), v.en,
            delta, (v.en + delta), (v.en + delta) * PhysConst::Hartree_invcm);
-    if (std::abs(delta / v.en) > 0.5)
-      std::cout << "      *** Warning: delta V. large?\n";
+    if (std::abs(delta / v.en) > 0.25)
+      std::cout << "      *** Warning: delta too large?\n";
   }
 }
 

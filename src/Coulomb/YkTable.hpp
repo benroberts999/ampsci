@@ -56,9 +56,10 @@ public:
   //! Access C^k angular tables (have public access to const methods only)
   const Angular::Ck_ab &Ck() const { return m_Ck; }
 
-private:
-  // Returns maximum value of 2j in {a} and {b} orbitals
+  //! Returns maximum value of 2j in {a} and {b} orbitals
   int max_tj() const;
+
+private:
   // Re-sizes the m_y_abkr [and a_size, b_size]
   void resize_y();
 

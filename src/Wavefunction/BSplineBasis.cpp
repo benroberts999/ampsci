@@ -38,9 +38,8 @@ form_basis(const std::string &states_str, const std::size_t n_spl,
     const auto k = k_spl; // < kmin ? kmin : k_spl;
     if (k_spl < kmin) {
       std::cout << "Warning: Spline order k=" << k
-                << " may be too small for kappa=" << kappa << " (kmin=" << kmin
-                << " for accurate low-r using DKB Basis)\n";
-      // printf(" Splines: for kappa=%2i, k -> %i\n", kappa, int(k));
+                << " too small for kappa=" << kappa << " (kmin=" << kmin
+                << ")\n";
     }
 
     // Chose larger r0 depending on core density:

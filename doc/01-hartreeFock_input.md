@@ -285,8 +285,9 @@ Module::Tests { // tests of numerical errors:
 
 ```cpp
 Module::SecondOrder{
-  lmax;   //[i] Maximum valence l to calculate. default = 10
-  kmax;   //[i] Maximum multipolarity in Sigma. default = 10
+  lmax_v;    //[i] Maximum valence l to calculate. default = max possible
+  kmax;      //[i] Maximum multipolarity in Sigma. default = max possible
+  nmin_core; //[i] Minimum core n (prin. q. num.) included. Default = 1
 }
 ```
 Calculates second-order correlation corrections to valence energies. Nb: not Brueckner corrections, just matrix elements of Sigma(2). Uses the basis.

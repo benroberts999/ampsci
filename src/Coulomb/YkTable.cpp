@@ -99,14 +99,13 @@ void YkTable::update_y_ints() {
     const auto b_max = m_aisb ? ia : b_size - 1;
     for (std::size_t ib = 0; ib <= b_max; ib++) {
       const auto &Fb = (*m_b_orbs)[ib];
-      auto rmaxi = (Fb == Fa) ? 0 : std::min(Fa.pinf, Fb.pinf); // XXX check?
       const auto &[kmin, kmax] = k_minmax(Fa, Fb); // weird that this works?
       for (auto k = kmin; k <= kmax; k++) {
         const auto Lk = m_Ck.get_Lambdakab(k, Fa.k, Fb.k);
         if (Lk == 0)
           continue;
         const auto ik = std::size_t(k - kmin);
-        Coulomb::yk_ab(Fa, Fb, k, m_y_abkr[ia][ib][ik], rmaxi);
+        Coulomb::yk_ab(Fa, Fb, k, m_y_abkr[ia][ib][ik]);
       } // k
     }   // b
   }     // a
@@ -136,8 +135,6 @@ void YkTable::update_y_ints(const DiracSpinor &Fn) {
 #pragma omp parallel for
   for (std::size_t im = 0; im < m_size; im++) {
     const auto &Fm = m_orbs[im];
-    auto rmaxi = (Fm == Fn) ? 0 : std::min(Fm.pinf, Fn.pinf); // XXX check?
-    // auto rmaxi = 0;
     const auto &[kmin, kmax] = k_minmax(Fm, Fn);
     for (auto k = kmin; k <= kmax; k++) {
       const auto Lk = m_Ck.get_Lambdakab(k, Fn.k, Fm.k);
@@ -146,14 +143,14 @@ void YkTable::update_y_ints(const DiracSpinor &Fn) {
       const auto ik = std::size_t(k - kmin);
       if (m_aisb) {
         if (in > im)
-          Coulomb::yk_ab(Fm, Fn, k, m_y_abkr[in][im][ik], rmaxi);
+          Coulomb::yk_ab(Fm, Fn, k, m_y_abkr[in][im][ik]);
         else
-          Coulomb::yk_ab(Fm, Fn, k, m_y_abkr[im][in][ik], rmaxi);
+          Coulomb::yk_ab(Fm, Fn, k, m_y_abkr[im][in][ik]);
       } else {
         if (nisa)
-          Coulomb::yk_ab(Fm, Fn, k, m_y_abkr[in][im][ik], rmaxi);
+          Coulomb::yk_ab(Fm, Fn, k, m_y_abkr[in][im][ik]);
         else
-          Coulomb::yk_ab(Fm, Fn, k, m_y_abkr[im][in][ik], rmaxi);
+          Coulomb::yk_ab(Fm, Fn, k, m_y_abkr[im][in][ik]);
       } // misa
     }   // k
   }     // m

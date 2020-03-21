@@ -1,6 +1,10 @@
 #pragma once
 #include "Wavefunction/DiracSpinor.hpp"
 #include <vector>
+namespace Angular {
+class Ck_ab;
+class SixJ;
+} // namespace Angular
 
 //! Functions (+classes) for computing Coulomb integrals
 namespace Coulomb {
@@ -35,7 +39,7 @@ double Qk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
 
 double Qk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
                const DiracSpinor &Fc, const DiracSpinor &Fd, const int k,
-               const std::vector<double> &ykbd);
+               const std::vector<double> &ykbd, const Angular::Ck_ab &Ck);
 
 //! Calculates X^k_abcd for given k. From scratch (calculates y)
 double Xk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
@@ -56,6 +60,14 @@ double Wk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
 double Wk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
                const DiracSpinor &Fc, const DiracSpinor &Fd, const int k,
                const std::vector<double> &ykbd,
-               const std::vector<std::vector<double>> &ybc);
+               const std::vector<std::vector<double>> &ybc,
+               const Angular::Ck_ab &Ck, const Angular::SixJ &sixj);
+
+// Exchange only version of W (W-Q)
+double Wk_abcd_mQ(const DiracSpinor &Fa, const DiracSpinor &Fb,
+                  const DiracSpinor &Fc, const DiracSpinor &Fd, const int k,
+                  // const std::vector<double> &ykbd,
+                  const std::vector<std::vector<double>> &ybc,
+                  const Angular::Ck_ab &Ck, const Angular::SixJ &sixj);
 
 } // namespace Coulomb
