@@ -35,9 +35,12 @@ form_basis(const std::string &states_str, const std::size_t n_spl,
     const auto max_n = nk.n;
     const auto kappa = nk.k;
     const auto kmin = std::size_t(AtomData::l_k(kappa) + 3);
-    const auto k = k_spl < kmin ? kmin : k_spl;
+    const auto k = k_spl; // < kmin ? kmin : k_spl;
     if (k_spl < kmin) {
-      printf(" Splines: for kappa=%2i, k -> %i\n", kappa, int(k));
+      std::cout << "Warning: Spline order k=" << k
+                << " may be too small for kappa=" << kappa << " (kmin=" << kmin
+                << " for accurate low-r using DKB Basis)\n";
+      // printf(" Splines: for kappa=%2i, k -> %i\n", kappa, int(k));
     }
 
     // Chose larger r0 depending on core density:
@@ -220,46 +223,9 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
     for (std::size_t ib = 0; ib < spl_basis.size(); ++ib) {
       phi += pvec[ib] * spl_basis[ib];
     }
-    phi.normalise();
-  }
-}
-
-//------------------------------------------------------------------------------
-void expand_basis_orbitals_2(std::vector<DiracSpinor> *basis,
-                             std::vector<DiracSpinor> *basis_positron,
-                             const std::vector<DiracSpinor> &spl_basis,
-                             const int kappa, const int max_n,
-                             const LinAlg::Vector &e_values,
-                             const LinAlg::SqMatrix &e_vectors,
-                             const Wavefunction &wf)
-// Expands the pseudo-spectrum basis in terms of B-spline basis and expansion
-// coeficient found from diagonalising the Hamiltonian over Bsplns
-{
-  auto l = AtomData::l_k(kappa);
-  auto min_n = l + 1;
-
-  const auto neg_mc2 = -1.0 / (wf.get_alpha() * wf.get_alpha());
-  auto pqn = min_n - 1;
-  auto pqn_pstrn = -min_n + 1;
-  for (int i = 0; i < e_values.n; i++) {
-    const auto &en = e_values[i];
-    const auto &pvec = e_vectors[i];
-    if (en > neg_mc2) {
-      if (++pqn > max_n)
-        continue;
-    } else {
-      if (--pqn_pstrn < -max_n)
-        continue;
-    }
-    auto &phi = (en > neg_mc2)
-                    ? basis->emplace_back(pqn, kappa, wf.rgrid)
-                    : basis_positron->emplace_back(pqn_pstrn, kappa, wf.rgrid);
-    phi.en = en;
-    phi.p0 = spl_basis[0].p0;
-    phi.pinf = spl_basis[0].pinf;
-    for (std::size_t ib = 0; ib < spl_basis.size(); ++ib) {
-      phi += pvec[ib] * spl_basis[ib];
-    }
+    // In some cases, first point causes issues? Unlcear
+    phi.f[phi.p0] = 0.0;
+    phi.g[phi.p0] = 0.0;
     phi.normalise();
   }
 }
