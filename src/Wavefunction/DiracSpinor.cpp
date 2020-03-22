@@ -46,7 +46,7 @@ std::string DiracSpinor::shortSymbol() const {
 double DiracSpinor::norm() const { return std::sqrt((*this) * (*this)); }
 
 //******************************************************************************
-void DiracSpinor::scale(const double factor) {
+const DiracSpinor &DiracSpinor::scale(const double factor) {
   for (std::size_t i = p0; i < pinf; ++i)
     f[i] *= factor;
   for (std::size_t i = p0; i < pinf; ++i)
@@ -61,13 +61,15 @@ void DiracSpinor::scale(const double factor) {
     f[i] = 0;
     g[i] = 0;
   }
+  return *this;
 }
 //------------------------------------------------------------------------------
-void DiracSpinor::scale(const std::vector<double> &v) {
+const DiracSpinor &DiracSpinor::scale(const std::vector<double> &v) {
   for (std::size_t i = p0; i < pinf; ++i) {
     f[i] *= v[i];
     g[i] *= v[i];
   }
+  return *this;
 }
 
 //******************************************************************************

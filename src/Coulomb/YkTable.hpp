@@ -6,7 +6,7 @@
 
 namespace Coulomb {
 
-constexpr static bool check_bounds = true;
+constexpr bool check_bounds = false;
 
 //! @brief Calculates + stores Hartree Y functions + Angular (w/ look-up)
 /*! @details
@@ -47,11 +47,19 @@ public:
   //! Returns single y^k_ab(r) [by const ref]
   const std::vector<double> &get_yk_ab(const int k, const DiracSpinor &Fa,
                                        const DiracSpinor &Fb) const;
+  const std::vector<double> &operator()(const int k, const DiracSpinor &Fa,
+                                        const DiracSpinor &Fb) const {
+    return get_yk_ab(k, Fa, Fb);
+  }
   //! @brief Returns vector of y^k_ab(r) for each k [by const ref]
   //! @details Note: vector starts at first non-zero k (not zero)! use k_minmax
   //! to get k_min
   const std::vector<std::vector<double>> &get_y_ab(const DiracSpinor &Fa,
                                                    const DiracSpinor &Fb) const;
+  const std::vector<std::vector<double>> &
+  operator()(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
+    return get_y_ab(Fa, Fb);
+  }
 
   //! Access C^k angular tables (have public access to const methods only)
   const Angular::Ck_ab &Ck() const { return m_Ck; }

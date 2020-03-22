@@ -32,7 +32,7 @@ $(BD)/Module_matrixElements.o: $(SD)/Modules/Module_matrixElements.cpp \
 $(SD)/Modules/Module_matrixElements.hpp $(SD)/DiracOperator/DiracOperator.hpp \
 $(SD)/DiracOperator/Operators.hpp $(SD)/Wavefunction/Wavefunction.hpp $(SD)/IO/UserInput.hpp \
 $(SD)/Physics/NuclearPotentials.hpp $(SD)/Physics/PhysConst_constants.hpp \
-$(SD)/HF/ExternalField.hpp
+$(SD)/HF/ExternalField.hpp $(SD)/Coulomb/Coulomb.hpp
 	$(COMP)
 
 $(BD)/Module_pnc.o: $(SD)/Modules/Module_pnc.cpp $(SD)/Modules/Module_pnc.hpp\

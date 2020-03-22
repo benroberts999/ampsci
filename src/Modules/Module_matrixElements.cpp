@@ -4,9 +4,12 @@
 #include "DiracOperator/DiracOperator.hpp"
 #include "DiracOperator/Operators.hpp"
 #include "HF/ExternalField.hpp"
+#include "IO/ChronoTimer.hpp"
 #include "IO/UserInput.hpp"
+#include "MBPT/CorrelationPotential.hpp"
 #include "Physics/NuclearPotentials.hpp"
 #include "Physics/PhysConst_constants.hpp"
+#include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include <fstream>
 #include <iostream>
@@ -163,72 +166,53 @@ void SecondOrder(const UserInputBlock &input, const Wavefunction &wf) {
     return;
   }
 
-  const auto maxtj =
-      std::max_element(wf.basis.cbegin(), wf.basis.cend(), DiracSpinor::comp_j)
-          ->twoj();
-  const auto kmax = input.get("kmax", maxtj);
+  // Test new version:
+  std::vector<DiracSpinor> excited;
+  for (const auto &Fb : wf.basis) {
+    if (!wf.isInCore(Fb))
+      excited.push_back(Fb);
+  }
 
-  const auto Yk = Coulomb::YkTable(&wf.rgrid, &wf.basis, &core);
-  const auto sixJ = Angular::SixJ(kmax, maxtj); //?
-  const auto &Ck = Yk.Ck();
+  // const auto maxtj =
+  //     std::max_element(wf.basis.cbegin(), wf.basis.cend(),
+  //     DiracSpinor::comp_j)
+  //         ->twoj();
+  // const auto kmax = input.get("kmax", maxtj);
 
-  for (const auto &v : wf.valence_orbitals) {
-    if (v.l() > lmax_v)
-      continue;
+  // const auto Yk = Coulomb::YkTable(&wf.rgrid, &wf.basis, &core);
+  // const auto sixJ = Angular::SixJ(kmax, maxtj); //?
+  // const auto &Ck = Yk.Ck();
+  MBPT::CorrelationPotential Sigma2(core, excited);
 
-    std::vector<double> delta_b(core.size());
-#pragma omp parallel for
-    for (auto ib = 0ul; ib < core.size(); ib++) {
-      const auto &b = core[ib];
-      double sigma_b = 0.0;
-      for (int k = 0; k <= kmax; ++k) {
-        double sigma_k = 0.0;
-        const auto f = (2 * k + 1) * v.twojp1();
-        for (const auto &n : wf.basis) {
-          if (wf.isInCore(n))
-            continue;
-          for (const auto &a : core) {
-            const auto [kmin_nb, kmax_nb] = Yk.k_minmax(n, b);
-            if (k < kmin_nb || k > kmax_nb)
-              continue;
-            const auto &yknb = Yk.get_yk_ab(k, n, b);
-            const auto Qk = Coulomb::Qk_abcd(v, n, a, b, k, yknb, Ck);
-            if (Qk == 0.0)
-              continue;
-            const auto &yna = Yk.get_y_ab(n, a);
-            const auto zx =
-                (Qk + Coulomb::Wk_abcd_mQ(v, n, a, b, k, yna, Ck, sixJ)) * Qk;
-            const auto dele = v.en + n.en - a.en - b.en;
-            sigma_k += zx / dele;
-          } // a
-          for (const auto &m : wf.basis) {
-            if (wf.isInCore(m))
-              continue;
-            const auto [kmin_nb, kmax_nb] = Yk.k_minmax(n, b);
-            if (k < kmin_nb || k > kmax_nb)
-              continue;
-            const auto &ykbn = Yk.get_yk_ab(k, n, b);
-            const auto Qk = Coulomb::Qk_abcd(v, b, m, n, k, ykbn, Ck);
-            if (Qk == 0.0)
-              continue;
-            const auto &ybm = Yk.get_y_ab(m, b);
-            const auto zx =
-                (Qk + Coulomb::Wk_abcd_mQ(v, b, m, n, k, ybm, Ck, sixJ)) * Qk;
-            const auto dele = m.en + n.en - v.en - b.en;
-            sigma_k -= zx / dele;
-          } // m
-        }   // n
-        sigma_b += sigma_k / f;
-      } // k
-      delta_b[ib] = sigma_b;
-    } // b
+  if (true) {
+    ChronoTimer timer("Matrix Elements version:");
+    for (const auto &v : wf.valence_orbitals) {
+      if (v.l() > lmax_v)
+        continue;
 
-    auto delta = std::accumulate(delta_b.begin(), delta_b.end(), 0.0);
+      // auto delta = Sigma2.Sigma2vw(v);
+      auto delta = Sigma2(v, v);
 
-    printf("%7s| %9.6f %+9.6f = %9.6f = %9.2f\n", v.symbol().c_str(), v.en,
-           delta, (v.en + delta), (v.en + delta) * PhysConst::Hartree_invcm);
-    if (std::abs(delta / v.en) > 0.25)
-      std::cout << "      *** Warning: delta too large?\n";
+      printf("%7s| %9.6f %+9.6f = %9.6f = %9.2f\n", v.symbol().c_str(), v.en,
+             delta, (v.en + delta), (v.en + delta) * PhysConst::Hartree_invcm);
+      if (std::abs(delta / v.en) > 0.2)
+        std::cout << "      *** Warning: delta too large?\n";
+    }
+  }
+
+  {
+    std::cout << "\n";
+    ChronoTimer timer("Fv*(Sigma*Fv) version:");
+    for (const auto &v : wf.valence_orbitals) {
+      if (v.l() > lmax_v)
+        continue;
+      // auto delta = v * Sigma2.Sigma2Fv(v);
+      auto delta = v * Sigma2(v);
+      printf("%7s| %9.6f %+9.6f = %9.6f = %9.2f\n", v.symbol().c_str(), v.en,
+             delta, (v.en + delta), (v.en + delta) * PhysConst::Hartree_invcm);
+      if (std::abs(delta / v.en) > 0.2)
+        std::cout << "      *** Warning: delta too large?\n";
+    }
   }
 }
 

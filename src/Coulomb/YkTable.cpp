@@ -58,6 +58,7 @@ const std::vector<double> &YkTable::get_yk_ab(const int k,
     if (k < kmin || k > kmax || ik > yab.size()) {
       std::cerr << "Fail 35 in Coulomb: k too big/small: " << k << ": " << kmin
                 << "/" << kmax << " " << yab.size() << "\n";
+      std::cerr << Fa.symbol() << ", " << Fb.symbol() << "\n";
       std::abort();
     }
   }

@@ -38,7 +38,7 @@ form_basis(const std::string &states_str, const std::size_t n_spl,
     const auto k = k_spl; // < kmin ? kmin : k_spl;
     if (k_spl < kmin) {
       std::cout << "Warning: Spline order k=" << k
-                << " too small for kappa=" << kappa << " (kmin=" << kmin
+                << " may be small for kappa=" << kappa << " (kmin=" << kmin
                 << ")\n";
     }
 
@@ -46,10 +46,10 @@ form_basis(const std::string &states_str, const std::size_t n_spl,
     auto l_tmp = AtomData::l_k(kappa);
     if (l_tmp > wf.maxCore_l())
       l_tmp = wf.maxCore_l();
-    auto [rmin_l, rmax_l] = wf.lminmax_core_range(l_tmp, r0_eps);
+    const auto [rmin_l, rmax_l] = wf.lminmax_core_range(l_tmp, r0_eps);
     (void)rmax_l;
-    auto r0_eff = std::max(rmin_l, r0_spl);
-    auto print = true;
+    const auto r0_eff = std::max(rmin_l, r0_spl);
+    const auto print = false;
     if (r0_eff > r0_spl && print) {
       printf(" Splines: for kappa=%2i, r0 -> %.2e\n", kappa, r0_eff);
     }
@@ -86,6 +86,7 @@ form_basis(const std::string &states_str, const std::size_t n_spl,
     if (prev == basis.end())
       continue;
     if (Fp.en < prev->en) {
+      // XXX Better: count nodes? ['Spurious node at large r?']
       std::cout << "WARNING: "
                 << "Spurious state?? " << Fp.symbol() << " " << Fp.en << "\n";
       // Fp *= 0.0;

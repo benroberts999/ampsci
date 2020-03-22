@@ -60,6 +60,8 @@ public:
   double get_tildeCkab(int k, int ka, int kb) const;
   double get_3jkab(int k, int ka, int kb) const;
 
+  double operator()(int k, int ka, int kb) const { return get_Ckab(k, ka, kb); }
+
   //! Lambda^k_ij := 3js((ji,jj,k),(-1/2,1/2,0))^2 * parity(li+lj+k)
   double get_Lambdakab(int k, int ka, int kb) const;
 

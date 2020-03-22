@@ -92,8 +92,8 @@ public:
 
   //! norm = Sqrt[<a|a>]
   double norm() const;
-  void scale(const double factor);
-  void scale(const std::vector<double> &v);
+  const DiracSpinor &scale(const double factor);
+  const DiracSpinor &scale(const std::vector<double> &v);
   //! By default normalises to 1, but can normalise to other number.
   void normalise(double norm_to = 1.0);
   //! Returns [f[p0]/f_max , f[pinf]/f_max] - for tests

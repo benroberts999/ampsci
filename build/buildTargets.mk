@@ -24,6 +24,7 @@ include $(SD)/DMionisation/DMionisation.mk
 include $(SD)/HF/HF.mk
 include $(SD)/IO/IO.mk
 include $(SD)/Maths/Maths.mk
+include $(SD)/MBPT/MBPT.mk
 include $(SD)/Modules/Modules.mk
 include $(SD)/Physics/Physics.mk
 include $(SD)/Wavefunction/Wavefunction.mk
@@ -41,6 +42,7 @@ BASE = $(addprefix $(BD)/, \
 HF = $(addprefix $(BD)/, \
  HartreeFockClass.o YkTable.o Coulomb.o Parametric_potentials.o \
  Adams_Greens.o MixedStates.o ExternalField.o RadiativePotential.o \
+ CorrelationPotential.o \
 )
 
 CNTM = $(addprefix $(BD)/, \
