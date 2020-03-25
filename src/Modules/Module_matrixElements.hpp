@@ -13,6 +13,7 @@ namespace Module {
 //! Calculates matrix elements of any tensor operator, with RPA
 void matrixElements(const UserInputBlock &input, const Wavefunction &wf);
 
+//! Calculates Bohr-Weisskopf effect for hyperfine structure
 void calculateBohrWeisskopf(const UserInputBlock &input,
                             const Wavefunction &wf);
 

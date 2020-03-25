@@ -1,3 +1,7 @@
+// Example input file. Lines with "//" are ignored
+// Comment out an entire block (or just its name) to skip block
+// Tip: Tell you editor this is a cpp file [colouring + commenting shortcuts]
+
 Atom {
   Z = Cs;
   A;
@@ -9,7 +13,7 @@ HartreeFock {
 }
 
 Nucleus {
-  rrms;
+  rrms; // Will look-up default value
   type; // Fermi (dflt), spherical, point
 }
 
@@ -35,39 +39,30 @@ Grid {
   number = 50;
   order = 7;
   r0 = 1.0e-5;
+  r0_eps = 1.0e-7; // set r0 when core density below eps
   rmax = 50.0;
   print = false;
   positron = false;
   states = 40spd;
 }
 
+Correlations {
+  energyShifts = false;
+  Brueckner = false;
+  n_min_core = 3;
+}
+
 /////////////////////////////////////////////////////////////////
 // Modules:
 
-Module::Tests{}
+Module::Tests {}
 
 // MatrixElements::E1 {}
 // MatrixElements::hfs { F(r) = pointlike; rpa = false; }
 
-// Module::pnc { transition = 6, -1, 7, -1; rpa = true;}
+// Module::pnc { transition = 6, -1, 7, -1; rpa = true; }
 // Module::pnc { transition = 6, -1, 5, 2; rpa = true; }
 
-/////////////////////////////////////////////////////////////////
+// Module::BohrWeisskopf{}
 
-// Module::BohrWeisskopf
-{
-  mu;
-  I;
-  rrms;
-  // only used for doubly-odd (current values for 212-Fr)
-  mu1 = 4.00;
-  I1 = 4.5;
-  l1 = 5.;
-  gl1 = 1;
-  I2 = 0.5;
-  l2 = 1.;
-  printF = false;
-}
-
-// Module::WriteOrbitals
-{ label = outputLabel; }
+// Module::WriteOrbitals { label = outputLabel; }

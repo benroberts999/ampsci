@@ -18,6 +18,7 @@ $(SD)/Wavefunction/BSplineBasis.hpp
 
 $(BD)/HartreeFockClass.o: \
 $(SD)/HF/HartreeFockClass.cpp $(SD)/HF/HartreeFockClass.hpp \
+$(SD)/MBPT/CorrelationPotential.hpp \
 $(SD)/DiracODE/Adams_Greens.hpp $(SD)/DiracODE/DiracODE.hpp \
 $(SD)/Wavefunction/DiracSpinor.hpp $(SD)/Wavefunction/Wavefunction.hpp \
 $(SD)/Coulomb/YkTable.hpp $(SD)/Coulomb/Coulomb.hpp $(SD)/Maths/Grid.hpp \

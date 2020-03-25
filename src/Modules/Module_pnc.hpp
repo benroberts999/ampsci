@@ -5,7 +5,7 @@ class UserInput;
 
 namespace Module {
 
-//! Calculates PNC using sum-over-states and solveing-equations method (HF+RPA)
+//! Calculates PNC using sum-over-states and solving-equations method (HF+RPA)
 void calculatePNC(const UserInputBlock &input, const Wavefunction &wf);
 
 } // namespace Module

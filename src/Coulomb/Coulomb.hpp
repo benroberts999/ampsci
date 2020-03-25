@@ -32,31 +32,31 @@ DiracSpinor Rk_abcd_rhs(const DiracSpinor &Fa, const DiracSpinor &Fb,
 //! Overload for when y^k_bd already exists [much faster]
 DiracSpinor Rk_abcd_rhs(const DiracSpinor &Fa, const DiracSpinor &Fc,
                         const std::vector<double> &ykbd);
+//! Overload: Rk_rhs depends on kappa_a, not Fa
 DiracSpinor Rk_abcd_rhs(const int kappa_a, const DiracSpinor &Fc,
                         const std::vector<double> &ykbd);
-void Rk_abcd_rhs(DiracSpinor *const Qkv, const DiracSpinor &Fc,
+//! Overload for when spinor exists. Rkv is overwritten
+void Rk_abcd_rhs(DiracSpinor *const Rkv, const DiracSpinor &Fc,
                  const std::vector<double> &ykbd);
 
 //! Calculates Q^k_abcd for given k. From scratch (calculates y)
 double Qk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
                const DiracSpinor &Fc, const DiracSpinor &Fd, const int k);
 
+//! Overload for when Coulomb int + angular is known; faster
 double Qk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
                const DiracSpinor &Fc, const DiracSpinor &Fd, const int k,
                const std::vector<double> &ykbd, const Angular::Ck_ab &Ck);
 
+//! Calculates Qkv_bcd (radial spinor).
 DiracSpinor Qkv_bcd(const int kappa_v, const DiracSpinor &Fb,
                     const DiracSpinor &Fc, const DiracSpinor &Fd, const int k,
                     const std::vector<double> &ykbd, const Angular::Ck_ab &Ck);
 
+//! Overload for when spinor exists. Qkv is overwritten
 void Qkv_bcd(DiracSpinor *const Qkv, const DiracSpinor &Fb,
              const DiracSpinor &Fc, const DiracSpinor &Fd, const int k,
              const std::vector<double> &ykbd, const Angular::Ck_ab &Ck);
-
-// //! Calculates X^k_abcd for given k. From scratch (calculates y)
-// double Xk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
-//                const DiracSpinor &Fc, const DiracSpinor &Fd, const int
-//                k);
 
 //! Calculates Z^k_abcd for given k. From scratch (calculates y)
 //! @details
@@ -71,16 +71,17 @@ double Zk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
 double Wk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
                const DiracSpinor &Fc, const DiracSpinor &Fd, const int k);
 
+//! Exchange only version of W (W-Q): W = Q + P
 double Pk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
-               const DiracSpinor &Fc, const DiracSpinor &Fd, const int k);
-
-double Wk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
                const DiracSpinor &Fc, const DiracSpinor &Fd, const int k,
-               const std::vector<double> &ykbd,
                const std::vector<std::vector<double>> &ybc,
                const Angular::Ck_ab &Ck, const Angular::SixJ &sixj);
 
-// Exchange only version of W (W-Q): W = Q + P
+//! Exchange only version of W (W-Q): W = Q + P
+double Pk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
+               const DiracSpinor &Fc, const DiracSpinor &Fd, const int k);
+
+//! Exchange only version of W (W-Q): W = Q + P
 double Pk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
                const DiracSpinor &Fc, const DiracSpinor &Fd, const int k,
                const std::vector<std::vector<double>> &ybc,

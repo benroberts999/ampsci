@@ -1,5 +1,6 @@
 #include "Wavefunction/Wavefunction.hpp"
 #include "DiracODE/DiracODE.hpp"
+#include "MBPT/CorrelationPotential.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/Interpolator.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
@@ -140,6 +141,52 @@ void Wavefunction::hartreeFockValence(const std::string &in_valence_str) {
       valence_orbitals.emplace_back(DiracSpinor{nk.n, nk.k, rgrid});
   }
   m_pHF->solveValence();
+}
+//******************************************************************************
+void Wavefunction::hartreeFockBrueckner(int n_min_core) {
+  if (!m_pHF) {
+    std::cerr << "WARNING 62: Cant call hartreeFockValence before "
+                 "hartreeFockCore\n";
+    return;
+  }
+  if (basis.empty() || valence_orbitals.empty() || core_orbitals.empty())
+    return;
+  m_pHF->solveBrueckner(basis, n_min_core);
+}
+//******************************************************************************
+void Wavefunction::SOEnergyShift(int n_min_core) {
+
+  if (basis.empty() || valence_orbitals.empty() || core_orbitals.empty())
+    return;
+
+  std::cout << "\nMBPT(2): Valence energy shifts.\n";
+  std::cout << "Matrix elements <v|Sigma(2)|v>:\n";
+
+  std::vector<DiracSpinor> core, excited;
+  for (const auto &Fb : basis) {
+    if (isInCore(Fb) && Fb.n >= n_min_core)
+      core.push_back(Fb);
+    if (!isInCore(Fb))
+      excited.push_back(Fb);
+  }
+  MBPT::CorrelationPotential Sigma2(core, excited);
+
+  double e0 = 0;
+  std::cout << " state |  E(HF)      de=<v|S2|v>      E(HF+2)        E(HF+2) "
+               "(cm^-1)\n";
+  for (const auto &v : valence_orbitals) {
+
+    auto delta = Sigma2(v, v);
+    const auto cm = PhysConst::Hartree_invcm;
+    if (e0 == 0)
+      e0 = (v.en + delta);
+
+    printf("%7s| %10.7f   %+10.7f  =  %10.7f   = %10.3f   %10.3f\n",
+           v.symbol().c_str(), v.en, delta, (v.en + delta), (v.en + delta) * cm,
+           (v.en + delta - e0) * cm);
+    if (std::abs(delta / v.en) > 0.2)
+      std::cout << "      *** Warning: delta too large?\n";
+  }
 }
 
 //******************************************************************************
@@ -699,4 +746,9 @@ void Wavefunction::formBasis(const std::string &states_str,
                              const double rmax_spl, const bool positronQ) {
   basis = SplineBasis::form_basis(states_str, n_spl, k_spl, r0_spl, r0_eps,
                                   rmax_spl, *this, positronQ);
+}
+
+//******************************************************************************
+std::vector<double> Wavefunction::get_Vlocal(int) {
+  return NumCalc::add_vectors(vnuc, vdir); // XXX add Vrad!
 }

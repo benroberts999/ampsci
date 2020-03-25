@@ -1,10 +1,14 @@
 #pragma once
 #include "Coulomb/YkTable.hpp" //for m_Yab
+// #include "MBPT/CorrelationPotential.hpp"
 #include <string>
 #include <vector>
 class Wavefunction;
 class DiracSpinor;
 class Grid;
+namespace MBPT {
+class CorrelationPotential;
+}
 
 //! Functions and classes for Hartree-Fock
 namespace HF {
@@ -88,6 +92,9 @@ public:
   //! in WaveFunction (bad, instead, give it a vector of DiracSpinors!)
   void solveValence();
 
+  //! Solves HF+Sigma equation: valence Brueckner orbitals. Writes to valence
+  void solveBrueckner(const std::vector<DiracSpinor> &basis, int n_min_core);
+
   double calculateCoreEnergy() const;
 
 public:
@@ -142,6 +149,15 @@ private:
                   const std::vector<double> &H_mag, const DiracSpinor &vx_phi,
                   const std::vector<DiracSpinor> &core,
                   const std::vector<double> &v0 = {}) const;
+
+  void brueckner_orbital(DiracSpinor &Fa, double en,
+                         const std::vector<double> &vl,
+                         const std::vector<double> &H_mag,
+                         const DiracSpinor &VxF,
+                         const MBPT::CorrelationPotential &Sigma,
+                         const std::vector<DiracSpinor> &static_core) const;
+
+  EpsIts hf_Brueckner(DiracSpinor &Fa, const MBPT::CorrelationPotential &Sigma);
 
 public:
   HartreeFock &operator=(const HartreeFock &) = delete; // copy assignment

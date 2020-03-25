@@ -19,7 +19,8 @@ $(SD)/Wavefunction/Wavefunction.hpp $(SD)/Wavefunction/DiracSpinor.hpp $(SD)/Mat
 $(SD)/Maths/NumCalc_quadIntegrate.hpp $(SD)/Physics/AtomData.hpp
 	$(COMP)
 
-$(BD)/Wavefunction.o: $(SD)/Wavefunction/Wavefunction.cpp $(SD)/Wavefunction/Wavefunction.hpp\
+$(BD)/Wavefunction.o: $(SD)/Wavefunction/Wavefunction.cpp \
+$(SD)/Wavefunction/Wavefunction.hpp $(SD)/MBPT/CorrelationPotential.hpp \
 $(SD)/DiracODE/DiracODE.hpp $(SD)/Wavefunction/DiracSpinor.hpp $(SD)/Maths/Grid.hpp \
 $(SD)/Maths/NumCalc_quadIntegrate.hpp $(SD)/Physics/AtomData.hpp \
 $(SD)/Wavefunction/BSplineBasis.hpp \

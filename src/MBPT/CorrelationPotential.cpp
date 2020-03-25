@@ -12,8 +12,8 @@
 #include <numeric>
 #include <vector>
 
-static int find_max_k(const std::vector<DiracSpinor> &core,
-                      const std::vector<DiracSpinor> &excited) {
+static int find_max_tj(const std::vector<DiracSpinor> &core,
+                       const std::vector<DiracSpinor> &excited) {
   auto maxtj1 =
       std::max_element(core.cbegin(), core.cend(), DiracSpinor::comp_j)->twoj();
   auto maxtj2 =
@@ -24,12 +24,13 @@ static int find_max_k(const std::vector<DiracSpinor> &core,
 
 namespace MBPT {
 
+// Good idea to limit k? Doesn't seem to help much>
 CorrelationPotential::CorrelationPotential(
     const std::vector<DiracSpinor> &core,
     const std::vector<DiracSpinor> &excited)
     : m_core(core), m_excited(excited),
       m_yec(m_excited.front().p_rgrid, &m_excited, &m_core), //
-      m_maxk(find_max_k(core, excited)),                     //
+      m_maxk(find_max_tj(core, excited)),                    //
       m_6j(m_maxk, m_maxk)                                   //
 {}
 

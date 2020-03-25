@@ -188,6 +188,20 @@ Basis {
   * spd will store _all_ (number) states for l<=2
 
 
+## Correlations (Correlation potential)
+```cpp
+Correlations {
+  energyShifts;   //[b] default = false
+  Brueckner;      //[b] default = false
+  n_min_core;     //[i] default = 1
+}
+```
+* Includes correlation corrections. note: splines must exist already
+* energyShifts: If true, will just calculate <v|Sigma|v> energy shifts, which is very fast compared to constructing Brueckner orbitals. Use this method first to ensure basis is sufficient+working before doing Brueckner
+* Brueckner: Construct Brueckner valence orbitals using correlation potential method (i.e., include correlations into wavefunctions and energies for valence states)
+* n_min_core: minimum core n included in the Sigma calculation; lowest states contibute little, so this speeds up the calculations
+
+
 ## Modules and MatrixElements
 
 Modules and MatrixElements work in essentially the same way. Each MatrixElements/Modules block will be run in order. You can comment-out just the block name, and the block will be skipped.
@@ -205,6 +219,7 @@ MatrixElements::ExampleOperator { //this is not a real operator..
   radialIntegral; //[b] default = false
   units;          //[t] default = au
   rpa;            //[b] default = true
+  omega;          //[r] default = 0.0
 }
 ```
 * printBoth: Print <a|h|b> and <b|h|a> ? false by default. (For _some_ operators, e.g., involving derivatives, this is a good test of numerical error. For most operators, values will be trivially the same; reduced matrix elements, sign may be different.)
@@ -212,6 +227,7 @@ MatrixElements::ExampleOperator { //this is not a real operator..
 * radialIntegral: calculate radial integral, or reduced matrix elements (difference depends on definition of operator in the code)
 * units: can only be 'au' or 'MHz'. MHz only makes sense for some operators (e.g., hfs), and is just for convenience
 * rpa: Include RPA (core polarisation) corrections to MEs, using TDHF method (note: mostly works, but not 100% yet)
+* omega: frequency for solving TDHF/RPA equations, should be positive. Put "-1" to solve at the frequency for each transition (re-solved TDHF for each transition).
 
 
 ### Available operators:
@@ -227,6 +243,7 @@ MatrixElements::Ek { //Electric multipole operator:
   k; //[i] default = 1
 }
 ```
+* k=1 => E1, dipole. k=2 => E2, qudrupole etc.
 
 ```cpp
 MatrixElements::r { //scalar r
@@ -265,12 +282,6 @@ MatrixElements::hfs { // Magnetic dipole hyperfine structure constant A
 }
 ```
 
-```cpp
-MatrixElements::Sigma2 {}
-```
-Alias for Module::SecondOrder; see module for options
-
-
 ### Modules:
 
 ```cpp
@@ -282,15 +293,6 @@ Module::Tests { // tests of numerical errors:
   sumRules;        //[b] Tests basis by evaluating sum rules
 }
 ```
-
-```cpp
-Module::SecondOrder{
-  lmax_v;    //[i] Maximum valence l to calculate. default = max possible
-  kmax;      //[i] Maximum multipolarity in Sigma. default = max possible
-  nmin_core; //[i] Minimum core n (prin. q. num.) included. Default = 1
-}
-```
-Calculates second-order correlation corrections to valence energies. Nb: not Brueckner corrections, just matrix elements of Sigma(2). Uses the basis.
 
 ```cpp
 Module::lifetimes{

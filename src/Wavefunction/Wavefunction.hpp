@@ -138,6 +138,8 @@ public: // const methods: "views" into WF object
 
   //! Performs hartree-Fock procedure for valence: note: poplulates valnece
   void hartreeFockValence(const std::string &in_valence_str);
+  void hartreeFockBrueckner(int n_min_core = 1);
+  void SOEnergyShift(int n_min_core = 1);
 
   //! Calculates radiative potential. Stores in vnuc, and Hmag
   void radiativePotential(double x_Ueh, double x_SEe_h, double x_SEe_l,
@@ -182,6 +184,8 @@ public: // const methods: "views" into WF object
   //! Cut-off defined as eps*max, where max is maximum value for rho(r). Returns
   //! for each l in the core.
   std::tuple<double, double> lminmax_core_range(int l, double eps = 0.0) const;
+
+  std::vector<double> get_Vlocal(int kappa = -1);
 
 private:
   void determineCore(std::string str_core_in);
