@@ -23,6 +23,12 @@ public:
   T get(const std::string &option, const T &default_value) const;
   template <typename T> T get(const std::string &option) const;
 
+  template <typename T>
+  std::vector<T> get_list(const std::string &option,
+                          const std::vector<T> &default_value) const;
+  template <typename T>
+  std::vector<T> get_list(const std::string &option) const;
+
   const std::string &name() const { return m_block_name; }
 
   void print() const;
@@ -48,6 +54,14 @@ public:
 
   template <typename T>
   T get(const std::string &in_block, const std::string &option) const;
+
+  template <typename T>
+  std::vector<T> get_list(const std::string &in_block,
+                          const std::string &option,
+                          const std::vector<T> &default_value) const;
+  template <typename T>
+  std::vector<T> get_list(const std::string &in_block,
+                          const std::string &option) const;
 
   const UserInputBlock &get(const std::string &in_block) const;
 
@@ -75,6 +89,31 @@ inline T get_impl(std::stringstream &ss, const std::string &in) {
     std::abort();
   }
   return val;
+}
+
+template <typename T>
+inline std::vector<T> get_list_impl(std::stringstream &ss,
+                                    const std::string &in) {
+  std::vector<T> result;
+  bool fail = false;
+
+  while (ss.good()) {
+    std::string each_str = "";
+    getline(ss, each_str, ',');
+    std::stringstream ss_each(each_str);
+    T val;
+    ss_each >> val;
+    result.push_back(val);
+    if (ss.fail())
+      fail = true;
+  }
+
+  if (ss.fail() || fail) {
+    std::cerr << "\nWARNING 78 in UserInput: " << in << "=" << ss.str()
+              << " invalid?\n";
+    std::abort();
+  }
+  return result;
 }
 
 template <> inline bool get_impl(std::stringstream &ss, const std::string &in) {
@@ -118,6 +157,33 @@ T UserInputBlock::get(const std::string &option) const
   return UserInputHelper::get_impl<T>(option_ss, m_block_name + '/' + option);
 }
 
+//------------------------------------------------------------------------------
+template <typename T>
+std::vector<T>
+UserInputBlock::get_list(const std::string &option,
+                         const std::vector<T> &default_value) const {
+  auto option_ss = find_option(option);
+  if (option_ss.str() == "InputNotFound" || option_ss.str() == "default" ||
+      option_ss.str() == "dflt")
+    return default_value;
+  return UserInputHelper::get_list_impl<T>(option_ss,
+                                           m_block_name + '/' + option);
+}
+template <typename T>
+std::vector<T> UserInputBlock::get_list(const std::string &option) const
+// No default value; user input is complulsory
+{
+  auto option_ss = find_option(option);
+  if (option_ss.str() == "InputNotFound") {
+    std::cerr << "\nError: Missing required input: " << m_block_name << "/"
+              << option << " (compulsory)\n";
+    std::abort();
+  }
+  return UserInputHelper::get_list_impl<T>(option_ss,
+                                           m_block_name + '/' + option);
+}
+
+//******************************************************************************
 template <typename T>
 T UserInput::get(const std::string &in_block, const std::string &option,
                  const T &default_value) const {
@@ -133,6 +199,29 @@ T UserInput::get(const std::string &in_block, const std::string &option) const {
   for (const auto &block : m_blocks) {
     if (in_block == block.name())
       return block.get<T>(option);
+  }
+  std::cerr << "\nFAIL: Missing required input: " << in_block << "/" << option
+            << " (compulsory)\n";
+  std::abort();
+}
+//------------------------------------------------------------------------------
+template <typename T>
+std::vector<T> UserInput::get_list(const std::string &in_block,
+                                   const std::string &option,
+                                   const std::vector<T> &default_value) const {
+  for (const auto &block : m_blocks) {
+    if (in_block == block.name())
+      return block.get_list<T>(option, default_value);
+  }
+  return default_value;
+}
+
+template <typename T>
+std::vector<T> UserInput::get_list(const std::string &in_block,
+                                   const std::string &option) const {
+  for (const auto &block : m_blocks) {
+    if (in_block == block.name())
+      return block.get_list<T>(option);
   }
   std::cerr << "\nFAIL: Missing required input: " << in_block << "/" << option
             << " (compulsory)\n";

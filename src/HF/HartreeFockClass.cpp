@@ -844,7 +844,8 @@ EpsIts HartreeFock::hf_valence_refine(DiracSpinor &Fa) {
   auto damper = rampedDamp(0.8, 0.2, 5, 25);
   double extra_damp = 0.0;
 
-  const auto vl = NumCalc::add_vectors(p_wf->vnuc, p_wf->vdir);
+  // const auto vl = NumCalc::add_vectors(p_wf->vnuc, p_wf->vdir);
+  const auto vl = p_wf->get_Vlocal(Fa.l());
 
   const auto Fzero = Fa;
   const auto vexFzero = get_vex(Fa) * Fa;
@@ -861,7 +862,7 @@ EpsIts HartreeFock::hf_valence_refine(DiracSpinor &Fa) {
     VxFa = vex_psia_any(Fa, p_wf->core_orbitals);
     auto oldphi = Fa;
     auto en = Fzero.en + (Fzero * VxFa - Fa * vexFzero) / (Fa * Fzero);
-    hf_orbital(Fa, en, vl, p_wf->Hse_mag, VxFa, p_wf->core_orbitals);
+    hf_orbital(Fa, en, vl, p_wf->get_Hmag(Fa.l()), VxFa, p_wf->core_orbitals);
     eps = std::fabs((prev_en - Fa.en) / Fa.en);
     prev_en = Fa.en;
 
@@ -915,7 +916,8 @@ EpsIts HartreeFock::hf_Brueckner(DiracSpinor &Fa,
   auto damper = rampedDamp(0.2, 0.05, 1, 10);
   double extra_damp = 0.0;
 
-  const auto vl = NumCalc::add_vectors(p_wf->vnuc, p_wf->vdir);
+  // const auto vl = NumCalc::add_vectors(p_wf->vnuc, p_wf->vdir);
+  const auto vl = p_wf->get_Vlocal(Fa.l());
 
   const auto Fzero = Fa;
   const auto vexFzero = vex_psia_any(Fa, p_wf->core_orbitals);
@@ -934,7 +936,7 @@ EpsIts HartreeFock::hf_Brueckner(DiracSpinor &Fa,
     auto oldphi = Fa;
     auto en =
         Fzero.en + (Fzero * (VxFa + SigmaFa) - Fa * vexFzero) / (Fa * Fzero);
-    brueckner_orbital(Fa, en, vl, p_wf->Hse_mag, VxFa, Sigma,
+    brueckner_orbital(Fa, en, vl, p_wf->get_Hmag(Fa.l()), VxFa, Sigma,
                       p_wf->core_orbitals);
     eps = std::fabs((prev_en - Fa.en) / Fa.en);
     prev_en = Fa.en;
@@ -1038,7 +1040,10 @@ inline void HartreeFock::hf_core_refine() {
                             Fa * (vd0 * Fzero)) /
                                (Fa * Fzero);
       const auto v_nonlocal = v0 * Fa + VxFa;
-      hf_orbital(Fa, en, vl, p_wf->Hse_mag, v_nonlocal, core_prev, v0);
+      const auto &Vral_el = p_wf->vrad.get_Vel(Fa.l());
+      const auto &VlVr = NumCalc::add_vectors(vl, Vral_el);
+      hf_orbital(Fa, en, VlVr, p_wf->get_Hmag(Fa.l()), v_nonlocal, core_prev,
+                 v0);
       Fa = (1.0 - a_damp) * Fa + a_damp * oldphi;
       Fa.normalise();
       auto d_eps = std::fabs((oldphi.en - Fa.en) / Fa.en);

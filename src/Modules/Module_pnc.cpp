@@ -59,10 +59,9 @@ void calculatePNC(const UserInputBlock &input, const Wavefunction &wf) {
             << "z-component, z=min(ja,jb). units: i(-Qw/N)10^-11."
             << "\n\n";
 
-  auto dVE1 = HF::ExternalField(&he1, wf.core_orbitals,
-                                NumCalc::add_vectors(wf.vnuc, wf.vdir), alpha);
-  auto dVpnc = HF::ExternalField(&hpnc, wf.core_orbitals,
-                                 NumCalc::add_vectors(wf.vnuc, wf.vdir), alpha);
+  auto dVE1 = HF::ExternalField(&he1, wf.core_orbitals, wf.get_Vlocal(), alpha);
+  auto dVpnc =
+      HF::ExternalField(&hpnc, wf.core_orbitals, wf.get_Vlocal(), alpha);
   if (rpaQ) {
     auto omega_dflt = std::abs(aA.en - aB.en);
     auto omega = input.get("omega", omega_dflt);
@@ -170,7 +169,7 @@ void calculatePNC(const UserInputBlock &input, const Wavefunction &wf) {
   }
 
   {
-    auto v = NumCalc::add_vectors(wf.vnuc, wf.vdir);
+    auto v = wf.get_Vlocal();
     auto v1 = 0.0, v2 = 0.0;
 
     auto hA = hpnc.reduced_lhs(-aA.k, aA);

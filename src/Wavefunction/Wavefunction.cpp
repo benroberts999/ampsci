@@ -30,13 +30,14 @@ void Wavefunction::solveDirac(DiracSpinor &psi, double e_a,
 // so, here, vex = [sum_b vex_a (psi_b/psi_a)]
 // This is not ideal..
 {
-  auto v_a = NumCalc::add_vectors(vnuc, vdir, vex);
+  const auto v_a = NumCalc::add_vectors(get_Vlocal(psi.l()), vex);
   if (e_a != 0) {
     psi.en = e_a;
   } else if (psi.en == 0) {
     psi.en = enGuessVal(psi.n, psi.k);
   }
-  DiracODE::boundState(psi, psi.en, v_a, Hse_mag, m_alpha, log_dele_or);
+  DiracODE::boundState(psi, psi.en, v_a, get_Hmag(psi.l()), m_alpha,
+                       log_dele_or);
 }
 
 //------------------------------------------------------------------------------
@@ -45,8 +46,8 @@ void Wavefunction::solveDirac(DiracSpinor &psi, double e_a,
 // Overloaded version; see above
 // This one doesn't have exchange potential
 {
-  std::vector<double> empty_vec;
-  return solveDirac(psi, e_a, empty_vec, log_dele_or);
+  // std::vector<double> empty_vec;
+  return solveDirac(psi, e_a, {}, log_dele_or);
 }
 
 //******************************************************************************
@@ -142,6 +143,7 @@ void Wavefunction::hartreeFockValence(const std::string &in_valence_str) {
   }
   m_pHF->solveValence();
 }
+
 //******************************************************************************
 void Wavefunction::hartreeFockBrueckner(int n_min_core) {
   if (!m_pHF) {
@@ -149,18 +151,23 @@ void Wavefunction::hartreeFockBrueckner(int n_min_core) {
                  "hartreeFockCore\n";
     return;
   }
-  if (basis.empty() || valence_orbitals.empty() || core_orbitals.empty())
+  if (basis.empty() || valence_orbitals.empty() || core_orbitals.empty()) {
+    std::cout << "Can't do Brueckner. Check Splines/Valence/Core states?\n";
     return;
+  }
   m_pHF->solveBrueckner(basis, n_min_core);
 }
+
 //******************************************************************************
 void Wavefunction::SOEnergyShift(int n_min_core) {
 
-  if (basis.empty() || valence_orbitals.empty() || core_orbitals.empty())
-    return;
-
   std::cout << "\nMBPT(2): Valence energy shifts.\n";
   std::cout << "Matrix elements <v|Sigma(2)|v>:\n";
+
+  if (basis.empty() || valence_orbitals.empty() || core_orbitals.empty()) {
+    std::cout << "Can't do MBPT. Check Splines/Valence/Core states?\n";
+    return;
+  }
 
   std::vector<DiracSpinor> core, excited;
   for (const auto &Fb : basis) {
@@ -190,28 +197,47 @@ void Wavefunction::SOEnergyShift(int n_min_core) {
 }
 
 //******************************************************************************
-void Wavefunction::radiativePotential(double x_Ueh, double x_SEe_h,
-                                      double x_SEe_l, double x_SEm, double rcut,
-                                      double scale_rN) {
+void Wavefunction::radiativePotential(double x_simple, double x_Ueh,
+                                      double x_SEe_h, double x_SEe_l,
+                                      double x_SEm, double rcut,
+                                      double scale_rN,
+                                      const std::vector<double> &x_spd) {
 
-  if (x_Ueh > 0 || x_SEe_h > 0 || x_SEe_l > 0 || x_SEm > 0) {
-    std::cout << "\nIncluding QED radiative potential (up to r=" << rcut
-              << "):\n";
+  if (x_spd.size() == 0)
+    return;
+
+  if (x_Ueh > 0 || x_SEe_h > 0 || x_SEe_l > 0 || x_SEm > 0 || x_simple > 0) {
+    std::cout << "\nIncluding Ginges/Flambaum QED radiative potential (up to r="
+              << rcut << "):\n";
+  } else if (std::abs(x_simple) > 0) {
+    std::cout << "\nIncluding simple exponential radiative potential\n";
   } else {
     return;
   }
 
   const auto imax = rgrid.getIndex(rcut);
-  auto rN_rad =
+  const auto rN_rad =
       scale_rN * m_nuc_params.r_rms * std::sqrt(5.0 / 3.0) / PhysConst::aB_fm;
+
+  std::vector<double> Vel_tmp(rgrid.num_points);
+  std::vector<double> Hmag_tmp(rgrid.num_points);
+
+  if (std::abs(x_simple) > 0) {
+    std::cout << "Forming simple exponential potential (Ak=" << x_simple
+              << ")\n";
+    for (std::size_t i = 0; i < imax; ++i) {
+      Vel_tmp[i] -= x_simple * RadiativePotential::vSimpleExp(
+                                   rgrid.r[i], rN_rad, m_Z, m_alpha);
+    }
+  }
 
   if (x_Ueh > 0) {
     std::cout << "Forming Uehling potential (scale=" << x_Ueh << ")\n";
 #pragma omp parallel for
     for (std::size_t i = 0; i < imax; ++i) {
-      auto r = rgrid.r[i];
-      auto v_Ueh = RadiativePotential::vUehling(r, rN_rad, m_Z, m_alpha);
-      vnuc[i] -= x_Ueh * v_Ueh;
+      const auto r = rgrid.r[i];
+      const auto v_Ueh = RadiativePotential::vUehling(r, rN_rad, m_Z, m_alpha);
+      Vel_tmp[i] -= x_Ueh * v_Ueh;
     }
   }
 
@@ -228,9 +254,9 @@ void Wavefunction::radiativePotential(double x_Ueh, double x_SEe_h,
       x[i] = rgrid.r[i * stride];
       y[i] = RadiativePotential::vSEh(x[i], rN_rad, m_Z, m_alpha);
     }
-    auto vec_SE_h = Interpolator::interpolate(x, y, rgrid.r);
+    const auto vec_SE_h = Interpolator::interpolate(x, y, rgrid.r);
     for (std::size_t i = 0; i < imax; i++) {
-      vnuc[i] -= x_SEe_h * vec_SE_h[i];
+      Vel_tmp[i] -= x_SEe_h * vec_SE_h[i];
     }
   }
 
@@ -239,24 +265,38 @@ void Wavefunction::radiativePotential(double x_Ueh, double x_SEe_h,
               << x_SEe_l << ")\n";
 #pragma omp parallel for
     for (std::size_t i = 0; i < imax; i++) {
-      auto v_SE_l = RadiativePotential::vSEl(rgrid.r[i], rN_rad, m_Z, m_alpha);
-      vnuc[i] -= x_SEe_l * v_SE_l;
+      const auto v_SE_l =
+          RadiativePotential::vSEl(rgrid.r[i], rN_rad, m_Z, m_alpha);
+      Vel_tmp[i] -= x_SEe_l * v_SE_l;
     }
   }
 
   if (x_SEm > 0) {
     std::cout << "Forming Self-Energy (magnetic) potential "
               << "(scale=" << x_SEm << ")\n";
-    Hse_mag.clear(); // ensure zero'd
-    Hse_mag.resize(rgrid.num_points);
 #pragma omp parallel for
     for (std::size_t i = 0; i < imax; i++) {
-      auto Hr = RadiativePotential::vSE_Hmag(rgrid.r[i], rN_rad, m_Z, m_alpha);
-      Hse_mag[i] += x_SEm * Hr; // nb: plus!
+      const auto Hr =
+          RadiativePotential::vSE_Hmag(rgrid.r[i], rN_rad, m_Z, m_alpha);
+      Hmag_tmp[i] += x_SEm * Hr; // nb: plus!
     }
   }
 
-  std::cout << "\n";
+  const bool print_xl = (x_spd.size() > 1 || x_spd.front() != 1.0);
+  int l = 0;
+  for (const auto &x_l : x_spd) {
+    if (print_xl)
+      std::cout << "l=" << l << ", x_l=" << x_l << "\n";
+    auto V_l = Vel_tmp; // make a copy..dumb
+    auto H_l = Hmag_tmp;
+    NumCalc::scaleVec(V_l, x_l);
+    NumCalc::scaleVec(H_l, x_l);
+    vrad.set_Vel(V_l, l);
+    vrad.set_Hmag(H_l, l);
+    l++;
+  }
+
+  // std::cout << "\n";
 }
 
 //******************************************************************************
@@ -749,6 +789,10 @@ void Wavefunction::formBasis(const std::string &states_str,
 }
 
 //******************************************************************************
-std::vector<double> Wavefunction::get_Vlocal(int) {
-  return NumCalc::add_vectors(vnuc, vdir); // XXX add Vrad!
+std::vector<double> Wavefunction::get_Vlocal(int l) const {
+  return NumCalc::add_vectors(vnuc, vdir, vrad.get_Vel(l));
+}
+//******************************************************************************
+const std::vector<double> &Wavefunction::get_Hmag(int l) const {
+  return vrad.get_Hmag(l);
 }

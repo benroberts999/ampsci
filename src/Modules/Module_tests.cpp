@@ -252,8 +252,8 @@ void Module_Tests_Hamiltonian(const Wavefunction &wf) {
 
   // DirectHamiltonian Hd(wf.vnuc, wf.vdir, wf.get_alpha());
   auto Hd = RadialHamiltonian(wf.rgrid, wf.get_alpha());
-  Hd.set_v(-1, wf.vnuc, wf.vdir); // same each kappa
-  Hd.set_v_mag(wf.Hse_mag);
+  Hd.set_v(-1, wf.get_Vlocal(0)); // same each kappa //?? XXX
+  Hd.set_v_mag(wf.get_Hmag(0));
 
   for (const auto tmp_orbs :
        {&wf.core_orbitals, &wf.valence_orbitals, &wf.basis}) {

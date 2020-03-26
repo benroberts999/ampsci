@@ -165,8 +165,8 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
 
   // Move this into wf ??
   auto Hd = RadialHamiltonian(wf.rgrid, wf.get_alpha());
-  Hd.set_v(-1, wf.vnuc, wf.vdir); // same each kappa
-  Hd.set_v_mag(wf.Hse_mag);       // Magnetic QED form-factor [usually empty]
+  Hd.set_v(-1, wf.get_Vlocal(0)); // same each kappa //XXX
+  Hd.set_v_mag(wf.get_Hmag(0));   // Magnetic QED form-factor [usually empty]
 
 #pragma omp parallel for
   for (auto i = 0; i < (int)spl_basis.size(); i++) {

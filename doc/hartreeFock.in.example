@@ -20,33 +20,37 @@ Nucleus {
 Grid {
   r0 = 1e-6;
   rmax = 120.0;
-  num_points = 2000;
+  num_points = 1600;
 }
 
 // dVpol { a_eff = 0.0; } // effective pol. op.
 
 // RadPot
 {
+  Simple = 0.0; // "Simple" exponential potential
   Ueh = 1.0;
   SE_h = 1.0;
   SE_l = 1.0;
   SE_m = 1.0;
   rcut = 5.0;
+  scale_l = 1, 1, 1; // extra scaling for s,p,d states (and so on)
+  core_qed = true;
 }
 
 // Basis
 {
-  number = 50;
+  number = 40;
   order = 7;
   r0 = 1.0e-5;
   r0_eps = 1.0e-7; // set r0 when core density below eps
-  rmax = 50.0;
+  rmax = 40.0;
   print = false;
   positron = false;
-  states = 40spd;
+  states = 30spdfg;
 }
 
-Correlations {
+// Correlations
+{
   energyShifts = false;
   Brueckner = false;
   n_min_core = 3;
@@ -58,8 +62,9 @@ Correlations {
 Module::Tests {}
 
 // MatrixElements::E1 {}
-// MatrixElements::hfs { F(r) = pointlike; rpa = false; }
+// MatrixElements::E1 {omega = -1;}
 
+// MatrixElements::hfs { F(r) = pointlike; rpa = false; }
 // Module::pnc { transition = 6, -1, 7, -1; rpa = true; }
 // Module::pnc { transition = 6, -1, 5, 2; rpa = true; }
 

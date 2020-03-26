@@ -52,7 +52,7 @@ Atom {
 
 * Z: Which atom. Can enter as symbol (e.g., Z = Cs;) or integer (e.g., Z = 55;). Required (no default)
 * A: nuclear mass number. Leave blank to look up default value
-* varAlpha2: scale factor for (inverse) speed of light^2 [alpha in atomic un.]: alpha^2 = varAlpha2 * alpha_real^2.
+* varAlpha2: Scaling factor for alpha^2 (c = 1/alpha in atomic units): alpha^2 = varAlpha2 * alpha_real^2.
   * default=1. put a very small number to achieve non-relativistic limit (useful for tests)
 
 
@@ -114,7 +114,7 @@ Grid {
 * r0: grid starting point (in atomic units)
 * rmax: Final grid point (in atomic units)
 * num_points: number of points in the grid
-* type: What type of grid to use? options are: loglinear (default), logarithmic, linear
+* type: options are: loglinear (default), logarithmic, linear
   * Note: 'linear' grid requires a _very_ large number of points to work, and should essentially never be used.
 * b: only used for loglinear grid; the grid is roughly logarithmic below this value, and linear after it. Default is 4.0 (atomic units). If b<0 or b>rmax, will revert to using a logarithmic grid
 
@@ -148,22 +148,30 @@ ExtraPotential {
 * May be added before or after HF (if before: added to vnuc, if after: to vdir)
 
 
-## QED Radiative Potential [Ginges/Flambaum Method]
+## QED Radiative Potential [Ginges/Flambaum Method], H -> H - V_rad
 ```cpp
 RadPot {
-  Ueh;      //[r] default = 0.0 //Uehling (vac pol)
-  SE_h;     //[r] default = 0.0 //high-f SE
-  SE_l;     //[r] default = 0.0 //low-f SE
-  SE_m;     //[r] default = 0.0 //Magnetic SE
+  Simple;   //[r] default = 0.0 // Vrad = -Z^2 * alpha * exp(-r/alpha)
+  Ueh;      //[r] default = 0.0 // Uehling (vac pol)
+  SE_h;     //[r] default = 0.0 // high-f SE
+  SE_l;     //[r] default = 0.0 // low-f SE
+  SE_m;     //[r] default = 0.0 // Magnetic SE
   rcut;     //[r] default = 1.0
   scale_rN; //[r] default = 1.0
+  scale_l;  //[r,r...] (List) default = 1.0
+  core_qed; //[b] default = true
 }
 ```
 * Adds QED radiative potential to Hamiltonian.
 * Each factor is a scale; 0 means don't include. 1 means include full potential. Any positive number is valid.
 * rcut: Only calculates potential for r < rcut [for speed; rcut in au]
 * scale_rN: finite nucleus effects: rN = rN * scale_rN (for testing only)
-
+* scale_l: Optional input: Scaling factors for the V_rad for each l state; for higher states, uses the last given input. Input as a list of real numbers. Best explained with examples:
+    * scale_l = 1; // include QED for all states
+    * scale_l = 0,1,0; //include QED for p states only
+    * scale_l = 0,1; //inlcude QED for p,d,f.. but not s states.
+    * don't need to be 1 or 0, can be any real number.
+* core_qed: if true, will include QED effects into core in Hartree-Fock (relaxation). If false, will include QED only for valence states
 
 ## B-spline basis
 ```cpp
@@ -199,7 +207,7 @@ Correlations {
 * Includes correlation corrections. note: splines must exist already
 * energyShifts: If true, will just calculate <v|Sigma|v> energy shifts, which is very fast compared to constructing Brueckner orbitals. Use this method first to ensure basis is sufficient+working before doing Brueckner
 * Brueckner: Construct Brueckner valence orbitals using correlation potential method (i.e., include correlations into wavefunctions and energies for valence states)
-* n_min_core: minimum core n included in the Sigma calculation; lowest states contibute little, so this speeds up the calculations
+* n_min_core: minimum core n included in the Sigma calculation; lowest states contribute little, so this speeds up the calculations
 
 
 ## Modules and MatrixElements
@@ -213,7 +221,7 @@ options specific to each operator
 
 ```cpp
 MatrixElements::ExampleOperator { //this is not a real operator..
-  // Options that appy to all operators:
+  // Options that apply to all operators:
   printBoth;      //[t] default = false
   onlyDiagonal;   //[t] default = false
   radialIntegral; //[b] default = false
@@ -315,7 +323,6 @@ Module::WriteOrbitals { //writes orbitals to textfile:
 ```
 Writes the core + valence orbitals (+ the total electron density) to a file, in GNUplot friendly format.
 The (optional) label will be appended to the output file name. Plot file using GNUPLOT. For example, try this:
-
 * _plot for [i=2:20] "file.txt" u 1:i every :::0::0  w l t columnheader(i)_
 * _plot for [i=2:20] "file.txt" u 1:i every :::1::1  w l t columnheader(i)_
 * _plot "file.txt" u 1:2 every :::2::2  w l t "Core Density"_

@@ -48,19 +48,18 @@ void matrixElements(const UserInputBlock &input, const Wavefunction &wf) {
   const bool diagonal_only = input.get("onlyDiagonal", false);
 
   const bool rpaQ = input.get("rpa", true);
-  const auto omega = input.get("omega", 0.0);
-  const bool eachFreqQ = omega < 0.0;
+
+  const auto str_om = input.get<std::string>("omega", "_");
+  const bool eachFreqQ = str_om == "each" || str_om == "Each";
+  const auto omega = eachFreqQ ? 0.0 : input.get("omega", 0.0);
 
   const auto factor = input.get("factor", 1.0);
   if (factor != 1.0)
     std::cout << "With extra factor: " << factor << "\n";
 
-  // const auto units = input.get<std::string>("units", "au"); // can remove?
-  // const auto unit = (units == "MHz" || AhfsQ) ? PhysConst::Hartree_MHz : 1.0;
-
-  auto rpa =
-      HF::ExternalField(h.get(), wf.core_orbitals,
-                        NumCalc::add_vectors(wf.vnuc, wf.vdir), wf.get_alpha());
+  // XXX Always same kappa for get_Vlocal?
+  auto rpa = HF::ExternalField(h.get(), wf.core_orbitals, wf.get_Vlocal(),
+                               wf.get_alpha());
   std::unique_ptr<HF::ExternalField> rpa0; // for first-order
 
   if (!eachFreqQ && rpaQ) {
@@ -358,10 +357,8 @@ void calculateLifetimes(const UserInputBlock &input, const Wavefunction &wf) {
   auto alpha = wf.get_alpha();
   auto alpha3 = alpha * alpha * alpha;
   auto alpha2 = alpha * alpha;
-  auto dVE1 = HF::ExternalField(&he1, wf.core_orbitals,
-                                NumCalc::add_vectors(wf.vnuc, wf.vdir), alpha);
-  auto dVE2 = HF::ExternalField(&he2, wf.core_orbitals,
-                                NumCalc::add_vectors(wf.vnuc, wf.vdir), alpha);
+  auto dVE1 = HF::ExternalField(&he1, wf.core_orbitals, wf.get_Vlocal(), alpha);
+  auto dVE2 = HF::ExternalField(&he2, wf.core_orbitals, wf.get_Vlocal(), alpha);
 
   auto to_s = PhysConst::time_s;
 

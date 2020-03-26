@@ -1,4 +1,5 @@
 #pragma once
+#include <vector>
 
 //! @brief Ginges-Flambaum QED Radiative Potential
 //! @details
@@ -12,10 +13,60 @@
 namespace RadiativePotential {
 
 //******************************************************************************
+//! Small class to hold the radiative potential (for each l)
+class Vrad {
+public:
+  //! Gets Vel = V_euh + V_Se_l + ....  For given l. If l>max, returns V[max]
+  const std::vector<double> &get_Vel(const int l = 0) const {
+    if (l >= (int)Vel.size())
+      return Vel.back();
+    return Vel[std::size_t(l)];
+  }
+  //! Gets Hmag for given l. If l>max, returns H[max]
+  const std::vector<double> &get_Hmag(const int l = 0) const {
+    if (l >= (int)Hmag.size())
+      return Hmag.back();
+    return Hmag[std::size_t(l)];
+  }
+
+  bool ok() const { return !Vel.empty() && !Hmag.empty() && num_points > 0; }
+
+  void set_Vel(const std::vector<double> &in_v, const int l = 0) {
+    ensure_sized(l, in_v.size());
+    Vel[std::size_t(l)] = in_v;
+  }
+
+  void set_Hmag(const std::vector<double> &in_v, const int l = 0) {
+    ensure_sized(l, in_v.size());
+    Hmag[std::size_t(l)] = in_v;
+  }
+
+private:
+  std::size_t num_points = 0;
+  std::vector<std::vector<double>> Vel = {{}}; // Vel[l][r], each l
+  std::vector<std::vector<double>> Hmag = {{}};
+
+  void ensure_sized(int l, std::size_t in_size) {
+    if (l >= (int)Vel.size())
+      Vel.resize(std::size_t(l + 1));
+    if (l >= (int)Hmag.size())
+      Hmag.resize(std::size_t(l + 1));
+    if (in_size > num_points) {
+      num_points = in_size;
+      for (auto &v : Vel)
+        v.resize(num_points);
+      for (auto &v : Hmag)
+        v.resize(num_points);
+    }
+  }
+};
+
+//******************************************************************************
 struct RadPot_params {
   double r, rN, z, alpha;
 };
 
+// Fitting params From: [Flambaum/Ginges (2005), Ginges/Berengut (2016)]
 struct Fit_AB {
   // [1] J. S. M. Ginges and J. C. Berengut, Phys. Rev. A 93, 052509 (2016).
   // [1] V. V. Flambaum and J. S. M. Ginges, Phys. Rev. A 72, 052115 (2005).
@@ -38,6 +89,12 @@ struct Fit_AB {
     return 0.0;
   }
 };
+
+//******************************************************************************
+//! Simple V(r) = -(Z^2*alpha) * Exp(-r/lc), lc = hbar / (mc) = alpha
+//! @details Note: Does NOT include Ak factor - must be included from input!
+//! Does not include FNS effects (rN ignored)
+double vSimpleExp(double r, double, double z, double alpha);
 
 //******************************************************************************
 //! Uehling (vaccuum polarisation)

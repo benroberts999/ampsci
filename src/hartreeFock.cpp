@@ -85,17 +85,24 @@ int main(int argc, char *argv[]) {
     std::cout << "Using Hartree Method (no Exchange)\n";
   }
 
-  // Inlcude QED radiatve potential?
-  const auto qed_ok = input.check(
-      "RadPot", {"Ueh", "SE_h", "SE_l", "SE_m", "rcut", "scale_rN"});
+  // Inlcude QED radiatve potential
+  const auto qed_ok =
+      input.check("RadPot", {"Simple", "Ueh", "SE_h", "SE_l", "SE_m", "rcut",
+                             "scale_rN", "scale_l", "core_qed"});
+  const auto x_Simple = input.get("RadPot", "Simple", 0.0);
   const auto x_Ueh = input.get("RadPot", "Ueh", 0.0);
   const auto x_SEe_h = input.get("RadPot", "SE_h", 0.0);
   const auto x_SEe_l = input.get("RadPot", "SE_l", 0.0);
   const auto x_SEm = input.get("RadPot", "SE_m", 0.0);
   const auto rcut = input.get("RadPot", "rcut", 1.0);
   const auto scale_rN = input.get("RadPot", "scale_rN", 1.0);
-  if (qed_ok)
-    wf.radiativePotential(x_Ueh, x_SEe_h, x_SEe_l, x_SEm, rcut, scale_rN);
+  const auto x_spd = input.get_list("RadPot", "scale_l", std::vector{1.0});
+  const bool core_qed = input.get("RadPot", "core_qed", true);
+  if (qed_ok && core_qed) {
+    wf.radiativePotential(x_Simple, x_Ueh, x_SEe_h, x_SEe_l, x_SEm, rcut,
+                          scale_rN, x_spd);
+    std::cout << "Including QED into Hartree-Fock core (and valence)\n\n";
+  }
 
   // Inlcude extra potential (read in from text file):
   // Note: interpolated onto grid, but NOT extrapolated (zero outside region!)
@@ -122,6 +129,12 @@ int main(int argc, char *argv[]) {
   { // Solve Hartree equations for the core:
     ChronoTimer t(" core");
     wf.hartreeFockCore(HF_method, str_core, eps_HF, H_d, g_t);
+  }
+
+  if (qed_ok && !core_qed) {
+    wf.radiativePotential(x_Simple, x_Ueh, x_SEe_h, x_SEe_l, x_SEm, rcut,
+                          scale_rN, x_spd);
+    std::cout << "Including QED into Valence only\n\n";
   }
 
   // Add "extra potential", after HF (only valence)
@@ -171,12 +184,12 @@ int main(int argc, char *argv[]) {
   const auto r0_eps = input.get("Basis", "r0_eps", 0.0);
   const auto rmax_spl = input.get("Basis", "rmax", 0.0);
   const auto basis_states = input.get<std::string>("Basis", "states", "");
-  const auto print = input.get("Basis", "print", false);
+  const auto print_basisQ = input.get("Basis", "print", false);
   const auto positronQ = input.get("Basis", "positron", false);
   if (n_spl > 0 && basis_ok) {
     wf.formBasis(basis_states, n_spl, k_spl, r0_spl, r0_eps, rmax_spl,
                  positronQ);
-    if (print)
+    if (print_basisQ)
       wf.printBasis();
   }
 
@@ -190,7 +203,7 @@ int main(int argc, char *argv[]) {
   const auto n_min_core = input.get("Correlations", "n_min_core", 1);
   // Just energy shifts
   if (!wf.valence_orbitals.empty() && do_energyShifts) {
-    ChronoTimer t();
+    ChronoTimer t(" de");
     wf.SOEnergyShift(n_min_core);
   }
   // Brueckner orbitals
@@ -198,7 +211,7 @@ int main(int argc, char *argv[]) {
     std::cout
         << "\nConstructing correlation potential for Brueckner orbitals:\n"
         << std::flush;
-    ChronoTimer t();
+    ChronoTimer t(" Br");
     wf.hartreeFockBrueckner(n_min_core);
   }
   // Print out info for new "Brueckner" valence orbitals:

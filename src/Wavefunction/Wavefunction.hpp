@@ -4,6 +4,7 @@
 #include "Physics/AtomData.hpp" // NonRelSEConfig
 #include "Physics/NuclearPotentials.hpp"
 #include "Physics/PhysConst_constants.hpp" //PhysConst::alpha
+#include "Physics/RadiativePotential.hpp"
 #include "Wavefunction/BSplineBasis.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <iostream>
@@ -60,9 +61,9 @@ public:
   //! Nuclear potential
   std::vector<double> vnuc = {};
   //! Direct/local part of the electron potential
-  std::vector<double> vdir = {}; //
-  //! QED magnetic form-factor
-  std::vector<double> Hse_mag = {}; // magnetic form-factor
+  std::vector<double> vdir = {};
+  //! QED radiative potential
+  RadiativePotential::Vrad vrad{};
 
 private:
   // Core configuration (non-rel terms)
@@ -142,8 +143,9 @@ public: // const methods: "views" into WF object
   void SOEnergyShift(int n_min_core = 1);
 
   //! Calculates radiative potential. Stores in vnuc, and Hmag
-  void radiativePotential(double x_Ueh, double x_SEe_h, double x_SEe_l,
-                          double x_SEm, double rcut, double scale_rN);
+  void radiativePotential(double x_simple, double x_Ueh, double x_SEe_h,
+                          double x_SEe_l, double x_SEm, double rcut,
+                          double scale_rN, const std::vector<double> &x_spd);
 
   //! Calculates + populates basis [see BSplineBasis]
   void formBasis(const std::string &states_str, const std::size_t n_spl,
@@ -185,7 +187,8 @@ public: // const methods: "views" into WF object
   //! for each l in the core.
   std::tuple<double, double> lminmax_core_range(int l, double eps = 0.0) const;
 
-  std::vector<double> get_Vlocal(int kappa = -1);
+  std::vector<double> get_Vlocal(int l = 0) const;
+  const std::vector<double> &get_Hmag(int l = 0) const;
 
 private:
   void determineCore(std::string str_core_in);

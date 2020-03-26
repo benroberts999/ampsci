@@ -2,7 +2,7 @@
 #include "IO/SafeProfiler.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include <cmath>
-#include <gsl/gsl_errno.h> //?
+#include <gsl/gsl_errno.h>
 #include <gsl/gsl_integration.h>
 #include <gsl/gsl_sf_expint.h>
 #include <iostream>
@@ -17,6 +17,11 @@ namespace RadiativePotential {
 using namespace Helper;
 
 //******************************************************************************
+double vSimpleExp(double r, double, double z, double alpha) {
+  return -z * z * alpha * std::exp(-r / alpha);
+}
+
+//******************************************************************************
 double vUehling(double r, double rN, double z, double alpha) {
   auto sp1 = SafeProfiler::profile(__func__);
 
@@ -24,7 +29,7 @@ double vUehling(double r, double rN, double z, double alpha) {
   // smaller than abs_err_lim or a relative error smaller than rel_err_lim.
   // Note that this is an either-or constraint, not simultaneous. To compute to
   // a specified absolute error, set epsrel to zero (etc.)
-  static constexpr double abs_err_lim = 0;
+  static constexpr double abs_err_lim = 0.0;
   static constexpr double rel_err_lim = 1.0e-6;
   // max_num_subintvls < size(gsl_int_wrk)
   static constexpr unsigned long max_num_subintvls = 750; //?
@@ -149,11 +154,10 @@ double vSE_Hmag(double r, double rN, double z, double alpha) {
   const auto pre_factor = 3.0 * z * alpha / M_PI; // XXX check!
   return pre_factor * int_result;
 }
-} // namespace RadiativePotential
 
 //******************************************************************************
 //******************************************************************************
-namespace RadiativePotential {
+
 namespace Helper {
 
 //------------------------------------------------------------------------------
