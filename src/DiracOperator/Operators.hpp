@@ -314,6 +314,24 @@ private:
 };
 
 //******************************************************************************
+//! Radiative QED operator, electric part
+class Hrad_el final : public ScalarOperator {
+public:
+  Hrad_el(const std::vector<double> &Hel)
+      : ScalarOperator(Parity::even, 1.0, Hel, {1, 0, 1, 0}) {}
+  std::string name() const override { return "Hrad_el"; }
+  std::string units() const override { return "au"; }
+};
+//! Radiative QED operator, off-diagonal magnetic part
+class Hrad_mag final : public ScalarOperator {
+public:
+  Hrad_mag(const std::vector<double> &Hmag)
+      : ScalarOperator(Parity::even, 1.0, Hmag, {0, 1, 0, 1}) {}
+  std::string name() const override { return "Hrad_mag"; }
+  std::string units() const override { return "au"; }
+};
+
+//******************************************************************************
 //! @brief Nuclear-spin independent PNC operator (Qw)
 /*! @details
 \f[

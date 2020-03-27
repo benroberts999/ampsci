@@ -9,18 +9,27 @@
 //!
 //! Functions calculate V_rad(r) for each r, given r_N (nuclear radius) in
 //! atomic units, z, and alpha.
-//! Note sign: H -> H - V_rad.
+//! Note sign: H -> H - V_rad, but H -> H + H_rad.
 namespace RadiativePotential {
+
+// Note: Hel  H -> H-Vel, but H->H+Hel
+std::vector<double> form_Hel(const std::vector<double> &r, double x_simple,
+                             double x_Ueh, double x_SEe_h, double x_SEe_l,
+                             double r_rms_Fermi, double z, double alpha,
+                             double rcut = 0.0);
+std::vector<double> form_Hmag(const std::vector<double> &r, double x_SEm,
+                              double r_rms_Fermi, double z, double alpha,
+                              double rcut);
 
 //******************************************************************************
 //! Small class to hold the radiative potential (for each l)
 class Vrad {
 public:
   //! Gets Vel = V_euh + V_Se_l + ....  For given l. If l>max, returns V[max]
-  const std::vector<double> &get_Vel(const int l = 0) const {
-    if (l >= (int)Vel.size())
-      return Vel.back();
-    return Vel[std::size_t(l)];
+  const std::vector<double> &get_Hel(const int l = 0) const {
+    if (l >= (int)Hel.size())
+      return Hel.back();
+    return Hel[std::size_t(l)];
   }
   //! Gets Hmag for given l. If l>max, returns H[max]
   const std::vector<double> &get_Hmag(const int l = 0) const {
@@ -29,11 +38,11 @@ public:
     return Hmag[std::size_t(l)];
   }
 
-  bool ok() const { return !Vel.empty() && !Hmag.empty() && num_points > 0; }
+  bool ok() const { return !Hel.empty() && !Hmag.empty() && num_points > 0; }
 
-  void set_Vel(const std::vector<double> &in_v, const int l = 0) {
+  void set_Hel(const std::vector<double> &in_v, const int l = 0) {
     ensure_sized(l, in_v.size());
-    Vel[std::size_t(l)] = in_v;
+    Hel[std::size_t(l)] = in_v;
   }
 
   void set_Hmag(const std::vector<double> &in_v, const int l = 0) {
@@ -43,17 +52,17 @@ public:
 
 private:
   std::size_t num_points = 0;
-  std::vector<std::vector<double>> Vel = {{}}; // Vel[l][r], each l
+  std::vector<std::vector<double>> Hel = {{}}; // Hel[l][r], each l
   std::vector<std::vector<double>> Hmag = {{}};
 
   void ensure_sized(int l, std::size_t in_size) {
-    if (l >= (int)Vel.size())
-      Vel.resize(std::size_t(l + 1));
+    if (l >= (int)Hel.size())
+      Hel.resize(std::size_t(l + 1));
     if (l >= (int)Hmag.size())
       Hmag.resize(std::size_t(l + 1));
     if (in_size > num_points) {
       num_points = in_size;
-      for (auto &v : Vel)
+      for (auto &v : Hel)
         v.resize(num_points);
       for (auto &v : Hmag)
         v.resize(num_points);

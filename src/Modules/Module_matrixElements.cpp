@@ -9,6 +9,7 @@
 #include "MBPT/CorrelationPotential.hpp"
 #include "Physics/NuclearPotentials.hpp"
 #include "Physics/PhysConst_constants.hpp"
+#include "Physics/RadiativePotential.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include <fstream>
@@ -135,7 +136,6 @@ void calculateBohrWeisskopf(const UserInputBlock &input, const Wavefunction &wf)
     auto Aw = Hyperfine::hfsA(hw.get(), phi);
     auto Fball = ((Ab / Ap) - 1.0) * 100.0; //* M_PI * PhysConst::c;
     auto Fbw = ((Aw / Ap) - 1.0) * 100.0;   //* M_PI * PhysConst::c;
-    // printf("%6s: %9.1f  %9.1f  %9.1f | %8.4f  %8.4f   %9.6f\n",
     printf("%7s| %12.5e %12.5e %12.5e | %9.5f  %9.5f \n", phi.symbol().c_str(),
            Ap, Ab, Aw, Fball, Fbw);
   }
@@ -154,7 +154,6 @@ void SecondOrder(const UserInputBlock &input, const Wavefunction &wf) {
     if (wf.isInCore(Fb) && Fb.n >= nmin_core)
       core.push_back(Fb);
   }
-  // const auto &core = wf.core_orbitals;
 
   std::cout << "\nMBPT(2): Valence energy shifts.\n";
   std::cout << "Matrix elements <v|Sigma(2)|v>:\n";
@@ -172,15 +171,6 @@ void SecondOrder(const UserInputBlock &input, const Wavefunction &wf) {
       excited.push_back(Fb);
   }
 
-  // const auto maxtj =
-  //     std::max_element(wf.basis.cbegin(), wf.basis.cend(),
-  //     DiracSpinor::comp_j)
-  //         ->twoj();
-  // const auto kmax = input.get("kmax", maxtj);
-
-  // const auto Yk = Coulomb::YkTable(&wf.rgrid, &wf.basis, &core);
-  // const auto sixJ = Angular::SixJ(kmax, maxtj); //?
-  // const auto &Ck = Yk.Ck();
   MBPT::CorrelationPotential Sigma2(core, excited);
 
   if (true) {
@@ -333,6 +323,30 @@ generateOperator(const std::string &operator_str, const UserInputBlock &input,
     std::cout << "Sorry, check back soon for M1 :(\n";
     // return std::make_unique<M1Operator>(M1Operator());
     return std::make_unique<NullOperator>(NullOperator());
+  } else if (operator_str == "Hrad_el") {
+    input.checkBlock(
+        jointCheck({"Simple", "Ueh", "SE_h", "SE_l", "rcut", "scale_rN"}));
+    const auto x_Simple = input.get("Simple", 0.0);
+    const auto x_Ueh = input.get("Ueh", 1.0);
+    const auto x_SEe_h = input.get("SE_h", 1.0);
+    const auto x_SEe_l = input.get("SE_l", 1.0);
+    // const auto x_SEm = input.get("SE_m", 1.0);
+    const auto rcut = input.get("rcut", 5.0);
+    const auto scale_rN = input.get("scale_rN", 1.0);
+    const auto r_rms_Fermi = scale_rN * wf.get_nuclearParameters().r_rms;
+    const auto Hel = RadiativePotential::form_Hel(
+        wf.rgrid.r, x_Simple, x_Ueh, x_SEe_h, x_SEe_l, r_rms_Fermi, wf.Znuc(),
+        wf.get_alpha(), rcut);
+    return std::make_unique<Hrad_el>(Hrad_el(Hel));
+  } else if (operator_str == "Hrad_mag") {
+    input.checkBlock(jointCheck({"SE_m", "rcut", "scale_rN"}));
+    const auto x_SEm = input.get("SE_m", 1.0);
+    const auto rcut = input.get("rcut", 5.0);
+    const auto scale_rN = input.get("scale_rN", 1.0);
+    const auto r_rms_Fermi = scale_rN * wf.get_nuclearParameters().r_rms;
+    const auto Hmag = RadiativePotential::form_Hmag(
+        wf.rgrid.r, x_SEm, r_rms_Fermi, wf.Znuc(), wf.get_alpha(), rcut);
+    return std::make_unique<Hrad_mag>(Hrad_mag(Hmag));
   }
 
   std::cerr << "\nFAILED to find operator: " << ThisModule

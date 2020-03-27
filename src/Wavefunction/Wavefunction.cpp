@@ -202,7 +202,6 @@ void Wavefunction::radiativePotential(double x_simple, double x_Ueh,
                                       double x_SEm, double rcut,
                                       double scale_rN,
                                       const std::vector<double> &x_spd) {
-
   if (x_spd.size() == 0)
     return;
 
@@ -215,88 +214,27 @@ void Wavefunction::radiativePotential(double x_simple, double x_Ueh,
     return;
   }
 
-  const auto imax = rgrid.getIndex(rcut);
-  const auto rN_rad =
-      scale_rN * m_nuc_params.r_rms * std::sqrt(5.0 / 3.0) / PhysConst::aB_fm;
-
-  std::vector<double> Vel_tmp(rgrid.num_points);
-  std::vector<double> Hmag_tmp(rgrid.num_points);
-
-  if (std::abs(x_simple) > 0) {
-    std::cout << "Forming simple exponential potential (Ak=" << x_simple
-              << ")\n";
-    for (std::size_t i = 0; i < imax; ++i) {
-      Vel_tmp[i] -= x_simple * RadiativePotential::vSimpleExp(
-                                   rgrid.r[i], rN_rad, m_Z, m_alpha);
-    }
-  }
-
-  if (x_Ueh > 0) {
-    std::cout << "Forming Uehling potential (scale=" << x_Ueh << ")\n";
-#pragma omp parallel for
-    for (std::size_t i = 0; i < imax; ++i) {
-      const auto r = rgrid.r[i];
-      const auto v_Ueh = RadiativePotential::vUehling(r, rN_rad, m_Z, m_alpha);
-      Vel_tmp[i] -= x_Ueh * v_Ueh;
-    }
-  }
-
-  if (x_SEe_h > 0) {
-    std::cout << "Forming Self-Energy (electric high-f) potential (scale="
-              << x_SEe_h << ")\n";
-    // The SE high-f part is very slow. We calculate it every few points only,
-    // and then interpolate the intermediate points
-    const std::size_t stride = 6;
-    const auto tmp_max = imax / stride;
-    std::vector<double> x(tmp_max), y(tmp_max);
-#pragma omp parallel for
-    for (std::size_t i = 0; i < tmp_max; ++i) {
-      x[i] = rgrid.r[i * stride];
-      y[i] = RadiativePotential::vSEh(x[i], rN_rad, m_Z, m_alpha);
-    }
-    const auto vec_SE_h = Interpolator::interpolate(x, y, rgrid.r);
-    for (std::size_t i = 0; i < imax; i++) {
-      Vel_tmp[i] -= x_SEe_h * vec_SE_h[i];
-    }
-  }
-
-  if (x_SEe_l > 0) {
-    std::cout << "Forming Self-Energy (electric low-f) potential (scale="
-              << x_SEe_l << ")\n";
-#pragma omp parallel for
-    for (std::size_t i = 0; i < imax; i++) {
-      const auto v_SE_l =
-          RadiativePotential::vSEl(rgrid.r[i], rN_rad, m_Z, m_alpha);
-      Vel_tmp[i] -= x_SEe_l * v_SE_l;
-    }
-  }
-
-  if (x_SEm > 0) {
-    std::cout << "Forming Self-Energy (magnetic) potential "
-              << "(scale=" << x_SEm << ")\n";
-#pragma omp parallel for
-    for (std::size_t i = 0; i < imax; i++) {
-      const auto Hr =
-          RadiativePotential::vSE_Hmag(rgrid.r[i], rN_rad, m_Z, m_alpha);
-      Hmag_tmp[i] += x_SEm * Hr; // nb: plus!
-    }
-  }
+  const auto r_rms_fm = scale_rN * m_nuc_params.r_rms;
 
   const bool print_xl = (x_spd.size() > 1 || x_spd.front() != 1.0);
+
+  const auto &Hel_tmp = RadiativePotential::form_Hel(
+      rgrid.r, x_simple, x_Ueh, x_SEe_h, x_SEe_l, r_rms_fm, m_Z, m_alpha, rcut);
+  const auto &Hmag_tmp = RadiativePotential::form_Hmag(rgrid.r, x_SEm, r_rms_fm,
+                                                       m_Z, m_alpha, rcut);
+
   int l = 0;
   for (const auto &x_l : x_spd) {
     if (print_xl)
       std::cout << "l=" << l << ", x_l=" << x_l << "\n";
-    auto V_l = Vel_tmp; // make a copy..dumb
+    auto V_l = Hel_tmp; // make a copy..dumb
     auto H_l = Hmag_tmp;
     NumCalc::scaleVec(V_l, x_l);
     NumCalc::scaleVec(H_l, x_l);
-    vrad.set_Vel(V_l, l);
+    vrad.set_Hel(V_l, l);
     vrad.set_Hmag(H_l, l);
     l++;
   }
-
-  // std::cout << "\n";
 }
 
 //******************************************************************************
@@ -790,7 +728,7 @@ void Wavefunction::formBasis(const std::string &states_str,
 
 //******************************************************************************
 std::vector<double> Wavefunction::get_Vlocal(int l) const {
-  return NumCalc::add_vectors(vnuc, vdir, vrad.get_Vel(l));
+  return NumCalc::add_vectors(vnuc, vdir, vrad.get_Hel(l));
 }
 //******************************************************************************
 const std::vector<double> &Wavefunction::get_Hmag(int l) const {

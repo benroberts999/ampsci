@@ -1,11 +1,14 @@
 #include "RadiativePotential.hpp"
 #include "IO/SafeProfiler.hpp"
+#include "Maths/Interpolator.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
+#include "Physics/PhysConst_constants.hpp"
 #include <cmath>
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_integration.h>
 #include <gsl/gsl_sf_expint.h>
 #include <iostream>
+#include <vector>
 
 static inline double ExpInt1(double x) {
   // E1(x) = -std::expint(-x)
@@ -16,6 +19,108 @@ static inline double ExpInt1(double x) {
 namespace RadiativePotential {
 using namespace Helper;
 
+std::vector<double> form_Hel(const std::vector<double> &r, double x_simple,
+                             double x_Ueh, double x_SEe_h, double x_SEe_l,
+                             double r_rms_Fermi, double z, double alpha,
+                             double rcut) {
+
+  const auto rN_rad = r_rms_Fermi * std::sqrt(5.0 / 3.0) / PhysConst::aB_fm;
+
+  if (rcut == 0.0)
+    rcut = r.back();
+  const auto imax = r.size();
+  std::vector<double> Vel_tmp(r.size());
+
+  if (std::abs(x_simple) > 0) {
+    std::cout << "Forming simple exponential potential (Ak=" << x_simple
+              << ")\n";
+    for (std::size_t i = 0; i < imax; ++i) {
+      const auto ri = r[i];
+      if (ri > rcut)
+        break;
+      Vel_tmp[i] -=
+          x_simple * RadiativePotential::vSimpleExp(ri, rN_rad, z, alpha);
+    }
+  }
+
+  if (x_Ueh > 0) {
+    std::cout << "Forming Uehling potential (scale=" << x_Ueh << ")\n";
+    // #pragma omp parallel for
+    for (std::size_t i = 0; i < imax; ++i) {
+      const auto ri = r[i];
+      if (ri > rcut)
+        break;
+      const auto v_Ueh = RadiativePotential::vUehling(ri, rN_rad, z, alpha);
+      Vel_tmp[i] -= x_Ueh * v_Ueh;
+    }
+  }
+
+  if (x_SEe_h > 0) {
+    std::cout << "Forming Self-Energy (electric high-f) potential (scale="
+              << x_SEe_h << ")\n";
+    // The SE high-f part is very slow. We calculate it every few points only,
+    // and then interpolate the intermediate points
+    const std::size_t stride = 6;
+    const auto tmp_max = imax / stride;
+    std::vector<double> x(tmp_max), y(tmp_max);
+#pragma omp parallel for
+    for (std::size_t i = 0; i < tmp_max; ++i) {
+      x[i] = r[i * stride];
+      if (x[i] > rcut)
+        continue;
+      y[i] = RadiativePotential::vSEh(x[i], rN_rad, z, alpha);
+    }
+    const auto vec_SE_h = Interpolator::interpolate(x, y, r);
+    for (std::size_t i = 0; i < imax; i++) {
+      if (r[i] > rcut)
+        break;
+      Vel_tmp[i] -= x_SEe_h * vec_SE_h[i];
+    }
+  }
+
+  if (x_SEe_l > 0) {
+    std::cout << "Forming Self-Energy (electric low-f) potential (scale="
+              << x_SEe_l << ")\n";
+    // #pragma omp parallel for
+    for (std::size_t i = 0; i < imax; i++) {
+      const auto ri = r[i];
+      if (ri > rcut)
+        break;
+      const auto v_SE_l = RadiativePotential::vSEl(ri, rN_rad, z, alpha);
+      Vel_tmp[i] -= x_SEe_l * v_SE_l;
+    }
+  }
+
+  return Vel_tmp;
+}
+//------------------------------------------------------------------------------
+std::vector<double> form_Hmag(const std::vector<double> &r, double x_SEm,
+                              double r_rms_Fermi, double z, double alpha,
+                              double rcut) {
+
+  const auto rN_rad = r_rms_Fermi * std::sqrt(5.0 / 3.0) / PhysConst::aB_fm;
+
+  if (rcut == 0)
+    rcut = r.back();
+  const auto imax = r.size();
+  std::vector<double> Hmag_tmp(r.size());
+
+  if (x_SEm > 0) {
+    std::cout << "Forming Self-Energy (magnetic) potential "
+              << "(scale=" << x_SEm << ")\n";
+    // #pragma omp parallel for
+    for (std::size_t i = 0; i < imax; i++) {
+      const auto ri = r[i];
+      if (ri > rcut)
+        break;
+      const auto Hr = RadiativePotential::vSE_Hmag(ri, rN_rad, z, alpha);
+      Hmag_tmp[i] += x_SEm * Hr; // nb: plus!
+    }
+  }
+  return Hmag_tmp;
+}
+
+//******************************************************************************
 //******************************************************************************
 double vSimpleExp(double r, double, double z, double alpha) {
   return -z * z * alpha * std::exp(-r / alpha);

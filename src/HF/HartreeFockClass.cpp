@@ -1040,8 +1040,8 @@ inline void HartreeFock::hf_core_refine() {
                             Fa * (vd0 * Fzero)) /
                                (Fa * Fzero);
       const auto v_nonlocal = v0 * Fa + VxFa;
-      const auto &Vral_el = p_wf->vrad.get_Vel(Fa.l());
-      const auto &VlVr = NumCalc::add_vectors(vl, Vral_el);
+      const auto &Hrad_el = p_wf->vrad.get_Hel(Fa.l());
+      const auto &VlVr = NumCalc::add_vectors(vl, Hrad_el);
       hf_orbital(Fa, en, VlVr, p_wf->get_Hmag(Fa.l()), v_nonlocal, core_prev,
                  v0);
       Fa = (1.0 - a_damp) * Fa + a_damp * oldphi;
