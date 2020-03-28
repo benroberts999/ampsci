@@ -171,7 +171,8 @@ void SecondOrder(const UserInputBlock &input, const Wavefunction &wf) {
       excited.push_back(Fb);
   }
 
-  MBPT::CorrelationPotential Sigma2(core, excited);
+  MBPT::CorrelationPotential Sigma2(core, excited, {-0.127, -0.127, -0.127});
+  std::cout << "XXX\n";
 
   if (true) {
     ChronoTimer timer("Matrix Elements version:");

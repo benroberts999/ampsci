@@ -37,6 +37,9 @@ public:
 public:
   //! Constructs a diagonal matrix with values value
   void make_diag(double value = 1.0);
+  //! Sets all elements to zero
+  void zero();
+  //! Scale all elements by constant value
   void scale(double value);
   //! All values with |Mij|<value are set to zero
   void clip_low(double value);

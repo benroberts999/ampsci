@@ -68,6 +68,12 @@ void SqMatrix::scale(double value) {
     m->data[i] *= value;
 }
 
+void SqMatrix::zero() {
+  const int n2 = n * n;
+  for (int i = 0; i < n2; i++)
+    m->data[i] = 0.0;
+}
+
 void SqMatrix::clip_low(double value) {
   const int n2 = n * n;
   for (int i = 0; i < n2; i++) {
@@ -305,6 +311,7 @@ double operator*(const Vector &a, const Vector &b) {
 
 SqMatrix outer_produce(const Vector &a, const Vector &b) {
   SqMatrix op(a.n);
+  // assert that a.n = b.n !
   for (auto i = 0; i < a.n; ++i) {
     for (auto j = 0; j < a.n; ++j) {
       op[i][j] = a[i] * b[j];

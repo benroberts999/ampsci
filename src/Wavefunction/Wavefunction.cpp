@@ -176,7 +176,9 @@ void Wavefunction::SOEnergyShift(int n_min_core) {
     if (!isInCore(Fb))
       excited.push_back(Fb);
   }
-  MBPT::CorrelationPotential Sigma2(core, excited);
+  // MBPT::CorrelationPotential Sigma2(core, excited);
+  MBPT::CorrelationPotential Sigma2(core, excited, {-0.127367672});
+  std::cout << "XXX\n";
 
   double e0 = 0;
   std::cout << " state |  E(HF)      de=<v|S2|v>      E(HF+2)        E(HF+2) "
@@ -184,6 +186,22 @@ void Wavefunction::SOEnergyShift(int n_min_core) {
   for (const auto &v : valence_orbitals) {
 
     auto delta = Sigma2(v, v);
+    const auto cm = PhysConst::Hartree_invcm;
+    if (e0 == 0)
+      e0 = (v.en + delta);
+
+    printf("%7s| %10.7f   %+10.7f  =  %10.7f   = %10.3f   %10.3f\n",
+           v.symbol().c_str(), v.en, delta, (v.en + delta), (v.en + delta) * cm,
+           (v.en + delta - e0) * cm);
+    if (std::abs(delta / v.en) > 0.2)
+      std::cout << "      *** Warning: delta too large?\n";
+  }
+  e0 = 0;
+  std::cout << " state |  E(HF)      de=<v|S2|v>      E(HF+2)        E(HF+2) "
+               "(cm^-1)\n";
+  for (const auto &v : valence_orbitals) {
+
+    auto delta = v * Sigma2(v);
     const auto cm = PhysConst::Hartree_invcm;
     if (e0 == 0)
       e0 = (v.en + delta);

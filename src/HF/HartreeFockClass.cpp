@@ -38,10 +38,11 @@ Method parseMethod(const std::string &in_method) {
 //******************************************************************************
 HartreeFock::HartreeFock(Method method, Wavefunction &wf,
                          const std::string &in_core, double eps_HF, double h_d,
-                         double g_t)                               //
-    : p_wf(&wf),                                                   //
-      p_rgrid(&wf.rgrid), m_Yab(&(wf.rgrid), &(wf.core_orbitals)), //
-      m_eps_HF([=]() { // can give as log..
+                         double g_t) //
+    : p_wf(&wf),                     //
+      p_rgrid(&wf.rgrid),
+      m_Yab(&(wf.rgrid), &(wf.core_orbitals)), //
+      m_eps_HF([=]() {                         // can give as log..
         return (std::fabs(eps_HF) < 1) ? eps_HF : std::pow(10, -1 * eps_HF);
       }()), //
       m_excludeExchange([=]() {
@@ -282,7 +283,8 @@ void HartreeFock::solveBrueckner(const std::vector<DiracSpinor> &basis,
     if (!p_wf->isInCore(Fb))
       excited.push_back(Fb);
   }
-  MBPT::CorrelationPotential Sigma2(core, excited);
+  MBPT::CorrelationPotential Sigma2(core, excited,
+                                    {-0.127367672, -0.085615493, -0.085615493});
 
   // #pragma omp parallel for
   // Don't //-ize here (yet), since // over Sigma2 calc.
@@ -825,8 +827,8 @@ void HartreeFock::brueckner_orbital(
   Fa.en = en;
   Fa.eps = eps;
   Fa.its = tries;
-  if (tries == 0 || tries == m_max_hf_its)
-    Fa.normalise(); //? Not needed
+  // if (tries == 0 || tries == m_max_hf_its)
+  Fa.normalise(); //? Not needed
 }
 
 //******************************************************************************
@@ -910,17 +912,21 @@ EpsIts HartreeFock::hf_Brueckner(DiracSpinor &Fa,
     return {0, 0};
 
   // const auto eps_target = m_eps_HF;
-  const auto eps_target = 1.0e-5;
-  const auto max_br_its = 20; // m_max_hf_its;
+  const auto eps_target = m_eps_HF; // 1.0e-9;
+  const auto max_br_its = m_max_hf_its;
 
-  auto damper = rampedDamp(0.2, 0.05, 1, 10);
-  double extra_damp = 0.0;
+  auto damper = rampedDamp(0.33, 0.05, 1, 15);
+  // auto damper = rampedDamp(0.8, 0.2, 5, 20);
+  double extra_damp = 0.00;
 
   // const auto vl = NumCalc::add_vectors(p_wf->vnuc, p_wf->vdir);
   const auto vl = p_wf->get_Vlocal(Fa.l());
 
   const auto Fzero = Fa;
   const auto vexFzero = vex_psia_any(Fa, p_wf->core_orbitals);
+
+  auto always_de = Fa * Sigma(Fa);
+  auto firstEx = Fa * vexFzero;
 
   auto prev_en = Fa.en;
   double best_eps = 1.0;
@@ -934,10 +940,23 @@ EpsIts HartreeFock::hf_Brueckner(DiracSpinor &Fa,
     const auto VxFa = vex_psia_any(Fa, p_wf->core_orbitals);
     const auto SigmaFa = Sigma(Fa);
     auto oldphi = Fa;
-    auto en =
+    auto new_de = Fa * (SigmaFa + VxFa);
+    auto newEx = Fa * VxFa;
+    // std::cout << "\n" << Fa.en + new_de - old_de << "\n";
+    // old_de = new_de;
+    auto en_new =
         Fzero.en + (Fzero * (VxFa + SigmaFa) - Fa * vexFzero) / (Fa * Fzero);
+    auto en = (Fa.en + en_new) / 2.0;
+    // auto en = a_damp * Fa.en + (1.0 - a_damp) * en_new;
+
+    // (1.0 - a_damp) * Fa + a_damp * oldphi;
+
+    // auto en = 0.5 * (Fa.en + Fzero.en + always_de + 0.5 *
+    // (newEx - firstEx));
+    // std::cout << "\n" << en << "\n";
     brueckner_orbital(Fa, en, vl, p_wf->get_Hmag(Fa.l()), VxFa, Sigma,
                       p_wf->core_orbitals);
+
     eps = std::fabs((prev_en - Fa.en) / Fa.en);
     prev_en = Fa.en;
 

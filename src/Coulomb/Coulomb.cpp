@@ -284,6 +284,37 @@ double Pk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
 
   return (tkp1 * sum);
 }
+//------------------------------------------------------------------------------
+void Pkv_bcd(DiracSpinor *Pkv, const DiracSpinor &Fb, const DiracSpinor &Fc,
+             const DiracSpinor &Fd, const int k,
+             const std::vector<std::vector<double>> &ybc,
+             const Angular::Ck_ab &Ck, const Angular::SixJ &sixj) {
+  // W^k_abcd = Q^k_abcd +
+  // W = Q + P
+  // P_abcd = sum_l [k] 6j * Q^l_abdc //not index order!
+  auto sp1 = SafeProfiler::profile(__func__, "yk");
+
+  *Pkv *= 0.0;
+  // Pkv->p0 = 0;
+  // Pkv->pinf=Pkv->p0=0;
+
+  const auto kappa = Pkv->k;
+
+  const auto tkp1 = 2 * k + 1;
+  // double sum = 0.0;
+  const auto min_l = std::abs(Fb.twoj() - Fc.twoj()) / 2;
+  auto count = 0;
+  for (const auto &ybc_l : ybc) {
+    const auto l = min_l + count;
+    ++count;
+    const auto sj = sixj.get_6j(Fc.twoj(), Angular::twoj_k(kappa), Fd.twoj(),
+                                Fb.twoj(), k, l);
+    if (sj == 0.0)
+      continue;
+    *Pkv += sj * Qkv_bcd(kappa, Fb, Fd, Fc, l, ybc_l, Ck); // a,b,d,c [exch.]
+  }
+  *Pkv *= tkp1;
+}
 
 //******************************************************************************
 double Qk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,

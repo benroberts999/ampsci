@@ -82,9 +82,15 @@ double Pk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
                const DiracSpinor &Fc, const DiracSpinor &Fd, const int k);
 
 //! Exchange only version of W (W-Q): W = Q + P
-double Pk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
-               const DiracSpinor &Fc, const DiracSpinor &Fd, const int k,
-               const std::vector<std::vector<double>> &ybc,
-               const Angular::Ck_ab &Ck, const Angular::SixJ &sixj);
+void Pkv_bcd(DiracSpinor *const Pkv, const DiracSpinor &Fb,
+             const DiracSpinor &Fc, const DiracSpinor &Fd, const int k,
+             const std::vector<std::vector<double>> &ybc,
+             const Angular::Ck_ab &Ck, const Angular::SixJ &sixj);
+
+// //! Exchange only version of W (W-Q): W = Q + P
+// double Pk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
+//                const DiracSpinor &Fc, const DiracSpinor &Fd, const int k,
+//                const std::vector<std::vector<double>> &ybc,
+//                const Angular::Ck_ab &Ck, const Angular::SixJ &sixj);
 
 } // namespace Coulomb
