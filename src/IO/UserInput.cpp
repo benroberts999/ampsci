@@ -6,6 +6,8 @@
 #include <utility>
 #include <vector>
 
+namespace IO {
+
 //******************************************************************************
 void UserInputBlock::print() const {
   for (const auto &option : m_input_options) {
@@ -113,3 +115,5 @@ bool UserInput::check(const std::string &in_block,
   }
   return true;
 }
+
+} // namespace IO

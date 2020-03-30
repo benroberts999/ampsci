@@ -1,8 +1,10 @@
 #pragma once
 #include <string>
 class Wavefunction;
+namespace IO {
 class UserInputBlock;
 class UserInput;
+} // namespace IO
 
 //! @brief Modules are run using calculated atomic wavefunctions
 /*! @details
@@ -23,12 +25,12 @@ examples). If you added your function to an existing file, this isn't needed.
 namespace Module {
 
 //! Loops through all given modules, runs them one at a time
-void runModules(const UserInput &input, const Wavefunction &wf);
+void runModules(const IO::UserInput &input, const Wavefunction &wf);
 
 //! Figures out which module to run (Must be updated for each new module!)
-void runModule(const UserInputBlock &input, const Wavefunction &wf);
+void runModule(const IO::UserInputBlock &input, const Wavefunction &wf);
 
 //! Module: writes orbitals to text file (gnuplot format)
-void writeOrbitals(const UserInputBlock &input, const Wavefunction &wf);
+void writeOrbitals(const IO::UserInputBlock &input, const Wavefunction &wf);
 
 } // namespace Module

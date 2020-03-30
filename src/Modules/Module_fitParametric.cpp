@@ -13,7 +13,7 @@
 
 namespace Module {
 //******************************************************************************
-void fitParametric(const UserInputBlock &input, const Wavefunction &wf) {
+void fitParametric(const IO::UserInputBlock &input, const Wavefunction &wf) {
 
   input.checkBlock({"statesToFit", "method", "fitWorst"});
 

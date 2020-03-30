@@ -14,7 +14,7 @@
 namespace Module {
 
 //******************************************************************************
-void atomicKernal(const UserInputBlock &input, const Wavefunction &wf) {
+void atomicKernal(const IO::UserInputBlock &input, const Wavefunction &wf) {
   ChronoTimer timer; // start the overall timer
 
   input.checkBlock({"Emin", "Emax", "Esteps", "qmin", "qmax", "qsteps",

@@ -14,7 +14,7 @@ int main(int argc, char *argv[]) {
   std::cout << "Reading input from: " << input_file << "\n";
 
   // Input options
-  UserInput input(input_file);
+  IO::UserInput input(input_file);
 
   // Get + setup atom parameters
   auto input_ok = input.check("Atom", {"Z", "A", "varAlpha2"});

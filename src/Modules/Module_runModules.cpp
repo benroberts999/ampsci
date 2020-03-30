@@ -23,7 +23,7 @@
 namespace Module {
 
 //******************************************************************************
-void runModules(const UserInput &input, const Wavefunction &wf) {
+void runModules(const IO::UserInput &input, const Wavefunction &wf) {
   auto modules = input.module_list();
   for (const auto &module : modules) {
     runModule(module, wf);
@@ -31,7 +31,8 @@ void runModules(const UserInput &input, const Wavefunction &wf) {
 }
 
 //******************************************************************************
-void runModule(const UserInputBlock &module_input, const Wavefunction &wf) //
+void runModule(const IO::UserInputBlock &module_input,
+               const Wavefunction &wf) //
 {
   const auto &module_name = module_input.name();
   if (module_name.substr(0, 14) == "MatrixElements") {
@@ -59,7 +60,7 @@ void runModule(const UserInputBlock &module_input, const Wavefunction &wf) //
 }
 
 //******************************************************************************
-void writeOrbitals(const UserInputBlock &input, const Wavefunction &wf) {
+void writeOrbitals(const IO::UserInputBlock &input, const Wavefunction &wf) {
   const std::string ThisModule = "Module::WriteOrbitals";
   input.checkBlock({"label"});
 

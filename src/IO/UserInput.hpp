@@ -7,6 +7,8 @@
 
 // Set 'help' option to print out all available options
 
+namespace IO {
+
 //******************************************************************************
 class UserInputBlock {
 
@@ -227,3 +229,5 @@ std::vector<T> UserInput::get_list(const std::string &in_block,
             << " (compulsory)\n";
   std::abort();
 }
+
+} // namespace IO

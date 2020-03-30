@@ -13,7 +13,7 @@
 namespace Module {
 
 //******************************************************************************
-void calculatePNC(const UserInputBlock &input, const Wavefunction &wf) {
+void calculatePNC(const IO::UserInputBlock &input, const Wavefunction &wf) {
   const std::string ThisModule = "Module::PNC";
 
   input.checkBlock({"t", "c", "transition", "nmain", "rpa", "omega"});
