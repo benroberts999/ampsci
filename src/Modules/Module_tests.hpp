@@ -1,11 +1,13 @@
 #pragma once
 class Wavefunction;
+namespace IO {
 class UserInputBlock;
+}
 
 namespace Module {
 
 //! Runs a range of tests (orthonorm, <H>, sum rules etc.) -- see input options
-void Module_tests(const UserInputBlock &input, const Wavefunction &wf);
+void Module_tests(const IO::UserInputBlock &input, const Wavefunction &wf);
 
 namespace Tests {
 void Module_Tests_orthonormality(const Wavefunction &wf,

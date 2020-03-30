@@ -1,4 +1,4 @@
-#include "IO/FileIO_fileReadWrite.hpp"
+#include "IO/FRW_fileReadWrite.hpp"
 #include "Angular/Angular_369j.hpp"
 #include <iostream>
 #include <sstream>
@@ -104,7 +104,7 @@ int main(int num_in, char *argv[]) {
   if (first_arg == "-f" || f_ext == ".in") {
     auto fname = (first_arg == "-f" && num_in > 2) ? argv[2] : argv[1];
     std::cout << "Reading from input file: " << fname << "\n\n";
-    input_list = FileIO::readInputFile_byLine(fname);
+    input_list = IO::FRW::readInputFile_byLine(fname);
   } else {
     for (int i = 1; i < num_in; i++) {
       input_list.push_back(argv[i]);

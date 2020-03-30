@@ -9,8 +9,8 @@ Class that uses std::chrono to easily time code
 Usage:
   Create object. By default will not start the timer, unless 'true'
   is given as optional input, e.g.:
-    ChronoTimer sw; //will not start the timing.
-    ChronoTimer sw; will
+    IO::ChronoTimer sw; //will not start the timing.
+    IO::ChronoTimer sw; will
 
   sw.start() -- starts timing
   sw.stop()  -- 'pauses' timing
@@ -28,6 +28,8 @@ Usage:
   (e.g., "1.56 s" or "2.10 hours")
 
 */
+
+namespace IO {
 
 class ChronoTimer {
 public:
@@ -150,3 +152,5 @@ inline std::string ChronoTimer::convertHR(double t) const
   ss << std::fixed << std::setprecision(2) << ot;
   return ss.str() + " " + un;
 }
+
+} // namespace IO

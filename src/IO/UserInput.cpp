@@ -1,10 +1,12 @@
 #include "IO/UserInput.hpp"
-#include "IO/FileIO_fileReadWrite.hpp"
+#include "IO/FRW_fileReadWrite.hpp"
 #include <iostream>
 #include <sstream>
 #include <string>
 #include <utility>
 #include <vector>
+
+namespace IO {
 
 //******************************************************************************
 void UserInputBlock::print() const {
@@ -66,10 +68,10 @@ UserInputBlock::find_option(const std::string &in_option) const {
 
 //******************************************************************************
 UserInput::UserInput(const std::string &infile) : m_filename(infile) {
-  auto inp = FileIO::splitInput_byBraces(FileIO::readInputFile(infile));
+  auto inp = IO::FRW::splitInput_byBraces(IO::FRW::readInputFile(infile));
   for (const auto &item : inp) {
     auto block_name = item.first;
-    auto option_vector = FileIO::splitInput_bySemiColon(item.second);
+    auto option_vector = IO::FRW::splitInput_bySemiColon(item.second);
     m_blocks.emplace_back(block_name, option_vector);
   }
 }
@@ -113,3 +115,5 @@ bool UserInput::check(const std::string &in_block,
   }
   return true;
 }
+
+} // namespace IO

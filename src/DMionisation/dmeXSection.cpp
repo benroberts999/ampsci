@@ -1,6 +1,6 @@
 #include "AKF_akFunctions.hpp"
 #include "IO/ChronoTimer.hpp"
-#include "IO/FileIO_fileReadWrite.hpp"
+#include "IO/FRW_fileReadWrite.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/PhysConst_constants.hpp"
@@ -878,7 +878,7 @@ Mostly, coming from:
 //******************************************************************************
 //******************************************************************************
 int main(int argc, char *argv[]) {
-  ChronoTimer sw; // start the overall timer
+  IO::ChronoTimer sw; // start the overall timer
 
   std::string input_file = (argc > 1) ? argv[1] : "dmeXSection.in";
   std::cout << "Reading input from: " << input_file << "\n";
@@ -916,7 +916,7 @@ int main(int argc, char *argv[]) {
         akfn, label, mxmin, mxmax, n_mx, i_mv, mvmin, mvmax, n_mv, dvesc, dv0,
         ianmod, iwr_dsvde, idodama, dres, err_PEkeV, Atot_DAMA, iEbin, fEbin,
         wEbin, iSM, iXe100, N_err, sPMT_err, Atot_XE, s1_a, s1_b, iwdS1);
-    FileIO::setInputParameters(input_file, tp);
+    IO::FRW::setInputParameters(input_file, tp);
     label = label == "na" ? akfn : akfn + "-" + label;
     // what to write to file:
     write_dsvde = iwr_dsvde == 1 ? true : false;

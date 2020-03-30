@@ -1,5 +1,5 @@
 #include "IO/ChronoTimer.hpp"
-#include "IO/FileIO_fileReadWrite.hpp" //for 'ExtraPotential'
+#include "IO/FRW_fileReadWrite.hpp" //for 'ExtraPotential'
 #include "IO/UserInput.hpp"
 #include "Maths/Interpolator.hpp"          //for 'ExtraPotential'
 #include "Maths/NumCalc_quadIntegrate.hpp" //for 'ExtraPotential'
@@ -9,12 +9,12 @@
 #include <string>
 
 int main(int argc, char *argv[]) {
-  ChronoTimer timer("\nhartreeFock");
+  IO::ChronoTimer timer("\nhartreeFock");
   const std::string input_file = (argc > 1) ? argv[1] : "hartreeFock.in";
   std::cout << "Reading input from: " << input_file << "\n";
 
   // Input options
-  UserInput input(input_file);
+  IO::UserInput input(input_file);
 
   // Get + setup atom parameters
   auto input_ok = input.check("Atom", {"Z", "A", "varAlpha2"});
@@ -116,7 +116,7 @@ int main(int argc, char *argv[]) {
       ep_fname != "" && std::abs(ep_factor) > 0.0 && extra_ok;
   std::vector<double> Vextra;
   if (extra_pot) {
-    const auto &[x, y] = FileIO::readFile_xy_PoV("testIn.txt");
+    const auto &[x, y] = IO::FRW::readFile_xy_PoV("testIn.txt");
     Vextra = Interpolator::interpolate(x, y, wf.rgrid.r);
     NumCalc::scaleVec(Vextra, ep_factor);
   }
@@ -127,7 +127,7 @@ int main(int argc, char *argv[]) {
   }
 
   { // Solve Hartree equations for the core:
-    ChronoTimer t(" core");
+    IO::ChronoTimer t(" core");
     wf.hartreeFockCore(HF_method, str_core, eps_HF, H_d, g_t);
   }
 
@@ -162,7 +162,7 @@ int main(int argc, char *argv[]) {
           : "";
   if (valence_list != "") {
     // 'if' is only for output format, nothing bad happens if below are called
-    ChronoTimer t("  val");
+    IO::ChronoTimer t("  val");
     wf.hartreeFockValence(valence_list);
     if (input.get("HartreeFock", "orthonormaliseValence", false))
       wf.orthonormaliseOrbitals(wf.valence_orbitals, 2);
@@ -203,7 +203,7 @@ int main(int argc, char *argv[]) {
   const auto n_min_core = input.get("Correlations", "n_min_core", 1);
   // Just energy shifts
   if (!wf.valence_orbitals.empty() && do_energyShifts) {
-    ChronoTimer t(" de");
+    IO::ChronoTimer t(" de");
     wf.SOEnergyShift(n_min_core);
   }
   // Brueckner orbitals
@@ -211,7 +211,7 @@ int main(int argc, char *argv[]) {
     std::cout
         << "\nConstructing correlation potential for Brueckner orbitals:\n"
         << std::flush;
-    ChronoTimer t(" Br");
+    IO::ChronoTimer t(" Br");
     wf.hartreeFockBrueckner(n_min_core);
   }
   // Print out info for new "Brueckner" valence orbitals:

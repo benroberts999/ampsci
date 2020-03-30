@@ -21,7 +21,7 @@
 namespace Module {
 
 //******************************************************************************
-void matrixElements(const UserInputBlock &input, const Wavefunction &wf) {
+void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf) {
 
   std::string ThisModule = "MatrixElements::";
   auto operator_str = input.name().substr(ThisModule.length());
@@ -107,14 +107,15 @@ void matrixElements(const UserInputBlock &input, const Wavefunction &wf) {
 }
 
 //******************************************************************************
-void calculateBohrWeisskopf(const UserInputBlock &input, const Wavefunction &wf)
+void calculateBohrWeisskopf(const IO::UserInputBlock &input,
+                            const Wavefunction &wf)
 //
 {
   using namespace DiracOperator;
 
-  UserInputBlock point_in("MatrixElements::hfs", input);
-  UserInputBlock ball_in("MatrixElements::hfs", input);
-  UserInputBlock BW_in("MatrixElements::hfs", input);
+  IO::UserInputBlock point_in("MatrixElements::hfs", input);
+  IO::UserInputBlock ball_in("MatrixElements::hfs", input);
+  IO::UserInputBlock BW_in("MatrixElements::hfs", input);
   point_in.add("F(r)=pointlike");
   ball_in.add("F(r)=ball");
   if (wf.Anuc() % 2 == 0)
@@ -142,7 +143,7 @@ void calculateBohrWeisskopf(const UserInputBlock &input, const Wavefunction &wf)
 }
 
 //******************************************************************************
-void SecondOrder(const UserInputBlock &input, const Wavefunction &wf) {
+void SecondOrder(const IO::UserInputBlock &input, const Wavefunction &wf) {
 
   input.checkBlock({"lmax", "kmax", "nmin_core"});
 
@@ -175,7 +176,7 @@ void SecondOrder(const UserInputBlock &input, const Wavefunction &wf) {
   std::cout << "XXX\n";
 
   if (true) {
-    ChronoTimer timer("Matrix Elements version:");
+    IO::ChronoTimer timer("Matrix Elements version:");
     for (const auto &v : wf.valence_orbitals) {
       if (v.l() > lmax_v)
         continue;
@@ -192,7 +193,7 @@ void SecondOrder(const UserInputBlock &input, const Wavefunction &wf) {
 
   {
     std::cout << "\n";
-    ChronoTimer timer("Fv*(Sigma*Fv) version:");
+    IO::ChronoTimer timer("Fv*(Sigma*Fv) version:");
     for (const auto &v : wf.valence_orbitals) {
       if (v.l() > lmax_v)
         continue;
@@ -208,8 +209,8 @@ void SecondOrder(const UserInputBlock &input, const Wavefunction &wf) {
 
 //******************************************************************************
 std::unique_ptr<DiracOperator::TensorOperator>
-generateOperator(const std::string &operator_str, const UserInputBlock &input,
-                 const Wavefunction &wf) {
+generateOperator(const std::string &operator_str,
+                 const IO::UserInputBlock &input, const Wavefunction &wf) {
   using namespace DiracOperator;
   //
   const std::string ThisModule = "MatrixElements::" + operator_str;
@@ -356,7 +357,8 @@ generateOperator(const std::string &operator_str, const UserInputBlock &input,
 }
 
 //******************************************************************************
-void calculateLifetimes(const UserInputBlock &input, const Wavefunction &wf) {
+void calculateLifetimes(const IO::UserInputBlock &input,
+                        const Wavefunction &wf) {
   std::cout << "\nLifetimes:\n";
 
   input.checkBlock({"E1", "E2"});

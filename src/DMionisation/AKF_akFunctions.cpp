@@ -1,6 +1,6 @@
 #include "DMionisation/AKF_akFunctions.hpp"
 #include "Angular/Angular_369j.hpp"
-#include "IO/FileIO_fileReadWrite.hpp"
+#include "IO/FRW_fileReadWrite.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Maths/SphericalBessel.hpp"
 #include "Physics/AtomData.hpp"
@@ -99,11 +99,11 @@ int akReadWrite(std::string fname, bool write,
 // XXX This mean we MUST use exponential Grid! Fix this! XXX
 // */
 {
-  FileIO::RoW row = write ? FileIO::write : FileIO::read;
+  IO::FRW::RoW row = write ? IO::FRW::write : IO::FRW::read;
 
   std::fstream iof;
   fname = fname + ".bin";
-  FileIO::open_binary(iof, fname, row);
+  IO::FRW::open_binary(iof, fname, row);
 
   if (iof.fail()) {
     std::cout << "Can't open " << fname << "\n";
@@ -114,27 +114,27 @@ int akReadWrite(std::string fname, bool write,
     int nde = (int)AK.size();      // dE
     int ns = (int)AK[0].size();    // nk
     int nq = (int)AK[0][0].size(); // q
-    FileIO::binary_rw(iof, nde, row);
-    FileIO::binary_rw(iof, ns, row);
-    FileIO::binary_rw(iof, nq, row);
+    IO::FRW::binary_rw(iof, nde, row);
+    IO::FRW::binary_rw(iof, ns, row);
+    IO::FRW::binary_rw(iof, nq, row);
   } else {
     int nq, ns, nde;
-    FileIO::binary_rw(iof, nde, row);
-    FileIO::binary_rw(iof, ns, row);
-    FileIO::binary_rw(iof, nq, row);
+    IO::FRW::binary_rw(iof, nde, row);
+    IO::FRW::binary_rw(iof, ns, row);
+    IO::FRW::binary_rw(iof, nq, row);
     AK.resize(nde, std::vector<std::vector<float>>(ns, std::vector<float>(nq)));
     nklst.resize(ns);
   }
-  FileIO::binary_rw(iof, qmin, row);
-  FileIO::binary_rw(iof, qmax, row);
-  FileIO::binary_rw(iof, dEmin, row);
-  FileIO::binary_rw(iof, dEmax, row);
+  IO::FRW::binary_rw(iof, qmin, row);
+  IO::FRW::binary_rw(iof, qmax, row);
+  IO::FRW::binary_rw(iof, dEmin, row);
+  IO::FRW::binary_rw(iof, dEmax, row);
   for (std::size_t ie = 0; ie < AK.size(); ie++) {
     for (std::size_t in = 0; in < AK[0].size(); in++) {
       if (ie == 0)
-        FileIO::binary_str_rw(iof, nklst[in], row);
+        IO::FRW::binary_str_rw(iof, nklst[in], row);
       for (std::size_t iq = 0; iq < AK[0][0].size(); iq++) {
-        FileIO::binary_rw(iof, AK[ie][in][iq], row);
+        IO::FRW::binary_rw(iof, AK[ie][in][iq], row);
       }
     }
   }

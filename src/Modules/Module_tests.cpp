@@ -14,7 +14,7 @@
 namespace Module {
 
 //******************************************************************************
-void Module_tests(const UserInputBlock &input, const Wavefunction &wf) {
+void Module_tests(const IO::UserInputBlock &input, const Wavefunction &wf) {
   using namespace Tests;
   std::string ThisModule = "Module::Tests";
   input.checkBlock({"orthonormal", "orthonormal_all", "Hamiltonian",

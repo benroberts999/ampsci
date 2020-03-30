@@ -10,6 +10,6 @@ $(SD)/Physics/NuclearData.hpp $(SD)/Physics/AtomData.hpp \
 $(SD)/Physics/AtomData_PeriodicTable.hpp $(SD)/Physics/PhysConst_constants.hpp
 	$(COMP)
 
-$(BD)/wigner.o: $(SD)/wigner.cpp $(SD)/IO/FileIO_fileReadWrite.hpp \
+$(BD)/wigner.o: $(SD)/wigner.cpp $(SD)/IO/FRW_fileReadWrite.hpp \
 $(SD)/Angular/Angular_369j.hpp
 	$(COMP)

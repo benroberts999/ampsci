@@ -32,7 +32,7 @@ DiracSpinor solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa,
                             const DiracSpinor &hFa, const double eps_target)
 // Solves:  (H - e - w)X = -h*Fa for X
 {
-  auto sp = SafeProfiler::profile(__func__);
+  auto sp = IO::Profile::safeProfiler(__func__);
   auto damper = rampedDamp(0.8, 0.33, 3, 15);
   const int max_its = 100;
 

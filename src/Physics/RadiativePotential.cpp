@@ -128,7 +128,7 @@ double vSimpleExp(double r, double, double z, double alpha) {
 
 //******************************************************************************
 double vUehling(double r, double rN, double z, double alpha) {
-  auto sp1 = SafeProfiler::profile(__func__);
+  auto sp1 = IO::Profile::safeProfiler(__func__);
 
   // Routines return the first approximation which has an absolute error
   // smaller than abs_err_lim or a relative error smaller than rel_err_lim.
@@ -171,7 +171,7 @@ double vUehling(double r, double rN, double z, double alpha) {
 //******************************************************************************
 static Fit_AB fit_AB;
 double vSEh(double r, double rN, double z, double alpha) {
-  auto sp1 = SafeProfiler::profile(__func__);
+  auto sp1 = IO::Profile::safeProfiler(__func__);
 
   static constexpr double abs_err_lim = 0.0;
   static constexpr double rel_err_lim = 1.0e-3;
@@ -206,7 +206,7 @@ double vSEh(double r, double rN, double z, double alpha) {
 
 //------------------------------------------------------------------------------
 double vSEl(double r, double rN, double z, double alpha) {
-  auto sp1 = SafeProfiler::profile(__func__);
+  auto sp1 = IO::Profile::safeProfiler(__func__);
   //
   auto l = 0; // XXX
   auto bl = fit_AB.Bl(l, z * alpha);
@@ -231,7 +231,7 @@ double vSEl(double r, double rN, double z, double alpha) {
 
 //******************************************************************************
 double vSE_Hmag(double r, double rN, double z, double alpha) {
-  auto sp1 = SafeProfiler::profile(__func__);
+  auto sp1 = IO::Profile::safeProfiler(__func__);
 
   static constexpr double abs_err_lim = 0.0;
   static constexpr double rel_err_lim = 1.0e-6;

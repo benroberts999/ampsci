@@ -323,7 +323,7 @@ void ExternalField::solve_TDHFcore_matrix(const Wavefunction &wf,
                                           const int max_its) {
   // This is just for testing?? Very slow. Should give same as reg method!
 
-  ChronoTimer timer("solve_TDHFcore_matrix");
+  IO::ChronoTimer timer("solve_TDHFcore_matrix");
   const bool staticQ = std::abs(omega) < 1.0e-10;
 
   const std::size_t nspl = 50;
@@ -357,7 +357,7 @@ void ExternalField::solve_TDHFcore_matrix(const Wavefunction &wf,
 
   auto eps = 0.0;
   for (int it = 0; it < max_its; it++) {
-    ChronoTimer timer2("solve_TDHFcore: iterations");
+    IO::ChronoTimer timer2("solve_TDHFcore: iterations");
     eps = 0.0;
     const auto a_damp = (it == 0) ? 0.0 : damper(it);
 

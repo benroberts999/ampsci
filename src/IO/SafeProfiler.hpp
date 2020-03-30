@@ -7,10 +7,10 @@
 #include <utility>
 #include <vector>
 
-namespace SafeProfiler {
+namespace IO::Profile {
 
 constexpr bool do_profile = false;
-// auto sp = SafeProfiler::profile(__func__);
+// auto sp = IO::Profile::safeProfiler(__func__);
 // #include "IO/SafeProfiler.hpp"
 
 struct StrDoubleUnsigned {
@@ -114,11 +114,11 @@ struct BlankClass {
 };
 
 //******************************************************************************
-inline auto profile(const char *in_name, const char *extra = "") {
+inline auto safeProfiler(const char *in_name, const char *extra = "") {
   if constexpr (do_profile)
     return Profiler(in_name, extra);
   else
     return BlankClass();
 }
 
-} // namespace SafeProfiler
+} // namespace IO::Profile

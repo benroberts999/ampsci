@@ -14,7 +14,7 @@ ALSO: there are no safety checks here! If format is wrong, leads to undefined
 behaviour (most likely, a crash)
 */
 
-namespace FileIO {
+namespace IO::FRW {
 
 //******************************************************************************
 // Uses compile-time recursion to get access to elements of tuple.
@@ -33,7 +33,7 @@ template <std::size_t I = 0, typename... Tp>
     stringstreamVectorIntoTuple(const std::vector<std::string> &lst,
                                 std::tuple<Tp...> &t) {
   if (I > lst.size())
-    std::cerr << "\nFAIL 34 in FileIO: list shorter than tuple\n";
+    std::cerr << "\nFAIL 34 in FRW: list shorter than tuple\n";
   std::stringstream(lst[I]) >> std::get<I>(t);
   stringstreamVectorIntoTuple<I + 1, Tp...>(lst, t);
 }
@@ -137,7 +137,7 @@ inline void writeFile_xy(const std::vector<double> &x,
                          const std::string &fname) {
   //
   if (x.size() != y.size()) {
-    std::cout << "Warning 139 in FileIO: trying to write {x,y} vectors of "
+    std::cout << "Warning 139 in FRW: trying to write {x,y} vectors of "
                  "different lengths!\n";
   }
   std::ofstream file(fname);
@@ -226,7 +226,7 @@ splitInput_byBraces(const std::string &input) {
     if (beg == std::string::npos)
       break;
     if (end == std::string::npos) {
-      std::cerr << "\nFAIL 114 in FileIO: Bad file format (missing '}'?)\n";
+      std::cerr << "\nFAIL 114 in FRW: Bad file format (missing '}'?)\n";
       break;
     }
     auto identifier = lines.substr(previous_end, beg - previous_end);
@@ -264,7 +264,7 @@ void setInputParameters(const std::string &infile, std::tuple<Tp...> &tp) {
     // Note: for now, I allow a longer-than-needed input list.
     // This allows us to not have to comment out all the crap below
     // the input file..
-    std::cerr << "\nFail 71 in FileIO: Wrong number of input parameters? "
+    std::cerr << "\nFail 71 in FRW: Wrong number of input parameters? "
               << "Reading from file: " << infile << ". Expected "
               << sizeof...(Tp) << " arguments"
               << ", but got " << input.size() << ".\n";
@@ -286,7 +286,7 @@ inline void open_binary(std::fstream &stream, const std::string &fname,
     stream.open(fname, std::ios_base::in | std::ios_base::binary);
     break;
   default:
-    std::cout << "\nFAIL 16 in FileIO\n";
+    std::cout << "\nFAIL 16 in FRW\n";
   }
 }
 
@@ -299,7 +299,7 @@ template <typename T> void binary_rw(std::fstream &stream, T &value, RoW row) {
     stream.read(reinterpret_cast<char *>(&value), sizeof(T));
     break;
   default:
-    std::cout << "\nFAIL 32 in FileIO\n";
+    std::cout << "\nFAIL 32 in FRW\n";
   }
 }
 
@@ -318,8 +318,8 @@ inline void binary_str_rw(std::fstream &stream, std::string &value, RoW row) {
     value = tvalue;
     delete[] tvalue;
   } else {
-    std::cout << "\nFAIL 55 in FileIO\n";
+    std::cout << "\nFAIL 55 in FRW\n";
   }
 }
 
-} // namespace FileIO
+} // namespace IO::FRW
