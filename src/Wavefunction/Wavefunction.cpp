@@ -1,5 +1,6 @@
 #include "Wavefunction/Wavefunction.hpp"
 #include "DiracODE/DiracODE.hpp"
+#include "HF/HartreeFockClass.hpp"
 #include "MBPT/CorrelationPotential.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/Interpolator.hpp"
@@ -8,6 +9,7 @@
 #include "Physics/NuclearPotentials.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Physics/RadiativePotential.hpp"
+#include "Wavefunction/BSplineBasis.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <algorithm> //for sort
 #include <cmath>
@@ -116,8 +118,8 @@ void Wavefunction::hartreeFockCore(HF::Method method,
                                    double h_d, double g_t) {
   // XXX Update this (and HF) so that it doesn't re-Create m_pHF
   // AND, so that can re-run core!
-  m_pHF = std::make_unique<HF::HartreeFock>(
-      HF::HartreeFock(method, *this, in_core, eps_HF, h_d, g_t));
+  m_pHF = std::make_unique<HF::HartreeFock>(method, *this, in_core, eps_HF, h_d,
+                                            g_t);
 }
 
 //******************************************************************************
@@ -130,7 +132,8 @@ auto Wavefunction::coreEnergyHF() const {
 }
 
 //******************************************************************************
-void Wavefunction::hartreeFockValence(const std::string &in_valence_str) {
+void Wavefunction::hartreeFockValence(const std::string &in_valence_str,
+                                      const bool print) {
   if (!m_pHF) {
     std::cerr << "WARNING 62: Cant call hartreeFockValence before "
                  "hartreeFockCore\n";
@@ -141,77 +144,7 @@ void Wavefunction::hartreeFockValence(const std::string &in_valence_str) {
     if (!isInCore(nk.n, nk.k) && !isInValence(nk.n, nk.k))
       valence_orbitals.emplace_back(DiracSpinor{nk.n, nk.k, rgrid});
   }
-  m_pHF->solveValence();
-}
-
-//******************************************************************************
-void Wavefunction::hartreeFockBrueckner(int n_min_core) {
-  if (!m_pHF) {
-    std::cerr << "WARNING 62: Cant call hartreeFockValence before "
-                 "hartreeFockCore\n";
-    return;
-  }
-  if (basis.empty() || valence_orbitals.empty() || core_orbitals.empty()) {
-    std::cout << "Can't do Brueckner. Check Splines/Valence/Core states?\n";
-    return;
-  }
-  m_pHF->solveBrueckner(basis, n_min_core);
-}
-
-//******************************************************************************
-void Wavefunction::SOEnergyShift(int n_min_core) {
-
-  std::cout << "\nMBPT(2): Valence energy shifts.\n";
-  std::cout << "Matrix elements <v|Sigma(2)|v>:\n";
-
-  if (basis.empty() || valence_orbitals.empty() || core_orbitals.empty()) {
-    std::cout << "Can't do MBPT. Check Splines/Valence/Core states?\n";
-    return;
-  }
-
-  std::vector<DiracSpinor> core, excited;
-  for (const auto &Fb : basis) {
-    if (isInCore(Fb) && Fb.n >= n_min_core)
-      core.push_back(Fb);
-    if (!isInCore(Fb))
-      excited.push_back(Fb);
-  }
-  // MBPT::CorrelationPotential Sigma2(core, excited);
-  MBPT::CorrelationPotential Sigma2(core, excited, {-0.127367672});
-  std::cout << "XXX\n";
-
-  double e0 = 0;
-  std::cout << " state |  E(HF)      de=<v|S2|v>      E(HF+2)        E(HF+2) "
-               "(cm^-1)\n";
-  for (const auto &v : valence_orbitals) {
-
-    auto delta = Sigma2(v, v);
-    const auto cm = PhysConst::Hartree_invcm;
-    if (e0 == 0)
-      e0 = (v.en + delta);
-
-    printf("%7s| %10.7f   %+10.7f  =  %10.7f   = %10.3f   %10.3f\n",
-           v.symbol().c_str(), v.en, delta, (v.en + delta), (v.en + delta) * cm,
-           (v.en + delta - e0) * cm);
-    if (std::abs(delta / v.en) > 0.2)
-      std::cout << "      *** Warning: delta too large?\n";
-  }
-  e0 = 0;
-  std::cout << " state |  E(HF)      de=<v|S2|v>      E(HF+2)        E(HF+2) "
-               "(cm^-1)\n";
-  for (const auto &v : valence_orbitals) {
-
-    auto delta = v * Sigma2(v);
-    const auto cm = PhysConst::Hartree_invcm;
-    if (e0 == 0)
-      e0 = (v.en + delta);
-
-    printf("%7s| %10.7f   %+10.7f  =  %10.7f   = %10.3f   %10.3f\n",
-           v.symbol().c_str(), v.en, delta, (v.en + delta), (v.en + delta) * cm,
-           (v.en + delta - e0) * cm);
-    if (std::abs(delta / v.en) > 0.2)
-      std::cout << "      *** Warning: delta too large?\n";
-  }
+  m_pHF->solveValence(print);
 }
 
 //******************************************************************************
@@ -742,6 +675,148 @@ void Wavefunction::formBasis(const std::string &states_str,
                              const double rmax_spl, const bool positronQ) {
   basis = SplineBasis::form_basis(states_str, n_spl, k_spl, r0_spl, r0_eps,
                                   rmax_spl, *this, positronQ);
+}
+
+//******************************************************************************
+void Wavefunction::formSigma(const int nmin_core, const bool form_matrix) {
+
+  // Sort basis into core/exited parts, throwing away core states with n<nmin
+  std::vector<DiracSpinor> core;
+  std::vector<DiracSpinor> excited;
+  for (const auto &Fb : basis) {
+    if (isInCore(Fb) && Fb.n >= nmin_core)
+      core.push_back(Fb);
+    else if (!isInCore(Fb))
+      excited.push_back(Fb);
+  }
+
+  if (excited.empty() || core.empty()) {
+    std::cout << "Can't do MBPT. Check Splines/Valence/Core states?\n";
+    return;
+  }
+
+  // Form list of energies for each kappa:
+  std::vector<double> en_list_kappa{};
+  if (form_matrix) {
+    const auto max_ki =
+        std::max_element(cbegin(valence_orbitals), cend(valence_orbitals),
+                         DiracSpinor::comp_ki)
+            ->k_index();
+    // for each kappa, find lowest valence (or basis) state energy:
+    for (int ki = 0; ki <= max_ki; ki++) {
+      const auto find_ki = [=](const auto &a) { return a.k_index() == ki; };
+      auto vki = std::find_if(cbegin(valence_orbitals), cend(valence_orbitals),
+                              find_ki);
+      if (vki == cend(valence_orbitals)) {
+        vki = std::find_if(cbegin(excited), cend(excited), find_ki);
+      }
+      if (vki != cend(valence_orbitals) && vki != cend(excited)) {
+        en_list_kappa.push_back(vki->en);
+      } else {
+        en_list_kappa.push_back(0.0);
+      }
+    }
+  }
+  // Correlaion potential matrix:
+  m_Sigma = std::make_unique<MBPT::CorrelationPotential>(core, excited,
+                                                         en_list_kappa);
+}
+
+//******************************************************************************
+void Wavefunction::hartreeFockBrueckner(const std::vector<double> &lambda_list,
+                                        const bool print) {
+  if (!m_pHF || !m_Sigma) {
+    std::cerr << "WARNING 62: Cant call hartreeFockValence before "
+                 "hartreeFockCore\n";
+    return;
+  }
+  if (basis.empty() || valence_orbitals.empty() || core_orbitals.empty()) {
+    std::cout << "Can't do Brueckner. Check Splines/Valence/Core states?\n";
+    return;
+  }
+  m_pHF->solveBrueckner(*(m_Sigma.get()), lambda_list, print);
+}
+
+//******************************************************************************
+void Wavefunction::fitSigma_hfBrueckner(
+    const std::string &valence_list, const std::vector<double> &fit_energies) {
+  std::cout << "\nFitting Sigma for lowest valence states:\n";
+
+  std::vector<double> lambdas(fit_energies.size(), 1.0);
+  valence_orbitals.clear();
+  hartreeFockValence(valence_list, false);
+  const auto hf_val = valence_orbitals; // copy
+  for (int i = 0; true; i++) {
+    valence_orbitals.clear();
+    hartreeFockValence(valence_list, false);
+    hartreeFockBrueckner(lambdas, false);
+
+    auto max_eps = 0.0;
+    for (auto ki = 0ul; ki < fit_energies.size(); ++ki) {
+      auto match_ki = [=](const auto &v) { return v.k_index() == int(ki); };
+      auto e_exp = fit_energies[ki];
+      auto l_0 = lambdas[ki];
+      // find lowest valence state for this kappa
+      auto v_ki = std::find_if(cbegin(valence_orbitals), cend(valence_orbitals),
+                               match_ki);
+      if (v_ki == cend(valence_orbitals))
+        continue;
+      const auto vhf_ki = std::find_if(cbegin(hf_val), cend(hf_val), match_ki);
+      const auto ehf = vhf_ki->en;
+      const auto e0 = v_ki->en;
+      // E0 = E_hf + l_0 * sigma
+      // Eexp = E_hf + l * sigma
+      // => l = l0 * (1 + R)
+      // R = (Eexp - E0)/(E0-Ehf)
+      const auto r = (e_exp - e0) / (e0 - ehf);
+      const auto l = l_0 * (1.0 + r);
+      lambdas[ki] = std::clamp(l, 0.5, 1.5);
+      const auto eps = std::abs((e_exp - e0) / e_exp);
+      max_eps = std::max(max_eps, eps);
+      // std::cout << v_ki->symbol() << " " << lambdas[ki] << " " << eps <<
+      // "\n";
+    }
+    // std::cout << "--\n";
+    if (max_eps < 1.0e-8 || i == 15) {
+      std::cout << "converged to: " << max_eps << " [" << i << "]\n";
+      break;
+    }
+  }
+  for (const auto &l : lambdas) {
+    std::cout << l << ", ";
+  }
+  std::cout << "\n";
+  valence_orbitals.clear();
+  hartreeFockValence(valence_list, false);
+  hartreeFockBrueckner(lambdas, true);
+}
+
+//******************************************************************************
+void Wavefunction::SOEnergyShift() {
+
+  std::cout << "\nMBPT(2): Second-order valence energy shifts\n";
+  std::cout << "and matrix elements <v|Sigma(2)|v>:\n";
+
+  if (!m_Sigma) {
+    std::cout << "No Sigma?\n";
+    return;
+  }
+
+  double e0 = 0;
+  std::cout << "state |  E(HF)      E(2)       <v|S2|v> |  E(HF+2)     E(HF+2) "
+               "(cm^-1)\n";
+  for (const auto &v : valence_orbitals) {
+    const auto delta = (*m_Sigma)(v, v);
+    const auto delta2 = v * (*m_Sigma)(v);
+    const auto cm = PhysConst::Hartree_invcm;
+    if (e0 == 0)
+      e0 = (v.en + delta);
+    printf("%6s| %9.6f  %+9.6f  %+9.6f | %9.6f = %8.1f  %7.1f\n",
+           v.symbol().c_str(), v.en, delta, delta2, (v.en + delta),
+           (v.en + delta) * cm, (v.en + delta - e0) * cm);
+    if (std::abs(delta / v.en) > 0.2)
+      std::cout << "      *** Warning: delta too large?\n";
+  }
 }
 
 //******************************************************************************

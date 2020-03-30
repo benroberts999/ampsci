@@ -11,19 +11,28 @@ constexpr bool check_bounds = false;
 //! @brief Calculates + stores Hartree Y functions + Angular (w/ look-up)
 /*! @details
 
-Stores an Angular::Angular::Ck_ab table (publically)
+Also stores an Angular::Angular::Ck_ab table (publically).
+
+Note: Look-up must be done such that: Fa MUST be member of a_orbitals, Fb of
+b_orbitals. Turn the compile-time option "check_bounds" to true (in YkTable.hpp)
+to turn on run-time bounds checking.
 
 Definitions:
-  - y^k_ij(r)   := Int_0^inf [r_min^k/r_max^(k+1)]*rho(f') dr'
-  - Lambda^k_ij := 3js((ji,jj,k),(-1/2,1/2,0))^2 * parity(li+lj+k)
+
+\f[y^k_{ij}(r) = \int_0^\infty \frac{r_<^k}{r_>^{k+1}}\rho_{ij}(r')\,{\rm
+d}r'\f]
+
+\f[\rho(r) = f_i(r)f_j(r) + g_i(r)g_j(r)\f]
+
+with \f$r_< = min(r,r')\f$
 */
 class YkTable {
 public:
   YkTable(const Grid *const in_grid,
           const std::vector<DiracSpinor> *const in_a_orbs,
           const std::vector<DiracSpinor> *const in_b_orbs = nullptr);
-  YkTable &operator=(const YkTable &) = default;
-  YkTable(const YkTable &) = default;
+  YkTable &operator=(const YkTable &) = delete;
+  YkTable(const YkTable &) = delete;
   ~YkTable() = default;
 
 private:
@@ -45,6 +54,7 @@ public:
   void update_y_ints(const DiracSpinor &Fn);
 
   //! Returns single y^k_ab(r) [by const ref]
+  //! @details NOTE: Fa MUST be member of a_orbitals, Fb of b_or
   const std::vector<double> &get_yk_ab(const int k, const DiracSpinor &Fa,
                                        const DiracSpinor &Fb) const;
   const std::vector<double> &operator()(const int k, const DiracSpinor &Fa,
@@ -53,7 +63,8 @@ public:
   }
   //! @brief Returns vector of y^k_ab(r) for each k [by const ref]
   //! @details Note: vector starts at first non-zero k (not zero)! use k_minmax
-  //! to get k_min
+  //! to get k_min.
+  //! NOTE: Fa MUST be member of a_orbitals, Fb of b_or
   const std::vector<std::vector<double>> &get_y_ab(const DiracSpinor &Fa,
                                                    const DiracSpinor &Fb) const;
   const std::vector<std::vector<double>> &

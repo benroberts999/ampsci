@@ -1,15 +1,11 @@
 #include "Modules/Module_runModules.hpp"
 #include "DMionisation/Module_atomicKernal.hpp"
-#include "DiracOperator/DiracOperator.hpp"
-#include "DiracOperator/Operators.hpp"
-#include "HF/HartreeFockClass.hpp"
 #include "IO/UserInput.hpp"
 #include "Modules/Module_fitParametric.hpp"
 #include "Modules/Module_matrixElements.hpp"
 #include "Modules/Module_pnc.hpp"
 #include "Modules/Module_tests.hpp"
-#include "Physics/PhysConst_constants.hpp"
-#include "Wavefunction/Hamiltonian.hpp"
+#include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include <algorithm>
 #include <cmath>

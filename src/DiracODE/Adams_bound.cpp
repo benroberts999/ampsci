@@ -632,8 +632,13 @@ DiracMatrix::DiracMatrix(const Grid &in_grid, const std::vector<double> &in_v,
                          const int in_k, const double in_en,
                          const double in_alpha,
                          const std::vector<double> &in_Hmag)
-    : pgr(&in_grid), v(&in_v), Hmag(in_Hmag.empty() ? nullptr : &in_Hmag),
-      k(in_k), en(in_en), alpha(in_alpha), c2(1.0 / in_alpha / in_alpha) {}
+    : pgr(&in_grid),
+      v(&in_v),
+      Hmag(in_Hmag.empty() ? nullptr : &in_Hmag),
+      k(in_k),
+      en(in_en),
+      alpha(in_alpha),
+      c2(1.0 / in_alpha / in_alpha) {}
 
 // update a and d for off-diag additional potential (magnetic form-fac, QED)
 double DiracMatrix::a(std::size_t i) const {

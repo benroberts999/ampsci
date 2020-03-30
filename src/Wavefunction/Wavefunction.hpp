@@ -1,5 +1,6 @@
 #pragma once
 #include "HF/HartreeFockClass.hpp" // forward decl..
+#include "MBPT/CorrelationPotential.hpp"
 #include "Maths/Grid.hpp"
 #include "Physics/AtomData.hpp" // NonRelSEConfig
 #include "Physics/NuclearPotentials.hpp"
@@ -58,6 +59,9 @@ private:
   std::unique_ptr<HF::HartreeFock> m_pHF = nullptr;
 
 public:
+  std::unique_ptr<MBPT::CorrelationPotential> m_Sigma = nullptr;
+
+public:
   //! Nuclear potential
   std::vector<double> vnuc = {};
   //! Direct/local part of the electron potential
@@ -78,6 +82,7 @@ public: // const methods: "views" into WF object
   int Anuc() const { return m_A; }
   //! Number of neutrons, A-Z
   int Nnuc() const { return (m_A > m_Z) ? (m_A - m_Z) : 0; }
+  //! Number of electrons in the core
   int Ncore() const { return num_core_electrons; }
   const Nuclear::Parameters &get_nuclearParameters() const {
     return m_nuc_params;
@@ -88,6 +93,7 @@ public: // const methods: "views" into WF object
     return m_pHF->excludeExchangeQ();
   }
 
+  // Kill this (used once?)
   std::size_t getStateIndex(int n, int k, bool &is_valence = dummy_bool) const;
 
   //! Finds requested state; returns nullptr if not found
@@ -110,6 +116,7 @@ public: // const methods: "views" into WF object
     return AtomData::atomicSymbol(m_Z) + ", Z=" + std::to_string(m_Z) +
            " A=" + std::to_string(m_A);
   }
+  //! e.g., "Cs"
   std::string atomicSymbol() const { return AtomData::atomicSymbol(m_Z); }
 
   //! Prints table of core orbitals + energies etc. Optionally sorted by energy
@@ -124,8 +131,10 @@ public: // const methods: "views" into WF object
   void printBasis(bool sorted = false) const;
   bool isInCore(int n, int k) const;
   bool isInValence(int n, int k) const;
-  bool isInCore(const DiracSpinor &phi) const;
+  bool isInCore(const DiracSpinor &phi) const; // kill this one
+  //! Largest n for core states
   int maxCore_n(int ka_in = 0) const;
+  //! Largest l for core states
   int maxCore_l() const;
 
   //! Calculated rho(r) = sum_c psi^2(r) for core states
@@ -135,12 +144,20 @@ public: // const methods: "views" into WF object
   void hartreeFockCore(HF::Method method, const std::string &in_core,
                        double eps_HF = 0, double h_d = 0, double g_t = 0);
 
+  //! Calculates HF core energy (doesn't include magnetic QED?)
   auto coreEnergyHF() const;
 
   //! Performs hartree-Fock procedure for valence: note: poplulates valnece
-  void hartreeFockValence(const std::string &in_valence_str);
-  void hartreeFockBrueckner(int n_min_core = 1);
-  void SOEnergyShift(int n_min_core = 1);
+  void hartreeFockValence(const std::string &in_valence_str,
+                          const bool print = true);
+  //! Forms Bruckner valence orbitals: (H_hf + Sigma)|nk> = e|nk>.
+  void hartreeFockBrueckner(const std::vector<double> &lambda_list = {},
+                            const bool print = true);
+  //! First, fits Sigma to energies, then forms fitted Brueckner orbitals
+  void fitSigma_hfBrueckner(const std::string &valence_list,
+                            const std::vector<double> &fit_energies);
+  //! Second-order MBPT energy shifts, calculates + prints
+  void SOEnergyShift();
 
   //! Calculates radiative potential. Stores in vnuc, and Hmag
   void radiativePotential(double x_simple, double x_Ueh, double x_SEe_h,
@@ -152,6 +169,9 @@ public: // const methods: "views" into WF object
                  const std::size_t k_spl, const double r0_spl,
                  const double r0_eps, const double rmax_spl,
                  const bool positronQ = false);
+
+  //! Forms + stores correlation potential Sigma
+  void formSigma(const int nmin_core = 1, const bool form_matrix = true);
 
   //! @brief Solves Dirac bound state problem, with optional 'extra' potential
   //! log_eps is log_10(convergence_target).
@@ -187,6 +207,7 @@ public: // const methods: "views" into WF object
   //! for each l in the core.
   std::tuple<double, double> lminmax_core_range(int l, double eps = 0.0) const;
 
+  //! Local potential, e.g., Vl = Vnuc + Vdir + Vrad_el(l) - can be l-dependent
   std::vector<double> get_Vlocal(int l = 0) const;
   const std::vector<double> &get_Hmag(int l = 0) const;
 

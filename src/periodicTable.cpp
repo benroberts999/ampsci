@@ -1,4 +1,5 @@
 #include "Physics/AtomData.hpp"
+#include "Physics/AtomData_PeriodicTable.hpp"
 #include "Physics/NuclearData.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include <iostream>

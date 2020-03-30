@@ -1,6 +1,4 @@
 #include "Modules/Module_matrixElements.hpp"
-#include "Coulomb/Coulomb.hpp"
-#include "Coulomb/YkTable.hpp"
 #include "DiracOperator/DiracOperator.hpp"
 #include "DiracOperator/Operators.hpp"
 #include "HF/ExternalField.hpp"

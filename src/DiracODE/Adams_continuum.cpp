@@ -1,8 +1,8 @@
 #include "DiracODE/Adams_continuum.hpp"
 #include "DiracODE/Adams_bound.hpp"
 #include "DiracODE/DiracODE.hpp"
-#include "Wavefunction/DiracSpinor.hpp"
 #include "Maths/Grid.hpp"
+#include "Wavefunction/DiracSpinor.hpp"
 #include <cmath>
 
 namespace DiracODE {

@@ -18,8 +18,8 @@ public:
       : m_block_name(in_block_name), m_input_options(in_input_options) {}
   UserInputBlock(const std::string &in_block_name,
                  const UserInputBlock &in_block)
-      : m_block_name(in_block_name), m_input_options(in_block.m_input_options) {
-  }
+      : m_block_name(in_block_name),
+        m_input_options(in_block.m_input_options) {}
 
   template <typename T>
   T get(const std::string &option, const T &default_value) const;

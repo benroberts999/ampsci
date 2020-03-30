@@ -7,129 +7,131 @@
 #include "Wavefunction/Wavefunction.hpp"
 #include <vector>
 class Grid;
-// namespace Angular {
-// class Ck_ab;
-// class SixJ;
-// } // namespace Angular
-// namespace Coulomb {
-// class YkTable;
-// } // namespace Coulomb
 
+//! Many-body perturbation theory
 namespace MBPT {
 
+//! Holds Green's fn operator of form: |ket><bra| [4x4 matrix of NxN matrix]
 struct GMatrix {
-  GMatrix(int size) : ff(size), fg(size), gf(size), gg(size) {
+  GMatrix(int in_size) : size(in_size), ff(size), fg(size), gf(size), gg(size) {
+    zero();
+  }
+  int size; // careful, should be const, but then need copy construct?
+  LinAlg::SqMatrix ff, fg, gf, gg;
+
+  //! Sets all matrix elements to zero
+  void zero() {
     ff.zero();
     fg.zero();
     gf.zero();
     gg.zero();
   }
-  LinAlg::SqMatrix ff;
-  LinAlg::SqMatrix fg;
-  LinAlg::SqMatrix gf;
-  LinAlg::SqMatrix gg;
 
-  // Check SqMatrix impl, might be slow?
-  void operator+=(const GMatrix &rhs) {
+  //! Can add/subtract matrices (in place)
+  GMatrix &operator+=(const GMatrix &rhs) {
     ff += rhs.ff;
     fg += rhs.fg;
     gf += rhs.gf;
     gg += rhs.gg;
+    return *this;
   }
-  void operator-=(const GMatrix &rhs) {
+  GMatrix &operator-=(const GMatrix &rhs) {
     ff -= rhs.ff;
     fg -= rhs.fg;
     gf -= rhs.gf;
     gg -= rhs.gg;
+    return *this;
   }
 };
 
 //******************************************************************************
+/*!
+@brief Calculates + stores Correlation Potential operator (2nd order)
+@details
+Takes core+excited basis orbitals, and a list of energies.
+Should be one energy per kappa, in order starting from k=-1 (no gaps).
+Correlation potential is formed for each kappa for which an energy is given, at
+the given energy.
+Can calculate energy shifts without forming matrix (give blank energy list).
+
+Sigma stored in a matrix consisting of 4 'G' terms:
+
+Four second-order diagrams:
+  - Diagram (a):
+\f[ G_a = \frac{|Q^k_amn><Q^k_amn|}{ [k][j] \, de_{amn} } \f]
+  - Diagram (b) (exchange):
+\f[ G_b = \frac{|Q^k_amn><P^k_amn|}{ [k][j] \, de_{amn} } \f]
+  - Diagram (c):
+\f[ G_c = \frac{|Q^k_nba><Q^k_nba|}{ [k][j] \, de_{nba} } \f]
+  - Diagram (d) (exchange):
+\f[ G_d = \frac{|Q^k_nba><P^k_nba|}{ [k][j] \, de_{nba} } \f]
+where:
+All indeces are summed over,
+a & b are core states, n & m are virtual excited states,
+k is multipolarity [Coloulmb expansion], and
+\f$ de_{xyz} = e_v + e_x - e_y - e_z \f$
+
+*/
 class CorrelationPotential {
 public:
-  // CorrelationPotential(const std::vector<DiracSpinor> &core,
-  //                      const std::vector<DiracSpinor> &excited);
-
+  //! If given (optional) en_list, will form Sigma matrix.
   CorrelationPotential(const std::vector<DiracSpinor> &core,
                        const std::vector<DiracSpinor> &excited,
                        const std::vector<double> &en_list = {});
-  // XX Needs to know which are the core states!
 
-  // No, give the class () operator!
-  // One for each energy? One each kappa?
-  // Probably: each kappa stored in here, each at single energy!
+  CorrelationPotential &operator=(const CorrelationPotential &) = delete;
+  CorrelationPotential(const CorrelationPotential &) = delete;
+  ~CorrelationPotential() = default;
 
-  DiracSpinor operator()(const DiracSpinor &Fv) const { return Sigma2Fv(Fv); }
+  //! Forms Correlation potential matrix [called on construct]
+  //! @details Forms for each kappa at given energy. One energy must be given
+  //! per kappa.
+  void form_Sigma(const std::vector<double> &en_list = {});
+
+  //! returns Spinor: Sigma|Fv>
+  //! @details If Sigma for kappa_v doesn't exist, returns |0>. Sigma_kappa
+  //! calculated at the energy given in 'form_Sigma' (or on construct)
+  DiracSpinor operator()(const DiracSpinor &Fv,
+                         const double lambda = 1.0) const {
+    return Sigma2Fv(Fv, lambda);
+  }
+
+  //! Calculates <Fv|Sigma|Fw> from scratch, at Fv energy [full grid + fg+gg]
   double operator()(const DiracSpinor &Fv, const DiracSpinor &Fw) const {
     return Sigma2vw(Fv, Fw);
   }
 
-  // XXX Make these all const!
-  DiracSpinor Sigma2Fv(const DiracSpinor &Fv) const;
-
-  void fill_Gkappa(GMatrix *Gmat, const int kappa, const double en);
+private:
+  DiracSpinor Sigma2Fv(const DiracSpinor &Fv, const double lambda = 1.0) const;
 
   double Sigma2vw(const DiracSpinor &Fv, const DiracSpinor &Fw) const;
-  // double Sigma2vw(const DiracSpinor &Fv) const; // kill this, will be
-  // confusing!
-
-  void addto_Gff(GMatrix *Gmat, const DiracSpinor &ket, const DiracSpinor &bra,
-                 const double f = 1.0) const {
-    // G_ij = f * Q_i * [W_j drdu_j] * du
-    const auto &gr = *(bra.p_rgrid);
-    for (int i = 0; i < max_stride; ++i) {
-      const auto si = (imin + i) * stride;
-      for (int j = 0; j < max_stride; ++j) {
-        const auto sj = (imin + j) * stride;
-        Gmat->ff[i][j] += f * ket.f[si] * bra.f[sj];
-        // Gmat->fg[i][j] += f * ket.f[si] * bra.g[sj];
-        // Gmat->gf[i][j] += f * ket.g[si] * bra.f[sj];
-        // Gmat->gg[i][j] += f * ket.g[si] * bra.g[sj];
-      }
-    }
-  }
-
-  DiracSpinor Sigma_G_Fv(const GMatrix &Gmat, const DiracSpinor &Fv) const {
-    const auto &gr = *(Fv.p_rgrid);
-    auto SigmaFv = DiracSpinor(0, Fv.k, gr);
-    std::vector<double> f(max_stride);
-    std::vector<double> g(max_stride);
-    for (int i = 0; i < max_stride; ++i) {
-      for (int j = 0; j < max_stride; ++j) {
-        const auto sj = (imin + j) * stride;
-        const auto dr = gr.drdu[sj] * gr.du * double(stride);
-        f[i] += Gmat.ff[i][j] * Fv.f[sj] * dr;
-        //
-        // g[i] += Gmat.gf[i][j] * Fv.f[sj] * dr;
-        //
-        // f[i] += (Gmat.ff[i][j] * Fv.f[sj] + Gmat.fg[i][j] * Fv.g[sj]) * dr;
-        // g[i] += (Gmat.gf[i][j] * Fv.f[sj] + Gmat.gg[i][j] * Fv.g[sj]) * dr;
-
-        //
-        // f[i] += (Gmat.ff[i][j] * Fv.f[sj] + Gmat.fg[i][j] * Fv.g[sj]) * dr;
-        // g[i] += (Gmat.gf[i][j] * Fv.f[sj]) * dr;
-      }
-    }
-    // SigmaFv.f = f;
-    SigmaFv.f = Interpolator::interpolate(r_stride, f, gr.r);
-    SigmaFv.g = Interpolator::interpolate(r_stride, g, gr.r);
-
-    return SigmaFv;
-  }
 
 private:
-  const int stride = 4;
-  int max_stride{};
-  std::size_t imin{};
-  std::vector<double> r_stride = {};
-  std::vector<DiracSpinor> m_core;
-  std::vector<DiracSpinor> m_excited;
-  Coulomb::YkTable m_yec; // constains Ck
-  int m_maxk;
+  void fill_Gkappa(GMatrix *Gmat, const int kappa, const double en);
+
+  // Should be static? Of member of Gmatrix? Or free?
+  void addto_G(GMatrix *Gmat, const DiracSpinor &ket, const DiracSpinor &bra,
+               const double f = 1.0) const;
+  // Should be static? Of member of Gmatrix? Or free?
+  DiracSpinor Sigma_G_Fv(const GMatrix &Gmat, const DiracSpinor &Fv,
+                         const double lambda = 1.0) const;
+
+private:
+  const std::vector<DiracSpinor> m_core;
+  const std::vector<DiracSpinor> m_excited;
+  Coulomb::YkTable m_yec; // constains Ck and Y_ec(r)
+  const int m_maxk;
   Angular::SixJ m_6j;
 
-  std::vector<GMatrix> G_kappa = {};
-  std::vector<double> en_kappa;
+  int stride_points{};
+  int imin{};
+  std::vector<double> r_stride{};
+  std::vector<GMatrix> G_kappa{};
+
+  // Options for sub-grid, and which matrices to include
+  static constexpr int stride = 6;
+  static constexpr bool include_FG = false;
+  static constexpr bool include_GG = false;
 };
 
 } // namespace MBPT

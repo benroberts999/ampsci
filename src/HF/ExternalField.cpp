@@ -20,8 +20,13 @@ namespace HF {
 ExternalField::ExternalField(const DiracOperator::TensorOperator *const h,
                              const std::vector<DiracSpinor> &core,
                              const std::vector<double> &vl, const double alpha)
-    : m_h(h), p_core(&core), m_vl(vl), m_alpha(alpha), m_rank(h->rank()),
-      m_pi(h->parity()), m_imag(h->imaginaryQ()) //
+    : m_h(h),
+      p_core(&core),
+      m_vl(vl),
+      m_alpha(alpha),
+      m_rank(h->rank()),
+      m_pi(h->parity()),
+      m_imag(h->imaginaryQ())
 // w>0 typically. Allowed to be -ve for tests?
 {
 

@@ -5,8 +5,11 @@
 using namespace SHMCONSTS;
 
 StandardHaloModel::StandardHaloModel(double in_cosphi, double dves, double dv0)
-    : cosphi(in_cosphi), v0(V0 + dv0 * DEL_V0), v_sun(VSUN + dv0 * DEL_V0),
-      vesc(VESC + dves * DEL_VESC), veorb(VEORB) {
+    : cosphi(in_cosphi),
+      v0(V0 + dv0 * DEL_V0),
+      v_sun(VSUN + dv0 * DEL_V0),
+      vesc(VESC + dves * DEL_VESC),
+      veorb(VEORB) {
 
   // NormCost should be 1, but *= more general
   // (means) it will work for _any_ existing m_normConst

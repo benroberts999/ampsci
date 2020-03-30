@@ -58,7 +58,9 @@ Grid::Grid(const GridParameters &in)
 //------------------------------------------------------------------------------
 Grid::Grid(double in_r0, double in_rmax, std::size_t in_num_points,
            GridType in_gridtype, double in_b)
-    : r0(in_r0), rmax(in_rmax), num_points(in_num_points),
+    : r0(in_r0),
+      rmax(in_rmax),
+      num_points(in_num_points),
       du(calc_du_from_num_points(in_r0, in_rmax, in_num_points, in_gridtype,
                                  in_b)),
       gridtype(in_gridtype),                      //

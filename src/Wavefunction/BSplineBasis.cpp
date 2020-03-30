@@ -12,6 +12,7 @@
 #include <string>
 #include <utility>
 
+// size_t vs int for vectors + LinAlg..currently a mess
 #pragma GCC diagnostic ignored "-Wsign-conversion"
 
 namespace SplineBasis {
@@ -43,33 +44,33 @@ form_basis(const std::string &states_str, const std::size_t n_spl,
     }
 
     // Chose larger r0 depending on core density:
-    auto l_tmp = AtomData::l_k(kappa);
-    if (l_tmp > wf.maxCore_l())
-      l_tmp = wf.maxCore_l();
+    const auto l = AtomData::l_k(kappa);
+    const auto l_tmp = std::min(l, wf.maxCore_l());
+
     const auto [rmin_l, rmax_l] = wf.lminmax_core_range(l_tmp, r0_eps);
     (void)rmax_l;
     const auto r0_eff = std::max(rmin_l, r0_spl);
-    const auto print = false;
-    if (r0_eff > r0_spl && print) {
-      printf(" Splines: for kappa=%2i, r0 -> %.2e\n", kappa, r0_eff);
-    }
 
     const auto spl_basis = form_spline_basis(kappa, n_spl, k, r0_eff, rmax_spl,
                                              wf.rgrid, wf.get_alpha());
 
     auto [Aij, Sij] = fill_Hamiltonian_matrix(spl_basis, wf);
-
     const auto [e_values, e_vectors] =
         LinAlg::realSymmetricEigensystem(Aij, Sij);
 
     expand_basis_orbitals(&basis, &basis_positron, spl_basis, kappa, max_n,
                           e_values, e_vectors, wf);
+    if (!basis.empty() && kappa < 0) {
+      printf("Spline cavity l=%i %1s: (%7.1e,%5.1f)aB.\n", l,
+             AtomData::l_symbol(l).c_str(), basis.back().r0(),
+             basis.back().rinf());
+    }
   }
 
-  if (!basis.empty()) {
-    printf("Spline cavity: (%7.1e,%5.1f)aB.\n", basis.front().r0(),
-           basis.front().rinf());
-  }
+  // if (!basis.empty()) {
+  //   printf("Spline cavity: (%7.1e,%5.1f)aB.\n", basis.front().r0(),
+  //          basis.front().rinf());
+  // }
 
   // Optionally add positron basis to end of basis. Prob not best way?
   if (positronQ) {
@@ -85,7 +86,8 @@ form_basis(const std::string &states_str, const std::size_t n_spl,
     auto prev = std::find_if(basis.begin(), basis.end(), comp);
     if (prev == basis.end())
       continue;
-    if (Fp.en < prev->en) {
+    auto nmc2 = -1.0 / (wf.get_alpha() * wf.get_alpha());
+    if (Fp.en < prev->en && Fp.en > nmc2) {
       // XXX Better: count nodes? ['Spurious node at large r?']
       std::cout << "WARNING: "
                 << "Spurious state?? " << Fp.symbol() << " " << Fp.en << "\n";

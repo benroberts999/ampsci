@@ -1,10 +1,5 @@
 #pragma once
-#include "Angular/Angular_369j.hpp"
 #include "DiracOperator/DiracOperator.hpp"
-#include "Maths/Grid.hpp"
-#include "Maths/SphericalBessel.hpp"
-#include "Physics/NuclearPotentials.hpp"
-#include "Physics/PhysConst_constants.hpp"
 #include <cmath>
 #include <functional>
 #include <string>

@@ -1,5 +1,10 @@
 #pragma once
+#include "Angular/Angular_369j.hpp"
+#include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
+#include "Maths/SphericalBessel.hpp"
+#include "Physics/NuclearPotentials.hpp"
+#include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <cmath>
 #include <string>
@@ -61,7 +66,11 @@ protected:
   TensorOperator(int k, Parity pi, double c = 1,
                  const std::vector<double> &inv = {}, int d_order = 0,
                  Realness RorI = Realness::real)
-      : m_rank(k), m_parity(pi), constant(c), vec(inv), diff_order(d_order),
+      : m_rank(k),
+        m_parity(pi),
+        constant(c),
+        vec(inv),
+        diff_order(d_order),
         opC(RorI) //
         {};
 
@@ -142,16 +151,25 @@ public:
                  const std::vector<double> &in_v = {},
                  const IntM4x4 &in_g = GammaMatrix::ident, int in_diff = 0,
                  Realness rori = Realness::real)
-      : TensorOperator(0, pi, in_coef, in_v, in_diff, rori), c_ff(in_g.e00),
-        c_fg(in_g.e01), c_gf(in_g.e10), c_gg(in_g.e11) {}
+      : TensorOperator(0, pi, in_coef, in_v, in_diff, rori),
+        c_ff(in_g.e00),
+        c_fg(in_g.e01),
+        c_gf(in_g.e10),
+        c_gg(in_g.e11) {}
 
   ScalarOperator(const std::vector<double> &in_v)
-      : TensorOperator(0, Parity::even, 1.0, in_v, 0), c_ff(1.0), c_fg(0.0),
-        c_gf(0.0), c_gg(1.0) {}
+      : TensorOperator(0, Parity::even, 1.0, in_v, 0),
+        c_ff(1.0),
+        c_fg(0.0),
+        c_gf(0.0),
+        c_gg(1.0) {}
 
   ScalarOperator(double in_coef, const std::vector<double> &in_v = {})
-      : TensorOperator(0, Parity::even, in_coef, in_v, 0), c_ff(1.0), c_fg(0.0),
-        c_gf(0.0), c_gg(1.0) {}
+      : TensorOperator(0, Parity::even, in_coef, in_v, 0),
+        c_ff(1.0),
+        c_fg(0.0),
+        c_gf(0.0),
+        c_gg(1.0) {}
 
 public:
   virtual double angularF(const int ka, const int kb) const override {

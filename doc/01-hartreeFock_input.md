@@ -1,24 +1,24 @@
-# Input options for _hartreeFock_
+# Input options for: hartreeFock
 
 * The **hartreeFock** program should be run as:
   * _./hartreeFock inputFile.in_
-  * ``inputFile.in'' in a plain-text input file, that contains all input options (if no input file is given, program looks for the default one, named "hartreeFock.in")
+  * ``inputFile.in'' is a plain-text input file, that contains all input options (if no input file is given, program looks for the default one, named "hartreeFock.in")
 * First, the program reads in the main input options from the four main input "blocks" (Atom, Nucleus, HartreeFock, and Grid). It will use these to generate wavefunction/Hartree-Fock etc. Then, any number of optional "modules" are run using the above-calculated wavefunctions (e.g., these might calculate matrix elements, run tests etc.). The input blocks and options can be given in any order
 * In general, the input file will have the following format:
 
 ```cpp
-Atom { <input options> }
-Nucleus { <input options> }
-Grid { <input options> }
-HartreeFock { <input options> }
+Atom { <input_options> }
+Nucleus { <input_options> }
+Grid { <input_options> }
+HartreeFock { <input_options> }
 //Optional modules:
-Module::firstModule { <input options> }
-Module::secondModule { <input options> }
+Module::firstModule { <input_options> }
+Module::secondModule { <input_options> }
 ```
 
-* Most options have a default, and can be left blank, explicitly set to 'default', or removed entirely. (A few inputs (e.g., Atom/Z, and HartreeFock/core) are required)
-* The curly-braces are important. Don't use any other curly-braces (nested braces are not allowed)
-* Input file uses c++ style line comments (not block comments). Any commented-out line will not be read. White-space is ignored.
+* Most options have a default, and can be left blank, explicitly set to 'default', or removed entirely.
+* The curly-braces denote the start/end of each block. *Don't* use any other curly-braces (nested braces are not allowed)
+* Uses c++ style line comments (not block comments). Any commented-out line will not be read. White-space is ignored.
 * For example, the following four inputs are all equivalent
 
 ```cpp
@@ -35,10 +35,11 @@ Atom{Z=Cs;A=default;}
 ```
 
 * All available inputs for each input block are listed below
-  * Inputs are taken in as either text, boolean (true/false), integers, or real numbers. (Don't use inverted commas/quote marks)
+  * Inputs are taken in as either text, boolean (true/false), integers, or real numbers.
   * These will be denoted by [t], [b], [i], [r]
 
 ********************************************************************************
+# Each input block:
 
 ## Atom
 
@@ -151,6 +152,7 @@ ExtraPotential {
 ## QED Radiative Potential [Ginges/Flambaum Method], H -> H - V_rad
 ```cpp
 RadPot {
+  RadPot;   //[b] default = false, to include QED, set to true
   Simple;   //[r] default = 0.0 // Vrad = -Z^2 * alpha * exp(-r/alpha)
   Ueh;      //[r] default = 0.0 // Uehling (vac pol)
   SE_h;     //[r] default = 0.0 // high-f SE
@@ -202,12 +204,18 @@ Correlations {
   energyShifts;   //[b] default = false
   Brueckner;      //[b] default = false
   n_min_core;     //[i] default = 1
+  lambda_k;       //[r,r...] (list) default is blank.
+  fitTo_cm;       //[r,r...] (list) default is blank.
 }
 ```
 * Includes correlation corrections. note: splines must exist already
-* energyShifts: If true, will just calculate <v|Sigma|v> energy shifts, which is very fast compared to constructing Brueckner orbitals. Use this method first to ensure basis is sufficient+working before doing Brueckner
+* energyShifts: If true, will calculate the second-order energy shifts (from scratch, according to MBPT) - compares to <v|Sigma|v> if it exists
 * Brueckner: Construct Brueckner valence orbitals using correlation potential method (i.e., include correlations into wavefunctions and energies for valence states)
-* n_min_core: minimum core n included in the Sigma calculation; lowest states contribute little, so this speeds up the calculations
+* n_min_core: minimum core n included in the Sigma calculation; lowest states often contribute little, so this speeds up the calculations
+* lambda_k: Rescale Sigma -> lambda*Sigma. One lambda for each kappa. If not given, assumed to be 1.
+* fitTo_cm: Provide list of energies (lowest valence states for each kappa); Sigma for each kappa will be automatically re-scaled to exactly reproduce these. Give as binding energies in inverse cm! It will print the lambda_k's that it calculated
+  * e.g., fitTo_cm = -31406.46773, -20228.200, -19674.161, -16907.211, -16809.625; will fit for the lowest s,p,d states for Cs
+  * Will over-write lambda_k
 
 
 ## Modules and MatrixElements
@@ -251,7 +259,7 @@ MatrixElements::Ek { //Electric multipole operator:
   k; //[i] default = 1
 }
 ```
-* k=1 => E1, dipole. k=2 => E2, qudrupole etc.
+* k=1 => E1, dipole. k=2 => E2, quadrupole etc.
 
 ```cpp
 MatrixElements::r { //scalar r

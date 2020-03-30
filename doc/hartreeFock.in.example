@@ -27,6 +27,7 @@ Grid {
 
 // RadPot
 {
+  RadPot = false;
   Simple = 0.0; // "Simple" exponential potential
   Ueh = 1.0;
   SE_h = 1.0;
@@ -41,9 +42,9 @@ Grid {
 {
   number = 40;
   order = 7;
-  r0 = 1.0e-5;
-  r0_eps = 1.0e-7; // set r0 when core density below eps
-  rmax = 40.0;
+  r0 = 1.0e-4;
+  r0_eps = 1.0e-6; // set r0 when core density below eps
+  rmax = 30.0;
   print = false;
   positron = false;
   states = 30spdfg;
@@ -54,6 +55,8 @@ Grid {
   energyShifts = false;
   Brueckner = false;
   n_min_core = 3;
+  fitTo_cm;
+  lambda_k;
 }
 
 /////////////////////////////////////////////////////////////////

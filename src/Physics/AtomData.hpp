@@ -59,6 +59,7 @@ inline int get_z(int z) { return z; }
 int get_z(const std::string &at);
 
 std::string l_symbol(int l);
+std::string kappa_symbol(int kappa);
 
 int symbol_to_l(const std::string &l_str);
 

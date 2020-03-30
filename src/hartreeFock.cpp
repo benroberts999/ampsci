@@ -4,6 +4,7 @@
 #include "Maths/Interpolator.hpp"          //for 'ExtraPotential'
 #include "Maths/NumCalc_quadIntegrate.hpp" //for 'ExtraPotential'
 #include "Modules/Module_runModules.hpp"
+#include "Physics/PhysConst_constants.hpp" //for fit_energies
 #include "Wavefunction/Wavefunction.hpp"
 #include <iostream>
 #include <string>
@@ -13,8 +14,8 @@ int main(int argc, char *argv[]) {
   const std::string input_file = (argc > 1) ? argv[1] : "hartreeFock.in";
   std::cout << "Reading input from: " << input_file << "\n";
 
-  // Input options
-  IO::UserInput input(input_file);
+  // Rean in input options file
+  const IO::UserInput input(input_file);
 
   // Get + setup atom parameters
   auto input_ok = input.check("Atom", {"Z", "A", "varAlpha2"});
@@ -87,8 +88,9 @@ int main(int argc, char *argv[]) {
 
   // Inlcude QED radiatve potential
   const auto qed_ok =
-      input.check("RadPot", {"Simple", "Ueh", "SE_h", "SE_l", "SE_m", "rcut",
-                             "scale_rN", "scale_l", "core_qed"});
+      input.check("RadPot", {"RadPot", "Simple", "Ueh", "SE_h", "SE_l", "SE_m",
+                             "rcut", "scale_rN", "scale_l", "core_qed"});
+  const auto include_qed = input.get("RadPot", "RadPot", false);
   const auto x_Simple = input.get("RadPot", "Simple", 0.0);
   const auto x_Ueh = input.get("RadPot", "Ueh", 0.0);
   const auto x_SEe_h = input.get("RadPot", "SE_h", 0.0);
@@ -98,7 +100,8 @@ int main(int argc, char *argv[]) {
   const auto scale_rN = input.get("RadPot", "scale_rN", 1.0);
   const auto x_spd = input.get_list("RadPot", "scale_l", std::vector{1.0});
   const bool core_qed = input.get("RadPot", "core_qed", true);
-  if (qed_ok && core_qed) {
+
+  if (include_qed && qed_ok && core_qed) {
     wf.radiativePotential(x_Simple, x_Ueh, x_SEe_h, x_SEe_l, x_SEm, rcut,
                           scale_rN, x_spd);
     std::cout << "Including QED into Hartree-Fock core (and valence)\n\n";
@@ -131,7 +134,7 @@ int main(int argc, char *argv[]) {
     wf.hartreeFockCore(HF_method, str_core, eps_HF, H_d, g_t);
   }
 
-  if (qed_ok && !core_qed) {
+  if (include_qed && qed_ok && !core_qed) {
     wf.radiativePotential(x_Simple, x_Ueh, x_SEe_h, x_SEe_l, x_SEm, rcut,
                           scale_rN, x_spd);
     std::cout << "Including QED into Valence only\n\n";
@@ -187,40 +190,53 @@ int main(int argc, char *argv[]) {
   const auto print_basisQ = input.get("Basis", "print", false);
   const auto positronQ = input.get("Basis", "positron", false);
   if (n_spl > 0 && basis_ok) {
+    IO::ChronoTimer t("Basis");
     wf.formBasis(basis_states, n_spl, k_spl, r0_spl, r0_eps, rmax_spl,
                  positronQ);
     if (print_basisQ)
       wf.printBasis();
   }
 
-  // Correlations:
+  // Correlations: read in options
   const auto Sigma_ok =
-      input.check("Correlations", {"Brueckner", "energyShifts", "n_min_core"});
-  const bool do_energyShifts =
-      Sigma_ok && input.get("Correlations", "energyShifts", false);
-  const bool do_brueckner =
-      Sigma_ok && input.get("Correlations", "Brueckner", false);
+      input.check("Correlations", {"Brueckner", "energyShifts", "n_min_core",
+                                   "fitTo_cm", "lambda_k"});
+  const bool do_energyShifts = input.get("Correlations", "energyShifts", false);
+  const bool do_brueckner = input.get("Correlations", "Brueckner", false);
   const auto n_min_core = input.get("Correlations", "n_min_core", 1);
-  // Just energy shifts
-  if (!wf.valence_orbitals.empty() && do_energyShifts) {
-    IO::ChronoTimer t(" de");
-    wf.SOEnergyShift(n_min_core);
+  auto fit_energies =
+      input.get_list("Correlations", "fitTo_cm", std::vector<double>{});
+  // energies given in cm^-1, convert to au:ß
+  NumCalc::scaleVec(fit_energies, 1.0 / PhysConst::Hartree_invcm);
+  const auto lambda_k =
+      input.get_list("Correlations", "lambda_k", std::vector<double>{});
+
+  // Form correlation potential:
+  if (do_energyShifts || do_brueckner) {
+    IO::ChronoTimer t("Sigma");
+    wf.formSigma(n_min_core, do_brueckner);
   }
-  // Brueckner orbitals
-  if (!wf.valence_orbitals.empty() && do_brueckner) {
-    std::cout
-        << "\nConstructing correlation potential for Brueckner orbitals:\n"
-        << std::flush;
-    IO::ChronoTimer t(" Br");
-    wf.hartreeFockBrueckner(n_min_core);
+
+  // Just energy shifts
+  if (!wf.valence_orbitals.empty() && do_energyShifts && Sigma_ok) {
+    IO::ChronoTimer t("de");
+    wf.SOEnergyShift();
+  }
+  // Brueckner orbitals (optionally, fit Sigma to exp energies)
+  if (!wf.valence_orbitals.empty() && do_brueckner && Sigma_ok) {
+    IO::ChronoTimer t("Br");
+    if (!fit_energies.empty())
+      wf.fitSigma_hfBrueckner(valence_list, fit_energies);
+    else
+      wf.hartreeFockBrueckner(lambda_k);
   }
   // Print out info for new "Brueckner" valence orbitals:
-  if (!wf.valence_orbitals.empty() && do_brueckner) {
+  if (!wf.valence_orbitals.empty() && do_brueckner && Sigma_ok) {
     std::cout << "\nBrueckner orbitals:\n";
     wf.printValence(sorted);
   }
 
-  // run each of the modules
+  // run each of the modules with the calculated wavefunctions
   Module::runModules(input, wf);
 
   return 0;

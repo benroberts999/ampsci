@@ -90,10 +90,12 @@ public:
 
   //! @brief Solves HF for valence list; valence states must already be present
   //! in WaveFunction (bad, instead, give it a vector of DiracSpinors!)
-  void solveValence();
+  void solveValence(const bool print = true);
 
   //! Solves HF+Sigma equation: valence Brueckner orbitals. Writes to valence
-  void solveBrueckner(const std::vector<DiracSpinor> &basis, int n_min_core);
+  void solveBrueckner(const MBPT::CorrelationPotential &Sigma2,
+                      const std::vector<double> &lambda_list = {},
+                      const bool print = true);
 
   double calculateCoreEnergy() const;
 
@@ -153,11 +155,12 @@ private:
   void brueckner_orbital(DiracSpinor &Fa, double en,
                          const std::vector<double> &vl,
                          const std::vector<double> &H_mag,
-                         const DiracSpinor &VxF,
+                         const DiracSpinor &VxF, const double lambda,
                          const MBPT::CorrelationPotential &Sigma,
                          const std::vector<DiracSpinor> &static_core) const;
 
-  EpsIts hf_Brueckner(DiracSpinor &Fa, const MBPT::CorrelationPotential &Sigma);
+  EpsIts hf_Brueckner(DiracSpinor &Fa, const MBPT::CorrelationPotential &Sigma,
+                      const double lambda);
 
 public:
   HartreeFock &operator=(const HartreeFock &) = delete; // copy assignment

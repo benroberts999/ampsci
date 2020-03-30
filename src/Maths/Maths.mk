@@ -1,6 +1,7 @@
 # Dependencies for Maths
 
-$(BD)/Grid.o: $(SD)/Maths/Grid.cpp $(SD)/Maths/Grid.hpp
+$(BD)/Grid.o: $(SD)/Maths/Grid.cpp \
+$(SD)/Maths/Grid.hpp
 	$(COMP)
 
 $(BD)/LinAlg_MatrixVector.o: $(SD)/Maths/LinAlg_MatrixVector.cpp \

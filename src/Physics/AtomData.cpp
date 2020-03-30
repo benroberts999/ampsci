@@ -85,6 +85,11 @@ std::string l_symbol(int l) {
     return "[" + std::to_string(l) + "]";
 }
 
+std::string kappa_symbol(int kappa) {
+  const auto lstr = l_symbol(l_k(kappa)); //
+  return lstr + "_" + std::to_string(twoj_k(kappa)) + "/2";
+}
+
 int symbol_to_l(const std::string &l_str) {
   for (auto i = 0ul; i < spectroscopic_notation.length(); i++) {
     if (spectroscopic_notation.substr(i, 1) == l_str)
