@@ -99,13 +99,16 @@ void CorrelationPotential::addto_G(GMatrix *Gmat, const DiracSpinor &ket,
 
 //******************************************************************************
 DiracSpinor CorrelationPotential::Sigma_G_Fv(const GMatrix &Gmat,
-                                             const DiracSpinor &Fv,
-                                             const double lambda) const {
+                                             const DiracSpinor &Fv) const {
+  auto sp = IO::Profile::safeProfiler(__func__);
   // lambda is fitting factor (just scales Sigma|v>)
   // Sigma|v> = int G(r1,r2)*v(r2) dr2
   // (S|v>)_i = sum_j G_ij v_j drdu_j du
   // nb: G is on sub-grid, |v> and S|v> on full-grid. Use interpolation
-  auto sp = IO::Profile::safeProfiler(__func__);
+
+  const auto ki = std::size_t(Fv.k_index());
+  const auto lambda = ki >= m_lambda_kappa.size() ? 1.0 : m_lambda_kappa[ki];
+
   const auto &gr = *(Fv.p_rgrid);
   auto SigmaFv = DiracSpinor(0, Fv.k, gr);
   std::vector<double> f(r_stride.size());
@@ -146,29 +149,30 @@ void CorrelationPotential::form_Sigma(const std::vector<double> &en_list) {
 
   std::cout << "Forming correlation potential for:\n";
   for (auto ki = 0ul; ki < en_list.size(); ki++) {
-    auto kappa = Angular::kappaFromIndex(int(ki));
+    const auto kappa = Angular::kappaFromIndex(int(ki));
     printf(" k=%2i %6s at en=%8.5f.. ", kappa,
            AtomData::kappa_symbol(kappa).c_str(), en_list[ki]);
     std::cout << std::flush;
     fill_Gkappa(&G_kappa[ki], kappa, en_list[ki]);
-    // find lowest excited state:
+    // find lowest excited state, output <v|S|v> energy shift:
     auto find_kappa = [=](const auto &a) { return a.k == kappa; };
     const auto vk =
         std::find_if(cbegin(m_excited), cend(m_excited), find_kappa);
-    std::cout << "de=" << *vk * Sigma2Fv(*vk) << "\n";
+    if (vk != cend(m_excited))
+      std::cout << "de=" << *vk * Sigma2Fv(*vk);
+    std::cout << "\n";
   }
 }
 
 //******************************************************************************
-DiracSpinor CorrelationPotential::Sigma2Fv(const DiracSpinor &v,
-                                           const double lambda) const {
+DiracSpinor CorrelationPotential::Sigma2Fv(const DiracSpinor &v) const {
   auto sp = IO::Profile::safeProfiler(__func__);
   // Find correct G matrix (corresponds to kappa_v), return Sigma|v>
   // If G_kappa doesn't exist, returns |0>
   auto kappa_index = std::size_t(Angular::indexFromKappa(v.k));
   if (kappa_index >= G_kappa.size())
     return 0.0 * v;
-  return Sigma_G_Fv(G_kappa[kappa_index], v, lambda);
+  return Sigma_G_Fv(G_kappa[kappa_index], v);
 }
 
 //******************************************************************************

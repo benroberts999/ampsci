@@ -21,7 +21,8 @@ namespace SplineBasis {
 std::vector<DiracSpinor>
 form_basis(const std::string &states_str, const std::size_t n_spl,
            const std::size_t k_spl, const double r0_spl, const double r0_eps,
-           const double rmax_spl, const Wavefunction &wf, const bool positronQ)
+           const double rmax_spl, const Wavefunction &wf, const bool positronQ,
+           const bool correlationsQ)
 // Forms the pseudo-spectrum basis by diagonalising Hamiltonian over B-splines
 {
   std::vector<DiracSpinor> basis;
@@ -54,7 +55,7 @@ form_basis(const std::string &states_str, const std::size_t n_spl,
     const auto spl_basis = form_spline_basis(kappa, n_spl, k, r0_eff, rmax_spl,
                                              wf.rgrid, wf.get_alpha());
 
-    auto [Aij, Sij] = fill_Hamiltonian_matrix(spl_basis, wf);
+    auto [Aij, Sij] = fill_Hamiltonian_matrix(spl_basis, wf, correlationsQ);
     const auto [e_values, e_vectors] =
         LinAlg::realSymmetricEigensystem(Aij, Sij);
 
@@ -66,11 +67,6 @@ form_basis(const std::string &states_str, const std::size_t n_spl,
              basis.back().rinf());
     }
   }
-
-  // if (!basis.empty()) {
-  //   printf("Spline cavity: (%7.1e,%5.1f)aB.\n", basis.front().r0(),
-  //          basis.front().rinf());
-  // }
 
   // Optionally add positron basis to end of basis. Prob not best way?
   if (positronQ) {
@@ -154,7 +150,7 @@ form_spline_basis(const int kappa, const std::size_t n_states,
 //******************************************************************************
 std::pair<LinAlg::SqMatrix, LinAlg::SqMatrix>
 fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
-                        const Wavefunction &wf) {
+                        const Wavefunction &wf, const bool correlationsQ) {
   auto n_spl = (int)spl_basis.size();
 
   std::pair<LinAlg::SqMatrix, LinAlg::SqMatrix> A_and_S =
@@ -163,7 +159,8 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
   auto &Aij = A_and_S.first;
   auto &Sij = A_and_S.second;
 
-  auto excl_exch = wf.exclude_exchangeQ();
+  const auto excl_exch = wf.exclude_exchangeQ();
+  const auto sigmaQ = wf.m_Sigma != nullptr && correlationsQ;
 
   // Move this into wf ??
   auto Hd = RadialHamiltonian(wf.rgrid, wf.get_alpha());
@@ -173,13 +170,18 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
 #pragma omp parallel for
   for (auto i = 0; i < (int)spl_basis.size(); i++) {
     const auto &si = spl_basis[i];
-    auto VexPsi_i = HF::vex_psia_any(si, wf.core_orbitals);
+    const auto VexSi =
+        excl_exch ? 0.0 * si : HF::vex_psia_any(si, wf.core_orbitals);
+    const auto SigmaSi = sigmaQ ? (*wf.m_Sigma)(si) : 0.0 * si;
+
     for (auto j = 0; j < (int)spl_basis.size(); j++) {
       const auto &sj = spl_basis[j];
 
-      auto aij = Hd.matrixEl(si, sj);
+      auto aij = Hd.matrixEl(si, sj); // + si * VexSi + si * SigmaSi;
       if (!excl_exch)
-        aij += (sj * VexPsi_i);
+        aij += (sj * VexSi);
+      if (sigmaQ)
+        aij += (sj * SigmaSi);
 
       Aij[i][j] = aij;
       Sij[i][j] = si * sj;

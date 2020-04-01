@@ -262,7 +262,6 @@ void HartreeFock::solveValence(const bool print) {
 }
 //******************************************************************************
 void HartreeFock::solveBrueckner(const MBPT::CorrelationPotential &Sigma2,
-                                 const std::vector<double> &lambda_list,
                                  const bool print) {
   auto sp = IO::Profile::safeProfiler(__func__);
 
@@ -271,21 +270,13 @@ void HartreeFock::solveBrueckner(const MBPT::CorrelationPotential &Sigma2,
 
   if (print) {
     std::cout << "\nSolving for Brueckner orbitals (correlation potential)\n";
-    if (!lambda_list.empty()) {
-      std::cout << "with lambda_kappa = ";
-      for (const auto &l : lambda_list) {
-        std::cout << l << ", ";
-      }
-      std::cout << "\n";
-    }
+    Sigma2.print_scaling();
   }
   for (auto &Fv : p_wf->valence_orbitals) {
     const auto en_old = Fv.en;
     if (print)
       std::cout << Fv.symbol() << ":" << std::flush;
-    auto ki = std::size_t(Fv.k_index());
-    auto lambda = ki >= lambda_list.size() ? 1.0 : lambda_list[ki];
-    const auto eis = hf_Brueckner(Fv, Sigma2, lambda);
+    const auto eis = hf_Brueckner(Fv, Sigma2);
     const auto delta = Fv.en - en_old;
     if (print) {
       printf(" delta=%8.5f; eps=%6.1e [its=%3i]", delta, eis.eps, eis.its);
@@ -775,7 +766,7 @@ void HartreeFock::hf_orbital(DiracSpinor &Fa, double en,
 void HartreeFock::brueckner_orbital(
     DiracSpinor &Fa, double en, const std::vector<double> &vl,
     const std::vector<double> &H_mag, const DiracSpinor &VxF,
-    const double lambda, const MBPT::CorrelationPotential &Sigma,
+    const MBPT::CorrelationPotential &Sigma,
     const std::vector<DiracSpinor> &static_core) const
 // ..................
 {
@@ -790,7 +781,7 @@ void HartreeFock::brueckner_orbital(
   // const auto k_max = 4; // max k for Vex into dEa
 
   // auto VxF = vex_psia_any(Fa, static_core);
-  const auto SigmaF = Sigma(Fa, lambda);
+  const auto SigmaF = Sigma(Fa);
 
   const auto alpha = p_wf->get_alpha();
   DiracODE::solve_inhomog(Fa, Gzero, Ginf, en, vl, H_mag, alpha,
@@ -808,7 +799,7 @@ void HartreeFock::brueckner_orbital(
       break;
     {
       const auto VxF_tilde = vex_psia_any(dFa, static_core);
-      const auto SigmaF_tilde = Sigma(dFa, lambda);
+      const auto SigmaF_tilde = Sigma(dFa);
       DiracODE::Adams::GreenSolution(dFa, Ginf, Gzero, alpha,
                                      dEa * Fa - VxF_tilde - SigmaF_tilde);
     }
@@ -902,8 +893,7 @@ EpsIts HartreeFock::hf_valence_refine(DiracSpinor &Fa) {
 
 //******************************************************************************
 EpsIts HartreeFock::hf_Brueckner(DiracSpinor &Fa,
-                                 const MBPT::CorrelationPotential &Sigma,
-                                 const double lambda) {
+                                 const MBPT::CorrelationPotential &Sigma) {
   auto sp = IO::Profile::safeProfiler(__func__);
   if (p_wf->core_orbitals.empty())
     return {0, 0};
@@ -927,14 +917,14 @@ EpsIts HartreeFock::hf_Brueckner(DiracSpinor &Fa,
     const auto a_damp = damper(it);
 
     const auto VxFa = vex_psia_any(Fa, p_wf->core_orbitals);
-    const auto SigmaFa = Sigma(Fa, lambda);
+    const auto SigmaFa = Sigma(Fa);
     const auto oldphi = Fa;
 
     const auto en_new =
         Fzero.en + (Fzero * (VxFa + SigmaFa) - Fa * vexFzero) / (Fa * Fzero);
     const auto en = (Fa.en + en_new) / 2.0;
 
-    brueckner_orbital(Fa, en, vl, p_wf->get_Hmag(Fa.l()), VxFa, lambda, Sigma,
+    brueckner_orbital(Fa, en, vl, p_wf->get_Hmag(Fa.l()), VxFa, Sigma,
                       p_wf->core_orbitals);
 
     eps = std::fabs((prev_en - Fa.en) / Fa.en);

@@ -47,25 +47,29 @@ public:
   }
 
 public:
-  std::vector<DiracSpinor> core_orbitals = {};
-  std::vector<DiracSpinor> valence_orbitals = {};
-  std::vector<DiracSpinor> basis = {};
+  std::vector<DiracSpinor> core_orbitals{};
+  std::vector<DiracSpinor> valence_orbitals{};
+  //! Basis, daigonalised over HF core. Used for MBPT
+  std::vector<DiracSpinor> basis{};
+  //! Sprectrum: like basis, but includes Sigma.
+  std::vector<DiracSpinor> spectrum{};
   const Grid rgrid;
 
 private:
   const double m_alpha; // store internal value for alpha (allows variation)
   const int m_Z, m_A;
-  Nuclear::Parameters m_nuc_params;
-  std::unique_ptr<HF::HartreeFock> m_pHF = nullptr;
+  const Nuclear::Parameters m_nuc_params;
+  std::unique_ptr<HF::HartreeFock> m_pHF{nullptr};
 
 public:
-  std::unique_ptr<MBPT::CorrelationPotential> m_Sigma = nullptr;
+  //! Sigma, correlation potential (2nd order)
+  std::unique_ptr<MBPT::CorrelationPotential> m_Sigma{nullptr};
 
 public:
   //! Nuclear potential
-  std::vector<double> vnuc = {};
+  std::vector<double> vnuc{};
   //! Direct/local part of the electron potential
-  std::vector<double> vdir = {};
+  std::vector<double> vdir{};
   //! QED radiative potential
   RadiativePotential::Vrad vrad{};
 
@@ -129,6 +133,7 @@ public: // const methods: "views" into WF object
                     const std::vector<DiracSpinor> &tmp_orbitals = {}) const;
   //! Prints table of Basis orbitals, compares to HF orbitals
   void printBasis(bool sorted = false) const;
+  void printSpectrum(bool sorted = false) const;
   bool isInCore(int n, int k) const;
   bool isInValence(int n, int k) const;
   bool isInCore(const DiracSpinor &phi) const; // kill this one
@@ -151,8 +156,7 @@ public: // const methods: "views" into WF object
   void hartreeFockValence(const std::string &in_valence_str,
                           const bool print = true);
   //! Forms Bruckner valence orbitals: (H_hf + Sigma)|nk> = e|nk>.
-  void hartreeFockBrueckner(const std::vector<double> &lambda_list = {},
-                            const bool print = true);
+  void hartreeFockBrueckner(const bool print = true);
   //! First, fits Sigma to energies, then forms fitted Brueckner orbitals
   void fitSigma_hfBrueckner(const std::string &valence_list,
                             const std::vector<double> &fit_energies);
@@ -170,8 +174,15 @@ public: // const methods: "views" into WF object
                  const double r0_eps, const double rmax_spl,
                  const bool positronQ = false);
 
+  //! Calculates + populates Spectrum [see BSplineBasis]
+  void formSpectrum(const std::string &states_str, const std::size_t n_spl,
+                    const std::size_t k_spl, const double r0_spl,
+                    const double r0_eps, const double rmax_spl,
+                    const bool positronQ = false);
+
   //! Forms + stores correlation potential Sigma
-  void formSigma(const int nmin_core = 1, const bool form_matrix = true);
+  void formSigma(const int nmin_core = 1, const bool form_matrix = true,
+                 const std::vector<double> &lambdas = {});
 
   //! @brief Solves Dirac bound state problem, with optional 'extra' potential
   //! log_eps is log_10(convergence_target).

@@ -149,17 +149,21 @@ void Module_Tests_orthonormality(const Wavefunction &wf, const bool print_all) {
   std::cout << "\n";
 
   std::stringstream buffer;
-  for (int i = 0; i < 6; i++) {
+  for (int i = 0; i < 9; i++) {
     // const auto &tmp_b = (i == 2) ? wf.valence_orbitals : wf.core_orbitals;
     // const auto &tmp_a = (i == 0) ? wf.core_orbitals : wf.valence_orbitals;
 
-    const auto &tmp_b = (i == 2 || i == 4)
+    const auto &tmp_basis = i < 6 ? wf.basis : wf.spectrum;
+
+    const auto &tmp_b = (i == 2 || i == 4 || i == 7)
                             ? wf.valence_orbitals
-                            : (i != 5) ? wf.core_orbitals : wf.basis;
+                            : (i == 0 || i == 1 || i == 3 || i == 6)
+                                  ? wf.core_orbitals
+                                  : tmp_basis;
     // core, core, valence, core, valence, basis
 
     const auto &tmp_a =
-        (i == 0) ? wf.core_orbitals : (i < 3) ? wf.valence_orbitals : wf.basis;
+        (i == 0) ? wf.core_orbitals : (i < 3) ? wf.valence_orbitals : tmp_basis;
     // core, valence, valence, basis, basis
 
     if (tmp_b.empty() || tmp_a.empty())
@@ -179,6 +183,12 @@ void Module_Tests_orthonormality(const Wavefunction &wf, const bool print_all) {
         std::cout << "\nBasis-Valence\n    ";
       else if (i == 5)
         std::cout << "\nBasis-Basis\n    ";
+      else if (i == 6)
+        std::cout << "\nSpectrum-core\n    ";
+      else if (i == 7)
+        std::cout << "\nSpectrum-Valence\n    ";
+      else if (i == 8)
+        std::cout << "\nSpectrum-Basis\n    ";
     } else {
       if (i == 0)
         buffer << "cc ";
@@ -192,6 +202,12 @@ void Module_Tests_orthonormality(const Wavefunction &wf, const bool print_all) {
         buffer << "bv ";
       else if (i == 5)
         buffer << "bb ";
+      else if (i == 6)
+        buffer << "sc ";
+      else if (i == 7)
+        buffer << "sv ";
+      else if (i == 8)
+        buffer << "ss ";
     }
 
     auto worst_xo = 0.0;

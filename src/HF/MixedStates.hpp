@@ -3,6 +3,9 @@
 class Wavefunction;
 class DiracSpinor;
 class Grid;
+namespace MBPT {
+class CorrelationPotential;
+}
 
 namespace HF {
 
@@ -18,23 +21,22 @@ exchange). Note sign on hFa (this is \f$\hat h \phi\f$, not \f$-\hat h
 \phi\f$). eps_target is convergance goal for soling the inhomogenous dif.
 equation.
 */
-DiracSpinor solveMixedState(const int k, const DiracSpinor &Fa,
-                            const double omega, const std::vector<double> &vl,
-                            const double alpha,
-                            const std::vector<DiracSpinor> &core,
-                            const DiracSpinor &hFa,
-                            const double eps_target = 1.0e-9);
+DiracSpinor
+solveMixedState(const int k, const DiracSpinor &Fa, const double omega,
+                const std::vector<double> &vl, const double alpha,
+                const std::vector<DiracSpinor> &core, const DiracSpinor &hFa,
+                const double eps_target = 1.0e-9,
+                const MBPT::CorrelationPotential *const Sigma = nullptr);
 //! @brief Solves Mixed States (Dalgarno-Lewis equation)
 /*! @details
 As above, but starts with existing solution dF (may be 'zero'). If existing
 solution is already axproximate solution, this allows equation to be solved
 much quicker.
 */
-DiracSpinor solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa,
-                            const double omega, const std::vector<double> &vl,
-                            const double alpha,
-                            const std::vector<DiracSpinor> &core,
-                            const DiracSpinor &hFa,
-                            const double eps_target = 1.0e-9);
+void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
+                     const std::vector<double> &vl, const double alpha,
+                     const std::vector<DiracSpinor> &core,
+                     const DiracSpinor &hFa, const double eps_target = 1.0e-9,
+                     const MBPT::CorrelationPotential *const Sigma = nullptr);
 
 } // namespace HF

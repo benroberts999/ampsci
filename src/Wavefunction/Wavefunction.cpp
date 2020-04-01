@@ -416,8 +416,6 @@ std::tuple<double, double> Wavefunction::lminmax_core_range(int l,
   auto last = std::find_if(rho_l.rbegin(), rho_l.rend(), lam);
   auto index_first = std::size_t(first - rho_l.begin());
   auto index_last = std::size_t(rho_l.rend() - last);
-  // std::cout << l << " " << index_first << " " << rgrid.r[index_first] << " -
-  // "<< index_last << " " << rgrid.r[index_last] << "\n";
   return {rgrid.r[index_first], rgrid.r[index_last]};
 }
 
@@ -621,6 +619,30 @@ void Wavefunction::printBasis(bool sorted) const {
     }
   }
 }
+//------------------------------------------------------------------------------
+void Wavefunction::printSpectrum(bool sorted) const {
+
+  std::cout << "Spectrum: \n";
+  std::cout
+      << "     State   k  R0     Rinf          En(Spectr.)       En(HF)\n";
+  const auto index_list = sortedEnergyList(spectrum, sorted);
+  for (auto i : index_list) {
+    const auto &phi = spectrum[i];
+    const auto r_0 = rgrid.r[phi.p0];
+    const auto r_inf = rgrid.r[phi.pinf - 1];
+
+    const auto *hf_phi = getState(phi.n, phi.k);
+    if (hf_phi != nullptr) {
+      // found HF state
+      const auto eps = 2.0 * (phi.en - hf_phi->en) / (phi.en + hf_phi->en);
+      printf("%2i) %7s %2i  %5.0e %5.1f %18.7f  %13.7f  %6.0e\n", int(i),
+             phi.symbol().c_str(), phi.k, r_0, r_inf, phi.en, hf_phi->en, eps);
+    } else {
+      printf("%2i) %7s %2i  %5.0e %5.1f %18.7f\n", int(i), phi.symbol().c_str(),
+             phi.k, r_0, r_inf, phi.en);
+    }
+  }
+}
 
 //******************************************************************************
 std::vector<AtomData::DiracSEnken>
@@ -676,9 +698,19 @@ void Wavefunction::formBasis(const std::string &states_str,
   basis = SplineBasis::form_basis(states_str, n_spl, k_spl, r0_spl, r0_eps,
                                   rmax_spl, *this, positronQ);
 }
+//------------------------------------------------------------------------------
+void Wavefunction::formSpectrum(const std::string &states_str,
+                                const std::size_t n_spl,
+                                const std::size_t k_spl, const double r0_spl,
+                                const double r0_eps, const double rmax_spl,
+                                const bool positronQ) {
+  spectrum = SplineBasis::form_basis(states_str, n_spl, k_spl, r0_spl, r0_eps,
+                                     rmax_spl, *this, positronQ, true);
+}
 
 //******************************************************************************
-void Wavefunction::formSigma(const int nmin_core, const bool form_matrix) {
+void Wavefunction::formSigma(const int nmin_core, const bool form_matrix,
+                             const std::vector<double> &lambdas) {
 
   // Sort basis into core/exited parts, throwing away core states with n<nmin
   std::vector<DiracSpinor> core;
@@ -720,11 +752,11 @@ void Wavefunction::formSigma(const int nmin_core, const bool form_matrix) {
   // Correlaion potential matrix:
   m_Sigma = std::make_unique<MBPT::CorrelationPotential>(core, excited,
                                                          en_list_kappa);
+  m_Sigma->scale_Sigma(lambdas);
 }
 
 //******************************************************************************
-void Wavefunction::hartreeFockBrueckner(const std::vector<double> &lambda_list,
-                                        const bool print) {
+void Wavefunction::hartreeFockBrueckner(const bool print) {
   if (!m_pHF || !m_Sigma) {
     std::cerr << "WARNING 62: Cant call hartreeFockValence before "
                  "hartreeFockCore\n";
@@ -734,7 +766,7 @@ void Wavefunction::hartreeFockBrueckner(const std::vector<double> &lambda_list,
     std::cout << "Can't do Brueckner. Check Splines/Valence/Core states?\n";
     return;
   }
-  m_pHF->solveBrueckner(*(m_Sigma.get()), lambda_list, print);
+  m_pHF->solveBrueckner(*(m_Sigma.get()), print);
 }
 
 //******************************************************************************
@@ -749,7 +781,8 @@ void Wavefunction::fitSigma_hfBrueckner(
   for (int i = 0; true; i++) {
     valence_orbitals.clear();
     hartreeFockValence(valence_list, false);
-    hartreeFockBrueckner(lambdas, false);
+    m_Sigma->scale_Sigma(lambdas);
+    hartreeFockBrueckner(false);
 
     auto max_eps = 0.0;
     for (auto ki = 0ul; ki < fit_energies.size(); ++ki) {
@@ -773,10 +806,7 @@ void Wavefunction::fitSigma_hfBrueckner(
       lambdas[ki] = std::clamp(l, 0.5, 1.5);
       const auto eps = std::abs((e_exp - e0) / e_exp);
       max_eps = std::max(max_eps, eps);
-      // std::cout << v_ki->symbol() << " " << lambdas[ki] << " " << eps <<
-      // "\n";
     }
-    // std::cout << "--\n";
     if (max_eps < 1.0e-8 || i == 15) {
       std::cout << "converged to: " << max_eps << " [" << i << "]\n";
       break;
@@ -788,7 +818,8 @@ void Wavefunction::fitSigma_hfBrueckner(
   std::cout << "\n";
   valence_orbitals.clear();
   hartreeFockValence(valence_list, false);
-  hartreeFockBrueckner(lambdas, true);
+  m_Sigma->scale_Sigma(lambdas);
+  hartreeFockBrueckner(true);
 }
 
 //******************************************************************************

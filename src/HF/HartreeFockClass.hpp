@@ -94,7 +94,6 @@ public:
 
   //! Solves HF+Sigma equation: valence Brueckner orbitals. Writes to valence
   void solveBrueckner(const MBPT::CorrelationPotential &Sigma2,
-                      const std::vector<double> &lambda_list = {},
                       const bool print = true);
 
   double calculateCoreEnergy() const;
@@ -155,12 +154,11 @@ private:
   void brueckner_orbital(DiracSpinor &Fa, double en,
                          const std::vector<double> &vl,
                          const std::vector<double> &H_mag,
-                         const DiracSpinor &VxF, const double lambda,
+                         const DiracSpinor &VxF,
                          const MBPT::CorrelationPotential &Sigma,
                          const std::vector<DiracSpinor> &static_core) const;
 
-  EpsIts hf_Brueckner(DiracSpinor &Fa, const MBPT::CorrelationPotential &Sigma,
-                      const double lambda);
+  EpsIts hf_Brueckner(DiracSpinor &Fa, const MBPT::CorrelationPotential &Sigma);
 
 public:
   HartreeFock &operator=(const HartreeFock &) = delete; // copy assignment

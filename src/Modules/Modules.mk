@@ -55,11 +55,13 @@ $(SD)/Wavefunction/Wavefunction.hpp
 	$(COMP)
 
 $(BD)/Module_pnc.o: $(SD)/Modules/Module_pnc.cpp \
-$(SD)/Modules/Module_tests.hpp \
+$(SD)/Modules/Module_pnc.hpp \
+$(SD)/DiracOperator/DiracOperator.hpp \
 $(SD)/DiracOperator/Operators.hpp \
-$(SD)/HF/HartreeFockClass.hpp \
+$(SD)/HF/ExternalField.hpp \
+$(SD)/HF/MixedStates.hpp \
 $(SD)/IO/UserInput.hpp \
-$(SD)/Physics/PhysConst_constants.hpp \
-$(SD)/Wavefunction/Hamiltonian.hpp \
+$(SD)/Physics/NuclearData.hpp \
+$(SD)/Physics/NuclearPotentials.hpp \
 $(SD)/Wavefunction/Wavefunction.hpp
 	$(COMP)

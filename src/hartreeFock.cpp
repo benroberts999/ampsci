@@ -206,7 +206,7 @@ int main(int argc, char *argv[]) {
   const auto n_min_core = input.get("Correlations", "n_min_core", 1);
   auto fit_energies =
       input.get_list("Correlations", "fitTo_cm", std::vector<double>{});
-  // energies given in cm^-1, convert to au:ß
+  // energies given in cm^-1, convert to au:
   NumCalc::scaleVec(fit_energies, 1.0 / PhysConst::Hartree_invcm);
   const auto lambda_k =
       input.get_list("Correlations", "lambda_k", std::vector<double>{});
@@ -214,7 +214,7 @@ int main(int argc, char *argv[]) {
   // Form correlation potential:
   if (do_energyShifts || do_brueckner) {
     IO::ChronoTimer t("Sigma");
-    wf.formSigma(n_min_core, do_brueckner);
+    wf.formSigma(n_min_core, do_brueckner, lambda_k);
   }
 
   // Just energy shifts
@@ -228,12 +228,32 @@ int main(int argc, char *argv[]) {
     if (!fit_energies.empty())
       wf.fitSigma_hfBrueckner(valence_list, fit_energies);
     else
-      wf.hartreeFockBrueckner(lambda_k);
+      wf.hartreeFockBrueckner();
   }
   // Print out info for new "Brueckner" valence orbitals:
   if (!wf.valence_orbitals.empty() && do_brueckner && Sigma_ok) {
     std::cout << "\nBrueckner orbitals:\n";
     wf.printValence(sorted);
+  }
+
+  // Construct B-spline Spectrum:
+  const auto Spectrum_ok =
+      input.check("Spectrum", {"number", "order", "r0", "r0_eps", "rmax",
+                               "states", "print", "positron"});
+  const auto n_spec = input.get("Spectrum", "number", 0ul);
+  const auto k_spec = input.get("Spectrum", "order", 0ul);
+  const auto r0_spec = input.get("Spectrum", "r0", 0.0);
+  const auto r0_eps_spec = input.get("Spectrum", "r0_eps", 0.0);
+  const auto rmax_spec = input.get("Spectrum", "rmax", 0.0);
+  const auto spec_states = input.get<std::string>("Spectrum", "states", "");
+  const auto print_specQ = input.get("Spectrum", "print", false);
+  const auto positron_specQ = input.get("Spectrum", "positron", false);
+  if (n_spec > 0 && Spectrum_ok) {
+    IO::ChronoTimer t("Spectrum");
+    wf.formSpectrum(spec_states, n_spec, k_spec, r0_spec, r0_eps_spec,
+                    rmax_spec, positron_specQ);
+    if (print_specQ)
+      wf.printSpectrum();
   }
 
   // run each of the modules with the calculated wavefunctions

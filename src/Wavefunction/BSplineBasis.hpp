@@ -5,6 +5,9 @@
 class DiracSpinor;
 class Wavefunction;
 class Grid;
+namespace MBPT {
+class CorrelationPotential;
+}
 
 /*!
 @brief Constucts of spinor/orbital basis using B-splines
@@ -59,7 +62,7 @@ std::vector<DiracSpinor>
 form_basis(const std::string &states_str, const std::size_t n_spl,
            const std::size_t k_spl, const double r0_spl, const double r0_eps,
            const double rmax_spl, const Wavefunction &wf,
-           const bool positronQ = false);
+           const bool positronQ = false, const bool correlationsQ = false);
 
 //! Forms the underlying spline basis (which is not kept)
 std::vector<DiracSpinor>
@@ -71,7 +74,8 @@ form_spline_basis(const int kappa, const std::size_t n_states,
 //! matrices
 std::pair<LinAlg::SqMatrix, LinAlg::SqMatrix>
 fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
-                        const Wavefunction &wf);
+                        const Wavefunction &wf,
+                        const bool correlationsQ = false);
 
 //! @brief Expands basis orbitals in terms of spline orbitals, by diagonalising
 //! Hamiltonian

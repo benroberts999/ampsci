@@ -8,6 +8,7 @@ $(SD)/DiracODE/DiracODE.hpp \
 $(SD)/Coulomb/Coulomb.hpp \
 $(SD)/HF/HartreeFockClass.hpp \
 $(SD)/IO/SafeProfiler.hpp \
+$(SD)/MBPT/CorrelationPotential.hpp \
 $(SD)/Maths/Grid.hpp \
 $(SD)/Maths/NumCalc_quadIntegrate.hpp \
 $(SD)/Wavefunction/DiracSpinor.hpp

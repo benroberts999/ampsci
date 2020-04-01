@@ -5,6 +5,7 @@
 #include "DiracODE/DiracODE.hpp"
 #include "HF/HartreeFockClass.hpp"
 #include "IO/SafeProfiler.hpp"
+#include "MBPT/CorrelationPotential.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
@@ -19,17 +20,18 @@ DiracSpinor solveMixedState(const int k, const DiracSpinor &Fa,
                             const double omega, const std::vector<double> &vl,
                             const double alpha,
                             const std::vector<DiracSpinor> &core,
-                            const DiracSpinor &hFa, const double eps_target) {
+                            const DiracSpinor &hFa, const double eps_target,
+                            const MBPT::CorrelationPotential *const Sigma) {
   auto dF = DiracSpinor(0, k, *(Fa.p_rgrid));
-  solveMixedState(dF, Fa, omega, vl, alpha, core, hFa, eps_target);
+  solveMixedState(dF, Fa, omega, vl, alpha, core, hFa, eps_target, Sigma);
   return dF;
 }
 //------------------------------------------------------------------------------
-DiracSpinor solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa,
-                            const double omega, const std::vector<double> &vl,
-                            const double alpha,
-                            const std::vector<DiracSpinor> &core,
-                            const DiracSpinor &hFa, const double eps_target)
+void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
+                     const std::vector<double> &vl, const double alpha,
+                     const std::vector<DiracSpinor> &core,
+                     const DiracSpinor &hFa, const double eps_target,
+                     const MBPT::CorrelationPotential *const Sigma)
 // Solves:  (H - e - w)X = -h*Fa for X
 {
   auto sp = IO::Profile::safeProfiler(__func__);
@@ -45,7 +47,9 @@ DiracSpinor solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa,
   } else {
     const auto vx0 = form_approx_vex_any(dF, core);
     const auto v0 = NumCalc::add_vectors(vl, vx0);
-    const auto rhs0 = (vx0 * dF) - vex_psia_any(dF, core) - hFa;
+    auto rhs0 = (vx0 * dF) - vex_psia_any(dF, core) - hFa;
+    if (Sigma)
+      rhs0 -= (*Sigma)(dF);
     DiracODE::solve_inhomog(dF, Fa.en + omega, v0, H_mag, alpha, rhs0);
     // const auto a = 0.0;
     // const auto l = (1.0 - a);
@@ -59,7 +63,9 @@ DiracSpinor solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa,
     const auto vx = form_approx_vex_any(dF, core);
     const auto v = NumCalc::add_vectors(vl, vx);
 
-    const auto rhs = (vx * dF) - vex_psia_any(dF, core) - hFa;
+    auto rhs = (vx * dF) - vex_psia_any(dF, core) - hFa;
+    if (Sigma)
+      rhs -= (*Sigma)(dF);
     DiracODE::solve_inhomog(dF, Fa.en + omega, v, H_mag, alpha, rhs);
 
     const auto a = damper(its);
@@ -84,7 +90,7 @@ DiracSpinor solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa,
     }
     dF20 = dF2;
   }
-  return dF;
+  // return dF;
 }
 
 } // namespace HF

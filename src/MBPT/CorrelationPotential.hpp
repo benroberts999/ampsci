@@ -88,13 +88,25 @@ public:
   //! per kappa.
   void form_Sigma(const std::vector<double> &en_list = {});
 
+  //! Stores scaling factors, lambda, for each kappa (Sigma -> lamda*Sigma)
+  void scale_Sigma(const std::vector<double> &lambda_kappa) {
+    m_lambda_kappa = lambda_kappa;
+  }
+
+  void print_scaling() const {
+    if (!m_lambda_kappa.empty()) {
+      std::cout << "Scaled Sigma, with: lambda_kappa = ";
+      for (const auto &l : m_lambda_kappa) {
+        std::cout << l << ", ";
+      }
+      std::cout << "\n";
+    }
+  }
+
   //! returns Spinor: Sigma|Fv>
   //! @details If Sigma for kappa_v doesn't exist, returns |0>. Sigma_kappa
   //! calculated at the energy given in 'form_Sigma' (or on construct)
-  DiracSpinor operator()(const DiracSpinor &Fv,
-                         const double lambda = 1.0) const {
-    return Sigma2Fv(Fv, lambda);
-  }
+  DiracSpinor operator()(const DiracSpinor &Fv) const { return Sigma2Fv(Fv); }
 
   //! Calculates <Fv|Sigma|Fw> from scratch, at Fv energy [full grid + fg+gg]
   double operator()(const DiracSpinor &Fv, const DiracSpinor &Fw) const {
@@ -102,7 +114,7 @@ public:
   }
 
 private:
-  DiracSpinor Sigma2Fv(const DiracSpinor &Fv, const double lambda = 1.0) const;
+  DiracSpinor Sigma2Fv(const DiracSpinor &Fv) const;
 
   double Sigma2vw(const DiracSpinor &Fv, const DiracSpinor &Fw) const;
 
@@ -113,8 +125,7 @@ private:
   void addto_G(GMatrix *Gmat, const DiracSpinor &ket, const DiracSpinor &bra,
                const double f = 1.0) const;
   // Should be static? Of member of Gmatrix? Or free?
-  DiracSpinor Sigma_G_Fv(const GMatrix &Gmat, const DiracSpinor &Fv,
-                         const double lambda = 1.0) const;
+  DiracSpinor Sigma_G_Fv(const GMatrix &Gmat, const DiracSpinor &Fv) const;
 
 private:
   const std::vector<DiracSpinor> m_core;
@@ -122,6 +133,7 @@ private:
   Coulomb::YkTable m_yec; // constains Ck and Y_ec(r)
   const int m_maxk;
   Angular::SixJ m_6j;
+  std::vector<double> m_lambda_kappa{};
 
   int stride_points{};
   int imin{};

@@ -4,6 +4,8 @@
 #include "HF/ExternalField.hpp"
 #include "HF/MixedStates.hpp"
 #include "IO/UserInput.hpp"
+#include "Physics/NuclearData.hpp"
+#include "Physics/NuclearPotentials.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include <algorithm>
 #include <cmath>
@@ -79,7 +81,7 @@ void calculatePNC(const IO::UserInputBlock &input, const Wavefunction &wf) {
   bool main_ok = false;
   int max_n_main = 0;
   {
-    std::cout << "Sum-over-states method (HF valence):\n";
+    std::cout << "Sum-over-states method (HF core+valence):\n";
     std::cout << " <A|d|n><n|hw|B>/dEB + <A|hw|n><n|d|B>/dEA\n";
     double pnc = 0, core = 0, main = 0;
     for (int i = 0; i < 2; i++) {
@@ -122,11 +124,11 @@ void calculatePNC(const IO::UserInputBlock &input, const Wavefunction &wf) {
     std::cout << "Total= " << pnc << "\n";
   }
 
-  if (!wf.basis.empty()) {
-    std::cout << "\nSum-over-states method (basis):\n";
+  if (!wf.spectrum.empty()) {
+    std::cout << "\nSum-over-states method (Spectrum):\n";
     std::cout << " <A|d|n><n|hw|B>/dEB + <A|hw|n><n|d|B>/dEA\n";
     double pnc = 0, core = 0, main = 0;
-    for (auto &np : wf.basis) {
+    for (auto &np : wf.spectrum) {
       if (np == aB || np == aA)
         continue;
       if (hpnc.isZero(np.k, aA.k) && hpnc.isZero(np.k, aB.k))
@@ -184,16 +186,20 @@ void calculatePNC(const IO::UserInputBlock &input, const Wavefunction &wf) {
     e1A += dVE1.dV_ab_rhs(e1A, aA, !dVconj);
     e1B += dVE1.dV_ab_rhs(e1B, aB, dVconj);
 
-    auto yA_w =
-        HF::solveMixedState(hA.k, aA, 0, v, alpha, wf.core_orbitals, hA);
-    auto xB_w =
-        HF::solveMixedState(hB.k, aB, 0, v, alpha, wf.core_orbitals, hB);
+    auto epsMS = 1.0e-9;
+    auto yA_w = HF::solveMixedState(hA.k, aA, 0, v, alpha, wf.core_orbitals, hA,
+                                    epsMS, wf.m_Sigma.get());
+    auto xB_w = HF::solveMixedState(hB.k, aB, 0, v, alpha, wf.core_orbitals, hB,
+                                    epsMS, wf.m_Sigma.get());
 
+    // XXX Fitting of lambda not included here! Include into Sigma?
     auto omegaSE = aA.en - aB.en;
-    auto xB_d = HF::solveMixedState(e1B.k, aB, omegaSE, v, alpha,
-                                    wf.core_orbitals, e1B);
-    auto yA_d = HF::solveMixedState(e1A.k, aA, -omegaSE, v, alpha,
-                                    wf.core_orbitals, e1A);
+    auto xB_d =
+        HF::solveMixedState(e1B.k, aB, omegaSE, v, alpha, wf.core_orbitals, e1B,
+                            epsMS, wf.m_Sigma.get());
+    auto yA_d =
+        HF::solveMixedState(e1A.k, aA, -omegaSE, v, alpha, wf.core_orbitals,
+                            e1A, epsMS, wf.m_Sigma.get());
 
     auto pnc1_w = c01 * he1.reducedME(yA_w, aB);
     auto pnc2_w = c10 * he1.reducedME(aA, xB_w);
