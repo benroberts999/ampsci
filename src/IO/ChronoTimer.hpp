@@ -4,33 +4,34 @@
 #include <iostream>
 #include <sstream> // stringstream
 #include <string>
-/*
-Class that uses std::chrono to easily time code
-Usage:
-  Create object. By default will not start the timer, unless 'true'
-  is given as optional input, e.g.:
-    IO::ChronoTimer sw; //will not start the timing.
-    IO::ChronoTimer sw; will
 
-  sw.start() -- starts timing
-  sw.stop()  -- 'pauses' timing
-  sw.reset() -- clears timer. Needs to be re-stared. Forgets all times.
-
-  start/stop lets you time indevidual sections of code, while not timing
-  others.
-  Calling start() again will start a new "lap", and save current to total.
-
-  reading_ms() -- returns total elapsed time as double, in ms
-  lap_reading_ms() -- same, but only returns time since last start()
-
-  reading_str() and lap_reading_str() -- As above, but outputs as
-  formatted string, in units of ms,s,mins, or hours
-  (e.g., "1.56 s" or "2.10 hours")
-
-*/
-
+//! In-out (timers, profilers, and read/write data)
 namespace IO {
 
+/* !
+@brief Class that uses std::chrono to easily time code
+@details
+Usage:
+Will automatically time a routine, based on scope.
+Automatically starts timing on construction, and returns total time elapsed when
+timer goes out of scope. Also "fancy" commands to start/stop the timer if need
+be (e.g., to not time a certain part of the code)
+
+  - sw.start() -- starts timing
+  - sw.stop()  -- 'pauses' timing
+  - sw.reset() -- clears timer. Needs to be re-stared. Forgets all times.
+
+  - start/stop lets you time indevidual sections of code, while not timing
+  others.
+  - Calling start() again will start a new "lap", and save current to total.
+
+  - reading_ms() -- returns total elapsed time as double, in ms
+  - lap_reading_ms() -- same, but only returns time since last start()
+
+  - reading_str() and lap_reading_str() -- As above, but outputs as formatted
+string, in units of ms,s,mins, or hours (e.g., "1.56 s" or "2.10 hours")
+
+*/
 class ChronoTimer {
 public:
   ChronoTimer(const std::string &in_name = "");

@@ -45,6 +45,7 @@ private:
 };
 
 //******************************************************************************
+//! Stores + retrives user input
 class UserInput {
 
 public:

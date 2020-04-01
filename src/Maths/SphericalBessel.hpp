@@ -7,7 +7,6 @@
 @brief Wrappers for returning Spherical Bessel functions.
 @details Has an "exact" version, and a faster approx version (good to ~ 1.e-9)
 */
-
 namespace SphericalBessel {
 
 //******************************************************************************

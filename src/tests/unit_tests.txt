@@ -164,7 +164,6 @@ Basis {
   states = 12spd;
 }
 Module::Tests {}
-Module::BohrWeisskopf {}
 
 ###########################################
 #TEST# QED
@@ -175,6 +174,7 @@ HartreeFock {
   valence = 7sp;
 }
 RadPot {
+  RadPot = true;
   Ueh = 1.0;
   SE_h = 1.0;
   SE_l = 1.0;
@@ -201,20 +201,26 @@ Basis {
 Atom { Z = Cs; }
 HartreeFock {
   core = [Xe];
-  valence = 7sp;
+  valence = 7sp5d;
 }
 Basis {
-  number = 50;
+  number = 40;
   order = 7;
   r0 = 1.0e-4;
-  rmax = 40.0;
+  r0_eps = 1.0e-6;
+  rmax = 30.0;
   print = false;
-  states = 40spdf;
+  positron = false;
+  states = 30spdfg;
 }
 Grid {
   r0 = 1e-6;
-  rmax = 120.0;
+  rmax = 150.0;
   num_points = 2000;
 }
-Module::Tests {  }
-Module::SecondOrder {  }
+Correlations {
+  energyShifts = true;
+  Brueckner = true;
+  n_min_core = 3;
+}
+Module::Tests{}

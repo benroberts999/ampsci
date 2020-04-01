@@ -1,6 +1,6 @@
 # Relativistic, self-consistent atomic structure code.
 
-Solves the Dirac equation for atomic systems using the Hartree-Fock method.
+Solves the Dirac equation for atomic systems using the Hartree-Fock and second-order correlation potential method.
 Fully relativistic, includes finite-nuclear size, can solve for continuum states (energy normalisation), and can include QED corrections via the Ginges-Flambaum radiative potential method. Calculates ionisation cross sections with high values for energy/momentum transfer.
 
 
@@ -12,7 +12,6 @@ Fully relativistic, includes finite-nuclear size, can solve for continuum states
  * Also: contains "Makefile.example" and "hartreeFock.in.example": copy these to the main directory and remove the ".example"
 
  * Code documentation is available on github: [benroberts999.github.io/diracSCAS/](https://benroberts999.github.io/diracSCAS/)
- * (This is very preliminary, and auto-generated, so may not be complete etc.)
  * The code itself is on GitHub: [github.com/benroberts999/diracSCAS](https://github.com/benroberts999/diracSCAS)
 
 --------------------------------------------------------------------------------
@@ -58,8 +57,8 @@ Then, the compilation + use can proceed as per Linux above.
  * NOTE: If you get the following error message on compile, change '_UseOpenMP=yes_' to '_UseOpenMP=no_' in Makefile:
    * **error: unsupported option -fopenmp**
 
- * **Linking to GSL**: If GSL library is not installed in _/usr/local/_, you have to tell the compiler where to find the GSL files. Do this by setting the _PathForGSL_ option in Makefile. Common exaples:
-   * _PathForGSL=/opt/gsl/2.1/gnu_  # For UQ's getafix cluster
+ * **Linking to GSL**: If GSL library is not installed in _/usr/local/_, you have to tell the compiler where to find the GSL files. Do this by setting the _PathForGSL_ option in Makefile. Common examples:
+   * _PathForGSL=/opt/gsl/2.1/gnu_ # For UQ's getafix cluster
    * _PathForGSL=/usr/local/opt/gnu-scientific-library_ # For my macbook
    * Note: the exact path may differ for you, depending on where GSL was installed
 

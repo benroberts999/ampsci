@@ -22,6 +22,7 @@ struct StrDoubleUnsigned {
 };
 
 //******************************************************************************
+//! Thread-safe profiler (timing) tool
 class ProfileLog {
   friend class Profiler;
   ProfileLog(){};
