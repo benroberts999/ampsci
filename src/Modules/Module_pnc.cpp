@@ -37,7 +37,7 @@ void calculatePNC(const IO::UserInputBlock &input, const Wavefunction &wf) {
   auto ncore = wf.maxCore_n();
   auto main_n = input.get("nmain", ncore + 4);
 
-  auto rpaQ = input.get("rpa", false);
+  auto rpaQ = input.get("rpa", true);
 
   DiracOperator::PNCnsi hpnc(c, t, wf.rgrid, -wf.Nnuc());
   DiracOperator::E1 he1(wf.rgrid);

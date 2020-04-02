@@ -3,7 +3,7 @@ Each must be sepparated by:
   * _#TEST# text_
 where 'text' can be any text (some label/identifier)
 
-then, run the python script (from same location as hartreeFock executable!)
+then, run the python script (from same location as diracSCAS executable!)
 e.g.,
   * _./src/tests/unit_tests.py_
 

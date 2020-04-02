@@ -18,7 +18,7 @@ void Module_tests(const IO::UserInputBlock &input, const Wavefunction &wf) {
   using namespace Tests;
   std::string ThisModule = "Module::Tests";
   input.checkBlock({"orthonormal", "orthonormal_all", "Hamiltonian",
-                    "boundaries", "sumRules"});
+                    "boundaries", "basisTests"});
   auto othon = input.get("orthonormal", true);
   auto othon_all = input.get("orthonormal_all", false);
   if (othon || othon_all)
@@ -27,14 +27,30 @@ void Module_tests(const IO::UserInputBlock &input, const Wavefunction &wf) {
     Module_Tests_Hamiltonian(wf);
   if (input.get("boundaries", false))
     Module_test_r0pinf(wf);
-  if (input.get("sumRules", false))
-    basisSumRules(wf);
+  if (input.get("basisTests", false))
+    basisTests(wf);
 }
 
 namespace Tests {
 
+namespace Helper {
+int countNodes(const DiracSpinor &Fn)
+// Just counts the number of times orbital (f) changes sign
+{
+  double sp = Fn.f[Fn.p0 + 3];
+  int counted_nodes = 0;
+  for (auto i = Fn.p0 + 4; i < Fn.pinf - 3; ++i) {
+    if (sp * Fn.f[i] < 0) {
+      ++counted_nodes;
+      sp = Fn.f[i];
+    }
+  }
+  return counted_nodes;
+}
+} // namespace Helper
+
 //------------------------------------------------------------------------------
-void basisSumRules(const Wavefunction &wf) {
+void basisTests(const Wavefunction &wf) {
 
   // if (!wf.basis.empty())
   //   std::cout << "\nTest hfs using basis (pointlike):\n";
@@ -51,35 +67,39 @@ void basisSumRules(const Wavefunction &wf) {
   //   std::cout << "\n";
   // }
 
-  if (wf.basis.empty())
+  std::cout << "\nTesting basis/spectrum (sum rules):\n";
+  std::cout << "(Must include +ve energy states.)\n";
+
+  const auto &basis = wf.spectrum.empty() ? wf.basis : wf.spectrum;
+  if (basis.empty())
     return;
 
-  std::cout << "\nTesting basis (sum rules):\n";
-  std::cout << "(must include +ve energy states. Works best for pure Coloumb "
-               "functions)\n";
+  if (&basis == &(wf.spectrum))
+    std::cout << "Using Sprectrum\n";
+  else
+    std::cout << "Using Basis\n";
 
   auto rhat = DiracOperator::E1(wf.rgrid);          // vector E1
   auto r2hat = DiracOperator::RadialF(wf.rgrid, 2); // scalar r^2
 
   auto comp_l = [](const auto &Fa, const auto &Fb) { return Fa.l() < Fb.l(); };
-  auto max_l = std::max_element(wf.basis.begin(), wf.basis.end(), comp_l)->l();
+  auto max_l = std::max_element(basis.begin(), basis.end(), comp_l)->l();
 
-  std::cout << "TKR sum rule\n";
+  //----------------------------------------------------------------------------
+  std::cout << "\nTKR sum rule (should =0)\n";
   {
-    auto Fa = wf.basis.front();
+    const auto &Fa = basis.front();
     for (int l = 0; l <= max_l; l++) {
       auto sum_el = 0.0;
       auto sum_p = 0.0;
-      for (const auto &Fn : wf.basis) {
+      for (const auto &Fn : basis) {
         if (Fn == Fa)
           continue;
-        auto f = (Fn.k == l) ? l : (Fn.k == -l - 1) ? l + 1 : 0;
+        const auto f = (Fn.k == l) ? l : (Fn.k == -l - 1) ? l + 1 : 0;
         if (f == 0)
           continue;
-        auto w = Fn.en - Fa.en;
-        // auto Ran = rhat.radialIntegral(Fa, Fn);
-        auto Ran = Fa * (wf.rgrid.r * Fn);
-        auto term = f * w * Ran * Ran / (2 * l + 1);
+        const auto Ran = Fa * (wf.rgrid.r * Fn);
+        const auto term = f * (Fn.en - Fa.en) * Ran * Ran / (2 * l + 1);
         if (Fn.n > 0)
           sum_el += term;
         else
@@ -90,24 +110,27 @@ void basisSumRules(const Wavefunction &wf) {
     }
   }
 
+  //----------------------------------------------------------------------------
+  std::cout << "\nDrake-Goldman sum rules: w^n |<a|r|b>|^2  (n=0,1,2)\n";
+  std::cout << "(Only up to lmax-1, since need to have states with l'=l+1)\n";
+
   auto comp_ki = [](const auto &Fm, const auto &Fn) {
     return Fm.k_index() < Fn.k_index();
   };
   auto max_ki =
-      std::max_element(wf.basis.begin(), wf.basis.end(), comp_ki)->k_index();
-
-  std::cout << "Drake-Goldman sum rules: w^n |<a|r|b>|^2  (n=0,1,2)\n";
+      std::max_element(basis.begin(), basis.end(), comp_ki)->k_index();
+  int n_max_DG = 3; // wf.core_orbitals.empty() ? 3 : 1;
   for (int ki = 0; ki <= max_ki; ki++) {
     auto kappa = Angular::kappaFromIndex(ki);
     auto comp_k = [=](const auto &Fn) { return Fn.k == kappa; };
-    auto Fa = *std::find_if(wf.basis.begin(), wf.basis.end(), comp_k);
+    auto Fa = *std::find_if(basis.begin(), basis.end(), comp_k);
     // need to have l_n = la+1 terms, or sum doesn't work:
     if (Fa.l() == max_l)
       continue;
     std::cout << "kappa: " << kappa << " (" << Fa.symbol() << ")\n";
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < n_max_DG; i++) {
       auto sum = 0.0;
-      for (const auto &Fn : wf.basis) {
+      for (const auto &Fn : basis) {
         auto w = Fn.en - Fa.en;
         auto Ran = rhat.reducedME(Fa, Fn);
         double c = 1.0 / (2 * std::abs(Fa.k));
@@ -117,12 +140,53 @@ void basisSumRules(const Wavefunction &wf) {
       if (i == 2)
         sum *= wf.get_alpha() * wf.get_alpha() / 3;
       auto s0 = (i == 0) ? r2hat.radialIntegral(Fa, Fa) : (i == 1) ? 0.0 : 1.0;
-      printf("%i: sum=%9.6f, exact=%+9.6f, diff=%8.1e\n", i, sum, s0, sum - s0);
+      printf("%i: sum=%11.6f, exact=%+11.6f, diff = %8.1e\n", i, sum, s0,
+             sum - s0);
+    }
+  }
+
+  //----------
+  const auto isotope = Nuclear::findIsotopeData(wf.Znuc(), wf.Anuc());
+  const auto mu = isotope.mu;
+  const auto I_nuc = isotope.I_N;
+  const auto hfs = DiracOperator::Hyperfine(
+      mu, I_nuc, 0.0, wf.rgrid, DiracOperator::Hyperfine::pointlike_F());
+
+  std::cout << "\nHFS and Energies: Basis cf HF:\n";
+  std::cout << "    | A(HF)      Basis      eps   | En(HF)      "
+               "Basis       eps   | nodes\n";
+  int count = 0;
+  for (const auto &Fn : basis) {
+    if (Fn.n < 0)
+      continue;
+    const auto *hf_phi = wf.getState(Fn.n, Fn.k);
+    const bool hfQ = hf_phi != nullptr;
+    const auto Ahf = hfQ ? DiracOperator::Hyperfine::hfsA(&hfs, *hf_phi) : 0.0;
+    const auto Ab = DiracOperator::Hyperfine::hfsA(&hfs, Fn);
+    const auto Eb = Fn.en;
+    const auto Ehf = hfQ ? hf_phi->en : 0.0;
+
+    const auto nodes = Helper::countNodes(Fn);
+    const int expected_nodes = Fn.n - Fn.l() - 1;
+
+    if (hfQ) {
+      count = 0;
+      printf("%4s| %9.3e  %9.3e  %5.0e | ", Fn.shortSymbol().c_str(), Ahf, Ab,
+             std::abs((Ahf - Ab) / Ab));
+      printf("%10.3e  %10.3e  %5.0e | ", Ehf, Eb, std::abs((Ehf - Eb) / Eb));
+      std::cout << nodes << "/" << expected_nodes << "\n";
+    } else {
+      count++;
+      if (count >= 3)
+        continue;
+      printf("%4s|    ---     %9.3e   ---  | ", Fn.shortSymbol().c_str(), Ab);
+      printf("    ---     %10.3e   ---  | ", Eb);
+      std::cout << nodes << "/" << expected_nodes << "\n";
     }
   }
 }
 
-//------------------------------------------------------------------------------
+//******************************************************************************
 void Module_test_r0pinf(const Wavefunction &wf) {
   std::cout << "\nTesting boundaries r0 and pinf: f(r)/f_max\n";
   std::cout << " State    f(r0)   f(pinf)   pinf/Rinf\n";
@@ -271,20 +335,21 @@ void Module_Tests_Hamiltonian(const Wavefunction &wf) {
   Hd.set_v(-1, wf.get_Vlocal(0)); // same each kappa //?? XXX
   Hd.set_v_mag(wf.get_Hmag(0));
 
+  const auto &basis = wf.spectrum.empty() ? wf.basis : wf.spectrum;
+
   for (const auto tmp_orbs :
-       {&wf.core_orbitals, &wf.valence_orbitals, &wf.basis}) {
+       {&wf.core_orbitals, &wf.valence_orbitals, &basis}) {
     if (tmp_orbs->empty())
       continue;
     double worst_eps = 0.0;
     const DiracSpinor *worst_psi = nullptr;
     for (const auto &psi : *tmp_orbs) {
       double Haa_d = Hd.matrixEl(psi, psi);
-      // double Haa_x =
-      //     (tmp_orbs != &wf.basis)
-      //         ? psi * wf.get_VexPsi(psi)
-      //         : psi * vex_psia_any(psi, wf.core_orbitals);
       double Haa_x = psi * HF::vex_psia_any(psi, wf.core_orbitals);
       auto Haa = Haa_d + Haa_x;
+      if (!wf.isInCore(psi) && wf.m_Sigma != nullptr) {
+        Haa += psi * (*wf.m_Sigma)(psi);
+      }
       double ens = psi.en;
       double fracdiff = (Haa - ens) / ens;
       printf("<%2i% i|H|%2i% i> = %17.11f, E = %17.11f; % .0e\n", psi.n, psi.k,

@@ -10,11 +10,12 @@ Calculates ionisation cross sections with high values for energy/momentum transf
  * Code documentation is available on github: [benroberts999.github.io/diracSCAS/](https://benroberts999.github.io/diracSCAS/)
  * The code itself is on GitHub: [github.com/benroberts999/diracSCAS](https://github.com/benroberts999/diracSCAS)
  * Other documentation is in doc/ directory. Contains a few documents:
- * 01-hartreeFock_input.md -- How to use the code (input options + descriptions)
+ * 01-diracSCAS_input.md -- How to use the code (input options + descriptions)
    * (best viewed with a markdown reader or on GitHub)
  * 02-diracSCAS_method.pdf  -- Description of physics/methods used in the code
    * Includes many references to the works where the methods implemented here were developed.
- * Also: contains "Makefile.example" and "hartreeFock.in.example": copy these to the main directory and remove the ".example"
+   * Also available online: [github.com/benroberts999/diracSCAS/blob/master/doc/02-diracSCAS_method.pdf](https://github.com/benroberts999/diracSCAS/blob/master/doc/02-diracSCAS_method.pdf)
+ * Also: contains "Makefile.example" and "diracSCAS.in.example": copy these to the main directory and remove the ".example"
 
 --------------------------------------------------------------------------------
 
@@ -73,17 +74,17 @@ Then, the compilation + use can proceed as per Linux above.
 
 --------------------------------------------------------------------------------
 
-## hartreeFock (main program)
+## diracSCAS (main program)
 
- * Solves relativistic Hartree-Fock potential for core + valence states
+ * Solves the Dirac equation for atomic systems using the Hartree-Fock + second-order correlation potential method.
  * Input taken from a plain text file.
- * An example input file is included: doc/hartreeFock.in.example
-    * e.g.: _cp ./doc/hartreeFock.in.example ./hartreeFock.in_
+ * An example input file is included: doc/diracSCAS.in.example
+    * e.g.: _cp ./doc/diracSCAS.in.example ./diracSCAS.in_
  * You may re-name this file (e.g., to "filename.txt"), then run as:
-    * _$ ./hartreeFock filename.txt_
-    * If no input filename is given, program will assume input filename is 'hartreeFock.in':
-    * _$ ./hartreeFock_
- * See _doc/01-hartreeFock_input.md_ for a full list of input options + descriptions
+    * _$ ./diracSCAS filename.txt_
+    * If no input filename is given, program will assume input filename is 'diracSCAS.in':
+ * Note: input file uses c++-like format + line comments; tell your editor that the file is a cpp file to get nice colourisation and auto commenting
+ * See _doc/01-diracSCAS_input.md_ for a full list of input options + descriptions
  * See _doc/02-diracSCAS_method.pdf_ for a description of the physics, and for references to the works where the methods implemented here were developed.
 
 --------------------------------------------------------------------------------

@@ -1,8 +1,8 @@
-# Input options for: hartreeFock
+# Input options for: diracSCAS
 
-* The **hartreeFock** program should be run as:
-  * _./hartreeFock inputFile.in_
-  * ``inputFile.in'' is a plain-text input file, that contains all input options (if no input file is given, program looks for the default one, named "hartreeFock.in")
+* The **diracSCAS** program should be run as:
+  * _./diracSCAS inputFile.in_
+  * ``inputFile.in'' is a plain-text input file, that contains all input options (if no input file is given, program looks for the default one, named "diracSCAS.in")
 * First, the program reads in the main input options from the four main input "blocks" (Atom, Nucleus, HartreeFock, and Grid). It will use these to generate wavefunction/Hartree-Fock etc. Then, any number of optional "modules" are run using the above-calculated wavefunctions (e.g., these might calculate matrix elements, run tests etc.). The input blocks and options can be given in any order
 * In general, the input file will have the following format:
 
@@ -254,14 +254,14 @@ MatrixElements::ExampleOperator { //this is not a real operator..
   onlyDiagonal;   //[t] default = false
   radialIntegral; //[b] default = false
   rpa;            //[b] default = true
-  omega;          //[r] default = 0.0
+  omega;          //[r] default = 0.0, or [t] ('each')
 }
 ```
 * printBoth: Print <a|h|b> and <b|h|a> ? false by default. (For _some_ operators, e.g., involving derivatives, this is a good test of numerical error. For most operators, values will be trivially the same; reduced matrix elements, sign may be different.)
 * onlyDiagonal: If true, will only print diagonal MEs <a|h|a>
 * radialIntegral: calculate radial integral, or reduced matrix elements (difference depends on definition of operator in the code)
 * rpa: Include RPA (core polarisation) corrections to MEs, using TDHF method (note: mostly works, but not 100% yet)
-* omega: frequency for solving TDHF/RPA equations, should be positive. Put "-1" to solve at the frequency for each transition (i.e., re-solve TDHF for each transition).
+* omega: frequency for solving TDHF/RPA equations, should be positive. Put "omega=each;" to solve at the frequency for each transition (i.e., re-solve TDHF for each transition).
 
 
 ### Available operators:
@@ -325,7 +325,7 @@ Module::Tests {
   orthonormal_all; //[b] Print all <a|b>'s. default = false
   Hamiltonian;     //[b] check eigenvalues of Hamiltonian. default = false
   boundaries;      //[b] check f(rmax)/fmax. default = false
-  sumRules;        //[b] Tests basis by evaluating sum rules
+  basisTests;        //[b] Tests basis by evaluating sum rules + HFS/Energies
 }
 ```
 * Various tests of numerical errors:

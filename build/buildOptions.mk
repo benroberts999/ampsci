@@ -90,8 +90,8 @@ ifeq ($(Build)+$(CXX),debug+clang++)
 	CXXFLAGS += -g $(ASAN) -fno-omit-frame-pointer
 endif
 # echo $(Build)+$(CXX)
-# MSAN_SYMBOLIZER_PATH=/usr/lib/llvm-6.0/bin/llvm-symbolizer ./hartreeFock
-# ASAN_SYMBOLIZER_PATH=/usr/bin/llvm-symbolizer ./hartreeFock
+# MSAN_SYMBOLIZER_PATH=/usr/lib/llvm-6.0/bin/llvm-symbolizer ./diracSCAS
+# ASAN_SYMBOLIZER_PATH=/usr/bin/llvm-symbolizer ./diracSCAS
 
 #Command to compile objects and link them
 COMP=$(CXX) -c -o $@ $< $(CXXFLAGS)

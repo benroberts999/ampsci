@@ -3,11 +3,11 @@
 ################################################################################
 #Allow exectuables to be placed in another directory:
 ALLEXES = $(addprefix $(XD)/, \
- hartreeFock wigner dmeXSection periodicTable \
+ diracSCAS wigner dmeXSection periodicTable \
 )
 
 DEFAULTEXES = $(addprefix $(XD)/, \
- hartreeFock wigner periodicTable \
+ diracSCAS wigner periodicTable \
 )
 
 #Default make rule:
@@ -59,7 +59,7 @@ MODS = $(MODULELIST)
 ################################################################################
 # Link + build all final programs
 
-$(XD)/hartreeFock: $(BASE) $(HF) $(CNTM) $(BD)/hartreeFock.o \
+$(XD)/diracSCAS: $(BASE) $(HF) $(CNTM) $(BD)/diracSCAS.o \
 $(BD)/UserInput.o $(MODS)
 	$(LINK)
 

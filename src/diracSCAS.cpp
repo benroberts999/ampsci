@@ -10,8 +10,8 @@
 #include <string>
 
 int main(int argc, char *argv[]) {
-  IO::ChronoTimer timer("\nhartreeFock");
-  const std::string input_file = (argc > 1) ? argv[1] : "hartreeFock.in";
+  IO::ChronoTimer timer("\ndiracSCAS");
+  const std::string input_file = (argc > 1) ? argv[1] : "diracSCAS.in";
   std::cout << "Reading input from: " << input_file << "\n";
 
   // Rean in input options file

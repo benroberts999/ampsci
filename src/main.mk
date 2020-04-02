@@ -1,6 +1,6 @@
 # Dependencies for each 'Main'
 
-$(BD)/hartreeFock.o: $(SD)/hartreeFock.cpp \
+$(BD)/diracSCAS.o: $(SD)/diracSCAS.cpp \
 $(SD)/IO/ChronoTimer.hpp \
 $(SD)/IO/FRW_fileReadWrite.hpp \
 $(SD)/IO/UserInput.hpp \

@@ -23,18 +23,18 @@ Grid {
   num_points = 1600;
 }
 
-// dVpol { a_eff = 0.0; } // effective pol. op.
+// dVpol { a_eff = 0.0; }
 
 // RadPot
 {
   RadPot = false;
-  Simple = 0.0; // "Simple" exponential potential
+  Simple = 0.0;
   Ueh = 1.0;
   SE_h = 1.0;
   SE_l = 1.0;
   SE_m = 1.0;
   rcut = 5.0;
-  scale_l = 1, 1, 1; // extra scaling for s,p,d states (and so on)
+  scale_l = 1, 1, 1;
   core_qed = true;
 }
 
@@ -43,7 +43,7 @@ Grid {
   number = 40;
   order = 7;
   r0 = 1.0e-4;
-  r0_eps = 1.0e-6; // set r0 when core density below eps
+  r0_eps = 1.0e-6;
   rmax = 30.0;
   print = false;
   positron = false;
@@ -52,11 +52,22 @@ Grid {
 
 // Correlations
 {
+  io_file = "Cs_a";
   energyShifts = false;
   Brueckner = false;
   n_min_core = 3;
   fitTo_cm;
   lambda_k;
+}
+
+//Spectrum
+{
+  number = 100;
+  order = 9;
+  r0 = 1.0e-6;
+  rmax = 100.0;
+  print = false;
+  states = 90p;
 }
 
 /////////////////////////////////////////////////////////////////
@@ -65,7 +76,7 @@ Grid {
 Module::Tests {}
 
 // MatrixElements::E1 {}
-// MatrixElements::E1 {omega = -1;}
+// MatrixElements::E1 {omega = each;}
 
 // MatrixElements::hfs { F(r) = pointlike; rpa = false; }
 // Module::pnc { transition = 6, -1, 7, -1; rpa = true; }

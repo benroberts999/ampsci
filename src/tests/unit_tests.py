@@ -38,7 +38,7 @@ for input_item in input_list:
   output.close()
   input_file.write(input_item)
   input_file.close()
-  os.system("./hartreeFock "+tmp_fname_input+" |tee -a "+outfname)
+  os.system("./diracSCAS "+tmp_fname_input+" |tee -a "+outfname)
   os.remove(tmp_fname_input)
   output = open(outfname,"a")
   output.write("\n"+output_seperator+"\n"+output_seperator+"\n")
