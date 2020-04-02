@@ -47,8 +47,6 @@ void runModule(const IO::UserInputBlock &module_input,
     calculatePNC(module_input, wf);
   } else if (module_name == "Module::lifetimes") {
     calculateLifetimes(module_input, wf);
-  } else if (module_name == "Module::SecondOrder") {
-    SecondOrder(module_input, wf);
   } else {
     std::cerr << "\nWARNING: Module " << module_name
               << " not known. Spelling mistake?\n";

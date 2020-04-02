@@ -149,7 +149,7 @@ ExtraPotential {
 * May be added before or after HF (if before: added to vnuc, if after: to vdir)
 
 
-## QED Radiative Potential [Ginges/Flambaum Method], H -> H - V_rad
+## RadPot (Ginges/Flambaum QED Radiative Potential)
 ```cpp
 RadPot {
   RadPot;   //[b] default = false, to include QED, set to true
@@ -165,6 +165,7 @@ RadPot {
 }
 ```
 * Adds QED radiative potential to Hamiltonian.
+* RadPot must be set to true to include QED
 * Each factor is a scale; 0 means don't include. 1 means include full potential. Any positive number is valid.
 * rcut: Only calculates potential for r < rcut [for speed; rcut in au]
 * scale_rN: finite nucleus effects: rN = rN * scale_rN (for testing only)
@@ -175,7 +176,8 @@ RadPot {
     * don't need to be 1 or 0, can be any real number.
 * core_qed: if true, will include QED effects into core in Hartree-Fock (relaxation). If false, will include QED only for valence states
 
-## B-spline basis
+## Basis (B-spline basis for MBPT)
+* The 'basis' is used for summing over states in MBPT. (A second 'basis', called spectrum, may be used for summation over states in other problems)
 ```cpp
 Basis {
   number;   //[i] default = 0
@@ -198,24 +200,42 @@ Basis {
   * spd will store _all_ (number) states for l<=2
 
 
-## Correlations (Correlation potential)
+## Correlations (Correlation potential, Sigma)
+* For including correlations. 'basis' must exist to calculate Sigma, but not to read Sigma in from file.
 ```cpp
 Correlations {
+  io_file;        //[t] default = ""
+  stride;         //[i] default = 4
+  n_min_core;     //[i] default = 1
   energyShifts;   //[b] default = false
   Brueckner;      //[b] default = false
-  n_min_core;     //[i] default = 1
   lambda_k;       //[r,r...] (list) default is blank.
   fitTo_cm;       //[r,r...] (list) default is blank.
 }
 ```
 * Includes correlation corrections. note: splines must exist already
-* energyShifts: If true, will calculate the second-order energy shifts (from scratch, according to MBPT) - compares to <v|Sigma|v> if it exists
-* Brueckner: Construct Brueckner valence orbitals using correlation potential method (i.e., include correlations into wavefunctions and energies for valence states)
+* io_file: Filename (NOT including extension) to read in Correlation potential from. If file doesn't exist, will calculate CP and write to this file. Leave blank to calculate and not write to file.
+  * If reading Sigma in from file, basis doesn't need to exist
+* stride: Only calculates Sigma every nth point (Sigma is NxN matrix, so stride=4 leads to ~16x speed-up vs 1)
 * n_min_core: minimum core n included in the Sigma calculation; lowest states often contribute little, so this speeds up the calculations
+* energyShifts: If true, will calculate the second-order energy shifts (from scratch, according to MBPT) - compares to <v|Sigma|v> if it exists
+  * Note: Uses basis. If reading Sigma from disk, and no basis given, energy shifts will all be 0.0
+* Brueckner: Construct Brueckner valence orbitals using correlation potential method (i.e., include correlations into wavefunctions and energies for valence states)
 * lambda_k: Rescale Sigma -> lambda*Sigma. One lambda for each kappa. If not given, assumed to be 1.
+  * Note: Lambda's are not written/read to file, so these must be given (if required) even when reading Sigma from disk
 * fitTo_cm: Provide list of energies (lowest valence states for each kappa); Sigma for each kappa will be automatically re-scaled to exactly reproduce these. Give as binding energies in inverse cm! It will print the lambda_k's that it calculated
   * e.g., fitTo_cm = -31406.46773, -20228.200, -19674.161, -16907.211, -16809.625; will fit for the lowest s,p,d states for Cs
   * Will over-write lambda_k
+
+
+## Spectrum (B-spline basis for MBPT)
+* The 'Sprectrum' is similar to basis, but also includes correlation corrections (if Sigma exists)
+* Useful, since we often need a small basis to compute MBPT terms, but a large basis to complete other sum-over-states calculations.
+```cpp
+Spectrum {
+  // exact same inputs as Basis{}
+}
+```
 
 
 ## Modules and MatrixElements
@@ -233,7 +253,6 @@ MatrixElements::ExampleOperator { //this is not a real operator..
   printBoth;      //[t] default = false
   onlyDiagonal;   //[t] default = false
   radialIntegral; //[b] default = false
-  units;          //[t] default = au
   rpa;            //[b] default = true
   omega;          //[r] default = 0.0
 }
@@ -241,9 +260,8 @@ MatrixElements::ExampleOperator { //this is not a real operator..
 * printBoth: Print <a|h|b> and <b|h|a> ? false by default. (For _some_ operators, e.g., involving derivatives, this is a good test of numerical error. For most operators, values will be trivially the same; reduced matrix elements, sign may be different.)
 * onlyDiagonal: If true, will only print diagonal MEs <a|h|a>
 * radialIntegral: calculate radial integral, or reduced matrix elements (difference depends on definition of operator in the code)
-* units: can only be 'au' or 'MHz'. MHz only makes sense for some operators (e.g., hfs), and is just for convenience
 * rpa: Include RPA (core polarisation) corrections to MEs, using TDHF method (note: mostly works, but not 100% yet)
-* omega: frequency for solving TDHF/RPA equations, should be positive. Put "-1" to solve at the frequency for each transition (re-solved TDHF for each transition).
+* omega: frequency for solving TDHF/RPA equations, should be positive. Put "-1" to solve at the frequency for each transition (i.e., re-solve TDHF for each transition).
 
 
 ### Available operators:
@@ -300,8 +318,9 @@ MatrixElements::hfs { // Magnetic dipole hyperfine structure constant A
 
 ### Modules:
 
+-------------------
 ```cpp
-Module::Tests { // tests of numerical errors:
+Module::Tests {
   orthonormal;     //[b] Prints worst <a|b>'s. default = true
   orthonormal_all; //[b] Print all <a|b>'s. default = false
   Hamiltonian;     //[b] check eigenvalues of Hamiltonian. default = false
@@ -309,7 +328,21 @@ Module::Tests { // tests of numerical errors:
   sumRules;        //[b] Tests basis by evaluating sum rules
 }
 ```
+* Various tests of numerical errors:
 
+-------------------
+```cpp
+Module::pnc {
+    transition = na, ka, nb, ka; //[i,i,i,i] - required
+    rpa;      //[b] default = true
+    omega;    //[r]
+}
+```
+* Calculates pnc amplitude {na,ka}->{nb,kb}
+* Uses Solving-equations and sum-over-states (spectrum)
+* omega: frequency to solve RPA/TDHF equations at. By default is E_a-Eb (from orbitals), but can be anything.
+
+-------------------
 ```cpp
 Module::lifetimes{
   E1;   //[b] Include E1 transitions. default = true
@@ -318,12 +351,15 @@ Module::lifetimes{
 ```
 Calculates lifetimes of valence states. Note: uses HF energies (prints all data to screen)
 
+-------------------
 ```cpp
 Module::BohrWeisskopf { //Calculates BW effect for Ball/Single-particle
   // Takes same input at MatrixElements::hfs
   // Except for F(r), since it runs for each F(r)
 }
 ```
+
+-------------------
 ```cpp
 Module::WriteOrbitals { //writes orbitals to textfile:
     label = outputLabel; //[t] Optional. blank by default
@@ -335,8 +371,7 @@ The (optional) label will be appended to the output file name. Plot file using G
 * _plot for [i=2:20] "file.txt" u 1:i every :::1::1  w l t columnheader(i)_
 * _plot "file.txt" u 1:2 every :::2::2  w l t "Core Density"_
 
-
-
+-------------------
 ```cpp
 Module::FitParametric {
   method = Green;     //[t] Green, Tietz
@@ -346,16 +381,7 @@ Module::FitParametric {
 ```
 Performs a 2D fit to determine the best-fit values for the given two-parameter parametric potential (Green, or Tietz potentials), returns H/g d/t parameters for the best-fit. Does fit to Hartree-Fock energies. Will either do for core or valence states, or both (works best for one or the other). fitWorst: if true, will optimise fit for the worst state. If false, uses least squares for the fit. False is default
 
-
-
-```cpp
-Module::pnc {
-    //Calculates pnc amplitude {na,ka}->{nb,kb}
-    transition = na, ka, nb, ka; //[t] - required
-    rpa;  //[b] true by default: include rpa/core-pol?
-}
-```
-
+-------------------
 
 ```cpp
 Module::AtomicKernal {
@@ -388,70 +414,3 @@ Writes result to human-readable (and gnuplot-friendly) file, and/or binary.
 Binary output from this program is read in by dmeXSection program
 Note: tested only for neutral atoms (V^N potential).
 Also: tested mainly for high values of q
-
-
-## Other programs:
-
-### periodicTable
-
-Command-line periodic table, with electron configurations and nuclear data
-
- * Compiled using the Makefile (run _$make_, must habe 'make' installed)
- * Alternatively, compile with command:
-_$g++ src/Physics/AtomData.cpp src/Physics/NuclearData.cpp src/periodicTable.cpp -o periodicTable -I./src/_
- * No other dependencies
-
-Gives info regarding particular element, including Z, default A, and electron configuration.
-Takes input in one line from command line.
-
-Usage: (examples)
- * _$./periodicTable_           Prints periodic table
- * _$./periodicTable Cs_        Info for Cs with default A
- * _$./periodicTable Cs 137_    Info for Cs-137
- * _$./periodicTable Cs all_    Info for all available Cs isotopes
- * Note: numbers come from online database, and have some errors,
-so should be checked if needed.
-
- Or, enter 'c' Data to print list of physics constants)
-  * _$./periodicTable c_        Prints values for some handy physical constants
-
-Note: ground-state electron configurations are "guessed", and can sometimes be incorrect.
-
-Nuclear radius data mostly comes from:
- * I. Angeli and K. P. Marinova, At. Data Nucl. Data Tables 99, 69 (2013).
-https://doi.org/10.1016/j.adt.2011.12.006
-
-Units:
- * r_rms: root-mean-square radius, in fm.
- * c: half-density radius (assuming Fermi nuclear distro)
- * mu: magnetic moment (in nuclear magnetons)
-
-
-### dmeXSection
-
- * Calculates the cross-section and event rates for ionisation of atoms
- by scattering of DM particle.
- * Takes in the output of "atomicKernal" (see README_input for details)
- * Also calculates "observable" event rates, accounting for detector thresholds
- and resolutions. For now, just for DAMA detector. Will add for XENON
- * For definitions/details, see:
-   * B.M. Roberts, V.V. Flambaum
-[Phys.Rev.D 100, 063017 (2019)](https://link.aps.org/doi/10.1103/PhysRevD.100.063017 "pay-walled");
-[arXiv:1904.07127](https://arxiv.org/abs/1904.07127 "free download").
-   * B.M.Roberts, V.A.Dzuba, V.V.Flambaum, M.Pospelov, Y.V.Stadnik,
-[Phys.Rev.D 93, 115037 (2016)](https://link.aps.org/doi/10.1103/PhysRevD.93.115037 "pay-walled");
-[arXiv:1604.04559](https://arxiv.org/abs/1604.04559 "free download").
-
-
-### wigner
-
- * Small routine to calculate 3,6,9-j symbols, and Clebsch Gordan coeficients
- * Either give input via command line directly (quote marks required)
-   * e.g., _./wigner '<0.5 -0.5, 0.5 0.5| 1 0>'_
-   * or e.g., _./wigner '(0.5 1 0.5, -0.5 0 0.5)'_ etc.
- * Or, give an input file, that contains any number of symbols, all on new line
-   * e.g., _./wigner -f myInputFile.in_
-   * nb: the '-f' flag can be dropped in the '.in' file extension is used
-   * Do not use quote marks in input file. Lines marked '!' or '#' are comments
- * 3j symbols must start with '('; 6,9j with '{', and CG with '<' (this is how code knows which symbol to calculate).
- * but, each number can be separated by any symbol (space, comma etc.)

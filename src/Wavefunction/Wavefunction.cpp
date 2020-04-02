@@ -710,7 +710,9 @@ void Wavefunction::formSpectrum(const std::string &states_str,
 
 //******************************************************************************
 void Wavefunction::formSigma(const int nmin_core, const bool form_matrix,
-                             const std::vector<double> &lambdas) {
+                             const int stride,
+                             const std::vector<double> &lambdas,
+                             const std::string &fname) {
 
   // Sort basis into core/exited parts, throwing away core states with n<nmin
   std::vector<DiracSpinor> core;
@@ -720,11 +722,6 @@ void Wavefunction::formSigma(const int nmin_core, const bool form_matrix,
       core.push_back(Fb);
     else if (!isInCore(Fb))
       excited.push_back(Fb);
-  }
-
-  if (excited.empty() || core.empty()) {
-    std::cout << "Can't do MBPT. Check Splines/Valence/Core states?\n";
-    return;
   }
 
   // Form list of energies for each kappa:
@@ -750,8 +747,8 @@ void Wavefunction::formSigma(const int nmin_core, const bool form_matrix,
     }
   }
   // Correlaion potential matrix:
-  m_Sigma = std::make_unique<MBPT::CorrelationPotential>(core, excited,
-                                                         en_list_kappa);
+  m_Sigma = std::make_unique<MBPT::CorrelationPotential>(
+      rgrid, core, excited, stride, en_list_kappa, fname);
   m_Sigma->scale_Sigma(lambdas);
 }
 
@@ -760,10 +757,6 @@ void Wavefunction::hartreeFockBrueckner(const bool print) {
   if (!m_pHF || !m_Sigma) {
     std::cerr << "WARNING 62: Cant call hartreeFockValence before "
                  "hartreeFockCore\n";
-    return;
-  }
-  if (basis.empty() || valence_orbitals.empty() || core_orbitals.empty()) {
-    std::cout << "Can't do Brueckner. Check Splines/Valence/Core states?\n";
     return;
   }
   m_pHF->solveBrueckner(*(m_Sigma.get()), print);

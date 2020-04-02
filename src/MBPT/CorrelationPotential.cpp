@@ -2,6 +2,7 @@
 #include "Angular/Angular_tables.hpp"
 #include "Coulomb/Coulomb.hpp"
 #include "Coulomb/YkTable.hpp"
+#include "IO/FRW_fileReadWrite.hpp"
 #include "IO/SafeProfiler.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/Interpolator.hpp"
@@ -11,12 +12,17 @@
 #include "Wavefunction/Wavefunction.hpp"
 #include <algorithm>
 #include <cmath>
+#include <fstream>
 #include <iostream>
 #include <numeric>
 #include <vector>
 
+//******************************************************************************
+// Helper function:
 static inline int find_max_tj(const std::vector<DiracSpinor> &core,
                               const std::vector<DiracSpinor> &excited) {
+  if (core.empty() || excited.empty())
+    return 0;
   // returns maximum value of 2*j in {core,excited}
   auto maxtj1 =
       std::max_element(core.cbegin(), core.cend(), DiracSpinor::comp_j)->twoj();
@@ -25,25 +31,77 @@ static inline int find_max_tj(const std::vector<DiracSpinor> &core,
           ->twoj();
   return std::max(maxtj1, maxtj2);
 }
+//******************************************************************************
 
-//******************************************************************************
-//******************************************************************************
 namespace MBPT {
 
+//******************************************************************************
+//******************************************************************************
+GMatrix::GMatrix(int in_size)
+    : size(in_size), ff(size), fg(size), gf(size), gg(size) {
+  zero();
+}
+void GMatrix::zero() {
+  ff.zero();
+  fg.zero();
+  gf.zero();
+  gg.zero();
+}
+GMatrix &GMatrix::operator+=(const GMatrix &rhs) {
+  ff += rhs.ff;
+  fg += rhs.fg;
+  gf += rhs.gf;
+  gg += rhs.gg;
+  return *this;
+}
+GMatrix &GMatrix::operator-=(const GMatrix &rhs) {
+  ff -= rhs.ff;
+  fg -= rhs.fg;
+  gf -= rhs.gf;
+  gg -= rhs.gg;
+  return *this;
+}
+
+//******************************************************************************
+//******************************************************************************
 CorrelationPotential::CorrelationPotential(
-    const std::vector<DiracSpinor> &core,
-    const std::vector<DiracSpinor> &excited, const std::vector<double> &en_list)
-    : m_core(core),
+    const Grid &gr, const std::vector<DiracSpinor> &core,
+    const std::vector<DiracSpinor> &excited, const int in_stride,
+    const std::vector<double> &en_list, const std::string &in_fname)
+    : p_gr(&gr),
+      m_core(core),
       m_excited(excited),
-      m_yec(m_excited.front().p_rgrid, &m_excited, &m_core),
+      m_yec(&gr, &m_excited, &m_core),
       m_maxk(find_max_tj(core, excited)),
-      m_6j(m_maxk, m_maxk) {
+      m_6j(m_maxk, m_maxk),
+      stride(in_stride) {
   auto sp = IO::Profile::safeProfiler(__func__);
 
+  std::cout << "\nCorrelation potential (Sigma)\n";
+
+  std::cout << "(Including FF";
+  if (include_FG)
+    std::cout << ", FG";
+  if (include_GG)
+    std::cout << ", GG";
+  std::cout << ")\n";
+
+  const auto fname = in_fname == "" ? "" : in_fname + ".Sigma";
+  if (fname != "" && IO::FRW::file_exists(fname)) {
+    read_write(fname, IO::FRW::read);
+  } else if (!en_list.empty()) {
+    setup_subGrid();
+    form_Sigma(en_list, fname);
+  }
+}
+
+//******************************************************************************
+void CorrelationPotential::setup_subGrid() {
   // Form the "Sigma sub-grid"
-  const auto &rvec = m_excited.front().p_rgrid->r;
-  const double rmin = m_core.front().r0();   // 2.0e-4;
-  const double rmax = m_core.front().rinf(); // 30.0;
+  const auto &rvec = p_gr->r;
+  const double rmin = m_core.empty() ? 1.0e-4 : m_core.front().r0();
+  const double rmax = m_core.empty() ? 30.0 : m_core.front().rinf();
+
   imin = 0;
   for (auto i = 0; i < (int)rvec.size(); i += stride) {
     auto r = rvec[std::size_t(i)];
@@ -57,20 +115,9 @@ CorrelationPotential::CorrelationPotential(
   }
 
   stride_points = int(r_stride.size());
-  std::cout << "\nCorrelation potential (Sigma)\n";
   printf(
       "Sigma sub-grid: r=(%.1e, %.1f)aB with %i points. [i0=%i, stride=%i]\n",
       r_stride.front(), r_stride.back(), stride_points, imin, stride);
-
-  std::cout << "(Including FF";
-  if (include_FG)
-    std::cout << ", FG";
-  if (include_GG)
-    std::cout << ", GG";
-  std::cout << ")\n";
-
-  if (!en_list.empty())
-    form_Sigma(en_list);
 }
 
 //******************************************************************************
@@ -79,7 +126,8 @@ void CorrelationPotential::addto_G(GMatrix *Gmat, const DiracSpinor &ket,
                                    const double f) const {
   auto sp = IO::Profile::safeProfiler(__func__);
   // Adds (f)*|ket><bra| to G matrix
-  // G_ij = f * Q_i * W_j      // Q = Q(1) = ket, W = W(2) = bra
+  // G_ij = f * Q_i * W_j
+  // Q = Q(1) = ket, W = W(2) = bra
   // Takes sub-grid into account; ket,bra are on full grid, G on sub-grid
   for (int i = 0; i < stride_points; ++i) {
     const auto si = static_cast<std::size_t>((imin + i) * stride);
@@ -142,10 +190,16 @@ DiracSpinor CorrelationPotential::Sigma_G_Fv(const GMatrix &Gmat,
 }
 
 //******************************************************************************
-void CorrelationPotential::form_Sigma(const std::vector<double> &en_list) {
+void CorrelationPotential::form_Sigma(const std::vector<double> &en_list,
+                                      const std::string &fname) {
   auto sp = IO::Profile::safeProfiler(__func__);
 
   G_kappa.resize(en_list.size(), stride_points);
+
+  if (m_core.empty() || m_excited.empty()) {
+    std::cerr << "\nERROR 162 in form_Sigma: No basis! Sigma will just be 0!\n";
+    return;
+  }
 
   std::cout << "Forming correlation potential for:\n";
   for (auto ki = 0ul; ki < en_list.size(); ki++) {
@@ -162,6 +216,10 @@ void CorrelationPotential::form_Sigma(const std::vector<double> &en_list) {
       std::cout << "de=" << *vk * Sigma2Fv(*vk);
     std::cout << "\n";
   }
+
+  // write to disk
+  if (fname != "")
+    read_write(fname, IO::FRW::write);
 }
 
 //******************************************************************************
@@ -197,13 +255,15 @@ void CorrelationPotential::fill_Gkappa(GMatrix *Gmat, const int kappa,
 
   const auto &Ck = m_yec.Ck();
 
-  const auto &gr = *(m_core.front().p_rgrid);
-
   // Just for safety, should already be zero (unless re-calcing G)
   Gmat->ff.zero();
   Gmat->fg.zero();
   Gmat->gf.zero();
   Gmat->gg.zero();
+
+  if (m_core.empty())
+    return;
+  const auto &gr = *(m_core.front().p_rgrid);
 
   // auto fk = [&](int k) { return 1.0; };
 
@@ -256,6 +316,7 @@ void CorrelationPotential::fill_Gkappa(GMatrix *Gmat, const int kappa,
 //******************************************************************************
 double CorrelationPotential::Sigma2vw(const DiracSpinor &v,
                                       const DiracSpinor &w) const {
+  // Calculates <Fv|Sigma|Fw> from scratch, at Fv energy [full grid + fg+gg]
   if (v.k != w.k)
     return 0.0;
 
@@ -302,6 +363,91 @@ double CorrelationPotential::Sigma2vw(const DiracSpinor &v,
   }     // a
 
   return std::accumulate(delta_a.cbegin(), delta_a.cend(), 0.0);
+}
+
+//******************************************************************************
+void CorrelationPotential::read_write(const std::string &fname,
+                                      IO::FRW::RoW rw) {
+  auto rw_str = rw == IO::FRW::write ? "Writing to " : "Reading from ";
+  std::cout << rw_str << "Sigma file: " << fname << " ... " << std::flush;
+
+  std::fstream iofs;
+  IO::FRW::open_binary(iofs, fname, rw);
+
+  // // write/read some grid parameters - just to check
+  {
+    double r0 = rw == IO::FRW::write ? p_gr->r0 : 0;
+    double rmax = rw == IO::FRW::write ? p_gr->rmax : 0;
+    double b = rw == IO::FRW::write ? p_gr->b : 0;
+    std::size_t pts = rw == IO::FRW::write ? p_gr->num_points : 0;
+    rw_binary(iofs, rw, r0, rmax, b, pts);
+    if (rw == IO::FRW::read) {
+      const bool grid_ok = std::abs((r0 - p_gr->r0) / r0) < 1.0e-6 &&
+                           std::abs(rmax - p_gr->rmax) < 0.001 &&
+                           (b - p_gr->b) < 0.001 && pts == p_gr->num_points;
+      if (!grid_ok) {
+        std::cerr << "\nFAIL 335 in read_write Sigma: Grid mismatch\n"
+                  << "Have in file:\n"
+                  << r0 << ", " << rmax << " w/ N=" << pts << ", b=" << b
+                  << ", but expected:\n"
+                  << p_gr->r0 << ", " << p_gr->rmax
+                  << " w/ N=" << p_gr->num_points << ", b=" << p_gr->b << "\n";
+        std::abort(); // abort?
+      }
+    }
+  }
+
+  // Sub-grid:
+  rw_binary(iofs, rw, stride_points, imin, stride);
+  if (rw == IO::FRW::read) {
+    r_stride.resize(std::size_t(stride_points));
+  }
+  for (auto i = 0ul; i < r_stride.size(); ++i) {
+    rw_binary(iofs, rw, r_stride[i]);
+  }
+
+  // Number of kappas (number of Sigma/G matrices)
+  std::size_t num_kappas = rw == IO::FRW::write ? G_kappa.size() : 0;
+  rw_binary(iofs, rw, num_kappas);
+  if (rw == IO::FRW::read) {
+    G_kappa.resize(num_kappas, stride_points);
+  }
+
+  // Check if include FG/GG written. Note: doesn't matter if mis-match?!
+  auto incl_fg = rw == IO::FRW::write ? include_FG : 0;
+  auto incl_gg = rw == IO::FRW::write ? include_GG : 0;
+  rw_binary(iofs, rw, incl_fg, incl_gg);
+
+  // Read/Write G matrices
+  for (auto &Gk : G_kappa) {
+    for (int i = 0; i < stride_points; ++i) {
+      for (int j = 0; j < stride_points; ++j) {
+        rw_binary(iofs, rw, Gk.ff[i][j]);
+        if (incl_fg) {
+          rw_binary(iofs, rw, Gk.fg[i][j]);
+          rw_binary(iofs, rw, Gk.gf[i][j]);
+        }
+        if (incl_gg) {
+          rw_binary(iofs, rw, Gk.gg[i][j]);
+        }
+      }
+    }
+  }
+  std::cout << "... done.\n";
+  printf(
+      "Sigma sub-grid: r=(%.1e, %.1f)aB with %i points. [i0=%i, stride=%i]\n",
+      r_stride.front(), r_stride.back(), stride_points, imin, stride);
+}
+
+//******************************************************************************
+void CorrelationPotential::print_scaling() const {
+  if (!m_lambda_kappa.empty()) {
+    std::cout << "Scaled Sigma, with: lambda_kappa = ";
+    for (const auto &l : m_lambda_kappa) {
+      std::cout << l << ", ";
+    }
+    std::cout << "\n";
+  }
 }
 
 } // namespace MBPT

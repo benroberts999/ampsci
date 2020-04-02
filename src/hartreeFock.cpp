@@ -198,11 +198,14 @@ int main(int argc, char *argv[]) {
   }
 
   // Correlations: read in options
-  const auto Sigma_ok =
-      input.check("Correlations", {"Brueckner", "energyShifts", "n_min_core",
-                                   "fitTo_cm", "lambda_k"});
+  const auto Sigma_ok = input.check(
+      "Correlations", {"Brueckner", "energyShifts", "n_min_core", "fitTo_cm",
+                       "lambda_k", "io_file", "stride"});
   const bool do_energyShifts = input.get("Correlations", "energyShifts", false);
   const bool do_brueckner = input.get("Correlations", "Brueckner", false);
+  const auto sigma_stride = input.get("Correlations", "stride", 4);
+  const auto sigma_file = input.get<std::string>("Correlations", "io_file", "");
+
   const auto n_min_core = input.get("Correlations", "n_min_core", 1);
   auto fit_energies =
       input.get_list("Correlations", "fitTo_cm", std::vector<double>{});
@@ -214,7 +217,7 @@ int main(int argc, char *argv[]) {
   // Form correlation potential:
   if (do_energyShifts || do_brueckner) {
     IO::ChronoTimer t("Sigma");
-    wf.formSigma(n_min_core, do_brueckner, lambda_k);
+    wf.formSigma(n_min_core, do_brueckner, sigma_stride, lambda_k, sigma_file);
   }
 
   // Just energy shifts

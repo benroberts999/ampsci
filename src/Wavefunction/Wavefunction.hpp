@@ -182,7 +182,8 @@ public: // const methods: "views" into WF object
 
   //! Forms + stores correlation potential Sigma
   void formSigma(const int nmin_core = 1, const bool form_matrix = true,
-                 const std::vector<double> &lambdas = {});
+                 const int stride = 4, const std::vector<double> &lambdas = {},
+                 const std::string &fname = "");
 
   //! @brief Solves Dirac bound state problem, with optional 'extra' potential
   //! log_eps is log_10(convergence_target).

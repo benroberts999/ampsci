@@ -286,6 +286,19 @@ inline void open_binary(std::fstream &stream, const std::string &fname,
   }
 }
 
+inline bool file_exists(const std::string &fileName) {
+  std::ifstream infile(fileName);
+  return infile.good();
+}
+
+// Variadic version: read-write to binary file
+template <typename T, typename... Types>
+void rw_binary(std::fstream &stream, RoW row, T &value, Types &... values) {
+  binary_rw(stream, value, row);
+  if constexpr (sizeof...(values) != 0)
+    rw_binary(stream, row, values...);
+}
+
 template <typename T> void binary_rw(std::fstream &stream, T &value, RoW row) {
   switch (row) {
   case write:

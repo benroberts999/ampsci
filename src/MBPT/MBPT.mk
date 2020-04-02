@@ -5,6 +5,7 @@ $(SD)/MBPT/CorrelationPotential.hpp \
 $(SD)/Angular/Angular_tables.hpp \
 $(SD)/Coulomb/Coulomb.hpp \
 $(SD)/Coulomb/YkTable.hpp \
+$(SD)/IO/FRW_fileReadWrite.hpp \
 $(SD)/IO/SafeProfiler.hpp \
 $(SD)/Maths/Grid.hpp \
 $(SD)/Maths/Interpolator.hpp \

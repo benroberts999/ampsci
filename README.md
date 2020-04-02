@@ -1,18 +1,20 @@
-# Relativistic, self-consistent atomic structure code.
+# diracSCAS: Relativistic, self-consistent atomic structure code.
 
-Solves the Dirac equation for atomic systems using the Hartree-Fock and second-order correlation potential method.
-Fully relativistic, includes finite-nuclear size, can solve for continuum states (energy normalisation), and can include QED corrections via the Ginges-Flambaum radiative potential method. Calculates ionisation cross sections with high values for energy/momentum transfer.
+Solves the Dirac equation for atomic systems using the Hartree-Fock + second-order correlation potential method.
+Fully relativistic, includes finite-nuclear size, can solve for continuum states (energy normalisation), and can include QED corrections via the Ginges-Flambaum radiative potential method.
+Calculates ionisation cross sections with high values for energy/momentum transfer.
 
 
 ## Documentation
 
- * Documentation is in doc/ directory (best viewed with a markdown reader or on GitHub). Contains a few documents:
- * 01-hartreeFock_input -- How to use the code (input options + descriptions)
- * 02-diracSCAS_method  -- What the code does (description of physics)
- * Also: contains "Makefile.example" and "hartreeFock.in.example": copy these to the main directory and remove the ".example"
-
  * Code documentation is available on github: [benroberts999.github.io/diracSCAS/](https://benroberts999.github.io/diracSCAS/)
  * The code itself is on GitHub: [github.com/benroberts999/diracSCAS](https://github.com/benroberts999/diracSCAS)
+ * Other documentation is in doc/ directory. Contains a few documents:
+ * 01-hartreeFock_input.md -- How to use the code (input options + descriptions)
+   * (best viewed with a markdown reader or on GitHub)
+ * 02-diracSCAS_method.pdf  -- Description of physics/methods used in the code
+   * Includes many references to the works where the methods implemented here were developed.
+ * Also: contains "Makefile.example" and "hartreeFock.in.example": copy these to the main directory and remove the ".example"
 
 --------------------------------------------------------------------------------
 
@@ -20,8 +22,7 @@ Fully relativistic, includes finite-nuclear size, can solve for continuum states
 
  * Copy "doc/Makefile.example" from doc/ directory to the working directory, and rename to -> "Makefile"
     * e.g.: _$cp ./doc/Makefile.example ./Makefile_
- * (This is so you can make any necessary changes, and they won't be overwritten if you re pull from git)
-
+    * This way, the Makefil is not tracked by git, meaning you can pull changes from github without over-writing any changes you have made to the makefile
  * All programs compiled using the Makefile (run _$make_)
  * The file _Makefile_ has some basic compilation options. It's currently set up to work on most linux systems, you may need to change a few options for others (see below)
  * Tested with g++ and clang++ on linux and mac (requires c++17)
@@ -36,6 +37,7 @@ Note: makes use of GSL libraries (requires ver>2.0, tested with ver:2.4): https:
   * Install GSL libraries: _$sudo apt-get install libgsl-dev_
   * May also need LAPACK/BLAS libraries: _$sudo apt-get install libatlas-base-dev liblapack-dev libblas-dev_
   * Install the compiler: _$sudo apt-get install g++_ and/or _$sudo apt-get install clang++_
+  * Then compile by running _$make_ from the diracSCAS directory
 
 
 ### Compilation: MacOS:
@@ -45,6 +47,7 @@ Note: makes use of GSL libraries (requires ver>2.0, tested with ver:2.4): https:
   * Seems to work best with the homebrew version of gcc. Install as: _$brew install gcc_
   * Note: you may need to change the compiler from `g++` to `g++-9` (or similar), or update your environment variables, since calling g++ on mac actually calls clang++ by default
   * You might have to tell the compiler how to link to the GSL library; see below
+  * Then compile by running _$make_ from the diracSCAS directory
 
 
 ### Compilation: Windows:
@@ -81,6 +84,7 @@ Then, the compilation + use can proceed as per Linux above.
     * If no input filename is given, program will assume input filename is 'hartreeFock.in':
     * _$ ./hartreeFock_
  * See _doc/01-hartreeFock_input.md_ for a full list of input options + descriptions
+ * See _doc/02-diracSCAS_method.pdf_ for a description of the physics, and for references to the works where the methods implemented here were developed.
 
 --------------------------------------------------------------------------------
 
@@ -90,9 +94,9 @@ Then, the compilation + use can proceed as per Linux above.
 
 Command-line periodic table, with electron configurations and nuclear data
 
- * Compiled using the Makefile (run _$make_, must habe 'make' installed)
+ * Compiled using the Makefile (run _$make_, must have 'make' installed)
  * Alternatively, compile with command:
-_$g++ src/Physics/AtomData.cpp src/Physics/NuclearData.cpp src/periodicTable.cpp -o periodicTable -I./src/_
+_$g++ -std=c++17 src/Physics/AtomData.cpp src/Physics/NuclearData.cpp src/periodicTable.cpp -o periodicTable -I./src/_
  * No other dependencies
 
 Gives info regarding particular element, including Z, default A, and electron configuration.

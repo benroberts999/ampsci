@@ -13,10 +13,10 @@ GridParameters::GridParameters(std::size_t innum_points, double inr0,
     : num_points(innum_points == 0
                      ? Grid::calc_num_points_from_du(inr0, inrmax, indu,
                                                      parseType(str_type), inb)
-                     : innum_points), //
-      r0(inr0),                       //
-      rmax(inrmax),                   //
-      b(inb),                         //
+                     : innum_points),
+      r0(inr0),
+      rmax(inrmax),
+      b(inb),
       type(parseType(str_type)) {}
 // indu is optional. Only used if innum_points = 0
 GridParameters::GridParameters(std::size_t innum_points, double inr0,
@@ -24,10 +24,10 @@ GridParameters::GridParameters(std::size_t innum_points, double inr0,
                                double indu)
     : num_points(innum_points == 0 ? Grid::calc_num_points_from_du(
                                          inr0, inrmax, indu, intype, inb)
-                                   : innum_points), //
-      r0(inr0),                                     //
-      rmax(inrmax),                                 //
-      b(inb),                                       //
+                                   : innum_points),
+      r0(inr0),
+      rmax(inrmax),
+      b(inb),
       type(intype) {}
 //------------------------------------------------------------------------------
 GridType GridParameters::parseType(const std::string &str_type) {
@@ -63,11 +63,11 @@ Grid::Grid(double in_r0, double in_rmax, std::size_t in_num_points,
       num_points(in_num_points),
       du(calc_du_from_num_points(in_r0, in_rmax, in_num_points, in_gridtype,
                                  in_b)),
-      gridtype(in_gridtype),                      //
-      b(in_b),                                    //
-      r(form_r(gridtype, r0, num_points, du, b)), //
-      drduor(form_drduor(gridtype, r, b)),        //
-      drdu(form_drdu(gridtype, r, drduor))        //
+      gridtype(in_gridtype),                           //
+      b(gridtype == GridType::loglinear ? in_b : 0.0), //
+      r(form_r(gridtype, r0, num_points, du, b)),      //
+      drduor(form_drduor(gridtype, r, b)),             //
+      drdu(form_drdu(gridtype, r, drduor))             //
 {}
 //------------------------------------------------------------------------------
 

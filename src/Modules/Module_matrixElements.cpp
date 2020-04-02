@@ -25,11 +25,6 @@ void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf) {
   auto operator_str = input.name().substr(ThisModule.length());
   // nb: "check" is done in 'generate operator'
 
-  if (operator_str == "SecondOrder" || operator_str == "Sigma2") {
-    // Special case
-    return SecondOrder(input, wf);
-  }
-
   const bool radial_int = input.get("radialIntegral", false);
 
   // spacial case: HFS A (MHz)
@@ -137,71 +132,6 @@ void calculateBohrWeisskopf(const IO::UserInputBlock &input,
     auto Fbw = ((Aw / Ap) - 1.0) * 100.0;   //* M_PI * PhysConst::c;
     printf("%7s| %12.5e %12.5e %12.5e | %9.5f  %9.5f \n", phi.symbol().c_str(),
            Ap, Ab, Aw, Fball, Fbw);
-  }
-}
-
-//******************************************************************************
-void SecondOrder(const IO::UserInputBlock &input, const Wavefunction &wf) {
-
-  input.checkBlock({"lmax", "kmax", "nmin_core"});
-
-  const auto lmax_v = input.get("lmax_v", 99);
-  const auto nmin_core = input.get("nmin_core", 1);
-
-  std::vector<DiracSpinor> core;
-  for (const auto &Fb : wf.basis) {
-    if (wf.isInCore(Fb) && Fb.n >= nmin_core)
-      core.push_back(Fb);
-  }
-
-  std::cout << "\nMBPT(2): Valence energy shifts.\n";
-  std::cout << "Matrix elements <v|Sigma(2)|v>:\n";
-
-  if (wf.basis.empty()) {
-    std::cout << "FAIL 125 in Module::SecondOrder: There is no basis! - I need "
-                 "a basis to calculate MBPT. Try again.\n";
-    return;
-  }
-
-  // Test new version:
-  std::vector<DiracSpinor> excited;
-  for (const auto &Fb : wf.basis) {
-    if (!wf.isInCore(Fb))
-      excited.push_back(Fb);
-  }
-
-  MBPT::CorrelationPotential Sigma2(core, excited, {-0.127, -0.127, -0.127});
-  std::cout << "XXX\n";
-
-  if (true) {
-    IO::ChronoTimer timer("Matrix Elements version:");
-    for (const auto &v : wf.valence_orbitals) {
-      if (v.l() > lmax_v)
-        continue;
-
-      // auto delta = Sigma2.Sigma2vw(v);
-      auto delta = Sigma2(v, v);
-
-      printf("%7s| %9.6f %+9.6f = %9.6f = %9.2f\n", v.symbol().c_str(), v.en,
-             delta, (v.en + delta), (v.en + delta) * PhysConst::Hartree_invcm);
-      if (std::abs(delta / v.en) > 0.2)
-        std::cout << "      *** Warning: delta too large?\n";
-    }
-  }
-
-  {
-    std::cout << "\n";
-    IO::ChronoTimer timer("Fv*(Sigma*Fv) version:");
-    for (const auto &v : wf.valence_orbitals) {
-      if (v.l() > lmax_v)
-        continue;
-      // auto delta = v * Sigma2.Sigma2Fv(v);
-      auto delta = v * Sigma2(v);
-      printf("%7s| %9.6f %+9.6f = %9.6f = %9.2f\n", v.symbol().c_str(), v.en,
-             delta, (v.en + delta), (v.en + delta) * PhysConst::Hartree_invcm);
-      if (std::abs(delta / v.en) > 0.2)
-        std::cout << "      *** Warning: delta too large?\n";
-    }
   }
 }
 
