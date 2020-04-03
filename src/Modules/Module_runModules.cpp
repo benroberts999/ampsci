@@ -18,6 +18,18 @@
 
 namespace Module {
 
+static const std::vector<
+    std::pair<std::string, void (*)(const IO::UserInputBlock &input,
+                                    const Wavefunction &wf)>>
+    module_list = {{"Tests", &Module_tests},
+                   {"WriteOrbitals", &writeOrbitals},
+                   {"AtomicKernal", &atomicKernal},
+                   {"FitParametric", &fitParametric},
+                   {"BohrWeisskopf", &calculateBohrWeisskopf},
+                   {"pnc", &calculatePNC},
+                   {"polarisability", &polarisability},
+                   {"lifetimes", &calculateLifetimes}};
+
 //******************************************************************************
 void runModules(const IO::UserInput &input, const Wavefunction &wf) {
   auto modules = input.module_list();
@@ -30,27 +42,25 @@ void runModules(const IO::UserInput &input, const Wavefunction &wf) {
 void runModule(const IO::UserInputBlock &module_input,
                const Wavefunction &wf) //
 {
-  const auto &module_name = module_input.name();
-  if (module_name.substr(0, 14) == "MatrixElements") {
-    matrixElements(module_input, wf);
-  } else if (module_name == "Module::Tests") {
-    Module_tests(module_input, wf);
-  } else if (module_name == "Module::WriteOrbitals") {
-    writeOrbitals(module_input, wf);
-  } else if (module_name == "Module::AtomicKernal") {
-    atomicKernal(module_input, wf);
-  } else if (module_name == "Module::FitParametric") {
-    fitParametric(module_input, wf);
-  } else if (module_name == "Module::BohrWeisskopf") {
-    calculateBohrWeisskopf(module_input, wf);
-  } else if (module_name == "Module::pnc") {
-    calculatePNC(module_input, wf);
-  } else if (module_name == "Module::lifetimes") {
-    calculateLifetimes(module_input, wf);
-  } else {
-    std::cerr << "\nWARNING: Module " << module_name
-              << " not known. Spelling mistake?\n";
+  const auto &in_name = module_input.name();
+
+  // Run "MatrixElements modules" if requested
+  if (in_name.substr(0, 14) == "MatrixElements") {
+    return matrixElements(module_input, wf);
   }
+
+  // Otherwise, loop through all available modules, run correct one
+  for (const auto &[mod_name, mod_func] : module_list) {
+    if (in_name == "Module::" + mod_name)
+      return mod_func(module_input, wf);
+  }
+
+  std::cout << "\nFail 50 in runModule: no module named: " << in_name << "\n";
+  std::cout << "Available modules:\n";
+  for (const auto &module : module_list) {
+    std::cout << "  " << module.first << "\n";
+  }
+  std::cout << "\n";
 }
 
 //******************************************************************************

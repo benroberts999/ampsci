@@ -4,6 +4,7 @@
 #include "HF/ExternalField.hpp"
 #include "HF/MixedStates.hpp"
 #include "IO/UserInput.hpp"
+#include "Physics/AtomData.hpp"
 #include "Physics/NuclearData.hpp"
 #include "Physics/NuclearPotentials.hpp"
 #include "Wavefunction/Wavefunction.hpp"
@@ -11,8 +12,56 @@
 #include <cmath>
 #include <iostream>
 #include <string>
+#include <tuple>
 
 namespace Module {
+
+//******************************************************************************
+void polarisability(const IO::UserInputBlock &input, const Wavefunction &wf) {
+  std::cout << "\nok\n";
+
+  const auto alpha = wf.get_alpha();
+
+  input.checkBlock({"a", "b", "omega"});
+  const auto a_str = input.get<std::string>("a", "");
+  const auto w = input.get("omega", 0.05);
+  // const auto b_str = input.get<std::string>("a", a_str);
+
+  // [[maybe_unused]] // don't use e
+  // const auto [na, ka, e] = AtomData::listOfStates_singlen("6s").front();
+  // const auto pFa = wf.getState(na, ka);
+
+  const auto he1 = DiracOperator::E1(wf.rgrid);
+  auto dVE1 = HF::ExternalField(&he1, wf.core_orbitals, wf.get_Vlocal(), alpha);
+
+  dVE1.solve_TDHFcore(w); // 1 it means no RPA (for TDHF version)
+
+  auto fudge_factor = (4.0 / 3.0); // ???
+
+  // core contribution:
+  auto alpha_core = 0.0;
+  for (const auto &Fb : wf.core_orbitals) {
+    const auto &Xb = dVE1.get_dPsis(Fb, HF::dPsiType::X);
+    const auto &Yb = dVE1.get_dPsis(Fb, HF::dPsiType::Y);
+    for (const auto &Xbeta : Xb)
+      alpha_core += he1.reducedME(Fb, Xbeta);
+    for (const auto &Ybeta : Yb)
+      alpha_core += he1.reducedME(Fb, Ybeta);
+  }
+  alpha_core *= (-1.0 / 3.0) * fudge_factor;
+  std::cout << alpha_core << "\n";
+
+  double alpha_2 = 0.0;
+  for (const auto &Fb : wf.core_orbitals) {
+    for (const auto &Fn : wf.basis) {
+      const auto d1 = he1.reducedME(Fb, Fn);
+      const auto d2 = he1.reducedME(Fn, Fb) + dVE1.dV_ab(Fn, Fb);
+      auto de = Fb.en - Fn.en;
+      alpha_2 += fudge_factor * (-2.0 / 3.0) * d1 * d2 * de / (de * de - w * w);
+    }
+  }
+  std::cout << alpha_2 << "\n";
+}
 
 //******************************************************************************
 void calculatePNC(const IO::UserInputBlock &input, const Wavefunction &wf) {

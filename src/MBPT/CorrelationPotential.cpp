@@ -180,7 +180,7 @@ DiracSpinor CorrelationPotential::Sigma_G_Fv(const GMatrix &Gmat,
       }
     }
   }
-  // Interpolate from sub-grid to fill-grid
+  // Interpolate from sub-grid to full grid
   SigmaFv.f = Interpolator::interpolate(r_stride, f, gr.r);
   if constexpr (include_FG || include_GG) {
     SigmaFv.g = Interpolator::interpolate(r_stride, g, gr.r);

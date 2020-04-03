@@ -17,14 +17,14 @@ namespace Coulomb {
 YkTable::YkTable(const Grid *const in_grid,
                  const std::vector<DiracSpinor> *const in_a_orbs,
                  const std::vector<DiracSpinor> *const in_b_orbs)
-    : m_a_orbs(in_a_orbs),                                    //
-      m_b_orbs(in_b_orbs == nullptr ? in_a_orbs : in_b_orbs), //
-      m_grid(in_grid),                                        //
+    : m_a_orbs(in_a_orbs),
+      m_b_orbs(in_b_orbs == nullptr ? in_a_orbs : in_b_orbs),
+      m_grid(in_grid),
       m_aisb([&]() {
         return (in_b_orbs == nullptr || in_a_orbs == in_b_orbs) ? true : false;
-      }()) //
-{
-  update_y_ints();
+      }()) {
+  if (!m_a_orbs->empty() && !m_b_orbs->empty())
+    update_y_ints();
 }
 
 //******************************************************************************

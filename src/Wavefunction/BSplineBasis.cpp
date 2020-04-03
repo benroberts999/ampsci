@@ -28,7 +28,7 @@ form_basis(const std::string &states_str, const std::size_t n_spl,
   std::vector<DiracSpinor> basis;
   std::vector<DiracSpinor> basis_positron;
 
-  const auto nklst = AtomData::listOfMaxn_k(states_str);
+  const auto nklst = AtomData::listOfStates_singlen(states_str);
 
   std::cout << "\nConstructing B-spline basis with N=" << n_spl
             << ", k=" << k_spl << ". Storing: " << states_str << "\n";
@@ -48,9 +48,13 @@ form_basis(const std::string &states_str, const std::size_t n_spl,
     const auto l = AtomData::l_k(kappa);
     const auto l_tmp = std::min(l, wf.maxCore_l());
 
+    [[maybe_unused]] // don't warn on unused rmax_l
     const auto [rmin_l, rmax_l] = wf.lminmax_core_range(l_tmp, r0_eps);
-    (void)rmax_l;
-    const auto r0_eff = std::max(rmin_l, r0_spl);
+    auto r0_eff = std::max(rmin_l, r0_spl);
+    if (l_tmp < l) {
+      // For l's that arn't in core, make r0 20% larger (per delta l) ?? XXX
+      r0_eff *= 1.0 + 0.20 * (l - l_tmp);
+    }
 
     const auto spl_basis = form_spline_basis(kappa, n_spl, k, r0_eff, rmax_spl,
                                              wf.rgrid, wf.get_alpha());
@@ -174,7 +178,7 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
         excl_exch ? 0.0 * si : HF::vex_psia_any(si, wf.core_orbitals);
     const auto SigmaSi = sigmaQ ? (*wf.m_Sigma)(si) : 0.0 * si;
 
-    for (auto j = 0; j < (int)spl_basis.size(); j++) {
+    for (auto j = 0; j <= i; j++) {
       const auto &sj = spl_basis[j];
 
       auto aij = Hd.matrixEl(si, sj); // + si * VexSi + si * SigmaSi;
@@ -187,7 +191,13 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
       Sij[i][j] = si * sj;
     }
   }
-  Aij.make_symmetric(); // very slight asymmetry from exchange pot.
+  for (auto i = 0; i < (int)spl_basis.size(); i++) {
+    for (auto j = i + 1; j < (int)spl_basis.size(); j++) {
+      Aij[i][j] = Aij[j][i];
+      Sij[i][j] = Sij[j][i];
+    }
+  }
+  // Aij.make_symmetric(); // very slight asymmetry from exchange pot.
   return A_and_S;
 }
 

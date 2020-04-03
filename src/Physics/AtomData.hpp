@@ -81,7 +81,7 @@ std::vector<NonRelSEConfig> core_guess(const int total_core_electrons);
 //! Generates a list of DiracSEnken from string: full list
 std::vector<DiracSEnken> listOfStates_nk(const std::string &in_list);
 //! Generates a list of DiracSEnken from string: just max n for each kappa
-std::vector<DiracSEnken> listOfMaxn_k(const std::string &in_list);
+std::vector<DiracSEnken> listOfStates_singlen(const std::string &in_list);
 
 //! Prints a periodic table to screen
 void printTable();

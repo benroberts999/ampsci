@@ -307,7 +307,7 @@ std::vector<DiracSEnken> listOfStates_nk(const std::string &in_list) {
 }
 
 //******************************************************************************
-std::vector<DiracSEnken> listOfMaxn_k(const std::string &in_list) {
+std::vector<DiracSEnken> listOfStates_singlen(const std::string &in_list) {
   std::vector<DiracSEnken> state_list;
 
   std::string n_str_previous = "999";

@@ -14,7 +14,7 @@ Calculates ionisation cross sections with high values for energy/momentum transf
    * (best viewed with a markdown reader or on GitHub)
  * 02-diracSCAS_method.pdf  -- Description of physics/methods used in the code
    * Includes many references to the works where the methods implemented here were developed.
-   * Also available online: [github.com/benroberts999/diracSCAS/blob/master/doc/02-diracSCAS_method.pdf](https://github.com/benroberts999/diracSCAS/blob/master/doc/02-diracSCAS_method.pdf)
+   * Also available online: [benroberts999.github.io/diracSCAS/02-diracSCAS_method.pdf](https://benroberts999.github.io/diracSCAS/02-diracSCAS_method.pdf)
  * Also: contains "Makefile.example" and "diracSCAS.in.example": copy these to the main directory and remove the ".example"
 
 --------------------------------------------------------------------------------
