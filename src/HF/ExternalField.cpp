@@ -102,40 +102,43 @@ const DiracSpinor &ExternalField::get_dPsi_x(const DiracSpinor &Fc,
 }
 
 //******************************************************************************
-std::vector<DiracSpinor>
-ExternalField::solve_dFvs(const DiracSpinor &Fv, const double omega,
-                          dPsiType XorY,
-                          const MBPT::CorrelationPotential *const Sigma) const {
+std::vector<DiracSpinor> ExternalField::solve_dPsis(
+    const DiracSpinor &Fv, const double omega, dPsiType XorY,
+    const MBPT::CorrelationPotential *const Sigma) const {
   std::vector<DiracSpinor> dFvs;
   const auto tjmin = std::max(1, Fv.twoj() - 2 * m_rank);
   const auto tjmax = Fv.twoj() + 2 * m_rank;
   for (int tjbeta = tjmin; tjbeta <= tjmax; tjbeta += 2) {
     const auto kappa = Angular::kappa_twojpi(tjbeta, Fv.parity() * m_pi);
-    dFvs.push_back(solve_dFv(Fv, omega, XorY, kappa, Sigma));
+    dFvs.push_back(solve_dPsi(Fv, omega, XorY, kappa, Sigma));
   }
   return dFvs;
 }
 //******************************************************************************
 DiracSpinor
-ExternalField::solve_dFv(const DiracSpinor &Fv, const double omega,
-                         dPsiType XorY, const int kappa_x,
-                         const MBPT::CorrelationPotential *const Sigma) const {
+ExternalField::solve_dPsi(const DiracSpinor &Fv, const double omega,
+                          dPsiType XorY, const int kappa_x,
+                          const MBPT::CorrelationPotential *const Sigma) const {
+  // Solves (H + Sigma - e - w)X = -(h + dV - de)Psi
+  // or     (H + Sigma - e + w)Y = -(h^dag + dV^dag - de)Psi
 
-  const auto conj = XorY == dPsiType::Y;
   const auto ww = XorY == dPsiType::X ? omega : -omega;
+  auto conj = XorY == dPsiType::Y;
+  if (omega < 0.0)
+    conj = !conj;
+  // Don't fully understand this:
+  if (!m_h->imaginaryQ())
+    conj = !conj;
 
-  const auto de = m_h->reducedME(Fv, Fv) + dV_ab(Fv, Fv, conj);
   const auto imag = m_h->imaginaryQ();
+  const auto hPsic = (XorY == dPsiType::X) ? m_h->reduced_rhs(kappa_x, Fv)
+                                           : m_h->reduced_lhs(kappa_x, Fv);
 
-  const auto dePsic = de * Fv;
-  const auto hPsic = m_h->reduced_rhs(kappa_x, Fv);
-
-  const auto s = imag ? -1 : 1; // why is this needed??
-  // XXX Why only second for Y version??
-  auto rhs = (XorY == dPsiType::X) ? s * (hPsic + dV_ab_rhs(kappa_x, Fv, conj))
-                                   : hPsic + s * dV_ab_rhs(kappa_x, Fv, conj);
-  if (kappa_x == Fv.k && !imag)
-    rhs -= dePsic;
+  auto rhs = hPsic + dV_ab_rhs(kappa_x, Fv, conj);
+  if (kappa_x == Fv.k && !imag) {
+    const auto de = m_h->reducedME(Fv, Fv) + dV_ab(Fv, Fv, conj);
+    rhs -= de * Fv;
+  }
   return HF::solveMixedState(kappa_x, Fv, ww, m_vl, m_alpha, *p_core, rhs,
                              1.0e-9, Sigma);
 }

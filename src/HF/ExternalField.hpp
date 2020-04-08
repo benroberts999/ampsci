@@ -102,15 +102,25 @@ public:
   const DiracSpinor &get_dPsi_x(const DiracSpinor &Fc, dPsiType XorY,
                                 const int kappa_x) const;
 
-  //! Forms \delta Psi_v for valence state Fv (including core pol.) - all kappas
-  std::vector<DiracSpinor>
-  solve_dFvs(const DiracSpinor &Fv, const double omega, dPsiType XorY,
-             const MBPT::CorrelationPotential *const Sigma = nullptr) const;
   //! Forms \delta Psi_v for valence state Fv (including core pol.) - 1 kappa
+  //! @details
+  //!  Solves
+  //! \f[ (H + \Sigma - \epsilon - \omega)X = -(h + \delta V
+  //! - \delta\epsilon)\psi \f]
+  //! or
+  //! \f[ (H + \Sigma - \epsilon + \omega)Y = -(h^\dagger + \delta V^\dagger
+  //!   - \delta\epsilon)Psi\f]
+  //! Returns \f$ \chi_\beta \f$ for given kappa_beta, where
+  //! \f[ X_{j,m} = (-1)^{j_\beta-m}tjs(j,k,j;-m,0,m)\chi_j \f]
+  //! XorY takes values: HF::dPsiType::X or HF::dPsiType::Y
   DiracSpinor
-  solve_dFv(const DiracSpinor &Fv, const double omega, dPsiType XorY,
-            const int kappa_x,
-            const MBPT::CorrelationPotential *const Sigma = nullptr) const;
+  solve_dPsi(const DiracSpinor &Fv, const double omega, dPsiType XorY,
+             const int kappa_beta,
+             const MBPT::CorrelationPotential *const Sigma = nullptr) const;
+  //! Forms \delta Psi_v for valence state Fv for all kappas (see solve_dPsi)
+  std::vector<DiracSpinor>
+  solve_dPsis(const DiracSpinor &Fv, const double omega, dPsiType XorY,
+              const MBPT::CorrelationPotential *const Sigma = nullptr) const;
 
   //! @brief Writes dPsi (f-component) to textfile
   void print(const std::string &ofname = "dPsi.txt") const;
