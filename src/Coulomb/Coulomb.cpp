@@ -155,24 +155,12 @@ double Rk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fc,
 }
 
 //******************************************************************************
-DiracSpinor Rk_abcd_rhs(const DiracSpinor &Fa, const DiracSpinor &Fb,
+DiracSpinor Rk_abcd_rhs(const int kappa_a, const DiracSpinor &Fb,
                         const DiracSpinor &Fc, const DiracSpinor &Fd,
                         const int k) {
   auto sp1 = IO::Profile::safeProfiler(__func__);
   const auto ykbd = yk_ab(Fb, Fd, k, Fc.pinf);
-  return Rk_abcd_rhs(Fa.k, Fc, ykbd);
-}
-//------------------------------------------------------------------------------
-DiracSpinor Rk_abcd_rhs(const DiracSpinor &Fa, const DiracSpinor &Fc,
-                        const std::vector<double> &ykbd) {
-  // auto sp1 = IO::Profile::safeProfiler(__func__);
-  // auto out = DiracSpinor(0, Fa.k, *(Fa.p_rgrid));
-  // out.p0 = Fc.p0;
-  // out.pinf = Fc.pinf;
-  // // out.f = NumCalc::mult_vectors(Fc.f, ykbd);
-  // // out.g = NumCalc::mult_vectors(Fc.g, ykbd);
-  // return ykbd * out;
-  return Rk_abcd_rhs(Fa.k, Fc, ykbd);
+  return Rk_abcd_rhs(kappa_a, Fc, ykbd);
 }
 //------------------------------------------------------------------------------
 DiracSpinor Rk_abcd_rhs(const int kappa_a, const DiracSpinor &Fc,

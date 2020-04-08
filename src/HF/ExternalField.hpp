@@ -6,6 +6,9 @@ namespace DiracOperator {
 class TensorOperator;
 }
 class Wavefunction;
+namespace MBPT {
+class CorrelationPotential;
+}
 
 namespace HF {
 
@@ -88,7 +91,7 @@ public:
 
   //! @brief Returns "reduced partial matrix element RHS": dV||Fb}.
   //! Note: Fa * dV_ab_rhs(..) equiv to dV_ab(..)
-  DiracSpinor dV_ab_rhs(const DiracSpinor &Fa, const DiracSpinor &Fb,
+  DiracSpinor dV_ab_rhs(const int kappa_n, const DiracSpinor &Fm,
                         bool conj = false,
                         const DiracSpinor *const Fexcl = nullptr) const;
 
@@ -98,6 +101,16 @@ public:
   //! @brief Returns const reference to dPsi orbital of given kappa
   const DiracSpinor &get_dPsi_x(const DiracSpinor &Fc, dPsiType XorY,
                                 const int kappa_x) const;
+
+  //! Forms \delta Psi_v for valence state Fv (including core pol.) - all kappas
+  std::vector<DiracSpinor>
+  solve_dFvs(const DiracSpinor &Fv, const double omega, dPsiType XorY,
+             const MBPT::CorrelationPotential *const Sigma = nullptr) const;
+  //! Forms \delta Psi_v for valence state Fv (including core pol.) - 1 kappa
+  DiracSpinor
+  solve_dFv(const DiracSpinor &Fv, const double omega, dPsiType XorY,
+            const int kappa_x,
+            const MBPT::CorrelationPotential *const Sigma = nullptr) const;
 
   //! @brief Writes dPsi (f-component) to textfile
   void print(const std::string &ofname = "dPsi.txt") const;

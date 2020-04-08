@@ -9,6 +9,7 @@
 #include "Wavefunction/BSplineBasis.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
+// #include "MBPT/CorrelationPo.hpp"
 #include <algorithm>
 #include <fstream>
 #include <memory>
@@ -101,6 +102,45 @@ const DiracSpinor &ExternalField::get_dPsi_x(const DiracSpinor &Fc,
 }
 
 //******************************************************************************
+std::vector<DiracSpinor>
+ExternalField::solve_dFvs(const DiracSpinor &Fv, const double omega,
+                          dPsiType XorY,
+                          const MBPT::CorrelationPotential *const Sigma) const {
+  std::vector<DiracSpinor> dFvs;
+  const auto tjmin = std::max(1, Fv.twoj() - 2 * m_rank);
+  const auto tjmax = Fv.twoj() + 2 * m_rank;
+  for (int tjbeta = tjmin; tjbeta <= tjmax; tjbeta += 2) {
+    const auto kappa = Angular::kappa_twojpi(tjbeta, Fv.parity() * m_pi);
+    dFvs.push_back(solve_dFv(Fv, omega, XorY, kappa, Sigma));
+  }
+  return dFvs;
+}
+//******************************************************************************
+DiracSpinor
+ExternalField::solve_dFv(const DiracSpinor &Fv, const double omega,
+                         dPsiType XorY, const int kappa_x,
+                         const MBPT::CorrelationPotential *const Sigma) const {
+
+  const auto conj = XorY == dPsiType::Y;
+  const auto ww = XorY == dPsiType::X ? omega : -omega;
+
+  const auto de = m_h->reducedME(Fv, Fv) + dV_ab(Fv, Fv, conj);
+  const auto imag = m_h->imaginaryQ();
+
+  const auto dePsic = de * Fv;
+  const auto hPsic = m_h->reduced_rhs(kappa_x, Fv);
+
+  const auto s = imag ? -1 : 1; // why is this needed??
+  // XXX Why only second for Y version??
+  auto rhs = (XorY == dPsiType::X) ? s * (hPsic + dV_ab_rhs(kappa_x, Fv, conj))
+                                   : hPsic + s * dV_ab_rhs(kappa_x, Fv, conj);
+  if (kappa_x == Fv.k && !imag)
+    rhs -= dePsic;
+  return HF::solveMixedState(kappa_x, Fv, ww, m_vl, m_alpha, *p_core, rhs,
+                             1.0e-9, Sigma);
+}
+
+//******************************************************************************
 void ExternalField::solve_TDHFcore(const double omega, const int max_its,
                                    const bool print) {
 
@@ -152,8 +192,7 @@ void ExternalField::solve_TDHFcore(const double omega, const int max_its,
         auto &Xx = tmp_X[ic][j];
         const auto &oldX = m_X[ic][j];
         const auto &hPsic = hPsi[ic][j];
-        const auto dVpsic = dV_ab_rhs(Xx, Fc, false);
-        auto rhs = hPsic + dVpsic;
+        auto rhs = hPsic + dV_ab_rhs(Xx.k, Fc, false);
         if (Xx.k == Fc.k && !imag)
           rhs -= dePsic;
         auto s = imag ? -1 : 1; // why is this needed??
@@ -169,9 +208,9 @@ void ExternalField::solve_TDHFcore(const double omega, const int max_its,
           auto &Yx = tmp_Y[ic][j];
           const auto &oldY = m_Y[ic][j];
           const auto &hPsic = hPsi[ic][j];
-          const auto dVpsic = dV_ab_rhs(Yx, Fc, true);
           auto s = imag ? -1 : 1;
-          auto rhs = (hPsic + s * dVpsic); // why here only second?
+          // XXX why here only second?
+          auto rhs = hPsic + s * dV_ab_rhs(Yx.k, Fc, true);
           if (Yx.k == Fc.k && !imag)
             rhs -= dePsic_dag;
           HF::solveMixedState(Yx, Fc, -omega, m_vl, m_alpha, *p_core, rhs,
@@ -216,7 +255,7 @@ void ExternalField::solve_TDHFcore(const double omega, const int max_its,
 double ExternalField::dV_ab(const DiracSpinor &Fn, const DiracSpinor &Fm,
                             bool conj, const DiracSpinor *const Fexcl) const {
   auto s = conj && m_h->imaginaryQ() ? -1 : 1;
-  return s * Fn * dV_ab_rhs(Fn, Fm, conj, Fexcl);
+  return s * Fn * dV_ab_rhs(Fn.k, Fm, conj, Fexcl);
 }
 
 double ExternalField::dV_ab(const DiracSpinor &Fn,
@@ -224,12 +263,12 @@ double ExternalField::dV_ab(const DiracSpinor &Fn,
   // conj = Fm.en >= Fn.en; // auto conj! XXX "correct" but broken?
   auto conj = Fm.en <= Fn.en; // auto conj! XXX "wrong"? but works?
   auto s = conj && m_h->imaginaryQ() ? -1 : 1;
-  return s * Fn * dV_ab_rhs(Fn, Fm, conj);
+  return s * Fn * dV_ab_rhs(Fn.k, Fm, conj);
 }
 
 //******************************************************************************
-DiracSpinor ExternalField::dV_ab_rhs(const DiracSpinor &Fn,
-                                     const DiracSpinor &Fm, bool conj,
+DiracSpinor ExternalField::dV_ab_rhs(const int kappa_n, const DiracSpinor &Fm,
+                                     bool conj,
                                      const DiracSpinor *const Fexcl) const {
 
   const auto ChiType = conj ? dPsiType::X : dPsiType::Y;
@@ -238,11 +277,11 @@ DiracSpinor ExternalField::dV_ab_rhs(const DiracSpinor &Fn,
   const auto k = m_h->rank();
   const auto tkp1 = double(2 * k + 1);
 
-  const auto tjn = Fn.twoj();
+  const auto tjn = Angular::twoj_k(kappa_n); // Fn.twoj();
   const auto tjm = Fm.twoj();
-  const auto Ckala = Angular::Ck_kk(k, Fn.k, Fm.k);
+  const auto Ckala = Angular::Ck_kk(k, kappa_n, Fm.k);
 
-  auto dVFm = DiracSpinor(0, Fn.k, *(Fn.p_rgrid));
+  auto dVFm = DiracSpinor(0, kappa_n, *(Fm.p_rgrid));
   dVFm.pinf = Fm.pinf; //?
 
 #pragma omp parallel for
@@ -251,7 +290,7 @@ DiracSpinor ExternalField::dV_ab_rhs(const DiracSpinor &Fn,
     const auto tjb = Fb.twoj();
     const auto &X_betas = get_dPsis(Fb, ChiType);
     const auto &Y_betas = get_dPsis(Fb, EtaType);
-    auto dVFm_c = DiracSpinor(0, Fn.k, *(Fn.p_rgrid));
+    auto dVFm_c = DiracSpinor(0, kappa_n, *(Fm.p_rgrid));
     dVFm_c.pinf = Fm.pinf;
 
     if (Fexcl && (*Fexcl) == Fb)
@@ -265,7 +304,7 @@ DiracSpinor ExternalField::dV_ab_rhs(const DiracSpinor &Fn,
       const auto Ckbeb = Angular::Ck_kk(k, X_beta.k, Fb.k);
       if (Ckala != 0 && Ckbeb != 0) {
         const auto Rkabcd =
-            Coulomb::Rk_abcd_rhs(Fn, Fb, Fm, X_beta + Y_beta, k);
+            Coulomb::Rk_abcd_rhs(kappa_n, Fb, Fm, X_beta + Y_beta, k);
         dVFm_c += (Ckala * Ckbeb / tkp1) * Rkabcd;
       }
 
@@ -282,10 +321,10 @@ DiracSpinor ExternalField::dV_ab_rhs(const DiracSpinor &Fn,
           continue;
         const auto m1kpl = Angular::evenQ(k + l) ? 1 : -1;
         const auto Ckba = Angular::Ck_kk(l, Fm.k, Fb.k);
-        const auto Ckalbe = Angular::Ck_kk(l, Fn.k, X_beta.k);
+        const auto Ckalbe = Angular::Ck_kk(l, kappa_n, X_beta.k);
         if (Ckba == 0 || Ckalbe == 0)
           continue;
-        const auto Rk = Coulomb::Rk_abcd_rhs(Fn, Fm, X_beta, Fb, l);
+        const auto Rk = Coulomb::Rk_abcd_rhs(kappa_n, Fm, X_beta, Fb, l);
         dVFm_c += (s * m1kpl * Ckba * Ckalbe * sixj) * Rk;
       }
 
@@ -300,10 +339,10 @@ DiracSpinor ExternalField::dV_ab_rhs(const DiracSpinor &Fn,
           continue;
         const auto m1kpl = Angular::evenQ(k + l) ? 1 : -1;
         const auto Ckbea = Angular::Ck_kk(l, Fm.k, Y_beta.k);
-        const auto Ckbal = Angular::Ck_kk(l, Fn.k, Fb.k);
+        const auto Ckbal = Angular::Ck_kk(l, kappa_n, Fb.k);
         if (Ckbea == 0 || Ckbal == 0)
           continue;
-        const auto Rk = Coulomb::Rk_abcd_rhs(Fn, Fm, Fb, Y_beta, l);
+        const auto Rk = Coulomb::Rk_abcd_rhs(kappa_n, Fm, Fb, Y_beta, l);
         dVFm_c += (s * m1kpl * Ckbea * Ckbal * sixj) * Rk;
       }
     }

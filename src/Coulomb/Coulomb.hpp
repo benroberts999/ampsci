@@ -24,15 +24,11 @@ double Rk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
 double Rk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fc,
                const std::vector<double> &ykbd);
 
-//! "Right-hand-side" R^k_{a}bcd [i.e., without Fa integral]
-//! @details Fa only used for kappa: returns spinor with k = Fa.k
-DiracSpinor Rk_abcd_rhs(const DiracSpinor &Fa, const DiracSpinor &Fb,
+//! "Right-hand-side" R^k{a}_bcd [i.e., without Fa integral]
+DiracSpinor Rk_abcd_rhs(const int kappa_a, const DiracSpinor &Fb,
                         const DiracSpinor &Fc, const DiracSpinor &Fd,
                         const int k);
 //! Overload for when y^k_bd already exists [much faster]
-DiracSpinor Rk_abcd_rhs(const DiracSpinor &Fa, const DiracSpinor &Fc,
-                        const std::vector<double> &ykbd);
-//! Overload: Rk_rhs depends on kappa_a, not Fa
 DiracSpinor Rk_abcd_rhs(const int kappa_a, const DiracSpinor &Fc,
                         const std::vector<double> &ykbd);
 //! Overload for when spinor exists. Rkv is overwritten

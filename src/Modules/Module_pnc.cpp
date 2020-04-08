@@ -18,23 +18,26 @@ namespace Module {
 
 //******************************************************************************
 void polarisability(const IO::UserInputBlock &input, const Wavefunction &wf) {
-  std::cout << "\nok\n";
+  std::cout << "\n NOTE: In developement! Not finished!\n";
 
   const auto alpha = wf.get_alpha();
 
   input.checkBlock({"a", "b", "omega"});
   const auto a_str = input.get<std::string>("a", "");
-  const auto w = input.get("omega", 0.05);
+  const auto w = input.get("omega", 0.00);
   // const auto b_str = input.get<std::string>("a", a_str);
 
   // [[maybe_unused]] // don't use e
-  // const auto [na, ka, e] = AtomData::listOfStates_singlen("6s").front();
-  // const auto pFa = wf.getState(na, ka);
+  const auto [na, ka, e] = AtomData::listOfStates_singlen(a_str).front();
+  const auto pFa = wf.getState(na, ka);
 
   const auto he1 = DiracOperator::E1(wf.rgrid);
   auto dVE1 = HF::ExternalField(&he1, wf.core_orbitals, wf.get_Vlocal(), alpha);
 
   dVE1.solve_TDHFcore(w); // 1 it means no RPA (for TDHF version)
+
+  // auto twom = std::min(pFa->twoj(), pFa->twoj());
+  // auto c10 = he1.rme3js(pFa->twoj(), pFa->twoj(), twom);
 
   auto fudge_factor = (4.0 / 3.0); // ???
 
@@ -43,10 +46,15 @@ void polarisability(const IO::UserInputBlock &input, const Wavefunction &wf) {
   for (const auto &Fb : wf.core_orbitals) {
     const auto &Xb = dVE1.get_dPsis(Fb, HF::dPsiType::X);
     const auto &Yb = dVE1.get_dPsis(Fb, HF::dPsiType::Y);
-    for (const auto &Xbeta : Xb)
+    // const auto Xb = dVE1.solve_dFvs(Fb, w, HF::dPsiType::X);
+    // const auto Yb = dVE1.solve_dFvs(Fb, w, HF::dPsiType::Y);
+
+    for (const auto &Xbeta : Xb) {
       alpha_core += he1.reducedME(Fb, Xbeta);
-    for (const auto &Ybeta : Yb)
+    }
+    for (const auto &Ybeta : Yb) {
       alpha_core += he1.reducedME(Fb, Ybeta);
+    }
   }
   alpha_core *= (-1.0 / 3.0) * fudge_factor;
   std::cout << alpha_core << "\n";
@@ -61,6 +69,22 @@ void polarisability(const IO::UserInputBlock &input, const Wavefunction &wf) {
     }
   }
   std::cout << alpha_2 << "\n";
+
+  // Valence part:
+  double alpha_valence = 0.0;
+  if (pFa) {
+    // omega?
+    const auto Xb = dVE1.solve_dFvs(*pFa, w, HF::dPsiType::X, wf.m_Sigma.get());
+    const auto Yb = dVE1.solve_dFvs(*pFa, w, HF::dPsiType::Y, wf.m_Sigma.get());
+    for (const auto &Xbeta : Xb) {
+      alpha_valence += he1.reducedME(*pFa, Xbeta);
+    }
+    for (const auto &Ybeta : Yb) {
+      alpha_valence += he1.reducedME(*pFa, Ybeta);
+    }
+    alpha_valence *= (-1.0 / 3.0) * fudge_factor / (pFa->twoj() + 1);
+  }
+  std::cout << alpha_valence << "\n";
 }
 
 //******************************************************************************
@@ -230,10 +254,10 @@ void calculatePNC(const IO::UserInputBlock &input, const Wavefunction &wf) {
     auto e1B = he1.reduced_rhs(-aA.k, aB);
 
     // XXX LHS! ?
-    hA -= dVpnc.dV_ab_rhs(hA, aA, false);
-    hB += dVpnc.dV_ab_rhs(hB, aB, false);
-    e1A += dVE1.dV_ab_rhs(e1A, aA, !dVconj);
-    e1B += dVE1.dV_ab_rhs(e1B, aB, dVconj);
+    hA -= dVpnc.dV_ab_rhs(hA.k, aA, false);
+    hB += dVpnc.dV_ab_rhs(hB.k, aB, false);
+    e1A += dVE1.dV_ab_rhs(e1A.k, aA, !dVconj);
+    e1B += dVE1.dV_ab_rhs(e1B.k, aB, dVconj);
 
     auto epsMS = 1.0e-9;
     auto yA_w = HF::solveMixedState(hA.k, aA, 0, v, alpha, wf.core_orbitals, hA,

@@ -37,6 +37,13 @@ constexpr int l_tilde_k(int ka) { return (ka > 0) ? ka - 1 : -ka; }
 constexpr int kappa_twojl(int twoj, int l) {
   return ((2 * l - twoj) * (twoj + 1)) / 2;
 }
+//! Given 2*j and parity (+/-1), returns kappa
+constexpr int kappa_twojpi(const int twoj, const int pi) {
+  const auto l_minus = (twoj - 1) / 2;
+  const auto l_minus_pi = (l_minus % 2 == 0) ? 1 : -1;
+  const auto l = l_minus_pi == pi ? l_minus : l_minus + 1;
+  return kappa_twojl(twoj, l); // must be simpler way?
+}
 
 //******************************************************************************
 //    Kappa Index:
