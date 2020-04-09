@@ -8,6 +8,9 @@ class Grid;
 namespace MBPT {
 class CorrelationPotential;
 }
+namespace IO {
+class UserInputBlock;
+}
 
 /*!
 @brief Constucts of spinor/orbital basis using B-splines
@@ -39,6 +42,17 @@ i.e., for each eigenvalue, n, the corresponding basis orbital is:
 */
 namespace SplineBasis {
 
+struct Parameters {
+  Parameters() {}
+  Parameters(std::string states, std::size_t n, std::size_t k, double r0,
+             double reps, double rmax, bool positronQ);
+  Parameters(IO::UserInputBlock input);
+  std::string states{};
+  std::size_t n{}, k{};
+  double r0{}, reps{}, rmax{};
+  bool positronQ{false};
+};
+
 //! @brief Forms + returns the basis orbitals (expanded in terms of splines)
 /*! @details
   - states_str = which states to keep e.g., "25spd10f" (up to n=25 for
@@ -58,11 +72,9 @@ namespace SplineBasis {
 Note: This function calls the below functions, they rarely need to be called
 explicitely, unless you are trying to do something different to usual.
 */
-std::vector<DiracSpinor>
-form_basis(const std::string &states_str, const std::size_t n_spl,
-           const std::size_t k_spl, const double r0_spl, const double r0_eps,
-           const double rmax_spl, const Wavefunction &wf,
-           const bool positronQ = false, const bool correlationsQ = false);
+std::vector<DiracSpinor> form_basis(const Parameters &params,
+                                    const Wavefunction &wf,
+                                    const bool correlationsQ = false);
 
 //! Forms the underlying spline basis (which is not kept)
 std::vector<DiracSpinor>

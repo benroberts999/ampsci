@@ -19,6 +19,7 @@ $(SD)/Physics/AtomData.hpp
 
 $(BD)/BSplineBasis.o: $(SD)/Wavefunction/BSplineBasis.cpp \
 $(SD)/Wavefunction/BSplineBasis.hpp \
+$(SD)/IO/UserInput.hpp \
 $(SD)/Maths/BSplines.hpp \
 $(SD)/Maths/Grid.hpp \
 $(SD)/Maths/LinAlg_MatrixVector.hpp \

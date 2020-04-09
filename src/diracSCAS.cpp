@@ -178,7 +178,11 @@ int main(int argc, char *argv[]) {
   wf.printValence(sorted);
 
   // Construct B-spline basis:
-  wf.formBasis(input.get("Basis"));
+  const auto basis_ok =
+      input.check("Basis", {"number", "order", "r0", "r0_eps", "rmax", "states",
+                            "print", "positron"});
+  if (basis_ok)
+    wf.formBasis({input.get("Basis")});
   if (input.get("Basis", "print", false) && !wf.basis.empty()) {
     std::cout << "Basis:\n";
     wf.printBasis(wf.basis);
@@ -227,7 +231,11 @@ int main(int argc, char *argv[]) {
   }
 
   // Construct B-spline Spectrum:
-  wf.formSpectrum(input.get("Spectrum"));
+  const auto spectrum_ok =
+      input.check("Spectrum", {"number", "order", "r0", "r0_eps", "rmax",
+                               "states", "print", "positron"});
+  if (spectrum_ok)
+    wf.formSpectrum({input.get("Spectrum")});
   if (input.get("Spectrum", "print", false) && !wf.spectrum.empty()) {
     std::cout << "Spectrum:\n";
     wf.printBasis(wf.spectrum);

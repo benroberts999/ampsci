@@ -13,8 +13,8 @@
 #include <string>
 #include <utility>
 #include <vector>
-namespace IO {
-class UserInputBlock;
+namespace SplineBasis {
+struct Parameters;
 }
 
 //******************************************************************************
@@ -166,10 +166,10 @@ public: // const methods: "views" into WF object
                           double scale_rN, const std::vector<double> &x_spd);
 
   //! Calculates + populates basis [see BSplineBasis]
-  void formBasis(const IO::UserInputBlock &input);
+  void formBasis(const SplineBasis::Parameters &params);
 
   //! Calculates + populates Spectrum [see BSplineBasis]
-  void formSpectrum(const IO::UserInputBlock &input);
+  void formSpectrum(const SplineBasis::Parameters &params);
 
   //! Forms + stores correlation potential Sigma
   void formSigma(const int nmin_core = 1, const bool form_matrix = true,

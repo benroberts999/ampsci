@@ -1,4 +1,5 @@
 #include "BSplineBasis.hpp"
+#include "IO/UserInput.hpp"
 #include "Maths/BSplines.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/LinAlg_MatrixVector.hpp"
@@ -18,13 +19,33 @@
 namespace SplineBasis {
 
 //******************************************************************************
-std::vector<DiracSpinor>
-form_basis(const std::string &states_str, const std::size_t n_spl,
-           const std::size_t k_spl, const double r0_spl, const double r0_eps,
-           const double rmax_spl, const Wavefunction &wf, const bool positronQ,
-           const bool correlationsQ)
+Parameters::Parameters(IO::UserInputBlock input)
+    : states(input.get<std::string>("states", "")),
+      n(input.get("number", 0ul)),
+      k(input.get("order", 0ul)),
+      r0(input.get("r0", 0.0)),
+      reps(input.get("r0_eps", 0.0)),
+      rmax(input.get("rmax", 0.0)),
+      positronQ(input.get("positron", false)) {}
+
+Parameters::Parameters(std::string istates, std::size_t in, std::size_t ik,
+                       double ir0, double ireps, double irmax, bool ipositronQ)
+    : states(istates),
+      n(in),
+      k(ik),
+      r0(ir0),
+      reps(ireps),
+      rmax(irmax),
+      positronQ(ipositronQ) {}
+
+//******************************************************************************
+std::vector<DiracSpinor> form_basis(const Parameters &params,
+                                    const Wavefunction &wf,
+                                    const bool correlationsQ)
 // Forms the pseudo-spectrum basis by diagonalising Hamiltonian over B-splines
 {
+  const auto &[states_str, n_spl, k_spl, r0_spl, r0_eps, rmax_spl, positronQ] =
+      params;
   std::vector<DiracSpinor> basis;
   std::vector<DiracSpinor> basis_positron;
 
@@ -174,8 +195,7 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
 #pragma omp parallel for
   for (auto i = 0; i < (int)spl_basis.size(); i++) {
     const auto &si = spl_basis[i];
-    const auto VexSi =
-        excl_exch ? 0.0 * si : HF::vex_psia_any(si, wf.core);
+    const auto VexSi = excl_exch ? 0.0 * si : HF::vex_psia_any(si, wf.core);
     const auto SigmaSi = sigmaQ ? (*wf.getSigma())(si) : 0.0 * si;
 
     for (auto j = 0; j <= i; j++) {

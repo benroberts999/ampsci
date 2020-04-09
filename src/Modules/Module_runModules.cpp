@@ -64,49 +64,87 @@ void runModule(const IO::UserInputBlock &module_input,
 }
 
 //******************************************************************************
+static void write_orbitals(const std::string &fname,
+                           const std::vector<DiracSpinor> &orbs) {
+  if (orbs.empty())
+    return;
+  auto &gr = *orbs.front().p_rgrid;
+
+  std::ofstream of(fname);
+  of << "r ";
+  for (auto &psi : orbs)
+    of << "\"" << psi.symbol(true) << "\" ";
+  of << "\n";
+
+  of << "# f block\n";
+  for (std::size_t i = 0; i < gr.num_points; i++) {
+    of << gr.r[i] << " ";
+    for (auto &psi : orbs)
+      of << psi.f[i] << " ";
+    of << "\n";
+  }
+
+  of << "\n# g block\n";
+  for (std::size_t i = 0; i < gr.num_points; i++) {
+    of << gr.r[i] << " ";
+    for (auto &psi : orbs)
+      of << psi.g[i] << " ";
+    of << "\n";
+  }
+
+  of.close();
+  std::cout << "Orbitals written to file: " << fname << "\n";
+}
+
+//******************************************************************************
 void writeOrbitals(const IO::UserInputBlock &input, const Wavefunction &wf) {
   const std::string ThisModule = "Module::WriteOrbitals";
   input.checkBlock({"label"});
-
+  // func();
   std::cout << "\n Running: " << ThisModule << "\n";
   auto label = input.get<std::string>("label", "");
-  std::string oname = wf.atomicSymbol() + "-orbitals";
+
+  std::string oname = wf.atomicSymbol();
   if (label != "")
     oname += "_" + label;
 
-  oname += ".txt";
-  std::ofstream of(oname);
-  of << "r ";
-  for (auto &psi : wf.core)
-    of << "\"" << psi.symbol(true) << "\" ";
-  for (auto &psi : wf.valence)
-    of << "\"" << psi.symbol(true) << "\" ";
-  of << "\n";
-  of << "# f block\n";
-  for (std::size_t i = 0; i < wf.rgrid.num_points; i++) {
-    of << wf.rgrid.r[i] << " ";
-    for (auto &psi : wf.core)
-      of << psi.f[i] << " ";
-    for (auto &psi : wf.valence)
-      of << psi.f[i] << " ";
-    of << "\n";
-  }
-  of << "\n# g block\n";
-  for (std::size_t i = 0; i < wf.rgrid.num_points; i++) {
-    of << wf.rgrid.r[i] << " ";
-    for (auto &psi : wf.core)
-      of << psi.g[i] << " ";
-    for (auto &psi : wf.valence)
-      of << psi.g[i] << " ";
-    of << "\n";
-  }
-  of << "\n# density block\n";
-  auto rho = wf.coreDensity();
-  for (std::size_t i = 0; i < wf.rgrid.num_points; i++) {
-    of << wf.rgrid.r[i] << " " << rho[i] << "\n";
-  }
-  of.close();
-  std::cout << "Orbitals written to file: " << oname << "\n";
+  write_orbitals(oname + "_core.txt", wf.core);
+  write_orbitals(oname + "_valence.txt", wf.valence);
+  write_orbitals(oname + "_basis.txt", wf.basis);
+  write_orbitals(oname + "_spectrum.txt", wf.spectrum);
+
+  // std::ofstream of(oname);
+  // of << "r ";
+  // for (auto &psi : wf.core)
+  //   of << "\"" << psi.symbol(true) << "\" ";
+  // for (auto &psi : wf.valence)
+  //   of << "\"" << psi.symbol(true) << "\" ";
+  // of << "\n";
+  // of << "# f block\n";
+  // for (std::size_t i = 0; i < wf.rgrid.num_points; i++) {
+  //   of << wf.rgrid.r[i] << " ";
+  //   for (auto &psi : wf.core)
+  //     of << psi.f[i] << " ";
+  //   for (auto &psi : wf.valence)
+  //     of << psi.f[i] << " ";
+  //   of << "\n";
+  // }
+  // of << "\n# g block\n";
+  // for (std::size_t i = 0; i < wf.rgrid.num_points; i++) {
+  //   of << wf.rgrid.r[i] << " ";
+  //   for (auto &psi : wf.core)
+  //     of << psi.g[i] << " ";
+  //   for (auto &psi : wf.valence)
+  //     of << psi.g[i] << " ";
+  //   of << "\n";
+  // }
+  // of << "\n# density block\n";
+  // auto rho = wf.coreDensity();
+  // for (std::size_t i = 0; i < wf.rgrid.num_points; i++) {
+  //   of << wf.rgrid.r[i] << " " << rho[i] << "\n";
+  // }
+  // of.close();
+  // std::cout << "Orbitals written to file: " << oname << "\n";
 }
 
 } // namespace Module

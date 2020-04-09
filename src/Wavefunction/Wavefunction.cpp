@@ -2,7 +2,6 @@
 #include "DiracODE/DiracODE.hpp"
 #include "HF/HartreeFockClass.hpp"
 #include "IO/ChronoTimer.hpp"
-#include "IO/UserInput.hpp"
 #include "MBPT/CorrelationPotential.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/Interpolator.hpp"
@@ -642,43 +641,17 @@ std::vector<double> Wavefunction::coreDensity() const {
 }
 
 //******************************************************************************
-void Wavefunction::formBasis(const IO::UserInputBlock &input) {
-  // XXX Is this the best way? Hard to call this function except with input
-  // block..?
-  const auto basis_ok =
-      input.checkBlock({"number", "order", "r0", "r0_eps", "rmax", "states",
-                        "print", "positron"});
-  const auto n_spl = input.get("number", 0ul);
-  const auto k_spl = input.get("order", 0ul);
-  const auto r0_spl = input.get("r0", 0.0);
-  const auto r0_eps = input.get("r0_eps", 0.0);
-  const auto rmax_spl = input.get("rmax", 0.0);
-  const auto basis_states = input.get<std::string>("states", "");
-  const auto positronQ = input.get("positron", false);
-  if (basis_ok && n_spl > 0) {
+void Wavefunction::formBasis(const SplineBasis::Parameters &params) {
+  if (params.n > 0) {
     IO::ChronoTimer t("Basis");
-    basis = SplineBasis::form_basis(basis_states, n_spl, k_spl, r0_spl, r0_eps,
-                                    rmax_spl, *this, positronQ);
+    basis = SplineBasis::form_basis(params, *this, false);
   }
 }
 //------------------------------------------------------------------------------
-void Wavefunction::formSpectrum(const IO::UserInputBlock &input) {
-  const auto basis_ok =
-      input.checkBlock({"number", "order", "r0", "r0_eps", "rmax", "states",
-                        "print", "positron"});
-  const auto n_spl = input.get("number", 0ul);
-  const auto k_spl = input.get("order", 0ul);
-  const auto r0_spl = input.get("r0", 0.0);
-  const auto r0_eps = input.get("r0_eps", 0.0);
-  const auto rmax_spl = input.get("rmax", 0.0);
-  const auto basis_states = input.get<std::string>("states", "");
-  // const auto print_basisQ = input.get("print", false);
-  const auto positronQ = input.get("positron", false);
-  if (basis_ok && n_spl > 0) {
+void Wavefunction::formSpectrum(const SplineBasis::Parameters &params) {
+  if (params.n > 0) {
     IO::ChronoTimer t("Spectrum");
-    spectrum =
-        SplineBasis::form_basis(basis_states, n_spl, k_spl, r0_spl, r0_eps,
-                                rmax_spl, *this, positronQ, true);
+    spectrum = SplineBasis::form_basis(params, *this, true);
   }
 }
 
