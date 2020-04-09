@@ -119,7 +119,7 @@ void basisTests(const Wavefunction &wf) {
   };
   auto max_ki =
       std::max_element(basis.begin(), basis.end(), comp_ki)->k_index();
-  int n_max_DG = 3; // wf.core_orbitals.empty() ? 3 : 1;
+  int n_max_DG = 3; // wf.core.empty() ? 3 : 1;
   for (int ki = 0; ki <= max_ki; ki++) {
     auto kappa = Angular::kappaFromIndex(ki);
     auto comp_k = [=](const auto &Fn) { return Fn.k == kappa; };
@@ -138,7 +138,7 @@ void basisTests(const Wavefunction &wf) {
         sum += term;
       }
       if (i == 2)
-        sum *= wf.get_alpha() * wf.get_alpha() / 3;
+        sum *= wf.alpha * wf.alpha / 3;
       auto s0 = (i == 0) ? r2hat.radialIntegral(Fa, Fa) : (i == 1) ? 0.0 : 1.0;
       printf("%i: sum=%11.6f, exact=%+11.6f, diff = %8.1e\n", i, sum, s0,
              sum - s0);
@@ -190,8 +190,8 @@ void basisTests(const Wavefunction &wf) {
 void Module_test_r0pinf(const Wavefunction &wf) {
   std::cout << "\nTesting boundaries r0 and pinf: f(r)/f_max\n";
   std::cout << " State    f(r0)   f(pinf)   pinf/Rinf\n";
-  // for (const auto &phi : wf.core_orbitals)
-  for (const auto tmp_orbs : {&wf.core_orbitals, &wf.valence_orbitals}) {
+  // for (const auto &phi : wf.core)
+  for (const auto tmp_orbs : {&wf.core, &wf.valence}) {
     for (const auto &phi : *tmp_orbs) {
       auto ratios = phi.r0pinfratio();
       printf("%7s:  %.0e   %.0e   %5i/%6.2f\n", phi.symbol().c_str(),
@@ -214,20 +214,20 @@ void Module_Tests_orthonormality(const Wavefunction &wf, const bool print_all) {
 
   std::stringstream buffer;
   for (int i = 0; i < 9; i++) {
-    // const auto &tmp_b = (i == 2) ? wf.valence_orbitals : wf.core_orbitals;
-    // const auto &tmp_a = (i == 0) ? wf.core_orbitals : wf.valence_orbitals;
+    // const auto &tmp_b = (i == 2) ? wf.valence : wf.core;
+    // const auto &tmp_a = (i == 0) ? wf.core : wf.valence;
 
     const auto &tmp_basis = i < 6 ? wf.basis : wf.spectrum;
 
     const auto &tmp_b = (i == 2 || i == 4 || i == 7)
-                            ? wf.valence_orbitals
+                            ? wf.valence
                             : (i == 0 || i == 1 || i == 3 || i == 6)
-                                  ? wf.core_orbitals
+                                  ? wf.core
                                   : tmp_basis;
     // core, core, valence, core, valence, basis
 
     const auto &tmp_a =
-        (i == 0) ? wf.core_orbitals : (i < 3) ? wf.valence_orbitals : tmp_basis;
+        (i == 0) ? wf.core : (i < 3) ? wf.valence : tmp_basis;
     // core, valence, valence, basis, basis
 
     if (tmp_b.empty() || tmp_a.empty())
@@ -330,25 +330,25 @@ void Module_Tests_orthonormality(const Wavefunction &wf, const bool print_all) {
 void Module_Tests_Hamiltonian(const Wavefunction &wf) {
   std::cout << "\nTesting wavefunctions: <n|H|n>  (numerical error)\n";
 
-  // DirectHamiltonian Hd(wf.vnuc, wf.vdir, wf.get_alpha());
-  auto Hd = RadialHamiltonian(wf.rgrid, wf.get_alpha());
+  // DirectHamiltonian Hd(wf.vnuc, wf.vdir, wf.alpha);
+  auto Hd = RadialHamiltonian(wf.rgrid, wf.alpha);
   Hd.set_v(-1, wf.get_Vlocal(0)); // same each kappa //?? XXX
   Hd.set_v_mag(wf.get_Hmag(0));
 
   const auto &basis = wf.spectrum.empty() ? wf.basis : wf.spectrum;
 
   for (const auto tmp_orbs :
-       {&wf.core_orbitals, &wf.valence_orbitals, &basis}) {
+       {&wf.core, &wf.valence, &basis}) {
     if (tmp_orbs->empty())
       continue;
     double worst_eps = 0.0;
     const DiracSpinor *worst_psi = nullptr;
     for (const auto &psi : *tmp_orbs) {
       double Haa_d = Hd.matrixEl(psi, psi);
-      double Haa_x = psi * HF::vex_psia_any(psi, wf.core_orbitals);
+      double Haa_x = psi * HF::vex_psia_any(psi, wf.core);
       auto Haa = Haa_d + Haa_x;
-      if (!wf.isInCore(psi) && wf.m_Sigma != nullptr) {
-        Haa += psi * (*wf.m_Sigma)(psi);
+      if (!wf.isInCore(psi.n, psi.k) && wf.getSigma() != nullptr) {
+        Haa += psi * (*wf.getSigma())(psi);
       }
       double ens = psi.en;
       double fracdiff = (Haa - ens) / ens;

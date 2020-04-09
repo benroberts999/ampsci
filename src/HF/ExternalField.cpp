@@ -121,6 +121,7 @@ ExternalField::solve_dPsi(const DiracSpinor &Fv, const double omega,
                           const MBPT::CorrelationPotential *const Sigma) const {
   // Solves (H + Sigma - e - w)X = -(h + dV - de)Psi
   // or     (H + Sigma - e + w)Y = -(h^dag + dV^dag - de)Psi
+  // XXX Not equiv to get_dPsi version... <Y| vs |Y> ??
 
   const auto ww = XorY == dPsiType::X ? omega : -omega;
   auto conj = XorY == dPsiType::Y;

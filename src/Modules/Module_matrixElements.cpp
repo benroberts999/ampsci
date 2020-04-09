@@ -52,8 +52,8 @@ void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf) {
     std::cout << "With extra factor: " << factor << "\n";
 
   // XXX Always same kappa for get_Vlocal?
-  auto rpa = HF::ExternalField(h.get(), wf.core_orbitals, wf.get_Vlocal(),
-                               wf.get_alpha());
+  auto rpa = HF::ExternalField(h.get(), wf.core, wf.get_Vlocal(),
+                               wf.alpha);
   std::unique_ptr<HF::ExternalField> rpa0; // for first-order
 
   if (!eachFreqQ && rpaQ) {
@@ -66,8 +66,8 @@ void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf) {
   }
 
   // Fb -> Fa = <a||h||b>
-  for (const auto &Fb : wf.valence_orbitals) {
-    for (const auto &Fa : wf.valence_orbitals) {
+  for (const auto &Fb : wf.valence) {
+    for (const auto &Fa : wf.valence) {
       if (h->isZero(Fa.k, Fb.k))
         continue;
       if (diagonal_only && Fb != Fa)
@@ -124,7 +124,7 @@ void calculateBohrWeisskopf(const IO::UserInputBlock &input,
             << wf.atom()
             << "\n       |A:      Point         Ball           SP |e:    "
                "Ball         SP\n";
-  for (const auto &phi : wf.valence_orbitals) {
+  for (const auto &phi : wf.valence) {
     auto Ap = Hyperfine::hfsA(hp.get(), phi);
     auto Ab = Hyperfine::hfsA(hb.get(), phi);
     auto Aw = Hyperfine::hfsA(hw.get(), phi);
@@ -230,7 +230,7 @@ generateOperator(const std::string &operator_str,
     if (gauge != "vform")
       return std::make_unique<E1>(E1(wf.rgrid));
     // std::cout << "(v-form [velocity gauge])\n";
-    return std::make_unique<E1_vform>(E1_vform(wf.rgrid, wf.get_alpha()));
+    return std::make_unique<E1_vform>(E1_vform(wf.rgrid, wf.alpha));
   } else if (operator_str == "Ek") {
     input.checkBlock(jointCheck({"k"}));
     auto k = input.get("k", 1);
@@ -266,7 +266,7 @@ generateOperator(const std::string &operator_str,
     const auto r_rms_Fermi = scale_rN * wf.get_nuclearParameters().r_rms;
     const auto Hel = RadiativePotential::form_Hel(
         wf.rgrid.r, x_Simple, x_Ueh, x_SEe_h, x_SEe_l, r_rms_Fermi, wf.Znuc(),
-        wf.get_alpha(), rcut);
+        wf.alpha, rcut);
     return std::make_unique<Hrad_el>(Hrad_el(Hel));
   } else if (operator_str == "Hrad_mag") {
     input.checkBlock(jointCheck({"SE_m", "rcut", "scale_rN"}));
@@ -275,7 +275,7 @@ generateOperator(const std::string &operator_str,
     const auto scale_rN = input.get("scale_rN", 1.0);
     const auto r_rms_Fermi = scale_rN * wf.get_nuclearParameters().r_rms;
     const auto Hmag = RadiativePotential::form_Hmag(
-        wf.rgrid.r, x_SEm, r_rms_Fermi, wf.Znuc(), wf.get_alpha(), rcut);
+        wf.rgrid.r, x_SEm, r_rms_Fermi, wf.Znuc(), wf.alpha, rcut);
     return std::make_unique<Hrad_mag>(Hrad_mag(Hmag));
   }
 
@@ -299,20 +299,20 @@ void calculateLifetimes(const IO::UserInputBlock &input,
 
   DiracOperator::E1 he1(wf.rgrid);
   DiracOperator::Ek he2(wf.rgrid, 2);
-  auto alpha = wf.get_alpha();
+  auto alpha = wf.alpha;
   auto alpha3 = alpha * alpha * alpha;
   auto alpha2 = alpha * alpha;
-  auto dVE1 = HF::ExternalField(&he1, wf.core_orbitals, wf.get_Vlocal(), alpha);
-  auto dVE2 = HF::ExternalField(&he2, wf.core_orbitals, wf.get_Vlocal(), alpha);
+  auto dVE1 = HF::ExternalField(&he1, wf.core, wf.get_Vlocal(), alpha);
+  auto dVE2 = HF::ExternalField(&he2, wf.core, wf.get_Vlocal(), alpha);
 
   auto to_s = PhysConst::time_s;
 
-  for (const auto &Fa : wf.valence_orbitals) {
+  for (const auto &Fa : wf.valence) {
     std::cout << "\n" << Fa.symbol() << "\n";
     auto Gamma = 0.0;
 
     if (doE1) {
-      for (const auto &Fn : wf.valence_orbitals) {
+      for (const auto &Fn : wf.valence) {
         if (Fn.en >= Fa.en || he1.isZero(Fn.k, Fa.k))
           continue;
         auto w = Fa.en - Fn.en;
@@ -326,7 +326,7 @@ void calculateLifetimes(const IO::UserInputBlock &input,
       }
     }
     if (doE2) {
-      for (const auto &Fn : wf.valence_orbitals) {
+      for (const auto &Fn : wf.valence) {
         if (Fn.en >= Fa.en || he2.isZero(Fn.k, Fa.k))
           continue;
         auto w = Fa.en - Fn.en;

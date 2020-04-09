@@ -57,7 +57,7 @@ form_basis(const std::string &states_str, const std::size_t n_spl,
     }
 
     const auto spl_basis = form_spline_basis(kappa, n_spl, k, r0_eff, rmax_spl,
-                                             wf.rgrid, wf.get_alpha());
+                                             wf.rgrid, wf.alpha);
 
     auto [Aij, Sij] = fill_Hamiltonian_matrix(spl_basis, wf, correlationsQ);
     const auto [e_values, e_vectors] =
@@ -86,7 +86,7 @@ form_basis(const std::string &states_str, const std::size_t n_spl,
     auto prev = std::find_if(basis.begin(), basis.end(), comp);
     if (prev == basis.end())
       continue;
-    auto nmc2 = -1.0 / (wf.get_alpha() * wf.get_alpha());
+    auto nmc2 = -1.0 / (wf.alpha * wf.alpha);
     if (Fp.en < prev->en && Fp.en > nmc2) {
       // XXX Better: count nodes? ['Spurious node at large r?']
       std::cout << "WARNING: "
@@ -164,10 +164,10 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
   auto &Sij = A_and_S.second;
 
   const auto excl_exch = wf.exclude_exchangeQ();
-  const auto sigmaQ = wf.m_Sigma != nullptr && correlationsQ;
+  const auto sigmaQ = wf.getSigma() != nullptr && correlationsQ;
 
   // Move this into wf ??
-  auto Hd = RadialHamiltonian(wf.rgrid, wf.get_alpha());
+  auto Hd = RadialHamiltonian(wf.rgrid, wf.alpha);
   Hd.set_v(-1, wf.get_Vlocal(0)); // same each kappa //XXX
   Hd.set_v_mag(wf.get_Hmag(0));   // Magnetic QED form-factor [usually empty]
 
@@ -175,8 +175,8 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
   for (auto i = 0; i < (int)spl_basis.size(); i++) {
     const auto &si = spl_basis[i];
     const auto VexSi =
-        excl_exch ? 0.0 * si : HF::vex_psia_any(si, wf.core_orbitals);
-    const auto SigmaSi = sigmaQ ? (*wf.m_Sigma)(si) : 0.0 * si;
+        excl_exch ? 0.0 * si : HF::vex_psia_any(si, wf.core);
+    const auto SigmaSi = sigmaQ ? (*wf.getSigma())(si) : 0.0 * si;
 
     for (auto j = 0; j <= i; j++) {
       const auto &sj = spl_basis[j];
@@ -215,7 +215,7 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
   auto l = AtomData::l_k(kappa);
   auto min_n = l + 1;
 
-  const auto neg_mc2 = -1.0 / (wf.get_alpha() * wf.get_alpha());
+  const auto neg_mc2 = -1.0 / (wf.alpha * wf.alpha);
   auto pqn = min_n - 1;
   auto pqn_pstrn = -min_n + 1;
   for (int i = 0; i < e_values.n; i++) {

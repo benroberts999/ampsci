@@ -82,9 +82,7 @@ const UserInputBlock &UserInput::get(const std::string &in_block) const {
     if (in_block == block.name())
       return block;
   }
-  std::cerr << "\nFAIL55: Missing required input: " << in_block
-            << " (compulsory)\n";
-  std::abort();
+  return m_empty_block;
 }
 
 //******************************************************************************

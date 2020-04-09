@@ -65,6 +65,11 @@ public:
   //! String human-readable grid parameters
   std::string gridParameters() const;
 
+  GridParameters params() const {
+    return GridParameters{num_points, r0, rmax, b, gridtype, du};
+    // num_points, r0, rmax, b, grid_type, du_tmp
+  }
+
   // Static functions: can be called outside of instantialised object
   //! Given r0/rmax + num_points, calculates du
   static double calc_du_from_num_points(double in_r0, double in_rmax,

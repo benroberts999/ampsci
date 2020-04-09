@@ -11,6 +11,13 @@ enum class Type { Fermi, spherical, point };
 Type parseType(const std::string &str_type);
 std::string parseType(Type type);
 
+// struct AtomicZ {
+// public:
+//   AtomicZ(const std::string &inZ);
+//   AtomicZ(const int inZ);
+//   const int z;
+// };
+
 //! Stores set of nuclear parameters
 struct Parameters {
   int z, a;
@@ -35,7 +42,7 @@ std::vector<double> fermiNuclearDensity_tcN(double t, double c, double Z_norm,
                                             const Grid &grid);
 
 //! Calls one of the above, depending on params. Fills V(r), given r
-std::vector<double> formPotential(Parameters params, int z, int,
+std::vector<double> formPotential(Parameters params,
                                   const std::vector<double> &r);
 
 } // namespace Nuclear

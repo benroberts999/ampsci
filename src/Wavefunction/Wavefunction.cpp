@@ -1,6 +1,8 @@
 #include "Wavefunction/Wavefunction.hpp"
 #include "DiracODE/DiracODE.hpp"
 #include "HF/HartreeFockClass.hpp"
+#include "IO/ChronoTimer.hpp"
+#include "IO/UserInput.hpp"
 #include "MBPT/CorrelationPotential.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/Interpolator.hpp"
@@ -18,6 +20,38 @@
 #include <string>
 #include <utility>
 #include <vector>
+
+//******************************************************************************
+Wavefunction::Wavefunction(const GridParameters &gridparams,
+                           const Nuclear::Parameters &nuc_params,
+                           double var_alpha)
+    : rgrid({gridparams}),
+      alpha(PhysConst::alpha * var_alpha),
+      m_nuclear(nuc_params),
+      vnuc(Nuclear::formPotential(nuc_params, rgrid.r)) {
+  if (alpha * m_nuclear.z > 1.0) {
+    std::cerr << "Alpha too large: Z*alpha=" << m_nuclear.z * alpha << "\n";
+    std::abort();
+  }
+}
+
+//******************************************************************************
+Wavefunction::Wavefunction(const Wavefunction &wf)
+    : Wavefunction(wf.rgrid.params(), wf.get_nuclearParameters(),
+                   wf.alpha / PhysConst::alpha) {
+  // NOTE: orbitals in new_wf point to OLD grid (wf.rgrid, not this->rgrid)
+  // new WF ONLY has orbitals, does not have HF/Sigma etc!
+  this->core = wf.core;
+  this->valence = wf.valence;
+  this->basis = wf.basis;
+  this->spectrum = wf.spectrum;
+  this->vnuc = wf.vnuc;
+  this->vdir = wf.vdir;
+  this->vrad = wf.vrad;
+  this->m_core_configs = wf.m_core_configs;
+  this->num_core_electrons = wf.num_core_electrons;
+  this->m_core_string = wf.m_core_string;
+}
 
 //******************************************************************************
 void Wavefunction::solveDirac(DiracSpinor &psi, double e_a,
@@ -38,8 +72,7 @@ void Wavefunction::solveDirac(DiracSpinor &psi, double e_a,
   } else if (psi.en == 0) {
     psi.en = enGuessVal(psi.n, psi.k);
   }
-  DiracODE::boundState(psi, psi.en, v_a, get_Hmag(psi.l()), m_alpha,
-                       log_dele_or);
+  DiracODE::boundState(psi, psi.en, v_a, get_Hmag(psi.l()), alpha, log_dele_or);
 }
 
 //------------------------------------------------------------------------------
@@ -61,14 +94,13 @@ void Wavefunction::determineCore(std::string str_core_in)
 //   Core of Gold: Xe 4f14 5d10
 // 'rest' is in form nLm : n=n, L=l, m=number of electrons in that nl shell.
 {
-
   // Check if integer; if so, V^N-M, '-M' is input integer.
   // Use 'guess' for core
   auto first_char = str_core_in.substr(0, 1);
   if (first_char == "0" || first_char == "-") {
     try {
       auto m = std::stoi(str_core_in);
-      str_core_in = AtomData::guessCoreConfigStr(m_Z + m);
+      str_core_in = AtomData::guessCoreConfigStr(m_nuclear.z + m);
     } catch (...) {
     }
   }
@@ -100,12 +132,12 @@ void Wavefunction::determineCore(std::string str_core_in)
     num_core_electrons += config.num;
   }
 
-  if (num_core_electrons > m_Z) {
+  if (num_core_electrons > m_nuclear.z) {
     std::cout << "Problem with core: " << str_core_in << "\n";
     std::cout << "= " << m_core_string << "\n";
     std::cout << "= " << AtomData::niceCoreOutput(m_core_string) << "\n";
     std::cout << "Too many electrons: N_core=" << num_core_electrons
-              << ", Z=" << m_Z << "\n";
+              << ", Z=" << m_nuclear.z << "\n";
     std::abort();
   }
 
@@ -142,7 +174,7 @@ void Wavefunction::hartreeFockValence(const std::string &in_valence_str,
   auto val_lst = AtomData::listOfStates_nk(in_valence_str);
   for (const auto &nk : val_lst) {
     if (!isInCore(nk.n, nk.k) && !isInValence(nk.n, nk.k))
-      valence_orbitals.emplace_back(DiracSpinor{nk.n, nk.k, rgrid});
+      valence.emplace_back(DiracSpinor{nk.n, nk.k, rgrid});
   }
   m_pHF->solveValence(print);
 }
@@ -165,14 +197,15 @@ void Wavefunction::radiativePotential(double x_simple, double x_Ueh,
     return;
   }
 
-  const auto r_rms_fm = scale_rN * m_nuc_params.r_rms;
+  const auto r_rms_fm = scale_rN * m_nuclear.r_rms;
 
   const bool print_xl = (x_spd.size() > 1 || x_spd.front() != 1.0);
 
-  const auto &Hel_tmp = RadiativePotential::form_Hel(
-      rgrid.r, x_simple, x_Ueh, x_SEe_h, x_SEe_l, r_rms_fm, m_Z, m_alpha, rcut);
-  const auto &Hmag_tmp = RadiativePotential::form_Hmag(rgrid.r, x_SEm, r_rms_fm,
-                                                       m_Z, m_alpha, rcut);
+  const auto &Hel_tmp =
+      RadiativePotential::form_Hel(rgrid.r, x_simple, x_Ueh, x_SEe_h, x_SEe_l,
+                                   r_rms_fm, m_nuclear.z, alpha, rcut);
+  const auto &Hmag_tmp = RadiativePotential::form_Hmag(
+      rgrid.r, x_SEm, r_rms_fm, m_nuclear.z, alpha, rcut);
 
   int l = 0;
   for (const auto &x_l : x_spd) {
@@ -189,59 +222,38 @@ void Wavefunction::radiativePotential(double x_simple, double x_Ueh,
 }
 
 //******************************************************************************
-bool Wavefunction::isInCore(int n, int k) const
-// Checks if given state is in the core.
-{
-  for (auto &phi : core_orbitals) {
-    if (n == phi.n && k == phi.k)
-      return true;
-  }
-  return false;
+bool Wavefunction::isInCore(int n, int k) const {
+  const auto find_nk = [n, k](const auto Fa) { return Fa.n == n && Fa.k == k; };
+  const auto Fnk = std::find_if(cbegin(core), cend(core), find_nk);
+  return Fnk != cend(core);
 }
-bool Wavefunction::isInCore(const DiracSpinor &phi) const {
-  return isInCore(phi.n, phi.k);
-}
-bool Wavefunction::isInValence(int n, int k) const
-// Checks if given state is in the valence list.
-{
-  for (auto &phi : valence_orbitals) {
-    if (n == phi.n && k == phi.k)
-      return true;
-  }
-  return false;
+//------------------------------------------------------------------------------
+bool Wavefunction::isInValence(int n, int k) const {
+  const auto find_nk = [n, k](const auto Fa) { return Fa.n == n && Fa.k == k; };
+  const auto Fnk = std::find_if(cbegin(valence), cend(valence), find_nk);
+  return Fnk != cend(valence);
 }
 
-//******************************************************************************
-std::size_t Wavefunction::getStateIndex(int n, int k, bool &is_valence) const {
-
-  is_valence = false;
-  for (const auto p_orbs : {&core_orbitals, &valence_orbitals}) {
-    std::size_t count = 0;
-    for (const auto &phi : *p_orbs) {
-      if (n == phi.n && k == phi.k)
-        return count;
-      ++count;
-    }
-    is_valence = true;
-  }
-  // std::cerr << "\nFAIL 290 in WF: Couldn't find state n,k=" << n << "," <<
-  // k
-  //           << "\n";
-  // // std::abort();
-  return std::max(core_orbitals.size(), valence_orbitals.size()); // invalid
-}
 //******************************************************************************
 const DiracSpinor *Wavefunction::getState(int n, int k,
-                                          bool &is_valence) const {
-  auto index = getStateIndex(n, k, is_valence);
-  if (is_valence) {
-    if (index < valence_orbitals.size())
-      return &valence_orbitals[index];
+                                          bool *is_valence) const {
+  const auto find_nk = [n, k](const auto Fa) { return Fa.n == n && Fa.k == k; };
+  // Try to find in core:
+  auto Fnk = std::find_if(cbegin(core), cend(core), find_nk);
+  if (Fnk != cend(core)) {
+    if (is_valence != nullptr)
+      *is_valence = false;
+    return &*Fnk;
   }
-  if (index < core_orbitals.size())
-    return &core_orbitals[index];
+  // If not in core, try to find in valence:
+  Fnk = std::find_if(cbegin(valence), cend(valence), find_nk);
+  if (Fnk != cend(valence)) {
+    if (is_valence != nullptr)
+      *is_valence = true;
+    return &*Fnk;
+  }
+  // otherwise, return nope
   return nullptr;
-  // XXX return POINTER!
 }
 
 //******************************************************************************
@@ -252,7 +264,7 @@ int Wavefunction::maxCore_n(int ka) const
 // Note: if you give it l instead of kappa, still works!
 {
   int max_n = 0;
-  for (const auto &phi : core_orbitals) {
+  for (const auto &phi : core) {
     if (phi.k != ka && ka != 0)
       continue;
     if (phi.n > max_n)
@@ -263,7 +275,7 @@ int Wavefunction::maxCore_n(int ka) const
 //******************************************************************************
 int Wavefunction::maxCore_l() const {
   int max_l = 0;
-  for (const auto &phi : core_orbitals) {
+  for (const auto &phi : core) {
     if (phi.l() > max_l)
       max_l = phi.l();
   }
@@ -277,10 +289,10 @@ void Wavefunction::solveInitialCore(const std::string &str_core,
 // Only for local potential (direct part)
 // HF/HartreeFockClass.cpp has routines for Hartree Fock
 {
-  if (!core_orbitals.empty()) {
+  if (!core.empty()) {
     std::cerr << "WARNING 254 in Wavefunction:solveInitialCore: States "
                  "already exist! "
-              << core_orbitals.size() << "\n";
+              << core.size() << "\n";
     return;
   }
 
@@ -295,17 +307,17 @@ void Wavefunction::solveInitialCore(const std::string &str_core,
     double en_a = enGuessCore(n, l);
     int k1 = l; // j = l-1/2
     if (k1 != 0) {
-      core_orbitals.emplace_back(DiracSpinor{n, k1, rgrid});
-      solveDirac(core_orbitals.back(), en_a, log_dele_or);
-      core_orbitals.back().occ_frac = double(num) / (4 * l + 2);
-      en_a = 0.95 * core_orbitals.back().en;
+      core.emplace_back(DiracSpinor{n, k1, rgrid});
+      solveDirac(core.back(), en_a, log_dele_or);
+      core.back().occ_frac = double(num) / (4 * l + 2);
+      en_a = 0.95 * core.back().en;
       if (en_a > 0)
         en_a = enGuessCore(n, l);
     }
     int k2 = -(l + 1); // j=l+1/2
-    core_orbitals.emplace_back(DiracSpinor{n, k2, rgrid});
-    solveDirac(core_orbitals.back(), en_a, log_dele_or);
-    core_orbitals.back().occ_frac = double(num) / (4 * l + 2);
+    core.emplace_back(DiracSpinor{n, k2, rgrid});
+    solveDirac(core.back(), en_a, log_dele_or);
+    core.back().occ_frac = double(num) / (4 * l + 2);
   }
 }
 
@@ -313,10 +325,10 @@ void Wavefunction::solveInitialCore(const std::string &str_core,
 void Wavefunction::solveNewValence(int n, int k, double en_a, int log_dele_or)
 // Update to take a list ok nken's ?
 {
-  valence_orbitals.emplace_back(DiracSpinor{n, k, rgrid});
+  valence.emplace_back(DiracSpinor{n, k, rgrid});
 
   // Solve local dirac Eq:
-  auto &psi = valence_orbitals.back();
+  auto &psi = valence.back();
   if (en_a == 0)
     en_a = enGuessVal(n, k);
   solveDirac(psi, en_a, log_dele_or);
@@ -401,9 +413,8 @@ void Wavefunction::orthonormaliseWrt(DiracSpinor &psi_v,
 //******************************************************************************
 std::tuple<double, double> Wavefunction::lminmax_core_range(int l,
                                                             double eps) const {
-
   std::vector<double> rho_l(rgrid.num_points);
-  for (const auto &Fc : core_orbitals) {
+  for (const auto &Fc : core) {
     if (Fc.l() == l)
       rho_l = NumCalc::add_vectors(rho_l, Fc.rho());
   }
@@ -437,7 +448,7 @@ double Wavefunction::enGuessCore(int n, int l) const
   }
 
   // effective Z (for energy guess) -- not perfect!
-  double Zeff = 1.0 + (m_Z - num_el_below - 0.5 * num_el_this);
+  double Zeff = 1.0 + (m_nuclear.z - num_el_below - 0.5 * num_el_this);
   if (Zeff < 1.0) {
     Zeff = 1.;
   }
@@ -465,7 +476,7 @@ double Wavefunction::enGuessVal(int n, int ka) const
   int dn = n - maxn;
   double neff = 1.0 + dn;
   double x = 1;
-  auto Z_eff = m_Z - num_core_electrons;
+  auto Z_eff = m_nuclear.z - num_core_electrons;
   if (maxn < 4)
     x = 0.25;
   if (l == 1)
@@ -481,10 +492,10 @@ double Wavefunction::enGuessVal(int n, int ka) const
 std::string Wavefunction::nuclearParams() const {
   std::ostringstream output;
 
-  auto rrms = m_nuc_params.r_rms;
-  auto t = m_nuc_params.t;
+  auto rrms = m_nuclear.r_rms;
+  auto t = m_nuclear.t;
 
-  switch (m_nuc_params.type) {
+  switch (m_nuclear.type) {
   case Nuclear::Type::point:
     output << "Point-like nucleus; ";
     break;
@@ -511,7 +522,6 @@ Wavefunction::sortedEnergyList(const std::vector<DiracSpinor> &tmp_orbs,
 // Outouts a list of integers corresponding to the states
 // sorted by energy (lowest energy first)
 {
-
   using DoubleInt = std::pair<double, std::size_t>;
   std::vector<DoubleInt> t_en;
   for (std::size_t i = 0; i < tmp_orbs.size(); i++) {
@@ -548,9 +558,9 @@ void Wavefunction::printCore(bool sorted) const
 
   std::cout
       << "     state   k   Rinf its   eps         En (au)        En (/cm)\n";
-  auto index_list = sortedEnergyList(core_orbitals, sorted);
+  auto index_list = sortedEnergyList(core, sorted);
   for (auto i : index_list) {
-    const auto &phi = core_orbitals[i];
+    const auto &phi = core[i];
     auto r_inf = rgrid.r[phi.pinf - 1]; // rinf(phi);
     printf("%2i) %7s %2i  %5.1f %2i  %5.0e %15.9f %15.3f", int(i),
            phi.symbol().c_str(), phi.k, r_inf, phi.its, phi.eps, phi.en,
@@ -570,7 +580,7 @@ void Wavefunction::printCore(bool sorted) const
 //******************************************************************************
 void Wavefunction::printValence(
     bool sorted, const std::vector<DiracSpinor> &in_orbitals) const {
-  auto tmp_orbs = (in_orbitals.empty()) ? valence_orbitals : in_orbitals;
+  auto tmp_orbs = (in_orbitals.empty()) ? valence : in_orbitals;
   if (tmp_orbs.empty())
     return;
 
@@ -596,38 +606,13 @@ void Wavefunction::printValence(
 }
 
 //******************************************************************************
-void Wavefunction::printBasis(bool sorted) const {
-
-  std::cout << "Basis: \n";
+void Wavefunction::printBasis(const std::vector<DiracSpinor> &the_basis,
+                              bool sorted) const {
   std::cout
       << "     State   k  R0     Rinf          En(Basis)         En(HF)\n";
-  auto index_list = sortedEnergyList(basis, sorted);
-  for (auto i : index_list) {
-    const auto &phi = basis[i];
-    auto r_0 = rgrid.r[phi.p0];
-    auto r_inf = rgrid.r[phi.pinf - 1];
-
-    const auto *hf_phi = getState(phi.n, phi.k);
-    if (hf_phi != nullptr) {
-      // found HF state
-      auto eps = 2.0 * (phi.en - hf_phi->en) / (phi.en + hf_phi->en);
-      printf("%2i) %7s %2i  %5.0e %5.1f %18.7f  %13.7f  %6.0e\n", int(i),
-             phi.symbol().c_str(), phi.k, r_0, r_inf, phi.en, hf_phi->en, eps);
-    } else {
-      printf("%2i) %7s %2i  %5.0e %5.1f %18.7f\n", int(i), phi.symbol().c_str(),
-             phi.k, r_0, r_inf, phi.en);
-    }
-  }
-}
-//------------------------------------------------------------------------------
-void Wavefunction::printSpectrum(bool sorted) const {
-
-  std::cout << "Spectrum: \n";
-  std::cout
-      << "     State   k  R0     Rinf          En(Spectr.)       En(HF)\n";
-  const auto index_list = sortedEnergyList(spectrum, sorted);
-  for (auto i : index_list) {
-    const auto &phi = spectrum[i];
+  const auto index_list = sortedEnergyList(the_basis, sorted);
+  for (const auto i : index_list) {
+    const auto &phi = the_basis[i];
     const auto r_0 = rgrid.r[phi.p0];
     const auto r_inf = rgrid.r[phi.pinf - 1];
 
@@ -645,43 +630,9 @@ void Wavefunction::printSpectrum(bool sorted) const {
 }
 
 //******************************************************************************
-std::vector<AtomData::DiracSEnken>
-Wavefunction::listOfStates_nk(int num_val, int la, int lb, bool skip_core) const
-// Creates a list of states (usually valence states to solve for)
-// In form {{n,ka},...}
-// Outputs n and l, from min-max l (or from 0-> max l)
-// Calulates num_val different n states (for each l)
-// This will be number of states above the core (skips states which are in the
-// core)
-{
-  std::vector<AtomData::DiracSEnken> lst;
-  auto l_min = la;
-  auto l_max = lb;
-  if (lb == 0) {
-    l_min = 0;
-    l_max = la;
-  }
-
-  auto min_ik = AtomData::indexFromKappa(-l_min - 1);
-  auto max_ik = AtomData::indexFromKappa(-l_max - 1);
-  for (int ik = min_ik; ik <= max_ik; ik++) {
-    auto k = AtomData::kappaFromIndex(ik);
-    auto l = AtomData::l_k(k);
-    auto n_min = l + 1;
-    for (int n = n_min, count = 0; count < num_val; n++) {
-      if (isInCore(n, k) && skip_core)
-        continue;
-      lst.emplace_back(n, k);
-      ++count;
-    }
-  }
-  return lst;
-}
-
-//******************************************************************************
 std::vector<double> Wavefunction::coreDensity() const {
   std::vector<double> rho(rgrid.num_points, 0.0);
-  for (const auto &phi : core_orbitals) {
+  for (const auto &phi : core) {
     auto f = double(phi.twoj() + 1) * phi.occ_frac;
     for (auto i = 0ul; i < rgrid.num_points; i++) {
       rho[i] += f * (phi.f[i] * phi.f[i] + phi.g[i] * phi.g[i]);
@@ -691,21 +642,44 @@ std::vector<double> Wavefunction::coreDensity() const {
 }
 
 //******************************************************************************
-void Wavefunction::formBasis(const std::string &states_str,
-                             const std::size_t n_spl, const std::size_t k_spl,
-                             const double r0_spl, const double r0_eps,
-                             const double rmax_spl, const bool positronQ) {
-  basis = SplineBasis::form_basis(states_str, n_spl, k_spl, r0_spl, r0_eps,
-                                  rmax_spl, *this, positronQ);
+void Wavefunction::formBasis(const IO::UserInputBlock &input) {
+  // XXX Is this the best way? Hard to call this function except with input
+  // block..?
+  const auto basis_ok =
+      input.checkBlock({"number", "order", "r0", "r0_eps", "rmax", "states",
+                        "print", "positron"});
+  const auto n_spl = input.get("number", 0ul);
+  const auto k_spl = input.get("order", 0ul);
+  const auto r0_spl = input.get("r0", 0.0);
+  const auto r0_eps = input.get("r0_eps", 0.0);
+  const auto rmax_spl = input.get("rmax", 0.0);
+  const auto basis_states = input.get<std::string>("states", "");
+  const auto positronQ = input.get("positron", false);
+  if (basis_ok && n_spl > 0) {
+    IO::ChronoTimer t("Basis");
+    basis = SplineBasis::form_basis(basis_states, n_spl, k_spl, r0_spl, r0_eps,
+                                    rmax_spl, *this, positronQ);
+  }
 }
 //------------------------------------------------------------------------------
-void Wavefunction::formSpectrum(const std::string &states_str,
-                                const std::size_t n_spl,
-                                const std::size_t k_spl, const double r0_spl,
-                                const double r0_eps, const double rmax_spl,
-                                const bool positronQ) {
-  spectrum = SplineBasis::form_basis(states_str, n_spl, k_spl, r0_spl, r0_eps,
-                                     rmax_spl, *this, positronQ, true);
+void Wavefunction::formSpectrum(const IO::UserInputBlock &input) {
+  const auto basis_ok =
+      input.checkBlock({"number", "order", "r0", "r0_eps", "rmax", "states",
+                        "print", "positron"});
+  const auto n_spl = input.get("number", 0ul);
+  const auto k_spl = input.get("order", 0ul);
+  const auto r0_spl = input.get("r0", 0.0);
+  const auto r0_eps = input.get("r0_eps", 0.0);
+  const auto rmax_spl = input.get("rmax", 0.0);
+  const auto basis_states = input.get<std::string>("states", "");
+  // const auto print_basisQ = input.get("print", false);
+  const auto positronQ = input.get("positron", false);
+  if (basis_ok && n_spl > 0) {
+    IO::ChronoTimer t("Spectrum");
+    spectrum =
+        SplineBasis::form_basis(basis_states, n_spl, k_spl, r0_spl, r0_eps,
+                                rmax_spl, *this, positronQ, true);
+  }
 }
 
 //******************************************************************************
@@ -713,14 +687,13 @@ void Wavefunction::formSigma(const int nmin_core, const bool form_matrix,
                              const int stride,
                              const std::vector<double> &lambdas,
                              const std::string &fname) {
-
   // Sort basis into core/exited parts, throwing away core states with n<nmin
-  std::vector<DiracSpinor> core;
+  std::vector<DiracSpinor> occupied;
   std::vector<DiracSpinor> excited;
   for (const auto &Fb : basis) {
-    if (isInCore(Fb) && Fb.n >= nmin_core)
-      core.push_back(Fb);
-    else if (!isInCore(Fb))
+    if (isInCore(Fb.n, Fb.k) && Fb.n >= nmin_core)
+      occupied.push_back(Fb);
+    else if (!isInCore(Fb.n, Fb.k))
       excited.push_back(Fb);
   }
 
@@ -728,18 +701,16 @@ void Wavefunction::formSigma(const int nmin_core, const bool form_matrix,
   std::vector<double> en_list_kappa{};
   if (form_matrix) {
     const auto max_ki =
-        std::max_element(cbegin(valence_orbitals), cend(valence_orbitals),
-                         DiracSpinor::comp_ki)
+        std::max_element(cbegin(valence), cend(valence), DiracSpinor::comp_ki)
             ->k_index();
     // for each kappa, find lowest valence (or basis) state energy:
     for (int ki = 0; ki <= max_ki; ki++) {
       const auto find_ki = [=](const auto &a) { return a.k_index() == ki; };
-      auto vki = std::find_if(cbegin(valence_orbitals), cend(valence_orbitals),
-                              find_ki);
-      if (vki == cend(valence_orbitals)) {
+      auto vki = std::find_if(cbegin(valence), cend(valence), find_ki);
+      if (vki == cend(valence)) {
         vki = std::find_if(cbegin(excited), cend(excited), find_ki);
       }
-      if (vki != cend(valence_orbitals) && vki != cend(excited)) {
+      if (vki != cend(valence) && vki != cend(excited)) {
         en_list_kappa.push_back(vki->en);
       } else {
         en_list_kappa.push_back(0.0);
@@ -748,7 +719,7 @@ void Wavefunction::formSigma(const int nmin_core, const bool form_matrix,
   }
   // Correlaion potential matrix:
   m_Sigma = std::make_unique<MBPT::CorrelationPotential>(
-      rgrid, core, excited, stride, en_list_kappa, fname);
+      rgrid, occupied, excited, stride, en_list_kappa, fname);
   m_Sigma->scale_Sigma(lambdas);
 }
 
@@ -768,11 +739,11 @@ void Wavefunction::fitSigma_hfBrueckner(
   std::cout << "\nFitting Sigma for lowest valence states:\n";
 
   std::vector<double> lambdas(fit_energies.size(), 1.0);
-  valence_orbitals.clear();
+  valence.clear();
   hartreeFockValence(valence_list, false);
-  const auto hf_val = valence_orbitals; // copy
+  const auto hf_val = valence; // copy
   for (int i = 0; true; i++) {
-    valence_orbitals.clear();
+    valence.clear();
     hartreeFockValence(valence_list, false);
     m_Sigma->scale_Sigma(lambdas);
     hartreeFockBrueckner(false);
@@ -783,9 +754,8 @@ void Wavefunction::fitSigma_hfBrueckner(
       auto e_exp = fit_energies[ki];
       auto l_0 = lambdas[ki];
       // find lowest valence state for this kappa
-      auto v_ki = std::find_if(cbegin(valence_orbitals), cend(valence_orbitals),
-                               match_ki);
-      if (v_ki == cend(valence_orbitals))
+      auto v_ki = std::find_if(cbegin(valence), cend(valence), match_ki);
+      if (v_ki == cend(valence))
         continue;
       const auto vhf_ki = std::find_if(cbegin(hf_val), cend(hf_val), match_ki);
       const auto ehf = vhf_ki->en;
@@ -809,7 +779,7 @@ void Wavefunction::fitSigma_hfBrueckner(
     std::cout << l << ", ";
   }
   std::cout << "\n";
-  valence_orbitals.clear();
+  valence.clear();
   hartreeFockValence(valence_list, false);
   m_Sigma->scale_Sigma(lambdas);
   hartreeFockBrueckner(true);
@@ -817,7 +787,6 @@ void Wavefunction::fitSigma_hfBrueckner(
 
 //******************************************************************************
 void Wavefunction::SOEnergyShift() {
-
   std::cout << "\nMBPT(2): Second-order valence energy shifts\n";
   std::cout << "and matrix elements <v|Sigma(2)|v>:\n";
 
@@ -829,7 +798,7 @@ void Wavefunction::SOEnergyShift() {
   double e0 = 0;
   std::cout << "state |  E(HF)      E(2)       <v|S2|v> |  E(HF+2)     E(HF+2) "
                "(cm^-1)\n";
-  for (const auto &v : valence_orbitals) {
+  for (const auto &v : valence) {
     const auto delta = (*m_Sigma)(v, v);
     const auto delta2 = v * (*m_Sigma)(v);
     const auto cm = PhysConst::Hartree_invcm;

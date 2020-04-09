@@ -152,7 +152,7 @@ int calculateK_nk(const Wavefunction &wf, std::size_t is, int max_L, double dE,
 // Zeff no longer works at main() level.
 {
   ContinuumOrbitals cntm(wf); // create cntm object [survives locally only]
-  auto &psi = wf.core_orbitals[is];
+  auto &psi = wf.core[is];
 
   int k = psi.k;   // wf.ka(is);
   int l = psi.l(); // wf.lorb(is);
@@ -160,7 +160,7 @@ int calculateK_nk(const Wavefunction &wf, std::size_t is, int max_L, double dE,
   int qsteps = (int)jLqr_f[0].size();
 
   // Calculate continuum wavefunctions
-  double ec = dE + wf.core_orbitals[is].en;
+  double ec = dE + wf.core[is].en;
   cntm.clear();
   int lc_max = l + max_L;
   int lc_min = l - max_L;
@@ -207,7 +207,7 @@ int calculateKpw_nk(const Wavefunction &wf, std::size_t nk, double dE,
 // Should be called once per initial state
 {
 
-  auto &psi = wf.core_orbitals[nk];
+  auto &psi = wf.core[nk];
 
   int twoj = psi.twoj(); // wf.twoj(nk);
 

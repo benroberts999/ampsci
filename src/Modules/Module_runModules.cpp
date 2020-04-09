@@ -77,26 +77,26 @@ void writeOrbitals(const IO::UserInputBlock &input, const Wavefunction &wf) {
   oname += ".txt";
   std::ofstream of(oname);
   of << "r ";
-  for (auto &psi : wf.core_orbitals)
+  for (auto &psi : wf.core)
     of << "\"" << psi.symbol(true) << "\" ";
-  for (auto &psi : wf.valence_orbitals)
+  for (auto &psi : wf.valence)
     of << "\"" << psi.symbol(true) << "\" ";
   of << "\n";
   of << "# f block\n";
   for (std::size_t i = 0; i < wf.rgrid.num_points; i++) {
     of << wf.rgrid.r[i] << " ";
-    for (auto &psi : wf.core_orbitals)
+    for (auto &psi : wf.core)
       of << psi.f[i] << " ";
-    for (auto &psi : wf.valence_orbitals)
+    for (auto &psi : wf.valence)
       of << psi.f[i] << " ";
     of << "\n";
   }
   of << "\n# g block\n";
   for (std::size_t i = 0; i < wf.rgrid.num_points; i++) {
     of << wf.rgrid.r[i] << " ";
-    for (auto &psi : wf.core_orbitals)
+    for (auto &psi : wf.core)
       of << psi.g[i] << " ";
-    for (auto &psi : wf.valence_orbitals)
+    for (auto &psi : wf.valence)
       of << psi.g[i] << " ";
     of << "\n";
   }

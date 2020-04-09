@@ -50,7 +50,7 @@ int main(int argc, char *argv[]) {
   const auto skint = input.get("Nucleus", "skin_t", -1.0);
 
   // Create wavefunction object
-  Wavefunction wf(atom_Z, {num_points, r0, rmax, b, grid_type, du_tmp},
+  Wavefunction wf({num_points, r0, rmax, b, grid_type, du_tmp},
                   {atom_Z, atom_A, nuc_type, rrms, skint}, var_alpha);
 
   std::cout << "\nRunning for " << wf.atom() << "\n"
@@ -168,7 +168,7 @@ int main(int argc, char *argv[]) {
     IO::ChronoTimer t("  val");
     wf.hartreeFockValence(valence_list);
     if (input.get("HartreeFock", "orthonormaliseValence", false))
-      wf.orthonormaliseOrbitals(wf.valence_orbitals, 2);
+      wf.orthonormaliseOrbitals(wf.valence, 2);
   }
 
   // Output Hartree Fock energies:
@@ -178,23 +178,10 @@ int main(int argc, char *argv[]) {
   wf.printValence(sorted);
 
   // Construct B-spline basis:
-  const auto basis_ok =
-      input.check("Basis", {"number", "order", "r0", "r0_eps", "rmax", "states",
-                            "print", "positron"});
-  const auto n_spl = input.get("Basis", "number", 0ul);
-  const auto k_spl = input.get("Basis", "order", 0ul);
-  const auto r0_spl = input.get("Basis", "r0", 0.0);
-  const auto r0_eps = input.get("Basis", "r0_eps", 0.0);
-  const auto rmax_spl = input.get("Basis", "rmax", 0.0);
-  const auto basis_states = input.get<std::string>("Basis", "states", "");
-  const auto print_basisQ = input.get("Basis", "print", false);
-  const auto positronQ = input.get("Basis", "positron", false);
-  if (n_spl > 0 && basis_ok) {
-    IO::ChronoTimer t("Basis");
-    wf.formBasis(basis_states, n_spl, k_spl, r0_spl, r0_eps, rmax_spl,
-                 positronQ);
-    if (print_basisQ)
-      wf.printBasis();
+  wf.formBasis(input.get("Basis"));
+  if (input.get("Basis", "print", false) && !wf.basis.empty()) {
+    std::cout << "Basis:\n";
+    wf.printBasis(wf.basis);
   }
 
   // Correlations: read in options
@@ -221,12 +208,12 @@ int main(int argc, char *argv[]) {
   }
 
   // Just energy shifts
-  if (!wf.valence_orbitals.empty() && do_energyShifts && Sigma_ok) {
+  if (!wf.valence.empty() && do_energyShifts && Sigma_ok) {
     IO::ChronoTimer t("de");
     wf.SOEnergyShift();
   }
   // Brueckner orbitals (optionally, fit Sigma to exp energies)
-  if (!wf.valence_orbitals.empty() && do_brueckner && Sigma_ok) {
+  if (!wf.valence.empty() && do_brueckner && Sigma_ok) {
     IO::ChronoTimer t("Br");
     if (!fit_energies.empty())
       wf.fitSigma_hfBrueckner(valence_list, fit_energies);
@@ -234,29 +221,16 @@ int main(int argc, char *argv[]) {
       wf.hartreeFockBrueckner();
   }
   // Print out info for new "Brueckner" valence orbitals:
-  if (!wf.valence_orbitals.empty() && do_brueckner && Sigma_ok) {
+  if (!wf.valence.empty() && do_brueckner && Sigma_ok) {
     std::cout << "\nBrueckner orbitals:\n";
     wf.printValence(sorted);
   }
 
   // Construct B-spline Spectrum:
-  const auto Spectrum_ok =
-      input.check("Spectrum", {"number", "order", "r0", "r0_eps", "rmax",
-                               "states", "print", "positron"});
-  const auto n_spec = input.get("Spectrum", "number", 0ul);
-  const auto k_spec = input.get("Spectrum", "order", 0ul);
-  const auto r0_spec = input.get("Spectrum", "r0", 0.0);
-  const auto r0_eps_spec = input.get("Spectrum", "r0_eps", 0.0);
-  const auto rmax_spec = input.get("Spectrum", "rmax", 0.0);
-  const auto spec_states = input.get<std::string>("Spectrum", "states", "");
-  const auto print_specQ = input.get("Spectrum", "print", false);
-  const auto positron_specQ = input.get("Spectrum", "positron", false);
-  if (n_spec > 0 && Spectrum_ok) {
-    IO::ChronoTimer t("Spectrum");
-    wf.formSpectrum(spec_states, n_spec, k_spec, r0_spec, r0_eps_spec,
-                    rmax_spec, positron_specQ);
-    if (print_specQ)
-      wf.printSpectrum();
+  wf.formSpectrum(input.get("Spectrum"));
+  if (input.get("Spectrum", "print", false) && !wf.spectrum.empty()) {
+    std::cout << "Spectrum:\n";
+    wf.printBasis(wf.spectrum);
   }
 
   // run each of the modules with the calculated wavefunctions

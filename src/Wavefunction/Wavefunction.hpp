@@ -13,8 +13,10 @@
 #include <string>
 #include <utility>
 #include <vector>
+namespace IO {
+class UserInputBlock;
+}
 
-static bool dummy_bool{};
 //******************************************************************************
 /*!
 @brief Stores Wavefunction (set of core+valence orbitals, grid etc.)
@@ -30,39 +32,31 @@ Note: cannot be copied. Hope to remedy this soon; would be nice.
 class Wavefunction {
 
 public:
-  template <typename T>
-  Wavefunction(T in_z, const GridParameters &gridparams,
-               const Nuclear::Parameters &nuc_params, double var_alpha = 1.0)
-      : rgrid({gridparams}),                                        //
-        m_alpha(PhysConst::alpha * var_alpha),                      //
-        m_Z(AtomData::get_z(in_z)),                                 //
-        m_A(nuc_params.a),                                          //
-        m_nuc_params(nuc_params),                                   //
-        vnuc(Nuclear::formPotential(nuc_params, m_Z, m_A, rgrid.r)) //
-  {
-    if (m_alpha * m_Z > 1.0) {
-      std::cerr << "Alpha too large: Z*alpha=" << m_Z * m_alpha << "\n";
-      std::abort();
-    }
-  }
+  Wavefunction(const GridParameters &gridparams,
+               const Nuclear::Parameters &nuc_params, double var_alpha = 1.0);
+
+  //! User-defined copy-constructore. Note: Does not copy HF or Sigma
+  Wavefunction(const Wavefunction &wf);
+  Wavefunction &operator=(const Wavefunction &) = delete;
+  ~Wavefunction() = default;
 
 public:
-  std::vector<DiracSpinor> core_orbitals{};
-  std::vector<DiracSpinor> valence_orbitals{};
+  //! "Frozen" Core orbitals
+  std::vector<DiracSpinor> core{};
+  //! Valence (single-particle) orbitals
+  std::vector<DiracSpinor> valence{};
   //! Basis, daigonalised over HF core. Used for MBPT
   std::vector<DiracSpinor> basis{};
-  //! Sprectrum: like basis, but includes Sigma.
+  //! Sprectrum: like basis, but includes Sigma (correlations).
   std::vector<DiracSpinor> spectrum{};
+  //! Radial grid
   const Grid rgrid;
+  //! Internal value for alpha (alpha = var_alpha * alpha_0, alpha_0=~1/137)
+  const double alpha;
 
 private:
-  const double m_alpha; // store internal value for alpha (allows variation)
-  const int m_Z, m_A;
-  const Nuclear::Parameters m_nuc_params;
+  const Nuclear::Parameters m_nuclear;
   std::unique_ptr<HF::HartreeFock> m_pHF{nullptr};
-
-public:
-  //! Sigma, correlation potential (2nd order)
   std::unique_ptr<MBPT::CorrelationPotential> m_Sigma{nullptr};
 
 public:
@@ -81,30 +75,30 @@ private:
 
 public: // const methods: "views" into WF object
   // Rule is: if function is single-line, define here. Else, in .cpp
-  double get_alpha() const { return m_alpha; }
-  int Znuc() const { return m_Z; }
-  int Anuc() const { return m_A; }
+  int Znuc() const { return m_nuclear.z; }
+  int Anuc() const { return m_nuclear.a; }
   //! Number of neutrons, A-Z
-  int Nnuc() const { return (m_A > m_Z) ? (m_A - m_Z) : 0; }
+  int Nnuc() const {
+    return (m_nuclear.a > m_nuclear.z) ? (m_nuclear.a - m_nuclear.z) : 0;
+  }
   //! Number of electrons in the core
   int Ncore() const { return num_core_electrons; }
-  const Nuclear::Parameters &get_nuclearParameters() const {
-    return m_nuc_params;
-  }
+  const Nuclear::Parameters &get_nuclearParameters() const { return m_nuclear; }
   bool exclude_exchangeQ() const {
     if (m_pHF == nullptr)
       return true;
     return m_pHF->excludeExchangeQ();
   }
 
-  // Kill this (used once?)
-  std::size_t getStateIndex(int n, int k, bool &is_valence = dummy_bool) const;
+  //! Returns ptr to (const) Correlation Potential, Sigma
+  const MBPT::CorrelationPotential *getSigma() const { return m_Sigma.get(); }
+  //! Returns ptr to (const) Hartree Fock (class)
+  const HF::HartreeFock *getHF() const { return m_pHF.get(); }
 
   //! Finds requested state; returns nullptr if not found
   //! @details is_valence is optional out-parameter; tells you where orb was
   //! found
-  const DiracSpinor *getState(int n, int k,
-                              bool &is_valence = dummy_bool) const;
+  const DiracSpinor *getState(int n, int k, bool *is_valence = nullptr) const;
 
   //! Returns full core configuration
   std::string coreConfiguration() const { return m_core_string; }
@@ -115,34 +109,37 @@ public: // const methods: "views" into WF object
   //! Outputs screen-friendly nuclear parameters
   std::string nuclearParams() const;
 
-  //! Returns string of atom info (Z, A)
+  //! String of atom info (e.g., "Cs, Z=55, A=133")
   std::string atom() const {
-    return AtomData::atomicSymbol(m_Z) + ", Z=" + std::to_string(m_Z) +
-           " A=" + std::to_string(m_A);
+    return AtomData::atomicSymbol(m_nuclear.z) +
+           ", Z=" + std::to_string(m_nuclear.z) +
+           " A=" + std::to_string(m_nuclear.a);
   }
   //! e.g., "Cs"
-  std::string atomicSymbol() const { return AtomData::atomicSymbol(m_Z); }
+  std::string atomicSymbol() const {
+    return AtomData::atomicSymbol(m_nuclear.z);
+  }
 
   //! Prints table of core orbitals + energies etc. Optionally sorted by energy
   void printCore(bool sorted = true) const;
-
   //! @brief Prints table of valence orbitals + energies etc. Optionally sorted
   //! by energy
   //! @details Can optionally give it any list of orbitals to print
   void printValence(bool sorted = true,
                     const std::vector<DiracSpinor> &tmp_orbitals = {}) const;
-  //! Prints table of Basis orbitals, compares to HF orbitals
-  void printBasis(bool sorted = false) const;
-  void printSpectrum(bool sorted = false) const;
+  //! Prints table of Basis/Spectrum orbitals, compares to HF orbitals
+  void printBasis(const std::vector<DiracSpinor> &the_basis,
+                  bool sorted = false) const;
+
   bool isInCore(int n, int k) const;
   bool isInValence(int n, int k) const;
-  bool isInCore(const DiracSpinor &phi) const; // kill this one
-  //! Largest n for core states
+
+  //! Largest n for core states (optional: for given kappa, otherwise overall)
   int maxCore_n(int ka_in = 0) const;
   //! Largest l for core states
   int maxCore_l() const;
 
-  //! Calculated rho(r) = sum_c psi^2(r) for core states
+  //! Calculates rho(r) = sum_c psi^2(r) for core states, c={n,k,m}
   std::vector<double> coreDensity() const;
 
   //! Performs hartree-Fock procedure for core: note: poplulates core
@@ -169,16 +166,10 @@ public: // const methods: "views" into WF object
                           double scale_rN, const std::vector<double> &x_spd);
 
   //! Calculates + populates basis [see BSplineBasis]
-  void formBasis(const std::string &states_str, const std::size_t n_spl,
-                 const std::size_t k_spl, const double r0_spl,
-                 const double r0_eps, const double rmax_spl,
-                 const bool positronQ = false);
+  void formBasis(const IO::UserInputBlock &input);
 
   //! Calculates + populates Spectrum [see BSplineBasis]
-  void formSpectrum(const std::string &states_str, const std::size_t n_spl,
-                    const std::size_t k_spl, const double r0_spl,
-                    const double r0_eps, const double rmax_spl,
-                    const bool positronQ = false);
+  void formSpectrum(const IO::UserInputBlock &input);
 
   //! Forms + stores correlation potential Sigma
   void formSigma(const int nmin_core = 1, const bool form_matrix = true,
@@ -196,12 +187,13 @@ public: // const methods: "views" into WF object
   //! Adds new valence orbtial (+solves using vdir)
   void solveNewValence(int n, int k, double en_a = 0, int log_dele_or = 0);
 
-  //! energy guess for a core state with n,l; quite rough
+  //! energy guess for a core state with n,l; quite rough, but good enough
   double enGuessCore(int n, int l) const;
   //! energy guess for a valence state with n,l
   double enGuessVal(int n, int ka) const;
 
   //! (approximately) OrthoNormalises a set of any orbitals.
+  //! @details Note: only updates orbs, not energies
   static void orthonormaliseOrbitals(std::vector<DiracSpinor> &in_orbs,
                                      int num_its = 1);
   //! (exactly) OrthoNormalises psi_v against of any orbitals.
@@ -225,9 +217,6 @@ public: // const methods: "views" into WF object
 
 private:
   void determineCore(std::string str_core_in);
-  // not static, since skip_core. Make static version??
-  std::vector<AtomData::DiracSEnken>
-  listOfStates_nk(int num_val, int la, int lb = 0, bool skip_core = true) const;
   static std::vector<std::size_t>
   sortedEnergyList(const std::vector<DiracSpinor> &tmp_orbs,
                    bool do_sort = false);

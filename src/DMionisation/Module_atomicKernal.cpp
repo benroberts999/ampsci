@@ -102,7 +102,7 @@ void atomicKernal(const IO::UserInputBlock &input, const Wavefunction &wf) {
 
   // Output HF results:
   std::cout << "  state   k     En (au)    En (eV)   Oc.Frac.\n";
-  for (const auto &phi : wf.core_orbitals) {
+  for (const auto &phi : wf.core) {
     // double rinf = wf.rinf(phi);
     // printf("%2i)%7s %2i  %3.0f %3i  %5.0e  %11.5f %12.0f %10.2f   (%.2f)\n",
     //        i++, phi.symbol().c_str(), phi.k, rinf, phi.its, phi.eps, phi.en,
@@ -118,15 +118,15 @@ void atomicKernal(const IO::UserInputBlock &input, const Wavefunction &wf) {
 
   // Arrays to store results for outputting later:
   std::vector<std::vector<std::vector<float>>> AK; // float ok?
-  int num_states = (int)wf.core_orbitals.size();
+  int num_states = (int)wf.core.size();
   AK.resize(desteps, std::vector<std::vector<float>>(
                          num_states, std::vector<float>(qsteps)));
 
   // Store state info (each orbital) [just useful for plotting!]
   std::vector<std::string> nklst; // human-readiable state labels (easy
                                   // plotting)
-  nklst.reserve(wf.core_orbitals.size());
-  for (auto &phi : wf.core_orbitals)
+  nklst.reserve(wf.core.size());
+  for (auto &phi : wf.core)
     nklst.emplace_back(phi.symbol(true));
 
   // pre-calculate the spherical Bessel function look-up table for efficiency
@@ -150,8 +150,8 @@ void atomicKernal(const IO::UserInputBlock &input, const Wavefunction &wf) {
     double dE = Egrid.r[ide];
     // Loop over core (bound) states:
     // for (auto is : wf.stateIndexList) {
-    for (std::size_t is = 0; is < wf.core_orbitals.size(); is++) {
-      int l = wf.core_orbitals[is].l(); // lorb(is);
+    for (std::size_t is = 0; is < wf.core.size(); is++) {
+      int l = wf.core[is].l(); // lorb(is);
       if (l > max_l)
         continue;
       if (plane_wave)

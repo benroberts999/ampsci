@@ -37,14 +37,12 @@ std::string parseType(Type type) {
 
 //******************************************************************************
 Parameters::Parameters(int in_z, int in_a, const std::string &str_type,
-                       double in_rrms,
-                       double in_t)
-    : z(in_z),                                      //
-      a((in_a < 0) ? AtomData::defaultA(z) : in_a), //
-      type(parseType(str_type)),                    //
-      t(in_t <= 0 ? approximate_t_skin(a) : in_t),  //
-      r_rms(in_rrms)                                //
-{
+                       double in_rrms, double in_t)
+    : z(in_z),
+      a((in_a < 0) ? AtomData::defaultA(z) : in_a),
+      type(parseType(str_type)),
+      t(in_t <= 0 ? approximate_t_skin(a) : in_t),
+      r_rms(in_rrms) {
   if (r_rms < 0) {
     r_rms = find_rrms(z, a);
     if (r_rms <= 0)
@@ -54,18 +52,21 @@ Parameters::Parameters(int in_z, int in_a, const std::string &str_type,
 //------------
 Parameters::Parameters(const std::string &z_str, int in_a,
                        const std::string &str_type, double in_rrms, double in_t)
-    : z(AtomData::get_z(z_str)),                    //
-      a((in_a < 0) ? AtomData::defaultA(z) : in_a), //
-      type(parseType(str_type)),                    //
-      t(in_t <= 0 ? approximate_t_skin(a) : in_t),  //
-      r_rms(in_rrms)                                //
-{
+    : z(AtomData::get_z(z_str)),
+      a((in_a < 0) ? AtomData::defaultA(z) : in_a),
+      type(parseType(str_type)),
+      t(in_t <= 0 ? approximate_t_skin(a) : in_t),
+      r_rms(in_rrms) {
   if (r_rms < 0) {
     r_rms = find_rrms(z, a);
     if (r_rms <= 0)
       r_rms = approximate_r_rms(a);
   }
 }
+
+// //******************************************************************************
+// AtomicZ::AtomicZ(const std::string &inZ) : z(AtomData::get_z(inZ)) {}
+// AtomicZ::AtomicZ(const int inZ) : z(inZ) {}
 
 //******************************************************************************
 std::vector<double> sphericalNuclearPotential(double Z, double rnuc,
@@ -172,8 +173,9 @@ std::vector<double> fermiNuclearDensity_tcN(double t, double c, double Z_norm,
 }
 
 //******************************************************************************
-std::vector<double> formPotential(Parameters params, int z, int,
+std::vector<double> formPotential(Parameters params,
                                   const std::vector<double> &r) {
+  const auto z = params.z;
   const auto nucleus_type = params.type;
   const auto r_rms = params.r_rms;
   const auto t = params.t;

@@ -11,7 +11,7 @@
 
 //******************************************************************************
 ContinuumOrbitals::ContinuumOrbitals(const Wavefunction &wf, int izion)
-    : p_rgrid(&wf.rgrid), Z(wf.Znuc()), Zion(izion), alpha(wf.get_alpha())
+    : p_rgrid(&wf.rgrid), Z(wf.Znuc()), Zion(izion), alpha(wf.alpha)
 // Initialise object:
 //  * Copies grid and potential info, since these must always match bound
 //  states!

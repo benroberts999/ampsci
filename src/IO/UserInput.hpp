@@ -77,6 +77,7 @@ public:
 private:
   std::string m_filename;
   std::vector<UserInputBlock> m_blocks = {};
+  UserInputBlock m_empty_block{"", {}};
 };
 
 //******************************************************************************

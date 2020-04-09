@@ -25,8 +25,12 @@ private:
 
 public:
   RadialHamiltonian(const Grid &rgrid, const double in_alpha)
-      : m_gr(&rgrid), m_alpha(in_alpha), m_c(1.0 / m_alpha), m_c2(m_c * m_c),
-        m_Vk({}), m_v_mag({}) {}
+      : m_gr(&rgrid),
+        m_alpha(in_alpha),
+        m_c(1.0 / m_alpha),
+        m_c2(m_c * m_c),
+        m_Vk({}),
+        m_v_mag({}) {}
 
   RadialHamiltonian &operator=(const RadialHamiltonian &) = delete;
   RadialHamiltonian(const RadialHamiltonian &) = default;
@@ -51,7 +55,7 @@ public:
     return (m_Vk.size() < ki + 1) ? m_Vk.back() : m_Vk[ki];
   }
   const std::vector<double> &get_v_mag() const { return m_v_mag; }
-  double get_alpha() const { return m_alpha; }
+  double getAlpha() const { return m_alpha; }
 
   // d_r F = (c00, c01)F
   //         (c10, c11)
