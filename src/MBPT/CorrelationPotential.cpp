@@ -204,6 +204,12 @@ void CorrelationPotential::form_Sigma(const std::vector<double> &en_list,
   std::cout << "Forming correlation potential for:\n";
   for (auto ki = 0ul; ki < en_list.size(); ki++) {
     const auto kappa = Angular::kappaFromIndex(int(ki));
+
+    // if v.kappa > basis, then Ck angular factor won't exist!
+    auto tj = Angular::twojFromIndex(int(ki));
+    if (tj > m_yec.Ck().max_tj())
+      continue;
+
     printf(" k=%2i %6s at en=%8.5f.. ", kappa,
            AtomData::kappa_symbol(kappa).c_str(), en_list[ki]);
     std::cout << std::flush;
@@ -322,6 +328,10 @@ double CorrelationPotential::Sigma2vw(const DiracSpinor &v,
 
   const auto &Ck = m_yec.Ck();
 
+  // if v.kappa > basis, then Ck angular factor won't exist!
+  if (v.twoj() > Ck.max_tj())
+    return 0.0;
+
   std::vector<double> delta_a(m_core.size());
 #pragma omp parallel for
   for (auto ia = 0ul; ia < m_core.size(); ia++) {
@@ -338,24 +348,28 @@ double CorrelationPotential::Sigma2vw(const DiracSpinor &v,
 
         // Diagrams (a) [direct] and (b) [exchange]
         for (const auto &m : m_excited) {
-          const auto Qk = Coulomb::Qk_abcd(v, a, m, n, k, yknb, Ck);
-          if (Qk == 0.0)
+          const auto Qkv = Coulomb::Qk_abcd(v, a, m, n, k, yknb, Ck);
+          if (Qkv == 0.0)
             continue;
+          const auto Qkw =
+              (&v == &w) ? Qkv : Coulomb::Qk_abcd(w, a, m, n, k, yknb, Ck);
           const auto &ybm = m_yec.get_y_ab(m, a);
-          const auto Pk = Coulomb::Pk_abcd(v, a, m, n, k, ybm, Ck, m_6j);
+          const auto Pkw = Coulomb::Pk_abcd(w, a, m, n, k, ybm, Ck, m_6j);
           const auto dele = v.en + a.en - m.en - n.en;
-          del_a += ((1.0 / dele / f_kkjj) * (Qk + Pk)) * Qk;
+          del_a += ((1.0 / dele / f_kkjj) * (Qkw + Pkw)) * Qkv;
         } // m
 
         // Diagrams (c) [direct] and (d) [exchange]
         for (const auto &b : m_core) {
-          const auto Qk = Coulomb::Qk_abcd(v, n, b, a, k, yknb, Ck);
-          if (Qk == 0.0)
+          const auto Qkv = Coulomb::Qk_abcd(v, n, b, a, k, yknb, Ck);
+          if (Qkv == 0.0)
             continue;
+          const auto Qkw =
+              (&v == &w) ? Qkv : Coulomb::Qk_abcd(w, n, b, a, k, yknb, Ck);
           const auto &yna = m_yec.get_y_ab(n, b);
-          const auto Pk = Coulomb::Pk_abcd(v, n, b, a, k, yna, Ck, m_6j);
+          const auto Pkw = Coulomb::Pk_abcd(w, n, b, a, k, yna, Ck, m_6j);
           const auto dele = v.en + n.en - b.en - a.en;
-          del_a += ((1.0 / dele / f_kkjj) * (Qk + Pk)) * Qk;
+          del_a += ((1.0 / dele / f_kkjj) * (Qkw + Pkw)) * Qkv;
         } // b
 
       } // k
