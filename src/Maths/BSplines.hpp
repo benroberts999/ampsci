@@ -5,6 +5,7 @@
 #include <fstream>
 #include <gsl/gsl_bspline.h>
 #include <iostream>
+#include <numeric>
 #include <utility>
 
 //! @brief Uses GSL to generate set of B-splines and their derivatives
@@ -16,20 +17,22 @@ public:
   //! n is number of spines, k is order. r0/rmax are first/last internal knots
   BSplines(std::size_t in_n, std::size_t in_k, const Grid &in_grid,
            double in_r0, double in_rmax)
-      : m_number_n(in_n),      //
-        m_order_k(in_k),       //
-        m_rgrid_ptr(&in_grid), //
+      : m_number_n(in_n),
+        m_order_k(in_k),
+        m_rgrid_ptr(&in_grid),
         // min_index must be at least 1
-        m_rmin_index(in_grid.getIndex(in_r0) + 1), //
+        m_rmin_index(in_grid.getIndex(in_r0) + 1),
         // max_index must be at least 2 below num_points
         m_rmax_index(in_rmax <= 0.0 ? in_grid.num_points - 2
-                                    : in_grid.getIndex(in_rmax) - 1) //
-  {
-    if (in_n != 0 && (in_k > in_n || in_k == 0)) {
+                                    : in_grid.getIndex(in_rmax) - 1) {
+    if (in_n != 0 && (in_k > in_n || in_k < 2)) {
       std::cerr << "Fail 24 in BSplines: k>n ? " << m_order_k << " "
                 << m_number_n << "\n";
       std::abort();
     }
+
+    construct_splines_gsl();
+
     if (verbose) {
       std::cout << "B-splines: " << m_number_n << " of order " << m_order_k
                 << ". " << GridParameters::parseType(m_rgrid_ptr->gridtype)
@@ -37,10 +40,9 @@ public:
       std::cout << m_rgrid_ptr->r[m_rmin_index] << ","
                 << m_rgrid_ptr->r[m_rmax_index] << "=[";
       std::cout << m_rmin_index << "," << m_rmax_index << "]\n";
+      print_knots();
+      write_splines();
     }
-    construct_splines_gsl();
-    // print_knots();
-    // write_splines();
   }
 
   BSplines &operator=(const BSplines &) = delete; // copy assignment
@@ -57,7 +59,9 @@ private: // data
   const std::size_t m_number_n;
   const std::size_t m_order_k;
   const Grid *const m_rgrid_ptr;
+  // m_rmin_index: must be at least 1
   const std::size_t m_rmin_index;
+  // Must be at least 2 below grid.num_points (inclusive + must have 1 past end)
   const std::size_t m_rmax_index; // inclusive
 
   gsl_bspline_workspace *gsl_bspl_work = nullptr;
@@ -150,34 +154,30 @@ public:
 
   //****************************************************************************
   void print_knots() const {
-    // Actually 'break points', not knots...?
-    {
-      std::cout << "Break points:\n ";
-      int n_rows_to_print = 9;
-      int count = 0;
-      for (const auto &t : m_breaks) {
-        printf("%.1e ", t);
-        ++count;
-        if (count % n_rows_to_print == 0)
-          std::cout << "\n ";
-      }
-      if (count % n_rows_to_print != 0)
-        std::cout << "\n";
+
+    std::cout << "Break points:\n ";
+    int n_rows_to_print = 9;
+    int count = 0;
+    for (const auto &t : m_breaks) {
+      printf("%.1e ", t);
+      ++count;
+      if (count % n_rows_to_print == 0)
+        std::cout << "\n ";
     }
-    {
-      std::cout << "Knots:\n ";
-      int n_rows_to_print = 9;
-      int count = 0;
-      while (count < int(m_number_n + m_order_k)) {
-        auto t = gsl_bspl_work->knots->data[count];
-        printf("%.1e ", t);
-        ++count;
-        if (count % n_rows_to_print == 0)
-          std::cout << "\n ";
-      }
-      if (count % n_rows_to_print != 0)
-        std::cout << "\n";
+    if (count % n_rows_to_print != 0)
+      std::cout << "\n";
+
+    std::cout << "Knots:\n ";
+    count = 0;
+    while (count < int(m_number_n + m_order_k)) {
+      auto t = gsl_bspl_work->knots->data[count];
+      printf("%.1e ", t);
+      ++count;
+      if (count % n_rows_to_print == 0)
+        std::cout << "\n ";
     }
+    if (count % n_rows_to_print != 0)
+      std::cout << "\n";
   }
 
   //****************************************************************************
@@ -196,6 +196,7 @@ private:
 
     gsl_bspl_work = gsl_bspline_alloc(m_order_k, nbreak);
     gsl_bspl_vec = gsl_vector_alloc(m_number_n);
+    // brakpoints are "internal" knots
     m_breaks = break_points(nbreak);
 
     gsl_breakpts_vec = gsl_vector_alloc(nbreak);
@@ -207,23 +208,28 @@ private:
 
   //----------------------------------------------------------------------------
   std::vector<double> break_points(std::size_t nbreaks) const {
+    // Breakpoints: (0, r0, ..., rmax)
+    // knots are the same, but have k-fold "multiplicity" at the ends
     std::vector<double> breaks;
-    breaks.push_back(0.0);
 
-    // Set breakpoints logarithically - breaks don't align with grid
-    auto r0 = m_rgrid_ptr->r[m_rmin_index];
-    auto rmax = m_rgrid_ptr->r[m_rmax_index + 1]; // one more, ensure in range
-    auto points = NumCalc::logarithmic_range(r0, rmax, nbreaks - 1);
+    // Set breakpoints according to grid (align exactly w/ grid points)
+    // Go 1 past beg/end, to ensure f_spl(r) is in spline interp. region
+    auto points =
+        NumCalc::even_range(m_rmin_index - 1, m_rmax_index + 1, nbreaks - 1);
+    breaks.reserve(points.size());
+    breaks.push_back(0.0);
     for (auto p : points) {
-      breaks.push_back(p);
+      breaks.push_back(m_rgrid_ptr->r[p]);
     }
 
-    // // Set breakpoints according to grid (line exactly w/ points)
-    // auto points =
-    //     NumCalc::even_range(m_rmin_index - 1, m_rmax_index + 1, nbreaks - 1);
-    // for (auto p : points) {
-    //   breaks.push_back(m_rgrid_ptr->r[p]);
-    // }
+    // Ensure there are at least k grid points between knots:
+    std::adjacent_difference(points.begin(), points.end(), points.begin());
+    const auto min = *std::min_element(points.begin() + 2, points.end());
+    if (min <= m_order_k) {
+      std::cerr
+          << "\nWARNING 233 in BSplines: not enough points between knots for k="
+          << m_order_k << ", " << min << "\n";
+    }
 
     return breaks;
   }
@@ -242,8 +248,7 @@ private:
       auto r = m_rgrid_ptr->r[ir];
       gsl_bspline_eval(r, gsl_bspl_vec, gsl_bspl_work);
       for (std::size_t j = 0; j < m_number_n; ++j) {
-        double Bj = gsl_vector_get(gsl_bspl_vec, j);
-        m_Bk[j][ir] = Bj;
+        m_Bk[j][ir] = gsl_vector_get(gsl_bspl_vec, j);
       }
     }
   }

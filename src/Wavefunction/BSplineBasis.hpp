@@ -89,8 +89,11 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
                         const Wavefunction &wf,
                         const bool correlationsQ = false);
 
-//! @brief Expands basis orbitals in terms of spline orbitals, by diagonalising
-//! Hamiltonian
+void add_NotreDameBoundary(LinAlg::SqMatrix *Aij, const int kappa,
+                           const double alpha);
+
+//! @brief Expands basis orbitals in terms of spline orbitals, by
+//! diagonalising Hamiltonian
 void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
                            std::vector<DiracSpinor> *basis_positron,
                            const std::vector<DiracSpinor> &spl_basis,

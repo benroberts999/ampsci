@@ -75,7 +75,11 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
     if (l_tmp < l) {
       // For l's that arn't in core, make r0 20% larger (per delta l) ?? XXX
       r0_eff *= 1.0 + 0.20 * (l - l_tmp);
+      const auto r0_min = l <= 1 ? 1.0e-4 : l <= 3 ? 1.0e-3 : 1.0e-2; // ?
+      r0_eff = std::max(r0_eff, r0_min);
     }
+
+    // r0_eff = l <= 1 ? 1.0e-4 : l <= 3 ? 1.0e-3 : 1.0e-2; // Notre-Dame XXX
 
     const auto spl_basis = form_spline_basis(kappa, n_spl, k, r0_eff, rmax_spl,
                                              wf.rgrid, wf.alpha);
@@ -131,6 +135,10 @@ form_spline_basis(const int kappa, const std::size_t n_states,
   const auto n_spl = n_states + imin;
   const auto imax = n_spl - 1;
 
+  // const std::size_t imin = 1; // static_cast<std::size_t>(std::abs(kappa));
+  // const auto n_spl = n_states + imin;
+  // const auto imax = n_spl;
+
   // uses sepperate B-splines for each partial wave! OK?
   BSplines bspl(n_spl, k_spl, rgrid, r0_spl, rmax_spl);
   bspl.derivitate();
@@ -141,8 +149,8 @@ form_spline_basis(const int kappa, const std::size_t n_states,
     auto &phi = basis.emplace_back(0, kappa, rgrid);
 
     const auto &Bi = bspl.get_spline(i);
-    const auto &dBi = bspl.get_spline_deriv(i);
     phi.f = Bi;
+    const auto &dBi = bspl.get_spline_deriv(i);
     auto gtmp = NumCalc::mult_vectors(rgrid.rpow(-1), Bi);
     NumCalc::scaleVec(gtmp, double(kappa));
     phi.g = NumCalc::add_vectors(dBi, gtmp);
@@ -151,14 +159,15 @@ form_spline_basis(const int kappa, const std::size_t n_states,
     auto [p0, pinf] = bspl.get_ends(i);
     phi.pinf = pinf;
     phi.p0 = p0;
+    phi.normalise(1.0);
   }
 
   for (auto i = imin; i < imax; i++) {
     auto &phi = basis.emplace_back(0, kappa, rgrid);
 
     const auto &Bi = bspl.get_spline(i);
-    const auto &dBi = bspl.get_spline_deriv(i);
     phi.g = Bi;
+    const auto &dBi = bspl.get_spline_deriv(i);
     auto ftmp = NumCalc::mult_vectors(rgrid.rpow(-1), Bi);
     NumCalc::scaleVec(ftmp, double(-kappa));
     phi.f = NumCalc::add_vectors(dBi, ftmp);
@@ -167,6 +176,7 @@ form_spline_basis(const int kappa, const std::size_t n_states,
     auto [p0, pinf] = bspl.get_ends(i);
     phi.pinf = pinf;
     phi.p0 = p0;
+    phi.normalise(1.0);
   }
 
   return basis;
@@ -193,7 +203,7 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
   Hd.set_v_mag(wf.get_Hmag(0));   // Magnetic QED form-factor [usually empty]
 
 #pragma omp parallel for
-  for (auto i = 0; i < (int)spl_basis.size(); i++) {
+  for (auto i = 0; i < Aij.n; i++) {
     const auto &si = spl_basis[i];
     const auto VexSi = excl_exch ? 0.0 * si : HF::vex_psia_any(si, wf.core);
     const auto SigmaSi = sigmaQ ? (*wf.getSigma())(si) : 0.0 * si;
@@ -201,24 +211,45 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
     for (auto j = 0; j <= i; j++) {
       const auto &sj = spl_basis[j];
 
-      auto aij = Hd.matrixEl(si, sj); // + si * VexSi + si * SigmaSi;
+      auto aij = Hd.matrixEl(sj, si);
       if (!excl_exch)
         aij += (sj * VexSi);
       if (sigmaQ)
         aij += (sj * SigmaSi);
 
       Aij[i][j] = aij;
-      Sij[i][j] = si * sj;
+      Sij[i][j] = sj * si;
     }
   }
-  for (auto i = 0; i < (int)spl_basis.size(); i++) {
-    for (auto j = i + 1; j < (int)spl_basis.size(); j++) {
+  // Fill second-half of symmetric matrix
+  for (auto i = 0; i < Aij.n; i++) {
+    for (auto j = i + 1; j < Aij.n; j++) {
       Aij[i][j] = Aij[j][i];
       Sij[i][j] = Sij[j][i];
     }
   }
-  // Aij.make_symmetric(); // very slight asymmetry from exchange pot.
+
+  // add_NotreDameBoundary(&Aij, spl_basis.front().k, wf.alpha);
+
   return A_and_S;
+}
+
+//******************************************************************************
+void add_NotreDameBoundary(LinAlg::SqMatrix *pAij, const int kappa,
+                           const double alpha) {
+  auto &Aij = *pAij;
+  const auto n2 = Aij.n;
+  const auto n1 = n2 / 2;
+  const auto c = 1.0 / alpha;
+  // r=0 boundary conds
+  Aij[0][0] += (kappa < 0) ? c : 2.0 * c * c;
+  Aij[0][n1] += 0.5;
+  Aij[n1][0] -= 0.5;
+  // f(rmax)=g(rmax)
+  Aij[n1 - 1][n1 - 1] += 0.5 * c;
+  Aij[n1 - 1][n2 - 1] -= 0.5;
+  Aij[n2 - 1][n1 - 1] += 0.5;
+  Aij[n2 - 1][n2 - 1] -= 0.5 * alpha;
 }
 
 //******************************************************************************
@@ -241,25 +272,26 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
   for (int i = 0; i < e_values.n; i++) {
     const auto &en = e_values[i];
     const auto &pvec = e_vectors[i];
-    if (en > neg_mc2) {
-      if (++pqn > max_n)
-        continue;
-    } else {
-      if (--pqn_pstrn < -max_n)
-        continue;
-    }
-    auto &phi = (en > neg_mc2)
+    const auto positive_energy = en > neg_mc2;
+    positive_energy ? ++pqn : --pqn_pstrn;
+
+    if ((positive_energy && pqn > max_n) ||
+        (!positive_energy && pqn_pstrn < -max_n))
+      continue;
+
+    auto &phi = (positive_energy)
                     ? basis->emplace_back(pqn, kappa, wf.rgrid)
                     : basis_positron->emplace_back(pqn_pstrn, kappa, wf.rgrid);
     phi.en = en;
-    phi.p0 = spl_basis[0].p0;
-    phi.pinf = spl_basis[0].pinf;
+    phi.p0 = spl_basis[0].pinf; // yes, backwards (updated below)
+    phi.pinf = spl_basis[0].p0;
     for (std::size_t ib = 0; ib < spl_basis.size(); ++ib) {
+      // if (std::abs(pvec[ib]) < 1.0e-8) {
+      //   continue;
+      // }
       phi += pvec[ib] * spl_basis[ib];
     }
-    // In some cases, first point causes issues? Unlcear
-    phi.f[phi.p0] = 0.0;
-    phi.g[phi.p0] = 0.0;
+    // Note: they are not even roughly normalised...I think they should be??
     phi.normalise();
   }
 }
