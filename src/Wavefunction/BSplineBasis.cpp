@@ -18,6 +18,13 @@
 
 namespace SplineBasis {
 
+// plot
+// for [i=2:6] "Cs_core.txt" u 1:i every :::0::0 w l lc i lw 2 t
+// columnheader(i), for [i=2:6] "Cs_basis.txt" u 1:i every :::0::0 w l dt 0 lc i
+// notitle
+
+static constexpr bool ND_type = false;
+
 //******************************************************************************
 Parameters::Parameters(IO::UserInputBlock input)
     : states(input.get<std::string>("states", "")),
@@ -79,7 +86,8 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
       r0_eff = std::max(r0_eff, r0_min);
     }
 
-    // r0_eff = l <= 1 ? 1.0e-4 : l <= 3 ? 1.0e-3 : 1.0e-2; // Notre-Dame XXX
+    if (ND_type)
+      r0_eff = l <= 1 ? 1.0e-4 : l <= 3 ? 1.0e-3 : 1.0e-2; // Notre-Dame XXX
 
     const auto spl_basis = form_spline_basis(kappa, n_spl, k, r0_eff, rmax_spl,
                                              wf.rgrid, wf.alpha);
@@ -131,30 +139,44 @@ form_spline_basis(const int kappa, const std::size_t n_states,
 // Forms the "base" basis of B-splines (DKB/Reno Method)
 {
   //
-  const auto imin = static_cast<std::size_t>(std::abs(kappa));
-  const auto n_spl = n_states + imin;
-  const auto imax = n_spl - 1;
+  auto imin = static_cast<std::size_t>(std::abs(kappa));
+  auto n_spl = n_states + imin;
+  auto imax = n_spl - 1;
 
-  // const std::size_t imin = 1; // static_cast<std::size_t>(std::abs(kappa));
-  // const auto n_spl = n_states + imin;
-  // const auto imax = n_spl;
+  if (ND_type) {
+    imin = 1; // XXX
+    n_spl = n_states + imin;
+    imax = n_spl;
+  }
 
   // uses sepperate B-splines for each partial wave! OK?
   BSplines bspl(n_spl, k_spl, rgrid, r0_spl, rmax_spl);
   bspl.derivitate();
 
   std::vector<DiracSpinor> basis;
+  basis.reserve(2 * imax);
 
   for (auto i = imin; i < imax; i++) {
     auto &phi = basis.emplace_back(0, kappa, rgrid);
 
     const auto &Bi = bspl.get_spline(i);
-    phi.f = Bi;
     const auto &dBi = bspl.get_spline_deriv(i);
-    auto gtmp = NumCalc::mult_vectors(rgrid.rpow(-1), Bi);
-    NumCalc::scaleVec(gtmp, double(kappa));
-    phi.g = NumCalc::add_vectors(dBi, gtmp);
-    NumCalc::scaleVec(phi.g, 0.5 * alpha);
+    phi.f = Bi;
+    if (!ND_type) {
+      auto gtmp = NumCalc::mult_vectors(rgrid.rpow(-1), Bi);
+      NumCalc::scaleVec(gtmp, double(kappa));
+      phi.g = NumCalc::add_vectors(dBi, gtmp);
+      NumCalc::scaleVec(phi.g, 0.5 * alpha);
+    }
+
+    // phi.df = dBi;
+    // auto bor2 = NumCalc::mult_vectors(rgrid.rpow(-2), Bi);
+    // auto dbor = NumCalc::mult_vectors(rgrid.rpow(-1), dBi);
+    // NumCalc::scaleVec(bor2, -double(kappa));
+    // NumCalc::scaleVec(dbor, double(kappa));
+    // const auto &d2Bi = bspl.get_spline_deriv2(i);
+    // phi.dg = NumCalc::add_vectors(bor2, dbor, d2Bi);
+    // NumCalc::scaleVec(phi.dg, 0.5 * alpha);
 
     auto [p0, pinf] = bspl.get_ends(i);
     phi.pinf = pinf;
@@ -166,12 +188,23 @@ form_spline_basis(const int kappa, const std::size_t n_states,
     auto &phi = basis.emplace_back(0, kappa, rgrid);
 
     const auto &Bi = bspl.get_spline(i);
-    phi.g = Bi;
     const auto &dBi = bspl.get_spline_deriv(i);
-    auto ftmp = NumCalc::mult_vectors(rgrid.rpow(-1), Bi);
-    NumCalc::scaleVec(ftmp, double(-kappa));
-    phi.f = NumCalc::add_vectors(dBi, ftmp);
-    NumCalc::scaleVec(phi.f, 0.5 * alpha);
+    phi.g = Bi;
+    if (!ND_type) {
+      auto ftmp = NumCalc::mult_vectors(rgrid.rpow(-1), Bi);
+      NumCalc::scaleVec(ftmp, double(-kappa));
+      phi.f = NumCalc::add_vectors(dBi, ftmp);
+      NumCalc::scaleVec(phi.f, 0.5 * alpha);
+    }
+
+    // phi.dg = dBi;
+    // auto bor2 = NumCalc::mult_vectors(rgrid.rpow(-2), Bi);
+    // auto dbor = NumCalc::mult_vectors(rgrid.rpow(-1), dBi);
+    // NumCalc::scaleVec(bor2, double(kappa));
+    // NumCalc::scaleVec(dbor, -double(kappa));
+    // const auto &d2Bi = bspl.get_spline_deriv2(i);
+    // phi.df = NumCalc::add_vectors(bor2, dbor, d2Bi);
+    // NumCalc::scaleVec(phi.df, 0.5 * alpha);
 
     auto [p0, pinf] = bspl.get_ends(i);
     phi.pinf = pinf;
@@ -209,6 +242,7 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
     const auto SigmaSi = sigmaQ ? (*wf.getSigma())(si) : 0.0 * si;
 
     for (auto j = 0; j <= i; j++) {
+      // for (auto j = 0; j < Aij.n; j++) {
       const auto &sj = spl_basis[j];
 
       auto aij = Hd.matrixEl(sj, si);
@@ -228,8 +262,9 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
       Sij[i][j] = Sij[j][i];
     }
   }
-
-  // add_NotreDameBoundary(&Aij, spl_basis.front().k, wf.alpha);
+  // Aij.make_symmetric();
+  if (ND_type)
+    add_NotreDameBoundary(&Aij, spl_basis.front().k, wf.alpha);
 
   return A_and_S;
 }
@@ -242,14 +277,15 @@ void add_NotreDameBoundary(LinAlg::SqMatrix *pAij, const int kappa,
   const auto n1 = n2 / 2;
   const auto c = 1.0 / alpha;
   // r=0 boundary conds
-  Aij[0][0] += (kappa < 0) ? c : 2.0 * c * c;
-  Aij[0][n1] += 0.5;
-  Aij[n1][0] -= 0.5;
+  Aij[0][0] += (kappa < 0) ? c * c : 2.0 * c * c * c;
+  Aij[0][n1] += 0.5 * c;
+  Aij[n1][0] -= 0.5 * c;
   // f(rmax)=g(rmax)
   Aij[n1 - 1][n1 - 1] += 0.5 * c;
   Aij[n1 - 1][n2 - 1] -= 0.5;
   Aij[n2 - 1][n1 - 1] += 0.5;
-  Aij[n2 - 1][n2 - 1] -= 0.5 * alpha;
+  // Aij[n2 - 1][n2 - 1] -= 0.5 * alpha; //?
+  Aij[n2 - 1][n2 - 1] -= 0.5 * c;
 }
 
 //******************************************************************************
@@ -285,15 +321,23 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
     phi.en = en;
     phi.p0 = spl_basis[0].pinf; // yes, backwards (updated below)
     phi.pinf = spl_basis[0].p0;
+    auto sign = pvec[0] > 0 ? 1 : -1; // mostly, but not completely, works
     for (std::size_t ib = 0; ib < spl_basis.size(); ++ib) {
-      // if (std::abs(pvec[ib]) < 1.0e-8) {
-      //   continue;
-      // }
-      phi += pvec[ib] * spl_basis[ib];
+      phi += sign * pvec[ib] * spl_basis[ib];
     }
     // Note: they are not even roughly normalised...I think they should be??
+    // std::cout << phi.symbol() << " " << phi.norm() << "\n";
     phi.normalise();
   }
+
+  // ensure correct sign (doesn't seem to matter.., but nicer)
+  const auto ir = wf.rgrid.getIndex(0.005);
+  for (auto &Fb : *basis) {
+    if (Fb.f[ir] < 0)
+      Fb *= -1;
+  }
+
+  // std::cin.get();
 }
 
 } // namespace SplineBasis

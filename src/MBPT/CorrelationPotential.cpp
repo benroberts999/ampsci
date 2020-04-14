@@ -99,8 +99,10 @@ CorrelationPotential::CorrelationPotential(
 void CorrelationPotential::setup_subGrid() {
   // Form the "Sigma sub-grid"
   const auto &rvec = p_gr->r;
-  const double rmin = m_core.empty() ? 1.0e-4 : m_core.front().r0();
-  const double rmax = m_core.empty() ? 30.0 : m_core.front().rinf();
+  // const double rmin = m_core.empty() ? 1.0e-4 : m_core.front().r0();
+  // const double rmax = m_core.empty() ? 30.0 : m_core.front().rinf();
+  const double rmin = 1.0e-4;
+  const double rmax = 30.0;
 
   imin = 0;
   for (auto i = 0; i < (int)rvec.size(); i += stride) {

@@ -52,21 +52,6 @@ int countNodes(const DiracSpinor &Fn)
 //------------------------------------------------------------------------------
 void basisTests(const Wavefunction &wf) {
 
-  // if (!wf.basis.empty())
-  //   std::cout << "\nTest hfs using basis (pointlike):\n";
-  // for (const auto &phi : wf.basis) {
-  //   auto Abasis = Hyperfine::hfsA(hp.get(), phi);
-  //   // auto Abasis = hp.get()->radialIntegral(phi, phi);
-  //   printf("%7s: %12.5e ", phi.symbol().c_str(), Abasis);
-  //   const auto *hf_phi = wf.getState(phi.n, phi.k);
-  //   if (hf_phi != nullptr) {
-  //     auto Ahf = Hyperfine::hfsA(hp.get(), *hf_phi);
-  //     auto delta = 2.0 * (Abasis - Ahf) / (Abasis + Ahf);
-  //     printf(" %12.5e  %8.1e", Ahf, delta);
-  //   }
-  //   std::cout << "\n";
-  // }
-
   std::cout << "\nTesting basis/spectrum (sum rules):\n";
   std::cout << "(Must include +ve energy states.)\n";
 
@@ -85,63 +70,70 @@ void basisTests(const Wavefunction &wf) {
   auto comp_l = [](const auto &Fa, const auto &Fb) { return Fa.l() < Fb.l(); };
   auto max_l = std::max_element(basis.begin(), basis.end(), comp_l)->l();
 
+  // check to see if there are any negative-energy states:
+  const bool negative_statesQ = std::any_of(
+      basis.cbegin(), basis.cend(), [](const auto &Fa) { return Fa.n < 0; });
+
   //----------------------------------------------------------------------------
-  std::cout << "\nTKR sum rule (should =0)\n";
-  {
-    const auto &Fa = basis.front();
-    for (int l = 0; l <= max_l; l++) {
-      auto sum_el = 0.0;
-      auto sum_p = 0.0;
-      for (const auto &Fn : basis) {
-        if (Fn == Fa)
-          continue;
-        const auto f = (Fn.k == l) ? l : (Fn.k == -l - 1) ? l + 1 : 0;
-        if (f == 0)
-          continue;
-        const auto Ran = Fa * (wf.rgrid.r * Fn);
-        const auto term = f * (Fn.en - Fa.en) * Ran * Ran / (2 * l + 1);
-        if (Fn.n > 0)
-          sum_el += term;
-        else
-          sum_p += term;
+  if (negative_statesQ) {
+    std::cout << "\nTKR sum rule (should =0)\n";
+    {
+      const auto &Fa = basis.front();
+      for (int l = 0; l <= max_l; l++) {
+        auto sum_el = 0.0;
+        auto sum_p = 0.0;
+        for (const auto &Fn : basis) {
+          if (Fn == Fa)
+            continue;
+          const auto f = (Fn.k == l) ? l : (Fn.k == -l - 1) ? l + 1 : 0;
+          if (f == 0)
+            continue;
+          const auto Ran = Fa * (wf.rgrid.r * Fn);
+          const auto term = f * (Fn.en - Fa.en) * Ran * Ran / (2 * l + 1);
+          if (Fn.n > 0)
+            sum_el += term;
+          else
+            sum_p += term;
+        }
+        printf("l=%1i, sum = %10.6f%+10.6f = %8.1e\n", l, sum_el, sum_p,
+               sum_el + sum_p);
       }
-      printf("l=%1i, sum = %10.6f%+10.6f = %8.1e\n", l, sum_el, sum_p,
-             sum_el + sum_p);
     }
-  }
 
-  //----------------------------------------------------------------------------
-  std::cout << "\nDrake-Goldman sum rules: w^n |<a|r|b>|^2  (n=0,1,2)\n";
-  std::cout << "(Only up to lmax-1, since need to have states with l'=l+1)\n";
+    //----------------------------------------------------------------------------
+    std::cout << "\nDrake-Goldman sum rules: w^n |<a|r|b>|^2  (n=0,1,2)\n";
+    std::cout << "(Only up to lmax-1, since need to have states with l'=l+1)\n";
 
-  auto comp_ki = [](const auto &Fm, const auto &Fn) {
-    return Fm.k_index() < Fn.k_index();
-  };
-  auto max_ki =
-      std::max_element(basis.begin(), basis.end(), comp_ki)->k_index();
-  int n_max_DG = 3; // wf.core.empty() ? 3 : 1;
-  for (int ki = 0; ki <= max_ki; ki++) {
-    auto kappa = Angular::kappaFromIndex(ki);
-    auto comp_k = [=](const auto &Fn) { return Fn.k == kappa; };
-    auto Fa = *std::find_if(basis.begin(), basis.end(), comp_k);
-    // need to have l_n = la+1 terms, or sum doesn't work:
-    if (Fa.l() == max_l)
-      continue;
-    std::cout << "kappa: " << kappa << " (" << Fa.symbol() << ")\n";
-    for (int i = 0; i < n_max_DG; i++) {
-      auto sum = 0.0;
-      for (const auto &Fn : basis) {
-        auto w = Fn.en - Fa.en;
-        auto Ran = rhat.reducedME(Fa, Fn);
-        double c = 1.0 / (2 * std::abs(Fa.k));
-        auto term = std::pow(w, i) * Ran * Ran * c;
-        sum += term;
+    auto comp_ki = [](const auto &Fm, const auto &Fn) {
+      return Fm.k_index() < Fn.k_index();
+    };
+    auto max_ki =
+        std::max_element(basis.begin(), basis.end(), comp_ki)->k_index();
+    int n_max_DG = 3; // wf.core.empty() ? 3 : 1;
+    for (int ki = 0; ki <= max_ki; ki++) {
+      auto kappa = Angular::kappaFromIndex(ki);
+      auto comp_k = [=](const auto &Fn) { return Fn.k == kappa; };
+      auto Fa = *std::find_if(basis.begin(), basis.end(), comp_k);
+      // need to have l_n = la+1 terms, or sum doesn't work:
+      if (Fa.l() == max_l)
+        continue;
+      std::cout << "kappa: " << kappa << " (" << Fa.symbol() << ")\n";
+      for (int i = 0; i < n_max_DG; i++) {
+        auto sum = 0.0;
+        for (const auto &Fn : basis) {
+          auto w = Fn.en - Fa.en;
+          auto Ran = rhat.reducedME(Fa, Fn);
+          double c = 1.0 / (2 * std::abs(Fa.k));
+          auto term = std::pow(w, i) * Ran * Ran * c;
+          sum += term;
+        }
+        if (i == 2)
+          sum *= wf.alpha * wf.alpha / 3;
+        auto s0 =
+            (i == 0) ? r2hat.radialIntegral(Fa, Fa) : (i == 1) ? 0.0 : 1.0;
+        printf("%i: sum=%11.6f, exact=%+11.6f, diff = %8.1e\n", i, sum, s0,
+               sum - s0);
       }
-      if (i == 2)
-        sum *= wf.alpha * wf.alpha / 3;
-      auto s0 = (i == 0) ? r2hat.radialIntegral(Fa, Fa) : (i == 1) ? 0.0 : 1.0;
-      printf("%i: sum=%11.6f, exact=%+11.6f, diff = %8.1e\n", i, sum, s0,
-             sum - s0);
     }
   }
 
@@ -219,15 +211,13 @@ void Module_Tests_orthonormality(const Wavefunction &wf, const bool print_all) {
 
     const auto &tmp_basis = i < 6 ? wf.basis : wf.spectrum;
 
-    const auto &tmp_b = (i == 2 || i == 4 || i == 7)
-                            ? wf.valence
-                            : (i == 0 || i == 1 || i == 3 || i == 6)
-                                  ? wf.core
-                                  : tmp_basis;
+    const auto &tmp_b =
+        (i == 2 || i == 4 || i == 7)
+            ? wf.valence
+            : (i == 0 || i == 1 || i == 3 || i == 6) ? wf.core : tmp_basis;
     // core, core, valence, core, valence, basis
 
-    const auto &tmp_a =
-        (i == 0) ? wf.core : (i < 3) ? wf.valence : tmp_basis;
+    const auto &tmp_a = (i == 0) ? wf.core : (i < 3) ? wf.valence : tmp_basis;
     // core, valence, valence, basis, basis
 
     if (tmp_b.empty() || tmp_a.empty())
@@ -282,9 +272,13 @@ void Module_Tests_orthonormality(const Wavefunction &wf, const bool print_all) {
       std::cout << "\n";
     }
     for (auto &psi_a : tmp_a) {
+      if (psi_a.n < 0)
+        continue;
       if (print_all)
         printf("%2i%2i", psi_a.n, psi_a.k);
       for (auto &psi_b : tmp_b) {
+        if (psi_b.n < 0)
+          continue;
         if (psi_b > psi_a && (&tmp_b == &tmp_a)) {
           if (print_all)
             std::cout << "    ";
@@ -337,8 +331,7 @@ void Module_Tests_Hamiltonian(const Wavefunction &wf) {
 
   const auto &basis = wf.spectrum.empty() ? wf.basis : wf.spectrum;
 
-  for (const auto tmp_orbs :
-       {&wf.core, &wf.valence, &basis}) {
+  for (const auto tmp_orbs : {&wf.core, &wf.valence, &basis}) {
     if (tmp_orbs->empty())
       continue;
     double worst_eps = 0.0;
@@ -347,7 +340,10 @@ void Module_Tests_Hamiltonian(const Wavefunction &wf) {
       double Haa_d = Hd.matrixEl(psi, psi);
       double Haa_x = psi * HF::vex_psia_any(psi, wf.core);
       auto Haa = Haa_d + Haa_x;
-      if (!wf.isInCore(psi.n, psi.k) && wf.getSigma() != nullptr) {
+      // if (!wf.isInCore(psi.n, psi.k) && wf.getSigma() != nullptr) {
+      //   Haa += psi * (*wf.getSigma())(psi);
+      // }
+      if (tmp_orbs != &wf.core && wf.getSigma() != nullptr) {
         Haa += psi * (*wf.getSigma())(psi);
       }
       double ens = psi.en;

@@ -13,16 +13,20 @@ constexpr bool update_pinf = true; // for psi += psi'
 
 //******************************************************************************
 DiracSpinor::DiracSpinor(int in_n, int in_k, const Grid &rgrid)
-    : p_rgrid(&rgrid),                               //
-      n(in_n), k(in_k), en(0.0),                     //
+    : p_rgrid(&rgrid), //
+      n(in_n),
+      k(in_k),
+      en(0.0),                                       //
       f(std::vector<double>(rgrid.num_points, 0.0)), //
       g(f),                                          //
       p0(0),                                         //
       pinf(rgrid.num_points),                        //
-      its(-1), eps(-1), occ_frac(0),                 //
-      m_twoj(AtomData::twoj_k(in_k)),                //
-      m_l(AtomData::l_k(in_k)),                      //
-      m_parity(AtomData::parity_k(in_k)),            //
+      its(-1),
+      eps(-1),
+      occ_frac(0),                        //
+      m_twoj(AtomData::twoj_k(in_k)),     //
+      m_l(AtomData::l_k(in_k)),           //
+      m_parity(AtomData::parity_k(in_k)), //
       m_k_index(AtomData::indexFromKappa(in_k)) {}
 
 //******************************************************************************
@@ -61,6 +65,12 @@ const DiracSpinor &DiracSpinor::scale(const double factor) {
     f[i] = 0;
     g[i] = 0;
   }
+  // if (!df.empty()) {
+  //   for (std::size_t i = p0; i < pinf; ++i) {
+  //     df[i] *= factor;
+  //     dg[i] *= factor;
+  //   }
+  // }
   return *this;
 }
 //------------------------------------------------------------------------------
@@ -69,6 +79,12 @@ const DiracSpinor &DiracSpinor::scale(const std::vector<double> &v) {
     f[i] *= v[i];
     g[i] *= v[i];
   }
+  // if (!df.empty()) {
+  //   for (std::size_t i = p0; i < pinf; ++i) {
+  //     df[i] *= v[i];
+  //     dg[i] *= v[i];
+  //   }
+  // }
   return *this;
 }
 
@@ -130,6 +146,12 @@ DiracSpinor &DiracSpinor::operator+=(const DiracSpinor &rhs) {
     f[i] += rhs.f[i];
   for (std::size_t i = imin; i < imax; i++)
     g[i] += rhs.g[i];
+  // if (!df.empty() && !rhs.df.empty()) { // XXX Dangerous?
+  //   for (std::size_t i = imin; i < imax; ++i) {
+  //     df[i] += rhs.df[i];
+  //     dg[i] += rhs.dg[i];
+  //   }
+  // }
   return *this;
 }
 DiracSpinor operator+(DiracSpinor lhs, const DiracSpinor &rhs) {
@@ -153,6 +175,12 @@ DiracSpinor &DiracSpinor::operator-=(const DiracSpinor &rhs) {
     f[i] -= rhs.f[i];
   for (std::size_t i = imin; i < imax; i++)
     g[i] -= rhs.g[i];
+  // if (!df.empty() && !rhs.df.empty()) { // XXX Dangerous?
+  //   for (std::size_t i = imin; i < imax; ++i) {
+  //     df[i] -= rhs.df[i];
+  //     dg[i] -= rhs.dg[i];
+  //   }
+  // }
   return *this;
 }
 DiracSpinor operator-(DiracSpinor lhs, const DiracSpinor &rhs) {

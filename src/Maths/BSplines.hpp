@@ -99,38 +99,6 @@ public:
     return m_ends[n]; // add bounds-check?
   }
 
-  //! Calculates + stores 1st and 2nd order derivatives
-  void derivitate() {
-
-    auto n_max_deriv = 2ul;
-
-    m_dBkdr1.clear();
-    m_dBkdr1.resize(m_number_n);
-    for (auto &dBkdr : m_dBkdr1) {
-      dBkdr.resize(m_rgrid_ptr->num_points);
-    }
-    m_dBkdr2 = m_dBkdr1;
-
-    gsl_bspl_deriv_mat = gsl_matrix_alloc(m_number_n, n_max_deriv + 1);
-    for (std::size_t ir = 0; ir < m_rgrid_ptr->num_points; ++ir) {
-      if (ir < m_rmin_index || ir > m_rmax_index)
-        continue;
-      auto r = m_rgrid_ptr->r[ir];
-
-      gsl_bspline_deriv_eval(r, n_max_deriv, gsl_bspl_deriv_mat, gsl_bspl_work);
-
-      for (std::size_t j = 0; j < m_number_n; ++j) {
-        double Bj = gsl_matrix_get(gsl_bspl_deriv_mat, j, 1);
-        m_dBkdr1[j][ir] = Bj;
-      }
-
-      for (std::size_t j = 0; j < m_number_n; ++j) {
-        double Bj = gsl_matrix_get(gsl_bspl_deriv_mat, j, 2);
-        m_dBkdr2[j][ir] = Bj;
-      }
-    }
-  }
-
   //****************************************************************************
   //! Writes splines to text file
   void write_splines(const std::string &ofname = "Bspl.txt",
@@ -223,6 +191,7 @@ private:
     }
 
     // Ensure there are at least k grid points between knots:
+    // First point may be less than k points from r0
     std::adjacent_difference(points.begin(), points.end(), points.begin());
     const auto min = *std::min_element(points.begin() + 2, points.end());
     if (min <= m_order_k) {
@@ -244,6 +213,7 @@ private:
 
     for (std::size_t ir = 0; ir < m_rgrid_ptr->num_points; ++ir) {
       if (ir < m_rmin_index || ir > m_rmax_index)
+        // if (ir > m_rmax_index)
         continue;
       auto r = m_rgrid_ptr->r[ir];
       gsl_bspline_eval(r, gsl_bspl_vec, gsl_bspl_work);
@@ -253,6 +223,39 @@ private:
     }
   }
 
+public:
+  //----------------------------------------------------------------------------
+  //! Calculates + stores 1st and 2nd order derivatives
+  void derivitate() {
+
+    const auto n_max_deriv = 2ul;
+
+    m_dBkdr1.clear();
+    m_dBkdr1.resize(m_number_n);
+    for (auto &dBkdr : m_dBkdr1) {
+      dBkdr.resize(m_rgrid_ptr->num_points);
+    }
+    m_dBkdr2 = m_dBkdr1;
+
+    gsl_bspl_deriv_mat = gsl_matrix_alloc(m_number_n, n_max_deriv + 1);
+    for (std::size_t ir = 0; ir < m_rgrid_ptr->num_points; ++ir) {
+      if (ir < m_rmin_index || ir > m_rmax_index)
+        // if (ir > m_rmax_index)
+        continue;
+      auto r = m_rgrid_ptr->r[ir];
+
+      gsl_bspline_deriv_eval(r, n_max_deriv, gsl_bspl_deriv_mat, gsl_bspl_work);
+
+      for (std::size_t j = 0; j < m_number_n; ++j) {
+        m_dBkdr1[j][ir] = gsl_matrix_get(gsl_bspl_deriv_mat, j, 1);
+      }
+      for (std::size_t j = 0; j < m_number_n; ++j) {
+        m_dBkdr2[j][ir] = gsl_matrix_get(gsl_bspl_deriv_mat, j, 2);
+      }
+    }
+  }
+
+private:
   //----------------------------------------------------------------------------
   void set_end_points() {
     // stores first/last non-zero points

@@ -58,6 +58,8 @@ public:
   std::size_t p0;
   //! `practical infinity': pinf is last non-zero point for f(r)
   std::size_t pinf;
+  // //! derivitates (often just empty)
+  // std::vector<double> df{}, dg{};
 
   //! Number of iterations until energy convergence (for latest routine only)
   int its;
