@@ -69,6 +69,9 @@ public:
   std::string name() const override {
     return std::string("E") + std::to_string(m_k);
   }
+  std::string units() const override {
+    return std::string("aB^") + std::to_string(m_k);
+  }
 
 private:
   int m_k;
@@ -327,31 +330,17 @@ FERMI / femptometers].
 */
 class PNCnsi final : public ScalarOperator {
 public:
-  PNCnsi(double c, double t, const Grid &rgrid, double factor = 1)
+  PNCnsi(double c, double t, const Grid &rgrid, double factor = 1,
+         const std::string &in_units = "iQw*e-11")
       : ScalarOperator(Parity::odd, factor * PhysConst::GFe11 / std::sqrt(8.0),
                        Nuclear::fermiNuclearDensity_tcN(t, c, 1, rgrid),
-                       {0, 1, -1, 0}, 0, Realness::imaginary) {}
+                       {0, 1, -1, 0}, 0, Realness::imaginary),
+        m_unit(in_units) {}
   std::string name() const override { return "pnc-nsi"; }
-  std::string units() const override { return "Qw*e-11"; } // XXX often wrong !
+  std::string units() const override { return m_unit; }
+
+private:
+  const std::string m_unit{"iQw*e-11"};
 };
-// class PNCnsi final : public TensorOperator {
-// public:
-//   PNCnsi(double c, double t, const Grid &rgrid, double factor = 1)
-//       : TensorOperator(0, Parity::odd,
-//                        factor * PhysConst::GFe11 / std::sqrt(8.0),
-//                        Nuclear::fermiNuclearDensity_tcN(t, c, 1, rgrid), 0,
-//                        Realness::imaginary) {}
-//   std::string name() const override { return "pnc-nsi"; }
-//   std::string units() const override { return "Qw*e-11"; } // XXX often
-//   wrong! double angularF(const int ka, const int) const override {
-//     return std::sqrt(2.0 * std::abs(ka)); //|ka|=|kb|, else zero
-//   }
-//
-// private:
-//   virtual double angularCff(int, int) const override { return 0; }
-//   virtual double angularCgg(int, int) const override { return 0; }
-//   virtual double angularCfg(int, int) const override { return 1.0; }
-//   virtual double angularCgf(int, int) const override { return -1.0; }
-// };
 
 } // namespace DiracOperator

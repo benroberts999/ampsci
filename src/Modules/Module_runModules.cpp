@@ -15,20 +15,21 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <vector>
 
 namespace Module {
 
 static const std::vector<
     std::pair<std::string, void (*)(const IO::UserInputBlock &input,
                                     const Wavefunction &wf)>>
-    module_list = {{"Tests", &Module_tests},
-                   {"WriteOrbitals", &writeOrbitals},
-                   {"AtomicKernal", &atomicKernal},
-                   {"FitParametric", &fitParametric},
-                   {"BohrWeisskopf", &calculateBohrWeisskopf},
-                   {"pnc", &calculatePNC},
-                   {"polarisability", &polarisability},
-                   {"lifetimes", &calculateLifetimes}};
+    module_list{{"Tests", &Module_tests},
+                {"WriteOrbitals", &writeOrbitals},
+                {"AtomicKernal", &atomicKernal},
+                {"FitParametric", &fitParametric},
+                {"BohrWeisskopf", &calculateBohrWeisskopf},
+                {"pnc", &calculatePNC},
+                {"polarisability", &polarisability},
+                {"lifetimes", &calculateLifetimes}};
 
 //******************************************************************************
 void runModules(const IO::UserInput &input, const Wavefunction &wf) {

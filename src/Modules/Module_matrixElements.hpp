@@ -25,7 +25,24 @@ void calculateLifetimes(const IO::UserInputBlock &input,
 
 //! Returns a ptr to the requested operator, with given properties
 std::unique_ptr<DiracOperator::TensorOperator>
-generateOperator(const std::string &operator_str,
-                 const IO::UserInputBlock &input, const Wavefunction &wf);
+generateOperator(const IO::UserInputBlock &input, const Wavefunction &wf);
+
+// ------------------
+std::unique_ptr<DiracOperator::TensorOperator>
+generate_E1(const IO::UserInputBlock &input, const Wavefunction &wf);
+std::unique_ptr<DiracOperator::TensorOperator>
+generate_Ek(const IO::UserInputBlock &input, const Wavefunction &wf);
+std::unique_ptr<DiracOperator::TensorOperator>
+generate_M1(const IO::UserInputBlock &input, const Wavefunction &wf);
+std::unique_ptr<DiracOperator::TensorOperator>
+generate_hfs(const IO::UserInputBlock &input, const Wavefunction &wf);
+std::unique_ptr<DiracOperator::TensorOperator>
+generate_r(const IO::UserInputBlock &input, const Wavefunction &wf);
+std::unique_ptr<DiracOperator::TensorOperator>
+generate_pnc(const IO::UserInputBlock &input, const Wavefunction &wf);
+std::unique_ptr<DiracOperator::TensorOperator>
+generate_Hrad_el(const IO::UserInputBlock &input, const Wavefunction &wf);
+std::unique_ptr<DiracOperator::TensorOperator>
+generate_Hrad_mag(const IO::UserInputBlock &input, const Wavefunction &wf);
 
 } // namespace Module
