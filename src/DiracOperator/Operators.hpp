@@ -52,6 +52,7 @@ public:
     return Angular::Ck_kk(1, ka, kb);
   }
   std::string name() const override { return "E1"; }
+  std::string units() const override { return "aB"; }
 };
 
 //******************************************************************************
@@ -77,30 +78,24 @@ private:
 //! @brief Electric dipole operator, v-form:
 //! \f$ \frac{ie}{\omega \alpha} \vec{\alpha}\f$
 /*! @details
-  - Not working properly?
-\f[<a||d_v||b> = -\frac{2e}{\omega \alpha} R \f]
-\f[R = \int[ f_ag_b <ka||s||-kb> - g_af_b <-ka||s||kb>]\,dr\f]
+\f[  <a||d_v||b> =  R \f]
+\f[ R = -\frac{2e}{\omega \alpha}
+\int( f_ag_b <ka||s||-kb> - g_af_b <-ka||s||kb>)\,dr \f]
 */
 class E1_vform final : public TensorOperator
 // d_v = (ie/w alpha) v{alpha}   [v{a} = g0v{g}]\f$
 // <a||dv||b> = -2e/(w alpha) Int[ fagb <ka||s||-kb> - gafb <-ka||s||kb>]
 {
 public:
-  E1_vform(const Grid &gr, const double alpha = PhysConst::alpha)
-      : TensorOperator(1, Parity::odd, -1.0,
-                       std::vector<double>(gr.num_points, 1.0), 0),
-        m_c(1.0 / alpha) {}
-  std::string name() const override { return "E1v"; }
-
-  double angularF(const int ka, const int kb) const override {
-    // if (Fa.k == Fb.k)
-    //   return 0;
-    // auto omega = Fa.en - Fb.en;
-    // return 2.0 * m_c / omega; // includes var-alpha
-    if (ka == kb)
-      return 0;
-    return 1.0; // includes var-alpha
+  E1_vform(const double alpha, const double omega = 0.0)
+      : TensorOperator(1, Parity::odd, -0.0, {}, 0, Realness::real, true),
+        m_alpha(alpha) {
+    updateFrequency(omega);
   }
+  std::string name() const override { return "E1v"; }
+  std::string units() const override { return "aB"; }
+
+  double angularF(const int, const int) const override { return 1.0; }
 
 private:
   virtual double angularCff(int, int) const override { return 0; }
@@ -111,70 +106,61 @@ private:
   virtual double angularCgf(int ka, int kb) const override {
     return -Angular::S_kk(-ka, kb);
   }
-  virtual double StateDepConst(const DiracSpinor &Fa,
-                               const DiracSpinor &Fb) const override {
-    if (Fa.k == Fb.k)
-      return 0;
-    auto omega = Fa.en - Fb.en;
-    return 2.0 * m_c / omega; // includes var-alpha
+
+  void updateFrequency(const double omega) override {
+    m_constant = -2.0 / (m_alpha * omega);
   }
 
 private:
-  double m_c; // speed of light (including var-alpha)
+  double m_alpha; // (including var-alpha)
 };
 
-// //******************************************************************************
-// class M1Operator final : public TensorOperator
-// // M1 = mu . B
-// // <a||M1||b> = (ka + kb) <-ka||C^1||kb> Int [3(fagb+gafb)j_1(kr)]
-// // k = w/c, j1 is first spherical bessel
-// // Two options; a) different operator for each w
-// // b) generate jL each call
-// // XXX This isn't working!!
-// {
-// public:
-//   M1Operator() : TensorOperator(1, Parity::even, 1.0, {}, 0) {}
-//
-//   double radialIntegral(const DiracSpinor &Fa,
-//                         const DiracSpinor &Fb) const override {
-//     // std::cout << "warning: M1 not working yet!\n";
-//     auto abs_omega = std::fabs(Fa.en - Fb.en);
-//     if (abs_omega == 0)
-//       return 0;
-//     // always zero if w=zero?
-//     const auto &gr = *(Fa.p_rgrid);
-//     auto j1kr = SphericalBessel::fillBesselVec(1, set_kr(abs_omega, gr));
-//     // XXX this j1kr is slow; XXX easy to fix XXX
-//     // a) goes past pinf,
-//     // b) fills 2 vectors!,
-//     // c) allocates now vector each time!
-//     const auto irmax = std::min(Fa.pinf, Fb.pinf);
-//     auto Rfg = NumCalc::integrate(Fa.f, Fb.g, j1kr, gr.drdu, 1.0, 0, irmax);
-//     auto Rgf = NumCalc::integrate(Fa.g, Fb.f, j1kr, gr.drdu, 1.0, 0, irmax);
-//     return 3.0 * (Rfg + Rgf) * gr.du / (PhysConst::alpha2 * abs_omega);
-//     // ??? XXX
-//   }
-//
-//   double reducedME(const DiracSpinor &Fa,
-//                    const DiracSpinor &Fb) const override {
-//     if (isZero(Fa, Fb))
-//       return 0.0;
-//     auto Rab = radialIntegral(Fa, Fb);
-//     auto Cab = (Fa.k + Fb.k) * Angular::Ck_kk(1, -Fa.k, Fb.k);
-//     return Rab * Cab; // / PhysConst::muB_CGS; //???
-//   }
-//
-// private:
-//   // std::vector<double> kr;
-//   std::vector<double> set_kr(double omega, const Grid &gr) const {
-//     std::vector<double> kr;
-//     kr.reserve(gr.num_points);
-//     for (const auto &r : gr.r) {
-//       kr.push_back(r * omega * PhysConst::alpha); // this? or var-alpha?
-//     }
-//     return kr;
-//   }
-// };
+//******************************************************************************
+//! Magnetic dipole operator: <a||M1||b>
+/*! @details
+\f[ <a||M1||b> = R (k_a + k_b) <-k_a||C^1||k_b> \f]
+\f[R = \frac{3}{\alpha^2\omega} \int (f_ag_b+g_af_b) j_1(kr) \, dr\f]
+\f$ k = \omega/c = \omega*\alpha \f$.
+Check sign?
+*/
+class M1 final : public TensorOperator {
+public:
+  // XXX Check sign!
+  M1(const Grid &gr, const double alpha, const double omega = 0.0)
+      : TensorOperator(1, Parity::even, +0.0, {}, 0, Realness::real, true),
+        m_gr(&gr),
+        m_alpha(alpha) {
+    updateFrequency(omega);
+  }
+  M1 &operator=(const M1 &) = default;
+  M1(const M1 &) = default;
+  ~M1() = default;
+  std::string name() const override { return std::string("M1"); }
+  std::string units() const override { return std::string("mu_B"); }
+
+  double angularF(const int ka, const int kb) const override {
+    return (ka + kb) * Angular::Ck_kk(1, -ka, kb);
+  }
+  double angularCff(int, int) const override { return 0.0; }
+  double angularCgg(int, int) const override { return 0.0; }
+  double angularCfg(int, int) const override { return 1.0; }
+  double angularCgf(int, int) const override { return 1.0; }
+
+  void updateFrequency(const double omega) override {
+    // XXX Check sign!
+    if (std::abs(omega) > 0) {
+      m_constant = +3.0 / (m_alpha * m_alpha * omega);
+      m_vec = SphericalBessel::fillBesselVec_kr(1, omega * m_alpha, m_gr->r);
+    } else {
+      m_constant = +1.0 / (m_alpha);
+      m_vec.clear();
+    }
+  }
+
+private:
+  const Grid *const m_gr;
+  const double m_alpha;
+};
 
 //******************************************************************************
 //! @brief Magnetic hyperfine operator
@@ -346,7 +332,26 @@ public:
                        Nuclear::fermiNuclearDensity_tcN(t, c, 1, rgrid),
                        {0, 1, -1, 0}, 0, Realness::imaginary) {}
   std::string name() const override { return "pnc-nsi"; }
-  std::string units() const override { return "Qw*e-11"; } // XXX often wrong!
+  std::string units() const override { return "Qw*e-11"; } // XXX often wrong !
 };
+// class PNCnsi final : public TensorOperator {
+// public:
+//   PNCnsi(double c, double t, const Grid &rgrid, double factor = 1)
+//       : TensorOperator(0, Parity::odd,
+//                        factor * PhysConst::GFe11 / std::sqrt(8.0),
+//                        Nuclear::fermiNuclearDensity_tcN(t, c, 1, rgrid), 0,
+//                        Realness::imaginary) {}
+//   std::string name() const override { return "pnc-nsi"; }
+//   std::string units() const override { return "Qw*e-11"; } // XXX often
+//   wrong! double angularF(const int ka, const int) const override {
+//     return std::sqrt(2.0 * std::abs(ka)); //|ka|=|kb|, else zero
+//   }
+//
+// private:
+//   virtual double angularCff(int, int) const override { return 0; }
+//   virtual double angularCgg(int, int) const override { return 0; }
+//   virtual double angularCfg(int, int) const override { return 1.0; }
+//   virtual double angularCgf(int, int) const override { return -1.0; }
+// };
 
 } // namespace DiracOperator

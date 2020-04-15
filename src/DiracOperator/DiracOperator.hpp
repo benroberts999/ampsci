@@ -60,19 +60,20 @@ const IntM4x4 g5(0, 1, 1, 0);
 //! Note: You may not construct a TensorOperator. Instead, you must construct
 //! one of the derived 'operators' (there are some general ones); see
 //! operators.hpp for list of operators. Operators work by overrideing the
-//! angularCxx() functions and angularF()
+//! angularCxx() functions and angularF().
+//! c, v, and Cxx are included in radial integral.
 class TensorOperator {
 protected:
   TensorOperator(int k, Parity pi, double c = 1,
                  const std::vector<double> &inv = {}, int d_order = 0,
-                 Realness RorI = Realness::real)
+                 Realness RorI = Realness::real, bool freq_dep = false)
       : m_rank(k),
         m_parity(pi),
-        constant(c),
-        vec(inv),
         diff_order(d_order),
-        opC(RorI) //
-        {};
+        opC(RorI),
+        m_constant(c),
+        m_vec(inv),
+        freqDependantQ(freq_dep){};
 
 public:
   virtual ~TensorOperator() = default;
@@ -80,19 +81,27 @@ public:
 private:
   const int m_rank;
   const Parity m_parity;
-  const double constant;
-  const std::vector<double> vec; // useful to be able to update this! ?
   const int diff_order;
   const Realness opC;
+
+protected:           // these may be updated for frequency-dependant operators
+  double m_constant; // included in radial integral
+  std::vector<double> m_vec; // useful to be able to update this! ?
+
+public:
+  const bool freqDependantQ{false};
 
 public:
   //! If matrix element <a|h|b> is zero, returns true
   bool isZero(const int ka, int kb) const;
 
+  //! Update frequency for frequency-dependant operators.
+  virtual void updateFrequency(const double){};
+
   //! Returns a const ref to vector v
-  const std::vector<double> &getv() const { return vec; }
+  const std::vector<double> &getv() const { return m_vec; }
   //! Returns a const ref to constant c
-  double getc() const { return constant; }
+  double getc() const { return m_constant; }
 
   //! returns true if operator is imaginary (has imag MEs)
   bool imaginaryQ() const { return (opC == Realness::imaginary); }
@@ -110,14 +119,11 @@ public:
 
 protected:
   // These are needed for radial integrals
-  // Usually just constants, but can also be functions
+  // Usually just constants, but can also be functions of kappa
   virtual double angularCff(int /*k_a*/, int /*k_b*/) const { return 1.0; }
   virtual double angularCgg(int, int) const { return 1.0; }
   virtual double angularCfg(int, int) const { return 0.0; }
   virtual double angularCgf(int, int) const { return 0.0; }
-  virtual double StateDepConst(const DiracSpinor &, const DiracSpinor &) const {
-    return 1.0;
-  }
 
 public:
   //! @brief angularF: links radiation integral to RME.
@@ -130,14 +136,12 @@ public:
                 int two_q = 0) const;
 
   //! <a||h||b> = Fa * reduced_rhs(a, Fb) (a needed for angular factor)
-  DiracSpinor reduced_rhs(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
   DiracSpinor reduced_rhs(const int ka, const DiracSpinor &Fb) const;
 
   //! <b||h||a>  = Fa * reduced_lhs(a, Fb) (a needed for angular factor)
-  DiracSpinor reduced_lhs(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
   DiracSpinor reduced_lhs(const int ka, const DiracSpinor &Fb) const;
 
-  //! Defined via <a||h||b> = angularF(a,b) * radial_int(a,b)
+  //! Defined via <a||h||b> = angularF(a,b) * radialIntegral(a,b)
   double radialIntegral(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
   double reducedME(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
 };
@@ -174,14 +178,8 @@ public:
 public:
   virtual double angularF(const int ka, const int kb) const override {
     // |k| = j+1/2
-    // return (ka == kb) ? std::sqrt(Fb.twoj() + 1.0) : 0.0;
     return (std::abs(ka) == std::abs(kb)) ? std::sqrt(2.0 * std::abs(ka)) : 0.0;
   }
-
-  // virtual double matrixEl(const DiracSpinor &Fa, const DiracSpinor &Fb) const
-  // {
-  //   return radialIntegral(Fa, Fb);
-  // }
 
 private:
   const double c_ff, c_fg, c_gf, c_gg;

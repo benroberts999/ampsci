@@ -33,7 +33,7 @@ void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf) {
   auto which_str =
       radial_int ? "(radial integral). " : AhfsQ ? " A (MHz). " : "(reduced). ";
 
-  const auto h = generateOperator(operator_str, input, wf);
+  auto h = generateOperator(operator_str, input, wf);
   std::cout << "\n"
             << ThisModule << which_str << " Operator: " << h->name() << "\n";
   std::cout << "Units: " << h->units() << "\n";
@@ -52,9 +52,11 @@ void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf) {
     std::cout << "With extra factor: " << factor << "\n";
 
   // XXX Always same kappa for get_Vlocal?
-  auto rpa = HF::ExternalField(h.get(), wf.core, wf.get_Vlocal(),
-                               wf.alpha);
+  auto rpa = HF::ExternalField(h.get(), wf.core, wf.get_Vlocal(), wf.alpha);
   std::unique_ptr<HF::ExternalField> rpa0; // for first-order
+
+  if (h->freqDependantQ && !eachFreqQ)
+    h->updateFrequency(omega);
 
   if (!eachFreqQ && rpaQ) {
     rpa.solve_TDHFcore(omega, 1, false);
@@ -68,17 +70,22 @@ void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf) {
   // Fb -> Fa = <a||h||b>
   for (const auto &Fb : wf.valence) {
     for (const auto &Fa : wf.valence) {
+
       if (h->isZero(Fa.k, Fb.k))
         continue;
       if (diagonal_only && Fb != Fa)
         continue;
       if (!print_both && Fb > Fa)
         continue;
+      const auto ww = std::abs(Fa.en - Fb.en);
+      if (eachFreqQ && h->freqDependantQ) {
+        h->updateFrequency(ww);
+      }
       if (eachFreqQ && rpaQ) {
-        auto w = std::abs(Fa.en - Fb.en);
         rpa0->clear_dPsi();
-        rpa0->solve_TDHFcore(w, 1, false); // wastes a little time
-        rpa.solve_TDHFcore(w); // re-solve at new frequency (not from scratch)
+        rpa0->solve_TDHFcore(ww, 1, false); // wastes a little time
+        rpa.clear_dPsi();                   // in case last one didn't work!
+        rpa.solve_TDHFcore(ww); // re-solve at new frequency (not from scratch)
       }
       std::cout << h->rme_symbol(Fa, Fb) << ": ";
       // Special case: HFS A:
@@ -228,9 +235,9 @@ generateOperator(const std::string &operator_str,
     input.checkBlock(jointCheck({"gauge"}));
     auto gauge = input.get<std::string>("gauge", "lform");
     if (gauge != "vform")
-      return std::make_unique<E1>(E1(wf.rgrid));
+      return std::make_unique<E1>(wf.rgrid);
     // std::cout << "(v-form [velocity gauge])\n";
-    return std::make_unique<E1_vform>(E1_vform(wf.rgrid, wf.alpha));
+    return std::make_unique<E1_vform>(wf.alpha, 0.0);
   } else if (operator_str == "Ek") {
     input.checkBlock(jointCheck({"k"}));
     auto k = input.get("k", 1);
@@ -250,9 +257,7 @@ generateOperator(const std::string &operator_str,
     std::cout << "PNC [-i(Q/N)e-11]\n";
     return std::make_unique<PNCnsi>(PNCnsi(c, t, wf.rgrid, -wf.Nnuc()));
   } else if (operator_str == "M1") {
-    std::cout << "Sorry, check back soon for M1 :(\n";
-    // return std::make_unique<M1Operator>(M1Operator());
-    return std::make_unique<NullOperator>(NullOperator());
+    return std::make_unique<M1>(wf.rgrid, wf.alpha, 0.0);
   } else if (operator_str == "Hrad_el") {
     input.checkBlock(
         jointCheck({"Simple", "Ueh", "SE_h", "SE_l", "rcut", "scale_rN"}));
@@ -264,9 +269,9 @@ generateOperator(const std::string &operator_str,
     const auto rcut = input.get("rcut", 5.0);
     const auto scale_rN = input.get("scale_rN", 1.0);
     const auto r_rms_Fermi = scale_rN * wf.get_nuclearParameters().r_rms;
-    const auto Hel = RadiativePotential::form_Hel(
-        wf.rgrid.r, x_Simple, x_Ueh, x_SEe_h, x_SEe_l, r_rms_Fermi, wf.Znuc(),
-        wf.alpha, rcut);
+    const auto Hel = RadiativePotential::form_Hel(wf.rgrid.r, x_Simple, x_Ueh,
+                                                  x_SEe_h, x_SEe_l, r_rms_Fermi,
+                                                  wf.Znuc(), wf.alpha, rcut);
     return std::make_unique<Hrad_el>(Hrad_el(Hel));
   } else if (operator_str == "Hrad_mag") {
     input.checkBlock(jointCheck({"SE_m", "rcut", "scale_rN"}));

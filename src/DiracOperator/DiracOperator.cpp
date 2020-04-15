@@ -40,23 +40,11 @@ double TensorOperator::rme3js(const int twoja, const int twojb, int two_mb,
          Angular::threej_2(twoja, 2 * m_rank, twojb, -two_ma, two_q, two_mb);
 }
 
-DiracSpinor TensorOperator::reduced_rhs(const DiracSpinor &Fa,
-                                        const DiracSpinor &Fb) const {
-  auto sdc = StateDepConst(Fa, Fb);
-  return (sdc * angularF(Fa.k, Fb.k)) * radial_rhs(Fa.k, Fb);
-}
 DiracSpinor TensorOperator::reduced_rhs(const int ka,
                                         const DiracSpinor &Fb) const {
-  return (angularF(ka, Fb.k)) * radial_rhs(ka, Fb);
+  return angularF(ka, Fb.k) * radial_rhs(ka, Fb);
 }
 
-DiracSpinor TensorOperator::reduced_lhs(const DiracSpinor &Fa,
-                                        const DiracSpinor &Fb) const {
-  auto sdc = StateDepConst(Fb, Fa);
-  int s = imaginaryQ() ? -1 : 1;
-  auto x = Angular::evenQ_2(Fa.twoj() - Fb.twoj()) ? s : -s;
-  return (sdc * x * angularF(Fa.k, Fb.k)) * radial_rhs(Fa.k, Fb);
-}
 DiracSpinor TensorOperator::reduced_lhs(const int ka,
                                         const DiracSpinor &Fb) const {
   int s = imaginaryQ() ? -1 : 1;
@@ -68,8 +56,7 @@ double TensorOperator::radialIntegral(const DiracSpinor &Fa,
                                       const DiracSpinor &Fb) const {
   if (isZero(Fa.k, Fb.k))
     return 0.0;
-  auto sdc = StateDepConst(Fa, Fb);
-  return sdc * (Fa * radial_rhs(Fa.k, Fb));
+  return (Fa * radial_rhs(Fa.k, Fb));
 }
 double TensorOperator::reducedME(const DiracSpinor &Fa,
                                  const DiracSpinor &Fb) const {
@@ -113,11 +100,11 @@ DiracSpinor TensorOperator::radial_rhs(const int kappa_a,
   const auto cfg = angularCfg(kappa_a, Fb.k);
   const auto cgf = angularCgf(kappa_a, Fb.k);
   for (unsigned i = 0; i < Fb.pinf; i++) {
-    dPsi.f[i] = constant * (cff * (*rhs_f)[i] + cfg * (*rhs_g)[i]);
-    dPsi.g[i] = constant * (cgf * (*rhs_f)[i] + cgg * (*rhs_g)[i]);
+    dPsi.f[i] = m_constant * (cff * (*rhs_f)[i] + cfg * (*rhs_g)[i]);
+    dPsi.g[i] = m_constant * (cgf * (*rhs_f)[i] + cgg * (*rhs_g)[i]);
   }
-  if (!vec.empty()) {
-    dPsi *= vec;
+  if (!m_vec.empty()) {
+    dPsi *= m_vec;
   }
 
   return dPsi;
