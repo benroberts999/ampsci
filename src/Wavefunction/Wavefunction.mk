@@ -40,6 +40,7 @@ $(SD)/Maths/Interpolator.hpp \
 $(SD)/Maths/NumCalc_quadIntegrate.hpp \
 $(SD)/Physics/AtomData.hpp \
 $(SD)/Physics/NuclearPotentials.hpp \
+$(SD)/Physics/Parametric_potentials.hpp \
 $(SD)/Physics/PhysConst_constants.hpp \
 $(SD)/Physics/RadiativePotential.hpp \
 $(SD)/Wavefunction/BSplineBasis.hpp \

@@ -8,11 +8,12 @@
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/AtomData.hpp"
 #include "Physics/NuclearPotentials.hpp"
+#include "Physics/Parametric_potentials.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Physics/RadiativePotential.hpp"
 #include "Wavefunction/BSplineBasis.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
-#include <algorithm> //for sort
+#include <algorithm>
 #include <cmath>
 #include <iostream>
 #include <sstream>
@@ -144,19 +145,17 @@ void Wavefunction::determineCore(std::string str_core_in)
 }
 
 //******************************************************************************
-void Wavefunction::hartreeFockCore(HF::Method method,
-                                   const std::string &in_core, double eps_HF,
-                                   double h_d, double g_t) {
-  // XXX Update this (and HF) so that it doesn't re-Create m_pHF
-  // AND, so that can re-run core!
-  m_pHF = std::make_unique<HF::HartreeFock>(method, *this, in_core, eps_HF, h_d,
-                                            g_t);
+void Wavefunction::hartreeFockCore(const std::string &method,
+                                   const std::string &in_core, double eps_HF) {
+  solveInitialCore(in_core, 5);
+  m_pHF =
+      std::make_unique<HF::HartreeFock>(this, HF::parseMethod(method), eps_HF);
+  vdir = m_pHF->solveCore();
 }
 
 //******************************************************************************
 auto Wavefunction::coreEnergyHF() const {
   if (!m_pHF) {
-    std::cerr << "WARNING 62: Cant call coreEnergyHF before hartreeFockCore\n";
     return 0.0;
   }
   return m_pHF->calculateCoreEnergy();
@@ -171,11 +170,13 @@ void Wavefunction::hartreeFockValence(const std::string &in_valence_str,
     return;
   }
   auto val_lst = AtomData::listOfStates_nk(in_valence_str);
-  for (const auto &nk : val_lst) {
-    if (!isInCore(nk.n, nk.k) && !isInValence(nk.n, nk.k))
-      valence.emplace_back(DiracSpinor{nk.n, nk.k, rgrid});
+  for (const auto &[n, k, en] : val_lst) {
+    if (!isInCore(n, k) && !isInValence(n, k)) {
+      // valence.emplace_back(DiracSpinor{nk.n, nk.k, rgrid});
+      solveNewValence(n, k, 0, 5);
+    }
   }
-  m_pHF->solveValence(print);
+  m_pHF->solveValence(&valence, print);
 }
 
 //******************************************************************************
@@ -289,20 +290,21 @@ void Wavefunction::solveInitialCore(const std::string &str_core,
 // HF/HartreeFockClass.cpp has routines for Hartree Fock
 {
   if (!core.empty()) {
-    std::cerr << "WARNING 254 in Wavefunction:solveInitialCore: States "
-                 "already exist! "
-              << core.size() << "\n";
-    return;
+    core.clear();           //?
+    m_core_configs.clear(); //?
   }
 
-  determineCore(str_core);
+  determineCore(str_core); // sets m_core_configs :( ?
 
-  for (const auto &config : m_core_configs) {
-    int num = config.num;
+  if (!m_core_configs.empty()) {
+    double h_g = 0, d_t = 0;
+    Parametric::defaultGreenCore(m_nuclear.z, h_g, d_t);
+    vdir = Parametric::GreenPotential(m_nuclear.z, rgrid.r, h_g, d_t);
+  }
+
+  for (const auto &[n, l, num] : m_core_configs) {
     if (num == 0)
       continue;
-    int n = config.n;
-    int l = config.l;
     double en_a = enGuessCore(n, l);
     int k1 = l; // j = l-1/2
     if (k1 != 0) {
@@ -703,7 +705,7 @@ void Wavefunction::hartreeFockBrueckner(const bool print) {
                  "hartreeFockCore\n";
     return;
   }
-  m_pHF->solveBrueckner(*(m_Sigma.get()), print);
+  m_pHF->solveBrueckner(&valence, *(m_Sigma.get()), print);
 }
 
 //******************************************************************************

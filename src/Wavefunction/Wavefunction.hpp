@@ -143,8 +143,8 @@ public: // const methods: "views" into WF object
   std::vector<double> coreDensity() const;
 
   //! Performs hartree-Fock procedure for core: note: poplulates core
-  void hartreeFockCore(HF::Method method, const std::string &in_core,
-                       double eps_HF = 0, double h_d = 0, double g_t = 0);
+  void hartreeFockCore(const std::string &method, const std::string &in_core,
+                       double eps_HF = 0);
 
   //! Calculates HF core energy (doesn't include magnetic QED?)
   auto coreEnergyHF() const;

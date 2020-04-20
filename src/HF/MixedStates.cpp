@@ -45,9 +45,9 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
   if (dF20 == 0) {
     DiracODE::solve_inhomog(dF, Fa.en + omega, vl, H_mag, alpha, -1 * hFa);
   } else {
-    const auto vx0 = form_approx_vex_any(dF, core);
+    const auto vx0 = vex_approx(dF, core);
     const auto v0 = NumCalc::add_vectors(vl, vx0);
-    auto rhs0 = (vx0 * dF) - vex_psia_any(dF, core) - hFa;
+    auto rhs0 = (vx0 * dF) - vexFa(dF, core) - hFa;
     if (Sigma)
       rhs0 -= (*Sigma)(dF);
     DiracODE::solve_inhomog(dF, Fa.en + omega, v0, H_mag, alpha, rhs0);
@@ -60,10 +60,10 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
   dF0 = dF;
 
   for (int its = 0; true; its++) {
-    const auto vx = form_approx_vex_any(dF, core);
+    const auto vx = vex_approx(dF, core);
     const auto v = NumCalc::add_vectors(vl, vx);
 
-    auto rhs = (vx * dF) - vex_psia_any(dF, core) - hFa;
+    auto rhs = (vx * dF) - vexFa(dF, core) - hFa;
     if (Sigma)
       rhs -= (*Sigma)(dF);
     DiracODE::solve_inhomog(dF, Fa.en + omega, v, H_mag, alpha, rhs);

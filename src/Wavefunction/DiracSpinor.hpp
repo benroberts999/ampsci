@@ -104,6 +104,9 @@ public:
   //! rho(r) = sum_m |Psi^2|(r) = (2j+1) * x_occ * |Psi^2|(r)
   std::vector<double> rho() const;
 
+  //! Number of occupied electrons: (2j+1)*occ_frac
+  int num_electrons() const;
+
   //! r0 = r[p0] (in atomic units)
   double r0() const;
   //! rinf = r[pinf]

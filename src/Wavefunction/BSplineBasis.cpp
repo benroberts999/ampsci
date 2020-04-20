@@ -238,7 +238,7 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
 #pragma omp parallel for
   for (auto i = 0; i < Aij.n; i++) {
     const auto &si = spl_basis[i];
-    const auto VexSi = excl_exch ? 0.0 * si : HF::vex_psia_any(si, wf.core);
+    const auto VexSi = excl_exch ? 0.0 * si : HF::vexFa(si, wf.core);
     const auto SigmaSi = sigmaQ ? (*wf.getSigma())(si) : 0.0 * si;
 
     for (auto j = 0; j <= i; j++) {

@@ -50,7 +50,6 @@ Atom {
   varAlpha2; //[r] default = 1
 }
 ```
-
 * Z: Which atom. Can enter as symbol (e.g., Z = Cs;) or integer (e.g., Z = 55;). Required (no default)
 * A: nuclear mass number. Leave blank to look up default value
 * varAlpha2: Scaling factor for alpha^2 (c = 1/alpha in atomic units): alpha^2 = varAlpha2 * alpha_real^2.
@@ -68,7 +67,6 @@ HartreeFock {
   orthonormaliseValence; //[b] default = false
 }
 ```
-
 * core: Core configuration. Required (no default)
   * Format: [Noble gas],extra (comma separated, no spaces)
   * Can also enter entire configuration, e.g., 1s2,2s2,2p6,.... (As well as Noble gas, can use Zn,Cd,Hg,Cn)
@@ -83,7 +81,7 @@ HartreeFock {
   * e.g., "7sp5df" will do s and p states up to n=7, and d and f up to n=5
 * sortOutput: true or false. Sort output by energy.
 * method: which method to use. can be:
-  * HartreeFock(default), ApproxHF, Hartree, GreenPRM, TietzPRM
+  * HartreeFock(default), ApproxHF, Hartree
 * convergence: level we try to converge to.
 * orthonormaliseValence: true/false. Orthogonalise valence states? false by default. Only really for testing
 
@@ -104,12 +102,12 @@ Nucleus {
 ## Grid
 ```cpp
 Grid {
-  r0;         //[r] default = 1.0e-5
-  rmax;       //[r] default = 150.0
+  r0;         //[r] default = 1.0e-6
+  rmax;       //[r] default = 120.0
   num_points; //[i] default = 1600
   type;       //[t] default = loglinear
   b;          //[r] default = rmax/3
-  fixed_du;   //[r] default = -1. du>0 means calculate num_points
+  fixed_du;   //[r] default = -1. fixed_du>0: calculate + override num_points
 }
 ```
 * r0: grid starting point (in atomic units)

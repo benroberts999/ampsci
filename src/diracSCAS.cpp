@@ -8,6 +8,8 @@
 #include "Wavefunction/Wavefunction.hpp"
 #include <iostream>
 #include <string>
+//
+#include "HF/HartreeFockClass.hpp"
 
 int main(int argc, char *argv[]) {
   IO::ChronoTimer timer("\ndiracSCAS");
@@ -29,8 +31,8 @@ int main(int argc, char *argv[]) {
   // Get + setup Grid parameters
   input_ok = input_ok && input.check("Grid", {"r0", "rmax", "num_points",
                                               "type", "b", "fixed_du"});
-  const auto r0 = input.get("Grid", "r0", 1.0e-5);
-  const auto rmax = input.get("Grid", "rmax", 150.0);
+  const auto r0 = input.get("Grid", "r0", 1.0e-6);
+  const auto rmax = input.get("Grid", "rmax", 120.0);
   const auto du_tmp =
       input.get("Grid", "fixed_du", -1.0); // >0 means calc num_points
   const auto num_points =
@@ -62,29 +64,16 @@ int main(int argc, char *argv[]) {
   input_ok =
       input_ok &&
       input.check("HartreeFock", {"core", "valence", "convergence", "method",
-                                  "Green_H", "Green_d", "Tietz_g", "Tietz_t",
                                   "orthonormaliseValence", "sortOutput"});
   if (!input_ok)
     return 1;
   const auto str_core = input.get<std::string>("HartreeFock", "core", "[]");
   const auto eps_HF = input.get("HartreeFock", "convergence", 1.0e-12);
-  const auto HF_method = HF::parseMethod(
-      input.get<std::string>("HartreeFock", "method", "HartreeFock"));
+  const auto HF_method =
+      input.get<std::string>("HartreeFock", "method", "HartreeFock");
 
-  // For when using Hartree, or a parametric potential:
-  // XXX Move into new block!?
-  double H_d = 0.0, g_t = 0.0;
-  if (HF_method == HF::Method::GreenPRM) {
-    H_d = input.get("HartreeFock", "Green_H", 0.0);
-    g_t = input.get("HartreeFock", "Green_d", 0.0);
-    std::cout << "Using Greens Parametric Potential\n";
-  } else if (HF_method == HF::Method::TietzPRM) {
-    H_d = input.get("HartreeFock", "Tietz_g", 0.0);
-    g_t = input.get("HartreeFock", "Tietz_t", 0.0);
-    std::cout << "Using Tietz Parametric Potential\n";
-  } else if (HF_method == HF::Method::Hartree) {
+  if (HF_method == "Hartree")
     std::cout << "Using Hartree Method (no Exchange)\n";
-  }
 
   // Inlcude QED radiatve potential
   const auto qed_ok =
@@ -131,7 +120,7 @@ int main(int argc, char *argv[]) {
 
   { // Solve Hartree equations for the core:
     IO::ChronoTimer t(" core");
-    wf.hartreeFockCore(HF_method, str_core, eps_HF, H_d, g_t);
+    wf.hartreeFockCore(HF_method, str_core, eps_HF);
   }
 
   if (include_qed && qed_ok && !core_qed) {

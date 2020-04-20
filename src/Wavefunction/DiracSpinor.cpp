@@ -75,9 +75,14 @@ const DiracSpinor &DiracSpinor::scale(const double factor) {
 }
 //------------------------------------------------------------------------------
 const DiracSpinor &DiracSpinor::scale(const std::vector<double> &v) {
-  for (std::size_t i = p0; i < pinf; ++i) {
+  const auto max = std::min(pinf, v.size());
+  for (std::size_t i = p0; i < max; ++i) {
     f[i] *= v[i];
     g[i] *= v[i];
+  }
+  for (std::size_t i = max; i < pinf; ++i) {
+    f[i] *= 0;
+    g[i] *= 0;
   }
   // if (!df.empty()) {
   //   for (std::size_t i = p0; i < pinf; ++i) {
@@ -115,6 +120,11 @@ std::vector<double> DiracSpinor::rho() const {
     psi2.push_back(factor * (f[i] * f[i] + g[i] * g[i]));
   }
   return psi2;
+}
+
+//******************************************************************************
+int DiracSpinor::num_electrons() const {
+  return static_cast<int>(std::round((twoj() + 1) * occ_frac));
 }
 
 //******************************************************************************

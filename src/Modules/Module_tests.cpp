@@ -338,7 +338,7 @@ void Module_Tests_Hamiltonian(const Wavefunction &wf) {
     const DiracSpinor *worst_psi = nullptr;
     for (const auto &psi : *tmp_orbs) {
       double Haa_d = Hd.matrixEl(psi, psi);
-      double Haa_x = psi * HF::vex_psia_any(psi, wf.core);
+      double Haa_x = psi * HF::vexFa(psi, wf.core);
       auto Haa = Haa_d + Haa_x;
       // if (!wf.isInCore(psi.n, psi.k) && wf.getSigma() != nullptr) {
       //   Haa += psi * (*wf.getSigma())(psi);

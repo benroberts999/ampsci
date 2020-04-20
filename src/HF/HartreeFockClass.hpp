@@ -1,6 +1,6 @@
 #pragma once
 #include "Coulomb/YkTable.hpp" //for m_Yab
-// #include "MBPT/CorrelationPotential.hpp"
+#include "Physics/PhysConst_constants.hpp"
 #include <string>
 #include <vector>
 class Wavefunction;
@@ -8,6 +8,9 @@ class DiracSpinor;
 class Grid;
 namespace MBPT {
 class CorrelationPotential;
+}
+namespace RadiativePotential {
+class Vrad;
 }
 
 //! Functions and classes for Hartree-Fock
@@ -24,7 +27,7 @@ struct EpsIts {
 };
 
 //******************************************************************************
-enum class Method { HartreeFock, ApproxHF, Hartree, GreenPRM, TietzPRM };
+enum class Method { HartreeFock, ApproxHF, Hartree };
 //! @brief Convers string (name) of method (HartreeFock, Hartree etc.) to enum
 Method parseMethod(const std::string &in_method);
 
@@ -33,17 +36,17 @@ Method parseMethod(const std::string &in_method);
 //! @details Needs existing orbital Fa, and the core orbitals.
 //! k_cut is max multipolarity to sum over for exchange term [can limit to ~1
 //! (e.g.) for speed when high accuracy is not required]
-std::vector<double> form_approx_vex_any(const DiracSpinor &Fa,
-                                        const std::vector<DiracSpinor> &core,
-                                        int k_cut = 99);
+std::vector<double> vex_approx(const DiracSpinor &Fa,
+                               const std::vector<DiracSpinor> &core,
+                               int k_cut = 99);
 
 //! @brief Calculates V_exch * Fa, for any orbital Fa (calculates Coulomb
 //! integral from scratch).
 //! @details Needs existing orbital Fa, and the core orbitals.
 //! k_cut is max multipolarity to sum over for exchange term [can limit to ~1
 //! (e.g.) for speed when high accuracy is not required]
-DiracSpinor vex_psia_any(const DiracSpinor &Fa,
-                         const std::vector<DiracSpinor> &core, int k_cut = 99);
+DiracSpinor vexFa(const DiracSpinor &Fa, const std::vector<DiracSpinor> &core,
+                  int k_cut = 99);
 
 //******************************************************************************
 //! @brief For non-constant damping. Slowly ramps the damping factor from a_beg
@@ -65,12 +68,14 @@ inline auto rampedDamp(double a_beg, double a_end, int beg, int end) {
 //! @brief Solves relativistic Hartree-Fock equations
 /*! @details
 \par Construction
-Requires Wavefunction object, and string core configuration (e.g., '[Xe],6s2')
+Requires set of core orbitals + energies that are already solved! (it's the
+energies that are most important, the energies must already be good guesses).
+WaveFunction gives routine to solve initial core approx.
 
 \par Usage
-Will solve HF equations for the core when constructed.
-Note: it constructs the wf.core-orbitals vector... this is probably not the
-right way to do it.
+Solves HF equations for the core when solveCore() is called.
+Core orbitals must already exist. Note: stores a pointer to external core
+orbitals. These must not be extended/deleted while HF object exists.
 
 \par Definitions:
 v^k_ab(r)   := Int_0^inf [r_min^k/r_max^(k+1)]*rho(f') dr'
@@ -81,70 +86,76 @@ vex[a]      := [v_ex*Fa](r) *(Fa/Fa^2) (approx exchange)
 class HartreeFock {
 
 public:
-  //! @brief Method is enum class, eps_HF si convergence goal.
-  //! @details h_d & g_t are parametric potential parameters (only used if
-  //! method=Green/Teitz). Note: solves for HF core obitals (+populates them) on
-  //! construct
-  HartreeFock(Method method, Wavefunction &wf, const std::string &in_core,
-              double eps_HF = 0.0, double h_d = 0.0, double g_t = 0.0);
+  //! @brief Method is enum class, eps_HF is convergence goal.
+  HartreeFock(const Grid &in_grid, const std::vector<double> &in_vnuc,
+              std::vector<DiracSpinor> *in_core,
+              const RadiativePotential::Vrad *const in_vrad = nullptr,
+              double m_alpha = PhysConst::alpha,
+              Method method = Method::HartreeFock, double eps_HF = 0.0);
+  HartreeFock(Wavefunction *wf, Method method = Method::HartreeFock,
+              double eps_HF = 0.0);
+
+  //! Solves HF equations self-consitantly for core orbs. Produces Vdir
+  const std::vector<double> &solveCore();
 
   //! @brief Solves HF for valence list; valence states must already be present
   //! in WaveFunction (bad, instead, give it a vector of DiracSpinors!)
-  void solveValence(const bool print = true);
+  void solveValence(std::vector<DiracSpinor> *valence, const bool print = true);
 
   //! Solves HF+Sigma equation: valence Brueckner orbitals. Writes to valence
-  void solveBrueckner(const MBPT::CorrelationPotential &Sigma2,
+  void solveBrueckner(std::vector<DiracSpinor> *valence,
+                      const MBPT::CorrelationPotential &Sigma2,
                       const bool print = true);
 
+  //! Calculates the HF core energy
   double calculateCoreEnergy() const;
 
+  //! Returns const ref to V_dir (Direct HF potential)
+  const std::vector<double> &get_vdir() const { return m_vdir; }
+
+  //! Calculates exchange term Vex*Fa (calls static version with HF core)
+  DiracSpinor calc_vexFa(const DiracSpinor &Fa) const {
+    return vexFa(Fa, *p_core, 99);
+  }
+  //! Same as 'calc_vexFa'; Fa must be in core [y_ab exist already, so faster]
+  DiracSpinor calc_vexFa_core(const DiracSpinor &Fa) const;
+
+  //! Returns true of exchange not included
+  bool excludeExchangeQ() const { return m_excludeExchange; }
+
 public:
-  bool verbose = true;
+  bool verbose = true; // update to input??
 
 private:
-  Wavefunction *const p_wf;
+  // Wavefunction *const p_wf;
   const Grid *const p_rgrid;
+  const std::vector<double> *const p_vnuc;
+  const RadiativePotential::Vrad *const p_vrad;
+  const double m_alpha;
+  const Method m_method;
+  const double m_eps_HF;
+  // pointer to core orbs that exist outside.
+  // Note: core.size() must not change; core elements must remain in orig. order
+  std::vector<DiracSpinor> *const p_core;
+  std::vector<double> m_vdir;
   Coulomb::YkTable m_Yab;
+  const bool m_excludeExchange; // XXX Kill this. Only HF,H,aHF
 
   static constexpr int m_max_hf_its = 99;
-
   // Optionally force orthogonalisation. False by default.
   static constexpr bool m_explicitOrthog_cc = false;
   static constexpr bool m_explicitOrthog_cv = false;
 
-  const double m_eps_HF;
-  const bool m_excludeExchange;
-  const Method m_method;
-
-public:
-  bool excludeExchangeQ() const { return m_excludeExchange; }
-
-private:
-  // The "localised"/approximate HF potential:
-  std::vector<std::vector<double>> appr_vex_core = {};
-  std::vector<std::vector<double>> appr_vex_val = {};
+  const std::vector<double> &get_Hrad_el(int l) const;
+  const std::vector<double> &get_Hrad_mag(int l) const;
 
 private:
   void hf_core_approx(const double eps_target_HF);
-  void starting_approx_core(const std::string &in_core, int log_converge = 3,
-                            Method method = Method::GreenPRM, double h_g = 0,
-                            double d_t = 0);
-
-  DiracSpinor vex_psia(const DiracSpinor &Fa) const;
-  void vex_psia(const DiracSpinor &Fa, DiracSpinor &vexFa) const;
-  const std::vector<double> &get_vex(const DiracSpinor &psi) const;
-
-  void form_vdir(std::vector<double> &vdir, bool re_scale = false) const;
-  void form_approx_vex_core(std::vector<std::vector<double>> &vex) const;
-  void form_approx_vex_a(const DiracSpinor &Fa,
-                         std::vector<double> &vex_a) const;
-
   void hf_core_refine();
 
-  EpsIts hf_valence(DiracSpinor &phi, std::vector<double> &vexa);
-  EpsIts hf_valence_approx(DiracSpinor &phi, std::vector<double> &vexa,
-                           double eps_target_HF);
+  EpsIts hf_valence_approx(DiracSpinor &phi, double eps_target);
   EpsIts hf_valence_refine(DiracSpinor &phi);
+  EpsIts hf_Brueckner(DiracSpinor &Fa, const MBPT::CorrelationPotential &Sigma);
 
   void hf_orbital(DiracSpinor &phi, double en, const std::vector<double> &vl,
                   const std::vector<double> &H_mag, const DiracSpinor &vx_phi,
@@ -158,7 +169,16 @@ private:
                          const MBPT::CorrelationPotential &Sigma,
                          const std::vector<DiracSpinor> &static_core) const;
 
-  EpsIts hf_Brueckner(DiracSpinor &Fa, const MBPT::CorrelationPotential &Sigma);
+  // Calc's Vex*Fa, for Fa in the core
+  void vex_psia_core(const DiracSpinor &Fa, DiracSpinor &vexFa) const;
+  // Forms direct potential
+  void form_vdir(std::vector<double> &vdir, bool re_scale = false) const;
+  // Forms approximate vex for all core states
+  void form_approx_vex_core(std::vector<std::vector<double>> &vex) const;
+  // Forms approximate vex for given core states
+  void form_approx_vex_core_a(const DiracSpinor &Fa,
+                              std::vector<double> &vex_a) const;
+  std::vector<double> form_approx_vex_core_a(const DiracSpinor &Fa) const;
 
 public:
   HartreeFock &operator=(const HartreeFock &) = delete; // copy assignment
