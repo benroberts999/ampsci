@@ -36,41 +36,28 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
 {
   auto sp = IO::Profile::safeProfiler(__func__);
   auto damper = rampedDamp(0.8, 0.33, 3, 15);
-  const int max_its = 100;
-
-  auto dF20 = std::abs(dF * dF); // monitor convergance
-  auto dF0 = dF;
+  const int max_its = eps_target < 1.0e-8 ? 100 : 30;
 
   const std::vector<double> H_mag = {}; // XXX Add Magnetic FF (QED)?
-  if (dF20 == 0) {
-    DiracODE::solve_inhomog(dF, Fa.en + omega, vl, H_mag, alpha, -1 * hFa);
-  } else {
-    const auto vx0 = vex_approx(dF, core);
-    const auto v0 = NumCalc::add_vectors(vl, vx0);
-    auto rhs0 = (vx0 * dF) - vexFa(dF, core) - hFa;
-    if (Sigma)
-      rhs0 -= (*Sigma)(dF);
-    DiracODE::solve_inhomog(dF, Fa.en + omega, v0, H_mag, alpha, rhs0);
-    // const auto a = 0.0;
-    // const auto l = (1.0 - a);
-    // dF = l * dF + a * dF0;
+  if (std::abs(dF * dF) == 0) {
+    // If dF is not yet a solution, solve from scratch:
+    DiracODE::solve_inhomog(dF, Fa.en + omega, vl, H_mag, alpha, -1.0 * hFa);
   }
 
-  dF20 = std::abs(dF * dF);
-  dF0 = dF;
+  // monitor convergance:
+  auto dF20 = std::abs(dF * dF);
+  auto dF0 = dF;
 
   for (int its = 0; true; its++) {
     const auto vx = vex_approx(dF, core);
     const auto v = NumCalc::add_vectors(vl, vx);
-
     auto rhs = (vx * dF) - vexFa(dF, core) - hFa;
     if (Sigma)
       rhs -= (*Sigma)(dF);
     DiracODE::solve_inhomog(dF, Fa.en + omega, v, H_mag, alpha, rhs);
 
-    const auto a = damper(its);
-    const auto l = (1.0 - a);
-    dF = l * dF + a * dF0;
+    const auto a = its == 0 ? 0.0 : damper(its);
+    dF = (1.0 - a) * dF + a * dF0;
     dF0 = dF;
 
     auto dF2 = std::abs(dF * dF);
@@ -90,7 +77,6 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
     }
     dF20 = dF2;
   }
-  // return dF;
 }
 
 } // namespace HF
