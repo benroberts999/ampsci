@@ -72,6 +72,115 @@ public:
 };
 
 //******************************************************************************
+template <typename T> class Complex {
+public:
+  T re = 0;
+  T im = 0;
+  Complex<T> conj() const { return {re, -im}; }
+  // norm2 = re^2 + im^2, no sqrt (ruins T)
+  T norm2() const { return re * re + im * im; }
+  //! Mult two complex:
+  friend Complex<T> operator*(const Complex<T> &a, const Complex<T> &b) {
+    return {a.re * b.re - a.im * b.im, a.re * b.im + a.im * b.re};
+  }
+  Complex<T> &operator*=(const Complex<T> x) {
+    *this = (*this) * x;
+    return *this;
+  }
+  //! Mult by const:
+  Complex<T> &operator*=(const T x) {
+    this->re *= x;
+    this->im *= x;
+    return *this;
+  }
+  friend Complex<T> operator*(Complex<T> a, const T &x) { return a *= x; }
+  friend Complex<T> operator*(const T &x, Complex<T> a) { return a *= x; }
+  //! Add/subtrac:
+  Complex<T> &operator+=(const Complex<T> x) {
+    this->re += x.re;
+    this->im += x.im;
+    return *this;
+  }
+  friend Complex<T> operator+(Complex<T> a, const Complex<T> &b) {
+    return a += b;
+  }
+  Complex<T> &operator-=(const Complex<T> x) {
+    this->re -= x.re;
+    this->im -= x.im;
+    return *this;
+  }
+  friend Complex<T> operator-(Complex<T> a, const Complex<T> &b) {
+    return a -= b;
+  }
+};
+
+//******************************************************************************
+//! Basic Square matrix class of constant construct-time size
+class ComplexSqMatrix {
+
+public:
+  const int n;
+
+  // private: //make private, declare friends
+  gsl_matrix_complex *m = nullptr;
+  gsl_matrix_complex *m_LU = nullptr;
+  gsl_permutation *perm = nullptr; //?
+  int s_LU = 0;
+
+public:
+  ComplexSqMatrix(int in_n);
+
+  ~ComplexSqMatrix();
+  // copy+/assignment: doesn't copy LU etc!
+  ComplexSqMatrix(const ComplexSqMatrix &matrix);           // copy constructor;
+  ComplexSqMatrix &operator=(const ComplexSqMatrix &other); // copy assignment
+
+  // private: //make private, declare friends
+  void LU_decompose(); //?
+
+public:
+  //! Sets all elements to zero
+  void zero();
+  //! Scale all elements by constant value
+  void scale(double value);
+
+  //! Returns the transpose of matrix: not destructive
+  [[nodiscard]] SqMatrix transpose() const;
+  double determinant(); // changes m_LU
+  //! Inverts the matrix: nb: destructive!
+  void invert();
+  //! Returns the inverce of matrix: not destructive
+  [[nodiscard]] SqMatrix inverse() const;
+
+  double *operator[](int i) const; // struct bind?
+
+  friend ComplexSqMatrix operator*(const ComplexSqMatrix &lhs,
+                                   const ComplexSqMatrix &rhs);
+  friend ComplexSqMatrix operator*(const ComplexSqMatrix &lhs,
+                                   const SqMatrix &rhs);
+  friend ComplexSqMatrix operator*(const SqMatrix &lhs,
+                                   const ComplexSqMatrix &rhs);
+
+  ComplexSqMatrix &operator+=(const SqMatrix rhs);
+  ComplexSqMatrix &operator+=(const ComplexSqMatrix rhs);
+  friend ComplexSqMatrix operator+(ComplexSqMatrix lhs,
+                                   const ComplexSqMatrix &rhs);
+  friend ComplexSqMatrix operator+(ComplexSqMatrix lhs, const SqMatrix &rhs);
+  friend ComplexSqMatrix operator+(SqMatrix lhs, const ComplexSqMatrix &rhs);
+
+  ComplexSqMatrix &operator-=(const SqMatrix rhs);
+  ComplexSqMatrix &operator-=(const ComplexSqMatrix rhs);
+
+  friend ComplexSqMatrix operator-(ComplexSqMatrix lhs,
+                                   const ComplexSqMatrix &rhs);
+  friend ComplexSqMatrix operator-(ComplexSqMatrix lhs, const SqMatrix &rhs);
+  friend ComplexSqMatrix operator-(SqMatrix lhs, const ComplexSqMatrix &rhs);
+
+  ComplexSqMatrix &operator*=(const double x);
+  friend ComplexSqMatrix operator*(const double x, ComplexSqMatrix rhs);
+};
+
+//******************************************************************************
 //! Basic vector class of constant construct-time size
 class Vector {
 public:
