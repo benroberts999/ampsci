@@ -196,7 +196,7 @@ void CorrelationPotential::form_Sigma(const std::vector<double> &en_list,
                                       const std::string &fname) {
   auto sp = IO::Profile::safeProfiler(__func__);
 
-  G_kappa.resize(en_list.size(), stride_points);
+  Sigma_kappa.resize(en_list.size(), stride_points);
 
   if (m_core.empty() || m_excited.empty()) {
     std::cerr << "\nERROR 162 in form_Sigma: No basis! Sigma will just be 0!\n";
@@ -215,7 +215,7 @@ void CorrelationPotential::form_Sigma(const std::vector<double> &en_list,
     printf(" k=%2i %6s at en=%8.5f.. ", kappa,
            AtomData::kappa_symbol(kappa).c_str(), en_list[ki]);
     std::cout << std::flush;
-    fill_Gkappa(&G_kappa[ki], kappa, en_list[ki]);
+    fill_Sigma_k_Gold(&Sigma_kappa[ki], kappa, en_list[ki]);
     // find lowest excited state, output <v|S|v> energy shift:
     auto find_kappa = [=](const auto &a) { return a.k == kappa; };
     const auto vk =
@@ -234,16 +234,16 @@ void CorrelationPotential::form_Sigma(const std::vector<double> &en_list,
 DiracSpinor CorrelationPotential::Sigma2Fv(const DiracSpinor &v) const {
   auto sp = IO::Profile::safeProfiler(__func__);
   // Find correct G matrix (corresponds to kappa_v), return Sigma|v>
-  // If G_kappa doesn't exist, returns |0>
+  // If Sigma_kappa doesn't exist, returns |0>
   auto kappa_index = std::size_t(Angular::indexFromKappa(v.k));
-  if (kappa_index >= G_kappa.size())
+  if (kappa_index >= Sigma_kappa.size())
     return 0.0 * v;
-  return Sigma_G_Fv(G_kappa[kappa_index], v);
+  return Sigma_G_Fv(Sigma_kappa[kappa_index], v);
 }
 
 //******************************************************************************
-void CorrelationPotential::fill_Gkappa(GMatrix *Gmat, const int kappa,
-                                       const double en) {
+void CorrelationPotential::fill_Sigma_k_Gold(GMatrix *Gmat, const int kappa,
+                                             const double en) {
   auto sp = IO::Profile::safeProfiler(__func__);
 
   // Four second-order diagrams:
@@ -423,10 +423,10 @@ void CorrelationPotential::read_write(const std::string &fname,
   }
 
   // Number of kappas (number of Sigma/G matrices)
-  std::size_t num_kappas = rw == IO::FRW::write ? G_kappa.size() : 0;
+  std::size_t num_kappas = rw == IO::FRW::write ? Sigma_kappa.size() : 0;
   rw_binary(iofs, rw, num_kappas);
   if (rw == IO::FRW::read) {
-    G_kappa.resize(num_kappas, stride_points);
+    Sigma_kappa.resize(num_kappas, stride_points);
   }
 
   // Check if include FG/GG written. Note: doesn't matter if mis-match?!
@@ -435,7 +435,7 @@ void CorrelationPotential::read_write(const std::string &fname,
   rw_binary(iofs, rw, incl_fg, incl_gg);
 
   // Read/Write G matrices
-  for (auto &Gk : G_kappa) {
+  for (auto &Gk : Sigma_kappa) {
     for (int i = 0; i < stride_points; ++i) {
       for (int j = 0; j < stride_points; ++j) {
         rw_binary(iofs, rw, Gk.ff[i][j]);

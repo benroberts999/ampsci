@@ -108,8 +108,8 @@ private:
   void setup_subGrid();
 
 private:
-  // main routine, filles G (Sigma) matrix using basis
-  void fill_Gkappa(GMatrix *Gmat, const int kappa, const double en);
+  // main routine, filles Sigma matrix using basis [Goldstone]
+  void fill_Sigma_k_Gold(GMatrix *Gmat, const int kappa, const double en);
   // Adds new |ket><bra| term to G; uses sub-grid
   void addto_G(GMatrix *Gmat, const DiracSpinor &ket, const DiracSpinor &bra,
                const double f = 1.0) const;
@@ -130,7 +130,7 @@ private:
   int stride_points{};
   int imin{};
   std::vector<double> r_stride{};
-  std::vector<GMatrix> G_kappa{};
+  std::vector<GMatrix> Sigma_kappa{}; // Sigma_kappa!
 
   std::vector<double> m_lambda_kappa{};
 
