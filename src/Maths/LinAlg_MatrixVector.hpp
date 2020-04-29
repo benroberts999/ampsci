@@ -1,4 +1,7 @@
 #pragma once
+#include <gsl/gsl_blas.h>
+#include <gsl/gsl_complex.h>
+#include <gsl/gsl_complex_math.h>
 #include <gsl/gsl_eigen.h>
 #include <gsl/gsl_linalg.h>
 #include <gsl/gsl_math.h>
@@ -14,54 +17,45 @@ namespace LinAlg {
 class SqMatrix {
 
 public:
-  const int n;
-
-  // private: //make private, declare friends
+  const std::size_t n = 0;
   gsl_matrix *m = nullptr;
-  gsl_matrix *m_LU = nullptr;
-  gsl_permutation *perm = nullptr;
-  int s_LU = 0;
 
 public:
-  SqMatrix(int in_n);
-  // template <typename T>
-  SqMatrix(const std::initializer_list<double> &l);
+  SqMatrix() {}
+  SqMatrix(std::size_t in_n);
+  // SqMatrix(const std::initializer_list<double> &l);
   ~SqMatrix();
-  // copy+/assignment: doesn't copy LU etc!
-  SqMatrix(const SqMatrix &matrix);           // copy constructor;
-  SqMatrix &operator=(const SqMatrix &other); // copy assignment
-
-  // private: //make private, declare friends
-  void LU_decompose();
+  SqMatrix(const SqMatrix &matrix);
+  SqMatrix &operator=(const SqMatrix &other);
 
 public:
-  //! Constructs a diagonal matrix with values value
-  void make_diag(double value = 1.0);
+  //! Constructs a diagonal unit matrix (identity)
+  void make_identity();
   //! Sets all elements to zero
   void zero();
-  //! Scale all elements by constant value
-  void scale(double value);
   //! All values with |Mij|<value are set to zero
   void clip_low(double value);
   //! All values with |Mij|>value are set to +/-value
   void clip_high(double value);
 
   //! Forces Matrix to be symmetric by: Mij -> (Mij + Mji)/2
-  void make_symmetric(); // change to "symmetrise"?
+  void enforce_symmetric(); // change to "symmetrise"?
   //! Returns largest elemt of matrix [Mij - Mji]; zero if symmetric
-  double check_symmetric();
-  //! Prints Matrix to screen
+  [[nodiscard]] double check_symmetric();
+  //! Prints Matrix to screen (for tests)
   void print();
 
   //! Returns the transpose of matrix: not destructive
   [[nodiscard]] SqMatrix transpose() const;
-  double determinant(); // changes m_LU
-  //! Inverts the matrix: nb: destructive!
+  //! Determinate via LU decomp. Note: expensive.
+  [[nodiscard]] double determinant() const;
+  //! Inverts the matrix: nb: destructive
   void invert();
   //! Returns the inverce of matrix: not destructive
   [[nodiscard]] SqMatrix inverse() const;
 
   double *operator[](int i) const;
+  double *operator[](std::size_t i) const;
   friend SqMatrix operator*(const SqMatrix &lhs, const SqMatrix &rhs);
   SqMatrix &operator+=(const SqMatrix rhs);
   friend SqMatrix operator+(SqMatrix lhs, const SqMatrix &rhs);
@@ -69,6 +63,9 @@ public:
   friend SqMatrix operator-(SqMatrix lhs, const SqMatrix &rhs);
   SqMatrix &operator*=(const double x);
   friend SqMatrix operator*(const double x, SqMatrix rhs);
+
+  void mult_elements_by(const SqMatrix &rhs);
+  friend SqMatrix mult_elements(SqMatrix lhs, const SqMatrix &rhs);
 };
 
 //******************************************************************************
@@ -77,7 +74,7 @@ public:
   T re = 0;
   T im = 0;
   Complex<T> conj() const { return {re, -im}; }
-  // norm2 = re^2 + im^2, no sqrt (ruins T)
+  //! norm2 = re^2 + im^2, no sqrt (ruins T)
   T norm2() const { return re * re + im * im; }
   //! Mult two complex:
   friend Complex<T> operator*(const Complex<T> &a, const Complex<T> &b) {
@@ -115,94 +112,90 @@ public:
 };
 
 //******************************************************************************
-//! Basic Square matrix class of constant construct-time size
+//! Basic Complex Square matrix class of constant construct-time size
 class ComplexSqMatrix {
 
 public:
-  const int n;
-
-  // private: //make private, declare friends
+  const std::size_t n = 0;
   gsl_matrix_complex *m = nullptr;
-  gsl_matrix_complex *m_LU = nullptr;
-  gsl_permutation *perm = nullptr; //?
-  int s_LU = 0;
 
 public:
-  ComplexSqMatrix(int in_n);
-
+  ComplexSqMatrix() {}
+  ComplexSqMatrix(std::size_t in_n);
   ~ComplexSqMatrix();
-  // copy+/assignment: doesn't copy LU etc!
-  ComplexSqMatrix(const ComplexSqMatrix &matrix);           // copy constructor;
-  ComplexSqMatrix &operator=(const ComplexSqMatrix &other); // copy assignment
-
-  // private: //make private, declare friends
-  void LU_decompose(); //?
+  ComplexSqMatrix(const ComplexSqMatrix &other);
+  ComplexSqMatrix &operator=(const ComplexSqMatrix &other);
 
 public:
+  //! Constructs a diagonal unit matrix
+  void make_identity();
   //! Sets all elements to zero
   void zero();
-  //! Scale all elements by constant value
-  void scale(double value);
 
   //! Returns the transpose of matrix: not destructive
-  [[nodiscard]] SqMatrix transpose() const;
-  double determinant(); // changes m_LU
-  //! Inverts the matrix: nb: destructive!
+  [[nodiscard]] ComplexSqMatrix transpose() const;
+  //! Inverts the matrix: nb: destructive
   void invert();
   //! Returns the inverce of matrix: not destructive
-  [[nodiscard]] SqMatrix inverse() const;
+  [[nodiscard]] ComplexSqMatrix inverse() const;
 
-  double *operator[](int i) const; // struct bind?
+  //! make a ComplexSqMatrix from a SqMatrix: C = x*mR, x is complex
+  static ComplexSqMatrix make_complex(const Complex<double> &x,
+                                      const SqMatrix &mR);
 
-  friend ComplexSqMatrix operator*(const ComplexSqMatrix &lhs,
-                                   const ComplexSqMatrix &rhs);
-  friend ComplexSqMatrix operator*(const ComplexSqMatrix &lhs,
-                                   const SqMatrix &rhs);
-  friend ComplexSqMatrix operator*(const SqMatrix &lhs,
-                                   const ComplexSqMatrix &rhs);
+  //! For testing??
+  Complex<double> get_copy(std::size_t i, std::size_t j) const;
 
-  ComplexSqMatrix &operator+=(const SqMatrix rhs);
-  ComplexSqMatrix &operator+=(const ComplexSqMatrix rhs);
+  //! Get the real part (copy) of the complex matrix
+  [[nodiscard]] SqMatrix real() const;
+  //! Get the imaginary part (copy) of the complex matrix
+  [[nodiscard]] SqMatrix imaginary() const;
+  //! multiply elements in place Aij -> Aij*Bij
+  void mult_elements_by(const ComplexSqMatrix &rhs);
+  //! multiply elements Aij = Bij*Cij
+  friend ComplexSqMatrix mult_elements(ComplexSqMatrix lhs,
+                                       const ComplexSqMatrix &rhs);
+
+  //! Multiply elements by constant
+  ComplexSqMatrix &operator*=(const Complex<double> &x);
+  friend ComplexSqMatrix operator*(const Complex<double> &x,
+                                   ComplexSqMatrix rhs);
+  friend ComplexSqMatrix operator*(ComplexSqMatrix rhs,
+                                   const Complex<double> &x);
+
+  //! Matrix multiplication of 2 C-mats
+  friend ComplexSqMatrix operator*(const ComplexSqMatrix &x,
+                                   const ComplexSqMatrix &y);
+
+  //! Add + subtract Complex matrices
+  ComplexSqMatrix &operator+=(const ComplexSqMatrix &rhs);
+  ComplexSqMatrix &operator-=(const ComplexSqMatrix &rhs);
   friend ComplexSqMatrix operator+(ComplexSqMatrix lhs,
                                    const ComplexSqMatrix &rhs);
-  friend ComplexSqMatrix operator+(ComplexSqMatrix lhs, const SqMatrix &rhs);
-  friend ComplexSqMatrix operator+(SqMatrix lhs, const ComplexSqMatrix &rhs);
-
-  ComplexSqMatrix &operator-=(const SqMatrix rhs);
-  ComplexSqMatrix &operator-=(const ComplexSqMatrix rhs);
-
   friend ComplexSqMatrix operator-(ComplexSqMatrix lhs,
                                    const ComplexSqMatrix &rhs);
-  friend ComplexSqMatrix operator-(ComplexSqMatrix lhs, const SqMatrix &rhs);
-  friend ComplexSqMatrix operator-(SqMatrix lhs, const ComplexSqMatrix &rhs);
-
-  ComplexSqMatrix &operator*=(const double x);
-  friend ComplexSqMatrix operator*(const double x, ComplexSqMatrix rhs);
 };
 
 //******************************************************************************
 //! Basic vector class of constant construct-time size
 class Vector {
 public:
-  const int n;
-
-  // private:
+  const std::size_t n;
   gsl_vector *vec;
 
 public:
-  Vector(const int in_n);
+  Vector(const std::size_t in_n);
   template <typename T> Vector(const std::initializer_list<T> &l);
-  Vector &operator=(const Vector &other); // copy assignment
-  Vector(const Vector &other);            // copy constructor;
+  Vector &operator=(const Vector &other);
+  Vector(const Vector &other);
   ~Vector();
 
   void clip_low(const double value);
   void clip_high(const double value);
   void print();
 
-  // add inner product, outerproduct
-
   double &operator[](int i) const;
+  double &operator[](std::size_t i) const;
   Vector &operator+=(const Vector rhs);
   friend Vector operator+(Vector lhs, const Vector &rhs);
   Vector &operator-=(const Vector rhs);
@@ -211,16 +204,16 @@ public:
   friend Vector operator*(const double x, Vector rhs);
   friend Vector operator*(const SqMatrix &Aij, const Vector &bj);
 
-  friend double inner_produce(const Vector &a, const Vector &b);
+  friend double inner_product(const Vector &a, const Vector &b);
   friend double operator*(const Vector &a, const Vector &b);
-  friend SqMatrix outer_produce(const Vector &a, const Vector &b);
+  friend SqMatrix outer_product(const Vector &a, const Vector &b);
 };
 
 //******************************************************************************
 //******************************************************************************
 
 //! Solves Matrix equationL A*x = b for x
-Vector solve_Axeqb(SqMatrix &Am, const Vector &b);
+Vector solve_Axeqb(const SqMatrix &Am, const Vector &b);
 
 //------------------------------------------------------------------------------
 //! @brief Solves Av = ev for eigenvalues e and eigenvectors v

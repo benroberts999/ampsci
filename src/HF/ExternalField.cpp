@@ -419,8 +419,8 @@ void ExternalField::solve_TDHFcore_matrix(const Wavefunction &wf,
         const auto ki = std::size_t(Angular::indexFromKappa(Xx.k));
         const auto &basis = basis_kappa[ki];
 
-        LinAlg::Vector bi_X((int)basis.size());
-        LinAlg::Vector bi_Y((int)basis.size());
+        LinAlg::Vector bi_X(basis.size());
+        LinAlg::Vector bi_Y(basis.size());
         for (auto i = 0ul; i < basis.size(); ++i) {
           const auto &xi = basis[i];
           // fill LHS vector, b

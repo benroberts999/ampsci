@@ -37,7 +37,7 @@ namespace MBPT {
 
 //******************************************************************************
 //******************************************************************************
-GMatrix::GMatrix(int in_size)
+GMatrix::GMatrix(std::size_t in_size)
     : size(in_size), ff(size), fg(size), gf(size), gg(size) {
   zero();
 }
@@ -74,7 +74,7 @@ CorrelationPotential::CorrelationPotential(
       m_yec(&gr, &m_excited, &m_core),
       m_maxk(find_max_tj(core, excited)),
       m_6j(m_maxk, m_maxk),
-      stride(in_stride) {
+      stride(std::size_t(in_stride)) {
   auto sp = IO::Profile::safeProfiler(__func__);
 
   std::cout << "\nCorrelation potential (Sigma)\n";
@@ -105,8 +105,8 @@ void CorrelationPotential::setup_subGrid() {
   const double rmax = 30.0;
 
   imin = 0;
-  for (auto i = 0; i < (int)rvec.size(); i += stride) {
-    auto r = rvec[std::size_t(i)];
+  for (auto i = 0ul; i < rvec.size(); i += stride) {
+    auto r = rvec[i];
     if (r < rmin) {
       imin++;
       continue;
@@ -116,10 +116,11 @@ void CorrelationPotential::setup_subGrid() {
     r_stride.push_back(r);
   }
 
-  stride_points = int(r_stride.size());
+  stride_points = r_stride.size();
   printf(
       "Sigma sub-grid: r=(%.1e, %.1f)aB with %i points. [i0=%i, stride=%i]\n",
-      r_stride.front(), r_stride.back(), stride_points, imin, stride);
+      r_stride.front(), r_stride.back(), int(stride_points), int(imin),
+      int(stride));
 }
 
 //******************************************************************************
@@ -131,9 +132,9 @@ void CorrelationPotential::addto_G(GMatrix *Gmat, const DiracSpinor &ket,
   // G_ij = f * Q_i * W_j
   // Q = Q(1) = ket, W = W(2) = bra
   // Takes sub-grid into account; ket,bra are on full grid, G on sub-grid
-  for (int i = 0; i < stride_points; ++i) {
-    const auto si = static_cast<std::size_t>((imin + i) * stride);
-    for (int j = 0; j < stride_points; ++j) {
+  for (auto i = 0ul; i < stride_points; ++i) {
+    const auto si = std::size_t((imin + i) * stride);
+    for (auto j = 0ul; j < stride_points; ++j) {
       const auto sj = std::size_t((imin + j) * stride);
       Gmat->ff[i][j] += f * ket.f[si] * bra.f[sj];
       if constexpr (include_FG) {
@@ -166,9 +167,9 @@ DiracSpinor CorrelationPotential::Sigma_G_Fv(const GMatrix &Gmat,
   if constexpr (include_FG || include_GG) {
     g.resize(r_stride.size());
   }
-  for (int i = 0; i < stride_points; ++i) {
+  for (auto i = 0ul; i < stride_points; ++i) {
     const auto si = std::size_t(i);
-    for (int j = 0; j < stride_points; ++j) {
+    for (auto j = 0ul; j < stride_points; ++j) {
       const auto sj = std::size_t((imin + j) * stride);
       const auto dr = gr.drdu[sj] * gr.du * double(stride);
       f[si] += Gmat.ff[i][j] * Fv.f[sj] * dr * lambda;
@@ -436,8 +437,8 @@ void CorrelationPotential::read_write(const std::string &fname,
 
   // Read/Write G matrices
   for (auto &Gk : Sigma_kappa) {
-    for (int i = 0; i < stride_points; ++i) {
-      for (int j = 0; j < stride_points; ++j) {
+    for (auto i = 0ul; i < stride_points; ++i) {
+      for (auto j = 0ul; j < stride_points; ++j) {
         rw_binary(iofs, rw, Gk.ff[i][j]);
         if (incl_fg) {
           rw_binary(iofs, rw, Gk.fg[i][j]);
@@ -452,7 +453,8 @@ void CorrelationPotential::read_write(const std::string &fname,
   std::cout << "... done.\n";
   printf(
       "Sigma sub-grid: r=(%.1e, %.1f)aB with %i points. [i0=%i, stride=%i]\n",
-      r_stride.front(), r_stride.back(), stride_points, imin, stride);
+      r_stride.front(), r_stride.back(), int(stride_points), int(imin),
+      int(stride));
 }
 
 //******************************************************************************

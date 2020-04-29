@@ -236,12 +236,12 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
   Hd.set_v_mag(wf.get_Hmag(0));   // Magnetic QED form-factor [usually empty]
 
 #pragma omp parallel for
-  for (auto i = 0; i < Aij.n; i++) {
+  for (auto i = 0ul; i < Aij.n; i++) {
     const auto &si = spl_basis[i];
     const auto VexSi = excl_exch ? 0.0 * si : HF::vexFa(si, wf.core);
     const auto SigmaSi = sigmaQ ? (*wf.getSigma())(si) : 0.0 * si;
 
-    for (auto j = 0; j <= i; j++) {
+    for (auto j = 0ul; j <= i; j++) {
       // for (auto j = 0; j < Aij.n; j++) {
       const auto &sj = spl_basis[j];
 
@@ -256,13 +256,13 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
     }
   }
   // Fill second-half of symmetric matrix
-  for (auto i = 0; i < Aij.n; i++) {
+  for (auto i = 0ul; i < Aij.n; i++) {
     for (auto j = i + 1; j < Aij.n; j++) {
       Aij[i][j] = Aij[j][i];
       Sij[i][j] = Sij[j][i];
     }
   }
-  // Aij.make_symmetric();
+  // Aij.enforce_symmetric();
   if (ND_type)
     add_NotreDameBoundary(&Aij, spl_basis.front().k, wf.alpha);
 
@@ -305,7 +305,7 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
   const auto neg_mc2 = -1.0 / (wf.alpha * wf.alpha);
   auto pqn = min_n - 1;
   auto pqn_pstrn = -min_n + 1;
-  for (int i = 0; i < e_values.n; i++) {
+  for (auto i = 0ul; i < e_values.n; i++) {
     const auto &en = e_values[i];
     const auto &pvec = e_vectors[i];
     const auto positive_energy = en > neg_mc2;

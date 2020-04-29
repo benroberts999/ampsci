@@ -14,8 +14,8 @@ namespace MBPT {
 
 //! Holds Green's fn operator of form: |ket><bra| [4x4 matrix of NxN matrix]
 struct GMatrix {
-  GMatrix(int in_size);
-  int size; // careful, should be const, but then need copy construct?
+  GMatrix(std::size_t in_size);
+  std::size_t size; // careful, should be const, but then need copy construct?
   LinAlg::SqMatrix ff, fg, gf, gg;
   //! Sets all matrix elements to zero
   void zero();
@@ -125,10 +125,10 @@ private:
   Coulomb::YkTable m_yec; // constains Ck and Y_ec(r)
   const int m_maxk;
   Angular::SixJ m_6j;
-  int stride;
+  std::size_t stride;
 
-  int stride_points{};
-  int imin{};
+  std::size_t stride_points{};
+  std::size_t imin{};
   std::vector<double> r_stride{};
   std::vector<GMatrix> Sigma_kappa{}; // Sigma_kappa!
 
