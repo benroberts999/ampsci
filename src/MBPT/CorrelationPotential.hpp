@@ -2,6 +2,7 @@
 #include "Angular/Angular_tables.hpp"
 #include "Coulomb/YkTable.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
+#include "MBPT/GreenMatrix.hpp"
 #include "Maths/Interpolator.hpp"
 #include "Maths/LinAlg_MatrixVector.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
@@ -12,17 +13,8 @@ class Grid;
 //! Many-body perturbation theory
 namespace MBPT {
 
-//! Holds Green's fn operator of form: |ket><bra| [4x4 matrix of NxN matrix]
-struct GMatrix {
-  GMatrix(std::size_t in_size);
-  std::size_t size; // careful, should be const, but then need copy construct?
-  LinAlg::SqMatrix ff, fg, gf, gg;
-  //! Sets all matrix elements to zero
-  void zero();
-  //! Can add/subtract matrices (in place)
-  GMatrix &operator+=(const GMatrix &rhs);
-  GMatrix &operator-=(const GMatrix &rhs);
-};
+using GMatrix = GreenMatrix<LinAlg::SqMatrix>;
+using ComplexGMatrix = GreenMatrix<LinAlg::ComplexSqMatrix>;
 
 //******************************************************************************
 /*!
@@ -130,13 +122,12 @@ private:
   std::size_t stride_points{};
   std::size_t imin{};
   std::vector<double> r_stride{};
-  std::vector<GMatrix> Sigma_kappa{}; // Sigma_kappa!
+  std::vector<GMatrix> Sigma_kappa{};
 
   std::vector<double> m_lambda_kappa{};
 
   // Options for sub-grid, and which matrices to include
-  static constexpr bool include_FG = false;
-  static constexpr bool include_GG = false;
+  static constexpr bool include_G = false;
 };
 
 } // namespace MBPT

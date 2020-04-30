@@ -2,6 +2,7 @@
 
 $(BD)/CorrelationPotential.o: $(SD)/MBPT/CorrelationPotential.cpp \
 $(SD)/MBPT/CorrelationPotential.hpp \
+$(SD)/MBPT/GreenMatrix.hpp \
 $(SD)/Angular/Angular_tables.hpp \
 $(SD)/Coulomb/Coulomb.hpp \
 $(SD)/Coulomb/YkTable.hpp \

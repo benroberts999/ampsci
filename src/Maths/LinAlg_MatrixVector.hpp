@@ -50,7 +50,7 @@ public:
   //! Determinate via LU decomp. Note: expensive.
   [[nodiscard]] double determinant() const;
   //! Inverts the matrix: nb: destructive
-  void invert();
+  SqMatrix &invert();
   //! Returns the inverce of matrix: not destructive
   [[nodiscard]] SqMatrix inverse() const;
 
@@ -135,7 +135,7 @@ public:
   //! Returns the transpose of matrix: not destructive
   [[nodiscard]] ComplexSqMatrix transpose() const;
   //! Inverts the matrix: nb: destructive
-  void invert();
+  ComplexSqMatrix &invert();
   //! Returns the inverce of matrix: not destructive
   [[nodiscard]] ComplexSqMatrix inverse() const;
 

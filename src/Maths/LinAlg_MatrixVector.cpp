@@ -35,7 +35,8 @@ SqMatrix::SqMatrix(const SqMatrix &matrix) // copy constructor
 SqMatrix &SqMatrix::operator=(const SqMatrix &other) // copy assignment
 {
   // Check sizes!
-  gsl_matrix_memcpy(m, other.m);
+  if (this != &other)
+    gsl_matrix_memcpy(m, other.m);
   return *this;
 }
 
@@ -104,7 +105,7 @@ double SqMatrix::determinant() const {
   return det;
 }
 
-void SqMatrix::invert() {
+SqMatrix &SqMatrix::invert() {
   // note: this is destuctive: matrix will be inverted
   // uses LU decomposition
   gsl_permutation *permutn = gsl_permutation_alloc(n);
@@ -112,6 +113,7 @@ void SqMatrix::invert() {
   gsl_linalg_LU_decomp(m, permutn, &sLU);
   gsl_linalg_LU_invx(m, permutn);
   gsl_permutation_free(permutn);
+  return *this;
 }
 
 SqMatrix SqMatrix::inverse() const {
@@ -188,7 +190,8 @@ Vector::Vector(const Vector &other) : n(other.n), vec(gsl_vector_alloc(n)) {
 Vector &Vector::operator=(const Vector &other) {
   // copy assignment
   // Check dimensions?
-  gsl_vector_memcpy(vec, other.vec);
+  if (this != &other)
+    gsl_vector_memcpy(vec, other.vec);
   return *this;
 }
 
@@ -297,7 +300,8 @@ ComplexSqMatrix::ComplexSqMatrix(const ComplexSqMatrix &other)
 }
 
 ComplexSqMatrix &ComplexSqMatrix::operator=(const ComplexSqMatrix &other) {
-  gsl_matrix_complex_memcpy(m, other.m);
+  if (this != &other)
+    gsl_matrix_complex_memcpy(m, other.m);
   return *this;
 }
 
@@ -315,7 +319,7 @@ ComplexSqMatrix ComplexSqMatrix::transpose() const {
   return mTr;
 }
 // Inverts the matrix: nb: destructive
-void ComplexSqMatrix::invert() {
+ComplexSqMatrix &ComplexSqMatrix::invert() {
   // note: this is destuctive: matrix will be inverted
   // uses LU decomposition
   gsl_permutation *permutn = gsl_permutation_alloc(n);
@@ -323,6 +327,7 @@ void ComplexSqMatrix::invert() {
   gsl_linalg_complex_LU_decomp(m, permutn, &sLU);
   gsl_linalg_complex_LU_invx(m, permutn);
   gsl_permutation_free(permutn);
+  return *this;
 }
 // Returns the inverce of matrix: not destructive
 ComplexSqMatrix ComplexSqMatrix::inverse() const {
