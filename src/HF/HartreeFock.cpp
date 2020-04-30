@@ -84,6 +84,12 @@ const std::vector<double> &HartreeFock::solveCore() {
 }
 
 //******************************************************************************
+std::vector<double> HartreeFock::get_vlocal(int l) const {
+  const auto &vrad_el = get_Hrad_el(l);
+  return NumCalc::add_vectors(*p_vnuc, m_vdir, vrad_el);
+}
+
+//******************************************************************************
 void HartreeFock::hf_core_approx(const double eps_target_HF) {
   auto sp = IO::Profile::safeProfiler(__func__);
   if (p_core->empty()) {
@@ -362,6 +368,13 @@ double HartreeFock::calculateCoreEnergy() const
     Etot += e1 - 0.5 * (e2 - e3);
   }
   return Etot;
+}
+
+//******************************************************************************
+int HartreeFock::num_core_electrons() const {
+  return std::accumulate(
+      p_core->cbegin(), p_core->cend(), 0,
+      [](int n, const auto &Fa) { return n + Fa.num_electrons(); });
 }
 
 //******************************************************************************

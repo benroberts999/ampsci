@@ -123,6 +123,10 @@ public:
   //! Returns true of exchange not included
   bool excludeExchangeQ() const { return m_excludeExchange; }
 
+  std::vector<double> get_vlocal(int l) const;
+
+  int num_core_electrons() const;
+
 public:
   bool verbose = true; // update to input??
 
@@ -131,8 +135,12 @@ private:
   const Grid *const p_rgrid;
   const std::vector<double> *const p_vnuc;
   const RadiativePotential::Vrad *const p_vrad;
+
+public:
   const double m_alpha;
   const Method m_method;
+
+private:
   const double m_eps_HF;
   // pointer to core orbs that exist outside.
   // Note: core.size() must not change; core elements must remain in orig. order
@@ -147,6 +155,8 @@ private:
   static constexpr bool m_explicitOrthog_cv = false;
 
   const std::vector<double> &get_Hrad_el(int l) const;
+
+public:
   const std::vector<double> &get_Hrad_mag(int l) const;
 
 private:

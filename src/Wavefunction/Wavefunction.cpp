@@ -694,7 +694,7 @@ void Wavefunction::formSigma(const int nmin_core, const bool form_matrix,
   }
   // Correlaion potential matrix:
   m_Sigma = std::make_unique<MBPT::CorrelationPotential>(
-      rgrid, occupied, excited, stride, en_list_kappa, fname);
+      rgrid, occupied, excited, stride, en_list_kappa, fname, m_pHF.get());
   m_Sigma->scale_Sigma(lambdas);
 }
 

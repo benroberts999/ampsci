@@ -178,6 +178,10 @@ T add_vectors(const T &zeroth, const Args &... args) {
   helper::vector_adder(out, args...);
   return out;
 }
+template <typename T, typename... Args> //
+void add_to_vector(T &a, const T &b) {
+  helper::vector_adder(a, b);
+}
 //******************************************************************************
 namespace helper {
 template <typename Real>

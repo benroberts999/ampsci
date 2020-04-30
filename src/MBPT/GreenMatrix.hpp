@@ -38,6 +38,16 @@ public:
     }
   }
 
+  //! Makes 1
+  void make_identity() {
+    ff.make_identity();
+    if (include_G) {
+      fg.make_identity();
+      gf.make_identity();
+      gg.make_identity();
+    }
+  }
+
   //! Can add/subtract matrices (in place)
   GreenMatrix<T> &operator+=(const GreenMatrix<T> &rhs) {
     ff += rhs.ff;
@@ -48,6 +58,10 @@ public:
     }
     return *this;
   }
+  friend GreenMatrix<T> operator+(GreenMatrix<T> lhs,
+                                  const GreenMatrix<T> &rhs) {
+    return lhs += rhs;
+  }
   GreenMatrix<T> &operator-=(const GreenMatrix<T> &rhs) {
     ff -= rhs.ff;
     if (include_G) {
@@ -56,6 +70,10 @@ public:
       gg -= rhs.gg;
     }
     return *this;
+  }
+  friend GreenMatrix<T> operator-(GreenMatrix<T> lhs,
+                                  const GreenMatrix<T> &rhs) {
+    return lhs -= rhs;
   }
 
   //! Matrix multplication (in place): Gij -> \sum_k Gik*Bkj
@@ -71,6 +89,10 @@ public:
       ff = ff * b.ff;
     }
     return *this;
+  }
+  friend GreenMatrix<T> operator*(GreenMatrix<T> lhs,
+                                  const GreenMatrix<T> &rhs) {
+    return lhs *= rhs;
   }
 
   //! Inversion (in place)
@@ -92,6 +114,10 @@ public:
     }
     return *this;
   }
+  GreenMatrix<T> inverse() const {
+    auto out = *this; //
+    return out.invert();
+  }
 
   //! Multiply elements (in place): Gij -> Gij*Bij
   void mult_elements_by(const GreenMatrix<T> &rhs) {
@@ -101,6 +127,10 @@ public:
       gf.mult_elements_by(rhs.gf);
       gg.mult_elements_by(rhs.gg);
     }
+  }
+  friend GreenMatrix<T> mult_elements(GreenMatrix<T> lhs,
+                                      const GreenMatrix<T> &rhs) {
+    return lhs.mult_elements_by(rhs);
   }
 
   //! Return the real-part of a complex GreenMatrix (by copy)
@@ -145,7 +175,7 @@ public:
     }
     return gmat;
   }
-};
+}; // namespace MBPT
 
 //******************************************************************************
 

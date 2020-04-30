@@ -2,12 +2,15 @@
 #include "Angular/Angular_tables.hpp"
 #include "Coulomb/Coulomb.hpp"
 #include "Coulomb/YkTable.hpp"
+#include "DiracODE/DiracODE.hpp"
+#include "HF/HartreeFock.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
 #include "IO/SafeProfiler.hpp"
 #include "MBPT/GreenMatrix.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/Interpolator.hpp"
 #include "Maths/LinAlg_MatrixVector.hpp"
+#include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/AtomData.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
@@ -41,14 +44,16 @@ namespace MBPT {
 CorrelationPotential::CorrelationPotential(
     const Grid &gr, const std::vector<DiracSpinor> &core,
     const std::vector<DiracSpinor> &excited, const int in_stride,
-    const std::vector<double> &en_list, const std::string &in_fname)
+    const std::vector<double> &en_list, const std::string &in_fname,
+    const HF::HartreeFock *const in_hf)
     : p_gr(&gr),
       m_core(core),
       m_excited(excited),
       m_yec(&gr, &m_excited, &m_core),
       m_maxk(find_max_tj(core, excited)),
       m_6j(m_maxk, m_maxk),
-      stride(std::size_t(in_stride)) {
+      stride(std::size_t(in_stride)),
+      p_hf(in_hf) {
   auto sp = IO::Profile::safeProfiler(__func__);
 
   std::cout << "\nCorrelation potential (Sigma)\n";
@@ -75,6 +80,8 @@ void CorrelationPotential::setup_subGrid() {
   // const double rmax = m_core.empty() ? 30.0 : m_core.front().rinf();
   const double rmin = 1.0e-4;
   const double rmax = 30.0;
+  // const double rmin = 1.0e-6;
+  // const double rmax = 120.0;
 
   imin = 0;
   for (auto i = 0ul; i < rvec.size(); i += stride) {
@@ -431,6 +438,131 @@ void CorrelationPotential::print_scaling() const {
     }
     std::cout << "\n";
   }
+}
+
+//******************************************************************************
+//******************************************************************************
+
+//******************************************************************************
+GMatrix CorrelationPotential::Green_core(int kappa, double en) const {
+  // G_core = \sum_a |a><a|/(e-ea), for all a with a.k=k
+  GMatrix Gcore(stride_points, include_G);
+  for (const auto &a : m_core) {
+    if (a.k == kappa)
+      addto_G(&Gcore, a, a, 1.0 / (en - a.en));
+  }
+  return Gcore;
+}
+
+//******************************************************************************
+GMatrix CorrelationPotential::Green_hf(int kappa, double en) const {
+  DiracSpinor x0(0, kappa, *p_gr);
+  DiracSpinor xI(0, kappa, *p_gr);
+
+  const auto &Hmag = p_hf->get_Hrad_mag(x0.l());
+  const auto alpha = p_hf->m_alpha;
+
+  const auto Nc = p_hf->num_core_electrons();
+  const auto eta = -0.5 / Nc;
+  auto eta_vd = p_hf->get_vdir();
+  NumCalc::scaleVec(eta_vd, eta);
+  auto vl = p_hf->get_vlocal(x0.l());
+  NumCalc::add_to_vector(vl, eta_vd);
+
+  DiracODE::regularAtOrigin(x0, en, vl, Hmag, alpha);
+  DiracODE::regularAtInfinity(xI, en, vl, Hmag, alpha);
+
+  const auto pp = std::size_t(0.65 * double(xI.pinf));
+  const auto w = -1.0 * (xI.f[pp] * x0.g[pp] - x0.f[pp] * xI.g[pp]) / alpha;
+  // not sure why -ve sign.. is sign even defined by DiracODE?
+
+  const auto g0 = MakeGreensG(x0, xI, w);
+
+  GMatrix Ident(stride_points, include_G);
+  Ident.make_identity();
+  const auto Vx = Make_Vx(kappa, eta_vd);
+
+  return g0 * ((Ident - g0 * Vx).inverse());
+}
+
+//******************************************************************************
+GMatrix CorrelationPotential::MakeGreensG(const DiracSpinor &x0,
+                                          const DiracSpinor &xI,
+                                          const double w) const {
+  auto sp = IO::Profile::safeProfiler(__func__);
+  // Takes sub-grid into account; ket,bra are on full grid, G on sub-grid
+  // G(r1,r2) = x0(rmin)*xI(imax)/w
+  GMatrix g0I(stride_points, include_G);
+  // XXX Take advantage of symmetry!?
+  for (auto i = 0ul; i < stride_points; ++i) {
+    const auto si = imin + i * stride;
+    for (auto j = 0ul; j < stride_points; ++j) {
+      const auto sj = imin + j * stride;
+      const auto irmin = std::min(sj, si);
+      const auto irmax = std::max(sj, si);
+      g0I.ff[i][j] = x0.f[irmin] * xI.f[irmax] / w;
+      if constexpr (include_G) {
+        g0I.fg[i][j] = x0.f[irmin] * xI.g[irmax] / w;
+        g0I.gf[i][j] = x0.g[irmin] * xI.f[irmax] / w;
+        g0I.gg[i][j] = x0.g[irmin] * xI.g[irmax] / w;
+      }
+    } // j
+  }   // i
+  return g0I;
+}
+
+//******************************************************************************
+GMatrix CorrelationPotential::Make_Vx(int kappa,
+                                      const std::vector<double> vx) const {
+  auto sp = IO::Profile::safeProfiler(__func__);
+
+  const auto tj = Angular::twoj_k(kappa);
+
+  GMatrix Vx(stride_points, include_G);
+
+  for (auto i = 0ul; i < stride_points; ++i) {
+    const auto si = imin + i * stride;
+    const auto dri = p_gr->drdu[si] * p_gr->du * double(stride);
+    for (auto j = 0ul; j < stride_points; ++j) {
+      const auto sj = imin + j * stride;
+      const auto drj = p_gr->drdu[sj] * p_gr->du * double(stride);
+      const auto irmin = std::min(sj, si);
+      const auto irmax = std::max(sj, si);
+      const auto rmin = p_gr->r[irmin];
+      const auto rmax = p_gr->r[irmax];
+
+      const auto q_factor = rmin / rmax;
+
+      for (const auto &a : m_core) {
+        const auto kmax = (a.twoj() + tj) / 2;
+        auto q = 1.0 / rmin; // (1.0 / rmax) / (rmin / rmax), for k=-1
+        for (int k = 0; k <= kmax; ++k) {
+          q *= q_factor; // = rmin^k/rmax^k+1 //XXX check!
+
+          const auto c1 = Angular::Ck_kk(k, kappa, a.k);
+          if (c1 == 0)
+            continue;
+          const auto c = -1.0 * c1 * c1 / (tj + 1);
+
+          Vx.ff[i][j] += c * a.f[si] * a.f[sj] * q * dri * drj;
+          if constexpr (include_G) {
+            Vx.fg[i][j] += c * a.f[si] * a.g[sj] * q * dri * drj;
+            Vx.gf[i][j] += c * a.g[si] * a.f[sj] * q * dri * drj;
+            Vx.gg[i][j] += c * a.g[si] * a.g[sj] * q * dri * drj;
+          }
+        }
+      }
+    } // j
+    // subtract of "effective/approx" exchange term (eta*v_dir)
+    Vx.ff[i][i] -= vx[si] * dri * dri;
+    if constexpr (include_G) {
+      Vx.fg[i][i] -= vx[si] * dri * dri;
+      Vx.gf[i][i] -= vx[si] * dri * dri;
+      Vx.gg[i][i] -= vx[si] * dri * dri;
+    }
+  }
+
+  return Vx;
 }
 
 } // namespace MBPT

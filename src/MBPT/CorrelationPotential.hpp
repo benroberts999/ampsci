@@ -9,6 +9,10 @@
 #include "Wavefunction/Wavefunction.hpp"
 #include <vector>
 class Grid;
+namespace HF {
+class HartreeFock;
+}
+// #include "HF/HartreeFock.hpp"
 
 //! Many-body perturbation theory
 namespace MBPT {
@@ -62,7 +66,8 @@ public:
                        const std::vector<DiracSpinor> &excited = {},
                        const int in_stride = 4,
                        const std::vector<double> &en_list = {},
-                       const std::string &in_fname = "");
+                       const std::string &in_fname = "",
+                       const HF::HartreeFock *const in_hf = nullptr);
 
   CorrelationPotential &operator=(const CorrelationPotential &) = delete;
   CorrelationPotential(const CorrelationPotential &) = delete;
@@ -105,19 +110,34 @@ private:
   // Adds new |ket><bra| term to G; uses sub-grid
   void addto_G(GMatrix *Gmat, const DiracSpinor &ket, const DiracSpinor &bra,
                const double f = 1.0) const;
+
   // Acts Sigma (G) matrix onto Fv. Interpolates from sub-grid
+public: // public for testing only
   DiracSpinor Sigma_G_Fv(const GMatrix &Gmat, const DiracSpinor &Fv) const;
+
+private:
   // Read and writes Sigma (G) matrix to file
   void read_write(const std::string &fname, IO::FRW::RoW rw);
+
+  //----------------------------------------------
+public:
+  GMatrix Green_core(int kappa, double en) const;
+  GMatrix Green_hf(int kappa, double en) const;
+  GMatrix MakeGreensG(const DiracSpinor &x0, const DiracSpinor &xI,
+                      const double w) const;
+  GMatrix Make_Vx(int kappa, const std::vector<double> vx) const;
 
 private:
   const Grid *const p_gr;
   const std::vector<DiracSpinor> m_core;
-  const std::vector<DiracSpinor> m_excited;
-  Coulomb::YkTable m_yec; // constains Ck and Y_ec(r)
-  const int m_maxk;
+  const std::vector<DiracSpinor> m_excited; // empty for Feynman
+  Coulomb::YkTable m_yec;                   // constains Ck and Y_ec(r)
+  // Need difference Ck for Feynman! ptr?
+  const int m_maxk; // need max_l
   Angular::SixJ m_6j;
   std::size_t stride;
+
+  const HF::HartreeFock *const p_hf;
 
   std::size_t stride_points{};
   std::size_t imin{};
