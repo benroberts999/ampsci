@@ -126,6 +126,7 @@ public:
   std::vector<double> get_vlocal(int l) const;
 
   int num_core_electrons() const;
+  const std::vector<DiracSpinor> &get_core() const { return *p_core; }
 
 public:
   bool verbose = true; // update to input??

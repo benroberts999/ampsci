@@ -103,6 +103,15 @@ void CorrelationPotential::setup_subGrid() {
 }
 
 //******************************************************************************
+GMatrix CorrelationPotential::G_single(const DiracSpinor &ket,
+                                       const DiracSpinor &bra,
+                                       const double f) const {
+  GMatrix Gmat(stride_points, include_G);
+  addto_G(&Gmat, ket, bra, f);
+  return Gmat;
+}
+
+//******************************************************************************
 void CorrelationPotential::addto_G(GMatrix *Gmat, const DiracSpinor &ket,
                                    const DiracSpinor &bra,
                                    const double f) const {
@@ -447,7 +456,10 @@ void CorrelationPotential::print_scaling() const {
 GMatrix CorrelationPotential::Green_core(int kappa, double en) const {
   // G_core = \sum_a |a><a|/(e-ea), for all a with a.k=k
   GMatrix Gcore(stride_points, include_G);
-  for (const auto &a : m_core) {
+
+  // loop over HF core, not Sigma core (only excited!)
+  const auto &core = p_hf->get_core();
+  for (const auto &a : core) {
     if (a.k == kappa)
       addto_G(&Gcore, a, a, 1.0 / (en - a.en));
   }
@@ -484,6 +496,29 @@ GMatrix CorrelationPotential::Green_hf(int kappa, double en) const {
 
   return g0 * ((Ident - g0 * Vx).inverse());
 }
+
+//******************************************************************************
+GMatrix CorrelationPotential::polarisation(int k_a, int k_alpha,
+                                           double omega) const {
+  GMatrix pi(stride_points, include_G);
+  for (const auto &a : m_core) {
+    if (a.k != k_a)
+      continue;
+    // Non-allocating version for ga_ex!
+    auto g_alpha_ex =
+        Green_hf(k_alpha, a.en - omega) - Green_core(k_alpha, a.en - omega) +
+        Green_hf(k_alpha, a.en + omega) - Green_core(k_alpha, a.en + omega);
+    auto ketbra_a = G_single(a, a, 1.0);
+    g_alpha_ex.mult_elements_by(ketbra_a);
+    pi += g_alpha_ex;
+  }
+  return pi;
+}
+
+//******************************************************************************
+// ComplexGMatrix ComplexG(const GMatrix &Gre, double om_imag) const {
+//   //
+// }
 
 //******************************************************************************
 GMatrix CorrelationPotential::MakeGreensG(const DiracSpinor &x0,
