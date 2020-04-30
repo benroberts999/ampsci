@@ -284,7 +284,8 @@ EpsIts HartreeFock::hf_valence_approx(DiracSpinor &Fa, double eps_target_HF)
 
     double en_old = Fa.en;
     vexa_old = vexa;
-    vexa = vex_approx(Fa, *p_core);
+    if (!m_excludeExchange)
+      vexa = vex_approx(Fa, *p_core);
 
     for (std::size_t i = 0; i < p_rgrid->num_points; i++) {
       vexa[i] = (1.0 - eta) * vexa[i] + eta * vexa_old[i];
@@ -438,6 +439,10 @@ void HartreeFock::form_approx_vex_core_a(const DiracSpinor &Fa,
   auto sp = IO::Profile::safeProfiler(__func__);
   vex_a.clear();
   vex_a.resize(p_rgrid->num_points);
+
+  // don't subtract self-potential term for Hartree {match Core-Hartree}
+  if (m_excludeExchange)
+    return;
 
   const auto twoj_a = Fa.twoj();
 
