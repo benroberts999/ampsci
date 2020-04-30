@@ -3,7 +3,7 @@
 #include "Angular/Angular_tables.hpp"
 #include "Coulomb/Coulomb.hpp"
 #include "DiracOperator/DiracOperator.hpp"
-#include "HF/HartreeFockClass.hpp"
+#include "HF/HartreeFock.hpp"
 #include "HF/MixedStates.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "Wavefunction/BSplineBasis.hpp"

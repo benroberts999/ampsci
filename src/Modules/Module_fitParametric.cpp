@@ -1,5 +1,5 @@
 #include "Modules/Module_fitParametric.hpp"
-#include "HF/HartreeFockClass.hpp"
+#include "HF/HartreeFock.hpp"
 #include "IO/UserInput.hpp"
 #include "Maths/Grid.hpp"
 #include "Physics/AtomData.hpp"

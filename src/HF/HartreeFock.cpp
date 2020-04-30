@@ -1,4 +1,4 @@
-#include "HF/HartreeFockClass.hpp"
+#include "HF/HartreeFock.hpp"
 #include "Angular/Angular_369j.hpp"
 #include "Coulomb/Coulomb.hpp"
 #include "Coulomb/YkTable.hpp"

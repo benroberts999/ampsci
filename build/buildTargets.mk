@@ -40,7 +40,7 @@ BASE = $(addprefix $(BD)/, \
 )
 
 HF = $(addprefix $(BD)/, \
- HartreeFockClass.o YkTable.o Coulomb.o Parametric_potentials.o \
+ HartreeFock.o YkTable.o Coulomb.o Parametric_potentials.o \
  Adams_Greens.o MixedStates.o ExternalField.o RadiativePotential.o \
  CorrelationPotential.o \
 )
