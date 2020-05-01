@@ -9,7 +9,7 @@
 #include <iostream>
 #include <string>
 //
-// #include "MBPT/CorrelationPotential.hpp"
+#include "MBPT/CorrelationPotential.hpp"
 
 int main(int argc, char *argv[]) {
   IO::ChronoTimer timer("\ndiracSCAS");
@@ -200,10 +200,30 @@ int main(int argc, char *argv[]) {
     wf.formSigma(n_min_core, do_brueckner, sigma_stride, lambda_k, sigma_file);
   }
 
-  // auto Sk = wf.getSigma();
-  //
-  // const auto g0 = Sk->Green_hf(-1, -0.3);
-  //
+  auto Sk = wf.getSigma();
+
+  {
+    IO::ChronoTimer t("Green_hf");
+    const auto g0 = Sk->Green_hf(-1, -0.3);
+  }
+  {
+    IO::ChronoTimer t("Green_core");
+    const auto g0 = Sk->Green_core(-1, -0.3);
+  }
+  {
+    const auto g0 = Sk->Green_hf(-1, -0.3);
+    IO::ChronoTimer t("Complex G");
+    const auto gi = Sk->ComplexG(g0, 0.3);
+  }
+  {
+    IO::ChronoTimer t("Polarisation");
+    const auto pi = Sk->polarisation(-1, -1, -0.3);
+  }
+  {
+    IO::ChronoTimer t("Complex Polarisation");
+    const auto pi = Sk->ComplexPol(-1, -1, -0.3, 0.3);
+  }
+
   // for (const auto &a : wf.core) {
   //   if (a.k != -1)
   //     continue;
@@ -221,8 +241,8 @@ int main(int argc, char *argv[]) {
   //   std::cout << nn << "\n";
   // }
   // // std::cout << 1.0 / << "\n";
-  //
-  // // return 1;
+
+  return 1;
 
   // Just energy shifts
   if (!wf.valence.empty() && do_energyShifts && Sigma_ok) {

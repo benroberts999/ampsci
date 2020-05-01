@@ -48,6 +48,16 @@ public:
     }
   }
 
+  GreenMatrix<T> &plusIdent(double a = 1.0) {
+    ff.plusIdent(a);
+    if (include_G) {
+      // fg; // ident? doesn't touch these guys I guess?
+      // gf;
+      gg.plusIdent(a);
+    }
+    return *this;
+  }
+
   //! Can add/subtract matrices (in place)
   GreenMatrix<T> &operator+=(const GreenMatrix<T> &rhs) {
     ff += rhs.ff;
@@ -108,8 +118,14 @@ public:
       const auto dmcaib = (d - cai * b).invert();
       const auto aib_dmcaib = ai * b * dmcaib;
       ff += aib_dmcaib * cai;
-      fg = -1.0 * aib_dmcaib;
-      gf = -1.0 * dmcaib * cai;
+      if constexpr (std::is_same<T, LinAlg::ComplexSqMatrix>::value) {
+        const auto neg_one = LinAlg::Complex<double>{-1.0, 0.0};
+        fg = neg_one * aib_dmcaib;
+        gf = neg_one * dmcaib * cai;
+      } else {
+        fg = -1.0 * aib_dmcaib;
+        gf = -1.0 * dmcaib * cai;
+      }
       gg = dmcaib;
     }
     return *this;
@@ -128,6 +144,7 @@ public:
       gg.mult_elements_by(rhs.gg);
     }
   }
+  //! Multiply elements (new matrix): Gij = Aij*Bij
   friend GreenMatrix<T> mult_elements(GreenMatrix<T> lhs,
                                       const GreenMatrix<T> &rhs) {
     return lhs.mult_elements_by(rhs);
@@ -167,11 +184,11 @@ public:
     static_assert(std::is_same<T, LinAlg::SqMatrix>::value,
                   "Can only call make_complex from Real GMatrix!");
     auto gmat = GreenMatrix<LinAlg::ComplexSqMatrix>(size, include_G);
-    gmat.ff = make_complex(x, ff);
+    gmat.ff = LinAlg::ComplexSqMatrix::make_complex(x, ff);
     if (include_G) {
-      gmat.fg = make_complex(x, fg);
-      gmat.gf = make_complex(x, gf);
-      gmat.gg = make_complex(x, gg);
+      gmat.fg = LinAlg::ComplexSqMatrix::make_complex(x, fg);
+      gmat.gf = LinAlg::ComplexSqMatrix::make_complex(x, gf);
+      gmat.gg = LinAlg::ComplexSqMatrix::make_complex(x, gg);
     }
     return gmat;
   }

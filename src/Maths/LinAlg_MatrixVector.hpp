@@ -45,6 +45,14 @@ public:
   //! Prints Matrix to screen (for tests)
   void print();
 
+  //! M -> M + aI, for I=identity (add a to diag elements)
+  void plusIdent(double a = 1.0) {
+    auto &mat = *this;
+    for (auto i = 0ul; i < n; ++i) {
+      mat[i][i] += a;
+    }
+  }
+
   //! Returns the transpose of matrix: not destructive
   [[nodiscard]] SqMatrix transpose() const;
   //! Determinate via LU decomp. Note: expensive.
@@ -155,6 +163,16 @@ public:
   //! multiply elements Aij = Bij*Cij
   friend ComplexSqMatrix mult_elements(ComplexSqMatrix lhs,
                                        const ComplexSqMatrix &rhs);
+
+  //! M -> M + aI, for I=identity (add a to diag elements)
+  void plusIdent(double a = 1.0) {
+    // XXX There is certainly a better way.....
+    for (auto i = 0ul; i < n; ++i) {
+      const auto val = gsl_matrix_complex_get(m, i, i);
+      const auto new_val = gsl_complex_add_real(val, a);
+      gsl_matrix_complex_set(m, i, i, new_val);
+    }
+  }
 
   //! Multiply elements by constant
   ComplexSqMatrix &operator*=(const Complex<double> &x);

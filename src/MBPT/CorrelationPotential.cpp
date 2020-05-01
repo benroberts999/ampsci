@@ -454,6 +454,7 @@ void CorrelationPotential::print_scaling() const {
 
 //******************************************************************************
 GMatrix CorrelationPotential::Green_core(int kappa, double en) const {
+  auto sp = IO::Profile::safeProfiler(__func__);
   // G_core = \sum_a |a><a|/(e-ea), for all a with a.k=k
   GMatrix Gcore(stride_points, include_G);
 
@@ -465,9 +466,31 @@ GMatrix CorrelationPotential::Green_core(int kappa, double en) const {
   }
   return Gcore;
 }
+//******************************************************************************
+ComplexGMatrix CorrelationPotential::Green_core(int kappa, double en_re,
+                                                double en_im) const {
+  auto sp = IO::Profile::safeProfiler(__func__, "complex");
+  // G_core = \sum_a |a><a|/(e_r + i*e_i-ea), for all a with a.k=k
+  ComplexGMatrix Gcore(stride_points, include_G);
+
+  // loop over HF core, not Sigma core (only excited!)
+  const auto &core = p_hf->get_core();
+  for (const auto &a : core) {
+    if (a.k != kappa)
+      continue;
+    // factor = 1/(a+ib) = (a-ib)/(a^2+b^2)
+    const auto de_re = en_re - a.en;
+    const auto a2pb2 = (de_re * de_re + en_im * en_im);
+    const ComplexDouble factor{de_re / a2pb2, -en_im / a2pb2};
+    // const auto ketbra_a = G_single(a, a, 1.0); // |a><a|
+    Gcore += G_single(a, a, 1.0).make_complex(factor); // expensive!
+  }
+  return Gcore;
+}
 
 //******************************************************************************
 GMatrix CorrelationPotential::Green_hf(int kappa, double en) const {
+  auto sp = IO::Profile::safeProfiler(__func__);
   DiracSpinor x0(0, kappa, *p_gr);
   DiracSpinor xI(0, kappa, *p_gr);
 
@@ -500,6 +523,8 @@ GMatrix CorrelationPotential::Green_hf(int kappa, double en) const {
 //******************************************************************************
 GMatrix CorrelationPotential::polarisation(int k_a, int k_alpha,
                                            double omega) const {
+  auto sp = IO::Profile::safeProfiler(__func__);
+  // XXX This is very inefficient!
   GMatrix pi(stride_points, include_G);
   for (const auto &a : m_core) {
     if (a.k != k_a)
@@ -516,9 +541,51 @@ GMatrix CorrelationPotential::polarisation(int k_a, int k_alpha,
 }
 
 //******************************************************************************
-// ComplexGMatrix ComplexG(const GMatrix &Gre, double om_imag) const {
-//   //
-// }
+ComplexGMatrix CorrelationPotential::ComplexPol(int k_a, int k_alpha,
+                                                double om_re,
+                                                double om_im) const {
+  auto sp = IO::Profile::safeProfiler(__func__);
+  // XXX This is very inefficient! Can be much improved!
+  ComplexGMatrix pi(stride_points, include_G);
+  for (const auto &a : m_core) {
+    if (a.k != k_a)
+      continue;
+    // Non-allocating version for ga_ex!
+
+    auto gre_tmp = Green_hf(k_alpha, a.en - om_re); // real part
+    auto g_ex = ComplexG(gre_tmp, -1.0 * om_im);    // complex g (all states)
+    // Now include +w term [re-use gre_tmp allocation]
+    gre_tmp = Green_hf(k_alpha, a.en + om_re); // real part
+    g_ex += ComplexG(gre_tmp, om_im);          // Full Complex [G(e-w)+G(e+w)]
+    // subtract core part: gives [G^ex(e-w) + G^ex(e+w)]
+    // XXX Can do this in place!
+    g_ex -= Green_core(k_alpha, a.en - om_re, -1.0 * om_im);
+    g_ex -= Green_core(k_alpha, a.en + om_re, om_im);
+
+    // ketbra_a = |a><a|
+    // XXX Can do this in fewer
+    auto ketbra_a = G_single(a, a, 1.0).make_complex({1.0, 0.0}); // expensive!
+
+    g_ex.mult_elements_by(ketbra_a);
+    pi += g_ex;
+  }
+  return pi;
+}
+
+//******************************************************************************
+ComplexGMatrix CorrelationPotential::ComplexG(const GMatrix &Gre,
+                                              double om_imag) const {
+  auto sp = IO::Profile::safeProfiler(__func__);
+  ComplexGMatrix cGre = Gre.make_complex({1.0, 0.0});     // = Gr
+  ComplexGMatrix cGim = Gre.make_complex({0.0, om_imag}); // = i w_i Gr
+
+  cGim.plusIdent(1.0); // = (1 + i w_i Gr)
+  cGim.invert();       // = [1 + i w_i Gr]^{-1}
+  // XXX Need dr_i ?
+  cGre *= cGim; // = Gr*[1 + i w_i Gr]^{-1}
+
+  return cGre;
+}
 
 //******************************************************************************
 GMatrix CorrelationPotential::MakeGreensG(const DiracSpinor &x0,

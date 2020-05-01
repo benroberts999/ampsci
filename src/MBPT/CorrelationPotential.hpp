@@ -19,6 +19,7 @@ namespace MBPT {
 
 using GMatrix = GreenMatrix<LinAlg::SqMatrix>;
 using ComplexGMatrix = GreenMatrix<LinAlg::ComplexSqMatrix>;
+using ComplexDouble = LinAlg::Complex<double>;
 
 //******************************************************************************
 /*!
@@ -122,15 +123,20 @@ private:
   //----------------------------------------------
 public:
   GMatrix Green_core(int kappa, double en) const;
+  ComplexGMatrix Green_core(int kappa, double en_re, double en_im) const;
+
   GMatrix Green_hf(int kappa, double en) const;
+  ComplexGMatrix ComplexG(const GMatrix &Gre, double om_imag) const;
   GMatrix polarisation(int kappa_a, int kappa_alpha, double omega) const;
+
+  ComplexGMatrix ComplexPol(int kappa_a, int kappa_alpha, double om_re,
+                            double om_im) const;
+
   GMatrix MakeGreensG(const DiracSpinor &x0, const DiracSpinor &xI,
                       const double w) const;
   GMatrix G_single(const DiracSpinor &ket, const DiracSpinor &bra,
                    const double f) const;
   GMatrix Make_Vx(int kappa, const std::vector<double> vx) const;
-
-  ComplexGMatrix ComplexG(const GMatrix &Gre, double om_imag) const;
 
 private:
   const Grid *const p_gr;
