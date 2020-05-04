@@ -458,7 +458,7 @@ GMatrix CorrelationPotential::Green_core(int kappa, double en) const {
   // G_core = \sum_a |a><a|/(e-ea), for all a with a.k=k
   GMatrix Gcore(stride_points, include_G);
 
-  // loop over HF core, not Sigma core (only excited!)
+  // loop over HF core, not Sigma core (used in subtraction to get G^excited)
   const auto &core = p_hf->get_core();
   for (const auto &a : core) {
     if (a.k == kappa)
@@ -466,23 +466,22 @@ GMatrix CorrelationPotential::Green_core(int kappa, double en) const {
   }
   return Gcore;
 }
-//******************************************************************************
+//------------------------------------------------------------------------------
 ComplexGMatrix CorrelationPotential::Green_core(int kappa, double en_re,
                                                 double en_im) const {
   auto sp = IO::Profile::safeProfiler(__func__, "complex");
   // G_core = \sum_a |a><a|/(e_r + i*e_i-ea), for all a with a.k=k
   ComplexGMatrix Gcore(stride_points, include_G);
 
-  // loop over HF core, not Sigma core (only excited!)
+  // loop over HF core, not Sigma core (used in subtraction to get G^excited)
   const auto &core = p_hf->get_core();
   for (const auto &a : core) {
     if (a.k != kappa)
       continue;
-    // factor = 1/(a+ib) = (a-ib)/(a^2+b^2)
+    // factor = 1/(a+ib) = (a-ib)/(a^2+b^2), a= enre-e_a, b=enim
     const auto de_re = en_re - a.en;
     const auto a2pb2 = (de_re * de_re + en_im * en_im);
     const ComplexDouble factor{de_re / a2pb2, -en_im / a2pb2};
-    // const auto ketbra_a = G_single(a, a, 1.0); // |a><a|
     Gcore += G_single(a, a, 1.0).make_complex(factor); // expensive!
   }
   return Gcore;
@@ -517,57 +516,32 @@ GMatrix CorrelationPotential::Green_hf(int kappa, double en) const {
   Ident.make_identity();
   const auto Vx = Make_Vx(kappa, eta_vd);
 
-  return g0 * ((Ident - g0 * Vx).inverse());
+  return g0 * ((Ident - g0 * Vx).invert());
 }
 
 //******************************************************************************
-GMatrix CorrelationPotential::polarisation(int k_a, int k_alpha,
-                                           double omega) const {
-  auto sp = IO::Profile::safeProfiler(__func__);
-  // XXX This is very inefficient!
-  GMatrix pi(stride_points, include_G);
-  for (const auto &a : m_core) {
-    if (a.k != k_a)
-      continue;
-    // Non-allocating version for ga_ex!
-    auto g_alpha_ex =
-        Green_hf(k_alpha, a.en - omega) - Green_core(k_alpha, a.en - omega) +
-        Green_hf(k_alpha, a.en + omega) - Green_core(k_alpha, a.en + omega);
-    auto ketbra_a = G_single(a, a, 1.0);
-    g_alpha_ex.mult_elements_by(ketbra_a);
-    pi += g_alpha_ex;
-  }
-  return pi;
-}
-
-//******************************************************************************
-ComplexGMatrix CorrelationPotential::ComplexPol(int k_a, int k_alpha,
-                                                double om_re,
-                                                double om_im) const {
+ComplexGMatrix CorrelationPotential::Polarisation(int k_a, int k_alpha,
+                                                  double om_re,
+                                                  double om_im) const {
   auto sp = IO::Profile::safeProfiler(__func__);
   // XXX This is very inefficient! Can be much improved!
   ComplexGMatrix pi(stride_points, include_G);
   for (const auto &a : m_core) {
     if (a.k != k_a)
       continue;
-    // Non-allocating version for ga_ex!
 
     auto gre_tmp = Green_hf(k_alpha, a.en - om_re); // real part
-    auto g_ex = ComplexG(gre_tmp, -1.0 * om_im);    // complex g (all states)
+    auto g_ex = ComplexG(gre_tmp, -om_im);          // complex g (all states)
     // Now include +w term [re-use gre_tmp allocation]
     gre_tmp = Green_hf(k_alpha, a.en + om_re); // real part
     g_ex += ComplexG(gre_tmp, om_im);          // Full Complex [G(e-w)+G(e+w)]
     // subtract core part: gives [G^ex(e-w) + G^ex(e+w)]
-    // XXX Can do this in place!
-    g_ex -= Green_core(k_alpha, a.en - om_re, -1.0 * om_im);
+    g_ex -= Green_core(k_alpha, a.en - om_re, -om_im);
     g_ex -= Green_core(k_alpha, a.en + om_re, om_im);
 
     // ketbra_a = |a><a|
-    // XXX Can do this in fewer
-    auto ketbra_a = G_single(a, a, 1.0).make_complex({1.0, 0.0}); // expensive!
-
-    g_ex.mult_elements_by(ketbra_a);
-    pi += g_ex;
+    const auto ketbra_a = G_single(a, a, 1.0).make_complex({0.0, 1.0});
+    pi += g_ex.mult_elements_by(ketbra_a);
   }
   return pi;
 }
@@ -576,15 +550,12 @@ ComplexGMatrix CorrelationPotential::ComplexPol(int k_a, int k_alpha,
 ComplexGMatrix CorrelationPotential::ComplexG(const GMatrix &Gre,
                                               double om_imag) const {
   auto sp = IO::Profile::safeProfiler(__func__);
-  ComplexGMatrix cGre = Gre.make_complex({1.0, 0.0});     // = Gr
-  ComplexGMatrix cGim = Gre.make_complex({0.0, om_imag}); // = i w_i Gr
-
-  cGim.plusIdent(1.0); // = (1 + i w_i Gr)
-  cGim.invert();       // = [1 + i w_i Gr]^{-1}
-  // XXX Need dr_i ?
-  cGre *= cGim; // = Gr*[1 + i w_i Gr]^{-1}
-
-  return cGre;
+  // Given G(wr) and wi, returns G(wr+i*wi)
+  // g = g / [1 + iwI*g0] = 1/[g^-1 + iwI]
+  // G(w) = [g^-1 + iwI]^-1 = G(re(w)+im(w))
+  ComplexGMatrix cG = Gre.make_complex({1.0, 0.0});
+  cG.invert().plusIdent(0.0, om_imag).invert();
+  return cG;
 }
 
 //******************************************************************************
@@ -614,6 +585,54 @@ GMatrix CorrelationPotential::MakeGreensG(const DiracSpinor &x0,
 }
 
 //******************************************************************************
+void CorrelationPotential::fill_qhat() {
+
+  std::vector<LinAlg::SqMatrix> qhat(std::size_t(m_maxk + 1), stride_points);
+  LinAlg::SqMatrix tmp_dri(stride_points);
+
+  for (auto i = 0ul; i < stride_points; ++i) {
+    const auto si = imin + i * stride;
+    const auto dri = p_gr->drdu[si] * p_gr->du * double(stride);
+    for (auto j = 0ul; j < stride_points; ++j) {
+      const auto sj = imin + j * stride;
+      const auto drj = p_gr->drdu[sj] * p_gr->du * double(stride);
+      // drj *= p_gr->drdu[si] * p_gr->du * double(stride); // XXX ??
+      const auto rl = p_gr->r[std::min(sj, si)];
+      const auto rm = p_gr->r[std::max(sj, si)];
+      const auto ratio = rl / rm; // = r_< / r_>
+      // qhat[0][i][j] = (1.0 / rm) * drj; // = r_<^k / r_>^k+1 ,  for k=0
+      qhat[0][i][j] = (1.0 / rm) * dri * drj;
+      for (auto k = 1ul; k <= std::size_t(m_maxk); ++k) {
+        qhat[k][i][j] = qhat[k - 1][i][j] * ratio;
+      }
+      tmp_dri[i][j] = dri * drj;
+    } // j
+  }   // i
+
+  m_qhat.resize(std::size_t(m_maxk) + 1, {stride_points, include_G});
+  m_qhat_tr.resize(std::size_t(m_maxk) + 1, {stride_points, include_G});
+  for (auto k = 0ul; k <= std::size_t(m_maxk); ++k) {
+    m_qhat[k].ff = LinAlg::ComplexSqMatrix::make_complex({1.0, 0.0}, qhat[k]);
+    m_qhat_tr[k].ff = m_qhat[k].ff.transpose();
+    if (include_G) {
+      m_qhat[k].gg = m_qhat[k].ff;
+      m_qhat_tr[k].gg = m_qhat_tr[k].ff;
+    }
+  }
+
+  m_dri.ff = LinAlg::ComplexSqMatrix::make_complex({1.0, 0.0}, tmp_dri);
+  m_drj.ff = m_dri.ff.transpose();
+  if (include_G) {
+    m_dri.fg = m_dri.ff;
+    m_dri.gf = m_dri.ff;
+    m_dri.gg = m_dri.ff;
+    m_drj.fg = m_drj.ff;
+    m_drj.gf = m_drj.ff;
+    m_drj.gg = m_drj.ff;
+  }
+}
+
+//******************************************************************************
 GMatrix CorrelationPotential::Make_Vx(int kappa,
                                       const std::vector<double> vx) const {
   auto sp = IO::Profile::safeProfiler(__func__);
@@ -622,49 +641,166 @@ GMatrix CorrelationPotential::Make_Vx(int kappa,
 
   GMatrix Vx(stride_points, include_G);
 
+  const auto &core = p_hf->get_core();
+
+  const auto kmax = Angular::twojFromIndex(m_maxkindex_core);
+  for (int k = 0; k <= kmax; ++k) {
+    GMatrix Vx_k(stride_points, include_G);
+    for (const auto &a : core) {
+      const auto ck = Angular::Ck_kk(k, kappa, a.k); // XXX lookup
+      if (ck == 0.0)
+        continue;
+      const auto c_ang = -1.0 * ck * ck / double(tj + 1);
+      addto_G(&Vx_k, a, a, c_ang);
+    }
+
+    // XXX Why different if i mult by dri,drj in qhat or outside!
+    Vx_k.mult_elements_by(m_qhat[std::size_t(k)].get_real());
+    // Vx_k.mult_elements_by(m_dri.get_real());
+    // Vx_k.mult_elements_by(m_drj.get_real());
+    Vx += Vx_k;
+  }
+
+  // // Just for testing Vx matrix.
+  // // XXX Note: Works when stride=1, but breaks otherwise!!
+  // for (const auto &a : core) {
+  //   if (a.k != kappa)
+  //     continue;
+  //   double vxmat = 0.0;
+  //   for (auto i = 0ul; i < stride_points; i++) {
+  //     const auto si = imin + i * stride;
+  //     for (auto j = 0ul; j < stride_points; j++) {
+  //       const auto sj = imin + j * stride;
+  //       vxmat += a.f[si] * Vx.ff[i][j] * a.f[sj]; // * double(stride *
+  //       stride);
+  //     }
+  //   }
+  //   auto vxhf = a * (p_hf->calc_vexFa_core(a));
+  //   std::cout << a.symbol() << " " << vxmat << " " << vxhf << "\n";
+  // }
+  // std::cin.get();
+
+  // subtract off "effective/approx" exchange term (eta*v_dir)
+  for (auto i = 0ul; i < stride_points; ++i) {
+    const auto si = imin + i * stride;
+    const auto dri = p_gr->drdu[si] * p_gr->du * double(stride);
+    // subtract off "effective/approx" exchange term (eta*v_dir)
+    // Think there should only be single dri here (already one integral??)
+    Vx.ff[i][i] -= vx[si] * dri;
+    if constexpr (include_G) {
+      Vx.fg[i][i] -= vx[si] * dri;
+      Vx.gf[i][i] -= vx[si] * dri;
+      Vx.gg[i][i] -= vx[si] * dri;
+    }
+  }
+
+  return Vx;
+}
+
+//******************************************************************************
+void CorrelationPotential::FeynmanDirect(int kv) {
+  auto sp = IO::Profile::safeProfiler(__func__);
+
+  fill_qhat();
+  Sigma_kappa[0].zero();
+
+  const double env = -0.127368;
+  const double omre = -0.3;
+
+  // Set up imaginary frequency grid:
+  std::vector<double> v_omim; // = {0.0};
+  const auto w0 = 0.05;
+  const auto wmax = 100.0;
+  for (auto w = w0; w < wmax; w *= 2.0) {
+    v_omim.push_back(w);
+    std::cout << w << ", ";
+  }
+  std::cout << "\n";
+
+  // Greens function (at om_re) remains same, so calculate it once only:
+  std::vector<GMatrix> gBetas;
+  gBetas.reserve(std::size_t(m_maxkindex + 1));
+  for (int ibeta = 0; ibeta <= m_maxkindex; ++ibeta) {
+    const auto kbeta = Angular::kappaFromIndex(ibeta);
+    gBetas.push_back(Green_hf(kbeta, env + omre));
+  }
+
+  for (int ia = 0; ia <= m_maxkindex_core; ++ia) {
+    const auto ka = Angular::kappaFromIndex(ia);
+#pragma omp parallel for
+    for (int ialpha = 0; ialpha <= m_maxkindex; ++ialpha) {
+      const auto kalpha = Angular::kappaFromIndex(ialpha);
+
+      for (const auto omim : v_omim) { // for omega integral
+        // nb: do w loop outside beta, since Pi depends only on a,A, and w
+        const auto dw = omim == 0.0 ? v_omim[1] : 2.0 * omim; //+ve?
+
+        const auto pi_aalpha = Polarisation(ka, kalpha, omre, omim);
+
+        for (int ibeta = 0; ibeta <= m_maxkindex; ++ibeta) {
+          const auto kbeta = Angular::kappaFromIndex(ibeta);
+
+          const auto &g_beta_re = gBetas[std::size_t(ibeta)];
+          const auto g_beta = ComplexG(g_beta_re, omim);
+
+          // // sum over k:
+          const auto sum_qpq = sumk_cQPQ(kv, ka, kalpha, kbeta, pi_aalpha);
+          // // nb: imag part is huge!? why!
+          const auto dSdw = mult_elements(g_beta, sum_qpq).get_real();
+#pragma omp critical(sumSig)
+          { Sigma_kappa[0] += (dw / (2.0 * M_PI)) * dSdw; }
+
+        } // beta
+      }   // w
+    }     // alpha
+  }       // a
+
+  // devide through by dri, drj [these included in q's, but want differential
+  // operator for sigma]
+  // or.. include one of these in definition of opertion S|v> ?
   for (auto i = 0ul; i < stride_points; ++i) {
     const auto si = imin + i * stride;
     const auto dri = p_gr->drdu[si] * p_gr->du * double(stride);
     for (auto j = 0ul; j < stride_points; ++j) {
       const auto sj = imin + j * stride;
       const auto drj = p_gr->drdu[sj] * p_gr->du * double(stride);
-      const auto irmin = std::min(sj, si);
-      const auto irmax = std::max(sj, si);
-      const auto rmin = p_gr->r[irmin];
-      const auto rmax = p_gr->r[irmax];
-
-      const auto q_factor = rmin / rmax;
-
-      for (const auto &a : m_core) {
-        const auto kmax = (a.twoj() + tj) / 2;
-        auto q = 1.0 / rmin; // (1.0 / rmax) / (rmin / rmax), for k=-1
-        for (int k = 0; k <= kmax; ++k) {
-          q *= q_factor; // = rmin^k/rmax^k+1 //XXX check!
-
-          const auto c1 = Angular::Ck_kk(k, kappa, a.k);
-          if (c1 == 0)
-            continue;
-          const auto c = -1.0 * c1 * c1 / (tj + 1);
-
-          Vx.ff[i][j] += c * a.f[si] * a.f[sj] * q * dri * drj;
-          if constexpr (include_G) {
-            Vx.fg[i][j] += c * a.f[si] * a.g[sj] * q * dri * drj;
-            Vx.gf[i][j] += c * a.g[si] * a.f[sj] * q * dri * drj;
-            Vx.gg[i][j] += c * a.g[si] * a.g[sj] * q * dri * drj;
-          }
-        }
+      Sigma_kappa[0].ff[i][j] /= (dri * drj);
+      if (include_G) {
+        Sigma_kappa[0].fg[i][j] /= (dri * drj);
+        Sigma_kappa[0].gf[i][j] /= (dri * drj);
+        Sigma_kappa[0].gg[i][j] /= (dri * drj);
       }
-    } // j
-    // subtract of "effective/approx" exchange term (eta*v_dir)
-    Vx.ff[i][i] -= vx[si] * dri * dri;
-    if constexpr (include_G) {
-      Vx.fg[i][i] -= vx[si] * dri * dri;
-      Vx.gf[i][i] -= vx[si] * dri * dri;
-      Vx.gg[i][i] -= vx[si] * dri * dri;
     }
   }
+}
 
-  return Vx;
+//******************************************************************************
+ComplexGMatrix
+CorrelationPotential::sumk_cQPQ(int kv, int ka, int kalpha, int kbeta,
+                                const ComplexGMatrix &pi_aalpha) const {
+  auto sp = IO::Profile::safeProfiler(__func__);
+  // sum over k:
+  // sum_k [ck qk * pi(w) * qk], ck angular factor
+
+  auto sum_qpq = ComplexGMatrix(stride_points, include_G);
+  // min/max k to include in sum [just to save calculating terms=0]
+  // based on two Ck angular factors
+  const auto [kmin1, kmax1] = Angular::kminmax_Ck(kv, kbeta);  // Ck_vB
+  const auto [kmin2, kmax2] = Angular::kminmax_Ck(ka, kalpha); // Ck_aA
+  const auto kmin = std::max(kmin1, kmin2);
+  const auto kmax = std::min({kmax1, kmax2, m_maxk});
+  const auto tjvp1 = Angular::twoj_k(kv) + 1; //[jv]
+  for (int k = kmin; k <= kmax; ++k) {
+    const auto c1 =
+        Angular::Ck_kk(k, kv, kbeta) * Angular::Ck_kk(k, ka, kalpha);
+    if (c1 == 0.0)
+      continue;
+    const double c_ang = c1 * c1 / double(tjvp1 * (2 * k + 1));
+    const auto &q = m_qhat[std::size_t(k)];
+    sum_qpq += (c_ang) * (q * (pi_aalpha * q));
+  } // k
+  // nb: imag part is huge!? why!
+  return sum_qpq;
 }
 
 } // namespace MBPT

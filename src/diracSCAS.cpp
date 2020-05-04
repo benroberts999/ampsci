@@ -201,48 +201,62 @@ int main(int argc, char *argv[]) {
   }
 
   auto Sk = wf.getSigma();
+  Sk->fill_qhat();
 
-  {
-    IO::ChronoTimer t("Green_hf");
-    const auto g0 = Sk->Green_hf(-1, -0.3);
-  }
+  // {
+  //   IO::ChronoTimer t("Green_hf");
+  //   const auto g0 = Sk->Green_hf(-1, -0.3);
+  // }
   {
     IO::ChronoTimer t("Green_core");
     const auto g0 = Sk->Green_core(-1, -0.3);
   }
-  {
-    const auto g0 = Sk->Green_hf(-1, -0.3);
-    IO::ChronoTimer t("Complex G");
-    const auto gi = Sk->ComplexG(g0, 0.3);
-  }
-  {
-    IO::ChronoTimer t("Polarisation");
-    const auto pi = Sk->polarisation(-1, -1, -0.3);
-  }
+  // {
+  // const auto g0 = Sk->Green_hf(-1, -0.3);
+  // IO::ChronoTimer t("Complex G");
+  // const auto gi = Sk->ComplexG(g0, 0.3);
+  // }
+  // {
+  //   IO::ChronoTimer t("Polarisation");
+  //   const auto pi = Sk->polarisation(-1, -1, -0.3);
+  // }
   {
     IO::ChronoTimer t("Complex Polarisation");
-    const auto pi = Sk->ComplexPol(-1, -1, -0.3, 0.3);
+    // const auto pi = Sk->Polarisation(-1, -1, -0.3, 0.3);
   }
-
-  // for (const auto &a : wf.core) {
-  //   if (a.k != -1)
-  //     continue;
-  //   std::cout << a.symbol() << ": ";
-  //   auto dv = Sk->Sigma_G_Fv(g0, a);
-  //   auto nn = (a * dv) * (-0.3 - a.en);
-  //   std::cout << nn << "\n";
+  {
+    IO::ChronoTimer t("FeynmanDirect");
+    Sk->FeynmanDirect(-1);
+  }
+  // {
+  //   IO::ChronoTimer t("Make Q");
+  //   Sk->fill_qhat();
+  //   // std::cout << k.size() << "\n";
   // }
-  // for (const auto &a : wf.valence) {
-  //   if (a.k != -1)
-  //     continue;
-  //   std::cout << a.symbol() << ": ";
-  //   auto dv = Sk->Sigma_G_Fv(g0, a);
-  //   auto nn = (a * dv) * (-0.3 - a.en);
-  //   std::cout << nn << "\n";
-  // }
-  // // std::cout << 1.0 / << "\n";
-
-  return 1;
+  {
+    const auto g0 = Sk->Green_hf(-1, -0.3);
+    for (const auto &a : wf.core) {
+      auto &fv = wf.valence.front();
+      if (a.k != -1)
+        continue;
+      std::cout << a.symbol() << ": ";
+      auto dv = Sk->Sigma_G_Fv(g0, a);
+      auto nn = (a * dv) * (-0.3 - a.en);
+      auto n2 = (fv * dv);
+      std::cout << nn << ", " << n2 << "\n";
+    }
+    for (const auto &a : wf.valence) {
+      auto &fc = wf.core.front();
+      if (a.k != -1)
+        continue;
+      std::cout << a.symbol() << ": ";
+      auto dv = Sk->Sigma_G_Fv(g0, a);
+      auto nn = (a * dv) * (-0.3 - a.en);
+      auto n2 = (fc * dv);
+      std::cout << nn << ", " << n2 << "\n";
+    }
+    // std::cout << 1.0 / << "\n";
+  }
 
   // Just energy shifts
   if (!wf.valence.empty() && do_energyShifts && Sigma_ok) {

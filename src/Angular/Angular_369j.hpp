@@ -1,6 +1,7 @@
 #pragma once
 #include <cmath>
 #include <gsl/gsl_sf_coupling.h>
+#include <utility>
 
 /*!
 @brief
@@ -348,12 +349,22 @@ inline double Ck_kk(int k, int ka, int kb)
   return sign * f * g;
 }
 
+//! tilde version: symmetric
 inline double tildeCk_kk(int k, int ka, int kb) {
   // tildeCk_kk = (-1)^{ja+1/2}*Ck_kk
   auto m1tjph = evenQ_2(twoj_k(ka) + 1) ? 1 : -1;
   return m1tjph * Ck_kk(k, ka, kb);
 }
 
+//! Returns [k_min, k_kmax] for C^k (min/max non-zero k, given kappa_a, kappa_b)
+inline std::pair<int, int> kminmax_Ck(int ka, int kb) {
+  // j = |k|-0.5
+  // kmin = |ja-jb| = | |ka| - |kb| |
+  // kmax = ja+jb   = |ka| + |kb|
+  const auto aka = std::abs(ka);
+  const auto akb = std::abs(kb);
+  return {std::abs(aka - akb), aka + akb};
+}
 //******************************************************************************
 inline double Ck_2j2j(int k, int two_ja, int two_jb)
 // Reduced (relativistic) angular ME:

@@ -127,16 +127,22 @@ public:
 
   GMatrix Green_hf(int kappa, double en) const;
   ComplexGMatrix ComplexG(const GMatrix &Gre, double om_imag) const;
-  GMatrix polarisation(int kappa_a, int kappa_alpha, double omega) const;
 
-  ComplexGMatrix ComplexPol(int kappa_a, int kappa_alpha, double om_re,
-                            double om_im) const;
+  ComplexGMatrix Polarisation(int kappa_a, int kappa_alpha, double om_re,
+                              double om_im) const;
+
+  void fill_qhat();
 
   GMatrix MakeGreensG(const DiracSpinor &x0, const DiracSpinor &xI,
                       const double w) const;
   GMatrix G_single(const DiracSpinor &ket, const DiracSpinor &bra,
                    const double f) const;
   GMatrix Make_Vx(int kappa, const std::vector<double> vx) const;
+
+  void FeynmanDirect(int kv);
+  //! sum_k [ck qk * pi(w) * qk], ck angular factor
+  ComplexGMatrix sumk_cQPQ(int kv, int ka, int kalpha, int kbeta,
+                           const ComplexGMatrix &pi_aalpha) const;
 
 private:
   const Grid *const p_gr;
@@ -156,9 +162,17 @@ private:
   std::vector<GMatrix> Sigma_kappa{};
 
   std::vector<double> m_lambda_kappa{};
+  std::vector<ComplexGMatrix> m_qhat{};
+  std::vector<ComplexGMatrix> m_qhat_tr{};
+
+  int m_maxkindex_core = 4, m_maxkindex = 12;
+  // nb: m_maxkindex = 2*lmax
 
   // Options for sub-grid, and which matrices to include
   static constexpr bool include_G = false;
+
+  ComplexGMatrix m_dri{stride_points, include_G};
+  ComplexGMatrix m_drj{stride_points, include_G};
 };
 
 } // namespace MBPT

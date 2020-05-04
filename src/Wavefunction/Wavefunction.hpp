@@ -91,7 +91,8 @@ public: // const methods: "views" into WF object
   }
 
   //! Returns ptr to (const) Correlation Potential, Sigma
-  const MBPT::CorrelationPotential *getSigma() const { return m_Sigma.get(); }
+  // XXX Make const!
+  MBPT::CorrelationPotential *getSigma() const { return m_Sigma.get(); }
   //! Returns ptr to (const) Hartree Fock (class)
   const HF::HartreeFock *getHF() const { return m_pHF.get(); }
 

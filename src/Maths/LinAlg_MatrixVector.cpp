@@ -66,7 +66,7 @@ void SqMatrix::enforce_symmetric() {
   (*this) *= 0.5;
 }
 
-double SqMatrix::check_symmetric() {
+double SqMatrix::check_symmetric() const {
   double worst = 0.0;
   const auto AmATr = *this - this->transpose();
   for (auto i = 0ul; i < n * n; i++) {
@@ -76,12 +76,19 @@ double SqMatrix::check_symmetric() {
   return worst;
 }
 
-void SqMatrix::print() {
+void SqMatrix::print() const {
   for (auto i = 0ul; i < n; ++i) {
     for (auto j = 0ul; j < n; ++j) {
       printf("%8.1e ", (*this)[i][j]);
     }
     std::cout << "\n";
+  }
+}
+
+void SqMatrix::plusIdent(double a) {
+  auto &mat = *this;
+  for (auto i = 0ul; i < n; ++i) {
+    mat[i][i] += a;
   }
 }
 
@@ -212,7 +219,7 @@ void Vector::clip_high(const double value) {
     }
   }
 }
-void Vector::print() {
+void Vector::print() const {
   for (std::size_t i = 0; i < n; ++i) {
     std::cout << (*this)[i] << "\n";
   }
@@ -305,6 +312,16 @@ ComplexSqMatrix &ComplexSqMatrix::operator=(const ComplexSqMatrix &other) {
   return *this;
 }
 
+void ComplexSqMatrix::print() const {
+  for (auto i = 0ul; i < n; ++i) {
+    for (auto j = 0ul; j < n; ++j) {
+      const auto [x, y] = get_copy(i, j);
+      printf("%8.1f+%8.1f  ", x, y);
+    }
+    std::cout << "\n";
+  }
+}
+
 // Constructs a diagonal unit matrix
 void ComplexSqMatrix::make_identity() {
   gsl_matrix_complex_set_identity(this->m);
@@ -355,6 +372,10 @@ Complex<double> ComplexSqMatrix::get_copy(std::size_t i, std::size_t j) const {
   return {GSL_REAL(val), GSL_IMAG(val)};
 }
 
+gsl_complex *ComplexSqMatrix::operator[](std::size_t i) const {
+  return gsl_matrix_complex_ptr(m, i, 0);
+}
+
 // Get the real part (copy) of the complex matrix
 SqMatrix ComplexSqMatrix::real() const {
   SqMatrix re(n);
@@ -384,10 +405,20 @@ ComplexSqMatrix mult_elements(ComplexSqMatrix lhs, const ComplexSqMatrix &rhs) {
   return lhs;
 }
 
+// M -> M + aI, for I=identity (add a to diag elements)
+void ComplexSqMatrix::plusIdent(double re, double im) {
+  for (auto i = 0ul; i < n; ++i) {
+    (*this)[i][i] = gsl_complex_add((*this)[i][i], gsl_complex_rect(re, im));
+  }
+}
+
 //  Multiply elements by constant
 ComplexSqMatrix &ComplexSqMatrix::operator*=(const Complex<double> &x) {
   gsl_matrix_complex_scale(this->m, gsl_complex_rect(x.re, x.im));
   return *this;
+}
+ComplexSqMatrix &ComplexSqMatrix::operator*=(double x) {
+  return (*this) *= Complex<double>{x, 0.0};
 }
 
 ComplexSqMatrix operator*(const Complex<double> &x, ComplexSqMatrix rhs) {

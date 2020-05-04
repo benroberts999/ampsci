@@ -41,17 +41,12 @@ public:
   //! Forces Matrix to be symmetric by: Mij -> (Mij + Mji)/2
   void enforce_symmetric(); // change to "symmetrise"?
   //! Returns largest elemt of matrix [Mij - Mji]; zero if symmetric
-  [[nodiscard]] double check_symmetric();
+  [[nodiscard]] double check_symmetric() const;
   //! Prints Matrix to screen (for tests)
-  void print();
+  void print() const;
 
   //! M -> M + aI, for I=identity (add a to diag elements)
-  void plusIdent(double a = 1.0) {
-    auto &mat = *this;
-    for (auto i = 0ul; i < n; ++i) {
-      mat[i][i] += a;
-    }
-  }
+  void plusIdent(double a = 1.0);
 
   //! Returns the transpose of matrix: not destructive
   [[nodiscard]] SqMatrix transpose() const;
@@ -84,6 +79,12 @@ public:
   Complex<T> conj() const { return {re, -im}; }
   //! norm2 = re^2 + im^2, no sqrt (ruins T)
   T norm2() const { return re * re + im * im; }
+  //! Return gsl-style complex
+  gsl_complex gsl() const { return gsl_complex_rect(re, im); }
+  friend Complex<T> from_gsl(const gsl_complex &gslc) {
+    return Complex<T>{static_cast<T>(GSL_REAL(gslc)),
+                      static_cast<T>(GSL_IMAG(gslc))};
+  }
   //! Mult two complex:
   friend Complex<T> operator*(const Complex<T> &a, const Complex<T> &b) {
     return {a.re * b.re - a.im * b.im, a.re * b.im + a.im * b.re};
@@ -153,6 +154,10 @@ public:
 
   //! For testing??
   Complex<double> get_copy(std::size_t i, std::size_t j) const;
+  //! Gives [i][j] operator. Note: +, -, += etc. not defined for gsl_complex!
+  gsl_complex *operator[](std::size_t i) const;
+
+  void print() const;
 
   //! Get the real part (copy) of the complex matrix
   [[nodiscard]] SqMatrix real() const;
@@ -164,18 +169,12 @@ public:
   friend ComplexSqMatrix mult_elements(ComplexSqMatrix lhs,
                                        const ComplexSqMatrix &rhs);
 
-  //! M -> M + aI, for I=identity (add a to diag elements)
-  void plusIdent(double a = 1.0) {
-    // XXX There is certainly a better way.....
-    for (auto i = 0ul; i < n; ++i) {
-      const auto val = gsl_matrix_complex_get(m, i, i);
-      const auto new_val = gsl_complex_add_real(val, a);
-      gsl_matrix_complex_set(m, i, i, new_val);
-    }
-  }
+  //! M -> M + re*I + i*im*I, for I=identity [add (x+iy) to diag elements]
+  void plusIdent(double re = 1.0, double im = 0.0);
 
   //! Multiply elements by constant
   ComplexSqMatrix &operator*=(const Complex<double> &x);
+  ComplexSqMatrix &operator*=(double x);
   friend ComplexSqMatrix operator*(const Complex<double> &x,
                                    ComplexSqMatrix rhs);
   friend ComplexSqMatrix operator*(ComplexSqMatrix rhs,
@@ -210,7 +209,7 @@ public:
 
   void clip_low(const double value);
   void clip_high(const double value);
-  void print();
+  void print() const;
 
   double &operator[](int i) const;
   double &operator[](std::size_t i) const;

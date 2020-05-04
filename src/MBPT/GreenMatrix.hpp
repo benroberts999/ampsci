@@ -51,9 +51,17 @@ public:
   GreenMatrix<T> &plusIdent(double a = 1.0) {
     ff.plusIdent(a);
     if (include_G) {
-      // fg; // ident? doesn't touch these guys I guess?
-      // gf;
       gg.plusIdent(a);
+    }
+    return *this;
+  }
+
+  GreenMatrix<T> &plusIdent(double re, double im) {
+    static_assert(std::is_same<T, LinAlg::ComplexSqMatrix>::value,
+                  "Can only call plusIdent(x,y) from Complex GMatrix!");
+    ff.plusIdent(re, im);
+    if (include_G) {
+      gg.plusIdent(re, im);
     }
     return *this;
   }
@@ -84,6 +92,37 @@ public:
   friend GreenMatrix<T> operator-(GreenMatrix<T> lhs,
                                   const GreenMatrix<T> &rhs) {
     return lhs -= rhs;
+  }
+
+  GreenMatrix<T> &operator*=(double x) {
+    ff *= x;
+    if (include_G) {
+      fg *= x;
+      gf *= x;
+      gg *= x;
+    }
+    return *this;
+  }
+  friend GreenMatrix<T> operator*(double x, GreenMatrix<T> rhs) {
+    // rhs *= x;
+    return rhs *= x;
+  }
+
+  GreenMatrix<T> &operator*=(const LinAlg::Complex<double> &x) {
+    static_assert(std::is_same<T, LinAlg::ComplexSqMatrix>::value,
+                  "Can only call *=Complex from Complex GMatrix!");
+    ff *= x;
+    if (include_G) {
+      fg *= x;
+      gf *= x;
+      gg *= x;
+    }
+    return *this;
+  }
+  friend GreenMatrix<T> operator*(const LinAlg::Complex<double> &x,
+                                  GreenMatrix<T> rhs) {
+    // rhs *= x;
+    return rhs *= x;
   }
 
   //! Matrix multplication (in place): Gij -> \sum_k Gik*Bkj
@@ -136,18 +175,20 @@ public:
   }
 
   //! Multiply elements (in place): Gij -> Gij*Bij
-  void mult_elements_by(const GreenMatrix<T> &rhs) {
+  GreenMatrix<T> &mult_elements_by(const GreenMatrix<T> &rhs) {
     ff.mult_elements_by(rhs.ff);
     if (include_G) {
       fg.mult_elements_by(rhs.fg);
       gf.mult_elements_by(rhs.gf);
       gg.mult_elements_by(rhs.gg);
     }
+    return *this;
   }
   //! Multiply elements (new matrix): Gij = Aij*Bij
   friend GreenMatrix<T> mult_elements(GreenMatrix<T> lhs,
                                       const GreenMatrix<T> &rhs) {
-    return lhs.mult_elements_by(rhs);
+    lhs.mult_elements_by(rhs);
+    return lhs;
   }
 
   //! Return the real-part of a complex GreenMatrix (by copy)
