@@ -76,8 +76,8 @@ public:
     }
     return *this;
   }
-  friend GreenMatrix<T> operator+(GreenMatrix<T> lhs,
-                                  const GreenMatrix<T> &rhs) {
+  [[nodiscard]] friend GreenMatrix<T> operator+(GreenMatrix<T> lhs,
+                                                const GreenMatrix<T> &rhs) {
     return lhs += rhs;
   }
   GreenMatrix<T> &operator-=(const GreenMatrix<T> &rhs) {
@@ -89,8 +89,8 @@ public:
     }
     return *this;
   }
-  friend GreenMatrix<T> operator-(GreenMatrix<T> lhs,
-                                  const GreenMatrix<T> &rhs) {
+  [[nodiscard]] friend GreenMatrix<T> operator-(GreenMatrix<T> lhs,
+                                                const GreenMatrix<T> &rhs) {
     return lhs -= rhs;
   }
 
@@ -103,7 +103,7 @@ public:
     }
     return *this;
   }
-  friend GreenMatrix<T> operator*(double x, GreenMatrix<T> rhs) {
+  [[nodiscard]] friend GreenMatrix<T> operator*(double x, GreenMatrix<T> rhs) {
     // rhs *= x;
     return rhs *= x;
   }
@@ -119,8 +119,8 @@ public:
     }
     return *this;
   }
-  friend GreenMatrix<T> operator*(const LinAlg::Complex<double> &x,
-                                  GreenMatrix<T> rhs) {
+  [[nodiscard]] friend GreenMatrix<T>
+  operator*(const LinAlg::Complex<double> &x, GreenMatrix<T> rhs) {
     // rhs *= x;
     return rhs *= x;
   }
@@ -139,8 +139,8 @@ public:
     }
     return *this;
   }
-  friend GreenMatrix<T> operator*(GreenMatrix<T> lhs,
-                                  const GreenMatrix<T> &rhs) {
+  [[nodiscard]] friend GreenMatrix<T> operator*(GreenMatrix<T> lhs,
+                                                const GreenMatrix<T> &rhs) {
     return lhs *= rhs;
   }
 
@@ -169,7 +169,7 @@ public:
     }
     return *this;
   }
-  GreenMatrix<T> inverse() const {
+  [[nodiscard]] GreenMatrix<T> inverse() const {
     auto out = *this; //
     return out.invert();
   }
@@ -185,14 +185,14 @@ public:
     return *this;
   }
   //! Multiply elements (new matrix): Gij = Aij*Bij
-  friend GreenMatrix<T> mult_elements(GreenMatrix<T> lhs,
-                                      const GreenMatrix<T> &rhs) {
+  [[nodiscard]] friend GreenMatrix<T> mult_elements(GreenMatrix<T> lhs,
+                                                    const GreenMatrix<T> &rhs) {
     lhs.mult_elements_by(rhs);
     return lhs;
   }
 
   //! Return the real-part of a complex GreenMatrix (by copy)
-  GreenMatrix<LinAlg::SqMatrix> get_real() const {
+  [[nodiscard]] GreenMatrix<LinAlg::SqMatrix> get_real() const {
     static_assert(std::is_same<T, LinAlg::ComplexSqMatrix>::value,
                   "Can only call get_real from Complex GMatrix!");
     auto gmat = GreenMatrix<LinAlg::SqMatrix>(size, include_G);
@@ -206,7 +206,7 @@ public:
   }
 
   //! Return the imaginary-part of a complex GreenMatrix (by copy)
-  GreenMatrix<LinAlg::SqMatrix> get_imaginary() const {
+  [[nodiscard]] GreenMatrix<LinAlg::SqMatrix> get_imaginary() const {
     static_assert(std::is_same<T, LinAlg::ComplexSqMatrix>::value,
                   "Can only call get_imaginary from Complex GMatrix!");
     auto gmat = GreenMatrix<LinAlg::SqMatrix>(size, include_G);
@@ -220,7 +220,7 @@ public:
   }
 
   //! Construct a complex GreenMatrix (C) from a Real one (R), by C = x*R
-  GreenMatrix<LinAlg::ComplexSqMatrix>
+  [[nodiscard]] GreenMatrix<LinAlg::ComplexSqMatrix>
   make_complex(const LinAlg::Complex<double> &x) const {
     static_assert(std::is_same<T, LinAlg::SqMatrix>::value,
                   "Can only call make_complex from Real GMatrix!");

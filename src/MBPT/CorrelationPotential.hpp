@@ -162,8 +162,13 @@ private:
   std::vector<GMatrix> Sigma_kappa{};
 
   std::vector<double> m_lambda_kappa{};
+
   std::vector<ComplexGMatrix> m_qhat{};
-  std::vector<ComplexGMatrix> m_qhat_tr{};
+  // std::vector<ComplexGMatrix> m_qhat_tr{};
+
+  std::size_t onto_fullGrid(std::size_t i) const {
+    return ((imin + i) * stride);
+  }
 
   int m_maxkindex_core = 4, m_maxkindex = 12;
   // nb: m_maxkindex = 2*lmax
@@ -171,8 +176,8 @@ private:
   // Options for sub-grid, and which matrices to include
   static constexpr bool include_G = false;
 
-  ComplexGMatrix m_dri{stride_points, include_G};
-  ComplexGMatrix m_drj{stride_points, include_G};
+  // ComplexGMatrix *m_dri;
+  // ComplexGMatrix *m_drj;
 };
 
 } // namespace MBPT

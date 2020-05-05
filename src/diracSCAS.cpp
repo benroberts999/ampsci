@@ -16,6 +16,31 @@ int main(int argc, char *argv[]) {
   const std::string input_file = (argc > 1) ? argv[1] : "diracSCAS.in";
   std::cout << "Reading input from: " << input_file << "\n";
 
+  // MBPT::GMatrix A(2, false);
+  // A.ff[0][0] = 0;
+  // A.ff[0][1] = 1;
+  // A.ff[1][0] = 10;
+  // A.ff[1][1] = 11;
+  // A.ff.print();
+  // std::cout << "\n";
+  // auto A2 = A;
+  // { A2.ff = A.ff.transpose(); }
+  // A2.ff.print();
+  // std::cout << "\n";
+  // MBPT::ComplexGMatrix B(2, false);
+  // B.ff = LinAlg::ComplexSqMatrix::make_complex({1.0, 0.0}, A.ff);
+  // B.ff.print();
+  // std::cout << "\n";
+  // MBPT::ComplexGMatrix B2(2, false);
+  // B2.ff = LinAlg::ComplexSqMatrix::make_complex({1.0, 0.0}, A2.ff);
+  // B2.ff.print();
+  // std::cout << "\n";
+  // B.mult_elements_by(B2);
+  // B.ff.print();
+  // std::cout << "\n";
+  //
+  // return 1;
+
   // Rean in input options file
   const IO::UserInput input(input_file);
 

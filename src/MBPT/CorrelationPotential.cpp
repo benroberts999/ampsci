@@ -76,12 +76,11 @@ CorrelationPotential::CorrelationPotential(
 void CorrelationPotential::setup_subGrid() {
   // Form the "Sigma sub-grid"
   const auto &rvec = p_gr->r;
-  // const double rmin = m_core.empty() ? 1.0e-4 : m_core.front().r0();
-  // const double rmax = m_core.empty() ? 30.0 : m_core.front().rinf();
+  // Work out from 'r0eps' for min/max (or, overwrite with doubles?)
   const double rmin = 1.0e-4;
   const double rmax = 30.0;
   // const double rmin = 1.0e-6;
-  // const double rmax = 120.0;
+  // const double rmax = 100.0;
 
   imin = 0;
   for (auto i = 0ul; i < rvec.size(); i += stride) {
@@ -121,9 +120,9 @@ void CorrelationPotential::addto_G(GMatrix *Gmat, const DiracSpinor &ket,
   // Q = Q(1) = ket, W = W(2) = bra
   // Takes sub-grid into account; ket,bra are on full grid, G on sub-grid
   for (auto i = 0ul; i < stride_points; ++i) {
-    const auto si = std::size_t((imin + i) * stride);
+    const auto si = onto_fullGrid(i);
     for (auto j = 0ul; j < stride_points; ++j) {
-      const auto sj = std::size_t((imin + j) * stride);
+      const auto sj = onto_fullGrid(j);
       Gmat->ff[i][j] += f * ket.f[si] * bra.f[sj];
       if constexpr (include_G) {
         Gmat->fg[i][j] += f * ket.f[si] * bra.g[sj];
@@ -154,16 +153,15 @@ DiracSpinor CorrelationPotential::Sigma_G_Fv(const GMatrix &Gmat,
     g.resize(r_stride.size());
   }
   for (auto i = 0ul; i < stride_points; ++i) {
-    const auto si = std::size_t(i);
     for (auto j = 0ul; j < stride_points; ++j) {
-      const auto sj = std::size_t((imin + j) * stride);
+      const auto sj = onto_fullGrid(j);
       const auto dr = gr.drdu[sj] * gr.du * double(stride);
-      f[si] += Gmat.ff[i][j] * Fv.f[sj] * dr * lambda;
+      f[i] += Gmat.ff[i][j] * Fv.f[sj] * dr * lambda;
 
       if constexpr (include_G) {
-        f[si] += Gmat.fg[i][j] * Fv.g[sj] * dr * lambda;
-        g[si] += Gmat.gf[i][j] * Fv.f[sj] * dr * lambda;
-        g[si] += Gmat.gg[i][j] * Fv.g[sj] * dr * lambda;
+        f[i] += Gmat.fg[i][j] * Fv.g[sj] * dr * lambda;
+        g[i] += Gmat.gf[i][j] * Fv.f[sj] * dr * lambda;
+        g[i] += Gmat.gg[i][j] * Fv.g[sj] * dr * lambda;
       }
     }
   }
@@ -496,12 +494,14 @@ GMatrix CorrelationPotential::Green_hf(int kappa, double en) const {
   const auto &Hmag = p_hf->get_Hrad_mag(x0.l());
   const auto alpha = p_hf->m_alpha;
 
-  const auto Nc = p_hf->num_core_electrons();
-  const auto eta = -0.5 / Nc;
-  auto eta_vd = p_hf->get_vdir();
-  NumCalc::scaleVec(eta_vd, eta);
   auto vl = p_hf->get_vlocal(x0.l());
-  NumCalc::add_to_vector(vl, eta_vd);
+
+  // // This seems to not help...
+  // const auto Nc = p_hf->num_core_electrons();
+  // const auto eta = -0.5 / Nc;
+  // auto eta_vd = p_hf->get_vdir();
+  // NumCalc::scaleVec(eta_vd, eta);
+  // NumCalc::add_to_vector(vl, eta_vd);
 
   DiracODE::regularAtOrigin(x0, en, vl, Hmag, alpha);
   DiracODE::regularAtInfinity(xI, en, vl, Hmag, alpha);
@@ -514,7 +514,8 @@ GMatrix CorrelationPotential::Green_hf(int kappa, double en) const {
 
   GMatrix Ident(stride_points, include_G);
   Ident.make_identity();
-  const auto Vx = Make_Vx(kappa, eta_vd);
+  // const auto Vx = Make_Vx(kappa, eta_vd);
+  const auto Vx = Make_Vx(kappa, {});
 
   return g0 * ((Ident - g0 * Vx).invert());
 }
@@ -568,9 +569,9 @@ GMatrix CorrelationPotential::MakeGreensG(const DiracSpinor &x0,
   GMatrix g0I(stride_points, include_G);
   // XXX Take advantage of symmetry!?
   for (auto i = 0ul; i < stride_points; ++i) {
-    const auto si = imin + i * stride;
+    const auto si = onto_fullGrid(i);
     for (auto j = 0ul; j < stride_points; ++j) {
-      const auto sj = imin + j * stride;
+      const auto sj = onto_fullGrid(j);
       const auto irmin = std::min(sj, si);
       const auto irmax = std::max(sj, si);
       g0I.ff[i][j] = x0.f[irmin] * xI.f[irmax] / w;
@@ -588,53 +589,58 @@ GMatrix CorrelationPotential::MakeGreensG(const DiracSpinor &x0,
 void CorrelationPotential::fill_qhat() {
 
   std::vector<LinAlg::SqMatrix> qhat(std::size_t(m_maxk + 1), stride_points);
-  LinAlg::SqMatrix tmp_dri(stride_points);
+  // LinAlg::SqMatrix tmp_dri(stride_points);
+  // LinAlg::SqMatrix tmp_drj(stride_points);
 
   for (auto i = 0ul; i < stride_points; ++i) {
-    const auto si = imin + i * stride;
+    const auto si = onto_fullGrid(i);
     const auto dri = p_gr->drdu[si] * p_gr->du * double(stride);
     for (auto j = 0ul; j < stride_points; ++j) {
-      const auto sj = imin + j * stride;
+      const auto sj = onto_fullGrid(j);
       const auto drj = p_gr->drdu[sj] * p_gr->du * double(stride);
-      // drj *= p_gr->drdu[si] * p_gr->du * double(stride); // XXX ??
-      const auto rl = p_gr->r[std::min(sj, si)];
-      const auto rm = p_gr->r[std::max(sj, si)];
+      const auto rl = p_gr->r[std::min(si, sj)];
+      const auto rm = p_gr->r[std::max(si, sj)];
       const auto ratio = rl / rm; // = r_< / r_>
-      // qhat[0][i][j] = (1.0 / rm) * drj; // = r_<^k / r_>^k+1 ,  for k=0
+      // q0 = (1.0 / rm) = r_<^k / r_>^k+1 ,  for k=0
       qhat[0][i][j] = (1.0 / rm) * dri * drj;
       for (auto k = 1ul; k <= std::size_t(m_maxk); ++k) {
         qhat[k][i][j] = qhat[k - 1][i][j] * ratio;
       }
-      tmp_dri[i][j] = dri * drj;
     } // j
   }   // i
 
+  // for (auto k = 0ul; k <= std::size_t(m_maxk); ++k) {
+  //   qhat[k].mult_elements_by(tmp_dri);
+  //   qhat[k].mult_elements_by(tmp_drj);
+  // }
+
   m_qhat.resize(std::size_t(m_maxk) + 1, {stride_points, include_G});
-  m_qhat_tr.resize(std::size_t(m_maxk) + 1, {stride_points, include_G});
   for (auto k = 0ul; k <= std::size_t(m_maxk); ++k) {
     m_qhat[k].ff = LinAlg::ComplexSqMatrix::make_complex({1.0, 0.0}, qhat[k]);
-    m_qhat_tr[k].ff = m_qhat[k].ff.transpose();
     if (include_G) {
       m_qhat[k].gg = m_qhat[k].ff;
-      m_qhat_tr[k].gg = m_qhat_tr[k].ff;
     }
   }
 
-  m_dri.ff = LinAlg::ComplexSqMatrix::make_complex({1.0, 0.0}, tmp_dri);
-  m_drj.ff = m_dri.ff.transpose();
-  if (include_G) {
-    m_dri.fg = m_dri.ff;
-    m_dri.gf = m_dri.ff;
-    m_dri.gg = m_dri.ff;
-    m_drj.fg = m_drj.ff;
-    m_drj.gf = m_drj.ff;
-    m_drj.gg = m_drj.ff;
-  }
+  // m_dri = new ComplexGMatrix{stride_points, include_G};
+  // m_drj = new ComplexGMatrix{stride_points, include_G};
+  //
+  // m_dri->ff = LinAlg::ComplexSqMatrix::make_complex({1.0, 0.0}, tmp_dri);
+  // m_drj->ff = LinAlg::ComplexSqMatrix::make_complex({1.0, 0.0}, tmp_drj);
+  // // m_drj->ff = m_dri->ff.transpose();
+  // if (include_G) {
+  //   m_dri->fg = m_dri->ff;
+  //   m_dri->gf = m_dri->ff;
+  //   m_dri->gg = m_dri->ff;
+  //   m_drj->fg = m_drj->ff;
+  //   m_drj->gf = m_drj->ff;
+  //   m_drj->gg = m_drj->ff;
+  // }
 }
 
 //******************************************************************************
 GMatrix CorrelationPotential::Make_Vx(int kappa,
-                                      const std::vector<double> vx) const {
+                                      const std::vector<double> vx0) const {
   auto sp = IO::Profile::safeProfiler(__func__);
 
   const auto tj = Angular::twoj_k(kappa);
@@ -653,26 +659,20 @@ GMatrix CorrelationPotential::Make_Vx(int kappa,
       const auto c_ang = -1.0 * ck * ck / double(tj + 1);
       addto_G(&Vx_k, a, a, c_ang);
     }
-
-    // XXX Why different if i mult by dri,drj in qhat or outside!
     Vx_k.mult_elements_by(m_qhat[std::size_t(k)].get_real());
-    // Vx_k.mult_elements_by(m_dri.get_real());
-    // Vx_k.mult_elements_by(m_drj.get_real());
     Vx += Vx_k;
   }
 
   // // Just for testing Vx matrix.
-  // // XXX Note: Works when stride=1, but breaks otherwise!!
   // for (const auto &a : core) {
   //   if (a.k != kappa)
   //     continue;
   //   double vxmat = 0.0;
   //   for (auto i = 0ul; i < stride_points; i++) {
-  //     const auto si = imin + i * stride;
+  //     const auto si = onto_fullGrid(i);
   //     for (auto j = 0ul; j < stride_points; j++) {
-  //       const auto sj = imin + j * stride;
-  //       vxmat += a.f[si] * Vx.ff[i][j] * a.f[sj]; // * double(stride *
-  //       stride);
+  //       const auto sj = onto_fullGrid(j);
+  //       vxmat += a.f[si] * Vx.ff[i][j] * a.f[sj]; // * double(stride);
   //     }
   //   }
   //   auto vxhf = a * (p_hf->calc_vexFa_core(a));
@@ -681,16 +681,18 @@ GMatrix CorrelationPotential::Make_Vx(int kappa,
   // std::cin.get();
 
   // subtract off "effective/approx" exchange term (eta*v_dir)
-  for (auto i = 0ul; i < stride_points; ++i) {
-    const auto si = imin + i * stride;
-    const auto dri = p_gr->drdu[si] * p_gr->du * double(stride);
-    // subtract off "effective/approx" exchange term (eta*v_dir)
-    // Think there should only be single dri here (already one integral??)
-    Vx.ff[i][i] -= vx[si] * dri;
-    if constexpr (include_G) {
-      Vx.fg[i][i] -= vx[si] * dri;
-      Vx.gf[i][i] -= vx[si] * dri;
-      Vx.gg[i][i] -= vx[si] * dri;
+  if (!vx0.empty()) {
+    for (auto i = 0ul; i < stride_points; ++i) {
+      const auto si = onto_fullGrid(i);
+      const auto dri = p_gr->drdu[si] * p_gr->du * double(stride);
+      // subtract off "effective/approx" exchange term (eta*v_dir)
+      // Think there should only be single dri here (already one integral??)
+      Vx.ff[i][i] -= vx0[si] * dri;
+      if constexpr (include_G) {
+        Vx.fg[i][i] -= vx0[si] * dri;
+        Vx.gf[i][i] -= vx0[si] * dri;
+        Vx.gg[i][i] -= vx0[si] * dri;
+      }
     }
   }
 
@@ -726,6 +728,8 @@ void CorrelationPotential::FeynmanDirect(int kv) {
   }
 
   for (int ia = 0; ia <= m_maxkindex_core; ++ia) {
+    printf("Sigma F: %3i/%3i\r", ia, m_maxkindex_core);
+    std::cout << std::flush;
     const auto ka = Angular::kappaFromIndex(ia);
 #pragma omp parallel for
     for (int ialpha = 0; ialpha <= m_maxkindex; ++ialpha) {
@@ -754,15 +758,16 @@ void CorrelationPotential::FeynmanDirect(int kv) {
       }   // w
     }     // alpha
   }       // a
+  std::cout << "\n";
 
   // devide through by dri, drj [these included in q's, but want differential
   // operator for sigma]
   // or.. include one of these in definition of opertion S|v> ?
   for (auto i = 0ul; i < stride_points; ++i) {
-    const auto si = imin + i * stride;
+    const auto si = onto_fullGrid(i);
     const auto dri = p_gr->drdu[si] * p_gr->du * double(stride);
     for (auto j = 0ul; j < stride_points; ++j) {
-      const auto sj = imin + j * stride;
+      const auto sj = onto_fullGrid(j);
       const auto drj = p_gr->drdu[sj] * p_gr->du * double(stride);
       Sigma_kappa[0].ff[i][j] /= (dri * drj);
       if (include_G) {
