@@ -496,7 +496,7 @@ GMatrix CorrelationPotential::Green_hf(int kappa, double en) const {
 
   auto vl = p_hf->get_vlocal(x0.l());
 
-  // // This seems to not help...
+  // // // This seems to not help...
   // const auto Nc = p_hf->num_core_electrons();
   // const auto eta = -0.5 / Nc;
   // auto eta_vd = p_hf->get_vdir();
@@ -517,7 +517,7 @@ GMatrix CorrelationPotential::Green_hf(int kappa, double en) const {
   // const auto Vx = Make_Vx(kappa, eta_vd);
   const auto Vx = Make_Vx(kappa, {});
 
-  return g0 * ((Ident - g0 * Vx).invert());
+  return ((Ident - g0 * Vx).invert()) * g0;
 }
 
 //******************************************************************************
@@ -548,15 +548,32 @@ ComplexGMatrix CorrelationPotential::Polarisation(int k_a, int k_alpha,
 }
 
 //******************************************************************************
-ComplexGMatrix CorrelationPotential::ComplexG(const GMatrix &Gre,
+ComplexGMatrix CorrelationPotential::ComplexG(const GMatrix &Gr,
                                               double om_imag) const {
   auto sp = IO::Profile::safeProfiler(__func__);
   // Given G(wr) and wi, returns G(wr+i*wi)
-  // g = g / [1 + iwI*g0] = 1/[g^-1 + iwI]
-  // G(w) = [g^-1 + iwI]^-1 = G(re(w)+im(w))
-  ComplexGMatrix cG = Gre.make_complex({1.0, 0.0});
-  cG.invert().plusIdent(0.0, om_imag).invert();
-  return cG;
+
+  // // g = g / [1 + iwI*g0] = 1/[g^-1 + iwI]
+  // // G(w) = [g^-1 + iwI]^-1 = G(re(w)+im(w))
+  // ComplexGMatrix cG = Gre.make_complex({1.0, 0.0});
+  // (cG.invert().plusIdent(0.0, om_imag)).invert();
+  // return cG;
+  // note: simpler method doesn't work, g^-1 doesn't exist?
+
+  // G(w) =  G(re(w)+im(w)) ;  Gr = G(re(w)), G = G(w),   im(w) = wi
+  // G = Gr * [1 + i*wi*Gr]^-1 = Gr * iX
+
+  auto iX = Gr.make_complex({0.0, om_imag})
+                .mult_elements_by(*m_drj) // XXX ???
+                .plusIdent(1.0)
+                .invert();
+  // include dri?
+
+  return iX * Gr.make_complex({1.0, 0.0});
+
+  // Doesn't work. G inverse contains NaN? But GSL doesn' complain?
+  // return Gr.make_complex({1.0, 0.0}).invert().plusIdent(0.0,
+  // om_imag).invert();
 }
 
 //******************************************************************************
@@ -589,8 +606,8 @@ GMatrix CorrelationPotential::MakeGreensG(const DiracSpinor &x0,
 void CorrelationPotential::fill_qhat() {
 
   std::vector<LinAlg::SqMatrix> qhat(std::size_t(m_maxk + 1), stride_points);
-  // LinAlg::SqMatrix tmp_dri(stride_points);
-  // LinAlg::SqMatrix tmp_drj(stride_points);
+
+  LinAlg::SqMatrix t_dri{stride_points};
 
   for (auto i = 0ul; i < stride_points; ++i) {
     const auto si = onto_fullGrid(i);
@@ -603,16 +620,12 @@ void CorrelationPotential::fill_qhat() {
       const auto ratio = rl / rm; // = r_< / r_>
       // q0 = (1.0 / rm) = r_<^k / r_>^k+1 ,  for k=0
       qhat[0][i][j] = (1.0 / rm) * dri * drj;
+      t_dri[i][j] = dri;
       for (auto k = 1ul; k <= std::size_t(m_maxk); ++k) {
         qhat[k][i][j] = qhat[k - 1][i][j] * ratio;
       }
     } // j
   }   // i
-
-  // for (auto k = 0ul; k <= std::size_t(m_maxk); ++k) {
-  //   qhat[k].mult_elements_by(tmp_dri);
-  //   qhat[k].mult_elements_by(tmp_drj);
-  // }
 
   m_qhat.resize(std::size_t(m_maxk) + 1, {stride_points, include_G});
   for (auto k = 0ul; k <= std::size_t(m_maxk); ++k) {
@@ -622,20 +635,10 @@ void CorrelationPotential::fill_qhat() {
     }
   }
 
-  // m_dri = new ComplexGMatrix{stride_points, include_G};
-  // m_drj = new ComplexGMatrix{stride_points, include_G};
-  //
-  // m_dri->ff = LinAlg::ComplexSqMatrix::make_complex({1.0, 0.0}, tmp_dri);
-  // m_drj->ff = LinAlg::ComplexSqMatrix::make_complex({1.0, 0.0}, tmp_drj);
-  // // m_drj->ff = m_dri->ff.transpose();
-  // if (include_G) {
-  //   m_dri->fg = m_dri->ff;
-  //   m_dri->gf = m_dri->ff;
-  //   m_dri->gg = m_dri->ff;
-  //   m_drj->fg = m_drj->ff;
-  //   m_drj->gf = m_drj->ff;
-  //   m_drj->gg = m_drj->ff;
-  // }
+  m_dri = new ComplexGMatrix{stride_points, include_G}; // XXX TEMP! XXX
+  m_drj = new ComplexGMatrix{stride_points, include_G}; // XXX TEMP! XXX
+  m_dri->ff = LinAlg::ComplexSqMatrix::make_complex({1.0, 0.0}, t_dri);
+  m_drj->ff = m_dri->ff.transpose();
 }
 
 //******************************************************************************
@@ -710,14 +713,35 @@ void CorrelationPotential::FeynmanDirect(int kv) {
   const double omre = -0.3;
 
   // Set up imaginary frequency grid:
-  std::vector<double> v_omim; // = {0.0};
-  const auto w0 = 0.05;
+  std::vector<double> v_omim;
+  const auto w0 = 0.01;
   const auto wmax = 100.0;
-  for (auto w = w0; w < wmax; w *= 2.0) {
+  const auto w_ratio = 2.0;
+  for (auto w = w0; w < wmax * w_ratio; w *= w_ratio) {
     v_omim.push_back(w);
-    std::cout << w << ", ";
   }
-  std::cout << "\n";
+  std::cout << "Im(omega) grid: " << v_omim.front() << " - " << v_omim.back()
+            << " in " << v_omim.size() << " steps\n";
+  const auto dw_factor = 0.5 * (w_ratio - 1.0 / w_ratio);
+  // not sure if endpoint helps?
+  const auto dw_endpoint = w0 * 0.25 * (1.0 + 1.0 / w_ratio);
+
+  // {
+  //   // Test integration grid:
+  //   auto f = [](double x) {
+  //     return x * std::exp(-(x - 1.0) * (x - 1.0) / 100.0);
+  //   };
+  //   double intF = 0.0;
+  //   for (const auto omim : v_omim) {
+  //     const auto dw =
+  //         (omim == w0) ? omim * (dw_factor + dw_endpoint) : omim * dw_factor;
+  //     intF += f(omim) * dw;
+  //   }
+  //   auto exact = NumCalc::num_integrate(f, 0.0, 100.0, 1000);
+  //   std::cout << intF << ". error: " << intF - exact << " = "
+  //             << 100 * (intF - exact) / exact << "%\n";
+  //   std::cin.get();
+  // }
 
   // Greens function (at om_re) remains same, so calculate it once only:
   std::vector<GMatrix> gBetas;
@@ -737,7 +761,10 @@ void CorrelationPotential::FeynmanDirect(int kv) {
 
       for (const auto omim : v_omim) { // for omega integral
         // nb: do w loop outside beta, since Pi depends only on a,A, and w
-        const auto dw = omim == 0.0 ? v_omim[1] : 2.0 * omim; //+ve?
+
+        // From middle: (not including x2 from -ve w)
+        const auto dw =
+            (omim == w0) ? omim * dw_factor + dw_endpoint : omim * dw_factor;
 
         const auto pi_aalpha = Polarisation(ka, kalpha, omre, omim);
 
@@ -751,8 +778,9 @@ void CorrelationPotential::FeynmanDirect(int kv) {
           const auto sum_qpq = sumk_cQPQ(kv, ka, kalpha, kbeta, pi_aalpha);
           // // nb: imag part is huge!? why!
           const auto dSdw = mult_elements(g_beta, sum_qpq).get_real();
+          // const auto dSdw = (g_beta * sum_qpq).get_real();
 #pragma omp critical(sumSig)
-          { Sigma_kappa[0] += (dw / (2.0 * M_PI)) * dSdw; }
+          { Sigma_kappa[0] += (2.0 * dw / (2.0 * M_PI)) * dSdw; } // 2.0 for -ve
 
         } // beta
       }   // w

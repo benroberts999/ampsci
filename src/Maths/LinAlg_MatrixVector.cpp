@@ -85,6 +85,17 @@ void SqMatrix::print() const {
   }
 }
 
+void SqMatrix::checkNaN() const {
+  for (auto i = 0ul; i < n; ++i) {
+    for (auto j = 0ul; j < n; ++j) {
+      if (std::isnan((*this)[i][j])) {
+        std::cout << "NaN in real at :" << i << "," << j << "\n";
+        std::cin.get();
+      }
+    }
+  }
+}
+
 void SqMatrix::plusIdent(double a) {
   auto &mat = *this;
   for (auto i = 0ul; i < n; ++i) {
@@ -130,9 +141,6 @@ SqMatrix SqMatrix::inverse() const {
 }
 
 //------------------------------------------------------------------------------
-double *SqMatrix::operator[](int i) const {
-  return &(m->data[std::size_t(i) * n]);
-}
 double *SqMatrix::operator[](std::size_t i) const { return &(m->data[i * n]); }
 
 SqMatrix operator*(const SqMatrix &lhs, const SqMatrix &rhs) {
@@ -374,6 +382,22 @@ Complex<double> ComplexSqMatrix::get_copy(std::size_t i, std::size_t j) const {
 
 gsl_complex *ComplexSqMatrix::operator[](std::size_t i) const {
   return gsl_matrix_complex_ptr(m, i, 0);
+}
+
+void ComplexSqMatrix::checkNaN() const {
+  for (auto i = 0ul; i < n; ++i) {
+    for (auto j = 0ul; j < n; ++j) {
+      const auto [x, y] = get_copy(i, j);
+      if (std::isnan(x)) {
+        std::cout << "NaN in real at :" << i << "," << j << "\n";
+        std::cin.get();
+      }
+      if (std::isnan(y)) {
+        std::cout << "NaN in imag at :" << i << "," << j << "\n";
+        std::cin.get();
+      }
+    }
+  }
 }
 
 // Get the real part (copy) of the complex matrix

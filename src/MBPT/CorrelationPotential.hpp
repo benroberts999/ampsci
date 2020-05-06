@@ -170,13 +170,14 @@ private:
     return ((imin + i) * stride);
   }
 
-  int m_maxkindex_core = 4, m_maxkindex = 12;
+  int m_maxkindex_core = 4, m_maxkindex = 8;
   // nb: m_maxkindex = 2*lmax
 
   // Options for sub-grid, and which matrices to include
   static constexpr bool include_G = false;
 
-  // ComplexGMatrix *m_dri;
+  ComplexGMatrix *m_dri = nullptr; // temp! XXX
+  ComplexGMatrix *m_drj = nullptr; // temp! XXX
   // ComplexGMatrix *m_drj;
 };
 

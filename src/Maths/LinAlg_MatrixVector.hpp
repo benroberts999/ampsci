@@ -45,6 +45,9 @@ public:
   //! Prints Matrix to screen (for tests)
   void print() const;
 
+  //! Checks each element for any NaNs
+  void checkNaN() const;
+
   //! M -> M + aI, for I=identity (add a to diag elements)
   void plusIdent(double a = 1.0);
 
@@ -57,7 +60,6 @@ public:
   //! Returns the inverce of matrix: not destructive
   [[nodiscard]] SqMatrix inverse() const;
 
-  double *operator[](int i) const;
   double *operator[](std::size_t i) const;
   friend SqMatrix operator*(const SqMatrix &lhs, const SqMatrix &rhs);
   SqMatrix &operator+=(const SqMatrix rhs);
@@ -171,6 +173,9 @@ public:
 
   //! M -> M + re*I + i*im*I, for I=identity [add (x+iy) to diag elements]
   void plusIdent(double re = 1.0, double im = 0.0);
+
+  //! Checks each element for any NaNs
+  void checkNaN() const;
 
   //! Multiply elements by constant
   ComplexSqMatrix &operator*=(const Complex<double> &x);

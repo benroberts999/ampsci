@@ -66,6 +66,15 @@ public:
     return *this;
   }
 
+  void checkNaN() const {
+    ff.checkNaN();
+    if (include_G) {
+      fg.checkNaN();
+      gf.checkNaN();
+      gg.checkNaN();
+    }
+  }
+
   //! Can add/subtract matrices (in place)
   GreenMatrix<T> &operator+=(const GreenMatrix<T> &rhs) {
     ff += rhs.ff;
