@@ -92,7 +92,10 @@ public: // const methods: "views" into WF object
 
   //! Returns ptr to (const) Correlation Potential, Sigma
   // XXX Make const!
-  MBPT::CorrelationPotential *getSigma() const { return m_Sigma.get(); }
+  MBPT::CorrelationPotential *getSigma() const {
+    std::cout << "XXX Make me const!\n";
+    return m_Sigma.get();
+  }
   //! Returns ptr to (const) Hartree Fock (class)
   const HF::HartreeFock *getHF() const { return m_pHF.get(); }
 
@@ -100,6 +103,20 @@ public: // const methods: "views" into WF object
   //! @details is_valence is optional out-parameter; tells you where orb was
   //! found
   const DiracSpinor *getState(int n, int k, bool *is_valence = nullptr) const;
+
+  // These are only really for testing Greens function..
+  const DiracSpinor *firstCoreState(int k) const {
+    for (const auto &c : core)
+      if (c.k == k)
+        return &c;
+    return nullptr;
+  }
+  const DiracSpinor *firstValenceState(int k) const {
+    for (const auto &v : valence)
+      if (v.k == k)
+        return &v;
+    return nullptr;
+  }
 
   //! Returns full core configuration
   std::string coreConfiguration() const { return m_core_string; }

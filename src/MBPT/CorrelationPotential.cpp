@@ -102,11 +102,27 @@ void CorrelationPotential::setup_subGrid() {
 }
 
 //******************************************************************************
-GMatrix CorrelationPotential::G_single(const DiracSpinor &ket,
-                                       const DiracSpinor &bra,
-                                       const double f) const {
-  GMatrix Gmat(stride_points, include_G);
-  addto_G(&Gmat, ket, bra, f);
+ComplexGMatrix CorrelationPotential::G_single(const DiracSpinor &ket,
+                                              const DiracSpinor &bra,
+                                              const ComplexDouble f) const {
+  ComplexGMatrix Gmat(stride_points, include_G);
+  const auto [x, iy] = f;
+  for (auto i = 0ul; i < stride_points; ++i) {
+    const auto si = onto_fullGrid(i);
+    for (auto j = 0ul; j < stride_points; ++j) {
+      const auto sj = onto_fullGrid(j);
+      Gmat.ff[i][j] = gsl_complex_rect(x * ket.f[si] * bra.f[sj],
+                                       iy * ket.f[si] * bra.f[sj]);
+      if constexpr (include_G) {
+        Gmat.fg[i][j] = gsl_complex_rect(x * ket.f[si] * bra.g[sj],
+                                         iy * ket.f[si] * bra.g[sj]);
+        Gmat.gf[i][j] = gsl_complex_rect(x * ket.g[si] * bra.f[sj],
+                                         iy * ket.g[si] * bra.f[sj]);
+        Gmat.gg[i][j] = gsl_complex_rect(x * ket.g[si] * bra.g[sj],
+                                         iy * ket.g[si] * bra.g[sj]);
+      }
+    } // j
+  }   // i
   return Gmat;
 }
 
@@ -132,6 +148,38 @@ void CorrelationPotential::addto_G(GMatrix *Gmat, const DiracSpinor &ket,
     } // j
   }   // i
 }
+
+// void CorrelationPotential::addto_G(ComplexGMatrix *Gmat, const DiracSpinor
+// &ket,
+//                                    const DiracSpinor &bra,
+//                                    const ComplexDouble f) const {
+//   auto sp = IO::Profile::safeProfiler(__func__);
+//   // Adds (f)*|ket><bra| to G matrix
+//   // G_ij = f * Q_i * W_j
+//   // Q = Q(1) = ket, W = W(2) = bra
+//   // Takes sub-grid into account; ket,bra are on full grid, G on sub-grid
+//   const auto [x, iy] = f;
+//   for (auto i = 0ul; i < stride_points; ++i) {
+//     const auto si = onto_fullGrid(i);
+//     for (auto j = 0ul; j < stride_points; ++j) {
+//       const auto sj = onto_fullGrid(j);
+//       auto add = gsl_complex_rect(x * ket.f[si] * bra.f[sj],
+//                                   iy * ket.f[si] * bra.f[sj]);
+//       Gmat->ff[i][j] = gsl_complex_add(Gmat->ff[i][j], add);
+//       if constexpr (include_G) {
+//         add = gsl_complex_rect(x * ket.f[si] * bra.g[sj],
+//                                iy * ket.f[si] * bra.g[sj]);
+//         Gmat->fg[i][j] = gsl_complex_add(Gmat->fg[i][j], add);
+//         add = gsl_complex_rect(x * ket.g[si] * bra.f[sj],
+//                                iy * ket.g[si] * bra.f[sj]);
+//         Gmat->gf[i][j] = gsl_complex_add(Gmat->gf[i][j], add);
+//         add = gsl_complex_rect(x * ket.g[si] * bra.g[sj],
+//                                iy * ket.g[si] * bra.g[sj]);
+//         Gmat->gg[i][j] = gsl_complex_add(Gmat->gg[i][j], add);
+//       }
+//     } // j
+//   }   // i
+// }
 
 //******************************************************************************
 DiracSpinor CorrelationPotential::Sigma_G_Fv(const GMatrix &Gmat,
@@ -451,19 +499,19 @@ void CorrelationPotential::print_scaling() const {
 //******************************************************************************
 
 //******************************************************************************
-GMatrix CorrelationPotential::Green_core(int kappa, double en) const {
-  auto sp = IO::Profile::safeProfiler(__func__);
-  // G_core = \sum_a |a><a|/(e-ea), for all a with a.k=k
-  GMatrix Gcore(stride_points, include_G);
-
-  // loop over HF core, not Sigma core (used in subtraction to get G^excited)
-  const auto &core = p_hf->get_core();
-  for (const auto &a : core) {
-    if (a.k == kappa)
-      addto_G(&Gcore, a, a, 1.0 / (en - a.en));
-  }
-  return Gcore;
-}
+// GMatrix CorrelationPotential::Green_core(int kappa, double en) const {
+//   auto sp = IO::Profile::safeProfiler(__func__);
+//   // G_core = \sum_a |a><a|/(e-ea), for all a with a.k=k
+//   GMatrix Gcore(stride_points, include_G);
+//
+//   // loop over HF core, not Sigma core (used in subtraction to get G^excited)
+//   const auto &core = p_hf->get_core();
+//   for (const auto &a : core) {
+//     if (a.k == kappa)
+//       addto_G(&Gcore, a, a, 1.0 / (en - a.en));
+//   }
+//   return Gcore;
+// }
 //------------------------------------------------------------------------------
 ComplexGMatrix CorrelationPotential::Green_core(int kappa, double en_re,
                                                 double en_im) const {
@@ -473,36 +521,29 @@ ComplexGMatrix CorrelationPotential::Green_core(int kappa, double en_re,
 
   // loop over HF core, not Sigma core (used in subtraction to get G^excited)
   const auto &core = p_hf->get_core();
-  for (const auto &a : core) {
+  for (auto ia = 0ul; ia < core.size(); ++ia) {
+    const auto &a = core[ia];
+    // for (const auto &a : core) {
     if (a.k != kappa)
       continue;
     // factor = 1/(a+ib) = (a-ib)/(a^2+b^2), a= enre-e_a, b=enim
     const auto de_re = en_re - a.en;
     const auto a2pb2 = (de_re * de_re + en_im * en_im);
     const ComplexDouble factor{de_re / a2pb2, -en_im / a2pb2};
-    Gcore += G_single(a, a, 1.0).make_complex(factor); // expensive!
+    Gcore += factor * m_Ga[ia];
   }
   return Gcore;
 }
 
 //******************************************************************************
-GMatrix CorrelationPotential::Green_hf(int kappa, double en) const {
+ComplexGMatrix CorrelationPotential::Green_hf(int kappa, double en) const {
   auto sp = IO::Profile::safeProfiler(__func__);
   DiracSpinor x0(0, kappa, *p_gr);
   DiracSpinor xI(0, kappa, *p_gr);
 
   const auto &Hmag = p_hf->get_Hrad_mag(x0.l());
   const auto alpha = p_hf->m_alpha;
-
-  auto vl = p_hf->get_vlocal(x0.l());
-
-  // // // This seems to not help...
-  // const auto Nc = p_hf->num_core_electrons();
-  // const auto eta = -0.5 / Nc;
-  // auto eta_vd = p_hf->get_vdir();
-  // NumCalc::scaleVec(eta_vd, eta);
-  // NumCalc::add_to_vector(vl, eta_vd);
-
+  const auto vl = p_hf->get_vlocal(x0.l());
   DiracODE::regularAtOrigin(x0, en, vl, Hmag, alpha);
   DiracODE::regularAtInfinity(xI, en, vl, Hmag, alpha);
 
@@ -511,13 +552,10 @@ GMatrix CorrelationPotential::Green_hf(int kappa, double en) const {
   // not sure why -ve sign.. is sign even defined by DiracODE?
 
   const auto g0 = MakeGreensG(x0, xI, w);
-
-  GMatrix Ident(stride_points, include_G);
-  Ident.make_identity();
-  // const auto Vx = Make_Vx(kappa, eta_vd);
-  const auto Vx = Make_Vx(kappa, {});
-
-  return ((Ident - g0 * Vx).invert()) * g0;
+  const auto &Vx = m_Vxk[std::size_t(Angular::indexFromKappa(kappa))];
+  // nb: much faster to invert _before_ make complex!
+  return ((-1.0 * g0 * Vx).plusIdent(1.0).invert() * g0)
+      .make_complex({1.0, 0.0});
 }
 
 //******************************************************************************
@@ -525,55 +563,46 @@ ComplexGMatrix CorrelationPotential::Polarisation(int k_a, int k_alpha,
                                                   double om_re,
                                                   double om_im) const {
   auto sp = IO::Profile::safeProfiler(__func__);
-  // XXX This is very inefficient! Can be much improved!
+
   ComplexGMatrix pi(stride_points, include_G);
-  for (const auto &a : m_core) {
+
+  const auto &core = p_hf->get_core();
+  const auto Iunit = ComplexDouble{0.0, 1.0};
+
+  for (auto ia = 0ul; ia < core.size(); ++ia) {
+    const auto &a = core[ia];
+    if (a.n < m_min_core_n)
+      continue;
     if (a.k != k_a)
       continue;
+    const auto &Ga = m_Ga[ia];
 
-    auto gre_tmp = Green_hf(k_alpha, a.en - om_re); // real part
-    auto g_ex = ComplexG(gre_tmp, -om_im);          // complex g (all states)
-    // Now include +w term [re-use gre_tmp allocation]
-    gre_tmp = Green_hf(k_alpha, a.en + om_re); // real part
-    g_ex += ComplexG(gre_tmp, om_im);          // Full Complex [G(e-w)+G(e+w)]
-    // subtract core part: gives [G^ex(e-w) + G^ex(e+w)]
-    g_ex -= Green_core(k_alpha, a.en - om_re, -om_im);
-    g_ex -= Green_core(k_alpha, a.en + om_re, om_im);
-
-    // ketbra_a = |a><a|
-    const auto ketbra_a = G_single(a, a, 1.0).make_complex({0.0, 1.0});
-    pi += g_ex.mult_elements_by(ketbra_a);
+    // XXX Is this right? Multiply elements?
+    pi += (Green_hf(k_alpha, a.en - om_re, -om_im) -
+           Green_core(k_alpha, a.en - om_re, -om_im) +
+           Green_hf(k_alpha, a.en + om_re, om_im) -
+           Green_core(k_alpha, a.en + om_re, om_im))
+              .mult_elements_by(Ga);
   }
-  return pi;
+  return Iunit * pi;
 }
 
 //******************************************************************************
-ComplexGMatrix CorrelationPotential::ComplexG(const GMatrix &Gr,
+
+ComplexGMatrix CorrelationPotential::Green_hf(int kappa, double en_re,
+                                              double en_imag) const {
+  auto sp = IO::Profile::safeProfiler(__func__, "complexE");
+  return ComplexG(Green_hf(kappa, en_re), en_imag);
+}
+
+ComplexGMatrix CorrelationPotential::ComplexG(const ComplexGMatrix &Gr,
                                               double om_imag) const {
   auto sp = IO::Profile::safeProfiler(__func__);
   // Given G(wr) and wi, returns G(wr+i*wi)
-
-  // // g = g / [1 + iwI*g0] = 1/[g^-1 + iwI]
-  // // G(w) = [g^-1 + iwI]^-1 = G(re(w)+im(w))
-  // ComplexGMatrix cG = Gre.make_complex({1.0, 0.0});
-  // (cG.invert().plusIdent(0.0, om_imag)).invert();
-  // return cG;
-  // note: simpler method doesn't work, g^-1 doesn't exist?
-
   // G(w) =  G(re(w)+im(w)) ;  Gr = G(re(w)), G = G(w),   im(w) = wi
   // G = Gr * [1 + i*wi*Gr]^-1 = Gr * iX
-
-  auto iX = Gr.make_complex({0.0, om_imag})
-                .mult_elements_by(*m_drj) // XXX ???
-                .plusIdent(1.0)
-                .invert();
-  // include dri?
-
-  return iX * Gr.make_complex({1.0, 0.0});
-
-  // Doesn't work. G inverse contains NaN? But GSL doesn' complain?
-  // return Gr.make_complex({1.0, 0.0}).invert().plusIdent(0.0,
-  // om_imag).invert();
+  const ComplexDouble iw{0.0, om_imag};
+  return ((iw * Gr).mult_elements_by(*m_drj).plusIdent(1.0).invert()) * Gr;
 }
 
 //******************************************************************************
@@ -584,7 +613,6 @@ GMatrix CorrelationPotential::MakeGreensG(const DiracSpinor &x0,
   // Takes sub-grid into account; ket,bra are on full grid, G on sub-grid
   // G(r1,r2) = x0(rmin)*xI(imax)/w
   GMatrix g0I(stride_points, include_G);
-  // XXX Take advantage of symmetry!?
   for (auto i = 0ul; i < stride_points; ++i) {
     const auto si = onto_fullGrid(i);
     for (auto j = 0ul; j < stride_points; ++j) {
@@ -609,6 +637,7 @@ void CorrelationPotential::fill_qhat() {
 
   LinAlg::SqMatrix t_dri{stride_points};
 
+  // calculate (real) Qhat and Jacobian
   for (auto i = 0ul; i < stride_points; ++i) {
     const auto si = onto_fullGrid(i);
     const auto dri = p_gr->drdu[si] * p_gr->du * double(stride);
@@ -627,6 +656,7 @@ void CorrelationPotential::fill_qhat() {
     } // j
   }   // i
 
+  // fill (complex) Qhat
   m_qhat.resize(std::size_t(m_maxk) + 1, {stride_points, include_G});
   for (auto k = 0ul; k <= std::size_t(m_maxk); ++k) {
     m_qhat[k].ff = LinAlg::ComplexSqMatrix::make_complex({1.0, 0.0}, qhat[k]);
@@ -635,21 +665,33 @@ void CorrelationPotential::fill_qhat() {
     }
   }
 
+  // fill (complex) Jacobian
   m_dri = new ComplexGMatrix{stride_points, include_G}; // XXX TEMP! XXX
   m_drj = new ComplexGMatrix{stride_points, include_G}; // XXX TEMP! XXX
   m_dri->ff = LinAlg::ComplexSqMatrix::make_complex({1.0, 0.0}, t_dri);
   m_drj->ff = m_dri->ff.transpose();
+
+  // Fill Vx:
+  const auto max_kappa_index = std::size_t(m_maxkindex);
+  m_Vxk.resize(std::size_t(max_kappa_index + 1), {stride_points, include_G});
+  for (auto ik = 0ul; ik <= max_kappa_index; ik++) {
+    m_Vxk[ik] = Make_Vx(Angular::kappaFromIndex(int(ik)));
+  }
+
+  // Fill core |a><a|
+  const auto &core = p_hf->get_core();
+  m_Ga.resize(core.size(), {stride_points, include_G});
+  for (auto ia = 0ul; ia < core.size(); ia++) {
+    m_Ga[ia] = G_single(core[ia], core[ia], {1.0, 0.0});
+  }
 }
 
 //******************************************************************************
-GMatrix CorrelationPotential::Make_Vx(int kappa,
-                                      const std::vector<double> vx0) const {
+GMatrix CorrelationPotential::Make_Vx(int kappa) const {
   auto sp = IO::Profile::safeProfiler(__func__);
 
   const auto tj = Angular::twoj_k(kappa);
-
   GMatrix Vx(stride_points, include_G);
-
   const auto &core = p_hf->get_core();
 
   const auto kmax = Angular::twojFromIndex(m_maxkindex_core);
@@ -682,22 +724,6 @@ GMatrix CorrelationPotential::Make_Vx(int kappa,
   //   std::cout << a.symbol() << " " << vxmat << " " << vxhf << "\n";
   // }
   // std::cin.get();
-
-  // subtract off "effective/approx" exchange term (eta*v_dir)
-  if (!vx0.empty()) {
-    for (auto i = 0ul; i < stride_points; ++i) {
-      const auto si = onto_fullGrid(i);
-      const auto dri = p_gr->drdu[si] * p_gr->du * double(stride);
-      // subtract off "effective/approx" exchange term (eta*v_dir)
-      // Think there should only be single dri here (already one integral??)
-      Vx.ff[i][i] -= vx0[si] * dri;
-      if constexpr (include_G) {
-        Vx.fg[i][i] -= vx0[si] * dri;
-        Vx.gf[i][i] -= vx0[si] * dri;
-        Vx.gg[i][i] -= vx0[si] * dri;
-      }
-    }
-  }
 
   return Vx;
 }
@@ -744,7 +770,7 @@ void CorrelationPotential::FeynmanDirect(int kv) {
   // }
 
   // Greens function (at om_re) remains same, so calculate it once only:
-  std::vector<GMatrix> gBetas;
+  std::vector<ComplexGMatrix> gBetas;
   gBetas.reserve(std::size_t(m_maxkindex + 1));
   for (int ibeta = 0; ibeta <= m_maxkindex; ++ibeta) {
     const auto kbeta = Angular::kappaFromIndex(ibeta);

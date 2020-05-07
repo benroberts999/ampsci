@@ -122,22 +122,27 @@ private:
 
   //----------------------------------------------
 public:
-  GMatrix Green_core(int kappa, double en) const;
   ComplexGMatrix Green_core(int kappa, double en_re, double en_im) const;
-
-  GMatrix Green_hf(int kappa, double en) const;
-  ComplexGMatrix ComplexG(const GMatrix &Gre, double om_imag) const;
+  ComplexGMatrix Green_hf(int kappa, double en) const;
+  // ComplexGMatrix ComplexG(const GMatrix &Gre, double om_imag) const;
+  ComplexGMatrix ComplexG(const ComplexGMatrix &Gr, double om_imag) const;
+  ComplexGMatrix Green_hf(int kappa, double en_re, double en_imag) const;
 
   ComplexGMatrix Polarisation(int kappa_a, int kappa_alpha, double om_re,
                               double om_im) const;
+
+  // void addto_G(ComplexGMatrix *Gmat, const DiracSpinor &ket,
+  //              const DiracSpinor &bra, const ComplexDouble f) const;
 
   void fill_qhat();
 
   GMatrix MakeGreensG(const DiracSpinor &x0, const DiracSpinor &xI,
                       const double w) const;
-  GMatrix G_single(const DiracSpinor &ket, const DiracSpinor &bra,
-                   const double f) const;
-  GMatrix Make_Vx(int kappa, const std::vector<double> vx) const;
+  // GMatrix G_single(const DiracSpinor &ket, const DiracSpinor &bra,
+  //                  const double f) const;
+  ComplexGMatrix G_single(const DiracSpinor &ket, const DiracSpinor &bra,
+                          const ComplexDouble f) const;
+  GMatrix Make_Vx(int kappa) const;
 
   void FeynmanDirect(int kv);
   //! sum_k [ck qk * pi(w) * qk], ck angular factor
@@ -164,13 +169,17 @@ private:
   std::vector<double> m_lambda_kappa{};
 
   std::vector<ComplexGMatrix> m_qhat{};
+  std::vector<ComplexGMatrix> m_Ga{}; // |a><a| for each core state
+  std::vector<GMatrix> m_Vxk{};       // one each kappa in core
   // std::vector<ComplexGMatrix> m_qhat_tr{};
 
   std::size_t onto_fullGrid(std::size_t i) const {
     return ((imin + i) * stride);
   }
 
-  int m_maxkindex_core = 4, m_maxkindex = 8;
+  // XXX input options!
+  int m_maxkindex_core = 4, m_maxkindex = 10;
+  int m_min_core_n = 4;
   // nb: m_maxkindex = 2*lmax
 
   // Options for sub-grid, and which matrices to include

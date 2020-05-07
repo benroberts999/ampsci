@@ -226,61 +226,97 @@ int main(int argc, char *argv[]) {
   }
 
   auto Sk = wf.getSigma();
-  Sk->fill_qhat();
 
-  // {
-  //   IO::ChronoTimer t("Green_hf");
-  //   const auto g0 = Sk->Green_hf(-1, -0.3);
-  // }
-  {
-    IO::ChronoTimer t("Green_core");
-    const auto g0 = Sk->Green_core(-1, -0.3);
+  if (false) {
+    Sk->fill_qhat();
+    std::cout << "\nTest (real-valued) Green's function:\n";
+    std::cout << "(should read: 1.0  0.0)\n";
+    double w = -0.3;
+    std::cout << "w = " << w << "\n";
+    for (auto kappa : {-1, 1, -2, 2, -3}) {
+
+      const auto g0 = Sk->Green_hf(kappa, w).get_real();
+      for (const auto &orbs : {&wf.core, &wf.valence}) {
+        for (const auto &a : *orbs) {
+          if (a.k != kappa)
+            continue;
+          const auto pfv = orbs == &wf.core ? wf.firstValenceState(kappa)
+                                            : wf.firstCoreState(kappa);
+          if (!pfv)
+            continue;
+          const auto &fv = *pfv;
+          auto dv = Sk->Sigma_G_Fv(g0, a);
+          auto nn = (a * dv) * (w - a.en);
+          auto n2 = (fv * dv);
+          auto s1 = std::string("<" + a.shortSymbol() + "|g");
+          auto s2 = std::string("|" + a.shortSymbol() + ">");
+          auto s3 = std::string("|" + fv.shortSymbol() + ">");
+          printf("%s%s: %7.5f , %s: %6.1e\n", s1.c_str(), s2.c_str(), nn,
+                 s3.c_str(), n2);
+        }
+      }
+    }
+
+    std::cout << "\nTest (complex-valued) Green's function:\n";
+    std::cout << "(should read: 1.0+1.0i ,  0.0+0.0i)\n";
+    double wr = -0.3;
+    std::cout << "Re(w) = " << wr << "\n";
+    for (auto wi : {0.01, 0.1, 1.0, 10.0}) {
+      std::cout << "Im(w) = " << wi << "\n";
+
+      for (auto kappa : {-1, 1, -2, 2, -3}) {
+        const auto g0 = Sk->Green_hf(kappa, wr);
+        const auto g = Sk->ComplexG(g0, wi);
+        // const auto g = Sk->Green_core(kappa, wr, wi);
+        // std::cout << "Green_core:\n";
+
+        const auto REg = g.get_real();
+        const auto IMg = g.get_imaginary();
+
+        for (const auto &orbs : {&wf.core, &wf.valence}) {
+          for (const auto &a : *orbs) {
+            if (a.k != kappa)
+              continue;
+            const auto pfv = orbs == &wf.core ? wf.firstValenceState(kappa)
+                                              : wf.firstCoreState(kappa);
+            if (!pfv)
+              continue;
+            const auto &fv = *pfv;
+            auto dvR = Sk->Sigma_G_Fv(REg, a);
+            auto dvI = Sk->Sigma_G_Fv(IMg, a);
+            // auto fR = (wr - a.en) + wi / (wr - a.en);
+            // auto fI = (wi == 0) ? 1.0 : -((wr - a.en) * (wr - a.en) / wi +
+            // wi);
+            auto a2b2 = (wr - a.en) * (wr - a.en) + wi * wi;
+            auto fR = a2b2 / (wr - a.en);
+            auto fI = (wi == 0) ? 1.0 : -a2b2 / wi;
+            double R1 = a * dvR; // * fR;
+            double R0 = fv * dvR;
+            double I1 = a * dvI; // * fI;
+            double I0 = fv * dvI;
+            auto s1 = std::string("<" + a.shortSymbol() + "|g");
+            auto s2 = std::string("|" + a.shortSymbol() + ">");
+            auto s3 = std::string("|" + fv.shortSymbol() + ">");
+            printf("%s%s: %7.5f +%8.5f , %s:%8.1e +%8.1e", s1.c_str(),
+                   s2.c_str(), R1 * fR, I1 * fI, s3.c_str(), R0, I0);
+            if (std::abs(R1 * fR + I1 * fI - 2.0) > 0.2)
+              std::cout << " *";
+            if (std::abs(R1 * fR + I1 * fI - 2.0) > 0.35)
+              std::cout << "*";
+            if (std::abs(R1 * fR + I1 * fI - 2.0) > 0.75)
+              std::cout << "*";
+            std::cout << "\n";
+            // printf("%10.3e  %10.3ei  ---  ", R1, I1);
+            // printf("%10.3e  %10.3ei\n\n", 1.0 / fR, 1.0 / fI);
+          }
+        }
+      }
+    }
   }
-  // {
-  // const auto g0 = Sk->Green_hf(-1, -0.3);
-  // IO::ChronoTimer t("Complex G");
-  // const auto gi = Sk->ComplexG(g0, 0.3);
-  // }
-  // {
-  //   IO::ChronoTimer t("Polarisation");
-  //   const auto pi = Sk->polarisation(-1, -1, -0.3);
-  // }
-  {
-    IO::ChronoTimer t("Complex Polarisation");
-    // const auto pi = Sk->Polarisation(-1, -1, -0.3, 0.3);
-  }
+
   {
     IO::ChronoTimer t("FeynmanDirect");
     Sk->FeynmanDirect(-1);
-  }
-  // {
-  //   IO::ChronoTimer t("Make Q");
-  //   Sk->fill_qhat();
-  //   // std::cout << k.size() << "\n";
-  // }
-  {
-    const auto g0 = Sk->Green_hf(-1, -0.3);
-    for (const auto &a : wf.core) {
-      auto &fv = wf.valence.front();
-      if (a.k != -1)
-        continue;
-      std::cout << a.symbol() << ": ";
-      auto dv = Sk->Sigma_G_Fv(g0, a);
-      auto nn = (a * dv) * (-0.3 - a.en);
-      auto n2 = (fv * dv);
-      std::cout << nn << ", " << n2 << "\n";
-    }
-    for (const auto &a : wf.valence) {
-      auto &fc = wf.core.front();
-      if (a.k != -1)
-        continue;
-      std::cout << a.symbol() << ": ";
-      auto dv = Sk->Sigma_G_Fv(g0, a);
-      auto nn = (a * dv) * (-0.3 - a.en);
-      auto n2 = (fc * dv);
-      std::cout << nn << ", " << n2 << "\n";
-    }
-    // std::cout << 1.0 / << "\n";
   }
 
   // Just energy shifts
