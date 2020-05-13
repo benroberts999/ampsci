@@ -317,6 +317,7 @@ int main(int argc, char *argv[]) {
   {
     IO::ChronoTimer t("FeynmanDirect");
     Sk->FeynmanDirect(-1);
+    Sk->FeynmanDirect(1);
   }
 
   // Just energy shifts

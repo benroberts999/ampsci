@@ -130,9 +130,14 @@ public:
 
   ComplexGMatrix Polarisation(int kappa_a, int kappa_alpha, double om_re,
                               double om_im) const;
+  ComplexGMatrix Polarisation2(int k_a, int k_alpha, double wr,
+                               double wi) const;
+  ComplexGMatrix Polarisation_Basis(int kappa_a, int kappa_alpha, double om_re,
+                                    double om_im) const;
 
   // void addto_G(ComplexGMatrix *Gmat, const DiracSpinor &ket,
   //              const DiracSpinor &bra, const ComplexDouble f) const;
+  void sumPol(const ComplexGMatrix &pi_aA) const;
 
   void fill_qhat();
 
@@ -178,7 +183,7 @@ private:
   }
 
   // XXX input options!
-  int m_maxkindex_core = 4, m_maxkindex = 10;
+  int m_maxkindex_core = 4, m_maxkindex = 8;
   int m_min_core_n = 4;
   // nb: m_maxkindex = 2*lmax
 
