@@ -127,13 +127,15 @@ public:
   // ComplexGMatrix ComplexG(const GMatrix &Gre, double om_imag) const;
   ComplexGMatrix ComplexG(const ComplexGMatrix &Gr, double om_imag) const;
   ComplexGMatrix Green_hf(int kappa, double en_re, double en_imag) const;
+  ComplexGMatrix Green_hf_basis(int kappa, double en_re, double en_im,
+                                bool ex_only) const;
 
   ComplexGMatrix Polarisation(int kappa_a, int kappa_alpha, double om_re,
                               double om_im) const;
-  ComplexGMatrix Polarisation2(int k_a, int k_alpha, double wr,
-                               double wi) const;
-  ComplexGMatrix Polarisation_Basis(int kappa_a, int kappa_alpha, double om_re,
-                                    double om_im) const;
+  // ComplexGMatrix Polarisation2(int k_a, int k_alpha, double wr,
+  //                              double wi) const;
+  // ComplexGMatrix Polarisation_Basis(int kappa_a, int kappa_alpha, double
+  // om_re, double om_im) const;
 
   // void addto_G(ComplexGMatrix *Gmat, const DiracSpinor &ket,
   //              const DiracSpinor &bra, const ComplexDouble f) const;
@@ -149,7 +151,7 @@ public:
                           const ComplexDouble f) const;
   GMatrix Make_Vx(int kappa) const;
 
-  void FeynmanDirect(int kv);
+  void FeynmanDirect(int kv, double env);
   //! sum_k [ck qk * pi(w) * qk], ck angular factor
   ComplexGMatrix sumk_cQPQ(int kv, int ka, int kalpha, int kbeta,
                            const ComplexGMatrix &pi_aalpha) const;
@@ -183,8 +185,8 @@ private:
   }
 
   // XXX input options!
-  int m_maxkindex_core = 4, m_maxkindex = 8;
-  int m_min_core_n = 4;
+  int m_maxkindex_core = 4, m_maxkindex = 12;
+  int m_min_core_n = 3;
   // nb: m_maxkindex = 2*lmax
 
   // Options for sub-grid, and which matrices to include
