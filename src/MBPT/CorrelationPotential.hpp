@@ -126,6 +126,8 @@ public:
   ComplexGMatrix Green_hf(int kappa, double en) const;
   // ComplexGMatrix ComplexG(const GMatrix &Gre, double om_imag) const;
   ComplexGMatrix ComplexG(const ComplexGMatrix &Gr, double om_imag) const;
+  ComplexGMatrix ComplexG2(const ComplexGMatrix &Gr, double de_re,
+                           double om_imag) const;
   ComplexGMatrix Green_hf(int kappa, double en_re, double en_imag) const;
   ComplexGMatrix Green_hf_basis(int kappa, double en_re, double en_im,
                                 bool ex_only) const;
