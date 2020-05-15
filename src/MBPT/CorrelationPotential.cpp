@@ -923,7 +923,6 @@ void CorrelationPotential::FeynmanDirect(int kv, double env) {
   auto &Sigma = Sigma_kappa[ki];
   Sigma.zero();
 
-  // const double env = -0.127368;
   const double omre = -0.3; // does seem to depend on this..
 
   // Set up imaginary frequency grid:
@@ -963,17 +962,16 @@ void CorrelationPotential::FeynmanDirect(int kv, double env) {
   std::vector<ComplexGMatrix> gBetas;
   gBetas.reserve(std::size_t(m_maxkindex + 1));
   for (int ibeta = 0; ibeta <= m_maxkindex; ++ibeta) {
-    const auto kbeta = Angular::kappaFromIndex(ibeta);
-    gBetas.push_back(Green_hf(kbeta, env + omre));
+    const auto kB = Angular::kappaFromIndex(ibeta);
+    gBetas.push_back(Green_hf(kB, env + omre));
   }
-  // std::cout << __LINE__ << std::endl;
   for (int ia = 0; ia <= m_maxkindex_core; ++ia) {
     printf("Sigma F: %3i/%3i\r", ia, m_maxkindex_core);
     std::cout << std::flush;
     const auto ka = Angular::kappaFromIndex(ia);
 #pragma omp parallel for
     for (int ialpha = 0; ialpha <= m_maxkindex; ++ialpha) {
-      const auto kalpha = Angular::kappaFromIndex(ialpha);
+      const auto kA = Angular::kappaFromIndex(ialpha);
 
       for (const auto omim : v_omim) { // for omega integral
         // nb: do w loop outside beta, since Pi depends only on a,A, and w
@@ -982,25 +980,17 @@ void CorrelationPotential::FeynmanDirect(int kv, double env) {
         const auto dw =
             (omim == w0) ? omim * dw_factor + dw_endpoint : omim * dw_factor;
 
-        // std::cout << __LINE__ << std::endl;
-        const auto pi_aalpha = Polarisation(ka, kalpha, omre, omim);
-        // std::cout << __LINE__ << std::endl;
-        // const auto pi_aalpha = Polarisation2(ka, kalpha, omre, omim);
-        // const auto pi_aalpha = Polarisation_Basis(ka, kalpha, omre, omim);
-        // std::cout << ka << "," << kalpha << ":w=" << omim << ": ";
-        // sumPol(pi_aalpha);
+        const auto pi_aalpha = Polarisation(ka, kA, omre, omim);
 
         for (int ibeta = 0; ibeta <= m_maxkindex; ++ibeta) {
-          const auto kbeta = Angular::kappaFromIndex(ibeta);
+          const auto kB = Angular::kappaFromIndex(ibeta);
 
-          // const auto &g_beta_re = gBetas[std::size_t(ibeta)];
-          // const auto g_beta = ComplexG(g_beta_re, omim);
-          // std::cout << __LINE__ << std::endl;
-          const auto g_beta = Green_hf(kbeta, env + omre, omim);
-          // std::cout << __LINE__ << std::endl;
+          const auto &g_beta_re = gBetas[std::size_t(ibeta)];
+          const auto g_beta = ComplexG(g_beta_re, omim);
+          // const auto g_beta = Green_hf(kB, env + omre, omim);
 
           // // sum over k:
-          const auto sum_qpq = sumk_cQPQ(kv, ka, kalpha, kbeta, pi_aalpha);
+          const auto sum_qpq = sumk_cQPQ(kv, ka, kA, kB, pi_aalpha);
           const auto dSdw = mult_elements(g_beta, sum_qpq).get_real();
 #pragma omp critical(sumSig)
           { Sigma += (2.0 * dw / (2.0 * M_PI)) * dSdw; } // 2.0 for -ve
@@ -1010,23 +1000,17 @@ void CorrelationPotential::FeynmanDirect(int kv, double env) {
     }     // alpha
   }       // a
   std::cout << "\n";
-  // std::cout << __LINE__ << std::endl;
 
   // devide through by dri, drj [these included in q's, but want differential
   // operator for sigma]
   // or.. include one of these in definition of opertion S|v> ?
   for (auto i = 0ul; i < stride_points; ++i) {
     const auto si = onto_fullGrid(i);
-    // std::cout << __LINE__ << std::endl;
     const auto dri = p_gr->drdu[si] * p_gr->du * double(stride);
-    // std::cout << __LINE__ << std::endl;
     for (auto j = 0ul; j < stride_points; ++j) {
       const auto sj = onto_fullGrid(j);
       const auto drj = p_gr->drdu[sj] * p_gr->du * double(stride);
-      // std::cout << __LINE__ << " : " << Sigma.ff.n << " " << i << " " << j
-      //           << std::endl;
       Sigma.ff[i][j] /= (dri * drj);
-      // std::cout << __LINE__ << std::endl;
       if (include_G) {
         Sigma.fg[i][j] /= (dri * drj);
         Sigma.gf[i][j] /= (dri * drj);
@@ -1034,12 +1018,90 @@ void CorrelationPotential::FeynmanDirect(int kv, double env) {
       }
     }
   }
-  // std::cout << __LINE__ << std::endl;
+}
+
+//******************************************************************************
+void CorrelationPotential::FeynmanExchange(int kv, double env) {
+  auto sp = IO::Profile::safeProfiler(__func__);
+
+  // XXX Doesn't work.. try w/ basis?
+
+  const auto ki = std::size_t(Angular::indexFromKappa(kv));
+  auto &Sigma = Sigma_kappa[ki];
+
+  std::cout << "Exchange\n";
+  const double omre = -0.3; // does seem to depend on this..
+  // Set up imaginary frequency grid:
+  std::vector<double> v_omim;
+  const auto w0 = 0.02;
+  const auto wmax = 60.0;
+  const auto w_ratio = 3.5;
+  for (auto w = w0; w < wmax * w_ratio; w *= w_ratio) {
+    v_omim.push_back(w);
+  }
+  std::cout << "Im(w) grid: " << v_omim.front() << " - " << v_omim.back()
+            << " in " << v_omim.size() << " steps (ratio=" << w_ratio << ")\n";
+  std::cout << "Re(w)=" << omre << "\n";
+  const auto dw_factor = 0.5 * (w_ratio - 1.0 / w_ratio);
+  // not sure if endpoint helps?
+  const auto dw_endpoint = w0 * 0.25 * (1.0 + 1.0 / w_ratio);
+
+  // Greens function (at om_re) remains same, so calculate it once only:
+  std::vector<ComplexGMatrix> gws;
+  std::vector<ComplexGMatrix> g2ws;
+  // gBetas.reserve(std::size_t(m_maxkindex + 1));
+  for (int ik = 0; ik <= m_maxkindex; ++ik) {
+    const auto kappa = Angular::kappaFromIndex(ik);
+    gws.push_back(Green_hf(kappa, env + omre));
+    g2ws.push_back(Green_hf(kappa, env + 2.0 * omre));
+  }
+
+  for (int ig = 0; ig <= m_maxkindex; ++ig) {
+    printf("Sigma F(X): %3i/%3i\r", ig, m_maxkindex);
+    std::cout << std::flush;
+    const auto kG = Angular::kappaFromIndex(ig);
+    const auto &gG_re = gws[std::size_t(ig)];
+#pragma omp parallel for
+    for (int ialpha = 0; ialpha <= m_maxkindex; ++ialpha) {
+      const auto kA = Angular::kappaFromIndex(ialpha);
+      const auto &gA_re = gws[std::size_t(ialpha)];
+      for (int ibeta = 0; ibeta <= m_maxkindex; ++ibeta) {
+        const auto kB = Angular::kappaFromIndex(ibeta);
+        const auto &gB_re = g2ws[std::size_t(ibeta)];
+
+        for (const auto om1 : v_omim) { // for omega integral
+          const auto dw1 =
+              (om1 == w0) ? om1 * dw_factor + dw_endpoint : om1 * dw_factor;
+          for (const auto om2 : v_omim) { // for omega integral
+            const auto dw2 =
+                (om2 == w0) ? om2 * dw_factor + dw_endpoint : om2 * dw_factor;
+
+            const auto gA = ComplexG(gA_re, om1);
+            const auto gB = ComplexG(gB_re, om1 + om2);
+            const auto gG = ComplexG(gG_re, om2);
+
+            // Use basis:
+            // const auto gA = Green_hf_basis(kA, env + omre, om1, false);
+            // const auto gB =
+            //     Green_hf_basis(kB, env + 2 * omre, om1 + om2, false);
+            // const auto gG = Green_hf_basis(kG, env + omre, om2, false);
+
+            const auto sum_gqgqg = X_sum(gA, gB, gG, kv, kA, kB, kG);
+
+#pragma omp critical(sumSig)
+            { Sigma += (dw1 * dw2 / (M_PI * M_PI)) * sum_gqgqg; }
+
+          } // w2
+        }   // w1
+      }     // beta
+    }       // alpha
+  }         // a
+  std::cout << "\n";
 }
 
 //******************************************************************************
 ComplexGMatrix
-CorrelationPotential::sumk_cQPQ(int kv, int ka, int kalpha, int kbeta,
+CorrelationPotential::sumk_cQPQ(int kv, int ka, int kA, int kB,
                                 const ComplexGMatrix &pi_aalpha) const {
   auto sp = IO::Profile::safeProfiler(__func__);
   // sum over k:
@@ -1048,14 +1110,13 @@ CorrelationPotential::sumk_cQPQ(int kv, int ka, int kalpha, int kbeta,
   auto sum_qpq = ComplexGMatrix(stride_points, include_G);
   // min/max k to include in sum [just to save calculating terms=0]
   // based on two Ck angular factors
-  const auto [kmin1, kmax1] = Angular::kminmax_Ck(kv, kbeta);  // Ck_vB
-  const auto [kmin2, kmax2] = Angular::kminmax_Ck(ka, kalpha); // Ck_aA
+  const auto [kmin1, kmax1] = Angular::kminmax_Ck(kv, kB); // Ck_vB
+  const auto [kmin2, kmax2] = Angular::kminmax_Ck(ka, kA); // Ck_aA
   const auto kmin = std::max(kmin1, kmin2);
   const auto kmax = std::min({kmax1, kmax2, m_maxk});
   const auto tjvp1 = Angular::twoj_k(kv) + 1; //[jv]
   for (int k = kmin; k <= kmax; ++k) {
-    const auto c1 =
-        Angular::Ck_kk(k, kv, kbeta) * Angular::Ck_kk(k, ka, kalpha);
+    const auto c1 = Angular::Ck_kk(k, kv, kB) * Angular::Ck_kk(k, ka, kA);
     if (c1 == 0.0)
       continue;
     const double c_ang = c1 * c1 / double(tjvp1 * (2 * k + 1));
@@ -1063,6 +1124,82 @@ CorrelationPotential::sumk_cQPQ(int kv, int ka, int kalpha, int kbeta,
     sum_qpq += (c_ang) * (q * (pi_aalpha * q));
   } // k
   return sum_qpq;
+}
+
+//******************************************************************************
+GMatrix CorrelationPotential::X_sum(const ComplexGMatrix &gA,
+                                    const ComplexGMatrix &gB,
+                                    const ComplexGMatrix &gG, int kv, int kA,
+                                    int kB, int kG) const {
+  auto sp = IO::Profile::safeProfiler(__func__);
+
+  auto sum_X = GMatrix(stride_points, include_G);
+
+  const auto [kmin1, kmax1] = Angular::kminmax_Ck(kv, kA); // Ck_vA
+  const auto [kmin2, kmax2] = Angular::kminmax_Ck(kB, kG); // Ck_BG
+  const auto kmin = std::max(kmin1, kmin2);
+  const auto kmax = std::min({kmax1, kmax2, m_maxk});
+
+  const auto [lmin1, lmax1] = Angular::kminmax_Ck(kv, kG); // Ck_vG
+  const auto [lmin2, lmax2] = Angular::kminmax_Ck(kB, kA); // Ck_BA
+  const auto lmin = std::max(lmin1, lmin2);
+  const auto lmax = std::min({lmax1, lmax2, m_maxk});
+
+  const auto tjvp1 = Angular::twoj_k(kv) + 1; //[jv]
+
+  for (auto k = kmin; k <= kmax; ++k) {
+    const auto c1 = Angular::Ck_kk(k, kv, kA) * Angular::Ck_kk(k, kB, kG);
+    if (c1 == 0.0)
+      continue;
+
+    const auto &qk = m_qhat[std::size_t(k)];
+
+    for (auto l = lmin; l <= lmax; ++l) {
+
+      const auto c2 = Angular::Ck_kk(l, kv, kG) * Angular::Ck_kk(l, kB, kA);
+      if (c2 == 0.0)
+        continue;
+
+      const auto tjv = Angular::twoj_k(kv);
+      const auto tjA = Angular::twoj_k(kA);
+      const auto tjB = Angular::twoj_k(kB);
+      const auto tjG = Angular::twoj_k(kG);
+      const auto sj = Angular::sixj_2(tjv, tjA, 2 * k, tjB, tjG, 2 * l);
+      if (sj == 0.0)
+        continue;
+
+      const auto &ql = m_qhat[std::size_t(l)];
+
+      const auto s = Angular::evenQ(k + l) ? 1 : -1;
+
+      const double cang = s * c1 * c2 * sj / tjvp1;
+
+      // X_12 = Sum_ij ( gA_1i qk_1j gB_ij ql_i2 gG_j2 )
+      for (auto r1 = 0ul; r1 < stride_points; ++r1) {
+        const auto s1 = onto_fullGrid(r1);
+        const auto dr1 = p_gr->drdu[s1] * p_gr->du * double(stride);
+        for (auto r2 = 0ul; r2 < stride_points; ++r2) {
+          const auto s2 = onto_fullGrid(r2);
+          const auto dr2 = p_gr->drdu[s2] * p_gr->du * double(stride);
+          //
+          double ij_sum = 0.0; // real
+          for (auto i = 0ul; i < stride_points; ++i) {
+            ComplexDouble jsum{0.0, 0.0}; // complex!
+            for (auto j = 0ul; j < stride_points; ++j) {
+              // XXX Inneficient! Extra copy+function calls
+              jsum += qk.ffc(r1, j) * gB.ffc(i, j) * gG.ffc(j, r2);
+            }
+            ij_sum += (jsum * gA.ffc(r1, i) * ql.ffc(i, r2)).re;
+          }
+          //
+          sum_X.ff[r1][r2] += cang * ij_sum / (dr1 * dr2);
+        }
+      }
+      //
+    } // l
+  }   // k
+
+  return sum_X;
 }
 
 } // namespace MBPT

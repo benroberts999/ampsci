@@ -75,6 +75,13 @@ public:
     }
   }
 
+  // temp! XXX
+  LinAlg::Complex<double> ffc(std::size_t i, std::size_t j) const {
+    static_assert(std::is_same<T, LinAlg::ComplexSqMatrix>::value,
+                  "Can only call ffc from Complex GMatrix!");
+    return ff.get_copy(i, j);
+  }
+
   //! Can add/subtract matrices (in place)
   GreenMatrix<T> &operator+=(const GreenMatrix<T> &rhs) {
     ff += rhs.ff;

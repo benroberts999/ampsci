@@ -317,6 +317,7 @@ int main(int argc, char *argv[]) {
   {
     IO::ChronoTimer t("FeynmanDirect");
     Sk->FeynmanDirect(-1, -0.127368);
+    Sk->FeynmanExchange(-1, -0.127368);
     // Sk->FeynmanDirect(1, -0.085616);
     // Sk->FeynmanDirect(-2, -0.083785);
     // Sk->FeynmanDirect(2, -0.064419651);

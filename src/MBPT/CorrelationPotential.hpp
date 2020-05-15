@@ -154,9 +154,13 @@ public:
   GMatrix Make_Vx(int kappa) const;
 
   void FeynmanDirect(int kv, double env);
+  void FeynmanExchange(int kv, double env);
+
   //! sum_k [ck qk * pi(w) * qk], ck angular factor
   ComplexGMatrix sumk_cQPQ(int kv, int ka, int kalpha, int kbeta,
                            const ComplexGMatrix &pi_aalpha) const;
+  GMatrix X_sum(const ComplexGMatrix &gA, const ComplexGMatrix &gB,
+                const ComplexGMatrix &gG, int kv, int kA, int kB, int kG) const;
 
 private:
   const Grid *const p_gr;
@@ -187,8 +191,8 @@ private:
   }
 
   // XXX input options!
-  int m_maxkindex_core = 4, m_maxkindex = 12;
-  int m_min_core_n = 3;
+  int m_maxkindex_core = 4, m_maxkindex = 6;
+  int m_min_core_n = 4;
   // nb: m_maxkindex = 2*lmax
 
   // Options for sub-grid, and which matrices to include
