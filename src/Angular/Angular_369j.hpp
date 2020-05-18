@@ -46,6 +46,10 @@ constexpr int kappa_twojpi(const int twoj, const int pi) {
   return kappa_twojl(twoj, l); // must be simpler way?
 }
 
+inline constexpr bool zeroQ(double x, double eps = 1.0e-10) {
+  return x >= 0 ? x < eps : x > -eps;
+}
+
 //******************************************************************************
 //    Kappa Index:
 // For easy array access, define 1-to-1 index for each kappa:
