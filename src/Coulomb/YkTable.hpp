@@ -74,6 +74,9 @@ public:
 
   //! Access C^k angular tables (have public access to const methods only)
   const Angular::Ck_ab &Ck() const { return m_Ck; }
+  void extend_Ck(const int max_K, const int max_twoj) {
+    m_Ck.fill_maxK_twojmax(max_K, max_twoj);
+  }
 
   //! Returns maximum value of 2j in {a} and {b} orbitals
   int max_tj() const;

@@ -205,12 +205,19 @@ int main(int argc, char *argv[]) {
   // Correlations: read in options
   const auto Sigma_ok = input.check(
       "Correlations", {"Brueckner", "energyShifts", "n_min_core", "fitTo_cm",
-                       "lambda_k", "io_file", "stride"});
+                       "lambda_k", "io_file", "rmin", "rmax", "stride",
+                       "Feynman", "lmax", "real_omega", "kmax"});
   const bool do_energyShifts = input.get("Correlations", "energyShifts", false);
   const bool do_brueckner = input.get("Correlations", "Brueckner", false);
   const auto sigma_stride = input.get("Correlations", "stride", 4);
+  const auto sigma_rmin = input.get("Correlations", "rmin", 1.0e-4);
+  const auto sigma_rmax = input.get("Correlations", "rmax", 30.0);
+  const auto sigma_Feynman = input.get("Correlations", "Feynman", false);
+  const auto sigma_lmax = input.get("Correlations", "lmax", 6);
+  const auto sigma_omre =
+      input.get("Correlations", "real_omega", -0.5 * wf.energy_gap());
+  const auto sigma_kmax = input.get("Correlations", "kmax", 99);
   const auto sigma_file = input.get<std::string>("Correlations", "io_file", "");
-
   const auto n_min_core = input.get("Correlations", "n_min_core", 1);
   auto fit_energies =
       input.get_list("Correlations", "fitTo_cm", std::vector<double>{});
@@ -220,109 +227,11 @@ int main(int argc, char *argv[]) {
       input.get_list("Correlations", "lambda_k", std::vector<double>{});
 
   // Form correlation potential:
-  if (do_energyShifts || do_brueckner) {
+  if ((do_energyShifts || do_brueckner) && Sigma_ok) {
     IO::ChronoTimer t("Sigma");
-    wf.formSigma(n_min_core, do_brueckner, sigma_stride, lambda_k, sigma_file);
-  }
-
-  auto Sk = wf.getSigma();
-
-  if (false) {
-    Sk->fill_qhat();
-    std::cout << "\nTest (real-valued) Green's function:\n";
-    std::cout << "(should read: 1.0  0.0)\n";
-    double w = -0.3;
-    std::cout << "w = " << w << "\n";
-    for (auto kappa : {-1, 1, -2, 2, -3}) {
-
-      const auto g0 = Sk->Green_hf(kappa, w).get_real();
-      for (const auto &orbs : {&wf.core, &wf.valence}) {
-        for (const auto &a : *orbs) {
-          if (a.k != kappa)
-            continue;
-          const auto pfv = orbs == &wf.core ? wf.firstValenceState(kappa)
-                                            : wf.firstCoreState(kappa);
-          if (!pfv)
-            continue;
-          const auto &fv = *pfv;
-          auto dv = Sk->Sigma_G_Fv(g0, a);
-          auto nn = (a * dv) * (w - a.en);
-          auto n2 = (fv * dv);
-          auto s1 = std::string("<" + a.shortSymbol() + "|g");
-          auto s2 = std::string("|" + a.shortSymbol() + ">");
-          auto s3 = std::string("|" + fv.shortSymbol() + ">");
-          printf("%s%s: %7.5f , %s: %6.1e\n", s1.c_str(), s2.c_str(), nn,
-                 s3.c_str(), n2);
-        }
-      }
-    }
-
-    std::cout << "\nTest (complex-valued) Green's function:\n";
-    std::cout << "(should read: 1.0+1.0i ,  0.0+0.0i)\n";
-    double wr = -0.3;
-    std::cout << "Re(w) = " << wr << "\n";
-    for (auto wi : {0.01, 0.1, 1.0, 10.0}) {
-      std::cout << "Im(w) = " << wi << "\n";
-
-      for (auto kappa : {-1, 1, -2, 2, -3}) {
-        const auto g0 = Sk->Green_hf(kappa, wr);
-        const auto g = Sk->ComplexG(g0, wi);
-        // const auto g = Sk->Green_core(kappa, wr, wi);
-        // std::cout << "Green_core:\n";
-
-        const auto REg = g.get_real();
-        const auto IMg = g.get_imaginary();
-
-        for (const auto &orbs : {&wf.core, &wf.valence}) {
-          for (const auto &a : *orbs) {
-            if (a.k != kappa)
-              continue;
-            const auto pfv = orbs == &wf.core ? wf.firstValenceState(kappa)
-                                              : wf.firstCoreState(kappa);
-            if (!pfv)
-              continue;
-            const auto &fv = *pfv;
-            auto dvR = Sk->Sigma_G_Fv(REg, a);
-            auto dvI = Sk->Sigma_G_Fv(IMg, a);
-            // auto fR = (wr - a.en) + wi / (wr - a.en);
-            // auto fI = (wi == 0) ? 1.0 : -((wr - a.en) * (wr - a.en) / wi +
-            // wi);
-            auto a2b2 = (wr - a.en) * (wr - a.en) + wi * wi;
-            auto fR = a2b2 / (wr - a.en);
-            auto fI = (wi == 0) ? 1.0 : -a2b2 / wi;
-            double R1 = a * dvR; // * fR;
-            double R0 = fv * dvR;
-            double I1 = a * dvI; // * fI;
-            double I0 = fv * dvI;
-            auto s1 = std::string("<" + a.shortSymbol() + "|g");
-            auto s2 = std::string("|" + a.shortSymbol() + ">");
-            auto s3 = std::string("|" + fv.shortSymbol() + ">");
-            printf("%s%s: %7.5f +%8.5f , %s:%8.1e +%8.1e", s1.c_str(),
-                   s2.c_str(), R1 * fR, I1 * fI, s3.c_str(), R0, I0);
-            if (std::abs(R1 * fR + I1 * fI - 2.0) > 0.2)
-              std::cout << " *";
-            if (std::abs(R1 * fR + I1 * fI - 2.0) > 0.35)
-              std::cout << "*";
-            if (std::abs(R1 * fR + I1 * fI - 2.0) > 0.75)
-              std::cout << "*";
-            std::cout << "\n";
-            // printf("%10.3e  %10.3ei  ---  ", R1, I1);
-            // printf("%10.3e  %10.3ei\n\n", 1.0 / fR, 1.0 / fI);
-          }
-        }
-      }
-    }
-  }
-
-  {
-    IO::ChronoTimer t("FeynmanDirect");
-    Sk->fill_qhat();
-    // Sk->FeynmanDirect(-1, -0.127368);
-    Sk->FeynmanEx_1(-1, -0.127368);
-    // Sk->FeynmanDirect(1, -0.085616);
-    // Sk->FeynmanDirect(-2, -0.083785);
-    // Sk->FeynmanDirect(2, -0.064419651);
-    // Sk->FeynmanDirect(-3, -0.064529789);
+    wf.formSigma(n_min_core, do_brueckner, sigma_rmin, sigma_rmax, sigma_stride,
+                 lambda_k, sigma_file, sigma_Feynman, sigma_lmax, sigma_omre,
+                 sigma_kmax);
   }
 
   // Just energy shifts

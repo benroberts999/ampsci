@@ -659,9 +659,12 @@ void Wavefunction::formSpectrum(const SplineBasis::Parameters &params) {
 
 //******************************************************************************
 void Wavefunction::formSigma(const int nmin_core, const bool form_matrix,
+                             const double r0, const double rmax,
                              const int stride,
                              const std::vector<double> &lambdas,
-                             const std::string &fname) {
+                             const std::string &fname, const bool FeynmanQ,
+                             const int lmax, const double omre,
+                             const int kmax) {
   // Sort basis into core/exited parts, throwing away core states with n<nmin
   std::vector<DiracSpinor> occupied;
   std::vector<DiracSpinor> excited;
@@ -692,9 +695,15 @@ void Wavefunction::formSigma(const int nmin_core, const bool form_matrix,
       }
     }
   }
+
+  const auto method =
+      FeynmanQ ? MBPT::Method::Feynman : MBPT::Method::Goldstone;
+  const auto sigp = MBPT::Sigma_params{method, nmin_core, lmax, kmax, omre};
+  const auto subgridp = MBPT::rgrid_params{r0, rmax, std::size_t(stride)};
+
   // Correlaion potential matrix:
   m_Sigma = std::make_unique<MBPT::CorrelationPotential>(
-      rgrid, occupied, excited, stride, en_list_kappa, fname, m_pHF.get());
+      m_pHF.get(), occupied, excited, sigp, subgridp, en_list_kappa, fname);
   m_Sigma->scale_Sigma(lambdas);
 }
 
@@ -774,7 +783,7 @@ void Wavefunction::SOEnergyShift() {
   std::cout << "state |  E(HF)      E(2)       <v|S2|v> |  E(HF+2)     E(HF+2) "
                "(cm^-1)\n";
   for (const auto &v : valence) {
-    const auto delta = (*m_Sigma)(v, v);
+    const auto delta = m_Sigma->SOEnergyShift(v, v);
     const auto delta2 = v * (*m_Sigma)(v);
     const auto cm = PhysConst::Hartree_invcm;
     if (e0 == 0)

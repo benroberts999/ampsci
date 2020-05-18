@@ -52,11 +52,9 @@ public:
   //! Jacobian (dr/du)[i]
   const std::vector<double> drdu;
 
-private:
   Grid(double in_r0, double in_rmax, std::size_t in_num_points,
        GridType in_gridtype, double in_b = 0);
 
-public:
   Grid(const GridParameters &in);
 
   //! Given value, returns grid index. if not require_nearest, returns lower

@@ -92,8 +92,8 @@ public: // const methods: "views" into WF object
 
   //! Returns ptr to (const) Correlation Potential, Sigma
   // XXX Make const!
-  MBPT::CorrelationPotential *getSigma() const {
-    std::cout << "XXX Make me const!\n";
+  const MBPT::CorrelationPotential *getSigma() const {
+    // std::cout << "XXX Make me const!\n";
     return m_Sigma.get();
   }
   //! Returns ptr to (const) Hartree Fock (class)
@@ -116,6 +116,17 @@ public: // const methods: "views" into WF object
       if (v.k == k)
         return &v;
     return nullptr;
+  }
+
+  //! Energy gap between lowest valence + highest core state
+  double energy_gap() const {
+    const auto c =
+        std::max_element(cbegin(core), cend(core), DiracSpinor::comp_en);
+    const auto v =
+        std::min_element(cbegin(valence), cend(valence), DiracSpinor::comp_en);
+    if (c != cend(core) && v != cend(valence))
+      return v->en - c->en;
+    return 0.0;
   }
 
   //! Returns full core configuration
@@ -191,8 +202,11 @@ public: // const methods: "views" into WF object
 
   //! Forms + stores correlation potential Sigma
   void formSigma(const int nmin_core = 1, const bool form_matrix = true,
+                 const double r0 = 1.0e-4, const double rmax = 30.0,
                  const int stride = 4, const std::vector<double> &lambdas = {},
-                 const std::string &fname = "");
+                 const std::string &fname = "", const bool FeynmanQ = false,
+                 const int lmax = 6, const double omre = -0.2,
+                 const int kmax = 99);
 
   //! @brief Solves Dirac bound state problem, with optional 'extra' potential
   //! log_eps is log_10(convergence_target).

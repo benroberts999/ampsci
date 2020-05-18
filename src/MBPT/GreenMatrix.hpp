@@ -9,6 +9,7 @@ namespace MBPT {
 //******************************************************************************
 //! Holds Green's fn operator of form: |ket><bra| [4x4 matrix of NxN matrix]
 template <typename T> class GreenMatrix {
+public:
   bool include_G;
   std::size_t size;
   std::size_t G_size;

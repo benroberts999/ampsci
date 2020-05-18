@@ -130,10 +130,9 @@ public:
 
 public:
   bool verbose = true; // update to input??
+  const Grid *const p_rgrid;
 
 private:
-  // Wavefunction *const p_wf;
-  const Grid *const p_rgrid;
   const std::vector<double> *const p_vnuc;
   const RadiativePotential::Vrad *const p_vrad;
 

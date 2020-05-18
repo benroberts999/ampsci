@@ -7,6 +7,7 @@
 #include "Maths/LinAlg_MatrixVector.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
+#include <memory>
 #include <vector>
 class Grid;
 namespace HF {
@@ -20,6 +21,28 @@ namespace MBPT {
 using GMatrix = GreenMatrix<LinAlg::SqMatrix>;
 using ComplexGMatrix = GreenMatrix<LinAlg::ComplexSqMatrix>;
 using ComplexDouble = LinAlg::Complex<double>;
+
+enum class Method { Goldstone, Feynman };
+
+struct Sigma_params {
+  Method method;
+  int min_n_core;
+  int max_l_excited;
+  int max_k;
+  double real_omega;
+};
+
+struct rgrid_params {
+  double r0;
+  double rmax;
+  std::size_t stride;
+};
+
+struct wgrid_params {
+  double w0;
+  double wmax;
+  double ratio;
+};
 
 //******************************************************************************
 /*!
@@ -62,13 +85,13 @@ public:
   //! @details if given filename, will read Sigma in from file instead of
   //! calculating it. If given filename for file that doesn't exist yet, will
   //! write sigma to that file.
-  CorrelationPotential(const Grid &gr,
-                       const std::vector<DiracSpinor> &core = {},
-                       const std::vector<DiracSpinor> &excited = {},
-                       const int in_stride = 4,
-                       const std::vector<double> &en_list = {},
-                       const std::string &in_fname = "",
-                       const HF::HartreeFock *const in_hf = nullptr);
+  CorrelationPotential(const HF::HartreeFock *const in_hf,      //
+                       const std::vector<DiracSpinor> &core,    //
+                       const std::vector<DiracSpinor> &excited, //
+                       const Sigma_params &sigp,                //
+                       const rgrid_params &subgridp,            //
+                       const std::vector<double> &en_list,      //
+                       const std::string &in_fname);
 
   CorrelationPotential &operator=(const CorrelationPotential &) = delete;
   CorrelationPotential(const CorrelationPotential &) = delete;
@@ -96,18 +119,16 @@ public:
   //! Calculates <Fv|Sigma|Fw> from scratch, at Fv energy [full grid + fg+gg]
   //! @details Note: uses basis, so if reading Sigma from file, and no basis
   //! given, will return all 0.0
-  double operator()(const DiracSpinor &Fv, const DiracSpinor &Fw) const {
-    return Sigma2vw(Fv, Fw);
-  }
+  double SOEnergyShift(const DiracSpinor &Fv, const DiracSpinor &Fw) const;
 
 private:
   DiracSpinor Sigma2Fv(const DiracSpinor &Fv) const;
-  double Sigma2vw(const DiracSpinor &Fv, const DiracSpinor &Fw) const;
-  void setup_subGrid();
+  void setup_subGrid(double rmin, double rmax);
 
 private:
   // main routine, filles Sigma matrix using basis [Goldstone]
   void fill_Sigma_k_Gold(GMatrix *Gmat, const int kappa, const double en);
+  void fill_Sigma_k_Feyn(GMatrix *Gmat, const int kappa, const double en);
   // Adds new |ket><bra| term to G; uses sub-grid
   void addto_G(GMatrix *Gmat, const DiracSpinor &ket, const DiracSpinor &bra,
                const double f = 1.0) const;
@@ -123,57 +144,53 @@ private:
   //----------------------------------------------
 public:
   ComplexGMatrix Green_core(int kappa, double en_re, double en_im) const;
+  ComplexGMatrix Green_ex(int kappa, double en_re, double en_im) const;
   ComplexGMatrix Green_hf(int kappa, double en) const;
-  // ComplexGMatrix ComplexG(const GMatrix &Gre, double om_imag) const;
   ComplexGMatrix ComplexG(const ComplexGMatrix &Gr, double om_imag) const;
-  ComplexGMatrix ComplexG2(const ComplexGMatrix &Gr, double de_re,
-                           double om_imag) const;
+  ComplexGMatrix ComplexG(const ComplexGMatrix &Gr, double de_re,
+                          double om_imag) const;
   ComplexGMatrix Green_hf(int kappa, double en_re, double en_imag) const;
   ComplexGMatrix Green_hf_basis(int kappa, double en_re, double en_im,
                                 bool ex_only) const;
 
   ComplexGMatrix Polarisation(int kappa_a, int kappa_alpha, double om_re,
                               double om_im) const;
-  // ComplexGMatrix Polarisation2(int k_a, int k_alpha, double wr,
-  //                              double wi) const;
-  // ComplexGMatrix Polarisation_Basis(int kappa_a, int kappa_alpha, double
-  // om_re, double om_im) const;
+  ComplexGMatrix Polarisation_a(const ComplexGMatrix &pa, double ena,
+                                int k_alpha, double om_re, double om_im) const;
 
-  // void addto_G(ComplexGMatrix *Gmat, const DiracSpinor &ket,
-  //              const DiracSpinor &bra, const ComplexDouble f) const;
-  void sumPol(const ComplexGMatrix &pi_aA) const;
+  // void sumPol(const ComplexGMatrix &pi_aA) const;
 
-  void fill_qhat();
+  void prep_Feynman();
+  std::size_t ri_subToFull(std::size_t i) const;
+  double dr_subToFull(std::size_t i) const;
 
   GMatrix MakeGreensG(const DiracSpinor &x0, const DiracSpinor &xI,
                       const double w) const;
-  // GMatrix G_single(const DiracSpinor &ket, const DiracSpinor &bra,
-  //                  const double f) const;
   ComplexGMatrix G_single(const DiracSpinor &ket, const DiracSpinor &bra,
                           const ComplexDouble f) const;
   GMatrix Make_Vx(int kappa) const;
 
-  void FeynmanDirect(int kv, double env);
-  void FeynmanEx_1(int kv, double env);
+  GMatrix FeynmanDirect(int kv, double env);
+  GMatrix FeynmanEx_1(int kv, double env);
 
   //! sum_k [ck qk * pi(w) * qk], ck angular factor
-  ComplexGMatrix sumk_cQPQ(int kv, int ka, int kalpha, int kbeta,
-                           const ComplexGMatrix &pi_aalpha) const;
-  GMatrix X_sum(const ComplexGMatrix &gA, const ComplexGMatrix &gB,
-                const ComplexGMatrix &gG, int kv, int kA, int kB, int kG) const;
-  GMatrix GQPG_sum(const ComplexGMatrix &gA, const ComplexGMatrix &gxBm,
-                   const ComplexGMatrix &gxBp, const ComplexGMatrix &pa, int kv,
-                   int kA, int kB, int ka) const;
+  GMatrix sumk_cGQPQ(int kv, int ka, int kalpha, int kbeta,
+                     const ComplexGMatrix &g_beta,
+                     const ComplexGMatrix &pi_aalpha) const;
+  GMatrix sumkl_GQPGQ(const ComplexGMatrix &gA, const ComplexGMatrix &gxBm,
+                      const ComplexGMatrix &gxBp, const ComplexGMatrix &pa,
+                      int kv, int kA, int kB, int ka) const;
 
 private:
   const Grid *const p_gr;
   const std::vector<DiracSpinor> m_core;
-  const std::vector<DiracSpinor> m_excited; // empty for Feynman
-  Coulomb::YkTable m_yec;                   // constains Ck and Y_ec(r)
-  // Need difference Ck for Feynman! ptr?
-  const int m_maxk; // need max_l
-  Angular::SixJ m_6j;
+  const std::vector<DiracSpinor> m_excited;
+  Coulomb::YkTable m_yec;
+  int m_maxk{};
+  Angular::SixJ m_6j{};
   std::size_t stride;
+  Method method;
+  double m_omre;
 
   const HF::HartreeFock *const p_hf;
 
@@ -185,25 +202,21 @@ private:
   std::vector<double> m_lambda_kappa{};
 
   std::vector<ComplexGMatrix> m_qhat{};
-  std::vector<ComplexGMatrix> m_Ga{}; // |a><a| for each core state
+  std::vector<ComplexGMatrix> m_Pa{}; // |a><a| for each core state
   std::vector<GMatrix> m_Vxk{};       // one each kappa in core
-  // std::vector<ComplexGMatrix> m_qhat_tr{};
 
-  std::size_t onto_fullGrid(std::size_t i) const {
-    return ((imin + i) * stride);
-  }
-
-  // XXX input options!
-  int m_maxkindex_core = 4, m_maxkindex = 8;
-  int m_min_core_n = 4;
-  // nb: m_maxkindex = 2*lmax
+  int m_maxkindex_core{};
+  int m_maxkindex{};
+  int m_min_core_n{};
+  std::unique_ptr<ComplexGMatrix> m_dri = nullptr;
+  std::unique_ptr<ComplexGMatrix> m_drj = nullptr;
+  std::unique_ptr<Grid> m_wgridD = nullptr;
+  std::unique_ptr<Grid> m_wgridX = nullptr;
 
   // Options for sub-grid, and which matrices to include
   static constexpr bool include_G = false;
-
-  ComplexGMatrix *m_dri = nullptr; // temp! XXX
-  ComplexGMatrix *m_drj = nullptr; // temp! XXX
-  // ComplexGMatrix *m_drj;
+  static constexpr bool basis_for_Green = false;
+  static constexpr bool basis_for_Pol = true;
 };
 
 } // namespace MBPT
