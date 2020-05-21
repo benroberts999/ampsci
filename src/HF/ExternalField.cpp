@@ -148,7 +148,7 @@ ExternalField::solve_dPsi(const DiracSpinor &Fv, const double omega,
 void ExternalField::solve_TDHFcore(const double omega, const int max_its,
                                    const bool print) {
 
-  const double converge_targ = m_h->name() == "hfs" ? 1.0e-4 : 1.0e-9;
+  const double converge_targ = m_h->name() == "hfs" ? 5.0e-5 : 1.0e-9;
   const auto damper = rampedDamp(0.75, 0.25, 1, 20);
 
   const bool staticQ = std::abs(omega) < 1.0e-10;
@@ -169,12 +169,17 @@ void ExternalField::solve_TDHFcore(const double omega, const int max_its,
   double ceiling_eps = 1.0;
   int worse_count = 0;
   double extra_damp = 0.0;
-  for (int it = 1; it <= max_its; it++) {
+  int it = 1;
+  if (print) {
+    printf("TDHF (w=%.3f): .. \r", omega);
+    std::cout << std::flush;
+  }
+  for (; it <= max_its; it++) {
     eps = 0.0;
     const auto a_damp = (it == 1) ? 0.0 : damper(it) + extra_damp;
 
     // eps for solveMixedState - doesn't need to be small!
-    const auto eps_ms = (it == 1) ? 1.0e-7 : 1.0e-3;
+    const auto eps_ms = (it == 1) ? 1.0e-8 : 1.0e-3;
 
     auto tmp_X = m_X;
     auto tmp_Y = m_Y;
@@ -195,9 +200,7 @@ void ExternalField::solve_TDHFcore(const double omega, const int max_its,
         auto rhs = hPsic + dV_ab_rhs(Xx.k, Fc, false);
         if (Xx.k == Fc.k && !imag)
           rhs -= (de0 + de1) * Fc;
-        auto s = imag ? -1 : 1; // why is this needed??
-        HF::solveMixedState(Xx, Fc, omega, m_vl, m_alpha, *p_core, s * rhs,
-                            eps_ms);
+        HF::solveMixedState(Xx, Fc, omega, m_vl, m_alpha, *p_core, rhs, eps_ms);
         Xx = a_damp * oldX + (1.0 - a_damp) * Xx;
         const auto delta = (Xx - oldX) * (Xx - oldX) / (Xx * Xx);
         if (delta > eps_c)
@@ -208,9 +211,8 @@ void ExternalField::solve_TDHFcore(const double omega, const int max_its,
           auto &Yx = tmp_Y[ic][j];
           const auto &oldY = m_Y[ic][j];
           const auto &hPsic = hPsi[ic][j];
-          auto s = imag ? -1 : 1;
-          // XXX why here only second?
-          auto rhs = hPsic + s * dV_ab_rhs(Yx.k, Fc, true);
+          const auto s = imag ? -1 : 1;
+          auto rhs = s * hPsic + dV_ab_rhs(Yx.k, Fc, true);
           if (Yx.k == Fc.k && !imag)
             rhs -= (de0 + de1_dag) * Fc;
           HF::solveMixedState(Yx, Fc, -omega, m_vl, m_alpha, *p_core, rhs,
@@ -218,7 +220,7 @@ void ExternalField::solve_TDHFcore(const double omega, const int max_its,
           Yx = a_damp * oldY + (1.0 - a_damp) * Yx;
         }
       } else {
-        auto s = imag ? -1 : 1;
+        const auto s = imag ? -1 : 1;
         for (auto j = 0ul; j < tmp_Y[ic].size(); j++) {
           tmp_Y[ic][j] = s * tmp_X[ic][j];
         }
@@ -230,9 +232,10 @@ void ExternalField::solve_TDHFcore(const double omega, const int max_its,
     m_X = tmp_X;
     m_Y = tmp_Y;
 
-    if (print)
-      printf("TDHF (w=%.3f): %2i  %.1e\r", omega, it, eps);
-    std::cout << std::flush;
+    if (print && it > 0 && it % 15 == 0) {
+      printf("TDHF (w=%.3f): %2i %.1e \r", omega, it, eps);
+      std::cout << std::flush;
+    }
 
     if (it > 15 && eps > 1.1 * ceiling_eps) {
       ++worse_count;
@@ -245,24 +248,27 @@ void ExternalField::solve_TDHFcore(const double omega, const int max_its,
     if ((it > 1 && eps < converge_targ) || worse_count > 3)
       break;
   }
-  if (print)
-    std::cout << "\n";
+  if (print) {
+    printf("TDHF (w=%.3f): %2i %.1e\n", omega, it, eps);
+  }
+  m_core_eps = eps;
+  // if (print)
+  //   std::cout << "\n";
 }
 
 //******************************************************************************
 // does it matter if a or b is in the core?
 double ExternalField::dV_ab(const DiracSpinor &Fn, const DiracSpinor &Fm,
                             bool conj, const DiracSpinor *const Fexcl) const {
-  auto s = conj && m_h->imaginaryQ() ? -1 : 1;
+  auto s = conj && m_h->imaginaryQ() ? -1 : 1; // careful, not always needed
   return s * Fn * dV_ab_rhs(Fn.k, Fm, conj, Fexcl);
 }
 
 double ExternalField::dV_ab(const DiracSpinor &Fn,
                             const DiracSpinor &Fm) const {
-  // conj = Fm.en >= Fn.en; // auto conj! XXX "correct" but broken?
   auto conj = Fm.en <= Fn.en; // auto conj! XXX "wrong"? but works?
-  auto s = conj && m_h->imaginaryQ() ? -1 : 1;
-  return s * Fn * dV_ab_rhs(Fn.k, Fm, conj);
+  // auto s = conj && m_h->imaginaryQ() ? -1 : 1;
+  return dV_ab(Fn, Fm, conj);
 }
 
 //******************************************************************************
@@ -282,6 +288,9 @@ DiracSpinor ExternalField::dV_ab_rhs(const int kappa_n, const DiracSpinor &Fm,
 
   auto dVFm = DiracSpinor(0, kappa_n, *(Fm.p_rgrid));
   dVFm.pinf = Fm.pinf; //?
+
+  const auto isign = m_h->imaginaryQ() ? -1 : 1;
+  // XXX Have to swap sign for imag operaors? Why???
 
 #pragma omp parallel for
   for (auto ib = 0ul; ib < p_core->size(); ib++) {
@@ -348,7 +357,7 @@ DiracSpinor ExternalField::dV_ab_rhs(const int kappa_n, const DiracSpinor &Fm,
     { dVFm += dVFm_c; }
   }
 
-  return dVFm;
+  return isign * dVFm;
 }
 
 //******************************************************************************

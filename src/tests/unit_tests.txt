@@ -129,37 +129,25 @@ Module::Tests { Hamiltonian = true; }
 Atom { Z = Cs; }
 HartreeFock {
   core = [Xe];
-  valence = 7s10p5d;
+  valence = 7s9p5d;
 }
 Grid {
   r0 = 1e-7;
-  rmax = 200.00;
-  num_points = 4000;
-}
-Basis {
-  number = 40;
-  order = 7;
-  r0 = 1.0e-4;
-  r0_eps = 1.0e-6;
-  rmax = 30.0;
-  states = 30spdfg;
-}
-Correlations {
-  stride = 15;
-  n_min_core = 3;
-  Brueckner = true;
-  fitTo_cm = -31406.46773, -20228.200, -19674.161, -16907.211, -16809.625;
+  rmax = 250.00;
+  num_points = 7000;
 }
 Spectrum {
-  number = 100;
-  order = 9;
-  r0_eps = 1.0e-8;
-  rmax = 75.0;
-  states = p;
+  number = 120;
+  order = 7;
+  r0_eps = 0.0;
+  rmax = 175.0;
+  states = 110p;
 }
 Module::Tests {}
-Module::pnc { transition = 6, -1, 7, -1; }
 Module::pnc { transition = 6, -1, 5, 2; }
+Module::pnc { transition = 5, 2, 6, -1; }
+Module::pnc { transition = 6, -1, 7, -1; }
+Module::pnc { transition = 7, -1, 6, -1; }
 
 ###########################################
 #TEST# Cs-RadPot
