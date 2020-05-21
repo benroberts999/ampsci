@@ -169,7 +169,12 @@ void ExternalField::solve_TDHFcore(const double omega, const int max_its,
   double ceiling_eps = 1.0;
   int worse_count = 0;
   double extra_damp = 0.0;
-  for (int it = 1; it <= max_its; it++) {
+  int it = 1;
+  if (print) {
+    printf("TDHF (w=%.3f): .. \r", omega);
+    std::cout << std::flush;
+  }
+  for (; it <= max_its; it++) {
     eps = 0.0;
     const auto a_damp = (it == 1) ? 0.0 : damper(it) + extra_damp;
 
@@ -227,9 +232,10 @@ void ExternalField::solve_TDHFcore(const double omega, const int max_its,
     m_X = tmp_X;
     m_Y = tmp_Y;
 
-    if (print)
-      printf("TDHF (w=%.3f): %2i  %.1e\r", omega, it, eps);
-    std::cout << std::flush;
+    if (print && it > 0 && it % 15 == 0) {
+      printf("TDHF (w=%.3f): %2i %.1e \r", omega, it, eps);
+      std::cout << std::flush;
+    }
 
     if (it > 15 && eps > 1.1 * ceiling_eps) {
       ++worse_count;
@@ -242,8 +248,12 @@ void ExternalField::solve_TDHFcore(const double omega, const int max_its,
     if ((it > 1 && eps < converge_targ) || worse_count > 3)
       break;
   }
-  if (print)
-    std::cout << "\n";
+  if (print) {
+    printf("TDHF (w=%.3f): %2i %.1e\n", omega, it, eps);
+  }
+  m_core_eps = eps;
+  // if (print)
+  //   std::cout << "\n";
 }
 
 //******************************************************************************

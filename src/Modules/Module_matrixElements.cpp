@@ -97,8 +97,9 @@ void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf) {
       if (eachFreqQ && rpaQ) {
         rpa0->clear_dPsi();
         rpa0->solve_TDHFcore(ww, 1, false); // wastes a little time
-        rpa.clear_dPsi();                   // in case last one didn't work!
-        rpa.solve_TDHFcore(ww);             // re-solve at new frequency
+        if (rpa.get_eps() > 1.0e-5)
+          rpa.clear_dPsi();     // in case last one didn't work!
+        rpa.solve_TDHFcore(ww); // re-solve at new frequency
       }
       std::cout << h->rme_symbol(Fa, Fb) << ": ";
       // Special case: HFS A:

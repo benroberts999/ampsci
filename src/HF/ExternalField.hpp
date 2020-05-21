@@ -60,6 +60,7 @@ private:
   const int m_rank;
   const int m_pi;
   const bool m_imag;
+  double m_core_eps = 1.0;
 
   // Angular::SixJ m_6j; // used?
 
@@ -72,6 +73,8 @@ public:
   //! itteration]. If print=true, will write progress to screen
   void solve_TDHFcore(const double omega, int max_its = 100,
                       const bool print = true);
+
+  double get_eps() const { return m_core_eps; }
 
   //! @brief Uses itterative matrix method; for tests only
   void solve_TDHFcore_matrix(const Wavefunction &wf, const double omega,
