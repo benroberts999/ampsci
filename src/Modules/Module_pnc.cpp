@@ -153,9 +153,9 @@ void calculatePNC(const IO::UserInputBlock &input, const Wavefunction &wf) {
             << "z-component, z=min(ja,jb). units: i(-Qw/N)10^-11."
             << "\n\n";
 
+  // Solve TDHF:
   auto dVE1 = HF::ExternalField(&he1, wf.core, wf.get_Vlocal(), alpha);
-  auto dVpnc =
-      HF::ExternalField(&hpnc, wf.core, wf.get_Vlocal(), alpha);
+  auto dVpnc = HF::ExternalField(&hpnc, wf.core, wf.get_Vlocal(), alpha);
   if (rpaQ) {
     auto omega_dflt = std::abs(aA.en - aB.en);
     auto omega = input.get("omega", omega_dflt);
@@ -164,12 +164,14 @@ void calculatePNC(const IO::UserInputBlock &input, const Wavefunction &wf) {
   }
   const bool dVconj = aA.en > aB.en ? true : false;
 
+  // Angular factors (RME -> z-comp, z=min(ja,jb))
   auto tja = aA.twoj();
   auto tjb = aB.twoj();
   auto twom = std::min(tja, tjb);
   auto c10 = he1.rme3js(tja, tjb, twom) * hpnc.rme3js(tjb, tjb, twom);
   auto c01 = hpnc.rme3js(tja, tja, twom) * he1.rme3js(tja, tjb, twom);
 
+  // Sum over states, use HF orbitals
   bool main_ok = false;
   int max_n_main = 0;
   {

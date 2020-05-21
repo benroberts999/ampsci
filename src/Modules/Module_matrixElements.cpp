@@ -373,7 +373,7 @@ generate_pnc(const IO::UserInputBlock &input, const Wavefunction &wf) {
   const auto r_rms = Nuclear::find_rrms(wf.Znuc(), wf.Anuc());
   const auto c = input.get("c", Nuclear::c_hdr_formula_rrms_t(r_rms));
   const auto t = input.get("t", Nuclear::default_t);
-  return std::make_unique<PNCnsi>(c, t, wf.rgrid, -wf.Nnuc(), "-i(Q/N)e-11");
+  return std::make_unique<PNCnsi>(c, t, wf.rgrid, 1.0, "iQwe-11");
 }
 
 //------------------------------------------------------------------------------
