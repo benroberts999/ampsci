@@ -65,7 +65,7 @@ void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf) {
     std::cout << "With extra factor: " << factor << "\n";
 
   // XXX Always same kappa for get_Vlocal?
-  auto rpa = HF::ExternalField(h.get(), wf.core, wf.get_Vlocal(), wf.alpha);
+  auto rpa = HF::ExternalField(h.get(), wf.getHF());
   std::unique_ptr<HF::ExternalField> rpa0; // for first-order
 
   if (h->freqDependantQ && !eachFreqQ)
@@ -108,8 +108,8 @@ void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf) {
       if (radial_int) {
         printf("%13.6e\n", h->radialIntegral(Fa, Fb));
       } else if (rpaQ) {
-        auto dV = rpa.dV_ab(Fa, Fb);
-        auto dV0 = rpa0->dV_ab(Fa, Fb);
+        auto dV = rpa.dV(Fa, Fb);
+        auto dV0 = rpa0->dV(Fa, Fb);
         printf("%13.6e  %13.6e  %13.6e\n", h->reducedME(Fa, Fb) * a,
                (h->reducedME(Fa, Fb) + dV0) * a,
                (h->reducedME(Fa, Fb) + dV) * a);
@@ -138,8 +138,8 @@ void calculateLifetimes(const IO::UserInputBlock &input,
   auto alpha = wf.alpha;
   auto alpha3 = alpha * alpha * alpha;
   auto alpha2 = alpha * alpha;
-  auto dVE1 = HF::ExternalField(&he1, wf.core, wf.get_Vlocal(), alpha);
-  auto dVE2 = HF::ExternalField(&he2, wf.core, wf.get_Vlocal(), alpha);
+  auto dVE1 = HF::ExternalField(&he1, wf.getHF());
+  auto dVE2 = HF::ExternalField(&he2, wf.getHF());
 
   auto to_s = PhysConst::time_s;
 
@@ -153,7 +153,7 @@ void calculateLifetimes(const IO::UserInputBlock &input,
           continue;
         auto w = Fa.en - Fn.en;
         dVE1.solve_TDHFcore(w, 40);
-        auto d = he1.reducedME(Fn, Fa) + dVE1.dV_ab(Fn, Fa);
+        auto d = he1.reducedME(Fn, Fa) + dVE1.dV(Fn, Fa);
         auto g_n = (4.0 / 3) * w * w * w * d * d / (Fa.twojp1());
         Gamma += g_n;
         std::cout << "  E1 --> " << Fn.symbol() << ": ";
@@ -167,7 +167,7 @@ void calculateLifetimes(const IO::UserInputBlock &input,
           continue;
         auto w = Fa.en - Fn.en;
         dVE2.solve_TDHFcore(w, 40);
-        auto d = he2.reducedME(Fn, Fa) + dVE2.dV_ab(Fn, Fa);
+        auto d = he2.reducedME(Fn, Fa) + dVE2.dV(Fn, Fa);
         auto g_n = (1.0 / 15) * w * w * w * w * w * d * d / (Fa.twojp1());
         Gamma += g_n * alpha2;
         std::cout << "  E2 --> " << Fn.symbol() << ": ";

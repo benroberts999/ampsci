@@ -126,6 +126,7 @@ public:
   std::vector<double> get_vlocal(int l) const;
 
   int num_core_electrons() const;
+  double get_alpha() const { return m_alpha; }
   const std::vector<DiracSpinor> &get_core() const { return *p_core; }
 
 public:

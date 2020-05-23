@@ -9,7 +9,6 @@
 #include "Wavefunction/BSplineBasis.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
-// #include "MBPT/CorrelationPo.hpp"
 #include <algorithm>
 #include <fstream>
 #include <memory>
@@ -19,22 +18,27 @@ namespace HF {
 
 //******************************************************************************
 ExternalField::ExternalField(const DiracOperator::TensorOperator *const h,
-                             const std::vector<DiracSpinor> &core,
-                             const std::vector<double> &vl, const double alpha)
+                             const HF::HartreeFock *const hf)
     : m_h(h),
-      p_core(&core),
-      m_vl(vl),
-      m_alpha(alpha),
+      p_core(&hf->get_core()),
+      m_vl(hf->get_vlocal(0)), // for now, const Vl, and no Hmag!
+      m_alpha(hf->get_alpha()),
       m_rank(h->rank()),
       m_pi(h->parity()),
       m_imag(h->imaginaryQ())
 // w>0 typically. Allowed to be -ve for tests?
+// XXX Add check for null hf?
 {
+  initialise_dPsi();
+}
 
-  bool print = false;
-  m_X.resize(core.size());
-  for (auto ic = 0u; ic < core.size(); ic++) {
-    const auto &Fc = core[ic];
+//******************************************************************************
+void ExternalField::initialise_dPsi() {
+  // Initialise dPsi vectors, accounting for selection rules
+  const bool print = false;
+  m_X.resize(p_core->size());
+  for (auto ic = 0u; ic < p_core->size(); ic++) {
+    const auto &Fc = (*p_core)[ic];
     const auto pi_ch = Fc.parity() * m_pi;
     const auto tj_c = Fc.twoj();
     const auto tjmin_tmp = tj_c - 2 * m_rank;
@@ -56,14 +60,6 @@ ExternalField::ExternalField(const DiracOperator::TensorOperator *const h,
       std::cout << "\n";
   }
   m_Y = m_X;
-
-  // // Fill 6s symbol look-up table
-  // auto max_twoj = [](const auto &a, const auto &b) {
-  //   return a.twoj() < b.twoj();
-  // };
-  // auto max_tj_core = std::max_element(core.cbegin(), core.cend(), max_twoj);
-  // auto max_tj_dPsi = max_tj_core->twoj() + 2 * m_rank;
-  // m_6j.fill(m_rank, max_tj_dPsi);
 }
 
 //******************************************************************************
@@ -78,17 +74,11 @@ void ExternalField::clear_dPsi() {
 }
 
 //******************************************************************************
-std::size_t ExternalField::core_index(const DiracSpinor &Fc) const {
-  // XXX Note: no bounds checking here!
-  return static_cast<std::size_t>(
-      std::find(p_core->cbegin(), p_core->cend(), Fc) - p_core->cbegin());
-  // Better to just return itorator/pointer??
-}
-
-//******************************************************************************
 const std::vector<DiracSpinor> &ExternalField::get_dPsis(const DiracSpinor &Fc,
                                                          dPsiType XorY) const {
-  const auto index = core_index(Fc);
+  const auto index = static_cast<std::size_t>(
+      std::find(p_core->cbegin(), p_core->cend(), Fc) - p_core->cbegin());
+  // Note: no bounds checking here! Used in critical loop. Better way?
   return XorY == dPsiType::X ? m_X[index] : m_Y[index];
 }
 
@@ -121,27 +111,37 @@ ExternalField::solve_dPsi(const DiracSpinor &Fv, const double omega,
                           const MBPT::CorrelationPotential *const Sigma) const {
   // Solves (H + Sigma - e - w)X = -(h + dV - de)Psi
   // or     (H + Sigma - e + w)Y = -(h^dag + dV^dag - de)Psi
-  // XXX Not equiv to get_dPsi version... <Y| vs |Y> ??
+  // Note: for 'Y', returns <Y|, not |Y> -- may be a difference in sign, since
+  // this is a "reduced" spinor
 
   const auto ww = XorY == dPsiType::X ? omega : -omega;
   auto conj = XorY == dPsiType::Y;
   if (omega < 0.0)
     conj = !conj;
-  // Don't fully understand this:
-  if (!m_h->imaginaryQ())
-    conj = !conj;
 
   const auto imag = m_h->imaginaryQ();
-  const auto hPsic = (XorY == dPsiType::X) ? m_h->reduced_rhs(kappa_x, Fv)
-                                           : m_h->reduced_lhs(kappa_x, Fv);
 
-  auto rhs = hPsic + dV_ab_rhs(kappa_x, Fv, conj);
+  const auto hPsic = m_h->reduced_rhs(kappa_x, Fv);
+  const auto s = (imag && conj) ? -1 : 1;
+
+  auto rhs = s * hPsic + dV_rhs(kappa_x, Fv, conj);
   if (kappa_x == Fv.k && !imag) {
-    const auto de = m_h->reducedME(Fv, Fv) + dV_ab(Fv, Fv, conj);
+    const auto de = m_h->reducedME(Fv, Fv) + dV(Fv, Fv, conj);
     rhs -= de * Fv;
   }
-  return HF::solveMixedState(kappa_x, Fv, ww, m_vl, m_alpha, *p_core, rhs,
-                             1.0e-9, Sigma);
+
+  // If we intend to use this state as lhs, may be additional sign change.
+  // NOTE: we may want 'Y' type, but for rhs... so, add option!
+  auto lhs = XorY == dPsiType::Y; // not always the case!
+  auto s2 = 1;
+  if (lhs) {
+    auto sj = Angular::evenQ_2(Fv.twoj() - Angular::twoj_k(kappa_x)) ? 1 : -1;
+    auto si = imag && !conj ? -1 : 1; // if conj, extra * => +1
+    s2 = sj * si;
+  }
+
+  return s2 * HF::solveMixedState(kappa_x, Fv, ww, m_vl, m_alpha, *p_core, rhs,
+                                  1.0e-9, Sigma);
 }
 
 //******************************************************************************
@@ -190,14 +190,14 @@ void ExternalField::solve_TDHFcore(const double omega, const int max_its,
 
       // delta_en: always same, usually zero; move above!
       const auto de0 = m_h->reducedME(Fc, Fc);
-      const auto de1 = dV_ab(Fc, Fc, false);
-      const auto de1_dag = dV_ab(Fc, Fc, true);
+      const auto de1 = dV(Fc, Fc, false);
+      const auto de1_dag = dV(Fc, Fc, true);
 
       for (auto j = 0ul; j < tmp_X[ic].size(); j++) {
         auto &Xx = tmp_X[ic][j];
         const auto &oldX = m_X[ic][j];
         const auto &hPsic = hPsi[ic][j];
-        auto rhs = hPsic + dV_ab_rhs(Xx.k, Fc, false);
+        auto rhs = hPsic + dV_rhs(Xx.k, Fc, false);
         if (Xx.k == Fc.k && !imag)
           rhs -= (de0 + de1) * Fc;
         HF::solveMixedState(Xx, Fc, omega, m_vl, m_alpha, *p_core, rhs, eps_ms);
@@ -212,7 +212,7 @@ void ExternalField::solve_TDHFcore(const double omega, const int max_its,
           const auto &oldY = m_Y[ic][j];
           const auto &hPsic = hPsi[ic][j];
           const auto s = imag ? -1 : 1;
-          auto rhs = s * hPsic + dV_ab_rhs(Yx.k, Fc, true);
+          auto rhs = s * hPsic + dV_rhs(Yx.k, Fc, true);
           if (Yx.k == Fc.k && !imag)
             rhs -= (de0 + de1_dag) * Fc;
           HF::solveMixedState(Yx, Fc, -omega, m_vl, m_alpha, *p_core, rhs,
@@ -252,45 +252,38 @@ void ExternalField::solve_TDHFcore(const double omega, const int max_its,
     printf("TDHF (w=%.3f): %2i %.1e\n", omega, it, eps);
   }
   m_core_eps = eps;
-  // if (print)
-  //   std::cout << "\n";
 }
 
 //******************************************************************************
 // does it matter if a or b is in the core?
-double ExternalField::dV_ab(const DiracSpinor &Fn, const DiracSpinor &Fm,
-                            bool conj, const DiracSpinor *const Fexcl) const {
+double ExternalField::dV(const DiracSpinor &Fn, const DiracSpinor &Fm,
+                         bool conj, const DiracSpinor *const Fexcl) const {
   auto s = conj && m_h->imaginaryQ() ? -1 : 1; // careful, not always needed
-  return s * Fn * dV_ab_rhs(Fn.k, Fm, conj, Fexcl);
+  return s * Fn * dV_rhs(Fn.k, Fm, conj, Fexcl);
 }
 
-double ExternalField::dV_ab(const DiracSpinor &Fn,
-                            const DiracSpinor &Fm) const {
-  auto conj = Fm.en <= Fn.en; // auto conj! XXX "wrong"? but works?
-  // auto s = conj && m_h->imaginaryQ() ? -1 : 1;
-  return dV_ab(Fn, Fm, conj);
+double ExternalField::dV(const DiracSpinor &Fn, const DiracSpinor &Fm) const {
+  auto conj = Fm.en > Fn.en;
+  return dV(Fn, Fm, conj);
 }
 
 //******************************************************************************
-DiracSpinor ExternalField::dV_ab_rhs(const int kappa_n, const DiracSpinor &Fm,
-                                     bool conj,
-                                     const DiracSpinor *const Fexcl) const {
+DiracSpinor ExternalField::dV_rhs(const int kappa_n, const DiracSpinor &Fm,
+                                  bool conj,
+                                  const DiracSpinor *const Fexcl) const {
 
-  const auto ChiType = conj ? dPsiType::X : dPsiType::Y;
-  const auto EtaType = conj ? dPsiType::Y : dPsiType::X;
+  const auto ChiType = !conj ? dPsiType::X : dPsiType::Y;
+  const auto EtaType = !conj ? dPsiType::Y : dPsiType::X;
 
   const auto k = m_h->rank();
   const auto tkp1 = double(2 * k + 1);
 
-  const auto tjn = Angular::twoj_k(kappa_n); // Fn.twoj();
+  const auto tjn = Angular::twoj_k(kappa_n);
   const auto tjm = Fm.twoj();
   const auto Ckala = Angular::Ck_kk(k, kappa_n, Fm.k);
 
   auto dVFm = DiracSpinor(0, kappa_n, *(Fm.p_rgrid));
-  dVFm.pinf = Fm.pinf; //?
-
-  const auto isign = m_h->imaginaryQ() ? -1 : 1;
-  // XXX Have to swap sign for imag operaors? Why???
+  dVFm.pinf = Fm.pinf;
 
 #pragma omp parallel for
   for (auto ib = 0ul; ib < p_core->size(); ib++) {
@@ -301,6 +294,7 @@ DiracSpinor ExternalField::dV_ab_rhs(const int kappa_n, const DiracSpinor &Fm,
     auto dVFm_c = DiracSpinor(0, kappa_n, *(Fm.p_rgrid));
     dVFm_c.pinf = Fm.pinf;
 
+    // only for testing: exclude certain (core) states from dV sum
     if (Fexcl && (*Fexcl) == Fb)
       continue;
 
@@ -357,7 +351,7 @@ DiracSpinor ExternalField::dV_ab_rhs(const int kappa_n, const DiracSpinor &Fm,
     { dVFm += dVFm_c; }
   }
 
-  return isign * dVFm;
+  return dVFm;
 }
 
 //******************************************************************************
@@ -420,8 +414,8 @@ void ExternalField::solve_TDHFcore_matrix(const Wavefunction &wf,
       auto &dPsiX = tmp_X[ic];
       auto &dPsiY = tmp_Y[ic];
       const auto de0 = m_h->reducedME(Fc, Fc);
-      const auto de1 = dV_ab(Fc, Fc, false);
-      const auto de1_dag = dV_ab(Fc, Fc, true);
+      const auto de1 = dV(Fc, Fc, false);
+      const auto de1_dag = dV(Fc, Fc, true);
       for (auto ibeta = 0ul; ibeta < dPsiX.size(); ++ibeta) {
         auto &Xx = dPsiX[ibeta];
         auto &Yx = dPsiY[ibeta];
@@ -435,13 +429,13 @@ void ExternalField::solve_TDHFcore_matrix(const Wavefunction &wf,
           // fill LHS vector, b
           const auto hi = m_h->reducedME(xi, Fc);
           const auto hidag = m_h->reducedME(Fc, xi); //??
-          const auto dV = dV_ab(xi, Fc, false);
-          const auto dV_dag = dV_ab(xi, Fc, true);
+          const auto dVic = dV(xi, Fc, false);
+          const auto dV_dag = dV(xi, Fc, true);
           const auto s = imag ? -1 : 1;
           const auto Sic = (xi.k == Fc.k && !imag) ? (xi * Fc) : 0.0;
           const auto deS = (de0 + de1) * Sic;
           const auto deS_dag = (de0 + de1_dag) * Sic;
-          bi_X[int(i)] = -s * hi - dV + deS; // why s here? check above??
+          bi_X[int(i)] = -s * hi - dVic + deS; // why s here? check above??
           // bi_Y[i] = -s * (s * hi + dV_dag) + deS_dag;
           bi_Y[int(i)] = -s * hidag - s * dV_dag + deS_dag; //???
         }
