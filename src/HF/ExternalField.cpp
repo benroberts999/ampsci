@@ -111,27 +111,37 @@ ExternalField::solve_dPsi(const DiracSpinor &Fv, const double omega,
                           const MBPT::CorrelationPotential *const Sigma) const {
   // Solves (H + Sigma - e - w)X = -(h + dV - de)Psi
   // or     (H + Sigma - e + w)Y = -(h^dag + dV^dag - de)Psi
-  // XXX Not equiv to get_dPsi version... <Y| vs |Y> ??
+  // Note: for 'Y', returns <Y|, not |Y> -- may be a difference in sign, since
+  // this is a "reduced" spinor
 
   const auto ww = XorY == dPsiType::X ? omega : -omega;
   auto conj = XorY == dPsiType::Y;
   if (omega < 0.0)
     conj = !conj;
-  // Don't fully understand this:
-  if (!m_h->imaginaryQ())
-    conj = !conj;
 
   const auto imag = m_h->imaginaryQ();
-  const auto hPsic = (XorY == dPsiType::X) ? m_h->reduced_rhs(kappa_x, Fv)
-                                           : m_h->reduced_lhs(kappa_x, Fv);
 
-  auto rhs = hPsic + dV_rhs(kappa_x, Fv, conj);
+  const auto hPsic = m_h->reduced_rhs(kappa_x, Fv);
+  const auto s = (imag && conj) ? -1 : 1;
+
+  auto rhs = s * hPsic + dV_rhs(kappa_x, Fv, conj);
   if (kappa_x == Fv.k && !imag) {
     const auto de = m_h->reducedME(Fv, Fv) + dV(Fv, Fv, conj);
     rhs -= de * Fv;
   }
-  return HF::solveMixedState(kappa_x, Fv, ww, m_vl, m_alpha, *p_core, rhs,
-                             1.0e-9, Sigma);
+
+  // If we intend to use this state as lhs, may be additional sign change.
+  // NOTE: we may want 'Y' type, but for rhs... so, add option!
+  auto lhs = XorY == dPsiType::Y; // not always the case!
+  auto s2 = 1;
+  if (lhs) {
+    auto sj = Angular::evenQ_2(Fv.twoj() - Angular::twoj_k(kappa_x)) ? 1 : -1;
+    auto si = imag && !conj ? -1 : 1; // if conj, extra * => +1
+    s2 = sj * si;
+  }
+
+  return s2 * HF::solveMixedState(kappa_x, Fv, ww, m_vl, m_alpha, *p_core, rhs,
+                                  1.0e-9, Sigma);
 }
 
 //******************************************************************************
@@ -253,8 +263,7 @@ double ExternalField::dV(const DiracSpinor &Fn, const DiracSpinor &Fm,
 }
 
 double ExternalField::dV(const DiracSpinor &Fn, const DiracSpinor &Fm) const {
-  auto conj = Fm.en <= Fn.en; // auto conj! XXX "wrong"? but works?
-  // auto s = conj && m_h->imaginaryQ() ? -1 : 1;
+  auto conj = Fm.en > Fn.en;
   return dV(Fn, Fm, conj);
 }
 
@@ -263,8 +272,8 @@ DiracSpinor ExternalField::dV_rhs(const int kappa_n, const DiracSpinor &Fm,
                                   bool conj,
                                   const DiracSpinor *const Fexcl) const {
 
-  const auto ChiType = conj ? dPsiType::X : dPsiType::Y;
-  const auto EtaType = conj ? dPsiType::Y : dPsiType::X;
+  const auto ChiType = !conj ? dPsiType::X : dPsiType::Y;
+  const auto EtaType = !conj ? dPsiType::Y : dPsiType::X;
 
   const auto k = m_h->rank();
   const auto tkp1 = double(2 * k + 1);
@@ -274,10 +283,7 @@ DiracSpinor ExternalField::dV_rhs(const int kappa_n, const DiracSpinor &Fm,
   const auto Ckala = Angular::Ck_kk(k, kappa_n, Fm.k);
 
   auto dVFm = DiracSpinor(0, kappa_n, *(Fm.p_rgrid));
-  dVFm.pinf = Fm.pinf; //?
-
-  const auto isign = m_h->imaginaryQ() ? -1 : 1;
-  // XXX Have to swap sign for imag operaors? Why???
+  dVFm.pinf = Fm.pinf;
 
 #pragma omp parallel for
   for (auto ib = 0ul; ib < p_core->size(); ib++) {
@@ -288,6 +294,7 @@ DiracSpinor ExternalField::dV_rhs(const int kappa_n, const DiracSpinor &Fm,
     auto dVFm_c = DiracSpinor(0, kappa_n, *(Fm.p_rgrid));
     dVFm_c.pinf = Fm.pinf;
 
+    // only for testing: exclude certain (core) states from dV sum
     if (Fexcl && (*Fexcl) == Fb)
       continue;
 
@@ -344,7 +351,7 @@ DiracSpinor ExternalField::dV_rhs(const int kappa_n, const DiracSpinor &Fm,
     { dVFm += dVFm_c; }
   }
 
-  return isign * dVFm;
+  return dVFm;
 }
 
 //******************************************************************************

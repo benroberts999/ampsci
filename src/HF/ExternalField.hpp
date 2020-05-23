@@ -114,6 +114,9 @@ public:
   //! Returns \f$ \chi_\beta \f$ for given kappa_beta, where
   //! \f[ X_{j,m} = (-1)^{j_\beta-m}tjs(j,k,j;-m,0,m)\chi_j \f]
   //! XorY takes values: HF::dPsiType::X or HF::dPsiType::Y
+  //! --
+  //! Note: for 'Y', returns <Y|, not |Y> -- may be a difference in sign, since
+  //! this is a "reduced" spinor
   DiracSpinor
   solve_dPsi(const DiracSpinor &Fv, const double omega, dPsiType XorY,
              const int kappa_beta,

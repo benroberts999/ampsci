@@ -159,7 +159,7 @@ void calculatePNC(const IO::UserInputBlock &input, const Wavefunction &wf) {
     dVE1.solve_TDHFcore(omega);
     dVpnc.solve_TDHFcore(0.0);
   }
-  const bool dVconj = aA.en > aB.en ? true : false;
+  const bool dVconj = aA.en < aB.en ? true : false;
 
   // Angular factors (RME -> z-comp, z=min(ja,jb))
   auto tja = aA.twoj();
@@ -315,12 +315,10 @@ void calculatePNC(const IO::UserInputBlock &input, const Wavefunction &wf) {
       }
     }
     // Main contribution:
-    auto pnc1_m =
-        pnc1_w - pnc1_c -
-        c10 * (he1.reducedME(yA_w, aB) + dVE1.dV(yA_w, aB, dVconj));
-    auto pnc2_m =
-        pnc2_w - pnc2_c -
-        c01 * (he1.reducedME(aA, xB_w) + dVE1.dV(aA, xB_w, dVconj));
+    auto pnc1_m = pnc1_w - pnc1_c -
+                  c10 * (he1.reducedME(yA_w, aB) + dVE1.dV(yA_w, aB, dVconj));
+    auto pnc2_m = pnc2_w - pnc2_c -
+                  c01 * (he1.reducedME(aA, xB_w) + dVE1.dV(aA, xB_w, dVconj));
 
     std::cout << "\n<dA'|d| B>  +  <A |d|dB'>  (by force orthog):\n";
     printf("core :%10.7f  (=%10.7f %+10.7f)\n", pnc1_c + pnc2_c, pnc1_c,
