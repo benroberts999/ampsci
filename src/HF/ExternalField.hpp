@@ -1,16 +1,17 @@
 #pragma once
-#include "Angular/Angular_tables.hpp"
+#include <string>
 #include <vector>
+class Wavefunction;
 class DiracSpinor;
 namespace DiracOperator {
 class TensorOperator;
 }
-class Wavefunction;
 namespace MBPT {
 class CorrelationPotential;
 }
 
 namespace HF {
+class HartreeFock;
 
 enum class dPsiType { X, Y };
 
@@ -26,22 +27,19 @@ Solves set of TDHF equations
 the maximum number of iterations; set to 1 to get the first-order correction
 (nb: no damping is used for first iteration).
 \par Construction
-Requires a pointer to an operator (h), a set of core orbitals [taken as const
-reference], a local potential (vl, typically vnuc + vdir), and the value of
-alpha (fine structure constant).
+Requires a pointer to an operator (h), a const HF object (const pointer).
 \par Usage
 solve_TDHFcore(omega) solves TDHF eqs for given frequency. Frequency should be
 positive, but is allowed to be negative (use as a test only, with care). Can be
 run again with a different frequency, typically does not need to be re-started
-from scratch. Then, dV_ab(Fa,Fb) returns the correction to the matrix element:
+from scratch. Then, dV(Fa,Fb) returns the correction to the matrix element:
 \f[ \langle \phi_a || \delta V || \phi_b \rangle \f]
 */
 
 class ExternalField {
 public:
   ExternalField(const DiracOperator::TensorOperator *const h,
-                const std::vector<DiracSpinor> &core,
-                const std::vector<double> &vl, const double alpha);
+                const HF::HartreeFock *const hf);
 
 private:
   // dPhi = X exp(-iwt) + Y exp(+iwt)
@@ -49,8 +47,8 @@ private:
   // (H - e + w)Y = -(h* + dV* - de)Phi
   // X_c = sum_x X_x,
   // j(x)=j(c)-k,...,j(c)+k.  And: pi(x) = pi(c)*pi(h)
-  std::vector<std::vector<DiracSpinor>> m_X = {};
-  std::vector<std::vector<DiracSpinor>> m_Y = {};
+  std::vector<std::vector<DiracSpinor>> m_X{};
+  std::vector<std::vector<DiracSpinor>> m_Y{};
   // can just write these to disk! Read them in, continue as per normal
 
   const DiracOperator::TensorOperator *const m_h; //??
@@ -61,44 +59,44 @@ private:
   const int m_pi;
   const bool m_imag;
   double m_core_eps = 1.0;
-
   // Angular::SixJ m_6j; // used?
 
 public:
   //! @brief Solves TDHF equations self-consistantly for core electrons at
   //! frequency omega.
   //! @details Solves TDHF equations self-consistantly for core electrons at
-  //! frequency omega. Will iterate up to a maximum of max_its. Set max_its=1 to
-  //! get first-order correction [note: no dampling is used for first
+  //! frequency omega. Will iterate up to a maximum of max_its. Set max_its=1
+  //! to get first-order correction [note: no dampling is used for first
   //! itteration]. If print=true, will write progress to screen
   void solve_TDHFcore(const double omega, int max_its = 100,
                       const bool print = true);
 
-  double get_eps() const { return m_core_eps; }
-
   //! @brief Uses itterative matrix method; for tests only
   void solve_TDHFcore_matrix(const Wavefunction &wf, const double omega,
                              const int max_its = 25);
+
+  //! Returns eps (convergance) of last solve_TDHFcore run
+  double get_eps() const { return m_core_eps; }
 
   //! @brief Clears the dPsi orbitals (sets to zero)
   void clear_dPsi();
 
   //! @brief Calculate reduced matrix element <a||dV||b> or <a||dV*||b>.
   //! Will exclude orbital 'Fexcl' from sum over core (for tests only)
-  double dV_ab(const DiracSpinor &Fa, const DiracSpinor &Fb, bool conj,
-               const DiracSpinor *const Fexcl = nullptr) const;
+  double dV(const DiracSpinor &Fa, const DiracSpinor &Fb, bool conj,
+            const DiracSpinor *const Fexcl = nullptr) const;
 
   //! @brief As above, but automatically determines if 'conjugate' version
   //! reuired (Based on sign of [en_a-en_b])
-  double dV_ab(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
+  double dV(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
 
   //! @brief Returns "reduced partial matrix element RHS": dV||Fb}.
-  //! Note: Fa * dV_ab_rhs(..) equiv to dV_ab(..)
-  DiracSpinor dV_ab_rhs(const int kappa_n, const DiracSpinor &Fm,
-                        bool conj = false,
-                        const DiracSpinor *const Fexcl = nullptr) const;
+  //! Note: Fa * dV_rhs(..) equiv to dV(..)
+  DiracSpinor dV_rhs(const int kappa_n, const DiracSpinor &Fm,
+                     bool conj = false,
+                     const DiracSpinor *const Fexcl = nullptr) const;
 
-  //! @brief Returns const reference to dPsi orbitals for given core orbital Fc
+  //! @brief Returns const ref to dPsi orbitals for given core orbital Fc
   const std::vector<DiracSpinor> &get_dPsis(const DiracSpinor &Fc,
                                             dPsiType XorY) const;
   //! @brief Returns const reference to dPsi orbital of given kappa
@@ -137,7 +135,7 @@ private:
                        const DiracSpinor &Fb, const DiracSpinor &Y_beta) const;
 
 private:
-  std::size_t core_index(const DiracSpinor &Fc) const;
+  void initialise_dPsi();
 
 public:
   ExternalField &operator=(const ExternalField &) = delete;

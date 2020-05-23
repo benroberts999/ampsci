@@ -123,6 +123,10 @@ public:
   //! Returns true of exchange not included
   bool excludeExchangeQ() const { return m_excludeExchange; }
 
+  std::vector<double> get_vlocal(int l) const;
+  double get_alpha() const { return m_alpha; }
+  const std::vector<DiracSpinor> &get_core() const { return *p_core; }
+
 public:
   bool verbose = true; // update to input??
 

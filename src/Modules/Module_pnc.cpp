@@ -20,8 +20,6 @@ namespace Module {
 void polarisability(const IO::UserInputBlock &input, const Wavefunction &wf) {
   std::cout << "\n NOTE: In developement! Not finished!\n";
 
-  const auto alpha = wf.alpha;
-
   input.checkBlock({"a", "b", "omega"});
   const auto a_str = input.get<std::string>("a", "");
   const auto w = input.get("omega", 0.00);
@@ -32,7 +30,7 @@ void polarisability(const IO::UserInputBlock &input, const Wavefunction &wf) {
   const auto pFa = wf.getState(na, ka);
 
   const auto he1 = DiracOperator::E1(wf.rgrid);
-  auto dVE1 = HF::ExternalField(&he1, wf.core, wf.get_Vlocal(), alpha);
+  auto dVE1 = HF::ExternalField(&he1, wf.getHF());
 
   dVE1.solve_TDHFcore(w, 1); // 1 it means no RPA (for TDHF version)
 
@@ -84,7 +82,7 @@ void polarisability(const IO::UserInputBlock &input, const Wavefunction &wf) {
       if (he1.isZero(Fb.k, Fn.k))
         continue;
       const auto d1 = he1.reducedME(Fb, Fn);
-      const auto d2 = he1.reducedME(Fn, Fb) + dVE1.dV_ab(Fn, Fb);
+      const auto d2 = he1.reducedME(Fn, Fb) + dVE1.dV(Fn, Fb);
       auto de = Fb.en - Fn.en;
       alpha_2 += fudge_factor * (-2.0 / 3.0) * d1 * d2 * de / (de * de - w * w);
     }
@@ -97,7 +95,7 @@ void polarisability(const IO::UserInputBlock &input, const Wavefunction &wf) {
       if (he1.isZero(pFa->k, Fn.k))
         continue;
       const auto d1 = he1.reducedME(*pFa, Fn);
-      const auto d2 = he1.reducedME(Fn, *pFa) + dVE1.dV_ab(Fn, *pFa);
+      const auto d2 = he1.reducedME(Fn, *pFa) + dVE1.dV(Fn, *pFa);
       auto de = pFa->en - Fn.en;
       alpha_3 += fudge_factor * (-2.0 / 3.0) * d1 * d2 * de /
                  (de * de - w * w) / (pFa->twoj() + 1);
@@ -133,7 +131,6 @@ void calculatePNC(const IO::UserInputBlock &input, const Wavefunction &wf) {
 
   DiracOperator::PNCnsi hpnc(c, t, wf.rgrid, -wf.Nnuc());
   DiracOperator::E1 he1(wf.rgrid);
-  auto alpha = wf.alpha;
 
   auto pA = wf.getState(na, ka);
   auto pB = wf.getState(nb, kb);
@@ -154,8 +151,8 @@ void calculatePNC(const IO::UserInputBlock &input, const Wavefunction &wf) {
             << "\n\n";
 
   // Solve TDHF:
-  auto dVE1 = HF::ExternalField(&he1, wf.core, wf.get_Vlocal(), alpha);
-  auto dVpnc = HF::ExternalField(&hpnc, wf.core, wf.get_Vlocal(), alpha);
+  auto dVE1 = HF::ExternalField(&he1, wf.getHF());
+  auto dVpnc = HF::ExternalField(&hpnc, wf.getHF());
   if (rpaQ) {
     auto omega_dflt = std::abs(aA.en - aB.en);
     auto omega = input.get("omega", omega_dflt);
@@ -187,10 +184,10 @@ void calculatePNC(const IO::UserInputBlock &input, const Wavefunction &wf) {
         if (hpnc.isZero(np.k, aA.k) && hpnc.isZero(np.k, aB.k))
           continue;
         auto coreQ = wf.isInCore(np.n, np.k);
-        auto dAp = he1.reducedME(aA, np) + dVE1.dV_ab(aA, np, dVconj);
-        auto hpB = hpnc.reducedME(np, aB) + dVpnc.dV_ab(np, aB, dVconj);
-        auto hAp = hpnc.reducedME(aA, np) + dVpnc.dV_ab(aA, np, dVconj);
-        auto dpB = he1.reducedME(np, aB) + dVE1.dV_ab(np, aB, dVconj);
+        auto dAp = he1.reducedME(aA, np) + dVE1.dV(aA, np, dVconj);
+        auto hpB = hpnc.reducedME(np, aB) + dVpnc.dV(np, aB, dVconj);
+        auto hAp = hpnc.reducedME(aA, np) + dVpnc.dV(aA, np, dVconj);
+        auto dpB = he1.reducedME(np, aB) + dVE1.dV(np, aB, dVconj);
         double pnc1 = c10 * dAp * hpB / (aB.en - np.en);
         double pnc2 = c01 * hAp * dpB / (aA.en - np.en);
         if (print_all)
@@ -231,10 +228,10 @@ void calculatePNC(const IO::UserInputBlock &input, const Wavefunction &wf) {
       // Exclude np from dV ?? Brings closer to Derevianko result...???
       // auto excl = &np;
       auto excl = nullptr;
-      auto dAp = he1.reducedME(aA, np) + dVE1.dV_ab(aA, np, dVconj, excl);
-      auto hpB = hpnc.reducedME(np, aB) + dVpnc.dV_ab(np, aB, dVconj, excl);
-      auto hAp = hpnc.reducedME(aA, np) + dVpnc.dV_ab(aA, np, dVconj, excl);
-      auto dpB = he1.reducedME(np, aB) + dVE1.dV_ab(np, aB, dVconj, excl);
+      auto dAp = he1.reducedME(aA, np) + dVE1.dV(aA, np, dVconj, excl);
+      auto hpB = hpnc.reducedME(np, aB) + dVpnc.dV(np, aB, dVconj, excl);
+      auto hAp = hpnc.reducedME(aA, np) + dVpnc.dV(aA, np, dVconj, excl);
+      auto dpB = he1.reducedME(np, aB) + dVE1.dV(np, aB, dVconj, excl);
       double pnc1 = c10 * dAp * hpB / (aB.en - np.en);
       double pnc2 = c01 * hAp * dpB / (aA.en - np.en);
       if (np.n <= main_n && print_all)
@@ -271,9 +268,9 @@ void calculatePNC(const IO::UserInputBlock &input, const Wavefunction &wf) {
     auto yA_w = dVpnc.solve_dPsi(aA, 0, HF::dPsiType::Y, -aA.k, wf.getSigma());
     auto xB_w = dVpnc.solve_dPsi(aB, 0, HF::dPsiType::X, -aB.k, wf.getSigma());
     const auto pnc1_w =
-        c01 * (he1.reducedME(yA_w, aB) + dVE1.dV_ab(yA_w, aB, dVconj));
+        c01 * (he1.reducedME(yA_w, aB) + dVE1.dV(yA_w, aB, dVconj));
     const auto pnc2_w =
-        c10 * (he1.reducedME(aA, xB_w) + dVE1.dV_ab(aA, xB_w, dVconj));
+        c10 * (he1.reducedME(aA, xB_w) + dVE1.dV(aA, xB_w, dVconj));
 
     //<A |h|xB_d> + <yA_d|h| B>
     const auto omegaSE = (aA.en - aB.en);
@@ -282,9 +279,9 @@ void calculatePNC(const IO::UserInputBlock &input, const Wavefunction &wf) {
     auto yA_d =
         dVE1.solve_dPsi(aA, omegaSE, HF::dPsiType::Y, -aB.k, wf.getSigma());
     const auto pnc1_d =
-        c01 * (hpnc.reducedME(aA, xB_d) + dVpnc.dV_ab(aA, xB_d, dVconj));
+        c01 * (hpnc.reducedME(aA, xB_d) + dVpnc.dV(aA, xB_d, dVconj));
     const auto pnc2_d =
-        c10 * (hpnc.reducedME(yA_d, aB) + dVpnc.dV_ab(yA_d, aB, dVconj));
+        c10 * (hpnc.reducedME(yA_d, aB) + dVpnc.dV(yA_d, aB, dVconj));
 
     std::cout << "\nMixed states method: \n";
     std::cout << "<yA_w|d| B> + <A |d|xB_w> = ";
@@ -303,9 +300,9 @@ void calculatePNC(const IO::UserInputBlock &input, const Wavefunction &wf) {
     wf.orthogonaliseWrt(xB_w, wf.core);
     // Core contribution:
     auto pnc1_c =
-        pnc1_w - c01 * (he1.reducedME(yA_w, aB) + dVE1.dV_ab(yA_w, aB, dVconj));
+        pnc1_w - c01 * (he1.reducedME(yA_w, aB) + dVE1.dV(yA_w, aB, dVconj));
     auto pnc2_c =
-        pnc2_w - c10 * (he1.reducedME(aA, xB_w) + dVE1.dV_ab(aA, xB_w, dVconj));
+        pnc2_w - c10 * (he1.reducedME(aA, xB_w) + dVE1.dV(aA, xB_w, dVconj));
     // Further orthog wrt 'main' part of valence (now orthog to core+main)
     for (const auto &phiv : wf.valence) {
       if (phiv.n > main_n)
@@ -320,10 +317,10 @@ void calculatePNC(const IO::UserInputBlock &input, const Wavefunction &wf) {
     // Main contribution:
     auto pnc1_m =
         pnc1_w - pnc1_c -
-        c10 * (he1.reducedME(yA_w, aB) + dVE1.dV_ab(yA_w, aB, dVconj));
+        c10 * (he1.reducedME(yA_w, aB) + dVE1.dV(yA_w, aB, dVconj));
     auto pnc2_m =
         pnc2_w - pnc2_c -
-        c01 * (he1.reducedME(aA, xB_w) + dVE1.dV_ab(aA, xB_w, dVconj));
+        c01 * (he1.reducedME(aA, xB_w) + dVE1.dV(aA, xB_w, dVconj));
 
     std::cout << "\n<dA'|d| B>  +  <A |d|dB'>  (by force orthog):\n";
     printf("core :%10.7f  (=%10.7f %+10.7f)\n", pnc1_c + pnc2_c, pnc1_c,
