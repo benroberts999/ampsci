@@ -2,6 +2,7 @@
 #include "Angular/Angular_tables.hpp"
 #include "Coulomb/YkTable.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
+#include "MBPT/GreenMatrix.hpp"
 #include "Maths/Interpolator.hpp"
 #include "Maths/LinAlg_MatrixVector.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
@@ -12,17 +13,8 @@ class Grid;
 //! Many-body perturbation theory
 namespace MBPT {
 
-//! Holds Green's fn operator of form: |ket><bra| [4x4 matrix of NxN matrix]
-struct GMatrix {
-  GMatrix(int in_size);
-  int size; // careful, should be const, but then need copy construct?
-  LinAlg::SqMatrix ff, fg, gf, gg;
-  //! Sets all matrix elements to zero
-  void zero();
-  //! Can add/subtract matrices (in place)
-  GMatrix &operator+=(const GMatrix &rhs);
-  GMatrix &operator-=(const GMatrix &rhs);
-};
+using GMatrix = GreenMatrix<LinAlg::SqMatrix>;
+using ComplexGMatrix = GreenMatrix<LinAlg::ComplexSqMatrix>;
 
 //******************************************************************************
 /*!
@@ -108,8 +100,8 @@ private:
   void setup_subGrid();
 
 private:
-  // main routine, filles G (Sigma) matrix using basis
-  void fill_Gkappa(GMatrix *Gmat, const int kappa, const double en);
+  // main routine, filles Sigma matrix using basis [Goldstone]
+  void fill_Sigma_k_Gold(GMatrix *Gmat, const int kappa, const double en);
   // Adds new |ket><bra| term to G; uses sub-grid
   void addto_G(GMatrix *Gmat, const DiracSpinor &ket, const DiracSpinor &bra,
                const double f = 1.0) const;
@@ -125,18 +117,17 @@ private:
   Coulomb::YkTable m_yec; // constains Ck and Y_ec(r)
   const int m_maxk;
   Angular::SixJ m_6j;
-  int stride;
+  std::size_t stride;
 
-  int stride_points{};
-  int imin{};
+  std::size_t stride_points{};
+  std::size_t imin{};
   std::vector<double> r_stride{};
-  std::vector<GMatrix> G_kappa{};
+  std::vector<GMatrix> Sigma_kappa{};
 
   std::vector<double> m_lambda_kappa{};
 
   // Options for sub-grid, and which matrices to include
-  static constexpr bool include_FG = false;
-  static constexpr bool include_GG = false;
+  static constexpr bool include_G = false;
 };
 
 } // namespace MBPT

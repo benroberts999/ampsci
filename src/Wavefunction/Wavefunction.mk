@@ -33,7 +33,7 @@ $(SD)/Wavefunction/Wavefunction.hpp
 $(BD)/Wavefunction.o: $(SD)/Wavefunction/Wavefunction.cpp \
 $(SD)/Wavefunction/Wavefunction.hpp \
 $(SD)/DiracODE/DiracODE.hpp \
-$(SD)/HF/HartreeFockClass.hpp \
+$(SD)/HF/HartreeFock.hpp \
 $(SD)/MBPT/CorrelationPotential.hpp \
 $(SD)/Maths/Grid.hpp \
 $(SD)/Maths/Interpolator.hpp \

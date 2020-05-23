@@ -1,5 +1,5 @@
 #pragma once
-#include "HF/HartreeFockClass.hpp" // forward decl..
+#include "HF/HartreeFock.hpp" // forward decl..
 #include "MBPT/CorrelationPotential.hpp"
 #include "Maths/Grid.hpp"
 #include "Physics/AtomData.hpp" // NonRelSEConfig

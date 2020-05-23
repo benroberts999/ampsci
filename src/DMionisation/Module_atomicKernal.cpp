@@ -1,6 +1,6 @@
 #include "DMionisation/Module_atomicKernal.hpp"
 #include "DMionisation/AKF_akFunctions.hpp"
-#include "HF/HartreeFockClass.hpp"
+#include "HF/HartreeFock.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/UserInput.hpp"
 #include "Maths/Grid.hpp"

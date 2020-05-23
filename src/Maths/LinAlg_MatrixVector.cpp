@@ -10,30 +10,22 @@
 #include <utility>
 #include <vector>
 
-#pragma GCC diagnostic ignored "-Wsign-conversion"
-
 namespace LinAlg {
 
 //******************************************************************************
-//******************************************************************************
 // class SqMatrix:
-SqMatrix::SqMatrix(int in_n) : n(in_n), m(gsl_matrix_alloc(in_n, in_n)) {}
+//******************************************************************************
+SqMatrix::SqMatrix(std::size_t in_n)
+    : n(in_n), m(gsl_matrix_alloc(in_n, in_n)) {}
 
-// template <typename T>
-SqMatrix::SqMatrix(const std::initializer_list<double> &l)
-    : n((int)std::sqrt((int)l.size())), m(gsl_matrix_alloc(n, n)) {
-  auto i = 0;
-  for (auto el : l)
-    m->data[i++] = el;
-}
+// SqMatrix::SqMatrix(const std::initializer_list<double> &l)
+//     : n(std::sqrt(l.size())), m(gsl_matrix_alloc(n, n)) {
+//   auto i = 0;
+//   for (auto el : l)
+//     m->data[i++] = el;
+// }
 
-SqMatrix::~SqMatrix() { //
-  gsl_matrix_free(m);
-  if (m_LU != nullptr)
-    gsl_matrix_free(m_LU);
-  if (perm != nullptr)
-    gsl_permutation_free(perm);
-}
+SqMatrix::~SqMatrix() { gsl_matrix_free(m); }
 
 SqMatrix::SqMatrix(const SqMatrix &matrix) // copy constructor
     : n(matrix.n), m(gsl_matrix_alloc(matrix.n, matrix.n)) {
@@ -42,75 +34,52 @@ SqMatrix::SqMatrix(const SqMatrix &matrix) // copy constructor
 
 SqMatrix &SqMatrix::operator=(const SqMatrix &other) // copy assignment
 {
-  if (this->n != other.n) {
-    std::cerr << "FAIL 35 in SqMatrix. Cant re-assign matrices of different "
-                 "dimension: N_lhs = "
-              << this->n << ", N_rhs = " << other.n << "\n\n";
-    std::abort();
-  }
-  gsl_matrix_memcpy(m, other.m);
+  // Check sizes!
+  if (this != &other)
+    gsl_matrix_memcpy(m, other.m);
   return *this;
 }
 
 //------------------------------------------------------------------------------
-void SqMatrix::make_diag(double value) {
-  // value = 1.0 default
-  for (int i = 0; i < n; ++i) {
-    for (int j = 0; j < n; ++j) {
-      (*this)[i][j] = (i == j) ? value : 0.0;
-    }
-  }
-}
+void SqMatrix::make_identity() { gsl_matrix_set_identity(this->m); }
 
-void SqMatrix::scale(double value) {
-  const int n2 = n * n;
-  for (int i = 0; i < n2; i++)
-    m->data[i] *= value;
-}
-
-void SqMatrix::zero() {
-  const int n2 = n * n;
-  for (int i = 0; i < n2; i++)
-    m->data[i] = 0.0;
-}
+void SqMatrix::zero() { gsl_matrix_set_zero(this->m); }
 
 void SqMatrix::clip_low(double value) {
-  const int n2 = n * n;
-  for (int i = 0; i < n2; i++) {
+  const auto n2 = n * n;
+  for (auto i = 0ul; i < n2; i++) {
     if (std::abs(m->data[i]) < value)
       m->data[i] = 0.0;
   }
 }
 void SqMatrix::clip_high(double value) {
-  const int n2 = n * n;
-  for (int i = 0; i < n2; i++) {
+  const auto n2 = n * n;
+  for (auto i = 0ul; i < n2; i++) {
     if (std::abs(m->data[i]) > value) {
-      auto s = m->data[i] > 0 ? 1 : -1;
-      m->data[i] = s * value;
+      m->data[i] = m->data[i] > 0.0 ? value : -value;
     }
   }
 }
 
-void SqMatrix::make_symmetric() {
+void SqMatrix::enforce_symmetric() {
   *this += this->transpose();
-  this->scale(0.5);
+  (*this) *= 0.5;
 }
 
 double SqMatrix::check_symmetric() {
   double worst = 0.0;
-  auto AmATr = *this - this->transpose();
-  for (int i = 0; i < n * n; i++) {
-    auto val = std::abs(AmATr.m->data[i]);
+  const auto AmATr = *this - this->transpose();
+  for (auto i = 0ul; i < n * n; i++) {
+    const auto val = std::abs(AmATr.m->data[i]);
     worst = (val > worst) ? val : worst;
   }
   return worst;
 }
 
 void SqMatrix::print() {
-  for (int i = 0; i < n; ++i) {
-    for (int j = 0; j < n; ++j) {
+  for (auto i = 0ul; i < n; ++i) {
+    for (auto j = 0ul; j < n; ++j) {
       printf("%8.1e ", (*this)[i][j]);
-      // std::cout << (long)&((*this)[i][j]) << " ";
     }
     std::cout << "\n";
   }
@@ -119,35 +88,32 @@ void SqMatrix::print() {
 //------------------------------------------------------------------------------
 SqMatrix SqMatrix::transpose() const {
   SqMatrix mTr(this->n);
-  for (int i = 0; i < n; ++i) {
-    for (int j = 0; j < n; ++j) {
-      mTr[i][j] = (*this)[j][i];
-    }
-  }
+  gsl_matrix_transpose_memcpy(mTr.m, this->m);
   return mTr;
 }
 
-void SqMatrix::LU_decompose() {
-  // this may do extra work..
-  if (m_LU == nullptr)
-    m_LU = gsl_matrix_alloc(n, n);
-  if (perm == nullptr)
-    perm = gsl_permutation_alloc(n);
-  gsl_matrix_memcpy(m_LU, m);
-  gsl_linalg_LU_decomp(m_LU, perm, &s_LU);
+double SqMatrix::determinant() const {
+  // expensive for this to not be destructive
+  gsl_matrix *mLU = gsl_matrix_alloc(n, n);
+  gsl_permutation *permutn = gsl_permutation_alloc(n);
+  int sLU = 0;
+  gsl_matrix_memcpy(mLU, m);
+  gsl_linalg_LU_decomp(mLU, permutn, &sLU);
+  auto det = gsl_linalg_LU_det(mLU, sLU);
+  gsl_matrix_free(mLU);
+  gsl_permutation_free(permutn);
+  return det;
 }
 
-double SqMatrix::determinant() {
-  LU_decompose();
-  return gsl_linalg_LU_det(m_LU, s_LU);
-}
-
-void SqMatrix::invert() {
+SqMatrix &SqMatrix::invert() {
   // note: this is destuctive: matrix will be inverted
-  // Usuing this method, hard not to be: LU decomp changes Matrix
-  //(So, would require copy to avoid this)
-  LU_decompose();
-  gsl_linalg_LU_invert(m_LU, perm, m);
+  // uses LU decomposition
+  gsl_permutation *permutn = gsl_permutation_alloc(n);
+  int sLU = 0;
+  gsl_linalg_LU_decomp(m, permutn, &sLU);
+  gsl_linalg_LU_invx(m, permutn);
+  gsl_permutation_free(permutn);
+  return *this;
 }
 
 SqMatrix SqMatrix::inverse() const {
@@ -157,27 +123,20 @@ SqMatrix SqMatrix::inverse() const {
 }
 
 //------------------------------------------------------------------------------
-double *SqMatrix::operator[](int i) const { return &(m->data[i * n]); }
+double *SqMatrix::operator[](int i) const {
+  return &(m->data[std::size_t(i) * n]);
+}
+double *SqMatrix::operator[](std::size_t i) const { return &(m->data[i * n]); }
 
 SqMatrix operator*(const SqMatrix &lhs, const SqMatrix &rhs) {
-  auto n_min = std::min(lhs.n, rhs.n);
-  SqMatrix product(n_min);
-  for (int i = 0; i < n_min; ++i) {
-    for (int j = 0; j < n_min; ++j) {
-      double cij = 0.0;
-      for (int k = 0; k < n_min; ++k) {
-        cij += lhs[i][k] * rhs[k][j];
-      }
-      product[i][j] = cij;
-    }
-  }
+  // check matrix sizes?
+  SqMatrix product(lhs.n);
+  gsl_blas_dgemm(CblasNoTrans, CblasNoTrans, 1.0, lhs.m, rhs.m, 0.0, product.m);
   return product;
 }
 
 SqMatrix &SqMatrix::operator+=(const SqMatrix rhs) {
-  int n2 = n * n;
-  for (int i = 0; i < n2; i++)
-    m->data[i] += rhs.m->data[i];
+  gsl_matrix_add(this->m, rhs.m);
   return *this;
 }
 SqMatrix operator+(SqMatrix lhs, const SqMatrix &rhs) {
@@ -185,9 +144,7 @@ SqMatrix operator+(SqMatrix lhs, const SqMatrix &rhs) {
   return lhs;
 }
 SqMatrix &SqMatrix::operator-=(const SqMatrix rhs) {
-  int n2 = n * n;
-  for (int i = 0; i < n2; i++)
-    m->data[i] -= rhs.m->data[i];
+  gsl_matrix_sub(this->m, rhs.m);
   return *this;
 }
 SqMatrix operator-(SqMatrix lhs, const SqMatrix &rhs) {
@@ -195,7 +152,7 @@ SqMatrix operator-(SqMatrix lhs, const SqMatrix &rhs) {
   return lhs;
 }
 SqMatrix &SqMatrix::operator*=(const double x) {
-  scale(x);
+  gsl_matrix_scale(this->m, x);
   return *this;
 }
 SqMatrix operator*(const double x, SqMatrix rhs) {
@@ -203,14 +160,24 @@ SqMatrix operator*(const double x, SqMatrix rhs) {
   return rhs;
 }
 
+void SqMatrix::mult_elements_by(const SqMatrix &rhs) {
+  gsl_matrix_mul_elements(this->m, rhs.m);
+}
+SqMatrix mult_elements(SqMatrix lhs, const SqMatrix &rhs) {
+  gsl_matrix_mul_elements(lhs.m, rhs.m);
+  return lhs;
+}
+
 //******************************************************************************
 //******************************************************************************
 // class Vector
-Vector::Vector(const int in_n) : n(in_n), vec(gsl_vector_alloc(n)) {}
+//******************************************************************************
+
+Vector::Vector(const std::size_t in_n) : n(in_n), vec(gsl_vector_alloc(n)) {}
 
 template <typename T>
 Vector::Vector(const std::initializer_list<T> &l)
-    : n((int)l.size()), vec(gsl_vector_alloc(n)) {
+    : n(l.size()), vec(gsl_vector_alloc(n)) {
   auto i = 0;
   for (auto el : l)
     vec->data[i++] = el;
@@ -220,15 +187,11 @@ Vector::Vector(const Vector &other) : n(other.n), vec(gsl_vector_alloc(n)) {
   gsl_vector_memcpy(vec, other.vec);
 }
 
-Vector &Vector::operator=(const Vector &other) // copy assignment
-{
-  if (this->n != other.n) {
-    std::cerr << "FAIL 32 in Vector. Cant re-assign Vectors of different "
-                 "dimension: N_lhs = "
-              << this->n << ", N_rhs = " << other.n << "\n\n";
-    std::abort();
-  }
-  gsl_vector_memcpy(vec, other.vec);
+Vector &Vector::operator=(const Vector &other) {
+  // copy assignment
+  // Check dimensions?
+  if (this != &other)
+    gsl_vector_memcpy(vec, other.vec);
   return *this;
 }
 
@@ -236,13 +199,13 @@ Vector::~Vector() { gsl_vector_free(vec); }
 
 //------------------------------------------------------------------------------
 void Vector::clip_low(const double value) {
-  for (int i = 0; i < n; ++i) {
+  for (std::size_t i = 0; i < n; ++i) {
     if (std::abs((*this)[i]) < value)
       (*this)[i] = 0.0;
   }
 }
 void Vector::clip_high(const double value) {
-  for (int i = 0; i < n; ++i) {
+  for (std::size_t i = 0; i < n; ++i) {
     if (std::abs((*this)[i]) > value) {
       auto s = (*this)[i] > 0.0 ? 1 : -1;
       (*this)[i] = s * value;
@@ -250,13 +213,14 @@ void Vector::clip_high(const double value) {
   }
 }
 void Vector::print() {
-  for (int i = 0; i < n; ++i) {
+  for (std::size_t i = 0; i < n; ++i) {
     std::cout << (*this)[i] << "\n";
   }
 }
 
 //------------------------------------------------------------------------------
 double &Vector::operator[](int i) const { return (vec->data[i]); }
+double &Vector::operator[](std::size_t i) const { return (vec->data[i]); }
 
 Vector &Vector::operator+=(const Vector rhs) {
   gsl_vector_add(vec, rhs.vec);
@@ -288,32 +252,32 @@ Vector operator*(const SqMatrix &Aij, const Vector &bj) {
     std::cerr << "\n Fail 283 in Vector: " << bj.n << "!=" << Aij.n << "\n";
     std::abort();
   }
-  for (int i = 0; i < bj.n; ++i) {
+  for (std::size_t i = 0; i < bj.n; ++i) {
     ci[i] = 0.0;
-    for (int j = 0; j < bj.n; ++j) {
+    for (std::size_t j = 0; j < bj.n; ++j) {
       ci[i] += Aij[i][j] * bj[j];
     }
   }
   return ci;
 }
 
-double inner_produce(const Vector &a, const Vector &b) {
+double inner_product(const Vector &a, const Vector &b) {
   auto ip = 0.0;
-  for (auto i = 0; i < a.n; ++i) {
+  for (auto i = 0ul; i < a.n; ++i) {
     ip += a[i] * b[i];
   }
   return ip;
 }
 
 double operator*(const Vector &a, const Vector &b) {
-  return inner_produce(a, b);
+  return inner_product(a, b);
 }
 
-SqMatrix outer_produce(const Vector &a, const Vector &b) {
+SqMatrix outer_product(const Vector &a, const Vector &b) {
   SqMatrix op(a.n);
   // assert that a.n = b.n !
-  for (auto i = 0; i < a.n; ++i) {
-    for (auto j = 0; j < a.n; ++j) {
+  for (auto i = 0ul; i < a.n; ++i) {
+    for (auto j = 0ul; j < a.n; ++j) {
       op[i][j] = a[i] * b[j];
     }
   }
@@ -322,15 +286,172 @@ SqMatrix outer_produce(const Vector &a, const Vector &b) {
 
 //******************************************************************************
 //******************************************************************************
+// class ComplexSqMatrix
+//******************************************************************************
+
+ComplexSqMatrix::ComplexSqMatrix(std::size_t in_n)
+    : n(in_n), m(gsl_matrix_complex_alloc(n, n)) {}
+
+ComplexSqMatrix::~ComplexSqMatrix() { gsl_matrix_complex_free(m); }
+
+ComplexSqMatrix::ComplexSqMatrix(const ComplexSqMatrix &other)
+    : n(other.n), m(gsl_matrix_complex_alloc(n, n)) {
+  gsl_matrix_complex_memcpy(m, other.m);
+}
+
+ComplexSqMatrix &ComplexSqMatrix::operator=(const ComplexSqMatrix &other) {
+  if (this != &other)
+    gsl_matrix_complex_memcpy(m, other.m);
+  return *this;
+}
+
+// Constructs a diagonal unit matrix
+void ComplexSqMatrix::make_identity() {
+  gsl_matrix_complex_set_identity(this->m);
+}
+// Sets all elements to zero
+void ComplexSqMatrix::zero() { gsl_matrix_complex_set_zero(this->m); }
+
+// Returns the transpose of matrix: not destructive
+ComplexSqMatrix ComplexSqMatrix::transpose() const {
+  ComplexSqMatrix mTr(this->n);
+  gsl_matrix_complex_transpose_memcpy(mTr.m, this->m);
+  return mTr;
+}
+// Inverts the matrix: nb: destructive
+ComplexSqMatrix &ComplexSqMatrix::invert() {
+  // note: this is destuctive: matrix will be inverted
+  // uses LU decomposition
+  gsl_permutation *permutn = gsl_permutation_alloc(n);
+  int sLU = 0;
+  gsl_linalg_complex_LU_decomp(m, permutn, &sLU);
+  gsl_linalg_complex_LU_invx(m, permutn);
+  gsl_permutation_free(permutn);
+  return *this;
+}
+// Returns the inverce of matrix: not destructive
+ComplexSqMatrix ComplexSqMatrix::inverse() const {
+  auto inverse = *this;
+  inverse.invert();
+  return inverse;
+}
+
+// make a ComplexSqMatrix from a SqMatrix: C = x*mR, x is complex
+ComplexSqMatrix ComplexSqMatrix::make_complex(const Complex<double> &x,
+                                              const SqMatrix &mR) {
+  ComplexSqMatrix mC(mR.n);
+  for (auto i = 0ul; i < mR.n; i++) {
+    for (auto j = 0ul; j < mR.n; j++) {
+      gsl_matrix_complex_set(
+          mC.m, i, j, gsl_complex_rect(x.re * mR[i][j], x.im * mR[i][j]));
+    }
+  }
+  return mC;
+}
+
+Complex<double> ComplexSqMatrix::get_copy(std::size_t i, std::size_t j) const {
+  // really just for testing..?
+  gsl_complex val = gsl_matrix_complex_get(m, i, j);
+  return {GSL_REAL(val), GSL_IMAG(val)};
+}
+
+// Get the real part (copy) of the complex matrix
+SqMatrix ComplexSqMatrix::real() const {
+  SqMatrix re(n);
+  for (auto i = 0ul; i < n; i++) {
+    for (auto j = 0ul; j < n; j++) {
+      re[i][j] = GSL_REAL(gsl_matrix_complex_get(m, i, j));
+    }
+  }
+  return re;
+}
+// // Get the imaginary part (copy) of the complex matrix
+SqMatrix ComplexSqMatrix::imaginary() const {
+  SqMatrix im(n);
+  for (auto i = 0ul; i < n; i++) {
+    for (auto j = 0ul; j < n; j++) {
+      im[i][j] = GSL_IMAG(gsl_matrix_complex_get(m, i, j));
+    }
+  }
+  return im;
+}
+
+void ComplexSqMatrix::mult_elements_by(const ComplexSqMatrix &rhs) {
+  gsl_matrix_complex_mul_elements(this->m, rhs.m);
+}
+ComplexSqMatrix mult_elements(ComplexSqMatrix lhs, const ComplexSqMatrix &rhs) {
+  gsl_matrix_complex_mul_elements(lhs.m, rhs.m);
+  return lhs;
+}
+
+//  Multiply elements by constant
+ComplexSqMatrix &ComplexSqMatrix::operator*=(const Complex<double> &x) {
+  gsl_matrix_complex_scale(this->m, gsl_complex_rect(x.re, x.im));
+  return *this;
+}
+
+ComplexSqMatrix operator*(const Complex<double> &x, ComplexSqMatrix rhs) {
+  return (rhs *= x);
+}
+ComplexSqMatrix operator*(ComplexSqMatrix rhs, const Complex<double> &x) {
+  return (rhs *= x);
+}
+
+ComplexSqMatrix operator*(const ComplexSqMatrix &x, const ComplexSqMatrix &y) {
+  // These functions compute the matrix-matrix product and sum
+  // C = \alpha op(A) op(B) + \beta C
+  // where op(A) = A, A^T, A^H
+  // for TransA = CblasNoTrans, CblasTrans, CblasConjTrans
+  // and similarly for the parameter TransB
+  ComplexSqMatrix result(x.n);
+  // check for errors?
+  gsl_blas_zgemm(CblasNoTrans, CblasNoTrans, GSL_COMPLEX_ONE, x.m, y.m,
+                 GSL_COMPLEX_ZERO, result.m);
+  return result;
+}
+
+// Add + subtract Complex matrices
+ComplexSqMatrix &ComplexSqMatrix::operator+=(const ComplexSqMatrix &rhs) {
+  gsl_matrix_complex_add(this->m, rhs.m);
+  return *this;
+}
+ComplexSqMatrix &ComplexSqMatrix::operator-=(const ComplexSqMatrix &rhs) {
+  gsl_matrix_complex_sub(this->m, rhs.m);
+  return *this;
+}
+ComplexSqMatrix operator+(ComplexSqMatrix lhs, const ComplexSqMatrix &rhs) {
+  return lhs += rhs;
+}
+ComplexSqMatrix operator-(ComplexSqMatrix lhs, const ComplexSqMatrix &rhs) {
+  return lhs -= rhs;
+}
+
+//******************************************************************************
+//******************************************************************************
 // Solve LinAlg equations:
 
 //******************************************************************************
-Vector solve_Axeqb(SqMatrix &Am, const Vector &b) {
+Vector solve_Axeqb(const SqMatrix &Am, const Vector &b) {
   Vector x(b.n);
-  Am.LU_decompose();
-  // gsl_linalg_LU_decomp(Am.m, Am.perm, &s);          // XXX do twice?
-  // gsl_linalg_LU_solve(Am.m, Am.perm, b.vec, x.vec); // use Am.m_LU ?
-  gsl_linalg_LU_solve(Am.m_LU, Am.perm, b.vec, x.vec);
+
+  gsl_matrix *Am_LU = gsl_matrix_alloc(Am.n, Am.n);
+  gsl_permutation *Am_perm = gsl_permutation_alloc(Am.n);
+  int sLU = 0;
+  gsl_matrix_memcpy(Am_LU, Am.m);
+  gsl_linalg_LU_decomp(Am_LU, Am_perm, &sLU);
+
+  gsl_linalg_LU_solve(Am_LU, Am_perm, b.vec, x.vec);
+  if constexpr (false) { //??
+    // These functions apply an iterative improvement to x, the solution of A x
+    // = b, from the precomputed LU decomposition of A into (LU, p). Additional
+    // workspace of length N is required in work.
+    gsl_vector *work = gsl_vector_alloc(Am.n);
+    gsl_linalg_LU_refine(Am.m, Am_LU, Am_perm, b.vec, x.vec, work);
+    gsl_vector_free(work);
+  }
+
+  gsl_matrix_free(Am_LU);
+  gsl_permutation_free(Am_perm);
   return x;
 }
 
@@ -425,12 +546,12 @@ realNonSymmetricEigensystem(SqMatrix &A, bool sort) {
       std::make_tuple(n, n, n, n);
   auto &[eval_R, eval_I, evec_R, evec_I] = eigen_vv;
 
-  for (int i = 0; i < n; ++i) {
+  for (std::size_t i = 0; i < n; ++i) {
     gsl_complex evali = gsl_vector_complex_get(eval, i);
     eval_R[i] = (GSL_REAL(evali));
     eval_I[i] = (GSL_IMAG(evali));
     gsl_vector_complex_view evec_i = gsl_matrix_complex_column(evec, i);
-    for (int j = 0; j < n; ++j) {
+    for (std::size_t j = 0; j < n; ++j) {
       gsl_complex z = gsl_vector_complex_get(&evec_i.vector, j);
       evec_R[i][j] = GSL_REAL(z);
       evec_I[i][j] = GSL_IMAG(z); // already ok? check!
@@ -480,13 +601,13 @@ realNonSymmetricEigensystem(SqMatrix &A, SqMatrix &B, bool sort) {
       std::make_tuple(n, n, n, n);
   auto &[eval_R, eval_I, evec_R, evec_I] = eigen_vv;
 
-  for (int i = 0; i < n; ++i) {
+  for (std::size_t i = 0; i < n; ++i) {
     gsl_complex alphai = gsl_vector_complex_get(alpha, i);
     double betai = gsl_vector_get(beta, i);
     eval_R[i] = (GSL_REAL(alphai) / betai);
     eval_I[i] = (GSL_IMAG(alphai) / betai);
     gsl_vector_complex_view evec_i = gsl_matrix_complex_column(evec, i);
-    for (int j = 0; j < n; ++j) {
+    for (std::size_t j = 0; j < n; ++j) {
       gsl_complex z = gsl_vector_complex_get(&evec_i.vector, j);
       evec_R[i][j] = GSL_REAL(z);
       evec_I[i][j] = GSL_IMAG(z); // already ok? check!

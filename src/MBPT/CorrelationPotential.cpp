@@ -4,6 +4,7 @@
 #include "Coulomb/YkTable.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
 #include "IO/SafeProfiler.hpp"
+#include "MBPT/GreenMatrix.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/Interpolator.hpp"
 #include "Maths/LinAlg_MatrixVector.hpp"
@@ -37,33 +38,6 @@ namespace MBPT {
 
 //******************************************************************************
 //******************************************************************************
-GMatrix::GMatrix(int in_size)
-    : size(in_size), ff(size), fg(size), gf(size), gg(size) {
-  zero();
-}
-void GMatrix::zero() {
-  ff.zero();
-  fg.zero();
-  gf.zero();
-  gg.zero();
-}
-GMatrix &GMatrix::operator+=(const GMatrix &rhs) {
-  ff += rhs.ff;
-  fg += rhs.fg;
-  gf += rhs.gf;
-  gg += rhs.gg;
-  return *this;
-}
-GMatrix &GMatrix::operator-=(const GMatrix &rhs) {
-  ff -= rhs.ff;
-  fg -= rhs.fg;
-  gf -= rhs.gf;
-  gg -= rhs.gg;
-  return *this;
-}
-
-//******************************************************************************
-//******************************************************************************
 CorrelationPotential::CorrelationPotential(
     const Grid &gr, const std::vector<DiracSpinor> &core,
     const std::vector<DiracSpinor> &excited, const int in_stride,
@@ -74,16 +48,14 @@ CorrelationPotential::CorrelationPotential(
       m_yec(&gr, &m_excited, &m_core),
       m_maxk(find_max_tj(core, excited)),
       m_6j(m_maxk, m_maxk),
-      stride(in_stride) {
+      stride(std::size_t(in_stride)) {
   auto sp = IO::Profile::safeProfiler(__func__);
 
   std::cout << "\nCorrelation potential (Sigma)\n";
 
   std::cout << "(Including FF";
-  if (include_FG)
-    std::cout << ", FG";
-  if (include_GG)
-    std::cout << ", GG";
+  if (include_G)
+    std::cout << ", FG/GF, and GG";
   std::cout << ")\n";
 
   const auto fname = in_fname == "" ? "" : in_fname + ".Sigma";
@@ -105,8 +77,8 @@ void CorrelationPotential::setup_subGrid() {
   const double rmax = 30.0;
 
   imin = 0;
-  for (auto i = 0; i < (int)rvec.size(); i += stride) {
-    auto r = rvec[std::size_t(i)];
+  for (auto i = 0ul; i < rvec.size(); i += stride) {
+    auto r = rvec[i];
     if (r < rmin) {
       imin++;
       continue;
@@ -116,10 +88,11 @@ void CorrelationPotential::setup_subGrid() {
     r_stride.push_back(r);
   }
 
-  stride_points = int(r_stride.size());
+  stride_points = r_stride.size();
   printf(
       "Sigma sub-grid: r=(%.1e, %.1f)aB with %i points. [i0=%i, stride=%i]\n",
-      r_stride.front(), r_stride.back(), stride_points, imin, stride);
+      r_stride.front(), r_stride.back(), int(stride_points), int(imin),
+      int(stride));
 }
 
 //******************************************************************************
@@ -131,16 +104,14 @@ void CorrelationPotential::addto_G(GMatrix *Gmat, const DiracSpinor &ket,
   // G_ij = f * Q_i * W_j
   // Q = Q(1) = ket, W = W(2) = bra
   // Takes sub-grid into account; ket,bra are on full grid, G on sub-grid
-  for (int i = 0; i < stride_points; ++i) {
-    const auto si = static_cast<std::size_t>((imin + i) * stride);
-    for (int j = 0; j < stride_points; ++j) {
+  for (auto i = 0ul; i < stride_points; ++i) {
+    const auto si = std::size_t((imin + i) * stride);
+    for (auto j = 0ul; j < stride_points; ++j) {
       const auto sj = std::size_t((imin + j) * stride);
       Gmat->ff[i][j] += f * ket.f[si] * bra.f[sj];
-      if constexpr (include_FG) {
+      if constexpr (include_G) {
         Gmat->fg[i][j] += f * ket.f[si] * bra.g[sj];
         Gmat->gf[i][j] += f * ket.g[si] * bra.f[sj];
-      }
-      if constexpr (include_GG) {
         Gmat->gg[i][j] += f * ket.g[si] * bra.g[sj];
       }
     } // j
@@ -163,28 +134,26 @@ DiracSpinor CorrelationPotential::Sigma_G_Fv(const GMatrix &Gmat,
   auto SigmaFv = DiracSpinor(0, Fv.k, gr);
   std::vector<double> f(r_stride.size());
   std::vector<double> g;
-  if constexpr (include_FG || include_GG) {
+  if constexpr (include_G) {
     g.resize(r_stride.size());
   }
-  for (int i = 0; i < stride_points; ++i) {
+  for (auto i = 0ul; i < stride_points; ++i) {
     const auto si = std::size_t(i);
-    for (int j = 0; j < stride_points; ++j) {
+    for (auto j = 0ul; j < stride_points; ++j) {
       const auto sj = std::size_t((imin + j) * stride);
       const auto dr = gr.drdu[sj] * gr.du * double(stride);
       f[si] += Gmat.ff[i][j] * Fv.f[sj] * dr * lambda;
 
-      if constexpr (include_FG) {
+      if constexpr (include_G) {
         f[si] += Gmat.fg[i][j] * Fv.g[sj] * dr * lambda;
         g[si] += Gmat.gf[i][j] * Fv.f[sj] * dr * lambda;
-      }
-      if constexpr (include_GG) {
         g[si] += Gmat.gg[i][j] * Fv.g[sj] * dr * lambda;
       }
     }
   }
   // Interpolate from sub-grid to full grid
   SigmaFv.f = Interpolator::interpolate(r_stride, f, gr.r);
-  if constexpr (include_FG || include_GG) {
+  if constexpr (include_G) {
     SigmaFv.g = Interpolator::interpolate(r_stride, g, gr.r);
   }
 
@@ -196,7 +165,7 @@ void CorrelationPotential::form_Sigma(const std::vector<double> &en_list,
                                       const std::string &fname) {
   auto sp = IO::Profile::safeProfiler(__func__);
 
-  G_kappa.resize(en_list.size(), stride_points);
+  Sigma_kappa.resize(en_list.size(), {stride_points, include_G});
 
   if (m_core.empty() || m_excited.empty()) {
     std::cerr << "\nERROR 162 in form_Sigma: No basis! Sigma will just be 0!\n";
@@ -215,7 +184,7 @@ void CorrelationPotential::form_Sigma(const std::vector<double> &en_list,
     printf(" k=%2i %6s at en=%8.5f.. ", kappa,
            AtomData::kappa_symbol(kappa).c_str(), en_list[ki]);
     std::cout << std::flush;
-    fill_Gkappa(&G_kappa[ki], kappa, en_list[ki]);
+    fill_Sigma_k_Gold(&Sigma_kappa[ki], kappa, en_list[ki]);
     // find lowest excited state, output <v|S|v> energy shift:
     auto find_kappa = [=](const auto &a) { return a.k == kappa; };
     const auto vk =
@@ -234,16 +203,16 @@ void CorrelationPotential::form_Sigma(const std::vector<double> &en_list,
 DiracSpinor CorrelationPotential::Sigma2Fv(const DiracSpinor &v) const {
   auto sp = IO::Profile::safeProfiler(__func__);
   // Find correct G matrix (corresponds to kappa_v), return Sigma|v>
-  // If G_kappa doesn't exist, returns |0>
+  // If Sigma_kappa doesn't exist, returns |0>
   auto kappa_index = std::size_t(Angular::indexFromKappa(v.k));
-  if (kappa_index >= G_kappa.size())
+  if (kappa_index >= Sigma_kappa.size())
     return 0.0 * v;
-  return Sigma_G_Fv(G_kappa[kappa_index], v);
+  return Sigma_G_Fv(Sigma_kappa[kappa_index], v);
 }
 
 //******************************************************************************
-void CorrelationPotential::fill_Gkappa(GMatrix *Gmat, const int kappa,
-                                       const double en) {
+void CorrelationPotential::fill_Sigma_k_Gold(GMatrix *Gmat, const int kappa,
+                                             const double en) {
   auto sp = IO::Profile::safeProfiler(__func__);
 
   // Four second-order diagrams:
@@ -280,7 +249,7 @@ void CorrelationPotential::fill_Gkappa(GMatrix *Gmat, const int kappa,
 #pragma omp parallel for
   for (auto ia = 0ul; ia < m_core.size(); ia++) {
     const auto &a = m_core[ia];
-    GMatrix G_a(stride_points);
+    GMatrix G_a(stride_points, include_G);
     auto Qkv = DiracSpinor(0, kappa, gr); // re-use to reduce alloc'ns
     auto Pkv = DiracSpinor(0, kappa, gr); // re-use to reduce alloc'ns
     for (const auto &n : m_excited) {
@@ -423,27 +392,24 @@ void CorrelationPotential::read_write(const std::string &fname,
   }
 
   // Number of kappas (number of Sigma/G matrices)
-  std::size_t num_kappas = rw == IO::FRW::write ? G_kappa.size() : 0;
+  std::size_t num_kappas = rw == IO::FRW::write ? Sigma_kappa.size() : 0;
   rw_binary(iofs, rw, num_kappas);
   if (rw == IO::FRW::read) {
-    G_kappa.resize(num_kappas, stride_points);
+    Sigma_kappa.resize(num_kappas, {stride_points, include_G});
   }
 
   // Check if include FG/GG written. Note: doesn't matter if mis-match?!
-  auto incl_fg = rw == IO::FRW::write ? include_FG : 0;
-  auto incl_gg = rw == IO::FRW::write ? include_GG : 0;
-  rw_binary(iofs, rw, incl_fg, incl_gg);
+  auto incl_g = rw == IO::FRW::write ? include_G : 0;
+  rw_binary(iofs, rw, incl_g);
 
   // Read/Write G matrices
-  for (auto &Gk : G_kappa) {
-    for (int i = 0; i < stride_points; ++i) {
-      for (int j = 0; j < stride_points; ++j) {
+  for (auto &Gk : Sigma_kappa) {
+    for (auto i = 0ul; i < stride_points; ++i) {
+      for (auto j = 0ul; j < stride_points; ++j) {
         rw_binary(iofs, rw, Gk.ff[i][j]);
-        if (incl_fg) {
+        if (incl_g) {
           rw_binary(iofs, rw, Gk.fg[i][j]);
           rw_binary(iofs, rw, Gk.gf[i][j]);
-        }
-        if (incl_gg) {
           rw_binary(iofs, rw, Gk.gg[i][j]);
         }
       }
@@ -452,7 +418,8 @@ void CorrelationPotential::read_write(const std::string &fname,
   std::cout << "... done.\n";
   printf(
       "Sigma sub-grid: r=(%.1e, %.1f)aB with %i points. [i0=%i, stride=%i]\n",
-      r_stride.front(), r_stride.back(), stride_points, imin, stride);
+      r_stride.front(), r_stride.back(), int(stride_points), int(imin),
+      int(stride));
 }
 
 //******************************************************************************

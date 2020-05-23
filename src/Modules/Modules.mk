@@ -20,7 +20,7 @@ $(SD)/Wavefunction/Wavefunction.hpp
 $(BD)/Module_tests.o: $(SD)/Modules/Module_tests.cpp \
 $(SD)/Modules/Module_tests.hpp \
 $(SD)/DiracOperator/Operators.hpp \
-$(SD)/HF/HartreeFockClass.hpp \
+$(SD)/HF/HartreeFock.hpp \
 $(SD)/IO/UserInput.hpp \
 $(SD)/Physics/PhysConst_constants.hpp \
 $(SD)/Wavefunction/Hamiltonian.hpp \
@@ -29,7 +29,7 @@ $(SD)/Wavefunction/Wavefunction.hpp
 
 $(BD)/Module_fitParametric.o: $(SD)/Modules/Module_fitParametric.cpp \
 $(SD)/Modules/Module_fitParametric.hpp \
-$(SD)/HF/HartreeFockClass.hpp \
+$(SD)/HF/HartreeFock.hpp \
 $(SD)/IO/UserInput.hpp \
 $(SD)/Maths/Grid.hpp \
 $(SD)/Physics/AtomData.hpp \

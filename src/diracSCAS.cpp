@@ -8,8 +8,6 @@
 #include "Wavefunction/Wavefunction.hpp"
 #include <iostream>
 #include <string>
-//
-#include "HF/HartreeFockClass.hpp"
 
 int main(int argc, char *argv[]) {
   IO::ChronoTimer timer("\ndiracSCAS");

@@ -1,6 +1,6 @@
 #include "Wavefunction/Wavefunction.hpp"
 #include "DiracODE/DiracODE.hpp"
-#include "HF/HartreeFockClass.hpp"
+#include "HF/HartreeFock.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "MBPT/CorrelationPotential.hpp"
 #include "Maths/Grid.hpp"
@@ -287,7 +287,7 @@ void Wavefunction::solveInitialCore(const std::string &str_core,
                                     int log_dele_or)
 // Solves the Dirac eqn for each state in the core
 // Only for local potential (direct part)
-// HF/HartreeFockClass.cpp has routines for Hartree Fock
+// HF/HartreeFock.cpp has routines for Hartree Fock
 {
   if (!core.empty()) {
     core.clear();           //?
