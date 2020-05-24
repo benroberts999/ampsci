@@ -8,6 +8,8 @@
 #include "Wavefunction/Wavefunction.hpp"
 #include <iostream>
 #include <string>
+//
+#include "HF/Breit.hpp"
 
 int main(int argc, char *argv[]) {
   IO::ChronoTimer timer("\ndiracSCAS");
@@ -230,6 +232,12 @@ int main(int argc, char *argv[]) {
 
   // run each of the modules with the calculated wavefunctions
   Module::runModules(input, wf);
+
+  HF::Breit VBr(wf.core);
+  for (const auto &Fv : wf.valence) {
+    auto dF = VBr(Fv);
+    std::cout << Fv.symbol() << " " << Fv * dF << "\n";
+  }
 
   return 0;
 }

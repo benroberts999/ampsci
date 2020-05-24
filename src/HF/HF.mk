@@ -30,6 +30,7 @@ $(SD)/Wavefunction/Wavefunction.hpp
 
 $(BD)/HartreeFock.o: $(SD)/HF/HartreeFock.cpp \
 $(SD)/HF/HartreeFock.hpp \
+$(SD)/HF/Breit.hpp \
 $(SD)/Angular/Angular_369j.hpp \
 $(SD)/Coulomb/Coulomb.hpp \
 $(SD)/Coulomb/YkTable.hpp \

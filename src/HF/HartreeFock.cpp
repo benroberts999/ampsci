@@ -18,6 +18,8 @@
 #include <iostream>
 #include <numeric>
 #include <vector>
+//
+#include "HF/Breit.hpp"
 
 namespace HF {
 
