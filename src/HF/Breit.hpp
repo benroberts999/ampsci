@@ -21,7 +21,7 @@ public:
     // Fill the b^k functions
     for (auto k = 0ul; k <= max_k; ++k) {
       // a) selection rules (careful)
-      const auto maxi = std::max(Fa.pinf, Fb.pinf);
+      const auto maxi = 0; // std::max(Fa.pinf, Fb.pinf);
       Coulomb::bk_ab(Fb, Fa, int(k), bk_0[k], bk_inf[k], maxi);
       Coulomb::gk_ab(Fb, Fa, int(k), gk_0[k], gk_inf[k], maxi);
     }

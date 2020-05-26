@@ -84,10 +84,11 @@ int main(int argc, char *argv[]) {
                              "rcut", "scale_rN", "scale_l", "core_qed"});
   const auto include_qed = input.get("RadPot", "RadPot", false);
   const auto x_Simple = input.get("RadPot", "Simple", 0.0);
-  const auto x_Ueh = input.get("RadPot", "Ueh", 0.0);
-  const auto x_SEe_h = input.get("RadPot", "SE_h", 0.0);
-  const auto x_SEe_l = input.get("RadPot", "SE_l", 0.0);
-  const auto x_SEm = input.get("RadPot", "SE_m", 0.0);
+  const auto xrp_dflt = (include_qed && x_Simple == 0.0) ? 1.0 : 0.0;
+  const auto x_Ueh = input.get("RadPot", "Ueh", xrp_dflt);
+  const auto x_SEe_h = input.get("RadPot", "SE_h", xrp_dflt);
+  const auto x_SEe_l = input.get("RadPot", "SE_l", xrp_dflt);
+  const auto x_SEm = input.get("RadPot", "SE_m", xrp_dflt);
   const auto rcut = input.get("RadPot", "rcut", 1.0);
   const auto scale_rN = input.get("RadPot", "scale_rN", 1.0);
   const auto x_spd = input.get_list("RadPot", "scale_l", std::vector{1.0});
