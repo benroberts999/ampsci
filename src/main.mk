@@ -8,8 +8,7 @@ $(SD)/Maths/Interpolator.hpp \
 $(SD)/Maths/NumCalc_quadIntegrate.hpp \
 $(SD)/Modules/Module_runModules.hpp \
 $(SD)/Physics/PhysConst_constants.hpp \
-$(SD)/Wavefunction/Wavefunction.hpp \
-$(SD)/HF/Breit.hpp
+$(SD)/Wavefunction/Wavefunction.hpp
 	$(COMP)
 
 $(BD)/periodicTable.o: $(SD)/periodicTable.cpp \

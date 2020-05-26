@@ -30,12 +30,12 @@ $(SD)/Wavefunction/Wavefunction.hpp
 
 $(BD)/HartreeFock.o: $(SD)/HF/HartreeFock.cpp \
 $(SD)/HF/HartreeFock.hpp \
-$(SD)/HF/Breit.hpp \
 $(SD)/Angular/Angular_369j.hpp \
 $(SD)/Coulomb/Coulomb.hpp \
 $(SD)/Coulomb/YkTable.hpp \
 $(SD)/DiracODE/Adams_Greens.hpp \
 $(SD)/DiracODE/DiracODE.hpp \
+$(SD)/HF/Breit.hpp \
 $(SD)/IO/SafeProfiler.hpp \
 $(SD)/MBPT/CorrelationPotential.hpp \
 $(SD)/Maths/Grid.hpp \

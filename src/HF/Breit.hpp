@@ -1,18 +1,14 @@
 #pragma once
-#include <utility>
-#include <vector>
-// class DiracSpinor;
-//
 #include "Angular/Angular_369j.hpp"
 #include "Coulomb/Coulomb.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
+#include <utility>
+#include <vector>
 
 namespace HF {
-// class HartreeFock;
 
-class Breit_Bk_ba {
+class Breit_Bk_ba { // XXX Make "private"
 public:
-  // friend class Breit;
   Breit_Bk_ba(const DiracSpinor &Fb, const DiracSpinor &Fa)
       : max_k(std::size_t((Fb.twoj() + Fa.twoj()) / 2) + 1) {
 
@@ -22,10 +18,10 @@ public:
     gk_0.resize(max_k + 1);
     gk_inf.resize(max_k + 1);
 
-    // Fill the b ^ k functions
+    // Fill the b^k functions
     for (auto k = 0ul; k <= max_k; ++k) {
       // a) selection rules (careful)
-      const auto maxi = 0ul; // std::max(Fa.pinf, Fb.pinf);
+      const auto maxi = std::max(Fa.pinf, Fb.pinf);
       Coulomb::bk_ab(Fb, Fa, int(k), bk_0[k], bk_inf[k], maxi);
       Coulomb::gk_ab(Fb, Fa, int(k), gk_0[k], gk_inf[k], maxi);
     }

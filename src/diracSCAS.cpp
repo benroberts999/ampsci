@@ -8,8 +8,6 @@
 #include "Wavefunction/Wavefunction.hpp"
 #include <iostream>
 #include <string>
-//
-#include "HF/Breit.hpp"
 
 int main(int argc, char *argv[]) {
   IO::ChronoTimer timer("\ndiracSCAS");
@@ -62,15 +60,16 @@ int main(int argc, char *argv[]) {
 
   // Parse input for HF method
   input_ok =
-      input_ok &&
-      input.check("HartreeFock", {"core", "valence", "convergence", "method",
-                                  "orthonormaliseValence", "sortOutput"});
+      input_ok && input.check("HartreeFock",
+                              {"core", "valence", "convergence", "method",
+                               "Breit", "orthonormaliseValence", "sortOutput"});
   if (!input_ok)
     return 1;
   const auto str_core = input.get<std::string>("HartreeFock", "core", "[]");
   const auto eps_HF = input.get("HartreeFock", "convergence", 1.0e-12);
   const auto HF_method =
       input.get<std::string>("HartreeFock", "method", "HartreeFock");
+  const auto incl_Breit = input.get("HartreeFock", "Breit", false);
 
   if (HF_method == "Hartree")
     std::cout << "Using Hartree Method (no Exchange)\n";
@@ -120,7 +119,7 @@ int main(int argc, char *argv[]) {
 
   { // Solve Hartree equations for the core:
     IO::ChronoTimer t(" core");
-    wf.hartreeFockCore(HF_method, str_core, eps_HF);
+    wf.hartreeFockCore(HF_method, incl_Breit, str_core, eps_HF);
   }
 
   if (include_qed && qed_ok && !core_qed) {
@@ -232,12 +231,6 @@ int main(int argc, char *argv[]) {
 
   // run each of the modules with the calculated wavefunctions
   Module::runModules(input, wf);
-
-  HF::Breit VBr(wf.core);
-  for (const auto &Fv : wf.valence) {
-    auto dF = VBr(Fv);
-    std::cout << Fv.symbol() << " " << Fv * dF << "\n";
-  }
 
   return 0;
 }
