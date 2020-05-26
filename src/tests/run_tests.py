@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 import os
 test_dir = "src/tests/"
-filename = test_dir+"unit_tests.txt"
+filename = test_dir+"run_tests.txt"
 outfname = test_dir+"results.txt"
 split = "#TEST"
 output_seperator = "###########################################"
@@ -30,7 +30,7 @@ output.close()
 input_list = content.split(split)
 #first item in list is blank (before first '#TEST#')
 input_list.pop(0)
-tmp_fname_input = "UNIT_TESTS_temp.DELETEME"
+tmp_fname_input = "RUN_TESTS_temp.DELETEME"
 for input_item in input_list:
   input_file = open(tmp_fname_input,"w")
   output = open(outfname,"a")

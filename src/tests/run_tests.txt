@@ -34,7 +34,7 @@ Spectrum {
 }
 Module::Tests { Hamiltonian = true; }
 MatrixElements::E1 { omega = each; }
-MatrixElements::hfs { F(r) = pointlike; }
+MatrixElements::hfs { F(r) = pointlike; rpa = false;}
 
 ###########################################
 #TEST# typical Fr+Sigma
@@ -65,10 +65,6 @@ Correlations {
 }
 Module::Tests {}
 MatrixElements::E1 { omega = 0.0; }
-MatrixElements::hfs {
-  F(r) = pointlike;
-  rpa = false;
-}
 
 ###########################################
 #TEST# Cs-dense
@@ -162,13 +158,28 @@ Grid {
   rmax = 160.00;
   num_points = 2000;
 }
-RadPot {
-  RadPot = true;
-  Ueh = 1.0;
-  SE_h = 1.0;
-  SE_l = 1.0;
-  SE_m = 1.0;
-  rcut = 5.0;
-  core_qed = true;
-}
+RadPot { RadPot = true; }
 MatrixElements::E1 {}
+
+###########################################
+#TEST# Cs-Breit
+
+Atom { Z = Cs; }
+HartreeFock {
+  core = [Xe];
+  valence = 7sp;
+  Breit = 1.0;
+}
+Grid {
+  r0 = 1e-6;
+  rmax = 150.0;
+  num_points = 1600;
+}
+Basis {
+  number = 70;
+  order = 7;
+  r0_eps = 1.0e-8;
+  rmax = 80.0;
+  print = true;
+  states = 7sp;
+}

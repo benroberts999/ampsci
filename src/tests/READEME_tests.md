@@ -1,11 +1,11 @@
-List input options for each unit test in _unit_tests.txt_ file.
-Each must be sepparated by:
+List input options for each unit test in _run_tests.txt_ file.
+Each must be separated by:
   * _#TEST# text_
 where 'text' can be any text (some label/identifier)
 
 then, run the python script (from same location as diracSCAS executable!)
 e.g.,
-  * _./src/tests/unit_tests.py_
+  * _./src/tests/run_tests.py_
 
 results will be places in :
 * _./src/tests/results.txt_

@@ -1,5 +1,7 @@
 # Input options for: diracSCAS
 
+This outlines/describes the input options/usage for diracSCAS. For a description of the physics, see: [diracSCAS_method.pdf](https://benroberts999.github.io/diracSCAS/diracSCAS_method.pdf)
+
 * The **diracSCAS** program should be run as:
   * _./diracSCAS inputFile.in_
   * ``inputFile.in'' is a plain-text input file, that contains all input options (if no input file is given, program looks for the default one, named "diracSCAS.in")
