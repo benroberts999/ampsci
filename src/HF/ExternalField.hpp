@@ -12,6 +12,7 @@ class CorrelationPotential;
 
 namespace HF {
 class HartreeFock;
+class Breit;
 
 enum class dPsiType { X, Y };
 
@@ -58,6 +59,7 @@ private:
   const int m_rank;
   const int m_pi;
   const bool m_imag;
+  const Breit *const p_VBr;
   double m_core_eps = 1.0;
   // Angular::SixJ m_6j; // used?
 

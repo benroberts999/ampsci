@@ -3,6 +3,7 @@
 #include "Angular/Angular_tables.hpp"
 #include "Coulomb/Coulomb.hpp"
 #include "DiracOperator/DiracOperator.hpp"
+#include "HF/Breit.hpp"
 #include "HF/HartreeFock.hpp"
 #include "HF/MixedStates.hpp"
 #include "IO/ChronoTimer.hpp"
@@ -25,7 +26,8 @@ ExternalField::ExternalField(const DiracOperator::TensorOperator *const h,
       m_alpha(hf->get_alpha()),
       m_rank(h->rank()),
       m_pi(h->parity()),
-      m_imag(h->imaginaryQ())
+      m_imag(h->imaginaryQ()),
+      p_VBr(hf->get_Breit())
 // w>0 typically. Allowed to be -ve for tests?
 // XXX Add check for null hf?
 {
@@ -141,7 +143,7 @@ ExternalField::solve_dPsi(const DiracSpinor &Fv, const double omega,
   }
 
   return s2 * HF::solveMixedState(kappa_x, Fv, ww, m_vl, m_alpha, *p_core, rhs,
-                                  1.0e-9, Sigma);
+                                  1.0e-9, Sigma, p_VBr);
 }
 
 //******************************************************************************
@@ -200,7 +202,8 @@ void ExternalField::solve_TDHFcore(const double omega, const int max_its,
         auto rhs = hPsic + dV_rhs(Xx.k, Fc, false);
         if (Xx.k == Fc.k && !imag)
           rhs -= (de0 + de1) * Fc;
-        HF::solveMixedState(Xx, Fc, omega, m_vl, m_alpha, *p_core, rhs, eps_ms);
+        HF::solveMixedState(Xx, Fc, omega, m_vl, m_alpha, *p_core, rhs, eps_ms,
+                            nullptr, p_VBr);
         Xx = a_damp * oldX + (1.0 - a_damp) * Xx;
         const auto delta = (Xx - oldX) * (Xx - oldX) / (Xx * Xx);
         if (delta > eps_c)
@@ -216,7 +219,7 @@ void ExternalField::solve_TDHFcore(const double omega, const int max_its,
           if (Yx.k == Fc.k && !imag)
             rhs -= (de0 + de1_dag) * Fc;
           HF::solveMixedState(Yx, Fc, -omega, m_vl, m_alpha, *p_core, rhs,
-                              eps_ms);
+                              eps_ms, nullptr, p_VBr);
           Yx = a_damp * oldY + (1.0 - a_damp) * Yx;
         }
       } else {

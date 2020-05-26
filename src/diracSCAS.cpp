@@ -69,10 +69,14 @@ int main(int argc, char *argv[]) {
   const auto eps_HF = input.get("HartreeFock", "convergence", 1.0e-12);
   const auto HF_method =
       input.get<std::string>("HartreeFock", "method", "HartreeFock");
-  const auto incl_Breit = input.get("HartreeFock", "Breit", false);
-
   if (HF_method == "Hartree")
     std::cout << "Using Hartree Method (no Exchange)\n";
+
+  const auto incl_Breit =
+      (HF_method == "HartreeFock") && input.get("HartreeFock", "Breit", false);
+  // Can only include Breit within HF
+  if (incl_Breit)
+    std::cout << "Including Breit (scale = " << 1.0 << ")\n";
 
   // Inlcude QED radiatve potential
   const auto qed_ok =
