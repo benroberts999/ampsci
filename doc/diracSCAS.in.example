@@ -10,6 +10,7 @@ Atom {
 HartreeFock {
   core = [Xe];
   valence = 7sp;
+  Breit = 0.0;
 }
 
 Nucleus {
@@ -23,17 +24,9 @@ Grid {
   num_points = 1600;
 }
 
-// dVpol { a_eff = 0.0; }
-
 // RadPot
 {
   RadPot = false;
-  Simple = 0.0;
-  Ueh = 1.0;
-  SE_h = 1.0;
-  SE_l = 1.0;
-  SE_m = 1.0;
-  rcut = 5.0;
   scale_l = 1, 1, 1;
   core_qed = true;
 }
@@ -63,8 +56,8 @@ Grid {
 //Spectrum
 {
   number = 100;
-  order = 9;
-  r0 = 1.0e-6;
+  order = 7;
+  r0_eps = 1.0e-9;
   rmax = 100.0;
   print = false;
   states = 90p;

@@ -93,10 +93,10 @@ public:
               std::vector<DiracSpinor> *in_core,
               const RadiativePotential::Vrad *const in_vrad = nullptr,
               double m_alpha = PhysConst::alpha,
-              Method method = Method::HartreeFock, bool incl_Breit = false,
+              Method method = Method::HartreeFock, double x_Breit = 0.0,
               double eps_HF = 0.0);
   HartreeFock(Wavefunction *wf, Method method = Method::HartreeFock,
-              bool incl_Breit = false, double eps_HF = 0.0);
+              double x_Breit = 0.0, double eps_HF = 0.0);
 
   //! Solves HF equations self-consitantly for core orbs. Produces Vdir
   const std::vector<double> &solveCore();
@@ -136,13 +136,13 @@ public:
   bool verbose = true; // update to input??
 
 private:
-  // Wavefunction *const p_wf;
   const Grid *const p_rgrid;
   const std::vector<double> *const p_vnuc;
   const RadiativePotential::Vrad *const p_vrad;
   const double m_alpha;
   const Method m_method;
   const bool m_include_Breit;
+  const double m_x_Breit;
   const double m_eps_HF;
   // pointer to core orbs that exist outside.
   // Note: core.size() must not change; core elements must remain in orig. order

@@ -72,11 +72,10 @@ int main(int argc, char *argv[]) {
   if (HF_method == "Hartree")
     std::cout << "Using Hartree Method (no Exchange)\n";
 
-  const auto incl_Breit =
-      (HF_method == "HartreeFock") && input.get("HartreeFock", "Breit", false);
+  const auto x_Breit = input.get("HartreeFock", "Breit", 0.0);
   // Can only include Breit within HF
-  if (incl_Breit)
-    std::cout << "Including Breit (scale = " << 1.0 << ")\n";
+  if (HF_method == "HartreeFock" && x_Breit != 0.0)
+    std::cout << "Including Breit (scale = " << x_Breit << ")\n";
 
   // Inlcude QED radiatve potential
   const auto qed_ok =
@@ -89,7 +88,7 @@ int main(int argc, char *argv[]) {
   const auto x_SEe_h = input.get("RadPot", "SE_h", xrp_dflt);
   const auto x_SEe_l = input.get("RadPot", "SE_l", xrp_dflt);
   const auto x_SEm = input.get("RadPot", "SE_m", xrp_dflt);
-  const auto rcut = input.get("RadPot", "rcut", 1.0);
+  const auto rcut = input.get("RadPot", "rcut", 5.0);
   const auto scale_rN = input.get("RadPot", "scale_rN", 1.0);
   const auto x_spd = input.get_list("RadPot", "scale_l", std::vector{1.0});
   const bool core_qed = input.get("RadPot", "core_qed", true);
@@ -124,7 +123,7 @@ int main(int argc, char *argv[]) {
 
   { // Solve Hartree equations for the core:
     IO::ChronoTimer t(" core");
-    wf.hartreeFockCore(HF_method, incl_Breit, str_core, eps_HF);
+    wf.hartreeFockCore(HF_method, x_Breit, str_core, eps_HF);
   }
 
   if (include_qed && qed_ok && !core_qed) {

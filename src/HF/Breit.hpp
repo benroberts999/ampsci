@@ -35,16 +35,20 @@ public:
 };
 
 //******************************************************************************
+//! Breit (Hartree-Fock Breit) interaction potential
 class Breit {
 public:
-  Breit(const std::vector<DiracSpinor> &in_core) : p_core(&in_core) {}
+  //! Contains ptr to core: careful if updating core (e.g., in HF)
+  Breit(const std::vector<DiracSpinor> &in_core, double in_scale = 1.0)
+      : p_core(&in_core), m_scale(in_scale) {}
   // nb: During HF, must update orbitals each time
-  // After, don't need to? RPA?
 
+  //! Breit(Fa) gives VBr*Fa;
   DiracSpinor operator()(const DiracSpinor &Fa) const { return VbrFa(Fa); }
 
 private:
   const std::vector<DiracSpinor> *const p_core;
+  const double m_scale;
 
   // Calculates V_br*Fa = \sum_b\sum_k B^k_ba F_b
   DiracSpinor VbrFa(const DiracSpinor &Fa) const {
@@ -71,7 +75,7 @@ private:
 
       // M, O, P
       if (Ckba != 0.0) {
-        const auto Ckba2 = Ckba * Ckba / tjap1;
+        const auto Ckba2 = m_scale * Ckba * Ckba / tjap1;
         const auto [m1, m2] = Mk(k);
         const auto [o1, o2] = Ok(k);
         const auto p1 = Pk(k);
@@ -79,11 +83,14 @@ private:
         const auto &b0p = Bkba.bk_0[sk + 1];
         const auto &b0m = Bkba.bk_0[sk - 1]; // XXX
         const auto &bip = Bkba.bk_inf[sk + 1];
-        const auto &bim = Bkba.bk_inf[sk - 1];
+        const auto &bim = Bkba.bk_inf[sk - 1]; // XXX
         const auto &g0p = Bkba.gk_0[sk + 1];
-        const auto &g0m = Bkba.gk_0[sk - 1];
+        const auto &g0m = Bkba.gk_0[sk - 1]; // XXX
         const auto &gip = Bkba.gk_inf[sk + 1];
-        const auto &gim = Bkba.gk_inf[sk - 1];
+        const auto &gim = Bkba.gk_inf[sk - 1]; // XXX
+        // XXX -> dangerous: These are never called for k=0, but are INVALID in
+        // that case. Even defining the references is undefined behaviour, so
+        // this should be fixed. Works though, so..
 
         const auto ep = eta(k + 1, kb, ka);
         const auto e = eta(k, kb, ka);
@@ -130,7 +137,7 @@ private:
       // N term
       const auto Ckmba = Angular::Ck_kk(k, -Fb.k, Fa.k);
       if (Ckmba != 0.0) {
-        const auto Cg = 1.0 * Ckmba * Ckmba * Nkba(k, Fb.k, Fa.k) / tjap1;
+        const auto Cg = m_scale * Ckmba * Ckmba * Nkba(k, Fb.k, Fa.k) / tjap1;
         const auto &g0 = Bkba.gk_0[sk];
         const auto &gi = Bkba.gk_inf[sk];
         for (auto i = Fb.p0; i < Fb.pinf; ++i) {

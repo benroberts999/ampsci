@@ -63,6 +63,7 @@ HartreeFock {
   valence;     //[t] default = none
   sortOutput;  //[b] default = true
   method;      //[t] default = HartreeFock
+  Breit;       //[r] default = 0.0
   convergence; //[r] default = 1.0e-12
   orthonormaliseValence; //[b] default = false
 }
@@ -82,6 +83,8 @@ HartreeFock {
 * sortOutput: true or false. Sort output by energy.
 * method: which method to use. can be:
   * HartreeFock(default), ApproxHF, Hartree
+* Breit: Include Breit into HF with given scale (0 means don't include)
+  * Note: Will go into spline basis, and RPA equations automatically
 * convergence: level we try to converge to.
 * orthonormaliseValence: true/false. Orthogonalise valence states? false by default. Only really for testing
 
@@ -152,11 +155,11 @@ ExtraPotential {
 RadPot {
   RadPot;   //[b] default = false, to include QED, set to true
   Simple;   //[r] default = 0.0 // Vrad = -Z^2 * alpha * exp(-r/alpha)
-  Ueh;      //[r] default = 0.0 // Uehling (vac pol)
-  SE_h;     //[r] default = 0.0 // high-f SE
-  SE_l;     //[r] default = 0.0 // low-f SE
-  SE_m;     //[r] default = 0.0 // Magnetic SE
-  rcut;     //[r] default = 1.0
+  Ueh;      //[r] default = 1.0 // Uehling (vac pol)
+  SE_h;     //[r] default = 1.0 // high-f SE
+  SE_l;     //[r] default = 1.0 // low-f SE
+  SE_m;     //[r] default = 1.0 // Magnetic SE
+  rcut;     //[r] default = 5.0
   scale_rN; //[r] default = 1.0
   scale_l;  //[r,r...] (List) default = 1.0
   core_qed; //[b] default = true

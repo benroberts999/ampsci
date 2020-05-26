@@ -40,14 +40,15 @@ HartreeFock::HartreeFock(const Grid &in_grid,
                          const std::vector<double> &in_vnuc,
                          std::vector<DiracSpinor> *in_core,
                          const RadiativePotential::Vrad *const in_vrad,
-                         double in_alpha, Method method, bool incl_Breit,
+                         double in_alpha, Method method, double x_Breit,
                          double in_eps)
     : p_rgrid(&in_grid),
       p_vnuc(&in_vnuc), // or, just have a copy?
       p_vrad(in_vrad),
       m_alpha(in_alpha),
       m_method(method),
-      m_include_Breit(incl_Breit),
+      m_include_Breit(std::abs(x_Breit) > 1.0e-10),
+      m_x_Breit(x_Breit),
       m_eps_HF(std::abs(in_eps) < 1.0 ? in_eps : std::pow(10, -in_eps)),
       p_core(in_core),
       m_vdir(in_grid.num_points),
@@ -56,10 +57,10 @@ HartreeFock::HartreeFock(const Grid &in_grid,
           !(m_method == Method::HartreeFock || m_method == Method::ApproxHF)) {}
 
 //------------------------------------------------------------------------------
-HartreeFock::HartreeFock(Wavefunction *wf, Method method, bool incl_Breit,
+HartreeFock::HartreeFock(Wavefunction *wf, Method method, double x_Breit,
                          double eps)
     : HartreeFock(wf->rgrid, wf->vnuc, &wf->core, &wf->vrad, wf->alpha, method,
-                  incl_Breit, eps) {}
+                  x_Breit, eps) {}
 
 //******************************************************************************
 const std::vector<double> &HartreeFock::solveCore() {
@@ -88,7 +89,7 @@ const std::vector<double> &HartreeFock::solveCore() {
   // Once core HF done, core "Fronen", Breit operator created
   // (Temporary VBr used in HF routine)
   if (m_include_Breit)
-    m_VBr = std::make_unique<HF::Breit>(*p_core);
+    m_VBr = std::make_unique<HF::Breit>(*p_core, m_x_Breit);
 
   return m_vdir;
 }
@@ -1028,7 +1029,8 @@ inline void HartreeFock::hf_core_refine() {
 
     // Temporary Breit operator (with 'static' core [frozen single iteration])
     const std::unique_ptr VBr =
-        m_include_Breit ? std::make_unique<HF::Breit>(core_prev) : nullptr;
+        m_include_Breit ? std::make_unique<HF::Breit>(core_prev, m_x_Breit)
+                        : nullptr;
 
 #pragma omp parallel for
     for (std::size_t i = 0; i < num_core_states; ++i) {
