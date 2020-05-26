@@ -125,7 +125,8 @@ private:
           }
           for (auto i = Fb.p0; i < Fb.pinf; ++i) {
             const auto ff =
-                Ckba2 * p1 * (bim[i] + ep * gim[i] - bip[i] + ep * gip[i]);
+                // Ckba2 * p1 * (bim[i] + ep * gim[i] - bip[i] + ep * gip[i]);
+                Ckba2 * p1 * (bim[i] + ep * gim[i] - bip[i] - ep * gip[i]);
             BFb->f[i] += -ff * (1.0 + e) * Fb.g[i];
             BFb->g[i] += ff * (1.0 - e) * Fb.f[i];
           }

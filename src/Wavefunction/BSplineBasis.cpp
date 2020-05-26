@@ -245,8 +245,8 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
     const auto SigmaSi = sigmaQ ? (*wf.getSigma())(si) : 0.0 * si;
     const auto BreitSi = VBr ? (*VBr)(si) : 0.0 * si;
 
-    // for (auto j = 0ul; j <= i; j++) {
-    for (auto j = 0ul; j < Aij.n; j++) {
+    for (auto j = 0ul; j <= i; j++) {
+      // for (auto j = 0ul; j < Aij.n; j++) {
       const auto &sj = spl_basis[j];
 
       auto aij = Hd.matrixEl(sj, si);
@@ -261,14 +261,14 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
       Sij[i][j] = sj * si;
     }
   }
-  // Fill second-half of symmetric matrix
-  // for (auto i = 0ul; i < Aij.n; i++) {
-  //   for (auto j = i + 1; j < Aij.n; j++) {
-  //     Aij[i][j] = Aij[j][i];
-  //     Sij[i][j] = Sij[j][i];
-  //   }
-  // }
-  Aij.enforce_symmetric();
+  // Fill second - half of symmetric matrix
+  for (auto i = 0ul; i < Aij.n; i++) {
+    for (auto j = i + 1; j < Aij.n; j++) {
+      Aij[i][j] = Aij[j][i];
+      Sij[i][j] = Sij[j][i];
+    }
+  }
+  // Aij.enforce_symmetric();
   // Note: This is work-around, since Breit seems not to be 100% symmetric!
   if (ND_type)
     add_NotreDameBoundary(&Aij, spl_basis.front().k, wf.alpha);
