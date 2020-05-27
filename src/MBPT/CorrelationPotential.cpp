@@ -620,7 +620,7 @@ ComplexGMatrix CorrelationPotential::Green_hf(int kappa, double en) const {
   DiracSpinor xI(0, kappa, *p_gr);
 
   const auto &Hmag = p_hf->get_Hrad_mag(x0.l());
-  const auto alpha = p_hf->m_alpha;
+  const auto alpha = p_hf->get_alpha();
   const auto vl = p_hf->get_vlocal(x0.l());
   DiracODE::regularAtOrigin(x0, en, vl, Hmag, alpha);
   DiracODE::regularAtInfinity(xI, en, vl, Hmag, alpha);
@@ -671,8 +671,8 @@ ComplexGMatrix CorrelationPotential::ComplexG(const ComplexGMatrix &Gr,
 }
 //------------------------------------------------------------------------------
 ComplexGMatrix CorrelationPotential::ComplexG(const ComplexGMatrix &Gr,
-                                               double de_re,
-                                               double de_im) const {
+                                              double de_re,
+                                              double de_im) const {
   auto sp = IO::Profile::safeProfiler(__func__);
   // Given G(wr) and wi, returns G(wr+i*wi)
   // G(w) =  G(re(w)+im(w)) ;  Gr = G(re(w)), G = G(w),   im(w) = wi

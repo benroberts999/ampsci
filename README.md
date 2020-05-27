@@ -1,21 +1,23 @@
 # diracSCAS: Relativistic, self-consistent atomic structure code.
 
-Solves the Dirac equation for atomic systems using the Hartree-Fock + second-order correlation potential method.
-Fully relativistic, includes finite-nuclear size, can solve for continuum states (energy normalisation), and can include QED corrections via the Ginges-Flambaum radiative potential method.
+Solves the Dirac equation for single-valence atomic systems using the Hartree-Fock + second-order correlation potential method.
+Fully relativistic, includes finite-nuclear size, Breit interaction, QED effects, can solve for continuum states (energy normalisation).
+QED corrections included via the Ginges-Flambaum radiative potential method.
 Calculates ionisation cross sections with high values for energy/momentum transfer.
+
+ * The code is on GitHub: [github.com/benroberts999/diracSCAS](https://github.com/benroberts999/diracSCAS)
 
 
 ## Documentation
 
- * Code documentation is available on github: [benroberts999.github.io/diracSCAS/](https://benroberts999.github.io/diracSCAS/)
- * The code itself is on GitHub: [github.com/benroberts999/diracSCAS](https://github.com/benroberts999/diracSCAS)
- * Other documentation is in doc/ directory. Contains a few documents:
- * 01-diracSCAS_input.md -- How to use the code (input options + descriptions)
+ * Code documentation is available on GitHub: [benroberts999.github.io/diracSCAS/](https://benroberts999.github.io/diracSCAS/)
+ * _doc/diracSCAS_input.md_ -- How to use the code (input options + descriptions)
    * (best viewed with a markdown reader or on GitHub)
- * 02-diracSCAS_method.pdf  -- Description of physics/methods used in the code
+   * Also _doc/diracSCAS.in.example_ -- example input file
+ * _diracSCAS_method.pdf_  -- Description of physics/methods used in the code
    * Includes many references to the works where the methods implemented here were developed.
-   * Also available online: [benroberts999.github.io/diracSCAS/02-diracSCAS_method.pdf](https://benroberts999.github.io/diracSCAS/02-diracSCAS_method.pdf)
- * Also: contains "Makefile.example" and "diracSCAS.in.example": copy these to the main directory and remove the ".example"
+   * Available on GitHub: [benroberts999.github.io/diracSCAS/diracSCAS_method.pdf](https://benroberts999.github.io/diracSCAS/diracSCAS_method.pdf)
+ * Also: doc/ contains _"Makefile.example"_ and _"diracSCAS.in.example"_: copy these to the main directory and remove the ".example"
 
 --------------------------------------------------------------------------------
 
@@ -23,12 +25,11 @@ Calculates ionisation cross sections with high values for energy/momentum transf
 
  * Copy "doc/Makefile.example" from doc/ directory to the working directory, and rename to -> "Makefile"
     * e.g.: _$cp ./doc/Makefile.example ./Makefile_
-    * This way, the Makefil is not tracked by git, meaning you can pull changes from github without over-writing any changes you have made to the makefile
  * All programs compiled using the Makefile (run _$make_)
- * The file _Makefile_ has some basic compilation options. It's currently set up to work on most linux systems, you may need to change a few options for others (see below)
+ * The file _Makefile_ has some basic compilation options. It's currently set up to work on most linux systems; you may need to change a few options for others (see below)
  * Tested with g++ and clang++ on linux and mac (requires c++17)
 
-Note: makes use of GSL libraries (requires ver>2.0, tested with ver:2.4): https://www.gnu.org/software/gsl/, and LAPACK. These must be installed for the code to run.
+Note: makes use of GSL libraries (requires ver>2.0, tested with ver:2.4): https://www.gnu.org/software/gsl/, and LAPACK. These must be installed for the code to run (see below).
 
 
 ### Compilation: Linux:
@@ -84,8 +85,9 @@ Then, the compilation + use can proceed as per Linux above.
     * _$ ./diracSCAS filename.txt_
     * If no input filename is given, program will assume input filename is 'diracSCAS.in':
  * Note: input file uses c++-like format + line comments; tell your editor that the file is a cpp file to get nice colourisation and auto commenting
- * See _doc/01-diracSCAS_input.md_ for a full list of input options + descriptions
- * See _doc/02-diracSCAS_method.pdf_ for a description of the physics, and for references to the works where the methods implemented here were developed.
+ * See _doc/diracSCAS_input.md_ for a full list of input options + descriptions
+ * See _diracSCAS_method.pdf_ for a description of the physics, and for references to the works where the methods implemented here were developed.
+   * Available on GitHub: [benroberts999.github.io/diracSCAS/diracSCAS_method.pdf](https://benroberts999.github.io/diracSCAS/diracSCAS_method.pdf)
 
 --------------------------------------------------------------------------------
 
@@ -130,16 +132,13 @@ Units:
 
  * Calculates the cross-section and event rates for ionisation of atoms
  by scattering of DM particle.
- * Takes in the output of "atomicKernal" (see doc/ for details)
- * Also calculates "observable" event rates, accounting for detector thresholds
- and resolutions (for DAMA/LIBRA and XENON100-like detectors).
- * For definitions/details, see:
    * B.M. Roberts, V.V. Flambaum
 [Phys.Rev.D 100, 063017 (2019)](https://link.aps.org/doi/10.1103/PhysRevD.100.063017 "pay-walled");
 [arXiv:1904.07127](https://arxiv.org/abs/1904.07127 "free download").
    * B.M.Roberts, V.A.Dzuba, V.V.Flambaum, M.Pospelov, Y.V.Stadnik,
 [Phys.Rev.D 93, 115037 (2016)](https://link.aps.org/doi/10.1103/PhysRevD.93.115037 "pay-walled");
 [arXiv:1604.04559](https://arxiv.org/abs/1604.04559 "free download").
+ * see _'doc/dmeXSection_input'_ for details
 
 
 ### wigner

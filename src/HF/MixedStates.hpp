@@ -8,6 +8,7 @@ class CorrelationPotential;
 }
 
 namespace HF {
+class Breit;
 
 //! @brief Solves Mixed States (Dalgarno-Lewis) equation, inhomogenous
 //! equation, with Hartree-Fock hamiltonian, including exchange
@@ -26,7 +27,8 @@ solveMixedState(const int k, const DiracSpinor &Fa, const double omega,
                 const std::vector<double> &vl, const double alpha,
                 const std::vector<DiracSpinor> &core, const DiracSpinor &hFa,
                 const double eps_target = 1.0e-9,
-                const MBPT::CorrelationPotential *const Sigma = nullptr);
+                const MBPT::CorrelationPotential *const Sigma = nullptr,
+                const Breit *const VBr = nullptr);
 //! @brief Solves Mixed States (Dalgarno-Lewis equation)
 /*! @details
 As above, but starts with existing solution dF (may be 'zero'). If existing
@@ -37,6 +39,7 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
                      const std::vector<double> &vl, const double alpha,
                      const std::vector<DiracSpinor> &core,
                      const DiracSpinor &hFa, const double eps_target = 1.0e-9,
-                     const MBPT::CorrelationPotential *const Sigma = nullptr);
+                     const MBPT::CorrelationPotential *const Sigma = nullptr,
+                     const Breit *const VBr = nullptr);
 
 } // namespace HF

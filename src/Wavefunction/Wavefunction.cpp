@@ -146,10 +146,11 @@ void Wavefunction::determineCore(std::string str_core_in)
 
 //******************************************************************************
 void Wavefunction::hartreeFockCore(const std::string &method,
+                                   const double x_Breit,
                                    const std::string &in_core, double eps_HF) {
   solveInitialCore(in_core, 5);
-  m_pHF =
-      std::make_unique<HF::HartreeFock>(this, HF::parseMethod(method), eps_HF);
+  m_pHF = std::make_unique<HF::HartreeFock>(this, HF::parseMethod(method),
+                                            x_Breit, eps_HF);
   vdir = m_pHF->solveCore();
 }
 

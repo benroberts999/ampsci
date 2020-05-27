@@ -17,6 +17,16 @@ std::vector<double> yk_ab(const DiracSpinor &Fa, const DiracSpinor &Fb,
 void yk_ab(const DiracSpinor &Fa, const DiracSpinor &Fb, const int k,
            std::vector<double> &ykab, const std::size_t maxi = 0);
 
+//! Breit b^k function: (0,r) and (r,inf) part stored sepperately (in/out)
+void bk_ab(const DiracSpinor &Fa, const DiracSpinor &Fb, const int k,
+           std::vector<double> &b0, std::vector<double> &binf,
+           const std::size_t maxi = 0);
+
+//! Breit g^k function: (0,r) + (r,inf) part stored together (in/out)
+void gk_ab(const DiracSpinor &Fa, const DiracSpinor &Fb, const int k,
+           std::vector<double> &g0, std::vector<double> &ginf,
+           const std::size_t maxi = 0);
+
 //! Calculates R^k_abcd for given k. From scratch (calculates y)
 double Rk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
                const DiracSpinor &Fc, const DiracSpinor &Fd, const int k);

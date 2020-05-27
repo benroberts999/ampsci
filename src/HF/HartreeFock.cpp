@@ -4,6 +4,7 @@
 #include "Coulomb/YkTable.hpp"
 #include "DiracODE/Adams_Greens.hpp"
 #include "DiracODE/DiracODE.hpp"
+#include "HF/Breit.hpp"
 #include "IO/SafeProfiler.hpp"
 #include "MBPT/CorrelationPotential.hpp"
 #include "Maths/Grid.hpp"
@@ -39,12 +40,15 @@ HartreeFock::HartreeFock(const Grid &in_grid,
                          const std::vector<double> &in_vnuc,
                          std::vector<DiracSpinor> *in_core,
                          const RadiativePotential::Vrad *const in_vrad,
-                         double in_alpha, Method method, double in_eps)
+                         double in_alpha, Method method, double x_Breit,
+                         double in_eps)
     : p_rgrid(&in_grid),
       p_vnuc(&in_vnuc), // or, just have a copy?
       p_vrad(in_vrad),
       m_alpha(in_alpha),
       m_method(method),
+      m_include_Breit(std::abs(x_Breit) > 1.0e-10),
+      m_x_Breit(x_Breit),
       m_eps_HF(std::abs(in_eps) < 1.0 ? in_eps : std::pow(10, -in_eps)),
       p_core(in_core),
       m_vdir(in_grid.num_points),
@@ -53,9 +57,10 @@ HartreeFock::HartreeFock(const Grid &in_grid,
           !(m_method == Method::HartreeFock || m_method == Method::ApproxHF)) {}
 
 //------------------------------------------------------------------------------
-HartreeFock::HartreeFock(Wavefunction *wf, Method method, double eps)
+HartreeFock::HartreeFock(Wavefunction *wf, Method method, double x_Breit,
+                         double eps)
     : HartreeFock(wf->rgrid, wf->vnuc, &wf->core, &wf->vrad, wf->alpha, method,
-                  eps) {}
+                  x_Breit, eps) {}
 
 //******************************************************************************
 const std::vector<double> &HartreeFock::solveCore() {
@@ -80,6 +85,12 @@ const std::vector<double> &HartreeFock::solveCore() {
     m_Yab.update_y_ints(); // needed?
   }
 
+  // Frozen core Breit:
+  // Once core HF done, core "Fronen", Breit operator created
+  // (Temporary VBr used in HF routine)
+  if (m_include_Breit)
+    m_VBr = std::make_unique<HF::Breit>(*p_core, m_x_Breit);
+
   return m_vdir;
 }
 
@@ -87,6 +98,14 @@ const std::vector<double> &HartreeFock::solveCore() {
 std::vector<double> HartreeFock::get_vlocal(int l) const {
   const auto &vrad_el = get_Hrad_el(l);
   return NumCalc::add_vectors(*p_vnuc, m_vdir, vrad_el);
+}
+
+//******************************************************************************
+DiracSpinor HartreeFock::VBr(const DiracSpinor &Fv) const {
+  if (m_VBr)
+    return (*m_VBr)(Fv);
+  else
+    return 0.0 * Fv;
 }
 
 //******************************************************************************
@@ -681,7 +700,8 @@ void HartreeFock::hf_orbital(DiracSpinor &Fa, double en,
                              const std::vector<double> &H_mag,
                              const DiracSpinor &vx_phi,
                              const std::vector<DiracSpinor> &static_core,
-                             const std::vector<double> &v0) const
+                             const std::vector<double> &v0,
+                             const HF::Breit *const VBr) const
 // Solve Dirac Equation (Eigenvalue): (move to DiracODE??)
 //  (H0 + Vl + Vx)Fa = 0
 //  (H0 + Vl)Fa = -VxFa
@@ -702,7 +722,10 @@ void HartreeFock::hf_orbital(DiracSpinor &Fa, double en,
   const auto eps_target = 1.0e-17; // m_eps_HF;
   const auto k_max = 1;            // max k for Vex into dEa
 
-  const auto alpha = m_alpha; //?
+  // Note: vx_phi includes VBr*Fa [if Breit].
+  // VBr used in the 'small energy correction' portion
+
+  const auto alpha = m_alpha;
   DiracODE::solve_inhomog(Fa, Gzero, Ginf, en, vl, H_mag, alpha, -1.0 * vx_phi);
 
   // make small adjustments to energy to normalise Fa:
@@ -717,6 +740,8 @@ void HartreeFock::hf_orbital(DiracSpinor &Fa, double en,
       break;
 
     VxFh = v0 * dFa + vexFa(dFa, static_core, k_max);
+    if (VBr)
+      VxFh += (*VBr)(dFa);
     DiracODE::Adams::GreenSolution(dFa, Ginf, Gzero, alpha, dEa * Fa - VxFh);
 
     const auto delta_Norm = Fa * Fa - 1.0;
@@ -734,11 +759,13 @@ void HartreeFock::hf_orbital(DiracSpinor &Fa, double en,
     Fa.normalise(); //? Not needed
 }
 //******************************************************************************
-void HartreeFock::brueckner_orbital(
-    DiracSpinor &Fa, double en, const std::vector<double> &vl,
-    const std::vector<double> &H_mag, const DiracSpinor &VxF,
-    const MBPT::CorrelationPotential &Sigma,
-    const std::vector<DiracSpinor> &static_core) const
+void HartreeFock::brueckner_orbital(DiracSpinor &Fa, double en,
+                                    const std::vector<double> &vl,
+                                    const std::vector<double> &H_mag,
+                                    const DiracSpinor &VxF,
+                                    const MBPT::CorrelationPotential &Sigma,
+                                    const std::vector<DiracSpinor> &static_core,
+                                    const HF::Breit *const VBr) const
 // ..................
 {
   auto sp = IO::Profile::safeProfiler(__func__);
@@ -749,6 +776,8 @@ void HartreeFock::brueckner_orbital(
   const auto eps_target = 1.0e-16; // m_eps_HF;
 
   const auto SigmaF = Sigma(Fa);
+
+  // nb: VxF includes Breit. VBr used for energy correction
 
   const auto alpha = m_alpha;
   DiracODE::solve_inhomog(Fa, Gzero, Ginf, en, vl, H_mag, alpha,
@@ -765,7 +794,9 @@ void HartreeFock::brueckner_orbital(
     if (eps < eps_target)
       break;
     {
-      const auto VxF_tilde = vexFa(dFa, static_core);
+      auto VxF_tilde = vexFa(dFa, static_core);
+      if (VBr)
+        VxF_tilde += (*VBr)(dFa);
       const auto SigmaF_tilde = Sigma(dFa);
       DiracODE::Adams::GreenSolution(dFa, Ginf, Gzero, alpha,
                                      dEa * Fa - VxF_tilde - SigmaF_tilde);
@@ -804,7 +835,7 @@ EpsIts HartreeFock::hf_valence_refine(DiracSpinor &Fa) {
 
   const auto eps_target = m_eps_HF;
 
-  auto damper = rampedDamp(0.8, 0.2, 5, 25);
+  const auto damper = rampedDamp(0.8, 0.2, 5, 25);
   double extra_damp = 0.0;
 
   const auto &vrad_el = get_Hrad_el(Fa.l());
@@ -821,11 +852,14 @@ EpsIts HartreeFock::hf_valence_refine(DiracSpinor &Fa) {
   double eps = 1.0;
   int worse_count = 0;
   for (; it <= m_max_hf_its; ++it) {
-    auto a_damp = damper(it) + extra_damp;
+    const auto a_damp = damper(it) + extra_damp;
 
     VxFa = calc_vexFa(Fa);
-    auto oldphi = Fa;
-    auto en = Fzero.en + (Fzero * VxFa - Fa * vexFzero) / (Fa * Fzero);
+    if (m_VBr) { // Breit
+      VxFa += (*m_VBr)(Fa);
+    }
+    const auto oldphi = Fa;
+    const auto en = Fzero.en + (Fzero * VxFa - Fa * vexFzero) / (Fa * Fzero);
     hf_orbital(Fa, en, vl, Hmag, VxFa, (*p_core));
     eps = std::fabs((prev_en - Fa.en) / Fa.en);
     prev_en = Fa.en;
@@ -883,7 +917,10 @@ EpsIts HartreeFock::hf_Brueckner(DiracSpinor &Fa,
   const auto vl = NumCalc::add_vectors(*p_vnuc, m_vdir, vrad_el);
 
   const auto Fzero = Fa;
-  const auto vexFzero = calc_vexFa(Fa);
+  auto vexFzero = calc_vexFa(Fa);
+  if (m_VBr) { // Breit
+    vexFzero += (*m_VBr)(Fa);
+  }
 
   auto prev_en = Fa.en;
   double best_eps = 1.0;
@@ -893,7 +930,10 @@ EpsIts HartreeFock::hf_Brueckner(DiracSpinor &Fa,
   for (; it <= max_br_its; ++it) {
     const auto a_damp = damper(it);
 
-    const auto VxFa = calc_vexFa(Fa);
+    auto VxFa = calc_vexFa(Fa);
+    if (m_VBr) { // Breit
+      VxFa += (*m_VBr)(Fa);
+    }
     const auto SigmaFa = Sigma(Fa);
     const auto oldphi = Fa;
 
@@ -901,7 +941,7 @@ EpsIts HartreeFock::hf_Brueckner(DiracSpinor &Fa,
         Fzero.en + (Fzero * (VxFa + SigmaFa) - Fa * vexFzero) / (Fa * Fzero);
     const auto en = (Fa.en + 2.0 * en_new) / 3.0;
 
-    brueckner_orbital(Fa, en, vl, Hmag, VxFa, Sigma, (*p_core));
+    brueckner_orbital(Fa, en, vl, Hmag, VxFa, Sigma, (*p_core), m_VBr.get());
 
     eps = std::fabs((prev_en - Fa.en) / Fa.en);
     prev_en = Fa.en;
@@ -994,23 +1034,34 @@ inline void HartreeFock::hf_core_refine() {
 
     core_prev = (*p_core);
 
+    // Temporary Breit operator (with 'static' core [frozen single iteration])
+    const std::unique_ptr VBr =
+        m_include_Breit ? std::make_unique<HF::Breit>(core_prev, m_x_Breit)
+                        : nullptr;
+
 #pragma omp parallel for
     for (std::size_t i = 0; i < num_core_states; ++i) {
       auto &Fa = (*p_core)[i];
       const auto &Fzero = core_zero[i];
       const auto &vexFzero = vexCore_zero[i];
 
-      // const auto oldphi = Fa;
       const auto oldphi = core_prev[i];
       const auto &VxFa = vexF_list[i];
+
       auto en = Fzero.en + (Fzero * VxFa - Fa * vexFzero + Fzero * (vd * Fa) -
                             Fa * (vd0 * Fzero)) /
                                (Fa * Fzero);
-      const auto v_nonlocal = v0 * Fa + VxFa;
+      auto v_nonlocal = v0 * Fa + VxFa;
+      if (m_include_Breit) {
+        const auto VBrFa = (*VBr)(Fa); // depends on previous core!
+        en += (Fzero * VBrFa) / (Fa * Fzero);
+        v_nonlocal += VBrFa;
+      }
+
       const auto &Hrad_el = get_Hrad_el(Fa.l());
       const auto &Hmag = get_Hrad_mag(Fa.l());
       const auto &VlVr = NumCalc::add_vectors(vl, Hrad_el);
-      hf_orbital(Fa, en, VlVr, Hmag, v_nonlocal, core_prev, v0);
+      hf_orbital(Fa, en, VlVr, Hmag, v_nonlocal, core_prev, v0, VBr.get());
       Fa = (1.0 - a_damp) * Fa + a_damp * oldphi;
       Fa.normalise();
       auto d_eps = std::fabs((oldphi.en - Fa.en) / Fa.en);

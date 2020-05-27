@@ -6,6 +6,7 @@ $(SD)/Angular/Angular_369j.hpp \
 $(SD)/DiracODE/Adams_Greens.hpp \
 $(SD)/DiracODE/DiracODE.hpp \
 $(SD)/Coulomb/Coulomb.hpp \
+$(SD)/HF/Breit.hpp \
 $(SD)/HF/HartreeFock.hpp \
 $(SD)/IO/SafeProfiler.hpp \
 $(SD)/MBPT/CorrelationPotential.hpp \
@@ -20,6 +21,7 @@ $(SD)/Angular/Angular_369j.hpp \
 $(SD)/Angular/Angular_tables.hpp \
 $(SD)/Coulomb/Coulomb.hpp \
 $(SD)/DiracOperator/DiracOperator.hpp \
+$(SD)/HF/Breit.hpp \
 $(SD)/HF/HartreeFock.hpp \
 $(SD)/HF/MixedStates.hpp \
 $(SD)/IO/ChronoTimer.hpp \
@@ -35,6 +37,7 @@ $(SD)/Coulomb/Coulomb.hpp \
 $(SD)/Coulomb/YkTable.hpp \
 $(SD)/DiracODE/Adams_Greens.hpp \
 $(SD)/DiracODE/DiracODE.hpp \
+$(SD)/HF/Breit.hpp \
 $(SD)/IO/SafeProfiler.hpp \
 $(SD)/MBPT/CorrelationPotential.hpp \
 $(SD)/Maths/Grid.hpp \

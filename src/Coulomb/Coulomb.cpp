@@ -98,7 +98,7 @@ static inline void yk_ijk_impl(const int l, const DiracSpinor &Fa,
   }
 }
 
-//******************************************************************************
+//------------------------------------------------------------------------------
 std::vector<double> yk_ab(const DiracSpinor &Fa, const DiracSpinor &Fb,
                           const int k, const std::size_t maxi) {
   std::vector<double> ykab; //
@@ -131,6 +131,133 @@ void yk_ab(const DiracSpinor &Fa, const DiracSpinor &Fb, const int k,
     yk_ijk_impl<8>(k, Fa, Fb, vabk, maxi);
   else
     yk_ijk_impl<-1>(k, Fa, Fb, vabk, maxi);
+}
+
+//******************************************************************************
+template <int k, int pm>
+static inline void Breit_abk_impl(const int l, const DiracSpinor &Fa,
+                                  const DiracSpinor &Fb, //
+                                  std::vector<double> &b0,
+                                  std::vector<double> &binf,
+                                  const std::size_t maxi) {
+  static_assert(pm == 1 || pm == -1,
+                "Breit_abk_impl must be called with pm=+/-1 only\n");
+  const auto &gr = Fa.p_rgrid; // just save typing
+  const auto du = gr->du;
+  const auto num_points = gr->num_points;
+  b0.resize(num_points);   // needed
+  binf.resize(num_points); // needed
+  // g.resize(num_points);    // needed
+  const auto irmax = (maxi == 0 || maxi > num_points) ? num_points : maxi;
+
+  // faster method to calculate r^k
+  auto powk = [=](double x) {
+    if constexpr (k < 0)
+      return std::pow(x, l);
+    else
+      return powk_new<k>(x);
+  };
+
+  // Quadrature integration weights:
+  auto w = [=](std::size_t i) {
+    if (i < NumCalc::Nquad)
+      return NumCalc::dq_inv * NumCalc::cq[i];
+    if (i < num_points - NumCalc::Nquad)
+      return 1.0;
+    return NumCalc::dq_inv * NumCalc::cq[num_points - i - 1];
+  };
+
+  double Ax = 0.0, Bx = 0.0;
+
+  auto fgfg = [&](std::size_t i) {
+    if constexpr (pm == -1)
+      return (Fa.f[i] * Fb.g[i] - Fa.g[i] * Fb.f[i]);
+    else
+      return (Fa.f[i] * Fb.g[i] + Fa.g[i] * Fb.f[i]);
+  };
+
+  const auto bmax = std::min(Fa.pinf, Fb.pinf);
+  const auto bmin = std::max(Fa.p0, Fb.p0);
+  for (std::size_t i = bmin; i < bmax; i++) {
+    Bx += gr->drduor[i] * w(i) * fgfg(i) / powk(gr->r[i]);
+  }
+
+  b0[0] = 0.0;
+  binf[0] = Bx * du * powk(gr->r[0]);
+  for (std::size_t i = 1; i < irmax; i++) {
+    const auto rm1_to_k = powk(gr->r[i - 1]);
+    const auto inv_rm1_to_kp1 = 1.0 / (rm1_to_k * gr->r[i - 1]);
+    const auto r_to_k = powk(gr->r[i]);
+    const auto inv_r_to_kp1 = 1.0 / (r_to_k * gr->r[i]);
+    const auto Fdr = gr->drdu[i - 1] * fgfg(i - 1) * w(i - 1);
+    Ax += Fdr * rm1_to_k;
+    Bx -= Fdr * inv_rm1_to_kp1;
+    // above
+    b0[i] = du * Ax * inv_r_to_kp1;
+    binf[i] = du * Bx * r_to_k;
+    // std::cout << i << " " << b0[i] << " " << binf[i] << "\n";
+  }
+  // std::cout << "\n";
+  // for (std::size_t i = irmax; i < num_points; i++) {
+  //   b0[i] = 0.0;
+  //   binf[i] = 0.0;
+  // }
+}
+//------------------------------------------------------------------------------
+void bk_ab(const DiracSpinor &Fa, const DiracSpinor &Fb, const int k,
+           std::vector<double> &b0, std::vector<double> &binf,
+           const std::size_t maxi) {
+  auto sp1 = IO::Profile::safeProfiler(__func__);
+
+  constexpr int pm = -1; // for fg - gf
+  if (k == 0)
+    Breit_abk_impl<0, pm>(k, Fa, Fb, b0, binf, maxi);
+  else if (k == 1)
+    Breit_abk_impl<1, pm>(k, Fa, Fb, b0, binf, maxi);
+  else if (k == 2)
+    Breit_abk_impl<2, pm>(k, Fa, Fb, b0, binf, maxi);
+  else if (k == 3)
+    Breit_abk_impl<3, pm>(k, Fa, Fb, b0, binf, maxi);
+  else if (k == 4)
+    Breit_abk_impl<4, pm>(k, Fa, Fb, b0, binf, maxi);
+  else if (k == 5)
+    Breit_abk_impl<5, pm>(k, Fa, Fb, b0, binf, maxi);
+  else if (k == 6)
+    Breit_abk_impl<6, pm>(k, Fa, Fb, b0, binf, maxi);
+  else if (k == 7)
+    Breit_abk_impl<7, pm>(k, Fa, Fb, b0, binf, maxi);
+  else if (k == 8)
+    Breit_abk_impl<8, pm>(k, Fa, Fb, b0, binf, maxi);
+  else
+    Breit_abk_impl<-1, pm>(k, Fa, Fb, b0, binf, maxi);
+}
+//------------------------------------------------------------------------------
+void gk_ab(const DiracSpinor &Fa, const DiracSpinor &Fb, const int k,
+           std::vector<double> &g0, std::vector<double> &ginf,
+           const std::size_t maxi) {
+  auto sp1 = IO::Profile::safeProfiler(__func__);
+
+  constexpr int pm = +1; // for fg + gf
+  if (k == 0)
+    Breit_abk_impl<0, pm>(k, Fa, Fb, g0, ginf, maxi);
+  else if (k == 1)
+    Breit_abk_impl<1, pm>(k, Fa, Fb, g0, ginf, maxi);
+  else if (k == 2)
+    Breit_abk_impl<2, pm>(k, Fa, Fb, g0, ginf, maxi);
+  else if (k == 3)
+    Breit_abk_impl<3, pm>(k, Fa, Fb, g0, ginf, maxi);
+  else if (k == 4)
+    Breit_abk_impl<4, pm>(k, Fa, Fb, g0, ginf, maxi);
+  else if (k == 5)
+    Breit_abk_impl<5, pm>(k, Fa, Fb, g0, ginf, maxi);
+  else if (k == 6)
+    Breit_abk_impl<6, pm>(k, Fa, Fb, g0, ginf, maxi);
+  else if (k == 7)
+    Breit_abk_impl<7, pm>(k, Fa, Fb, g0, ginf, maxi);
+  else if (k == 8)
+    Breit_abk_impl<8, pm>(k, Fa, Fb, g0, ginf, maxi);
+  else
+    Breit_abk_impl<-1, pm>(k, Fa, Fb, g0, ginf, maxi);
 }
 
 //******************************************************************************

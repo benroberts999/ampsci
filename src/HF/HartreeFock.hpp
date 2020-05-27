@@ -1,6 +1,8 @@
 #pragma once
 #include "Coulomb/YkTable.hpp" //for m_Yab
+#include "HF/Breit.hpp"
 #include "Physics/PhysConst_constants.hpp"
+#include <memory>
 #include <string>
 #include <vector>
 class Wavefunction;
@@ -91,9 +93,10 @@ public:
               std::vector<DiracSpinor> *in_core,
               const RadiativePotential::Vrad *const in_vrad = nullptr,
               double m_alpha = PhysConst::alpha,
-              Method method = Method::HartreeFock, double eps_HF = 0.0);
-  HartreeFock(Wavefunction *wf, Method method = Method::HartreeFock,
+              Method method = Method::HartreeFock, double x_Breit = 0.0,
               double eps_HF = 0.0);
+  HartreeFock(Wavefunction *wf, Method method = Method::HartreeFock,
+              double x_Breit = 0.0, double eps_HF = 0.0);
 
   //! Solves HF equations self-consitantly for core orbs. Produces Vdir
   const std::vector<double> &solveCore();
@@ -128,20 +131,21 @@ public:
   int num_core_electrons() const;
   double get_alpha() const { return m_alpha; }
   const std::vector<DiracSpinor> &get_core() const { return *p_core; }
+  const HF::Breit *get_Breit() const { return m_VBr.get(); }
+  DiracSpinor VBr(const DiracSpinor &Fv) const;
 
 public:
-  bool verbose = true; // update to input??
-  const Grid *const p_rgrid;
+  bool verbose = true;       // update to input??
+  const Grid *const p_rgrid; // XXX getter?
 
 private:
+  // const Grid *const p_rgrid;
   const std::vector<double> *const p_vnuc;
   const RadiativePotential::Vrad *const p_vrad;
-
-public:
   const double m_alpha;
   const Method m_method;
-
-private:
+  const bool m_include_Breit;
+  const double m_x_Breit;
   const double m_eps_HF;
   // pointer to core orbs that exist outside.
   // Note: core.size() must not change; core elements must remain in orig. order
@@ -149,6 +153,7 @@ private:
   std::vector<double> m_vdir;
   Coulomb::YkTable m_Yab;
   const bool m_excludeExchange; // XXX Kill this. Only HF,H,aHF
+  std::unique_ptr<const HF::Breit> m_VBr{nullptr};
 
   static constexpr int m_max_hf_its = 99;
   // Optionally force orthogonalisation. False by default.
@@ -171,14 +176,16 @@ private:
   void hf_orbital(DiracSpinor &phi, double en, const std::vector<double> &vl,
                   const std::vector<double> &H_mag, const DiracSpinor &vx_phi,
                   const std::vector<DiracSpinor> &core,
-                  const std::vector<double> &v0 = {}) const;
+                  const std::vector<double> &v0 = {},
+                  const HF::Breit *const VBr = nullptr) const;
 
   void brueckner_orbital(DiracSpinor &Fa, double en,
                          const std::vector<double> &vl,
                          const std::vector<double> &H_mag,
                          const DiracSpinor &VxF,
                          const MBPT::CorrelationPotential &Sigma,
-                         const std::vector<DiracSpinor> &static_core) const;
+                         const std::vector<DiracSpinor> &static_core,
+                         const HF::Breit *const VBr = nullptr) const;
 
   // Calc's Vex*Fa, for Fa in the core
   void vex_psia_core(const DiracSpinor &Fa, DiracSpinor &vexFa) const;

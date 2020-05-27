@@ -1,4 +1,6 @@
 #include "BSplineBasis.hpp"
+#include "HF/Breit.hpp"
+#include "HF/HartreeFock.hpp"
 #include "IO/UserInput.hpp"
 #include "Maths/BSplines.hpp"
 #include "Maths/Grid.hpp"
@@ -229,6 +231,7 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
 
   const auto excl_exch = wf.exclude_exchangeQ();
   const auto sigmaQ = wf.getSigma() != nullptr && correlationsQ;
+  const auto VBr = wf.getHF() ? wf.getHF()->get_Breit() : nullptr;
 
   // Move this into wf ??
   auto Hd = RadialHamiltonian(wf.rgrid, wf.alpha);
@@ -240,9 +243,10 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
     const auto &si = spl_basis[i];
     const auto VexSi = excl_exch ? 0.0 * si : HF::vexFa(si, wf.core);
     const auto SigmaSi = sigmaQ ? (*wf.getSigma())(si) : 0.0 * si;
+    const auto BreitSi = VBr ? (*VBr)(si) : 0.0 * si;
 
     for (auto j = 0ul; j <= i; j++) {
-      // for (auto j = 0; j < Aij.n; j++) {
+      // for (auto j = 0ul; j < Aij.n; j++) {
       const auto &sj = spl_basis[j];
 
       auto aij = Hd.matrixEl(sj, si);
@@ -250,12 +254,14 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
         aij += (sj * VexSi);
       if (sigmaQ)
         aij += (sj * SigmaSi);
+      if (VBr)
+        aij += sj * BreitSi;
 
       Aij[i][j] = aij;
       Sij[i][j] = sj * si;
     }
   }
-  // Fill second-half of symmetric matrix
+  // Fill second - half of symmetric matrix
   for (auto i = 0ul; i < Aij.n; i++) {
     for (auto j = i + 1; j < Aij.n; j++) {
       Aij[i][j] = Aij[j][i];
@@ -263,6 +269,7 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
     }
   }
   // Aij.enforce_symmetric();
+  // Note: This is work-around, since Breit seems not to be 100% symmetric!
   if (ND_type)
     add_NotreDameBoundary(&Aij, spl_basis.front().k, wf.alpha);
 

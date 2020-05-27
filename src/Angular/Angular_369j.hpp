@@ -353,6 +353,15 @@ inline double Ck_kk(int k, int ka, int kb)
   return sign * f * g;
 }
 
+//! Ck selection rule only. Returns false if C^k=0, true if non-zero.
+inline bool Ck_kk_SR(int k, int ka, int kb) {
+  if (parity(l_k(ka), l_k(kb), k) == 0)
+    return false;
+  if (triangle(twoj_k(ka), twoj_k(kb), 2 * k) == 0)
+    return false;
+  return true;
+}
+
 //! tilde version: symmetric
 inline double tildeCk_kk(int k, int ka, int kb) {
   // tildeCk_kk = (-1)^{ja+1/2}*Ck_kk

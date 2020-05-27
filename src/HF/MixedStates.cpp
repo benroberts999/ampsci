@@ -3,6 +3,7 @@
 #include "Coulomb/Coulomb.hpp"
 #include "DiracODE/Adams_Greens.hpp"
 #include "DiracODE/DiracODE.hpp"
+#include "HF/Breit.hpp"
 #include "HF/HartreeFock.hpp"
 #include "IO/SafeProfiler.hpp"
 #include "MBPT/CorrelationPotential.hpp"
@@ -21,9 +22,10 @@ DiracSpinor solveMixedState(const int k, const DiracSpinor &Fa,
                             const double alpha,
                             const std::vector<DiracSpinor> &core,
                             const DiracSpinor &hFa, const double eps_target,
-                            const MBPT::CorrelationPotential *const Sigma) {
+                            const MBPT::CorrelationPotential *const Sigma,
+                            const Breit *const VBr) {
   auto dF = DiracSpinor(0, k, *(Fa.p_rgrid));
-  solveMixedState(dF, Fa, omega, vl, alpha, core, hFa, eps_target, Sigma);
+  solveMixedState(dF, Fa, omega, vl, alpha, core, hFa, eps_target, Sigma, VBr);
   return dF;
 }
 //------------------------------------------------------------------------------
@@ -31,7 +33,8 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
                      const std::vector<double> &vl, const double alpha,
                      const std::vector<DiracSpinor> &core,
                      const DiracSpinor &hFa, const double eps_target,
-                     const MBPT::CorrelationPotential *const Sigma)
+                     const MBPT::CorrelationPotential *const Sigma,
+                     const Breit *const VBr)
 // Solves:  (H - e - w)X = -h*Fa for X
 {
   auto sp = IO::Profile::safeProfiler(__func__);
@@ -54,6 +57,8 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
     auto rhs = (vx * dF) - vexFa(dF, core) - hFa;
     if (Sigma)
       rhs -= (*Sigma)(dF);
+    if (VBr)
+      rhs -= (*VBr)(dF);
     DiracODE::solve_inhomog(dF, Fa.en + omega, v, H_mag, alpha, rhs);
 
     const auto a = its == 0 ? 0.0 : damper(its);
