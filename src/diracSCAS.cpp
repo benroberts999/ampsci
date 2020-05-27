@@ -8,6 +8,8 @@
 #include "Wavefunction/Wavefunction.hpp"
 #include <iostream>
 #include <string>
+//
+#include "test.hpp"
 
 int main(int argc, char *argv[]) {
   IO::ChronoTimer timer("\ndiracSCAS");
@@ -235,6 +237,8 @@ int main(int argc, char *argv[]) {
 
   // run each of the modules with the calculated wavefunctions
   Module::runModules(input, wf);
+
+  runRPA(wf);
 
   return 0;
 }
