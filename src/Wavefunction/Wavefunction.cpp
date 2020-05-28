@@ -224,7 +224,9 @@ void Wavefunction::radiativePotential(double x_simple, double x_Ueh,
 
 //******************************************************************************
 bool Wavefunction::isInCore(int n, int k) const {
-  const auto find_nk = [n, k](const auto Fa) { return Fa.n == n && Fa.k == k; };
+  const auto find_nk = [n, k](const auto &Fa) {
+    return Fa.n == n && Fa.k == k;
+  };
   const auto Fnk = std::find_if(cbegin(core), cend(core), find_nk);
   return Fnk != cend(core);
 }

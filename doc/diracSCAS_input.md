@@ -257,6 +257,7 @@ MatrixElements::ExampleOperator { //this is not a real operator..
   onlyDiagonal;   //[t] default = false
   radialIntegral; //[b] default = false
   rpa;            //[b] default = true
+  rpa_diagram;    //[b] default = false
   omega;          //[r] default = 0.0, or [t] ('each')
 }
 ```
@@ -265,6 +266,7 @@ MatrixElements::ExampleOperator { //this is not a real operator..
 * radialIntegral: calculate radial integral, or reduced matrix elements (difference depends on definition of operator in the code)
 * rpa: Include RPA (core polarisation) corrections to MEs, using TDHF method (note: mostly works, but not 100% yet)
 * omega: frequency for solving TDHF/RPA equations, should be positive. Put "omega=each;" to solve at the frequency for each transition (i.e., re-solve TDHF for each transition).
+* rpa_diagram: Include RPA (core polarisation), using diagram (Goldstone) technique
 
 
 ### Available operators:

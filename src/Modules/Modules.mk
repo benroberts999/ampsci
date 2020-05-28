@@ -47,6 +47,7 @@ $(SD)/HF/ExternalField.hpp \
 $(SD)/IO/ChronoTimer.hpp \
 $(SD)/IO/UserInput.hpp \
 $(SD)/MBPT/CorrelationPotential.hpp \
+$(SD)/MBPT/DiagramRPA.hpp \
 $(SD)/Physics/NuclearPotentials.hpp \
 $(SD)/Physics/PhysConst_constants.hpp \
 $(SD)/Physics/RadiativePotential.hpp \

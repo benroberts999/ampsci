@@ -42,7 +42,7 @@ BASE = $(addprefix $(BD)/, \
 HF = $(addprefix $(BD)/, \
  HartreeFock.o YkTable.o Coulomb.o Parametric_potentials.o \
  Adams_Greens.o MixedStates.o ExternalField.o RadiativePotential.o \
- CorrelationPotential.o \
+ CorrelationPotential.o DiagramRPA.o \
 )
 
 CNTM = $(addprefix $(BD)/, \

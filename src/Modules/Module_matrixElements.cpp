@@ -5,6 +5,7 @@
 #include "IO/ChronoTimer.hpp"
 #include "IO/UserInput.hpp"
 #include "MBPT/CorrelationPotential.hpp"
+#include "MBPT/DiagramRPA.hpp"
 #include "Physics/NuclearPotentials.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Physics/RadiativePotential.hpp"
@@ -55,6 +56,7 @@ void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf) {
   const bool diagonal_only = input.get("onlyDiagonal", false);
 
   const bool rpaQ = input.get("rpa", true);
+  const bool rpaDQ = input.get("rpa_diagram", false);
 
   const auto str_om = input.get<std::string>("omega", "_");
   const bool eachFreqQ = str_om == "each" || str_om == "Each";
@@ -67,17 +69,25 @@ void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf) {
   // XXX Always same kappa for get_Vlocal?
   auto rpa = HF::ExternalField(h.get(), wf.getHF());
   std::unique_ptr<HF::ExternalField> rpa0; // for first-order
+  std::unique_ptr<MBPT::DiagramRPA> rpaD;
 
   if (h->freqDependantQ && !eachFreqQ)
     h->updateFrequency(omega);
 
-  if (!eachFreqQ && rpaQ) {
-    rpa.solve_TDHFcore(omega, 1, false);
-    // store first-order snapshot:
-    rpa0 = std::make_unique<HF::ExternalField>(rpa);
-    rpa.solve_TDHFcore(omega);
-  } else {
-    rpa0 = std::make_unique<HF::ExternalField>(rpa); // Solved later
+  if (rpaQ) {
+    if (!eachFreqQ) {
+      rpa.solve_TDHFcore(omega, 1, false);
+      // store first-order snapshot:
+      rpa0 = std::make_unique<HF::ExternalField>(rpa);
+      rpa.solve_TDHFcore(omega);
+    } else {
+      rpa0 = std::make_unique<HF::ExternalField>(rpa); // Solved later
+    }
+  }
+  if (rpaDQ) {
+    rpaD = std::make_unique<MBPT::DiagramRPA>(h.get(), wf.basis, wf.core);
+    if (!eachFreqQ)
+      rpaD->rpa_core(omega);
   }
 
   // Fb -> Fa = <a||h||b>
@@ -101,20 +111,40 @@ void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf) {
           rpa.clear_dPsi();     // in case last one didn't work!
         rpa.solve_TDHFcore(ww); // re-solve at new frequency
       }
-      std::cout << h->rme_symbol(Fa, Fb) << ": ";
+      if (eachFreqQ && rpaDQ) {
+        if (rpaD->get_eps() > 1.0e-5)
+          rpaD->clear_tam(); // in case last one didn't work!
+        rpaD->rpa_core(ww);
+      }
+
       // Special case: HFS A:
       auto a = AhfsQ ? DiracOperator::Hyperfine::convertRMEtoA(Fa, Fb) : 1.0;
       a *= factor;
       if (radial_int) {
+        // No rpa for radial integral?
+        printf("R(%s,%s): ", Fa.shortSymbol().c_str(),
+               Fb.shortSymbol().c_str());
         printf("%13.6e\n", h->radialIntegral(Fa, Fb));
-      } else if (rpaQ) {
+      }
+      if (!rpaQ && !rpaDQ) {
+        std::cout << h->rme_symbol(Fa, Fb) << ": ";
+        printf("%13.6e \n", h->reducedME(Fa, Fb) * a);
+      }
+      if (rpaQ) {
+        std::cout << h->rme_symbol(Fa, Fb) << ": ";
+        printf("%13.6e ", h->reducedME(Fa, Fb) * a);
         auto dV = rpa.dV(Fa, Fb);
         auto dV0 = rpa0->dV(Fa, Fb);
-        printf("%13.6e  %13.6e  %13.6e\n", h->reducedME(Fa, Fb) * a,
-               (h->reducedME(Fa, Fb) + dV0) * a,
+        printf(" %13.6e  %13.6e\n", (h->reducedME(Fa, Fb) + dV0) * a,
                (h->reducedME(Fa, Fb) + dV) * a);
-      } else {
-        printf("%13.6e\n", h->reducedME(Fa, Fb) * a);
+      }
+      if (rpaDQ) {
+        std::cout << h->rme_symbol(Fa, Fb) << "D:";
+        printf("%13.6e ", h->reducedME(Fa, Fb) * a);
+        auto dV = rpaD->dV(Fa, Fb);
+        auto dV0 = rpaD->dV(Fa, Fb, true);
+        printf(" %13.6e  %13.6e\n", (h->reducedME(Fa, Fb) + dV0) * a,
+               (h->reducedME(Fa, Fb) + dV) * a);
       }
     }
   }
@@ -201,6 +231,17 @@ void calculateBohrWeisskopf(const IO::UserInputBlock &input,
   auto hb = generateOperator(ball_in, wf);
   auto hw = generateOperator(BW_in, wf);
 
+  // nb: can only do diagram RPA for hfs
+  const auto rpa = input.get("rpa", false) || input.get("rpa_diagram", false);
+  if (rpa)
+    std::cout << "Including RPA (diagram method) - must have basis\n";
+
+  std::unique_ptr<MBPT::DiagramRPA> rpap{nullptr}, rpab{nullptr}, rpaw{nullptr};
+  if (rpa) {
+    rpap = std::make_unique<MBPT::DiagramRPA>(hp.get(), wf.basis, wf.core);
+    rpab = std::make_unique<MBPT::DiagramRPA>(hb.get(), rpap.get());
+    rpaw = std::make_unique<MBPT::DiagramRPA>(hw.get(), rpap.get());
+  }
   std::cout << "\nTabulate A (Mhz), and Bohr-Weisskopf effect eps(%): "
             << wf.atom()
             << "\n       |A:      Point         Ball           SP |e:    "
@@ -209,8 +250,14 @@ void calculateBohrWeisskopf(const IO::UserInputBlock &input,
     auto Ap = Hyperfine::hfsA(hp.get(), phi);
     auto Ab = Hyperfine::hfsA(hb.get(), phi);
     auto Aw = Hyperfine::hfsA(hw.get(), phi);
-    auto Fball = ((Ab / Ap) - 1.0) * 100.0; //* M_PI * PhysConst::c;
-    auto Fbw = ((Aw / Ap) - 1.0) * 100.0;   //* M_PI * PhysConst::c;
+    if (rpa) {
+      auto a = DiracOperator::Hyperfine::convertRMEtoA(phi, phi);
+      Ap += a * rpap->dV(phi, phi);
+      Ab += a * rpab->dV(phi, phi);
+      Aw += a * rpaw->dV(phi, phi);
+    }
+    auto Fball = ((Ab / Ap) - 1.0) * 100.0;
+    auto Fbw = ((Aw / Ap) - 1.0) * 100.0;
     printf("%7s| %12.5e %12.5e %12.5e | %9.5f  %9.5f \n", phi.symbol().c_str(),
            Ap, Ab, Aw, Fball, Fbw);
   }
@@ -246,7 +293,7 @@ generateOperator(const IO::UserInputBlock &input, const Wavefunction &wf) {
 static auto jointCheck(const std::vector<std::string> &in) {
   std::vector<std::string> check_list = {
       "radialIntegral", "printBoth", "onlyDiagonal", "units", "rpa",
-      "omega",          "factor"};
+      "rpa_diagram",    "omega",     "factor"};
   check_list.insert(check_list.end(), in.begin(), in.end());
   return check_list;
 }
