@@ -309,7 +309,7 @@ DiracSpinor ExternalField::dV_rhs(const int kappa_n, const DiracSpinor &Fm,
       const auto Ckbeb = Angular::Ck_kk(k, X_beta.k, Fb.k);
       if (Ckala != 0 && Ckbeb != 0) {
         dVFm_c += (Ckala * Ckbeb / tkp1) *
-                  Coulomb::Rk_abcd_rhs(kappa_n, Fb, Fm, X_beta + Y_beta, k);
+                  Coulomb::Rkv_bcd(kappa_n, Fb, Fm, X_beta + Y_beta, k);
       }
 
       const auto s = Angular::evenQ_2(tjbeta - tjm) ? 1 : -1;
@@ -329,7 +329,7 @@ DiracSpinor ExternalField::dV_rhs(const int kappa_n, const DiracSpinor &Fm,
         if (Ckba == 0 || Ckalbe == 0)
           continue;
         dVFm_c += (s * m1kpl * Ckba * Ckalbe * sixj) *
-                  Coulomb::Rk_abcd_rhs(kappa_n, Fm, X_beta, Fb, l);
+                  Coulomb::Rkv_bcd(kappa_n, Fm, X_beta, Fb, l); // xxx use Ymb?
       }
 
       // exchange part (Y):
@@ -347,7 +347,7 @@ DiracSpinor ExternalField::dV_rhs(const int kappa_n, const DiracSpinor &Fm,
         if (Ckbea == 0 || Ckbal == 0)
           continue;
         dVFm_c += (s * m1kpl * Ckbea * Ckbal * sixj) *
-                  Coulomb::Rk_abcd_rhs(kappa_n, Fm, Fb, Y_beta, l);
+                  Coulomb::Rkv_bcd(kappa_n, Fm, Fb, Y_beta, l);
       }
     }
 #pragma omp critical(sum_X_core)
