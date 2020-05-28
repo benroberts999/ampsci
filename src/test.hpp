@@ -13,7 +13,7 @@ void runRPA(const Wavefunction &wf) {
 
   const auto &Fv = wf.valence[0];
   const auto &Fw = wf.valence[1];
-  auto omega = 0.00; // fabs(Fv.en - Fw.en);
+  auto omega = 0.05; // fabs(Fv.en - Fw.en);
 
   DiracOperator::E1 he1(wf.rgrid);
   // DiracOperator::Hyperfine he1(1.0, 1.0, 0.0, wf.rgrid);
@@ -72,8 +72,8 @@ void runRPA(const Wavefunction &wf) {
         Zanm_b.reserve(holes.size());
         Zabm_n.reserve(holes.size());
         for (const auto &Fb : holes) {
-          auto x = Coulomb::Zk_abcd(Fa, Fn, Fm, Fb, rank);
-          auto y = Coulomb::Zk_abcd(Fa, Fb, Fm, Fn, rank);
+          auto x = Coulomb::Wk_abcd(Fa, Fn, Fm, Fb, rank);
+          auto y = Coulomb::Wk_abcd(Fa, Fb, Fm, Fn, rank);
           Zanm_b.push_back(x);
           Zabm_n.push_back(y);
         }
@@ -102,8 +102,8 @@ void runRPA(const Wavefunction &wf) {
         std::vector<double> Zanm_b;
         std::vector<double> Zabm_n;
         for (const auto &Fb : holes) {
-          auto x = Coulomb::Zk_abcd(Fm, Fn, Fa, Fb, rank);
-          auto y = Coulomb::Zk_abcd(Fm, Fb, Fa, Fn, rank);
+          auto x = Coulomb::Wk_abcd(Fm, Fn, Fa, Fb, rank);
+          auto y = Coulomb::Wk_abcd(Fm, Fb, Fa, Fn, rank);
           Zanm_b.push_back(x);
           Zabm_n.push_back(y);
         }
@@ -137,7 +137,14 @@ void runRPA(const Wavefunction &wf) {
           std::size_t in = 0;
           for (const auto &Fn : excited) {
 
-            auto s1 = ((abs(Fb.twoj() - Fn.twoj()) + 2) % 4 == 0) ? 1 : -1;
+            // auto s1 =
+            //     ((abs(Fb.twoj() - Fn.twoj()) + 2 * rank) % 4 == 0) ? 1 : -1;
+
+            auto s1 = ((Fb.twoj() - Fa.twoj() + 2 * rank) % 4 == 0) ? 1 : -1;
+            auto s2 = ((Fb.twoj() - Fn.twoj()) % 4 == 0) ? 1 : -1;
+            auto s3 = ((Fb.twoj() - Fm.twoj() + 2 * rank) % 4 == 0) ? 1 : -1;
+            // auto Zwmva = Coulomb::Wk_abcd(Fw, Fm, Fv, Fa, rank);
+            // auto Zwavm = s2 * Coulomb::Wk_abcd(Fw, Fa, Fv, Fm, rank);
 
             auto zanmb = Zanmb[ia][in][im][ib];
             auto zabmn = Zabmn[ia][in][im][ib];
@@ -150,8 +157,8 @@ void runRPA(const Wavefunction &wf) {
             auto B = t_nb * zabmn / (Fb.en - Fn.en + omega);
             auto C = t_bn * zmnab / (Fb.en - Fn.en - omega);
             auto D = t_nb * zmban / (Fb.en - Fn.en + omega);
-            sum_am += s1 * (A + B);
-            sum_ma += s1 * (C + D);
+            sum_am += s1 * (A + s2 * B);
+            sum_ma += s3 * (C + s2 * D);
 
             ++in;
           }
@@ -166,7 +173,7 @@ void runRPA(const Wavefunction &wf) {
           max = fabs(delta);
       }
     }
-    if ((i % 10 == 0 && i > 1) || max < eps_targ || i == max_its) {
+    if ((i % 15 == 0 && i > 1) || max < eps_targ || i == max_its) {
       std::cout << "it=" << i << ", eps=" << max << "\n";
     }
     if (max < eps_targ)
@@ -178,14 +185,19 @@ void runRPA(const Wavefunction &wf) {
   double sum0 = 0.0;
   auto f = (1.0 / (2 * rank + 1));
   std::size_t ia = 0;
+  // omega = -omega;
   for (const auto &Fa : holes) {
     std::size_t im = 0;
     for (const auto &Fm : excited) {
 
-      auto s1 = ((abs(Fa.twoj() - Fm.twoj()) + 2) % 4 == 0) ? 1 : -1;
+      // auto s1 = ((abs(Fa.twoj() - Fm.twoj()) + 2 * rank) % 4 == 0) ? 1 : -1;
+      // auto Zwmva = Coulomb::Zk_abcd(Fw, Fm, Fv, Fa, rank);
+      // auto Zwavm = Coulomb::Zk_abcd(Fw, Fa, Fv, Fm, rank);
 
-      auto Zwmva = Coulomb::Zk_abcd(Fw, Fm, Fv, Fa, rank);
-      auto Zwavm = Coulomb::Zk_abcd(Fw, Fa, Fv, Fm, rank);
+      auto s1 = ((Fa.twoj() - Fw.twoj() + 2 * rank) % 4 == 0) ? 1 : -1;
+      auto s2 = ((Fa.twoj() - Fm.twoj()) % 4 == 0) ? 1 : -1;
+      auto Zwmva = Coulomb::Wk_abcd(Fw, Fm, Fv, Fa, rank);
+      auto Zwavm = s2 * Coulomb::Wk_abcd(Fw, Fa, Fv, Fm, rank);
 
       auto tt_am = t_am[ia][im];
       auto tt_ma = t_ma[im][ia];
