@@ -14,49 +14,6 @@ namespace MBPT {
 
 //******************************************************************************
 DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
-                       const DiagramRPA *const drpa)
-    : m_k(h->rank()), m_pi(h->parity()), m_imag(h->imaginaryQ()) {
-  //
-  if (m_k != drpa->m_k || m_pi != drpa->m_pi) {
-    std::cerr << "\nFAIL21 in DiagramRPA: Cannot use 'eat' constructor for "
-                 "different rank/parity operators!\n";
-    std::abort();
-  }
-
-  // Set up basis:
-  holes = drpa->holes;
-  excited = drpa->excited;
-
-  setup_ts(h);
-
-  Wanmb = drpa->Wanmb;
-  Wabmn = drpa->Wabmn;
-  Wmnab = drpa->Wmnab;
-  Wmban = drpa->Wmban;
-}
-
-//******************************************************************************
-void DiagramRPA::setup_ts(const DiracOperator::TensorOperator *const h) {
-  // Calc t0 (and setup t)
-  for (const auto &Fa : holes) {
-    std::vector<double> t0a_m;
-    for (const auto &Fm : excited) {
-      t0a_m.push_back(h->reducedME(Fa, Fm));
-    }
-    t0am.push_back(t0a_m);
-  }
-  for (const auto &Fm : excited) {
-    std::vector<double> t0m_a;
-    for (const auto &Fa : holes) {
-      t0m_a.push_back(h->reducedME(Fm, Fa));
-    }
-    t0ma.push_back(t0m_a);
-  }
-  clear_tam();
-}
-
-//******************************************************************************
-DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
                        const std::vector<DiracSpinor> &basis,
                        const std::vector<DiracSpinor> &core)
     : m_k(h->rank()), m_pi(h->parity()), m_imag(h->imaginaryQ()) {
@@ -73,6 +30,54 @@ DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
 
   // Calc t0 (and setup t) [RPA MEs for hole-excited]
   setup_ts(h);
+  fill_W_matrix(h);
+}
+
+//******************************************************************************
+DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
+                       const DiagramRPA *const drpa)
+    : m_k(h->rank()), m_pi(h->parity()), m_imag(h->imaginaryQ()) {
+  //
+  if (m_k != drpa->m_k || m_pi != drpa->m_pi) {
+    std::cerr << "\nFAIL21 in DiagramRPA: Cannot use 'eat' constructor for "
+                 "different rank/parity operators!\n";
+    std::abort();
+  }
+
+  // Set up basis:
+  holes = drpa->holes;
+  excited = drpa->excited;
+
+  setup_ts(h);
+
+  // "eat" W matrices from other rpa
+  Wanmb = drpa->Wanmb;
+  Wabmn = drpa->Wabmn;
+  Wmnab = drpa->Wmnab;
+  Wmban = drpa->Wmban;
+}
+
+//******************************************************************************
+void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h) {
+
+  if (holes.empty() || excited.empty()) {
+    std::cout << "\nWARNING 64 in DiagramRPA: no basis! RPA will be zero\n";
+    return;
+  }
+
+  auto maxtj1 =
+      std::max_element(holes.cbegin(), holes.cend(), DiracSpinor::comp_j)
+          ->twoj();
+  auto maxtj2 =
+      std::max_element(excited.cbegin(), excited.cend(), DiracSpinor::comp_j)
+          ->twoj();
+  auto maxtj = std::max(maxtj1, maxtj2);
+
+  Coulomb::YkTable Yhe(holes.front().p_rgrid, &holes, &excited);
+  Coulomb::YkTable Yee(holes.front().p_rgrid, &excited);
+  Coulomb::YkTable Yhh(holes.front().p_rgrid, &holes);
+  const auto &Ck = Yee.Ck();
+  Angular::SixJ sj(maxtj, maxtj);
 
   // RPA: store W Coulomb integrals (used only for Core RPA its)
   std::cout << "Filling RPA Diagram matrix .. " << std::flush;
@@ -96,12 +101,22 @@ DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
         Wanm_b.reserve(holes.size());
         Wabm_n.reserve(holes.size());
         for (const auto &Fb : holes) {
-          // XXX Use P,Q,Y
-          const bool zero = h->isZero(Fb.k, Fn.k);
-          auto x = zero ? 0.0 : Coulomb::Wk_abcd(Fa, Fn, Fm, Fb, m_k);
-          auto y = zero ? 0.0 : Coulomb::Wk_abcd(Fa, Fb, Fm, Fn, m_k);
-          Wanm_b.push_back(x);
-          Wabm_n.push_back(y);
+          if (h->isZero(Fb.k, Fn.k)) {
+            Wanm_b.push_back(0.0);
+            Wabm_n.push_back(0.0);
+            continue;
+          }
+          const auto yknb = Yhe.ptr_yk_ab(m_k, Fb, Fn);
+          const auto &ybm = Yhe.get_y_ab(Fb, Fm);
+          const auto &ynm = Yee.get_y_ab(Fn, Fm);
+          const auto xQ =
+              yknb ? Coulomb::Qk_abcd(Fa, Fn, Fm, Fb, m_k, *yknb, Ck) : 0.0;
+          const auto xP = Coulomb::Pk_abcd(Fa, Fn, Fm, Fb, m_k, ynm, Ck, sj);
+          const auto yQ =
+              yknb ? Coulomb::Qk_abcd(Fa, Fb, Fm, Fn, m_k, *yknb, Ck) : 0.0;
+          const auto yP = Coulomb::Pk_abcd(Fa, Fb, Fm, Fn, m_k, ybm, Ck, sj);
+          Wanm_b.push_back(xQ + xP);
+          Wabm_n.push_back(yQ + yP);
         }
         Wan_mb.push_back(Wanm_b);
         Wab_mn.push_back(Wabm_n);
@@ -120,19 +135,35 @@ DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
     const auto &Fm = excited[i];
     std::vector<std::vector<std::vector<double>>> Wa_nmb;
     std::vector<std::vector<std::vector<double>>> Wa_bmn;
+    Wa_nmb.reserve(excited.size());
+    Wa_bmn.reserve(excited.size());
     for (const auto &Fn : excited) {
       std::vector<std::vector<double>> Wan_mb;
       std::vector<std::vector<double>> Wab_mn;
+      Wan_mb.reserve(holes.size());
+      Wab_mn.reserve(holes.size());
       for (const auto &Fa : holes) {
         std::vector<double> Wanm_b;
         std::vector<double> Wabm_n;
+        Wanm_b.reserve(holes.size());
+        Wabm_n.reserve(holes.size());
         for (const auto &Fb : holes) {
-          // XXX Use P,Q,Y
-          const bool zero = h->isZero(Fb.k, Fn.k);
-          auto x = zero ? 0.0 : Coulomb::Wk_abcd(Fm, Fn, Fa, Fb, m_k);
-          auto y = zero ? 0.0 : Coulomb::Wk_abcd(Fm, Fb, Fa, Fn, m_k);
-          Wanm_b.push_back(x);
-          Wabm_n.push_back(y);
+          if (h->isZero(Fb.k, Fn.k)) {
+            Wanm_b.push_back(0.0);
+            Wabm_n.push_back(0.0);
+            continue;
+          }
+          const auto yknb = Yhe.ptr_yk_ab(m_k, Fb, Fn);
+          const auto &yna = Yhe.get_y_ab(Fa, Fn);
+          const auto &yba = Yhh.get_y_ab(Fb, Fa);
+          const auto xQ =
+              yknb ? Coulomb::Qk_abcd(Fm, Fn, Fa, Fb, m_k, *yknb, Ck) : 0.0;
+          const auto xP = Coulomb::Pk_abcd(Fm, Fn, Fa, Fb, m_k, yna, Ck, sj);
+          const auto yQ =
+              yknb ? Coulomb::Qk_abcd(Fm, Fb, Fa, Fn, m_k, *yknb, Ck) : 0.0;
+          const auto yP = Coulomb::Pk_abcd(Fm, Fb, Fa, Fn, m_k, yba, Ck, sj);
+          Wanm_b.push_back(xQ + xP);
+          Wabm_n.push_back(yQ + yP);
         }
         Wan_mb.push_back(Wanm_b);
         Wab_mn.push_back(Wabm_n);
@@ -147,6 +178,28 @@ DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
 }
 
 //******************************************************************************
+void DiagramRPA::setup_ts(const DiracOperator::TensorOperator *const h) {
+  if (holes.empty() || excited.empty())
+    return;
+
+  // Calc t0 (and setup t)
+  for (const auto &Fa : holes) {
+    std::vector<double> t0a_m;
+    for (const auto &Fm : excited) {
+      t0a_m.push_back(h->reducedME(Fa, Fm));
+    }
+    t0am.push_back(t0a_m);
+  }
+  for (const auto &Fm : excited) {
+    std::vector<double> t0m_a;
+    for (const auto &Fa : holes) {
+      t0m_a.push_back(h->reducedME(Fm, Fa));
+    }
+    t0ma.push_back(t0m_a);
+  }
+  clear_tam();
+}
+//******************************************************************************
 void DiagramRPA::clear_tam() {
   tam = t0am;
   tma = t0ma;
@@ -155,6 +208,9 @@ void DiagramRPA::clear_tam() {
 //******************************************************************************
 double DiagramRPA::dV(const DiracSpinor &Fw, const DiracSpinor &Fv,
                       const bool first_order) const {
+
+  if (holes.empty() || excited.empty())
+    return 0.0;
 
   const auto orderOK = Fv.en <= Fw.en;
   const auto &Fi = orderOK ? Fv : Fw;
@@ -189,6 +245,9 @@ double DiagramRPA::dV(const DiracSpinor &Fw, const DiracSpinor &Fv,
 void DiagramRPA::rpa_core(const double omega, const bool print) {
 
   m_omega = std::abs(omega);
+
+  if (holes.empty() || excited.empty())
+    return;
 
   if (print) {
     printf("RPA(D) (w=%.3f): .. \r", m_omega);

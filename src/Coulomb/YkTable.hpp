@@ -6,7 +6,7 @@
 
 namespace Coulomb {
 
-constexpr bool check_bounds = false;
+constexpr bool check_bounds = true;
 
 //! @brief Calculates + stores Hartree Y functions + Angular (w/ look-up)
 /*! @details
@@ -48,7 +48,7 @@ private:
   Angular::Ck_ab m_Ck = Angular::Ck_ab();
 
 public:
-  //! Re-calculates all y^k integrals
+  //! Re-calculates all y^k integrals [happens automatically on construct]
   void update_y_ints();
   //! Re-calculates y^k integrals involving single orbital Fn
   void update_y_ints(const DiracSpinor &Fn);
@@ -57,6 +57,16 @@ public:
   //! @details NOTE: Fa MUST be member of a_orbitals, Fb of b_or
   const std::vector<double> &get_yk_ab(const int k, const DiracSpinor &Fa,
                                        const DiracSpinor &Fb) const;
+  //! Returns a pointer to (const) y^k_ab(r), if k valid. Else, returns nullptr
+  const std::vector<double> *ptr_yk_ab(const int k, const DiracSpinor &Fa,
+                                       const DiracSpinor &Fb) const {
+    const auto [min, max] = k_minmax(Fa, Fb);
+    if (k >= min && k <= max) {
+      return &get_yk_ab(k, Fa, Fb);
+    }
+    return nullptr;
+  }
+
   const std::vector<double> &operator()(const int k, const DiracSpinor &Fa,
                                         const DiracSpinor &Fb) const {
     return get_yk_ab(k, Fa, Fb);

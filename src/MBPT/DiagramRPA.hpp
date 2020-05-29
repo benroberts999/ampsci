@@ -10,12 +10,6 @@ namespace HF {
 class HartreeFock;
 }
 
-/*
-  1. Use Q, P, and Yab table - much faster
-  2. Split constructor into several functions
-  3. W matrix: depends on rank+parity!
-*/
-
 namespace MBPT {
 
 //! RPA correction to matrix elements, using Diagram technique
@@ -68,6 +62,7 @@ private:
   std::vector<std::vector<std::vector<std::vector<double>>>> Wmnab{};
   std::vector<std::vector<std::vector<std::vector<double>>>> Wmban{};
 
+  void fill_W_matrix(const DiracOperator::TensorOperator *const h);
   void setup_ts(const DiracOperator::TensorOperator *const h);
 };
 
