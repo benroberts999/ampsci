@@ -98,7 +98,7 @@ doxy:
 	doxygen ./src/Doxyfile
 	( cd ./doc/latex && make )
 	cp ./doc/latex/refman.pdf ./doc/documentation.pdf
-	cp ./doc/tex/diracSCAS2.pdf ./doc/html/diracSCAS.pdf 2>/dev/null || :
+	cp ./doc/diracSCAS.pdf ./doc/html/diracSCAS.pdf 2>/dev/null || :
 	( cd ./doc/latex && make clean)
 do_the_chicken_dance:
 	@echo 'Why would I do that?'
