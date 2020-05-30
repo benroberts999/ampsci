@@ -1,6 +1,6 @@
 # Input options for: diracSCAS
 
-This outlines/describes the input options/usage for diracSCAS. For a description of the physics, see: [diracSCAS_method.pdf](https://benroberts999.github.io/diracSCAS/diracSCAS_method.pdf)
+This outlines/describes the input options/usage for diracSCAS. For a description of the physics, see: [diracSCAS.pdf](https://benroberts999.github.io/diracSCAS/diracSCAS.pdf)
 
 * The **diracSCAS** program should be run as:
   * _./diracSCAS inputFile.in_
@@ -112,7 +112,7 @@ Grid {
   num_points; //[i] default = 1600
   type;       //[t] default = loglinear
   b;          //[r] default = rmax/3
-  fixed_du;   //[r] default = -1. fixed_du>0: calculate + override num_points
+  fixed_du;   //[r] default = -1.
 }
 ```
 * r0: grid starting point (in atomic units)
@@ -121,6 +121,7 @@ Grid {
 * type: options are: loglinear (default), logarithmic, linear
   * Note: 'linear' grid requires a _very_ large number of points to work, and should essentially never be used.
 * b: only used for loglinear grid; the grid is roughly logarithmic below this value, and linear after it. Default is 4.0 (atomic units). If b<0 or b>rmax, will revert to using a logarithmic grid
+* fixed_du: if fixed_du>0.0, it will calculate num_points to fix du (step-size in uniform 'u' grid); will over-ride 'num_points' option.
 
 
 ## dVpol (effective polarisation potential)
@@ -146,7 +147,7 @@ ExtraPotential {
 //nb: all of these are optional, hence entire block can be omitted
 ```
 * Reads in extra potential from text file (space separated: 'x y' format):
-* Interpolated these points onto the grid (but does NOT extrapolate,
+* Interpolates these points onto the grid (but does NOT extrapolate,
   potential is assumed to be zero outside the given range)
 * Potential is multiplied by 'factor'
 * May be added before or after HF (if before: added to vnuc, if after: to vdir)
@@ -258,15 +259,16 @@ MatrixElements::ExampleOperator { //this is not a real operator..
   radialIntegral; //[b] default = false
   rpa;            //[b] default = true
   rpa_diagram;    //[b] default = false
-  omega;          //[r] default = 0.0, or [t] ('each')
+  omega;          //[r] default = 0.0;  or [t] ('each')
 }
 ```
 * printBoth: Print <a|h|b> and <b|h|a> ? false by default. (For _some_ operators, e.g., involving derivatives, this is a good test of numerical error. For most operators, values will be trivially the same; reduced matrix elements, sign may be different.)
 * onlyDiagonal: If true, will only print diagonal MEs <a|h|a>
-* radialIntegral: calculate radial integral, or reduced matrix elements (difference depends on definition of operator in the code)
-* rpa: Include RPA (core polarisation) corrections to MEs, using TDHF method (note: mostly works, but not 100% yet)
-* omega: frequency for solving TDHF/RPA equations, should be positive. Put "omega=each;" to solve at the frequency for each transition (i.e., re-solve TDHF for each transition).
+* radialIntegral: if true, calculates the radial integral (definition depends on specific operator)
+* rpa: Include RPA (core polarisation) corrections to MEs, using TDHF method
 * rpa_diagram: Include RPA (core polarisation), using diagram (Goldstone) technique
+* omega: frequency for solving TDHF/RPA equations, should be positive. Put "omega=each;" to solve at the frequency for each transition (i.e., re-solve TDHF for each transition).
+
 
 
 ### Available operators:

@@ -34,6 +34,8 @@ inline std::vector<T> derivative(const std::vector<T> &f,
 
   std::size_t num_points = f.size();
   std::vector<T> df(num_points);
+  if (num_points < 4)
+    return df;
 
   df[0] = (f[1] - f[0]) / (dt * drdt[0]);
   df[num_points - 1] =

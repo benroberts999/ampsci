@@ -51,10 +51,6 @@ CNTM = $(addprefix $(BD)/, \
 
 MODS = $(MODULELIST)
 
-# $(addprefix $(BD)/, \
-#  Module_runModules.o Module_atomicKernal.o AKF_akFunctions.o \
-#  Module_matrixElements.o Module_fitParametric.o Module_pnc.o Module_tests.o \
-# )
 
 ################################################################################
 # Link + build all final programs
@@ -89,8 +85,20 @@ checkXdir:
 		false; \
 	fi
 
-.PHONY: clean do_the_chicken_dance checkObj checkXdir
+.PHONY: clean docs doxy do_the_chicken_dance checkObj checkXdir
 clean:
 	rm -f $(ALLEXES) $(BD)/*.o
+# Make the 'diracSCAS.pdf' physics documentation
+docs:
+	( cd ./doc/tex && make )
+	cp ./doc/tex/diracSCAS.pdf ./doc/diracSCAS.pdf
+	( cd ./doc/tex && make clean)
+# Make the doxygen code documentation
+doxy:
+	doxygen ./src/Doxyfile
+	( cd ./doc/latex && make )
+	cp ./doc/latex/refman.pdf ./doc/documentation.pdf
+	cp ./doc/tex/diracSCAS2.pdf ./doc/html/diracSCAS.pdf 2>/dev/null || :
+	( cd ./doc/latex && make clean)
 do_the_chicken_dance:
 	@echo 'Why would I do that?'
