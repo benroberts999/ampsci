@@ -49,7 +49,7 @@ There are three documentation types provided:
  * The file _Makefile_ has some basic compilation options. It's currently set up to work on most linux systems; you may need to change a few options for others (see below)
  * Tested with g++ and clang++ on linux and mac (requires c++17)
 
-Note: makes use of GSL libraries (requires ver>2.0, tested with ver:2.4): https://www.gnu.org/software/gsl/, and LAPACK. These must be installed for the code to run (see below).
+Note: makes use of GSL libraries (requires ver 2.0+, tested with 2.1, 2.6) https://www.gnu.org/software/gsl/, and LAPACK. These must be installed for the code to run (see below).
 
 
 ### Compilation: Linux:

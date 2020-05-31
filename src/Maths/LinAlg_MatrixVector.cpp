@@ -110,8 +110,13 @@ SqMatrix &SqMatrix::invert() {
   // uses LU decomposition
   gsl_permutation *permutn = gsl_permutation_alloc(n);
   int sLU = 0;
-  gsl_linalg_LU_decomp(m, permutn, &sLU);
-  gsl_linalg_LU_invx(m, permutn);
+  // gsl_linalg_LU_decomp(m, permutn, &sLU);
+  // gsl_linalg_LU_invx(m, permutn);
+  // In-place inversion gsl_linalg_LU_invx added sometime after GSL v:2.1
+  // Getafix only has 2.1 installed, so can't use this for now
+  auto mLU = *this; // copy!
+  gsl_linalg_LU_decomp(mLU.m, permutn, &sLU);
+  gsl_linalg_LU_invert(mLU.m, permutn, m);
   gsl_permutation_free(permutn);
   return *this;
 }
@@ -324,8 +329,13 @@ ComplexSqMatrix &ComplexSqMatrix::invert() {
   // uses LU decomposition
   gsl_permutation *permutn = gsl_permutation_alloc(n);
   int sLU = 0;
-  gsl_linalg_complex_LU_decomp(m, permutn, &sLU);
-  gsl_linalg_complex_LU_invx(m, permutn);
+  // gsl_linalg_complex_LU_decomp(m, permutn, &sLU);
+  // gsl_linalg_complex_LU_invx(m, permutn);
+  // In-place inversion gsl_linalg_LU_invx added sometime after GSL v:2.1
+  // Getafix only has 2.1 installed, so can't use this for now
+  auto mLU = *this;
+  gsl_linalg_complex_LU_decomp(mLU.m, permutn, &sLU);
+  gsl_linalg_complex_LU_invert(mLU.m, permutn, m);
   gsl_permutation_free(permutn);
   return *this;
 }

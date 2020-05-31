@@ -43,7 +43,7 @@ $(SD)/MBPT/CorrelationPotential.hpp \
 $(SD)/Maths/Grid.hpp \
 $(SD)/Maths/NumCalc_quadIntegrate.hpp \
 $(SD)/Physics/Parametric_potentials.hpp \
-$(SD)/Physics/radiativePotential.hpp \
+$(SD)/Physics/RadiativePotential.hpp \
 $(SD)/Wavefunction/DiracSpinor.hpp \
 $(SD)/Wavefunction/Wavefunction.hpp
 	$(COMP)
