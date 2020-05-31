@@ -282,15 +282,15 @@ double Rk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fc,
 }
 
 //******************************************************************************
-DiracSpinor Rk_abcd_rhs(const int kappa_a, const DiracSpinor &Fb,
+DiracSpinor Rkv_bcd(const int kappa_a, const DiracSpinor &Fb,
                         const DiracSpinor &Fc, const DiracSpinor &Fd,
                         const int k) {
   auto sp1 = IO::Profile::safeProfiler(__func__);
   const auto ykbd = yk_ab(Fb, Fd, k, Fc.pinf);
-  return Rk_abcd_rhs(kappa_a, Fc, ykbd);
+  return Rkv_bcd(kappa_a, Fc, ykbd);
 }
 //------------------------------------------------------------------------------
-DiracSpinor Rk_abcd_rhs(const int kappa_a, const DiracSpinor &Fc,
+DiracSpinor Rkv_bcd(const int kappa_a, const DiracSpinor &Fc,
                         const std::vector<double> &ykbd) {
   auto sp1 = IO::Profile::safeProfiler(__func__);
   auto out = DiracSpinor(0, kappa_a, *(Fc.p_rgrid));
@@ -301,7 +301,7 @@ DiracSpinor Rk_abcd_rhs(const int kappa_a, const DiracSpinor &Fc,
   return out;
 }
 //------------------------------------------------------------------------------
-void Rk_abcd_rhs(DiracSpinor *const Rkv, const DiracSpinor &Fc,
+void Rkv_bcd(DiracSpinor *const Rkv, const DiracSpinor &Fc,
                  const std::vector<double> &ykbd) {
   Rkv->p0 = Fc.p0;
   Rkv->pinf = Fc.pinf;
@@ -473,7 +473,7 @@ DiracSpinor Qkv_bcd(const int kappa_v, const DiracSpinor &Fb,
   const auto tCbd = Ck.get_tildeCkab(k, Fb.k, Fd.k);
   const auto tCC = tCbd * tCac;
   auto Rkv = tCC == 0 ? DiracSpinor(0, kappa_v, *(Fb.p_rgrid))
-                      : Rk_abcd_rhs(kappa_v, Fc, ykbd);
+                      : Rkv_bcd(kappa_v, Fc, ykbd);
   const auto m1tk = Angular::evenQ(k) ? 1 : -1;
   Rkv.scale(m1tk * tCC);
   return Rkv;
@@ -491,7 +491,7 @@ void Qkv_bcd(DiracSpinor *const Qkv, const DiracSpinor &Fb,
     Qkv->scale(0.0);
     return;
   }
-  Rk_abcd_rhs(Qkv, Fc, ykbd);
+  Rkv_bcd(Qkv, Fc, ykbd);
   const auto m1tk = Angular::evenQ(k) ? 1 : -1;
   Qkv->scale(m1tk * tCC);
   return;

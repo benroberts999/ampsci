@@ -1,0 +1,365 @@
+%merlin.mbs apsrev4-1.bst 2010-07-25 4.21a (PWD, AO, DPC) hacked
+%Control: key (0)
+%Control: author (72) initials jnrlst
+%Control: editor formatted (1) identically to author
+%Control: production of article title (-1) disabled
+%Control: page (0) single
+%Control: year (1) truncated
+%Control: production of eprint (0) enabled
+\begin{thebibliography}{33}%
+\makeatletter
+\itemsep0.25em
+\providecommand \@ifxundefined [1]{%
+ \@ifx{#1\undefined}
+}%
+\providecommand \@ifnum [1]{%
+ \ifnum #1\expandafter \@firstoftwo
+ \else \expandafter \@secondoftwo
+ \fi
+}%
+\providecommand \@ifx [1]{%
+ \ifx #1\expandafter \@firstoftwo
+ \else \expandafter \@secondoftwo
+ \fi
+}%
+\providecommand \natexlab [1]{#1}%
+\providecommand \enquote  [1]{``#1''}%
+\providecommand \bibnamefont  [1]{#1}%
+\providecommand \bibfnamefont [1]{#1}%
+\providecommand \citenamefont [1]{#1}%
+\providecommand \href@noop [0]{\@secondoftwo}%
+\providecommand \href [0]{\begingroup \@sanitize@url \@href}%
+\providecommand \@href[1]{\@@startlink{#1}\@@href}%
+\providecommand \@@href[1]{\endgroup#1\@@endlink}%
+\providecommand \@sanitize@url [0]{\catcode `\\12\catcode `\$12\catcode
+  `\&12\catcode `\#12\catcode `\^12\catcode `\_12\catcode `\%12\relax}%
+\providecommand \@@startlink[1]{}%
+\providecommand \@@endlink[0]{}%
+\providecommand \url  [0]{\begingroup\@sanitize@url \@url }%
+\providecommand \@url [1]{\endgroup\@href {#1}{\urlprefix }}%
+\providecommand \urlprefix  [0]{URL }%
+\providecommand \Eprint [0]{\href }%
+\providecommand \doibase [0]{http://dx.doi.org/}%
+\providecommand \selectlanguage [0]{\@gobble}%
+\providecommand \bibinfo  [0]{\@secondoftwo}%
+\providecommand \bibfield  [0]{\@secondoftwo}%
+\providecommand \translation [1]{[#1]}%
+\providecommand \BibitemOpen [0]{}%
+\providecommand \bibitemStop [0]{}%
+\providecommand \bibitemNoStop [0]{.\EOS\space}%
+\providecommand \EOS [0]{\spacefactor3000\relax}%
+\providecommand \BibitemShut  [1]{\csname bibitem#1\endcsname}%
+\let\auto@bib@innerbib\@empty
+%</preamble>
+\bibitem [{\citenamefont {Bethe} and \citenamefont
+  {Salpeter}(1977)}]{BetheBook}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {H.~A.} \bibnamefont
+  {Bethe}} and \bibinfo {author} {\bibfnamefont {E.~E.} \bibnamefont
+  {Salpeter}}, }\href@noop {} {\emph {\bibinfo {title} {{Quantum mechanics of
+  one-and two-electron atoms}}}} (\bibinfo  {publisher} {Plenum Publishing
+  Corporation}, \bibinfo {address} {New York}, \bibinfo {year}
+  {1977})\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Lindgren} and \citenamefont
+  {Morrison}(1986)}]{Lindgren1986}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {I.}~\bibnamefont
+  {Lindgren}} and \bibinfo {author} {\bibfnamefont {J.}~\bibnamefont
+  {Morrison}}, }\href {http://adsabs.harvard.edu/abs/1986ambt.book.....L}
+  {\emph {\bibinfo {title} {{Atomic many-body theory}}}}, \bibinfo {edition}
+  {2nd} ed. (\bibinfo  {publisher} {Springer-Verlag}, \bibinfo {address}
+  {New York}, \bibinfo {year} {1986})\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Johnson}(2007)}]{JohnsonBook2007}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {W.~R.} \bibnamefont
+  {Johnson}}, }\href
+  {http://books.google.com/books?hl=en{\&}lr={\&}id=-DOYz-q8MBkC{\&}oi=fnd{\&}pg=PA1{\&}dq=Atomic+Structure+Theory{\&}ots=fwK4XAsfJ0{\&}sig=2NlK9SYnbUS6-ZzfY2xXl4ThFog}
+  {\emph {\bibinfo {title} {{Atomic Structure Theory}}}} (\bibinfo
+  {publisher} {Springer}, \bibinfo {address} {New York}, \bibinfo {year}
+  {2007})\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Dzuba} \emph {et~al.}(1982)\citenamefont {Dzuba},
+  \citenamefont {Sushkov}, and \citenamefont {Flambaum}}]{Dzuba1982a}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {V.~A.} \bibnamefont
+  {Dzuba}}, \bibinfo {author} {\bibfnamefont {O.~P.} \bibnamefont {Sushkov}},
+   and \bibinfo {author} {\bibfnamefont {V.~V.} \bibnamefont {Flambaum}},\
+  }\href {http://www.inp.nsk.su/images/preprint/1982{\_}089.pdf} {\bibfield
+  {journal} {\bibinfo  {journal} {Prepr. INP 82-89} }\textbf {\bibinfo
+  {volume} {INP 82-89}} (\bibinfo {year} {1982})}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Sapirstein}(1998)}]{Sapirstein1998}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {J.}~\bibnamefont
+  {Sapirstein}}, }\href {\doibase 10.1103/RevModPhys.70.55} {\bibfield
+  {journal} {\bibinfo  {journal} {Rev. Mod. Phys.} }\textbf {\bibinfo {volume}
+  {70}}, \bibinfo {pages} {55} (\bibinfo {year} {1998})}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Arfken} \emph {et~al.}(2013)\citenamefont {Arfken},
+  \citenamefont {Weber}, and \citenamefont {Harris}}]{Arfken2013}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {G.~B.} \bibnamefont
+  {Arfken}}, \bibinfo {author} {\bibfnamefont {H.~J.} \bibnamefont {Weber}}, \
+  and \bibinfo {author} {\bibfnamefont {F.~E.} \bibnamefont {Harris}},\
+  }\href {\doibase 10.1016/C2009-0-30629-7} {\emph {\bibinfo {title}
+  {{Mathematical Methods for Physicists}}}} (\bibinfo  {publisher}
+  {Elsevier}, \bibinfo {year} {2013})\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Green} \emph {et~al.}(1969)\citenamefont {Green},
+  \citenamefont {Sellin}, and \citenamefont {Zachor}}]{Green1969}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {A.~E.~S.}\
+  \bibnamefont {Green}}, \bibinfo {author} {\bibfnamefont {D.~L.} \bibnamefont
+  {Sellin}},  and \bibinfo {author} {\bibfnamefont {A.~S.} \bibnamefont
+  {Zachor}}, }\href {\doibase 10.1103/PhysRev.184.1} {\bibfield  {journal}
+  {\bibinfo  {journal} {Phys. Rev.} }\textbf {\bibinfo {volume} {184}},\
+  \bibinfo {pages} {1} (\bibinfo {year} {1969})}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Slater}(1951)}]{Slater1951}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {J.~C.} \bibnamefont
+  {Slater}}, }\href {\doibase 10.1103/PhysRev.81.385} {\bibfield  {journal}
+  {\bibinfo  {journal} {Phys. Rev.} }\textbf {\bibinfo {volume} {81}},\
+  \bibinfo {pages} {385} (\bibinfo {year} {1951})}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Johnson} \emph
+  {et~al.}(1988{\natexlab{a}})\citenamefont {Johnson}, \citenamefont
+  {Blundell}, and \citenamefont {Sapirstein}}]{Johnson1988}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {W.~R.} \bibnamefont
+  {Johnson}}, \bibinfo {author} {\bibfnamefont {S.~A.} \bibnamefont
+  {Blundell}},  and \bibinfo {author} {\bibfnamefont {J.}~\bibnamefont
+  {Sapirstein}}, }\href {\doibase 10.1103/PhysRevA.37.307} {\bibfield
+  {journal} {\bibinfo  {journal} {Phys. Rev. A} }\textbf {\bibinfo {volume}
+  {37}}, \bibinfo {pages} {307} (\bibinfo {year}
+  {1988}{\natexlab{a}})}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Beloy} and \citenamefont
+  {Derevianko}(2008)}]{Beloy2008}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {K.}~\bibnamefont
+  {Beloy}} and \bibinfo {author} {\bibfnamefont {A.}~\bibnamefont
+  {Derevianko}}, }\href {\doibase 10.1016/j.cpc.2008.03.004} {\bibfield
+  {journal} {\bibinfo  {journal} {Comput. Phys. Commun.} }\textbf {\bibinfo
+  {volume} {179}}, \bibinfo {pages} {310} (\bibinfo {year} {2008})}, \Eprint
+  {http://arxiv.org/abs/0710.3142} {arXiv:0710.3142}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Kahl} and \citenamefont
+  {Berengut}(2019)}]{AMBiT2018}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {E.~V.} \bibnamefont
+  {Kahl}} and \bibinfo {author} {\bibfnamefont {J.~C.} \bibnamefont
+  {Berengut}}, }\href {\doibase 10.1016/j.cpc.2018.12.014} {\bibfield
+  {journal} {\bibinfo  {journal} {Comput. Phys. Commun.} }\textbf {\bibinfo
+  {volume} {238}}, \bibinfo {pages} {232} (\bibinfo {year} {2019})}, \Eprint
+  {http://arxiv.org/abs/1805.11265} {arXiv:1805.11265}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Dzuba} \emph
+  {et~al.}(1984{\natexlab{a}})\citenamefont {Dzuba}, \citenamefont {Flambaum},\
+  and \citenamefont {Sushkov}}]{DzubaHFS1984}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {V.~A.} \bibnamefont
+  {Dzuba}}, \bibinfo {author} {\bibfnamefont {V.~V.} \bibnamefont {Flambaum}},
+   and \bibinfo {author} {\bibfnamefont {O.~P.} \bibnamefont {Sushkov}},\
+  }\href {\doibase 10.1088/0022-3700/17/10/005} {\bibfield  {journal} {\bibinfo
+   {journal} {J. Phys. B} }\textbf {\bibinfo {volume} {17}}, \bibinfo {pages}
+  {1953} (\bibinfo {year} {1984}{\natexlab{a}})}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Dalgarno} and \citenamefont
+  {Lewis}(1955)}]{Dalgarno1955}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {A.}~\bibnamefont
+  {Dalgarno}} and \bibinfo {author} {\bibfnamefont {J.~T.} \bibnamefont
+  {Lewis}}, }\href {\doibase 10.1098/rspa.1955.0246} {\bibfield  {journal}
+  {\bibinfo  {journal} {Proc. R. Soc. A} }\textbf {\bibinfo {volume} {233}},\
+  \bibinfo {pages} {70} (\bibinfo {year} {1955})}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Ginges} and \citenamefont
+  {Flambaum}(2004)}]{GingesRev2004}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {J.~S.~M.}\
+  \bibnamefont {Ginges}} and \bibinfo {author} {\bibfnamefont {V.~V.}\
+  \bibnamefont {Flambaum}}, }\href {\doibase 10.1016/j.physrep.2004.03.005}
+  {\bibfield  {journal} {\bibinfo  {journal} {Phys. Rep.} }\textbf {\bibinfo
+  {volume} {397}}, \bibinfo {pages} {63} (\bibinfo {year} {2004})}\BibitemShut
+  {NoStop}%
+\bibitem [{\citenamefont {Dzuba} \emph {et~al.}(2018)\citenamefont {Dzuba},
+  \citenamefont {Berengut}, \citenamefont {Ginges}, and \citenamefont
+  {Flambaum}}]{Dzuba2018a}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {V.~A.} \bibnamefont
+  {Dzuba}}, \bibinfo {author} {\bibfnamefont {J.~C.} \bibnamefont {Berengut}},
+  \bibinfo {author} {\bibfnamefont {J.~S.~M.} \bibnamefont {Ginges}},  and\
+  \bibinfo {author} {\bibfnamefont {V.~V.} \bibnamefont {Flambaum}}, }\href
+  {\doibase 10.1103/PhysRevA.98.043411} {\bibfield  {journal} {\bibinfo
+  {journal} {Phys. Rev. A} }\textbf {\bibinfo {volume} {98}}, \bibinfo
+  {pages} {043411} (\bibinfo {year} {2018})}, \Eprint
+  {http://arxiv.org/abs/1805.04989} {arXiv:1805.04989}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Manakov} \emph {et~al.}(1986)\citenamefont
+  {Manakov}, \citenamefont {Ovsiannikov}, and \citenamefont
+  {Rapoport}}]{Manakov1986}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {N.~L.} \bibnamefont
+  {Manakov}}, \bibinfo {author} {\bibfnamefont {V.~D.} \bibnamefont
+  {Ovsiannikov}},  and \bibinfo {author} {\bibfnamefont {L.~P.} \bibnamefont
+  {Rapoport}}, }\href {\doibase 10.1016/S0370-1573(86)80001-1} {\bibfield
+  {journal} {\bibinfo  {journal} {Phys. Rep.} }\textbf {\bibinfo {volume}
+  {141}}, \bibinfo {pages} {320} (\bibinfo {year} {1986})}\BibitemShut
+  {NoStop}%
+\bibitem [{\citenamefont {Johnson} \emph {et~al.}(1980)\citenamefont
+  {Johnson}, \citenamefont {Lin}, \citenamefont {Cheng}, and \citenamefont
+  {Lee}}]{Johnson1980}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {W.~R.} \bibnamefont
+  {Johnson}}, \bibinfo {author} {\bibfnamefont {C.~D.} \bibnamefont {Lin}},
+  \bibinfo {author} {\bibfnamefont {K.~T.} \bibnamefont {Cheng}},  and\
+  \bibinfo {author} {\bibfnamefont {C.~M.} \bibnamefont {Lee}}, }\href
+  {\doibase 10.1088/0031-8949/21/3-4/029} {\bibfield  {journal} {\bibinfo
+  {journal} {Phys. Scr.} }\textbf {\bibinfo {volume} {21}}, \bibinfo {pages}
+  {409} (\bibinfo {year} {1980})}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Johnson}(1989)}]{Johnson1989}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {W.~R.} \bibnamefont
+  {Johnson}}, }\href {\doibase 10.1016/S0065-2199(08)60094-9} {\bibfield
+  {journal} {\bibinfo  {journal} {Adv. At. Mol. Opt. Phys.} }\textbf {\bibinfo
+  {volume} {25}}, \bibinfo {pages} {375} (\bibinfo {year} {1989})}\BibitemShut
+  {NoStop}%
+\bibitem [{\citenamefont {Kramida} \emph {et~al.}()\citenamefont {Kramida},
+  \citenamefont {Ralchenko}, \citenamefont {Reader}, and \citenamefont {{The
+  NIST ASD Team (2018)}}}]{NIST}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {A.}~\bibnamefont
+  {Kramida}}, \bibinfo {author} {\bibfnamefont {Y.}~\bibnamefont {Ralchenko}},
+  \bibinfo {author} {\bibfnamefont {J.}~\bibnamefont {Reader}},  and \bibinfo
+  {author} {\bibnamefont {{The NIST ASD Team (2018)}}}, }\href {\doibase
+  10.18434/T4W30F} {\bibfield  {journal} {\bibinfo  {journal} {NIST At. Spectra
+  Database (ver. 5.6.1)} }\textbf {\bibinfo {volume} {[Online]}}, \bibinfo
+  {pages} {http://physics.nist.gov/asd}}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Dzuba} \emph
+  {et~al.}(1984{\natexlab{b}})\citenamefont {Dzuba}, \citenamefont {Flambaum},
+  \citenamefont {Silvestrov}, and \citenamefont {Sushkov}}]{DzubaPNC1984}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {V.~A.} \bibnamefont
+  {Dzuba}}, \bibinfo {author} {\bibfnamefont {V.~V.} \bibnamefont {Flambaum}},
+  \bibinfo {author} {\bibfnamefont {P.~G.} \bibnamefont {Silvestrov}},  and\
+  \bibinfo {author} {\bibfnamefont {O.~P.} \bibnamefont {Sushkov}}, }\href
+  {\doibase 10.1016/0375-9601(84)90122-1} {\bibfield  {journal} {\bibinfo
+  {journal} {Phys. Lett. A} }\textbf {\bibinfo {volume} {103}}, \bibinfo
+  {pages} {265} (\bibinfo {year} {1984}{\natexlab{b}})}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Dzuba} \emph {et~al.}(1985)\citenamefont {Dzuba},
+  \citenamefont {Flambaum}, \citenamefont {Silvestrov}, and \citenamefont
+  {Sushkov}}]{DzubaPNC1985}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {V.~A.} \bibnamefont
+  {Dzuba}}, \bibinfo {author} {\bibfnamefont {V.~V.} \bibnamefont {Flambaum}},
+  \bibinfo {author} {\bibfnamefont {P.~G.} \bibnamefont {Silvestrov}},  and\
+  \bibinfo {author} {\bibfnamefont {O.~P.} \bibnamefont {Sushkov}}, }\href
+  {\doibase 10.1088/0022-3700/18/4/008} {\bibfield  {journal} {\bibinfo
+  {journal} {J. Phys. B} }\textbf {\bibinfo {volume} {18}}, \bibinfo {pages}
+  {597} (\bibinfo {year} {1985})}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Toh} \emph {et~al.}(2019)\citenamefont {Toh},
+  \citenamefont {Damitz}, \citenamefont {Tanner}, \citenamefont {Johnson},\
+  and \citenamefont {Elliott}}]{TohBeta2019}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {G.}~\bibnamefont
+  {Toh}}, \bibinfo {author} {\bibfnamefont {A.}~\bibnamefont {Damitz}},
+  \bibinfo {author} {\bibfnamefont {C.~E.} \bibnamefont {Tanner}}, \bibinfo
+  {author} {\bibfnamefont {W.~R.} \bibnamefont {Johnson}},  and \bibinfo
+  {author} {\bibfnamefont {D.~S.} \bibnamefont {Elliott}}, }\href {\doibase
+  10.1103/PhysRevLett.123.073002} {\bibfield  {journal} {\bibinfo  {journal}
+  {Phys. Rev. Lett.} }\textbf {\bibinfo {volume} {123}}, \bibinfo {pages}
+  {073002} (\bibinfo {year} {2019})}, \Eprint
+  {http://arxiv.org/abs/1905.02768} {arXiv:1905.02768}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Safronova} \emph {et~al.}(2016)\citenamefont
+  {Safronova}, \citenamefont {Safronova}, and \citenamefont
+  {Clark}}]{Safronova2016b}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {M.~S.} \bibnamefont
+  {Safronova}}, \bibinfo {author} {\bibfnamefont {U.~I.} \bibnamefont
+  {Safronova}},  and \bibinfo {author} {\bibfnamefont {C.~W.} \bibnamefont
+  {Clark}}, }\href {\doibase 10.1103/PhysRevA.94.012505} {\bibfield  {journal}
+  {\bibinfo  {journal} {Phys. Rev. A} }\textbf {\bibinfo {volume} {94}},\
+  \bibinfo {pages} {012505} (\bibinfo {year} {2016})}, \Eprint
+  {http://arxiv.org/abs/1605.05210} {arXiv:1605.05210}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Pucher} \emph {et~al.}(2020)\citenamefont {Pucher},
+  \citenamefont {Schneeweiss}, \citenamefont {Rauschenbeutel}, and\
+  \citenamefont {Dareau}}]{Pucher2019}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {S.}~\bibnamefont
+  {Pucher}}, \bibinfo {author} {\bibfnamefont {P.}~\bibnamefont {Schneeweiss}},
+  \bibinfo {author} {\bibfnamefont {A.}~\bibnamefont {Rauschenbeutel}},  and\
+  \bibinfo {author} {\bibfnamefont {A.}~\bibnamefont {Dareau}}, }\href
+  {\doibase 10.1103/PhysRevA.101.042510} {\bibfield  {journal} {\bibinfo
+  {journal} {Phys. Rev. A} }\textbf {\bibinfo {volume} {101}}, \bibinfo
+  {pages} {042510} (\bibinfo {year} {2020})}, \Eprint
+  {http://arxiv.org/abs/1912.10089} {arXiv:1912.10089}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Johnson} \emph
+  {et~al.}(1988{\natexlab{b}})\citenamefont {Johnson}, \citenamefont
+  {Blundell}, and \citenamefont {Sapirstein}}]{Johnson1988a}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {W.~R.} \bibnamefont
+  {Johnson}}, \bibinfo {author} {\bibfnamefont {S.~A.} \bibnamefont
+  {Blundell}},  and \bibinfo {author} {\bibfnamefont {J.}~\bibnamefont
+  {Sapirstein}}, }\href {\doibase 10.1103/PhysRevA.37.2764} {\bibfield
+  {journal} {\bibinfo  {journal} {Phys. Rev. A} }\textbf {\bibinfo {volume}
+  {37}}, \bibinfo {pages} {2764} (\bibinfo {year}
+  {1988}{\natexlab{b}})}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Mann} and \citenamefont
+  {Johnson}(1971)}]{Mann1971}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {J.~B.} \bibnamefont
+  {Mann}} and \bibinfo {author} {\bibfnamefont {W.~R.} \bibnamefont
+  {Johnson}}, }\href {\doibase 10.1103/PhysRevA.4.41} {\bibfield  {journal}
+  {\bibinfo  {journal} {Phys. Rev. A} }\textbf {\bibinfo {volume} {4}},\
+  \bibinfo {pages} {41} (\bibinfo {year} {1971})}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Derevianko}(2001)}]{Derevianko2001}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {A.}~\bibnamefont
+  {Derevianko}}, }\href {\doibase 10.1103/PhysRevA.65.012106} {\bibfield
+  {journal} {\bibinfo  {journal} {Phys. Rev. A} }\textbf {\bibinfo {volume}
+  {65}}, \bibinfo {pages} {012106} (\bibinfo {year} {2001})}\BibitemShut
+  {NoStop}%
+\bibitem [{\citenamefont {Flambaum} and \citenamefont
+  {Ginges}(2005)}]{FlambaumQED2005}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {V.~V.} \bibnamefont
+  {Flambaum}} and \bibinfo {author} {\bibfnamefont {J.~S.~M.} \bibnamefont
+  {Ginges}}, }\href {\doibase 10.1103/PhysRevA.72.052115} {\bibfield
+  {journal} {\bibinfo  {journal} {Phys. Rev. A} }\textbf {\bibinfo {volume}
+  {72}}, \bibinfo {pages} {052115} (\bibinfo {year} {2005})}\BibitemShut
+  {NoStop}%
+\bibitem [{\citenamefont {Ginges} and \citenamefont
+  {Berengut}(2016{\natexlab{a}})}]{GingesQED2015}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {J.~S.~M.}\
+  \bibnamefont {Ginges}} and \bibinfo {author} {\bibfnamefont {J.~C.}\
+  \bibnamefont {Berengut}}, }\href {\doibase 10.1088/0953-4075/49/9/095001}
+  {\bibfield  {journal} {\bibinfo  {journal} {J. Phys. B} }\textbf {\bibinfo
+  {volume} {49}}, \bibinfo {pages} {095001} (\bibinfo {year}
+  {2016}{\natexlab{a}})}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Ginges} and \citenamefont
+  {Berengut}(2016{\natexlab{b}})}]{Ginges2016}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {J.~S.~M.}\
+  \bibnamefont {Ginges}} and \bibinfo {author} {\bibfnamefont {J.~C.}\
+  \bibnamefont {Berengut}}, }\href {\doibase 10.1103/PhysRevA.93.052509}
+  {\bibfield  {journal} {\bibinfo  {journal} {Phys. Rev. A} }\textbf {\bibinfo
+  {volume} {93}}, \bibinfo {pages} {052509} (\bibinfo {year}
+  {2016}{\natexlab{b}})}, \Eprint {http://arxiv.org/abs/1603.09116}
+  {arXiv:1603.09116}\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Landau} and \citenamefont
+  {Lifshitz}(1977)}]{LLVol3}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {L.~D.} \bibnamefont
+  {Landau}} and \bibinfo {author} {\bibfnamefont {E.~M.} \bibnamefont
+  {Lifshitz}}, }\href@noop {} {\emph {\bibinfo {title} {{Quantum Mechanics:
+  Non-relativistic Theory}}}} (\bibinfo  {publisher} {Pergamon}, \bibinfo
+  {address} {Oxford}, \bibinfo {year} {1977})\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Sobelman}(1992)}]{Sobelman1992}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {I.~I.} \bibnamefont
+  {Sobelman}}, }\href {\doibase 10.1007/978-3-642-76907-8} {\emph {\bibinfo
+  {title} {{Atomic Spectra and Radiative Transitions}}}} (\bibinfo
+  {publisher} {Springer}, \bibinfo {address} {Berlin, Heidelberg}, \bibinfo
+  {year} {1992})\BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Varshalovich} \emph {et~al.}(1988)\citenamefont
+  {Varshalovich}, \citenamefont {Moskalev}, and \citenamefont
+  {Khersonskii}}]{Varshalovich1988}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {D.~A.} \bibnamefont
+  {Varshalovich}}, \bibinfo {author} {\bibfnamefont {A.~N.} \bibnamefont
+  {Moskalev}},  and \bibinfo {author} {\bibfnamefont {V.~K.} \bibnamefont
+  {Khersonskii}}, }\href {\doibase 10.1142/9789814415491_fmatter} {\emph
+  {\bibinfo {title} {{Quantum Theory of Angular Momentum}}}} (\bibinfo
+  {publisher} {World Scientific}, \bibinfo {address} {Singapore}, \bibinfo
+  {year} {1988})\BibitemShut {NoStop}%
+\end{thebibliography}%

@@ -224,7 +224,9 @@ void Wavefunction::radiativePotential(double x_simple, double x_Ueh,
 
 //******************************************************************************
 bool Wavefunction::isInCore(int n, int k) const {
-  const auto find_nk = [n, k](const auto Fa) { return Fa.n == n && Fa.k == k; };
+  const auto find_nk = [n, k](const auto &Fa) {
+    return Fa.n == n && Fa.k == k;
+  };
   const auto Fnk = std::find_if(cbegin(core), cend(core), find_nk);
   return Fnk != cend(core);
 }
@@ -421,14 +423,14 @@ std::tuple<double, double> Wavefunction::lminmax_core_range(int l,
       rho_l = NumCalc::add_vectors(rho_l, Fc.rho());
   }
   // find maximum rho:
-  auto max = std::max_element(rho_l.begin(), rho_l.end());
+  const auto max = std::max_element(rho_l.begin(), rho_l.end());
   // find first position that rho=|psi^2| reaches cut-off
-  auto cut = eps * (*max);
-  auto lam = [=](const auto &v) { return cut < v; };
-  auto first = std::find_if(rho_l.begin(), rho_l.end(), lam);
-  auto last = std::find_if(rho_l.rbegin(), rho_l.rend(), lam);
-  auto index_first = std::size_t(first - rho_l.begin());
-  auto index_last = std::size_t(rho_l.rend() - last);
+  const auto cut = max != rho_l.end() ? eps * (*max) : 0.0;
+  const auto lam = [=](const auto &v) { return cut < v; };
+  const auto first = std::find_if(rho_l.begin(), rho_l.end(), lam);
+  const auto last = std::find_if(rho_l.rbegin(), rho_l.rend(), lam);
+  const auto index_first = std::size_t(first - rho_l.begin());
+  const auto index_last = std::size_t(rho_l.rend() - last);
   return {rgrid.r[index_first], rgrid.r[index_last]};
 }
 

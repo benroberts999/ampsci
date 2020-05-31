@@ -10,7 +10,7 @@
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/Parametric_potentials.hpp"
-#include "Physics/radiativePotential.hpp"
+#include "Physics/RadiativePotential.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include <algorithm>

@@ -1,6 +1,7 @@
 // Example input file. Lines with "//" are ignored
 // Comment out an entire block (or just its name) to skip block
-// Tip: Tell you editor this is a cpp file [colouring + commenting shortcuts]
+// See doc/diracSCAS_input.md for full description of all options
+// Tip: Tell your editor this is a cpp file [colouring + commenting shortcuts]
 
 Atom {
   Z = Cs;
@@ -10,7 +11,7 @@ Atom {
 HartreeFock {
   core = [Xe];
   valence = 7sp;
-  Breit = 0.0;
+  // Breit = 0.0;
 }
 
 Nucleus {

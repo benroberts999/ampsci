@@ -18,3 +18,12 @@ $(SD)/Physics/AtomData.hpp \
 $(SD)/Wavefunction/DiracSpinor.hpp \
 $(SD)/Wavefunction/Wavefunction.hpp
 	$(COMP)
+
+$(BD)/DiagramRPA.o: $(SD)/MBPT/DiagramRPA.cpp \
+$(SD)/Angular/Angular_tables.hpp \
+$(SD)/Coulomb/Coulomb.hpp \
+$(SD)/Coulomb/YkTable.hpp \
+$(SD)/IO/SafeProfiler.hpp \
+$(SD)/Wavefunction/DiracSpinor.hpp \
+$(SD)/Wavefunction/Wavefunction.hpp
+	$(COMP)

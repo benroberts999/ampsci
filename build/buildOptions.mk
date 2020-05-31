@@ -4,13 +4,7 @@
 detected_OS := $(shell uname -s)
 $(info )
 $(info Detected operating system: $(detected_OS))
-# ## Certain options for MacOS
-# ifeq ($(detected_OS),Darwin)
-# ifeq ($(CXX),clang++)
-#   $(info You are using a mac - in order to use openMP, you must use g++!)
-#   UseOpenMP=no
-# endif
-# endif
+
 
 # runs make in //
 ifeq ($(Build),debug)
@@ -28,6 +22,7 @@ $(info )
 
 #Warnings:
 WARN=-Wall -Wpedantic -Wextra -Wdouble-promotion -Wconversion -Wshadow -Weffc++ -Wsign-conversion
+# -Wuseless-cast
 # -Wfloat-equal
 
 # Changes to warning based on compiler:
@@ -35,7 +30,8 @@ ifeq ($(CXX),clang++)
   WARN += -Wheader-hygiene
 endif
 ifeq ($(CXX),g++)
-  WARN += -Wsuggest-override -Wsuggest-final-types #-Wsuggest-final-methods
+  WARN += -Wsuggest-override -Wnon-virtual-dtor -Wcast-align -Woverloaded-virtual -Wduplicated-cond -Wduplicated-branches -Wnull-dereference
+#-Wsuggest-final-methods  -Wsuggest-final-types
 endif
 
 # Changes to optimisation based on build setting:

@@ -6,11 +6,11 @@ build/*.o
 !doc/
 doc/*
 !doc/*.md
-!doc/*.tex
-!doc/*.pdf
 !doc/*.example
-!doc/Doxyfile
-!doc/DoxygenLayout.xml
+!doc/tex
+doc/tex/*
+!doc/tex/*.tex
+!doc/tex/*.bbl
+!doc/tex/*.bib
 !.gitignore
 !*.md
-!.clang-format

@@ -33,8 +33,8 @@ Spectrum {
   states = 8sp6d5f;
 }
 Module::Tests { Hamiltonian = true; }
-MatrixElements::E1 { omega = each; }
-MatrixElements::hfs { F(r) = pointlike; rpa = false;}
+MatrixElements::E1 { omega = 0.04; rpa_diagram = true;}
+MatrixElements::hfs { F(r) = pointlike; rpa = false; rpa_diagram = true;}
 
 ###########################################
 #TEST# typical Fr+Sigma
@@ -64,7 +64,7 @@ Correlations {
   Brueckner = true;
 }
 Module::Tests {}
-MatrixElements::E1 { omega = 0.0; }
+MatrixElements::E1 { omega = 0.045; }
 
 ###########################################
 #TEST# Cs-dense
