@@ -16,31 +16,6 @@ int main(int argc, char *argv[]) {
   const std::string input_file = (argc > 1) ? argv[1] : "diracSCAS.in";
   std::cout << "Reading input from: " << input_file << "\n";
 
-  // MBPT::GMatrix A(2, false);
-  // A.ff[0][0] = 0;
-  // A.ff[0][1] = 1;
-  // A.ff[1][0] = 10;
-  // A.ff[1][1] = 11;
-  // A.ff.print();
-  // std::cout << "\n";
-  // auto A2 = A;
-  // { A2.ff = A.ff.transpose(); }
-  // A2.ff.print();
-  // std::cout << "\n";
-  // MBPT::ComplexGMatrix B(2, false);
-  // B.ff = LinAlg::ComplexSqMatrix::make_complex({1.0, 0.0}, A.ff);
-  // B.ff.print();
-  // std::cout << "\n";
-  // MBPT::ComplexGMatrix B2(2, false);
-  // B2.ff = LinAlg::ComplexSqMatrix::make_complex({1.0, 0.0}, A2.ff);
-  // B2.ff.print();
-  // std::cout << "\n";
-  // B.mult_elements_by(B2);
-  // B.ff.print();
-  // std::cout << "\n";
-  //
-  // return 1;
-
   // Rean in input options file
   const IO::UserInput input(input_file);
 
@@ -211,7 +186,7 @@ int main(int argc, char *argv[]) {
   const auto Sigma_ok = input.check(
       "Correlations", {"Brueckner", "energyShifts", "n_min_core", "fitTo_cm",
                        "lambda_k", "io_file", "rmin", "rmax", "stride",
-                       "Feynman", "lmax", "real_omega", "kmax"});
+                       "Feynman", "lmax", "GreenBasis", "real_omega"});
   const bool do_energyShifts = input.get("Correlations", "energyShifts", false);
   const bool do_brueckner = input.get("Correlations", "Brueckner", false);
   const auto sigma_stride = input.get("Correlations", "stride", 4);
@@ -219,9 +194,10 @@ int main(int argc, char *argv[]) {
   const auto sigma_rmax = input.get("Correlations", "rmax", 30.0);
   const auto sigma_Feynman = input.get("Correlations", "Feynman", false);
   const auto sigma_lmax = input.get("Correlations", "lmax", 6);
+  const auto GreenBasis = input.get("Correlations", "GreenBasis", false);
   const auto sigma_omre =
-      input.get("Correlations", "real_omega", -0.5 * wf.energy_gap());
-  const auto sigma_kmax = input.get("Correlations", "kmax", 99);
+      input.get("Correlations", "real_omega", -0.33 * wf.energy_gap());
+  // const auto sigma_kmax = input.get("Correlations", "kmax", 99);
   const auto sigma_file = input.get<std::string>("Correlations", "io_file", "");
   const auto n_min_core = input.get("Correlations", "n_min_core", 1);
   auto fit_energies =
@@ -235,8 +211,8 @@ int main(int argc, char *argv[]) {
   if ((do_energyShifts || do_brueckner) && Sigma_ok) {
     IO::ChronoTimer t("Sigma");
     wf.formSigma(n_min_core, do_brueckner, sigma_rmin, sigma_rmax, sigma_stride,
-                 lambda_k, sigma_file, sigma_Feynman, sigma_lmax, sigma_omre,
-                 sigma_kmax);
+                 lambda_k, sigma_file, sigma_Feynman, sigma_lmax, GreenBasis,
+                 sigma_omre);
   }
 
   // Just energy shifts

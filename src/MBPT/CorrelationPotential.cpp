@@ -64,7 +64,8 @@ CorrelationPotential::CorrelationPotential(
       stride(subgridp.stride),
       method(sigp.method),
       m_omre(sigp.real_omega),
-      p_hf(in_hf) {
+      p_hf(in_hf),
+      basis_for_Green(sigp.GreenBasis) {
   auto sp = IO::Profile::safeProfiler(__func__);
 
   std::cout << "\nCorrelation potential (Sigma)\n";
@@ -82,10 +83,10 @@ CorrelationPotential::CorrelationPotential(
     auto kmax_c = find_max_tj(p_hf->get_core(), excited);
     auto kmax_ex = 2 * sigp.max_l_excited + 1;
     max_tj = std::max(kmax_c, kmax_ex);
-    m_maxk = std::min(max_tj, sigp.max_k);
+    m_maxk = max_tj; // std::min(max_tj, sigp.max_k);
   } else {
     max_tj = find_max_tj(core, excited);
-    m_maxk = std::min(max_tj, sigp.max_k);
+    m_maxk = max_tj; // std::min(max_tj, sigp.max_k);
   }
   // fill sixj and Ck:
   m_6j.fill(m_maxk, max_tj);
@@ -98,8 +99,13 @@ CorrelationPotential::CorrelationPotential(
 
   std::cout << "Form correlation potential: ";
   if (method == Method::Feynman) {
-    std::cout << "Feynman method\n";
-    // only needed for Feynman
+    std::cout << "Feynman method:\n";
+    std::cout << "lmax = " << Angular::lFromIndex(m_maxkindex) << ", ";
+    if (basis_for_Green)
+      std::cout << "Using basis for Green's function (+Pol)";
+    else
+      std::cout << "Using basis for Pol, Green method for Green's fn";
+    std::cout << "\n";
     prep_Feynman();
     m_yec.extend_Ck(m_maxk, max_tj);
   } else {
@@ -244,20 +250,22 @@ void CorrelationPotential::form_Sigma(const std::vector<double> &en_list,
     if (tj > m_yec.Ck().max_tj())
       continue;
 
-    printf("k=%2i %6s at en=%8.5f..\n", kappa,
+    printf("k=%2i %6s at en=%8.5f.. ", kappa,
            AtomData::kappa_symbol(kappa).c_str(), en_list[ki]);
     std::cout << std::flush;
-    if (method == Method::Goldstone)
+    if (method == Method::Goldstone) {
       fill_Sigma_k_Gold(&Sigma_kappa[ki], kappa, en_list[ki]);
-    else
+    } else {
       fill_Sigma_k_Feyn(&Sigma_kappa[ki], kappa, en_list[ki]);
+    }
     // find lowest excited state, output <v|S|v> energy shift:
     auto find_kappa = [=](const auto &a) { return a.k == kappa; };
     const auto vk =
         std::find_if(cbegin(m_excited), cend(m_excited), find_kappa);
-    if (vk != cend(m_excited))
-      std::cout << "  de=" << *vk * Sigma2Fv(*vk) << "\n";
-    // std::cout << "\n";
+    if (vk != cend(m_excited)) {
+      printf("%.6f", *vk * Sigma2Fv(*vk));
+    }
+    std::cout << "\n";
   }
 
   // write to disk
@@ -277,29 +285,34 @@ DiracSpinor CorrelationPotential::Sigma2Fv(const DiracSpinor &v) const {
 }
 
 //******************************************************************************
-void CorrelationPotential::fill_Sigma_k_Feyn(GMatrix *Gmat, const int kappa,
+void CorrelationPotential::fill_Sigma_k_Feyn(GMatrix *Sigma, const int kappa,
                                              const double en) {
   auto sp = IO::Profile::safeProfiler(__func__);
 
-  Gmat->zero();
+  // Sigma->zero();
 
   auto find_kappa = [=](const auto &f) { return f.k == kappa; };
   const auto Fk = std::find_if(cbegin(m_excited), cend(m_excited), find_kappa);
 
-  const auto dir = FeynmanDirect(kappa, en);
+  // const auto dir
+  *Sigma = FeynmanDirect(kappa, en);
 
+  auto deD = 0.0;
   if (Fk != cend(m_excited)) {
-    std::cout << "  <d>=" << *Fk * Sigma_G_Fv(dir, *Fk)
-              << ", <e1>=" << std::flush;
+    deD = *Fk * Sigma_G_Fv(*Sigma, *Fk);
+    printf("de= %.4f + ", deD);
+    std::cout << std::flush;
   }
 
+  // return;
   const auto exch = FeynmanEx_1(kappa, en);
 
   if (Fk != cend(m_excited)) {
-    std::cout << *Fk * Sigma_G_Fv(exch, *Fk) << "." << std::flush;
+    auto deX = *Fk * Sigma_G_Fv(exch, *Fk);
+    printf("%.5f = ", deX);
   }
 
-  *Gmat = dir + exch;
+  *Sigma += exch;
 }
 
 //******************************************************************************
@@ -383,8 +396,6 @@ void CorrelationPotential::fill_Sigma_k_Gold(GMatrix *Gmat, const int kappa,
     { Sdir += Ga_d; }
 #pragma omp critical(sum_X)
     { Sexch += Ga_x; }
-    // #pragma omp critical(sumG)
-    //     { *Gmat += G_a; }
   } // a
 
   *Gmat = Sdir + Sexch;
@@ -392,8 +403,9 @@ void CorrelationPotential::fill_Sigma_k_Gold(GMatrix *Gmat, const int kappa,
   auto find_kappa = [=](const auto &f) { return f.k == kappa; };
   const auto Fk = std::find_if(cbegin(m_excited), cend(m_excited), find_kappa);
   if (Fk != cend(m_excited)) {
-    std::cout << "  <d>=" << *Fk * Sigma_G_Fv(Sdir, *Fk) << ", ";
-    std::cout << "<x>=" << *Fk * Sigma_G_Fv(Sexch, *Fk) << ".";
+    auto deD = *Fk * Sigma_G_Fv(Sdir, *Fk);
+    auto deX = *Fk * Sigma_G_Fv(Sexch, *Fk);
+    printf("de= %.4f + %.5f = ", deD, deX);
   }
 }
 
@@ -570,7 +582,7 @@ ComplexGMatrix CorrelationPotential::Green_core(int kappa, double en_re,
 //------------------------------------------------------------------------------
 ComplexGMatrix CorrelationPotential::Green_ex(int kappa, double en_re,
                                               double en_im) const {
-  if constexpr (basis_for_Green) {
+  if (basis_for_Green) {
     return Green_hf_basis(kappa, en_re, en_im, true);
   }
   return Green_hf(kappa, en_re, en_im) - Green_core(kappa, en_re, en_im);
@@ -612,7 +624,7 @@ ComplexGMatrix CorrelationPotential::Green_hf(int kappa, double en_re,
 ComplexGMatrix CorrelationPotential::Green_hf(int kappa, double en) const {
   auto sp = IO::Profile::safeProfiler(__func__);
 
-  if constexpr (basis_for_Green) {
+  if (basis_for_Green) {
     return Green_hf_basis(kappa, en, 0.0, false);
   }
 
@@ -841,10 +853,9 @@ void CorrelationPotential::prep_Feynman() {
   {
     const auto w0 = 0.08;
     const auto wmax = 35.0;
-    const double wratio = 2.5;
+    const double wratio = 3.0;
     const std::size_t wsteps = Grid::calc_num_points_from_du(
         w0, wmax, std::log(wratio), GridType::logarithmic);
-    // const auto wgrid = Grid(w0, wmax, wsteps, GridType::logarithmic);
     m_wgridX = std::make_unique<Grid>(w0, wmax, wsteps, GridType::logarithmic);
     std::cout << "Exch| Im(w) " << m_wgridX->gridParameters();
     printf(". r=%.2f\n", m_wgridX->r[1] / m_wgridX->r[0]);
@@ -1051,7 +1062,8 @@ CorrelationPotential::sumk_cGQPQ(int kv, int ka, int kA, int kB,
       continue;
     const double c_ang = c1 * c1 / double(tjvp1 * (2 * k + 1));
     const auto &q = m_qhat[std::size_t(k)];
-    gqpq += c_ang * q * pi_aalpha * q;
+    const auto &q_scr = screen_Coulomb ? screenedCoulomb(q, pi_aalpha) : q;
+    gqpq += c_ang * q * pi_aalpha * q_scr;
   } // k
   // return gqpq;
   return gqpq.mult_elements_by(g_beta).get_real();
@@ -1087,22 +1099,25 @@ GMatrix CorrelationPotential::sumkl_GQPGQ(const ComplexGMatrix &gA,
   const ComplexDouble iI{0.0, 1.0}; // i
 
   for (auto k = kmin; k <= kmax; ++k) {
-    const auto c0 = Angular::Ck_kk(k, kv, kA) * Angular::Ck_kk(k, ka, kB);
-    if (Angular::zeroQ(c0))
+    const auto ck1 = Angular::Ck_kk(k, kv, kA) * Angular::Ck_kk(k, ka, kB);
+    // nb: differ only by (at most) sign
+    const auto ck2 = Angular::Ck_kk(k, kv, kA) * Angular::Ck_kk(k, kB, ka);
+
+    if (Angular::zeroQ(ck1))
       continue;
 
-    const auto &qk = m_qhat[std::size_t(k)];
+    const auto &qk = m_qhat[std::size_t(k)]; // XXX this one
 
     for (auto l = lmin; l <= lmax; ++l) {
-      const auto c1 = Angular::Ck_kk(l, kv, kB) * Angular::Ck_kk(l, ka, kA);
-      const auto c2 = Angular::Ck_kk(l, kv, ka) * Angular::Ck_kk(l, kB, kA);
-      if (Angular::zeroQ(c1) && Angular::zeroQ(c2))
+      const auto cl1 = Angular::Ck_kk(l, kv, kB) * Angular::Ck_kk(l, ka, kA);
+      const auto cl2 = Angular::Ck_kk(l, kv, ka) * Angular::Ck_kk(l, kB, kA);
+      if (Angular::zeroQ(cl1) && Angular::zeroQ(cl2))
         continue;
 
       const auto sj1 =
-          c1 == 0.0 ? 0.0 : Angular::sixj_2(tjv, tjA, 2 * k, tja, tjB, 2 * l);
+          cl1 == 0.0 ? 0.0 : Angular::sixj_2(tjv, tjA, 2 * k, tja, tjB, 2 * l);
       const auto sj2 =
-          Angular::zeroQ(c2)
+          cl2 == 0.0
               ? 0.0
               : tja == tjB ? sj1
                            : Angular::sixj_2(tjv, tjA, 2 * k, tjB, tja, 2 * l);
@@ -1112,8 +1127,8 @@ GMatrix CorrelationPotential::sumkl_GQPGQ(const ComplexGMatrix &gA,
       const auto &ql = m_qhat[std::size_t(l)];
 
       const auto s0 = Angular::evenQ(k + l) ? 1 : -1;
-      const double cang1 = s0 * c0 * c1 * sj1 / tjvp1;
-      const double cang2 = s0 * c0 * c2 * s2 * sj2 / tjvp1;
+      const double cang1 = s0 * ck1 * cl1 * sj1 / tjvp1;
+      const double cang2 = s0 * ck2 * cl2 * sj2 / tjvp1;
 
       for (auto r1 = 0ul; r1 < stride_points; ++r1) {
         const auto dr1 =

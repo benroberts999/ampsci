@@ -666,8 +666,8 @@ void Wavefunction::formSigma(const int nmin_core, const bool form_matrix,
                              const int stride,
                              const std::vector<double> &lambdas,
                              const std::string &fname, const bool FeynmanQ,
-                             const int lmax, const double omre,
-                             const int kmax) {
+                             const int lmax, const bool GreenBasis,
+                             const double omre) {
   // Sort basis into core/exited parts, throwing away core states with n<nmin
   std::vector<DiracSpinor> occupied;
   std::vector<DiracSpinor> excited;
@@ -677,6 +677,30 @@ void Wavefunction::formSigma(const int nmin_core, const bool form_matrix,
     else if (!isInCore(Fb.n, Fb.k))
       excited.push_back(Fb);
   }
+
+  // std::vector<double> poles;
+  // auto en = -0.127367896;
+  // for (const auto &Fb : basis) {
+  //   poles.push_back(Fb.en - en);
+  // }
+  // for (const auto &Fa : occupied) {
+  //   for (const auto &Fn : excited) {
+  //     poles.push_back(Fa.en - Fn.en);
+  //     poles.push_back(-Fa.en + Fn.en);
+  //   }
+  //   for (const auto &Fb : occupied) {
+  //     // "core" Pi poles; supposed to be subtracted, but may still appear
+  //     poles.push_back(Fa.en - Fb.en);
+  //     poles.push_back(-Fa.en + Fb.en);
+  //   }
+  // }
+  // std::sort(poles.begin(), poles.end());
+  // for (const auto &p : poles) {
+  //   if (p < -0.8 || p > 0.1)
+  //     continue;
+  //   std::cout << p << "\n";
+  // }
+  // std::cin.get();
 
   // Form list of energies for each kappa:
   std::vector<double> en_list_kappa{};
@@ -701,7 +725,8 @@ void Wavefunction::formSigma(const int nmin_core, const bool form_matrix,
 
   const auto method =
       FeynmanQ ? MBPT::Method::Feynman : MBPT::Method::Goldstone;
-  const auto sigp = MBPT::Sigma_params{method, nmin_core, lmax, kmax, omre};
+  const auto sigp =
+      MBPT::Sigma_params{method, nmin_core, lmax, GreenBasis, omre};
   const auto subgridp = MBPT::rgrid_params{r0, rmax, std::size_t(stride)};
 
   // Correlaion potential matrix:
@@ -784,7 +809,7 @@ void Wavefunction::SOEnergyShift() {
 
   double e0 = 0;
   std::cout << "state |  E(HF)      E(2)       <v|S2|v> |  E(HF+2)     E(HF+2) "
-               "(cm^-1)\n";
+               " (cm^-1)\n";
   for (const auto &v : valence) {
     const auto delta = m_Sigma->SOEnergyShift(v, v);
     const auto delta2 = v * (*m_Sigma)(v);

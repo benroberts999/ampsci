@@ -28,7 +28,7 @@ struct Sigma_params {
   Method method;
   int min_n_core;
   int max_l_excited;
-  int max_k;
+  bool GreenBasis;
   double real_omega;
 };
 
@@ -158,6 +158,12 @@ public:
   ComplexGMatrix Polarisation_a(const ComplexGMatrix &pa, double ena,
                                 int k_alpha, double om_re, double om_im) const;
 
+  ComplexGMatrix screenedCoulomb(const ComplexGMatrix &q,
+                                 const ComplexGMatrix &pi) const {
+    // not checked!
+    return q * ((-1.0 * pi * q).plusIdent(1.0).invert());
+  }
+
   // void sumPol(const ComplexGMatrix &pi_aA) const;
 
   void prep_Feynman();
@@ -215,8 +221,9 @@ private:
 
   // Options for sub-grid, and which matrices to include
   static constexpr bool include_G = false;
-  static constexpr bool basis_for_Green = false;
-  static constexpr bool basis_for_Pol = true;
+  const bool basis_for_Green;
+  static constexpr bool basis_for_Pol = true; // XX
+  const bool screen_Coulomb = true;
 };
 
 } // namespace MBPT
