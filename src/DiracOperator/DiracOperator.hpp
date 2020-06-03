@@ -111,6 +111,7 @@ public:
 
   //! Returns string for outputting to screen, e.g.: "<6s+||h||6p->"
   std::string rme_symbol(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
+  std::string R_symbol(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
 
   //! Returns "name" of operator (e.g., 'E1')
   virtual std::string name() const { return "Operator"; };

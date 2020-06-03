@@ -299,6 +299,29 @@ MatrixElements::pnc {// spin-independent (Qw) PNC operator.
   t; //[r] skin thickness. default = 2.3
 }
 ```
+
+```cpp
+MatrixElements::Hrad_el {
+  // QED electric part (Euhling+electric SE)
+}
+```
+ * Takes similar arguments as RadPot (except for scale_l and core_qed)
+   * Simple, Ueh, SE_h, SE_l, rcut, scale_rN (but not SE_mag)
+ * Including RPA should be equivalent to including QED into core HF equations
+   * Note: only rpa_diagram method seems to work
+ * Typically used with onlyDiagonal=true, and radialIntegral=true (get energy shifts)
+
+```cpp
+MatrixElements::Hrad_mag {
+  // QED magnetic part (magnetic SE form-factor)
+}
+```
+ * Takes similar arguments as RadPot (except for scale_l and core_qed)
+   * SE_mag, rcut, scale_rN (but not Simple, Ueh, SE_h, SE_l,)
+ * Including RPA should be equivalent to including QED into core HF equations
+   * Note: only rpa_diagram method seems to work
+ * Typically used with onlyDiagonal=true, and radialIntegral=true (get energy shifts)
+
 ```cpp
 MatrixElements::hfs { // Magnetic dipole hyperfine structure constant A
   mu;     //[r] Nuc. mag. moment. Will be looked up by default
