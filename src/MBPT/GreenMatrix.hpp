@@ -82,6 +82,11 @@ public:
                   "Can only call ffc from Complex GMatrix!");
     return ff.get_copy(i, j);
   }
+  gsl_complex &ffc2(std::size_t i, std::size_t j) const {
+    static_assert(std::is_same<T, LinAlg::ComplexSqMatrix>::value,
+                  "Can only call ffc from Complex GMatrix!");
+    return ff[i][j]; // pointer? reference? None! KILL
+  }
 
   //! Can add/subtract matrices (in place)
   GreenMatrix<T> &operator+=(const GreenMatrix<T> &rhs) {

@@ -122,6 +122,33 @@ public:
   }
 };
 
+// inline gsl_complex &operator*=(gsl_complex &lhs, const gsl_complex &rhs) {
+//   lhs = gsl_complex_mul(lhs, rhs); // check! xx
+//   return lhs;
+// }
+//
+// inline gsl_complex operator*(const gsl_complex &lhs, const gsl_complex &rhs)
+// {
+//   return gsl_complex_mul(lhs, rhs);
+// }
+//
+// gsl_complex gsl_mult_few(const gsl_complex &a, const gsl_complex &b) {
+//   return gsl_complex_mul(a, b);
+// }
+// gsl_complex gsl_mult_few(const gsl_complex &a, const gsl_complex &b,
+//                          const gsl_complex &c) {
+//   return gsl_complex_mul(a, gsl_complex_mul(b, c));
+// }
+
+//! To efficiently multiply many gsl_complex doubles
+template <typename... Args>
+gsl_complex gsl_mult_few(const gsl_complex &first, const Args &... args) {
+  if constexpr (sizeof...(Args) == 0)
+    return first;
+  else
+    return gsl_complex_mul(first, gsl_mult_few(args...));
+}
+
 //******************************************************************************
 //! Basic Complex Square matrix class of constant construct-time size
 class ComplexSqMatrix {
