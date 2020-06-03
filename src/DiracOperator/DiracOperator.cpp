@@ -27,6 +27,10 @@ std::string TensorOperator::rme_symbol(const DiracSpinor &Fa,
                                        const DiracSpinor &Fb) const {
   return std::string("<") + Fa.shortSymbol() + "||h||" + Fb.shortSymbol() + ">";
 }
+std::string TensorOperator::R_symbol(const DiracSpinor &Fa,
+                                     const DiracSpinor &Fb) const {
+  return std::string("R(") + Fa.shortSymbol() + "," + Fb.shortSymbol() + ")";
+}
 
 //******************************************************************************
 double TensorOperator::rme3js(const int twoja, const int twojb, int two_mb,

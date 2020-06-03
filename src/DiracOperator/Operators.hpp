@@ -302,7 +302,7 @@ private:
 class Hrad_el final : public ScalarOperator {
 public:
   Hrad_el(const std::vector<double> &Hel)
-      : ScalarOperator(Parity::even, 1.0, Hel, {1, 0, 1, 0}) {}
+      : ScalarOperator(Parity::even, 1.0, Hel, {1, 0, 0, 1}) {}
   std::string name() const override { return "Hrad_el"; }
   std::string units() const override { return "au"; }
 };
@@ -310,7 +310,7 @@ public:
 class Hrad_mag final : public ScalarOperator {
 public:
   Hrad_mag(const std::vector<double> &Hmag)
-      : ScalarOperator(Parity::even, 1.0, Hmag, {0, 1, 0, 1}) {}
+      : ScalarOperator(Parity::even, -137.036, Hmag, {0, 1, 1, 0}) {}
   std::string name() const override { return "Hrad_mag"; }
   std::string units() const override { return "au"; }
 };

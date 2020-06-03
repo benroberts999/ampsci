@@ -42,9 +42,9 @@ void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf) {
   const bool radial_int = input.get("radialIntegral", false);
 
   // spacial case: HFS A (MHz)
-  bool AhfsQ = (operator_str == "hfs" && !radial_int);
+  const bool AhfsQ = (operator_str == "hfs" && !radial_int);
 
-  auto which_str =
+  const auto which_str =
       radial_int ? " (radial integral)." : AhfsQ ? " A (MHz)." : " (reduced).";
 
   auto h = generateOperator(input, wf);
@@ -62,9 +62,10 @@ void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf) {
   const bool eachFreqQ = str_om == "each" || str_om == "Each";
   const auto omega = eachFreqQ ? 0.0 : input.get("omega", 0.0);
 
-  const auto factor = input.get("factor", 1.0);
-  if (factor != 1.0)
-    std::cout << "With extra factor: " << factor << "\n";
+  if (rpaQ && (h->parity() == 1)) {
+    std::cout << "\n\n*CAUTION*:\n RPA (TDHF method) may not work for this "
+                 "operator.\n Consider using rpa_diagram method\n\n";
+  }
 
   // XXX Always same kappa for get_Vlocal?
   auto rpa = HF::ExternalField(h.get(), wf.getHF());
@@ -118,20 +119,18 @@ void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf) {
       }
 
       // Special case: HFS A:
-      auto a = AhfsQ ? DiracOperator::Hyperfine::convertRMEtoA(Fa, Fb) : 1.0;
-      a *= factor;
-      if (radial_int) {
-        // No rpa for radial integral?
-        printf("R(%s,%s): ", Fa.shortSymbol().c_str(),
-               Fb.shortSymbol().c_str());
-        printf("%13.6e\n", h->radialIntegral(Fa, Fb));
-      }
+      const auto a = AhfsQ ? DiracOperator::Hyperfine::convertRMEtoA(Fa, Fb)
+                           : radial_int ? 1.0 / h->angularF(Fa.k, Fb.k) : 1.0;
+
+      const auto symb =
+          radial_int ? h->R_symbol(Fa, Fb) + " " : h->rme_symbol(Fa, Fb);
+
       if (!rpaQ && !rpaDQ) {
-        std::cout << h->rme_symbol(Fa, Fb) << ": ";
+        std::cout << symb << ": ";
         printf("%13.6e \n", h->reducedME(Fa, Fb) * a);
       }
       if (rpaQ) {
-        std::cout << h->rme_symbol(Fa, Fb) << ": ";
+        std::cout << symb << ": ";
         printf("%13.6e ", h->reducedME(Fa, Fb) * a);
         auto dV = rpa.dV(Fa, Fb);
         auto dV0 = rpa0->dV(Fa, Fb);
@@ -139,7 +138,7 @@ void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf) {
                (h->reducedME(Fa, Fb) + dV) * a);
       }
       if (rpaDQ) {
-        std::cout << h->rme_symbol(Fa, Fb) << "D:";
+        std::cout << symb << "D:";
         printf("%13.6e ", h->reducedME(Fa, Fb) * a);
         auto dV = rpaD->dV(Fa, Fb);
         auto dV0 = rpaD->dV(Fa, Fb, true);
@@ -293,7 +292,7 @@ generateOperator(const IO::UserInputBlock &input, const Wavefunction &wf) {
 static auto jointCheck(const std::vector<std::string> &in) {
   std::vector<std::string> check_list = {
       "radialIntegral", "printBoth", "onlyDiagonal", "units", "rpa",
-      "rpa_diagram",    "omega",     "factor"};
+      "rpa_diagram",    "omega"};
   check_list.insert(check_list.end(), in.begin(), in.end());
   return check_list;
 }
@@ -450,7 +449,7 @@ generate_Hrad_mag(const IO::UserInputBlock &input, const Wavefunction &wf) {
   using namespace DiracOperator;
   input.checkBlock(jointCheck({"SE_m", "rcut", "scale_rN"}));
   const auto x_SEm = input.get("SE_m", 1.0);
-  const auto rcut = input.get("rcut", 5.0);
+  const auto rcut = input.get("rcut", 50.0);
   const auto scale_rN = input.get("scale_rN", 1.0);
   const auto r_rms_Fermi = scale_rN * wf.get_nuclearParameters().r_rms;
   const auto Hmag = RadiativePotential::form_Hmag(
