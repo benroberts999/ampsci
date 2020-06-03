@@ -55,12 +55,17 @@ int defaultA(int Z);
 std::string atomicSymbol(int Z);
 std::string atomicName(int Z);
 
-inline int get_z(int z) { return z; }
+//! Converts atomic symbol to integer Z (e.g., 'Cs' to 55 )
 int get_z(const std::string &at);
+//! Overload, to can call with int anyway
+inline int get_z(int z) { return z; }
 
+//! l (int) to symbol (e.g., 0->'s', 1->'p')
 std::string l_symbol(int l);
+//! kappa (int) to symbol, e.g., -1 -> s_1/2
 std::string kappa_symbol(int kappa);
 
+//! e.g., 'p' -> 1
 int symbol_to_l(const std::string &l_str);
 
 //! Given a nobel-gas conifg (e.g., '[Xe]') returns full electron config

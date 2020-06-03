@@ -1,4 +1,5 @@
 #pragma once
+#include <algorithm> //std::min!
 #include <cmath>
 #include <gsl/gsl_sf_coupling.h>
 

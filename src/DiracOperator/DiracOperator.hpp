@@ -194,7 +194,7 @@ protected:
 
 //------------------------------------------------------------------------------
 //! Speacial operator: 0
-class NullOperator : public ScalarOperator {
+class NullOperator final : public ScalarOperator {
 public:
   NullOperator() : ScalarOperator(Parity::even, 0, {}) {}
 

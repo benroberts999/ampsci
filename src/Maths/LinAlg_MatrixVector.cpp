@@ -1,4 +1,5 @@
 #include "LinAlg_MatrixVector.hpp"
+#include "IO/safeProfiler.hpp"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -106,6 +107,7 @@ double SqMatrix::determinant() const {
 }
 
 SqMatrix &SqMatrix::invert() {
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   // note: this is destuctive: matrix will be inverted
   // uses LU decomposition
   gsl_permutation *permutn = gsl_permutation_alloc(n);
@@ -122,6 +124,7 @@ SqMatrix &SqMatrix::invert() {
 }
 
 SqMatrix SqMatrix::inverse() const {
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   auto inverse = *this;
   inverse.invert();
   return inverse;
@@ -134,6 +137,7 @@ double *SqMatrix::operator[](int i) const {
 double *SqMatrix::operator[](std::size_t i) const { return &(m->data[i * n]); }
 
 SqMatrix operator*(const SqMatrix &lhs, const SqMatrix &rhs) {
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   // check matrix sizes?
   SqMatrix product(lhs.n);
   gsl_blas_dgemm(CblasNoTrans, CblasNoTrans, 1.0, lhs.m, rhs.m, 0.0, product.m);
@@ -252,6 +256,7 @@ Vector operator*(const double x, Vector rhs) {
   return rhs;
 }
 Vector operator*(const SqMatrix &Aij, const Vector &bj) {
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   Vector ci(bj.n);
   if (bj.n != Aij.n) {
     std::cerr << "\n Fail 283 in Vector: " << bj.n << "!=" << Aij.n << "\n";
@@ -325,6 +330,7 @@ ComplexSqMatrix ComplexSqMatrix::transpose() const {
 }
 // Inverts the matrix: nb: destructive
 ComplexSqMatrix &ComplexSqMatrix::invert() {
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   // note: this is destuctive: matrix will be inverted
   // uses LU decomposition
   gsl_permutation *permutn = gsl_permutation_alloc(n);
@@ -341,6 +347,7 @@ ComplexSqMatrix &ComplexSqMatrix::invert() {
 }
 // Returns the inverce of matrix: not destructive
 ComplexSqMatrix ComplexSqMatrix::inverse() const {
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   auto inverse = *this;
   inverse.invert();
   return inverse;
@@ -408,6 +415,7 @@ ComplexSqMatrix operator*(ComplexSqMatrix rhs, const Complex<double> &x) {
 }
 
 ComplexSqMatrix operator*(const ComplexSqMatrix &x, const ComplexSqMatrix &y) {
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   // These functions compute the matrix-matrix product and sum
   // C = \alpha op(A) op(B) + \beta C
   // where op(A) = A, A^T, A^H
@@ -442,6 +450,7 @@ ComplexSqMatrix operator-(ComplexSqMatrix lhs, const ComplexSqMatrix &rhs) {
 
 //******************************************************************************
 Vector solve_Axeqb(const SqMatrix &Am, const Vector &b) {
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   Vector x(b.n);
 
   gsl_matrix *Am_LU = gsl_matrix_alloc(Am.n, Am.n);
@@ -470,6 +479,7 @@ Vector solve_Axeqb(const SqMatrix &Am, const Vector &b) {
 // matrix! Therefore, we transpose the matrix (duuumb)
 //*****************************************************************************
 std::pair<Vector, SqMatrix> realSymmetricEigensystem(SqMatrix &A, bool sort) {
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   // Solves Av = ev for eigenvalues e and eigenvectors v
   // for Real Symmetric Matrices using GSL:
   // https://www.gnu.org/software/gsl/doc/html/eigen.html#real-symmetric-matrices
@@ -500,6 +510,7 @@ std::pair<Vector, SqMatrix> realSymmetricEigensystem(SqMatrix &A, bool sort) {
 //------------------------------------------------------------------------------
 std::pair<Vector, SqMatrix> realSymmetricEigensystem(SqMatrix &A, SqMatrix &B,
                                                      bool sort) {
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   // Solves Av = eBv for eigenvalues e and eigenvectors v
   // for Real Generalized Symmetric-Definite Eigensystems using GSL:
   // https://www.gnu.org/software/gsl/doc/html/eigen.html#real-generalized-symmetric-definite-eigensystems
@@ -530,6 +541,7 @@ std::pair<Vector, SqMatrix> realSymmetricEigensystem(SqMatrix &A, SqMatrix &B,
 //*****************************************************************************
 std::tuple<Vector, Vector, SqMatrix, SqMatrix>
 realNonSymmetricEigensystem(SqMatrix &A, bool sort) {
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   // Solves for Av = ev
   // for Real Nonsymmetric Matrices, using GSL:
   // https://www.gnu.org/software/gsl/doc/html/eigen.html#real-nonsymmetric-matrices
@@ -578,6 +590,7 @@ realNonSymmetricEigensystem(SqMatrix &A, bool sort) {
 //------------------------------------------------------------------------------
 std::tuple<Vector, Vector, SqMatrix, SqMatrix>
 realNonSymmetricEigensystem(SqMatrix &A, SqMatrix &B, bool sort) {
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   // Solves for Av = eBv
   // for Real Generalized Nonsymmetric Eigensystems, using GSL:
   // https://www.gnu.org/software/gsl/doc/html/eigen.html#real-generalized-nonsymmetric-eigensystems

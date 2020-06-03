@@ -49,7 +49,7 @@ CorrelationPotential::CorrelationPotential(
       m_maxk(find_max_tj(core, excited)),
       m_6j(m_maxk, m_maxk),
       stride(std::size_t(in_stride)) {
-  auto sp = IO::Profile::safeProfiler(__func__);
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
 
   std::cout << "\nCorrelation potential (Sigma)\n";
 
@@ -99,7 +99,7 @@ void CorrelationPotential::setup_subGrid() {
 void CorrelationPotential::addto_G(GMatrix *Gmat, const DiracSpinor &ket,
                                    const DiracSpinor &bra,
                                    const double f) const {
-  auto sp = IO::Profile::safeProfiler(__func__);
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   // Adds (f)*|ket><bra| to G matrix
   // G_ij = f * Q_i * W_j
   // Q = Q(1) = ket, W = W(2) = bra
@@ -121,7 +121,7 @@ void CorrelationPotential::addto_G(GMatrix *Gmat, const DiracSpinor &ket,
 //******************************************************************************
 DiracSpinor CorrelationPotential::Sigma_G_Fv(const GMatrix &Gmat,
                                              const DiracSpinor &Fv) const {
-  auto sp = IO::Profile::safeProfiler(__func__);
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   // lambda is fitting factor (just scales Sigma|v>)
   // Sigma|v> = int G(r1,r2)*v(r2) dr2
   // (S|v>)_i = sum_j G_ij v_j drdu_j du
@@ -163,7 +163,7 @@ DiracSpinor CorrelationPotential::Sigma_G_Fv(const GMatrix &Gmat,
 //******************************************************************************
 void CorrelationPotential::form_Sigma(const std::vector<double> &en_list,
                                       const std::string &fname) {
-  auto sp = IO::Profile::safeProfiler(__func__);
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
 
   Sigma_kappa.resize(en_list.size(), {stride_points, include_G});
 
@@ -201,7 +201,7 @@ void CorrelationPotential::form_Sigma(const std::vector<double> &en_list,
 
 //******************************************************************************
 DiracSpinor CorrelationPotential::Sigma2Fv(const DiracSpinor &v) const {
-  auto sp = IO::Profile::safeProfiler(__func__);
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   // Find correct G matrix (corresponds to kappa_v), return Sigma|v>
   // If Sigma_kappa doesn't exist, returns |0>
   auto kappa_index = std::size_t(Angular::indexFromKappa(v.k));
@@ -213,7 +213,7 @@ DiracSpinor CorrelationPotential::Sigma2Fv(const DiracSpinor &v) const {
 //******************************************************************************
 void CorrelationPotential::fill_Sigma_k_Gold(GMatrix *Gmat, const int kappa,
                                              const double en) {
-  auto sp = IO::Profile::safeProfiler(__func__);
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
 
   // Four second-order diagrams:
   // Diagram (a):

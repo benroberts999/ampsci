@@ -1,4 +1,5 @@
 #pragma once
+#include "IO/safeProfiler.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_coeficients.hpp"
 #include <array>
@@ -31,6 +32,7 @@ inline std::vector<T> derivative(const std::vector<T> &f,
 //       = (df/di) / (dt * dr/dt)
 // coeficients from: http://en.wikipedia.org/wiki/Finite_difference_coefficient
 {
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
 
   std::size_t num_points = f.size();
   std::vector<T> df(num_points);
@@ -84,6 +86,7 @@ inline double integrate_single(const C &f1, const double dt = 1.,
 // Not sure if this is best choice - but it ensures that:
 // int_{a->b} + int_{b->c} = int_{a->c}
 {
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
 
   auto max_grid = f1.size();
   if (end == 0)
@@ -212,6 +215,7 @@ T mult_vectors(const T &zeroth, const Args &... args) {
 template <typename... Args>
 double integrate(const double dt, const std::size_t beg, const std::size_t end,
                  const Args &... args) {
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   return integrate_single(mult_vectors(args...), dt, beg, end);
 }
 inline double integrate(const double dt, const std::size_t beg,

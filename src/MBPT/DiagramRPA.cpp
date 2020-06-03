@@ -4,7 +4,7 @@
 #include "Coulomb/Coulomb.hpp"
 #include "Coulomb/YkTable.hpp"
 #include "DiracOperator/DiracOperator.hpp"
-#include "IO/ChronoTimer.hpp"
+#include "IO/safeProfiler.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <algorithm>
 #include <string>
@@ -59,7 +59,7 @@ DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
 
 //******************************************************************************
 void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h) {
-
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   if (holes.empty() || excited.empty()) {
     std::cout << "\nWARNING 64 in DiagramRPA: no basis! RPA will be zero\n";
     return;
@@ -208,7 +208,7 @@ void DiagramRPA::clear_tam() {
 //******************************************************************************
 double DiagramRPA::dV(const DiracSpinor &Fw, const DiracSpinor &Fv,
                       const bool first_order) const {
-
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   if (holes.empty() || excited.empty())
     return 0.0;
 
@@ -243,7 +243,7 @@ double DiagramRPA::dV(const DiracSpinor &Fw, const DiracSpinor &Fv,
 
 //******************************************************************************
 void DiagramRPA::rpa_core(const double omega, const bool print) {
-
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   m_omega = std::abs(omega);
 
   if (holes.empty() || excited.empty())
@@ -257,16 +257,20 @@ void DiagramRPA::rpa_core(const double omega, const bool print) {
   auto eps = 0.0;
   const auto f = (1.0 / (2 * m_k + 1));
   for (; it <= max_its; it++) {
-    eps = 0.0;
+    // eps = 0.0;
+    std::vector<double> eps_a(holes.size()); //"thread-safe" eps..?
 #pragma omp parallel for
     for (std::size_t ia = 0; ia < holes.size(); ia++) {
       const auto &Fa = holes[ia];
+      double eps_worst_m = 0.0;
       for (std::size_t im = 0; im < excited.size(); im++) {
         const auto &Fm = excited[im];
 
         double sum_am = 0;
         double sum_ma = 0;
 
+        // ** ** **
+        // Can replace this with dV?? maybe not threadsafe..
         for (std::size_t ib = 0; ib < holes.size(); ib++) {
           const auto &Fb = holes[ib];
           const auto s1 = ((Fb.twoj() - Fa.twoj() + 2 * m_k) % 4 == 0) ? 1 : -1;
@@ -289,18 +293,27 @@ void DiagramRPA::rpa_core(const double omega, const bool print) {
             sum_ma += s3 * (C + s2 * D);
           }
         }
+        // ** ** **
+
         const auto prev = tam[ia][im];
         tam[ia][im] = 0.5 * (tam[ia][im] + t0am[ia][im] + f * sum_am);
         tma[im][ia] = 0.5 * (tma[im][ia] + t0ma[im][ia] + f * sum_ma);
         const auto delta = std::abs((tam[ia][im] - prev) / tam[ia][im]);
-#pragma omp critical(compare_eps)
-        {
-          if (delta > eps) {
-            eps = std::abs(delta);
-          }
-        }
+        if (delta > eps_worst_m)
+          eps_worst_m = delta;
+        //         {
+        // #pragma omp critical(compare_eps)
+        //           if (delta > eps) {
+        //             eps = std::abs(delta);
+        //           }
+        //         }
       }
+      eps_a[ia] = eps_worst_m;
     }
+    // XXX "small" race condition somewhere regarding eps??
+    // The itteraion it converges on always seems to be the same..
+    // but the value for eps printed changes slightly each run???
+    eps = *std::max_element(cbegin(eps_a), cend(eps_a));
     if (eps < eps_targ)
       break;
     if (print && it % 15 == 0) {

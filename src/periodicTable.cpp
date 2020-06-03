@@ -2,6 +2,7 @@
 #include "Physics/AtomData_PeriodicTable.hpp"
 #include "Physics/NuclearData.hpp"
 #include "Physics/PhysConst_constants.hpp"
+#include <algorithm>
 #include <iostream>
 #include <vector>
 
@@ -37,10 +38,17 @@ void printData(const Nuclear::Isotope &nuc) {
 }
 
 int parse_A(const std::string &A_str, int z = 0) {
+
+  auto string_is_ints = [](const std::string &s) {
+    return !s.empty() && std::find_if(s.begin(), s.end(), [](auto c) {
+                           return !std::isdigit(c);
+                         }) == s.end();
+  };
+
   int a = 0;
-  try {
+  if (string_is_ints(A_str)) {
     a = std::stoi(A_str);
-  } catch (...) {
+  } else {
     std::cout << "Invalid A: " << A_str << "\n";
     instructions();
     std::abort();

@@ -110,7 +110,7 @@ DiracSpinor HartreeFock::VBr(const DiracSpinor &Fv) const {
 
 //******************************************************************************
 void HartreeFock::hf_core_approx(const double eps_target_HF) {
-  auto sp = IO::Profile::safeProfiler(__func__);
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   if (p_core->empty()) {
     return;
   }
@@ -216,7 +216,7 @@ void HartreeFock::hf_core_approx(const double eps_target_HF) {
 //******************************************************************************
 void HartreeFock::solveValence(std::vector<DiracSpinor> *valence,
                                const bool print) {
-  auto sp = IO::Profile::safeProfiler(__func__);
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
 
   if (valence == nullptr || valence->empty())
     return;
@@ -257,7 +257,7 @@ void HartreeFock::solveValence(std::vector<DiracSpinor> *valence,
 void HartreeFock::solveBrueckner(std::vector<DiracSpinor> *valence,
                                  const MBPT::CorrelationPotential &Sigma2,
                                  const bool print) {
-  auto sp = IO::Profile::safeProfiler(__func__);
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
 
   if (valence->empty())
     return;
@@ -288,7 +288,7 @@ EpsIts HartreeFock::hf_valence_approx(DiracSpinor &Fa, double eps_target_HF)
 // Does not store vex (must be done outside)
 // Can be used to generate a set of virtual/basis orbitals
 {
-  auto sp = IO::Profile::safeProfiler(__func__);
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   Fa.occ_frac = 1.0 / Fa.twojp1();
 
   auto damper = rampedDamp(0.7, 0.2, 2, 6);
@@ -398,7 +398,7 @@ void HartreeFock::form_vdir(std::vector<double> &vdir, bool re_scale) const
 // Hartree potential (local, same each state, no exchange).
 // re_scale=false by default
 {
-  auto sp = IO::Profile::safeProfiler(__func__);
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   for (auto &v_dir : vdir) {
     v_dir = 0.0;
   }
@@ -422,7 +422,7 @@ void HartreeFock::form_approx_vex_core(
 // NOTE: Must call form_vabk_core first!
 // Doesn't calculate, assumes m_arr_v_abk_r array exists + is up-to-date
 {
-  auto sp = IO::Profile::safeProfiler(__func__);
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   vex.resize(p_core->size());
 #pragma omp parallel for
   for (std::size_t a = 0; a < p_core->size(); a++) {
@@ -461,7 +461,7 @@ void HartreeFock::form_approx_vex_core_a(const DiracSpinor &Fa,
 // |Fa| > 1.e3 Further, largest part of v_ex is when a=b. In this case, the
 // factor=1 is exact!
 {
-  auto sp = IO::Profile::safeProfiler(__func__);
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   vex_a.clear();
   vex_a.resize(p_rgrid->num_points);
 
@@ -539,7 +539,7 @@ std::vector<double> vex_approx(const DiracSpinor &Fa,
                                const std::vector<DiracSpinor> &core, int k_cut)
 // Free function
 {
-  auto sp = IO::Profile::safeProfiler(__func__);
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
 
   std::vector<double> vex(Fa.p_rgrid->num_points);
   std::vector<double> vabk;
@@ -613,7 +613,7 @@ void HartreeFock::vex_psia_core(const DiracSpinor &Fa, DiracSpinor &VxFa) const
 // Fa can be any orbital (so long as coulomb integrals exist!)
 // ..... i.e., must be core orbital
 {
-  auto sp = IO::Profile::safeProfiler(__func__);
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   VxFa.pinf = Fa.f.size(); // silly hack. Make sure VxFa = 0 after pinf
   VxFa *= 0.0;
   VxFa.pinf = Fa.pinf; // updated below
@@ -649,7 +649,7 @@ DiracSpinor vexFa(const DiracSpinor &Fa, const std::vector<DiracSpinor> &core,
 // calculates V_ex Fa (returns new Dirac Spinor)
 // Fa can be any orbital (Calculates coulomb integrals here!)
 {
-  auto sp = IO::Profile::safeProfiler(__func__);
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   DiracSpinor VxFa(Fa.n, Fa.k, *(Fa.p_rgrid));
   VxFa.pinf = Fa.pinf; // nb: updated below!
   // note: VxFa.pinf can be larger than psi.pinf!
@@ -706,7 +706,7 @@ void HartreeFock::hf_orbital(DiracSpinor &Fa, double en,
 // Core is input so can call in a thread-safe way! (with a 'old_core' copy)
 // Only used in dE from dF
 {
-  auto sp = IO::Profile::safeProfiler(__func__);
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   // pull these outside? But make sure thread safe!
   DiracSpinor Gzero(Fa.n, Fa.k, *(Fa.p_rgrid));
   DiracSpinor Ginf(Fa.n, Fa.k, *(Fa.p_rgrid));
@@ -761,7 +761,7 @@ void HartreeFock::brueckner_orbital(DiracSpinor &Fa, double en,
                                     const HF::Breit *const VBr) const
 // ..................
 {
-  auto sp = IO::Profile::safeProfiler(__func__);
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   // pull these outside? But make sure thread safe!
   DiracSpinor Gzero(Fa.n, Fa.k, *(Fa.p_rgrid));
   DiracSpinor Ginf(Fa.n, Fa.k, *(Fa.p_rgrid));
@@ -822,7 +822,7 @@ const std::vector<double> &HartreeFock::get_Hrad_mag(int l) const {
 
 //******************************************************************************
 EpsIts HartreeFock::hf_valence_refine(DiracSpinor &Fa) {
-  auto sp = IO::Profile::safeProfiler(__func__);
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   if (p_core->empty())
     return {0, 0};
 
@@ -896,7 +896,7 @@ EpsIts HartreeFock::hf_valence_refine(DiracSpinor &Fa) {
 //******************************************************************************
 EpsIts HartreeFock::hf_Brueckner(DiracSpinor &Fa,
                                  const MBPT::CorrelationPotential &Sigma) {
-  auto sp = IO::Profile::safeProfiler(__func__);
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   if (p_core->empty())
     return {0, 0};
 
@@ -969,7 +969,7 @@ EpsIts HartreeFock::hf_Brueckner(DiracSpinor &Fa,
 
 //******************************************************************************
 inline void HartreeFock::hf_core_refine() {
-  auto sp = IO::Profile::safeProfiler(__func__);
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   if (p_core->empty()) {
     return;
   }

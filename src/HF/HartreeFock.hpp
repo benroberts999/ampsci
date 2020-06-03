@@ -195,7 +195,7 @@ private:
 
 public:
   HartreeFock &operator=(const HartreeFock &) = delete; // copy assignment
-  HartreeFock(const HartreeFock &) = default;           // copy constructor
+  HartreeFock(const HartreeFock &) = delete;            // copy constructor
   ~HartreeFock() = default;
 };
 
