@@ -39,8 +39,8 @@ public:
   void clear_tam();
 
 private:
-  const int m_k;
-  const int m_pi; // need pi?
+  const int m_k;  // rank
+  const int m_pi; // parity (+/-1)
   const int m_imag;
   std::vector<DiracSpinor> holes{};
   std::vector<DiracSpinor> excited{};

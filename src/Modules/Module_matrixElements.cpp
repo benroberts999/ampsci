@@ -55,8 +55,8 @@ void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf) {
   const bool print_both = input.get("printBoth", false);
   const bool diagonal_only = input.get("onlyDiagonal", false);
 
-  const bool rpaQ = input.get("rpa", true);
   const bool rpaDQ = input.get("rpa_diagram", false);
+  const bool rpaQ = input.get("rpa", !rpaDQ);
 
   const auto str_om = input.get<std::string>("omega", "_");
   const bool eachFreqQ = str_om == "each" || str_om == "Each";
@@ -232,14 +232,17 @@ void calculateBohrWeisskopf(const IO::UserInputBlock &input,
 
   // nb: can only do diagram RPA for hfs
   const auto rpa = input.get("rpa", false) || input.get("rpa_diagram", false);
-  if (rpa)
-    std::cout << "Including RPA (diagram method) - must have basis\n";
 
   std::unique_ptr<MBPT::DiagramRPA> rpap{nullptr}, rpab{nullptr}, rpaw{nullptr};
   if (rpa) {
+    std::cout << "\nIncluding RPA (diagram method) - must have basis\n";
     rpap = std::make_unique<MBPT::DiagramRPA>(hp.get(), wf.basis, wf.core);
     rpab = std::make_unique<MBPT::DiagramRPA>(hb.get(), rpap.get());
     rpaw = std::make_unique<MBPT::DiagramRPA>(hw.get(), rpap.get());
+    std::cout << "Solving RPA core for point, ball, SP:\n";
+    rpap->rpa_core(0.0);
+    rpab->rpa_core(0.0);
+    rpaw->rpa_core(0.0);
   }
   std::cout << "\nTabulate A (Mhz), and Bohr-Weisskopf effect eps(%): "
             << wf.atom()

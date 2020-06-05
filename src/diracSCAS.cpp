@@ -16,6 +16,7 @@ int main(int argc, char *argv[]) {
 
   // Rean in input options file
   const IO::UserInput input(input_file);
+  input.print();
 
   // Get + setup atom parameters
   auto input_ok = input.check("Atom", {"Z", "A", "varAlpha2"});

@@ -4,9 +4,11 @@
 #include "Coulomb/Coulomb.hpp"
 #include "Coulomb/YkTable.hpp"
 #include "DiracOperator/DiracOperator.hpp"
+#include "IO/ChronoTimer.hpp"
 #include "IO/safeProfiler.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <algorithm>
+#include <numeric>
 #include <string>
 #include <vector>
 
@@ -64,20 +66,21 @@ void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h) {
     std::cout << "\nWARNING 64 in DiagramRPA: no basis! RPA will be zero\n";
     return;
   }
+  // IO::ChronoTimer sw("fill_W_matrix");
 
-  auto maxtj1 =
+  const auto maxtj_c =
       std::max_element(holes.cbegin(), holes.cend(), DiracSpinor::comp_j)
           ->twoj();
-  auto maxtj2 =
+  const auto maxtj_e =
       std::max_element(excited.cbegin(), excited.cend(), DiracSpinor::comp_j)
           ->twoj();
-  auto maxtj = std::max(maxtj1, maxtj2);
+  const auto maxtj = std::max(maxtj_c, maxtj_e);
 
-  Coulomb::YkTable Yhe(holes.front().p_rgrid, &holes, &excited);
-  Coulomb::YkTable Yee(holes.front().p_rgrid, &excited);
-  Coulomb::YkTable Yhh(holes.front().p_rgrid, &holes);
-  const auto &Ck = Yee.Ck();
-  Angular::SixJ sj(maxtj, maxtj);
+  const Coulomb::YkTable Yhe(holes.front().p_rgrid, &holes, &excited);
+  const Coulomb::YkTable Yee(holes.front().p_rgrid, &excited);
+  const Coulomb::YkTable Yhh(holes.front().p_rgrid, &holes);
+  const auto &Ck = maxtj_e > maxtj_c ? Yee.Ck() : Yhh.Ck();
+  const Angular::SixJ sj(maxtj, maxtj);
 
   // RPA: store W Coulomb integrals (used only for Core RPA its)
   std::cout << "Filling RPA Diagram matrix .. " << std::flush;
@@ -86,24 +89,24 @@ void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h) {
 #pragma omp parallel for
   for (std::size_t i = 0; i < holes.size(); i++) {
     const auto &Fa = holes[i];
-    std::vector<std::vector<std::vector<double>>> Wa_nmb;
-    std::vector<std::vector<std::vector<double>>> Wa_bmn;
+    auto &Wa_nmb = Wanmb[i];
+    auto &Wa_bmn = Wabmn[i];
     Wa_nmb.reserve(excited.size());
     Wa_bmn.reserve(excited.size());
     for (const auto &Fn : excited) {
-      std::vector<std::vector<double>> Wan_mb;
-      std::vector<std::vector<double>> Wab_mn;
+      auto &Wan_mb = Wa_nmb.emplace_back();
+      auto &Wab_mn = Wa_bmn.emplace_back();
       Wan_mb.reserve(excited.size());
       Wab_mn.reserve(excited.size());
       for (const auto &Fm : excited) {
-        std::vector<double> Wanm_b;
-        std::vector<double> Wabm_n;
+        auto &Wanm_b = Wan_mb.emplace_back();
+        auto &Wabm_n = Wab_mn.emplace_back();
         Wanm_b.reserve(holes.size());
         Wabm_n.reserve(holes.size());
         for (const auto &Fb : holes) {
           if (h->isZero(Fb.k, Fn.k)) {
-            Wanm_b.push_back(0.0);
-            Wabm_n.push_back(0.0);
+            Wanm_b.emplace_back(0.0);
+            Wabm_n.emplace_back(0.0);
             continue;
           }
           const auto yknb = Yhe.ptr_yk_ab(m_k, Fb, Fn);
@@ -118,14 +121,8 @@ void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h) {
           Wanm_b.push_back(xQ + xP);
           Wabm_n.push_back(yQ + yP);
         }
-        Wan_mb.push_back(Wanm_b);
-        Wab_mn.push_back(Wabm_n);
       }
-      Wa_nmb.push_back(Wan_mb);
-      Wa_bmn.push_back(Wab_mn);
     }
-    Wanmb[i] = Wa_nmb;
-    Wabmn[i] = Wa_bmn;
   }
   Wmnab.resize(excited.size());
   Wmban.resize(excited.size());
@@ -133,24 +130,24 @@ void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h) {
 #pragma omp parallel for
   for (std::size_t i = 0; i < excited.size(); i++) {
     const auto &Fm = excited[i];
-    std::vector<std::vector<std::vector<double>>> Wa_nmb;
-    std::vector<std::vector<std::vector<double>>> Wa_bmn;
+    auto &Wa_nmb = Wmnab[i];
+    auto &Wa_bmn = Wmban[i];
     Wa_nmb.reserve(excited.size());
     Wa_bmn.reserve(excited.size());
     for (const auto &Fn : excited) {
-      std::vector<std::vector<double>> Wan_mb;
-      std::vector<std::vector<double>> Wab_mn;
+      auto &Wan_mb = Wa_nmb.emplace_back();
+      auto &Wab_mn = Wa_bmn.emplace_back();
       Wan_mb.reserve(holes.size());
       Wab_mn.reserve(holes.size());
       for (const auto &Fa : holes) {
-        std::vector<double> Wanm_b;
-        std::vector<double> Wabm_n;
+        auto &Wanm_b = Wan_mb.emplace_back();
+        auto &Wabm_n = Wab_mn.emplace_back();
         Wanm_b.reserve(holes.size());
         Wabm_n.reserve(holes.size());
         for (const auto &Fb : holes) {
           if (h->isZero(Fb.k, Fn.k)) {
-            Wanm_b.push_back(0.0);
-            Wabm_n.push_back(0.0);
+            Wanm_b.emplace_back(0.0);
+            Wabm_n.emplace_back(0.0);
             continue;
           }
           const auto yknb = Yhe.ptr_yk_ab(m_k, Fb, Fn);
@@ -165,14 +162,8 @@ void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h) {
           Wanm_b.push_back(xQ + xP);
           Wabm_n.push_back(yQ + yP);
         }
-        Wan_mb.push_back(Wanm_b);
-        Wab_mn.push_back(Wabm_n);
       }
-      Wa_nmb.push_back(Wan_mb);
-      Wa_bmn.push_back(Wab_mn);
     }
-    Wmnab[i] = Wa_nmb;
-    Wmban[i] = Wa_bmn;
   }
   std::cout << " done.\n" << std::flush;
 }
@@ -217,11 +208,11 @@ double DiagramRPA::dV(const DiracSpinor &Fw, const DiracSpinor &Fv,
   const auto &Ff = orderOK ? Fw : Fv;
   const auto f = (1.0 / (2 * m_k + 1));
 
-  double sum = 0.0;
+  std::vector<double> sum_a(holes.size());
+#pragma omp parallel for
   for (std::size_t ia = 0; ia < holes.size(); ia++) {
     const auto &Fa = holes[ia];
     const auto s1 = ((Fa.twoj() - Ff.twoj() + 2 * m_k) % 4 == 0) ? 1 : -1;
-    double sum_a = 0.0;
     for (std::size_t im = 0; im < excited.size(); im++) {
       const auto &Fm = excited[im];
       if (t0am[ia][im] == 0.0)
@@ -233,18 +224,17 @@ double DiagramRPA::dV(const DiracSpinor &Fw, const DiracSpinor &Fv,
       const auto ttma = first_order ? t0ma[im][ia] : tma[im][ia];
       const auto A = ttam * Wwmva / (Fa.en - Fm.en - m_omega);
       const auto B = Wwavm * ttma / (Fa.en - Fm.en + m_omega);
-      sum_a += s1 * (A + s2 * B);
+      sum_a[ia] += s1 * (A + s2 * B);
     }
-    sum += sum_a;
   }
-
-  return f * sum;
+  return f * std::accumulate(begin(sum_a), end(sum_a), 0.0);
 }
 
 //******************************************************************************
 void DiagramRPA::rpa_core(const double omega, const bool print) {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   m_omega = std::abs(omega);
+  // IO::ChronoTimer sw("rpa_core");
 
   if (holes.empty() || excited.empty())
     return;
@@ -257,20 +247,20 @@ void DiagramRPA::rpa_core(const double omega, const bool print) {
   auto eps = 0.0;
   const auto f = (1.0 / (2 * m_k + 1));
   for (; it <= max_its; it++) {
-    // eps = 0.0;
-    std::vector<double> eps_a(holes.size()); //"thread-safe" eps..?
+    std::vector<double> eps_m(excited.size()); //"thread-safe" eps..?
+    // XXX "Small" race condition in here???
 #pragma omp parallel for
-    for (std::size_t ia = 0; ia < holes.size(); ia++) {
-      const auto &Fa = holes[ia];
-      double eps_worst_m = 0.0;
-      for (std::size_t im = 0; im < excited.size(); im++) {
-        const auto &Fm = excited[im];
+    for (std::size_t im = 0; im < excited.size(); im++) {
+      const auto &Fm = excited[im];
+      double eps_worst_a = 0.0;
+      for (std::size_t ia = 0; ia < holes.size(); ia++) {
+        const auto &Fa = holes[ia];
 
         double sum_am = 0;
         double sum_ma = 0;
 
-        // ** ** **
-        // Can replace this with dV?? maybe not threadsafe..
+        // Can replace this with dV?? NO. 1) it calcs W (since valence)
+        // 2) not thread safe
         for (std::size_t ib = 0; ib < holes.size(); ib++) {
           const auto &Fb = holes[ib];
           const auto s1 = ((Fb.twoj() - Fa.twoj() + 2 * m_k) % 4 == 0) ? 1 : -1;
@@ -282,45 +272,39 @@ void DiagramRPA::rpa_core(const double omega, const bool print) {
             if (tbn == 0.0)
               continue;
             const auto tnb = tma[in][ib];
-            const auto dem = Fb.en - Fn.en - m_omega;
-            const auto dep = Fb.en - Fn.en + m_omega;
-            const auto A = tbn * Wanmb[ia][in][im][ib] / dem;
-            const auto B = tnb * Wabmn[ia][in][im][ib] / dep;
-            const auto C = tbn * Wmnab[im][in][ia][ib] / dem;
-            const auto D = tnb * Wmban[im][in][ia][ib] / dep;
+            const auto tdem = tbn / (Fb.en - Fn.en - m_omega);
             const auto s2 = ((Fb.twoj() - Fn.twoj()) % 4 == 0) ? 1 : -1;
-            sum_am += s1 * (A + s2 * B);
-            sum_ma += s3 * (C + s2 * D);
+            const auto stdep = s2 * tnb / (Fb.en - Fn.en + m_omega);
+            const auto A = tdem * Wanmb[ia][in][im][ib];
+            const auto B = stdep * Wabmn[ia][in][im][ib];
+            const auto C = tdem * Wmnab[im][in][ia][ib];
+            const auto D = stdep * Wmban[im][in][ia][ib];
+            sum_am += s1 * (A + B);
+            sum_ma += s3 * (C + D);
           }
         }
-        // ** ** **
 
         const auto prev = tam[ia][im];
+        // 0.5 factor is for damping. f*sum is dV
         tam[ia][im] = 0.5 * (tam[ia][im] + t0am[ia][im] + f * sum_am);
         tma[im][ia] = 0.5 * (tma[im][ia] + t0ma[im][ia] + f * sum_ma);
         const auto delta = std::abs((tam[ia][im] - prev) / tam[ia][im]);
-        if (delta > eps_worst_m)
-          eps_worst_m = delta;
-        //         {
-        // #pragma omp critical(compare_eps)
-        //           if (delta > eps) {
-        //             eps = std::abs(delta);
-        //           }
-        //         }
-      }
-      eps_a[ia] = eps_worst_m;
-    }
+        if (delta > eps_worst_a)
+          eps_worst_a = delta;
+      } // a (holes)
+      eps_m[im] = eps_worst_a;
+    } // m (excited)
     // XXX "small" race condition somewhere regarding eps??
     // The itteraion it converges on always seems to be the same..
     // but the value for eps printed changes slightly each run???
-    eps = *std::max_element(cbegin(eps_a), cend(eps_a));
+    eps = *std::max_element(cbegin(eps_m), cend(eps_m));
     if (eps < eps_targ)
       break;
     if (print && it % 15 == 0) {
       printf("RPA(D) (w=%.3f): %2i %.1e \r", m_omega, it, eps);
       std::cout << std::flush;
     }
-  }
+  } // its
   if (print) {
     printf("RPA(D) (w=%.3f): %2i %.1e\n", m_omega, it, eps);
   }

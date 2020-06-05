@@ -1,5 +1,7 @@
 #include "IO/UserInput.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
+#include <chrono>
+#include <ctime>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -10,9 +12,11 @@ namespace IO {
 
 //******************************************************************************
 void UserInputBlock::print() const {
+  std::cout << m_block_name << " {\n";
   for (const auto &option : m_input_options) {
-    std::cout << option << "\n";
+    std::cout << "  " << option << ";\n";
   }
+  std::cout << "}\n";
 }
 //******************************************************************************
 bool UserInputBlock::checkBlock(const std::vector<std::string> &list) const {
@@ -100,6 +104,11 @@ std::vector<UserInputBlock> UserInput::module_list() const {
 
 //******************************************************************************
 void UserInput::print() const {
+  const auto now =
+      std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+  char buffer[30];
+  std::strftime(buffer, 30, "%F %T", localtime(&now));
+  std::cout << buffer << '\n';
   for (const auto &block : m_blocks) {
     block.print();
   }
