@@ -10,6 +10,14 @@
 
 namespace IO {
 
+#define xstr(s) str(s)
+#define str(s) #s
+#ifdef GITVERSION
+const char *git_version = xstr(GITVERSION);
+#else
+const char *git_version = "0";
+#endif
+
 //******************************************************************************
 void UserInputBlock::print() const {
   std::cout << m_block_name << " {\n";
@@ -109,6 +117,7 @@ void UserInput::print() const {
   char buffer[30];
   std::strftime(buffer, 30, "%F %T", localtime(&now));
   std::cout << buffer << '\n';
+  std::cout << "git:" << git_version << "\n";
   for (const auto &block : m_blocks) {
     block.print();
   }

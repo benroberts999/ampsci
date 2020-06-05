@@ -1,3 +1,4 @@
+// #include "../build/Git_Info.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/FRW_fileReadWrite.hpp" //for 'ExtraPotential'
 #include "IO/UserInput.hpp"
