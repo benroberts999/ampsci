@@ -54,7 +54,8 @@ private:
 
   const DiracOperator::TensorOperator *const m_h; //??
   const std::vector<DiracSpinor> *const p_core;
-  const std::vector<double> m_vl; // Add H_mag ?
+  const std::vector<double> m_vl;   // Add H_mag ?
+  const std::vector<double> m_Hmag; // Add H_mag ?
   const double m_alpha;
   const int m_rank;
   const int m_pi;

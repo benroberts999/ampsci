@@ -669,6 +669,8 @@ void Wavefunction::formSigma(const int nmin_core, const bool form_matrix,
                              const int stride,
                              const std::vector<double> &lambdas,
                              const std::string &fname) {
+  if (valence.empty())
+    return;
   // Sort basis into core/exited parts, throwing away core states with n<nmin
   std::vector<DiracSpinor> occupied;
   std::vector<DiracSpinor> excited;

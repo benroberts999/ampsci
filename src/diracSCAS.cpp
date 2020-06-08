@@ -1,4 +1,3 @@
-// #include "../build/Git_Info.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/FRW_fileReadWrite.hpp" //for 'ExtraPotential'
 #include "IO/UserInput.hpp"
@@ -15,7 +14,7 @@ int main(int argc, char *argv[]) {
   const std::string input_file = (argc > 1) ? argv[1] : "diracSCAS.in";
   std::cout << "Reading input from: " << input_file << "\n";
 
-  // Rean in input options file
+  // Read in input options file
   const IO::UserInput input(input_file);
   input.print();
 
@@ -33,10 +32,10 @@ int main(int argc, char *argv[]) {
                                               "type", "b", "fixed_du"});
   const auto r0 = input.get("Grid", "r0", 1.0e-6);
   const auto rmax = input.get("Grid", "rmax", 120.0);
-  const auto du_tmp =
-      input.get("Grid", "fixed_du", -1.0); // >0 means calc num_points
+  // du_tmp>0 means calc num_points
+  const auto du_tmp = input.get("Grid", "fixed_du", -1.0);
   const auto num_points =
-      (du_tmp > 0) ? 0 : input.get("Grid", "num_points", 1600ul);
+      (du_tmp > 0) ? 0ul : input.get("Grid", "num_points", 1600ul);
   const auto b = input.get("Grid", "b", 0.33 * rmax);
   const auto grid_type =
       (b <= r0 || b >= rmax)
@@ -46,9 +45,11 @@ int main(int argc, char *argv[]) {
   // Get + setup nuclear parameters
   input_ok =
       input_ok && input.check("Nucleus", {"A", "rrms", "skin_t", "type"});
-  atom_A = input.get("Nucleus", "A", atom_A); // over-writes "atom" A
+  // nb: Nucleus/A over-writes Atom/A
+  atom_A = input.get("Nucleus", "A", atom_A);
   const auto nuc_type = input.get<std::string>("Nucleus", "type", "Fermi");
-  const auto rrms = input.get("Nucleus", "rrms", -1.0); // <0 means get default
+  // {rrms, skint} < 0 means get default (depends on A)
+  const auto rrms = input.get("Nucleus", "rrms", -1.0);
   const auto skint = input.get("Nucleus", "skin_t", -1.0);
 
   // Create wavefunction object

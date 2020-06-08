@@ -127,6 +127,8 @@ public:
   bool excludeExchangeQ() const { return m_excludeExchange; }
 
   std::vector<double> get_vlocal(int l) const;
+  const std::vector<double> &get_Hrad_el(int l) const;
+  const std::vector<double> &get_Hrad_mag(int l) const;
   double get_alpha() const { return m_alpha; }
   const std::vector<DiracSpinor> &get_core() const { return *p_core; }
   const HF::Breit *get_Breit() const { return m_VBr.get(); }
@@ -156,9 +158,6 @@ private:
   // Optionally force orthogonalisation. False by default.
   static constexpr bool m_explicitOrthog_cc = false;
   static constexpr bool m_explicitOrthog_cv = false;
-
-  const std::vector<double> &get_Hrad_el(int l) const;
-  const std::vector<double> &get_Hrad_mag(int l) const;
 
 private:
   void hf_core_approx(const double eps_target_HF);

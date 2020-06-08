@@ -20,10 +20,25 @@ const char *git_version = "0";
 
 //******************************************************************************
 void UserInputBlock::print() const {
-  std::cout << m_block_name << " {\n";
+  const bool small_block = m_input_options.size() < 4;
+  const bool empty = m_input_options.size() == 0;
+  std::cout << m_block_name << " {";
+  if (!empty && small_block)
+    std::cout << " ";
+  if (!empty && !small_block)
+    std::cout << "\n  ";
+
+  int count = 0;
   for (const auto &option : m_input_options) {
-    std::cout << "  " << option << ";\n";
+    if (count % 3 == 0 && count > 0)
+      std::cout << "\n  ";
+    else
+      std::cout << "";
+    std::cout << option << "; ";
+    ++count;
   }
+  if (!small_block)
+    std::cout << "\n";
   std::cout << "}\n";
 }
 //******************************************************************************
@@ -80,7 +95,7 @@ UserInputBlock::find_option(const std::string &in_option) const {
 
 //******************************************************************************
 UserInput::UserInput(const std::string &infile) : m_filename(infile) {
-  auto inp = IO::FRW::splitInput_byBraces(IO::FRW::readInputFile(infile));
+  const auto inp = IO::FRW::splitInput_byBraces(IO::FRW::readInputFile(infile));
   for (const auto &item : inp) {
     auto block_name = item.first;
     auto option_vector = IO::FRW::splitInput_bySemiColon(item.second);
@@ -117,7 +132,7 @@ void UserInput::print() const {
   char buffer[30];
   std::strftime(buffer, 30, "%F %T", localtime(&now));
   std::cout << buffer << '\n';
-  std::cout << "git:" << git_version << "\n";
+  std::cout << "diracSCAS git:" << git_version << "\n";
   for (const auto &block : m_blocks) {
     block.print();
   }

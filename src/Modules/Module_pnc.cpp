@@ -44,7 +44,8 @@ void polarisability(const IO::UserInputBlock &input, const Wavefunction &wf) {
     else
       std::cout << wf.coreConfiguration_nice() << "\n";
   } else {
-    std::cout << "\nVector transition polarisability, beta (?check)\n";
+    std::cout << "\nDipole transition polarisability, alpha_S (?check)\n";
+    std::cout << "WARNING: Not implemented!\n";
   }
   std::cout << "Omega = " << omega << "\n";
 

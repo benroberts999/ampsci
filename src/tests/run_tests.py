@@ -34,7 +34,9 @@ tmp_fname_input = "RUN_TESTS_temp.DELETEME"
 for input_item in input_list:
   input_file = open(tmp_fname_input,"w")
   output = open(outfname,"a")
-  output.write(input_item+output_seperator+"\n")
+  # output.write(input_item+output_seperator+"\n")
+  # Just write out title:
+  output.write(input_item.partition('\n')[0]+"\n"+output_seperator+"\n")
   output.close()
   input_file.write(input_item)
   input_file.close()
