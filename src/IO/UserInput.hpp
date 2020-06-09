@@ -9,7 +9,17 @@
 
 namespace IO {
 
+//! Prints a line of 'c' characters (dflt '*'), num chars long (dflt 80) to cout
+inline void print_line(const char c = '*', const int num = 80) {
+  for (int i = 0; i < num; i++)
+    std::cout << c;
+  std::cout << "\n";
+}
+
 //******************************************************************************
+//! Stores input options for a specific 'block'; usually use 'UserInput'
+//! (instead of 'UserInputBlock') - has essentially the same functionality (but
+//! don't need to specify block name on '.get')
 class UserInputBlock {
 
 public:
@@ -49,28 +59,50 @@ private:
 class UserInput {
 
 public:
+  //! Constructor: takes in a plane text file.
   UserInput(const std::string &infile);
 
+  //! Looks up option with default value.
+  //! @details If requested option not in input, returns default value. Return
+  //! type is specified by the default value (or, explicitely)
   template <typename T>
   T get(const std::string &in_block, const std::string &option,
         const T &default_value) const;
 
+  //! Looks up option with no default. If option not in input, will warn and
+  //! abort
   template <typename T>
   T get(const std::string &in_block, const std::string &option) const;
 
+  //! As above, but for a list (vector) - all items in list must be of same
+  //! type.
   template <typename T>
   std::vector<T> get_list(const std::string &in_block,
                           const std::string &option,
                           const std::vector<T> &default_value) const;
+  //! As above, but for a list (vector) - all items in list must be of same
+  //! type.
   template <typename T>
   std::vector<T> get_list(const std::string &in_block,
                           const std::string &option) const;
 
+  //! Returns one of the sub blocks (by const ref)
   const UserInputBlock &get(const std::string &in_block) const;
 
+  //! Returns list of all blocks that are 'Modules' or 'MatrixElements' (copy)
   std::vector<UserInputBlock> module_list() const;
 
+  //! Prints all input options in nice format.
+  //! @details Note: out format same as input format, so can be copied into new
+  //! input file
   void print() const;
+
+  //! Checker. Returns false if any of the input options in the 'in_block' block
+  //! are not listed in the given 'options' list
+  //! @details This checks to ensure we aren't trying to set an option that
+  //! doesn't exist, or if we've spelled an option wrong. Otherwise, these would
+  //! simply be ignored and default values used in the calculations, which is
+  //! likely an error (and an easy one to miss)
   bool check(const std::string &in_block,
              const std::vector<std::string> &options) const;
 
@@ -120,16 +152,11 @@ inline std::vector<T> get_list_impl(std::stringstream &ss,
   return result;
 }
 
-template <> inline bool get_impl(std::stringstream &ss, const std::string &in) {
-  if (ss.str() == "true" || ss.str() == "True" || ss.str() == "1" ||
-      ss.str() == "Yes" || ss.str() == "yes")
-    return true;
+template <> inline bool get_impl(std::stringstream &ss, const std::string &) {
   if (ss.str() == "false" || ss.str() == "False" || ss.str() == "0" ||
       ss.str() == "No" || ss.str() == "no")
     return false;
-  std::cerr << "\nWARNING 44 in UserInput: " << in << "=" << ss.str()
-            << " invalid?\n";
-  std::abort();
+  return true;
 }
 } // namespace UserInputHelper
 

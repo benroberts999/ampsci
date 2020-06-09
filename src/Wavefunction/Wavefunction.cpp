@@ -2,6 +2,7 @@
 #include "DiracODE/DiracODE.hpp"
 #include "HF/HartreeFock.hpp"
 #include "IO/ChronoTimer.hpp"
+#include "IO/FRW_fileReadWrite.hpp" //just for enum..
 #include "MBPT/CorrelationPotential.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/Interpolator.hpp"
@@ -193,25 +194,44 @@ void Wavefunction::radiativePotential(double x_simple, double x_Ueh,
   if (x_spd.size() == 0)
     return;
 
-  if (x_Ueh > 0 || x_SEe_h > 0 || x_SEe_l > 0 || x_SEm > 0 || x_simple > 0) {
-    std::cout << "\nIncluding Ginges/Flambaum QED radiative potential (up to r="
-              << rcut << "):\n";
-  } else if (std::abs(x_simple) > 0) {
-    std::cout << "\nIncluding simple exponential radiative potential\n";
-  } else {
-    return;
-  }
-
   const auto r_rms_fm = scale_rN * m_nuclear.r_rms;
 
+  const auto fname = atomicSymbol() + ".qed";
+  std::vector<double> Hel_tmp, Hmag_tmp;
+
+  auto is_one = [](double x) { return std::abs(x - 1.0) < 1.0e-6; };
+  auto is_zero = [](double x) { return std::abs(x) < 1.0e-6; };
+
+  // Only read/write is "normal/full" rad pot is used
+  const bool do_rw = is_one(x_Ueh) && is_one(x_SEe_h) && is_one(x_SEe_l) &&
+                     is_one(x_SEm) && is_zero(x_simple);
+
+  const auto read_ok =
+      do_rw ? RadiativePotential::read_write_qed(rgrid.r, Hel_tmp, Hmag_tmp,
+                                                 fname, IO::FRW::read)
+            : false;
+
+  if (!read_ok) {
+    if (x_Ueh > 0 || x_SEe_h > 0 || x_SEe_l > 0 || x_SEm > 0 || x_simple > 0) {
+      std::cout
+          << "\nIncluding Ginges/Flambaum QED radiative potential (up to r="
+          << rcut << "):\n";
+    } else if (std::abs(x_simple) > 0) {
+      std::cout << "\nIncluding simple exponential radiative potential\n";
+    } else {
+      return;
+    }
+    Hel_tmp =
+        RadiativePotential::form_Hel(rgrid.r, x_simple, x_Ueh, x_SEe_h, x_SEe_l,
+                                     r_rms_fm, m_nuclear.z, alpha, rcut);
+    Hmag_tmp = RadiativePotential::form_Hmag(rgrid.r, x_SEm, r_rms_fm,
+                                             m_nuclear.z, alpha, rcut);
+    if (do_rw)
+      RadiativePotential::read_write_qed(rgrid.r, Hel_tmp, Hmag_tmp, fname,
+                                         IO::FRW::write);
+  }
+
   const bool print_xl = (x_spd.size() > 1 || x_spd.front() != 1.0);
-
-  const auto &Hel_tmp =
-      RadiativePotential::form_Hel(rgrid.r, x_simple, x_Ueh, x_SEe_h, x_SEe_l,
-                                   r_rms_fm, m_nuclear.z, alpha, rcut);
-  const auto &Hmag_tmp = RadiativePotential::form_Hmag(
-      rgrid.r, x_SEm, r_rms_fm, m_nuclear.z, alpha, rcut);
-
   int l = 0;
   for (const auto &x_l : x_spd) {
     if (print_xl)

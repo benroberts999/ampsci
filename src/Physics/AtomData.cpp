@@ -21,6 +21,8 @@ static inline bool string_is_ints(const std::string &s) {
 
 //******************************************************************************
 std::string int_to_roman(int a) {
+  if (a > 3999)
+    return std::to_string(a);
   static const std::string m[] = {"", "m", "mm", "mmm"};
   static const std::string c[] = {"",  "c",  "cc",  "ccc",  "cd",
                                   "d", "dc", "dcc", "dccc", "cm"};

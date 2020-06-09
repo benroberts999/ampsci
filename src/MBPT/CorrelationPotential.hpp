@@ -108,7 +108,7 @@ private:
   // Acts Sigma (G) matrix onto Fv. Interpolates from sub-grid
   DiracSpinor Sigma_G_Fv(const GMatrix &Gmat, const DiracSpinor &Fv) const;
   // Read and writes Sigma (G) matrix to file
-  void read_write(const std::string &fname, IO::FRW::RoW rw);
+  bool read_write(const std::string &fname, IO::FRW::RoW rw);
 
 private:
   const Grid *const p_gr;

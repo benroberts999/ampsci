@@ -127,12 +127,12 @@ std::vector<UserInputBlock> UserInput::module_list() const {
 
 //******************************************************************************
 void UserInput::print() const {
+  std::cout << "diracSCAS git:" << git_version << "\n";
   const auto now =
       std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
   char buffer[30];
   std::strftime(buffer, 30, "%F %T", localtime(&now));
   std::cout << buffer << '\n';
-  std::cout << "diracSCAS git:" << git_version << "\n";
   for (const auto &block : m_blocks) {
     block.print();
   }

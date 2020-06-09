@@ -41,7 +41,7 @@ namespace MBPT {
 CorrelationPotential::CorrelationPotential(
     const Grid &gr, const std::vector<DiracSpinor> &core,
     const std::vector<DiracSpinor> &excited, const int in_stride,
-    const std::vector<double> &en_list, const std::string &in_fname)
+    const std::vector<double> &en_list, const std::string &atom)
     : p_gr(&gr),
       m_core(core),
       m_excited(excited),
@@ -58,10 +58,15 @@ CorrelationPotential::CorrelationPotential(
     std::cout << ", FG/GF, and GG";
   std::cout << ")\n";
 
-  const auto fname = in_fname == "" ? "" : in_fname + ".Sigma";
-  if (fname != "" && IO::FRW::file_exists(fname)) {
-    read_write(fname, IO::FRW::read);
-  } else if (!en_list.empty()) {
+  const auto fname =
+      atom == "" ? "" : atom + +"_" + std::to_string(gr.num_points) + ".Sigma";
+
+  const bool read_ok = read_write(fname, IO::FRW::read);
+
+  if (en_list.empty())
+    return; //?
+
+  if (!read_ok) {
     setup_subGrid();
     form_Sigma(en_list, fname);
   }
@@ -172,7 +177,9 @@ void CorrelationPotential::form_Sigma(const std::vector<double> &en_list,
     return;
   }
 
-  std::cout << "Forming correlation potential for:\n";
+  std::cout << "Forming correlation potential (";
+  std::cout << DiracSpinor::state_config(m_core) << "/"
+            << DiracSpinor::state_config(m_excited) << ") for:\n";
   for (auto ki = 0ul; ki < en_list.size(); ki++) {
     const auto kappa = Angular::kappaFromIndex(int(ki));
 
@@ -351,9 +358,13 @@ double CorrelationPotential::Sigma2vw(const DiracSpinor &v,
 }
 
 //******************************************************************************
-void CorrelationPotential::read_write(const std::string &fname,
+bool CorrelationPotential::read_write(const std::string &fname,
                                       IO::FRW::RoW rw) {
-  auto rw_str = rw == IO::FRW::write ? "Writing to " : "Reading from ";
+
+  if (rw == IO::FRW::read && !IO::FRW::file_exists(fname))
+    return false;
+
+  const auto rw_str = rw == IO::FRW::write ? "Writing to " : "Reading from ";
   std::cout << rw_str << "Sigma file: " << fname << " ... " << std::flush;
 
   std::fstream iofs;
@@ -371,16 +382,21 @@ void CorrelationPotential::read_write(const std::string &fname,
                            std::abs(rmax - p_gr->rmax) < 0.001 &&
                            (b - p_gr->b) < 0.001 && pts == p_gr->num_points;
       if (!grid_ok) {
-        std::cerr << "\nFAIL 335 in read_write Sigma: Grid mismatch\n"
-                  << "Have in file:\n"
-                  << r0 << ", " << rmax << " w/ N=" << pts << ", b=" << b
-                  << ", but expected:\n"
-                  << p_gr->r0 << ", " << p_gr->rmax
-                  << " w/ N=" << p_gr->num_points << ", b=" << p_gr->b << "\n";
-        std::abort(); // abort?
+        std::cout << "\nCannot read from:" << fname << ". Grid mismatch\n"
+                  << "Read: " << r0 << ", " << rmax << " w/ N=" << pts
+                  << ", b=" << b << ",\n but expected: " << p_gr->r0 << ", "
+                  << p_gr->rmax << " w/ N=" << p_gr->num_points
+                  << ", b=" << p_gr->b << "\n";
+        std::cout << "Will calculate from scratch, + over-write file.\n";
+        return false;
       }
     }
   }
+
+  // read/write basis config:
+  std::string basis_config =
+      (rw == IO::FRW::write) ? DiracSpinor::state_config(m_excited) : "";
+  rw_binary(iofs, rw, basis_config);
 
   // Sub-grid:
   rw_binary(iofs, rw, stride_points, imin, stride);
@@ -415,11 +431,15 @@ void CorrelationPotential::read_write(const std::string &fname,
       }
     }
   }
-  std::cout << "... done.\n";
-  printf(
-      "Sigma sub-grid: r=(%.1e, %.1f)aB with %i points. [i0=%i, stride=%i]\n",
-      r_stride.front(), r_stride.back(), int(stride_points), int(imin),
-      int(stride));
+  std::cout << "done.\n";
+  if (rw == IO::FRW::read) {
+    std::cout << "Sigma basis: " << basis_config << "\n";
+    printf(
+        "Sigma sub-grid: r=(%.1e, %.1f)aB with %i points. [i0=%i, stride=%i]\n",
+        r_stride.front(), r_stride.back(), int(stride_points), int(imin),
+        int(stride));
+  }
+  return true;
 }
 
 //******************************************************************************

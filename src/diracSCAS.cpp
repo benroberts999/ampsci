@@ -12,9 +12,10 @@
 int main(int argc, char *argv[]) {
   IO::ChronoTimer timer("\ndiracSCAS");
   const std::string input_file = (argc > 1) ? argv[1] : "diracSCAS.in";
-  std::cout << "Reading input from: " << input_file << "\n";
+  IO::print_line();
 
   // Read in input options file
+  std::cout << "Reading input from: " << input_file << "\n";
   const IO::UserInput input(input_file);
   input.print();
 
@@ -190,7 +191,12 @@ int main(int argc, char *argv[]) {
   const bool do_energyShifts = input.get("Correlations", "energyShifts", false);
   const bool do_brueckner = input.get("Correlations", "Brueckner", false);
   const auto sigma_stride = input.get("Correlations", "stride", 4);
-  const auto sigma_file = input.get<std::string>("Correlations", "io_file", "");
+  const auto sigma_io = input.get("Correlations", "io_file", true);
+  auto sigma_file = sigma_io ? input.get<std::string>("Correlations", "io_file",
+                                                      wf.identity())
+                             : "";
+  if (sigma_file == "true")
+    sigma_file = wf.identity();
 
   const auto n_min_core = input.get("Correlations", "n_min_core", 1);
   auto fit_energies =

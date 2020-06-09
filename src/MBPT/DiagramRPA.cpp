@@ -43,7 +43,8 @@ DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
   if (!read_ok) {
     // If not, calc W's, and write to file
     fill_W_matrix(h);
-    read_write(fname, IO::FRW::write);
+    if (!holes.empty() && !excited.empty())
+      read_write(fname, IO::FRW::write);
   }
 }
 
@@ -83,14 +84,36 @@ bool DiagramRPA::read_write(const std::string &fname, IO::FRW::RoW rw) {
     return false;
 
   const auto rw_str = !readQ ? "Writing to " : "Reading from ";
-  std::cout << rw_str << "RPA(diagram) file: " << fname << " ... "
-            << std::flush;
+  std::cout << rw_str << "RPA(diagram) file: " << fname << " ("
+            << DiracSpinor::state_config(holes) << "/"
+            << DiracSpinor::state_config(excited) << ") ... " << std::flush;
+
+  if (readQ)
+    std::cout
+        << "\nNote: still uses Basis for summation (only reads in W matrix)\n";
 
   std::fstream iofs;
   IO::FRW::open_binary(iofs, fname, rw);
 
+  if (holes.empty() || excited.empty()) {
+    return false;
+  }
+
   // Note: Basis states must match exactly (since use their index across arrays)
   // Check if same. If not, print status and calc W from scratch
+
+  std::size_t hs = holes.size(), es = excited.size();
+  rw_binary(iofs, rw, hs, es);
+  if (readQ) {
+    if (hs != holes.size() || es != excited.size()) {
+      std::cout << "\nCannot read from " << fname << ". Basis mis-match (read "
+                << hs << "," << es << "; expected " << holes.size() << ","
+                << excited.size() << ").\n"
+                << "Will recalculate rpa_Diagram matrix, and overwrite file.\n";
+      return false;
+    }
+  }
+
   for (const auto porbs : {&holes, &excited}) {
     for (const auto &Fn : *porbs) {
       int n = Fn.n;
@@ -100,7 +123,7 @@ bool DiagramRPA::read_write(const std::string &fname, IO::FRW::RoW rw) {
         if (Fn.n != n || Fn.k != k) {
           std::cout
               << "\nCannot read from " << fname << ". Basis mis-match (read "
-              << n << "," << k << "; expected" << Fn.n << "," << Fn.k << ").\n"
+              << n << "," << k << "; expected " << Fn.n << "," << Fn.k << ").\n"
               << "Will recalculate rpa_Diagram matrix, and overwrite file.\n";
           return false;
         }
@@ -150,7 +173,6 @@ void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h) {
     std::cout << "\nWARNING 64 in DiagramRPA: no basis! RPA will be zero\n";
     return;
   }
-  // IO::ChronoTimer sw("fill_W_matrix");
 
   const auto maxtj_c =
       std::max_element(holes.cbegin(), holes.cend(), DiracSpinor::comp_j)
@@ -167,7 +189,9 @@ void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h) {
   const Angular::SixJ sj(maxtj, maxtj);
 
   // RPA: store W Coulomb integrals (used only for Core RPA its)
-  std::cout << "Filling RPA Diagram matrix .. " << std::flush;
+  std::cout << "Filling RPA Diagram matrix ("
+            << DiracSpinor::state_config(holes) << "/"
+            << DiracSpinor::state_config(excited) << ") .. " << std::flush;
   Wanmb.resize(holes.size());
   Wabmn.resize(holes.size());
 #pragma omp parallel for
@@ -384,7 +408,7 @@ void DiagramRPA::rpa_core(const double omega, const bool print) {
     eps = *std::max_element(cbegin(eps_m), cend(eps_m));
     if (eps < eps_targ)
       break;
-    if (print && it % 15 == 0) {
+    if (print && it % 25 == 0) {
       printf("RPA(D) (w=%.3f): %2i %.1e \r", m_omega, it, eps);
       std::cout << std::flush;
     }
