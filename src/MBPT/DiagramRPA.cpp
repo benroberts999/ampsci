@@ -5,6 +5,7 @@
 #include "Coulomb/YkTable.hpp"
 #include "DiracOperator/DiracOperator.hpp"
 #include "IO/ChronoTimer.hpp"
+#include "IO/FRW_fileReadWrite.hpp"
 #include "IO/safeProfiler.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <algorithm>
@@ -17,7 +18,8 @@ namespace MBPT {
 //******************************************************************************
 DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
                        const std::vector<DiracSpinor> &basis,
-                       const std::vector<DiracSpinor> &core)
+                       const std::vector<DiracSpinor> &core,
+                       const std::string &atom)
     : m_k(h->rank()), m_pi(h->parity()), m_imag(h->imaginaryQ()) {
 
   // Set up basis:
@@ -32,7 +34,17 @@ DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
 
   // Calc t0 (and setup t) [RPA MEs for hole-excited]
   setup_ts(h);
-  fill_W_matrix(h);
+
+  const auto fname =
+      atom + "_" + std::to_string(m_k) + (m_pi == 1 ? "+" : "-") + ".rpad";
+
+  // Attempt to read W's from a file:
+  const auto read_ok = read_write(fname, IO::FRW::read);
+  if (!read_ok) {
+    // If not, calc W's, and write to file
+    fill_W_matrix(h);
+    read_write(fname, IO::FRW::write);
+  }
 }
 
 //******************************************************************************
@@ -57,6 +69,78 @@ DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
   Wabmn = drpa->Wabmn;
   Wmnab = drpa->Wmnab;
   Wmban = drpa->Wmban;
+}
+
+//******************************************************************************
+bool DiagramRPA::read_write(const std::string &fname, IO::FRW::RoW rw) {
+  // Note: only writes W (depends on k/pi, and basis). Do not write t's, since
+  // they depend on operator. This makes it very fast when making small changes
+  // to operator (don't need to re-calc W)
+
+  const auto readQ = rw == IO::FRW::read;
+
+  if (readQ && !IO::FRW::file_exists(fname))
+    return false;
+
+  const auto rw_str = !readQ ? "Writing to " : "Reading from ";
+  std::cout << rw_str << "RPA(diagram) file: " << fname << " ... "
+            << std::flush;
+
+  std::fstream iofs;
+  IO::FRW::open_binary(iofs, fname, rw);
+
+  // Note: Basis states must match exactly (since use their index across arrays)
+  // Check if same. If not, print status and calc W from scratch
+  for (const auto porbs : {&holes, &excited}) {
+    for (const auto &Fn : *porbs) {
+      int n = Fn.n;
+      int k = Fn.k;
+      rw_binary(iofs, rw, n, k);
+      if (readQ) {
+        if (Fn.n != n || Fn.k != k) {
+          std::cout
+              << "\nCannot read from " << fname << ". Basis mis-match (read "
+              << n << "," << k << "; expected" << Fn.n << "," << Fn.k << ").\n"
+              << "Will recalculate rpa_Diagram matrix, and overwrite file.\n";
+          return false;
+        }
+      }
+    }
+  }
+
+  // read/write Ws:
+  for (auto Wptr : {&Wanmb, &Wabmn, &Wmnab, &Wmban}) {
+    auto &Wtmp = *Wptr;
+    auto size1 = Wtmp.size();
+    rw_binary(iofs, rw, size1);
+    if (readQ)
+      Wtmp.resize(size1);
+    for (auto &Wi : Wtmp) {
+      auto size2 = Wi.size();
+      rw_binary(iofs, rw, size2);
+      if (readQ)
+        Wi.resize(size2);
+      for (auto &Wij : Wi) {
+        auto size3 = Wij.size();
+        rw_binary(iofs, rw, size3);
+        if (readQ)
+          Wij.resize(size3);
+        for (auto &Wijk : Wij) {
+          auto size4 = Wijk.size();
+          rw_binary(iofs, rw, size4);
+          if (readQ)
+            Wijk.resize(size4);
+          for (auto &Wijkl : Wijk) {
+            // the actual data:
+            rw_binary(iofs, rw, Wijkl);
+          }
+        }
+      }
+    }
+  }
+  std::cout << "done.\n";
+
+  return true;
 }
 
 //******************************************************************************

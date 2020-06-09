@@ -1,4 +1,5 @@
 #pragma once
+#include "IO/FRW_fileReadWrite.hpp"     //?
 #include "Wavefunction/DiracSpinor.hpp" //?
 #include <vector>
 class Wavefunction;
@@ -18,7 +19,8 @@ public:
   //! Normal constructor: needs core to split basis: only uses basis
   DiagramRPA(const DiracOperator::TensorOperator *const h,
              const std::vector<DiracSpinor> &basis,
-             const std::vector<DiracSpinor> &core);
+             const std::vector<DiracSpinor> &core,
+             const std::string &atom = "Atom");
 
   //! Second constructor: copies over W matrices (depend only on k/pi)
   DiagramRPA(const DiracOperator::TensorOperator *const h,
@@ -39,9 +41,9 @@ public:
   void clear_tam();
 
 private:
-  const int m_k;  // rank
-  const int m_pi; // parity (+/-1)
-  const int m_imag;
+  const int m_k;    // rank
+  const int m_pi;   // parity (+/-1)
+  const int m_imag; // not used?
   std::vector<DiracSpinor> holes{};
   std::vector<DiracSpinor> excited{};
   double m_omega = 0.0;
@@ -61,6 +63,12 @@ private:
   std::vector<std::vector<std::vector<std::vector<double>>>> Wabmn{};
   std::vector<std::vector<std::vector<std::vector<double>>>> Wmnab{};
   std::vector<std::vector<std::vector<std::vector<double>>>> Wmban{};
+
+  // Note: only writes W (depends on k/pi, and basis). Do not write t's, since
+  // they depend on operator. This makes it very fast when making small changes
+  // to operator (don't need to re-calc W)
+  // Note: doesn't depend on grid!
+  bool read_write(const std::string &fname, IO::FRW::RoW rw);
 
   void fill_W_matrix(const DiracOperator::TensorOperator *const h);
   void setup_ts(const DiracOperator::TensorOperator *const h);

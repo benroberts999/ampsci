@@ -91,6 +91,9 @@ std::vector<DiracSEnken> listOfStates_singlen(const std::string &in_list);
 //! Prints a periodic table to screen
 void printTable();
 
+//! converts into to lc romain numerals
+std::string int_to_roman(int a);
+
 //******************************************************************************
 constexpr int l_k(int ka) { return (ka > 0) ? ka : -ka - 1; }
 constexpr int twoj_k(int ka) { return (ka > 0) ? 2 * ka - 1 : -2 * ka - 1; }

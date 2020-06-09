@@ -86,7 +86,8 @@ void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf) {
     }
   }
   if (rpaDQ) {
-    rpaD = std::make_unique<MBPT::DiagramRPA>(h.get(), wf.basis, wf.core);
+    rpaD = std::make_unique<MBPT::DiagramRPA>(h.get(), wf.basis, wf.core,
+                                              wf.identity());
     if (!eachFreqQ)
       rpaD->rpa_core(omega);
   }
@@ -236,7 +237,8 @@ void calculateBohrWeisskopf(const IO::UserInputBlock &input,
   std::unique_ptr<MBPT::DiagramRPA> rpap{nullptr}, rpab{nullptr}, rpaw{nullptr};
   if (rpa) {
     std::cout << "\nIncluding RPA (diagram method) - must have basis\n";
-    rpap = std::make_unique<MBPT::DiagramRPA>(hp.get(), wf.basis, wf.core);
+    rpap = std::make_unique<MBPT::DiagramRPA>(hp.get(), wf.basis, wf.core,
+                                              wf.identity());
     rpab = std::make_unique<MBPT::DiagramRPA>(hb.get(), rpap.get());
     rpaw = std::make_unique<MBPT::DiagramRPA>(hw.get(), rpap.get());
     std::cout << "Solving RPA core for point, ball, SP:\n";

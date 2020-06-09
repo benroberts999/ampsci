@@ -20,6 +20,18 @@ static inline bool string_is_ints(const std::string &s) {
 }
 
 //******************************************************************************
+std::string int_to_roman(int a) {
+  static const std::string m[] = {"", "m", "mm", "mmm"};
+  static const std::string c[] = {"",  "c",  "cc",  "ccc",  "cd",
+                                  "d", "dc", "dcc", "dccc", "cm"};
+  static const std::string x[] = {"",  "x",  "xx",  "xxx",  "xl",
+                                  "l", "lx", "lxx", "lxxx", "xc"};
+  static const std::string i[] = {"",  "i",  "ii",  "iii",  "iv",
+                                  "v", "vi", "vii", "viii", "ix"};
+  return m[a / 1000] + c[(a % 1000) / 100] + x[(a % 100) / 10] + i[(a % 10)];
+}
+
+//******************************************************************************
 std::string NonRelSEConfig::symbol() const {
   return std::to_string(n) + AtomData::l_symbol(l) + std::to_string(num);
 }
