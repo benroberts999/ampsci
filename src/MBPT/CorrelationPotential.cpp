@@ -253,10 +253,13 @@ void CorrelationPotential::fill_Sigma_k_Gold(GMatrix *Gmat, const int kappa,
 
   // Note: get_yk_ab() must only be called with k for which y^k_ab exists!
   // Therefore, must use the k_minmax() function provided
+
+  std::vector<GMatrix> Gs(m_core.size(), {stride_points, include_G});
 #pragma omp parallel for
   for (auto ia = 0ul; ia < m_core.size(); ia++) {
     const auto &a = m_core[ia];
-    GMatrix G_a(stride_points, include_G);
+    auto &G_a = Gs[ia];
+    // GMatrix G_a(stride_points, include_G);
     auto Qkv = DiracSpinor(0, kappa, gr); // re-use to reduce alloc'ns
     auto Pkv = DiracSpinor(0, kappa, gr); // re-use to reduce alloc'ns
     for (const auto &n : m_excited) {
@@ -292,9 +295,12 @@ void CorrelationPotential::fill_Sigma_k_Gold(GMatrix *Gmat, const int kappa,
 
       } // k
     }   // n
-#pragma omp critical(sumG)
-    { *Gmat += G_a; }
-  } // a
+  }     // a
+
+  // note: no benefit to sending Gmat in! Just let it be a return value!
+  for (const auto &G_a : Gs) {
+    *Gmat += G_a;
+  }
 }
 
 //******************************************************************************

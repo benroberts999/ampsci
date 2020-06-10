@@ -342,7 +342,6 @@ double DiagramRPA::dV(const DiracSpinor &Fw, const DiracSpinor &Fv,
 void DiagramRPA::rpa_core(const double omega, const bool print) {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   m_omega = std::abs(omega);
-  // IO::ChronoTimer sw("rpa_core");
 
   if (holes.empty() || excited.empty())
     return;
@@ -356,7 +355,7 @@ void DiagramRPA::rpa_core(const double omega, const bool print) {
   const auto f = (1.0 / (2 * m_k + 1));
   for (; it <= max_its; it++) {
     std::vector<double> eps_m(excited.size()); //"thread-safe" eps..?
-    // XXX "Small" race condition in here???
+// XXX "Small" race condition in here???
 #pragma omp parallel for
     for (std::size_t im = 0; im < excited.size(); im++) {
       const auto &Fm = excited[im];
