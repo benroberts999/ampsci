@@ -444,7 +444,7 @@ std::tuple<double, double> Wavefunction::lminmax_core_range(int l,
                                                             double eps) const {
   std::vector<double> rho_l(rgrid.num_points);
   for (const auto &Fc : core) {
-    if (Fc.l() == l)
+    if (Fc.l() == l || l < 0)
       rho_l = NumCalc::add_vectors(rho_l, Fc.rho());
   }
   // find maximum rho:
@@ -692,7 +692,8 @@ void Wavefunction::formSigma(const int nmin_core, const bool form_matrix,
                              const std::vector<double> &lambdas,
                              const std::string &fname, const bool FeynmanQ,
                              const bool ScreeningQ, const int lmax,
-                             const bool GreenBasis, const double omre) {
+                             const bool GreenBasis, const bool PolBasis,
+                             const double omre) {
   if (valence.empty())
     return;
   // Sort basis into core/exited parts, throwing away core states with n<nmin
@@ -769,8 +770,8 @@ void Wavefunction::formSigma(const int nmin_core, const bool form_matrix,
 
   const auto method =
       FeynmanQ ? MBPT::Method::Feynman : MBPT::Method::Goldstone;
-  const auto sigp =
-      MBPT::Sigma_params{method, nmin_core, lmax, GreenBasis, omre, ScreeningQ};
+  const auto sigp = MBPT::Sigma_params{
+      method, nmin_core, lmax, GreenBasis, PolBasis, omre, ScreeningQ};
   const auto subgridp = MBPT::rgrid_params{r0, rmax, std::size_t(stride)};
 
   // Correlaion potential matrix:

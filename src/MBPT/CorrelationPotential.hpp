@@ -10,6 +10,7 @@
 #include <memory>
 #include <vector>
 class Grid;
+class Grid;
 namespace HF {
 class HartreeFock;
 }
@@ -20,7 +21,7 @@ namespace MBPT {
 
 using GMatrix = GreenMatrix<LinAlg::SqMatrix>;
 using ComplexGMatrix = GreenMatrix<LinAlg::ComplexSqMatrix>;
-using ComplexDouble = LinAlg::Complex<double>;
+using ComplexDouble = LinAlg::ComplexDouble;
 
 enum class Method { Goldstone, Feynman };
 
@@ -29,6 +30,7 @@ struct Sigma_params {
   int min_n_core;
   int max_l_excited;
   bool GreenBasis;
+  bool PolBasis;
   double real_omega;
   bool screenCoulomb;
 };
@@ -129,6 +131,7 @@ private:
 private:
   // main routine, filles Sigma matrix using basis [Goldstone]
   void fill_Sigma_k_Gold(GMatrix *Gmat, const int kappa, const double en);
+  // Fills Sigma matrix using Feynman technique
   void fill_Sigma_k_Feyn(GMatrix *Gmat, const int kappa, const double en);
   // Adds new |ket><bra| term to G; uses sub-grid
   void addto_G(GMatrix *Gmat, const DiracSpinor &ket, const DiracSpinor &bra,
@@ -144,21 +147,29 @@ private:
 
   //----------------------------------------------
 public:
+  // Calculate "Core" Green fn by direct summation over only core states
   ComplexGMatrix Green_core(int kappa, double en_re, double en_im) const;
+  // Calculates "excited" Greens function, by: G_ex = G - G_core
   ComplexGMatrix Green_ex(int kappa, double en_re, double en_im) const;
+  // Calculates Hartree-Fock Green function (including exchange), for real en
   ComplexGMatrix Green_hf(int kappa, double en) const;
-  ComplexGMatrix ComplexG(const ComplexGMatrix &Gr, double om_imag) const;
-  ComplexGMatrix ComplexG(const ComplexGMatrix &Gr, double de_re,
-                          double om_imag) const;
+  // Calculates HF Green function (including exchange), for Complex en
   ComplexGMatrix Green_hf(int kappa, double en_re, double en_imag) const;
+  // Calculate HF Greens function (complex en), using basis expansion
   ComplexGMatrix Green_hf_basis(int kappa, double en_re, double en_im,
                                 bool ex_only) const;
-
+  // Takes a G(e_r) and e_i, returns G(e_r + i*e_i)
+  ComplexGMatrix ComplexG(const ComplexGMatrix &Gr, double om_imag) const;
+  // Takes a G(e) and de_r, de_i, returns G(e + de_r + i*de_i) - needs testing
+  ComplexGMatrix ComplexG(const ComplexGMatrix &Gr, double de_re,
+                          double om_imag) const;
+  // Calculates polarisation operator, all core states
   ComplexGMatrix Polarisation(int kappa_a, int kappa_alpha, double om_re,
                               double om_im) const;
+  // Calculates polarisation operator, only single core state (pa = |a><a|)
   ComplexGMatrix Polarisation_a(const ComplexGMatrix &pa, double ena,
                                 int k_alpha, double om_re, double om_im) const;
-
+  // Screens Coulomb: q_scr = q * [1-pi*q]^-1
   ComplexGMatrix screenedCoulomb(const ComplexGMatrix &q,
                                  const ComplexGMatrix &pi) const {
     // not checked!
@@ -166,28 +177,41 @@ public:
     return q * ((-1.0 * pi * q).plusIdent(1.0).invert());
   }
 
-  // void sumPol(const ComplexGMatrix &pi_aA) const;
-
+  // Calculates initial data needed for Feynman (|a><a|, w grids etc)
   void prep_Feynman();
+  // Project subgrid onto full grid
   std::size_t ri_subToFull(std::size_t i) const;
+  // get value of dr on subgrid
   double dr_subToFull(std::size_t i) const;
 
+  // Contructs G0(w) (no exchange) Greens fn; x0,xI homog. solns reg at 0,infty
   GMatrix MakeGreensG(const DiracSpinor &x0, const DiracSpinor &xI,
                       const double w) const;
+  // Contructs G_a Green-like fn for single state: returns f*|ket><bra|
   ComplexGMatrix G_single(const DiracSpinor &ket, const DiracSpinor &bra,
                           const ComplexDouble f) const;
+  // Forms Vx, exhange operator matrix (includes dri,drj)
   GMatrix Make_Vx(int kappa) const;
 
+  // Calculates direct Sigma using Feynman method
   GMatrix FeynmanDirect(int kv, double env);
+  // Calculates exchange Sigma using Feynman method [w_1 version]
   GMatrix FeynmanEx_1(int kv, double env);
 
-  //! sum_k [ck qk * pi(w) * qk], ck angular factor
+  // direct: sum_k [ck qk * pi(w) * qk], ck angular factor
   GMatrix sumk_cGQPQ(int kv, int ka, int kalpha, int kbeta,
                      const ComplexGMatrix &g_beta,
                      const ComplexGMatrix &pi_aalpha) const;
+  // exchange: sum_kl gA*qk*ql*(c1 * pa*gxBm + c2 * gxBp*pa)
   GMatrix sumkl_GQPGQ(const ComplexGMatrix &gA, const ComplexGMatrix &gxBm,
                       const ComplexGMatrix &gxBp, const ComplexGMatrix &pa,
                       int kv, int kA, int kB, int ka) const;
+
+  // result += Real{ sum_ij [ factor * a1j * bij * cj2 * (d_1i * e_i2) ] }
+  static void tensor_5_product(GMatrix *result, const ComplexDouble &factor,
+                               const ComplexGMatrix &a, const ComplexGMatrix &b,
+                               const ComplexGMatrix &c, const ComplexGMatrix &d,
+                               const ComplexGMatrix &e);
 
 private:
   const Grid *const p_gr;
@@ -202,6 +226,9 @@ private:
   double m_omre;
 
   const HF::HartreeFock *const p_hf;
+  // options to use basis for Green fn / Polarisation operator
+  const bool basis_for_Green;
+  const bool basis_for_Pol;
 
   std::size_t stride_points{};
   std::size_t imin{};
@@ -224,8 +251,6 @@ private:
 
   // Options for sub-grid, and which matrices to include
   static constexpr bool include_G = false;
-  const bool basis_for_Green;
-  static constexpr bool basis_for_Pol = true; // XX
 };
 
 } // namespace MBPT

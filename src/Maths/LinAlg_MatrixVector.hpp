@@ -74,70 +74,165 @@ public:
 };
 
 //******************************************************************************
-template <typename T> class Complex {
-public:
-  T re = 0;
-  T im = 0;
-  Complex<T> conj() const { return {re, -im}; }
+// template <typename T> class Complex {
+// public:
+//   T re = 0;
+//   T im = 0;
+//   Complex<T> conj() const { return {re, -im}; }
+//   //! norm2 = re^2 + im^2, no sqrt (ruins T)
+//   T norm2() const { return re * re + im * im; }
+//   //! Return gsl-style complex
+//   gsl_complex gsl() const { return gsl_complex_rect(re, im); }
+//   friend Complex<T> from_gsl(const gsl_complex &gslc) {
+//     return Complex<T>{static_cast<T>(GSL_REAL(gslc)),
+//                       static_cast<T>(GSL_IMAG(gslc))};
+//   }
+//   //! Mult two complex:
+//   friend Complex<T> operator*(const Complex<T> &a, const Complex<T> &b) {
+//     return {a.re * b.re - a.im * b.im, a.re * b.im + a.im * b.re};
+//   }
+//   Complex<T> &operator*=(const Complex<T> x) {
+//     *this = (*this) * x;
+//     return *this;
+//   }
+//   //! Mult by const:
+//   Complex<T> &operator*=(const T x) {
+//     this->re *= x;
+//     this->im *= x;
+//     return *this;
+//   }
+//   friend Complex<T> operator*(Complex<T> a, const T &x) { return a *= x; }
+//   friend Complex<T> operator*(const T &x, Complex<T> a) { return a *= x; }
+//   //! Add/subtrac:
+//   Complex<T> &operator+=(const Complex<T> x) {
+//     this->re += x.re;
+//     this->im += x.im;
+//     return *this;
+//   }
+//   friend Complex<T> operator+(Complex<T> a, const Complex<T> &b) {
+//     return a += b;
+//   }
+//   Complex<T> &operator-=(const Complex<T> x) {
+//     this->re -= x.re;
+//     this->im -= x.im;
+//     return *this;
+//   }
+//   friend Complex<T> operator-(Complex<T> a, const Complex<T> &b) {
+//     return a -= b;
+//   }
+// };
+
+//******************************************************************************
+//******************************************************************************
+// using ComplexDouble = gsl_complex;
+
+struct ComplexDouble {
+  gsl_complex val;
+  ComplexDouble(double re = 0.0, double im = 0.0)
+      : val(gsl_complex_rect(re, im)) {}
+  ComplexDouble(gsl_complex c) : val(c) {}
+  //
+  // XXX Is below ok? Can I use this to modify a const??
+  double &re() { return GSL_REAL(val); }
+  double &im() { return GSL_IMAG(val); }
+  double cre() const { return GSL_REAL(val); }
+  double cim() const { return GSL_IMAG(val); }
+  std::pair<double, double> unpack() const { return {cre(), cim()}; }
+  ComplexDouble conj() const { return {cre(), -cim()}; }
   //! norm2 = re^2 + im^2, no sqrt (ruins T)
-  T norm2() const { return re * re + im * im; }
-  //! Return gsl-style complex
-  gsl_complex gsl() const { return gsl_complex_rect(re, im); }
-  friend Complex<T> from_gsl(const gsl_complex &gslc) {
-    return Complex<T>{static_cast<T>(GSL_REAL(gslc)),
-                      static_cast<T>(GSL_IMAG(gslc))};
-  }
-  //! Mult two complex:
-  friend Complex<T> operator*(const Complex<T> &a, const Complex<T> &b) {
-    return {a.re * b.re - a.im * b.im, a.re * b.im + a.im * b.re};
-  }
-  Complex<T> &operator*=(const Complex<T> x) {
-    *this = (*this) * x;
+  double norm2() const { return cre() * cre() + cim() * cim(); }
+  //
+  ComplexDouble &operator+=(const ComplexDouble &r) {
+    re() += r.cre();
+    im() += r.cim();
     return *this;
   }
-  //! Mult by const:
-  Complex<T> &operator*=(const T x) {
-    this->re *= x;
-    this->im *= x;
+  ComplexDouble &operator+=(const gsl_complex &r) {
+    re() += GSL_REAL(r);
+    im() += GSL_IMAG(r);
     return *this;
   }
-  friend Complex<T> operator*(Complex<T> a, const T &x) { return a *= x; }
-  friend Complex<T> operator*(const T &x, Complex<T> a) { return a *= x; }
-  //! Add/subtrac:
-  Complex<T> &operator+=(const Complex<T> x) {
-    this->re += x.re;
-    this->im += x.im;
+  ComplexDouble &operator-=(const ComplexDouble &r) {
+    re() -= r.cre();
+    im() -= r.cim();
     return *this;
   }
-  friend Complex<T> operator+(Complex<T> a, const Complex<T> &b) {
-    return a += b;
-  }
-  Complex<T> &operator-=(const Complex<T> x) {
-    this->re -= x.re;
-    this->im -= x.im;
+  ComplexDouble &operator-=(const gsl_complex &r) {
+    re() -= GSL_REAL(r);
+    im() -= GSL_IMAG(r);
     return *this;
   }
-  friend Complex<T> operator-(Complex<T> a, const Complex<T> &b) {
-    return a -= b;
+  friend ComplexDouble operator+(ComplexDouble l, const ComplexDouble &r) {
+    return l += r;
   }
+  friend ComplexDouble operator-(ComplexDouble l, const ComplexDouble &r) {
+    return l -= r;
+  }
+  friend ComplexDouble operator+(ComplexDouble l, const gsl_complex &r) {
+    return l += r;
+  }
+  friend ComplexDouble operator-(ComplexDouble l, const gsl_complex &r) {
+    return l -= r;
+  }
+
+  ComplexDouble &operator*=(const ComplexDouble &r) {
+    val = gsl_complex_mul(val, r.val);
+    return *this;
+  }
+  ComplexDouble &operator*=(const gsl_complex &r) {
+    val = gsl_complex_mul(val, r);
+    return *this;
+  }
+  friend gsl_complex operator*=(gsl_complex &l, const ComplexDouble &r) {
+    l = gsl_complex_mul(l, r.val);
+    return l;
+  }
+  ComplexDouble &operator*=(const double &r) {
+    re() *= r;
+    im() *= r;
+    return *this;
+  }
+  ComplexDouble &operator*=(const int &r) {
+    re() *= r;
+    im() *= r;
+    return *this;
+  }
+  friend ComplexDouble operator*(ComplexDouble l, const ComplexDouble &r) {
+    return l *= r;
+  }
+
+  // Careful:
+  friend gsl_complex operator*(gsl_complex l, const ComplexDouble &r) {
+    return l *= r;
+  }
+  friend ComplexDouble operator*(ComplexDouble l, const gsl_complex &r) {
+    return l *= r;
+  }
+
+  friend ComplexDouble operator*(ComplexDouble l, const double &r) {
+    return l *= r;
+  }
+  friend ComplexDouble operator*(const double &l, ComplexDouble r) {
+    return r *= l;
+  }
+  friend ComplexDouble operator*(ComplexDouble l, const int &r) {
+    return l *= r;
+  }
+  friend ComplexDouble operator*(const int &l, ComplexDouble r) {
+    return r *= l;
+  }
+  ///////
 };
 
-// inline gsl_complex &operator*=(gsl_complex &lhs, const gsl_complex &rhs) {
-//   lhs = gsl_complex_mul(lhs, rhs); // check! xx
-//   return lhs;
-// }
-//
-// inline gsl_complex operator*(const gsl_complex &lhs, const gsl_complex &rhs)
+// inline ComplexDouble operator+=(ComplexDouble &l, const ComplexDouble &r)
 // {
-//   return gsl_complex_mul(lhs, rhs);
+//   l = gsl_complex_add(l.val, r.val);
+//   return l;
 // }
 //
-// gsl_complex gsl_mult_few(const gsl_complex &a, const gsl_complex &b) {
-//   return gsl_complex_mul(a, b);
-// }
-// gsl_complex gsl_mult_few(const gsl_complex &a, const gsl_complex &b,
-//                          const gsl_complex &c) {
-//   return gsl_complex_mul(a, gsl_complex_mul(b, c));
+// inline ComplexDouble operator+(ComplexDouble l, const ComplexDouble &r) {
+//   l += r;
+//   return l;
 // }
 
 //! To efficiently multiply many gsl_complex doubles
@@ -178,11 +273,11 @@ public:
   [[nodiscard]] ComplexSqMatrix inverse() const;
 
   //! make a ComplexSqMatrix from a SqMatrix: C = x*mR, x is complex
-  static ComplexSqMatrix make_complex(const Complex<double> &x,
+  static ComplexSqMatrix make_complex(const ComplexDouble &x,
                                       const SqMatrix &mR);
 
   //! For testing??
-  Complex<double> get_copy(std::size_t i, std::size_t j) const;
+  ComplexDouble get_copy(std::size_t i, std::size_t j) const;
   //! Gives [i][j] operator. Note: +, -, += etc. not defined for gsl_complex!
   gsl_complex *operator[](std::size_t i) const;
 
@@ -205,12 +300,10 @@ public:
   void checkNaN() const;
 
   //! Multiply elements by constant
-  ComplexSqMatrix &operator*=(const Complex<double> &x);
+  ComplexSqMatrix &operator*=(const ComplexDouble &x);
   ComplexSqMatrix &operator*=(double x);
-  friend ComplexSqMatrix operator*(const Complex<double> &x,
-                                   ComplexSqMatrix rhs);
-  friend ComplexSqMatrix operator*(ComplexSqMatrix rhs,
-                                   const Complex<double> &x);
+  friend ComplexSqMatrix operator*(const ComplexDouble &x, ComplexSqMatrix rhs);
+  friend ComplexSqMatrix operator*(ComplexSqMatrix rhs, const ComplexDouble &x);
 
   //! Matrix multiplication of 2 C-mats
   friend ComplexSqMatrix operator*(const ComplexSqMatrix &x,

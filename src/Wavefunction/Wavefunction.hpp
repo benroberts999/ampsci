@@ -214,7 +214,8 @@ public: // const methods: "views" into WF object
                  const int stride = 4, const std::vector<double> &lambdas = {},
                  const std::string &fname = "", const bool FeynmanQ = false,
                  const bool ScreeningQ = false, const int lmax = 6,
-                 const bool GreenBasis = false, const double omre = -0.2);
+                 const bool GreenBasis = false, const bool PolBasis = false,
+                 const double omre = -0.2);
 
   //! @brief Solves Dirac bound state problem, with optional 'extra' potential
   //! log_eps is log_10(convergence_target).
@@ -247,8 +248,8 @@ public: // const methods: "views" into WF object
   //! larger than cutoff (= eps*max_value)
   //! @details Returns the r values (au) for which the value of rho =
   //! \sum|psi^2|(r) drops below cutoff. Sum goes over all m for given l.
-  //! Cut-off defined as eps*max, where max is maximum value for rho(r). Returns
-  //! for each l in the core.
+  //! Cut-off defined as eps*max, where max is maximum value for rho(r).
+  //! Set l<0 to get for all l (entire core)
   std::tuple<double, double> lminmax_core_range(int l, double eps = 0.0) const;
 
   //! Local potential, e.g., Vl = Vnuc + Vdir + Vrad_el(l) - can be l-dependent

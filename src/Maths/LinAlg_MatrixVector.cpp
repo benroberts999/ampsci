@@ -333,7 +333,7 @@ ComplexSqMatrix &ComplexSqMatrix::operator=(const ComplexSqMatrix &other) {
 void ComplexSqMatrix::print() const {
   for (auto i = 0ul; i < n; ++i) {
     for (auto j = 0ul; j < n; ++j) {
-      const auto [x, y] = get_copy(i, j);
+      const auto [x, y] = get_copy(i, j).unpack();
       printf("%8.1f+%8.1f  ", x, y);
     }
     std::cout << "\n";
@@ -379,22 +379,23 @@ ComplexSqMatrix ComplexSqMatrix::inverse() const {
 }
 
 // make a ComplexSqMatrix from a SqMatrix: C = x*mR, x is complex
-ComplexSqMatrix ComplexSqMatrix::make_complex(const Complex<double> &x,
+ComplexSqMatrix ComplexSqMatrix::make_complex(const ComplexDouble &x,
                                               const SqMatrix &mR) {
   ComplexSqMatrix mC(mR.n);
   for (auto i = 0ul; i < mR.n; i++) {
     for (auto j = 0ul; j < mR.n; j++) {
       gsl_matrix_complex_set(
-          mC.m, i, j, gsl_complex_rect(x.re * mR[i][j], x.im * mR[i][j]));
+          mC.m, i, j, gsl_complex_rect(x.cre() * mR[i][j], x.cim() * mR[i][j]));
     }
   }
   return mC;
 }
 
-Complex<double> ComplexSqMatrix::get_copy(std::size_t i, std::size_t j) const {
+ComplexDouble ComplexSqMatrix::get_copy(std::size_t i, std::size_t j) const {
   // really just for testing..?
-  gsl_complex val = gsl_matrix_complex_get(m, i, j);
-  return {GSL_REAL(val), GSL_IMAG(val)};
+  return gsl_matrix_complex_get(m, i, j);
+  // gsl_complex val = gsl_matrix_complex_get(m, i, j);
+  // return {GSL_REAL(val), GSL_IMAG(val)};
 }
 
 gsl_complex *ComplexSqMatrix::operator[](std::size_t i) const {
@@ -404,7 +405,7 @@ gsl_complex *ComplexSqMatrix::operator[](std::size_t i) const {
 void ComplexSqMatrix::checkNaN() const {
   for (auto i = 0ul; i < n; ++i) {
     for (auto j = 0ul; j < n; ++j) {
-      const auto [x, y] = get_copy(i, j);
+      const auto [x, y] = get_copy(i, j).unpack();
       if (std::isnan(x)) {
         std::cout << "NaN in real at :" << i << "," << j << "\n";
         std::cin.get();
@@ -454,18 +455,18 @@ void ComplexSqMatrix::plusIdent(double re, double im) {
 }
 
 //  Multiply elements by constant
-ComplexSqMatrix &ComplexSqMatrix::operator*=(const Complex<double> &x) {
-  gsl_matrix_complex_scale(this->m, gsl_complex_rect(x.re, x.im));
+ComplexSqMatrix &ComplexSqMatrix::operator*=(const ComplexDouble &x) {
+  gsl_matrix_complex_scale(this->m, x.val);
   return *this;
 }
 ComplexSqMatrix &ComplexSqMatrix::operator*=(double x) {
-  return (*this) *= Complex<double>{x, 0.0};
+  return (*this) *= ComplexDouble{x, 0.0};
 }
 
-ComplexSqMatrix operator*(const Complex<double> &x, ComplexSqMatrix rhs) {
+ComplexSqMatrix operator*(const ComplexDouble &x, ComplexSqMatrix rhs) {
   return (rhs *= x);
 }
-ComplexSqMatrix operator*(ComplexSqMatrix rhs, const Complex<double> &x) {
+ComplexSqMatrix operator*(ComplexSqMatrix rhs, const ComplexDouble &x) {
   return (rhs *= x);
 }
 

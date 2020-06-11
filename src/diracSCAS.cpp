@@ -8,8 +8,6 @@
 #include "Wavefunction/Wavefunction.hpp"
 #include <iostream>
 #include <string>
-//
-#include "MBPT/CorrelationPotential.hpp"
 
 int main(int argc, char *argv[]) {
   IO::ChronoTimer timer("\ndiracSCAS");
@@ -187,25 +185,27 @@ int main(int argc, char *argv[]) {
   }
 
   // Correlations: read in options
-  const auto Sigma_ok =
-      input.check("Correlations",
-                  {"Brueckner", "energyShifts", "n_min_core", "fitTo_cm",
-                   "lambda_k", "io_file", "rmin", "rmax", "stride", "Feynman",
-                   "Screening", "lmax", "GreenBasis", "real_omega"});
+  const auto Sigma_ok = input.check(
+      "Correlations",
+      {"Brueckner", "energyShifts", "n_min_core", "fitTo_cm", "lambda_k",
+       "io_file", "rmin", "rmax", "stride", "Feynman", "Screening", "lmax",
+       "basis_for_Green", "basis_for_pol", "real_omega"});
   const bool do_energyShifts = input.get("Correlations", "energyShifts", false);
   const bool do_brueckner = input.get("Correlations", "Brueckner", false);
   const auto sigma_rmin = input.get("Correlations", "rmin", 1.0e-4);
   const auto sigma_rmax = input.get("Correlations", "rmax", 30.0);
   const auto default_stride = [&]() {
-    // XXX After testing, make default back to 150!
-    auto stride = int(wf.rgrid.getIndex(30.0) - wf.rgrid.getIndex(1.0e-4)) / 75;
+    // By default, choose stride such that there is 150 points over [1e-4,30]
+    const auto stride =
+        int(wf.rgrid.getIndex(30.0) - wf.rgrid.getIndex(1.0e-4)) / 150;
     return (stride <= 2) ? 2 : stride;
   }();
   const auto sigma_stride = input.get("Correlations", "stride", default_stride);
   const auto sigma_Feynman = input.get("Correlations", "Feynman", false);
   const auto sigma_Screening = input.get("Correlations", "Screening", false);
   const auto sigma_lmax = input.get("Correlations", "lmax", 6);
-  const auto GreenBasis = input.get("Correlations", "GreenBasis", false);
+  const auto GreenBasis = input.get("Correlations", "basis_for_Green", false);
+  const auto PolBasis = input.get("Correlations", "basis_for_pol", true);
   // force sigma_omre to be always -ve
   const auto sigma_omre = -std::abs(
       input.get("Correlations", "real_omega", -0.33 * wf.energy_gap()));
@@ -216,7 +216,6 @@ int main(int argc, char *argv[]) {
     sigma_file = wf.identity();
   else if (!sigma_io)
     sigma_file = "";
-
   const auto n_min_core = input.get("Correlations", "n_min_core", 1);
   auto fit_energies =
       input.get_list("Correlations", "fitTo_cm", std::vector<double>{});
@@ -230,7 +229,7 @@ int main(int argc, char *argv[]) {
     IO::ChronoTimer t("Sigma");
     wf.formSigma(n_min_core, true, sigma_rmin, sigma_rmax, sigma_stride,
                  lambda_k, sigma_file, sigma_Feynman, sigma_Screening,
-                 sigma_lmax, GreenBasis, sigma_omre);
+                 sigma_lmax, GreenBasis, PolBasis, sigma_omre);
   }
 
   // Just energy shifts

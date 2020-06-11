@@ -60,21 +60,22 @@ CorrelationPotential::CorrelationPotential(
     : p_gr(in_hf->p_rgrid),
       m_core(core),
       m_excited(excited),
+      // XXX Update so that it takes basis, and splits it up in here!
       m_yec(p_gr, &m_excited, &m_core),
       stride(subgridp.stride),
       method(sigp.method),
       screen_Coulomb(sigp.screenCoulomb),
       m_omre(sigp.real_omega),
       p_hf(in_hf),
-      basis_for_Green(sigp.GreenBasis) {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
+      basis_for_Green(sigp.GreenBasis),
+      basis_for_Pol(sigp.PolBasis) {
+  // XXX This needs quite a cleanup!
 
   std::cout << "\nCorrelation potential (Sigma)\n";
 
   m_min_core_n = sigp.min_n_core;
   // Only used for Feynman:
   m_maxkindex_core = 2 * find_max_l(p_hf->get_core());
-  // m_maxkindex = std::max(2 * sigp.max_l_excited, m_maxkindex_core);
   m_maxkindex = 2 * sigp.max_l_excited;
 
   // find max k and 2j:
@@ -91,9 +92,10 @@ CorrelationPotential::CorrelationPotential(
   // fill sixj and Ck:
   m_6j.fill(m_maxk, max_tj);
 
+  // io file name:
+  const std::string ext = (method == Method::Feynman) ? ".SigmaF" : ".SigmaG";
   const auto fname =
-      atom == "" ? ""
-                 : atom + +"_" + std::to_string(p_gr->num_points) + ".Sigma";
+      atom == "" ? "" : atom + "_" + std::to_string(p_gr->num_points) + ext;
   const bool read_ok = read_write(fname, IO::FRW::read);
 
   if (en_list.empty())
@@ -104,12 +106,6 @@ CorrelationPotential::CorrelationPotential(
     std::cout << "Form correlation potential: ";
     if (method == Method::Feynman) {
       std::cout << "Feynman method\n";
-      std::cout << "lmax = " << Angular::lFromIndex(m_maxkindex) << ", ";
-      if (basis_for_Green)
-        std::cout << "Using basis for Green's function (+Pol)";
-      else
-        std::cout << "Using basis for Pol, Green method for Green's fn";
-      std::cout << "\n";
       prep_Feynman();
       m_yec.extend_Ck(m_maxk, max_tj);
     } else {
@@ -151,20 +147,24 @@ ComplexGMatrix CorrelationPotential::G_single(const DiracSpinor &ket,
                                               const DiracSpinor &bra,
                                               const ComplexDouble f) const {
   ComplexGMatrix Gmat(stride_points, include_G);
-  const auto [x, iy] = f;
+  const auto [x, iy] = f.unpack();
   for (auto i = 0ul; i < stride_points; ++i) {
     const auto si = ri_subToFull(i);
     for (auto j = 0ul; j < stride_points; ++j) {
       const auto sj = ri_subToFull(j);
-      Gmat.ff[i][j] = gsl_complex_rect(x * ket.f[si] * bra.f[sj],
-                                       iy * ket.f[si] * bra.f[sj]);
+      Gmat.ff[i][j] =
+          ComplexDouble(x * ket.f[si] * bra.f[sj], iy * ket.f[si] * bra.f[sj])
+              .val;
       if constexpr (include_G) {
-        Gmat.fg[i][j] = gsl_complex_rect(x * ket.f[si] * bra.g[sj],
-                                         iy * ket.f[si] * bra.g[sj]);
-        Gmat.gf[i][j] = gsl_complex_rect(x * ket.g[si] * bra.f[sj],
-                                         iy * ket.g[si] * bra.f[sj]);
-        Gmat.gg[i][j] = gsl_complex_rect(x * ket.g[si] * bra.g[sj],
-                                         iy * ket.g[si] * bra.g[sj]);
+        Gmat.fg[i][j] =
+            ComplexDouble(x * ket.f[si] * bra.g[sj], iy * ket.f[si] * bra.g[sj])
+                .val;
+        Gmat.gf[i][j] =
+            ComplexDouble(x * ket.g[si] * bra.f[sj], iy * ket.g[si] * bra.f[sj])
+                .val;
+        Gmat.gg[i][j] =
+            ComplexDouble(x * ket.g[si] * bra.g[sj], iy * ket.g[si] * bra.g[sj])
+                .val;
       }
     } // j
   }   // i
@@ -755,7 +755,7 @@ ComplexGMatrix CorrelationPotential::Polarisation(int k_a, int k_alpha,
     //        - Green_core(k_alpha, a.en + om_re, om_im))
     //           .mult_elements_by(Ga);
 
-    if constexpr (basis_for_Pol) {
+    if (basis_for_Pol) {
       // Full basis: Works
       pi += (Green_hf_basis(k_alpha, a.en - om_re, -om_im, true) +
              Green_hf_basis(k_alpha, a.en + om_re, om_im, true))
@@ -779,7 +779,7 @@ ComplexGMatrix CorrelationPotential::Polarisation_a(const ComplexGMatrix &pa,
 
   const auto Iunit = ComplexDouble{0.0, 1.0};
 
-  if constexpr (basis_for_Pol) {
+  if (basis_for_Pol) {
     // Full basis: Works
     return Iunit * (Green_hf_basis(kA, ena - omre, -omim, true) +
                     Green_hf_basis(kA, ena + omre, omim, true))
@@ -817,6 +817,17 @@ double CorrelationPotential::dr_subToFull(std::size_t i) const {
 }
 //******************************************************************************
 void CorrelationPotential::prep_Feynman() {
+
+  std::cout << "lmax = " << Angular::lFromIndex(m_maxkindex) << ", ";
+  if (basis_for_Green)
+    std::cout << "Using basis for Green's fns; ";
+  else
+    std::cout << "Using Green method for Green's fn; ";
+  if (basis_for_Pol)
+    std::cout << "basis for Polarisation op.\n";
+  else
+    std::cout << "Green method for Polarisation op.\n";
+  std::cout << "\n";
 
   std::vector<LinAlg::SqMatrix> qhat(std::size_t(m_maxk + 1), stride_points);
 
@@ -873,9 +884,9 @@ void CorrelationPotential::prep_Feynman() {
   // Set up imaginary frequency grid:
   std::cout << "Re(w) = " << m_omre << "\n";
   {
-    const auto w0 = 0.03;
-    const auto wmax = 700.0;
-    const double wratio = 1.3;
+    const auto w0 = 0.01;
+    const auto wmax = 30.0;
+    const double wratio = 2.0;
     const std::size_t wsteps = Grid::calc_num_points_from_du(
         w0, wmax, std::log(wratio), GridType::logarithmic);
     // const auto wgrid = Grid(w0, wmax, wsteps, GridType::logarithmic);
@@ -884,9 +895,10 @@ void CorrelationPotential::prep_Feynman() {
     printf(". r=%.2f\n", m_wgridD->r[1] / m_wgridD->r[0]);
   }
   {
-    const auto w0 = 0.08;
-    const auto wmax = 35.0;
-    const double wratio = 3.0;
+    // exchange seems quite insensitive to grid!
+    const auto w0 = 0.05;
+    const auto wmax = 30.0;
+    const double wratio = 3.3;
     const std::size_t wsteps = Grid::calc_num_points_from_du(
         w0, wmax, std::log(wratio), GridType::logarithmic);
     m_wgridX = std::make_unique<Grid>(w0, wmax, wsteps, GridType::logarithmic);
@@ -964,8 +976,6 @@ GMatrix CorrelationPotential::FeynmanDirect(int kv, double env) {
   }
 
   for (int ia = 0; ia <= m_maxkindex_core; ++ia) {
-    // printf("Sigma F: %3i/%3i\r", ia + 1, m_maxkindex_core + 1);
-    // std::cout << std::flush;
     const auto ka = Angular::kappaFromIndex(ia);
 #pragma omp parallel for
     for (int ialpha = 0; ialpha <= m_maxkindex; ++ialpha) {
@@ -987,7 +997,7 @@ GMatrix CorrelationPotential::FeynmanDirect(int kv, double env) {
           // sum over k:
           const auto gqpq = sumk_cGQPQ(kv, ka, kA, kB, g_beta, pi_aalpha);
 #pragma omp critical(sumSig)
-          { Sigma += (dw / M_PI) * gqpq; } // 2.0 for -ve
+          { Sigma += (dw / M_PI) * gqpq; } // 2.0 for -ve w cancels with 2pi
 
         } // beta
       }   // w
@@ -1113,38 +1123,41 @@ CorrelationPotential::sumk_cGQPQ(int kv, int ka, int kA, int kB,
     const auto &q = m_qhat[std::size_t(k)];
     const auto &q_scr = screen_Coulomb ? screenedCoulomb(q, pi_aalpha) : q;
     gqpq += c_ang * q * pi_aalpha * q_scr;
-    // gqpq += c_ang * q_scr * pi_aalpha * q_scr; // should be equivilant??
+    // nb: can screen either q, but not both!
   } // k
   return gqpq.mult_elements_by(g_beta).get_real();
 }
 
 //******************************************************************************
-static inline void tensor_5_product(GMatrix *result, const gsl_complex &factor,
-                                    const ComplexGMatrix &a,
-                                    const ComplexGMatrix &b,
-                                    const ComplexGMatrix &c,
-                                    const ComplexGMatrix &d,
-                                    const ComplexGMatrix &e) {
+void CorrelationPotential::tensor_5_product(
+    GMatrix *result, const ComplexDouble &factor, const ComplexGMatrix &a,
+    const ComplexGMatrix &b, const ComplexGMatrix &c, const ComplexGMatrix &d,
+    const ComplexGMatrix &e) {
   // Adds real part of below to result
   // Sum_ij [ factor * a1j * bij * cj2 * (d_1i * e_i2) ]
   const auto size = result->size;
-  gsl_complex sum_j, sum_ij;
+  ComplexDouble sum_j, sum_ij;
+
+  // The a*c part depends only on j (not i).
+  // Doing this mult early saves factor of 'size' complex multiplications
+  // Leads to a >2x speed-up!
+  std::vector<ComplexDouble> ac(size); // see below
 
   for (auto r1 = 0ul; r1 < size; ++r1) {
     for (auto r2 = 0ul; r2 < size; ++r2) {
-      // here: sum over j only, form ac_1jj2 each j ? saves factor 'size' mults
-      GSL_SET_COMPLEX(&sum_ij, 0.0, 0.0);
-      for (auto i = 0ul; i < size; ++i) {
-        GSL_SET_COMPLEX(&sum_j, 0.0, 0.0);
-        for (auto j = 0ul; j < size; ++j) {
-          sum_j = gsl_complex_add(
-              sum_j,
-              LinAlg::gsl_mult_few(a.ff[r1][j], b.ff[i][j], c.ff[j][r2]));
-        }
-        sum_ij = gsl_complex_add(
-            sum_ij, LinAlg::gsl_mult_few(sum_j, d.ff[r1][i], e.ff[i][r2]));
+      for (auto j = 0ul; j < size; ++j) {
+        // early a*c mult
+        ac[j] = ComplexDouble(a.ff[r1][j]) * c.ff[j][r2];
       }
-      result->ff[r1][r2] += GSL_REAL(gsl_complex_mul(factor, sum_ij));
+      sum_ij = {0.0, 0.0};
+      for (auto i = 0ul; i < size; ++i) {
+        sum_j = {0.0, 0.0};
+        for (auto j = 0ul; j < size; ++j) {
+          sum_j += ac[j] * b.ff[i][j];
+        }
+        sum_ij += sum_j * d.ff[r1][i] * e.ff[i][r2];
+      }
+      result->ff[r1][r2] += (factor * sum_ij).cre();
     }
   }
 }
@@ -1175,8 +1188,6 @@ GMatrix CorrelationPotential::sumkl_GQPGQ(const ComplexGMatrix &gA,
   const auto tjB = Angular::twoj_k(kB);
   const auto tja = Angular::twoj_k(ka);
   const auto tjvp1 = tjv + 1; //[jv]
-
-  const gsl_complex iI2 = gsl_complex_rect(0.0, 1.0);
 
   for (auto k = kmin; k <= kmax; ++k) {
     const auto CkvA = Angular::Ck_kk(k, kv, kA);
@@ -1210,59 +1221,16 @@ GMatrix CorrelationPotential::sumkl_GQPGQ(const ComplexGMatrix &gA,
       const auto &ql = m_qhat[std::size_t(l)];
 
       const auto s0 = Angular::evenQ(k + l) ? 1 : -1;
-      const double cang1 = s0 * ck1 * cl1 * sj1 / tjvp1;
-      const double cang2 = s0 * ck2 * cl2 * sj2 / tjvp1;
-
-      const auto &ic1 = gsl_complex_rect(0.0, cang1);
-      const auto &ic2 = gsl_complex_rect(0.0, cang2);
+      const auto cang1 = s0 * ck1 * cl1 * sj1 / tjvp1;
+      const auto cang2 = s0 * ck2 * cl2 * sj2 / tjvp1;
+      const auto ic1 = ComplexDouble(0.0, cang1);
+      const auto ic2 = ComplexDouble(0.0, cang2);
 
       if (cang1 != 0.0)
         tensor_5_product(&sum_GQPG, ic1, qk, pa, gxBm, gA, ql);
       if (cang2 != 0.0)
         tensor_5_product(&sum_GQPG, ic2, qk, gxBp, pa, gA, ql);
 
-      // for (auto r1 = 0ul; r1 < stride_points; ++r1) {
-      //   const auto dr1 =
-      //       p_gr->drdu[ri_subToFull(r1)] * p_gr->du * double(stride);
-      //   for (auto r2 = 0ul; r2 < stride_points; ++r2) {
-      //     const auto dr2 =
-      //         p_gr->drdu[ri_subToFull(r2)] * p_gr->du * double(stride);
-      //     //
-      //     double ij_sum1 = 0.0; // real
-      //     //
-      //     double ij_sum2 = 0.0; // real
-      //     if (!Angular::zeroQ(cang1)) {
-      //       for (auto i = 0ul; i < stride_points; ++i) {
-      //         gsl_complex jsum = gsl_complex_rect(0.0, 0.0);
-      //         for (auto j = 0ul; j < stride_points; ++j) {
-      //           jsum = gsl_complex_add(
-      //               jsum, LinAlg::gsl_mult_few(qk.ff[r1][j], pa.ff[i][j],
-      //                                          gxBm.ff[j][r2]));
-      //         }
-      //         ij_sum1 += GSL_REAL(
-      //             LinAlg::gsl_mult_few(iI2, jsum, gA.ff[r1][i],
-      //             ql.ff[i][r2]));
-      //       }
-      //     }
-      //     if (!Angular::zeroQ(cang2)) {
-      //       for (auto i = 0ul; i < stride_points; ++i) {
-      //         gsl_complex jsum = gsl_complex_rect(0.0, 0.0);
-      //         for (auto j = 0ul; j < stride_points; ++j) {
-      //           jsum = gsl_complex_add(
-      //               jsum, LinAlg::gsl_mult_few(qk.ff[r1][j], gxBp.ff[i][j],
-      //                                          pa.ff[j][r2]));
-      //         }
-      //         ij_sum2 += GSL_REAL(
-      //             LinAlg::gsl_mult_few(iI2, jsum, gA.ff[r1][i],
-      //             ql.ff[i][r2]));
-      //       }
-      //     }
-      //     //
-      //     sum_GQPG.ff[r1][r2] +=
-      //         (cang1 * ij_sum1 + cang2 * ij_sum2) / (dr1 * dr2);
-      //   }
-      // }
-      //
     } // l
   }   // k
 

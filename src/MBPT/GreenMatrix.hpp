@@ -77,7 +77,7 @@ public:
   }
 
   // temp! XXX
-  LinAlg::Complex<double> ffc(std::size_t i, std::size_t j) const {
+  LinAlg::ComplexDouble ffc(std::size_t i, std::size_t j) const {
     static_assert(std::is_same<T, LinAlg::ComplexSqMatrix>::value,
                   "Can only call ffc from Complex GMatrix!");
     return ff.get_copy(i, j);
@@ -130,7 +130,7 @@ public:
     return rhs *= x;
   }
 
-  GreenMatrix<T> &operator*=(const LinAlg::Complex<double> &x) {
+  GreenMatrix<T> &operator*=(const LinAlg::ComplexDouble &x) {
     static_assert(std::is_same<T, LinAlg::ComplexSqMatrix>::value,
                   "Can only call *=Complex from Complex GMatrix!");
     ff *= x;
@@ -141,8 +141,8 @@ public:
     }
     return *this;
   }
-  [[nodiscard]] friend GreenMatrix<T>
-  operator*(const LinAlg::Complex<double> &x, GreenMatrix<T> rhs) {
+  [[nodiscard]] friend GreenMatrix<T> operator*(const LinAlg::ComplexDouble &x,
+                                                GreenMatrix<T> rhs) {
     // rhs *= x;
     return rhs *= x;
   }
@@ -180,7 +180,7 @@ public:
       const auto aib_dmcaib = ai * b * dmcaib;
       ff += aib_dmcaib * cai;
       if constexpr (std::is_same<T, LinAlg::ComplexSqMatrix>::value) {
-        const auto neg_one = LinAlg::Complex<double>{-1.0, 0.0};
+        const auto neg_one = LinAlg::ComplexDouble{-1.0, 0.0};
         fg = neg_one * aib_dmcaib;
         gf = neg_one * dmcaib * cai;
       } else {
@@ -243,7 +243,7 @@ public:
 
   //! Construct a complex GreenMatrix (C) from a Real one (R), by C = x*R
   [[nodiscard]] GreenMatrix<LinAlg::ComplexSqMatrix>
-  make_complex(const LinAlg::Complex<double> &x) const {
+  make_complex(const LinAlg::ComplexDouble &x) const {
     static_assert(std::is_same<T, LinAlg::SqMatrix>::value,
                   "Can only call make_complex from Real GMatrix!");
     auto gmat = GreenMatrix<LinAlg::ComplexSqMatrix>(size, include_G);
