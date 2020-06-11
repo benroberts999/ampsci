@@ -1055,22 +1055,32 @@ GMatrix CorrelationPotential::FeynmanEx_1(int kv, double env) {
           const auto &gA_re = gws[std::size_t(ialpha)];
 
           const auto gA = ComplexG(gA_re, omim); // A, w
-          // const auto gxBm = Green_ex(kB, Fa.en - omre, -omim); // B,a,w
-          // const auto gxBp = Green_ex(kB, Fa.en + omre, omim);  // B,a,w
           const auto &pa = m_Pa[ia];
 
           const auto gqpg = sumkl_GQPGQ(gA, gxBm, gxBp, pa, kv, kA, kB, ka);
 
 #pragma omp critical(sumSigX)
           {
-            const auto fudge_factor = 1.0; // / (2 * M_PI); //???
+            const auto fudge_factor = 1.0 / (2 * M_PI); //???
             Sx_e1 += (fudge_factor * dw1 / M_PI) * gqpg;
           }
 
-        } // w1
-      }   // beta
-    }     // alpha
+        } // alpha
+      }   // w
+    }     // beta
   }       // a
+
+  // devide through by dri, drj [these included in q's, but want
+  // differential operator for sigma] or.. include one of these in
+  // definition of opertion S|v> ?
+  for (auto i = 0ul; i < stride_points; ++i) {
+    const auto dri = dr_subToFull(i);
+    for (auto j = 0ul; j < stride_points; ++j) {
+      const auto drj = dr_subToFull(j);
+      Sx_e1.ff[i][j] /= (dri * drj);
+      // No g
+    }
+  }
 
   return Sx_e1;
 }
@@ -1093,16 +1103,50 @@ CorrelationPotential::sumk_cGQPQ(int kv, int ka, int kA, int kB,
   const auto kmax = std::min({kmax1, kmax2, m_maxk});
   const auto tjvp1 = Angular::twoj_k(kv) + 1; //[jv]
   for (int k = kmin; k <= kmax; ++k) {
-    const auto c1 = Angular::Ck_kk(k, kv, kB) * Angular::Ck_kk(k, ka, kA);
+    const auto c1 = Angular::Ck_kk(k, kv, kB);
     if (c1 == 0.0)
       continue;
-    const double c_ang = c1 * c1 / double(tjvp1 * (2 * k + 1));
+    const auto c2 = Angular::Ck_kk(k, ka, kA);
+    if (c2 == 0.0)
+      continue;
+    const double c_ang = c1 * c1 * c2 * c2 / double(tjvp1 * (2 * k + 1));
     const auto &q = m_qhat[std::size_t(k)];
     const auto &q_scr = screen_Coulomb ? screenedCoulomb(q, pi_aalpha) : q;
     gqpq += c_ang * q * pi_aalpha * q_scr;
+    // gqpq += c_ang * q_scr * pi_aalpha * q_scr; // should be equivilant??
   } // k
-  // return gqpq;
   return gqpq.mult_elements_by(g_beta).get_real();
+}
+
+//******************************************************************************
+static inline void tensor_5_product(GMatrix *result, const gsl_complex &factor,
+                                    const ComplexGMatrix &a,
+                                    const ComplexGMatrix &b,
+                                    const ComplexGMatrix &c,
+                                    const ComplexGMatrix &d,
+                                    const ComplexGMatrix &e) {
+  // Adds real part of below to result
+  // Sum_ij [ factor * a1j * bij * cj2 * (d_1i * e_i2) ]
+  const auto size = result->size;
+  gsl_complex sum_j, sum_ij;
+
+  for (auto r1 = 0ul; r1 < size; ++r1) {
+    for (auto r2 = 0ul; r2 < size; ++r2) {
+      // here: sum over j only, form ac_1jj2 each j ? saves factor 'size' mults
+      GSL_SET_COMPLEX(&sum_ij, 0.0, 0.0);
+      for (auto i = 0ul; i < size; ++i) {
+        GSL_SET_COMPLEX(&sum_j, 0.0, 0.0);
+        for (auto j = 0ul; j < size; ++j) {
+          sum_j = gsl_complex_add(
+              sum_j,
+              LinAlg::gsl_mult_few(a.ff[r1][j], b.ff[i][j], c.ff[j][r2]));
+        }
+        sum_ij = gsl_complex_add(
+            sum_ij, LinAlg::gsl_mult_few(sum_j, d.ff[r1][i], e.ff[i][r2]));
+      }
+      result->ff[r1][r2] += GSL_REAL(gsl_complex_mul(factor, sum_ij));
+    }
+  }
 }
 
 //******************************************************************************
@@ -1131,18 +1175,19 @@ GMatrix CorrelationPotential::sumkl_GQPGQ(const ComplexGMatrix &gA,
   const auto tjB = Angular::twoj_k(kB);
   const auto tja = Angular::twoj_k(ka);
   const auto tjvp1 = tjv + 1; //[jv]
-  // const auto s2 = Angular::evenQ_2(tja - tjB) ? 1 : -1;
 
-  // const ComplexDouble iI{0.0, 1.0}; // i
   const gsl_complex iI2 = gsl_complex_rect(0.0, 1.0);
 
   for (auto k = kmin; k <= kmax; ++k) {
-    const auto ck1 = Angular::Ck_kk(k, kv, kA) * Angular::Ck_kk(k, ka, kB);
-    // nb: differ only by (at most) sign
-    const auto ck2 = Angular::Ck_kk(k, kv, kA) * Angular::Ck_kk(k, kB, ka);
-
-    if (Angular::zeroQ(ck1))
+    const auto CkvA = Angular::Ck_kk(k, kv, kA);
+    if (CkvA == 0.0)
       continue;
+    const auto CkaB = Angular::Ck_kk(k, ka, kB);
+    if (CkaB == 0.0)
+      continue;
+    const auto ck1 = CkvA * CkaB;
+    // nb: differ only by (at most) sign
+    const auto ck2 = CkvA * Angular::Ck_kk(k, kB, ka);
 
     const auto &qk = m_qhat[std::size_t(k)]; // XXX this one
 
@@ -1168,51 +1213,55 @@ GMatrix CorrelationPotential::sumkl_GQPGQ(const ComplexGMatrix &gA,
       const double cang1 = s0 * ck1 * cl1 * sj1 / tjvp1;
       const double cang2 = s0 * ck2 * cl2 * sj2 / tjvp1;
 
-      for (auto r1 = 0ul; r1 < stride_points; ++r1) {
-        const auto dr1 =
-            p_gr->drdu[ri_subToFull(r1)] * p_gr->du * double(stride);
-        for (auto r2 = 0ul; r2 < stride_points; ++r2) {
-          const auto dr2 =
-              p_gr->drdu[ri_subToFull(r2)] * p_gr->du * double(stride);
-          //
-          double ij_sum1 = 0.0; // real
-          //
-          double ij_sum2 = 0.0; // real
-          if (!Angular::zeroQ(cang1)) {
-            for (auto i = 0ul; i < stride_points; ++i) {
-              // ComplexDouble jsum{0.0, 0.0}; // complex!
-              gsl_complex jsum = gsl_complex_rect(0.0, 0.0);
-              for (auto j = 0ul; j < stride_points; ++j) {
-                // jsum += qk.ffc(r1, j) * pa.ffc(i, j) * gxBm.ffc(j, r2);
-                jsum = gsl_complex_add(
-                    jsum, LinAlg::gsl_mult_few(qk.ff[r1][j], pa.ff[i][j],
-                                               gxBm.ff[j][r2]));
-              }
-              // ij_sum1 += (iI * jsum * gA.ffc(r1, i) * ql.ffc(i, r2)).re;
-              ij_sum1 += GSL_REAL(
-                  LinAlg::gsl_mult_few(iI2, jsum, gA.ff[r1][i], ql.ff[i][r2]));
-            }
-          }
-          if (!Angular::zeroQ(cang2)) {
-            for (auto i = 0ul; i < stride_points; ++i) {
-              // ComplexDouble jsum{0.0, 0.0}; // complex!
-              gsl_complex jsum = gsl_complex_rect(0.0, 0.0);
-              for (auto j = 0ul; j < stride_points; ++j) {
-                // jsum += qk.ffc(r1, j) * gxBp.ffc(i, j) * pa.ffc(j, r2);
-                jsum = gsl_complex_add(
-                    jsum, LinAlg::gsl_mult_few(qk.ff[r1][j], gxBp.ff[i][j],
-                                               pa.ff[j][r2]));
-              }
-              // ij_sum2 += (iI * jsum * gA.ffc(r1, i) * ql.ffc(i, r2)).re;
-              ij_sum2 += GSL_REAL(
-                  LinAlg::gsl_mult_few(iI2, jsum, gA.ff[r1][i], ql.ff[i][r2]));
-            }
-          }
-          //
-          sum_GQPG.ff[r1][r2] +=
-              (cang1 * ij_sum1 + cang2 * ij_sum2) / (dr1 * dr2);
-        }
-      }
+      const auto &ic1 = gsl_complex_rect(0.0, cang1);
+      const auto &ic2 = gsl_complex_rect(0.0, cang2);
+
+      if (cang1 != 0.0)
+        tensor_5_product(&sum_GQPG, ic1, qk, pa, gxBm, gA, ql);
+      if (cang2 != 0.0)
+        tensor_5_product(&sum_GQPG, ic2, qk, gxBp, pa, gA, ql);
+
+      // for (auto r1 = 0ul; r1 < stride_points; ++r1) {
+      //   const auto dr1 =
+      //       p_gr->drdu[ri_subToFull(r1)] * p_gr->du * double(stride);
+      //   for (auto r2 = 0ul; r2 < stride_points; ++r2) {
+      //     const auto dr2 =
+      //         p_gr->drdu[ri_subToFull(r2)] * p_gr->du * double(stride);
+      //     //
+      //     double ij_sum1 = 0.0; // real
+      //     //
+      //     double ij_sum2 = 0.0; // real
+      //     if (!Angular::zeroQ(cang1)) {
+      //       for (auto i = 0ul; i < stride_points; ++i) {
+      //         gsl_complex jsum = gsl_complex_rect(0.0, 0.0);
+      //         for (auto j = 0ul; j < stride_points; ++j) {
+      //           jsum = gsl_complex_add(
+      //               jsum, LinAlg::gsl_mult_few(qk.ff[r1][j], pa.ff[i][j],
+      //                                          gxBm.ff[j][r2]));
+      //         }
+      //         ij_sum1 += GSL_REAL(
+      //             LinAlg::gsl_mult_few(iI2, jsum, gA.ff[r1][i],
+      //             ql.ff[i][r2]));
+      //       }
+      //     }
+      //     if (!Angular::zeroQ(cang2)) {
+      //       for (auto i = 0ul; i < stride_points; ++i) {
+      //         gsl_complex jsum = gsl_complex_rect(0.0, 0.0);
+      //         for (auto j = 0ul; j < stride_points; ++j) {
+      //           jsum = gsl_complex_add(
+      //               jsum, LinAlg::gsl_mult_few(qk.ff[r1][j], gxBp.ff[i][j],
+      //                                          pa.ff[j][r2]));
+      //         }
+      //         ij_sum2 += GSL_REAL(
+      //             LinAlg::gsl_mult_few(iI2, jsum, gA.ff[r1][i],
+      //             ql.ff[i][r2]));
+      //       }
+      //     }
+      //     //
+      //     sum_GQPG.ff[r1][r2] +=
+      //         (cang1 * ij_sum1 + cang2 * ij_sum2) / (dr1 * dr2);
+      //   }
+      // }
       //
     } // l
   }   // k

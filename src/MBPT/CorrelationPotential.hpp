@@ -162,6 +162,7 @@ public:
   ComplexGMatrix screenedCoulomb(const ComplexGMatrix &q,
                                  const ComplexGMatrix &pi) const {
     // not checked!
+    // XXX Are the dr_i, dr_j parts correct??
     return q * ((-1.0 * pi * q).plusIdent(1.0).invert());
   }
 
