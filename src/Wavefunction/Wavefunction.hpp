@@ -148,6 +148,14 @@ public: // const methods: "views" into WF object
   std::string atomicSymbol() const {
     return AtomData::atomicSymbol(m_nuclear.z);
   }
+  //! Effective charge (for core) = Z-N_core
+  int Zion() const { return Znuc() - Ncore(); }
+  //! E.g., Cs in V^N-1, gives Cs-i
+  std::string identity() const {
+    const auto zionRoman = AtomData::int_to_roman(Zion());
+    return AtomData::atomicSymbol(m_nuclear.z) +
+           (zionRoman == "" ? "" : "-" + zionRoman);
+  }
 
   //! Prints table of core orbitals + energies etc. Optionally sorted by energy
   void printCore(bool sorted = true) const;

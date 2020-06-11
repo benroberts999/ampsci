@@ -5,6 +5,7 @@
 #include <sstream>
 #include <string>
 #include <tuple>
+#include <type_traits>
 #include <utility>
 #include <vector>
 /*!
@@ -145,6 +146,7 @@ inline void writeFile_xy(const std::vector<double> &x,
 }
 
 //******************************************************************************
+//! reads entire text file into a string
 inline std::string readInputFile(const std::string &fname) {
   std::ifstream f(fname); // taking file as inputstream
   std::string str;
@@ -287,18 +289,25 @@ inline void open_binary(std::fstream &stream, const std::string &fname,
 }
 
 inline bool file_exists(const std::string &fileName) {
+  if (fileName == "")
+    return false;
   std::ifstream infile(fileName);
   return infile.good();
 }
 
-// Variadic version: read-write to binary file
+//! Function (variadic): reads/writes data from/to binary file. Works for
+//! trivial (PoD) types, and std::string only (but not checked)
 template <typename T, typename... Types>
 void rw_binary(std::fstream &stream, RoW row, T &value, Types &... values) {
-  binary_rw(stream, value, row);
+  if constexpr (std::is_same_v<T, std::string>)
+    binary_str_rw(stream, value, row);
+  else
+    binary_rw(stream, value, row);
   if constexpr (sizeof...(values) != 0)
     rw_binary(stream, row, values...);
 }
 
+// make "private" behind 'helper' namespace: used in old code still
 template <typename T> void binary_rw(std::fstream &stream, T &value, RoW row) {
   switch (row) {
   case write:
@@ -312,6 +321,7 @@ template <typename T> void binary_rw(std::fstream &stream, T &value, RoW row) {
   }
 }
 
+// make "private" behind 'helper' namespace: used in old code still
 inline void binary_str_rw(std::fstream &stream, std::string &value, RoW row) {
   if (row == write) {
     std::size_t temp_len = value.length();

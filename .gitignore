@@ -2,7 +2,8 @@
 !src/
 src/*~
 !build/
-build/*.o
+build/*
+!build/*.mk
 !doc/
 doc/*
 !doc/*.md

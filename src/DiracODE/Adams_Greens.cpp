@@ -21,7 +21,7 @@ DiracSpinor solve_inhomog(const int kappa, const double en,
                           const std::vector<double> &v,
                           const std::vector<double> &H_mag, const double alpha,
                           const DiracSpinor &source) {
-  auto sp = IO::Profile::safeProfiler(__func__, "0");
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__, "0");
   auto phi = DiracSpinor(0, kappa, *source.p_rgrid);
   solve_inhomog(phi, en, v, H_mag, alpha, source);
   return phi;
@@ -34,7 +34,7 @@ void solve_inhomog(DiracSpinor &phi, const double en,
                    const DiracSpinor &source)
 // NOTE: returns NON-normalised function!
 {
-  auto sp = IO::Profile::safeProfiler(__func__, "a");
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__, "a");
   auto phi0 = DiracSpinor(phi.n, phi.k, *phi.p_rgrid);
   auto phiI = DiracSpinor(phi.n, phi.k, *phi.p_rgrid);
   solve_inhomog(phi, phi0, phiI, en, v, H_mag, alpha, source);
@@ -47,7 +47,7 @@ void solve_inhomog(DiracSpinor &phi, DiracSpinor &phi0, DiracSpinor &phiI,
 // Overload of the above. Faster, since doesn't need to allocate for phi0 and
 // phiI
 {
-  auto sp = IO::Profile::safeProfiler(__func__, "b");
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__, "b");
   regularAtOrigin(phi0, en, v, H_mag, alpha);
   regularAtInfinity(phiI, en, v, H_mag, alpha);
   Adams::GreenSolution(phi, phiI, phi0, alpha, source);
@@ -58,7 +58,7 @@ namespace Adams {
 void GreenSolution(DiracSpinor &phi, const DiracSpinor &phiI,
                    const DiracSpinor &phi0, const double alpha,
                    const DiracSpinor &Sr) {
-  auto sp = IO::Profile::safeProfiler(__func__);
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
 
   // Wronskian:
   auto pp = std::size_t(0.65 * double(phiI.pinf));

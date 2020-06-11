@@ -5,10 +5,9 @@ detected_OS := $(shell uname -s)
 $(info )
 $(info Detected operating system: $(detected_OS))
 
-
 # runs make in //
 ifeq ($(Build),debug)
-  ParallelBuild=0
+  ParallelBuild=1
 endif
 ifneq ($(ParallelBuild),)
 ifneq ($(ParallelBuild),0)
@@ -21,28 +20,34 @@ endif
 $(info )
 
 #Warnings:
-WARN=-Wall -Wpedantic -Wextra -Wdouble-promotion -Wconversion -Wshadow -Weffc++ -Wsign-conversion
-# -Wuseless-cast
+WARN=-Wall -Wpedantic -Wextra -Wdouble-promotion -Wconversion -Wshadow \
+-Weffc++ -Wsign-conversion -Wuseless-cast
 # -Wfloat-equal
 
 # Changes to warning based on compiler:
-ifeq ($(CXX),clang++)
+ifeq ($(findstring clang++,$(CXX)),clang++)
   WARN += -Wheader-hygiene
-endif
-ifeq ($(CXX),g++)
-  WARN += -Wsuggest-override -Wnon-virtual-dtor -Wcast-align -Woverloaded-virtual -Wduplicated-cond -Wduplicated-branches -Wnull-dereference
+# have to put in 'else' block, since clanG++ contains g++
+else
+  ifeq ($(findstring g++,$(CXX)),g++)
+    WARN += -Wsuggest-override -Wnon-virtual-dtor -Wcast-align \
+		-Woverloaded-virtual -Wduplicated-cond -Wduplicated-branches \
+		-Wnull-dereference
 #-Wsuggest-final-methods  -Wsuggest-final-types
+  endif
 endif
 
 # Changes to optimisation based on build setting:
 OPT=-O3
 ifeq ($(Build),release)
   WARN=-w
+  OPT=-O3 -g0 -DNDEBUG -fno-exceptions -fno-rtti -DHAVE_INLINE -DGSL_RANGE_CHECK_OFF
 endif
+# -DHAVE_INLINE -DGSL_RANGE_CHECK_OFF are from GSL
 ifeq ($(Build),debug)
   UseOpenMP=no
   WARN+=-Wno-unknown-pragmas
-  OPT=-O0 -g
+  OPT=-O0 -g3 -fno-omit-frame-pointer
 endif
 
 # If not using openMP, turn off 'unkown pragmas' warning.
@@ -57,6 +62,14 @@ endif
 
 CXXFLAGS= $(CXXSTD) $(OPT) $(OMP) $(WARN) -I$(SD)
 LIBS=-lgsl -lgslcblas
+
+ifeq ($(RunProfiler),yes)
+  CXXFLAGS+=-DIOPROFILER
+endif
+
+#Macro to print git info in c++
+GIT_VER=$(shell git rev-parse --short HEAD)
+CXXFLAGS+=-DGITVERSION=$(GIT_VER)
 
 # GSL location (if different from assumed default)
 ifneq ($(PathForGSL),)
@@ -91,4 +104,7 @@ endif
 
 #Command to compile objects and link them
 COMP=$(CXX) -c -o $@ $< $(CXXFLAGS)
+ifeq ($(ParallelBuild),1)
+	COMP=time $(CXX) -c -o $@ $< $(CXXFLAGS)
+endif
 LINK=$(CXX) -o $@ $^ $(CXXFLAGS) $(LIBS)

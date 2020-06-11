@@ -1,4 +1,5 @@
 #include "RadiativePotential.hpp"
+#include "IO/FRW_fileReadWrite.hpp"
 #include "IO/SafeProfiler.hpp"
 #include "Maths/Interpolator.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
@@ -8,6 +9,7 @@
 #include <gsl/gsl_integration.h>
 #include <gsl/gsl_sf_expint.h>
 #include <iostream>
+#include <string>
 #include <vector>
 
 static inline double ExpInt1(double x) {
@@ -128,6 +130,77 @@ std::vector<double> form_Hmag(const std::vector<double> &r, double x_SEm,
 }
 
 //******************************************************************************
+bool read_write_qed(const std::vector<double> &r, std::vector<double> &Hel,
+                    std::vector<double> &Hmag, const std::string &fname,
+                    IO::FRW::RoW rw) {
+  //
+  const auto readQ = rw == IO::FRW::read;
+
+  if (readQ && !IO::FRW::file_exists(fname))
+    return false;
+
+  const auto rw_str = !readQ ? "Writing to " : "Reading from ";
+  std::cout << rw_str << "QED rad. pot. file: " << fname << " ... "
+            << std::flush;
+
+  std::fstream iofs;
+  IO::FRW::open_binary(iofs, fname, rw);
+
+  // read-write grid:
+  std::vector<double> r_in;
+  auto sizer = r.size();
+  rw_binary(iofs, rw, sizer);
+  if (readQ) {
+    r_in.resize(sizer);
+    for (auto &ri : r_in)
+      rw_binary(iofs, rw, ri);
+  } else {
+    for (auto ri : r)
+      rw_binary(iofs, rw, ri);
+  }
+
+  // check if grid the same
+  bool grid_ok = r.size() == r_in.size();
+  if (grid_ok) {
+    for (auto i = 0ul; i < r.size(); i += 10) {
+      if (std::abs(r[i] / r_in[i] - 1.0) > 0.001) {
+        grid_ok = false;
+        break;
+      }
+    }
+  }
+
+  auto sizeE = Hel.size();
+  rw_binary(iofs, rw, sizeE);
+  if (readQ) {
+    Hel.resize(sizeE);
+  }
+  for (auto &hel : Hel) {
+    rw_binary(iofs, rw, hel);
+  }
+
+  auto sizeM = Hmag.size();
+  rw_binary(iofs, rw, sizeM);
+  if (readQ) {
+    Hmag.resize(sizeM);
+  }
+  for (auto &hmag : Hmag) {
+    rw_binary(iofs, rw, hmag);
+  }
+
+  if (readQ && !grid_ok) {
+    std::cout << "\nInterpolating QED rad-pot onto current grid ... ";
+    auto tmp_copy_Hrad = Hel;
+    Hel = Interpolator::interpolate(r_in, tmp_copy_Hrad, r);
+    tmp_copy_Hrad = Hmag;
+    Hmag = Interpolator::interpolate(r_in, tmp_copy_Hrad, r);
+  }
+
+  std::cout << "done.\n";
+  return true;
+}
+
+//******************************************************************************
 //******************************************************************************
 double vSimpleExp(double r, double, double z, double alpha) {
   return -z * z * alpha * std::exp(-r / alpha);
@@ -135,7 +208,7 @@ double vSimpleExp(double r, double, double z, double alpha) {
 
 //******************************************************************************
 double vUehling(double r, double rN, double z, double alpha) {
-  auto sp1 = IO::Profile::safeProfiler(__func__);
+  [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__);
 
   // Routines return the first approximation which has an absolute error
   // smaller than abs_err_lim or a relative error smaller than rel_err_lim.
@@ -178,7 +251,7 @@ double vUehling(double r, double rN, double z, double alpha) {
 //******************************************************************************
 static Fit_AB fit_AB;
 double vSEh(double r, double rN, double z, double alpha) {
-  auto sp1 = IO::Profile::safeProfiler(__func__);
+  [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__);
 
   static constexpr double abs_err_lim = 0.0;
   static constexpr double rel_err_lim = 1.0e-3;
@@ -213,7 +286,7 @@ double vSEh(double r, double rN, double z, double alpha) {
 
 //------------------------------------------------------------------------------
 double vSEl(double r, double rN, double z, double alpha) {
-  auto sp1 = IO::Profile::safeProfiler(__func__);
+  [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__);
   //
   auto l = 0; // XXX
   auto bl = fit_AB.Bl(l, z * alpha);
@@ -242,7 +315,7 @@ double vSEl(double r, double rN, double z, double alpha) {
 
 //******************************************************************************
 double vSE_Hmag(double r, double rN, double z, double alpha) {
-  auto sp1 = IO::Profile::safeProfiler(__func__);
+  [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__);
 
   static constexpr double abs_err_lim = 0.0;
   static constexpr double rel_err_lim = 1.0e-6;

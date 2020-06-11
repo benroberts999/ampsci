@@ -1,4 +1,5 @@
 #pragma once
+#include "IO/FRW_fileReadWrite.hpp" //Forward decl?
 #include <vector>
 
 //! @brief Ginges-Flambaum QED Radiative Potential
@@ -20,6 +21,11 @@ std::vector<double> form_Hel(const std::vector<double> &r, double x_simple,
 std::vector<double> form_Hmag(const std::vector<double> &r, double x_SEm,
                               double r_rms_Fermi, double z, double alpha,
                               double rcut);
+
+//******************************************************************************
+bool read_write_qed(const std::vector<double> &r, std::vector<double> &Hel,
+                    std::vector<double> &Hmag, const std::string &fname,
+                    IO::FRW::RoW rw);
 
 //******************************************************************************
 //! Small class to hold the radiative potential (for each l)

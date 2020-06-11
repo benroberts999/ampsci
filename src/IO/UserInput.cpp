@@ -1,5 +1,7 @@
 #include "IO/UserInput.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
+#include <chrono>
+#include <ctime>
 #include <iostream>
 #include <sstream>
 #include <string>
@@ -8,11 +10,36 @@
 
 namespace IO {
 
+#define xstr(s) str(s)
+#define str(s) #s
+#ifdef GITVERSION
+const char *git_version = xstr(GITVERSION);
+#else
+const char *git_version = "0";
+#endif
+
 //******************************************************************************
 void UserInputBlock::print() const {
+  const bool small_block = m_input_options.size() < 4;
+  const bool empty = m_input_options.size() == 0;
+  std::cout << m_block_name << " {";
+  if (!empty && small_block)
+    std::cout << " ";
+  if (!empty && !small_block)
+    std::cout << "\n  ";
+
+  int count = 0;
   for (const auto &option : m_input_options) {
-    std::cout << option << "\n";
+    if (count % 3 == 0 && count > 0)
+      std::cout << "\n  ";
+    else
+      std::cout << "";
+    std::cout << option << "; ";
+    ++count;
   }
+  if (!small_block)
+    std::cout << "\n";
+  std::cout << "}\n";
 }
 //******************************************************************************
 bool UserInputBlock::checkBlock(const std::vector<std::string> &list) const {
@@ -68,7 +95,7 @@ UserInputBlock::find_option(const std::string &in_option) const {
 
 //******************************************************************************
 UserInput::UserInput(const std::string &infile) : m_filename(infile) {
-  auto inp = IO::FRW::splitInput_byBraces(IO::FRW::readInputFile(infile));
+  const auto inp = IO::FRW::splitInput_byBraces(IO::FRW::readInputFile(infile));
   for (const auto &item : inp) {
     auto block_name = item.first;
     auto option_vector = IO::FRW::splitInput_bySemiColon(item.second);
@@ -100,6 +127,12 @@ std::vector<UserInputBlock> UserInput::module_list() const {
 
 //******************************************************************************
 void UserInput::print() const {
+  std::cout << "diracSCAS git:" << git_version << "\n";
+  const auto now =
+      std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+  char buffer[30];
+  std::strftime(buffer, 30, "%F %T", localtime(&now));
+  std::cout << buffer << '\n';
   for (const auto &block : m_blocks) {
     block.print();
   }

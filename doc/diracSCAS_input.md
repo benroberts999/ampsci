@@ -88,7 +88,6 @@ HartreeFock {
 * Breit: Include Breit into HF with given scale (0 means don't include)
   * Note: Will go into spline basis, and RPA equations automatically
 * convergence: level we try to converge to.
-* orthonormaliseValence: true/false. Orthogonalise valence states? false by default. Only really for testing
 
 
 ## Nucleus
@@ -170,6 +169,9 @@ RadPot {
 ```
 * Adds QED radiative potential to Hamiltonian.
 * RadPot must be set to true to include QED
+* If full rad pot is used (Uehling+SE), will read write from file named Z.qed
+  * Rad pot depends only on Z. Note: scale_rN ignored if reading from file (will be whatever it was when file written; not saved)
+  * scale_l and core_qed not written to .qed file; read from input each run
 * Each factor is a scale; 0 means don't include. 1 means include full potential. Any positive number is valid.
 * rcut: Only calculates potential for r < rcut [for speed; rcut in au]
 * scale_rN: finite nucleus effects: rN = rN * scale_rN (for testing only)
@@ -208,7 +210,7 @@ Basis {
 * For including correlations. 'basis' must exist to calculate Sigma, but not to read Sigma in from file.
 ```cpp
 Correlations {
-  io_file;        //[t] default = ""
+  io_file;        //[b] default = true (or [t]; see below)
   stride;         //[i] default = 4
   n_min_core;     //[i] default = 1
   energyShifts;   //[b] default = false
@@ -218,7 +220,7 @@ Correlations {
 }
 ```
 * Includes correlation corrections. note: splines must exist already
-* io_file: Filename (NOT including extension) to read in Correlation potential from. If file doesn't exist, will calculate CP and write to this file. Leave blank to calculate and not write to file.
+* io_file: Read/write from/to file. Set to 'false' to calculate from scratch (and not write to file), true to read/write from/to default filename. Alternatively, put any text here to be a custom filename (e.g., io_file="new"; will read/write from/to new.Sigma -- useful for tests). Grids must match exactly when reading in from a file.
   * If reading Sigma in from file, basis doesn't need to exist
 * stride: Only calculates Sigma every nth point (Sigma is NxN matrix, so stride=4 leads to ~16x speed-up vs 1)
 * n_min_core: minimum core n included in the Sigma calculation; lowest states often contribute little, so this speeds up the calculations
@@ -228,8 +230,16 @@ Correlations {
 * lambda_k: Rescale Sigma -> lambda*Sigma. One lambda for each kappa. If not given, assumed to be 1.
   * Note: Lambda's are not written/read to file, so these must be given (if required) even when reading Sigma from disk
 * fitTo_cm: Provide list of energies (lowest valence states for each kappa); Sigma for each kappa will be automatically re-scaled to exactly reproduce these. Give as binding energies in inverse cm! It will print the lambda_k's that it calculated
-  * e.g., fitTo_cm = -31406.46773, -20228.200, -19674.161, -16907.211, -16809.625; will fit for the lowest s,p,d states for Cs
+  * e.g., fitTo_cm = -31406.5, -20228.2, -19674.1; will fit for the lowest s & p states for Cs
   * Will over-write lambda_k
+  * -43487.11, -28583.45, -28583.11, -12204.03, -12203.99, -6856.91, -6856.91; // Li
+  * -41449.45, -24493.28, -24476.08, -12276.56, -12276.61, -6862.53, -6862.53; // Na
+  * -35009.81, -22024.63, -21966.92, -13472.83, -13475.13, -6881.96, -6881.96; // K
+  * -33690.81, -21111.86, -20874.265, -14335.161, -14335.607, -6898.692, -6898.718; // Rb
+  * -31406.468, - 20228.200, -19674.161, -16907.211, -16809.625, -6934.241, -6934.422; // Cs
+  * -80686.30, - 60424.74, -58733.90, -75812.45, -75011.49, -32427.68, -32202.97; // Ba+
+  * -32848.87, -20611.46, -18924.87, -16619.00, -16419.23; // Fr
+  * -81842.5 - 60491.2, -55633.6, -69758.2, -68099.5, -32854.6, -32570.4; // Ra+
 
 
 ## Spectrum (B-spline basis for MBPT)
@@ -371,6 +381,18 @@ Module::pnc {
 * Calculates pnc amplitude {na,ka}->{nb,kb}
 * Uses Solving-equations and sum-over-states (spectrum)
 * omega: frequency to solve RPA/TDHF equations at. By default is E_a-Eb (from orbitals), but can be anything.
+
+-------------------
+```cpp
+Module::polarisability {
+    a = na, ka; //[i,i] default=blank
+    rpa;        //[b] default = true
+    omega;      //[r] default = 0.0
+}
+```
+* Calculates dipole polarisability (optionally for valence state 'a', or for core)
+* Uses Solving-equations and sum-over-states (spectrum)
+* omega: frequency.
 
 -------------------
 ```cpp

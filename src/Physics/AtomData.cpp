@@ -13,6 +13,26 @@
 //******************************************************************************
 namespace AtomData {
 
+static inline bool string_is_ints(const std::string &s) {
+  return !s.empty() && std::find_if(s.begin(), s.end(), [](auto c) {
+                         return !std::isdigit(c);
+                       }) == s.end();
+}
+
+//******************************************************************************
+std::string int_to_roman(int a) {
+  if (a > 3999)
+    return std::to_string(a);
+  static const std::string m[] = {"", "m", "mm", "mmm"};
+  static const std::string c[] = {"",  "c",  "cc",  "ccc",  "cd",
+                                  "d", "dc", "dcc", "dccc", "cm"};
+  static const std::string x[] = {"",  "x",  "xx",  "xxx",  "xl",
+                                  "l", "lx", "lxx", "lxxx", "xc"};
+  static const std::string i[] = {"",  "i",  "ii",  "iii",  "iv",
+                                  "v", "vi", "vii", "viii", "ix"};
+  return m[a / 1000] + c[(a % 1000) / 100] + x[(a % 100) / 10] + i[(a % 10)];
+}
+
 //******************************************************************************
 std::string NonRelSEConfig::symbol() const {
   return std::to_string(n) + AtomData::l_symbol(l) + std::to_string(num);
@@ -65,10 +85,8 @@ int get_z(const std::string &at) {
     return atom->Z;
 
   int z = 0;
-  try {
+  if (string_is_ints(at))
     z = std::stoi(at);
-  } catch (...) {
-  }
   if (z <= 0) {
     std::cerr << "Invalid atom/Z: " << at << "\n";
     z = 0;
@@ -96,12 +114,11 @@ int symbol_to_l(const std::string &l_str) {
       return int(i);
   }
   int l = -1;
-  try {
-    // Can work if given an int as a string:
+  if (string_is_ints(l_str))
     l = std::stoi(l_str);
-  } catch (...) { // don't abort here (might get nice error message later)
+  else
     std::cerr << "\nFAIL AtomData::69 Invalid l: " << l_str << "?\n";
-  }
+
   return l;
 }
 
@@ -181,15 +198,13 @@ std::vector<NonRelSEConfig> core_parser(const std::string &str_core_in)
                               [](const char &c) { return !std::isdigit(c); });
     auto l_position = std::size_t(l_ptr - term.begin());
     int n{0}, num{0}, l{-1};
-    try {
-      n = std::stoi(term.substr(0, l_position - 0));
-      num = std::stoi(term.substr(l_position + 1));
-      if (l_position == term.size())
-        throw;
-      l = AtomData::symbol_to_l(term.substr(l_position, 1));
-    } catch (...) {
+    n = std::stoi(term.substr(0, l_position - 0));
+    num = std::stoi(term.substr(l_position + 1));
+    if (l_position == term.size())
       term_ok = false;
-    }
+    if (term_ok)
+      l = AtomData::symbol_to_l(term.substr(l_position, 1));
+
     NonRelSEConfig new_config(n, l, num);
 
     if (!term_ok || n <= 0 || l < 0) {
@@ -278,19 +293,10 @@ std::vector<DiracSEnken> listOfStates_nk(const std::string &in_list) {
     } else {
       if (n_str == "")
         n_str = n_str_previous;
-      int n_max = -1;
-      try {
-        n_max = std::stoi(n_str);
-      } catch (...) {
-      }
-      auto l_str = std::string(1, c);
-      auto l = AtomData::symbol_to_l(l_str);
 
-      // for (int n = l + 1; n <= n_max; ++n) {
-      //   if (l != 0)
-      //     state_list.emplace_back(n, l);
-      //   state_list.emplace_back(n, -l - 1);
-      // }
+      const int n_max = (string_is_ints(n_str)) ? std::stoi(n_str) : -1;
+      const auto l_str = std::string(1, c);
+      const auto l = AtomData::symbol_to_l(l_str);
 
       if (l != 0) {
         for (int n = l + 1; n <= n_max; ++n)
@@ -318,11 +324,8 @@ std::vector<DiracSEnken> listOfStates_singlen(const std::string &in_list) {
     } else {
       if (n_str == "")
         n_str = n_str_previous;
-      int n_max = -1;
-      try {
-        n_max = std::stoi(n_str);
-      } catch (...) {
-      }
+      const int n_max = (string_is_ints(n_str)) ? std::stoi(n_str) : -1;
+
       auto l_str = std::string(1, c);
       auto l = AtomData::symbol_to_l(l_str);
 

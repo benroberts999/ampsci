@@ -4,6 +4,7 @@
 #include "Physics/AtomData.hpp"
 #include <algorithm>
 #include <cmath>
+#include <numeric>
 #include <string>
 #include <utility>
 #include <vector>
@@ -266,7 +267,69 @@ bool operator<=(const DiracSpinor &lhs, const DiracSpinor &rhs) {
 bool operator>=(const DiracSpinor &lhs, const DiracSpinor &rhs) {
   return !(lhs < rhs);
 }
+//******************************************************************************
+// static
+std::string DiracSpinor::state_config(const std::vector<DiracSpinor> &orbs) {
+  std::string result = "";
+  if (orbs.empty())
+    return result;
 
+  // find max l
+  const auto maxl =
+      std::max_element(orbs.cbegin(), orbs.cend(), DiracSpinor::comp_l)->l();
+
+  // static bool comp_l(const DiracSpinor &lhs, const DiracSpinor &rhs) {
+  //   return lhs.m_l < rhs.m_l;
+  // }
+
+  // long prev_num = 0;
+  // for (int l = 0; l <= maxl; ++l) {
+  //   int max_n = 0;
+  //   auto find_max_n = [=, &max_n](const auto &Fn) {
+  //     if (Fn.l() == l && Fn.n > max_n)
+  //       max_n = Fn.n;
+  //   };
+  //   std::for_each(orbs.cbegin(), orbs.cend(), find_max_n);
+  //   if (num_l == prev_num && num_l != 0)
+  //     result += AtomData::l_symbol(l);
+  //   else if (num_l != 0)
+  //     result += std::to_string(num_l) + AtomData::l_symbol(l);
+  //   prev_num = num_l;
+  // }
+
+  int prev_max_n = 0;
+  for (int l = 0; l <= maxl; ++l) {
+
+    auto find_max_n_given_l = [l](int max_n, const auto &Fn) {
+      if (Fn.l() == l && Fn.n > max_n)
+        max_n = Fn.n;
+      return max_n;
+    };
+    const auto max_n =
+        std::accumulate(orbs.cbegin(), orbs.cend(), 0, find_max_n_given_l);
+
+    if (max_n == prev_max_n && max_n != 0)
+      result += AtomData::l_symbol(l);
+    else if (max_n != 0)
+      result += std::to_string(max_n) + AtomData::l_symbol(l);
+    prev_max_n = max_n;
+  }
+
+  // // for each l, count num, add to string
+  // long prev_num = 0;
+  // for (int l = 0; l <= maxl; ++l) {
+  //   const auto num_l =
+  //       std::count_if(orbs.cbegin(), orbs.cend(),
+  //                     [l](const auto &Fn) { return Fn.l() == l; });
+  //   if (num_l == prev_num && num_l != 0)
+  //     result += AtomData::l_symbol(l);
+  //   else if (num_l != 0)
+  //     result += std::to_string(num_l) + AtomData::l_symbol(l);
+  //   prev_num = num_l;
+  // }
+
+  return result;
+}
 //******************************************************************************
 double DiracSpinor::r0() const { return p_rgrid->r[p0]; }
 double DiracSpinor::rinf() const { return p_rgrid->r[pinf - 1]; }

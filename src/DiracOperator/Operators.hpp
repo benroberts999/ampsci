@@ -135,7 +135,7 @@ public:
         m_alpha(alpha) {
     updateFrequency(omega);
   }
-  M1 &operator=(const M1 &) = default;
+  M1 &operator=(const M1 &) = delete;
   M1(const M1 &) = default;
   ~M1() = default;
   std::string name() const override { return std::string("M1"); }

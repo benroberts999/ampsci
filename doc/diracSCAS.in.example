@@ -46,7 +46,6 @@ Grid {
 
 // Correlations
 {
-  io_file = "Cs_a";
   energyShifts = false;
   Brueckner = false;
   n_min_core = 3;

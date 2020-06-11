@@ -18,90 +18,194 @@ namespace Module {
 
 //******************************************************************************
 void polarisability(const IO::UserInputBlock &input, const Wavefunction &wf) {
-  std::cout << "\n NOTE: In developement! Not finished!\n";
 
-  input.checkBlock({"a", "b", "omega"});
-  const auto a_str = input.get<std::string>("a", "");
-  const auto w = input.get("omega", 0.00);
-  // const auto b_str = input.get<std::string>("a", a_str);
+  input.checkBlock({"a", "b", "rpa", "omega"});
 
-  // [[maybe_unused]] // don't use e
-  const auto [na, ka, e] = AtomData::listOfStates_singlen(a_str).front();
-  const auto pFa = wf.getState(na, ka);
+  const auto ank = input.get_list("a", std::vector<int>{0, 0});
+  const auto bnk = input.get_list("b", ank);
+  const auto pFa = (ank.size() == 2) ? wf.getState(ank[0], ank[1]) : nullptr;
+  const auto pFb = (bnk.size() == 2) ? wf.getState(bnk[0], bnk[1]) : pFa;
+  if (pFb != pFa && pFb == nullptr) {
+    std::cout << "Something wrong with b state: "
+              << input.get<std::string>("b", "") << "\n";
+    return;
+  }
+
+  const auto alphaQ = pFa == pFb;
+
+  const auto omega_dflt =
+      (alphaQ || pFa == nullptr) ? 0.0 : std::abs(pFa->en - pFb->en);
+  const auto omega = input.get("omega", omega_dflt);
+
+  if (alphaQ) {
+    std::cout << "\nDipole polarisability, alpha: " << wf.atom() << " ";
+    if (pFa != nullptr)
+      std::cout << pFa->symbol() << "\n";
+    else
+      std::cout << wf.coreConfiguration_nice() << "\n";
+  } else {
+    std::cout << "\nDipole transition polarisability, alpha_S (?check)\n";
+    std::cout << "WARNING: Not implemented!\n";
+  }
+  std::cout << "Omega = " << omega << "\n";
 
   const auto he1 = DiracOperator::E1(wf.rgrid);
   auto dVE1 = HF::ExternalField(&he1, wf.getHF());
 
-  dVE1.solve_TDHFcore(w, 1); // 1 it means no RPA (for TDHF version)
+  const auto rpaQ = input.get("rpa", true);
+  if (rpaQ)
+    dVE1.solve_TDHFcore(omega);
 
-  // auto twom = std::min(pFa->twoj(), pFa->twoj());
-  // auto c10 = he1.rme3js(pFa->twoj(), pFa->twoj(), twom);
+  std::size_t num_pws = 4; // s, p-, p+, rest:
+  auto get_index = [&](const auto &Fb) {
+    return std::size_t(Fb.k_index()) < num_pws ? std::size_t(Fb.k_index())
+                                               : num_pws - 1;
+  };
 
-  auto fudge_factor = (4.0 / 3.0); // ???
-
+  std::cout << "\nTDHF method:\n";
+  std::cout << "Inter:    s1/2    p1/2    p3/2   other |  sum\n";
   // core contribution:
+  std::vector<double> core_pws(num_pws);
   auto alpha_core = 0.0;
-  for (const auto &Fb : wf.core) {
-    const auto &Xb = dVE1.get_dPsis(Fb, HF::dPsiType::X);
-    const auto &Yb = dVE1.get_dPsis(Fb, HF::dPsiType::Y);
-    // const auto Xb = dVE1.solve_dPsis(Fb, w, HF::dPsiType::X);
-    // const auto Yb = dVE1.solve_dPsis(Fb, w, HF::dPsiType::X);
-
-    for (const auto &Xbeta : Xb) {
-      alpha_core += he1.reducedME(Fb, Xbeta);
+  if (alphaQ) {
+    const auto f = (-1.0 / 3.0);
+    for (const auto &Fb : wf.core) {
+      const auto Xb = dVE1.solve_dPsis(Fb, omega, HF::dPsiType::X);
+      const auto Yb = dVE1.solve_dPsis(Fb, omega, HF::dPsiType::Y);
+      for (const auto &Xbeta : Xb) {
+        core_pws[get_index(Xbeta)] += f * he1.reducedME(Xbeta, Fb);
+        alpha_core += f * he1.reducedME(Xbeta, Fb);
+      }
+      for (const auto &Ybeta : Yb) {
+        core_pws[get_index(Ybeta)] += f * he1.reducedME(Fb, Ybeta);
+        alpha_core += f * he1.reducedME(Fb, Ybeta);
+      }
     }
-    for (const auto &Ybeta : Yb) {
-      alpha_core += he1.reducedME(Fb, Ybeta);
-      // alpha_core += he1.reducedME(Ybeta, Fb);
+    std::cout << "core : ";
+    for (auto &pw : core_pws) {
+      printf("%+7.1f ", pw);
     }
+    printf("= %9.4f\n", alpha_core);
   }
-  alpha_core *= (-1.0 / 3.0) * fudge_factor;
-  std::cout << alpha_core << "\n";
 
-  // Valence part:
+  // // Valence part:
   double alpha_valence = 0.0;
+  std::vector<double> val_pws(num_pws);
   if (pFa) {
-    // omega?
-    const auto Xb = dVE1.solve_dPsis(*pFa, w, HF::dPsiType::X, wf.getSigma());
-    const auto Yb = dVE1.solve_dPsis(*pFa, w, HF::dPsiType::Y, wf.getSigma());
+    const auto f = (-1.0 / 3.0) / (pFa->twoj() + 1);
+    const auto Xb =
+        dVE1.solve_dPsis(*pFa, omega, HF::dPsiType::X, wf.getSigma());
+    const auto Yb =
+        dVE1.solve_dPsis(*pFa, omega, HF::dPsiType::Y, wf.getSigma());
     for (const auto &Xbeta : Xb) {
-      alpha_valence += he1.reducedME(*pFa, Xbeta);
+      val_pws[get_index(Xbeta)] += f * he1.reducedME(Xbeta, *pFa);
+      alpha_valence += f * he1.reducedME(Xbeta, *pFa);
     }
     for (const auto &Ybeta : Yb) {
-      alpha_valence += he1.reducedME(Ybeta, *pFa);
+      val_pws[get_index(Ybeta)] += f * he1.reducedME(*pFa, Ybeta);
+      alpha_valence += f * he1.reducedME(*pFa, Ybeta);
     }
-    alpha_valence *= (-1.0 / 3.0) * fudge_factor / (pFa->twoj() + 1);
-  }
-  std::cout << alpha_valence << "\n";
-
-  std::cout << "\n";
-
-  double alpha_2 = 0.0;
-  for (const auto &Fb : wf.core) {
-    for (const auto &Fn : wf.spectrum) {
-      if (he1.isZero(Fb.k, Fn.k))
-        continue;
-      const auto d1 = he1.reducedME(Fb, Fn);
-      const auto d2 = he1.reducedME(Fn, Fb) + dVE1.dV(Fn, Fb);
-      auto de = Fb.en - Fn.en;
-      alpha_2 += fudge_factor * (-2.0 / 3.0) * d1 * d2 * de / (de * de - w * w);
+    std::cout << "val  : ";
+    for (auto &pw : val_pws) {
+      printf("%+7.1f ", pw);
     }
+    printf("= %8.3f\n", alpha_valence);
   }
-  std::cout << alpha_2 << "\n";
+  std::cout << "total: ";
+  for (auto i = 0ul; i < core_pws.size(); ++i) {
+    printf("%+7.1f ", core_pws[i] + val_pws[i]);
+  }
+  printf("= %8.3f\n", alpha_core + alpha_valence);
 
-  double alpha_3 = 0.0;
-  if (pFa) {
-    for (const auto &Fn : wf.spectrum) {
-      if (he1.isZero(pFa->k, Fn.k))
-        continue;
-      const auto d1 = he1.reducedME(*pFa, Fn);
-      const auto d2 = he1.reducedME(Fn, *pFa) + dVE1.dV(Fn, *pFa);
-      auto de = pFa->en - Fn.en;
-      alpha_3 += fudge_factor * (-2.0 / 3.0) * d1 * d2 * de /
-                 (de * de - w * w) / (pFa->twoj() + 1);
+  const auto &basis = wf.spectrum.empty() ? wf.basis : wf.spectrum;
+  if (!basis.empty()) {
+    std::cout << "\nSum-over-states method: ";
+    if (&basis == &wf.basis)
+      std::cout << "(w/ basis)\n";
+    else
+      std::cout << "(w/ spectrum)\n";
+    std::cout << "Inter:    s1/2    p1/2    p3/2   other |  sum\n";
+
+    double alpha_2 = 0.0;
+    std::vector<double> core_pws2(num_pws);
+    if (alphaQ) {
+      // core part: sum_{n,c} |<n|d|c>|^2, n excited states, c core states
+      for (const auto &Fb : wf.core) {
+        for (const auto &Fn : basis) {
+          if (wf.isInCore(Fn.n, Fn.k))
+            continue; // if core(HF) = core(basis), these cancel excactly
+          if (he1.isZero(Fb.k, Fn.k))
+            continue;
+          const auto d1 = he1.reducedME(Fn, Fb);
+          const auto d2 = he1.reducedME(Fn, Fb) + dVE1.dV(Fn, Fb);
+          const auto de = Fb.en - Fn.en;
+          const auto term =
+              (-2.0 / 3.0) * std::abs(d1 * d2) * de / (de * de - omega * omega);
+          alpha_2 += term;
+          core_pws2[get_index(Fn)] += term;
+        }
+      }
+      std::cout << "core : ";
+      for (auto &pw : core_pws2) {
+        printf("%+7.1f ", pw);
+      }
+      printf("= %9.4f\n", alpha_2);
     }
+
+    double alpha_3 = 0.0;
+    double alpha_cv = 0.0;
+    std::vector<double> val_pws2(num_pws);
+    std::vector<double> val_pws_cv(num_pws);
+    if (pFa) {
+      // valence part: sum_n |<n|d|A>|^2, n excited states
+      for (const auto &Fn : basis) {
+        if (wf.isInCore(Fn.n, Fn.k))
+          continue; // just excited part
+        if (he1.isZero(pFa->k, Fn.k))
+          continue;
+        const auto d1 = he1.reducedME(Fn, *pFa);
+        const auto d2 = he1.reducedME(Fn, *pFa) + dVE1.dV(Fn, *pFa);
+        const auto de = pFa->en - Fn.en;
+        const auto term = (-2.0 / 3.0) * std::abs(d1 * d2) * de /
+                          (de * de - omega * omega) / (pFa->twoj() + 1);
+        alpha_3 += term;
+        val_pws2[get_index(Fn)] += term;
+      }
+      std::cout << "val  : ";
+      for (auto &pw : val_pws2) {
+        printf("%+7.1f ", pw);
+      }
+      printf("= %8.3f\n", alpha_3);
+
+      // core-valence part: sum_c |<c|d|A>|^2, c core states
+      for (const auto &Fn : basis) {
+        if (!wf.isInCore(Fn.n, Fn.k))
+          continue; // just core part (compensates for val in basis from core)
+        if (he1.isZero(pFa->k, Fn.k))
+          continue;
+        const auto d1 = he1.reducedME(Fn, *pFa);
+        const auto d2 = he1.reducedME(Fn, *pFa) + dVE1.dV(Fn, *pFa);
+        const auto de = pFa->en - Fn.en;
+        const auto term = (-2.0 / 3.0) * std::abs(d1 * d2) * de /
+                          (de * de - omega * omega) / (pFa->twoj() + 1);
+        alpha_cv += term;
+        val_pws_cv[get_index(Fn)] += term;
+      }
+      std::cout << "c-v  : ";
+      for (auto &pw : val_pws_cv) {
+        printf("%+7.1f ", pw);
+      }
+      printf("= %8.3f\n", alpha_cv);
+    }
+    std::cout << "total: ";
+    for (auto i = 0ul; i < core_pws.size(); ++i) {
+      printf("%+7.1f ", core_pws2[i] + val_pws2[i] + val_pws_cv[i]);
+    }
+    printf("= %8.3f\n", alpha_2 + alpha_3 + alpha_cv);
+    const auto eps =
+        1.0 - ((alpha_2 + alpha_3 + alpha_cv) / (alpha_core + alpha_valence));
+    printf("eps=%.1e\n", eps);
   }
-  std::cout << alpha_3 << "\n";
 }
 
 //******************************************************************************

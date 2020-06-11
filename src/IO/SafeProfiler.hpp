@@ -7,11 +7,21 @@
 #include <utility>
 #include <vector>
 
+//! Simple thread-safe scope-based profiler function.
+//! @details Must compile with the pre-processor macro IOPROFILER defined for
+//! the pofiler to be used. If not, it does nothing.
+//!
+//! Use: add following line to scope you wish to profile:
+//!  - [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
+//!
+//! #include "IO/SafeProfiler.hpp"
 namespace IO::Profile {
 
+#ifdef IOPROFILER
+constexpr bool do_profile = true;
+#else
 constexpr bool do_profile = false;
-// auto sp = IO::Profile::safeProfiler(__func__);
-// #include "IO/SafeProfiler.hpp"
+#endif
 
 struct StrDoubleUnsigned {
   StrDoubleUnsigned(std::string is, double id, unsigned iu)
@@ -22,7 +32,7 @@ struct StrDoubleUnsigned {
 };
 
 //******************************************************************************
-//! Thread-safe profiler (timing) tool
+// Thread-safe profiler (timing) tool
 class ProfileLog {
   friend class Profiler;
   ProfileLog(){};
@@ -108,18 +118,15 @@ public:
 };
 
 //******************************************************************************
-struct BlankClass {
-  ~BlankClass() {
-    // this is just so doesn't complain about unused variable
-  }
-};
-
-//******************************************************************************
+//! @details This function does the timing/profiling. It returns an object (a
+//! profile logger), which must survive to the end of the scope you are trying
+//! to profile. Call function once at beginning of scope, store its returned
+//! log.
 inline auto safeProfiler(const char *in_name, const char *extra = "") {
   if constexpr (do_profile)
     return Profiler(in_name, extra);
   else
-    return BlankClass();
+    return 0;
 }
 
 } // namespace IO::Profile

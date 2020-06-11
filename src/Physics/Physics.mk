@@ -25,6 +25,7 @@ $(SD)/Physics/Parametric_potentials.hpp
 $(BD)/RadiativePotential.o: $(SD)/Physics/RadiativePotential.cpp \
 $(SD)/Physics/RadiativePotential.hpp \
 $(SD)/IO/SafeProfiler.hpp \
+$(SD)/IO/FRW_fileReadWrite.hpp \
 $(SD)/Maths/Interpolator.hpp \
 $(SD)/Maths/NumCalc_quadIntegrate.hpp \
 $(SD)/Physics/PhysConst_constants.hpp

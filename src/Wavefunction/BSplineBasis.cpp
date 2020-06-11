@@ -2,6 +2,7 @@
 #include "HF/Breit.hpp"
 #include "HF/HartreeFock.hpp"
 #include "IO/UserInput.hpp"
+#include "IO/safeProfiler.hpp"
 #include "Maths/BSplines.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/LinAlg_MatrixVector.hpp"
@@ -14,9 +15,6 @@
 #include <iostream>
 #include <string>
 #include <utility>
-
-// size_t vs int for vectors + LinAlg..currently a mess
-#pragma GCC diagnostic ignored "-Wsign-conversion"
 
 namespace SplineBasis {
 
@@ -53,6 +51,7 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
                                     const bool correlationsQ)
 // Forms the pseudo-spectrum basis by diagonalising Hamiltonian over B-splines
 {
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   const auto &[states_str, n_spl, k_spl, r0_spl, r0_eps, rmax_spl, positronQ] =
       params;
   std::vector<DiracSpinor> basis;
@@ -140,6 +139,7 @@ form_spline_basis(const int kappa, const std::size_t n_states,
                   const double rmax_spl, const Grid &rgrid, const double alpha)
 // Forms the "base" basis of B-splines (DKB/Reno Method)
 {
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   //
   auto imin = static_cast<std::size_t>(std::abs(kappa));
   auto n_spl = n_states + imin;
@@ -221,6 +221,7 @@ form_spline_basis(const int kappa, const std::size_t n_states,
 std::pair<LinAlg::SqMatrix, LinAlg::SqMatrix>
 fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
                         const Wavefunction &wf, const bool correlationsQ) {
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   auto n_spl = (int)spl_basis.size();
 
   std::pair<LinAlg::SqMatrix, LinAlg::SqMatrix> A_and_S =
@@ -306,6 +307,7 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
 // Expands the pseudo-spectrum basis in terms of B-spline basis and expansion
 // coeficient found from diagonalising the Hamiltonian over Bsplns
 {
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   auto l = AtomData::l_k(kappa);
   auto min_n = l + 1;
 
@@ -333,7 +335,6 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
       phi += sign * pvec[ib] * spl_basis[ib];
     }
     // Note: they are not even roughly normalised...I think they should be??
-    // std::cout << phi.symbol() << " " << phi.norm() << "\n";
     phi.normalise();
   }
 
@@ -343,8 +344,6 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
     if (Fb.f[ir] < 0)
       Fb *= -1;
   }
-
-  // std::cin.get();
 }
 
 } // namespace SplineBasis
