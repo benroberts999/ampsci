@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <numeric>
 #include <sstream>
 #include <string>
 #include <utility>
@@ -690,8 +691,8 @@ void Wavefunction::formSigma(const int nmin_core, const bool form_matrix,
                              const int stride,
                              const std::vector<double> &lambdas,
                              const std::string &fname, const bool FeynmanQ,
-                             const int lmax, const bool GreenBasis,
-                             const double omre) {
+                             const bool ScreeningQ, const int lmax,
+                             const bool GreenBasis, const double omre) {
   if (valence.empty())
     return;
   // Sort basis into core/exited parts, throwing away core states with n<nmin
@@ -704,28 +705,45 @@ void Wavefunction::formSigma(const int nmin_core, const bool form_matrix,
       excited.push_back(Fb);
   }
 
-  // std::vector<double> poles;
-  // auto en = -0.127367896;
-  // for (const auto &Fb : basis) {
-  //   poles.push_back(Fb.en - en);
-  // }
-  // for (const auto &Fa : occupied) {
-  //   for (const auto &Fn : excited) {
-  //     poles.push_back(Fa.en - Fn.en);
-  //     poles.push_back(-Fa.en + Fn.en);
-  //   }
-  //   for (const auto &Fb : occupied) {
-  //     // "core" Pi poles; supposed to be subtracted, but may still appear
-  //     poles.push_back(Fa.en - Fb.en);
-  //     poles.push_back(-Fa.en + Fb.en);
-  //   }
-  // }
-  // std::sort(poles.begin(), poles.end());
-  // for (const auto &p : poles) {
-  //   if (p < -0.8 || p > 0.1)
-  //     continue;
-  //   std::cout << p << "\n";
-  // }
+  {
+    std::vector<double> poles;
+    auto en = valence.front().en;
+    for (const auto &Fb : basis) {
+      poles.push_back(Fb.en - en);
+    }
+    for (const auto &Fa : occupied) {
+      for (const auto &Fn : excited) {
+        poles.push_back(Fa.en - Fn.en);
+        poles.push_back(-Fa.en + Fn.en);
+      }
+      for (const auto &Fb : occupied) {
+        // "core" Pi poles; supposed to be subtracted, but may still appear
+        poles.push_back(Fa.en - Fb.en);
+        poles.push_back(-Fa.en + Fb.en);
+      }
+    }
+    std::sort(poles.begin(), poles.end());
+    auto last = std::unique(poles.begin(), poles.end(), [](auto a, auto b) {
+      return std::abs(a - b) < 0.005;
+    });
+    poles.erase(last, poles.end());
+    std::vector<double> poles2;
+    std::cout << "\nPoles: ";
+    for (const auto &p : poles) {
+      // if (std::abs(p - omre) > 2.0 * std::abs(omre) || p > 0.05)
+      if (p < core.back().en || p > 0.05)
+        continue;
+      poles2.push_back(p);
+      printf("%5.2f, ", p);
+    }
+    std::cout << "\n";
+    poles = poles2;
+    std::adjacent_difference(poles2.begin(), poles2.end(), poles2.begin());
+    std::size_t index = std::size_t(
+        std::max_element(poles2.begin(), poles2.end()) - poles2.begin());
+    std::cout << "Set omre to: " << poles[index] - 0.5 * poles2[index] << "\n";
+  }
+
   // std::cin.get();
 
   // Form list of energies for each kappa:
@@ -752,7 +770,7 @@ void Wavefunction::formSigma(const int nmin_core, const bool form_matrix,
   const auto method =
       FeynmanQ ? MBPT::Method::Feynman : MBPT::Method::Goldstone;
   const auto sigp =
-      MBPT::Sigma_params{method, nmin_core, lmax, GreenBasis, omre};
+      MBPT::Sigma_params{method, nmin_core, lmax, GreenBasis, omre, ScreeningQ};
   const auto subgridp = MBPT::rgrid_params{r0, rmax, std::size_t(stride)};
 
   // Correlaion potential matrix:

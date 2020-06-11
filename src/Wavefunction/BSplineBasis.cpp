@@ -142,7 +142,7 @@ form_spline_basis(const int kappa, const std::size_t n_states,
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   //
   auto imin = static_cast<std::size_t>(std::abs(kappa));
-  auto n_spl = n_states + imin;
+  auto n_spl = n_states + imin + 1; // subtract l (n_min)?
   auto imax = n_spl - 1;
 
   if (ND_type) {

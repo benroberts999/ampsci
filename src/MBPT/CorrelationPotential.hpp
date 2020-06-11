@@ -30,6 +30,7 @@ struct Sigma_params {
   int max_l_excited;
   bool GreenBasis;
   double real_omega;
+  bool screenCoulomb;
 };
 
 struct rgrid_params {
@@ -196,6 +197,7 @@ private:
   Angular::SixJ m_6j{};
   std::size_t stride;
   Method method;
+  bool screen_Coulomb;
   double m_omre;
 
   const HF::HartreeFock *const p_hf;
@@ -223,7 +225,6 @@ private:
   static constexpr bool include_G = false;
   const bool basis_for_Green;
   static constexpr bool basis_for_Pol = true; // XX
-  const bool screen_Coulomb = true;
 };
 
 } // namespace MBPT

@@ -63,6 +63,7 @@ CorrelationPotential::CorrelationPotential(
       m_yec(p_gr, &m_excited, &m_core),
       stride(subgridp.stride),
       method(sigp.method),
+      screen_Coulomb(sigp.screenCoulomb),
       m_omre(sigp.real_omega),
       p_hf(in_hf),
       basis_for_Green(sigp.GreenBasis) {
@@ -311,8 +312,8 @@ void CorrelationPotential::fill_Sigma_k_Feyn(GMatrix *Sigma, const int kappa,
   }
 
   // Just for testing: No exchange:
-  std::cout << "0 = ";
-  return;
+  // std::cout << "0 = ";
+  // return;
 
   const auto exch = FeynmanEx_1(kappa, en);
 
@@ -348,6 +349,8 @@ void CorrelationPotential::fill_Sigma_k_Gold(GMatrix *Gmat, const int kappa,
 
   // Just for safety, should already be zero (unless re-calcing G)
   Gmat->zero();
+  // XXX This is only so I can print each energy shift!
+  // XXX Makes it slower
   auto Sdir = *Gmat; // blank copies!
   auto Sexch = *Gmat;
 
@@ -355,20 +358,16 @@ void CorrelationPotential::fill_Sigma_k_Gold(GMatrix *Gmat, const int kappa,
     return;
   const auto &gr = *p_gr;
 
-  // auto fk = [&](int k) { return 1.0; };
-
   // Note: get_yk_ab() must only be called with k for which y^k_ab exists!
   // Therefore, must use the k_minmax() function provided
 
-  // std::vector<GMatrix> Gs(m_core.size(), {stride_points, include_G});
+  std::vector<GMatrix> Gds(m_core.size(), {stride_points, include_G});
+  std::vector<GMatrix> Gxs(m_core.size(), {stride_points, include_G});
 #pragma omp parallel for
   for (auto ia = 0ul; ia < m_core.size(); ia++) {
     const auto &a = m_core[ia];
-    // XXX Put these outside!!
-    GMatrix Ga_d(stride_points, include_G);
-    GMatrix Ga_x(stride_points, include_G);
-    // auto &G_a = Gs[ia];
-    // GMatrix G_a(stride_points, include_G);
+    auto &Ga_d = Gds[ia];
+    auto &Ga_x = Gxs[ia];
     auto Qkv = DiracSpinor(0, kappa, gr); // re-use to reduce alloc'ns
     auto Pkv = DiracSpinor(0, kappa, gr); // re-use to reduce alloc'ns
     for (const auto &n : m_excited) {
@@ -406,14 +405,18 @@ void CorrelationPotential::fill_Sigma_k_Gold(GMatrix *Gmat, const int kappa,
 
       } // k
     }   // n
-#pragma omp critical(sum_D)
-    { Sdir += Ga_d; }
-#pragma omp critical(sum_X)
-    { Sexch += Ga_x; }
-  } // a
+  }     // a
+
+  // // note: no benefit to sending Gmat in! Just let it be a return value!
+  // XXX This is only so I can print each energy shift!
+  for (const auto &Gd : Gds)
+    Sdir += Gd;
+  for (const auto &Gx : Gxs)
+    Sexch += Gx;
 
   *Gmat = Sdir + Sexch;
 
+  // XXX This is only so I can print each energy shift!
   auto find_kappa = [=](const auto &f) { return f.k == kappa; };
   const auto Fk = std::find_if(cbegin(m_excited), cend(m_excited), find_kappa);
   if (Fk != cend(m_excited)) {
@@ -421,10 +424,6 @@ void CorrelationPotential::fill_Sigma_k_Gold(GMatrix *Gmat, const int kappa,
     auto deX = *Fk * Sigma_G_Fv(Sexch, *Fk);
     printf("de= %.4f + %.5f = ", deD, deX);
   }
-
-  // // note: no benefit to sending Gmat in! Just let it be a return value!
-  // for (const auto &G_a : Gs) {
-  //   *Gmat += G_a;
 }
 
 //******************************************************************************
@@ -528,6 +527,7 @@ bool CorrelationPotential::read_write(const std::string &fname,
   std::string basis_config =
       (rw == IO::FRW::write) ? DiracSpinor::state_config(m_excited) : "";
   rw_binary(iofs, rw, basis_config);
+  // XXX Add info on method! (or, different filename!)
 
   // Sub-grid:
   rw_binary(iofs, rw, stride_points, imin, stride);
@@ -565,10 +565,10 @@ bool CorrelationPotential::read_write(const std::string &fname,
   std::cout << "done.\n";
   if (rw == IO::FRW::read) {
     std::cout << "Sigma basis: " << basis_config << "\n";
-    printf(
-        "Sigma sub-grid: r=(%.1e, %.1f)aB with %i points. [i0=%i, stride=%i]\n",
-        r_stride.front(), r_stride.back(), int(stride_points), int(imin),
-        int(stride));
+    printf("Sigma sub-grid: r=(%.1e, %.1f)aB with %i points. [i0=%i, "
+           "stride=%i]\n",
+           r_stride.front(), r_stride.back(), int(stride_points), int(imin),
+           int(stride));
   }
   return true;
 }
@@ -594,7 +594,8 @@ ComplexGMatrix CorrelationPotential::Green_core(int kappa, double en_re,
   // G_core = \sum_a |a><a|/(e_r + i*e_i-ea), for all a with a.k=k
   ComplexGMatrix Gcore(stride_points, include_G);
 
-  // loop over HF core, not Sigma core (used in subtraction to get G^excited)
+  // loop over HF core, not Sigma core (used in subtraction to get
+  // G^excited)
   const auto &core = p_hf->get_core();
   for (auto ia = 0ul; ia < core.size(); ++ia) {
     const auto &a = core[ia];
@@ -749,7 +750,8 @@ ComplexGMatrix CorrelationPotential::Polarisation(int k_a, int k_alpha,
     // pi += (ComplexG2(Green_hf_basis(k_alpha, +om_re, 0.0, false),
     //                  a.en - 2 * om_re, -om_im) -
     //        Green_core(k_alpha, a.en - om_re, -om_im) +
-    //        ComplexG2(Green_hf_basis(k_alpha, om_re, 0.0, false), a.en, om_im)
+    //        ComplexG2(Green_hf_basis(k_alpha, om_re, 0.0, false), a.en,
+    //        om_im)
     //        - Green_core(k_alpha, a.en + om_re, om_im))
     //           .mult_elements_by(Ga);
 
@@ -992,9 +994,9 @@ GMatrix CorrelationPotential::FeynmanDirect(int kv, double env) {
     }     // alpha
   }       // a
 
-  // devide through by dri, drj [these included in q's, but want differential
-  // operator for sigma]
-  // or.. include one of these in definition of opertion S|v> ?
+  // devide through by dri, drj [these included in q's, but want
+  // differential operator for sigma] or.. include one of these in
+  // definition of opertion S|v> ?
   for (auto i = 0ul; i < stride_points; ++i) {
     const auto dri = dr_subToFull(i);
     for (auto j = 0ul; j < stride_points; ++j) {
@@ -1032,33 +1034,36 @@ GMatrix CorrelationPotential::FeynmanEx_1(int kv, double env) {
 
   const auto &core = p_hf->get_core();
   for (auto ia = 0ul; ia < core.size(); ++ia) {
-    // printf("Sigma F(e1): %3i/%3i\r", int(ia) + 1, (int)core.size());
-    // std::cout << std::flush;
     const auto &Fa = core[ia];
     if (Fa.n < m_min_core_n)
       continue;
     const auto ka = Fa.k;
+
 #pragma omp parallel for
-    for (int ialpha = 0; ialpha <= m_maxkindex; ++ialpha) {
-      const auto kA = Angular::kappaFromIndex(ialpha);
-      const auto &gA_re = gws[std::size_t(ialpha)];
-      for (int ibeta = 0; ibeta <= m_maxkindex; ++ibeta) {
-        const auto kB = Angular::kappaFromIndex(ibeta);
+    for (int ibeta = 0; ibeta <= m_maxkindex; ++ibeta) {
+      const auto kB = Angular::kappaFromIndex(ibeta);
 
-        for (auto iw = 0ul; iw < wgrid.num_points; iw++) {
-          const auto omim = wgrid.r[iw];
-          const auto dw1 = wgrid.drdu[iw] * wgrid.du;
+      for (auto iw = 0ul; iw < wgrid.num_points; iw++) {
+        const auto omim = wgrid.r[iw];
+        const auto dw1 = wgrid.drdu[iw] * wgrid.du;
 
-          const auto gA = ComplexG(gA_re, omim);
-          const auto gxBm = Green_ex(kB, Fa.en - omre, -omim);
-          const auto gxBp = Green_ex(kB, Fa.en + omre, omim);
+        const auto gxBm = Green_ex(kB, Fa.en - omre, -omim); // B,a,w
+        const auto gxBp = Green_ex(kB, Fa.en + omre, omim);  // B,a,w
+
+        for (int ialpha = 0; ialpha <= m_maxkindex; ++ialpha) {
+          const auto kA = Angular::kappaFromIndex(ialpha);
+          const auto &gA_re = gws[std::size_t(ialpha)];
+
+          const auto gA = ComplexG(gA_re, omim); // A, w
+          // const auto gxBm = Green_ex(kB, Fa.en - omre, -omim); // B,a,w
+          // const auto gxBp = Green_ex(kB, Fa.en + omre, omim);  // B,a,w
           const auto &pa = m_Pa[ia];
 
           const auto gqpg = sumkl_GQPGQ(gA, gxBm, gxBp, pa, kv, kA, kB, ka);
 
 #pragma omp critical(sumSigX)
           {
-            const auto fudge_factor = 1.0 / (2 * M_PI); //???
+            const auto fudge_factor = 1.0; // / (2 * M_PI); //???
             Sx_e1 += (fudge_factor * dw1 / M_PI) * gqpg;
           }
 
@@ -1076,7 +1081,7 @@ CorrelationPotential::sumk_cGQPQ(int kv, int ka, int kA, int kB,
                                  const ComplexGMatrix &g_beta,
                                  const ComplexGMatrix &pi_aalpha) const {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
-  // sum over k:
+  // sum over k: (for DIRECT part:)
   // sum_k [ck qk * pi(w) * qk], ck angular factor
 
   auto gqpq = ComplexGMatrix(stride_points, include_G);
@@ -1106,6 +1111,7 @@ GMatrix CorrelationPotential::sumkl_GQPGQ(const ComplexGMatrix &gA,
                                           const ComplexGMatrix &gxBp,
                                           const ComplexGMatrix &pa, int kv,
                                           int kA, int kB, int ka) const {
+  // EXCHANGE part:
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
 
   auto sum_GQPG = GMatrix(stride_points, include_G);
