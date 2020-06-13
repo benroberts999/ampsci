@@ -153,8 +153,7 @@ public: // const methods: "views" into WF object
   //! E.g., Cs in V^N-1, gives Cs-i
   std::string identity() const {
     const auto zionRoman = AtomData::int_to_roman(Zion());
-    return AtomData::atomicSymbol(m_nuclear.z) +
-           (zionRoman == "" ? "" : "-" + zionRoman);
+    return AtomData::atomicSymbol(m_nuclear.z) + zionRoman;
   }
 
   //! Prints table of core orbitals + energies etc. Optionally sorted by energy

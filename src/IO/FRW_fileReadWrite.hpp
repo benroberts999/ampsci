@@ -274,6 +274,9 @@ void setInputParameters(const std::string &infile, std::tuple<Tp...> &tp) {
 //******************************************************************************
 enum RoW { read, write };
 
+// XXX Wrap these into a class. AND make explicit which types are/aren't
+// allowed!
+
 inline void open_binary(std::fstream &stream, const std::string &fname,
                         RoW row) {
   switch (row) {
@@ -293,6 +296,17 @@ inline bool file_exists(const std::string &fileName) {
     return false;
   std::ifstream infile(fileName);
   return infile.good();
+}
+
+//! Function (variadic): reads/writes data from/to binary file. Works for
+//! trivial (PoD) types, and std::string only (but not checked)
+//! Overload for vectors
+template <typename T, typename... Types>
+void rw_binary(std::fstream &stream, RoW row, std::vector<T> &value,
+               Types &... values) {
+  binary_rw_vec(stream, value, row);
+  if constexpr (sizeof...(values) != 0)
+    rw_binary(stream, row, values...);
 }
 
 //! Function (variadic): reads/writes data from/to binary file. Works for
@@ -318,6 +332,18 @@ template <typename T> void binary_rw(std::fstream &stream, T &value, RoW row) {
     break;
   default:
     std::cout << "\nFAIL 32 in FRW\n";
+  }
+}
+
+// For vector. {works with Vector of vectors also}
+template <typename T>
+void binary_rw_vec(std::fstream &stream, std::vector<T> &value, RoW row) {
+  std::size_t size = value.size();
+  binary_rw(stream, size, row);
+  if (row == read)
+    value.resize(size);
+  for (auto &x : value) {
+    rw_binary(stream, row, x);
   }
 }
 
