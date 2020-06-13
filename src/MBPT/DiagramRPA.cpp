@@ -132,35 +132,7 @@ bool DiagramRPA::read_write(const std::string &fname, IO::FRW::RoW rw) {
   }
 
   // read/write Ws:
-  for (auto Wptr : {&Wanmb, &Wabmn, &Wmnab, &Wmban}) {
-    auto &Wtmp = *Wptr;
-    auto size1 = Wtmp.size();
-    rw_binary(iofs, rw, size1);
-    if (readQ)
-      Wtmp.resize(size1);
-    for (auto &Wi : Wtmp) {
-      auto size2 = Wi.size();
-      rw_binary(iofs, rw, size2);
-      if (readQ)
-        Wi.resize(size2);
-      for (auto &Wij : Wi) {
-        auto size3 = Wij.size();
-        rw_binary(iofs, rw, size3);
-        if (readQ)
-          Wij.resize(size3);
-        for (auto &Wijk : Wij) {
-          auto size4 = Wijk.size();
-          rw_binary(iofs, rw, size4);
-          if (readQ)
-            Wijk.resize(size4);
-          for (auto &Wijkl : Wijk) {
-            // the actual data:
-            rw_binary(iofs, rw, Wijkl);
-          }
-        }
-      }
-    }
-  }
+  rw_binary(iofs, rw, Wanmb, Wabmn, Wmnab, Wmban);
   std::cout << "done.\n";
 
   return true;
