@@ -115,7 +115,7 @@ void HartreeFock::hf_core_approx(const double eps_target_HF) {
     return;
   }
 
-  auto damper = rampedDamp(0.7, 0.2, 3, 10);
+  auto damper = rampedDamp(0.7, 0.5, 3, 10);
   // don't include all pts in PT for new e guess:
   static const std::size_t de_stride = 5;
 
@@ -291,7 +291,7 @@ EpsIts HartreeFock::hf_valence_approx(DiracSpinor &Fa, double eps_target_HF)
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   Fa.occ_frac = 1.0 / Fa.twojp1();
 
-  auto damper = rampedDamp(0.7, 0.2, 2, 6);
+  auto damper = rampedDamp(0.7, 0.3, 2, 6);
   // don't include all pts in PT for new e guess
   static const std::size_t de_stride = 5;
 
@@ -828,7 +828,7 @@ EpsIts HartreeFock::hf_valence_refine(DiracSpinor &Fa) {
 
   const auto eps_target = m_eps_HF;
 
-  const auto damper = rampedDamp(0.8, 0.2, 5, 25);
+  const auto damper = rampedDamp(0.8, 0.3, 5, 25);
   double extra_damp = 0.0;
 
   const auto &vrad_el = get_Hrad_el(Fa.l());
@@ -903,7 +903,8 @@ EpsIts HartreeFock::hf_Brueckner(DiracSpinor &Fa,
   const auto eps_target = m_eps_HF;
   const auto max_br_its = m_max_hf_its;
 
-  auto damper = rampedDamp(0.33, 0.05, 1, 15);
+  // auto damper = rampedDamp(0.33, 0.05, 1, 15);
+  auto damper = rampedDamp(0.4, 0.3, 1, 15);
 
   const auto &vrad_el = get_Hrad_el(Fa.l());
   const auto &Hmag = get_Hrad_mag(Fa.l());
@@ -976,7 +977,7 @@ inline void HartreeFock::hf_core_refine() {
 
   const double eps_target = m_eps_HF;
   m_Yab.update_y_ints(); // only needed if not already done!
-  auto damper = rampedDamp(0.8, 0.2, 5, 30);
+  auto damper = rampedDamp(0.8, 0.3, 5, 30);
   double extra_damp = 0;
 
   std::vector<double> vl(p_rgrid->num_points); // Vnuc + fVd
