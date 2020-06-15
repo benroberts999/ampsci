@@ -1,5 +1,6 @@
 #include "Angular/Angular_tables.hpp"
 #include "Angular/Angular_369j.hpp"
+#include <cassert>
 // NB: These headers MUST be in this order; otherwise fails to compile
 // on macOS... what :\ At least it works now....
 // Perhaps something to do with cmath vs math.h conflict???
@@ -68,6 +69,8 @@ double Ck_ab::get_tildeCkab(int k, int ka, int kb) const {
   auto pi_ok = Angular::evenQ(Angular::l_k(ka) + Angular::l_k(kb) + k);
   if (!pi_ok)
     return 0;
+  assert(std::max(jia, jib) <= m_max_jindex_sofar);
+  assert(k <= m_max_k_sofar);
   return (jia > jib) ? m_3j_k_a_b[k][jia][jib] * m_Rjab_a_b[jia][jib]
                      : m_3j_k_a_b[k][jib][jia] * m_Rjab_a_b[jib][jia];
 }
@@ -96,6 +99,8 @@ double Ck_ab::get_3jkab_mutable(int k, int ka, int kb) {
 double Ck_ab::get_3jkab(int k, int ka, int kb) const {
   auto jia = jindex_kappa(ka);
   auto jib = jindex_kappa(kb);
+  assert(std::max(jia, jib) <= m_max_jindex_sofar);
+  assert(k <= m_max_k_sofar);
   return (jia > jib) ? m_3j_k_a_b[k][jia][jib] : m_3j_k_a_b[k][jib][jia];
 }
 
@@ -115,15 +120,17 @@ double SixJTable_constk::get_6j(int tja, int tjb, int tjc, int tjd,
                                 int l) const {
   const auto lmin = min_lambda_tj(tja, tjb, tjc, tjd);
   if (l < lmin)
-    return 0;
+    return 0.0;
   if (l > max_lambda_tj(tja, tjb, tjc, tjd))
-    return 0;
+    return 0.0;
 
-  auto a = jindex(tja);
-  auto b = jindex(tjb);
-  auto c = jindex(tjc);
-  auto d = jindex(tjd);
-  auto max = max4(a, b, c, d); //
+  const auto a = jindex(tja);
+  const auto b = jindex(tjb);
+  const auto c = jindex(tjc);
+  const auto d = jindex(tjd);
+  const auto max = max4(a, b, c, d); //
+  assert(max <= max_ji_sofar);
+
   if (max == a) {
     return m_k_a_bcdl[a][b][c][d][l - lmin];
   } else if (max == b) {
@@ -223,6 +230,7 @@ void SixJ::fill(int in_max_k, int in_max_twoj) {
 
 //******************************************************************************
 double SixJ::get_6j(int tja, int tjb, int tjc, int tjd, int k, int l) const {
+  assert(k <= max_k_sofar);
   return m_sixj_k[k].get_6j(tja, tjb, tjc, tjd, l);
 }
 
