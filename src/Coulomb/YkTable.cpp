@@ -7,6 +7,7 @@
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <algorithm>
+#include <cassert>
 #include <cmath>
 #include <utility>
 #include <vector>
@@ -54,14 +55,9 @@ const std::vector<double> &YkTable::get_yk_ab(const int k,
   const auto &[kmin, kmax] = k_minmax(Fa, Fb);
   const auto ik = std::size_t(k - kmin);
   const auto &yab = get_y_ab(Fa, Fb);
-  if constexpr (check_bounds) {
-    if (k < kmin || k > kmax || ik > yab.size()) {
-      std::cerr << "Fail 35 in Coulomb: k too big/small: " << k << ": " << kmin
-                << "/" << kmax << " " << yab.size() << "\n";
-      std::cerr << Fa.symbol() << ", " << Fb.symbol() << "\n";
-      std::abort();
-    }
-  }
+  assert(k >= kmin);
+  assert(k <= kmax);
+  assert(ik < yab.size());
   return yab[ik];
 }
 //------------------------------------------------------------------------------
@@ -69,16 +65,8 @@ const std::vector<std::vector<double>> &
 YkTable::get_y_ab(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
   const auto a = std::find(m_a_orbs->begin(), m_a_orbs->end(), Fa);
   const auto b = std::find(m_b_orbs->begin(), m_b_orbs->end(), Fb);
-  if constexpr (check_bounds) {
-    if (a == m_a_orbs->end()) {
-      std::cerr << "Fail 40 in Coulomb: Fa not in a: " << Fa.symbol() << "\n";
-      std::abort();
-    }
-    if (b == m_b_orbs->end()) {
-      std::cerr << "Fail 44 in Coulomb: Fb not in b: " << Fb.symbol() << "\n";
-      std::abort();
-    }
-  }
+  assert(a != m_a_orbs->end());
+  assert(b != m_b_orbs->end());
   const auto ia = std::size_t(a - m_a_orbs->begin());
   const auto ib = std::size_t(b - m_b_orbs->begin());
   return (m_aisb && ib > ia) ? m_y_abkr[ib][ia] : m_y_abkr[ia][ib];
@@ -120,13 +108,7 @@ void YkTable::update_y_ints(const DiracSpinor &Fn) {
     nisa = false;
     n = std::find(m_b_orbs->begin(), m_b_orbs->end(), Fn);
   }
-  if constexpr (check_bounds) {
-    if (n == m_b_orbs->end()) {
-      std::cerr << "Fail 108 in Coulomb: Fn not in a or b: " << Fn.symbol()
-                << "\n";
-      std::abort();
-    }
-  }
+  assert(n != m_b_orbs->end());
 
   const auto in = nisa ? std::size_t(n - m_a_orbs->begin())
                        : std::size_t(n - m_b_orbs->begin());

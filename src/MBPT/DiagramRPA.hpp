@@ -49,7 +49,7 @@ private:
   double m_omega = 0.0;
   double m_core_eps = 1.0;
   const double eps_targ = 1.0e-10;
-  const int max_its = 100;
+  const int max_its = 250;
 
   // t0's never change
   std::vector<std::vector<double>> t0am{};

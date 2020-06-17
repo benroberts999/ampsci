@@ -71,7 +71,7 @@ public:
   //! frequency omega. Will iterate up to a maximum of max_its. Set max_its=1
   //! to get first-order correction [note: no dampling is used for first
   //! itteration]. If print=true, will write progress to screen
-  void solve_TDHFcore(const double omega, int max_its = 100,
+  void solve_TDHFcore(const double omega, int max_its = 250,
                       const bool print = true);
 
   //! @brief Uses itterative matrix method; for tests only

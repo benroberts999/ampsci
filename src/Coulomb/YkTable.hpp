@@ -6,16 +6,14 @@
 
 namespace Coulomb {
 
-constexpr bool check_bounds = true;
-
 //! @brief Calculates + stores Hartree Y functions + Angular (w/ look-up)
 /*! @details
 
 Also stores an Angular::Angular::Ck_ab table (publically).
 
 Note: Look-up must be done such that: Fa MUST be member of a_orbitals, Fb of
-b_orbitals. Turn the compile-time option "check_bounds" to true (in YkTable.hpp)
-to turn on run-time bounds checking.
+b_orbitals. Cheking is done with assers, so only in 'dev' or 'debug' mode -
+ranges not checked in release mode.
 
 Definitions:
 
