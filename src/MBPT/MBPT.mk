@@ -19,6 +19,17 @@ $(SD)/Wavefunction/DiracSpinor.hpp \
 $(SD)/Wavefunction/Wavefunction.hpp
 	$(COMP)
 
+$(BD)/GoldstoneSigma2.o: $(SD)/MBPT/GoldstoneSigma2.cpp \
+$(SD)/MBPT/GoldstoneSigma2.hpp \
+$(SD)/MBPT/CorrelationPotential.hpp
+	$(COMP)
+
+$(BD)/FeynmanSigma.o: $(SD)/MBPT/FeynmanSigma.cpp \
+$(SD)/MBPT/FeynmanSigma.hpp \
+$(SD)/MBPT/CorrelationPotential.hpp \
+$(SD)/DiracODE/DiracODE.hpp
+	$(COMP)
+
 $(BD)/DiagramRPA.o: $(SD)/MBPT/DiagramRPA.cpp \
 $(SD)/MBPT/DiagramRPA.hpp \
 $(SD)/Angular/Angular_369j.hpp \

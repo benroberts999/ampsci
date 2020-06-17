@@ -4,6 +4,8 @@
 #include "IO/ChronoTimer.hpp"
 #include "IO/FRW_fileReadWrite.hpp" //just for enum..
 #include "MBPT/CorrelationPotential.hpp"
+#include "MBPT/FeynmanSigma.hpp"
+#include "MBPT/GoldstoneSigma2.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/Interpolator.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
@@ -696,56 +698,6 @@ void Wavefunction::formSigma(const int nmin_core, const bool form_matrix,
                              const double omre) {
   if (valence.empty())
     return;
-  // Sort basis into core/exited parts, throwing away core states with n<nmin
-  std::vector<DiracSpinor> occupied;
-  std::vector<DiracSpinor> excited;
-  for (const auto &Fb : basis) {
-    if (isInCore(Fb.n, Fb.k) && Fb.n >= nmin_core)
-      occupied.push_back(Fb);
-    else if (!isInCore(Fb.n, Fb.k))
-      excited.push_back(Fb);
-  }
-
-  {
-    std::vector<double> poles;
-    auto en = valence.front().en;
-    for (const auto &Fb : basis) {
-      poles.push_back(Fb.en - en);
-    }
-    for (const auto &Fa : occupied) {
-      for (const auto &Fn : excited) {
-        poles.push_back(Fa.en - Fn.en);
-        poles.push_back(-Fa.en + Fn.en);
-      }
-      for (const auto &Fb : occupied) {
-        // "core" Pi poles; supposed to be subtracted, but may still appear
-        poles.push_back(Fa.en - Fb.en);
-        poles.push_back(-Fa.en + Fb.en);
-      }
-    }
-    std::sort(poles.begin(), poles.end());
-    auto last = std::unique(poles.begin(), poles.end(), [](auto a, auto b) {
-      return std::abs(a - b) < 0.005;
-    });
-    poles.erase(last, poles.end());
-    std::vector<double> poles2;
-    std::cout << "\nPoles: ";
-    for (const auto &p : poles) {
-      // if (std::abs(p - omre) > 2.0 * std::abs(omre) || p > 0.05)
-      if (p < core.back().en || p > 0.05)
-        continue;
-      poles2.push_back(p);
-      printf("%5.2f, ", p);
-    }
-    std::cout << "\n";
-    poles = poles2;
-    std::adjacent_difference(poles2.begin(), poles2.end(), poles2.begin());
-    std::size_t index = std::size_t(
-        std::max_element(poles2.begin(), poles2.end()) - poles2.begin());
-    std::cout << "Set omre to: " << poles[index] - 0.5 * poles2[index] << "\n";
-  }
-
-  // std::cin.get();
 
   // Form list of energies for each kappa:
   std::vector<double> en_list_kappa{};
@@ -755,12 +707,13 @@ void Wavefunction::formSigma(const int nmin_core, const bool form_matrix,
             ->k_index();
     // for each kappa, find lowest valence (or basis) state energy:
     for (int ki = 0; ki <= max_ki; ki++) {
+      // XXX Note: this assumes sorted (for each kappa)! Almost certainly true.
       const auto find_ki = [=](const auto &a) { return a.k_index() == ki; };
       auto vki = std::find_if(cbegin(valence), cend(valence), find_ki);
-      if (vki == cend(valence)) {
-        vki = std::find_if(cbegin(excited), cend(excited), find_ki);
-      }
-      if (vki != cend(valence) && vki != cend(excited)) {
+      // if (vki == cend(valence)) {
+      //   vki = std::find_if(cbegin(excited), cend(excited), find_ki);
+      // }
+      if (vki != cend(valence) /*&& vki != cend(excited)*/) {
         en_list_kappa.push_back(vki->en);
       } else {
         en_list_kappa.push_back(0.0);
@@ -774,9 +727,52 @@ void Wavefunction::formSigma(const int nmin_core, const bool form_matrix,
       method, nmin_core, lmax, GreenBasis, PolBasis, omre, ScreeningQ};
   const auto subgridp = MBPT::rgrid_params{r0, rmax, std::size_t(stride)};
 
+  // if (FeynmanQ) {
+  //   std::vector<double> poles;
+  //   auto en = valence.front().en;
+  //   for (const auto &Fb : basis) {
+  //     poles.push_back(Fb.en - en);
+  //   }
+  //   for (const auto &Fa : core) {
+  //     for (const auto &Fn : basis) {
+  //       poles.push_back(Fa.en - Fn.en);
+  //       poles.push_back(-Fa.en + Fn.en);
+  //     }
+  //   }
+  //   std::sort(poles.begin(), poles.end());
+  //   auto last = std::unique(poles.begin(), poles.end(), [](auto a, auto b) {
+  //     return std::abs(a - b) < 0.005;
+  //   });
+  //   poles.erase(last, poles.end());
+  //   std::vector<double> poles2;
+  //   std::cout << "\nPoles: ";
+  //   for (const auto &p : poles) {
+  //     if (p < core.back().en || p > 0.05)
+  //       continue;
+  //     poles2.push_back(p);
+  //     printf("%5.2f, ", p);
+  //   }
+  //   std::cout << "\n";
+  //   poles = poles2;
+  //   std::adjacent_difference(poles2.begin(), poles2.end(), poles2.begin());
+  //   std::size_t index = std::size_t(
+  //       std::max_element(poles2.begin(), poles2.end()) - poles2.begin());
+  //   std::cout << "Set omre to: " << poles[index] - 0.5 * poles2[index] <<
+  //   "\n";
+  // }
+
   // Correlaion potential matrix:
-  m_Sigma = std::make_unique<MBPT::CorrelationPotential>(
-      m_pHF.get(), occupied, excited, sigp, subgridp, en_list_kappa, fname);
+  switch (method) {
+  case MBPT::Method::Goldstone:
+    m_Sigma = std::make_unique<MBPT::GoldstoneSigma2>(
+        m_pHF.get(), basis, sigp, subgridp, en_list_kappa, fname);
+    break;
+  case MBPT::Method::Feynman:
+    m_Sigma = std::make_unique<MBPT::FeynmanSigma>(
+        m_pHF.get(), basis, sigp, subgridp, en_list_kappa, fname);
+    break;
+  }
+
   m_Sigma->scale_Sigma(lambdas);
 }
 

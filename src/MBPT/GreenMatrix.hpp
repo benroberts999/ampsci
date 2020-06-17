@@ -10,7 +10,7 @@ namespace MBPT {
 //! Holds Green's fn operator of form: |ket><bra| [4x4 matrix of NxN matrix]
 template <typename T> class GreenMatrix {
 public:
-  bool include_G;
+  bool m_include_G;
   std::size_t size;
   std::size_t G_size;
 
@@ -19,9 +19,9 @@ public:
 
 public:
   GreenMatrix(std::size_t in_size, bool in_include_G)
-      : include_G(in_include_G),
+      : m_include_G(in_include_G),
         size(in_size),
-        G_size(include_G ? size : 0),
+        G_size(m_include_G ? size : 0),
         ff(size),
         fg(G_size),
         gf(G_size),
@@ -32,7 +32,7 @@ public:
   //! Sets all matrix elements to zero
   void zero() {
     ff.zero();
-    if (include_G) {
+    if (m_include_G) {
       fg.zero();
       gf.zero();
       gg.zero();
@@ -42,7 +42,7 @@ public:
   //! Makes 1
   void make_identity() {
     ff.make_identity();
-    if (include_G) {
+    if (m_include_G) {
       fg.make_identity();
       gf.make_identity();
       gg.make_identity();
@@ -51,7 +51,7 @@ public:
 
   GreenMatrix<T> &plusIdent(double a = 1.0) {
     ff.plusIdent(a);
-    if (include_G) {
+    if (m_include_G) {
       gg.plusIdent(a);
     }
     return *this;
@@ -61,7 +61,7 @@ public:
     static_assert(std::is_same<T, LinAlg::ComplexSqMatrix>::value,
                   "Can only call plusIdent(x,y) from Complex GMatrix!");
     ff.plusIdent(re, im);
-    if (include_G) {
+    if (m_include_G) {
       gg.plusIdent(re, im);
     }
     return *this;
@@ -69,7 +69,7 @@ public:
 
   void checkNaN() const {
     ff.checkNaN();
-    if (include_G) {
+    if (m_include_G) {
       fg.checkNaN();
       gf.checkNaN();
       gg.checkNaN();
@@ -91,7 +91,7 @@ public:
   //! Can add/subtract matrices (in place)
   GreenMatrix<T> &operator+=(const GreenMatrix<T> &rhs) {
     ff += rhs.ff;
-    if (include_G) {
+    if (m_include_G) {
       fg += rhs.fg;
       gf += rhs.gf;
       gg += rhs.gg;
@@ -104,7 +104,7 @@ public:
   }
   GreenMatrix<T> &operator-=(const GreenMatrix<T> &rhs) {
     ff -= rhs.ff;
-    if (include_G) {
+    if (m_include_G) {
       fg -= rhs.fg;
       gf -= rhs.gf;
       gg -= rhs.gg;
@@ -118,7 +118,7 @@ public:
 
   GreenMatrix<T> &operator*=(double x) {
     ff *= x;
-    if (include_G) {
+    if (m_include_G) {
       fg *= x;
       gf *= x;
       gg *= x;
@@ -134,7 +134,7 @@ public:
     static_assert(std::is_same<T, LinAlg::ComplexSqMatrix>::value,
                   "Can only call *=Complex from Complex GMatrix!");
     ff *= x;
-    if (include_G) {
+    if (m_include_G) {
       fg *= x;
       gf *= x;
       gg *= x;
@@ -149,7 +149,7 @@ public:
 
   //! Matrix multplication (in place): Gij -> \sum_k Gik*Bkj
   GreenMatrix<T> &operator*=(const GreenMatrix<T> &b) {
-    if (include_G) {
+    if (m_include_G) {
       auto tmp = ff;
       ff = ff * b.ff + fg * b.gf;
       fg = tmp * b.fg + fg * b.gg; // ff
@@ -169,7 +169,7 @@ public:
   //! Inversion (in place)
   GreenMatrix<T> &invert() {
     ff.invert();
-    if (include_G) {
+    if (m_include_G) {
       std::cout << "\n XXX \n Warning: Inversion not tesed!\n";
       const auto &ai = ff; // already inverted
       const auto &b = fg;
@@ -199,7 +199,7 @@ public:
   //! Multiply elements (in place): Gij -> Gij*Bij
   GreenMatrix<T> &mult_elements_by(const GreenMatrix<T> &rhs) {
     ff.mult_elements_by(rhs.ff);
-    if (include_G) {
+    if (m_include_G) {
       fg.mult_elements_by(rhs.fg);
       gf.mult_elements_by(rhs.gf);
       gg.mult_elements_by(rhs.gg);
@@ -217,9 +217,9 @@ public:
   [[nodiscard]] GreenMatrix<LinAlg::SqMatrix> get_real() const {
     static_assert(std::is_same<T, LinAlg::ComplexSqMatrix>::value,
                   "Can only call get_real from Complex GMatrix!");
-    auto gmat = GreenMatrix<LinAlg::SqMatrix>(size, include_G);
+    auto gmat = GreenMatrix<LinAlg::SqMatrix>(size, m_include_G);
     gmat.ff = ff.real();
-    if (include_G) {
+    if (m_include_G) {
       gmat.fg = fg.real();
       gmat.gf = gf.real();
       gmat.gg = gg.real();
@@ -231,9 +231,9 @@ public:
   [[nodiscard]] GreenMatrix<LinAlg::SqMatrix> get_imaginary() const {
     static_assert(std::is_same<T, LinAlg::ComplexSqMatrix>::value,
                   "Can only call get_imaginary from Complex GMatrix!");
-    auto gmat = GreenMatrix<LinAlg::SqMatrix>(size, include_G);
+    auto gmat = GreenMatrix<LinAlg::SqMatrix>(size, m_include_G);
     gmat.ff = ff.imaginary();
-    if (include_G) {
+    if (m_include_G) {
       gmat.fg = fg.imaginary();
       gmat.gf = gf.imaginary();
       gmat.gg = gg.imaginary();
@@ -246,9 +246,9 @@ public:
   make_complex(const LinAlg::ComplexDouble &x) const {
     static_assert(std::is_same<T, LinAlg::SqMatrix>::value,
                   "Can only call make_complex from Real GMatrix!");
-    auto gmat = GreenMatrix<LinAlg::ComplexSqMatrix>(size, include_G);
+    auto gmat = GreenMatrix<LinAlg::ComplexSqMatrix>(size, m_include_G);
     gmat.ff = LinAlg::ComplexSqMatrix::make_complex(x, ff);
-    if (include_G) {
+    if (m_include_G) {
       gmat.fg = LinAlg::ComplexSqMatrix::make_complex(x, fg);
       gmat.gf = LinAlg::ComplexSqMatrix::make_complex(x, gf);
       gmat.gg = LinAlg::ComplexSqMatrix::make_complex(x, gg);

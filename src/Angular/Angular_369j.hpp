@@ -374,10 +374,10 @@ inline double tildeCk_kk(int k, int ka, int kb) {
 inline std::pair<int, int> kminmax_Ck(int ka, int kb) {
   // j = |k|-0.5
   // kmin = |ja-jb| = | |ka| - |kb| |
-  // kmax = ja+jb   = |ka| + |kb|
+  // kmax = ja+jb   = |ka| + |kb| - 1
   const auto aka = std::abs(ka);
   const auto akb = std::abs(kb);
-  return {std::abs(aka - akb), aka + akb};
+  return {std::abs(aka - akb), aka + akb - 1};
 }
 //******************************************************************************
 inline double Ck_2j2j(int k, int two_ja, int two_jb)
