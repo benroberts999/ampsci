@@ -74,65 +74,14 @@ public:
 };
 
 //******************************************************************************
-// template <typename T> class Complex {
-// public:
-//   T re = 0;
-//   T im = 0;
-//   Complex<T> conj() const { return {re, -im}; }
-//   //! norm2 = re^2 + im^2, no sqrt (ruins T)
-//   T norm2() const { return re * re + im * im; }
-//   //! Return gsl-style complex
-//   gsl_complex gsl() const { return gsl_complex_rect(re, im); }
-//   friend Complex<T> from_gsl(const gsl_complex &gslc) {
-//     return Complex<T>{static_cast<T>(GSL_REAL(gslc)),
-//                       static_cast<T>(GSL_IMAG(gslc))};
-//   }
-//   //! Mult two complex:
-//   friend Complex<T> operator*(const Complex<T> &a, const Complex<T> &b) {
-//     return {a.re * b.re - a.im * b.im, a.re * b.im + a.im * b.re};
-//   }
-//   Complex<T> &operator*=(const Complex<T> x) {
-//     *this = (*this) * x;
-//     return *this;
-//   }
-//   //! Mult by const:
-//   Complex<T> &operator*=(const T x) {
-//     this->re *= x;
-//     this->im *= x;
-//     return *this;
-//   }
-//   friend Complex<T> operator*(Complex<T> a, const T &x) { return a *= x; }
-//   friend Complex<T> operator*(const T &x, Complex<T> a) { return a *= x; }
-//   //! Add/subtrac:
-//   Complex<T> &operator+=(const Complex<T> x) {
-//     this->re += x.re;
-//     this->im += x.im;
-//     return *this;
-//   }
-//   friend Complex<T> operator+(Complex<T> a, const Complex<T> &b) {
-//     return a += b;
-//   }
-//   Complex<T> &operator-=(const Complex<T> x) {
-//     this->re -= x.re;
-//     this->im -= x.im;
-//     return *this;
-//   }
-//   friend Complex<T> operator-(Complex<T> a, const Complex<T> &b) {
-//     return a -= b;
-//   }
-// };
-
 //******************************************************************************
-//******************************************************************************
-// using ComplexDouble = gsl_complex;
 
 struct ComplexDouble {
+  // Wrapper for gsl_complex
   gsl_complex val;
   ComplexDouble(double re = 0.0, double im = 0.0)
       : val(gsl_complex_rect(re, im)) {}
   ComplexDouble(gsl_complex c) : val(c) {}
-  //
-  // XXX Is below ok? Can I use this to modify a const??
   double &re() { return GSL_REAL(val); }
   double &im() { return GSL_IMAG(val); }
   double cre() const { return GSL_REAL(val); }
@@ -221,19 +170,7 @@ struct ComplexDouble {
   friend ComplexDouble operator*(const int &l, ComplexDouble r) {
     return r *= l;
   }
-  ///////
 };
-
-// inline ComplexDouble operator+=(ComplexDouble &l, const ComplexDouble &r)
-// {
-//   l = gsl_complex_add(l.val, r.val);
-//   return l;
-// }
-//
-// inline ComplexDouble operator+(ComplexDouble l, const ComplexDouble &r) {
-//   l += r;
-//   return l;
-// }
 
 //! To efficiently multiply many gsl_complex doubles
 template <typename... Args>

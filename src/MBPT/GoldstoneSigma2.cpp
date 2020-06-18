@@ -1,5 +1,15 @@
-#include "GoldstoneSigma2.hpp"
+#include "MBPT/GoldstoneSigma2.hpp"
+#include "Angular/Angular_tables.hpp"
+#include "Coulomb/Coulomb.hpp"
+#include "Coulomb/YkTable.hpp"
+#include "IO/FRW_fileReadWrite.hpp"
+#include "IO/SafeProfiler.hpp"
 #include "MBPT/CorrelationPotential.hpp"
+#include "MBPT/GreenMatrix.hpp"
+#include "Maths/Grid.hpp"
+#include "Maths/LinAlg_MatrixVector.hpp"
+#include <algorithm>
+#include <numeric>
 
 namespace MBPT {
 
@@ -54,17 +64,13 @@ void GoldstoneSigma2::fill_Sigma_k(GMatrix *Gmat, const int kappa,
 
   // Just for safety, should already be zero (unless re-calcing G)
   Gmat->zero();
-  // XXX This is only so I can print each energy shift!
-  // XXX Makes it slower
+  // This is only so I can print each energy shift:
   auto Sdir = *Gmat; // blank copies!
   auto Sexch = *Gmat;
 
   if (m_holes.empty())
     return;
   const auto &gr = *p_gr;
-
-  // Note: get_yk_ab() must only be called with k for which y^k_ab exists!
-  // Therefore, must use the k_minmax() function provided
 
   std::vector<GMatrix> Gds(m_holes.size(), {m_subgrid_points, m_include_G});
   std::vector<GMatrix> Gxs(m_holes.size(), {m_subgrid_points, m_include_G});
@@ -112,7 +118,7 @@ void GoldstoneSigma2::fill_Sigma_k(GMatrix *Gmat, const int kappa,
   }     // a
 
   // // note: no benefit to sending Gmat in! Just let it be a return value!
-  // XXX This is only so I can print each energy shift!
+  // This is only so I can print each energy shift!
   for (const auto &Gd : Gds)
     Sdir += Gd;
   for (const auto &Gx : Gxs)

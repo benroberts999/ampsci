@@ -1,5 +1,8 @@
 #pragma once
 #include "CorrelationPotential.hpp"
+#include <memory>
+#include <string>
+#include <vector>
 class Grid;
 namespace HF {
 class HartreeFock;

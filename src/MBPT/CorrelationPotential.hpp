@@ -3,11 +3,7 @@
 #include "Coulomb/YkTable.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
 #include "MBPT/GreenMatrix.hpp"
-#include "Maths/Interpolator.hpp"
-#include "Maths/LinAlg_MatrixVector.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
-#include "Wavefunction/Wavefunction.hpp"
-#include <memory>
 #include <vector>
 class Grid;
 namespace HF {
@@ -41,9 +37,9 @@ inline int find_max_l(const std::vector<DiracSpinor> &orbs) {
 }
 //******************************************************************************
 
-using GMatrix = GreenMatrix<LinAlg::SqMatrix>;
-using ComplexGMatrix = GreenMatrix<LinAlg::ComplexSqMatrix>;
-using ComplexDouble = LinAlg::ComplexDouble;
+// using GMatrix = GreenMatrix<LinAlg::SqMatrix>;
+// using ComplexGMatrix = GreenMatrix<LinAlg::ComplexSqMatrix>;
+// using ComplexDouble = LinAlg::ComplexDouble;
 
 enum class Method { Goldstone, Feynman };
 
@@ -73,13 +69,15 @@ struct wgrid_params {
 
 //******************************************************************************
 /*!
-@brief Calculates + stores Correlation Potential operator (2nd order)
+@brief Pure virtual. Calculates + stores Correlation Potential operator
 @details
 Takes core+excited basis orbitals, and a list of energies.
-Should be one energy per kappa, in order starting from k=-1 (no gaps).
+Must be one energy per kappa, in order starting from k=-1 (no gaps).
 Correlation potential is formed for each kappa for which an energy is given, at
 the given energy.
-Can calculate energy shifts without forming matrix (give blank energy list).
+
+Can calculate second-order MBPT energy shifts without forming matrix (give blank
+energy list).
 
 in_fname: will read/write to this file.
 If the file exists, will read Sigma from it. If file doesn't exist, will
@@ -87,23 +85,6 @@ calculate Sigma and write it to file. If blank filename is given, will not try
 to write.
  - Note: program appends ".Sigma" extension, don't include this in filename.
  - Note: only writes sigma, not scaling factors
-
-Sigma stored in a matrix consisting of 4 'G' terms:
-
-Four second-order diagrams:
-  - Diagram (a):
-\f[ G_a = \frac{|Q^k_amn><Q^k_amn|}{ [k][j] \, de_{amn} } \f]
-  - Diagram (b) (exchange):
-\f[ G_b = \frac{|Q^k_amn><P^k_amn|}{ [k][j] \, de_{amn} } \f]
-  - Diagram (c):
-\f[ G_c = \frac{|Q^k_nba><Q^k_nba|}{ [k][j] \, de_{nba} } \f]
-  - Diagram (d) (exchange):
-\f[ G_d = \frac{|Q^k_nba><P^k_nba|}{ [k][j] \, de_{nba} } \f]
-where:
-All indeces are summed over,
-a & b are core states, n & m are virtual excited states,
-k is multipolarity [Coloulmb expansion], and
-\f$ de_{xyz} = e_v + e_x - e_y - e_z \f$
 
 */
 class CorrelationPotential {

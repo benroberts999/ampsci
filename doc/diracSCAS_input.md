@@ -20,7 +20,7 @@ Module::secondModule { <input_options> }
 
 * Most options have a default, and can be left blank, explicitly set to 'default', or removed entirely.
 * The curly-braces denote the start/end of each block. *Don't* use any other curly-braces (nested braces are not allowed)
-* Uses c++ style line comments (not block comments). Any commented-out line will not be read. White-space is ignored.
+* Uses c++ style comments. Any commented-out line will not be read. White-space is ignored.
 * For example, the following four inputs are all equivalent
 
 ```cpp
@@ -67,7 +67,6 @@ HartreeFock {
   method;      //[t] default = HartreeFock
   Breit;       //[r] default = 0.0
   convergence; //[r] default = 1.0e-12
-  orthonormaliseValence; //[b] default = false
 }
 ```
 * core: Core configuration. Required (no default)
@@ -87,6 +86,7 @@ HartreeFock {
   * HartreeFock(default), ApproxHF, Hartree
 * Breit: Include Breit into HF with given scale (0 means don't include)
   * Note: Will go into spline basis, and RPA equations automatically
+  * Currently, not included into rhs (dV) for RPA
 * convergence: level we try to converge to.
 
 
@@ -211,22 +211,26 @@ Basis {
 ```cpp
 Correlations {
   io_file;        //[b] default = true (or [t]; see below)
-  stride;         //[i] default = 4
   n_min_core;     //[i] default = 1
   energyShifts;   //[b] default = false
   Brueckner;      //[b] default = false
   lambda_k;       //[r,r...] (list) default is blank.
   fitTo_cm;       //[r,r...] (list) default is blank.
+  // Following are "sub-grid" options:
+  stride;         //[i] default chosen so there's ~150 pts in region [e-4,30]
+  rmin;           //[i] 1.0e-4
+  rmax;           //[i] 30.0
 }
 ```
 * Includes correlation corrections. note: splines must exist already
 * io_file: Read/write from/to file. Set to 'false' to calculate from scratch (and not write to file), true to read/write from/to default filename. Alternatively, put any text here to be a custom filename (e.g., io_file="new"; will read/write from/to new.Sigma -- useful for tests). Grids must match exactly when reading in from a file.
   * If reading Sigma in from file, basis doesn't need to exist
-* stride: Only calculates Sigma every nth point (Sigma is NxN matrix, so stride=4 leads to ~16x speed-up vs 1)
 * n_min_core: minimum core n included in the Sigma calculation; lowest states often contribute little, so this speeds up the calculations
 * energyShifts: If true, will calculate the second-order energy shifts (from scratch, according to MBPT) - compares to <v|Sigma|v> if it exists
   * Note: Uses basis. If reading Sigma from disk, and no basis given, energy shifts will all be 0.0
 * Brueckner: Construct Brueckner valence orbitals using correlation potential method (i.e., include correlations into wavefunctions and energies for valence states)
+* stride: Only calculates Sigma every nth point (Sigma is NxN matrix, so stride=4 leads to ~16x speed-up vs 1)
+* rmin/rmax: min/max points along radial Grid Sigma is calculated+stored.
 * lambda_k: Rescale Sigma -> lambda*Sigma. One lambda for each kappa. If not given, assumed to be 1.
   * Note: Lambda's are not written/read to file, so these must be given (if required) even when reading Sigma from disk
 * fitTo_cm: Provide list of energies (lowest valence states for each kappa); Sigma for each kappa will be automatically re-scaled to exactly reproduce these. Give as binding energies in inverse cm! It will print the lambda_k's that it calculated

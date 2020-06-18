@@ -3,9 +3,6 @@
 #include <type_traits>
 namespace MBPT {
 
-// enum class Gtype { Real, Complex };
-// enum class Gincl { Fonly, FandG };
-
 //******************************************************************************
 //! Holds Green's fn operator of form: |ket><bra| [4x4 matrix of NxN matrix]
 template <typename T> class GreenMatrix {
@@ -255,8 +252,12 @@ public:
     }
     return gmat;
   }
-}; // namespace MBPT
+};
 
 //******************************************************************************
+
+using GMatrix = GreenMatrix<LinAlg::SqMatrix>;
+using ComplexGMatrix = GreenMatrix<LinAlg::ComplexSqMatrix>;
+using ComplexDouble = LinAlg::ComplexDouble;
 
 } // namespace MBPT

@@ -2,7 +2,6 @@
 #include "Angular/Angular_tables.hpp"
 #include "Coulomb/Coulomb.hpp"
 #include "Coulomb/YkTable.hpp"
-#include "DiracODE/DiracODE.hpp"
 #include "HF/HartreeFock.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
 #include "IO/SafeProfiler.hpp"
@@ -10,10 +9,7 @@
 #include "Maths/Grid.hpp"
 #include "Maths/Interpolator.hpp"
 #include "Maths/LinAlg_MatrixVector.hpp"
-#include "Maths/NumCalc_quadIntegrate.hpp"
-#include "Physics/AtomData.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
-#include "Wavefunction/Wavefunction.hpp"
 #include <algorithm>
 #include <cmath>
 #include <fstream>
@@ -172,8 +168,7 @@ void CorrelationPotential::form_Sigma(const std::vector<double> &en_list,
     if (tj > m_yeh.Ck().max_tj())
       continue;
 
-    printf("k=%2i %6s at en=%8.5f.. ", kappa,
-           AtomData::kappa_symbol(kappa).c_str(), en_list[ki]);
+    printf("k=%2i at en=%8.5f.. ", kappa, en_list[ki]);
     std::cout << std::flush;
     this->fill_Sigma_k(&m_Sigma_kappa[ki], kappa, en_list[ki]);
 

@@ -133,8 +133,13 @@ public:
   //! @brief Extends existing look-up table to new maximum K and twoj.
   void fill(int in_max_k, int in_max_twoj);
 
-  //! @brief Thread-safe, but will seg-fault if 6j doesn't exist
+  //! @brief Thread-safe, but will seg-fault if 6j doesn't exist XXX CHANGE
+  //! ORDER ?? XXX
   double get_6j(int tja, int tjb, int tjc, int tjd, int k, int l) const;
+
+  double operator()(int tja, int tjb, int tjc, int tjd, int k, int l) const {
+    return get_6j(tja, tjb, tjc, tjd, k, l);
+  }
 
   //! @brief Will calculate + store 6j if it doesn't exist, but not thread-safe
   double get_6j_mutable(int tja, int tjb, int tjc, int tjd, int k, int l);

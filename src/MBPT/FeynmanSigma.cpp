@@ -1,6 +1,17 @@
-#include "FeynmanSigma.hpp"
+#include "MBPT/FeynmanSigma.hpp"
+#include "Angular/Angular_tables.hpp"
+#include "Coulomb/Coulomb.hpp"
+#include "Coulomb/YkTable.hpp"
 #include "DiracODE/DiracODE.hpp"
+#include "HF/HartreeFock.hpp"
+#include "IO/FRW_fileReadWrite.hpp"
+#include "IO/SafeProfiler.hpp"
 #include "MBPT/CorrelationPotential.hpp"
+#include "MBPT/GreenMatrix.hpp"
+#include "Maths/Grid.hpp"
+#include "Maths/LinAlg_MatrixVector.hpp"
+#include <algorithm>
+#include <numeric>
 
 //! Many-body perturbation theory
 namespace MBPT {
@@ -396,7 +407,7 @@ void FeynmanSigma::prep_Feynman() {
   std::cout << "Re(w) = " << m_omre << "\n";
   {
     const auto w0 = 0.01;
-    const auto wmax = 30.0;
+    const auto wmax = 75.0;
     const double wratio = 2.0;
     const std::size_t wsteps = Grid::calc_num_points_from_du(
         w0, wmax, std::log(wratio), GridType::logarithmic);
@@ -486,11 +497,14 @@ GMatrix FeynmanSigma::FeynmanDirect(int kv, double env) {
     gBetas.push_back(Green_hf(kB, env + omre));
   }
 
-  for (int ia = 0; ia <= m_max_kappaindex_core; ++ia) {
-    const auto ka = Angular::kappaFromIndex(ia);
+  std::vector<GMatrix> Sigma_As(std::size_t(m_max_kappaindex + 1),
+                                {m_subgrid_points, m_include_G});
 #pragma omp parallel for
-    for (int ialpha = 0; ialpha <= m_max_kappaindex; ++ialpha) {
-      const auto kA = Angular::kappaFromIndex(ialpha);
+  for (int ialpha = 0; ialpha <= m_max_kappaindex; ++ialpha) {
+    const auto kA = Angular::kappaFromIndex(ialpha);
+    auto &Sigma_A = Sigma_As[std::size_t(ialpha)];
+    for (int ia = 0; ia <= m_max_kappaindex_core; ++ia) {
+      const auto ka = Angular::kappaFromIndex(ia);
 
       // nb: do w loop outside beta, since Pi depends only on a,A, and w
       for (auto iw = 0ul; iw < wgrid.num_points; iw++) { // for omega integral
@@ -507,13 +521,16 @@ GMatrix FeynmanSigma::FeynmanDirect(int kv, double env) {
 
           // sum over k:
           const auto gqpq = sumk_cGQPQ(kv, ka, kA, kB, g_beta, pi_aalpha);
-#pragma omp critical(sumSig)
-          { Sigma += (dw / M_PI) * gqpq; } // 2.0 for -ve w cancels with 2pi
+          Sigma_A += (dw / M_PI) * gqpq; // 2.0 for -ve w cancels with 2pi
 
         } // beta
       }   // w
     }     // alpha
   }       // a
+
+  for (const auto &sA : Sigma_As) {
+    Sigma += sA;
+  }
 
   // devide through by dri, drj [these included in q's, but want
   // differential operator for sigma] or.. include one of these in
@@ -541,6 +558,8 @@ GMatrix FeynmanSigma::FeynmanEx_1(int kv, double env) {
   // XXX Sort of works? Out by factor? Unstable?
 
   GMatrix Sx_e1(m_subgrid_points, m_include_G);
+  std::vector<GMatrix> Sx_e1s(std::size_t(m_max_kappaindex + 1),
+                              {m_subgrid_points, m_include_G});
 
   // // Set up imaginary frequency grid:
   const double omre = m_omre; // does seem to depend on this..
@@ -554,15 +573,17 @@ GMatrix FeynmanSigma::FeynmanEx_1(int kv, double env) {
   }
 
   const auto &core = p_hf->get_core();
-  for (auto ia = 0ul; ia < core.size(); ++ia) {
-    const auto &Fa = core[ia];
-    if (Fa.n < m_min_core_n)
-      continue;
-    const auto ka = Fa.k;
 
 #pragma omp parallel for
-    for (int ibeta = 0; ibeta <= m_max_kappaindex; ++ibeta) {
-      const auto kB = Angular::kappaFromIndex(ibeta);
+  for (int ibeta = 0; ibeta <= m_max_kappaindex; ++ibeta) {
+    const auto kB = Angular::kappaFromIndex(ibeta);
+    auto &Sx_e1B = Sx_e1s[std::size_t(ibeta)];
+
+    for (auto ia = 0ul; ia < core.size(); ++ia) {
+      const auto &Fa = core[ia];
+      if (Fa.n < m_min_core_n)
+        continue;
+      const auto ka = Fa.k;
 
       for (auto iw = 0ul; iw < wgrid.num_points; iw++) {
         const auto omim = wgrid.r[iw];
@@ -580,16 +601,17 @@ GMatrix FeynmanSigma::FeynmanEx_1(int kv, double env) {
 
           const auto gqpg = sumkl_GQPGQ(gA, gxBm, gxBp, pa, kv, kA, kB, ka);
 
-#pragma omp critical(sumSigX)
-          {
-            const auto fudge_factor = 1.0 / (2 * M_PI); //???
-            Sx_e1 += (fudge_factor * dw1 / M_PI) * gqpg;
-          }
+          const auto fudge_factor = 1.0 / (2 * M_PI); //???
+          Sx_e1B += (fudge_factor * dw1 / M_PI) * gqpg;
 
         } // alpha
       }   // w
     }     // beta
   }       // a
+
+  for (const auto &sB : Sx_e1s) {
+    Sx_e1 += sB;
+  }
 
   // devide through by dri, drj [these included in q's, but want
   // differential operator for sigma] or.. include one of these in
@@ -655,6 +677,7 @@ void FeynmanSigma::tensor_5_product(
 
   for (auto r1 = 0ul; r1 < size; ++r1) {
     for (auto r2 = 0ul; r2 < size; ++r2) {
+
       for (auto j = 0ul; j < size; ++j) {
         // early a*c mult
         ac[j] = ComplexDouble(a.ff[r1][j]) * c.ff[j][r2];
@@ -668,8 +691,9 @@ void FeynmanSigma::tensor_5_product(
         sum_ij += sum_j * d.ff[r1][i] * e.ff[i][r2];
       }
       result->ff[r1][r2] += (factor * sum_ij).cre();
-    }
-  }
+
+    } // r2
+  }   // r1
 }
 
 //******************************************************************************
@@ -683,15 +707,11 @@ GMatrix FeynmanSigma::sumkl_GQPGQ(const ComplexGMatrix &gA,
 
   auto sum_GQPG = GMatrix(m_subgrid_points, m_include_G);
 
-  const auto [kmin1, kmax1] = Angular::kminmax_Ck(kv, kA); // Ck_vA
-  const auto [kmin2, kmax2] = Angular::kminmax_Ck(ka, kB); // Ck_aB
-  const auto kmin = std::max(kmin1, kmin2);
-  const auto kmax = std::min(kmax1, kmax2);
+  const auto &Ck = m_yeh.Ck();
 
-  const auto [lmin1, lmax1] = Angular::kminmax_Ck(kv, kB); // Ck_vB
-  const auto [lmin2, lmax2] = Angular::kminmax_Ck(ka, kA); // Ck_aA
-  const auto lmin = std::max(lmin1, lmin2);
-  const auto lmax = std::min(lmax1, lmax2);
+  const auto kmin = 0;
+  const int k_cut = 6; // XXX TEMP!
+  const auto kmax = std::min(m_maxk, k_cut);
 
   const auto tjv = Angular::twoj_k(kv);
   const auto tjA = Angular::twoj_k(kA);
@@ -700,32 +720,28 @@ GMatrix FeynmanSigma::sumkl_GQPGQ(const ComplexGMatrix &gA,
   const auto tjvp1 = tjv + 1; //[jv]
 
   for (auto k = kmin; k <= kmax; ++k) {
-    const auto CkvA = Angular::Ck_kk(k, kv, kA);
+    const auto CkvA = Ck(k, kv, kA);
     if (CkvA == 0.0)
       continue;
-    const auto CkaB = Angular::Ck_kk(k, ka, kB);
+    const auto CkaB = Ck(k, ka, kB);
     if (CkaB == 0.0)
       continue;
     const auto ck1 = CkvA * CkaB;
     // nb: differ only by (at most) sign
-    const auto ck2 = CkvA * Angular::Ck_kk(k, kB, ka);
+    const auto ck2 = CkvA * Ck(k, kB, ka);
 
     const auto &qk = m_qhat[std::size_t(k)]; // XXX this one
 
-    for (auto l = lmin; l <= lmax; ++l) {
-      const auto cl1 = Angular::Ck_kk(l, kv, kB) * Angular::Ck_kk(l, ka, kA);
-      const auto cl2 = Angular::Ck_kk(l, kv, ka) * Angular::Ck_kk(l, kB, kA);
-      if (Angular::zeroQ(cl1) && Angular::zeroQ(cl2))
+    for (auto l = kmin; l <= kmax; ++l) {
+      const auto cl1 = Ck(l, kv, kB) * Ck(l, ka, kA);
+      const auto cl2 = Ck(l, kv, ka) * Ck(l, kB, kA);
+      if (cl1 == 0.0 && cl2 == 0.0)
         continue;
 
-      const auto sj1 =
-          cl1 == 0.0 ? 0.0 : Angular::sixj_2(tjv, tjA, 2 * k, tja, tjB, 2 * l);
+      const auto sj1 = cl1 == 0.0 ? 0.0 : m_6j(tjv, tjA, tja, tjB, k, l);
       const auto sj2 =
-          cl2 == 0.0
-              ? 0.0
-              : tja == tjB ? sj1
-                           : Angular::sixj_2(tjv, tjA, 2 * k, tjB, tja, 2 * l);
-      if (Angular::zeroQ(sj1) && Angular::zeroQ(sj2))
+          cl2 == 0.0 ? 0.0 : tja == tjB ? sj1 : m_6j(tjv, tjA, tjB, tja, k, l);
+      if (sj1 == 0.0 && sj2 == 0.0)
         continue;
 
       const auto &ql = m_qhat[std::size_t(l)];
@@ -736,9 +752,9 @@ GMatrix FeynmanSigma::sumkl_GQPGQ(const ComplexGMatrix &gA,
       const auto ic1 = ComplexDouble(0.0, cang1);
       const auto ic2 = ComplexDouble(0.0, cang2);
 
-      if (cang1 != 0.0)
+      if (sj1 != 0.0)
         tensor_5_product(&sum_GQPG, ic1, qk, pa, gxBm, gA, ql);
-      if (cang2 != 0.0)
+      if (sj2 != 0.0)
         tensor_5_product(&sum_GQPG, ic2, qk, gxBp, pa, gA, ql);
 
     } // l

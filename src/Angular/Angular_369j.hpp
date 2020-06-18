@@ -378,6 +378,9 @@ inline std::pair<int, int> kminmax_Ck(int ka, int kb) {
   const auto aka = std::abs(ka);
   const auto akb = std::abs(kb);
   return {std::abs(aka - akb), aka + akb - 1};
+
+  // return std::make_pair(std::abs(a.twoj() - b.twoj()) / 2,
+  //                       (a.twoj() + b.twoj()) / 2);
 }
 //******************************************************************************
 inline double Ck_2j2j(int k, int two_ja, int two_jb)

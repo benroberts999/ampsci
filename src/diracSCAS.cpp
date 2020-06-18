@@ -22,7 +22,7 @@ int main(int argc, char *argv[]) {
   // Get + setup atom parameters
   auto input_ok = input.check("Atom", {"Z", "A", "varAlpha2"});
   const auto atom_Z = input.get<std::string>("Atom", "Z");
-  auto atom_A = input.get("Atom", "A", -1);
+  const auto atom_A = input.get("Atom", "A", -1);
   const auto var_alpha = [&]() {
     const auto varAlpha2 = input.get("Atom", "varAlpha2", 1.0);
     return (varAlpha2 > 0) ? std::sqrt(varAlpha2) : 1.0e-25;
@@ -44,10 +44,7 @@ int main(int argc, char *argv[]) {
           : input.get<std::string>("Grid", "type", "loglinear");
 
   // Get + setup nuclear parameters
-  input_ok =
-      input_ok && input.check("Nucleus", {"A", "rrms", "skin_t", "type"});
-  // nb: Nucleus/A over-writes Atom/A
-  atom_A = input.get("Nucleus", "A", atom_A);
+  input_ok = input_ok && input.check("Nucleus", {"rrms", "skin_t", "type"});
   const auto nuc_type = input.get<std::string>("Nucleus", "type", "Fermi");
   // {rrms, skint} < 0 means get default (depends on A)
   const auto rrms = input.get("Nucleus", "rrms", -1.0);
@@ -64,9 +61,8 @@ int main(int argc, char *argv[]) {
 
   // Parse input for HF method
   input_ok =
-      input_ok && input.check("HartreeFock",
-                              {"core", "valence", "convergence", "method",
-                               "Breit", "orthonormaliseValence", "sortOutput"});
+      input_ok && input.check("HartreeFock", {"core", "valence", "convergence",
+                                              "method", "Breit", "sortOutput"});
   if (!input_ok)
     return 1;
   const auto str_core = input.get<std::string>("HartreeFock", "core", "[]");
@@ -163,8 +159,6 @@ int main(int argc, char *argv[]) {
     // 'if' is only for output format, nothing bad happens if below are called
     IO::ChronoTimer t("  val");
     wf.hartreeFockValence(valence_list);
-    if (input.get("HartreeFock", "orthonormaliseValence", false))
-      wf.orthonormaliseOrbitals(wf.valence, 2);
   }
 
   // Output Hartree Fock energies:
@@ -192,6 +186,7 @@ int main(int argc, char *argv[]) {
        "basis_for_Green", "basis_for_pol", "real_omega"});
   const bool do_energyShifts = input.get("Correlations", "energyShifts", false);
   const bool do_brueckner = input.get("Correlations", "Brueckner", false);
+  const auto n_min_core = input.get("Correlations", "n_min_core", 1);
   const auto sigma_rmin = input.get("Correlations", "rmin", 1.0e-4);
   const auto sigma_rmax = input.get("Correlations", "rmax", 30.0);
   const auto default_stride = [&]() {
@@ -201,6 +196,7 @@ int main(int argc, char *argv[]) {
     return (stride <= 2) ? 2 : stride;
   }();
   const auto sigma_stride = input.get("Correlations", "stride", default_stride);
+  // Feynman method:
   const auto sigma_Feynman = input.get("Correlations", "Feynman", false);
   const auto sigma_Screening = input.get("Correlations", "Screening", false);
   const auto sigma_lmax = input.get("Correlations", "lmax", 6);
@@ -209,6 +205,10 @@ int main(int argc, char *argv[]) {
   // force sigma_omre to be always -ve
   const auto sigma_omre = -std::abs(
       input.get("Correlations", "real_omega", -0.33 * wf.energy_gap()));
+  if (sigma_Feynman) {
+    std::cout << "Warning: Feynman method in development, not working yet\n";
+  }
+
   const auto sigma_io = input.get("Correlations", "io_file", true);
   auto sigma_file =
       input.get<std::string>("Correlations", "io_file", wf.identity());
@@ -216,7 +216,7 @@ int main(int argc, char *argv[]) {
     sigma_file = wf.identity();
   else if (!sigma_io)
     sigma_file = "";
-  const auto n_min_core = input.get("Correlations", "n_min_core", 1);
+
   auto fit_energies =
       input.get_list("Correlations", "fitTo_cm", std::vector<double>{});
   // energies given in cm^-1, convert to au:
