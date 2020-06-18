@@ -181,13 +181,21 @@ void Wavefunction::hartreeFockValence(const std::string &in_valence_str,
   auto val_lst = AtomData::listOfStates_nk(in_valence_str);
   for (const auto &[n, k, en] : val_lst) {
     if (!isInCore(n, k) && !isInValence(n, k)) {
-      // valence.emplace_back(DiracSpinor{nk.n, nk.k, rgrid});
       solveNewValence(n, k, 0, 5);
     }
   }
   m_pHF->solveValence(&valence, print);
 }
 
+//******************************************************************************
+void Wavefunction::localValence(const std::string &in_valence_str) {
+
+  // Use for Kohn-Sham.
+  auto val_lst = AtomData::listOfStates_singlen(in_valence_str);
+  for (const auto &[n, k, en] : val_lst) {
+    solveNewValence(n, k, 0, 17);
+  }
+}
 //******************************************************************************
 void Wavefunction::radiativePotential(double x_simple, double x_Ueh,
                                       double x_SEe_h, double x_SEe_l,
@@ -502,12 +510,14 @@ double Wavefunction::enGuessCore(int n, int l) const
 double Wavefunction::enGuessVal(int n, int ka) const
 // Energy guess for valence states. Not perfect, good enough
 {
-  int maxn = maxCore_n();
-  int l = AtomData::l_k(ka);
-  int dn = n - maxn;
+  const int maxn = maxCore_n();
+  const int l = AtomData::l_k(ka);
+  const int dn = n - maxn;
   double neff = 1.0 + dn;
   double x = 1;
-  auto Z_eff = m_nuclear.z - num_core_electrons;
+  double Z_eff = m_nuclear.z - num_core_electrons;
+  if (Z_eff <= 0)
+    Z_eff = 0.5;
   if (maxn < 4)
     x = 0.25;
   if (l == 1)

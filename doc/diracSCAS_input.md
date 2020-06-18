@@ -83,7 +83,10 @@ HartreeFock {
   * e.g., "7sp5df" will do s and p states up to n=7, and d and f up to n=5
 * sortOutput: true or false. Sort output by energy.
 * method: which method to use. can be:
-  * HartreeFock(default), ApproxHF, Hartree
+  * HartreeFock(default), ApproxHF, Hartree, KohnSham
+    * Note: for KohnSham: Should be V^N - i.e., include lowest valence state into core.
+    * e.g., for Cs: core=[Xe],6s1; Then list each valence state in valence:
+    * e.g., to solve valence 6s, 7s, and 6p, write valence="6s7s6p";
 * Breit: Include Breit into HF with given scale (0 means don't include)
   * Note: Will go into spline basis, and RPA equations automatically
   * Currently, not included into rhs (dV) for RPA

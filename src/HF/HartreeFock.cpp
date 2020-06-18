@@ -30,6 +30,8 @@ Method parseMethod(const std::string &in_method) {
     return Method::ApproxHF;
   if (in_method == "Hartree")
     return Method::Hartree;
+  if (in_method == "KohnSham")
+    return Method::KohnSham;
   std::cout << "Warning: HF Method: " << in_method << " ?? Defaulting to HF\n";
   return Method::HartreeFock;
 }
@@ -79,14 +81,17 @@ const std::vector<double> &HartreeFock::solveCore() {
     hf_core_approx(m_eps_HF);
     break;
   case Method::Hartree:
-    hf_core_approx(m_eps_HF);
+    hf_core_approx(0.1 * m_eps_HF);
+    break;
+  case Method::KohnSham:
+    KohnSham_core(0.1 * m_eps_HF); // XXX
     break;
   default:
     m_Yab.update_y_ints(); // needed?
   }
 
   // Frozen core Breit:
-  // Once core HF done, core "Fronen", Breit operator created
+  // Once core HF done, core "Frozen", Breit operator created
   // (Temporary VBr used in HF routine)
   if (m_include_Breit)
     m_VBr = std::make_unique<HF::Breit>(*p_core, m_x_Breit);
@@ -211,6 +216,123 @@ void HartreeFock::hf_core_approx(const double eps_target_HF) {
   }
   if (m_explicitOrthog_cc)
     Wavefunction::orthonormaliseOrbitals((*p_core), 2);
+}
+
+//******************************************************************************
+void HartreeFock::KohnSham_core(const double eps_target_HF) {
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
+  if (p_core->empty()) {
+    return;
+  }
+
+  auto damper = rampedDamp(0.85, 0.5, 3, 25);
+  // don't include all pts in PT for new e guess:
+  static const std::size_t de_stride = 5;
+
+  // initialise 'old' potentials
+  auto vdir_old = m_vdir;
+
+  // Start the HF itterative procedure:
+  int hits = 1;
+  double t_eps = 1.0;
+  // auto t_eps_prev = 1.0;
+  for (; hits < m_max_hf_its; hits++) {
+    auto eta = damper(hits);
+
+    // Store old vdir/vex
+    vdir_old = m_vdir;
+
+    // Form new v_dir and v_ex:
+    m_Yab.update_y_ints();
+    form_vdir(m_vdir, false);
+    KohnSham_addition(m_vdir);
+
+    for (std::size_t j = 0; j < p_rgrid->num_points; j++) {
+      m_vdir[j] = (1.0 - eta) * m_vdir[j] + eta * vdir_old[j];
+    }
+
+    const auto v_local = NumCalc::add_vectors(*p_vnuc, m_vdir);
+
+    // Solve Dirac Eq. for each state in core, using Vdir+Vex:
+    t_eps = 0;
+    for (std::size_t i = 0; i < p_core->size(); i++) {
+      auto &Fa = (*p_core)[i];
+      double en_old = Fa.en;
+      // calculate de from PT
+      double dEa = 0;
+      for (std::size_t j = 0; j < Fa.pinf; j += de_stride) {
+        double dv = (m_vdir[j] - vdir_old[j]);
+        dEa += dv * Fa.f[j] * Fa.f[j] * p_rgrid->drdu[j];
+      }
+      dEa *= p_rgrid->du * de_stride;
+      double en_guess = (en_old < -dEa) ? en_old + dEa : en_old;
+      const auto &vrad_el = get_Hrad_el(Fa.l());
+      const auto &vrad_mag = get_Hrad_mag(Fa.l());
+      const auto v = NumCalc::add_vectors(v_local, vrad_el);
+      DiracODE::boundState(Fa, en_guess, v, vrad_mag, m_alpha, 7);
+      double state_eps = fabs((Fa.en - en_old) / en_old);
+      // convergance based on worst orbital:
+      t_eps = (state_eps > t_eps) ? state_eps : t_eps;
+
+    } // core states
+
+    auto converged = (t_eps < eps_target_HF);
+    if (converged)
+      break;
+  } // hits
+  if (verbose) {
+    printf("KS core      it:%3i eps=%6.1e\n", hits, t_eps);
+  }
+
+  // Now, re-solve core orbitals with higher precission
+  for (std::size_t i = 0; i < p_core->size(); i++) {
+    auto &Fa = (*p_core)[i];
+    const auto &vrad_el = get_Hrad_el(Fa.l());
+    const auto &vrad_mag = get_Hrad_mag(Fa.l());
+    const auto v = NumCalc::add_vectors(*p_vnuc, m_vdir, vrad_el);
+    DiracODE::boundState(Fa, Fa.en, v, vrad_mag, m_alpha, 15);
+  }
+}
+//******************************************************************************
+void HartreeFock::KohnSham_addition(std::vector<double> &vdir) const {
+
+  //
+  constexpr auto f =
+      -(2.0 / 3.0) * std::pow(81.0 / (32.0 * M_PI * M_PI), 1.0 / 3.0);
+
+  std::vector<double> rho(p_rgrid->num_points);
+  for (const auto &Fc : *p_core) {
+    rho = NumCalc::add_vectors(rho, Fc.rho());
+  }
+
+  for (std::size_t i = 0; i < p_rgrid->num_points; ++i) {
+    const auto r = p_rgrid->r[i];
+    vdir[i] += (f / r) * std::pow(r * rho[i], 1.0 / 3.0);
+  }
+
+  const auto z =
+      -(*p_vnuc)[p_rgrid->num_points / 2] * p_rgrid->r[p_rgrid->num_points / 2];
+  const auto zion = z - double(num_core_electrons()) + 1.0;
+
+  // Latter correction:
+
+  // find first place (vn+vdir) > 1/r
+  //(At very low r, doesn't hold, because of FNS)
+  const auto istart = [&]() {
+    for (std::size_t i = 0; i < p_rgrid->num_points; ++i) {
+      if (std::abs((*p_vnuc)[i] + vdir[i]) * p_rgrid->r[i] > zion)
+        return i;
+    }
+    return p_rgrid->num_points;
+  }();
+  // After FNS effects, whenever Vtot = |Vnuc+Vdir| < 1/r, enforce 1/r
+  for (std::size_t i = istart; i < p_rgrid->num_points; ++i) {
+    const auto vn = (*p_vnuc)[i];
+    const auto r = p_rgrid->r[i];
+    if (r * std::abs(vn + vdir[i]) < zion) {
+      vdir[i] = -zion / r - vn;
+    }
+  }
 }
 
 //******************************************************************************

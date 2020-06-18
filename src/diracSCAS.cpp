@@ -71,6 +71,15 @@ int main(int argc, char *argv[]) {
       input.get<std::string>("HartreeFock", "method", "HartreeFock");
   if (HF_method == "Hartree")
     std::cout << "Using Hartree Method (no Exchange)\n";
+  else if (HF_method == "ApproxHF")
+    std::cout << "Using approximate HF Method (approx Exchange)\n";
+  else if (HF_method == "KohnSham") {
+    std::cout << "Using Kohn-Sham Method.\n"
+              << "Note: You should include first valence state into the core:\n"
+                 "Kohn-Sham is NOT a V^N-1 method!\n";
+  } else if (HF_method != "HartreeFock") {
+    std::cout << "What is: " << HF_method << "? Defaulting to HF method.\n";
+  }
 
   const auto x_Breit = input.get("HartreeFock", "Breit", 0.0);
   // Can only include Breit within HF
@@ -152,13 +161,19 @@ int main(int argc, char *argv[]) {
 
   // Solve for the valence states:
   const auto valence_list =
-      (wf.Ncore() < wf.Znuc())
+      (wf.Ncore() < wf.Znuc() || HF_method == "KohnSham")
           ? input.get<std::string>("HartreeFock", "valence", "")
           : "";
   if (valence_list != "") {
     // 'if' is only for output format, nothing bad happens if below are called
     IO::ChronoTimer t("  val");
-    wf.hartreeFockValence(valence_list);
+    if (HF_method == "KohnSham") {
+      // Need different energy Guess for Kohn-sham!
+      // Also: different way of reading valence list (since core cross-over!)
+      wf.localValence(valence_list);
+    } else {
+      wf.hartreeFockValence(valence_list);
+    }
   }
 
   // Output Hartree Fock energies:

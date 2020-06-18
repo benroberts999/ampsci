@@ -29,7 +29,7 @@ struct EpsIts {
 };
 
 //******************************************************************************
-enum class Method { HartreeFock, ApproxHF, Hartree };
+enum class Method { HartreeFock, ApproxHF, Hartree, KohnSham };
 //! @brief Convers string (name) of method (HartreeFock, Hartree etc.) to enum
 Method parseMethod(const std::string &in_method);
 
@@ -163,6 +163,8 @@ private:
 
 private:
   void hf_core_approx(const double eps_target_HF);
+  void KohnSham_core(const double eps_target_HF); // KohnSham
+  void KohnSham_addition(std::vector<double> &m_vdir) const;
   void hf_core_refine();
 
   EpsIts hf_valence_approx(DiracSpinor &phi, double eps_target);

@@ -188,6 +188,8 @@ public: // const methods: "views" into WF object
   //! Performs hartree-Fock procedure for valence: note: poplulates valnece
   void hartreeFockValence(const std::string &in_valence_str,
                           const bool print = true);
+  //! Solves new local valence (e.g., Kohn-Sham): note: poplulates valence
+  void localValence(const std::string &in_valence_str);
   //! Forms Bruckner valence orbitals: (H_hf + Sigma)|nk> = e|nk>.
   void hartreeFockBrueckner(const bool print = true);
   //! First, fits Sigma to energies, then forms fitted Brueckner orbitals
