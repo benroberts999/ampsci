@@ -919,7 +919,7 @@ int main(int argc, char *argv[]) {
     IO::FRW::setInputParameters(input_file, tp);
     label = label == "na" ? akfn : akfn + "-" + label;
     // what to write to file:
-    write_dsvde = iwr_dsvde == 1 ? true : false;
+    write_dsvde = iwr_dsvde == 1;
     write_SofM = iSM == 0 ? false : true;
     write_dSdE = iSM == 1 ? false : true;
     // What to calclate:

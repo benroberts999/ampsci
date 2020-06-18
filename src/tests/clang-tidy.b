@@ -8,7 +8,7 @@ for file in $(find src -name '*.cpp' -or -name '*.hpp'); do
     echo "Compiling file: "$file
     echo ""
     echo "with GNU..."
-    g++ -std=c++17 -c -Wno-unknown-pragmas -Wpedantic -Wall -Wextra -Wdouble-promotion -Wconversion -Wlogical-op $file -o build/junk_abcde123_gnu.o -I./src/
+    g++ -std=c++17 -c -Wno-unknown-pragmas -Wpedantic -Wall -Wextra -Wdouble-promotion -Wconversion $file -o build/junk_abcde123_gnu.o -I./src/
     if test -f "junk_abcde123_gnu.o"; then
       echo "done"
     fi
@@ -24,7 +24,9 @@ for file in $(find src -name '*.cpp' -or -name '*.hpp'); do
   #
     echo ""
     echo "clang tidy:"
-    clang-tidy $file -extra-arg=-std=c++17 -checks=clang-analyzer-*,openmp-*,performance-* -- -I./src/
+    PathForGSL=/usr/local/opt/gnu-scientific-library
+    clang-tidy $file -extra-arg=-std=c++17 -checks=clang-analyzer-*,openmp-*,performance-*,portability-*,clang-analyzer-* -- -I./src/ -I$PathForGSL/include/
+# modernize-*, cppcoreguidelines-*,readability-*,llvm-*,
     echo "done"
   #
     echo ""

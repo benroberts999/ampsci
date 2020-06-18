@@ -21,7 +21,7 @@ $(info )
 
 #Warnings:
 WARN=-Wall -Wpedantic -Wextra -Wdouble-promotion -Wconversion -Wshadow \
--Weffc++ -Wsign-conversion -Wuseless-cast
+-Weffc++ -Wsign-conversion
 # -Wfloat-equal
 
 # Changes to warning based on compiler:
@@ -32,16 +32,21 @@ else
   ifeq ($(findstring g++,$(CXX)),g++)
     WARN += -Wsuggest-override -Wnon-virtual-dtor -Wcast-align \
 		-Woverloaded-virtual -Wduplicated-cond -Wduplicated-branches \
-		-Wnull-dereference
-#-Wsuggest-final-methods  -Wsuggest-final-types
+		-Wnull-dereference -Wuseless-cast
   endif
 endif
 
 # Changes to optimisation based on build setting:
 OPT=-O3
+ifeq ($(detected_OS),Darwin)
+ifeq ($(findstring clang++,$(CXX)),clang++)
+  $(info Sorry. clang++ on mac seems to require -01 to compile?)
+  OPT=-O1
+endif
+endif
 ifeq ($(Build),release)
   WARN=-w
-  OPT=-O3 -g0 -DNDEBUG -fno-exceptions -fno-rtti -DHAVE_INLINE -DGSL_RANGE_CHECK_OFF
+  OPT+=-g0 -DNDEBUG -fno-exceptions -fno-rtti -DHAVE_INLINE -DGSL_RANGE_CHECK_OFF
 endif
 # -DHAVE_INLINE -DGSL_RANGE_CHECK_OFF are from GSL
 ifeq ($(Build),debug)

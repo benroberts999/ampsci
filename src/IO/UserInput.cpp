@@ -10,18 +10,20 @@
 
 namespace IO {
 
+// Macro: takes pre-processor macro that may be defined via compile argument
+// GITVERSION is the macro, set to the git short hash; specifies the git version
 #define xstr(s) str(s)
 #define str(s) #s
 #ifdef GITVERSION
-const char *git_version = xstr(GITVERSION);
+static const char *git_version = xstr(GITVERSION);
 #else
-const char *git_version = "0";
+static const char *git_version = "0";
 #endif
 
 //******************************************************************************
 void UserInputBlock::print() const {
   const bool small_block = m_input_options.size() < 4;
-  const bool empty = m_input_options.size() == 0;
+  const bool empty = m_input_options.empty();
   std::cout << m_block_name << " {";
   if (!empty && small_block)
     std::cout << " ";
@@ -47,11 +49,11 @@ bool UserInputBlock::checkBlock(const std::vector<std::string> &list) const {
   bool all_ok = true;
   for (const auto &entry : m_input_options) {
     // c==20, use stringview here
-    auto pos = entry.find('=');
-    auto option = pos < entry.length() ? entry.substr(0, pos) : entry;
+    const auto pos = entry.find('=');
+    const auto option = pos < entry.length() ? entry.substr(0, pos) : entry;
     // For each option in
-    auto isoption = [&](std::string a) { return option == a; };
-    auto bad_option = !std::any_of(list.begin(), list.end(), isoption);
+    const auto isoption = [&](const auto &a) { return option == a; };
+    const auto bad_option = !std::any_of(list.begin(), list.end(), isoption);
     auto help = (option == "Help" || option == "help") ? true : false;
     if (bad_option && !help) {
       all_ok = false;
@@ -77,9 +79,9 @@ UserInputBlock::find_option(const std::string &in_option) const {
   auto output = std::stringstream("InputNotFound");
   bool already_found = false; // allows for warning if input given twice
   for (const auto &option : m_input_options) {
-    auto pos = option.find(in_option + "=");
+    const auto pos = option.find(in_option + "=");
     if (pos == 0) {
-      auto len = in_option.length() + 1;
+      const auto len = in_option.length() + 1;
       output = std::stringstream(option.substr(pos + len));
       if (already_found)
         std::cerr << "Warning: duplicate input for " << m_block_name << "/"
@@ -97,8 +99,8 @@ UserInputBlock::find_option(const std::string &in_option) const {
 UserInput::UserInput(const std::string &infile) : m_filename(infile) {
   const auto inp = IO::FRW::splitInput_byBraces(IO::FRW::readInputFile(infile));
   for (const auto &item : inp) {
-    auto block_name = item.first;
-    auto option_vector = IO::FRW::splitInput_bySemiColon(item.second);
+    const auto block_name = item.first;
+    const auto option_vector = IO::FRW::splitInput_bySemiColon(item.second);
     m_blocks.emplace_back(block_name, option_vector);
   }
 }

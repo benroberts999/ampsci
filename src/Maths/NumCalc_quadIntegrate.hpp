@@ -1,5 +1,5 @@
 #pragma once
-#include "IO/safeProfiler.hpp"
+#include "IO/SafeProfiler.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_coeficients.hpp"
 #include <array>

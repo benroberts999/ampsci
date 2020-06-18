@@ -1,5 +1,5 @@
 #include "LinAlg_MatrixVector.hpp"
-#include "IO/safeProfiler.hpp"
+#include "IO/SafeProfiler.hpp"
 #include <algorithm>
 #include <array>
 #include <cmath>

@@ -52,15 +52,16 @@ void solveContinuum(DiracSpinor &phi, const double en,
                                 i_asym);
 
   // Find amplitude of large-r (asymptotic region) sine-like wf
-  double amp = findSineAmplitude(psic.f, ext_grid.r, num_pointsc, i_asym);
+  const double amp = findSineAmplitude(psic.f, ext_grid.r, num_pointsc, i_asym);
 
   // Calculate normalisation coeficient, D, and re-scaling factor:
   // D = Sqrt[alpha/(pi*eps)] <-- Amplitude of large-r p(r)
   // eps = Sqrt[en/(en+2mc^2)]
-  double al2 = std::pow(alpha, 2);
-  double ceps = std::sqrt(psic.en / (psic.en * al2 + 2.)); // c*eps = eps/alpha
-  double D = 1. / std::sqrt(M_PI * ceps);
-  double sf = D / amp; // re-scale factor
+  const double al2 = std::pow(alpha, 2);
+  const double ceps =
+      std::sqrt(psic.en / (psic.en * al2 + 2.)); // c*eps = eps/alpha
+  const double D = 1.0 / std::sqrt(M_PI * ceps);
+  const double sf = D / amp; // re-scale factor
 
   // Normalise the wfs, and transfer back to shorter arrays:
   for (std::size_t i = 0; i < num_pointsb; i++) {
@@ -76,7 +77,8 @@ double findSineAmplitude(std::vector<double> &pc, const std::vector<double> &rc,
 //  Find "maximum" amplitude, by using a quadratic fit to 2 nearest points
 //  Scale by ratio of this maximum to max of analytic soln
 {
-  int ntry = 0, maxtry = 5;
+  const int maxtry = 5;
+  int ntry = 0;
   double amp = 0;
   while (ntry < maxtry) {
     // find first zero after r_asym
@@ -106,12 +108,12 @@ double findSineAmplitude(std::vector<double> &pc, const std::vector<double> &rc,
     }
     i_asym++;
     ntry++;
-    double out1 = fitQuadratic(x1, x2, x3, y1, y2, y3);
-    double out2 = fitQuadratic(x0, x2, x4, y0, y2, y4);
+    const double out1 = fitQuadratic(x1, x2, x3, y1, y2, y3);
+    const double out2 = fitQuadratic(x0, x2, x4, y0, y2, y4);
     amp += 0.5 * (out1 + out2);
   }
 
-  return amp /= maxtry;
+  return (amp / maxtry);
 }
 
 //******************************************************************************

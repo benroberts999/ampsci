@@ -194,7 +194,7 @@ void Wavefunction::radiativePotential(double x_simple, double x_Ueh,
                                       double x_SEm, double rcut,
                                       double scale_rN,
                                       const std::vector<double> &x_spd) {
-  if (x_spd.size() == 0)
+  if (x_spd.empty())
     return;
 
   const auto r_rms_fm = scale_rN * m_nuclear.r_rms;

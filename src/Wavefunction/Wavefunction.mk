@@ -22,7 +22,7 @@ $(SD)/Wavefunction/BSplineBasis.hpp \
 $(SD)/HF/Breit.hpp \
 $(SD)/HF/HartreeFock.hpp \
 $(SD)/IO/UserInput.hpp \
-$(SD)/IO/safeProfiler.hpp \
+$(SD)/IO/SafeProfiler.hpp \
 $(SD)/Maths/BSplines.hpp \
 $(SD)/Maths/Grid.hpp \
 $(SD)/Maths/LinAlg_MatrixVector.hpp \

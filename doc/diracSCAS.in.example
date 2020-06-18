@@ -36,7 +36,6 @@ Grid {
 {
   number = 40;
   order = 7;
-  r0 = 1.0e-4;
   r0_eps = 1.0e-6;
   rmax = 30.0;
   print = false;

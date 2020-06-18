@@ -22,7 +22,7 @@ YkTable::YkTable(const Grid *const in_grid,
       m_b_orbs(in_b_orbs == nullptr ? in_a_orbs : in_b_orbs),
       m_grid(in_grid),
       m_aisb([&]() {
-        return (in_b_orbs == nullptr || in_a_orbs == in_b_orbs) ? true : false;
+        return (in_b_orbs == nullptr || in_a_orbs == in_b_orbs);
       }()) {
   if (!m_a_orbs->empty() && !m_b_orbs->empty())
     update_y_ints();
@@ -30,12 +30,14 @@ YkTable::YkTable(const Grid *const in_grid,
 
 //******************************************************************************
 int YkTable::max_tj() const {
-  if (m_a_orbs->size() == 0)
+  if (m_a_orbs->empty()) {
     return 0;
+  }
   const auto maxtj_a = std::max_element(m_a_orbs->cbegin(), m_a_orbs->cend(),
                                         DiracSpinor::comp_j);
-  if (m_aisb || m_b_orbs->size() == 0)
+  if (m_aisb || m_b_orbs->empty()) {
     return maxtj_a->twoj();
+  }
   const auto maxtj_b = std::max_element(m_b_orbs->cbegin(), m_b_orbs->cend(),
                                         DiracSpinor::comp_j);
   return std::max(maxtj_a->twoj(), maxtj_b->twoj());

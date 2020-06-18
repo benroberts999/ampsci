@@ -29,7 +29,7 @@ solveMixedState(const int k, const DiracSpinor &Fa, const double omega,
                 const double eps_target = 1.0e-9,
                 const MBPT::CorrelationPotential *const Sigma = nullptr,
                 const Breit *const VBr = nullptr,
-                const std::vector<double> H_mag = {});
+                const std::vector<double> &H_mag = {});
 //! @brief Solves Mixed States (Dalgarno-Lewis equation)
 /*! @details
 As above, but starts with existing solution dF (may be 'zero'). If existing
@@ -42,6 +42,6 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
                      const DiracSpinor &hFa, const double eps_target = 1.0e-9,
                      const MBPT::CorrelationPotential *const Sigma = nullptr,
                      const Breit *const VBr = nullptr,
-                     const std::vector<double> H_mag = {});
+                     const std::vector<double> &H_mag = {});
 
 } // namespace HF

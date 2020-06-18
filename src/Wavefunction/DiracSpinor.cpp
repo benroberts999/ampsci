@@ -116,9 +116,10 @@ std::pair<double, double> DiracSpinor::r0pinfratio() const {
 //******************************************************************************
 std::vector<double> DiracSpinor::rho() const {
   std::vector<double> psi2;
-  auto factor = twojp1() * occ_frac;
+  psi2.reserve(p_rgrid->num_points);
+  const auto factor = twojp1() * occ_frac;
   for (auto i = 0ul; i < p_rgrid->num_points; ++i) {
-    psi2.push_back(factor * (f[i] * f[i] + g[i] * g[i]));
+    psi2.emplace_back(factor * (f[i] * f[i] + g[i] * g[i]));
   }
   return psi2;
 }

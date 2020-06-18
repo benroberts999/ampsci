@@ -1,5 +1,5 @@
 #pragma once
-#include "IO/safeProfiler.hpp"
+#include "IO/SafeProfiler.hpp"
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_spline.h>
 #include <iostream>

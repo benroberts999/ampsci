@@ -87,7 +87,7 @@ void writeToTextFile(const std::string &fname,
 }
 
 //******************************************************************************
-int akReadWrite(std::string fname, bool write,
+int akReadWrite(const std::string &fname, bool write,
                 std::vector<std::vector<std::vector<float>>> &AK,
                 std::vector<std::string> &nklst, double &qmin, double &qmax,
                 double &dEmin, double &dEmax)
@@ -102,11 +102,10 @@ int akReadWrite(std::string fname, bool write,
   IO::FRW::RoW row = write ? IO::FRW::write : IO::FRW::read;
 
   std::fstream iof;
-  fname = fname + ".bin";
-  IO::FRW::open_binary(iof, fname, row);
+  IO::FRW::open_binary(iof, fname + ".bin", row);
 
   if (iof.fail()) {
-    std::cout << "Can't open " << fname << "\n";
+    std::cout << "Can't open " << fname << ".bin\n";
     return 1;
   }
 

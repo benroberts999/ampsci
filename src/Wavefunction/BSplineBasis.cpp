@@ -2,7 +2,7 @@
 #include "HF/Breit.hpp"
 #include "HF/HartreeFock.hpp"
 #include "IO/UserInput.hpp"
-#include "IO/safeProfiler.hpp"
+#include "IO/SafeProfiler.hpp"
 #include "Maths/BSplines.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/LinAlg_MatrixVector.hpp"

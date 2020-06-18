@@ -24,7 +24,7 @@ DiracSpinor solveMixedState(const int k, const DiracSpinor &Fa,
                             const DiracSpinor &hFa, const double eps_target,
                             const MBPT::CorrelationPotential *const Sigma,
                             const Breit *const VBr,
-                            const std::vector<double> H_mag) {
+                            const std::vector<double> &H_mag) {
   auto dF = DiracSpinor(0, k, *(Fa.p_rgrid));
   solveMixedState(dF, Fa, omega, vl, alpha, core, hFa, eps_target, Sigma, VBr,
                   H_mag);
@@ -36,7 +36,7 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
                      const std::vector<DiracSpinor> &core,
                      const DiracSpinor &hFa, const double eps_target,
                      const MBPT::CorrelationPotential *const Sigma,
-                     const Breit *const VBr, const std::vector<double> H_mag)
+                     const Breit *const VBr, const std::vector<double> &H_mag)
 // Solves:  (H - e - w)X = -h*Fa for X
 {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);

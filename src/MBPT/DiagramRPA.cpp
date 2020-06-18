@@ -6,7 +6,7 @@
 #include "DiracOperator/DiracOperator.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
-#include "IO/safeProfiler.hpp"
+#include "IO/SafeProfiler.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <algorithm>
 #include <numeric>

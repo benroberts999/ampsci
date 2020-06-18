@@ -43,6 +43,9 @@ PathForGSL=
 ExtraInclude=
 ExtraLink=
 ExtraFlags=
+# To use openmp with the llvm version clang++ on mac:
+#ExtraInclude=/usr/local/opt/llvm/include/
+#ExtraLink=/usr/local/opt/llvm/lib/
 
 ################################################################################
 ## None of the below options should need changing
@@ -55,7 +58,7 @@ BD=./build
 CXXSTD=-std=c++17
 
 # Set to 'yes' to run with profiler - only do to profile the code!
-# RunProfiler=yes
+# RunProfiler=no
 
 ## Build config + options:
 include $(BD)/buildOptions.mk
