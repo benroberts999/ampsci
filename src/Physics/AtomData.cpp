@@ -194,12 +194,18 @@ std::vector<NonRelSEConfig> core_parser(const std::string &str_core_in)
       continue;
     bool term_ok = true;
     // find position of 'l'
-    auto l_ptr = std::find_if(term.begin(), term.end(),
-                              [](const char &c) { return !std::isdigit(c); });
-    auto l_position = std::size_t(l_ptr - term.begin());
-    int n{0}, num{0}, l{-1};
+    const auto l_ptr =
+        std::find_if(term.begin(), term.end(),
+                     [](const char &c) { return !std::isdigit(c); });
+    const auto l_position = std::size_t(l_ptr - term.begin());
+    int n{0}, num{-1}, l{-1};
     n = std::stoi(term.substr(0, l_position - 0));
-    num = std::stoi(term.substr(l_position + 1));
+    if (term.size() > l_position + 1) {
+      num = std::stoi(term.substr(l_position + 1));
+    } else {
+      // string too short, mussing 'num' after l
+      term_ok = false;
+    }
     if (l_position == term.size())
       term_ok = false;
     if (term_ok)
@@ -210,7 +216,8 @@ std::vector<NonRelSEConfig> core_parser(const std::string &str_core_in)
     if (!term_ok || n <= 0 || l < 0) {
       std::cout << "Problem with core: " << str_core_in << "\n";
       std::cerr << "invalid core term: " << term << "\n";
-      // continue;
+      if (num < 0)
+        std::cout << "Missing num? nlm - need m\n";
       std::abort();
     }
 

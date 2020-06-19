@@ -74,8 +74,8 @@ inline std::vector<T> derivative(const std::vector<T> &f,
 
 //******************************************************************************
 template <typename C>
-inline double integrate_single(const C &f1, const double dt = 1.,
-                               std::size_t beg = 0, std::size_t end = 0)
+inline double integrate_1(const double dt, std::size_t beg, std::size_t end,
+                          const C &f1)
 // Note: includes no safety checks!
 // Integrates from (point) beg to end-1 (i.e., not including end)
 // Require:
@@ -88,28 +88,89 @@ inline double integrate_single(const C &f1, const double dt = 1.,
 {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
 
-  auto max_grid = f1.size();
+  const auto max_grid = f1.size();
   if (end == 0)
     end = max_grid;
-
-  double Rint_s = 0.0;
-  for (std::size_t i = beg; i < Nquad; i++) {
-    Rint_s += cq[i] * f1[i];
+  double Rint_ends = 0.0;
+  for (std::size_t i = beg; i < Nquad; ++i) {
+    Rint_ends += cq[i] * f1[i];
   }
-
   double Rint_m = 0.0;
-  auto end_mid = std::min(max_grid - Nquad, end);
-  for (auto i = Nquad; i < end_mid; i++)
+  const auto end_mid = std::min(max_grid - Nquad, end);
+  for (auto i = Nquad; i < end_mid; ++i)
     Rint_m += f1[i];
-
-  double Rint_e = 0;
-  for (std::size_t i = end_mid; i < end; i++) {
-    Rint_e += cq[end_mid + Nquad - i - 1] * f1[i];
+  for (auto i = end_mid; i < end; ++i) {
+    Rint_ends += cq[end_mid + Nquad - i - 1] * f1[i];
   }
-
-  return (Rint_m + dq_inv * (Rint_s + Rint_e)) * dt;
+  return (Rint_m + dq_inv * Rint_ends) * dt;
 
 } // END integrate1
+// --------------------------------------------
+template <typename C>
+inline double integrate_1(const double dt, std::size_t beg, std::size_t end,
+                          const C &f1, const C &f2) {
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__, "2");
+
+  const auto max_grid = f1.size();
+  if (end == 0)
+    end = max_grid;
+  double Rint_ends = 0.0;
+  for (std::size_t i = beg; i < Nquad; ++i) {
+    Rint_ends += cq[i] * f1[i] * f2[i];
+  }
+  double Rint_m = 0.0;
+  const auto end_mid = std::min(max_grid - Nquad, end);
+  for (auto i = Nquad; i < end_mid; ++i)
+    Rint_m += f1[i] * f2[i];
+  for (auto i = end_mid; i < end; ++i) {
+    Rint_ends += cq[end_mid + Nquad - i - 1] * f1[i] * f2[i];
+  }
+  return (Rint_m + dq_inv * Rint_ends) * dt;
+}
+// --------------------------------------------
+template <typename C>
+inline double integrate_1(const double dt, std::size_t beg, std::size_t end,
+                          const C &f1, const C &f2, const C &f3) {
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__, "3");
+
+  const auto max_grid = f1.size();
+  if (end == 0)
+    end = max_grid;
+  double Rint_ends = 0.0;
+  for (std::size_t i = beg; i < Nquad; ++i) {
+    Rint_ends += cq[i] * f1[i] * f2[i] * f3[i];
+  }
+  double Rint_m = 0.0;
+  const auto end_mid = std::min(max_grid - Nquad, end);
+  for (auto i = Nquad; i < end_mid; ++i)
+    Rint_m += f1[i] * f2[i] * f3[i];
+  for (auto i = end_mid; i < end; ++i) {
+    Rint_ends += cq[end_mid + Nquad - i - 1] * f1[i] * f2[i] * f3[i];
+  }
+  return (Rint_m + dq_inv * Rint_ends) * dt;
+}
+// --------------------------------------------
+template <typename C>
+inline double integrate_1(const double dt, std::size_t beg, std::size_t end,
+                          const C &f1, const C &f2, const C &f3, const C &f4) {
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__, "4");
+
+  const auto max_grid = f1.size();
+  if (end == 0)
+    end = max_grid;
+  double Rint_ends = 0.0;
+  for (std::size_t i = beg; i < Nquad; ++i) {
+    Rint_ends += cq[i] * f1[i] * f2[i] * f3[i] * f4[i];
+  }
+  double Rint_m = 0.0;
+  const auto end_mid = std::min(max_grid - Nquad, end);
+  for (auto i = Nquad; i < end_mid; ++i)
+    Rint_m += f1[i] * f2[i] * f3[i] * f4[i];
+  for (auto i = end_mid; i < end; ++i) {
+    Rint_ends += cq[end_mid + Nquad - i - 1] * f1[i] * f2[i] * f3[i] * f4[i];
+  }
+  return (Rint_m + dq_inv * Rint_ends) * dt;
+}
 
 //******************************************************************************
 enum Direction { zero_to_r, r_to_inf };
@@ -218,13 +279,14 @@ T mult_vectors(const T &zeroth, const Args &... args) {
 //******************************************************************************
 template <typename... Args>
 double integrate(const double dt, const std::size_t beg, const std::size_t end,
-                 const Args &... args) {
+                 const std::vector<double> &v1, const Args &... args) {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
-  return integrate_single(mult_vectors(args...), dt, beg, end);
-}
-inline double integrate(const double dt, const std::size_t beg,
-                        const std::size_t end, const std::vector<double> &v) {
-  return integrate_single(v, dt, beg, end);
+  if constexpr (sizeof...(args) == 0)
+    return integrate_1(dt, beg, end, v1);
+  else if constexpr (sizeof...(args) <= 3)
+    return integrate_1(dt, beg, end, v1, args...);
+  else
+    return integrate_1(dt, beg, end, mult_vectors(v1, args...));
 }
 
 inline void scaleVec(std::vector<double> &vec, const double x) {

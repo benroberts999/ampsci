@@ -3,14 +3,12 @@
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/AtomData.hpp"
 #include <algorithm>
+#include <cassert>
 #include <cmath>
 #include <numeric>
 #include <string>
 #include <utility>
 #include <vector>
-
-constexpr bool update_pinf = true; // for psi += psi'
-// XXX If true, sets all to num_points! [when damping orbitals!?]
 
 //******************************************************************************
 DiracSpinor::DiracSpinor(int in_n, int in_k, const Grid &rgrid)
@@ -42,7 +40,7 @@ std::string DiracSpinor::symbol(bool gnuplot) const {
 }
 
 std::string DiracSpinor::shortSymbol() const {
-  std::string pm = (k < 0) ? "+" : "-";
+  const std::string pm = (k < 0) ? "+" : "-";
   return n > 0 ? std::to_string(n) + AtomData::l_symbol(m_l) + pm
                : AtomData::l_symbol(m_l) + pm;
 }
@@ -66,12 +64,6 @@ const DiracSpinor &DiracSpinor::scale(const double factor) {
     f[i] = 0;
     g[i] = 0;
   }
-  // if (!df.empty()) {
-  //   for (std::size_t i = p0; i < pinf; ++i) {
-  //     df[i] *= factor;
-  //     dg[i] *= factor;
-  //   }
-  // }
   return *this;
 }
 //------------------------------------------------------------------------------
@@ -82,33 +74,24 @@ const DiracSpinor &DiracSpinor::scale(const std::vector<double> &v) {
     g[i] *= v[i];
   }
   for (std::size_t i = max; i < pinf; ++i) {
-    f[i] *= 0;
-    g[i] *= 0;
+    f[i] = 0;
+    g[i] = 0;
   }
-  // if (!df.empty()) {
-  //   for (std::size_t i = p0; i < pinf; ++i) {
-  //     df[i] *= v[i];
-  //     dg[i] *= v[i];
-  //   }
-  // }
   return *this;
 }
 
 //******************************************************************************
-void DiracSpinor::normalise(double norm_to) {
-  double rescale_factor = norm_to / norm();
-  scale(rescale_factor);
-}
+void DiracSpinor::normalise(double norm_to) { scale(norm_to / norm()); }
 
 //******************************************************************************
 std::pair<double, double> DiracSpinor::r0pinfratio() const {
   auto max_abs_compare = [](double a, double b) {
     return std::fabs(a) < std::fabs(b);
   };
-  auto max_pos =
+  const auto max_pos =
       std::max_element(f.begin(), f.begin() + long(pinf), max_abs_compare);
-  auto r0_ratio = f[p0] / *max_pos;
-  auto pinf_ratio = f[pinf - 1] / *max_pos;
+  const auto r0_ratio = f[p0] / *max_pos;
+  const auto pinf_ratio = f[pinf - 1] / *max_pos;
   return std::make_pair(r0_ratio, pinf_ratio);
   // nb: do i care about ratio to max? or just value?
 }
@@ -136,64 +119,44 @@ double operator*(const DiracSpinor &lhs, const DiracSpinor &rhs) {
   const auto imin = std::max(lhs.p0, rhs.p0);
   const auto imax = std::min(lhs.pinf, rhs.pinf);
   const auto &dr = lhs.p_rgrid->drdu;
-  const auto ff = NumCalc::integrate(1.0, imin, imax, lhs.f, rhs.f, dr);
-  const auto gg = NumCalc::integrate(1.0, imin, imax, lhs.g, rhs.g, dr);
-  return (ff + gg) * lhs.p_rgrid->du;
+  return (NumCalc::integrate(1, imin, imax, lhs.f, rhs.f, dr) +
+          NumCalc::integrate(1, imin, imax, lhs.g, rhs.g, dr)) *
+         lhs.p_rgrid->du;
 }
 
 DiracSpinor &DiracSpinor::operator+=(const DiracSpinor &rhs) {
-  // // XXX Here: pinf update_pinf
-  if (this->k != rhs.k) {
-    std::cerr
-        << "Fail 100 in DiracSpinor: cannot add spinors of different kappa!\n";
-    std::abort();
-  }
-  if (update_pinf) {
-    pinf = std::max(pinf, rhs.pinf);
-    p0 = std::min(p0, rhs.p0);
-  }
-  auto imax = std::min(pinf, rhs.pinf); // shouldn't be needed, but safer
-  auto imin = std::max(p0, rhs.p0);     // shouldn't be needed, but safer
-  for (std::size_t i = imin; i < imax; i++)
+  assert(this->k == rhs.k);
+
+  if (rhs.pinf > pinf)
+    pinf = rhs.pinf;
+  if (rhs.p0 < p0)
+    p0 = rhs.p0;
+
+  for (std::size_t i = rhs.p0; i < rhs.pinf; i++)
     f[i] += rhs.f[i];
-  for (std::size_t i = imin; i < imax; i++)
+  for (std::size_t i = rhs.p0; i < rhs.pinf; i++)
     g[i] += rhs.g[i];
-  // if (!df.empty() && !rhs.df.empty()) { // XXX Dangerous?
-  //   for (std::size_t i = imin; i < imax; ++i) {
-  //     df[i] += rhs.df[i];
-  //     dg[i] += rhs.dg[i];
-  //   }
-  // }
   return *this;
 }
+DiracSpinor &DiracSpinor::operator-=(const DiracSpinor &rhs) {
+  assert(this->k == rhs.k);
+
+  if (rhs.pinf > pinf)
+    pinf = rhs.pinf;
+  if (rhs.p0 < p0)
+    p0 = rhs.p0;
+
+  for (std::size_t i = rhs.p0; i < rhs.pinf; i++)
+    f[i] -= rhs.f[i];
+  for (std::size_t i = rhs.p0; i < rhs.pinf; i++)
+    g[i] -= rhs.g[i];
+
+  return *this;
+}
+
 DiracSpinor operator+(DiracSpinor lhs, const DiracSpinor &rhs) {
   lhs += rhs;
   return lhs;
-}
-DiracSpinor &DiracSpinor::operator-=(const DiracSpinor &rhs) {
-  // XXX Here: pinf update_pinf
-  if (this->k != rhs.k) {
-    std::cerr
-        << "Fail 121 in DiracSpinor: cannot add spinors of different kappa!\n";
-    std::abort();
-  }
-  if (update_pinf) {
-    pinf = std::max(pinf, rhs.pinf);
-    p0 = std::min(p0, rhs.p0);
-  }
-  auto imax = std::min(pinf, rhs.pinf); // shouldn't be needed, but safer
-  auto imin = std::max(p0, rhs.p0);     // shouldn't be needed, but safer
-  for (std::size_t i = imin; i < imax; i++)
-    f[i] -= rhs.f[i];
-  for (std::size_t i = imin; i < imax; i++)
-    g[i] -= rhs.g[i];
-  // if (!df.empty() && !rhs.df.empty()) { // XXX Dangerous?
-  //   for (std::size_t i = imin; i < imax; ++i) {
-  //     df[i] -= rhs.df[i];
-  //     dg[i] -= rhs.dg[i];
-  //   }
-  // }
-  return *this;
 }
 DiracSpinor operator-(DiracSpinor lhs, const DiracSpinor &rhs) {
   lhs -= rhs;
@@ -223,12 +186,8 @@ DiracSpinor operator*(const std::vector<double> &v, DiracSpinor rhs) {
 }
 
 DiracSpinor &DiracSpinor::operator=(const DiracSpinor &other) {
-  if (*this != other) { // same n and kappa
-    std::cerr
-        << "Fail 152 in DiracSpinor: cannot assign spinors of different nk\n";
-    std::abort();
-  }
-  if (this != &other) { // same memory location
+  assert(*this == other); // same n and kappa
+  if (this != &other) {   // same memory location
     en = other.en;
     f = other.f;
     g = other.g;
