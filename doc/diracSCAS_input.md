@@ -392,14 +392,17 @@ Module::pnc {
 -------------------
 ```cpp
 Module::polarisability {
-    a = na, ka; //[i,i] default=blank
-    rpa;        //[b] default = true
-    omega;      //[r] default = 0.0
+    a = na, ka;     //[i,i] default=blank
+    rpa;            //[b] default = true
+    omega_max;      //[r] default = 0.0
+    omega_steps;    //[i] default = 30
 }
 ```
 * Calculates dipole polarisability (optionally for valence state 'a', or for core)
 * Uses Solving-equations and sum-over-states (spectrum)
-* omega: frequency.
+* a: valence state (eg: a=6,-1; for 6s). Blank for core-only
+* rpa: include rpa into static term
+* omega_max: max frequency. Calcs alpha(w) up to this (in omega_steps steps)
 
 -------------------
 ```cpp
