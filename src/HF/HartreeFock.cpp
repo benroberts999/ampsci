@@ -315,23 +315,14 @@ void HartreeFock::KohnSham_addition(std::vector<double> &vdir) const {
   const auto zion = z - double(num_core_electrons()) + 1.0;
 
   // Latter correction:
-
-  // find first place (vn+vdir) > 1/r
-  //(At very low r, doesn't hold, because of FNS)
-  const auto istart = [&]() {
-    for (std::size_t i = 0; i < p_rgrid->num_points; ++i) {
-      if (std::abs((*p_vnuc)[i] + vdir[i]) * p_rgrid->r[i] > zion)
-        return i;
-    }
-    return p_rgrid->num_points;
-  }();
-  // After FNS effects, whenever Vtot = |Vnuc+Vdir| < 1/r, enforce 1/r
-  for (std::size_t i = istart; i < p_rgrid->num_points; ++i) {
+  // Enfore V(r) = Vnuc(r)+Vel(r) =~ -1/r at large r
+  for (std::size_t i = p_rgrid->num_points - 1; i != 0; --i) {
+    // nb: miss i=0, but fine. Only applies large r[i]
     const auto vn = (*p_vnuc)[i];
     const auto r = p_rgrid->r[i];
-    if (r * std::abs(vn + vdir[i]) < zion) {
-      vdir[i] = -zion / r - vn;
-    }
+    if (r * std::abs(vn + vdir[i]) > zion)
+      break;
+    vdir[i] = -zion / r - vn;
   }
 }
 
