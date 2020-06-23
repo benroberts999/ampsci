@@ -282,7 +282,8 @@ bool CorrelationPotential::read_write(const std::string &fname,
     if (rw == IO::FRW::read) {
       const bool grid_ok = std::abs((r0 - p_gr->r0) / r0) < 1.0e-6 &&
                            std::abs(rmax - p_gr->rmax) < 0.001 &&
-                           (b - p_gr->b) < 0.001 && pts == p_gr->num_points;
+                           std::abs(b - p_gr->b) < 0.001 &&
+                           pts == p_gr->num_points;
       if (!grid_ok) {
         std::cout << "\nCannot read from:" << fname << ". Grid mismatch\n"
                   << "Read: " << r0 << ", " << rmax << " w/ N=" << pts
