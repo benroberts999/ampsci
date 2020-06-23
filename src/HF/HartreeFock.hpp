@@ -40,7 +40,7 @@ Method parseMethod(const std::string &in_method);
 //! (e.g.) for speed when high accuracy is not required]
 std::vector<double> vex_approx(const DiracSpinor &Fa,
                                const std::vector<DiracSpinor> &core,
-                               int k_cut = 99);
+                               int k_cut = 99, double lambda_cut = 0.003);
 
 //! @brief Calculates V_exch * Fa, for any orbital Fa (calculates Coulomb
 //! integral from scratch).
@@ -115,6 +115,13 @@ public:
 
   //! Returns const ref to V_dir (Direct HF potential)
   const std::vector<double> &get_vdir() const { return m_vdir; }
+
+  //! @brief Single-electron contribution to Vdir (does not include x*[2j+1]).
+  //! Note: Fa MUST be a core state, otherwise UB
+  const std::vector<double> &get_vdir_single(const DiracSpinor &Fa) const;
+  //! @brief Calculates single-electron contribution to Vdir (does not include
+  //! x*[2j+1]). Fa may be any state - calculated on the fly
+  static std::vector<double> calc_vdir_single(const DiracSpinor &Fa);
 
   //! Calculates exchange term Vex*Fa (calls static version with HF core)
   DiracSpinor calc_vexFa(const DiracSpinor &Fa) const {

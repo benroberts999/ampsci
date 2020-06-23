@@ -1,59 +1,45 @@
 #include "Wavefunction/ContinuumOrbitals.hpp"
 #include "DiracODE/DiracODE.hpp"
-#include "Wavefunction/DiracSpinor.hpp"
-#include "Wavefunction/Wavefunction.hpp"
 #include "Maths/Grid.hpp"
 #include "Physics/AtomData.hpp"
 #include "Physics/PhysConst_constants.hpp"
+#include "Wavefunction/DiracSpinor.hpp"
+#include "Wavefunction/Wavefunction.hpp"
+#include <algorithm>
 #include <cmath>
 #include <string>
 #include <vector>
+//
+#include "HF/HartreeFock.hpp"
+#include "Maths/NumCalc_quadIntegrate.hpp"
 
 //******************************************************************************
 ContinuumOrbitals::ContinuumOrbitals(const Wavefunction &wf, int izion)
-    : p_rgrid(&wf.rgrid), Z(wf.Znuc()), Zion(izion), alpha(wf.alpha)
-// Initialise object:
-//  * Copies grid and potential info, since these must always match bound
-//  states!
-// If none given, will assume izion should be 1! Not 100% always!
-{
-  auto num_pointsb = wf.rgrid.num_points;
+    : p_rgrid(&wf.rgrid),
+      p_hf(wf.getHF()),
+      Z(wf.Znuc()),
+      Zion(izion),
+      alpha(wf.alpha),
+      v_local(NumCalc::add_vectors(wf.vnuc, wf.vdir)) {}
 
-  // Check Zion. Will normally be 0 for neutral atom. Make -1
-  double tmp_Zion = -1 * wf.rgrid.r[num_pointsb - 5] *
-                    (wf.vnuc[num_pointsb - 5] + wf.vdir[num_pointsb - 5]);
-
-  // Note: Because I don't include exchange, need to re-scale the potential
-  // Assumes z_ion=1 (i.e., one electron ejected from otherwise neutral atom)
-  // This is equivilent to using the averaged hartree potential
-  // NOTE: I _could_ have izion = (tmp_Zion +1). But easier for now to just
-  // input z_ion (sometimes, might want to do something different)
-  double scale = 1;
-  if (std::fabs(tmp_Zion - izion) > 0.01)
-    scale = double(Z - izion) /
-            (wf.rgrid.r[num_pointsb - 5] * wf.vdir[num_pointsb - 5]);
-
-  // Local part of the potential:
-  v.clear();
-  v = wf.vnuc;
-  if (wf.vdir.size() != 0) {
-    for (auto i = 0ul; i < num_pointsb; i++) {
-      v[i] += wf.vdir[i] * scale;
+//******************************************************************************
+double ContinuumOrbitals::check_orthog(bool print) const {
+  double worst = 0.0;
+  for (const auto &Fc : orbitals) {
+    for (const auto &Fn : p_hf->get_core()) {
+      if (Fn.k != Fc.k)
+        continue;
+      const auto eps = Fc * Fn;
+      if (std::abs(eps) > std::abs(worst))
+        worst = eps;
+      if (print) {
+        std::cout << "<" << Fc.shortSymbol() << "|" << Fn.shortSymbol()
+                  << "> = ";
+        printf("%.1e\n", eps);
+      }
     }
   }
-
-  // Re-Check overal charge of atom (-1)
-  // For neutral atom, should be 1 (usually, since cntm is ionisation state)
-  // r->inf, v(r) = -Z_ion/r
-  tmp_Zion = -1 * wf.rgrid.r[num_pointsb - 5] * v[num_pointsb - 5];
-
-  if (std::fabs(tmp_Zion - Zion) > 0.01) {
-    std::cout << "\nWARNING: [cntm] Zion incorrect?? Is this OK??\n";
-    std::cout << "Zion=" << tmp_Zion << " = "
-              << -1 * wf.rgrid.r[num_pointsb - 5] * v[num_pointsb - 5] << " "
-              << izion << "\n";
-    std::cin.get();
-  }
+  return worst;
 }
 
 //******************************************************************************
@@ -73,47 +59,98 @@ int ContinuumOrbitals::solveLocalContinuum(double ec, int min_l, int max_l)
 {
 
   // Find 'inital guess' for asymptotic region:
-  double lam = 1.0e7; // XXX ???
-  double r_asym =
-      (Zion + std::sqrt(4. * lam * ec + std::pow(Zion, 2))) / (2. * ec);
+  const double lam = 1.0e7;
+  const double r_asym =
+      (Zion + std::sqrt(4.0 * lam * ec + std::pow(Zion, 2))) / (2.0 * ec);
 
   // Check if 'h' is small enough for oscillating region:
-  double h_target = (M_PI / 15) / std::sqrt(2. * ec);
-  auto h = p_rgrid->du;
+  const double h_target = (M_PI / 15) / std::sqrt(2.0 * ec);
+  const auto h = p_rgrid->du;
   if (h > h_target) {
     std::cout << "WARNING 61 CntOrb: Grid not dense enough for ec=" << ec
-              << " (h=" << h << ", need h<" << h_target << ")\n";
+              << " (du=" << h << ", need du<" << h_target << ")\n";
     if (h > 2 * h_target) {
       std::cout << "FAILURE 64 CntOrb: Grid not dense enough for ec=" << ec
-                << " (h=" << h << ", need h<" << h_target << ")\n";
+                << " (du=" << h << ", need du<" << h_target << ")\n";
       return 1;
     }
   }
 
+  // XXX Don't need to extend grid each time...
   ExtendedGrid cgrid(*p_rgrid, 1.2 * r_asym);
 
-  auto vc = v;
+  // "Z_ion" - "actual" (excluding exchange.....)
+  const auto z_tmp = std::abs(v_local.back() * p_rgrid->r.back());
+
+  auto vc = v_local;
+  vc.reserve(cgrid.num_points);
   for (auto i = p_rgrid->num_points; i < cgrid.num_points; i++) {
-    vc.push_back(-Zion / cgrid.r[i]);
+    if (force_rescale) {
+      vc.push_back(-Zion / cgrid.r[i]);
+    } else {
+      vc.push_back(-z_tmp / cgrid.r[i]);
+    }
   }
 
-  for (int i = 0; true; ++i) { // loop through each k state
-    auto k = AtomData::kappaFromIndex(i);
-    auto l = AtomData::l_k(k);
+  for (int k_i = 0; true; ++k_i) { // loop through each kappa state
+    const auto kappa = AtomData::kappaFromIndex(k_i);
+    const auto l = AtomData::l_k(kappa);
     if (l < min_l)
       continue;
     if (l > max_l)
       break;
 
-    // // guess as asymptotic region:
-    // auto i_asym = cgrid.getIndex(r_asym); // - 1;
-
-    DiracSpinor phi(0, k, *p_rgrid);
+    auto &phi = orbitals.emplace_back(0, kappa, *p_rgrid);
     phi.en = ec;
     DiracODE::solveContinuum(phi, ec, vc, cgrid, r_asym, alpha);
 
-    orbitals.push_back(phi);
+    // Include (approximate) exchange
+    std::vector<double> vx(vc.size());
+    if (!p_hf->excludeExchangeQ()) {
+      auto n0 = phi * phi;
+      for (int iteration = 0; iteration < 50; ++iteration) {
+        vx = NumCalc::add_vectors(
+            vx, HF::vex_approx(phi, p_hf->get_core(), 99, 0.01));
+        NumCalc::scaleVec(vx, 0.5);
+
+        auto vtot = NumCalc::add_vectors(vc, vx);
+
+        // Ensure potential goes as - Zion / r at large r
+        if (force_rescale) {
+          for (std::size_t ir = p_rgrid->num_points - 1; ir != 0; --ir) {
+            const auto r = p_rgrid->r[ir];
+            if (r * std::abs(vtot[ir]) > Zion)
+              break;
+            vtot[ir] = -Zion / r;
+          }
+        }
+
+        DiracODE::solveContinuum(phi, ec, vtot, cgrid, r_asym, alpha);
+        const auto nn = phi * phi;
+        const auto eps = std::abs((nn - n0) / n0);
+        phi.eps = eps;
+        // std::cout << iteration << "_ " << eps << "\n";
+        if (eps < 1.0e-7)
+          break;
+        n0 = nn;
+      }
+    }
   }
+
+  // std::ofstream of("hf-new.txt");
+  // const auto &gr = *p_rgrid;
+  // of << "r ";
+  // for (auto &psi : orbitals) {
+  //   of << "\"" << psi.symbol(true) << "\" ";
+  // }
+  // of << "\n";
+  // for (std::size_t i = 0; i < gr.num_points; i++) {
+  //   of << gr.r[i] << " ";
+  //   for (auto &psi : orbitals) {
+  //     of << psi.f[i] << " ";
+  //   }
+  //   of << "\n";
+  // }
 
   return 0;
 }

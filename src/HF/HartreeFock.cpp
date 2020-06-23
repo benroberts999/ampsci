@@ -14,6 +14,7 @@
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include <algorithm>
+#include <cassert>
 #include <cmath>
 #include <functional>
 #include <iostream>
@@ -536,6 +537,16 @@ void HartreeFock::form_vdir(std::vector<double> &vdir, bool re_scale) const
 }
 
 //******************************************************************************
+const std::vector<double> &
+HartreeFock::get_vdir_single(const DiracSpinor &Fa) const {
+  return m_Yab.get_yk_ab(0, Fa, Fa);
+}
+//----------
+std::vector<double> HartreeFock::calc_vdir_single(const DiracSpinor &Fa) {
+  return Coulomb::yk_ab(Fa, Fa, 0); // k=0
+}
+
+//******************************************************************************
 void HartreeFock::form_approx_vex_core(
     std::vector<std::vector<double>> &vex) const
 // Forms the 2D "approximate" exchange potential for each core state, a.
@@ -656,7 +667,8 @@ void HartreeFock::form_approx_vex_core_a(const DiracSpinor &Fa,
 
 //------------------------------------------------------------------------------
 std::vector<double> vex_approx(const DiracSpinor &Fa,
-                               const std::vector<DiracSpinor> &core, int k_cut)
+                               const std::vector<DiracSpinor> &core, int k_cut,
+                               const double lambda_cut)
 // Free function
 {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
@@ -673,7 +685,8 @@ std::vector<double> vex_approx(const DiracSpinor &Fa,
   const auto max =
       std::abs(*std::max_element(Fa.f.begin(), Fa.f.end(), max_abs));
   // const auto cut_off = 0.01 * max; //why was this different?
-  const auto cut_off = 0.003 * max;
+  // const auto cut_off = 0.003 * max;
+  const auto cut_off = lambda_cut * max;
 
   for (const auto &Fb : core) {
     const auto tjb = Fb.twoj();

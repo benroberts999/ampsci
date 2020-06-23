@@ -3,9 +3,11 @@
 $(BD)/ContinuumOrbitals.o: $(SD)/Wavefunction/ContinuumOrbitals.cpp \
 $(SD)/Wavefunction/ContinuumOrbitals.hpp \
 $(SD)/DiracODE/DiracODE.hpp \
+$(SD)/HF/HartreeFock.hpp \
 $(SD)/Wavefunction/DiracSpinor.hpp \
 $(SD)/Wavefunction/Wavefunction.hpp \
 $(SD)/Maths/Grid.hpp \
+$(SD)/Maths/NumCalc_quadIntegrate.hpp \
 $(SD)/Physics/AtomData.hpp \
 $(SD)/Physics/PhysConst_constants.hpp
 	$(COMP)

@@ -66,7 +66,8 @@ const std::vector<double> &YkTable::get_yk_ab(const int k,
 const std::vector<std::vector<double>> &
 YkTable::get_y_ab(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
   const auto a = std::find(m_a_orbs->begin(), m_a_orbs->end(), Fa);
-  const auto b = std::find(m_b_orbs->begin(), m_b_orbs->end(), Fb);
+  const auto b =
+      Fa == Fb ? a : std::find(m_b_orbs->begin(), m_b_orbs->end(), Fb);
   assert(a != m_a_orbs->end());
   assert(b != m_b_orbs->end());
   const auto ia = std::size_t(a - m_a_orbs->begin());
