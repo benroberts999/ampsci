@@ -11,22 +11,24 @@
 #include <vector>
 
 //******************************************************************************
-DiracSpinor::DiracSpinor(int in_n, int in_k, const Grid &in_rgrid)
-    : p_rgrid(&in_rgrid),
-      n(in_n),
-      k(in_k),
-      f(std::vector<double>(p_rgrid->num_points, 0.0)),
-      g(f),
-      pinf(p_rgrid->num_points),
-      m_twoj(AtomData::twoj_k(in_k)),
-      m_l(AtomData::l_k(in_k)),
-      m_parity(AtomData::parity_k(in_k)),
-      m_k_index(AtomData::indexFromKappa(in_k)) {}
+// DiracSpinor::DiracSpinor(int in_n, int in_k, const Grid &in_rgrid)
+//     : rgrid(std::make_shared<const Grid>(in_rgrid)), // copy!
+//       n(in_n),
+//       k(in_k),
+//       f(std::vector<double>(rgrid->num_points, 0.0)),
+//       g(f),
+//       pinf(rgrid->num_points),
+//       m_twoj(AtomData::twoj_k(in_k)),
+//       m_l(AtomData::l_k(in_k)),
+//       m_parity(AtomData::parity_k(in_k)),
+//       m_k_index(AtomData::indexFromKappa(in_k)) {
+//   [[deprecated]] int i;
+//   std::cout << i << "\n";
+// }
 
 DiracSpinor::DiracSpinor(int in_n, int in_k,
                          std::shared_ptr<const Grid> in_rgrid)
     : rgrid(in_rgrid),
-      p_rgrid(in_rgrid.get()),
       n(in_n),
       k(in_k),
       f(std::vector<double>(rgrid->num_points, 0.0)),

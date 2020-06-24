@@ -1,5 +1,6 @@
 #pragma once
 #include "Wavefunction/DiracSpinor.hpp"
+#include <memory>
 #include <vector>
 class Wavefunction;
 class Grid;
@@ -30,7 +31,7 @@ public:
   std::vector<DiracSpinor> orbitals{};
 
 private:
-  const Grid *const p_rgrid;
+  std::shared_ptr<const Grid> rgrid;
   const HF::HartreeFock *const p_hf;
   const int Z;
   const int Zion;

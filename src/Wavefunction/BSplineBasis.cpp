@@ -63,6 +63,7 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
             << ", k=" << k_spl << ". Storing: " << states_str << "\n";
 
   for (const auto &nk : nklst) {
+
     const auto max_n = nk.n;
     const auto kappa = nk.k;
     const auto kmin = std::size_t(AtomData::l_k(kappa) + 3);
@@ -91,7 +92,7 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
       r0_eff = l <= 1 ? 1.0e-4 : l <= 3 ? 1.0e-3 : 1.0e-2; // Notre-Dame XXX
 
     const auto spl_basis = form_spline_basis(kappa, n_spl, k, r0_eff, rmax_spl,
-                                             *(wf.rgrid), wf.alpha);
+                                             wf.rgrid, wf.alpha);
 
     auto [Aij, Sij] = fill_Hamiltonian_matrix(spl_basis, wf, correlationsQ);
     const auto [e_values, e_vectors] =
@@ -136,7 +137,8 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
 std::vector<DiracSpinor>
 form_spline_basis(const int kappa, const std::size_t n_states,
                   const std::size_t k_spl, const double r0_spl,
-                  const double rmax_spl, const Grid &rgrid, const double alpha)
+                  const double rmax_spl, std::shared_ptr<const Grid> rgrid,
+                  const double alpha)
 // Forms the "base" basis of B-splines (DKB/Reno Method)
 {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
@@ -152,7 +154,7 @@ form_spline_basis(const int kappa, const std::size_t n_states,
   }
 
   // uses sepperate B-splines for each partial wave! OK?
-  BSplines bspl(n_spl, k_spl, rgrid, r0_spl, rmax_spl);
+  BSplines bspl(n_spl, k_spl, *rgrid, r0_spl, rmax_spl);
   bspl.derivitate();
 
   std::vector<DiracSpinor> basis;
@@ -165,15 +167,15 @@ form_spline_basis(const int kappa, const std::size_t n_states,
     const auto &dBi = bspl.get_spline_deriv(i);
     phi.f = Bi;
     if (!ND_type) {
-      auto gtmp = NumCalc::mult_vectors(rgrid.rpow(-1), Bi);
+      auto gtmp = NumCalc::mult_vectors(rgrid->rpow(-1), Bi);
       NumCalc::scaleVec(gtmp, double(kappa));
       phi.g = NumCalc::add_vectors(dBi, gtmp);
       NumCalc::scaleVec(phi.g, 0.5 * alpha);
     }
 
     // phi.df = dBi;
-    // auto bor2 = NumCalc::mult_vectors(rgrid.rpow(-2), Bi);
-    // auto dbor = NumCalc::mult_vectors(rgrid.rpow(-1), dBi);
+    // auto bor2 = NumCalc::mult_vectors(rgrid->rpow(-2), Bi);
+    // auto dbor = NumCalc::mult_vectors(rgrid->rpow(-1), dBi);
     // NumCalc::scaleVec(bor2, -double(kappa));
     // NumCalc::scaleVec(dbor, double(kappa));
     // const auto &d2Bi = bspl.get_spline_deriv2(i);
@@ -193,15 +195,15 @@ form_spline_basis(const int kappa, const std::size_t n_states,
     const auto &dBi = bspl.get_spline_deriv(i);
     phi.g = Bi;
     if (!ND_type) {
-      auto ftmp = NumCalc::mult_vectors(rgrid.rpow(-1), Bi);
+      auto ftmp = NumCalc::mult_vectors(rgrid->rpow(-1), Bi);
       NumCalc::scaleVec(ftmp, double(-kappa));
       phi.f = NumCalc::add_vectors(dBi, ftmp);
       NumCalc::scaleVec(phi.f, 0.5 * alpha);
     }
 
     // phi.dg = dBi;
-    // auto bor2 = NumCalc::mult_vectors(rgrid.rpow(-2), Bi);
-    // auto dbor = NumCalc::mult_vectors(rgrid.rpow(-1), dBi);
+    // auto bor2 = NumCalc::mult_vectors(rgrid->rpow(-2), Bi);
+    // auto dbor = NumCalc::mult_vectors(rgrid->rpow(-1), dBi);
     // NumCalc::scaleVec(bor2, double(kappa));
     // NumCalc::scaleVec(dbor, -double(kappa));
     // const auto &d2Bi = bspl.get_spline_deriv2(i);
@@ -324,10 +326,9 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
         (!positive_energy && pqn_pstrn < -max_n))
       continue;
 
-    auto &phi =
-        (positive_energy)
-            ? basis->emplace_back(pqn, kappa, *(wf.rgrid))
-            : basis_positron->emplace_back(pqn_pstrn, kappa, *(wf.rgrid));
+    auto &phi = (positive_energy)
+                    ? basis->emplace_back(pqn, kappa, wf.rgrid)
+                    : basis_positron->emplace_back(pqn_pstrn, kappa, wf.rgrid);
     phi.en = en;
     phi.p0 = spl_basis[0].pinf; // yes, backwards (updated below)
     phi.pinf = spl_basis[0].p0;

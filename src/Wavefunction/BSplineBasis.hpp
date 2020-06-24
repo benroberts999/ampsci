@@ -1,5 +1,6 @@
 #pragma once
 #include "Maths/LinAlg_MatrixVector.hpp"
+#include <memory>
 #include <string>
 #include <utility>
 class DiracSpinor;
@@ -80,7 +81,8 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
 std::vector<DiracSpinor>
 form_spline_basis(const int kappa, const std::size_t n_states,
                   const std::size_t k_spl, const double r0_spl,
-                  const double rmax_spl, const Grid &rgrid, const double alpha);
+                  const double rmax_spl, std::shared_ptr<const Grid> rgrid,
+                  const double alpha);
 
 //! Calculates  + reyurns the Hamiltonian \f$H_{ij}\f$ (and \f$S_{ij}\f$)
 //! matrices

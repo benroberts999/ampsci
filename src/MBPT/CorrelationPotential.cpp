@@ -117,7 +117,7 @@ DiracSpinor CorrelationPotential::Sigma_G_Fv(const GMatrix &Gmat,
   const auto lambda = ki >= m_lambda_kappa.size() ? 1.0 : m_lambda_kappa[ki];
 
   const auto &gr = *(Fv.rgrid);
-  auto SigmaFv = DiracSpinor(0, Fv.k, gr);
+  auto SigmaFv = DiracSpinor(0, Fv.k, Fv.rgrid);
   std::vector<double> f(m_subgrid_r.size());
   std::vector<double> g;
   if constexpr (m_include_G) {

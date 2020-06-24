@@ -162,21 +162,21 @@ void HartreeFock::hf_core_approx(const double eps_target_HF) {
     t_eps = 0;
     for (std::size_t i = 0; i < p_core->size(); i++) {
       auto &Fa = (*p_core)[i];
-      double en_old = Fa.en;
+      const double en_old = Fa.en;
       // calculate de from PT
       double dEa = 0;
       for (std::size_t j = 0; j < Fa.pinf; j += de_stride) {
-        double dv =
+        const double dv =
             (m_vdir[j] - vdir_old[j]) + (appr_vex_core[i][j] - vex_old[i][j]);
         dEa += dv * Fa.f[j] * Fa.f[j] * rgrid->drdu[j];
       }
       dEa *= rgrid->du * de_stride;
-      double en_guess = (en_old < -dEa) ? en_old + dEa : en_old;
+      const double en_guess = (en_old < -dEa) ? en_old + dEa : en_old;
       const auto &vrad_el = get_Hrad_el(Fa.l());
       const auto &vrad_mag = get_Hrad_mag(Fa.l());
       const auto v = NumCalc::add_vectors(v_local, vrad_el, appr_vex_core[i]);
       DiracODE::boundState(Fa, en_guess, v, vrad_mag, m_alpha, 6);
-      double state_eps = fabs((Fa.en - en_old) / en_old);
+      const double state_eps = std::abs((Fa.en - en_old) / en_old);
       // convergance based on worst orbital:
       t_eps = (state_eps > t_eps) ? state_eps : t_eps;
       if constexpr (print_each_eps) {
@@ -191,11 +191,9 @@ void HartreeFock::hf_core_approx(const double eps_target_HF) {
                 << "HF core it: " << hits << ": eps=" << t_eps << "\n";
     }
 
-    // Force all core orbitals to be orthogonal to each other
-    if (m_explicitOrthog_cc)
-      Wavefunction::orthonormaliseOrbitals((*p_core), 1);
-    auto getting_worse = (hits > 20 && t_eps > t_eps_prev && t_eps < 1.e-5);
-    auto converged = (t_eps < eps_target_HF);
+    const auto getting_worse =
+        (hits > 20 && t_eps > t_eps_prev && t_eps < 1.e-5);
+    const auto converged = (t_eps < eps_target_HF);
     if (converged || getting_worse)
       break;
     t_eps_prev = t_eps;
@@ -215,8 +213,6 @@ void HartreeFock::hf_core_approx(const double eps_target_HF) {
         NumCalc::add_vectors(*p_vnuc, m_vdir, vrad_el, appr_vex_core[i]);
     DiracODE::boundState(Fa, Fa.en, v, vrad_mag, m_alpha, 15);
   }
-  if (m_explicitOrthog_cc)
-    Wavefunction::orthonormaliseOrbitals((*p_core), 2);
 }
 
 //******************************************************************************
@@ -236,7 +232,6 @@ void HartreeFock::KohnSham_core(const double eps_target_HF) {
   // Start the HF itterative procedure:
   int hits = 1;
   double t_eps = 1.0;
-  // auto t_eps_prev = 1.0;
   for (; hits < m_max_hf_its; hits++) {
     auto eta = damper(hits);
 
@@ -258,20 +253,19 @@ void HartreeFock::KohnSham_core(const double eps_target_HF) {
     t_eps = 0;
     for (std::size_t i = 0; i < p_core->size(); i++) {
       auto &Fa = (*p_core)[i];
-      double en_old = Fa.en;
+      const double en_old = Fa.en;
       // calculate de from PT
       double dEa = 0;
       for (std::size_t j = 0; j < Fa.pinf; j += de_stride) {
-        double dv = (m_vdir[j] - vdir_old[j]);
-        dEa += dv * Fa.f[j] * Fa.f[j] * rgrid->drdu[j];
+        dEa += (m_vdir[j] - vdir_old[j]) * Fa.f[j] * Fa.f[j] * rgrid->drdu[j];
       }
       dEa *= rgrid->du * de_stride;
-      double en_guess = (en_old < -dEa) ? en_old + dEa : en_old;
+      const double en_guess = (en_old < -dEa) ? en_old + dEa : en_old;
       const auto &vrad_el = get_Hrad_el(Fa.l());
       const auto &vrad_mag = get_Hrad_mag(Fa.l());
       const auto v = NumCalc::add_vectors(v_local, vrad_el);
       DiracODE::boundState(Fa, en_guess, v, vrad_mag, m_alpha, 7);
-      double state_eps = fabs((Fa.en - en_old) / en_old);
+      double state_eps = std::abs((Fa.en - en_old) / en_old);
       // convergance based on worst orbital:
       t_eps = (state_eps > t_eps) ? state_eps : t_eps;
 
@@ -439,10 +433,7 @@ EpsIts HartreeFock::hf_valence_approx(DiracSpinor &Fa, double eps_target_HF)
     // Solve Dirac using new potential:
     DiracODE::boundState(Fa, en_new_guess, NumCalc::add_vectors(v_local, vexa),
                          Hmag, m_alpha, 15);
-    eps = fabs((Fa.en - en_old) / en_old);
-    // Force valence state to be orthogonal to core:
-    if constexpr (m_explicitOrthog_cv)
-      Wavefunction::orthonormaliseWrt(Fa, (*p_core));
+    eps = std::abs((Fa.en - en_old) / en_old);
 
     auto getting_worse = (hits > 20 && eps >= eps_prev && eps < 1.e-5);
     auto converged = (eps <= eps_target_HF);
@@ -455,8 +446,6 @@ EpsIts HartreeFock::hf_valence_approx(DiracSpinor &Fa, double eps_target_HF)
            eps, Fa.en);
   }
 
-  if constexpr (m_explicitOrthog_cv)
-    Wavefunction::orthonormaliseWrt(Fa, (*p_core));
   return {eps, hits};
 }
 
@@ -609,13 +598,11 @@ void HartreeFock::form_approx_vex_core_a(const DiracSpinor &Fa,
       std::abs(*std::max_element(Fa.f.begin(), Fa.f.end(), max_abs));
   const auto cut_off = 0.003 * max;
 
-  // bool a_in_coreQ = false;
   if (!m_excludeExchange) {
-    for (const auto &Fb : (*p_core)) { // b!=a
-      if (Fb == Fa) {
-        // a_in_coreQ = true;
+    for (const auto &Fb : (*p_core)) {
+      // b!=a
+      if (Fb == Fa)
         continue;
-      }
       const auto tjb = Fb.twoj();
       const double x_tjbp1 = (tjb + 1) * Fb.occ_frac;
       const auto irmax = std::min(Fa.pinf, Fb.pinf);
@@ -684,8 +671,6 @@ std::vector<double> vex_approx(const DiracSpinor &Fa,
   };
   const auto max =
       std::abs(*std::max_element(Fa.f.begin(), Fa.f.end(), max_abs));
-  // const auto cut_off = 0.01 * max; //why was this different?
-  // const auto cut_off = 0.003 * max;
   const auto cut_off = lambda_cut * max;
 
   for (const auto &Fb : core) {
@@ -754,20 +739,20 @@ void HartreeFock::vex_psia_core(const DiracSpinor &Fa, DiracSpinor &VxFa) const
   if (m_excludeExchange)
     return;
 
-  auto twoj_a = Fa.twoj();
+  const auto twoj_a = Fa.twoj();
   for (const auto &Fb : (*p_core)) {
     VxFa.pinf = std::max(VxFa.pinf, Fb.pinf);
-    auto tjb = Fb.twoj();
-    double x_tjbp1 = (Fa == Fb) ? (tjb + 1) : (tjb + 1) * Fb.occ_frac;
-    int kmin = std::abs(twoj_a - tjb) / 2;
-    int kmax = (twoj_a + tjb) / 2;
+    const auto tjb = Fb.twoj();
+    const double x_tjbp1 = (Fa == Fb) ? (tjb + 1) : (tjb + 1) * Fb.occ_frac;
+    const int kmin = std::abs(twoj_a - tjb) / 2;
+    const int kmax = (twoj_a + tjb) / 2;
     const auto &vabk = m_Yab.get_y_ab(Fb, Fa);
     for (int k = kmin; k <= kmax; k++) {
       const auto Labk = m_Yab.Ck().get_Lambdakab(k, Fa.k, Fb.k);
       if (Labk == 0)
         continue;
       for (auto i = 0u; i < Fb.pinf; i++) {
-        auto v = -x_tjbp1 * Labk * vabk[std::size_t(k - kmin)][i];
+        const auto v = -x_tjbp1 * Labk * vabk[std::size_t(k - kmin)][i];
         VxFa.f[i] += v * Fb.f[i];
         VxFa.g[i] += v * Fb.g[i];
       } // r
@@ -828,7 +813,7 @@ void HartreeFock::hf_orbital(DiracSpinor &Fa, double en,
                              const std::vector<DiracSpinor> &static_core,
                              const std::vector<double> &v0,
                              const HF::Breit *const VBr) const
-// Solve Dirac Equation (Eigenvalue): (move to DiracODE??)
+// Solve Dirac Equation (Eigenvalue):
 //  (H0 + Vl + Vx)Fa = 0
 //  (H0 + Vl)Fa = -VxFa
 // Vl is local (e.g., Vnuc + fVdir), Vx is non-local (e.g., (1-f)Vdir + Vex)
@@ -937,8 +922,7 @@ void HartreeFock::brueckner_orbital(DiracSpinor &Fa, double en,
   Fa.en = en;
   Fa.eps = eps;
   Fa.its = tries;
-  // if (tries == 0 || tries == m_max_hf_its)
-  Fa.normalise(); //? Not needed
+  Fa.normalise();
 }
 
 //******************************************************************************
@@ -987,7 +971,7 @@ EpsIts HartreeFock::hf_valence_refine(DiracSpinor &Fa) {
     const auto oldphi = Fa;
     const auto en = Fzero.en + (Fzero * VxFa - Fa * vexFzero) / (Fa * Fzero);
     hf_orbital(Fa, en, vl, Hmag, VxFa, (*p_core));
-    eps = std::fabs((prev_en - Fa.en) / Fa.en);
+    eps = std::abs((prev_en - Fa.en) / Fa.en);
     prev_en = Fa.en;
 
     if (it > 20 && eps > 1.5 * best_eps) {
@@ -1009,15 +993,9 @@ EpsIts HartreeFock::hf_valence_refine(DiracSpinor &Fa) {
     }
 
     Fa = (1.0 - a_damp) * Fa + a_damp * oldphi;
-    if constexpr (m_explicitOrthog_cv) {
-      Wavefunction::orthonormaliseWrt(Fa, (*p_core));
-    } else {
-      Fa.normalise();
-    }
-  } // End HF its
+    Fa.normalise();
 
-  if constexpr (m_explicitOrthog_cv)
-    Wavefunction::orthonormaliseWrt(Fa, (*p_core));
+  } // End HF its
 
   if constexpr (print_final_eps) {
     printf("refine: %2i %2i | %3i eps=%6.1e  en=%11.8f\n", Fa.n, Fa.k, it, eps,
@@ -1070,7 +1048,7 @@ EpsIts HartreeFock::hf_Brueckner(DiracSpinor &Fa,
 
     brueckner_orbital(Fa, en, vl, Hmag, VxFa, Sigma, (*p_core), m_VBr.get());
 
-    eps = std::fabs((prev_en - Fa.en) / Fa.en);
+    eps = std::abs((prev_en - Fa.en) / Fa.en);
     prev_en = Fa.en;
 
     if (it > 20 && eps > 2.0 * best_eps) {
@@ -1145,7 +1123,7 @@ inline void HartreeFock::hf_core_refine() {
   int worse_count = 0;
   int it = 0;
   for (; it <= m_max_hf_its; it++) {
-    auto a_damp = damper(it) + extra_damp;
+    const auto a_damp = damper(it) + extra_damp;
 
     // re-calculate each Vl = vnuc + fvdir, v0 = (1-f)vdir:
     for (auto i = 0ul; i < rgrid->num_points; i++) {
@@ -1191,7 +1169,7 @@ inline void HartreeFock::hf_core_refine() {
       hf_orbital(Fa, en, VlVr, Hmag, v_nonlocal, core_prev, v0, VBr.get());
       Fa = (1.0 - a_damp) * Fa + a_damp * oldphi;
       Fa.normalise();
-      auto d_eps = std::fabs((oldphi.en - Fa.en) / Fa.en);
+      auto d_eps = std::abs((oldphi.en - Fa.en) / Fa.en);
       eps_lst[i] = d_eps;
     }
 
@@ -1234,13 +1212,10 @@ inline void HartreeFock::hf_core_refine() {
 
     if (eps < best_worst_eps)
       best_worst_eps = eps;
-    if (m_explicitOrthog_cc)
-      Wavefunction::orthonormaliseOrbitals((*p_core));
+
     m_Yab.update_y_ints();
     form_vdir(m_vdir);
   }
-  if (m_explicitOrthog_cc)
-    Wavefunction::orthonormaliseOrbitals((*p_core), 2);
 
   if (verbose)
     printf("HF core:  it:%3i eps=%6.1e for %s  [%6.1e for %s]\n", //

@@ -54,7 +54,7 @@ void ExternalField::initialise_dPsi() {
       const auto pi_chla = Angular::parity_l(l_minus) * pi_ch;
       const auto l = (pi_chla == 1) ? l_minus : l_minus + 1;
       const auto kappa = Angular::kappa_twojl(tj, l);
-      m_X[ic].emplace_back(0, kappa, *(Fc.rgrid));
+      m_X[ic].emplace_back(0, kappa, Fc.rgrid);
       m_X[ic].back().pinf = Fc.pinf;
       if (print)
         std::cout << "|" << m_X[ic].back().symbol() << "> + ";
@@ -396,7 +396,7 @@ void ExternalField::solve_TDHFcore_matrix(const Wavefunction &wf,
   for (int ki = 0; ki <= max_ki; ki++) {
     auto k = Angular::kappaFromIndex(ki);
     basis_kappa.push_back(SplineBasis::form_spline_basis(
-        k, nspl, kspl, rmin, rmax, *((*p_core)[0].rgrid), m_alpha));
+        k, nspl, kspl, rmin, rmax, p_core->front().rgrid, m_alpha));
   }
 
   const auto imag = m_h->imaginaryQ();

@@ -41,12 +41,12 @@ Takes in constant n and k=kappa values + grid
 class DiracSpinor {
 
 public:
-  [[deprecated]] DiracSpinor(int in_n, int in_k, const Grid &rgrid);
+  // [[deprecated("Pass in a shared_ptr to avoid a copy")]] DiracSpinor(
+  //     int in_n, int in_k, const Grid &rgrid);
   DiracSpinor(int in_n, int in_k, std::shared_ptr<const Grid> in_rgrid);
 
-  //! Raw pointer to Grid; links F[i] to F(r)
-  std::shared_ptr<const Grid> rgrid{};
-  /* [[deprecated]]*/ const Grid *const p_rgrid;
+  //! Radial Grid; links F[i] to F(r)
+  std::shared_ptr<const Grid> rgrid;
   //! Principal quantum number
   const int n;
   //! Dirac quantum number, kappa

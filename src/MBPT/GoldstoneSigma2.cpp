@@ -70,7 +70,6 @@ void GoldstoneSigma2::fill_Sigma_k(GMatrix *Gmat, const int kappa,
 
   if (m_holes.empty())
     return;
-  const auto &gr = *p_gr;
 
   std::vector<GMatrix> Gds(m_holes.size(), {m_subgrid_points, m_include_G});
   std::vector<GMatrix> Gxs(m_holes.size(), {m_subgrid_points, m_include_G});
@@ -79,8 +78,8 @@ void GoldstoneSigma2::fill_Sigma_k(GMatrix *Gmat, const int kappa,
     const auto &a = m_holes[ia];
     auto &Ga_d = Gds[ia];
     auto &Ga_x = Gxs[ia];
-    auto Qkv = DiracSpinor(0, kappa, gr); // re-use to reduce alloc'ns
-    auto Pkv = DiracSpinor(0, kappa, gr); // re-use to reduce alloc'ns
+    auto Qkv = DiracSpinor(0, kappa, p_gr); // re-use to reduce alloc'ns
+    auto Pkv = DiracSpinor(0, kappa, p_gr); // re-use to reduce alloc'ns
     for (const auto &n : m_excited) {
       const auto [kmin_nb, kmax_nb] = m_yeh.k_minmax(n, a);
       for (int k = kmin_nb; k <= kmax_nb; ++k) {

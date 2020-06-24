@@ -33,41 +33,53 @@ void solveContinuum(DiracSpinor &phi, const double en,
 // num_pointsb
 {
   // guess as asymptotic region:
-  auto i_asym = ext_grid.getIndex(r_asym0); // - 1;
+  // [[deprecated("Not reall deprecated - hack to print this message. NOTE: I "
+  //              "changed this, but did not test it!!!")]]
+  auto i_asym = ext_grid.getIndex(r_asym0);
   phi.en = en;
 
-  auto num_pointsb = phi.rgrid->num_points;
-  auto num_pointsc = ext_grid.num_points;
+#pragma message("NOTE: I changed this, but did not test it!!!")
+#warning "NOTE: I changed this, but did not test it!!!"
+
+  const auto num_pointsb = phi.rgrid->num_points;
+  const auto num_pointsc = ext_grid.num_points;
 
   // Perform the "outwards integration"
   // XXX DON"T need to do this! Just re-size f/g vectors!! XXX
-  DiracSpinor psic(phi.n, phi.k, ext_grid);
-  psic.en = phi.en;
+  // DiracSpinor psic(phi.n, phi.k, ext_grid);
+  phi.f.resize(num_pointsc); // nb: this is a little dangerous!
+  phi.g.resize(num_pointsc);
 
-  DiracMatrix Hd(ext_grid, v, psic.k, psic.en, alpha, {});
-  outwardAM(psic.f, psic.g, Hd, (int)num_pointsc - 1);
+  DiracMatrix Hd(ext_grid, v, phi.k, phi.en, alpha, {});
+  outwardAM(phi.f, phi.g, Hd, (int)num_pointsc - 1);
 
   // Find a better (lower) asymptotic region:
-  i_asym = findAsymptoticRegion(psic.f, ext_grid.r, num_pointsb, num_pointsc,
-                                i_asym);
+  i_asym =
+      findAsymptoticRegion(phi.f, ext_grid.r, num_pointsb, num_pointsc, i_asym);
 
   // Find amplitude of large-r (asymptotic region) sine-like wf
-  const double amp = findSineAmplitude(psic.f, ext_grid.r, num_pointsc, i_asym);
+  const double amp = findSineAmplitude(phi.f, ext_grid.r, num_pointsc, i_asym);
 
   // Calculate normalisation coeficient, D, and re-scaling factor:
   // D = Sqrt[alpha/(pi*eps)] <-- Amplitude of large-r p(r)
   // eps = Sqrt[en/(en+2mc^2)]
   const double al2 = std::pow(alpha, 2);
   const double ceps =
-      std::sqrt(psic.en / (psic.en * al2 + 2.)); // c*eps = eps/alpha
+      std::sqrt(phi.en / (phi.en * al2 + 2.)); // c*eps = eps/alpha
   const double D = 1.0 / std::sqrt(M_PI * ceps);
   const double sf = D / amp; // re-scale factor
 
-  // Normalise the wfs, and transfer back to shorter arrays:
-  for (std::size_t i = 0; i < num_pointsb; i++) {
-    phi.f[i] = sf * psic.f[i];
-    phi.g[i] = sf * psic.g[i];
-  }
+  // // Normalise the wfs, and transfer back to shorter arrays:
+  // for (std::size_t i = 0; i < num_pointsb; i++) {
+  //   phi.f[i] = sf * phi.f[i];
+  //   phi.g[i] = sf * psi.g[i];
+  // }
+
+  // Transfer back to shorter array:
+  phi.f.resize(num_pointsb); // nb: this is a little dangerous!
+  phi.g.resize(num_pointsb);
+  phi.pinf = num_pointsb - 1;
+  phi *= sf;
 }
 
 namespace Adams {

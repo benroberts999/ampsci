@@ -282,8 +282,7 @@ double Rk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fc,
 DiracSpinor Rkv_bcd(const int kappa_a, const DiracSpinor &Fb,
                     const DiracSpinor &Fc, const DiracSpinor &Fd, const int k) {
   [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__);
-  const auto ykbd = yk_ab(Fb, Fd, k, Fc.pinf);
-  return Rkv_bcd(kappa_a, Fc, ykbd);
+  return Rkv_bcd(kappa_a, Fc, yk_ab(Fb, Fd, k, Fc.pinf));
 }
 //------------------------------------------------------------------------------
 DiracSpinor Rkv_bcd(const int kappa_a, const DiracSpinor &Fc,
@@ -473,12 +472,6 @@ DiracSpinor Qkv_bcd(const int kappa_v, const DiracSpinor &Fb,
   if (tCC == 0) //?????
     return DiracSpinor(0, kappa_v, Fb.rgrid);
   return (m1tk * tCC) * Rkv_bcd(kappa_v, Fc, ykbd);
-  // auto Rkv =
-  //     tCC == 0 ? DiracSpinor(0, kappa_v, Fb.rgrid) : Rkv_bcd(kappa_v, Fc,
-  //     ykbd);
-  // // const auto m1tk = Angular::evenQ(k) ? 1 : -1;
-  // Rkv.scale(m1tk * tCC);
-  // return Rkv;
 }
 
 //******************************************************************************

@@ -163,9 +163,6 @@ private:
   std::unique_ptr<const HF::Breit> m_VBr{nullptr};
 
   static constexpr int m_max_hf_its = 99;
-  // Optionally force orthogonalisation. False by default.
-  static constexpr bool m_explicitOrthog_cc = false;
-  static constexpr bool m_explicitOrthog_cv = false;
 
 private:
   void hf_core_approx(const double eps_target_HF);

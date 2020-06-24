@@ -1,6 +1,8 @@
 #include "Wavefunction/ContinuumOrbitals.hpp"
 #include "DiracODE/DiracODE.hpp"
+#include "HF/HartreeFock.hpp"
 #include "Maths/Grid.hpp"
+#include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/AtomData.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
@@ -9,13 +11,10 @@
 #include <cmath>
 #include <string>
 #include <vector>
-//
-#include "HF/HartreeFock.hpp"
-#include "Maths/NumCalc_quadIntegrate.hpp"
 
 //******************************************************************************
 ContinuumOrbitals::ContinuumOrbitals(const Wavefunction &wf, int izion)
-    : p_rgrid(&*(wf.rgrid)),
+    : rgrid(wf.rgrid),
       p_hf(wf.getHF()),
       Z(wf.Znuc()),
       Zion(izion),
@@ -65,7 +64,7 @@ int ContinuumOrbitals::solveLocalContinuum(double ec, int min_l, int max_l)
 
   // Check if 'h' is small enough for oscillating region:
   const double h_target = (M_PI / 15) / std::sqrt(2.0 * ec);
-  const auto h = p_rgrid->du;
+  const auto h = rgrid->du;
   if (h > h_target) {
     std::cout << "WARNING 61 CntOrb: Grid not dense enough for ec=" << ec
               << " (du=" << h << ", need du<" << h_target << ")\n";
@@ -77,14 +76,14 @@ int ContinuumOrbitals::solveLocalContinuum(double ec, int min_l, int max_l)
   }
 
   // XXX Don't need to extend grid each time...
-  ExtendedGrid cgrid(*p_rgrid, 1.2 * r_asym);
+  ExtendedGrid cgrid(*rgrid, 1.2 * r_asym);
 
   // "Z_ion" - "actual" (excluding exchange.....)
-  const auto z_tmp = std::abs(v_local.back() * p_rgrid->r.back());
+  const auto z_tmp = std::abs(v_local.back() * rgrid->r.back());
 
   auto vc = v_local;
   vc.reserve(cgrid.num_points);
-  for (auto i = p_rgrid->num_points; i < cgrid.num_points; i++) {
+  for (auto i = rgrid->num_points; i < cgrid.num_points; i++) {
     if (force_rescale) {
       vc.push_back(-Zion / cgrid.r[i]);
     } else {
@@ -100,7 +99,7 @@ int ContinuumOrbitals::solveLocalContinuum(double ec, int min_l, int max_l)
     if (l > max_l)
       break;
 
-    auto &phi = orbitals.emplace_back(0, kappa, *p_rgrid);
+    auto &phi = orbitals.emplace_back(0, kappa, rgrid);
     phi.en = ec;
     DiracODE::solveContinuum(phi, ec, vc, cgrid, r_asym, alpha);
 
@@ -117,8 +116,8 @@ int ContinuumOrbitals::solveLocalContinuum(double ec, int min_l, int max_l)
 
         // Ensure potential goes as - Zion / r at large r
         if (force_rescale) {
-          for (std::size_t ir = p_rgrid->num_points - 1; ir != 0; --ir) {
-            const auto r = p_rgrid->r[ir];
+          for (std::size_t ir = rgrid->num_points - 1; ir != 0; --ir) {
+            const auto r = rgrid->r[ir];
             if (r * std::abs(vtot[ir]) > Zion)
               break;
             vtot[ir] = -Zion / r;
@@ -138,7 +137,7 @@ int ContinuumOrbitals::solveLocalContinuum(double ec, int min_l, int max_l)
   }
 
   // std::ofstream of("hf-new.txt");
-  // const auto &gr = *p_rgrid;
+  // const auto &gr = *rgrid;
   // of << "r ";
   // for (auto &psi : orbitals) {
   //   of << "\"" << psi.symbol(true) << "\" ";

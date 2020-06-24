@@ -192,8 +192,8 @@ ComplexGMatrix FeynmanSigma::Green_hf(int kappa, double en) const {
     return Green_hf_basis(kappa, en, 0.0, false);
   }
 
-  DiracSpinor x0(0, kappa, *p_gr);
-  DiracSpinor xI(0, kappa, *p_gr);
+  DiracSpinor x0(0, kappa, p_gr);
+  DiracSpinor xI(0, kappa, p_gr);
 
   const auto &Hmag = p_hf->get_Hrad_mag(x0.l());
   const auto alpha = p_hf->get_alpha();
