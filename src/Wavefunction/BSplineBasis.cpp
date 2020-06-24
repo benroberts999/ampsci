@@ -1,8 +1,8 @@
 #include "BSplineBasis.hpp"
 #include "HF/Breit.hpp"
 #include "HF/HartreeFock.hpp"
-#include "IO/UserInput.hpp"
 #include "IO/SafeProfiler.hpp"
+#include "IO/UserInput.hpp"
 #include "Maths/BSplines.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/LinAlg_MatrixVector.hpp"
@@ -91,7 +91,7 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
       r0_eff = l <= 1 ? 1.0e-4 : l <= 3 ? 1.0e-3 : 1.0e-2; // Notre-Dame XXX
 
     const auto spl_basis = form_spline_basis(kappa, n_spl, k, r0_eff, rmax_spl,
-                                             wf.rgrid, wf.alpha);
+                                             *(wf.rgrid), wf.alpha);
 
     auto [Aij, Sij] = fill_Hamiltonian_matrix(spl_basis, wf, correlationsQ);
     const auto [e_values, e_vectors] =
@@ -324,9 +324,10 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
         (!positive_energy && pqn_pstrn < -max_n))
       continue;
 
-    auto &phi = (positive_energy)
-                    ? basis->emplace_back(pqn, kappa, wf.rgrid)
-                    : basis_positron->emplace_back(pqn_pstrn, kappa, wf.rgrid);
+    auto &phi =
+        (positive_energy)
+            ? basis->emplace_back(pqn, kappa, *(wf.rgrid))
+            : basis_positron->emplace_back(pqn_pstrn, kappa, *(wf.rgrid));
     phi.en = en;
     phi.p0 = spl_basis[0].pinf; // yes, backwards (updated below)
     phi.pinf = spl_basis[0].p0;
@@ -339,7 +340,7 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
   }
 
   // ensure correct sign (doesn't seem to matter.., but nicer)
-  const auto ir = wf.rgrid.getIndex(0.005);
+  const auto ir = wf.rgrid->getIndex(0.005);
   for (auto &Fb : *basis) {
     if (Fb.f[ir] < 0)
       Fb *= -1;

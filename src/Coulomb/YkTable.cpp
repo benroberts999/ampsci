@@ -15,7 +15,7 @@
 namespace Coulomb {
 
 //******************************************************************************
-YkTable::YkTable(const Grid *const in_grid,
+YkTable::YkTable(std::shared_ptr<const Grid> in_grid,
                  const std::vector<DiracSpinor> *const in_a_orbs,
                  const std::vector<DiracSpinor> *const in_b_orbs)
     : m_a_orbs(in_a_orbs),

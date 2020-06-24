@@ -56,7 +56,7 @@ int main(int argc, char *argv[]) {
 
   std::cout << "\nRunning for " << wf.atom() << "\n"
             << wf.nuclearParams() << "\n"
-            << wf.rgrid.gridParameters() << "\n"
+            << wf.rgrid->gridParameters() << "\n"
             << "********************************************************\n";
 
   // Parse input for HF method
@@ -121,7 +121,7 @@ int main(int argc, char *argv[]) {
   std::vector<double> Vextra;
   if (extra_pot) {
     const auto &[x, y] = IO::FRW::readFile_xy_PoV("testIn.txt");
-    Vextra = Interpolator::interpolate(x, y, wf.rgrid.r);
+    Vextra = Interpolator::interpolate(x, y, wf.rgrid->r);
     NumCalc::scaleVec(Vextra, ep_factor);
   }
 
@@ -154,8 +154,8 @@ int main(int argc, char *argv[]) {
     const auto r_cut = input.get("dVpol", "r_cut", 1.0);
     const auto a4 = r_cut * r_cut * r_cut * r_cut;
     auto dV = [=](auto x) { return -0.5 * a_eff / (x * x * x * x + a4); };
-    for (auto i = 0u; i < wf.rgrid.num_points; ++i) {
-      wf.vdir[i] += dV(wf.rgrid.r[i]);
+    for (auto i = 0u; i < wf.rgrid->num_points; ++i) {
+      wf.vdir[i] += dV(wf.rgrid->r[i]);
     }
   }
 
@@ -207,7 +207,7 @@ int main(int argc, char *argv[]) {
   const auto default_stride = [&]() {
     // By default, choose stride such that there is 150 points over [1e-4,30]
     const auto stride =
-        int(wf.rgrid.getIndex(30.0) - wf.rgrid.getIndex(1.0e-4)) / 150;
+        int(wf.rgrid->getIndex(30.0) - wf.rgrid->getIndex(1.0e-4)) / 150;
     return (stride <= 2) ? 2 : stride;
   }();
   const auto sigma_stride = input.get("Correlations", "stride", default_stride);

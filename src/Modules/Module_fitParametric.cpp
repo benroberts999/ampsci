@@ -45,10 +45,10 @@ void fitParametric(const IO::UserInputBlock &input, const Wavefunction &wf) {
     double H, d;
     auto Z = wf.Znuc();
     // auto A = wf.Anuc();
-    auto num_points = wf.rgrid.num_points;
-    auto r0 = wf.rgrid.r0;
-    auto rmax = wf.rgrid.rmax;
-    GridParameters gp(num_points, r0, rmax, wf.rgrid.b, wf.rgrid.gridtype);
+    auto num_points = wf.rgrid->num_points;
+    auto r0 = wf.rgrid->r0;
+    auto rmax = wf.rgrid->rmax;
+    GridParameters gp(num_points, r0, rmax, wf.rgrid->b, wf.rgrid->gridtype);
     auto nuc_params = wf.get_nuclearParameters();
 
     std::tie(H, d) =
@@ -63,10 +63,10 @@ void fitParametric(const IO::UserInputBlock &input, const Wavefunction &wf) {
     // Now, solve using the above-found best-fit parameters:
     Wavefunction wf_prm(gp, nuc_params);
     if (green)
-      for (auto r : wf_prm.rgrid.r)
+      for (auto r : wf_prm.rgrid->r)
         wf_prm.vdir.push_back(Parametric::green(Z, r, H, d));
     else
-      for (auto r : wf_prm.rgrid.r)
+      for (auto r : wf_prm.rgrid->r)
         wf_prm.vdir.push_back(Parametric::tietz(Z, r, H, d));
     for (auto &nk : states) {
       wf_prm.solveNewValence(nk.n, nk.k, nk.en);
@@ -80,7 +80,7 @@ void fitParametric(const IO::UserInputBlock &input, const Wavefunction &wf) {
     for (auto &phi : wf_prm.valence) {
       // const auto njl = phi.symbol().c_str();
       // double rinf = wf.rinf(phi);
-      double rinf = wf.rgrid.r[phi.pinf - 1];
+      double rinf = wf.rgrid->r[phi.pinf - 1];
       double eni = phi.en;
       double enT = states[std::size_t(i++)].en;
       printf("%7s %2i  %3.0f %3i  %5.0e  %13.7f  %11.4f %8.2f%%\n",
@@ -139,10 +139,10 @@ FitParametric::performFit(const std::vector<AtomData::DiracSEnken> &states,
         double d = dmin + m * dd;
         Wavefunction wf(gp, nuc_params);
         if (green)
-          for (auto r : wf.rgrid.r)
+          for (auto r : wf.rgrid->r)
             wf.vdir.push_back(Parametric::green(Z, r, H, d));
         else
-          for (auto r : wf.rgrid.r)
+          for (auto r : wf.rgrid->r)
             wf.vdir.push_back(Parametric::tietz(Z, r, H, d));
         // fits for the worst state
         double fx = 0;

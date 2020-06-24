@@ -4,6 +4,7 @@
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <cmath>
+#include <memory>
 #include <vector>
 
 //******************************************************************************
@@ -17,15 +18,15 @@ will return max
 */
 class RadialHamiltonian {
 private:
-  const Grid *const m_gr;
+  std::shared_ptr<const Grid> m_gr;
   // const int m_z;
   const double m_alpha, m_c, m_c2;
   std::vector<std::vector<double>> m_Vk = {};
   std::vector<double> m_v_mag = {};
 
 public:
-  RadialHamiltonian(const Grid &rgrid, const double in_alpha)
-      : m_gr(&rgrid),
+  RadialHamiltonian(std::shared_ptr<const Grid> rgrid, const double in_alpha)
+      : m_gr(rgrid),
         m_alpha(in_alpha),
         m_c(1.0 / m_alpha),
         m_c2(m_c * m_c),
@@ -85,20 +86,20 @@ public:
     const auto kappa = Fa.k;
     const auto max = std::min(Fa.pinf, Fb.pinf);
     const auto min = std::max(Fa.p0, Fb.p0);
-    const auto &drdu = Fa.p_rgrid->drdu;
+    const auto &drdu = Fa.rgrid->drdu;
 
-    auto dga = NumCalc::derivative(Fa.g, drdu, Fb.p_rgrid->du, 1);
-    auto dgb = NumCalc::derivative(Fb.g, drdu, Fb.p_rgrid->du, 1);
+    auto dga = NumCalc::derivative(Fa.g, drdu, Fb.rgrid->du, 1);
+    auto dgb = NumCalc::derivative(Fb.g, drdu, Fb.rgrid->du, 1);
 
     // auto dga = Fa.dg.empty()
-    //                ? NumCalc::derivative(Fa.g, drdu, Fb.p_rgrid->du, 1)
+    //                ? NumCalc::derivative(Fa.g, drdu, Fb.rgrid->du, 1)
     //                : Fa.dg;
     // auto dgb = Fb.dg.empty()
-    //                ? NumCalc::derivative(Fb.g, drdu, Fb.p_rgrid->du, 1)
+    //                ? NumCalc::derivative(Fb.g, drdu, Fb.rgrid->du, 1)
     //                : Fb.dg;
 
     for (std::size_t i = 0; i < max; i++) {
-      auto r = Fa.p_rgrid->r[i];
+      auto r = Fa.rgrid->r[i];
       dga[i] -= (kappa * Fa.g[i] / r);
       dgb[i] -= (kappa * Fb.g[i] / r);
     }
@@ -107,14 +108,14 @@ public:
                 NumCalc::integrate(1.0, min, max, Fb.f, dga, drdu);
 
     // auto dfa = Fa.df.empty()
-    //                ? NumCalc::derivative(Fa.f, drdu, Fb.p_rgrid->du, 1)
+    //                ? NumCalc::derivative(Fa.f, drdu, Fb.rgrid->du, 1)
     //                : Fa.df;
     // auto dfb = Fb.df.empty()
-    //                ? NumCalc::derivative(Fb.f, drdu, Fb.p_rgrid->du, 1)
+    //                ? NumCalc::derivative(Fb.f, drdu, Fb.rgrid->du, 1)
     //                : Fb.df;
     //
     // for (std::size_t i = 0; i < max; i++) {
-    //   auto r = Fa.p_rgrid->r[i];
+    //   auto r = Fa.rgrid->r[i];
     //   dfa[i] += (kappa * Fa.f[i] / r);
     //   dfb[i] += (kappa * Fb.f[i] / r);
     // }
@@ -134,6 +135,6 @@ public:
               NumCalc::integrate(1.0, min, max, Fa.g, Fb.f, m_v_mag, drdu);
     // XXX include MAG!
 
-    return (Vab - m_c * (D1m2 + 2.0 * m_c * Sab + V_mag)) * Fa.p_rgrid->du;
+    return (Vab - m_c * (D1m2 + 2.0 * m_c * Sab + V_mag)) * Fa.rgrid->du;
   }
 };

@@ -85,7 +85,7 @@ void boundState(DiracSpinor &psi, const double en0,
   })
   DEBUG(std::cerr << "Start: " << psi.symbol() << ", en=" << psi.en << "\n";)
 
-  const auto &rgrid = *psi.p_rgrid;
+  const auto &rgrid = *psi.rgrid;
 
   // orbital should have (n-l-1) nodes:
   const int required_nodes = psi.n - psi.l() - 1;
@@ -177,7 +177,7 @@ void regularAtOrigin(DiracSpinor &phi, const double en,
                      const std::vector<double> &v,
                      const std::vector<double> &H_mag, const double alpha) {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
-  const auto &gr = phi.p_rgrid;
+  const auto &gr = phi.rgrid;
   if (en != 0)
     phi.en = en;
   const auto pinf = Adams::findPracticalInfinity(phi.en, v, gr->r, Param::cALR);
@@ -196,7 +196,7 @@ void regularAtInfinity(DiracSpinor &phi, const double en,
                        const std::vector<double> &v,
                        const std::vector<double> &H_mag, const double alpha) {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
-  const auto &gr = phi.p_rgrid;
+  const auto &gr = phi.rgrid;
   if (en < 0)
     phi.en = en;
   const auto pinf = Adams::findPracticalInfinity(phi.en, v, gr->r, Param::cALR);

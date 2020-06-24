@@ -45,7 +45,7 @@ static inline void yk_ijk_impl(const int l, const DiracSpinor &Fa,
 //
 // Also uses Quadrature integer rules! (Defined in NumCalc)
 {
-  const auto &gr = Fa.p_rgrid; // just save typing
+  const auto &gr = Fa.rgrid; // just save typing
   const auto du = gr->du;
   const auto num_points = gr->num_points;
   vabk.resize(num_points); // for safety
@@ -142,7 +142,7 @@ static inline void Breit_abk_impl(const int l, const DiracSpinor &Fa,
                                   const std::size_t maxi) {
   static_assert(pm == 1 || pm == -1,
                 "Breit_abk_impl must be called with pm=+/-1 only\n");
-  const auto &gr = Fa.p_rgrid; // just save typing
+  const auto &gr = Fa.rgrid; // just save typing
   const auto du = gr->du;
   const auto num_points = gr->num_points;
   b0.resize(num_points);   // needed
@@ -270,12 +270,12 @@ double Rk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
 double Rk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fc,
                const std::vector<double> &yk_bd) {
   [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__, "yk");
-  const auto &drdu = Fa.p_rgrid->drdu;
+  const auto &drdu = Fa.rgrid->drdu;
   const auto i0 = std::max(Fa.p0, Fc.p0);
   const auto imax = std::min(Fa.pinf, Fc.pinf);
   const auto Rff = NumCalc::integrate(1.0, i0, imax, Fa.f, Fc.f, yk_bd, drdu);
   const auto Rgg = NumCalc::integrate(1.0, i0, imax, Fa.g, Fc.g, yk_bd, drdu);
-  return (Rff + Rgg) * Fa.p_rgrid->du;
+  return (Rff + Rgg) * Fa.rgrid->du;
 }
 
 //******************************************************************************
@@ -289,7 +289,7 @@ DiracSpinor Rkv_bcd(const int kappa_a, const DiracSpinor &Fb,
 DiracSpinor Rkv_bcd(const int kappa_a, const DiracSpinor &Fc,
                     const std::vector<double> &ykbd) {
   [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__);
-  auto out = DiracSpinor(0, kappa_a, *(Fc.p_rgrid));
+  auto out = DiracSpinor(0, kappa_a, Fc.rgrid);
   out.p0 = Fc.p0;
   out.pinf = Fc.pinf;
   out.f = NumCalc::mult_vectors(Fc.f, ykbd);
@@ -310,7 +310,7 @@ void Rkv_bcd(DiracSpinor *const Rkv, const DiracSpinor &Fc,
     Rkv->f[i] = Fc.f[i] * ykbd[i];
     Rkv->g[i] = Fc.g[i] * ykbd[i];
   }
-  for (auto i = Rkv->pinf; i < Rkv->p_rgrid->num_points; ++i) {
+  for (auto i = Rkv->pinf; i < Rkv->rgrid->num_points; ++i) {
     Rkv->f[i] = 0.0;
     Rkv->g[i] = 0.0;
   }
@@ -469,11 +469,16 @@ DiracSpinor Qkv_bcd(const int kappa_v, const DiracSpinor &Fb,
   const auto tCac = Ck.get_tildeCkab(k, kappa_v, Fc.k);
   const auto tCbd = Ck.get_tildeCkab(k, Fb.k, Fd.k);
   const auto tCC = tCbd * tCac;
-  auto Rkv = tCC == 0 ? DiracSpinor(0, kappa_v, *(Fb.p_rgrid))
-                      : Rkv_bcd(kappa_v, Fc, ykbd);
   const auto m1tk = Angular::evenQ(k) ? 1 : -1;
-  Rkv.scale(m1tk * tCC);
-  return Rkv;
+  if (tCC == 0) //?????
+    return DiracSpinor(0, kappa_v, Fb.rgrid);
+  return (m1tk * tCC) * Rkv_bcd(kappa_v, Fc, ykbd);
+  // auto Rkv =
+  //     tCC == 0 ? DiracSpinor(0, kappa_v, Fb.rgrid) : Rkv_bcd(kappa_v, Fc,
+  //     ykbd);
+  // // const auto m1tk = Angular::evenQ(k) ? 1 : -1;
+  // Rkv.scale(m1tk * tCC);
+  // return Rkv;
 }
 
 //******************************************************************************

@@ -1,8 +1,11 @@
 #pragma once
 #include "Angular/Angular_tables.hpp"
-#include "Wavefunction/DiracSpinor.hpp"
+// #include "Wavefunction/DiracSpinor.hpp"
+#include <memory>
 #include <utility>
 #include <vector>
+class Grid;
+class DiracSpinor;
 
 namespace Coulomb {
 
@@ -26,7 +29,7 @@ with \f$r_< = min(r,r')\f$
 */
 class YkTable {
 public:
-  YkTable(const Grid *const in_grid,
+  YkTable(std::shared_ptr<const Grid> in_grid,
           const std::vector<DiracSpinor> *const in_a_orbs,
           const std::vector<DiracSpinor> *const in_b_orbs = nullptr);
   YkTable &operator=(const YkTable &) = delete;
@@ -36,7 +39,7 @@ public:
 private:
   const std::vector<DiracSpinor> *const m_a_orbs;
   const std::vector<DiracSpinor> *const m_b_orbs;
-  const Grid *const m_grid;
+  std::shared_ptr<const Grid> m_grid;
   const bool m_aisb;
 
 private:

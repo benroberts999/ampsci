@@ -54,7 +54,7 @@ void ExternalField::initialise_dPsi() {
       const auto pi_chla = Angular::parity_l(l_minus) * pi_ch;
       const auto l = (pi_chla == 1) ? l_minus : l_minus + 1;
       const auto kappa = Angular::kappa_twojl(tj, l);
-      m_X[ic].emplace_back(0, kappa, *(Fc.p_rgrid));
+      m_X[ic].emplace_back(0, kappa, *(Fc.rgrid));
       m_X[ic].back().pinf = Fc.pinf;
       if (print)
         std::cout << "|" << m_X[ic].back().symbol() << "> + ";
@@ -286,7 +286,7 @@ DiracSpinor ExternalField::dV_rhs(const int kappa_n, const DiracSpinor &Fm,
   const auto tjm = Fm.twoj();
   const auto Ckala = Angular::Ck_kk(k, kappa_n, Fm.k);
 
-  auto dVFm = DiracSpinor(0, kappa_n, *(Fm.p_rgrid));
+  auto dVFm = DiracSpinor(0, kappa_n, Fm.rgrid);
   dVFm.pinf = Fm.pinf;
 
 #pragma omp parallel for
@@ -295,7 +295,7 @@ DiracSpinor ExternalField::dV_rhs(const int kappa_n, const DiracSpinor &Fm,
     const auto tjb = Fb.twoj();
     const auto &X_betas = get_dPsis(Fb, ChiType);
     const auto &Y_betas = get_dPsis(Fb, EtaType);
-    auto dVFm_c = DiracSpinor(0, kappa_n, *(Fm.p_rgrid));
+    auto dVFm_c = DiracSpinor(0, kappa_n, Fm.rgrid);
     dVFm_c.pinf = Fm.pinf;
 
     // only for testing: exclude certain (core) states from dV sum
@@ -396,7 +396,7 @@ void ExternalField::solve_TDHFcore_matrix(const Wavefunction &wf,
   for (int ki = 0; ki <= max_ki; ki++) {
     auto k = Angular::kappaFromIndex(ki);
     basis_kappa.push_back(SplineBasis::form_spline_basis(
-        k, nspl, kspl, rmin, rmax, *((*p_core)[0].p_rgrid), m_alpha));
+        k, nspl, kspl, rmin, rmax, *((*p_core)[0].rgrid), m_alpha));
   }
 
   const auto imag = m_h->imaginaryQ();
@@ -482,7 +482,7 @@ void ExternalField::solve_TDHFcore_matrix(const Wavefunction &wf,
 //******************************************************************************
 void ExternalField::print(const std::string &ofname) const {
   std::ofstream of(ofname);
-  const auto &gr = *((p_core->front()).p_rgrid);
+  const auto &gr = *((p_core->front()).rgrid);
   for (auto i = 0ul; i < gr.num_points; ++i) {
     of << gr.r[i] << " ";
     for (auto ic = 0ul; ic < p_core->size(); ic++) {

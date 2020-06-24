@@ -1,4 +1,5 @@
 #pragma once
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -40,10 +41,12 @@ Takes in constant n and k=kappa values + grid
 class DiracSpinor {
 
 public:
-  DiracSpinor(int in_n, int in_k, const Grid &rgrid);
+  [[deprecated]] DiracSpinor(int in_n, int in_k, const Grid &rgrid);
+  DiracSpinor(int in_n, int in_k, std::shared_ptr<const Grid> in_rgrid);
 
   //! Raw pointer to Grid; links F[i] to F(r)
-  const Grid *const p_rgrid;
+  std::shared_ptr<const Grid> rgrid{};
+  /* [[deprecated]]*/ const Grid *const p_rgrid;
   //! Principal quantum number
   const int n;
   //! Dirac quantum number, kappa
@@ -55,18 +58,16 @@ public:
   //! Lower (small) radial component
   std::vector<double> g;
   //! `practical zero': p0 is first non-zero point for f(r) [usually p0=0]
-  std::size_t p0;
+  std::size_t p0 = 0;
   //! `practical infinity': pinf is last non-zero point for f(r)
   std::size_t pinf;
-  // //! derivitates (often just empty)
-  // std::vector<double> df{}, dg{};
 
   //! Number of iterations until energy convergence (for latest routine only)
-  int its;
+  int its = -1;
   //! Fractional energy convergence: eps = |(en'-en)/en|
-  double eps;
+  double eps = -1.0;
   //! Occupation fraction. =1 for closed shells. =1/(2j+1) for valence
-  double occ_frac;
+  double occ_frac = 0.0;
 
 private:
   const int m_twoj;

@@ -64,8 +64,8 @@ void basisTests(const Wavefunction &wf) {
   else
     std::cout << "Using Basis\n";
 
-  auto rhat = DiracOperator::E1(wf.rgrid);          // vector E1
-  auto r2hat = DiracOperator::RadialF(wf.rgrid, 2); // scalar r^2
+  auto rhat = DiracOperator::E1(*(wf.rgrid));          // vector E1
+  auto r2hat = DiracOperator::RadialF(*(wf.rgrid), 2); // scalar r^2
 
   auto comp_l = [](const auto &Fa, const auto &Fb) { return Fa.l() < Fb.l(); };
   auto max_l = std::max_element(basis.begin(), basis.end(), comp_l)->l();
@@ -88,7 +88,7 @@ void basisTests(const Wavefunction &wf) {
           const auto f = (Fn.k == l) ? l : (Fn.k == -l - 1) ? l + 1 : 0;
           if (f == 0)
             continue;
-          const auto Ran = Fa * (wf.rgrid.r * Fn);
+          const auto Ran = Fa * (wf.rgrid->r * Fn);
           const auto term = f * (Fn.en - Fa.en) * Ran * Ran / (2 * l + 1);
           if (Fn.n > 0)
             sum_el += term;
@@ -142,7 +142,7 @@ void basisTests(const Wavefunction &wf) {
   const auto mu = isotope.mu;
   const auto I_nuc = isotope.I_N;
   const auto hfs = DiracOperator::Hyperfine(
-      mu, I_nuc, 0.0, wf.rgrid, DiracOperator::Hyperfine::pointlike_F());
+      mu, I_nuc, 0.0, *(wf.rgrid), DiracOperator::Hyperfine::pointlike_F());
 
   std::cout << "\nHFS and Energies: Basis cf HF:\n";
   std::cout << "    | A(HF)      Basis      eps   | En(HF)      "
@@ -188,7 +188,7 @@ void Module_test_r0pinf(const Wavefunction &wf) {
       auto ratios = phi.r0pinfratio();
       printf("%7s:  %.0e   %.0e   %5i/%6.2f\n", phi.symbol().c_str(),
              std::abs(ratios.first), std::abs(ratios.second), (int)phi.pinf,
-             wf.rgrid.r[phi.pinf - 1]);
+             wf.rgrid->r[phi.pinf - 1]);
       // std::cout << ratios.first << " " << ratios.second << "\n";
     }
     std::cout << "--------------\n";

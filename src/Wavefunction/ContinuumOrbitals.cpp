@@ -15,7 +15,7 @@
 
 //******************************************************************************
 ContinuumOrbitals::ContinuumOrbitals(const Wavefunction &wf, int izion)
-    : p_rgrid(&wf.rgrid),
+    : p_rgrid(&*(wf.rgrid)),
       p_hf(wf.getHF()),
       Z(wf.Znuc()),
       Zion(izion),

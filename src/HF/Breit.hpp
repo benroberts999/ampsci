@@ -52,7 +52,7 @@ private:
 
   // Calculates V_br*Fa = \sum_b\sum_k B^k_ba F_b
   DiracSpinor VbrFa(const DiracSpinor &Fa) const {
-    DiracSpinor BFa(Fa.n, Fa.k, *Fa.p_rgrid); //
+    DiracSpinor BFa(Fa.n, Fa.k, Fa.rgrid); //
     for (const auto &Fb : *p_core) {
       BkbaFb(&BFa, Fa, Fb);
     }

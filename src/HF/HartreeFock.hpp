@@ -89,7 +89,7 @@ class HartreeFock {
 
 public:
   //! @brief Method is enum class, eps_HF is convergence goal.
-  HartreeFock(const Grid &in_grid, const std::vector<double> &in_vnuc,
+  HartreeFock(std::shared_ptr<const Grid>, const std::vector<double> &in_vnuc,
               std::vector<DiracSpinor> *in_core,
               const RadiativePotential::Vrad *const in_vrad = nullptr,
               double m_alpha = PhysConst::alpha,
@@ -143,11 +143,10 @@ public:
   DiracSpinor VBr(const DiracSpinor &Fv) const;
 
 public:
-  bool verbose = true;       // update to input??
-  const Grid *const p_rgrid; // XXX getter?
+  bool verbose = true; // update to input??
+  std::shared_ptr<const Grid> rgrid;
 
 private:
-  // const Grid *const p_rgrid;
   const std::vector<double> *const p_vnuc;
   const RadiativePotential::Vrad *const p_vrad;
   const double m_alpha;

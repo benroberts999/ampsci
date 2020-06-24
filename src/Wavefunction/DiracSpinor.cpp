@@ -11,21 +11,30 @@
 #include <vector>
 
 //******************************************************************************
-DiracSpinor::DiracSpinor(int in_n, int in_k, const Grid &rgrid)
-    : p_rgrid(&rgrid), //
+DiracSpinor::DiracSpinor(int in_n, int in_k, const Grid &in_rgrid)
+    : p_rgrid(&in_rgrid),
       n(in_n),
       k(in_k),
-      en(0.0),                                       //
-      f(std::vector<double>(rgrid.num_points, 0.0)), //
-      g(f),                                          //
-      p0(0),                                         //
-      pinf(rgrid.num_points),                        //
-      its(-1),
-      eps(-1),
-      occ_frac(0),                        //
-      m_twoj(AtomData::twoj_k(in_k)),     //
-      m_l(AtomData::l_k(in_k)),           //
-      m_parity(AtomData::parity_k(in_k)), //
+      f(std::vector<double>(p_rgrid->num_points, 0.0)),
+      g(f),
+      pinf(p_rgrid->num_points),
+      m_twoj(AtomData::twoj_k(in_k)),
+      m_l(AtomData::l_k(in_k)),
+      m_parity(AtomData::parity_k(in_k)),
+      m_k_index(AtomData::indexFromKappa(in_k)) {}
+
+DiracSpinor::DiracSpinor(int in_n, int in_k,
+                         std::shared_ptr<const Grid> in_rgrid)
+    : rgrid(in_rgrid),
+      p_rgrid(in_rgrid.get()),
+      n(in_n),
+      k(in_k),
+      f(std::vector<double>(rgrid->num_points, 0.0)),
+      g(f),
+      pinf(rgrid->num_points),
+      m_twoj(AtomData::twoj_k(in_k)),
+      m_l(AtomData::l_k(in_k)),
+      m_parity(AtomData::parity_k(in_k)),
       m_k_index(AtomData::indexFromKappa(in_k)) {}
 
 //******************************************************************************
@@ -99,9 +108,9 @@ std::pair<double, double> DiracSpinor::r0pinfratio() const {
 //******************************************************************************
 std::vector<double> DiracSpinor::rho() const {
   std::vector<double> psi2;
-  psi2.reserve(p_rgrid->num_points);
+  psi2.reserve(rgrid->num_points);
   const auto factor = twojp1() * occ_frac;
-  for (auto i = 0ul; i < p_rgrid->num_points; ++i) {
+  for (auto i = 0ul; i < rgrid->num_points; ++i) {
     psi2.emplace_back(factor * (f[i] * f[i] + g[i] * g[i]));
   }
   return psi2;
@@ -118,10 +127,10 @@ double operator*(const DiracSpinor &lhs, const DiracSpinor &rhs) {
   // Note: ONLY radial part ("F" radial spinor)
   const auto imin = std::max(lhs.p0, rhs.p0);
   const auto imax = std::min(lhs.pinf, rhs.pinf);
-  const auto &dr = lhs.p_rgrid->drdu;
+  const auto &dr = lhs.rgrid->drdu;
   return (NumCalc::integrate(1, imin, imax, lhs.f, rhs.f, dr) +
           NumCalc::integrate(1, imin, imax, lhs.g, rhs.g, dr)) *
-         lhs.p_rgrid->du;
+         lhs.rgrid->du;
 }
 
 DiracSpinor &DiracSpinor::operator+=(const DiracSpinor &rhs) {
@@ -260,5 +269,5 @@ std::string DiracSpinor::state_config(const std::vector<DiracSpinor> &orbs) {
   return result;
 }
 //******************************************************************************
-double DiracSpinor::r0() const { return p_rgrid->r[p0]; }
-double DiracSpinor::rinf() const { return p_rgrid->r[pinf - 1]; }
+double DiracSpinor::r0() const { return rgrid->r[p0]; }
+double DiracSpinor::rinf() const { return rgrid->r[pinf - 1]; }

@@ -163,8 +163,8 @@ void calculateLifetimes(const IO::UserInputBlock &input,
   if (!doE1 && doE2)
     std::cout << "Including E2 only.\n";
 
-  DiracOperator::E1 he1(wf.rgrid);
-  DiracOperator::Ek he2(wf.rgrid, 2);
+  DiracOperator::E1 he1(*(wf.rgrid));
+  DiracOperator::Ek he2(*(wf.rgrid), 2);
   auto alpha = wf.alpha;
   auto alpha3 = alpha * alpha * alpha;
   auto alpha2 = alpha * alpha;
@@ -309,7 +309,7 @@ generate_E1(const IO::UserInputBlock &input, const Wavefunction &wf) {
   input.checkBlock(jointCheck({"gauge"}));
   auto gauge = input.get<std::string>("gauge", "lform");
   if (gauge != "vform")
-    return std::make_unique<E1>(wf.rgrid);
+    return std::make_unique<E1>(*(wf.rgrid));
   // std::cout << "(v-form [velocity gauge])\n";
   return std::make_unique<E1_vform>(wf.alpha, 0.0);
 }
@@ -320,7 +320,7 @@ generate_Ek(const IO::UserInputBlock &input, const Wavefunction &wf) {
   using namespace DiracOperator;
   input.checkBlock(jointCheck({"k"}));
   auto k = input.get("k", 1);
-  return std::make_unique<Ek>(wf.rgrid, k);
+  return std::make_unique<Ek>(*(wf.rgrid), k);
 }
 
 //------------------------------------------------------------------------------
@@ -328,7 +328,7 @@ std::unique_ptr<DiracOperator::TensorOperator>
 generate_M1(const IO::UserInputBlock &input, const Wavefunction &wf) {
   using namespace DiracOperator;
   input.checkBlock(jointCheck({}));
-  return std::make_unique<M1>(wf.rgrid, wf.alpha, 0.0);
+  return std::make_unique<M1>(*(wf.rgrid), wf.alpha, 0.0);
 }
 
 //------------------------------------------------------------------------------
@@ -350,7 +350,7 @@ generate_hfs(const IO::UserInputBlock &input, const Wavefunction &wf) {
             << "Using " << Fr_str << " nuclear distro for F(r)\n"
             << "w/ mu = " << mu << ", I = " << I_nuc << ", r_N = " << r_nucfm
             << "fm = " << r_nucau << "au  (r_rms=" << r_rmsfm << "fm)\n";
-  std::cout << "Points inside nucleus: " << wf.rgrid.getIndex(r_nucau) << "\n";
+  std::cout << "Points inside nucleus: " << wf.rgrid->getIndex(r_nucau) << "\n";
 
   auto Fr = Hyperfine::sphericalBall_F();
   if (Fr_str == "shell")
@@ -397,14 +397,14 @@ generate_hfs(const IO::UserInputBlock &input, const Wavefunction &wf) {
   auto print_FQ = input.get<bool>("printF", false);
   if (print_FQ) {
     std::ofstream of(Fr_str + ".txt");
-    for (auto r : wf.rgrid.r) {
+    for (auto r : wf.rgrid->r) {
       of << r * PhysConst::aB_fm << " "
          << Fr(r * PhysConst::aB_fm, r_nucau * PhysConst::aB_fm) << "\n";
     }
   }
 
   return std::make_unique<Hyperfine>(
-      Hyperfine(mu, I_nuc, r_nucau, wf.rgrid, Fr));
+      Hyperfine(mu, I_nuc, r_nucau, *(wf.rgrid), Fr));
 }
 
 //------------------------------------------------------------------------------
@@ -414,7 +414,7 @@ generate_r(const IO::UserInputBlock &input, const Wavefunction &wf) {
   input.checkBlock(jointCheck({"power"}));
   auto power = input.get("power", 1.0);
   std::cout << "r^(" << power << ")\n";
-  return std::make_unique<RadialF>(wf.rgrid, power);
+  return std::make_unique<RadialF>(*(wf.rgrid), power);
 }
 
 //------------------------------------------------------------------------------
@@ -425,7 +425,7 @@ generate_pnc(const IO::UserInputBlock &input, const Wavefunction &wf) {
   const auto r_rms = Nuclear::find_rrms(wf.Znuc(), wf.Anuc());
   const auto c = input.get("c", Nuclear::c_hdr_formula_rrms_t(r_rms));
   const auto t = input.get("t", Nuclear::default_t);
-  return std::make_unique<PNCnsi>(c, t, wf.rgrid, 1.0, "iQwe-11");
+  return std::make_unique<PNCnsi>(c, t, *(wf.rgrid), 1.0, "iQwe-11");
 }
 
 //------------------------------------------------------------------------------
@@ -442,7 +442,7 @@ generate_Hrad_el(const IO::UserInputBlock &input, const Wavefunction &wf) {
   const auto rcut = input.get("rcut", 5.0);
   const auto scale_rN = input.get("scale_rN", 1.0);
   const auto r_rms_Fermi = scale_rN * wf.get_nuclearParameters().r_rms;
-  const auto Hel = RadiativePotential::form_Hel(wf.rgrid.r, x_Simple, x_Ueh,
+  const auto Hel = RadiativePotential::form_Hel(wf.rgrid->r, x_Simple, x_Ueh,
                                                 x_SEe_h, x_SEe_l, r_rms_Fermi,
                                                 wf.Znuc(), wf.alpha, rcut);
   return std::make_unique<Hrad_el>(Hel);
@@ -458,7 +458,7 @@ generate_Hrad_mag(const IO::UserInputBlock &input, const Wavefunction &wf) {
   const auto scale_rN = input.get("scale_rN", 1.0);
   const auto r_rms_Fermi = scale_rN * wf.get_nuclearParameters().r_rms;
   const auto Hmag = RadiativePotential::form_Hmag(
-      wf.rgrid.r, x_SEm, r_rms_Fermi, wf.Znuc(), wf.alpha, rcut);
+      wf.rgrid->r, x_SEm, r_rms_Fermi, wf.Znuc(), wf.alpha, rcut);
   return std::make_unique<Hrad_mag>(Hmag);
 }
 

@@ -161,7 +161,7 @@ protected:
                const std::vector<DiracSpinor> &core) const;
 
 protected:
-  const Grid *const p_gr;
+  std::shared_ptr<const Grid> p_gr;
   // occupied (holes) and excited (virtual) states. Holes includes from n>=nmin
   const std::vector<DiracSpinor> m_holes, m_excited;
   // Coulumb Y^k_eh (excited, holes) table (includes C^k)

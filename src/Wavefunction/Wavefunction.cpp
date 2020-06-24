@@ -29,10 +29,10 @@
 Wavefunction::Wavefunction(const GridParameters &gridparams,
                            const Nuclear::Parameters &nuc_params,
                            double var_alpha)
-    : rgrid({gridparams}),
+    : rgrid(std::make_shared<const Grid>(gridparams)),
       alpha(PhysConst::alpha * var_alpha),
       m_nuclear(nuc_params),
-      vnuc(Nuclear::formPotential(nuc_params, rgrid.r)) {
+      vnuc(Nuclear::formPotential(nuc_params, rgrid->r)) {
   if (alpha * m_nuclear.z > 1.0) {
     std::cerr << "Alpha too large: Z*alpha=" << m_nuclear.z * alpha << "\n";
     std::abort();
@@ -41,9 +41,9 @@ Wavefunction::Wavefunction(const GridParameters &gridparams,
 
 //******************************************************************************
 Wavefunction::Wavefunction(const Wavefunction &wf)
-    : Wavefunction(wf.rgrid.params(), wf.get_nuclearParameters(),
+    : Wavefunction(wf.rgrid->params(), wf.get_nuclearParameters(),
                    wf.alpha / PhysConst::alpha) {
-  // NOTE: orbitals in new_wf point to OLD grid (wf.rgrid, not this->rgrid)
+  // NOTE: orbitals in new_wf point to OLD grid (*(wf.rgrid), not this->rgrid)
   // new WF ONLY has orbitals, does not have HF/Sigma etc!
   this->core = wf.core;
   this->valence = wf.valence;
@@ -218,7 +218,7 @@ void Wavefunction::radiativePotential(double x_simple, double x_Ueh,
                      is_one(x_SEm) && is_zero(x_simple);
 
   const auto read_ok =
-      do_rw ? RadiativePotential::read_write_qed(rgrid.r, Hel_tmp, Hmag_tmp,
+      do_rw ? RadiativePotential::read_write_qed(rgrid->r, Hel_tmp, Hmag_tmp,
                                                  fname, IO::FRW::read)
             : false;
 
@@ -232,13 +232,13 @@ void Wavefunction::radiativePotential(double x_simple, double x_Ueh,
     } else {
       return;
     }
-    Hel_tmp =
-        RadiativePotential::form_Hel(rgrid.r, x_simple, x_Ueh, x_SEe_h, x_SEe_l,
-                                     r_rms_fm, m_nuclear.z, alpha, rcut);
-    Hmag_tmp = RadiativePotential::form_Hmag(rgrid.r, x_SEm, r_rms_fm,
+    Hel_tmp = RadiativePotential::form_Hel(rgrid->r, x_simple, x_Ueh, x_SEe_h,
+                                           x_SEe_l, r_rms_fm, m_nuclear.z,
+                                           alpha, rcut);
+    Hmag_tmp = RadiativePotential::form_Hmag(rgrid->r, x_SEm, r_rms_fm,
                                              m_nuclear.z, alpha, rcut);
     if (do_rw)
-      RadiativePotential::read_write_qed(rgrid.r, Hel_tmp, Hmag_tmp, fname,
+      RadiativePotential::read_write_qed(rgrid->r, Hel_tmp, Hmag_tmp, fname,
                                          IO::FRW::write);
   }
 
@@ -337,7 +337,7 @@ void Wavefunction::solveInitialCore(const std::string &str_core,
   if (!m_core_configs.empty()) {
     double h_g = 0, d_t = 0;
     Parametric::defaultGreenCore(m_nuclear.z, h_g, d_t);
-    vdir = Parametric::GreenPotential(m_nuclear.z, rgrid.r, h_g, d_t);
+    vdir = Parametric::GreenPotential(m_nuclear.z, rgrid->r, h_g, d_t);
   }
 
   for (const auto &[n, l, num] : m_core_configs) {
@@ -346,17 +346,17 @@ void Wavefunction::solveInitialCore(const std::string &str_core,
     double en_a = enGuessCore(n, l);
     int k1 = l; // j = l-1/2
     if (k1 != 0) {
-      core.emplace_back(DiracSpinor{n, k1, rgrid});
-      solveDirac(core.back(), en_a, log_dele_or);
-      core.back().occ_frac = double(num) / (4 * l + 2);
-      en_a = 0.95 * core.back().en;
+      auto &new_Fc = core.emplace_back(n, k1, rgrid);
+      solveDirac(new_Fc, en_a, log_dele_or);
+      new_Fc.occ_frac = double(num) / (4 * l + 2);
+      en_a = 0.95 * new_Fc.en;
       if (en_a > 0)
         en_a = enGuessCore(n, l);
     }
     int k2 = -(l + 1); // j=l+1/2
-    core.emplace_back(DiracSpinor{n, k2, rgrid});
-    solveDirac(core.back(), en_a, log_dele_or);
-    core.back().occ_frac = double(num) / (4 * l + 2);
+    auto &new_Fc = core.emplace_back(n, k2, rgrid);
+    solveDirac(new_Fc, en_a, log_dele_or);
+    new_Fc.occ_frac = double(num) / (4 * l + 2);
   }
 }
 
@@ -364,7 +364,7 @@ void Wavefunction::solveInitialCore(const std::string &str_core,
 void Wavefunction::solveNewValence(int n, int k, double en_a, int log_dele_or)
 // Update to take a list ok nken's ?
 {
-  valence.emplace_back(DiracSpinor{n, k, rgrid});
+  valence.emplace_back(n, k, rgrid);
 
   // Solve local dirac Eq:
   auto &psi = valence.back();
@@ -452,7 +452,7 @@ void Wavefunction::orthonormaliseWrt(DiracSpinor &psi_v,
 //******************************************************************************
 std::tuple<double, double> Wavefunction::lminmax_core_range(int l,
                                                             double eps) const {
-  std::vector<double> rho_l(rgrid.num_points);
+  std::vector<double> rho_l(rgrid->num_points);
   for (const auto &Fc : core) {
     if (Fc.l() == l || l < 0)
       rho_l = NumCalc::add_vectors(rho_l, Fc.rho());
@@ -466,7 +466,7 @@ std::tuple<double, double> Wavefunction::lminmax_core_range(int l,
   const auto last = std::find_if(rho_l.rbegin(), rho_l.rend(), lam);
   const auto index_first = std::size_t(first - rho_l.begin());
   const auto index_last = std::size_t(rho_l.rend() - last);
-  return {rgrid.r[index_first], rgrid.r[index_last]};
+  return {rgrid->r[index_first], rgrid->r[index_last]};
 }
 
 //******************************************************************************
@@ -602,7 +602,7 @@ void Wavefunction::printCore(bool sorted) const
   auto index_list = sortedEnergyList(core, sorted);
   for (auto i : index_list) {
     const auto &phi = core[i];
-    auto r_inf = rgrid.r[phi.pinf - 1]; // rinf(phi);
+    auto r_inf = rgrid->r[phi.pinf - 1]; // rinf(phi);
     printf("%2i) %7s %2i  %5.1f %2i  %5.0e %15.9f %15.3f", int(i),
            phi.symbol().c_str(), phi.k, r_inf, phi.its, phi.eps, phi.en,
            phi.en *PhysConst::Hartree_invcm);
@@ -638,7 +638,7 @@ void Wavefunction::printValence(
   auto index_list = sortedEnergyList(tmp_orbs, sorted);
   for (auto i : index_list) {
     const auto &phi = tmp_orbs[i];
-    auto r_inf = rgrid.r[phi.pinf - 1]; // rinf(phi);
+    auto r_inf = rgrid->r[phi.pinf - 1]; // rinf(phi);
     printf("%2i) %7s %2i  %5.1f %2i  %5.0e %15.9f %15.3f", int(i),
            phi.symbol().c_str(), phi.k, r_inf, phi.its, phi.eps, phi.en,
            phi.en *PhysConst::Hartree_invcm);
@@ -654,8 +654,8 @@ void Wavefunction::printBasis(const std::vector<DiracSpinor> &the_basis,
   const auto index_list = sortedEnergyList(the_basis, sorted);
   for (const auto i : index_list) {
     const auto &phi = the_basis[i];
-    const auto r_0 = rgrid.r[phi.p0];
-    const auto r_inf = rgrid.r[phi.pinf - 1];
+    const auto r_0 = rgrid->r[phi.p0];
+    const auto r_inf = rgrid->r[phi.pinf - 1];
 
     const auto *hf_phi = getState(phi.n, phi.k);
     if (hf_phi != nullptr) {
@@ -672,10 +672,10 @@ void Wavefunction::printBasis(const std::vector<DiracSpinor> &the_basis,
 
 //******************************************************************************
 std::vector<double> Wavefunction::coreDensity() const {
-  std::vector<double> rho(rgrid.num_points, 0.0);
+  std::vector<double> rho(rgrid->num_points, 0.0);
   for (const auto &phi : core) {
     auto f = double(phi.twoj() + 1) * phi.occ_frac;
-    for (auto i = 0ul; i < rgrid.num_points; i++) {
+    for (auto i = 0ul; i < rgrid->num_points; i++) {
       rho[i] += f * (phi.f[i] * phi.f[i] + phi.g[i] * phi.g[i]);
     }
   }

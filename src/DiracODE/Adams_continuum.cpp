@@ -36,7 +36,7 @@ void solveContinuum(DiracSpinor &phi, const double en,
   auto i_asym = ext_grid.getIndex(r_asym0); // - 1;
   phi.en = en;
 
-  auto num_pointsb = phi.p_rgrid->num_points;
+  auto num_pointsb = phi.rgrid->num_points;
   auto num_pointsc = ext_grid.num_points;
 
   // Perform the "outwards integration"

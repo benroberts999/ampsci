@@ -133,8 +133,8 @@ void writeOrbitals(const IO::UserInputBlock &input, const Wavefunction &wf) {
   //   of << "\"" << psi.symbol(true) << "\" ";
   // of << "\n";
   // of << "# f block\n";
-  // for (std::size_t i = 0; i < wf.rgrid.num_points; i++) {
-  //   of << wf.rgrid.r[i] << " ";
+  // for (std::size_t i = 0; i < wf.rgrid->num_points; i++) {
+  //   of << wf.rgrid->r[i] << " ";
   //   for (auto &psi : wf.core)
   //     of << psi.f[i] << " ";
   //   for (auto &psi : wf.valence)
@@ -142,8 +142,8 @@ void writeOrbitals(const IO::UserInputBlock &input, const Wavefunction &wf) {
   //   of << "\n";
   // }
   // of << "\n# g block\n";
-  // for (std::size_t i = 0; i < wf.rgrid.num_points; i++) {
-  //   of << wf.rgrid.r[i] << " ";
+  // for (std::size_t i = 0; i < wf.rgrid->num_points; i++) {
+  //   of << wf.rgrid->r[i] << " ";
   //   for (auto &psi : wf.core)
   //     of << psi.g[i] << " ";
   //   for (auto &psi : wf.valence)
@@ -152,8 +152,8 @@ void writeOrbitals(const IO::UserInputBlock &input, const Wavefunction &wf) {
   // }
   // of << "\n# density block\n";
   // auto rho = wf.coreDensity();
-  // for (std::size_t i = 0; i < wf.rgrid.num_points; i++) {
-  //   of << wf.rgrid.r[i] << " " << rho[i] << "\n";
+  // for (std::size_t i = 0; i < wf.rgrid->num_points; i++) {
+  //   of << wf.rgrid->r[i] << " " << rho[i] << "\n";
   // }
   // of.close();
   // std::cout << "Orbitals written to file: " << oname << "\n";

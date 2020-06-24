@@ -154,9 +154,9 @@ void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h) {
           ->twoj();
   const auto maxtj = std::max(maxtj_c, maxtj_e);
 
-  const Coulomb::YkTable Yhe(holes.front().p_rgrid, &holes, &excited);
-  const Coulomb::YkTable Yee(holes.front().p_rgrid, &excited);
-  const Coulomb::YkTable Yhh(holes.front().p_rgrid, &holes);
+  const Coulomb::YkTable Yhe(holes.front().rgrid, &holes, &excited);
+  const Coulomb::YkTable Yee(holes.front().rgrid, &excited);
+  const Coulomb::YkTable Yhh(holes.front().rgrid, &holes);
   const auto &Ck = maxtj_e > maxtj_c ? Yee.Ck() : Yhh.Ck();
   const Angular::SixJ sj(maxtj, maxtj);
 

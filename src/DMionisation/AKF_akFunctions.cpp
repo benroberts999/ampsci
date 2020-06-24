@@ -184,11 +184,11 @@ int calculateK_nk(const Wavefunction &wf, std::size_t is, int max_L, double dE,
         double a = 0.;
         auto maxj = psi.pinf; // don't bother going further
         double af = NumCalc::integrate(1.0, 0, maxj, psi.f, phic.f,
-                                       jLqr_f[L][iq], wf.rgrid.drdu);
+                                       jLqr_f[L][iq], wf.rgrid->drdu);
         double ag = NumCalc::integrate(1.0, 0, maxj, psi.g, phic.g,
-                                       jLqr_f[L][iq], wf.rgrid.drdu);
+                                       jLqr_f[L][iq], wf.rgrid->drdu);
         a = af + ag;
-        AK_nk_q[iq] += (float)(dC_Lkk * std::pow(a * wf.rgrid.du, 2) * x_ocf);
+        AK_nk_q[iq] += (float)(dC_Lkk * std::pow(a * wf.rgrid->du, 2) * x_ocf);
       } // q
     }   // END loop over cntm states (ic)
   }     // end L loop
@@ -219,8 +219,8 @@ int calculateKpw_nk(const Wavefunction &wf, std::size_t nk, double dE,
     return 0;
 
   for (auto iq = 0ul; iq < qsteps; iq++) {
-    double chi_q = NumCalc::integrate(wf.rgrid.du, 0, maxir, psi.f, jl_qr[iq],
-                                      wf.rgrid.r, wf.rgrid.drdu);
+    double chi_q = NumCalc::integrate(wf.rgrid->du, 0, maxir, psi.f, jl_qr[iq],
+                                      wf.rgrid->r, wf.rgrid->drdu);
     tmpK_q[iq] = (float)((2. / M_PI) * (twoj + 1) * std::pow(chi_q, 2) *
                          std::sqrt(2. * eps));
     // tmpK_q[iq] = std::pow(4*3.14159,2)*std::pow(chi_q,2); // just cf KOPP

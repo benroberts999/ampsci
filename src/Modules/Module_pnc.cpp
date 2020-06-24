@@ -41,8 +41,8 @@ void calculatePNC(const IO::UserInputBlock &input, const Wavefunction &wf) {
 
   auto rpaQ = input.get("rpa", true);
 
-  DiracOperator::PNCnsi hpnc(c, t, wf.rgrid, -wf.Nnuc());
-  DiracOperator::E1 he1(wf.rgrid);
+  DiracOperator::PNCnsi hpnc(c, t, *(wf.rgrid), -wf.Nnuc());
+  DiracOperator::E1 he1(*(wf.rgrid));
 
   auto pA = wf.getState(na, ka);
   auto pB = wf.getState(nb, kb);
@@ -362,7 +362,7 @@ void polarisability(const IO::UserInputBlock &input, const Wavefunction &wf) {
   }
   std::cout << "Omega = " << omega << "\n";
 
-  const auto he1 = DiracOperator::E1(wf.rgrid);
+  const auto he1 = DiracOperator::E1(*(wf.rgrid));
   auto dVE1 = HF::ExternalField(&he1, wf.getHF());
 
   const auto rpaQ = input.get("rpa", true);

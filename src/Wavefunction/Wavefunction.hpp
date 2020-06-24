@@ -27,7 +27,6 @@ struct Parameters;
   - Set of Nuclear::Parameters [see Physics/NuclearPotentials]
   - var_alpha = \f$\lambda\f$, \f$\alpha = \lambda\alpha_0\f$
 
-Note: cannot be copied. Hope to remedy this soon; would be nice.
 */
 class Wavefunction {
 
@@ -35,7 +34,7 @@ public:
   Wavefunction(const GridParameters &gridparams,
                const Nuclear::Parameters &nuc_params, double var_alpha = 1.0);
 
-  //! User-defined copy-constructore. Note: Does not copy HF or Sigma
+  //! User-defined copy-constructor. Note: Does not copy HF or Sigma
   Wavefunction(const Wavefunction &wf);
   Wavefunction &operator=(const Wavefunction &) = delete;
   ~Wavefunction() = default;
@@ -50,7 +49,7 @@ public:
   //! Sprectrum: like basis, but includes Sigma (correlations).
   std::vector<DiracSpinor> spectrum{};
   //! Radial grid
-  const Grid rgrid;
+  std::shared_ptr<const Grid> rgrid;
   //! Internal value for alpha (alpha = var_alpha * alpha_0, alpha_0=~1/137)
   const double alpha;
 
@@ -91,11 +90,7 @@ public: // const methods: "views" into WF object
   }
 
   //! Returns ptr to (const) Correlation Potential, Sigma
-  // XXX Make const!
-  const MBPT::CorrelationPotential *getSigma() const {
-    // std::cout << "XXX Make me const!\n";
-    return m_Sigma.get();
-  }
+  const MBPT::CorrelationPotential *getSigma() const { return m_Sigma.get(); }
   //! Returns ptr to (const) Hartree Fock (class)
   const HF::HartreeFock *getHF() const { return m_pHF.get(); }
 

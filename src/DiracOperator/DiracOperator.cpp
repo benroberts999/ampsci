@@ -75,10 +75,9 @@ DiracSpinor TensorOperator::radial_rhs(const int kappa_a,
 // Usually, will not over-write this. But in some cases, might be better
 // (eg, M1)
 {
-  // Note: n and kappa from original psi, but not meaningful!
-  const auto &gr = *(Fb.p_rgrid);
-  DiracSpinor dPsi(0, kappa_a, gr); // XXX should be Fa.kappa ??
-  // XXX Need be super careful! other methods (ME) might use rad_rhs.kappa?
+
+  const auto &gr = *(Fb.rgrid);
+  DiracSpinor dPsi(0, kappa_a, Fb.rgrid);
   if (isZero(kappa_a, Fb.k))
     return dPsi;
 

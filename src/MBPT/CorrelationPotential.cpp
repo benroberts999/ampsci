@@ -24,7 +24,7 @@ namespace MBPT {
 CorrelationPotential::CorrelationPotential(
     const HF::HartreeFock *const in_hf, const std::vector<DiracSpinor> &basis,
     const Sigma_params &sigp, const rgrid_params &subgridp)
-    : p_gr(in_hf->p_rgrid),
+    : p_gr(in_hf->rgrid),
       m_holes(copy_holes(basis, in_hf->get_core(), sigp.min_n_core)),
       m_excited(copy_excited(basis, in_hf->get_core())),
       m_yeh(p_gr, &m_excited, &m_holes),
@@ -116,7 +116,7 @@ DiracSpinor CorrelationPotential::Sigma_G_Fv(const GMatrix &Gmat,
   const auto ki = std::size_t(Fv.k_index());
   const auto lambda = ki >= m_lambda_kappa.size() ? 1.0 : m_lambda_kappa[ki];
 
-  const auto &gr = *(Fv.p_rgrid);
+  const auto &gr = *(Fv.rgrid);
   auto SigmaFv = DiracSpinor(0, Fv.k, gr);
   std::vector<double> f(m_subgrid_r.size());
   std::vector<double> g;
