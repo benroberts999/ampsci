@@ -78,8 +78,8 @@ std::string atomicName(int Z) {
 // Note: Symbol must be exact, including capitalisation
 int get_z(const std::string &at) {
 
-  static auto match_At = [=](const Element &atom) { return atom.symbol == at; };
-  auto atom =
+  auto match_At = [=](const Element &atom) { return atom.symbol == at; };
+  const auto atom =
       std::find_if(periodic_table.begin(), periodic_table.end(), match_At);
   if (atom != periodic_table.end())
     return atom->Z;
