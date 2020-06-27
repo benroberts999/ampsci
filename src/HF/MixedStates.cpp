@@ -26,6 +26,7 @@ DiracSpinor solveMixedState(const int k, const DiracSpinor &Fa,
                             const Breit *const VBr,
                             const std::vector<double> &H_mag) {
   auto dF = DiracSpinor(0, k, Fa.rgrid);
+  // k is always hFa.k ?! XXX
   solveMixedState(dF, Fa, omega, vl, alpha, core, hFa, eps_target, Sigma, VBr,
                   H_mag);
   return dF;

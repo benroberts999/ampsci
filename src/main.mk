@@ -12,6 +12,13 @@ $(SD)/Wavefunction/Wavefunction.hpp \
 $(SD)/MBPT/CorrelationPotential.hpp
 	$(COMP)
 
+$(BD)/unitTests.o: $(SD)/unitTests.cpp \
+$(SD)/qip/Check.hpp $(SD)/qip/Vector.hpp \
+$(SD)/HF/HartreeFock_test.hpp $(SD)/HF/MixedStates_test.hpp \
+$(SD)/HF/ExternalField_test.hpp \
+$(BD)/diracSCAS.o
+	$(COMP)
+
 $(BD)/periodicTable.o: $(SD)/periodicTable.cpp \
 $(SD)/Physics/NuclearData.hpp \
 $(SD)/Physics/AtomData.hpp \

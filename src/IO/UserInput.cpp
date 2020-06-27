@@ -5,25 +5,18 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
 namespace IO {
 
-// Macro: takes pre-processor macro that may be defined via compile argument
-// GITVERSION is the macro, set to the git short hash; specifies the git version
-#define xstr(s) str(s)
-#define str(s) #s
-#ifdef GITVERSION
-static const char *git_version = xstr(GITVERSION);
-#else
-static const char *git_version = "0";
-#endif
-
 //******************************************************************************
 void UserInputBlock::print() const {
   const bool small_block = m_input_options.size() < 4;
   const bool empty = m_input_options.empty();
+  if (m_block_name == "")
+    return;
   std::cout << m_block_name << " {";
   if (!empty && small_block)
     std::cout << " ";
@@ -129,12 +122,8 @@ std::vector<UserInputBlock> UserInput::module_list() const {
 
 //******************************************************************************
 void UserInput::print() const {
-  std::cout << "diracSCAS git:" << git_version << "\n";
-  const auto now =
-      std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-  char buffer[30];
-  std::strftime(buffer, 30, "%F %T", localtime(&now));
-  std::cout << buffer << '\n';
+  std::cout << "diracSCAS git:" << git_info() << "\n";
+  std::cout << time_date() << '\n';
   for (const auto &block : m_blocks) {
     block.print();
   }

@@ -50,8 +50,6 @@ void atomicKernal(const IO::UserInputBlock &input, const Wavefunction &wf) {
   // GridParameters(std::size_t innum_points, double inr0, double inrmax,
   //                double inb = 4.0, GridType intype = GridType::loglinear,
   //                double indu = 0);
-  std::cout << "WARNING 51 in AK: I updated Grid calls, but didn't test "
-               "them!\n Should check! XXX\n";
   Grid Egrid({(std::size_t)desteps, demin, demax, 0, GridType::logarithmic});
   Grid qgrid({(std::size_t)qsteps, qmin, qmax, 0, GridType::logarithmic});
 

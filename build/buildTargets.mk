@@ -3,7 +3,7 @@
 ################################################################################
 #Allow exectuables to be placed in another directory:
 ALLEXES = $(addprefix $(XD)/, \
- diracSCAS wigner dmeXSection periodicTable \
+ diracSCAS unitTests wigner dmeXSection periodicTable \
 )
 
 DEFAULTEXES = $(addprefix $(XD)/, \
@@ -56,6 +56,10 @@ MODS = $(MODULELIST)
 # Link + build all final programs
 
 $(XD)/diracSCAS: $(BASE) $(HF) $(CNTM) $(BD)/diracSCAS.o \
+$(BD)/UserInput.o $(MODS)
+	$(LINK)
+
+$(XD)/unitTests: $(BASE) $(HF) $(CNTM) $(BD)/unitTests.o \
 $(BD)/UserInput.o $(MODS)
 	$(LINK)
 

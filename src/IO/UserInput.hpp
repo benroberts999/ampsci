@@ -1,7 +1,11 @@
 #pragma once
+// #include "IO/FRW_fileReadWrite.hpp"
+#include <chrono>
+#include <ctime>
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -14,6 +18,37 @@ inline void print_line(const char c = '*', const int num = 80) {
   for (int i = 0; i < num; i++)
     std::cout << c;
   std::cout << "\n";
+}
+
+//******************************************************************************
+// Macro: takes pre-processor macro that may be defined via compile argument
+// GITVERSION is the macro, set to the git short hash; specifies the git version
+namespace hidden {
+#define MACRO_xstr(s) MACRO_str(s)
+#define MACRO_str(s) #s
+#ifdef GITVERSION
+static const char *git_version = MACRO_xstr(GITVERSION);
+#else
+static const char *git_version = "0";
+#endif
+} // namespace hidden
+
+inline std::string_view git_info() { return hidden::git_version; }
+
+//******************************************************************************
+inline std::string time_date() {
+  const auto now =
+      std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+  char buffer[30];
+  std::strftime(buffer, 30, "%F %T", localtime(&now));
+  return buffer;
+}
+inline std::string date() {
+  const auto now =
+      std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+  char buffer[30];
+  std::strftime(buffer, 30, "%F", localtime(&now));
+  return buffer;
 }
 
 //******************************************************************************

@@ -1,0 +1,29 @@
+diracSCAS test. git:af7467a
+2020-07-06 16:13:19
+HartreeFock
+passed HF core Cs vs. VD 5s_1/2            | -3.3e-06 [5e-06]
+passed HF core Cs grid 5p_3/2              | -3.3e-06 [5e-06]
+passed HF val Cs vs. VD 6p_3/2             | -1.3e-06 [3e-06]
+passed HF val Cs grid 6p_3/2               | -1.3e-06 [3e-06]
+passed HF Breit Cs val                     |  3.3e-04 [5e-04]
+passed HF Yb+ val                          | -5.6e-06 [7e-06]
+PASSED HartreeFock
+MixedStates
+passed MS:E1 worst (6s+|6p+ w=0.067)       |  2.3e-05 [4e-05]
+passed MS:E1 best (7p-|7s+ w=0.011)        |  4.2e-07 [6e-07]
+passed MS:E2 worst (7p-|7p+ w=0.033)       | -8.6e-06 [4e-05]
+passed MS:E2 best (5d-|5d+ w=0)            |  3.6e-08 [6e-07]
+passed MS:pnc-nsi worst (6p-|6s+ w=0.1)    | -6.6e-07 [4e-05]
+passed MS:pnc-nsi best (7p-|7s+ w=0.044)   |  3.1e-08 [6e-07]
+passed MS:hfs worst (6p-|6p+ w=0.067)      | -2.0e-05 [4e-05]
+passed MS:hfs best (6p+|6p- w=0)           |  7.0e-08 [6e-07]
+passed MS:M1 worst (7p+|7p- w=0.034)       | -9.3e-06 [4e-05]
+passed MS:M1 best (7p+|7p- w=0)            |  2.9e-08 [6e-07]
+PASSED MixedStates
+ExternalField
+passed RPA E1 w=0 7p+7s+                   |  3.4e-05 [5e-05]
+passed RPA E1 w=0.05 7p+7s+                |  3.2e-05 [5e-05]
+passed RPA PNC w=0 5d-6p+                  | -2.8e-04 [5e-04]
+PASSED ExternalField
+
+passes 3/3 tests.

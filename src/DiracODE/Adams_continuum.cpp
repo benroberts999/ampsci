@@ -38,9 +38,6 @@ void solveContinuum(DiracSpinor &phi, const double en,
   auto i_asym = ext_grid.getIndex(r_asym0);
   phi.en = en;
 
-#pragma message("NOTE: I changed this, but did not test it!!!")
-#warning "NOTE: I changed this, but did not test it!!!"
-
   const auto num_pointsb = phi.rgrid->num_points;
   const auto num_pointsc = ext_grid.num_points;
 

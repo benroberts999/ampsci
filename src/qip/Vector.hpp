@@ -35,6 +35,29 @@ auto compare(const std::vector<T> &first, const std::vector<T> &second) {
   return std::make_pair(largest_delta, largest_at);
 }
 
+//! Compares two vectors of the same length, according to the rule given by
+//! func. Returns pair {delta, itr} where delta = max{|func(first,second)|}, itr
+//! is iterator to position in first vector where the maximum delta occured.
+//! Note: Maximum is by magnitude.
+template <typename T, typename U, typename Func>
+auto compare(const std::vector<T> &first, const std::vector<U> &second,
+             Func &func) {
+  assert(first.size() == second.size()); //?
+
+  auto it1 = first.cbegin();
+  auto it2 = second.cbegin();
+  auto largest_eps = 0.0; // double always?
+  auto largest_at = first.cend();
+  for (; it1 != first.cend(); ++it1, ++it2) {
+    const auto eps = func(*it1, *it2);
+    if (std::abs(eps) > std::abs(largest_eps)) {
+      largest_eps = eps;
+      largest_at = it1;
+    }
+  }
+  return std::make_pair(largest_eps, largest_at);
+}
+
 //! Compares values of two arithmetic vectors of the same type and
 //! length, relative to second value.
 //! Returns pair {eps, itr} where eps = |max|{(first - second)/second},

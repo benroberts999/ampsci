@@ -83,6 +83,8 @@ public: // const methods: "views" into WF object
   //! Number of electrons in the core
   int Ncore() const { return num_core_electrons; }
   const Nuclear::Parameters &get_nuclearParameters() const { return m_nuclear; }
+  double get_rrms() const { return m_nuclear.r_rms; }
+
   bool exclude_exchangeQ() const {
     if (m_pHF == nullptr)
       return true;
