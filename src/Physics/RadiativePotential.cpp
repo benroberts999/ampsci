@@ -253,9 +253,9 @@ static Fit_AB fit_AB;
 double vSEh(double r, double rN, double z, double alpha) {
   [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__);
 
-  static constexpr double abs_err_lim = 0.0;
+  static constexpr double abs_err_lim = 1.0e-6;
   static constexpr double rel_err_lim = 1.0e-3;
-  static constexpr unsigned long max_num_subintvls = 1000; //?
+  static constexpr unsigned long max_num_subintvls = 750; //?
 
   gsl_set_error_handler_off(); //?
   if (rN <= 0) {
@@ -268,13 +268,26 @@ double vSEh(double r, double rN, double z, double alpha) {
   f_gsl.function = (r < rN) ? &gslfunc_SEh_smallr : &gslfunc_SEh_larger;
   f_gsl.params = &params;
 
-  gsl_integration_workspace *gsl_int_wrk =
-      gsl_integration_workspace_alloc(max_num_subintvls + 1);
-
   double int_result, abs_err;
-  gsl_integration_qagiu(&f_gsl, 1.0, abs_err_lim, rel_err_lim,
-                        max_num_subintvls, gsl_int_wrk, &int_result, &abs_err);
-  gsl_integration_workspace_free(gsl_int_wrk);
+  auto rel_err_targ = rel_err_lim;
+  int i = 0;
+  while (rel_err_targ < 1.0) {
+    gsl_integration_workspace *gsl_int_wrk =
+        gsl_integration_workspace_alloc(max_num_subintvls + 1);
+    gsl_integration_qagiu(&f_gsl, 1.0, abs_err_lim, rel_err_targ,
+                          max_num_subintvls, gsl_int_wrk, &int_result,
+                          &abs_err);
+    gsl_integration_workspace_free(gsl_int_wrk);
+    ++i;
+    if (std::abs(abs_err / int_result) < rel_err_targ ||
+        abs_err <= abs_err_lim) {
+      break;
+    } else {
+      int_result = 0.0;
+      abs_err = 0.0;
+      rel_err_targ *= 10.0;
+    }
+  }
 
   auto l = 0; // XXX
   auto al = fit_AB.Al(l, z * alpha);

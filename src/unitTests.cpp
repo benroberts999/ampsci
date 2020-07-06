@@ -1,6 +1,7 @@
 #include "HF/ExternalField_test.hpp"
 #include "HF/HartreeFock_test.hpp"
 #include "HF/MixedStates_test.hpp"
+#include "Physics/RadPot_test.hpp"
 //
 #include "IO/ChronoTimer.hpp"
 #include "IO/UserInput.hpp"
@@ -11,7 +12,8 @@
 static const std::vector<std::pair<std::string, bool (*)(std::ostream &obuff)>>
     test_list{{"HartreeFock", &UnitTest::HartreeFock},
               {"MixedStates", &UnitTest::MixedStates},
-              {"ExternalField", &UnitTest::ExternalField}};
+              {"ExternalField", &UnitTest::ExternalField},
+              {"RadPot", &UnitTest::RadPot}};
 
 int main(int argc, char *argv[]) {
   IO::ChronoTimer timer("\nUnit tests");
@@ -25,6 +27,9 @@ int main(int argc, char *argv[]) {
   std::ostringstream out_buff;
   out_buff << "diracSCAS test. git:" << IO::git_info() << "\n";
   out_buff << IO::time_date() << "\n";
+
+  // redirect cout to null:
+  // std::streambuf *old = std::cout.rdbuf(nullptr);
 
   // Run each unit test, count passed/failed
   int passed = 0;
@@ -50,6 +55,9 @@ int main(int argc, char *argv[]) {
     out_buff << "FAILS " << failed << "/" << total << " tests; ";
   }
   out_buff << "passes " << passed << "/" << total << " tests.\n";
+
+  // restore cout
+  // std::cout.rdbuf(old);
 
   // Output results:
   std::cout << out_buff.str();
