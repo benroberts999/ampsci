@@ -48,7 +48,7 @@ bool NonRelSEConfig::ok() const {
 int defaultA(int Z)
 // c++14: can make constexpr ?
 {
-  static auto match_Z = [Z](const Element &atom) { return atom.Z == Z; };
+  auto match_Z = [Z](const Element &atom) { return atom.Z == Z; };
   auto atom =
       std::find_if(periodic_table.begin(), periodic_table.end(), match_Z);
   if (atom == periodic_table.end())
@@ -57,7 +57,7 @@ int defaultA(int Z)
 }
 
 std::string atomicSymbol(int Z) {
-  static auto match_Z = [Z](const Element &atom) { return atom.Z == Z; };
+  auto match_Z = [Z](const Element &atom) { return atom.Z == Z; };
   auto atom =
       std::find_if(periodic_table.begin(), periodic_table.end(), match_Z);
   if (atom == periodic_table.end())
@@ -66,7 +66,7 @@ std::string atomicSymbol(int Z) {
 }
 
 std::string atomicName(int Z) {
-  static auto match_Z = [Z](const Element &atom) { return atom.Z == Z; };
+  auto match_Z = [Z](const Element &atom) { return atom.Z == Z; };
   auto atom =
       std::find_if(periodic_table.begin(), periodic_table.end(), match_Z);
   if (atom == periodic_table.end())
