@@ -62,7 +62,9 @@ std::vector<double> form_Hel(const std::vector<double> &r, double x_simple,
               << x_SEe_h << ")\n";
     // The SE high-f part is very slow. We calculate it every few points only,
     // and then interpolate the intermediate points
-    const std::size_t stride = 6;
+    // const std::size_t stride = 6; // r.size()
+    const std::size_t stride = r.size() / 550;
+    // std::cout << "stride=" << stride << "\n";
     const auto i_max_rcut = [&]() {
       for (std::size_t i = 0; i < imax; ++i) {
         if (r[i] > rcut)

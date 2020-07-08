@@ -103,4 +103,13 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
                            const LinAlg::Vector &e_values,
                            const LinAlg::SqMatrix &e_vectors,
                            const Wavefunction &wf);
+
+//! TKR sum rule (basis test); should =0 (must include -ve energy states)
+std::vector<double> sumrule_TKR(const std::vector<DiracSpinor> &basis,
+                                const std::vector<double> &r,
+                                bool print = false);
+
+//! Drake-Gordon sum rule (basis test); should =0 (must incl -ve energy states)
+std::vector<double> sumrule_DG(int nDG, const std::vector<DiracSpinor> &basis,
+                               const Grid &gr, double alpha, bool print);
 } // namespace SplineBasis

@@ -21,6 +21,7 @@ $(SD)/Physics/AtomData.hpp
 
 $(BD)/BSplineBasis.o: $(SD)/Wavefunction/BSplineBasis.cpp \
 $(SD)/Wavefunction/BSplineBasis.hpp \
+$(SD)/DiracOperator/Operators.hpp \
 $(SD)/HF/Breit.hpp \
 $(SD)/HF/HartreeFock.hpp \
 $(SD)/IO/UserInput.hpp \

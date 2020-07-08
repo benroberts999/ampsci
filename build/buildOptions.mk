@@ -29,11 +29,11 @@ ifeq ($(findstring clang++,$(CXX)),clang++)
   WARN += -Wheader-hygiene
 # have to put in 'else' block, since clanG++ contains g++
 else
-  ifeq ($(findstring g++,$(CXX)),g++)
-    WARN += -Wsuggest-override -Wnon-virtual-dtor -Wcast-align \
-		-Woverloaded-virtual -Wduplicated-cond -Wduplicated-branches \
-		-Wnull-dereference -Wuseless-cast
-  endif
+ifeq ($(findstring g++,$(CXX)),g++)
+  WARN += -Wsuggest-override -Wnon-virtual-dtor -Wcast-align \
+  -Woverloaded-virtual -Wduplicated-cond -Wduplicated-branches \
+  -Wnull-dereference -Wuseless-cast
+endif
 endif
 
 # Changes to optimisation based on build setting:

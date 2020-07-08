@@ -2,9 +2,11 @@
 #include "HF/HartreeFock_test.hpp"
 #include "HF/MixedStates_test.hpp"
 #include "Physics/RadPot_test.hpp"
+#include "Wavefunction/BSplineBasis_test.hpp"
 //
 #include "IO/ChronoTimer.hpp"
 #include "IO/UserInput.hpp"
+#include <cassert>
 #include <iostream>
 #include <string>
 
@@ -13,7 +15,8 @@ static const std::vector<std::pair<std::string, bool (*)(std::ostream &obuff)>>
     test_list{{"HartreeFock", &UnitTest::HartreeFock},
               {"MixedStates", &UnitTest::MixedStates},
               {"ExternalField", &UnitTest::ExternalField},
-              {"RadPot", &UnitTest::RadPot}};
+              {"RadPot", &UnitTest::RadPot},
+              {"BSplineBasis", &UnitTest::BSplineBasis}};
 
 int main(int argc, char *argv[]) {
   IO::ChronoTimer timer("\nUnit tests");
@@ -63,6 +66,8 @@ int main(int argc, char *argv[]) {
   std::cout << out_buff.str();
   std::ofstream of(IO::date() + "_unitTests.txt");
   of << out_buff.str();
+
+  assert(failed == 0);
   return failed;
 }
 

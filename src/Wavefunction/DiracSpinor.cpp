@@ -11,21 +11,6 @@
 #include <vector>
 
 //******************************************************************************
-// DiracSpinor::DiracSpinor(int in_n, int in_k, const Grid &in_rgrid)
-//     : rgrid(std::make_shared<const Grid>(in_rgrid)), // copy!
-//       n(in_n),
-//       k(in_k),
-//       f(std::vector<double>(rgrid->num_points, 0.0)),
-//       g(f),
-//       pinf(rgrid->num_points),
-//       m_twoj(AtomData::twoj_k(in_k)),
-//       m_l(AtomData::l_k(in_k)),
-//       m_parity(AtomData::parity_k(in_k)),
-//       m_k_index(AtomData::indexFromKappa(in_k)) {
-//   [[deprecated]] int i;
-//   std::cout << i << "\n";
-// }
-
 DiracSpinor::DiracSpinor(int in_n, int in_k,
                          std::shared_ptr<const Grid> in_rgrid)
     : rgrid(in_rgrid),
@@ -52,8 +37,8 @@ std::string DiracSpinor::symbol(bool gnuplot) const {
 
 std::string DiracSpinor::shortSymbol() const {
   const std::string pm = (k < 0) ? "+" : "-";
-  return n > 0 ? std::to_string(n) + AtomData::l_symbol(m_l) + pm
-               : AtomData::l_symbol(m_l) + pm;
+  return (n != 0) ? std::to_string(n) + AtomData::l_symbol(m_l) + pm
+                  : AtomData::l_symbol(m_l) + pm;
 }
 
 //******************************************************************************
@@ -273,3 +258,25 @@ std::string DiracSpinor::state_config(const std::vector<DiracSpinor> &orbs) {
 //******************************************************************************
 double DiracSpinor::r0() const { return rgrid->r[p0]; }
 double DiracSpinor::rinf() const { return rgrid->r[pinf - 1]; }
+
+//******************************************************************************
+std::pair<double, std::string>
+DiracSpinor::check_ortho(const std::vector<DiracSpinor> &a,
+                         const std::vector<DiracSpinor> &b) {
+  double worst_del = 0.0;
+  std::string worst_F = "";
+  for (const auto &Fa : a) {
+    for (const auto &Fb : b) {
+      if (Fb.k != Fa.k)
+        continue;
+      const auto del =
+          Fa == Fb ? std::abs(std::abs(Fa * Fb) - 1.0) : std::abs(Fa * Fb);
+      // nb: sometimes sign of Fb is wrong. Perhaps this is an issue??
+      if (del > worst_del) {
+        worst_del = del;
+        worst_F = "<" + Fa.shortSymbol() + "|" + Fb.shortSymbol() + ">";
+      }
+    }
+  }
+  return {worst_del, worst_F};
+}

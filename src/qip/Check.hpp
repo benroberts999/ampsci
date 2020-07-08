@@ -6,6 +6,10 @@
 
 namespace qip {
 
+// XXX doesn't belong here!
+inline auto comp_abs = [](auto a, auto b) { return std::abs(a) < std::abs(b); };
+
+//******************************************************************************
 template <typename T>
 bool check_value(std::ostream *ostr, const std::string_view &name,
                  const T value, const T expected, const T tollerance) {

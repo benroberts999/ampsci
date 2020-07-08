@@ -10,6 +10,11 @@ DEFAULTEXES = $(addprefix $(XD)/, \
  diracSCAS wigner periodicTable \
 )
 
+# if dev or debug build, make unitTests too
+ifneq ($(Build),release)
+  DEFAULTEXES+=$(XD)/unitTests
+endif
+
 #Default make rule:
 all: checkObj checkXdir $(DEFAULTEXES)
 

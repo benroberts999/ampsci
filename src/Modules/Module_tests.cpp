@@ -64,11 +64,11 @@ void basisTests(const Wavefunction &wf) {
   else
     std::cout << "Using Basis\n";
 
-  auto rhat = DiracOperator::E1(*(wf.rgrid));          // vector E1
-  auto r2hat = DiracOperator::RadialF(*(wf.rgrid), 2); // scalar r^2
-
-  auto comp_l = [](const auto &Fa, const auto &Fb) { return Fa.l() < Fb.l(); };
-  auto max_l = std::max_element(basis.begin(), basis.end(), comp_l)->l();
+  // auto rhat = DiracOperator::E1(*(wf.rgrid));          // vector E1
+  // auto r2hat = DiracOperator::RadialF(*(wf.rgrid), 2); // scalar r^2
+  //
+  // auto comp_l = [](const auto &Fa, const auto &Fb) { return Fa.l() < Fb.l();
+  // }; auto max_l = std::max_element(basis.begin(), basis.end(), comp_l)->l();
 
   // check to see if there are any negative-energy states:
   const bool negative_statesQ = std::any_of(
@@ -77,63 +77,15 @@ void basisTests(const Wavefunction &wf) {
   //----------------------------------------------------------------------------
   if (negative_statesQ) {
     std::cout << "\nTKR sum rule (should =0)\n";
-    {
-      const auto &Fa = basis.front();
-      for (int l = 0; l <= max_l; l++) {
-        auto sum_el = 0.0;
-        auto sum_p = 0.0;
-        for (const auto &Fn : basis) {
-          if (Fn == Fa)
-            continue;
-          const auto f = (Fn.k == l) ? l : (Fn.k == -l - 1) ? l + 1 : 0;
-          if (f == 0)
-            continue;
-          const auto Ran = Fa * (wf.rgrid->r * Fn);
-          const auto term = f * (Fn.en - Fa.en) * Ran * Ran / (2 * l + 1);
-          if (Fn.n > 0)
-            sum_el += term;
-          else
-            sum_p += term;
-        }
-        printf("l=%1i, sum = %10.6f%+10.6f = %8.1e\n", l, sum_el, sum_p,
-               sum_el + sum_p);
-      }
-    }
+    SplineBasis::sumrule_TKR(basis, wf.rgrid->r, true);
 
     //----------------------------------------------------------------------------
     std::cout << "\nDrake-Goldman sum rules: w^n |<a|r|b>|^2  (n=0,1,2)\n";
     std::cout << "(Only up to lmax-1, since need to have states with l'=l+1)\n";
 
-    auto comp_ki = [](const auto &Fm, const auto &Fn) {
-      return Fm.k_index() < Fn.k_index();
-    };
-    auto max_ki =
-        std::max_element(basis.begin(), basis.end(), comp_ki)->k_index();
-    int n_max_DG = 3; // wf.core.empty() ? 3 : 1;
-    for (int ki = 0; ki <= max_ki; ki++) {
-      auto kappa = Angular::kappaFromIndex(ki);
-      auto comp_k = [=](const auto &Fn) { return Fn.k == kappa; };
-      auto Fa = *std::find_if(basis.begin(), basis.end(), comp_k);
-      // need to have l_n = la+1 terms, or sum doesn't work:
-      if (Fa.l() == max_l)
-        continue;
-      std::cout << "kappa: " << kappa << " (" << Fa.symbol() << ")\n";
-      for (int i = 0; i < n_max_DG; i++) {
-        auto sum = 0.0;
-        for (const auto &Fn : basis) {
-          auto w = Fn.en - Fa.en;
-          auto Ran = rhat.reducedME(Fa, Fn);
-          double c = 1.0 / (2 * std::abs(Fa.k));
-          auto term = std::pow(w, i) * Ran * Ran * c;
-          sum += term;
-        }
-        if (i == 2)
-          sum *= wf.alpha * wf.alpha / 3;
-        auto s0 =
-            (i == 0) ? r2hat.radialIntegral(Fa, Fa) : (i == 1) ? 0.0 : 1.0;
-        printf("%i: sum=%11.6f, exact=%+11.6f, diff = %8.1e\n", i, sum, s0,
-               sum - s0);
-      }
+    int n_max_DG = 3;
+    for (int nDG = 0; nDG < n_max_DG; nDG++) {
+      SplineBasis::sumrule_DG(nDG, basis, *wf.rgrid, wf.alpha, true);
     }
   }
 
@@ -196,135 +148,30 @@ void Module_test_r0pinf(const Wavefunction &wf) {
 }
 
 //------------------------------------------------------------------------------
-void Module_Tests_orthonormality(const Wavefunction &wf, const bool print_all) {
-  std::cout << "\nTest orthonormality: ";
-  if (print_all) {
-    std::cout << "log10(|1 - <a|a>|) or log10(|<a|b>|)\n";
-    std::cout << "(should all read zero).";
-  }
-  std::cout << "\n";
+void Module_Tests_orthonormality(const Wavefunction &wf, const bool) {
+  std::cout << "\nTest orthonormality:\n";
 
-  std::stringstream buffer;
-  for (int i = 0; i < 9; i++) {
-    // const auto &tmp_b = (i == 2) ? wf.valence : wf.core;
-    // const auto &tmp_a = (i == 0) ? wf.core : wf.valence;
+  const std::vector orbs = {&wf.core, &wf.valence, &wf.basis, &wf.spectrum};
+  const std::vector names = {'c', 'v', 'b', 's'};
 
-    const auto &tmp_basis = i < 6 ? wf.basis : wf.spectrum;
-
-    const auto &tmp_b =
-        (i == 2 || i == 4 || i == 7)
-            ? wf.valence
-            : (i == 0 || i == 1 || i == 3 || i == 6) ? wf.core : tmp_basis;
-    // core, core, valence, core, valence, basis
-
-    const auto &tmp_a = (i == 0) ? wf.core : (i < 3) ? wf.valence : tmp_basis;
-    // core, valence, valence, basis, basis
-
-    if (tmp_b.empty() || tmp_a.empty())
+  for (auto i = 0ul; i < orbs.size(); ++i) {
+    if (orbs[i]->empty())
       continue;
-
-    // Core-Core:
-    if (print_all) {
-      if (i == 0)
-        std::cout << "\nCore-Core\n    ";
-      else if (i == 1)
-        std::cout << "\nValence-Core\n    ";
-      else if (i == 2)
-        std::cout << "\nValence-Valence\n    ";
-      else if (i == 3)
-        std::cout << "\nBasis-core\n    ";
-      else if (i == 4)
-        std::cout << "\nBasis-Valence\n    ";
-      else if (i == 5)
-        std::cout << "\nBasis-Basis\n    ";
-      else if (i == 6)
-        std::cout << "\nSpectrum-core\n    ";
-      else if (i == 7)
-        std::cout << "\nSpectrum-Valence\n    ";
-      else if (i == 8)
-        std::cout << "\nSpectrum-Basis\n    ";
-    } else {
-      if (i == 0)
-        buffer << "cc ";
-      else if (i == 1)
-        buffer << "vc ";
-      else if (i == 2)
-        buffer << "vv ";
-      else if (i == 3)
-        buffer << "bc ";
-      else if (i == 4)
-        buffer << "bv ";
-      else if (i == 5)
-        buffer << "bb ";
-      else if (i == 6)
-        buffer << "sc ";
-      else if (i == 7)
-        buffer << "sv ";
-      else if (i == 8)
-        buffer << "ss ";
-    }
-
-    auto worst_xo = 0.0;
-    std::string worst_braket = "";
-    if (print_all) {
-      for (auto &psi_b : tmp_b)
-        printf("%2i%2i", psi_b.n, psi_b.k);
-      std::cout << "\n";
-    }
-    for (auto &psi_a : tmp_a) {
-      if (psi_a.n < 0)
+    for (auto j = i; j < orbs.size(); ++j) {
+      if (orbs[j]->empty())
         continue;
-      if (print_all)
-        printf("%2i%2i", psi_a.n, psi_a.k);
-      for (auto &psi_b : tmp_b) {
-        if (psi_b.n < 0)
-          continue;
-        if (psi_b > psi_a && (&tmp_b == &tmp_a)) {
-          if (print_all)
-            std::cout << "    ";
-          continue;
-        }
-        if (psi_a.k != psi_b.k) {
-          if (print_all)
-            std::cout << "    ";
-          continue;
-        }
-        double xo = (psi_a * psi_b);
-        if (psi_a.n == psi_b.n) {
-          xo -= 1.0;
-        } else {
-          if (std::abs(xo) > std::abs(worst_xo)) {
-            worst_xo = xo;
-            worst_braket = "<" + psi_a.symbol() + "|" + psi_b.symbol() + ">";
-          }
-        }
-        if (print_all) {
-          if (xo == 0)
-            printf("   0");
-          else
-            printf(" %+3.0f", std::log10(std::fabs(xo)));
-        }
-      } // psi_b
-      if (print_all)
-        std::cout << "\n";
-    } // Psi_a
-    if (worst_braket != "") {
-      std::string eq = worst_xo > 0 ? " =  " : " = ";
-      buffer << worst_braket << eq << std::setprecision(2) << std::scientific
-             << worst_xo;
+      const auto [eps, str] = DiracSpinor::check_ortho(*orbs[i], *orbs[j]);
+      std::cout << names[i] << names[j] << " ";
+      std::cout << std::left << std::setw(11) << str << " = ";
+      std::cout << std::setprecision(1) << std::scientific << eps << "\n";
     }
-    buffer << "\n";
-  } // cc, cv, vv
-  if (print_all)
-    std::cout << "\n";
-  std::cout << buffer.str();
+  }
 }
 
 //------------------------------------------------------------------------------
 void Module_Tests_Hamiltonian(const Wavefunction &wf) {
   std::cout << "\nTesting wavefunctions: <n|H|n>  (numerical error)\n";
 
-  // DirectHamiltonian Hd(wf.vnuc, wf.vdir, wf.alpha);
   auto Hd = RadialHamiltonian(wf.rgrid, wf.alpha);
   Hd.set_v(-1, wf.get_Vlocal(0)); // same each kappa //?? XXX
   Hd.set_v_mag(wf.get_Hmag(0));

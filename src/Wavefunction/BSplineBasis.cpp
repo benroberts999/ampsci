@@ -1,4 +1,5 @@
 #include "BSplineBasis.hpp"
+#include "DiracOperator/Operators.hpp" //for Drake-Gordon
 #include "HF/Breit.hpp"
 #include "HF/HartreeFock.hpp"
 #include "IO/SafeProfiler.hpp"
@@ -12,6 +13,7 @@
 #include "Wavefunction/Hamiltonian.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include <algorithm>
+#include <cassert>
 #include <iostream>
 #include <string>
 #include <utility>
@@ -346,6 +348,94 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
     if (Fb.f[ir] < 0)
       Fb *= -1;
   }
+}
+
+//******************************************************************************
+std::vector<double> sumrule_TKR(const std::vector<DiracSpinor> &basis,
+                                const std::vector<double> &r, bool print) {
+
+  std::vector<double> result;
+  if (basis.empty())
+    return result;
+
+  const auto &Fa = basis.front();
+  const auto max_l =
+      std::max_element(cbegin(basis), cend(basis), DiracSpinor::comp_l)->l();
+  result.reserve(std::size_t(max_l + 1));
+
+  for (int l = 0; l <= max_l; l++) {
+    double sum_el = 0.0;
+    double sum_p = 0.0;
+    for (const auto &Fn : basis) {
+      if (Fn == Fa)
+        continue;
+      const auto f = (Fn.k == l) ? l : (Fn.k == -l - 1) ? l + 1 : 0;
+      if (f == 0)
+        continue;
+      const auto Ran = Fa * (r * Fn);
+      const auto term = f * (Fn.en - Fa.en) * Ran * Ran / (2 * l + 1);
+      if (Fn.n > 0)
+        sum_el += term;
+      else
+        sum_p += term;
+    }
+    result.push_back(sum_el + sum_p);
+    if (print)
+      printf("l=%1i, sum = %10.6f%+10.6f = %8.1e\n", l, sum_el, sum_p,
+             sum_el + sum_p);
+  }
+  return result;
+}
+
+//******************************************************************************
+std::vector<double> sumrule_DG(int nDG, const std::vector<DiracSpinor> &basis,
+                               const Grid &gr, double alpha, bool print) {
+  // Drake-Goldman sum rules: w^n |<a|r|b>|^2  (n=0,1,2)
+  // Only up to lmax-1, since need to have states with l'=l+1
+
+  assert(nDG < 3); // better way?
+
+  auto rhat = DiracOperator::E1(gr);          // vector E1
+  auto r2hat = DiracOperator::RadialF(gr, 2); // scalar r^2
+
+  std::vector<double> result;
+  if (basis.empty())
+    return result;
+
+  const auto max_ki =
+      std::max_element(cbegin(basis), cend(basis), DiracSpinor::comp_ki)
+          ->k_index();
+  const auto max_l =
+      std::max_element(cbegin(basis), cend(basis), DiracSpinor::comp_l)->l();
+
+  for (int ki = 0; ki <= max_ki; ki++) {
+    const auto kappa = Angular::kappaFromIndex(ki);
+    auto find_ka = [=](const auto &Fn) { return Fn.k == kappa; };
+    const auto &Fa = *std::find_if(basis.begin(), basis.end(), find_ka);
+    // need to have l_n = la+1 terms, or sum doesn't work:
+    if (Fa.l() == max_l)
+      continue;
+    // if (print)
+    //   std::cout << "kappa: " << kappa << " (" << Fa.symbol() << ")\n";
+    auto sum = 0.0;
+    for (const auto &Fn : basis) {
+      const auto w = Fn.en - Fa.en;
+      const auto Ran = rhat.reducedME(Fa, Fn);
+      const double c = 1.0 / (2 * std::abs(Fa.k));
+      const auto term = std::pow(w, nDG) * Ran * Ran * c;
+      sum += term;
+    }
+    if (nDG == 2) {
+      sum *= alpha * alpha / 3;
+    }
+    const auto s0 =
+        (nDG == 0) ? r2hat.radialIntegral(Fa, Fa) : (nDG == 1) ? 0.0 : 1.0;
+    if (print)
+      printf("%i| k=%2i: sum=%10.5f, exact=%+10.5f, diff = %8.1e\n", nDG, kappa,
+             sum, s0, sum - s0);
+    result.push_back(sum - s0);
+  }
+  return result;
 }
 
 } // namespace SplineBasis

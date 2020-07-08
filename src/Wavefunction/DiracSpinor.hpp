@@ -151,6 +151,11 @@ public:
     return lhs.en < rhs.en;
   }
 
+  //! Returns worst |<a|b>| (or |<a|b>-1| for a=b) {val, state_names}
+  static std::pair<double, std::string>
+  check_ortho(const std::vector<DiracSpinor> &a,
+              const std::vector<DiracSpinor> &b);
+
   //! Returns formatted states string (e.g., '7sp5d') given list of orbs
   static std::string state_config(const std::vector<DiracSpinor> &orbs);
 
