@@ -2,6 +2,7 @@
 #include "IO/SafeProfiler.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_coeficients.hpp"
+#include "qip/Vector.hpp"
 #include <array>
 #include <cmath>
 #include <functional>
@@ -217,66 +218,6 @@ std::vector<Real> partialIntegral(const std::vector<Real> &f,
 }
 
 //******************************************************************************
-namespace helper {
-template <typename Real>
-void add_b_to_a(std::vector<Real> &a, const std::vector<Real> &b) {
-  const auto size = std::min(a.size(), b.size());
-  for (auto i = 0ul; i < size; ++i)
-    a[i] += b[i];
-}
-template <typename Real> void add_b_to_a(Real &a, const Real &b) { a += b; }
-
-template <typename T> //
-void vector_adder(T &) {
-  return;
-}
-
-template <typename T, typename... Args>
-void vector_adder(T &out, const T &first, const Args &... args) {
-  add_b_to_a(out, first);
-  vector_adder(out, args...);
-}
-} // namespace helper
-
-template <typename T, typename... Args>
-T add_vectors(const T &zeroth, const Args &... args) {
-  auto out = zeroth; // copy
-  helper::vector_adder(out, args...);
-  return out;
-}
-template <typename T, typename... Args> //
-void add_to_vector(T &a, const T &b) {
-  helper::vector_adder(a, b);
-}
-//******************************************************************************
-namespace helper {
-template <typename Real>
-void mult_b_to_a(std::vector<Real> &a, const std::vector<Real> &b) {
-  const auto size = std::min(a.size(), b.size());
-  for (auto i = 0ul; i < size; ++i)
-    a[i] *= b[i];
-}
-template <typename Real> void mult_b_to_a(Real &a, const Real &b) { a *= b; }
-template <typename T> //
-void vector_multer(T &) {
-  return;
-}
-
-template <typename T, typename... Args>
-void vector_multer(T &out, const T &first, const Args &... args) {
-  mult_b_to_a(out, first);
-  vector_multer(out, args...);
-}
-} // namespace helper
-
-template <typename T, typename... Args>
-T mult_vectors(const T &zeroth, const Args &... args) {
-  auto out = zeroth; // copy
-  helper::vector_multer(out, args...);
-  return out;
-}
-
-//******************************************************************************
 template <typename... Args>
 double integrate(const double dt, const std::size_t beg, const std::size_t end,
                  const std::vector<double> &v1, const Args &... args) {
@@ -286,28 +227,23 @@ double integrate(const double dt, const std::size_t beg, const std::size_t end,
   else if constexpr (sizeof...(args) <= 3)
     return integrate_1(dt, beg, end, v1, args...);
   else
-    return integrate_1(dt, beg, end, mult_vectors(v1, args...));
+    return integrate_1(dt, beg, end, qip::multiply(v1, args...));
 }
 
-inline void scaleVec(std::vector<double> &vec, const double x) {
-  for (auto &v : vec)
-    v *= x;
-}
 //******************************************************************************
 //******************************************************************************
 
 enum t_grid { linear, logarithmic };
-// XXX Add logarithmic grid
 
-static inline std::function<double(long unsigned)> linx(double a, double dt) {
+inline std::function<double(long unsigned)> linx(double a, double dt) {
   return [=](long unsigned i) { return a + double(i) * dt; };
 }
 
-static inline std::function<double(long unsigned)> one() {
+inline std::function<double(long unsigned)> one() {
   return [=](long unsigned) { return 1.0; };
 }
 
-static inline std::function<double(long unsigned)> logx(double a, double dt) {
+inline std::function<double(long unsigned)> logx(double a, double dt) {
   return [=](long unsigned i) { return a * std::exp(double(i) * dt); };
 }
 
@@ -341,37 +277,6 @@ inline double num_integrate(const std::function<double(double)> &f, double a,
   }
 
   return (Rint_m + dq_inv * (Rint_s + Rint_e)) * dt;
-}
-
-//******************************************************************************
-template <typename T>
-std::vector<T> even_range(T first, T last, std::size_t number) {
-  std::vector<T> range;
-  range.reserve(number);
-  auto interval = double(last - first);
-  range.push_back(first); // guarentee first is first
-  for (auto i = 1ul; i < number - 1; ++i) {
-    auto eps = double(i) / double(number - 1);
-    auto value = double(first) + (eps * interval);
-    range.push_back(static_cast<T>(value));
-  }
-  range.push_back(last); // guarentee last is last
-  return range;
-}
-//******************************************************************************
-template <typename T>
-std::vector<T> logarithmic_range(T first, T last, std::size_t number) {
-  std::vector<T> range;
-  range.reserve(number);
-  auto ratio = double(last) / double(first);
-  range.push_back(first);
-  for (auto i = 1ul; i < number - 1; ++i) {
-    auto eps = double(i) / double(number - 1);
-    auto value = double(first) * std::exp(std::log(ratio) * eps);
-    range.push_back(static_cast<T>(value));
-  }
-  range.push_back(last);
-  return range;
 }
 
 } // namespace NumCalc

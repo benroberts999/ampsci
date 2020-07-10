@@ -1,11 +1,11 @@
 #include "IO/ChronoTimer.hpp"
 #include "IO/FRW_fileReadWrite.hpp" //for 'ExtraPotential'
 #include "IO/UserInput.hpp"
-#include "Maths/Interpolator.hpp"          //for 'ExtraPotential'
-#include "Maths/NumCalc_quadIntegrate.hpp" //for 'ExtraPotential'
+#include "Maths/Interpolator.hpp" //for 'ExtraPotential'
 #include "Modules/Module_runModules.hpp"
 #include "Physics/PhysConst_constants.hpp" //for fit_energies
 #include "Wavefunction/Wavefunction.hpp"
+#include "qip/Vector.hpp"
 #include <iostream>
 #include <string>
 
@@ -122,12 +122,12 @@ int main(int argc, char *argv[]) {
   if (extra_pot) {
     const auto &[x, y] = IO::FRW::readFile_xy_PoV("testIn.txt");
     Vextra = Interpolator::interpolate(x, y, wf.rgrid->r);
-    NumCalc::scaleVec(Vextra, ep_factor);
+    qip::scale(&Vextra, ep_factor);
   }
 
   // Add "extra potential", before HF (core + valence)
   if (extra_pot && ep_beforeHF) {
-    wf.vnuc = NumCalc::add_vectors(wf.vnuc, Vextra);
+    qip::add(&wf.vnuc, Vextra);
   }
 
   { // Solve Hartree equations for the core:
@@ -143,7 +143,7 @@ int main(int argc, char *argv[]) {
 
   // Add "extra potential", after HF (only valence)
   if (extra_pot && !ep_beforeHF) {
-    wf.vdir = NumCalc::add_vectors(wf.vdir, Vextra);
+    qip::add(&wf.vdir, Vextra);
   }
 
   // Adds effective polarision potential to direct potential
@@ -235,7 +235,7 @@ int main(int argc, char *argv[]) {
   auto fit_energies =
       input.get_list("Correlations", "fitTo_cm", std::vector<double>{});
   // energies given in cm^-1, convert to au:
-  NumCalc::scaleVec(fit_energies, 1.0 / PhysConst::Hartree_invcm);
+  qip::scale(&fit_energies, 1.0 / PhysConst::Hartree_invcm);
   const auto lambda_k =
       input.get_list("Correlations", "lambda_k", std::vector<double>{});
 

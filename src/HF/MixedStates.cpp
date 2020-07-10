@@ -8,8 +8,8 @@
 #include "IO/SafeProfiler.hpp"
 #include "MBPT/CorrelationPotential.hpp"
 #include "Maths/Grid.hpp"
-#include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
+#include "qip/Vector.hpp"
 #include <cmath>
 #include <iostream>
 #include <vector>
@@ -56,7 +56,7 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
 
   for (int its = 0; true; its++) {
     const auto vx = vex_approx(dF, core);
-    const auto v = NumCalc::add_vectors(vl, vx);
+    const auto v = qip::add(vl, vx);
     auto rhs = (vx * dF) - vexFa(dF, core) - hFa;
     if (Sigma)
       rhs -= (*Sigma)(dF);

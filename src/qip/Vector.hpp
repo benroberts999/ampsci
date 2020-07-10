@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -110,6 +111,13 @@ add(std::vector<T> first, const std::vector<T> &second, const Args &... rest) {
   add(&first, second, rest...);
   return first;
 }
+
+// template <typename T, typename... Args>
+// [[nodiscard]] std::vector<T> add(std::vector<T> first, const Args &... rest)
+// {
+//   add(&first, rest...);
+//   return first;
+// }
 
 //******************************************************************************
 //! Multiplies any number of (arithmetic) vectors, in place (modifies first

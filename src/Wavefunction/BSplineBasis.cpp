@@ -12,6 +12,7 @@
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Hamiltonian.hpp"
 #include "Wavefunction/Wavefunction.hpp"
+#include "qip/Vector.hpp"
 #include <algorithm>
 #include <cassert>
 #include <iostream>
@@ -169,10 +170,10 @@ form_spline_basis(const int kappa, const std::size_t n_states,
     const auto &dBi = bspl.get_spline_deriv(i);
     phi.f = Bi;
     if (!ND_type) {
-      auto gtmp = NumCalc::mult_vectors(rgrid->rpow(-1), Bi);
-      NumCalc::scaleVec(gtmp, double(kappa));
-      phi.g = NumCalc::add_vectors(dBi, gtmp);
-      NumCalc::scaleVec(phi.g, 0.5 * alpha);
+      auto gtmp = qip::multiply(rgrid->rpow(-1), Bi);
+      qip::scale(&gtmp, double(kappa));
+      phi.g = qip::add(dBi, gtmp);
+      qip::scale(&phi.g, 0.5 * alpha);
     }
 
     // phi.df = dBi;
@@ -197,10 +198,10 @@ form_spline_basis(const int kappa, const std::size_t n_states,
     const auto &dBi = bspl.get_spline_deriv(i);
     phi.g = Bi;
     if (!ND_type) {
-      auto ftmp = NumCalc::mult_vectors(rgrid->rpow(-1), Bi);
-      NumCalc::scaleVec(ftmp, double(-kappa));
-      phi.f = NumCalc::add_vectors(dBi, ftmp);
-      NumCalc::scaleVec(phi.f, 0.5 * alpha);
+      auto ftmp = qip::multiply(rgrid->rpow(-1), Bi);
+      qip::scale(&ftmp, double(-kappa));
+      phi.f = qip::add(dBi, ftmp);
+      qip::scale(&phi.f, 0.5 * alpha);
     }
 
     // phi.dg = dBi;

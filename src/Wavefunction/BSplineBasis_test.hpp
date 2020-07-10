@@ -3,6 +3,7 @@
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "qip/Check.hpp"
+#include "qip/Maths.hpp"
 #include "qip/Vector.hpp"
 #include <algorithm>
 #include <string>

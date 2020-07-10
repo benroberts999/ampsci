@@ -5,6 +5,8 @@
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
+#include "qip/Maths.hpp"
+#include "qip/Vector.hpp"
 #include <algorithm>
 #include <cmath>
 #include <functional>
@@ -13,13 +15,6 @@
 #include <vector>
 
 namespace Coulomb {
-
-//******************************************************************************
-// Templates for faster method to calculate r^k
-template <int k> static inline double powk_new(const double x) {
-  return x * powk_new<k - 1>(x);
-}
-template <> inline double powk_new<0>(const double) { return 1.0; }
 
 //******************************************************************************
 template <int k>
@@ -52,12 +47,13 @@ static inline void yk_ijk_impl(const int l, const DiracSpinor &Fa,
   const auto irmax = (maxi == 0 || maxi > num_points) ? num_points : maxi;
 
   // faster method to calculate r^k
-  auto powk = [=](double x) {
-    if constexpr (k < 0)
-      return std::pow(x, l);
-    else
-      return powk_new<k>(x);
-  };
+  const auto powk = [l]() {
+    if constexpr (k < 0) {
+      return [l](double x) { return std::pow(x, l); };
+    } else {
+      return qip::pow<k, double>;
+    }
+  }();
 
   // Quadrature integration weights:
   auto w = [=](std::size_t i) {
@@ -111,6 +107,7 @@ void yk_ab(const DiracSpinor &Fa, const DiracSpinor &Fb, const int k,
            std::vector<double> &vabk, const std::size_t maxi) {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
 
+  // faster method to calculate r^k
   if (k == 0)
     yk_ijk_impl<0>(k, Fa, Fb, vabk, maxi);
   else if (k == 1)
@@ -129,6 +126,10 @@ void yk_ab(const DiracSpinor &Fa, const DiracSpinor &Fb, const int k,
     yk_ijk_impl<7>(k, Fa, Fb, vabk, maxi);
   else if (k == 8)
     yk_ijk_impl<8>(k, Fa, Fb, vabk, maxi);
+  else if (k == 9)
+    yk_ijk_impl<9>(k, Fa, Fb, vabk, maxi);
+  else if (k == 10)
+    yk_ijk_impl<10>(k, Fa, Fb, vabk, maxi);
   else
     yk_ijk_impl<-1>(k, Fa, Fb, vabk, maxi);
 }
@@ -150,12 +151,13 @@ static inline void Breit_abk_impl(const int l, const DiracSpinor &Fa,
   const auto irmax = (maxi == 0 || maxi > num_points) ? num_points : maxi;
 
   // faster method to calculate r^k
-  auto powk = [=](double x) {
-    if constexpr (k < 0)
-      return std::pow(x, l);
-    else
-      return powk_new<k>(x);
-  };
+  const auto powk = [l]() {
+    if constexpr (k < 0) {
+      return [l](double x) { return std::pow(x, l); };
+    } else {
+      return qip::pow<k, double>;
+    }
+  }();
 
   // Quadrature integration weights:
   auto w = [=](std::size_t i) {
@@ -207,6 +209,7 @@ void bk_ab(const DiracSpinor &Fa, const DiracSpinor &Fb, const int k,
   [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__);
 
   constexpr int pm = -1; // for fg - gf
+  // faster method to calculate r^k
   if (k == 0)
     Breit_abk_impl<0, pm>(k, Fa, Fb, b0, binf, maxi);
   else if (k == 1)
@@ -291,8 +294,8 @@ DiracSpinor Rkv_bcd(const int kappa_a, const DiracSpinor &Fc,
   auto out = DiracSpinor(0, kappa_a, Fc.rgrid);
   out.p0 = Fc.p0;
   out.pinf = Fc.pinf;
-  out.f = NumCalc::mult_vectors(Fc.f, ykbd);
-  out.g = NumCalc::mult_vectors(Fc.g, ykbd);
+  out.f = qip::multiply(Fc.f, ykbd);
+  out.g = qip::multiply(Fc.g, ykbd);
   return out;
 }
 //------------------------------------------------------------------------------

@@ -8,11 +8,11 @@
 #include "IO/SafeProfiler.hpp"
 #include "MBPT/CorrelationPotential.hpp"
 #include "Maths/Grid.hpp"
-#include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/Parametric_potentials.hpp"
 #include "Physics/RadiativePotential.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
+#include "qip/Vector.hpp"
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -103,7 +103,7 @@ const std::vector<double> &HartreeFock::solveCore() {
 //******************************************************************************
 std::vector<double> HartreeFock::get_vlocal(int l) const {
   const auto &vrad_el = get_Hrad_el(l);
-  return NumCalc::add_vectors(*p_vnuc, m_vdir, vrad_el);
+  return qip::add(*p_vnuc, m_vdir, vrad_el);
 }
 
 //******************************************************************************
@@ -156,7 +156,7 @@ void HartreeFock::hf_core_approx(const double eps_target_HF) {
       }
     }
 
-    const auto v_local = NumCalc::add_vectors(*p_vnuc, m_vdir);
+    const auto v_local = qip::add(*p_vnuc, m_vdir);
 
     // Solve Dirac Eq. for each state in core, using Vdir+Vex:
     t_eps = 0;
@@ -174,7 +174,7 @@ void HartreeFock::hf_core_approx(const double eps_target_HF) {
       const double en_guess = (en_old < -dEa) ? en_old + dEa : en_old;
       const auto &vrad_el = get_Hrad_el(Fa.l());
       const auto &vrad_mag = get_Hrad_mag(Fa.l());
-      const auto v = NumCalc::add_vectors(v_local, vrad_el, appr_vex_core[i]);
+      const auto v = qip::add(v_local, vrad_el, appr_vex_core[i]);
       DiracODE::boundState(Fa, en_guess, v, vrad_mag, m_alpha, 6);
       const double state_eps = std::abs((Fa.en - en_old) / en_old);
       // convergance based on worst orbital:
@@ -209,8 +209,7 @@ void HartreeFock::hf_core_approx(const double eps_target_HF) {
     auto &Fa = (*p_core)[i];
     const auto &vrad_el = get_Hrad_el(Fa.l());
     const auto &vrad_mag = get_Hrad_mag(Fa.l());
-    const auto v =
-        NumCalc::add_vectors(*p_vnuc, m_vdir, vrad_el, appr_vex_core[i]);
+    const auto v = qip::add(*p_vnuc, m_vdir, vrad_el, appr_vex_core[i]);
     DiracODE::boundState(Fa, Fa.en, v, vrad_mag, m_alpha, 15);
   }
 }
@@ -247,7 +246,7 @@ void HartreeFock::KohnSham_core(const double eps_target_HF) {
       m_vdir[j] = (1.0 - eta) * m_vdir[j] + eta * vdir_old[j];
     }
 
-    const auto v_local = NumCalc::add_vectors(*p_vnuc, m_vdir);
+    const auto v_local = qip::add(*p_vnuc, m_vdir);
 
     // Solve Dirac Eq. for each state in core, using Vdir+Vex:
     t_eps = 0;
@@ -263,7 +262,7 @@ void HartreeFock::KohnSham_core(const double eps_target_HF) {
       const double en_guess = (en_old < -dEa) ? en_old + dEa : en_old;
       const auto &vrad_el = get_Hrad_el(Fa.l());
       const auto &vrad_mag = get_Hrad_mag(Fa.l());
-      const auto v = NumCalc::add_vectors(v_local, vrad_el);
+      const auto v = qip::add(v_local, vrad_el);
       DiracODE::boundState(Fa, en_guess, v, vrad_mag, m_alpha, 7);
       double state_eps = std::abs((Fa.en - en_old) / en_old);
       // convergance based on worst orbital:
@@ -284,7 +283,7 @@ void HartreeFock::KohnSham_core(const double eps_target_HF) {
     auto &Fa = (*p_core)[i];
     const auto &vrad_el = get_Hrad_el(Fa.l());
     const auto &vrad_mag = get_Hrad_mag(Fa.l());
-    const auto v = NumCalc::add_vectors(*p_vnuc, m_vdir, vrad_el);
+    const auto v = qip::add(*p_vnuc, m_vdir, vrad_el);
     DiracODE::boundState(Fa, Fa.en, v, vrad_mag, m_alpha, 15);
   }
 }
@@ -297,7 +296,7 @@ void HartreeFock::KohnSham_addition(std::vector<double> &vdir) const {
 
   std::vector<double> rho(rgrid->num_points);
   for (const auto &Fc : *p_core) {
-    rho = NumCalc::add_vectors(rho, Fc.rho());
+    rho = qip::add(rho, Fc.rho());
   }
 
   for (std::size_t i = 0; i < rgrid->num_points; ++i) {
@@ -408,7 +407,7 @@ EpsIts HartreeFock::hf_valence_approx(DiracSpinor &Fa, double eps_target_HF)
 
   const auto &vrad_el = get_Hrad_el(Fa.l());
   const auto &Hmag = get_Hrad_mag(Fa.l());
-  const auto v_local = NumCalc::add_vectors(*p_vnuc, m_vdir, vrad_el);
+  const auto v_local = qip::add(*p_vnuc, m_vdir, vrad_el);
 
   double eps = -1, eps_prev = -1;
   int hits = 1;
@@ -431,8 +430,8 @@ EpsIts HartreeFock::hf_valence_approx(DiracSpinor &Fa, double eps_target_HF)
     }
     en_new_guess = en_old + en_new_guess * rgrid->du * de_stride;
     // Solve Dirac using new potential:
-    DiracODE::boundState(Fa, en_new_guess, NumCalc::add_vectors(v_local, vexa),
-                         Hmag, m_alpha, 15);
+    DiracODE::boundState(Fa, en_new_guess, qip::add(v_local, vexa), Hmag,
+                         m_alpha, 15);
     eps = std::abs((Fa.en - en_old) / en_old);
 
     auto getting_worse = (hits > 20 && eps >= eps_prev && eps < 1.e-5);
@@ -950,7 +949,7 @@ EpsIts HartreeFock::hf_valence_refine(DiracSpinor &Fa) {
 
   const auto &vrad_el = get_Hrad_el(Fa.l());
   const auto &Hmag = get_Hrad_mag(Fa.l());
-  const auto vl = NumCalc::add_vectors(*p_vnuc, m_vdir, vrad_el);
+  const auto vl = qip::add(*p_vnuc, m_vdir, vrad_el);
 
   const auto Fzero = Fa;
   const auto vexFzero = vex_approx(Fa, *p_core) * Fa;
@@ -1019,7 +1018,7 @@ EpsIts HartreeFock::hf_Brueckner(DiracSpinor &Fa,
 
   const auto &vrad_el = get_Hrad_el(Fa.l());
   const auto &Hmag = get_Hrad_mag(Fa.l());
-  const auto vl = NumCalc::add_vectors(*p_vnuc, m_vdir, vrad_el);
+  const auto vl = qip::add(*p_vnuc, m_vdir, vrad_el);
 
   const auto Fzero = Fa;
   auto vexFzero = calc_vexFa(Fa);
@@ -1165,7 +1164,7 @@ inline void HartreeFock::hf_core_refine() {
 
       const auto &Hrad_el = get_Hrad_el(Fa.l());
       const auto &Hmag = get_Hrad_mag(Fa.l());
-      const auto &VlVr = NumCalc::add_vectors(vl, Hrad_el);
+      const auto &VlVr = qip::add(vl, Hrad_el);
       hf_orbital(Fa, en, VlVr, Hmag, v_nonlocal, core_prev, v0, VBr.get());
       Fa = (1.0 - a_damp) * Fa + a_damp * oldphi;
       Fa.normalise();

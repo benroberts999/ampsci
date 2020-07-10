@@ -3,6 +3,7 @@
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
+#include "qip/Vector.hpp"
 #include <cmath>
 #include <memory>
 #include <vector>
@@ -40,12 +41,15 @@ public:
   //! @brief Sets the local potential
   //! @details Takes any number of vectors. Typical: set_v(kappa,vdir,vnuc).
   //! Must be set for each kappa (or, just -1 if all the same)
-  template <typename... Args> //
-  void set_v(const int kappa, const Args &... args) {
+  template <typename T, typename... Args> //
+  void set_v(const int kappa, const T &first, const Args &... args) {
     auto ki = std::size_t(Angular::indexFromKappa(kappa));
     if (m_Vk.size() < ki + 1)
       m_Vk.resize(ki + 1); // XXX may set some to zero??
-    m_Vk[ki] = NumCalc::add_vectors(args...);
+    if constexpr (sizeof...(args) != 0)
+      m_Vk[ki] = qip::add(first, args...);
+    else
+      m_Vk[ki] = first;
   }
   //! @brief Sets the QED magnetic form factor
   void set_v_mag(const std::vector<double> &vin) { m_v_mag = vin; }

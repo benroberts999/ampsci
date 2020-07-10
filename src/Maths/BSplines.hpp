@@ -1,6 +1,6 @@
 #pragma once
 #include "Maths/Grid.hpp"
-#include "Maths/NumCalc_quadIntegrate.hpp"
+#include "qip/Vector.hpp"
 #include <algorithm>
 #include <fstream>
 #include <gsl/gsl_bspline.h>
@@ -183,7 +183,7 @@ private:
     // Set breakpoints according to grid (align exactly w/ grid points)
     // Go 1 past beg/end, to ensure f_spl(r) is in spline interp. region
     auto points =
-        NumCalc::even_range(m_rmin_index - 1, m_rmax_index + 1, nbreaks - 1);
+        qip::uniform_range(m_rmin_index - 1, m_rmax_index + 1, nbreaks - 1);
     breaks.reserve(points.size());
     breaks.push_back(0.0);
     for (auto p : points) {

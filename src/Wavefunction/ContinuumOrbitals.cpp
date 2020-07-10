@@ -2,11 +2,11 @@
 #include "DiracODE/DiracODE.hpp"
 #include "HF/HartreeFock.hpp"
 #include "Maths/Grid.hpp"
-#include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/AtomData.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
+#include "qip/Vector.hpp"
 #include <algorithm>
 #include <cmath>
 #include <string>
@@ -19,7 +19,7 @@ ContinuumOrbitals::ContinuumOrbitals(const Wavefunction &wf, int izion)
       Z(wf.Znuc()),
       Zion(izion),
       alpha(wf.alpha),
-      v_local(NumCalc::add_vectors(wf.vnuc, wf.vdir)) {}
+      v_local(qip::add(wf.vnuc, wf.vdir)) {}
 
 //******************************************************************************
 double ContinuumOrbitals::check_orthog(bool print) const {
@@ -108,11 +108,10 @@ int ContinuumOrbitals::solveLocalContinuum(double ec, int min_l, int max_l)
     if (!p_hf->excludeExchangeQ()) {
       auto n0 = phi * phi;
       for (int iteration = 0; iteration < 50; ++iteration) {
-        vx = NumCalc::add_vectors(
-            vx, HF::vex_approx(phi, p_hf->get_core(), 99, 0.01));
-        NumCalc::scaleVec(vx, 0.5);
+        qip::add(&vx, HF::vex_approx(phi, p_hf->get_core(), 99, 0.01));
+        qip::scale(&vx, 0.5);
 
-        auto vtot = NumCalc::add_vectors(vc, vx);
+        auto vtot = qip::add(vc, vx);
 
         // Ensure potential goes as - Zion / r at large r
         if (force_rescale) {

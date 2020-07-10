@@ -8,7 +8,6 @@
 #include "MBPT/GoldstoneSigma2.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/Interpolator.hpp"
-#include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/AtomData.hpp"
 #include "Physics/NuclearPotentials.hpp"
 #include "Physics/Parametric_potentials.hpp"
@@ -16,6 +15,7 @@
 #include "Physics/RadiativePotential.hpp"
 #include "Wavefunction/BSplineBasis.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
+#include "qip/Vector.hpp"
 #include <algorithm>
 #include <cmath>
 #include <iostream>
@@ -70,7 +70,7 @@ void Wavefunction::solveDirac(DiracSpinor &psi, double e_a,
 // so, here, vex = [sum_b vex_a (psi_b/psi_a)]
 // This is not ideal..
 {
-  const auto v_a = NumCalc::add_vectors(get_Vlocal(psi.l()), vex);
+  const auto v_a = qip::add(get_Vlocal(psi.l()), vex);
   if (e_a != 0) {
     psi.en = e_a;
   } else if (psi.en == 0) {
@@ -249,8 +249,8 @@ void Wavefunction::radiativePotential(double x_simple, double x_Ueh,
       std::cout << "l=" << l << ", x_l=" << x_l << "\n";
     auto V_l = Hel_tmp; // make a copy..dumb
     auto H_l = Hmag_tmp;
-    NumCalc::scaleVec(V_l, x_l);
-    NumCalc::scaleVec(H_l, x_l);
+    qip::scale(&V_l, x_l);
+    qip::scale(&H_l, x_l);
     vrad.set_Hel(V_l, l);
     vrad.set_Hmag(H_l, l);
     l++;
@@ -455,7 +455,7 @@ std::tuple<double, double> Wavefunction::lminmax_core_range(int l,
   std::vector<double> rho_l(rgrid->num_points);
   for (const auto &Fc : core) {
     if (Fc.l() == l || l < 0)
-      rho_l = NumCalc::add_vectors(rho_l, Fc.rho());
+      rho_l = qip::add(rho_l, Fc.rho());
   }
   // find maximum rho:
   const auto max = std::max_element(rho_l.begin(), rho_l.end());
@@ -877,7 +877,7 @@ void Wavefunction::SOEnergyShift() {
 
 //******************************************************************************
 std::vector<double> Wavefunction::get_Vlocal(int l) const {
-  return NumCalc::add_vectors(vnuc, vdir, vrad.get_Hel(l));
+  return qip::add(vnuc, vdir, vrad.get_Hel(l));
 }
 //******************************************************************************
 const std::vector<double> &Wavefunction::get_Hmag(int l) const {
