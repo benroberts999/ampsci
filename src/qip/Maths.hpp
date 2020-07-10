@@ -1,9 +1,32 @@
 #pragma once
+#include <cmath>
 #include <type_traits>
 
 namespace qip {
 
 inline auto comp_abs = [](auto a, auto b) { return std::abs(a) < std::abs(b); };
+
+//******************************************************************************
+template <typename T, typename... Args> T max_abs(T first, Args... rest) {
+  if constexpr (sizeof...(rest) == 0) {
+    return first;
+  } else {
+    const auto max_rest = max_abs(rest...);
+    if (std::abs(first) >= std::abs(max_rest))
+      return first;
+    return max_rest;
+  }
+}
+template <typename T, typename... Args> T min_abs(T first, Args... rest) {
+  if constexpr (sizeof...(rest) == 0) {
+    return first;
+  } else {
+    const auto min_rest = min_abs(rest...);
+    if (std::abs(first) <= std::abs(min_rest))
+      return first;
+    return min_rest;
+  }
+}
 
 //******************************************************************************
 //! x^n for integer n (n compile-time template parameter)

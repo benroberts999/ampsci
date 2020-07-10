@@ -16,7 +16,7 @@ $(BD)/unitTests.o: $(SD)/unitTests.cpp \
 $(SD)/qip/Check.hpp $(SD)/qip/Vector.hpp \
 $(SD)/HF/HartreeFock_test.hpp $(SD)/HF/MixedStates_test.hpp \
 $(SD)/HF/ExternalField_test.hpp $(SD)/Physics/RadPot_test.hpp \
-$(SD)/Wavefunction/BSplineBasis_test.hpp \
+$(SD)/Wavefunction/BSplineBasis_test.hpp $(SD)/Maths/LinAlg_test.hpp \
 $(BD)/diracSCAS.o
 	$(COMP)
 

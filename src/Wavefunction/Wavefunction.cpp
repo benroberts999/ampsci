@@ -453,15 +453,21 @@ void Wavefunction::orthonormaliseWrt(DiracSpinor &psi_v,
 std::tuple<double, double> Wavefunction::lminmax_core_range(int l,
                                                             double eps) const {
   std::vector<double> rho_l(rgrid->num_points);
+  bool found = false;
   for (const auto &Fc : core) {
-    if (Fc.l() == l || l < 0)
-      rho_l = qip::add(rho_l, Fc.rho());
+    if (Fc.l() == l || l < 0) {
+      found = true;
+      qip::add(&rho_l, Fc.rho());
+    }
+  }
+  if (!found) {
+    return {rgrid->r.front(), rgrid->r.back()};
   }
   // find maximum rho:
   const auto max = std::max_element(rho_l.begin(), rho_l.end());
   // find first position that rho=|psi^2| reaches cut-off
   const auto cut = max != rho_l.end() ? eps * (*max) : 0.0;
-  const auto lam = [=](const auto &v) { return cut < v; };
+  const auto lam = [cut](const auto &v) { return v >= cut; };
   const auto first = std::find_if(rho_l.begin(), rho_l.end(), lam);
   const auto last = std::find_if(rho_l.rbegin(), rho_l.rend(), lam);
   const auto index_first = std::size_t(first - rho_l.begin());

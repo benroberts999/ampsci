@@ -271,7 +271,7 @@ public: // constructor
     // Correct for diag. Off diag? Prob not defined?
   }
 
-  double hfsA(const DiracSpinor &Fa) {
+  double hfsA(const DiracSpinor &Fa) const {
     auto Raa = radialIntegral(Fa, Fa);
     return Raa * Fa.k / (Fa.jjp1());
     // nb: in MHz

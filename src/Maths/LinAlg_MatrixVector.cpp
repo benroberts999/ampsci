@@ -62,6 +62,22 @@ void SqMatrix::clip_high(double value) {
   }
 }
 
+Vector SqMatrix::get_row(std::size_t i) const {
+  Vector v(n); //
+  for (std::size_t j = 0; j < n; ++j) {
+    v[j] = (*this)[i][j];
+  }
+  return v;
+}
+
+Vector SqMatrix::get_col(std::size_t j) const {
+  Vector v(n); //
+  for (std::size_t i = 0; i < n; ++i) {
+    v[i] = (*this)[i][j];
+  }
+  return v;
+}
+
 void SqMatrix::enforce_symmetric() {
   *this += this->transpose();
   (*this) *= 0.5;
@@ -187,7 +203,7 @@ SqMatrix operator*(const double x, SqMatrix rhs) {
 void SqMatrix::mult_elements_by(const SqMatrix &rhs) {
   gsl_matrix_mul_elements(this->m, rhs.m);
 }
-SqMatrix mult_elements(SqMatrix lhs, const SqMatrix &rhs) {
+SqMatrix SqMatrix::mult_elements(SqMatrix lhs, const SqMatrix &rhs) {
   gsl_matrix_mul_elements(lhs.m, rhs.m);
   return lhs;
 }
@@ -442,7 +458,8 @@ SqMatrix ComplexSqMatrix::imaginary() const {
 void ComplexSqMatrix::mult_elements_by(const ComplexSqMatrix &rhs) {
   gsl_matrix_complex_mul_elements(this->m, rhs.m);
 }
-ComplexSqMatrix mult_elements(ComplexSqMatrix lhs, const ComplexSqMatrix &rhs) {
+ComplexSqMatrix ComplexSqMatrix::mult_elements(ComplexSqMatrix lhs,
+                                               const ComplexSqMatrix &rhs) {
   gsl_matrix_complex_mul_elements(lhs.m, rhs.m);
   return lhs;
 }
@@ -517,9 +534,9 @@ Vector solve_Axeqb(const SqMatrix &Am, const Vector &b) {
 
   gsl_linalg_LU_solve(Am_LU, Am_perm, b.vec, x.vec);
   if constexpr (false) { //??
-    // These functions apply an iterative improvement to x, the solution of A x
-    // = b, from the precomputed LU decomposition of A into (LU, p). Additional
-    // workspace of length N is required in work.
+    // These functions apply an iterative improvement to x, the solution of A
+    // x = b, from the precomputed LU decomposition of A into (LU, p).
+    // Additional workspace of length N is required in work.
     gsl_vector *work = gsl_vector_alloc(Am.n);
     gsl_linalg_LU_refine(Am.m, Am_LU, Am_perm, b.vec, x.vec, work);
     gsl_vector_free(work);
@@ -534,14 +551,14 @@ Vector solve_Axeqb(const SqMatrix &Am, const Vector &b) {
 // Eigensystems using GSL. NOTE: e-vectors are stored in COLUMNS (not rows) of
 // matrix! Therefore, we transpose the matrix (duuumb)
 //*****************************************************************************
-std::pair<Vector, SqMatrix> realSymmetricEigensystem(SqMatrix &A, bool sort) {
+std::pair<Vector, SqMatrix> realSymmetricEigensystem(SqMatrix *A, bool sort) {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   // Solves Av = ev for eigenvalues e and eigenvectors v
   // for Real Symmetric Matrices using GSL:
   // https://www.gnu.org/software/gsl/doc/html/eigen.html#real-symmetric-matrices
   // Note: This destroys A and B matrices (see below for details).
 
-  const auto n = A.n;
+  const auto n = A->n;
   std::pair<Vector, SqMatrix> eigen_vv = std::make_pair(n, n);
   auto &[e_values, e_vectors] = eigen_vv;
 
@@ -551,7 +568,7 @@ std::pair<Vector, SqMatrix> realSymmetricEigensystem(SqMatrix &A, bool sort) {
   // have unit magnitude. On output, B contains its Cholesky decomposition and
   // A is destroyed.
   gsl_eigen_symmv_workspace *work = gsl_eigen_symmv_alloc(n);
-  gsl_eigen_symmv(A.m, e_values.vec, e_vectors.m, work);
+  gsl_eigen_symmv(A->m, e_values.vec, e_vectors.m, work);
   gsl_eigen_symmv_free(work);
 
   if (sort)
@@ -564,7 +581,7 @@ std::pair<Vector, SqMatrix> realSymmetricEigensystem(SqMatrix &A, bool sort) {
 }
 
 //------------------------------------------------------------------------------
-std::pair<Vector, SqMatrix> realSymmetricEigensystem(SqMatrix &A, SqMatrix &B,
+std::pair<Vector, SqMatrix> realSymmetricEigensystem(SqMatrix *A, SqMatrix *B,
                                                      bool sort) {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   // Solves Av = eBv for eigenvalues e and eigenvectors v
@@ -572,7 +589,7 @@ std::pair<Vector, SqMatrix> realSymmetricEigensystem(SqMatrix &A, SqMatrix &B,
   // https://www.gnu.org/software/gsl/doc/html/eigen.html#real-generalized-symmetric-definite-eigensystems
   // Note: This destroys A and B matrices (see below for details).
 
-  const auto n = A.n;
+  const auto n = A->n;
   std::pair<Vector, SqMatrix> eigen_vv = std::make_pair(n, n);
   auto &[e_values, e_vectors] = eigen_vv;
 
@@ -582,7 +599,7 @@ std::pair<Vector, SqMatrix> realSymmetricEigensystem(SqMatrix &A, SqMatrix &B,
   // have unit magnitude. On output, B contains its Cholesky decomposition and
   // A is destroyed.
   gsl_eigen_gensymmv_workspace *work = gsl_eigen_gensymmv_alloc(n);
-  gsl_eigen_gensymmv(A.m, B.m, e_values.vec, e_vectors.m, work);
+  gsl_eigen_gensymmv(A->m, B->m, e_values.vec, e_vectors.m, work);
   gsl_eigen_gensymmv_free(work);
 
   if (sort)
@@ -596,7 +613,7 @@ std::pair<Vector, SqMatrix> realSymmetricEigensystem(SqMatrix &A, SqMatrix &B,
 
 //*****************************************************************************
 std::tuple<Vector, Vector, SqMatrix, SqMatrix>
-realNonSymmetricEigensystem(SqMatrix &A, bool sort) {
+realNonSymmetricEigensystem(SqMatrix *A, bool sort) {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   // Solves for Av = ev
   // for Real Nonsymmetric Matrices, using GSL:
@@ -604,14 +621,14 @@ realNonSymmetricEigensystem(SqMatrix &A, bool sort) {
   // In general, e-values will be complex
   // Note: A is destroyed and should not be used afterwards!
 
-  const auto n = A.n;
+  const auto n = A->n;
 
   gsl_eigen_nonsymmv_workspace *work = gsl_eigen_nonsymmv_alloc(n);
   gsl_vector_complex *eval = gsl_vector_complex_alloc(n);
   gsl_matrix_complex *evec = gsl_matrix_complex_alloc(n, n);
 
   gsl_eigen_nonsymmv_params(0, work); // I think this is not needed
-  gsl_eigen_nonsymmv(A.m, eval, evec, work);
+  gsl_eigen_nonsymmv(A->m, eval, evec, work);
 
   if (sort)
     gsl_eigen_nonsymmv_sort(eval, evec, GSL_EIGEN_SORT_ABS_ASC);
@@ -645,7 +662,7 @@ realNonSymmetricEigensystem(SqMatrix &A, bool sort) {
 
 //------------------------------------------------------------------------------
 std::tuple<Vector, Vector, SqMatrix, SqMatrix>
-realNonSymmetricEigensystem(SqMatrix &A, SqMatrix &B, bool sort) {
+realNonSymmetricEigensystem(SqMatrix *A, SqMatrix *B, bool sort) {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   // Solves for Av = eBv
   // for Real Generalized Nonsymmetric Eigensystems, using GSL:
@@ -653,7 +670,7 @@ realNonSymmetricEigensystem(SqMatrix &A, SqMatrix &B, bool sort) {
   // In general, e-values will be complex
   // Note: A and B are destroyed and should not be used afterwards!
 
-  const auto n = A.n;
+  const auto n = A->n;
 
   gsl_eigen_genv_workspace *work = gsl_eigen_genv_alloc(n);
   gsl_vector_complex *alpha = gsl_vector_complex_alloc(n);
@@ -666,7 +683,7 @@ realNonSymmetricEigensystem(SqMatrix &A, SqMatrix &B, bool sort) {
   // computed eigenvectors are normalized to have unit magnitude. On output,
   // (A, B) contains the generalized Schur form (S, T).
   // gsl_eigen_gen_params(0, 0, 0, work); // I think this is not needed
-  gsl_eigen_genv(A.m, B.m, alpha, beta, evec, work);
+  gsl_eigen_genv(A->m, B->m, alpha, beta, evec, work);
   // eigen value is = alpha/beta
 
   if (sort)

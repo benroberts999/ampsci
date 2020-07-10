@@ -12,6 +12,41 @@
 //! Defines SqMatrix, Vector, and linear-algebra solvers (incl Eigensystems)
 namespace LinAlg {
 
+class SqMatrix;
+
+//******************************************************************************
+//! Basic vector class of constant construct-time size
+class Vector {
+public:
+  const std::size_t n;
+  gsl_vector *vec;
+
+public:
+  Vector(const std::size_t in_n);
+  template <typename T> Vector(const std::initializer_list<T> &l);
+  Vector &operator=(const Vector &other);
+  Vector(const Vector &other);
+  ~Vector();
+
+  void clip_low(const double value);
+  void clip_high(const double value);
+  void print() const;
+
+  double &operator[](int i) const;
+  double &operator[](std::size_t i) const;
+  Vector &operator+=(const Vector rhs);
+  friend Vector operator+(Vector lhs, const Vector &rhs);
+  Vector &operator-=(const Vector rhs);
+  friend Vector operator-(Vector lhs, const Vector &rhs);
+  Vector &operator*=(const double x);
+  friend Vector operator*(const double x, Vector rhs);
+  friend Vector operator*(const SqMatrix &Aij, const Vector &bj);
+
+  friend double inner_product(const Vector &a, const Vector &b);
+  friend double operator*(const Vector &a, const Vector &b);
+  friend SqMatrix outer_product(const Vector &a, const Vector &b);
+};
+
 //******************************************************************************
 //! Basic Square matrix class of constant construct-time size
 class SqMatrix {
@@ -51,6 +86,9 @@ public:
   //! M -> M + aI, for I=identity (add a to diag elements)
   void plusIdent(double a = 1.0);
 
+  Vector get_row(std::size_t i) const;
+  Vector get_col(std::size_t j) const;
+
   //! Returns the transpose of matrix: not destructive
   [[nodiscard]] SqMatrix transpose() const;
   //! Determinate via LU decomp. Note: expensive.
@@ -70,7 +108,7 @@ public:
   friend SqMatrix operator*(const double x, SqMatrix rhs);
 
   void mult_elements_by(const SqMatrix &rhs);
-  friend SqMatrix mult_elements(SqMatrix lhs, const SqMatrix &rhs);
+  static SqMatrix mult_elements(SqMatrix lhs, const SqMatrix &rhs);
 };
 
 //******************************************************************************
@@ -227,7 +265,7 @@ public:
   //! multiply elements in place Aij -> Aij*Bij
   void mult_elements_by(const ComplexSqMatrix &rhs);
   //! multiply elements Aij = Bij*Cij
-  friend ComplexSqMatrix mult_elements(ComplexSqMatrix lhs,
+  static ComplexSqMatrix mult_elements(ComplexSqMatrix lhs,
                                        const ComplexSqMatrix &rhs);
 
   //! M -> M + re*I + i*im*I, for I=identity [add (x+iy) to diag elements]
@@ -256,39 +294,6 @@ public:
 };
 
 //******************************************************************************
-//! Basic vector class of constant construct-time size
-class Vector {
-public:
-  const std::size_t n;
-  gsl_vector *vec;
-
-public:
-  Vector(const std::size_t in_n);
-  template <typename T> Vector(const std::initializer_list<T> &l);
-  Vector &operator=(const Vector &other);
-  Vector(const Vector &other);
-  ~Vector();
-
-  void clip_low(const double value);
-  void clip_high(const double value);
-  void print() const;
-
-  double &operator[](int i) const;
-  double &operator[](std::size_t i) const;
-  Vector &operator+=(const Vector rhs);
-  friend Vector operator+(Vector lhs, const Vector &rhs);
-  Vector &operator-=(const Vector rhs);
-  friend Vector operator-(Vector lhs, const Vector &rhs);
-  Vector &operator*=(const double x);
-  friend Vector operator*(const double x, Vector rhs);
-  friend Vector operator*(const SqMatrix &Aij, const Vector &bj);
-
-  friend double inner_product(const Vector &a, const Vector &b);
-  friend double operator*(const Vector &a, const Vector &b);
-  friend SqMatrix outer_product(const Vector &a, const Vector &b);
-};
-
-//******************************************************************************
 //******************************************************************************
 
 //! Solves Matrix equationL A*x = b for x
@@ -300,22 +305,22 @@ Vector solve_Axeqb(const SqMatrix &Am, const Vector &b);
 //! @details Eigensystems: Note: A and B are destroyed! Don't use afterwards
 //! (Can't avoid this without needless copy). Optionally sorts e and v by e
 [[nodiscard]] std::pair<Vector, SqMatrix>
-realSymmetricEigensystem(SqMatrix &A, bool sort = true);
+realSymmetricEigensystem(SqMatrix *A, bool sort = true);
 
 //! @brief Solves Av = eBv for eigenvalues e and eigenvectors v for Real
 //! Generalized Symmetric-Definite Eigensystems
 [[nodiscard]] std::pair<Vector, SqMatrix>
-realSymmetricEigensystem(SqMatrix &A, SqMatrix &B, bool sort = true);
+realSymmetricEigensystem(SqMatrix *A, SqMatrix *B, bool sort = true);
 
 //! @briefSolves for Av = ev for Real Nonsymmetric Matrices.
 //! @details e and v are complex; returned as {real, imag} (seperate
 //! vectors/Matrix)
 [[nodiscard]] std::tuple<Vector, Vector, SqMatrix, SqMatrix>
-realNonSymmetricEigensystem(SqMatrix &A, bool sort = true);
+realNonSymmetricEigensystem(SqMatrix *A, bool sort = true);
 
 //! @brief Solves Av = eBv for eigenvalues e and eigenvectors v for Real
 //! Generalized Non-Symmetric-Definite Eigensystems.
 [[nodiscard]] std::tuple<Vector, Vector, SqMatrix, SqMatrix>
-realNonSymmetricEigensystem(SqMatrix &A, SqMatrix &B, bool sort = true);
+realNonSymmetricEigensystem(SqMatrix *A, SqMatrix *B, bool sort = true);
 
 } // namespace LinAlg

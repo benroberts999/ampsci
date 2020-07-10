@@ -11,36 +11,10 @@
 namespace UnitTest {
 
 //******************************************************************************
-namespace helper {
-
-// Move to DiracSpinor!
-std::pair<double, std::string> ortho(const std::vector<DiracSpinor> &a,
-                                     const std::vector<DiracSpinor> &b) {
-  double worst_del = 0.0;
-  std::string worst_F = "";
-  for (const auto &Fa : a) {
-    for (const auto &Fb : b) {
-      if (Fb.k != Fa.k)
-        continue;
-      const auto del =
-          Fa == Fb ? std::abs(std::abs(Fa * Fb) - 1.0) : std::abs(Fa * Fb);
-      // nb: sometimes sign of Fb is wrong. Perhaps this is an issue??
-      if (del > worst_del) {
-        worst_del = del;
-        worst_F = "<" + Fa.shortSymbol() + "|" + Fb.shortSymbol() + ">";
-      }
-    }
-  }
-  return {worst_del, worst_F};
-}
-
-} // namespace helper
-
-//******************************************************************************
-//******************************************************************************
 bool BSplineBasis(std::ostream &obuff) {
   bool pass = true;
-  {
+
+  { // Check vs. Hartree-Fock (energies/ortho)
     // Create wavefunction object
     Wavefunction wf({2500, 1.0e-6, 150.0, 0.33 * 150.0, "loglinear", -1.0},
                     {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
@@ -53,16 +27,16 @@ bool BSplineBasis(std::ostream &obuff) {
 
     // test cf HF states
     for (std::size_t k = 7; k <= 9; k += 2) {
-      std::size_t n0 = k == 7 ? 75 : 70;
-      for (auto n = n0; n <= 90; n += 10) {
+      const auto nlst = k == 7 ? std::vector{75, 85} : std::vector{70, 90};
+      for (const auto n : nlst) {
         std::string states = "30spdf";
         const auto basis = SplineBasis::form_basis(
-            {states, n, k, 0.0, 1.0e-9, 75.0, false}, wf);
+            {states, std::size_t(n), k, 0.0, 1.0e-9, 75.0, false}, wf);
 
         // Orthonormality:
-        const auto [eps, str] = helper::ortho(basis, basis);
-        const auto [eps1, str1] = helper::ortho(basis, wf.core);
-        const auto [eps2, str2] = helper::ortho(basis, wf.valence);
+        const auto [eps, str] = DiracSpinor::check_ortho(basis, basis);
+        const auto [eps1, str1] = DiracSpinor::check_ortho(basis, wf.core);
+        const auto [eps2, str2] = DiracSpinor::check_ortho(basis, wf.valence);
 
         // Find basis states corresponding to core/valence to compare energies
         // Note: Need large cavity and large basis for this
@@ -79,19 +53,58 @@ bool BSplineBasis(std::ostream &obuff) {
         const auto [ce, cs] = qip::compare(wf.core, core_en, comp_en);
         const auto [ve, vs] = qip::compare(wf.valence, val_en, comp_en);
 
-        std::string label = "HFspl [75] " + std::to_string(n) + "/" +
-                            std::to_string(k) + " (30) ";
+        const std::string label = "HFspl [75] " + std::to_string(n) + "/" +
+                                  std::to_string(k) + " (30) ";
 
         pass &= qip::check_value(&obuff, label + "orth",
-                                 std::max({eps, eps1, eps2}), 0.0, 4.0e-5);
+                                 qip::max_abs(eps, eps1, eps2), 0.0, 4.0e-5);
+
         if (std::abs(ce) > std::abs(ve)) {
-          pass &= qip::check_value(&obuff, label + "E_c " + cs->shortSymbol(),
-                                   ce, 0.0, 3.0e-7);
+          pass &= qip::check_value(&obuff, label + "E " + cs->shortSymbol(), ce,
+                                   0.0, 3.0e-7);
         } else {
-          pass &= qip::check_value(&obuff, label + "E_v " + vs->shortSymbol(),
-                                   ve, 0.0, 3.0e-7);
+          pass &= qip::check_value(&obuff, label + "E " + vs->shortSymbol(), ve,
+                                   0.0, 3.0e-7);
         }
       }
+    }
+  }
+
+  { // Check low-r behavour (splines vs HF for hyperfine)
+    Wavefunction wf({6000, 1.0e-7, 150.0, 0.33 * 150.0, "loglinear", -1.0},
+                    {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
+    wf.hartreeFockCore("HartreeFock", 0.0, "[Xe]");
+
+    const std::string states = "7sp5d4f";
+    wf.hartreeFockValence(states);
+
+    const auto r0 = 1.0e-6;
+    const auto r0eps = 0.0;
+    const auto rmax = 60.0; // need large rmax, to match to large nl HF
+    const int nspl = 70;    // need large n due to large rmax
+    const int kspl = 7;
+    wf.formBasis({states, nspl, kspl, r0, r0eps, rmax, false});
+
+    // Pointlike, g=1
+    const auto h = DiracOperator::Hyperfine(
+        1.0, 1.0, 0.0, *wf.rgrid, DiracOperator::Hyperfine::pointlike_F());
+
+    std::vector<std::vector<double>> hfs(4); // s,p,d,f
+    for (const auto orbs : {&wf.core, &wf.valence}) {
+      for (const auto &Fv : *orbs) {
+        const auto pFb = std::find(cbegin(wf.basis), cend(wf.basis), Fv);
+        const auto eps = (h.hfsA(Fv) - h.hfsA(*pFb)) / h.hfsA(Fv);
+        hfs.at(std::size_t(Fv.l())).push_back(eps);
+        // std::cout << Fv.symbol() << " " << h.hfsA(Fv) << " " << h.hfsA(*pFb)
+        //           << " " << eps << "\n";
+      }
+    }
+    for (std::size_t l = 0; l < hfs.size(); l++) {
+      const auto eps =
+          *std::max_element(cbegin(hfs[l]), cend(hfs[l]), qip::comp_abs);
+      const auto tol = l >= 3 ? 1.0e-4 : 1.0e-5;
+      pass &= qip::check_value(&obuff, "low-r (hfs) l=" + std::to_string(l),
+                               eps, 0.0, tol);
     }
   }
 
@@ -110,7 +123,7 @@ bool BSplineBasis(std::ostream &obuff) {
     const std::string label =
         "Z=2 [50] " + std::to_string(nspl) + "/" + std::to_string(kspl);
 
-    const auto [eps, str] = helper::ortho(basis, basis);
+    const auto [eps, str] = DiracSpinor::check_ortho(basis, basis);
     pass &= qip::check_value(&obuff, label + " orth ", eps, 0.0, 1.0e-8);
     {
       const auto tkr = SplineBasis::sumrule_TKR(basis, wf.rgrid->r, false);
@@ -162,7 +175,7 @@ bool BSplineBasis(std::ostream &obuff) {
     const std::string label =
         "Local [50] " + std::to_string(nspl) + "/" + std::to_string(kspl);
 
-    const auto [eps, str] = helper::ortho(basis, basis);
+    const auto [eps, str] = DiracSpinor::check_ortho(basis, basis);
     pass &= qip::check_value(&obuff, label + " orth ", eps, 0.0, 1.0e-6);
 
     for (int nDG = 0; nDG <= 2; nDG += 2) {
