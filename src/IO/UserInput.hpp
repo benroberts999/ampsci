@@ -24,10 +24,10 @@ inline void print_line(const char c = '*', const int num = 80) {
 // Macro: takes pre-processor macro that may be defined via compile argument
 // GITVERSION is the macro, set to the git short hash; specifies the git version
 namespace hidden {
-#define MACRO_xstr(s) MACRO_str(s)
-#define MACRO_str(s) #s
+#define MACRO_XSTR(s) MACRO_STR(s)
+#define MACRO_STR(s) #s
 #ifdef GITVERSION
-static const char *git_version = MACRO_xstr(GITVERSION);
+static const char *git_version = MACRO_XSTR(GITVERSION);
 #else
 static const char *git_version = "0";
 #endif

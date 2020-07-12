@@ -108,8 +108,8 @@ endif
 # ASAN_SYMBOLIZER_PATH=/usr/bin/llvm-symbolizer ./diracSCAS
 
 #Command to compile objects and link them
-COMP=$(CXX) -c -o $@ $< $(CXXFLAGS)
+COMP=$(CXX) -MMD -c -o $@ $< $(CXXFLAGS)
 ifeq ($(ParallelBuild),1)
-	COMP=time $(CXX) -c -o $@ $< $(CXXFLAGS)
+	COMP=time $(CXX) -MMD -c -o $@ $< $(CXXFLAGS)
 endif
 LINK=$(CXX) -o $@ $^ $(CXXFLAGS) $(LIBS)

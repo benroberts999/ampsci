@@ -19,57 +19,29 @@ endif
 all: checkObj checkXdir $(DEFAULTEXES)
 
 ################################################################################
+#Automatically generate dependency files for each cpp file, + compile:
 
-# Dependencies for each object target, broken by sub-directories:
-include $(SD)/Angular/Angular.mk
-include $(SD)/Coulomb/Coulomb.mk
-include $(SD)/DiracODE/DiracODE.mk
-include $(SD)/DiracOperator/DiracOperator.mk
-include $(SD)/DMionisation/DMionisation.mk
-include $(SD)/HF/HF.mk
-include $(SD)/IO/IO.mk
-include $(SD)/Maths/Maths.mk
-include $(SD)/MBPT/MBPT.mk
-include $(SD)/Modules/Modules.mk
-include $(SD)/Physics/Physics.mk
-include $(SD)/Wavefunction/Wavefunction.mk
-# Dependencies for each 'main' object target
-include $(SD)/main.mk
+$(BD)/%.o: $(SD)/*/%.cpp
+	$(COMP)
 
-################################################################################
-# Just to save typing: Many programs depend on these combos:
+$(BD)/%.o: $(SD)/%.cpp
+	$(COMP)
 
-BASE = $(addprefix $(BD)/, \
- Adams_bound.o Wavefunction.o DiracSpinor.o AtomData.o Nuclear.o Grid.o \
- DiracOperator.o NuclearData.o Angular_tables.o LinAlg_MatrixVector.o BSplineBasis.o \
-)
-
-HF = $(addprefix $(BD)/, \
- HartreeFock.o YkTable.o Coulomb.o Parametric_potentials.o \
- Adams_Greens.o MixedStates.o ExternalField.o RadiativePotential.o \
- CorrelationPotential.o GoldstoneSigma2.o FeynmanSigma.o DiagramRPA.o \
-)
-
-CNTM = $(addprefix $(BD)/, \
- Adams_continuum.o ContinuumOrbitals.o \
-)
-
-MODS = $(MODULELIST)
-
+-include $(BD)/*.d
 
 ################################################################################
 # Link + build all final programs
 
-$(XD)/diracSCAS: $(BASE) $(HF) $(CNTM) $(BD)/diracSCAS.o \
-$(BD)/UserInput.o $(MODS)
+# List all objects in sub-directories (i.e., that don't conatin a main())
+OBJS = $(addprefix $(BD)/,$(notdir $(subst .cpp,.o,$(wildcard $(SD)/*/*.cpp))))
+
+$(XD)/diracSCAS: $(BD)/diracSCAS.o $(OBJS)
 	$(LINK)
 
-$(XD)/unitTests: $(BASE) $(HF) $(CNTM) $(BD)/unitTests.o \
-$(BD)/UserInput.o $(MODS)
+$(XD)/unitTests: $(BD)/unitTests.o $(OBJS)
 	$(LINK)
 
-$(XD)/dmeXSection: $(BASE) $(CNTM) $(HF) $(BD)/dmeXSection.o \
-$(BD)/AKF_akFunctions.o $(BD)/StandardHaloModel.o
+$(XD)/dmeXSection: $(BD)/dmeXSection.o $(OBJS)
 	$(LINK)
 
 $(XD)/wigner: $(BD)/wigner.o
@@ -96,7 +68,7 @@ checkXdir:
 
 .PHONY: clean docs doxy do_the_chicken_dance checkObj checkXdir
 clean:
-	rm -f $(ALLEXES) $(BD)/*.o
+	rm -f $(ALLEXES) $(BD)/*.o $(BD)/*.d
 # Make the 'diracSCAS.pdf' physics documentation
 docs:
 	( cd ./doc/tex && make )
