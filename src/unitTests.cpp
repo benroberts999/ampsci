@@ -1,4 +1,5 @@
 #include "Angular/Angular_test.hpp"
+#include "Coulomb/Coulomb_test.hpp"
 #include "HF/ExternalField_test.hpp"
 #include "HF/HartreeFock_test.hpp"
 #include "HF/MixedStates_test.hpp"
@@ -24,6 +25,7 @@ static const std::vector<std::pair<std::string, bool (*)(std::ostream &obuff)>>
         {"Angular", &UnitTest::Angular},
         {"LinAlg", &UnitTest::LinAlg},
         {"BSplineBasis", &UnitTest::BSplineBasis},
+        {"Coulomb", &UnitTest::Coulomb},
         {"CorrelationPotential", &UnitTest::CorrelationPotential}
         //
     };
