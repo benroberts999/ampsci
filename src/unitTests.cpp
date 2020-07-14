@@ -1,6 +1,7 @@
 #include "HF/ExternalField_test.hpp"
 #include "HF/HartreeFock_test.hpp"
 #include "HF/MixedStates_test.hpp"
+#include "MBPT/CorrelationPotential_test.hpp"
 #include "Maths/LinAlg_test.hpp"
 #include "Physics/RadPot_test.hpp"
 #include "Wavefunction/BSplineBasis_test.hpp"
@@ -20,7 +21,8 @@ static const std::vector<std::pair<std::string, bool (*)(std::ostream &obuff)>>
         {"ExternalField", &UnitTest::ExternalField},
         {"RadPot", &UnitTest::RadPot},
         {"BSplineBasis", &UnitTest::BSplineBasis},
-        {"LinAlg", &UnitTest::LinAlg}
+        {"LinAlg", &UnitTest::LinAlg},
+        {"CorrelationPotential", &UnitTest::CorrelationPotential}
         //
     };
 

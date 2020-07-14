@@ -200,7 +200,8 @@ DiracSpinor CorrelationPotential::SigmaFv(const DiracSpinor &v) const {
 
 //******************************************************************************
 double CorrelationPotential::SOEnergyShift(const DiracSpinor &v,
-                                           const DiracSpinor &w) const {
+                                           const DiracSpinor &w,
+                                           int max_l) const {
   // Calculates <Fv|Sigma|Fw> from scratch, at Fw energy [full grid + fg+gg]
   if (v.k != w.k)
     return 0.0;
@@ -212,12 +213,19 @@ double CorrelationPotential::SOEnergyShift(const DiracSpinor &v,
   if (v.twoj() > Ck.max_tj())
     return 0.0;
 
+  if (max_l < 0)
+    max_l = 99;
+
   std::vector<double> delta_a(m_holes.size());
 #pragma omp parallel for
   for (auto ia = 0ul; ia < m_holes.size(); ia++) {
     const auto &a = m_holes[ia];
+    if (a.l() > max_l)
+      continue;
     auto &del_a = delta_a[ia];
     for (const auto &n : m_excited) {
+      if (n.l() > max_l)
+        continue;
       const auto [kmin_nb, kmax_nb] = m_yeh.k_minmax(n, a);
       const auto max_k = std::min(m_maxk, kmax_nb);
       for (int k = kmin_nb; k <= max_k; ++k) {
@@ -228,6 +236,8 @@ double CorrelationPotential::SOEnergyShift(const DiracSpinor &v,
 
         // Diagrams (a) [direct] and (b) [exchange]
         for (const auto &m : m_excited) {
+          if (m.l() > max_l)
+            continue;
           const auto Qkv = Coulomb::Qk_abcd(v, a, m, n, k, yknb, Ck);
           if (Qkv == 0.0)
             continue;
@@ -241,6 +251,8 @@ double CorrelationPotential::SOEnergyShift(const DiracSpinor &v,
 
         // Diagrams (c) [direct] and (d) [exchange]
         for (const auto &b : m_holes) {
+          if (b.l() > max_l)
+            continue;
           const auto Qkv = Coulomb::Qk_abcd(v, n, b, a, k, yknb, Ck);
           if (Qkv == 0.0)
             continue;

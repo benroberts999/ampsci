@@ -128,7 +128,8 @@ public:
   //! Calculates <Fv|Sigma|Fw> from scratch, at Fv energy [full grid + fg+gg]
   //! @details Note: uses basis, so if reading Sigma from file, and no basis
   //! given, will return all 0.0
-  double SOEnergyShift(const DiracSpinor &Fv, const DiracSpinor &Fw) const;
+  double SOEnergyShift(const DiracSpinor &Fv, const DiracSpinor &Fw,
+                       int max_l = 99) const;
 
 protected:
   void setup_subGrid(double rmin, double rmax);
