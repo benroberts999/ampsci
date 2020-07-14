@@ -1,3 +1,4 @@
+#include "Angular/Angular_test.hpp"
 #include "HF/ExternalField_test.hpp"
 #include "HF/HartreeFock_test.hpp"
 #include "HF/MixedStates_test.hpp"
@@ -20,8 +21,9 @@ static const std::vector<std::pair<std::string, bool (*)(std::ostream &obuff)>>
         {"MixedStates", &UnitTest::MixedStates},
         {"ExternalField", &UnitTest::ExternalField},
         {"RadPot", &UnitTest::RadPot},
-        {"BSplineBasis", &UnitTest::BSplineBasis},
+        {"Angular", &UnitTest::Angular},
         {"LinAlg", &UnitTest::LinAlg},
+        {"BSplineBasis", &UnitTest::BSplineBasis},
         {"CorrelationPotential", &UnitTest::CorrelationPotential}
         //
     };

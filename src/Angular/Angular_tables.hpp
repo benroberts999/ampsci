@@ -84,13 +84,11 @@ class SixJTable_constk
 // k is fixed
 {
 public:
-  SixJTable_constk(int in_k, int tj_max = -1) : m_k(in_k), max_ji_sofar(-1) {
-    fill(tj_max);
-  }
+  SixJTable_constk(int in_k, int tj_max = -1) : m_k(in_k) { fill(tj_max); }
 
 private:
   const int m_k;
-  int max_ji_sofar;
+  int max_ji_sofar = -1;
   std::vector<std::vector<std::vector<std::vector<std::vector<double>>>>>
       m_k_a_bcdl = {};
 
@@ -143,6 +141,9 @@ public:
 
   //! @brief Will calculate + store 6j if it doesn't exist, but not thread-safe
   double get_6j_mutable(int tja, int tjb, int tjc, int tjd, int k, int l);
+
+  int max_tj() const { return max_tj_sofar; }
+  int max_k() const { return max_k_sofar; }
 
 private:
   int max_k_sofar = -1;

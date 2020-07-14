@@ -132,12 +132,16 @@ double SixJTable_constk::get_6j(int tja, int tjb, int tjc, int tjd,
   assert(max <= max_ji_sofar);
 
   if (max == a) {
+    assert(l - lmin < (int)m_k_a_bcdl[a][b][c][d].size());
     return m_k_a_bcdl[a][b][c][d][l - lmin];
   } else if (max == b) {
+    assert(l - lmin < (int)m_k_a_bcdl[b][a][d][c].size());
     return m_k_a_bcdl[b][a][d][c][l - lmin];
   } else if (max == c) {
+    assert(l - lmin < (int)m_k_a_bcdl[c][d][a][b].size());
     return m_k_a_bcdl[c][d][a][b][l - lmin];
   } else {
+    assert(l - lmin < (int)m_k_a_bcdl[d][c][b][a].size());
     return m_k_a_bcdl[d][c][b][a][l - lmin];
   }
 }
