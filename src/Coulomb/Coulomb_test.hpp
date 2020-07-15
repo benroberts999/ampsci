@@ -44,34 +44,92 @@ std::vector<double> yk_naive(const DiracSpinor &Fa, const DiracSpinor &Fb,
   return yk;
 }
 
-//------------------------------------------------------------------------------
-std::vector<double> yk_naive2(const DiracSpinor &Fa, const DiracSpinor &Fb,
-                              int k) {
+//******************************************************************************
+std::vector<double> yk_naive(const std::vector<double> &v, const Grid &gr,
+                             int k) {
+  // THIS WORKS - checked against MMA
   // Naiive (slow, but simple) implementation of yk
-  const auto &gr = *Fa.rgrid;
-
   std::vector<double> yk(gr.r.size());
-  // #pragma omp parallel for
+#pragma omp parallel for
   for (auto i = 0ul; i < yk.size(); ++i) {
     auto r = gr.r[i];
 
-    std::vector<double> rp1, rp2;
-    rp1.reserve(gr.r.size());
-    rp2.reserve(gr.r.size());
-    for (auto rp : gr.r) {
-      rp1.push_back(std::pow(rp / r, k) / r);
-      rp2.push_back(std::pow(r / rp, k) / rp);
+    auto rtkr = [](double x, double y, int kk) {
+      return x < y ? std::pow(x / y, kk) / y : std::pow(y / x, kk) / x;
+    };
+
+    std::vector<double> f;
+    f.reserve(gr.r.size());
+    for (auto j = 0ul; j < yk.size(); ++j) {
+      auto rp = gr.r[j];
+      f.push_back(rtkr(r, rp, k) * v[j]);
     }
 
-    yk[i] = (NumCalc::integrate(1.0, 0, i, rp1, Fa.f, Fb.f, gr.drdu) +
-             NumCalc::integrate(1.0, 0, i, rp1, Fa.g, Fb.g, gr.drdu) +
-             NumCalc::integrate(1.0, i, 0, rp2, Fa.f, Fb.f, gr.drdu) +
-             NumCalc::integrate(1.0, i, 0, rp2, Fa.g, Fb.g, gr.drdu)) *
-            gr.du;
+    auto p0 = 0ul; // std::max(Fa.p0, Fb.p0);
+    auto pi = 0ul; // std::min(Fa.pinf, Fb.pinf);
+    yk[i] = NumCalc::integrate(gr.du, p0, pi, f, gr.drdu);
   }
 
   return yk;
 }
+//
+// //------------------------------------------------------------------------------
+// std::vector<double> yk_naive2(const DiracSpinor &Fa, const DiracSpinor &Fb,
+//                               int k) {
+//   // Naiive (slow, but simple) implementation of yk
+//   const auto &gr = *Fa.rgrid;
+//
+//   std::vector<double> yk(gr.r.size());
+//   // #pragma omp parallel for
+//   for (auto i = 0ul; i < yk.size(); ++i) {
+//     auto r = gr.r[i];
+//
+//     std::vector<double> rp1, rp2;
+//     rp1.reserve(gr.r.size());
+//     rp2.reserve(gr.r.size());
+//     for (auto rp : gr.r) {
+//       rp1.push_back(std::pow(rp / r, k) / r);
+//       rp2.push_back(std::pow(r / rp, k) / rp);
+//     }
+//
+//     yk[i] = (                                                             //
+//                 NumCalc::integrate(1.0, 0, i, rp1, Fa.f, Fb.f, gr.drdu)   //
+//                 + NumCalc::integrate(1.0, 0, i, rp1, Fa.g, Fb.g, gr.drdu) //
+//                 + NumCalc::integrate(1.0, i, 0, rp2, Fa.f, Fb.f, gr.drdu) //
+//                 + NumCalc::integrate(1.0, i, 0, rp2, Fa.g, Fb.g, gr.drdu)
+//                 //
+//                 ) *
+//             gr.du;
+//   }
+//
+//   return yk;
+// }
+// std::vector<double> yk_naive2(const std::vector<double> &v, const Grid &gr,
+//                               int k) {
+//   // Naiive (slow, but simple) implementation of yk
+//   // const auto &gr = *Fa.rgrid;
+//
+//   std::vector<double> yk(gr.r.size());
+//   // #pragma omp parallel for
+//   for (auto i = 0ul; i < yk.size(); ++i) {
+//     auto r = gr.r[i];
+//
+//     std::vector<double> rp1, rp2;
+//     rp1.reserve(gr.r.size());
+//     rp2.reserve(gr.r.size());
+//     for (auto rp : gr.r) {
+//       rp1.push_back(std::pow(rp / r, k) / r);
+//       rp2.push_back(std::pow(r / rp, k) / rp);
+//     }
+//
+//     yk[i] = (NumCalc::integrate(gr.du, 0, i + 1, rp1, v, gr.drdu) + // works!
+//              NumCalc::integrate(gr.du, i + 1, gr.r.size(), rp2, v,
+//                                 gr.drdu) // doesn't?
+//     );
+//   }
+//
+//   return yk;
+// }
 
 //******************************************************************************
 double check_ykab_Tab(const std::vector<DiracSpinor> &a,
@@ -122,15 +180,15 @@ std::vector<double> check_ykab(const std::vector<DiracSpinor> &a,
         if (std::size_t(k + 1) > worst.size())
           worst.resize(std::size_t(k + 1));
         const auto y2 = Coulomb::yk_ab(Fa, Fb, k);
-        const auto y4 = helper::yk_naive(Fa, Fb, k);  // slow
-        const auto y5 = helper::yk_naive2(Fa, Fb, k); // slow
+        const auto y4 = helper::yk_naive(Fa, Fb, k); // slow
+        // const auto y5 = helper::yk_naive2(Fa, Fb, k); // slow
 
         // for (int i = 0; i < 1000; i += 100) {
         //   std::cout << k << " " << i << " " << y4[i] << " " << y5[i] << "\n";
         // }
 
-        // const auto del = std::abs(qip::compare(y2, y4).first);
-        const auto del = std::abs(qip::compare(y4, y5).first);
+        const auto del = std::abs(qip::compare(y2, y4).first);
+        // const auto del = std::abs(qip::compare(y4, y5).first);
         // const auto del = std::abs(qip::compare(y2, y5).first);
 
         if (del > worst[std::size_t(k)])
@@ -161,7 +219,8 @@ bool Coulomb(std::ostream &obuff) {
               (13.0 * x - 60.0) * std::sin(x));
     };
 
-    const auto pts_lst = std::vector<std::size_t>{750, 1000, 2000};
+    // const auto pts_lst = std::vector<std::size_t>{750, 1000, 2000};
+    const auto pts_lst = std::vector<std::size_t>{1000};
     for (const auto pts : pts_lst) {
       const Grid grll(1.0e-6, 100.0, pts, GridType::loglinear, 10);
       const Grid grlog(1.0e-6, 100.0, pts, GridType::logarithmic, 0);
@@ -186,6 +245,21 @@ bool Coulomb(std::ostream &obuff) {
       pass &= qip::check_value(
           &obuff, "Quad int (logarithmic)  N=" + std::to_string(pts),
           (intlog - exactlog) / exactlog, 0.0, 1.0e-4 * (500.0 / double(pts)));
+
+      // Compare w/ Mathematica: Works pretty well
+      // std::vector<double> yy;
+      // for (const auto &r : grll.r)
+      //   yy.push_back(func(r) * func(r));
+      // std::cout << "r:"
+      //           << " " << grll.r[100] << " " << grll.r[300] << " "
+      //           << grll.r[600] << "\n";
+      // printf("%.7f %.7f %.7f\n", grll.r[100], grll.r[300], grll.r[600]);
+      // for (int k = 0; k < 16; ++k) {
+      //   auto y = helper::yk_naive(yy, grll, k);
+      //   std::cout << k << " " << y[100] << " " << y[300] << " " << y[600]
+      //             << "\n";
+      //   std::cin.get();
+      // }
     }
   }
 
@@ -207,13 +281,12 @@ bool Coulomb(std::ostream &obuff) {
       }
     }
 
-    // const auto maxtj = std::max_element(wf.basis.cbegin(), wf.basis.cend(),
-    //                                     DiracSpinor::comp_j)
-    //                        ->twoj();
-
     const Coulomb::YkTable Yce(wf.rgrid, &core, &excited);
     const Coulomb::YkTable Yij(wf.rgrid, &wf.basis);
 
+    // const auto maxtj = std::max_element(wf.basis.cbegin(), wf.basis.cend(),
+    //                                     DiracSpinor::comp_j)
+    //                        ->twoj();
     // const auto &Ck = Yij.Ck();
     // const Angular::SixJ sj(maxtj, maxtj);
 
@@ -224,11 +297,13 @@ bool Coulomb(std::ostream &obuff) {
       double del2 = helper::check_ykab_Tab(wf.basis, wf.basis, Yij);
       pass &= qip::check_value(&obuff, "Yk_ab tables", std::max(del1, del2),
                                0.0, 1.0e-17);
+    }
 
+    {
       // Check Yk formula:
       // FAILS - note: Seems like THIS is what is causing all the issues!
       // (Particularly blows up when i included [large k])
-      auto delks = helper::check_ykab(wf.core, wf.core);
+      auto delks = helper::check_ykab(wf.core, wf.basis);
       int k = 0;
       for (const auto &dk : delks) {
         pass &= qip::check_value(&obuff, "Yk_ab value k=" + std::to_string(k++),
