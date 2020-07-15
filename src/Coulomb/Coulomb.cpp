@@ -18,9 +18,9 @@ namespace Coulomb {
 
 //******************************************************************************
 template <int k>
-static inline void yk_ijk_impl(const int l, const DiracSpinor &Fa,
-                               const DiracSpinor &Fb, std::vector<double> &vabk,
-                               const std::size_t maxi)
+static inline void
+yk_ijk_impl2(const int l, const DiracSpinor &Fa, const DiracSpinor &Fb,
+             std::vector<double> &vabk, const std::size_t maxi)
 // Calculalates y^k_ab screening function.
 // Note: is symmetric: y_ab = y_ba
 //
@@ -88,6 +88,62 @@ static inline void yk_ijk_impl(const int l, const DiracSpinor &Fa,
     Bx -= wi * Fdr * inv_rm1_to_kp1;
     // above
     vabk[i] = du * (Ax * inv_r_to_kp1 + Bx * r_to_k);
+  }
+  for (std::size_t i = irmax; i < num_points; i++) {
+    vabk[i] = 0.0;
+  }
+}
+
+//******************************************************************************
+template <int k>
+static inline void yk_ijk_impl(const int l, const DiracSpinor &Fa,
+                               const DiracSpinor &Fb, std::vector<double> &vabk,
+                               const std::size_t maxi) {
+  const auto &gr = Fa.rgrid; // just save typing
+  const auto du = gr->du;
+  const auto num_points = gr->num_points;
+  vabk.resize(num_points); // for safety
+  const auto irmax = (maxi == 0 || maxi > num_points) ? num_points : maxi;
+
+  // faster method to calculate r^k
+  const auto powk = [l]() {
+    if constexpr (k < 0) {
+      return [l](double x) { return std::pow(x, l); };
+    } else {
+      return qip::pow<k, double>;
+    }
+  }();
+
+  // Quadrature integration weights:
+  const auto w = [=](std::size_t i) {
+    if (i < NumCalc::Nquad)
+      return NumCalc::dq_inv * NumCalc::cq[i];
+    if (i < num_points - NumCalc::Nquad)
+      return 1.0;
+    return NumCalc::dq_inv * NumCalc::cq[num_points - i - 1];
+  };
+
+  const auto ff = [&](std::size_t i) {
+    return (Fa.f[i] * Fb.f[i] + Fa.g[i] * Fb.g[i]) * w(i) * gr->drduor[i];
+  };
+
+  const auto &r = gr->r;
+
+  double Ax = 0.0, Bx = 0.0;
+  const auto bmax = std::min(Fa.pinf, Fb.pinf);
+  const auto bmin = std::max(Fa.p0, Fb.p0);
+  for (std::size_t i = bmin; i < bmax; i++) {
+    Bx += ff(i) * powk(r[0] / r[i]);
+  }
+
+  vabk[0] = Bx * du;
+  for (std::size_t i = 1; i < irmax; i++) {
+    //
+    const auto rat = r[i - 1] / r[i];
+    const auto powkrat = powk(rat);
+    Ax = (Ax + ff(i - 1)) * (rat * powkrat);
+    Bx = (Bx - ff(i - 1)) / powkrat;
+    vabk[i] = (Ax + Bx) * du;
   }
   for (std::size_t i = irmax; i < num_points; i++) {
     vabk[i] = 0.0;
