@@ -98,7 +98,8 @@ inline double integrate_1(const double dt, std::size_t beg, std::size_t end,
   }
   double Rint_m = 0.0;
   const auto end_mid = std::min(max_grid - Nquad, end);
-  for (auto i = Nquad; i < end_mid; ++i)
+  const auto start_mid = std::max(Nquad, beg);
+  for (auto i = start_mid; i < end_mid; ++i)
     Rint_m += f1[i];
   for (auto i = end_mid; i < end; ++i) {
     Rint_ends += cq[end_mid + Nquad - i - 1] * f1[i];
@@ -121,7 +122,8 @@ inline double integrate_1(const double dt, std::size_t beg, std::size_t end,
   }
   double Rint_m = 0.0;
   const auto end_mid = std::min(max_grid - Nquad, end);
-  for (auto i = Nquad; i < end_mid; ++i)
+  const auto start_mid = std::max(Nquad, beg);
+  for (auto i = start_mid; i < end_mid; ++i)
     Rint_m += f1[i] * f2[i];
   for (auto i = end_mid; i < end; ++i) {
     Rint_ends += cq[end_mid + Nquad - i - 1] * f1[i] * f2[i];
@@ -143,7 +145,8 @@ inline double integrate_1(const double dt, std::size_t beg, std::size_t end,
   }
   double Rint_m = 0.0;
   const auto end_mid = std::min(max_grid - Nquad, end);
-  for (auto i = Nquad; i < end_mid; ++i)
+  const auto start_mid = std::max(Nquad, beg);
+  for (auto i = start_mid; i < end_mid; ++i)
     Rint_m += f1[i] * f2[i] * f3[i];
   for (auto i = end_mid; i < end; ++i) {
     Rint_ends += cq[end_mid + Nquad - i - 1] * f1[i] * f2[i] * f3[i];
@@ -165,7 +168,8 @@ inline double integrate_1(const double dt, std::size_t beg, std::size_t end,
   }
   double Rint_m = 0.0;
   const auto end_mid = std::min(max_grid - Nquad, end);
-  for (auto i = Nquad; i < end_mid; ++i)
+  const auto start_mid = std::max(Nquad, beg);
+  for (auto i = start_mid; i < end_mid; ++i)
     Rint_m += f1[i] * f2[i] * f3[i] * f4[i];
   for (auto i = end_mid; i < end; ++i) {
     Rint_ends += cq[end_mid + Nquad - i - 1] * f1[i] * f2[i] * f3[i] * f4[i];
