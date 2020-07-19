@@ -154,6 +154,8 @@ void Module_Tests_orthonormality(const Wavefunction &wf, const bool) {
   const std::vector orbs = {&wf.core, &wf.valence, &wf.basis, &wf.spectrum};
   const std::vector names = {'c', 'v', 'b', 's'};
 
+  // std::ios_base::fmtflags f(std::cout.flags());
+
   for (auto i = 0ul; i < orbs.size(); ++i) {
     if (orbs[i]->empty())
       continue;
@@ -162,10 +164,12 @@ void Module_Tests_orthonormality(const Wavefunction &wf, const bool) {
         continue;
       const auto [eps, str] = DiracSpinor::check_ortho(*orbs[i], *orbs[j]);
       std::cout << names[i] << names[j] << " ";
-      std::cout << std::left << std::setw(11) << str << " = ";
-      std::cout << std::setprecision(1) << std::scientific << eps << "\n";
+      printf("%11s = %.1e\n",str.c_str(),eps);
+      // std::cout << std::left << std::setw(11) << str << " = ";
+      // std::cout << std::setprecision(1) << std::scientific << eps << "\n";
     }
   }
+  // std::cout.flags(f);
 }
 
 //------------------------------------------------------------------------------

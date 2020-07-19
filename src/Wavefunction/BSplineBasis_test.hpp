@@ -155,7 +155,7 @@ bool BSplineBasis(std::ostream &obuff) {
       const auto wlabel =
           label + " DG" + std::to_string(nDG) + "(w) k=" + std::to_string(kiw);
 
-      pass &= qip::check_value(&obuff, blabel, *best, 0.0, 1.0e-10);
+      pass &= qip::check_value(&obuff, blabel, *best, 0.0, 1.0e-9);
       pass &= qip::check_value(&obuff, wlabel, *worst, 0.0, 3.0e-5);
     }
   }
