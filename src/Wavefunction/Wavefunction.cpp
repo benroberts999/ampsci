@@ -180,6 +180,7 @@ void Wavefunction::hartreeFockValence(const std::string &in_valence_str,
   }
   auto val_lst = AtomData::listOfStates_nk(in_valence_str);
   for (const auto &[n, k, en] : val_lst) {
+    (void)en;
     if (!isInCore(n, k) && !isInValence(n, k)) {
       solveNewValence(n, k, 0, 5);
     }
@@ -193,6 +194,7 @@ void Wavefunction::localValence(const std::string &in_valence_str) {
   // Use for Kohn-Sham.
   auto val_lst = AtomData::listOfStates_singlen(in_valence_str);
   for (const auto &[n, k, en] : val_lst) {
+    (void)en;
     solveNewValence(n, k, 0, 17);
   }
 }

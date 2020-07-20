@@ -368,18 +368,19 @@ void FeynmanSigma::prep_Feynman() {
       // q0 = (1.0 / rm) = r_<^k / r_>^k+1 ,  for k=0
       qhat[0][i][j] = (1.0 / rm) * dri * drj;
       t_dri[i][j] = dri;
-      for (auto k = 1ul; k <= std::size_t(m_maxk); ++k) {
-        qhat[k][i][j] = qhat[k - 1][i][j] * ratio;
+      for (int k = 1; k <= m_maxk; ++k) {
+        qhat[std::size_t(k)][i][j] = qhat[std::size_t(k - 1)][i][j] * ratio;
       }
     } // j
   }   // i
 
   // fill (complex) Qhat
   m_qhat.resize(std::size_t(m_maxk) + 1, {m_subgrid_points, m_include_G});
-  for (auto k = 0ul; k <= std::size_t(m_maxk); ++k) {
-    m_qhat[k].ff = LinAlg::ComplexSqMatrix::make_complex({1.0, 0.0}, qhat[k]);
+  for (auto k = 0; k <= m_maxk; ++k) {
+    m_qhat[std::size_t(k)].ff =
+        LinAlg::ComplexSqMatrix::make_complex({1.0, 0.0}, qhat[std::size_t(k)]);
     if (m_include_G) {
-      m_qhat[k].gg = m_qhat[k].ff;
+      m_qhat[std::size_t(k)].gg = m_qhat[std::size_t(k)].ff;
     }
   }
 

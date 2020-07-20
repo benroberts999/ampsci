@@ -81,8 +81,8 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
     const auto l = AtomData::l_k(kappa);
     const auto l_tmp = std::min(l, wf.maxCore_l());
 
-    [[maybe_unused]] // don't warn on unused rmax_l
     const auto [rmin_l, rmax_l] = wf.lminmax_core_range(l_tmp, r0_eps);
+    (void)rmax_l; // don't warn on unused rmax_l
     auto r0_eff = std::max(rmin_l, r0_spl);
     if (l_tmp < l) {
       // For l's that arn't in core, make r0 20% larger (per delta l) ?? XXX

@@ -291,7 +291,7 @@ void HartreeFock::KohnSham_core(const double eps_target_HF) {
 void HartreeFock::KohnSham_addition(std::vector<double> &vdir) const {
 
   //
-  constexpr auto f =
+  static const auto f =
       -(2.0 / 3.0) * std::pow(81.0 / (32.0 * M_PI * M_PI), 1.0 / 3.0);
 
   std::vector<double> rho(rgrid->num_points);

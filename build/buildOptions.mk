@@ -26,7 +26,7 @@ WARN=-Wall -Wpedantic -Wextra -Wdouble-promotion -Wconversion -Wshadow \
 
 # Changes to warning based on compiler:
 ifeq ($(findstring clang++,$(CXX)),clang++)
-  WARN += -Wheader-hygiene
+  WARN += -Wheader-hygiene -Wno-unused-function
 # have to put in 'else' block, since clanG++ contains g++
 else
 ifeq ($(findstring g++,$(CXX)),g++)

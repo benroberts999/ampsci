@@ -60,6 +60,7 @@ Note: makes use of GSL libraries (requires ver 2.0+, tested with 2.1, 2.6) https
   * May also need LAPACK/BLAS libraries: _$sudo apt-get install libatlas-base-dev liblapack-dev libblas-dev_
   * Install the compiler: _$sudo apt-get install g++_ and/or _$sudo apt-get install clang++_
   * Then compile by running _$make_ from the diracSCAS directory
+  * To use with openMP (for parallelisation) with clang++, you might have to also install clangs openmp libraries: _$sudo apt install libomp5_ (and perhaps _$sudo apt install libomp-dev_)
 
 
 ### Compilation: MacOS:

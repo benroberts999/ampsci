@@ -53,6 +53,7 @@ static inline void yk_ijk_impl(const int l, const DiracSpinor &Fa,
     if constexpr (k < 0) {
       return [l](double x) { return std::pow(x, l); };
     } else {
+      (void)l; // l not used
       return qip::pow<k, double>;
     }
   }();
@@ -152,6 +153,7 @@ static inline void Breit_abk_impl(const int l, const DiracSpinor &Fa,
     if constexpr (k < 0) {
       return [l](double x) { return std::pow(x, l); };
     } else {
+      (void)l; // don't use l..
       return qip::pow<k, double>;
     }
   }();

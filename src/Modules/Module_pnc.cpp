@@ -370,8 +370,8 @@ void polarisability(const IO::UserInputBlock &input, const Wavefunction &wf) {
     dVE1.solve_TDHFcore(omega);
 
   std::size_t num_pws = 4; // s, p-, p+, rest:
-  auto get_index = [&](const auto &Fb) {
-    return std::size_t(Fb.k_index()) < num_pws ? std::size_t(Fb.k_index())
+  auto get_index = [&](const auto &Fx) {
+    return std::size_t(Fx.k_index()) < num_pws ? std::size_t(Fx.k_index())
                                                : num_pws - 1;
   };
 

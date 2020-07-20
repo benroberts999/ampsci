@@ -274,6 +274,7 @@ generateOperator(const IO::UserInputBlock &input, const Wavefunction &wf) {
   using namespace DiracOperator;
 
   for (const auto &[name, generator] : operator_list) {
+    (void)generator;
     if ("MatrixElements::" + name == input.name())
       return generator(input, wf);
   }
@@ -283,6 +284,7 @@ generateOperator(const IO::UserInputBlock &input, const Wavefunction &wf) {
 
   std::cout << "Available operators:\n";
   for (const auto &[name, generator] : operator_list) {
+    (void)generator;
     std::cout << "  " << name << "\n";
   }
   std::cout << "\n";
