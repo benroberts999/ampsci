@@ -13,5 +13,7 @@ doc/tex/*
 !doc/tex/*.tex
 !doc/tex/*.bbl
 !doc/tex/*.bib
+!doc/tex/Makefile
+!doc/tex/img
 !.gitignore
 !*.md
