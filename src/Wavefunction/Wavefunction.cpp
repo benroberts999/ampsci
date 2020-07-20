@@ -706,14 +706,12 @@ void Wavefunction::formSpectrum(const SplineBasis::Parameters &params) {
 }
 
 //******************************************************************************
-void Wavefunction::formSigma(const int nmin_core, const bool form_matrix,
-                             const double r0, const double rmax,
-                             const int stride,
-                             const std::vector<double> &lambdas,
-                             const std::string &fname, const bool FeynmanQ,
-                             const bool ScreeningQ, const int lmax,
-                             const bool GreenBasis, const bool PolBasis,
-                             const double omre) {
+void Wavefunction::formSigma(
+    const int nmin_core, const bool form_matrix, const double r0,
+    const double rmax, const int stride, const std::vector<double> &lambdas,
+    const std::vector<double> &fk, const std::string &fname,
+    const bool FeynmanQ, const bool ScreeningQ, const int lmax,
+    const bool GreenBasis, const bool PolBasis, const double omre) {
   if (valence.empty())
     return;
 
@@ -783,7 +781,7 @@ void Wavefunction::formSigma(const int nmin_core, const bool form_matrix,
   switch (method) {
   case MBPT::Method::Goldstone:
     m_Sigma = std::make_unique<MBPT::GoldstoneSigma2>(
-        m_pHF.get(), basis, sigp, subgridp, en_list_kappa, fname);
+        m_pHF.get(), basis, sigp, subgridp, en_list_kappa, fname, fk);
     break;
   case MBPT::Method::Feynman:
     m_Sigma = std::make_unique<MBPT::FeynmanSigma>(

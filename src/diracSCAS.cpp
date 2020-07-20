@@ -196,7 +196,7 @@ int main(int argc, char *argv[]) {
   // Correlations: read in options
   const auto Sigma_ok = input.check(
       "Correlations",
-      {"Brueckner", "energyShifts", "n_min_core", "fitTo_cm", "lambda_k",
+      {"Brueckner", "energyShifts", "n_min_core", "fitTo_cm", "lambda_k", "fk",
        "io_file", "rmin", "rmax", "stride", "Feynman", "Screening", "lmax",
        "basis_for_Green", "basis_for_pol", "real_omega"});
   const bool do_energyShifts = input.get("Correlations", "energyShifts", false);
@@ -238,12 +238,13 @@ int main(int argc, char *argv[]) {
   qip::scale(&fit_energies, 1.0 / PhysConst::Hartree_invcm);
   const auto lambda_k =
       input.get_list("Correlations", "lambda_k", std::vector<double>{});
+  const auto fk = input.get_list("Correlations", "fk", std::vector<double>{});
 
   // Form correlation potential:
   if ((do_energyShifts || do_brueckner) && Sigma_ok) {
     IO::ChronoTimer t("Sigma");
     wf.formSigma(n_min_core, true, sigma_rmin, sigma_rmax, sigma_stride,
-                 lambda_k, sigma_file, sigma_Feynman, sigma_Screening,
+                 lambda_k, fk, sigma_file, sigma_Feynman, sigma_Screening,
                  sigma_lmax, GreenBasis, PolBasis, sigma_omre);
   }
 

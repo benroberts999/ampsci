@@ -210,6 +210,7 @@ public: // const methods: "views" into WF object
   void formSigma(const int nmin_core = 1, const bool form_matrix = true,
                  const double r0 = 1.0e-4, const double rmax = 30.0,
                  const int stride = 4, const std::vector<double> &lambdas = {},
+                 const std::vector<double> &fk = {},
                  const std::string &fname = "", const bool FeynmanQ = false,
                  const bool ScreeningQ = false, const int lmax = 6,
                  const bool GreenBasis = false, const bool PolBasis = false,

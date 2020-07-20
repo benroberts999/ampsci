@@ -218,6 +218,7 @@ Correlations {
   energyShifts;   //[b] default = false
   Brueckner;      //[b] default = false
   lambda_k;       //[r,r...] (list) default is blank.
+  fk;             //[r,r...] (list) default is blank.
   fitTo_cm;       //[r,r...] (list) default is blank.
   // Following are "sub-grid" options:
   stride;         //[i] default chosen so there's ~150 pts in region [e-4,30]
@@ -236,6 +237,9 @@ Correlations {
 * rmin/rmax: min/max points along radial Grid Sigma is calculated+stored.
 * lambda_k: Rescale Sigma -> lambda*Sigma. One lambda for each kappa. If not given, assumed to be 1.
   * Note: Lambda's are not written/read to file, so these must be given (if required) even when reading Sigma from disk
+* fk: Effective screening factors; only used for 2nd-order Goldstone method
+  * Note: Included directly into Sigma
+  * e.g., for Cs: fk = 0.72, 0.62, 0.83, 0.89, 0.94, 1.0;
 * fitTo_cm: Provide list of energies (lowest valence states for each kappa); Sigma for each kappa will be automatically re-scaled to exactly reproduce these. Give as binding energies in inverse cm! It will print the lambda_k's that it calculated
   * e.g., fitTo_cm = -31406.5, -20228.2, -19674.1; will fit for the lowest s & p states for Cs
   * Will over-write lambda_k

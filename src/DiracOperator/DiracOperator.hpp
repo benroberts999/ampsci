@@ -199,10 +199,10 @@ public:
   NullOperator() : ScalarOperator(Parity::even, 0, {}) {}
 
 protected:
-  double virtual angularCff(int, int) const override { return 0.0; }
-  double virtual angularCgg(int, int) const override { return 0.0; }
-  double virtual angularCfg(int, int) const override { return 0.0; }
-  double virtual angularCgf(int, int) const override { return 0.0; }
+  double virtual angularCff(int, int) const final { return 0.0; }
+  double virtual angularCgg(int, int) const final { return 0.0; }
+  double virtual angularCfg(int, int) const final { return 0.0; }
+  double virtual angularCgf(int, int) const final { return 0.0; }
 };
 
 } // namespace DiracOperator

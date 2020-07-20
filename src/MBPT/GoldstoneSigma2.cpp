@@ -19,8 +19,9 @@ GoldstoneSigma2::GoldstoneSigma2(const HF::HartreeFock *const in_hf,
                                  const Sigma_params &sigp,
                                  const rgrid_params &subgridp,
                                  const std::vector<double> &en_list,
-                                 const std::string &atom)
-    : CorrelationPotential(in_hf, basis, sigp, subgridp) {
+                                 const std::string &atom,
+                                 const std::vector<double> &fk)
+    : CorrelationPotential(in_hf, basis, sigp, subgridp), m_fk(fk) {
 
   std::cout << "\nCorrelation potential (Sigma^2): Goldstone\n";
 
@@ -36,6 +37,14 @@ GoldstoneSigma2::GoldstoneSigma2(const HF::HartreeFock *const in_hf,
     std::cout << "Form correlation potential: Goldstone method\n";
     if (m_include_G)
       std::cout << "(Including FG/GF and GG)\n";
+
+    if (!m_fk.empty()) {
+      std::cout << "Effective screening factors: fk=";
+      std::for_each(cbegin(m_fk), cend(m_fk),
+                    [](auto x) { std::cout << x << ", "; });
+      std::cout << "\n";
+    }
+
     form_Sigma(en_list, fname);
   }
 } // namespace MBPT
@@ -88,6 +97,9 @@ void GoldstoneSigma2::fill_Sigma_k(GMatrix *Gmat, const int kappa,
         const auto f_kkjj = (2 * k + 1) * (Angular::twoj_k(kappa) + 1);
         const auto &yknb = m_yeh(k, n, a);
 
+        // Effective screening parameter:
+        const auto fk = get_fk(k);
+
         // Diagrams (a) [direct] and (b) [exchange]
         for (const auto &m : m_excited) {
           if (Ck(k, kappa, m.k) == 0)
@@ -95,7 +107,9 @@ void GoldstoneSigma2::fill_Sigma_k(GMatrix *Gmat, const int kappa,
           Coulomb::Qkv_bcd(&Qkv, a, m, n, k, yknb, Ck);
           Coulomb::Pkv_bcd(&Pkv, a, m, n, k, m_yeh(m, a), Ck, m_6j);
           const auto dele = en + a.en - m.en - n.en;
-          const auto factor = 1.0 / (f_kkjj * dele);
+          const auto factor = fk / (f_kkjj * dele);
+          // note: using same fk for all coulomb lines in exchange?
+          // even though multiple k there!
           addto_G(&Ga_d, Qkv, Qkv, factor);
           addto_G(&Ga_x, Qkv, Pkv, factor);
         } // m
@@ -107,7 +121,7 @@ void GoldstoneSigma2::fill_Sigma_k(GMatrix *Gmat, const int kappa,
           Coulomb::Qkv_bcd(&Qkv, n, b, a, k, yknb, Ck);
           Coulomb::Pkv_bcd(&Pkv, n, b, a, k, m_yeh(n, b), Ck, m_6j);
           const auto dele = en + n.en - b.en - a.en;
-          const auto factor = 1.0 / (f_kkjj * dele);
+          const auto factor = fk / (f_kkjj * dele); // XXX
           addto_G(&Ga_d, Qkv, Qkv, factor);
           addto_G(&Ga_x, Qkv, Pkv, factor);
         } // b

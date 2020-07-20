@@ -16,7 +16,7 @@ namespace MBPT {
 @brief
 @details
 */
-class FeynmanSigma : public CorrelationPotential {
+class FeynmanSigma final : public CorrelationPotential {
 public:
   FeynmanSigma(const HF::HartreeFock *const in_hf,
                const std::vector<DiracSpinor> &basis, const Sigma_params &sigp,
@@ -28,7 +28,7 @@ public:
   ~FeynmanSigma() = default;
 
 protected:
-  void fill_Sigma_k(GMatrix *Sigma, const int kappa, const double en) override;
+  void fill_Sigma_k(GMatrix *Sigma, const int kappa, const double en) final;
 
 private:
   // Calculate "Core" Green fn by direct summation over only core states

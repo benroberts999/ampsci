@@ -1014,7 +1014,7 @@ EpsIts HartreeFock::hf_Brueckner(DiracSpinor &Fa,
   const auto max_br_its = m_max_hf_its;
 
   // auto damper = rampedDamp(0.33, 0.05, 1, 15);
-  auto damper = rampedDamp(0.4, 0.3, 1, 15);
+  auto damper = rampedDamp(0.6, 0.3, 1, 15);
 
   const auto &vrad_el = get_Hrad_el(Fa.l());
   const auto &Hmag = get_Hrad_mag(Fa.l());
@@ -1043,7 +1043,7 @@ EpsIts HartreeFock::hf_Brueckner(DiracSpinor &Fa,
 
     const auto en_new =
         Fzero.en + (Fzero * (VxFa + SigmaFa) - Fa * vexFzero) / (Fa * Fzero);
-    const auto en = (Fa.en + 2.0 * en_new) / 3.0;
+    const auto en = (Fa.en + 1.0 * en_new) / 2.0;
 
     brueckner_orbital(Fa, en, vl, Hmag, VxFa, Sigma, (*p_core), m_VBr.get());
 
