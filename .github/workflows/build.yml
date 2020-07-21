@@ -1,0 +1,22 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: "Install dependencies"
+      run: sudo apt install g++-9 make liblapack-dev libblas-dev libgsl-dev libomp5 libomp-dev
+    - name: setup
+      run: cp ./doc/Makefile.example ./Makefile
+    - name: Build diracSCAS (g++)
+      run: make clean && make CXX=g++-9
+    - name: Build diracSCAS (clang++)
+      run: make clean && make CXX=clang++
