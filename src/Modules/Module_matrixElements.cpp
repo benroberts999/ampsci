@@ -217,6 +217,10 @@ void calculateBohrWeisskopf(const IO::UserInputBlock &input,
                             const Wavefunction &wf) {
   using namespace DiracOperator;
 
+  input.checkBlock({"rpa", "rpa_diagram", "screening", "mu", "I", "rrms",
+                    "F(r)", "parity", "l", "gl", "mu1", "gl1", "l1", "l2", "I1",
+                    "I2", "printF"});
+
   IO::UserInputBlock point_in("MatrixElements::hfs", input);
   IO::UserInputBlock ball_in("MatrixElements::hfs", input);
   IO::UserInputBlock BW_in("MatrixElements::hfs", input);
@@ -246,6 +250,17 @@ void calculateBohrWeisskopf(const IO::UserInputBlock &input,
     rpab->rpa_core(0.0);
     rpaw->rpa_core(0.0);
   }
+
+  // only used if calculating screening factors:
+  struct ScreenBW {
+    ScreenBW(int a, int b1, double c, double d) : n(a), k(b1), b(c), sp(d){};
+    int n;
+    int k;
+    double b;
+    double sp;
+  };
+  std::vector<ScreenBW> bw;
+
   std::cout << "\nTabulate A (Mhz), and Bohr-Weisskopf effect eps(%): "
             << wf.atom()
             << "\n       |A:      Point         Ball           SP |e:    "
@@ -262,8 +277,45 @@ void calculateBohrWeisskopf(const IO::UserInputBlock &input,
     }
     auto Fball = ((Ab / Ap) - 1.0) * 100.0;
     auto Fbw = ((Aw / Ap) - 1.0) * 100.0;
+    bw.emplace_back(phi.n, phi.k, Fball, Fbw);
     printf("%7s| %12.5e %12.5e %12.5e | %9.5f  %9.5f \n", phi.symbol().c_str(),
            Ap, Ab, Aw, Fball, Fbw);
+  }
+
+  const auto do_screening = input.get("screening", false);
+  if (do_screening) {
+    // Create H-like orbitals: note: uses same grid
+    std::vector<ScreenBW> H_bw;
+    auto Hlike = Wavefunction(wf.rgrid->params(), wf.get_nuclearParameters(),
+                              wf.alpha / PhysConst::alpha);
+    std::cout << "\nH-like:\n" << Hlike.rgrid->gridParameters() << "\n";
+    Hlike.localValence(DiracSpinor::state_config(wf.valence));
+    Hlike.printValence();
+
+    std::cout << "\nTabulate A (Mhz), and Bohr-Weisskopf effect eps(%): "
+              << Hlike.atom() << " [H-like]"
+              << "\n       |A:      Point         Ball           SP |e:    "
+                 "Ball         SP\n";
+    for (const auto &phi : Hlike.valence) {
+      auto Ap = Hyperfine::hfsA(hp.get(), phi);
+      auto Ab = Hyperfine::hfsA(hb.get(), phi);
+      auto Aw = Hyperfine::hfsA(hw.get(), phi);
+      auto Fball = ((Ab / Ap) - 1.0) * 100.0;
+      auto Fbw = ((Aw / Ap) - 1.0) * 100.0;
+      H_bw.emplace_back(phi.n, phi.k, Fball, Fbw);
+      printf("%7s| %12.5e %12.5e %12.5e | %9.5f  %9.5f \n",
+             phi.symbol().c_str(), Ap, Ab, Aw, Fball, Fbw);
+    }
+
+    std::cout << "\nScreening factors (ball, SP)\n";
+    for (const auto &n : bw) {
+      std::cout << n.n << " " << n.k << ":\n";
+      for (const auto &m : H_bw) {
+        if (m.k != n.k)
+          continue;
+        printf("    %2i %.5f %.5f\n", m.n, n.b / m.b, n.sp / m.sp);
+      }
+    }
   }
 }
 
@@ -339,7 +391,7 @@ generate_hfs(const IO::UserInputBlock &input, const Wavefunction &wf) {
   using namespace DiracOperator;
   input.checkBlock(
       jointCheck({"mu", "I", "rrms", "F(r)", "parity", "l", "gl", "mu1", "gl1",
-                  "l1", "l2", "I1", "I2", "printF"}));
+                  "l1", "l2", "I1", "I2", "printF", "screening"}));
   auto isotope = Nuclear::findIsotopeData(wf.Znuc(), wf.Anuc());
   auto mu = input.get("mu", isotope.mu);
   auto I_nuc = input.get("I", isotope.I_N);

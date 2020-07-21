@@ -170,7 +170,7 @@ int main(int argc, char *argv[]) {
     if (HF_method == "KohnSham") {
       // Need different energy Guess for Kohn-sham!
       // Also: different way of reading valence list (since core cross-over!)
-      wf.localValence(valence_list);
+      wf.localValence(valence_list, true);
     } else {
       wf.hartreeFockValence(valence_list);
     }
