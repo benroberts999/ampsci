@@ -1,5 +1,11 @@
 # diracSCAS: Relativistic, self-consistent atomic structure code.
 
+![Build][build-badge]
+![Tests][tests-badge]
+[![][doxygen-badge]][docs-url]
+[![][manual-badge]][man-url]
+
+
 Solves the Dirac equation for single-valence atomic systems using the Hartree-Fock + second-order correlation potential method.
 Fully relativistic, includes finite-nuclear size, Breit interaction, QED effects, RPA for matrix elements, and can solve for continuum states (energy normalisation).
 QED corrections included via the Ginges-Flambaum radiative potential method.
@@ -174,3 +180,11 @@ Units:
    * Do not use quote marks in input file. Lines marked '!' or '#' are comments
  * 3j symbols must start with '('; 6,9j with '{', and CG with '<' (this is how code knows which symbol to calculate).
  * but, each number can be separated by any symbol (space, comma etc.)
+
+
+[docs-url]: https://benroberts999.github.io/diracSCAS/
+[man-url]: https://benroberts999.github.io/diracSCAS/diracSCAS.pdf
+[build-badge]: https://github.com/benroberts999/diracSCAS/workflows/Build/badge.svg
+[tests-badge]: https://github.com/benroberts999/diracSCAS/workflows/Tests/badge.svg
+[doxygen-badge]: https://img.shields.io/badge/documentation-doxygen-blue
+[manual-badge]: https://img.shields.io/badge/diracSCAS-pdf-blue
