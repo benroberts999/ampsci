@@ -199,9 +199,11 @@ std::vector<NonRelSEConfig> core_parser(const std::string &str_core_in)
                      [](const char &c) { return !std::isdigit(c); });
     const auto l_position = std::size_t(l_ptr - term.begin());
     int n{0}, num{-1}, l{-1};
-    n = std::stoi(term.substr(0, l_position - 0));
+    if (string_is_ints(term.substr(0, l_position - 0)))
+      n = std::stoi(term.substr(0, l_position - 0));
     if (term.size() > l_position + 1) {
-      num = std::stoi(term.substr(l_position + 1));
+      if (string_is_ints(term.substr(l_position + 1)))
+        num = std::stoi(term.substr(l_position + 1));
     } else {
       // string too short, mussing 'num' after l
       term_ok = false;
