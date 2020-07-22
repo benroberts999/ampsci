@@ -266,14 +266,98 @@ bool Coulomb(std::ostream &obuff) {
     }
   }
 
-  // XXX Add tests for R, Q, P, W, Z etc?
+  // test R^k_abcd:
+  const double eps_R = helper::check_Rkabcd(wf.core, 2);
+  const double eps_R2 = helper::check_Rkabcd(wf.basis, 2);
+  pass &= qip::check_value(&obuff, "Rk_abcd (core) ", eps_R, 0.0, 1.0e-13);
+  pass &= qip::check_value(&obuff, "Rk_abcd (basis) ", eps_R2, 0.0, 1.0e-13);
 
-  double eps_R = helper::check_Rkabcd(wf.core, 2);
-  double eps_R2 = helper::check_Rkabcd(wf.basis, 2);
-  pass &= qip::check_value(&obuff, "Rk_abcs (core) ", eps_R, 0.0, 1.0e-13);
-  // XXX This fails due to p0/pinf in Coulomb yk_ab - don't understand why XXX
-  qip::check_value(&obuff, "Rk_abcs (basis) [known fail e-5]", eps_R2, 0.0,
-                   1.0e-13);
+  //****************************************************************************
+  // Test P, Q, W:
+  {
+    // Contruct a vector of DiracSpinors, with just single spinor of each kappa:
+    std::vector<DiracSpinor> torbs;
+    for (int kappa_index = 0;; ++kappa_index) {
+      auto k = Angular::kappaFromIndex(kappa_index);
+      auto phi = std::find_if(cbegin(wf.basis), cend(wf.basis),
+                              [k](auto x) { return x.k == k; });
+      if (phi == cend(wf.basis))
+        break;
+      torbs.emplace_back(*phi);
+    }
+
+    // test Q
+    // const Coulomb::YkTable Ytt(wf.rgrid, &torbs);
+    const auto maxtj = std::max_element(wf.basis.cbegin(), wf.basis.cend(),
+                                        DiracSpinor::comp_j)
+                           ->twoj();
+    const auto &Ck = Yij.Ck();
+    const Angular::SixJ sj(maxtj, maxtj);
+
+    double worstQ = 0.0;
+    double worstP = 0.0;
+    double worstW = 0.0;
+    for (const auto &Fa : torbs) {
+      for (const auto &Fb : torbs) {
+        for (const auto &Fc : torbs) {
+          for (const auto &Fd : torbs) {
+            // const auto [kmin, kmax] = Coulomb::YkTable::k_minmax(Fb, Fd);
+            for (int k = 0; k <= Ck.max_k(); ++k) {
+
+              double Q1 = 0.0;
+              if (Angular::Ck_kk_SR(k, Fa.k, Fc.k) &&
+                  Angular::Ck_kk_SR(k, Fb.k, Fd.k)) {
+
+                const auto &ykbd = Yij.get_yk_ab(k, Fb, Fd);
+                Q1 = Coulomb::Qk_abcd(Fa, Fb, Fc, Fd, k, ykbd, Ck);
+                const auto Q2 = Coulomb::Qk_abcd(Fa, Fb, Fc, Fd, k);
+                const auto Q3 =
+                    Fa * Coulomb::Qkv_bcd(Fa.k, Fb, Fc, Fd, k, ykbd, Ck);
+
+                const auto Q4 =
+                    Angular::neg1pow_2(2 * k + Fa.twoj() + Fb.twoj() + 2) *
+                    Ck(k, Fa.k, Fc.k) * Ck(k, Fb.k, Fd.k) *
+                    Coulomb::Rk_abcd(Fa, Fb, Fc, Fd, k);
+                const auto delQ = std::abs(qip::max_difference(Q1, Q2, Q3, Q4));
+                if (delQ > worstQ)
+                  worstQ = delQ;
+              }
+
+              // Calc P
+              const auto &ybc = Yij.get_y_ab(Fb, Fc);
+              const auto P1 = Coulomb::Pk_abcd(Fa, Fb, Fc, Fd, k, ybc, Ck, sj);
+              const auto P2 = Coulomb::Pk_abcd(Fa, Fb, Fc, Fd, k);
+              double P4 = 0.0;
+              for (int l = 0; l <= Ck.max_k(); ++l) {
+                if (Angular::Ck_kk_SR(l, Fa.k, Fd.k) &&
+                    Angular::Ck_kk_SR(l, Fb.k, Fc.k)) {
+                  const auto &ylbc = Yij.get_yk_ab(l, Fb, Fc);
+                  P4 += (2 * k + 1) *
+                        sj.get_6j(Fa.twoj(), Fc.twoj(), Fb.twoj(), Fd.twoj(), k,
+                                  l) *
+                        Coulomb::Qk_abcd(Fa, Fb, Fd, Fc, l, ylbc, Ck);
+                }
+              }
+              const auto delP = std::abs(qip::max_difference(P1, P2, P4));
+              if (delP > worstP)
+                worstP = delP;
+
+              // calc W
+              const auto W1 = Q1 + P1;
+              const auto W2 = Coulomb::Wk_abcd(Fa, Fb, Fc, Fd, k);
+              const auto delW = std::abs(W1 - W2);
+              if (delW > worstW)
+                worstW = delW;
+
+            } // k
+          }   // d
+        }     // c
+      }       // b
+    }         // a
+    pass &= qip::check_value(&obuff, "Qk_abcd ", worstQ, 0.0, 5.0e-13);
+    pass &= qip::check_value(&obuff, "Pk_abcd ", worstP, 0.0, 5.0e-14);
+    pass &= qip::check_value(&obuff, "Wk_abcd ", worstW, 0.0, 5.0e-14);
+  }
 
   return pass;
 }

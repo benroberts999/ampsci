@@ -28,6 +28,32 @@ template <typename T, typename... Args> T min_abs(T first, Args... rest) {
   }
 }
 
+template <typename T, typename... Args> T max(T first, Args... rest) {
+  if constexpr (sizeof...(rest) == 0) {
+    return first;
+  } else {
+    const auto max_rest = max(rest...);
+    if (first >= max_rest)
+      return first;
+    return max_rest;
+  }
+}
+template <typename T, typename... Args> T min(T first, Args... rest) {
+  if constexpr (sizeof...(rest) == 0) {
+    return first;
+  } else {
+    const auto min_rest = min(rest...);
+    if (first <= min_rest)
+      return first;
+    return min_rest;
+  }
+}
+
+template <typename T, typename... Args>
+T max_difference(T first, Args... rest) {
+  return max(first, rest...) - min(first, rest...);
+}
+
 //******************************************************************************
 //! x^n for integer n (n compile-time template parameter)
 template <int n, typename T> constexpr auto pow(T x) {

@@ -86,6 +86,11 @@ void Pkv_bcd(DiracSpinor *const Pkv, const DiracSpinor &Fb,
              const std::vector<std::vector<double>> &ybc,
              const Angular::Ck_ab &Ck, const Angular::SixJ &sixj);
 
+DiracSpinor Pkv_bcd(int kappa_v, const DiracSpinor &Fb, const DiracSpinor &Fc,
+                    const DiracSpinor &Fd, const int k,
+                    const std::vector<std::vector<double>> &ybc,
+                    const Angular::Ck_ab &Ck, const Angular::SixJ &sixj);
+
 //! Calculates Z^k_abcd for given k. From scratch (calculates y)
 //! @details
 //! \f[ Z^k_abcd = (-1)^{ja+jb+1} * ( Q^k_abcd + \sum_l [k] 6j * Q^l_abdc)

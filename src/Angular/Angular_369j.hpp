@@ -82,6 +82,10 @@ inline int max_lambda_tj(int tja, int tjb, int tjc, int tjd) {
 constexpr bool evenQ(int a) { return (a % 2 == 0); }
 //! @brief Returns true if a is even, given 2*a (i.e., true if two_a/2 is even)
 constexpr bool evenQ_2(int two_a) { return (two_a % 4 == 0); }
+//! Evaluates (-1)^{a}
+constexpr int neg1pow(int a) { return evenQ(a) ? 1 : -1; }
+//! Evaluates (-1)^{two_a/2}
+constexpr int neg1pow_2(int two_a) { return evenQ_2(two_a) ? 1 : -1; }
 
 //******************************************************************************
 //! @brief Parity rule. Returns 1 only if la+lb+k is even

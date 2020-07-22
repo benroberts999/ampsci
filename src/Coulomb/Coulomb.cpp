@@ -81,8 +81,8 @@ static inline void yk_ijk_impl(const int l, const DiracSpinor &Fa,
     vabk[i] = Ax * du;
   }
 
-  const auto bmax = std::min(Fa.pinf, Fb.pinf);
-  for (auto i = bmax - 1; i >= 1; --i) {
+  const auto bmax = std::min(std::min(Fa.pinf, Fb.pinf), num_points - 1);
+  for (auto i = bmax; i >= 1; --i) {
     Bx = Bx * powk(r[i - 1] / r[i]) + ff(i - 1);
     vabk[i - 1] += Bx * du;
   }
