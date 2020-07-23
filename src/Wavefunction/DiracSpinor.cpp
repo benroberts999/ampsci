@@ -52,14 +52,7 @@ const DiracSpinor &DiracSpinor::scale(const double factor) {
     g[i] *= factor;
   // // XXX Need this for some reason!??
   // Means something beyond pinf is hapenning!?!? XXX XXX
-  for (std::size_t i = pinf; i < f.size(); ++i) { // shouln't be needed!
-    f[i] = 0;
-    g[i] = 0;
-  }
-  for (std::size_t i = 0; i < p0; ++i) { // shouln't be needed!
-    f[i] = 0;
-    g[i] = 0;
-  }
+  // zero_boundaries(); // shouln't be needed!
   return *this;
 }
 //------------------------------------------------------------------------------
@@ -78,6 +71,18 @@ const DiracSpinor &DiracSpinor::scale(const std::vector<double> &v) {
 
 //******************************************************************************
 void DiracSpinor::normalise(double norm_to) { scale(norm_to / norm()); }
+
+//------------------------------------------------------------------------------
+void DiracSpinor::zero_boundaries() {
+  for (std::size_t i = 0; i < p0; ++i) {
+    f[i] = 0.0;
+    g[i] = 0.0;
+  }
+  for (std::size_t i = pinf; i < f.size(); ++i) {
+    f[i] = 0.0;
+    g[i] = 0.0;
+  }
+}
 
 //******************************************************************************
 std::pair<double, double> DiracSpinor::r0pinfratio() const {

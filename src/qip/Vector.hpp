@@ -262,4 +262,36 @@ std::vector<T> logarithmic_range(T first, T last, N number) {
   return range;
 }
 
+//******************************************************************************
+//! first[i]*...rest[i]  --  used to allow inner_product
+template <typename T, typename... Args>
+constexpr auto multiply_at(std::size_t i, const T &first,
+                           const Args &... rest) {
+  if constexpr (sizeof...(rest) == 0) {
+    return first[i];
+  } else {
+    return first[i] * multiply_at(i, rest...);
+  }
+}
+
+//! Variadic inner product (v1,v2,...vn) : sum_i v1[i]*v2[i]*...vn[i]
+template <typename T, typename... Args>
+constexpr auto inner_product(const T &first, const Args &... rest) {
+  auto res = multiply_at(0, first, rest...);
+  for (std::size_t i = 1; i < first.size(); ++i) {
+    res += multiply_at(i, first, rest...);
+  }
+  return res;
+}
+
+template <typename T, typename... Args>
+auto inner_product_sub(std::size_t p0, std::size_t pinf, const T &first,
+                       const Args &... rest) {
+  auto res = multiply_at(p0, first, rest...);
+  for (std::size_t i = p0 + 1; i < pinf; ++i) {
+    res += multiply_at(i, first, rest...);
+  }
+  return res;
+}
+
 } // namespace qip

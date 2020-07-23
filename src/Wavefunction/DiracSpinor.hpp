@@ -99,6 +99,7 @@ public:
   const DiracSpinor &scale(const std::vector<double> &v);
   //! By default normalises to 1, but can normalise to other number.
   void normalise(double norm_to = 1.0);
+  void zero_boundaries();
   //! Returns [f[p0]/f_max , f[pinf]/f_max] - for tests
   std::pair<double, double> r0pinfratio() const;
 

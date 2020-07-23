@@ -24,6 +24,39 @@ constexpr auto cq = quintcoef.cq;
 constexpr auto dq_inv = quintcoef.dq_inv;
 
 //******************************************************************************
+template <typename C, typename... Args>
+inline double integrate(const double dt, std::size_t beg, std::size_t end,
+                        const C &f1, const Args &... rest)
+// // Note: includes no safety checks!
+// // Integrates from (point) beg to end-1 (i.e., not including end)
+// // Require:
+// //   * (beg-end) > 2*Nquad
+// //   * end - Nquad > Nquad
+// //   * beg + 2*Nquad
+// // NB: end-point corrections only applied if beg < Nquad, end > max - nquad
+// // Not sure if this is best choice - but it ensures that:
+// // int_{a->b} + int_{b->c} = int_{a->c}
+{
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__, "4");
+
+  const auto max_grid = f1.size();
+  if (end == 0)
+    end = max_grid;
+  const auto end_mid = std::min(max_grid - Nquad, end);
+  const auto start_mid = std::max(Nquad, beg);
+
+  double Rint_ends = qip::inner_product_sub(beg, Nquad, cq, f1, rest...);
+
+  const double Rint_mid =
+      qip::inner_product_sub(start_mid, end_mid, f1, rest...);
+
+  for (auto i = end_mid; i < end; ++i) {
+    Rint_ends += cq[end_mid + Nquad - i - 1] * qip::multiply_at(i, f1, rest...);
+  }
+  return (Rint_mid + dq_inv * Rint_ends) * dt;
+}
+
+//******************************************************************************
 template <typename T>
 inline std::vector<T> derivative(const std::vector<T> &f,
                                  const std::vector<T> &drdt, const T dt,
@@ -74,110 +107,6 @@ inline std::vector<T> derivative(const std::vector<T> &f,
 }
 
 //******************************************************************************
-template <typename C>
-inline double integrate_1(const double dt, std::size_t beg, std::size_t end,
-                          const C &f1)
-// Note: includes no safety checks!
-// Integrates from (point) beg to end-1 (i.e., not including end)
-// Require:
-//   * (beg-end) > 2*Nquad
-//   * end - Nquad > Nquad
-//   * beg + 2*Nquad
-// NB: end-point corrections only applied if beg < Nquad, end > max - nquad
-// Not sure if this is best choice - but it ensures that:
-// int_{a->b} + int_{b->c} = int_{a->c}
-{
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
-
-  const auto max_grid = f1.size();
-  if (end == 0)
-    end = max_grid;
-  double Rint_ends = 0.0;
-  for (std::size_t i = beg; i < Nquad; ++i) {
-    Rint_ends += cq[i] * f1[i];
-  }
-  double Rint_m = 0.0;
-  const auto end_mid = std::min(max_grid - Nquad, end);
-  const auto start_mid = std::max(Nquad, beg);
-  for (auto i = start_mid; i < end_mid; ++i)
-    Rint_m += f1[i];
-  for (auto i = end_mid; i < end; ++i) {
-    Rint_ends += cq[end_mid + Nquad - i - 1] * f1[i];
-  }
-  return (Rint_m + dq_inv * Rint_ends) * dt;
-
-} // END integrate1
-// --------------------------------------------
-template <typename C>
-inline double integrate_1(const double dt, std::size_t beg, std::size_t end,
-                          const C &f1, const C &f2) {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__, "2");
-
-  const auto max_grid = f1.size();
-  if (end == 0)
-    end = max_grid;
-  double Rint_ends = 0.0;
-  for (std::size_t i = beg; i < Nquad; ++i) {
-    Rint_ends += cq[i] * f1[i] * f2[i];
-  }
-  double Rint_m = 0.0;
-  const auto end_mid = std::min(max_grid - Nquad, end);
-  const auto start_mid = std::max(Nquad, beg);
-  for (auto i = start_mid; i < end_mid; ++i)
-    Rint_m += f1[i] * f2[i];
-  for (auto i = end_mid; i < end; ++i) {
-    Rint_ends += cq[end_mid + Nquad - i - 1] * f1[i] * f2[i];
-  }
-  return (Rint_m + dq_inv * Rint_ends) * dt;
-}
-// --------------------------------------------
-template <typename C>
-inline double integrate_1(const double dt, std::size_t beg, std::size_t end,
-                          const C &f1, const C &f2, const C &f3) {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__, "3");
-
-  const auto max_grid = f1.size();
-  if (end == 0)
-    end = max_grid;
-  double Rint_ends = 0.0;
-  for (std::size_t i = beg; i < Nquad; ++i) {
-    Rint_ends += cq[i] * f1[i] * f2[i] * f3[i];
-  }
-  double Rint_m = 0.0;
-  const auto end_mid = std::min(max_grid - Nquad, end);
-  const auto start_mid = std::max(Nquad, beg);
-  for (auto i = start_mid; i < end_mid; ++i)
-    Rint_m += f1[i] * f2[i] * f3[i];
-  for (auto i = end_mid; i < end; ++i) {
-    Rint_ends += cq[end_mid + Nquad - i - 1] * f1[i] * f2[i] * f3[i];
-  }
-  return (Rint_m + dq_inv * Rint_ends) * dt;
-}
-// --------------------------------------------
-template <typename C>
-inline double integrate_1(const double dt, std::size_t beg, std::size_t end,
-                          const C &f1, const C &f2, const C &f3, const C &f4) {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__, "4");
-
-  const auto max_grid = f1.size();
-  if (end == 0)
-    end = max_grid;
-  double Rint_ends = 0.0;
-  for (std::size_t i = beg; i < Nquad; ++i) {
-    Rint_ends += cq[i] * f1[i] * f2[i] * f3[i] * f4[i];
-  }
-  double Rint_m = 0.0;
-  const auto end_mid = std::min(max_grid - Nquad, end);
-  const auto start_mid = std::max(Nquad, beg);
-  for (auto i = start_mid; i < end_mid; ++i)
-    Rint_m += f1[i] * f2[i] * f3[i] * f4[i];
-  for (auto i = end_mid; i < end; ++i) {
-    Rint_ends += cq[end_mid + Nquad - i - 1] * f1[i] * f2[i] * f3[i] * f4[i];
-  }
-  return (Rint_m + dq_inv * Rint_ends) * dt;
-}
-
-//******************************************************************************
 enum Direction { zero_to_r, r_to_inf };
 template <Direction direction, typename Real>
 inline void
@@ -219,19 +148,6 @@ std::vector<Real> partialIntegral(const std::vector<Real> &f,
   std::vector<Real> answer(f.size(), 0.0);
   additivePIntegral(answer, f, g, h, gr, pinf);
   return answer;
-}
-
-//******************************************************************************
-template <typename... Args>
-double integrate(const double dt, const std::size_t beg, const std::size_t end,
-                 const std::vector<double> &v1, const Args &... args) {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
-  if constexpr (sizeof...(args) == 0)
-    return integrate_1(dt, beg, end, v1);
-  else if constexpr (sizeof...(args) <= 3)
-    return integrate_1(dt, beg, end, v1, args...);
-  else
-    return integrate_1(dt, beg, end, qip::multiply(v1, args...));
 }
 
 //******************************************************************************
