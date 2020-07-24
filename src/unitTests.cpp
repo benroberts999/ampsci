@@ -1,5 +1,6 @@
 #include "Angular/Angular_test.hpp"
 #include "Coulomb/Coulomb_test.hpp"
+#include "DiracODE/DiracODE_test.hpp"
 #include "HF/ExternalField_test.hpp"
 #include "HF/HartreeFock_test.hpp"
 #include "HF/MixedStates_test.hpp"
@@ -18,6 +19,7 @@
 static const std::vector<std::pair<std::string, bool (*)(std::ostream &obuff)>>
     test_list{
         //
+        {"DiracODE", &UnitTest::DiracODE},
         {"HartreeFock", &UnitTest::HartreeFock},
         {"MixedStates", &UnitTest::MixedStates},
         {"ExternalField", &UnitTest::ExternalField},
