@@ -20,9 +20,10 @@
 
 namespace Module {
 
-static const std::vector<std::pair<
-    std::string, std::unique_ptr<DiracOperator::TensorOperator> (*)(
-                     const IO::UserInputBlock &input, const Wavefunction &wf)>>
+static const std::vector<
+    std::pair<std::string, std::unique_ptr<DiracOperator::TensorOperator> (*)(
+                               const IO::UserInputBlock &input,
+                               const Wavefunction &wf, bool print)>>
     operator_list{{"E1", &generate_E1},
                   {"Ek", &generate_Ek},
                   {"M1", &generate_M1},
@@ -322,13 +323,14 @@ void calculateBohrWeisskopf(const IO::UserInputBlock &input,
 //******************************************************************************
 //******************************************************************************
 std::unique_ptr<DiracOperator::TensorOperator>
-generateOperator(const IO::UserInputBlock &input, const Wavefunction &wf) {
+generateOperator(const IO::UserInputBlock &input, const Wavefunction &wf,
+                 bool print) {
   using namespace DiracOperator;
 
   for (const auto &[name, generator] : operator_list) {
-    (void)generator;
+    // (void)generator;
     if ("MatrixElements::" + name == input.name())
-      return generator(input, wf);
+      return generator(input, wf, print);
   }
 
   std::cerr << "\nFAILED to find operator: " << input.name()
@@ -358,7 +360,7 @@ static auto jointCheck(const std::vector<std::string> &in) {
 
 //------------------------------------------------------------------------------
 std::unique_ptr<DiracOperator::TensorOperator>
-generate_E1(const IO::UserInputBlock &input, const Wavefunction &wf) {
+generate_E1(const IO::UserInputBlock &input, const Wavefunction &wf, bool) {
   using namespace DiracOperator;
   input.checkBlock(jointCheck({"gauge"}));
   auto gauge = input.get<std::string>("gauge", "lform");
@@ -370,7 +372,7 @@ generate_E1(const IO::UserInputBlock &input, const Wavefunction &wf) {
 
 //------------------------------------------------------------------------------
 std::unique_ptr<DiracOperator::TensorOperator>
-generate_Ek(const IO::UserInputBlock &input, const Wavefunction &wf) {
+generate_Ek(const IO::UserInputBlock &input, const Wavefunction &wf, bool) {
   using namespace DiracOperator;
   input.checkBlock(jointCheck({"k"}));
   auto k = input.get("k", 1);
@@ -379,7 +381,7 @@ generate_Ek(const IO::UserInputBlock &input, const Wavefunction &wf) {
 
 //------------------------------------------------------------------------------
 std::unique_ptr<DiracOperator::TensorOperator>
-generate_M1(const IO::UserInputBlock &input, const Wavefunction &wf) {
+generate_M1(const IO::UserInputBlock &input, const Wavefunction &wf, bool) {
   using namespace DiracOperator;
   input.checkBlock(jointCheck({}));
   return std::make_unique<M1>(*(wf.rgrid), wf.alpha, 0.0);
@@ -387,7 +389,8 @@ generate_M1(const IO::UserInputBlock &input, const Wavefunction &wf) {
 
 //------------------------------------------------------------------------------
 std::unique_ptr<DiracOperator::TensorOperator>
-generate_hfs(const IO::UserInputBlock &input, const Wavefunction &wf) {
+generate_hfs(const IO::UserInputBlock &input, const Wavefunction &wf,
+             bool print) {
   using namespace DiracOperator;
   input.checkBlock(
       jointCheck({"mu", "I", "rrms", "F(r)", "parity", "l", "gl", "mu1", "gl1",
@@ -400,11 +403,14 @@ generate_hfs(const IO::UserInputBlock &input, const Wavefunction &wf) {
   auto r_nucau = r_nucfm / PhysConst::aB_fm;
   auto Fr_str = input.get<std::string>("F(r)", "ball");
 
-  std::cout << "\nHyperfine structure: " << wf.atom() << "\n"
-            << "Using " << Fr_str << " nuclear distro for F(r)\n"
-            << "w/ mu = " << mu << ", I = " << I_nuc << ", r_N = " << r_nucfm
-            << "fm = " << r_nucau << "au  (r_rms=" << r_rmsfm << "fm)\n";
-  std::cout << "Points inside nucleus: " << wf.rgrid->getIndex(r_nucau) << "\n";
+  if (print) {
+    std::cout << "\nHyperfine structure: " << wf.atom() << "\n"
+              << "Using " << Fr_str << " nuclear distro for F(r)\n"
+              << "w/ mu = " << mu << ", I = " << I_nuc << ", r_N = " << r_nucfm
+              << "fm = " << r_nucau << "au  (r_rms=" << r_rmsfm << "fm)\n";
+    std::cout << "Points inside nucleus: " << wf.rgrid->getIndex(r_nucau)
+              << "\n";
+  }
 
   auto Fr = Hyperfine::sphericalBall_F();
   if (Fr_str == "shell")
@@ -418,14 +424,16 @@ generate_hfs(const IO::UserInputBlock &input, const Wavefunction &wf) {
     l = input.get("l", l); // can override derived 'l' (not recommended)
     auto gl_default = wf.Znuc() % 2 == 0 ? 0 : 1; // unparied proton?
     auto gl = input.get<int>("gl", gl_default);
-    std::cout << "Bohr-Weiskopf (Volotka formula) for valence";
-    if (gl == 1)
-      std::cout << " proton ";
-    else if (gl == 0)
-      std::cout << " neturon ";
-    else
-      std::cout << " gl=" << gl << "??? program will run, but prob wrong!\n";
-    std::cout << "with l=" << l << " (pi=" << pi << ")\n";
+    if (print) {
+      std::cout << "Bohr-Weiskopf (Volotka formula) for valence";
+      if (gl == 1)
+        std::cout << " proton ";
+      else if (gl == 0)
+        std::cout << " neturon ";
+      else
+        std::cout << " gl=" << gl << "??? program will run, but prob wrong!\n";
+      std::cout << "with l=" << l << " (pi=" << pi << ")\n";
+    }
     Fr = Hyperfine::volotkaBW_F(mu, I_nuc, l, gl);
   } else if (Fr_str == "doublyOddBW") {
 
@@ -463,7 +471,7 @@ generate_hfs(const IO::UserInputBlock &input, const Wavefunction &wf) {
 
 //------------------------------------------------------------------------------
 std::unique_ptr<DiracOperator::TensorOperator>
-generate_r(const IO::UserInputBlock &input, const Wavefunction &wf) {
+generate_r(const IO::UserInputBlock &input, const Wavefunction &wf, bool) {
   using namespace DiracOperator;
   input.checkBlock(jointCheck({"power"}));
   auto power = input.get("power", 1.0);
@@ -473,7 +481,7 @@ generate_r(const IO::UserInputBlock &input, const Wavefunction &wf) {
 
 //------------------------------------------------------------------------------
 std::unique_ptr<DiracOperator::TensorOperator>
-generate_pnc(const IO::UserInputBlock &input, const Wavefunction &wf) {
+generate_pnc(const IO::UserInputBlock &input, const Wavefunction &wf, bool) {
   using namespace DiracOperator;
   input.checkBlock(jointCheck({"c", "t"}));
   const auto r_rms = Nuclear::find_rrms(wf.Znuc(), wf.Anuc());
@@ -484,7 +492,8 @@ generate_pnc(const IO::UserInputBlock &input, const Wavefunction &wf) {
 
 //------------------------------------------------------------------------------
 std::unique_ptr<DiracOperator::TensorOperator>
-generate_Hrad_el(const IO::UserInputBlock &input, const Wavefunction &wf) {
+generate_Hrad_el(const IO::UserInputBlock &input, const Wavefunction &wf,
+                 bool) {
   using namespace DiracOperator;
   input.checkBlock(
       jointCheck({"Simple", "Ueh", "SE_h", "SE_l", "rcut", "scale_rN"}));
@@ -504,7 +513,8 @@ generate_Hrad_el(const IO::UserInputBlock &input, const Wavefunction &wf) {
 
 //------------------------------------------------------------------------------
 std::unique_ptr<DiracOperator::TensorOperator>
-generate_Hrad_mag(const IO::UserInputBlock &input, const Wavefunction &wf) {
+generate_Hrad_mag(const IO::UserInputBlock &input, const Wavefunction &wf,
+                  bool) {
   using namespace DiracOperator;
   input.checkBlock(jointCheck({"SE_m", "rcut", "scale_rN"}));
   const auto x_SEm = input.get("SE_m", 1.0);

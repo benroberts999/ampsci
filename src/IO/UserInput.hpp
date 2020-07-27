@@ -82,6 +82,15 @@ public:
   bool checkBlock(const std::vector<std::string> &options) const;
   void add(const std::string &new_in) { m_input_options.push_back(new_in); }
 
+  UserInputBlock copy_with(const std::string &new_in) const {
+    auto out = *this;
+    out.add(new_in);
+    return out;
+  }
+
+  UserInputBlock subBlock(const std::string &sub_block_name,
+                          const std::vector<std::string> &options) const;
+
 private:
   std::string m_block_name;
   std::vector<std::string> m_input_options;

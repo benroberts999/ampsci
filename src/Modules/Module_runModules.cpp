@@ -1,6 +1,7 @@
 #include "Modules/Module_runModules.hpp"
 #include "DMionisation/Module_atomicKernal.hpp"
 #include "IO/UserInput.hpp"
+#include "Modules/Module_HFAnomaly.hpp"
 #include "Modules/Module_fitParametric.hpp"
 #include "Modules/Module_matrixElements.hpp"
 #include "Modules/Module_pnc.hpp"
@@ -27,6 +28,7 @@ static const std::vector<
                 {"AtomicKernal", &atomicKernal},
                 {"FitParametric", &fitParametric},
                 {"BohrWeisskopf", &calculateBohrWeisskopf},
+                {"HFAnomaly", &HFAnomaly},
                 {"pnc", &calculatePNC},
                 {"polarisability", &polarisability},
                 {"lifetimes", &calculateLifetimes}};

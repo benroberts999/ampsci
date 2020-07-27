@@ -37,6 +37,19 @@ void UserInputBlock::print() const {
   std::cout << "}\n";
 }
 //******************************************************************************
+UserInputBlock
+UserInputBlock::subBlock(const std::string &sub_block_name,
+                         const std::vector<std::string> &options) const {
+  UserInputBlock sub_block(sub_block_name, {});
+  for (const auto &option : options) {
+    for (const auto &input_line : m_input_options) {
+      if (input_line.substr(0, option.length() + 1) == option + "=")
+        sub_block.add(input_line);
+    }
+  }
+  return sub_block;
+}
+//******************************************************************************
 bool UserInputBlock::checkBlock(const std::vector<std::string> &list) const {
 
   bool all_ok = true;
