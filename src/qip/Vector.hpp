@@ -287,8 +287,8 @@ constexpr auto inner_product(const T &first, const Args &... rest) {
 template <typename T, typename... Args>
 auto inner_product_sub(std::size_t p0, std::size_t pinf, const T &first,
                        const Args &... rest) {
-  auto res = multiply_at(p0, first, rest...);
-  for (std::size_t i = p0 + 1; i < pinf; ++i) {
+  auto res = decltype(first[0])(0);
+  for (std::size_t i = p0; i < pinf; ++i) {
     res += multiply_at(i, first, rest...);
   }
   return res;
