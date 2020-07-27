@@ -419,6 +419,18 @@ Calculates lifetimes of valence states. Note: uses HF energies (prints all data 
 
 -------------------
 ```cpp
+Module::HFAnomaly {
+  Alist;  //[i,i,...] // Which A's to calculate for (blank for all)
+ // ~ most inputs same as MatrixElements::hfs
+}
+```
+Calculates the hyperfine anomaly (and BW effect) for all available odd
+isotopes of given atom, relative to the 'main' isotope (see Atom).
+ * Note: Only runs for odd isotopes; to get anomaly for even isotopes, use am even isotope as reference (For doubly-odd Bohr-Weisskopf input options, see MatrixElements::hfs)
+ * Takes same input at MatrixElements::hfs, except for F(r), since it runs for each F(r)
+
+-------------------
+```cpp
 Module::BohrWeisskopf { //Calculates BW effect for Ball/Single-particle
   // Takes same input at MatrixElements::hfs
   // Except for F(r), since it runs for each F(r)
