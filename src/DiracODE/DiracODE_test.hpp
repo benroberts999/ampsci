@@ -1,19 +1,18 @@
 #pragma once
 #include "DiracODE/DiracODE.hpp"
+#include "DiracOperator/Operators.hpp"
 #include "Maths/Grid.hpp"
 #include "Physics/AtomData.hpp"
+#include "Physics/DiracHydrogen.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "qip/Check.hpp"
-// #include "qip/Maths.hpp"
-// #include "qip/Vector.hpp"
 #include <algorithm>
 #include <memory>
 #include <numeric>
 #include <string>
+#include <utility>
 #include <vector>
-//
-#include "DiracOperator/Operators.hpp"
 
 namespace UnitTest {
 
@@ -43,7 +42,7 @@ bool DiracODE(std::ostream &obuff) {
     auto &Fnk = orbitals.emplace_back(n, k, grid);
     const auto en_guess =
         -(Zeff * Zeff) / (2.0 * n * n); // non-rel formula for guess
-    DiracODE::boundState(Fnk, en_guess, v_nuc, {}, PhysConst::alpha, 16);
+    DiracODE::boundState(Fnk, en_guess, v_nuc, {}, PhysConst::alpha, 15);
     // printf("%7s en=%11.5f rmax=%5.1f it=%3i eps=%.1e\n",
     // Fnk.symbol().c_str(),
     //        Fnk.en, Fnk.rinf(), Fnk.its, Fnk.eps);
@@ -88,14 +87,60 @@ bool DiracODE(std::ostream &obuff) {
                          eps, 0.0, 1.0e-10);
   }
 
-  // auto rhat = DiracOperator::RadialF(*grid, 1);
-  // auto x = rhat.radialIntegral(orbitals.front(), orbitals.front());
-  // std::cout << x << "\n";
+  { // Check radial integrals (r, r^2, 1/r, 1/r^2)
+    const auto rhat1 = DiracOperator::RadialF(*grid, 1);
+    const auto rhat2 = DiracOperator::RadialF(*grid, 2);
+    const auto rinv1 = DiracOperator::RadialF(*grid, -1);
+    const auto rinv2 = DiracOperator::RadialF(*grid, -2);
 
-  // auto wostd::accumulate(cbegin(orbitals), cend(orbitals), 0.0, eps_en);
+    std::pair<std::string, double> worst1{"", 0.0};
+    std::pair<std::string, double> worst2{"", 0.0};
+    std::pair<std::string, double> winv1{"", 0.0};
+    std::pair<std::string, double> winv2{"", 0.0};
 
-  // double diracen(double z, double n, int k, double alpha =
-  // 0.00729735256635);
+    for (const auto &Fa : orbitals) {
+      const auto Fexact = DiracSpinor::exactHlike(Fa.n, Fa.k, grid, Zeff);
+
+      const auto eps1 = std::abs((rhat1.radialIntegral(Fa, Fa) -
+                                  rhat1.radialIntegral(Fexact, Fexact)) /
+                                 rhat1.radialIntegral(Fa, Fa));
+      const auto eps2 = std::abs((rhat2.radialIntegral(Fa, Fa) -
+                                  rhat2.radialIntegral(Fexact, Fexact)) /
+                                 rhat2.radialIntegral(Fa, Fa));
+      const auto inv1 = std::abs((rinv1.radialIntegral(Fa, Fa) -
+                                  rinv1.radialIntegral(Fexact, Fexact)) /
+                                 rinv1.radialIntegral(Fa, Fa));
+      const auto inv2 = std::abs((rinv2.radialIntegral(Fa, Fa) -
+                                  rinv2.radialIntegral(Fexact, Fexact)) /
+                                 rinv2.radialIntegral(Fa, Fa));
+
+      if (eps1 > worst1.second) {
+        worst1.first = Fa.shortSymbol();
+        worst1.second = eps1;
+      }
+      if (eps2 > worst2.second) {
+        worst2.first = Fa.shortSymbol();
+        worst2.second = eps2;
+      }
+      if (inv1 > winv1.second) {
+        winv1.first = Fa.shortSymbol();
+        winv1.second = inv1;
+      }
+      if (inv2 > winv2.second) {
+        winv2.first = Fa.shortSymbol();
+        winv2.second = inv2;
+      }
+    }
+
+    pass &= qip::check_value(&obuff, "<r>    " + worst1.first, worst1.second,
+                             0.0, 1.0e-10);
+    pass &= qip::check_value(&obuff, "<r^2>  " + worst2.first, worst2.second,
+                             0.0, 1.0e-10);
+    pass &= qip::check_value(&obuff, "<r^-1> " + winv1.first, winv1.second, 0.0,
+                             1.0e-10);
+    pass &= qip::check_value(&obuff, "<r^-2> " + winv2.first, winv2.second, 0.0,
+                             1.0e-10);
+  }
 
   return pass;
 }

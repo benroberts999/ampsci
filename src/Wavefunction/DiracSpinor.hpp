@@ -160,6 +160,9 @@ public:
   //! Returns formatted states string (e.g., '7sp5d') given list of orbs
   static std::string state_config(const std::vector<DiracSpinor> &orbs);
 
+  static DiracSpinor exactHlike(int n, int k, std::shared_ptr<const Grid> rgrid,
+                                double zeff, double alpha = 0.0);
+
   DiracSpinor &operator=(const DiracSpinor &);
   DiracSpinor(const DiracSpinor &) = default;
   ~DiracSpinor() = default;

@@ -51,40 +51,40 @@ private:
   using StrongT = StrongType<enumV, BaseT>; // type alias
 
 public:
-  BaseT value;
+  BaseT v;
 
-  explicit constexpr StrongType(BaseT tv) : value(tv) {}
-  explicit constexpr operator BaseT() const { return value; }
-  constexpr BaseT &as_base() { return value; }
-  [[nodiscard]] constexpr BaseT as_base() const { return value; }
+  explicit constexpr StrongType(BaseT tv) : v(tv) {}
+  explicit constexpr operator BaseT() const { return v; }
+  constexpr BaseT &as_base() { return v; }
+  [[nodiscard]] constexpr BaseT as_base() const { return v; }
 
   //! makes 'BaseType' publicly accessible
   using BaseType = BaseT;
 
   //! Provides operators for regular arithmetic operations
   constexpr StrongT &operator*=(const StrongT &rhs) {
-    this->value *= rhs.value;
+    this->v *= rhs.v;
     return *this;
   }
   friend constexpr StrongT operator*(StrongT lhs, const StrongT &rhs) {
     return lhs *= rhs;
   }
   constexpr StrongT &operator/=(const StrongT &rhs) {
-    this->value /= rhs.value;
+    this->v /= rhs.v;
     return *this;
   }
   friend constexpr StrongT operator/(StrongT lhs, const StrongT &rhs) {
     return lhs /= rhs;
   }
   constexpr StrongT &operator+=(const StrongT &rhs) {
-    this->value += rhs.value;
+    this->v += rhs.v;
     return *this;
   }
   friend constexpr StrongT operator+(StrongT lhs, const StrongT &rhs) {
     return lhs += rhs;
   }
   constexpr StrongT &operator-=(const StrongT &rhs) {
-    this->value -= rhs.value;
+    this->v -= rhs.v;
     return *this;
   }
   friend constexpr StrongT operator-(StrongT lhs, const StrongT &rhs) {
@@ -93,7 +93,7 @@ public:
 
   //! Provide Base*Strong, Strong*Base oprators - allow scalar multiplication
   constexpr StrongT &operator*=(const BaseT &rhs) {
-    this->value *= rhs;
+    this->v *= rhs;
     return *this;
   }
   friend constexpr StrongT operator*(StrongT lhs, const BaseT &rhs) {
@@ -107,7 +107,7 @@ public:
   // want. In this case, just be explicit. Base/Strong is not scalar
   // multiplication.
   constexpr StrongT &operator/=(const BaseT &rhs) {
-    this->value /= rhs;
+    this->v /= rhs;
     return *this;
   }
   friend constexpr StrongT operator/(StrongT lhs, const BaseT &rhs) {
@@ -116,7 +116,7 @@ public:
 
   //! Provides pre/post increment/decrement (++, --) operators
   constexpr StrongT &operator++() {
-    ++value;
+    ++v;
     return *this;
   }
   constexpr StrongT operator++(int) {
@@ -125,7 +125,7 @@ public:
     return result;
   }
   constexpr StrongT &operator--() {
-    --value;
+    --v;
     return *this;
   }
   constexpr StrongT operator--(int) {
@@ -136,13 +136,13 @@ public:
 
   //! Provides comparison operators
   friend constexpr bool operator==(const StrongT &lhs, const StrongT &rhs) {
-    return lhs.value == rhs.value;
+    return lhs.v == rhs.v;
   }
   friend constexpr bool operator!=(const StrongT &lhs, const StrongT &rhs) {
     return !(lhs == rhs);
   }
   friend constexpr bool operator<(const StrongT &lhs, const StrongT &rhs) {
-    return lhs.value < rhs.value;
+    return lhs.v < rhs.v;
   }
   friend constexpr bool operator>(const StrongT &lhs, const StrongT &rhs) {
     return rhs < lhs;
@@ -157,48 +157,48 @@ public:
   //! Provides operators for direct comparison w/ BaseT literal (rvalue).
   //! Note: Does not allow comparison with BaseT lvalue
   friend constexpr bool operator==(const StrongT &lhs, const BaseT &&rhs) {
-    return lhs.value == rhs;
+    return lhs.v == rhs;
   }
   friend constexpr bool operator!=(const StrongT &lhs, const BaseT &&rhs) {
-    return lhs.value != rhs;
+    return lhs.v != rhs;
   }
   friend constexpr bool operator<(const StrongT &lhs, const BaseT &&rhs) {
-    return lhs.value < rhs;
+    return lhs.v < rhs;
   }
   friend constexpr bool operator>(const StrongT &lhs, const BaseT &&rhs) {
-    return lhs.value > rhs;
+    return lhs.v > rhs;
   }
   friend constexpr bool operator<=(const StrongT &lhs, const BaseT &&rhs) {
-    return lhs.value <= rhs;
+    return lhs.v <= rhs;
   }
   friend constexpr bool operator>=(const StrongT &lhs, const BaseT &&rhs) {
-    return lhs.value >= rhs;
+    return lhs.v >= rhs;
   }
   friend constexpr bool operator==(const BaseT &&lhs, const StrongT &rhs) {
-    return lhs == rhs.value;
+    return lhs == rhs.v;
   }
   friend constexpr bool operator!=(const BaseT &&lhs, const StrongT &rhs) {
-    return lhs != rhs.value;
+    return lhs != rhs.v;
   }
   friend constexpr bool operator<(const BaseT &&lhs, const StrongT &rhs) {
-    return lhs < rhs.value;
+    return lhs < rhs.v;
   }
   friend constexpr bool operator>(const BaseT &&lhs, const StrongT &rhs) {
-    return lhs > rhs.value;
+    return lhs > rhs.v;
   }
   friend constexpr bool operator<=(const BaseT &&lhs, const StrongT &rhs) {
-    return lhs <= rhs.value;
+    return lhs <= rhs.v;
   }
   friend constexpr bool operator>=(const BaseT &&lhs, const StrongT &rhs) {
-    return lhs >= rhs.value;
+    return lhs >= rhs.v;
   }
 
   //! Provides iostream interface, works as it would for BaseT
   friend std::ostream &operator<<(std::ostream &os, const StrongT &rhs) {
-    return os << rhs.value;
+    return os << rhs.v;
   }
   friend std::istream &operator>>(std::istream &is, StrongT &rhs) {
-    return is >> rhs.value;
+    return is >> rhs.v;
   }
 };
 

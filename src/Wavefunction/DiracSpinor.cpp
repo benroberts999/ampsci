@@ -2,6 +2,8 @@
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/AtomData.hpp"
+#include "Physics/DiracHydrogen.hpp"
+#include "Physics/PhysConst_constants.hpp"
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -284,4 +286,22 @@ DiracSpinor::check_ortho(const std::vector<DiracSpinor> &a,
     }
   }
   return {worst_del, worst_F};
+}
+
+//******************************************************************************
+DiracSpinor DiracSpinor::exactHlike(int n, int k,
+                                    std::shared_ptr<const Grid> rgrid,
+                                    double zeff, double alpha) {
+  if (alpha <= 0.0)
+    alpha = PhysConst::alpha;
+  DiracSpinor Fa(n, k, rgrid);
+  using namespace DiracHydrogen;
+  Fa.en = enk(PrincipalQN(n), DiracQN(k), Zeff(zeff), AlphaFS(alpha));
+  for (std::size_t i = 0; i < rgrid->num_points; ++i) {
+    Fa.f[i] = DiracHydrogen::f(RaB(rgrid->r[i]), PrincipalQN(n), DiracQN(k),
+                               Zeff(zeff), AlphaFS(alpha));
+    Fa.g[i] = DiracHydrogen::g(RaB(rgrid->r[i]), PrincipalQN(n), DiracQN(k),
+                               Zeff(zeff), AlphaFS(alpha));
+  }
+  return Fa;
 }
