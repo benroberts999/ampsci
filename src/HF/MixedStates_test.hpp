@@ -80,6 +80,7 @@ std::pair<Case, Case> MS_loops(const Wavefunction &wf,
 
 //******************************************************************************
 //******************************************************************************
+//! Unit tests Mixed States (TDHF method, solving non-local DE)
 bool MixedStates(std::ostream &obuff) {
   bool passQ = true;
 

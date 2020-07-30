@@ -35,6 +35,7 @@ dV_result(const Wavefunction &wf, const DiracOperator::TensorOperator &h,
 
 //******************************************************************************
 //******************************************************************************
+//! Unit tests External Field (RPA equations using TDHF method)
 bool ExternalField(std::ostream &obuff) {
   bool pass = true;
 

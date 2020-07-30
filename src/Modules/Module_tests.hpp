@@ -6,7 +6,10 @@ class UserInputBlock;
 
 namespace Module {
 
-//! Runs a range of tests (orthonorm, <H>, sum rules etc.) -- see input options
+//! @brief A range of run-time tests (orthonorm, <H>, sum rules etc.) -- see
+//! input options
+//! @details Note: These are run-time tests to ensure input params were OK, not
+//! unit tests! (see unitTests.cpp for unit tests)
 void Module_tests(const IO::UserInputBlock &input, const Wavefunction &wf);
 
 namespace Tests {

@@ -165,6 +165,7 @@ double check_Rkabcd(const std::vector<DiracSpinor> &orbs, int max_del_n = 99) {
 
 //******************************************************************************
 //******************************************************************************
+//! Unit tests for Coulomb integrals (y^k_ab, R^k_abcd, lookup tables etc)
 bool Coulomb(std::ostream &obuff) {
   bool pass = true;
 

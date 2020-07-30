@@ -1,4 +1,5 @@
 #pragma once
+#include "DiracOperator/Operators.hpp"
 #include "Physics/RadiativePotential.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "qip/Check.hpp"
@@ -28,6 +29,7 @@ struct TabIVdata {
 
 //******************************************************************************
 //******************************************************************************
+//! Unit tests for Ginges/Flambaum Radiative potential method
 bool RadPot(std::ostream &obuff) {
   bool pass = true;
 

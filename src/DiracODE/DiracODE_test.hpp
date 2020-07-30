@@ -18,6 +18,7 @@
 namespace UnitTest {
 
 //******************************************************************************
+//! Unit tests for solveing (local) Dirac equation ODE
 bool DiracODE(std::ostream &obuff) {
   bool pass = true;
 

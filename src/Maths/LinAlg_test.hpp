@@ -48,6 +48,7 @@ auto max_matrixel(const LinAlg::ComplexSqMatrix &m) {
 
 //******************************************************************************
 //******************************************************************************
+//! Unit tests for Linear algebra classes/functions (Matrix, eigensystems)
 bool LinAlg(std::ostream &obuff) {
   bool pass = true;
 

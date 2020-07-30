@@ -1,4 +1,5 @@
 #pragma once
+#include "DiracOperator/Operators.hpp"
 #include "Wavefunction/BSplineBasis.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
@@ -11,6 +12,7 @@
 namespace UnitTest {
 
 //******************************************************************************
+//! Unit tests for B-Spline basis (finite basis of relativistic orbitals)
 bool BSplineBasis(std::ostream &obuff) {
   bool pass = true;
 

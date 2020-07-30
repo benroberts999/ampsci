@@ -8,6 +8,7 @@
 #include <tuple>
 
 namespace UnitTest {
+//! Unit tests for Hartree Fock equations (including Breit)
 bool HartreeFock(std::ostream &obuff) {
   bool pass = true;
 

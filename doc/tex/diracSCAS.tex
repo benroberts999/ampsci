@@ -127,10 +127,12 @@
 %\date{\today}
 %\title{}
 
+\def\updatedDate{12 June 2020}
+
 
 \pagestyle{fancy}
 \fancyhead[L]{DiracSCAS: Method}
-\fancyhead[R]{B.\ M.\ Roberts -- \today}
+\fancyhead[R]{B.\ M.\ Roberts -- \updatedDate}
 \begin{document}
 
 %-------------------------------------------------------------------------------
@@ -1621,7 +1623,7 @@ Then, we may express the (energy dependent) second-order correlation potential a
 \right),
 \end{multline}
 which is sometimes called the self-energy operator.
-This has the form of a sum of Green's functions,
+This has the form of a sum of operators,
 \be
 \hat G^{(v)}_{nba}(\en) = \sum_{k}\frac{1}{[k][j_v]}\frac{\ket{Q^{k(v)}_{nba}}\bra{W^{k(v)}_{nba}}}
 {\en+\en_n-\en_b-\en_a},
@@ -1642,13 +1644,13 @@ G^{(v)}_{nba}(r_1,r_2,\en)
 \right].
 \end{multline}
 
-Note that $G$ is a matrix in (radial) spinor space:
+Note that $\Sigma$ is a matrix in (radial) spinor space:
 \be
-G \propto \matr{f_Q(r_1)f_W(r_2)}{f_Q(r_1)g_W(r_2)}{g_Q(r_1)f_W(r_2)}{g_Q(r_1)g_W(r_2)},
+\Sigma \propto \matr{f_Q(r_1)f_W(r_2)}{f_Q(r_1)g_W(r_2)}{g_Q(r_1)f_W(r_2)}{g_Q(r_1)g_W(r_2)},
 \ee
 where $f$ and $g$ are the large and small components of the $Q/W$ radial spinors.
 Each of these four terms can themselves be represented as square matrices (on a radial grid).
-It is common to only calculate the first ($ff$) term; it is also common to store the $G$ matrix on only a subset of the radial grid.
+It is common to only calculate the first ($ff$) term; it is also common to store the $\Sigma$ matrix on only a subset of the radial grid.
 % (using every 4th grid point, for example, leads to 16x fewer points to calculate/store).
 %Note, the inner $y^k_{ab}$ integrals are done using the whole grid!.
 

@@ -92,6 +92,7 @@ double sj_loop(const Angular::SixJ &sj, Angular::SixJ &sj_m) {
 
 //******************************************************************************
 //******************************************************************************
+//! Unit tests for angular functions/classes (threeJ symbols, lookup tables etc)
 bool Angular(std::ostream &obuff) {
   bool pass = true;
 

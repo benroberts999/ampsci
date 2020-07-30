@@ -5,7 +5,6 @@
 [![][doxygen-badge]][docs-url]
 [![][manual-badge]][man-url]
 
-
 Solves the Dirac equation for single-valence atomic systems using the Hartree-Fock + second-order correlation potential method.
 Fully relativistic, includes finite-nuclear size, Breit interaction, QED effects, RPA for matrix elements, and can solve for continuum states (energy normalisation).
 QED corrections included via the Ginges-Flambaum radiative potential method.

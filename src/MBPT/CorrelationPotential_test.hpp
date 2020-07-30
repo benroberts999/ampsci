@@ -11,6 +11,7 @@
 namespace UnitTest {
 
 //******************************************************************************
+//! Unit tests for correlations (second-order MBPT correlation energy/potential)
 bool CorrelationPotential(std::ostream &obuff) {
   bool pass = true;
 

@@ -15,22 +15,50 @@
 #include <iostream>
 #include <string>
 
+/*!
+@brief Units tests for various pieces of the code.
+
+@details
+Each unit test tests a certain piece of the code.
+
+To run the unit tests, compile unitTests (make unitTests), and run from command
+line. It takes an (optional) input file. By default every test is run.
+
+Input options specified as (all are either true or false):
+
+UnitTests{
+  setting = option;
+}
+
+See example input file in doc/unitTests.in.example
+
+Allowed settings: "default", "DiracODE", "HartreeFock", "MixedStates",
+                          "ExternalField", "RadPot", "Angular", "LinAlg",
+                          "BSplineBasis", "Coulomb", "CorrelationPotential"
+
+Set default = true to run all tests except ones specified as false.
+Set default = false to only run tests specifically specified as true.
+
+*/
+namespace UnitTest {
+
 // Vector of available unit tests
 static const std::vector<std::pair<std::string, bool (*)(std::ostream &obuff)>>
     test_list{
         //
-        {"DiracODE", &UnitTest::DiracODE},
-        {"HartreeFock", &UnitTest::HartreeFock},
-        {"MixedStates", &UnitTest::MixedStates},
-        {"ExternalField", &UnitTest::ExternalField},
-        {"RadPot", &UnitTest::RadPot},
-        {"Angular", &UnitTest::Angular},
-        {"LinAlg", &UnitTest::LinAlg},
-        {"BSplineBasis", &UnitTest::BSplineBasis},
-        {"Coulomb", &UnitTest::Coulomb},
-        {"CorrelationPotential", &UnitTest::CorrelationPotential}
+        {"DiracODE", &DiracODE},
+        {"HartreeFock", &HartreeFock},
+        {"MixedStates", &MixedStates},
+        {"ExternalField", &ExternalField},
+        {"RadPot", &RadPot},
+        {"Angular", &Angular},
+        {"LinAlg", &LinAlg},
+        {"BSplineBasis", &BSplineBasis},
+        {"Coulomb", &Coulomb},
+        {"CorrelationPotential", &CorrelationPotential}
         //
     };
+} // namespace UnitTest
 
 int main(int argc, char *argv[]) {
   IO::ChronoTimer timer("\nUnit tests");
@@ -45,13 +73,17 @@ int main(int argc, char *argv[]) {
   out_buff << "diracSCAS test. git:" << IO::git_info() << "\n";
   out_buff << IO::time_date() << "\n";
 
+  input.check("UnitTests", {"default", "DiracODE", "HartreeFock", "MixedStates",
+                            "ExternalField", "RadPot", "Angular", "LinAlg",
+                            "BSplineBasis", "Coulomb", "CorrelationPotential"});
+
   const auto default_tf = input.get("UnitTests", "default", true);
 
   // Run each unit test, count passed/failed
   int passed = 0;
   int failed = 0;
   int total = 0;
-  for (const auto &[name, test] : test_list) {
+  for (const auto &[name, test] : UnitTest::test_list) {
     const auto run = input.get("UnitTests", name, default_tf);
     if (!run)
       continue;
