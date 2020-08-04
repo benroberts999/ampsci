@@ -47,8 +47,8 @@ FeynmanSigma::FeynmanSigma(const HF::HartreeFock *const in_hf,
       atom == "" ? "" : atom + "_" + std::to_string(p_gr->num_points) + ext;
   const bool read_ok = read_write(fname, IO::FRW::read);
 
-  if (en_list.empty())
-    return; //?
+  // if (en_list.empty())
+  //   return; //?
 
   if (!read_ok) {
     std::cout << "Form correlation potential: ";

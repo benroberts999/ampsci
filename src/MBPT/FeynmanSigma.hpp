@@ -1,9 +1,10 @@
 #pragma once
 #include "CorrelationPotential.hpp"
+#include "Maths/Grid.hpp"
 #include <memory>
 #include <string>
 #include <vector>
-class Grid;
+// class Grid;
 namespace HF {
 class HartreeFock;
 }
@@ -30,7 +31,7 @@ public:
 protected:
   void fill_Sigma_k(GMatrix *Sigma, const int kappa, const double en) final;
 
-private:
+public:
   // Calculate "Core" Green fn by direct summation over only core states
   ComplexGMatrix Green_core(int kappa, double en_re, double en_im) const;
   // Calculates "excited" Greens function, by: G_ex = G - G_core

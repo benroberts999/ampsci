@@ -131,7 +131,7 @@ public:
   double SOEnergyShift(const DiracSpinor &Fv, const DiracSpinor &Fw,
                        int max_l = 99) const;
 
-protected:
+public:
   void setup_subGrid(double rmin, double rmax);
 
   // main routine, filles Sigma matrix using basis [Goldstone]

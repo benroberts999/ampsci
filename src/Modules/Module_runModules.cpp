@@ -5,6 +5,7 @@
 #include "Modules/Module_fitParametric.hpp"
 #include "Modules/Module_matrixElements.hpp"
 #include "Modules/Module_pnc.hpp"
+#include "Modules/Module_testFeynman.hpp"
 #include "Modules/Module_tests.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
@@ -31,6 +32,7 @@ static const std::vector<
                 {"HFAnomaly", &HFAnomaly},
                 {"pnc", &calculatePNC},
                 {"polarisability", &polarisability},
+                {"testFeynman", &testFeynman},
                 {"lifetimes", &calculateLifetimes}};
 
 //******************************************************************************
