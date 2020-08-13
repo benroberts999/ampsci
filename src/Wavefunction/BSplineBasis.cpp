@@ -439,4 +439,36 @@ std::vector<double> sumrule_DG(int nDG, const std::vector<DiracSpinor> &basis,
   return result;
 }
 
+std::pair<double, double> r_completeness(const DiracSpinor &Fa,
+                                         const std::vector<DiracSpinor> &basis,
+                                         const Grid &gr) {
+  // <a|a> = sum_n <a|r|n><n|1/r|a> = 1
+  // <a|r^2|a> = sum_n <a|r|n><n|r|a>
+
+  const auto r = gr.r;
+  const auto r2 = gr.rpow(2);
+  const auto rinv = gr.rpow(-1);
+
+  double sum1 = 0.0;
+  double sumr2 = 0.0;
+  const auto sumr2_expect = Fa * (r2 * Fa);
+  for (const auto &Fn : basis) {
+    if (Fn.k != Fa.k)
+      continue;
+    const auto arn = Fa * (r * Fn);
+    const auto nra = arn; // symmetric
+    const auto nrinva = Fn * (rinv * Fa);
+    sum1 += arn * nrinva;
+    sumr2 += arn * nra;
+    // std::cout << Fn.shortSymbol() << " " << sum1 - 1.0 << " .. "
+    //           << (sumr2 - sumr2_expect) / sumr2_expect << "\n";
+  }
+  const auto eps1 = (sum1 - 1.0) / 1.0;
+  const auto epsr2 = (sumr2 - sumr2_expect) / sumr2_expect;
+  // std::cout << Fa.symbol() << ":\n";
+  // std::cout << sum1 << " " << eps1 << "\n";
+  // std::cout << sumr2 << " " << sumr2_expect << " " << epsr2 << "\n";
+  return {eps1, epsr2};
+}
+
 } // namespace SplineBasis
