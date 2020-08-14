@@ -52,8 +52,7 @@ int countNodes(const DiracSpinor &Fn)
 //------------------------------------------------------------------------------
 void basisTests(const Wavefunction &wf) {
 
-  std::cout << "\nTesting basis/spectrum (sum rules):\n";
-  std::cout << "(Must include +ve energy states.)\n";
+  std::cout << "\nTesting basis/spectrum:\n";
 
   const auto &basis = wf.spectrum.empty() ? wf.basis : wf.spectrum;
   if (basis.empty())
@@ -64,30 +63,25 @@ void basisTests(const Wavefunction &wf) {
   else
     std::cout << "Using Basis\n";
 
-  // auto rhat = DiracOperator::E1(*(wf.rgrid));          // vector E1
-  // auto r2hat = DiracOperator::RadialF(*(wf.rgrid), 2); // scalar r^2
+  // // check to see if there are any negative-energy states:
+  // const bool negative_statesQ = std::any_of(
+  //     basis.cbegin(), basis.cend(), [](const auto &Fa) { return Fa.n < 0; });
+
+  // //----------------------------------------------------------------------------
+  // if (negative_statesQ) {
+  //   std::cout << "\nTKR sum rule (should =0)\n";
+  //   SplineBasis::sumrule_TKR(basis, wf.rgrid->r, true);
   //
-  // auto comp_l = [](const auto &Fa, const auto &Fb) { return Fa.l() < Fb.l();
-  // }; auto max_l = std::max_element(basis.begin(), basis.end(), comp_l)->l();
-
-  // check to see if there are any negative-energy states:
-  const bool negative_statesQ = std::any_of(
-      basis.cbegin(), basis.cend(), [](const auto &Fa) { return Fa.n < 0; });
-
-  //----------------------------------------------------------------------------
-  if (negative_statesQ) {
-    std::cout << "\nTKR sum rule (should =0)\n";
-    SplineBasis::sumrule_TKR(basis, wf.rgrid->r, true);
-
-    //----------------------------------------------------------------------------
-    std::cout << "\nDrake-Goldman sum rules: w^n |<a|r|b>|^2  (n=0,1,2)\n";
-    std::cout << "(Only up to lmax-1, since need to have states with l'=l+1)\n";
-
-    int n_max_DG = 3;
-    for (int nDG = 0; nDG < n_max_DG; nDG++) {
-      SplineBasis::sumrule_DG(nDG, basis, *wf.rgrid, wf.alpha, true);
-    }
-  }
+  //   //----------------------------------------------------------------------------
+  //   std::cout << "\nDrake-Goldman sum rules: w^n |<a|r|b>|^2  (n=0,1,2)\n";
+  //   std::cout << "(Only up to lmax-1, since need to have states with
+  //   l'=l+1)\n";
+  //
+  //   int n_max_DG = 3;
+  //   for (int nDG = 0; nDG < n_max_DG; nDG++) {
+  //     SplineBasis::sumrule_DG(nDG, basis, *wf.rgrid, wf.alpha, true);
+  //   }
+  // }
 
   //----------
   const auto isotope = Nuclear::findIsotopeData(wf.Znuc(), wf.Anuc());
@@ -98,7 +92,7 @@ void basisTests(const Wavefunction &wf) {
 
   std::cout << "\nHFS and Energies: Basis cf HF:\n";
   std::cout << "    | A(HF)      Basis      eps   | En(HF)      "
-               "Basis       eps   | nodes\n";
+               "Basis       eps   |\n"; // nodes\n";
   int count = 0;
   for (const auto &Fn : basis) {
     if (Fn.n < 0)
@@ -110,22 +104,31 @@ void basisTests(const Wavefunction &wf) {
     const auto Eb = Fn.en;
     const auto Ehf = hfQ ? hf_phi->en : 0.0;
 
-    const auto nodes = Helper::countNodes(Fn);
-    const int expected_nodes = Fn.n - Fn.l() - 1;
+    // const auto nodes = Helper::countNodes(Fn);
+    // const int expected_nodes = Fn.n - Fn.l() - 1;
 
     if (hfQ) {
       count = 0;
       printf("%4s| %9.3e  %9.3e  %5.0e | ", Fn.shortSymbol().c_str(), Ahf, Ab,
              std::abs((Ahf - Ab) / Ab));
       printf("%10.3e  %10.3e  %5.0e | ", Ehf, Eb, std::abs((Ehf - Eb) / Eb));
-      std::cout << nodes << "/" << expected_nodes << "\n";
     } else {
       count++;
       if (count >= 3)
         continue;
       printf("%4s|    ---     %9.3e   ---  | ", Fn.shortSymbol().c_str(), Ab);
       printf("    ---     %10.3e   ---  | ", Eb);
-      std::cout << nodes << "/" << expected_nodes << "\n";
+    }
+    std::cout /*<< nodes << "/" << expected_nodes*/ << "\n";
+  }
+
+  std::cout << "\nCompleteness test:\n";
+  std::cout << "     <a|r|n><n|1/r|a>  <a|r|n><n|r|a>\n";
+  for (const auto orbs : {&wf.core, &wf.valence}) {
+    for (const auto &Fa : *orbs) {
+      auto [e1, er2] = SplineBasis::r_completeness(Fa, basis, *wf.rgrid);
+      printf("%4s  %10.2e         %10.2e\n", Fa.shortSymbol().c_str(), e1, er2);
+      // std::cout << Fa.shortSymbol() << " " << e1 << " " << er2 << "\n";
     }
   }
 }
@@ -164,7 +167,7 @@ void Module_Tests_orthonormality(const Wavefunction &wf, const bool) {
         continue;
       const auto [eps, str] = DiracSpinor::check_ortho(*orbs[i], *orbs[j]);
       std::cout << names[i] << names[j] << " ";
-      printf("%11s = %.1e\n",str.c_str(),eps);
+      printf("%11s = %.1e\n", str.c_str(), eps);
       // std::cout << std::left << std::setw(11) << str << " = ";
       // std::cout << std::setprecision(1) << std::scientific << eps << "\n";
     }

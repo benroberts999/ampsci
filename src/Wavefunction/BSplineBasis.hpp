@@ -112,4 +112,8 @@ std::vector<double> sumrule_TKR(const std::vector<DiracSpinor> &basis,
 //! Drake-Gordon sum rule (basis test); should =0 (must incl -ve energy states)
 std::vector<double> sumrule_DG(int nDG, const std::vector<DiracSpinor> &basis,
                                const Grid &gr, double alpha, bool print);
+
+std::pair<double, double> r_completeness(const DiracSpinor &Fv,
+                                         const std::vector<DiracSpinor> &basis,
+                                         const Grid &gr);
 } // namespace SplineBasis
