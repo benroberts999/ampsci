@@ -163,6 +163,10 @@ public:
   static DiracSpinor exactHlike(int n, int k, std::shared_ptr<const Grid> rgrid,
                                 double zeff, double alpha = 0.0);
 
+  static int max_tj(const std::vector<DiracSpinor> &orbs);
+  static int max_l(const std::vector<DiracSpinor> &orbs);
+  static int max_kindex(const std::vector<DiracSpinor> &orbs);
+
   DiracSpinor &operator=(const DiracSpinor &);
   DiracSpinor(const DiracSpinor &) = default;
   ~DiracSpinor() = default;

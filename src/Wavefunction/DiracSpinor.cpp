@@ -116,6 +116,10 @@ int DiracSpinor::num_electrons() const {
 }
 
 //******************************************************************************
+double DiracSpinor::r0() const { return rgrid->r[p0]; }
+double DiracSpinor::rinf() const { return rgrid->r[pinf - 1]; }
+
+//******************************************************************************
 //******************************************************************************
 double operator*(const DiracSpinor &lhs, const DiracSpinor &rhs) {
   // Note: ONLY radial part ("F" radial spinor)
@@ -262,9 +266,25 @@ std::string DiracSpinor::state_config(const std::vector<DiracSpinor> &orbs) {
 
   return result;
 }
+
 //******************************************************************************
-double DiracSpinor::r0() const { return rgrid->r[p0]; }
-double DiracSpinor::rinf() const { return rgrid->r[pinf - 1]; }
+// static
+int DiracSpinor::max_tj(const std::vector<DiracSpinor> &orbs) {
+  return orbs.empty()
+             ? 0
+             : std::max_element(cbegin(orbs), cend(orbs), comp_j)->twoj();
+}
+// static
+int DiracSpinor::max_l(const std::vector<DiracSpinor> &orbs) {
+  return orbs.empty() ? 0
+                      : std::max_element(cbegin(orbs), cend(orbs), comp_l)->l();
+}
+// static
+int DiracSpinor::max_kindex(const std::vector<DiracSpinor> &orbs) {
+  return orbs.empty()
+             ? 0
+             : std::max_element(cbegin(orbs), cend(orbs), comp_ki)->k_index();
+}
 
 //******************************************************************************
 std::pair<double, std::string>

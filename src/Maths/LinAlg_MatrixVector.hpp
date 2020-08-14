@@ -80,6 +80,15 @@ public:
   //! Prints Matrix to screen (for tests)
   void print() const;
 
+  void fill_symmetric_lower() {
+    // Assumes Matrix m[i][j] is full for j<=i
+    for (auto i = 0ul; i < n; ++i) {
+      for (auto j = i + 1; j < n; ++j) {
+        (*this)[i][j] = (*this)[j][i];
+      }
+    }
+  }
+
   //! Checks each element for any NaNs
   void checkNaN() const;
 
@@ -246,6 +255,16 @@ public:
   ComplexSqMatrix &invert();
   //! Returns the inverce of matrix: not destructive
   [[nodiscard]] ComplexSqMatrix inverse() const;
+
+  void fill_symmetric_lower() {
+    // Assumes Matrix m[i][j] is full for j<=i
+    for (auto i = 0ul; i < n; ++i) {
+      for (auto j = i + 1; j < n; ++j) {
+        (*this)[i][j] = (*this)[j][i];
+        gsl_matrix_complex_set(m, i, j, gsl_matrix_complex_get(m, j, i));
+      }
+    }
+  }
 
   //! make a ComplexSqMatrix from a SqMatrix: C = x*mR, x is complex
   static ComplexSqMatrix make_complex(const ComplexDouble &x,
