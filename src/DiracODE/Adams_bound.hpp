@@ -1,5 +1,6 @@
 #pragma once
 #include "Adams_coefs.hpp"
+#include <utility>
 #include <vector>
 class DiracSpinor;
 class Grid;
@@ -20,7 +21,7 @@ constexpr int d_ctp = 4;          // Num points past ctp +/- d_ctp.
 // order of the expansion coeficients in 'inwardAM'  (15 orig.)
 constexpr int nx = 15;
 // convergance for expansion in `inwardAM'' (10^-8)
-constexpr double nx_eps = 1.e-14;
+constexpr double nx_eps = 1.e-12;
 // # of outdir runs [finds first Param::num_loops*AMO+1 points (3)]
 constexpr int num_loops = 1;
 
@@ -30,9 +31,8 @@ constexpr auto weight = [](const int i) {
   return 1.0 / static_cast<double>(i * i + 1);
 };
 
-static_assert(
-    Param::AMO >= 5 && Param::AMO <= 8,
-    "\nFAIL 8 in Adams (.h): parameter AMO must be between 5 and 8\n");
+static_assert(Param::AMO >= 5 && Param::AMO <= 8,
+              "\nFAIL 8 in Adams: parameter AMO must be between 5 and 8\n");
 
 } // namespace Param
 
@@ -50,13 +50,18 @@ public:
   const std::vector<double> *const v;
   const std::vector<double> *const Hmag;
   const int k;
-  const double en, alpha, c2;
+  const double en, alpha, cc;
 
   // update a and d for off-diag additional potential (magnetic form-fac, QED)
   double a(std::size_t i) const;
   double b(std::size_t i) const;
   double c(std::size_t i) const;
   double d(std::size_t i) const;
+  std::tuple<double, double, double, double> abcd(std::size_t i) const;
+  double dfdu(const std::vector<double> &f, const std::vector<double> &g,
+              std::size_t i) const;
+  double dgdu(const std::vector<double> &f, const std::vector<double> &g,
+              std::size_t i) const;
 };
 
 struct TrackEnGuess {
@@ -87,10 +92,6 @@ int countNodes(const std::vector<double> &f, const int maxi);
 // c++17: could use structured binding, move in/outs to returns
 void largeEnergyChange(double *en, TrackEnGuess *sofar, double frac_de,
                        bool toomany_nodes);
-
-double calcNorm(const std::vector<double> &f, const std::vector<double> &g,
-                const std::vector<double> &drdt, const double h,
-                const int pinf);
 
 double smallEnergyChangePT(const double en, const double anorm,
                            const std::vector<double> &f,
