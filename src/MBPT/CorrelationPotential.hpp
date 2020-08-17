@@ -107,6 +107,8 @@ public:
   double SOEnergyShift(const DiracSpinor &Fv, const DiracSpinor &Fw,
                        int max_l = 99) const;
 
+  int maxk() const { return m_maxk; }
+
 public:
   void setup_subGrid(double rmin, double rmax);
 
@@ -120,6 +122,8 @@ public:
 
   // Acts Sigma (G) matrix onto Fv. Interpolates from sub-grid
   DiracSpinor Sigma_G_Fv(const GMatrix &Gmat, const DiracSpinor &Fv) const;
+  double Sigma_G_Fv_2(const DiracSpinor &Fa, const GMatrix &Gmat,
+                      const DiracSpinor &Fb) const;
 
   // Read and writes Sigma (G) matrix to file
   bool read_write(const std::string &fname, IO::FRW::RoW rw);

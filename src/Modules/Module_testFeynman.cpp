@@ -1,6 +1,8 @@
 #include "Modules/Module_testFeynman.hpp"
+#include "Coulomb/Coulomb.hpp"
 #include "IO/UserInput.hpp"
 #include "MBPT/FeynmanSigma.hpp"
+#include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include <iostream>
@@ -31,6 +33,64 @@ void testFeynman(const IO::UserInputBlock &input, const Wavefunction &wf) {
   const MBPT::FeynmanSigma Sigma(wf.getHF(), wf.basis, sigp, gridp, {}, "NA");
 
   std::cout << "\n***********************************\n\n";
+
+  //----------------------------------------------------------------------------
+  // Just for testing Vx matrix.
+  std::cout << "Test Vx matirx (also, q^k):\n";
+  {
+    double worst = 0.0;
+    const DiracSpinor *Fworst = &wf.core.front();
+    for (const auto orbs : {&wf.core, &wf.valence}) {
+      for (const auto &a : *orbs) {
+        const auto &Vx = Sigma.get_Vx_kappa(a.k);
+        const auto vxmat = Sigma.Sigma_G_Fv_2(a, Vx, a);
+        const auto vxhf = a * (wf.getHF()->calc_vexFa(a));
+        const auto eps = std::abs((vxmat - vxhf) / vxhf);
+        if (eps > worst) {
+          worst = eps;
+          Fworst = &a;
+        }
+        printf("%4s %.4e %.4e | %.1e\n", a.shortSymbol().c_str(), vxmat, vxhf,
+               eps);
+      }
+    }
+    std::cout << "Worst: " << Fworst->symbol() << " eps=" << worst << "\n";
+  }
+  std::cout << "\n";
+  std::cin.get();
+
+  //----------------------------------------------------------------------------
+  // Just for testing Vx matrix.
+  std::cout << "Test Q matirx: <aa|q^k|aa> = R^k_aaaa\n";
+  {
+    for (const auto orbs : {&wf.core, &wf.valence}) {
+      for (const auto &a : *orbs) {
+        double worst = 0.0;
+        int worstk = -1;
+        for (int k = 0; k <= Sigma.maxk(); ++k) {
+
+          const auto &qk = Sigma.get_qk(k);
+          const auto aQa =
+              (Sigma.G_single(a, a, 1.0)).mult_elements_by(qk).get_real();
+          const auto q_aa = Sigma.Sigma_G_Fv_2(a, aQa, a);
+          const auto Rk = Coulomb::Rk_abcd(a, a, a, a, k);
+          const auto eps = std::abs((q_aa - Rk) / Rk);
+          if (eps > worst) {
+            worst = eps;
+            worstk = k;
+          }
+
+          printf("k=%2i %4s %.4e %.4e | %.1e\n", k, a.shortSymbol().c_str(),
+                 q_aa, Rk, eps);
+        }
+
+        std::cout << "Worst (" << a.shortSymbol() << ") : k=" << worstk
+                  << " eps=" << worst << "\n\n";
+      }
+    }
+  }
+  std::cout << "\n";
+  std::cin.get();
 
   //----------------------------------------------------------------------------
   std::cout << "Testing Gr(ev + w)\n";
@@ -107,23 +167,6 @@ void testFeynman(const IO::UserInputBlock &input, const Wavefunction &wf) {
         7.2 Maybe pi(e) = \int (dw/2pi) G(w)*G(w+e)
 
   */
-
-  // // Just for testing Vx matrix.
-  // for (const auto &a : core) {
-  //   if (a.k != kappa)
-  //     continue;
-  //   double vxmat = 0.0;
-  //   for (auto i = 0ul; i < m_subgrid_points; i++) {
-  //     const auto si = ri_subToFull(i);
-  //     for (auto j = 0ul; j < m_subgrid_points; j++) {
-  //       const auto sj = ri_subToFull(j);
-  //       vxmat += a.f[si] * Vx.ff[i][j] * a.f[sj]; // * double(m_stride);
-  //     }
-  //   }
-  //   auto vxhf = a * (p_hf->calc_vexFa_core(a));
-  //   std::cout << a.symbol() << " " << vxmat << " " << vxhf << "\n";
-  // }
-  // std::cin.get();
 
   // //------------------------------------------------------------------------------
   // void FeynmanSigma::sumPol(const ComplexGMatrix &pi_aA) const {

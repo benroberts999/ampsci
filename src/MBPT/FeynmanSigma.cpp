@@ -11,6 +11,7 @@
 #include "Maths/Grid.hpp"
 #include "Maths/LinAlg_MatrixVector.hpp"
 #include <algorithm>
+#include <cassert>
 #include <numeric>
 
 //! Many-body perturbation theory
@@ -61,6 +62,18 @@ FeynmanSigma::FeynmanSigma(const HF::HartreeFock *const in_hf,
       std::cout << "(Including FG/GF and GG)\n";
     form_Sigma(en_list, fname);
   }
+}
+
+//******************************************************************************
+const GMatrix &FeynmanSigma::get_Vx_kappa(int kappa) const {
+  const auto kappa_index = std::size_t(Angular::indexFromKappa(kappa));
+  assert(kappa_index < m_Vxk.size());
+  return m_Vxk[kappa_index];
+}
+
+const ComplexGMatrix &FeynmanSigma::get_qk(int k) const {
+  assert(std::size_t(k) < m_qhat.size());
+  return m_qhat[std::size_t(k)];
 }
 
 //******************************************************************************

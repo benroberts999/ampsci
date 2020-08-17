@@ -123,6 +123,7 @@ DiracSpinor CorrelationPotential::Sigma_G_Fv(const GMatrix &Gmat,
   // nb: G is on sub-grid, |v> and S|v> on full-grid. Use interpolation
 
   const auto ki = std::size_t(Fv.k_index());
+  // XXX NOTE: ONLY LAMBDA WHEN Gmat IS SIGMA !!!
   const auto lambda = ki >= m_lambda_kappa.size() ? 1.0 : m_lambda_kappa[ki];
 
   const auto &gr = *(Fv.rgrid);
@@ -159,6 +160,37 @@ DiracSpinor CorrelationPotential::Sigma_G_Fv(const GMatrix &Gmat,
 
   return SigmaFv;
 }
+
+//******************************************************************************
+double CorrelationPotential::Sigma_G_Fv_2(const DiracSpinor &Fa,
+                                          const GMatrix &Gmat,
+                                          const DiracSpinor &Fb) const {
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
+  // Dores not include Jacobian (assumed already in Gmat)
+
+  auto aGb = 0.0;
+  for (auto i = 0ul; i < m_subgrid_points; ++i) {
+    const auto si = ri_subToFull(i);
+    for (auto j = 0ul; j < m_subgrid_points; ++j) {
+      const auto sj = ri_subToFull(j);
+      aGb += Fa.f[si] * Gmat.ff[i][j] * Fb.f[sj];
+    }
+  }
+
+  if (m_include_G) {
+    for (auto i = 0ul; i < m_subgrid_points; ++i) {
+      const auto si = ri_subToFull(i);
+      for (auto j = 0ul; j < m_subgrid_points; ++j) {
+        const auto sj = ri_subToFull(j);
+        aGb += Fa.f[si] * Gmat.fg[i][j] * Fb.g[sj];
+        aGb += Fa.g[si] * Gmat.gf[i][j] * Fb.f[sj];
+        aGb += Fa.g[si] * Gmat.gg[i][j] * Fb.g[sj];
+      }
+    }
+  }
+
+  return aGb;
+} // namespace MBPT
 
 //******************************************************************************
 void CorrelationPotential::form_Sigma(const std::vector<double> &en_list,

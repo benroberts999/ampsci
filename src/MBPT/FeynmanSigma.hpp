@@ -51,17 +51,14 @@ public:
                               GrMethod method = GrMethod::basis) const;
 
   //! Returns (reference to) q^k (radial) matrix. Note: includes dri*drj
-  const ComplexGMatrix &get_qk(int k) const { return m_qhat[std::size_t(k)]; }
+  const ComplexGMatrix &get_qk(int k) const;
 
   //! Screens Coulomb: q_scr = q * [1-pi*q]^-1
   ComplexGMatrix screenedCoulomb(const ComplexGMatrix &q,
                                  const ComplexGMatrix &pi) const;
 
   //! Returns (ref to) radial exchange matrix Vx_kappa. Nb: includes dri*drj
-  const GMatrix &get_Vx_kappa(int kappa) const {
-    const auto kappa_index = std::size_t(Angular::indexFromKappa(kappa));
-    return m_Vxk[kappa_index];
-  }
+  const GMatrix &get_Vx_kappa(int kappa) const;
 
   const ComplexGMatrix &get_dri() const { return *m_dri; }
   const ComplexGMatrix &get_drj() const { return *m_drj; }
@@ -70,6 +67,10 @@ public:
   GMatrix FeynmanDirect(int kv, double env);
   //! Calculates exchange Sigma using Feynman method [w_1 version]
   GMatrix FeynmanEx_1(int kv, double env);
+
+  // Contructs G_a Green-like fn for single state: returns f*|ket><bra|
+  ComplexGMatrix G_single(const DiracSpinor &ket, const DiracSpinor &bra,
+                          const ComplexDouble f) const;
 
 private:
   // Calculates initial data needed for Feynman (|a><a|, w grids etc)
@@ -101,9 +102,6 @@ private:
   GMatrix MakeGreensG0(const DiracSpinor &x0, const DiracSpinor &xI,
                        const double w) const;
 
-  // Contructs G_a Green-like fn for single state: returns f*|ket><bra|
-  ComplexGMatrix G_single(const DiracSpinor &ket, const DiracSpinor &bra,
-                          const ComplexDouble f) const;
   // Takes a G(e) and de_r, de_i, returns G(e + de_r + i*de_i) - needs testing
   ComplexGMatrix GreenAtComplexShift(const ComplexGMatrix &Gr, double de_re,
                                      double om_imag) const;
