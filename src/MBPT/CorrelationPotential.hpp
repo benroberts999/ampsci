@@ -140,10 +140,12 @@ public:
   copy_excited(const std::vector<DiracSpinor> &basis,
                const std::vector<DiracSpinor> &core) const;
 
-protected:
+public:
   std::shared_ptr<const Grid> p_gr;
   // occupied (holes) and excited (virtual) states. Holes includes from n>=nmin
   const std::vector<DiracSpinor> m_holes, m_excited;
+
+protected:
   // Coulumb Y^k_eh (excited, holes) table (includes C^k)
   Coulomb::YkTable m_yeh;
   // maximum multipolarity, k, = 2*max(j) {max 2*j in core/basis}

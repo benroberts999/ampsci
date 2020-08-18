@@ -34,6 +34,53 @@ void testFeynman(const IO::UserInputBlock &input, const Wavefunction &wf) {
 
   std::cout << "\n***********************************\n\n";
 
+  // this is just to check Pol.
+  // Should be zero?
+  std::cout << "Testing polarisation operator, Int[ pi(1,2) d1 d2]:\n";
+  std::cout << "ka kA   Int(pi)      Expected     eps\n";
+  for (const auto ka : {-1, 1, -2, 2, -3}) {
+    for (const auto kA : {-1, 1, -2, 2, -3}) {
+      // std::cout << "ka=" << ka << " kalpha=" << kA << "\n";
+      auto pi_aA = Sigma.Polarisation(ka, kA, omre, 0.0, MBPT::GrMethod::basis);
+      // auto rePi = pi_aA.get_real();
+      auto imPi = pi_aA.get_imaginary();
+      // double sum_re = 0.0;
+      double sum_im = 0.0;
+      for (auto i = 0ul; i < pi_aA.size; ++i) {
+        const auto dri = Sigma.dr_subToFull(i);
+        for (auto j = 0ul; j < pi_aA.size; ++j) {
+          const auto drj = Sigma.dr_subToFull(j);
+          // sum_re += rePi.ff[i][j] * dri * drj;
+          sum_im += imPi.ff[i][j] * dri * drj;
+        }
+      }
+      // std::cout << "Int(Pi) = " << sum_im << "\n";
+      // std::cout << sum_re << " + " << sum_im << "i\n";
+
+      double expected = 0.0;
+      for (const auto &Fa : Sigma.m_holes) {
+        if (Fa.k != ka)
+          continue;
+        for (const auto &FA : Sigma.m_excited) {
+          if (FA.k != kA)
+            continue;
+          const auto me = (Fa * FA);
+          const auto eaA = (Fa.en - FA.en);
+          const auto denom = eaA * eaA - omre * omre; // add imag!
+          expected += me * me * 2.0 * eaA / denom;
+        }
+      }
+      const auto eps = std::abs((sum_im - expected) / (expected + sum_im));
+
+      printf("%2i %2i| %11.4e  %11.4e  %7.1e", ka, kA, sum_im, expected, eps);
+      if ((eps > 1.0e-3 && std::abs(expected) > 1.0e-6) ||
+          (std::abs(expected) < 1.0e-6 && std::abs(sum_im) > 1.0e-3))
+        std::cout << " ** ";
+      std::cout << "\n";
+    }
+  }
+  std::cin.get();
+
   //----------------------------------------------------------------------------
   // Just for testing Vx matrix.
   std::cout << "Test Vx matirx (also, q^k):\n";
@@ -57,13 +104,12 @@ void testFeynman(const IO::UserInputBlock &input, const Wavefunction &wf) {
     std::cout << "Worst: " << Fworst->symbol() << " eps=" << worst << "\n";
   }
   std::cout << "\n";
-  std::cin.get();
 
   //----------------------------------------------------------------------------
   // Just for testing Vx matrix.
   std::cout << "Test Q matirx: <aa|q^k|aa> = R^k_aaaa\n";
   {
-    for (const auto orbs : {&wf.core, &wf.valence}) {
+    for (const auto orbs : {/*&wf.core,*/ &wf.valence}) {
       for (const auto &a : *orbs) {
         double worst = 0.0;
         int worstk = -1;
