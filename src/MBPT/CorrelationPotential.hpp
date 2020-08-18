@@ -14,32 +14,7 @@ class HartreeFock;
 namespace MBPT {
 
 //******************************************************************************
-// Helper function:
-inline int find_max_tj(const std::vector<DiracSpinor> &core,
-                       const std::vector<DiracSpinor> &excited) {
-  // returns maximum value of 2*j in {core,excited}
-  auto maxtj1 = core.empty() ? 0
-                             : std::max_element(core.cbegin(), core.cend(),
-                                                DiracSpinor::comp_j)
-                                   ->twoj();
-  auto maxtj2 = excited.empty()
-                    ? 0
-                    : std::max_element(excited.cbegin(), excited.cend(),
-                                       DiracSpinor::comp_j)
-                          ->twoj();
-  return std::max(maxtj1, maxtj2);
-}
-inline int find_max_l(const std::vector<DiracSpinor> &orbs) {
-  return orbs.empty()
-             ? 0
-             : std::max_element(orbs.cbegin(), orbs.cend(), DiracSpinor::comp_l)
-                   ->l();
-}
-//******************************************************************************
-
-// using GMatrix = GreenMatrix<LinAlg::SqMatrix>;
-// using ComplexGMatrix = GreenMatrix<LinAlg::ComplexSqMatrix>;
-// using ComplexDouble = LinAlg::ComplexDouble;
+// Helper classes (store parameters):
 
 enum class Method { Goldstone, Feynman };
 
@@ -52,6 +27,7 @@ struct Sigma_params {
   bool PolBasis;
   double real_omega;
   bool screenCoulomb;
+  bool include_G;
 };
 
 struct rgrid_params {
@@ -131,20 +107,23 @@ public:
   double SOEnergyShift(const DiracSpinor &Fv, const DiracSpinor &Fw,
                        int max_l = 99) const;
 
-protected:
+  int maxk() const { return m_maxk; }
+
+public:
   void setup_subGrid(double rmin, double rmax);
 
   // main routine, filles Sigma matrix using basis [Goldstone]
   virtual void fill_Sigma_k(GMatrix *Gmat, const int kappa,
                             const double en) = 0;
-  // Fills Sigma matrix using Feynman technique
-  // void fill_Sigma_k_Feyn(GMatrix *Gmat, const int kappa, const double en);
+
   // Adds new |ket><bra| term to G; uses sub-grid
   void addto_G(GMatrix *Gmat, const DiracSpinor &ket, const DiracSpinor &bra,
                const double f = 1.0) const;
 
   // Acts Sigma (G) matrix onto Fv. Interpolates from sub-grid
   DiracSpinor Sigma_G_Fv(const GMatrix &Gmat, const DiracSpinor &Fv) const;
+  double Sigma_G_Fv_2(const DiracSpinor &Fa, const GMatrix &Gmat,
+                      const DiracSpinor &Fb) const;
 
   // Read and writes Sigma (G) matrix to file
   bool read_write(const std::string &fname, IO::FRW::RoW rw);
@@ -161,10 +140,12 @@ protected:
   copy_excited(const std::vector<DiracSpinor> &basis,
                const std::vector<DiracSpinor> &core) const;
 
-protected:
+public:
   std::shared_ptr<const Grid> p_gr;
   // occupied (holes) and excited (virtual) states. Holes includes from n>=nmin
   const std::vector<DiracSpinor> m_holes, m_excited;
+
+protected:
   // Coulumb Y^k_eh (excited, holes) table (includes C^k)
   Coulomb::YkTable m_yeh;
   // maximum multipolarity, k, = 2*max(j) {max 2*j in core/basis}
@@ -188,7 +169,7 @@ protected:
   std::vector<double> m_lambda_kappa{};
 
   // Options for sub-grid, and which matrices to include
-  static constexpr bool m_include_G = false;
+  const bool m_include_G;
 };
 
 } // namespace MBPT

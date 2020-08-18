@@ -135,7 +135,7 @@ std::vector<UserInputBlock> UserInput::module_list() const {
 
 //******************************************************************************
 void UserInput::print() const {
-  std::cout << "diracSCAS git:" << git_info() << "\n";
+  // std::cout << "diracSCAS git:" << git_info() << "\n";
   std::cout << time_date() << '\n';
   for (const auto &block : m_blocks) {
     block.print();

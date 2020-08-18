@@ -1,5 +1,4 @@
 #pragma once
-// #include "IO/FRW_fileReadWrite.hpp"
 #include <chrono>
 #include <ctime>
 #include <iostream>
@@ -19,21 +18,6 @@ inline void print_line(const char c = '*', const int num = 80) {
     std::cout << c;
   std::cout << "\n";
 }
-
-//******************************************************************************
-// Macro: takes pre-processor macro that may be defined via compile argument
-// GITVERSION is the macro, set to the git short hash; specifies the git version
-namespace hidden {
-#define MACRO_XSTR(s) MACRO_STR(s)
-#define MACRO_STR(s) #s
-#ifdef GITVERSION
-static const char *git_version = MACRO_XSTR(GITVERSION);
-#else
-static const char *git_version = "0";
-#endif
-} // namespace hidden
-
-inline std::string_view git_info() { return hidden::git_version; }
 
 //******************************************************************************
 inline std::string time_date() {

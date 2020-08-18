@@ -1,6 +1,7 @@
 /*
 !src/
 src/*~
+src/git.info
 !build/
 build/*
 !build/*.mk

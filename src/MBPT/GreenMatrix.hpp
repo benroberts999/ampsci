@@ -168,7 +168,7 @@ public:
   GreenMatrix<T> &invert() {
     ff.invert();
     if (m_include_G) {
-      std::cout << "\n XXX \n Warning: Inversion not tesed!\n";
+      // std::cout << "\n XXX \n Warning: Inversion not tesed!\n";
       const auto &ai = ff; // already inverted
       const auto &b = fg;
       const auto &c = gf;
@@ -193,6 +193,34 @@ public:
     auto out = *this; //
     return out.invert();
   }
+
+  auto max_el() const {
+    double maxre = 0.0;
+    double maxim = 0.0;
+    for (std::size_t i = 0; i < size; ++i) {
+      for (std::size_t j = 0; j < size; ++j) {
+        const auto [re, im] = LinAlg::ComplexDouble(ff[i][j]).unpack();
+        if (std::abs(re) > std::abs(maxre))
+          maxre = re;
+        if (std::abs(im) > std::abs(maxim))
+          maxim = im;
+      }
+    }
+    if (m_include_G) {
+      for (const auto tmp : {&fg, &gf, &gg}) {
+        for (std::size_t i = 0; i < G_size; ++i) {
+          for (std::size_t j = 0; j < G_size; ++j) {
+            const auto [re, im] = LinAlg::ComplexDouble((*tmp)[i][j]).unpack();
+            if (std::abs(re) > std::abs(maxre))
+              maxre = re;
+            if (std::abs(im) > std::abs(maxim))
+              maxim = im;
+          }
+        }
+      }
+    }
+    return std::pair{maxre, maxim};
+  };
 
   //! Multiply elements (in place): Gij -> Gij*Bij
   GreenMatrix<T> &mult_elements_by(const GreenMatrix<T> &rhs) {

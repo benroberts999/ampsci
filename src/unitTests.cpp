@@ -4,13 +4,13 @@
 #include "HF/ExternalField_test.hpp"
 #include "HF/HartreeFock_test.hpp"
 #include "HF/MixedStates_test.hpp"
+#include "IO/ChronoTimer.hpp"
+#include "IO/UserInput.hpp"
 #include "MBPT/CorrelationPotential_test.hpp"
 #include "Maths/LinAlg_test.hpp"
 #include "Physics/RadPot_test.hpp"
 #include "Wavefunction/BSplineBasis_test.hpp"
-//
-#include "IO/ChronoTimer.hpp"
-#include "IO/UserInput.hpp"
+#include "git.info"
 #include <cassert>
 #include <iostream>
 #include <string>
@@ -70,7 +70,8 @@ int main(int argc, char *argv[]) {
   const IO::UserInput input(input_file);
 
   std::ostringstream out_buff;
-  out_buff << "diracSCAS test. git:" << IO::git_info() << "\n";
+  // out_buff << "diracSCAS test. git:" << IO::git_info() << "\n";
+  out_buff << "diracSCAS test. git:" << GitInfo::gitversion << "\n";
   out_buff << IO::time_date() << "\n";
 
   input.check("UnitTests", {"default", "DiracODE", "HartreeFock", "MixedStates",

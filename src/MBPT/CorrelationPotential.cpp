@@ -28,9 +28,11 @@ CorrelationPotential::CorrelationPotential(
       m_holes(copy_holes(basis, in_hf->get_core(), sigp.min_n_core)),
       m_excited(copy_excited(basis, in_hf->get_core())),
       m_yeh(p_gr, &m_excited, &m_holes),
-      m_maxk(find_max_tj(in_hf->get_core(), basis)),
+      m_maxk(std::max(DiracSpinor::max_tj(in_hf->get_core()),
+                      DiracSpinor::max_tj(basis))),
       m_6j(m_maxk, m_maxk),
-      m_stride(subgridp.stride) {
+      m_stride(subgridp.stride),
+      m_include_G(sigp.include_G) {
   setup_subGrid(subgridp.r0, subgridp.rmax);
 }
 
@@ -95,13 +97,20 @@ void CorrelationPotential::addto_G(GMatrix *Gmat, const DiracSpinor &ket,
     for (auto j = 0ul; j < m_subgrid_points; ++j) {
       const auto sj = ri_subToFull(j);
       Gmat->ff[i][j] += f * ket.f[si] * bra.f[sj];
-      if constexpr (m_include_G) {
+    } // j
+  }   // i
+
+  if (m_include_G) {
+    for (auto i = 0ul; i < m_subgrid_points; ++i) {
+      const auto si = ri_subToFull(i);
+      for (auto j = 0ul; j < m_subgrid_points; ++j) {
+        const auto sj = ri_subToFull(j);
         Gmat->fg[i][j] += f * ket.f[si] * bra.g[sj];
         Gmat->gf[i][j] += f * ket.g[si] * bra.f[sj];
         Gmat->gg[i][j] += f * ket.g[si] * bra.g[sj];
-      }
-    } // j
-  }   // i
+      } // j
+    }   // i
+  }
 }
 
 //******************************************************************************
@@ -114,36 +123,74 @@ DiracSpinor CorrelationPotential::Sigma_G_Fv(const GMatrix &Gmat,
   // nb: G is on sub-grid, |v> and S|v> on full-grid. Use interpolation
 
   const auto ki = std::size_t(Fv.k_index());
+  // XXX NOTE: ONLY LAMBDA WHEN Gmat IS SIGMA !!!
   const auto lambda = ki >= m_lambda_kappa.size() ? 1.0 : m_lambda_kappa[ki];
 
   const auto &gr = *(Fv.rgrid);
   auto SigmaFv = DiracSpinor(0, Fv.k, Fv.rgrid);
   std::vector<double> f(m_subgrid_r.size());
   std::vector<double> g;
-  if constexpr (m_include_G) {
-    g.resize(m_subgrid_r.size());
-  }
+
   for (auto i = 0ul; i < m_subgrid_points; ++i) {
     for (auto j = 0ul; j < m_subgrid_points; ++j) {
       const auto sj = ri_subToFull(j);
       const auto dr = gr.drdu[sj] * gr.du * double(m_stride);
       f[i] += Gmat.ff[i][j] * Fv.f[sj] * dr * lambda;
+    }
+  }
 
-      if constexpr (m_include_G) {
+  if (m_include_G) {
+    g.resize(m_subgrid_r.size());
+    for (auto i = 0ul; i < m_subgrid_points; ++i) {
+      for (auto j = 0ul; j < m_subgrid_points; ++j) {
+        const auto sj = ri_subToFull(j);
+        const auto dr = gr.drdu[sj] * gr.du * double(m_stride);
         f[i] += Gmat.fg[i][j] * Fv.g[sj] * dr * lambda;
         g[i] += Gmat.gf[i][j] * Fv.f[sj] * dr * lambda;
         g[i] += Gmat.gg[i][j] * Fv.g[sj] * dr * lambda;
       }
     }
   }
+
   // Interpolate from sub-grid to full grid
   SigmaFv.f = Interpolator::interpolate(m_subgrid_r, f, gr.r);
-  if constexpr (m_include_G) {
+  if (m_include_G) {
     SigmaFv.g = Interpolator::interpolate(m_subgrid_r, g, gr.r);
   }
 
   return SigmaFv;
 }
+
+//******************************************************************************
+double CorrelationPotential::Sigma_G_Fv_2(const DiracSpinor &Fa,
+                                          const GMatrix &Gmat,
+                                          const DiracSpinor &Fb) const {
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
+  // Dores not include Jacobian (assumed already in Gmat)
+
+  auto aGb = 0.0;
+  for (auto i = 0ul; i < m_subgrid_points; ++i) {
+    const auto si = ri_subToFull(i);
+    for (auto j = 0ul; j < m_subgrid_points; ++j) {
+      const auto sj = ri_subToFull(j);
+      aGb += Fa.f[si] * Gmat.ff[i][j] * Fb.f[sj];
+    }
+  }
+
+  if (m_include_G) {
+    for (auto i = 0ul; i < m_subgrid_points; ++i) {
+      const auto si = ri_subToFull(i);
+      for (auto j = 0ul; j < m_subgrid_points; ++j) {
+        const auto sj = ri_subToFull(j);
+        aGb += Fa.f[si] * Gmat.fg[i][j] * Fb.g[sj];
+        aGb += Fa.g[si] * Gmat.gf[i][j] * Fb.f[sj];
+        aGb += Fa.g[si] * Gmat.gg[i][j] * Fb.g[sj];
+      }
+    }
+  }
+
+  return aGb;
+} // namespace MBPT
 
 //******************************************************************************
 void CorrelationPotential::form_Sigma(const std::vector<double> &en_list,
@@ -209,9 +256,12 @@ double CorrelationPotential::SOEnergyShift(const DiracSpinor &v,
   const auto &Ck = m_yeh.Ck();
 
   // if v.kappa > basis, then Ck angular factor won't exist!
-  // XXX Fix! extend Ck! (and sixj)
-  if (v.twoj() > Ck.max_tj())
+  // Don't extend, since this is a const function
+  if (v.twoj() > Ck.max_tj()) {
+    std::cout << "\nError: J too large for valence state " << v.symbol()
+              << "\n";
     return 0.0;
+  }
 
   if (max_l < 0)
     max_l = 99;

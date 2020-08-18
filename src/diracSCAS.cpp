@@ -5,6 +5,7 @@
 #include "Modules/Module_runModules.hpp"
 #include "Physics/PhysConst_constants.hpp" //for fit_energies
 #include "Wavefunction/Wavefunction.hpp"
+#include "git.info"
 #include "qip/Vector.hpp"
 #include <iostream>
 #include <string>
@@ -17,6 +18,8 @@ int main(int argc, char *argv[]) {
   // Read in input options file
   std::cout << "Reading input from: " << input_file << "\n";
   const IO::UserInput input(input_file);
+  std::cout << "DiracSCAS git:" << GitInfo::gitversion << " ("
+            << GitInfo::gitbranch << ")\n";
   input.print();
 
   // Get + setup atom parameters

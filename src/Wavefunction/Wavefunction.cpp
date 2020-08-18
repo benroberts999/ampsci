@@ -739,10 +739,13 @@ void Wavefunction::formSigma(
     }
   }
 
+  const bool include_G = false; // XXX Make input option!
+
   const auto method =
       FeynmanQ ? MBPT::Method::Feynman : MBPT::Method::Goldstone;
-  const auto sigp = MBPT::Sigma_params{
-      method, nmin_core, lmax, GreenBasis, PolBasis, omre, ScreeningQ};
+  const auto sigp =
+      MBPT::Sigma_params{method,   nmin_core, lmax,       GreenBasis,
+                         PolBasis, omre,      ScreeningQ, include_G};
   const auto subgridp = MBPT::rgrid_params{r0, rmax, std::size_t(stride)};
 
   // if (FeynmanQ) {
