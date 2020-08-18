@@ -72,10 +72,6 @@ ifeq ($(RunProfiler),yes)
   CXXFLAGS+=-DIOPROFILER
 endif
 
-#Macro to print git info in c++
-GIT_VER=$(shell git rev-parse --short HEAD)
-CXXFLAGS+=-DGITVERSION=$(GIT_VER)
-
 # GSL location (if different from assumed default)
 ifneq ($(PathForGSL),)
   CXXFLAGS+=-I$(PathForGSL)/include/

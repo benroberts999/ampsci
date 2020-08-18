@@ -16,7 +16,7 @@ ifneq ($(Build),release)
 endif
 
 #Default make rule:
-all: checkObj checkXdir $(DEFAULTEXES)
+all: $(SD)/git.info checkObj checkXdir $(DEFAULTEXES)
 
 ################################################################################
 #Automatically generate dependency files for each cpp file, + compile:
@@ -53,6 +53,17 @@ $(BD)/NuclearData.o
 
 ################################################################################
 ################################################################################
+
+# Create the "gitinfo.hpp" file
+$(SD)/git.info: FORCE
+	@echo "// git.info: auto-generated file" > $@
+	@echo "namespace GitInfo {" >> $@
+	@echo Git version: $(shell git rev-parse --short HEAD 2>/dev/null)
+	@echo "const char *gitversion = \"$(shell git rev-parse --short HEAD 2>/dev/null)\";" >> $@
+	@echo "const char *gitbranch = \"$(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)\";" >> $@
+	@echo Git branch : $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)
+	@echo "} // namespace GitInfo" >> $@
+FORCE: ;
 
 checkObj:
 	@if [ ! -d $(BD) ]; then \
