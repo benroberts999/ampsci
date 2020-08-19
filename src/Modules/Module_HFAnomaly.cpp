@@ -167,6 +167,179 @@ void HFAnomaly(const IO::UserInputBlock &input, const Wavefunction &wf) {
     }
   }
 }
+//******************************************************************************
+void HF_rmag(const IO::UserInputBlock &input, const Wavefunction &wf) {
+  // For isotope 1 and 2
+  // Loops over many values for magnetic radius of isotope 1, Rmag(1).
+  // For each, finds Rmag(2) that reproduces a given hyperfine anomaly.
+  // Potential to use two states to find rmag. If not, still interesting?
+
+  std::cout << "\nTuning Rmag to fit hyperfine anomaly\n";
+
+  input.checkBlock({"n", "kappa", "A2", "1D2", "rpa", "num_steps", "mu1", "mu2",
+                    "I1", "I2", "eps"});
+
+  // A(1) is wf
+  // A(2) is wf2
+  const auto A2 = input.get<int>("A2");
+  const auto eps_t = input.get("eps", 1.0e-5);
+
+  const auto d12_targ = input.get<double>("1D2");
+  const auto n = input.get<int>("n");
+  const auto kappa = input.get("kappa", -1);
+
+  auto wf2 = Wavefunction(wf.rgrid->params(), {wf.Znuc(), A2},
+                          wf.alpha / PhysConst::alpha);
+  wf2.hartreeFockCore("HartreeFock", 0.0, wf.coreConfiguration_nice());
+  wf2.hartreeFockValence(DiracSpinor::state_config(wf.valence));
+  wf2.basis = wf.basis; // OK??
+  std::cout << "A1 = " << wf.nuclearParams() << "\n";
+  std::cout << "A2 = " << wf2.nuclearParams() << "\n";
+
+  const auto iso_1 = Nuclear::findIsotopeData(wf.Znuc(), wf.Anuc());
+  const auto iso_2 = Nuclear::findIsotopeData(wf2.Znuc(), wf2.Anuc());
+
+  // calc mu, I, gI
+  const auto mu1 = input.get("mu1", iso_1.mu);
+  const auto mu2 = input.get("mu2", iso_2.mu);
+  const auto I1 = input.get("I1", iso_1.I_N);
+  const auto I2 = input.get("I2", iso_2.I_N);
+  std::cout << "mu1=" << mu1 << ", mu1=" << mu2 << "\n";
+
+  const auto g1 = mu1 / I1;
+  const auto g2 = mu2 / I2;
+
+  const auto r0_fm = input.get("rrms", iso_1.r_rms);
+  const auto convert = std::sqrt(5.0 / 3) / PhysConst::aB_fm;
+  const auto rN0_au = r0_fm * convert;
+  const auto rN2 = iso_2.r_rms * convert;
+
+  // Parameters for Single-Particle BW effect:
+  const auto gl = wf.Znuc() % 2 == 0 ? 0 : 1; // unparied proton?
+  const auto pi1 = iso_1.parity;
+  const auto l1_tmp = int(I1 + 0.5 + 0.0001);
+  const auto l1 = ((l1_tmp % 2 == 0) == (pi1 == 1)) ? l1_tmp : l1_tmp - 1;
+  const auto pi2 = iso_2.parity;
+  const auto l2_tmp = int(I2 + 0.5 + 0.0001);
+  const auto l2 = ((l2_tmp % 2 == 0) == (pi2 == 1)) ? l2_tmp : l2_tmp - 1;
+
+  const auto Fr1 = DiracOperator::Hyperfine::volotkaBW_F(mu1, I1, l1, gl);
+  const auto Fr2 = DiracOperator::Hyperfine::volotkaBW_F(mu2, I2, l2, gl);
+  // const auto Fr1 = DiracOperator::Hyperfine::sphericalBall_F();
+  // const auto Fr2 = DiracOperator::Hyperfine::sphericalBall_F();
+
+  const auto &F1v = *wf.getState(n, kappa);
+  const auto &F2v = *wf2.getState(n, kappa);
+
+  // nb: can only do diagram RPA for hfs
+  const auto rpa = input.get("rpa", false) || input.get("rpa_diagram", false);
+
+  std::unique_ptr<MBPT::DiagramRPA> rpa01{nullptr}, rpa02{nullptr},
+      rpa1{nullptr}, rpa2{nullptr}, rpa2a{nullptr}, rpa2b{nullptr};
+
+  const double x = 0.3;
+  const auto num_steps = input.get("num_steps", 40);
+  const auto dr = 3.0 * x * rN0_au / (num_steps + 1);
+
+  const auto h01 = DiracOperator::Hyperfine(mu1, I1, rN0_au, *wf.rgrid, Fr1);
+  const auto h02 = DiracOperator::Hyperfine(mu1, I1, rN2, *wf.rgrid, Fr1);
+  if (rpa) {
+    rpa01 = std::make_unique<MBPT::DiagramRPA>(&h01, wf.basis, wf.core,
+                                               wf.identity());
+    rpa02 = std::make_unique<MBPT::DiagramRPA>(&h02, wf.basis, wf.core,
+                                               wf.identity());
+    rpa01->rpa_core(0.0);
+    rpa02->rpa_core(0.0);
+  }
+
+  std::cout << "\n1D2 target: " << d12_targ << "\n";
+  std::cout << "R0(1) = " << rN0_au * PhysConst::aB_fm << "\n";
+  std::cout << "R0(2) = " << rN2 * PhysConst::aB_fm << "\n";
+  std::cout << "Rmag(1)  Rmag(2)  1D2    eps(D)   del(R)\n";
+  for (double rN = (1.0 - x) * rN0_au; rN < (1.0 + 2 * x) * rN0_au; rN += dr) {
+
+    const auto h1 = DiracOperator::Hyperfine(mu1, I1, rN, *wf.rgrid, Fr1);
+    double dv1 = 0.0;
+    if (rpa) {
+      rpa1 = std::make_unique<MBPT::DiagramRPA>(&h1, rpa01.get());
+      rpa1->grab_tam(rpa01.get()); // don't start from scratch
+      rpa1->rpa_core(0.0, false);
+      auto a = DiracOperator::Hyperfine::convertRMEtoA(F1v, F1v);
+      dv1 = a * rpa1->dV(F1v, F1v);
+    }
+
+    const auto a1 = h1.hfsA(F1v) + dv1;
+
+    // Use halving-interval method to find rmag(2) that reproduces 1D2, given
+    // rmag(1)
+    auto r2a = (1.0 - x) * rN2;
+    auto r2 = rN2;
+    auto r2b = (1.0 + x) * rN2;
+    int tries = 0;
+    double eps;
+    double del_r;
+    double d12;
+    while (tries++ < 40) {
+
+      const auto h2a = DiracOperator::Hyperfine(mu2, I2, r2a, *wf.rgrid, Fr2);
+      const auto h2 = DiracOperator::Hyperfine(mu2, I2, r2, *wf.rgrid, Fr2);
+      const auto h2b = DiracOperator::Hyperfine(mu2, I2, r2b, *wf.rgrid, Fr2);
+
+      double dv2 = 0.0;
+      double dv2a = 0.0;
+      double dv2b = 0.0;
+      if (rpa) {
+        rpa2a = std::make_unique<MBPT::DiagramRPA>(&h2a, rpa1.get());
+        rpa2 = std::make_unique<MBPT::DiagramRPA>(&h2, rpa1.get());
+        rpa2b = std::make_unique<MBPT::DiagramRPA>(&h2b, rpa1.get());
+        rpa2->grab_tam(rpa02.get());  // don't start from scratch
+        rpa2a->grab_tam(rpa02.get()); // don't start from scratch
+        rpa2b->grab_tam(rpa02.get()); // don't start from scratch
+        rpa2a->rpa_core(0.0, false);
+        rpa2->rpa_core(0.0, false);
+        rpa2b->rpa_core(0.0, false);
+        const auto a = DiracOperator::Hyperfine::convertRMEtoA(F2v, F2v);
+        dv2a = a * rpa2a->dV(F2v, F2v);
+        dv2 = a * rpa2->dV(F2v, F2v);
+        dv2b = a * rpa2b->dV(F2v, F2v);
+      }
+
+      const auto a2a = h2a.hfsA(F2v) + dv2a;
+      const auto a2 = h2.hfsA(F2v) + dv2;
+      const auto a2b = h2b.hfsA(F2v) + dv2b;
+      const auto d12a = 100.0 * ((a1 / a2a) * (g2 / g1) - 1.0);
+      d12 = 100.0 * ((a1 / a2) * (g2 / g1) - 1.0);
+      const auto d12b = 100.0 * ((a1 / a2b) * (g2 / g1) - 1.0);
+
+      // std::cout << tries << " " << r2a * PhysConst::aB_fm << " "
+      //           << r2b * PhysConst::aB_fm << " " << d12 << "\n";
+
+      // Halfing interval:
+      if ((d12a < d12_targ && d12_targ < d12) ||
+          (d12 < d12_targ && d12_targ < d12a)) {
+        r2a = r2a;
+        r2b = r2;
+        r2 = 0.5 * (r2a + r2b);
+      } else if ((d12b < d12_targ && d12_targ < d12) ||
+                 (d12 < d12_targ && d12_targ < d12b)) {
+        r2b = r2b;
+        r2a = r2;
+        r2 = 0.5 * (r2a + r2b);
+      } else {
+        r2a *= 0.95;
+        r2b *= 1.05;
+      }
+
+      eps = std::abs((d12 - d12_targ) / d12_targ);
+      del_r = 0.5 * std::abs(r2a - r2b);
+      if (eps < eps_t) {
+        break;
+      }
+    } // tries
+    printf("%.5f  %.5f %7.4f %.1e  %.1e  [%i]\n", rN * PhysConst::aB_fm,
+           r2 * PhysConst::aB_fm, d12, eps, del_r * PhysConst::aB_fm, tries);
+  } // rMag
+}
 
 //******************************************************************************
 void calculateBohrWeisskopf(const IO::UserInputBlock &input,

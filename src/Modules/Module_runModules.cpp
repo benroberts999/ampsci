@@ -30,6 +30,7 @@ static const std::vector<
                 {"FitParametric", &fitParametric},
                 {"BohrWeisskopf", &calculateBohrWeisskopf},
                 {"HFAnomaly", &HFAnomaly},
+                {"HF_rmag", &HF_rmag},
                 {"pnc", &calculatePNC},
                 {"polarisability", &polarisability},
                 {"testFeynman", &testFeynman},

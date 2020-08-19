@@ -43,6 +43,13 @@ public:
   //! @Details If a previous run failed, can clear t_am's + re-try
   void clear_tam();
 
+  //! Copies the tam (and tma) values across from different RPAD. If two
+  //! operators are similar, this can save time on the itterations.
+  void grab_tam(const DiagramRPA *const drpa) {
+    tam = drpa->tam;
+    tma = drpa->tma;
+  }
+
 private:
   const int m_k;    // rank
   const int m_pi;   // parity (+/-1)
