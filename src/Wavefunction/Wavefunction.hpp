@@ -209,12 +209,13 @@ public: // const methods: "views" into WF object
   //! Forms + stores correlation potential Sigma
   void formSigma(const int nmin_core = 1, const bool form_matrix = true,
                  const double r0 = 1.0e-4, const double rmax = 30.0,
-                 const int stride = 4, const std::vector<double> &lambdas = {},
+                 const int stride = 4, const bool include_G = false,
+                 const std::vector<double> &lambdas = {},
                  const std::vector<double> &fk = {},
                  const std::string &fname = "", const bool FeynmanQ = false,
                  const bool ScreeningQ = false, const int lmax = 6,
                  const bool GreenBasis = false, const bool PolBasis = false,
-                 const double omre = -0.2);
+                 const double omre = -0.28);
 
   //! @brief Solves Dirac bound state problem, with optional 'extra' potential
   //! log_eps is log_10(convergence_target).

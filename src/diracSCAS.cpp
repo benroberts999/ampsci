@@ -201,7 +201,7 @@ int main(int argc, char *argv[]) {
       "Correlations",
       {"Brueckner", "energyShifts", "n_min_core", "fitTo_cm", "lambda_k", "fk",
        "io_file", "rmin", "rmax", "stride", "Feynman", "Screening", "lmax",
-       "basis_for_Green", "basis_for_pol", "real_omega"});
+       "basis_for_Green", "basis_for_pol", "real_omega", "include_G"});
   const bool do_energyShifts = input.get("Correlations", "energyShifts", false);
   const bool do_brueckner = input.get("Correlations", "Brueckner", false);
   const auto n_min_core = input.get("Correlations", "n_min_core", 1);
@@ -220,6 +220,7 @@ int main(int argc, char *argv[]) {
   const auto sigma_lmax = input.get("Correlations", "lmax", 6);
   const auto GreenBasis = input.get("Correlations", "basis_for_Green", false);
   const auto PolBasis = input.get("Correlations", "basis_for_pol", true);
+  const auto include_G = input.get("Correlations", "include_G", false);
   // force sigma_omre to be always -ve
   const auto sigma_omre = -std::abs(
       input.get("Correlations", "real_omega", -0.33 * wf.energy_gap()));
@@ -247,8 +248,8 @@ int main(int argc, char *argv[]) {
   if ((do_energyShifts || do_brueckner) && Sigma_ok) {
     IO::ChronoTimer t("Sigma");
     wf.formSigma(n_min_core, true, sigma_rmin, sigma_rmax, sigma_stride,
-                 lambda_k, fk, sigma_file, sigma_Feynman, sigma_Screening,
-                 sigma_lmax, GreenBasis, PolBasis, sigma_omre);
+                 include_G, lambda_k, fk, sigma_file, sigma_Feynman,
+                 sigma_Screening, sigma_lmax, GreenBasis, PolBasis, sigma_omre);
   }
 
   // Just energy shifts

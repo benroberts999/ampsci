@@ -455,6 +455,35 @@ ComplexGMatrix FeynmanSigma::GreenAtComplexShift(const ComplexGMatrix &Gr,
 //******************************************************************************
 //******************************************************************************
 
+ComplexGMatrix FeynmanSigma::Polarisation_k(int k, double omre, double omim,
+                                            GrMethod method) const {
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
+  ComplexGMatrix pi_k(m_subgrid_points, m_include_G);
+  static const auto Iunit = ComplexDouble{0.0, 1.0};
+  const auto &core = p_hf->get_core();
+  for (auto ia = 0ul; ia < core.size(); ++ia) {
+    const auto &a = core[ia];
+    if (a.n < m_min_core_n)
+      continue;
+    const auto &pa = m_Pa[ia]; // |a><a|
+
+    for (int ialpha = 0; ialpha <= m_max_kappaindex; ++ialpha) {
+      const auto kA = Angular::kappaFromIndex(ialpha);
+      const auto ck_aA = Angular::Ck_kk(k, a.k, kA);
+      if (ck_aA == 0.0)
+        continue;
+      const double c_ang = ck_aA * ck_aA / double(2 * k + 1);
+      // XXX Inlcude the 2 * k + 1 ??
+
+      // pi_k += c_ang * Polarisation_a(pa, a.en, kA, om_re, om_im, method);
+      pi_k += c_ang * (Green_ex(kA, a.en - omre, -omim, method) +
+                       Green_ex(kA, a.en + omre, omim, method))
+                          .mult_elements_by(pa);
+    }
+  }
+  return Iunit * pi_k;
+}
+
 //******************************************************************************
 ComplexGMatrix FeynmanSigma::Polarisation(int k_a, int k_alpha, double om_re,
                                           double om_im, GrMethod method) const {
@@ -499,38 +528,16 @@ ComplexGMatrix FeynmanSigma::screenedCoulomb(const ComplexGMatrix &q,
   // XXX Are the dr_i, dr_j parts correct??
   // Qscr = [1 - Q*Pi]^{-1} * Q = -[Q*Pi - 1]^{-1} * Q
   return -1 * ((q * pi).plusIdent(-1.0).invert() * q);
+  // return -1 * q * ((pi * q).plusIdent(-1.0).invert());
 }
 
 //******************************************************************************
 ComplexGMatrix FeynmanSigma::sum_qpq(int k, double om_re, double om_im) const {
 
   const auto pol_method = basis_for_Pol ? GrMethod::basis : GrMethod::Green;
-  auto gqpq = ComplexGMatrix(m_subgrid_points, m_include_G);
-  // min/max k to include in sum [just to save calculating terms=0]
-  // based on two Ck angular factors
-  const auto &core = p_hf->get_core();
-
-  ComplexGMatrix pi(m_subgrid_points, m_include_G);
-  for (int ialpha = 0; ialpha <= m_max_kappaindex; ++ialpha) {
-    const auto kA = Angular::kappaFromIndex(ialpha);
-    for (auto ia = 0ul; ia < core.size(); ++ia) {
-      const auto &a = core[ia];
-      if (a.n < m_min_core_n)
-        continue;
-
-      const auto ck_aA = Angular::Ck_kk(k, a.k, kA);
-      if (ck_aA == 0.0)
-        continue;
-      const double c_ang = ck_aA * ck_aA / double(2 * k + 1);
-
-      const auto &pa = m_Pa[ia]; // |a><a|
-      pi += c_ang * Polarisation_a(pa, a.en, kA, om_re, om_im, pol_method);
-    }
-  }
-
+  auto pi = Polarisation_k(k, om_re, om_im, pol_method);
   const auto &q = get_qk(k);
   const auto &q_scr = screen_Coulomb ? screenedCoulomb(q, pi) : q; //???
-
   return q * pi * q_scr;
 }
 
@@ -543,6 +550,7 @@ GMatrix FeynmanSigma::FeynmanDirect(int kv, double env) {
   // // Set up imaginary frequency grid:
   const double omre = m_omre; // does seem to depend on this..
   const auto &wgrid = *m_wgridD;
+  const auto pol_method = basis_for_Pol ? GrMethod::basis : GrMethod::Green;
 
   // Greens function (at om_re) remains same, so calculate it once only:
   std::vector<ComplexGMatrix> gBetas;
@@ -563,7 +571,11 @@ GMatrix FeynmanSigma::FeynmanDirect(int kv, double env) {
     auto &Sigma_w = Sigma_Ws[iw];
 
     for (int k = 0; k <= m_maxk; k++) {
-      const auto qpq_dw = (dw / M_PI) * sum_qpq(k, omre, omim);
+
+      const auto pi = Polarisation_k(k, omre, omim, pol_method);
+      const auto &q = get_qk(k);
+      const auto &q_scr = screen_Coulomb ? screenedCoulomb(q, pi) : q; //???
+      const auto qpq_dw = (dw / M_PI) * (q * pi * q_scr);
 
       for (int ibeta = 0; ibeta <= m_max_kappaindex; ++ibeta) {
         const auto kB = Angular::kappaFromIndex(ibeta);

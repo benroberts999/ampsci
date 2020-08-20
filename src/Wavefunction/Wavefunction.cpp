@@ -708,12 +708,15 @@ void Wavefunction::formSpectrum(const SplineBasis::Parameters &params) {
 }
 
 //******************************************************************************
-void Wavefunction::formSigma(
-    const int nmin_core, const bool form_matrix, const double r0,
-    const double rmax, const int stride, const std::vector<double> &lambdas,
-    const std::vector<double> &fk, const std::string &fname,
-    const bool FeynmanQ, const bool ScreeningQ, const int lmax,
-    const bool GreenBasis, const bool PolBasis, const double omre) {
+void Wavefunction::formSigma(const int nmin_core, const bool form_matrix,
+                             const double r0, const double rmax,
+                             const int stride, const bool include_G,
+                             const std::vector<double> &lambdas,
+                             const std::vector<double> &fk,
+                             const std::string &fname, const bool FeynmanQ,
+                             const bool ScreeningQ, const int lmax,
+                             const bool GreenBasis, const bool PolBasis,
+                             const double omre) {
   if (valence.empty())
     return;
 
@@ -739,7 +742,7 @@ void Wavefunction::formSigma(
     }
   }
 
-  const bool include_G = false; // XXX Make input option!
+  // const bool include_G = true; // XXX Make input option!
 
   const auto method =
       FeynmanQ ? MBPT::Method::Feynman : MBPT::Method::Goldstone;

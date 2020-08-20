@@ -47,8 +47,12 @@ public:
   ComplexGMatrix GreenAtComplex(const ComplexGMatrix &Gr, double e_imag) const;
 
   //! Calculates polarisation operator, all core states
-  ComplexGMatrix Polarisation(int ka, int kA, double om_re, double om_im,
-                              GrMethod method = GrMethod::basis) const;
+  [[deprecated]] ComplexGMatrix
+  Polarisation(int ka, int kA, double om_re, double om_im,
+               GrMethod method = GrMethod::basis) const;
+
+  ComplexGMatrix Polarisation_k(int k, double om_re, double om_im,
+                                GrMethod method) const;
 
   //! Returns (reference to) q^k (radial) matrix. Note: includes dri*drj
   const ComplexGMatrix &get_qk(int k) const;
