@@ -502,6 +502,39 @@ ComplexGMatrix FeynmanSigma::screenedCoulomb(const ComplexGMatrix &q,
 }
 
 //******************************************************************************
+ComplexGMatrix FeynmanSigma::sum_qpq(int k, double om_re, double om_im) const {
+
+  const auto pol_method = basis_for_Pol ? GrMethod::basis : GrMethod::Green;
+  auto gqpq = ComplexGMatrix(m_subgrid_points, m_include_G);
+  // min/max k to include in sum [just to save calculating terms=0]
+  // based on two Ck angular factors
+  const auto &core = p_hf->get_core();
+
+  ComplexGMatrix pi(m_subgrid_points, m_include_G);
+  for (int ialpha = 0; ialpha <= m_max_kappaindex; ++ialpha) {
+    const auto kA = Angular::kappaFromIndex(ialpha);
+    for (auto ia = 0ul; ia < core.size(); ++ia) {
+      const auto &a = core[ia];
+      if (a.n < m_min_core_n)
+        continue;
+
+      const auto ck_aA = Angular::Ck_kk(k, a.k, kA);
+      if (ck_aA == 0.0)
+        continue;
+      const double c_ang = ck_aA * ck_aA / double(2 * k + 1);
+
+      const auto &pa = m_Pa[ia]; // |a><a|
+      pi += c_ang * Polarisation_a(pa, a.en, kA, om_re, om_im, pol_method);
+    }
+  }
+
+  const auto &q = get_qk(k);
+  const auto &q_scr = screen_Coulomb ? screenedCoulomb(q, pi) : q; //???
+
+  return q * pi * q_scr;
+}
+
+//******************************************************************************
 GMatrix FeynmanSigma::FeynmanDirect(int kv, double env) {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
 
@@ -510,8 +543,6 @@ GMatrix FeynmanSigma::FeynmanDirect(int kv, double env) {
   // // Set up imaginary frequency grid:
   const double omre = m_omre; // does seem to depend on this..
   const auto &wgrid = *m_wgridD;
-
-  const auto pol_method = basis_for_Pol ? GrMethod::basis : GrMethod::Green;
 
   // Greens function (at om_re) remains same, so calculate it once only:
   std::vector<ComplexGMatrix> gBetas;
@@ -523,41 +554,39 @@ GMatrix FeynmanSigma::FeynmanDirect(int kv, double env) {
     }
   }
 
-  std::vector<GMatrix> Sigma_As(std::size_t(m_max_kappaindex + 1),
+  std::vector<GMatrix> Sigma_Ws(std::size_t(wgrid.num_points),
                                 {m_subgrid_points, m_include_G});
 #pragma omp parallel for
-  for (int ialpha = 0; ialpha <= m_max_kappaindex; ++ialpha) {
-    const auto kA = Angular::kappaFromIndex(ialpha);
-    auto &Sigma_A = Sigma_As[std::size_t(ialpha)];
-    for (int ia = 0; ia <= m_max_kappaindex_core; ++ia) {
-      const auto ka = Angular::kappaFromIndex(ia);
+  for (auto iw = 0ul; iw < wgrid.num_points; iw++) { // for omega integral
+    const auto omim = wgrid.r[iw];
+    const auto dw = wgrid.drdu[iw] * wgrid.du;
+    auto &Sigma_w = Sigma_Ws[iw];
 
-      // nb: do w loop outside beta, since Pi depends only on a,A, and w
-      for (auto iw = 0ul; iw < wgrid.num_points; iw++) { // for omega integral
-        const auto omim = wgrid.r[iw];
-        const auto dw = wgrid.drdu[iw] * wgrid.du;
+    for (int k = 0; k <= m_maxk; k++) {
+      const auto qpq_dw = (dw / M_PI) * sum_qpq(k, omre, omim);
 
-        const auto pi_aalpha = Polarisation(ka, kA, omre, omim, pol_method);
+      for (int ibeta = 0; ibeta <= m_max_kappaindex; ++ibeta) {
+        const auto kB = Angular::kappaFromIndex(ibeta);
+        const auto ck_vB = Angular::Ck_kk(k, kv, kB);
+        if (ck_vB == 0.0)
+          continue;
+        const double c_ang = ck_vB * ck_vB / double(Angular::twoj_k(kv) + 1);
 
-        for (int ibeta = 0; ibeta <= m_max_kappaindex; ++ibeta) {
-          const auto kB = Angular::kappaFromIndex(ibeta);
+        // Calc and store first? Don't depend on k (but much faster than pi)
+        auto g_beta =
+            basis_for_Green
+                ? Green(kB, env + omre, omim, States::both, GrMethod::basis)
+                : GreenAtComplex(gBetas[std::size_t(ibeta)], omim);
 
-          const auto g_beta =
-              basis_for_Green
-                  ? Green(kB, env + omre, omim, States::both, GrMethod::basis)
-                  : GreenAtComplex(gBetas[std::size_t(ibeta)], omim);
+        // sum over k:
+        Sigma_w += c_ang * (g_beta.mult_elements_by(qpq_dw)).get_real();
 
-          // sum over k:
-          const auto gqpq = sumk_cGQPQ(kv, ka, kA, kB, g_beta, pi_aalpha);
-          Sigma_A += (dw / M_PI) * gqpq; // 2.0 for -ve w cancels with 2pi
+      } // k
+    }   // omega
+  }     // beta
 
-        } // beta
-      }   // w
-    }     // alpha
-  }       // a
-
-  for (const auto &sA : Sigma_As) {
-    Sigma += sA;
+  for (const auto &sw : Sigma_Ws) {
+    Sigma += sw;
   }
 
   // devide through by dri, drj [these included in q's, but want
@@ -577,7 +606,7 @@ GMatrix FeynmanSigma::FeynmanDirect(int kv, double env) {
   }
 
   return Sigma;
-}
+} // namespace MBPT
 
 //******************************************************************************
 GMatrix FeynmanSigma::FeynmanEx_1(int kv, double env) {

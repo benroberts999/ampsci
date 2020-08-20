@@ -111,6 +111,8 @@ private:
                                 int k_alpha, double om_re, double om_im,
                                 GrMethod method = GrMethod::basis) const;
 
+  ComplexGMatrix sum_qpq(int k, double om_re, double om_im) const;
+
   // direct: sum_k [ck qk * pi(w) * qk], ck angular factor
   GMatrix sumk_cGQPQ(int kv, int ka, int kalpha, int kbeta,
                      const ComplexGMatrix &g_beta,
