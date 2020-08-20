@@ -19,12 +19,15 @@ endif
 all: $(SD)/git.info checkObj checkXdir $(DEFAULTEXES)
 
 ################################################################################
-#Automatically generate dependency files for each cpp file, + compile:
+# Automatically generate dependency files for each cpp file, + compile:
+# I make all files depend on '$(SD)/git.info'. This achieves two things:
+# (1) It forces git.info to be built first (even in a parallel build)
+# (2) It forces a clean make when changing branches
 
-$(BD)/%.o: $(SD)/*/%.cpp
+$(BD)/%.o: $(SD)/*/%.cpp $(SD)/git.info
 	$(COMP)
 
-$(BD)/%.o: $(SD)/%.cpp
+$(BD)/%.o: $(SD)/%.cpp $(SD)/git.info
 	$(COMP)
 
 -include $(BD)/*.d
@@ -54,16 +57,21 @@ $(BD)/NuclearData.o
 ################################################################################
 ################################################################################
 
-# Create the "gitinfo.hpp" file
-$(SD)/git.info: FORCE
+# Check to see if this is a git repo, so $(SD)/git.info will work even if not
+ifneq ("$(wildcard .git/HEAD)","")
+  GIT_FILES = .git/HEAD .git/index
+endif
+# Make the 'git.info' file (c++ header file)
+$(SD)/git.info: $(GIT_FILES)
+	@echo Git Files: $(GIT_FILES)
 	@echo "// git.info: auto-generated file" > $@
+	@echo "#pragma once" >> $@
 	@echo "namespace GitInfo {" >> $@
 	@echo Git version: $(shell git rev-parse --short HEAD 2>/dev/null)
 	@echo "const char *gitversion = \"$(shell git rev-parse --short HEAD 2>/dev/null)\";" >> $@
 	@echo "const char *gitbranch = \"$(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)\";" >> $@
 	@echo Git branch : $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)
 	@echo "} // namespace GitInfo" >> $@
-FORCE: ;
 
 checkObj:
 	@if [ ! -d $(BD) ]; then \
