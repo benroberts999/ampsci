@@ -1,6 +1,6 @@
 #pragma once
-#include "IO/FRW_fileReadWrite.hpp"     //?
-#include "Wavefunction/DiracSpinor.hpp" //?
+#include "IO/FRW_fileReadWrite.hpp"
+#include "Wavefunction/DiracSpinor.hpp"
 #include <vector>
 class Wavefunction;
 class DiracSpinor;
@@ -15,8 +15,11 @@ namespace MBPT {
 
 //! RPA correction to matrix elements, using Diagram technique
 class DiagramRPA {
+  // Type used to store W matrix (float works equally well as double)
+  using Wtype = float;
+
 public:
-  //! Normal constructor: needs core to split basis: only uses basis
+  //! Normal constructor: needs core to split basis: only uses basis.
   DiagramRPA(const DiracOperator::TensorOperator *const h,
              const std::vector<DiracSpinor> &basis,
              const std::vector<DiracSpinor> &core,
@@ -40,6 +43,13 @@ public:
   //! @Details If a previous run failed, can clear t_am's + re-try
   void clear_tam();
 
+  //! Copies the tam (and tma) values across from different RPAD. If two
+  //! operators are similar, this can save time on the itterations.
+  void grab_tam(const DiagramRPA *const drpa) {
+    tam = drpa->tam;
+    tma = drpa->tma;
+  }
+
 private:
   const int m_k;    // rank
   const int m_pi;   // parity (+/-1)
@@ -59,10 +69,11 @@ private:
   std::vector<std::vector<double>> tma{};
 
   // Note: W's depend on rank (also parity)! Can re-use!?
-  std::vector<std::vector<std::vector<std::vector<double>>>> Wanmb{};
-  std::vector<std::vector<std::vector<std::vector<double>>>> Wabmn{};
-  std::vector<std::vector<std::vector<std::vector<double>>>> Wmnab{};
-  std::vector<std::vector<std::vector<std::vector<double>>>> Wmban{};
+  // These are probably an excellent candidate for unordered_map?
+  std::vector<std::vector<std::vector<std::vector<Wtype>>>> Wanmb{};
+  std::vector<std::vector<std::vector<std::vector<Wtype>>>> Wabmn{};
+  std::vector<std::vector<std::vector<std::vector<Wtype>>>> Wmnab{};
+  std::vector<std::vector<std::vector<std::vector<Wtype>>>> Wmban{};
 
   // Note: only writes W (depends on k/pi, and basis). Do not write t's, since
   // they depend on operator. This makes it very fast when making small changes

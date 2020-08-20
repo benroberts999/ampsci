@@ -119,7 +119,7 @@ void boundState(DiracSpinor &psi, const double en0,
     const double en_old = t_en;
     if (counted_nodes == required_nodes) {
       correct_nodes = true;
-      anorm = Adams::calcNorm(psi.f, psi.g, rgrid.drdu, rgrid.du, t_pinf);
+      anorm = psi * psi;
       t_en = Adams::smallEnergyChangePT(en_old, anorm, psi.f, dg, ctp,
                                         Param::d_ctp, alpha, sofar);
     } else {
@@ -147,7 +147,7 @@ void boundState(DiracSpinor &psi, const double en0,
   // This is rare - means a failure. But hopefully, failure will go away after
   // a few more HF iterations..If we don't norm wf, HF will fail.
   if (!correct_nodes) {
-    anorm = Adams::calcNorm(psi.f, psi.g, rgrid.drdu, rgrid.du, t_pinf);
+    anorm = psi * psi;
     DEBUG(std::cerr << "\nFAIL-148: wrong nodes:"
                     << Adams::countNodes(psi.f, t_pinf) << "/" << required_nodes
                     << " for " << psi.symbol() << "\n";)
@@ -162,8 +162,7 @@ void boundState(DiracSpinor &psi, const double en0,
   // Explicitely set 'tail' to zero (we may be re-using orbital)
   psi.zero_boundaries();
   // normalises the orbital (alrady cal'd anorm)
-  const double an = 1.0 / std::sqrt(anorm);
-  psi *= an;
+  psi *= 1.0 / std::sqrt(anorm);
 
   return;
 }
@@ -231,15 +230,6 @@ void largeEnergyChange(double *en, TrackEnGuess *sofar_ptr, double frac_de,
 }
 
 //******************************************************************************
-double calcNorm(const std::vector<double> &f, const std::vector<double> &g,
-                const std::vector<double> &drdu, const double du,
-                const int pinf) {
-  const auto anormF = NumCalc::integrate(1.0, 0, pinf, f, f, drdu);
-  const auto anormG = NumCalc::integrate(1.0, 0, pinf, g, g, drdu);
-  return (anormF + anormG) * du;
-}
-
-//******************************************************************************
 double smallEnergyChangePT(const double en, const double anorm,
                            const std::vector<double> &f,
                            const std::vector<double> &dg, const int ctp,
@@ -280,8 +270,6 @@ int findPracticalInfinity(const double en, const std::vector<double> &v,
 // Find the practical infinity 'pinf'
 // Step backwards from the last point (num_points-1) until
 // (V(r) - E)*r^2 >  alr    (alr = "asymptotically large r")
-// XXX Note: unsafe, and a little slow. Would be better to use
-// std::lower_bound.. but would need lambda or something for r^2 part?
 {
   auto pinf = r.size() - 5;
   while ((en - v[pinf - 1]) * r[pinf - 1] * r[pinf - 1] + alr < 0) {
@@ -298,7 +286,7 @@ int findClassicalTurningPoint(const double en, const std::vector<double> &v,
 // Enforced to be between (0+ctp) and (pinf-ctp)
 //  V(r) > E        [nb: both V and E are <0]
 {
-  auto low =
+  const auto low =
       std::lower_bound(v.begin() + d_ctp + 1, v.begin() + pinf - d_ctp, en);
   return (int)(low - v.begin()) - 1;
 }
@@ -399,9 +387,9 @@ void outwardAM(std::vector<double> &f, std::vector<double> &g,
   // P(r) = r^gamma u(r) // f(r) = P(r)
   // Q(r) = r^gamma v(r) // g(r) = -Q(r)
   auto u0 = 1.0;
-  auto v0 = (ka > 0) ? -(ga0 + ka) / az0 : az0 / (ga0 - ka);
+  auto v0 = (ka > 0) ? (ka + ga0) / az0 : az0 / (ka - ga0);
   f[0] = std::pow(r[0], ga0) * u0;
-  g[0] = -std::pow(r[0], ga0) * v0;
+  g[0] = std::pow(r[0], ga0) * v0;
 
   // loop through and find first Param::num_loops*AMO points of wf
   for (int ln = 0; ln < Param::num_loops; ln++) {
@@ -413,13 +401,14 @@ void outwardAM(std::vector<double> &f, std::vector<double> &g,
     LinAlg::SqMatrix em(Param::AMO);
     const auto oid_du = Param::AMcoef.OId * du;
     for (int i = 0; i < Param::AMO; i++) {
-      const auto az = -v[i + i0] * r[i + i0] * alpha;
+      const std::size_t ir = static_cast<std::size_t>(i + i0);
+      const auto az = -v[ir] * r[ir] * alpha;
       ga[i] = std::sqrt(ka * ka - az * az);
-      const auto dror = drduor[i + i0];
-      coefa[i] = oid_du * (Hd.a(i + i0) - ga[i] * dror);
-      coefb[i] = oid_du * Hd.b(i + i0);
-      coefc[i] = oid_du * Hd.c(i + i0);
-      coefd[i] = oid_du * (Hd.d(i + i0) - ga[i] * dror);
+      const auto dror = drduor[ir];
+      coefa[i] = oid_du * (Hd.a(ir) - ga[i] * dror);
+      coefb[i] = -oid_du * Hd.b(ir);
+      coefc[i] = -oid_du * Hd.c(ir);
+      coefd[i] = oid_du * (Hd.d(ir) - ga[i] * dror);
       for (int j = 0; j < Param::AMO; j++) {
         em[i][j] = Param::AMcoef.OIe[i][j];
       }
@@ -435,7 +424,7 @@ void outwardAM(std::vector<double> &f, std::vector<double> &g,
       s[i] = -Param::AMcoef.OIa[i] * u0;
       for (int j = 0; j < Param::AMO; j++) {
         fm[i][j] = Param::AMcoef.OIe[i][j] - coefb[i] * em[i][j] * coefc[j];
-        s[i] -= coefb[i] * em[i][j] * Param::AMcoef.OIa[j] * v0;
+        s[i] += coefb[i] * em[i][j] * Param::AMcoef.OIa[j] * v0;
       }
       fm[i][i] -= coefa[i];
     }
@@ -446,10 +435,7 @@ void outwardAM(std::vector<double> &f, std::vector<double> &g,
     // P(r) = r^gamma u(r)
     std::array<double, Param::AMO> us;
     for (int i = 0; i < Param::AMO; i++) {
-      us[i] = 0;
-      for (int j = 0; j < Param::AMO; j++) {
-        us[i] += fm[i][j] * s[j];
-      }
+      us[i] = qip::inner_product(s, fm[i]);
     }
 
     // writes v(r) in terms of coefs + u(r)
@@ -458,7 +444,7 @@ void outwardAM(std::vector<double> &f, std::vector<double> &g,
     for (int i = 0; i < Param::AMO; i++) {
       vs[i] = 0;
       for (int j = 0; j < Param::AMO; j++) {
-        vs[i] += em[i][j] * (coefc[j] * us[j] - Param::AMcoef.OIa[j] * v0);
+        vs[i] -= em[i][j] * (coefc[j] * us[j] + Param::AMcoef.OIa[j] * v0);
       }
     }
 
@@ -466,7 +452,7 @@ void outwardAM(std::vector<double> &f, std::vector<double> &g,
     for (int i = 0; i < Param::AMO; i++) {
       const auto r_ga = std::pow(r[i + i0], ga[i]);
       f[i + i0] = r_ga * us[i];
-      g[i + i0] = -r_ga * vs[i];
+      g[i + i0] = r_ga * vs[i];
     }
 
     // re-sets 'starting point' for next ln
@@ -564,18 +550,14 @@ void adamsMoulton(std::vector<double> &f, std::vector<double> &g,
   [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__);
   const auto nosteps = std::abs(nf - ni) + 1; // number of integration steps
   const auto inc = (nf > ni) ? 1 : -1;        //'increment' for integration
-  if (nf == ni) {
-    // This ever happen?
-    return;
-  }
 
   // create arrays for wf derivatives + Adams-Moulton coeficients
   const auto amDdu = inc * Hd.pgr->du * Param::AMcoef.AMd;
   std::array<double, Param::AMO> df, dg;
   std::array<double, Param::AMO> am;
   for (auto i = 0, ri = ni - inc * Param::AMO; i < Param::AMO; i++, ri += inc) {
-    df[i] = Hd.a(ri) * f[ri] - Hd.b(ri) * g[ri];
-    dg[i] = Hd.d(ri) * g[ri] - Hd.c(ri) * f[ri];
+    df[i] = Hd.dfdu(f, g, ri);
+    dg[i] = Hd.dgdu(f, g, ri);
     am[i] = amDdu * Param::AMcoef.AMa[i];
   }
 
@@ -583,23 +565,20 @@ void adamsMoulton(std::vector<double> &f, std::vector<double> &g,
   const double a0 = amDdu * Param::AMcoef.AMaa;
   const auto a02 = a0 * a0;
   for (int i = 0, ri = ni; i < nosteps; i++, ri += inc) {
-    const double a = Hd.a(ri);
-    const double b = Hd.b(ri);
-    const double c = Hd.c(ri);
-    const double d = Hd.d(ri);
+    const auto [a, b, c, d] = Hd.abcd(ri);
     const double det_inv = 1.0 / (1.0 - a02 * (b * c - a * d));
     const double sf = f[ri - inc] + qip::inner_product(am, df);
     const double sg = g[ri - inc] + qip::inner_product(am, dg);
-    f[ri] = (sf - a0 * (b * sg + d * sf)) * det_inv;
-    g[ri] = (sg - a0 * (c * sf + a * sg)) * det_inv;
+    f[ri] = (sf - a0 * (d * sf - b * sg)) * det_inv;
+    g[ri] = (sg - a0 * (-c * sf + a * sg)) * det_inv;
     // Shift the derivative along
     for (int l = 0; l < (Param::AMO - 1); l++) {
       df[l] = df[l + 1];
       dg[l] = dg[l + 1];
     }
     // gets new 'last' derivative
-    df[Param::AMO - 1] = a * f[ri] - b * g[ri];
-    dg[Param::AMO - 1] = d * g[ri] - c * f[ri];
+    df.back() = Hd.dfdu(f, g, ri);
+    dg.back() = Hd.dgdu(f, g, ri);
   }
 
 } // END adamsmoulton
@@ -616,24 +595,36 @@ DiracMatrix::DiracMatrix(const Grid &in_grid, const std::vector<double> &in_v,
       k(in_k),
       en(in_en),
       alpha(in_alpha),
-      c2(1.0 / in_alpha / in_alpha) {}
+      cc(1.0 / in_alpha) {}
 
-// update a and d for off-diag additional potential (magnetic form-fac, QED)
 double DiracMatrix::a(std::size_t i) const {
   const auto h_mag = (Hmag == nullptr) ? 0.0 : (*Hmag)[i];
   return (double(-k)) * pgr->drduor[i] + h_mag * pgr->drdu[i];
-  // return (double(-k)) * pgr->drduor[i];
 }
 double DiracMatrix::b(std::size_t i) const {
-  return -alpha * (en + 2.0 * c2 - (*v)[i]) * pgr->drdu[i];
+  return (alpha * en + 2.0 * cc - alpha * (*v)[i]) * pgr->drdu[i];
 }
 double DiracMatrix::c(std::size_t i) const {
-  return alpha * (en - (*v)[i]) * pgr->drdu[i];
+  return alpha * ((*v)[i] - en) * pgr->drdu[i];
 }
 double DiracMatrix::d(std::size_t i) const {
   const auto h_mag = (Hmag == nullptr) ? 0.0 : (*Hmag)[i];
-  // return double(k) * pgr->drduor[i];
   return double(k) * pgr->drduor[i] - h_mag * pgr->drdu[i];
+}
+
+std::tuple<double, double, double, double>
+DiracMatrix::abcd(std::size_t i) const {
+  const auto ai = a(i);
+  return {ai, b(i), c(i), -ai};
+}
+
+double DiracMatrix::dfdu(const std::vector<double> &f,
+                         const std::vector<double> &g, std::size_t i) const {
+  return a(i) * f[i] + b(i) * g[i];
+}
+double DiracMatrix::dgdu(const std::vector<double> &f,
+                         const std::vector<double> &g, std::size_t i) const {
+  return c(i) * f[i] + d(i) * g[i];
 }
 
 } // namespace Adams

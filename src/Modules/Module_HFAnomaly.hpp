@@ -19,4 +19,6 @@ void calculateBohrWeisskopf(const IO::UserInputBlock &input,
 //! Calculates hyperfine anomaly for list of isotopes
 void HFAnomaly(const IO::UserInputBlock &input, const Wavefunction &wf);
 
+void HF_rmag(const IO::UserInputBlock &input, const Wavefunction &wf);
+
 } // namespace Module

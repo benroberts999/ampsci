@@ -13,6 +13,9 @@
 #include <string>
 #include <vector>
 
+// Convert between 'Wtype' and double. Wype may be doule or float.
+#pragma GCC diagnostic ignored "-Wuseless-cast"
+
 namespace MBPT {
 
 //******************************************************************************
@@ -24,6 +27,10 @@ DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
 
   // Set up basis:
   for (const auto &Fi : basis) {
+    // NB: this makes a huge difference! Try to implement somehow
+    // NB: Need to be careful: same basis used when reading W in!
+    // if (max_de > 0.0 && std::abs(Fi.en) > max_de)
+    //   continue;
     const bool inCore = std::find(cbegin(core), cend(core), Fi) != cend(core);
     if (inCore) {
       holes.push_back(Fi);
@@ -155,9 +162,7 @@ void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h) {
   const auto maxtj = std::max(maxtj_c, maxtj_e);
 
   const Coulomb::YkTable Yhe(holes.front().rgrid, &holes, &excited);
-  const Coulomb::YkTable Yee(holes.front().rgrid, &excited);
-  const Coulomb::YkTable Yhh(holes.front().rgrid, &holes);
-  const auto &Ck = maxtj_e > maxtj_c ? Yee.Ck() : Yhh.Ck();
+  const auto &Ck = Yhe.Ck();
   const Angular::SixJ sj(maxtj, maxtj);
 
   // RPA: store W Coulomb integrals (used only for Core RPA its)
@@ -166,81 +171,90 @@ void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h) {
             << DiracSpinor::state_config(excited) << ") .. " << std::flush;
   Wanmb.resize(holes.size());
   Wabmn.resize(holes.size());
+  // First set: only use Yhe and Yee
+  {
+    const Coulomb::YkTable Yee(holes.front().rgrid, &excited);
 #pragma omp parallel for
-  for (std::size_t i = 0; i < holes.size(); i++) {
-    const auto &Fa = holes[i];
-    auto &Wa_nmb = Wanmb[i];
-    auto &Wa_bmn = Wabmn[i];
-    Wa_nmb.reserve(excited.size());
-    Wa_bmn.reserve(excited.size());
-    for (const auto &Fn : excited) {
-      auto &Wan_mb = Wa_nmb.emplace_back();
-      auto &Wab_mn = Wa_bmn.emplace_back();
-      Wan_mb.reserve(excited.size());
-      Wab_mn.reserve(excited.size());
-      for (const auto &Fm : excited) {
-        auto &Wanm_b = Wan_mb.emplace_back();
-        auto &Wabm_n = Wab_mn.emplace_back();
-        Wanm_b.reserve(holes.size());
-        Wabm_n.reserve(holes.size());
-        for (const auto &Fb : holes) {
-          if (h->isZero(Fb.k, Fn.k)) {
-            Wanm_b.emplace_back(0.0);
-            Wabm_n.emplace_back(0.0);
-            continue;
+    for (std::size_t i = 0; i < holes.size(); i++) {
+      const auto &Fa = holes[i];
+      auto &Wa_nmb = Wanmb[i];
+      auto &Wa_bmn = Wabmn[i];
+      Wa_nmb.reserve(excited.size());
+      Wa_bmn.reserve(excited.size());
+      for (const auto &Fn : excited) {
+        auto &Wan_mb = Wa_nmb.emplace_back();
+        auto &Wab_mn = Wa_bmn.emplace_back();
+        Wan_mb.reserve(excited.size());
+        Wab_mn.reserve(excited.size());
+        for (const auto &Fm : excited) {
+          auto &Wanm_b = Wan_mb.emplace_back();
+          auto &Wabm_n = Wab_mn.emplace_back();
+          Wanm_b.reserve(holes.size());
+          Wabm_n.reserve(holes.size());
+          for (const auto &Fb : holes) {
+            if (h->isZero(Fb.k, Fn.k)) {
+              Wanm_b.emplace_back(0.0);
+              Wabm_n.emplace_back(0.0);
+              continue;
+            }
+            const auto yknb = Yhe.ptr_yk_ab(m_k, Fb, Fn);
+            const auto &ybm = Yhe.get_y_ab(Fb, Fm);
+            const auto &ynm = Yee.get_y_ab(Fn, Fm);
+            const auto xQ =
+                yknb ? Coulomb::Qk_abcd(Fa, Fn, Fm, Fb, m_k, *yknb, Ck) : 0.0;
+            const auto xP = Coulomb::Pk_abcd(Fa, Fn, Fm, Fb, m_k, ynm, Ck, sj);
+            const auto yQ =
+                yknb ? Coulomb::Qk_abcd(Fa, Fb, Fm, Fn, m_k, *yknb, Ck) : 0.0;
+            const auto yP = Coulomb::Pk_abcd(Fa, Fb, Fm, Fn, m_k, ybm, Ck, sj);
+            Wanm_b.push_back(static_cast<Wtype>(xQ + xP));
+            Wabm_n.push_back(static_cast<Wtype>(yQ + yP));
           }
-          const auto yknb = Yhe.ptr_yk_ab(m_k, Fb, Fn);
-          const auto &ybm = Yhe.get_y_ab(Fb, Fm);
-          const auto &ynm = Yee.get_y_ab(Fn, Fm);
-          const auto xQ =
-              yknb ? Coulomb::Qk_abcd(Fa, Fn, Fm, Fb, m_k, *yknb, Ck) : 0.0;
-          const auto xP = Coulomb::Pk_abcd(Fa, Fn, Fm, Fb, m_k, ynm, Ck, sj);
-          const auto yQ =
-              yknb ? Coulomb::Qk_abcd(Fa, Fb, Fm, Fn, m_k, *yknb, Ck) : 0.0;
-          const auto yP = Coulomb::Pk_abcd(Fa, Fb, Fm, Fn, m_k, ybm, Ck, sj);
-          Wanm_b.push_back(xQ + xP);
-          Wabm_n.push_back(yQ + yP);
         }
       }
     }
   }
+
   Wmnab.resize(excited.size());
   Wmban.resize(excited.size());
   std::cout << "." << std::flush;
+  {
+    // Only use Yhe and Yhh here:
+    const Coulomb::YkTable Yhh(holes.front().rgrid, &holes);
 #pragma omp parallel for
-  for (std::size_t i = 0; i < excited.size(); i++) {
-    const auto &Fm = excited[i];
-    auto &Wa_nmb = Wmnab[i];
-    auto &Wa_bmn = Wmban[i];
-    Wa_nmb.reserve(excited.size());
-    Wa_bmn.reserve(excited.size());
-    for (const auto &Fn : excited) {
-      auto &Wan_mb = Wa_nmb.emplace_back();
-      auto &Wab_mn = Wa_bmn.emplace_back();
-      Wan_mb.reserve(holes.size());
-      Wab_mn.reserve(holes.size());
-      for (const auto &Fa : holes) {
-        auto &Wanm_b = Wan_mb.emplace_back();
-        auto &Wabm_n = Wab_mn.emplace_back();
-        Wanm_b.reserve(holes.size());
-        Wabm_n.reserve(holes.size());
-        for (const auto &Fb : holes) {
-          if (h->isZero(Fb.k, Fn.k)) {
-            Wanm_b.emplace_back(0.0);
-            Wabm_n.emplace_back(0.0);
-            continue;
+    for (std::size_t i = 0; i < excited.size(); i++) {
+      const auto &Fm = excited[i];
+      auto &Wa_nmb = Wmnab[i];
+      auto &Wa_bmn = Wmban[i];
+      Wa_nmb.reserve(excited.size());
+      Wa_bmn.reserve(excited.size());
+      for (const auto &Fn : excited) {
+        auto &Wan_mb = Wa_nmb.emplace_back();
+        auto &Wab_mn = Wa_bmn.emplace_back();
+        Wan_mb.reserve(holes.size());
+        Wab_mn.reserve(holes.size());
+        for (const auto &Fa : holes) {
+          auto &Wanm_b = Wan_mb.emplace_back();
+          auto &Wabm_n = Wab_mn.emplace_back();
+          Wanm_b.reserve(holes.size());
+          Wabm_n.reserve(holes.size());
+          for (const auto &Fb : holes) {
+            if (h->isZero(Fb.k, Fn.k)) {
+              Wanm_b.emplace_back(0.0);
+              Wabm_n.emplace_back(0.0);
+              continue;
+            }
+            const auto yknb = Yhe.ptr_yk_ab(m_k, Fb, Fn);
+            const auto &yna = Yhe.get_y_ab(Fa, Fn);
+            const auto &yba = Yhh.get_y_ab(Fb, Fa);
+            const auto xQ =
+                yknb ? Coulomb::Qk_abcd(Fm, Fn, Fa, Fb, m_k, *yknb, Ck) : 0.0;
+            const auto xP = Coulomb::Pk_abcd(Fm, Fn, Fa, Fb, m_k, yna, Ck, sj);
+            const auto yQ =
+                yknb ? Coulomb::Qk_abcd(Fm, Fb, Fa, Fn, m_k, *yknb, Ck) : 0.0;
+            const auto yP = Coulomb::Pk_abcd(Fm, Fb, Fa, Fn, m_k, yba, Ck, sj);
+            Wanm_b.push_back(static_cast<Wtype>(xQ + xP));
+            Wabm_n.push_back(static_cast<Wtype>(yQ + yP));
           }
-          const auto yknb = Yhe.ptr_yk_ab(m_k, Fb, Fn);
-          const auto &yna = Yhe.get_y_ab(Fa, Fn);
-          const auto &yba = Yhh.get_y_ab(Fb, Fa);
-          const auto xQ =
-              yknb ? Coulomb::Qk_abcd(Fm, Fn, Fa, Fb, m_k, *yknb, Ck) : 0.0;
-          const auto xP = Coulomb::Pk_abcd(Fm, Fn, Fa, Fb, m_k, yna, Ck, sj);
-          const auto yQ =
-              yknb ? Coulomb::Qk_abcd(Fm, Fb, Fa, Fn, m_k, *yknb, Ck) : 0.0;
-          const auto yP = Coulomb::Pk_abcd(Fm, Fb, Fa, Fn, m_k, yba, Ck, sj);
-          Wanm_b.push_back(xQ + xP);
-          Wabm_n.push_back(yQ + yP);
         }
       }
     }
@@ -354,10 +368,11 @@ void DiagramRPA::rpa_core(const double omega, const bool print) {
             const auto tdem = tbn / (Fb.en - Fn.en - m_omega);
             const auto s2 = ((Fb.twoj() - Fn.twoj()) % 4 == 0) ? 1 : -1;
             const auto stdep = s2 * tnb / (Fb.en - Fn.en + m_omega);
-            const auto A = tdem * Wanmb[ia][in][im][ib];
-            const auto B = stdep * Wabmn[ia][in][im][ib];
-            const auto C = tdem * Wmnab[im][in][ia][ib];
-            const auto D = stdep * Wmban[im][in][ia][ib];
+            // Cast form 'Wtype' (may be double or float) to double
+            const auto A = tdem * static_cast<double>(Wanmb[ia][in][im][ib]);
+            const auto B = stdep * static_cast<double>(Wabmn[ia][in][im][ib]);
+            const auto C = tdem * static_cast<double>(Wmnab[im][in][ia][ib]);
+            const auto D = stdep * static_cast<double>(Wmban[im][in][ia][ib]);
             sum_am += s1 * (A + B);
             sum_ma += s3 * (C + D);
           }
