@@ -7,6 +7,7 @@
 #include "IO/ChronoTimer.hpp"
 #include "IO/UserInput.hpp"
 #include "MBPT/CorrelationPotential_test.hpp"
+#include "MBPT/DiagramRPA_test.hpp"
 #include "Maths/LinAlg_test.hpp"
 #include "Physics/RadPot_test.hpp"
 #include "Wavefunction/BSplineBasis_test.hpp"
@@ -55,7 +56,8 @@ static const std::vector<std::pair<std::string, bool (*)(std::ostream &obuff)>>
         {"LinAlg", &LinAlg},
         {"BSplineBasis", &BSplineBasis},
         {"Coulomb", &Coulomb},
-        {"CorrelationPotential", &CorrelationPotential}
+        {"CorrelationPotential", &CorrelationPotential},
+        {"DiagramRPA", &DiagramRPA}
         //
     };
 } // namespace UnitTest
@@ -74,9 +76,10 @@ int main(int argc, char *argv[]) {
   out_buff << "diracSCAS test. git:" << GitInfo::gitversion << "\n";
   out_buff << IO::time_date() << "\n";
 
-  input.check("UnitTests", {"default", "DiracODE", "HartreeFock", "MixedStates",
-                            "ExternalField", "RadPot", "Angular", "LinAlg",
-                            "BSplineBasis", "Coulomb", "CorrelationPotential"});
+  input.check("UnitTests",
+              {"default", "DiracODE", "HartreeFock", "MixedStates",
+               "ExternalField", "RadPot", "Angular", "LinAlg", "BSplineBasis",
+               "Coulomb", "CorrelationPotential", "DiagramRPA"});
 
   const auto default_tf = input.get("UnitTests", "default", true);
 

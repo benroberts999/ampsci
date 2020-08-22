@@ -50,7 +50,7 @@ DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
   if (!read_ok) {
     // If not, calc W's, and write to file
     fill_W_matrix(h);
-    if (!holes.empty() && !excited.empty())
+    if (!holes.empty() && !excited.empty() && atom != "")
       read_write(fname, IO::FRW::write);
   }
 }
@@ -297,9 +297,19 @@ double DiagramRPA::dV(const DiracSpinor &Fw, const DiracSpinor &Fv,
   if (holes.empty() || excited.empty())
     return 0.0;
 
-  const auto orderOK = Fv.en <= Fw.en;
+  if (Fv.en > Fw.en) {
+    // ??????
+    const auto sj = ((Fv.twoj() - Fw.twoj()) % 4 == 0) ? 1 : -1;
+    const auto si = m_imag ? -1 : 1;
+    return (sj * si) * dV(Fv, Fw, first_order);
+  }
+
+  const auto orderOK = true; // Fv.en <= Fw.en;
+  // ??????
   const auto &Fi = orderOK ? Fv : Fw;
   const auto &Ff = orderOK ? Fw : Fv;
+  const auto ww = m_omega; // Fv.en <= Fw.en ? m_omega : -m_omega;
+
   const auto f = (1.0 / (2 * m_k + 1));
 
   std::vector<double> sum_a(holes.size());
@@ -316,8 +326,8 @@ double DiagramRPA::dV(const DiracSpinor &Fw, const DiracSpinor &Fv,
       const auto Wwavm = Coulomb::Wk_abcd(Ff, Fa, Fi, Fm, m_k);
       const auto ttam = first_order ? t0am[ia][im] : tam[ia][im];
       const auto ttma = first_order ? t0ma[im][ia] : tma[im][ia];
-      const auto A = ttam * Wwmva / (Fa.en - Fm.en - m_omega);
-      const auto B = Wwavm * ttma / (Fa.en - Fm.en + m_omega);
+      const auto A = ttam * Wwmva / (Fa.en - Fm.en - ww);
+      const auto B = Wwavm * ttma / (Fa.en - Fm.en + ww);
       sum_a[ia] += s1 * (A + s2 * B);
     }
   }
