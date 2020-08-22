@@ -136,8 +136,14 @@ struct ComplexDouble {
   std::pair<double, double> unpack() const { return {cre(), cim()}; }
   ComplexDouble conj() const { return {cre(), -cim()}; }
   //! norm2 = re^2 + im^2, no sqrt (ruins T)
-  double norm2() const { return cre() * cre() + cim() * cim(); }
+  [[nodiscard]] double norm2() const { return cre() * cre() + cim() * cim(); }
   //
+  [[nodiscard]] ComplexDouble inverse() const {
+    //
+    const auto n2 = norm2();
+    return {cre() / n2, -cim() / n2};
+  }
+
   ComplexDouble &operator+=(const ComplexDouble &r) {
     re() += r.cre();
     im() += r.cim();

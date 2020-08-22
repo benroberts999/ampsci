@@ -198,7 +198,7 @@ void FeynmanSigma::setup_omega_grid() {
   std::cout << "Re(w) = " << m_omre << "\n";
   {
     const auto w0 = 0.05;
-    const auto wmax = 50.0;
+    const auto wmax = 150.0;
     const double wratio = 2.0;
     const std::size_t wsteps = Grid::calc_num_points_from_du(
         w0, wmax, std::log(wratio), GridType::logarithmic);
@@ -318,9 +318,13 @@ ComplexGMatrix FeynmanSigma::Green_core(int kappa, double en_re,
     if (a.k != kappa)
       continue;
     // factor = 1/(a+ib) = (a-ib)/(a^2+b^2), a= enre-e_a, b=enim
-    const auto de_re = en_re - a.en;
-    const auto a2pb2 = (de_re * de_re + en_im * en_im);
-    const ComplexDouble factor{de_re / a2pb2, -en_im / a2pb2};
+    // const auto de_re = en_re - a.en;
+    // const auto a2pb2 = (de_re * de_re + en_im * en_im);
+    // const ComplexDouble factor{de_re / a2pb2, -en_im / a2pb2};
+
+    const ComplexDouble denom{en_re - a.en, en_im};
+    const auto factor = denom.inverse();
+
     Gcore += factor * m_Pa[ia];
   }
   return Gcore;
@@ -350,9 +354,13 @@ ComplexGMatrix FeynmanSigma::Green_hf_basis(int kappa, double en_re,
     for (const auto &a : *orbs) {
       if (a.k != kappa)
         continue;
-      const auto de_re = en_re - a.en;
-      const auto a2pb2 = (de_re * de_re + en_im * en_im);
-      const ComplexDouble factor{de_re / a2pb2, -en_im / a2pb2};
+      // const auto de_re = en_re - a.en;
+      // const auto a2pb2 = (de_re * de_re + en_im * en_im);
+      // const ComplexDouble factor{de_re / a2pb2, -en_im / a2pb2};
+
+      const ComplexDouble denom{en_re - a.en, en_im};
+      const auto factor = denom.inverse();
+
       Gc += G_single(a, a, factor);
     }
   }
@@ -507,18 +515,10 @@ ComplexGMatrix FeynmanSigma::Polarisation_a(const ComplexGMatrix &pa,
                                             double omim,
                                             GrMethod method) const {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
-
   static const auto Iunit = ComplexDouble{0.0, 1.0};
-
   return Iunit * ((Green_ex(kA, ena - omre, -omim, method) +
                    Green_ex(kA, ena + omre, omim, method))
                       .mult_elements_by(pa));
-
-  // // mutliply i unit through to demoninator (* and / by (-i))
-  // // NO! Probably works for basis? But not otherwise (poles!)
-  // return (Green_ex(kA, -omim, -ena + omre, method) +
-  //         Green_ex(kA, omim, -ena - omre, method))
-  //     .mult_elements_by(pa);
 }
 
 //******************************************************************************

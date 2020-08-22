@@ -2,11 +2,14 @@
 #include "Coulomb/Coulomb.hpp"
 #include "IO/UserInput.hpp"
 #include "MBPT/FeynmanSigma.hpp"
+#include "Maths/LinAlg_MatrixVector.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include <iostream>
 #include <vector>
+
+using ComplexDouble = LinAlg::ComplexDouble;
 
 namespace Module {
 void testFeynman(const IO::UserInputBlock &input, const Wavefunction &wf) {
@@ -34,57 +37,148 @@ void testFeynman(const IO::UserInputBlock &input, const Wavefunction &wf) {
 
   std::cout << "\n***********************************\n\n";
 
-  // this is just to check Pol.
-  // Should be zero?
-  std::cout << "Testing polarisation operator, Int[ pi(1,2) d1 d2]:\n";
-  std::cout << "ka kA   Int(pi)      Expected     eps\n";
-  for (const auto ka : {-1, 1, -2, 2, -3}) {
-    for (const auto kA : {-1, 1, -2, 2, -3}) {
-      // std::cout << "ka=" << ka << " kalpha=" << kA << "\n";
-      auto pi_aA = Sigma.Polarisation(ka, kA, omre, 0.0, MBPT::GrMethod::basis);
-      // auto rePi = pi_aA.get_real();
-      auto imPi = pi_aA.get_imaginary();
-      // double sum_re = 0.0;
-      double sum_im = 0.0;
-      for (auto i = 0ul; i < pi_aA.size; ++i) {
-        const auto dri = Sigma.dr_subToFull(i);
-        for (auto j = 0ul; j < pi_aA.size; ++j) {
-          const auto drj = Sigma.dr_subToFull(j);
-          // sum_re += rePi.ff[i][j] * dri * drj;
-          sum_im += imPi.ff[i][j] * dri * drj;
-        }
-      }
-      // std::cout << "Int(Pi) = " << sum_im << "\n";
-      // std::cout << sum_re << " + " << sum_im << "i\n";
+  const auto test_pol_method = MBPT::GrMethod::Green;
+  std::string str_meth = test_pol_method == MBPT::GrMethod::Green
+                             ? "Green fn method"
+                             : "basis method";
+  //
+  if (false) {
+    std::cout
+        << "Testing polarisation operator: <v|G*Q*Pi*Q|v> = C * [R^k]^2\n";
+    std::cout << str_meth << "\n";
+    for (auto omim : {0.0, 0.5, 5.0, 50.0}) {
+      const ComplexDouble om{omre, omim};
+      std::cout << "\nw = " << omre << " + " << omim << " i\n";
+      std::cout << "       k   vGQPQv       [R^k]^2      eps\n";
+      for (int k = 0; k <= Sigma.maxk(); ++k) {
 
-      double expected = 0.0;
-      for (const auto &Fa : Sigma.m_holes) {
-        if (Fa.k != ka)
-          continue;
-        for (const auto &FA : Sigma.m_excited) {
-          if (FA.k != kA)
-            continue;
-          const auto me = (Fa * FA);
-          const auto eaA = (Fa.en - FA.en);
-          const auto denom = eaA * eaA - omre * omre; // add imag!
-          expected += me * me * 2.0 * eaA / denom;
-        }
-      }
-      const auto eps = std::abs((sum_im - expected) / (expected + sum_im));
+        const auto &qk = Sigma.get_qk(k);
+        const auto pik = Sigma.Polarisation_k(k, omre, omim, test_pol_method);
+        const auto qpq = (qk * pik * qk);
 
-      printf("%2i %2i| %11.4e  %11.4e  %7.1e", ka, kA, sum_im, expected, eps);
-      if ((eps > 1.0e-3 && std::abs(expected) > 1.0e-6) ||
-          (std::abs(expected) < 1.0e-6 && std::abs(sum_im) > 1.0e-3))
-        std::cout << " ** ";
-      std::cout << "\n";
+        for (const auto &Fv : wf.valence) {
+          double sum_k_gqpq = 0.0;
+          double sum_k_gqpq_i = 0.0;
+          ComplexDouble sum_k_RR = {0.0, 0.0};
+
+          for (auto kB : {-1, 1, -2, 2, -3, 3, -4, 4, -5, 5, -6, 6, -7}) {
+            if (Angular::l_k(kB) > max_l_excited)
+              break;
+            auto f2 = Angular::Ck_kk(k, Fv.k, kB);
+            if (f2 == 0)
+              continue;
+
+            const auto gqpq =
+                Sigma
+                    .Green(kB, Fv.en + omre, omim, MBPT::States::both,
+                           MBPT::GrMethod::Green)
+                    .mult_elements_by(qpq);
+
+            sum_k_gqpq += Sigma.Sigma_G_Fv_2(Fv, gqpq.get_imaginary(), Fv);
+            if (omim != 0.0)
+              sum_k_gqpq_i += Sigma.Sigma_G_Fv_2(Fv, gqpq.get_real(), Fv);
+
+            ComplexDouble sum1 = {0.0, 0.0};
+            for (const auto &FB : wf.basis) {
+              if (FB.k != kB)
+                continue;
+              for (const auto &Fa : wf.core) {
+                for (const auto &FA : wf.basis) {
+                  const auto f = Angular::Ck_kk(k, Fa.k, FA.k);
+                  if (f == 0.0)
+                    continue;
+                  const auto ide1 =
+                      (ComplexDouble{Fv.en - FB.en} + om).inverse();
+                  const auto ide2 =
+                      (ComplexDouble{Fa.en - FA.en} - om).inverse();
+                  const auto ide3 =
+                      (ComplexDouble{Fa.en - FA.en} + om).inverse();
+                  const auto Dinv = ide1 * (ide2 + ide3);
+                  const auto Rk = Coulomb::Rk_abcd(Fv, FA, FB, Fa, k);
+                  sum1 += Rk * Rk * f * f * Dinv * (1.0 / (2 * k + 1));
+                }
+              }
+            }
+            sum_k_RR += ComplexDouble{0.0, 1.0} * sum1; // i from pi
+          }
+          const auto eps =
+              (sum_k_gqpq - sum_k_RR.cim()) / (sum_k_gqpq + sum_k_RR.cim());
+          const auto epsi =
+              (sum_k_gqpq_i - sum_k_RR.cre()) / (sum_k_gqpq_i + sum_k_RR.cre());
+          if (sum_k_RR.cim() != 0.0 || sum_k_gqpq != 0.0) {
+            printf("%6s%2i| %11.4e  %11.4e  %6.0e\n", Fv.symbol().c_str(), k,
+                   sum_k_gqpq, sum_k_RR.cim(), eps);
+          }
+          if (sum_k_RR.cre() != 0.0 || sum_k_gqpq_i != 0.0)
+            printf("%6s  | %11.4ei %11.4ei %6.0e\n", Fv.symbol().c_str(),
+                   sum_k_gqpq_i, sum_k_RR.cre(), epsi);
+        }
+        std::cout << "\n";
+      }
     }
+
+    //
+    std::cout << "Continue?";
+    std::cin.get();
+
+    std::cout << "\n***********************************\n\n";
+    std::cout << "Testing polarisation operator, Int[ pi(1,2) d1 d2]:\n";
+    std::cout << str_meth << "\n";
+    for (auto omim : {0.0, 1.0}) {
+      std::cout << "w = " << omre << " + " << omim << " i\n";
+      std::cout << " k    Int(pi)      Expected     delta\n";
+      for (int k = 0; k <= Sigma.maxk(); ++k) {
+        auto pi = Sigma.Polarisation_k(k, omre, omim, test_pol_method);
+        ComplexDouble om = {omre, omim};
+        const auto rePi = pi.get_real();
+        const auto imPi = pi.get_imaginary();
+
+        double sum_re = 0.0;
+        double sum_im = 0.0;
+        for (auto i = 0ul; i < pi.size; ++i) {
+          const auto dri = Sigma.dr_subToFull(i);
+          for (auto j = 0ul; j < pi.size; ++j) {
+            const auto drj = Sigma.dr_subToFull(j);
+            sum_re += imPi.ff[i][j] * dri * drj;
+            sum_im += rePi.ff[i][j] * dri * drj;
+          }
+        }
+
+        ComplexDouble expected = {0.0, 0.0};
+        for (const auto &Fa : Sigma.m_holes) {
+          for (const auto &FA : Sigma.m_excited) {
+            const auto f = Angular::Ck_kk(k, Fa.k, FA.k);
+            if (f == 0.0)
+              continue;
+            const auto me = (Fa * FA);
+            const auto ide2 = (ComplexDouble{Fa.en - FA.en} - om).inverse();
+            const auto ide3 = (ComplexDouble{Fa.en - FA.en} + om).inverse();
+            const auto Dinv = (ide2 + ide3);
+            expected += me * me * f * f * Dinv * (1.0 / (2 * k + 1));
+          }
+        }
+        expected *= ComplexDouble{0.0, 1.0}; // i from pi
+        const auto del = (sum_re - expected.im());
+        const auto del2 = (sum_im - expected.re());
+
+        if (sum_re != 0.0 || expected.im() != 0.0)
+          printf("%2i | %11.4e  %11.4e  %8.1e\n", k, sum_re, expected.im(),
+                 del);
+        if (sum_im != 0.0 || expected.re() != 0.0)
+          printf("   | %11.4ei %11.4ei %8.1e\n", sum_im, expected.re(), del2);
+      }
+    }
+    std::cout << "Continue?";
+    std::cin.get();
   }
-  std::cin.get();
 
   //----------------------------------------------------------------------------
   // Just for testing Vx matrix.
+  std::cout << "\n***********************************\n\n";
   std::cout << "Test Vx matirx (also, q^k):\n";
+
   {
+    std::cout << "      Vx-Matrix   <v|vx|v>   | eps\n";
     double worst = 0.0;
     const DiracSpinor *Fworst = &wf.core.front();
     for (const auto orbs : {&wf.core, &wf.valence}) {
@@ -106,9 +200,11 @@ void testFeynman(const IO::UserInputBlock &input, const Wavefunction &wf) {
   std::cout << "\n";
 
   //----------------------------------------------------------------------------
-  // Just for testing Vx matrix.
+  // For testing Q matrix.
+  std::cout << "\n***********************************\n\n";
   std::cout << "Test Q matirx: <aa|q^k|aa> = R^k_aaaa\n";
   {
+    std::cout << "           <aa|q^k|aa>  R^k_aaaa   | eps\n";
     for (const auto orbs : {/*&wf.core,*/ &wf.valence}) {
       for (const auto &a : *orbs) {
         double worst = 0.0;
@@ -126,7 +222,7 @@ void testFeynman(const IO::UserInputBlock &input, const Wavefunction &wf) {
             worstk = k;
           }
 
-          printf("k=%2i %4s %.4e %.4e | %.1e\n", k, a.shortSymbol().c_str(),
+          printf("k=%2i %4s  %.4e   %.4e | %.1e\n", k, a.shortSymbol().c_str(),
                  q_aa, Rk, eps);
         }
 
@@ -136,6 +232,7 @@ void testFeynman(const IO::UserInputBlock &input, const Wavefunction &wf) {
     }
   }
   std::cout << "\n";
+  std::cout << "Continue?";
   std::cin.get();
 
   //----------------------------------------------------------------------------
@@ -144,10 +241,10 @@ void testFeynman(const IO::UserInputBlock &input, const Wavefunction &wf) {
   const double env = -0.127;
   for (const auto &omim : {0.0, 0.2, 10.0}) {
 
+    ComplexDouble omega{omre, omim};
+
     std::cout << "\nev=" << env << ", w=" << omre << " + " << omim << "i\n";
-    std::cout << "       Gr           Basis        Expected   |  Gr/Bs  Gr/Ex  "
-                 "Bs/Ex\n";
-    for (auto kappa : {-1, 1, -2 /*, 2, -3*/}) {
+    for (auto kappa : {-1, 1, -2, 2, -3}) {
       std::cout << "kappa: " << kappa << "\n";
 
       const auto Gr1 = Sigma.Green(kappa, env + omre, omim, MBPT::States::both,
@@ -165,17 +262,22 @@ void testFeynman(const IO::UserInputBlock &input, const Wavefunction &wf) {
       std::cout << "Inverse (Basis): " << c << " " << d << "\n";
       // ????????????????
 
+      std::cout
+          << "       Gr           Basis        Expected   |  Gr/Bs  Gr/Ex  "
+             "Bs/Ex\n";
+
       for (const auto orbs : {&wf.core, &wf.valence}) {
         for (const auto &Fv : *orbs) {
           if (Fv.k != kappa)
             continue;
           auto vGv1 = Fv * Sigma.Sigma_G_Fv(Gr1.get_real(), Fv);
           auto vGv2 = Fv * Sigma.Sigma_G_Fv(Gr2.get_real(), Fv);
-          // auto expect = 1.0 / (omre - Fv.en);
 
-          auto denom = (omre - Fv.en) * (omre - Fv.en) - omim * omim;
-          auto expect_re = (omre - Fv.en) / denom;
-          auto expect_im = -omim / denom;
+          auto denom = omega + ComplexDouble{env - Fv.en, 0};
+          auto expected = denom.inverse();
+
+          auto expect_re = expected.re();
+          auto expect_im = expected.im();
 
           auto error0 = std::abs((vGv1 - vGv2) / (vGv1 + vGv2));
           auto error1 = std::abs((vGv1 - expect_re) / expect_re);
@@ -196,7 +298,9 @@ void testFeynman(const IO::UserInputBlock &input, const Wavefunction &wf) {
         } // Fv
       }   // orbs (core/val)
     }     // kappa
-  }       // omim
+    std::cout << "Continue?";
+    std::cin.get();
+  } // omim
 
   //----------------------------------------------------------------------------
 
