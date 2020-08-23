@@ -23,13 +23,17 @@ public:
   //! Calculates V_br*Fa = \sum_b\sum_k B^k_ba F_b [Breit part of HF-Breit pot.]
   DiracSpinor VbrFa(const DiracSpinor &Fa) const;
 
-  //! dV_b*Fa, dV_b is the RPA correction arising due to Fb -> Fb + dFb
+  //! dV_b*Fa, dV_b is the exchange RPA correction arising due to Fb -> Fb + dFb
   //! @details
   //! K is multipolarity of RPA operator, Fb is core state, with Xbeta and Ybeta
   //! perturbations. "reduced rhs"
-  DiracSpinor dVbrFa(int kappa, int K, const DiracSpinor &Fa,
-                     const DiracSpinor &Fb, const DiracSpinor &Xbeta,
-                     const DiracSpinor &Ybeta) const;
+  DiracSpinor dVbrX_Fa(int kappa, int K, const DiracSpinor &Fa,
+                       const DiracSpinor &Fb, const DiracSpinor &Xbeta,
+                       const DiracSpinor &Ybeta) const;
+  //! Direct RPA correction arising due to Fb -> Fb + dFb
+  DiracSpinor dVbrD_Fa(int kappa, int K, const DiracSpinor &Fa,
+                       const DiracSpinor &Fb, const DiracSpinor &Xbeta,
+                       const DiracSpinor &Ybeta) const;
 
 private:
   const std::vector<DiracSpinor> *const p_core;
@@ -38,6 +42,13 @@ private:
   // Calculates \sum_k B^k_ba F_b (single core contr. to V_brFa)
   void BkbaFb(DiracSpinor *BFb, const DiracSpinor &Fa,
               const DiracSpinor &Fb) const;
+
+  void MOPk_ij_Fc(DiracSpinor *BFc, const double Cang,
+                  const hidden::Breit_Bk_ba &Bkab, int k, int ki, int kj,
+                  const DiracSpinor &Fc) const;
+  void Nk_ij_Fc(DiracSpinor *BFc, const double Cang,
+                const hidden::Breit_Bk_ba &Bkij, int k, int ki, int kj,
+                const DiracSpinor &Fc) const;
 
   // Internal angular coefs
   double eta(int k, int ka, int kb) const;

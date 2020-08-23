@@ -361,7 +361,8 @@ DiracSpinor ExternalField::dV_rhs(const int kappa_n, const DiracSpinor &Fm,
         // symmetric for PNC..)
         // Works for E2
         // Is there a direct Breit contribution? Yes, I think there is?
-        dVFm_c += p_VBr->dVbrFa(kappa_n, k, Fm, Fb, X_beta, Y_beta);
+        dVFm_c += p_VBr->dVbrD_Fa(kappa_n, k, Fm, Fb, X_beta, Y_beta);
+        dVFm_c += p_VBr->dVbrX_Fa(kappa_n, k, Fm, Fb, X_beta, Y_beta);
       }
     }
 #pragma omp critical(sum_X_core)
