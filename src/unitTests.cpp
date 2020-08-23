@@ -1,6 +1,7 @@
 #include "Angular/Angular_test.hpp"
 #include "Coulomb/Coulomb_test.hpp"
 #include "DiracODE/DiracODE_test.hpp"
+#include "HF/Breit_test.hpp"
 #include "HF/ExternalField_test.hpp"
 #include "HF/HartreeFock_test.hpp"
 #include "HF/MixedStates_test.hpp"
@@ -49,6 +50,7 @@ static const std::vector<std::pair<std::string, bool (*)(std::ostream &obuff)>>
         //
         {"DiracODE", &DiracODE},
         {"HartreeFock", &HartreeFock},
+        {"Breit", &Breit},
         {"MixedStates", &MixedStates},
         {"ExternalField", &ExternalField},
         {"RadPot", &RadPot},
@@ -77,7 +79,7 @@ int main(int argc, char *argv[]) {
   out_buff << IO::time_date() << "\n";
 
   input.check("UnitTests",
-              {"default", "DiracODE", "HartreeFock", "MixedStates",
+              {"default", "DiracODE", "HartreeFock", "Breit", "MixedStates",
                "ExternalField", "RadPot", "Angular", "LinAlg", "BSplineBasis",
                "Coulomb", "CorrelationPotential", "DiagramRPA"});
 
