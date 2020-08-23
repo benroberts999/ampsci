@@ -356,11 +356,7 @@ DiracSpinor ExternalField::dV_rhs(const int kappa_n, const DiracSpinor &Fm,
         // Note: Not perfectly symmetric for E1 - some issue??
         // But, differences is extremely small, so maybe just numerics?*
         // Assymetry enters below number of digits VD presents..
-        // nb: Agrees perfectly w/ Vladimir for E1 (RPA first and all order)
-        // But, Breit correction seems to be ~2x too small for PNC? (but is
-        // symmetric for PNC..)
-        // Works for E2
-        // Is there a direct Breit contribution? Yes, I think there is?
+        // nb: Agrees perfectly w/ Vladimir for E1, E2, and PNC
         dVFm_c += p_VBr->dVbrD_Fa(kappa_n, k, Fm, Fb, X_beta, Y_beta);
         dVFm_c += p_VBr->dVbrX_Fa(kappa_n, k, Fm, Fb, X_beta, Y_beta);
       }

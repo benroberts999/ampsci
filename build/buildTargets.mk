@@ -23,8 +23,9 @@ all: $(SD)/git.info checkObj checkXdir $(DEFAULTEXES)
 # I make all files depend on '$(SD)/git.info'. This achieves two things:
 # (1) It forces git.info to be built first (even in a parallel build)
 # (2) It forces a clean make when changing branches
+# The '|' means 'order only' pre-req
 
-$(BD)/%.o: $(SD)/*/%.cpp $(SD)/git.info
+$(BD)/%.o: $(SD)/*/%.cpp | $(SD)/git.info
 	$(COMP)
 
 $(BD)/%.o: $(SD)/%.cpp $(SD)/git.info
