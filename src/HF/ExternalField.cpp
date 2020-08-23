@@ -307,6 +307,7 @@ DiracSpinor ExternalField::dV_rhs(const int kappa_n, const DiracSpinor &Fm,
       const auto &Y_beta = Y_betas[ibeta];
       const auto tjbeta = X_beta.twoj();
 
+      // Direct part:
       const auto Ckbeb = Angular::Ck_kk(k, X_beta.k, Fb.k);
       if (Ckala != 0 && Ckbeb != 0) {
         dVFm_c += (Ckala * Ckbeb / tkp1) *
@@ -349,6 +350,18 @@ DiracSpinor ExternalField::dV_rhs(const int kappa_n, const DiracSpinor &Fm,
           continue;
         dVFm_c += (s * m1kpl * Ckbea * Ckbal * sixj) *
                   Coulomb::Rkv_bcd(kappa_n, Fm, Fb, Y_beta, l);
+      }
+
+      if (p_VBr) {
+        // Note: Not perfectly symmetric for E1 - some issue??
+        // But, differences is extremely small, so maybe just numerics?*
+        // Assymetry enters below number of digits VD presents..
+        // nb: Agrees perfectly w/ Vladimir for E1 (RPA first and all order)
+        // But, Breit correction seems to be ~2x too small for PNC? (but is
+        // symmetric for PNC..)
+        // Works for E2
+        // Is there a direct Breit contribution? Yes, I think there is?
+        dVFm_c += p_VBr->dVbrFa(kappa_n, k, Fm, Fb, X_beta, Y_beta);
       }
     }
 #pragma omp critical(sum_X_core)
