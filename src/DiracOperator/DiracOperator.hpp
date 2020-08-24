@@ -102,6 +102,7 @@ public:
   const std::vector<double> &getv() const { return m_vec; }
   //! Returns a const ref to constant c
   double getc() const { return m_constant; }
+  int get_d_order() const { return diff_order; }
 
   //! returns true if operator is imaginary (has imag MEs)
   bool imaginaryQ() const { return (opC == Realness::imaginary); }
@@ -118,7 +119,7 @@ public:
   //! Returns units of operator (usually au, may be MHz, etc.)
   virtual std::string units() const { return "au"; };
 
-protected:
+public:
   // These are needed for radial integrals
   // Usually just constants, but can also be functions of kappa
   virtual double angularCff(int /*k_a*/, int /*k_b*/) const { return 1.0; }
