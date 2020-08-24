@@ -211,15 +211,26 @@ void Wavefunction::radiativePotential(double x_simple, double x_Ueh,
 
   const auto r_rms_fm = scale_rN * m_nuclear.r_rms;
 
-  const auto fname = atomicSymbol() + ".qed";
+  auto is_one = [](double x) { return std::abs(x - 1.0) < 1.0e-6; };
+  // auto is_zero = [](double x) { return std::abs(x) < 1.0e-6; };
+
+  std::string label = "_";
+  if (is_one(x_Ueh))
+    label += 'u';
+  if (is_one(x_SEe_h))
+    label += 'h';
+  if (is_one(x_SEe_l))
+    label += 'l';
+  if (is_one(x_SEm))
+    label += 'm';
+  if (is_one(x_simple))
+    label += "_simple";
+
+  const auto fname = atomicSymbol() + label + ".qed";
   std::vector<double> Hel_tmp, Hmag_tmp;
 
-  auto is_one = [](double x) { return std::abs(x - 1.0) < 1.0e-6; };
-  auto is_zero = [](double x) { return std::abs(x) < 1.0e-6; };
-
   // Only read/write is "normal/full" rad pot is used
-  const bool do_rw = is_one(x_Ueh) && is_one(x_SEe_h) && is_one(x_SEe_l) &&
-                     is_one(x_SEm) && is_zero(x_simple);
+  const bool do_rw = true;
 
   const auto read_ok =
       do_rw ? RadiativePotential::read_write_qed(rgrid->r, Hel_tmp, Hmag_tmp,
@@ -499,7 +510,7 @@ double Wavefunction::enGuessCore(int n, int l) const
   // effective Z (for energy guess) -- not perfect!
   double Zeff = 1.0 + (m_nuclear.z - num_el_below - 0.5 * num_el_this);
   if (Zeff < 1.0) {
-    Zeff = 1.;
+    Zeff = 1.0;
   }
 
   double en_a = -0.5 * std::pow(Zeff / n, 2);
@@ -603,6 +614,10 @@ void Wavefunction::printCore(bool sorted) const
   std::cout << "Core: " << coreConfiguration_nice() << " (V^N";
   if (Zion != 0)
     std::cout << "-" << Zion;
+
+  if (Ncore() == 0) {
+    std::cout << " - H-like";
+  }
   std::cout << ")\n";
   if (Ncore() < 1)
     return;
