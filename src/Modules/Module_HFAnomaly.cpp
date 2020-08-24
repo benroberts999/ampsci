@@ -177,12 +177,12 @@ void HF_rmag(const IO::UserInputBlock &input, const Wavefunction &wf) {
   std::cout << "\nTuning Rmag to fit hyperfine anomaly\n";
 
   input.checkBlock({"n", "kappa", "A2", "1D2", "rpa", "num_steps", "mu1", "mu2",
-                    "I1", "I2", "eps"});
+                    "I1", "I2", "eps_targ"});
 
   // A(1) is wf
   // A(2) is wf2
   const auto A2 = input.get<int>("A2");
-  const auto eps_t = input.get("eps", 1.0e-5);
+  const auto eps_t = input.get("eps_targ", 1.0e-4);
 
   const auto d12_targ = input.get<double>("1D2");
   const auto n = input.get<int>("n");
@@ -237,12 +237,16 @@ void HF_rmag(const IO::UserInputBlock &input, const Wavefunction &wf) {
   std::unique_ptr<MBPT::DiagramRPA> rpa01{nullptr}, rpa02{nullptr},
       rpa1{nullptr}, rpa2{nullptr}, rpa2a{nullptr}, rpa2b{nullptr};
 
-  const double x = 0.3;
+  const double x = 0.1;
   const auto num_steps = input.get("num_steps", 40);
   const auto dr = 3.0 * x * rN0_au / (num_steps + 1);
 
-  const auto h01 = DiracOperator::Hyperfine(mu1, I1, rN0_au, *wf.rgrid, Fr1);
-  const auto h02 = DiracOperator::Hyperfine(mu1, I1, rN2, *wf.rgrid, Fr1);
+  const auto h01 = DiracOperator::Hyperfine(
+      mu1, I1, 0.0, *wf.rgrid, DiracOperator::Hyperfine::pointlike_F());
+  const auto h02 = DiracOperator::Hyperfine(
+      mu2, I2, 0.0, *wf.rgrid, DiracOperator::Hyperfine::pointlike_F());
+  double dv01 = 0.0;
+  double dv02 = 0.0;
   if (rpa) {
     rpa01 = std::make_unique<MBPT::DiagramRPA>(&h01, wf.basis, wf.core,
                                                wf.identity());
@@ -250,12 +254,19 @@ void HF_rmag(const IO::UserInputBlock &input, const Wavefunction &wf) {
                                                wf.identity());
     rpa01->rpa_core(0.0);
     rpa02->rpa_core(0.0);
+    auto a = DiracOperator::Hyperfine::convertRMEtoA(F1v, F1v);
+    dv01 = a * rpa01->dV(F1v, F1v);
+    dv02 = a * rpa02->dV(F1v, F1v);
   }
+  double a0_1 = h01.hfsA(F1v) + dv01;
+  double a0_2 = h02.hfsA(F1v) + dv02;
 
-  std::cout << "\n1D2 target: " << d12_targ << "\n";
+  std::cout << "\nA0(1) = " << a0_1 << "\n";
+  std::cout << "A0(2) = " << a0_2 << "\n";
+  std::cout << "1D2 target: " << d12_targ << "\n";
   std::cout << "R0(1) = " << rN0_au * PhysConst::aB_fm << "\n";
   std::cout << "R0(2) = " << rN2 * PhysConst::aB_fm << "\n";
-  std::cout << "Rmag(1)  Rmag(2)  1D2    eps(D)   del(R)\n";
+  std::cout << "Rmag(1)  Rmag(2)  e1     e2     1D2    eps(D)   del(R)\n";
   for (double rN = (1.0 - x) * rN0_au; rN < (1.0 + 2 * x) * rN0_au; rN += dr) {
 
     const auto h1 = DiracOperator::Hyperfine(mu1, I1, rN, *wf.rgrid, Fr1);
@@ -279,8 +290,12 @@ void HF_rmag(const IO::UserInputBlock &input, const Wavefunction &wf) {
     double eps;
     double del_r;
     double d12;
+    double bw1, bw2;
     while (tries++ < 40) {
 
+      // Note: For RPA, could make this 3x faster!
+      // Only need to change the 'outer' guess each time, do not need to
+      // re-evaluate RPA for the other two guesses! Complicated though??
       const auto h2a = DiracOperator::Hyperfine(mu2, I2, r2a, *wf.rgrid, Fr2);
       const auto h2 = DiracOperator::Hyperfine(mu2, I2, r2, *wf.rgrid, Fr2);
       const auto h2b = DiracOperator::Hyperfine(mu2, I2, r2b, *wf.rgrid, Fr2);
@@ -311,6 +326,9 @@ void HF_rmag(const IO::UserInputBlock &input, const Wavefunction &wf) {
       d12 = 100.0 * ((a1 / a2) * (g2 / g1) - 1.0);
       const auto d12b = 100.0 * ((a1 / a2b) * (g2 / g1) - 1.0);
 
+      bw1 = 100.0 * (a1 - a0_1) / a0_1;
+      bw2 = 100.0 * (a2 - a0_2) / a0_2;
+
       // std::cout << tries << " " << r2a * PhysConst::aB_fm << " "
       //           << r2b * PhysConst::aB_fm << " " << d12 << "\n";
 
@@ -336,8 +354,10 @@ void HF_rmag(const IO::UserInputBlock &input, const Wavefunction &wf) {
         break;
       }
     } // tries
-    printf("%.5f  %.5f %7.4f %.1e  %.1e  [%i]\n", rN * PhysConst::aB_fm,
-           r2 * PhysConst::aB_fm, d12, eps, del_r * PhysConst::aB_fm, tries);
+    printf("%.5f  %.5f %6.3f %6.3f %7.4f %.1e  %.1e  [%i]\n",
+           rN * PhysConst::aB_fm, r2 * PhysConst::aB_fm, bw1, bw2, d12, eps,
+           del_r * PhysConst::aB_fm, tries);
+    // std::cout << bw1 << " " << bw2 << "\n";
   } // rMag
 }
 
