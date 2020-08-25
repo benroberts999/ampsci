@@ -105,11 +105,11 @@ void GoldstoneSigma2::fill_Sigma_k(GMatrix *Gmat, const int kappa,
           if (Ck(k, kappa, m.k) == 0)
             continue;
           Coulomb::Qkv_bcd(&Qkv, a, m, n, k, yknb, Ck);
-          Coulomb::Pkv_bcd(&Pkv, a, m, n, k, m_yeh(m, a), Ck, m_6j);
+          // Coulomb::Pkv_bcd(&Pkv, a, m, n, k, m_yeh(m, a), Ck, m_6j);
+          // Pkv_bcd_2 allows different screening factor for each 'k2' in exch.
+          Coulomb::Pkv_bcd_2(&Pkv, a, m, n, k, m_yeh(m, a), Ck, m_6j, m_fk);
           const auto dele = en + a.en - m.en - n.en;
           const auto factor = fk / (f_kkjj * dele);
-          // note: using same fk for all coulomb lines in exchange?
-          // even though multiple k there!
           addto_G(&Ga_d, Qkv, Qkv, factor);
           addto_G(&Ga_x, Qkv, Pkv, factor);
         } // m
@@ -119,7 +119,8 @@ void GoldstoneSigma2::fill_Sigma_k(GMatrix *Gmat, const int kappa,
           if (Ck(k, kappa, b.k) == 0)
             continue;
           Coulomb::Qkv_bcd(&Qkv, n, b, a, k, yknb, Ck);
-          Coulomb::Pkv_bcd(&Pkv, n, b, a, k, m_yeh(n, b), Ck, m_6j);
+          // Coulomb::Pkv_bcd(&Pkv, n, b, a, k, m_yeh(n, b), Ck, m_6j);
+          Coulomb::Pkv_bcd_2(&Pkv, n, b, a, k, m_yeh(n, b), Ck, m_6j, m_fk);
           const auto dele = en + n.en - b.en - a.en;
           const auto factor = fk / (f_kkjj * dele); // XXX
           addto_G(&Ga_d, Qkv, Qkv, factor);

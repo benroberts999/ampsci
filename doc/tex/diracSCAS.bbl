@@ -82,7 +82,7 @@
   \BibitemOpen
   \bibfield  {author} {\bibinfo {author} {\bibfnamefont {V.~A.} \bibnamefont
   {Dzuba}}, \bibinfo {author} {\bibfnamefont {O.~P.} \bibnamefont {Sushkov}},
-   and \bibinfo {author} {\bibfnamefont {V.~V.} \bibnamefont {Flambaum}},\
+   and \bibinfo {author} {\bibfnamefont {V.~V.} \bibnamefont {Flambaum}}, 
   }\href {http://www.inp.nsk.su/images/preprint/1982{\_}089.pdf} {\bibfield
   {journal} {\bibinfo  {journal} {Prepr. INP 82-89} }\textbf {\bibinfo
   {volume} {INP 82-89}} (\bibinfo {year} {1982})}\BibitemShut {NoStop}%
@@ -96,25 +96,25 @@
   \citenamefont {Weber}, and \citenamefont {Harris}}]{Arfken2013}%
   \BibitemOpen
   \bibfield  {author} {\bibinfo {author} {\bibfnamefont {G.~B.} \bibnamefont
-  {Arfken}}, \bibinfo {author} {\bibfnamefont {H.~J.} \bibnamefont {Weber}}, \
-  and \bibinfo {author} {\bibfnamefont {F.~E.} \bibnamefont {Harris}},\
+  {Arfken}}, \bibinfo {author} {\bibfnamefont {H.~J.} \bibnamefont {Weber}},  
+  and \bibinfo {author} {\bibfnamefont {F.~E.} \bibnamefont {Harris}}, 
   }\href {\doibase 10.1016/C2009-0-30629-7} {\emph {\bibinfo {title}
   {{Mathematical Methods for Physicists}}}} (\bibinfo  {publisher}
   {Elsevier}, \bibinfo {year} {2013})\BibitemShut {NoStop}%
 \bibitem [{\citenamefont {Green} \emph {et~al.}(1969)\citenamefont {Green},
   \citenamefont {Sellin}, and \citenamefont {Zachor}}]{Green1969}%
   \BibitemOpen
-  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {A.~E.~S.}\
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {A.~E.~S.} 
   \bibnamefont {Green}}, \bibinfo {author} {\bibfnamefont {D.~L.} \bibnamefont
   {Sellin}},  and \bibinfo {author} {\bibfnamefont {A.~S.} \bibnamefont
   {Zachor}}, }\href {\doibase 10.1103/PhysRev.184.1} {\bibfield  {journal}
-  {\bibinfo  {journal} {Phys. Rev.} }\textbf {\bibinfo {volume} {184}},\
+  {\bibinfo  {journal} {Phys. Rev.} }\textbf {\bibinfo {volume} {184}}, 
   \bibinfo {pages} {1} (\bibinfo {year} {1969})}\BibitemShut {NoStop}%
 \bibitem [{\citenamefont {Slater}(1951)}]{Slater1951}%
   \BibitemOpen
   \bibfield  {author} {\bibinfo {author} {\bibfnamefont {J.~C.} \bibnamefont
   {Slater}}, }\href {\doibase 10.1103/PhysRev.81.385} {\bibfield  {journal}
-  {\bibinfo  {journal} {Phys. Rev.} }\textbf {\bibinfo {volume} {81}},\
+  {\bibinfo  {journal} {Phys. Rev.} }\textbf {\bibinfo {volume} {81}}, 
   \bibinfo {pages} {385} (\bibinfo {year} {1951})}\BibitemShut {NoStop}%
 \bibitem [{\citenamefont {Johnson} \emph
   {et~al.}(1988{\natexlab{a}})\citenamefont {Johnson}, \citenamefont
@@ -146,12 +146,12 @@
   {volume} {238}}, \bibinfo {pages} {232} (\bibinfo {year} {2019})}, \Eprint
   {http://arxiv.org/abs/1805.11265} {arXiv:1805.11265}\BibitemShut {NoStop}%
 \bibitem [{\citenamefont {Dzuba} \emph
-  {et~al.}(1984{\natexlab{a}})\citenamefont {Dzuba}, \citenamefont {Flambaum},\
+  {et~al.}(1984{\natexlab{a}})\citenamefont {Dzuba}, \citenamefont {Flambaum}, 
   and \citenamefont {Sushkov}}]{DzubaHFS1984}%
   \BibitemOpen
   \bibfield  {author} {\bibinfo {author} {\bibfnamefont {V.~A.} \bibnamefont
   {Dzuba}}, \bibinfo {author} {\bibfnamefont {V.~V.} \bibnamefont {Flambaum}},
-   and \bibinfo {author} {\bibfnamefont {O.~P.} \bibnamefont {Sushkov}},\
+   and \bibinfo {author} {\bibfnamefont {O.~P.} \bibnamefont {Sushkov}}, 
   }\href {\doibase 10.1088/0022-3700/17/10/005} {\bibfield  {journal} {\bibinfo
    {journal} {J. Phys. B} }\textbf {\bibinfo {volume} {17}}, \bibinfo {pages}
   {1953} (\bibinfo {year} {1984}{\natexlab{a}})}\BibitemShut {NoStop}%
@@ -161,13 +161,13 @@
   \bibfield  {author} {\bibinfo {author} {\bibfnamefont {A.}~\bibnamefont
   {Dalgarno}} and \bibinfo {author} {\bibfnamefont {J.~T.} \bibnamefont
   {Lewis}}, }\href {\doibase 10.1098/rspa.1955.0246} {\bibfield  {journal}
-  {\bibinfo  {journal} {Proc. R. Soc. A} }\textbf {\bibinfo {volume} {233}},\
+  {\bibinfo  {journal} {Proc. R. Soc. A} }\textbf {\bibinfo {volume} {233}}, 
   \bibinfo {pages} {70} (\bibinfo {year} {1955})}\BibitemShut {NoStop}%
 \bibitem [{\citenamefont {Ginges} and \citenamefont
   {Flambaum}(2004)}]{GingesRev2004}%
   \BibitemOpen
-  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {J.~S.~M.}\
-  \bibnamefont {Ginges}} and \bibinfo {author} {\bibfnamefont {V.~V.}\
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {J.~S.~M.} 
+  \bibnamefont {Ginges}} and \bibinfo {author} {\bibfnamefont {V.~V.} 
   \bibnamefont {Flambaum}}, }\href {\doibase 10.1016/j.physrep.2004.03.005}
   {\bibfield  {journal} {\bibinfo  {journal} {Phys. Rep.} }\textbf {\bibinfo
   {volume} {397}}, \bibinfo {pages} {63} (\bibinfo {year} {2004})}\BibitemShut
@@ -178,7 +178,7 @@
   \BibitemOpen
   \bibfield  {author} {\bibinfo {author} {\bibfnamefont {V.~A.} \bibnamefont
   {Dzuba}}, \bibinfo {author} {\bibfnamefont {J.~C.} \bibnamefont {Berengut}},
-  \bibinfo {author} {\bibfnamefont {J.~S.~M.} \bibnamefont {Ginges}},  and\
+  \bibinfo {author} {\bibfnamefont {J.~S.~M.} \bibnamefont {Ginges}},  and 
   \bibinfo {author} {\bibfnamefont {V.~V.} \bibnamefont {Flambaum}}, }\href
   {\doibase 10.1103/PhysRevA.98.043411} {\bibfield  {journal} {\bibinfo
   {journal} {Phys. Rev. A} }\textbf {\bibinfo {volume} {98}}, \bibinfo
@@ -201,7 +201,7 @@
   \BibitemOpen
   \bibfield  {author} {\bibinfo {author} {\bibfnamefont {W.~R.} \bibnamefont
   {Johnson}}, \bibinfo {author} {\bibfnamefont {C.~D.} \bibnamefont {Lin}},
-  \bibinfo {author} {\bibfnamefont {K.~T.} \bibnamefont {Cheng}},  and\
+  \bibinfo {author} {\bibfnamefont {K.~T.} \bibnamefont {Cheng}},  and 
   \bibinfo {author} {\bibfnamefont {C.~M.} \bibnamefont {Lee}}, }\href
   {\doibase 10.1088/0031-8949/21/3-4/029} {\bibfield  {journal} {\bibinfo
   {journal} {Phys. Scr.} }\textbf {\bibinfo {volume} {21}}, \bibinfo {pages}
@@ -230,7 +230,7 @@
   \BibitemOpen
   \bibfield  {author} {\bibinfo {author} {\bibfnamefont {V.~A.} \bibnamefont
   {Dzuba}}, \bibinfo {author} {\bibfnamefont {V.~V.} \bibnamefont {Flambaum}},
-  \bibinfo {author} {\bibfnamefont {P.~G.} \bibnamefont {Silvestrov}},  and\
+  \bibinfo {author} {\bibfnamefont {P.~G.} \bibnamefont {Silvestrov}},  and 
   \bibinfo {author} {\bibfnamefont {O.~P.} \bibnamefont {Sushkov}}, }\href
   {\doibase 10.1016/0375-9601(84)90122-1} {\bibfield  {journal} {\bibinfo
   {journal} {Phys. Lett. A} }\textbf {\bibinfo {volume} {103}}, \bibinfo
@@ -241,13 +241,13 @@
   \BibitemOpen
   \bibfield  {author} {\bibinfo {author} {\bibfnamefont {V.~A.} \bibnamefont
   {Dzuba}}, \bibinfo {author} {\bibfnamefont {V.~V.} \bibnamefont {Flambaum}},
-  \bibinfo {author} {\bibfnamefont {P.~G.} \bibnamefont {Silvestrov}},  and\
+  \bibinfo {author} {\bibfnamefont {P.~G.} \bibnamefont {Silvestrov}},  and 
   \bibinfo {author} {\bibfnamefont {O.~P.} \bibnamefont {Sushkov}}, }\href
   {\doibase 10.1088/0022-3700/18/4/008} {\bibfield  {journal} {\bibinfo
   {journal} {J. Phys. B} }\textbf {\bibinfo {volume} {18}}, \bibinfo {pages}
   {597} (\bibinfo {year} {1985})}\BibitemShut {NoStop}%
 \bibitem [{\citenamefont {Toh} \emph {et~al.}(2019)\citenamefont {Toh},
-  \citenamefont {Damitz}, \citenamefont {Tanner}, \citenamefont {Johnson},\
+  \citenamefont {Damitz}, \citenamefont {Tanner}, \citenamefont {Johnson}, 
   and \citenamefont {Elliott}}]{TohBeta2019}%
   \BibitemOpen
   \bibfield  {author} {\bibinfo {author} {\bibfnamefont {G.}~\bibnamefont
@@ -267,16 +267,16 @@
   {Safronova}}, \bibinfo {author} {\bibfnamefont {U.~I.} \bibnamefont
   {Safronova}},  and \bibinfo {author} {\bibfnamefont {C.~W.} \bibnamefont
   {Clark}}, }\href {\doibase 10.1103/PhysRevA.94.012505} {\bibfield  {journal}
-  {\bibinfo  {journal} {Phys. Rev. A} }\textbf {\bibinfo {volume} {94}},\
+  {\bibinfo  {journal} {Phys. Rev. A} }\textbf {\bibinfo {volume} {94}}, 
   \bibinfo {pages} {012505} (\bibinfo {year} {2016})}, \Eprint
   {http://arxiv.org/abs/1605.05210} {arXiv:1605.05210}\BibitemShut {NoStop}%
 \bibitem [{\citenamefont {Pucher} \emph {et~al.}(2020)\citenamefont {Pucher},
-  \citenamefont {Schneeweiss}, \citenamefont {Rauschenbeutel}, and\
+  \citenamefont {Schneeweiss}, \citenamefont {Rauschenbeutel}, and 
   \citenamefont {Dareau}}]{Pucher2019}%
   \BibitemOpen
   \bibfield  {author} {\bibinfo {author} {\bibfnamefont {S.}~\bibnamefont
   {Pucher}}, \bibinfo {author} {\bibfnamefont {P.}~\bibnamefont {Schneeweiss}},
-  \bibinfo {author} {\bibfnamefont {A.}~\bibnamefont {Rauschenbeutel}},  and\
+  \bibinfo {author} {\bibfnamefont {A.}~\bibnamefont {Rauschenbeutel}},  and 
   \bibinfo {author} {\bibfnamefont {A.}~\bibnamefont {Dareau}}, }\href
   {\doibase 10.1103/PhysRevA.101.042510} {\bibfield  {journal} {\bibinfo
   {journal} {Phys. Rev. A} }\textbf {\bibinfo {volume} {101}}, \bibinfo
@@ -299,7 +299,7 @@
   \bibfield  {author} {\bibinfo {author} {\bibfnamefont {J.~B.} \bibnamefont
   {Mann}} and \bibinfo {author} {\bibfnamefont {W.~R.} \bibnamefont
   {Johnson}}, }\href {\doibase 10.1103/PhysRevA.4.41} {\bibfield  {journal}
-  {\bibinfo  {journal} {Phys. Rev. A} }\textbf {\bibinfo {volume} {4}},\
+  {\bibinfo  {journal} {Phys. Rev. A} }\textbf {\bibinfo {volume} {4}}, 
   \bibinfo {pages} {41} (\bibinfo {year} {1971})}\BibitemShut {NoStop}%
 \bibitem [{\citenamefont {Derevianko}(2001)}]{Derevianko2001}%
   \BibitemOpen
@@ -320,8 +320,8 @@
 \bibitem [{\citenamefont {Ginges} and \citenamefont
   {Berengut}(2016{\natexlab{a}})}]{GingesQED2015}%
   \BibitemOpen
-  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {J.~S.~M.}\
-  \bibnamefont {Ginges}} and \bibinfo {author} {\bibfnamefont {J.~C.}\
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {J.~S.~M.} 
+  \bibnamefont {Ginges}} and \bibinfo {author} {\bibfnamefont {J.~C.} 
   \bibnamefont {Berengut}}, }\href {\doibase 10.1088/0953-4075/49/9/095001}
   {\bibfield  {journal} {\bibinfo  {journal} {J. Phys. B} }\textbf {\bibinfo
   {volume} {49}}, \bibinfo {pages} {095001} (\bibinfo {year}
@@ -329,8 +329,8 @@
 \bibitem [{\citenamefont {Ginges} and \citenamefont
   {Berengut}(2016{\natexlab{b}})}]{Ginges2016}%
   \BibitemOpen
-  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {J.~S.~M.}\
-  \bibnamefont {Ginges}} and \bibinfo {author} {\bibfnamefont {J.~C.}\
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {J.~S.~M.} 
+  \bibnamefont {Ginges}} and \bibinfo {author} {\bibfnamefont {J.~C.} 
   \bibnamefont {Berengut}}, }\href {\doibase 10.1103/PhysRevA.93.052509}
   {\bibfield  {journal} {\bibinfo  {journal} {Phys. Rev. A} }\textbf {\bibinfo
   {volume} {93}}, \bibinfo {pages} {052509} (\bibinfo {year}

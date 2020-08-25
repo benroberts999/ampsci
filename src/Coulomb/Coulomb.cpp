@@ -429,6 +429,41 @@ void Pkv_bcd(DiracSpinor *Pkv, const DiracSpinor &Fb, const DiracSpinor &Fc,
   }
   *Pkv *= tkp1;
 }
+//------------------------------------------------------------------------------
+void Pkv_bcd_2(DiracSpinor *Pkv, const DiracSpinor &Fb, const DiracSpinor &Fc,
+               const DiracSpinor &Fd, const int k,
+               const std::vector<std::vector<double>> &ybc,
+               const Angular::Ck_ab &Ck, const Angular::SixJ &sixj,
+               const std::vector<double> &f2k) {
+  [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__, "yk");
+
+  *Pkv *= 0.0;
+
+  auto fk = [&f2k](int l) {
+    // nb: only screens l, k assumed done outside...
+    if (l < int(f2k.size())) {
+      return std::sqrt(f2k[std::size_t(l)]);
+    }
+    return 1.0;
+  };
+
+  const auto kappa = Pkv->k;
+
+  const auto tkp1 = 2 * k + 1;
+  const auto min_l = std::abs(Fb.twoj() - Fc.twoj()) / 2;
+  auto count = 0;
+  for (const auto &ybc_l : ybc) {
+    const auto l = min_l + count;
+    ++count;
+    const auto sj = sixj.get_6j(Fc.twoj(), Angular::twoj_k(kappa), Fd.twoj(),
+                                Fb.twoj(), k, l);
+    if (sj == 0.0)
+      continue;
+    *Pkv += sj * fk(l) *
+            Qkv_bcd(kappa, Fb, Fd, Fc, l, ybc_l, Ck); // a,b,d,c [exch.]
+  }
+  *Pkv *= tkp1;
+}
 
 //******************************************************************************
 double Qk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
