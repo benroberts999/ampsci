@@ -39,42 +39,45 @@ public:
   //!@brief
   // Calculates (radial) Hartree-Fock Greens function G_kappa(er + i*ei).
   // states = States::{core, excited, both}; method = GrMethod::{Green, basis}
-  ComplexGMatrix Green(int kappa, double en_re, double en_im = 0.0,
-                       States states = States::both,
-                       GrMethod method = GrMethod::Green) const;
+  [[nodiscard]] ComplexGMatrix Green(int kappa, double en_re,
+                                     double en_im = 0.0,
+                                     States states = States::both,
+                                     GrMethod method = GrMethod::Green) const;
 
   //! Takes Gr = G(e_r) and e_i, returns G(e_r + i e_i). nb: Must be FULL green
-  ComplexGMatrix GreenAtComplex(const ComplexGMatrix &Gr, double e_imag) const;
+  [[nodiscard]] ComplexGMatrix GreenAtComplex(const ComplexGMatrix &Gr,
+                                              double e_imag) const;
 
   //! Calculates polarisation operator, all core states
   [[deprecated]] ComplexGMatrix
   Polarisation(int ka, int kA, double om_re, double om_im,
                GrMethod method = GrMethod::basis) const;
 
-  ComplexGMatrix Polarisation_k(int k, double om_re, double om_im,
-                                GrMethod method) const;
+  [[nodiscard]] ComplexGMatrix Polarisation_k(int k, double om_re, double om_im,
+                                              GrMethod method) const;
 
   //! Returns (reference to) q^k (radial) matrix. Note: includes dri*drj
-  const ComplexGMatrix &get_qk(int k) const;
+  [[nodiscard]] const ComplexGMatrix &get_qk(int k) const;
 
   //! Screens Coulomb: q_scr = q * [1-pi*q]^-1
-  ComplexGMatrix screenedCoulomb(const ComplexGMatrix &q,
-                                 const ComplexGMatrix &pi) const;
+  [[nodiscard]] ComplexGMatrix screenedCoulomb(const ComplexGMatrix &q,
+                                               const ComplexGMatrix &pi) const;
 
   //! Returns (ref to) radial exchange matrix Vx_kappa. Nb: includes dri*drj
-  const GMatrix &get_Vx_kappa(int kappa) const;
+  [[nodiscard]] const GMatrix &get_Vx_kappa(int kappa) const;
 
-  const ComplexGMatrix &get_dri() const { return *m_dri; }
-  const ComplexGMatrix &get_drj() const { return *m_drj; }
+  [[nodiscard]] const ComplexGMatrix &get_dri() const { return *m_dri; }
+  [[nodiscard]] const ComplexGMatrix &get_drj() const { return *m_drj; }
 
   //! Calculates direct Sigma using Feynman method
-  GMatrix FeynmanDirect(int kv, double env);
+  [[nodiscard]] GMatrix FeynmanDirect(int kv, double env);
   //! Calculates exchange Sigma using Feynman method [w_1 version]
-  GMatrix FeynmanEx_1(int kv, double env);
+  [[nodiscard]] GMatrix FeynmanEx_1(int kv, double env);
 
   // Contructs G_a Green-like fn for single state: returns f*|ket><bra|
-  ComplexGMatrix G_single(const DiracSpinor &ket, const DiracSpinor &bra,
-                          const ComplexDouble f) const;
+  [[nodiscard]] ComplexGMatrix G_single(const DiracSpinor &ket,
+                                        const DiracSpinor &bra,
+                                        const ComplexDouble f) const;
 
 private:
   // Calculates initial data needed for Feynman (|a><a|, w grids etc)
@@ -84,47 +87,56 @@ private:
   // Calculates and stores radial exchange matrix Vx for each kappa
   void form_Vx();
   // Forms Vx for given kappa, exhange operator matrix (includes dri,drj)
-  GMatrix calculate_Vx_kappa(int kappa) const;
+  [[nodiscard]] GMatrix calculate_Vx_kappa(int kappa) const;
   // Calculates and stores radial projection operators for core states |a><a|
   void form_Pa_core();
   // Sets up imaginary frequency (omega) grids for integrations
   void setup_omega_grid();
 
   // Calculate "Core" Green fn by direct summation over only core states
-  ComplexGMatrix Green_core(int kappa, double en_re, double en_im) const;
+  [[nodiscard]] ComplexGMatrix Green_core(int kappa, double en_re,
+                                          double en_im) const;
   // Calculates "excited" Greens function, by: G_ex = G - G_core
-  ComplexGMatrix Green_ex(int kappa, double en_re, double en_im,
-                          GrMethod method = GrMethod::Green) const;
+  [[nodiscard]] ComplexGMatrix
+  Green_ex(int kappa, double en_re, double en_im,
+           GrMethod method = GrMethod::Green) const;
   // Calculates Hartree-Fock Green function (including exchange), for real en
-  ComplexGMatrix Green_hf(int kappa, double en) const;
+  [[nodiscard]] ComplexGMatrix Green_hf(int kappa, double en) const;
   // Calculates HF Green function (including exchange), for Complex en
-  ComplexGMatrix Green_hf(int kappa, double en_re, double en_imag) const;
+  [[nodiscard]] ComplexGMatrix Green_hf(int kappa, double en_re,
+                                        double en_imag) const;
   // Calculate HF Greens function (complex en), using basis expansion
-  ComplexGMatrix Green_hf_basis(int kappa, double en_re, double en_im,
-                                bool ex_only = false) const;
+  [[nodiscard]] ComplexGMatrix Green_hf_basis(int kappa, double en_re,
+                                              double en_im,
+                                              bool ex_only = false) const;
   // Contructs G0(w) (no exchange) Greens fn; x0,xI homog. solns reg at 0,infty
-  GMatrix MakeGreensG0(const DiracSpinor &x0, const DiracSpinor &xI,
-                       const double w) const;
+  [[nodiscard]] GMatrix MakeGreensG0(const DiracSpinor &x0,
+                                     const DiracSpinor &xI,
+                                     const double w) const;
 
   // Takes a G(e) and de_r, de_i, returns G(e + de_r + i*de_i) - needs testing
-  ComplexGMatrix GreenAtComplexShift(const ComplexGMatrix &Gr, double de_re,
-                                     double om_imag) const;
+  [[nodiscard]] ComplexGMatrix GreenAtComplexShift(const ComplexGMatrix &Gr,
+                                                   double de_re,
+                                                   double om_imag) const;
 
   // Calculates polarisation operator, only single core state (pa = |a><a|)
-  ComplexGMatrix Polarisation_a(const ComplexGMatrix &pa, double ena,
-                                int k_alpha, double om_re, double om_im,
-                                GrMethod method = GrMethod::basis) const;
+  [[nodiscard]] ComplexGMatrix
+  Polarisation_a(const ComplexGMatrix &pa, double ena, int k_alpha,
+                 double om_re, double om_im,
+                 GrMethod method = GrMethod::basis) const;
 
-  ComplexGMatrix sum_qpq(int k, double om_re, double om_im) const;
+  [[nodiscard]] ComplexGMatrix sum_qpq(int k, double om_re, double om_im) const;
 
   // direct: sum_k [ck qk * pi(w) * qk], ck angular factor
-  GMatrix sumk_cGQPQ(int kv, int ka, int kalpha, int kbeta,
-                     const ComplexGMatrix &g_beta,
-                     const ComplexGMatrix &pi_aalpha) const;
+  [[nodiscard]] GMatrix sumk_cGQPQ(int kv, int ka, int kalpha, int kbeta,
+                                   const ComplexGMatrix &g_beta,
+                                   const ComplexGMatrix &pi_aalpha) const;
   // exchange: sum_kl gA*qk*ql*(c1 * pa*gxBm + c2 * gxBp*pa)
-  GMatrix sumkl_GQPGQ(const ComplexGMatrix &gA, const ComplexGMatrix &gxBm,
-                      const ComplexGMatrix &gxBp, const ComplexGMatrix &pa,
-                      int kv, int kA, int kB, int ka) const;
+  [[nodiscard]] GMatrix sumkl_GQPGQ(const ComplexGMatrix &gA,
+                                    const ComplexGMatrix &gxBm,
+                                    const ComplexGMatrix &gxBp,
+                                    const ComplexGMatrix &pa, int kv, int kA,
+                                    int kB, int ka) const;
 
   // result += Real{ sum_ij [ factor * a1j * bij * cj2 * (d_1i * e_i2) ] }
   void tensor_5_product(GMatrix *result, const ComplexDouble &factor,

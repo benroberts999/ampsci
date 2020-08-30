@@ -235,7 +235,7 @@ void FeynmanSigma::fill_Sigma_k(GMatrix *Sigma, const int kappa,
 
   auto deD = 0.0;
   if (Fk != cend(m_excited)) {
-    deD = *Fk * Sigma_G_Fv(*Sigma, *Fk);
+    deD = *Fk * act_G_Fv(*Sigma, *Fk);
     printf("de= %.4f + ", deD);
     std::cout << std::flush;
   }
@@ -243,7 +243,7 @@ void FeynmanSigma::fill_Sigma_k(GMatrix *Sigma, const int kappa,
   const auto exch = FeynmanEx_1(kappa, en);
 
   if (Fk != cend(m_excited)) {
-    auto deX = *Fk * Sigma_G_Fv(exch, *Fk);
+    auto deX = *Fk * act_G_Fv(exch, *Fk);
     printf("%.5f = ", deX);
   }
 
@@ -259,7 +259,7 @@ ComplexGMatrix FeynmanSigma::Green(int kappa, double en_re, double en_im,
   if (states == States::core) {
     return Green_core(kappa, en_re, en_im);
   } else if (states == States::excited) {
-    Green_ex(kappa, en_re, en_im, method);
+    return Green_ex(kappa, en_re, en_im, method);
   }
   return (method == GrMethod::Green) ? Green_hf(kappa, en_re, en_im)
                                      : Green_hf_basis(kappa, en_re, en_im);
@@ -429,6 +429,7 @@ GMatrix FeynmanSigma::MakeGreensG0(const DiracSpinor &x0, const DiracSpinor &xI,
         const auto irmin = std::min(sj, si);
         const auto irmax = std::max(sj, si);
         g0I.fg[i][j] = x0.f[irmin] * xI.g[irmax] * winv;
+        // fg = gf?
         g0I.gf[i][j] = x0.g[irmin] * xI.f[irmax] * winv;
         g0I.gg[i][j] = x0.g[irmin] * xI.g[irmax] * winv;
       } // j
@@ -467,6 +468,8 @@ ComplexGMatrix FeynmanSigma::Polarisation_k(int k, double omre, double omim,
                                             GrMethod method) const {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   ComplexGMatrix pi_k(m_subgrid_points, m_include_G);
+  // if (k == 0)
+  //   return pi_k;
   static const auto Iunit = ComplexDouble{0.0, 1.0};
   const auto &core = p_hf->get_core();
   for (auto ia = 0ul; ia < core.size(); ++ia) {

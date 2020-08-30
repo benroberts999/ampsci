@@ -114,17 +114,13 @@ void CorrelationPotential::addto_G(GMatrix *Gmat, const DiracSpinor &ket,
 }
 
 //******************************************************************************
-DiracSpinor CorrelationPotential::Sigma_G_Fv(const GMatrix &Gmat,
-                                             const DiracSpinor &Fv) const {
+DiracSpinor CorrelationPotential::act_G_Fv(const GMatrix &Gmat,
+                                           const DiracSpinor &Fv) const {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   // lambda is fitting factor (just scales Sigma|v>)
   // Sigma|v> = int G(r1,r2)*v(r2) dr2
   // (S|v>)_i = sum_j G_ij v_j drdu_j du
   // nb: G is on sub-grid, |v> and S|v> on full-grid. Use interpolation
-
-  const auto ki = std::size_t(Fv.k_index());
-  // XXX NOTE: ONLY LAMBDA WHEN Gmat IS SIGMA !!!
-  const auto lambda = ki >= m_lambda_kappa.size() ? 1.0 : m_lambda_kappa[ki];
 
   const auto &gr = *(Fv.rgrid);
   auto SigmaFv = DiracSpinor(0, Fv.k, Fv.rgrid);
@@ -135,7 +131,7 @@ DiracSpinor CorrelationPotential::Sigma_G_Fv(const GMatrix &Gmat,
     for (auto j = 0ul; j < m_subgrid_points; ++j) {
       const auto sj = ri_subToFull(j);
       const auto dr = gr.drdu[sj] * gr.du * double(m_stride);
-      f[i] += Gmat.ff[i][j] * Fv.f[sj] * dr * lambda;
+      f[i] += Gmat.ff[i][j] * Fv.f[sj] * dr;
     }
   }
 
@@ -145,9 +141,9 @@ DiracSpinor CorrelationPotential::Sigma_G_Fv(const GMatrix &Gmat,
       for (auto j = 0ul; j < m_subgrid_points; ++j) {
         const auto sj = ri_subToFull(j);
         const auto dr = gr.drdu[sj] * gr.du * double(m_stride);
-        f[i] += Gmat.fg[i][j] * Fv.g[sj] * dr * lambda;
-        g[i] += Gmat.gf[i][j] * Fv.f[sj] * dr * lambda;
-        g[i] += Gmat.gg[i][j] * Fv.g[sj] * dr * lambda;
+        f[i] += Gmat.fg[i][j] * Fv.g[sj] * dr;
+        g[i] += Gmat.gf[i][j] * Fv.f[sj] * dr;
+        g[i] += Gmat.gg[i][j] * Fv.g[sj] * dr;
       }
     }
   }
@@ -162,9 +158,9 @@ DiracSpinor CorrelationPotential::Sigma_G_Fv(const GMatrix &Gmat,
 }
 
 //******************************************************************************
-double CorrelationPotential::Sigma_G_Fv_2(const DiracSpinor &Fa,
-                                          const GMatrix &Gmat,
-                                          const DiracSpinor &Fb) const {
+double CorrelationPotential::act_G_Fv_2(const DiracSpinor &Fa,
+                                        const GMatrix &Gmat,
+                                        const DiracSpinor &Fb) const {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   // Dores not include Jacobian (assumed already in Gmat)
 
@@ -239,10 +235,21 @@ DiracSpinor CorrelationPotential::SigmaFv(const DiracSpinor &v) const {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   // Find correct G matrix (corresponds to kappa_v), return Sigma|v>
   // If m_Sigma_kappa doesn't exist, returns |0>
-  auto kappa_index = std::size_t(Angular::indexFromKappa(v.k));
-  if (kappa_index >= m_Sigma_kappa.size())
+  const auto kappa_index = std::size_t(v.k_index());
+  if (kappa_index >= m_Sigma_kappa.size()) {
+    std::cout << "Warning: Requested Sigma for state " << v.symbol()
+              << "; max kappa is "
+              << Angular::kappaFromIndex(int(m_Sigma_kappa.size()) - 1) << "\n";
     return 0.0 * v;
-  return Sigma_G_Fv(m_Sigma_kappa[kappa_index], v);
+  }
+
+  // Aply lambda, if exists:
+  const auto lambda =
+      kappa_index >= m_lambda_kappa.size() ? 1.0 : m_lambda_kappa[kappa_index];
+
+  return lambda == 1.0 ? act_G_Fv(m_Sigma_kappa[kappa_index], v)
+                       : lambda * act_G_Fv(m_Sigma_kappa[kappa_index], v);
+  // nb: does this kill RVO?
 }
 
 //******************************************************************************

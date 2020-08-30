@@ -143,8 +143,8 @@ void GoldstoneSigma2::fill_Sigma_k(GMatrix *Gmat, const int kappa,
   auto find_kappa = [=](const auto &f) { return f.k == kappa; };
   const auto Fk = std::find_if(cbegin(m_excited), cend(m_excited), find_kappa);
   if (Fk != cend(m_excited)) {
-    auto deD = *Fk * Sigma_G_Fv(Sdir, *Fk);
-    auto deX = *Fk * Sigma_G_Fv(Sexch, *Fk);
+    auto deD = *Fk * act_G_Fv(Sdir, *Fk);
+    auto deX = *Fk * act_G_Fv(Sexch, *Fk);
     printf("de= %.4f + %.5f = ", deD, deX);
   }
 }

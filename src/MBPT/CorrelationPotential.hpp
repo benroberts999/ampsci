@@ -120,10 +120,10 @@ public:
   void addto_G(GMatrix *Gmat, const DiracSpinor &ket, const DiracSpinor &bra,
                const double f = 1.0) const;
 
-  // Acts Sigma (G) matrix onto Fv. Interpolates from sub-grid
-  DiracSpinor Sigma_G_Fv(const GMatrix &Gmat, const DiracSpinor &Fv) const;
-  double Sigma_G_Fv_2(const DiracSpinor &Fa, const GMatrix &Gmat,
-                      const DiracSpinor &Fb) const;
+  // Acts Gmatirx (G) matrix onto Fv. Interpolates from sub-grid
+  DiracSpinor act_G_Fv(const GMatrix &Gmat, const DiracSpinor &Fv) const;
+  double act_G_Fv_2(const DiracSpinor &Fa, const GMatrix &Gmat,
+                    const DiracSpinor &Fb) const;
 
   // Read and writes Sigma (G) matrix to file
   bool read_write(const std::string &fname, IO::FRW::RoW rw);
