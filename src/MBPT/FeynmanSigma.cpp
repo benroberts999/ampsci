@@ -197,9 +197,9 @@ void FeynmanSigma::setup_omega_grid() {
   // Set up imaginary frequency grid:
   std::cout << "Re(w) = " << m_omre << "\n";
   {
-    const auto w0 = 0.05;
-    const auto wmax = 150.0;
-    const double wratio = 2.0;
+    const auto w0 = 0.01;
+    const auto wmax = 250.0;
+    const double wratio = 1.75;
     const std::size_t wsteps = Grid::calc_num_points_from_du(
         w0, wmax, std::log(wratio), GridType::logarithmic);
     // const auto wgrid = Grid(w0, wmax, wsteps, GridType::logarithmic);
@@ -468,8 +468,10 @@ ComplexGMatrix FeynmanSigma::Polarisation_k(int k, double omre, double omim,
                                             GrMethod method) const {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   ComplexGMatrix pi_k(m_subgrid_points, m_include_G);
-  // if (k == 0)
+  // if (method == GrMethod::Green && k == 0) {
+  //   // XXX !!! XXX !!!
   //   return pi_k;
+  // }
   static const auto Iunit = ComplexDouble{0.0, 1.0};
   const auto &core = p_hf->get_core();
   for (auto ia = 0ul; ia < core.size(); ++ia) {
@@ -578,7 +580,8 @@ GMatrix FeynmanSigma::FeynmanDirect(int kv, double env) {
       const auto pi = Polarisation_k(k, omre, omim, pol_method);
       const auto &q = get_qk(k);
       const auto &q_scr = screen_Coulomb ? screenedCoulomb(q, pi) : q; //???
-      const auto qpq_dw = (dw / M_PI) * (q * pi * q_scr);
+      // -1 comes from (dw = idw), 2*dw(2pi) = dw/pi
+      const auto qpq_dw = -(dw / M_PI) * (q * pi * q_scr);
 
       for (int ibeta = 0; ibeta <= m_max_kappaindex; ++ibeta) {
         const auto kB = Angular::kappaFromIndex(ibeta);
@@ -594,7 +597,8 @@ GMatrix FeynmanSigma::FeynmanDirect(int kv, double env) {
                 : GreenAtComplex(gBetas[std::size_t(ibeta)], omim);
 
         // sum over k:
-        Sigma_w += c_ang * (g_beta.mult_elements_by(qpq_dw)).get_real();
+        // Sigma_w += c_ang * (g_beta.mult_elements_by(qpq_dw)).get_real();
+        Sigma_w += c_ang * (g_beta.mult_elements_by(qpq_dw)).get_imaginary();
 
       } // k
     }   // omega
