@@ -70,9 +70,11 @@ public:
   [[nodiscard]] const ComplexGMatrix &get_drj() const { return *m_drj; }
 
   //! Calculates direct Sigma using Feynman method
-  [[nodiscard]] GMatrix FeynmanDirect(int kv, double env);
+  [[nodiscard]] GMatrix FeynmanDirect(int kv, double env) const;
+
+  [[nodiscard]] GMatrix FeynmanEx_w1w2(int kv, double en) const;
   //! Calculates exchange Sigma using Feynman method [w_1 version]
-  [[nodiscard]] GMatrix FeynmanEx_1(int kv, double env);
+  [[nodiscard]] GMatrix FeynmanEx_1(int kv, double env) const;
 
   // Contructs G_a Green-like fn for single state: returns f*|ket><bra|
   [[nodiscard]] ComplexGMatrix G_single(const DiracSpinor &ket,
@@ -115,16 +117,23 @@ private:
 
   [[nodiscard]] ComplexGMatrix sum_qpq(int k, double om_re, double om_im) const;
 
-  // direct: sum_k [ck qk * pi(w) * qk], ck angular factor
-  [[nodiscard]] GMatrix sumk_cGQPQ(int kv, int ka, int kalpha, int kbeta,
-                                   const ComplexGMatrix &g_beta,
-                                   const ComplexGMatrix &pi_aalpha) const;
+  // // direct: sum_k [ck qk * pi(w) * qk], ck angular factor
+  // [[nodiscard]] GMatrix sumk_cGQPQ(int kv, int ka, int kalpha, int kbeta,
+  //                                  const ComplexGMatrix &g_beta,
+  //                                  const ComplexGMatrix &pi_aalpha) const;
   // exchange: sum_kl gA*qk*ql*(c1 * pa*gxBm + c2 * gxBp*pa)
   [[nodiscard]] GMatrix sumkl_GQPGQ(const ComplexGMatrix &gA,
                                     const ComplexGMatrix &gxBm,
                                     const ComplexGMatrix &gxBp,
                                     const ComplexGMatrix &pa, int kv, int kA,
                                     int kB, int ka) const;
+
+  [[nodiscard]] GMatrix sumkl_gqgqg(const ComplexGMatrix &gA,
+                                    const ComplexGMatrix &gB,
+                                    const ComplexGMatrix &gG, int kv, int kA,
+                                    int kB, int kG, int kmax) const;
+
+  double Lkl_abcd(int k, int l, int ka, int kb, int kc, int kd) const;
 
   // result += Real{ sum_ij [ factor * a1j * bij * cj2 * (d_1i * e_i2) ] }
   void tensor_5_product(GMatrix *result, const ComplexDouble &factor,
