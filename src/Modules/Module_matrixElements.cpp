@@ -68,6 +68,17 @@ void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf) {
                  "operator.\n Consider using rpa_diagram method\n\n";
   }
 
+  // Vertex QED term:
+  std::unique_ptr<DiracOperator::VertexQED> hVertexQED = nullptr;
+  const auto A_vertex = input.get("A_vertex", 0.0);
+  if (A_vertex != 0.0) {
+    const auto b_vertex = input.get("b_vertex", 1.0);
+    std::cout << "Including effective vertex QED with: A=" << A_vertex
+              << ", b=" << b_vertex << "\n";
+    hVertexQED = std::make_unique<DiracOperator::VertexQED>(h.get(), *wf.rgrid,
+                                                            A_vertex, b_vertex);
+  }
+
   // XXX Always same kappa for get_Vlocal?
   auto rpa = HF::ExternalField(h.get(), wf.getHF());
   std::unique_ptr<HF::ExternalField> rpa0; // for first-order
@@ -146,6 +157,11 @@ void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf) {
         auto dV0 = rpaD->dV(Fa, Fb, true);
         printf(" %13.6e  %13.6e\n", (h->reducedME(Fa, Fb) + dV0) * a,
                (h->reducedME(Fa, Fb) + dV) * a);
+      }
+      if (hVertexQED) { //
+        printf("   QED vertex: ");
+        printf("%13.6e \n", hVertexQED->reducedME(Fa, Fb) * a);
+        // Add RPA? Might be important?
       }
     }
   }
@@ -245,8 +261,8 @@ generateOperator(const IO::UserInputBlock &input, const Wavefunction &wf,
 
 static auto jointCheck(const std::vector<std::string> &in) {
   std::vector<std::string> check_list = {
-      "radialIntegral", "printBoth", "onlyDiagonal", "units", "rpa",
-      "rpa_diagram",    "omega"};
+      "radialIntegral", "printBoth", "onlyDiagonal", "units",   "rpa",
+      "rpa_diagram",    "omega",     "A_vertex",     "b_vertex"};
   check_list.insert(check_list.end(), in.begin(), in.end());
   return check_list;
 }

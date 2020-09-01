@@ -8,7 +8,8 @@
 #include <tuple>
 
 namespace UnitTest {
-//! Unit tests for Hartree Fock equations (including Breit)
+
+//! Unit tests for Hartree Fock equations
 bool HartreeFock(std::ostream &obuff) {
   bool pass = true;
 
@@ -65,27 +66,6 @@ bool HartreeFock(std::ostream &obuff) {
       const std::string worst = at == wf.valence.end() ? "" : at->symbol();
       pass &=
           qip::check_value(&obuff, "HF val Cs grid " + worst, eps, 0.0, 3.0e-6);
-    }
-
-    // Check Breit (valence):
-    {
-      Wavefunction wf_Br({2000, 1.0e-6, 120.0, 0.33 * 120.0, "loglinear", -1.0},
-                         {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
-      wf_Br.hartreeFockCore("HartreeFock", 1.0, "[Xe]"); // incl Breit
-      wf_Br.hartreeFockValence("6sp5d");
-
-      const std::vector<double> VD_vBr = {-0.12735353, -0.08558175, -0.0837724,
-                                          -0.06446589, -0.06458303};
-      const auto br_vlad = qip::compose([](auto a, auto b) { return a - b; },
-                                        VD_vBr, expected_VD_v);
-
-      std::vector<double> me_br;
-      for (auto i = 0ul; i < wf.valence.size(); ++i) {
-        me_br.push_back(wf_Br.valence[i].en - wf.valence[i].en);
-      }
-
-      const auto [eps, at] = qip::compare_eps(me_br, br_vlad);
-      pass &= qip::check_value(&obuff, "HF Breit Cs val", eps, 0.0, 5.0e-4);
     }
   }
 

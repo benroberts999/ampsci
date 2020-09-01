@@ -281,6 +281,8 @@ MatrixElements::ExampleOperator { //this is not a real operator..
   rpa;            //[b] default = true
   rpa_diagram;    //[b] default = false
   omega;          //[r] default = 0.0;  or [t] ('each')
+  A_vertex;       //[r] default = 0.0 - for QED vertex
+  b_vertex;       //[r] default = 1.0
 }
 ```
 * printBoth: Print <a|h|b> and <b|h|a> ? false by default. (For _some_ operators, e.g., involving derivatives, this is a good test of numerical error. For most operators, values will be trivially the same; reduced matrix elements, sign may be different.)
@@ -289,7 +291,7 @@ MatrixElements::ExampleOperator { //this is not a real operator..
 * rpa: Include RPA (core polarisation) corrections to MEs, using TDHF method
 * rpa_diagram: Include RPA (core polarisation), using diagram (Goldstone) technique
 * omega: frequency for solving TDHF/RPA equations, should be positive. Put "omega=each;" to solve at the frequency for each transition (i.e., re-solve TDHF for each transition).
-
+* A_vertex, b_vertex: Effective QED vertex func: A * alpha * exp(-b * r / alpha)
 
 
 ### Available operators:

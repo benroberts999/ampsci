@@ -91,6 +91,13 @@ DiracSpinor Pkv_bcd(int kappa_v, const DiracSpinor &Fb, const DiracSpinor &Fc,
                     const std::vector<std::vector<double>> &ybc,
                     const Angular::Ck_ab &Ck, const Angular::SixJ &sixj);
 
+// Includes screening factor in a dumb way..
+void Pkv_bcd_2(DiracSpinor *Pkv, const DiracSpinor &Fb, const DiracSpinor &Fc,
+               const DiracSpinor &Fd, const int k,
+               const std::vector<std::vector<double>> &ybc,
+               const Angular::Ck_ab &Ck, const Angular::SixJ &sixj,
+               const std::vector<double> &f2k);
+
 //! Calculates Z^k_abcd for given k. From scratch (calculates y)
 //! @details
 //! \f[ Z^k_abcd = (-1)^{ja+jb+1} * ( Q^k_abcd + \sum_l [k] 6j * Q^l_abdc)

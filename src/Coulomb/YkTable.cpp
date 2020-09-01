@@ -159,11 +159,14 @@ void YkTable::resize_y() {
       const auto &[kmin, kmax] = k_minmax(Fa, Fb);
       const auto num_k = std::size_t(kmax - kmin + 1);
       m_y_abkr[ia][ib].resize(num_k);
-      for (auto &yk_ab_r : m_y_abkr[ia][ib]) {
-        yk_ab_r.resize(m_grid->num_points);
-      } // k
-    }   // b
-  }     // a
+      // Don't need to!
+      // Many of these k's will be zero - don't need to allocate for them!
+      // for (auto &yk_ab_r : m_y_abkr[ia][ib]) {
+      //   // XXX Need to do this??
+      //   yk_ab_r.resize(m_grid->num_points);
+      // } // k
+    } // b
+  }   // a
 }
 
 } // namespace Coulomb

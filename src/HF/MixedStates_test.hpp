@@ -24,9 +24,12 @@ std::pair<Case, Case> MS_loops(const Wavefunction &wf,
   Case best{999.0};
   Case worst{0.0};
 
-  const auto omega_mults = std::vector{0.0, 0.2, 0.5, 0.8};
+  const auto omega_mults = std::vector{0.0, 0.25};
 
-  for (const auto &Fv : wf.valence) {
+// for (const auto &Fv : wf.valence) {
+#pragma omp parallel for
+  for (auto i = 0ul; i < wf.valence.size(); ++i) {
+    const auto &Fv = wf.valence[i];
     const auto vl = wf.get_Vlocal(Fv.l());
     for (const auto &Fm : wf.valence) {
       if (Fm == Fv)
@@ -34,20 +37,26 @@ std::pair<Case, Case> MS_loops(const Wavefunction &wf,
       if (h->isZero(Fv.k, Fm.k))
         continue;
 
-      if (std::abs(Fm.n - Fv.n) != 0)
+      if (Fm.k != Fv.k && std::abs(Fm.n - Fv.n) != 0)
         continue;
+
+      // std::cout << h->name() << " " << Fv.symbol() << " " << Fm.symbol()
+      //           << "\n";
 
       const auto h_mv = h->reducedME(Fm, Fv);
       // Don't check in cases where ME is extremely small. NOTE: This requires
       // a good choice of units, since ME may be small due to small
       // coeficient, which should not count as 'small'
-      if (std::abs(h_mv) < 1.0e-6)
+      if (std::abs(h_mv) < 1.0e-8) {
+        // std::cout << h_mv << "\n";
         continue;
+      }
 
       auto hFv = h->reduced_rhs(Fm.k, Fv);
       if (Fm.k == Fv.k) {
         auto de = h->reducedME(Fv, Fv);
         hFv -= de * Fv;
+        // std::cout << "de=" << de << "\n";
       }
 
       for (const auto &w_mult : omega_mults) {
@@ -60,16 +69,19 @@ std::pair<Case, Case> MS_loops(const Wavefunction &wf,
         const auto rhs = h_mv / (Fv.en - Fm.en + w);
         const auto eps = (lhs - rhs) / lhs;
 
-        // find worst-case:
-        if (std::abs(eps) > std::abs(worst.eps)) {
-          worst.eps = eps;
-          worst.name = Fm.shortSymbol() + "|" + Fv.shortSymbol();
-          worst.w = w;
-        }
-        if (std::abs(eps) < std::abs(best.eps)) {
-          best.eps = eps;
-          best.name = Fm.shortSymbol() + "|" + Fv.shortSymbol();
-          best.w = w;
+// find worst-case:
+#pragma omp critical(find_max)
+        {
+          if (std::abs(eps) > std::abs(worst.eps)) {
+            worst.eps = eps;
+            worst.name = Fm.shortSymbol() + "|" + Fv.shortSymbol();
+            worst.w = w;
+          }
+          if (std::abs(eps) < std::abs(best.eps)) {
+            best.eps = eps;
+            best.name = Fm.shortSymbol() + "|" + Fv.shortSymbol();
+            best.w = w;
+          }
         }
       }
     }
@@ -97,7 +109,8 @@ bool MixedStates(std::ostream &obuff) {
   auto hM1 = DiracOperator::M1(*wf.rgrid, wf.alpha, 0.0);
   // spherical ball"
   auto hhfs = DiracOperator::Hyperfine(
-      1.0, 1.0, std::sqrt(5.0 / 3) * wf.get_rrms(), *wf.rgrid);
+      1.0, 1.0, std::sqrt(5.0 / 3) * wf.get_rrms(), *wf.rgrid,
+      DiracOperator::Hyperfine::sphericalBall_F());
 
   std::vector<DiracOperator::TensorOperator *> hs{&hE1, &hE2, &hpnc, &hhfs,
                                                   &hM1};

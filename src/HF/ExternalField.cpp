@@ -307,6 +307,7 @@ DiracSpinor ExternalField::dV_rhs(const int kappa_n, const DiracSpinor &Fm,
       const auto &Y_beta = Y_betas[ibeta];
       const auto tjbeta = X_beta.twoj();
 
+      // Direct part:
       const auto Ckbeb = Angular::Ck_kk(k, X_beta.k, Fb.k);
       if (Ckala != 0 && Ckbeb != 0) {
         dVFm_c += (Ckala * Ckbeb / tkp1) *
@@ -319,7 +320,6 @@ DiracSpinor ExternalField::dV_rhs(const int kappa_n, const DiracSpinor &Fm,
       const auto l_min_X =
           std::max(std::abs(tjn - tjbeta), std::abs(tjm - tjb)) / 2;
       const auto l_max_X = std::min((tjn + tjbeta), (tjm + tjb)) / 2;
-
       for (int l = l_min_X; l <= l_max_X; ++l) {
         const auto sixj = Angular::sixj_2(tjm, tjn, 2 * k, tjbeta, tjb, 2 * l);
         if (sixj == 0)
@@ -337,7 +337,6 @@ DiracSpinor ExternalField::dV_rhs(const int kappa_n, const DiracSpinor &Fm,
       const auto l_min_Y =
           std::max(std::abs(tjn - tjb), std::abs(tjm - tjbeta)) / 2;
       const auto l_max_Y = std::min((tjn + tjb), (tjm + tjbeta)) / 2;
-
       for (int l = l_min_Y; l <= l_max_Y; ++l) {
         const auto sixj = Angular::sixj_2(tjm, tjn, 2 * k, tjb, tjbeta, 2 * l);
         if (sixj == 0)
@@ -349,6 +348,16 @@ DiracSpinor ExternalField::dV_rhs(const int kappa_n, const DiracSpinor &Fm,
           continue;
         dVFm_c += (s * m1kpl * Ckbea * Ckbal * sixj) *
                   Coulomb::Rkv_bcd(kappa_n, Fm, Fb, Y_beta, l);
+      }
+
+      // Breit part:
+      if (p_VBr) {
+        // Note: Not perfectly symmetric for E1 - some issue??
+        // But, differences is extremely small, so maybe just numerics?*
+        // Assymetry enters below number of digits VD presents..
+        // nb: Agrees perfectly w/ Vladimir for E1, E2, and PNC
+        dVFm_c += p_VBr->dVbrD_Fa(kappa_n, k, Fm, Fb, X_beta, Y_beta);
+        dVFm_c += p_VBr->dVbrX_Fa(kappa_n, k, Fm, Fb, X_beta, Y_beta);
       }
     }
 #pragma omp critical(sum_X_core)

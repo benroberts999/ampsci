@@ -1,12 +1,14 @@
 #include "Angular/Angular_test.hpp"
 #include "Coulomb/Coulomb_test.hpp"
 #include "DiracODE/DiracODE_test.hpp"
+#include "HF/Breit_test.hpp"
 #include "HF/ExternalField_test.hpp"
 #include "HF/HartreeFock_test.hpp"
 #include "HF/MixedStates_test.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/UserInput.hpp"
 #include "MBPT/CorrelationPotential_test.hpp"
+#include "MBPT/DiagramRPA_test.hpp"
 #include "Maths/LinAlg_test.hpp"
 #include "Physics/RadPot_test.hpp"
 #include "Wavefunction/BSplineBasis_test.hpp"
@@ -48,6 +50,7 @@ static const std::vector<std::pair<std::string, bool (*)(std::ostream &obuff)>>
         //
         {"DiracODE", &DiracODE},
         {"HartreeFock", &HartreeFock},
+        {"Breit", &Breit},
         {"MixedStates", &MixedStates},
         {"ExternalField", &ExternalField},
         {"RadPot", &RadPot},
@@ -55,7 +58,8 @@ static const std::vector<std::pair<std::string, bool (*)(std::ostream &obuff)>>
         {"LinAlg", &LinAlg},
         {"BSplineBasis", &BSplineBasis},
         {"Coulomb", &Coulomb},
-        {"CorrelationPotential", &CorrelationPotential}
+        {"CorrelationPotential", &CorrelationPotential},
+        {"DiagramRPA", &DiagramRPA}
         //
     };
 } // namespace UnitTest
@@ -74,9 +78,10 @@ int main(int argc, char *argv[]) {
   out_buff << "diracSCAS test. git:" << GitInfo::gitversion << "\n";
   out_buff << IO::time_date() << "\n";
 
-  input.check("UnitTests", {"default", "DiracODE", "HartreeFock", "MixedStates",
-                            "ExternalField", "RadPot", "Angular", "LinAlg",
-                            "BSplineBasis", "Coulomb", "CorrelationPotential"});
+  input.check("UnitTests",
+              {"default", "DiracODE", "HartreeFock", "Breit", "MixedStates",
+               "ExternalField", "RadPot", "Angular", "LinAlg", "BSplineBasis",
+               "Coulomb", "CorrelationPotential", "DiagramRPA"});
 
   const auto default_tf = input.get("UnitTests", "default", true);
 

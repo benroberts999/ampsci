@@ -234,12 +234,6 @@ bool Coulomb(std::ostream &obuff) {
   }
   const Coulomb::YkTable Yce(wf.rgrid, &core, &excited);
   const Coulomb::YkTable Yij(wf.rgrid, &wf.basis);
-  // const auto maxtj =
-  //     std::max_element(wf.basis.cbegin(), wf.basis.cend(),
-  //     DiracSpinor::comp_j)
-  //         ->twoj();
-  // const auto &Ck = Yij.Ck();
-  // const Angular::SixJ sj(maxtj, maxtj);
 
   { // Check the Ykab lookup-tables
     // check the 'different' orbitals case:
@@ -263,7 +257,7 @@ bool Coulomb(std::ostream &obuff) {
     for (const auto &dk : delk_basis) {
       pass &= qip::check_value(&obuff,
                                "Yk_ab (basis) value k=" + std::to_string(k++),
-                               dk, 0.0, 4.0e-3);
+                               dk, 0.0, 1.0e-14);
     }
   }
 

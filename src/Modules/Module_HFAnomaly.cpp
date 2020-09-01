@@ -14,6 +14,9 @@
 
 namespace Module {
 
+static void calc_thing(const DiracSpinor &Fv, double e_targ, double r0,
+                       double mu, double I, int l, int gl);
+
 //******************************************************************************
 void HFAnomaly(const IO::UserInputBlock &input, const Wavefunction &wf) {
 
@@ -177,14 +180,13 @@ void HF_rmag(const IO::UserInputBlock &input, const Wavefunction &wf) {
   std::cout << "\nTuning Rmag to fit hyperfine anomaly\n";
 
   input.checkBlock({"n", "kappa", "A2", "1D2", "rpa", "num_steps", "mu1", "mu2",
-                    "I1", "I2", "eps"});
+                    "I1", "I2", "eps_targ", "e1", "e2"});
 
   // A(1) is wf
   // A(2) is wf2
   const auto A2 = input.get<int>("A2");
-  const auto eps_t = input.get("eps", 1.0e-5);
+  const auto eps_t = input.get("eps_targ", 1.0e-4);
 
-  const auto d12_targ = input.get<double>("1D2");
   const auto n = input.get<int>("n");
   const auto kappa = input.get("kappa", -1);
 
@@ -237,12 +239,16 @@ void HF_rmag(const IO::UserInputBlock &input, const Wavefunction &wf) {
   std::unique_ptr<MBPT::DiagramRPA> rpa01{nullptr}, rpa02{nullptr},
       rpa1{nullptr}, rpa2{nullptr}, rpa2a{nullptr}, rpa2b{nullptr};
 
-  const double x = 0.3;
+  const double x = 0.1;
   const auto num_steps = input.get("num_steps", 40);
   const auto dr = 3.0 * x * rN0_au / (num_steps + 1);
 
-  const auto h01 = DiracOperator::Hyperfine(mu1, I1, rN0_au, *wf.rgrid, Fr1);
-  const auto h02 = DiracOperator::Hyperfine(mu1, I1, rN2, *wf.rgrid, Fr1);
+  const auto h01 = DiracOperator::Hyperfine(
+      mu1, I1, 0.0, *wf.rgrid, DiracOperator::Hyperfine::pointlike_F());
+  const auto h02 = DiracOperator::Hyperfine(
+      mu2, I2, 0.0, *wf.rgrid, DiracOperator::Hyperfine::pointlike_F());
+  double dv01 = 0.0;
+  double dv02 = 0.0;
   if (rpa) {
     rpa01 = std::make_unique<MBPT::DiagramRPA>(&h01, wf.basis, wf.core,
                                                wf.identity());
@@ -250,95 +256,184 @@ void HF_rmag(const IO::UserInputBlock &input, const Wavefunction &wf) {
                                                wf.identity());
     rpa01->rpa_core(0.0);
     rpa02->rpa_core(0.0);
+    auto a = DiracOperator::Hyperfine::convertRMEtoA(F1v, F1v);
+    dv01 = a * rpa01->dV(F1v, F1v);
+    dv02 = a * rpa02->dV(F1v, F1v);
+  }
+  double a0_1 = h01.hfsA(F1v) + dv01;
+  double a0_2 = h02.hfsA(F1v) + dv02;
+
+  const auto d12_targ = input.get<double>("1D2", 0.0);
+  if (d12_targ != 0.0) {
+    std::cout << "\nA0(1) = " << a0_1 << "\n";
+    std::cout << "A0(2) = " << a0_2 << "\n";
+    std::cout << "1D2 target: " << d12_targ << "\n";
+    std::cout << "R0(1) = " << rN0_au * PhysConst::aB_fm << "\n";
+    std::cout << "R0(2) = " << rN2 * PhysConst::aB_fm << "\n";
+    std::cout << "Rmag(1)  Rmag(2)  e1     e2     1D2    eps(D)   del(R)\n";
+    for (double rN = (1.0 - x) * rN0_au; rN < (1.0 + 2 * x) * rN0_au;
+         rN += dr) {
+
+      const auto h1 = DiracOperator::Hyperfine(mu1, I1, rN, *wf.rgrid, Fr1);
+      double dv1 = 0.0;
+      if (rpa) {
+        rpa1 = std::make_unique<MBPT::DiagramRPA>(&h1, rpa01.get());
+        rpa1->grab_tam(rpa01.get()); // don't start from scratch
+        rpa1->rpa_core(0.0, false);
+        auto a = DiracOperator::Hyperfine::convertRMEtoA(F1v, F1v);
+        dv1 = a * rpa1->dV(F1v, F1v);
+      }
+
+      const auto a1 = h1.hfsA(F1v) + dv1;
+
+      // Use halving-interval method to find rmag(2) that reproduces 1D2, given
+      // rmag(1)
+      auto r2a = (1.0 - x) * rN2;
+      auto r2 = rN2;
+      auto r2b = (1.0 + x) * rN2;
+      int tries = 0;
+      double eps;
+      double del_r;
+      double d12;
+      double bw1, bw2;
+      while (tries++ < 40) {
+
+        // Note: For RPA, could make this 3x faster!
+        // Only need to change the 'outer' guess each time, do not need to
+        // re-evaluate RPA for the other two guesses! Complicated though??
+        const auto h2a = DiracOperator::Hyperfine(mu2, I2, r2a, *wf.rgrid, Fr2);
+        const auto h2 = DiracOperator::Hyperfine(mu2, I2, r2, *wf.rgrid, Fr2);
+        const auto h2b = DiracOperator::Hyperfine(mu2, I2, r2b, *wf.rgrid, Fr2);
+
+        double dv2 = 0.0;
+        double dv2a = 0.0;
+        double dv2b = 0.0;
+        if (rpa) {
+          rpa2a = std::make_unique<MBPT::DiagramRPA>(&h2a, rpa1.get());
+          rpa2 = std::make_unique<MBPT::DiagramRPA>(&h2, rpa1.get());
+          rpa2b = std::make_unique<MBPT::DiagramRPA>(&h2b, rpa1.get());
+          rpa2->grab_tam(rpa02.get());  // don't start from scratch
+          rpa2a->grab_tam(rpa02.get()); // don't start from scratch
+          rpa2b->grab_tam(rpa02.get()); // don't start from scratch
+          rpa2a->rpa_core(0.0, false);
+          rpa2->rpa_core(0.0, false);
+          rpa2b->rpa_core(0.0, false);
+          const auto a = DiracOperator::Hyperfine::convertRMEtoA(F2v, F2v);
+          dv2a = a * rpa2a->dV(F2v, F2v);
+          dv2 = a * rpa2->dV(F2v, F2v);
+          dv2b = a * rpa2b->dV(F2v, F2v);
+        }
+
+        const auto a2a = h2a.hfsA(F2v) + dv2a;
+        const auto a2 = h2.hfsA(F2v) + dv2;
+        const auto a2b = h2b.hfsA(F2v) + dv2b;
+        const auto d12a = 100.0 * ((a1 / a2a) * (g2 / g1) - 1.0);
+        d12 = 100.0 * ((a1 / a2) * (g2 / g1) - 1.0);
+        const auto d12b = 100.0 * ((a1 / a2b) * (g2 / g1) - 1.0);
+
+        bw1 = 100.0 * (a1 - a0_1) / a0_1;
+        bw2 = 100.0 * (a2 - a0_2) / a0_2;
+
+        // std::cout << tries << " " << r2a * PhysConst::aB_fm << " "
+        //           << r2b * PhysConst::aB_fm << " " << d12 << "\n";
+
+        // Halfing interval:
+        if ((d12a < d12_targ && d12_targ < d12) ||
+            (d12 < d12_targ && d12_targ < d12a)) {
+          r2a = r2a;
+          r2b = r2;
+          r2 = 0.5 * (r2a + r2b);
+        } else if ((d12b < d12_targ && d12_targ < d12) ||
+                   (d12 < d12_targ && d12_targ < d12b)) {
+          r2b = r2b;
+          r2a = r2;
+          r2 = 0.5 * (r2a + r2b);
+        } else {
+          r2a *= 0.95;
+          r2b *= 1.05;
+        }
+
+        eps = std::abs((d12 - d12_targ) / d12_targ);
+        del_r = 0.5 * std::abs(r2a - r2b);
+        if (eps < eps_t) {
+          break;
+        }
+      } // tries
+      printf("%.5f  %.5f %6.3f %6.3f %7.4f %.1e  %.1e  [%i]\n",
+             rN * PhysConst::aB_fm, r2 * PhysConst::aB_fm, bw1, bw2, d12, eps,
+             del_r * PhysConst::aB_fm, tries);
+      // std::cout << bw1 << " " << bw2 << "\n";
+    } // rMag
   }
 
-  std::cout << "\n1D2 target: " << d12_targ << "\n";
-  std::cout << "R0(1) = " << rN0_au * PhysConst::aB_fm << "\n";
-  std::cout << "R0(2) = " << rN2 * PhysConst::aB_fm << "\n";
-  std::cout << "Rmag(1)  Rmag(2)  1D2    eps(D)   del(R)\n";
-  for (double rN = (1.0 - x) * rN0_au; rN < (1.0 + 2 * x) * rN0_au; rN += dr) {
+  std::cout << "\n";
+  auto etarg1 = input.get("e1", 0.0);
+  if (etarg1 != 0.0) {
+    std::cout << "Fitting rmag to find epsilon for A1: e_targ=" << etarg1
+              << "\n";
+    calc_thing(F1v, etarg1, rN0_au, mu1, I1, l1, gl);
+  }
+  std::cout << "\n";
+  auto etarg2 = input.get("e2", 0.0);
+  if (etarg2 != 0.0) {
+    std::cout << "Fitting rmag to find epsilon for A2: e_targ=" << etarg2
+              << "\n";
+    calc_thing(F2v, etarg2, rN2, mu2, I2, l2, gl);
+  }
+}
 
-    const auto h1 = DiracOperator::Hyperfine(mu1, I1, rN, *wf.rgrid, Fr1);
-    double dv1 = 0.0;
-    if (rpa) {
-      rpa1 = std::make_unique<MBPT::DiagramRPA>(&h1, rpa01.get());
-      rpa1->grab_tam(rpa01.get()); // don't start from scratch
-      rpa1->rpa_core(0.0, false);
-      auto a = DiracOperator::Hyperfine::convertRMEtoA(F1v, F1v);
-      dv1 = a * rpa1->dV(F1v, F1v);
+//******************************************************************************
+static void calc_thing(const DiracSpinor &Fv, double e_targ, double r0,
+                       double mu, double I, int l, int gl) {
+  const auto Fr = DiracOperator::Hyperfine::volotkaBW_F(mu, I, l, gl);
+
+  const auto h0 = DiracOperator::Hyperfine(
+      mu, I, 0.0, *Fv.rgrid, DiracOperator::Hyperfine::pointlike_F());
+  double dv0 = 0.0; // XXX RPA!
+  const auto A0 = h0.hfsA(Fv) + dv0;
+
+  std::cout << "nb: no RPA\n";
+
+  int tries = 0.0;
+  double r = r0;
+  double ra = 0.8 * r0, rb = 1.2 * r0;
+  while (tries++ < 100) {
+    const auto ha = DiracOperator::Hyperfine(mu, I, ra, *Fv.rgrid, Fr);
+    const auto h = DiracOperator::Hyperfine(mu, I, r, *Fv.rgrid, Fr);
+    const auto hb = DiracOperator::Hyperfine(mu, I, rb, *Fv.rgrid, Fr);
+
+    double dv = 0.0, dva = 0.0, dvb = 0.0; // XXX Inlcude RPA!
+    const auto Aa = ha.hfsA(Fv) + dva;
+    const auto A = h.hfsA(Fv) + dv;
+    const auto Ab = hb.hfsA(Fv) + dvb;
+
+    auto bwa = 100.0 * (Aa - A0) / A0;
+    auto bw = 100.0 * (A - A0) / A0;
+    auto bwb = 100.0 * (Ab - A0) / A0;
+
+    // Halfing interval:
+    if ((bwa < e_targ && e_targ < bw) || (bw < e_targ && e_targ < bwa)) {
+      ra = ra;
+      rb = r;
+      r = 0.5 * (ra + rb);
+    } else if ((bwb < e_targ && e_targ < bw) || (bw < e_targ && e_targ < bwb)) {
+      rb = rb;
+      ra = r;
+      r = 0.5 * (ra + rb);
+    } else {
+      ra *= 0.95;
+      rb *= 1.05;
     }
 
-    const auto a1 = h1.hfsA(F1v) + dv1;
-
-    // Use halving-interval method to find rmag(2) that reproduces 1D2, given
-    // rmag(1)
-    auto r2a = (1.0 - x) * rN2;
-    auto r2 = rN2;
-    auto r2b = (1.0 + x) * rN2;
-    int tries = 0;
-    double eps;
-    double del_r;
-    double d12;
-    while (tries++ < 40) {
-
-      const auto h2a = DiracOperator::Hyperfine(mu2, I2, r2a, *wf.rgrid, Fr2);
-      const auto h2 = DiracOperator::Hyperfine(mu2, I2, r2, *wf.rgrid, Fr2);
-      const auto h2b = DiracOperator::Hyperfine(mu2, I2, r2b, *wf.rgrid, Fr2);
-
-      double dv2 = 0.0;
-      double dv2a = 0.0;
-      double dv2b = 0.0;
-      if (rpa) {
-        rpa2a = std::make_unique<MBPT::DiagramRPA>(&h2a, rpa1.get());
-        rpa2 = std::make_unique<MBPT::DiagramRPA>(&h2, rpa1.get());
-        rpa2b = std::make_unique<MBPT::DiagramRPA>(&h2b, rpa1.get());
-        rpa2->grab_tam(rpa02.get());  // don't start from scratch
-        rpa2a->grab_tam(rpa02.get()); // don't start from scratch
-        rpa2b->grab_tam(rpa02.get()); // don't start from scratch
-        rpa2a->rpa_core(0.0, false);
-        rpa2->rpa_core(0.0, false);
-        rpa2b->rpa_core(0.0, false);
-        const auto a = DiracOperator::Hyperfine::convertRMEtoA(F2v, F2v);
-        dv2a = a * rpa2a->dV(F2v, F2v);
-        dv2 = a * rpa2->dV(F2v, F2v);
-        dv2b = a * rpa2b->dV(F2v, F2v);
-      }
-
-      const auto a2a = h2a.hfsA(F2v) + dv2a;
-      const auto a2 = h2.hfsA(F2v) + dv2;
-      const auto a2b = h2b.hfsA(F2v) + dv2b;
-      const auto d12a = 100.0 * ((a1 / a2a) * (g2 / g1) - 1.0);
-      d12 = 100.0 * ((a1 / a2) * (g2 / g1) - 1.0);
-      const auto d12b = 100.0 * ((a1 / a2b) * (g2 / g1) - 1.0);
-
-      // std::cout << tries << " " << r2a * PhysConst::aB_fm << " "
-      //           << r2b * PhysConst::aB_fm << " " << d12 << "\n";
-
-      // Halfing interval:
-      if ((d12a < d12_targ && d12_targ < d12) ||
-          (d12 < d12_targ && d12_targ < d12a)) {
-        r2a = r2a;
-        r2b = r2;
-        r2 = 0.5 * (r2a + r2b);
-      } else if ((d12b < d12_targ && d12_targ < d12) ||
-                 (d12 < d12_targ && d12_targ < d12b)) {
-        r2b = r2b;
-        r2a = r2;
-        r2 = 0.5 * (r2a + r2b);
-      } else {
-        r2a *= 0.95;
-        r2b *= 1.05;
-      }
-
-      eps = std::abs((d12 - d12_targ) / d12_targ);
-      del_r = 0.5 * std::abs(r2a - r2b);
-      if (eps < eps_t) {
-        break;
-      }
-    } // tries
-    printf("%.5f  %.5f %7.4f %.1e  %.1e  [%i]\n", rN * PhysConst::aB_fm,
-           r2 * PhysConst::aB_fm, d12, eps, del_r * PhysConst::aB_fm, tries);
-  } // rMag
+    if (std::abs((bwa - bwb) / bw) < 1.0e-6) {
+      auto c = PhysConst::aB_fm;
+      // std::cout << r * c << " | " << bw << " eps_r=" << (rb - ra) / r
+      //           << " eps_e=" << (bwa - bwb) / bw << "\n";
+      printf("rN=%8.6f, e=%6.3f,   eps_r=%.0e  eps_e=%.0e\n", r * c, bw,
+             (rb - ra) / r, (bwa - bwb) / bw);
+      break;
+    }
+  }
 }
 
 //******************************************************************************
