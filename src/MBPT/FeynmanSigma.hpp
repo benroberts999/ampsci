@@ -39,21 +39,21 @@ public:
   //!@brief
   // Calculates (radial) Hartree-Fock Greens function G_kappa(er + i*ei).
   // states = States::{core, excited, both}; method = GrMethod::{Green, basis}
-  [[nodiscard]] ComplexGMatrix Green(int kappa, double en_re,
-                                     double en_im = 0.0,
+  [[nodiscard]] ComplexGMatrix Green(int kappa, ComplexDouble en,
                                      States states = States::both,
                                      GrMethod method = GrMethod::Green) const;
 
+  // Make this private?
   //! Takes Gr = G(e_r) and e_i, returns G(e_r + i e_i). nb: Must be FULL green
   [[nodiscard]] ComplexGMatrix GreenAtComplex(const ComplexGMatrix &Gr,
                                               double e_imag) const;
 
-  //! Calculates polarisation operator, all core states
-  [[deprecated]] ComplexGMatrix
-  Polarisation(int ka, int kA, double om_re, double om_im,
-               GrMethod method = GrMethod::basis) const;
+  // //! Calculates polarisation operator, all core states
+  // [[deprecated]] ComplexGMatrix
+  // Polarisation(int ka, int kA, double om_re, double om_im,
+  //              GrMethod method = GrMethod::basis) const;
 
-  [[nodiscard]] ComplexGMatrix Polarisation_k(int k, double om_re, double om_im,
+  [[nodiscard]] ComplexGMatrix Polarisation_k(int k, ComplexDouble omega,
                                               GrMethod method) const;
 
   //! Returns (reference to) q^k (radial) matrix. Note: includes dri*drj
@@ -94,36 +94,24 @@ private:
   void setup_omega_grid();
 
   // Calculate "Core" Green fn by direct summation over only core states
-  [[nodiscard]] ComplexGMatrix Green_core(int kappa, double en_re,
-                                          double en_im) const;
+  [[nodiscard]] ComplexGMatrix Green_core(int kappa, ComplexDouble en) const;
   // Calculates "excited" Greens function, by: G_ex = G - G_core
   [[nodiscard]] ComplexGMatrix
-  Green_ex(int kappa, double en_re, double en_im,
+  Green_ex(int kappa, ComplexDouble en,
            GrMethod method = GrMethod::Green) const;
-  // Calculates Hartree-Fock Green function (including exchange), for real en
-  [[nodiscard]] ComplexGMatrix Green_hf(int kappa, double en) const;
+
+  // // Calculates Hartree-Fock Green function (including exchange), for real en
+  // [[nodiscard]] ComplexGMatrix Green_hf_real(int kappa, double en) const;
   // Calculates HF Green function (including exchange), for Complex en
-  [[nodiscard]] ComplexGMatrix Green_hf(int kappa, double en_re,
-                                        double en_imag) const;
+  [[nodiscard]] ComplexGMatrix Green_hf(int kappa, ComplexDouble en) const;
+
   // Calculate HF Greens function (complex en), using basis expansion
-  [[nodiscard]] ComplexGMatrix Green_hf_basis(int kappa, double en_re,
-                                              double en_im,
+  [[nodiscard]] ComplexGMatrix Green_hf_basis(int kappa, ComplexDouble en,
                                               bool ex_only = false) const;
   // Contructs G0(w) (no exchange) Greens fn; x0,xI homog. solns reg at 0,infty
   [[nodiscard]] GMatrix MakeGreensG0(const DiracSpinor &x0,
                                      const DiracSpinor &xI,
                                      const double w) const;
-
-  // Takes a G(e) and de_r, de_i, returns G(e + de_r + i*de_i) - needs testing
-  [[nodiscard]] ComplexGMatrix GreenAtComplexShift(const ComplexGMatrix &Gr,
-                                                   double de_re,
-                                                   double om_imag) const;
-
-  // Calculates polarisation operator, only single core state (pa = |a><a|)
-  [[nodiscard]] ComplexGMatrix
-  Polarisation_a(const ComplexGMatrix &pa, double ena, int k_alpha,
-                 double om_re, double om_im,
-                 GrMethod method = GrMethod::basis) const;
 
   [[nodiscard]] ComplexGMatrix sum_qpq(int k, double om_re, double om_im) const;
 

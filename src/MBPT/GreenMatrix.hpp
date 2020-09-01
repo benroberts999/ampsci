@@ -139,10 +139,20 @@ public:
     }
     return *this;
   }
-  [[nodiscard]] friend GreenMatrix<T> operator*(const LinAlg::ComplexDouble &x,
-                                                GreenMatrix<T> rhs) {
-    // rhs *= x;
-    return rhs *= x;
+
+  // [[nodiscard]] inline friend GreenMatrix<T>
+  // operator*(const LinAlg::ComplexDouble &x, GreenMatrix<T> rhs) {
+  //   return rhs *= x;
+  // }
+
+  [[nodiscard]] inline friend auto operator*(const LinAlg::ComplexDouble &x,
+                                             GreenMatrix<T> rhs) {
+    if constexpr (std::is_same<T, LinAlg::ComplexSqMatrix>::value) {
+      return rhs *= x;
+    } else {
+      return rhs.make_complex({1.0, 0.0}) *= x;
+      // return c_rhs *= x;
+    }
   }
 
   //! Matrix multplication (in place): Gij -> \sum_k Gik*Bkj
@@ -269,7 +279,7 @@ public:
 
   //! Construct a complex GreenMatrix (C) from a Real one (R), by C = x*R
   [[nodiscard]] GreenMatrix<LinAlg::ComplexSqMatrix>
-  make_complex(const LinAlg::ComplexDouble &x) const {
+  make_complex(const LinAlg::ComplexDouble &x = {1.0, 0.0}) const {
     static_assert(std::is_same<T, LinAlg::SqMatrix>::value,
                   "Can only call make_complex from Real GMatrix!");
     auto gmat = GreenMatrix<LinAlg::ComplexSqMatrix>(size, m_include_G);

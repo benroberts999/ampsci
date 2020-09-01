@@ -161,10 +161,10 @@ void Feyn::test_green(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
       auto kappa = Angular::kappaFromIndex(ik);
       std::cout << "kappa: " << kappa << "\n";
 
-      const auto Gr1 = Sigma.Green(kappa, env + omre, omim, MBPT::States::both,
-                                   MBPT::GrMethod::Green);
-      const auto Gr2 = Sigma.Green(kappa, env + omre, omim, MBPT::States::both,
-                                   MBPT::GrMethod::basis);
+      const auto Gr1 = Sigma.Green(kappa, {env + omre, omim},
+                                   MBPT::States::both, MBPT::GrMethod::Green);
+      const auto Gr2 = Sigma.Green(kappa, {env + omre, omim},
+                                   MBPT::States::both, MBPT::GrMethod::basis);
 
       // ????????????????
       auto zero1 = (Gr1 * Gr1.inverse()).plusIdent(-1.0);
@@ -250,17 +250,17 @@ void Feyn::test_GQ(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
           const auto &qk = Sigma.get_qk(k);
 
           const auto gq =
-              Sigma.Green(kappa, env + omre, omim, MBPT::States::both, method)
+              Sigma.Green(kappa, {env + omre, omim}, MBPT::States::both, method)
                   .mult_elements_by(qk);
 
           const auto gqC =
-              Sigma.Green(kappa, env + omre, omim, MBPT::States::core, method)
+              Sigma.Green(kappa, {env + omre, omim}, MBPT::States::core, method)
                   .mult_elements_by(qk);
 
-          const auto gqX =
-              Sigma
-                  .Green(kappa, env + omre, omim, MBPT::States::excited, method)
-                  .mult_elements_by(qk);
+          const auto gqX = Sigma
+                               .Green(kappa, {env + omre, omim},
+                                      MBPT::States::excited, method)
+                               .mult_elements_by(qk);
 
           vgqv_r += Sigma.act_G_Fv_2(Fv, gq.get_real(), Fv);
           vgqCv_r += Sigma.act_G_Fv_2(Fv, gqC.get_real(), Fv);
@@ -321,7 +321,7 @@ void Feyn::test_pol(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
       for (int k = 0; k <= Sigma.maxk(); ++k) {
 
         const auto &qk = Sigma.get_qk(k);
-        const auto pik = Sigma.Polarisation_k(k, omre, omim, test_pol_method);
+        const auto pik = Sigma.Polarisation_k(k, {omre, omim}, test_pol_method);
         const auto qpq = (qk * pik * qk);
 
         // for (const auto &Fv : wf.core) {
@@ -339,7 +339,7 @@ void Feyn::test_pol(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
 
             const auto gqpq =
                 Sigma
-                    .Green(kB, Fv.en + omre, omim, MBPT::States::both,
+                    .Green(kB, {Fv.en + omre, omim}, MBPT::States::both,
                            MBPT::GrMethod::Green)
                     .mult_elements_by(qpq);
 
@@ -395,7 +395,7 @@ void Feyn::test_pol(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
       std::cout << "w = " << omre << " + " << omim << " i\n";
       std::cout << " k    Int(pi)      Expected     delta\n";
       for (int k = 0; k <= Sigma.maxk(); ++k) {
-        auto pi = Sigma.Polarisation_k(k, omre, omim, test_pol_method);
+        auto pi = Sigma.Polarisation_k(k, {omre, omim}, test_pol_method);
         ComplexDouble om = {omre, omim};
         const auto rePi = pi.get_real();
         const auto imPi = pi.get_imaginary();
