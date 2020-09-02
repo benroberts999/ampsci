@@ -86,7 +86,7 @@ void FeynmanSigma::fill_Sigma_k(GMatrix *Sigma, const int kappa,
   }
 
   // Exchange:
-  const auto exch = 0.0 * *Sigma;
+  const auto exch = exclude_exchange ? 0.0 * *Sigma : FeynmanEx_1(kappa, en);
   // const auto exch = FeynmanEx_1(kappa, en);
   // const auto exch = FeynmanEx_w1w2(kappa, en);
 
@@ -233,12 +233,8 @@ void FeynmanSigma::setup_omega_grid() {
   }
   // used for exhange (better to use same grid??):
   {
-    // const auto w0 = 0.05;
-    // const auto wmax = 30.0;
-    // const double wratio = 3.5;
     const auto w0 = 0.05;
     const auto wmax = 100.0;
-    // const double wratio = 2.0;
     const double wratio = 2.75;
     const std::size_t wsteps = Grid::calc_num_points_from_du(
         w0, wmax, std::log(wratio), GridType::logarithmic);
@@ -334,11 +330,25 @@ ComplexGMatrix FeynmanSigma::Green_core(int kappa, ComplexDouble en) const {
 //------------------------------------------------------------------------------
 ComplexGMatrix FeynmanSigma::Green_ex(int kappa, ComplexDouble en,
                                       GrMethod method) const {
+  ComplexGMatrix Gk(m_subgrid_points, m_include_G);
+
   if (method == GrMethod::basis) {
-    return Green_hf_basis(kappa, en, true);
+    Gk = Green_hf_basis(kappa, en, true);
+  } else {
+    // Subtract core states, by forceing Gk to be orthogonal to core:
+    Gk = Green_hf(kappa, en);
+    const auto &core = p_hf->get_core();
+    const auto &drj = get_drj();
+    for (auto ia = 0ul; ia < core.size(); ++ia) {
+      if (core[ia].k != kappa)
+        continue;
+      auto pa = m_Pa[ia];       // copy
+      pa.mult_elements_by(drj); // pa * Gk includes 'r_j' integral
+      Gk -= (pa * Gk);
+    }
   }
-  // Here: Is this too numerically unstable?
-  return (Green_hf(kappa, en) - Green_core(kappa, en));
+
+  return Gk;
 }
 
 //------------------------------------------------------------------------------
@@ -409,7 +419,8 @@ ComplexGMatrix FeynmanSigma::Green_hf(int kappa, ComplexDouble en) const {
   // // G0 := G0(re{e}) - no exchange, only real part
   // // G(e) = [1 + i*Im{e}*G0 - G0*Vx]^{-1} * G0
   // ComplexDouble iw{0.0, en.im()};
-  // return ((iw * g0 - one * (g0 * Vx)).plusIdent(1.0).invert()) * (one * g0);
+  // return ((iw * g0 - one * (g0 * Vx)).plusIdent(1.0).invert()) * (one *
+  // g0);
 }
 
 //------------------------------------------------------------------------------
@@ -496,16 +507,6 @@ ComplexGMatrix FeynmanSigma::Polarisation_k(int k, ComplexDouble omega,
 }
 
 //******************************************************************************
-ComplexGMatrix FeynmanSigma::screenedCoulomb(const ComplexGMatrix &q,
-                                             const ComplexGMatrix &pi) const {
-  // not checked!
-  // XXX Are the dr_i, dr_j parts correct??
-  // Qscr = [1 - Q*Pi]^{-1} * Q = -[Q*Pi - 1]^{-1} * Q
-  return -1 * ((q * pi).plusIdent(-1.0).invert() * q);
-  // return -1 * q * ((pi * q).plusIdent(-1.0).invert());
-}
-
-//******************************************************************************
 std::vector<ComplexGMatrix> FeynmanSigma::OneMinusPiQInv(
     const std::vector<std::vector<ComplexGMatrix>> &pi_wk) const {
   // Function of omega!
@@ -571,21 +572,13 @@ FeynmanSigma::form_QPQ_wk(int max_k, GrMethod pol_method, double omre,
       const auto &qk = get_qk(int(k));
       const auto &X = X_PiQ[iw];
       const auto &pi = pi_wk[iw][k];
-      qpq[iw].emplace_back(qk * X * pi * qk);
-      // qpq[iw].emplace_back(qk * pi * qk);
+      if (screen_Coulomb) // XXX dumb
+        qpq[iw].emplace_back(qk * X * pi * qk);
+      else
+        qpq[iw].emplace_back(qk * pi * qk);
     }
   }
   return qpq;
-}
-
-//******************************************************************************
-ComplexGMatrix FeynmanSigma::sum_qpq(int k, double om_re, double om_im) const {
-
-  const auto pol_method = basis_for_Pol ? GrMethod::basis : GrMethod::Green;
-  auto pi = Polarisation_k(k, {om_re, om_im}, pol_method);
-  const auto &q = get_qk(k);
-  const auto &q_scr = screen_Coulomb ? screenedCoulomb(q, pi) : q; //???
-  return q * pi * q_scr;
 }
 
 //******************************************************************************

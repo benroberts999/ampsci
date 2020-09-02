@@ -44,24 +44,16 @@ public:
                                      GrMethod method = GrMethod::Green) const;
 
   // Make this private?
-  //! Takes Gr = G(e_r) and e_i, returns G(e_r + i e_i). nb: Must be FULL green
+  // Takes Gr = G(e_r) and e_i, returns G(e_r + i e_i). nb: Must be FULL green
   [[nodiscard]] ComplexGMatrix GreenAtComplex(const ComplexGMatrix &Gr,
                                               double e_imag) const;
 
-  // //! Calculates polarisation operator, all core states
-  // [[deprecated]] ComplexGMatrix
-  // Polarisation(int ka, int kA, double om_re, double om_im,
-  //              GrMethod method = GrMethod::basis) const;
-
+  //! Calculates radial polarisation operator
   [[nodiscard]] ComplexGMatrix Polarisation_k(int k, ComplexDouble omega,
                                               GrMethod method) const;
 
   //! Returns (reference to) q^k (radial) matrix. Note: includes dri*drj
   [[nodiscard]] const ComplexGMatrix &get_qk(int k) const;
-
-  //! Screens Coulomb: q_scr = q * [1-pi*q]^-1
-  [[nodiscard]] ComplexGMatrix screenedCoulomb(const ComplexGMatrix &q,
-                                               const ComplexGMatrix &pi) const;
 
   //! Returns (ref to) radial exchange matrix Vx_kappa. Nb: includes dri*drj
   [[nodiscard]] const GMatrix &get_Vx_kappa(int kappa) const;
@@ -129,12 +121,6 @@ private:
                                                        double omre,
                                                        const Grid &wgrid) const;
 
-  [[nodiscard]] ComplexGMatrix sum_qpq(int k, double om_re, double om_im) const;
-
-  // // direct: sum_k [ck qk * pi(w) * qk], ck angular factor
-  // [[nodiscard]] GMatrix sumk_cGQPQ(int kv, int ka, int kalpha, int kbeta,
-  //                                  const ComplexGMatrix &g_beta,
-  //                                  const ComplexGMatrix &pi_aalpha) const;
   // exchange: sum_kl gA*qk*ql*(c1 * pa*gxBm + c2 * gxBp*pa)
   [[nodiscard]] GMatrix sumkl_GQPGQ(const ComplexGMatrix &gA,
                                     const ComplexGMatrix &gxBm,
