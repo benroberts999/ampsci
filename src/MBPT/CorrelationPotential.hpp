@@ -28,6 +28,7 @@ struct Sigma_params {
   double real_omega;
   bool screenCoulomb;
   bool include_G;
+  std::vector<double> fk{};
 };
 
 struct rgrid_params {
@@ -170,6 +171,17 @@ protected:
 
   // Options for sub-grid, and which matrices to include
   const bool m_include_G;
+
+  // Effective screening parameters
+  std::vector<double> m_fk{}; // e.g., {0.72, 0.62, 0.83, 0.89, 0.94, 1.0};
+
+  double get_fk(int k) const {
+    if (k < int(m_fk.size())) {
+      // sqrt?
+      return std::sqrt(m_fk[std::size_t(k)]);
+    }
+    return 1.0;
+  }
 };
 
 } // namespace MBPT

@@ -32,7 +32,8 @@ CorrelationPotential::CorrelationPotential(
                       DiracSpinor::max_tj(basis))),
       m_6j(m_maxk, m_maxk),
       m_stride(subgridp.stride),
-      m_include_G(sigp.include_G) {
+      m_include_G(sigp.include_G),
+      m_fk(std::move(sigp.fk)) {
   setup_subGrid(subgridp.r0, subgridp.rmax);
 }
 

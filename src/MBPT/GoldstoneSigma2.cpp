@@ -19,9 +19,8 @@ GoldstoneSigma2::GoldstoneSigma2(const HF::HartreeFock *const in_hf,
                                  const Sigma_params &sigp,
                                  const rgrid_params &subgridp,
                                  const std::vector<double> &en_list,
-                                 const std::string &atom,
-                                 const std::vector<double> &fk)
-    : CorrelationPotential(in_hf, basis, sigp, subgridp), m_fk(fk) {
+                                 const std::string &atom)
+    : CorrelationPotential(in_hf, basis, sigp, subgridp) {
 
   std::cout << "\nCorrelation potential (Sigma^2): Goldstone\n";
 

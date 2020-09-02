@@ -13,7 +13,32 @@ class HartreeFock;
 namespace MBPT {
 
 enum class States { core, excited, both };
+
 enum class GrMethod { Green, basis };
+
+inline std::string_view ParseEnum(GrMethod method) {
+  switch (method) {
+  case GrMethod::Green:
+    return "Green";
+  case GrMethod::basis:
+    return "basis";
+  }
+  return "unkown";
+}
+
+enum class ExchangeMethod { Goldstone, w1w2, w1 };
+
+inline std::string_view ParseEnum(ExchangeMethod method) {
+  switch (method) {
+  case ExchangeMethod::Goldstone:
+    return "Goldstone";
+  case ExchangeMethod::w1w2:
+    return "w1w2";
+  case ExchangeMethod::w1:
+    return "w1";
+  }
+  return "unkown";
+}
 
 //******************************************************************************
 /*!
@@ -141,11 +166,19 @@ private:
                         const ComplexGMatrix &c, const ComplexGMatrix &d,
                         const ComplexGMatrix &e) const;
 
+  // Better solution than this!
+  GMatrix Exchange_Goldstone(const int kappa, const double en) const;
+
 private:
-  const bool screen_Coulomb;
+  const bool m_screen_Coulomb;
   const double m_omre;
-  const bool basis_for_Green;
+
+  const bool basis_for_Green; // XXX Kill (in functions!)
   const bool basis_for_Pol;
+
+  const GrMethod m_Green_method;
+  const GrMethod m_Pol_method;
+
   const HF::HartreeFock *const p_hf;
   const int m_min_core_n;
   int m_max_kappaindex_core;
@@ -160,7 +193,11 @@ private:
   std::unique_ptr<Grid> m_wgridD = nullptr;
   std::unique_ptr<Grid> m_wgridX = nullptr;
 
-  const bool exclude_exchange = true; // for testing!
+  std::vector<std::vector<ComplexGMatrix>> m_qpq_wk{};
+
+  int m_k_cut = 6; // XXX Make input?
+
+  ExchangeMethod m_ex_method = ExchangeMethod::Goldstone;
 };
 
 } // namespace MBPT
