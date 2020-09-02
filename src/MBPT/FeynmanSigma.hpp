@@ -115,6 +115,20 @@ private:
                                      const DiracSpinor &xI,
                                      const double w) const;
 
+  std::vector<ComplexGMatrix>
+  OneMinusPiQInv(const std::vector<std::vector<ComplexGMatrix>> &pi_wk) const;
+
+  std::vector<std::vector<ComplexGMatrix>> make_pi_wk(int max_k,
+                                                      GrMethod pol_method,
+                                                      double omre,
+                                                      const Grid &wgrid) const;
+
+  // ComplexGMatrix form_QPQ_wk(const ComplexGMatrix &PiQ) const;
+  std::vector<std::vector<ComplexGMatrix>> form_QPQ_wk(int max_k,
+                                                       GrMethod pol_method,
+                                                       double omre,
+                                                       const Grid &wgrid) const;
+
   [[nodiscard]] ComplexGMatrix sum_qpq(int k, double om_re, double om_im) const;
 
   // // direct: sum_k [ck qk * pi(w) * qk], ck angular factor

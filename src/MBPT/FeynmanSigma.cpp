@@ -65,6 +65,41 @@ FeynmanSigma::FeynmanSigma(const HF::HartreeFock *const in_hf,
 }
 
 //******************************************************************************
+//******************************************************************************
+void FeynmanSigma::fill_Sigma_k(GMatrix *Sigma, const int kappa,
+                                const double en) {
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
+
+  // Find lowest "valence" state from the basis (for energy shift)
+  //
+  auto find_kappa = [=](const auto &f) { return f.k == kappa; };
+  const auto Fk = std::find_if(cbegin(m_excited), cend(m_excited), find_kappa);
+
+  // Direct:
+  *Sigma = FeynmanDirect(kappa, en);
+
+  // Print out the direct energy shift:
+  if (Fk != cend(m_excited)) {
+    const auto deD = *Fk * act_G_Fv(*Sigma, *Fk);
+    printf("de= %.4f + ", deD);
+    std::cout << std::flush;
+  }
+
+  // Exchange:
+  const auto exch = 0.0 * *Sigma;
+  // const auto exch = FeynmanEx_1(kappa, en);
+  // const auto exch = FeynmanEx_w1w2(kappa, en);
+
+  // Print out the exchange energy shift:
+  if (Fk != cend(m_excited)) {
+    const auto deX = *Fk * act_G_Fv(exch, *Fk);
+    printf("%.5f = ", deX);
+  }
+
+  *Sigma += exch;
+}
+
+//******************************************************************************
 void FeynmanSigma::prep_Feynman() {
 
   // Do intial setup:
@@ -227,39 +262,6 @@ const ComplexGMatrix &FeynmanSigma::get_qk(int k) const {
 
 //******************************************************************************
 //******************************************************************************
-void FeynmanSigma::fill_Sigma_k(GMatrix *Sigma, const int kappa,
-                                const double en) {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
-
-  auto find_kappa = [=](const auto &f) { return f.k == kappa; };
-  const auto Fk = std::find_if(cbegin(m_excited), cend(m_excited), find_kappa);
-
-  // const auto dir
-  const auto tmp = FeynmanDirect(kappa, en);
-  *Sigma = tmp;
-
-  // Print out the direct and exchange energy shifts
-  if (Fk != cend(m_excited)) {
-    const auto deD = *Fk * act_G_Fv(*Sigma, *Fk);
-    printf("de= %.4f + ", deD);
-    std::cout << std::flush;
-  }
-
-  // return; // no exchnage for now
-
-  const auto exch = FeynmanEx_1(kappa, en);
-  // const auto exch = FeynmanEx_w1w2(kappa, en);
-
-  if (Fk != cend(m_excited)) {
-    const auto deX = *Fk * act_G_Fv(exch, *Fk);
-    printf("%.5f = ", deX);
-  }
-
-  *Sigma += exch;
-}
-
-//******************************************************************************
-//******************************************************************************
 
 //******************************************************************************
 ComplexGMatrix FeynmanSigma::Green(int kappa, ComplexDouble en, States states,
@@ -335,6 +337,7 @@ ComplexGMatrix FeynmanSigma::Green_ex(int kappa, ComplexDouble en,
   if (method == GrMethod::basis) {
     return Green_hf_basis(kappa, en, true);
   }
+  // Here: Is this too numerically unstable?
   return (Green_hf(kappa, en) - Green_core(kappa, en));
 }
 
@@ -396,19 +399,30 @@ ComplexGMatrix FeynmanSigma::Green_hf(int kappa, ComplexDouble en) const {
     return (-1 * one) * ((g0 * Vx).plusIdent(-1.0).invert() * g0);
   }
 
-  {
-    // Do in single step? This require two inversions? But careful, last time
-    // didn't work!
-    auto Gr = (-1 * one) * ((g0 * Vx).plusIdent(-1.0).invert() * g0);
-    const ComplexDouble iw{0.0, en.im()};
-    return ((iw * Gr).mult_elements_by(*m_drj).plusIdent(1.0).invert()) * Gr;
-  }
+  // Do in single step? This require two inversions? But careful, last time
+  // didn't work!
+  auto Gr = (-1 * one) * ((g0 * Vx).plusIdent(-1.0).invert() * g0);
+  return GreenAtComplex(Gr, en.im());
+  // const ComplexDouble iw{0.0, en.im()};
+  // return ((iw * Gr).mult_elements_by(*m_drj).plusIdent(1.0).invert()) * Gr;
 
   // // G0 := G0(re{e}) - no exchange, only real part
   // // G(e) = [1 + i*Im{e}*G0 - G0*Vx]^{-1} * G0
   // ComplexDouble iw{0.0, en.im()};
   // return ((iw * g0 - one * (g0 * Vx)).plusIdent(1.0).invert()) * (one * g0);
 }
+
+//------------------------------------------------------------------------------
+ComplexGMatrix FeynmanSigma::GreenAtComplex(const ComplexGMatrix &Gr,
+                                            double om_imag) const {
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
+  // Given G(wr) and wi, returns G(wr+i*wi)
+  // G(w) =  G(re(w)+im(w)) ;  Gr = G(re(w)), G = G(w),   im(w) = wi
+  // G = Gr * [1 + i*wi*Gr]^-1 = Gr * iX
+  const ComplexDouble iw{0.0, om_imag};
+  return ((iw * Gr).mult_elements_by(*m_drj).plusIdent(1.0).invert()) * Gr;
+}
+
 //------------------------------------------------------------------------------
 GMatrix FeynmanSigma::MakeGreensG0(const DiracSpinor &x0, const DiracSpinor &xI,
                                    const double w) const {
@@ -444,16 +458,6 @@ GMatrix FeynmanSigma::MakeGreensG0(const DiracSpinor &x0, const DiracSpinor &xI,
   }
 
   return g0I;
-}
-//------------------------------------------------------------------------------
-ComplexGMatrix FeynmanSigma::GreenAtComplex(const ComplexGMatrix &Gr,
-                                            double om_imag) const {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
-  // Given G(wr) and wi, returns G(wr+i*wi)
-  // G(w) =  G(re(w)+im(w)) ;  Gr = G(re(w)), G = G(w),   im(w) = wi
-  // G = Gr * [1 + i*wi*Gr]^-1 = Gr * iX
-  const ComplexDouble iw{0.0, om_imag};
-  return ((iw * Gr).mult_elements_by(*m_drj).plusIdent(1.0).invert()) * Gr;
 }
 
 //******************************************************************************
@@ -502,6 +506,79 @@ ComplexGMatrix FeynmanSigma::screenedCoulomb(const ComplexGMatrix &q,
 }
 
 //******************************************************************************
+std::vector<ComplexGMatrix> FeynmanSigma::OneMinusPiQInv(
+    const std::vector<std::vector<ComplexGMatrix>> &pi_wk) const {
+  // Function of omega!
+  // XXX Note sure if right.. depends on pi angular reduction.
+  // X_PiQ = [1-PiQ]^{-1}
+
+  std::vector<ComplexGMatrix> X_PiQ(pi_wk.size(),
+                                    {m_subgrid_points, m_include_G});
+
+#pragma omp parallel for
+  for (auto iw = 0ul; iw < pi_wk.size(); ++iw) {
+    auto &X_PiQ_w = X_PiQ[iw];
+    for (auto k = 0ul; k < pi_wk[iw].size(); ++k) {
+      const auto &pik = pi_wk[iw][k];
+      const auto &qk = get_qk(int(k));
+      X_PiQ_w -= pik * qk; //-ve, since [1-PiQ]
+    }
+    // [1-PiQ]^{-1}
+    (X_PiQ_w.plusIdent(1.0)).invert();
+  }
+  return X_PiQ;
+}
+
+//******************************************************************************
+std::vector<std::vector<ComplexGMatrix>>
+FeynmanSigma::make_pi_wk(int max_k, GrMethod pol_method, double omre,
+                         const Grid &wgrid) const {
+
+  const auto num_ks = std::size_t(max_k + 1);
+  std::vector<std::vector<ComplexGMatrix>> pi_wk(wgrid.num_points);
+
+#pragma omp parallel for
+  for (auto iw = 0ul; iw < wgrid.num_points; ++iw) {
+    const auto omega = ComplexDouble{omre, wgrid.r[iw]};
+    pi_wk[iw].reserve(num_ks);
+    for (auto k = 0ul; k < num_ks; ++k) {
+      pi_wk[iw].push_back(Polarisation_k(int(k), omega, pol_method));
+    }
+  }
+  return pi_wk;
+}
+
+//******************************************************************************
+std::vector<std::vector<ComplexGMatrix>>
+FeynmanSigma::form_QPQ_wk(int max_k, GrMethod pol_method, double omre,
+                          const Grid &wgrid) const {
+  // Returns QPQ, function of w and k
+
+  std::vector<std::vector<ComplexGMatrix>> qpq(wgrid.num_points);
+
+  // X_PiQ = [1-PiQ]^{-1}
+  // Exclude this if not doing screening! Make option!
+  const auto pi_wk = make_pi_wk(max_k, pol_method, omre, wgrid);
+  const auto X_PiQ = OneMinusPiQInv(pi_wk);
+
+  const auto num_ks = std::size_t(max_k + 1);
+
+#pragma omp parallel for
+  for (auto iw = 0ul; iw < wgrid.num_points; ++iw) {
+    qpq[iw].reserve(num_ks);
+    for (auto k = 0ul; k < num_ks; ++k) {
+      // q*~p*q = q*X*p*q
+      const auto &qk = get_qk(int(k));
+      const auto &X = X_PiQ[iw];
+      const auto &pi = pi_wk[iw][k];
+      qpq[iw].emplace_back(qk * X * pi * qk);
+      // qpq[iw].emplace_back(qk * pi * qk);
+    }
+  }
+  return qpq;
+}
+
+//******************************************************************************
 ComplexGMatrix FeynmanSigma::sum_qpq(int k, double om_re, double om_im) const {
 
   const auto pol_method = basis_for_Pol ? GrMethod::basis : GrMethod::Green;
@@ -533,6 +610,7 @@ GMatrix FeynmanSigma::FeynmanDirect(int kv, double env) const {
 
   const auto max_k = std::min(m_maxk, 6); // XXX Input!
 
+  // Make this a function!
   // Store gAs in advance
   const auto num_kappas = std::size_t(m_max_kappaindex + 1);
   std::vector<std::vector<ComplexGMatrix>> gBs(num_kappas);
@@ -546,25 +624,20 @@ GMatrix FeynmanSigma::FeynmanDirect(int kv, double env) const {
     }
   }
 
+  const auto qpq_wk = form_QPQ_wk(max_k, pol_method, omre, wgrid);
+
 #pragma omp parallel for
   for (auto iw = 0ul; iw < wgrid.num_points; iw++) { // for omega integral
-    const auto omim = wgrid.r[iw];
     // I, since dw is on imag. grid; 2 from symmetric +/- w
     const auto dw = I * (2.0 * wgrid.drdu[iw] * wgrid.du / (2 * M_PI));
-    const auto omega = ComplexDouble{omre, omim};
-    // const auto e_plus_w = ComplexDouble{env} + omega;
 
-    for (int k = 0; k <= max_k; k++) {
+    for (auto k = 0ul; k <= std::size_t(max_k); k++) {
 
-      const auto pi = Polarisation_k(k, omega, pol_method);
-      const auto &q = get_qk(k);
-      const auto &q_scr = screen_Coulomb ? screenedCoulomb(q, pi) : q; //???
-
-      const auto qpq_dw = dw * (q * pi * q_scr);
+      const auto qpq_dw = dw * qpq_wk[iw][k];
 
       for (auto iB = 0ul; iB < num_kappas; ++iB) {
         const auto kB = Angular::kappaFromIndex(int(iB));
-        const auto ck_vB = Angular::Ck_kk(k, kv, kB);
+        const auto ck_vB = Angular::Ck_kk(int(k), kv, kB);
         if (ck_vB == 0.0)
           continue;
         const double c_ang = ck_vB * ck_vB / double(Angular::twoj_k(kv) + 1);
