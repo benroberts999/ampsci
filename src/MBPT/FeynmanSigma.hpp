@@ -198,6 +198,8 @@ private:
   int m_k_cut = 6; // XXX Make input?
 
   ExchangeMethod m_ex_method = ExchangeMethod::Goldstone;
+  // ExchangeMethod m_ex_method = ExchangeMethod::w1;
+  // ExchangeMethod m_ex_method = ExchangeMethod::w1w2;
 };
 
 } // namespace MBPT

@@ -428,27 +428,25 @@ ComplexGMatrix FeynmanSigma::Green_hf(int kappa, ComplexDouble en) const {
   const auto g0 = MakeGreensG0(x0, xI, w);
   const auto &Vx = get_Vx_kappa(kappa);
 
-  static ComplexDouble one{1.0, 0.0}; // to convert real to complex
+  static const ComplexDouble one{1.0, 0.0}; // to convert real to complex
 
   // Include exchange, and imaginary energy part:
 
   if (en.im() == 0.0) {
     // G = [1 - G0*Vx]^{-1} * G0 = -[G0*Vx-1]^{-1} * G0
     // nb: much faster to invert _before_ make complex!
+    // (but, only if imag. part is zero)
     return (-1 * one) * ((g0 * Vx).plusIdent(-1.0).invert() * g0);
   }
 
-  // Do in single step? This require two inversions? But careful, last time
-  // didn't work!
-  auto Gr = (-1 * one) * ((g0 * Vx).plusIdent(-1.0).invert() * g0);
-  return GreenAtComplex(Gr, en.im());
-
-  // Try to do Vx and iw at once. Doesn't work?
-  // // G0 := G0(re{e}) - no exchange, only real part
-  // // G(e) = [1 + i*Im{e}*G0 - G0*Vx]^{-1} * G0
-  // ComplexDouble iw{0.0, en.im()};
-  // return ((iw * g0 - one * (g0 * Vx)).plusIdent(1.0).invert()) * (one *
-  // g0);
+  // G0 := G0(re{e}) - no exchange, only real part
+  // G(e) = [1 + i*Im{e}*G0 - G0*Vx]^{-1} * G0
+  // Note: differential dr is included in Vx (via Q)
+  ComplexDouble iw{0.0, en.im()};
+  return ((iw * g0).mult_elements_by(*m_drj) - one * (g0 * Vx))
+             .plusIdent(1.0)
+             .invert() *
+         (one * g0);
 }
 
 //------------------------------------------------------------------------------
@@ -726,11 +724,15 @@ GMatrix FeynmanSigma::FeynmanEx_w1w2(int kv, double en_r) const {
     }
   }
 
-// #pragma omp parallel for num_threads(24) collapse(3)
-// #pragma omp parallel for collapse(2)
-// std::cout << "\n";
+  std::cout << "\n";
+
+  // #pragma omp parallel for num_threads(24) collapse(3)
+  // #pragma omp parallel for collapse(2)
+  // std::cout << "\n";
+  // #pragma omp parallel for collapse(2)
+  for (auto iA = 0ul; iA < num_kappas; ++iA) { // alpha
+    std::cout << iA << "/" << num_kappas << "\n";
 #pragma omp parallel for collapse(2)
-  for (auto iA = 0ul; iA < num_kappas; ++iA) {     // alpha
     for (auto iB = 0ul; iB < num_kappas; ++iB) {   // beta
       for (auto iG = 0ul; iG < num_kappas; ++iG) { // gamma
         const auto kA = Angular::kappaFromIndex(int(iA));
@@ -761,6 +763,22 @@ GMatrix FeynmanSigma::FeynmanEx_w1w2(int kv, double en_r) const {
       }     // gamma
     }       // beta
   }         // alpha
+
+  // devide through by dri, drj [these included in q's, but want
+  // differential operator for sigma] or.. include one of these in
+  // definition of opertion S|v> ?
+  for (auto i = 0ul; i < m_subgrid_points; ++i) {
+    const auto dri = dr_subToFull(i);
+    for (auto j = 0ul; j < m_subgrid_points; ++j) {
+      const auto drj = dr_subToFull(j);
+      Sx.ff[i][j] /= (dri * drj);
+      // if (m_include_G) {
+      //   Sx.fg[i][j] /= (dri * drj);
+      //   Sx.gf[i][j] /= (dri * drj);
+      //   Sx.gg[i][j] /= (dri * drj);
+      // }
+    }
+  }
 
   return Sx;
 }
