@@ -147,11 +147,11 @@ private:
                                                        const Grid &wgrid) const;
 
   // exchange: sum_kl gA*qk*ql*(c1 * pa*gxBm + c2 * gxBp*pa)
-  [[nodiscard]] GMatrix sumkl_GQPGQ(const ComplexGMatrix &gA,
-                                    const ComplexGMatrix &gxBm,
-                                    const ComplexGMatrix &gxBp,
-                                    const ComplexGMatrix &pa, int kv, int kA,
-                                    int kB, int ka) const;
+  [[nodiscard]] GMatrix
+  sumkl_GQPGQ(const ComplexGMatrix &gA, const ComplexGMatrix &gxBm,
+              const ComplexGMatrix &gxBp, const ComplexGMatrix &pa, int kv,
+              int kA, int kB, int ka,
+              const std::vector<ComplexGMatrix> *const = nullptr) const;
 
   [[nodiscard]] GMatrix sumkl_gqgqg(const ComplexGMatrix &gA,
                                     const ComplexGMatrix &gB,
@@ -191,7 +191,8 @@ private:
   std::unique_ptr<ComplexGMatrix> m_dri = nullptr;
   std::unique_ptr<ComplexGMatrix> m_drj = nullptr;
   std::unique_ptr<Grid> m_wgridD = nullptr;
-  std::unique_ptr<Grid> m_wgridX = nullptr;
+  std::size_t m_wX_stride{}; // XXX input?
+  // std::unique_ptr<Grid> m_wgridX = nullptr;
 
   std::vector<std::vector<ComplexGMatrix>> m_qpq_wk{};
 

@@ -251,20 +251,10 @@ void FeynmanSigma::setup_omega_grid() {
     const std::size_t wsteps = Grid::calc_num_points_from_du(
         w0, wmax, std::log(wratio), GridType::logarithmic);
     m_wgridD = std::make_unique<Grid>(w0, wmax, wsteps, GridType::logarithmic);
-    std::cout << "Dir | Im(w) " << m_wgridD->gridParameters();
+    std::cout << "Im(w) " << m_wgridD->gridParameters();
     printf(". r=%.2f\n", m_wgridD->r[1] / m_wgridD->r[0]);
   }
-  // used for exhange (better to use same grid??):
-  {
-    const auto w0 = 0.05;
-    const auto wmax = 75.0;
-    const double wratio = 2.75;
-    const std::size_t wsteps = Grid::calc_num_points_from_du(
-        w0, wmax, std::log(wratio), GridType::logarithmic);
-    m_wgridX = std::make_unique<Grid>(w0, wmax, wsteps, GridType::logarithmic);
-    std::cout << "Exch| Im(w) " << m_wgridX->gridParameters();
-    printf(". r=%.2f\n", m_wgridX->r[1] / m_wgridX->r[0]);
-  }
+  m_wX_stride = 2; // stride for exchange XXX Make input!
 }
 
 //******************************************************************************
@@ -694,9 +684,9 @@ GMatrix FeynmanSigma::FeynmanEx_w1w2(int kv, double en_r) const {
 
   GMatrix Sx(m_subgrid_points, m_include_G);
 
-  // // Set up imaginary frequency grid:
+  // Set up imaginary frequency grid:
   const double omre = m_omre;
-  const auto &wgrid = *m_wgridX;
+  const auto &wgrid = *m_wgridD;
   static const ComplexDouble I{0.0, 1.0};
   const ComplexDouble en{en_r, 0.0};
   const auto tjvp1 = Angular::twoj_k(kv) + 1;
@@ -737,11 +727,14 @@ GMatrix FeynmanSigma::FeynmanEx_w1w2(int kv, double en_r) const {
         const auto kB = Angular::kappaFromIndex(int(iB));
         const auto kG = Angular::kappaFromIndex(int(iG));
 
-        for (auto iw1 = 0ul; iw1 < wgrid.num_points; iw1++) { // w1
-          const auto dw1 = (2.0 * wgrid.drdu[iw1] * wgrid.du / (2 * M_PI));
+        for (auto iw1 = 0ul; iw1 < wgrid.num_points; iw1 += m_wX_stride) { // w1
+          const auto dw1 = 2.0 * double(m_wX_stride) * wgrid.drdu[iw1] *
+                           wgrid.du / (2 * M_PI);
 
-          for (auto iw2 = 0ul; iw2 < wgrid.num_points; iw2++) { // w2
-            const auto dw2 = (2.0 * wgrid.drdu[iw2] * wgrid.du / (2 * M_PI));
+          for (auto iw2 = 0ul; iw2 < wgrid.num_points;
+               iw2 += m_wX_stride) { // w2
+            const auto dw2 = 2.0 * double(m_wX_stride) * wgrid.drdu[iw2] *
+                             wgrid.du / (2 * M_PI);
 
             // get the Green's functions:
             const auto &gA = Gs[iA][iw1];
@@ -788,30 +781,35 @@ GMatrix FeynmanSigma::FeynmanEx_1(int kv, double env) const {
 
   // Set up imaginary frequency grid:
   const double omre = m_omre; // does seem to depend on this..
-  const auto &wgrid = *m_wgridX;
+  const auto &wgrid = *m_wgridD;
   const auto &core = p_hf->get_core();
   const auto tjvp1 = Angular::twoj_k(kv) + 1;
 
   // Store gAs in advance, since these depend only on w and kA, not a, kB or k
   const auto num_kappas = std::size_t(m_max_kappaindex + 1);
-  std::vector<std::vector<ComplexGMatrix>> gAs(num_kappas);
+//   std::vector<std::vector<ComplexGMatrix>> gAs(num_kappas);
+// #pragma omp parallel for
+//   for (auto ik = 0ul; ik < num_kappas; ++ik) {
+//     const auto kappa = Angular::kappaFromIndex(int(ik));
+//     gAs[ik].reserve(wgrid.num_points);
+//     for (auto iw = 0ul; iw < wgrid.num_points; iw++) {
+//       ComplexDouble evpw{env + omre, wgrid.r[iw]};
+//       gAs[ik].push_back(Green(kappa, evpw, States::both, m_Green_method));
+//     }
+//   }
+
+// #pragma omp parallel for collapse(2)
 #pragma omp parallel for
-  for (auto ik = 0ul; ik < num_kappas; ++ik) {
-    const auto kappa = Angular::kappaFromIndex(int(ik));
-    gAs[ik].reserve(wgrid.num_points);
-    for (auto iw = 0ul; iw < wgrid.num_points; iw++) {
-      ComplexDouble evpw{env + omre, wgrid.r[iw]};
-      gAs[ik].push_back(Green(kappa, evpw, States::both, m_Green_method));
-    }
-  }
+  for (auto iB = 0ul; iB < num_kappas; ++iB) {
+    const auto kB = Angular::kappaFromIndex(int(iB));
+    for (auto iw = 0ul; iw < wgrid.num_points; iw += m_wX_stride) {
 
-#pragma omp parallel for collapse(2)
-  for (auto iw = 0ul; iw < wgrid.num_points; ++iw) {
-    for (auto iB = 0ul; iB < num_kappas; ++iB) {
-      const auto kB = Angular::kappaFromIndex(int(iB));
+      auto omim = wgrid.r[iw]; // XXX Symmetric?? Or Not??
+      const auto omega = ComplexDouble{omre, omim};
+      const auto dw1 =
+          -2.0 * double(m_wX_stride) * wgrid.drdu[iw] * wgrid.du / (2.0 * M_PI);
 
-      const auto omega = ComplexDouble{omre, wgrid.r[iw]};
-      const auto dw1 = -2.0 * wgrid.drdu[iw] * wgrid.du / (2.0 * M_PI);
+      const auto *const qpqw_k = m_screen_Coulomb ? &m_qpq_wk[iw] : nullptr;
 
       for (auto ia = 0ul; ia < core.size(); ++ia) {
         const auto &Fa = core[ia];
@@ -826,15 +824,18 @@ GMatrix FeynmanSigma::FeynmanEx_1(int kv, double env) const {
         for (auto iA = 0ul; iA < num_kappas; ++iA) {
           const auto kA = Angular::kappaFromIndex(int(iA));
 
-          const auto &gA = gAs[iA][iw];
-          const auto gqpg = sumkl_GQPGQ(gA, gxBm, gxBp, pa, kv, kA, kB, Fa.k);
+          // const auto &gA = gAs[iA][iw];
+          const auto gA =
+              Green(kA, {env + omre, omim}, States::both, m_Green_method);
+          const auto gqpg =
+              sumkl_GQPGQ(gA, gxBm, gxBp, pa, kv, kA, kB, Fa.k, qpqw_k);
 
 #pragma omp critical(sum_x1)
           { Sx1 += (dw1 / tjvp1) * gqpg; }
         } // alpha
-      }   // w
-    }     // beta
-  }       // a
+      }   // a
+    }
+  }
 
   // devide through by dri, drj [these included in q's, but want
   // differential operator for sigma] or.. include one of these in
@@ -885,22 +886,24 @@ GMatrix FeynmanSigma::sumkl_gqgqg(const ComplexGMatrix &gA,
 }
 
 //******************************************************************************
-GMatrix FeynmanSigma::sumkl_GQPGQ(const ComplexGMatrix &gA,
-                                  const ComplexGMatrix &gxBm,
-                                  const ComplexGMatrix &gxBp,
-                                  const ComplexGMatrix &pa, int kv, int kA,
-                                  int kB, int ka) const {
+GMatrix FeynmanSigma::sumkl_GQPGQ(
+    const ComplexGMatrix &gA, const ComplexGMatrix &gxBm,
+    const ComplexGMatrix &gxBp, const ComplexGMatrix &pa, int kv, int kA,
+    int kB, int ka, const std::vector<ComplexGMatrix> *const qpqw_k) const {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   // EXCHANGE part, used in w1 version
   // (w2 was integrated over analytically)
 
-  auto sum_GQPG = GMatrix(m_subgrid_points, m_include_G);
+  GMatrix sum_GQPG{m_subgrid_points, m_include_G};
 
   const auto kmax = std::min(m_maxk, m_k_cut);
 
   for (auto k = 0; k <= kmax; ++k) {
-    const auto &qk = get_qk(k);
-    // qk -> qk + 2 * QPxQ
+    // qk -> qk + 2 * QPxQ ??
+    const auto &tqk = get_qk(k);
+    // Try to screen q^k(w1) - wrong sign?? Anti-screening??
+    const auto qk = qpqw_k != nullptr ? tqk + (*qpqw_k)[std::size_t(k)] : tqk;
+
     for (auto l = 0; l <= kmax; ++l) {
       const auto &ql = get_qk(l);
 
