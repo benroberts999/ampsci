@@ -110,6 +110,10 @@ void FeynmanSigma::prep_Feynman() {
   if (m_screen_Coulomb)
     std::cout << "Including Coulomb screening\n";
 
+  if (m_holeParticle)
+    std::cout
+        << "Including hole-particle interaction (WARNING: not working yet)\n";
+
   std::cout << "Using " << ParseEnum(m_ex_method) << " for exchange\n";
 
   // Print effective screening factors (if used)
@@ -218,6 +222,39 @@ GMatrix FeynmanSigma::calculate_Vx_kappa(int kappa) const {
   return Vx;
 }
 
+GMatrix FeynmanSigma::calculate_Vhp(const DiracSpinor &Fc) const {
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
+  // Hope-particle interaction, extra potential
+  // XXX Not working yet!?
+
+  const auto y0cc = Coulomb::yk_ab(Fc, Fc, 0);
+  GMatrix V0(m_subgrid_points, m_include_G);
+  for (auto i = 0ul; i < m_subgrid_points; ++i) {
+    const auto si = ri_subToFull(i);
+    V0.ff[i][i] = -y0cc[si];
+    if (m_include_G)
+      V0.gg[i][i] = V0.ff[i][i];
+  }
+
+  V0.mult_elements_by(m_drj->get_real());
+  V0.mult_elements_by(m_dri->get_real());
+  return V0;
+
+  // GMatrix OneNegPc(m_subgrid_points, m_include_G);
+  // const auto &core = p_hf->get_core();
+  // for (const auto &Fa : core) {
+  //   if (Fa.k != Fc.k)
+  //     continue;
+  //   const auto tjp1 = Fa.twoj() + 1;
+  //   addto_G(&OneNegPc, Fa, Fa, -1.0 * tjp1);
+  // }
+  // OneNegPc.mult_elements_by(m_drj->get_real());
+  // OneNegPc.mult_elements_by(m_dri->get_real());
+  // OneNegPc.plusIdent(); // (1-P)
+  //
+  // return OneNegPc * V0 * OneNegPc;
+}
+
 //------------------------------------------------------------------------------
 void FeynmanSigma::form_Pa_core() {
   // Fill core |a><a|
@@ -254,7 +291,7 @@ void FeynmanSigma::setup_omega_grid() {
     std::cout << "Im(w) " << m_wgridD->gridParameters();
     printf(". r=%.2f\n", m_wgridD->r[1] / m_wgridD->r[0]);
   }
-  m_wX_stride = 2; // stride for exchange XXX Make input!
+  // m_wX_stride = 2; // stride for exchange XXX Make input!
 }
 
 //******************************************************************************
@@ -342,7 +379,8 @@ ComplexGMatrix FeynmanSigma::Green_core(int kappa, ComplexDouble en) const {
 
 //------------------------------------------------------------------------------
 ComplexGMatrix FeynmanSigma::Green_ex(int kappa, ComplexDouble en,
-                                      GrMethod method) const {
+                                      GrMethod method,
+                                      const DiracSpinor *Fc_hp) const {
   ComplexGMatrix Gk(m_subgrid_points, m_include_G);
 
   if (method == GrMethod::basis) {
@@ -350,7 +388,7 @@ ComplexGMatrix FeynmanSigma::Green_ex(int kappa, ComplexDouble en,
   } else {
     // Subtract core states, by forceing Gk to be orthogonal to core:
     // Gk -> Gk - \sum_a|a><a|G
-    Gk = Green_hf(kappa, en); // - Green_core(kappa, en);
+    Gk = Green_hf(kappa, en, Fc_hp); // - Green_core(kappa, en);
     const auto &core = p_hf->get_core();
     const auto &drj = get_drj();
     for (auto ia = 0ul; ia < core.size(); ++ia) {
@@ -394,7 +432,8 @@ ComplexGMatrix FeynmanSigma::Green_hf_basis(int kappa, ComplexDouble en,
 }
 
 //------------------------------------------------------------------------------
-ComplexGMatrix FeynmanSigma::Green_hf(int kappa, ComplexDouble en) const {
+ComplexGMatrix FeynmanSigma::Green_hf(int kappa, ComplexDouble en,
+                                      const DiracSpinor *Fc_hp) const {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
 
   // Solve DE (no exchange), regular at 0, infinity ("pinf")
@@ -414,7 +453,12 @@ ComplexGMatrix FeynmanSigma::Green_hf(int kappa, ComplexDouble en) const {
   // Get G0 (Green's function, without exchange):
   const auto g0 = MakeGreensG0(x0, xI, w);
   // XXX NB: Have to modify Vx also in Breit case. XXX
-  const auto &Vx = get_Vx_kappa(kappa);
+  auto Vx = get_Vx_kappa(kappa);
+
+  if (Fc_hp != nullptr) {
+    // include hole-particle
+    Vx += calculate_Vhp(*Fc_hp);
+  }
 
   static const ComplexDouble one{1.0, 0.0}; // to convert real to complex
 
@@ -503,6 +547,8 @@ ComplexGMatrix FeynmanSigma::Polarisation_k(int k, ComplexDouble omega,
       continue;
     const auto &pa = m_Pa[ia]; // |a><a|
 
+    const auto *Fa_hp = m_holeParticle ? &a : nullptr;
+
     for (int ialpha = 0; ialpha <= m_max_kappaindex; ++ialpha) {
       const auto kA = Angular::kappaFromIndex(ialpha);
       const auto ck_aA = Angular::Ck_kk(k, a.k, kA);
@@ -514,8 +560,8 @@ ComplexGMatrix FeynmanSigma::Polarisation_k(int k, ComplexDouble omega,
       const auto ea_minus_w = ComplexDouble{a.en} - omega;
       const auto ea_plus_w = ComplexDouble{a.en} + omega;
 
-      pi_k += c_ang * (Green_ex(kA, ea_minus_w, method) +
-                       Green_ex(kA, ea_plus_w, method))
+      pi_k += c_ang * (Green_ex(kA, ea_minus_w, method, Fa_hp) +
+                       Green_ex(kA, ea_plus_w, method, Fa_hp))
                           .mult_elements_by(pa);
     }
   }
@@ -601,6 +647,27 @@ FeynmanSigma::form_QPQ_wk(int max_k, GrMethod pol_method, double omre,
 }
 
 //******************************************************************************
+std::vector<std::vector<ComplexGMatrix>>
+FeynmanSigma::form_Greens_kapw(int max_kappa_index, GrMethod method,
+                               double en_re, const Grid &wgrid) const {
+  // G(en_re+iw) for each kappa, w
+  // nb: en_re = en_v + omre
+
+  const auto num_kappas = std::size_t(max_kappa_index + 1);
+  std::vector<std::vector<ComplexGMatrix>> gs(num_kappas);
+#pragma omp parallel for
+  for (auto ik = 0ul; ik < num_kappas; ++ik) {
+    const auto kappa = Angular::kappaFromIndex(int(ik));
+    gs[ik].reserve(wgrid.num_points);
+    for (auto iw = 0ul; iw < wgrid.num_points; iw++) {
+      ComplexDouble evpw{en_re, wgrid.r[iw]};
+      gs[ik].push_back(Green(kappa, evpw, States::both, method));
+    }
+  }
+  return gs;
+}
+
+//******************************************************************************
 //******************************************************************************
 
 //******************************************************************************
@@ -621,16 +688,8 @@ GMatrix FeynmanSigma::FeynmanDirect(int kv, double env) const {
   // Need to do for each kappa, so fine to do in here..
   // (Unless we use same grid for exchange!)
   const auto num_kappas = std::size_t(m_max_kappaindex + 1);
-  std::vector<std::vector<ComplexGMatrix>> gBs(num_kappas);
-#pragma omp parallel for
-  for (auto ik = 0ul; ik < num_kappas; ++ik) {
-    const auto kappa = Angular::kappaFromIndex(int(ik));
-    gBs[ik].reserve(wgrid.num_points);
-    for (auto iw = 0ul; iw < wgrid.num_points; iw++) {
-      ComplexDouble evpw{env + omre, wgrid.r[iw]};
-      gBs[ik].push_back(Green(kappa, evpw, States::both, m_Green_method));
-    }
-  }
+  const auto gBs =
+      form_Greens_kapw(m_max_kappaindex, m_Green_method, env + omre, wgrid);
 
 #pragma omp parallel for
   for (auto iw = 0ul; iw < wgrid.num_points; iw++) { // for omega integral
@@ -787,16 +846,8 @@ GMatrix FeynmanSigma::FeynmanEx_1(int kv, double env) const {
 
   // Store gAs in advance, since these depend only on w and kA, not a, kB or k
   const auto num_kappas = std::size_t(m_max_kappaindex + 1);
-//   std::vector<std::vector<ComplexGMatrix>> gAs(num_kappas);
-// #pragma omp parallel for
-//   for (auto ik = 0ul; ik < num_kappas; ++ik) {
-//     const auto kappa = Angular::kappaFromIndex(int(ik));
-//     gAs[ik].reserve(wgrid.num_points);
-//     for (auto iw = 0ul; iw < wgrid.num_points; iw++) {
-//       ComplexDouble evpw{env + omre, wgrid.r[iw]};
-//       gAs[ik].push_back(Green(kappa, evpw, States::both, m_Green_method));
-//     }
-//   }
+  const auto gAs =
+      form_Greens_kapw(m_max_kappaindex, m_Green_method, env + omre, wgrid);
 
 // #pragma omp parallel for collapse(2)
 #pragma omp parallel for
@@ -824,9 +875,10 @@ GMatrix FeynmanSigma::FeynmanEx_1(int kv, double env) const {
         for (auto iA = 0ul; iA < num_kappas; ++iA) {
           const auto kA = Angular::kappaFromIndex(int(iA));
 
-          // const auto &gA = gAs[iA][iw];
-          const auto gA =
-              Green(kA, {env + omre, omim}, States::both, m_Green_method);
+          const auto &gA = gAs[iA][iw];
+          // const auto gA =
+          //     Green(kA, {env + omre, omim}, States::both, m_Green_method);
+
           const auto gqpg =
               sumkl_GQPGQ(gA, gxBm, gxBp, pa, kv, kA, kB, Fa.k, qpqw_k);
 

@@ -107,7 +107,9 @@ private:
   void form_Vx();
   // Forms Vx for given kappa, exhange operator matrix (includes dri,drj)
   [[nodiscard]] GMatrix calculate_Vx_kappa(int kappa) const;
-  // Calculates and stores radial projection operators for core states |a><a|
+  GMatrix calculate_Vhp(const DiracSpinor &Fa) const;
+
+  // Calculates and stores radial projection operators for core state |a><a|
   void form_Pa_core();
   // Sets up imaginary frequency (omega) grids for integrations
   void setup_omega_grid();
@@ -116,13 +118,15 @@ private:
   [[nodiscard]] ComplexGMatrix Green_core(int kappa, ComplexDouble en) const;
   // Calculates "excited" Greens function, by: G_ex = G - G_core
   [[nodiscard]] ComplexGMatrix
-  Green_ex(int kappa, ComplexDouble en,
-           GrMethod method = GrMethod::Green) const;
+  Green_ex(int kappa, ComplexDouble en, GrMethod method = GrMethod::Green,
+           const DiracSpinor *Fc_hp = nullptr) const;
 
   // // Calculates Hartree-Fock Green function (including exchange), for real en
   // [[nodiscard]] ComplexGMatrix Green_hf_real(int kappa, double en) const;
   // Calculates HF Green function (including exchange), for Complex en
-  [[nodiscard]] ComplexGMatrix Green_hf(int kappa, ComplexDouble en) const;
+  [[nodiscard]] ComplexGMatrix
+  Green_hf(int kappa, ComplexDouble en,
+           const DiracSpinor *Fc_hp = nullptr) const;
 
   // Calculate HF Greens function (complex en), using basis expansion
   [[nodiscard]] ComplexGMatrix Green_hf_basis(int kappa, ComplexDouble en,
@@ -143,8 +147,11 @@ private:
   // ComplexGMatrix form_QPQ_wk(const ComplexGMatrix &PiQ) const;
   std::vector<std::vector<ComplexGMatrix>> form_QPQ_wk(int max_k,
                                                        GrMethod pol_method,
-                                                       double omre,
+                                                       double en_re,
                                                        const Grid &wgrid) const;
+  std::vector<std::vector<ComplexGMatrix>>
+  form_Greens_kapw(int max_kappa_index, GrMethod method, double omre,
+                   const Grid &wgrid) const;
 
   // exchange: sum_kl gA*qk*ql*(c1 * pa*gxBm + c2 * gxBp*pa)
   [[nodiscard]] GMatrix
@@ -191,15 +198,15 @@ private:
   std::unique_ptr<ComplexGMatrix> m_dri = nullptr;
   std::unique_ptr<ComplexGMatrix> m_drj = nullptr;
   std::unique_ptr<Grid> m_wgridD = nullptr;
-  std::size_t m_wX_stride{}; // XXX input?
-  // std::unique_ptr<Grid> m_wgridX = nullptr;
+  std::size_t m_wX_stride{2}; // XXX input?
 
   std::vector<std::vector<ComplexGMatrix>> m_qpq_wk{};
 
   int m_k_cut = 6; // XXX Make input?
+  bool m_holeParticle = true;
 
-  // ExchangeMethod m_ex_method = ExchangeMethod::Goldstone;
-  ExchangeMethod m_ex_method = ExchangeMethod::w1;
+  ExchangeMethod m_ex_method = ExchangeMethod::Goldstone;
+  // ExchangeMethod m_ex_method = ExchangeMethod::w1;
   // ExchangeMethod m_ex_method = ExchangeMethod::w1w2;
 };
 
