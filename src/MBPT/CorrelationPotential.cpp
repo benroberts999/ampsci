@@ -199,7 +199,7 @@ void CorrelationPotential::form_Sigma(const std::vector<double> &en_list,
 
   m_Sigma_kappa.resize(en_list.size(), {m_subgrid_points, m_include_G});
 
-  print_subGrid();
+  // print_subGrid();
 
   std::cout << "Forming correlation potential (";
   std::cout << DiracSpinor::state_config(m_holes) << "/"

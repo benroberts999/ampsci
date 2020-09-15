@@ -32,6 +32,8 @@ GoldstoneSigma2::GoldstoneSigma2(const HF::HartreeFock *const in_hf,
   if (en_list.empty())
     return; //?
 
+  print_subGrid();
+
   if (!read_ok) {
     std::cout << "Form correlation potential: Goldstone method\n";
     if (m_include_G)

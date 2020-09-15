@@ -40,6 +40,8 @@ inline std::string_view ParseEnum(ExchangeMethod method) {
   return "unkown";
 }
 
+// XXX Gmatrix should know its kappa!
+
 //******************************************************************************
 /*!
 @brief
@@ -120,6 +122,9 @@ private:
   [[nodiscard]] ComplexGMatrix
   Green_ex(int kappa, ComplexDouble en, GrMethod method = GrMethod::Green,
            const DiracSpinor *Fc_hp = nullptr) const;
+
+  // Force Gk to be orthogonal to the core states
+  void makeGOrthogCore(ComplexGMatrix *Gk, int kappa) const;
 
   // // Calculates Hartree-Fock Green function (including exchange), for real en
   // [[nodiscard]] ComplexGMatrix Green_hf_real(int kappa, double en) const;
@@ -203,10 +208,10 @@ private:
   std::vector<std::vector<ComplexGMatrix>> m_qpq_wk{};
 
   int m_k_cut = 6; // XXX Make input?
-  bool m_holeParticle = true;
+  bool m_holeParticle = false;
 
-  ExchangeMethod m_ex_method = ExchangeMethod::Goldstone;
-  // ExchangeMethod m_ex_method = ExchangeMethod::w1;
+  // ExchangeMethod m_ex_method = ExchangeMethod::Goldstone;
+  ExchangeMethod m_ex_method = ExchangeMethod::w1;
   // ExchangeMethod m_ex_method = ExchangeMethod::w1w2;
 };
 

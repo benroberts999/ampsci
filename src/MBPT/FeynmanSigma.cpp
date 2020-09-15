@@ -13,7 +13,8 @@
 #include <algorithm>
 #include <cassert>
 #include <numeric>
-
+//
+#include <omp.h>
 //! Many-body perturbation theory
 namespace MBPT {
 
@@ -131,6 +132,8 @@ void FeynmanSigma::prep_Feynman() {
   form_Vx();
   form_Pa_core();
   setup_omega_grid();
+
+  print_subGrid();
 
   const auto max_k = std::min(m_maxk, m_k_cut);
   m_qpq_wk = form_QPQ_wk(max_k, m_Pol_method, m_omre, *m_wgridD);
@@ -362,7 +365,7 @@ ComplexGMatrix FeynmanSigma::G_single(const DiracSpinor &ket,
 //******************************************************************************
 ComplexGMatrix FeynmanSigma::Green_core(int kappa, ComplexDouble en) const {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__, "complex");
-  // G_core = \sum_a |a><a|/(e_r + i*e_i-ea), for all a with a.k=k
+  // G_core = \sum_a |a><a|/(e_r + i*e_i-ea), for all a with a.k = k
   ComplexGMatrix Gcore(m_subgrid_points, m_include_G);
 
   // loop over HF core, not Sigma core (used in subtraction to get G^excited)
@@ -388,21 +391,25 @@ ComplexGMatrix FeynmanSigma::Green_ex(int kappa, ComplexDouble en,
   } else {
     // Subtract core states, by forceing Gk to be orthogonal to core:
     // Gk -> Gk - \sum_a|a><a|G
-    Gk = Green_hf(kappa, en, Fc_hp); // - Green_core(kappa, en);
-    const auto &core = p_hf->get_core();
-    const auto &drj = get_drj();
-    for (auto ia = 0ul; ia < core.size(); ++ia) {
-      if (core[ia].k != kappa)
-        continue;
-      if (core[ia].n < m_min_core_n)
-        continue;
-      auto pa = m_Pa[ia];       // copy
-      pa.mult_elements_by(drj); // pa * Gk includes 'r_j' integral
-      Gk -= (pa * Gk);
-    }
+    Gk = Green_hf(kappa, en, Fc_hp) - Green_core(kappa, en);
+    makeGOrthogCore(&Gk, kappa);
   }
 
   return Gk;
+}
+
+//------------------------------------------------------------------------------
+void FeynmanSigma::makeGOrthogCore(ComplexGMatrix *Gk, int kappa) const {
+  // Force Gk to be orthogonal to the core states
+  const auto &core = p_hf->get_core();
+  const auto &drj = get_drj();
+  for (auto ia = 0ul; ia < core.size(); ++ia) {
+    if (core[ia].k != kappa)
+      continue;
+    auto pa = m_Pa[ia];       // copy
+    pa.mult_elements_by(drj); // pa * Gk includes 'r_j' integral
+    *Gk -= (pa * *Gk);
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -449,6 +456,11 @@ ComplexGMatrix FeynmanSigma::Green_hf(int kappa, ComplexDouble en,
   const auto pp = std::size_t(0.65 * double(xI.pinf));
   const auto w = -1.0 * (xI.f[pp] * x0.g[pp] - x0.f[pp] * xI.g[pp]) / alpha;
   // Not sure why -ve sign here... ??? But needed to agree w/ basis version
+  // for (auto ip = 0ul; ip < 10; ++ip) {
+  //   ++pp;
+  //   w += -1.0 * (xI.f[pp] * x0.g[pp] - x0.f[pp] * xI.g[pp]) / alpha;
+  //   w *= 0.5;
+  // }
 
   // Get G0 (Green's function, without exchange):
   const auto g0 = MakeGreensG0(x0, xI, w);
@@ -681,12 +693,9 @@ GMatrix FeynmanSigma::FeynmanDirect(int kv, double env) const {
   // // Set up imaginary frequency grid:
   const double omre = m_omre;
   const auto &wgrid = *m_wgridD;
-
   const auto max_k = std::min(m_maxk, m_k_cut);
 
   // Store gAs in advance
-  // Need to do for each kappa, so fine to do in here..
-  // (Unless we use same grid for exchange!)
   const auto num_kappas = std::size_t(m_max_kappaindex + 1);
   const auto gBs =
       form_Greens_kapw(m_max_kappaindex, m_Green_method, env + omre, wgrid);
@@ -849,16 +858,22 @@ GMatrix FeynmanSigma::FeynmanEx_1(int kv, double env) const {
   const auto gAs =
       form_Greens_kapw(m_max_kappaindex, m_Green_method, env + omre, wgrid);
 
+  // const std::size_t num_para_threads = 12;
+  const std::size_t num_para_threads =
+      num_kappas * wgrid.num_points / m_wX_stride / 4;
+  std::vector<GMatrix> Sx_k(num_para_threads, {m_subgrid_points, m_include_G});
+
 // #pragma omp parallel for collapse(2)
-#pragma omp parallel for
+#pragma omp parallel for num_threads(num_para_threads) collapse(2)
   for (auto iB = 0ul; iB < num_kappas; ++iB) {
-    const auto kB = Angular::kappaFromIndex(int(iB));
     for (auto iw = 0ul; iw < wgrid.num_points; iw += m_wX_stride) {
+      const auto kB = Angular::kappaFromIndex(int(iB));
+
+      const auto tid = std::size_t(omp_get_thread_num());
 
       auto omim = wgrid.r[iw]; // XXX Symmetric?? Or Not??
       const auto omega = ComplexDouble{omre, omim};
-      const auto dw1 =
-          -2.0 * double(m_wX_stride) * wgrid.drdu[iw] * wgrid.du / (2.0 * M_PI);
+      const auto dw1 = wgrid.drdu[iw]; // rest in 'factor'
 
       const auto *const qpqw_k = m_screen_Coulomb ? &m_qpq_wk[iw] : nullptr;
 
@@ -869,6 +884,7 @@ GMatrix FeynmanSigma::FeynmanEx_1(int kv, double env) const {
         const auto &pa = m_Pa[ia];
         const auto ea = ComplexDouble{Fa.en, 0.0};
 
+        // hp here too?
         const auto gxBm = Green_ex(kB, ea - omega, m_Green_method);
         const auto gxBp = Green_ex(kB, ea + omega, m_Green_method);
 
@@ -882,12 +898,18 @@ GMatrix FeynmanSigma::FeynmanEx_1(int kv, double env) const {
           const auto gqpg =
               sumkl_GQPGQ(gA, gxBm, gxBp, pa, kv, kA, kB, Fa.k, qpqw_k);
 
-#pragma omp critical(sum_x1)
-          { Sx1 += (dw1 / tjvp1) * gqpg; }
+          Sx_k[tid] += dw1 * gqpg;
+
         } // alpha
       }   // a
     }
   }
+
+  Sx1 = std::accumulate(Sx_k.cbegin(), Sx_k.cend(), Sx1);
+
+  const auto factor =
+      -2.0 * double(m_wX_stride) * wgrid.du / (2.0 * M_PI) / tjvp1;
+  Sx1 *= factor;
 
   // devide through by dri, drj [these included in q's, but want
   // differential operator for sigma] or.. include one of these in
