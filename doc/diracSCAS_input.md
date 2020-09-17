@@ -98,12 +98,15 @@ HartreeFock {
 Nucleus {
   type;    //[t] default = Fermi
   rrms;    //[r] will loop-up default value based on Z,A
-  skin_t;  //[r] default = 2.3
+  c;       //[r] will loop-up default value based on Z,A
+  t;       //[r] default = 2.3
 }
 ```
 * rrms: nuclear root-mean-square charge radius (in femptometres = 10^-15m)
 * type: Which distribution to use for nucleus? Options are: Fermi (default), spherical, point
-* skin_t: skin thickness [only used by Fermi distro]
+* t: skin thickness [only used by Fermi distro]
+* c: half-density radius [only used by Fermi distro]
+  * nb: if rrms and c are given, c takes priority, and rrms is calculated from c (and t)
 
 
 ## Grid

@@ -1,10 +1,13 @@
 #pragma once
+#include <algorithm>
+#include <array>
 #include <chrono>
 #include <ctime>
 #include <iostream>
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -33,6 +36,38 @@ inline std::string date() {
   char buffer[30];
   std::strftime(buffer, 30, "%F", localtime(&now));
   return buffer;
+}
+
+//******************************************************************************
+// Move to qip?:
+
+template <typename T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+bool acceptableQ(const T &value, const std::pair<T, T> &list,
+                 const bool print = true) {
+  // If list.size()==0, and is a numeric type, treat as range
+  // Otherwise, treat as exclusive list
+  const auto &[min, max] = list;
+  const auto ok = value >= min && value <= max;
+  if (!ok && print) {
+    std::cout << "\n⚠️  WARNING unacceptable value: " << value
+              << " not in required range: [" << min << "," << max << "]\n";
+  }
+  return ok;
+}
+
+template <typename T, typename List>
+bool acceptableQ(const T &value, const List &list, const bool print = true) {
+  // If list.size()==0, and is a numeric type, treat as range
+  // Otherwise, treat as exclusive list
+  const auto ok = std::find(cbegin(list), cend(list), value) != cend(list);
+  if (!ok && print) {
+    std::cout << "\n⚠️  WARNING unacceptable value: " << value
+              << " not in required set:\n";
+    std::for_each(cbegin(list), cend(list),
+                  [](auto &x) { std::cout << x << ", "; });
+    std::cout << "\n";
+  }
+  return ok;
 }
 
 //******************************************************************************

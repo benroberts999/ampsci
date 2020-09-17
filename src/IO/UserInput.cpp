@@ -63,7 +63,7 @@ bool UserInputBlock::checkBlock(const std::vector<std::string> &list) const {
     auto help = (option == "Help" || option == "help") ? true : false;
     if (bad_option && !help) {
       all_ok = false;
-      std::cerr << "\nWARNING: Unclear input option in " << m_block_name
+      std::cout << "\n⚠️  WARNING: Unclear input option in " << m_block_name
                 << ": `" << option << "'\n --> " << entry << "\n"
                 << "Option may be ignored!\n"
                 << "Check spelling (or update list of options)\n";
@@ -135,7 +135,6 @@ std::vector<UserInputBlock> UserInput::module_list() const {
 
 //******************************************************************************
 void UserInput::print() const {
-  // std::cout << "diracSCAS git:" << git_info() << "\n";
   std::cout << time_date() << '\n';
   for (const auto &block : m_blocks) {
     block.print();

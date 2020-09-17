@@ -18,11 +18,11 @@ int main(int argc, char *argv[]) {
   // Read in input options file
   std::cout << "Reading input from: " << input_file << "\n";
   const IO::UserInput input(input_file);
-  std::cout << "DiracSCAS git:" << GitInfo::gitversion << " ("
+  std::cout << "diracSCAS git:" << GitInfo::gitversion << " ("
             << GitInfo::gitbranch << ")\n";
   input.print();
 
-  // Get + setup atom parameters
+  // Atom: Get + setup atom parameters
   auto input_ok = input.check("Atom", {"Z", "A", "varAlpha2"});
   const auto atom_Z = input.get<std::string>("Atom", "Z");
   const auto atom_A = input.get("Atom", "A", -1);
@@ -31,7 +31,7 @@ int main(int argc, char *argv[]) {
     return (varAlpha2 > 0) ? std::sqrt(varAlpha2) : 1.0e-25;
   }();
 
-  // Get + setup Grid parameters
+  // Grid: Get + setup grid parameters
   input_ok = input_ok && input.check("Grid", {"r0", "rmax", "num_points",
                                               "type", "b", "fixed_du"});
   const auto r0 = input.get("Grid", "r0", 1.0e-6);
@@ -46,12 +46,19 @@ int main(int argc, char *argv[]) {
           ? "logarithmic"
           : input.get<std::string>("Grid", "type", "loglinear");
 
-  // Get + setup nuclear parameters
-  input_ok = input_ok && input.check("Nucleus", {"rrms", "skin_t", "type"});
-  const auto nuc_type = input.get<std::string>("Nucleus", "type", "Fermi");
-  // {rrms, skint} < 0 means get default (depends on A)
-  const auto rrms = input.get("Nucleus", "rrms", -1.0);
-  const auto skint = input.get("Nucleus", "skin_t", -1.0);
+  // Nucleus: Get + setup nuclear parameters
+  input_ok = input_ok && input.check("Nucleus", {"rrms", "c", "t", "type"});
+  // if {rrms, t} < 0 means get default (depends on A)
+  const auto c_hdr = input.get("Nucleus", "c", -1.0);
+  const auto skint = input.get("Nucleus", "skin_t", Nuclear::default_t);
+  // c (half density radius) takes precidence if c and r_rms are given.
+  const auto rrms = c_hdr <= 0.0 ? input.get("Nucleus", "rrms", -1.0)
+                                 : Nuclear::rrms_formula_c_t(c_hdr, skint);
+  // Set nuc. type explicitely to 'pointlike' if A=0, or r_rms = 0.0
+  const auto nuc_type =
+      (atom_A == 0 || rrms == 0.0)
+          ? "pointlike"
+          : input.get<std::string>("Nucleus", "type", "Fermi");
 
   // Create wavefunction object
   Wavefunction wf({num_points, r0, rmax, b, grid_type, du_tmp},
@@ -66,8 +73,12 @@ int main(int argc, char *argv[]) {
   input_ok =
       input_ok && input.check("HartreeFock", {"core", "valence", "convergence",
                                               "method", "Breit", "sortOutput"});
-  if (!input_ok)
+  if (!input_ok) {
+    std::cout
+        << "\nProgram halted due to input errors; review above warnings\n";
     return 1;
+  }
+
   const auto str_core = input.get<std::string>("HartreeFock", "core", "[]");
   const auto eps_HF = input.get("HartreeFock", "convergence", 1.0e-12);
   const auto HF_method =
@@ -81,13 +92,19 @@ int main(int argc, char *argv[]) {
               << "Note: You should include first valence state into the core:\n"
                  "Kohn-Sham is NOT a V^N-1 method!\n";
   } else if (HF_method != "HartreeFock") {
-    std::cout << "What is: " << HF_method << "? Defaulting to HF method.\n";
+    std::cout << "\n⚠️  WARNING unkown method: " << HF_method
+              << "\nDefaulting to HartreeFock method.\n";
   }
 
+  // Breit:
   const auto x_Breit = input.get("HartreeFock", "Breit", 0.0);
   // Can only include Breit within HF
-  if (HF_method == "HartreeFock" && x_Breit != 0.0)
+  if (HF_method == "HartreeFock" && x_Breit != 0.0) {
     std::cout << "Including Breit (scale = " << x_Breit << ")\n";
+  } else if (HF_method != "HartreeFock" && x_Breit != 0.0) {
+    std::cout << "\n⚠️  WARNING can only include Breit in Hartree-Fock "
+                 "method. Breit will not be included.\n";
+  }
 
   // Inlcude QED radiatve potential
   const auto qed_ok =

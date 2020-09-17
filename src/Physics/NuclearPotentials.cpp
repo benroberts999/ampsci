@@ -13,16 +13,14 @@ namespace Nuclear {
 
 //******************************************************************************
 Type parseType(const std::string &str_type) {
-  if (str_type == "Fermi")
+  if (str_type == "Fermi" || str_type == "fermi")
     return Type::Fermi;
   if (str_type == "spherical")
     return Type::spherical;
-  if (str_type == "zero")
+  if (str_type == "zero" || str_type == "point" || str_type == "pointlike")
     return Type::point;
-  if (str_type == "point")
-    return Type::point;
-  if (str_type == "pointlike")
-    return Type::point;
+  std::cout << "\n⚠️  WARNING: Unkown nucleus type: " << str_type
+            << "; defaulting to Fermi\n";
   return Type::Fermi;
 }
 std::string parseType(Type type) {
@@ -63,10 +61,6 @@ Parameters::Parameters(const std::string &z_str, int in_a,
       r_rms = approximate_r_rms(a);
   }
 }
-
-// //******************************************************************************
-// AtomicZ::AtomicZ(const std::string &inZ) : z(AtomData::get_z(inZ)) {}
-// AtomicZ::AtomicZ(const int inZ) : z(inZ) {}
 
 //******************************************************************************
 std::vector<double> sphericalNuclearPotential(double Z, double rnuc,
