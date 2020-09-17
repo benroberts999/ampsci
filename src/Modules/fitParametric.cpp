@@ -1,4 +1,4 @@
-#include "Modules/Module_fitParametric.hpp"
+#include "Modules/fitParametric.hpp"
 #include "HF/HartreeFock.hpp"
 #include "IO/UserInput.hpp"
 #include "Maths/Grid.hpp"

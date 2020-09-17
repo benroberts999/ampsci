@@ -15,12 +15,10 @@ Examples include: calculating matrix elements, lifetimes, PNC etc.
 To add a new module:
   - a) Write the function (in the Module namespace). You can either add this to
 one of the existing module cpp/hpp files, or make a new file.
-  - b) update the runModule() function [in Modules/Module_runModules.cpp] to
-call your module
-  - c) If you have written youyr module in a new file, you'll also need to
-update Module.mk file. Add both the compile/Dependencies option, and add the
-'.o' name to the MODULELIST (should be fairly obvious by copying existing
-examples). If you added your function to an existing file, this isn't needed.
+  - b) Add your module function name to the module_list vector [in
+Modules/modules_list.hpp]
+  - c) If you added a new file, add the new .hpp file to the #include's list in
+Modules/modules_list.hpp
 */
 namespace Module {
 

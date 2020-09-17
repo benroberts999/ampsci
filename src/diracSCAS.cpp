@@ -2,7 +2,7 @@
 #include "IO/FRW_fileReadWrite.hpp" //for 'ExtraPotential'
 #include "IO/UserInput.hpp"
 #include "Maths/Interpolator.hpp" //for 'ExtraPotential'
-#include "Modules/Module_runModules.hpp"
+#include "Modules/runModules.hpp"
 #include "Physics/PhysConst_constants.hpp" //for fit_energies
 #include "Wavefunction/Wavefunction.hpp"
 #include "git.info"

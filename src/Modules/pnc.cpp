@@ -1,4 +1,4 @@
-#include "Modules/Module_pnc.hpp"
+#include "Modules/pnc.hpp"
 #include "DiracOperator/DiracOperator.hpp"
 #include "DiracOperator/Operators.hpp"
 #include "HF/ExternalField.hpp"

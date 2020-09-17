@@ -1,12 +1,6 @@
-#include "Modules/Module_runModules.hpp"
-#include "DMionisation/Module_atomicKernal.hpp"
+#include "Modules/runModules.hpp"
 #include "IO/UserInput.hpp"
-#include "Modules/Module_HFAnomaly.hpp"
-#include "Modules/Module_fitParametric.hpp"
-#include "Modules/Module_matrixElements.hpp"
-#include "Modules/Module_pnc.hpp"
-#include "Modules/Module_testFeynman.hpp"
-#include "Modules/Module_tests.hpp"
+#include "Modules/modules_list.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include <algorithm>
@@ -20,21 +14,6 @@
 #include <vector>
 
 namespace Module {
-
-static const std::vector<
-    std::pair<std::string, void (*)(const IO::UserInputBlock &input,
-                                    const Wavefunction &wf)>>
-    module_list{{"Tests", &Module_tests},
-                {"WriteOrbitals", &writeOrbitals},
-                {"AtomicKernal", &atomicKernal},
-                {"FitParametric", &fitParametric},
-                {"BohrWeisskopf", &calculateBohrWeisskopf},
-                {"HFAnomaly", &HFAnomaly},
-                {"HF_rmag", &HF_rmag},
-                {"pnc", &calculatePNC},
-                {"polarisability", &polarisability},
-                {"testFeynman", &testFeynman},
-                {"lifetimes", &calculateLifetimes}};
 
 //******************************************************************************
 void runModules(const IO::UserInput &input, const Wavefunction &wf) {
@@ -115,9 +94,8 @@ static void write_orbitals(const std::string &fname,
 void writeOrbitals(const IO::UserInputBlock &input, const Wavefunction &wf) {
   const std::string ThisModule = "Module::WriteOrbitals";
   input.checkBlock({"label", "l"});
-  // func();
   std::cout << "\n Running: " << ThisModule << "\n";
-  auto label = input.get<std::string>("label", "");
+  const auto label = input.get<std::string>("label", "");
   // to write only for specific l. l<0 means all
   auto l = input.get("l", -1);
 
@@ -129,39 +107,6 @@ void writeOrbitals(const IO::UserInputBlock &input, const Wavefunction &wf) {
   write_orbitals(oname + "_valence.txt", wf.valence, l);
   write_orbitals(oname + "_basis.txt", wf.basis, l);
   write_orbitals(oname + "_spectrum.txt", wf.spectrum, l);
-
-  // std::ofstream of(oname);
-  // of << "r ";
-  // for (auto &psi : wf.core)
-  //   of << "\"" << psi.symbol(true) << "\" ";
-  // for (auto &psi : wf.valence)
-  //   of << "\"" << psi.symbol(true) << "\" ";
-  // of << "\n";
-  // of << "# f block\n";
-  // for (std::size_t i = 0; i < wf.rgrid->num_points; i++) {
-  //   of << wf.rgrid->r[i] << " ";
-  //   for (auto &psi : wf.core)
-  //     of << psi.f[i] << " ";
-  //   for (auto &psi : wf.valence)
-  //     of << psi.f[i] << " ";
-  //   of << "\n";
-  // }
-  // of << "\n# g block\n";
-  // for (std::size_t i = 0; i < wf.rgrid->num_points; i++) {
-  //   of << wf.rgrid->r[i] << " ";
-  //   for (auto &psi : wf.core)
-  //     of << psi.g[i] << " ";
-  //   for (auto &psi : wf.valence)
-  //     of << psi.g[i] << " ";
-  //   of << "\n";
-  // }
-  // of << "\n# density block\n";
-  // auto rho = wf.coreDensity();
-  // for (std::size_t i = 0; i < wf.rgrid->num_points; i++) {
-  //   of << wf.rgrid->r[i] << " " << rho[i] << "\n";
-  // }
-  // of.close();
-  // std::cout << "Orbitals written to file: " << oname << "\n";
 }
 
 } // namespace Module

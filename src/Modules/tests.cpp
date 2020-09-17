@@ -1,4 +1,4 @@
-#include "Modules/Module_tests.hpp"
+#include "Modules/tests.hpp"
 #include "DiracOperator/Operators.hpp"
 #include "HF/HartreeFock.hpp"
 #include "IO/UserInput.hpp"
@@ -62,26 +62,6 @@ void basisTests(const Wavefunction &wf) {
     std::cout << "Using Sprectrum\n";
   else
     std::cout << "Using Basis\n";
-
-  // // check to see if there are any negative-energy states:
-  // const bool negative_statesQ = std::any_of(
-  //     basis.cbegin(), basis.cend(), [](const auto &Fa) { return Fa.n < 0; });
-
-  // //----------------------------------------------------------------------------
-  // if (negative_statesQ) {
-  //   std::cout << "\nTKR sum rule (should =0)\n";
-  //   SplineBasis::sumrule_TKR(basis, wf.rgrid->r, true);
-  //
-  //   //----------------------------------------------------------------------------
-  //   std::cout << "\nDrake-Goldman sum rules: w^n |<a|r|b>|^2  (n=0,1,2)\n";
-  //   std::cout << "(Only up to lmax-1, since need to have states with
-  //   l'=l+1)\n";
-  //
-  //   int n_max_DG = 3;
-  //   for (int nDG = 0; nDG < n_max_DG; nDG++) {
-  //     SplineBasis::sumrule_DG(nDG, basis, *wf.rgrid, wf.alpha, true);
-  //   }
-  // }
 
   //----------
   const auto isotope = Nuclear::findIsotopeData(wf.Znuc(), wf.Anuc());
@@ -156,8 +136,6 @@ void Module_Tests_orthonormality(const Wavefunction &wf, const bool) {
 
   const std::vector orbs = {&wf.core, &wf.valence, &wf.basis, &wf.spectrum};
   const std::vector names = {'c', 'v', 'b', 's'};
-
-  // std::ios_base::fmtflags f(std::cout.flags());
 
   for (auto i = 0ul; i < orbs.size(); ++i) {
     if (orbs[i]->empty())

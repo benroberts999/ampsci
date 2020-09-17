@@ -1,4 +1,4 @@
-#include "Modules/Module_testFeynman.hpp"
+#include "Modules/testFeynman.hpp"
 #include "Coulomb/Coulomb.hpp"
 #include "IO/UserInput.hpp"
 #include "MBPT/FeynmanSigma.hpp"
