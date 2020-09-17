@@ -106,8 +106,20 @@ UserInput::UserInput(const std::string &infile) : m_filename(infile) {
   const auto inp = IO::FRW::splitInput_byBraces(IO::FRW::readInputFile(infile));
   for (const auto &item : inp) {
     const auto block_name = item.first;
-    const auto option_vector = IO::FRW::splitInput_bySemiColon(item.second);
-    m_blocks.emplace_back(block_name, option_vector);
+    auto option_vector = IO::FRW::splitInput_bySemiColon(item.second);
+
+    // If block already exists, adds options to that block.
+    // Otherwise, adds new block:
+    auto exists =
+        std::find_if(begin(m_blocks), end(m_blocks), [block_name](auto &block) {
+          return block.name() == block_name;
+        });
+
+    if (exists != end(m_blocks)) {
+      exists->add(option_vector);
+    } else {
+      m_blocks.emplace_back(block_name, std::move(option_vector));
+    }
   }
 }
 
@@ -117,6 +129,7 @@ const UserInputBlock &UserInput::get(const std::string &in_block) const {
     if (in_block == block.name())
       return block;
   }
+  // XXX DUMB use optional..
   return m_empty_block;
 }
 

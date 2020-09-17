@@ -11,8 +11,6 @@
 #include <utility>
 #include <vector>
 
-// Set 'help' option to print out all available options
-
 namespace IO {
 
 //! Prints a line of 'c' characters (dflt '*'), num chars long (dflt 80) to cout
@@ -71,6 +69,9 @@ bool acceptableQ(const T &value, const List &list, const bool print = true) {
 }
 
 //******************************************************************************
+
+// XXX This is very messy and horrible. Needs big cleanup!
+
 //! Stores input options for a specific 'block'; usually use 'UserInput'
 //! (instead of 'UserInputBlock') - has essentially the same functionality (but
 //! don't need to specify block name on '.get')
@@ -100,6 +101,10 @@ public:
   void print() const;
   bool checkBlock(const std::vector<std::string> &options) const;
   void add(const std::string &new_in) { m_input_options.push_back(new_in); }
+  void add(const std::vector<std::string> &new_list) {
+    for (const auto &new_in : new_list)
+      m_input_options.push_back(new_in);
+  }
 
   UserInputBlock copy_with(const std::string &new_in) const {
     auto out = *this;
