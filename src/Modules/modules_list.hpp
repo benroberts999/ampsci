@@ -3,6 +3,7 @@
 // (Modules don't _need_ to be in Modules/ directory
 #include "DMionisation/Module_atomicKernal.hpp"
 #include "Modules/HFAnomaly.hpp"
+#include "Modules/exampleModule.hpp"
 #include "Modules/fitParametric.hpp"
 #include "Modules/matrixElements.hpp"
 #include "Modules/pnc.hpp"
@@ -35,6 +36,7 @@ static const std::vector<
                 {"pnc", &calculatePNC},
                 {"polarisability", &polarisability},
                 {"testFeynman", &testFeynman},
-                {"lifetimes", &calculateLifetimes}};
+                {"lifetimes", &calculateLifetimes},
+                {"exampleModule", &exampleModule}};
 
 } // namespace Module

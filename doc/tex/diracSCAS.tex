@@ -127,7 +127,7 @@
 %\date{\today}
 %\title{}
 
-\def\updatedDate{24 August 2020}
+\def\updatedDate{1 September 2020}
 
 
 \pagestyle{fancy}
@@ -283,7 +283,7 @@ From Eq.~(\ref{eq:Dirac-radial}), we can express the radial derivative as:
 \p_r F  =\frac{1}{c} \matr 	{-c\,{\k}/{r}} 	{(\en - \hat V+2c^2)}  {-(\en - \hat V)} 	 {c\,{\k}/{r}}F,
 \ee
 which has the familiar form of an ODE.
-Very roughly, we can solve the ODE numerically by stepping forward if we know the derivative of a function, and the value of the function at some previous point:
+Very roughly, we can solve an ODE numerically by stepping forward if we know the derivative of a function, and the value of the function at some previous point:
 \be\label{eq:ODEsimple}
 F(r+\delta r) \approx F(r) + \frac{\p F(r+\delta r)}{\p r}\delta r.
 \ee
@@ -298,9 +298,7 @@ Therefore, we can solve for $ F(r+\delta r)$ algebraically:
 \]
 
 As written, this method is far too crude, owing to the very rough approximation used in Eq.~(\ref{eq:ODEsimple}).
-More accurate approaches, known as multi-step methods, approximate the value of the derivative along the interval $(r, r+\delta r)$ with greater accuracy by using more previous points in the estimation. %(in essence, this approximates the higher-order derivatives).
-%
-%We solve this equation using a multi-step method.
+More accurate approaches, known as multi-step methods, approximate the value of the derivative along the interval $(r, \, r+\delta r)$ with greater accuracy by using more previous points in the estimation. 
 The specific method we use (Adams-Moulton method)
 %\footnote{In the code, we can use the method of order 5 to 8 (default is 5; changing makes essentially no difference) -- must be set at compile time.})
  is described in detail in Ref.~\cite{JohnsonBook2007}.
@@ -308,20 +306,20 @@ The specific method we use (Adams-Moulton method)
 
 
 In general, Eq.~(\ref{eq:dF}) will have solutions for any given $\en$. 
-We are interested in the specific bound state solutions, for which $F\to0$ as $r\to\infty$, and $F(0)=0$.
+We are typically interested in the specific bound-state solutions, for which $F\to0$ as $r\to\infty$, and $F(0)=0$.
 To solve the bound-state problem, an initial $\en$ is guessed, and the DE is solved using the multi-step method.
-Then, small adjustments are made to $\en$ until (a) we have the correct boundary conditions, and (b) we have the correct state ($n\k$) determined by the number of nodes of the orbital ($n-l-1$).
+Then, small adjustments are made to $\en$ until (a) we have the correct state ($n\k$) determined by the number of nodes of the orbital ($n-l-1$), and (b) we have the correct boundary conditions.
 %For specific details, see Ref.~\cite{JohnsonBook2007}.
 
 
 In order to use the multi-step method, a few initial points of the radial $F$ function are required.
 These are determined by solving the asymptotic form of the Dirac equation analytically accounting for the boundary conditions.
 It is common to expand the orbital around $r=0$ to start the procedure, and then adjust the energy until $F\to0$ at infinity.
-
+%
 A more numerically stable approach, however, is to solve the DE twice, once starting from $r=0$, and once from $r=\infty$~\cite{JohnsonBook2007}.
 These two solutions are stepped inwards toward some central point, where the two solutions are joined -- one of the two solutions is re-scaled so that $f_0=f_\infty$ at the defined point.
 Small energy adjustments are made until the lower $g$ components also match at this point (this ensures the derivatives match, and the join is smooth).
-In our case, the two solutions are not joined at a single point, but are instead ``meshed'' across a few ($\simeq5$)  points around the classical turning point, defined via $V(r_{\rm ctp}) = \en$.
+In our case, the two solutions are not joined at a single point, but are instead ``meshed'' across a few ($\sim10$)  points around the classical turning point, defined via $V(r_{\rm ctp}) = \en$.
 %(this is slightly different from Ref.~\cite{JohnsonBook2007})
 The meshing procedure acts to smooth out numerical noise, and makes the method more numerically stable.
 This procedure typically allows convergence of the energies to parts in $10^{16}$;
@@ -348,25 +346,6 @@ The factor $\lambda$ is a run-time input option, that is 1 by default. %It allow
 For example, letting $\lambda\to0$ (i.e., $c\to\infty$) allows us to perform calculations in the non-relativistic limit.
 This is a particularly useful option for checking the calculations, and for determining the sensitivity of particular observables to variations in the fine structure constant.
 Modifications can also be made to the above equations to account for the finite electron/nucleus mass (reduced mass) -- but this is not implemented in the code.
-
-%The interface to the function to that solves for the bound state is shown in Code Block~\ref{code:boundState}.
-%
-%\begin{code}
-%\centering
-%{\footnotesize
-%\begin{lstlisting}
-%void boundState(DiracSpinor &psi, const double en0,
-%     const vector<double> &v,
-%     const double alpha, int log_eps);
-%\end{lstlisting}
-%}
-%\caption{\small\label{code:boundState}
-%Function (in namespace DiracODE::) to solve local Dirac equation (\ref{eq:Dirac-radial}) for bound-state orbital psi
-%(orbital must already exist - in/out parameter since this function is often called many times for same orbital as potential is updated).
-%Here, en0 is the initial energy guess (energy eigenvalue is also found and stored in psi), v is the local potential
-%alpha is effective $\alpha$ (=\,$\lambda\alpha_0$), and log\_eps is $\log_{10}(\epsilon)$ (i.e., put 16 to try to converge to parts in $10^{16}$).
-%}
-%\end{code}
 
 
 
@@ -404,7 +383,7 @@ or a mixed log-linear grid, defined:
 u &= r + b \ln(r), \qquad
 \frac{\d r}{\d u} = \frac{r}{r + b},
 \end{align}
-which is approximately logarithmic at small distances ($r<b$), and approximately linear at large distances (typically $b\simeq4$\,au); see Fig.~\ref{Fig:grids}.
+which is approximately logarithmic at small distances ($r<b$), and approximately linear at large distances (typically $b$\,$\sim$\,10\,$a_0$); see Fig.~\ref{Fig:grids}.
 The logarithmic grid works very well, and allows good convergence without requiring a large number of points, but works less well for highly excited states, and works quite poorly for continuum states with high energy.
 The log-linear grid works well in a wide range of cases, but often needs more grid points to achieve the same numerically accuracy\footnote{The code also allows the use of linear grid -- but this requires a very large number of points to work, so should only be used for testing.}.
 
@@ -577,7 +556,7 @@ where
 is the single-particle Dirac Hamiltonian including only the nuclear potential.
 In order to solve the single-particle Dirac equation for an $N$ electron atom, we replace the complicated electron-electron repulsion term with an approximate potential:
 \be
-H \approx \sum_i h_{\rm 0}(\v{r}_i) + \sum_{i}V_{\rm avg},
+H \approx \sum_i h_{\rm 0}(\v{r}_i) + \sum_{i}V_{\rm avg, i}(\v{r}_i),
 \ee
 where $V_{\rm avg}$ is the average potential due to the other ($N-1$) electrons.
 For a given $V_{\rm avg}$, this equation yields a complete set of orthogonal single-particle orbitals; many-body wavefunctions can be expressed Slater-determinants formed from these orbitals, see, e.g., \cite{JohnsonBook2007,Lindgren1986}.
@@ -796,7 +775,7 @@ To aid convergence, however, we first ``damp'' the orbitals as:
 F \to (1-\eta)F+ \eta F_{\rm old}.
 \ee
 This both increases the numerical stability, and speeds up the convergence. % (otherwise, orbitals tend to either oscillate between two values, or blow up).
-Typically, $\eta\simeq0.5$; in the code, $\eta$ is initially set to a large value (0.8), and is slowly ramped down (to 0.1) over the HF iterations (0 means no damping).
+Typically, $\eta\sim0.5$; in the code, $\eta$ is initially set to a large value (0.8), and is slowly ramped down (to 0.1) over the HF iterations (0 means no damping).
 So long as the equations converge, the solutions do not depend on the value chosen.
 
 
@@ -1381,7 +1360,7 @@ Here,
 \be\label{eq:Rkabcd}
 R^k_{abcd} \equiv \int\d r_1 \, \left[f_a(r_1)f_c(r_1) + g_a(r_1)g_c(r_1)\right]\, y^k_{bd}(r_1),
 \ee
-$y^k_{bd}$ is given by Eq.~(\ref{eq:ykab}), and $C^k_{ab}$ is given by Eq.~(\ref{eq:Ckab}).
+and $y^k_{bd}$ and $C^k_{ab}$ are given by Eqs.~(\ref{eq:ykab}) and (\ref{eq:Ckab}).
 
 
 
@@ -1884,38 +1863,38 @@ C^k_{ba}y^k_{ba}\to -C^k_{ba}(M_{ba}^k+O_{ba}^k+P_{ba}^k)  -C^k_{-b,a}N_{ba}^k.
 \]
 Note that while no direct Breit term appears in the HF equations, it does enter into $\delta V_{\rm Br}$.
 
-The two Gaunt functions can be expressed as
+The two Gaunt terms can be expressed as
 \begin{multline}
 \hat M^k_{ba} = 
 \frac{k+1}{2k+3}\left[b_{ba}^{k+1}(r) + \eta^{k+1}_{ba}g_{ba}^{k+1}(r)\right]
-\left(\eta_{ba}^{k+1}\hat\s_x - i\hat\s_y\right)\\
+\left(\eta_{ba}^{k+1}\hat\theta_x - \hat\theta_y\right)\\
 -\frac{k}{2k-1}\left[b_{ba}^{k-1}(r) - \eta^{k}_{ba}g_{ba}^{k-1}(r)\right]
-\left(\eta_{ba}^{k+1}\hat\s_x + i\hat\s_y\right)
+\left(\eta_{ba}^{k+1}\hat\theta_x + \hat\theta_y\right)
 \end{multline}
 %
 and
 %
 \begin{equation}
 \hat N^k_{ba}(r) = 
- \frac{(\k_b+\k_a)^2}{k(k+1)} \, g^{k}_{ba}(r) \, \hat\s_x,
+ \frac{(\k_b+\k_a)^2}{k(k+1)} \, g^{k}_{ba}(r) \, \hat\theta_x,
 \end{equation}
 %
-and the two retardation functions can be expressed as
+and the two retardation terms can be expressed as
 %
 \begin{multline}
 \hat O^k_{ba}(r) = 
 \frac{(k+1)^2}{[k](2k+3)}\left[b_{ba}^{k+1}(r) + \eta^{k+1}_{ba}g_{ba}^{k+1}(r)\right]
-\left(-\eta_{ba}^{k+1}\hat\s_x + i\hat\s_y\right)\\
+\left(-\eta_{ba}^{k+1}\hat\theta_x + \hat\theta_y\right)\\
 +\frac{k^2}{[k](2k-1)}\left[b_{ba}^{k-1}(r) - \eta^{k}_{ba}g_{ba}^{k-1}(r)\right]
-\left(\eta_{ba}^{k+1}\hat\s_x + i\hat\s_y\right),
+\left(\eta_{ba}^{k+1}\hat\theta_x + \hat\theta_y\right),
 \end{multline}
 %
 and
 %
 \begin{multline}
 \hat P^k_{ba}(r) = 
-\frac{k(k+1)}{2[k]}\Big[ P_1(r)\left(\eta_{ba}^{k+1}\hat\s_x - i\hat\s_y\right)  \\ 
--P_2(r)\left(\eta_{ba}^{k}\hat\s_x + i\hat\s_y\right) \Big]
+\frac{k(k+1)}{2[k]}\Big[ P_1(r)\left(\eta_{ba}^{k+1}\hat\theta_x - \hat\theta_y\right)  \\ 
+-P_2(r)\left(\eta_{ba}^{k}\hat\theta_x + \hat\theta_y\right) \Big]
 \end{multline}
 %
 with
@@ -1932,9 +1911,15 @@ b_{\infty,ba}^{k-1}(r) + \eta^{k+1}_{ba}g_{\infty,ba}^{k-1}(r)
 \right].
 \end{align*}
 %
-In the above, $\hat\s$ are Pauli spin matrices, 
+In the above, 
+%$\hat\s$ are Pauli spin matrices, 
+\be
+\hat\theta_x =  \matr{0}{1}{1}{0} \, , \quad
+\hat\theta_y =  \matr{0}{1}{-1}{0}
+\ee
+(note: $\hat\theta_x=\hat\s_x$, and $\hat\theta_y=i\hat\s_y$, except these act in the radial spinor space only),
 $
-\eta^k_{ba} = ({\k_b-\k_a})/{k},
+\eta^k_{ba} \equiv ({\k_b-\k_a})/{k},
 $
 \begin{multline}
 b^k_{ij}(r) = \int_0^r \frac{x^k}{r^{k+1}}[f_ig_j-g_if_j](x)\,\d x  \\
@@ -1947,6 +1932,31 @@ g^k_{ij}(r) = \int_0^r \frac{x^k}{r^{k+1}}[f_ig_j+g_if_j](x)\,\d x  \\
 \end{multline}
 
 %-- take a deep breath --
+
+
+\begin{table}%[h]
+\small
+\centering
+\caption{\small 
+Breit and QED corrections to the removal energies of the lowest $s$ and $p$ states of Cs at the Hartree-Fock level (units: cm$^{-1}$).
+\label{tab:QEDBreit-En}}
+\begin{tabular}{r D{.}{.}{6.2} D{.}{.}{2.2} D{.}{.}{2.2}  D{.}{.}{6.2}}
+\hline
+\hline
+&\multicolumn{1}{c}{HF}&\multicolumn{1}{c}{$\delta$Breit}&\multicolumn{1}{c}{$\delta$QED}&\multicolumn{1}{c}{Total}\\
+\hline
+ $6s_{1/2}$	& -27954.06	& 3.20	& 15.97	& -27934.93\\
+ $6p_{1/2}$	& -18790.51	& 7.49	& -0.80	& -18783.82\\
+ $6p_{3/2}$	& -18388.79	& 2.87	& -0.11	& -18386.03\\
+ $7s_{1/2}$	& -12112.23	& 1.08	& 4.35	& -12106.81\\
+ $7p_{1/2}$	& -9222.63	& 2.69	& -0.28	& -9220.23\\
+ $7p_{3/2}$	& -9079.24	& 1.05	& -0.04	& -9078.23\\
+\hline
+\hline
+\end{tabular}
+\end{table}
+
+
 
 
 
@@ -1971,6 +1981,44 @@ V_{\rm rad}(\v{r}) = V_{\rm Ueh}(r) + V_{\rm SE}^{h}(r) +  V_{\rm SE}^{l}(r) + V
 \includegraphics[width=0.185\textwidth]{img/SelfEnergy}
 \caption{\small Vacuum polarisation (left) and self-energy (right) diagrams. In the radiative potential method, the self-energy diagram is replaced with an effective local potential~\cite{FlambaumQED2005}.\label{fig:QED}}
 \end{figure}
+
+
+\begin{table}%[h]
+\small
+\centering
+\caption{\small 
+Breit and QED corrections to the electrid dipole (E1) reduced matrix elements of lowest $s$ and $p$ states of Cs at the RPA level (units: $|e|a_B$).
+\label{tab:QEDBreit-E1}}
+\begin{tabular}{r D{.}{.}{3.5} D{.}{.}{2.5} D{.}{.}{2.5}  D{.}{.}{3.5}}
+\hline
+\hline
+&\multicolumn{1}{c}{RPA}&\multicolumn{1}{c}{$\delta$Breit}&\multicolumn{1}{c}{$\delta$QED}&\multicolumn{1}{c}{Total}\\
+\hline
+$6s_{1/2} - 6p_{1/2}$	& -4.97441	& 0.00000	& -0.00334	& -4.97775\\
+$6s_{1/2} - 7p_{1/2}$	& -0.23873	& -0.00161	& 0.00241	& -0.23794\\
+$6s_{1/2} - 6p_{3/2}$	& 7.01308	& 0.00013	& 0.00493	& 7.01814\\
+$6s_{1/2} - 7p_{3/2}$	& 0.50874	& 0.00031	& -0.00282	& 0.50624\\
+$7s_{1/2} - 7p_{1/2}$	& -10.92107	& 0.00113	& -0.00687	& -10.92680\\
+$7s_{1/2} - 7p_{3/2}$	& 15.22745	& 0.00057	& 0.00985	& 15.23785\\
+$6p_{1/2} - 7s_{1/2}$	& 4.44937	& 0.00454	& -0.00444	& 4.44948\\
+$6p_{3/2} - 7s_{1/2}$	& 6.71222	& 0.00185	& -0.00557	& 6.70851\\
+\hline
+\hline
+\end{tabular}
+\end{table}
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 Including this potential into the Hartree-Fock equations (instead of adding it as a subsequent perturbation) gives an important contribution (core relaxation), especially for states with $l>0$.
 The first three (electric) terms on the RHS of Eq.~(\ref{eq:Vrad}),
@@ -2000,52 +2048,6 @@ These are shown at the Hartree-Fock/RPA levels, and do not include correlation c
 The interplay between the Breit/QED and correlation corrections turns out to be important~\cite{Derevianko2001,GingesQED2015,Ginges2016}, so for high-accuracy calculations, the Breit and QED effects must be included from the beginning.
 
 
-\begin{table}%[h]
-\small
-\centering
-\caption{\small 
-Breit and QED corrections to the removal energies of the lowest $s$ and $p$ states of Cs at the Hartree-Fock level (units: cm$^{-1}$).
-\label{tab:QEDBreit-En}}
-\begin{tabular}{r D{.}{.}{6.2} D{.}{.}{2.2} D{.}{.}{2.2}  D{.}{.}{6.2}}
-\hline
-\hline
-&\multicolumn{1}{c}{HF}&\multicolumn{1}{c}{$\delta$Breit}&\multicolumn{1}{c}{$\delta$QED}&\multicolumn{1}{c}{Total}\\
-\hline
- $6s_{1/2}$	& -27954.06	& 3.20	& 15.97	& -27934.93\\
- $6p_{1/2}$	& -18790.51	& 7.49	& -0.80	& -18783.82\\
- $6p_{3/2}$	& -18388.79	& 2.87	& -0.11	& -18386.03\\
- $7s_{1/2}$	& -12112.23	& 1.08	& 4.35	& -12106.81\\
- $7p_{1/2}$	& -9222.63	& 2.69	& -0.28	& -9220.23\\
- $7p_{3/2}$	& -9079.24	& 1.05	& -0.04	& -9078.23\\
-\hline
-\hline
-\end{tabular}
-\end{table}
-
-
-\begin{table}%[h]
-\small
-\centering
-\caption{\small 
-Breit and QED corrections to the electrid dipole (E1) reduced matrix elements of lowest $s$ and $p$ states of Cs at the RPA level (units: $|e|a_B$).
-\label{tab:QEDBreit-E1}}
-\begin{tabular}{r D{.}{.}{3.5} D{.}{.}{2.5} D{.}{.}{2.5}  D{.}{.}{3.5}}
-\hline
-\hline
-&\multicolumn{1}{c}{RPA}&\multicolumn{1}{c}{$\delta$Breit}&\multicolumn{1}{c}{$\delta$QED}&\multicolumn{1}{c}{Total}\\
-\hline
-$6s_{1/2} - 6p_{1/2}$	& -4.97441	& 0.00000	& -0.00334	& -4.97775\\
-$6s_{1/2} - 7p_{1/2}$	& -0.23873	& -0.00161	& 0.00241	& -0.23794\\
-$6s_{1/2} - 6p_{3/2}$	& 7.01308	& 0.00013	& 0.00493	& 7.01814\\
-$6s_{1/2} - 7p_{3/2}$	& 0.50874	& 0.00031	& -0.00282	& 0.50624\\
-$7s_{1/2} - 7p_{1/2}$	& -10.92107	& 0.00113	& -0.00687	& -10.92680\\
-$7s_{1/2} - 7p_{3/2}$	& 15.22745	& 0.00057	& 0.00985	& 15.23785\\
-$6p_{1/2} - 7s_{1/2}$	& 4.44937	& 0.00454	& -0.00444	& 4.44948\\
-$6p_{3/2} - 7s_{1/2}$	& 6.71222	& 0.00185	& -0.00557	& 6.70851\\
-\hline
-\hline
-\end{tabular}
-\end{table}
 
 
 
@@ -2121,24 +2123,33 @@ where $\widetilde C^k_{ac}$
 
 
 We further define the useful integrals $Q^k$, $W^k$, and $P^k$:
-%\begin{align}
-%X^k_{abcd} &\equiv  (-1)^k \bra{\k_a}|C^k|\ket{\k_c} \bra{\k_b}|C^k|\ket{\k_d} R^k_{abcd} \\
-% & = (-1)^{j_a+j_b+1}Q^k_{abcd},\notag\\
-% Q^k_{abcd} &= (-1)^k \widetilde C^k_{ac}\widetilde C^k_{bd}R^k_{abcd}
-%\end{align}
 \begin{align}
-Q^k_{abcd} &\equiv  (-1)^{k + j_a+j_b+1}\bra{\k_a}|C^k|\ket{\k_c} \bra{\k_b}|C^k|\ket{\k_d} R^k_{abcd} \\
+Q^k_{abcd} &\equiv  (-1)^{k + j_a+j_b+1}\bra{\k_a}|C^k|\ket{\k_c} \bra{\k_b}|C^k|\ket{\k_d} R^k_{abcd} \notag\\
 &= (-1)^k \widetilde C^k_{ac}\widetilde C^k_{bd}R^k_{abcd}
 \end{align}
 and
 \begin{align}
-W^k_{abcd} &\equiv Q^k_{abcd} + [k] \sum_\lambda \sixj{j_a}{j_c}{k}{j_b}{j_d}{\lambda}Q^\lambda_{abdc} \\
+W^k_{abcd} &\equiv Q^k_{abcd} + [k] \sum_\lambda \sixj{j_a}{j_c}{k}{j_b}{j_d}{\lambda}Q^\lambda_{abdc} \notag\\
 & \equiv Q^k_{abcd}  + P^k_{abcd}
 %\\
 %Z^k_{abcd} &=  (-1)^{j_a+j_b+1} W^k_{abcd}
 \end{align}
 $Q^k_{abcd}$  is convenient due to symmetries: $c\leftrightarrow a ,~ b\leftrightarrow d  ,~ (ac)\leftrightarrow (bd)$.% (same as $R$).
 
+%\begin{multline}
+%g_{abcd}
+%=\sum_{kq} 
+% (-1)^{k+1-m_a-m_b + q}\threej{j_a}{k}{j_c}{-m_a}{-q}{m_c}
+%\threej{j_b}{k}{j_d}{-m_b}{q}{m_d}
+%\\ \times
+% Q^k_{abcd},
+%\end{multline}
+
+Our $Q^k$ is related to the commonly-used $X^k$~\cite{Lindgren1986} as:
+\begin{align}
+X^k_{abcd} &\equiv  (-1)^k \bra{\k_a}|C^k|\ket{\k_c} \bra{\k_b}|C^k|\ket{\k_d} R^k_{abcd} \notag\\
+ & = (-1)^{j_a+j_b+1}Q^k_{abcd}
+\end{align}
 
 
 %----------------------------------------------------

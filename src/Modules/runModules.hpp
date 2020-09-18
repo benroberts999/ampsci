@@ -19,6 +19,8 @@ one of the existing module cpp/hpp files, or make a new file.
 Modules/modules_list.hpp]
   - c) If you added a new file, add the new .hpp file to the #include's list in
 Modules/modules_list.hpp
+  - ** See "Modules/exampleModule.{c/h}pp" for an example: you may start from
+there using that one as a template
 */
 namespace Module {
 
