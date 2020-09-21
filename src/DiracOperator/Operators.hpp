@@ -172,6 +172,53 @@ class Hyperfine final : public TensorOperator {
 
   using Func_R2_R = std::function<double(double, double)>; // save typing
 
+public: // constructor
+  Hyperfine(double muN, double IN, double rN, const Grid &rgrid,
+            const Func_R2_R &hfs_F = sphericalBall_F())
+      : TensorOperator(1, Parity::even,
+                       IN != 0.0 ? muN * PhysConst::muN_CGS_MHz / IN : 0.0,
+                       RadialFunc(rN, rgrid, hfs_F), 0),
+        Inuc(IN) {
+    if (IN == 0.0) {
+      std::cout << "\nWarning: I=0 in Hyperfine operator; Setting gI to zero\n";
+    }
+  }
+  std::string name() const final { return "hfs"; }
+  std::string units() const final { return "MHz"; }
+
+  double angularF(const int ka, const int kb) const final {
+    return (ka + kb) * Angular::Ck_kk(1, -ka, kb);
+  }
+
+  static double convertRMEtoA(const DiracSpinor &Fa, const DiracSpinor &Fb) {
+    return 0.5 / Fa.jjp1() / Angular::Ck_kk(1, -Fa.k, Fb.k);
+    // Correct for diag. Off diag? Prob not defined?
+  }
+
+  double hfsA(const DiracSpinor &Fa) const {
+    auto Raa = radialIntegral(Fa, Fa);
+    return Raa * Fa.k / (Fa.jjp1());
+    // nb: in MHz
+  }
+
+  static double hfsA(const TensorOperator *h, const DiracSpinor &Fa) {
+    auto Raa = h->radialIntegral(Fa, Fa);
+    return Raa * Fa.k / (Fa.jjp1());
+  }
+
+  double de_F(const DiracSpinor &Fa, double jF) const {
+    auto Ahfs = hfsA(Fa); // nb: in MHz
+    return 0.5 * Ahfs * (jF * (jF + 1.0) - Fa.jjp1() - Inuc * (Inuc + 1.0));
+  }
+
+  double angularCff(int, int) const final { return 0; }
+  double angularCgg(int, int) const final { return 0; }
+  double angularCfg(int, int) const final { return 1.0; }
+  double angularCgf(int, int) const final { return 1.0; }
+
+private:
+  double Inuc;
+
 public: // F(r) functions. NOTE: includes 1/r^2 !
   static inline auto sphericalBall_F() -> Func_R2_R {
     return [=](double r, double rN) {
@@ -194,9 +241,9 @@ public: // F(r) functions. NOTE: includes 1/r^2 !
   {
     const auto two_I = int(2 * I_nuc + 0.0001);
     const auto two_l = int(2 * l_pn + 0.0001);
-    auto g_l = double(gl); // just safety
-    auto gI = mu / I_nuc;
-    auto K = (l_pn * (l_pn + 1.0) - (3. / 4.)) / (I_nuc * (I_nuc + 1.0));
+    const auto g_l = double(gl); // just safety
+    const auto gI = mu / I_nuc;
+    const auto K = (l_pn * (l_pn + 1.0) - (3. / 4.)) / (I_nuc * (I_nuc + 1.0));
     const double g_s = (2.0 * gI - g_l * (K + 1.0)) / (1.0 - K);
     std::cout << "BW using: gl=" << g_l << ", gs=" << g_s << ", l=" << l_pn
               << ", gI=" << gI << " (I=" << I_nuc << ")\n";
@@ -251,48 +298,6 @@ private: // helper
       rfunc.push_back(hfs_F(r, rN));
     return rfunc;
   }
-
-public: // constructor
-  Hyperfine(double muN, double IN, double rN, const Grid &rgrid,
-            const Func_R2_R &hfs_F = sphericalBall_F())
-      : TensorOperator(1, Parity::even, muN * PhysConst::muN_CGS_MHz / IN,
-                       RadialFunc(rN, rgrid, hfs_F), 0),
-        Inuc(IN) {}
-  std::string name() const final { return "hfs"; }
-  std::string units() const final { return "MHz"; }
-
-  double angularF(const int ka, const int kb) const final {
-    return (ka + kb) * Angular::Ck_kk(1, -ka, kb);
-  }
-
-  static double convertRMEtoA(const DiracSpinor &Fa, const DiracSpinor &Fb) {
-    return 0.5 / Fa.jjp1() / Angular::Ck_kk(1, -Fa.k, Fb.k);
-    // Correct for diag. Off diag? Prob not defined?
-  }
-
-  double hfsA(const DiracSpinor &Fa) const {
-    auto Raa = radialIntegral(Fa, Fa);
-    return Raa * Fa.k / (Fa.jjp1());
-    // nb: in MHz
-  }
-
-  static double hfsA(const TensorOperator *h, const DiracSpinor &Fa) {
-    auto Raa = h->radialIntegral(Fa, Fa);
-    return Raa * Fa.k / (Fa.jjp1());
-  }
-
-  double de_F(const DiracSpinor &Fa, double jF) const {
-    auto Ahfs = hfsA(Fa); // nb: in MHz
-    return 0.5 * Ahfs * (jF * (jF + 1.0) - Fa.jjp1() - Inuc * (Inuc + 1.0));
-  }
-
-  double angularCff(int, int) const final { return 0; }
-  double angularCgg(int, int) const final { return 0; }
-  double angularCfg(int, int) const final { return 1.0; }
-  double angularCgf(int, int) const final { return 1.0; }
-
-private:
-  double Inuc;
 };
 
 //******************************************************************************
