@@ -255,9 +255,11 @@ private: // helper
 public: // constructor
   Hyperfine(double muN, double IN, double rN, const Grid &rgrid,
             const Func_R2_R &hfs_F = sphericalBall_F())
-      : TensorOperator(1, Parity::even, muN * PhysConst::muN_CGS_MHz / IN,
+      : TensorOperator(1, Parity::even,IN != 0.0 ?  muN * PhysConst::muN_CGS_MHz / IN : 0.0,
                        RadialFunc(rN, rgrid, hfs_F), 0),
-        Inuc(IN) {}
+        Inuc(IN) { 
+          std::cout<<"Invalid value of I "<<IN<<std::endl; 
+        }
   std::string name() const final { return "hfs"; }
   std::string units() const final { return "MHz"; }
 
