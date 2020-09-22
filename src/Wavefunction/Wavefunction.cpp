@@ -729,9 +729,9 @@ void Wavefunction::formSigma(const int nmin_core, const bool form_matrix,
                              const std::vector<double> &lambdas,
                              const std::vector<double> &fk,
                              const std::string &fname, const bool FeynmanQ,
-                             const bool ScreeningQ, const int lmax,
-                             const bool GreenBasis, const bool PolBasis,
-                             const double omre) {
+                             const bool ScreeningQ, const bool holeParticleQ,
+                             const int lmax, const bool GreenBasis,
+                             const bool PolBasis, const double omre) {
   if (valence.empty())
     return;
 
@@ -759,9 +759,9 @@ void Wavefunction::formSigma(const int nmin_core, const bool form_matrix,
 
   const auto method =
       FeynmanQ ? MBPT::Method::Feynman : MBPT::Method::Goldstone;
-  const auto sigp =
-      MBPT::Sigma_params{method, nmin_core,  lmax,      GreenBasis, PolBasis,
-                         omre,   ScreeningQ, include_G, fk};
+  const auto sigp = MBPT::Sigma_params{
+      method, nmin_core,  lmax,          GreenBasis, PolBasis,
+      omre,   ScreeningQ, holeParticleQ, include_G,  fk};
   const auto subgridp = MBPT::rgrid_params{r0, rmax, std::size_t(stride)};
 
   // Correlaion potential matrix:

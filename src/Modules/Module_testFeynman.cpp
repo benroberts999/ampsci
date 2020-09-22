@@ -27,8 +27,9 @@ void testFeynman(const IO::UserInputBlock &input, const Wavefunction &wf) {
 
   const auto include_G = input.get("include_G", false); // up to g
 
-  const MBPT::Sigma_params sigp{method, min_n_core, max_l_excited, false,
-                                true,   omre,       false,         include_G};
+  const MBPT::Sigma_params sigp{method, min_n_core, max_l_excited,
+                                false,  true,       omre,
+                                false,  false,      include_G};
 
   const auto rmin = input.get("rmin", 1.0e-4);
   const auto rmax = input.get("rmax", 30.0);

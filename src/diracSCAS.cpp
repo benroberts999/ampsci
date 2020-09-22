@@ -202,8 +202,9 @@ int main(int argc, char *argv[]) {
   const auto Sigma_ok = input.check(
       "Correlations",
       {"Brueckner", "energyShifts", "n_min_core", "fitTo_cm", "lambda_k", "fk",
-       "io_file", "rmin", "rmax", "stride", "Feynman", "Screening", "lmax",
-       "basis_for_Green", "basis_for_pol", "real_omega", "include_G"});
+       "io_file", "rmin", "rmax", "stride", "Feynman", "screening",
+       "holeParticle", "lmax", "basis_for_Green", "basis_for_pol", "real_omega",
+       "include_G"});
   const bool do_energyShifts = input.get("Correlations", "energyShifts", false);
   const bool do_brueckner = input.get("Correlations", "Brueckner", false);
   const auto n_min_core = input.get("Correlations", "n_min_core", 1);
@@ -218,10 +219,11 @@ int main(int argc, char *argv[]) {
   const auto sigma_stride = input.get("Correlations", "stride", default_stride);
   // Feynman method:
   const auto sigma_Feynman = input.get("Correlations", "Feynman", false);
-  const auto sigma_Screening = input.get("Correlations", "Screening", false);
+  const auto sigma_Screening = input.get("Correlations", "screening", false);
+  const auto hole_particle = input.get("Correlations", "holeParticle", false);
   const auto sigma_lmax = input.get("Correlations", "lmax", 6);
   const auto GreenBasis = input.get("Correlations", "basis_for_Green", false);
-  const auto PolBasis = input.get("Correlations", "basis_for_pol", true);
+  const auto PolBasis = input.get("Correlations", "basis_for_pol", false);
   const auto include_G = input.get("Correlations", "include_G", false);
   // force sigma_omre to be always -ve
   const auto sigma_omre = -std::abs(
@@ -251,7 +253,8 @@ int main(int argc, char *argv[]) {
     IO::ChronoTimer t("Sigma");
     wf.formSigma(n_min_core, true, sigma_rmin, sigma_rmax, sigma_stride,
                  include_G, lambda_k, fk, sigma_file, sigma_Feynman,
-                 sigma_Screening, sigma_lmax, GreenBasis, PolBasis, sigma_omre);
+                 sigma_Screening, hole_particle, sigma_lmax, GreenBasis,
+                 PolBasis, sigma_omre);
   }
 
   // Just energy shifts

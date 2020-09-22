@@ -213,7 +213,8 @@ public: // const methods: "views" into WF object
                  const std::vector<double> &lambdas = {},
                  const std::vector<double> &fk = {},
                  const std::string &fname = "", const bool FeynmanQ = false,
-                 const bool ScreeningQ = false, const int lmax = 6,
+                 const bool ScreeningQ = false,
+                 const bool holeParticleQ = false, const int lmax = 6,
                  const bool GreenBasis = false, const bool PolBasis = false,
                  const double omre = -0.28);
 

@@ -22,12 +22,13 @@ struct Sigma_params {
   Method method;
   int min_n_core;
   // Following only for Feynman method
-  int max_l_excited;
-  bool GreenBasis;
-  bool PolBasis;
-  double real_omega;
-  bool screenCoulomb;
-  bool include_G;
+  int max_l_excited{6};
+  bool GreenBasis{false};
+  bool PolBasis{false};
+  double real_omega{-0.2};
+  bool screenCoulomb{false};
+  bool holeParticle{false};
+  bool include_G{false};
   std::vector<double> fk{};
 };
 
@@ -177,8 +178,7 @@ protected:
 
   double get_fk(int k) const {
     if (k < int(m_fk.size())) {
-      // sqrt?
-      return std::sqrt(m_fk[std::size_t(k)]);
+      return m_fk[std::size_t(k)];
     }
     return 1.0;
   }

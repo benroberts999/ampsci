@@ -201,9 +201,7 @@ void CorrelationPotential::form_Sigma(const std::vector<double> &en_list,
 
   // print_subGrid();
 
-  std::cout << "Forming correlation potential (";
-  std::cout << DiracSpinor::state_config(m_holes) << "/"
-            << DiracSpinor::state_config(m_excited) << ") for:\n";
+  std::cout << "Forming correlation potential for:\n";
   for (auto ki = 0ul; ki < en_list.size(); ki++) {
     const auto kappa = Angular::kappaFromIndex(int(ki));
 

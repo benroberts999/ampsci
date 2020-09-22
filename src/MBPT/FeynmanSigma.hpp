@@ -26,7 +26,7 @@ inline std::string_view ParseEnum(GrMethod method) {
   return "unkown";
 }
 
-enum class ExchangeMethod { Goldstone, w1w2, w1 };
+enum class ExchangeMethod { Goldstone, w1w2, w1, none };
 
 inline std::string_view ParseEnum(ExchangeMethod method) {
   switch (method) {
@@ -36,6 +36,8 @@ inline std::string_view ParseEnum(ExchangeMethod method) {
     return "w1w2";
   case ExchangeMethod::w1:
     return "w1";
+  case ExchangeMethod::none:
+    return "none";
   }
   return "unkown";
 }
@@ -109,7 +111,7 @@ private:
   void form_Vx();
   // Forms Vx for given kappa, exhange operator matrix (includes dri,drj)
   [[nodiscard]] GMatrix calculate_Vx_kappa(int kappa) const;
-  GMatrix calculate_Vhp(const DiracSpinor &Fa) const;
+  // GMatrix calculate_Vhp(const DiracSpinor &Fa) const;
 
   // Calculates and stores radial projection operators for core state |a><a|
   void form_Pa_core();
@@ -183,6 +185,7 @@ private:
 
 private:
   const bool m_screen_Coulomb;
+  const bool m_holeParticle;
   const double m_omre;
 
   const bool basis_for_Green; // XXX Kill (in functions!)
@@ -208,10 +211,10 @@ private:
   std::vector<std::vector<ComplexGMatrix>> m_qpq_wk{};
 
   int m_k_cut = 6; // XXX Make input?
-  bool m_holeParticle = false;
 
-  // ExchangeMethod m_ex_method = ExchangeMethod::Goldstone;
-  ExchangeMethod m_ex_method = ExchangeMethod::w1;
+  ExchangeMethod m_ex_method = ExchangeMethod::Goldstone;
+  // ExchangeMethod m_ex_method = ExchangeMethod::w1;
+  // ExchangeMethod m_ex_method = ExchangeMethod::none;
   // ExchangeMethod m_ex_method = ExchangeMethod::w1w2;
 };
 
