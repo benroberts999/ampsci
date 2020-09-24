@@ -17,7 +17,7 @@ namespace LinAlg {
 // class SqMatrix:
 //******************************************************************************
 SqMatrix::SqMatrix(std::size_t in_n)
-    : n(in_n), m(gsl_matrix_alloc(in_n, in_n)) {}
+    : n(in_n), m(in_n != 0 ? gsl_matrix_alloc(in_n, in_n) : nullptr) {}
 
 // SqMatrix::SqMatrix(const std::initializer_list<double> &l)
 //     : n(std::sqrt(l.size())), m(gsl_matrix_alloc(n, n)) {
@@ -26,17 +26,20 @@ SqMatrix::SqMatrix(std::size_t in_n)
 //     m->data[i++] = el;
 // }
 
-SqMatrix::~SqMatrix() { gsl_matrix_free(m); }
+SqMatrix::~SqMatrix() {
+  if (m != nullptr)
+    gsl_matrix_free(m);
+}
 
 SqMatrix::SqMatrix(const SqMatrix &matrix) // copy constructor
-    : n(matrix.n), m(gsl_matrix_alloc(matrix.n, matrix.n)) {
-  gsl_matrix_memcpy(m, matrix.m);
+    : n(matrix.n), m(n != 0 ? gsl_matrix_alloc(matrix.n, matrix.n) : nullptr) {
+  if (n != 0)
+    gsl_matrix_memcpy(m, matrix.m);
 }
 
 SqMatrix &SqMatrix::operator=(const SqMatrix &other) // copy assignment
 {
-  // Check sizes!
-  if (this != &other)
+  if (this != &other && other.n == this->n && this->n != 0)
     gsl_matrix_memcpy(m, other.m);
   return *this;
 }
@@ -331,17 +334,21 @@ SqMatrix outer_product(const Vector &a, const Vector &b) {
 //******************************************************************************
 
 ComplexSqMatrix::ComplexSqMatrix(std::size_t in_n)
-    : n(in_n), m(gsl_matrix_complex_alloc(n, n)) {}
+    : n(in_n), m(n != 0 ? gsl_matrix_complex_alloc(n, n) : nullptr) {}
 
-ComplexSqMatrix::~ComplexSqMatrix() { gsl_matrix_complex_free(m); }
+ComplexSqMatrix::~ComplexSqMatrix() {
+  if (m != nullptr)
+    gsl_matrix_complex_free(m);
+}
 
 ComplexSqMatrix::ComplexSqMatrix(const ComplexSqMatrix &other)
-    : n(other.n), m(gsl_matrix_complex_alloc(n, n)) {
-  gsl_matrix_complex_memcpy(m, other.m);
+    : n(other.n), m(n != 0 ? gsl_matrix_complex_alloc(n, n) : nullptr) {
+  if (n != 0)
+    gsl_matrix_complex_memcpy(m, other.m);
 }
 
 ComplexSqMatrix &ComplexSqMatrix::operator=(const ComplexSqMatrix &other) {
-  if (this != &other)
+  if (this != &other && other.n == this->n && this->n != 0)
     gsl_matrix_complex_memcpy(m, other.m);
   return *this;
 }
