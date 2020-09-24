@@ -247,6 +247,7 @@ int main(int argc, char *argv[]) {
     std::cout << "Warning: Feynman method in development, not working yet\n";
   }
 
+  // Read/write sigma matrix to file:
   const auto sigma_io = input.get("Correlations", "io_file", true);
   auto sigma_file =
       input.get<std::string>("Correlations", "io_file", wf.identity());
@@ -255,6 +256,7 @@ int main(int argc, char *argv[]) {
   else if (!sigma_io)
     sigma_file = "";
 
+  // To fit Sigma to energies:
   auto fit_energies =
       input.get_list("Correlations", "fitTo_cm", std::vector<double>{});
   // energies given in cm^-1, convert to au:
@@ -271,12 +273,13 @@ int main(int argc, char *argv[]) {
                  sigma_Screening, sigma_lmax, GreenBasis, PolBasis, sigma_omre);
   }
 
-  // Just energy shifts
+  // Calculate + print second-order energy shifts
   if (!wf.valence.empty() && do_energyShifts && Sigma_ok) {
     IO::ChronoTimer t("de");
     wf.SOEnergyShift();
   }
-  // Brueckner orbitals (optionally, fit Sigma to exp energies)
+
+  // Solve Brueckner orbitals (optionally, fit Sigma to exp energies)
   if (!wf.valence.empty() && do_brueckner && Sigma_ok) {
     IO::ChronoTimer t("Br");
     if (!fit_energies.empty())

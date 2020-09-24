@@ -22,7 +22,6 @@ struct Parameters;
 @brief Stores Wavefunction (set of core+valence orbitals, grid etc.)
 @details
 \par Construction:
-  - Needs Z (atom); either as int or string
   - Set of GridParameters [see Maths/Grid]
   - Set of Nuclear::Parameters [see Physics/NuclearPotentials]
   - var_alpha = \f$\lambda\f$, \f$\alpha = \lambda\alpha_0\f$
@@ -257,7 +256,7 @@ public: // const methods: "views" into WF object
   const std::vector<double> &get_Hmag(int l = 0) const;
 
 private:
-  void determineCore(std::string str_core_in);
+  void determineCore(const std::string &str_core_in);
   static std::vector<std::size_t>
   sortedEnergyList(const std::vector<DiracSpinor> &tmp_orbs,
                    bool do_sort = false);

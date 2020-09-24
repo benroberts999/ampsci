@@ -4,7 +4,7 @@ This outlines/describes the input options/usage for diracSCAS. For a description
 
 * The **diracSCAS** program should be run as:
   * _./diracSCAS inputFile.in_
-  * ``inputFile.in'' is a plain-text input file, that contains all input options (if no input file is given, program looks for the default one, named "diracSCAS.in")
+  * "inputFile.in" is a plain-text input file, that contains all input options (if no input file is given, program looks for the default one, named "diracSCAS.in")
 * First, the program reads in the main input options from the four main input "blocks" (Atom, Nucleus, HartreeFock, and Grid). It will use these to generate wavefunction/Hartree-Fock etc. Then, any number of optional "modules" are run using the above-calculated wavefunctions (e.g., these might calculate matrix elements, run tests etc.). The input blocks and options can be given in any order
 * In general, the input file will have the following format:
 
@@ -39,6 +39,7 @@ Atom{Z=Cs;A=default;}
 * All available inputs for each input block are listed below
   * Inputs are taken in as either text, boolean (true/false), integers, or real numbers.
   * These will be denoted by [t], [b], [i], [r]
+* Program will _usually_ warn you if an incorrect option is given, and print all the available options to the screen.
 
 ********************************************************************************
 # Each input block:
@@ -61,7 +62,7 @@ Atom {
 ## HartreeFock
 ```cpp
 HartreeFock {
-  core = [Xe]; //[t] required
+  core;        //[t] default = [] (no core)
   valence;     //[t] default = none
   sortOutput;  //[b] default = true
   method;      //[t] default = HartreeFock
@@ -69,27 +70,28 @@ HartreeFock {
   convergence; //[r] default = 1.0e-12
 }
 ```
-* core: Core configuration. Required (no default)
-  * Format: [Noble gas],extra (comma separated, no spaces)
-  * Can also enter entire configuration, e.g., 1s2,2s2,2p6,.... (As well as Noble gas, can use Zn,Cd,Hg,Cn)
-  * Can also add negative values for occupations
+* core: Core configuration. Format: "[Atom],extra"
+  * 'Extra' is comma-separated list of 'nLm' terms (eg: '1s2,2s2,2p6')
+  * '[Atom]' is optional, can just list all configurations
+  * '[Atom]' is usually a Noble gas, but can be any atom
+  * Can also add negative values for occupations (m)
   * E.g. :
     * Cs (V^N-1): '[Xe]'
+    * Cs (V^N-1): '[Cs],6s-1'  (equivalent to [Xe])
     * Au (V^N-1): '[Xe],4f14,5d10' or '[Hg],6s-2'
     * Tl (V^N-1): '[Xe],4f14,5d10,6s2' or '[Hg]'
-    * I (V^N): '[Cd],5p5' or '[Xe],5p-1'
+    * I (V^N): '[Cd],5p5' or '[Xe],5p-1', or [I]
     * H-like: enter as: []  (or 1s0) -- no electrons in core
 * valence: which valence states to calculate
   * e.g., "7sp5df" will do s and p states up to n=7, and d and f up to n=5
 * sortOutput: true or false. Sort output by energy.
 * method: which method to use. can be:
   * HartreeFock(default), ApproxHF, Hartree, KohnSham
-    * Note: for KohnSham: Should be V^N - i.e., include lowest valence state into core.
-    * e.g., for Cs: core=[Xe],6s1; Then list each valence state in valence:
+  * Note: for KohnSham: Should be V^N - i.e., include lowest valence state into core.
+    * e.g., for Cs: core=[Xe],6s1 (or 'core=[Cs]'); Then list each valence state in valence:
     * e.g., to solve valence 6s, 7s, and 6p, write valence="6s7s6p";
 * Breit: Include Breit into HF with given scale (0 means don't include)
   * Note: Will go into spline basis, and RPA equations automatically
-  * Currently, not included into rhs (dV) for RPA
 * convergence: level we try to converge to.
 
 
@@ -257,7 +259,7 @@ Correlations {
 
 
 ## Spectrum (B-spline basis for MBPT)
-* The 'Sprectrum' is similar to basis, but also includes correlation corrections (if Sigma exists)
+* The 'Spectrum' is similar to basis, but also includes correlation corrections (if Sigma exists)
 * Useful, since we often need a small basis to compute MBPT terms, but a large basis to complete other sum-over-states calculations.
 ```cpp
 Spectrum {

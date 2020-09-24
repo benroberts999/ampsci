@@ -90,7 +90,7 @@ void Wavefunction::solveDirac(DiracSpinor &psi, double e_a,
 }
 
 //******************************************************************************
-void Wavefunction::determineCore(std::string str_core_in)
+void Wavefunction::determineCore(const std::string &str_core_in)
 // Takes in a string list for the core configuration, outputs an int list
 // Takes in previous closed shell (noble), + 'rest' (or just the rest)
 // E.g:
@@ -98,21 +98,6 @@ void Wavefunction::determineCore(std::string str_core_in)
 //   Core of Gold: Xe 4f14 5d10
 // 'rest' is in form nLm : n=n, L=l, m=number of electrons in that nl shell.
 {
-  // Check if integer; if so, V^N-M, '-M' is input integer.
-  // Use 'guess' for core
-
-  auto string_is_ints = [](const std::string &s) {
-    return !s.empty() && std::find_if(s.begin(), s.end(), [](auto c) {
-                           return !std::isdigit(c);
-                         }) == s.end();
-  };
-
-  auto first_char = str_core_in.substr(0, 1);
-  if ((first_char == "0" || first_char == "-") && string_is_ints(str_core_in)) {
-    str_core_in =
-        AtomData::guessCoreConfigStr(m_nuclear.z + std::stoi(str_core_in));
-  }
-
   m_core_configs = AtomData::core_parser(str_core_in);
 
   bool bad_core = false;

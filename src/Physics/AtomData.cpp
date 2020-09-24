@@ -2,6 +2,7 @@
 #include "AtomData_PeriodicTable.hpp"
 #include <algorithm>
 #include <array>
+#include <cassert>
 #include <cctype> //char from string
 #include <cmath>
 #include <iostream>
@@ -14,9 +15,10 @@
 namespace AtomData {
 
 static inline bool string_is_ints(const std::string &s) {
-  return !s.empty() && std::find_if(s.begin(), s.end(), [](auto c) {
-                         return !std::isdigit(c);
-                       }) == s.end();
+  return !s.empty() //
+         && std::find_if(s.cbegin() + 1, s.cend(),
+                         [](auto c) { return !std::isdigit(c); }) == s.end() //
+         && (std::isdigit(s[0]) || s[0] == '-');
 }
 
 //******************************************************************************
@@ -78,6 +80,9 @@ std::string atomicName(int Z) {
 // Note: Symbol must be exact, including capitalisation
 int get_z(const std::string &at) {
 
+  if (at.empty())
+    return 0;
+
   auto match_At = [=](const Element &atom) { return atom.symbol == at; };
   const auto atom =
       std::find_if(periodic_table.begin(), periodic_table.end(), match_At);
@@ -126,10 +131,8 @@ int symbol_to_l(const std::string &l_str) {
 std::string coreConfig(const std::string &in_ng) {
   // Note: must return SAME string if no matching Nobel Gas found
   // (so that this doesn't break if I give it a full term list)
-  using Strinum_pointsair = std::pair<std::string, std::string>;
-  auto match_ng = [&](const Strinum_pointsair &ng) {
-    return ng.first == in_ng;
-  };
+  using StringPair = std::pair<std::string, std::string>;
+  auto match_ng = [&](const StringPair &ng) { return ng.first == in_ng; };
   auto ng_config =
       std::find_if(nobelGasses.begin(), nobelGasses.end(), match_ng);
   if (ng_config == nobelGasses.end())
@@ -149,55 +152,89 @@ std::string niceCoreOutput(const std::string &full_core) {
       break;
     }
   }
+
   return nice_core;
 }
 
 //******************************************************************************
 double diracen(double z, double n, int k, double alpha) {
-  double a2 = alpha * alpha;
-  double c2 = 1. / a2;
-  double za2 = z * z * a2;
-  double g = std::sqrt(k * k - za2);
-  double w2 = z * z / std::pow(g + n - fabs((double)k), 2);
-  double d = 1. + a2 * w2;
+  const double a2 = alpha * alpha;
+  const double c2 = 1.0 / a2;
+  const double za2 = z * z * a2;
+  const double g = std::sqrt(k * k - za2);
+  const double w2 = z * z / std::pow(g + n - fabs((double)k), 2);
+  const double d = 1.0 + a2 * w2;
   return -w2 / (2 * d) -
-         (0.5 * a2 * w2 + 1. - std::sqrt(1. + a2 * w2)) * (c2 / d);
+         (0.5 * a2 * w2 + 1. - std::sqrt(1.0 + a2 * w2)) * (c2 / d);
 }
 
 //******************************************************************************
-std::vector<NonRelSEConfig> core_parser(const std::string &str_core_in)
-// Heler function for below.
-{
-  // If there's a 'Noble-Gas' term, replace it with full config
-  // Otherwise, 'first-term' remains unchanges
-  auto found = str_core_in.find(',');
-  if (found > str_core_in.length())
-    found = str_core_in.length();
-  auto first_term = str_core_in.substr(0, found);
-  auto rest = str_core_in.substr(found);
-  auto str_core = AtomData::coreConfig(first_term) + rest;
+// Takes a "core string" in form "[X],nLm,nLm,..." converts to vector of
+// NonRelSEConfig, after converting [X] to a state string. Allows negative and
+// non-physical m's (to allow combining); responsability of whoever uses the
+// list to check for validity.
+std::vector<NonRelSEConfig> core_parser(const std::string &str_core_in) {
 
-  // Move comma-seperated string into an array (vector)
-  std::vector<std::string> term_str_list;
-  {
-    std::stringstream ss(str_core);
-    while (ss.good()) {
-      std::string substr;
-      getline(ss, substr, ',');
-      term_str_list.push_back(substr);
+  std::vector<NonRelSEConfig> core;
+  long unsigned int beg = 0;
+
+  // If there's a 'Nobel Gas' term ([NG]), parse it first
+  std::string str_core;
+  auto end_first = str_core_in.find(',');
+  if (end_first > str_core_in.length())
+    end_first = str_core_in.length();
+  if (end_first <= str_core_in.length()) {
+    // first_term = str_core.substr(0, end_first);
+    str_core = coreConfig(str_core_in.substr(0, end_first)) +
+               str_core_in.substr(end_first);
+
+  } else {
+    str_core = str_core_in;
+  }
+
+  // If there's a non-Nobel Gas Atom term ([X]), parse it next
+  if (str_core[0] == '[') {
+    auto end = str_core.find(']');
+    if (end < str_core.length()) {
+      auto ng = str_core.substr(1, end - 1);
+      core = core_guess(get_z(ng));
+      beg += end + 2; //+2 for the '],'
     }
   }
 
-  std::vector<NonRelSEConfig> core_configs;
-  for (const auto &term : term_str_list) {
-    if (term == "")
+  // Then, parse the rest
+  if (str_core.size() > beg) {
+    state_parser(&core, str_core.substr(beg));
+  }
+
+  return core;
+}
+
+//******************************************************************************
+// Takes a string of states in form "nLm,nLm,..." converts to vector of
+// NonRelSEConfig. Allows negative and non-physical m's (to allow combining)
+std::vector<NonRelSEConfig> state_parser(const std::string &str_states) {
+  std::vector<NonRelSEConfig> states;
+  state_parser(&states, str_states);
+  return states;
+}
+
+void state_parser(std::vector<NonRelSEConfig> *states,
+                  const std::string &str_states) {
+
+  std::istringstream ss(str_states);
+  std::string term;
+  while (std::getline(ss, term, ',')) {
+    if (term == "" || term == "0")
       continue;
     bool term_ok = true;
+
     // find position of 'l'
     const auto l_ptr =
         std::find_if(term.begin(), term.end(),
                      [](const char &c) { return !std::isdigit(c); });
     const auto l_position = std::size_t(l_ptr - term.begin());
+    // Extract n, num, and l:
     int n{0}, num{-1}, l{-1};
     if (string_is_ints(term.substr(0, l_position - 0)))
       n = std::stoi(term.substr(0, l_position - 0));
@@ -213,29 +250,34 @@ std::vector<NonRelSEConfig> core_parser(const std::string &str_core_in)
     if (term_ok)
       l = AtomData::symbol_to_l(term.substr(l_position, 1));
 
-    NonRelSEConfig new_config(n, l, num);
+    if (num == 0)
+      continue;
 
+    // Check if valid:
     if (!term_ok || n <= 0 || l < 0) {
-      std::cout << "Problem with core: " << str_core_in << "\n";
-      std::cerr << "invalid core term: " << term << "\n";
+      std::cout << "Problem with core: " << str_states << "\n";
+      std::cout << "invalid core term: " << term << "\n";
       if (num < 0)
         std::cout << "Missing num? nlm - need m\n";
       std::abort();
     }
 
-    if (num == 0)
-      continue;
-    auto ia = std::find(core_configs.begin(), core_configs.end(), new_config);
-    if (ia == core_configs.end()) {
-      core_configs.push_back(new_config);
+    // If nl term already exists, add to num. Otherwise, add new term
+    NonRelSEConfig new_config(n, l, num);
+    auto ia = std::find(states->begin(), states->end(), new_config);
+    if (ia == states->end()) {
+      states->push_back(new_config);
     } else {
       *ia += new_config;
     }
   }
-  while (!core_configs.empty() && core_configs.back().num == 0)
-    core_configs.pop_back();
 
-  return core_configs;
+  // Remove any trailing states with m=zero (only if trailing; not required,
+  // but nicer)
+  while (!states->empty() && states->back().num == 0)
+    states->pop_back();
+
+  // return *states;
 }
 
 //------------------------------------------------------------------------------
@@ -243,9 +285,10 @@ std::string guessCoreConfigStr(const int total_core_electrons) {
 
   auto core_configs = core_guess(total_core_electrons);
 
-  std::vector<int> nobel_gas_list = {118, 86, 54, 36, 18, 10, 2, 0};
-  std::vector<std::string> ng_symb_list = {"[Og]", "[Rn]", "[Xe]", "[Kr]",
-                                           "[Ar]", "[Ne]", "[He]", "[]"};
+  static const std::vector<int> nobel_gas_list = {118, 86, 54, 36,
+                                                  18,  10, 2,  0};
+  static const std::vector<std::string> ng_symb_list = {
+      "[Og]", "[Rn]", "[Xe]", "[Kr]", "[Ar]", "[Ne]", "[He]", "[]"};
 
   switch (total_core_electrons) {
     // A few over-writes for common 'different' ones
@@ -276,7 +319,7 @@ std::string guessCoreConfigStr(const int total_core_electrons) {
 
 //------------------------------------------------------------------------------
 std::vector<NonRelSEConfig> core_guess(const int total_core_electrons) {
-  auto core_configs = AtomData::core_parser(AtomData::filling_order);
+  auto core_configs = AtomData::state_parser(AtomData::filling_order);
   auto nel = total_core_electrons;
   for (auto &c : core_configs) {
     if (c.num > nel) {

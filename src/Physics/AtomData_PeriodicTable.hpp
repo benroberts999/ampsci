@@ -173,4 +173,9 @@ static const std::array<std::pair<std::string, std::string>, 13> nobelGasses = {
                            "4f14,5d10,6s2,6p6,5f14,6d10,7s2"),
     std::make_pair("[]", "1s0")};
 
+// static const std::array<std::pair<int, std::string>, 13> z_NG = {
+//     std::pair{0, ""}, {2, "He"},  {10, "Ne"},  {18, "Ar"},
+//     {30, "Zn"},       {36, "Kr"}, {48, "Cd"},  {54, "Xe"},
+//     {80, "Hg"},       {86, "Rn"}, {112, "Cn"}, {118, "Og"}};
+
 } // namespace AtomData

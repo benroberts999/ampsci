@@ -77,8 +77,18 @@ std::string niceCoreOutput(const std::string &full_core);
 //! Exact H-like energy
 double diracen(double z, double n, int k, double alpha = 0.00729735256635);
 
-//! parses strong core configuration into list of NonRelSEConfig
+//! Takes a "core string" in form "[X],nLm,nLm,..." converts to vector of
+//! NonRelSEConfig, after converting [X] to a state string. Allows negative and
+//! non-physical m's (to allow combining); responsability of whoever uses the
+//! list to check for validity.
 std::vector<NonRelSEConfig> core_parser(const std::string &str_core_in);
+
+//! Takes a string of states in form "nLm,nLm,..." converts to vector of
+//! NonRelSEConfig. Allows negative and non-physical m's (to allow combining)
+std::vector<NonRelSEConfig> state_parser(const std::string &str_states);
+//! Overload; adds to existing states vector (may be empty)
+void state_parser(std::vector<NonRelSEConfig> *states,
+                  const std::string &str_states);
 
 std::string guessCoreConfigStr(const int total_core_electrons);
 std::vector<NonRelSEConfig> core_guess(const int total_core_electrons);
