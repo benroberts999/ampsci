@@ -91,7 +91,7 @@ public:
   [[nodiscard]] const ComplexGMatrix &get_drj() const { return *m_drj; }
 
   //! Calculates direct Sigma using Feynman method
-  [[nodiscard]] GMatrix FeynmanDirect(int kv, double env) const;
+  [[nodiscard]] GMatrix FeynmanDirect(int kv, double env, int k = -1) const;
 
   [[nodiscard]] GMatrix FeynmanEx_w1w2(int kv, double en) const;
   //! Calculates exchange Sigma using Feynman method [w_1 version]
@@ -111,7 +111,7 @@ private:
   void form_Vx();
   // Forms Vx for given kappa, exhange operator matrix (includes dri,drj)
   [[nodiscard]] GMatrix calculate_Vx_kappa(int kappa) const;
-  // GMatrix calculate_Vhp(const DiracSpinor &Fa) const;
+  GMatrix calculate_Vhp(const DiracSpinor &Fa) const;
 
   // Calculates and stores radial projection operators for core state |a><a|
   void form_Pa_core();
@@ -121,9 +121,10 @@ private:
   // Calculate "Core" Green fn by direct summation over only core states
   [[nodiscard]] ComplexGMatrix Green_core(int kappa, ComplexDouble en) const;
   // Calculates "excited" Greens function, by: G_ex = G - G_core
-  [[nodiscard]] ComplexGMatrix
-  Green_ex(int kappa, ComplexDouble en, GrMethod method = GrMethod::Green,
-           const DiracSpinor *Fc_hp = nullptr) const;
+  [[nodiscard]] ComplexGMatrix Green_ex(int kappa, ComplexDouble en,
+                                        GrMethod method = GrMethod::Green,
+                                        const DiracSpinor *Fc_hp = nullptr,
+                                        int k_hp = 0) const;
 
   // Force Gk to be orthogonal to the core states
   void makeGOrthogCore(ComplexGMatrix *Gk, int kappa) const;
@@ -131,9 +132,9 @@ private:
   // // Calculates Hartree-Fock Green function (including exchange), for real en
   // [[nodiscard]] ComplexGMatrix Green_hf_real(int kappa, double en) const;
   // Calculates HF Green function (including exchange), for Complex en
-  [[nodiscard]] ComplexGMatrix
-  Green_hf(int kappa, ComplexDouble en,
-           const DiracSpinor *Fc_hp = nullptr) const;
+  [[nodiscard]] ComplexGMatrix Green_hf(int kappa, ComplexDouble en,
+                                        const DiracSpinor *Fc_hp = nullptr,
+                                        int k_hp = 0) const;
 
   // Calculate HF Greens function (complex en), using basis expansion
   [[nodiscard]] ComplexGMatrix Green_hf_basis(int kappa, ComplexDouble en,
@@ -145,6 +146,9 @@ private:
 
   std::vector<ComplexGMatrix>
   OneMinusPiQInv(const std::vector<std::vector<ComplexGMatrix>> &pi_wk) const;
+
+  ComplexGMatrix OneMinusPiQInv_single(const ComplexGMatrix &pik,
+                                       const ComplexGMatrix &qk) const;
 
   std::vector<std::vector<ComplexGMatrix>> make_pi_wk(int max_k,
                                                       GrMethod pol_method,
@@ -212,9 +216,9 @@ private:
 
   int m_k_cut = 6; // XXX Make input?
 
-  ExchangeMethod m_ex_method = ExchangeMethod::Goldstone;
+  // ExchangeMethod m_ex_method = ExchangeMethod::Goldstone;
   // ExchangeMethod m_ex_method = ExchangeMethod::w1;
-  // ExchangeMethod m_ex_method = ExchangeMethod::none;
+  ExchangeMethod m_ex_method = ExchangeMethod::none;
   // ExchangeMethod m_ex_method = ExchangeMethod::w1w2;
 };
 

@@ -154,7 +154,8 @@ void GoldstoneSigma2::fill_Sigma_k(GMatrix *Gmat, const int kappa,
   if (Fk != cend(m_excited)) {
     auto deD = *Fk * act_G_Fv(Sdir, *Fk);
     auto deX = *Fk * act_G_Fv(Sexch, *Fk);
-    printf("de= %.4f + %.5f = ", deD * PhysConst::Hartree_invcm,
+    // printf("de= %.4f + %.5f = ", deD, deX);
+    printf("de= %.3f + %.3f = ", deD * PhysConst::Hartree_invcm,
            deX * PhysConst::Hartree_invcm);
   }
 }

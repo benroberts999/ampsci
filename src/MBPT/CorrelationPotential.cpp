@@ -219,7 +219,7 @@ void CorrelationPotential::form_Sigma(const std::vector<double> &en_list,
     const auto vk =
         std::find_if(cbegin(m_excited), cend(m_excited), find_kappa);
     if (vk != cend(m_excited)) {
-      printf("%.6f", *vk * SigmaFv(*vk));
+      printf("%.3f", *vk * SigmaFv(*vk) * PhysConst::Hartree_invcm);
     }
     std::cout << "\n";
   }
