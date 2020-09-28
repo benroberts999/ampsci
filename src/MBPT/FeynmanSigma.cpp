@@ -608,7 +608,7 @@ ComplexGMatrix FeynmanSigma::Polarisation_k(int k, ComplexDouble omega,
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   ComplexGMatrix pi_k(m_subgrid_points, m_include_G);
 
-  static const auto Iunit = ComplexDouble{0.0, 1.0};
+  const auto Iunit = ComplexDouble{0.0, 1.0};
   const auto &core = p_hf->get_core();
   for (auto ia = 0ul; ia < core.size(); ++ia) {
     const auto &a = core[ia];
@@ -666,8 +666,10 @@ ComplexGMatrix
 FeynmanSigma::OneMinusPiQInv_single(const ComplexGMatrix &pik,
                                     const ComplexGMatrix &qk) const {
   // Calculates [1-pi*q]^{-1} for single k (i.e., no sum over k inside)
-  // I think this is wrong..
-  ComplexGMatrix X_piq = -1.0 * pik * qk;
+
+  const auto Iunit = ComplexDouble{0.0, 1.0};
+  ComplexGMatrix X_piq = +1.0 * Iunit * pik * qk;
+  // Extra factor of (-i) -- where from ??
   X_piq.plusIdent(1.0).invert();
   return X_piq;
 }
@@ -705,9 +707,9 @@ FeynmanSigma::form_QPQ_wk(int max_k, GrMethod pol_method, double omre,
   const auto pi_wk = make_pi_wk(max_k, pol_method, omre, wgrid);
   std::cout << "." << std::flush;
 
-  // X_PiQ = [1-PiQ]^{-1} (Only calculate X_PiQ if doing screening)
-  const auto X_PiQ =
-      m_screen_Coulomb ? std::optional{OneMinusPiQInv(pi_wk)} : std::nullopt;
+  // // X_PiQ = [1-PiQ]^{-1} (Only calculate X_PiQ if doing screening)
+  // const auto X_PiQ =
+  //     m_screen_Coulomb ? std::optional{OneMinusPiQInv(pi_wk)} : std::nullopt;
 
   std::cout << "." << std::flush;
 
@@ -720,11 +722,9 @@ FeynmanSigma::form_QPQ_wk(int max_k, GrMethod pol_method, double omre,
       const auto &qk = get_qk(int(k));
       const auto &pi = pi_wk[iw][k];
       if (m_screen_Coulomb) {
-        qpq[iw].emplace_back(qk * (*X_PiQ)[iw] * pi * qk);
-        //
-        // Other method, single k (think wrong):
-        // const auto X = OneMinusPiQInv_single(pi, qk);
-        // qpq[iw].emplace_back(qk * X * pi * qk);
+        // This way: works!
+        const auto X = OneMinusPiQInv_single(pi, qk);
+        qpq[iw].emplace_back(qk * X * pi * qk);
       } else {
         qpq[iw].emplace_back(qk * pi * qk);
       }
