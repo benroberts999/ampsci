@@ -204,7 +204,7 @@ int main(int argc, char *argv[]) {
       {"Brueckner", "energyShifts", "n_min_core", "fitTo_cm", "lambda_k", "fk",
        "io_file", "rmin", "rmax", "stride", "Feynman", "screening",
        "holeParticle", "lmax", "basis_for_Green", "basis_for_pol", "real_omega",
-       "include_G"});
+       "imag_omega", "include_G"});
   const bool do_energyShifts = input.get("Correlations", "energyShifts", false);
   const bool do_brueckner = input.get("Correlations", "Brueckner", false);
   const auto n_min_core = input.get("Correlations", "n_min_core", 1);
@@ -228,8 +228,21 @@ int main(int argc, char *argv[]) {
   // force sigma_omre to be always -ve
   const auto sigma_omre = -std::abs(
       input.get("Correlations", "real_omega", -0.33 * wf.energy_gap()));
-  if (sigma_Feynman) {
-    std::cout << "Warning: Feynman method in development, not working yet\n";
+
+  // Imaginary omegagrid params (onlu used for Feynman)
+  double w0 = 0.01;
+  double wratio = 0.01;
+  {
+    const auto imag_om =
+        input.get_list("Correlations", "imag_omega", std::vector{w0, wratio});
+    if (imag_om.size() != 2) {
+      std::cout
+          << "ERROR: imag_omega must be a list of 2: omega_0 (first step), "
+             "and omegra_ratio (ratio for log w grid)\n";
+    } else {
+      w0 = imag_om[0];
+      wratio = imag_om[1];
+    }
   }
 
   const auto sigma_io = input.get("Correlations", "io_file", true);
@@ -254,7 +267,7 @@ int main(int argc, char *argv[]) {
     wf.formSigma(n_min_core, true, sigma_rmin, sigma_rmax, sigma_stride,
                  include_G, lambda_k, fk, sigma_file, sigma_Feynman,
                  sigma_Screening, hole_particle, sigma_lmax, GreenBasis,
-                 PolBasis, sigma_omre);
+                 PolBasis, sigma_omre, w0, wratio);
   }
 
   // Just energy shifts

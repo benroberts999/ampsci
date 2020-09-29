@@ -73,7 +73,7 @@ public:
                                      GrMethod method = GrMethod::Green) const;
 
   // Make this private?
-  // Takes Gr = G(e_r) and e_i, returns G(e_r + i e_i). nb: Must be FULL green
+  //! Takes Gr = G(e_r) and e_i, returns G(e_r + i e_i). nb: Must be FULL green
   [[nodiscard]] ComplexGMatrix GreenAtComplex(const ComplexGMatrix &Gr,
                                               double e_imag) const;
 
@@ -97,7 +97,7 @@ public:
   //! Calculates exchange Sigma using Feynman method [w_1 version]
   [[nodiscard]] GMatrix FeynmanEx_1(int kv, double env) const;
 
-  // Contructs G_a Green-like fn for single state: returns f*|ket><bra|
+  //! Contructs G_a Green-like fn for single state: returns f*|ket><bra|
   [[nodiscard]] ComplexGMatrix G_single(const DiracSpinor &ket,
                                         const DiracSpinor &bra,
                                         const ComplexDouble f) const;
@@ -190,10 +190,10 @@ private:
 private:
   const bool m_screen_Coulomb;
   const bool m_holeParticle;
-  const double m_omre;
 
-  const bool basis_for_Green; // XXX Kill (in functions!)
-  const bool basis_for_Pol;
+  const double m_omre;
+  const double m_w0;
+  const double m_w_ratio;
 
   const GrMethod m_Green_method;
   const GrMethod m_Pol_method;
@@ -210,11 +210,14 @@ private:
   std::unique_ptr<ComplexGMatrix> m_dri = nullptr;
   std::unique_ptr<ComplexGMatrix> m_drj = nullptr;
   std::unique_ptr<Grid> m_wgridD = nullptr;
+  // only use every nth point on Im(w) grid for exchange
   std::size_t m_wX_stride{2}; // XXX input?
 
   std::vector<std::vector<ComplexGMatrix>> m_qpq_wk{};
 
   int m_k_cut = 6; // XXX Make input?
+
+  const bool m_print_each_k = false;
 
   ExchangeMethod m_ex_method = ExchangeMethod::Goldstone;
   // ExchangeMethod m_ex_method = ExchangeMethod::w1;

@@ -46,9 +46,6 @@ public:
 
 protected:
   void fill_Sigma_k(GMatrix *Gmat, const int kappa, const double en) final;
-
-private:
-  // std::vector<double> m_fk{}; // e.g., {0.72, 0.62, 0.83, 0.89, 0.94, 1.0};
 };
 
 } // namespace MBPT

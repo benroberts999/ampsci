@@ -187,7 +187,7 @@ double CorrelationPotential::act_G_Fv_2(const DiracSpinor &Fa,
   }
 
   return aGb;
-} // namespace MBPT
+}
 
 //******************************************************************************
 void CorrelationPotential::form_Sigma(const std::vector<double> &en_list,
@@ -248,7 +248,6 @@ DiracSpinor CorrelationPotential::SigmaFv(const DiracSpinor &v) const {
 
   return lambda == 1.0 ? act_G_Fv(m_Sigma_kappa[kappa_index], v)
                        : lambda * act_G_Fv(m_Sigma_kappa[kappa_index], v);
-  // nb: does this kill RVO?
 }
 
 //******************************************************************************

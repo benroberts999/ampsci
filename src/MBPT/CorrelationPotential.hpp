@@ -21,14 +21,17 @@ enum class Method { Goldstone, Feynman };
 struct Sigma_params {
   Method method;
   int min_n_core;
+  bool include_G{false};
+
   // Following only for Feynman method
   int max_l_excited{6};
   bool GreenBasis{false};
   bool PolBasis{false};
   double real_omega{-0.2};
+  double w0{0.01};
+  double w_ratio{1.5};
   bool screenCoulomb{false};
   bool holeParticle{false};
-  bool include_G{false};
   std::vector<double> fk{};
 };
 
