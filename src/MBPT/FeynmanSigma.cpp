@@ -355,10 +355,10 @@ void FeynmanSigma::setup_omega_grid() {
     std::cout << "Exchange Im(w) uses stride: " << m_wX_stride << "\n";
   }
 
-  for (const auto &w : m_wgridD->r) {
-    std::cout << w << ", ";
-  }
-  std::cout << "\n";
+  // for (const auto &w : m_wgridD->r) {
+  //   std::cout << w << ", ";
+  // }
+  // std::cout << "\n";
 }
 
 //******************************************************************************

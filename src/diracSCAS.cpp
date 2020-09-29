@@ -248,7 +248,7 @@ int main(int argc, char *argv[]) {
 
   // Imaginary omegagrid params (onlu used for Feynman)
   double w0 = 0.01;
-  double wratio = 0.01;
+  double wratio = 1.5;
   {
     const auto imag_om =
         input.get_list("Correlations", "imag_omega", std::vector{w0, wratio});
