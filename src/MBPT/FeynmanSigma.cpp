@@ -127,6 +127,15 @@ void FeynmanSigma::fill_Sigma_k(GMatrix *Sigma, const int kappa,
 //******************************************************************************
 void FeynmanSigma::prep_Feynman() {
 
+  if (m_screen_Coulomb)
+    std::cout << "Including Coulomb screening\n";
+
+  if (m_holeParticle)
+    std::cout << "Including hole-particle interaction\n";
+
+  if (!m_screen_Coulomb && !m_holeParticle)
+    std::cout << "Second-order Feynman\n";
+
   std::cout << "lmax = " << Angular::lFromIndex(m_max_kappaindex) << "\n";
   std::cout << "Using " << ParseEnum(m_Green_method)
             << " method for Green's functions\n";
@@ -134,12 +143,6 @@ void FeynmanSigma::prep_Feynman() {
             << " method for Polarisation operator\n";
 
   std::cout << "Including from core n=" << m_min_core_n << "\n";
-
-  if (m_screen_Coulomb)
-    std::cout << "Including Coulomb screening\n";
-
-  if (m_holeParticle)
-    std::cout << "Including hole-particle interaction\n";
 
   if (m_holeParticle && m_Pol_method == GrMethod::basis) {
     std::cout << "WARNING: Cannot include hole-particle using basis for "

@@ -8,6 +8,7 @@
 #include "Modules/matrixElements.hpp"
 #include "Modules/pnc.hpp"
 #include "Modules/runModules.hpp"
+#include "Modules/screeningFactors.hpp"
 #include "Modules/testFeynman.hpp"
 #include "Modules/tests.hpp"
 //
@@ -37,6 +38,7 @@ static const std::vector<
                 {"polarisability", &polarisability},
                 {"testFeynman", &testFeynman},
                 {"lifetimes", &calculateLifetimes},
+                {"screeningFactors", &screeningFactors},
                 {"exampleModule", &exampleModule}};
 
 } // namespace Module

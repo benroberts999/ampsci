@@ -215,7 +215,7 @@ private:
 
   std::vector<std::vector<ComplexGMatrix>> m_qpq_wk{};
 
-  int m_k_cut = 6; // XXX Make input?
+  int m_k_cut = 8; // XXX Make input?
 
   const bool m_print_each_k = false;
 
