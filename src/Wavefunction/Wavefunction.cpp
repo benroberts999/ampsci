@@ -708,15 +708,13 @@ void Wavefunction::formSpectrum(const SplineBasis::Parameters &params) {
 }
 
 //******************************************************************************
-void Wavefunction::formSigma(const int nmin_core, const bool form_matrix,
-                             const double r0, const double rmax,
-                             const int stride, const bool include_G,
-                             const std::vector<double> &lambdas,
-                             const std::vector<double> &fk,
-                             const std::string &fname, const bool FeynmanQ,
-                             const bool ScreeningQ, const int lmax,
-                             const bool GreenBasis, const bool PolBasis,
-                             const double omre) {
+void Wavefunction::formSigma(
+    const int nmin_core, const bool form_matrix, const double r0,
+    const double rmax, const int stride, const bool include_G,
+    const std::vector<double> &lambdas, const std::vector<double> &fk,
+    const std::string &fname, const bool FeynmanQ, const bool ScreeningQ,
+    const bool holeParticleQ, const int lmax, const bool GreenBasis,
+    const bool PolBasis, const double omre, double w0, double wratio) {
   if (valence.empty())
     return;
 
@@ -742,54 +740,18 @@ void Wavefunction::formSigma(const int nmin_core, const bool form_matrix,
     }
   }
 
-  // const bool include_G = true; // XXX Make input option!
-
   const auto method =
       FeynmanQ ? MBPT::Method::Feynman : MBPT::Method::Goldstone;
-  const auto sigp =
-      MBPT::Sigma_params{method,   nmin_core, lmax,       GreenBasis,
-                         PolBasis, omre,      ScreeningQ, include_G};
+  const auto sigp = MBPT::Sigma_params{
+      method, nmin_core, include_G, lmax,       GreenBasis,    PolBasis,
+      omre,   w0,        wratio,    ScreeningQ, holeParticleQ, fk};
   const auto subgridp = MBPT::rgrid_params{r0, rmax, std::size_t(stride)};
-
-  // if (FeynmanQ) {
-  //   std::vector<double> poles;
-  //   auto en = valence.front().en;
-  //   for (const auto &Fb : basis) {
-  //     poles.push_back(Fb.en - en);
-  //   }
-  //   for (const auto &Fa : core) {
-  //     for (const auto &Fn : basis) {
-  //       poles.push_back(Fa.en - Fn.en);
-  //       poles.push_back(-Fa.en + Fn.en);
-  //     }
-  //   }
-  //   std::sort(poles.begin(), poles.end());
-  //   auto last = std::unique(poles.begin(), poles.end(), [](auto a, auto b) {
-  //     return std::abs(a - b) < 0.005;
-  //   });
-  //   poles.erase(last, poles.end());
-  //   std::vector<double> poles2;
-  //   std::cout << "\nPoles: ";
-  //   for (const auto &p : poles) {
-  //     if (p < core.back().en || p > 0.05)
-  //       continue;
-  //     poles2.push_back(p);
-  //     printf("%5.2f, ", p);
-  //   }
-  //   std::cout << "\n";
-  //   poles = poles2;
-  //   std::adjacent_difference(poles2.begin(), poles2.end(), poles2.begin());
-  //   std::size_t index = std::size_t(
-  //       std::max_element(poles2.begin(), poles2.end()) - poles2.begin());
-  //   std::cout << "Set omre to: " << poles[index] - 0.5 * poles2[index] <<
-  //   "\n";
-  // }
 
   // Correlaion potential matrix:
   switch (method) {
   case MBPT::Method::Goldstone:
     m_Sigma = std::make_unique<MBPT::GoldstoneSigma2>(
-        m_pHF.get(), basis, sigp, subgridp, en_list_kappa, fname, fk);
+        m_pHF.get(), basis, sigp, subgridp, en_list_kappa, fname);
     break;
   case MBPT::Method::Feynman:
     m_Sigma = std::make_unique<MBPT::FeynmanSigma>(

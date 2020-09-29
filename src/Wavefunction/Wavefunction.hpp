@@ -212,9 +212,11 @@ public: // const methods: "views" into WF object
                  const std::vector<double> &lambdas = {},
                  const std::vector<double> &fk = {},
                  const std::string &fname = "", const bool FeynmanQ = false,
-                 const bool ScreeningQ = false, const int lmax = 6,
+                 const bool ScreeningQ = false,
+                 const bool holeParticleQ = false, const int lmax = 6,
                  const bool GreenBasis = false, const bool PolBasis = false,
-                 const double omre = -0.28);
+                 const double omre = -0.2, double w0 = 0.01,
+                 double wratio = 1.5);
 
   //! @brief Solves Dirac bound state problem, with optional 'extra' potential
   //! log_eps is log_10(convergence_target).

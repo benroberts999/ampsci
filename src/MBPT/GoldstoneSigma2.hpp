@@ -38,8 +38,7 @@ public:
   GoldstoneSigma2(const HF::HartreeFock *const in_hf,
                   const std::vector<DiracSpinor> &basis,
                   const Sigma_params &sigp, const rgrid_params &subgridp,
-                  const std::vector<double> &en_list, const std::string &atom,
-                  const std::vector<double> &fk = {});
+                  const std::vector<double> &en_list, const std::string &atom);
 
   GoldstoneSigma2 &operator=(const GoldstoneSigma2 &) = delete;
   GoldstoneSigma2(const GoldstoneSigma2 &) = delete;
@@ -47,17 +46,6 @@ public:
 
 protected:
   void fill_Sigma_k(GMatrix *Gmat, const int kappa, const double en) final;
-
-  double get_fk(int k) const {
-    if (k < int(m_fk.size())) {
-      // sqrt?
-      return std::sqrt(m_fk[std::size_t(k)]);
-    }
-    return 1.0;
-  }
-
-private:
-  std::vector<double> m_fk{}; // e.g., {0.72, 0.62, 0.83, 0.89, 0.94, 1.0};
 };
 
 } // namespace MBPT

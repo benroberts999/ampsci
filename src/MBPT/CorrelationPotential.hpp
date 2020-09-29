@@ -21,13 +21,18 @@ enum class Method { Goldstone, Feynman };
 struct Sigma_params {
   Method method;
   int min_n_core;
+  bool include_G{false};
+
   // Following only for Feynman method
-  int max_l_excited;
-  bool GreenBasis;
-  bool PolBasis;
-  double real_omega;
-  bool screenCoulomb;
-  bool include_G;
+  int max_l_excited{6};
+  bool GreenBasis{false};
+  bool PolBasis{false};
+  double real_omega{-0.2};
+  double w0{0.01};
+  double w_ratio{1.5};
+  bool screenCoulomb{false};
+  bool holeParticle{false};
+  std::vector<double> fk{};
 };
 
 struct rgrid_params {
@@ -170,6 +175,16 @@ protected:
 
   // Options for sub-grid, and which matrices to include
   const bool m_include_G;
+
+  // Effective screening parameters
+  std::vector<double> m_fk{}; // e.g., {0.72, 0.62, 0.83, 0.89, 0.94, 1.0};
+
+  double get_fk(int k) const {
+    if (k < int(m_fk.size())) {
+      return m_fk[std::size_t(k)];
+    }
+    return 1.0;
+  }
 };
 
 } // namespace MBPT

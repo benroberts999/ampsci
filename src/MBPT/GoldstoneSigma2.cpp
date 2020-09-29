@@ -8,6 +8,7 @@
 #include "MBPT/GreenMatrix.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/LinAlg_MatrixVector.hpp"
+#include "Physics/PhysConst_constants.hpp"
 #include <algorithm>
 #include <numeric>
 
@@ -19,9 +20,8 @@ GoldstoneSigma2::GoldstoneSigma2(const HF::HartreeFock *const in_hf,
                                  const Sigma_params &sigp,
                                  const rgrid_params &subgridp,
                                  const std::vector<double> &en_list,
-                                 const std::string &atom,
-                                 const std::vector<double> &fk)
-    : CorrelationPotential(in_hf, basis, sigp, subgridp), m_fk(fk) {
+                                 const std::string &atom)
+    : CorrelationPotential(in_hf, basis, sigp, subgridp) {
 
   std::cout << "\nCorrelation potential (Sigma^2): Goldstone\n";
 
@@ -33,8 +33,11 @@ GoldstoneSigma2::GoldstoneSigma2(const HF::HartreeFock *const in_hf,
   if (en_list.empty())
     return; //?
 
+  print_subGrid();
+
   if (!read_ok) {
     std::cout << "Form correlation potential: Goldstone method\n";
+
     if (m_include_G)
       std::cout << "(Including FG/GF and GG)\n";
 
@@ -44,6 +47,9 @@ GoldstoneSigma2::GoldstoneSigma2(const HF::HartreeFock *const in_hf,
                     [](auto x) { std::cout << x << ", "; });
       std::cout << "\n";
     }
+
+    std::cout << "Basis: " << DiracSpinor::state_config(m_holes) << "/"
+              << DiracSpinor::state_config(m_excited) << "\n";
 
     form_Sigma(en_list, fname);
   }
@@ -99,6 +105,8 @@ void GoldstoneSigma2::fill_Sigma_k(GMatrix *Gmat, const int kappa,
 
         // Effective screening parameter:
         const auto fk = get_fk(k);
+        if (fk == 0.0)
+          continue;
 
         // Diagrams (a) [direct] and (b) [exchange]
         for (const auto &m : m_excited) {
@@ -146,7 +154,9 @@ void GoldstoneSigma2::fill_Sigma_k(GMatrix *Gmat, const int kappa,
   if (Fk != cend(m_excited)) {
     auto deD = *Fk * act_G_Fv(Sdir, *Fk);
     auto deX = *Fk * act_G_Fv(Sexch, *Fk);
-    printf("de= %.4f + %.5f = ", deD, deX);
+    // printf("de= %.4f + %.5f = ", deD, deX);
+    printf("de= %.3f + %.3f = ", deD * PhysConst::Hartree_invcm,
+           deX * PhysConst::Hartree_invcm);
   }
 }
 

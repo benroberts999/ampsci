@@ -13,7 +13,36 @@ class HartreeFock;
 namespace MBPT {
 
 enum class States { core, excited, both };
+
 enum class GrMethod { Green, basis };
+
+inline std::string_view ParseEnum(GrMethod method) {
+  switch (method) {
+  case GrMethod::Green:
+    return "Green";
+  case GrMethod::basis:
+    return "basis";
+  }
+  return "unkown";
+}
+
+enum class ExchangeMethod { Goldstone, w1w2, w1, none };
+
+inline std::string_view ParseEnum(ExchangeMethod method) {
+  switch (method) {
+  case ExchangeMethod::Goldstone:
+    return "Goldstone";
+  case ExchangeMethod::w1w2:
+    return "w1w2";
+  case ExchangeMethod::w1:
+    return "w1";
+  case ExchangeMethod::none:
+    return "none";
+  }
+  return "unkown";
+}
+
+// XXX Gmatrix should know its kappa!
 
 //******************************************************************************
 /*!
@@ -48,20 +77,12 @@ public:
   [[nodiscard]] ComplexGMatrix GreenAtComplex(const ComplexGMatrix &Gr,
                                               double e_imag) const;
 
-  // //! Calculates polarisation operator, all core states
-  // [[deprecated]] ComplexGMatrix
-  // Polarisation(int ka, int kA, double om_re, double om_im,
-  //              GrMethod method = GrMethod::basis) const;
-
+  //! Calculates radial polarisation operator
   [[nodiscard]] ComplexGMatrix Polarisation_k(int k, ComplexDouble omega,
                                               GrMethod method) const;
 
   //! Returns (reference to) q^k (radial) matrix. Note: includes dri*drj
   [[nodiscard]] const ComplexGMatrix &get_qk(int k) const;
-
-  //! Screens Coulomb: q_scr = q * [1-pi*q]^-1
-  [[nodiscard]] ComplexGMatrix screenedCoulomb(const ComplexGMatrix &q,
-                                               const ComplexGMatrix &pi) const;
 
   //! Returns (ref to) radial exchange matrix Vx_kappa. Nb: includes dri*drj
   [[nodiscard]] const GMatrix &get_Vx_kappa(int kappa) const;
@@ -70,13 +91,13 @@ public:
   [[nodiscard]] const ComplexGMatrix &get_drj() const { return *m_drj; }
 
   //! Calculates direct Sigma using Feynman method
-  [[nodiscard]] GMatrix FeynmanDirect(int kv, double env) const;
+  [[nodiscard]] GMatrix FeynmanDirect(int kv, double env, int k = -1) const;
 
   [[nodiscard]] GMatrix FeynmanEx_w1w2(int kv, double en) const;
   //! Calculates exchange Sigma using Feynman method [w_1 version]
   [[nodiscard]] GMatrix FeynmanEx_1(int kv, double env) const;
 
-  // Contructs G_a Green-like fn for single state: returns f*|ket><bra|
+  //! Contructs G_a Green-like fn for single state: returns f*|ket><bra|
   [[nodiscard]] ComplexGMatrix G_single(const DiracSpinor &ket,
                                         const DiracSpinor &bra,
                                         const ComplexDouble f) const;
@@ -90,7 +111,9 @@ private:
   void form_Vx();
   // Forms Vx for given kappa, exhange operator matrix (includes dri,drj)
   [[nodiscard]] GMatrix calculate_Vx_kappa(int kappa) const;
-  // Calculates and stores radial projection operators for core states |a><a|
+  GMatrix calculate_Vhp(const DiracSpinor &Fa) const;
+
+  // Calculates and stores radial projection operators for core state |a><a|
   void form_Pa_core();
   // Sets up imaginary frequency (omega) grids for integrations
   void setup_omega_grid();
@@ -98,14 +121,20 @@ private:
   // Calculate "Core" Green fn by direct summation over only core states
   [[nodiscard]] ComplexGMatrix Green_core(int kappa, ComplexDouble en) const;
   // Calculates "excited" Greens function, by: G_ex = G - G_core
-  [[nodiscard]] ComplexGMatrix
-  Green_ex(int kappa, ComplexDouble en,
-           GrMethod method = GrMethod::Green) const;
+  [[nodiscard]] ComplexGMatrix Green_ex(int kappa, ComplexDouble en,
+                                        GrMethod method = GrMethod::Green,
+                                        const DiracSpinor *Fc_hp = nullptr,
+                                        int k_hp = 0) const;
+
+  // Force Gk to be orthogonal to the core states
+  void makeGOrthogCore(ComplexGMatrix *Gk, int kappa) const;
 
   // // Calculates Hartree-Fock Green function (including exchange), for real en
   // [[nodiscard]] ComplexGMatrix Green_hf_real(int kappa, double en) const;
   // Calculates HF Green function (including exchange), for Complex en
-  [[nodiscard]] ComplexGMatrix Green_hf(int kappa, ComplexDouble en) const;
+  [[nodiscard]] ComplexGMatrix Green_hf(int kappa, ComplexDouble en,
+                                        const DiracSpinor *Fc_hp = nullptr,
+                                        int k_hp = 0) const;
 
   // Calculate HF Greens function (complex en), using basis expansion
   [[nodiscard]] ComplexGMatrix Green_hf_basis(int kappa, ComplexDouble en,
@@ -115,18 +144,32 @@ private:
                                      const DiracSpinor &xI,
                                      const double w) const;
 
-  [[nodiscard]] ComplexGMatrix sum_qpq(int k, double om_re, double om_im) const;
+  std::vector<ComplexGMatrix>
+  OneMinusPiQInv(const std::vector<std::vector<ComplexGMatrix>> &pi_wk) const;
 
-  // // direct: sum_k [ck qk * pi(w) * qk], ck angular factor
-  // [[nodiscard]] GMatrix sumk_cGQPQ(int kv, int ka, int kalpha, int kbeta,
-  //                                  const ComplexGMatrix &g_beta,
-  //                                  const ComplexGMatrix &pi_aalpha) const;
+  ComplexGMatrix OneMinusPiQInv_single(const ComplexGMatrix &pik,
+                                       const ComplexGMatrix &qk) const;
+
+  std::vector<std::vector<ComplexGMatrix>> make_pi_wk(int max_k,
+                                                      GrMethod pol_method,
+                                                      double omre,
+                                                      const Grid &wgrid) const;
+
+  // ComplexGMatrix form_QPQ_wk(const ComplexGMatrix &PiQ) const;
+  std::vector<std::vector<ComplexGMatrix>> form_QPQ_wk(int max_k,
+                                                       GrMethod pol_method,
+                                                       double en_re,
+                                                       const Grid &wgrid) const;
+  std::vector<std::vector<ComplexGMatrix>>
+  form_Greens_kapw(int max_kappa_index, GrMethod method, double omre,
+                   const Grid &wgrid) const;
+
   // exchange: sum_kl gA*qk*ql*(c1 * pa*gxBm + c2 * gxBp*pa)
-  [[nodiscard]] GMatrix sumkl_GQPGQ(const ComplexGMatrix &gA,
-                                    const ComplexGMatrix &gxBm,
-                                    const ComplexGMatrix &gxBp,
-                                    const ComplexGMatrix &pa, int kv, int kA,
-                                    int kB, int ka) const;
+  [[nodiscard]] GMatrix
+  sumkl_GQPGQ(const ComplexGMatrix &gA, const ComplexGMatrix &gxBm,
+              const ComplexGMatrix &gxBp, const ComplexGMatrix &pa, int kv,
+              int kA, int kB, int ka,
+              const std::vector<ComplexGMatrix> *const = nullptr) const;
 
   [[nodiscard]] GMatrix sumkl_gqgqg(const ComplexGMatrix &gA,
                                     const ComplexGMatrix &gB,
@@ -141,11 +184,20 @@ private:
                         const ComplexGMatrix &c, const ComplexGMatrix &d,
                         const ComplexGMatrix &e) const;
 
+  // Better solution than this!
+  GMatrix Exchange_Goldstone(const int kappa, const double en) const;
+
 private:
-  const bool screen_Coulomb;
+  const bool m_screen_Coulomb;
+  const bool m_holeParticle;
+
   const double m_omre;
-  const bool basis_for_Green;
-  const bool basis_for_Pol;
+  const double m_w0;
+  const double m_w_ratio;
+
+  const GrMethod m_Green_method;
+  const GrMethod m_Pol_method;
+
   const HF::HartreeFock *const p_hf;
   const int m_min_core_n;
   int m_max_kappaindex_core;
@@ -158,9 +210,19 @@ private:
   std::unique_ptr<ComplexGMatrix> m_dri = nullptr;
   std::unique_ptr<ComplexGMatrix> m_drj = nullptr;
   std::unique_ptr<Grid> m_wgridD = nullptr;
-  std::unique_ptr<Grid> m_wgridX = nullptr;
+  // only use every nth point on Im(w) grid for exchange
+  std::size_t m_wX_stride{2}; // XXX input?
 
-  const bool exclude_exchange = true; // for testing!
+  std::vector<std::vector<ComplexGMatrix>> m_qpq_wk{};
+
+  int m_k_cut = 6; // XXX Make input?
+
+  const bool m_print_each_k = false;
+
+  ExchangeMethod m_ex_method = ExchangeMethod::Goldstone;
+  // ExchangeMethod m_ex_method = ExchangeMethod::w1;
+  // ExchangeMethod m_ex_method = ExchangeMethod::none;
+  // ExchangeMethod m_ex_method = ExchangeMethod::w1w2;
 };
 
 } // namespace MBPT

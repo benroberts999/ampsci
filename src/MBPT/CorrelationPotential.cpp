@@ -32,7 +32,8 @@ CorrelationPotential::CorrelationPotential(
                       DiracSpinor::max_tj(basis))),
       m_6j(m_maxk, m_maxk),
       m_stride(subgridp.stride),
-      m_include_G(sigp.include_G) {
+      m_include_G(sigp.include_G),
+      m_fk(std::move(sigp.fk)) {
   setup_subGrid(subgridp.r0, subgridp.rmax);
 }
 
@@ -186,7 +187,7 @@ double CorrelationPotential::act_G_Fv_2(const DiracSpinor &Fa,
   }
 
   return aGb;
-} // namespace MBPT
+}
 
 //******************************************************************************
 void CorrelationPotential::form_Sigma(const std::vector<double> &en_list,
@@ -198,11 +199,9 @@ void CorrelationPotential::form_Sigma(const std::vector<double> &en_list,
 
   m_Sigma_kappa.resize(en_list.size(), {m_subgrid_points, m_include_G});
 
-  print_subGrid();
+  // print_subGrid();
 
-  std::cout << "Forming correlation potential (";
-  std::cout << DiracSpinor::state_config(m_holes) << "/"
-            << DiracSpinor::state_config(m_excited) << ") for:\n";
+  std::cout << "Forming correlation potential for:\n";
   for (auto ki = 0ul; ki < en_list.size(); ki++) {
     const auto kappa = Angular::kappaFromIndex(int(ki));
 
@@ -220,7 +219,7 @@ void CorrelationPotential::form_Sigma(const std::vector<double> &en_list,
     const auto vk =
         std::find_if(cbegin(m_excited), cend(m_excited), find_kappa);
     if (vk != cend(m_excited)) {
-      printf("%.6f", *vk * SigmaFv(*vk));
+      printf("%.3f", *vk * SigmaFv(*vk) * PhysConst::Hartree_invcm);
     }
     std::cout << "\n";
   }
@@ -249,7 +248,6 @@ DiracSpinor CorrelationPotential::SigmaFv(const DiracSpinor &v) const {
 
   return lambda == 1.0 ? act_G_Fv(m_Sigma_kappa[kappa_index], v)
                        : lambda * act_G_Fv(m_Sigma_kappa[kappa_index], v);
-  // nb: does this kill RVO?
 }
 
 //******************************************************************************

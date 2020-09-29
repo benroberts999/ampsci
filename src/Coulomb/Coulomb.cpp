@@ -439,10 +439,10 @@ void Pkv_bcd_2(DiracSpinor *Pkv, const DiracSpinor &Fb, const DiracSpinor &Fc,
 
   *Pkv *= 0.0;
 
-  auto fk = [&f2k](int l) {
+  const auto fk = [&f2k](int l) {
     // nb: only screens l, k assumed done outside...
     if (l < int(f2k.size())) {
-      return std::sqrt(f2k[std::size_t(l)]);
+      return f2k[std::size_t(l)];
     }
     return 1.0;
   };
@@ -455,12 +455,12 @@ void Pkv_bcd_2(DiracSpinor *Pkv, const DiracSpinor &Fb, const DiracSpinor &Fc,
   for (const auto &ybc_l : ybc) {
     const auto l = min_l + count;
     ++count;
-    const auto sj = sixj.get_6j(Fc.twoj(), Angular::twoj_k(kappa), Fd.twoj(),
-                                Fb.twoj(), k, l);
+    // Include screening factor here (early escape if zero)
+    const auto sj = fk(l) * sixj.get_6j(Fc.twoj(), Angular::twoj_k(kappa),
+                                        Fd.twoj(), Fb.twoj(), k, l);
     if (sj == 0.0)
       continue;
-    *Pkv += sj * fk(l) *
-            Qkv_bcd(kappa, Fb, Fd, Fc, l, ybc_l, Ck); // a,b,d,c [exch.]
+    *Pkv += sj * Qkv_bcd(kappa, Fb, Fd, Fc, l, ybc_l, Ck); // a,b,d,c [exch.]
   }
   *Pkv *= tkp1;
 }
