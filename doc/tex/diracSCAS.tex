@@ -4,7 +4,7 @@
 \usepackage[headsep=0.5cm, top=1.5cm,bottom=1.5cm,left=0.5cm,right=0.5cm]{geometry} %almost-full page
 
 \usepackage{bm,dcolumn,amsmath,graphicx,amsfonts,amssymb,fancyhdr}
-
+\usepackage{cancel}
 
 %Spacing, header sizes, title white space:
 \usepackage{titling}
@@ -130,6 +130,7 @@
 \def\updatedDate{1 September 2020}
 
 
+%ampsci
 \pagestyle{fancy}
 \fancyhead[L]{DiracSCAS: Method}
 \fancyhead[R]{B.\ M.\ Roberts -- \updatedDate}
@@ -1794,6 +1795,786 @@ Note that $\delta V$ here is the usual core polarisation correction; the $\Sigma
 
 
 
+
+
+
+%======================================
+\section{Correlation potential: Feynman method}
+
+
+
+%Notation: Letters at the beginning of the alphabet {${(a,\,b,\,...)}$} denote denote occupied core states (or holes),
+%those from the middle {${(n,\,m,\,...)}$} denote virtual excited states, and
+%those from the end {${(v,\,w,\,...)}$}  denote valence states.
+%%This is the most common convention, but is the opposite of that from \cite{DzubaCPM1988pla}.
+%%The letters {${(i,\,j,\,...)}$} are reserved as dummy indices that may stand for any state/coordinate.
+%%(I don't use greek letters, since I try to keep a close analogue between notation here and that used in the code.)
+
+This section describes the method as developed in Ref.~\cite{DzubaCPM1988pla}, and follows that work closely; see also \cite{Abrikosov1965,DzubaCPM1989plaEn,GingesCs2002}.
+Where necessary, I will include subscripts on the Dirac bra/kets to indicate which coordinate they belong to.
+I will also abuse the Dirac notation in this section so that $\ket{a}_1$ is just a short-hand for $\phi_a(\v{r_1})$; note that when the coordinate index is shown, there is no implied integration in the ``braket'', e.g.:
+\[
+\bra{a}_1\ket{b}_1 = \phi^\dag_a(\v{r}_1)\phi_b(\v{r}_1),
+~~ \text{while}\quad
+\braket{a|b} = \int\d^3\v{r}'\phi^\dag_a(\v{r}')\phi_b(\v{r}').
+\]
+
+
+%------------------------------------------------------------------
+\subsection{Feynman Green's function}
+
+First, we introduce the Feynman Green's function, which can be expressed as (see \cite{DzubaCPM1988pla,Abrikosov1965} and references therein):
+\be\label{eq:FeynmanGreen}
+\hat G(\en) = \lim_{\delta\to0}\left(
+\sum_a^{\rm core}\frac{\ket{a}\bra{a}}{\en-\en_a-i\delta} 
++ \sum_n^{\rm exc.}\frac{\ket{n}\bra{n}}{\en-\en_n+i\delta}\right).
+\ee
+Note that, if $\en$ is the (single-particle) ground-state energy, $\en>\en_a$, but $\en<\en_n$.
+Conceptually, the simplest way to evaluate it is by summation over the complete set of core and excited orbitals using a pseudospectrum basis as described previously.
+It is also, however, possible to evaluate the Green's function exactly (up to numerical errors) without the need for a basis.
+
+Consider the inhomogeneous Dirac equation including exchange, and its homogeneous counterpart (without exchange):
+\begin{align}
+(H_0 + V_{\rm d} - \en)\phi &= -V_{\rm x}\phi \\
+(H_0 + V_{\rm d} - \en)\chi &= 0
+\end{align}
+with $\chi_0$ being the homogeneous solution regular at the origin, and $\chi_\infty$ that regular at infinity.
+The local Green's function (without exchange) can be expressed in coordinate space as:
+\be
+\hat G_0 \equiv  G_0(\v{r}_1,\v{r}_2) = \frac{\chi_0(r_<,\vhat{n})\chi_\infty(r_>,\vhat{n})}{w},
+\label{eq:Green-direct}
+\ee
+where $r_<=\min(r_1,r_2)$, and $w=(f_0 g_\infty - f_\infty g_0)/\alpha$ ($w$ is independent of $r$, and $f,g$ are radial components of $\chi$).
+% XXX Sign???
+Exchange can be taken into account by solving the Dyson equation~\cite{DzubaCPM1989plaEn,Abrikosov1965}
+\begin{align}
+\hat G &= \hat G_0 +  \hat G_0 \hat V_{\rm x}  \hat G = \left[ 1-  \hat G_0 \hat V_{\rm x}\right]^{-1}\hat G_0 .
+\label{eq:Green-exchange}
+\end{align}
+The local direct and non-local exchange operators are
+\begin{align}
+\hat V_{\rm d} =  \sum_a^{\rm core}{\bra{a}\hat Q\ket{a}},
+\quad\text{and}\qquad
+\hat V_{\rm x} = - \sum_a^{\rm core}{\ket{a}\hat Q\bra{a}},
+\end{align}
+respectively, with the (two-particle) Coulomb operator:
+\be\label{eq:CoulombOperator}
+\hat Q(\v{r}_1,\v{r}_2) = \v{r}^{-1}_{12}.
+\ee
+
+These operators may be represented as coordinate matrices: e.g., $\hat G$\,$\Leftrightarrow$\,$G(\v{r}_1,\v{r}_2)$.
+Multiplication is understood to mean:
+ \[
+ \hat W = \hat X \hat Y \hat Z \Rightarrow W(r_1, r_2) =  \iint \d r_i \d r_j X(r_1, r_i) Y(r_i, r_j) Z(r_j, r_2).
+ \]
+Note how the `hat' notation is used. %; also these are symmetric matrices.
+Note also that $G$, $Q$, $V$ etc.\ are symmetric.
+
+%------------------------------------------------------------------
+\subsection{Two useful integrals}
+
+Here, I present two useful analytic integrals involving Feynman Green's functions.
+These are evaluated analytically by extending the integral over the complex plane.
+As a reminder, Cauchy's integral formula is
+\[
+\oint \d z \frac{f(z)}{z-a} = 2\pi i f(a).
+\]
+
+The first integral\footnote{Note $|G(\w)|\to0$ as $|\w|\to\infty$ ($\w\in\mathbb{C}$); see Eq.~(\ref{eq:FeynmanGreen}).}
+\begin{align}
+\int \frac{\d \w}{2\pi}&\hat G_{12}(\en_i+\w) \hat G_{34}(\en_j + \omega)\\
+=&\sum_{abnm}\int \frac{\d \w}{2\pi} \left(
+\frac{\ket{a}_1\bra{a}_2}{\en_i+\w-\en_a-i\delta} + \frac{\ket{n}_1\bra{n}_2}{\en_i+\w-\en_n+i\delta}
+\right)
+\notag\\&\times
+\left(
+\frac{\ket{b}_3\bra{b}_4}{\en_j+\w-\en_b-i\delta} + \frac{\ket{m}_3\bra{m}_4}{\en_j+\w-\en_m+i\delta}
+\right),
+\label{eq:GreenIntegral1}
+\end{align}
+can be expanded to four seperate terms, each with a pair of poles.
+%
+Consider the first (``$a,b$'') term of (\ref{eq:GreenIntegral1}):
+\be
+\int \frac{\d \w}{2\pi} \left(
+\frac{\ket{a}\bra{a}}{\en_i+\w-\en_a-i\delta} 
+\right)
+\left(
+\frac{\ket{b}\bra{b}}{\en_j+\w-\en_b-i\delta} 
+\right),
+\ee
+which has poles at $\w=\en_{a/b}-\e_{i/j}+i\delta$.
+By closing the contour in the lower complex plane, see Fig.~\ref{fig:contour} (left), it is seen the integral is zero.
+The same is found for the last (``$n,m$'') term by closing the contour in the upper plane.
+The other two terms are non-zero, and can be evaluated by closing the contour in the upper plane; an example for the ``$a,m$'' term with pole at $\w=\en_a-\en_i+i\delta$ is given in Fig.~\ref{fig:contour} (right).
+Together, this gives the final expression:\footnote{I renamed $m=n$ in the first term, and $b=a$ in the second.}
+\begin{align}
+\int \frac{\d \w}{2\pi}&\hat G_{12}(\en_i+\w) \hat G_{34}(\en_j + \omega)\notag\\
+&=
+i\sum_{an}\left[
+\frac{\ket{a}_1\bra{a}_2 \, \ket{n}_3\bra{n}_4}{\en_j-\en_i+\en_a-\en_n}
++
+\frac{\ket{n}_1\bra{n}_2 \, \ket{a}_3\bra{a}_4}{\en_i-\en_j+\en_a-\en_n}
+\right].\label{eq:GreenInt1}
+\end{align}
+
+
+
+\begin{figure}%[h]
+\centering
+\includegraphics[width=0.195\textwidth]{img/contour_1}~~~~
+\includegraphics[width=0.195\textwidth]{img/contour_2}
+\caption{\small Contours for the ``$a,b$'' and ``$a,m$'' terms of Eq.~(\ref{eq:GreenIntegral1}).\label{fig:contour}}
+\end{figure}
+
+The second integral is found in the same way:
+\begin{align}
+\int \frac{\d \w}{2\pi}&\hat G_{12}(\en_i+\w) \hat G_{34}(\en_j - \omega)\notag\\
+&=
+i\sum_{abnm}\left[
+\frac{\ket{a}_1\bra{a}_2 \, \ket{b}_3\bra{b}_4}{\en_i+\en_j - \en_a - \en_b}
+-
+\frac{\ket{n}_1\bra{n}_2 \, \ket{m}_3\bra{m}_4}{\en_i + \en_j - \en_m - \en_n}
+\right].
+\label{eq:GreenInt2}
+\end{align}
+
+
+
+
+%------------------------------------------------------------------
+\subsection{Feynman method for second-order correlations}
+
+
+
+In the Feynman technique, the second-order correlation corrections are given by the diagrams presented in Fig.~\ref{fig:Sigma2-Feyn}.
+The straight lines represent Hartree-Fock (bound-electron) Green's functions (\ref{eq:FeynmanGreen}),
+the wavy photon lines represent the Coulomb operator (\ref{eq:CoulombOperator}), 
+and the electron loops represent the polarisation operator:
+\be\label{eq:PolarisationOperator}
+\hat\Pi_{12}(\w) = \int \frac{\d \en'}{2\pi}\hat  G_{12}(\en') \hat G_{21}(\w+\en') .
+\ee
+Note that this is a (largely) non-relativistic many-body problem; the polarisation is of the atomic core, not the vacuum.
+
+
+
+Using Eq.~(\ref{eq:GreenInt1}), the integral over frequencies in the polarisation operator can be performed analytically, yielding:
+\be\label{eq:PiGreen2}
+\hat\Pi(\w) = i\sum_{an}\left[
+\frac{\ket{a}_2\bra{a}_1 \, \ket{n}_1\bra{n}_2}{\en_a-\w-\en_n}
++
+\frac{\ket{n}_2\bra{n}_1 \, \ket{a}_1\bra{a}_2}{\en_a+\w-\en_n}
+\right],
+\ee
+which can be further simplified to:
+\be\label{eq:PiGreen}
+\hat\Pi(\w) = i\sum_a \ket{a}\left[\hat G^{\rm ex}(\en_a -\w) +  \hat G^{\rm ex}(\en_a +\w)\right]\bra{a}.
+\ee
+Here, $\hat G^{\rm ex}$ only includes excited orbitals. It can be formed without the use of a basis using Eqs.~(\ref{eq:Green-exchange}) and (\ref{eq:FeynmanGreen}), so long as the core orbitals are known.
+In practise, it is numerically unstable to calculate $\hat G^{\rm ex} = \hat G-\hat G^{\rm core}$; instead, we compute:
+\be\label{eq:Gex}
+\hat G^{\rm ex} =  \hat G - \sum_a^{\rm core} \ket{a}\bra{a}\hat G.
+\ee
+
+
+With these, the direct (d) and exchange (x) correlation potentials can be expressed in the Feynman approach as
+\be\label{eq:FeynDir}
+\hat\Sigma^{(2)}_{\rm d}
+= \iint\d^3 r_i\d^3 r_j
+\int\frac{\d\w}{2\pi}\hat G_{12}(\en+\w)\hat Q_{1i}\hat\Pi_{ij}(\w)\hat Q_{j2},
+\ee
+and
+\begin{multline}\label{eq:FeynExch}
+\hat\Sigma^{(2)}_{\rm x}
+= -\iint\d^3 r_i\d^3 r_j
+\iint\frac{\d\w_1}{2\pi}\frac{\d\w_2}{2\pi}\\
+\hat G_{1i}(\en+\w_1)\hat Q_{1j} \hat G_{ij}(\en+\w_1+\w_2)\hat Q_{i2}\hat G_{j2}(\en+\w_2).
+\end{multline}
+In the Feynman technique, as compared to the Goldstone technique, we avoid the need for a summation over the complete set of states, but instead require integration over frequencies.
+Note that $\Sigma = \Sigma_{\rm d} + \Sigma_{\rm x}$ is also called the self-energy operator.
+Comparison between Feynman and Goldstone shown in Table~\ref{tab:de-direct}.
+
+
+
+
+
+\begin{figure}%[h]
+\centering
+\includegraphics[width=0.235\textwidth]{img/Sigma/Feynman_dir}
+\includegraphics[width=0.235\textwidth]{img/Sigma/Feynman_exch}
+\caption{\label{fig:Sigma2-Feyn}\small Second-order direct (1) and exchange (2) correlation diagrams in the Feynman technique.}
+\end{figure}
+
+
+
+
+%------------------------------------------------------------------
+\subsection{Feynman to Goldstone transformation}
+
+
+
+
+
+
+
+
+Here, we show the connection between the Feynman and Goldstone approaches, by demonstrating the Feynman expressions reduce to the Goldstone ones by integration over frequencies.
+
+Inserting (\ref{eq:PiGreen}) into the direct term (\ref{eq:FeynDir}), we get
+\begin{multline}
+\Sigma^{(2)}_{\rm d}
+= i\iint\d^3 r_i\d^3 r_j
+\int\frac{\d\w}{2\pi}
+\hat G_{12}(\en+\w) \hat Q_{1i}\hat Q_{j2}\\
+\times \sum_a\Bigg(
+\ket{a}_2\bra{a}_1\hat G^{\rm ex}_{12}(\en_a-\w)
++\ket{a}_1\bra{a}_2\hat G^{\rm ex}_{21}(\en_a+\w)
+\Bigg).
+\end{multline}
+%
+The two required frequency integrals:
+\begin{align}
+\begin{split}
+\int \frac{\d \w}{2\pi}\hat G_{12}(\en+\w) \hat G^{\rm ex}_{ij}(\en_a - \omega)
+&=
+-i\sum_{nm}
+\frac{\ket{n}_1\bra{n}_2 \, \ket{m}_i\bra{m}_j}{\en+ \en_a - \en_m - \en_n},
+\\
+\int \frac{\d \w}{2\pi}\hat G_{12}(\en+\w) \hat G^{\rm ex}_{ji}(\en_a + \omega)
+&=
+-i\sum_{bn}
+\frac{\ket{b}_1\bra{b}_2 \, \ket{n}_j\bra{n}_i}{\en - \en_a - \en_b + \en_n},
+\end{split}
+\end{align}
+are evaluated using Eqs.~(\ref{eq:GreenInt2}) and (\ref{eq:GreenInt1}), respectively, noting that only the excited states appear in the expansion for $G^{\rm ex}$.
+%
+Bringing these together, and evaluating the direct matrix element  (using notation $\ket{ab}_{12}=\ket{a}_1\ket{b}_2$), we have:
+\begin{align}
+\delta\en_v^{\rm d}&=\bra{v}\Sigma^{(2)}_{\rm d}\ket{v}\notag\\
+&=\sum_{anm}\frac{\bra{va}Q\ket{nm} \bra{mn}Q\ket{av}}{\en+\en_a-\en_m-\en_n}
++\sum_{abn}\frac{\bra{vn}Q\ket{ba} \bra{ab}Q\ket{nv}}{\en-\en_a-\en_b+\en_n} \notag\\
+&=\sum_{anm}\frac{g_{vanm}g_{mnav}}{\en+\en_a-\en_m-\en_n}
++\sum_{abn}\frac{g_{vnba}g_{abnv}}{\en-\en_a-\en_b+\en_n},
+\end{align}
+which is the expression from Goldstone diagrams (a) and (c).
+
+
+
+
+For the exchange term, we first integrate over $\w_1$, with:
+\begin{align}
+&\int\frac{\d\w_1}{2\pi}
+\hat G_{1i}(\en+\w_1) \hat G_{ij}(\en+\w_1+\w_2) 
+\notag\\
+=& i\sum_{an}\left(
+\frac{\ket{a}_1\bra{a}_i\ket{n}_i\bra{n}_j}{\w_2+\en_a-\en_n}+\frac{\ket{n}_1\bra{n}_i\ket{a}_i\bra{a}_j}{-\w_2+\en_a-\en_n}
+\right)
+\notag\\
+\label{eq:ExchInt1}
+= & i\sum_{a}\left[
+\ket{a}_1\bra{a}_i \, \hat G^{\rm ex}_{ij}(\en_a+\w_2)+ \hat G^{\rm ex}_{1i}(\en_a-\w_2) \, \ket{a}_i\bra{a}_j 
+\right]\\
+\equiv & i \, \hat\Gamma_{1iij}(\w_2)
+\label{eq:ExchInt1-Gamma}
+\end{align}
+which was evaluated using Eq.~(\ref{eq:GreenInt1}).
+The $\Gamma_{1iij}$ term is defined for notational brevity; note the similarity+difference to $\Pi_{ij}$.
+This leads to two seperate integrals over $\w_2$:\
+\begin{align}
+\small
+\begin{split}
+\int \frac{\d \w_2}{2\pi}\hat G^{\rm ex}_{ij}(\en_a+\w_2) \hat G_{j2}(\en+\omega_2)
+&=
+i\sum_{bn}
+\frac{\ket{n}_i\bra{n}_j \ket{b}_j\bra{b}_2}{\en_a - \en + \en_b - \en_n},
+\\
+\int \frac{\d \w_2}{2\pi}\hat G^{\rm ex}_{1i}(\en_a-\w_2) \hat G_{j2}(\en+\omega_2)
+&=
+i\sum_{nm}
+\frac{\ket{m}_1\bra{m}_i\ket{n}_j\bra{n}_2 }{\en_m + \en_n-\en - \en_a },
+\end{split}
+\end{align}
+which were evaluated using Eqs.~(\ref{eq:GreenInt1}) and (\ref{eq:GreenInt2}), respectively.
+%
+Finally, combining all the terms, we have:
+\begin{align}
+\delta\en_v^{\rm x}&=\bra{v}\Sigma^{(2)}_{\rm x}\ket{v} \notag\\
+&=-\sum_{abn}\frac{\bra{vn}Q\ket{ab} \bra{ab}Q\ket{vn}}{\en-\en_a-\en_b+\en_n}
+-\sum_{anm}\frac{\bra{va}Q\ket{mn} \bra{mn}Q\ket{av}}{\en+\en_a-\en_m-\en_n} \notag\\
+&=-\sum_{anm}\frac{g_{vnab}g_{abvn}}{\en-\en_a-\en_b+\en_n}
+-\sum_{abn}\frac{g_{vman}g_{mnav}}{\en+\en_a-\en_m-\en_n},
+\end{align}
+which is exactly the expression from Goldstone diagrams (d) and (b), respectively (note that $g_{ijkl}=g_{jilk}$).
+
+
+
+
+
+
+
+
+\begin{table}%[h]
+\small
+\centering
+\caption{\small 
+Expectation values of the direct part of the correlation potential $\bra{v}\Sigma_d\ket{v}$ for the lowest valence states of Cs (atomic units).
+The first four rows correspond to the second-order Goldstone technique using various number of states in the MBPT expansion, and the fifth row is the second-order Feynman technique.
+The final two rows are the screening and hole-particle corrections (see below).
+\label{tab:de-direct}}
+\begin{tabular}{lrrrrr}
+\hline
+\hline
+           & $6s_{1/2}$  & $6p_{1/2}$  & $6p_{3/2}$  & $5d_{3/2}$  & $5d_{5/2}$  \\
+\hline
+30spdfghi  & -0.01906 & -0.00771 & -0.00693 & -0.01226 & -0.01182 \\
+40spdfghi  & -0.01915 & -0.00768 & -0.00690 & -0.01228 & -0.01182 \\
+50spdfghi  & -0.01919 & -0.00769 & -0.00691 & -0.01230 & -0.01184 \\
+60spdfghi  & -0.01920 & -0.00769 & -0.00691 & -0.01230 & -0.01184 \\[0.15cm]
+%
+Feynman & -0.01920 & -0.00766 & -0.00689 & -0.01236 & -0.01190 \\[0.15cm]
+%
+$\delta$Screen & 0.00631  & 0.00246  & 0.00221  & 0.00331  & 0.00313  \\
+$\delta$h-p     & -0.00769 & -0.00359 & -0.00322 & -0.00477 & -0.00457 \\
+\hline
+\hline
+\end{tabular}
+\end{table}
+
+
+
+
+
+
+
+
+
+
+%%------------------------------------------------------------------
+%\subsection{Second formulation for exchange potential}\label{sec:ex2ndForm}
+%
+%We may perform just one of the frequency integrals in the exchange potential analytically.
+%Using Eq.~(\ref{eq:ExchInt1}), this leads to:
+%\begin{align}\label{eq:FeynExch2}
+%\begin{split}
+%\Sigma^{(2)}_{\rm x,1}
+%&= -i\iint_{ij}%\d^3 r_i\d^3 r_j
+%\int\frac{\d\w_1}{2\pi}
+%\hat G_{1i}(\en+\w_1)\hat Q_{1j} \hat\Gamma_{ijj2}(\w_1) \hat Q_{i2} \\
+%%
+%\Sigma^{(2)}_{\rm x,2}
+%&= -i\iint_{ij}%\d^3 r_i\d^3 r_j
+%\int\frac{\d\w_2}{2\pi}
+%\hat Q_{1j}\hat\Gamma_{1iij}(\w_2) \hat Q_{i2}\hat G_{j2}(\en+\w_2) .
+%\end{split}
+%\end{align}
+%This still uses the Feynman Green's function, and does not require a full summation over excited states.
+%Now, like the direct term, it can be evaluated using just a single frequency integral.
+%%This can be used to compare the Feynman approach to the Goldstone one with significantly less computational power than would be required with the double frequency integral.
+%
+%
+
+
+
+
+%------------------------------------------------------------------
+\subsection{Angular separation}
+
+
+Using the same angular identities used for the Goldstone case:
+\begin{align}
+\sum_{m_{i,j,k,l}}  g_{ijkl} \, g_{lkji}
+    &= \sum_\mu \frac{1}{[\mu]} \left( C^\mu_{ik}C^\mu_{jl} R^\mu_{ijkl}\right)^2 \\
+\sum_{m_{i,j,k,l}}  g_{ijkl} \, g_{klji}
+        &=\sum_{\mu \lambda}(-1)^{\mu+\lambda+1}C^\mu_{ik}C^\mu_{jl}C^\lambda_{il}C^\lambda_{jk} \notag \\
+    &\phantom{=\sum_{\mu \lambda}}~~\times \sixj{j_i}{j_k}{\mu}{j_j}{j_l}{\lambda}R^\mu_{ijkl}R^\lambda_{ijlk}\\
+            &=-\sum_{\mu \lambda}(-1)^{\mu+\lambda}L^{\mu\lambda}_{ijkl} \, R^\mu_{ijkl}R^\lambda_{ijlk},
+\end{align}
+where $L^{k\lambda}_{ijkl}$ is defined for convenience in the last line,
+the correlation potential (for angular state $\k_v$) can be written:
+\begin{align}
+\Sigma^{(\k_v)}_{12,{\rm d}}
+&= \int\frac{\d \w}{2\pi} \sum_k\,\sum_{\alpha}^{(\kappa)} \frac{ (C^k_{v\a})^2}{[j_v]}
+g^{\alpha}_{12}(\en+\w) \, \sum_{ij} \hat q^k_{1i} \, \hat \pi_{ij}^{k}(\w) \, \hat q^k_{j2},
+\label{eq:RadialSigmaDir}
+\\
+%\end{align}
+%%and
+%\begin{align}
+\Sigma^{(\k_v)}_{12,{\rm x}}
+&= \iint\frac{\d\w_1}{2\pi} \frac{\d\w_2}{2\pi} \sum_{k\lambda}\frac{(-1)^{k+\lambda}}{[j_v]}
+\sum^{(\k)}_{\a,\b,\g} 
+L_{v\b\a\g}^{k\lambda}
+\notag\\
+\times&\sum_{ij}  g^\a_{1i}(\en+\w_1)\,\hat q^k_{1j}\,g^\b_{ij}(\en+\w_1+\w_2)\,\hat q^\lambda_{i2}\,g^\g_{j2}(\en+\w_2).
+\label{eq:RadialSigmaExch}
+\end{align}
+Here, the $k$ sum is over Coulomb multipolarities, and the ($\k=\a,\b,\g$) sum is over angular quantum numbers (partial waves).
+In theory, the $k$ and $\kappa$ sums are infinite; in practice one (or both) must be truncated.
+The $ij$ sum is the finite-grid implementation of radial integrals; the integration measures are included in $q_{ij}$.
+This means $\Sigma$ is a coordinate matrix, and integration (even over external coordinates) is done implicitly in the matrix multiplication.
+The superscripts on the $\Sigma$ operators denote that they are radial operators (the angular integrals have already been done):
+\[
+\bra{v}\hat\Sigma\ket{v} = \sum_{12}F^\dag_v(r_1)\Sigma^{(\k_v)}_{12}F_v(r_2),
+\]
+where $F(r)=(f,g)^{\rm Tr}$ is the radial spinor (see previous).
+%We will typically drop these indices.
+
+The radial Green's function is
+\begin{align}\label{eq:RadialGreen}
+g^\a_{12}(\en) &= \sum_n^{\k_\a} \frac{F_{n\a}(r_1)F^\dag_{n\a}(r_2)}{\en-\en_{n\a}}
+= \frac{\chi_0^\a(r_<)\chi_\infty^\a(r_>)}{w},
+\end{align}
+where the sum runs over all states with $\k=\k_\a$, and the $\chi$ are solutions to the radial Dirac equation with $\k=\k_\a$.
+As described above, $g$ should be corrected to account for exchange, with
+\be\label{eq:RadialVx}
+V_{\rm x,12}^{(\k_v)} = \frac{-1}{[j_v]}\sum_a^{\rm core}\sum_\lambda (C^\lambda_{av})^2F_a(r_1)F_a^\dag(r_2)\hat q^\lambda_{12}.
+\ee
+The radial Coulomb operator is (see Laplace expansion)
+\be\label{eq:RadialQ}
+\hat q^k_{ij} = \frac{r_<^k}{r_>^{k+1}} \, \d r_i\d r_j,
+\ee
+and the radial polarisation operator is
+\begin{multline}\label{eq:RadialPolarisation}
+\pi_{12}^{k}(\w) = i\sum_{a}^{\rm core}p^a_{12}\sum_{n}^{(\kappa)} \frac{(C^k_{an})^2}{[k]}
+\Big[g_{12}^{{\rm ex},n}(\en_{a}-\w)
++g_{12}^{{\rm ex},n}(\en_{a}+\w)
+\Big],
+\end{multline}
+where 
+\[
+p^a_{ij} = F_a(r_i)F^\dag_a(r_j)
+\]
+is the (radial) projection operator onto single core state $a$.
+and
+$g^{{\rm ex},n}$ contains only excited states with $\k=\k_n$.
+
+
+%The angular reduction for the alternative form of the exchange part (see Sec.~\ref{sec:ex2ndForm}) is found in the same way, with:
+%\begin{multline}\label{eq:Exch1-rad}
+%\Sigma_{12,\rm{x,1}}^{(\k_v)} = i\int\frac{\d\w_1}{2\pi} \sum_{k\lambda}\frac{(-1)^{k+\lambda}}{[j_v]}
+%\sum_a^{\rm core}\sum_{\k}^{\a,\b} 
+%\sum_{ij} g^\a_{1i}(\en+\w_1) \, \hat q_{1j}^k \, \hat q_{i2}^{\lambda} 
+%\\
+%\times\Big[
+%L^{k\lambda}_{v\b\a a}  \, g^{{\rm ex},\b}_{ij}(\en_a+\w_1)\, p^a_{j2}
+%+
+%L^{k\lambda}_{va\a\b}  \, p^a_{ij}\, g^{{\rm ex},\b}_{j2}(\en_a-\w_1)
+%\Big],
+%\end{multline}
+%or
+%\begin{multline}
+%\Sigma_{12,\rm{x,2}}^{(\k_v)} = i\int\frac{\d\w_2}{2\pi} \sum_{k\lambda}\frac{(-1)^{k+\lambda}}{[j_v]}
+%\sum_a^{\rm core}\sum_{\k}^{\a,\b} 
+%\sum_{ij} \hat q_{1j}^k \, \hat q_{i2}^{\lambda} \, g^\a_{j2}(\en+\w_2) 
+%\\
+%\times\Big[
+%L^{k\lambda}_{v\b a\a} \, p^a_{1i} \, g^{{\rm ex},\b}_{ij}(\en_a+\w_2)
+%+
+%L^{k\lambda}_{va\b\a} \, g^{{\rm ex},\b}_{1i}(\en_a-\w_2) \, p^a_{ij}.
+%\Big],
+%\end{multline}
+%%This looks more complicated, but requires only a single integration over $\w$.
+%\note{This needs to be checked}
+%
+%Roughly speaking (using some typical values), the second form of the exchange potential Eq.~(\ref{eq:Exch1-rad}) should be more than $>$\,20$\times$ faster to compute than the original form Eq.~(\ref{eq:RadialSigmaExch}), but $>$\,10$\times$ slower than the direct potential. % (numerically, this seems to check out).
+%Computing Eq.~(\ref{eq:RadialSigmaExch}) directly would be more than 300$\times$ slower than the direct term.
+
+%======================================
+
+
+
+
+
+%--------------------------------------------------------
+\subsection{Numerical frequency integration}
+
+
+\begin{figure}%[h]
+\centering%
+\includegraphics[width=0.21\textwidth]{img/PreRotate}~~
+\raisebox{14\height}{${\to}$}~~~
+\includegraphics[width=0.21\textwidth]{img/RotatedOmega}%
+\caption{\small Rotation of the contour for integrals in the form of Eq.~(\ref{eq:GenOmInt}).
+Dots represent Green's function poles, crosses are polarisation operator poles (only bound-state poles are shown, there are also continuum-state poles at larger $|\w|$),
+$\en_0$ is the energy of the deepest core state, and $|\Delta\en|$ is the energy gap between the core and excited bound states.
+\label{fig:contourRotate}}
+\end{figure}
+
+
+The direct and exchange potentials involve integrals of the form:
+\be\label{eq:GenOmInt}
+\int g(\en+w)\pi(\w)\ldots \frac{\d\w}{2\pi}.
+\ee
+The integrand contains poles from the Green's function at 
+$\w=\en_n-\en-i\delta$ and $\w=\en_a-\en+i\delta$,
+and poles from the polarisation operator at 
+$\w=\en_a-\en_n+i\delta$ and $\w=\en_n-\en_a-i\delta$.
+If $\en$ is the energy of the lowest excited state, then
+there are an infinite number of poles from the polarisation operator in each of the regions $\w<-|\Delta\en|$, and $|\Delta\en|<\w<\infty$,
+where $\Delta\en$ is the energy gap between the highest core and lowest excited states (for Cs, $|\Delta\en|\approx0.7$\,au).
+From the Green's function, there are a finite number (equal to the number of core states) of poles in the region
+$-|\en_0|<\w<-|\Delta\en|$, and an infinite number of poles in the region $\w>0$ (see Fig.~\ref{fig:contourRotate}).
+
+In theory, we could evaluate the integral (\ref{eq:GenOmInt}) numerically using a semi-circle contour closed in the upper/lower-half of the complex plain, as done previously.
+However, this would involve evaluating the integrand very (arbitrarily) close to the poles, which is problematic.
+Instead, we rotate the integration contour anti-clockwise by 90$^\circ$; the straight part of the contour is at fixed ${\rm Re}(\w)$.
+This is shown in Fig.~\ref{fig:contourRotate}.
+It is clear from Cauchy's theorem that the integral over each of the contours is the same and equal to the required
+integral (\ref{eq:GenOmInt}).
+
+
+Using the contour as shown in Fig.~\ref{fig:contourRotate}, the integral becomes
+\be\label{eq:GenOmInt-num}
+\int_{-\infty}^\infty g(\en+\w_{r}+i\w_i)\pi(\w_{r}+i\w_i)\ldots \frac{\d\w_i}{2\pi} + \cancelto{0}{\oint_{\rm curved}\ldots}.
+\ee
+If the contour radius (i.e., maximum value of $\w_i$) is large enough, the value of the integrand around the curved part of the contour $\approx0$, so only the $\w_i$ integral needs to be evaluated.
+It is desirable to place $\w_r$, which remains constant throughout the integration, as far away from the poles as possible.
+There is a region with no poles between 0 and $|\Delta\en|$, so we take $\w_r \simeq -{|\Delta\en|}/2$.
+
+
+Finally, to perform the integrals numerically, we must evaluate Green's functions at complex values of $\w=\w_r + i\w_i$.
+This can be done in analogy with Eq.~(\ref{eq:Green-exchange}):
+\begin{align}
+g(\en+\w) &= \left[1+i\w_ig(\en+\w_r)\right]^{-1}g(\en+\w_r) 
+\end{align}
+This $g(\en+\w)$ will be a complex-valued matrix; $g(\en+\w_r)$ is real-valued.
+The integration over $\w_i$ can proceed using standard numerical integration. 
+
+
+
+
+
+
+
+
+%======================================
+\section{All-orders correlation potential}
+
+The three most important corrections beyond the second-order correlation potential are:
+(i) the screening of the residual Coulomb interaction by the core electrons~\cite{DzubaCPM1988pla}, 
+(ii) the hole-particle interaction~\cite{DzubaCPM1989plaEn}, and
+(iii) the chaining of the $\Sigma$ operator~\cite{DzubaPNC1985,DzubaPNC1984}.
+These effects are described by a series of diagrams that can be summed exactly to all-orders using the Feynman technique.
+The method described here was developed in the above works, and can be called the {\sl Dzuba-Flambaum-Sushkov} (DFS) method; it is sometimes also called the {\sl correlation potential in the screened Coulomb interaction} (CPSCI) method.
+
+
+
+\begin{figure}%[h!]
+\centering
+\includegraphics[height=0.025\textwidth]{img/Sigma/CoulombScreening0}
+\includegraphics[height=0.025\textwidth]{img/Sigma/plus}
+\includegraphics[height=0.025\textwidth]{img/Sigma/CoulombScreening1}
+\includegraphics[height=0.025\textwidth]{img/Sigma/plus}
+\includegraphics[height=0.025\textwidth]{img/Sigma/CoulombScreening2}
+\includegraphics[height=0.025\textwidth]{img/Sigma/plus}
+\includegraphics[height=0.025\textwidth]{img/Sigma/dotdotdot}
+\caption{\label{fig:Screening}\small Screening of the Coulomb interaction: each Coulomb line is replaced with this infinite series of screening diagrams.}
+\end{figure}
+
+
+
+It is important to stress a key advantage of the current method: its numerical efficiency.
+Using the Feynman approach for the second-order (direct) diagrams takes roughly the same computational power as using the Goldstone method (in fact, it is a bit faster).
+Then, the inclusion of the all-orders screening and hole-particle interaction has effectively {\em no} impact on the computer time required.
+That is, calculating the all-orders correlation potential is roughly just as computationally intensive as calculating the second-order  corrections using the usual (Goldstone) many-body approach.
+This is in stark contrast to other methods (e.g., coupled-cluster methods), which require {\em huge} computational resources for all-orders calculations.
+
+
+%--------------------------------------------------------
+\subsection{Screening of the residual Coulomb interaction}
+
+
+
+The most important correction is the the screening of the residual Coulomb interaction by the core electrons, which can be taken into account by a continued insertion of polarisation loops into the Coulomb lines, as shown in Fig.~\ref{fig:Screening}.
+This chain of diagrams represent the matrix geometric series:
+\be\label{eq:qpq}
+\widetilde Q \equiv \hat Q + \hat Q\hat \Pi \hat Q + \hat Q\hat \Pi \hat Q\hat \Pi \hat Q+\ldots,
+\ee
+which may be summed exactly as
+\begin{align}\label{eq:ScreenQ}
+\widetilde Q(\w) = \hat Q\left[1-\hat\Pi(\w)\hat Q\right]^{-1}
+							= \left[1-\hat Q\hat\Pi(\w)\right]^{-1} \hat Q.
+\end{align}
+This is called the screened Coulomb operator.
+The screening is enhanced by the number of electrons in the outermost core shell, and the relatively small energy denominator associated with their excitation, see Eq.~(\ref{eq:PiGreen}).
+We could also instead write the series (\ref{eq:qpq}) as $Q\widetilde \Pi Q$, with
+\begin{align}\label{eq:ScreenPi}
+\widetilde \Pi(\w) = \hat \Pi(\w)\left[1-\hat Q\hat\Pi(\w)\right]^{-1}
+							= \left[1-\hat\Pi(\w)\hat Q\right]^{-1} \hat \Pi(\w).
+\end{align}
+
+Inserting the screened Coulomb operator into Eqs.~(\ref{eq:FeynDir}) and (\ref{eq:FeynExch}) yields the new correlation potential:
+\begin{align}
+\Sigma_{\rm d}
+&= \iint\d^3 r_id^3 r_j
+\int\frac{\d\w}{2\pi}\hat G_{12}(\en+\w)\hat Q_{1i}\hat\Pi_{ij}(\w)\widetilde Q_{j2}(\w),
+\label{eq:SigmaAll-dir}
+\\
+\Sigma_{\rm x}
+&= -\iint\d^3 r_id^3 r_j
+\iint\frac{\d\w_1}{2\pi}\frac{\d\w_2}{2\pi} \, \times \notag\\
+\label{eq:SigmaAll-exch}
+\hat G_{1i}(\en&+\w_1)\widetilde Q_{1j}(\w_1) \hat G_{ij}(\en+\w_1+\w_2)\widetilde Q_{i2}(\w_2)\hat G_{j2}(\en+\w_2),
+\end{align}
+which includes screening to all-orders.
+Note that the screened  operator should replace only a single Coulomb line in the direct diagram, but both in the exchange diagram.
+
+Note that this method takes into account screening diagrams with double, triple, quadruple, and higher core electron excitations.
+This is because the Feynman diagram technique contains all possible time orderings of the polarisation loops; therefore the screening diagrams contain any number of excited electrons~\cite{DzubaCPM1988pla}.
+This is in contrast to the widely-used ``singles-doubles coupled-cluster method'', where only double excitations are considered (and sometimes a selection of important triple excitations).
+There are, however, some perturbation-theory diagrams included in the coupled-cluster methods that are not included in our approach. 
+The most important of which, the so-called ladder diagrams, are very small, and  can be included into our method by means of the method presented in Ref.~\cite{DzubaLadder2008}. 
+
+%--------------------------------------------------------
+\subsection{Hole-particle interaction}
+
+
+\begin{figure}%[b]
+\centering
+\includegraphics[height=0.045\textwidth]{img/Sigma/polAll}
+\includegraphics[height=0.045\textwidth]{img/Sigma/equals}
+\includegraphics[height=0.045\textwidth]{img/Sigma/pol0}
+\includegraphics[height=0.045\textwidth]{img/Sigma/plus}
+\includegraphics[height=0.045\textwidth]{img/Sigma/pol1}
+\includegraphics[height=0.045\textwidth]{img/Sigma/plus}
+\includegraphics[height=0.045\textwidth]{img/Sigma/pol2}
+\includegraphics[height=0.045\textwidth]{img/Sigma/plus}
+\includegraphics[height=0.045\textwidth]{img/Sigma/dotdotdot}
+\caption{\label{fig:HoleParticle}\small Hole-particle corrections to the polarisation operator}
+\end{figure}
+
+
+
+
+The chain of diagrams corresponding to the hole-particle interaction is shown in Fig.~\ref{fig:HoleParticle}.
+Physically, this effect arises due to the 
+deviation of the (direct) Hartree-Fock potential for the excited core electron in the polarisation loop from that for the non-excited one~\cite{DzubaCPM1989plaEn}.
+In other words, it corresponds to an alteration of the core potential due to the excitation of the particle from the core to the virtual intermediate state; the excited core particle in the polarisation loop moves in the field of $N-2$ other core electrons instead of the usual $V^{N-1}$ potential.
+
+
+In practical Hartree-Fock calculations for occupied core states, the self-interaction term is included in the direct potential; this is then exactly compensated by the corresponding term in the exchange potential. % (see previous discussion).
+However, for the state excited from the core ($a_n^\dag a_a\ket{0}$), no such cancellation occurs.
+Therefore, the self-interaction term should be removed for the excited states.
+
+
+
+
+Following the approach from Ref.~\cite{DzubaCPM1989plaEn}, the potential that simultaneously describes the occupied core and excited states is
+\be\label{eq:V-hp}
+\hat V = V^{N-1} - (1-\hat P_{\rm core})V_0 (1-\hat P_{\rm core}),
+\ee
+where
+\be
+\hat P_{\rm core} = \sum_a^{\rm core}\ket{a}\bra{a}
+\ee
+is the operator of projection onto the core, and
+ $V_0$ is the zero-multipolarity potential for the ``outgoing electron''.
+%
+We use Eq.~(\ref{eq:V-hp}) since the calculated Green's function contains both core and excited electrons [see Eq.~(\ref{eq:FeynmanGreen})]; $\hat P$ is introduced to ensure orthogonality of the orbitals.
+The excited-states Green's function that appears in the polarisation operator is then formed as Eq.~(\ref{eq:Gex}).
+Note that $\braket{V}=\braket{V^{N-1}}$ for the occupied core states, and
+$\braket{V}=\braket{V^{N-1}}-\braket{V_0}$ for the excited states.
+In this method, we do not calculate the hole-particle diagrams directly.
+We calculate the Green's function using the potential in Eq.~(\ref{eq:V-hp}), and use it to form the polarisation operator.
+This corrected polarisation operator includes the dominating hole-particle effects.
+
+
+We may include the ``corrected'' polarisation operator in place of the regular polarisation operator when calculating the screened Coulomb line, as shown in Fig.~\ref{fig:DressedCoulomb}.
+Inserting the corrected polarisation loop, and the screened Coulomb lines into the diagrams for the correlation potential, we obtain an expression for the all-order correlation potential as shown in Fig.~\ref{fig:SigmaAO-Feyn}.
+
+
+
+
+
+
+
+%--------------------------------------------------------
+\subsection{Self-energy chaining}
+
+The ``chaining'' of the correlation potential (iteration of $\Sigma$) is shown in Fig.~\ref{fig:Chaining}.
+This is accounted for automatically by including $\Sigma$ into the Hartree-Fock iterations for the valence orbital (correlation potential method, as described previously).
+This is an important effect that includes terms with excitations of the external valence electron, and is enhanced due to the small energy denominator associated with this excitation.
+Because the Hartree-Fock equations (with $\Sigma$) are iterated until self-consistancy is reached, the chaining is included to all-orders.
+
+\begin{figure}%[b]%[h]%[h!]
+\centering
+\includegraphics[height=0.035\textwidth]{img/Sigma/CoulombAll}~~
+\includegraphics[height=0.035\textwidth]{img/Sigma/equals}~~
+\includegraphics[height=0.035\textwidth]{img/Sigma/CoulombScreening0}~~~
+\includegraphics[height=0.035\textwidth]{img/Sigma/plus}\\~~~
+\includegraphics[height=0.035\textwidth]{img/Sigma/CoulombScreening_hp}~~
+\includegraphics[height=0.035\textwidth]{img/Sigma/plus}~~
+\includegraphics[height=0.035\textwidth]{img/Sigma/CoulombScreening_hp_2}~~
+\includegraphics[height=0.035\textwidth]{img/Sigma/plus}~~
+\includegraphics[height=0.035\textwidth]{img/Sigma/dotdotdot}
+\caption{\label{fig:DressedCoulomb}\small All-order screening of the Coulomb operator including the hole-particle interaction.}
+\end{figure}
+
+
+\begin{figure}%[h]
+\centering
+\includegraphics[width=0.235\textwidth]{img/Sigma/AODirect}
+\includegraphics[width=0.235\textwidth]{img/Sigma/AOExch}
+\caption{\label{fig:SigmaAO-Feyn}\small All-order correlation diagrams including the Coulomb screening and hole-particle interaction.}
+\end{figure}
+
+
+
+
+%--------------------------------------------------------
+\subsection{Effective screening for exchange term}\label{sec:AllOrder-effectiveScreening}
+
+
+In the all-orders method, the frequency integrations can no longer be performed analytically.
+This is fine for the direct potential, since it contains only a single integral (the frequency integral inside the polarisation operator can be done analytically).
+The exchange potential, on the other hand, contains a double integral over frequencies, which is numerically expensive.
+
+The exchange contribution to the correlation potential is typically small compared to the direct potential, and the screening is a small correction to this.
+Therefore, it seems reasonable to approximately account for the screening in the exchange potential.
+This is done by introducing effective screening factors for the Coulomb operator in the exchange potential: $\widetilde Q\approx f\hat Q$.
+%
+In practice, the Coulomb operator is expanded over multipolarities $\hat Q\sim\sum_k \hat q^k$ (Laplace expansion, as discussed previously), and a different screening factor is used for each multipolarity:
+\be
+\widetilde q^k(\w)\approx f_k \hat q^k.
+\ee
+Note that the frequency dependence of $f_k$ has been neglected.
+
+The screening factors are calculated by evaluating the direct energy correction (for each $k$) with and without screening:
+\be
+f_k = {\bra{v}\Sigma^{\rm(screened),k}_{\rm d}\ket{v} \, / \, \bra{v}\Sigma^{(2),k}_{\rm d}\ket{v}}.
+\ee
+Then, the frequency integrals for the exchange term can be carried out analytically, and the exchange potential may be calculated by summation over a complete set of states in exact analogy to the Goldstone case, just with the extra $k$-dependent factors.
+This greatly improves the efficiency of the exchange part of the calculation, while still maintaining good accuracy.
+
+The hole-particle interaction is not included in $\Sigma$ for calculation of $f_k$
+(hole-particle effect enters at third-order in the direct diagrams, but only at fourth-order in exchange).
+However, this means the hole-particle effect is not included into the exchange diagrams at all, which in certain cases may be important.
+The screening effect is also taken into account approximately, which may also be important in some cases.
+
+
+
+\begin{figure}%[b]
+\centering
+\includegraphics[height=0.033\textwidth]{img/Sigma/Chaining1}~
+\includegraphics[height=0.033\textwidth]{img/Sigma/plus}~
+\includegraphics[height=0.033\textwidth]{img/Sigma/Chaining2}~
+\includegraphics[height=0.033\textwidth]{img/Sigma/plus}~
+\includegraphics[height=0.033\textwidth]{img/Sigma/dotdotdot}
+\caption{\label{fig:Chaining}\small Chaining of the correlation potential (self-energy); the boxed $\Sigma$ refers to the sum of diagrams in Fig.~\ref{fig:SigmaAO-Feyn}.}
+\end{figure}
+
+
+
+
+
+
+
+
+
+
+
+
+
 %======================================================
 %======================================================
 %\clearpage
@@ -1934,34 +2715,14 @@ g^k_{ij}(r) = \int_0^r \frac{x^k}{r^{k+1}}[f_ig_j+g_if_j](x)\,\d x  \\
 %-- take a deep breath --
 
 
-\begin{table}%[h]
-\small
-\centering
-\caption{\small 
-Breit and QED corrections to the removal energies of the lowest $s$ and $p$ states of Cs at the Hartree-Fock level (units: cm$^{-1}$).
-\label{tab:QEDBreit-En}}
-\begin{tabular}{r D{.}{.}{6.2} D{.}{.}{2.2} D{.}{.}{2.2}  D{.}{.}{6.2}}
-\hline
-\hline
-&\multicolumn{1}{c}{HF}&\multicolumn{1}{c}{$\delta$Breit}&\multicolumn{1}{c}{$\delta$QED}&\multicolumn{1}{c}{Total}\\
-\hline
- $6s_{1/2}$	& -27954.06	& 3.20	& 15.97	& -27934.93\\
- $6p_{1/2}$	& -18790.51	& 7.49	& -0.80	& -18783.82\\
- $6p_{3/2}$	& -18388.79	& 2.87	& -0.11	& -18386.03\\
- $7s_{1/2}$	& -12112.23	& 1.08	& 4.35	& -12106.81\\
- $7p_{1/2}$	& -9222.63	& 2.69	& -0.28	& -9220.23\\
- $7p_{3/2}$	& -9079.24	& 1.05	& -0.04	& -9078.23\\
-\hline
-\hline
-\end{tabular}
-\end{table}
 
 
 
 
 
 
-%\clearpage
+
+
 %======================================================
 \subsection[Radiative QED corrections]{Radiative QED corrections\footnote{Functions defined in:~/src/Physics/RadiativePotential.hpp}}
 
@@ -1973,45 +2734,6 @@ The self-energy potential itself is written as the sum of the high- and low-freq
 \be\label{eq:Vrad}
 V_{\rm rad}(\v{r}) = V_{\rm Ueh}(r) + V_{\rm SE}^{h}(r) +  V_{\rm SE}^{l}(r) + V_{\rm SE}^{\rm mag}(\v{r}).
 \ee
-
-
-\begin{figure}%[h]
-\centering\tiny
-\includegraphics[width=0.185\textwidth]{img/VacuumPol}~~~~~
-\includegraphics[width=0.185\textwidth]{img/SelfEnergy}
-\caption{\small Vacuum polarisation (left) and self-energy (right) diagrams. In the radiative potential method, the self-energy diagram is replaced with an effective local potential~\cite{FlambaumQED2005}.\label{fig:QED}}
-\end{figure}
-
-
-\begin{table}%[h]
-\small
-\centering
-\caption{\small 
-Breit and QED corrections to the electrid dipole (E1) reduced matrix elements of lowest $s$ and $p$ states of Cs at the RPA level (units: $|e|a_B$).
-\label{tab:QEDBreit-E1}}
-\begin{tabular}{r D{.}{.}{3.5} D{.}{.}{2.5} D{.}{.}{2.5}  D{.}{.}{3.5}}
-\hline
-\hline
-&\multicolumn{1}{c}{RPA}&\multicolumn{1}{c}{$\delta$Breit}&\multicolumn{1}{c}{$\delta$QED}&\multicolumn{1}{c}{Total}\\
-\hline
-$6s_{1/2} - 6p_{1/2}$	& -4.97441	& 0.00000	& -0.00334	& -4.97775\\
-$6s_{1/2} - 7p_{1/2}$	& -0.23873	& -0.00161	& 0.00241	& -0.23794\\
-$6s_{1/2} - 6p_{3/2}$	& 7.01308	& 0.00013	& 0.00493	& 7.01814\\
-$6s_{1/2} - 7p_{3/2}$	& 0.50874	& 0.00031	& -0.00282	& 0.50624\\
-$7s_{1/2} - 7p_{1/2}$	& -10.92107	& 0.00113	& -0.00687	& -10.92680\\
-$7s_{1/2} - 7p_{3/2}$	& 15.22745	& 0.00057	& 0.00985	& 15.23785\\
-$6p_{1/2} - 7s_{1/2}$	& 4.44937	& 0.00454	& -0.00444	& 4.44948\\
-$6p_{3/2} - 7s_{1/2}$	& 6.71222	& 0.00185	& -0.00557	& 6.70851\\
-\hline
-\hline
-\end{tabular}
-\end{table}
-
-
-
-
-
-
 
 
 
@@ -2049,13 +2771,72 @@ The interplay between the Breit/QED and correlation corrections turns out to be 
 
 
 
+\begin{figure}%[h]
+\centering\tiny
+\includegraphics[width=0.185\textwidth]{img/VacuumPol}~~~~~
+\includegraphics[width=0.185\textwidth]{img/SelfEnergy}
+\caption{\small Vacuum polarisation (left) and self-energy (right) diagrams. In the radiative potential method, the self-energy diagram is replaced with an effective local potential~\cite{FlambaumQED2005}.\label{fig:QED}}
+\end{figure}
+
+\begin{table}%[h]
+\small
+\centering
+\caption{\small 
+Breit and QED corrections to the removal energies of the lowest $s$ and $p$ states of Cs at the Hartree-Fock level (units: cm$^{-1}$).
+\label{tab:QEDBreit-En}}
+\begin{tabular}{r D{.}{.}{6.2} D{.}{.}{2.2} D{.}{.}{2.2}  D{.}{.}{6.2}}
+\hline
+\hline
+&\multicolumn{1}{c}{HF}&\multicolumn{1}{c}{$\delta$Breit}&\multicolumn{1}{c}{$\delta$QED}&\multicolumn{1}{c}{Total}\\
+\hline
+ $6s_{1/2}$	& -27954.06	& 3.20	& 15.97	& -27934.93\\
+ $6p_{1/2}$	& -18790.51	& 7.49	& -0.80	& -18783.82\\
+ $6p_{3/2}$	& -18388.79	& 2.87	& -0.11	& -18386.03\\
+ $7s_{1/2}$	& -12112.23	& 1.08	& 4.35	& -12106.81\\
+ $7p_{1/2}$	& -9222.63	& 2.69	& -0.28	& -9220.23\\
+ $7p_{3/2}$	& -9079.24	& 1.05	& -0.04	& -9078.23\\
+\hline
+\hline
+\end{tabular}
+\end{table}
+
+
+
+\begin{table}%[h]
+\small
+\centering
+\caption{\small 
+Breit and QED corrections to the electrid dipole (E1) reduced matrix elements of lowest $s$ and $p$ states of Cs at the RPA level (units: $|e|a_B$).
+\label{tab:QEDBreit-E1}}
+\begin{tabular}{r D{.}{.}{3.5} D{.}{.}{2.5} D{.}{.}{2.5}  D{.}{.}{3.5}}
+\hline
+\hline
+&\multicolumn{1}{c}{RPA}&\multicolumn{1}{c}{$\delta$Breit}&\multicolumn{1}{c}{$\delta$QED}&\multicolumn{1}{c}{Total}\\
+\hline
+$6s_{1/2} - 6p_{1/2}$	& -4.97441	& 0.00000	& -0.00334	& -4.97775\\
+$6s_{1/2} - 7p_{1/2}$	& -0.23873	& -0.00161	& 0.00241	& -0.23794\\
+$6s_{1/2} - 6p_{3/2}$	& 7.01308	& 0.00013	& 0.00493	& 7.01814\\
+$6s_{1/2} - 7p_{3/2}$	& 0.50874	& 0.00031	& -0.00282	& 0.50624\\
+$7s_{1/2} - 7p_{1/2}$	& -10.92107	& 0.00113	& -0.00687	& -10.92680\\
+$7s_{1/2} - 7p_{3/2}$	& 15.22745	& 0.00057	& 0.00985	& 15.23785\\
+$6p_{1/2} - 7s_{1/2}$	& 4.44937	& 0.00454	& -0.00444	& 4.44948\\
+$6p_{3/2} - 7s_{1/2}$	& 6.71222	& 0.00185	& -0.00557	& 6.70851\\
+\hline
+\hline
+\end{tabular}
+\end{table}
+
+
+
+
+
 
 
 
 %======================================================
 %\clearpage
-%~\\\hrule
 \newpage
+~\\\hrule
 \appendix
 
 \setcounter{equation}{0}
@@ -2071,6 +2852,42 @@ The interplay between the Breit/QED and correlation corrections turns out to be 
 Some useful equations and definitions are given here; see also Refs.~\cite{LLVol3,JohnsonBook2007,Sobelman1992,Varshalovich1988,Lindgren1986,Sapirstein1998,DzubaHFS1984}.
 Note that notation differs between all these sources, I have introduced some notation not found in the above.
 
+
+%======================================================
+\subsection{One- and two-body matrix elements for many-particle states}
+
+
+Let $F$ and $G$ be one- and two-particle operators
+\begin{align}
+\hat F = \sum_i \hat f(\v{r}_i) \quad,\qquad
+\hat G = \sum_{i<j} \hat g(\v{r}_i,\v{r}_j),
+\end{align}
+where $f(\v{r}_i)$ acts on the $i$th electron; $g(\v{r}_i,\v{r}_j)$ acts on the pair of electrons $\{i,j\}$.
+Here, I use the short-hand notation from Ref.~\cite{Lindgren1986}:
+\[
+\ket{\Phi_i^n} = a_n^\dag a_i \ket{\Phi},
+\]
+with $i$, $j$ denoting occupied states (core and valence), and $m$, $n$, denoting unoccupied virtual excited states.
+$\ket{\Phi}$ is a many-body Slater determinant wavefunction including the Hartree-Fock core and the occupied valence states (e.g., we may have $\ket{\Phi} = a_v^\dag\ket{0_{\rm HF}}$), see Ref.~\cite{Lindgren1986}.
+Then, we have for diagonal matrix elements:
+\begin{equation}\begin{split}
+\bra{\Phi}F\ket{\Phi} &= \sum_i \bra{i}f\ket{i}  = \sum_i f_{ii}\\
+\bra{\Phi}G\ket{\Phi} &= \sum_{i<j} \left( \bra{ij}g\ket{ij} - \bra{ji}g\ket{ij} \right) = \sum_{i<j} (g_{ijij}-g_{jiij}),
+\end{split}\end{equation}
+for matrix elements between states that differ by a single orbital:
+\begin{equation}\begin{split}
+\bra{\Phi^n_i}F\ket{\Phi} &=  \bra{n}f\ket{i}  = f_{ni}\\
+\bra{\Phi^n_i}G\ket{\Phi} &= \sum_{j} \left( \bra{nj}g\ket{ij} - \bra{jn}g\ket{ij} \right)  = \sum_{j} (g_{njij}-g_{jnij}) ,
+\end{split}\end{equation}
+and for matrix elements between states that differ by two orbitals:
+\begin{equation}\begin{split}\label{eq:G-twobody}
+\bra{\Phi^{nm}_{ij}}F\ket{\Phi} &=  0 \\
+\bra{\Phi^{nm}_{ij}}G\ket{\Phi} &= \bra{nm}g\ket{ij} - \bra{mn}g\ket{ij} = g_{nmij}-g_{mnij}.
+\end{split}\end{equation}
+
+
+
+
 %======================================================
 \subsection[Coulomb Integrals]{Coulomb Integrals\label{sec:app-Coulomb}\footnote{Functions to calculate Coulomb integrals defined in:~/src/Coulomb/, and functions for angular coefficients are in:~/src/Angular/}}
 
@@ -2079,7 +2896,7 @@ The Coulomb integral $g_{abcd}$ can be expressed:
 g_{abcd} &\equiv \int\d r_1^3\d r_2^3 \, \psidag_a(\v{r_1})\psidag_b(\v{r_2})\frac{1}{|\v{r}_{12}|}\psi_c(\v{r_1})\psi_d(\v{r_2}) \\
 & = \sum_{kq} (-1)^q \bra{\k_a m_a}C^k_{-q}\ket{\k_c m_c} \bra{\k_b m_b}C^k_{q}\ket{\k_d m_d} R^k_{abcd},\notag
 \end{align}
-where $\v{r}_{12}=|\v{r}_r-\v{r}_2|$ is expanded in terms of spherical tensors (multipolarities, $k$):
+where $\v{r}_{12}=|\v{r}_r-\v{r}_2|$ is expanded over multipolarities, $k$:
 \be
 \frac{1}{\v{r}_{12}} = \sum_{kq} \frac{r_<^k}{r_>^{k+1}}(-1)^q C^k_{-q}(\v{n}_1)C^k_{q}(\v{n}_2),
 \ee
@@ -2087,14 +2904,14 @@ with $r_{<} \equiv \min(r,r')$, and $C^k_{q}$ is a spherical tensor:
 \be
 C^k_{q} \equiv \sqrt{\frac{4\pi}{2k+1}}Y_{kq}(\v{n}).
 \ee
-It's also common to define the anti-symmetrised Coulomb integral:
+We also define the anti-symmetrised Coulomb integral [see (\ref{eq:G-twobody})]:
 \be
  \widetilde g_{abcd} =  g_{abcd} -  g_{abdc}.
 \ee
 It is easy to see that $g$ is symmetric under $r_1\leftrightarrow r_2$, and on interchange of initial/final states:
 $g_{abcd} = g_{badc} = g_{cdab} = g_{dcba}$.
 
-%
+
 The $R^k_{abcd}$ factor (radial Coulomb integral) is defined:
 \begin{align}
 R^k_{abcd} =& \int\d r_1 \, \left[f_a(r_1)f_c(r_1) + g_a(r_1)g_c(r_1)\right]\, y^k_{bd}(r_1),
@@ -2111,9 +2928,9 @@ The $y^k_{bd}$ are often called Hartree screening functions.
 
 The angular factor is defined:
 \begin{align}
-C^k_{ab}&\equiv \bra{\k_a}|C^k|\ket{\k_b} ,\\
-&= (-1)^{j_a+1/2}\sqrt{[j_a][j_b]}\threej{j_a}{j_b}{k}{-1/2}{1/2}{0}\pi(l_a+l_b+k) \\
-&\equiv  (-1)^{j_a+1/2} \widetilde C^k_{ab},
+C^k_{ab}&\equiv \bra{\k_a}|C^k|\ket{\k_b} \equiv  (-1)^{j_a+1/2} \widetilde C^k_{ab} ,\\
+&= (-1)^{j_a+1/2}\sqrt{[j_a][j_b]}\threej{j_a}{j_b}{k}{-1/2}{1/2}{0}\pi(l_a+l_b+k) ,
+%&\equiv  (-1)^{j_a+1/2} \widetilde C^k_{ab},
 \end{align}
 where $\widetilde C^k_{ac}$
  is a short-hand notation that is useful since $\widetilde C^k_{ac} = \widetilde C^k_{ca}$, and $\pi(x)=1$ if $x$ is even, but $=0$ if $x$ is odd.
@@ -2125,12 +2942,12 @@ where $\widetilde C^k_{ac}$
 We further define the useful integrals $Q^k$, $W^k$, and $P^k$:
 \begin{align}
 Q^k_{abcd} &\equiv  (-1)^{k + j_a+j_b+1}\bra{\k_a}|C^k|\ket{\k_c} \bra{\k_b}|C^k|\ket{\k_d} R^k_{abcd} \notag\\
-&= (-1)^k \widetilde C^k_{ac}\widetilde C^k_{bd}R^k_{abcd}
-\end{align}
-and
-\begin{align}
+&= (-1)^k \widetilde C^k_{ac}\widetilde C^k_{bd}R^k_{abcd}\\
+%\end{align}
+%and
+%\begin{align}
 W^k_{abcd} &\equiv Q^k_{abcd} + [k] \sum_\lambda \sixj{j_a}{j_c}{k}{j_b}{j_d}{\lambda}Q^\lambda_{abdc} \notag\\
-& \equiv Q^k_{abcd}  + P^k_{abcd}
+& \equiv Q^k_{abcd}  + P^k_{abcd}.
 %\\
 %Z^k_{abcd} &=  (-1)^{j_a+j_b+1} W^k_{abcd}
 \end{align}
@@ -2145,10 +2962,11 @@ $Q^k_{abcd}$  is convenient due to symmetries: $c\leftrightarrow a ,~ b\leftrigh
 % Q^k_{abcd},
 %\end{multline}
 
-Our $Q^k$ is related to the commonly-used $X^k$~\cite{Lindgren1986} as:
+Our $Q^k$ and $W^k$ is related to the $X^k$ and $Z^k$ from Ref.~\cite{Lindgren1986} as:
 \begin{align}
 X^k_{abcd} &\equiv  (-1)^k \bra{\k_a}|C^k|\ket{\k_c} \bra{\k_b}|C^k|\ket{\k_d} R^k_{abcd} \notag\\
- & = (-1)^{j_a+j_b+1}Q^k_{abcd}
+ & = (-1)^{j_a+j_b+1}Q^k_{abcd}\\
+ Z^k_{abcd} &=  (-1)^{j_a+j_b+1} W^k_{abcd}
 \end{align}
 
 
