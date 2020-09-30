@@ -74,8 +74,8 @@ int main(int argc, char *argv[]) {
   const IO::UserInput input(input_file);
 
   std::ostringstream out_buff;
-  // out_buff << "diracSCAS test. git:" << IO::git_info() << "\n";
-  out_buff << "diracSCAS test. git:" << GitInfo::gitversion << "\n";
+  // out_buff << "ampsci test. git:" << IO::git_info() << "\n";
+  out_buff << "ampsci test. git:" << GitInfo::gitversion << "\n";
   out_buff << IO::time_date() << "\n";
 
   input.check("UnitTests",

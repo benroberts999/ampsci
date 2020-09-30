@@ -11,14 +11,14 @@
 #include <string>
 
 int main(int argc, char *argv[]) {
-  IO::ChronoTimer timer("\ndiracSCAS");
-  const std::string input_file = (argc > 1) ? argv[1] : "diracSCAS.in";
+  IO::ChronoTimer timer("\nampsci");
+  const std::string input_file = (argc > 1) ? argv[1] : "ampsci.in";
   IO::print_line();
 
   // Read in input options file
   std::cout << "Reading input from: " << input_file << "\n";
   const IO::UserInput input(input_file);
-  std::cout << "diracSCAS git:" << GitInfo::gitversion << " ("
+  std::cout << "ampsci git:" << GitInfo::gitversion << " ("
             << GitInfo::gitbranch << ")\n";
   input.print();
 

@@ -15,7 +15,7 @@ namespace UnitTest {
 bool CorrelationPotential(std::ostream &obuff) {
   bool pass = true;
 
-  if (false) { // Compare with  K. Beloy and A. Derevianko,
+  { // Compare with  K. Beloy and A. Derevianko,
     // Comput. Phys. Commun. 179, 310 (2008).
     Wavefunction wf({4000, 1.0e-6, 100.0, 0.33 * 100.0, "loglinear", -1.0},
                     {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
@@ -36,8 +36,8 @@ bool CorrelationPotential(std::ostream &obuff) {
       wf.formBasis({"spdfghi", 100, 11, 0.0, 1.0e-6, 50.0, false});
       wf.formSigma(1, false);
       const auto Sigma = wf.getSigma();
-      std::cout << "Table 2 from Beloy, Derevianko, Comput.Phys.Commun. 179, "
-                   "310 (2008):\n";
+      std::cout << "cf Table 2 from Beloy, Derevianko, Comput.Phys.Commun. "
+                   "179, 310 (2008):\n";
       for (int l = 0; l <= 6; ++l) {
         const auto de = Sigma->SOEnergyShift(Fv, Fv, l);
         vals.push_back(de - prev);
@@ -63,7 +63,7 @@ bool CorrelationPotential(std::ostream &obuff) {
   }
 
   //****************************************************************************
-  if (false) { // Compare Dzuba, only using up to l=4 for splines
+  { // Compare Dzuba, only using up to l=4 for splines
     // Note: Works pretty well up to f states (not sure if difference is ok)
     auto dzuba_g = std::vector{
         -0.0195938,  -0.00399679, -0.00770113, -0.00682331, -0.00214125,
@@ -96,7 +96,7 @@ bool CorrelationPotential(std::ostream &obuff) {
   }
   //
 
-  if (false) { // Compare Dzuba, using up to l=6 for splines
+  { // Compare Dzuba, using up to l=6 for splines
     auto dzuba_i = std::vector{
         -0.02013813, -0.00410942, -0.00792483, -0.00702407, -0.00220878,
         -0.00199737, -0.01551449, -0.01466935, -0.00035253, -0.00035234};

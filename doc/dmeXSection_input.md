@@ -2,7 +2,7 @@
 
  * Calculates the cross-section and event rates for ionisation of atoms
  by scattering of DM particle.
- * Takes in the output of "atomicKernal" (see diracSCAS_input for details)
+ * Takes in the output of "atomicKernal" (see ampsci_input for details)
  * Also calculates "observable" event rates, accounting for detector thresholds
  and resolutions. For now, just for DAMA detector. Will add for XENON
  * For definitions/details, see:

@@ -1,10 +1,10 @@
-# Input options for: diracSCAS
+# Input options for: ampsci
 
-This outlines/describes the input options/usage for diracSCAS. For a description of the physics, see: [diracSCAS.pdf](https://benroberts999.github.io/diracSCAS/diracSCAS.pdf)
+This outlines/describes the input options/usage for ampsci. For a description of the physics, see: [ampsci.pdf](https://benroberts999.github.io/ampsci/ampsci.pdf)
 
-* The **diracSCAS** program should be run as:
-  * _./diracSCAS inputFile.in_
-  * "inputFile.in" is a plain-text input file, that contains all input options (if no input file is given, program looks for the default one, named "diracSCAS.in")
+* The **ampsci** program should be run as:
+  * _./ampsci inputFile.in_
+  * "inputFile.in" is a plain-text input file, that contains all input options (if no input file is given, program looks for the default one, named "ampsci.in")
 * First, the program reads in the main input options from the four main input "blocks" (Atom, Nucleus, HartreeFock, and Grid). It will use these to generate wavefunction/Hartree-Fock etc. Then, any number of optional "modules" are run using the above-calculated wavefunctions (e.g., these might calculate matrix elements, run tests etc.). The input blocks and options can be given in any order
 * In general, the input file will have the following format:
 

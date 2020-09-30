@@ -32,7 +32,7 @@ DOXYFILE_ENCODING      = UTF-8
 # title of most generated pages and in a few other places.
 # The default value is: My Project.
 
-PROJECT_NAME           = "diracSCAS"
+PROJECT_NAME           = "ampsci"
 
 # The PROJECT_NUMBER tag can be used to enter a project or revision number. This
 # could be handy for archiving the generated documentation or if some version
@@ -790,7 +790,7 @@ WARN_LOGFILE           =
 # spaces. See also FILE_PATTERNS and EXTENSION_MAPPING
 # Note: If this tag is empty the current directory is searched.
 
-INPUT                  = ./src ./README.md ./doc/diracSCAS_input.md ./doc/periodicTable_input.md ./doc/wigner_input.md ./doc/dmeXSection_input.md
+INPUT                  = ./src ./README.md ./doc/ampsci_input.md ./doc/periodicTable_input.md ./doc/wigner_input.md ./doc/dmeXSection_input.md
 
 # This tag can be used to specify the character encoding of the source files
 # that doxygen parses. Internally doxygen uses the UTF-8 encoding. Doxygen uses

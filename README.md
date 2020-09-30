@@ -1,45 +1,53 @@
-# diracSCAS: Relativistic, self-consistent atomic structure code.
+# ampsci
+_*Atomic Many-body Perturbation theory in the Screened Coulomb Interaction*_
 
-![Build][build-badge]
-![Tests][tests-badge]
-[![][doxygen-badge]][docs-url]
-[![][manual-badge]][man-url]
+Solves the Dirac equation for single-valence atomic systems using the Hartree-Fock + correlation potential method (Dzuba-Flambaum-Sushkov method).
+Fully relativistic, includes electron correlations (all-orders screening and hole-particle interaction), finite-nuclear size, Breit interaction, radiative QED effects, and RPA for matrix elements.
+QED is included via the Ginges-Flambaum radiative potential method.
+Can solve for continuum states with high energy.
+Calculates ionisation cross sections with high values for energy/momentum transfer. Parallelised using openMP.
 
-Solves the Dirac equation for single-valence atomic systems using the Hartree-Fock + second-order correlation potential method.
-Fully relativistic, includes finite-nuclear size, Breit interaction, QED effects, RPA for matrix elements, and can solve for continuum states (energy normalisation).
-QED corrections included via the Ginges-Flambaum radiative potential method.
-Calculates ionisation cross sections with high values for energy/momentum transfer.
+Designed to be fast, accurate, and easy to use.
+The "modules" system (see documentation) makes it simple to add your own routines to use the atomic wavefunctions to calculate whatever properties you may be interested in.
 
- * The code is on GitHub: [github.com/benroberts999/diracSCAS](https://github.com/benroberts999/diracSCAS)
-
+ * The code is on GitHub: [github.com/benroberts999/ampsci](https://github.com/benroberts999/ampsci)
  * This file is best viewed with a markdown reader (or on GitHub)
+
+ ![Build][build-badge]
+ ![Tests][tests-badge]
+ [![][doxygen-badge]][docs-url]
+ [![][manual-badge]][man-url]
 
 
 ## Documentation
 
- * Easiest is to view online: [benroberts999.github.io/diracSCAS/](https://benroberts999.github.io/diracSCAS/)
- * Also available in doc/
+There are four documentation types provided:
+ * All documentation available online: [benroberts999.github.io/ampsci/](https://benroberts999.github.io/ampsci/)
+ * also can be found in doc/ directory
 
-There are three documentation types provided:
 
- 1. Input options -- how to run the code
-    * _doc/diracSCAS_input.md_ -- detailed info on all input options
+ 1. README (this document)
+    * Brief overview, including compilation instructions (given below)
+
+
+ 2. Input options -- how to run the code
+    * _doc/ampsci_input.md_ -- detailed info on all input options
       * Best viewed with a markdown reader or on GitHub
-    * See also: _doc/diracSCAS.in.example_ -- an example input file for Cs
+    * See also: _doc/ampsci.in.example_ -- an example input file for Cs
       * copy to main directory + remove the '.example'
-      * _$cp ./doc/diracSCAS.in.example ./diracSCAS.in_
+      * _$cp ./doc/ampsci.in.example ./ampsci.in_
 
 
- 2. Physics documentation: _diracSCAS.pdf_ -- Description of physics/methods used in the code
+ 3. Physics documentation: _ampsci.pdf_ -- Description of physics/methods used in the code
     * Includes many references to the works where the methods implemented here were developed.
-    * Available online: [benroberts999.github.io/diracSCAS/diracSCAS.pdf](https://benroberts999.github.io/diracSCAS/diracSCAS.pdf)
-    * Latex file provided in doc/tex/diracSCAS.tex
+    * Available online: [benroberts999.github.io/ampsci/ampsci.pdf](https://benroberts999.github.io/ampsci/ampsci.pdf)
+    * Latex file provided in doc/tex/ampsci.tex
     * If you have latex installed, you can use Makefile to generate the pdf
-      * Run '_$make docs_' -- this will create new pdf file: 'doc/diracSCAS.pdf'
+      * Run '_$make docs_' -- this will create new pdf file: 'doc/ampsci.pdf'
 
 
- 3. Code documentation -- details on classes/function in the code
-    * Available online: [benroberts999.github.io/diracSCAS/](https://benroberts999.github.io/diracSCAS/)
+ 4. Code documentation -- details on classes/function in the code
+    * Available online: [benroberts999.github.io/ampsci/](https://benroberts999.github.io/ampsci/)
     * Auto-generated (Doxygen), so be wary of mistakes/typos etc.
     * You can generate this by running '_$make doxy_', which produces html documentation (see doc/html/index.html), and a pdf version (doc/documentation.pdf) -- but it's much easier to view this online
 
@@ -53,8 +61,11 @@ There are three documentation types provided:
  * All programs compiled using the Makefile (run _$make_)
  * The file _Makefile_ has some basic compilation options. It's currently set up to work on most linux systems; you may need to change a few options for others (see below)
  * Tested with g++ and clang++ on linux and mac (requires c++17)
+    * Works+tested with g++7 and newer (best w/ g++9)
+    * Works+tested with clang++-6 and newer (best w/ clang++-9)
 
-Note: makes use of GSL libraries (requires ver 2.0+, tested with 2.1, 2.6) https://www.gnu.org/software/gsl/, and LAPACK. These must be installed for the code to run (see below).
+Requires GSL (GNU scientific libraries) https://www.gnu.org/software/gsl/, and LAPACK. These must be installed for the code to run (see below).
+ * Requires GSL ver 2.0+ (tested with 2.1, 2.6)
 
 
 ### Compilation: Linux:
@@ -64,7 +75,7 @@ Note: makes use of GSL libraries (requires ver 2.0+, tested with 2.1, 2.6) https
   * Install GSL libraries: _$sudo apt-get install libgsl-dev_
   * May also need LAPACK/BLAS libraries: _$sudo apt-get install libatlas-base-dev liblapack-dev libblas-dev_
   * Install the compiler: _$sudo apt-get install g++_ and/or _$sudo apt-get install clang++_
-  * Then compile by running _$make_ from the diracSCAS directory
+  * Then compile by running _$make_ from the ampsci directory
   * To use with openMP (for parallelisation) with clang++, you might have to also install clangs openmp libraries: _$sudo apt install libomp5_ (and perhaps _$sudo apt install libomp-dev_)
 
 
@@ -75,7 +86,7 @@ Note: makes use of GSL libraries (requires ver 2.0+, tested with 2.1, 2.6) https
   * Seems to work best with the homebrew version of gcc. Install as: _$brew install gcc_
   * Note: you may need to change the compiler from `g++` to `g++-9` (or similar), or update your environment variables, since calling g++ on mac actually calls clang++ by default
   * You might have to tell the compiler how to link to the GSL library; see below
-  * Then compile by running _$make_ from the diracSCAS directory
+  * Then compile by running _$make_ from the ampsci directory
 
 
 ### Compilation: Windows:
@@ -99,21 +110,22 @@ Then, the compilation + use can proceed as per Linux above.
  * NOTE: If you get the following error, it is because the code is linking to a very old version of GSL. You might need to update GSL. If you have updated GSL (to at least version 2.0) and still get the message, the code is probably linking against the wrong version of GSL; see above to point the compiler to the correct version
    * **error: too few arguments to function ‘int gsl_bspline_deriv_eval**
 
+
 --------------------------------------------------------------------------------
 
-## diracSCAS (main program)
+## ampsci (main program)
 
- * Solves the Dirac equation for atomic systems using the Hartree-Fock + second-order correlation potential method.
  * Input taken from a plain text file.
- * An example input file is included: doc/diracSCAS.in.example
-    * e.g.: _$ cp ./doc/diracSCAS.in.example ./diracSCAS.in_
+ * An example input file is included: doc/ampsci.in.example
+    * e.g.: _$ cp ./doc/ampsci.in.example ./ampsci.in_
  * You may re-name this file (e.g., to "filename.txt"), then run as:
-    * _$ ./diracSCAS filename.txt_
-    * If no input filename is given, program will assume input filename is 'diracSCAS.in':
+    * _$ ./ampsci filename.txt_
+    * If no input filename is given, program will assume input filename is 'ampsci.in':
  * Note: input file uses c++-like format + line comments; tell your editor that the file is a cpp file to get nice colourisation and auto commenting
- * See _doc/diracSCAS_input.md_ for a full list of input options + descriptions
- * See _diracSCAS.pdf_ for a description of the physics, and for references to the works where the methods implemented here were developed.
-   * Available on GitHub: [benroberts999.github.io/diracSCAS/diracSCAS.pdf](https://benroberts999.github.io/diracSCAS/diracSCAS.pdf)
+ * See _doc/ampsci_input.md_ for a full list of input options + descriptions
+ * See _ampsci.pdf_ for a description of the physics, and for references to the works where the methods implemented here were developed.
+   * Available on GitHub: [benroberts999.github.io/ampsci/ampsci.pdf](https://benroberts999.github.io/ampsci/ampsci.pdf)
+
 
 --------------------------------------------------------------------------------
 
@@ -181,9 +193,9 @@ Units:
  * but, each number can be separated by any symbol (space, comma etc.)
 
 
-[docs-url]: https://benroberts999.github.io/diracSCAS/
-[man-url]: https://benroberts999.github.io/diracSCAS/diracSCAS.pdf
-[build-badge]: https://github.com/benroberts999/diracSCAS/workflows/Build/badge.svg
-[tests-badge]: https://github.com/benroberts999/diracSCAS/workflows/Tests/badge.svg
+[docs-url]: https://benroberts999.github.io/ampsci/
+[man-url]: https://benroberts999.github.io/ampsci/ampsci.pdf
+[build-badge]: https://github.com/benroberts999/ampsci/workflows/Build/badge.svg
+[tests-badge]: https://github.com/benroberts999/ampsci/workflows/Tests/badge.svg
 [doxygen-badge]: https://img.shields.io/badge/documentation-doxygen-blue
-[manual-badge]: https://img.shields.io/badge/diracSCAS-pdf-blue
+[manual-badge]: https://img.shields.io/badge/physics%20docs-ampsci%20(pdf)-blue

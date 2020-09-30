@@ -1,23 +1,23 @@
 LATEX_CMD=pdflatex
 
-all: diracSCAS.pdf
+all: ampsci.pdf
 
-pdf: diracSCAS.pdf
+pdf: ampsci.pdf
 
-diracSCAS.pdf: clean diracSCAS.tex
-	$(LATEX_CMD) diracSCAS
-	#bibtex diracSCAS #
-	$(LATEX_CMD) diracSCAS
+ampsci.pdf: clean ampsci.tex
+	$(LATEX_CMD) ampsci
+	#bibtex ampsci #
+	$(LATEX_CMD) ampsci
 	latex_count=8 ; \
-	while egrep -s 'Rerun (LaTeX|to get cross-references right)' diracSCAS.log && [ $$latex_count -gt 0 ] ;\
+	while egrep -s 'Rerun (LaTeX|to get cross-references right)' ampsci.log && [ $$latex_count -gt 0 ] ;\
 	    do \
 	      echo "Rerunning latex...." ;\
-	      $(LATEX_CMD) diracSCAS ;\
+	      $(LATEX_CMD) ampsci ;\
 	      latex_count=`expr $$latex_count - 1` ;\
 	    done
-	#bibtex diracSCAS #
-	$(LATEX_CMD) diracSCAS
+	#bibtex ampsci #
+	$(LATEX_CMD) ampsci
 
 
 clean:
-	rm -f *.ps *.dvi *.aux *.toc *.idx *.ind *.ilg *.log *.out *.brf *.blg diracSCAS.pdf
+	rm -f *.ps *.dvi *.aux *.toc *.idx *.ind *.ilg *.log *.out *.brf *.blg ampsci.pdf

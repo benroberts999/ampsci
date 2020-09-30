@@ -120,7 +120,7 @@
 
 %=================================================
 
-%\title{\Large DiracSCAS: Method}
+%\title{\Large ampsci: Method}
 %\author{
 %B.\ M.\ Roberts
 %}
@@ -132,7 +132,7 @@
 
 %ampsci
 \pagestyle{fancy}
-\fancyhead[L]{DiracSCAS: Method}
+\fancyhead[L]{ampsci: Method}
 \fancyhead[R]{B.\ M.\ Roberts -- \updatedDate}
 \begin{document}
 
@@ -143,8 +143,8 @@
 \vspace{0.2cm}
 \noindent
 This is a brief description of the methods used in the code for atomic structure calculations (for single-valence systems), and has definitions for all the relevant equations.
-The code is available online:\ \href{https://github.com/benroberts999/diracSCAS}{github.com/benroberts999/diracSCAS}; see the ``readme'' file for compiling/usage instructions.
-Some basic documentation for the code is also available:\ \href{https://benroberts999.github.io/diracSCAS/}{benroberts999.github.io/diracSCAS/}.
+The code is available online:\ \href{https://github.com/benroberts999/ampsci}{github.com/benroberts999/ampsci}; see the ``readme'' file for compiling/usage instructions.
+Some basic documentation for the code is also available:\ \href{https://benroberts999.github.io/ampsci/}{benroberts999.github.io/ampsci/}.
 This is not meant as a complete description of the physics, but references are provided to more detailed descriptions.
 \end{abstract}
 \vspace{0.1cm}
@@ -253,8 +253,8 @@ To form $V_{\rm nuc}$, we assume the nuclear charge is distributed according to 
 \begin{equation}\label{eq:FermiNuc}
 \rho(r) = {\rho_0}\,{\left(1+\exp[(r-c)/a]\right)^{-1}},
 \end{equation}
-where $\rho_0$ is the normalisation factor,  ($\int\rho\,\d V = Z$), 
-$c$ is the half-density radius, and 
+where $\rho_0$ is the normalisation factor,  ($\int\rho\,\d V = Z$),
+$c$ is the half-density radius, and
 $a$ is defined via the 90--10\% density fall-off {${t\equiv 4a\ln3}$} (known as the ``skin thickness''),
 which we take to be $t=2.3$\,{\rm fm} for all heavy isotopes.
 The half-density radius is related to $a$ and $r_{\rm rms}$, the root-mean-square charge radius, as $c = \sqrt{(5 r_{\rm rms}^2 -7\pi^2a^2)/3}$.
@@ -263,7 +263,7 @@ The code also allows you to assume a spherical nucleus (mainly used for testing)
 
 %The code also allows you to assume a spherical nucleus: % (mainly used for testing).
 %\be
-%V_{\rm nuc}^{\rm sph.}(r) = 
+%V_{\rm nuc}^{\rm sph.}(r) =
 %-Z \left({3r_{\rm nuc}^2 - r^2}\right)/\,{2r_{\rm nuc}^3} \qquad {\rm for} \quad r<r_{\rm nuc},
 %\ee
 %where $r_{\rm nuc}=\sqrt{5/3}r_{\rm rms}$,
@@ -299,14 +299,14 @@ Therefore, we can solve for $ F(r+\delta r)$ algebraically:
 \]
 
 As written, this method is far too crude, owing to the very rough approximation used in Eq.~(\ref{eq:ODEsimple}).
-More accurate approaches, known as multi-step methods, approximate the value of the derivative along the interval $(r, \, r+\delta r)$ with greater accuracy by using more previous points in the estimation. 
+More accurate approaches, known as multi-step methods, approximate the value of the derivative along the interval $(r, \, r+\delta r)$ with greater accuracy by using more previous points in the estimation.
 The specific method we use (Adams-Moulton method)
 %\footnote{In the code, we can use the method of order 5 to 8 (default is 5; changing makes essentially no difference) -- must be set at compile time.})
  is described in detail in Ref.~\cite{JohnsonBook2007}.
 
 
 
-In general, Eq.~(\ref{eq:dF}) will have solutions for any given $\en$. 
+In general, Eq.~(\ref{eq:dF}) will have solutions for any given $\en$.
 We are typically interested in the specific bound-state solutions, for which $F\to0$ as $r\to\infty$, and $F(0)=0$.
 To solve the bound-state problem, an initial $\en$ is guessed, and the DE is solved using the multi-step method.
 Then, small adjustments are made to $\en$ until (a) we have the correct state ($n\k$) determined by the number of nodes of the orbital ($n-l-1$), and (b) we have the correct boundary conditions.
@@ -330,7 +330,7 @@ see Fig.~\ref{fig:H-SolveBS} for an example.
 \begin{figure}
 \centering
 \includegraphics[width=0.4\textwidth]{img/H-SolveBS}
-\caption{\small Hydrogen $1s$ orbital, as calculated at the first though 7th iteration. 
+\caption{\small Hydrogen $1s$ orbital, as calculated at the first though 7th iteration.
 For this example, the initial energy guess was $-0.3$au, and converged to $-0.500006566..$ to parts in $10^{-16}$ in 12 iterations.\label{fig:H-SolveBS}}
 \end{figure}
 
@@ -362,8 +362,8 @@ We don't use a uniformly spaced grid, since the wavefunctions vary very rapidly 
 We define a non-uniformly-spaced radial grid ($r_i$) in terms of a uniformly spaced $u$ grid ($u_{i+1}=u_i+\delta u$).
 In this case, integrals become:
 \be
-\int_{0}^{\infty} f(r)\,\d r \to 
-\int_{r_0}^{\rm r_{max}} f(r)\,\d r \to 
+\int_{0}^{\infty} f(r)\,\d r \to
+\int_{r_0}^{\rm r_{max}} f(r)\,\d r \to
 \int_{u_0}^{u_{\rm max}} f(r(u))\frac{\d r}{\d u}\,\d u,
 \ee
 which numerically becomes:
@@ -379,7 +379,7 @@ In the code, we can set either a logarithmic grid, defined:
 u &= \ln(r), \qquad
 \frac{\d r}{\d u} = r,
 \end{align}
-or a mixed log-linear grid, defined: 
+or a mixed log-linear grid, defined:
 \begin{align}
 u &= r + b \ln(r), \qquad
 \frac{\d r}{\d u} = \frac{r}{r + b},
@@ -423,7 +423,7 @@ F(r) = G_\infty(r) \int_0^r \frac{G_0(r')^T \, S(r')}{c\,w(r')}\,\d r'r'
 +  G_0(r) \int_r^\infty \frac{G_\infty(r')^T \, S(r')}{c\,w(r')}\,\d r'
 \end{multline}
 ($A^T B \equiv f_A f_B + g_A g_B$)
-where $c=1/\alpha$. 
+where $c=1/\alpha$.
 The Wronskian,
 \be\label{eq:Green-Wronskian}
 w(r) = f_\infty(r) g_0(r) - f_0(r)g_\infty(r),
@@ -439,7 +439,7 @@ Note that this method clearly doesn't work if $w=0$; worse, the method can be nu
 %\begin{code}
 %\centering
 %{\footnotesize
-%\begin{lstlisting}               
+%\begin{lstlisting}
 %void regularAtOrigin(DiracSpinor &phi,
 %     const double en, const vector<double> &v,
 %     const double alpha);
@@ -458,7 +458,7 @@ Note that this method clearly doesn't work if $w=0$; worse, the method can be nu
 %\begin{code}
 %\centering
 %{\footnotesize
-%\begin{lstlisting}               
+%\begin{lstlisting}
 %DiracSpinor solve_inhomog(const int kappa,
 %     const double en, const vector<double> &v,
 %     const double alpha, const DiracSpinor &source);
@@ -467,7 +467,7 @@ Note that this method clearly doesn't work if $w=0$; worse, the method can be nu
 %     const double en, const vector<double> &v,
 %     const double alpha, const DiracSpinor &source);
 %
-%void solve_inhomog(DiracSpinor &phi, 
+%void solve_inhomog(DiracSpinor &phi,
 %     DiracSpinor &phi0, DiracSpinor &phiI,
 %     const double en, const std::vector<double> &v,
 %     const double alpha, const DiracSpinor &source);
@@ -514,7 +514,7 @@ We use (\ref{eq:cntm-norm}) to normalise the orbitals by enforcing the amplitude
 
 To do this, we have to extend the radial grid out to very large distances, often much larger than the normal grid used to solve the bound-state orbitals.
 The orbital is solved out to large $r$ until the amplitude/frequency of the oscillations becomes close enough to constant, and then the amplitude is re-scaled to match (\ref{eq:cntm-norm}).
-After solving, the orbital is only kept up until $r_{\rm max}$, since larger distances typically do not contribute to any required radial integrals. 
+After solving, the orbital is only kept up until $r_{\rm max}$, since larger distances typically do not contribute to any required radial integrals.
 %; see Code Block~\ref{code:cntm} for function interface.
 
 
@@ -531,9 +531,9 @@ After solving, the orbital is only kept up until $r_{\rm max}$, since larger dis
 %\begin{code}
 %\centering
 %{\footnotesize
-%\begin{lstlisting}               
-%void solveContinuum(DiracSpinor &phi, 
-%     const vector<double> &v, const Grid &ext_grid, 
+%\begin{lstlisting}
+%void solveContinuum(DiracSpinor &phi,
+%     const vector<double> &v, const Grid &ext_grid,
 %     const double r_asym0, const double alpha);
 %\end{lstlisting}}
 %\caption{\small\label{code:cntm}
@@ -552,7 +552,7 @@ The many-body atomic Hamiltonian may be expressed as
 \be\label{eq:H-manybody}
 H = \sum_i h_{\rm 0}(\v{r}_i) + \sum_{i<j}\frac{1}{|\v{r}_i-\v{r}_j|},
 \ee
-where 
+where
 \[h_0 = c \v{\alpha}\cdot\v{p} + c^2(\beta-1) + \hat V_{\rm nuc},\]
 is the single-particle Dirac Hamiltonian including only the nuclear potential.
 In order to solve the single-particle Dirac equation for an $N$ electron atom, we replace the complicated electron-electron repulsion term with an approximate potential:
@@ -618,7 +618,7 @@ $C^k_{ab}$ is the angular factor,
 \begin{multline}\label{eq:Ckab}
 C^k_{ab}\equiv\bra{\k_a}|C^k|\ket{\k_b} = (-1)^{j_a+1/2}\sqrt{[j_a][j_b]}\times\\\threej{j_a}{j_b}{k}{-1/2}{1/2}{0}\pi(l_a+l_b+k).
 \end{multline}
-Here, $\pi(x)=1(0)$ if $x$ is even(odd), and $[x]\equiv2x+1$. 
+Here, $\pi(x)=1(0)$ if $x$ is even(odd), and $[x]\equiv2x+1$.
 The $x_b$ term is the occupation fraction for shell $b$, and
 $\tilde x^a_b = x_b$ when $b\neq a$, but $\tilde x^a_a = 1$
 ($x_b=1$ for closed shell; this is an approximate way for treating HF equations for open-shell systems\footnote{The $i$ sum in (\ref{eq:Vhf-vector}) includes a sum over all occupied $m$ states; for partially filled shells, this doesn't include all $m$ values. So, to do the sum, we assume each $m$ is filled with equal probability -- i.e., that each $m$ is partially filled. We assume non-relativistic filling (e.g., $p_{1/2}$ and $p_{3/2}$ on equal footing).}).
@@ -723,7 +723,7 @@ The HF Hamiltonian is
 %\be
 %H = H_0 + V_{\rm nuc}+V_{\rm dir}+V_{\rm exch},
 %\ee
-%which we 
+%which we
 split in to local and non-local parts as $H_{\rm HF} = H_{\rm l}+V_{\rm nl}$, with
 \begin{align}
 H_{\rm l} &= H_0 + V_{\rm nuc}+fV_{\rm dir},\\
@@ -747,7 +747,7 @@ Then, the inhomogeneous equation has the form of Eq.~(\ref{eq:Green-inhomog}):
 \be
 \left( H_{\rm l}- \en\right)F = -V_{\rm nl}F.
 \ee
-Note that the ``source'' term in this case contains the solution $F$. 
+Note that the ``source'' term in this case contains the solution $F$.
 So the equations must be solved iteratively, with some starting approximation for the source term, so that the solution at the $n$th step depends on the approximate solution from the previous step.
 Further, $V_{\rm nl}$ and $H_{\rm l}$ also depend on the solution $F$ via (\ref{eq:Vhf}), and these are also formed at the $n$th step using $F^{(n-1)}$.
 That is, the equation we solve at each iteration is
@@ -767,7 +767,7 @@ where $\Delta V = V_{\rm HF}^{(n)} - V_{\rm HF}^{(n-1)}$.
 Instead of storing $F^{(n-1)}$ and $V_{\rm HF}^{(n-1)}$ for each iteration, we use $F^{(0)}$ and calculate the energy guess with respect to $\en^{(0)}$.
 
 In general, these solutions will not be correct eigenstates of the HF Hamiltonian and won't be correctly normalised.
-We therefore make small adjustments to the energy and orbital until $F$ is properly normalised and thus an eigenstate of the Hamiltonian. 
+We therefore make small adjustments to the energy and orbital until $F$ is properly normalised and thus an eigenstate of the Hamiltonian.
 This procedure is outlined in the next subsection~\ref{sec:hf-adjustEn}.
 
 Once the energy has been fine-tuned, and we have a normalised eigenstate, we continue the HF procedure.
@@ -840,9 +840,9 @@ Note that $V_{\rm nl} \delta F$ includes $V_{\rm exch} \delta F$, which must be 
 
 There are several methods for obtaining a localised approximation to the HF potential, a common  example is the ``Hartree-Fock-Slater'' method~\cite{Slater1951}.
 %
-Here, I outline a slightly different method %; while decidedly more dodgy, it actually 
+Here, I outline a slightly different method %; while decidedly more dodgy, it actually
 that gives reasonably good results.
-We use this only as a starting point for the HF/TDHF procedures, so the the final result does not depend on this potential. 
+We use this only as a starting point for the HF/TDHF procedures, so the the final result does not depend on this potential.
 The choice of a good starting approximation does, however, greatly speed up the convergence of the iterative procedures.
 
 Introducing the notation $v^x_{ab}$ [see Eq.~(\ref{eq:Vhf-radial})], the non-local exchange part of the HF potential can be expressed
@@ -868,19 +868,19 @@ We proceed by introducing a cut-off, $\lambda_a$, and only calculating the excha
 %
 Therefore, we write
 \be
- U^{(a)}_{\rm ex}(r) =  
+ U^{(a)}_{\rm ex}(r) =
 v^x_{aa}(r) + \sum_{b\neq a} v^x_{ab}(r) \Lambda(r)
 \ee
 with
 \be
-\Lambda(r) = 
+\Lambda(r) =
 \begin{cases}\dfrac{F_a^\dag(r) F_b(r)}{F_a^\dag F_a} & |F_a(r)|>\lambda_a\\
 0&\mathrm{otherwise}
 \end{cases}
 \ee
 %
 Of course, we don't apply the cut-off when $b=a$ in the sum, since here the cancellation is exact and there is no numerical instability.
-In fact, this $a=b$ term actually gives the dominating contribution to the exchange potential. 
+In fact, this $a=b$ term actually gives the dominating contribution to the exchange potential.
 Partly, the reason this method gives such good results already is that the dominating case is treated exactly.
 
 In the code, the cut-off is taken as
@@ -971,7 +971,7 @@ H_{ij}p_i &= \en S_{ij}p_i.
 %with
 %\begin{align}\label{eq:Hij-splines}
 %H_{ij} = \bra{S_i}\hat H_{\rm HF}\ket{S_j} \, , \qquad
-%S_{ij} = \braket{S_i|S_j}. 
+%S_{ij} = \braket{S_i|S_j}.
 %\end{align}
 There are $2N$ solutions of eigenvalues $\en$ with corresponding eigenvectors $\vec{p}$, which correspond to the spectrum of stationary states; $N$ of these correspond to negative-energy ($\en<-mc^2$) states.
 If the $S$ set is orthonormal, $B$ is just the identity, but in general it is not.
@@ -998,7 +998,7 @@ S_i^{\rm DKB}= \begin{cases}
 \twocomp{\frac{\alpha}{2}\left(\p_r-\kappa/r\right)b_{i-N}(r)}{b_{i-N}(r)}   & N\leq i<2N.
 \end{cases}
 \ee
-full details, including on including boundary conditions, 
+full details, including on including boundary conditions,
 are given in that work (see also~\cite{Johnson1988,AMBiT2018}).
 Note that the boundary conditions are met by discarding some of the underlying b-splines; when we talk of an expansion using $N$ splines, we refer only to the ones that are kept; the underlying spline basis consists of a slightly larger set~\cite{Beloy2008}.
 Another common choice, which we refer to as the Notre-Dame (ND) basis~\cite{Johnson1988} may be formed with the lower-component of (\ref{eq:DKB}) set to zero for $i<N$, and the upper set to zero for $i\geq N$; this set requires extra conditions for the boundary conditions to be met~\cite{Johnson1988}.
@@ -1032,14 +1032,14 @@ Table \ref{tab:splines-hfs} shows hyperfine constants calculated using spline or
 \hline
 \hline
 % &  \multicolumn{1}{c}{} & \multicolumn{6}{c}{$A_{\rm Spline}$, $\epsilon$}\\
- &   & 
+ &   &
 \multicolumn{2}{c}{$r_0 = 10^{-4}\,a_B$} &
 \multicolumn{2}{|c|}{$10^{-5}\,a_B$} &
 \multicolumn{2}{c}{$10^{-6}\,a_B$} \\
 \cline{3-8}
-$n$ &  \multicolumn{1}{c}{$A_{\rm HF}$} & 
- \multicolumn{2}{c}{$A_{\rm Spline}$, $\epsilon$} & 
-  \multicolumn{2}{|c|}{$A_{\rm Spline}$, $\epsilon$} & 
+$n$ &  \multicolumn{1}{c}{$A_{\rm HF}$} &
+ \multicolumn{2}{c}{$A_{\rm Spline}$, $\epsilon$} &
+  \multicolumn{2}{|c|}{$A_{\rm Spline}$, $\epsilon$} &
    \multicolumn{2}{c}{$A_{\rm Spline}$, $\epsilon$} \\
 \hline
 1	& 3.9180\E{7}	& 3.8361\E{7}	& -2.\E{-2}	& 3.9172\E{7}	& -2.\E{-4}	& 3.9179\E{7}	& -3.\E{-6}\\
@@ -1092,7 +1092,7 @@ Keeping terms only to first-order, the corrections are seen to satisfy the equat
 where $\hat h$ is the tensor operator for the external field with rank $k$.
 %
 Here, $\delta V$ is the correction to the HF potential arising due to the corrections $\{X^{(c)},\,Y^{(c)}\}$ to each of the core orbitals, $c$.
-%This is a very important correction that will be discussed in the next section; for now, however, we will drop this term and just focus on solving these inhomogenous equations. 
+%This is a very important correction that will be discussed in the next section; for now, however, we will drop this term and just focus on solving these inhomogenous equations.
 
 
 The corrections are not (in general) states of definite angular momentum, but do have definite parity.
@@ -1119,11 +1119,11 @@ Note that $\{\chi_\a\}$ are orthogonal (and are orthogonal to $\psi$), and form 
 %================================
 \subsection[Solving the TDHF equations]{Solving the TDHF equations\label{sec:tdhf-solve}\footnote{Functions to solve TDHF equation are in:~/src/HF/MixedStates.hpp}}
 
-The $\delta V$ term in (\ref{eq:tdhf}) is very important and will be discussed in the next section. 
-Here, we will ignore how it is calculated and just focus on solving the inhomogenous equations. 
+The $\delta V$ term in (\ref{eq:tdhf}) is very important and will be discussed in the next section.
+Here, we will ignore how it is calculated and just focus on solving the inhomogenous equations.
 
 
-%To find the solutions to (\ref{eq:tdhf}), 
+%To find the solutions to (\ref{eq:tdhf}),
 As before, we express the Hamiltonian as $H =H_{\rm l} + V_{\rm nl} $: %, with
 \begin{align}
 H_{\rm l}&= H_0 + V_{\rm nuc} +  V_{\rm dir} +  U_{\rm x} \\
@@ -1133,7 +1133,7 @@ where $U_{\rm x}$ is a local approximation to the exchange potential.
 In the simplest case it is $(f-1)V_{\rm dir}$, but better approximations aid the convergence (we use that from Sec.~\ref{sec:hf-approx}).
 It is desirable to make  $V_{\rm nl}$ as small as possible.
 %
-%The $\delta V$ term is very important and will be discussed in the next section; for now, we ignore this term and just focus on solving the inhomogenous equations. 
+%The $\delta V$ term is very important and will be discussed in the next section; for now, we ignore this term and just focus on solving the inhomogenous equations.
 
 We solve the equations iteratively, such that at the $n$th step:
 \begin{multline}\label{eq:tdhf-its}
@@ -1224,7 +1224,7 @@ $h_{\rm PNC}~(\omega=0)$&-1.0700928&-1.0700932&4\E{-7}\\
 
 An important application of this technique is that it allows calculations to be done without requiring a summation over the complete set of intermediate states (replaced by solving the inhomogeneous differential equation).
 This method of performing exact summation over intermediate states is sometimes called the Solving Equations, Mixed States, or Dalgarno-Lewis method~\cite{Dalgarno1955}, depending on context.
-In this example (\ref{eq:tdhf-test}) the intermediate-states summation is trivial, since it involves only single operator and hence only a single intermediate state contributes. 
+In this example (\ref{eq:tdhf-test}) the intermediate-states summation is trivial, since it involves only single operator and hence only a single intermediate state contributes.
 In general, all intermediate states (including continuum and positive energy states) contribute, so this method allows calculations without the need for a large basis.
 
 %See also Sec.~\ref{sec:Bsplines} below for a test of the  Dalgarno-Lewis method for calculating PNC amplitudes.
@@ -1254,11 +1254,11 @@ Comparison between the PNC amplitude as calculated using this and the direct-sum
 \begin{table}%[h]
 \small
 \centering
-\caption{\small 
+\caption{\small
 Comparison of PNC amplitudes (at the HF level) for $^{133}$Cs as calculated using the Dalgarno-Lewis (DL) method, and direct summation using a spline basis [formed in a cavity of $(10^{-6},50)\,a_B$ using $N$ splines  of order $k$].\label{tab:pnc-basis}}
 \begin{tabular}{lllll}
 \hline
-\hline 
+\hline
 &&\multicolumn{3}{c}{Direct Summation: $N/k$}\\
 \cline{3-5}
 Transition&DL&50/5&60/6&70/7\\
@@ -1300,7 +1300,7 @@ where $\{\psi_b\}$ denotes the set of all core orbitals, and the single-particle
 \ee
 
 The TDHF equations are solved iteratively, updating the $\delta V$ and $\delta \en$  terms at each step
-%The $\delta V$ and $\delta \en$ terms are updated at each step of the iteration, and equations are re-solved 
+%The $\delta V$ and $\delta \en$ terms are updated at each step of the iteration, and equations are re-solved
 until convergence is reached; i.e., at the $n$th step, we have
 \begin{equation}\begin{split}
 \label{eq:tdhf-rpa}
@@ -1310,7 +1310,7 @@ with $\delta V=0$ for the initial iteration (similar for $Y$).
 After integrating over angles, the $\delta\en$ term only appears in the equations when $\b=b$, which for odd-parity operators is never the case.
 
 
-%If $\hat h$ is an operator of rank $k$, 
+%If $\hat h$ is an operator of rank $k$,
 %and using notation such that the partial wave ($\chi_\beta$, $\eta$) correction to the core $\psi_b$ orbital is written as:
 %$\chi^{(b)} = \sum_\beta \chi_\beta$
 %[see (\ref{eq:dPsi-pw})],
@@ -1332,16 +1332,16 @@ using notation of Eq.~(\ref{eq:dPsi-pw}).
 The reduced matrix elements are:
 \begin{multline}\label{eq:dV-rme}
 \bra{\phi_n}|\delta V|\ket{\phi_a}
- = 
+ =
  \sum_{b\beta}\Bigg(
 \frac{C^k_{na}C^k_{\b b}}{[k]}
 (R^k_{nba\b} + R^k_{nba\b'})
 \\
 -(-1)^{j_\b-j_a}\sum_\lambda(-1)^{k+\lambda}
 \Bigg[
-C^\lambda_{ab}C^\lambda_{n \beta}\sixj{j_a}{j_n}{k}{j_\beta}{j_b}{\lambda}R^\lambda_{na\b b} 
+C^\lambda_{ab}C^\lambda_{n \beta}\sixj{j_a}{j_n}{k}{j_\beta}{j_b}{\lambda}R^\lambda_{na\b b}
 \\
-+C^\lambda_{a \beta}C^\lambda_{n b}\sixj{j_a}{j_n}{k}{j_b}{j_\beta}{\lambda}R^\lambda_{nab\b'} 
++C^\lambda_{a \beta}C^\lambda_{n b}\sixj{j_a}{j_n}{k}{j_b}{j_\beta}{\lambda}R^\lambda_{nab\b'}
 \Bigg]
 \Bigg),
 \end{multline}
@@ -1349,15 +1349,15 @@ where the sum $b$ runs over all core orbitals, and $\beta$ runs over all (partia
 The prime ($\beta'$) means the $\eta_\beta$ orbital is used; no prime means $\chi_\beta$.
 %(Note that we use the partial wave $\chi,\,\eta$, not $X$ and $Y$, in the radial integrals).
 The equation for $\bra{\phi_n}|\delta V^\dag|\ket{\phi_a}$ is the same, but with $\beta\leftrightarrow\beta'$.
-%For the ``partial'' reduced matrix elements [see Eqs.~(\ref{eq:del-phi-tdhf2}), (\ref{eq:partial-rme})], 
-%make substitution: 
-For the radial equation for $\delta V F_a$ (corresponding to angular momentum state $\kappa_n$), make substitution: 
+%For the ``partial'' reduced matrix elements [see Eqs.~(\ref{eq:del-phi-tdhf2}), (\ref{eq:partial-rme})],
+%make substitution:
+For the radial equation for $\delta V F_a$ (corresponding to angular momentum state $\kappa_n$), make substitution:
 $R^k_{abcd}\to y^k_{bd}F_c$.
 %$R_{nba\beta}\to y^k_{b\beta}F_a$,
 %$R_{na\beta b}\to y^k_{ab}F_\beta$, and
 %$R_{nab\beta }\to y^k_{a\beta}F_b$.
 %
-Here, 
+Here,
 \be\label{eq:Rkabcd}
 R^k_{abcd} \equiv \int\d r_1 \, \left[f_a(r_1)f_c(r_1) + g_a(r_1)g_c(r_1)\right]\, y^k_{bd}(r_1),
 \ee
@@ -1405,7 +1405,7 @@ In higher-order diagrams, each $\hat h$ vertex is corrected again by these four 
 %\ee
 %where
 %\begin{multline}
-%\left\{\phi_\vk\|S\right\} = 
+%\left\{\phi_\vk\|S\right\} =
 %-\left\{\phi_\vk\|\hat h\|\psi_\k\right\}
 %-\left\{\phi_\vk |V_{\rm nl} |\widetilde{\delta\psi}_\vk\right\}\\
 %%
@@ -1456,16 +1456,16 @@ In another approach, the $\delta V$ term is also expanded in terms of the basis;
 \subsection[Core polarisation (RPA diagram technique)]{Core polarisation (RPA diagram technique)\footnote{Method implemented in:~/src/MBPT/DiagramRPA.hpp}}
 
 The core polarisation correction to a matrix element can also be taken into account by directly evaluating the four diagrams in Fig.~\ref{fig:corePol}.
-To lowest order, the matrix element of operator $\hat h$ is $h_{ij}^{(0)}$. 
+To lowest order, the matrix element of operator $\hat h$ is $h_{ij}^{(0)}$.
 The first-order correction is then~\cite{Lindgren1986}:
 \begin{align}
-\delta h_{ij} &= 
+\delta h_{ij} &=
 \sum_{ma}\frac{h_{am}^{(0)}\widetilde g_{imja}}{\en_a - \en_m - \omega}
 + \sum_{ma}\frac{h_{ma}^{(0)}\widetilde g_{iajm}}{\en_a - \en_m + \omega},
 \label{eq:dh:rpa1}
 \end{align}
 where
-$ \widetilde g_{abcd} =  g_{abcd} -  g_{abdc}$, with 
+$ \widetilde g_{abcd} =  g_{abcd} -  g_{abdc}$, with
 $g_{abcd}$ being the two-electron Coulomb matrix element (see appendix for definition).
 The $a$ sum runs over all occupied core electrons ($n,\k,m$), while $m$ runs over all virtual excited states.
 
@@ -1482,7 +1482,7 @@ The reduced matrix element in the RPA approach is then:
 \ee
 with
 \begin{multline}
-\bra{i}|\delta h|\ket{j} = 
+\bra{i}|\delta h|\ket{j} =
 \frac{1}{[k]}\sum_{am}(-1)^{j_a-j_i+k}\Bigg(
  \frac{\bra{a}|t|\ket{m}^{\rm RPA}W^k_{imja}}{\en_a-\en_m-\omega}\\
 + (-1)^{j_a-j_m}\frac{\bra{m}|t|\ket{a}^{\rm RPA}W^k_{iajm}}{\en_a-\en_m+\omega}
@@ -1548,14 +1548,14 @@ This section follows closely the method from Ref.~\cite{DzubaHFS1984}.
 Goldstone diagrams for the second-order correction to the valence energy are shown in Fig.~\ref{fig:Sigma2}.
 This can be expressed as~\cite{DzubaHFS1984,JohnsonBook2007}:
 %\begin{align}\label{eq:dE-SO}
-%\delta E_v &= 
+%\delta E_v &=
 %\sum_{amn}
 %\frac{g_{vnma}\widetilde g_{vamn}}{\en_v+\en_a - \en_m-\en_n}
 %+\sum_{abn}
 % \frac{g_{vnab}\widetilde g_{abvn}}{\en_v+\en_n-\en_a-\en_b}  ,
 %\end{align}
 \begin{align}\label{eq:dE-SO}
-\delta E_v &= 
+\delta E_v &=
 \sum_{amn}
 \frac{g_{vamn}\widetilde g_{nmav}}{\en_v+\en_a - \en_m-\en_n}
 +\sum_{abn}
@@ -1564,7 +1564,7 @@ This can be expressed as~\cite{DzubaHFS1984,JohnsonBook2007}:
 where $m$ and $n$ run over (unoccupied) virtual excited states, and $a$ and $b$ run over (occupied) core states (there is an implicit sum over magnetic quantum numbers here).
 The first term corresponds to the diagrams (a) and (b), the second to (c) and (d) [Fig.~\ref{fig:Sigma2}].
 Here,
-$ \widetilde g_{abcd} =  g_{abcd} -  g_{abdc}$ 
+$ \widetilde g_{abcd} =  g_{abcd} -  g_{abdc}$
 is the anti-symmetrised Coulomb integral (i.e., accounting for exchange), with
 \be
  g_{abcd} = \sum_{kq} (-1)^q \bra{a_{\k m}}C^k_{-q}\ket{c_{\k m}} \bra{b_{\k m}}C^k_{q}\ket{d_{\k m}} R^k_{abcd}.
@@ -1574,10 +1574,10 @@ Summing over magnetic quantum numbers, this gives~\cite{DzubaHFS1984}
 \delta E_v &=\sum_k \frac{1}{[k][j_v]}\Bigg(
  \sum_{amn} \frac{Q^k_{vamn}W^k_{vamn}}{\en_v+\en_a - \en_m-\en_n}
 \notag\\&\qquad\qquad\qquad\qquad\qquad
-+\sum_{abn}\frac{Q^k_{vnba}W^k_{vnba}}{\en_v+\en_n-\en_b-\en_a} 
++\sum_{abn}\frac{Q^k_{vnba}W^k_{vnba}}{\en_v+\en_n-\en_b-\en_a}
  \Bigg),
 \end{align}
-where we made use of symmetries,  
+where we made use of symmetries,
 \begin{align}
 Q^k_{abcd} &\equiv (-1)^k \widetilde C^k_{ac}\widetilde C^k_{bd}R^k_{abcd}, \\
 W^k_{abcd} &\equiv Q^k_{abcd} + [k] \sum_\lambda \sixj{j_a}{j_c}{k}{j_b}{j_d}{\lambda}Q^\lambda_{abdc} ,
@@ -1603,7 +1603,7 @@ We define the {\em correlation potential}, $\hat \Sigma$, defined so that its ma
 We define
 $Q^{k(\kappa_v)}_{nba}(r)$ (which we will write as $Q^{k(v)}_{nba}$ for brevity, though note it depends only on $\kappa_v$ and not $F_v$), via:
 \be
-Q^k_{vnba} 
+Q^k_{vnba}
 = \braket{F_v|Q^{k(v)}_{nba}}
 = \int F_v(r) \, Q^{k(v)}_{nba}(r)\,\d r.
 \ee
@@ -1634,7 +1634,7 @@ G^{(v)}_{nba}(r_1,r_2,\en) = \sum_{k}\frac{1}{[k][j_v]}
 \ee
 Thus the correlation potential may be expressed as
 \begin{multline}
-\Sigma^{(2)}_{\en}(r_1,r_2) = 
+\Sigma^{(2)}_{\en}(r_1,r_2) =
 \sum_{abnm}\left[
 G^{(v)}_{amn}(r_1,r_2,\en)
 +
@@ -1721,7 +1721,7 @@ See Table~\ref{tab:E1-Cs-comp} for a summary of calculations of electric dipole 
 \begin{table}%[h]
 \small
 \centering
-\caption{\small 
+\caption{\small
 Reduced $E1$ matrix elements (absolute values) for transitions between the lowest states for Cs as calculated in different approximations, and comparison with experiment (experimental values taken from Ref.~\cite{TohBeta2019}).
 RPA means including core-polarisation, $\Sigma$ means using second-order Brueckner orbitals (including core polarisation), and $\lambda\Sigma$ means Brueckner orbitals calculated using scaled correlation potential.
 \label{tab:E1-Cs-comp}}
@@ -1745,7 +1745,7 @@ $7s-6p_{3/2}$ &6.671&6.713&6.483&6.475&6.489(50)\\
 \begin{table}%[h]
 \small
 \centering
-\caption{\small 
+\caption{\small
 Calculated lifetimes of the lowest states of Cs in various approximations, and comparison with experiment.
 Note that calculated frequencies, not experimental values, are used for the HF, RPA and $\Sigma^{(2)}$; since lifetimes scale as $\w^3$, this is the leading source of error.
 Experimental results tabulated in Ref.~\cite{Safronova2016b}, except for $5d_{5/2}$ which is from Ref.~\cite{Pucher2019}.
@@ -1756,7 +1756,7 @@ Experimental results tabulated in Ref.~\cite{Safronova2016b}, except for $5d_{5/
 \hline
 &\multicolumn{1}{c}{HF}&\multicolumn{1}{c}{RPA}&\multicolumn{1}{c}{$\Sigma^{(2)}$}&\multicolumn{1}{r}{$\lambda\Sigma^{(2)}$}&\multicolumn{1}{c}{Expt.}&\multicolumn{1}{c}{Other$^\dag$}\\
 \hline
-$6p_{1/2}$ &46.1	&51.8	&31.0	&34.83	&34,.934(94) & 34,.4(12)\\ % [55] of  Safronova, Physical Review A, 94(1), 012505. 
+$6p_{1/2}$ &46.1	&51.8	&31.0	&34.83	&34,.934(94) & 34,.4(12)\\ % [55] of  Safronova, Physical Review A, 94(1), 012505.
 $6p_{3/2}$ &40.9	&45.9	&27.0	&30.42	&30,.460(38) & 30,.0(7)\\
 $5d_{3/2}$ &210.4	&227.1	&1077.2	&966.78	&909,(15)& 966,(34)\\
 $5d_{5/2}$ &264.2	&284.0	&1494.6	&1348.3	&1353,(5) & 1351,(52) \\
@@ -1770,7 +1770,7 @@ $^\dag$~{\footnotesize Theory (CCSDpT) calculations from Ref.~\cite{Safronova201
 %\paragraph{\em Correlations into spline basis:}
 One may also include the correlation corrections into a set of basis orbitals by adding the correlation potential to the Hartree Fock Hamiltonian when solving the eigenvalue problem for the set of B-splines; i.e.,
 \be
-H_{ij} \to \bra{S_i}\hat H_{\rm HF}\ket{S_j}  + \bra{S_i}\hat \Sigma_\en\ket{S_j} 
+H_{ij} \to \bra{S_i}\hat H_{\rm HF}\ket{S_j}  + \bra{S_i}\hat \Sigma_\en\ket{S_j}
 \ee
 in Eq.~(\ref{eq:Hij-splines}).
 This leads to an (approximately) complete set of orbitals that include correlation effects.
@@ -1826,7 +1826,7 @@ I will also abuse the Dirac notation in this section so that $\ket{a}_1$ is just
 First, we introduce the Feynman Green's function, which can be expressed as (see \cite{DzubaCPM1988pla,Abrikosov1965} and references therein):
 \be\label{eq:FeynmanGreen}
 \hat G(\en) = \lim_{\delta\to0}\left(
-\sum_a^{\rm core}\frac{\ket{a}\bra{a}}{\en-\en_a-i\delta} 
+\sum_a^{\rm core}\frac{\ket{a}\bra{a}}{\en-\en_a-i\delta}
 + \sum_n^{\rm exc.}\frac{\ket{n}\bra{n}}{\en-\en_n+i\delta}\right).
 \ee
 Note that, if $\en$ is the (single-particle) ground-state energy, $\en>\en_a$, but $\en<\en_n$.
@@ -1897,10 +1897,10 @@ can be expanded to four seperate terms, each with a pair of poles.
 Consider the first (``$a,b$'') term of (\ref{eq:GreenIntegral1}):
 \be
 \int \frac{\d \w}{2\pi} \left(
-\frac{\ket{a}\bra{a}}{\en_i+\w-\en_a-i\delta} 
+\frac{\ket{a}\bra{a}}{\en_i+\w-\en_a-i\delta}
 \right)
 \left(
-\frac{\ket{b}\bra{b}}{\en_j+\w-\en_b-i\delta} 
+\frac{\ket{b}\bra{b}}{\en_j+\w-\en_b-i\delta}
 \right),
 \ee
 which has poles at $\w=\en_{a/b}-\e_{i/j}+i\delta$.
@@ -1949,7 +1949,7 @@ i\sum_{abnm}\left[
 
 In the Feynman technique, the second-order correlation corrections are given by the diagrams presented in Fig.~\ref{fig:Sigma2-Feyn}.
 The straight lines represent Hartree-Fock (bound-electron) Green's functions (\ref{eq:FeynmanGreen}),
-the wavy photon lines represent the Coulomb operator (\ref{eq:CoulombOperator}), 
+the wavy photon lines represent the Coulomb operator (\ref{eq:CoulombOperator}),
 and the electron loops represent the polarisation operator:
 \be\label{eq:PolarisationOperator}
 \hat\Pi_{12}(\w) = \int \frac{\d \en'}{2\pi}\hat  G_{12}(\en') \hat G_{21}(\w+\en') .
@@ -2064,7 +2064,7 @@ which is the expression from Goldstone diagrams (a) and (c).
 For the exchange term, we first integrate over $\w_1$, with:
 \begin{align}
 &\int\frac{\d\w_1}{2\pi}
-\hat G_{1i}(\en+\w_1) \hat G_{ij}(\en+\w_1+\w_2) 
+\hat G_{1i}(\en+\w_1) \hat G_{ij}(\en+\w_1+\w_2)
 \notag\\
 =& i\sum_{an}\left(
 \frac{\ket{a}_1\bra{a}_i\ket{n}_i\bra{n}_j}{\w_2+\en_a-\en_n}+\frac{\ket{n}_1\bra{n}_i\ket{a}_i\bra{a}_j}{-\w_2+\en_a-\en_n}
@@ -2072,7 +2072,7 @@ For the exchange term, we first integrate over $\w_1$, with:
 \notag\\
 \label{eq:ExchInt1}
 = & i\sum_{a}\left[
-\ket{a}_1\bra{a}_i \, \hat G^{\rm ex}_{ij}(\en_a+\w_2)+ \hat G^{\rm ex}_{1i}(\en_a-\w_2) \, \ket{a}_i\bra{a}_j 
+\ket{a}_1\bra{a}_i \, \hat G^{\rm ex}_{ij}(\en_a+\w_2)+ \hat G^{\rm ex}_{1i}(\en_a-\w_2) \, \ket{a}_i\bra{a}_j
 \right]\\
 \equiv & i \, \hat\Gamma_{1iij}(\w_2)
 \label{eq:ExchInt1-Gamma}
@@ -2116,7 +2116,7 @@ which is exactly the expression from Goldstone diagrams (d) and (b), respectivel
 \begin{table}%[h]
 \small
 \centering
-\caption{\small 
+\caption{\small
 Expectation values of the direct part of the correlation potential $\bra{v}\Sigma_d\ket{v}$ for the lowest valence states of Cs (atomic units).
 The first four rows correspond to the second-order Goldstone technique using various number of states in the MBPT expansion, and the fifth row is the second-order Feynman technique.
 The final two rows are the screening and hole-particle corrections (see below).
@@ -2202,7 +2202,7 @@ g^{\alpha}_{12}(\en+\w) \, \sum_{ij} \hat q^k_{1i} \, \hat \pi_{ij}^{k}(\w) \, \
 %\begin{align}
 \Sigma^{(\k_v)}_{12,{\rm x}}
 &= \iint\frac{\d\w_1}{2\pi} \frac{\d\w_2}{2\pi} \sum_{k\lambda}\frac{(-1)^{k+\lambda}}{[j_v]}
-\sum^{(\k)}_{\a,\b,\g} 
+\sum^{(\k)}_{\a,\b,\g}
 L_{v\b\a\g}^{k\lambda}
 \notag\\
 \times&\sum_{ij}  g^\a_{1i}(\en+\w_1)\,\hat q^k_{1j}\,g^\b_{ij}(\en+\w_1+\w_2)\,\hat q^\lambda_{i2}\,g^\g_{j2}(\en+\w_2).
@@ -2240,7 +2240,7 @@ and the radial polarisation operator is
 +g_{12}^{{\rm ex},n}(\en_{a}+\w)
 \Big],
 \end{multline}
-where 
+where
 \[
 p^a_{ij} = F_a(r_i)F^\dag_a(r_j)
 \]
@@ -2252,8 +2252,8 @@ $g^{{\rm ex},n}$ contains only excited states with $\k=\k_n$.
 %The angular reduction for the alternative form of the exchange part (see Sec.~\ref{sec:ex2ndForm}) is found in the same way, with:
 %\begin{multline}\label{eq:Exch1-rad}
 %\Sigma_{12,\rm{x,1}}^{(\k_v)} = i\int\frac{\d\w_1}{2\pi} \sum_{k\lambda}\frac{(-1)^{k+\lambda}}{[j_v]}
-%\sum_a^{\rm core}\sum_{\k}^{\a,\b} 
-%\sum_{ij} g^\a_{1i}(\en+\w_1) \, \hat q_{1j}^k \, \hat q_{i2}^{\lambda} 
+%\sum_a^{\rm core}\sum_{\k}^{\a,\b}
+%\sum_{ij} g^\a_{1i}(\en+\w_1) \, \hat q_{1j}^k \, \hat q_{i2}^{\lambda}
 %\\
 %\times\Big[
 %L^{k\lambda}_{v\b\a a}  \, g^{{\rm ex},\b}_{ij}(\en_a+\w_1)\, p^a_{j2}
@@ -2264,8 +2264,8 @@ $g^{{\rm ex},n}$ contains only excited states with $\k=\k_n$.
 %or
 %\begin{multline}
 %\Sigma_{12,\rm{x,2}}^{(\k_v)} = i\int\frac{\d\w_2}{2\pi} \sum_{k\lambda}\frac{(-1)^{k+\lambda}}{[j_v]}
-%\sum_a^{\rm core}\sum_{\k}^{\a,\b} 
-%\sum_{ij} \hat q_{1j}^k \, \hat q_{i2}^{\lambda} \, g^\a_{j2}(\en+\w_2) 
+%\sum_a^{\rm core}\sum_{\k}^{\a,\b}
+%\sum_{ij} \hat q_{1j}^k \, \hat q_{i2}^{\lambda} \, g^\a_{j2}(\en+\w_2)
 %\\
 %\times\Big[
 %L^{k\lambda}_{v\b a\a} \, p^a_{1i} \, g^{{\rm ex},\b}_{ij}(\en_a+\w_2)
@@ -2305,9 +2305,9 @@ The direct and exchange potentials involve integrals of the form:
 \be\label{eq:GenOmInt}
 \int g(\en+w)\pi(\w)\ldots \frac{\d\w}{2\pi}.
 \ee
-The integrand contains poles from the Green's function at 
+The integrand contains poles from the Green's function at
 $\w=\en_n-\en-i\delta$ and $\w=\en_a-\en+i\delta$,
-and poles from the polarisation operator at 
+and poles from the polarisation operator at
 $\w=\en_a-\en_n+i\delta$ and $\w=\en_n-\en_a-i\delta$.
 If $\en$ is the energy of the lowest excited state, then
 there are an infinite number of poles from the polarisation operator in each of the regions $\w<-|\Delta\en|$, and $|\Delta\en|<\w<\infty$,
@@ -2335,10 +2335,10 @@ There is a region with no poles between 0 and $|\Delta\en|$, so we take $\w_r \s
 Finally, to perform the integrals numerically, we must evaluate Green's functions at complex values of $\w=\w_r + i\w_i$.
 This can be done in analogy with Eq.~(\ref{eq:Green-exchange}):
 \begin{align}
-g(\en+\w) &= \left[1+i\w_ig(\en+\w_r)\right]^{-1}g(\en+\w_r) 
+g(\en+\w) &= \left[1+i\w_ig(\en+\w_r)\right]^{-1}g(\en+\w_r)
 \end{align}
 This $g(\en+\w)$ will be a complex-valued matrix; $g(\en+\w_r)$ is real-valued.
-The integration over $\w_i$ can proceed using standard numerical integration. 
+The integration over $\w_i$ can proceed using standard numerical integration.
 
 
 
@@ -2351,7 +2351,7 @@ The integration over $\w_i$ can proceed using standard numerical integration.
 \section{All-orders correlation potential}
 
 The three most important corrections beyond the second-order correlation potential are:
-(i) the screening of the residual Coulomb interaction by the core electrons~\cite{DzubaCPM1988pla}, 
+(i) the screening of the residual Coulomb interaction by the core electrons~\cite{DzubaCPM1988pla},
 (ii) the hole-particle interaction~\cite{DzubaCPM1989plaEn}, and
 (iii) the chaining of the $\Sigma$ operator~\cite{DzubaPNC1985,DzubaPNC1984}.
 These effects are described by a series of diagrams that can be summed exactly to all-orders using the Feynman technique.
@@ -2422,8 +2422,8 @@ Note that the screened  operator should replace only a single Coulomb line in th
 Note that this method takes into account screening diagrams with double, triple, quadruple, and higher core electron excitations.
 This is because the Feynman diagram technique contains all possible time orderings of the polarisation loops; therefore the screening diagrams contain any number of excited electrons~\cite{DzubaCPM1988pla}.
 This is in contrast to the widely-used ``singles-doubles coupled-cluster method'', where only double excitations are considered (and sometimes a selection of important triple excitations).
-There are, however, some perturbation-theory diagrams included in the coupled-cluster methods that are not included in our approach. 
-The most important of which, the so-called ladder diagrams, are very small, and  can be included into our method by means of the method presented in Ref.~\cite{DzubaLadder2008}. 
+There are, however, some perturbation-theory diagrams included in the coupled-cluster methods that are not included in our approach.
+The most important of which, the so-called ladder diagrams, are very small, and  can be included into our method by means of the method presented in Ref.~\cite{DzubaLadder2008}.
 
 %--------------------------------------------------------
 \subsection{Hole-particle interaction}
@@ -2447,7 +2447,7 @@ The most important of which, the so-called ladder diagrams, are very small, and 
 
 
 The chain of diagrams corresponding to the hole-particle interaction is shown in Fig.~\ref{fig:HoleParticle}.
-Physically, this effect arises due to the 
+Physically, this effect arises due to the
 deviation of the (direct) Hartree-Fock potential for the excited core electron in the polarisation loop from that for the non-excited one~\cite{DzubaCPM1989plaEn}.
 In other words, it corresponds to an alteration of the core potential due to the excitation of the particle from the core to the virtual intermediate state; the excited core particle in the polarisation loop moves in the field of $N-2$ other core electrons instead of the usual $V^{N-1}$ potential.
 
@@ -2585,7 +2585,7 @@ The Dirac equation as presented in Eq.~(\ref{eq:H-manybody})
 accounts for the relativistic motion of the electron in the Coulomb field of the nucleus, however, it treats the Coulomb field classically, and treats the electron-electron Coulomb repulsion non-relativistically (see, e.g., Ref.~\cite{BetheBook}).
 For high-accuracy calculations, and particularly for atoms with large $Z$, corrections due to the missing relativistic effects become important ($\sim$\,0.1\,--\,1\%).
 The two corrections considered here are the
-Breit interaction, which contains the dominating relativistic corrections to the electron-electron Coulomb interaction, and 
+Breit interaction, which contains the dominating relativistic corrections to the electron-electron Coulomb interaction, and
 the radiative quantum electrodynamics (QED) corrections, which are accounted for via the Ginges-Flambaum radiative potential method.
 
 
@@ -2617,7 +2617,7 @@ Inclusion of the Breit Hamiltonian into the Hartree-Fock equations~\cite{Derevia
 \hat V_{\rm HF} \to  \hat V_{\rm HF}  + \hat V_{\rm Br} .
 \ee
 Inclusion into the Hartree-Fock and TDHF equations allows for the inclusion of Breit effects into the calculations of atomic energies and wavefunctions.
-For the TDHF equations, an extra term now also appears: 
+For the TDHF equations, an extra term now also appears:
 \be
 \delta V\to \delta V_{\rm HF}(\delta\phi)+\delta V_{\rm Br}(\delta\phi),
 \ee
@@ -2637,7 +2637,7 @@ with
 where
 $M,N$ are due to the Gaunt effect, $O,P$ are due to retardation, and
  $C^k_{-b,a} \equiv \bra{-\k_b}|C^k|\ket{\k_a}$. % (only the selection rules depend on the sign of $\k$).
-The equation for $\delta V_{\rm Br}(\delta\phi)$ is not given explicitly here, 
+The equation for $\delta V_{\rm Br}(\delta\phi)$ is not given explicitly here,
 but can be found by making the substitution in Eq.~(\ref{eq:dV-rme}):
 \[
 C^k_{ba}y^k_{ba}\to -C^k_{ba}(M_{ba}^k+O_{ba}^k+P_{ba}^k)  -C^k_{-b,a}N_{ba}^k.
@@ -2646,7 +2646,7 @@ Note that while no direct Breit term appears in the HF equations, it does enter 
 
 The two Gaunt terms can be expressed as
 \begin{multline}
-\hat M^k_{ba} = 
+\hat M^k_{ba} =
 \frac{k+1}{2k+3}\left[b_{ba}^{k+1}(r) + \eta^{k+1}_{ba}g_{ba}^{k+1}(r)\right]
 \left(\eta_{ba}^{k+1}\hat\theta_x - \hat\theta_y\right)\\
 -\frac{k}{2k-1}\left[b_{ba}^{k-1}(r) - \eta^{k}_{ba}g_{ba}^{k-1}(r)\right]
@@ -2656,14 +2656,14 @@ The two Gaunt terms can be expressed as
 and
 %
 \begin{equation}
-\hat N^k_{ba}(r) = 
+\hat N^k_{ba}(r) =
  \frac{(\k_b+\k_a)^2}{k(k+1)} \, g^{k}_{ba}(r) \, \hat\theta_x,
 \end{equation}
 %
 and the two retardation terms can be expressed as
 %
 \begin{multline}
-\hat O^k_{ba}(r) = 
+\hat O^k_{ba}(r) =
 \frac{(k+1)^2}{[k](2k+3)}\left[b_{ba}^{k+1}(r) + \eta^{k+1}_{ba}g_{ba}^{k+1}(r)\right]
 \left(-\eta_{ba}^{k+1}\hat\theta_x + \hat\theta_y\right)\\
 +\frac{k^2}{[k](2k-1)}\left[b_{ba}^{k-1}(r) - \eta^{k}_{ba}g_{ba}^{k-1}(r)\right]
@@ -2673,27 +2673,27 @@ and the two retardation terms can be expressed as
 and
 %
 \begin{multline}
-\hat P^k_{ba}(r) = 
-\frac{k(k+1)}{2[k]}\Big[ P_1(r)\left(\eta_{ba}^{k+1}\hat\theta_x - \hat\theta_y\right)  \\ 
+\hat P^k_{ba}(r) =
+\frac{k(k+1)}{2[k]}\Big[ P_1(r)\left(\eta_{ba}^{k+1}\hat\theta_x - \hat\theta_y\right)  \\
 -P_2(r)\left(\eta_{ba}^{k}\hat\theta_x + \hat\theta_y\right) \Big]
 \end{multline}
 %
 with
 %
 \begin{align*}
-P_1(r) & = 
+P_1(r) & =
 \left[
 b_{0,ba}^{k-1}(r) - \eta^{k}_{ba}g_{0,ba}^{k-1}(r)
  -b_{0,ba}^{k+1}(r) + \eta^{k}_{ba}g_{0,ba}^{k+1}(r)
 \right]\\
 P_2(r) & = \left[
-b_{\infty,ba}^{k-1}(r) + \eta^{k+1}_{ba}g_{\infty,ba}^{k-1}(r) 
+b_{\infty,ba}^{k-1}(r) + \eta^{k+1}_{ba}g_{\infty,ba}^{k-1}(r)
 -b_{\infty,ba}^{k+1}(r) - \eta^{k+1}_{ba}g_{\infty,ba}^{k+1}(r)
 \right].
 \end{align*}
 %
-In the above, 
-%$\hat\s$ are Pauli spin matrices, 
+In the above,
+%$\hat\s$ are Pauli spin matrices,
 \be
 \hat\theta_x =  \matr{0}{1}{1}{0} \, , \quad
 \hat\theta_y =  \matr{0}{1}{-1}{0}
@@ -2781,7 +2781,7 @@ The interplay between the Breit/QED and correlation corrections turns out to be 
 \begin{table}%[h]
 \small
 \centering
-\caption{\small 
+\caption{\small
 Breit and QED corrections to the removal energies of the lowest $s$ and $p$ states of Cs at the Hartree-Fock level (units: cm$^{-1}$).
 \label{tab:QEDBreit-En}}
 \begin{tabular}{r D{.}{.}{6.2} D{.}{.}{2.2} D{.}{.}{2.2}  D{.}{.}{6.2}}
@@ -2805,7 +2805,7 @@ Breit and QED corrections to the removal energies of the lowest $s$ and $p$ stat
 \begin{table}%[h]
 \small
 \centering
-\caption{\small 
+\caption{\small
 Breit and QED corrections to the electrid dipole (E1) reduced matrix elements of lowest $s$ and $p$ states of Cs at the RPA level (units: $|e|a_B$).
 \label{tab:QEDBreit-E1}}
 \begin{tabular}{r D{.}{.}{3.5} D{.}{.}{2.5} D{.}{.}{2.5}  D{.}{.}{3.5}}
@@ -2955,7 +2955,7 @@ $Q^k_{abcd}$  is convenient due to symmetries: $c\leftrightarrow a ,~ b\leftrigh
 
 %\begin{multline}
 %g_{abcd}
-%=\sum_{kq} 
+%=\sum_{kq}
 % (-1)^{k+1-m_a-m_b + q}\threej{j_a}{k}{j_c}{-m_a}{-q}{m_c}
 %\threej{j_b}{k}{j_d}{-m_b}{q}{m_d}
 %\\ \times
@@ -2990,7 +2990,7 @@ See also the appendix of Ref.~\cite{DzubaHFS1984} for some very nice general ang
 \begin{align}
 \sum_{m_{i,j,k,l}}  g_{ijkl} \, g_{lkji}
     &= \sum_\mu \frac{1}{[\mu]} \left( C^\mu_{ik}C^\mu_{jl} R^\mu_{ijkl}\right)^2 \\
-    &= \sum_\mu \frac{1}{[\mu]} \left( Q^\mu_{ijkl}\right)^2 
+    &= \sum_\mu \frac{1}{[\mu]} \left( Q^\mu_{ijkl}\right)^2
 \end{align}
 
 \begin{align}
@@ -3069,7 +3069,7 @@ where ($[a]\equiv2a+1$).
 
 
 %\begin{multline}
-%\bra{\k_a}|C^k|\ket{\k_b} \\= (-1)^{j_a+1/2}\sqrt{[j_a][j_b]}\threej{j_a}{j_b}{k}{-1/2}{1/2}{0}\pi(l_a+l_b+k) 
+%\bra{\k_a}|C^k|\ket{\k_b} \\= (-1)^{j_a+1/2}\sqrt{[j_a][j_b]}\threej{j_a}{j_b}{k}{-1/2}{1/2}{0}\pi(l_a+l_b+k)
 %\end{multline}
 
 \be
@@ -3162,7 +3162,7 @@ j = \abs{\k}-1/2.
 % F_{n\k}=0,
 %%\twocomp{f_{n\k}\\}{g_{n\k}} = 0,
 %\ee
-%%Equation (\ref{eq:Dirac-radial}) 
+%%Equation (\ref{eq:Dirac-radial})
 %which is often written in the equivalent form:
 %\be
 %\begin{split}\label{eq:Dirac-radial-pair}

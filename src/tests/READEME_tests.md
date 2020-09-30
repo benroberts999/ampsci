@@ -3,7 +3,7 @@ Each must be separated by:
   * _#TEST# text_
 where 'text' can be any text (some label/identifier)
 
-then, run the python script (from same location as diracSCAS executable!)
+then, run the python script (from same location as ampsci executable!)
 e.g.,
   * _./src/tests/run_tests.py_
 
