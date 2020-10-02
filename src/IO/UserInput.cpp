@@ -106,13 +106,17 @@ UserInput::UserInput(const std::string &infile) : m_filename(infile) {
   const auto inp = IO::FRW::splitInput_byBraces(IO::FRW::readInputFile(infile));
   for (const auto &item : inp) {
     const auto block_name = item.first;
-    auto option_vector = IO::FRW::splitInput_bySemiColon(item.second);
+    const auto option_vector = IO::FRW::splitInput_bySemiColon(item.second);
 
     // If block already exists, adds options to that block.
     // Otherwise, adds new block:
-    auto exists =
+    // (Unless its a module/matrix element block, in which case add as a new
+    // block)... horrible hack...
+    const auto exists =
         std::find_if(begin(m_blocks), end(m_blocks), [block_name](auto &block) {
-          return block.name() == block_name;
+          return block.name() == block_name          //
+                 && (block_name.find("Module") == 0) //
+                 && (block_name.find("MatrixElements") == 0);
         });
 
     if (exists != end(m_blocks)) {
