@@ -211,18 +211,18 @@ private:
   std::unique_ptr<ComplexGMatrix> m_drj = nullptr;
   std::unique_ptr<Grid> m_wgridD = nullptr;
   // only use every nth point on Im(w) grid for exchange
-  std::size_t m_wX_stride{2}; // XXX input?
+  std::size_t m_wX_stride{1}; // XXX input?
 
   std::vector<std::vector<ComplexGMatrix>> m_qpq_wk{};
 
-  int m_k_cut = 8; // XXX Make input?
+  int m_k_cut = 4; // XXX Make input?
 
   const bool m_print_each_k = false;
 
-  ExchangeMethod m_ex_method = ExchangeMethod::Goldstone;
+  // ExchangeMethod m_ex_method = ExchangeMethod::Goldstone;
   // ExchangeMethod m_ex_method = ExchangeMethod::w1;
   // ExchangeMethod m_ex_method = ExchangeMethod::none;
-  // ExchangeMethod m_ex_method = ExchangeMethod::w1w2;
+  ExchangeMethod m_ex_method = ExchangeMethod::w1w2;
 };
 
 } // namespace MBPT

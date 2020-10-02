@@ -873,55 +873,75 @@ GMatrix FeynmanSigma::FeynmanEx_w1w2(int kv, double en_r) const {
   // If Im(w) grid is -ve, we integrate "wrong" way around contour; extra -ve
   const auto sw = wgrid.r[0] > 0.0 ? 1.0 : -1.0;
 
+  std::cout << std::endl;
+
   // Store gs in advance
   // Note: gB depends on w1 and w2!
   const auto num_kappas = std::size_t(m_max_kappaindex + 1);
-  std::vector<std::vector<ComplexGMatrix>> Gs(num_kappas);
-  std::vector<std::vector<std::vector<ComplexGMatrix>>> GBs(num_kappas);
-#pragma omp parallel for
-  for (auto ik = 0ul; ik < num_kappas; ++ik) {
-    const auto kappa = Angular::kappaFromIndex(int(ik));
-    Gs[ik].reserve(wgrid.num_points);
-    GBs[ik].resize(wgrid.num_points);
-    for (auto iw1 = 0ul; iw1 < wgrid.num_points; iw1++) {
-      ComplexDouble evpw{en_r + omre, wgrid.r[iw1]};
-      Gs[ik].push_back(Green(kappa, evpw, States::both, m_Green_method));
-      GBs[ik][iw1].reserve(wgrid.num_points);
-      for (auto iw2 = 0ul; iw2 < wgrid.num_points; iw2++) {
-        ComplexDouble evpw1pw2{en_r + 2.0 * omre, wgrid.r[iw1] + wgrid.r[iw2]};
-        GBs[ik][iw1].push_back(
-            Green(kappa, evpw1pw2, States::both, m_Green_method));
-      }
-    }
-  }
+  //   std::vector<std::vector<ComplexGMatrix>> Gs(num_kappas);
+  //   std::vector<std::vector<std::vector<ComplexGMatrix>>> GBs(num_kappas);
+  // #pragma omp parallel for
+  //   for (auto ik = 0ul; ik < num_kappas; ++ik) {
+  //     const auto kappa = Angular::kappaFromIndex(int(ik));
+  //     Gs[ik].reserve(wgrid.num_points);
+  //     GBs[ik].resize(wgrid.num_points);
+  //     for (auto iw1 = 0ul; iw1 < wgrid.num_points; iw1++) {
+  //       ComplexDouble evpw{en_r + omre, wgrid.r[iw1]};
+  //       Gs[ik].push_back(Green(kappa, evpw, States::both, m_Green_method));
+  //       GBs[ik][iw1].reserve(wgrid.num_points);
+  //       for (auto iw2 = 0ul; iw2 < wgrid.num_points; iw2++) {
+  //         ComplexDouble evpw1pw2{en_r + 2.0 * omre, wgrid.r[iw1] +
+  //         wgrid.r[iw2]}; GBs[ik][iw1].push_back(
+  //             Green(kappa, evpw1pw2, States::both, m_Green_method));
+  //       }
+  //     }
+  //   }
 
+  std::cout << ".\n" << std::flush;
+
+  const std::size_t num_para_threads = num_kappas * num_kappas / 4;
   // Store parts of Sx seperately, for more efficient parallelisation
-  std::vector<GMatrix> Sxs(num_kappas, {m_subgrid_points, m_include_G});
+  std::vector<GMatrix> Sxs(num_para_threads, {m_subgrid_points, m_include_G});
 
-#pragma omp parallel for
-  for (auto iA = 0ul; iA < num_kappas; ++iA) { // alpha
-    auto &ScA = Sxs[iA];
-    for (auto iB = 0ul; iB < num_kappas; ++iB) {   // beta
+#pragma omp parallel for num_threads(num_para_threads) collapse(2)
+  for (auto iA = 0ul; iA < num_kappas; ++iA) {   // alpha
+    for (auto iB = 0ul; iB < num_kappas; ++iB) { // beta
+
+      const auto tid = std::size_t(omp_get_thread_num());
+      auto &Sc_i = Sxs[tid];
+
       for (auto iG = 0ul; iG < num_kappas; ++iG) { // gamma
-        const auto kA = Angular::kappaFromIndex(int(iA));
-        const auto kB = Angular::kappaFromIndex(int(iB));
-        const auto kG = Angular::kappaFromIndex(int(iG));
+        const auto [kA, kB, kG] = qip::apply_to(
+            Angular::kappaFromIndex, std::array{int(iA), int(iB), int(iG)});
 
         for (auto iw1 = 0ul; iw1 < wgrid.num_points; iw1 += m_wX_stride) {
-          const auto dw1 = 2.0 * sw * double(m_wX_stride) * wgrid.drdu[iw1] *
-                           wgrid.du / (2 * M_PI);
+          // XXX nb: stride must be odd for this to work!
+          const auto s1 = iw1 % 2 == 0 ? 1 : -1;
+          const auto dw1 = s1 * wgrid.drdu[iw1]; // s1 here ?
+          const ComplexDouble evpw1{en_r + omre, s1 * wgrid.r[iw1]};
+
+          const auto &gA = Green(kA, evpw1, States::both, m_Green_method);
 
           for (auto iw2 = 0ul; iw2 < wgrid.num_points; iw2 += m_wX_stride) {
-            const auto dw2 = 2.0 * sw * double(m_wX_stride) * wgrid.drdu[iw2] *
-                             wgrid.du / (2 * M_PI);
+            const auto s2 = iw2 % 2 == 0 ? -1 : 1;
+            const auto dw2 = s2 * wgrid.drdu[iw2]; //?
+            const ComplexDouble evpw2{en_r + omre, s2 * wgrid.r[iw2]};
+
+            // ok?
+            if (std::abs((evpw1 + evpw2).cim()) > std::abs(wgrid.rmax))
+              continue;
 
             // get the Green's functions:
-            const auto &gA = Gs[iA][iw1];
-            const auto &gB = GBs[iB][iw1][iw2];
-            const auto &gG = Gs[iG][iw2];
+            // const auto &gA = Gs[iA][iw1];
+            // const auto &gB = GBs[iB][iw1][iw2];
+            // const auto &gG = Gs[iG][iw2];
+
+            const auto &gB =
+                Green(kB, evpw1 + evpw2, States::both, m_Green_method);
+            const auto &gG = Green(kG, evpw2, States::both, m_Green_method);
 
             const auto gqgqg = sumkl_gqgqg(gA, gB, gG, kv, kA, kB, kG, max_k);
-            ScA -= (dw1 * dw2 / tjvp1) * gqgqg;
+            Sc_i -= (dw1 * dw2) * gqgqg;
 
           } // w2
         }   // w1
@@ -929,9 +949,12 @@ GMatrix FeynmanSigma::FeynmanEx_w1w2(int kv, double en_r) const {
     }       // beta
   }         // alpha
 
-  for (const auto &SxA : Sxs) {
-    Sx += SxA;
+  for (const auto &Sc_i : Sxs) {
+    Sx += Sc_i;
   }
+
+  const auto dw_const = 2.0 * sw * double(m_wX_stride) * wgrid.du / (2 * M_PI);
+  Sx *= (dw_const * dw_const / tjvp1);
 
   // devide through by dri, drj [these included in q's, but want
   // differential operator for sigma] or.. include one of these in
@@ -1128,7 +1151,6 @@ void FeynmanSigma::tensor_5_product(
   // Adds real part of below to result
   // Sum_ij [ factor * a1j * bij * cj2 * (d_1i * e_i2) ]
   const auto size = result->size;
-  ComplexDouble sum_j, sum_ij;
 
   // The a*c part depends only on j (not i).
   // Doing this mult early saves factor of 'size' complex multiplications
@@ -1142,9 +1164,9 @@ void FeynmanSigma::tensor_5_product(
         // early a*c mult
         ac[j] = ComplexDouble(a.ff[r1][j]) * c.ff[j][r2];
       }
-      sum_ij = {0.0, 0.0};
+      ComplexDouble sum_ij{0.0, 0.0};
       for (auto i = 0ul; i < size; ++i) {
-        sum_j = {0.0, 0.0};
+        ComplexDouble sum_j{0.0, 0.0};
         for (auto j = 0ul; j < size; ++j) {
           sum_j += ac[j] * b.ff[i][j];
         }
