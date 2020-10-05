@@ -340,12 +340,12 @@ void HF_rmag(const IO::UserInputBlock &input, const Wavefunction &wf) {
         // Halfing interval:
         if ((d12a < d12_targ && d12_targ < d12) ||
             (d12 < d12_targ && d12_targ < d12a)) {
-          r2a = r2a;
+          // r2a = r2a;
           r2b = r2;
           r2 = 0.5 * (r2a + r2b);
         } else if ((d12b < d12_targ && d12_targ < d12) ||
                    (d12 < d12_targ && d12_targ < d12b)) {
-          r2b = r2b;
+          // r2b = r2b;
           r2a = r2;
           r2 = 0.5 * (r2a + r2b);
         } else {
@@ -413,11 +413,11 @@ static void calc_thing(const DiracSpinor &Fv, double e_targ, double r0,
 
     // Halfing interval:
     if ((bwa < e_targ && e_targ < bw) || (bw < e_targ && e_targ < bwa)) {
-      ra = ra;
+      // ra = ra;
       rb = r;
       r = 0.5 * (ra + rb);
     } else if ((bwb < e_targ && e_targ < bw) || (bw < e_targ && e_targ < bwb)) {
-      rb = rb;
+      // rb = rb;
       ra = r;
       r = 0.5 * (ra + rb);
     } else {

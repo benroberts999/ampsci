@@ -1,6 +1,7 @@
 #include "Physics/NuclearPotentials.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
+#include "NuclearData.hpp" //for Isotope
 #include "Physics/AtomData.hpp"
 #include "Physics/NuclearData.hpp"
 #include "Physics/PhysConst_constants.hpp"
@@ -39,8 +40,8 @@ Parameters::Parameters(int in_z, int in_a, const std::string &str_type,
     : z(in_z),
       a((in_a < 0) ? AtomData::defaultA(z) : in_a),
       type(parseType(str_type)),
-      t(in_t <= 0 ? approximate_t_skin(a) : in_t),
-      r_rms(in_rrms) {
+      r_rms(in_rrms),
+      t(in_t <= 0 ? approximate_t_skin(a) : in_t) {
   if (r_rms < 0) {
     r_rms = find_rrms(z, a);
     if (r_rms <= 0)
@@ -53,8 +54,8 @@ Parameters::Parameters(const std::string &z_str, int in_a,
     : z(AtomData::get_z(z_str)),
       a((in_a < 0) ? AtomData::defaultA(z) : in_a),
       type(parseType(str_type)),
-      t(in_t <= 0 ? approximate_t_skin(a) : in_t),
-      r_rms(in_rrms) {
+      r_rms(in_rrms),
+      t(in_t <= 0 ? approximate_t_skin(a) : in_t) {
   if (r_rms < 0) {
     r_rms = find_rrms(z, a);
     if (r_rms <= 0)
@@ -77,7 +78,8 @@ std::vector<double> sphericalNuclearPotential(double Z, double rnuc,
   const double rn2 = rN * rN;
   const double rn3 = rn2 * rN;
   for (auto r : rgrid) {
-    double temp_v = (r < rN) ? Z * (r * r - 3.0 * rn2) / (2.0 * rn3) : -Z / r;
+    const double temp_v =
+        (r < rN) ? Z * (r * r - 3.0 * rn2) / (2.0 * rn3) : -Z / r;
     vnuc.push_back(temp_v);
   }
 
@@ -167,7 +169,7 @@ std::vector<double> fermiNuclearDensity_tcN(double t, double c, double Z_norm,
 }
 
 //******************************************************************************
-std::vector<double> formPotential(Parameters params,
+std::vector<double> formPotential(const Parameters &params,
                                   const std::vector<double> &r) {
   const auto z = params.z;
   const auto nucleus_type = params.type;

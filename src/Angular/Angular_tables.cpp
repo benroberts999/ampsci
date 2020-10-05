@@ -11,7 +11,9 @@
 
 namespace Angular {
 //******************************************************************************
-void Ck_ab::fill_maxK_twojmax(const int in_max_K, const int in_max_twoj) {
+void Ck_ab::fill(const int in_max_twoj) {
+  // re-factor. No longer allow 2j and k to diverge
+  const int in_max_K = in_max_twoj;
 
   auto max_jindex = (in_max_twoj - 1) / 2;
   if (max_jindex < m_max_jindex_sofar)
@@ -57,7 +59,7 @@ double Ck_ab::get_tildeCkab_mutable(int k, int ka, int kb) {
 
   auto maxji = std::max(jia, jib);
   if (maxji > m_max_jindex_sofar || k > m_max_k_sofar)
-    fill_maxK_twojmax(k, 2 * maxji + 1);
+    fill(std::max(k, twoj(maxji)));
   return (jia > jib) ? m_3j_k_a_b[k][jia][jib] * m_Rjab_a_b[jia][jib]
                      : m_3j_k_a_b[k][jib][jia] * m_Rjab_a_b[jib][jia];
 }
@@ -92,7 +94,7 @@ double Ck_ab::get_3jkab_mutable(int k, int ka, int kb) {
   auto jib = jindex_kappa(kb);
   auto maxji = std::max(jia, jib);
   if (maxji > m_max_jindex_sofar || k > m_max_k_sofar)
-    fill_maxK_twojmax(k, 2 * maxji + 1);
+    fill(std::max(k, twoj(maxji)));
   return (jia > jib) ? m_3j_k_a_b[k][jia][jib] : m_3j_k_a_b[k][jib][jia];
 }
 
@@ -215,7 +217,8 @@ void SixJTable_constk::fill(const int tj_max) {
 
 //******************************************************************************
 //******************************************************************************
-void SixJ::fill(int in_max_k, int in_max_twoj) {
+void SixJ::fill(int in_max_twoj) {
+  const int in_max_k = in_max_twoj; // refactor
   // new max_tj for each existing 6js:
   //(each sixj_constk keeps track of max_2j)
   if (in_max_twoj < max_tj_sofar)
@@ -240,8 +243,8 @@ double SixJ::get_6j(int tja, int tjb, int tjc, int tjd, int k, int l) const {
 
 //******************************************************************************
 double SixJ::get_6j_mutable(int tja, int tjb, int tjc, int tjd, int k, int l) {
-  if (k > max_k_sofar) {
-    fill(k, max4(tja, tjb, tjc, tjd));
+  if (k > max_k_sofar || l > max_k_sofar) {
+    fill(std::max(k, l));
   }
   return m_sixj_k[k].get_6j_mutable(tja, tjb, tjc, tjd, l);
 }

@@ -4,10 +4,12 @@
 #include "Maths/Grid.hpp"
 #include "Physics/AtomData.hpp"
 #include "Physics/DiracHydrogen.hpp"
+#include "Physics/NuclearPotentials.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "qip/Check.hpp"
 #include <algorithm>
+#include <array>
 #include <memory>
 #include <numeric>
 #include <string>
@@ -17,36 +19,39 @@
 namespace UnitTest {
 
 //******************************************************************************
-//! Unit tests for solveing (local) Dirac equation ODE
+//! Unit tests for solving (local) Dirac equation ODE
 bool DiracODE(std::ostream &obuff) {
   bool pass = true;
 
   const double Zeff = 5.0;
-  const double rmax = 100.0; // note: rmax depends on Zeff
 
-  const auto grid =
-      std::make_shared<const Grid>(1.0e-7, rmax, 2000, GridType::loglinear, 10);
+  // Set up radial grid:
+  const auto r0{1.0e-7};
+  const auto rmax{100.0}; // NB: rmax depends on Zeff
+  const auto num_grid_points{2000ul};
+  const auto b{10.0};
+  const auto grid = std::make_shared<const Grid>(r0, rmax, num_grid_points,
+                                                 GridType::loglinear, b);
 
-  const auto v_nuc = [&]() {
-    std::vector<double> v;
-    for (const auto &r : grid->r) {
-      v.push_back(-Zeff / r);
-    }
-    return v;
-  }();
+  // States to solve for:
+  const std::string states = "10spdfghi";
 
-  const auto states = AtomData::listOfStates_nk("10spdfghi");
+  // Sperical potential w/ R_nuc = 0.0 is a pointlike potential
+  const auto v_nuc = Nuclear::sphericalNuclearPotential(Zeff, 0.0, grid->r);
 
+  // Solve Dirac ODE for each state, store in 'orbitals' vector:
   std::vector<DiracSpinor> orbitals;
-  for (const auto &[n, k, en] : states) {
+  const auto states_list = AtomData::listOfStates_nk(states);
+  for (const auto &[n, k, en] : states_list) {
     auto &Fnk = orbitals.emplace_back(n, k, grid);
-    const auto en_guess =
-        -(Zeff * Zeff) / (2.0 * n * n); // non-rel formula for guess
+    // Use non-rel formula for guess (alpha = 0.0 gives non-rel)
+    const auto en_guess = -(Zeff * Zeff) / (2.0 * n * n);
     DiracODE::boundState(Fnk, en_guess, v_nuc, {}, PhysConst::alpha, 15);
-    // printf("%7s en=%11.5f rmax=%5.1f it=%3i eps=%.1e\n",
-    // Fnk.symbol().c_str(),
-    //        Fnk.en, Fnk.rinf(), Fnk.its, Fnk.eps);
   }
+
+  // In the following, we find the the _worst_ orbital (by means of comparison
+  // to the expected exact Dirac equation solution) for a number of properties,
+  // and check if it meets the criteria.
 
   { // Check convergence:
     const auto comp_eps = [](const auto &Fa, const auto &Fb) {
@@ -58,8 +63,7 @@ bool DiracODE(std::ostream &obuff) {
                              worst_F->eps, 0.0, 1.0e-14);
   }
 
-  // Check orthogonality of orbitals:
-  {
+  { // Check orthogonality of orbitals:
     const auto [eps, worst] = DiracSpinor::check_ortho(orbitals, orbitals);
     pass &= qip::check_value(&obuff, "orth " + worst, eps, 0.0, 1.0e-10);
   }
@@ -88,49 +92,36 @@ bool DiracODE(std::ostream &obuff) {
   }
 
   { // Check radial integrals (r, r^2, 1/r, 1/r^2)
+
+    // Define four radial operators. Designed to test wavefunction at low,
+    // medium, and large radial distances
     const auto rhat1 = DiracOperator::RadialF(*grid, 1);
     const auto rhat2 = DiracOperator::RadialF(*grid, 2);
     const auto rinv1 = DiracOperator::RadialF(*grid, -1);
     const auto rinv2 = DiracOperator::RadialF(*grid, -2);
 
-    std::pair<std::string, double> worst1{"", 0.0};
-    std::pair<std::string, double> worst2{"", 0.0};
-    std::pair<std::string, double> winv1{"", 0.0};
-    std::pair<std::string, double> winv2{"", 0.0};
+    // Lambda: finds worst comparison of <a|o|a> to <A|o|A>
+    // |A> is exact orbital, |a> is solution from DiracODE
+    // Returns pair
+    const auto get_worst = [&orbitals, &grid, Zeff](const auto &o) {
+      std::pair<std::string, double> worst{"", 0.0};
+      for (const auto &Fa : orbitals) {
+        const auto Fexact = DiracSpinor::exactHlike(Fa.n, Fa.k, grid, Zeff);
+        const auto aoa = o.radialIntegral(Fa, Fa);
+        const auto AoA = o.radialIntegral(Fexact, Fexact);
+        const auto eps = std::abs((aoa - AoA) / AoA);
+        if (eps > worst.second) {
+          worst.first = Fa.shortSymbol();
+          worst.second = eps;
+        }
+      }
+      return worst;
+    };
 
-    for (const auto &Fa : orbitals) {
-      const auto Fexact = DiracSpinor::exactHlike(Fa.n, Fa.k, grid, Zeff);
-
-      const auto eps1 = std::abs((rhat1.radialIntegral(Fa, Fa) -
-                                  rhat1.radialIntegral(Fexact, Fexact)) /
-                                 rhat1.radialIntegral(Fa, Fa));
-      const auto eps2 = std::abs((rhat2.radialIntegral(Fa, Fa) -
-                                  rhat2.radialIntegral(Fexact, Fexact)) /
-                                 rhat2.radialIntegral(Fa, Fa));
-      const auto inv1 = std::abs((rinv1.radialIntegral(Fa, Fa) -
-                                  rinv1.radialIntegral(Fexact, Fexact)) /
-                                 rinv1.radialIntegral(Fa, Fa));
-      const auto inv2 = std::abs((rinv2.radialIntegral(Fa, Fa) -
-                                  rinv2.radialIntegral(Fexact, Fexact)) /
-                                 rinv2.radialIntegral(Fa, Fa));
-
-      if (eps1 > worst1.second) {
-        worst1.first = Fa.shortSymbol();
-        worst1.second = eps1;
-      }
-      if (eps2 > worst2.second) {
-        worst2.first = Fa.shortSymbol();
-        worst2.second = eps2;
-      }
-      if (inv1 > winv1.second) {
-        winv1.first = Fa.shortSymbol();
-        winv1.second = inv1;
-      }
-      if (inv2 > winv2.second) {
-        winv2.first = Fa.shortSymbol();
-        winv2.second = inv2;
-      }
-    }
+    const auto worst1 = get_worst(rhat1);
+    const auto worst2 = get_worst(rhat2);
+    const auto winv1 = get_worst(rinv1);
+    const auto winv2 = get_worst(rinv2);
 
     pass &= qip::check_value(&obuff, "<r>    " + worst1.first, worst1.second,
                              0.0, 1.0e-10);

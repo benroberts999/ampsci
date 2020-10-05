@@ -30,7 +30,7 @@ CorrelationPotential::CorrelationPotential(
       m_yeh(p_gr, &m_excited, &m_holes),
       m_maxk(std::max(DiracSpinor::max_tj(in_hf->get_core()),
                       DiracSpinor::max_tj(basis))),
-      m_6j(m_maxk, m_maxk),
+      m_6j(m_maxk),
       m_stride(subgridp.stride),
       m_include_G(sigp.include_G),
       m_fk(std::move(sigp.fk)) {

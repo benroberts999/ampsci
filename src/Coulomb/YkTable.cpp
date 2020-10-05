@@ -79,8 +79,7 @@ YkTable::get_y_ab(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
 void YkTable::update_y_ints() {
   resize_y();
   const auto tj_max = max_tj();
-  const auto k_max = tj_max; // k_max = |j + j'| = 2*j_max
-  m_Ck.fill_maxK_twojmax(k_max, tj_max);
+  m_Ck.fill(tj_max);
 
   a_size = m_a_orbs->size();
   b_size = m_b_orbs->size();

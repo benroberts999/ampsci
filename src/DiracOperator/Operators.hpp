@@ -33,8 +33,8 @@ public:
       : ScalarOperator(Parity::even, 1.0, fillVec(rgrid, [n](double r) {
                          return std::pow(r, n);
                        })) {}
-  std::string name() const final { return "RadialFunction"; }
-  std::string units() const final { return "au"; }
+  std::string name() const override final { return "RadialFunction"; }
+  std::string units() const override final { return "au"; }
 };
 
 //******************************************************************************
@@ -48,11 +48,11 @@ class E1 final : public TensorOperator {
 public:
   E1(const Grid &gr) : TensorOperator(1, Parity::odd, -1.0, gr.r, 0) {}
 
-  double angularF(const int ka, const int kb) const final {
+  double angularF(const int ka, const int kb) const override final {
     return Angular::Ck_kk(1, ka, kb);
   }
-  std::string name() const final { return "E1"; }
-  std::string units() const final { return "aB"; }
+  std::string name() const override final { return "E1"; }
+  std::string units() const override final { return "aB"; }
 };
 
 //******************************************************************************
@@ -63,13 +63,13 @@ public:
       : TensorOperator(k, Angular::evenQ(k) ? Parity::even : Parity::odd, -1.0,
                        gr.rpow(k), 0),
         m_k(k) {}
-  double angularF(const int ka, const int kb) const final {
+  double angularF(const int ka, const int kb) const override final {
     return Angular::Ck_kk(m_k, ka, kb);
   }
-  std::string name() const final {
+  std::string name() const override final {
     return std::string("E") + std::to_string(m_k);
   }
-  std::string units() const final {
+  std::string units() const override final {
     return std::string("aB^") + std::to_string(m_k);
   }
 
@@ -95,21 +95,21 @@ public:
         m_alpha(alpha) {
     updateFrequency(omega);
   }
-  std::string name() const final { return "E1v"; }
-  std::string units() const final { return "aB"; }
+  std::string name() const override final { return "E1v"; }
+  std::string units() const override final { return "aB"; }
 
-  double angularF(const int, const int) const final { return 1.0; }
+  double angularF(const int, const int) const override final { return 1.0; }
 
-  double angularCff(int, int) const final { return 0; }
-  double angularCgg(int, int) const final { return 0; }
-  double angularCfg(int ka, int kb) const final {
+  double angularCff(int, int) const override final { return 0; }
+  double angularCgg(int, int) const override final { return 0; }
+  double angularCfg(int ka, int kb) const override final {
     return Angular::S_kk(ka, -kb);
   }
-  double angularCgf(int ka, int kb) const final {
+  double angularCgf(int ka, int kb) const override final {
     return -Angular::S_kk(-ka, kb);
   }
 
-  void updateFrequency(const double omega) final {
+  void updateFrequency(const double omega) override final {
     m_constant = -2.0 / (m_alpha * omega);
   }
 
@@ -137,18 +137,18 @@ public:
   M1 &operator=(const M1 &) = delete;
   M1(const M1 &) = default;
   ~M1() = default;
-  std::string name() const final { return std::string("M1"); }
-  std::string units() const final { return std::string("mu_B"); }
+  std::string name() const override final { return std::string("M1"); }
+  std::string units() const override final { return std::string("mu_B"); }
 
-  double angularF(const int ka, const int kb) const final {
+  double angularF(const int ka, const int kb) const override final {
     return (ka + kb) * Angular::Ck_kk(1, -ka, kb);
   }
-  double angularCff(int, int) const final { return 0.0; }
-  double angularCgg(int, int) const final { return 0.0; }
-  double angularCfg(int, int) const final { return 1.0; }
-  double angularCgf(int, int) const final { return 1.0; }
+  double angularCff(int, int) const override final { return 0.0; }
+  double angularCgg(int, int) const override final { return 0.0; }
+  double angularCfg(int, int) const override final { return 1.0; }
+  double angularCgf(int, int) const override final { return 1.0; }
 
-  void updateFrequency(const double omega) final {
+  void updateFrequency(const double omega) override final {
     // XXX Check sign!
     if (std::abs(omega) > 0) {
       m_constant = +3.0 / (m_alpha * m_alpha * omega);
@@ -183,10 +183,10 @@ public: // constructor
       std::cout << "\nWarning: I=0 in Hyperfine operator; Setting gI to zero\n";
     }
   }
-  std::string name() const final { return "hfs"; }
-  std::string units() const final { return "MHz"; }
+  std::string name() const override final { return "hfs"; }
+  std::string units() const override final { return "MHz"; }
 
-  double angularF(const int ka, const int kb) const final {
+  double angularF(const int ka, const int kb) const override final {
     return (ka + kb) * Angular::Ck_kk(1, -ka, kb);
   }
 
@@ -211,10 +211,10 @@ public: // constructor
     return 0.5 * Ahfs * (jF * (jF + 1.0) - Fa.jjp1() - Inuc * (Inuc + 1.0));
   }
 
-  double angularCff(int, int) const final { return 0; }
-  double angularCgg(int, int) const final { return 0; }
-  double angularCfg(int, int) const final { return 1.0; }
-  double angularCgf(int, int) const final { return 1.0; }
+  double angularCff(int, int) const override final { return 0; }
+  double angularCgg(int, int) const override final { return 0; }
+  double angularCfg(int, int) const override final { return 1.0; }
+  double angularCgf(int, int) const override final { return 1.0; }
 
 private:
   double Inuc;
@@ -306,16 +306,16 @@ class Hrad_el final : public ScalarOperator {
 public:
   Hrad_el(const std::vector<double> &Hel)
       : ScalarOperator(Parity::even, 1.0, Hel, {1, 0, 0, 1}) {}
-  std::string name() const final { return "Hrad_el"; }
-  std::string units() const final { return "au"; }
+  std::string name() const override final { return "Hrad_el"; }
+  std::string units() const override final { return "au"; }
 };
 //! Radiative QED operator, off-diagonal magnetic part
 class Hrad_mag final : public ScalarOperator {
 public:
   Hrad_mag(const std::vector<double> &Hmag)
       : ScalarOperator(Parity::even, -137.036, Hmag, {0, 1, 1, 0}) {}
-  std::string name() const final { return "Hrad_mag"; }
-  std::string units() const final { return "au"; }
+  std::string name() const override final { return "Hrad_mag"; }
+  std::string units() const override final { return "au"; }
 };
 
 //******************************************************************************
@@ -339,8 +339,8 @@ public:
                        Nuclear::fermiNuclearDensity_tcN(t, c, 1, rgrid),
                        {0, 1, -1, 0}, 0, Realness::imaginary),
         m_unit(in_units) {}
-  std::string name() const final { return "pnc-nsi"; }
-  std::string units() const final { return m_unit; }
+  std::string name() const override final { return "pnc-nsi"; }
+  std::string units() const override final { return m_unit; }
 
 private:
   const std::string m_unit{"iQw*e-11"};
@@ -372,27 +372,29 @@ public: // constructor
             h0->getc(), vertex_func(rgrid, a, b, h0->getv()), h0->get_d_order(),
             h0->imaginaryQ() ? Realness::imaginary : Realness::real,
             h0->freqDependantQ),
-        m_h0(h0),
-        m_a(a),
-        m_b(b) {}
+        m_h0(h0)
+  // , m_a(a), m_b(b)
+  {}
 
-  std::string name() const final { return m_h0->name() + "_vertexQED"; }
-  std::string units() const final { return m_h0->units(); }
+  std::string name() const override final {
+    return m_h0->name() + "_vertexQED";
+  }
+  std::string units() const override final { return m_h0->units(); }
 
-  double angularF(const int ka, const int kb) const final {
+  double angularF(const int ka, const int kb) const override final {
     return m_h0->angularF(ka, kb);
   }
 
-  double angularCff(int ka, int kb) const final {
+  double angularCff(int ka, int kb) const override final {
     return m_h0->angularCff(ka, kb);
   }
-  double angularCgg(int ka, int kb) const final {
+  double angularCgg(int ka, int kb) const override final {
     return m_h0->angularCgg(ka, kb);
   }
-  double angularCfg(int ka, int kb) const final {
+  double angularCfg(int ka, int kb) const override final {
     return m_h0->angularCfg(ka, kb);
   }
-  double angularCgf(int ka, int kb) const final {
+  double angularCgf(int ka, int kb) const override final {
     return m_h0->angularCgf(ka, kb);
   }
 
@@ -402,8 +404,8 @@ public: // constructor
 
 private:
   const TensorOperator *const m_h0;
-  const double m_a;
-  const double m_b;
+  // const double m_a;
+  // const double m_b;
 
 public:
   //! Takes existing radial vector, multiplies by:

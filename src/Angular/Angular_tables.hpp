@@ -30,7 +30,7 @@ template <typename T> inline T min4(T a, T b, T c, T d) {
   - TildeCk_ab := \f$(-1)^{ja+1/2} C^k_{ab}\f$ [symmetric]
   - Slightly faster than calculating on-the-fly, but adds some overhead
 \par Construction
-  - Needs max k and two*j values. Will build look-up tables for all possible
+  - Needs maximum two*j values. Will build look-up tables for all possible
 symbols.
 \par Usage
   - Note: Functions take k and kappa_a, kappa_b as input!
@@ -38,15 +38,13 @@ symbols.
 class Ck_ab {
 
 public:
-  Ck_ab(const int in_max_K = 0, const int in_max_twoj = 0) {
-    fill_maxK_twojmax(in_max_K, in_max_twoj);
-  }
+  Ck_ab(const int in_max_twoj = 0) { fill(in_max_twoj); }
 
 public:
-  //! @brief Extends existing look-up table to new maximum K and twoj.
+  //! @brief Extends existing look-up table to new twoj.
   //! @details nb: called on construction automatically, you only need to call
   //! this if you need to extend the table after original construction (rare)
-  void fill_maxK_twojmax(const int in_max_K, const int in_max_twoj);
+  void fill(const int in_max_twoj);
 
   //! @brief 'mutable' getters will calculate values if they don't exist yet
   //! @details Safer, but NOT thread safe
@@ -127,9 +125,9 @@ class SixJ
 // any k
 {
 public:
-  SixJ(int in_max_k = 0, int in_max_twoj = 1) { fill(in_max_k, in_max_twoj); }
+  SixJ(int in_max_twoj = 1) { fill(in_max_twoj); }
   //! @brief Extends existing look-up table to new maximum K and twoj.
-  void fill(int in_max_k, int in_max_twoj);
+  void fill(int in_max_twoj);
 
   //! @brief Thread-safe, but will seg-fault if 6j doesn't exist XXX CHANGE
   //! ORDER ?? XXX

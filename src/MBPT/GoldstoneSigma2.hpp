@@ -45,7 +45,7 @@ public:
   ~GoldstoneSigma2() = default;
 
 protected:
-  void fill_Sigma_k(GMatrix *Gmat, const int kappa, const double en) final;
+  void fill_Sigma_k(GMatrix *Gmat, const int kappa, const double en) override final;
 };
 
 } // namespace MBPT
