@@ -33,15 +33,22 @@ struct TabIVdata {
 bool RadPot(std::ostream &obuff) {
   bool pass = true;
 
+  // Test data: s,p,d energies from:
   // IV: J. S. M. Ginges and J. C. Berengut, J. Phys. B 49, 095001 (2016).
   // VI: J. S. M. Ginges and J. C. Berengut, Phys. Rev. A 93, 052509 (2016).
+  // Note: I use slightly different A,B (internal rad pot parameters) than the
+  // above for d (and higher) states, so exact match is not assumed.
   const auto data = std::vector<helper::TabIVdata>{
       {"Na",
        "[Ne]",
        "3spd",
+       // Uehling, first-order shift:
        {-5.559E-07, -2.006E-10, -4.101E-11, -6.538E-18, -2.018E-18},
+       // Uehling, + Hartree-Fock (relaxation):
        {-5.910E-07, 3.067E-08, 3.077E-08, -1.323E-10, -1.347E-10},
+       // Self-energy, 0th order:
        {1.0680E-05 /*, -5.6980E-08, 1.1120E-07, -2.6440E-09, 1.7700E-09*/},
+       // Self-energy + relaxation:
        {1.1250E-05 /*, -7.0880E-07, -4.8820E-07, 4.0850E-11, 3.4070E-09*/}},
       {"K",
        "[Ar]",
@@ -81,35 +88,49 @@ bool RadPot(std::ostream &obuff) {
        {6.8320E-04 /*, 5.2170E-05, -2.0010E-06, -4.0690E-05, -3.0860E-05*/}}
   };
 
+  // comparators for custom struct
   auto cmpr = [](const auto &ds, const auto &gb) {
     return (std::get<1>(ds) - gb) / gb;
   };
   auto cmpr_hf = [](const auto &ds, const auto &gb) {
     return (std::get<2>(ds) - gb) / gb;
   };
+  const bool rw = false; // don't read/write QED rad pot to file
 
+  // Run test for each atom, and for Uehling (vac pol) and Self-energy
+  // seperately
   for (const auto &at : data) {
     for (const std::string pot : {"Ueh", "SE"}) {
 
+      // Ensure we use same parameters as above paper:
       const int aa = at.atom == "Fr" ? 211 : -1; // Fr-211 not 213
+      // Must use exact same rms value as above papers
       const double rrms = at.atom == "E119" ? 6.5 : -1.0;
+
+      // Construct wavefunction, solve HF core+valence (without QED):
       Wavefunction wf({5000, 1.0e-6, 150.0, 0.3 * 150.0, "loglinear", -1.0},
                       {at.atom, aa, "Fermi", rrms, 2.3}, 1.0);
       wf.hartreeFockCore("HartreeFock", 0.0, at.core);
       wf.hartreeFockValence(at.val);
 
-      const auto rcut = 15.0;
+      // Solve new wavefunction, WITH QED corrections (into Hartree-Fock):
       Wavefunction wf2({5000, 1.0e-6, 150.0, 0.3 * 150.0, "loglinear", -1.0},
                        {at.atom, aa, "Fermi", rrms, 2.3}, 1.0);
+      const auto rcut = 15.0;
       if (pot == "Ueh")
-        wf2.radiativePotential(0.0, 1.0, 0.0, 0.0, 0.0, rcut, 1.0, {1.0});
+        wf2.radiativePotential(0.0, 1.0, 0.0, 0.0, 0.0, rcut, 1.0, {1.0}, rw);
       else
-        wf2.radiativePotential(0.0, 0.0, 1.0, 1.0, 1.0, rcut, 1.0, {1.0});
+        wf2.radiativePotential(0.0, 0.0, 1.0, 1.0, 1.0, rcut, 1.0, {1.0}, rw);
       wf2.hartreeFockCore("HartreeFock", 0.0, at.core);
       wf2.hartreeFockValence(at.val);
 
+      // First, test the zeroth-order energy shifts.
+      // That is <a|h|a>, where a is wavefunction WITHOUT QED, and h is QED
+      // operator
+      // Then, test (HF+QED) [includes relaxtion]
       auto h = DiracOperator::Hrad_el(wf2.vrad.get_Hel(0));
       auto hm = DiracOperator::Hrad_mag(wf2.vrad.get_Hmag(0));
+      // result: {name, 0th, HF/relaxation}
       std::vector<std::tuple<std::string, double, double>> result;
       for (auto i = 0ul; i < wf2.valence.size(); ++i) {
         const auto &Fv = wf.valence[i];
@@ -119,15 +140,9 @@ bool RadPot(std::ostream &obuff) {
         result.emplace_back(
             Fv.symbol(), h.radialIntegral(Fv, Fv) + hm.radialIntegral(Fv, Fv),
             Fv2.en - Fv.en);
-        // std::cout << Fv.symbol() << " " << Fv2.en - Fv.en << " " <<
-        // at.SEde[i]
-        //           << "\n";
-        // std::cout << Fv.symbol() << " "
-        //           << h.radialIntegral(Fv, Fv) + hm.radialIntegral(Fv, Fv) <<
-        //           " "
-        //           << at.SEde0[i] << "\n";
       }
 
+      // Compare results to test data:
       if (pot == "SE") {
         const auto [eps, pos] = qip::compare(result, at.SEde0, cmpr);
         pass &= qip::check_value(&obuff, "SE(s) de0 (TabVI) " + at.atom, eps,

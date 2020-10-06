@@ -13,10 +13,18 @@
 #include <string>
 #include <vector>
 
-// Convert between 'Wtype' and double. Wype may be doule or float.
-#pragma GCC diagnostic ignored "-Wuseless-cast"
-
 namespace MBPT {
+
+template <typename T, typename U> static constexpr T MyCast(U x) {
+  // Convert between 'Wtype' and double. Wype may be doule or float.
+  // Same as static_cast, but don't warn on useless casts
+  // (Use when you know it may be a useless cast)
+  if constexpr (std::is_same_v<T, U>) {
+    return x;
+  } else {
+    return static_cast<T>(x);
+  }
+}
 
 //******************************************************************************
 DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
@@ -163,7 +171,7 @@ void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h) {
 
   const Coulomb::YkTable Yhe(holes.front().rgrid, &holes, &excited);
   const auto &Ck = Yhe.Ck();
-  const Angular::SixJ sj(maxtj, maxtj);
+  const Angular::SixJ sj(maxtj);
 
   // RPA: store W Coulomb integrals (used only for Core RPA its)
   std::cout << "Filling RPA Diagram matrix ("
@@ -206,8 +214,8 @@ void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h) {
             const auto yQ =
                 yknb ? Coulomb::Qk_abcd(Fa, Fb, Fm, Fn, m_k, *yknb, Ck) : 0.0;
             const auto yP = Coulomb::Pk_abcd(Fa, Fb, Fm, Fn, m_k, ybm, Ck, sj);
-            Wanm_b.push_back(static_cast<Wtype>(xQ + xP));
-            Wabm_n.push_back(static_cast<Wtype>(yQ + yP));
+            Wanm_b.push_back(MyCast<Wtype>(xQ + xP));
+            Wabm_n.push_back(MyCast<Wtype>(yQ + yP));
           }
         }
       }
@@ -252,8 +260,8 @@ void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h) {
             const auto yQ =
                 yknb ? Coulomb::Qk_abcd(Fm, Fb, Fa, Fn, m_k, *yknb, Ck) : 0.0;
             const auto yP = Coulomb::Pk_abcd(Fm, Fb, Fa, Fn, m_k, yba, Ck, sj);
-            Wanm_b.push_back(static_cast<Wtype>(xQ + xP));
-            Wabm_n.push_back(static_cast<Wtype>(yQ + yP));
+            Wanm_b.push_back(MyCast<Wtype>(xQ + xP));
+            Wabm_n.push_back(MyCast<Wtype>(yQ + yP));
           }
         }
       }
@@ -379,10 +387,10 @@ void DiagramRPA::rpa_core(const double omega, const bool print) {
             const auto s2 = ((Fb.twoj() - Fn.twoj()) % 4 == 0) ? 1 : -1;
             const auto stdep = s2 * tnb / (Fb.en - Fn.en + m_omega);
             // Cast form 'Wtype' (may be double or float) to double
-            const auto A = tdem * static_cast<double>(Wanmb[ia][in][im][ib]);
-            const auto B = stdep * static_cast<double>(Wabmn[ia][in][im][ib]);
-            const auto C = tdem * static_cast<double>(Wmnab[im][in][ia][ib]);
-            const auto D = stdep * static_cast<double>(Wmban[im][in][ia][ib]);
+            const auto A = tdem * MyCast<double>(Wanmb[ia][in][im][ib]);
+            const auto B = stdep * MyCast<double>(Wabmn[ia][in][im][ib]);
+            const auto C = tdem * MyCast<double>(Wmnab[im][in][ia][ib]);
+            const auto D = stdep * MyCast<double>(Wmban[im][in][ia][ib]);
             sum_am += s1 * (A + B);
             sum_ma += s3 * (C + D);
           }

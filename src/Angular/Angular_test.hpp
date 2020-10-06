@@ -10,7 +10,66 @@
 namespace UnitTest {
 
 namespace helper {
-double ck_loop(const Angular::Ck_ab &Ck, Angular::Ck_ab &Ck_m) {
+
+// This loops through every possibly C^k and three-j symbol (up to given maximum
+// j), and calculates {C^k, 3j} symbol multiple ways (using lookup table, +
+// basic formulas etc.). Checks all these against each other, and returns the
+// eps of the worst comparison
+double ck_loop(const Angular::Ck_ab &Ck, Angular::Ck_ab &Ck_m);
+
+// This does the same, but for the 6j symbols
+double sj_loop(const Angular::SixJ &sj, Angular::SixJ &sj_m);
+
+} // namespace helper
+
+//******************************************************************************
+//! Unit tests for angular functions/classes (threeJ symbols, lookup tables etc)
+bool Angular(std::ostream &obuff) {
+  bool pass = true;
+
+  {
+    // Maximum value of 2*j (for initial run)
+    const int max2j_1 = 5;
+    // Form C^k lookup tables. One used statically, one dynamically re-sized
+    // ("dynamic" one uses the _mutable lookup functions, that calclate the
+    // angular factor if it doesn't exist already)
+    Angular::Ck_ab Ck(max2j_1);
+    Angular::Ck_ab Ck_dynamic(0);
+
+    Angular::SixJ sj(max2j_1);
+    Angular::SixJ sj_dynamic(0);
+
+    const auto eps = helper::ck_loop(Ck, Ck_dynamic);
+    pass &= qip::check_value(&obuff, "AngularTables Ck", eps, 0.0, 1.0e-14);
+
+    const auto eps6 = helper::sj_loop(sj, sj_dynamic);
+    pass &= qip::check_value(&obuff, "AngularTables 6j", eps6, 0.0, 1.0e-14);
+
+    // Test the "extend" capability (extend tables to larger j values:)
+    const int max2j_2 = 15;
+
+    // "Extend" the tables:
+    Ck.fill(max2j_2);
+    sj.fill(max2j_2);
+
+    const auto eps2 = helper::ck_loop(Ck, Ck_dynamic);
+    pass &= qip::check_value(&obuff, "AngularTables Ck - extend", eps2, 0.0,
+                             1.0e-13);
+
+    const auto eps62 = helper::sj_loop(sj, sj_dynamic);
+    pass &= qip::check_value(&obuff, "AngularTables 6j - extend", eps62, 0.0,
+                             1.0e-14);
+  }
+
+  return pass;
+}
+
+} // namespace UnitTest
+
+//******************************************************************************
+
+double UnitTest::helper::ck_loop(const Angular::Ck_ab &Ck,
+                                 Angular::Ck_ab &Ck_m) {
   const auto max2j = Ck.max_tj();
   double max = 0.0;
 
@@ -58,8 +117,7 @@ double ck_loop(const Angular::Ck_ab &Ck, Angular::Ck_ab &Ck_m) {
   return max;
 }
 
-//------------------------------------------------------------------------------
-double sj_loop(const Angular::SixJ &sj, Angular::SixJ &sj_m) {
+double UnitTest::helper::sj_loop(const Angular::SixJ &sj, Angular::SixJ &sj_m) {
   const auto max2j = sj.max_tj();
 
   double max = 0.0;
@@ -88,45 +146,3 @@ double sj_loop(const Angular::SixJ &sj, Angular::SixJ &sj_m) {
   }
   return max;
 }
-} // namespace helper
-
-//******************************************************************************
-//******************************************************************************
-//! Unit tests for angular functions/classes (threeJ symbols, lookup tables etc)
-bool Angular(std::ostream &obuff) {
-  bool pass = true;
-
-  {
-    const int max2j_1 = 5;
-    const int max2j_2 = 15;
-
-    Angular::Ck_ab Ck(max2j_1, max2j_1);
-    Angular::Ck_ab Ck_m(0, 0);
-
-    Angular::SixJ sj(max2j_1, max2j_1);
-    Angular::SixJ sj_m(0, 1);
-
-    auto eps = helper::ck_loop(Ck, Ck_m);
-    pass &= qip::check_value(&obuff, "AngularTables Ck", eps, 0.0, 1.0e-14);
-
-    auto eps6 = helper::sj_loop(sj, sj_m);
-    pass &= qip::check_value(&obuff, "AngularTables 6j", eps6, 0.0, 1.0e-14);
-
-    // "Extend" the tables:
-    Ck.fill_maxK_twojmax(max2j_2, max2j_2);
-    sj.fill(max2j_2, max2j_2);
-    auto eps2 = helper::ck_loop(Ck, Ck_m);
-    pass &= qip::check_value(&obuff, "AngularTables Ck - extend", eps2, 0.0,
-                             1.0e-12);
-
-    auto eps62 = helper::sj_loop(sj, sj_m);
-    pass &= qip::check_value(&obuff, "AngularTables 6j - extend", eps62, 0.0,
-                             1.0e-14);
-
-    //
-  }
-
-  return pass;
-}
-
-} // namespace UnitTest

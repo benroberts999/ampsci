@@ -15,13 +15,14 @@ namespace UnitTest {
 bool Breit(std::ostream &obuff) {
   bool pass = true;
 
+  // Solve Hartree-Fock, including Breit
   Wavefunction wf({3500, 1.0e-6, 125.0, 40.0, "loglinear", -1.0},
                   {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
   const double x_Breit = 1.0;
   wf.hartreeFockCore("HartreeFock", x_Breit, "[Xe]");
   wf.hartreeFockValence("7sp");
 
-  // Compare against (From Vladimir's code):
+  // Lambda to compare against (From Vladimir's code):
   // Overall sign difference between E1, E2, and PNC ME definition (and <ab> vs
   // <ba>) taken into account
   // Store data in list of pairs.
@@ -33,8 +34,9 @@ bool Breit(std::ostream &obuff) {
   };
 
   //****************************************************************************
-  {
-    // energies (with Breit)
+  { // Test Breit energies:
+
+    // Test data: From Dzuba calculation: energies (with Breit)
     auto en_VD = datav{{"6s_1/2", -0.12735352},    {"7s_1/2", -0.05518246},
                        {"6p_1/2", -0.08558175},    {"6p_3/2", -0.08377240},
                        {"7p_1/2", -0.04200916},    {"7p_3/2", -0.04136327},
@@ -47,6 +49,7 @@ bool Breit(std::ostream &obuff) {
                        {"4d_3/2", -3.48506227},    {"4d_5/2", -3.39873098},
                        {"5s_1/2", -1.48931551},    {"5p_1/2", -0.90678723},
                        {"5p_3/2", -0.84005768}};
+    // Sort, so don't worry about order:
     std::sort(begin(en_VD), end(en_VD), sort_by_first);
 
     // Get my values:
@@ -62,8 +65,9 @@ bool Breit(std::ostream &obuff) {
   }
 
   //****************************************************************************
-  {
-    // E1 (w/ Breit, no RPA)
+  { // Test E1
+
+    // Test data (Dzuba), w/ Breit, no RPA
     auto e1_VD =
         datav{{"6p-6s+", -5.27804}, {"6p+6s+", 7.42721},  {"7p-6s+", -0.37356},
               {"7p+6s+", 0.695359}, {"6p-7s+", 4.41774},  {"6p+7s+", -6.67286},
@@ -72,7 +76,8 @@ bool Breit(std::ostream &obuff) {
               {"6s+7p-", -0.37356}, {"7s+7p-", -11.0078}, {"6s+7p+", -0.695359},
               {"7s+7p+", -15.3455}};
     std::sort(begin(e1_VD), end(e1_VD), sort_by_first);
-    // E1 + RPA (w/ Breit and RPA)
+
+    // Test data (Dzuba): E1 + RPA
     auto e1_VD_RPA = datav{
         {"6p-6s+", -4.97441},  {"6p+6s+", 7.01323},  {"7p-6s+", -0.240353},
         {"7p+6s+", 0.509077},  {"6p-7s+", 4.45391},  {"6p+7s+", -6.71407},
@@ -82,10 +87,12 @@ bool Breit(std::ostream &obuff) {
         {"7s+7p+", -15.228}};
     std::sort(begin(e1_VD_RPA), end(e1_VD_RPA), sort_by_first);
 
-    auto h = DiracOperator::E1(*wf.rgrid);
+    // Solve TDHF with Breit (for RPA)
+    const auto h{DiracOperator::E1(*wf.rgrid)};
     auto rpa = HF::ExternalField(&h, wf.getHF());
     rpa.solve_TDHFcore(0.0); // w=0
 
+    // Get my values:
     datav me{}, me_RPA{};
     for (const auto &Fv : wf.valence) {
       for (const auto &Fw : wf.valence) {
@@ -167,6 +174,7 @@ bool Breit(std::ostream &obuff) {
                             {"6s+7p-", 4.30375e-4},  {"7s+7p-", 2.24641e-4}};
     std::sort(begin(pnc_VD_RPA), end(pnc_VD_RPA), sort_by_first);
 
+    // nb: use exact same 'c' and 't' params used for Dzuba test data:
     auto h = DiracOperator::PNCnsi(5.674800, 2.3, *wf.rgrid);
     auto rpa = HF::ExternalField(&h, wf.getHF());
     rpa.solve_TDHFcore(0.0); // w=0

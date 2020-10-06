@@ -10,40 +10,14 @@
 namespace UnitTest {
 
 namespace helper {
-double max_matrixel(const LinAlg::SqMatrix &m) {
-  double max = 0.0;
-  for (std::size_t i = 0; i < m.n; ++i) {
-    for (std::size_t j = 0; j < m.n; ++j) {
-      if (std::abs(m[i][j]) > std::abs(max))
-        max = m[i][j];
-    }
-  }
-  return max;
-}
 
-double max_vecel(const LinAlg::Vector &b) {
-  double max = 0.0;
-  for (std::size_t i = 0; i < b.n; ++i) {
-    if (std::abs(b[i]) > std::abs(max))
-      max = b[i];
-  }
-  return max;
-}
+// returns matrix element that has largest absolute value
+inline double max_matrixel(const LinAlg::SqMatrix &m);
+// returns vector element that has largest absolute value
+inline double max_vecel(const LinAlg::Vector &b);
+// returns complex matrix element that has largest absolute value
+inline std::pair<double, double> max_matrixel(const LinAlg::ComplexSqMatrix &m);
 
-auto max_matrixel(const LinAlg::ComplexSqMatrix &m) {
-  double maxre = 0.0;
-  double maxim = 0.0;
-  for (std::size_t i = 0; i < m.n; ++i) {
-    for (std::size_t j = 0; j < m.n; ++j) {
-      const auto [re, im] = LinAlg::ComplexDouble(m[i][j]).unpack();
-      if (std::abs(re) > std::abs(maxre))
-        maxre = re;
-      if (std::abs(im) > std::abs(maxim))
-        maxim = im;
-    }
-  }
-  return std::pair{maxre, maxim};
-}
 } // namespace helper
 
 //******************************************************************************
@@ -52,7 +26,7 @@ auto max_matrixel(const LinAlg::ComplexSqMatrix &m) {
 bool LinAlg(std::ostream &obuff) {
   bool pass = true;
 
-  {
+  { // Determinant: compare against known value
     // This 6x6 matrix has det = 2619387/4096
     LinAlg::SqMatrix m6x6(6);
     for (std::size_t i = 0; i < m6x6.n; ++i) {
@@ -325,3 +299,41 @@ bool LinAlg(std::ostream &obuff) {
 }
 
 } // namespace UnitTest
+
+//****************************************************************************
+
+inline double UnitTest::helper::max_matrixel(const LinAlg::SqMatrix &m) {
+  double max = 0.0;
+  for (std::size_t i = 0; i < m.n; ++i) {
+    for (std::size_t j = 0; j < m.n; ++j) {
+      if (std::abs(m[i][j]) > std::abs(max))
+        max = m[i][j];
+    }
+  }
+  return max;
+}
+
+inline double UnitTest::helper::max_vecel(const LinAlg::Vector &b) {
+  double max = 0.0;
+  for (std::size_t i = 0; i < b.n; ++i) {
+    if (std::abs(b[i]) > std::abs(max))
+      max = b[i];
+  }
+  return max;
+}
+
+inline std::pair<double, double>
+UnitTest::helper::max_matrixel(const LinAlg::ComplexSqMatrix &m) {
+  double maxre = 0.0;
+  double maxim = 0.0;
+  for (std::size_t i = 0; i < m.n; ++i) {
+    for (std::size_t j = 0; j < m.n; ++j) {
+      const auto [re, im] = LinAlg::ComplexDouble(m[i][j]).unpack();
+      if (std::abs(re) > std::abs(maxre))
+        maxre = re;
+      if (std::abs(im) > std::abs(maxim))
+        maxim = im;
+    }
+  }
+  return std::pair{maxre, maxim};
+}

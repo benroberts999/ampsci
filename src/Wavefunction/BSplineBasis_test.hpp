@@ -17,25 +17,32 @@ bool BSplineBasis(std::ostream &obuff) {
   bool pass = true;
 
   { // Check vs. Hartree-Fock (energies/ortho)
-    // Create wavefunction object
-    Wavefunction wf({2500, 1.0e-6, 150.0, 0.33 * 150.0, "loglinear", -1.0},
-                    {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
+    // Create wavefunction object, solve HF for core + valence
+    Wavefunction wf({2500, 1.0e-6, 150.0, 0.33 * 150.0, "loglinear"},
+                    {"Cs", -1, "Fermi"});
     wf.hartreeFockCore("HartreeFock", 0.0, "[Xe]");
     wf.hartreeFockValence("7sp5d4f");
 
-    auto comp_en = [](const auto &Fa, const auto &en) {
+    // Compare the energy of a Dirac spinor to a double:
+    const auto comp_en = [](const auto &Fa, double en) {
       return (en - Fa.en) / Fa.en;
     };
 
-    // test cf HF states
+    // Test splines compared to HF states (for various spline sets)
     for (std::size_t k = 7; k <= 9; k += 2) {
       const auto nlst = k == 7 ? std::vector{75, 85} : std::vector{70, 90};
       for (const auto n : nlst) {
-        std::string states = "30spdf";
-        const auto basis = SplineBasis::form_basis(
-            {states, std::size_t(n), k, 0.0, 1.0e-9, 75.0, false}, wf);
 
-        // Orthonormality:
+        // Form spline basis:
+        const std::string states = "30spdf";
+        const auto r0 = 0.0;
+        const auto r0_eps = 1.0e-9;
+        const auto rmax = 75.0;
+        const auto positronQ = false;
+        const auto basis = SplineBasis::form_basis(
+            {states, std::size_t(n), k, r0, r0_eps, rmax, positronQ}, wf);
+
+        // Check orthonormality <a|b>:
         const auto [eps, str] = DiracSpinor::check_ortho(basis, basis);
         const auto [eps1, str1] = DiracSpinor::check_ortho(basis, wf.core);
         const auto [eps2, str2] = DiracSpinor::check_ortho(basis, wf.valence);
@@ -52,6 +59,7 @@ bool BSplineBasis(std::ostream &obuff) {
           const auto &pFb = std::find(cbegin(basis), cend(basis), Fv);
           val_en.push_back(pFb->en);
         }
+        // Compare core+valence HF energies to the corresponding splines
         const auto [ce, cs] = qip::compare(wf.core, core_en, comp_en);
         const auto [ve, vs] = qip::compare(wf.valence, val_en, comp_en);
 
@@ -73,8 +81,8 @@ bool BSplineBasis(std::ostream &obuff) {
   }
 
   { // Check low-r behavour (splines vs HF for hyperfine)
-    Wavefunction wf({6000, 1.0e-7, 150.0, 0.33 * 150.0, "loglinear", -1.0},
-                    {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
+    Wavefunction wf({6000, 1.0e-7, 150.0, 0.33 * 150.0, "loglinear"},
+                    {"Cs", -1, "Fermi"}, 1.0);
     wf.hartreeFockCore("HartreeFock", 0.0, "[Xe]");
 
     const std::string states = "7sp5d4f";
@@ -87,18 +95,19 @@ bool BSplineBasis(std::ostream &obuff) {
     const int kspl = 7;
     wf.formBasis({states, nspl, kspl, r0, r0eps, rmax, false});
 
-    // Pointlike, g=1
+    // Hyperfine operator: Pointlike, g=1
     const auto h = DiracOperator::Hyperfine(
         1.0, 1.0, 0.0, *wf.rgrid, DiracOperator::Hyperfine::pointlike_F());
 
+    // Calculate A with HF and spline states, compare for each l:
     std::vector<std::vector<double>> hfs(4); // s,p,d,f
     for (const auto orbs : {&wf.core, &wf.valence}) {
       for (const auto &Fv : *orbs) {
         const auto pFb = std::find(cbegin(wf.basis), cend(wf.basis), Fv);
-        const auto eps = (h.hfsA(Fv) - h.hfsA(*pFb)) / h.hfsA(Fv);
+        const auto Ahf = h.hfsA(Fv);
+        const auto Aspl = h.hfsA(*pFb);
+        const auto eps = (Ahf - Aspl) / Ahf;
         hfs.at(std::size_t(Fv.l())).push_back(eps);
-        // std::cout << Fv.symbol() << " " << h.hfsA(Fv) << " " << h.hfsA(*pFb)
-        //           << " " << eps << "\n";
       }
     }
     for (std::size_t l = 0; l < hfs.size(); l++) {
@@ -110,7 +119,7 @@ bool BSplineBasis(std::ostream &obuff) {
     }
   }
 
-  // Test with a Coulomb potential Z=2
+  // Test with a Coulomb potential Z=2: TKR and DG sum rules:
   {
     Wavefunction wf({5000, 1.0e-6, 50.0, 0.33 * 50.0, "loglinear", -1.0},
                     {"2", -1, "Fermi", -1.0, -1.0}, 1.0);
@@ -162,7 +171,7 @@ bool BSplineBasis(std::ostream &obuff) {
     }
   }
 
-  // Test with a local potential (Hartree)
+  // Test with a local potential (Hartree): DG sum rules:
   {
     Wavefunction wf({5000, 1.0e-6, 100.0, 0.33 * 100.0, "loglinear", -1.0},
                     {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);

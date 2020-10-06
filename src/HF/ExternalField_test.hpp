@@ -11,26 +11,13 @@ namespace UnitTest {
 
 //******************************************************************************
 namespace helper {
-std::vector<std::pair<std::string, double>>
+
+// Calculates core-polarisation correction to matrix elements between all
+// valence states, returns a vector of {states(string), value}
+inline std::vector<std::pair<std::string, double>>
 dV_result(const Wavefunction &wf, const DiracOperator::TensorOperator &h,
-          double ww) {
+          double ww);
 
-  auto dV = HF::ExternalField(&h, wf.getHF());
-  dV.solve_TDHFcore(ww, 150, false);
-
-  std::vector<std::pair<std::string, double>> result;
-  for (const auto &Fv : wf.valence) {
-    for (const auto &Fm : wf.valence) {
-      if (h.isZero(Fv.k, Fm.k))
-        continue;
-
-      result.emplace_back(Fv.shortSymbol() + Fm.shortSymbol(), dV.dV(Fv, Fm));
-    }
-  }
-  std::sort(begin(result), end(result),
-            [](auto a, auto b) { return a.second < b.second; });
-  return result;
-}
 } // namespace helper
 
 //******************************************************************************
@@ -39,12 +26,13 @@ dV_result(const Wavefunction &wf, const DiracOperator::TensorOperator &h,
 bool ExternalField(std::ostream &obuff) {
   bool pass = true;
 
-  // Create wavefunction object
+  // Create wavefunction object, solve HF for core+valence
   Wavefunction wf({6000, 1.0e-6, 175.0, 20.0, "loglinear", -1.0},
                   {"Cs", 133, "Fermi", -1.0, -1.0}, 1.0);
   wf.hartreeFockCore("HartreeFock", 0.0, "[Xe]");
   wf.hartreeFockValence("7sp5d4f");
 
+  // Lambda to compare mine to test data
   auto cmpr = [](const auto &ds, const auto &v) { return (ds.second - v) / v; };
 
   { // E1, w = 0.0
@@ -59,7 +47,7 @@ bool ExternalField(std::ostream &obuff) {
         0.048037122,  -0.141564780, 0.338428260,  0.145969420,  0.107910900,
         0.048037122,  -0.138879730, 0.433068210,  0.141564780,  0.036916812,
         -0.165144850, 0.138879730,  0.036916812,  0.165144850};
-    // -ve: |e|r vs er = -er
+    // -ve: |e|r vs er = -|e|r
     qip::scale(&expected_VD, -1.0);
     // sort to allow easy comparison:
     std::sort(begin(expected_VD), end(expected_VD));
@@ -114,3 +102,29 @@ bool ExternalField(std::ostream &obuff) {
 }
 
 } // namespace UnitTest
+
+//******************************************************************************
+inline std::vector<std::pair<std::string, double>>
+UnitTest::helper::dV_result(const Wavefunction &wf,
+                            const DiracOperator::TensorOperator &h, double ww) {
+
+  // Form TDHF (RPA) object for this operator
+  auto dV = HF::ExternalField(&h, wf.getHF());
+  // Solve set of TDHF equations for core, with frequency ww
+  const auto max_iterations = 150;
+  const auto print_details = true;
+  dV.solve_TDHFcore(ww, max_iterations, print_details);
+
+  std::vector<std::pair<std::string, double>> result;
+  for (const auto &Fv : wf.valence) {
+    for (const auto &Fm : wf.valence) {
+      if (h.isZero(Fv.k, Fm.k))
+        continue;
+
+      result.emplace_back(Fv.shortSymbol() + Fm.shortSymbol(), dV.dV(Fv, Fm));
+    }
+  }
+  std::sort(begin(result), end(result),
+            [](auto a, auto b) { return a.second < b.second; });
+  return result;
+}

@@ -59,8 +59,8 @@ FeynmanSigma::FeynmanSigma(const HF::HartreeFock *const in_hf,
 
   if (!read_ok) {
     // Extand 6j and Ck
-    m_6j.fill(m_maxk, m_maxk);
-    m_yeh.extend_Ck(m_maxk, m_maxk);
+    m_6j.fill(m_maxk);
+    m_yeh.extend_Ck(m_maxk);
     prep_Feynman();
     form_Sigma(en_list, fname);
   }
@@ -806,7 +806,7 @@ GMatrix FeynmanSigma::FeynmanDirect(int kv, double env, int in_k) const {
     // const auto dw = I * (2.0 * sw * wgrid.drdu[iw] * wgrid.du / (2 * M_PI));
     const auto dw = I * wgrid.drdu[iw];
 
-    for (auto k = 0ul; k <= std::size_t(max_k); k++) {
+    for (auto k = 0ul; int(k) <= max_k; k++) {
 
       // For testing only:
       if (in_k >= 0 && in_k != int(k))

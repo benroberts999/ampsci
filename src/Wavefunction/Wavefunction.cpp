@@ -190,7 +190,8 @@ void Wavefunction::radiativePotential(double x_simple, double x_Ueh,
                                       double x_SEe_h, double x_SEe_l,
                                       double x_SEm, double rcut,
                                       double scale_rN,
-                                      const std::vector<double> &x_spd) {
+                                      const std::vector<double> &x_spd,
+                                      bool do_readwrite) {
   if (x_spd.empty())
     return;
 
@@ -214,13 +215,10 @@ void Wavefunction::radiativePotential(double x_simple, double x_Ueh,
   const auto fname = atomicSymbol() + label + ".qed";
   std::vector<double> Hel_tmp, Hmag_tmp;
 
-  // Only read/write is "normal/full" rad pot is used
-  const bool do_rw = true;
-
   const auto read_ok =
-      do_rw ? RadiativePotential::read_write_qed(rgrid->r, Hel_tmp, Hmag_tmp,
-                                                 fname, IO::FRW::read)
-            : false;
+      do_readwrite ? RadiativePotential::read_write_qed(
+                         rgrid->r, Hel_tmp, Hmag_tmp, fname, IO::FRW::read)
+                   : false;
 
   if (!read_ok) {
     if (x_Ueh > 0 || x_SEe_h > 0 || x_SEe_l > 0 || x_SEm > 0 || x_simple > 0) {
@@ -237,7 +235,7 @@ void Wavefunction::radiativePotential(double x_simple, double x_Ueh,
                                            alpha, rcut);
     Hmag_tmp = RadiativePotential::form_Hmag(rgrid->r, x_SEm, r_rms_fm,
                                              m_nuclear.z, alpha, rcut);
-    if (do_rw)
+    if (do_readwrite)
       RadiativePotential::read_write_qed(rgrid->r, Hel_tmp, Hmag_tmp, fname,
                                          IO::FRW::write);
   }
@@ -777,6 +775,9 @@ void Wavefunction::fitSigma_hfBrueckner(
     const std::string &valence_list, const std::vector<double> &fit_energies) {
   std::cout << "\nFitting Sigma for lowest valence states:\n";
 
+  const auto max_its = 10;
+  const auto eps_targ = 1.0e-7;
+
   std::vector<double> lambdas(fit_energies.size(), 1.0);
   valence.clear();
   hartreeFockValence(valence_list, false);
@@ -789,11 +790,13 @@ void Wavefunction::fitSigma_hfBrueckner(
 
     auto max_eps = 0.0;
     for (auto ki = 0ul; ki < fit_energies.size(); ++ki) {
-      auto match_ki = [=](const auto &v) { return v.k_index() == int(ki); };
-      auto e_exp = fit_energies[ki];
-      auto l_0 = lambdas[ki];
+      const auto match_ki = [=](const auto &v) {
+        return v.k_index() == int(ki);
+      };
+      const auto e_exp = fit_energies[ki];
+      const auto l_0 = lambdas[ki];
       // find lowest valence state for this kappa
-      auto v_ki = std::find_if(cbegin(valence), cend(valence), match_ki);
+      const auto v_ki = std::find_if(cbegin(valence), cend(valence), match_ki);
       if (v_ki == cend(valence))
         continue;
       const auto vhf_ki = std::find_if(cbegin(hf_val), cend(hf_val), match_ki);
@@ -809,7 +812,7 @@ void Wavefunction::fitSigma_hfBrueckner(
       const auto eps = std::abs((e_exp - e0) / e_exp);
       max_eps = std::max(max_eps, eps);
     }
-    if (max_eps < 1.0e-8 || i == 15) {
+    if (max_eps < eps_targ || i == max_its) {
       std::cout << "converged to: " << max_eps << " [" << i << "]\n";
       break;
     }

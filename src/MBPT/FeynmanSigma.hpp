@@ -62,7 +62,7 @@ public:
 
 protected:
   // Fills the correlation potential for given kappa
-  void fill_Sigma_k(GMatrix *Sigma, const int kappa, const double en) final;
+  void fill_Sigma_k(GMatrix *Sigma, const int kappa, const double en) override final;
 
 public:
   //!@brief
