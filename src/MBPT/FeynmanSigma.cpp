@@ -15,8 +15,18 @@
 #include <cassert>
 #include <numeric>
 #include <optional>
-//
+
+// omp_get_thread_num() is not defined if not using -fopenmp
+// Also: helps protect in case that "omp.h" is not available
+#if defined(_OPENMP)
 #include <omp.h>
+constexpr bool use_omp = true;
+#else
+constexpr bool use_omp = true;
+#define omp_get_thread_num() 0
+#define omp_get_max_threads() 1
+#endif
+
 //! Many-body perturbation theory
 namespace MBPT {
 
@@ -328,7 +338,7 @@ void FeynmanSigma::setup_omega_grid() {
   std::cout << "Re(w) = " << m_omre << "\n";
 
   // Find max core energy: (for w_max)
-  auto wmax_core = 50.0; // don't let it go below 50
+  auto wmax_core = 30.0; // don't let it go below 50
   const auto &core = p_hf->get_core();
   for (const auto &Fc : core) {
     if (Fc.n < m_min_core_n)
@@ -728,7 +738,8 @@ FeynmanSigma::form_QPQ_wk(int max_k, GrMethod pol_method, double omre,
 
   // // X_PiQ = [1-PiQ]^{-1} (Only calculate X_PiQ if doing screening)
   // const auto X_PiQ =
-  //     m_screen_Coulomb ? std::optional{OneMinusPiQInv(pi_wk)} : std::nullopt;
+  //     m_screen_Coulomb ? std::optional{OneMinusPiQInv(pi_wk)} :
+  //     std::nullopt;
 
   std::cout << "." << std::flush;
 
@@ -781,7 +792,8 @@ FeynmanSigma::form_Greens_kapw(int max_kappa_index, GrMethod method,
 GMatrix FeynmanSigma::FeynmanDirect(int kv, double env, int in_k) const {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
 
-  /* TEMPORARY: in_k ionly for testing; useful for comparing to Dzuba though..*/
+  /* TEMPORARY: in_k ionly for testing; useful for comparing to Dzuba
+   * though..*/
 
   GMatrix Sigma(m_subgrid_points, m_include_G);
 
@@ -803,7 +815,8 @@ GMatrix FeynmanSigma::FeynmanDirect(int kv, double env, int in_k) const {
 #pragma omp parallel for
   for (auto iw = 0ul; iw < wgrid.num_points; iw++) { // for omega integral
     // I, since dw is on imag. grid; 2 from symmetric +/- w
-    // const auto dw = I * (2.0 * sw * wgrid.drdu[iw] * wgrid.du / (2 * M_PI));
+    // const auto dw = I * (2.0 * sw * wgrid.drdu[iw] * wgrid.du / (2 *
+    // M_PI));
     const auto dw = I * wgrid.drdu[iw];
 
     for (auto k = 0ul; int(k) <= max_k; k++) {
@@ -875,33 +888,19 @@ GMatrix FeynmanSigma::FeynmanEx_w1w2(int kv, double en_r) const {
 
   std::cout << std::endl;
 
-  // Store gs in advance
-  // Note: gB depends on w1 and w2!
   const auto num_kappas = std::size_t(m_max_kappaindex + 1);
-  //   std::vector<std::vector<ComplexGMatrix>> Gs(num_kappas);
-  //   std::vector<std::vector<std::vector<ComplexGMatrix>>> GBs(num_kappas);
-  // #pragma omp parallel for
-  //   for (auto ik = 0ul; ik < num_kappas; ++ik) {
-  //     const auto kappa = Angular::kappaFromIndex(int(ik));
-  //     Gs[ik].reserve(wgrid.num_points);
-  //     GBs[ik].resize(wgrid.num_points);
-  //     for (auto iw1 = 0ul; iw1 < wgrid.num_points; iw1++) {
-  //       ComplexDouble evpw{en_r + omre, wgrid.r[iw1]};
-  //       Gs[ik].push_back(Green(kappa, evpw, States::both, m_Green_method));
-  //       GBs[ik][iw1].reserve(wgrid.num_points);
-  //       for (auto iw2 = 0ul; iw2 < wgrid.num_points; iw2++) {
-  //         ComplexDouble evpw1pw2{en_r + 2.0 * omre, wgrid.r[iw1] +
-  //         wgrid.r[iw2]}; GBs[ik][iw1].push_back(
-  //             Green(kappa, evpw1pw2, States::both, m_Green_method));
-  //       }
-  //     }
-  //   }
 
-  std::cout << ".\n" << std::flush;
+  // const std::size_t num_para_threads =
+  //     use_omp ? num_kappas * num_kappas / 4 : 1;
+  const std::size_t num_para_threads =
+      use_omp ? std::min(num_kappas * num_kappas,
+                         std::size_t(4 * omp_get_max_threads()))
+              : 1;
 
-  const std::size_t num_para_threads = num_kappas * num_kappas / 4;
   // Store parts of Sx seperately, for more efficient parallelisation
   std::vector<GMatrix> Sxs(num_para_threads, {m_subgrid_points, m_include_G});
+
+  const auto wmax = 40.0;
 
 #pragma omp parallel for num_threads(num_para_threads) collapse(2)
   for (auto iA = 0ul; iA < num_kappas; ++iA) {   // alpha
@@ -914,34 +913,67 @@ GMatrix FeynmanSigma::FeynmanEx_w1w2(int kv, double en_r) const {
         const auto [kA, kB, kG] = qip::apply_to(
             Angular::kappaFromIndex, std::array{int(iA), int(iB), int(iG)});
 
+        // The part where the imaginary part of w1 and w2 have same sign is
+        // symmetric, and the part where they have opposite sign is also
+        // symmetric Therefore, calculate 2*[X(w1,w2)+X(w1,-w2)].
+        // w2 here refers just to imaginary part! real part is still + 2 is
+        // included below
         for (auto iw1 = 0ul; iw1 < wgrid.num_points; iw1 += m_wX_stride) {
-          // XXX nb: stride must be odd for this to work!
-          const auto s1 = iw1 % 2 == 0 ? 1 : -1;
-          const auto dw1 = s1 * wgrid.drdu[iw1]; // s1 here ?
-          const ComplexDouble evpw1{en_r + omre, s1 * wgrid.r[iw1]};
+          const auto dw1 = wgrid.drdu[iw1];
+          const ComplexDouble evpw1{en_r + omre, wgrid.r[iw1]};
+
+          if (std::abs(wgrid.r[iw1]) > wmax)
+            continue;
 
           const auto &gA = Green(kA, evpw1, States::both, m_Green_method);
 
           for (auto iw2 = 0ul; iw2 < wgrid.num_points; iw2 += m_wX_stride) {
-            const auto s2 = iw2 % 2 == 0 ? -1 : 1;
-            const auto dw2 = s2 * wgrid.drdu[iw2]; //?
-            const ComplexDouble evpw2{en_r + omre, s2 * wgrid.r[iw2]};
+            const auto dw2 = wgrid.drdu[iw2]; //-ve for -Im(w)
+            const ComplexDouble ev_p_w2{en_r + omre, +wgrid.r[iw2]};
+            const ComplexDouble ev_m_w2{en_r + omre, -wgrid.r[iw2]};
 
-            // ok?
-            if (std::abs((evpw1 + evpw2).cim()) > std::abs(wgrid.rmax))
+            if (std::abs(wgrid.r[iw2]) > wmax)
               continue;
 
-            // get the Green's functions:
-            // const auto &gA = Gs[iA][iw1];
-            // const auto &gB = GBs[iB][iw1][iw2];
-            // const auto &gG = Gs[iG][iw2];
+            // This seems to be a very expensive random number generator...
 
-            const auto &gB =
-                Green(kB, evpw1 + evpw2, States::both, m_Green_method);
-            const auto &gG = Green(kG, evpw2, States::both, m_Green_method);
+            // note: sumkl_gqgqg is the slow part: generateing Green's
+            // function here is very ineficient, but doesn't actually take any
+            // longer
+            // if (std::abs((evpw1 + ev_p_w2).cim()) <= 1.5 * wmax)
+            {
+              // (w1 + w2) case:
+              const auto &gB_p =
+                  Green(kB, evpw1 + ev_p_w2, States::both, m_Green_method);
+              const auto &gG_p =
+                  Green(kG, ev_p_w2, States::both, m_Green_method);
+              const auto gqgqg_p =
+                  sumkl_gqgqg(gA, gB_p, gG_p, kv, kA, kB, kG, max_k);
+              Sc_i += (dw1 * dw2) * (gqgqg_p);
+            }
 
-            const auto gqgqg = sumkl_gqgqg(gA, gB, gG, kv, kA, kB, kG, max_k);
-            Sc_i -= (dw1 * dw2) * gqgqg;
+            // nb: I thought these should be Sc_i -= ...
+            // because we have (i*i)=-1 from dw1*dw2, and sumkl_gqgqg is real
+            // But, I included an extra i inside sumkl_gqgqg instead (i.e.,
+            // assume only get 1 i)?
+            // Still, factor of 10 too big!?
+            // if (std::abs((evpw1 + ev_m_w2).cim()) <= 1.5 * wmax)
+            {
+              // (w1 - w2) case:
+              const auto &gB_m =
+                  Green(kB, evpw1 + ev_m_w2, States::both, m_Green_method);
+              const auto &gG_m =
+                  Green(kG, ev_m_w2, States::both, m_Green_method);
+
+              const auto gqgqg_m =
+                  sumkl_gqgqg(gA, gB_m, gG_m, kv, kA, kB, kG, max_k);
+              // -ve for 'm', since we go wrong direction around w2 contour??
+              Sc_i += (dw1 * (-dw2)) * (gqgqg_m);
+            }
+
+            // im(gqgqg_m) is small, but real part is v. large
+            // im(gqgqg_p) is roughly ok, re(gqgqg_p) is large
+            // Note: sumkl_gqgqg already returns only real part.
 
           } // w2
         }   // w1
@@ -953,8 +985,9 @@ GMatrix FeynmanSigma::FeynmanEx_w1w2(int kv, double en_r) const {
     Sx += Sc_i;
   }
 
-  const auto dw_const = 2.0 * sw * double(m_wX_stride) * wgrid.du / (2 * M_PI);
-  Sx *= (dw_const * dw_const / tjvp1);
+  // sw?
+  const double dw_const = sw * double(m_wX_stride) * wgrid.du / (2.0 * M_PI);
+  Sx *= 2.0 * (dw_const * dw_const / tjvp1);
 
   // devide through by dri, drj [these included in q's, but want
   // differential operator for sigma] or.. include one of these in
@@ -964,11 +997,7 @@ GMatrix FeynmanSigma::FeynmanEx_w1w2(int kv, double en_r) const {
     for (auto j = 0ul; j < m_subgrid_points; ++j) {
       const auto drj = dr_subToFull(j);
       Sx.ff[i][j] /= (dri * drj);
-      // if (m_include_G) {
-      //   Sx.fg[i][j] /= (dri * drj);
-      //   Sx.gf[i][j] /= (dri * drj);
-      //   Sx.gg[i][j] /= (dri * drj);
-      // }
+      // no g?
     }
   }
 
@@ -995,16 +1024,27 @@ GMatrix FeynmanSigma::FeynmanEx_1(int kv, double env) const {
   const auto gAs =
       form_Greens_kapw(m_max_kappaindex, m_Green_method, env + omre, wgrid);
 
-  // const std::size_t num_para_threads = 12;
+  // // const std::size_t num_para_threads = 12;
+  // const std::size_t num_para_threads =
+  //     use_omp ? num_kappas * wgrid.num_points / m_wX_stride / 4 : 1;
+
   const std::size_t num_para_threads =
-      num_kappas * wgrid.num_points / m_wX_stride / 4;
+      use_omp ? std::min(num_kappas * wgrid.num_points / m_wX_stride,
+                         std::size_t(4 * omp_get_max_threads()))
+              : 1;
+
   std::vector<GMatrix> Sx_k(num_para_threads, {m_subgrid_points, m_include_G});
+
+  const auto wmax = 100.0; // XXX Temp?
 
 // #pragma omp parallel for collapse(2)
 #pragma omp parallel for num_threads(num_para_threads) collapse(2)
   for (auto iB = 0ul; iB < num_kappas; ++iB) {
     for (auto iw = 0ul; iw < wgrid.num_points; iw += m_wX_stride) {
       const auto kB = Angular::kappaFromIndex(int(iB));
+
+      if (std::abs(wgrid.r[iw]) > wmax)
+        continue;
 
       const auto tid = std::size_t(omp_get_thread_num());
 
@@ -1029,8 +1069,6 @@ GMatrix FeynmanSigma::FeynmanEx_1(int kv, double env) const {
           const auto kA = Angular::kappaFromIndex(int(iA));
 
           const auto &gA = gAs[iA][iw];
-          // const auto gA =
-          //     Green(kA, {env + omre, omim}, States::both, m_Green_method);
 
           const auto gqpg =
               sumkl_GQPGQ(gA, gxBm, gxBp, pa, kv, kA, kB, Fa.k, qpqw_k);
@@ -1087,7 +1125,9 @@ GMatrix FeynmanSigma::sumkl_gqgqg(const ComplexGMatrix &gA,
       const auto Lkl = Lkl_abcd(k, l, kv, kB, kA, kG);
       if (Lkl != 0.0) {
         const auto s = Angular::neg1pow(k + l);
-        const auto sLkl = ComplexDouble{s * Lkl, 0.0};
+        // const auto sLkl = ComplexDouble{s * Lkl, 0.0};
+        // // extra factor of i ??:
+        const auto sLkl = ComplexDouble{0.0, s * Lkl};
         tensor_5_product(&gqgqg, sLkl, qk, gB, gG, gA, ql);
       }
     } // l
@@ -1113,7 +1153,7 @@ GMatrix FeynmanSigma::sumkl_GQPGQ(
   for (auto k = 0; k <= kmax; ++k) {
     // qk -> qk + 2 * QPxQ ??
     const auto &tqk = get_qk(k);
-    // Try to screen q^k(w1) - wrong sign?? Anti-screening??
+    // Try to screen q^k(w1)
     const auto qk =
         qpqw_k != nullptr ? tqk - 2.0 * I * (*qpqw_k)[std::size_t(k)] : tqk;
 
@@ -1127,6 +1167,9 @@ GMatrix FeynmanSigma::sumkl_GQPGQ(
 
       const auto ic1 = ComplexDouble(s0 * L1, 0.0);
       const auto ic2 = ComplexDouble(s0 * L2, 0.0);
+      // XXX ??? Extra i ???
+      // const auto ic1 = ComplexDouble(0.0, s0 * L1);
+      // const auto ic2 = ComplexDouble(0.0, s0 * L2);
 
       // tensor_5_product adds the real part of below to result
       // Sum_ij [ factor * a1j * bij * cj2 * (d_1i * e_i2) ]
@@ -1162,6 +1205,7 @@ void FeynmanSigma::tensor_5_product(
 
       for (auto j = 0ul; j < size; ++j) {
         // early a*c mult
+        // Note: a and c are actually real (only half the time..)
         ac[j] = ComplexDouble(a.ff[r1][j]) * c.ff[j][r2];
       }
       ComplexDouble sum_ij{0.0, 0.0};
@@ -1244,7 +1288,8 @@ GMatrix FeynmanSigma::Exchange_Goldstone(const int kappa,
           if (Ck(k, kappa, m.k) == 0)
             continue;
           Coulomb::Qkv_bcd(&Qkv, a, m, n, k, yknb, Ck);
-          // Pkv_bcd_2 allows different screening factor for each 'k2' in exch.
+          // Pkv_bcd_2 allows different screening factor for each 'k2' in
+          // exch.
           Coulomb::Pkv_bcd_2(&Pkv, a, m, n, k, m_yeh(m, a), Ck, m_6j, m_fk);
           const auto dele = en + a.en - m.en - n.en;
           const auto factor = fk / (f_kkjj * dele);

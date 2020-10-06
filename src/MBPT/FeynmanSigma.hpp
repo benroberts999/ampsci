@@ -62,7 +62,8 @@ public:
 
 protected:
   // Fills the correlation potential for given kappa
-  void fill_Sigma_k(GMatrix *Sigma, const int kappa, const double en) override final;
+  void fill_Sigma_k(GMatrix *Sigma, const int kappa,
+                    const double en) override final;
 
 public:
   //!@brief
@@ -215,14 +216,14 @@ private:
 
   std::vector<std::vector<ComplexGMatrix>> m_qpq_wk{};
 
-  int m_k_cut = 4; // XXX Make input?
+  int m_k_cut = 10; // XXX Make input?
 
   const bool m_print_each_k = false;
 
-  // ExchangeMethod m_ex_method = ExchangeMethod::Goldstone;
+  ExchangeMethod m_ex_method = ExchangeMethod::Goldstone;
   // ExchangeMethod m_ex_method = ExchangeMethod::w1;
   // ExchangeMethod m_ex_method = ExchangeMethod::none;
-  ExchangeMethod m_ex_method = ExchangeMethod::w1w2;
+  // ExchangeMethod m_ex_method = ExchangeMethod::w1w2;
 };
 
 } // namespace MBPT
