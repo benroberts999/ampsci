@@ -59,8 +59,8 @@ void screeningFactors(const IO::UserInputBlock &input, const Wavefunction &wf) {
 
   const MBPT::rgrid_params gridp{1.0e-4, 30.0, stride};
 
-  const MBPT::FeynmanSigma Sigma0(wf.getHF(), wf.basis, sigp_0, gridp, {}, "");
-  const MBPT::FeynmanSigma SigmaX(wf.getHF(), wf.basis, sigp_X, gridp, {}, "");
+  const MBPT::FeynmanSigma Sigma0(wf.getHF(), wf.basis, sigp_0, gridp, "");
+  const MBPT::FeynmanSigma SigmaX(wf.getHF(), wf.basis, sigp_X, gridp, "");
 
   std::cout << "\n";
 

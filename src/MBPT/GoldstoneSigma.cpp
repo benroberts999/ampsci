@@ -1,4 +1,4 @@
-#include "MBPT/GoldstoneSigma2.hpp"
+#include "MBPT/GoldstoneSigma.hpp"
 #include "Angular/Angular_tables.hpp"
 #include "Coulomb/Coulomb.hpp"
 #include "Coulomb/YkTable.hpp"
@@ -15,23 +15,23 @@
 namespace MBPT {
 
 //******************************************************************************
-GoldstoneSigma2::GoldstoneSigma2(const HF::HartreeFock *const in_hf,
-                                 const std::vector<DiracSpinor> &basis,
-                                 const Sigma_params &sigp,
-                                 const rgrid_params &subgridp,
-                                 const std::vector<double> &en_list,
-                                 const std::string &atom)
+GoldstoneSigma::GoldstoneSigma(const HF::HartreeFock *const in_hf,
+                               const std::vector<DiracSpinor> &basis,
+                               const Sigma_params &sigp,
+                               const rgrid_params &subgridp,
+                               // const std::vector<DiracSpinor> &valence,
+                               const std::string &fname)
     : CorrelationPotential(in_hf, basis, sigp, subgridp) {
 
   std::cout << "\nCorrelation potential (Sigma^2): Goldstone\n";
 
-  const auto fname =
-      atom == "" ? ""
-                 : atom + "_" + std::to_string(p_gr->num_points) + ".SigmaG";
+  // const auto fname =
+  //     atom == "" ? ""
+  //                : atom + "_" + std::to_string(p_gr->num_points) + ".SigmaG";
   const bool read_ok = read_write(fname, IO::FRW::read);
 
-  if (en_list.empty())
-    return; //?
+  // if (valence.empty())
+  //   return; //?
 
   print_subGrid();
 
@@ -51,13 +51,56 @@ GoldstoneSigma2::GoldstoneSigma2(const HF::HartreeFock *const in_hf,
     std::cout << "Basis: " << DiracSpinor::state_config(m_holes) << "/"
               << DiracSpinor::state_config(m_excited) << "\n";
 
-    form_Sigma(en_list, fname);
+    // form_Sigma(valence, fname);
   }
 } // namespace MBPT
 
 //******************************************************************************
-void GoldstoneSigma2::fill_Sigma_k(GMatrix *Gmat, const int kappa,
-                                   const double en) {
+void GoldstoneSigma::formSigma(int kappa, double en, int n) {
+  // Calc dir + exchange
+  // Print D, X, (D+X) energy shift
+  // Add (D+X) to m_Sigma, and (n,k) to lookup_list
+  // most of this is the same between each...?
+
+  m_nk.emplace_back(n, kappa);
+  auto &Sigma = m_Sigma_kappa.emplace_back(m_subgrid_points, m_include_G);
+
+  // if v.kappa > basis, then Ck angular factor won't exist!
+  if (Angular::twoj_k(kappa) > m_yeh.Ck().max_tj()) {
+    std::cout << "Warning: angular not good\n";
+    return;
+  }
+
+  printf("k=%2i at en=%8.5f.. ", kappa, en);
+  std::cout << std::flush;
+  // this->fill_Sigma_k(&Sigma, kappa, en);
+
+  // auto Gmat_D = Sigma; // copy
+  auto Gmat_X = Sigma; // copy
+  Sigma2(&Sigma, &Gmat_X, kappa, en);
+
+  // find lowest excited state, output <v|S|v> energy shift:
+  const auto find_kappa = [kappa, n](const auto &a) {
+    return a.k == kappa && (a.n == n || n == 0);
+  };
+  const auto vk = std::find_if(cbegin(m_excited), cend(m_excited), find_kappa);
+  if (vk != cend(m_excited)) {
+    auto deD = *vk * act_G_Fv(Sigma, *vk);
+    auto deX = *vk * act_G_Fv(Gmat_X, *vk);
+    // nb: just approximate (uses splines)
+    printf("de= %7.1f + %5.1f = ", deD * PhysConst::Hartree_invcm,
+           deX * PhysConst::Hartree_invcm);
+    printf("%7.1f", (deD + deX) * PhysConst::Hartree_invcm);
+  }
+
+  Sigma += Gmat_X;
+
+  std::cout << "\n";
+}
+
+//******************************************************************************
+void GoldstoneSigma::Sigma2(GMatrix *Gmat_D, GMatrix *Gmat_X, int kappa,
+                            double en) {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
 
   // Four second-order diagrams:
@@ -75,13 +118,10 @@ void GoldstoneSigma2::fill_Sigma_k(GMatrix *Gmat, const int kappa,
   // k is multipolarity [Coloulmb expansion]
   // de_xyz = e_v + e_x - e_y - e_z
 
-  const auto &Ck = m_yeh.Ck();
+  // can do only D/X part if either is null?
+  // In which case, this should be in base class?
 
-  // Just for safety, should already be zero (unless re-calcing G)
-  Gmat->zero();
-  // This is only so I can print each energy shift:
-  auto Sdir = *Gmat; // blank copies!
-  auto Sexch = *Gmat;
+  const auto &Ck = m_yeh.Ck();
 
   if (m_holes.empty())
     return;
@@ -113,7 +153,6 @@ void GoldstoneSigma2::fill_Sigma_k(GMatrix *Gmat, const int kappa,
           if (Ck(k, kappa, m.k) == 0)
             continue;
           Coulomb::Qkv_bcd(&Qkv, a, m, n, k, yknb, Ck);
-          // Coulomb::Pkv_bcd(&Pkv, a, m, n, k, m_yeh(m, a), Ck, m_6j);
           // Pkv_bcd_2 allows different screening factor for each 'k2' in exch.
           Coulomb::Pkv_bcd_2(&Pkv, a, m, n, k, m_yeh(m, a), Ck, m_6j, m_fk);
           const auto dele = en + a.en - m.en - n.en;
@@ -127,7 +166,6 @@ void GoldstoneSigma2::fill_Sigma_k(GMatrix *Gmat, const int kappa,
           if (Ck(k, kappa, b.k) == 0)
             continue;
           Coulomb::Qkv_bcd(&Qkv, n, b, a, k, yknb, Ck);
-          // Coulomb::Pkv_bcd(&Pkv, n, b, a, k, m_yeh(n, b), Ck, m_6j);
           Coulomb::Pkv_bcd_2(&Pkv, n, b, a, k, m_yeh(n, b), Ck, m_6j, m_fk);
           const auto dele = en + n.en - b.en - a.en;
           const auto factor = fk / (f_kkjj * dele); // XXX
@@ -140,24 +178,10 @@ void GoldstoneSigma2::fill_Sigma_k(GMatrix *Gmat, const int kappa,
   }     // a
 
   // // note: no benefit to sending Gmat in! Just let it be a return value!
-  // This is only so I can print each energy shift!
   for (const auto &Gd : Gds)
-    Sdir += Gd;
+    *Gmat_D += Gd;
   for (const auto &Gx : Gxs)
-    Sexch += Gx;
-
-  *Gmat = Sdir + Sexch;
-
-  // XXX This is only so I can print each energy shift!
-  auto find_kappa = [=](const auto &f) { return f.k == kappa; };
-  const auto Fk = std::find_if(cbegin(m_excited), cend(m_excited), find_kappa);
-  if (Fk != cend(m_excited)) {
-    auto deD = *Fk * act_G_Fv(Sdir, *Fk);
-    auto deX = *Fk * act_G_Fv(Sexch, *Fk);
-    // printf("de= %.4f + %.5f = ", deD, deX);
-    printf("de= %.3f + %.3f = ", deD * PhysConst::Hartree_invcm,
-           deX * PhysConst::Hartree_invcm);
-  }
+    *Gmat_X += Gx;
 }
 
 } // namespace MBPT

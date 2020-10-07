@@ -5,7 +5,7 @@
 #include "IO/FRW_fileReadWrite.hpp" //just for enum..
 #include "MBPT/CorrelationPotential.hpp"
 #include "MBPT/FeynmanSigma.hpp"
-#include "MBPT/GoldstoneSigma2.hpp"
+#include "MBPT/GoldstoneSigma.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/Interpolator.hpp"
 #include "Physics/AtomData.hpp"
@@ -707,57 +707,49 @@ void Wavefunction::formSpectrum(const SplineBasis::Parameters &params) {
 
 //******************************************************************************
 void Wavefunction::formSigma(
-    const int nmin_core, const bool form_matrix, const double r0,
-    const double rmax, const int stride, const bool include_G,
-    const std::vector<double> &lambdas, const std::vector<double> &fk,
-    const std::string &fname, const bool FeynmanQ, const bool ScreeningQ,
-    const bool holeParticleQ, const int lmax, const bool GreenBasis,
-    const bool PolBasis, const double omre, double w0, double wratio) {
+    const int nmin_core, const bool, const double r0, const double rmax,
+    const int stride, const bool include_G, const std::vector<double> &lambdas,
+    const std::vector<double> &fk, const std::string &fname,
+    const bool FeynmanQ, const bool ScreeningQ, const bool holeParticleQ,
+    const int lmax, const bool GreenBasis, const bool PolBasis,
+    const double omre, double w0, double wratio) {
   if (valence.empty())
     return;
 
-  // Form list of energies for each kappa:
-  std::vector<double> en_list_kappa{};
-  if (form_matrix) {
-    const auto max_ki =
-        std::max_element(cbegin(valence), cend(valence), DiracSpinor::comp_ki)
-            ->k_index();
-    // for each kappa, find lowest valence (or basis) state energy:
-    for (int ki = 0; ki <= max_ki; ki++) {
-      // XXX Note: this assumes sorted (for each kappa)! Almost certainly true.
-      const auto find_ki = [=](const auto &a) { return a.k_index() == ki; };
-      auto vki = std::find_if(cbegin(valence), cend(valence), find_ki);
-      // if (vki == cend(valence)) {
-      //   vki = std::find_if(cbegin(excited), cend(excited), find_ki);
-      // }
-      if (vki != cend(valence) /*&& vki != cend(excited)*/) {
-        en_list_kappa.push_back(vki->en);
-      } else {
-        en_list_kappa.push_back(0.0);
-      }
-    }
-  }
+  const std::string ext = FeynmanQ ? ".SigmaF" : ".SigmaG";
 
   const auto method =
       FeynmanQ ? MBPT::Method::Feynman : MBPT::Method::Goldstone;
+
   const auto sigp = MBPT::Sigma_params{
       method, nmin_core, include_G, lmax,       GreenBasis,    PolBasis,
       omre,   w0,        wratio,    ScreeningQ, holeParticleQ, fk};
+
   const auto subgridp = MBPT::rgrid_params{r0, rmax, std::size_t(stride)};
 
   // Correlaion potential matrix:
   switch (method) {
   case MBPT::Method::Goldstone:
-    m_Sigma = std::make_unique<MBPT::GoldstoneSigma2>(
-        m_pHF.get(), basis, sigp, subgridp, en_list_kappa, fname);
+    m_Sigma = std::make_unique<MBPT::GoldstoneSigma>(m_pHF.get(), basis, sigp,
+                                                     subgridp, fname + ext);
     break;
   case MBPT::Method::Feynman:
-    m_Sigma = std::make_unique<MBPT::FeynmanSigma>(
-        m_pHF.get(), basis, sigp, subgridp, en_list_kappa, fname);
+    m_Sigma = std::make_unique<MBPT::FeynmanSigma>(m_pHF.get(), basis, sigp,
+                                                   subgridp, fname + ext);
     break;
   }
 
+  // This is for each valence state.... otherwise, just do for lowest??
+
+  for (const auto &Fv : valence) {
+    m_Sigma->formSigma(Fv.k, Fv.en, Fv.n);
+  }
   m_Sigma->scale_Sigma(lambdas);
+
+  // XXX Scale not correct any more
+
+  if (fname != "")
+    m_Sigma->read_write(fname + ext, IO::FRW::RoW::read);
 }
 
 //******************************************************************************
