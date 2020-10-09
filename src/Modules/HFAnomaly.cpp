@@ -455,8 +455,8 @@ void calculateBohrWeisskopf(const IO::UserInputBlock &input,
   else
     BW_in.add("F(r)=VolotkaBW");
 
-  auto hp = generateOperator(point_in, wf);
-  auto hb = generateOperator(ball_in, wf);
+  auto hp = generateOperator(point_in, wf, false);
+  auto hb = generateOperator(ball_in, wf, false);
   auto hw = generateOperator(BW_in, wf);
 
   // nb: can only do diagram RPA for hfs
