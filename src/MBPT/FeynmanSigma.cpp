@@ -70,6 +70,11 @@ void FeynmanSigma::formSigma(int kappa, double en, int n) {
   // Add (D+X) to m_Sigma, and (n,k) to lookup_list
   // most of this is the same between each...?
 
+  // already exists:
+  if (getSigmaIndex(n, kappa) < m_Sigma_kappa.size())
+    return;
+  // XXX Need to read/write QPQ etc!!! for this to work
+
   m_nk.emplace_back(n, kappa);
   auto &Sigma = m_Sigma_kappa.emplace_back(m_subgrid_points, m_include_G);
 
@@ -1051,7 +1056,9 @@ GMatrix FeynmanSigma::FeynmanEx_1(int kv, double env) const {
     for (auto iw = 0ul; iw < wgrid.num_points; iw += m_wX_stride) {
       const auto kB = Angular::kappaFromIndex(int(iB));
 
-      const auto tid = std::size_t(omp_get_thread_num());
+      // XXX
+      std::cout << "FIX THREADING HERE\n";
+      const auto tid = 0; // std::size_t(omp_get_thread_num());
 
       auto omim = wgrid.r[iw]; // XXX Symmetric?? Or Not??
       const auto omega = ComplexDouble{omre, omim};

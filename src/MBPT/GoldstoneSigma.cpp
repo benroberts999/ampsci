@@ -62,6 +62,10 @@ void GoldstoneSigma::formSigma(int kappa, double en, int n) {
   // Add (D+X) to m_Sigma, and (n,k) to lookup_list
   // most of this is the same between each...?
 
+  // already exists:
+  if (getSigmaIndex(n, kappa) < m_Sigma_kappa.size())
+    return;
+
   m_nk.emplace_back(n, kappa);
   auto &Sigma = m_Sigma_kappa.emplace_back(m_subgrid_points, m_include_G);
 

@@ -94,6 +94,14 @@ public:
   // nb: should do nothing if sigma already exists??
   virtual void formSigma(int kappa, double en, int n = 0) = 0;
 
+  const GMatrix *getSigma(int n, int kappa) const;
+
+  //! returns Spinor: Sigma|Fv>
+  //! @details If Sigma for kappa_v doesn't exist, returns |0>. m_Sigma_kappa
+  //! calculated at the energy given in 'form_Sigma' (or on construct)
+  DiracSpinor SigmaFv(const DiracSpinor &Fv) const;
+  DiracSpinor operator()(const DiracSpinor &Fv) const { return SigmaFv(Fv); }
+
 protected:
   // // n=0 means get Sigma for lowest available n
   std::size_t getSigmaIndex(int n, int kappa) const;
@@ -110,16 +118,12 @@ public:
     m_lambda_kappa = lambda_kappa;
   }
 
+  void scale_Sigma(int n, int kappa, double lambda);
+
   //! Prints the scaling factors to screen
   void print_scaling() const;
   //! Prints the sub-grid parameters to screen
   void print_subGrid() const;
-
-  //! returns Spinor: Sigma|Fv>
-  //! @details If Sigma for kappa_v doesn't exist, returns |0>. m_Sigma_kappa
-  //! calculated at the energy given in 'form_Sigma' (or on construct)
-  DiracSpinor SigmaFv(const DiracSpinor &Fv) const;
-  DiracSpinor operator()(const DiracSpinor &Fv) const { return SigmaFv(Fv); }
 
   //! Calculates <Fv|Sigma|Fw> from scratch, at Fv energy [full grid + fg+gg]
   //! @details Note: uses basis, so if reading Sigma from file, and no basis
@@ -188,6 +192,8 @@ protected:
 
   // Options for sub-grid, and which matrices to include
   const bool m_include_G;
+
+  bool same_as_fileQ{false};
 
   // Effective screening parameters
   std::vector<double> m_fk{}; // e.g., {0.72, 0.62, 0.83, 0.89, 0.94, 1.0};

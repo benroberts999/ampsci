@@ -744,12 +744,15 @@ void Wavefunction::formSigma(
   for (const auto &Fv : valence) {
     m_Sigma->formSigma(Fv.k, Fv.en, Fv.n);
   }
-  m_Sigma->scale_Sigma(lambdas);
-
-  // XXX Scale not correct any more
+  if (!lambdas.empty()) {
+    std::cout << "Note: be careful order of input lambdas matches Sigma\n";
+    // If Sigma diverged from valence, may be diff order to valence...
+    // Better to make it explicit!
+    m_Sigma->scale_Sigma(lambdas);
+  }
 
   if (fname != "")
-    m_Sigma->read_write(fname + ext, IO::FRW::RoW::read);
+    m_Sigma->read_write(fname + ext, IO::FRW::RoW::write);
 }
 
 //******************************************************************************
@@ -764,58 +767,50 @@ void Wavefunction::hartreeFockBrueckner(const bool print) {
 
 //******************************************************************************
 void Wavefunction::fitSigma_hfBrueckner(
-    const std::string &valence_list, const std::vector<double> &fit_energies) {
+    const std::string &, const std::vector<double> &fit_energies) {
   std::cout << "\nFitting Sigma for lowest valence states:\n";
 
   const auto max_its = 10;
   const auto eps_targ = 1.0e-7;
 
-  std::vector<double> lambdas(fit_energies.size(), 1.0);
-  valence.clear();
-  hartreeFockValence(valence_list, false);
-  const auto hf_val = valence; // copy
-  for (int i = 0; true; i++) {
-    valence.clear();
-    hartreeFockValence(valence_list, false);
-    m_Sigma->scale_Sigma(lambdas);
-    hartreeFockBrueckner(false);
+  // XXX Assume the 'fit_to' are in same order as valence!!
+  // Must be called after HF, before Bruckenr....
 
-    auto max_eps = 0.0;
-    for (auto ki = 0ul; ki < fit_energies.size(); ++ki) {
-      const auto match_ki = [=](const auto &v) {
-        return v.k_index() == int(ki);
-      };
-      const auto e_exp = fit_energies[ki];
-      const auto l_0 = lambdas[ki];
-      // find lowest valence state for this kappa
-      const auto v_ki = std::find_if(cbegin(valence), cend(valence), match_ki);
-      if (v_ki == cend(valence))
-        continue;
-      const auto vhf_ki = std::find_if(cbegin(hf_val), cend(hf_val), match_ki);
-      const auto ehf = vhf_ki->en;
-      const auto e0 = v_ki->en;
-      // E0 = E_hf + l_0 * sigma
-      // Eexp = E_hf + l * sigma
-      // => l = l0 * (1 + R)
-      // R = (Eexp - E0)/(E0-Ehf)
-      const auto r = (e_exp - e0) / (e0 - ehf);
-      const auto l = l_0 * (1.0 + r);
-      lambdas[ki] = std::clamp(l, 0.5, 1.5);
-      const auto eps = std::abs((e_exp - e0) / e_exp);
-      max_eps = std::max(max_eps, eps);
-    }
-    if (max_eps < eps_targ || i == max_its) {
-      std::cout << "converged to: " << max_eps << " [" << i << "]\n";
+  //
+  for (auto i = 0ul; i < fit_energies.size(); ++i) {
+    if (i >= valence.size())
       break;
+    const auto &Fv = valence[i];
+    const auto e_exp = fit_energies[i];
+    if (e_exp >= 0.0)
+      continue;
+
+    // std::cout << Fv.symbol() << " " << Fv.en * PhysConst::Hartree_invcm
+    //           << " -> " << e_exp * PhysConst::Hartree_invcm << ": ";
+
+    printf("%4s %7.0f [%7.0f] : ", Fv.shortSymbol().c_str(),
+           Fv.en * PhysConst::Hartree_invcm, e_exp * PhysConst::Hartree_invcm);
+    const double en_0 = Fv.en; // HF value
+    auto lambda = 1.0;
+    double eps = 1.0;
+    int its = 0;
+    for (; its < max_its; its++) {
+      auto Fv_l = Fv;
+      m_Sigma->scale_Sigma(Fv_l.n, Fv_l.k, lambda);
+      // nb: hf_Brueckner must start from HF... so, call on copy of Fv....
+      m_pHF->hf_Brueckner(Fv_l, *m_Sigma);
+      double en_l = Fv_l.en;
+      eps = std::abs((e_exp - en_l) / e_exp);
+      if (eps < eps_targ)
+        break;
+      const auto r = (e_exp - en_l) / (en_l - en_0);
+      lambda = std::clamp(lambda * (1.0 + r), 0.5, 1.5);
+      // std::cout << lambda << " " << Fv_l.en << "\n";
     }
+    printf("%.0e (%2i); lambda = %.4f\n", eps, its, lambda);
+    // std::cout << eps << " [" << its << "]" << lambda << "\n";
   }
-  for (const auto &l : lambdas) {
-    std::cout << l << ", ";
-  }
-  std::cout << "\n";
-  valence.clear();
-  hartreeFockValence(valence_list, false);
-  m_Sigma->scale_Sigma(lambdas);
+
   hartreeFockBrueckner(true);
 }
 

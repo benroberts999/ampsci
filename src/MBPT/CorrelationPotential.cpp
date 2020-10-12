@@ -60,14 +60,16 @@ void CorrelationPotential::setup_subGrid(double rmin, double rmax) {
 
 //******************************************************************************
 std::size_t CorrelationPotential::getSigmaIndex(int n, int kappa) const {
-  std::size_t index = 0;
+
   //
   // If n=0, find first Sigma of that kappa
   // If any of the ns in
   // What about when n is non-zero, but we have non-zero ns in Sigma, but wrong
   // n? Fail? Or return smallest?
+  // --> prob actually want to return largest??
 
   assert(m_Sigma_kappa.size() == m_nk.size());
+  std::size_t index = 0;
   for (const auto &[nn, kk] : m_nk) {
     // XXX Not quite right...
     if (kk == kappa && (nn == n || nn == 0 || n == 0))
@@ -75,6 +77,12 @@ std::size_t CorrelationPotential::getSigmaIndex(int n, int kappa) const {
     ++index;
   }
   return index;
+  // nb: will return  index = m_nk.size() if kappa not found
+}
+
+const GMatrix *CorrelationPotential::getSigma(int n, int kappa) const {
+  const auto is = getSigmaIndex(n, kappa);
+  return (is < m_Sigma_kappa.size()) ? &m_Sigma_kappa[is] : nullptr;
 }
 
 //******************************************************************************
@@ -88,10 +96,20 @@ DiracSpinor CorrelationPotential::SigmaFv(const DiracSpinor &v) const {
   // Aply lambda, if exists:
   const auto lambda = is >= m_lambda_kappa.size() ? 1.0 : m_lambda_kappa[is];
 
-  assert(is < m_Sigma_kappa.size());
+  if (is < m_Sigma_kappa.size())
+    return lambda == 1.0 ? act_G_Fv(m_Sigma_kappa[is], v)
+                         : lambda * act_G_Fv(m_Sigma_kappa[is], v);
+  return 0.0 * v;
+}
 
-  return lambda == 1.0 ? act_G_Fv(m_Sigma_kappa[is], v)
-                       : lambda * act_G_Fv(m_Sigma_kappa[is], v);
+//******************************************************************************
+void CorrelationPotential::scale_Sigma(int n, int kappa, double lambda) {
+  // XXX Careful; likely to be incorrect?? if given too-large n...
+  const auto is = getSigmaIndex(n, kappa);
+  if (is >= m_lambda_kappa.size()) {
+    m_lambda_kappa.resize(is + 1, 1.0);
+  }
+  m_lambda_kappa[is] = lambda;
 }
 
 //******************************************************************************
