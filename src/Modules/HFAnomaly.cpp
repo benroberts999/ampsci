@@ -142,8 +142,8 @@ void HFAnomaly(const IO::UserInputBlock &input, const Wavefunction &wf) {
               << ", r_rms = " << nuc.r_rms << "\n";
     std::cout << "      A(point)      e(ball)   e(SP)   | 1D2(ball) "
                  "1D2(SP) [%]\n";
-    for (std::size_t i = 0; i < wf.valence.size(); ++i) {
-      const auto &Fv = wf.valence[i];
+    for (std::size_t i = 0; i < wfA.valence.size(); ++i) {
+      const auto &Fv = wfA.valence[i];
       const auto [pt0, bl0, sp0] = As[i];
       auto point = DiracOperator::Hyperfine::hfsA(hpt2.get(), Fv);
       auto ball = DiracOperator::Hyperfine::hfsA(hbl2.get(), Fv);

@@ -394,12 +394,12 @@ std::vector<DiracSEnken> listOfStates_singlen(const std::string &in_list) {
 }
 
 //******************************************************************************
-static inline std::string helper_s(const Element &el) {
+inline std::string helper_s(const Element &el) {
   auto sym = el.symbol;
   auto sym_buff = (sym.length() == 1) ? std::string("  ") : std::string(" ");
   return sym_buff + sym + " ";
 }
-static inline std::string helper_z(const Element &el) {
+inline std::string helper_z(const Element &el) {
   auto z_str = std::to_string(el.Z);
   auto Z_buff = (el.Z < 10) ? std::string("  ")
                             : (el.Z < 100) ? std::string(" ") : std::string("");

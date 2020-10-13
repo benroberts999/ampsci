@@ -15,7 +15,7 @@
 
 namespace MBPT {
 
-template <typename T, typename U> static constexpr T MyCast(U x) {
+template <typename T, typename U> constexpr T MyCast(U x) {
   // Convert between 'Wtype' and double. Wype may be doule or float.
   // Same as static_cast, but don't warn on useless casts
   // (Use when you know it may be a useless cast)

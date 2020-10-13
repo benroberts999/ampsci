@@ -349,9 +349,33 @@ void polarisability(const IO::UserInputBlock &input, const Wavefunction &wf) {
   input.checkBlock({"a", "rpa", "omega_max", "omega_steps"});
 
   const auto ank = input.get_list("a", std::vector<int>{0, 0});
+  const auto bnk = input.get_list("b", std::vector<int>{0, 0});
+
   // const auto bnk = input.get_list("b", ank);
   const auto pFa = (ank.size() == 2) ? wf.getState(ank[0], ank[1]) : nullptr;
+  const auto pFb = (bnk.size() == 2) ? wf.getState(bnk[0], bnk[1]) : nullptr;
   const auto omega = 0.0;
+
+  const auto he1 = DiracOperator::E1(*wf.rgrid);
+  auto dVE1 = HF::ExternalField(&he1, wf.getHF());
+
+  const auto rpaQ = input.get("rpa", true);
+  if (rpaQ)
+    dVE1.solve_TDHFcore(omega);
+
+  auto a11 = 0.0;
+  for (const auto &Fp : wf.spectrum) {
+    if (he1.isZero(pFa->k, Fp.k))
+      continue;
+    // factor only for s? or valid for al?
+    auto a = he1.reducedME(*pFa, Fp);
+    auto dv = dVE1.dV(*pFa, Fp);
+    auto de = Fp.en - pFa->en;
+    a11 += (a + dv) * (a + dv) / de;
+  }
+  a11 *= (2.0 / 3) / pFa->twojp1();
+  std::cout << "\n\n" << a11 << "\n\n";
+  // return;
 
   {
     std::cout << "\nDipole polarisability, alpha: " << wf.atom() << " ";
@@ -361,13 +385,6 @@ void polarisability(const IO::UserInputBlock &input, const Wavefunction &wf) {
       std::cout << wf.coreConfiguration_nice() << "\n";
   }
   std::cout << "Omega = " << omega << "\n";
-
-  const auto he1 = DiracOperator::E1(*(wf.rgrid));
-  auto dVE1 = HF::ExternalField(&he1, wf.getHF());
-
-  const auto rpaQ = input.get("rpa", true);
-  if (rpaQ)
-    dVE1.solve_TDHFcore(omega);
 
   std::size_t num_pws = 4; // s, p-, p+, rest:
   auto get_index = [&](const auto &Fx) {
@@ -382,7 +399,10 @@ void polarisability(const IO::UserInputBlock &input, const Wavefunction &wf) {
   auto alpha_core = 0.0;
   {
     const auto f = (-1.0 / 3.0);
-    for (const auto &Fb : wf.core) {
+    for (const auto &Fb : wf.core) { // HF core?? Or basis core??
+      // for (const auto &Fb : wf.spectrum) { // HF core?? Or spectrum core??
+      //   if (!wf.isInCore(Fb.n, Fb.k))
+      //     continue;
       const auto Xb = dVE1.solve_dPsis(Fb, omega, HF::dPsiType::X);
       const auto Yb = dVE1.solve_dPsis(Fb, omega, HF::dPsiType::Y);
       for (const auto &Xbeta : Xb) {
@@ -406,17 +426,22 @@ void polarisability(const IO::UserInputBlock &input, const Wavefunction &wf) {
   std::vector<double> val_pws(num_pws);
   if (pFa) {
     const auto f = (-1.0 / 3.0) / (pFa->twoj() + 1);
+    // Which Wigma does this use? Right energy?
     const auto Xb =
         dVE1.solve_dPsis(*pFa, omega, HF::dPsiType::X, wf.getSigma());
     const auto Yb =
         dVE1.solve_dPsis(*pFa, omega, HF::dPsiType::Y, wf.getSigma());
     for (const auto &Xbeta : Xb) {
-      val_pws[get_index(Xbeta)] += f * he1.reducedME(Xbeta, *pFa);
-      alpha_valence += f * he1.reducedME(Xbeta, *pFa);
+      auto e1 = he1.reducedME(Xbeta, *pFa);
+      auto dv = dVE1.dV(Xbeta, *pFa);
+      val_pws[get_index(Xbeta)] += f * (e1 + dv);
+      alpha_valence += f * (e1 + dv);
     }
     for (const auto &Ybeta : Yb) {
-      val_pws[get_index(Ybeta)] += f * he1.reducedME(*pFa, Ybeta);
-      alpha_valence += f * he1.reducedME(*pFa, Ybeta);
+      auto e1 = he1.reducedME(*pFa, Ybeta);
+      auto dv = dVE1.dV(*pFa, Ybeta);
+      val_pws[get_index(Ybeta)] += f * (e1 + dv);
+      alpha_valence += f * (e1 + dv);
     }
     std::cout << "val  : ";
     for (auto &pw : val_pws) {
@@ -479,7 +504,7 @@ void polarisability(const IO::UserInputBlock &input, const Wavefunction &wf) {
         const auto d1 = he1.reducedME(Fn, *pFa);
         const auto d2 = he1.reducedME(Fn, *pFa) + dVE1.dV(Fn, *pFa);
         const auto de = pFa->en - Fn.en;
-        const auto term = (-2.0 / 3.0) * std::abs(d1 * d2) * de /
+        const auto term = (-2.0 / 3.0) * std::abs(d2 * d2) * de /
                           (de * de - omega * omega) / (pFa->twoj() + 1);
         alpha_3 += term;
         val_pws2[get_index(Fn)] += term;
@@ -499,7 +524,7 @@ void polarisability(const IO::UserInputBlock &input, const Wavefunction &wf) {
         const auto d1 = he1.reducedME(Fn, *pFa);
         const auto d2 = he1.reducedME(Fn, *pFa) + dVE1.dV(Fn, *pFa);
         const auto de = pFa->en - Fn.en;
-        const auto term = (-2.0 / 3.0) * std::abs(d1 * d2) * de /
+        const auto term = (-2.0 / 3.0) * std::abs(d2 * d2) * de /
                           (de * de - omega * omega) / (pFa->twoj() + 1);
         alpha_cv += term;
         val_pws_cv[get_index(Fn)] += term;
