@@ -390,30 +390,44 @@ Module::Tests {
 
 -------------------
 ```cpp
-Module::pnc {
-    transition = na, ka, nb, ka; //[i,i,i,i] - required
-    rpa;      //[b] default = true
-    omega;    //[r]
-}
+  Module::pnc{ c; t; transition; rpa; omega; nmain; }
 ```
-* Calculates pnc amplitude {na,ka}->{nb,kb}
-* Uses Solving-equations and sum-over-states (spectrum)
-* omega: frequency to solve RPA/TDHF equations at. By default is E_a-Eb (from orbitals), but can be anything.
+Uses both 'solving equations' (TDHF) and sum-over-states methods.
+For solving equations, calculates both:
+  - <yA_w|d| B> + <A |d|xB_w>
+  - <A |w|XB_d> + <YA_d|w| B>
+  - Does not (yet) include DCP
+
+ - c, t: half-density radius and skin-thickness (in fm) for rho(r). Will look up
+default values by default.
+ - transition: For E1_PNC a->b transition.
+   - in form "a,b", uses the 'short' notation:
+   - e.g., "6s+,7s+" for 6s_1/2 -> 7s_1/2
+   - e.g., "6s+,5d-" for 6s_1/2 -> 5d_3/2
+ - rpa: true/false. Include RPA or not (TDHF ,method)
+ - omega: frequency used for RPA (default is transition frequency of valence).
+ - nmain: highest n (prin. q. number) considered as part of 'main'.
+   - If not given, will be max(n_core)+4
+   - (Calculation broken into core, main, tail)
 
 -------------------
 ```cpp
-Module::polarisability {
-    a = na, ka;     //[i,i] default=blank
-    rpa;            //[b] default = true
-    omega_max;      //[r] default = 0.0
-    omega_steps;    //[i] default = 30
-}
+Module::polarisability{ rpa; omega; transition; omega_max; omega_steps;  }
 ```
-* Calculates dipole polarisability (optionally for valence state 'a', or for core)
-* Uses Solving-equations and sum-over-states (spectrum)
-* a: valence state (eg: a=6,-1; for 6s). Blank for core-only
-* rpa: include rpa into static term
-* omega_max: max frequency. Calcs alpha(w) up to this (in omega_steps steps)
+* Calculate dipole polarisabilitities (static, dynamic, alpha, vector beta)
+* Uses both 'solving equations' (TDHF) and sum-over-states methods.
+
+ - rpa: true/false. Include RPA or not (TDHF ,method)
+ - omega: frequency used for alpha_0 (dipole polarisability). default is 0.
+ - transition: For scalar/vector a->b transition polarisability.
+   - in form "a,b", e.g., "6s+,7s+" for 6s_1/2 -> 7s_1/2
+ - omega_max: maximum frequency for dynamic polarisability. Default is 0.
+   - nb: only runs dynamic pol. if omega_max>0
+ - omega_steps: Number of steps used for dynamic. default = 30. (linear scale)
+
+Note: transition polarisabilities written for s-states only.
+They might be correct for other states too, but NOT checked.
+Especially for beta, pretty sure it's wrong for non-s states.
 
 -------------------
 ```cpp

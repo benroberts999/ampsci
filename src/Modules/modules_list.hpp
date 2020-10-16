@@ -7,6 +7,7 @@
 #include "Modules/fitParametric.hpp"
 #include "Modules/matrixElements.hpp"
 #include "Modules/pnc.hpp"
+#include "Modules/polarisability.hpp"
 #include "Modules/runModules.hpp"
 #include "Modules/screeningFactors.hpp"
 #include "Modules/testFeynman.hpp"

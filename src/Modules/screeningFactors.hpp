@@ -15,20 +15,7 @@ class FeynmanSigma;
 
 namespace Module {
 
+//! Calculates effective exchange screening factors (Correlation Potential)
 void screeningFactors(const IO::UserInputBlock &input, const Wavefunction &wf);
-
-namespace Feyn {
-void test_Q(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma);
-
-void test_green(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
-                double omre, const std::vector<double> &omim_v);
-
-void test_GQ(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
-             double omre, const std::vector<double> &omim_v);
-
-void test_pol(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
-              double omre, const std::vector<double> &omim_v,
-              int max_l_excited);
-} // namespace Feyn
 
 } // namespace Module

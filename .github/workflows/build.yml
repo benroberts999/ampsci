@@ -15,8 +15,12 @@ jobs:
     - name: "Install dependencies"
       run: sudo apt install g++-9 make liblapack-dev libblas-dev libgsl-dev libomp5 libomp-dev
     - name: setup
-      run: cp ./doc/Makefile.example ./Makefile
-    - name: Build diracSCAS (g++)
-      run: make clean && make CXX=g++-9
-    - name: Build diracSCAS (clang++)
+      run: cp ./doc/Makefile.example ./Makefile && cp ./doc/ampsci.in.example ./ampsci.in
+    - name: Build ampsci (g++, release mode)
+      run: make clean && make CXX=g++
+    - name: Run ampsci (g++, release mode)
+      run: ./ampsci
+    - name: Build ampsci (clang++)
       run: make clean && make CXX=clang++
+    - name: Run ampsci (clang++, release mode)
+      run: ./ampsci
