@@ -123,7 +123,7 @@ void HartreeFock::hf_core_approx(const double eps_target_HF) {
 
   auto damper = rampedDamp(0.7, 0.5, 3, 10);
   // don't include all pts in PT for new e guess:
-  static const std::size_t de_stride = 5;
+  constexpr std::size_t de_stride = 5;
 
   // initialise 'old' potentials
   auto vdir_old = m_vdir;
@@ -223,7 +223,7 @@ void HartreeFock::KohnSham_core(const double eps_target_HF) {
 
   auto damper = rampedDamp(0.85, 0.5, 3, 25);
   // don't include all pts in PT for new e guess:
-  static const std::size_t de_stride = 5;
+  constexpr std::size_t de_stride = 5;
 
   // initialise 'old' potentials
   auto vdir_old = m_vdir;
@@ -290,8 +290,7 @@ void HartreeFock::KohnSham_core(const double eps_target_HF) {
 //******************************************************************************
 void HartreeFock::KohnSham_addition(std::vector<double> &vdir) const {
 
-  //
-  static const auto f =
+  const auto f =
       -(2.0 / 3.0) * std::pow(81.0 / (32.0 * M_PI * M_PI), 1.0 / 3.0);
 
   std::vector<double> rho(rgrid->num_points);
@@ -400,7 +399,7 @@ EpsIts HartreeFock::hf_valence_approx(DiracSpinor &Fa, double eps_target_HF)
 
   auto damper = rampedDamp(0.7, 0.3, 2, 6);
   // don't include all pts in PT for new e guess
-  static const std::size_t de_stride = 5;
+  const std::size_t de_stride = 5;
 
   std::vector<double> vexa(rgrid->num_points, 0);
   auto vexa_old = vexa;
@@ -590,7 +589,7 @@ void HartreeFock::form_approx_vex_core_a(const DiracSpinor &Fa,
 
   const auto twoj_a = Fa.twoj();
 
-  static auto max_abs = [](double a, double b) {
+  const auto max_abs = [](double a, double b) {
     return (std::abs(a) < std::abs(b));
   };
   const auto max =
@@ -665,7 +664,7 @@ std::vector<double> vex_approx(const DiracSpinor &Fa,
   const auto tja = Fa.twoj();
   const auto la = Fa.l();
 
-  static auto max_abs = [](double a, double b) {
+  const auto max_abs = [](double a, double b) {
     return (std::abs(a) < std::abs(b));
   };
   const auto max =
@@ -925,7 +924,7 @@ void HartreeFock::brueckner_orbital(DiracSpinor &Fa, double en,
 }
 
 //******************************************************************************
-const static std::vector<double> tmp_empty_vector{};
+const std::vector<double> tmp_empty_vector{};
 const std::vector<double> &HartreeFock::get_Hrad_el(int l) const {
   return p_vrad ? p_vrad->get_Hel(l) : tmp_empty_vector;
 }

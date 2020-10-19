@@ -236,9 +236,10 @@ DiracSpinor CorrelationPotential::SigmaFv(const DiracSpinor &v) const {
   // If m_Sigma_kappa doesn't exist, returns |0>
   const auto kappa_index = std::size_t(v.k_index());
   if (kappa_index >= m_Sigma_kappa.size()) {
-    std::cout << "Warning: Requested Sigma for state " << v.symbol()
-              << "; max kappa is "
-              << Angular::kappaFromIndex(int(m_Sigma_kappa.size()) - 1) << "\n";
+    // std::cout << "Warning: Requested Sigma for state " << v.symbol()
+    //           << "; max kappa is "
+    //           << Angular::kappaFromIndex(int(m_Sigma_kappa.size()) - 1) <<
+    //           "\n";
     return 0.0 * v;
   }
 

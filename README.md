@@ -13,11 +13,10 @@ The "modules" system (see documentation) makes it simple to add your own routine
  * The code is on GitHub: [github.com/benroberts999/ampsci](https://github.com/benroberts999/ampsci)
  * This file is best viewed with a markdown reader (or on GitHub)
 
- ![Build][build-badge]
- ![Tests][tests-badge]
- [![][doxygen-badge]][docs-url]
- [![][manual-badge]][man-url]
-
+  [![][doxygen-badge]][docs-url]
+  [![][manual-badge]][man-url]
+  [![][tests-badge]][actions-url]
+  [![][build-badge]][actions-url]
 
 ## Documentation
 
@@ -162,7 +161,7 @@ https://doi.org/10.1016/j.adt.2011.12.006
 
 Units:
  * r_rms: root-mean-square radius, in fm.
- * c: half-density radius (assuming Fermi nuclear distro)
+ * c: half-density radius (assuming Fermi nuclear distro, with t=2.3)
  * mu: magnetic moment (in nuclear magnetons)
 
 
@@ -193,9 +192,10 @@ Units:
  * but, each number can be separated by any symbol (space, comma etc.)
 
 
-[docs-url]: https://benroberts999.github.io/ampsci/
-[man-url]: https://benroberts999.github.io/ampsci/ampsci.pdf
-[build-badge]: https://github.com/benroberts999/ampsci/workflows/Build/badge.svg
-[tests-badge]: https://github.com/benroberts999/ampsci/workflows/Tests/badge.svg
-[doxygen-badge]: https://img.shields.io/badge/documentation-doxygen-blue
-[manual-badge]: https://img.shields.io/badge/physics%20docs-ampsci%20(pdf)-blue
+ [docs-url]: https://benroberts999.github.io/ampsci/
+ [man-url]: https://benroberts999.github.io/ampsci/ampsci.pdf
+ [actions-url]: https://github.com/benroberts999/ampsci/actions
+ [build-badge]: https://github.com/benroberts999/ampsci/workflows/Build/badge.svg
+ [tests-badge]: https://github.com/benroberts999/ampsci/workflows/Tests/badge.svg
+ [doxygen-badge]: https://img.shields.io/badge/documentation-code%20(html)-blue
+ [manual-badge]: https://img.shields.io/badge/documentation-physics%20(pdf)-blue

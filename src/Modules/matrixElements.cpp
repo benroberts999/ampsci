@@ -259,7 +259,7 @@ generateOperator(const IO::UserInputBlock &input, const Wavefunction &wf,
 //******************************************************************************
 //******************************************************************************
 
-static auto jointCheck(const std::vector<std::string> &in) {
+inline auto jointCheck(const std::vector<std::string> &in) {
   std::vector<std::string> check_list = {
       "radialIntegral", "printBoth", "onlyDiagonal", "units",   "rpa",
       "rpa_diagram",    "omega",     "A_vertex",     "b_vertex"};

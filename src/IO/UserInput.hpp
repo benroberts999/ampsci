@@ -5,6 +5,7 @@
 #include <ctime>
 #include <iostream>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -245,13 +246,11 @@ T UserInputBlock::get(const std::string &option) const
   if (option_ss.str() == "InputNotFound") {
     std::cerr << "\nError: Missing required input: " << m_block_name << "/"
               << option << " (compulsory)\n";
-    // std::abort();
-    std::cout << "Enter input value now, or ctrl+c to quit:\n" << option << "=";
-    option_ss.str("");
-    std::string tmp;
-    std::cin >> tmp;
-    std::cout << option << "=" << tmp << "\n";
-    option_ss << tmp;
+    // throw std::runtime_error("a runtime error");
+    std::abort();
+    // std::cout << "Enter input value now, or ctrl+c to quit:\n" << option <<
+    // "="; option_ss.str(""); std::string tmp; std::cin >> tmp; std::cout <<
+    // option << "=" << tmp << "\n"; option_ss << tmp;
   }
   return UserInputHelper::get_impl<T>(option_ss, m_block_name + '/' + option);
 }

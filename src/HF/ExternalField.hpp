@@ -62,6 +62,7 @@ private:
   const bool m_imag;
   const Breit *const p_VBr;
   double m_core_eps = 1.0;
+  double m_core_omega = 0.0;
   // Angular::SixJ m_6j; // used?
 
 public:
@@ -80,6 +81,8 @@ public:
 
   //! Returns eps (convergance) of last solve_TDHFcore run
   double get_eps() const { return m_core_eps; }
+  //! Returns omega (frequency) of last solve_TDHFcore run
+  double get_omega() const { return m_core_omega; }
 
   //! @brief Clears the dPsi orbitals (sets to zero)
   void clear_dPsi();

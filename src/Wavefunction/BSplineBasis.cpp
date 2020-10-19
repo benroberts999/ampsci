@@ -91,6 +91,10 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
       r0_eff = std::max(r0_eff, r0_min);
     }
 
+    // messy...
+    if (r0_spl == 0.0 && r0_eps == 0.0)
+      r0_eff = 0.0;
+
     if (ND_type)
       r0_eff = l <= 1 ? 1.0e-4 : l <= 3 ? 1.0e-3 : 1.0e-2; // Notre-Dame XXX
 

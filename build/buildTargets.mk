@@ -99,7 +99,7 @@ doxy:
 	doxygen ./src/Doxyfile
 	( cd ./doc/latex && make )
 	cp ./doc/latex/refman.pdf ./doc/documentation.pdf
-	cp ./doc/ampsci.pdf ./doc/html/ampsci.pdf 2>/dev/null || :
+	cp ./doc/ampsci.pdf ./docs/ampsci.pdf 2>/dev/null || :
 	( cd ./doc/latex && make clean)
 do_the_chicken_dance:
 	@echo 'Why would I do that?'

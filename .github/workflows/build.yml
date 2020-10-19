@@ -13,10 +13,31 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: "Install dependencies"
-      run: sudo apt install g++-9 make liblapack-dev libblas-dev libgsl-dev libomp5 libomp-dev
+      run: sudo apt install make g++-7 g++-9 clang++-9  liblapack-dev libblas-dev libgsl-dev libomp5 libomp-dev
     - name: setup
-      run: cp ./doc/Makefile.example ./Makefile
-    - name: Build diracSCAS (g++)
+      run: cp ./doc/Makefile.example ./Makefile && cp ./doc/ampsci.in.example ./ampsci.in
+
+    - name: Build ampsci (g++ v:7)
+      run: make clean && make CXX=g++-7
+
+    - name: Build ampsci (g++ v:9, no openMP)
+      run: make clean && make CXX=g++-9 UseOpenMP=no
+
+    - name: Build ampsci (g++ v:9, release)
       run: make clean && make CXX=g++-9
-    - name: Build diracSCAS (clang++)
-      run: make clean && make CXX=clang++
+    - name: Run ampsci (g++)
+      run: ./ampsci
+
+    - name: Build ampsci (clang++ v:6)
+      run: make clean && make CXX=clang++-6.0
+
+    - name: Build ampsci (clang++ v:7)
+      run: make clean && make CXX=clang++-9
+
+    - name: Build ampsci (clang++ v:9, no openMP)
+      run: make clean && make CXX=clang++-9 UseOpenMP=no
+
+    - name: Build ampsci (clang++ v:9, release)
+      run: make clean && make CXX=clang++-9
+    - name: Run ampsci (clang++)
+      run: ./ampsci
