@@ -15,8 +15,18 @@
 #include <cassert>
 #include <numeric>
 #include <optional>
-//
+
+// omp_get_thread_num() is not defined if not using -fopenmp
+// Also: helps protect in case that "omp.h" is not available
+#if defined(_OPENMP)
 #include <omp.h>
+constexpr bool use_omp = true;
+#else
+constexpr bool use_omp = true;
+#define omp_get_thread_num() 0
+#define omp_get_max_threads() 1
+#endif
+
 //! Many-body perturbation theory
 namespace MBPT {
 
