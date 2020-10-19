@@ -145,11 +145,9 @@ private:
                                      const DiracSpinor &xI,
                                      const double w) const;
 
-  std::vector<ComplexGMatrix>
-  OneMinusPiQInv(const std::vector<std::vector<ComplexGMatrix>> &pi_wk) const;
-
-  ComplexGMatrix OneMinusPiQInv_single(const ComplexGMatrix &pik,
-                                       const ComplexGMatrix &qk) const;
+  // X = [1 + i pi*q]^{-1}
+  ComplexGMatrix X_PiQ(const ComplexGMatrix &pik,
+                       const ComplexGMatrix &qk) const;
 
   std::vector<std::vector<ComplexGMatrix>> make_pi_wk(int max_k,
                                                       GrMethod pol_method,

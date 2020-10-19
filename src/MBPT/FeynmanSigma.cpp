@@ -667,33 +667,8 @@ ComplexGMatrix FeynmanSigma::Polarisation_k(int k, ComplexDouble omega,
 }
 
 //******************************************************************************
-std::vector<ComplexGMatrix> FeynmanSigma::OneMinusPiQInv(
-    const std::vector<std::vector<ComplexGMatrix>> &pi_wk) const {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
-  // Function of omega!
-  // XXX Note sure if right.. depends on pi angular reduction.
-  // X_PiQ = [1-PiQ]^{-1}
-
-  std::vector<ComplexGMatrix> X_PiQ(pi_wk.size(),
-                                    {m_subgrid_points, m_include_G});
-
-#pragma omp parallel for
-  for (auto iw = 0ul; iw < pi_wk.size(); ++iw) {
-    auto &X_PiQ_w = X_PiQ[iw];
-    for (auto k = 0ul; k < pi_wk[iw].size(); ++k) {
-      const auto &pik = pi_wk[iw][k];
-      const auto &qk = get_qk(int(k));
-      X_PiQ_w -= pik * qk; //-ve, since [1-PiQ]
-    }
-    // [1-PiQ]^{-1}
-    X_PiQ_w.plusIdent(1.0).invert();
-  }
-  return X_PiQ;
-}
-
-ComplexGMatrix
-FeynmanSigma::OneMinusPiQInv_single(const ComplexGMatrix &pik,
-                                    const ComplexGMatrix &qk) const {
+ComplexGMatrix FeynmanSigma::X_PiQ(const ComplexGMatrix &pik,
+                                   const ComplexGMatrix &qk) const {
   // Calculates [1-pi*q]^{-1} for single k (i.e., no sum over k inside)
 
   const auto Iunit = ComplexDouble{0.0, 1.0};
@@ -736,11 +711,6 @@ FeynmanSigma::form_QPQ_wk(int max_k, GrMethod pol_method, double omre,
   const auto pi_wk = make_pi_wk(max_k, pol_method, omre, wgrid);
   std::cout << "." << std::flush;
 
-  // // X_PiQ = [1-PiQ]^{-1} (Only calculate X_PiQ if doing screening)
-  // const auto X_PiQ =
-  //     m_screen_Coulomb ? std::optional{OneMinusPiQInv(pi_wk)} :
-  //     std::nullopt;
-
   std::cout << "." << std::flush;
 
   const auto num_ks = std::size_t(max_k + 1);
@@ -753,7 +723,7 @@ FeynmanSigma::form_QPQ_wk(int max_k, GrMethod pol_method, double omre,
       const auto &pi = pi_wk[iw][k];
       if (m_screen_Coulomb) {
         // This way: works!
-        const auto X = OneMinusPiQInv_single(pi, qk);
+        const auto X = X_PiQ(pi, qk);
         qpq[iw].emplace_back(qk * X * pi * qk);
       } else {
         qpq[iw].emplace_back(qk * pi * qk);
@@ -1027,7 +997,6 @@ GMatrix FeynmanSigma::FeynmanEx_1(int kv, double env) const {
   // // const std::size_t num_para_threads = 12;
   // const std::size_t num_para_threads =
   //     use_omp ? num_kappas * wgrid.num_points / m_wX_stride / 4 : 1;
-
   const std::size_t num_para_threads =
       use_omp ? std::min(num_kappas * wgrid.num_points / m_wX_stride,
                          std::size_t(4 * omp_get_max_threads()))
@@ -1126,7 +1095,7 @@ GMatrix FeynmanSigma::sumkl_gqgqg(const ComplexGMatrix &gA,
       if (Lkl != 0.0) {
         const auto s = Angular::neg1pow(k + l);
         // const auto sLkl = ComplexDouble{s * Lkl, 0.0};
-        // // extra factor of i ??:
+        // // XXX extra factor of i ??: - pretty sure this is wrong
         const auto sLkl = ComplexDouble{0.0, s * Lkl};
         tensor_5_product(&gqgqg, sLkl, qk, gB, gG, gA, ql);
       }
@@ -1151,9 +1120,9 @@ GMatrix FeynmanSigma::sumkl_GQPGQ(
   const auto kmax = std::min(m_maxk, m_k_cut);
 
   for (auto k = 0; k <= kmax; ++k) {
-    // qk -> qk + 2 * QPxQ ??
+    // qk -> qk - 2i * QPxQ
     const auto &tqk = get_qk(k);
-    // Try to screen q^k(w1)
+    // Screen q^k(w1) {not checked}
     const auto qk =
         qpqw_k != nullptr ? tqk - 2.0 * I * (*qpqw_k)[std::size_t(k)] : tqk;
 
@@ -1167,9 +1136,6 @@ GMatrix FeynmanSigma::sumkl_GQPGQ(
 
       const auto ic1 = ComplexDouble(s0 * L1, 0.0);
       const auto ic2 = ComplexDouble(s0 * L2, 0.0);
-      // XXX ??? Extra i ???
-      // const auto ic1 = ComplexDouble(0.0, s0 * L1);
-      // const auto ic2 = ComplexDouble(0.0, s0 * L2);
 
       // tensor_5_product adds the real part of below to result
       // Sum_ij [ factor * a1j * bij * cj2 * (d_1i * e_i2) ]
