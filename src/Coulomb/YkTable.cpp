@@ -80,6 +80,7 @@ void YkTable::update_y_ints() {
   resize_y();
   const auto tj_max = max_tj();
   m_Ck.fill(tj_max);
+  m_6j.fill(tj_max);
 
   a_size = m_a_orbs->size();
   b_size = m_b_orbs->size();
@@ -166,6 +167,48 @@ void YkTable::resize_y() {
       // } // k
     } // b
   }   // a
+}
+
+//******************************************************************************
+//******************************************************************************
+
+double YkTable::Qk(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+                   const DiracSpinor &Fc, const DiracSpinor &Fd) const {
+  // nb: b and c _MUST_ be in {a},{b} orbitals
+  const auto ykbd = ptr_yk_ab(k, Fb, Fd);
+  return ykbd ? Coulomb::Qk_abcd(Fa, Fb, Fc, Fd, k, *ykbd, m_Ck) : 0.0;
+}
+
+//------------------------------------------------------------------------------
+double YkTable::Xk(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+                   const DiracSpinor &Fc, const DiracSpinor &Fd) const {
+  //
+  const auto s = Angular::neg1pow_2(Fa.twoj() + Fb.twoj() + 2);
+  return s * Qk(k, Fa, Fb, Fc, Fd);
+}
+
+//------------------------------------------------------------------------------
+double YkTable::Pk(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+                   const DiracSpinor &Fc, const DiracSpinor &Fd) const {
+  //
+  // if (k > m_6j.max_tj())
+  //   return 0.0; // ???
+  return Pk_abcd(Fa, Fb, Fc, Fd, k, get_y_ab(Fb, Fc), m_Ck, m_6j);
+}
+
+//------------------------------------------------------------------------------
+double YkTable::Wk(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+                   const DiracSpinor &Fc, const DiracSpinor &Fd) const {
+  //
+  return Qk(k, Fa, Fb, Fc, Fd) + Pk(k, Fa, Fb, Fc, Fd);
+}
+
+//------------------------------------------------------------------------------
+double YkTable::Zk(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+                   const DiracSpinor &Fc, const DiracSpinor &Fd) const {
+  //
+  const auto s = Angular::neg1pow_2(Fa.twoj() + Fb.twoj() + 2);
+  return s * Wk(k, Fa, Fb, Fc, Fd);
 }
 
 } // namespace Coulomb

@@ -3,11 +3,38 @@
 #include "IO/UserInput.hpp"
 #include "Physics/PhysConst_constants.hpp" // For GHz unit conversion
 #include "Wavefunction/Wavefunction.hpp"
+//
+#include "IO/ChronoTimer.hpp"
+#include "MBPT/StructureRad.hpp"
 
 namespace Module {
 
 void exampleModule(const IO::UserInputBlock &input, const Wavefunction &wf) {
   // This is an example module, designed to help you write new modules
+
+  //****************************************************************************
+  // Find core/valence energy: allows distingush core/valence states
+  const auto ec_max =
+      std::max_element(cbegin(wf.core), cend(wf.core), DiracSpinor::comp_en)
+          ->en;
+  const auto ev_min = std::min_element(cbegin(wf.valence), cend(wf.valence),
+                                       DiracSpinor::comp_en)
+                          ->en;
+  const auto en_core = 0.5 * (ev_min + ec_max);
+
+  const auto h = DiracOperator::E1(*wf.rgrid);
+
+  MBPT::StructureRad sr(wf.basis, en_core);
+  for (const auto &v : wf.valence) {
+    for (const auto &w : wf.valence) {
+      IO::ChronoTimer t("x");
+      std::cout << w.symbol() << "-" << v.symbol() << " " << h.reducedME(w, v)
+                << " + " << sr.srTB(&h, w, v, 0.0) << "\n";
+    }
+  }
+
+  return;
+  //****************************************************************************
 
   // In this example, we will solve a new wavefunction, assuming a different
   // nuclear charge distribution, and see the difference in the energies and E1
