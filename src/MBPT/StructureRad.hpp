@@ -35,15 +35,22 @@ Can probably be made much faster..
 -> Can put energy cut-off in denominator
 -> can have a min and max 'n'
 
+1. Transform from X,Z -> Q,W/P
+2. Try to make 'v' and 'w' appear _first_ (so always uses actual states)
+
   */
 
 public:
-  StructureRad(const std::vector<DiracSpinor> &basis, double en_core);
+  StructureRad(const std::vector<DiracSpinor> &basis, double en_core,
+               std::pair<int, int> nminmax = {0, 999});
 
 private:
   std::vector<DiracSpinor> mBasis;
-  double mCoreEn;
-  const Coulomb::YkTable mY;
+  Coulomb::YkTable mY;
+
+  // XXX Energy threshold; when denominators larger than this, don't calc.
+  // nb: might not be good... just a test for now
+  // double e_thresh = 60.0; //??
 
   // Fa.en < en_core ==> core state!
   // nb: take as 0.5*[maxE(core)-minE(val)]
@@ -52,22 +59,20 @@ private:
   std::vector<DiracSpinor> mCore{}, mExcited{};
 
 public:
-  double srTB(const DiracOperator::TensorOperator *const h,
-              const DiracSpinor &w, const DiracSpinor &v, double omega) const;
+  std::pair<double, double> srTB(const DiracOperator::TensorOperator *const h,
+                                 const DiracSpinor &w, const DiracSpinor &v,
+                                 double omega) const;
 
   double srC(const DiracOperator::TensorOperator *const h, const DiracSpinor &w,
-             const DiracSpinor &v, double omega) const;
+             const DiracSpinor &v) const;
 
 public:
   double t1(int K, const DiracSpinor &w, const DiracSpinor &r,
             const DiracSpinor &v, const DiracSpinor &c) const;
-
   double t2(int K, const DiracSpinor &w, const DiracSpinor &r,
             const DiracSpinor &v, const DiracSpinor &c) const;
-
   double t3(int K, const DiracSpinor &w, const DiracSpinor &r,
             const DiracSpinor &v, const DiracSpinor &c) const;
-
   double t4(int K, const DiracSpinor &w, const DiracSpinor &r,
             const DiracSpinor &v, const DiracSpinor &c) const;
 
@@ -81,6 +86,17 @@ public:
             const DiracSpinor &v, const DiracSpinor &r) const;
   double b4(int K, const DiracSpinor &w, const DiracSpinor &c,
             const DiracSpinor &v, const DiracSpinor &r) const;
+
+  //--
+
+  double c1(int K, const DiracSpinor &w, const DiracSpinor &a,
+            const DiracSpinor &v, const DiracSpinor &c) const;
+  double c2(int K, const DiracSpinor &w, const DiracSpinor &a,
+            const DiracSpinor &v, const DiracSpinor &c) const;
+  double c3(int K, const DiracSpinor &w, const DiracSpinor &r,
+            const DiracSpinor &v, const DiracSpinor &m) const;
+  double c4(int K, const DiracSpinor &w, const DiracSpinor &r,
+            const DiracSpinor &v, const DiracSpinor &m) const;
 };
 
 } // namespace MBPT
