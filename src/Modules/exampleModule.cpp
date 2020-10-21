@@ -24,7 +24,7 @@ void exampleModule(const IO::UserInputBlock &input, const Wavefunction &wf) {
 
   const auto h = DiracOperator::E1(*wf.rgrid);
 
-  MBPT::StructureRad sr(wf.basis, en_core, {1, 20});
+  MBPT::StructureRad sr(wf.basis, en_core, {1, 60});
   for (const auto &v : wf.valence) {
     for (const auto &w : wf.valence) {
       if (h.isZero(w.k, v.k))
@@ -37,10 +37,14 @@ void exampleModule(const IO::UserInputBlock &input, const Wavefunction &wf) {
       std::cout << w.symbol() << "-" << v.symbol() << ":\n"
                 << h.reducedME(ws, vs) << " " << h.reducedME(w, v) << std::endl;
 
+      const auto n = sr.norm(&h, ws, vs);
+      std::cout << " + " << n << "\n + " << std::flush;
+
       const auto [t, b] = sr.srTB(&h, ws, vs, 0.0);
-      std::cout << " + " << t << " + " << b << " + " << std::flush;
+      std::cout << t << " + " << b << " + " << std::flush;
       const auto c = sr.srC(&h, ws, vs);
-      std::cout << c << " = " << t + b + c << "\n\n";
+      std::cout << c << " = " << t + b + c << "\n";
+      std::cout << "\n\n";
     }
   }
 

@@ -141,6 +141,15 @@ double StructureRad::srC(const DiracOperator::TensorOperator *const h,
 }
 
 //******************************************************************************
+double StructureRad::norm(const DiracOperator::TensorOperator *const h,
+                          const DiracSpinor &w, const DiracSpinor &v) const {
+  //
+  const auto t_wv = h->reducedME(w, v); // rpa? Sigma(2)?
+
+  return -0.5 * t_wv * (n1(v) + n2(v) + n1(w) + n2(w));
+}
+
+//******************************************************************************
 //******************************************************************************
 
 //******************************************************************************
@@ -678,4 +687,71 @@ double StructureRad::c4(const int K, const DiracSpinor &w, const DiracSpinor &r,
   return t;
 }
 
+//******************************************************************************
+double StructureRad::n1(const DiracSpinor &v) const {
+  //
+  const auto tjvp1 = v.twoj() + 1;
+
+  double t = 0.0;
+
+  for (const auto &a : mCore) {
+    for (const auto &b : mCore) {
+      for (const auto &m : mExcited) {
+
+        const auto e_vmab = (v.en + m.en - a.en - b.en);
+        const auto ide2 = 1.0 / (e_vmab * e_vmab);
+
+        const auto [minU, maxU] = mY.k_minmax(m, b);
+        for (int u = minU; u <= maxU; ++u) {
+
+          const auto tup1 = 2 * u + 1;
+
+          const auto x = mY.Xk(u, v, m, a, b);
+          if (Angular::zeroQ(x))
+            continue;
+
+          // XXX Note: Break Z into Q+P, saves time!!!
+          const auto z = mY.Zk(u, v, m, a, b);
+
+          t += x * z * ide2 / tup1;
+        }
+      }
+    }
+  }
+  return t / tjvp1;
+}
+
+//******************************************************************************
+double StructureRad::n2(const DiracSpinor &v) const {
+  //
+  const auto tjvp1 = v.twoj() + 1;
+
+  double t = 0.0;
+
+  for (const auto &a : mCore) {
+    for (const auto &m : mExcited) {
+      for (const auto &n : mExcited) {
+
+        const auto e_nmav = (n.en + m.en - a.en - v.en);
+        const auto ide2 = 1.0 / (e_nmav * e_nmav);
+
+        const auto [minU, maxU] = mY.k_minmax(a, m);
+        for (int u = minU; u <= maxU; ++u) {
+
+          const auto tup1 = 2 * u + 1;
+
+          const auto x = mY.Xk(u, v, a, n, m);
+          if (Angular::zeroQ(x))
+            continue;
+
+          // XXX Note: Break Z into Q+P, saves time!!!
+          const auto z = mY.Zk(u, v, a, n, m);
+
+          t += x * z * ide2 / tup1;
+        }
+      }
+    }
+  }
+  return t / tjvp1;
+}
 } // namespace MBPT

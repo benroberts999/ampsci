@@ -25,6 +25,8 @@ the basis states, in 'Z' integral. Note: It could be re-written to avoid this
 
 For now, does not include RPA, but that is a trivial addition.
 
+XX ALSO: update for when w=v (half the work?)
+
 NOT TESTED
 
 XX ALSO: add new Yk.Qk, Xk, Wk, Zk etc. tests to Coulomb Tests!
@@ -66,7 +68,10 @@ public:
   double srC(const DiracOperator::TensorOperator *const h, const DiracSpinor &w,
              const DiracSpinor &v) const;
 
-public:
+  double norm(const DiracOperator::TensorOperator *const h,
+              const DiracSpinor &w, const DiracSpinor &v) const;
+
+private:
   double t1(int K, const DiracSpinor &w, const DiracSpinor &r,
             const DiracSpinor &v, const DiracSpinor &c) const;
   double t2(int K, const DiracSpinor &w, const DiracSpinor &r,
@@ -97,6 +102,11 @@ public:
             const DiracSpinor &v, const DiracSpinor &m) const;
   double c4(int K, const DiracSpinor &w, const DiracSpinor &r,
             const DiracSpinor &v, const DiracSpinor &m) const;
+
+  //--
+
+  double n1(const DiracSpinor &v) const;
+  double n2(const DiracSpinor &v) const;
 };
 
 } // namespace MBPT
