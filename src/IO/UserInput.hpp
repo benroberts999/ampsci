@@ -80,7 +80,9 @@ class UserInputBlock {
 
 public:
   UserInputBlock(const std::string &in_block_name,
-                 const std::vector<std::string> &in_input_options)
+                 const std::string &in_input_options);
+  UserInputBlock(const std::string &in_block_name,
+                 const std::vector<std::string> &in_input_options = {})
       : m_block_name(in_block_name), m_input_options(in_input_options) {}
   UserInputBlock(const std::string &in_block_name,
                  const UserInputBlock &in_block)
@@ -178,7 +180,7 @@ public:
 private:
   std::string m_filename;
   std::vector<UserInputBlock> m_blocks = {};
-  UserInputBlock m_empty_block{"", {}};
+  UserInputBlock m_empty_block{"", ""};
 };
 
 //******************************************************************************
