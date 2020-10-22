@@ -10,7 +10,8 @@ class TensorOperator;
 }
 namespace HF {
 class HartreeFock;
-}
+class ExternalField;
+} // namespace HF
 
 namespace MBPT {
 
@@ -61,15 +62,20 @@ private:
   std::vector<DiracSpinor> mCore{}, mExcited{};
 
 public:
-  std::pair<double, double> srTB(const DiracOperator::TensorOperator *const h,
-                                 const DiracSpinor &w, const DiracSpinor &v,
-                                 double omega) const;
+  std::pair<double, double>
+  srTB(const DiracOperator::TensorOperator *const h, const DiracSpinor &w,
+       const DiracSpinor &v, double omega,
+       const HF::ExternalField *const dV = nullptr) const;
 
-  double srC(const DiracOperator::TensorOperator *const h, const DiracSpinor &w,
-             const DiracSpinor &v) const;
+  std::pair<double, double>
+  srC(const DiracOperator::TensorOperator *const h, const DiracSpinor &w,
+      const DiracSpinor &v , const HF::ExternalField *const dV = nullptr)
+      const;
 
-  double norm(const DiracOperator::TensorOperator *const h,
-              const DiracSpinor &w, const DiracSpinor &v) const;
+  std::pair<double, double>
+  norm(const DiracOperator::TensorOperator *const h, const DiracSpinor &w,
+       const DiracSpinor &v , const HF::ExternalField *const dV = nullptr)
+      const;
 
 private:
   double t1(int K, const DiracSpinor &w, const DiracSpinor &r,

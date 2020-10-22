@@ -7,6 +7,7 @@
 #include "Wavefunction/Wavefunction.hpp"
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <numeric>
 #include <string>
 #include <vector>
@@ -15,8 +16,8 @@ namespace Module {
 
 void structureRad(const IO::UserInputBlock &input, const Wavefunction &wf) {
 
-  input.checkBlock({"operator", "options", "printBoth", "onlyDiagonal", "omega",
-                    "n_minmax"});
+  input.checkBlock({"operator", "options", "rpa", "printBoth", "onlyDiagonal",
+                    "omega", "n_minmax"});
 
   // Find core/valence energy: allows distingush core/valence states
   const auto ec_max =
@@ -32,6 +33,9 @@ void structureRad(const IO::UserInputBlock &input, const Wavefunction &wf) {
       IO::UserInputBlock(oper, input.get<std::string>("options", ""));
   const auto h = generateOperator(oper, h_options, wf, true);
 
+  const auto rpaQ = input.get("rpa", true);
+  const auto omega = input.get("omega", 0.0);
+
   const auto print_both = input.get("printBoth", false);
   const auto only_diagonal = input.get("onlyDiagonal", false);
 
@@ -43,9 +47,24 @@ void structureRad(const IO::UserInputBlock &input, const Wavefunction &wf) {
   if (n_max < 999)
     std::cout << "Including to n = " << n_max << "\n";
 
-  std::cout
-      << "\nStructure radiation and normalisation of states (reduced ME):\n";
-  MBPT::StructureRad sr(wf.basis, en_core, {1, 60});
+  std::unique_ptr<HF::ExternalField> dV{nullptr};
+  if (rpaQ) {
+    dV = std::make_unique<HF::ExternalField>(h.get(), wf.getHF());
+    dV->solve_TDHFcore(omega);
+  }
+
+  auto printer = [rpaQ](auto str, auto t, auto dv) {
+    if (rpaQ)
+      printf(" %6s: %12.5e  %12.5e\n", str, t, dv);
+    else
+      printf(" %6s: %12.5e\n", str, t);
+  };
+
+  std::cout << "\nStructure radiation and normalisation of states:\n";
+  std::cout << "h=" << h->name() << " (reduced ME)\n";
+
+  MBPT::StructureRad sr(wf.basis, en_core, {n_min, n_max});
+
   for (const auto &v : wf.valence) {
     for (const auto &w : wf.valence) {
       if (h->isZero(w.k, v.k))
@@ -66,25 +85,31 @@ void structureRad(const IO::UserInputBlock &input, const Wavefunction &wf) {
         continue;
       }
 
-      IO::ChronoTimer timer("t:");
+      IO::ChronoTimer timer();
 
-      std::cout << w.symbol() << "-" << v.symbol() << ":\n"
-                << h->reducedME(*ws, *vs) << " " << h->reducedME(w, v)
-                << std::endl;
+      std::cout << "\n" << h->rme_symbol(w, v) << ":\n";
 
-      const auto n = sr.norm(h.get(), *ws, *vs);
-      std::cout << " Norm : " << n << "\n" << std::flush;
+      const auto twvs = h->reducedME(*ws, *vs);
+      const auto twv = h->reducedME(w, v);
+      const auto dvs = dV ? twvs + dV->dV(*ws, *vs) : 0.0;
+      const auto dv = dV ? twv + dV->dV(w, v) : 0.0;
 
-      const auto [t, b] = sr.srTB(h.get(), *ws, *vs, 0.0);
-      std::cout << " SR(T): " << t << "\n" << std::flush;
-      std::cout << " SR(B): " << b << "\n" << std::flush;
+      printer("t(spl)", twvs, dvs);
+      printer("t(val)", twv, dv);
 
-      const auto c = sr.srC(h.get(), *ws, *vs);
-      std::cout << " SR(C): " << c << "\n" << std::flush;
-      std::cout << " SR   : " << t + b + c << "\n" << std::flush;
-      std::cout << "\n";
+      const auto [tb, tb_dv] = sr.srTB(h.get(), *ws, *vs, omega, dV.get());
+      printer("SR(TB)", tb, tb_dv);
+
+      const auto [c, c_dv] = sr.srC(h.get(), *ws, *vs, dV.get());
+      printer("SR(C)", c, c_dv);
+
+      std::cout << "========\n";
+      printer("SR", tb + c, tb_dv + c_dv);
+      const auto [n, n_dv] = sr.norm(h.get(), *ws, *vs, dV.get());
+      printer("Norm", n, n_dv);
     }
   }
+  std::cout << "\n";
 
   return;
   //****************************************************************************
