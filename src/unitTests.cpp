@@ -8,6 +8,7 @@
 #include "IO/ChronoTimer.hpp"
 #include "MBPT/CorrelationPotential_test.hpp"
 #include "MBPT/DiagramRPA_test.hpp"
+#include "MBPT/StructureRad_test.hpp"
 #include "Maths/LinAlg_test.hpp"
 #include "Physics/RadPot_test.hpp"
 #include "Wavefunction/BSplineBasis_test.hpp"
@@ -66,7 +67,8 @@ static const std::vector<std::pair<std::string, bool (*)(std::ostream &obuff)>>
         {"BSplineBasis", &BSplineBasis},
         {"Coulomb", &Coulomb},
         {"CorrelationPotential", &CorrelationPotential},
-        {"DiagramRPA", &DiagramRPA}
+        {"DiagramRPA", &DiagramRPA},
+        {"StructureRad", &StructureRad}
         //
     };
 

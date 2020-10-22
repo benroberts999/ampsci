@@ -37,8 +37,10 @@ Atom{Z=Cs;A=default;}
 ```
 
 * All available inputs for each input block are listed below
-  * Inputs are taken in as either text, boolean (true/false), integers, or real numbers.
-  * These will be denoted by [t], [b], [i], [r]
+  * Inputs are taken in as either text, boolean (true/false), integers, or real numbers, or a "sub-block"
+  * These will be denoted by [t], [b], [i], [r], [sub-block]
+  * A sub-block is a bracketed list of sub-options, e.g.
+    * options = [a=1; b=2;];
 * Program will _usually_ warn you if an incorrect option is given, and print all the available options to the screen.
 
 ********************************************************************************
@@ -268,18 +270,20 @@ Spectrum {
 ```
 
 
-## Modules and MatrixElements
+## Modules
 
-Modules and MatrixElements work in essentially the same way. Each MatrixElements/Modules block will be run in order. You can comment-out just the block name, and the block will be skipped.
+Each Modules block will be run in order.
+You can comment-out just the block name, and the block will be skipped.
 
-MatrixElements blocks calculate reduced matrix elements of given operator, Modules can do anything.
+### Modules::MatrixElements
 
-For MatrixElements, there are some options that apply for any operator; and then there are some
-options specific to each operator
+Module to calculate Matrix Elements.
+For MatrixElements, there are some options that apply for any operator; and then there are some options specific to each operator; these operator-specific options are given as a [] bracketed list of options ("sub-block")
 
 ```cpp
-MatrixElements::ExampleOperator { //this is not a real operator..
-  // Options that apply to all operators:
+Modules::MatrixElements {
+  operator;       //[t] default = ""
+  options;        //[sub-block], default = ""
   printBoth;      //[t] default = false
   onlyDiagonal;   //[t] default = false
   radialIntegral; //[b] default = false
@@ -290,6 +294,8 @@ MatrixElements::ExampleOperator { //this is not a real operator..
   b_vertex;       //[r] default = 1.0
 }
 ```
+* operator: name of operator; see list below
+* options: list any operator-specific options (most will be blank)
 * printBoth: Print <a|h|b> and <b|h|a> ? false by default. (For _some_ operators, e.g., involving derivatives, this is a good test of numerical error. For most operators, values will be trivially the same; reduced matrix elements, sign may be different.)
 * onlyDiagonal: If true, will only print diagonal MEs <a|h|a>
 * radialIntegral: if true, calculates the radial integral (definition depends on specific operator)
@@ -301,37 +307,42 @@ MatrixElements::ExampleOperator { //this is not a real operator..
 
 ### Available operators:
 
+Here I list the available operators, and their possible options.
+Remember; the program will print out the full list of available options if you ask it to.
+
 ```cpp
-MatrixElements::E1 { //Electric dipole operator:
+operator = E1; //Electric dipole operator:
+options = [
   gauge; //[t] lform, vform. default = lform
-}
+]
 ```
 
 ```cpp
-MatrixElements::Ek { //Electric multipole operator:
+operator = Ek; //Electric multipole operator:
+options = [
   k; //[i] default = 1
-}
+]
 ```
 * k=1 => E1, dipole. k=2 => E2, quadrupole etc.
 
 ```cpp
-MatrixElements::r { //scalar r
+operator = r; //scalar r
+options = [
   power; //[r] default = 1. Will calc <|r^n|>.
-}
+]
 ```
 
 ```cpp
-MatrixElements::pnc {// spin-independent (Qw) PNC operator.
-  // Output given in units of i(-Q/N)e-11
+operator = pnc; // spin-independent (Qw) PNC operator.
+options = [
   c; //[r] half-density radius. By default, uses rrms from Z,A [see nucleus]
   t; //[r] skin thickness. default = 2.3
-}
+]
 ```
 
+
 ```cpp
-MatrixElements::Hrad_el {
-  // QED electric part (Euhling+electric SE)
-}
+operator = Hrad_el; // QED electric part (Euhling+electric SE)
 ```
  * Takes similar arguments as RadPot (except for scale_l and core_qed)
    * Simple, Ueh, SE_h, SE_l, rcut, scale_rN (but not SE_mag)
@@ -340,10 +351,9 @@ MatrixElements::Hrad_el {
  * Typically used with onlyDiagonal=true, and radialIntegral=true (get energy shifts)
 
 ```cpp
-MatrixElements::Hrad_mag {
-  // QED magnetic part (magnetic SE form-factor)
-}
+operator = Hrad_mag; // QED magnetic part (magnetic SE form-factor)
 ```
+ * QED magnetic part (magnetic SE form-factor)
  * Takes similar arguments as RadPot (except for scale_l and core_qed)
    * SE_mag, rcut, scale_rN (but not Simple, Ueh, SE_h, SE_l,)
  * Including RPA should be equivalent to including QED into core HF equations
@@ -351,7 +361,8 @@ MatrixElements::Hrad_mag {
  * Typically used with onlyDiagonal=true, and radialIntegral=true (get energy shifts)
 
 ```cpp
-MatrixElements::hfs { // Magnetic dipole hyperfine structure constant A
+operator = hfs; // Magnetic dipole hyperfine structure constant A
+options = [
   mu;     //[r] Nuc. mag. moment. Will be looked up by default
   I;      //[r] Nuc. spin. Will be looked up by default
   rrms;   //[r] Nuc. rms radius. Will be looked up by default
@@ -371,10 +382,10 @@ MatrixElements::hfs { // Magnetic dipole hyperfine structure constant A
   gl1 = 1;
   I2 = 0.5;
   l2 = 1.;
-}
+]
 ```
 
-### Modules:
+### Other Modules:
 
 -------------------
 ```cpp
@@ -442,18 +453,18 @@ Calculates lifetimes of valence states. Note: uses HF energies (prints all data 
 ```cpp
 Module::HFAnomaly {
   Alist;  //[i,i,...] // Which A's to calculate for (blank for all)
- // ~ most inputs same as MatrixElements::hfs
+ // ~ most inputs same as operator = hfs
 }
 ```
 Calculates the hyperfine anomaly (and BW effect) for all available odd
 isotopes of given atom, relative to the 'main' isotope (see Atom).
- * Note: Only runs for odd isotopes; to get anomaly for even isotopes, use am even isotope as reference (For doubly-odd Bohr-Weisskopf input options, see MatrixElements::hfs)
- * Takes same input at MatrixElements::hfs, except for F(r), since it runs for each F(r)
+ * Note: Only runs for odd isotopes; to get anomaly for even isotopes, use am even isotope as reference (For doubly-odd Bohr-Weisskopf input options, see operator = hfs)
+ * Takes same input as operator = hfs, except for F(r), since it runs for each F(r)
 
 -------------------
 ```cpp
 Module::BohrWeisskopf { //Calculates BW effect for Ball/Single-particle
-  // Takes same input at MatrixElements::hfs
+  // Takes same input at operator = hfs
   // Except for F(r), since it runs for each F(r)
 }
 ```

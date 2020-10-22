@@ -19,10 +19,10 @@ namespace MBPT {
 //******************************************************************************
 StructureRad::StructureRad(const std::vector<DiracSpinor> &basis,
                            double en_core, std::pair<int, int> nminmax)
-    : mBasis(basis), // store a local copy (?)
+    : mBasis(basis), // store a local copy
       mY(basis.front().rgrid, &mBasis) {
 
-  // Fa.en < en_core ==> core state!
+  // nb: en_core defined such that: Fa.en < en_core ==> core state!
 
   // Sort into core/excited; store pointers
   // nb: this makes it faster..
@@ -30,7 +30,7 @@ StructureRad::StructureRad(const std::vector<DiracSpinor> &basis,
   for (const auto &Fn : mBasis) {
     if (Fn.en < en_core && Fn.n >= n_min) {
       mCore.push_back(Fn);
-    } else if (Fn.n <= n_max) {
+    } else if (Fn.en > en_core && Fn.n <= n_max) {
       mExcited.push_back(Fn);
     }
   }
