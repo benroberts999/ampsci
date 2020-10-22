@@ -38,7 +38,9 @@ static const std::vector<
                 {"pnc", &calculatePNC},
                 {"polarisability", &polarisability},
                 {"testFeynman", &testFeynman},
+                {"matrixElements", &matrixElements},
                 {"lifetimes", &calculateLifetimes},
+                {"structureRad", &structureRad},
                 {"screeningFactors", &screeningFactors},
                 {"exampleModule", &exampleModule}};
 

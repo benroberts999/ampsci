@@ -90,6 +90,10 @@ public: // const methods: "views" into WF object
     return m_pHF->excludeExchangeQ();
   }
 
+  //! Returns 0.5*( max(e_core) + min(e_valence)) - energy half way between
+  //! core/valence
+  double en_coreval() const;
+
   //! Returns ptr to (const) Correlation Potential, Sigma
   const MBPT::CorrelationPotential *getSigma() const { return m_Sigma.get(); }
   //! Returns ptr to (const) Hartree Fock (class)

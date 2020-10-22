@@ -116,11 +116,11 @@ void HFAnomaly(const IO::UserInputBlock &input, const Wavefunction &wf) {
     wfA.basis = wf.basis; // OK??
 
     const auto hpt2 = generateOperator(
-        {"MatrixElements::hfs", {"F(r)=pointlike"}}, wfA, false);
+        {"MatrixElements::hfs", "F(r)=pointlike;"}, wfA, false);
     const auto hbl2 =
-        generateOperator({"MatrixElements::hfs", {"F(r)=ball"}}, wfA, false);
+        generateOperator({"MatrixElements::hfs", "F(r)=ball;"}, wfA, false);
     const auto hsp2 = generateOperator(
-        {"MatrixElements::hfs", {"F(r)=VolotkaBW"}}, wfA, false);
+        {"MatrixElements::hfs", "F(r)=VolotkaBW;"}, wfA, false);
 
     std::unique_ptr<MBPT::DiagramRPA> rpap2{nullptr}, rpab2{nullptr},
         rpas2{nullptr};

@@ -28,8 +28,6 @@ Grid {
 // RadPot
 {
   RadPot = false;
-  scale_l = 1, 1, 1;
-  core_qed = true;
 }
 
 // Basis
@@ -39,8 +37,7 @@ Grid {
   r0_eps = 1.0e-6;
   rmax = 30.0;
   print = false;
-  positron = false;
-  states = 30spdfg;
+  states = 35spdfghi;
 }
 
 // Correlations
@@ -67,10 +64,19 @@ Grid {
 
 Module::Tests {}
 
-// MatrixElements::E1 {}
-// MatrixElements::E1 {omega = each;}
+// Module::MatrixElements { operator = E1; }
+// Module::MatrixElements { operator = E1; omega = each; }
 
-// MatrixElements::hfs { F(r) = pointlike; rpa = false; }
+/*
+Module::MatrixElements {
+  operator = hfs;
+  rpa = false;
+  options = [
+    F(r) = pointlike;
+  ];
+}
+*/
+
 // Module::pnc { transition = 6, -1, 7, -1; rpa = true; }
 // Module::pnc { transition = 6, -1, 5, 2; rpa = true; }
 

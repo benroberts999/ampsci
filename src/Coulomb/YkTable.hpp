@@ -1,6 +1,5 @@
 #pragma once
 #include "Angular/Angular_tables.hpp"
-// #include "Wavefunction/DiracSpinor.hpp"
 #include <memory>
 #include <utility>
 #include <vector>
@@ -47,6 +46,7 @@ private:
   std::size_t b_size = 0;
   std::vector<std::vector<std::vector<std::vector<double>>>> m_y_abkr = {};
   Angular::Ck_ab m_Ck = Angular::Ck_ab();
+  Angular::SixJ m_6j = Angular::SixJ();
 
 public:
   //! Re-calculates all y^k integrals [happens automatically on construct]
@@ -67,6 +67,19 @@ public:
     }
     return nullptr;
   }
+
+  double Qk(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+            const DiracSpinor &Fc, const DiracSpinor &Fd) const;
+  double Xk(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+            const DiracSpinor &Fc, const DiracSpinor &Fd) const;
+  double Pk(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+            const DiracSpinor &Fc, const DiracSpinor &Fd) const;
+  double Wk(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+            const DiracSpinor &Fc, const DiracSpinor &Fd) const;
+  double Zk(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+            const DiracSpinor &Fc, const DiracSpinor &Fd) const;
+  double sj(int lam, int mu, int k, const DiracSpinor &Fa,
+            const DiracSpinor &Fb, const DiracSpinor &Fc) const;
 
   const std::vector<double> &operator()(const int k, const DiracSpinor &Fa,
                                         const DiracSpinor &Fb) const {
@@ -98,6 +111,26 @@ public:
   //! Returns min and max k (multipolarity) allowed for C^k_ab
   static std::pair<int, int> k_minmax(const DiracSpinor &a,
                                       const DiracSpinor &b);
+
+  // "Magic" sixj symbol calculator. Integers (for k!) and Spinors
+  // do not multiply by 2!
+  template <class A, class B, class C, class D, class E, class F>
+  static double sixj(A a, B b, C c, D d, E e, F f) {
+    return Angular::sixj_2(twojk(a), twojk(b), twojk(c), twojk(d), twojk(e),
+                           twojk(f));
+  }
+
+private:
+  // returns a.twoj() if a is a spinor, or 2*a if a is an integer
+  // used for sixj symbol, just to simplify call site!
+  template <class A> static int twojk(A a) { //
+    if constexpr (std::is_same_v<A, DiracSpinor>) {
+      return a.twoj();
+    } else {
+      static_assert(std::is_same_v<A, int>);
+      return 2 * a;
+    }
+  }
 };
 
 } // namespace Coulomb
