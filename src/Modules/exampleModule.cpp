@@ -3,53 +3,11 @@
 #include "IO/UserInput.hpp"
 #include "Physics/PhysConst_constants.hpp" // For GHz unit conversion
 #include "Wavefunction/Wavefunction.hpp"
-//
-#include "IO/ChronoTimer.hpp"
-#include "MBPT/StructureRad.hpp"
 
 namespace Module {
 
 void exampleModule(const IO::UserInputBlock &input, const Wavefunction &wf) {
   // This is an example module, designed to help you write new modules
-
-  //****************************************************************************
-  // Find core/valence energy: allows distingush core/valence states
-  const auto ec_max =
-      std::max_element(cbegin(wf.core), cend(wf.core), DiracSpinor::comp_en)
-          ->en;
-  const auto ev_min = std::min_element(cbegin(wf.valence), cend(wf.valence),
-                                       DiracSpinor::comp_en)
-                          ->en;
-  const auto en_core = 0.5 * (ev_min + ec_max);
-
-  const auto h = DiracOperator::E1(*wf.rgrid);
-
-  MBPT::StructureRad sr(wf.basis, en_core, {1, 60});
-  for (const auto &v : wf.valence) {
-    for (const auto &w : wf.valence) {
-      if (h.isZero(w.k, v.k))
-        continue;
-
-      const auto &ws = *std::find(cbegin(wf.basis), cend(wf.basis), w);
-      const auto &vs = *std::find(cbegin(wf.basis), cend(wf.basis), v);
-
-      IO::ChronoTimer timer("t:");
-      std::cout << w.symbol() << "-" << v.symbol() << ":\n"
-                << h.reducedME(ws, vs) << " " << h.reducedME(w, v) << std::endl;
-
-      const auto n = sr.norm(&h, ws, vs);
-      std::cout << " + " << n << "\n + " << std::flush;
-
-      const auto [t, b] = sr.srTB(&h, ws, vs, 0.0);
-      std::cout << t << " + " << b << " + " << std::flush;
-      const auto c = sr.srC(&h, ws, vs);
-      std::cout << c << " = " << t + b + c << "\n";
-      std::cout << "\n\n";
-    }
-  }
-
-  return;
-  //****************************************************************************
 
   // In this example, we will solve a new wavefunction, assuming a different
   // nuclear charge distribution, and see the difference in the energies and E1

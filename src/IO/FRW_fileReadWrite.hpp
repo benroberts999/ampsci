@@ -253,7 +253,10 @@ inline std::vector<std::string> splitInput_bySemiColon(const std::string &input)
   //   entry_list.push_back(entry);
   // }
 
-  std::size_t start = 0;
+  // dumb hack to ingore first braket '['..
+  std::size_t start = (input.size() > 0 && input[0] == '[') ? 1 : 0;
+
+  // std::size_t start = 0;
   while (true) {
     // Check if we find a ';' or an open braket '[' first:
     const auto bkt = input.find('[', start);
