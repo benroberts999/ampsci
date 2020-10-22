@@ -255,6 +255,7 @@ void ExternalField::solve_TDHFcore(const double omega, const int max_its,
   if (print) {
     printf("%2i %.1e\n", it, eps);
   }
+  std::cout << std::flush;
   m_core_eps = eps;
   m_core_omega = omega;
 }

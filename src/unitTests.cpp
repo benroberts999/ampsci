@@ -27,8 +27,6 @@
 @details
 Each unit test tests a certain piece of the code.
 
-Note: must
-
 To run the unit tests, compile unitTests (make unitTests), and run from command
 line. It takes optional command-line options (the names of which tests to run).
 By default (if no extra arguments given), every test is run.

@@ -387,6 +387,8 @@ options = [
 
 ### Other Modules:
 
+ * Note: 'Modules' documentation also available in the doxygen (html) documentation on github; that is likely more up-to-date
+
 -------------------
 ```cpp
 Module::Tests {
@@ -439,6 +441,20 @@ Module::polarisability{ rpa; omega; transition; omega_max; omega_steps;  }
 Note: transition polarisabilities written for s-states only.
 They might be correct for other states too, but NOT checked.
 Especially for beta, pretty sure it's wrong for non-s states.
+
+-------------------
+```cpp
+Module::structureRad{
+  operator; options; rpa; printBoth; onlyDiagonal; omega; n_minmax;  
+}
+```
+ * Calculates Structure Radiation + Normalisation of States
+ * Note: Most input options are similar to MatrixElements module:
+ * n_minmax: is input as list of ints:
+   * n_minmax = min,max;
+   * min: minimum n for core states kept in summations
+   * max: maximum n for excited states kept in summations
+ * For explanation of the rest, see MatrixElements module.
 
 -------------------
 ```cpp

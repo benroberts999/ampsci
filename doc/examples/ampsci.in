@@ -1,7 +1,12 @@
-// Example input file. Lines with "//" are ignored
+// Example "template" ampsci input file.
+// Lines with "//" are ignored
 // Comment out an entire block (or just its name) to skip block
 // See doc/ampsci_input.md for full description of all options
 // Tip: Tell your editor this is a cpp file [colouring + commenting shortcuts]
+// run as:
+// $ ./ampsci
+// OR
+// $ ./ampsci ampsci.in
 
 Atom {
   Z = Cs;
@@ -22,7 +27,7 @@ Nucleus {
 Grid {
   r0 = 1e-6;
   rmax = 120.0;
-  num_points = 1600;
+  num_points = 2000;
 }
 
 // RadPot
@@ -49,7 +54,7 @@ Grid {
   lambda_k;
 }
 
-//Spectrum
+// Spectrum
 {
   number = 100;
   order = 7;
@@ -78,6 +83,7 @@ Module::MatrixElements {
 */
 
 // Module::pnc { transition = 6, -1, 7, -1; rpa = true; }
+
 // Module::pnc { transition = 6, -1, 5, 2; rpa = true; }
 
 // Module::BohrWeisskopf{}

@@ -14,21 +14,7 @@
 
 namespace Module {
 
-//! Calculates Structure Radiation + Normalisation of States
-/*!
-Note: Most input options are similar to MatrixElements module:
-
-  Module::structureRad{ operator; options; rpa; printBoth; onlyDiagonal; omega;
-n_minmax;  }
-
-n_minmax: is input as list of ints:
- * n_minmax = min,max;
- * min: minimum n for core states kept in summations
- * max: maximum n for excited states kept in summations
-
-For explanation of the rest, see MatrixElements module.
-
-*/
+// Calculates Structure Radiation + Normalisation of States
 void structureRad(const IO::UserInputBlock &input, const Wavefunction &wf) {
 
   input.checkBlock({"operator", "options", "rpa", "printBoth", "onlyDiagonal",
@@ -40,42 +26,43 @@ void structureRad(const IO::UserInputBlock &input, const Wavefunction &wf) {
       IO::UserInputBlock(oper, input.get<std::string>("options", ""));
   const auto h = generateOperator(oper, h_options, wf, true);
 
+  const auto print_both = input.get("printBoth", false);
+  const auto only_diagonal = input.get("onlyDiagonal", false);
   const auto rpaQ = input.get("rpa", true);
   const auto str_om = input.get<std::string>("omega", "_");
   const bool eachFreqQ = str_om == "each" || str_om == "Each";
-  const auto omega = eachFreqQ ? 0.0 : input.get("omega", 0.0);
-  const auto print_both = input.get("printBoth", false);
-  const auto only_diagonal = input.get("onlyDiagonal", false);
+  const auto const_omega = eachFreqQ ? 0.0 : input.get("omega", 0.0);
 
   // min/max n (for core/excited basis)
   const auto n_minmax = input.get_list("n_minmax", std::vector{1, 999});
   const auto n_min = n_minmax.size() > 0 ? n_minmax[0] : 1;
   const auto n_max = n_minmax.size() > 1 ? n_minmax[1] : 999;
-  if (n_min > 1)
-    std::cout << "Including from n = " << n_min << "\n";
-  if (n_max < 999)
-    std::cout << "Including to n = " << n_max << "\n";
 
   // For freq-dependent operators:
   if (h->freqDependantQ && !eachFreqQ)
-    h->updateFrequency(omega);
+    h->updateFrequency(const_omega);
 
   // do RPA:
   std::unique_ptr<HF::ExternalField> dV{nullptr};
   if (rpaQ) {
     dV = std::make_unique<HF::ExternalField>(h.get(), wf.getHF());
     if (!eachFreqQ)
-      dV->solve_TDHFcore(omega);
+      dV->solve_TDHFcore(const_omega);
   }
 
   std::cout << "\nStructure radiation and normalisation of states:\n";
+  if (n_min > 1)
+    std::cout << "Including from n = " << n_min << "\n";
+  if (n_max < 999)
+    std::cout << "Including to n = " << n_max << "\n";
   std::cout << "h=" << h->name() << " (reduced ME)\n";
   if (rpaQ) {
-    std::cout << "RPA (TDHF) at";
+    std::cout << "RPA (TDHF) at ";
     if (eachFreqQ)
-      std::cout << " each frequency\n";
+      std::cout << "each frequency\n";
     else
-      std::cout << "w=" << omega << "\n";
+      std::cout << "w=" << const_omega << "\n";
+    // XXX ALSO: SR contains omega, even if no RPA!
   }
 
   // Lambda to format the output
@@ -84,6 +71,7 @@ void structureRad(const IO::UserInputBlock &input, const Wavefunction &wf) {
       printf(" %6s: %12.5e  %12.5e\n", str, t, dv);
     else
       printf(" %6s: %12.5e\n", str, t);
+    std::cout << std::flush;
   };
 
   if (wf.core.empty() || wf.valence.empty() || wf.basis.empty())
@@ -96,6 +84,10 @@ void structureRad(const IO::UserInputBlock &input, const Wavefunction &wf) {
 
   // Construct SR object:
   MBPT::StructureRad sr(wf.basis, en_core, {n_min, n_max});
+  std::cout << std::flush;
+
+  // nb: the 'flushes' are to force a cout flush; particularly when piping
+  // output to a file, this wasn't happening (since it's slow)
 
   // Loop through all valence states, calc SR+NS
   for (const auto &v : wf.valence) {
@@ -122,7 +114,7 @@ void structureRad(const IO::UserInputBlock &input, const Wavefunction &wf) {
 
       std::cout << "\n" << h->rme_symbol(w, v) << ":\n";
 
-      const auto ww = std::abs(ws->en - vs->en);
+      const auto ww = eachFreqQ ? std::abs(ws->en - vs->en) : const_omega;
       if (eachFreqQ && h->freqDependantQ) {
         h->updateFrequency(ww);
       }
@@ -141,7 +133,7 @@ void structureRad(const IO::UserInputBlock &input, const Wavefunction &wf) {
       printer("t(val)", twv, dv);
 
       // "Top" + "Bottom" SR terms:
-      const auto [tb, tb_dv] = sr.srTB(h.get(), *ws, *vs, omega, dV.get());
+      const auto [tb, tb_dv] = sr.srTB(h.get(), *ws, *vs, ww, dV.get());
       printer("SR(TB)", tb, tb_dv);
       // "Centre" SR term:
       const auto [c, c_dv] = sr.srC(h.get(), *ws, *vs, dV.get());

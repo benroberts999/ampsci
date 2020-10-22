@@ -200,7 +200,7 @@ int main(int argc, char *argv[]) {
 
   // Output Hartree Fock energies:
   std::cout << "\nHartree Fock: " << wf.identity() << "-" << wf.Anuc() << "\n";
-  const auto sorted = input.get("HartreeFock", "sortOutput", true);
+  const auto sorted = input.get("HartreeFock", "sortOutput", false);
   wf.printCore(sorted);
   wf.printValence(sorted);
 

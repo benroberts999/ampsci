@@ -1,0 +1,157 @@
+// Example ampsci input file:
+// Calculate Cs-133 E1 matrix element and hyperfine constants, with RPA
+// run as:
+// $ ./ampsci Cs_basicExample.in
+
+Atom {
+  Z = Cs;
+  A = 133;
+}
+
+HartreeFock {
+  core = [Xe];
+  valence = 7sp;
+}
+
+Grid {
+  r0 = 1e-6;
+  rmax = 120.0;
+  num_points = 4000;
+}
+
+// For hyperfine constants, we will use diagram method for RPA, so need a basis
+Basis {
+  number = 50;
+  order = 7;
+  r0_eps = 1.0e-9;
+  rmax = 40.0;
+  states = 45spdf;
+}
+
+// Run some basic tests (orthogonality)
+Module::Tests {}
+
+//E1 matrix elements, including RPA (TDHF method, solved at w=0)
+Module::matrixElements {
+  operator = E1;
+  rpa = true;
+  omega = 0.0;
+}
+
+//Hyperfine matrix elements, including RPA (diagram method); only print diagonal matrix elements. Note: hfs will print hyperfine A constants.
+// Use a point-like magnetisation distro; and lookup the default mu,I
+Module::matrixElements {
+  operator = hfs;
+  rpa_diagram = true;
+  onlyDiagonal = true;
+  options = [
+      F(r) = pointlike;
+  ];
+}
+
+
+// *****************************************************************************
+/*      ** Expected Output **
+nb: Some minor changes may be expected if the exact version of the code is not the same; but should agree well in general;
+
+ampsci git:a7c4d7f (dev)
+2020-10-22 17:40:19
+Atom { Z=Cs; A=133; }
+HartreeFock { core=[Xe]; valence=7sp; }
+Grid { r0=1e-6; rmax=120.0; num_points=4000; }
+Basis {
+  number=50; order=7; r0_eps=1.0e-9;
+  rmax=40.0; states=45spdf;
+}
+Module::Tests {}
+Module::matrixElements { operator=E1; rpa=true; omega=0.0; }
+Module::matrixElements {
+  operator=hfs; rpa_diagram=true; onlyDiagonal=true;
+  options=[F(r)=pointlike;];
+}
+
+Running for Cs, Z=55 A=133
+Fermi nucleus;  r_rms = 4.8041, c_hdr = 5.67073, t = 2.3
+Log-linear (b=39.6) grid: 1e-06->120, N=4000, du=0.214223
+********************************************************
+HF core:  it: 38 eps=5.7e-13 for 4d_3/2  [1.2e-15 for 5s_1/2]
+ core: T = 375.25 ms
+HF valence:   29 eps=9.4e-13 for 7p_3/2  [5.4e-13 for 6s_1/2 w/ 28]
+  val: T = 105.69 ms
+
+Hartree Fock: CsI-133
+Core: [Xe] (V^N-1)
+     state   k   Rinf its   eps         En (au)        En (/cm)
+ 0)  1s_1/2 -1    0.7  2  2e-27 -1330.118843326  -291927342.808
+ 1)  2s_1/2 -1    1.7  2  2e-24  -212.564490020   -46652513.088
+ 2)  2p_1/2  1    1.7  2  8e-25  -199.429496826   -43769715.299
+ 3)  2p_3/2 -2    1.8  2  1e-24  -186.436606514   -40918105.487
+ 4)  3s_1/2 -1    3.6  2  9e-23   -45.969746148   -10089193.090
+ 5)  3p_1/2  1    3.8  2  6e-23   -40.448305916    -8877377.030
+ 6)  3p_3/2 -2    3.9  2  6e-23   -37.894311684    -8316840.088
+ 7)  3d_3/2  2    4.5  2  4e-23   -28.309508854    -6213219.020
+ 8)  3d_5/2 -3    4.6  2  4e-23   -27.775165376    -6095944.182
+ 9)  4s_1/2 -1    7.9  2  1e-21    -9.512819867    -2087822.634
+10)  4p_1/2  1    8.9  2  7e-22    -7.446283815    -1634270.395
+11)  4p_3/2 -2    9.2  2  8e-22    -6.920999956    -1518983.914
+12)  4d_3/2  2   13.1  2  5e-22    -3.485618741     -765004.888
+13)  4d_5/2 -3   13.3  2  6e-22    -3.396901351     -745533.672
+14)  5s_1/2 -1   20.2  2  6e-22    -1.489804380     -326974.267
+15)  5p_1/2  1   26.1  2  3e-22    -0.907897397     -199260.447
+16)  5p_3/2 -2   27.2  2  2e-22    -0.840338934     -184433.078
+E_core = -7786.6449 au; = -1.708971e+09 /cm
+Val: state   k   Rinf its   eps         En (au)        En (/cm)   En (/cm)
+ 0)  6s_1/2 -1   70.4  2  7e-25    -0.127368056      -27954.057       0.00
+ 2)  6p_1/2  1   86.9  2  1e-25    -0.085615865      -18790.510    9163.55
+ 4)  6p_3/2 -2   87.8  2  2e-25    -0.083785459      -18388.783    9565.27
+ 1)  7s_1/2 -1  110.0  2  3e-27    -0.055187354      -12112.224   15841.83
+ 3)  7p_1/2  1  120.0  2  6e-27    -0.042021380       -9222.627   18731.43
+ 5)  7p_3/2 -2  120.0  2  1e-26    -0.041368036       -9079.234   18874.82
+
+Constructing B-spline basis with N=50, k=7. Storing: 45spdf
+Spline cavity l=0 s: (1.0e-06, 39.9)aB.
+Spline cavity l=1 p: (2.1e-06, 39.9)aB.
+Spline cavity l=2 d: (8.9e-04, 39.9)aB.
+Spline cavity l=3 f: (1.1e-03, 39.9)aB.
+Basis: T = 478.60 ms
+
+Test orthonormality:
+cc   <2s+|5s+> = 2.2e-06
+cv   <3s+|6s+> = 2.8e-06
+cb  <3s+|20s+> = 6.0e-04
+vv   <6s+|7s+> = 4.7e-07
+vb   <7p+|8p+> = 1.1e-02
+bb <43p-|45p-> = 5.9e-11
+
+Module::matrixElements (reduced). Operator: E1
+Units: aB
+TDHF (w=0.000): 30 5.8e-10
+<6p-||h||6s+>: -5.277685e+00  -4.943256e+00  -4.974401e+00
+<7p-||h||6s+>: -3.717397e-01  -2.232177e-01  -2.387231e-01
+<6p+||h||6s+>:  7.426432e+00   6.973439e+00   7.013074e+00
+<7p+||h||6s+>:  6.947395e-01   4.887908e-01   5.087421e-01
+<7p-||h||7s+>: -1.100887e+01  -1.091206e+01  -1.092106e+01
+<7p+||h||7s+>:  1.534479e+01   1.521605e+01   1.522744e+01
+<7s+||h||6p->:  4.413139e+00   4.457628e+00   4.449367e+00
+<7s+||h||6p+>:  6.671014e+00   6.721583e+00   6.712220e+00
+
+Hyperfine structure: Cs, Z=55 A=133
+Using pointlike nuclear distro for F(r)
+w/ mu = 2.58202, I = 3.5, r_N = 6.20207fm = 0.000117202au  (r_rms=4.8041fm)
+Points inside nucleus: 881
+
+Module::matrixElements A (MHz). Operator: hfs
+Units: MHz
+Filling RPA Diagram matrix (5sp4d/45spdf) .. . done.
+Writing to RPA(diagram) file: CsI_1+.rpad (5sp4d/45spdf) ... done.
+RPA(D) (w=0.000): 75 8.3e-11
+<6s+||h||6s+>D: 1.433686e+03   1.690932e+03   1.727867e+03
+<7s+||h||7s+>D: 3.939434e+02   4.628589e+02   4.739513e+02
+<6p-||h||6p->D: 1.610200e+02   1.919946e+02   2.015332e+02
+<7p-||h||7p->D: 5.765296e+01   6.841330e+01   7.162491e+01
+<6p+||h||6p+>D: 2.391638e+01   3.463468e+01   4.285402e+01
+<7p+||h||7p+>D: 8.639745e+00   1.248073e+01   1.536343e+01
+
+ampsci: T = 21.13 s
+
+*/

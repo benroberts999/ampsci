@@ -32,9 +32,8 @@ There are four documentation types provided:
  2. Input options -- how to run the code
     * _doc/ampsci_input.md_ -- detailed info on all input options
       * Best viewed with a markdown reader or on GitHub
-    * See also: _doc/ampsci.in.example_ -- an example input file for Cs
-      * copy to main directory + remove the '.example'
-      * _$cp ./doc/ampsci.in.example ./ampsci.in_
+    * See also: _doc/examples/ampsci.in_ -- an example/template input file
+    * In _doc/examples/_ there are several example input files, with the expected output; use these to test if everything is working!
 
 
  3. Physics documentation: _ampsci.pdf_ -- Description of physics/methods used in the code
@@ -115,9 +114,8 @@ Then, the compilation + use can proceed as per Linux above.
 ## ampsci (main program)
 
  * Input taken from a plain text file.
- * An example input file is included: doc/ampsci.in.example
-    * e.g.: _$ cp ./doc/ampsci.in.example ./ampsci.in_
- * You may re-name this file (e.g., to "filename.txt"), then run as:
+ * Several example input files are given in: _doc/examples/_, along with their expected output; use these to test if everything is working.
+ * You may re-name the input files (e.g., to "filename.txt"), then run as:
     * _$ ./ampsci filename.txt_
     * If no input filename is given, program will assume input filename is 'ampsci.in':
  * Note: input file uses c++-like format + line comments; tell your editor that the file is a cpp file to get nice colourisation and auto commenting

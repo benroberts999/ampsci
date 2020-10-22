@@ -15,7 +15,20 @@ namespace Module {
 //! Calculates matrix elements of any tensor operator, with RPA
 void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf);
 
-//! Calculates structure radiation + normalisation of states
+//! Calculates Structure Radiation + Normalisation of States
+/*!
+Note: Most input options are similar to MatrixElements module:
+
+  Module::structureRad{ operator; options; rpa; printBoth; onlyDiagonal; omega;
+n_minmax;  }
+
+n_minmax: is input as list of ints:
+ * n_minmax = min,max;
+ * min: minimum n for core states kept in summations
+ * max: maximum n for excited states kept in summations
+
+For explanation of the rest, see MatrixElements module.
+*/
 void structureRad(const IO::UserInputBlock &input, const Wavefunction &wf);
 
 //! Calculates state lifetimes (using E1 and E2 only). nb: HF energies

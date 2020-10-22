@@ -1,3 +1,5 @@
+# Example dmeXSection input file. Very old; not tested for long time
+#################
 ak-Xe_test      ! input file name (without .bin ext) *1
 Xe100           ! output label (put 'na' for none)
 # Dark Matter:
