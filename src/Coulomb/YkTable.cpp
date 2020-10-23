@@ -50,6 +50,43 @@ std::pair<int, int> YkTable::k_minmax(const DiracSpinor &a,
                         (a.twoj() + b.twoj()) / 2);
 }
 
+//------------------------------------------------------------------------------
+std::pair<int, int> YkTable::k_minmax_Q(const DiracSpinor &a,
+                                        const DiracSpinor &b,
+                                        const DiracSpinor &c,
+                                        const DiracSpinor &d) {
+  const auto [l1, u1] = k_minmax(a, c);
+  const auto [l2, u2] = k_minmax(b, d);
+  return {std::max(l1, l2), std::min(u1, u2)};
+}
+
+std::pair<int, int> YkTable::k_minmax_P(const DiracSpinor &a,
+                                        const DiracSpinor &b,
+                                        const DiracSpinor &c,
+                                        const DiracSpinor &d) {
+  // P_abcd = 6j * Q_abdc
+  // From the Q_abdc:
+  const auto [l1, u1] = k_minmax(a, d);
+  const auto [l2, u2] = k_minmax(b, c);
+  // From the 6j symbol:
+  // sum_l {a, c, k \\ b, d, l} * Q_abdc
+  //  |b-d| <= k <=|b+d|
+  const auto l3 = std::abs(b.twoj() - c.twoj()) / 2;
+  const auto u3 = (b.twoj() + c.twoj()) / 2;
+
+  return {std::max({l1, l2, l3}), std::min({u1, u2, u3})};
+}
+
+std::pair<int, int> YkTable::k_minmax_W(const DiracSpinor &a,
+                                        const DiracSpinor &b,
+                                        const DiracSpinor &c,
+                                        const DiracSpinor &d) {
+  const auto [l1, u1] = k_minmax_Q(a, b, c, d);
+  const auto [l2, u2] = k_minmax_P(a, b, c, d);
+  // nb: min/max swapped, since W = Q+P, so only 1 needs to survive!
+  return {std::min(l1, l2), std::max(u1, u2)};
+}
+
 //******************************************************************************
 const std::vector<double> &YkTable::get_yk_ab(const int k,
                                               const DiracSpinor &Fa,
@@ -91,7 +128,7 @@ void YkTable::update_y_ints() {
     const auto b_max = m_aisb ? ia : b_size - 1;
     for (std::size_t ib = 0; ib <= b_max; ib++) {
       const auto &Fb = (*m_b_orbs)[ib];
-      const auto &[kmin, kmax] = k_minmax(Fa, Fb); // weird that this works?
+      const auto [kmin, kmax] = k_minmax(Fa, Fb);
       for (auto k = kmin; k <= kmax; k++) {
         const auto Lk = m_Ck.get_Lambdakab(k, Fa.k, Fb.k);
         if (Lk == 0)
@@ -159,12 +196,6 @@ void YkTable::resize_y() {
       const auto &[kmin, kmax] = k_minmax(Fa, Fb);
       const auto num_k = std::size_t(kmax - kmin + 1);
       m_y_abkr[ia][ib].resize(num_k);
-      // Don't need to!
-      // Many of these k's will be zero - don't need to allocate for them!
-      // for (auto &yk_ab_r : m_y_abkr[ia][ib]) {
-      //   // XXX Need to do this??
-      //   yk_ab_r.resize(m_grid->num_points);
-      // } // k
     } // b
   }   // a
 }
@@ -174,41 +205,25 @@ void YkTable::resize_y() {
 
 double YkTable::Qk(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
                    const DiracSpinor &Fc, const DiracSpinor &Fd) const {
-  // nb: b and c _MUST_ be in {a},{b} orbitals
+  // nb: b and d _MUST_ be in {a},{b} orbitals
   const auto ykbd = ptr_yk_ab(k, Fb, Fd);
   return ykbd ? Coulomb::Qk_abcd(Fa, Fb, Fc, Fd, k, *ykbd, m_Ck) : 0.0;
 }
 
 //------------------------------------------------------------------------------
-double YkTable::Xk(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
-                   const DiracSpinor &Fc, const DiracSpinor &Fd) const {
-  //
-  const auto s = Angular::neg1pow_2(Fa.twoj() + Fb.twoj() + 2);
-  return s * Qk(k, Fa, Fb, Fc, Fd);
-}
-
-//------------------------------------------------------------------------------
 double YkTable::Pk(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
                    const DiracSpinor &Fc, const DiracSpinor &Fd) const {
-  //
-  // if (k > m_6j.max_tj())
-  //   return 0.0; // ???
+  // nb: b and c _MUST_ be in {a},{b} orbitals
   return Pk_abcd(Fa, Fb, Fc, Fd, k, get_y_ab(Fb, Fc), m_Ck, m_6j);
 }
 
 //------------------------------------------------------------------------------
 double YkTable::Wk(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
                    const DiracSpinor &Fc, const DiracSpinor &Fd) const {
-  //
+  // nb: b and d _MUST_ be in {a},{b} orbitals
+  // AND
+  // b and d _MUST_ be in {a},{b} orbitals
   return Qk(k, Fa, Fb, Fc, Fd) + Pk(k, Fa, Fb, Fc, Fd);
-}
-
-//------------------------------------------------------------------------------
-double YkTable::Zk(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
-                   const DiracSpinor &Fc, const DiracSpinor &Fd) const {
-  //
-  const auto s = Angular::neg1pow_2(Fa.twoj() + Fb.twoj() + 2);
-  return s * Wk(k, Fa, Fb, Fc, Fd);
 }
 
 } // namespace Coulomb

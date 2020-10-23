@@ -68,19 +68,7 @@ public:
     return nullptr;
   }
 
-  double Qk(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
-            const DiracSpinor &Fc, const DiracSpinor &Fd) const;
-  double Xk(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
-            const DiracSpinor &Fc, const DiracSpinor &Fd) const;
-  double Pk(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
-            const DiracSpinor &Fc, const DiracSpinor &Fd) const;
-  double Wk(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
-            const DiracSpinor &Fc, const DiracSpinor &Fd) const;
-  double Zk(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
-            const DiracSpinor &Fc, const DiracSpinor &Fd) const;
-  double sj(int lam, int mu, int k, const DiracSpinor &Fa,
-            const DiracSpinor &Fb, const DiracSpinor &Fc) const;
-
+  //! overload for get_yk_ab()
   const std::vector<double> &operator()(const int k, const DiracSpinor &Fa,
                                         const DiracSpinor &Fb) const {
     return get_yk_ab(k, Fa, Fb);
@@ -112,7 +100,33 @@ public:
   static std::pair<int, int> k_minmax(const DiracSpinor &a,
                                       const DiracSpinor &b);
 
-  // "Magic" sixj symbol calculator. Integers (for k!) and Spinors
+  //! Returns Qk, Pk, Wk - uses existing yk table half the Coulomb integral.
+  //! @details
+  //! These are only safe to call if Y^k_ab {a}={b} 9i.e., constructed with a
+  //! single set of states! NOTE: There is no safety check, undefined behaviour
+  //! otherwise.
+  double Qk(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+            const DiracSpinor &Fc, const DiracSpinor &Fd) const;
+  double Pk(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+            const DiracSpinor &Fc, const DiracSpinor &Fd) const;
+  double Wk(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+            const DiracSpinor &Fc, const DiracSpinor &Fd) const;
+
+  //! Returns min and max k (multipolarity) allowed for Q^k_abcd, Wk, Pk
+  static std::pair<int, int> k_minmax_Q(const DiracSpinor &a,
+                                        const DiracSpinor &b,
+                                        const DiracSpinor &c,
+                                        const DiracSpinor &d);
+  static std::pair<int, int> k_minmax_P(const DiracSpinor &a,
+                                        const DiracSpinor &b,
+                                        const DiracSpinor &c,
+                                        const DiracSpinor &d);
+  static std::pair<int, int> k_minmax_W(const DiracSpinor &a,
+                                        const DiracSpinor &b,
+                                        const DiracSpinor &c,
+                                        const DiracSpinor &d);
+
+  //! "Magic" sixj symbol calculator. Integers (for k!) and Spinors
   // do not multiply by 2!
   template <class A, class B, class C, class D, class E, class F>
   static double sixj(A a, B b, C c, D d, E e, F f) {
@@ -123,7 +137,7 @@ public:
 private:
   // returns a.twoj() if a is a spinor, or 2*a if a is an integer
   // used for sixj symbol, just to simplify call site!
-  template <class A> static int twojk(A a) { //
+  template <class A> static int twojk(A a) {
     if constexpr (std::is_same_v<A, DiracSpinor>) {
       return a.twoj();
     } else {

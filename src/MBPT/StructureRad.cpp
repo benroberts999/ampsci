@@ -191,24 +191,20 @@ double StructureRad::t1(const int K, const DiracSpinor &w, const DiracSpinor &r,
 
   double t = 0.0;
 
-  // (-1)^{w-v+K}
-  const auto s = Angular::neg1pow_2(w.twoj() - v.twoj() + 2 * K);
-  const auto max_u = mY.Ck().max_k();
+  const auto s = Angular::neg1pow_2(v.twoj() + r.twoj() + 2 * K);
 
   for (const auto &a : mCore) {
     for (const auto &b : mCore) {
 
+      const auto sab = Angular::neg1pow_2(b.twoj() + a.twoj());
       const auto inv_e_rwab = 1.0 / (r.en + w.en - a.en - b.en);
 
-      // if (e_thresh > 0.0 && (std::abs(inv_e_rwab) < 1.0 / e_thresh))
-      //   continue;
+      const auto [minU, maxU] = mY.k_minmax_W(w, r, b, a);
+      const auto [minL, maxL] = mY.k_minmax_Q(v, a, b, c);
+      for (int u = minU; u <= maxU; ++u) {
 
-      const auto [minL, maxL] = mY.k_minmax(a, c);
-
-      for (int u = 0; u <= max_u; ++u) {
-
-        const auto z = mY.Zk(u, w, r, b, a);
-        if (Angular::zeroQ(z))
+        const auto wu = mY.Wk(u, w, r, b, a);
+        if (Angular::zeroQ(wu))
           continue;
 
         for (int l = minL; l <= maxL; ++l) {
@@ -219,11 +215,9 @@ double StructureRad::t1(const int K, const DiracSpinor &w, const DiracSpinor &r,
           if (Angular::zeroQ(sj2))
             continue;
 
-          const auto x = mY.Xk(l, b, a, v, c); // *
-          if (Angular::zeroQ(x))
-            continue;
+          const auto ql = mY.Qk(l, v, a, b, c); // *
 
-          t += sj1 * sj2 * z * x * inv_e_rwab;
+          t += sab * sj1 * sj2 * wu * ql * inv_e_rwab;
         }
       }
     }
@@ -242,35 +236,33 @@ double StructureRad::t2(const int K, const DiracSpinor &w, const DiracSpinor &r,
 
   double t = 0.0;
 
-  const auto s = Angular::neg1pow_2(r.twoj() - c.twoj() + 2 * K);
-  const auto max_u = mY.Ck().max_k();
+  const auto s = Angular::neg1pow_2(w.twoj() - c.twoj() + 2 * K);
 
   for (const auto &a : mCore) {
     for (const auto &n : mExcited) {
 
       const auto inv_e_rnav = 1.0 / (r.en + n.en - a.en - v.en);
 
-      // if (e_thresh > 0.0 && (std::abs(inv_e_rnav) < 1.0 / e_thresh))
-      //   continue;
-
-      for (int u = 0; u <= max_u; ++u) {
+      const auto [minU1, maxU1] = mY.k_minmax_W(w, a, c, n);
+      const auto [minU2, maxU2] = mY.k_minmax_W(v, a, r, n);
+      const auto minU = std::max(minU1, minU2);
+      const auto maxU = std::min(maxU1, maxU2);
+      for (int u = minU; u <= maxU; ++u) {
 
         const auto sj = mY.sixj(w, v, K, r, c, u);
         if (Angular::zeroQ(sj))
           continue;
 
-        const auto s2 = Angular::neg1pow_2(a.twoj() - n.twoj() + 2 * u);
+        const auto su = Angular::neg1pow(u);
         const auto f = (2 * u + 1);
 
-        const auto z1 = mY.Zk(u, a, w, n, c);
-        if (Angular::zeroQ(z1))
+        const auto wu1 = mY.Wk(u, w, a, c, n);
+        if (Angular::zeroQ(wu1))
           continue;
 
-        const auto z2 = mY.Zk(u, n, r, a, v);
-        if (Angular::zeroQ(z2))
-          continue;
+        const auto wu2 = mY.Wk(u, v, a, r, n);
 
-        t += s2 * sj * z1 * z2 * inv_e_rnav / f;
+        t += su * sj * wu1 * wu2 * inv_e_rnav / f;
       }
     }
   }
@@ -283,35 +275,33 @@ double StructureRad::t3(const int K, const DiracSpinor &w, const DiracSpinor &r,
 
   double t = 0.0;
 
-  const auto s = Angular::neg1pow_2(r.twoj() - c.twoj() + 2 * K);
-  const auto max_u = mY.Ck().max_k();
+  const auto s = Angular::neg1pow_2(w.twoj() - c.twoj() + 2 * K);
 
   for (const auto &a : mCore) {
     for (const auto &n : mExcited) {
 
       const auto inv_e_nwac = 1.0 / (n.en + w.en - a.en - c.en);
 
-      // if (e_thresh > 0.0 && (std::abs(inv_e_nwac) < 1.0 / e_thresh))
-      //   continue;
-
-      for (int u = 0; u <= max_u; ++u) {
+      const auto [minU1, maxU1] = mY.k_minmax_W(w, n, c, a);
+      const auto [minU2, maxU2] = mY.k_minmax_W(v, n, r, a);
+      const auto minU = std::max(minU1, minU2);
+      const auto maxU = std::min(maxU1, maxU2);
+      for (int u = minU; u <= maxU; ++u) {
 
         const auto sj = mY.sixj(w, v, K, r, c, u);
         if (Angular::zeroQ(sj))
           continue;
 
-        const auto s2 = Angular::neg1pow_2(a.twoj() - n.twoj() + 2 * u);
+        const auto su = Angular::neg1pow(u);
         const auto f = (2 * u + 1);
 
-        const auto z1 = mY.Zk(u, n, w, a, c);
-        if (Angular::zeroQ(z1))
+        const auto wu1 = mY.Wk(u, w, n, c, a);
+        if (Angular::zeroQ(wu1))
           continue;
 
-        const auto z2 = mY.Zk(u, a, r, n, v);
-        if (Angular::zeroQ(z2))
-          continue;
+        const auto wu2 = mY.Wk(u, v, n, r, a);
 
-        t += s2 * sj * z1 * z2 * inv_e_nwac / f;
+        t += su * sj * wu1 * wu2 * inv_e_nwac / f;
       }
     }
   }
@@ -324,30 +314,24 @@ double StructureRad::t4(const int K, const DiracSpinor &w, const DiracSpinor &r,
 
   double t = 0.0;
 
-  const auto s = Angular::neg1pow_2(w.twoj() - v.twoj() + 2 * K);
-  const auto max_l = mY.Ck().max_k();
+  const auto s = Angular::neg1pow_2(v.twoj() + r.twoj() + 2 * K);
 
   for (const auto &n : mExcited) {
     for (const auto &m : mExcited) {
 
       const auto inv_e_nmcv = 1.0 / (n.en + m.en - c.en - v.en);
 
-      // if (e_thresh > 0.0 && (std::abs(inv_e_nmcv) < 1.0 / e_thresh))
-      //   continue;
-
-      const auto [minU, maxU] = mY.k_minmax(r, m);
-
+      const auto [minU, maxU] = mY.k_minmax_Q(w, r, n, m);
+      const auto [minL, maxL] = mY.k_minmax_W(n, m, v, c);
       for (int u = minU; u <= maxU; ++u) {
 
-        const auto x = mY.Xk(u, w, r, n, m);
-        if (Angular::zeroQ(x))
+        const auto snm = Angular::neg1pow_2(n.twoj() + m.twoj());
+
+        const auto qu = mY.Qk(u, w, r, n, m);
+        if (Angular::zeroQ(qu))
           continue;
 
-        for (int l = 0; l <= max_l; ++l) {
-
-          const auto z = mY.Zk(l, n, m, v, c);
-          if (Angular::zeroQ(z))
-            continue;
+        for (int l = minL; l <= maxL; ++l) {
 
           const auto sj1 = mY.sixj(w, v, K, l, u, n);
           if (Angular::zeroQ(sj1))
@@ -356,7 +340,9 @@ double StructureRad::t4(const int K, const DiracSpinor &w, const DiracSpinor &r,
           if (Angular::zeroQ(sj2))
             continue;
 
-          t += sj1 * sj2 * x * z * inv_e_nmcv;
+          const auto wl = mY.Wk(l, n, m, v, c);
+
+          t += snm * sj1 * sj2 * qu * wl * inv_e_nmcv;
         }
       }
     }
@@ -371,23 +357,21 @@ double StructureRad::b1(const int K, const DiracSpinor &w, const DiracSpinor &c,
 
   double t = 0.0;
 
-  const auto s = Angular::neg1pow_2(w.twoj() - v.twoj() + 2 * K);
-  const auto max_u = mY.Ck().max_k();
+  const auto s = Angular::neg1pow_2(v.twoj() + c.twoj() + 2 * K);
 
   for (const auto &a : mCore) {
     for (const auto &b : mCore) {
 
       const auto inv_e_rvab = 1.0 / (r.en + v.en - a.en - b.en);
 
-      // if (e_thresh > 0.0 && (std::abs(inv_e_rvab) < 1.0 / e_thresh))
-      //   continue;
+      const auto [minU, maxU] = mY.k_minmax_W(v, r, b, a);
+      const auto [minL, maxL] = mY.k_minmax_Q(w, c, b, a);
+      for (int u = minU; u <= maxU; ++u) {
 
-      const auto [minL, maxL] = mY.k_minmax(c, a);
+        const auto sab = Angular::neg1pow_2(a.twoj() + b.twoj());
 
-      for (int u = 0; u <= max_u; ++u) {
-
-        const auto z = mY.Zk(u, b, a, v, r);
-        if (Angular::zeroQ(z))
+        const auto wu = mY.Wk(u, v, r, b, a);
+        if (Angular::zeroQ(wu))
           continue;
 
         for (int l = minL; l <= maxL; ++l) {
@@ -398,11 +382,9 @@ double StructureRad::b1(const int K, const DiracSpinor &w, const DiracSpinor &c,
           if (Angular::zeroQ(sj2))
             continue;
 
-          const auto x = mY.Xk(l, w, c, b, a);
-          if (Angular::zeroQ(x))
-            continue;
+          const auto ql = mY.Qk(l, w, c, b, a);
 
-          t += sj1 * sj2 * z * x * inv_e_rvab;
+          t += sab * sj1 * sj2 * wu * ql * inv_e_rvab;
         }
       }
     }
@@ -416,35 +398,33 @@ double StructureRad::b2(const int K, const DiracSpinor &w, const DiracSpinor &c,
 
   double t = 0.0;
 
-  const auto s = Angular::neg1pow_2(r.twoj() - c.twoj() + 2 * K);
-  const auto max_u = mY.Ck().max_k();
+  const auto s = Angular::neg1pow_2(w.twoj() - r.twoj() + 2 * K);
 
   for (const auto &a : mCore) {
     for (const auto &n : mExcited) {
 
       const auto inv_e_rnaw = 1.0 / (r.en + n.en - a.en - w.en);
 
-      // if (e_thresh > 0.0 && (std::abs(inv_e_rnaw) < 1.0 / e_thresh))
-      //   continue;
-
-      for (int u = 0; u <= max_u; ++u) {
+      const auto [minU1, maxU1] = mY.k_minmax_W(v, a, c, n);
+      const auto [minU2, maxU2] = mY.k_minmax_W(w, a, r, n);
+      const auto minU = std::max(minU1, minU2);
+      const auto maxU = std::min(maxU1, maxU2);
+      for (int u = minU; u <= maxU; ++u) {
 
         const auto sj = mY.sixj(w, v, K, c, r, u);
         if (Angular::zeroQ(sj))
           continue;
 
-        const auto s2 = Angular::neg1pow_2(a.twoj() - n.twoj() + 2 * u);
+        const auto su = Angular::neg1pow(u);
         const auto f = (2 * u + 1);
 
-        const auto z1 = mY.Zk(u, n, c, a, v);
-        if (Angular::zeroQ(z1))
+        const auto wu1 = mY.Wk(u, v, a, c, n);
+        if (Angular::zeroQ(wu1))
           continue;
 
-        const auto z2 = mY.Zk(u, a, w, n, r);
-        if (Angular::zeroQ(z2))
-          continue;
+        const auto wu2 = mY.Wk(u, w, a, r, n);
 
-        t += s2 * sj * z1 * z2 * inv_e_rnaw / f;
+        t += su * sj * wu1 * wu2 * inv_e_rnaw / f;
       }
     }
   }
@@ -457,35 +437,33 @@ double StructureRad::b3(const int K, const DiracSpinor &w, const DiracSpinor &c,
 
   double t = 0.0;
 
-  const auto s = Angular::neg1pow_2(r.twoj() - c.twoj() + 2 * K);
-  const auto max_u = mY.Ck().max_k();
+  const auto s = Angular::neg1pow_2(w.twoj() - r.twoj() + 2 * K);
 
   for (const auto &a : mCore) {
     for (const auto &n : mExcited) {
 
       const auto inv_e_nvac = 1.0 / (n.en + v.en - a.en - c.en);
 
-      // if (e_thresh > 0.0 && (std::abs(inv_e_nvac) < 1.0 / e_thresh))
-      //   continue;
-
-      for (int u = 0; u <= max_u; ++u) {
+      const auto [minU1, maxU1] = mY.k_minmax_W(v, n, c, a);
+      const auto [minU2, maxU2] = mY.k_minmax_W(w, n, r, a);
+      const auto minU = std::max(minU1, minU2);
+      const auto maxU = std::min(maxU1, maxU2);
+      for (int u = minU; u <= maxU; ++u) {
 
         const auto sj = mY.sixj(w, v, K, c, r, u);
         if (Angular::zeroQ(sj))
           continue;
 
-        const auto s2 = Angular::neg1pow_2(a.twoj() - n.twoj() + 2 * u);
+        const auto su = Angular::neg1pow(u);
         const auto f = (2 * u + 1);
 
-        const auto z1 = mY.Zk(u, a, c, n, v);
-        if (Angular::zeroQ(z1))
+        const auto wu1 = mY.Wk(u, v, n, c, a);
+        if (Angular::zeroQ(wu1))
           continue;
 
-        const auto z2 = mY.Zk(u, n, w, a, r);
-        if (Angular::zeroQ(z2))
-          continue;
+        const auto wu2 = mY.Wk(u, w, n, r, a);
 
-        t += s2 * sj * z1 * z2 * inv_e_nvac / f;
+        t += su * sj * wu1 * wu2 * inv_e_nvac / f;
       }
     }
   }
@@ -498,29 +476,24 @@ double StructureRad::b4(const int K, const DiracSpinor &w, const DiracSpinor &c,
 
   double t = 0.0;
 
-  const auto s = Angular::neg1pow_2(w.twoj() - v.twoj() + 2 * K);
-  const auto max_l = mY.Ck().max_k();
+  const auto s = Angular::neg1pow_2(v.twoj() + c.twoj() + 2 * K);
 
   for (const auto &n : mExcited) {
     for (const auto &m : mExcited) {
 
       const auto inv_e_nmcw = 1.0 / (n.en + m.en - c.en - w.en);
 
-      // if (e_thresh > 0.0 && (std::abs(inv_e_nmcw) < 1.0 / e_thresh))
-      //   continue;
-
-      const auto [minU, maxU] = mY.k_minmax(m, r);
-
+      const auto [minU, maxU] = mY.k_minmax_Q(v, m, n, r);
+      const auto [minL, maxL] = mY.k_minmax_W(w, c, n, m);
       for (int u = minU; u <= maxU; ++u) {
-        const auto x = mY.Xk(u, n, m, v, r);
-        if (Angular::zeroQ(x))
+
+        const auto snm = Angular::neg1pow_2(n.twoj() + m.twoj());
+
+        const auto qu = mY.Qk(u, v, m, n, r);
+        if (Angular::zeroQ(qu))
           continue;
 
-        for (int l = 0; l <= max_l; ++l) {
-
-          const auto z = mY.Zk(l, w, c, n, m);
-          if (Angular::zeroQ(z))
-            continue;
+        for (int l = minL; l <= maxL; ++l) {
 
           const auto sj1 = mY.sixj(w, v, K, u, l, n);
           if (Angular::zeroQ(sj1))
@@ -529,7 +502,9 @@ double StructureRad::b4(const int K, const DiracSpinor &w, const DiracSpinor &c,
           if (Angular::zeroQ(sj2))
             continue;
 
-          t += sj1 * sj2 * x * z * inv_e_nmcw;
+          const auto wl = mY.Wk(l, w, c, n, m);
+
+          t += snm * sj1 * sj2 * qu * wl * inv_e_nmcw;
         }
       }
     }
@@ -544,41 +519,39 @@ double StructureRad::c1(const int K, const DiracSpinor &w, const DiracSpinor &a,
 
   double t = 0.0;
 
-  const auto max_u = mY.Ck().max_k();
+  const auto s = Angular::neg1pow_2(w.twoj() - c.twoj() + 2 * K);
 
   for (const auto &b : mCore) {
     for (const auto &n : mExcited) {
 
       const auto e_nvbc = n.en + v.en - b.en - c.en;
       const auto e_nwab = n.en + w.en - a.en - b.en;
-      // if (e_thresh > 0.0 &&
-      //     (std::abs(e_nvbc) > e_thresh || std::abs(e_nwab) > e_thresh))
-      //   continue;
-
       const auto invde = 1.0 / (e_nvbc * e_nwab);
 
-      for (int u = 0; u <= max_u; ++u) {
+      const auto [minU1, maxU1] = mY.k_minmax_W(w, n, a, b);
+      const auto [minU2, maxU2] = mY.k_minmax_W(v, n, c, b);
+      const auto minU = std::max(minU1, minU2);
+      const auto maxU = std::min(maxU1, maxU2);
+      for (int u = minU; u <= maxU; ++u) {
+
+        const auto su = Angular::neg1pow(u);
+        const auto f = 2 * u + 1;
 
         const auto sj = mY.sixj(w, v, K, c, a, u);
         if (Angular::zeroQ(sj))
           continue;
 
-        const auto z1 = mY.Zk(u, w, n, a, b);
-        if (Angular::zeroQ(z1))
+        const auto wu1 = mY.Wk(u, w, n, a, b);
+        if (Angular::zeroQ(wu1))
           continue;
 
-        const auto z2 = mY.Zk(u, b, c, n, v);
-        if (Angular::zeroQ(z2))
-          continue;
+        const auto wu2 = mY.Wk(u, v, n, c, b);
 
-        const auto s = Angular::neg1pow_2(b.twoj() - n.twoj() + 2 * (K + u));
-        const auto f = 2 * u + 1;
-
-        t += s * sj * z1 * z2 * invde / f;
+        t += su * sj * wu1 * wu2 * invde / f;
       }
     }
   }
-  return t;
+  return s * t;
 }
 
 //******************************************************************************
@@ -587,23 +560,25 @@ double StructureRad::c2(const int K, const DiracSpinor &w, const DiracSpinor &a,
 
   double t = 0.0;
 
-  const auto s = Angular::neg1pow_2(w.twoj() - v.twoj() + 2 * K);
-  const auto max_l = mY.Ck().max_k();
+  const auto s = Angular::neg1pow_2(v.twoj() + a.twoj() + 2 * K);
 
   for (const auto &m : mExcited) {
     for (const auto &n : mExcited) {
 
       const auto e_mnaw = m.en + n.en - a.en - w.en;
       const auto e_nmcv = n.en + m.en - c.en - v.en;
-      // if (e_thresh > 0.0 &&
-      //     (std::abs(e_mnaw) > e_thresh || std::abs(e_nmcv) > e_thresh))
-      //   continue;
-
       const auto invde = 1.0 / (e_mnaw * e_nmcv);
+      const auto smn = Angular::neg1pow_2(m.twoj() + n.twoj());
 
-      const auto [minU, maxU] = mY.k_minmax(n, v);
+      const auto [minU, maxU] = mY.k_minmax_Q(v, m, n, c);
+      const auto [minL, maxL] = mY.k_minmax_W(w, a, n, m);
       for (int u = minU; u <= maxU; ++u) {
-        for (int l = 0; l <= max_l; ++l) {
+
+        const auto qu = mY.Qk(u, v, m, n, c);
+        if (Angular::zeroQ(qu))
+          continue;
+
+        for (int l = minL; l <= maxL; ++l) {
 
           const auto sj1 = mY.sixj(w, v, K, u, l, n);
           if (Angular::zeroQ(sj1))
@@ -613,15 +588,9 @@ double StructureRad::c2(const int K, const DiracSpinor &w, const DiracSpinor &a,
           if (Angular::zeroQ(sj2))
             continue;
 
-          const auto x = mY.Xk(u, m, n, c, v);
-          if (Angular::zeroQ(x))
-            continue;
+          const auto wl = mY.Wk(l, w, a, n, m);
 
-          const auto z = mY.Zk(l, a, w, m, n);
-          if (Angular::zeroQ(z))
-            continue;
-
-          t += sj1 * sj2 * x * z * invde;
+          t += smn * sj1 * sj2 * qu * wl * invde;
         }
       }
     }
@@ -635,41 +604,37 @@ double StructureRad::c3(const int K, const DiracSpinor &w, const DiracSpinor &r,
 
   double t = 0.0;
 
-  const auto s = Angular::neg1pow_2(w.twoj() - v.twoj() + 2 * K);
-  const auto max_l = mY.Ck().max_k();
+  const auto s = Angular::neg1pow_2(v.twoj() + r.twoj() + 2 * K);
 
   for (const auto &a : mCore) {
     for (const auto &b : mCore) {
 
+      const auto sab = Angular::neg1pow_2(a.twoj() + b.twoj());
+
       const auto e_mvab = m.en + v.en - a.en - b.en;
       const auto e_rwba = r.en + w.en - b.en - a.en;
-      // if (e_thresh > 0.0 &&
-      //     (std::abs(e_mvab) > e_thresh || std::abs(e_rwba) > e_thresh))
-      //   continue;
-
       const auto invde = 1.0 / (e_mvab * e_rwba);
 
-      const auto [minU, maxU] = mY.k_minmax(b, m);
+      const auto [minU, maxU] = mY.k_minmax_Q(v, b, a, m);
+      const auto [minL, maxL] = mY.k_minmax_W(w, r, a, b);
       for (int u = minU; u <= maxU; ++u) {
-        for (int l = 0; l <= max_l; ++l) {
+
+        const auto qu = mY.Qk(u, v, b, a, m);
+        if (Angular::zeroQ(qu))
+          continue;
+
+        for (int l = minL; l <= maxL; ++l) {
 
           const auto sj1 = mY.sixj(w, v, K, u, l, a);
           if (Angular::zeroQ(sj1))
             continue;
-
           const auto sj2 = mY.sixj(m, r, K, l, u, b);
           if (Angular::zeroQ(sj2))
             continue;
 
-          const auto x = mY.Xk(u, a, b, v, m);
-          if (Angular::zeroQ(x))
-            continue;
+          const auto wl = mY.Wk(l, w, r, a, b);
 
-          const auto z = mY.Zk(l, r, w, b, a);
-          if (Angular::zeroQ(z))
-            continue;
-
-          t += sj1 * sj2 * x * z * invde;
+          t += sab * sj1 * sj2 * qu * wl * invde;
         }
       }
     }
@@ -683,49 +648,47 @@ double StructureRad::c4(const int K, const DiracSpinor &w, const DiracSpinor &r,
 
   double t = 0.0;
 
-  const auto max_u = mY.Ck().max_k();
+  const auto s = Angular::neg1pow_2(w.twoj() - m.twoj() + 2 * K);
 
   for (const auto &a : mCore) {
     for (const auto &n : mExcited) {
 
       const auto e_mnav = m.en + n.en - a.en - v.en;
       const auto e_rnaw = r.en + n.en - a.en - w.en;
-      // if (e_thresh > 0.0 &&
-      //     (std::abs(e_mnav) > e_thresh || std::abs(e_rnaw) > e_thresh))
-      //   continue;
-
       const auto invde = 1.0 / (e_mnav * e_rnaw);
 
-      for (int u = 0; u <= max_u; ++u) {
+      const auto [minU1, maxU1] = mY.k_minmax_W(w, a, r, n);
+      const auto [minU2, maxU2] = mY.k_minmax_W(v, a, m, n);
+      const auto minU = std::max(minU1, minU2);
+      const auto maxU = std::min(maxU1, maxU2);
+      for (int u = minU; u <= maxU; ++u) {
+
+        const auto su = Angular::neg1pow(u);
+        const auto f = 2 * u + 1;
 
         const auto sj = mY.sixj(w, v, K, m, r, u);
         if (Angular::zeroQ(sj))
           continue;
 
-        const auto z1 = mY.Zk(u, a, w, n, r);
-        if (Angular::zeroQ(z1))
+        const auto wu1 = mY.Wk(u, w, a, r, n);
+        if (Angular::zeroQ(wu1))
           continue;
 
-        const auto z2 = mY.Zk(u, m, n, v, a);
-        if (Angular::zeroQ(z2))
-          continue;
+        const auto wu2 = mY.Wk(u, v, a, m, n);
 
-        const auto s = Angular::neg1pow_2(a.twoj() - n.twoj() + 2 * (K + u));
-        const auto f = 2 * u + 1;
-
-        t += s * sj * z1 * z2 * invde / f;
+        t += su * sj * wu1 * wu2 * invde / f;
       }
     }
   }
-  return t;
+  return s * t;
 }
 
 //******************************************************************************
 double StructureRad::n1(const DiracSpinor &v) const {
-  //
-  const auto tjvp1 = v.twoj() + 1;
 
   double t = 0.0;
+
+  const auto tjvp1 = v.twoj() + 1;
 
   for (const auto &a : mCore) {
     for (const auto &b : mCore) {
@@ -734,19 +697,18 @@ double StructureRad::n1(const DiracSpinor &v) const {
         const auto e_vmab = (v.en + m.en - a.en - b.en);
         const auto ide2 = 1.0 / (e_vmab * e_vmab);
 
-        const auto [minU, maxU] = mY.k_minmax(m, b);
+        const auto [minU, maxU] = mY.k_minmax_W(v, m, a, b);
         for (int u = minU; u <= maxU; ++u) {
 
           const auto tup1 = 2 * u + 1;
 
-          const auto x = mY.Xk(u, v, m, a, b);
-          if (Angular::zeroQ(x))
+          const auto q = mY.Qk(u, v, m, a, b);
+          if (Angular::zeroQ(q))
             continue;
 
-          // XXX Note: Break Z into Q+P, saves time!!!
-          const auto z = mY.Zk(u, v, m, a, b);
+          const auto w = q + mY.Pk(u, v, m, a, b);
 
-          t += x * z * ide2 / tup1;
+          t += q * w * ide2 / tup1;
         }
       }
     }
@@ -756,10 +718,10 @@ double StructureRad::n1(const DiracSpinor &v) const {
 
 //******************************************************************************
 double StructureRad::n2(const DiracSpinor &v) const {
-  //
-  const auto tjvp1 = v.twoj() + 1;
 
   double t = 0.0;
+
+  const auto tjvp1 = v.twoj() + 1;
 
   for (const auto &a : mCore) {
     for (const auto &m : mExcited) {
@@ -768,19 +730,18 @@ double StructureRad::n2(const DiracSpinor &v) const {
         const auto e_nmav = (n.en + m.en - a.en - v.en);
         const auto ide2 = 1.0 / (e_nmav * e_nmav);
 
-        const auto [minU, maxU] = mY.k_minmax(a, m);
+        const auto [minU, maxU] = mY.k_minmax_W(v, a, n, m);
         for (int u = minU; u <= maxU; ++u) {
 
           const auto tup1 = 2 * u + 1;
 
-          const auto x = mY.Xk(u, v, a, n, m);
-          if (Angular::zeroQ(x))
+          const auto q = mY.Qk(u, v, a, n, m);
+          if (Angular::zeroQ(q))
             continue;
 
-          // XXX Note: Break Z into Q+P, saves time!!!
-          const auto z = mY.Zk(u, v, a, n, m);
+          const auto w = q + mY.Pk(u, v, a, n, m);
 
-          t += x * z * ide2 / tup1;
+          t += q * w * ide2 / tup1;
         }
       }
     }

@@ -18,13 +18,16 @@ namespace Module {
 void structureRad(const IO::UserInputBlock &input, const Wavefunction &wf) {
 
   input.checkBlock({"operator", "options", "rpa", "printBoth", "onlyDiagonal",
-                    "omega", "n_minmax"});
+                    "omega", "n_minmax", "splineLegs"});
 
   // Get input options:
   const auto oper = input.get<std::string>("operator", "E1");
   const auto h_options =
       IO::UserInputBlock(oper, input.get<std::string>("options", ""));
   const auto h = generateOperator(oper, h_options, wf, true);
+
+  // Use spline states as diagram legs?
+  const auto spline_legs = input.get("splineLegs", false);
 
   const auto print_both = input.get("printBoth", false);
   const auto only_diagonal = input.get("onlyDiagonal", false);
@@ -56,14 +59,15 @@ void structureRad(const IO::UserInputBlock &input, const Wavefunction &wf) {
   if (n_max < 999)
     std::cout << "Including to n = " << n_max << "\n";
   std::cout << "h=" << h->name() << " (reduced ME)\n";
-  if (rpaQ) {
-    std::cout << "RPA (TDHF) at ";
-    if (eachFreqQ)
-      std::cout << "each frequency\n";
-    else
-      std::cout << "w=" << const_omega << "\n";
-    // XXX ALSO: SR contains omega, even if no RPA!
-  }
+  std::cout << "Evaluated at ";
+  if (eachFreqQ)
+    std::cout << "each transition frequency\n";
+  else
+    std::cout << "constant frequency: w = " << const_omega << "\n";
+  if (spline_legs)
+    std::cout << "Using splines for diagram legs (external states)\n";
+  else
+    std::cout << "Using valence states for diagram legs (external states)\n";
 
   // Lambda to format the output
   const auto printer = [rpaQ](auto str, auto t, auto dv) {
@@ -72,6 +76,8 @@ void structureRad(const IO::UserInputBlock &input, const Wavefunction &wf) {
     else
       printf(" %6s: %12.5e\n", str, t);
     std::cout << std::flush;
+    // nb: the 'flush' is to force a cout flush; particularly when piping
+    // output to a file, this wasn't happening soon enough
   };
 
   if (wf.core.empty() || wf.valence.empty() || wf.basis.empty())
@@ -86,9 +92,6 @@ void structureRad(const IO::UserInputBlock &input, const Wavefunction &wf) {
   MBPT::StructureRad sr(wf.basis, en_core, {n_min, n_max});
   std::cout << std::flush;
 
-  // nb: the 'flushes' are to force a cout flush; particularly when piping
-  // output to a file, this wasn't happening (since it's slow)
-
   // Loop through all valence states, calc SR+NS
   for (const auto &v : wf.valence) {
     for (const auto &w : wf.valence) {
@@ -100,21 +103,23 @@ void structureRad(const IO::UserInputBlock &input, const Wavefunction &wf) {
       if (!print_both && v > w)
         continue;
 
-      // nb: need splines to compute Struc Rad (use splines for legs)
+      // Option to use splines (or valence states) to compute Struc Rad (use
+      // splines for legs)
       const auto ws = std::find(cbegin(wf.basis), cend(wf.basis), w);
       const auto vs = std::find(cbegin(wf.basis), cend(wf.basis), v);
-
-      if (ws == cend(wf.basis) || vs == cend(wf.basis)) {
+      if (spline_legs && (ws == cend(wf.basis) || vs == cend(wf.basis))) {
         std::cout << "Don't have requested spline for: " << w.symbol() << "-"
                   << v.symbol() << "\n";
         continue;
       }
+      const auto *vp = spline_legs ? &*vs : &v;
+      const auto *wp = spline_legs ? &*ws : &w;
 
       IO::ChronoTimer timer("time");
 
       std::cout << "\n" << h->rme_symbol(w, v) << ":\n";
 
-      const auto ww = eachFreqQ ? std::abs(ws->en - vs->en) : const_omega;
+      const auto ww = eachFreqQ ? std::abs(wp->en - vp->en) : const_omega;
       if (eachFreqQ && h->freqDependantQ) {
         h->updateFrequency(ww);
       }
@@ -125,25 +130,25 @@ void structureRad(const IO::UserInputBlock &input, const Wavefunction &wf) {
       }
 
       // Zeroth-order MEs:
-      const auto twvs = h->reducedME(*ws, *vs);
+      const auto twvs = h->reducedME(*ws, *vs); // splines here
       const auto twv = h->reducedME(w, v);
-      const auto dvs = dV ? twvs + dV->dV(*ws, *vs) : 0.0;
+      const auto dvs = dV ? twvs + dV->dV(*wp, *vp) : 0.0;
       const auto dv = dV ? twv + dV->dV(w, v) : 0.0;
       printer("t(spl)", twvs, dvs);
       printer("t(val)", twv, dv);
 
       // "Top" + "Bottom" SR terms:
-      const auto [tb, tb_dv] = sr.srTB(h.get(), *ws, *vs, ww, dV.get());
+      const auto [tb, tb_dv] = sr.srTB(h.get(), *wp, *vp, ww, dV.get());
       printer("SR(TB)", tb, tb_dv);
       // "Centre" SR term:
-      const auto [c, c_dv] = sr.srC(h.get(), *ws, *vs, dV.get());
+      const auto [c, c_dv] = sr.srC(h.get(), *wp, *vp, dV.get());
       printer("SR(C)", c, c_dv);
 
       std::cout << "========\n";
       printer("SR", tb + c, tb_dv + c_dv);
 
       // "Normalisation"
-      const auto [n, n_dv] = sr.norm(h.get(), *ws, *vs, dV.get());
+      const auto [n, n_dv] = sr.norm(h.get(), *wp, *vp, dV.get());
       printer("Norm", n, n_dv);
 
       printer("Total", tb + c + n, tb_dv + c_dv + n_dv);

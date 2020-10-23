@@ -19,14 +19,19 @@ Calculates Structure Radiation + Normalisation of states, using diagram method.
 
 @details
 
- - Note: MUST use splines for 'legs' of diagrams; i.e., for w and v DiracSpinors
-in srTB, srC, and norm.
- - This is because the states become "mixed" in the coulomb integrals (i.e.,
-inner program does not distingush between {w,v} and the basis states that have
-same quantum numbers!
+Three functions: srTB(), srC(), norm().
+Structure radiation is sum of srTB()+srC(); norm() gives normalisation of
+states.
 
- - Note: This means you must typically ensure basis is large enough to make
-relevant valence states "physical"
+
+ - Typically, one should use splines for the 'legs' (outer states) of diagrams.
+ However, code is written such that {w,v} (the valence states) always appear as
+the _first_ state in the Q integrals; thus those states are always directly
+integrated (other states may use the existing y^k integrals, which were
+calculated using the spline states)
+
+ - For using spline states as legs: This means you must typically ensure basis
+is large enough to make relevant valence states "physical"
 
  - The user should check if the zeroth order <w|t|v> matches closely between
 valence/spline states. If not, basis/cavity is too small and SR+N probably
@@ -42,8 +47,6 @@ class StructureRad {
   /*
   TODO:
   1. ALSO: add new Yk.Qk, Xk, Wk, Zk etc. tests to Coulomb Tests!
-  2. Transform from X,Z -> Q,W/P
-  3. Try to make 'v' and 'w' appear _first_ (so always uses actual states) (??)
   */
 
 public:
