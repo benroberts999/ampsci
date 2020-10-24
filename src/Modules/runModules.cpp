@@ -29,12 +29,7 @@ void runModule(const IO::UserInputBlock &module_input,
 {
   const auto &in_name = module_input.name();
 
-  // Run "MatrixElements modules" if requested
-  if (in_name.substr(0, 14) == "MatrixElements") {
-    return matrixElements(module_input, wf);
-  }
-
-  // Otherwise, loop through all available modules, run correct one
+  // Loop through all available modules, run correct one
   for (const auto &[mod_name, mod_func] : module_list) {
     if (in_name == "Module::" + mod_name)
       return mod_func(module_input, wf);

@@ -351,7 +351,7 @@ void DiagramRPA::rpa_core(const double omega, const bool print) {
     return;
 
   if (print) {
-    printf("RPA(D) (w=%.3f): .. \r", m_omega);
+    printf("RPA(D) (w=%.3f): ", m_omega);
     std::cout << std::flush;
   }
   int it = 1;
@@ -367,8 +367,8 @@ void DiagramRPA::rpa_core(const double omega, const bool print) {
       for (std::size_t ia = 0; ia < holes.size(); ia++) {
         const auto &Fa = holes[ia];
 
-        double sum_am = 0;
-        double sum_ma = 0;
+        double sum_am = 0.0;
+        double sum_ma = 0.0;
 
         // Can replace this with dV?? NO. 1) it calcs W (since valence)
         // 2) not thread safe
@@ -412,13 +412,14 @@ void DiagramRPA::rpa_core(const double omega, const bool print) {
     eps = *std::max_element(cbegin(eps_m), cend(eps_m));
     if (eps < eps_targ)
       break;
-    if (print && it % 25 == 0) {
-      printf("RPA(D) (w=%.3f): %2i %.1e \r", m_omega, it, eps);
-      std::cout << std::flush;
-    }
+    // if (print && it % 25 == 0) {
+    //   printf("RPA(D) (w=%.3f): %2i %.1e \r", m_omega, it, eps);
+    //   std::cout << std::flush;
+    // }
   } // its
   if (print) {
-    printf("RPA(D) (w=%.3f): %2i %.1e\n", m_omega, it, eps);
+    printf("%2i %.1e\n", it, eps);
+    std::cout << std::flush;
   }
   m_core_eps = eps;
 }

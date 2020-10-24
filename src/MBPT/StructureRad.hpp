@@ -89,38 +89,36 @@ public:
 
 private:
   // "Top" diagrams
-  double t1(int K, const DiracSpinor &w, const DiracSpinor &r,
+  double t1234(int k, const DiracSpinor &w, const DiracSpinor &r,
+               const DiracSpinor &v, const DiracSpinor &c) const;
+  double t1(int k, const DiracSpinor &w, const DiracSpinor &r,
             const DiracSpinor &v, const DiracSpinor &c) const;
-  double t2(int K, const DiracSpinor &w, const DiracSpinor &r,
+  double t2(int k, const DiracSpinor &w, const DiracSpinor &r,
             const DiracSpinor &v, const DiracSpinor &c) const;
-  double t3(int K, const DiracSpinor &w, const DiracSpinor &r,
+  double t3(int k, const DiracSpinor &w, const DiracSpinor &r,
             const DiracSpinor &v, const DiracSpinor &c) const;
-  double t4(int K, const DiracSpinor &w, const DiracSpinor &r,
+  double t4(int k, const DiracSpinor &w, const DiracSpinor &r,
             const DiracSpinor &v, const DiracSpinor &c) const;
 
   // "Bottom" diagrams
-  double b1(int K, const DiracSpinor &w, const DiracSpinor &c,
-            const DiracSpinor &v, const DiracSpinor &r) const;
-  double b2(int K, const DiracSpinor &w, const DiracSpinor &c,
-            const DiracSpinor &v, const DiracSpinor &r) const;
-  double b3(int K, const DiracSpinor &w, const DiracSpinor &c,
-            const DiracSpinor &v, const DiracSpinor &r) const;
-  double b4(int K, const DiracSpinor &w, const DiracSpinor &c,
-            const DiracSpinor &v, const DiracSpinor &r) const;
+  double b1234(int k, const DiracSpinor &w, const DiracSpinor &c,
+               const DiracSpinor &v, const DiracSpinor &r) const;
 
   // "Centre" diagrams (most important)
-  double c1(int K, const DiracSpinor &w, const DiracSpinor &a,
+  double c1(int k, const DiracSpinor &w, const DiracSpinor &a,
             const DiracSpinor &v, const DiracSpinor &c) const;
-  double c2(int K, const DiracSpinor &w, const DiracSpinor &a,
+  double c2(int k, const DiracSpinor &w, const DiracSpinor &a,
             const DiracSpinor &v, const DiracSpinor &c) const;
-  double c3(int K, const DiracSpinor &w, const DiracSpinor &r,
+  double d1(int k, const DiracSpinor &w, const DiracSpinor &r,
             const DiracSpinor &v, const DiracSpinor &m) const;
-  double c4(int K, const DiracSpinor &w, const DiracSpinor &r,
+  double d2(int k, const DiracSpinor &w, const DiracSpinor &r,
             const DiracSpinor &v, const DiracSpinor &m) const;
 
   // "Normalisation" terms (most important)
   double n1(const DiracSpinor &v) const;
   double n2(const DiracSpinor &v) const;
+  double dSigma_dE(const DiracSpinor &v, const DiracSpinor &i,
+                   const DiracSpinor &j, const DiracSpinor &k) const;
 };
 
 } // namespace MBPT

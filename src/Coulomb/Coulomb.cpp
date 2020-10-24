@@ -390,7 +390,7 @@ double Pk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
     const auto l = min_l + count;
     ++count;
 
-    if (!Angular::Ck_kk_SR(l, Fb.k, Fc.k))
+    if (!Angular::Ck_kk_SR(l, Fb.k, Fc.k) || !Angular::Ck_kk_SR(l, Fa.k, Fd.k))
       continue;
 
     const auto sj =

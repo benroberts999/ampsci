@@ -36,8 +36,8 @@ bool StructureRad(std::ostream &obuff) {
     const auto expected = std::vector<sp>{
         {"3p-", "3s+", 0.0030 / 3.6906, -0.0050 / 3.6906},
         {"3p+", "3s+", 0.0043 / 5.2188, -0.0070 / 5.2188},
-        {"3p-", "4s+", -0.0010 / 3.6004, -0.0021 / 3.6004}
-        // ,{"3p+", "4s+", -0.0014 / 5.1012, -0.0029 / 5.1012}
+        //{"3p-", "4s+", -0.0010 / 3.6004, -0.0021 / 3.6004},
+        {"3p+", "4s+", -0.0014 / 5.1012, -0.0029 / 5.1012}
         // Skip this just in interest of time
     };
 
@@ -47,15 +47,15 @@ bool StructureRad(std::ostream &obuff) {
     double worst_ns = 0.0;
     std::string at_sr = "";
     std::string at_ns = "";
-    for (const auto [w_str, v_str, sr_exp, n_exp] : expected) {
+    for (const auto &[w_str, v_str, sr_exp, n_exp] : expected) {
 
       // find the right basis states for SR/N "legs"
-      const auto ws =
-          std::find_if(cbegin(wf.basis), cend(wf.basis),
-                       [w_str](auto &a) { return a.shortSymbol() == w_str; });
-      const auto vs =
-          std::find_if(cbegin(wf.basis), cend(wf.basis),
-                       [v_str](auto &a) { return a.shortSymbol() == v_str; });
+      const auto ws = std::find_if(
+          cbegin(wf.basis), cend(wf.basis),
+          [&sym = w_str](auto &a) { return a.shortSymbol() == sym; });
+      const auto vs = std::find_if(
+          cbegin(wf.basis), cend(wf.basis),
+          [&sym = v_str](auto &a) { return a.shortSymbol() == sym; });
       assert(ws != cend(wf.basis) && vs != cend(wf.basis));
 
       // My calculations:
@@ -84,9 +84,9 @@ bool StructureRad(std::ostream &obuff) {
 
     // Data only known to 2 digits (with leading 1); so best is ~10%
     pass &= qip::check_value(&obuff, "StructRad(E1,Na) " + at_sr, worst_sr, 0.0,
-                             0.12);
+                             0.1);
     pass &= qip::check_value(&obuff, "NormStates(E1,Na) " + at_ns, worst_ns,
-                             0.0, 0.11);
+                             0.0, 0.05);
   }
 
   //****************************************************************************
@@ -114,8 +114,8 @@ bool StructureRad(std::ostream &obuff) {
     const auto expected = std::vector<sp>{
         {"6p-", "6s+", 0.0445 / 5.2777, -0.0508 / 5.2777},
         {"6p+", "6s+", 0.0593 / 7.4265, -0.0694 / 7.4265},
-        {"6p-", "7s+", -0.0120 / 4.4135, -0.0198 / 4.4135}
-        // ,{"6p+", "7s+", -0.0153 / 6.6716, -0.0281 / 6.6716}
+        //{"6p-", "7s+", -0.0120 / 4.4135, -0.0198 / 4.4135},
+        {"6p+", "7s+", -0.0153 / 6.6716, -0.0281 / 6.6716}
         // Skip this one just in interest of time
     };
 
@@ -125,15 +125,15 @@ bool StructureRad(std::ostream &obuff) {
     double worst_ns = 0.0;
     std::string at_sr = "";
     std::string at_ns = "";
-    for (const auto [w_str, v_str, sr_exp, n_exp] : expected) {
+    for (const auto &[w_str, v_str, sr_exp, n_exp] : expected) {
 
       // this time, use valence states:
-      const auto ws =
-          std::find_if(cbegin(wf.valence), cend(wf.valence),
-                       [w_str](auto &a) { return a.shortSymbol() == w_str; });
-      const auto vs =
-          std::find_if(cbegin(wf.valence), cend(wf.valence),
-                       [v_str](auto &a) { return a.shortSymbol() == v_str; });
+      const auto ws = std::find_if(
+          cbegin(wf.valence), cend(wf.valence),
+          [&sym = w_str](auto &a) { return a.shortSymbol() == sym; });
+      const auto vs = std::find_if(
+          cbegin(wf.valence), cend(wf.valence),
+          [&sym = v_str](auto &a) { return a.shortSymbol() == sym; });
       assert(ws != cend(wf.valence) && vs != cend(wf.valence));
 
       // My calculations:
