@@ -8,7 +8,6 @@ build/*
 !doc/
 doc/*
 !doc/*.md
-!doc/*.example
 !doc/tex
 doc/tex/*
 !doc/tex/*.tex
@@ -16,5 +15,7 @@ doc/tex/*
 !doc/tex/*.bib
 !doc/tex/Makefile
 !doc/tex/img
+!doc/examples
+!doc/examples/*.in
 !.gitignore
 !*.md

@@ -12,4 +12,4 @@
    * B.M.Roberts, V.A.Dzuba, V.V.Flambaum, M.Pospelov, Y.V.Stadnik,
 [Phys.Rev.D 93, 115037 (2016)](https://link.aps.org/doi/10.1103/PhysRevD.93.115037 "pay-walled");
 [arXiv:1604.04559](https://arxiv.org/abs/1604.04559 "free download").
- * see _'doc/dmXSection.in.example'_ for example input file
+ * see _'doc/examples/dmXSection.in'_ for example input file

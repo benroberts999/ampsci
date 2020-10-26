@@ -319,6 +319,21 @@ int Wavefunction::maxCore_l() const {
 }
 
 //******************************************************************************
+double Wavefunction::en_coreval() const {
+  // Find core/valence energy: allows distingush core/valence states
+  const auto ec_max = core.empty() ? 0.0
+                                   : std::max_element(cbegin(core), cend(core),
+                                                      DiracSpinor::comp_en)
+                                         ->en;
+  const auto ev_min = valence.empty()
+                          ? 0.0
+                          : std::min_element(cbegin(valence), cend(valence),
+                                             DiracSpinor::comp_en)
+                                ->en;
+  return 0.5 * (ev_min + ec_max);
+}
+
+//******************************************************************************
 void Wavefunction::solveInitialCore(const std::string &str_core,
                                     int log_dele_or)
 // Solves the Dirac eqn for each state in the core

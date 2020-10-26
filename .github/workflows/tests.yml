@@ -16,7 +16,7 @@ jobs:
       run: sudo apt install g++-9 make liblapack-dev libblas-dev libgsl-dev libomp5 libomp-dev
     - name: setup
       run: cp ./doc/Makefile.example ./Makefile
-    - name: Build diracSCAS (g++)
-      run: make CXX=g++-9 Build=dev unitTests
+    - name: Build ampsci (g++, dev mode, with Werror)
+      run: make CXX='g++-9 -Werror' Build=dev unitTests
     - name: Run unit tests
       run: ./unitTests

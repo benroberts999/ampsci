@@ -13,11 +13,10 @@ The "modules" system (see documentation) makes it simple to add your own routine
  * The code is on GitHub: [github.com/benroberts999/ampsci](https://github.com/benroberts999/ampsci)
  * This file is best viewed with a markdown reader (or on GitHub)
 
- ![Build][build-badge]
- ![Tests][tests-badge]
- [![][doxygen-badge]][docs-url]
- [![][manual-badge]][man-url]
-
+  [![][doxygen-badge]][docs-url]
+  [![][manual-badge]][man-url]
+  [![][tests-badge]][actions-url]
+  [![][build-badge]][actions-url]
 
 ## Documentation
 
@@ -33,9 +32,8 @@ There are four documentation types provided:
  2. Input options -- how to run the code
     * _doc/ampsci_input.md_ -- detailed info on all input options
       * Best viewed with a markdown reader or on GitHub
-    * See also: _doc/ampsci.in.example_ -- an example input file for Cs
-      * copy to main directory + remove the '.example'
-      * _$cp ./doc/ampsci.in.example ./ampsci.in_
+    * See also: _doc/examples/ampsci.in_ -- an example/template input file
+    * In _doc/examples/_ there are several example input files, with the expected output; use these to test if everything is working!
 
 
  3. Physics documentation: _ampsci.pdf_ -- Description of physics/methods used in the code
@@ -116,9 +114,8 @@ Then, the compilation + use can proceed as per Linux above.
 ## ampsci (main program)
 
  * Input taken from a plain text file.
- * An example input file is included: doc/ampsci.in.example
-    * e.g.: _$ cp ./doc/ampsci.in.example ./ampsci.in_
- * You may re-name this file (e.g., to "filename.txt"), then run as:
+ * Several example input files are given in: _doc/examples/_, along with their expected output; use these to test if everything is working.
+ * You may re-name the input files (e.g., to "filename.txt"), then run as:
     * _$ ./ampsci filename.txt_
     * If no input filename is given, program will assume input filename is 'ampsci.in':
  * Note: input file uses c++-like format + line comments; tell your editor that the file is a cpp file to get nice colourisation and auto commenting
@@ -162,7 +159,7 @@ https://doi.org/10.1016/j.adt.2011.12.006
 
 Units:
  * r_rms: root-mean-square radius, in fm.
- * c: half-density radius (assuming Fermi nuclear distro)
+ * c: half-density radius (assuming Fermi nuclear distro, with t=2.3)
  * mu: magnetic moment (in nuclear magnetons)
 
 
@@ -193,9 +190,10 @@ Units:
  * but, each number can be separated by any symbol (space, comma etc.)
 
 
-[docs-url]: https://benroberts999.github.io/ampsci/
-[man-url]: https://benroberts999.github.io/ampsci/ampsci.pdf
-[build-badge]: https://github.com/benroberts999/ampsci/workflows/Build/badge.svg
-[tests-badge]: https://github.com/benroberts999/ampsci/workflows/Tests/badge.svg
-[doxygen-badge]: https://img.shields.io/badge/documentation-doxygen-blue
-[manual-badge]: https://img.shields.io/badge/physics%20docs-ampsci%20(pdf)-blue
+ [docs-url]: https://benroberts999.github.io/ampsci/
+ [man-url]: https://benroberts999.github.io/ampsci/ampsci.pdf
+ [actions-url]: https://github.com/benroberts999/ampsci/actions
+ [build-badge]: https://github.com/benroberts999/ampsci/workflows/Build/badge.svg
+ [tests-badge]: https://github.com/benroberts999/ampsci/workflows/Tests/badge.svg
+ [doxygen-badge]: https://img.shields.io/badge/documentation-code%20(html)-blue
+ [manual-badge]: https://img.shields.io/badge/documentation-physics%20(pdf)-blue

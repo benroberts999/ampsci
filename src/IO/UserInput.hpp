@@ -5,6 +5,7 @@
 #include <ctime>
 #include <iostream>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -79,7 +80,9 @@ class UserInputBlock {
 
 public:
   UserInputBlock(const std::string &in_block_name,
-                 const std::vector<std::string> &in_input_options)
+                 const std::string &in_input_options);
+  UserInputBlock(const std::string &in_block_name,
+                 const std::vector<std::string> &in_input_options = {})
       : m_block_name(in_block_name), m_input_options(in_input_options) {}
   UserInputBlock(const std::string &in_block_name,
                  const UserInputBlock &in_block)
@@ -177,7 +180,7 @@ public:
 private:
   std::string m_filename;
   std::vector<UserInputBlock> m_blocks = {};
-  UserInputBlock m_empty_block{"", {}};
+  UserInputBlock m_empty_block{"", ""};
 };
 
 //******************************************************************************
@@ -245,13 +248,11 @@ T UserInputBlock::get(const std::string &option) const
   if (option_ss.str() == "InputNotFound") {
     std::cerr << "\nError: Missing required input: " << m_block_name << "/"
               << option << " (compulsory)\n";
-    // std::abort();
-    std::cout << "Enter input value now, or ctrl+c to quit:\n" << option << "=";
-    option_ss.str("");
-    std::string tmp;
-    std::cin >> tmp;
-    std::cout << option << "=" << tmp << "\n";
-    option_ss << tmp;
+    // throw std::runtime_error("a runtime error");
+    std::abort();
+    // std::cout << "Enter input value now, or ctrl+c to quit:\n" << option <<
+    // "="; option_ss.str(""); std::string tmp; std::cin >> tmp; std::cout <<
+    // option << "=" << tmp << "\n"; option_ss << tmp;
   }
   return UserInputHelper::get_impl<T>(option_ss, m_block_name + '/' + option);
 }

@@ -14,11 +14,11 @@
 //******************************************************************************
 namespace AtomData {
 
-static inline bool string_is_ints(const std::string &s) {
+static inline bool string_is_ints(std::string_view s) {
   return !s.empty() //
          && std::find_if(s.cbegin() + 1, s.cend(),
                          [](auto c) { return !std::isdigit(c); }) == s.end() //
-         && (std::isdigit(s[0]) || s[0] == '-');
+         && (std::isdigit(s[0]) || (s[0] == '-' && s.size() > 1));
 }
 
 //******************************************************************************
@@ -113,18 +113,44 @@ std::string kappa_symbol(int kappa) {
   return lstr + "_" + std::to_string(twoj_k(kappa)) + "/2";
 }
 
-int symbol_to_l(const std::string &l_str) {
+int symbol_to_l(std::string_view l_str) {
   for (auto i = 0ul; i < spectroscopic_notation.length(); i++) {
-    if (spectroscopic_notation.substr(i, 1) == l_str)
+    if (spectroscopic_notation[i] == l_str[0])
       return int(i);
   }
   int l = -1;
   if (string_is_ints(l_str))
-    l = std::stoi(l_str);
+    l = std::stoi(std::string(l_str));
   else
     std::cerr << "\nFAIL AtomData::69 Invalid l: " << l_str << "?\n";
 
   return l;
+}
+
+//------------------------------------------------------------------------------
+std::pair<int, int> parse_symbol(std::string_view symbol) {
+
+  const auto l_ptr =
+      std::find_if(symbol.begin(), symbol.end(),
+                   [](const char &c) { return !std::isdigit(c); });
+  const auto l_pos = std::size_t(l_ptr - symbol.begin());
+
+  const auto n = (string_is_ints(symbol.substr(0, l_pos - 0)))
+                     ? std::stoi(std::string(symbol.substr(0, l_pos - 0)))
+                     : 0;
+
+  const auto l =
+      (l_pos < symbol.size()) ? symbol_to_l(symbol.substr(l_pos, 1)) : -1;
+
+  int kappa = l == 0 ? -1 : 0; // allow '6s' instead of '6s+'
+  if (l >= 0 && l_pos + 1 < symbol.size()) {
+    const auto pm = symbol.substr(l_pos + 1);
+    const auto tj = pm == "+" ? 2 * l + 1 : pm == "-" ? 2 * l - 1 : 0;
+    if (tj != 0)
+      kappa = kappa_twojl(tj, l);
+  }
+
+  return {n, kappa};
 }
 
 //******************************************************************************
@@ -394,12 +420,12 @@ std::vector<DiracSEnken> listOfStates_singlen(const std::string &in_list) {
 }
 
 //******************************************************************************
-static inline std::string helper_s(const Element &el) {
+inline std::string helper_s(const Element &el) {
   auto sym = el.symbol;
   auto sym_buff = (sym.length() == 1) ? std::string("  ") : std::string(" ");
   return sym_buff + sym + " ";
 }
-static inline std::string helper_z(const Element &el) {
+inline std::string helper_z(const Element &el) {
   auto z_str = std::to_string(el.Z);
   auto Z_buff = (el.Z < 10) ? std::string("  ")
                             : (el.Z < 100) ? std::string(" ") : std::string("");

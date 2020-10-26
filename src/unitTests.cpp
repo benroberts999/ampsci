@@ -8,6 +8,7 @@
 #include "IO/ChronoTimer.hpp"
 #include "MBPT/CorrelationPotential_test.hpp"
 #include "MBPT/DiagramRPA_test.hpp"
+#include "MBPT/StructureRad_test.hpp"
 #include "Maths/LinAlg_test.hpp"
 #include "Physics/RadPot_test.hpp"
 #include "Wavefunction/BSplineBasis_test.hpp"
@@ -25,8 +26,6 @@
 
 @details
 Each unit test tests a certain piece of the code.
-
-Note: must
 
 To run the unit tests, compile unitTests (make unitTests), and run from command
 line. It takes optional command-line options (the names of which tests to run).
@@ -66,7 +65,8 @@ static const std::vector<std::pair<std::string, bool (*)(std::ostream &obuff)>>
         {"BSplineBasis", &BSplineBasis},
         {"Coulomb", &Coulomb},
         {"CorrelationPotential", &CorrelationPotential},
-        {"DiagramRPA", &DiagramRPA}
+        {"DiagramRPA", &DiagramRPA},
+        {"StructureRad", &StructureRad}
         //
     };
 

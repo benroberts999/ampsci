@@ -37,8 +37,10 @@ Atom{Z=Cs;A=default;}
 ```
 
 * All available inputs for each input block are listed below
-  * Inputs are taken in as either text, boolean (true/false), integers, or real numbers.
-  * These will be denoted by [t], [b], [i], [r]
+  * Inputs are taken in as either text, boolean (true/false), integers, or real numbers, or a "sub-block"
+  * These will be denoted by [t], [b], [i], [r], [sub-block]
+  * A sub-block is a bracketed list of sub-options, e.g.
+    * options = [a=1; b=2;];
 * Program will _usually_ warn you if an incorrect option is given, and print all the available options to the screen.
 
 ********************************************************************************
@@ -268,18 +270,20 @@ Spectrum {
 ```
 
 
-## Modules and MatrixElements
+## Modules
 
-Modules and MatrixElements work in essentially the same way. Each MatrixElements/Modules block will be run in order. You can comment-out just the block name, and the block will be skipped.
+Each Modules block will be run in order.
+You can comment-out just the block name, and the block will be skipped.
 
-MatrixElements blocks calculate reduced matrix elements of given operator, Modules can do anything.
+### Modules::MatrixElements
 
-For MatrixElements, there are some options that apply for any operator; and then there are some
-options specific to each operator
+Module to calculate Matrix Elements.
+For MatrixElements, there are some options that apply for any operator; and then there are some options specific to each operator; these operator-specific options are given as a [] bracketed list of options ("sub-block")
 
 ```cpp
-MatrixElements::ExampleOperator { //this is not a real operator..
-  // Options that apply to all operators:
+Modules::MatrixElements {
+  operator;       //[t] default = ""
+  options;        //[sub-block], default = ""
   printBoth;      //[t] default = false
   onlyDiagonal;   //[t] default = false
   radialIntegral; //[b] default = false
@@ -290,6 +294,8 @@ MatrixElements::ExampleOperator { //this is not a real operator..
   b_vertex;       //[r] default = 1.0
 }
 ```
+* operator: name of operator; see list below
+* options: list any operator-specific options (most will be blank)
 * printBoth: Print <a|h|b> and <b|h|a> ? false by default. (For _some_ operators, e.g., involving derivatives, this is a good test of numerical error. For most operators, values will be trivially the same; reduced matrix elements, sign may be different.)
 * onlyDiagonal: If true, will only print diagonal MEs <a|h|a>
 * radialIntegral: if true, calculates the radial integral (definition depends on specific operator)
@@ -301,37 +307,42 @@ MatrixElements::ExampleOperator { //this is not a real operator..
 
 ### Available operators:
 
+Here I list the available operators, and their possible options.
+Remember; the program will print out the full list of available options if you ask it to.
+
 ```cpp
-MatrixElements::E1 { //Electric dipole operator:
+operator = E1; //Electric dipole operator:
+options = [
   gauge; //[t] lform, vform. default = lform
-}
+]
 ```
 
 ```cpp
-MatrixElements::Ek { //Electric multipole operator:
+operator = Ek; //Electric multipole operator:
+options = [
   k; //[i] default = 1
-}
+]
 ```
 * k=1 => E1, dipole. k=2 => E2, quadrupole etc.
 
 ```cpp
-MatrixElements::r { //scalar r
+operator = r; //scalar r
+options = [
   power; //[r] default = 1. Will calc <|r^n|>.
-}
+]
 ```
 
 ```cpp
-MatrixElements::pnc {// spin-independent (Qw) PNC operator.
-  // Output given in units of i(-Q/N)e-11
+operator = pnc; // spin-independent (Qw) PNC operator.
+options = [
   c; //[r] half-density radius. By default, uses rrms from Z,A [see nucleus]
   t; //[r] skin thickness. default = 2.3
-}
+]
 ```
 
+
 ```cpp
-MatrixElements::Hrad_el {
-  // QED electric part (Euhling+electric SE)
-}
+operator = Hrad_el; // QED electric part (Euhling+electric SE)
 ```
  * Takes similar arguments as RadPot (except for scale_l and core_qed)
    * Simple, Ueh, SE_h, SE_l, rcut, scale_rN (but not SE_mag)
@@ -340,10 +351,9 @@ MatrixElements::Hrad_el {
  * Typically used with onlyDiagonal=true, and radialIntegral=true (get energy shifts)
 
 ```cpp
-MatrixElements::Hrad_mag {
-  // QED magnetic part (magnetic SE form-factor)
-}
+operator = Hrad_mag; // QED magnetic part (magnetic SE form-factor)
 ```
+ * QED magnetic part (magnetic SE form-factor)
  * Takes similar arguments as RadPot (except for scale_l and core_qed)
    * SE_mag, rcut, scale_rN (but not Simple, Ueh, SE_h, SE_l,)
  * Including RPA should be equivalent to including QED into core HF equations
@@ -351,7 +361,8 @@ MatrixElements::Hrad_mag {
  * Typically used with onlyDiagonal=true, and radialIntegral=true (get energy shifts)
 
 ```cpp
-MatrixElements::hfs { // Magnetic dipole hyperfine structure constant A
+operator = hfs; // Magnetic dipole hyperfine structure constant A
+options = [
   mu;     //[r] Nuc. mag. moment. Will be looked up by default
   I;      //[r] Nuc. spin. Will be looked up by default
   rrms;   //[r] Nuc. rms radius. Will be looked up by default
@@ -371,10 +382,12 @@ MatrixElements::hfs { // Magnetic dipole hyperfine structure constant A
   gl1 = 1;
   I2 = 0.5;
   l2 = 1.;
-}
+]
 ```
 
-### Modules:
+### Other Modules:
+
+ * Note: 'Modules' documentation also available in the doxygen (html) documentation on github; that is likely more up-to-date
 
 -------------------
 ```cpp
@@ -390,30 +403,58 @@ Module::Tests {
 
 -------------------
 ```cpp
-Module::pnc {
-    transition = na, ka, nb, ka; //[i,i,i,i] - required
-    rpa;      //[b] default = true
-    omega;    //[r]
-}
+  Module::pnc{ c; t; transition; rpa; omega; nmain; }
 ```
-* Calculates pnc amplitude {na,ka}->{nb,kb}
-* Uses Solving-equations and sum-over-states (spectrum)
-* omega: frequency to solve RPA/TDHF equations at. By default is E_a-Eb (from orbitals), but can be anything.
+Uses both 'solving equations' (TDHF) and sum-over-states methods.
+For solving equations, calculates both:
+  - <yA_w|d| B> + <A |d|xB_w>
+  - <A |w|XB_d> + <YA_d|w| B>
+  - Does not (yet) include DCP
+
+ - c, t: half-density radius and skin-thickness (in fm) for rho(r). Will look up
+default values by default.
+ - transition: For E1_PNC a->b transition.
+   - in form "a,b", uses the 'short' notation:
+   - e.g., "6s+,7s+" for 6s_1/2 -> 7s_1/2
+   - e.g., "6s+,5d-" for 6s_1/2 -> 5d_3/2
+ - rpa: true/false. Include RPA or not (TDHF ,method)
+ - omega: frequency used for RPA (default is transition frequency of valence).
+ - nmain: highest n (prin. q. number) considered as part of 'main'.
+   - If not given, will be max(n_core)+4
+   - (Calculation broken into core, main, tail)
 
 -------------------
 ```cpp
-Module::polarisability {
-    a = na, ka;     //[i,i] default=blank
-    rpa;            //[b] default = true
-    omega_max;      //[r] default = 0.0
-    omega_steps;    //[i] default = 30
+Module::polarisability{ rpa; omega; transition; omega_max; omega_steps;  }
+```
+* Calculate dipole polarisabilitities (static, dynamic, alpha, vector beta)
+* Uses both 'solving equations' (TDHF) and sum-over-states methods.
+
+ - rpa: true/false. Include RPA or not (TDHF ,method)
+ - omega: frequency used for alpha_0 (dipole polarisability). default is 0.
+ - transition: For scalar/vector a->b transition polarisability.
+   - in form "a,b", e.g., "6s+,7s+" for 6s_1/2 -> 7s_1/2
+ - omega_max: maximum frequency for dynamic polarisability. Default is 0.
+   - nb: only runs dynamic pol. if omega_max>0
+ - omega_steps: Number of steps used for dynamic. default = 30. (linear scale)
+
+Note: transition polarisabilities written for s-states only.
+They might be correct for other states too, but NOT checked.
+Especially for beta, pretty sure it's wrong for non-s states.
+
+-------------------
+```cpp
+Module::structureRad{
+  operator; options; rpa; printBoth; onlyDiagonal; omega; n_minmax;  
 }
 ```
-* Calculates dipole polarisability (optionally for valence state 'a', or for core)
-* Uses Solving-equations and sum-over-states (spectrum)
-* a: valence state (eg: a=6,-1; for 6s). Blank for core-only
-* rpa: include rpa into static term
-* omega_max: max frequency. Calcs alpha(w) up to this (in omega_steps steps)
+ * Calculates Structure Radiation + Normalisation of States
+ * Note: Most input options are similar to MatrixElements module:
+ * n_minmax: is input as list of ints:
+   * n_minmax = min,max;
+   * min: minimum n for core states kept in summations
+   * max: maximum n for excited states kept in summations
+ * For explanation of the rest, see MatrixElements module.
 
 -------------------
 ```cpp
@@ -428,18 +469,18 @@ Calculates lifetimes of valence states. Note: uses HF energies (prints all data 
 ```cpp
 Module::HFAnomaly {
   Alist;  //[i,i,...] // Which A's to calculate for (blank for all)
- // ~ most inputs same as MatrixElements::hfs
+ // ~ most inputs same as operator = hfs
 }
 ```
 Calculates the hyperfine anomaly (and BW effect) for all available odd
 isotopes of given atom, relative to the 'main' isotope (see Atom).
- * Note: Only runs for odd isotopes; to get anomaly for even isotopes, use am even isotope as reference (For doubly-odd Bohr-Weisskopf input options, see MatrixElements::hfs)
- * Takes same input at MatrixElements::hfs, except for F(r), since it runs for each F(r)
+ * Note: Only runs for odd isotopes; to get anomaly for even isotopes, use am even isotope as reference (For doubly-odd Bohr-Weisskopf input options, see operator = hfs)
+ * Takes same input as operator = hfs, except for F(r), since it runs for each F(r)
 
 -------------------
 ```cpp
 Module::BohrWeisskopf { //Calculates BW effect for Ball/Single-particle
-  // Takes same input at MatrixElements::hfs
+  // Takes same input at operator = hfs
   // Except for F(r), since it runs for each F(r)
 }
 ```

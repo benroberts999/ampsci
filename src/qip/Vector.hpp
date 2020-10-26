@@ -1,5 +1,6 @@
 #pragma once
 #include <algorithm>
+#include <array>
 #include <cassert>
 #include <cmath>
 #include <type_traits>
@@ -292,6 +293,14 @@ auto inner_product_sub(std::size_t p0, std::size_t pinf, const T &first,
     res += multiply_at(i, first, rest...);
   }
   return res;
+}
+
+//******************************************************************************
+template <typename F, typename T> T apply_to(const F &func, T list) {
+  for (auto &l : list) {
+    l = func(l);
+  }
+  return list;
 }
 
 } // namespace qip

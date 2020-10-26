@@ -1,7 +1,12 @@
-// Example input file. Lines with "//" are ignored
+// Example "template" ampsci input file.
+// Lines with "//" are ignored
 // Comment out an entire block (or just its name) to skip block
 // See doc/ampsci_input.md for full description of all options
 // Tip: Tell your editor this is a cpp file [colouring + commenting shortcuts]
+// run as:
+// $ ./ampsci
+// OR
+// $ ./ampsci ampsci.in
 
 Atom {
   Z = Cs;
@@ -22,14 +27,12 @@ Nucleus {
 Grid {
   r0 = 1e-6;
   rmax = 120.0;
-  num_points = 1600;
+  num_points = 2000;
 }
 
 // RadPot
 {
   RadPot = false;
-  scale_l = 1, 1, 1;
-  core_qed = true;
 }
 
 // Basis
@@ -39,8 +42,7 @@ Grid {
   r0_eps = 1.0e-6;
   rmax = 30.0;
   print = false;
-  positron = false;
-  states = 30spdfg;
+  states = 35spdfghi;
 }
 
 // Correlations
@@ -52,7 +54,7 @@ Grid {
   lambda_k;
 }
 
-//Spectrum
+// Spectrum
 {
   number = 100;
   order = 7;
@@ -67,11 +69,21 @@ Grid {
 
 Module::Tests {}
 
-// MatrixElements::E1 {}
-// MatrixElements::E1 {omega = each;}
+// Module::MatrixElements { operator = E1; }
+// Module::MatrixElements { operator = E1; omega = each; }
 
-// MatrixElements::hfs { F(r) = pointlike; rpa = false; }
+/*
+Module::MatrixElements {
+  operator = hfs;
+  rpa = false;
+  options = [
+    F(r) = pointlike;
+  ];
+}
+*/
+
 // Module::pnc { transition = 6, -1, 7, -1; rpa = true; }
+
 // Module::pnc { transition = 6, -1, 5, 2; rpa = true; }
 
 // Module::BohrWeisskopf{}

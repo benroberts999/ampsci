@@ -12,6 +12,12 @@
 namespace IO {
 
 //******************************************************************************
+UserInputBlock::UserInputBlock(const std::string &in_block_name,
+                               const std::string &in_input_options)
+    : m_block_name(in_block_name),
+      m_input_options(FRW::splitInput_bySemiColon(in_input_options)) {}
+
+//******************************************************************************
 void UserInputBlock::print() const {
   const bool small_block = m_input_options.size() < 4;
   const bool empty = m_input_options.empty();
@@ -40,7 +46,7 @@ void UserInputBlock::print() const {
 UserInputBlock
 UserInputBlock::subBlock(const std::string &sub_block_name,
                          const std::vector<std::string> &options) const {
-  UserInputBlock sub_block(sub_block_name, {});
+  UserInputBlock sub_block(sub_block_name);
   for (const auto &option : options) {
     for (const auto &input_line : m_input_options) {
       if (input_line.substr(0, option.length() + 1) == option + "=")

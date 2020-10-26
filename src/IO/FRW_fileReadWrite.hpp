@@ -244,11 +244,32 @@ inline std::vector<std::string> splitInput_bySemiColon(const std::string &input)
 
   auto lines = removeCommentsAndSpaces(input);
 
+  // BUT, treat anything inside [] brackets as single
+
   // after removing comments, break up by ';'
-  std::stringstream stream2(lines);
-  std::string entry;
-  while (std::getline(stream2, entry, ';')) {
-    entry_list.push_back(entry);
+  // std::stringstream stream2(lines);
+  // std::string entry;
+  // while (std::getline(stream2, entry, ';')) {
+  //   entry_list.push_back(entry);
+  // }
+
+  // dumb hack to ingore first braket '['..
+  std::size_t start = (input.size() > 0 && input[0] == '[') ? 1 : 0;
+
+  // std::size_t start = 0;
+  while (true) {
+    // Check if we find a ';' or an open braket '[' first:
+    const auto bkt = input.find('[', start);
+    const auto semic = input.find(';', start);
+    const auto bracketQ = bkt < semic;
+
+    // If no braket, 'end' of string is semicolon ';'.
+    // If we do have brakets, end is "];"
+    const auto end = bracketQ ? input.find("];", start) + 1 : semic;
+    if (end == std::string::npos)
+      break;
+    entry_list.push_back(input.substr(start, end - start));
+    start = end + 1;
   }
 
   return entry_list;

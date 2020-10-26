@@ -4,6 +4,8 @@
 # You can use any separator (commas, spaces, etc.)
 # First bracket '(' '<' or '{' is required to work out
 # which symbol to calculate.
+# run as:
+# $./wigner wigner.in
 
 <1 1 1 1 | 2 2>
 <1 1 1 1 | 2 99>

@@ -50,6 +50,63 @@ std::pair<int, int> YkTable::k_minmax(const DiracSpinor &a,
                         (a.twoj() + b.twoj()) / 2);
 }
 
+//------------------------------------------------------------------------------
+std::pair<int, int> YkTable::k_minmax_Q(const DiracSpinor &a,
+                                        const DiracSpinor &b,
+                                        const DiracSpinor &c,
+                                        const DiracSpinor &d) {
+
+  // Determine if K needs to be even/odd (parity selection rule)
+  const auto k_even_ac = (a.l() + c.l()) % 2 == 0;
+  const auto k_even_bd = (b.l() + d.l()) % 2 == 0;
+  if (k_even_ac != k_even_bd) {
+    // no K satisfies selection rule!
+    return {1, 0};
+  }
+
+  // Find min/max k from triangle rule:
+  const auto [l1, u1] = k_minmax(a, c);
+  const auto [l2, u2] = k_minmax(b, d);
+  auto min_k = std::max(l1, l2);
+  auto max_k = std::min(u1, u2);
+
+  // Adjust min/max k due to parity selectrion rule:
+  // Allows one to safely use only evey second k to calculate Q
+  if ((b.l() + d.l() + min_k) % 2 != 0) {
+    ++min_k;
+  }
+  if ((b.l() + d.l() + max_k) % 2 != 0) {
+    --max_k;
+  }
+
+  return {min_k, max_k};
+}
+
+std::pair<int, int> YkTable::k_minmax_P(const DiracSpinor &a,
+                                        const DiracSpinor &b,
+                                        const DiracSpinor &c,
+                                        const DiracSpinor &d) {
+  // P^k_abcd = sum_l {a, c, k \\ b, d, l} * Q^l_abdc
+  //  |b-d| <= k <=|b+d|
+  //  |a-c| <= k <=|a+c|
+  // min/max k Comes from 6j symbol ONLY
+  const auto [l1, u1] = k_minmax(a, c);
+  const auto [l2, u2] = k_minmax(b, d);
+  return {std::max({l1, l2}), std::min({u1, u2})};
+}
+
+std::pair<int, int> YkTable::k_minmax_W(const DiracSpinor &a,
+                                        const DiracSpinor &b,
+                                        const DiracSpinor &c,
+                                        const DiracSpinor &d) {
+  // NOTE: Cannot safely k++2, since parity rules may be opposite for P and Q
+  // parts!
+  const auto [l1, u1] = k_minmax_Q(a, b, c, d);
+  const auto [l2, u2] = k_minmax_P(a, b, c, d);
+  // nb: min/max swapped, since W = Q+P, so only 1 needs to survive!
+  return {std::min(l1, l2), std::max(u1, u2)};
+}
+
 //******************************************************************************
 const std::vector<double> &YkTable::get_yk_ab(const int k,
                                               const DiracSpinor &Fa,
@@ -80,6 +137,7 @@ void YkTable::update_y_ints() {
   resize_y();
   const auto tj_max = max_tj();
   m_Ck.fill(tj_max);
+  m_6j.fill(tj_max);
 
   a_size = m_a_orbs->size();
   b_size = m_b_orbs->size();
@@ -90,7 +148,7 @@ void YkTable::update_y_ints() {
     const auto b_max = m_aisb ? ia : b_size - 1;
     for (std::size_t ib = 0; ib <= b_max; ib++) {
       const auto &Fb = (*m_b_orbs)[ib];
-      const auto &[kmin, kmax] = k_minmax(Fa, Fb); // weird that this works?
+      const auto [kmin, kmax] = k_minmax(Fa, Fb);
       for (auto k = kmin; k <= kmax; k++) {
         const auto Lk = m_Ck.get_Lambdakab(k, Fa.k, Fb.k);
         if (Lk == 0)
@@ -158,14 +216,34 @@ void YkTable::resize_y() {
       const auto &[kmin, kmax] = k_minmax(Fa, Fb);
       const auto num_k = std::size_t(kmax - kmin + 1);
       m_y_abkr[ia][ib].resize(num_k);
-      // Don't need to!
-      // Many of these k's will be zero - don't need to allocate for them!
-      // for (auto &yk_ab_r : m_y_abkr[ia][ib]) {
-      //   // XXX Need to do this??
-      //   yk_ab_r.resize(m_grid->num_points);
-      // } // k
     } // b
   }   // a
+}
+
+//******************************************************************************
+//******************************************************************************
+
+double YkTable::Qk(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+                   const DiracSpinor &Fc, const DiracSpinor &Fd) const {
+  // nb: b and d _MUST_ be in {a},{b} orbitals
+  const auto ykbd = ptr_yk_ab(k, Fb, Fd);
+  return ykbd ? Coulomb::Qk_abcd(Fa, Fb, Fc, Fd, k, *ykbd, m_Ck) : 0.0;
+}
+
+//------------------------------------------------------------------------------
+double YkTable::Pk(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+                   const DiracSpinor &Fc, const DiracSpinor &Fd) const {
+  // nb: b and c _MUST_ be in {a},{b} orbitals
+  return Pk_abcd(Fa, Fb, Fc, Fd, k, get_y_ab(Fb, Fc), m_Ck, m_6j);
+}
+
+//------------------------------------------------------------------------------
+double YkTable::Wk(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+                   const DiracSpinor &Fc, const DiracSpinor &Fd) const {
+  // nb: b and d _MUST_ be in {a},{b} orbitals
+  // AND
+  // b and d _MUST_ be in {a},{b} orbitals
+  return Qk(k, Fa, Fb, Fc, Fd) + Pk(k, Fa, Fb, Fc, Fd);
 }
 
 } // namespace Coulomb

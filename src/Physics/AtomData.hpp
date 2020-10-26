@@ -65,8 +65,11 @@ std::string l_symbol(int l);
 //! kappa (int) to symbol, e.g., -1 -> s_1/2
 std::string kappa_symbol(int kappa);
 
+//! Parses "short symbol" to {n,kappa}, e.g., "6s+" -> {6,-1}; "6p-" -> {6,1}
+std::pair<int, int> parse_symbol(std::string_view symbol);
+
 //! e.g., 'p' -> 1
-int symbol_to_l(const std::string &l_str);
+int symbol_to_l(std::string_view l_str);
 
 //! Given a nobel-gas conifg (e.g., '[Xe]') returns full electron config
 std::string coreConfig(const std::string &in_ng);

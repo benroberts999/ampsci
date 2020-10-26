@@ -389,9 +389,13 @@ double Pk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
   for (const auto &ybc_l : ybc) {
     const auto l = min_l + count;
     ++count;
+
+    if (!Angular::Ck_kk_SR(l, Fb.k, Fc.k) || !Angular::Ck_kk_SR(l, Fa.k, Fd.k))
+      continue;
+
     const auto sj =
         sixj.get_6j(Fc.twoj(), Fa.twoj(), Fd.twoj(), Fb.twoj(), k, l);
-    if (sj == 0.0)
+    if (Angular::zeroQ(sj))
       continue;
     sum += sj * Qk_abcd(Fa, Fb, Fd, Fc, l, ybc_l, Ck); // a,b,d,c [exch.]
   }
@@ -421,9 +425,13 @@ void Pkv_bcd(DiracSpinor *Pkv, const DiracSpinor &Fb, const DiracSpinor &Fc,
   for (const auto &ybc_l : ybc) {
     const auto l = min_l + count;
     ++count;
+
+    if (!Angular::Ck_kk_SR(l, Fb.k, Fc.k))
+      continue;
+
     const auto sj = sixj.get_6j(Fc.twoj(), Angular::twoj_k(kappa), Fd.twoj(),
                                 Fb.twoj(), k, l);
-    if (sj == 0.0)
+    if (Angular::zeroQ(sj))
       continue;
     *Pkv += sj * Qkv_bcd(kappa, Fb, Fd, Fc, l, ybc_l, Ck); // a,b,d,c [exch.]
   }
@@ -458,7 +466,7 @@ void Pkv_bcd_2(DiracSpinor *Pkv, const DiracSpinor &Fb, const DiracSpinor &Fc,
     // Include screening factor here (early escape if zero)
     const auto sj = fk(l) * sixj.get_6j(Fc.twoj(), Angular::twoj_k(kappa),
                                         Fd.twoj(), Fb.twoj(), k, l);
-    if (sj == 0.0)
+    if (Angular::zeroQ(sj))
       continue;
     *Pkv += sj * Qkv_bcd(kappa, Fb, Fd, Fc, l, ybc_l, Ck); // a,b,d,c [exch.]
   }
@@ -470,10 +478,10 @@ double Qk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
                const DiracSpinor &Fc, const DiracSpinor &Fd, const int k) {
   [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__);
   const auto tCac = Angular::tildeCk_kk(k, Fa.k, Fc.k);
-  if (tCac == 0.0)
+  if (Angular::zeroQ(tCac))
     return 0.0;
   const auto tCbd = Angular::tildeCk_kk(k, Fb.k, Fd.k);
-  if (tCbd == 0.0)
+  if (Angular::zeroQ(tCbd))
     return 0.0;
   const auto Rkabcd = Rk_abcd(Fa, Fb, Fc, Fd, k);
   const auto m1tk = Angular::evenQ(k) ? 1 : -1;
@@ -487,10 +495,10 @@ double Qk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
   [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__, "yk");
 
   const auto tCac = Ck.get_tildeCkab(k, Fa.k, Fc.k);
-  if (tCac == 0.0)
+  if (Angular::zeroQ(tCac))
     return 0.0;
   const auto tCbd = Ck.get_tildeCkab(k, Fb.k, Fd.k);
-  if (tCbd == 0.0)
+  if (Angular::zeroQ(tCbd))
     return 0.0;
   const auto Rkabcd = Rk_abcd(Fa, Fc, ykbd);
   const auto m1tk = Angular::evenQ(k) ? 1 : -1;
