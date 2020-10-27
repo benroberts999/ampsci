@@ -2,7 +2,7 @@
 _*Atomic Many-body Perturbation theory in the Screened Coulomb Interaction*_
 
 Solves the Dirac equation for single-valence atomic systems using the Hartree-Fock + correlation potential method (Dzuba-Flambaum-Sushkov method).
-Fully relativistic, includes electron correlations (all-orders screening and hole-particle interaction), finite-nuclear size, Breit interaction, radiative QED effects, and RPA for matrix elements.
+Fully relativistic, includes electron correlations (all-orders screening and hole-particle interaction), finite-nuclear size, Breit interaction, radiative QED effects, and RPA for matrix elements (with structure radiation/renormalisation).
 QED is included via the Ginges-Flambaum radiative potential method.
 Can solve for continuum states with high energy.
 Calculates ionisation cross sections with high values for energy/momentum transfer. Parallelised using openMP.
@@ -22,7 +22,7 @@ The "modules" system (see documentation) makes it simple to add your own routine
 
 There are four documentation types provided:
  * All documentation available online: [benroberts999.github.io/ampsci/](https://benroberts999.github.io/ampsci/)
- * also can be found in doc/ directory
+ * Also can be found in doc/ directory
 
 
  1. README (this document)
@@ -33,7 +33,7 @@ There are four documentation types provided:
     * _doc/ampsci_input.md_ -- detailed info on all input options
       * Best viewed with a markdown reader or on GitHub
     * See also: _doc/examples/ampsci.in_ -- an example/template input file
-    * In _doc/examples/_ there are several example input files, with the expected output; use these to test if everything is working!
+    * In _doc/examples/_ there are several example input files, with the expected output; use these to test if everything is working
 
 
  3. Physics documentation: _ampsci.pdf_ -- Description of physics/methods used in the code
@@ -44,7 +44,7 @@ There are four documentation types provided:
       * Run '_$make docs_' -- this will create new pdf file: 'doc/ampsci.pdf'
 
 
- 4. Code documentation -- details on classes/function in the code
+ 4. Code documentation -- details on classes/functions in the code
     * Available online: [benroberts999.github.io/ampsci/](https://benroberts999.github.io/ampsci/)
     * Auto-generated (Doxygen), so be wary of mistakes/typos etc.
     * You can generate this by running '_$make doxy_', which produces html documentation (see doc/html/index.html), and a pdf version (doc/documentation.pdf) -- but it's much easier to view this online
@@ -60,7 +60,7 @@ There are four documentation types provided:
  * The file _Makefile_ has some basic compilation options. It's currently set up to work on most linux systems; you may need to change a few options for others (see below)
  * Tested with g++ and clang++ on linux and mac (requires c++17)
     * Works+tested with g++7 and newer (best w/ g++9)
-    * Works+tested with clang++-6 and newer (best w/ clang++-9)
+    * Works+tested with clang++6 and newer (best w/ clang++9)
 
 Requires GSL (GNU scientific libraries) https://www.gnu.org/software/gsl/, and LAPACK. These must be installed for the code to run (see below).
  * Requires GSL ver 2.0+ (tested with 2.1, 2.6)
@@ -118,7 +118,7 @@ Then, the compilation + use can proceed as per Linux above.
  * You may re-name the input files (e.g., to "filename.txt"), then run as:
     * _$ ./ampsci filename.txt_
     * If no input filename is given, program will assume input filename is 'ampsci.in':
- * Note: input file uses c++-like format + line comments; tell your editor that the file is a cpp file to get nice colourisation and auto commenting
+ * Note: input file uses c++-like format, including c++-style comments
  * See _doc/ampsci_input.md_ for a full list of input options + descriptions
  * See _ampsci.pdf_ for a description of the physics, and for references to the works where the methods implemented here were developed.
    * Available on GitHub: [benroberts999.github.io/ampsci/ampsci.pdf](https://benroberts999.github.io/ampsci/ampsci.pdf)
@@ -153,27 +153,17 @@ Usage: (examples)
 
 Note: ground-state electron configurations are "guessed", and can sometimes be incorrect.
 
-Nuclear radius data mostly comes from:
- * I. Angeli and K. P. Marinova, At. Data Nucl. Data Tables 99, 69 (2013).
-https://doi.org/10.1016/j.adt.2011.12.006
+Nuclear data mostly comes from:
+ * Radius data: I. Angeli and K. P. Marinova, At. Data Nucl. Data Tables 99, 69 (2013).
+[doi:10.1016/j.adt.2011.12.006](https://doi.org/10.1016/j.adt.2011.12.006)
+ * Magnetic moments: N. Stone, At. Data Nucl. Data Tables 90, 75 (2005).
+ [doi:10.1016/j.adt.2005.04.001](https://doi.org/10.1016/j.adt.2005.04.001)
+ * Note: data was scraped from the tables, and contains many transcription errors. Provided for convenience, but it is up to you to double check that the values are correct/up-to-date
 
 Units:
  * r_rms: root-mean-square radius, in fm.
  * c: half-density radius (assuming Fermi nuclear distro, with t=2.3)
  * mu: magnetic moment (in nuclear magnetons)
-
-
-### dmeXSection
-
- * Calculates the cross-section and event rates for ionisation of atoms
- by scattering of DM particle.
-   * B.M. Roberts, V.V. Flambaum
-[Phys.Rev.D 100, 063017 (2019)](https://link.aps.org/doi/10.1103/PhysRevD.100.063017 "pay-walled");
-[arXiv:1904.07127](https://arxiv.org/abs/1904.07127 "free download").
-   * B.M.Roberts, V.A.Dzuba, V.V.Flambaum, M.Pospelov, Y.V.Stadnik,
-[Phys.Rev.D 93, 115037 (2016)](https://link.aps.org/doi/10.1103/PhysRevD.93.115037 "pay-walled");
-[arXiv:1604.04559](https://arxiv.org/abs/1604.04559 "free download").
- * see _'doc/dmeXSection_input'_ for details
 
 
 ### wigner
@@ -188,6 +178,20 @@ Units:
    * Do not use quote marks in input file. Lines marked '!' or '#' are comments
  * 3j symbols must start with '('; 6,9j with '{', and CG with '<' (this is how code knows which symbol to calculate).
  * but, each number can be separated by any symbol (space, comma etc.)
+
+
+### dmeXSection
+
+  * Calculates the cross-section and event rates for ionisation of atoms
+  by scattering of DM particle.
+    * B.M. Roberts, V.V. Flambaum
+ [Phys.Rev.D 100, 063017 (2019)](https://link.aps.org/doi/10.1103/PhysRevD.100.063017 "pay-walled");
+ [arXiv:1904.07127](https://arxiv.org/abs/1904.07127 "free download").
+    * B.M.Roberts, V.A.Dzuba, V.V.Flambaum, M.Pospelov, Y.V.Stadnik,
+ [Phys.Rev.D 93, 115037 (2016)](https://link.aps.org/doi/10.1103/PhysRevD.93.115037 "pay-walled");
+ [arXiv:1604.04559](https://arxiv.org/abs/1604.04559 "free download").
+  * Old, and has not been tested for a long time; use with caution
+  * see _'doc/dmeXSection_input'_ for details
 
 
  [docs-url]: https://benroberts999.github.io/ampsci/

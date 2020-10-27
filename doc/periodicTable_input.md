@@ -23,9 +23,12 @@ so should be checked if needed.
 
 Note: ground-state electron configurations are "guessed", and can sometimes be incorrect.
 
-Nuclear radius data mostly comes from:
- * I. Angeli and K. P. Marinova, At. Data Nucl. Data Tables 99, 69 (2013).
-https://doi.org/10.1016/j.adt.2011.12.006
+Nuclear data mostly comes from:
+ * Radius data: I. Angeli and K. P. Marinova, At. Data Nucl. Data Tables 99, 69 (2013).
+[doi:10.1016/j.adt.2011.12.006](https://doi.org/10.1016/j.adt.2011.12.006)
+ * Magnetic moments: N. Stone, At. Data Nucl. Data Tables 90, 75 (2005).
+ [doi:10.1016/j.adt.2005.04.001](https://doi.org/10.1016/j.adt.2005.04.001)
+ * Note: data was scraped from the tables, and contains many transcription errors. Provided for convenience, but it is up to you to double check that the values are correct/up-to-date
 
 Units:
  * r_rms: root-mean-square radius, in fm.

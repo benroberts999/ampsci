@@ -9,7 +9,6 @@ namespace HF {
 class HartreeFock;
 }
 
-//! Many-body perturbation theory
 namespace MBPT {
 
 enum class States { core, excited, both };
@@ -42,13 +41,8 @@ inline std::string_view ParseEnum(ExchangeMethod method) {
   return "unkown";
 }
 
-// XXX Gmatrix should know its kappa!
-
 //******************************************************************************
-/*!
-@brief
-@details
-*/
+
 class FeynmanSigma final : public CorrelationPotential {
 public:
   FeynmanSigma(const HF::HartreeFock *const in_hf,

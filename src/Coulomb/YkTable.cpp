@@ -222,10 +222,10 @@ void YkTable::resize_y() {
 
 //******************************************************************************
 //******************************************************************************
-
 double YkTable::Qk(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
                    const DiracSpinor &Fc, const DiracSpinor &Fd) const {
   // nb: b and d _MUST_ be in {a},{b} orbitals
+  assert(m_aisb && "May only use Qk if Yk init with {a}={b}");
   const auto ykbd = ptr_yk_ab(k, Fb, Fd);
   return ykbd ? Coulomb::Qk_abcd(Fa, Fb, Fc, Fd, k, *ykbd, m_Ck) : 0.0;
 }
@@ -234,6 +234,7 @@ double YkTable::Qk(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
 double YkTable::Pk(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
                    const DiracSpinor &Fc, const DiracSpinor &Fd) const {
   // nb: b and c _MUST_ be in {a},{b} orbitals
+  assert(m_aisb && "May only use Pk if Yk init with {a}={b}");
   return Pk_abcd(Fa, Fb, Fc, Fd, k, get_y_ab(Fb, Fc), m_Ck, m_6j);
 }
 
@@ -242,7 +243,8 @@ double YkTable::Wk(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
                    const DiracSpinor &Fc, const DiracSpinor &Fd) const {
   // nb: b and d _MUST_ be in {a},{b} orbitals
   // AND
-  // b and d _MUST_ be in {a},{b} orbitals
+  // c and d _MUST_ be in {a},{b} orbitals
+  assert(m_aisb && "May only use Wk if Yk init with {a}={b}");
   return Qk(k, Fa, Fb, Fc, Fd) + Pk(k, Fa, Fb, Fc, Fd);
 }
 

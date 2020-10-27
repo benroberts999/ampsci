@@ -18,10 +18,10 @@ Module::firstModule { <input_options> }
 Module::secondModule { <input_options> }
 ```
 
-* Most options have a default, and can be left blank, explicitly set to 'default', or removed entirely.
-* The curly-braces denote the start/end of each block. *Don't* use any other curly-braces (nested braces are not allowed)
+* Most options have a default; these may be left blank, explicitly set to 'default', or removed entirely.
+* The curly-braces denote the start/end of each block. *Don't* use any other curly-braces (nested curly-braces are not allowed)
 * Uses c++ style comments. Any commented-out line will not be read. White-space is ignored.
-* For example, the following four inputs are all equivalent
+* For example, the following inputs are all equivalent
 
 ```cpp
 Atom {
@@ -33,6 +33,7 @@ Atom {
 //  A;
 }
 Atom { Z = Cs; }
+Atom { Z = 55; A = 133; }
 Atom{Z=Cs;A=default;}
 ```
 
@@ -41,7 +42,7 @@ Atom{Z=Cs;A=default;}
   * These will be denoted by [t], [b], [i], [r], [sub-block]
   * A sub-block is a bracketed list of sub-options, e.g.
     * options = [a=1; b=2;];
-* Program will _usually_ warn you if an incorrect option is given, and print all the available options to the screen.
+* Program will _usually_ warn you if an incorrect option is given, and print all the available options to the screen -- you can use this fact to get the code to print all the available options for each block.
 
 ********************************************************************************
 # Each input block:
@@ -66,7 +67,7 @@ Atom {
 HartreeFock {
   core;        //[t] default = [] (no core)
   valence;     //[t] default = none
-  sortOutput;  //[b] default = true
+  sortOutput;  //[b] default = false
   method;      //[t] default = HartreeFock
   Breit;       //[r] default = 0.0
   convergence; //[r] default = 1.0e-12
@@ -275,13 +276,13 @@ Spectrum {
 Each Modules block will be run in order.
 You can comment-out just the block name, and the block will be skipped.
 
-### Modules::MatrixElements
+### Module::matrixElements
 
 Module to calculate Matrix Elements.
-For MatrixElements, there are some options that apply for any operator; and then there are some options specific to each operator; these operator-specific options are given as a [] bracketed list of options ("sub-block")
+For matrixElements, there are some options that apply for any operator; and then there are some options specific to each operator; these operator-specific options are given as a [] bracketed list of options ("sub-block")
 
 ```cpp
-Modules::MatrixElements {
+Module::matrixElements {
   operator;       //[t] default = ""
   options;        //[sub-block], default = ""
   printBoth;      //[t] default = false
@@ -296,6 +297,7 @@ Modules::MatrixElements {
 ```
 * operator: name of operator; see list below
 * options: list any operator-specific options (most will be blank)
+  * _see below_
 * printBoth: Print <a|h|b> and <b|h|a> ? false by default. (For _some_ operators, e.g., involving derivatives, this is a good test of numerical error. For most operators, values will be trivially the same; reduced matrix elements, sign may be different.)
 * onlyDiagonal: If true, will only print diagonal MEs <a|h|a>
 * radialIntegral: if true, calculates the radial integral (definition depends on specific operator)
@@ -314,14 +316,14 @@ Remember; the program will print out the full list of available options if you a
 operator = E1; //Electric dipole operator:
 options = [
   gauge; //[t] lform, vform. default = lform
-]
+];
 ```
 
 ```cpp
 operator = Ek; //Electric multipole operator:
 options = [
   k; //[i] default = 1
-]
+];
 ```
 * k=1 => E1, dipole. k=2 => E2, quadrupole etc.
 
@@ -329,7 +331,7 @@ options = [
 operator = r; //scalar r
 options = [
   power; //[r] default = 1. Will calc <|r^n|>.
-]
+];
 ```
 
 ```cpp
@@ -337,9 +339,8 @@ operator = pnc; // spin-independent (Qw) PNC operator.
 options = [
   c; //[r] half-density radius. By default, uses rrms from Z,A [see nucleus]
   t; //[r] skin thickness. default = 2.3
-]
+];
 ```
-
 
 ```cpp
 operator = Hrad_el; // QED electric part (Euhling+electric SE)
@@ -382,7 +383,7 @@ options = [
   gl1 = 1;
   I2 = 0.5;
   l2 = 1.;
-]
+];
 ```
 
 ### Other Modules:
@@ -449,12 +450,12 @@ Module::structureRad{
 }
 ```
  * Calculates Structure Radiation + Normalisation of States
- * Note: Most input options are similar to MatrixElements module:
+ * Note: Most input options are similar to matrixElements module:
  * n_minmax: is input as list of ints:
    * n_minmax = min,max;
    * min: minimum n for core states kept in summations
    * max: maximum n for excited states kept in summations
- * For explanation of the rest, see MatrixElements module.
+ * For explanation of the rest, see matrixElements module.
 
 -------------------
 ```cpp
