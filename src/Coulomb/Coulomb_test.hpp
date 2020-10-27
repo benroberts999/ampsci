@@ -199,7 +199,16 @@ bool Coulomb(std::ostream &obuff) {
                     Angular::neg1pow_2(2 * k + Fa.twoj() + Fb.twoj() + 2) *
                     Ck(k, Fa.k, Fc.k) * Ck(k, Fb.k, Fd.k) *
                     Coulomb::Rk_abcd(Fa, Fb, Fc, Fd, k);
-                const auto delQ = std::abs(qip::max_difference(Q1, Q2, Q3, Q4));
+
+                // test the 'Qk' version, including k_minmax_Q
+                const auto [kmin, kmax] = Yij.k_minmax_Q(Fa, Fb, Fc, Fd);
+                // This k_min should have correct parity rule too
+                const auto Q5 = (k >= kmin && k <= kmax && (kmin % 2 == k % 2))
+                                    ? Yij.Qk(k, Fa, Fb, Fc, Fd)
+                                    : 0.0;
+
+                const auto delQ =
+                    std::abs(qip::max_difference(Q1, Q2, Q3, Q4, Q5));
                 if (delQ > worstQ)
                   worstQ = delQ;
               }
@@ -219,14 +228,28 @@ bool Coulomb(std::ostream &obuff) {
                         Coulomb::Qk_abcd(Fa, Fb, Fd, Fc, l, ylbc, Ck);
                 }
               }
-              const auto delP = std::abs(qip::max_difference(P1, P2, P4));
+
+              // test the 'Pk' version, including k_minmax_P
+              const auto [kminP, kmaxP] = Yij.k_minmax_P(Fa, Fb, Fc, Fd);
+              // This k_min CANNOT contain correct parity rule
+              const auto P5 =
+                  (k >= kminP && k <= kmaxP) ? Yij.Pk(k, Fa, Fb, Fc, Fd) : 0.0;
+
+              const auto delP = std::abs(qip::max_difference(P1, P2, P4, P5));
               if (delP > worstP)
                 worstP = delP;
 
               // calc W
               const auto W1 = Q1 + P1;
               const auto W2 = Coulomb::Wk_abcd(Fa, Fb, Fc, Fd, k);
-              const auto delW = std::abs(W1 - W2);
+
+              // test the 'Wk' version, including k_minmax_P
+              const auto [kmin, kmax] = Yij.k_minmax_W(Fa, Fb, Fc, Fd);
+              // This k_min CANNOT contain correct parity rule
+              const auto W5 =
+                  (k >= kmin && k <= kmax) ? Yij.Wk(k, Fa, Fb, Fc, Fd) : 0.0;
+
+              const auto delW = std::abs(qip::max_difference(W1, W2, W5));
               if (delW > worstW)
                 worstW = delW;
 

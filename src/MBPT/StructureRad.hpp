@@ -12,17 +12,16 @@ namespace HF {
 class ExternalField;
 }
 
+//! Many-body perturbation theory
 namespace MBPT {
 
 /*!
-Calculates Structure Radiation + Normalisation of states, using diagram method.
-
+@brief Calculates Structure Radiation + Normalisation of states, using diagram
+method.
 @details
-
 Three functions: srTB(), srC(), norm().
 Structure radiation is sum of srTB()+srC(); norm() gives normalisation of
 states.
-
 
  - Typically, one should use splines for the 'legs' (outer states) of diagrams.
  However, code is written such that {w,v} (the valence states) always appear as

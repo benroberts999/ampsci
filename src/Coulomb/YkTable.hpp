@@ -102,7 +102,7 @@ public:
 
   //! Returns Qk, Pk, Wk - uses existing yk table half the Coulomb integral.
   //! @details
-  //! These are only safe to call if Y^k_ab {a}={b} 9i.e., constructed with a
+  //! These are only safe to call if Y^k_ab {a}={b} i.e., constructed with a
   //! single set of states! NOTE: There is no safety check, undefined behaviour
   //! otherwise.
   double Qk(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
@@ -112,21 +112,24 @@ public:
   double Wk(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
             const DiracSpinor &Fc, const DiracSpinor &Fd) const;
 
-  //! Returns min and max k (multipolarity) allowed for Q^k_abcd, Wk, Pk
+  //! Returns min and max k (multipolarity) allowed for Q^k_abcd, Wk, Pk. For Q
+  //! (and Q only), parity rule is included, so you may safely call k+=2
   static std::pair<int, int> k_minmax_Q(const DiracSpinor &a,
                                         const DiracSpinor &b,
                                         const DiracSpinor &c,
                                         const DiracSpinor &d);
+  //! DOES NOT contain parity rules (6j only) - so NOT safe to call k+=2
   static std::pair<int, int> k_minmax_P(const DiracSpinor &a,
                                         const DiracSpinor &b,
                                         const DiracSpinor &c,
                                         const DiracSpinor &d);
+  //! DOES NOT contain parity rules (6j only) - so NOT safe to call k+=2
   static std::pair<int, int> k_minmax_W(const DiracSpinor &a,
                                         const DiracSpinor &b,
                                         const DiracSpinor &c,
                                         const DiracSpinor &d);
 
-  //! "Magic" sixj symbol calculator. Integers (for k!) and Spinors
+  //! "Magic" sixj symbol calculator. Integers (for k) and Spinors
   // do not multiply by 2!
   template <class A, class B, class C, class D, class E, class F>
   static double sixj(A a, B b, C c, D d, E e, F f) {

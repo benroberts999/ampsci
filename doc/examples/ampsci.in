@@ -2,7 +2,6 @@
 // Lines with "//" are ignored
 // Comment out an entire block (or just its name) to skip block
 // See doc/ampsci_input.md for full description of all options
-// Tip: Tell your editor this is a cpp file [colouring + commenting shortcuts]
 // run as:
 // $ ./ampsci
 // OR
