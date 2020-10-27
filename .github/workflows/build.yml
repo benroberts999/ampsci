@@ -15,7 +15,7 @@ jobs:
     - name: "Install dependencies"
       run: sudo apt install make g++-7 g++-9 clang++-9  liblapack-dev libblas-dev libgsl-dev libomp5 libomp-dev
     - name: setup
-      run: cp ./doc/Makefile.example ./Makefile && cp ./doc/ampsci.in.example ./ampsci.in
+      run: cp ./doc/Makefile.example ./Makefile && cp ./doc/examples/ampsci.in ./ampsci.in
 
     - name: Build ampsci (g++ v:7)
       run: make clean && make CXX=g++-7
