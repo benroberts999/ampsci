@@ -61,15 +61,11 @@ FeynmanSigma::FeynmanSigma(const HF::HartreeFock *const in_hf,
   // io file name:
   const bool read_ok = read_write(fname, IO::FRW::read);
 
-  // if (en_list.empty())
-  //   return;
-
   if (!read_ok) {
     // Extand 6j and Ck
     m_6j.fill(m_maxk);
     m_yeh.extend_Ck(m_maxk);
     prep_Feynman();
-    // form_Sigma(valence, fname);
   }
 }
 
@@ -81,11 +77,16 @@ void FeynmanSigma::formSigma(int kappa, double en, int n) {
   // most of this is the same between each...?
 
   // already exists:
-  if (getSigmaIndex(n, kappa) < m_Sigma_kappa.size())
-    return;
-  // XXX Need to read/write QPQ etc!!! for this to work
+  const auto index = getSigmaIndex(n, kappa);
+  if (index < m_Sigma_kappa.size()) {
+    const auto [n2, k2, en2] = m_nk[index];
+    // already have this (exact) potential?
+    if (n == n2)
+      return;
+  }
+  // XXX Need to read/write QPQ etc!!! for this to work ?
 
-  m_nk.emplace_back(n, kappa);
+  m_nk.emplace_back(n, kappa, en);
   auto &Sigma = m_Sigma_kappa.emplace_back(m_subgrid_points, m_include_G);
 
   // if v.kappa > basis, then Ck angular factor won't exist!

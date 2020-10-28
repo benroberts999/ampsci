@@ -71,7 +71,7 @@ public:
   //! a pair: {TB, TB+dV}: second includes RPA (if dV given)
   std::pair<double, double>
   srTB(const DiracOperator::TensorOperator *const h, const DiracSpinor &w,
-       const DiracSpinor &v, double omega,
+       const DiracSpinor &v, double omega = 0.0,
        const HF::ExternalField *const dV = nullptr) const;
 
   //! Returns Centre (SR) diagrams, reduced ME: <w||C||v>. Returns

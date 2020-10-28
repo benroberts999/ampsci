@@ -722,8 +722,9 @@ void Wavefunction::formSpectrum(const SplineBasis::Parameters &params) {
 
 //******************************************************************************
 void Wavefunction::formSigma(
-    const int nmin_core, const bool, const double r0, const double rmax,
-    const int stride, const bool include_G, const std::vector<double> &lambdas,
+    const int nmin_core, const bool form_matrix, const double r0,
+    const double rmax, const int stride, const bool each_valence,
+    const bool include_G, const std::vector<double> &lambdas,
     const std::vector<double> &fk, const std::string &fname,
     const bool FeynmanQ, const bool ScreeningQ, const bool holeParticleQ,
     const int lmax, const bool GreenBasis, const bool PolBasis,
@@ -731,6 +732,11 @@ void Wavefunction::formSigma(
   if (valence.empty())
     return;
 
+  /*
+      // XXX Re-factor
+      a) Make sub-block for Feynman, Goldstone Options
+      b) make sub-block for fit_to: e.g., fitTo = [6s+=31406;];
+  */
   const std::string ext = FeynmanQ ? ".SigmaF" : ".SigmaG";
 
   const auto method =
@@ -755,15 +761,30 @@ void Wavefunction::formSigma(
   }
 
   // This is for each valence state.... otherwise, just do for lowest??
-
-  for (const auto &Fv : valence) {
-    m_Sigma->formSigma(Fv.k, Fv.en, Fv.n);
+  if (form_matrix && !valence.empty()) {
+    if (each_valence) {
+      // calculate sigma for each valence state:
+      for (const auto &Fv : valence) {
+        m_Sigma->formSigma(Fv.k, Fv.en, Fv.n);
+      }
+    } else {
+      // calculate sigma for lowest n valence state of each kappa:
+      const auto max_ki = DiracSpinor::max_kindex(valence);
+      for (int ki = 0; ki <= max_ki; ++ki) {
+        auto Fv = std::find_if(cbegin(valence), cend(valence),
+                               [ki](auto f) { return f.k_index() == ki; });
+        if (Fv != cend(valence))
+          m_Sigma->formSigma(Fv->k, Fv->en, Fv->n);
+      }
+    }
   }
+
   if (!lambdas.empty()) {
     std::cout << "Note: be careful order of input lambdas matches Sigma\n";
     // If Sigma diverged from valence, may be diff order to valence...
     // Better to make it explicit!
     m_Sigma->scale_Sigma(lambdas);
+    m_Sigma->print_scaling();
   }
 
   if (fname != "")

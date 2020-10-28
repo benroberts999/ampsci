@@ -3,6 +3,7 @@
 #include "Coulomb/YkTable.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
 #include "MBPT/GreenMatrix.hpp"
+#include "Physics/AtomData.hpp" //DiracSEnken
 #include "Wavefunction/DiracSpinor.hpp"
 #include <vector>
 class Grid;
@@ -125,6 +126,16 @@ public:
   //! Prints the sub-grid parameters to screen
   void print_subGrid() const;
 
+  void print_info() const {
+    print_subGrid();
+    if (!m_nk.empty())
+      std::cout << "Have Sigma for:\n";
+    for (const auto [n, k, en] : m_nk) {
+      std::cout << n << " " << AtomData::kappa_symbol(k) << " en=" << en
+                << "\n";
+    }
+  }
+
   //! Calculates <Fv|Sigma|Fw> from scratch, at Fv energy [full grid + fg+gg]
   //! @details Note: uses basis, so if reading Sigma from file, and no basis
   //! given, will return all 0.0
@@ -188,7 +199,7 @@ protected:
   std::vector<GMatrix> m_Sigma_kappa{};
   // Lambda (fitting factors) for each kappa
   std::vector<double> m_lambda_kappa{};
-  std::vector<std::pair<int, int>> m_nk{};
+  std::vector<AtomData::DiracSEnken> m_nk{};
 
   // Options for sub-grid, and which matrices to include
   const bool m_include_G;

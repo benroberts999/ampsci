@@ -157,8 +157,8 @@ bool CorrelationPotential(std::ostream &obuff) {
     // const std::vector fk{0.72, 0.62, 0.83, 0.89, 0.94, 1.0};
 
     // wf.formSigma(3, true, 1.0e-4, 30.0, 14 /*stride*/);
-    wf.formSigma(n_min_core, true, rmin, rmax, stride, false, {}, fk, "", true,
-                 true, true, lmax, false, false, omre, w0, wratio);
+    wf.formSigma(n_min_core, true, rmin, rmax, stride, false, false, {}, fk, "",
+                 true, true, true, lmax, false, false, omre, w0, wratio);
 
     wf.hartreeFockBrueckner();
 

@@ -63,18 +63,26 @@ std::size_t CorrelationPotential::getSigmaIndex(int n, int kappa) const {
 
   //
   // If n=0, find first Sigma of that kappa
-  // If any of the ns in
-  // What about when n is non-zero, but we have non-zero ns in Sigma, but wrong
-  // n? Fail? Or return smallest?
-  // --> prob actually want to return largest??
 
   assert(m_Sigma_kappa.size() == m_nk.size());
   std::size_t index = 0;
-  for (const auto &[nn, kk] : m_nk) {
-    // XXX Not quite right...
-    if (kk == kappa && (nn == n || nn == 0 || n == 0))
+  for (const auto &[nn, kk, en] : m_nk) {
+    (void)en;
+    if (kk == kappa && (nn == n || n == 0))
       break;
     ++index;
+  }
+  const bool not_found = (index == m_nk.size());
+  if (not_found) {
+    // If not in list, return index for lowest n
+    // Return largest instead?
+    index = 0;
+    for (const auto &[nn, kk, en] : m_nk) {
+      (void)en;
+      if (kk == kappa)
+        break;
+      ++index;
+    }
   }
   return index;
   // nb: will return  index = m_nk.size() if kappa not found
@@ -386,8 +394,8 @@ bool CorrelationPotential::read_write(const std::string &fname,
   if (rw == IO::FRW::read) {
     m_nk.resize(num_kappas);
   }
-  for (auto &[n, k] : m_nk) {
-    rw_binary(iofs, rw, n, k);
+  for (auto &[n, k, en] : m_nk) {
+    rw_binary(iofs, rw, n, k, en);
   }
 
   // Read/Write G matrices
@@ -406,7 +414,7 @@ bool CorrelationPotential::read_write(const std::string &fname,
   std::cout << "done.\n";
   if (rw == IO::FRW::read) {
     std::cout << "Sigma basis: " << basis_config << "\n";
-    print_subGrid();
+    print_info();
   }
   return true;
 }

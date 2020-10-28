@@ -314,9 +314,10 @@ void calculateLifetimes(const IO::UserInputBlock &input,
                         const Wavefunction &wf) {
   std::cout << "\nLifetimes:\n";
 
-  input.checkBlock({"E1", "E2"});
-  auto doE1 = input.get("E1", true);
-  auto doE2 = input.get("E2", false);
+  input.checkBlock({"E1", "E2", "rpa", "StrucRadNorm"});
+  const auto doE1 = input.get("E1", true);
+  const auto doE2 = input.get("E2", false);
+  const auto rpaQ = input.get("rpa", true);
   if (doE1 && !doE2)
     std::cout << "Including E1 only.\n";
   if (!doE1 && doE2)
@@ -324,14 +325,28 @@ void calculateLifetimes(const IO::UserInputBlock &input,
 
   DiracOperator::E1 he1(*(wf.rgrid));
   DiracOperator::Ek he2(*(wf.rgrid), 2);
-  auto alpha = wf.alpha;
-  auto alpha3 = alpha * alpha * alpha;
-  auto alpha2 = alpha * alpha;
+  const auto alpha = wf.alpha;
+  const auto alpha3 = alpha * alpha * alpha;
+  const auto alpha2 = alpha * alpha;
   auto dVE1 = HF::ExternalField(&he1, wf.getHF());
   auto dVE2 = HF::ExternalField(&he2, wf.getHF());
 
-  auto to_s = PhysConst::time_s;
+  // Construct SR object:
+  std::unique_ptr<MBPT::StructureRad> sr(nullptr);
+  const auto srQ = input.get("StrucRadNorm", false);
+  if (srQ) {
+    std::cout << "Including Structure Radiation + Normalisation\n";
+    sr = std::make_unique<MBPT::StructureRad>(wf.basis, wf.en_coreval());
+  }
 
+  const auto to_s = PhysConst::time_s;
+
+  struct Data {
+    Data(const std::string &s, double t) : state(s), tau(t){};
+    std::string state;
+    double tau;
+  };
+  std::vector<Data> data;
   for (const auto &Fa : wf.valence) {
     std::cout << "\n" << Fa.symbol() << "\n";
     auto Gamma = 0.0;
@@ -340,10 +355,18 @@ void calculateLifetimes(const IO::UserInputBlock &input,
       for (const auto &Fn : wf.valence) {
         if (Fn.en >= Fa.en || he1.isZero(Fn.k, Fa.k))
           continue;
-        auto w = Fa.en - Fn.en;
-        dVE1.solve_TDHFcore(w, 40);
+        const auto w = Fa.en - Fn.en;
+        if (rpaQ)
+          dVE1.solve_TDHFcore(w, 40);
         auto d = he1.reducedME(Fn, Fa) + dVE1.dV(Fn, Fa);
-        auto g_n = (4.0 / 3) * w * w * w * d * d / (Fa.twojp1());
+        if (sr) {
+          // include SR.
+          const auto [tb, tbx] = sr->srTB(&he1, Fn, Fa);
+          const auto [c, cx] = sr->srC(&he1, Fn, Fa);
+          const auto [n, nx] = sr->norm(&he1, Fn, Fa);
+          d += (tb + c + n);
+        }
+        const auto g_n = (4.0 / 3) * w * w * w * d * d / (Fa.twojp1());
         Gamma += g_n;
         std::cout << "  E1 --> " << Fn.symbol() << ": ";
         printf("w=%7.5f, |d|=%7.5f, g=%10.4eau\n", w, std::abs(d),
@@ -354,10 +377,11 @@ void calculateLifetimes(const IO::UserInputBlock &input,
       for (const auto &Fn : wf.valence) {
         if (Fn.en >= Fa.en || he2.isZero(Fn.k, Fa.k))
           continue;
-        auto w = Fa.en - Fn.en;
-        dVE2.solve_TDHFcore(w, 40);
-        auto d = he2.reducedME(Fn, Fa) + dVE2.dV(Fn, Fa);
-        auto g_n = (1.0 / 15) * w * w * w * w * w * d * d / (Fa.twojp1());
+        const auto w = Fa.en - Fn.en;
+        if (rpaQ)
+          dVE2.solve_TDHFcore(w, 40);
+        const auto d = he2.reducedME(Fn, Fa) + dVE2.dV(Fn, Fa);
+        const auto g_n = (1.0 / 15) * w * w * w * w * w * d * d / (Fa.twojp1());
         Gamma += g_n * alpha2;
         std::cout << "  E2 --> " << Fn.symbol() << ": ";
         printf("w=%7.5f, |q|=%7.5f, g=%10.4eau\n", w, std::abs(d),
@@ -367,8 +391,15 @@ void calculateLifetimes(const IO::UserInputBlock &input,
 
     printf("Gamma = %10.4eau = %10.4e/s\n", Gamma * alpha3,
            Gamma * alpha3 / to_s);
-    printf("tau = %10.4es\n", to_s / alpha3 / Gamma);
+    const auto tau = to_s / alpha3 / Gamma;
+    printf("tau = %10.4es\n", tau);
+    data.emplace_back(Fa.symbol(true), tau * 1.0e9);
   }
+  std::cout << "\nLifetimes (summary), in ns:\n";
+  for (const auto &[s, t] : data) {
+    printf(" %9s  %10.4e\n", s.c_str(), t);
+  }
+  std::cout << "\n";
 }
 
 //******************************************************************************
@@ -425,14 +456,6 @@ generateOperator(std::string_view oper_name, const IO::UserInputBlock &input,
 
 //******************************************************************************
 //******************************************************************************
-
-// inline auto jointCheck(const std::vector<std::string> &in) {
-//   std::vector<std::string> check_list = {
-//       "radialIntegral", "printBoth", "onlyDiagonal", "units",   "rpa",
-//       "rpa_diagram",    "omega",     "A_vertex",     "b_vertex"};
-//   check_list.insert(check_list.end(), in.begin(), in.end());
-//   return check_list;
-// }
 
 //------------------------------------------------------------------------------
 std::unique_ptr<DiracOperator::TensorOperator>

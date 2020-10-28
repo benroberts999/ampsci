@@ -213,7 +213,8 @@ public: // const methods: "views" into WF object
   //! Forms + stores correlation potential Sigma
   void formSigma(const int nmin_core = 1, const bool form_matrix = true,
                  const double r0 = 1.0e-4, const double rmax = 30.0,
-                 const int stride = 4, const bool include_G = false,
+                 const int stride = 4, const bool each_valence = false,
+                 const bool include_G = false,
                  const std::vector<double> &lambdas = {},
                  const std::vector<double> &fk = {},
                  const std::string &fname = "", const bool FeynmanQ = false,

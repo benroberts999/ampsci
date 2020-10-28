@@ -50,7 +50,7 @@ Grid {
   Brueckner = false;
   n_min_core = 3;
   fitTo_cm;
-  lambda_k;
+  lambda_kappa;
 }
 
 // Spectrum

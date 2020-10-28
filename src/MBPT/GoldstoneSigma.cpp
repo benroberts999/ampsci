@@ -25,13 +25,7 @@ GoldstoneSigma::GoldstoneSigma(const HF::HartreeFock *const in_hf,
 
   std::cout << "\nCorrelation potential (Sigma^2): Goldstone\n";
 
-  // const auto fname =
-  //     atom == "" ? ""
-  //                : atom + "_" + std::to_string(p_gr->num_points) + ".SigmaG";
   const bool read_ok = read_write(fname, IO::FRW::read);
-
-  // if (valence.empty())
-  //   return; //?
 
   print_subGrid();
 
@@ -50,8 +44,6 @@ GoldstoneSigma::GoldstoneSigma(const HF::HartreeFock *const in_hf,
 
     std::cout << "Basis: " << DiracSpinor::state_config(m_holes) << "/"
               << DiracSpinor::state_config(m_excited) << "\n";
-
-    // form_Sigma(valence, fname);
   }
 } // namespace MBPT
 
@@ -63,10 +55,15 @@ void GoldstoneSigma::formSigma(int kappa, double en, int n) {
   // most of this is the same between each...?
 
   // already exists:
-  if (getSigmaIndex(n, kappa) < m_Sigma_kappa.size())
-    return;
+  const auto index = getSigmaIndex(n, kappa);
+  if (index < m_Sigma_kappa.size()) {
+    const auto [n2, k2, en2] = m_nk[index];
+    // already have this (exact) potential?
+    if (n == n2)
+      return;
+  }
 
-  m_nk.emplace_back(n, kappa);
+  m_nk.emplace_back(n, kappa, en);
   auto &Sigma = m_Sigma_kappa.emplace_back(m_subgrid_points, m_include_G);
 
   // if v.kappa > basis, then Ck angular factor won't exist!
