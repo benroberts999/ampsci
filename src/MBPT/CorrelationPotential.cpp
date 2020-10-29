@@ -11,6 +11,7 @@
 #include "Maths/LinAlg_MatrixVector.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <algorithm>
+#include <cassert>
 #include <cmath>
 #include <fstream>
 #include <iostream>
@@ -55,6 +56,68 @@ void CorrelationPotential::setup_subGrid(double rmin, double rmax) {
   }
 
   m_subgrid_points = m_subgrid_r.size();
+}
+
+//******************************************************************************
+std::size_t CorrelationPotential::getSigmaIndex(int n, int kappa) const {
+
+  //
+  // If n=0, find first Sigma of that kappa
+
+  assert(m_Sigma_kappa.size() == m_nk.size());
+  std::size_t index = 0;
+  for (const auto &[nn, kk, en] : m_nk) {
+    (void)en;
+    if (kk == kappa && (nn == n || n == 0))
+      break;
+    ++index;
+  }
+  const bool not_found = (index == m_nk.size());
+  if (not_found) {
+    // If not in list, return index for lowest n
+    // Return largest instead?
+    index = 0;
+    for (const auto &[nn, kk, en] : m_nk) {
+      (void)en;
+      if (kk == kappa)
+        break;
+      ++index;
+    }
+  }
+  return index;
+  // nb: will return  index = m_nk.size() if kappa not found
+}
+
+const GMatrix *CorrelationPotential::getSigma(int n, int kappa) const {
+  const auto is = getSigmaIndex(n, kappa);
+  return (is < m_Sigma_kappa.size()) ? &m_Sigma_kappa[is] : nullptr;
+}
+
+//******************************************************************************
+DiracSpinor CorrelationPotential::SigmaFv(const DiracSpinor &v) const {
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
+  // Find correct G matrix (corresponds to kappa_v), return Sigma|v>
+  // If m_Sigma_kappa doesn't exist, returns |0>
+
+  const auto is = getSigmaIndex(v.n, v.k);
+
+  // Aply lambda, if exists:
+  const auto lambda = is >= m_lambda_kappa.size() ? 1.0 : m_lambda_kappa[is];
+
+  if (is < m_Sigma_kappa.size())
+    return lambda == 1.0 ? act_G_Fv(m_Sigma_kappa[is], v)
+                         : lambda * act_G_Fv(m_Sigma_kappa[is], v);
+  return 0.0 * v;
+}
+
+//******************************************************************************
+void CorrelationPotential::scale_Sigma(int n, int kappa, double lambda) {
+  // XXX Careful; likely to be incorrect?? if given too-large n...
+  const auto is = getSigmaIndex(n, kappa);
+  if (is >= m_lambda_kappa.size()) {
+    m_lambda_kappa.resize(is + 1, 1.0);
+  }
+  m_lambda_kappa[is] = lambda;
 }
 
 //******************************************************************************
@@ -187,68 +250,6 @@ double CorrelationPotential::act_G_Fv_2(const DiracSpinor &Fa,
   }
 
   return aGb;
-}
-
-//******************************************************************************
-void CorrelationPotential::form_Sigma(const std::vector<double> &en_list,
-                                      const std::string &fname) {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
-
-  if (en_list.empty())
-    return;
-
-  m_Sigma_kappa.resize(en_list.size(), {m_subgrid_points, m_include_G});
-
-  // print_subGrid();
-
-  std::cout << "Forming correlation potential for:\n";
-  for (auto ki = 0ul; ki < en_list.size(); ki++) {
-    const auto kappa = Angular::kappaFromIndex(int(ki));
-
-    // if v.kappa > basis, then Ck angular factor won't exist!
-    auto tj = Angular::twojFromIndex(int(ki));
-    if (tj > m_yeh.Ck().max_tj())
-      continue;
-
-    printf("k=%2i at en=%8.5f.. ", kappa, en_list[ki]);
-    std::cout << std::flush;
-    this->fill_Sigma_k(&m_Sigma_kappa[ki], kappa, en_list[ki]);
-
-    // find lowest excited state, output <v|S|v> energy shift:
-    auto find_kappa = [=](const auto &a) { return a.k == kappa; };
-    const auto vk =
-        std::find_if(cbegin(m_excited), cend(m_excited), find_kappa);
-    if (vk != cend(m_excited)) {
-      printf("%.3f", *vk * SigmaFv(*vk) * PhysConst::Hartree_invcm);
-    }
-    std::cout << "\n";
-  }
-
-  // write to disk
-  if (fname != "")
-    read_write(fname, IO::FRW::write);
-}
-
-//******************************************************************************
-DiracSpinor CorrelationPotential::SigmaFv(const DiracSpinor &v) const {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
-  // Find correct G matrix (corresponds to kappa_v), return Sigma|v>
-  // If m_Sigma_kappa doesn't exist, returns |0>
-  const auto kappa_index = std::size_t(v.k_index());
-  if (kappa_index >= m_Sigma_kappa.size()) {
-    // std::cout << "Warning: Requested Sigma for state " << v.symbol()
-    //           << "; max kappa is "
-    //           << Angular::kappaFromIndex(int(m_Sigma_kappa.size()) - 1) <<
-    //           "\n";
-    return 0.0 * v;
-  }
-
-  // Aply lambda, if exists:
-  const auto lambda =
-      kappa_index >= m_lambda_kappa.size() ? 1.0 : m_lambda_kappa[kappa_index];
-
-  return lambda == 1.0 ? act_G_Fv(m_Sigma_kappa[kappa_index], v)
-                       : lambda * act_G_Fv(m_Sigma_kappa[kappa_index], v);
 }
 
 //******************************************************************************
@@ -390,6 +391,13 @@ bool CorrelationPotential::read_write(const std::string &fname,
   auto incl_g = rw == IO::FRW::write ? m_include_G : 0;
   rw_binary(iofs, rw, incl_g);
 
+  if (rw == IO::FRW::read) {
+    m_nk.resize(num_kappas);
+  }
+  for (auto &[n, k, en] : m_nk) {
+    rw_binary(iofs, rw, n, k, en);
+  }
+
   // Read/Write G matrices
   for (auto &Gk : m_Sigma_kappa) {
     for (auto i = 0ul; i < m_subgrid_points; ++i) {
@@ -406,7 +414,7 @@ bool CorrelationPotential::read_write(const std::string &fname,
   std::cout << "done.\n";
   if (rw == IO::FRW::read) {
     std::cout << "Sigma basis: " << basis_config << "\n";
-    print_subGrid();
+    print_info();
   }
   return true;
 }

@@ -109,6 +109,7 @@ public:
   void solveBrueckner(std::vector<DiracSpinor> *valence,
                       const MBPT::CorrelationPotential &Sigma2,
                       const bool print = true);
+  EpsIts hf_Brueckner(DiracSpinor &Fa, const MBPT::CorrelationPotential &Sigma);
 
   //! Calculates the HF core energy
   double calculateCoreEnergy() const;
@@ -172,7 +173,6 @@ private:
 
   EpsIts hf_valence_approx(DiracSpinor &phi, double eps_target);
   EpsIts hf_valence_refine(DiracSpinor &phi);
-  EpsIts hf_Brueckner(DiracSpinor &Fa, const MBPT::CorrelationPotential &Sigma);
 
   void hf_orbital(DiracSpinor &phi, double en, const std::vector<double> &vl,
                   const std::vector<double> &H_mag, const DiracSpinor &vx_phi,

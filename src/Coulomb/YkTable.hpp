@@ -54,6 +54,9 @@ public:
   //! Re-calculates y^k integrals involving single orbital Fn
   void update_y_ints(const DiracSpinor &Fn);
 
+  const std::vector<DiracSpinor> &get_a() const { return *m_a_orbs; }
+  const std::vector<DiracSpinor> &get_b() const { return *m_b_orbs; }
+
   //! Returns single y^k_ab(r) [by const ref]
   //! @details NOTE: Fa MUST be member of a_orbitals, Fb of b_or
   const std::vector<double> &get_yk_ab(const int k, const DiracSpinor &Fa,

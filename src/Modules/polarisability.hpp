@@ -70,6 +70,12 @@ double alpha_valence_sos(const DiracSpinor &Fv, const DiracSpinor &Fw,
                          const DiracOperator::E1 &he1, HF::ExternalField &dVE1,
                          double omega = 0.0);
 
+double alpha_v_SRN(const DiracSpinor &Fv,
+                   const std::vector<DiracSpinor> &spectrum, int n_max_sum,
+                   const std::vector<DiracSpinor> &hf_basis,
+                   const double en_core, const DiracOperator::E1 &he1,
+                   HF::ExternalField &dVE1, double omega);
+
 std::pair<double, double> beta_sos(const DiracSpinor &Fv, const DiracSpinor &Fw,
                                    const std::vector<DiracSpinor> &basis,
                                    const DiracOperator::E1 &he1,

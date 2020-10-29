@@ -3,6 +3,7 @@
 #include "Coulomb/YkTable.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
 #include "MBPT/GreenMatrix.hpp"
+#include "Physics/AtomData.hpp" //DiracSEnken
 #include "Wavefunction/DiracSpinor.hpp"
 #include <vector>
 class Grid;
@@ -32,7 +33,8 @@ struct Sigma_params {
   double w_ratio{1.5};
   bool screenCoulomb{false};
   bool holeParticle{false};
-  std::vector<double> fk{};
+
+  std::vector<double> fk{}; // this for Goldstone too..
 };
 
 struct rgrid_params {
@@ -46,6 +48,7 @@ struct wgrid_params {
   double w0;
   double wmax;
   double ratio;
+  // XX add exchange stride ?
 };
 
 //******************************************************************************
@@ -78,33 +81,60 @@ protected:
                        const std::vector<DiracSpinor> &basis,
                        const Sigma_params &sigp, const rgrid_params &subgridp);
 
+  // Try to "undelete" these??
   CorrelationPotential &operator=(const CorrelationPotential &) = delete;
   CorrelationPotential(const CorrelationPotential &) = delete;
 
 public:
   virtual ~CorrelationPotential() = default;
 
-  //! Forms Correlation potential matrix [called on construct]
-  //! @details Forms for each kappa at given energy. One energy must be given
-  //! per kappa.
-  void form_Sigma(const std::vector<double> &en_list = {},
-                  const std::string &out_fname = "");
+  // Calculates Sigma, for given kappa, energy, and stores.
+  // Also stored "lookup table" including n
+  // n may be zero (means)
+  // This should be virtual?
+  // nb: should do nothing if sigma already exists??
+  virtual void formSigma(int kappa, double en, int n = 0) = 0;
 
-  //! Stores scaling factors, lambda, for each kappa (Sigma -> lamda*Sigma)
-  void scale_Sigma(const std::vector<double> &lambda_kappa) {
-    m_lambda_kappa = lambda_kappa;
-  }
-
-  //! Prints the scaling factors to screen
-  void print_scaling() const;
-  //! Prints the sub-grid parameters to screen
-  void print_subGrid() const;
+  const GMatrix *getSigma(int n, int kappa) const;
 
   //! returns Spinor: Sigma|Fv>
   //! @details If Sigma for kappa_v doesn't exist, returns |0>. m_Sigma_kappa
   //! calculated at the energy given in 'form_Sigma' (or on construct)
   DiracSpinor SigmaFv(const DiracSpinor &Fv) const;
   DiracSpinor operator()(const DiracSpinor &Fv) const { return SigmaFv(Fv); }
+
+protected:
+  // // n=0 means get Sigma for lowest available n
+  std::size_t getSigmaIndex(int n, int kappa) const;
+
+  // //! Forms Correlation potential matrix [called on construct]
+  // //! @details Forms for each kappa at given energy. One energy must be given
+  // //! per kappa.
+  // void form_Sigma(const std::vector<DiracSpinor> &valence = {},
+  //                 const std::string &out_fname = "");
+
+public:
+  //! Stores scaling factors, lambda, for each kappa (Sigma -> lamda*Sigma)
+  void scale_Sigma(const std::vector<double> &lambda_kappa) {
+    m_lambda_kappa = lambda_kappa;
+  }
+
+  void scale_Sigma(int n, int kappa, double lambda);
+
+  //! Prints the scaling factors to screen
+  void print_scaling() const;
+  //! Prints the sub-grid parameters to screen
+  void print_subGrid() const;
+
+  void print_info() const {
+    print_subGrid();
+    if (!m_nk.empty())
+      std::cout << "Have Sigma for:\n";
+    for (const auto [n, k, en] : m_nk) {
+      std::cout << n << " " << AtomData::kappa_symbol(k) << " en=" << en
+                << "\n";
+    }
+  }
 
   //! Calculates <Fv|Sigma|Fw> from scratch, at Fv energy [full grid + fg+gg]
   //! @details Note: uses basis, so if reading Sigma from file, and no basis
@@ -114,29 +144,21 @@ public:
 
   int maxk() const { return m_maxk; }
 
-public:
-  void setup_subGrid(double rmin, double rmax);
-
-  // main routine, filles Sigma matrix using basis [Goldstone]
-  virtual void fill_Sigma_k(GMatrix *Gmat, const int kappa,
-                            const double en) = 0;
-
-  // Adds new |ket><bra| term to G; uses sub-grid
-  void addto_G(GMatrix *Gmat, const DiracSpinor &ket, const DiracSpinor &bra,
-               const double f = 1.0) const;
+  // make virtual??
+  // Read and writes Sigma (G) matrix to file
+  bool read_write(const std::string &fname, IO::FRW::RoW rw);
 
   // Acts Gmatirx (G) matrix onto Fv. Interpolates from sub-grid
   DiracSpinor act_G_Fv(const GMatrix &Gmat, const DiracSpinor &Fv) const;
   double act_G_Fv_2(const DiracSpinor &Fa, const GMatrix &Gmat,
                     const DiracSpinor &Fb) const;
 
-  // Read and writes Sigma (G) matrix to file
-  bool read_write(const std::string &fname, IO::FRW::RoW rw);
+protected:
+  void setup_subGrid(double rmin, double rmax);
 
-  // Project subgrid onto full grid
-  std::size_t ri_subToFull(std::size_t i) const;
-  // get value of dr on subgrid
-  double dr_subToFull(std::size_t i) const;
+  // Adds new |ket><bra| term to G; uses sub-grid
+  void addto_G(GMatrix *Gmat, const DiracSpinor &ket, const DiracSpinor &bra,
+               const double f = 1.0) const;
 
   std::vector<DiracSpinor> copy_holes(const std::vector<DiracSpinor> &basis,
                                       const std::vector<DiracSpinor> &core,
@@ -146,6 +168,11 @@ public:
                const std::vector<DiracSpinor> &core) const;
 
 public:
+  // Project subgrid onto full grid
+  std::size_t ri_subToFull(std::size_t i) const;
+  // get value of dr on subgrid
+  double dr_subToFull(std::size_t i) const;
+
   std::shared_ptr<const Grid> p_gr;
   // occupied (holes) and excited (virtual) states. Holes includes from n>=nmin
   const std::vector<DiracSpinor> m_holes, m_excited;
@@ -172,9 +199,12 @@ protected:
   std::vector<GMatrix> m_Sigma_kappa{};
   // Lambda (fitting factors) for each kappa
   std::vector<double> m_lambda_kappa{};
+  std::vector<AtomData::DiracSEnken> m_nk{};
 
   // Options for sub-grid, and which matrices to include
   const bool m_include_G;
+
+  bool same_as_fileQ{false};
 
   // Effective screening parameters
   std::vector<double> m_fk{}; // e.g., {0.72, 0.62, 0.83, 0.89, 0.94, 1.0};

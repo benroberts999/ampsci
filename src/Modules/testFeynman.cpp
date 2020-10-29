@@ -39,7 +39,7 @@ void testFeynman(const IO::UserInputBlock &input, const Wavefunction &wf) {
   const auto stride = input.get("stride", std::size_t(4));
   const MBPT::rgrid_params gridp{rmin, rmax, stride};
 
-  const MBPT::FeynmanSigma Sigma(wf.getHF(), wf.basis, sigp, gridp, {}, "NA");
+  const MBPT::FeynmanSigma Sigma(wf.getHF(), wf.basis, sigp, gridp, "NA");
 
   Sigma.print_subGrid();
 

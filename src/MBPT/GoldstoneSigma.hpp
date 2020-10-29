@@ -33,19 +33,23 @@ k is multipolarity [Coloulmb expansion], and
 \f$ de_{xyz} = e_v + e_x - e_y - e_z \f$
 
 */
-class GoldstoneSigma2 final : public CorrelationPotential {
+class GoldstoneSigma final : public CorrelationPotential {
 public:
-  GoldstoneSigma2(const HF::HartreeFock *const in_hf,
-                  const std::vector<DiracSpinor> &basis,
-                  const Sigma_params &sigp, const rgrid_params &subgridp,
-                  const std::vector<double> &en_list, const std::string &atom);
+  GoldstoneSigma(const HF::HartreeFock *const in_hf,
+                 const std::vector<DiracSpinor> &basis,
+                 const Sigma_params &sigp, const rgrid_params &subgridp,
+                 // const std::vector<DiracSpinor> &valence,
+                 const std::string &atom);
 
-  GoldstoneSigma2 &operator=(const GoldstoneSigma2 &) = delete;
-  GoldstoneSigma2(const GoldstoneSigma2 &) = delete;
-  ~GoldstoneSigma2() = default;
+  GoldstoneSigma &operator=(const GoldstoneSigma &) = delete;
+  GoldstoneSigma(const GoldstoneSigma &) = delete;
+  ~GoldstoneSigma() = default;
+
+  void formSigma(int kappa, double en, int n = 0) override final;
 
 protected:
-  void fill_Sigma_k(GMatrix *Gmat, const int kappa, const double en) override final;
+  // make static!? Or move to base class ? BASE!
+  void Sigma2(GMatrix *Gmat_D, GMatrix *Gmat_X, int kappa, double en);
 };
 
 } // namespace MBPT

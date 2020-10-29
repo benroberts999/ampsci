@@ -5,7 +5,7 @@
 #include "IO/FRW_fileReadWrite.hpp" //just for enum..
 #include "MBPT/CorrelationPotential.hpp"
 #include "MBPT/FeynmanSigma.hpp"
-#include "MBPT/GoldstoneSigma2.hpp"
+#include "MBPT/GoldstoneSigma.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/Interpolator.hpp"
 #include "Physics/AtomData.hpp"
@@ -723,56 +723,74 @@ void Wavefunction::formSpectrum(const SplineBasis::Parameters &params) {
 //******************************************************************************
 void Wavefunction::formSigma(
     const int nmin_core, const bool form_matrix, const double r0,
-    const double rmax, const int stride, const bool include_G,
-    const std::vector<double> &lambdas, const std::vector<double> &fk,
-    const std::string &fname, const bool FeynmanQ, const bool ScreeningQ,
+    const double rmax, const int stride, const bool each_valence,
+    const bool include_G, const std::vector<double> &lambdas,
+    const std::vector<double> &fk, const std::string &in_fname,
+    const std::string &out_fname, const bool FeynmanQ, const bool ScreeningQ,
     const bool holeParticleQ, const int lmax, const bool GreenBasis,
     const bool PolBasis, const double omre, double w0, double wratio) {
   if (valence.empty())
     return;
 
-  // Form list of energies for each kappa:
-  std::vector<double> en_list_kappa{};
-  if (form_matrix) {
-    const auto max_ki =
-        std::max_element(cbegin(valence), cend(valence), DiracSpinor::comp_ki)
-            ->k_index();
-    // for each kappa, find lowest valence (or basis) state energy:
-    for (int ki = 0; ki <= max_ki; ki++) {
-      // XXX Note: this assumes sorted (for each kappa)! Almost certainly true.
-      const auto find_ki = [=](const auto &a) { return a.k_index() == ki; };
-      auto vki = std::find_if(cbegin(valence), cend(valence), find_ki);
-      // if (vki == cend(valence)) {
-      //   vki = std::find_if(cbegin(excited), cend(excited), find_ki);
-      // }
-      if (vki != cend(valence) /*&& vki != cend(excited)*/) {
-        en_list_kappa.push_back(vki->en);
-      } else {
-        en_list_kappa.push_back(0.0);
-      }
-    }
-  }
+  /*
+      // XXX Re-factor
+      a) Make sub-block for Feynman, Goldstone Options
+      b) make sub-block for fit_to: e.g., fitTo = [6s+=31406;];
+  */
+  const std::string ext = FeynmanQ ? ".sigf" : ".sig2";
+  const auto ifname = in_fname == "" ? identity() + ext : in_fname + ext;
+  const auto ofname = out_fname == "" ? identity() + ext : out_fname + ext;
 
   const auto method =
       FeynmanQ ? MBPT::Method::Feynman : MBPT::Method::Goldstone;
+
   const auto sigp = MBPT::Sigma_params{
       method, nmin_core, include_G, lmax,       GreenBasis,    PolBasis,
       omre,   w0,        wratio,    ScreeningQ, holeParticleQ, fk};
+
   const auto subgridp = MBPT::rgrid_params{r0, rmax, std::size_t(stride)};
 
   // Correlaion potential matrix:
   switch (method) {
   case MBPT::Method::Goldstone:
-    m_Sigma = std::make_unique<MBPT::GoldstoneSigma2>(
-        m_pHF.get(), basis, sigp, subgridp, en_list_kappa, fname);
+    m_Sigma = std::make_unique<MBPT::GoldstoneSigma>(m_pHF.get(), basis, sigp,
+                                                     subgridp, ifname);
     break;
   case MBPT::Method::Feynman:
-    m_Sigma = std::make_unique<MBPT::FeynmanSigma>(
-        m_pHF.get(), basis, sigp, subgridp, en_list_kappa, fname);
+    m_Sigma = std::make_unique<MBPT::FeynmanSigma>(m_pHF.get(), basis, sigp,
+                                                   subgridp, ifname);
     break;
   }
 
-  m_Sigma->scale_Sigma(lambdas);
+  // This is for each valence state.... otherwise, just do for lowest??
+  if (form_matrix && !valence.empty()) {
+    if (each_valence) {
+      // calculate sigma for each valence state:
+      for (const auto &Fv : valence) {
+        m_Sigma->formSigma(Fv.k, Fv.en, Fv.n);
+      }
+    } else {
+      // calculate sigma for lowest n valence state of each kappa:
+      const auto max_ki = DiracSpinor::max_kindex(valence);
+      for (int ki = 0; ki <= max_ki; ++ki) {
+        auto Fv = std::find_if(cbegin(valence), cend(valence),
+                               [ki](auto f) { return f.k_index() == ki; });
+        if (Fv != cend(valence))
+          m_Sigma->formSigma(Fv->k, Fv->en, Fv->n);
+      }
+    }
+  }
+
+  if (!lambdas.empty()) {
+    std::cout << "Note: be careful order of input lambdas matches Sigma\n";
+    // If Sigma diverged from valence, may be diff order to valence...
+    // Better to make it explicit!
+    m_Sigma->scale_Sigma(lambdas);
+    m_Sigma->print_scaling();
+  }
+
+  if (out_fname != "false")
+    m_Sigma->read_write(ofname, IO::FRW::RoW::write);
 }
 
 //******************************************************************************
@@ -787,58 +805,50 @@ void Wavefunction::hartreeFockBrueckner(const bool print) {
 
 //******************************************************************************
 void Wavefunction::fitSigma_hfBrueckner(
-    const std::string &valence_list, const std::vector<double> &fit_energies) {
+    const std::string &, const std::vector<double> &fit_energies) {
   std::cout << "\nFitting Sigma for lowest valence states:\n";
 
   const auto max_its = 10;
   const auto eps_targ = 1.0e-7;
 
-  std::vector<double> lambdas(fit_energies.size(), 1.0);
-  valence.clear();
-  hartreeFockValence(valence_list, false);
-  const auto hf_val = valence; // copy
-  for (int i = 0; true; i++) {
-    valence.clear();
-    hartreeFockValence(valence_list, false);
-    m_Sigma->scale_Sigma(lambdas);
-    hartreeFockBrueckner(false);
+  // XXX Assume the 'fit_to' are in same order as valence!!
+  // Must be called after HF, before Bruckenr....
 
-    auto max_eps = 0.0;
-    for (auto ki = 0ul; ki < fit_energies.size(); ++ki) {
-      const auto match_ki = [=](const auto &v) {
-        return v.k_index() == int(ki);
-      };
-      const auto e_exp = fit_energies[ki];
-      const auto l_0 = lambdas[ki];
-      // find lowest valence state for this kappa
-      const auto v_ki = std::find_if(cbegin(valence), cend(valence), match_ki);
-      if (v_ki == cend(valence))
-        continue;
-      const auto vhf_ki = std::find_if(cbegin(hf_val), cend(hf_val), match_ki);
-      const auto ehf = vhf_ki->en;
-      const auto e0 = v_ki->en;
-      // E0 = E_hf + l_0 * sigma
-      // Eexp = E_hf + l * sigma
-      // => l = l0 * (1 + R)
-      // R = (Eexp - E0)/(E0-Ehf)
-      const auto r = (e_exp - e0) / (e0 - ehf);
-      const auto l = l_0 * (1.0 + r);
-      lambdas[ki] = std::clamp(l, 0.5, 1.5);
-      const auto eps = std::abs((e_exp - e0) / e_exp);
-      max_eps = std::max(max_eps, eps);
-    }
-    if (max_eps < eps_targ || i == max_its) {
-      std::cout << "converged to: " << max_eps << " [" << i << "]\n";
+  //
+  for (auto i = 0ul; i < fit_energies.size(); ++i) {
+    if (i >= valence.size())
       break;
+    const auto &Fv = valence[i];
+    const auto e_exp = fit_energies[i];
+    if (e_exp >= 0.0)
+      continue;
+
+    // std::cout << Fv.symbol() << " " << Fv.en * PhysConst::Hartree_invcm
+    //           << " -> " << e_exp * PhysConst::Hartree_invcm << ": ";
+
+    printf("%4s %7.0f [%7.0f] : ", Fv.shortSymbol().c_str(),
+           Fv.en * PhysConst::Hartree_invcm, e_exp * PhysConst::Hartree_invcm);
+    const double en_0 = Fv.en; // HF value
+    auto lambda = 1.0;
+    double eps = 1.0;
+    int its = 0;
+    for (; its < max_its; its++) {
+      auto Fv_l = Fv;
+      m_Sigma->scale_Sigma(Fv_l.n, Fv_l.k, lambda);
+      // nb: hf_Brueckner must start from HF... so, call on copy of Fv....
+      m_pHF->hf_Brueckner(Fv_l, *m_Sigma);
+      double en_l = Fv_l.en;
+      eps = std::abs((e_exp - en_l) / e_exp);
+      if (eps < eps_targ)
+        break;
+      const auto r = (e_exp - en_l) / (en_l - en_0);
+      lambda = std::clamp(lambda * (1.0 + r), 0.5, 1.5);
+      // std::cout << lambda << " " << Fv_l.en << "\n";
     }
+    printf("%.0e (%2i); lambda = %.4f\n", eps, its, lambda);
+    // std::cout << eps << " [" << its << "]" << lambda << "\n";
   }
-  for (const auto &l : lambdas) {
-    std::cout << l << ", ";
-  }
-  std::cout << "\n";
-  valence.clear();
-  hartreeFockValence(valence_list, false);
-  m_Sigma->scale_Sigma(lambdas);
+
   hartreeFockBrueckner(true);
 }
 

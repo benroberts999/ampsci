@@ -221,11 +221,12 @@ Basis {
 * For including correlations. 'basis' must exist to calculate Sigma, but not to read Sigma in from file.
 ```cpp
 Correlations {
-  io_file;        //[b] default = true (or [t]; see below)
+  read;           //[t] default = ""
+  write;          //[t] default = ""
   n_min_core;     //[i] default = 1
   energyShifts;   //[b] default = false
   Brueckner;      //[b] default = false
-  lambda_k;       //[r,r...] (list) default is blank.
+  lambda_kappa;   //[r,r...] (list) default is blank.
   fk;             //[r,r...] (list) default is blank.
   fitTo_cm;       //[r,r...] (list) default is blank.
   // Following are "sub-grid" options:
@@ -235,7 +236,8 @@ Correlations {
 }
 ```
 * Includes correlation corrections. note: splines must exist already
-* io_file: Read/write from/to file. Set to 'false' to calculate from scratch (and not write to file), true to read/write from/to default filename. Alternatively, put any text here to be a custom filename (e.g., io_file="new"; will read/write from/to new.Sigma -- useful for tests). Grids must match exactly when reading in from a file.
+* read/write: Read/write from/to file. Set to 'false' to calculate from scratch (and not write to file). By default, the file name is: "Atom".sig.
+  * Alternatively, put any text here to be a custom filename (e.g., read/write="Cs_new"; will read/write from/to Cs_new.sig). Don't include the '.sig' extension (uses sigf for Feynman method, sig2 for Goldstone). Grids must match exactly when reading in from a file.
   * If reading Sigma in from file, basis doesn't need to exist
 * n_min_core: minimum core n included in the Sigma calculation; lowest states often contribute little, so this speeds up the calculations
 * energyShifts: If true, will calculate the second-order energy shifts (from scratch, according to MBPT) - compares to <v|Sigma|v> if it exists
@@ -243,14 +245,14 @@ Correlations {
 * Brueckner: Construct Brueckner valence orbitals using correlation potential method (i.e., include correlations into wavefunctions and energies for valence states)
 * stride: Only calculates Sigma every nth point (Sigma is NxN matrix, so stride=4 leads to ~16x speed-up vs 1)
 * rmin/rmax: min/max points along radial Grid Sigma is calculated+stored.
-* lambda_k: Rescale Sigma -> lambda*Sigma. One lambda for each kappa. If not given, assumed to be 1.
+* lambda_kappa: Rescale Sigma -> lambda*Sigma. One lambda for each kappa. If not given, assumed to be 1.
   * Note: Lambda's are not written/read to file, so these must be given (if required) even when reading Sigma from disk
 * fk: Effective screening factors; only used for 2nd-order Goldstone method
   * Note: Included directly into Sigma
   * e.g., for Cs: fk = 0.72, 0.62, 0.83, 0.89, 0.94, 1.0;
-* fitTo_cm: Provide list of energies (lowest valence states for each kappa); Sigma for each kappa will be automatically re-scaled to exactly reproduce these. Give as binding energies in inverse cm! It will print the lambda_k's that it calculated
+* fitTo_cm: Provide list of energies (lowest valence states for each kappa); Sigma for each kappa will be automatically re-scaled to exactly reproduce these. Give as binding energies in inverse cm! It will print the lambda_kappa's that it calculated
   * e.g., fitTo_cm = -31406.5, -20228.2, -19674.1; will fit for the lowest s & p states for Cs
-  * Will over-write lambda_k
+  * Will over-write lambda_kappa
   * -43487.11, -28583.45, -28583.11, -12204.03, -12203.99, -6856.91, -6856.91; // Li
   * -41449.45, -24493.28, -24476.08, -12276.56, -12276.61, -6862.53, -6862.53; // Na
   * -35009.81, -22024.63, -21966.92, -13472.83, -13475.13, -6881.96, -6881.96; // K

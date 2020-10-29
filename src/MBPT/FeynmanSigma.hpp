@@ -47,18 +47,17 @@ class FeynmanSigma final : public CorrelationPotential {
 public:
   FeynmanSigma(const HF::HartreeFock *const in_hf,
                const std::vector<DiracSpinor> &basis, const Sigma_params &sigp,
-               const rgrid_params &subgridp, const std::vector<double> &en_list,
+               const rgrid_params &subgridp,
+               // const std::vector<DiracSpinor> &valence,
                const std::string &atom);
 
   FeynmanSigma &operator=(const FeynmanSigma &) = delete;
   FeynmanSigma(const FeynmanSigma &) = delete;
   ~FeynmanSigma() = default;
 
-protected:
-  // Fills the correlation potential for given kappa
-  void fill_Sigma_k(GMatrix *Sigma, const int kappa,
-                    const double en) override final;
+  void formSigma(int kappa, double en, int n = 0) override final;
 
+protected:
 public:
   //!@brief
   // Calculates (radial) Hartree-Fock Greens function G_kappa(er + i*ei).
