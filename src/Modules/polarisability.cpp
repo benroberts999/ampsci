@@ -2,10 +2,8 @@
 #include "DiracOperator/Operators.hpp"
 #include "HF/ExternalField.hpp"
 #include "IO/UserInput.hpp"
-// #include "MBPT/CorrelationPotential.hpp"
+#include "MBPT/StructureRad.hpp"
 #include "Wavefunction/Wavefunction.hpp"
-// #include <algorithm>
-// #include <cmath>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -17,10 +15,13 @@ void polarisability(const IO::UserInputBlock &input, const Wavefunction &wf) {
 
   std::cout << "\nDipole polarisability:\n";
 
-  input.checkBlock({"rpa", "omega", "transition", "omega_max", "omega_steps"});
+  input.checkBlock({"rpa", "omega", "transition", "omega_max", "omega_steps",
+                    "StrucRadNorm"});
 
   const auto rpaQ = input.get("rpa", true);
   const auto omega = input.get("omega", 0.0);
+
+  const auto srQ = input.get("StrucRadNorm", false);
 
   // Generare E1 operator and TDHF object:
   const auto he1 = DiracOperator::E1(*wf.rgrid);
@@ -46,6 +47,17 @@ void polarisability(const IO::UserInputBlock &input, const Wavefunction &wf) {
     const auto av_sos = alpha_valence_sos(Fv, wf.spectrum, he1, dVE1, omega);
     printf("%4s: %9.3f  %9.3f", Fv.shortSymbol().c_str(), av_tdhf, av_sos);
     printf("  =  %9.3f  %9.3f\n", ac_tdhf + av_tdhf, ac_sos + av_sos);
+  }
+
+  if (srQ) {
+    std::cout << "\nIncluding Structure Radiation + Normalisation\n"
+              << std::flush;
+    for (const auto Fv : wf.valence) {
+      std::cout << Fv.symbol() << "\n";
+      const auto delta_n_max_sum = 2;
+      alpha_v_SRN(Fv, wf.spectrum, delta_n_max_sum, wf.basis, wf.en_coreval(),
+                  he1, dVE1, omega);
+    }
   }
 
   // **************
@@ -192,8 +204,6 @@ double alpha_valence_sos(const DiracSpinor &Fv,
   auto alpha_v = 0.0;
   const auto f = (-2.0 / 3.0) / (Fv.twoj() + 1);
 
-  // core part: sum_{n,c} |<n|d|c>|^2, n excited states, c core states
-
   for (const auto &Fn : basis) {
     // if (wf.isInCore(Fn.n, Fn.k))
     //   continue; // if core(HF) = core(basis), these cancel excactly
@@ -206,6 +216,71 @@ double alpha_valence_sos(const DiracSpinor &Fv,
   }
 
   return f * alpha_v;
+}
+
+//------------------------------------------------------------------------------
+double alpha_v_SRN(const DiracSpinor &Fv,
+                   const std::vector<DiracSpinor> &spectrum,
+                   int delta_n_max_sum,
+                   const std::vector<DiracSpinor> &hf_basis,
+                   const double en_core, const DiracOperator::E1 &he1,
+                   HF::ExternalField &dVE1, double omega) {
+
+  // XXX Basis should be HF basis, NOT spectrum
+  // "spectrum" may be valence or spectrum
+
+  auto alpha_v0 = 0.0;
+  auto alpha_v1 = 0.0;
+  auto alpha_v2 = 0.0;
+  const auto f = (-2.0 / 3.0) / (Fv.twoj() + 1);
+
+  // std::unique_ptr<MBPT::StructureRad> sr(nullptr);
+  // XXX nb: {3,30} no good for < Cs...
+  auto sr = MBPT::StructureRad(hf_basis, en_core, {1, 99});
+
+  std::cout << "       d0        dEn      |  a0(n)     da(HF)    da(RPA)  |  "
+               "%(HF)     %(RPA)\n";
+  for (const auto &Fn : spectrum) {
+    if (Fn.en < en_core)
+      continue;
+    // Only do for terms with small delta_n
+    if (std::abs(Fn.n - Fv.n) > delta_n_max_sum)
+      continue;
+    if (he1.isZero(Fv.k, Fn.k))
+      continue;
+    const auto d0 = he1.reducedME(Fn, Fv) + dVE1.dV(Fn, Fv);
+
+    const auto [tb, tbx] = sr.srTB(&he1, Fn, Fv, 0.0, &dVE1);
+    const auto [c, cx] = sr.srC(&he1, Fn, Fv, &dVE1);
+    const auto [n, nx] = sr.norm(&he1, Fn, Fv, &dVE1);
+    const auto d1 = d0 + (tb + c + n);
+    const auto d2 = d0 + (tbx + cx + nx);
+
+    const auto de = Fv.en - Fn.en;
+    const auto da_v0 = f * std::abs(d0 * d0) * de / (de * de - omega * omega);
+    const auto da_v1 = f * std::abs(d1 * d1) * de / (de * de - omega * omega);
+    const auto da_v2 = f * std::abs(d2 * d2) * de / (de * de - omega * omega);
+    alpha_v0 += da_v0;
+    alpha_v1 += da_v1;
+    alpha_v2 += da_v2;
+
+    printf(" %4s %9.2e %9.2e | %9.2e %9.2e %9.2e | %8.1e%% %8.1e%%\n",
+           Fn.shortSymbol().c_str(), d0, de, da_v0, da_v1 - da_v0,
+           da_v2 - da_v0, (da_v1 - da_v0) / da_v0 * 100,
+           (da_v2 - da_v0) / da_v0 * 100);
+    std::cout << std::flush;
+  }
+
+  const auto srn = (alpha_v1 - alpha_v0);
+  const auto srn_x = (alpha_v2 - alpha_v0);
+
+  std::cout << "a(main): " << alpha_v0 << "\n";
+  std::cout << "StrucRad+Norm:\n";
+  std::cout << "No RPA:  " << srn << " " << srn / alpha_v0 << "\n";
+  std::cout << "w/ RPA:  " << srn_x << " " << srn_x / alpha_v0 << "\n";
+  std::cout << std::flush;
+
+  return srn;
 }
 
 //------------------------------------------------------------------------------
