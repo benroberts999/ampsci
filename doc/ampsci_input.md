@@ -221,7 +221,8 @@ Basis {
 * For including correlations. 'basis' must exist to calculate Sigma, but not to read Sigma in from file.
 ```cpp
 Correlations {
-  io_file;        //[b] default = true (or [t]; see below)
+  read;           //[t] default = ""
+  write;          //[t] default = ""
   n_min_core;     //[i] default = 1
   energyShifts;   //[b] default = false
   Brueckner;      //[b] default = false
@@ -235,7 +236,8 @@ Correlations {
 }
 ```
 * Includes correlation corrections. note: splines must exist already
-* io_file: Read/write from/to file. Set to 'false' to calculate from scratch (and not write to file), true to read/write from/to default filename. Alternatively, put any text here to be a custom filename (e.g., io_file="new"; will read/write from/to new.Sigma -- useful for tests). Grids must match exactly when reading in from a file.
+* read/write: Read/write from/to file. Set to 'false' to calculate from scratch (and not write to file). By default, the file name is: "Atom".sig.
+  * Alternatively, put any text here to be a custom filename (e.g., read/write="Cs_new"; will read/write from/to Cs_new.sig). Don't include the '.sig' extension (uses sigf for Feynman method, sig2 for Goldstone). Grids must match exactly when reading in from a file.
   * If reading Sigma in from file, basis doesn't need to exist
 * n_min_core: minimum core n included in the Sigma calculation; lowest states often contribute little, so this speeds up the calculations
 * energyShifts: If true, will calculate the second-order energy shifts (from scratch, according to MBPT) - compares to <v|Sigma|v> if it exists

@@ -725,10 +725,10 @@ void Wavefunction::formSigma(
     const int nmin_core, const bool form_matrix, const double r0,
     const double rmax, const int stride, const bool each_valence,
     const bool include_G, const std::vector<double> &lambdas,
-    const std::vector<double> &fk, const std::string &fname,
-    const bool FeynmanQ, const bool ScreeningQ, const bool holeParticleQ,
-    const int lmax, const bool GreenBasis, const bool PolBasis,
-    const double omre, double w0, double wratio) {
+    const std::vector<double> &fk, const std::string &in_fname,
+    const std::string &out_fname, const bool FeynmanQ, const bool ScreeningQ,
+    const bool holeParticleQ, const int lmax, const bool GreenBasis,
+    const bool PolBasis, const double omre, double w0, double wratio) {
   if (valence.empty())
     return;
 
@@ -737,7 +737,9 @@ void Wavefunction::formSigma(
       a) Make sub-block for Feynman, Goldstone Options
       b) make sub-block for fit_to: e.g., fitTo = [6s+=31406;];
   */
-  const std::string ext = FeynmanQ ? ".SigmaF" : ".SigmaG";
+  const std::string ext = FeynmanQ ? ".sigf" : ".sig2";
+  const auto ifname = in_fname == "" ? identity() + ext : in_fname + ext;
+  const auto ofname = out_fname == "" ? identity() + ext : out_fname + ext;
 
   const auto method =
       FeynmanQ ? MBPT::Method::Feynman : MBPT::Method::Goldstone;
@@ -752,11 +754,11 @@ void Wavefunction::formSigma(
   switch (method) {
   case MBPT::Method::Goldstone:
     m_Sigma = std::make_unique<MBPT::GoldstoneSigma>(m_pHF.get(), basis, sigp,
-                                                     subgridp, fname + ext);
+                                                     subgridp, ifname);
     break;
   case MBPT::Method::Feynman:
     m_Sigma = std::make_unique<MBPT::FeynmanSigma>(m_pHF.get(), basis, sigp,
-                                                   subgridp, fname + ext);
+                                                   subgridp, ifname);
     break;
   }
 
@@ -787,8 +789,8 @@ void Wavefunction::formSigma(
     m_Sigma->print_scaling();
   }
 
-  if (fname != "")
-    m_Sigma->read_write(fname + ext, IO::FRW::RoW::write);
+  if (out_fname != "false")
+    m_Sigma->read_write(ofname, IO::FRW::RoW::write);
 }
 
 //******************************************************************************

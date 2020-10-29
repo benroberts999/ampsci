@@ -217,12 +217,13 @@ int main(int argc, char *argv[]) {
 
   // Correlations: read in options
   const auto Sigma_ok = input.check(
-      "Correlations",
-      {"Brueckner",     "energyShifts", "n_min_core",   "fitTo_cm",
-       "lambda_kappa",  "fk",           "io_file",      "rmin",
-       "rmax",          "stride",       "each_valence", "Feynman",
-       "screening",     "holeParticle", "lmax",         "basis_for_Green",
-       "basis_for_pol", "real_omega",   "imag_omega",   "include_G"});
+      "Correlations", {"Brueckner",  "energyShifts",    "n_min_core",
+                       "fitTo_cm",   "lambda_kappa",    "fk",
+                       "read",       "write",           "rmin",
+                       "rmax",       "stride",          "each_valence",
+                       "Feynman",    "screening",       "holeParticle",
+                       "lmax",       "basis_for_Green", "basis_for_pol",
+                       "real_omega", "imag_omega",      "include_G"});
   const bool do_energyShifts = input.get("Correlations", "energyShifts", false);
   const bool do_brueckner = input.get("Correlations", "Brueckner", false);
   const auto n_min_core = input.get("Correlations", "n_min_core", 1);
@@ -265,13 +266,15 @@ int main(int argc, char *argv[]) {
   }
 
   // Read/write sigma matrix to file:
-  const auto sigma_io = input.get("Correlations", "io_file", true);
-  auto sigma_file =
-      input.get<std::string>("Correlations", "io_file", wf.identity());
-  if (sigma_file == "true")
-    sigma_file = wf.identity();
-  else if (!sigma_io)
-    sigma_file = "";
+  const auto sigma_read = input.get<std::string>("Correlations", "read", "");
+  const auto sigma_write = input.get<std::string>("Correlations", "write", "");
+  // const auto sigma_io = input.get("Correlations", "io_file", true);
+  // auto sigma_file =
+  //     input.get<std::string>("Correlations", "io_file", wf.identity());
+  // if (sigma_file == "true")
+  //   sigma_file = wf.identity();
+  // else if (!sigma_io)
+  //   sigma_file = "";
 
   // To fit Sigma to energies:
   auto fit_energies =
@@ -286,7 +289,7 @@ int main(int argc, char *argv[]) {
   if ((do_energyShifts || do_brueckner) && Sigma_ok) {
     IO::ChronoTimer t("Sigma");
     wf.formSigma(n_min_core, do_brueckner, sigma_rmin, sigma_rmax, sigma_stride,
-                 each_valence, include_G, lambda_k, fk, sigma_file,
+                 each_valence, include_G, lambda_k, fk, sigma_read, sigma_write,
                  sigma_Feynman, sigma_Screening, hole_particle, sigma_lmax,
                  GreenBasis, PolBasis, sigma_omre, w0, wratio);
   }
