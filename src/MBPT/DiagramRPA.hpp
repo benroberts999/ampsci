@@ -51,9 +51,10 @@ public:
   }
 
 private:
-  const int m_k;    // rank
-  const int m_pi;   // parity (+/-1)
-  const int m_imag; // not used?
+  const DiracOperator::TensorOperator *const m_h; //??
+  const int m_k;                                  // rank
+  const int m_pi;                                 // parity (+/-1)
+  const int m_imag;                               // not used?
   std::vector<DiracSpinor> holes{};
   std::vector<DiracSpinor> excited{};
   double m_omega = 0.0;
@@ -62,6 +63,7 @@ private:
   const int max_its = 250;
 
   // t0's never change
+  // NO! They change if omega is updated (frequency dependent operator!)
   std::vector<std::vector<double>> t0am{};
   std::vector<std::vector<double>> t0ma{};
   // t's updated each rpa_core itteration
@@ -83,6 +85,11 @@ private:
 
   void fill_W_matrix(const DiracOperator::TensorOperator *const h);
   void setup_ts(const DiracOperator::TensorOperator *const h);
+
+public:
+  DiagramRPA &operator=(const DiagramRPA &) = delete;
+  DiagramRPA(const DiagramRPA &) = default;
+  ~DiagramRPA() = default;
 };
 
 } // namespace MBPT

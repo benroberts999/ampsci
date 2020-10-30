@@ -110,7 +110,7 @@ public:
   }
 
   void updateFrequency(const double omega) override final {
-    m_constant = -2.0 / (m_alpha * omega);
+    m_constant = std::abs(omega) > 1.0e-10 ? -2.0 / (m_alpha * omega) : 1.0;
   }
 
 private:

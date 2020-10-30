@@ -31,7 +31,7 @@ DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
                        const std::vector<DiracSpinor> &basis,
                        const std::vector<DiracSpinor> &core,
                        const std::string &atom)
-    : m_k(h->rank()), m_pi(h->parity()), m_imag(h->imaginaryQ()) {
+    : m_h(h), m_k(h->rank()), m_pi(h->parity()), m_imag(h->imaginaryQ()) {
 
   // Set up basis:
   for (const auto &Fi : basis) {
@@ -66,7 +66,7 @@ DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
 //******************************************************************************
 DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
                        const DiagramRPA *const drpa)
-    : m_k(h->rank()), m_pi(h->parity()), m_imag(h->imaginaryQ()) {
+    : m_h(h), m_k(h->rank()), m_pi(h->parity()), m_imag(h->imaginaryQ()) {
   //
   if (m_k != drpa->m_k || m_pi != drpa->m_pi) {
     std::cerr << "\nFAIL21 in DiagramRPA: Cannot use 'eat' constructor for "
@@ -275,6 +275,9 @@ void DiagramRPA::setup_ts(const DiracOperator::TensorOperator *const h) {
   if (holes.empty() || excited.empty())
     return;
 
+  t0am.clear();
+  t0ma.clear();
+
   // Calc t0 (and setup t)
   for (const auto &Fa : holes) {
     std::vector<double> t0a_m;
@@ -349,6 +352,11 @@ void DiagramRPA::rpa_core(const double omega, const bool print) {
 
   if (holes.empty() || excited.empty())
     return;
+
+  if (m_h->freqDependantQ) {
+    // m_h->updateFrequency(m_omega); // Cant, is const. must do outside
+    setup_ts(m_h);
+  }
 
   if (print) {
     printf("RPA(D) (w=%.3f): ", m_omega);
