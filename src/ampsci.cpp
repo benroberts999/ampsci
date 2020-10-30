@@ -265,16 +265,14 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  // Read/write sigma matrix to file:
-  const auto sigma_read = input.get<std::string>("Correlations", "read", "");
-  const auto sigma_write = input.get<std::string>("Correlations", "write", "");
-  // const auto sigma_io = input.get("Correlations", "io_file", true);
-  // auto sigma_file =
-  //     input.get<std::string>("Correlations", "io_file", wf.identity());
-  // if (sigma_file == "true")
-  //   sigma_file = wf.identity();
-  // else if (!sigma_io)
-  //   sigma_file = "";
+  // Read/write Sigma to file:
+  auto sigma_write = input.get<std::string>("Correlations", "write", "");
+  // By default, try to read from write file (if it exists)
+  const auto sigma_read =
+      input.get<std::string>("Correlations", "read", sigma_write);
+  // don't write to default filename when reading from another file
+  if (sigma_read != "" && sigma_write == "")
+    sigma_write = "false";
 
   // To fit Sigma to energies:
   auto fit_energies =

@@ -35,7 +35,6 @@ FeynmanSigma::FeynmanSigma(const HF::HartreeFock *const in_hf,
                            const std::vector<DiracSpinor> &basis,
                            const Sigma_params &sigp,
                            const rgrid_params &subgridp,
-                           // const std::vector<DiracSpinor> &valence,
                            const std::string &fname)
     : CorrelationPotential(in_hf, basis, sigp, subgridp),
       m_screen_Coulomb(sigp.screenCoulomb),
@@ -62,9 +61,7 @@ FeynmanSigma::FeynmanSigma(const HF::HartreeFock *const in_hf,
   const bool read_ok = read_write(fname, IO::FRW::read);
 
   if (!read_ok) {
-    // Extand 6j and Ck
-    m_6j.fill(m_maxk);
-    m_yeh.extend_Ck(m_maxk);
+
     prep_Feynman();
   }
 }
@@ -85,6 +82,18 @@ void FeynmanSigma::formSigma(int kappa, double en, int n) {
       return;
   }
   // XXX Need to read/write QPQ etc!!! for this to work ?
+  // Temporary solution:
+  if (m_qpq_wk.size() == 0) {
+    prep_Feynman();
+  }
+
+  if (p_hf->get_Breit() != nullptr) {
+    // Breit was included into HF; we should not do this!
+    std::cout
+        << "\nWARNING: Trying to calculate Sigma in Feynman method when Breit "
+           "is included will result in incorrect results! Calculate Sigma "
+           "first (without Breit), then you may include Breit\n";
+  }
 
   m_nk.emplace_back(n, kappa, en);
   auto &Sigma = m_Sigma_kappa.emplace_back(m_subgrid_points, m_include_G);
@@ -150,66 +159,11 @@ void FeynmanSigma::formSigma(int kappa, double en, int n) {
 }
 
 //******************************************************************************
-//******************************************************************************
-// void FeynmanSigma::fill_Sigma_k(GMatrix *Sigma, const int kappa,
-//                                 const double en) {
-//   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
-//
-//   // Find lowest "valence" state from the basis (for energy shift)
-//   const auto find_kappa = [=](const auto &f) { return f.k == kappa; };
-//   const auto Fk = std::find_if(cbegin(m_excited), cend(m_excited),
-//   find_kappa);
-//
-//   // Direct:
-//
-//   if (m_print_each_k) {
-//     // TEMPORARY: Print each k for direct part: for testing
-//     std::cout << "\n";
-//     const auto max_k = std::min(m_maxk, m_k_cut);
-//     for (int k = 0; k <= max_k; ++k) {
-//       const auto Sigma_k = FeynmanDirect(kappa, en, k);
-//
-//       // Print out the direct energy shift:
-//       if (Fk != cend(m_excited)) {
-//         const auto deD = *Fk * act_G_Fv(Sigma_k, *Fk);
-//         printf(" k=%i de(k)=%9.3f \n", k, deD * PhysConst::Hartree_invcm);
-//         std::cout << std::flush;
-//       }
-//
-//       *Sigma += Sigma_k;
-//     }
-//   } else {
-//     *Sigma = FeynmanDirect(kappa, en);
-//   }
-//
-//   // Print out the direct energy shift:
-//   if (Fk != cend(m_excited)) {
-//     const auto deD = *Fk * act_G_Fv(*Sigma, *Fk);
-//     printf("de= %.3f", deD * PhysConst::Hartree_invcm);
-//     // printf("de= %.4f", deD);
-//     std::cout << std::flush;
-//   }
-//
-//   const auto exch = m_ex_method == ExchangeMethod::none
-//                         ? 0.0 * *Sigma
-//                         : m_ex_method == ExchangeMethod::Goldstone
-//                               ? Exchange_Goldstone(kappa, en)
-//                               : m_ex_method == ExchangeMethod::w1
-//                                     ? FeynmanEx_1(kappa, en)
-//                                     : FeynmanEx_w1w2(kappa, en);
-//
-//   // Print out the exchange energy shift:
-//   if (Fk != cend(m_excited)) {
-//     const auto deX = *Fk * act_G_Fv(exch, *Fk);
-//     printf(" + %.3f = ", deX * PhysConst::Hartree_invcm);
-//     // printf(" + %.5f = ", deX);
-//   }
-//
-//   *Sigma += exch;
-// }
-
-//******************************************************************************
 void FeynmanSigma::prep_Feynman() {
+
+  // Extand 6j and Ck
+  m_6j.fill(m_maxk);
+  m_yeh.extend_Ck(m_maxk);
 
   if (m_screen_Coulomb)
     std::cout << "Including Coulomb screening\n";
