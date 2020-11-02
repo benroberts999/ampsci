@@ -26,9 +26,9 @@ void HFAnomaly(const IO::UserInputBlock &input, const Wavefunction &wf) {
   const auto rpa = input.get("rpa", false);
   const auto Alist = input.get_list("A", std::vector<int>{});
 
-  const auto sub_input = input.subBlock("MatrixElements::hfs",
-                                        {"mu", "I", "rrms", "parity", "l", "gl",
-                                         "mu1", "gl1", "l1", "l2", "I1", "I2"});
+  const auto sub_input =
+      input.subBlock("hfs", {"mu", "I", "rrms", "parity", "l", "gl", "mu1",
+                             "gl1", "l1", "l2", "I1", "I2"});
   const auto point_in = sub_input.copy_with("F(r)=pointlike");
 
   const auto ball_in = sub_input.copy_with("F(r)=ball");
@@ -115,12 +115,9 @@ void HFAnomaly(const IO::UserInputBlock &input, const Wavefunction &wf) {
     wfA.hartreeFockValence(DiracSpinor::state_config(wf.valence));
     wfA.basis = wf.basis; // OK??
 
-    const auto hpt2 = generateOperator(
-        {"MatrixElements::hfs", "F(r)=pointlike;"}, wfA, false);
-    const auto hbl2 =
-        generateOperator({"MatrixElements::hfs", "F(r)=ball;"}, wfA, false);
-    const auto hsp2 = generateOperator(
-        {"MatrixElements::hfs", "F(r)=VolotkaBW;"}, wfA, false);
+    const auto hpt2 = generateOperator({"hfs", "F(r)=pointlike;"}, wfA, false);
+    const auto hbl2 = generateOperator({"hfs", "F(r)=ball;"}, wfA, false);
+    const auto hsp2 = generateOperator({"hfs", "F(r)=VolotkaBW;"}, wfA, false);
 
     std::unique_ptr<MBPT::DiagramRPA> rpap2{nullptr}, rpab2{nullptr},
         rpas2{nullptr};
@@ -441,13 +438,14 @@ void calculateBohrWeisskopf(const IO::UserInputBlock &input,
                             const Wavefunction &wf) {
   using namespace DiracOperator;
 
-  input.checkBlock({"rpa", "rpa_diagram", "screening", "mu", "I", "rrms",
-                    "F(r)", "parity", "l", "gl", "mu1", "gl1", "l1", "l2", "I1",
-                    "I2", "printF"});
+  input.checkBlock({"rpa", "rpa_diagram", "screening", "hfs_options"});
 
-  IO::UserInputBlock point_in("MatrixElements::hfs", input);
-  IO::UserInputBlock ball_in("MatrixElements::hfs", input);
-  IO::UserInputBlock BW_in("MatrixElements::hfs", input);
+  const auto h_options = IO::UserInputBlock(
+      "hfs_options", input.get<std::string>("hfs_options", ""));
+
+  IO::UserInputBlock point_in("hfs", h_options);
+  IO::UserInputBlock ball_in("hfs", h_options);
+  IO::UserInputBlock BW_in("hfs", h_options);
   point_in.add("F(r)=pointlike");
   ball_in.add("F(r)=ball");
   if (wf.Anuc() % 2 == 0)
