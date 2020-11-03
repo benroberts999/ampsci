@@ -15,6 +15,7 @@ class HartreeFock;
 class Breit;
 
 enum class dPsiType { X, Y };
+enum class StateType { bra, ket }; // lhs, rhs
 
 //! @brief
 //! Uses time-dependent Hartree-Fock method to include core-polarisation
@@ -126,11 +127,13 @@ public:
   DiracSpinor
   solve_dPsi(const DiracSpinor &Fv, const double omega, dPsiType XorY,
              const int kappa_beta,
-             const MBPT::CorrelationPotential *const Sigma = nullptr) const;
+             const MBPT::CorrelationPotential *const Sigma = nullptr,
+             StateType st = StateType::ket) const;
   //! Forms \delta Psi_v for valence state Fv for all kappas (see solve_dPsi)
   std::vector<DiracSpinor>
   solve_dPsis(const DiracSpinor &Fv, const double omega, dPsiType XorY,
-              const MBPT::CorrelationPotential *const Sigma = nullptr) const;
+              const MBPT::CorrelationPotential *const Sigma = nullptr,
+              StateType st = StateType::ket) const;
 
   //! @brief Writes dPsi (f-component) to textfile
   void print(const std::string &ofname = "dPsi.txt") const;

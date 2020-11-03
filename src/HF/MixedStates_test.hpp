@@ -90,14 +90,20 @@ bool MixedStates(std::ostream &obuff) {
     std::string worst_set{};
     HF::ExternalField dv(&h, wf.getHF());
     dv.solve_TDHFcore(0.0, max_its);
+
+    // to test the .get() X,Y's
+    HF::ExternalField dPsi(&h, wf.getHF());
+    dPsi.solve_TDHFcore(0.0, 1); // 1 it; no dV, but solve for dPsi
+
     int count = 0;
     for (const auto Fv : wf.valence) {
       for (const auto &Fm : wf.valence) {
         if (Fm == Fv || h.isZero(Fm.k, Fv.k))
           continue;
 
-        auto Xb = dv.solve_dPsi(Fv, 0.0, HF::dPsiType::X, Fm.k);
-        auto Yb = dv.solve_dPsi(Fv, 0.0, HF::dPsiType::Y, Fm.k);
+        const auto Xb = dv.solve_dPsi(Fv, 0.0, HF::dPsiType::X, Fm.k);
+        const auto Yb = dv.solve_dPsi(Fv, 0.0, HF::dPsiType::Y, Fm.k, nullptr,
+                                      HF::StateType::bra);
         const auto h_mv = h.reducedME(Fm, Fv) + dv.dV(Fm, Fv);
         const auto lhs = Fm * Xb;
         const auto rhs = h_mv / (Fv.en - Fm.en);

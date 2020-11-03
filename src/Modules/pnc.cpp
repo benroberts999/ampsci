@@ -276,8 +276,10 @@ std::pair<double, double> pnc_tdhf(const DiracSpinor &Fa, const DiracSpinor &Fb,
             << Fb.shortSymbol() << "> + "
             << "<" << Fa.shortSymbol() << "|" << he1->name() << "|d"
             << Fb.shortSymbol() << "> ; w/ h = " << hpnc->name() << "\n";
-  const auto XB = dVpnc->solve_dPsis(Fb, w_SE, HF::dPsiType::X, Sigma);
-  const auto YA = dVpnc->solve_dPsis(Fa, w_SE, HF::dPsiType::Y, Sigma);
+  const auto XB =
+      dVpnc->solve_dPsis(Fb, w_SE, HF::dPsiType::X, Sigma, HF::StateType::ket);
+  const auto YA =
+      dVpnc->solve_dPsis(Fa, w_SE, HF::dPsiType::Y, Sigma, HF::StateType::bra);
 
   // get total PNC amplitude:
   double pnc1 = 0.0, pnc2 = 0.0;

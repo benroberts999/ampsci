@@ -82,6 +82,7 @@ const std::vector<DiracSpinor> &ExternalField::get_dPsis(const DiracSpinor &Fc,
   const auto index = static_cast<std::size_t>(
       std::find(p_core->cbegin(), p_core->cend(), Fc) - p_core->cbegin());
   // Note: no bounds checking here! Used in critical loop. Better way?
+  assert(index < m_X.size());
   return XorY == dPsiType::X ? m_X[index] : m_Y[index];
 }
 
@@ -97,25 +98,22 @@ const DiracSpinor &ExternalField::get_dPsi_x(const DiracSpinor &Fc,
 //******************************************************************************
 std::vector<DiracSpinor> ExternalField::solve_dPsis(
     const DiracSpinor &Fv, const double omega, dPsiType XorY,
-    const MBPT::CorrelationPotential *const Sigma) const {
+    const MBPT::CorrelationPotential *const Sigma, StateType st) const {
   std::vector<DiracSpinor> dFvs;
   const auto tjmin = std::max(1, Fv.twoj() - 2 * m_rank);
   const auto tjmax = Fv.twoj() + 2 * m_rank;
   for (int tjbeta = tjmin; tjbeta <= tjmax; tjbeta += 2) {
     const auto kappa = Angular::kappa_twojpi(tjbeta, Fv.parity() * m_pi);
-    dFvs.push_back(solve_dPsi(Fv, omega, XorY, kappa, Sigma));
+    dFvs.push_back(solve_dPsi(Fv, omega, XorY, kappa, Sigma, st));
   }
   return dFvs;
 }
 //******************************************************************************
-DiracSpinor
-ExternalField::solve_dPsi(const DiracSpinor &Fv, const double omega,
-                          dPsiType XorY, const int kappa_x,
-                          const MBPT::CorrelationPotential *const Sigma) const {
+DiracSpinor ExternalField::solve_dPsi(
+    const DiracSpinor &Fv, const double omega, dPsiType XorY, const int kappa_x,
+    const MBPT::CorrelationPotential *const Sigma, StateType st) const {
   // Solves (H + Sigma - e - w)X = -(h + dV - de)Psi
   // or     (H + Sigma - e + w)Y = -(h^dag + dV^dag - de)Psi
-  // Note: for 'Y', returns <Y|, not |Y> -- may be a difference in sign, since
-  // this is a "reduced" spinor
 
   const auto ww = XorY == dPsiType::X ? omega : -omega;
   auto conj = XorY == dPsiType::Y;
@@ -133,13 +131,14 @@ ExternalField::solve_dPsi(const DiracSpinor &Fv, const double omega,
     rhs -= de * Fv;
   }
 
-  // If we intend to use this state as lhs, may be additional sign change.
-  // NOTE: we may want 'Y' type, but for rhs... so, add option!
-  auto lhs = XorY == dPsiType::Y; // not always the case!
+  // Do we want |Y> or <Y| ?
   auto s2 = 1;
-  if (lhs) {
-    auto sj = Angular::evenQ_2(Fv.twoj() - Angular::twoj_k(kappa_x)) ? 1 : -1;
-    auto si = imag && !conj ? -1 : 1; // if conj, extra * => +1
+  if (st == StateType::bra) {
+    // "left-hand-side" : "reduced" ket, so has factor (+ confugate)
+    const auto sj =
+        Angular::evenQ_2(Fv.twoj() - Angular::twoj_k(kappa_x)) ? 1 : -1;
+    // if conj, extra * => +1
+    const auto si = imag && !conj ? -1 : 1;
     s2 = sj * si;
   }
 
@@ -151,7 +150,6 @@ ExternalField::solve_dPsi(const DiracSpinor &Fv, const double omega,
 void ExternalField::solve_TDHFcore(const double omega, const int max_its,
                                    const bool print) {
 
-  // const double converge_targ = m_h->name() == "hfs" ? 5.0e-5 : 1.0e-9;
   const double converge_targ = 1.0e-9;
   const auto damper = rampedDamp(0.75, 0.25, 1, 20);
 
@@ -237,11 +235,6 @@ void ExternalField::solve_TDHFcore(const double omega, const int max_its,
     m_X = tmp_X;
     m_Y = tmp_Y;
 
-    // if (print && it > 0 && it % 15 == 0) {
-    //   printf("TDHF (w=%.3f): %2i %.1e \r", omega, it, eps);
-    //   std::cout << std::flush;
-    // }
-
     if (it > 15 && eps >= ceiling_eps) {
       ++worse_count;
       extra_damp = (it % 2) ? 0.5 : 0.25;
@@ -292,13 +285,15 @@ DiracSpinor ExternalField::dV_rhs(const int kappa_n, const DiracSpinor &Fm,
   auto dVFm = DiracSpinor(0, kappa_n, Fm.rgrid);
   dVFm.pinf = Fm.pinf;
 
+  std::vector<DiracSpinor> dVFm_vec(p_core->size(), {0, kappa_n, Fm.rgrid});
 #pragma omp parallel for
   for (auto ib = 0ul; ib < p_core->size(); ib++) {
     const auto &Fb = (*p_core)[ib];
     const auto tjb = Fb.twoj();
     const auto &X_betas = get_dPsis(Fb, ChiType);
     const auto &Y_betas = get_dPsis(Fb, EtaType);
-    auto dVFm_c = DiracSpinor(0, kappa_n, Fm.rgrid);
+    // auto dVFm_c = DiracSpinor(0, kappa_n, Fm.rgrid);
+    auto &dVFm_c = dVFm_vec[ib];
     dVFm_c.pinf = Fm.pinf;
 
     // only for testing: exclude certain (core) states from dV sum
@@ -333,7 +328,7 @@ DiracSpinor ExternalField::dV_rhs(const int kappa_n, const DiracSpinor &Fm,
         if (Ckba == 0 || Ckalbe == 0)
           continue;
         dVFm_c += (s * m1kpl * Ckba * Ckalbe * sixj) *
-                  Coulomb::Rkv_bcd(kappa_n, Fm, X_beta, Fb, l); // xxx use Ymb?
+                  Coulomb::Rkv_bcd(kappa_n, Fm, X_beta, Fb, l);
       }
 
       // exchange part (Y):
@@ -363,8 +358,10 @@ DiracSpinor ExternalField::dV_rhs(const int kappa_n, const DiracSpinor &Fm,
         dVFm_c += p_VBr->dVbrX_Fa(kappa_n, k, Fm, Fb, X_beta, Y_beta);
       }
     }
-#pragma omp critical(sum_X_core)
-    { dVFm += dVFm_c; }
+  }
+
+  for (const auto &dVFmc : dVFm_vec) {
+    dVFm += dVFmc;
   }
 
   return dVFm;
@@ -485,7 +482,7 @@ void ExternalField::solve_TDHFcore_matrix(const Wavefunction &wf,
 
     m_Y = tmp_Y;
     m_X = tmp_X;
-    printf("TDHF [matrix] (w=%.3f): %2i  %.1e\n", omega, it, eps);
+    printf("TDHF [matrix] (w=%.3f): %2i  %.1e\n", omega, it + 1, eps);
     if (it > 0 && eps < converge_targ)
       break;
   }

@@ -142,9 +142,10 @@ double alpha_core_tdhf(const std::vector<DiracSpinor> &core,
     for (const auto &Xbeta : Xb) {
       // no dV here (for closed-shell core)
       alpha_core += he1.reducedME(Xbeta, Fb);
+      // alpha_core += he1.reducedME(Fb, Xbeta);
     }
     for (const auto &Ybeta : Yb) {
-      alpha_core += he1.reducedME(Fb, Ybeta);
+      alpha_core += he1.reducedME(Ybeta, Fb);
     }
   }
   return f * alpha_core;
@@ -164,7 +165,7 @@ double alpha_valence_tdhf(const DiracSpinor &Fa, const DiracSpinor &Fb,
     alpha_v += he1.reducedME(Xalpha, Fb) + dVE1.dV(Xalpha, Fb);
   }
   for (const auto &Ybeta : Yb) {
-    alpha_v += he1.reducedME(Fa, Ybeta) + dVE1.dV(Fa, Ybeta);
+    alpha_v += he1.reducedME(Ybeta, Fa) + dVE1.dV(Ybeta, Fa);
   }
   return f * alpha_v;
 }
