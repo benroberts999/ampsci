@@ -150,12 +150,13 @@ DiracSpinor ExternalField::solve_dPsi(
 void ExternalField::solve_TDHFcore(const double omega, const int max_its,
                                    const bool print) {
 
-  const double converge_targ = 1.0e-9;
+  const double converge_targ = 1.0e-8;
   const auto damper = rampedDamp(0.75, 0.25, 1, 20);
 
   const bool staticQ = std::abs(omega) < 1.0e-10;
 
   const auto imag = m_h->imaginaryQ();
+  const auto has_de = !imag && m_h->parity() == 1;
 
   // The h Psi_c terms don't change, so calculate them just once
   auto hPsi = m_X;
@@ -178,10 +179,11 @@ void ExternalField::solve_TDHFcore(const double omega, const int max_its,
   }
   for (; it < max_its; it++) {
     eps = 0.0;
-    const auto a_damp = (it == 1) ? 0.0 : damper(it) + extra_damp;
+    const auto a_damp = (it == 0) ? 0.0 : damper(it) + extra_damp;
 
     // eps for solveMixedState - doesn't need to be small!
-    const auto eps_ms = (it == 0) ? 1.0e-8 : 1.0e-3;
+    // When have de though, equations unstable, so start from scratch
+    const auto eps_ms = (it == 0) ? 1.0e-9 : has_de ? 1.0e-9 : 1.0e-3;
 
     auto tmp_X = m_X;
     auto tmp_Y = m_Y;
@@ -202,10 +204,16 @@ void ExternalField::solve_TDHFcore(const double omega, const int max_its,
         auto rhs = hPsic + dV_rhs(Xx.k, Fc, false);
         if (Xx.k == Fc.k && !imag)
           rhs -= (de0 + de1) * Fc;
+        if (has_de) {
+          // Force solveMixedState to start from scratch
+          Xx *= 0.0;
+        }
         HF::solveMixedState(Xx, Fc, omega, m_vl, m_alpha, *p_core, rhs, eps_ms,
                             nullptr, p_VBr, m_Hmag);
         Xx = a_damp * oldX + (1.0 - a_damp) * Xx;
         const auto delta = (Xx - oldX) * (Xx - oldX) / (Xx * Xx);
+        // use <a|dV|b> instead? But, for which <a|?
+        // const auto delta = std::abs(Fc * (Xx - oldX) / (Fc * Xx));
         if (delta > eps_c)
           eps_c = delta;
       }
@@ -218,6 +226,9 @@ void ExternalField::solve_TDHFcore(const double omega, const int max_its,
           auto rhs = s * hPsic + dV_rhs(Yx.k, Fc, true);
           if (Yx.k == Fc.k && !imag)
             rhs -= (de0 + de1_dag) * Fc;
+          if (has_de) {
+            Yx *= 0.0;
+          }
           HF::solveMixedState(Yx, Fc, -omega, m_vl, m_alpha, *p_core, rhs,
                               eps_ms, nullptr, p_VBr, m_Hmag);
           Yx = a_damp * oldY + (1.0 - a_damp) * Yx;
@@ -235,9 +246,9 @@ void ExternalField::solve_TDHFcore(const double omega, const int max_its,
     m_X = tmp_X;
     m_Y = tmp_Y;
 
-    if (it > 15 && eps >= ceiling_eps) {
+    if (it > 30 && eps >= ceiling_eps) {
       ++worse_count;
-      extra_damp = (it % 2) ? 0.5 : 0.25;
+      extra_damp = (it % 2) ? 0.3 : 0.2;
     } else if (eps < ceiling_eps) {
       worse_count = 0;
     }

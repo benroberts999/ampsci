@@ -38,7 +38,7 @@ bool MixedStates(std::ostream &obuff) {
   bool passQ = true;
 
   // Create wavefunction object
-  Wavefunction wf({10000, 1.0e-7, 200.0, 0.33 * 200.0, "loglinear", -1.0},
+  Wavefunction wf({6000, 1.0e-6, 150.0, 0.33 * 150.0, "loglinear", -1.0},
                   {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
   wf.hartreeFockCore("HartreeFock", 0.0, "[Xe]");
   wf.hartreeFockValence("7sp5d4f");
@@ -88,6 +88,8 @@ bool MixedStates(std::ostream &obuff) {
   for (int max_its : {0, 1, 99}) {
     double worst_eps = 0.0;
     std::string worst_set{};
+    double best_eps = 1.0;
+    std::string best_set{};
     HF::ExternalField dv(&h, wf.getHF());
     dv.solve_TDHFcore(0.0, max_its);
 
@@ -141,11 +143,24 @@ bool MixedStates(std::ostream &obuff) {
           worst_set = "<" + Fm.shortSymbol() + "|h|" + Fv.shortSymbol() +
                       ">/<Y_" + Xb.shortSymbol() + "|" + Fv.shortSymbol() + ">";
         }
+        if (std::abs(eps) < std::abs(best_eps)) {
+          best_eps = eps;
+          best_set = "<" + Fv.shortSymbol() + "|h|" + Fm.shortSymbol() + ">/<" +
+                     Fv.shortSymbol() + "|X_" + Xb.shortSymbol() + ">";
+        }
+        if (std::abs(epsY) < std::abs(best_eps)) {
+          best_eps = epsY;
+          best_set = "<" + Fm.shortSymbol() + "|h|" + Fv.shortSymbol() +
+                     ">/<Y_" + Xb.shortSymbol() + "|" + Fv.shortSymbol() + ">";
+        }
       }
     }
     std::cout << worst_set << " " << worst_eps << "\n";
-    passQ &= qip::check_value(&obuff, "MS: hfs(2) " + worst_set, worst_eps, 0.0,
-                              1.0e-5);
+    // the "best" are all ~1.e-y
+    passQ &= qip::check_value(&obuff, "MS: hfs(B) " + best_set, best_eps, 0.0,
+                              1.0e-7);
+    passQ &= qip::check_value(&obuff, "MS: hfs(W) " + worst_set, worst_eps, 0.0,
+                              1.0e-4);
   }
 
   return passQ;
