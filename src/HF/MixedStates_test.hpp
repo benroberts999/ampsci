@@ -6,6 +6,8 @@
 #include "qip/Format.hpp"
 #include <iomanip>
 #include <string>
+//
+#include "HF/ExternalField.hpp"
 
 namespace UnitTest {
 
@@ -46,14 +48,16 @@ bool MixedStates(std::ostream &obuff) {
   const auto hE2 = DiracOperator::Ek(*wf.rgrid, 2);
   const auto c = Nuclear::c_hdr_formula_rrms_t(wf.get_rrms());
   const auto hpnc = DiracOperator::PNCnsi(c, Nuclear::default_t, *wf.rgrid);
-  const auto hM1 = DiracOperator::M1(*wf.rgrid, wf.alpha, 0.0);
-  // Use "spherical ball" model for hyperfine (doesn't work with zero-size)
+  // M1 little problematic
+  // const auto hM1 = DiracOperator::M1(*wf.rgrid, wf.alpha, 0.0);
+  // Use "spherical ball" model for hyperfine (Works best.)
+  // Fails for some d states with pointlike (?)
   const auto hhfs = DiracOperator::Hyperfine(
       1.0, 1.0, std::sqrt(5.0 / 3) * wf.get_rrms(), *wf.rgrid,
       DiracOperator::Hyperfine::sphericalBall_F());
 
   const std::vector<const DiracOperator::TensorOperator *> hs{&hE1, &hE2, &hpnc,
-                                                              &hhfs, &hM1};
+                                                              &hhfs /*, &hM1*/};
 
   // For each operator
   for (const auto h : hs) {
@@ -70,6 +74,72 @@ bool MixedStates(std::ostream &obuff) {
     passQ &= qip::check_value(
         &obuff, "MS:" + h->name() + " best (" + best.name + " w=" + wbest + ")",
         best.eps, 0.0, 6e-7);
+  }
+
+  // Since we have trouble with TDHF and HFS, do it again more thoroughly here.
+  // Note: This makes it seem the problem is in solve_core, NOT in solve dPsi
+  // This should be easier to fix!
+  // NOTE: This loop is very much the same as the other one... could combine
+
+  // Hyperfine
+  std::cout << "\nTest hyperfine (again, but more)\n";
+  auto &h = hhfs;
+
+  for (int max_its : {0, 1, 99}) {
+    double worst_eps = 0.0;
+    std::string worst_set{};
+    HF::ExternalField dv(&h, wf.getHF());
+    dv.solve_TDHFcore(0.0, max_its);
+    int count = 0;
+    for (const auto Fv : wf.valence) {
+      for (const auto &Fm : wf.valence) {
+        if (Fm == Fv || h.isZero(Fm.k, Fv.k))
+          continue;
+
+        auto Xb = dv.solve_dPsi(Fv, 0.0, HF::dPsiType::X, Fm.k);
+        auto Yb = dv.solve_dPsi(Fv, 0.0, HF::dPsiType::Y, Fm.k);
+        const auto h_mv = h.reducedME(Fm, Fv) + dv.dV(Fm, Fv);
+        const auto lhs = Fm * Xb;
+        const auto rhs = h_mv / (Fv.en - Fm.en);
+        const auto eps = (lhs - rhs) / (lhs + rhs);
+
+        const auto h_vm = h.reducedME(Fv, Fm) + dv.dV(Fv, Fm);
+        const auto lhsY = Yb * Fm;
+        const auto rhsY = h_vm / (Fv.en - Fm.en);
+        const auto epsY = (lhsY - rhsY) / (lhsY + rhsY);
+
+        if (count % 5 == 0 || count == 0) {
+          // only print a subset (too many)
+          std::cout << "<" << Fv.shortSymbol() << "|h|" << Fm.shortSymbol()
+                    << "> , <" << Fv.shortSymbol() << "|X_" << Xb.shortSymbol()
+                    << "> : "; // << rhs << " " << lhs << "\n";
+          printf("%10.7g, %10.7g  %6.0e\n", rhs, lhs, eps);
+          std::cout << "<" << Fm.shortSymbol() << "|h|" << Fv.shortSymbol()
+                    << "> , <Y_" << Yb.shortSymbol() << "|" << Fv.shortSymbol()
+                    << "> : "; // << rhsY << " " << lhsY << "\n";
+
+          printf("%10.7g, %10.7g  %6.0e", rhsY, lhsY, epsY);
+          if (std::abs(epsY + eps) > 1.0e-3)
+            std::cout << "  ***";
+          std::cout << "\n";
+        }
+        ++count;
+
+        if (std::abs(eps) > std::abs(worst_eps)) {
+          worst_eps = eps;
+          worst_set = "<" + Fv.shortSymbol() + "|h|" + Fm.shortSymbol() +
+                      ">/<" + Fv.shortSymbol() + "|X_" + Xb.shortSymbol() + ">";
+        }
+        if (std::abs(epsY) > std::abs(worst_eps)) {
+          worst_eps = epsY;
+          worst_set = "<" + Fm.shortSymbol() + "|h|" + Fv.shortSymbol() +
+                      ">/<Y_" + Xb.shortSymbol() + "|" + Fv.shortSymbol() + ">";
+        }
+      }
+    }
+    std::cout << worst_set << " " << worst_eps << "\n";
+    passQ &= qip::check_value(&obuff, "MS: hfs(2) " + worst_set, worst_eps, 0.0,
+                              1.0e-5);
   }
 
   return passQ;

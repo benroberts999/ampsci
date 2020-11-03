@@ -151,7 +151,8 @@ ExternalField::solve_dPsi(const DiracSpinor &Fv, const double omega,
 void ExternalField::solve_TDHFcore(const double omega, const int max_its,
                                    const bool print) {
 
-  const double converge_targ = m_h->name() == "hfs" ? 5.0e-5 : 1.0e-9;
+  // const double converge_targ = m_h->name() == "hfs" ? 5.0e-5 : 1.0e-9;
+  const double converge_targ = 1.0e-9;
   const auto damper = rampedDamp(0.75, 0.25, 1, 20);
 
   const bool staticQ = std::abs(omega) < 1.0e-10;
@@ -172,17 +173,17 @@ void ExternalField::solve_TDHFcore(const double omega, const int max_its,
   double ceiling_eps = 1.0;
   int worse_count = 0;
   double extra_damp = 0.0;
-  int it = 1;
+  int it = 0;
   if (print) {
     printf("TDHF (w=%.3f): ", omega);
     std::cout << std::flush;
   }
-  for (; it <= max_its; it++) {
+  for (; it < max_its; it++) {
     eps = 0.0;
     const auto a_damp = (it == 1) ? 0.0 : damper(it) + extra_damp;
 
     // eps for solveMixedState - doesn't need to be small!
-    const auto eps_ms = (it == 1) ? 1.0e-8 : 1.0e-3;
+    const auto eps_ms = (it == 0) ? 1.0e-8 : 1.0e-3;
 
     auto tmp_X = m_X;
     auto tmp_Y = m_Y;
