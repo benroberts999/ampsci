@@ -1,6 +1,9 @@
 #include "HF/Breit.hpp"
 #include "Angular/Angular_369j.hpp"
 #include "Coulomb/Coulomb.hpp"
+#include "Maths/Grid.hpp"
+#include <iostream>
+#include <memory>
 
 namespace HF {
 
@@ -65,8 +68,12 @@ DiracSpinor Breit::dVbrX_Fa(int kappa, int K, const DiracSpinor &Fa,
   // const hidden::Breit_Bk_ba Bkba(Fb, Fa);     // every k
   // const hidden::Breit_Bk_ba BkYBa(Ybeta, Fa); // every k
   // Had to swap these around in order to get agreement.. not sure why?
-  const hidden::Breit_Bk_ba Bkba(Fa, Fb);     // every k
-  const hidden::Breit_Bk_ba BkYBa(Fa, Ybeta); // every k
+  // const hidden::Breit_Bk_ba Bkba(Fa, Fb);     // every k
+  // const hidden::Breit_Bk_ba BkYBa(Fa, Ybeta); // every k
+  // Only create these if at least one angular factor is non-zero
+  std::unique_ptr<hidden::Breit_Bk_ba> Bkba{nullptr};
+  std::unique_ptr<hidden::Breit_Bk_ba> BkYBa{nullptr};
+
   const auto kn = dVFa.k;
   const auto ka = Fa.k;
   const auto kb = Fb.k;
@@ -99,17 +106,27 @@ DiracSpinor Breit::dVbrX_Fa(int kappa, int K, const DiracSpinor &Fa,
     const auto cangX_N = s_Bb * s_Kk * Ckab_N * CknB * sjX;
     const auto cangY_N = s_Bb * s_Kk * CkaB * Cknb_N * sjY;
 
+    if (!Bkba && (cangX != 0.0 || cangX_N != 0.0)) {
+      Bkba = std::make_unique<hidden::Breit_Bk_ba>(Fa, Fb); // every k
+    }
+
+    if (!BkYBa && (cangY != 0.0 || cangY_N != 0.0)) {
+      // const hidden::Breit_Bk_ba BkYBa(Ybeta, Fa); // every k
+      // Had to swap these around in order to get agreement.. not sure why?
+      BkYBa = std::make_unique<hidden::Breit_Bk_ba>(Fa, Ybeta); // every k
+    }
+
     if (cangX != 0.0)
-      MOPk_ij_Fc(&dVFa, cangX, Bkba, k, kb, ka, Xbeta);
+      MOPk_ij_Fc(&dVFa, cangX, *Bkba, k, kb, ka, Xbeta);
 
     if (cangX_N != 0.0)
-      Nk_ij_Fc(&dVFa, cangX_N, Bkba, k, kb, ka, Xbeta);
+      Nk_ij_Fc(&dVFa, cangX_N, *Bkba, k, kb, ka, Xbeta);
 
     if (cangY != 0.0)
-      MOPk_ij_Fc(&dVFa, cangY, BkYBa, k, kB, ka, Fb);
+      MOPk_ij_Fc(&dVFa, cangY, *BkYBa, k, kB, ka, Fb);
 
     if (cangY_N != 0.0)
-      Nk_ij_Fc(&dVFa, cangY_N, BkYBa, k, kB, ka, Fb);
+      Nk_ij_Fc(&dVFa, cangY_N, *BkYBa, k, kB, ka, Fb);
 
   } // sum over k
 
@@ -134,8 +151,7 @@ DiracSpinor Breit::dVbrD_Fa(int kappa, int K, const DiracSpinor &Fa,
 
   // Only need single k here?
   // Also, when X = Y, can do just once!
-  const hidden::Breit_Bk_ba BkXBb(Fb, Xbeta); // every k
-  const hidden::Breit_Bk_ba BkYBb(Ybeta, Fb); // every k
+
   const auto kn = dVFa.k;
   const auto ka = Fa.k;
   const auto kb = Fb.k;
@@ -150,15 +166,24 @@ DiracSpinor Breit::dVbrD_Fa(int kappa, int K, const DiracSpinor &Fa,
   const auto cang = -Ckna * CkBb / (2 * k + 1);
   const auto cang_N = -Ckna * CkBb_N / (2 * k + 1);
 
-  // M, O, P, 'X' term
-  if (cang != 0.0) {
-    MOPk_ij_Fc(&dVFa, cang, BkXBb, k, kb, kB, Fa); // X
-    MOPk_ij_Fc(&dVFa, cang, BkYBb, k, kB, kb, Fa); // Y
-  }
-  // N term, 'X'
-  if (cang_N != 0.0) {
-    Nk_ij_Fc(&dVFa, cang_N, BkXBb, k, kb, kB, Fa);
-    Nk_ij_Fc(&dVFa, cang_N, BkYBb, k, kB, kb, Fa);
+  if (!Angular::zeroQ(cang) || !Angular::zeroQ(cang)) {
+    const hidden::Breit_Bk_ba BkXBb(Fb, Xbeta); // every k
+    // XXX When X=Y (w=0, real), These are the same(?)!!
+    const hidden::Breit_Bk_ba BkYBb(Ybeta, Fb); // every k
+
+    // This "passes" too = check in more detail later!
+    // const hidden::Breit_Bk_ba BkYBb(Fb, Ybeta); // every k
+
+    // M, O, P, 'X' term
+    if (cang != 0.0) {
+      MOPk_ij_Fc(&dVFa, cang, BkXBb, k, kb, kB, Fa); // X
+      MOPk_ij_Fc(&dVFa, cang, BkYBb, k, kB, kb, Fa); // Y
+    }
+    // N term, 'X'
+    if (cang_N != 0.0) {
+      Nk_ij_Fc(&dVFa, cang_N, BkXBb, k, kb, kB, Fa);
+      Nk_ij_Fc(&dVFa, cang_N, BkYBb, k, kB, kb, Fa);
+    }
   }
 
   return dVFa;
@@ -285,9 +310,26 @@ Breit_Bk_ba::Breit_Bk_ba(const DiracSpinor &Fb, const DiracSpinor &Fa)
   // Fill the b^k functions
   for (auto k = 0ul; k <= max_k; ++k) {
     // a) selection rules (careful)
-    const auto maxi = 0; // std::max(Fa.pinf, Fb.pinf);
-    Coulomb::bk_ab(Fb, Fa, int(k), bk_0[k], bk_inf[k], maxi);
-    Coulomb::gk_ab(Fb, Fa, int(k), gk_0[k], gk_inf[k], maxi);
+    // const auto maxi = 0; // std::max(Fa.pinf, Fb.pinf);
+    const auto maxi = std::min(Fa.pinf, Fb.pinf); // XXX OK?
+
+    // These normally re-sized in gk_ab()... but not if skip due to SRs
+    bk_0[k].resize(Fa.rgrid->num_points);
+    bk_inf[k].resize(Fa.rgrid->num_points);
+    gk_0[k].resize(Fa.rgrid->num_points);
+    gk_inf[k].resize(Fa.rgrid->num_points);
+
+    // bk, in M,N,O, only used if C^(k+/-1)_ba non-zero
+    if (Angular::Ck_kk_SR(int(k) - 1, Fb.k, Fa.k) ||
+        Angular::Ck_kk_SR(int(k) + 1, Fb.k, Fa.k)) {
+      Coulomb::bk_ab(Fb, Fa, int(k), bk_0[k], bk_inf[k], maxi);
+    }
+    // gk, in M,N,O AND N only used if C^(k+/-1)_ab and C^(k)_(-b,a)
+    if (Angular::Ck_kk_SR(int(k) - 1, Fb.k, Fa.k) ||
+        Angular::Ck_kk_SR(int(k) + 1, Fb.k, Fa.k) ||
+        Angular::Ck_kk_SR(int(k), -Fb.k, Fa.k)) {
+      Coulomb::gk_ab(Fb, Fa, int(k), gk_0[k], gk_inf[k], maxi);
+    }
   }
 }
 
