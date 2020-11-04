@@ -310,8 +310,9 @@ Breit_Bk_ba::Breit_Bk_ba(const DiracSpinor &Fb, const DiracSpinor &Fa)
   // Fill the b^k functions
   for (auto k = 0ul; k <= max_k; ++k) {
     // a) selection rules (careful)
-    // const auto maxi = 0; // std::max(Fa.pinf, Fb.pinf);
-    const auto maxi = std::min(Fa.pinf, Fb.pinf); // XXX OK?
+    const auto maxi = 0; //
+    // const auto maxi = std::max(Fa.pinf, Fb.pinf); // ok, but no speedup
+    // const auto maxi = std::min(Fa.pinf, Fb.pinf); // XXX OK? No.
 
     // These normally re-sized in gk_ab()... but not if skip due to SRs
     bk_0[k].resize(Fa.rgrid->num_points);
