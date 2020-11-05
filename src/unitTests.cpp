@@ -6,14 +6,13 @@
 #include "HF/HartreeFock_test.hpp"
 #include "HF/MixedStates_test.hpp"
 #include "IO/ChronoTimer.hpp"
+#include "IO/UserInput.hpp" // for time+date
 #include "MBPT/CorrelationPotential_test.hpp"
 #include "MBPT/DiagramRPA_test.hpp"
 #include "MBPT/StructureRad_test.hpp"
 #include "Maths/LinAlg_test.hpp"
 #include "Physics/RadPot_test.hpp"
 #include "Wavefunction/BSplineBasis_test.hpp"
-//
-#include "IO/UserInput.hpp" // for time+date
 #include "git.info"
 #include <cassert>
 #include <iostream>
@@ -98,7 +97,7 @@ auto get_test(std::string_view in_name) {
 
 //******************************************************************************
 int main(int argc, char *argv[]) {
-  IO::ChronoTimer timer("\nUnit tests");
+
   const std::string input_file = (argc > 1) ? argv[1] : "unitTests.in";
 
   std::ostringstream out_buff;
@@ -122,30 +121,38 @@ int main(int argc, char *argv[]) {
   int passed = 0;
   int failed = 0;
   int total = 0;
-  for (const auto &name : name_list) {
-    std::cout << "\nRunning: " << name << "\n";
-    const auto test = UnitTest::get_test(name);
-    out_buff << name << "\n";
-    const auto passedQ = test(out_buff);
-    ++total;
-    if (passedQ) {
-      out_buff << "PASSED " << name << "\n";
-      ++passed;
-    } else {
-      ++failed;
-      out_buff << "FAILED " << name << " ~~~~~\n";
-    }
-  }
-  out_buff << "\n";
-  if (failed > 0) {
-    out_buff << "FAILS " << failed << "/" << total << " tests; ";
-  }
-  out_buff << "passes " << passed << "/" << total << " tests.\n";
+  {
+    IO::ChronoTimer timer("\nUnit tests");
 
-  // Output results:
-  std::cout << "\n" << out_buff.str();
-  std::ofstream of(IO::date() + "_unitTests.txt");
-  of << out_buff.str();
+    for (const auto &name : name_list) {
+      std::cout << "\nRunning: " << name << "\n";
+      const auto test = UnitTest::get_test(name);
+      out_buff << name << "\n";
+      IO::ChronoTimer t(name);
+      const auto passedQ = test(out_buff);
+      ++total;
+      if (passedQ) {
+        out_buff << "PASSED " << name << "\n";
+        std::cout << "PASSED " << name << "\n";
+        ++passed;
+      } else {
+        ++failed;
+        out_buff << "FAILED " << name << " ~~~~~\n";
+        std::cout << "FAILED " << name << " ~~~~~\n";
+      }
+      out_buff << "T= " << t.reading_str() << "\n";
+    }
+    out_buff << "\n";
+    if (failed > 0) {
+      out_buff << "FAILS " << failed << "/" << total << " tests; ";
+    }
+    out_buff << "passes " << passed << "/" << total << " tests.\n";
+
+    // Output results:
+    std::cout << "\n" << out_buff.str();
+    std::ofstream of(IO::date() + "_unitTests.txt");
+    of << out_buff.str();
+  }
 
   assert(failed == 0);
   // do not allow a test to seemingly "pass" just because it wasn't run!

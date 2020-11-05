@@ -21,7 +21,8 @@ namespace HF {
 ExternalField::ExternalField(const DiracOperator::TensorOperator *const h,
                              const HF::HartreeFock *const hf)
     : m_h(h),
-      p_core(&hf->get_core()),
+      // p_core(&hf->get_core()),
+      m_core(hf->get_core()),
       m_vl(hf->get_vlocal(0)),     // for now, const Vl (same each l)
       m_Hmag(hf->get_Hrad_mag(0)), //(same each l)
       m_alpha(hf->get_alpha()),
@@ -39,9 +40,9 @@ ExternalField::ExternalField(const DiracOperator::TensorOperator *const h,
 void ExternalField::initialise_dPsi() {
   // Initialise dPsi vectors, accounting for selection rules
   const bool print = false;
-  m_X.resize(p_core->size());
-  for (auto ic = 0u; ic < p_core->size(); ic++) {
-    const auto &Fc = (*p_core)[ic];
+  m_X.resize(m_core.size());
+  for (auto ic = 0u; ic < m_core.size(); ic++) {
+    const auto &Fc = m_core[ic];
     const auto pi_ch = Fc.parity() * m_pi;
     const auto tj_c = Fc.twoj();
     const auto tjmin_tmp = tj_c - 2 * m_rank;
@@ -80,7 +81,7 @@ void ExternalField::clear_dPsi() {
 const std::vector<DiracSpinor> &ExternalField::get_dPsis(const DiracSpinor &Fc,
                                                          dPsiType XorY) const {
   const auto index = static_cast<std::size_t>(
-      std::find(p_core->cbegin(), p_core->cend(), Fc) - p_core->cbegin());
+      std::find(m_core.cbegin(), m_core.cend(), Fc) - m_core.cbegin());
   // Note: no bounds checking here! Used in critical loop. Better way?
   assert(index < m_X.size());
   return XorY == dPsiType::X ? m_X[index] : m_Y[index];
@@ -142,13 +143,13 @@ DiracSpinor ExternalField::solve_dPsi(
     s2 = sj * si;
   }
 
-  return s2 * HF::solveMixedState(kappa_x, Fv, ww, m_vl, m_alpha, *p_core, rhs,
+  return s2 * HF::solveMixedState(kappa_x, Fv, ww, m_vl, m_alpha, m_core, rhs,
                                   1.0e-9, Sigma, p_VBr, m_Hmag);
 }
 
 //******************************************************************************
-void ExternalField::solve_TDHFcore(const double omega, const int max_its,
-                                   const bool print) {
+void ExternalField::solve_core(const double omega, const int max_its,
+                               const bool print) {
 
   const double converge_targ = 1.0e-8;
   const auto damper = rampedDamp(0.75, 0.25, 1, 20);
@@ -160,8 +161,8 @@ void ExternalField::solve_TDHFcore(const double omega, const int max_its,
 
   // The h Psi_c terms don't change, so calculate them just once
   auto hPsi = m_X;
-  for (auto ic = 0ul; ic < p_core->size(); ic++) {
-    const auto &Fc = (*p_core)[ic];
+  for (auto ic = 0ul; ic < m_core.size(); ic++) {
+    const auto &Fc = m_core[ic];
     for (auto j = 0ul; j < hPsi[ic].size(); j++) {
       const auto &Xx = m_X[ic][j];
       hPsi[ic][j] = m_h->reduced_rhs(Xx.k, Fc);
@@ -185,11 +186,13 @@ void ExternalField::solve_TDHFcore(const double omega, const int max_its,
     // When have de though, equations unstable, so start from scratch
     const auto eps_ms = (it == 0) ? 1.0e-9 : has_de ? 1.0e-9 : 1.0e-3;
 
+    std::vector<double> eps_vec(m_core.size(), 0.0);
+
     auto tmp_X = m_X;
     auto tmp_Y = m_Y;
 #pragma omp parallel for
-    for (auto ic = 0ul; ic < p_core->size(); ic++) {
-      const auto &Fc = (*p_core)[ic];
+    for (auto ic = 0ul; ic < m_core.size(); ic++) {
+      const auto &Fc = m_core[ic];
       auto eps_c = 0.0;
 
       // delta_en: always same, usually zero; move above!
@@ -208,7 +211,7 @@ void ExternalField::solve_TDHFcore(const double omega, const int max_its,
           // Force solveMixedState to start from scratch
           Xx *= 0.0;
         }
-        HF::solveMixedState(Xx, Fc, omega, m_vl, m_alpha, *p_core, rhs, eps_ms,
+        HF::solveMixedState(Xx, Fc, omega, m_vl, m_alpha, m_core, rhs, eps_ms,
                             nullptr, p_VBr, m_Hmag);
         Xx = a_damp * oldX + (1.0 - a_damp) * Xx;
         const auto delta = (Xx - oldX) * (Xx - oldX) / (Xx * Xx);
@@ -229,7 +232,7 @@ void ExternalField::solve_TDHFcore(const double omega, const int max_its,
           if (has_de) {
             Yx *= 0.0;
           }
-          HF::solveMixedState(Yx, Fc, -omega, m_vl, m_alpha, *p_core, rhs,
+          HF::solveMixedState(Yx, Fc, -omega, m_vl, m_alpha, m_core, rhs,
                               eps_ms, nullptr, p_VBr, m_Hmag);
           Yx = a_damp * oldY + (1.0 - a_damp) * Yx;
         }
@@ -239,12 +242,12 @@ void ExternalField::solve_TDHFcore(const double omega, const int max_its,
           tmp_Y[ic][j] = s * tmp_X[ic][j];
         }
       }
-#pragma omp critical(compare)
-      if (eps_c > eps)
-        eps = eps_c;
+      eps_vec[ic] = eps_c;
     }
     m_X = tmp_X;
     m_Y = tmp_Y;
+
+    eps = *std::max_element(cbegin(eps_vec), cend(eps_vec));
 
     if (it > 30 && eps >= ceiling_eps) {
       ++worse_count;
@@ -279,103 +282,54 @@ double ExternalField::dV(const DiracSpinor &Fn, const DiracSpinor &Fm) const {
 }
 
 //******************************************************************************
-DiracSpinor ExternalField::dV_rhs(const int kappa_n, const DiracSpinor &Fm,
+DiracSpinor ExternalField::dV_rhs(const int kappa_n, const DiracSpinor &Fa,
                                   bool conj,
                                   const DiracSpinor *const Fexcl) const {
+
+  auto dVFa = DiracSpinor(0, kappa_n, Fa.rgrid);
+  dVFa.pinf = Fa.pinf;
 
   const auto ChiType = !conj ? dPsiType::X : dPsiType::Y;
   const auto EtaType = !conj ? dPsiType::Y : dPsiType::X;
 
   const auto k = m_h->rank();
   const auto tkp1 = double(2 * k + 1);
-
   const auto tjn = Angular::twoj_k(kappa_n);
-  const auto tjm = Fm.twoj();
-  const auto Ckala = Angular::Ck_kk(k, kappa_n, Fm.k);
 
-  auto dVFm = DiracSpinor(0, kappa_n, Fm.rgrid);
-  dVFm.pinf = Fm.pinf;
-
-  std::vector<DiracSpinor> dVFm_vec(p_core->size(), {0, kappa_n, Fm.rgrid});
-#pragma omp parallel for
-  for (auto ib = 0ul; ib < p_core->size(); ib++) {
-    const auto &Fb = (*p_core)[ib];
-    const auto tjb = Fb.twoj();
-    const auto &X_betas = get_dPsis(Fb, ChiType);
-    const auto &Y_betas = get_dPsis(Fb, EtaType);
-    // auto dVFm_c = DiracSpinor(0, kappa_n, Fm.rgrid);
-    auto &dVFm_c = dVFm_vec[ib];
-    dVFm_c.pinf = Fm.pinf;
+  // nb: faster to not //ize this one
+  for (const auto &Fb : m_core) {
+    const auto &X_b = get_dPsis(Fb, ChiType);
+    const auto &Y_b = get_dPsis(Fb, EtaType);
 
     // only for testing: exclude certain (core) states from dV sum
     if (Fexcl && (*Fexcl) == Fb)
       continue;
 
-    for (auto ibeta = 0ul; ibeta < X_betas.size(); ++ibeta) {
-      const auto &X_beta = X_betas[ibeta];
-      const auto &Y_beta = Y_betas[ibeta];
-      const auto tjbeta = X_beta.twoj();
+    for (auto ibeta = 0ul; ibeta < X_b.size(); ++ibeta) {
+      const auto &X_beta = X_b[ibeta];
+      const auto &Y_beta = Y_b[ibeta];
 
-      // Direct part:
-      const auto Ckbeb = Angular::Ck_kk(k, X_beta.k, Fb.k);
-      if (Ckala != 0 && Ckbeb != 0) {
-        dVFm_c += (Ckala * Ckbeb / tkp1) *
-                  Coulomb::Rkv_bcd(kappa_n, Fb, Fm, X_beta + Y_beta, k);
-      }
-
-      const auto s = Angular::evenQ_2(tjbeta - tjm) ? 1 : -1;
-
-      // exchange part (X):
-      const auto l_min_X =
-          std::max(std::abs(tjn - tjbeta), std::abs(tjm - tjb)) / 2;
-      const auto l_max_X = std::min((tjn + tjbeta), (tjm + tjb)) / 2;
-      for (int l = l_min_X; l <= l_max_X; ++l) {
-        const auto sixj = Angular::sixj_2(tjm, tjn, 2 * k, tjbeta, tjb, 2 * l);
-        if (sixj == 0)
-          continue;
-        const auto m1kpl = Angular::evenQ(k + l) ? 1 : -1;
-        const auto Ckba = Angular::Ck_kk(l, Fm.k, Fb.k);
-        const auto Ckalbe = Angular::Ck_kk(l, kappa_n, X_beta.k);
-        if (Ckba == 0 || Ckalbe == 0)
-          continue;
-        dVFm_c += (s * m1kpl * Ckba * Ckalbe * sixj) *
-                  Coulomb::Rkv_bcd(kappa_n, Fm, X_beta, Fb, l);
-      }
-
-      // exchange part (Y):
-      const auto l_min_Y =
-          std::max(std::abs(tjn - tjb), std::abs(tjm - tjbeta)) / 2;
-      const auto l_max_Y = std::min((tjn + tjb), (tjm + tjbeta)) / 2;
-      for (int l = l_min_Y; l <= l_max_Y; ++l) {
-        const auto sixj = Angular::sixj_2(tjm, tjn, 2 * k, tjb, tjbeta, 2 * l);
-        if (sixj == 0)
-          continue;
-        const auto m1kpl = Angular::evenQ(k + l) ? 1 : -1;
-        const auto Ckbea = Angular::Ck_kk(l, Fm.k, Y_beta.k);
-        const auto Ckbal = Angular::Ck_kk(l, kappa_n, Fb.k);
-        if (Ckbea == 0 || Ckbal == 0)
-          continue;
-        dVFm_c += (s * m1kpl * Ckbea * Ckbal * sixj) *
-                  Coulomb::Rkv_bcd(kappa_n, Fm, Fb, Y_beta, l);
+      const auto sQ = Angular::neg1pow_2(tjn + X_beta.twoj() + 2 * k + 2);
+      if (sQ == 1) { // faster than multiplying!
+        dVFa += Coulomb::Wkv_bcd(kappa_n, Fb, Fa, X_beta, k);
+        dVFa += Coulomb::Wkv_bcd(kappa_n, Y_beta, Fa, Fb, k);
+      } else {
+        dVFa -= Coulomb::Wkv_bcd(kappa_n, Fb, Fa, X_beta, k);
+        dVFa -= Coulomb::Wkv_bcd(kappa_n, Y_beta, Fa, Fb, k);
       }
 
       // Breit part:
       if (p_VBr) {
         // Note: Not perfectly symmetric for E1 - some issue??
-        // But, differences is extremely small, so maybe just numerics?*
-        // Assymetry enters below number of digits VD presents..
-        // nb: Agrees perfectly w/ Vladimir for E1, E2, and PNC
-        dVFm_c += p_VBr->dVbrD_Fa(kappa_n, k, Fm, Fb, X_beta, Y_beta);
-        dVFm_c += p_VBr->dVbrX_Fa(kappa_n, k, Fm, Fb, X_beta, Y_beta);
+        dVFa += tkp1 * p_VBr->dVbrD_Fa(kappa_n, k, Fa, Fb, X_beta, Y_beta);
+        dVFa += tkp1 * p_VBr->dVbrX_Fa(kappa_n, k, Fa, Fb, X_beta, Y_beta);
       }
     }
   }
 
-  for (const auto &dVFmc : dVFm_vec) {
-    dVFm += dVFmc;
-  }
+  dVFa *= (1.0 / tkp1);
 
-  return dVFm;
+  return dVFa;
 }
 
 //******************************************************************************
@@ -416,7 +370,7 @@ void ExternalField::solve_TDHFcore_matrix(const Wavefunction &wf,
   for (int ki = 0; ki <= max_ki; ki++) {
     auto k = Angular::kappaFromIndex(ki);
     basis_kappa.push_back(SplineBasis::form_spline_basis(
-        k, nspl, kspl, rmin, rmax, p_core->front().rgrid, m_alpha));
+        k, nspl, kspl, rmin, rmax, m_core.front().rgrid, m_alpha));
   }
 
   const auto imag = m_h->imaginaryQ();
@@ -426,15 +380,15 @@ void ExternalField::solve_TDHFcore_matrix(const Wavefunction &wf,
 
   auto eps = 0.0;
   for (int it = 0; it < max_its; it++) {
-    IO::ChronoTimer timer2("solve_TDHFcore: iterations");
+    IO::ChronoTimer timer2("solve_core: iterations");
     eps = 0.0;
     const auto a_damp = (it == 0) ? 0.0 : damper(it);
 
     auto tmp_X = m_X;
     auto tmp_Y = m_Y;
 #pragma omp parallel for
-    for (std::size_t ic = 0; ic < p_core->size(); ic++) {
-      const auto &Fc = (*p_core)[ic];
+    for (std::size_t ic = 0; ic < m_core.size(); ic++) {
+      const auto &Fc = m_core[ic];
       auto &dPsiX = tmp_X[ic];
       auto &dPsiY = tmp_Y[ic];
       const auto de0 = m_h->reducedME(Fc, Fc);
@@ -481,7 +435,7 @@ void ExternalField::solve_TDHFcore_matrix(const Wavefunction &wf,
       }
     }
 
-    for (std::size_t ic = 0; ic < p_core->size(); ic++) {
+    for (std::size_t ic = 0; ic < m_core.size(); ic++) {
       for (auto ibeta = 0ul; ibeta < tmp_X[ic].size(); ++ibeta) {
         const auto &dF = tmp_X[ic][ibeta];
         const auto &dF0 = m_X[ic][ibeta];
@@ -502,11 +456,11 @@ void ExternalField::solve_TDHFcore_matrix(const Wavefunction &wf,
 //******************************************************************************
 void ExternalField::print(const std::string &ofname) const {
   std::ofstream of(ofname);
-  const auto &gr = *((p_core->front()).rgrid);
+  const auto &gr = *((m_core.front()).rgrid);
   for (auto i = 0ul; i < gr.num_points; ++i) {
     of << gr.r[i] << " ";
-    for (auto ic = 0ul; ic < p_core->size(); ic++) {
-      const auto &Fc = (*p_core)[ic];
+    for (auto ic = 0ul; ic < m_core.size(); ic++) {
+      const auto &Fc = m_core[ic];
       of << Fc.f[i] << " ";
       for (auto j = 0ul; j < m_X[ic].size(); j++) {
         const auto &Xx = m_X[ic][j];

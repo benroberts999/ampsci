@@ -1,4 +1,5 @@
 #include "StructureRad.hpp"
+#include "Coulomb/Coulomb.hpp"
 #include "DiracOperator/DiracOperator.hpp"
 #include "HF/ExternalField.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
@@ -204,8 +205,8 @@ double StructureRad::t1(const int k, const DiracSpinor &w, const DiracSpinor &r,
       const auto sab = Angular::neg1pow_2(b.twoj() + a.twoj());
       const auto inv_e_rwab = 1.0 / (r.en + w.en - a.en - b.en);
 
-      const auto [minU, maxU] = mY.k_minmax_W(w, r, b, a);
-      const auto [minL, maxL] = mY.k_minmax_Q(v, a, b, c);
+      const auto [minU, maxU] = Coulomb::k_minmax_W(w, r, b, a);
+      const auto [minL, maxL] = Coulomb::k_minmax_Q(v, a, b, c);
       if (minU > maxU)
         continue;
       for (int l = minL; l <= maxL; l += 2) {
@@ -251,8 +252,8 @@ double StructureRad::t2(const int k, const DiracSpinor &w, const DiracSpinor &r,
 
       const auto inv_e_rnav = 1.0 / (r.en + n.en - a.en - v.en);
 
-      const auto [minU1, maxU1] = mY.k_minmax_W(w, a, c, n);
-      const auto [minU2, maxU2] = mY.k_minmax_W(v, a, r, n);
+      const auto [minU1, maxU1] = Coulomb::k_minmax_W(w, a, c, n);
+      const auto [minU2, maxU2] = Coulomb::k_minmax_W(v, a, r, n);
       const auto minU = std::max(minU1, minU2);
       const auto maxU = std::min(maxU1, maxU2);
       for (int u = minU; u <= maxU; ++u) {
@@ -290,8 +291,8 @@ double StructureRad::t3(const int k, const DiracSpinor &w, const DiracSpinor &r,
 
       const auto inv_e_nwac = 1.0 / (n.en + w.en - a.en - c.en);
 
-      const auto [minU1, maxU1] = mY.k_minmax_W(w, n, c, a);
-      const auto [minU2, maxU2] = mY.k_minmax_W(v, n, r, a);
+      const auto [minU1, maxU1] = Coulomb::k_minmax_W(w, n, c, a);
+      const auto [minU2, maxU2] = Coulomb::k_minmax_W(v, n, r, a);
       const auto minU = std::max(minU1, minU2);
       const auto maxU = std::min(maxU1, maxU2);
       for (int u = minU; u <= maxU; ++u) {
@@ -330,8 +331,8 @@ double StructureRad::t4(const int k, const DiracSpinor &w, const DiracSpinor &r,
       const auto snm = Angular::neg1pow_2(n.twoj() + m.twoj());
       const auto inv_e_nmcv = 1.0 / (n.en + m.en - c.en - v.en);
 
-      const auto [minU, maxU] = mY.k_minmax_Q(w, r, n, m);
-      const auto [minL, maxL] = mY.k_minmax_W(n, m, v, c);
+      const auto [minU, maxU] = Coulomb::k_minmax_Q(w, r, n, m);
+      const auto [minL, maxL] = Coulomb::k_minmax_W(n, m, v, c);
       if (minL > maxL)
         continue;
       for (int u = minU; u <= maxU; u += 2) {
@@ -375,8 +376,8 @@ double StructureRad::c1(const int k, const DiracSpinor &w, const DiracSpinor &a,
       const auto e_nwab = n.en + w.en - a.en - b.en;
       const auto invde = 1.0 / (e_nvbc * e_nwab);
 
-      const auto [minU1, maxU1] = mY.k_minmax_W(w, n, a, b);
-      const auto [minU2, maxU2] = mY.k_minmax_W(v, n, c, b);
+      const auto [minU1, maxU1] = Coulomb::k_minmax_W(w, n, a, b);
+      const auto [minU2, maxU2] = Coulomb::k_minmax_W(v, n, c, b);
       const auto minU = std::max(minU1, minU2);
       const auto maxU = std::min(maxU1, maxU2);
       for (int u = minU; u <= maxU; ++u) {
@@ -417,8 +418,8 @@ double StructureRad::c2(const int k, const DiracSpinor &w, const DiracSpinor &a,
       const auto invde = 1.0 / (e_mnaw * e_nmcv);
       const auto smn = Angular::neg1pow_2(m.twoj() + n.twoj());
 
-      const auto [minU, maxU] = mY.k_minmax_Q(v, m, n, c);
-      const auto [minL, maxL] = mY.k_minmax_W(w, a, n, m);
+      const auto [minU, maxU] = Coulomb::k_minmax_Q(v, m, n, c);
+      const auto [minL, maxL] = Coulomb::k_minmax_W(w, a, n, m);
       if (minL > maxL)
         continue;
       for (int u = minU; u <= maxU; u += 2) {
@@ -462,8 +463,8 @@ double StructureRad::d1(const int k, const DiracSpinor &w, const DiracSpinor &r,
       const auto e_rnaw = r.en + n.en - a.en - w.en;
       const auto invde = 1.0 / (e_mnav * e_rnaw);
 
-      const auto [minU1, maxU1] = mY.k_minmax_W(w, a, r, n);
-      const auto [minU2, maxU2] = mY.k_minmax_W(v, a, m, n);
+      const auto [minU1, maxU1] = Coulomb::k_minmax_W(w, a, r, n);
+      const auto [minU2, maxU2] = Coulomb::k_minmax_W(v, a, m, n);
       const auto minU = std::max(minU1, minU2);
       const auto maxU = std::min(maxU1, maxU2);
       for (int u = minU; u <= maxU; ++u) {
@@ -505,8 +506,8 @@ double StructureRad::d2(const int k, const DiracSpinor &w, const DiracSpinor &r,
       const auto e_rwba = r.en + w.en - b.en - a.en;
       const auto invde = 1.0 / (e_mvab * e_rwba);
 
-      const auto [minU, maxU] = mY.k_minmax_Q(v, b, a, m);
-      const auto [minL, maxL] = mY.k_minmax_W(w, r, a, b);
+      const auto [minU, maxU] = Coulomb::k_minmax_Q(v, b, a, m);
+      const auto [minL, maxL] = Coulomb::k_minmax_W(w, r, a, b);
       if (minL > maxL)
         continue;
       for (int u = minU; u <= maxU; u += 2) {
@@ -544,7 +545,7 @@ double StructureRad::dSigma_dE(const DiracSpinor &v, const DiracSpinor &i,
   const auto ide2 = 1.0 / (e_vijk * e_vijk);
   const auto tjvp1 = v.twoj() + 1;
 
-  const auto [minU, maxU] = mY.k_minmax_W(v, i, j, k);
+  const auto [minU, maxU] = Coulomb::k_minmax_W(v, i, j, k);
   for (int u = minU; u <= maxU; ++u) {
 
     const auto tup1 = (2 * u + 1);

@@ -80,8 +80,8 @@ void calculatePNC(const IO::UserInputBlock &input, const Wavefunction &wf) {
   if (rpaQ) {
     const auto omega_dflt = std::abs(Fa.en - Fb.en);
     const auto omega = input.get("omega", omega_dflt);
-    dVE1.solve_TDHFcore(omega);
-    dVpnc.solve_TDHFcore(0.0);
+    dVE1.solve_core(omega);
+    dVpnc.solve_core(0.0);
   }
 
   // SOS, use HF

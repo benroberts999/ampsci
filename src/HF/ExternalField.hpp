@@ -31,7 +31,7 @@ the maximum number of iterations; set to 1 to get the first-order correction
 \par Construction
 Requires a pointer to an operator (h), a const HF object (const pointer).
 \par Usage
-solve_TDHFcore(omega) solves TDHF eqs for given frequency. Frequency should be
+solve_core(omega) solves TDHF eqs for given frequency. Frequency should be
 positive, but is allowed to be negative (use as a test only, with care). Can be
 run again with a different frequency, typically does not need to be re-started
 from scratch. Then, dV(Fa,Fb) returns the correction to the matrix element:
@@ -54,7 +54,8 @@ private:
   // can just write these to disk! Read them in, continue as per normal
 
   const DiracOperator::TensorOperator *const m_h; //??
-  const std::vector<DiracSpinor> *const p_core;
+  // const std::vector<DiracSpinor> *const p_core;
+  const std::vector<DiracSpinor> m_core;
   const std::vector<double> m_vl;   // Add H_mag ?
   const std::vector<double> m_Hmag; // Add H_mag ?
   const double m_alpha;
@@ -73,16 +74,16 @@ public:
   //! frequency omega. Will iterate up to a maximum of max_its. Set max_its=1
   //! to get first-order correction [note: no dampling is used for first
   //! itteration]. If print=true, will write progress to screen
-  void solve_TDHFcore(const double omega, int max_its = 100,
-                      const bool print = true);
+  void solve_core(const double omega, int max_its = 100,
+                  const bool print = true);
 
   //! @brief Uses itterative matrix method; for tests only
   void solve_TDHFcore_matrix(const Wavefunction &wf, const double omega,
                              const int max_its = 25);
 
-  //! Returns eps (convergance) of last solve_TDHFcore run
+  //! Returns eps (convergance) of last solve_core run
   double get_eps() const { return m_core_eps; }
-  //! Returns omega (frequency) of last solve_TDHFcore run
+  //! Returns omega (frequency) of last solve_core run
   double get_omega() const { return m_core_omega; }
 
   //! @brief Clears the dPsi orbitals (sets to zero)

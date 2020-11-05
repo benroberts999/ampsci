@@ -90,7 +90,7 @@ bool Breit(std::ostream &obuff) {
     // Solve TDHF with Breit (for RPA)
     const auto h{DiracOperator::E1(*wf.rgrid)};
     auto rpa = HF::ExternalField(&h, wf.getHF());
-    rpa.solve_TDHFcore(0.0, 20); // w=0
+    rpa.solve_core(0.0, 20); // w=0
 
     // Get my values:
     datav me{}, me_RPA{};
@@ -135,7 +135,7 @@ bool Breit(std::ostream &obuff) {
 
     auto h = DiracOperator::Ek(*wf.rgrid, 2);
     auto rpa = HF::ExternalField(&h, wf.getHF());
-    rpa.solve_TDHFcore(0.0, 20); // w=0
+    rpa.solve_core(0.0, 20); // w=0
 
     datav me{}, me_RPA{};
     for (const auto &Fv : wf.valence) {
@@ -177,7 +177,7 @@ bool Breit(std::ostream &obuff) {
     // nb: use exact same 'c' and 't' params used for Dzuba test data:
     auto h = DiracOperator::PNCnsi(5.674800, 2.3, *wf.rgrid);
     auto rpa = HF::ExternalField(&h, wf.getHF());
-    rpa.solve_TDHFcore(0.0, 20); // w=0
+    rpa.solve_core(0.0, 20); // w=0
 
     datav me{}, me_RPA{};
     for (const auto &Fv : wf.valence) {

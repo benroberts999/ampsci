@@ -82,10 +82,10 @@ void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf) {
 
   if (rpaQ) {
     if (!eachFreqQ) {
-      rpa.solve_TDHFcore(omega, 1, false);
+      rpa.solve_core(omega, 1, false);
       // store first-order snapshot:
       rpa0 = std::make_unique<HF::ExternalField>(rpa);
-      rpa.solve_TDHFcore(omega);
+      rpa.solve_core(omega);
     } else {
       rpa0 = std::make_unique<HF::ExternalField>(rpa); // Solved later
     }
@@ -113,10 +113,10 @@ void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf) {
       }
       if (eachFreqQ && rpaQ) {
         rpa0->clear_dPsi();
-        rpa0->solve_TDHFcore(ww, 1, false); // wastes a little time
+        rpa0->solve_core(ww, 1, false); // wastes a little time
         if (rpa.get_eps() > 1.0e-5)
-          rpa.clear_dPsi();     // in case last one didn't work!
-        rpa.solve_TDHFcore(ww); // re-solve at new frequency
+          rpa.clear_dPsi(); // in case last one didn't work!
+        rpa.solve_core(ww); // re-solve at new frequency
       }
       if (eachFreqQ && rpaDQ) {
         if (rpaD->get_eps() > 1.0e-5)
@@ -198,7 +198,7 @@ void structureRad(const IO::UserInputBlock &input, const Wavefunction &wf) {
   if (rpaQ) {
     dV = std::make_unique<HF::ExternalField>(h.get(), wf.getHF());
     if (!eachFreqQ)
-      dV->solve_TDHFcore(const_omega);
+      dV->solve_core(const_omega);
   }
 
   std::cout << "\nStructure radiation and normalisation of states:\n";
@@ -274,7 +274,7 @@ void structureRad(const IO::UserInputBlock &input, const Wavefunction &wf) {
       if (eachFreqQ && rpaQ) {
         if (dV->get_eps() > 1.0e-3)
           dV->clear_dPsi();
-        dV->solve_TDHFcore(ww);
+        dV->solve_core(ww);
       }
 
       // Zeroth-order MEs:
@@ -357,7 +357,7 @@ void calculateLifetimes(const IO::UserInputBlock &input,
           continue;
         const auto w = Fa.en - Fn.en;
         if (rpaQ)
-          dVE1.solve_TDHFcore(w, 40);
+          dVE1.solve_core(w, 40);
         auto d = he1.reducedME(Fn, Fa) + dVE1.dV(Fn, Fa);
         if (sr) {
           // include SR.
@@ -379,7 +379,7 @@ void calculateLifetimes(const IO::UserInputBlock &input,
           continue;
         const auto w = Fa.en - Fn.en;
         if (rpaQ)
-          dVE2.solve_TDHFcore(w, 40);
+          dVE2.solve_core(w, 40);
         const auto d = he2.reducedME(Fn, Fa) + dVE2.dV(Fn, Fa);
         const auto g_n = (1.0 / 15) * w * w * w * w * w * d * d / (Fa.twojp1());
         Gamma += g_n * alpha2;

@@ -63,13 +63,7 @@ public:
                                        const DiracSpinor &Fb) const;
   //! Returns a pointer to (const) y^k_ab(r), if k valid. Else, returns nullptr
   const std::vector<double> *ptr_yk_ab(const int k, const DiracSpinor &Fa,
-                                       const DiracSpinor &Fb) const {
-    const auto [min, max] = k_minmax(Fa, Fb);
-    if (k >= min && k <= max) {
-      return &get_yk_ab(k, Fa, Fb);
-    }
-    return nullptr;
-  }
+                                       const DiracSpinor &Fb) const;
 
   //! overload for get_yk_ab()
   const std::vector<double> &operator()(const int k, const DiracSpinor &Fa,
@@ -99,9 +93,9 @@ private:
   void resize_y();
 
 public:
-  //! Returns min and max k (multipolarity) allowed for C^k_ab
-  static std::pair<int, int> k_minmax(const DiracSpinor &a,
-                                      const DiracSpinor &b);
+  // //! Returns min and max k (multipolarity) allowed for C^k_ab
+  // static std::pair<int, int> k_minmax(const DiracSpinor &a,
+  //                                     const DiracSpinor &b);
 
   //! Returns Qk, Pk, Wk - uses existing yk table half the Coulomb integral.
   //! @details
@@ -114,23 +108,6 @@ public:
             const DiracSpinor &Fc, const DiracSpinor &Fd) const;
   double Wk(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
             const DiracSpinor &Fc, const DiracSpinor &Fd) const;
-
-  //! Returns min and max k (multipolarity) allowed for Q^k_abcd, Wk, Pk. For Q
-  //! (and Q only), parity rule is included, so you may safely call k+=2
-  static std::pair<int, int> k_minmax_Q(const DiracSpinor &a,
-                                        const DiracSpinor &b,
-                                        const DiracSpinor &c,
-                                        const DiracSpinor &d);
-  //! DOES NOT contain parity rules (6j only) - so NOT safe to call k+=2
-  static std::pair<int, int> k_minmax_P(const DiracSpinor &a,
-                                        const DiracSpinor &b,
-                                        const DiracSpinor &c,
-                                        const DiracSpinor &d);
-  //! DOES NOT contain parity rules (6j only) - so NOT safe to call k+=2
-  static std::pair<int, int> k_minmax_W(const DiracSpinor &a,
-                                        const DiracSpinor &b,
-                                        const DiracSpinor &c,
-                                        const DiracSpinor &d);
 
   //! "Magic" sixj symbol calculator. Integers (for k) and Spinors
   // do not multiply by 2!

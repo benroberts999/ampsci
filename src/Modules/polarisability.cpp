@@ -30,7 +30,7 @@ void polarisability(const IO::UserInputBlock &input, const Wavefunction &wf) {
   // Solve TDHF for core, is doing RPA.
   // nb: even if not doing RPA, need TDHF object for tdhf method
   if (rpaQ)
-    dVE1.solve_TDHFcore(omega);
+    dVE1.solve_core(omega);
 
   // **************
   // "Static" core + valence dipole polarisabilities:
@@ -107,7 +107,7 @@ void polarisability(const IO::UserInputBlock &input, const Wavefunction &wf) {
         dVE1.clear_dPsi();
       }
       if (rpaQ)
-        dVE1.solve_TDHFcore(ww, 30, false);
+        dVE1.solve_core(ww, 30, false);
       const auto ac_w_tdhf = alpha_core_tdhf(wf.core, he1, dVE1, ww);
       const auto ac_w_sos = alpha_core_sos(wf.core, wf.spectrum, he1, dVE1, ww);
       printf("%6.4f  %.0e %11.4e %11.4e   ", ww, dVE1.get_eps(), ac_w_tdhf,

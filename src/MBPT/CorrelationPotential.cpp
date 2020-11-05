@@ -283,7 +283,7 @@ double CorrelationPotential::SOEnergyShift(const DiracSpinor &v,
     for (const auto &n : m_excited) {
       if (n.l() > max_l)
         continue;
-      const auto [kmin_nb, kmax_nb] = m_yeh.k_minmax(n, a);
+      const auto [kmin_nb, kmax_nb] = Coulomb::k_minmax(n, a);
       const auto max_k = std::min(m_maxk, kmax_nb);
       for (int k = kmin_nb; k <= max_k; ++k) {
         if (Ck(k, a.k, n.k) == 0)

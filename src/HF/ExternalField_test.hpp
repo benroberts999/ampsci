@@ -113,7 +113,7 @@ UnitTest::helper::dV_result(const Wavefunction &wf,
   // Solve set of TDHF equations for core, with frequency ww
   const auto max_iterations = 150;
   const auto print_details = true;
-  dV.solve_TDHFcore(ww, max_iterations, print_details);
+  dV.solve_core(ww, max_iterations, print_details);
 
   std::vector<std::pair<std::string, double>> result;
   for (const auto &Fv : wf.valence) {

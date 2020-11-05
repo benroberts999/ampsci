@@ -44,68 +44,11 @@ int YkTable::max_tj() const {
 }
 
 //******************************************************************************
-std::pair<int, int> YkTable::k_minmax(const DiracSpinor &a,
-                                      const DiracSpinor &b) {
-  return std::make_pair(std::abs(a.twoj() - b.twoj()) / 2,
-                        (a.twoj() + b.twoj()) / 2);
-}
-
-//------------------------------------------------------------------------------
-std::pair<int, int> YkTable::k_minmax_Q(const DiracSpinor &a,
-                                        const DiracSpinor &b,
-                                        const DiracSpinor &c,
-                                        const DiracSpinor &d) {
-
-  // Determine if K needs to be even/odd (parity selection rule)
-  const auto k_even_ac = (a.l() + c.l()) % 2 == 0;
-  const auto k_even_bd = (b.l() + d.l()) % 2 == 0;
-  if (k_even_ac != k_even_bd) {
-    // no K satisfies selection rule!
-    return {1, 0};
-  }
-
-  // Find min/max k from triangle rule:
-  const auto [l1, u1] = k_minmax(a, c);
-  const auto [l2, u2] = k_minmax(b, d);
-  auto min_k = std::max(l1, l2);
-  auto max_k = std::min(u1, u2);
-
-  // Adjust min/max k due to parity selectrion rule:
-  // Allows one to safely use only evey second k to calculate Q
-  if ((b.l() + d.l() + min_k) % 2 != 0) {
-    ++min_k;
-  }
-  if ((b.l() + d.l() + max_k) % 2 != 0) {
-    --max_k;
-  }
-
-  return {min_k, max_k};
-}
-
-std::pair<int, int> YkTable::k_minmax_P(const DiracSpinor &a,
-                                        const DiracSpinor &b,
-                                        const DiracSpinor &c,
-                                        const DiracSpinor &d) {
-  // P^k_abcd = sum_l {a, c, k \\ b, d, l} * Q^l_abdc
-  //  |b-d| <= k <=|b+d|
-  //  |a-c| <= k <=|a+c|
-  // min/max k Comes from 6j symbol ONLY
-  const auto [l1, u1] = k_minmax(a, c);
-  const auto [l2, u2] = k_minmax(b, d);
-  return {std::max({l1, l2}), std::min({u1, u2})};
-}
-
-std::pair<int, int> YkTable::k_minmax_W(const DiracSpinor &a,
-                                        const DiracSpinor &b,
-                                        const DiracSpinor &c,
-                                        const DiracSpinor &d) {
-  // NOTE: Cannot safely k++2, since parity rules may be opposite for P and Q
-  // parts!
-  const auto [l1, u1] = k_minmax_Q(a, b, c, d);
-  const auto [l2, u2] = k_minmax_P(a, b, c, d);
-  // nb: min/max swapped, since W = Q+P, so only 1 needs to survive!
-  return {std::min(l1, l2), std::max(u1, u2)};
-}
+// std::pair<int, int> YkTable::k_minmax(const DiracSpinor &a,
+//                                       const DiracSpinor &b) {
+//   return std::make_pair(std::abs(a.twoj() - b.twoj()) / 2,
+//                         (a.twoj() + b.twoj()) / 2);
+// }
 
 //******************************************************************************
 const std::vector<double> &YkTable::get_yk_ab(const int k,
@@ -119,6 +62,18 @@ const std::vector<double> &YkTable::get_yk_ab(const int k,
   assert(ik < yab.size());
   return yab[ik];
 }
+
+//------------------------------------------------------------------------------
+const std::vector<double> *YkTable::ptr_yk_ab(const int k,
+                                              const DiracSpinor &Fa,
+                                              const DiracSpinor &Fb) const {
+  const auto [min, max] = k_minmax(Fa, Fb);
+  if (k >= min && k <= max) {
+    return &get_yk_ab(k, Fa, Fb);
+  }
+  return nullptr;
+}
+
 //------------------------------------------------------------------------------
 const std::vector<std::vector<double>> &
 YkTable::get_y_ab(const DiracSpinor &Fa, const DiracSpinor &Fb) const {

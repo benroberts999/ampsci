@@ -137,7 +137,7 @@ void GoldstoneSigma::Sigma2(GMatrix *Gmat_D, GMatrix *Gmat_X, int kappa,
     auto Qkv = DiracSpinor(0, kappa, p_gr); // re-use to reduce alloc'ns
     auto Pkv = DiracSpinor(0, kappa, p_gr); // re-use to reduce alloc'ns
     for (const auto &n : m_excited) {
-      const auto [kmin_nb, kmax_nb] = m_yeh.k_minmax(n, a);
+      const auto [kmin_nb, kmax_nb] = Coulomb::k_minmax(n, a);
       for (int k = kmin_nb; k <= kmax_nb; ++k) {
         if (Ck(k, a.k, n.k) == 0)
           continue;

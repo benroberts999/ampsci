@@ -318,23 +318,81 @@ void Rkv_bcd(DiracSpinor *const Rkv, const DiracSpinor &Fc,
 }
 
 //******************************************************************************
-double Zk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
+double Qk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
                const DiracSpinor &Fc, const DiracSpinor &Fd, const int k) {
-  // Z^k_abcd = s ( Q^k_abcd + sum_l [k] 6j * Q^l_abdc)
   [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__);
-  const auto s = Angular::evenQ_2(Fa.twoj() + Fb.twoj() + 2) ? 1 : -1;
-  return s * Wk_abcd(Fa, Fb, Fc, Fd, k);
+  const auto tCac = Angular::tildeCk_kk(k, Fa.k, Fc.k);
+  if (Angular::zeroQ(tCac))
+    return 0.0;
+  const auto tCbd = Angular::tildeCk_kk(k, Fb.k, Fd.k);
+  if (Angular::zeroQ(tCbd))
+    return 0.0;
+  const auto Rkabcd = Rk_abcd(Fa, Fb, Fc, Fd, k);
+  const auto m1tk = Angular::evenQ(k) ? 1 : -1;
+  return m1tk * tCac * tCbd * Rkabcd;
 }
 
-//******************************************************************************
-double Wk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
-               const DiracSpinor &Fc, const DiracSpinor &Fd, const int k) {
-  // W^k_abcd = Q^k_abcd + sum_l [k] 6j * Q^l_abdc
-  [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__);
-  const auto Qkabcd = Qk_abcd(Fa, Fb, Fc, Fd, k);
-  const auto Pkabcd = Pk_abcd(Fa, Fb, Fc, Fd, k);
-  return (Qkabcd + Pkabcd);
+//------------------------------------------------------------------------------
+double Qk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
+               const DiracSpinor &Fc, const DiracSpinor &Fd, const int k,
+               const std::vector<double> &ykbd, const Angular::Ck_ab &Ck) {
+  [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__, "yk");
+
+  const auto tCac = Ck.get_tildeCkab(k, Fa.k, Fc.k);
+  if (Angular::zeroQ(tCac))
+    return 0.0;
+  const auto tCbd = Ck.get_tildeCkab(k, Fb.k, Fd.k);
+  if (Angular::zeroQ(tCbd))
+    return 0.0;
+  const auto Rkabcd = Rk_abcd(Fa, Fc, ykbd);
+  const auto m1tk = Angular::evenQ(k) ? 1 : -1;
+  return m1tk * tCac * tCbd * Rkabcd;
 }
+
+//------------------------------------------------------------------------------
+DiracSpinor Qkv_bcd(const int kappa_a, const DiracSpinor &Fb,
+                    const DiracSpinor &Fc, const DiracSpinor &Fd, const int k) {
+  [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__);
+  const auto tCac = Angular::tildeCk_kk(k, kappa_a, Fc.k);
+  const auto tCbd = Angular::tildeCk_kk(k, Fb.k, Fd.k);
+  if (Angular::zeroQ(tCbd) || Angular::zeroQ(tCac))
+    return DiracSpinor(0, kappa_a, Fc.rgrid);
+  const auto m1tk = Angular::evenQ(k) ? 1 : -1;
+  return (m1tk * tCac * tCbd) * Rkv_bcd(kappa_a, Fb, Fc, Fd, k);
+}
+
+//------------------------------------------------------------------------------
+DiracSpinor Qkv_bcd(const int kappa_v, const DiracSpinor &Fb,
+                    const DiracSpinor &Fc, const DiracSpinor &Fd, const int k,
+                    const std::vector<double> &ykbd, const Angular::Ck_ab &Ck) {
+  [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__, "yk");
+  const auto tCac = Ck.get_tildeCkab(k, kappa_v, Fc.k);
+  const auto tCbd = Ck.get_tildeCkab(k, Fb.k, Fd.k);
+  const auto tCC = tCbd * tCac;
+  const auto m1tk = Angular::evenQ(k) ? 1 : -1;
+  if (tCC == 0) //?????
+    return DiracSpinor(0, kappa_v, Fb.rgrid);
+  return (m1tk * tCC) * Rkv_bcd(kappa_v, Fc, ykbd);
+}
+
+//------------------------------------------------------------------------------
+void Qkv_bcd(DiracSpinor *const Qkv, const DiracSpinor &Fb,
+             const DiracSpinor &Fc, const DiracSpinor &Fd, const int k,
+             const std::vector<double> &ykbd, const Angular::Ck_ab &Ck) {
+  [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__, "yk");
+  const auto tCac = Ck.get_tildeCkab(k, Qkv->k, Fc.k);
+  const auto tCbd = Ck.get_tildeCkab(k, Fb.k, Fd.k);
+  const auto tCC = tCbd * tCac;
+  if (tCC == 0.0) {
+    Qkv->scale(0.0);
+    return;
+  }
+  Rkv_bcd(Qkv, Fc, ykbd);
+  const auto m1tk = Angular::evenQ(k) ? 1 : -1;
+  Qkv->scale(m1tk * tCC);
+  return;
+}
+
 //******************************************************************************
 double Pk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
                const DiracSpinor &Fc, const DiracSpinor &Fd, const int k) {
@@ -357,20 +415,6 @@ double Pk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
   return (tkp1 * sum);
 }
 
-//******************************************************************************
-double Wk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
-               const DiracSpinor &Fc, const DiracSpinor &Fd, const int k,
-               const std::vector<double> &ykbd,
-               const std::vector<std::vector<double>> &ybc,
-               const Angular::Ck_ab &Ck, const Angular::SixJ &sixj) {
-  // W^k_abcd = Q^k_abcd + sum_l [k] 6j * Q^l_abdc
-  [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__, "yk");
-
-  const auto Qkabcd = Qk_abcd(Fa, Fb, Fc, Fd, k, ykbd, Ck);
-  const auto Pkabcd = Pk_abcd(Fa, Fb, Fc, Fd, k, ybc, Ck, sixj);
-
-  return (Qkabcd + Pkabcd);
-}
 //******************************************************************************
 double Pk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
                const DiracSpinor &Fc, const DiracSpinor &Fd, const int k,
@@ -402,6 +446,29 @@ double Pk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
 
   return (tkp1 * sum);
 }
+
+//------------------------------------------------------------------------------
+DiracSpinor Pkv_bcd(int kappa_a, const DiracSpinor &Fb, const DiracSpinor &Fc,
+                    const DiracSpinor &Fd, const int k) {
+  auto out = DiracSpinor(0, kappa_a, Fc.rgrid);
+  const auto tkp1 = 2 * k + 1;
+  const auto tja = Angular::twoj_k(kappa_a);
+  const auto min_twol =
+      std::max(std::abs(Fd.twoj() - tja), std::abs(Fc.twoj() - Fb.twoj()));
+  const auto max_twol = std::min(Fd.twoj() + tja, Fc.twoj() + Fb.twoj());
+  for (int tl = min_twol; tl <= max_twol; tl += 2) {
+    if (!Angular::Ck_kk_SR(tl / 2, Fb.k, Fc.k) ||
+        !Angular::Ck_kk_SR(tl / 2, kappa_a, Fd.k))
+      continue;
+    const auto sixj =
+        Angular::sixj_2(Fc.twoj(), tja, 2 * k, Fd.twoj(), Fb.twoj(), tl);
+    if (sixj == 0)
+      continue;
+    out += sixj * Qkv_bcd(kappa_a, Fb, Fd, Fc, tl / 2);
+  }
+  return (tkp1 * out);
+}
+
 //------------------------------------------------------------------------------
 void Pkv_bcd(DiracSpinor *Pkv, const DiracSpinor &Fb, const DiracSpinor &Fc,
              const DiracSpinor &Fd, const int k,
@@ -413,13 +480,10 @@ void Pkv_bcd(DiracSpinor *Pkv, const DiracSpinor &Fb, const DiracSpinor &Fc,
   [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__, "yk");
 
   *Pkv *= 0.0;
-  // Pkv->p0 = 0;
-  // Pkv->pinf=Pkv->p0=0;
 
   const auto kappa = Pkv->k;
 
   const auto tkp1 = 2 * k + 1;
-  // double sum = 0.0;
   const auto min_l = std::abs(Fb.twoj() - Fc.twoj()) / 2;
   auto count = 0;
   for (const auto &ybc_l : ybc) {
@@ -474,67 +538,118 @@ void Pkv_bcd_2(DiracSpinor *Pkv, const DiracSpinor &Fb, const DiracSpinor &Fc,
 }
 
 //******************************************************************************
-double Qk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
-               const DiracSpinor &Fc, const DiracSpinor &Fd, const int k) {
-  [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__);
-  const auto tCac = Angular::tildeCk_kk(k, Fa.k, Fc.k);
-  if (Angular::zeroQ(tCac))
-    return 0.0;
-  const auto tCbd = Angular::tildeCk_kk(k, Fb.k, Fd.k);
-  if (Angular::zeroQ(tCbd))
-    return 0.0;
-  const auto Rkabcd = Rk_abcd(Fa, Fb, Fc, Fd, k);
-  const auto m1tk = Angular::evenQ(k) ? 1 : -1;
-  return m1tk * tCac * tCbd * Rkabcd;
-}
-
-//******************************************************************************
-double Qk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
+double Wk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
                const DiracSpinor &Fc, const DiracSpinor &Fd, const int k,
-               const std::vector<double> &ykbd, const Angular::Ck_ab &Ck) {
+               const std::vector<double> &ykbd,
+               const std::vector<std::vector<double>> &ybc,
+               const Angular::Ck_ab &Ck, const Angular::SixJ &sixj) {
+  // W^k_abcd = Q^k_abcd + sum_l [k] 6j * Q^l_abdc
   [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__, "yk");
 
-  const auto tCac = Ck.get_tildeCkab(k, Fa.k, Fc.k);
-  if (Angular::zeroQ(tCac))
-    return 0.0;
-  const auto tCbd = Ck.get_tildeCkab(k, Fb.k, Fd.k);
-  if (Angular::zeroQ(tCbd))
-    return 0.0;
-  const auto Rkabcd = Rk_abcd(Fa, Fc, ykbd);
-  const auto m1tk = Angular::evenQ(k) ? 1 : -1;
-  return m1tk * tCac * tCbd * Rkabcd;
+  const auto Qkabcd = Qk_abcd(Fa, Fb, Fc, Fd, k, ykbd, Ck);
+  const auto Pkabcd = Pk_abcd(Fa, Fb, Fc, Fd, k, ybc, Ck, sixj);
+
+  return (Qkabcd + Pkabcd);
 }
 
-//******************************************************************************
-DiracSpinor Qkv_bcd(const int kappa_v, const DiracSpinor &Fb,
-                    const DiracSpinor &Fc, const DiracSpinor &Fd, const int k,
-                    const std::vector<double> &ykbd, const Angular::Ck_ab &Ck) {
-  [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__, "yk");
-  const auto tCac = Ck.get_tildeCkab(k, kappa_v, Fc.k);
-  const auto tCbd = Ck.get_tildeCkab(k, Fb.k, Fd.k);
-  const auto tCC = tCbd * tCac;
-  const auto m1tk = Angular::evenQ(k) ? 1 : -1;
-  if (tCC == 0) //?????
-    return DiracSpinor(0, kappa_v, Fb.rgrid);
-  return (m1tk * tCC) * Rkv_bcd(kappa_v, Fc, ykbd);
-}
-
-//******************************************************************************
-void Qkv_bcd(DiracSpinor *const Qkv, const DiracSpinor &Fb,
-             const DiracSpinor &Fc, const DiracSpinor &Fd, const int k,
-             const std::vector<double> &ykbd, const Angular::Ck_ab &Ck) {
-  [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__, "yk");
-  const auto tCac = Ck.get_tildeCkab(k, Qkv->k, Fc.k);
-  const auto tCbd = Ck.get_tildeCkab(k, Fb.k, Fd.k);
-  const auto tCC = tCbd * tCac;
-  if (tCC == 0.0) {
-    Qkv->scale(0.0);
-    return;
+//------------------------------------------------------------------------------
+DiracSpinor Wkv_bcd(int kappa_v, const DiracSpinor &Fb, const DiracSpinor &Fc,
+                    const DiracSpinor &Fd, const int k) {
+  auto out = Pkv_bcd(kappa_v, Fb, Fc, Fd, k);
+  if (Angular::Ck_kk_SR(k, kappa_v, Fc.k) && Angular::Ck_kk_SR(k, Fb.k, Fd.k)) {
+    out += Qkv_bcd(kappa_v, Fb, Fc, Fd, k);
   }
-  Rkv_bcd(Qkv, Fc, ykbd);
-  const auto m1tk = Angular::evenQ(k) ? 1 : -1;
-  Qkv->scale(m1tk * tCC);
-  return;
+  return out;
+}
+
+//------------------------------------------------------------------------------
+double Wk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
+               const DiracSpinor &Fc, const DiracSpinor &Fd, const int k) {
+  // W^k_abcd = Q^k_abcd + sum_l [k] 6j * Q^l_abdc
+  [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__);
+  const auto Qkabcd = Qk_abcd(Fa, Fb, Fc, Fd, k);
+  const auto Pkabcd = Pk_abcd(Fa, Fb, Fc, Fd, k);
+  return (Qkabcd + Pkabcd);
+}
+
+//------------------------------------------------------------------------------
+double Zk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
+               const DiracSpinor &Fc, const DiracSpinor &Fd, const int k) {
+  // Z^k_abcd = s ( Q^k_abcd + sum_l [k] 6j * Q^l_abdc)
+  [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__);
+  const auto s = Angular::evenQ_2(Fa.twoj() + Fb.twoj() + 2) ? 1 : -1;
+  return s * Wk_abcd(Fa, Fb, Fc, Fd, k);
+}
+
+//******************************************************************************
+std::pair<int, int> k_minmax(const DiracSpinor &a, const DiracSpinor &b) {
+  return k_minmax_tj(a.twoj(), b.twoj());
+}
+std::pair<int, int> k_minmax_tj(int tja, int tjb) {
+  return std::make_pair(std::abs(tja - tjb) / 2, (tja + tjb) / 2);
+}
+
+//------------------------------------------------------------------------------
+std::pair<int, int> k_minmax_Q(const DiracSpinor &a, const DiracSpinor &b,
+                               const DiracSpinor &c, const DiracSpinor &d) {
+
+  // Determine if K needs to be even/odd (parity selection rule)
+  const auto k_even_ac = (a.l() + c.l()) % 2 == 0;
+  const auto k_even_bd = (b.l() + d.l()) % 2 == 0;
+  if (k_even_ac != k_even_bd) {
+    // no K satisfies selection rule!
+    return {1, 0};
+  }
+
+  // Find min/max k from triangle rule:
+  const auto [l1, u1] = k_minmax(a, c);
+  const auto [l2, u2] = k_minmax(b, d);
+  auto min_k = std::max(l1, l2);
+  auto max_k = std::min(u1, u2);
+
+  // Adjust min/max k due to parity selectrion rule:
+  // Allows one to safely use only evey second k to calculate Q
+  if ((b.l() + d.l() + min_k) % 2 != 0) {
+    ++min_k;
+  }
+  if ((b.l() + d.l() + max_k) % 2 != 0) {
+    --max_k;
+  }
+
+  return {min_k, max_k};
+}
+
+//------------------------------------------------------------------------------
+std::pair<int, int> k_minmax_P(const DiracSpinor &a, const DiracSpinor &b,
+                               const DiracSpinor &c, const DiracSpinor &d) {
+  // P^k_abcd = sum_l {a, c, k \\ b, d, l} * Q^l_abdc
+  //  |b-d| <= k <=|b+d|
+  //  |a-c| <= k <=|a+c|
+  // min/max k Comes from 6j symbol ONLY
+  const auto [l1, u1] = k_minmax(a, c);
+  const auto [l2, u2] = k_minmax(b, d);
+  return {std::max({l1, l2}), std::min({u1, u2})};
+}
+std::pair<int, int> k_minmax_P(int kappa_a, const DiracSpinor &b,
+                               const DiracSpinor &c, const DiracSpinor &d) {
+  // P^k_abcd = sum_l {a, c, k \\ b, d, l} * Q^l_abdc
+  //  |b-d| <= k <=|b+d|
+  //  |a-c| <= k <=|a+c|
+  // min/max k Comes from 6j symbol ONLY
+  const auto [l1, u1] = k_minmax_tj(Angular::twoj_k(kappa_a), c.twoj());
+  const auto [l2, u2] = k_minmax(b, d);
+  return {std::max({l1, l2}), std::min({u1, u2})};
+}
+
+//------------------------------------------------------------------------------
+std::pair<int, int> k_minmax_W(const DiracSpinor &a, const DiracSpinor &b,
+                               const DiracSpinor &c, const DiracSpinor &d) {
+  // NOTE: Cannot safely k++2, since parity rules may be opposite for P and Q
+  // parts!
+  const auto [l1, u1] = k_minmax_Q(a, b, c, d);
+  const auto [l2, u2] = k_minmax_P(a, b, c, d);
+  // nb: min/max swapped, since W = Q+P, so only 1 needs to survive!
+  return {std::min(l1, l2), std::max(u1, u2)};
 }
 
 } // namespace Coulomb

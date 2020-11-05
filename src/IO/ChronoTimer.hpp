@@ -34,7 +34,7 @@ string, in units of ms,s,mins, or hours (e.g., "1.56 s" or "2.10 hours")
 */
 class ChronoTimer {
 public:
-  ChronoTimer(const std::string &in_name = "");
+  ChronoTimer(std::string_view in_name = "");
   void start();
   void stop();
   void reset();
@@ -54,7 +54,7 @@ private:
 };
 
 //******************************************************************************
-inline ChronoTimer::ChronoTimer(const std::string &in_name)
+inline ChronoTimer::ChronoTimer(std::string_view in_name)
     : name(in_name), running(false), total_time_ms(0) {
   start();
 }

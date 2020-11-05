@@ -25,8 +25,7 @@ DiracSpinor solveMixedState(const int k, const DiracSpinor &Fa,
                             const MBPT::CorrelationPotential *const Sigma,
                             const Breit *const VBr,
                             const std::vector<double> &H_mag) {
-  auto dF = DiracSpinor(0, k, Fa.rgrid);
-  // k is always hFa.k ?! XXX
+  DiracSpinor dF{0, k, Fa.rgrid};
   solveMixedState(dF, Fa, omega, vl, alpha, core, hFa, eps_target, Sigma, VBr,
                   H_mag);
   return dF;
@@ -69,17 +68,19 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
 
     auto dF2 = std::abs(dF * dF);
     auto eps = std::abs((dF2 - dF20) / dF2);
+
     if constexpr (print_each_eps) {
       std::cout << __LINE__ << "| " << Fa.symbol() << " " << its << " " << eps
                 << "\n";
     }
-    if (eps < eps_target || its == max_its) {
-      if constexpr (print_final_eps) {
+    if constexpr (print_final_eps) {
+      if (eps < eps_target || its == max_its) {
         std::cout << __LINE__ << "| " << Fa.symbol() << " " << its << " " << eps
                   << "   (<dF|dF>=" << dF2 << ")\n";
-        if (its == max_its)
-          std::cout << "************\n";
       }
+    }
+
+    if (eps < eps_target || its == max_its) {
       break;
     }
     dF20 = dF2;

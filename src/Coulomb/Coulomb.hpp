@@ -27,9 +27,12 @@ void gk_ab(const DiracSpinor &Fa, const DiracSpinor &Fb, const int k,
            std::vector<double> &g0, std::vector<double> &ginf,
            const std::size_t maxi = 0);
 
+//******************************************************************************
+
 //! Calculates R^k_abcd for given k. From scratch (calculates y)
 double Rk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
                const DiracSpinor &Fc, const DiracSpinor &Fd, const int k);
+
 //! Overload for when y^k_bd already exists [much faster]
 double Rk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fc,
                const std::vector<double> &ykbd);
@@ -58,17 +61,15 @@ DiracSpinor Qkv_bcd(const int kappa_v, const DiracSpinor &Fb,
                     const DiracSpinor &Fc, const DiracSpinor &Fd, const int k,
                     const std::vector<double> &ykbd, const Angular::Ck_ab &Ck);
 
+// void Qkv_bcd(DiracSpinor *Qkv, const DiracSpinor &Fb, const DiracSpinor &Fc,
+//              const DiracSpinor &Fd, const int k);
+DiracSpinor Qkv_bcd(int kappa_v, const DiracSpinor &Fb, const DiracSpinor &Fc,
+                    const DiracSpinor &Fd, const int k);
+
 //! Overload for when spinor exists. Qkv is overwritten
 void Qkv_bcd(DiracSpinor *const Qkv, const DiracSpinor &Fb,
              const DiracSpinor &Fc, const DiracSpinor &Fd, const int k,
              const std::vector<double> &ykbd, const Angular::Ck_ab &Ck);
-
-//! Calculates W^k_abcd for given k. From scratch (calculates y)
-//! @details
-//! \f[ W^k_abcd = Q^k_abcd + \sum_l [k] 6j * Q^l_abdc \f]
-//! \f[ W^k_abcd = Q^k_abcd + \P^k_abcd  \f]
-double Wk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
-               const DiracSpinor &Fc, const DiracSpinor &Fd, const int k);
 
 //! Exchange only version of W (W-Q): W = Q + P
 double Pk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
@@ -91,6 +92,9 @@ DiracSpinor Pkv_bcd(int kappa_v, const DiracSpinor &Fb, const DiracSpinor &Fc,
                     const std::vector<std::vector<double>> &ybc,
                     const Angular::Ck_ab &Ck, const Angular::SixJ &sixj);
 
+DiracSpinor Pkv_bcd(int kappa_v, const DiracSpinor &Fb, const DiracSpinor &Fc,
+                    const DiracSpinor &Fd, const int k);
+
 // Includes screening factor in a dumb way..
 void Pkv_bcd_2(DiracSpinor *Pkv, const DiracSpinor &Fb, const DiracSpinor &Fc,
                const DiracSpinor &Fd, const int k,
@@ -98,11 +102,38 @@ void Pkv_bcd_2(DiracSpinor *Pkv, const DiracSpinor &Fb, const DiracSpinor &Fc,
                const Angular::Ck_ab &Ck, const Angular::SixJ &sixj,
                const std::vector<double> &f2k);
 
+//! Calculates W^k_abcd for given k. From scratch (calculates y)
+//! @details
+//! \f[ W^k_abcd = Q^k_abcd + \sum_l [k] 6j * Q^l_abdc \f]
+//! \f[ W^k_abcd = Q^k_abcd + \P^k_abcd  \f]
+double Wk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
+               const DiracSpinor &Fc, const DiracSpinor &Fd, const int k);
+
+DiracSpinor Wkv_bcd(int kappa_v, const DiracSpinor &Fb, const DiracSpinor &Fc,
+                    const DiracSpinor &Fd, const int k);
+
 //! Calculates Z^k_abcd for given k. From scratch (calculates y)
 //! @details
 //! \f[ Z^k_abcd = (-1)^{ja+jb+1} * ( Q^k_abcd + \sum_l [k] 6j * Q^l_abdc)
 //! \f]
 double Zk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
                const DiracSpinor &Fc, const DiracSpinor &Fd, const int k);
+
+//! Returns min and max k (multipolarity) allowed for C^k_ab
+std::pair<int, int> k_minmax(const DiracSpinor &a, const DiracSpinor &b);
+std::pair<int, int> k_minmax_tj(int tja, int tjb);
+
+//! Returns min and max k (multipolarity) allowed for Q^k_abcd, Wk, Pk. For Q
+//! (and Q only), parity rule is included, so you may safely call k+=2
+std::pair<int, int> k_minmax_Q(const DiracSpinor &a, const DiracSpinor &b,
+                               const DiracSpinor &c, const DiracSpinor &d);
+//! DOES NOT contain parity rules (6j only) - so NOT safe to call k+=2
+std::pair<int, int> k_minmax_P(const DiracSpinor &a, const DiracSpinor &b,
+                               const DiracSpinor &c, const DiracSpinor &d);
+std::pair<int, int> k_minmax_P(int kappa_a, const DiracSpinor &b,
+                               const DiracSpinor &c, const DiracSpinor &d);
+//! DOES NOT contain parity rules (6j only) - so NOT safe to call k+=2
+std::pair<int, int> k_minmax_W(const DiracSpinor &a, const DiracSpinor &b,
+                               const DiracSpinor &c, const DiracSpinor &d);
 
 } // namespace Coulomb

@@ -91,11 +91,11 @@ bool MixedStates(std::ostream &obuff) {
     double best_eps = 1.0;
     std::string best_set{};
     HF::ExternalField dv(&h, wf.getHF());
-    dv.solve_TDHFcore(0.0, max_its);
+    dv.solve_core(0.0, max_its);
 
     // to test the .get() X,Y's
     HF::ExternalField dPsi(&h, wf.getHF());
-    dPsi.solve_TDHFcore(0.0, 1); // 1 it; no dV, but solve for dPsi
+    dPsi.solve_core(0.0, 1); // 1 it; no dV, but solve for dPsi
 
     int count = 0;
     for (const auto Fv : wf.valence) {
