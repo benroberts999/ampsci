@@ -1,14 +1,14 @@
 #include "Angular/Angular_test.hpp"
 #include "Coulomb/Coulomb_test.hpp"
 #include "DiracODE/DiracODE_test.hpp"
+#include "ExternalField/DiagramRPA_test.hpp"
+#include "ExternalField/MixedStates_test.hpp"
+#include "ExternalField/TDHF_test.hpp"
 #include "HF/Breit_test.hpp"
-#include "HF/ExternalField_test.hpp"
 #include "HF/HartreeFock_test.hpp"
-#include "HF/MixedStates_test.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/UserInput.hpp" // for time+date
 #include "MBPT/CorrelationPotential_test.hpp"
-#include "MBPT/DiagramRPA_test.hpp"
 #include "MBPT/StructureRad_test.hpp"
 #include "Maths/LinAlg_test.hpp"
 #include "Physics/RadPot_test.hpp"
@@ -57,7 +57,7 @@ static const std::vector<std::pair<std::string, bool (*)(std::ostream &obuff)>>
         {"HartreeFock", &HartreeFock},
         {"Breit", &Breit},
         {"MixedStates", &MixedStates},
-        {"ExternalField", &ExternalField},
+        {"TDHF", &TDHF},
         {"RadPot", &RadPot},
         {"Angular", &Angular},
         {"LinAlg", &LinAlg},

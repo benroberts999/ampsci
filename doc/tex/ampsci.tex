@@ -900,7 +900,7 @@ $n$ &  \multicolumn{1}{c}{$A_{\rm HF}$} &
 
 
 %======================================================
-\section[External fields + matrix elements]{External fields + matrix elements\label{sec:tdhf}\footnote{Method implemented in:~/src/HF/ExternalField.hpp}}
+\section[External fields + matrix elements]{External fields + matrix elements\label{sec:tdhf}\footnote{Method implemented in:~/src/ExternalField/TDHF.hpp}}
 
 \subsection{Time-dependent Hartree-Fock}\label{sec:tdhf}
 
@@ -936,7 +936,7 @@ Note that $\{\chi_\a\}$ are orthogonal (and are orthogonal to $\psi$), and form 
 
 
 %================================
-\subsection[Solving the TDHF equations]{Solving the TDHF equations\label{sec:tdhf-solve}\footnote{Functions to solve TDHF equation are in:~/src/HF/MixedStates.hpp}}
+\subsection[Solving the TDHF equations]{Solving the TDHF equations\label{sec:tdhf-solve}\footnote{Functions to solve TDHF equation are in:~/src/ExternalField/MixedStates.hpp}}
 
 The $\delta V$ term in (\ref{eq:tdhf}) is very important and will be discussed in the next section. 
 Here, we will ignore how it is calculated and just focus on solving the inhomogenous equations. 
@@ -1073,7 +1073,7 @@ $6s-5d_{3/2}$&-2.4000&-2.3998&-2.4000&-2.4000\\
 
 
 %======================================================
-\subsection[Core polarisation (RPA)]{Core polarisation (RPA)\footnote{Method implemented in:~/src/HF/ExternalField.hpp}\label{sec:RPA}}
+\subsection[Core polarisation (RPA)]{Core polarisation (RPA)\footnote{Method implemented in:~/src/ExternalField/TDHF.hpp}\label{sec:RPA}}
 
 This section largely follows Ref.~\cite{DzubaHFS1984} (see also \cite{Dzuba2018a,Manakov1986,Johnson1980,Johnson1989}).
 In the presence of an external field, the core electrons become perturbed and a correction to the HF potential is induced, which leads to important corrections to the matrix elements of the external field operator.
@@ -1205,7 +1205,7 @@ In another approach, the $\delta V$ term is also expanded in terms of the basis;
 
 
 %======================================================
-\subsection[Core polarisation (RPA diagram technique)]{Core polarisation (RPA diagram technique)\footnote{Method implemented in:~/src/MBPT/DiagramRPA.hpp}\label{sec:RPA-diagram}}
+\subsection[Core polarisation (RPA diagram technique)]{Core polarisation (RPA diagram technique)\footnote{Method implemented in:~/src/ExternalField/DiagramRPA.hpp}\label{sec:RPA-diagram}}
 
 The core polarisation correction to a matrix element can also be taken into account by directly evaluating the four diagrams in Fig.~\ref{fig:corePol}.
 To lowest order, the matrix element of operator $\hat h$ is $h_{ij}^{(0)}$. 

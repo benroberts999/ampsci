@@ -1,7 +1,7 @@
 #include "StructureRad.hpp"
 #include "Coulomb/Coulomb.hpp"
-#include "DiracOperator/DiracOperator.hpp"
-#include "HF/ExternalField.hpp"
+#include "DiracOperator/TensorOperator.hpp"
+#include "ExternalField/TDHF.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <numeric>
 #include <vector>
@@ -41,7 +41,7 @@ StructureRad::StructureRad(const std::vector<DiracSpinor> &basis,
 std::pair<double, double>
 StructureRad::srTB(const DiracOperator::TensorOperator *const h,
                    const DiracSpinor &w, const DiracSpinor &v, double omega,
-                   const HF::ExternalField *const dV) const {
+                   const ExternalField::TDHF *const dV) const {
 
   if (h->isZero(w.k, v.k))
     return {0.0, 0.0};
@@ -93,7 +93,7 @@ StructureRad::srTB(const DiracOperator::TensorOperator *const h,
 std::pair<double, double>
 StructureRad::srC(const DiracOperator::TensorOperator *const h,
                   const DiracSpinor &w, const DiracSpinor &v,
-                  const HF::ExternalField *const dV) const {
+                  const ExternalField::TDHF *const dV) const {
 
   if (h->isZero(w.k, v.k))
     return {0.0, 0.0};
@@ -163,7 +163,7 @@ StructureRad::srC(const DiracOperator::TensorOperator *const h,
 std::pair<double, double>
 StructureRad::norm(const DiracOperator::TensorOperator *const h,
                    const DiracSpinor &w, const DiracSpinor &v,
-                   const HF::ExternalField *const dV) const {
+                   const ExternalField::TDHF *const dV) const {
 
   if (h->isZero(w.k, v.k))
     return {0.0, 0.0};

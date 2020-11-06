@@ -28,11 +28,11 @@ passed MS:hfs best (6p+|6p- w=0)           |  7.0e-08 [6e-07]
 passed MS:M1 worst (7p+|7p- w=0.034)       | -9.3e-06 [4e-05]
 passed MS:M1 best (7p+|7p- w=0)            |  2.9e-08 [6e-07]
 PASSED MixedStates
-ExternalField
+TDHF
 passed RPA E1 w=0 7s+7p+                   |  3.4e-05 [5e-05]
 passed RPA E1 w=0.05 7s+7p+                |  3.2e-05 [5e-05]
 passed RPA PNC w=0 5d-6p+                  | -2.8e-04 [5e-04]
-PASSED ExternalField
+PASSED TDHF
 RadPot
 passed Ueh de0 (TabIV) Na                  | -1.6e-04 [5e-04]
 passed Ueh deHF (TabIV) Na                 | -4.4e-04 [1e-03]

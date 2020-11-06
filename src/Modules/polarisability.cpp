@@ -1,6 +1,6 @@
 #include "polarisability.hpp"
 #include "DiracOperator/Operators.hpp"
-#include "HF/ExternalField.hpp"
+#include "ExternalField/TDHF.hpp"
 #include "IO/UserInput.hpp"
 #include "MBPT/StructureRad.hpp"
 #include "Wavefunction/Wavefunction.hpp"
@@ -25,7 +25,7 @@ void polarisability(const IO::UserInputBlock &input, const Wavefunction &wf) {
 
   // Generare E1 operator and TDHF object:
   const auto he1 = DiracOperator::E1(*wf.rgrid);
-  auto dVE1 = HF::ExternalField(&he1, wf.getHF());
+  auto dVE1 = ExternalField::TDHF(&he1, wf.getHF());
 
   // Solve TDHF for core, is doing RPA.
   // nb: even if not doing RPA, need TDHF object for tdhf method
@@ -104,7 +104,7 @@ void polarisability(const IO::UserInputBlock &input, const Wavefunction &wf) {
       if (dVE1.get_eps() > 1.0e-2) {
         // if tdhf didn't converge well last time, start from scratch
         // (otherwise, start from where we left off, since much faster)
-        dVE1.clear_dPsi();
+        dVE1.clear();
       }
       if (rpaQ)
         dVE1.solve_core(ww, 30, false);
@@ -131,14 +131,14 @@ namespace Polarisability {
 
 //------------------------------------------------------------------------------
 double alpha_core_tdhf(const std::vector<DiracSpinor> &core,
-                       const DiracOperator::E1 &he1, HF::ExternalField &dVE1,
+                       const DiracOperator::E1 &he1, ExternalField::TDHF &dVE1,
                        double omega) {
   auto alpha_core = 0.0;
   const auto f = (-1.0 / 3.0);
   for (const auto &Fb : core) {
     // this will include dV
-    const auto Xb = dVE1.solve_dPsis(Fb, omega, HF::dPsiType::X);
-    const auto Yb = dVE1.solve_dPsis(Fb, omega, HF::dPsiType::Y);
+    const auto Xb = dVE1.solve_dPsis(Fb, omega, ExternalField::dPsiType::X);
+    const auto Yb = dVE1.solve_dPsis(Fb, omega, ExternalField::dPsiType::Y);
     for (const auto &Xbeta : Xb) {
       // no dV here (for closed-shell core)
       alpha_core += he1.reducedME(Xbeta, Fb);
@@ -154,13 +154,15 @@ double alpha_core_tdhf(const std::vector<DiracSpinor> &core,
 //------------------------------------------------------------------------------
 double alpha_valence_tdhf(const DiracSpinor &Fa, const DiracSpinor &Fb,
                           const DiracOperator::E1 &he1, double omega,
-                          HF::ExternalField &dVE1,
+                          ExternalField::TDHF &dVE1,
                           const MBPT::CorrelationPotential *const Sigma) {
   double alpha_v = 0.0;
   // s-p only??
   const auto f = (-1.0 / 3.0) / (Fa.twoj() + 1);
-  const auto Xa = dVE1.solve_dPsis(Fa, omega, HF::dPsiType::X, Sigma);
-  const auto Yb = dVE1.solve_dPsis(Fb, omega, HF::dPsiType::Y, Sigma);
+  const auto Xa =
+      dVE1.solve_dPsis(Fa, omega, ExternalField::dPsiType::X, Sigma);
+  const auto Yb =
+      dVE1.solve_dPsis(Fb, omega, ExternalField::dPsiType::Y, Sigma);
   for (const auto &Xalpha : Xa) {
     alpha_v += he1.reducedME(Xalpha, Fb) + dVE1.dV(Xalpha, Fb);
   }
@@ -173,7 +175,7 @@ double alpha_valence_tdhf(const DiracSpinor &Fa, const DiracSpinor &Fb,
 //------------------------------------------------------------------------------
 double alpha_core_sos(const std::vector<DiracSpinor> &core,
                       const std::vector<DiracSpinor> &basis,
-                      const DiracOperator::E1 &he1, HF::ExternalField &dVE1,
+                      const DiracOperator::E1 &he1, ExternalField::TDHF &dVE1,
                       double omega) {
 
   auto alpha_core = 0.0;
@@ -199,8 +201,8 @@ double alpha_core_sos(const std::vector<DiracSpinor> &core,
 //------------------------------------------------------------------------------
 double alpha_valence_sos(const DiracSpinor &Fv,
                          const std::vector<DiracSpinor> &basis,
-                         const DiracOperator::E1 &he1, HF::ExternalField &dVE1,
-                         double omega) {
+                         const DiracOperator::E1 &he1,
+                         ExternalField::TDHF &dVE1, double omega) {
 
   auto alpha_v = 0.0;
   const auto f = (-2.0 / 3.0) / (Fv.twoj() + 1);
@@ -225,7 +227,7 @@ double alpha_v_SRN(const DiracSpinor &Fv,
                    int delta_n_max_sum,
                    const std::vector<DiracSpinor> &hf_basis,
                    const double en_core, const DiracOperator::E1 &he1,
-                   HF::ExternalField &dVE1, double omega) {
+                   ExternalField::TDHF &dVE1, double omega) {
 
   // XXX Basis should be HF basis, NOT spectrum
   // "spectrum" may be valence or spectrum
@@ -287,8 +289,8 @@ double alpha_v_SRN(const DiracSpinor &Fv,
 //------------------------------------------------------------------------------
 double alpha_valence_sos(const DiracSpinor &Fv, const DiracSpinor &Fw,
                          const std::vector<DiracSpinor> &basis,
-                         const DiracOperator::E1 &he1, HF::ExternalField &dVE1,
-                         double omega) {
+                         const DiracOperator::E1 &he1,
+                         ExternalField::TDHF &dVE1, double omega) {
 
   (void)omega; // XXX Where omega go??
 
@@ -318,7 +320,7 @@ double alpha_valence_sos(const DiracSpinor &Fv, const DiracSpinor &Fw,
 std::pair<double, double> beta_sos(const DiracSpinor &Fv, const DiracSpinor &Fw,
                                    const std::vector<DiracSpinor> &basis,
                                    const DiracOperator::E1 &he1,
-                                   HF::ExternalField &dVE1, double omega) {
+                                   ExternalField::TDHF &dVE1, double omega) {
 
   (void)omega; // XXX Where omega go??
 

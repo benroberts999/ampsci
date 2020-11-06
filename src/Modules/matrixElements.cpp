@@ -1,11 +1,11 @@
 #include "Modules/matrixElements.hpp"
-#include "DiracOperator/DiracOperator.hpp"
 #include "DiracOperator/Operators.hpp"
-#include "HF/ExternalField.hpp"
+#include "DiracOperator/TensorOperator.hpp"
+#include "ExternalField/DiagramRPA.hpp"
+#include "ExternalField/TDHF.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/UserInput.hpp"
 #include "MBPT/CorrelationPotential.hpp"
-#include "MBPT/DiagramRPA.hpp"
 #include "MBPT/StructureRad.hpp"
 #include "Physics/NuclearPotentials.hpp"
 #include "Physics/PhysConst_constants.hpp"
@@ -73,9 +73,9 @@ void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf) {
   }
 
   // XXX Always same kappa for get_Vlocal?
-  auto rpa = HF::ExternalField(h.get(), wf.getHF());
-  std::unique_ptr<HF::ExternalField> rpa0; // for first-order
-  std::unique_ptr<MBPT::DiagramRPA> rpaD;
+  auto rpa = ExternalField::TDHF(h.get(), wf.getHF());
+  std::unique_ptr<ExternalField::TDHF> rpa0; // for first-order
+  std::unique_ptr<ExternalField::DiagramRPA> rpaD;
 
   if (h->freqDependantQ && !eachFreqQ)
     h->updateFrequency(omega);
@@ -84,17 +84,17 @@ void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf) {
     if (!eachFreqQ) {
       rpa.solve_core(omega, 1, false);
       // store first-order snapshot:
-      rpa0 = std::make_unique<HF::ExternalField>(rpa);
+      rpa0 = std::make_unique<ExternalField::TDHF>(rpa);
       rpa.solve_core(omega);
     } else {
-      rpa0 = std::make_unique<HF::ExternalField>(rpa); // Solved later
+      rpa0 = std::make_unique<ExternalField::TDHF>(rpa); // Solved later
     }
   }
   if (rpaDQ) {
-    rpaD = std::make_unique<MBPT::DiagramRPA>(h.get(), wf.basis, wf.core,
-                                              wf.identity());
+    rpaD = std::make_unique<ExternalField::DiagramRPA>(h.get(), wf.basis,
+                                                       wf.core, wf.identity());
     if (!eachFreqQ)
-      rpaD->rpa_core(omega);
+      rpaD->solve_core(omega);
   }
 
   // Fb -> Fa = <a||h||b>
@@ -112,16 +112,16 @@ void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf) {
         h->updateFrequency(ww);
       }
       if (eachFreqQ && rpaQ) {
-        rpa0->clear_dPsi();
+        rpa0->clear();
         rpa0->solve_core(ww, 1, false); // wastes a little time
         if (rpa.get_eps() > 1.0e-5)
-          rpa.clear_dPsi(); // in case last one didn't work!
+          rpa.clear();      // in case last one didn't work!
         rpa.solve_core(ww); // re-solve at new frequency
       }
       if (eachFreqQ && rpaDQ) {
         if (rpaD->get_eps() > 1.0e-5)
-          rpaD->clear_tam(); // in case last one didn't work!
-        rpaD->rpa_core(ww);
+          rpaD->clear(); // in case last one didn't work!
+        rpaD->solve_core(ww);
       }
 
       // Special case: HFS A:
@@ -147,7 +147,7 @@ void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf) {
         std::cout << symb << "D:";
         printf("%13.6e ", h->reducedME(Fa, Fb) * a);
         auto dV = rpaD->dV(Fa, Fb);
-        auto dV0 = rpaD->dV(Fa, Fb, true);
+        auto dV0 = rpaD->dV_diagram(Fa, Fb, true);
         printf(" %13.6e  %13.6e\n", (h->reducedME(Fa, Fb) + dV0) * a,
                (h->reducedME(Fa, Fb) + dV) * a);
       }
@@ -194,9 +194,9 @@ void structureRad(const IO::UserInputBlock &input, const Wavefunction &wf) {
     h->updateFrequency(const_omega);
 
   // do RPA:
-  std::unique_ptr<HF::ExternalField> dV{nullptr};
+  std::unique_ptr<ExternalField::TDHF> dV{nullptr};
   if (rpaQ) {
-    dV = std::make_unique<HF::ExternalField>(h.get(), wf.getHF());
+    dV = std::make_unique<ExternalField::TDHF>(h.get(), wf.getHF());
     if (!eachFreqQ)
       dV->solve_core(const_omega);
   }
@@ -273,7 +273,7 @@ void structureRad(const IO::UserInputBlock &input, const Wavefunction &wf) {
       }
       if (eachFreqQ && rpaQ) {
         if (dV->get_eps() > 1.0e-3)
-          dV->clear_dPsi();
+          dV->clear();
         dV->solve_core(ww);
       }
 
@@ -328,8 +328,8 @@ void calculateLifetimes(const IO::UserInputBlock &input,
   const auto alpha = wf.alpha;
   const auto alpha3 = alpha * alpha * alpha;
   const auto alpha2 = alpha * alpha;
-  auto dVE1 = HF::ExternalField(&he1, wf.getHF());
-  auto dVE2 = HF::ExternalField(&he2, wf.getHF());
+  auto dVE1 = ExternalField::TDHF(&he1, wf.getHF());
+  auto dVE2 = ExternalField::TDHF(&he2, wf.getHF());
 
   // Construct SR object:
   std::unique_ptr<MBPT::StructureRad> sr(nullptr);

@@ -1,7 +1,7 @@
 #pragma once
 #include "DiracOperator/Operators.hpp"
-#include "HF/ExternalField.hpp"
-#include "MBPT/DiagramRPA.hpp"
+#include "ExternalField/DiagramRPA.hpp"
+#include "ExternalField/TDHF.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "qip/Check.hpp"
@@ -30,7 +30,7 @@ bool DiagramRPA(std::ostream &obuff) {
 
   {
     auto dE1 = DiracOperator::E1(*wf.rgrid);
-    auto rpa = MBPT::DiagramRPA(&dE1, wf.basis, wf.core, "");
+    auto rpa = ExternalField::DiagramRPA(&dE1, wf.basis, wf.core, "");
 
     { // E1, ww=0
       using sp = std::pair<std::string, double>;
@@ -43,8 +43,8 @@ bool DiagramRPA(std::ostream &obuff) {
           {"5d+4f+", 0.16510}};
       std::sort(begin(e1VD), end(e1VD), sorter);
 
-      rpa.clear_tam(); // dont' need here, but symmetric
-      rpa.rpa_core(0.0);
+      rpa.clear(); // dont' need here, but symmetric
+      rpa.solve_core(0.0);
       std::vector<sp> e1me;
       for (const auto &Fv : wf.valence) {
         for (const auto &Fw : wf.valence) {
@@ -77,8 +77,8 @@ bool DiagramRPA(std::ostream &obuff) {
           {"5d+4f+", 0.16560}};
       std::sort(begin(e1VD), end(e1VD), sorter);
 
-      rpa.clear_tam(); // start from scratch
-      rpa.rpa_core(0.05);
+      rpa.clear(); // start from scratch
+      rpa.solve_core(0.05);
       std::vector<sp> e1me;
       for (const auto &Fv : wf.valence) {
         for (const auto &Fw : wf.valence) {
@@ -104,7 +104,7 @@ bool DiagramRPA(std::ostream &obuff) {
   { // HFS (compare A, not dV)
     auto h = DiracOperator::Hyperfine(1.0, 1.0, 0.0, *wf.rgrid,
                                       DiracOperator::Hyperfine::pointlike_F());
-    auto rpa = MBPT::DiagramRPA(&h, wf.basis, wf.core, "");
+    auto rpa = ExternalField::DiagramRPA(&h, wf.basis, wf.core, "");
     using sp = std::pair<std::string, double>;
     auto e1VD = std::vector<sp>{{"6s+", 2.342288e3},  {"6p-", 2.732209e2},
                                 {"6p+", 5.808505e1},  {"5d-", 0.219042e2},
@@ -112,7 +112,7 @@ bool DiagramRPA(std::ostream &obuff) {
                                 {"4f+", -0.194970e-1}};
     std::sort(begin(e1VD), end(e1VD), sorter);
 
-    rpa.rpa_core(0.0);
+    rpa.solve_core(0.0);
     std::vector<sp> e1me;
     for (const auto &Fv : wf.valence) {
       auto a = DiracOperator::Hyperfine::convertRMEtoA(Fv, Fv);

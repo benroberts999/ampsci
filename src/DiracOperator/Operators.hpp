@@ -1,5 +1,5 @@
 #pragma once
-#include "DiracOperator/DiracOperator.hpp"
+#include "DiracOperator/TensorOperator.hpp"
 #include <cmath>
 #include <functional>
 #include <string>

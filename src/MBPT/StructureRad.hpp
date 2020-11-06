@@ -8,8 +8,8 @@ class DiracSpinor;
 namespace DiracOperator {
 class TensorOperator;
 }
-namespace HF {
-class ExternalField;
+namespace ExternalField {
+class TDHF;
 }
 
 //! Many-body perturbation theory
@@ -72,19 +72,21 @@ public:
   std::pair<double, double>
   srTB(const DiracOperator::TensorOperator *const h, const DiracSpinor &w,
        const DiracSpinor &v, double omega = 0.0,
-       const HF::ExternalField *const dV = nullptr) const;
+       const ExternalField::TDHF *const dV = nullptr) const;
 
   //! Returns Centre (SR) diagrams, reduced ME: <w||C||v>. Returns
   //! a pair: {C, C+dV}: second includes RPA (if dV given)
   std::pair<double, double>
   srC(const DiracOperator::TensorOperator *const h, const DiracSpinor &w,
-      const DiracSpinor &v, const HF::ExternalField *const dV = nullptr) const;
+      const DiracSpinor &v,
+      const ExternalField::TDHF *const dV = nullptr) const;
 
   //! Returns Normalisation of states, reduced ME: <w||h||v>_norm. Returns
   //! a pair: {N, N+dV}: second includes RPA (if dV given).
   std::pair<double, double>
   norm(const DiracOperator::TensorOperator *const h, const DiracSpinor &w,
-       const DiracSpinor &v, const HF::ExternalField *const dV = nullptr) const;
+       const DiracSpinor &v,
+       const ExternalField::TDHF *const dV = nullptr) const;
 
 private:
   // "Top" diagrams

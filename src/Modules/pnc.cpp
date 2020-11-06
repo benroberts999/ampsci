@@ -1,8 +1,8 @@
 #include "pnc.hpp"
-#include "DiracOperator/DiracOperator.hpp"
 #include "DiracOperator/Operators.hpp"
-#include "HF/ExternalField.hpp"
-#include "HF/MixedStates.hpp"
+#include "DiracOperator/TensorOperator.hpp"
+#include "ExternalField/MixedStates.hpp"
+#include "ExternalField/TDHF.hpp"
 #include "IO/UserInput.hpp"
 #include "Physics/AtomData.hpp"
 #include "Physics/NuclearData.hpp"
@@ -75,8 +75,8 @@ void calculatePNC(const IO::UserInputBlock &input, const Wavefunction &wf) {
   const auto en_core = 0.5 * (ev_min + ec_max);
 
   // TDHF (nb: need object even if not doing RPA)
-  auto dVE1 = HF::ExternalField(&he1, wf.getHF());
-  auto dVpnc = HF::ExternalField(&hpnc, wf.getHF());
+  auto dVE1 = ExternalField::TDHF(&he1, wf.getHF());
+  auto dVpnc = ExternalField::TDHF(&hpnc, wf.getHF());
   if (rpaQ) {
     const auto omega_dflt = std::abs(Fa.en - Fb.en);
     const auto omega = input.get("omega", omega_dflt);
@@ -132,9 +132,9 @@ namespace Pnc {
 //******************************************************************************
 std::pair<double, double> pnc_sos(const DiracSpinor &Fa, const DiracSpinor &Fb,
                                   const DiracOperator::TensorOperator *hpnc,
-                                  const HF::ExternalField *dVpnc,
+                                  const ExternalField::TDHF *dVpnc,
                                   const DiracOperator::TensorOperator *he1,
-                                  const HF::ExternalField *dVE1,
+                                  const ExternalField::TDHF *dVE1,
                                   const std::vector<DiracSpinor> &spectrum,
                                   int main_n, double en_core, bool print) {
 
@@ -245,9 +245,9 @@ DiracSpinor orthog_to_coremain(DiracSpinor dF,
 //******************************************************************************
 std::pair<double, double> pnc_tdhf(const DiracSpinor &Fa, const DiracSpinor &Fb,
                                    const DiracOperator::TensorOperator *hpnc,
-                                   const HF::ExternalField *dVpnc,
+                                   const ExternalField::TDHF *dVpnc,
                                    const DiracOperator::TensorOperator *he1,
-                                   const HF::ExternalField *dVE1,
+                                   const ExternalField::TDHF *dVE1,
                                    const MBPT::CorrelationPotential *Sigma,
                                    const std::vector<DiracSpinor> &spectrum,
                                    int main_n, double en_core, bool print) {
@@ -276,10 +276,10 @@ std::pair<double, double> pnc_tdhf(const DiracSpinor &Fa, const DiracSpinor &Fb,
             << Fb.shortSymbol() << "> + "
             << "<" << Fa.shortSymbol() << "|" << he1->name() << "|d"
             << Fb.shortSymbol() << "> ; w/ h = " << hpnc->name() << "\n";
-  const auto XB =
-      dVpnc->solve_dPsis(Fb, w_SE, HF::dPsiType::X, Sigma, HF::StateType::ket);
-  const auto YA =
-      dVpnc->solve_dPsis(Fa, w_SE, HF::dPsiType::Y, Sigma, HF::StateType::bra);
+  const auto XB = dVpnc->solve_dPsis(Fb, w_SE, ExternalField::dPsiType::X,
+                                     Sigma, ExternalField::StateType::ket);
+  const auto YA = dVpnc->solve_dPsis(Fa, w_SE, ExternalField::dPsiType::Y,
+                                     Sigma, ExternalField::StateType::bra);
 
   // get total PNC amplitude:
   double pnc1 = 0.0, pnc2 = 0.0;

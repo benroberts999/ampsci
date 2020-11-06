@@ -6,9 +6,12 @@ class Grid;
 namespace MBPT {
 class CorrelationPotential;
 }
-
 namespace HF {
 class Breit;
+}
+
+//! External field: Mixed-states + Core Polarisation
+namespace ExternalField {
 
 //! @brief Solves Mixed States (TDHF) equation, inhomogenous
 //! equation, with Hartree-Fock hamiltonian, including exchange
@@ -28,8 +31,9 @@ solveMixedState(const int kappa, const DiracSpinor &Fa, const double omega,
                 const std::vector<DiracSpinor> &core, const DiracSpinor &hFa,
                 const double eps_target = 1.0e-9,
                 const MBPT::CorrelationPotential *const Sigma = nullptr,
-                const Breit *const VBr = nullptr,
+                const HF::Breit *const VBr = nullptr,
                 const std::vector<double> &H_mag = {});
+
 //! @brief Solves Mixed States (TDHF) equation
 /*! @details
 As above, but starts with existing solution dF (may be 'zero'). If existing
@@ -41,7 +45,7 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
                      const std::vector<DiracSpinor> &core,
                      const DiracSpinor &hFa, const double eps_target = 1.0e-9,
                      const MBPT::CorrelationPotential *const Sigma = nullptr,
-                     const Breit *const VBr = nullptr,
+                     const HF::Breit *const VBr = nullptr,
                      const std::vector<double> &H_mag = {});
 
-} // namespace HF
+} // namespace ExternalField

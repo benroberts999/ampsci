@@ -8,8 +8,8 @@ class UserInput;
 namespace DiracOperator {
 class E1;
 }
-namespace HF {
-class ExternalField;
+namespace ExternalField {
+class TDHF;
 }
 namespace MBPT {
 class CorrelationPotential;
@@ -46,40 +46,41 @@ void polarisability(const IO::UserInputBlock &input, const Wavefunction &wf);
 // "private" helper functions:
 namespace Polarisability {
 double alpha_core_tdhf(const std::vector<DiracSpinor> &core,
-                       const DiracOperator::E1 &he1, HF::ExternalField &dVE1,
+                       const DiracOperator::E1 &he1, ExternalField::TDHF &dVE1,
                        double omega);
 
 double
 alpha_valence_tdhf(const DiracSpinor &Fa, const DiracSpinor &Fb,
                    const DiracOperator::E1 &he1, double omega,
-                   HF::ExternalField &dVE1,
+                   ExternalField::TDHF &dVE1,
                    const MBPT::CorrelationPotential *const Sigma = nullptr);
 
 double alpha_core_sos(const std::vector<DiracSpinor> &core,
                       const std::vector<DiracSpinor> &basis,
-                      const DiracOperator::E1 &he1, HF::ExternalField &dVE1,
+                      const DiracOperator::E1 &he1, ExternalField::TDHF &dVE1,
                       double omega);
 
 double alpha_valence_sos(const DiracSpinor &Fv,
                          const std::vector<DiracSpinor> &basis,
-                         const DiracOperator::E1 &he1, HF::ExternalField &dVE1,
-                         double omega);
+                         const DiracOperator::E1 &he1,
+                         ExternalField::TDHF &dVE1, double omega);
 
 double alpha_valence_sos(const DiracSpinor &Fv, const DiracSpinor &Fw,
                          const std::vector<DiracSpinor> &basis,
-                         const DiracOperator::E1 &he1, HF::ExternalField &dVE1,
-                         double omega = 0.0);
+                         const DiracOperator::E1 &he1,
+                         ExternalField::TDHF &dVE1, double omega = 0.0);
 
 double alpha_v_SRN(const DiracSpinor &Fv,
                    const std::vector<DiracSpinor> &spectrum, int n_max_sum,
                    const std::vector<DiracSpinor> &hf_basis,
                    const double en_core, const DiracOperator::E1 &he1,
-                   HF::ExternalField &dVE1, double omega);
+                   ExternalField::TDHF &dVE1, double omega);
 
 std::pair<double, double> beta_sos(const DiracSpinor &Fv, const DiracSpinor &Fw,
                                    const std::vector<DiracSpinor> &basis,
                                    const DiracOperator::E1 &he1,
-                                   HF::ExternalField &dVE1, double omega = 0.0);
+                                   ExternalField::TDHF &dVE1,
+                                   double omega = 0.0);
 } // namespace Polarisability
 
 } // namespace Module

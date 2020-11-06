@@ -1,4 +1,5 @@
 #pragma once
+#include "CorePolarisation.hpp"
 #include <string>
 #include <vector>
 class Wavefunction;
@@ -13,9 +14,9 @@ class CorrelationPotential;
 namespace HF {
 class HartreeFock;
 class Breit;
+} // namespace HF
 
-enum class dPsiType { X, Y };
-enum class StateType { bra, ket }; // lhs, rhs
+namespace ExternalField {
 
 //! @brief
 //! Uses time-dependent Hartree-Fock method to include core-polarisation
@@ -37,11 +38,10 @@ run again with a different frequency, typically does not need to be re-started
 from scratch. Then, dV(Fa,Fb) returns the correction to the matrix element:
 \f[ \langle \phi_a || \delta V || \phi_b \rangle \f]
 */
-
-class ExternalField {
+class TDHF final : public CorePolarisation {
 public:
-  ExternalField(const DiracOperator::TensorOperator *const h,
-                const HF::HartreeFock *const hf);
+  TDHF(const DiracOperator::TensorOperator *const h,
+       const HF::HartreeFock *const hf);
 
 private:
   // dPhi = X exp(-iwt) + Y exp(+iwt)
@@ -53,19 +53,11 @@ private:
   std::vector<std::vector<DiracSpinor>> m_Y{};
   // can just write these to disk! Read them in, continue as per normal
 
-  const DiracOperator::TensorOperator *const m_h; //??
-  // const std::vector<DiracSpinor> *const p_core;
   const std::vector<DiracSpinor> m_core;
-  const std::vector<double> m_vl;   // Add H_mag ?
-  const std::vector<double> m_Hmag; // Add H_mag ?
+  const std::vector<double> m_vl;
+  const std::vector<double> m_Hmag;
   const double m_alpha;
-  const int m_rank;
-  const int m_pi;
-  const bool m_imag;
-  const Breit *const p_VBr;
-  double m_core_eps = 1.0;
-  double m_core_omega = 0.0;
-  // Angular::SixJ m_6j; // used?
+  const HF::Breit *const p_VBr;
 
 public:
   //! @brief Solves TDHF equations self-consistantly for core electrons at
@@ -74,20 +66,15 @@ public:
   //! frequency omega. Will iterate up to a maximum of max_its. Set max_its=1
   //! to get first-order correction [note: no dampling is used for first
   //! itteration]. If print=true, will write progress to screen
-  void solve_core(const double omega, int max_its = 100,
-                  const bool print = true);
+  virtual void solve_core(const double omega, int max_its = 100,
+                          const bool print = true) override final;
 
   //! @brief Uses itterative matrix method; for tests only
   void solve_TDHFcore_matrix(const Wavefunction &wf, const double omega,
                              const int max_its = 25);
 
-  //! Returns eps (convergance) of last solve_core run
-  double get_eps() const { return m_core_eps; }
-  //! Returns omega (frequency) of last solve_core run
-  double get_omega() const { return m_core_omega; }
-
   //! @brief Clears the dPsi orbitals (sets to zero)
-  void clear_dPsi();
+  virtual void clear() override final;
 
   //! @brief Calculate reduced matrix element <a||dV||b> or <a||dV*||b>.
   //! Will exclude orbital 'Fexcl' from sum over core (for tests only)
@@ -96,7 +83,8 @@ public:
 
   //! @brief As above, but automatically determines if 'conjugate' version
   //! reuired (Based on sign of [en_a-en_b])
-  double dV(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
+  virtual double dV(const DiracSpinor &Fa,
+                    const DiracSpinor &Fb) const override final;
 
   //! @brief Returns "reduced partial matrix element RHS": dV||Fb}.
   //! Note: Fa * dV_rhs(..) equiv to dV(..)
@@ -121,10 +109,8 @@ public:
   //!   - \delta\epsilon)Psi\f]
   //! Returns \f$ \chi_\beta \f$ for given kappa_beta, where
   //! \f[ X_{j,m} = (-1)^{j_\beta-m}tjs(j,k,j;-m,0,m)\chi_j \f]
-  //! XorY takes values: HF::dPsiType::X or HF::dPsiType::Y
-  //! --
-  //! Note: for 'Y', returns <Y|, not |Y> -- may be a difference in sign, since
-  //! this is a "reduced" spinor
+  //! XorY takes values: dPsiType::X or dPsiType::Y.
+  //! st takes values: StateType::ket or StateType::bra
   DiracSpinor
   solve_dPsi(const DiracSpinor &Fv, const double omega, dPsiType XorY,
              const int kappa_beta,
@@ -151,9 +137,9 @@ private:
   void initialise_dPsi();
 
 public:
-  ExternalField &operator=(const ExternalField &) = delete;
-  ExternalField(const ExternalField &) = default;
-  ~ExternalField() = default;
+  TDHF &operator=(const TDHF &) = default;
+  TDHF(const TDHF &) = default;
+  ~TDHF() = default;
 };
 
-} // namespace HF
+} // namespace ExternalField

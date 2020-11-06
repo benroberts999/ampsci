@@ -3,7 +3,7 @@
 #include "Angular/Angular_tables.hpp"
 #include "Coulomb/Coulomb.hpp"
 #include "Coulomb/YkTable.hpp"
-#include "DiracOperator/DiracOperator.hpp"
+#include "DiracOperator/TensorOperator.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
 #include "IO/SafeProfiler.hpp"
@@ -13,7 +13,7 @@
 #include <string>
 #include <vector>
 
-namespace MBPT {
+namespace ExternalField {
 
 template <typename T, typename U> constexpr T MyCast(U x) {
   // Convert between 'Wtype' and double. Wype may be doule or float.
@@ -31,7 +31,7 @@ DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
                        const std::vector<DiracSpinor> &basis,
                        const std::vector<DiracSpinor> &core,
                        const std::string &atom)
-    : m_h(h), m_k(h->rank()), m_pi(h->parity()), m_imag(h->imaginaryQ()) {
+    : CorePolarisation(h) {
 
   // Set up basis:
   for (const auto &Fi : basis) {
@@ -51,7 +51,7 @@ DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
   setup_ts(h);
 
   const auto fname =
-      atom + "_" + std::to_string(m_k) + (m_pi == 1 ? "+" : "-") + ".rpad";
+      atom + "_" + std::to_string(m_rank) + (m_pi == 1 ? "+" : "-") + ".rpad";
 
   // Attempt to read W's from a file:
   const auto read_ok = read_write(fname, IO::FRW::read);
@@ -66,9 +66,9 @@ DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
 //******************************************************************************
 DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
                        const DiagramRPA *const drpa)
-    : m_h(h), m_k(h->rank()), m_pi(h->parity()), m_imag(h->imaginaryQ()) {
-  //
-  if (m_k != drpa->m_k || m_pi != drpa->m_pi) {
+    : CorePolarisation(h) {
+
+  if (m_rank != drpa->m_rank || m_pi != drpa->m_pi) {
     std::cerr << "\nFAIL21 in DiagramRPA: Cannot use 'eat' constructor for "
                  "different rank/parity operators!\n";
     std::abort();
@@ -205,15 +205,19 @@ void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h) {
               Wabm_n.emplace_back(0.0);
               continue;
             }
-            const auto yknb = Yhe.ptr_yk_ab(m_k, Fb, Fn);
+            const auto yknb = Yhe.ptr_yk_ab(m_rank, Fb, Fn);
             const auto &ybm = Yhe.get_y_ab(Fb, Fm);
             const auto &ynm = Yee.get_y_ab(Fn, Fm);
             const auto xQ =
-                yknb ? Coulomb::Qk_abcd(Fa, Fn, Fm, Fb, m_k, *yknb, Ck) : 0.0;
-            const auto xP = Coulomb::Pk_abcd(Fa, Fn, Fm, Fb, m_k, ynm, Ck, sj);
+                yknb ? Coulomb::Qk_abcd(Fa, Fn, Fm, Fb, m_rank, *yknb, Ck)
+                     : 0.0;
+            const auto xP =
+                Coulomb::Pk_abcd(Fa, Fn, Fm, Fb, m_rank, ynm, Ck, sj);
             const auto yQ =
-                yknb ? Coulomb::Qk_abcd(Fa, Fb, Fm, Fn, m_k, *yknb, Ck) : 0.0;
-            const auto yP = Coulomb::Pk_abcd(Fa, Fb, Fm, Fn, m_k, ybm, Ck, sj);
+                yknb ? Coulomb::Qk_abcd(Fa, Fb, Fm, Fn, m_rank, *yknb, Ck)
+                     : 0.0;
+            const auto yP =
+                Coulomb::Pk_abcd(Fa, Fb, Fm, Fn, m_rank, ybm, Ck, sj);
             Wanm_b.push_back(MyCast<Wtype>(xQ + xP));
             Wabm_n.push_back(MyCast<Wtype>(yQ + yP));
           }
@@ -251,15 +255,19 @@ void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h) {
               Wabm_n.emplace_back(0.0);
               continue;
             }
-            const auto yknb = Yhe.ptr_yk_ab(m_k, Fb, Fn);
+            const auto yknb = Yhe.ptr_yk_ab(m_rank, Fb, Fn);
             const auto &yna = Yhe.get_y_ab(Fa, Fn);
             const auto &yba = Yhh.get_y_ab(Fb, Fa);
             const auto xQ =
-                yknb ? Coulomb::Qk_abcd(Fm, Fn, Fa, Fb, m_k, *yknb, Ck) : 0.0;
-            const auto xP = Coulomb::Pk_abcd(Fm, Fn, Fa, Fb, m_k, yna, Ck, sj);
+                yknb ? Coulomb::Qk_abcd(Fm, Fn, Fa, Fb, m_rank, *yknb, Ck)
+                     : 0.0;
+            const auto xP =
+                Coulomb::Pk_abcd(Fm, Fn, Fa, Fb, m_rank, yna, Ck, sj);
             const auto yQ =
-                yknb ? Coulomb::Qk_abcd(Fm, Fb, Fa, Fn, m_k, *yknb, Ck) : 0.0;
-            const auto yP = Coulomb::Pk_abcd(Fm, Fb, Fa, Fn, m_k, yba, Ck, sj);
+                yknb ? Coulomb::Qk_abcd(Fm, Fb, Fa, Fn, m_rank, *yknb, Ck)
+                     : 0.0;
+            const auto yP =
+                Coulomb::Pk_abcd(Fm, Fb, Fa, Fn, m_rank, yba, Ck, sj);
             Wanm_b.push_back(MyCast<Wtype>(xQ + xP));
             Wabm_n.push_back(MyCast<Wtype>(yQ + yP));
           }
@@ -293,17 +301,22 @@ void DiagramRPA::setup_ts(const DiracOperator::TensorOperator *const h) {
     }
     t0ma.push_back(t0m_a);
   }
-  clear_tam();
+  clear();
 }
 //******************************************************************************
-void DiagramRPA::clear_tam() {
+void DiagramRPA::clear() {
   tam = t0am;
   tma = t0ma;
 }
 
 //******************************************************************************
-double DiagramRPA::dV(const DiracSpinor &Fw, const DiracSpinor &Fv,
-                      const bool first_order) const {
+double DiagramRPA::dV(const DiracSpinor &Fw, const DiracSpinor &Fv) const {
+  return dV_diagram(Fw, Fv, false);
+}
+
+//******************************************************************************
+double DiagramRPA::dV_diagram(const DiracSpinor &Fw, const DiracSpinor &Fv,
+                              const bool first_order) const {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   if (holes.empty() || excited.empty())
     return 0.0;
@@ -312,29 +325,30 @@ double DiagramRPA::dV(const DiracSpinor &Fw, const DiracSpinor &Fv,
     // ??????
     const auto sj = ((Fv.twoj() - Fw.twoj()) % 4 == 0) ? 1 : -1;
     const auto si = m_imag ? -1 : 1;
-    return (sj * si) * dV(Fv, Fw, first_order);
+    return (sj * si) * dV_diagram(Fv, Fw, first_order);
   }
 
   const auto orderOK = true; // Fv.en <= Fw.en;
   // ??????
   const auto &Fi = orderOK ? Fv : Fw;
   const auto &Ff = orderOK ? Fw : Fv;
-  const auto ww = m_omega; // Fv.en <= Fw.en ? m_omega : -m_omega;
+  const auto ww = m_core_omega;
+  // Fv.en <= Fw.en ? m_core_omega : -m_core_omega;
 
-  const auto f = (1.0 / (2 * m_k + 1));
+  const auto f = (1.0 / (2 * m_rank + 1));
 
   std::vector<double> sum_a(holes.size());
 #pragma omp parallel for
   for (std::size_t ia = 0; ia < holes.size(); ia++) {
     const auto &Fa = holes[ia];
-    const auto s1 = ((Fa.twoj() - Ff.twoj() + 2 * m_k) % 4 == 0) ? 1 : -1;
+    const auto s1 = ((Fa.twoj() - Ff.twoj() + 2 * m_rank) % 4 == 0) ? 1 : -1;
     for (std::size_t im = 0; im < excited.size(); im++) {
       const auto &Fm = excited[im];
       if (t0am[ia][im] == 0.0)
         continue;
       const auto s2 = ((Fa.twoj() - Fm.twoj()) % 4 == 0) ? 1 : -1;
-      const auto Wwmva = Coulomb::Wk_abcd(Ff, Fm, Fi, Fa, m_k);
-      const auto Wwavm = Coulomb::Wk_abcd(Ff, Fa, Fi, Fm, m_k);
+      const auto Wwmva = Coulomb::Wk_abcd(Ff, Fm, Fi, Fa, m_rank);
+      const auto Wwavm = Coulomb::Wk_abcd(Ff, Fa, Fi, Fm, m_rank);
       const auto ttam = first_order ? t0am[ia][im] : tam[ia][im];
       const auto ttma = first_order ? t0ma[im][ia] : tma[im][ia];
       const auto A = ttam * Wwmva / (Fa.en - Fm.en - ww);
@@ -346,25 +360,26 @@ double DiagramRPA::dV(const DiracSpinor &Fw, const DiracSpinor &Fv,
 }
 
 //******************************************************************************
-void DiagramRPA::rpa_core(const double omega, const bool print) {
+void DiagramRPA::solve_core(const double omega, int max_its, const bool print) {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
-  m_omega = std::abs(omega);
+  m_core_omega = std::abs(omega);
 
   if (holes.empty() || excited.empty())
     return;
 
   if (m_h->freqDependantQ) {
-    // m_h->updateFrequency(m_omega); // Cant, is const. must do outside
+    // m_h->updateFrequency(m_core_omega); // Cant, is const. must do outside
     setup_ts(m_h);
   }
 
   if (print) {
-    printf("RPA(D) (w=%.3f): ", m_omega);
+    printf("RPA(D) (w=%.3f): ", m_core_omega);
     std::cout << std::flush;
   }
-  int it = 1;
+
+  int it = 2; // 1 iteration means use t0 inside dV
   auto eps = 0.0;
-  const auto f = (1.0 / (2 * m_k + 1));
+  const auto f = (1.0 / (2 * m_rank + 1));
   for (; it <= max_its; it++) {
     std::vector<double> eps_m(excited.size()); //"thread-safe" eps..?
 // XXX "Small" race condition in here???
@@ -382,8 +397,10 @@ void DiagramRPA::rpa_core(const double omega, const bool print) {
         // 2) not thread safe
         for (std::size_t ib = 0; ib < holes.size(); ib++) {
           const auto &Fb = holes[ib];
-          const auto s1 = ((Fb.twoj() - Fa.twoj() + 2 * m_k) % 4 == 0) ? 1 : -1;
-          const auto s3 = ((Fb.twoj() - Fm.twoj() + 2 * m_k) % 4 == 0) ? 1 : -1;
+          const auto s1 =
+              ((Fb.twoj() - Fa.twoj() + 2 * m_rank) % 4 == 0) ? 1 : -1;
+          const auto s3 =
+              ((Fb.twoj() - Fm.twoj() + 2 * m_rank) % 4 == 0) ? 1 : -1;
           for (std::size_t in = 0; in < excited.size(); in++) {
             const auto &Fn = excited[in];
 
@@ -391,9 +408,9 @@ void DiagramRPA::rpa_core(const double omega, const bool print) {
             if (tbn == 0.0)
               continue;
             const auto tnb = tma[in][ib];
-            const auto tdem = tbn / (Fb.en - Fn.en - m_omega);
+            const auto tdem = tbn / (Fb.en - Fn.en - m_core_omega);
             const auto s2 = ((Fb.twoj() - Fn.twoj()) % 4 == 0) ? 1 : -1;
-            const auto stdep = s2 * tnb / (Fb.en - Fn.en + m_omega);
+            const auto stdep = s2 * tnb / (Fb.en - Fn.en + m_core_omega);
             // Cast form 'Wtype' (may be double or float) to double
             const auto A = tdem * MyCast<double>(Wanmb[ia][in][im][ib]);
             const auto B = stdep * MyCast<double>(Wabmn[ia][in][im][ib]);
@@ -421,7 +438,7 @@ void DiagramRPA::rpa_core(const double omega, const bool print) {
     if (eps < eps_targ)
       break;
     // if (print && it % 25 == 0) {
-    //   printf("RPA(D) (w=%.3f): %2i %.1e \r", m_omega, it, eps);
+    //   printf("RPA(D) (w=%.3f): %2i %.1e \r", m_core_omega, it, eps);
     //   std::cout << std::flush;
     // }
   } // its
@@ -432,4 +449,4 @@ void DiagramRPA::rpa_core(const double omega, const bool print) {
   m_core_eps = eps;
 }
 
-} // namespace MBPT
+} // namespace ExternalField

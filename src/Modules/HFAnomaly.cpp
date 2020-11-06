@@ -1,8 +1,8 @@
 #include "Modules/HFAnomaly.hpp"
 #include "DiracOperator/Operators.hpp"
+#include "ExternalField/DiagramRPA.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/UserInput.hpp"
-#include "MBPT/DiagramRPA.hpp"
 #include "Modules/matrixElements.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
@@ -57,17 +57,18 @@ void HFAnomaly(const IO::UserInputBlock &input, const Wavefunction &wf) {
   const auto gI0 = mu0 / I0;
 
   // RPA:
-  std::unique_ptr<MBPT::DiagramRPA> rpap{nullptr}, rpab{nullptr}, rpas{nullptr};
+  std::unique_ptr<ExternalField::DiagramRPA> rpap{nullptr}, rpab{nullptr},
+      rpas{nullptr};
   if (rpa) {
     std::cout << "\nIncluding RPA (diagram method) - must have basis\n";
-    rpap = std::make_unique<MBPT::DiagramRPA>(hpt.get(), wf.basis, wf.core,
-                                              wf.identity());
-    rpab = std::make_unique<MBPT::DiagramRPA>(hbl.get(), rpap.get());
-    rpas = std::make_unique<MBPT::DiagramRPA>(hsp.get(), rpap.get());
+    rpap = std::make_unique<ExternalField::DiagramRPA>(hpt.get(), wf.basis,
+                                                       wf.core, wf.identity());
+    rpab = std::make_unique<ExternalField::DiagramRPA>(hbl.get(), rpap.get());
+    rpas = std::make_unique<ExternalField::DiagramRPA>(hsp.get(), rpap.get());
     std::cout << "Solving RPA core for point, ball, SP:\n";
-    rpap->rpa_core(0.0, true);
-    rpab->rpa_core(0.0, true);
-    rpas->rpa_core(0.0, true);
+    rpap->solve_core(0.0, 100, true);
+    rpab->solve_core(0.0, 100, true);
+    rpas->solve_core(0.0, 100, true);
   }
 
   // Calculate HFS for each state of reference isotope: including BW effect
@@ -119,19 +120,21 @@ void HFAnomaly(const IO::UserInputBlock &input, const Wavefunction &wf) {
     const auto hbl2 = generateOperator({"hfs", "F(r)=ball;"}, wfA, false);
     const auto hsp2 = generateOperator({"hfs", "F(r)=VolotkaBW;"}, wfA, false);
 
-    std::unique_ptr<MBPT::DiagramRPA> rpap2{nullptr}, rpab2{nullptr},
+    std::unique_ptr<ExternalField::DiagramRPA> rpap2{nullptr}, rpab2{nullptr},
         rpas2{nullptr};
     if (rpa) {
       std::cout << "Including RPA (diagram method) - must have basis\n";
       // OK ? or need run with new basis!?
-      rpap2 = std::make_unique<MBPT::DiagramRPA>(hpt2.get(), wfA.basis,
-                                                 wfA.core, wfA.identity());
-      rpab2 = std::make_unique<MBPT::DiagramRPA>(hbl2.get(), rpap.get());
-      rpas2 = std::make_unique<MBPT::DiagramRPA>(hsp2.get(), rpap.get());
+      rpap2 = std::make_unique<ExternalField::DiagramRPA>(
+          hpt2.get(), wfA.basis, wfA.core, wfA.identity());
+      rpab2 =
+          std::make_unique<ExternalField::DiagramRPA>(hbl2.get(), rpap.get());
+      rpas2 =
+          std::make_unique<ExternalField::DiagramRPA>(hsp2.get(), rpap.get());
       std::cout << "Solving RPA core for point, ball, SP:\n";
-      rpap2->rpa_core(0.0, true);
-      rpab2->rpa_core(0.0, true);
-      rpas2->rpa_core(0.0, true);
+      rpap2->solve_core(0.0, 100, true);
+      rpab2->solve_core(0.0, 100, true);
+      rpas2->solve_core(0.0, 100, true);
     }
 
     // for (const auto &Fv : wf.valence)
@@ -233,7 +236,7 @@ void HF_rmag(const IO::UserInputBlock &input, const Wavefunction &wf) {
   // nb: can only do diagram RPA for hfs
   const auto rpa = input.get("rpa", false) || input.get("rpa_diagram", false);
 
-  std::unique_ptr<MBPT::DiagramRPA> rpa01{nullptr}, rpa02{nullptr},
+  std::unique_ptr<ExternalField::DiagramRPA> rpa01{nullptr}, rpa02{nullptr},
       rpa1{nullptr}, rpa2{nullptr}, rpa2a{nullptr}, rpa2b{nullptr};
 
   const double x = 0.1;
@@ -247,12 +250,12 @@ void HF_rmag(const IO::UserInputBlock &input, const Wavefunction &wf) {
   double dv01 = 0.0;
   double dv02 = 0.0;
   if (rpa) {
-    rpa01 = std::make_unique<MBPT::DiagramRPA>(&h01, wf.basis, wf.core,
-                                               wf.identity());
-    rpa02 = std::make_unique<MBPT::DiagramRPA>(&h02, wf.basis, wf.core,
-                                               wf.identity());
-    rpa01->rpa_core(0.0);
-    rpa02->rpa_core(0.0);
+    rpa01 = std::make_unique<ExternalField::DiagramRPA>(&h01, wf.basis, wf.core,
+                                                        wf.identity());
+    rpa02 = std::make_unique<ExternalField::DiagramRPA>(&h02, wf.basis, wf.core,
+                                                        wf.identity());
+    rpa01->solve_core(0.0);
+    rpa02->solve_core(0.0);
     auto a = DiracOperator::Hyperfine::convertRMEtoA(F1v, F1v);
     dv01 = a * rpa01->dV(F1v, F1v);
     dv02 = a * rpa02->dV(F1v, F1v);
@@ -274,9 +277,9 @@ void HF_rmag(const IO::UserInputBlock &input, const Wavefunction &wf) {
       const auto h1 = DiracOperator::Hyperfine(mu1, I1, rN, *wf.rgrid, Fr1);
       double dv1 = 0.0;
       if (rpa) {
-        rpa1 = std::make_unique<MBPT::DiagramRPA>(&h1, rpa01.get());
+        rpa1 = std::make_unique<ExternalField::DiagramRPA>(&h1, rpa01.get());
         rpa1->grab_tam(rpa01.get()); // don't start from scratch
-        rpa1->rpa_core(0.0, false);
+        rpa1->solve_core(0.0, 100, false);
         auto a = DiracOperator::Hyperfine::convertRMEtoA(F1v, F1v);
         dv1 = a * rpa1->dV(F1v, F1v);
       }
@@ -306,15 +309,15 @@ void HF_rmag(const IO::UserInputBlock &input, const Wavefunction &wf) {
         double dv2a = 0.0;
         double dv2b = 0.0;
         if (rpa) {
-          rpa2a = std::make_unique<MBPT::DiagramRPA>(&h2a, rpa1.get());
-          rpa2 = std::make_unique<MBPT::DiagramRPA>(&h2, rpa1.get());
-          rpa2b = std::make_unique<MBPT::DiagramRPA>(&h2b, rpa1.get());
+          rpa2a = std::make_unique<ExternalField::DiagramRPA>(&h2a, rpa1.get());
+          rpa2 = std::make_unique<ExternalField::DiagramRPA>(&h2, rpa1.get());
+          rpa2b = std::make_unique<ExternalField::DiagramRPA>(&h2b, rpa1.get());
           rpa2->grab_tam(rpa02.get());  // don't start from scratch
           rpa2a->grab_tam(rpa02.get()); // don't start from scratch
           rpa2b->grab_tam(rpa02.get()); // don't start from scratch
-          rpa2a->rpa_core(0.0, false);
-          rpa2->rpa_core(0.0, false);
-          rpa2b->rpa_core(0.0, false);
+          rpa2a->solve_core(0.0, 100, false);
+          rpa2->solve_core(0.0, 100, false);
+          rpa2b->solve_core(0.0, 100, false);
           const auto a = DiracOperator::Hyperfine::convertRMEtoA(F2v, F2v);
           dv2a = a * rpa2a->dV(F2v, F2v);
           dv2 = a * rpa2->dV(F2v, F2v);
@@ -460,17 +463,18 @@ void calculateBohrWeisskopf(const IO::UserInputBlock &input,
   // nb: can only do diagram RPA for hfs
   const auto rpa = input.get("rpa", false) || input.get("rpa_diagram", false);
 
-  std::unique_ptr<MBPT::DiagramRPA> rpap{nullptr}, rpab{nullptr}, rpaw{nullptr};
+  std::unique_ptr<ExternalField::DiagramRPA> rpap{nullptr}, rpab{nullptr},
+      rpaw{nullptr};
   if (rpa) {
     std::cout << "\nIncluding RPA (diagram method) - must have basis\n";
-    rpap = std::make_unique<MBPT::DiagramRPA>(hp.get(), wf.basis, wf.core,
-                                              wf.identity());
-    rpab = std::make_unique<MBPT::DiagramRPA>(hb.get(), rpap.get());
-    rpaw = std::make_unique<MBPT::DiagramRPA>(hw.get(), rpap.get());
+    rpap = std::make_unique<ExternalField::DiagramRPA>(hp.get(), wf.basis,
+                                                       wf.core, wf.identity());
+    rpab = std::make_unique<ExternalField::DiagramRPA>(hb.get(), rpap.get());
+    rpaw = std::make_unique<ExternalField::DiagramRPA>(hw.get(), rpap.get());
     std::cout << "Solving RPA core for point, ball, SP:\n";
-    rpap->rpa_core(0.0);
-    rpab->rpa_core(0.0);
-    rpaw->rpa_core(0.0);
+    rpap->solve_core(0.0);
+    rpab->solve_core(0.0);
+    rpaw->solve_core(0.0);
   }
 
   // only used if calculating screening factors:

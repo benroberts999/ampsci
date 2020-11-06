@@ -1,4 +1,5 @@
 #pragma once
+#include "CorePolarisation.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <vector>
@@ -11,10 +12,10 @@ namespace HF {
 class HartreeFock;
 }
 
-namespace MBPT {
+namespace ExternalField {
 
 //! RPA correction to matrix elements, using Diagram technique
-class DiagramRPA {
+class DiagramRPA : public CorePolarisation {
   // Type used to store W matrix (float works equally well as double)
   using Wtype = float;
 
@@ -29,44 +30,16 @@ public:
   DiagramRPA(const DiracOperator::TensorOperator *const h,
              const DiagramRPA *const drpa);
 
-  //! Itterates the RPA equations for core electrons
-  void rpa_core(const double omega, const bool print = true);
-
-  //! Calculates RPA correction to matrix element: <A||dV||B>
-  double dV(const DiracSpinor &Fa, const DiracSpinor &Fb,
-            const bool first_order = false) const;
-
-  //! Returns eps (convergance) of last rpa_core run
-  double get_eps() const { return m_core_eps; }
-
-  //! @brief Clears the t_am and t_ma RPA ME's [RPA ME's for hole-excited]
-  //! @Details If a previous run failed, can clear t_am's + re-try
-  void clear_tam();
-
-  //! Copies the tam (and tma) values across from different RPAD. If two
-  //! operators are similar, this can save time on the itterations.
-  void grab_tam(const DiagramRPA *const drpa) {
-    tam = drpa->tam;
-    tma = drpa->tma;
-  }
-
 private:
-  const DiracOperator::TensorOperator *const m_h; //??
-  const int m_k;                                  // rank
-  const int m_pi;                                 // parity (+/-1)
-  const int m_imag;                               // not used?
   std::vector<DiracSpinor> holes{};
   std::vector<DiracSpinor> excited{};
-  double m_omega = 0.0;
-  double m_core_eps = 1.0;
   const double eps_targ = 1.0e-10;
-  const int max_its = 250;
 
   // t0's never change
   // NO! They change if omega is updated (frequency dependent operator!)
   std::vector<std::vector<double>> t0am{};
   std::vector<std::vector<double>> t0ma{};
-  // t's updated each rpa_core itteration
+  // t's updated each solve_core itteration
   std::vector<std::vector<double>> tam{};
   std::vector<std::vector<double>> tma{};
 
@@ -77,6 +50,30 @@ private:
   std::vector<std::vector<std::vector<std::vector<Wtype>>>> Wmnab{};
   std::vector<std::vector<std::vector<std::vector<Wtype>>>> Wmban{};
 
+public:
+  //! Itterates the RPA equations for core electrons
+  virtual void solve_core(const double omega, int max_its = 200,
+                          const bool print = true) override final;
+
+  //! Calculates RPA correction to matrix element: <A||dV||B>
+  virtual double dV(const DiracSpinor &Fa,
+                    const DiracSpinor &Fb) const override final;
+
+  double dV_diagram(const DiracSpinor &Fa, const DiracSpinor &Fb,
+                    const bool first_order = false) const;
+
+  //! @brief Clears the t_am and t_ma RPA ME's [RPA ME's for hole-excited]
+  //! @Details If a previous run failed, can clear t_am's + re-try
+  virtual void clear() override final;
+
+  //! Copies the tam (and tma) values across from different RPAD. If two
+  //! operators are similar, this can save time on the itterations.
+  void grab_tam(const DiagramRPA *const drpa) {
+    tam = drpa->tam;
+    tma = drpa->tma;
+  }
+
+private:
   // Note: only writes W (depends on k/pi, and basis). Do not write t's, since
   // they depend on operator. This makes it very fast when making small changes
   // to operator (don't need to re-calc W)
@@ -87,9 +84,9 @@ private:
   void setup_ts(const DiracOperator::TensorOperator *const h);
 
 public:
-  DiagramRPA &operator=(const DiagramRPA &) = delete;
+  DiagramRPA &operator=(const DiagramRPA &) = default;
   DiagramRPA(const DiagramRPA &) = default;
   ~DiagramRPA() = default;
 };
 
-} // namespace MBPT
+} // namespace ExternalField

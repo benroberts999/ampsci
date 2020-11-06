@@ -14,7 +14,8 @@
 #include <iostream>
 #include <vector>
 
-namespace HF {
+namespace ExternalField {
+using namespace HF;
 
 //******************************************************************************
 DiracSpinor solveMixedState(const int k, const DiracSpinor &Fa,
@@ -23,7 +24,7 @@ DiracSpinor solveMixedState(const int k, const DiracSpinor &Fa,
                             const std::vector<DiracSpinor> &core,
                             const DiracSpinor &hFa, const double eps_target,
                             const MBPT::CorrelationPotential *const Sigma,
-                            const Breit *const VBr,
+                            const HF::Breit *const VBr,
                             const std::vector<double> &H_mag) {
   DiracSpinor dF{0, k, Fa.rgrid};
   solveMixedState(dF, Fa, omega, vl, alpha, core, hFa, eps_target, Sigma, VBr,
@@ -36,7 +37,8 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
                      const std::vector<DiracSpinor> &core,
                      const DiracSpinor &hFa, const double eps_target,
                      const MBPT::CorrelationPotential *const Sigma,
-                     const Breit *const VBr, const std::vector<double> &H_mag)
+                     const HF::Breit *const VBr,
+                     const std::vector<double> &H_mag)
 // Solves:  (H - e - w)X = -h*Fa for X
 {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
@@ -87,4 +89,4 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
   }
 }
 
-} // namespace HF
+} // namespace ExternalField

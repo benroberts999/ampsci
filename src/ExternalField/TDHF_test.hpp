@@ -1,6 +1,6 @@
 #pragma once
 #include "DiracOperator/Operators.hpp"
-#include "ExternalField.hpp"
+#include "TDHF.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "qip/Check.hpp"
 #include "qip/Vector.hpp"
@@ -23,7 +23,7 @@ dV_result(const Wavefunction &wf, const DiracOperator::TensorOperator &h,
 //******************************************************************************
 //******************************************************************************
 //! Unit tests External Field (RPA equations using TDHF method)
-bool ExternalField(std::ostream &obuff) {
+bool TDHF(std::ostream &obuff) {
   bool pass = true;
 
   // Create wavefunction object, solve HF for core+valence
@@ -109,7 +109,7 @@ UnitTest::helper::dV_result(const Wavefunction &wf,
                             const DiracOperator::TensorOperator &h, double ww) {
 
   // Form TDHF (RPA) object for this operator
-  auto dV = HF::ExternalField(&h, wf.getHF());
+  auto dV = ExternalField::TDHF(&h, wf.getHF());
   // Solve set of TDHF equations for core, with frequency ww
   const auto max_iterations = 150;
   const auto print_details = true;

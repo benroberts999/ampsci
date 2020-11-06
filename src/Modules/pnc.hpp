@@ -9,8 +9,8 @@ class UserInput;
 namespace DiracOperator {
 class TensorOperator;
 }
-namespace HF {
-class ExternalField;
+namespace ExternalField {
+class TDHF;
 }
 class DiracSpinor;
 namespace MBPT {
@@ -54,9 +54,9 @@ namespace Pnc {
 // core.
 std::pair<double, double> pnc_sos(const DiracSpinor &Fa, const DiracSpinor &Fb,
                                   const DiracOperator::TensorOperator *hpnc,
-                                  const HF::ExternalField *dVpnc,
+                                  const ExternalField::TDHF *dVpnc,
                                   const DiracOperator::TensorOperator *he1,
-                                  const HF::ExternalField *dVE1,
+                                  const ExternalField::TDHF *dVE1,
                                   const std::vector<DiracSpinor> &spectrum,
                                   int main_n, double en_core, bool print);
 
@@ -66,9 +66,9 @@ std::pair<double, double> pnc_sos(const DiracSpinor &Fa, const DiracSpinor &Fb,
 // use any basis states
 std::pair<double, double> pnc_tdhf(const DiracSpinor &Fa, const DiracSpinor &Fb,
                                    const DiracOperator::TensorOperator *hpnc,
-                                   const HF::ExternalField *dVpnc,
+                                   const ExternalField::TDHF *dVpnc,
                                    const DiracOperator::TensorOperator *he1,
-                                   const HF::ExternalField *dVE1,
+                                   const ExternalField::TDHF *dVE1,
                                    const MBPT::CorrelationPotential *Sigma,
                                    const std::vector<DiracSpinor> &spectrum,
                                    int main_n, double en_core, bool print);

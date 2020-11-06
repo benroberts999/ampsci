@@ -1,4 +1,4 @@
-#include "DiracOperator/DiracOperator.hpp"
+#include "DiracOperator/TensorOperator.hpp"
 #include "Angular/Angular_369j.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <algorithm>

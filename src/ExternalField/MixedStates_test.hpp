@@ -7,7 +7,7 @@
 #include <iomanip>
 #include <string>
 //
-#include "HF/ExternalField.hpp"
+#include "ExternalField/TDHF.hpp"
 
 namespace UnitTest {
 
@@ -90,11 +90,11 @@ bool MixedStates(std::ostream &obuff) {
     std::string worst_set{};
     double best_eps = 1.0;
     std::string best_set{};
-    HF::ExternalField dv(&h, wf.getHF());
+    ExternalField::TDHF dv(&h, wf.getHF());
     dv.solve_core(0.0, max_its);
 
     // to test the .get() X,Y's
-    HF::ExternalField dPsi(&h, wf.getHF());
+    ExternalField::TDHF dPsi(&h, wf.getHF());
     dPsi.solve_core(0.0, 1); // 1 it; no dV, but solve for dPsi
 
     int count = 0;
@@ -103,9 +103,10 @@ bool MixedStates(std::ostream &obuff) {
         if (Fm == Fv || h.isZero(Fm.k, Fv.k))
           continue;
 
-        const auto Xb = dv.solve_dPsi(Fv, 0.0, HF::dPsiType::X, Fm.k);
-        const auto Yb = dv.solve_dPsi(Fv, 0.0, HF::dPsiType::Y, Fm.k, nullptr,
-                                      HF::StateType::bra);
+        const auto Xb =
+            dv.solve_dPsi(Fv, 0.0, ExternalField::dPsiType::X, Fm.k);
+        const auto Yb = dv.solve_dPsi(Fv, 0.0, ExternalField::dPsiType::Y, Fm.k,
+                                      nullptr, ExternalField::StateType::bra);
         const auto h_mv = h.reducedME(Fm, Fv) + dv.dV(Fm, Fv);
         const auto lhs = Fm * Xb;
         const auto rhs = h_mv / (Fv.en - Fm.en);
@@ -212,8 +213,8 @@ UnitTest::helper::MS_loops(const Wavefunction &wf,
       for (const auto &w_mult : omega_mults) {
         const auto w = std::abs(Fv.en * w_mult);
 
-        const auto dFv =
-            HF::solveMixedState(Fm.k, Fv, w, vl, wf.alpha, wf.core, hFv);
+        const auto dFv = ExternalField::solveMixedState(Fm.k, Fv, w, vl,
+                                                        wf.alpha, wf.core, hFv);
 
         const auto lhs = Fm * dFv;
         const auto rhs = h_mv / (Fv.en - Fm.en + w);

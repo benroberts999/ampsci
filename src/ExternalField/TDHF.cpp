@@ -1,11 +1,11 @@
-#include "ExternalField.hpp"
+#include "TDHF.hpp"
 #include "Angular/Angular_369j.hpp"
 #include "Angular/Angular_tables.hpp"
 #include "Coulomb/Coulomb.hpp"
-#include "DiracOperator/DiracOperator.hpp"
+#include "DiracOperator/TensorOperator.hpp"
+#include "ExternalField/MixedStates.hpp"
 #include "HF/Breit.hpp"
 #include "HF/HartreeFock.hpp"
-#include "HF/MixedStates.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "Wavefunction/BSplineBasis.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
@@ -15,29 +15,24 @@
 #include <memory>
 #include <vector>
 
-namespace HF {
+namespace ExternalField {
 
 //******************************************************************************
-ExternalField::ExternalField(const DiracOperator::TensorOperator *const h,
-                             const HF::HartreeFock *const hf)
-    : m_h(h),
-      // p_core(&hf->get_core()),
+TDHF::TDHF(const DiracOperator::TensorOperator *const h,
+           const HF::HartreeFock *const hf)
+    : CorePolarisation(h),
       m_core(hf->get_core()),
       m_vl(hf->get_vlocal(0)),     // for now, const Vl (same each l)
       m_Hmag(hf->get_Hrad_mag(0)), //(same each l)
       m_alpha(hf->get_alpha()),
-      m_rank(h->rank()),
-      m_pi(h->parity()),
-      m_imag(h->imaginaryQ()),
       p_VBr(hf->get_Breit())
-// w>0 typically. Allowed to be -ve for tests?
 // XXX Add check for null hf?
 {
   initialise_dPsi();
 }
 
 //******************************************************************************
-void ExternalField::initialise_dPsi() {
+void TDHF::initialise_dPsi() {
   // Initialise dPsi vectors, accounting for selection rules
   const bool print = false;
   m_X.resize(m_core.size());
@@ -67,7 +62,7 @@ void ExternalField::initialise_dPsi() {
 }
 
 //******************************************************************************
-void ExternalField::clear_dPsi() {
+void TDHF::clear() {
   // re-set p0/pinf? no need.
   for (auto &mx : m_X) {
     for (auto &m : mx) {
@@ -78,8 +73,8 @@ void ExternalField::clear_dPsi() {
 }
 
 //******************************************************************************
-const std::vector<DiracSpinor> &ExternalField::get_dPsis(const DiracSpinor &Fc,
-                                                         dPsiType XorY) const {
+const std::vector<DiracSpinor> &TDHF::get_dPsis(const DiracSpinor &Fc,
+                                                dPsiType XorY) const {
   const auto index = static_cast<std::size_t>(
       std::find(m_core.cbegin(), m_core.cend(), Fc) - m_core.cbegin());
   // Note: no bounds checking here! Used in critical loop. Better way?
@@ -88,18 +83,18 @@ const std::vector<DiracSpinor> &ExternalField::get_dPsis(const DiracSpinor &Fc,
 }
 
 //******************************************************************************
-const DiracSpinor &ExternalField::get_dPsi_x(const DiracSpinor &Fc,
-                                             dPsiType XorY,
-                                             const int kappa_x) const {
+const DiracSpinor &TDHF::get_dPsi_x(const DiracSpinor &Fc, dPsiType XorY,
+                                    const int kappa_x) const {
   const auto &dPsis = get_dPsis(Fc, XorY);
   auto match_kappa_x = [=](const auto &Fa) { return Fa.k == kappa_x; };
   return *std::find_if(dPsis.cbegin(), dPsis.cend(), match_kappa_x);
 }
 
 //******************************************************************************
-std::vector<DiracSpinor> ExternalField::solve_dPsis(
-    const DiracSpinor &Fv, const double omega, dPsiType XorY,
-    const MBPT::CorrelationPotential *const Sigma, StateType st) const {
+std::vector<DiracSpinor>
+TDHF::solve_dPsis(const DiracSpinor &Fv, const double omega, dPsiType XorY,
+                  const MBPT::CorrelationPotential *const Sigma,
+                  StateType st) const {
   std::vector<DiracSpinor> dFvs;
   const auto tjmin = std::max(1, Fv.twoj() - 2 * m_rank);
   const auto tjmax = Fv.twoj() + 2 * m_rank;
@@ -110,9 +105,10 @@ std::vector<DiracSpinor> ExternalField::solve_dPsis(
   return dFvs;
 }
 //******************************************************************************
-DiracSpinor ExternalField::solve_dPsi(
-    const DiracSpinor &Fv, const double omega, dPsiType XorY, const int kappa_x,
-    const MBPT::CorrelationPotential *const Sigma, StateType st) const {
+DiracSpinor TDHF::solve_dPsi(const DiracSpinor &Fv, const double omega,
+                             dPsiType XorY, const int kappa_x,
+                             const MBPT::CorrelationPotential *const Sigma,
+                             StateType st) const {
   // Solves (H + Sigma - e - w)X = -(h + dV - de)Psi
   // or     (H + Sigma - e + w)Y = -(h^dag + dV^dag - de)Psi
 
@@ -143,16 +139,16 @@ DiracSpinor ExternalField::solve_dPsi(
     s2 = sj * si;
   }
 
-  return s2 * HF::solveMixedState(kappa_x, Fv, ww, m_vl, m_alpha, m_core, rhs,
-                                  1.0e-9, Sigma, p_VBr, m_Hmag);
+  return s2 * ExternalField::solveMixedState(kappa_x, Fv, ww, m_vl, m_alpha,
+                                             m_core, rhs, 1.0e-9, Sigma, p_VBr,
+                                             m_Hmag);
 }
 
 //******************************************************************************
-void ExternalField::solve_core(const double omega, const int max_its,
-                               const bool print) {
+void TDHF::solve_core(const double omega, const int max_its, const bool print) {
 
   const double converge_targ = 1.0e-8;
-  const auto damper = rampedDamp(0.75, 0.25, 1, 20);
+  const auto damper = HF::rampedDamp(0.75, 0.25, 1, 20);
 
   const bool staticQ = std::abs(omega) < 1.0e-10;
 
@@ -211,8 +207,8 @@ void ExternalField::solve_core(const double omega, const int max_its,
           // Force solveMixedState to start from scratch
           Xx *= 0.0;
         }
-        HF::solveMixedState(Xx, Fc, omega, m_vl, m_alpha, m_core, rhs, eps_ms,
-                            nullptr, p_VBr, m_Hmag);
+        ExternalField::solveMixedState(Xx, Fc, omega, m_vl, m_alpha, m_core,
+                                       rhs, eps_ms, nullptr, p_VBr, m_Hmag);
         Xx = a_damp * oldX + (1.0 - a_damp) * Xx;
         const auto delta = (Xx - oldX) * (Xx - oldX) / (Xx * Xx);
         // use <a|dV|b> instead? But, for which <a|?
@@ -232,8 +228,8 @@ void ExternalField::solve_core(const double omega, const int max_its,
           if (has_de) {
             Yx *= 0.0;
           }
-          HF::solveMixedState(Yx, Fc, -omega, m_vl, m_alpha, m_core, rhs,
-                              eps_ms, nullptr, p_VBr, m_Hmag);
+          ExternalField::solveMixedState(Yx, Fc, -omega, m_vl, m_alpha, m_core,
+                                         rhs, eps_ms, nullptr, p_VBr, m_Hmag);
           Yx = a_damp * oldY + (1.0 - a_damp) * Yx;
         }
       } else {
@@ -270,21 +266,20 @@ void ExternalField::solve_core(const double omega, const int max_its,
 
 //******************************************************************************
 // does it matter if a or b is in the core?
-double ExternalField::dV(const DiracSpinor &Fn, const DiracSpinor &Fm,
-                         bool conj, const DiracSpinor *const Fexcl) const {
+double TDHF::dV(const DiracSpinor &Fn, const DiracSpinor &Fm, bool conj,
+                const DiracSpinor *const Fexcl) const {
   auto s = conj && m_h->imaginaryQ() ? -1 : 1; // careful, not always needed
   return s * Fn * dV_rhs(Fn.k, Fm, conj, Fexcl);
 }
 
-double ExternalField::dV(const DiracSpinor &Fn, const DiracSpinor &Fm) const {
+double TDHF::dV(const DiracSpinor &Fn, const DiracSpinor &Fm) const {
   auto conj = Fm.en > Fn.en;
   return dV(Fn, Fm, conj);
 }
 
 //******************************************************************************
-DiracSpinor ExternalField::dV_rhs(const int kappa_n, const DiracSpinor &Fa,
-                                  bool conj,
-                                  const DiracSpinor *const Fexcl) const {
+DiracSpinor TDHF::dV_rhs(const int kappa_n, const DiracSpinor &Fa, bool conj,
+                         const DiracSpinor *const Fexcl) const {
 
   auto dVFa = DiracSpinor(0, kappa_n, Fa.rgrid);
   dVFa.pinf = Fa.pinf;
@@ -341,9 +336,8 @@ DiracSpinor ExternalField::dV_rhs(const int kappa_n, const DiracSpinor &Fa,
 //******************************************************************************
 
 //******************************************************************************
-void ExternalField::solve_TDHFcore_matrix(const Wavefunction &wf,
-                                          const double omega,
-                                          const int max_its) {
+void TDHF::solve_TDHFcore_matrix(const Wavefunction &wf, const double omega,
+                                 const int max_its) {
   // This is just for testing?? Very slow. Should give same as reg method!
 
   IO::ChronoTimer timer("solve_TDHFcore_matrix");
@@ -376,7 +370,7 @@ void ExternalField::solve_TDHFcore_matrix(const Wavefunction &wf,
   const auto imag = m_h->imaginaryQ();
 
   const double converge_targ = 1.0e-4;
-  const auto damper = rampedDamp(0.5, 0.25, 1, 10);
+  const auto damper = HF::rampedDamp(0.5, 0.25, 1, 10);
 
   auto eps = 0.0;
   for (int it = 0; it < max_its; it++) {
@@ -454,7 +448,7 @@ void ExternalField::solve_TDHFcore_matrix(const Wavefunction &wf,
 }
 
 //******************************************************************************
-void ExternalField::print(const std::string &ofname) const {
+void TDHF::print(const std::string &ofname) const {
   std::ofstream of(ofname);
   const auto &gr = *((m_core.front()).rgrid);
   for (auto i = 0ul; i < gr.num_points; ++i) {
@@ -487,10 +481,9 @@ void ExternalField::print(const std::string &ofname) const {
 //******************************************************************************
 
 //******************************************************************************
-double ExternalField::dX_nm_bbe_rhs(const DiracSpinor &Fn,
-                                    const DiracSpinor &Fm,
-                                    const DiracSpinor &Fb,
-                                    const DiracSpinor &X_beta) const {
+double TDHF::dX_nm_bbe_rhs(const DiracSpinor &Fn, const DiracSpinor &Fm,
+                           const DiracSpinor &Fb,
+                           const DiracSpinor &X_beta) const {
 
   const auto k = m_h->rank();
   const auto tkp1 = double(2 * k + 1);
@@ -534,10 +527,9 @@ double ExternalField::dX_nm_bbe_rhs(const DiracSpinor &Fn,
 }
 
 //******************************************************************************
-double ExternalField::dY_nm_bbe_rhs(const DiracSpinor &Fn,
-                                    const DiracSpinor &Fm,
-                                    const DiracSpinor &Fb,
-                                    const DiracSpinor &Y_beta) const {
+double TDHF::dY_nm_bbe_rhs(const DiracSpinor &Fn, const DiracSpinor &Fm,
+                           const DiracSpinor &Fb,
+                           const DiracSpinor &Y_beta) const {
 
   const auto k = m_h->rank();
   const auto tkp1 = double(2 * k + 1);
@@ -582,4 +574,4 @@ double ExternalField::dY_nm_bbe_rhs(const DiracSpinor &Fn,
   return dY_nm_bbe;
 }
 
-} // namespace HF
+} // namespace ExternalField
