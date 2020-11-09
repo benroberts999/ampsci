@@ -103,6 +103,9 @@ public: // const methods: "views" into WF object
   //! @details is_valence is optional out-parameter; tells you where orb was
   //! found
   const DiracSpinor *getState(int n, int k, bool *is_valence = nullptr) const;
+  //! As above, but takes 'short symbol' (e.g., 6s+, 6p-)
+  const DiracSpinor *getState(std::string_view state,
+                              bool *is_valence = nullptr) const;
 
   // These are only really for testing Greens function..
   const DiracSpinor *firstCoreState(int k) const {

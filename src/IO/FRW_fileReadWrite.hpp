@@ -217,10 +217,30 @@ splitInput_byBraces(const std::string &input) {
 
   auto lines = removeCommentsAndSpaces(input);
 
+  auto find_close = [&lines](auto open) {
+    auto next_open = lines.find('{', open + 1);
+    auto next_close = lines.find('}', open + 1);
+    auto next = std::min(next_open, next_close);
+    if (next == next_close || next == std::string::npos)
+      return next;
+    int depth = 1;
+    while (depth > 0) {
+      next_open = lines.find('{', next + 1);
+      next_close = lines.find('}', next + 1);
+      next = std::min(next_open, next_close);
+      if (next == next_close)
+        --depth;
+      if (next == next_open)
+        ++depth;
+    }
+    next = lines.find('}', next + 1);
+    return next;
+  };
+
   std::size_t previous_end = 0;
   while (true) {
     auto beg = lines.find('{', previous_end);
-    auto end = lines.find('}', beg);
+    auto end = find_close(beg);
     if (beg == std::string::npos)
       break;
     if (end == std::string::npos) {
@@ -254,18 +274,18 @@ inline std::vector<std::string> splitInput_bySemiColon(const std::string &input)
   // }
 
   // dumb hack to ingore first braket '['..
-  std::size_t start = (input.size() > 0 && input[0] == '[') ? 1 : 0;
+  std::size_t start = (input.size() > 0 && input[0] == '{') ? 1 : 0;
 
   // std::size_t start = 0;
   while (true) {
     // Check if we find a ';' or an open braket '[' first:
-    const auto bkt = input.find('[', start);
+    const auto bkt = input.find('{', start);
     const auto semic = input.find(';', start);
     const auto bracketQ = bkt < semic;
 
     // If no braket, 'end' of string is semicolon ';'.
     // If we do have brakets, end is "];"
-    const auto end = bracketQ ? input.find("];", start) + 1 : semic;
+    const auto end = bracketQ ? input.find("};", start) + 1 : semic;
     if (end == std::string::npos)
       break;
     entry_list.push_back(input.substr(start, end - start));

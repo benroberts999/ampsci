@@ -83,7 +83,9 @@ int get_z(const std::string &at) {
   if (at.empty())
     return 0;
 
-  auto match_At = [=](const Element &atom) { return atom.symbol == at; };
+  auto match_At = [=](const Element &atom) {
+    return atom.symbol == at || '[' + atom.symbol + ']' == at;
+  };
   const auto atom =
       std::find_if(periodic_table.begin(), periodic_table.end(), match_At);
   if (atom != periodic_table.end())
@@ -93,7 +95,7 @@ int get_z(const std::string &at) {
   if (string_is_ints(at))
     z = std::stoi(at);
   if (z <= 0) {
-    std::cerr << "Invalid atom/Z: " << at << "\n";
+    // std::cerr << "Invalid atom/Z: " << at << "\n";
     z = 0;
   }
   return z;
@@ -202,38 +204,98 @@ double diracen(double z, double n, int k, double alpha) {
 std::vector<NonRelSEConfig> core_parser(const std::string &str_core_in) {
 
   std::vector<NonRelSEConfig> core;
-  long unsigned int beg = 0;
+  // long unsigned int beg = 0;
 
-  // If there's a 'Nobel Gas' term ([NG]), parse it first
-  std::string str_core;
-  auto end_first = str_core_in.find(',');
-  if (end_first > str_core_in.length())
-    end_first = str_core_in.length();
-  if (end_first <= str_core_in.length()) {
-    // first_term = str_core.substr(0, end_first);
-    str_core = coreConfig(str_core_in.substr(0, end_first)) +
-               str_core_in.substr(end_first);
+  bool first = true;
 
-  } else {
-    str_core = str_core_in;
-  }
+  std::istringstream ss(str_core_in);
+  std::string each;
+  while (std::getline(ss, each, ',')) {
+    if (first) {
+      auto str_core = coreConfig(each);
+      if (str_core != each) {
+        state_parser(&core, str_core);
+      } else {
+        auto z = get_z(each);
+        if (z != 0)
+          core = core_guess(z);
+      }
+      first = false;
+    } else {
+      auto new_config = term_parser(each);
 
-  // If there's a non-Nobel Gas Atom term ([X]), parse it next
-  if (str_core[0] == '[') {
-    auto end = str_core.find(']');
-    if (end < str_core.length()) {
-      auto ng = str_core.substr(1, end - 1);
-      core = core_guess(get_z(ng));
-      beg += end + 2; //+2 for the '],'
+      // Check if valid:
+      if (new_config.n <= 0) {
+        std::cout << "Problem with core: " << str_core_in << "\n";
+        std::cout << "invalid core term: " << each << "\n";
+        std::abort();
+      }
+
+      // If nl term already exists, add to num. Otherwise, add new term
+      auto ia = std::find(core.begin(), core.end(), new_config);
+      if (ia == core.end()) {
+        core.push_back(new_config);
+      } else {
+        *ia += new_config;
+      }
     }
   }
 
-  // Then, parse the rest
-  if (str_core.size() > beg) {
-    state_parser(&core, str_core.substr(beg));
+  // std::cout << "\n----\n";
+  // std::cout << str_core_in << ":\n";
+  // for (auto &c : core) {
+  //   std::cout << c.symbol() << ", ";
+  // }
+  // std::cout << "\n----\n\n";
+  // std::cin.get();
+
+  if (core.size() > 0) {
+    for (auto it = core.end() - 1; it != core.begin(); it--) {
+      if (it->num == 0)
+        core.erase(it);
+    }
   }
 
   return core;
+}
+
+//******************************************************************************
+NonRelSEConfig term_parser(std::string_view term) {
+  if (term == "" || term == "0")
+    return NonRelSEConfig(0, 0, 0);
+
+  bool term_ok = true;
+
+  // find position of 'l'
+  const auto l_ptr = std::find_if(
+      term.begin(), term.end(), [](const char &c) { return !std::isdigit(c); });
+  const auto l_position = std::size_t(l_ptr - term.begin());
+  // Extract n, num, and l:
+  int n{0}, num{-1}, l{-1};
+  if (string_is_ints(term.substr(0, l_position - 0)))
+    n = std::stoi(std::string(term.substr(0, l_position - 0)));
+  if (term.size() > l_position + 1) {
+    if (string_is_ints(term.substr(l_position + 1)))
+      num = std::stoi(std::string(term.substr(l_position + 1)));
+  } else {
+    // string too short, mussing 'num' after l
+    term_ok = false;
+  }
+  if (l_position == term.size())
+    term_ok = false;
+  if (term_ok)
+    l = AtomData::symbol_to_l(term.substr(l_position, 1));
+
+  if (num == 0)
+    return NonRelSEConfig(0, 0, 0);
+
+  // Check if valid:
+  if (!term_ok || n <= 0 || l < 0) {
+    return NonRelSEConfig(0, 0, 0);
+  }
+
+  // If nl term already exists, add to num. Otherwise, add new term
+  return NonRelSEConfig(n, l, num);
 }
 
 //******************************************************************************
@@ -248,48 +310,23 @@ std::vector<NonRelSEConfig> state_parser(const std::string &str_states) {
 void state_parser(std::vector<NonRelSEConfig> *states,
                   const std::string &str_states) {
 
+  if (str_states == "")
+    return;
+
   std::istringstream ss(str_states);
   std::string term;
   while (std::getline(ss, term, ',')) {
-    if (term == "" || term == "0")
-      continue;
-    bool term_ok = true;
 
-    // find position of 'l'
-    const auto l_ptr =
-        std::find_if(term.begin(), term.end(),
-                     [](const char &c) { return !std::isdigit(c); });
-    const auto l_position = std::size_t(l_ptr - term.begin());
-    // Extract n, num, and l:
-    int n{0}, num{-1}, l{-1};
-    if (string_is_ints(term.substr(0, l_position - 0)))
-      n = std::stoi(term.substr(0, l_position - 0));
-    if (term.size() > l_position + 1) {
-      if (string_is_ints(term.substr(l_position + 1)))
-        num = std::stoi(term.substr(l_position + 1));
-    } else {
-      // string too short, mussing 'num' after l
-      term_ok = false;
-    }
-    if (l_position == term.size())
-      term_ok = false;
-    if (term_ok)
-      l = AtomData::symbol_to_l(term.substr(l_position, 1));
-
-    if (num == 0)
-      continue;
+    auto new_config = term_parser(term);
 
     // Check if valid:
-    if (!term_ok || n <= 0 || l < 0) {
+    if (new_config.n <= 0) {
       std::cout << "Problem with core: " << str_states << "\n";
       std::cout << "invalid core term: " << term << "\n";
-      if (num < 0)
-        std::cout << "Missing num? nlm - need m\n";
       std::abort();
     }
 
     // If nl term already exists, add to num. Otherwise, add new term
-    NonRelSEConfig new_config(n, l, num);
     auto ia = std::find(states->begin(), states->end(), new_config);
     if (ia == states->end()) {
       states->push_back(new_config);
@@ -302,8 +339,6 @@ void state_parser(std::vector<NonRelSEConfig> *states,
   // but nicer)
   while (!states->empty() && states->back().num == 0)
     states->pop_back();
-
-  // return *states;
 }
 
 //------------------------------------------------------------------------------

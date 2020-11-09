@@ -292,6 +292,13 @@ const DiracSpinor *Wavefunction::getState(int n, int k,
   return nullptr;
 }
 
+const DiracSpinor *Wavefunction::getState(std::string_view state,
+                                          bool *is_valence) const {
+  // std::pair<int, int> parse_symbol(std::string_view symbol);
+  const auto [n, k] = AtomData::parse_symbol(state);
+  return getState(n, k, is_valence);
+}
+
 //******************************************************************************
 int Wavefunction::maxCore_n(int ka) const
 // Returns the largest n for states with kappa = ka in the core

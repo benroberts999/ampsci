@@ -20,15 +20,13 @@ static void calc_thing(const DiracSpinor &Fv, double e_targ, double r0,
 //******************************************************************************
 void HFAnomaly(const IO::UserInputBlock &input, const Wavefunction &wf) {
 
-  input.checkBlock({"rpa", "mu", "I", "rrms", "parity", "l", "gl", "mu1", "gl1",
-                    "l1", "l2", "I1", "I2", "A"});
+  input.checkBlock({"rpa", "options", "A"});
 
   const auto rpa = input.get("rpa", false);
   const auto Alist = input.get_list("A", std::vector<int>{});
 
   const auto sub_input =
-      input.subBlock("hfs", {"mu", "I", "rrms", "parity", "l", "gl", "mu1",
-                             "gl1", "l1", "l2", "I1", "I2"});
+      IO::UserInputBlock("hfs", input.get<std::string>("options", ""));
   const auto point_in = sub_input.copy_with("F(r)=pointlike");
 
   const auto ball_in = sub_input.copy_with("F(r)=ball");
@@ -51,9 +49,9 @@ void HFAnomaly(const IO::UserInputBlock &input, const Wavefunction &wf) {
 
   // calc mu, I, gI
   const auto isotope0 = Nuclear::findIsotopeData(wf.Znuc(), wf.Anuc());
-  const auto mu0 = input.get("mu", isotope0.mu);
-  const auto I0 = input.get("I", isotope0.I_N);
-  const auto r_rms0 = input.get("rrms", isotope0.r_rms);
+  const auto mu0 = sub_input.get("mu", isotope0.mu);
+  const auto I0 = sub_input.get("I", isotope0.I_N);
+  const auto r_rms0 = sub_input.get("rrms", isotope0.r_rms);
   const auto gI0 = mu0 / I0;
 
   // RPA:
@@ -115,6 +113,7 @@ void HFAnomaly(const IO::UserInputBlock &input, const Wavefunction &wf) {
     wfA.hartreeFockCore("HartreeFock", 0.0, wf.coreConfiguration_nice());
     wfA.hartreeFockValence(DiracSpinor::state_config(wf.valence));
     wfA.basis = wf.basis; // OK??
+    //  wfA.formBasis({"50spd30f", 60, 7, 0.0, 0.0, 30.0, false});
 
     const auto hpt2 = generateOperator({"hfs", "F(r)=pointlike;"}, wfA, false);
     const auto hbl2 = generateOperator({"hfs", "F(r)=ball;"}, wfA, false);
@@ -142,8 +141,9 @@ void HFAnomaly(const IO::UserInputBlock &input, const Wavefunction &wf) {
               << ", r_rms = " << nuc.r_rms << "\n";
     std::cout << "      A(point)      e(ball)   e(SP)   | 1D2(ball) "
                  "1D2(SP) [%]\n";
-    for (std::size_t i = 0; i < wfA.valence.size(); ++i) {
-      const auto &Fv = wfA.valence[i];
+    for (std::size_t i = 0; i < wf.valence.size(); ++i) {
+      // Make sure the valence states are in correct order!
+      const auto &Fv = *wfA.getState(wf.valence[i].shortSymbol());
       const auto [pt0, bl0, sp0] = As[i];
       auto point = DiracOperator::Hyperfine::hfsA(hpt2.get(), Fv);
       auto ball = DiracOperator::Hyperfine::hfsA(hbl2.get(), Fv);
@@ -286,8 +286,8 @@ void HF_rmag(const IO::UserInputBlock &input, const Wavefunction &wf) {
 
       const auto a1 = h1.hfsA(F1v) + dv1;
 
-      // Use halving-interval method to find rmag(2) that reproduces 1D2, given
-      // rmag(1)
+      // Use halving-interval method to find rmag(2) that reproduces 1D2,
+      // given rmag(1)
       auto r2a = (1.0 - x) * rN2;
       auto r2 = rN2;
       auto r2b = (1.0 + x) * rN2;

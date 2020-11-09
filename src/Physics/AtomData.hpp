@@ -86,6 +86,8 @@ double diracen(double z, double n, int k, double alpha = 0.00729735256635);
 //! list to check for validity.
 std::vector<NonRelSEConfig> core_parser(const std::string &str_core_in);
 
+NonRelSEConfig term_parser(std::string_view term);
+
 //! Takes a string of states in form "nLm,nLm,..." converts to vector of
 //! NonRelSEConfig. Allows negative and non-physical m's (to allow combining)
 std::vector<NonRelSEConfig> state_parser(const std::string &str_states);
