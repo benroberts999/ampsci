@@ -103,12 +103,13 @@ void basisTests(const Wavefunction &wf) {
   }
 
   std::cout << "\nCompleteness test:\n";
-  std::cout << "     <a|r|n><n|1/r|a>  <a|r|n><n|r|a>\n";
-  for (const auto orbs : {&wf.core, &wf.valence}) {
+  std::cout << "Sum_n <a|r|n><n|1/r|a>  <a|r|n><n|r|a>\n";
+  std::cout << "vs:   <a|a>             <a|r^2|a>\n";
+  for (const auto orbs : {/*&wf.core,*/ &wf.valence}) {
     for (const auto &Fa : *orbs) {
       auto [e1, er2] = SplineBasis::r_completeness(Fa, basis, *wf.rgrid);
-      printf("%4s  %10.2e         %10.2e\n", Fa.shortSymbol().c_str(), e1, er2);
-      // std::cout << Fa.shortSymbol() << " " << e1 << " " << er2 << "\n";
+      printf("%4s   %10.2e         %10.2e\n", Fa.shortSymbol().c_str(), e1,
+             er2);
     }
   }
 }

@@ -49,7 +49,7 @@ public:
   virtual double dV(const DiracSpinor &Fn, const DiracSpinor &Fm) const = 0;
 
 public:
-  CorePolarisation &operator=(const CorePolarisation &) = default;
+  CorePolarisation &operator=(const CorePolarisation &) = delete;
   CorePolarisation(const CorePolarisation &) = default;
   virtual ~CorePolarisation() = default;
 };

@@ -98,6 +98,9 @@ void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf) {
   }
 
   // Fb -> Fa = <a||h||b>
+  if (rpaQ || rpaDQ) {
+    std::cout << "                h(0)           h(1)           h(RPA)\n";
+  }
   for (const auto &Fb : wf.valence) {
     for (const auto &Fa : wf.valence) {
 

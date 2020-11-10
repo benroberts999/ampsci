@@ -137,7 +137,7 @@ private:
   void initialise_dPsi();
 
 public:
-  TDHF &operator=(const TDHF &) = default;
+  TDHF &operator=(const TDHF &) = delete;
   TDHF(const TDHF &) = default;
   ~TDHF() = default;
 };

@@ -48,12 +48,12 @@ using DoubleVec2D = std::vector<std::vector<double>>;
 double quickExp(double x) {
   // Good to parts in 1.e-5
   if (x < 0)
-    return 1. / quickExp(-x);
+    return 1.0 / quickExp(-x);
   if (x < 0.05)
-    return 1. + x + 0.5 * x * x;
+    return 1.0 + x + 0.5 * x * x;
   if (x < 0.25)
-    return 1. + x + 0.5 * x * x + 0.16666667 * std::pow(x, 3) +
-           0.041666667 * std::pow(x, 4);
+    return 1.0 + x + 0.5 * x * x + 0.16666667 * x * x * x +
+           0.041666667 * x * x * x * x;
   return std::exp(x);
 }
 

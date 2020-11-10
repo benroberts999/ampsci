@@ -75,9 +75,9 @@ Module::Tests {}
 Module::MatrixElements {
   operator = hfs;
   rpa = false;
-  options = [
+  options = {
     F(r) = pointlike;
-  ];
+  };
 }
 */
 

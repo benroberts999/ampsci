@@ -84,7 +84,7 @@ private:
   void setup_ts(const DiracOperator::TensorOperator *const h);
 
 public:
-  DiagramRPA &operator=(const DiagramRPA &) = default;
+  DiagramRPA &operator=(const DiagramRPA &) = delete;
   DiagramRPA(const DiagramRPA &) = default;
   ~DiagramRPA() = default;
 };

@@ -41,7 +41,7 @@ Atom{Z=Cs;A=default;}
   * Inputs are taken in as either text, boolean (true/false), integers, or real numbers, or a "sub-block"
   * These will be denoted by [t], [b], [i], [r], [sub-block]
   * A sub-block is a bracketed list of sub-options, e.g.
-    * options = [a=1; b=2;];
+    * options = {a=1; b=2;};
 * Program will _usually_ warn you if an incorrect option is given, and print all the available options to the screen -- you can use this fact to get the code to print all the available options for each block.
 
 ********************************************************************************
@@ -316,32 +316,32 @@ Remember; the program will print out the full list of available options if you a
 
 ```cpp
 operator = E1; //Electric dipole operator:
-options = [
+options = {
   gauge; //[t] lform, vform. default = lform
-];
+};
 ```
 
 ```cpp
 operator = Ek; //Electric multipole operator:
-options = [
+options = {
   k; //[i] default = 1
-];
+};
 ```
 * k=1 => E1, dipole. k=2 => E2, quadrupole etc.
 
 ```cpp
 operator = r; //scalar r
-options = [
+options = {
   power; //[r] default = 1. Will calc <|r^n|>.
-];
+};
 ```
 
 ```cpp
 operator = pnc; // spin-independent (Qw) PNC operator.
-options = [
+options = {
   c; //[r] half-density radius. By default, uses rrms from Z,A [see nucleus]
   t; //[r] skin thickness. default = 2.3
-];
+};
 ```
 
 ```cpp
@@ -365,7 +365,7 @@ operator = Hrad_mag; // QED magnetic part (magnetic SE form-factor)
 
 ```cpp
 operator = hfs; // Magnetic dipole hyperfine structure constant A
-options = [
+options = {
   mu;     //[r] Nuc. mag. moment. Will be looked up by default
   I;      //[r] Nuc. spin. Will be looked up by default
   rrms;   //[r] Nuc. rms radius. Will be looked up by default
@@ -385,7 +385,7 @@ options = [
   gl1 = 1;
   I2 = 0.5;
   l2 = 1.;
-];
+};
 ```
 
 ### Other Modules:
