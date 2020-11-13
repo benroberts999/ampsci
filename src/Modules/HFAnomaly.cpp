@@ -184,7 +184,7 @@ void HF_rmag(const IO::UserInputBlock &input, const Wavefunction &wf) {
 
   // A(1) is wf
   // A(2) is wf2
-  const auto A2 = input.get<int>("A2");
+  const auto A2 = input.get<int>("A2", wf.Anuc());
   const auto eps_t = input.get("eps_targ", 1.0e-4);
 
   const auto n = input.get<int>("n");
@@ -236,12 +236,13 @@ void HF_rmag(const IO::UserInputBlock &input, const Wavefunction &wf) {
   // nb: can only do diagram RPA for hfs
   const auto rpa = input.get("rpa", false) || input.get("rpa_diagram", false);
 
+  // nb: this is very ineficient...
   std::unique_ptr<ExternalField::DiagramRPA> rpa01{nullptr}, rpa02{nullptr},
       rpa1{nullptr}, rpa2{nullptr}, rpa2a{nullptr}, rpa2b{nullptr};
 
-  const double x = 0.1;
-  const auto num_steps = input.get("num_steps", 40);
-  const auto dr = 3.0 * x * rN0_au / (num_steps + 1);
+  // const double x = 0.05;
+  // const auto num_steps = input.get("num_steps", 40) + 1;
+  // const auto dr = 5.0 * x * rN0_au / (num_steps + 1);
 
   const auto h01 = DiracOperator::Hyperfine(
       mu1, I1, 0.0, *wf.rgrid, DiracOperator::Hyperfine::pointlike_F());
@@ -263,16 +264,32 @@ void HF_rmag(const IO::UserInputBlock &input, const Wavefunction &wf) {
   double a0_1 = h01.hfsA(F1v) + dv01;
   double a0_2 = h02.hfsA(F1v) + dv02;
 
+  auto rat_min = 1.05;
+  auto rat_max = 1.12;
+  const auto num_steps = input.get("num_steps", 40);
+  const auto dr = (rat_max - rat_min) / (num_steps - 1);
+
+  std::cout << "Rc = Sqrt[5/3]r_rms:\n";
+  std::cout << "Rc(1) = " << rN0_au * PhysConst::aB_fm << "\n";
+  std::cout << "Rc(2) = " << rN2 * PhysConst::aB_fm << "\n";
+
   const auto d12_targ = input.get<double>("1D2", 0.0);
   if (d12_targ != 0.0) {
     std::cout << "\nA0(1) = " << a0_1 << "\n";
     std::cout << "A0(2) = " << a0_2 << "\n";
     std::cout << "1D2 target: " << d12_targ << "\n";
-    std::cout << "R0(1) = " << rN0_au * PhysConst::aB_fm << "\n";
-    std::cout << "R0(2) = " << rN2 * PhysConst::aB_fm << "\n";
-    std::cout << "Rmag(1)  Rmag(2)  e1     e2     1D2    eps(D)   del(R)\n";
-    for (double rN = (1.0 - x) * rN0_au; rN < (1.0 + 2 * x) * rN0_au;
-         rN += dr) {
+    std::cout << "Rm/Rc(1) Rm/Rc(2) e1     e2     1D2    eps(D)   del(Rm/Rc)\n";
+    bool done_one_yet = false;
+
+    for (double rat = rat_min; rat < rat_max + 0.5 * dr; rat += dr) {
+      double rN = rat * rN0_au;
+
+      if (!done_one_yet && rN >= rN0_au) {
+        // ensure we do exactly Rm/Rc = 1
+        rN = rN0_au;
+        done_one_yet = true;
+        rat -= dr;
+      }
 
       const auto h1 = DiracOperator::Hyperfine(mu1, I1, rN, *wf.rgrid, Fr1);
       double dv1 = 0.0;
@@ -288,9 +305,9 @@ void HF_rmag(const IO::UserInputBlock &input, const Wavefunction &wf) {
 
       // Use halving-interval method to find rmag(2) that reproduces 1D2,
       // given rmag(1)
-      auto r2a = (1.0 - x) * rN2;
+      auto r2a = rat_min * rN2;
       auto r2 = rN2;
-      auto r2b = (1.0 + x) * rN2;
+      auto r2b = rat_max * rN2;
       int tries = 0;
       double eps;
       double del_r;
@@ -309,6 +326,7 @@ void HF_rmag(const IO::UserInputBlock &input, const Wavefunction &wf) {
         double dv2a = 0.0;
         double dv2b = 0.0;
         if (rpa) {
+          // this is very ineficient.. should only need to solve once per run..?
           rpa2a = std::make_unique<ExternalField::DiagramRPA>(&h2a, rpa1.get());
           rpa2 = std::make_unique<ExternalField::DiagramRPA>(&h2, rpa1.get());
           rpa2b = std::make_unique<ExternalField::DiagramRPA>(&h2b, rpa1.get());
@@ -334,9 +352,6 @@ void HF_rmag(const IO::UserInputBlock &input, const Wavefunction &wf) {
         bw1 = 100.0 * (a1 - a0_1) / a0_1;
         bw2 = 100.0 * (a2 - a0_2) / a0_2;
 
-        // std::cout << tries << " " << r2a * PhysConst::aB_fm << " "
-        //           << r2b * PhysConst::aB_fm << " " << d12 << "\n";
-
         // Halfing interval:
         if ((d12a < d12_targ && d12_targ < d12) ||
             (d12 < d12_targ && d12_targ < d12a)) {
@@ -359,24 +374,21 @@ void HF_rmag(const IO::UserInputBlock &input, const Wavefunction &wf) {
           break;
         }
       } // tries
-      printf("%.5f  %.5f %6.3f %6.3f %7.4f %.1e  %.1e  [%i]\n",
-             rN * PhysConst::aB_fm, r2 * PhysConst::aB_fm, bw1, bw2, d12, eps,
-             del_r * PhysConst::aB_fm, tries);
-      // std::cout << bw1 << " " << bw2 << "\n";
+      printf("%.5f  %.5f %6.3f %6.3f %7.4f %.1e  %.1e  [%i]\n", rN / rN0_au,
+             r2 / rN2, bw1, bw2, d12, eps, del_r / rN0_au, tries);
     } // rMag
   }
 
-  std::cout << "\n";
   auto etarg1 = input.get("e1", 0.0);
   if (etarg1 != 0.0) {
-    std::cout << "Fitting rmag to find epsilon for A1: e_targ=" << etarg1
+    std::cout << "\nFitting rmag to find epsilon for A1: e_targ=" << etarg1
               << "\n";
     calc_thing(F1v, etarg1, rN0_au, mu1, I1, l1, gl);
   }
-  std::cout << "\n";
+
   auto etarg2 = input.get("e2", 0.0);
   if (etarg2 != 0.0) {
-    std::cout << "Fitting rmag to find epsilon for A2: e_targ=" << etarg2
+    std::cout << "\nFitting rmag to find epsilon for A2: e_targ=" << etarg2
               << "\n";
     calc_thing(F2v, etarg2, rN2, mu2, I2, l2, gl);
   }
@@ -385,6 +397,9 @@ void HF_rmag(const IO::UserInputBlock &input, const Wavefunction &wf) {
 //******************************************************************************
 static void calc_thing(const DiracSpinor &Fv, double e_targ, double r0,
                        double mu, double I, int l, int gl) {
+  // I'm so glad past Ben gave this function such an informative name....
+  // I think this finds the r_mag required to reproduce epsilon
+
   const auto Fr = DiracOperator::Hyperfine::volotkaBW_F(mu, I, l, gl);
 
   const auto h0 = DiracOperator::Hyperfine(
@@ -426,11 +441,10 @@ static void calc_thing(const DiracSpinor &Fv, double e_targ, double r0,
     }
 
     if (std::abs((bwa - bwb) / bw) < 1.0e-6) {
-      auto c = PhysConst::aB_fm;
-      // std::cout << r * c << " | " << bw << " eps_r=" << (rb - ra) / r
-      //           << " eps_e=" << (bwa - bwb) / bw << "\n";
-      printf("rN=%8.6f, e=%6.3f,   eps_r=%.0e  eps_e=%.0e\n", r * c, bw,
-             (rb - ra) / r, (bwa - bwb) / bw);
+      // auto c = PhysConst::aB_fm;
+      printf(
+          "Rm/Rc=%8.6f, e=%6.3f,   del_Rm/Rc=%.1e   eps_r=%.0e  eps_e=%.0e\n",
+          r / r0, bw, std::abs(rb - ra) / r0, (rb - ra) / r, (bwa - bwb) / bw);
       break;
     }
   }
