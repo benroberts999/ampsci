@@ -5,11 +5,12 @@
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
+#include "qip/Vector.hpp"
 #include <vector>
 /*
 
 Solve inhomogenous Dirac equation:
-(H_0 + v - e)phi = S
+(H_0 + v - e)Fa = S
 
 S (source) is spinor
 
@@ -22,73 +23,90 @@ DiracSpinor solve_inhomog(const int kappa, const double en,
                           const std::vector<double> &H_mag, const double alpha,
                           const DiracSpinor &source) {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__, "0");
-  auto phi = DiracSpinor(0, kappa, source.rgrid);
-  solve_inhomog(phi, en, v, H_mag, alpha, source);
-  return phi;
+  auto Fa = DiracSpinor(0, kappa, source.rgrid);
+  solve_inhomog(Fa, en, v, H_mag, alpha, source);
+  return Fa;
 }
 
 //******************************************************************************
-void solve_inhomog(DiracSpinor &phi, const double en,
+void solve_inhomog(DiracSpinor &Fa, const double en,
                    const std::vector<double> &v,
                    const std::vector<double> &H_mag, const double alpha,
                    const DiracSpinor &source)
 // NOTE: returns NON-normalised function!
 {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__, "a");
-  auto phi0 = DiracSpinor(phi.n, phi.k, phi.rgrid);
-  auto phiI = DiracSpinor(phi.n, phi.k, phi.rgrid);
-  solve_inhomog(phi, phi0, phiI, en, v, H_mag, alpha, source);
+  auto Fzero = DiracSpinor(Fa.n, Fa.k, Fa.rgrid);
+  auto Finf = DiracSpinor(Fa.n, Fa.k, Fa.rgrid);
+  solve_inhomog(Fa, Fzero, Finf, en, v, H_mag, alpha, source);
 }
 //------------------------------------------------------------------------------
-void solve_inhomog(DiracSpinor &phi, DiracSpinor &phi0, DiracSpinor &phiI,
+void solve_inhomog(DiracSpinor &Fa, DiracSpinor &Fzero, DiracSpinor &Finf,
                    const double en, const std::vector<double> &v,
                    const std::vector<double> &H_mag, const double alpha,
                    const DiracSpinor &source)
-// Overload of the above. Faster, since doesn't need to allocate for phi0 and
-// phiI
+// Overload of the above. Faster, since doesn't need to allocate for Fzero and
+// Finf
 {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__, "b");
-  regularAtOrigin(phi0, en, v, H_mag, alpha);
-  regularAtInfinity(phiI, en, v, H_mag, alpha);
-  Adams::GreenSolution(phi, phiI, phi0, alpha, source);
+  regularAtOrigin(Fzero, en, v, H_mag, alpha);
+  regularAtInfinity(Finf, en, v, H_mag, alpha);
+  Fa.en = en;
+  Adams::GreenSolution(Fa, Finf, Fzero, alpha, source);
 }
 
 namespace Adams {
 //******************************************************************************
-void GreenSolution(DiracSpinor &phi, const DiracSpinor &phiI,
-                   const DiracSpinor &phi0, const double alpha,
+void GreenSolution(DiracSpinor &Fa, const DiracSpinor &Finf,
+                   const DiracSpinor &Fzero, const double alpha,
                    const DiracSpinor &Sr) {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
 
-  // Wronskian:
-  auto pp = std::size_t(0.65 * double(phiI.pinf));
-  auto w2 = (phiI.f[pp] * phi0.g[pp] - phi0.f[pp] * phiI.g[pp]);
+  // Wronskian: Should be independent of r
+  const auto pp = std::size_t(0.65 * double(Finf.pinf));
+  auto w2 = (Finf.f[pp] * Fzero.g[pp] - Fzero.f[pp] * Finf.g[pp]);
+  int f = 1;
+  for (auto pt = pp - 20; pt <= pp + 20; ++pt) {
+    ++f;
+    w2 += (Finf.f[pt] * Fzero.g[pt] - Fzero.f[pt] * Finf.g[pt]);
+  }
+  w2 /= f;
 
-  // std::vector<double> invW2(phiI.f.size());
-  // for (std::size_t i = 0; i < phiI.pinf; ++i) {
-  //   auto w2_i = alpha / (phiI.f[i] * phi0.g[i] - phi0.f[i] * phiI.g[i]);
+  // std::vector<double> invW2(Finf.f.size());
+  // for (std::size_t i = 0; i < Finf.pinf; ++i) {
+  //   auto w2_i = alpha / (Finf.f[i] * Fzero.g[i] - Fzero.f[i] * Finf.g[i]);
   //   auto w2_p = alpha / w2;
   //   invW2[i] = (1.0 * w2_i + 5.0 * w2_p) / 6.0;
   // }
 
   // save typing:
-  const auto &gr = *phi.rgrid;
+  const auto &gr = *Fa.rgrid;
   constexpr auto ztr = NumCalc::zero_to_r;
   constexpr auto rti = NumCalc::r_to_inf;
 
-  phi.pinf = gr.num_points;
-  phi *= 0.0;
-  phi.pinf = phiI.pinf;
-  NumCalc::additivePIntegral<ztr>(phi.f, phiI.f, phi0.f, Sr.f, gr, phiI.pinf);
-  NumCalc::additivePIntegral<ztr>(phi.f, phiI.f, phi0.g, Sr.g, gr, phiI.pinf);
-  NumCalc::additivePIntegral<rti>(phi.f, phi0.f, phiI.f, Sr.f, gr, phiI.pinf);
-  NumCalc::additivePIntegral<rti>(phi.f, phi0.f, phiI.g, Sr.g, gr, phiI.pinf);
-  NumCalc::additivePIntegral<ztr>(phi.g, phiI.g, phi0.f, Sr.f, gr, phiI.pinf);
-  NumCalc::additivePIntegral<ztr>(phi.g, phiI.g, phi0.g, Sr.g, gr, phiI.pinf);
-  NumCalc::additivePIntegral<rti>(phi.g, phi0.g, phiI.f, Sr.f, gr, phiI.pinf);
-  NumCalc::additivePIntegral<rti>(phi.g, phi0.g, phiI.g, Sr.g, gr, phiI.pinf);
-  phi *= (alpha / w2);
-  // phi *= invW2;
+  Fa.pinf = gr.num_points;
+  Fa *= 0.0;
+  Fa.pinf = Finf.pinf;
+
+  NumCalc::additivePIntegral<ztr>(Fa.f, Finf.f, Fzero.f, Sr.f, gr, Finf.pinf);
+  NumCalc::additivePIntegral<ztr>(Fa.f, Finf.f, Fzero.g, Sr.g, gr, Finf.pinf);
+  NumCalc::additivePIntegral<rti>(Fa.f, Fzero.f, Finf.f, Sr.f, gr, Finf.pinf);
+  NumCalc::additivePIntegral<rti>(Fa.f, Fzero.f, Finf.g, Sr.g, gr, Finf.pinf);
+  NumCalc::additivePIntegral<ztr>(Fa.g, Finf.g, Fzero.f, Sr.f, gr, Finf.pinf);
+  NumCalc::additivePIntegral<ztr>(Fa.g, Finf.g, Fzero.g, Sr.g, gr, Finf.pinf);
+  NumCalc::additivePIntegral<rti>(Fa.g, Fzero.g, Finf.f, Sr.f, gr, Finf.pinf);
+  NumCalc::additivePIntegral<rti>(Fa.g, Fzero.g, Finf.g, Sr.g, gr, Finf.pinf);
+  Fa *= (alpha / w2);
+
+  // const auto R0 =
+  //     qip::add(qip::multiply(Fzero.f, Sr.f), qip::multiply(Fzero.g, Sr.g));
+  // const auto Ri =
+  //     qip::add(qip::multiply(Finf.f, Sr.f), qip::multiply(Finf.g, Sr.g));
+  // NumCalc::additivePIntegral<ztr>(Fa.f, Finf.f, R0, gr, Finf.pinf);
+  // NumCalc::additivePIntegral<rti>(Fa.f, Fzero.f, Ri, gr, Finf.pinf);
+  // NumCalc::additivePIntegral<ztr>(Fa.g, Finf.g, R0, gr, Finf.pinf);
+  // NumCalc::additivePIntegral<rti>(Fa.g, Fzero.g, Ri, gr, Finf.pinf);
+  // Fa *= (alpha / w2);
 }
 
 } // namespace Adams

@@ -4,8 +4,8 @@ class DiracSpinor;
 namespace DiracODE {
 namespace Adams {
 
-void GreenSolution(DiracSpinor &phi, const DiracSpinor &phiI,
-                   const DiracSpinor &phi0, const double alpha,
+void GreenSolution(DiracSpinor &Fa, const DiracSpinor &Finf,
+                   const DiracSpinor &Fzero, const double alpha,
                    const DiracSpinor &Sr);
 
 } // namespace Adams

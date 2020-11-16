@@ -168,35 +168,35 @@ void boundState(DiracSpinor &psi, const double en0,
 }
 
 //******************************************************************************
-void regularAtOrigin(DiracSpinor &phi, const double en,
+void regularAtOrigin(DiracSpinor &Fa, const double en,
                      const std::vector<double> &v,
                      const std::vector<double> &H_mag, const double alpha) {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
-  const auto &gr = phi.rgrid;
+  const auto &gr = Fa.rgrid;
   if (en != 0)
-    phi.en = en;
-  const auto pinf = Adams::findPracticalInfinity(phi.en, v, gr->r, Param::cALR);
-  Adams::DiracMatrix Hd(*gr, v, phi.k, phi.en, alpha, H_mag);
-  Adams::outwardAM(phi.f, phi.g, Hd, pinf - 1);
-  phi.pinf = pinf;
+    Fa.en = en;
+  const auto pinf = Adams::findPracticalInfinity(Fa.en, v, gr->r, Param::cALR);
+  Adams::DiracMatrix Hd(*gr, v, Fa.k, Fa.en, alpha, H_mag);
+  Adams::outwardAM(Fa.f, Fa.g, Hd, pinf - 1);
+  Fa.pinf = pinf;
   // for safety: make sure zerod! (I may re-use existing orbitals!)
-  phi.zero_boundaries();
+  Fa.zero_boundaries();
 }
 
 //******************************************************************************
-void regularAtInfinity(DiracSpinor &phi, const double en,
+void regularAtInfinity(DiracSpinor &Fa, const double en,
                        const std::vector<double> &v,
                        const std::vector<double> &H_mag, const double alpha) {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
-  const auto &gr = phi.rgrid;
+  const auto &gr = Fa.rgrid;
   if (en < 0)
-    phi.en = en;
-  const auto pinf = Adams::findPracticalInfinity(phi.en, v, gr->r, Param::cALR);
-  Adams::DiracMatrix Hd(*gr, v, phi.k, phi.en, alpha, H_mag);
-  Adams::inwardAM(phi.f, phi.g, Hd, 0, pinf - 1);
-  phi.pinf = pinf;
+    Fa.en = en;
+  const auto pinf = Adams::findPracticalInfinity(Fa.en, v, gr->r, Param::cALR);
+  Adams::DiracMatrix Hd(*gr, v, Fa.k, Fa.en, alpha, H_mag);
+  Adams::inwardAM(Fa.f, Fa.g, Hd, 0, pinf - 1);
+  Fa.pinf = pinf;
   // for safety: make sure zerod! (I may re-use existing orbitals!)
-  phi.zero_boundaries();
+  Fa.zero_boundaries();
 }
 
 //******************************************************************************

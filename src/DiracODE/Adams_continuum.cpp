@@ -3,6 +3,7 @@
 #include "DiracODE/DiracODE.hpp"
 #include "Maths/Grid.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
+#include <algorithm>
 #include <cmath>
 
 namespace DiracODE {
@@ -21,7 +22,7 @@ using namespace Adams;
 //   * Find asymptotic region + normalise...better?
 
 //******************************************************************************
-void solveContinuum(DiracSpinor &phi, const double en,
+void solveContinuum(DiracSpinor &Fa, const double en,
                     const std::vector<double> &v, const Grid &ext_grid,
                     const double r_asym0, const double alpha)
 // Solves Dirac equation for continuum state, for given energy, ec
@@ -33,50 +34,43 @@ void solveContinuum(DiracSpinor &phi, const double en,
 // num_pointsb
 {
   // guess as asymptotic region:
-  // [[deprecated("Not reall deprecated - hack to print this message. NOTE: I "
-  //              "changed this, but did not test it!!!")]]
   auto i_asym = ext_grid.getIndex(r_asym0);
-  phi.en = en;
+  Fa.en = en;
 
-  const auto num_pointsb = phi.rgrid->num_points;
+  const auto num_pointsb = Fa.rgrid->num_points;
   const auto num_pointsc = ext_grid.num_points;
 
   // Perform the "outwards integration"
   // XXX DON"T need to do this! Just re-size f/g vectors!! XXX
-  // DiracSpinor psic(phi.n, phi.k, ext_grid);
-  phi.f.resize(num_pointsc); // nb: this is a little dangerous!
-  phi.g.resize(num_pointsc);
+  // DiracSpinor psic(Fa.n, Fa.k, ext_grid);
+  Fa.f.resize(num_pointsc); // nb: this is a little dangerous!
+  Fa.g.resize(num_pointsc);
 
-  DiracMatrix Hd(ext_grid, v, phi.k, phi.en, alpha, {});
-  outwardAM(phi.f, phi.g, Hd, (int)num_pointsc - 1);
+  DiracMatrix Hd(ext_grid, v, Fa.k, Fa.en, alpha, {});
+  outwardAM(Fa.f, Fa.g, Hd, (int)num_pointsc - 1);
 
   // Find a better (lower) asymptotic region:
   i_asym =
-      findAsymptoticRegion(phi.f, ext_grid.r, num_pointsb, num_pointsc, i_asym);
+      findAsymptoticRegion(Fa.f, ext_grid.r, num_pointsb, num_pointsc, i_asym);
 
   // Find amplitude of large-r (asymptotic region) sine-like wf
-  const double amp = findSineAmplitude(phi.f, ext_grid.r, num_pointsc, i_asym);
+  const double amp = findSineAmplitude(Fa.f, ext_grid.r, num_pointsc, i_asym);
 
   // Calculate normalisation coeficient, D, and re-scaling factor:
   // D = Sqrt[alpha/(pi*eps)] <-- Amplitude of large-r p(r)
   // eps = Sqrt[en/(en+2mc^2)]
   const double al2 = std::pow(alpha, 2);
-  const double ceps =
-      std::sqrt(phi.en / (phi.en * al2 + 2.)); // c*eps = eps/alpha
+  // c*eps = eps/alpha
+  const double ceps = std::sqrt(Fa.en / (Fa.en * al2 + 2.));
   const double D = 1.0 / std::sqrt(M_PI * ceps);
   const double sf = D / amp; // re-scale factor
 
   // // Normalise the wfs, and transfer back to shorter arrays:
-  // for (std::size_t i = 0; i < num_pointsb; i++) {
-  //   phi.f[i] = sf * phi.f[i];
-  //   phi.g[i] = sf * psi.g[i];
-  // }
-
   // Transfer back to shorter array:
-  phi.f.resize(num_pointsb); // nb: this is a little dangerous!
-  phi.g.resize(num_pointsb);
-  phi.pinf = num_pointsb - 1;
-  phi *= sf;
+  Fa.f.resize(num_pointsb); // nb: this is a little dangerous!
+  Fa.g.resize(num_pointsb);
+  Fa.pinf = num_pointsb - 1;
+  Fa *= sf;
 }
 
 namespace Adams {
@@ -151,7 +145,6 @@ std::size_t findAsymptoticRegion(std::vector<double> &pc,
     if (xb * xa < 0) {
       // Use linear extrapolation to find exact r of the zero:
       double r1 = (rc[i] * pc[i - 1] - rc[i - 1] * pc[i]) / (pc[i - 1] - pc[i]);
-      // double ya = xb,
       auto yb = xb;
       for (std::size_t j = i + 1; j < num_pointsc; j++) {
         auto ya = yb;
@@ -165,7 +158,7 @@ std::size_t findAsymptoticRegion(std::vector<double> &pc,
           break;
         }
       }
-      if (std::fabs(wk1 - wk2) < 1.e-4) {
+      if (std::abs(wk1 - wk2) < 1.0e-4) {
         // check for "convergence"
         i_asym = i;
         break;
@@ -185,25 +178,26 @@ double fitQuadratic(double x1, double x2, double x3, double y1, double y2,
 // points _MUST_ be close to maximum, otherwise, fit wont work
 {
   if (y1 < 0)
-    y1 = std::fabs(y1);
+    y1 = std::abs(y1);
   if (y2 < 0)
-    y2 = std::fabs(y2);
+    y2 = std::abs(y2);
   if (y3 < 0)
-    y3 = std::fabs(y3);
+    y3 = std::abs(y3);
 
-  double d = (x1 - x2) * (x1 - x3) * (x2 - x3);
-  double Ad = x3 * (x2 * (x2 - x3) * y1 + x1 * (-x1 + x3) * y2) +
-              x1 * (x1 - x2) * x2 * y3;
-  double Bd = x3 * x3 * (y1 - y2) + x1 * x1 * (y2 - y3) + x2 * x2 * (-y1 + y3);
-  double Cd = x3 * (-y1 + y2) + x2 * (y1 - y3) + x1 * (-y2 + y3);
-  double y0 = (Ad / d) - Bd * Bd / (4. * Cd * d);
+  const auto d = (x1 - x2) * (x1 - x3) * (x2 - x3);
+  const auto Ad = x3 * (x2 * (x2 - x3) * y1 + x1 * (-x1 + x3) * y2) +
+                  x1 * (x1 - x2) * x2 * y3;
+  const auto Bd =
+      x3 * x3 * (y1 - y2) + x1 * x1 * (y2 - y3) + x2 * x2 * (-y1 + y3);
+  const auto Cd = x3 * (-y1 + y2) + x2 * (y1 - y3) + x1 * (-y2 + y3);
+  auto y0 = (Ad / d) - Bd * Bd / (4.0 * Cd * d);
 
   // Find largest input y:
-  double ymax = y2;
-  if (y1 > ymax)
-    ymax = y1;
-  if (y3 > ymax)
-    ymax = y3;
+  const auto ymax = std::max({y1, y2, y3});
+  // if (y1 > ymax)
+  //   ymax = y1;
+  // if (y3 > ymax)
+  //   ymax = y3;
 
   if (ymax > y0)
     y0 = ymax; // y0 can't be less than (y1,y2,y3)
