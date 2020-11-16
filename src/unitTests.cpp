@@ -69,6 +69,12 @@ static const std::vector<std::pair<std::string, bool (*)(std::ostream &obuff)>>
         //
     };
 
+static const std::vector<std::pair<std::string, bool (*)(std::ostream &obuff)>>
+    quick_list{{"DiracODE", &DiracODE},       {"HartreeFock", &HartreeFock},
+               {"MixedStates", &MixedStates}, {"Angular", &Angular},
+               {"LinAlg", &LinAlg},           {"BSplineBasis", &BSplineBasis},
+               {"Coulomb", &Coulomb}};
+
 //------------------------------------------------------------------------------
 // Looks up test + returns its function. If test not in list, prints list to
 // help users know which are available.
@@ -98,8 +104,6 @@ auto get_test(std::string_view in_name) {
 //******************************************************************************
 int main(int argc, char *argv[]) {
 
-  const std::string input_file = (argc > 1) ? argv[1] : "unitTests.in";
-
   std::ostringstream out_buff;
   out_buff << "ampsci test. git:" << GitInfo::gitversion << "\n";
   out_buff << IO::time_date() << "\n";
@@ -110,6 +114,9 @@ int main(int argc, char *argv[]) {
   if (argc <= 1) {
     // run all tests
     for (const auto &[name, test] : UnitTest::test_list)
+      name_list.emplace_back(name);
+  } else if (argv[1] == std::string("quick")) {
+    for (const auto &[name, test] : UnitTest::quick_list)
       name_list.emplace_back(name);
   } else {
     // run only those tests specifically asked
