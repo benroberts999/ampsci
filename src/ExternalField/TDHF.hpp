@@ -69,6 +69,10 @@ public:
   virtual void solve_core(const double omega, int max_its = 100,
                           const bool print = true) override final;
 
+  void solve_core_basis(const std::vector<DiracSpinor> &basis,
+                        const double omega, const int max_its = 100,
+                        const bool print = true);
+
   //! @brief Uses itterative matrix method; for tests only
   void solve_TDHFcore_matrix(const Wavefunction &wf, const double omega,
                              const int max_its = 25);
