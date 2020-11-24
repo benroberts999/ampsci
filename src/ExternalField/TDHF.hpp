@@ -38,12 +38,12 @@ run again with a different frequency, typically does not need to be re-started
 from scratch. Then, dV(Fa,Fb) returns the correction to the matrix element:
 \f[ \langle \phi_a || \delta V || \phi_b \rangle \f]
 */
-class TDHF final : public CorePolarisation {
+class TDHF : public CorePolarisation {
 public:
   TDHF(const DiracOperator::TensorOperator *const h,
        const HF::HartreeFock *const hf);
 
-private:
+protected:
   // dPhi = X exp(-iwt) + Y exp(+iwt)
   // (H - e - w)X = -(h + dV - de)Phi
   // (H - e + w)Y = -(h* + dV* - de)Phi
@@ -67,11 +67,11 @@ public:
   //! to get first-order correction [note: no dampling is used for first
   //! itteration]. If print=true, will write progress to screen
   virtual void solve_core(const double omega, int max_its = 100,
-                          const bool print = true) override final;
+                          const bool print = true) override;
 
-  void solve_core_basis(const std::vector<DiracSpinor> &basis,
-                        const double omega, const int max_its = 100,
-                        const bool print = true);
+  // void solve_core_basis(const std::vector<DiracSpinor> &basis,
+  //                       const double omega, const int max_its = 100,
+  //                       const bool print = true);
 
   //! @brief Uses itterative matrix method; for tests only
   void solve_TDHFcore_matrix(const Wavefunction &wf, const double omega,

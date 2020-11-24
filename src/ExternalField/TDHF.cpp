@@ -144,86 +144,86 @@ DiracSpinor TDHF::solve_dPsi(const DiracSpinor &Fv, const double omega,
                                              m_Hmag);
 }
 
-//******************************************************************************
-void TDHF::solve_core_basis(const std::vector<DiracSpinor> &basis,
-                            const double omega, const int max_its,
-                            const bool print) {
-  //
-  const double converge_targ = 1.0e-8;
-  const auto damper = HF::rampedDamp(0.75, 0.25, 1, 20);
-
-  const bool staticQ = std::abs(omega) < 1.0e-10;
-
-  auto tmp_X = m_X;
-  auto tmp_Y = m_Y;
-
-  auto eps = 0.0;
-  int it = 0;
-  if (print) {
-    printf("TDHFb (w=%.3f): ", omega);
-    std::cout << std::flush;
-  }
-  for (; it < max_its; it++) {
-    eps = 0.0;
-    std::vector<double> eps_vec(m_core.size(), 0.0);
-    const auto a_damp = (it == 0) ? 0.0 : damper(it);
-#pragma omp parallel for
-    for (auto ic = 0ul; ic < m_core.size(); ic++) {
-      double eps_c = 0.0;
-      const auto &Fc = m_core[ic];
-
-      for (auto j = 0ul; j < m_X[ic].size(); j++) {
-        auto &Xx = tmp_X[ic][j];
-        const auto oldX = Xx;
-        Xx *= 0.0;
-
-        for (const auto &Fn : basis) {
-          if (Fn.k != Xx.k || m_h->isZero(Fn.k, Fc.k) || Fc == Fn)
-            continue;
-          const auto hnc = m_h->reducedME(Fn, Fc) + dV(Fn, Fc, false);
-          Xx += (hnc / (Fc.en - Fn.en + omega)) * Fn;
-        }
-
-        const auto delta = (Xx - oldX) * (Xx - oldX) / (Xx * Xx);
-        if (delta > eps_c)
-          eps_c = delta;
-
-        Xx = a_damp * oldX + (1.0 - a_damp) * Xx;
-        if (!staticQ) {
-          auto &Yx = tmp_Y[ic][j];
-          const auto oldY = Yx;
-          Yx *= 0.0;
-          for (const auto &Fn : basis) {
-            if (Fn.k != Yx.k || m_h->isZero(Fn.k, Fc.k) || Fc == Fn)
-              continue;
-            const auto s = m_h->imaginaryQ() ? -1 : 1;
-            const auto hnc =
-                // s * m_h->reducedME(Fc, Fn) + dV(Fn, Fc, true); //???
-                s * m_h->reducedME(Fn, Fc) + dV(Fn, Fc, true); //???
-            Yx += (hnc / (Fc.en - Fn.en - omega)) * Fn;
-          }
-          Yx = a_damp * oldY + (1.0 - a_damp) * Yx;
-        } else {
-          tmp_Y[ic][j] = Xx;
-        }
-      }
-      eps_vec[ic] = eps_c;
-    }
-
-    m_X = tmp_X;
-    m_Y = tmp_Y;
-    eps = *std::max_element(cbegin(eps_vec), cend(eps_vec));
-
-    if ((it > 1 && eps < converge_targ))
-      break;
-  }
-  if (print) {
-    printf("%2i %.1e\n", it, eps);
-  }
-  std::cout << std::flush;
-  m_core_eps = eps;
-  m_core_omega = omega;
-}
+// //******************************************************************************
+// void TDHF::solve_core_basis(const std::vector<DiracSpinor> &basis,
+//                             const double omega, const int max_its,
+//                             const bool print) {
+//   //
+//   const double converge_targ = 1.0e-8;
+//   const auto damper = HF::rampedDamp(0.75, 0.25, 1, 20);
+//
+//   const bool staticQ = std::abs(omega) < 1.0e-10;
+//
+//   auto tmp_X = m_X;
+//   auto tmp_Y = m_Y;
+//
+//   auto eps = 0.0;
+//   int it = 0;
+//   if (print) {
+//     printf("TDHFb (w=%.3f): ", omega);
+//     std::cout << std::flush;
+//   }
+//   for (; it < max_its; it++) {
+//     eps = 0.0;
+//     std::vector<double> eps_vec(m_core.size(), 0.0);
+//     const auto a_damp = (it == 0) ? 0.0 : damper(it);
+// #pragma omp parallel for
+//     for (auto ic = 0ul; ic < m_core.size(); ic++) {
+//       double eps_c = 0.0;
+//       const auto &Fc = m_core[ic];
+//
+//       for (auto j = 0ul; j < m_X[ic].size(); j++) {
+//         auto &Xx = tmp_X[ic][j];
+//         const auto oldX = Xx;
+//         Xx *= 0.0;
+//
+//         for (const auto &Fn : basis) {
+//           if (Fn.k != Xx.k || m_h->isZero(Fn.k, Fc.k) || Fc == Fn)
+//             continue;
+//           const auto hnc = m_h->reducedME(Fn, Fc) + dV(Fn, Fc, false);
+//           Xx += (hnc / (Fc.en - Fn.en + omega)) * Fn;
+//         }
+//
+//         const auto delta = (Xx - oldX) * (Xx - oldX) / (Xx * Xx);
+//         if (delta > eps_c)
+//           eps_c = delta;
+//
+//         Xx = a_damp * oldX + (1.0 - a_damp) * Xx;
+//         if (!staticQ) {
+//           auto &Yx = tmp_Y[ic][j];
+//           const auto oldY = Yx;
+//           Yx *= 0.0;
+//           for (const auto &Fn : basis) {
+//             if (Fn.k != Yx.k || m_h->isZero(Fn.k, Fc.k) || Fc == Fn)
+//               continue;
+//             const auto s = m_h->imaginaryQ() ? -1 : 1;
+//             const auto hnc =
+//                 // s * m_h->reducedME(Fc, Fn) + dV(Fn, Fc, true); //???
+//                 s * m_h->reducedME(Fn, Fc) + dV(Fn, Fc, true); //???
+//             Yx += (hnc / (Fc.en - Fn.en - omega)) * Fn;
+//           }
+//           Yx = a_damp * oldY + (1.0 - a_damp) * Yx;
+//         } else {
+//           tmp_Y[ic][j] = Xx;
+//         }
+//       }
+//       eps_vec[ic] = eps_c;
+//     }
+//
+//     m_X = tmp_X;
+//     m_Y = tmp_Y;
+//     eps = *std::max_element(cbegin(eps_vec), cend(eps_vec));
+//
+//     if ((it > 1 && eps < converge_targ))
+//       break;
+//   }
+//   if (print) {
+//     printf("%2i %.1e\n", it, eps);
+//   }
+//   std::cout << std::flush;
+//   m_core_eps = eps;
+//   m_core_omega = omega;
+// }
 
 //******************************************************************************
 void TDHF::solve_core(const double omega, const int max_its, const bool print) {
