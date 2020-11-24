@@ -1,18 +1,11 @@
 #pragma once
 #include "CorePolarisation.hpp"
 #include "TDHF.hpp"
-#include <string>
 #include <vector>
-class Wavefunction;
 class DiracSpinor;
 namespace DiracOperator {
 class TensorOperator;
 }
-
-namespace HF {
-class HartreeFock;
-class Breit;
-} // namespace HF
 
 namespace ExternalField {
 
@@ -24,7 +17,8 @@ namespace ExternalField {
 /*! @details
 Like the TDHF method, but uses a basis:
 Note: Benefit is we can include Breit into dV while using a basis (unlike
-diagramRPA method)
+diagramRPA method). Downside, it's quite slow (though maybe could be made much
+more efficient)
 */
 class TDHFbasis final : public TDHF {
 public:
@@ -33,24 +27,16 @@ public:
             const std::vector<DiracSpinor> &basis);
 
 private:
-  // dPhi = X exp(-iwt) + Y exp(+iwt)
-  // (H - e - w)X = -(h + dV - de)Phi
-  // (H - e + w)Y = -(h* + dV* - de)Phi
-  // X_c = sum_x X_x,
-  // j(x)=j(c)-k,...,j(c)+k.  And: pi(x) = pi(c)*pi(h)
-  // std::vector<std::vector<DiracSpinor>> m_X{};
-  // std::vector<std::vector<DiracSpinor>> m_Y{};
-  // can just write these to disk! Read them in, continue as per normal
-
   const std::vector<DiracSpinor> m_basis; // store copy?
 
 public:
   //! @brief Solves TDHF equations self-consistantly for core electrons at
-  //! frequency omega.
-  //! @details Solves TDHF equations self-consistantly for core electrons at
-  //! frequency omega. Will iterate up to a maximum of max_its. Set max_its=1
-  //! to get first-order correction [note: no dampling is used for first
-  //! itteration]. If print=true, will write progress to screen
+  //! frequency omega, using basis expansion.
+  //! @details Solves TDHF equations (using a basis to expand the states)
+  //! self-consistantly for core electrons at frequency omega. Will iterate up
+  //! to a maximum of max_its. Set max_its=1 to get first-order correction
+  //! [note: no dampling is used for first itteration]. If print=true, will
+  //! write progress to screen
   virtual void solve_core(const double omega, int max_its = 100,
                           const bool print = true) override final;
 
@@ -65,13 +51,15 @@ public:
   //! Returns \f$ \chi_\beta \f$ for given kappa_beta, where
   //! \f[ X_{j,m} = (-1)^{j_\beta-m}tjs(j,k,j;-m,0,m)\chi_j \f]
   //! XorY takes values: dPsiType::X or dPsiType::Y.
-  //! st takes values: StateType::ket or StateType::bra
+  //! st takes values: StateType::ket or StateType::bra.
+  //! Solves by expanding over basis. To include correlations, use basis with
+  //! correlations.
   DiracSpinor form_dPsi(const DiracSpinor &Fv, const double omega,
                         dPsiType XorY, const int kappa_beta,
                         const std::vector<DiracSpinor> &spectrum,
                         StateType st = StateType::ket) const;
 
-  //! Forms \delta Psi_v for valence state Fv for all kappas (see solve_dPsi)
+  //! Forms \delta Psi_v for valence state Fv for all kappas (see form_dPsi)
   std::vector<DiracSpinor> form_dPsis(const DiracSpinor &Fv, const double omega,
                                       dPsiType XorY,
                                       const std::vector<DiracSpinor> &spectrum,

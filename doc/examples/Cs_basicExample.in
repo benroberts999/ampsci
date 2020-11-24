@@ -34,7 +34,7 @@ Module::Tests {}
 //E1 matrix elements, including RPA (TDHF method, solved at w=0)
 Module::matrixElements {
   operator = E1;
-  rpa = true;
+  rpa = TDHF;
   omega = 0.0;
 }
 
@@ -42,7 +42,7 @@ Module::matrixElements {
 // Use a point-like magnetisation distro; and lookup the default mu,I
 Module::matrixElements {
   operator = hfs;
-  rpa_diagram = true;
+  rpa = diagram;
   onlyDiagonal = true;
   options = {
       F(r) = pointlike;

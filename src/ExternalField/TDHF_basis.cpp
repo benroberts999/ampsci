@@ -46,7 +46,8 @@ DiracSpinor TDHFbasis::form_dPsi(const DiracSpinor &Fv, const double omega,
     if (Fn.k != Xx.k || m_h->isZero(Fn.k, Fv.k) || Fv == Fn)
       continue;
     // XXX Check:
-    const auto hnc = s2 * (s * m_h->reducedME(Fn, Fv) + dV(Fn, Fv, conj));
+    // why need multiply dV by s too? Thought I shouldn't??
+    const auto hnc = s2 * (s * m_h->reducedME(Fn, Fv) + s * dV(Fn, Fv, conj));
     Xx += (hnc / (Fv.en - Fn.en + ww)) * Fn;
   }
 
@@ -82,7 +83,7 @@ void TDHFbasis::solve_core(const double omega, int max_its, const bool print) {
   auto eps = 0.0;
   int it = 0;
   if (print) {
-    printf("TDHFb (w=%.3f): ", omega);
+    printf("TDHFb %s (w=%.3f): ", m_h->name().c_str(), omega);
     std::cout << std::flush;
   }
   for (; it < max_its; it++) {
@@ -108,12 +109,13 @@ void TDHFbasis::solve_core(const double omega, int max_its, const bool print) {
         // Xx = a_damp * oldX + (1.0 - a_damp) * Xx;
         if (!staticQ) {
           auto &Yx = tmp_Y[ic][j];
-          const auto &oldY = m_Y[ic][j];
+          // const auto &oldY = m_Y[ic][j];
           Yx *= a_damp;
           Yx += (1.0 - a_damp) * form_dPsi(Fc, omega, dPsiType::Y, Xx.k,
                                            m_basis, StateType::ket);
         } else {
-          tmp_Y[ic][j] = Xx;
+          const auto s = m_h->imaginaryQ() ? -1 : 1;
+          tmp_Y[ic][j] = s * Xx;
         }
       }
       eps_vec[ic] = eps_c;

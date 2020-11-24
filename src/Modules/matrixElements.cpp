@@ -3,6 +3,7 @@
 #include "DiracOperator/TensorOperator.hpp"
 #include "ExternalField/DiagramRPA.hpp"
 #include "ExternalField/TDHF.hpp"
+#include "ExternalField/TDHF_basis.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/UserInput.hpp"
 #include "MBPT/CorrelationPotential.hpp"
@@ -24,9 +25,9 @@ namespace Module {
 //******************************************************************************
 void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf) {
 
-  input.checkBlock({"operator", "options", "rpa", "rpa_diagram", "omega",
-                    "radialIntegral", "printBoth", "onlyDiagonal", "units",
-                    "A_vertex", "b_vertex"});
+  input.checkBlock({"operator", "options", "rpa", "omega", "radialIntegral",
+                    "printBoth", "onlyDiagonal", "units", "A_vertex",
+                    "b_vertex"});
 
   const auto oper = input.get<std::string>("operator", "");
   const auto h_options =
@@ -48,57 +49,56 @@ void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf) {
   const bool print_both = input.get("printBoth", false);
   const bool diagonal_only = input.get("onlyDiagonal", false);
 
-  const bool rpaDQ = input.get("rpa_diagram", false);
-  const bool rpaQ = input.get("rpa", !rpaDQ);
+  const auto rpa_method_str = input.get("rpa", std::string("TDHF"));
+  const auto rpa_method = (rpa_method_str == "TDHF" || rpa_method_str == "true")
+                              ? ExternalField::method::TDHF
+                              : (rpa_method_str == "basis")
+                                    ? ExternalField::method::basis
+                                    : (rpa_method_str == "diagram")
+                                          ? ExternalField::method::diagram
+                                          : ExternalField::method::none;
+  const auto rpaQ = rpa_method != ExternalField::method::none;
+  const auto rpaDQ = rpa_method == ExternalField::method::diagram;
 
   const auto str_om = input.get<std::string>("omega", "_");
   const bool eachFreqQ = str_om == "each" || str_om == "Each";
   const auto omega = eachFreqQ ? 0.0 : input.get("omega", 0.0);
 
-  if (rpaQ && (h->parity() == 1)) {
+  if ((h->parity() == 1) && rpa_method == ExternalField::method::TDHF) {
     std::cout << "\n\n*CAUTION*:\n RPA (TDHF method) may not work for this "
-                 "operator.\n Consider using rpa_diagram method\n\n";
+                 "operator.\n Consider using diagram or basis method\n\n";
   }
-
-  // XXX Make this its own module! XXX
-  // Vertex QED term:
-  std::unique_ptr<DiracOperator::VertexQED> hVertexQED = nullptr;
-  const auto A_vertex = input.get("A_vertex", 0.0);
-  if (A_vertex != 0.0) {
-    const auto b_vertex = input.get("b_vertex", 1.0);
-    std::cout << "Including effective vertex QED with: A=" << A_vertex
-              << ", b=" << b_vertex << "\n";
-    hVertexQED = std::make_unique<DiracOperator::VertexQED>(h.get(), *wf.rgrid,
-                                                            A_vertex, b_vertex);
-  }
-
-  // XXX Always same kappa for get_Vlocal?
-  auto rpa = ExternalField::TDHF(h.get(), wf.getHF());
-  std::unique_ptr<ExternalField::TDHF> rpa0; // for first-order
-  std::unique_ptr<ExternalField::DiagramRPA> rpaD;
 
   if (h->freqDependantQ && !eachFreqQ)
     h->updateFrequency(omega);
 
-  if (rpaQ) {
-    if (!eachFreqQ) {
-      rpa.solve_core(omega, 1, false);
-      // store first-order snapshot:
-      rpa0 = std::make_unique<ExternalField::TDHF>(rpa);
-      rpa.solve_core(omega);
-    } else {
-      rpa0 = std::make_unique<ExternalField::TDHF>(rpa); // Solved later
-    }
+  std::unique_ptr<ExternalField::CorePolarisation> rpa{nullptr}, rpa0{nullptr};
+  const int max_its = 100; // input?
+  if (rpaQ)
+    std::cout << "Including RPA: ";
+  if (rpa_method == ExternalField::method::TDHF) {
+    std::cout << "TDHF method\n";
+    rpa = std::make_unique<ExternalField::TDHF>(h.get(), wf.getHF());
+    rpa0 = std::make_unique<ExternalField::TDHF>(h.get(), wf.getHF());
+    rpa0->solve_core(omega, 1, false);
+  } else if (rpa_method == ExternalField::method::basis) {
+    std::cout << "TDHF/basis method\n";
+    rpa = std::make_unique<ExternalField::TDHFbasis>(h.get(), wf.getHF(),
+                                                     wf.basis);
+    rpa0 = std::make_unique<ExternalField::TDHFbasis>(h.get(), wf.getHF(),
+                                                      wf.basis);
+    rpa0->solve_core(omega, 1, false);
+  } else if (rpa_method == ExternalField::method::diagram) {
+    std::cout << "diagram method\n";
+    rpa = std::make_unique<ExternalField::DiagramRPA>(h.get(), wf.basis,
+                                                      wf.core, wf.identity());
   }
-  if (rpaDQ) {
-    rpaD = std::make_unique<ExternalField::DiagramRPA>(h.get(), wf.basis,
-                                                       wf.core, wf.identity());
-    if (!eachFreqQ)
-      rpaD->solve_core(omega);
+  if (rpaQ && !eachFreqQ) {
+    rpa->solve_core(omega, max_its);
   }
 
   // Fb -> Fa = <a||h||b>
-  if (rpaQ || rpaDQ) {
+  if (rpaQ) {
     std::cout << "                h(0)           h(1)           h(RPA)\n";
   }
   for (const auto &Fb : wf.valence) {
@@ -114,17 +114,14 @@ void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf) {
       if (eachFreqQ && h->freqDependantQ) {
         h->updateFrequency(ww);
       }
-      if (eachFreqQ && rpaQ) {
+      if (eachFreqQ && rpaQ && !rpaDQ) {
         rpa0->clear();
         rpa0->solve_core(ww, 1, false); // wastes a little time
-        if (rpa.get_eps() > 1.0e-5)
-          rpa.clear();      // in case last one didn't work!
-        rpa.solve_core(ww); // re-solve at new frequency
       }
-      if (eachFreqQ && rpaDQ) {
-        if (rpaD->get_eps() > 1.0e-5)
-          rpaD->clear(); // in case last one didn't work!
-        rpaD->solve_core(ww);
+      if (eachFreqQ && rpaQ) {
+        if (rpa->get_eps() > 1.0e-5)
+          rpa->clear(); // in case last one didn't work!
+        rpa->solve_core(ww);
       }
 
       // Special case: HFS A:
@@ -134,28 +131,49 @@ void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf) {
       const auto symb =
           radial_int ? h->R_symbol(Fa, Fb) + " " : h->rme_symbol(Fa, Fb);
 
-      if (!rpaQ && !rpaDQ) {
+      if (!rpaQ) {
         std::cout << symb << ": ";
         printf("%13.6e \n", h->reducedME(Fa, Fb) * a);
-      }
-      if (rpaQ) {
+      } else if (!rpaDQ) {
         std::cout << symb << ": ";
         printf("%13.6e ", h->reducedME(Fa, Fb) * a);
-        auto dV = rpa.dV(Fa, Fb);
+        auto dV = rpa->dV(Fa, Fb);
         auto dV0 = rpa0->dV(Fa, Fb);
         printf(" %13.6e  %13.6e\n", (h->reducedME(Fa, Fb) + dV0) * a,
                (h->reducedME(Fa, Fb) + dV) * a);
-      }
-      if (rpaDQ) {
-        std::cout << symb << "D:";
+      } else { // RPA_diagram
+        std::cout << symb << ": ";
         printf("%13.6e ", h->reducedME(Fa, Fb) * a);
-        auto dV = rpaD->dV(Fa, Fb);
-        auto dV0 = rpaD->dV_diagram(Fa, Fb, true);
+        auto dV = rpa->dV(Fa, Fb);
+        const auto *const rpaDptr =
+            static_cast<ExternalField::DiagramRPA *>(rpa.get());
+        auto dV0 = rpaDptr->dV_diagram(Fa, Fb, true);
         printf(" %13.6e  %13.6e\n", (h->reducedME(Fa, Fb) + dV0) * a,
                (h->reducedME(Fa, Fb) + dV) * a);
       }
-      // XXX Make its own module!
-      if (hVertexQED) { //
+    }
+  }
+
+  // XXX Make this its own module! XXX
+  // Vertex QED term:
+  std::unique_ptr<DiracOperator::VertexQED> hVertexQED = nullptr;
+  const auto A_vertex = input.get("A_vertex", 0.0);
+  if (A_vertex != 0.0) {
+    const auto b_vertex = input.get("b_vertex", 1.0);
+    std::cout << "Including effective vertex QED with: A=" << A_vertex
+              << ", b=" << b_vertex << "\n";
+    hVertexQED = std::make_unique<DiracOperator::VertexQED>(h.get(), *wf.rgrid,
+                                                            A_vertex, b_vertex);
+  }
+
+  // XXX Make its own module!
+  if (hVertexQED) {
+    std::cout << "\n";
+    // Add RPA? Might be important?
+    for (const auto &Fb : wf.valence) {
+      for (const auto &Fa : wf.valence) { // Special case: HFS A:
+        const auto a = AhfsQ ? DiracOperator::Hyperfine::convertRMEtoA(Fa, Fb)
+                             : radial_int ? 1.0 / h->angularF(Fa.k, Fb.k) : 1.0;
         printf("   QED vertex: ");
         printf("%13.6e \n", hVertexQED->reducedME(Fa, Fb) * a);
         // Add RPA? Might be important?

@@ -119,10 +119,10 @@ DiracSpinor TDHF::solve_dPsi(const DiracSpinor &Fv, const double omega,
 
   const auto imag = m_h->imaginaryQ();
 
-  const auto hPsic = m_h->reduced_rhs(kappa_x, Fv);
+  const auto hFv = m_h->reduced_rhs(kappa_x, Fv);
   const auto s = (imag && conj) ? -1 : 1;
 
-  auto rhs = s * hPsic + dV_rhs(kappa_x, Fv, conj);
+  auto rhs = s * hFv + dV_rhs(kappa_x, Fv, conj);
   if (kappa_x == Fv.k && !imag) {
     const auto de = m_h->reducedME(Fv, Fv) + dV(Fv, Fv, conj);
     rhs -= de * Fv;
@@ -144,87 +144,6 @@ DiracSpinor TDHF::solve_dPsi(const DiracSpinor &Fv, const double omega,
                                              m_Hmag);
 }
 
-// //******************************************************************************
-// void TDHF::solve_core_basis(const std::vector<DiracSpinor> &basis,
-//                             const double omega, const int max_its,
-//                             const bool print) {
-//   //
-//   const double converge_targ = 1.0e-8;
-//   const auto damper = HF::rampedDamp(0.75, 0.25, 1, 20);
-//
-//   const bool staticQ = std::abs(omega) < 1.0e-10;
-//
-//   auto tmp_X = m_X;
-//   auto tmp_Y = m_Y;
-//
-//   auto eps = 0.0;
-//   int it = 0;
-//   if (print) {
-//     printf("TDHFb (w=%.3f): ", omega);
-//     std::cout << std::flush;
-//   }
-//   for (; it < max_its; it++) {
-//     eps = 0.0;
-//     std::vector<double> eps_vec(m_core.size(), 0.0);
-//     const auto a_damp = (it == 0) ? 0.0 : damper(it);
-// #pragma omp parallel for
-//     for (auto ic = 0ul; ic < m_core.size(); ic++) {
-//       double eps_c = 0.0;
-//       const auto &Fc = m_core[ic];
-//
-//       for (auto j = 0ul; j < m_X[ic].size(); j++) {
-//         auto &Xx = tmp_X[ic][j];
-//         const auto oldX = Xx;
-//         Xx *= 0.0;
-//
-//         for (const auto &Fn : basis) {
-//           if (Fn.k != Xx.k || m_h->isZero(Fn.k, Fc.k) || Fc == Fn)
-//             continue;
-//           const auto hnc = m_h->reducedME(Fn, Fc) + dV(Fn, Fc, false);
-//           Xx += (hnc / (Fc.en - Fn.en + omega)) * Fn;
-//         }
-//
-//         const auto delta = (Xx - oldX) * (Xx - oldX) / (Xx * Xx);
-//         if (delta > eps_c)
-//           eps_c = delta;
-//
-//         Xx = a_damp * oldX + (1.0 - a_damp) * Xx;
-//         if (!staticQ) {
-//           auto &Yx = tmp_Y[ic][j];
-//           const auto oldY = Yx;
-//           Yx *= 0.0;
-//           for (const auto &Fn : basis) {
-//             if (Fn.k != Yx.k || m_h->isZero(Fn.k, Fc.k) || Fc == Fn)
-//               continue;
-//             const auto s = m_h->imaginaryQ() ? -1 : 1;
-//             const auto hnc =
-//                 // s * m_h->reducedME(Fc, Fn) + dV(Fn, Fc, true); //???
-//                 s * m_h->reducedME(Fn, Fc) + dV(Fn, Fc, true); //???
-//             Yx += (hnc / (Fc.en - Fn.en - omega)) * Fn;
-//           }
-//           Yx = a_damp * oldY + (1.0 - a_damp) * Yx;
-//         } else {
-//           tmp_Y[ic][j] = Xx;
-//         }
-//       }
-//       eps_vec[ic] = eps_c;
-//     }
-//
-//     m_X = tmp_X;
-//     m_Y = tmp_Y;
-//     eps = *std::max_element(cbegin(eps_vec), cend(eps_vec));
-//
-//     if ((it > 1 && eps < converge_targ))
-//       break;
-//   }
-//   if (print) {
-//     printf("%2i %.1e\n", it, eps);
-//   }
-//   std::cout << std::flush;
-//   m_core_eps = eps;
-//   m_core_omega = omega;
-// }
-
 //******************************************************************************
 void TDHF::solve_core(const double omega, const int max_its, const bool print) {
 
@@ -236,25 +155,27 @@ void TDHF::solve_core(const double omega, const int max_its, const bool print) {
   const auto imag = m_h->imaginaryQ();
   const auto has_de = !imag && m_h->parity() == 1;
 
-  // The h Psi_c terms don't change, so calculate them just once
-  auto hPsi = m_X;
-  for (auto ic = 0ul; ic < m_core.size(); ic++) {
+  // The h*Fc terms don't change, so calculate them just once
+  // auto hFcore = m_X;
+  std::vector<std::vector<DiracSpinor>> hFcore(m_core.size());
+  for (auto ic = 0ul; ic < m_X.size(); ic++) {
     const auto &Fc = m_core[ic];
-    for (auto j = 0ul; j < hPsi[ic].size(); j++) {
-      const auto &Xx = m_X[ic][j];
-      hPsi[ic][j] = m_h->reduced_rhs(Xx.k, Fc);
+    hFcore.reserve(m_X[ic].size()); // each h projection
+    for (auto beta = 0ul; beta < m_X[ic].size(); beta++) {
+      const auto &Xx = m_X[ic][beta];
+      hFcore[ic].push_back(m_h->reduced_rhs(Xx.k, Fc));
     }
   }
 
+  if (print) {
+    printf("TDHF %s (w=%.3f): ", m_h->name().c_str(), omega);
+    std::cout << std::flush;
+  }
   auto eps = 0.0;
   double ceiling_eps = 1.0;
   int worse_count = 0;
   double extra_damp = 0.0;
   int it = 0;
-  if (print) {
-    printf("TDHF (w=%.3f): ", omega);
-    std::cout << std::flush;
-  }
   for (; it < max_its; it++) {
     eps = 0.0;
     const auto a_damp = (it == 0) ? 0.0 : damper(it) + extra_damp;
@@ -265,7 +186,7 @@ void TDHF::solve_core(const double omega, const int max_its, const bool print) {
 
     std::vector<double> eps_vec(m_core.size(), 0.0);
 
-    auto tmp_X = m_X;
+    auto tmp_X = m_X; // "temp" allows parallelisation
     auto tmp_Y = m_Y;
 #pragma omp parallel for
     for (auto ic = 0ul; ic < m_core.size(); ic++) {
@@ -280,8 +201,8 @@ void TDHF::solve_core(const double omega, const int max_its, const bool print) {
       for (auto j = 0ul; j < tmp_X[ic].size(); j++) {
         auto &Xx = tmp_X[ic][j];
         const auto &oldX = m_X[ic][j];
-        const auto &hPsic = hPsi[ic][j];
-        auto rhs = hPsic + dV_rhs(Xx.k, Fc, false);
+        const auto &hFc = hFcore[ic][j];
+        auto rhs = hFc + dV_rhs(Xx.k, Fc, false);
         if (Xx.k == Fc.k && !imag)
           rhs -= (de0 + de1) * Fc;
         if (has_de) {
@@ -301,9 +222,9 @@ void TDHF::solve_core(const double omega, const int max_its, const bool print) {
         for (auto j = 0ul; j < tmp_Y[ic].size(); j++) {
           auto &Yx = tmp_Y[ic][j];
           const auto &oldY = m_Y[ic][j];
-          const auto &hPsic = hPsi[ic][j];
+          const auto &hFc = hFcore[ic][j];
           const auto s = imag ? -1 : 1;
-          auto rhs = s * hPsic + dV_rhs(Yx.k, Fc, true);
+          auto rhs = s * hFc + dV_rhs(Yx.k, Fc, true);
           if (Yx.k == Fc.k && !imag)
             rhs -= (de0 + de1_dag) * Fc;
           if (has_de) {
@@ -326,6 +247,7 @@ void TDHF::solve_core(const double omega, const int max_its, const bool print) {
 
     eps = *std::max_element(cbegin(eps_vec), cend(eps_vec));
 
+    // Work out if converging, or getting worse (early quit)
     if (it > 30 && eps >= ceiling_eps) {
       ++worse_count;
       extra_damp = (it % 2) ? 0.3 : 0.2;
@@ -339,8 +261,9 @@ void TDHF::solve_core(const double omega, const int max_its, const bool print) {
   }
   if (print) {
     printf("%2i %.1e\n", it, eps);
+    std::cout << std::flush;
   }
-  std::cout << std::flush;
+  // set last eps (convergance) and frequency (omega)
   m_core_eps = eps;
   m_core_omega = omega;
 }
@@ -409,126 +332,6 @@ DiracSpinor TDHF::dV_rhs(const int kappa_n, const DiracSpinor &Fa, bool conj,
 }
 
 //******************************************************************************
-
-//******************************************************************************
-
-//******************************************************************************
-
-//******************************************************************************
-
-//******************************************************************************
-void TDHF::solve_TDHFcore_matrix(const Wavefunction &wf, const double omega,
-                                 const int max_its) {
-  // This is just for testing?? Very slow. Should give same as reg method!
-
-  IO::ChronoTimer timer("solve_TDHFcore_matrix");
-  const bool staticQ = std::abs(omega) < 1.0e-10;
-
-  const std::size_t nspl = 50;
-  const std::size_t kspl = 4;
-  const double rmin = 1.0e-4; //?
-  const double rmax = 40.0;   //?
-
-  // A := H - (e-w)S
-  // b := -h -dV +deS_c
-
-  auto max_ki = 0;
-  for (const auto &Px : m_X) {
-    for (const auto &x : Px) {
-      auto ki = Angular::indexFromKappa(x.k);
-      if (ki > max_ki)
-        max_ki = ki;
-    }
-  }
-  std::vector<std::vector<DiracSpinor>> basis_kappa;
-  basis_kappa.reserve(std::size_t(max_ki + 1));
-  for (int ki = 0; ki <= max_ki; ki++) {
-    auto k = Angular::kappaFromIndex(ki);
-    basis_kappa.push_back(SplineBasis::form_spline_basis(
-        k, nspl, kspl, rmin, rmax, m_core.front().rgrid, m_alpha));
-  }
-
-  const auto imag = m_h->imaginaryQ();
-
-  const double converge_targ = 1.0e-4;
-  const auto damper = HF::rampedDamp(0.5, 0.25, 1, 10);
-
-  auto eps = 0.0;
-  for (int it = 0; it < max_its; it++) {
-    IO::ChronoTimer timer2("solve_core: iterations");
-    eps = 0.0;
-    const auto a_damp = (it == 0) ? 0.0 : damper(it);
-
-    auto tmp_X = m_X;
-    auto tmp_Y = m_Y;
-#pragma omp parallel for
-    for (std::size_t ic = 0; ic < m_core.size(); ic++) {
-      const auto &Fc = m_core[ic];
-      auto &dPsiX = tmp_X[ic];
-      auto &dPsiY = tmp_Y[ic];
-      const auto de0 = m_h->reducedME(Fc, Fc);
-      const auto de1 = dV(Fc, Fc, false);
-      const auto de1_dag = dV(Fc, Fc, true);
-      for (auto ibeta = 0ul; ibeta < dPsiX.size(); ++ibeta) {
-        auto &Xx = dPsiX[ibeta];
-        auto &Yx = dPsiY[ibeta];
-        const auto ki = std::size_t(Angular::indexFromKappa(Xx.k));
-        const auto &basis = basis_kappa[ki];
-
-        LinAlg::Vector bi_X(basis.size());
-        LinAlg::Vector bi_Y(basis.size());
-        for (auto i = 0ul; i < basis.size(); ++i) {
-          const auto &xi = basis[i];
-          // fill LHS vector, b
-          const auto hi = m_h->reducedME(xi, Fc);
-          const auto hidag = m_h->reducedME(Fc, xi); //??
-          const auto dVic = dV(xi, Fc, false);
-          const auto dV_dag = dV(xi, Fc, true);
-          const auto s = imag ? -1 : 1;
-          const auto Sic = (xi.k == Fc.k && !imag) ? (xi * Fc) : 0.0;
-          const auto deS = (de0 + de1) * Sic;
-          const auto deS_dag = (de0 + de1_dag) * Sic;
-          bi_X[int(i)] = -s * hi - dVic + deS; // why s here? check above??
-          // bi_Y[i] = -s * (s * hi + dV_dag) + deS_dag;
-          bi_Y[int(i)] = -s * hidag - s * dV_dag + deS_dag; //???
-        }
-        const auto [Hij, Sij] = SplineBasis::fill_Hamiltonian_matrix(basis, wf);
-
-        auto Aij_X = Hij - (Fc.en + omega) * Sij;
-        auto Aij_Y = Hij - (Fc.en - omega) * Sij;
-
-        auto s = imag ? -1 : 1;
-        const auto c_X = LinAlg::solve_Axeqb(Aij_X, bi_X);
-        const auto c_Y = staticQ ? s * c_X : LinAlg::solve_Axeqb(Aij_Y, bi_Y);
-
-        Xx.scale(a_damp);
-        Yx.scale(a_damp);
-        for (auto i = 0ul; i < basis.size(); ++i) {
-          Xx += (1.0 - a_damp) * c_X[int(i)] * basis[i];
-          Yx += (1.0 - a_damp) * c_Y[int(i)] * basis[i];
-        }
-      }
-    }
-
-    for (std::size_t ic = 0; ic < m_core.size(); ic++) {
-      for (auto ibeta = 0ul; ibeta < tmp_X[ic].size(); ++ibeta) {
-        const auto &dF = tmp_X[ic][ibeta];
-        const auto &dF0 = m_X[ic][ibeta];
-        const auto eps_c = (dF - dF0) * (dF - dF0) / (dF * dF);
-        if (eps_c > eps)
-          eps = eps_c;
-      }
-    }
-
-    m_Y = tmp_Y;
-    m_X = tmp_X;
-    printf("TDHF [matrix] (w=%.3f): %2i  %.1e\n", omega, it + 1, eps);
-    if (it > 0 && eps < converge_targ)
-      break;
-  }
-}
-
-//******************************************************************************
 void TDHF::print(const std::string &ofname) const {
   std::ofstream of(ofname);
   const auto &gr = *((m_core.front()).rgrid);
@@ -552,6 +355,128 @@ void TDHF::print(const std::string &ofname) const {
 //******************************************************************************
 
 //******************************************************************************
+
+//******************************************************************************
+
+// //******************************************************************************
+// void TDHF::solve_TDHFcore_matrix(const Wavefunction &wf, const double omega,
+//                                  const int max_its) {
+//   // This is just for testing?? Very slow. Should give same as reg method!
+//
+//   IO::ChronoTimer timer("solve_TDHFcore_matrix");
+//   const bool staticQ = std::abs(omega) < 1.0e-10;
+//
+//   const std::size_t nspl = 50;
+//   const std::size_t kspl = 4;
+//   const double rmin = 1.0e-4; //?
+//   const double rmax = 40.0;   //?
+//
+//   // A := H - (e-w)S
+//   // b := -h -dV +deS_c
+//
+//   auto max_ki = 0;
+//   for (const auto &Px : m_X) {
+//     for (const auto &x : Px) {
+//       auto ki = Angular::indexFromKappa(x.k);
+//       if (ki > max_ki)
+//         max_ki = ki;
+//     }
+//   }
+//   std::vector<std::vector<DiracSpinor>> basis_kappa;
+//   basis_kappa.reserve(std::size_t(max_ki + 1));
+//   for (int ki = 0; ki <= max_ki; ki++) {
+//     auto k = Angular::kappaFromIndex(ki);
+//     basis_kappa.push_back(SplineBasis::form_spline_basis(
+//         k, nspl, kspl, rmin, rmax, m_core.front().rgrid, m_alpha));
+//   }
+//
+//   const auto imag = m_h->imaginaryQ();
+//
+//   const double converge_targ = 1.0e-4;
+//   const auto damper = HF::rampedDamp(0.5, 0.25, 1, 10);
+//
+//   auto eps = 0.0;
+//   for (int it = 0; it < max_its; it++) {
+//     IO::ChronoTimer timer2("solve_core: iterations");
+//     eps = 0.0;
+//     const auto a_damp = (it == 0) ? 0.0 : damper(it);
+//
+//     auto tmp_X = m_X;
+//     auto tmp_Y = m_Y;
+// #pragma omp parallel for
+//     for (std::size_t ic = 0; ic < m_core.size(); ic++) {
+//       const auto &Fc = m_core[ic];
+//       auto &dPsiX = tmp_X[ic];
+//       auto &dPsiY = tmp_Y[ic];
+//       const auto de0 = m_h->reducedME(Fc, Fc);
+//       const auto de1 = dV(Fc, Fc, false);
+//       const auto de1_dag = dV(Fc, Fc, true);
+//       for (auto ibeta = 0ul; ibeta < dPsiX.size(); ++ibeta) {
+//         auto &Xx = dPsiX[ibeta];
+//         auto &Yx = dPsiY[ibeta];
+//         const auto ki = std::size_t(Angular::indexFromKappa(Xx.k));
+//         const auto &basis = basis_kappa[ki];
+//
+//         LinAlg::Vector bi_X(basis.size());
+//         LinAlg::Vector bi_Y(basis.size());
+//         for (auto i = 0ul; i < basis.size(); ++i) {
+//           const auto &xi = basis[i];
+//           // fill LHS vector, b
+//           const auto hi = m_h->reducedME(xi, Fc);
+//           const auto hidag = m_h->reducedME(Fc, xi); //??
+//           const auto dVic = dV(xi, Fc, false);
+//           const auto dV_dag = dV(xi, Fc, true);
+//           const auto s = imag ? -1 : 1;
+//           const auto Sic = (xi.k == Fc.k && !imag) ? (xi * Fc) : 0.0;
+//           const auto deS = (de0 + de1) * Sic;
+//           const auto deS_dag = (de0 + de1_dag) * Sic;
+//           bi_X[int(i)] = -s * hi - dVic + deS; // why s here? check above??
+//           // bi_Y[i] = -s * (s * hi + dV_dag) + deS_dag;
+//           bi_Y[int(i)] = -s * hidag - s * dV_dag + deS_dag; //???
+//         }
+//         const auto [Hij, Sij] = SplineBasis::fill_Hamiltonian_matrix(basis,
+//         wf);
+//
+//         auto Aij_X = Hij - (Fc.en + omega) * Sij;
+//         auto Aij_Y = Hij - (Fc.en - omega) * Sij;
+//
+//         auto s = imag ? -1 : 1;
+//         const auto c_X = LinAlg::solve_Axeqb(Aij_X, bi_X);
+//         const auto c_Y = staticQ ? s * c_X : LinAlg::solve_Axeqb(Aij_Y,
+//         bi_Y);
+//
+//         Xx.scale(a_damp);
+//         Yx.scale(a_damp);
+//         for (auto i = 0ul; i < basis.size(); ++i) {
+//           Xx += (1.0 - a_damp) * c_X[int(i)] * basis[i];
+//           Yx += (1.0 - a_damp) * c_Y[int(i)] * basis[i];
+//         }
+//       }
+//     }
+//
+//     for (std::size_t ic = 0; ic < m_core.size(); ic++) {
+//       for (auto ibeta = 0ul; ibeta < tmp_X[ic].size(); ++ibeta) {
+//         const auto &dF = tmp_X[ic][ibeta];
+//         const auto &dF0 = m_X[ic][ibeta];
+//         const auto eps_c = (dF - dF0) * (dF - dF0) / (dF * dF);
+//         if (eps_c > eps)
+//           eps = eps_c;
+//       }
+//     }
+//
+//     m_Y = tmp_Y;
+//     m_X = tmp_X;
+//     printf("TDHF [matrix] (w=%.3f): %2i  %.1e\n", omega, it + 1, eps);
+//     if (it > 0 && eps < converge_targ)
+//       break;
+//   }
+// }
+
+//******************************************************************************
+
+//******************************************************************************
+
+//******************************************************************************
 //******************************************************************************
 
 //******************************************************************************
@@ -561,98 +486,98 @@ void TDHF::print(const std::string &ofname) const {
 //******************************************************************************
 //******************************************************************************
 
-//******************************************************************************
-double TDHF::dX_nm_bbe_rhs(const DiracSpinor &Fn, const DiracSpinor &Fm,
-                           const DiracSpinor &Fb,
-                           const DiracSpinor &X_beta) const {
-
-  const auto k = m_h->rank();
-  const auto tkp1 = double(2 * k + 1);
-
-  double dX_nm_bbe = 0.0;
-
-  const auto tjn = Fn.twoj();
-  const auto tjm = Fm.twoj();
-  const auto Ckala = Angular::Ck_kk(k, Fn.k, Fm.k);
-
-  const auto tjb = Fb.twoj();
-  const auto tjbeta = X_beta.twoj();
-  const auto Ckbeb = Angular::Ck_kk(k, X_beta.k, Fb.k);
-
-  if (Ckala != 0 && Ckbeb != 0) {
-    const auto Rkabcd = Coulomb::Rk_abcd(Fn, Fb, Fm, X_beta, k);
-    dX_nm_bbe += (Ckala * Ckbeb / tkp1) * Rkabcd;
-  }
-
-  auto s = Angular::evenQ_2(tjn + tjbeta + 2) ? 1 : -1;
-
-  // exchange part (X):
-  const auto l_min_X =
-      std::max(std::abs(tjn - tjbeta), std::abs(tjm - tjb)) / 2;
-  const auto l_max_X = std::min((tjn + tjbeta), (tjm + tjb)) / 2;
-
-  for (int l = l_min_X; l <= l_max_X; ++l) {
-    const auto sixj = Angular::sixj_2(tjm, tjn, 2 * k, tjbeta, tjb, 2 * l);
-    if (sixj == 0)
-      continue;
-    const auto m1kpl = Angular::evenQ(k + l) ? 1 : -1;
-    const auto Ckba = Angular::Ck_kk(l, Fm.k, Fb.k);
-    const auto Ckalbe = Angular::Ck_kk(l, Fn.k, X_beta.k);
-    if (Ckba == 0 || Ckalbe == 0)
-      continue;
-    const auto Rk = Coulomb::Rk_abcd(Fn, Fm, X_beta, Fb, l);
-    dX_nm_bbe += (s * m1kpl * Ckba * Ckalbe * sixj) * Rk;
-  }
-
-  return dX_nm_bbe;
-}
-
-//******************************************************************************
-double TDHF::dY_nm_bbe_rhs(const DiracSpinor &Fn, const DiracSpinor &Fm,
-                           const DiracSpinor &Fb,
-                           const DiracSpinor &Y_beta) const {
-
-  const auto k = m_h->rank();
-  const auto tkp1 = double(2 * k + 1);
-
-  double dY_nm_bbe = 0.0;
-
-  const auto tjn = Fn.twoj();
-  const auto tjm = Fm.twoj();
-  const auto Ckala = Angular::Ck_kk(k, Fn.k, Fm.k);
-
-  const auto tjb = Fb.twoj();
-  const auto tjbeta = Y_beta.twoj();
-  const auto Ckbeb = Angular::Ck_kk(k, Y_beta.k, Fb.k);
-
-  if (Ckala != 0 && Ckbeb != 0) {
-    const auto Rkabcd = Coulomb::Rk_abcd(Fn, Fb, Fm, Y_beta, k);
-    dY_nm_bbe += (Ckala * Ckbeb / tkp1) * Rkabcd;
-  }
-
-  auto s = Angular::evenQ_2(tjn + tjbeta + 2) ? 1 : -1;
-
-  // exchange part (Y):
-  auto l_min_Y = std::max(std::abs(tjn - tjb), std::abs(tjm - tjbeta)) / 2;
-  auto l_max_Y = std::min((tjn + tjb), (tjm + tjbeta)) / 2;
-
-  // l_min_Y = 0;
-  // l_max_Y = 20;
-
-  for (int l = l_min_Y; l <= l_max_Y; ++l) {
-    const auto sixj = Angular::sixj_2(tjm, tjn, 2 * k, tjb, tjbeta, 2 * l);
-    if (sixj == 0)
-      continue;
-    const auto m1kpl = Angular::evenQ(k + l) ? 1 : -1;
-    const auto Ckbea = Angular::Ck_kk(l, Fm.k, Y_beta.k);
-    const auto Ckbal = Angular::Ck_kk(l, Fn.k, Fb.k);
-    if (Ckbea == 0 || Ckbal == 0)
-      continue;
-    const auto Rk = Coulomb::Rk_abcd(Fn, Fm, Fb, Y_beta, l);
-    dY_nm_bbe += (s * m1kpl * Ckbea * Ckbal * sixj) * Rk;
-  }
-
-  return dY_nm_bbe;
-}
+// //******************************************************************************
+// double TDHF::dX_nm_bbe_rhs(const DiracSpinor &Fn, const DiracSpinor &Fm,
+//                            const DiracSpinor &Fb,
+//                            const DiracSpinor &X_beta) const {
+//
+//   const auto k = m_h->rank();
+//   const auto tkp1 = double(2 * k + 1);
+//
+//   double dX_nm_bbe = 0.0;
+//
+//   const auto tjn = Fn.twoj();
+//   const auto tjm = Fm.twoj();
+//   const auto Ckala = Angular::Ck_kk(k, Fn.k, Fm.k);
+//
+//   const auto tjb = Fb.twoj();
+//   const auto tjbeta = X_beta.twoj();
+//   const auto Ckbeb = Angular::Ck_kk(k, X_beta.k, Fb.k);
+//
+//   if (Ckala != 0 && Ckbeb != 0) {
+//     const auto Rkabcd = Coulomb::Rk_abcd(Fn, Fb, Fm, X_beta, k);
+//     dX_nm_bbe += (Ckala * Ckbeb / tkp1) * Rkabcd;
+//   }
+//
+//   auto s = Angular::evenQ_2(tjn + tjbeta + 2) ? 1 : -1;
+//
+//   // exchange part (X):
+//   const auto l_min_X =
+//       std::max(std::abs(tjn - tjbeta), std::abs(tjm - tjb)) / 2;
+//   const auto l_max_X = std::min((tjn + tjbeta), (tjm + tjb)) / 2;
+//
+//   for (int l = l_min_X; l <= l_max_X; ++l) {
+//     const auto sixj = Angular::sixj_2(tjm, tjn, 2 * k, tjbeta, tjb, 2 * l);
+//     if (sixj == 0)
+//       continue;
+//     const auto m1kpl = Angular::evenQ(k + l) ? 1 : -1;
+//     const auto Ckba = Angular::Ck_kk(l, Fm.k, Fb.k);
+//     const auto Ckalbe = Angular::Ck_kk(l, Fn.k, X_beta.k);
+//     if (Ckba == 0 || Ckalbe == 0)
+//       continue;
+//     const auto Rk = Coulomb::Rk_abcd(Fn, Fm, X_beta, Fb, l);
+//     dX_nm_bbe += (s * m1kpl * Ckba * Ckalbe * sixj) * Rk;
+//   }
+//
+//   return dX_nm_bbe;
+// }
+//
+// //******************************************************************************
+// double TDHF::dY_nm_bbe_rhs(const DiracSpinor &Fn, const DiracSpinor &Fm,
+//                            const DiracSpinor &Fb,
+//                            const DiracSpinor &Y_beta) const {
+//
+//   const auto k = m_h->rank();
+//   const auto tkp1 = double(2 * k + 1);
+//
+//   double dY_nm_bbe = 0.0;
+//
+//   const auto tjn = Fn.twoj();
+//   const auto tjm = Fm.twoj();
+//   const auto Ckala = Angular::Ck_kk(k, Fn.k, Fm.k);
+//
+//   const auto tjb = Fb.twoj();
+//   const auto tjbeta = Y_beta.twoj();
+//   const auto Ckbeb = Angular::Ck_kk(k, Y_beta.k, Fb.k);
+//
+//   if (Ckala != 0 && Ckbeb != 0) {
+//     const auto Rkabcd = Coulomb::Rk_abcd(Fn, Fb, Fm, Y_beta, k);
+//     dY_nm_bbe += (Ckala * Ckbeb / tkp1) * Rkabcd;
+//   }
+//
+//   auto s = Angular::evenQ_2(tjn + tjbeta + 2) ? 1 : -1;
+//
+//   // exchange part (Y):
+//   auto l_min_Y = std::max(std::abs(tjn - tjb), std::abs(tjm - tjbeta)) / 2;
+//   auto l_max_Y = std::min((tjn + tjb), (tjm + tjbeta)) / 2;
+//
+//   // l_min_Y = 0;
+//   // l_max_Y = 20;
+//
+//   for (int l = l_min_Y; l <= l_max_Y; ++l) {
+//     const auto sixj = Angular::sixj_2(tjm, tjn, 2 * k, tjb, tjbeta, 2 * l);
+//     if (sixj == 0)
+//       continue;
+//     const auto m1kpl = Angular::evenQ(k + l) ? 1 : -1;
+//     const auto Ckbea = Angular::Ck_kk(l, Fm.k, Y_beta.k);
+//     const auto Ckbal = Angular::Ck_kk(l, Fn.k, Fb.k);
+//     if (Ckbea == 0 || Ckbal == 0)
+//       continue;
+//     const auto Rk = Coulomb::Rk_abcd(Fn, Fm, Fb, Y_beta, l);
+//     dY_nm_bbe += (s * m1kpl * Ckbea * Ckbal * sixj) * Rk;
+//   }
+//
+//   return dY_nm_bbe;
+// }
 
 } // namespace ExternalField

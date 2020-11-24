@@ -290,8 +290,7 @@ Module::matrixElements {
   printBoth;      //[t] default = false
   onlyDiagonal;   //[t] default = false
   radialIntegral; //[b] default = false
-  rpa;            //[b] default = true
-  rpa_diagram;    //[b] default = false
+  rpa;            //[t] default = "TDHF"
   omega;          //[r] default = 0.0;  or [t] ('each')
   A_vertex;       //[r] default = 0.0 - for QED vertex
   b_vertex;       //[r] default = 1.0
@@ -303,8 +302,11 @@ Module::matrixElements {
 * printBoth: Print <a|h|b> and <b|h|a> ? false by default. (For _some_ operators, e.g., involving derivatives, this is a good test of numerical error. For most operators, values will be trivially the same; reduced matrix elements, sign may be different.)
 * onlyDiagonal: If true, will only print diagonal MEs <a|h|a>
 * radialIntegral: if true, calculates the radial integral (definition depends on specific operator)
-* rpa: Include RPA (core polarisation) corrections to MEs, using TDHF method
-* rpa_diagram: Include RPA (core polarisation), using diagram (Goldstone) technique
+* rpa: Include RPA (core polarisation) corrections to MEs:
+  * rpa = TDHF; (default) => uses TDHF method
+  * rpa = basis; => uses TDHF/basis method (uses basis)
+  * rpa = diagram; => uses diagram (Goldstone) method (uses basis)
+  * rpa = false; no RPA included
 * omega: frequency for solving TDHF/RPA equations, should be positive. Put "omega=each;" to solve at the frequency for each transition (i.e., re-solve TDHF for each transition).
 * A_vertex, b_vertex: Effective QED vertex func: A * alpha * exp(-b * r / alpha)
 

@@ -373,7 +373,7 @@ void DiagramRPA::solve_core(const double omega, int max_its, const bool print) {
   }
 
   if (print) {
-    printf("RPA(D) (w=%.3f): ", m_core_omega);
+    printf("RPA(D) %s (w=%.3f): ", m_h->name().c_str(), omega);
     std::cout << std::flush;
   }
 

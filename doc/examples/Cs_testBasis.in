@@ -41,12 +41,12 @@ Module::Tests {
 
 Module::matrixElements {
   operator = E1;
-  rpa = true;
+  rpa = TDHF;
 }
 
 Module::matrixElements {
   operator = E1;
-  rpa_diagram = true;
+  rpa = diagram;
 }
 
 

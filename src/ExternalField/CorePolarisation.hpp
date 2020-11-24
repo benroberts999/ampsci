@@ -9,6 +9,8 @@ class TensorOperator;
 
 namespace ExternalField {
 
+enum class method { TDHF, basis, diagram, none };
+
 enum class dPsiType { X, Y };
 enum class StateType { bra, ket }; // lhs, rhs
 

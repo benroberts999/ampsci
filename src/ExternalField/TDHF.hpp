@@ -2,7 +2,6 @@
 #include "CorePolarisation.hpp"
 #include <string>
 #include <vector>
-class Wavefunction;
 class DiracSpinor;
 namespace DiracOperator {
 class TensorOperator;
@@ -73,9 +72,9 @@ public:
   //                       const double omega, const int max_its = 100,
   //                       const bool print = true);
 
-  //! @brief Uses itterative matrix method; for tests only
-  void solve_TDHFcore_matrix(const Wavefunction &wf, const double omega,
-                             const int max_its = 25);
+  // //! @brief Uses itterative matrix method; for tests only
+  // void solve_TDHFcore_matrix(const Wavefunction &wf, const double omega,
+  //                            const int max_its = 25);
 
   //! @brief Clears the dPsi orbitals (sets to zero)
   virtual void clear() override final;
@@ -129,13 +128,15 @@ public:
   //! @brief Writes dPsi (f-component) to textfile
   void print(const std::string &ofname = "dPsi.txt") const;
 
-private:
-  // Calculate indevidual (4 electron) partial contributions to the
-  // dV (reduced) matrix element (for Matrix method: not used yet)
-  double dX_nm_bbe_rhs(const DiracSpinor &Fn, const DiracSpinor &Fm,
-                       const DiracSpinor &Fb, const DiracSpinor &X_beta) const;
-  double dY_nm_bbe_rhs(const DiracSpinor &Fn, const DiracSpinor &Fm,
-                       const DiracSpinor &Fb, const DiracSpinor &Y_beta) const;
+  // private:
+  //   // Calculate indevidual (4 electron) partial contributions to the
+  //   // dV (reduced) matrix element (for Matrix method: not used yet)
+  //   double dX_nm_bbe_rhs(const DiracSpinor &Fn, const DiracSpinor &Fm,
+  //                        const DiracSpinor &Fb, const DiracSpinor &X_beta)
+  //                        const;
+  //   double dY_nm_bbe_rhs(const DiracSpinor &Fn, const DiracSpinor &Fm,
+  //                        const DiracSpinor &Fb, const DiracSpinor &Y_beta)
+  //                        const;
 
 private:
   void initialise_dPsi();
