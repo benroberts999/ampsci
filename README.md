@@ -65,6 +65,9 @@ There are four documentation types provided:
 Requires GSL (GNU scientific libraries) https://www.gnu.org/software/gsl/, and LAPACK. These must be installed for the code to run (see below).
  * Requires GSL ver 2.0+ (tested with 2.1, 2.6)
 
+ * Quick start (ubuntu). Full dependencies list, run:
+   * _$sudo apt install g++ clang++ make liblapack-dev libblas-dev libgsl-dev libomp5 libomp-dev_
+
 
 ### Compilation: Linux:
 

@@ -4,6 +4,8 @@
 #include "ExternalField/DiagramRPA_test.hpp"
 #include "ExternalField/MixedStates_test.hpp"
 #include "ExternalField/TDHF_test.hpp"
+#include "ExternalField/TDHFbasis_breit_test.hpp"
+#include "ExternalField/TDHFbasis_test.hpp"
 #include "HF/Breit_test.hpp"
 #include "HF/HartreeFock_test.hpp"
 #include "IO/ChronoTimer.hpp"
@@ -58,6 +60,8 @@ static const std::vector<std::pair<std::string, bool (*)(std::ostream &obuff)>>
         {"Breit", &Breit},
         {"MixedStates", &MixedStates},
         {"TDHF", &TDHF},
+        {"TDHFbasis", &TDHFbasis},
+        {"TDHFbasis_breit", &TDHFbasis_breit},
         {"RadPot", &RadPot},
         {"Angular", &Angular},
         {"LinAlg", &LinAlg},

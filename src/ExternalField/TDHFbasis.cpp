@@ -1,4 +1,4 @@
-#include "TDHF_basis.hpp"
+#include "TDHFbasis.hpp"
 #include "DiracOperator/TensorOperator.hpp"
 #include "HF/Breit.hpp"
 #include "HF/HartreeFock.hpp"
@@ -86,44 +86,56 @@ void TDHFbasis::solve_core(const double omega, int max_its, const bool print) {
     printf("TDHFb %s (w=%.3f): ", m_h->name().c_str(), omega);
     std::cout << std::flush;
   }
+
+  // Store 2D indexes, for more efficient //isation
+  std::vector<std::pair<std::size_t, std::size_t>> indexs;
+  for (auto ic = 0ul; ic < m_core.size(); ic++) {
+    for (auto beta = 0ul; beta < m_X[ic].size(); beta++) {
+      indexs.emplace_back(ic, beta);
+    }
+  }
+
   for (; it < max_its; it++) {
-    eps = 0.0;
-    std::vector<double> eps_vec(m_core.size(), 0.0);
+    // eps = 0.0;
+    // std::vector<double> eps_vec(m_core.size(), 0.0);
     const auto a_damp = (it == 0) ? 0.0 : damper(it);
+
 #pragma omp parallel for
-    for (auto ic = 0ul; ic < m_core.size(); ic++) {
-      double eps_c = 0.0;
+    for (auto i = 0ul; i < indexs.size(); i++) {
+      const auto [ic, beta] = indexs[i];
       const auto &Fc = m_core[ic];
 
-      for (auto j = 0ul; j < m_X[ic].size(); j++) {
-        auto &Xx = tmp_X[ic][j];
-        const auto &oldX = m_X[ic][j];
-        Xx *= a_damp;
-        Xx += (1.0 - a_damp) *
-              form_dPsi(Fc, omega, dPsiType::X, Xx.k, m_basis, StateType::ket);
+      auto &Xx = tmp_X[ic][beta];
+      Xx *= a_damp;
+      Xx += (1.0 - a_damp) *
+            form_dPsi(Fc, omega, dPsiType::X, Xx.k, m_basis, StateType::ket);
 
-        const auto delta = (Xx - oldX) * (Xx - oldX) / (Xx * Xx);
-        if (delta > eps_c)
-          eps_c = delta;
+      if (!staticQ) {
+        auto &Yx = tmp_Y[ic][beta];
+        Yx *= a_damp;
+        Yx += (1.0 - a_damp) *
+              form_dPsi(Fc, omega, dPsiType::Y, Xx.k, m_basis, StateType::ket);
+      } else {
+        const auto s = m_h->imaginaryQ() ? -1 : 1;
+        tmp_Y[ic][beta] = s * Xx;
+      }
+    }
 
-        // Xx = a_damp * oldX + (1.0 - a_damp) * Xx;
-        if (!staticQ) {
-          auto &Yx = tmp_Y[ic][j];
-          // const auto &oldY = m_Y[ic][j];
-          Yx *= a_damp;
-          Yx += (1.0 - a_damp) * form_dPsi(Fc, omega, dPsiType::Y, Xx.k,
-                                           m_basis, StateType::ket);
-        } else {
-          const auto s = m_h->imaginaryQ() ? -1 : 1;
-          tmp_Y[ic][j] = s * Xx;
+    // Find convergance from worst X
+    eps = 0.0;
+    for (auto ic = 0ul; ic < m_core.size(); ic++) {
+      for (auto beta = 0ul; beta < m_X[ic].size(); beta++) {
+        const auto &Xx = tmp_X[ic][beta];
+        const auto &oldX = m_X[ic][beta];
+        const auto eps_beta = (Xx - oldX) * (Xx - oldX) / (Xx * Xx);
+        if (eps_beta > eps) {
+          eps = eps_beta;
         }
       }
-      eps_vec[ic] = eps_c;
     }
 
     m_X = tmp_X;
     m_Y = tmp_Y;
-    eps = *std::max_element(cbegin(eps_vec), cend(eps_vec));
 
     if ((it > 1 && eps < converge_targ))
       break;
@@ -134,6 +146,6 @@ void TDHFbasis::solve_core(const double omega, int max_its, const bool print) {
   std::cout << std::flush;
   m_core_eps = eps;
   m_core_omega = omega;
-}
+} // namespace ExternalField
 
 } // namespace ExternalField

@@ -193,6 +193,10 @@ void TDHF::solve_core(const double omega, const int max_its, const bool print) {
       const auto &Fc = m_core[ic];
       auto eps_c = 0.0;
 
+      // Note: we could, but do not, use solve_dPsi() here.
+      // Though it would be cleaner in the code, it is much more efficient
+      // To solve manually here, since we don't need to start from scratch
+
       // delta_en: always same, usually zero; move above!
       const auto de0 = m_h->reducedME(Fc, Fc);
       const auto de1 = dV(Fc, Fc, false);
@@ -213,8 +217,6 @@ void TDHF::solve_core(const double omega, const int max_its, const bool print) {
                                        rhs, eps_ms, nullptr, p_VBr, m_Hmag);
         Xx = a_damp * oldX + (1.0 - a_damp) * Xx;
         const auto delta = (Xx - oldX) * (Xx - oldX) / (Xx * Xx);
-        // use <a|dV|b> instead? But, for which <a|?
-        // const auto delta = std::abs(Fc * (Xx - oldX) / (Fc * Xx));
         if (delta > eps_c)
           eps_c = delta;
       }
