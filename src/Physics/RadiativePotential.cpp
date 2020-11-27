@@ -32,6 +32,7 @@ std::vector<double> form_Hel(const std::vector<double> &r, double x_simple,
     rcut = r.back();
   const auto imax = r.size();
   std::vector<double> Vel_tmp(r.size());
+  std::cout << "\n";
 
   if (std::abs(x_simple) > 0) {
     std::cout << "Forming simple exponential potential (Ak=" << x_simple

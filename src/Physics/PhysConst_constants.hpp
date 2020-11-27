@@ -74,4 +74,8 @@ constexpr double muN_CGS = muB_CGS / m_p;
 //! Nulcear magneton in MHz (via Gaussian CGS-derived atomic units):
 constexpr double muN_CGS_MHz = Hartree_MHz * muB_CGS / m_p;
 
+//! barn = 1.0e-28m^2
+constexpr double barn_m2 = 1.0e-28;
+constexpr double barn_au = barn_m2 / (aB_m * aB_m);
+
 } // namespace PhysConst

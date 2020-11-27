@@ -52,7 +52,7 @@ bool MixedStates(std::ostream &obuff) {
   // const auto hM1 = DiracOperator::M1(*wf.rgrid, wf.alpha, 0.0);
   // Use "spherical ball" model for hyperfine (Works best.)
   // Fails for some d states with pointlike (?)
-  const auto hhfs = DiracOperator::Hyperfine(
+  const auto hhfs = DiracOperator::HyperfineA(
       1.0, 1.0, std::sqrt(5.0 / 3) * wf.get_rrms(), *wf.rgrid,
       DiracOperator::Hyperfine::sphericalBall_F());
 

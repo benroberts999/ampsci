@@ -64,24 +64,17 @@ std::unique_ptr<DiracOperator::TensorOperator>
 generate_pnc(const IO::UserInputBlock &input, const Wavefunction &wf,
              bool print = true);
 std::unique_ptr<DiracOperator::TensorOperator>
-generate_Hrad_el(const IO::UserInputBlock &input, const Wavefunction &wf,
-                 bool print = true);
-std::unique_ptr<DiracOperator::TensorOperator>
-generate_Hrad_mag(const IO::UserInputBlock &input, const Wavefunction &wf,
-                  bool print = true);
+generate_Hrad(const IO::UserInputBlock &input, const Wavefunction &wf,
+              bool print = true);
 
 // ------------------
 const std::vector<
     std::pair<std::string, std::unique_ptr<DiracOperator::TensorOperator> (*)(
                                const IO::UserInputBlock &input,
                                const Wavefunction &wf, bool print)>>
-    operator_list{{"E1", &generate_E1},
-                  {"Ek", &generate_Ek},
-                  {"M1", &generate_M1},
-                  {"hfs", &generate_hfs},
-                  {"r", &generate_r},
-                  {"pnc", &generate_pnc},
-                  {"Hrad_el", &generate_Hrad_el},
-                  {"Hrad_mag", &generate_Hrad_mag}};
+    operator_list{{"E1", &generate_E1},    {"Ek", &generate_Ek},
+                  {"M1", &generate_M1},    {"hfs", &generate_hfs},
+                  {"r", &generate_r},      {"pnc", &generate_pnc},
+                  {"Hrad", &generate_Hrad}};
 
 } // namespace Module

@@ -102,7 +102,7 @@ bool DiagramRPA(std::ostream &obuff) {
   }
 
   { // HFS (compare A, not dV)
-    auto h = DiracOperator::Hyperfine(1.0, 1.0, 0.0, *wf.rgrid,
+    auto h = DiracOperator::HyperfineA(1.0, 1.0, 0.0, *wf.rgrid,
                                       DiracOperator::Hyperfine::pointlike_F());
     auto rpa = ExternalField::DiagramRPA(&h, wf.basis, wf.core, "");
     using sp = std::pair<std::string, double>;
@@ -115,7 +115,7 @@ bool DiagramRPA(std::ostream &obuff) {
     rpa.solve_core(0.0);
     std::vector<sp> e1me;
     for (const auto &Fv : wf.valence) {
-      auto a = DiracOperator::Hyperfine::convertRMEtoA(Fv, Fv);
+      auto a = DiracOperator::HyperfineA::convertRMEtoA(Fv, Fv);
       e1me.emplace_back(Fv.shortSymbol(),
                         a * (h.reducedME(Fv, Fv) + rpa.dV(Fv, Fv)));
     }

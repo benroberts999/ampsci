@@ -96,7 +96,7 @@ bool BSplineBasis(std::ostream &obuff) {
     wf.formBasis({states, nspl, kspl, r0, r0eps, rmax, false});
 
     // Hyperfine operator: Pointlike, g=1
-    const auto h = DiracOperator::Hyperfine(
+    const auto h = DiracOperator::HyperfineA(
         1.0, 1.0, 0.0, *wf.rgrid, DiracOperator::Hyperfine::pointlike_F());
 
     // Calculate A with HF and spline states, compare for each l:

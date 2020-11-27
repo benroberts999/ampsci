@@ -125,7 +125,7 @@ void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf) {
       }
 
       // Special case: HFS A:
-      const auto a = AhfsQ ? DiracOperator::Hyperfine::convertRMEtoA(Fa, Fb)
+      const auto a = AhfsQ ? DiracOperator::HyperfineA::convertRMEtoA(Fa, Fb)
                            : radial_int ? 1.0 / h->angularF(Fa.k, Fb.k) : 1.0;
 
       const auto symb =
@@ -172,7 +172,7 @@ void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf) {
     // Add RPA? Might be important?
     for (const auto &Fb : wf.valence) {
       for (const auto &Fa : wf.valence) { // Special case: HFS A:
-        const auto a = AhfsQ ? DiracOperator::Hyperfine::convertRMEtoA(Fa, Fb)
+        const auto a = AhfsQ ? DiracOperator::HyperfineA::convertRMEtoA(Fa, Fb)
                              : radial_int ? 1.0 / h->angularF(Fa.k, Fb.k) : 1.0;
         printf("   QED vertex: ");
         printf("%13.6e \n", hVertexQED->reducedME(Fa, Fb) * a);
@@ -584,8 +584,8 @@ generate_hfs(const IO::UserInputBlock &input, const Wavefunction &wf,
     }
   }
 
-  return std::make_unique<Hyperfine>(
-      Hyperfine(mu, I_nuc, r_nucau, *(wf.rgrid), Fr));
+  return std::make_unique<HyperfineA>(
+      HyperfineA(mu, I_nuc, r_nucau, *(wf.rgrid), Fr));
 }
 
 //------------------------------------------------------------------------------
@@ -609,39 +609,63 @@ generate_pnc(const IO::UserInputBlock &input, const Wavefunction &wf, bool) {
   return std::make_unique<PNCnsi>(c, t, *(wf.rgrid), 1.0, "iQwe-11");
 }
 
+// //------------------------------------------------------------------------------
+// std::unique_ptr<DiracOperator::TensorOperator>
+// generate_Hrad_el(const IO::UserInputBlock &input, const Wavefunction &wf,
+//                  bool) {
+//   using namespace DiracOperator;
+//   input.checkBlock({"Simple", "Ueh", "SE_h", "SE_l", "rcut", "scale_rN"});
+//   const auto x_Simple = input.get("Simple", 0.0);
+//   const auto x_Ueh = input.get("Ueh", 1.0);
+//   const auto x_SEe_h = input.get("SE_h", 1.0);
+//   const auto x_SEe_l = input.get("SE_l", 1.0);
+//   // const auto x_SEm = input.get("SE_m", 1.0);
+//   const auto rcut = input.get("rcut", 5.0);
+//   const auto scale_rN = input.get("scale_rN", 1.0);
+//   const auto r_rms_Fermi = scale_rN * wf.get_nuclearParameters().r_rms;
+//   const auto Hel = RadiativePotential::form_Hel(wf.rgrid->r, x_Simple, x_Ueh,
+//                                                 x_SEe_h, x_SEe_l,
+//                                                 r_rms_Fermi, wf.Znuc(),
+//                                                 wf.alpha, rcut);
+//   return std::make_unique<Hrad_el>(Hel);
+// }
+//
+// //------------------------------------------------------------------------------
+// std::unique_ptr<DiracOperator::TensorOperator>
+// generate_Hrad_mag(const IO::UserInputBlock &input, const Wavefunction &wf,
+//                   bool) {
+//   using namespace DiracOperator;
+//   input.checkBlock({"SE_m", "rcut", "scale_rN"});
+//   const auto x_SEm = input.get("SE_m", 1.0);
+//   const auto rcut = input.get("rcut", 50.0);
+//   const auto scale_rN = input.get("scale_rN", 1.0);
+//   const auto r_rms_Fermi = scale_rN * wf.get_nuclearParameters().r_rms;
+//   const auto Hmag = RadiativePotential::form_Hmag(
+//       wf.rgrid->r, x_SEm, r_rms_Fermi, wf.Znuc(), wf.alpha, rcut);
+//   return std::make_unique<Hrad_mag>(Hmag);
+// }
+
 //------------------------------------------------------------------------------
 std::unique_ptr<DiracOperator::TensorOperator>
-generate_Hrad_el(const IO::UserInputBlock &input, const Wavefunction &wf,
-                 bool) {
+generate_Hrad(const IO::UserInputBlock &input, const Wavefunction &wf, bool) {
   using namespace DiracOperator;
-  input.checkBlock({"Simple", "Ueh", "SE_h", "SE_l", "rcut", "scale_rN"});
+  input.checkBlock(
+      {"Simple", "Ueh", "SE_h", "SE_l", "SE_m", "rcut", "scale_rN"});
   const auto x_Simple = input.get("Simple", 0.0);
   const auto x_Ueh = input.get("Ueh", 1.0);
   const auto x_SEe_h = input.get("SE_h", 1.0);
   const auto x_SEe_l = input.get("SE_l", 1.0);
-  // const auto x_SEm = input.get("SE_m", 1.0);
+  const auto x_SEm = input.get("SE_m", 1.0);
   const auto rcut = input.get("rcut", 5.0);
   const auto scale_rN = input.get("scale_rN", 1.0);
   const auto r_rms_Fermi = scale_rN * wf.get_nuclearParameters().r_rms;
   const auto Hel = RadiativePotential::form_Hel(wf.rgrid->r, x_Simple, x_Ueh,
                                                 x_SEe_h, x_SEe_l, r_rms_Fermi,
                                                 wf.Znuc(), wf.alpha, rcut);
-  return std::make_unique<Hrad_el>(Hel);
-}
-
-//------------------------------------------------------------------------------
-std::unique_ptr<DiracOperator::TensorOperator>
-generate_Hrad_mag(const IO::UserInputBlock &input, const Wavefunction &wf,
-                  bool) {
-  using namespace DiracOperator;
-  input.checkBlock({"SE_m", "rcut", "scale_rN"});
-  const auto x_SEm = input.get("SE_m", 1.0);
-  const auto rcut = input.get("rcut", 50.0);
-  const auto scale_rN = input.get("scale_rN", 1.0);
-  const auto r_rms_Fermi = scale_rN * wf.get_nuclearParameters().r_rms;
   const auto Hmag = RadiativePotential::form_Hmag(
       wf.rgrid->r, x_SEm, r_rms_Fermi, wf.Znuc(), wf.alpha, rcut);
-  return std::make_unique<Hrad_mag>(Hmag);
+  return std::make_unique<Hrad>(Hel, Hmag);
+  // return std::make_unique<Hrad_el>(Hel);
 }
 
 //******************************************************************************

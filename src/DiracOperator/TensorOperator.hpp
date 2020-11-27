@@ -84,9 +84,10 @@ private:
   const int diff_order;
   const Realness opC;
 
-protected:           // these may be updated for frequency-dependant operators
+protected:
+  // these may be updated for frequency-dependant operators
   double m_constant; // included in radial integral
-  std::vector<double> m_vec; // useful to be able to update this! ?
+  std::vector<double> m_vec;
 
 public:
   const bool freqDependantQ{false};
@@ -94,6 +95,7 @@ public:
 public:
   //! If matrix element <a|h|b> is zero, returns true
   bool isZero(const int ka, int kb) const;
+  bool isZero(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
 
   //! Update frequency for frequency-dependant operators.
   virtual void updateFrequency(const double){};
@@ -132,7 +134,8 @@ public:
   //! RME = <a||h||b> = angularF(a,b) * radial_int(a,b)
   virtual double angularF(const int, const int) const = 0;
   //! radial_int = Fa * radial_rhs(a, Fb) (a needed for angular factor)
-  DiracSpinor radial_rhs(const int kappa_a, const DiracSpinor &Fb) const;
+  virtual DiracSpinor radial_rhs(const int kappa_a,
+                                 const DiracSpinor &Fb) const;
   //! ME = rme3js * RME
   double rme3js(const int twoja, const int twojb, int two_mb,
                 int two_q = 0) const;

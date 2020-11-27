@@ -1,5 +1,6 @@
 #include "DiracOperator/TensorOperator.hpp"
 #include "Angular/Angular_369j.hpp"
+#include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <algorithm>
 #include <cmath>
@@ -22,6 +23,10 @@ bool TensorOperator::isZero(const int ka, int kb) const {
     return true;
   return false; /*may still be zero*/
 }
+bool TensorOperator::isZero(const DiracSpinor &Fa,
+                            const DiracSpinor &Fb) const {
+  return isZero(Fa.k, Fb.k);
+}
 
 std::string TensorOperator::rme_symbol(const DiracSpinor &Fa,
                                        const DiracSpinor &Fb) const {
@@ -34,12 +39,11 @@ std::string TensorOperator::R_symbol(const DiracSpinor &Fa,
 
 //******************************************************************************
 double TensorOperator::rme3js(const int twoja, const int twojb, int two_mb,
-                              int two_q) const
-// rme3js = (-1)^{ja-ma} (ja, k, jb,\ -ma, q, mb)
-{
-  auto two_ma = two_mb - two_q; // -ma + mb + q = 0;
+                              int two_q) const {
+  // rme3js = (-1)^{ja-ma} (ja, k, jb,\ -ma, q, mb)
+  const auto two_ma = two_mb - two_q; // -ma + mb + q = 0;
   // sig = (-1)^(ja - ma)
-  auto sig = ((twoja - two_ma) / 2) % 2 == 0 ? 1 : -1;
+  const auto sig = ((twoja - two_ma) / 2) % 2 == 0 ? 1 : -1;
   return sig *
          Angular::threej_2(twoja, 2 * m_rank, twojb, -two_ma, two_q, two_mb);
 }
@@ -51,66 +55,110 @@ DiracSpinor TensorOperator::reduced_rhs(const int ka,
 
 DiracSpinor TensorOperator::reduced_lhs(const int ka,
                                         const DiracSpinor &Fb) const {
-  int s = imaginaryQ() ? -1 : 1;
-  auto x = Angular::evenQ_2(Angular::twoj_k(ka) - Fb.twoj()) ? s : -s;
+  const int s = imaginaryQ() ? -1 : 1;
+  const auto x = Angular::evenQ_2(Angular::twoj_k(ka) - Fb.twoj()) ? s : -s;
   return (x * angularF(ka, Fb.k)) * radial_rhs(ka, Fb);
 }
 
-double TensorOperator::radialIntegral(const DiracSpinor &Fa,
-                                      const DiracSpinor &Fb) const {
-  if (isZero(Fa.k, Fb.k))
-    return 0.0;
-  return (Fa * radial_rhs(Fa.k, Fb));
-}
 double TensorOperator::reducedME(const DiracSpinor &Fa,
                                  const DiracSpinor &Fb) const {
   return angularF(Fa.k, Fb.k) * radialIntegral(Fa, Fb);
 }
 
 //******************************************************************************
+
 DiracSpinor TensorOperator::radial_rhs(const int kappa_a,
-                                       const DiracSpinor &Fb) const
-// psi1 * dPsi2 = h.radialIntegral(psi1,psi2)
-// Because of angular factor, _may_ depend on kappa of 'lhs'
-// Usually, will not over-write this. But in some cases, might be better
-// (eg, M1)
-{
+                                       const DiracSpinor &Fb) const {
+  // Fa * radial_rhs(Fa.k,Fb) = h.radialIntegral(Fa, Fb)
 
   const auto &gr = *(Fb.rgrid);
-  DiracSpinor dPsi(0, kappa_a, Fb.rgrid);
-  if (isZero(kappa_a, Fb.k))
-    return dPsi;
+  DiracSpinor dF(0, kappa_a, Fb.rgrid);
+  dF.p0 = Fb.p0;
+  dF.pinf = Fb.pinf;
 
-  // Strangeness here to account for possible derivatives
-  // (I am trying to avoid doing a copy when no derivative)
-  // Copy is unavoidable when calcing derivative, but that's rare!
-  const std::vector<double> *rhs_f = &(Fb.f);
-  const std::vector<double> *rhs_g = &(Fb.g);
-  std::unique_ptr<const std::vector<double>> dummy_df = nullptr;
-  std::unique_ptr<const std::vector<double>> dummy_dg = nullptr;
-  if (diff_order > 0) {
-    // rhs_f is either a pointer to F_input, OR (in case of deriv, F')
-    dummy_df = std::make_unique<std::vector<double>>(
-        NumCalc::derivative(Fb.f, gr.drdu, gr.du, diff_order));
-    dummy_dg = std::make_unique<std::vector<double>>(
-        NumCalc::derivative(Fb.g, gr.drdu, gr.du, diff_order));
-    rhs_f = dummy_df.get();
-    rhs_g = dummy_dg.get();
+  if (isZero(kappa_a, Fb.k)) {
+    dF.p0 = Fb.p0;
+    dF.pinf = Fb.p0;
+    return dF;
   }
+
+  const auto &df = (diff_order == 0)
+                       ? Fb.f
+                       : NumCalc::derivative(Fb.f, gr.drdu, gr.du, diff_order);
+  const auto &dg = (diff_order == 0)
+                       ? Fb.g
+                       : NumCalc::derivative(Fb.g, gr.drdu, gr.du, diff_order);
 
   const auto cff = angularCff(kappa_a, Fb.k);
   const auto cgg = angularCgg(kappa_a, Fb.k);
   const auto cfg = angularCfg(kappa_a, Fb.k);
   const auto cgf = angularCgf(kappa_a, Fb.k);
-  for (unsigned i = 0; i < Fb.pinf; i++) {
-    dPsi.f[i] = m_constant * (cff * (*rhs_f)[i] + cfg * (*rhs_g)[i]);
-    dPsi.g[i] = m_constant * (cgf * (*rhs_f)[i] + cgg * (*rhs_g)[i]);
-  }
-  if (!m_vec.empty()) {
-    dPsi *= m_vec;
+
+  if (m_vec.empty()) {
+    for (auto i = Fb.p0; i < Fb.pinf; i++) {
+      dF.f[i] = m_constant * (cff * df[i] + cfg * dg[i]);
+      dF.g[i] = m_constant * (cgf * df[i] + cgg * dg[i]);
+    }
+  } else {
+    for (auto i = Fb.p0; i < Fb.pinf; i++) {
+      dF.f[i] = m_constant * m_vec[i] * (cff * df[i] + cfg * dg[i]);
+      dF.g[i] = m_constant * m_vec[i] * (cgf * df[i] + cgg * dg[i]);
+    }
   }
 
-  return dPsi;
+  return dF;
+}
+
+//******************************************************************************
+double TensorOperator::radialIntegral(const DiracSpinor &Fa,
+                                      const DiracSpinor &Fb) const {
+
+  return Fa * radial_rhs(Fa.k, Fb);
+
+  // const auto &gr = *(Fb.rgrid);
+  // if (isZero(Fa.k, Fb.k))
+  //   return 0.0;
+  //
+  // const auto cff = angularCff(Fa.k, Fb.k);
+  // const auto cgg = angularCgg(Fa.k, Fb.k);
+  // const auto cfg = angularCfg(Fa.k, Fb.k);
+  // const auto cgf = angularCgf(Fa.k, Fb.k);
+  //
+  // auto p0 = std::max(Fa.p0, Fb.p0);
+  // auto pinf = std::min(Fa.pinf, Fb.pinf);
+  // double radint = 0.0;
+  //
+  // // df is either just fb, or dFb/dr
+  // const auto &df = (diff_order == 0)
+  //                      ? Fb.f
+  //                      : NumCalc::derivative(Fb.f, gr.drdu, gr.du,
+  //                      diff_order);
+  // const auto &dg = (diff_order == 0)
+  //                      ? Fb.g
+  //                      : NumCalc::derivative(Fb.g, gr.drdu, gr.du,
+  //                      diff_order);
+  //
+  // if (m_vec.empty()) {
+  //   if (cff != 0.0)
+  //     radint += NumCalc::integrate(cff, p0, pinf, Fa.f, df, gr.drdu);
+  //   if (cfg != 0.0)
+  //     radint += NumCalc::integrate(cfg, p0, pinf, Fa.f, dg, gr.drdu);
+  //   if (cgf != 0.0)
+  //     radint += NumCalc::integrate(cgf, p0, pinf, Fa.g, df, gr.drdu);
+  //   if (cgg != 0.0)
+  //     radint += NumCalc::integrate(cgg, p0, pinf, Fa.g, dg, gr.drdu);
+  // } else {
+  //   if (cff != 0.0)
+  //     radint += NumCalc::integrate(cff, p0, pinf, Fa.f, df, gr.drdu, m_vec);
+  //   if (cfg != 0.0)
+  //     radint += NumCalc::integrate(cfg, p0, pinf, Fa.f, dg, gr.drdu, m_vec);
+  //   if (cgf != 0.0)
+  //     radint += NumCalc::integrate(cgf, p0, pinf, Fa.g, df, gr.drdu, m_vec);
+  //   if (cgg != 0.0)
+  //     radint += NumCalc::integrate(cgg, p0, pinf, Fa.g, dg, gr.drdu, m_vec);
+  // }
+  //
+  // return m_constant * radint * gr.du;
 }
 
 //******************************************************************************

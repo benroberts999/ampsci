@@ -105,7 +105,7 @@ bool HartreeFock(std::ostream &obuff) {
     const std::vector p{236.8, 83.21, 38.60, 20.97, 12.64, 8.192, 5.610, 4.008};
 
     // Generate operator: use exact same parameters as paper:
-    const auto h = DiracOperator::Hyperfine(
+    const auto h = DiracOperator::HyperfineA(
         2.751818, 1.5, 0.0, *wf.rgrid, DiracOperator::Hyperfine::pointlike_F());
 
     // Calculate HFS A constant for each valence state (store s,p seperately)
@@ -132,7 +132,7 @@ bool HartreeFock(std::ostream &obuff) {
     const std::vector p{161.0, 57.65, 27.09, 14.85, 9.002, 5.863, 4.030};
 
     // Use exact same parameters as paper:
-    const auto h = DiracOperator::Hyperfine(
+    const auto h = DiracOperator::HyperfineA(
         2.582025, 3.5, 0.0, *wf.rgrid, DiracOperator::Hyperfine::pointlike_F());
 
     std::vector<double> sme, pme;
@@ -158,7 +158,7 @@ bool HartreeFock(std::ostream &obuff) {
     const std::vector p{628.2, 222.9, 104.4, 57.13, 34.61, 22.53};
 
     // Use exact same parameters as paper:
-    const auto h = DiracOperator::Hyperfine(
+    const auto h = DiracOperator::HyperfineA(
         4.00, 4.5, 0.0, *wf.rgrid, DiracOperator::Hyperfine::pointlike_F());
 
     std::vector<double> sme, pme;

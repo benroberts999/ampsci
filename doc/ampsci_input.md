@@ -347,23 +347,13 @@ options = {
 ```
 
 ```cpp
-operator = Hrad_el; // QED electric part (Euhling+electric SE)
+operator = Hrad; // QED radiative potential
 ```
  * Takes similar arguments as RadPot (except for scale_l and core_qed)
-   * Simple, Ueh, SE_h, SE_l, rcut, scale_rN (but not SE_mag)
+   * Simple, Ueh, SE_h, SE_l, SE_mag, rcut, scale_rN
  * Including RPA should be equivalent to including QED into core HF equations
-   * Note: only rpa_diagram method seems to work
- * Typically used with onlyDiagonal=true, and radialIntegral=true (get energy shifts)
-
-```cpp
-operator = Hrad_mag; // QED magnetic part (magnetic SE form-factor)
-```
- * QED magnetic part (magnetic SE form-factor)
- * Takes similar arguments as RadPot (except for scale_l and core_qed)
-   * SE_mag, rcut, scale_rN (but not Simple, Ueh, SE_h, SE_l,)
- * Including RPA should be equivalent to including QED into core HF equations
-   * Note: only rpa_diagram method seems to work
- * Typically used with onlyDiagonal=true, and radialIntegral=true (get energy shifts)
+   * Note: only diagram/basis method seems to work
+ * Typically used with radialIntegral=true (get energy shifts)
 
 ```cpp
 operator = hfs; // Magnetic dipole hyperfine structure constant A
