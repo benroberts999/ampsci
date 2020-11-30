@@ -7,6 +7,7 @@ class TensorOperator;
 }
 #include "DiracOperator/TensorOperator.hpp"
 
+//! Calculates many-body corrections (RPA) to matrix elements of external field
 namespace ExternalField {
 
 enum class method { TDHF, basis, diagram, none };

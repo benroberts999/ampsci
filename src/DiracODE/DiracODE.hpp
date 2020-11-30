@@ -18,7 +18,7 @@ namespace DiracODE {
 
 //! @brief Solves bound-state problem for local potential (en < 0)
 /*! @details
-\f[ (H_0 + v - \epsilon)\Fa = 0\f]
+\f[ (H_0 + v - \epsilon_a)F_a = 0\f]
 en0 is initial energy guess (must be reasonably good).
 log_eps: log10(eps); eps is convergence target for energy.
 */
@@ -53,7 +53,7 @@ void solveContinuum(DiracSpinor &Fa, const double en,
 
 //! @brief Solves inhomogeneous Dirac equation
 /*! @details
-\f[ (H_0 + v -\epsilon)\Fa = S \f]
+\f[ (H_0 + v -\epsilon_a)F_a = S \f]
 with `source' term, S. Solves for \f$\psi_\kappa\f$ with angular momentum kappa.
 en = \f$\epsilon\f$ is given. Note sign of S.
 Uses Green's method (see Method documentation).
