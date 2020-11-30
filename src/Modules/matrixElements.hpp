@@ -15,6 +15,9 @@ namespace Module {
 //! Calculates matrix elements of any tensor operator, with RPA
 void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf);
 
+//! Used for finding A and b for effective vertex QED operator
+void vertexQED(const IO::UserInputBlock &input, const Wavefunction &wf);
+
 //! Calculates Structure Radiation + Normalisation of States
 /*!
 Note: Most input options are similar to MatrixElements module:
@@ -40,6 +43,7 @@ std::unique_ptr<DiracOperator::TensorOperator>
 generateOperator(const IO::UserInputBlock &input, const Wavefunction &wf,
                  bool print = true);
 
+//! Used to form operator; returns polymorphic pointer to operator
 std::unique_ptr<DiracOperator::TensorOperator>
 generateOperator(std::string_view oper_name, const IO::UserInputBlock &input,
                  const Wavefunction &wf, bool print);

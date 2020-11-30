@@ -36,6 +36,7 @@ static const std::vector<
                 {"HFAnomaly", &HFAnomaly},
                 {"HF_rmag", &HF_rmag},
                 {"pnc", &calculatePNC},
+                {"vertexQED", &vertexQED},
                 {"polarisability", &polarisability},
                 {"testFeynman", &testFeynman},
                 {"matrixElements", &matrixElements},
