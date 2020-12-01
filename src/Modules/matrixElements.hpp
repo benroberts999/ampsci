@@ -55,8 +55,11 @@ std::unique_ptr<DiracOperator::TensorOperator>
 generate_M1(const IO::UserInputBlock &input, const Wavefunction &wf,
             bool print = true);
 std::unique_ptr<DiracOperator::TensorOperator>
-generate_hfs(const IO::UserInputBlock &input, const Wavefunction &wf,
-             bool print = true);
+generate_hfsA(const IO::UserInputBlock &input, const Wavefunction &wf,
+              bool print = true);
+std::unique_ptr<DiracOperator::TensorOperator>
+generate_hfsK(const IO::UserInputBlock &input, const Wavefunction &wf,
+              bool print = true);
 std::unique_ptr<DiracOperator::TensorOperator>
 generate_r(const IO::UserInputBlock &input, const Wavefunction &wf,
            bool print = true);
@@ -72,9 +75,9 @@ const std::vector<
     std::pair<std::string, std::unique_ptr<DiracOperator::TensorOperator> (*)(
                                const IO::UserInputBlock &input,
                                const Wavefunction &wf, bool print)>>
-    operator_list{{"E1", &generate_E1},    {"Ek", &generate_Ek},
-                  {"M1", &generate_M1},    {"hfs", &generate_hfs},
-                  {"r", &generate_r},      {"pnc", &generate_pnc},
-                  {"Hrad", &generate_Hrad}};
+    operator_list{{"E1", &generate_E1},     {"Ek", &generate_Ek},
+                  {"M1", &generate_M1},     {"hfs", &generate_hfsA},
+                  {"hfsK", &generate_hfsK}, {"r", &generate_r},
+                  {"pnc", &generate_pnc},   {"Hrad", &generate_Hrad}};
 
 } // namespace Module

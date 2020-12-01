@@ -509,8 +509,8 @@ generate_M1(const IO::UserInputBlock &input, const Wavefunction &wf, bool) {
 
 //------------------------------------------------------------------------------
 std::unique_ptr<DiracOperator::TensorOperator>
-generate_hfs(const IO::UserInputBlock &input, const Wavefunction &wf,
-             bool print) {
+generate_hfsA(const IO::UserInputBlock &input, const Wavefunction &wf,
+              bool print) {
   using namespace DiracOperator;
   input.checkBlock({"mu", "I", "rrms", "F(r)", "parity", "l", "gl", "mu1",
                     "gl1", "l1", "l2", "I1", "I2", "printF", "screening"});
@@ -534,7 +534,7 @@ generate_hfs(const IO::UserInputBlock &input, const Wavefunction &wf,
   auto Fr = Hyperfine::sphericalBall_F();
   if (Fr_str == "shell")
     Fr = Hyperfine::sphericalShell_F();
-  else if (Fr_str == "pointlike")
+  else if (Fr_str == "pointlike" || Fr_str == "point")
     Fr = Hyperfine::pointlike_F();
   else if (Fr_str == "VolotkaBW") {
     auto pi = input.get("parity", isotope.parity);
@@ -584,8 +584,61 @@ generate_hfs(const IO::UserInputBlock &input, const Wavefunction &wf,
     }
   }
 
-  return std::make_unique<HyperfineA>(
-      HyperfineA(mu, I_nuc, r_nucau, *(wf.rgrid), Fr));
+  return std::make_unique<HyperfineA>(mu, I_nuc, r_nucau, *(wf.rgrid), Fr);
+}
+
+//------------------------------------------------------------------------------
+std::unique_ptr<DiracOperator::TensorOperator>
+generate_hfsK(const IO::UserInputBlock &input, const Wavefunction &wf,
+              bool print) {
+  using namespace DiracOperator;
+
+  bool ok = true;
+  input.checkBlock({"K", "rrms", "F(r)", "gQ"});
+  // gQ is g-factor (for magnetic), quadrupole moment for electric...
+  const auto k = input.get("K", 0);
+  if (k == 0) {
+    std::cout
+        << "\nFAIL 602: Bad K in hfsK: must be >0 (required: 1=hfsA, 2=hfsB)\n";
+    ok = false;
+  }
+
+  const auto gQ = input.get("gQ", 1.0);
+  if (print) {
+    std::cout << "\nHyperfine k=" << k;
+    if (k % 2 == 0) {
+      std::cout << " (electric) ";
+    } else {
+      std::cout << " (magnetic) ";
+    }
+    std::cout << "w/ gQ = " << gQ << "\n";
+  }
+
+  const auto isotope = Nuclear::findIsotopeData(wf.Znuc(), wf.Anuc());
+  const auto r_rmsfm = input.get("rrms", isotope.r_rms);
+  const auto r_nucfm = std::sqrt(5.0 / 3) * r_rmsfm;
+  const auto r_nucau = r_nucfm / PhysConst::aB_fm;
+
+  auto Fr_str = input.get<std::string>("F(r)", "ball");
+  const auto Fr = (Fr_str == "pointlike" || Fr_str == "point")
+                      ? Hyperfine::pointlike_F()
+                      : Fr_str == "shell"
+                            ? Hyperfine::sphericalShell_F()
+                            : Fr_str == "ball" ? Hyperfine::sphericalBall_F()
+                                               : Hyperfine::pointlike_F();
+  if (Fr_str != "ball" && Fr_str != "shell")
+    Fr_str = "pointlike";
+  else
+    std::cout << "Warning: F(r) not correct for k!=1 XXX \n";
+  if (print) {
+    std::cout << "w/ " << Fr_str << " for F(r), r_N = " << r_nucfm << "fm "
+              << " (rrms=" << r_rmsfm << "fm)\n";
+  }
+
+  if (!ok)
+    return std::make_unique<NullOperator>();
+
+  return std::make_unique<HyperfineK>(k, gQ, r_nucau, *wf.rgrid, Fr);
 }
 
 //------------------------------------------------------------------------------

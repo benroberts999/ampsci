@@ -93,6 +93,9 @@ inline std::vector<double> RadialFunc(int k, double rN, const Grid &rgrid,
 //******************************************************************************
 //******************************************************************************
 
+// XXX Make special hfsA and hfsB operators, in terms of A and B coefs,
+// and then general hfsK, just reduced matrix elements?
+
 //******************************************************************************
 //! @brief Magnetic hyperfine operator
 //! @details Note: 'hfs_F' function (magnetization distribtuion) **includes**
@@ -135,10 +138,11 @@ public: // constructor
     return Raa * Fa.k / (Fa.jjp1());
   }
 
-  double de_F(const DiracSpinor &Fa, double jF) const {
-    auto Ahfs = hfsA(Fa); // nb: in MHz
-    return 0.5 * Ahfs * (jF * (jF + 1.0) - Fa.jjp1() - Inuc * (Inuc + 1.0));
-  }
+  // XXX Make this a helper "conversion" function
+  // double de_F(const DiracSpinor &Fa, double jF) const {
+  //   auto Ahfs = hfsA(Fa); // nb: in MHz
+  //   return 0.5 * Ahfs * (jF * (jF + 1.0) - Fa.jjp1() - Inuc * (Inuc + 1.0));
+  // }
 
   double angularCff(int, int) const override final { return 0; }
   double angularCgg(int, int) const override final { return 0; }
@@ -150,9 +154,13 @@ private:
 };
 
 //******************************************************************************
+//! Units: Assumes g in nuc. magneton units (magnetic), and Q in barns
+//! (electric)
 class HyperfineK final : public TensorOperator {
-  using Func_R2_R = std::function<double(double, double)>; // save typing
-public:                                                    // constructor
+  // see Xiao, ..., Derevianko, Phys. Rev. A 102, 022810 (2020).
+  using Func_R2_R = std::function<double(double, double)>;
+
+public:
   HyperfineK(int in_k, double in_GQ, double rN, const Grid &rgrid,
              const Func_R2_R &hfs_F = Hyperfine::sphericalBall_F())
       : TensorOperator(in_k, Parity::even, in_GQ,
@@ -169,7 +177,16 @@ public:                                                    // constructor
   std::string units() const override final { return "MHz"; }
 
   double angularF(const int ka, const int kb) const override final {
-    return (ka + kb) * Angular::Ck_kk(1, -ka, kb);
+    // inludes unit: Assumes g in nuc. magneton units, and/or Q in barns
+    return magnetic
+               ? (ka + kb) * Angular::Ck_kk(k, -ka, kb) * PhysConst::muN_CGS_MHz
+               : -Angular::Ck_kk(k, ka, kb) * PhysConst::barn_MHz;
+
+    // // For 'A' and 'B' constants:
+    // auto j = Angular::j_k(kb);
+    // return magnetic ? 0.5 * (ka + kb) / (j * (j + 1.0)) *
+    // PhysConst::muN_CGS_MHz
+    //                 : (2 * j - 1.0) / (2 * j + 2.0) * PhysConst::barn_MHz;
   }
 
   double angularCff(int, int) const override final { return cff; }
