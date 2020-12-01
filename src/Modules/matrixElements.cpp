@@ -406,7 +406,7 @@ void calculateLifetimes(const IO::UserInputBlock &input,
         Gamma += g_n * alpha2;
         std::cout << "  E2 --> " << Fn.symbol() << ": ";
         printf("w=%7.5f, |q|=%7.5f, g=%10.4eau\n", w, std::abs(d),
-               g_n * alpha3);
+               g_n * alpha3 * alpha2);
       }
     }
 
