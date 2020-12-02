@@ -183,6 +183,85 @@ void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf) {
 }
 
 //****************************************************************************
+// Used for finding A and b for effective vertex QED operator
+void vertexQED(const IO::UserInputBlock &input, const Wavefunction &wf) {
+
+  // Check input options for spelling mistakes etc.:
+  input.checkBlock({"options", "A_vertex", "b_vertex"});
+
+  std::cout << "\n"
+            << "vertexQED module\n"
+            << "Solve new wavefunction, without QED:\n";
+
+  // Note: 'wf' should include QED (for perturbed orbitals)
+  // This is the wavefunction calculated in the main routine
+  // Note: As of now, this ONLY works for H-like systems
+  // (can be easily updated in future for general case)
+
+  // Double-check wf is H-like (i.e., has no 'core' states)
+  if (!wf.core.empty()) {
+    std::cout << "Note: only works for H-like systems!\n";
+    return;
+  }
+
+  // New wavefunction, but without QED, using same parameters as original
+  Wavefunction wf0(wf.rgrid->params(), wf.get_nuclearParameters());
+  // Solve for same valence states (but, without QED)
+  // note: This would be editted to allow for HartreeFock (non-H-like systems)
+  wf0.localValence(DiracSpinor::state_config(wf.valence));
+  // print the new valence energies to screen:
+  wf0.printValence();
+
+  // Generate the hyperfine structure operator (use "generate_hfs" function)
+  // 'h' is the hyperfine operator (without QED);
+  // nb: for now, just hyperfine. Can change easily to work for any operator
+  const auto hfs_options =
+      IO::UserInputBlock("hfs", input.get<std::string>("options", ""));
+  const auto h = generate_hfsA(hfs_options, wf, true);
+
+  // Form the vertex QED operator, called "hVertexQED":
+  const auto A_x = input.get("A_vertex", 1.0);
+  const auto b_x = input.get("b_vertex", 1.0);
+  const DiracOperator::VertexQED hVertexQED(h.get(), *wf.rgrid, A_x, b_x);
+
+  std::cout << "\nIncluding effective vertex QED with: A=" << A_x
+            << ", b=" << b_x << "\n";
+
+  std::cout
+      << "\nState,           A0,         A_po,     A_vertex,     A_QED/A0\n";
+  // Loop through each valence state, and calculate various QED corrections:
+  for (const auto &Fv : wf.valence) {
+
+    // Factor to convert "reduced matrix element" to "hyperfine constant A"
+    //(note: cancels in ratio)
+    const auto a = DiracOperator::HyperfineA::convertRMEtoA(Fv, Fv);
+
+    // Find corresponding state without QED: (can't assume in same order)
+    const auto &Fv0 = *wf0.getState(Fv.n, Fv.k);
+
+    // Zeroth-order A (no QED)
+    const auto A0 = h->reducedME(Fv0, Fv0) * a;
+
+    // Including perturbed orbital QED:
+    // (subtract A0 to get just PO contribution)
+    // nb: this is the part we need high-precission for, since A and A0 are
+    // similar in magnitude
+    const auto A_po = h->reducedME(Fv, Fv) * a - A0;
+
+    // Just the vertex part:
+    const auto A_vertex = hVertexQED.reducedME(Fv, Fv) * a;
+
+    // And the ratio of total QED to zeroth-order
+    // NOTE: I think this is NOT actually what you want!! Just an example!
+    const auto QED_ratio = (A_po + A_vertex) / A0;
+
+    // nb: insead of printf, you can directly write to a file
+    printf(" %4s, %12.5e, %12.5e, %12.5e, %12.5e\n", Fv.shortSymbol().c_str(),
+           A0, A_po, A_vertex, QED_ratio);
+  }
+}
+
+//****************************************************************************
 // Calculates Structure Radiation + Normalisation of States
 void structureRad(const IO::UserInputBlock &input, const Wavefunction &wf) {
 
