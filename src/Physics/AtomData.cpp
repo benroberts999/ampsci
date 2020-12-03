@@ -212,32 +212,34 @@ std::vector<NonRelSEConfig> core_parser(const std::string &str_core_in) {
   std::string each;
   while (std::getline(ss, each, ',')) {
     if (first) {
+      first = false;
       auto str_core = coreConfig(each);
       if (str_core != each) {
         state_parser(&core, str_core);
+        continue;
       } else {
         auto z = get_z(each);
-        if (z != 0)
+        if (z != 0) {
           core = core_guess(z);
+          continue;
+        }
       }
-      first = false;
+    }
+    auto new_config = term_parser(each);
+
+    // Check if valid:
+    if (new_config.n <= 0) {
+      std::cout << "Problem with core: " << str_core_in << "\n";
+      std::cout << "invalid core term: " << each << "\n";
+      std::abort();
+    }
+
+    // If nl term already exists, add to num. Otherwise, add new term
+    auto ia = std::find(core.begin(), core.end(), new_config);
+    if (ia == core.end()) {
+      core.push_back(new_config);
     } else {
-      auto new_config = term_parser(each);
-
-      // Check if valid:
-      if (new_config.n <= 0) {
-        std::cout << "Problem with core: " << str_core_in << "\n";
-        std::cout << "invalid core term: " << each << "\n";
-        std::abort();
-      }
-
-      // If nl term already exists, add to num. Otherwise, add new term
-      auto ia = std::find(core.begin(), core.end(), new_config);
-      if (ia == core.end()) {
-        core.push_back(new_config);
-      } else {
-        *ia += new_config;
-      }
+      *ia += new_config;
     }
   }
 
