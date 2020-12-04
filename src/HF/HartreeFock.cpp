@@ -369,7 +369,7 @@ void HartreeFock::solveBrueckner(std::vector<DiracSpinor> *valence,
     return;
 
   if (print) {
-    std::cout << "\nSolving for Brueckner orbitals (correlation potential)\n";
+    std::cout << "Solving for Brueckner orbitals (correlation potential)\n";
     Sigma2.print_scaling();
   }
   for (auto &Fv : *valence) {

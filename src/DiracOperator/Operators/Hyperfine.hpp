@@ -109,8 +109,9 @@ public: // constructor
              const Func_R2_R &hfs_F = Hyperfine::sphericalBall_F())
       : TensorOperator(1, Parity::even,
                        IN != 0.0 ? muN * PhysConst::muN_CGS_MHz / IN : 0.0,
-                       Hyperfine::RadialFunc(1, rN, rgrid, hfs_F), 0),
-        Inuc(IN) {
+                       Hyperfine::RadialFunc(1, rN, rgrid, hfs_F), 0)
+  // , Inuc(IN)
+  {
     if (IN == 0.0) {
       std::cout << "\nWarning: I=0 in Hyperfine operator; Setting gI to zero\n";
     }
@@ -150,7 +151,7 @@ public: // constructor
   double angularCgf(int, int) const override final { return 1.0; }
 
 private:
-  double Inuc;
+  // double Inuc;
 };
 
 //******************************************************************************
@@ -167,7 +168,7 @@ public:
                        Hyperfine::RadialFunc(in_k, rN, rgrid, hfs_F), 0),
         k(in_k),
         magnetic(k % 2 != 0),
-        gQ(in_GQ),
+        // gQ(in_GQ),
         cfg(magnetic ? 1.0 : 0.0),
         cff(magnetic ? 0.0 : 1.0) {}
 
@@ -197,7 +198,7 @@ public:
 private:
   int k;
   bool magnetic;
-  double gQ;
+  // double gQ;
   double cfg;
   double cff;
 };

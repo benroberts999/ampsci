@@ -300,6 +300,7 @@ int main(int argc, char *argv[]) {
 
   // Solve Brueckner orbitals (optionally, fit Sigma to exp energies)
   if (!wf.valence.empty() && do_brueckner && Sigma_ok) {
+    std::cout << "\n";
     IO::ChronoTimer t("Br");
     if (!fit_energies.empty())
       wf.fitSigma_hfBrueckner(valence_list, fit_energies);

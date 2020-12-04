@@ -182,14 +182,16 @@ public: // const methods: "views" into WF object
   std::vector<double> coreDensity() const;
 
   //! Performs hartree-Fock procedure for core: note: poplulates core
-  void hartreeFockCore(const std::string &method, const double x_Breit,
-                       const std::string &in_core, double eps_HF = 0);
+  void hartreeFockCore(const std::string &method = "HartreeFock",
+                       const double x_Breit = 0.0,
+                       const std::string &in_core = "", double eps_HF = 0,
+                       bool print = true);
 
   //! Calculates HF core energy (doesn't include magnetic QED?)
   auto coreEnergyHF() const;
 
   //! Performs hartree-Fock procedure for valence: note: poplulates valnece
-  void hartreeFockValence(const std::string &in_valence_str,
+  void hartreeFockValence(const std::string &in_valence_str = "",
                           const bool print = true);
   //! Solves new local valence (e.g., Kohn-Sham): note: poplulates valence
   void localValence(const std::string &in_valence_str, bool list_each = false);

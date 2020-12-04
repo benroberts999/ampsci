@@ -5,6 +5,7 @@
 #include "Modules/HFAnomaly.hpp"
 #include "Modules/exampleModule.hpp"
 #include "Modules/fitParametric.hpp"
+#include "Modules/isotopeShift.hpp"
 #include "Modules/matrixElements.hpp"
 #include "Modules/pnc.hpp"
 #include "Modules/polarisability.hpp"
@@ -43,6 +44,7 @@ static const std::vector<
                 {"lifetimes", &calculateLifetimes},
                 {"structureRad", &structureRad},
                 {"screeningFactors", &screeningFactors},
+                {"fieldShift", &fieldShift},
                 {"exampleModule", &exampleModule}};
 
 } // namespace Module
