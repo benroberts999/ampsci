@@ -5,6 +5,7 @@
 #include "MBPT/GreenMatrix.hpp"
 #include "Physics/AtomData.hpp" //DiracSEnken
 #include "Wavefunction/DiracSpinor.hpp"
+#include <cassert>
 #include <vector>
 class Grid;
 namespace HF {
@@ -83,7 +84,9 @@ protected:
 
   // Try to "undelete" these??
   CorrelationPotential &operator=(const CorrelationPotential &) = delete;
-  CorrelationPotential(const CorrelationPotential &) = delete;
+
+public:
+  CorrelationPotential(const CorrelationPotential &) = default;
 
 public:
   virtual ~CorrelationPotential() = default;
@@ -93,7 +96,12 @@ public:
   // n may be zero (means)
   // This should be virtual?
   // nb: should do nothing if sigma already exists??
-  virtual void formSigma(int kappa, double en, int n = 0) = 0;
+  virtual void formSigma(int kappa, double en, int n = 0) {
+    (void)kappa;
+    (void)en;
+    (void)n; // don't warn on unsused, want named
+    assert(false && "Cannot call formSigma on copied CorrelationPotential!");
+  };
 
   const GMatrix *getSigma(int n, int kappa) const;
 

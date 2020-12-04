@@ -802,12 +802,13 @@ void Wavefunction::formSigma(
 
 //******************************************************************************
 void Wavefunction::hartreeFockBrueckner(const bool print) {
-  if (!m_pHF || !m_Sigma) {
+  if (!m_pHF) {
     std::cerr << "WARNING 62: Cant call hartreeFockValence before "
                  "hartreeFockCore\n";
     return;
   }
-  m_pHF->solveBrueckner(&valence, *(m_Sigma.get()), print);
+  if (m_Sigma)
+    m_pHF->solveBrueckner(&valence, *(m_Sigma.get()), print);
 }
 
 //******************************************************************************

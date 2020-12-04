@@ -31,8 +31,10 @@ public:
   YkTable(std::shared_ptr<const Grid> in_grid,
           const std::vector<DiracSpinor> *const in_a_orbs,
           const std::vector<DiracSpinor> *const in_b_orbs = nullptr);
+
   YkTable &operator=(const YkTable &) = delete;
-  YkTable(const YkTable &) = delete;
+  YkTable(const YkTable &other) = default;
+
   ~YkTable() = default;
 
 private:

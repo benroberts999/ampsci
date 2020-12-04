@@ -227,6 +227,10 @@ public: // const methods: "views" into WF object
                  const bool GreenBasis = false, const bool PolBasis = false,
                  const double omre = -0.2, double w0 = 0.01,
                  double wratio = 1.5);
+  void copySigma(const MBPT::CorrelationPotential *const Sigma) {
+    if (Sigma != nullptr)
+      m_Sigma = std::make_unique<MBPT::CorrelationPotential>(*Sigma);
+  }
 
   //! @brief Solves Dirac bound state problem, with optional 'extra' potential
   //! log_eps is log_10(convergence_target).
