@@ -32,12 +32,10 @@ jobs:
       run: make clean && make CXX=clang++-6.0 UseOpenMP=no
 
     - name: Build ampsci (clang++ v:7)
-      run: make clean && make CXX=clang++-7
+      run: make clean && make CXX=clang++-7 UseOpenMP=no
 
     - name: Build ampsci (clang++ v:9, no openMP)
       run: make clean && make CXX=clang++-9 UseOpenMP=no
 
-    - name: Build ampsci (clang++ v:9, release)
-      run: make clean && make CXX=clang++-9
     - name: Run ampsci (clang++)
       run: ./ampsci
