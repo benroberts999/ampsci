@@ -28,8 +28,8 @@ jobs:
     - name: Run ampsci (g++)
       run: ./ampsci
 
-    - name: Build ampsci (clang++ v:6)
-      run: make clean && make CXX=clang++-6.0
+    - name: Build ampsci (clang++ v:6, no openMP)
+      run: make clean && make CXX=clang++-6.0 UseOpenMP=no
 
     - name: Build ampsci (clang++ v:7)
       run: make clean && make CXX=clang++-7
