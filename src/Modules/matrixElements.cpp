@@ -154,6 +154,21 @@ void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf) {
     }
   }
 
+  // Calculate Magnetic Loop VP
+  std::unique_ptr<DiracOperator::MLVP> MLVP = nullptr;
+  MLVP = std::make_unique<DiracOperator::MLVP>(h.get(), *wf.rgrid);
+    for (const auto &Fb : wf.valence) {
+      for (const auto &Fa : wf.valence) { // Special case: HFS A:
+        const auto a = AhfsQ ? DiracOperator::HyperfineA::convertRMEtoA(Fa, Fb)
+                             : radial_int ? 1.0 / h->angularF(Fa.k, Fb.k) : 1.0;
+        printf("   MLVP contrib: ");
+        printf("%13.6e \n", MLVP->reducedME(Fa, Fb) * a);
+        // Add RPA? Might be important?
+      }
+    }
+
+
+
   // XXX Make this its own module! XXX
   // Vertex QED term:
   std::unique_ptr<DiracOperator::VertexQED> hVertexQED = nullptr;
