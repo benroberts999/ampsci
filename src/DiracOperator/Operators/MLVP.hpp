@@ -90,20 +90,21 @@ public:
 
     // variables needed for gsl
     static constexpr double abs_err_lim = 0.0;
-    static constexpr double rel_err_lim = 1.0e-10;
-    static constexpr unsigned long max_num_subintvls = 1750; //?
+    static constexpr double rel_err_lim = 1.0e-8;
+    static constexpr unsigned long max_num_subintvls = 750; //?
     gsl_set_error_handler_off(); //?
 
-    // compute the integral in parallel
+    // allocate the memory for required variables
+    double int_result = 0;
+    double abs_err = 0;
+    
+    // compute the integral at each radial grid point
     for (auto i = 0ul; i < rgrid.num_points; ++i) {
       
-      // allocate the memory for required variables
-      double *int_result = (double*) malloc(sizeof(double));
-      double *abs_err = (double*) malloc(sizeof(double));
       
       // seems to diverge if not set to zero? 
-      *int_result = 0.0;
-      *abs_err = 0.0;
+      int_result = 0.0;
+      abs_err = 0.0;
 
 
       MLVP_params params = {rgrid.r[i], rN}; // get the point on the radial grid
@@ -118,15 +119,12 @@ public:
           gsl_integration_workspace_alloc(max_num_subintvls + 1);
 
       gsl_integration_qagiu(&f_gsl, 1.0, abs_err_lim, rel_err_lim,
-                            max_num_subintvls, gsl_int_wrk, int_result, abs_err);
+                            max_num_subintvls, gsl_int_wrk, &int_result, &abs_err);
       gsl_integration_workspace_free(gsl_int_wrk);
 
       // multiply the operator
-      v[i] *= *int_result;
+      v[i] *= int_result;
     
-      // free the memory
-      free(int_result);
-      free(abs_err);
     }
     return v;
   }
