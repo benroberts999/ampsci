@@ -7,17 +7,29 @@
 #include <gsl/gsl_sf_expint.h>
 #include <iostream>
 
+// struct to pass the parameters to the GSL function
+struct MLVP_params {
+    // simple struct that only stores current point on the radial grid and the nuclear radius
+    double r, rN;
+};
+
 // added magnetic loop function outside the name space
+// Note that this is ball nuclear magnetisation MLVP function which multiplies 1/r**2
+// hence has to be executed with "pointlike" F(r)
 inline double gslfunc_ML_added(double t, void *p) {
-    const auto r =  *(static_cast<double *>(p)); // get the value of r from outside
-    
-    // form the integrant
-    double factor = 2.0/3.0*PhysConst::alpha/M_PI;
-    double a = std::sqrt(1.0-0.5/(t*t));
-    double b = (1.0+0.5/(t*t))*1.0/t;
-    double c = std::exp(-2.0*r*t/PhysConst::alpha)*(2.0*r*t/PhysConst::alpha+1.0);
-    
-    return factor*a*b*c;
+
+    // obtain the radial grid parameters and convert to relativistic units
+    auto [r, r_N] = *(static_cast<MLVP_params *>(p));
+    r = r/PhysConst::alpha;
+    r_N = r_N/PhysConst::alpha;
+
+    // form the integrand (all calculations are preformed in relativistic units)
+    double prefactor = 2./3.*PhysConst::alpha/M_PI*3./(16.*r_N*r_N*r_N);
+    double t_part = std::sqrt(t*t-1.)/(t*t*t)*(1.+1./(2.*t*t));
+    double plus_r = (4.*r*r_N+2./t*(r_N+r)+1./(t*t))*std::exp(-2.*t*(r+r_N)); 
+    double minus_r = (4.*r*r_N-2./t*std::fabs(r_N-r)-1./(t*t))*std::exp(-2.*t*std::fabs(r_N-r));  
+ 
+    return prefactor*t_part*(plus_r+minus_r);
 
 }
 
@@ -27,10 +39,10 @@ namespace DiracOperator {
 class MLVP final : public TensorOperator {
 
 public: // constructor
-  MLVP(const TensorOperator *const h0, const Grid &rgrid)
+  MLVP(const TensorOperator *const h0, const Grid &rgrid, double rN)
       : TensorOperator(
             h0->rank(), h0->parity() == 1 ? Parity::even : Parity::odd,
-            h0->getc(), MLVP_func(rgrid, h0->getv()), h0->get_d_order(),
+            h0->getc(), MLVP_func(rgrid, rN, h0->getv()), h0->get_d_order(),
             h0->imaginaryQ() ? Realness::imaginary : Realness::real,
             h0->freqDependantQ),
         m_h0(h0)
@@ -67,7 +79,7 @@ private:
   const TensorOperator *const m_h0;
 
 public:
-  static std::vector<double> MLVP_func(const Grid &rgrid, std::vector<double> v = {}) {
+  static std::vector<double> MLVP_func(const Grid &rgrid, double rN, std::vector<double> v = {}) {
 
     const double a0 = PhysConst::alpha;
     if (v.empty()) {
@@ -83,11 +95,9 @@ public:
     gsl_set_error_handler_off(); //?
 
     // compute the integral in parallel
-    #pragma omp parallel for
     for (auto i = 0ul; i < rgrid.num_points; ++i) {
       
       // allocate the memory for required variables
-      double *r_val = (double*) malloc(sizeof(double));
       double *int_result = (double*) malloc(sizeof(double));
       double *abs_err = (double*) malloc(sizeof(double));
       
@@ -96,12 +106,12 @@ public:
       *abs_err = 0.0;
 
 
-      *r_val = rgrid.r[i]; // get the point on the radial grid
+      MLVP_params params = {rgrid.r[i], rN}; // get the point on the radial grid
       
       // intialise gsl
       gsl_function f_gsl;
       f_gsl.function = &gslfunc_ML_added; // trying to declate gsl_function
-      f_gsl.params = r_val;
+      f_gsl.params = &params;
       
       // integrate using gsl
       gsl_integration_workspace *gsl_int_wrk =
@@ -117,8 +127,7 @@ public:
       // free the memory
       free(int_result);
       free(abs_err);
-      free(r_val);  
-  }
+    }
     return v;
   }
 };
