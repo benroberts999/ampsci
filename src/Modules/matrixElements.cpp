@@ -64,6 +64,13 @@ void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf) {
   const bool eachFreqQ = str_om == "each" || str_om == "Each";
   const auto omega = eachFreqQ ? 0.0 : input.get("omega", 0.0);
 
+  std::unique_ptr<DiracOperator::MLVP> MLVP = nullptr;
+  auto isotope = Nuclear::findIsotopeData(wf.Znuc(), wf.Anuc());
+  auto r_rmsfm = input.get("rrms", isotope.r_rms);
+  auto r_nucfm = std::sqrt(5. / 3) * r_rmsfm;
+  auto r_nucau = r_nucfm / PhysConst::aB_fm;
+  MLVP = std::make_unique<DiracOperator::MLVP>(h.get(), *wf.rgrid, r_nucau);
+  
   if ((h->parity() == 1) && rpa_method == ExternalField::method::TDHF) {
     std::cout << "\n\n*CAUTION*:\n RPA (TDHF method) may not work for this "
                  "operator.\n Consider using diagram or basis method\n\n";
@@ -151,8 +158,13 @@ void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf) {
         printf(" %13.6e  %13.6e\n", (h->reducedME(Fa, Fb) + dV0) * a,
                (h->reducedME(Fa, Fb) + dV) * a);
       }
+
+        printf("   MLVP contrib: ");
+        printf("%13.6e \n", MLVP->reducedME(Fa, Fb) * a);
     }
   }
+
+
 
   // XXX Make this its own module! XXX
   // Vertex QED term:
