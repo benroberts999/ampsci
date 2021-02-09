@@ -15,8 +15,11 @@ namespace Module {
 //! Calculates matrix elements of any tensor operator, with RPA
 void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf);
 
-//! Used for finding A and b for effective vertex QED operator
 void vertexQED(const IO::UserInputBlock &input, const Wavefunction &wf);
+
+//! Used for finding A and b for effective vertex QED operator
+void hyperfine_vertex_test(const IO::UserInputBlock &input,
+                           const Wavefunction &wf);
 
 //! Calculates Structure Radiation + Normalisation of States
 /*!

@@ -8,7 +8,7 @@ namespace qip {
 //! Returns a formatted std::string, with formatting printf-like commands. Note:
 //! maximum string lenth is 80 characters. If longer string required, use
 //! provided overload
-std::string fstring(const std::string format, ...) {
+inline std::string fstring(const std::string format, ...) {
   constexpr std::size_t size = 80;
   std::string fmt_str;
   fmt_str.resize(size + 1); // allow for null
@@ -28,7 +28,8 @@ std::string fstring(const std::string format, ...) {
 }
 
 //! Overload: size is maximum string length (buffer size).
-std::string fstring(const std::size_t size, const std::string format, ...) {
+inline std::string fstring(const std::size_t size, const std::string format,
+                           ...) {
   // nb: cannot just call other overload, since using c-style variadic function
   // (I think?) - so a copy-paste re-implementation
   std::string fmt_str;
