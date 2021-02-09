@@ -38,6 +38,7 @@ static const std::vector<
                 {"HF_rmag", &HF_rmag},
                 {"pnc", &calculatePNC},
                 {"vertexQED", &vertexQED},
+                {"hyperfine_vertex_test", &hyperfine_vertex_test},
                 {"polarisability", &polarisability},
                 {"testFeynman", &testFeynman},
                 {"matrixElements", &matrixElements},

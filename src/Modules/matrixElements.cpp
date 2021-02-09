@@ -26,8 +26,7 @@ namespace Module {
 void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf) {
 
   input.checkBlock({"operator", "options", "rpa", "omega", "radialIntegral",
-                    "printBoth", "onlyDiagonal", "units", "A_vertex",
-                    "b_vertex"});
+                    "printBoth", "onlyDiagonal", "units"});
 
   const auto oper = input.get<std::string>("operator", "");
   const auto h_options =
@@ -50,13 +49,15 @@ void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf) {
   const bool diagonal_only = input.get("onlyDiagonal", false);
 
   const auto rpa_method_str = input.get("rpa", std::string("TDHF"));
-  const auto rpa_method = (rpa_method_str == "TDHF" || rpa_method_str == "true")
-                              ? ExternalField::method::TDHF
-                              : (rpa_method_str == "basis")
-                                    ? ExternalField::method::basis
-                                    : (rpa_method_str == "diagram")
-                                          ? ExternalField::method::diagram
-                                          : ExternalField::method::none;
+  auto rpa_method = (rpa_method_str == "TDHF" || rpa_method_str == "true")
+                        ? ExternalField::method::TDHF
+                        : (rpa_method_str == "basis")
+                              ? ExternalField::method::basis
+                              : (rpa_method_str == "diagram")
+                                    ? ExternalField::method::diagram
+                                    : ExternalField::method::none;
+  if (wf.core.empty())
+    rpa_method = ExternalField::method::none;
   const auto rpaQ = rpa_method != ExternalField::method::none;
   const auto rpaDQ = rpa_method == ExternalField::method::diagram;
 
@@ -64,13 +65,6 @@ void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf) {
   const bool eachFreqQ = str_om == "each" || str_om == "Each";
   const auto omega = eachFreqQ ? 0.0 : input.get("omega", 0.0);
 
-  std::unique_ptr<DiracOperator::MLVP> MLVP = nullptr;
-  auto isotope = Nuclear::findIsotopeData(wf.Znuc(), wf.Anuc());
-  auto r_rmsfm = input.get("rrms", isotope.r_rms);
-  auto r_nucfm = std::sqrt(5. / 3) * r_rmsfm;
-  auto r_nucau = r_nucfm / PhysConst::aB_fm;
-  MLVP = std::make_unique<DiracOperator::MLVP>(h.get(), *wf.rgrid, r_nucau);
-  
   if ((h->parity() == 1) && rpa_method == ExternalField::method::TDHF) {
     std::cout << "\n\n*CAUTION*:\n RPA (TDHF method) may not work for this "
                  "operator.\n Consider using diagram or basis method\n\n";
@@ -158,51 +152,87 @@ void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf) {
         printf(" %13.6e  %13.6e\n", (h->reducedME(Fa, Fb) + dV0) * a,
                (h->reducedME(Fa, Fb) + dV) * a);
       }
-
-        printf("   MLVP contrib: ");
-        printf("%13.6e \n", MLVP->reducedME(Fa, Fb) * a);
     }
   }
+}
 
+//****************************************************************************
+void vertexQED(const IO::UserInputBlock &input, const Wavefunction &wf) {
 
+  input.checkBlock(
+      {"operator", "options", "rrms", "onlyDiagonal", "A_vertex", "b_vertex"});
 
-  // XXX Make this its own module! XXX
+  const auto oper = input.get<std::string>("operator", "");
+  const auto h_options =
+      IO::UserInputBlock(oper, input.get<std::string>("options", ""));
+  const auto h = generateOperator(oper, h_options, wf, true);
+
+  const bool radial_int = input.get("radialIntegral", false);
+
+  // spacial case: HFS A (MHz)
+  const bool AhfsQ = (oper == "hfs" && !radial_int);
+
+  const auto which_str =
+      radial_int ? " (radial integral)." : AhfsQ ? " A (MHz)." : " (reduced).";
+
+  std::cout << "\n"
+            << input.name() << which_str << " Operator: " << h->name() << "\n";
+  std::cout << "Units: " << h->units() << "\n";
+
+  // const bool print_both = input.get("printBoth", false);
+  const bool diagonal_only = input.get("onlyDiagonal", false);
+
+  const auto isotope = Nuclear::findIsotopeData(wf.Znuc(), wf.Anuc());
+  const auto r_rmsfm = input.get("rrms", isotope.r_rms);
+  const auto r_nucfm = std::sqrt(5.0 / 3.0) * r_rmsfm;
+  const auto r_nucau = r_nucfm / PhysConst::aB_fm;
+  const auto h_MLVP =
+      std::make_unique<DiracOperator::MLVP>(h.get(), *wf.rgrid, r_nucau);
+
   // Vertex QED term:
-  std::unique_ptr<DiracOperator::VertexQED> hVertexQED = nullptr;
-  const auto A_vertex = input.get("A_vertex", 0.0);
+  const auto A_vertex = input.get("A_vertex", 1.0);
+  const auto b_vertex = input.get("b_vertex", 1.0);
+  const auto hVertexQED = std::make_unique<DiracOperator::VertexQED>(
+      h.get(), *wf.rgrid, A_vertex, b_vertex);
   if (A_vertex != 0.0) {
-    const auto b_vertex = input.get("b_vertex", 1.0);
-    std::cout << "Including effective vertex QED with: A=" << A_vertex
+    std::cout << "Including effective vertex (SE) QED with: A=" << A_vertex
               << ", b=" << b_vertex << "\n";
-    hVertexQED = std::make_unique<DiracOperator::VertexQED>(h.get(), *wf.rgrid,
-                                                            A_vertex, b_vertex);
   }
 
-  // XXX Make its own module!
-  if (hVertexQED) {
-    std::cout << "\n";
-    // Add RPA? Might be important?
-    for (const auto &Fb : wf.valence) {
-      for (const auto &Fa : wf.valence) { // Special case: HFS A:
-        const auto a = AhfsQ ? DiracOperator::HyperfineA::convertRMEtoA(Fa, Fb)
-                             : radial_int ? 1.0 / h->angularF(Fa.k, Fb.k) : 1.0;
-        printf("   QED vertex: ");
-        printf("%13.6e \n", hVertexQED->reducedME(Fa, Fb) * a);
-        // Add RPA? Might be important?
-      }
+  std::cout << "\n";
+  std::cout << "State     :    <h_0>         SE_vertex     MLVP\n";
+  for (const auto &Fb : wf.valence) {
+    for (const auto &Fa : wf.valence) { // Special case: HFS A:
+      const auto a = AhfsQ ? DiracOperator::HyperfineA::convertRMEtoA(Fa, Fb)
+                           : radial_int ? 1.0 / h->angularF(Fa.k, Fb.k) : 1.0;
+
+      if (h->isZero(Fa.k, Fb.k))
+        continue;
+      if (diagonal_only && Fb != Fa)
+        continue;
+      if (Fb > Fa)
+        continue;
+
+      printf("%4s %4s : ", Fb.shortSymbol().c_str(), Fa.shortSymbol().c_str());
+      const auto h0 = h->reducedME(Fa, Fb) * a;
+      const auto se_vtx = hVertexQED->reducedME(Fa, Fb) * a;
+      const auto mlvp = h_MLVP->reducedME(Fa, Fb) * a;
+      printf("%13.6e %13.6e %13.6e\n", h0, se_vtx, mlvp);
+      // Add RPA? Might be important?
     }
   }
 }
 
 //****************************************************************************
 // Used for finding A and b for effective vertex QED operator
-void vertexQED(const IO::UserInputBlock &input, const Wavefunction &wf) {
+void hyperfine_vertex_test(const IO::UserInputBlock &input,
+                           const Wavefunction &wf) {
 
   // Check input options for spelling mistakes etc.:
-  input.checkBlock({"options", "A_vertex", "b_vertex"});
+  input.checkBlock({"options", "A_vertex", "b_vertex", "rrms"});
 
   std::cout << "\n"
-            << "vertexQED module\n"
+            << "vertex QED corrections to hyperfine: Test + fit\n"
             << "Solve new wavefunction, without QED:\n";
 
   // Note: 'wf' should include QED (for perturbed orbitals)
@@ -216,11 +246,27 @@ void vertexQED(const IO::UserInputBlock &input, const Wavefunction &wf) {
     return;
   }
 
+  const auto isotope = Nuclear::findIsotopeData(wf.Znuc(), wf.Anuc());
+  const auto r_rmsfm0 = input.get("rrms", isotope.r_rms);
+  const auto r_rmsfm = input.get("r_rms", r_rmsfm0);
+  const auto r_nucfm = std::sqrt(5.0 / 3.0) * r_rmsfm;
+  const auto r_nucau = r_nucfm / PhysConst::aB_fm;
+
+  const auto scale_rN = r_rmsfm / r_rmsfm0;
+
   // New wavefunction, but without QED, using same parameters as original
   Wavefunction wf0(wf.rgrid->params(), wf.get_nuclearParameters());
+  Wavefunction wf_VP(wf.rgrid->params(), wf.get_nuclearParameters());
+  Wavefunction wf_SE(wf.rgrid->params(), wf.get_nuclearParameters());
+
+  wf_VP.radiativePotential(0.0, 1.0, 0.0, 0.0, 0.0, 5.0, scale_rN, {1.0});
+  wf_SE.radiativePotential(0.0, 0.0, 1.0, 1.0, 1.0, 5.0, scale_rN, {1.0});
+
   // Solve for same valence states (but, without QED)
   // note: This would be editted to allow for HartreeFock (non-H-like systems)
   wf0.localValence(DiracSpinor::state_config(wf.valence));
+  wf_VP.localValence(DiracSpinor::state_config(wf.valence));
+  wf_SE.localValence(DiracSpinor::state_config(wf.valence));
   // print the new valence energies to screen:
   wf0.printValence();
 
@@ -235,41 +281,50 @@ void vertexQED(const IO::UserInputBlock &input, const Wavefunction &wf) {
   const auto A_x = input.get("A_vertex", 1.0);
   const auto b_x = input.get("b_vertex", 1.0);
   const DiracOperator::VertexQED hVertexQED(h.get(), *wf.rgrid, A_x, b_x);
+  const auto h_MLVP = DiracOperator::MLVP(h.get(), *wf.rgrid, r_nucau);
 
   std::cout << "\nIncluding effective vertex QED with: A=" << A_x
             << ", b=" << b_x << "\n";
 
-  std::cout
-      << "\nState,           A0,         A_po,     A_vertex,     A_QED/A0\n";
+  std::cout << wf0.atom() << " " << wf0.nuclearParams() << "\n";
+  std::cout << "(All given as fraction of A0)\n";
+  std::cout << "State     A0            PO(VP)        PO(SE)        Vertex(SE) "
+               "   MLVP\n";
   // Loop through each valence state, and calculate various QED corrections:
-  for (const auto &Fv : wf.valence) {
+  for (const auto &Fv : wf0.valence) {
 
     // Factor to convert "reduced matrix element" to "hyperfine constant A"
     //(note: cancels in ratio)
     const auto a = DiracOperator::HyperfineA::convertRMEtoA(Fv, Fv);
 
     // Find corresponding state without QED: (can't assume in same order)
-    const auto &Fv0 = *wf0.getState(Fv.n, Fv.k);
+    // const auto &Fv0 = *wf0.getState(Fv.n, Fv.k);
+    const auto &Fv_SE = *wf_SE.getState(Fv.n, Fv.k);
+    const auto &Fv_VP = *wf_VP.getState(Fv.n, Fv.k);
 
     // Zeroth-order A (no QED)
-    const auto A0 = h->reducedME(Fv0, Fv0) * a;
+    const auto A0 = h->reducedME(Fv, Fv) * a;
+    const auto A_vp = h->reducedME(Fv_VP, Fv_VP) * a;
+    const auto A_se = h->reducedME(Fv_SE, Fv_SE) * a;
 
     // Including perturbed orbital QED:
     // (subtract A0 to get just PO contribution)
     // nb: this is the part we need high-precission for, since A and A0 are
     // similar in magnitude
-    const auto A_po = h->reducedME(Fv, Fv) * a - A0;
+    const auto A_po_SE = (A_se - A0) / A0;
+    const auto A_po_VP = (A_vp - A0) / A0;
 
     // Just the vertex part:
-    const auto A_vertex = hVertexQED.reducedME(Fv, Fv) * a;
+    const auto A_vertex = hVertexQED.reducedME(Fv, Fv) * a / A0;
+    const auto A_mlvp = h_MLVP.reducedME(Fv, Fv) * a / A0;
 
     // And the ratio of total QED to zeroth-order
     // NOTE: I think this is NOT actually what you want!! Just an example!
-    const auto QED_ratio = (A_po + A_vertex) / A0;
+    // const auto QED_ratio = (A_po + A_vertex) / A0;
 
     // nb: insead of printf, you can directly write to a file
-    printf(" %4s, %12.5e, %12.5e, %12.5e, %12.5e\n", Fv.shortSymbol().c_str(),
-           A0, A_po, A_vertex, QED_ratio);
+    printf(" %4s, %12.5e, %12.5e, %12.5e, %12.5e, %12.5e\n",
+           Fv.shortSymbol().c_str(), A0, A_po_VP, A_po_SE, A_vertex, A_mlvp);
   }
 }
 
