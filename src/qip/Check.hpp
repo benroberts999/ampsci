@@ -7,6 +7,7 @@
 namespace qip {
 
 //******************************************************************************
+//! Checks if value==expected, within +/-tollerance. Writes report to ostr.
 template <typename T>
 bool check_value(std::ostream *ostr, const std::string_view &name,
                  const T value, const T expected, const T tollerance) {
@@ -17,7 +18,8 @@ bool check_value(std::ostream *ostr, const std::string_view &name,
     *ostr << "FAILED ";
   }
 
-  auto val_pr = (expected == 0.0) ? std::setprecision(1) : std::setprecision(5);
+  const auto val_pr =
+      (expected == 0.0) ? std::setprecision(1) : std::setprecision(5);
 
   *ostr << std::setw(36) << std::left << name << "| " << std::right
         << std::setw(8) << std::scientific << val_pr << value;
@@ -26,6 +28,13 @@ bool check_value(std::ostream *ostr, const std::string_view &name,
   *ostr << " [" << std::setprecision(0) << tollerance << "]\n";
 
   return passedQ;
+}
+
+//! overload which prints to cout
+template <typename T>
+bool check_value(const std::string_view &name, const T value, const T expected,
+                 const T tollerance) {
+  return check_value(&std::cout, name, value, expected, tollerance);
 }
 
 } // namespace qip

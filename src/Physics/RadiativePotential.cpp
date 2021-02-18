@@ -252,6 +252,114 @@ double vUehling(double r, double rN, double z, double alpha) {
 }
 
 //******************************************************************************
+double vMLVP(double r, double rN) {
+  // magnetic loop vacuum polarisation (VP vertex)
+  // Performs t integral. This multiplies regular operator
+
+  // variables needed for gsl
+  constexpr double abs_err_lim = 0.0;
+  constexpr double rel_err_lim = 1.0e-6;
+  constexpr unsigned long max_num_subintvls = 750;
+  gsl_set_error_handler_off();
+
+  // compute the integral at each radial grid point
+
+  // intialise gsl
+  gsl_function f_gsl;
+  RadiativePotential::MLVP_params params{r, rN};
+  f_gsl.function = rN > 1.0e-6 ? &Z_MLVP_finite : &Z_MLVP_pointlike;
+  f_gsl.params = &params;
+
+  // integrate using gsl
+  double result{0.0};
+  double abs_err{0.0};
+  gsl_integration_workspace *gsl_int_wrk =
+      gsl_integration_workspace_alloc(max_num_subintvls + 1);
+  gsl_integration_qagiu(&f_gsl, 1.0, abs_err_lim, rel_err_lim,
+                        max_num_subintvls, gsl_int_wrk, &result, &abs_err);
+  gsl_integration_workspace_free(gsl_int_wrk);
+
+  return result;
+}
+
+//------------------------------------------------------------------------------
+// Note that this is ball nuclear magnetisation MLVP function which multiplies
+// 1/r**2 hence has to be executed with "pointlike" F(r)
+inline double Z_MLVP_finite(double t, void *p) {
+
+  // Main:
+  // A. V. Volotka, D. A. Glazov, I. I. Tupitsyn, N. S. Oreshkina, G.
+  // Plunien, and V. M. Shabaev, Phys. Rev. A 78, 062507 (2008) - Equation (18)
+
+  // also:
+  // P. Sunnergren, H. Persson, S. Salomonson, S. M. Schneider, I. Lindgren,
+  // and G. Soff, Phys. Rev. A 58, 1055 (1998) -- Equation (58)
+  // * note: This has typo compared to above
+
+  // Note: This includes the "sphere" BW effect for hyperfine.
+  // If remove, can use this for _any_ operator??
+
+  // obtain the radial grid parameters and convert to relativistic units
+  const auto [r_au, r_N_au] = *(static_cast<MLVP_params *>(p));
+  const auto r = r_au / PhysConst::alpha;
+  const auto r_N = r_N_au / PhysConst::alpha;
+
+  // form the integrand (all calculations are preformed in relativistic units)
+  constexpr double prefactor =
+      (2.0 / 3.0) * (PhysConst::alpha / M_PI) * 3.0 / 16.0;
+  // const double ball = 1.0 / (r_N * r_N * r_N);
+  // if F(r) included in operator, use below???
+  // Which "finite-size" part is just F(r) vs Uehling??
+  // For f > rN, set rN to zero??? (since correspond to pointlike?)
+  // const double point = 1.0 / (r * r * r);
+
+  // This is to cancel out the "ball" part of F(r), since included already.
+  // Note: This does not make Z align with pointlike case - I guess this
+  // includes finite nucleus (charge) too?
+  // This way, F(r) *should* be included in operator
+  const auto cancel_ball =
+      r < r_N ? 1.0 / (r * r * r) : 1.0 / (r_N * r_N * r_N);
+
+  const double t2 = t * t;
+  const double t_part =
+      std::sqrt(t2 - 1.0) / (t2 * t) * (1.0 + 1.0 / (2.0 * t2));
+  const double plus_r = (4.0 * r * r_N + 2.0 / t * (r_N + r) + 1.0 / t2) *
+                        std::exp(-2.0 * t * (r + r_N));
+  const double minus_r =
+      (4.0 * r * r_N - 2.0 / t * std::abs(r_N - r) - 1.0 / t2) *
+      std::exp(-2.0 * t * std::abs(r_N - r));
+
+  return prefactor * cancel_ball * t_part * (plus_r + minus_r);
+}
+
+//------------------------------------------------------------------------------
+inline double Z_MLVP_pointlike(double t, void *p) {
+
+  // Main:
+  // A. V. Volotka, D. A. Glazov, I. I. Tupitsyn, N. S. Oreshkina, G.
+  // Plunien, and V. M. Shabaev, Phys. Rev. A 78, 062507 (2008) - Equation (18)
+
+  // also:
+  // P. Sunnergren, H. Persson, S. Salomonson, S. M. Schneider, I. Lindgren,
+  // and G. Soff, Phys. Rev. A 58, 1055 (1998) -- Equation (58)
+  // * note: This has typo compared to above
+
+  // obtain the radial grid parameters and convert to relativistic units
+  const auto [r_au, r_N_au] = *(static_cast<MLVP_params *>(p));
+  const auto r = r_au / PhysConst::alpha;
+  (void)r_N_au; // don't use
+  // const auto r_N = r_N_au / PhysConst::alpha;
+
+  constexpr double prefactor = (2.0 / 3.0) * (PhysConst::alpha / M_PI);
+  const double t2 = t * t;
+  const double t_part = std::sqrt(t2 - 1.0) * (1.0 + 2 * t2) *
+                        (1.0 + 2 * r * t) * std::exp(-2.0 * r * t) /
+                        (2.0 * t2 * t2);
+
+  return prefactor * t_part;
+}
+
+//******************************************************************************
 static Fit_AB fit_AB;
 double vSEh(double r, double rN, double z, double alpha) {
   [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__);

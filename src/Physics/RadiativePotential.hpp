@@ -125,6 +125,21 @@ double gslfunc_Ueh_larger(double t, void *p);
 } // namespace Helper
 
 //******************************************************************************
+//! Magnetic-loop vacuum polarisation, finite-nuclear size
+double Z_MLVP_finite(double t, void *p);
+//! Magnetic-loop vacuum polarisation, pointlike nucleus
+double Z_MLVP_pointlike(double t, void *p);
+//! Magnetic-loop vacuum polarisation
+double vMLVP(double r, double rN = 0.0);
+
+// struct to pass the parameters to the GSL function
+struct MLVP_params {
+  // simple struct that only stores current point on the radial grid and the
+  // nuclear radius
+  double r, rN;
+};
+
+//******************************************************************************
 //! Self-energy (electric), high-frequency
 double vSEh(double r, double rN, double z, double alpha);
 //! Self-energy (electric), low-frequency
