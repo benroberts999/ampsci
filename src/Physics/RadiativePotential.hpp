@@ -1,5 +1,6 @@
 #pragma once
 #include "IO/FRW_fileReadWrite.hpp" //Forward decl?
+#include <cmath>
 #include <vector>
 
 //! @brief Ginges-Flambaum QED Radiative Potential
@@ -125,12 +126,12 @@ double gslfunc_Ueh_larger(double t, void *p);
 } // namespace Helper
 
 //******************************************************************************
-//! Magnetic-loop vacuum polarisation, finite-nuclear size
-double Z_MLVP_finite(double t, void *p);
-//! Magnetic-loop vacuum polarisation, pointlike nucleus
-double Z_MLVP_pointlike(double t, void *p);
-//! Magnetic-loop vacuum polarisation
-double vMLVP(double r, double rN = 0.0);
+//! Magnetic-loop vacuum polarisation, includes finite-nuclear size
+double Q_MLVP(double r, double rN = 0.0);
+namespace Helper {
+// Magnetic-loop vacuum polarisation, Q = Int(Qt, {t,1,infty}).
+double Qt_MLVP(double t, void *p);
+} // namespace Helper
 
 // struct to pass the parameters to the GSL function
 struct MLVP_params {
@@ -138,6 +139,18 @@ struct MLVP_params {
   // nuclear radius
   double r, rN;
 };
+
+//******************************************************************************
+inline double xCoshxMinusSinhx(double x) {
+  // x * std::cosh(x) - sinh(x) - large cancellation for low x
+  // Fix numerical instability by using expansion at low x
+  // Good to at least parts in 10^6
+  if (x < 0.5) {
+    const auto x3 = x * x * x;
+    return x3 / 3.0 + (x3 * x * x) / 30.0 + (x3 * x3 * x) / 840.0;
+  }
+  return x * std::cosh(x) - sinh(x);
+}
 
 //******************************************************************************
 //! Self-energy (electric), high-frequency

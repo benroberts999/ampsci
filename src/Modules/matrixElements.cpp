@@ -191,7 +191,8 @@ void vertexQED(const IO::UserInputBlock &input, const Wavefunction &wf) {
       std::make_unique<DiracOperator::MLVP>(h.get(), *wf.rgrid, r_nucau);
 
   // Vertex QED term:
-  const auto A_vertex = input.get("A_vertex", 1.0);
+  const auto A_z_default = DiracOperator::VertexQED::a(wf.Znuc());
+  const auto A_vertex = input.get("A_vertex", A_z_default);
   const auto b_vertex = input.get("b_vertex", 1.0);
   const auto hVertexQED = std::make_unique<DiracOperator::VertexQED>(
       h.get(), *wf.rgrid, A_vertex, b_vertex);
@@ -247,13 +248,12 @@ void hyperfine_vertex_test(const IO::UserInputBlock &input,
     return;
   }
 
-  const auto isotope = Nuclear::findIsotopeData(wf.Znuc(), wf.Anuc());
-  const auto r_rmsfm0 = input.get("rrms", isotope.r_rms);
-  const auto r_rmsfm = input.get("r_rms", r_rmsfm0);
-  const auto r_nucfm = std::sqrt(5.0 / 3.0) * r_rmsfm;
+  // const auto isotope = Nuclear::findIsotopeData(wf.Znuc(), wf.Anuc());
+  const auto r_rmsfm0 = input.get("rrms", wf.get_rrms());
+  const auto r_nucfm = std::sqrt(5.0 / 3.0) * r_rmsfm0;
   const auto r_nucau = r_nucfm / PhysConst::aB_fm;
 
-  const auto scale_rN = r_rmsfm / r_rmsfm0;
+  const auto scale_rN = r_rmsfm0 / wf.get_rrms();
 
   // New wavefunction, but without QED, using same parameters as original
   Wavefunction wf0(wf.rgrid->params(), wf.get_nuclearParameters());
@@ -279,7 +279,8 @@ void hyperfine_vertex_test(const IO::UserInputBlock &input,
   const auto h = generate_hfsA(hfs_options, wf, true);
 
   // Form the vertex QED operator, called "hVertexQED":
-  const auto A_x = input.get("A_vertex", 1.0);
+  const auto A_z_default = DiracOperator::VertexQED::a(wf.Znuc());
+  const auto A_x = input.get("A_vertex", A_z_default);
   const auto b_x = input.get("b_vertex", 1.0);
   const DiracOperator::VertexQED hVertexQED(h.get(), *wf.rgrid, A_x, b_x);
   const auto h_MLVP = DiracOperator::MLVP(h.get(), *wf.rgrid, r_nucau);
