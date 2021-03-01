@@ -3,12 +3,12 @@
 // Forward declare classes:
 class Wavefunction;
 namespace IO {
-class UserInputBlock;
+class InputBlock;
 }
 
 namespace Module {
 
 //! Example module, designed as a "template" to help you add a new module
-void exampleModule(const IO::UserInputBlock &input, const Wavefunction &wf);
+void exampleModule(const IO::InputBlock &input, const Wavefunction &wf);
 
 } // namespace Module

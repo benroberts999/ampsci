@@ -3,7 +3,7 @@
 #include "DiracOperator/TensorOperator.hpp"
 #include "ExternalField/MixedStates.hpp"
 #include "ExternalField/TDHF.hpp"
-#include "IO/UserInput.hpp"
+#include "IO/InputBlock.hpp"
 #include "Physics/AtomData.hpp"
 #include "Physics/NuclearData.hpp"
 #include "Physics/NuclearPotentials.hpp"
@@ -19,7 +19,7 @@ namespace Module {
 using namespace Pnc;
 
 //******************************************************************************
-void calculatePNC(const IO::UserInputBlock &input, const Wavefunction &wf) {
+void calculatePNC(const IO::InputBlock &input, const Wavefunction &wf) {
   const std::string ThisModule = "Module::PNC";
 
   input.checkBlock({"t", "c", "transition", "nmain", "rpa", "omega"});

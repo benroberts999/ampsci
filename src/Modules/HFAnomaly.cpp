@@ -2,7 +2,7 @@
 #include "DiracOperator/Operators.hpp"
 #include "ExternalField/DiagramRPA.hpp"
 #include "IO/ChronoTimer.hpp"
-#include "IO/UserInput.hpp"
+#include "IO/InputBlock.hpp"
 #include "Modules/matrixElements.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
@@ -18,7 +18,7 @@ static void calc_thing(const DiracSpinor &Fv, double e_targ, double r0,
                        double mu, double I, int l, int gl);
 
 //******************************************************************************
-void HFAnomaly(const IO::UserInputBlock &input, const Wavefunction &wf) {
+void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
 
   input.checkBlock({"rpa", "options", "A"});
 
@@ -26,7 +26,7 @@ void HFAnomaly(const IO::UserInputBlock &input, const Wavefunction &wf) {
   const auto Alist = input.get_list("A", std::vector<int>{});
 
   const auto sub_input =
-      IO::UserInputBlock("hfs", input.get<std::string>("options", ""));
+      IO::InputBlock("hfs", input.get<std::string>("options", ""));
   const auto point_in = sub_input.copy_with("F(r)=pointlike");
 
   const auto ball_in = sub_input.copy_with("F(r)=ball");
@@ -171,7 +171,7 @@ void HFAnomaly(const IO::UserInputBlock &input, const Wavefunction &wf) {
   }
 }
 //******************************************************************************
-void HF_rmag(const IO::UserInputBlock &input, const Wavefunction &wf) {
+void HF_rmag(const IO::InputBlock &input, const Wavefunction &wf) {
   // For isotope 1 and 2
   // Loops over many values for magnetic radius of isotope 1, Rmag(1).
   // For each, finds Rmag(2) that reproduces a given hyperfine anomaly.
@@ -451,18 +451,18 @@ static void calc_thing(const DiracSpinor &Fv, double e_targ, double r0,
 }
 
 //******************************************************************************
-void calculateBohrWeisskopf(const IO::UserInputBlock &input,
+void calculateBohrWeisskopf(const IO::InputBlock &input,
                             const Wavefunction &wf) {
   using namespace DiracOperator;
 
   input.checkBlock({"rpa", "rpa_diagram", "screening", "hfs_options"});
 
-  const auto h_options = IO::UserInputBlock(
+  const auto h_options = IO::InputBlock(
       "hfs_options", input.get<std::string>("hfs_options", ""));
 
-  IO::UserInputBlock point_in("hfs", h_options);
-  IO::UserInputBlock ball_in("hfs", h_options);
-  IO::UserInputBlock BW_in("hfs", h_options);
+  IO::InputBlock point_in("hfs", h_options);
+  IO::InputBlock ball_in("hfs", h_options);
+  IO::InputBlock BW_in("hfs", h_options);
   point_in.add("F(r)=pointlike");
   ball_in.add("F(r)=ball");
   if (wf.Anuc() % 2 == 0)

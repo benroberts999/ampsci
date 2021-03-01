@@ -4,7 +4,7 @@
 #include <vector>
 class Wavefunction;
 namespace IO {
-class UserInputBlock;
+class InputBlock;
 }
 namespace DiracOperator {
 class TensorOperator;
@@ -13,12 +13,12 @@ class TensorOperator;
 namespace Module {
 
 //! Calculates matrix elements of any tensor operator, with RPA
-void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf);
+void matrixElements(const IO::InputBlock &input, const Wavefunction &wf);
 
-void vertexQED(const IO::UserInputBlock &input, const Wavefunction &wf);
+void vertexQED(const IO::InputBlock &input, const Wavefunction &wf);
 
 //! Used for finding A and b for effective vertex QED operator
-void hyperfine_vertex_test(const IO::UserInputBlock &input,
+void hyperfine_vertex_test(const IO::InputBlock &input,
                            const Wavefunction &wf);
 
 //! Calculates Structure Radiation + Normalisation of States
@@ -35,52 +35,52 @@ n_minmax: is input as list of ints:
 
 For explanation of the rest, see MatrixElements module.
 */
-void structureRad(const IO::UserInputBlock &input, const Wavefunction &wf);
+void structureRad(const IO::InputBlock &input, const Wavefunction &wf);
 
 //! Calculates state lifetimes (using E1 and E2 only). nb: HF energies
-void calculateLifetimes(const IO::UserInputBlock &input,
+void calculateLifetimes(const IO::InputBlock &input,
                         const Wavefunction &wf);
 
 //! Returns a ptr to the requested operator, with given properties
 std::unique_ptr<DiracOperator::TensorOperator>
-generateOperator(const IO::UserInputBlock &input, const Wavefunction &wf,
+generateOperator(const IO::InputBlock &input, const Wavefunction &wf,
                  bool print = true);
 
 //! Used to form operator; returns polymorphic pointer to operator
 std::unique_ptr<DiracOperator::TensorOperator>
-generateOperator(std::string_view oper_name, const IO::UserInputBlock &input,
+generateOperator(std::string_view oper_name, const IO::InputBlock &input,
                  const Wavefunction &wf, bool print);
 
 // ------------------
 std::unique_ptr<DiracOperator::TensorOperator>
-generate_E1(const IO::UserInputBlock &input, const Wavefunction &wf,
+generate_E1(const IO::InputBlock &input, const Wavefunction &wf,
             bool print = true);
 std::unique_ptr<DiracOperator::TensorOperator>
-generate_Ek(const IO::UserInputBlock &input, const Wavefunction &wf,
+generate_Ek(const IO::InputBlock &input, const Wavefunction &wf,
             bool print = true);
 std::unique_ptr<DiracOperator::TensorOperator>
-generate_M1(const IO::UserInputBlock &input, const Wavefunction &wf,
+generate_M1(const IO::InputBlock &input, const Wavefunction &wf,
             bool print = true);
 std::unique_ptr<DiracOperator::TensorOperator>
-generate_hfsA(const IO::UserInputBlock &input, const Wavefunction &wf,
+generate_hfsA(const IO::InputBlock &input, const Wavefunction &wf,
               bool print = true);
 std::unique_ptr<DiracOperator::TensorOperator>
-generate_hfsK(const IO::UserInputBlock &input, const Wavefunction &wf,
+generate_hfsK(const IO::InputBlock &input, const Wavefunction &wf,
               bool print = true);
 std::unique_ptr<DiracOperator::TensorOperator>
-generate_r(const IO::UserInputBlock &input, const Wavefunction &wf,
+generate_r(const IO::InputBlock &input, const Wavefunction &wf,
            bool print = true);
 std::unique_ptr<DiracOperator::TensorOperator>
-generate_pnc(const IO::UserInputBlock &input, const Wavefunction &wf,
+generate_pnc(const IO::InputBlock &input, const Wavefunction &wf,
              bool print = true);
 std::unique_ptr<DiracOperator::TensorOperator>
-generate_Hrad(const IO::UserInputBlock &input, const Wavefunction &wf,
+generate_Hrad(const IO::InputBlock &input, const Wavefunction &wf,
               bool print = true);
 
 // ------------------
 const std::vector<
     std::pair<std::string, std::unique_ptr<DiracOperator::TensorOperator> (*)(
-                               const IO::UserInputBlock &input,
+                               const IO::InputBlock &input,
                                const Wavefunction &wf, bool print)>>
     operator_list{{"E1", &generate_E1},     {"Ek", &generate_Ek},
                   {"M1", &generate_M1},     {"hfs", &generate_hfsA},

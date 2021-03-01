@@ -3,8 +3,8 @@
 #include <vector>
 class Wavefunction;
 namespace IO {
-class UserInputBlock;
-class UserInput;
+class InputBlock;
+class InputBlock;
 } // namespace IO
 namespace DiracOperator {
 class TensorOperator;
@@ -44,7 +44,7 @@ default values by default.
    - (Calculation broken into core, main, tail)
 
 */
-void calculatePNC(const IO::UserInputBlock &input, const Wavefunction &wf);
+void calculatePNC(const IO::InputBlock &input, const Wavefunction &wf);
 
 namespace Pnc {
 

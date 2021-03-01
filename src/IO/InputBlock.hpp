@@ -217,6 +217,15 @@ template <typename T> // typename T = std::string
 std::optional<T> InputBlock::get(std::string_view key) const {
   if constexpr (IsVector<T>::v) {
     return get_vector<typename IsVector<T>::t>(key);
+  } else if constexpr (std::is_same_v<T, bool>) {
+    const auto option = std::find(m_options.crbegin(), m_options.crend(), key);
+    if (option == m_options.crend())
+      return std::nullopt;
+    const auto &str = option->value_str;
+    if (str == "True" || str == "true" || str == "Yes" || str == "yes" ||
+        str == "1" || str == "Y" || str == "y")
+      return true;
+    return false;
   } else {
     // Use reverse iterators so that we find _last_ option that matches key
     // i.e., assume later options override earlier ones.

@@ -2,8 +2,8 @@
 #include <vector>
 class Wavefunction;
 namespace IO {
-class UserInputBlock;
-class UserInput;
+class InputBlock;
+class InputBlock;
 } // namespace IO
 namespace DiracOperator {
 class E1;
@@ -40,7 +40,7 @@ They might be correct for other states too, but NOT checked.
 Especially for beta, pretty sure it's wrong for non-s states.
 
 */
-void polarisability(const IO::UserInputBlock &input, const Wavefunction &wf);
+void polarisability(const IO::InputBlock &input, const Wavefunction &wf);
 
 //------------------------------------------------------------------------------
 // "private" helper functions:

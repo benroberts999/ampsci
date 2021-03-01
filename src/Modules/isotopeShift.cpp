@@ -1,6 +1,6 @@
 #include "Modules/isotopeShift.hpp"
 #include "DiracOperator/Operators.hpp" //For E1 operator
-#include "IO/UserInput.hpp"
+#include "IO/InputBlock.hpp"
 #include "Physics/PhysConst_constants.hpp" // For GHz unit conversion
 #include "Wavefunction/Wavefunction.hpp"
 
@@ -8,7 +8,7 @@
 
 namespace Module {
 
-void fieldShift(const IO::UserInputBlock &, const Wavefunction &wfA) {
+void fieldShift(const IO::InputBlock &, const Wavefunction &wfA) {
 
   Wavefunction wfB(wfA.rgrid->params(), wfA.get_nuclearParameters(),
                    wfA.alpha / PhysConst::alpha);

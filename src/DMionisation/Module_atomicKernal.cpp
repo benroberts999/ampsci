@@ -2,7 +2,7 @@
 #include "DMionisation/AKF_akFunctions.hpp"
 #include "HF/HartreeFock.hpp"
 #include "IO/ChronoTimer.hpp"
-#include "IO/UserInput.hpp"
+#include "IO/InputBlock.hpp"
 #include "Maths/Grid.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/ContinuumOrbitals.hpp"
@@ -14,7 +14,7 @@
 namespace Module {
 
 //******************************************************************************
-void atomicKernal(const IO::UserInputBlock &input, const Wavefunction &wf) {
+void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
   IO::ChronoTimer timer; // start the overall timer
 
   input.checkBlock({"Emin", "Emax", "Esteps", "qmin", "qmax", "qsteps",

@@ -19,15 +19,15 @@
 #include <vector>
 class Wavefunction;
 namespace IO {
-class UserInputBlock;
-class UserInput;
+class InputBlock;
+class InputBlock;
 } // namespace IO
 
 namespace Module {
 
 // Add new modules to this list:
 static const std::vector<
-    std::pair<std::string, void (*)(const IO::UserInputBlock &input,
+    std::pair<std::string, void (*)(const IO::InputBlock &input,
                                     const Wavefunction &wf)>>
     module_list{{"Tests", &Module_tests},
                 {"WriteOrbitals", &writeOrbitals},

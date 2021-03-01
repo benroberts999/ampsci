@@ -4,7 +4,7 @@
 #include <vector>
 class Wavefunction;
 namespace IO {
-class UserInputBlock;
+class InputBlock;
 }
 namespace DiracOperator {
 class TensorOperator;
@@ -13,7 +13,7 @@ class TensorOperator;
 namespace Module {
 
 //! Calculates Bohr-Weisskopf effect for hyperfine structure
-void calculateBohrWeisskopf(const IO::UserInputBlock &input,
+void calculateBohrWeisskopf(const IO::InputBlock &input,
                             const Wavefunction &wf);
 
 //! Calculates hyperfine anomaly for list of isotopes
@@ -26,8 +26,8 @@ Module::HFAnomaly{
 }
 ```
 */
-void HFAnomaly(const IO::UserInputBlock &input, const Wavefunction &wf);
+void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf);
 
-void HF_rmag(const IO::UserInputBlock &input, const Wavefunction &wf);
+void HF_rmag(const IO::InputBlock &input, const Wavefunction &wf);
 
 } // namespace Module

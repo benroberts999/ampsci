@@ -1,7 +1,7 @@
 #include "polarisability.hpp"
 #include "DiracOperator/Operators.hpp"
 #include "ExternalField/TDHF.hpp"
-#include "IO/UserInput.hpp"
+#include "IO/InputBlock.hpp"
 #include "MBPT/StructureRad.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include <iostream>
@@ -11,7 +11,7 @@
 namespace Module {
 using namespace Polarisability;
 
-void polarisability(const IO::UserInputBlock &input, const Wavefunction &wf) {
+void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
 
   std::cout << "\nDipole polarisability:\n";
 

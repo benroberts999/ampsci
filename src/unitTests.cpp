@@ -9,7 +9,7 @@
 #include "HF/Breit_test.hpp"
 #include "HF/HartreeFock_test.hpp"
 #include "IO/ChronoTimer.hpp"
-#include "IO/UserInput.hpp" // for time+date
+#include "IO/InputBlock.hpp" // for time+date
 #include "MBPT/CorrelationPotential_test.hpp"
 #include "MBPT/StructureRad_test.hpp"
 #include "Maths/LinAlg_test.hpp"

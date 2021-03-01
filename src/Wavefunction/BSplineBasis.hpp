@@ -1,4 +1,5 @@
 #pragma once
+#include "IO/InputBlock.hpp"
 #include "Maths/LinAlg_MatrixVector.hpp"
 #include <memory>
 #include <string>
@@ -10,7 +11,7 @@ namespace MBPT {
 class CorrelationPotential;
 }
 namespace IO {
-class UserInputBlock;
+class InputBlock;
 }
 
 /*!
@@ -47,7 +48,7 @@ struct Parameters {
   Parameters() {}
   Parameters(std::string states, std::size_t n, std::size_t k, double r0,
              double reps, double rmax, bool positronQ);
-  Parameters(IO::UserInputBlock input);
+  Parameters(IO::InputBlock input);
   std::string states{};
   std::size_t n{}, k{};
   double r0{}, reps{}, rmax{};

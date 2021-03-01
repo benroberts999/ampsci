@@ -2,7 +2,7 @@
 #include <tuple>
 #include <vector>
 namespace IO {
-class UserInputBlock;
+class InputBlock;
 }
 class Wavefunction;
 struct GridParameters;
@@ -16,7 +16,7 @@ struct Parameters;
 namespace Module {
 
 //! Performs fit to Greens/Teitz parametric potential. See input example
-void fitParametric(const IO::UserInputBlock &input, const Wavefunction &wf);
+void fitParametric(const IO::InputBlock &input, const Wavefunction &wf);
 
 namespace FitParametric {
 std::tuple<double, double>

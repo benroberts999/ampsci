@@ -5,7 +5,7 @@
 #include "ExternalField/TDHF.hpp"
 #include "ExternalField/TDHFbasis.hpp"
 #include "IO/ChronoTimer.hpp"
-#include "IO/UserInput.hpp"
+#include "IO/InputBlock.hpp"
 #include "MBPT/CorrelationPotential.hpp"
 #include "MBPT/StructureRad.hpp"
 #include "Physics/NuclearPotentials.hpp"
@@ -24,14 +24,14 @@
 namespace Module {
 
 //******************************************************************************
-void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf) {
+void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
 
   input.checkBlock({"operator", "options", "rpa", "omega", "radialIntegral",
                     "printBoth", "onlyDiagonal", "units"});
 
   const auto oper = input.get<std::string>("operator", "");
   const auto h_options =
-      IO::UserInputBlock(oper, input.get<std::string>("options", ""));
+      IO::InputBlock(oper, input.get<std::string>("options", ""));
   const auto h = generateOperator(oper, h_options, wf, true);
 
   const bool radial_int = input.get("radialIntegral", false);
@@ -158,14 +158,14 @@ void matrixElements(const IO::UserInputBlock &input, const Wavefunction &wf) {
 }
 
 //****************************************************************************
-void vertexQED(const IO::UserInputBlock &input, const Wavefunction &wf) {
+void vertexQED(const IO::InputBlock &input, const Wavefunction &wf) {
 
   input.checkBlock(
       {"operator", "options", "rrms", "onlyDiagonal", "A_vertex", "b_vertex"});
 
   const auto oper = input.get<std::string>("operator", "");
   const auto h_options =
-      IO::UserInputBlock(oper, input.get<std::string>("options", ""));
+      IO::InputBlock(oper, input.get<std::string>("options", ""));
   const auto h = generateOperator(oper, h_options, wf, true);
 
   const bool radial_int = input.get("radialIntegral", false);
@@ -227,7 +227,7 @@ void vertexQED(const IO::UserInputBlock &input, const Wavefunction &wf) {
 
 //****************************************************************************
 // Used for finding A and b for effective vertex QED operator
-void hyperfine_vertex_test(const IO::UserInputBlock &input,
+void hyperfine_vertex_test(const IO::InputBlock &input,
                            const Wavefunction &wf) {
 
   // Check input options for spelling mistakes etc.:
@@ -275,7 +275,7 @@ void hyperfine_vertex_test(const IO::UserInputBlock &input,
   // 'h' is the hyperfine operator (without QED);
   // nb: for now, just hyperfine. Can change easily to work for any operator
   const auto hfs_options =
-      IO::UserInputBlock("hfs", input.get<std::string>("options", ""));
+      IO::InputBlock("hfs", input.get<std::string>("options", ""));
   const auto h = generate_hfsA(hfs_options, wf, true);
 
   // Form the vertex QED operator, called "hVertexQED":
@@ -347,7 +347,7 @@ void hyperfine_vertex_test(const IO::UserInputBlock &input,
 
 //****************************************************************************
 // Calculates Structure Radiation + Normalisation of States
-void structureRad(const IO::UserInputBlock &input, const Wavefunction &wf) {
+void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
 
   input.checkBlock({"operator", "options", "rpa", "printBoth", "onlyDiagonal",
                     "omega", "n_minmax", "splineLegs"});
@@ -355,7 +355,7 @@ void structureRad(const IO::UserInputBlock &input, const Wavefunction &wf) {
   // Get input options:
   const auto oper = input.get<std::string>("operator", "E1");
   const auto h_options =
-      IO::UserInputBlock(oper, input.get<std::string>("options", ""));
+      IO::InputBlock(oper, input.get<std::string>("options", ""));
   const auto h = generateOperator(oper, h_options, wf, true);
 
   // Use spline states as diagram legs?
@@ -494,7 +494,7 @@ void structureRad(const IO::UserInputBlock &input, const Wavefunction &wf) {
 }
 
 //******************************************************************************
-void calculateLifetimes(const IO::UserInputBlock &input,
+void calculateLifetimes(const IO::InputBlock &input,
                         const Wavefunction &wf) {
   std::cout << "\nLifetimes:\n";
 
@@ -589,7 +589,7 @@ void calculateLifetimes(const IO::UserInputBlock &input,
 //******************************************************************************
 //******************************************************************************
 std::unique_ptr<DiracOperator::TensorOperator>
-generateOperator(const IO::UserInputBlock &input, const Wavefunction &wf,
+generateOperator(const IO::InputBlock &input, const Wavefunction &wf,
                  bool print) {
   using namespace DiracOperator;
 
@@ -614,7 +614,7 @@ generateOperator(const IO::UserInputBlock &input, const Wavefunction &wf,
 }
 
 std::unique_ptr<DiracOperator::TensorOperator>
-generateOperator(std::string_view oper_name, const IO::UserInputBlock &input,
+generateOperator(std::string_view oper_name, const IO::InputBlock &input,
                  const Wavefunction &wf, bool print) {
   using namespace DiracOperator;
 
@@ -643,7 +643,7 @@ generateOperator(std::string_view oper_name, const IO::UserInputBlock &input,
 
 //------------------------------------------------------------------------------
 std::unique_ptr<DiracOperator::TensorOperator>
-generate_E1(const IO::UserInputBlock &input, const Wavefunction &wf, bool) {
+generate_E1(const IO::InputBlock &input, const Wavefunction &wf, bool) {
   using namespace DiracOperator;
   input.checkBlock({"gauge"});
   auto gauge = input.get<std::string>("gauge", "lform");
@@ -655,7 +655,7 @@ generate_E1(const IO::UserInputBlock &input, const Wavefunction &wf, bool) {
 
 //------------------------------------------------------------------------------
 std::unique_ptr<DiracOperator::TensorOperator>
-generate_Ek(const IO::UserInputBlock &input, const Wavefunction &wf, bool) {
+generate_Ek(const IO::InputBlock &input, const Wavefunction &wf, bool) {
   using namespace DiracOperator;
   input.checkBlock({"k"});
   auto k = input.get("k", 1);
@@ -664,7 +664,7 @@ generate_Ek(const IO::UserInputBlock &input, const Wavefunction &wf, bool) {
 
 //------------------------------------------------------------------------------
 std::unique_ptr<DiracOperator::TensorOperator>
-generate_M1(const IO::UserInputBlock &input, const Wavefunction &wf, bool) {
+generate_M1(const IO::InputBlock &input, const Wavefunction &wf, bool) {
   using namespace DiracOperator;
   input.checkBlock({});
   return std::make_unique<M1>(*(wf.rgrid), wf.alpha, 0.0);
@@ -672,7 +672,7 @@ generate_M1(const IO::UserInputBlock &input, const Wavefunction &wf, bool) {
 
 //------------------------------------------------------------------------------
 std::unique_ptr<DiracOperator::TensorOperator>
-generate_hfsA(const IO::UserInputBlock &input, const Wavefunction &wf,
+generate_hfsA(const IO::InputBlock &input, const Wavefunction &wf,
               bool print) {
   using namespace DiracOperator;
   input.checkBlock({"mu", "I", "rrms", "F(r)", "parity", "l", "gl", "mu1",
@@ -752,7 +752,7 @@ generate_hfsA(const IO::UserInputBlock &input, const Wavefunction &wf,
 
 //------------------------------------------------------------------------------
 std::unique_ptr<DiracOperator::TensorOperator>
-generate_hfsK(const IO::UserInputBlock &input, const Wavefunction &wf,
+generate_hfsK(const IO::InputBlock &input, const Wavefunction &wf,
               bool print) {
   using namespace DiracOperator;
 
@@ -806,7 +806,7 @@ generate_hfsK(const IO::UserInputBlock &input, const Wavefunction &wf,
 
 //------------------------------------------------------------------------------
 std::unique_ptr<DiracOperator::TensorOperator>
-generate_r(const IO::UserInputBlock &input, const Wavefunction &wf, bool) {
+generate_r(const IO::InputBlock &input, const Wavefunction &wf, bool) {
   using namespace DiracOperator;
   input.checkBlock({"power"});
   auto power = input.get("power", 1.0);
@@ -816,7 +816,7 @@ generate_r(const IO::UserInputBlock &input, const Wavefunction &wf, bool) {
 
 //------------------------------------------------------------------------------
 std::unique_ptr<DiracOperator::TensorOperator>
-generate_pnc(const IO::UserInputBlock &input, const Wavefunction &wf, bool) {
+generate_pnc(const IO::InputBlock &input, const Wavefunction &wf, bool) {
   using namespace DiracOperator;
   input.checkBlock({"c", "t"});
   const auto r_rms = Nuclear::find_rrms(wf.Znuc(), wf.Anuc());
@@ -827,7 +827,7 @@ generate_pnc(const IO::UserInputBlock &input, const Wavefunction &wf, bool) {
 
 // //------------------------------------------------------------------------------
 // std::unique_ptr<DiracOperator::TensorOperator>
-// generate_Hrad_el(const IO::UserInputBlock &input, const Wavefunction &wf,
+// generate_Hrad_el(const IO::InputBlock &input, const Wavefunction &wf,
 //                  bool) {
 //   using namespace DiracOperator;
 //   input.checkBlock({"Simple", "Ueh", "SE_h", "SE_l", "rcut", "scale_rN"});
@@ -848,7 +848,7 @@ generate_pnc(const IO::UserInputBlock &input, const Wavefunction &wf, bool) {
 //
 // //------------------------------------------------------------------------------
 // std::unique_ptr<DiracOperator::TensorOperator>
-// generate_Hrad_mag(const IO::UserInputBlock &input, const Wavefunction &wf,
+// generate_Hrad_mag(const IO::InputBlock &input, const Wavefunction &wf,
 //                   bool) {
 //   using namespace DiracOperator;
 //   input.checkBlock({"SE_m", "rcut", "scale_rN"});
@@ -863,7 +863,7 @@ generate_pnc(const IO::UserInputBlock &input, const Wavefunction &wf, bool) {
 
 //------------------------------------------------------------------------------
 std::unique_ptr<DiracOperator::TensorOperator>
-generate_Hrad(const IO::UserInputBlock &input, const Wavefunction &wf, bool) {
+generate_Hrad(const IO::InputBlock &input, const Wavefunction &wf, bool) {
   using namespace DiracOperator;
   input.checkBlock(
       {"Simple", "Ueh", "SE_h", "SE_l", "SE_m", "rcut", "scale_rN"});

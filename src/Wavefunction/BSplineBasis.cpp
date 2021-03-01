@@ -3,7 +3,7 @@
 #include "HF/Breit.hpp"
 #include "HF/HartreeFock.hpp"
 #include "IO/SafeProfiler.hpp"
-#include "IO/UserInput.hpp"
+#include "IO/InputBlock.hpp"
 #include "Maths/BSplines.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/LinAlg_MatrixVector.hpp"
@@ -29,7 +29,7 @@ namespace SplineBasis {
 static constexpr bool ND_type = false;
 
 //******************************************************************************
-Parameters::Parameters(IO::UserInputBlock input)
+Parameters::Parameters(IO::InputBlock input)
     : states(input.get<std::string>("states", "")),
       n(input.get("number", 0ul)),
       k(input.get("order", 0ul)),

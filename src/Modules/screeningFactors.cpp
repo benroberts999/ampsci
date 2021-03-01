@@ -1,5 +1,5 @@
 #include "Coulomb/Coulomb.hpp"
-#include "IO/UserInput.hpp"
+#include "IO/InputBlock.hpp"
 #include "MBPT/FeynmanSigma.hpp"
 #include "Maths/LinAlg_MatrixVector.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
@@ -13,7 +13,7 @@ using ComplexDouble = LinAlg::ComplexDouble;
 
 namespace Module {
 
-void screeningFactors(const IO::UserInputBlock &input, const Wavefunction &wf) {
+void screeningFactors(const IO::InputBlock &input, const Wavefunction &wf) {
 
   std::cout << "\nCalculate effective screening parameters:\n";
 

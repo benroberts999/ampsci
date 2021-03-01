@@ -1,12 +1,12 @@
 #include "Modules/exampleModule.hpp"
 #include "DiracOperator/Operators.hpp" //For E1 operator
-#include "IO/UserInput.hpp"
+#include "IO/InputBlock.hpp"
 #include "Physics/PhysConst_constants.hpp" // For GHz unit conversion
 #include "Wavefunction/Wavefunction.hpp"
 
 namespace Module {
 
-void exampleModule(const IO::UserInputBlock &input, const Wavefunction &wf) {
+void exampleModule(const IO::InputBlock &input, const Wavefunction &wf) {
   // This is an example module, designed to help you write new modules
 
   // In this example, we will solve a new wavefunction, assuming a different

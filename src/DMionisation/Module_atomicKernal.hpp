@@ -2,11 +2,11 @@
 #include <iostream>
 class Wavefunction;
 namespace IO {
-class UserInputBlock;
+class InputBlock;
 }
 
 namespace Module {
 
-void atomicKernal(const IO::UserInputBlock &input, const Wavefunction &wf);
+void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf);
 
 } // namespace Module

@@ -4,7 +4,7 @@
 #include <vector>
 class Wavefunction;
 namespace IO {
-class UserInputBlock;
+class InputBlock;
 }
 namespace DiracOperator {
 class TensorOperator;
@@ -15,7 +15,7 @@ class FeynmanSigma;
 
 namespace Module {
 
-void testFeynman(const IO::UserInputBlock &input, const Wavefunction &wf);
+void testFeynman(const IO::InputBlock &input, const Wavefunction &wf);
 
 namespace Feyn {
 void test_Q(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma);

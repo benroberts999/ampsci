@@ -1,7 +1,7 @@
 #include "Modules/tests.hpp"
 #include "DiracOperator/Operators.hpp"
 #include "HF/HartreeFock.hpp"
-#include "IO/UserInput.hpp"
+#include "IO/InputBlock.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/Hamiltonian.hpp"
 #include "Wavefunction/Wavefunction.hpp"
@@ -14,7 +14,7 @@
 namespace Module {
 
 //******************************************************************************
-void Module_tests(const IO::UserInputBlock &input, const Wavefunction &wf) {
+void Module_tests(const IO::InputBlock &input, const Wavefunction &wf) {
   using namespace Tests;
   std::string ThisModule = "Module::Tests";
   input.checkBlock({"orthonormal", "orthonormal_all", "Hamiltonian",

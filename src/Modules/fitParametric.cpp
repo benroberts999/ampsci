@@ -1,6 +1,6 @@
 #include "Modules/fitParametric.hpp"
 #include "HF/HartreeFock.hpp"
-#include "IO/UserInput.hpp"
+#include "IO/InputBlock.hpp"
 #include "Maths/Grid.hpp"
 #include "Physics/AtomData.hpp"
 #include "Physics/NuclearPotentials.hpp"
@@ -13,7 +13,7 @@
 
 namespace Module {
 //******************************************************************************
-void fitParametric(const IO::UserInputBlock &input, const Wavefunction &wf) {
+void fitParametric(const IO::InputBlock &input, const Wavefunction &wf) {
 
   input.checkBlock({"statesToFit", "method", "fitWorst"});
 
