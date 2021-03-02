@@ -17,8 +17,7 @@ namespace Module {
 
 //******************************************************************************
 void runModules(const IO::InputBlock &input, const Wavefunction &wf) {
-  auto modules = input.module_list();
-  for (const auto &module : modules) {
+  for (const auto &module : input.blocks()) {
     runModule(module, wf);
   }
 }
@@ -31,7 +30,7 @@ void runModule(const IO::InputBlock &module_input,
 
   // Loop through all available modules, run correct one
   for (const auto &[mod_name, mod_func] : module_list) {
-    if (in_name == "Module::" + mod_name)
+    if (in_name == "Modules::" + mod_name || in_name == mod_name)
       return mod_func(module_input, wf);
   }
 

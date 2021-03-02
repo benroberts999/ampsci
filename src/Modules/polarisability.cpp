@@ -62,7 +62,7 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // **************
   // Transition polarisability, alpha and beta:
-  const auto ab_vec = input.get_list<std::string>("transition", {});
+  const auto ab_vec = input.get<std::vector<std::string>>("transition", {});
   const auto ab_ok = (ab_vec.size() >= 2);
   const auto [na, ka] =
       ab_ok ? AtomData::parse_symbol(ab_vec[0]) : std::pair{0, 0};

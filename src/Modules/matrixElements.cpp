@@ -369,7 +369,7 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto const_omega = eachFreqQ ? 0.0 : input.get("omega", 0.0);
 
   // min/max n (for core/excited basis)
-  const auto n_minmax = input.get_list("n_minmax", std::vector{1, 999});
+  const auto n_minmax = input.get("n_minmax", std::vector{1, 999});
   const auto n_min = n_minmax.size() > 0 ? n_minmax[0] : 1;
   const auto n_max = n_minmax.size() > 1 ? n_minmax[1] : 999;
 
@@ -494,8 +494,7 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
 }
 
 //******************************************************************************
-void calculateLifetimes(const IO::InputBlock &input,
-                        const Wavefunction &wf) {
+void calculateLifetimes(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "\nLifetimes:\n";
 
   input.checkBlock({"E1", "E2", "rpa", "StrucRadNorm"});
@@ -672,8 +671,7 @@ generate_M1(const IO::InputBlock &input, const Wavefunction &wf, bool) {
 
 //------------------------------------------------------------------------------
 std::unique_ptr<DiracOperator::TensorOperator>
-generate_hfsA(const IO::InputBlock &input, const Wavefunction &wf,
-              bool print) {
+generate_hfsA(const IO::InputBlock &input, const Wavefunction &wf, bool print) {
   using namespace DiracOperator;
   input.checkBlock({"mu", "I", "rrms", "F(r)", "parity", "l", "gl", "mu1",
                     "gl1", "l1", "l2", "I1", "I2", "printF", "screening"});
@@ -719,17 +717,17 @@ generate_hfsA(const IO::InputBlock &input, const Wavefunction &wf,
     Fr = Hyperfine::volotkaBW_F(mu, I_nuc, l, gl);
   } else if (Fr_str == "doublyOddBW") {
 
-    auto mu1 = input.get<double>("mu1");
-    auto gl1 = input.get<int>("gl1"); // 1 or 0 (p or n)
+    auto mu1 = input.get<double>("mu1", 1.0);
+    auto gl1 = input.get<int>("gl1", -1); // 1 or 0 (p or n)
     if (gl1 != 0 && gl1 != 1) {
       std::cout << "FAIL: in " << input.name() << " " << Fr_str
                 << "; have gl1=" << gl1 << " but need 1 or 0\n";
       return std::make_unique<NullOperator>(NullOperator());
     }
-    auto l1 = input.get<double>("l1");
-    auto l2 = input.get<double>("l2");
-    auto I1 = input.get<double>("I1");
-    auto I2 = input.get<double>("I2");
+    auto l1 = input.get<double>("l1", -1.0);
+    auto l2 = input.get<double>("l2", -1.0);
+    auto I1 = input.get<double>("I1", -1.0);
+    auto I2 = input.get<double>("I2", -1.0);
 
     Fr = Hyperfine::doublyOddBW_F(mu, I_nuc, mu1, I1, l1, gl1, I2, l2);
   } else if (Fr_str != "ball") {
@@ -752,8 +750,7 @@ generate_hfsA(const IO::InputBlock &input, const Wavefunction &wf,
 
 //------------------------------------------------------------------------------
 std::unique_ptr<DiracOperator::TensorOperator>
-generate_hfsK(const IO::InputBlock &input, const Wavefunction &wf,
-              bool print) {
+generate_hfsK(const IO::InputBlock &input, const Wavefunction &wf, bool print) {
   using namespace DiracOperator;
 
   bool ok = true;

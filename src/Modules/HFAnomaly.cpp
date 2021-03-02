@@ -23,16 +23,25 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
   input.checkBlock({"rpa", "options", "A"});
 
   const auto rpa = input.get("rpa", false);
-  const auto Alist = input.get_list("A", std::vector<int>{});
+  const auto Alist = input.get("A", std::vector<int>{});
 
-  const auto sub_input =
-      IO::InputBlock("hfs", input.get<std::string>("options", ""));
-  const auto point_in = sub_input.copy_with("F(r)=pointlike");
+  auto options = input.getBlock("options");
+  auto sub_input = IO::InputBlock("hfs", {});
+  if (options) {
+    sub_input.add(options->options());
+  }
 
-  const auto ball_in = sub_input.copy_with("F(r)=ball");
+  auto point_in = sub_input;
+  auto ball_in = sub_input;
+  auto sp_in = sub_input;
+
+  point_in.add("F(r)=pointlike;");
+  ball_in.add("F(r)=ball;");
   const auto doubly_odd = (wf.Anuc() % 2 == 0);
-  const auto sp_in = doubly_odd ? sub_input.copy_with("F(r)=doublyOddBW")
-                                : sub_input.copy_with("F(r)=VolotkaBW");
+  if (doubly_odd)
+    sp_in.add("F(r)=doublyOddBW;");
+  else
+    sp_in.add("F(r)=VolotkaBW;");
 
   // Uses generateOperator (from Module::MatrixElements)
   // --> Probably just as easy to do from scratch?
@@ -187,7 +196,7 @@ void HF_rmag(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto A2 = input.get<int>("A2", wf.Anuc());
   const auto eps_t = input.get("eps_targ", 1.0e-4);
 
-  const auto n = input.get<int>("n");
+  const auto n = input.get("n", 1);
   const auto kappa = input.get("kappa", -1);
 
   auto wf2 = Wavefunction(wf.rgrid->params(), {wf.Znuc(), A2},
@@ -318,9 +327,11 @@ void HF_rmag(const IO::InputBlock &input, const Wavefunction &wf) {
         // Note: For RPA, could make this 3x faster!
         // Only need to change the 'outer' guess each time, do not need to
         // re-evaluate RPA for the other two guesses! Complicated though??
-        const auto h2a = DiracOperator::HyperfineA(mu2, I2, r2a, *wf.rgrid, Fr2);
+        const auto h2a =
+            DiracOperator::HyperfineA(mu2, I2, r2a, *wf.rgrid, Fr2);
         const auto h2 = DiracOperator::HyperfineA(mu2, I2, r2, *wf.rgrid, Fr2);
-        const auto h2b = DiracOperator::HyperfineA(mu2, I2, r2b, *wf.rgrid, Fr2);
+        const auto h2b =
+            DiracOperator::HyperfineA(mu2, I2, r2b, *wf.rgrid, Fr2);
 
         double dv2 = 0.0;
         double dv2a = 0.0;
@@ -457,18 +468,36 @@ void calculateBohrWeisskopf(const IO::InputBlock &input,
 
   input.checkBlock({"rpa", "rpa_diagram", "screening", "hfs_options"});
 
-  const auto h_options = IO::InputBlock(
-      "hfs_options", input.get<std::string>("hfs_options", ""));
+  // const auto h_options =
+  //     IO::InputBlock("hfs_options", input.get<std::string>("hfs_options",
+  //     ""));
+  // IO::InputBlock point_in("hfs", h_options);
+  // IO::InputBlock ball_in("hfs", h_options);
+  // IO::InputBlock BW_in("hfs", h_options);
+  // point_in.add("F(r)=pointlike");
+  // ball_in.add("F(r)=ball");
+  // if (wf.Anuc() % 2 == 0)
+  //   BW_in.add("F(r)=doublyOddBW");
+  // else
+  //   BW_in.add("F(r)=VolotkaBW");
 
-  IO::InputBlock point_in("hfs", h_options);
-  IO::InputBlock ball_in("hfs", h_options);
-  IO::InputBlock BW_in("hfs", h_options);
-  point_in.add("F(r)=pointlike");
-  ball_in.add("F(r)=ball");
-  if (wf.Anuc() % 2 == 0)
-    BW_in.add("F(r)=doublyOddBW");
+  auto options = input.getBlock("options");
+  auto sub_input = IO::InputBlock("hfs", {});
+  if (options) {
+    sub_input.add(options->options());
+  }
+
+  auto point_in = sub_input;
+  auto ball_in = sub_input;
+  auto BW_in = sub_input;
+
+  point_in.add("F(r)=pointlike;");
+  ball_in.add("F(r)=ball;");
+  const auto doubly_odd = (wf.Anuc() % 2 == 0);
+  if (doubly_odd)
+    BW_in.add("F(r)=doublyOddBW;");
   else
-    BW_in.add("F(r)=VolotkaBW");
+    BW_in.add("F(r)=VolotkaBW;");
 
   auto hp = generateOperator(point_in, wf, false);
   auto hb = generateOperator(ball_in, wf, false);

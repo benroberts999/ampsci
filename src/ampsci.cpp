@@ -1,7 +1,6 @@
 #include "IO/ChronoTimer.hpp"
 #include "IO/FRW_fileReadWrite.hpp" //for 'ExtraPotential'
 #include "IO/InputBlock.hpp"
-#include "IO/UserInput.hpp"       // XXX print_line
 #include "Maths/Interpolator.hpp" //for 'ExtraPotential'
 #include "Modules/runModules.hpp"
 #include "Physics/PhysConst_constants.hpp" //for fit_energies
@@ -18,14 +17,14 @@ int main(int argc, char *argv[]) {
 
   // Read in input options file
   std::cout << "Reading input from: " << input_file << "\n";
-  const IO::InputBlock input(input_file);
+  const IO::InputBlock input("ampsci", std::fstream(input_file));
   std::cout << "ampsci git:" << GitInfo::gitversion << " ("
             << GitInfo::gitbranch << ")\n";
   input.print();
 
   // Atom: Get + setup atom parameters
   auto input_ok = input.check({"Atom"}, {"Z", "A", "varAlpha2"});
-  const auto atom_Z = input.get({"Atom"}, "Z", 0);
+  const auto atom_Z = input.get<std::string>({"Atom"}, "Z", "H");
   const auto atom_A = input.get({"Atom"}, "A", -1);
   const auto var_alpha = [&]() {
     const auto varAlpha2 = input.get({"Atom"}, "varAlpha2", 1.0);
@@ -42,9 +41,10 @@ int main(int argc, char *argv[]) {
   const auto num_points =
       (du_tmp > 0) ? 0ul : input.get({"Grid"}, "num_points", 1600ul);
   const auto b = input.get({"Grid"}, "b", 0.33 * rmax);
-  const auto grid_type = (b <= r0 || b >= rmax)
-                             ? "logarithmic"
-                             : input.get({"Grid"}, "type", "loglinear");
+  const auto grid_type =
+      (b <= r0 || b >= rmax)
+          ? "logarithmic"
+          : input.get<std::string>({"Grid"}, "type", "loglinear");
 
   // Nucleus: Get + setup nuclear parameters
   input_ok = input_ok && input.check({"Nucleus"}, {"rrms", "c", "t", "type"});
@@ -55,9 +55,10 @@ int main(int argc, char *argv[]) {
   const auto rrms = c_hdr <= 0.0 ? input.get({"Nucleus"}, "rrms", -1.0)
                                  : Nuclear::rrms_formula_c_t(c_hdr, skint);
   // Set nuc. type explicitely to 'pointlike' if A=0, or r_rms = 0.0
-  const auto nuc_type = (atom_A == 0 || rrms == 0.0)
-                            ? "pointlike"
-                            : input.get({"Nucleus"}, "type", "Fermi");
+  const auto nuc_type =
+      (atom_A == 0 || rrms == 0.0)
+          ? "pointlike"
+          : input.get<std::string>({"Nucleus"}, "type", "Fermi");
 
   // Create wavefunction object
   Wavefunction wf({num_points, r0, rmax, b, grid_type, du_tmp},
@@ -78,9 +79,10 @@ int main(int argc, char *argv[]) {
     return 1;
   }
 
-  const auto str_core = input.get({"HartreeFock"}, "core", "[]");
+  const auto str_core = input.get<std::string>({"HartreeFock"}, "core", "[]");
   const auto eps_HF = input.get({"HartreeFock"}, "convergence", 1.0e-12);
-  const auto HF_method = input.get({"HartreeFock"}, "method", "HartreeFock");
+  const auto HF_method =
+      input.get<std::string>({"HartreeFock"}, "method", "HartreeFock");
   if (HF_method == "Hartree")
     std::cout << "Using Hartree Method (no Exchange)\n";
   else if (HF_method == "ApproxHF")
@@ -132,7 +134,8 @@ int main(int argc, char *argv[]) {
   // (zero outside region!)
   const auto extra_ok =
       input.check({"ExtraPotential"}, {"filename", "factor", "beforeHF"});
-  const auto ep_fname = input.get({"ExtraPotential"}, "filename", "");
+  const auto ep_fname =
+      input.get<std::string>({"ExtraPotential"}, "filename", "");
   const auto ep_factor = input.get({"ExtraPotential"}, "factor", 0.0);
   const auto ep_beforeHF = input.get({"ExtraPotential"}, "beforeHF", false);
   const auto extra_pot =
@@ -179,9 +182,10 @@ int main(int argc, char *argv[]) {
   }
 
   // Solve for the valence states:
-  const auto valence_list = (wf.Ncore() < wf.Znuc() || HF_method == "KohnSham")
-                                ? input.get({"HartreeFock"}, "valence", "")
-                                : "";
+  const auto valence_list =
+      (wf.Ncore() < wf.Znuc() || HF_method == "KohnSham")
+          ? input.get<std::string>({"HartreeFock"}, "valence", "")
+          : "";
   if (valence_list != "") {
     // 'if' is only for output format, nothing bad
     // happens if below are called
@@ -231,10 +235,7 @@ int main(int argc, char *argv[]) {
   const auto sigma_rmin = input.get({"Correlations"}, "rmin", 1.0e-4);
   const auto sigma_rmax = input.get({"Correlations"}, "rmax", 30.0);
   const auto default_stride = [&]() {
-    // By default, choose
-    // stride such that
-    // there is 150 points
-    // over [1e-4,30]
+    // By default, choose stride such that there is 150 points over [1e-4,30]
     const auto stride =
         int(wf.rgrid->getIndex(30.0) - wf.rgrid->getIndex(1.0e-4)) / 150;
     return (stride <= 2) ? 2 : stride;
@@ -250,97 +251,43 @@ int main(int argc, char *argv[]) {
   const auto PolBasis = input.get({"Correlations"}, "basis_for_pol", false);
   const auto each_valence = input.get({"Correlations"}, "each_valence", false);
   const auto include_G = input.get({"Correlations"}, "include_G", false);
-  // force
-  // sigma_omre
-  // to be
-  // always -ve
+  // force sigma_omre to be always -ve
   const auto sigma_omre = -std::abs(
       input.get({"Correlations"}, "real_omega", -0.33 * wf.energy_gap()));
 
-  // Imaginary
-  // omegagrid
-  // params
-  // (onlu
-  // used
-  // for
-  // Feynman)
+  // Imaginary omegagrid params (only used for Feynman)
   double w0 = 0.01;
   double wratio = 1.5;
   {
     const auto imag_om =
         input.get({"Correlations"}, "imag_omega", std::vector{w0, wratio});
     if (imag_om.size() != 2) {
-      std::cout << "ERROR: "
-                   "imag_omega must"
-                   " be "
-                   "a "
-                   "list "
-                   "of "
-                   "2: "
-                   "omega"
-                   "_0 "
-                   "(firs"
-                   "t "
-                   "step)"
-                   ", "
-                   "and "
-                   "omegr"
-                   "a_"
-                   "ratio"
-                   " ("
-                   "ratio"
-                   " for "
-                   "log "
-                   "w "
-                   "grid)"
-                   "\n";
+      std::cout << "ERROR: imag_omega must be a list of 2: omega_0 (first "
+                   "step), and omega_ratio (ratio for log w grid)\n";
     } else {
       w0 = imag_om[0];
       wratio = imag_om[1];
     }
   }
 
-  // Read/write
-  // Sigma
-  // to
-  // file:
-  auto sigma_write = input.get({"Correlations"}, "write", "");
-  // By  // default,  // try to  // read  // from  // write  // file  // (if it
-  // // exists)
+  // Read/write Sigma to file:
+  auto sigma_write = input.get<std::string>({"Correlations"}, "write", "");
+  // By default,  try to  read  from  write  file  (if it exists)
   const auto sigma_read = input.get({"Correlations"}, "read", sigma_write);
-  // don't
-  // write
-  // to
-  // default
-  // filename
-  // when
-  // reading
-  // from
-  // another
-  // file
+  // don't  write to default filename when reading from another file
   if (sigma_read != "" && sigma_write == "")
     sigma_write = "false";
 
-  // To fit
-  // Sigma
-  // to
-  // energies:
+  // To fit Sigma to energies:
   auto fit_energies =
       input.get({"Correlations"}, "fitTo_cm", std::vector<double>{});
-  // energies
-  // given
-  // in
-  // cm^-1,
-  // convert
-  // to au:
+  // energies given in cm^-1, convert to au:
   qip::scale(&fit_energies, 1.0 / PhysConst::Hartree_invcm);
   const auto lambda_k =
       input.get({"Correlations"}, "lambda_kappa", std::vector<double>{});
   const auto fk = input.get({"Correlations"}, "fk", std::vector<double>{});
 
-  // Form
-  // correlation
-  // potential:
+  // Form correlation potential:
   if ((do_energyShifts || do_brueckner) && Sigma_ok) {
     IO::ChronoTimer t("Sigma");
     wf.formSigma(n_min_core, do_brueckner, sigma_rmin, sigma_rmax, sigma_stride,
@@ -349,24 +296,13 @@ int main(int argc, char *argv[]) {
                  GreenBasis, PolBasis, sigma_omre, w0, wratio);
   }
 
-  // Calculate
-  // + print
-  // second-order
-  // energy
-  // shifts
+  // Calculate + print second-order energy shifts
   if (!wf.valence.empty() && do_energyShifts && Sigma_ok) {
     IO::ChronoTimer t("de");
     wf.SOEnergyShift();
   }
 
-  // Solve
-  // Brueckner
-  // orbitals
-  // (optionally,
-  // fit
-  // Sigma
-  // to exp
-  // energies)
+  // Solve Brueckner orbitals (optionally, fit Sigma to exp energies)
   if (!wf.valence.empty() && do_brueckner && Sigma_ok) {
     std::cout << "\n";
     IO::ChronoTimer t("Br");
@@ -375,21 +311,13 @@ int main(int argc, char *argv[]) {
     else
       wf.hartreeFockBrueckner();
   }
-  // Print
-  // out
-  // info
-  // for new
-  // "Brueckner"
-  // valence
-  // orbitals:
+  // Print out info for new "Brueckner" valence orbitals:
   if (!wf.valence.empty() && do_brueckner && Sigma_ok) {
     std::cout << "\nBrueckner orbitals:\n";
     wf.printValence(sorted);
   }
 
-  // Construct
-  // B-spline
-  // Spectrum:
+  // Construct B-spline Spectrum:
   const auto spectrum_ok =
       input.check({"Spectrum"}, {"number", "order", "r0", "r0_eps", "rmax",
                                  "states", "print", "positron"});
@@ -401,7 +329,15 @@ int main(int argc, char *argv[]) {
   }
 
   // run each of the modules with the calculated wavefunctions
-  Module::runModules(input, wf);
+  auto modules = input.getBlock("Modules");
+  if (modules) {
+    for (const auto &block : input.blocks()) {
+      if (block.name().find("Modules::") != std::string::npos) {
+        modules->add(block);
+      }
+    }
+    Module::runModules(modules.value(), wf);
+  }
 
   return 0;
 }

@@ -21,13 +21,13 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
                     "max_l_bound", "max_L", "use_plane_waves", "label",
                     "output_text", "output_binary"});
 
-  auto demin = input.get<double>("Emin");
-  auto demax = input.get<double>("Emax");
-  auto desteps = input.get<int>("Esteps");
+  auto demin = input.get<double>("Emin", 1.0);
+  auto demax = input.get<double>("Emax", 1.0);
+  auto desteps = input.get<int>("Esteps", 1.0);
 
-  auto qmin = input.get<double>("qmin");
-  auto qmax = input.get<double>("qmax");
-  auto qsteps = input.get<int>("qsteps");
+  auto qmin = input.get<double>("qmin", 1.0);
+  auto qmax = input.get<double>("qmax", 1.0);
+  auto qsteps = input.get<int>("qsteps", 1.0);
 
   // allow for single-step in dE or q grid
   if (desteps == 1)
@@ -57,7 +57,7 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
   auto max_l = input.get<int>("max_l_bound", max_l_core);
   if (max_l < 0 || max_l > max_l_core)
     max_l = max_l_core;
-  auto max_L = input.get<int>("max_L");
+  auto max_L = input.get<int>("max_L", 2 * max_l); // random default..
 
   bool plane_wave = input.get<bool>("use_plane_waves", false);
   if (plane_wave)

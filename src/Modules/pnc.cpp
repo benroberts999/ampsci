@@ -35,7 +35,7 @@ void calculatePNC(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto rpaQ = input.get("rpa", true);
 
   // input: transition
-  const auto Fb_vec = input.get_list<std::string>("transition", {});
+  const auto Fb_vec = input.get<std::vector<std::string>>("transition", {});
   const auto Fb_ok = (Fb_vec.size() >= 2);
   const auto [na, ka] =
       Fb_ok ? AtomData::parse_symbol(Fb_vec[0]) : std::pair{0, 0};

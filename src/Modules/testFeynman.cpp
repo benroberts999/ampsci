@@ -48,8 +48,7 @@ void testFeynman(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto testGQ = input.get("testGQ", true);
   const auto testPol = input.get("testPol", false);
 
-  const auto omim_v =
-      input.get_list("omim", std::vector{0.0, 1.0, 10.0, 100.0});
+  const auto omim_v = input.get("omim", std::vector{0.0, 1.0, 10.0, 100.0});
 
   //----------------------------------------------------------------------------
   // 1. Test Q vs. yk
