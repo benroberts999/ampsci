@@ -29,61 +29,54 @@ Grid {
   num_points = 2000;
 }
 
-// RadPot
-{
-  RadPot = false;
-}
-
-// Basis
-{
-  number = 40;
-  order = 7;
-  r0_eps = 1.0e-6;
-  rmax = 30.0;
-  print = false;
-  states = 35spdfghi;
-}
-
-// Correlations
-{
-  energyShifts = false;
-  Brueckner = false;
-  n_min_core = 3;
-  fitTo_cm;
-  lambda_kappa;
-}
-
-// Spectrum
-{
-  number = 100;
-  order = 7;
-  r0_eps = 1.0e-9;
-  rmax = 100.0;
-  print = false;
-  states = 90p;
-}
+// RadPot {
+//   RadPot = false;
+// }
+//
+// Basis {
+//   number = 40;
+//   order = 7;
+//   r0_eps = 1.0e-6;
+//   rmax = 30.0;
+//   print = false;
+//   states = 35spdfghi;
+// }
+//
+// Correlations {
+//   energyShifts = false;
+//   Brueckner = false;
+//   n_min_core = 3;
+//   fitTo_cm;
+//   lambda_kappa;
+// }
+//
+// Spectrum {
+//   number = 100;
+//   order = 7;
+//   r0_eps = 1.0e-9;
+//   rmax = 100.0;
+//   print = false;
+//   states = 90p;
+// }
 
 /////////////////////////////////////////////////////////////////
 // Modules:
 
 Module::Tests {}
 
-// Module::MatrixElements { operator = E1; }
-// Module::MatrixElements { operator = E1; omega = each; }
+// Modules::MatrixElements { operator = E1; }
+// Modules::MatrixElements { operator = E1; omega = each; }
 
 /*
-Module::MatrixElements {
+Modules::MatrixElements {
   operator = hfs;
   rpa = false;
-  options = {
+  options{
     F(r) = pointlike;
-  };
+  }
 }
 */
 
-// Module::pnc { transition = 6, -1, 7, -1; rpa = true; }
-
-// Module::pnc { transition = 6, -1, 5, 2; rpa = true; }
 
 // Module::BohrWeisskopf{}
 

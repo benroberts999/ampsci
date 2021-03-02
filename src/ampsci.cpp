@@ -20,6 +20,7 @@ int main(int argc, char *argv[]) {
   const IO::InputBlock input("ampsci", std::fstream(input_file));
   std::cout << "ampsci git:" << GitInfo::gitversion << " ("
             << GitInfo::gitbranch << ")\n";
+  std::cout << IO::time_date() << '\n';
   input.print();
 
   // Atom: Get + setup atom parameters
@@ -329,15 +330,13 @@ int main(int argc, char *argv[]) {
   }
 
   // run each of the modules with the calculated wavefunctions
-  auto modules = input.getBlock("Modules");
-  if (modules) {
-    for (const auto &block : input.blocks()) {
-      if (block.name().find("Modules::") != std::string::npos) {
-        modules->add(block);
-      }
+  IO::InputBlock modules("Modules");
+  for (const auto &block : input.blocks()) {
+    if (block.name().find("Module::") != std::string::npos) {
+      modules.add(block);
     }
-    Module::runModules(modules.value(), wf);
   }
+  Module::runModules(modules, wf);
 
   return 0;
 }

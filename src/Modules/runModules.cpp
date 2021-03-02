@@ -30,7 +30,7 @@ void runModule(const IO::InputBlock &module_input,
 
   // Loop through all available modules, run correct one
   for (const auto &[mod_name, mod_func] : module_list) {
-    if (in_name == "Modules::" + mod_name || in_name == mod_name)
+    if (in_name == "Module::" + mod_name || in_name == mod_name)
       return mod_func(module_input, wf);
   }
 

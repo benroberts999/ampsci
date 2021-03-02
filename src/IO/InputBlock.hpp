@@ -268,6 +268,8 @@ std::optional<T> InputBlock::get(std::string_view key) const {
     const auto option = std::find(m_options.crbegin(), m_options.crend(), key);
     if (option == m_options.crend())
       return std::nullopt;
+    if (option->value_str == "default")
+      return std::nullopt;
     return parse_str_to_T<T>(option->value_str);
   }
 }
@@ -358,7 +360,10 @@ void InputBlock::print(std::ostream &os, int depth) const {
 
   for (const auto &[key, value] : m_options) {
     os << (depth != 0 && multi_entry ? indent + "  " : "");
-    os << key << " = " << value << ';';
+    if (value == "")
+      os << key << ';';
+    else
+      os << key << " = " << value << ';';
     os << (multi_entry ? '\n' : ' ');
   }
 
@@ -524,7 +529,7 @@ void InputBlock::add_blocks_from_string(std::string_view string) {
 
       // Now, find *matching* close '}' - ensure balanced
       int depth_count = 1;
-      auto next_start = start + 1;
+      auto next_start = start; // + 1;
       while (depth_count != 0) {
         if (next_start > string.length())
           break;
@@ -555,7 +560,9 @@ void InputBlock::add_blocks_from_string(std::string_view string) {
       // Add a new block, populate it with string. Recursive, since blocks may
       // contain blocks
       auto &block = m_blocks.emplace_back(block_name);
-      block.add_blocks_from_string(string.substr(start, end - start));
+
+      if (end > start)
+        block.add_blocks_from_string(string.substr(start, end - start));
     }
 
     start = end + 1;
