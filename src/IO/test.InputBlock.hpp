@@ -3,9 +3,9 @@
 #include <cassert>
 #include <iostream>
 
-void run_tests(const IO::InputBlock &ib);
+inline void run_tests(const IO::InputBlock &ib);
 
-void test_InputBlock() {
+inline void test_InputBlock() {
   // A basic unit test  of IO::InputBlock
   // Tests each function, but not all that thoroughly
 
@@ -15,10 +15,13 @@ void test_InputBlock() {
   ib.add(Option{"k3", "number_3"});
   ib.add(InputBlock("blockA", {{"kA1", "old_val"}, {"kA1", "new_val"}}));
   ib.add(InputBlock("blockB", {{"keyB1", "valB"}}));
-  ib.add(InputBlock("blockB", {{"keyB2", "17.3"}}));
+  // 'true' means will be merged with existing block (if exists)
+  ib.add(InputBlock("blockB", {{"keyB2", "17.3"}}), true);
   std::string input_string = "blockC{ kC1=1; InnerBlock{ kib1=-6; } }";
   ib.add(input_string);
   ib.add(Option{"list", "1,2,3,4,5"});
+  ib.add(Option{"bool1", "true"});
+  ib.add(Option{"bool2", "false"});
 
   run_tests(ib);
 
@@ -42,8 +45,11 @@ void test_InputBlock() {
   std::stringstream ostr2;
   ib2.print(ostr2);
   assert(ostr1.str() == ostr2.str());
+
+  std::cout << "\nPassed all tests :)\n";
 }
 
+//******************************************************************************
 void run_tests(const IO::InputBlock &ib) {
 
   assert(ib.get("k1", 0) == 1);
@@ -83,4 +89,7 @@ void run_tests(const IO::InputBlock &ib) {
   const std::vector<int> expected_list{1, 2, 3, 4, 5};
   assert(in_list.size() == expected_list.size() &&
          std::equal(in_list.cbegin(), in_list.cend(), expected_list.cbegin()));
+
+  assert(ib.get<bool>("bool1").value() == true);
+  assert(ib.get<bool>("bool2").value() == false);
 }

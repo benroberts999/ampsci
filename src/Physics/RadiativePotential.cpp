@@ -304,8 +304,9 @@ double Helper::Qt_MLVP(double t, void *p) {
   const auto t2 = t * t;
   const auto top = std::sqrt(t2 - 1.0) * (2 * t2 + 1.0) * (2 * t * eta + 1.0);
   const auto exp_t4 = std::exp(-2 * t * eta) / (t2 * t2);
+  const auto rn_tmp = r_N; // to avoid clang error re: capturing binding ref
   const auto finite = [=]() {
-    if (r_N > 1.0e-6) {
+    if (rn_tmp > 1.0e-6) {
       const auto x = 2.0 * chi * t;
       return (3.0 / (x * x * x)) * xCoshxMinusSinhx(x);
     }
