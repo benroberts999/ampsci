@@ -134,7 +134,7 @@ public:
   inline void add(Option option);
   inline void add(const std::vector<Option> &options);
   //! Adds options/inputBlocks by parsing a string
-  inline void add(const std::string &string);
+  inline void add(const std::string &string, bool merge = false);
 
   std::string_view name() const { return m_name; }
   //! Return const reference to list of options
@@ -206,7 +206,7 @@ private:
   inline const InputBlock *getBlock_cptr(std::string_view name) const;
 
   inline void add_option(std::string_view in_string);
-  inline void add_blocks_from_string(std::string_view string);
+  inline void add_blocks_from_string(std::string_view string, bool merge);
   inline void consolidate();
 };
 
@@ -230,8 +230,8 @@ void InputBlock::add(const std::vector<Option> &options) {
     m_options.push_back(option);
 }
 //******************************************************************************
-void InputBlock::add(const std::string &string) {
-  add_blocks_from_string(removeSpaces(removeComments(string)));
+void InputBlock::add(const std::string &string, bool merge) {
+  add_blocks_from_string(removeSpaces(removeComments(string)), merge);
 }
 
 //******************************************************************************
@@ -268,7 +268,7 @@ std::optional<T> InputBlock::get(std::string_view key) const {
     const auto option = std::find(m_options.crbegin(), m_options.crend(), key);
     if (option == m_options.crend())
       return std::nullopt;
-    if (option->value_str == "default")
+    if (option->value_str == "default" || option->value_str == "")
       return std::nullopt;
     return parse_str_to_T<T>(option->value_str);
   }
@@ -502,7 +502,7 @@ bool InputBlock::check(std::initializer_list<std::string> blocks,
 }
 
 //******************************************************************************
-void InputBlock::add_blocks_from_string(std::string_view string) {
+void InputBlock::add_blocks_from_string(std::string_view string, bool merge) {
 
   // Expects that string has comments and spaces removed already
 
@@ -562,14 +562,15 @@ void InputBlock::add_blocks_from_string(std::string_view string) {
       auto &block = m_blocks.emplace_back(block_name);
 
       if (end > start)
-        block.add_blocks_from_string(string.substr(start, end - start));
+        block.add_blocks_from_string(string.substr(start, end - start), merge);
     }
 
     start = end + 1;
   }
 
   // Merge duplicated blocks.
-  // consolidate();
+  if (merge)
+    consolidate();
   // No - want ability to have multiple blocks of same name
 }
 

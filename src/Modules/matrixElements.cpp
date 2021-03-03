@@ -274,8 +274,13 @@ void hyperfine_vertex_test(const IO::InputBlock &input,
   // Generate the hyperfine structure operator (use "generate_hfs" function)
   // 'h' is the hyperfine operator (without QED);
   // nb: for now, just hyperfine. Can change easily to work for any operator
-  const auto hfs_options =
-      IO::InputBlock("hfs", input.get<std::string>("options", ""));
+  // const auto hfs_options = *input.getBlock("options");
+  auto options = input.getBlock("options");
+  auto hfs_options = IO::InputBlock("hfs", {});
+  if (options) {
+    hfs_options.add(options->options());
+  }
+
   const auto h = generate_hfsA(hfs_options, wf, true);
 
   // Form the vertex QED operator, called "hVertexQED":
@@ -325,15 +330,6 @@ void hyperfine_vertex_test(const IO::InputBlock &input,
     // Just the vertex part:
     const auto A_vertex = hVertexQED.reducedME(Fv, Fv) * a / A0;
     const auto A_mlvp = h_MLVP.reducedME(Fv, Fv) * a / A0;
-
-    // And the ratio of total QED to zeroth-order
-    // NOTE: I think this is NOT actually what you want!! Just an example!
-    // const auto QED_ratio = (A_po + A_vertex) / A0;
-
-    // nb: insead of printf, you can directly write to a file
-    // printf(" %4s, %2i, %12.5e, %12.5e, %12.5e, %12.5e, %12.5e\n",
-    //        Fv.shortSymbol().c_str(), wf0.Znuc(), A0, A_po_VP, A_po_SE,
-    //        A_vertex, A_mlvp);
 
     auto str =
         qip::fstring(" %4s, %2i, %12.5e, %12.5e, %12.5e, %12.5e, %12.5e\n",
