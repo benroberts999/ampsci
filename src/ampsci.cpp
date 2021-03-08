@@ -10,10 +10,10 @@
 #include <iostream>
 #include <string>
 
+void ampsci(const IO::InputBlock &input);
 int main(int argc, char *argv[]) {
-  IO::ChronoTimer timer("\nampsci");
+
   const std::string input_file = (argc > 1) ? argv[1] : "ampsci.in";
-  IO::print_line();
 
   // Read in input options file
   std::cout << "Reading input from: " << input_file << "\n";
@@ -21,10 +21,24 @@ int main(int argc, char *argv[]) {
   std::cout << "ampsci git:" << GitInfo::gitversion << " ("
             << GitInfo::gitbranch << ")\n";
   std::cout << IO::time_date() << '\n';
+
+  // Run program. Add option to run multiple times
+  ampsci(input);
+
+  return 0;
+}
+
+//******************************************************************************
+void ampsci(const IO::InputBlock &input) {
+  IO::ChronoTimer timer("\nampsci");
+  IO::print_line();
   input.print();
 
   // Atom: Get + setup atom parameters
-  auto input_ok = input.check({"Atom"}, {"Z", "A", "varAlpha2"});
+  auto input_ok =
+      input.check2({"Atom"}, {{"Z", "Atomic symbol/number (int or string)"},
+                              {"A", "Atomic mass number (blank for default)"},
+                              {"varAlpha2", "d(a^2)/a_0^2 (1 by default)"}});
   const auto atom_Z = input.get<std::string>({"Atom"}, "Z", "H");
   const auto atom_A = input.get({"Atom"}, "A", -1);
   const auto var_alpha = [&]() {
@@ -77,7 +91,7 @@ int main(int argc, char *argv[]) {
   if (!input_ok) {
     std::cout
         << "\nProgram halted due to input errors; review above warnings\n";
-    return 1;
+    return;
   }
 
   const auto str_core = input.get<std::string>({"HartreeFock"}, "core", "[]");
@@ -337,8 +351,6 @@ int main(int argc, char *argv[]) {
     }
   }
   Module::runModules(modules, wf);
-
-  return 0;
 }
 
 //******************************************************************************
