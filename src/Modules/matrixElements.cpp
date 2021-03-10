@@ -280,6 +280,11 @@ void hyperfine_vertex_test(const IO::InputBlock &input,
   auto hfs_options = IO::InputBlock("hfs", {});
   if (options) {
     hfs_options.add(options->options());
+    auto hfs_rrms = hfs_options.get("rrms");
+    if (!hfs_rrms) {
+      auto rstr = qip::fstring("%.6f", r_rmsfm0);
+      hfs_options.add("rrms = " + rstr + ";");
+    }
   }
 
   const auto h = generate_hfsA(hfs_options, wf, true);
@@ -305,7 +310,7 @@ void hyperfine_vertex_test(const IO::InputBlock &input,
   auto z3 = std::pow(wf.Znuc(), 3);
   auto gImmPoI = h->getc();
   auto factor_xRad = (4.0 / 3) * a2 * z3 * gImmPoI / PhysConst::muB_CGS;
-  std::cout << factor_xRad << "\n";
+  // std::cout << factor_xRad << "\n";
 
   std::cout << wf0.atom() << " " << wf0.nuclearParams() << "\n";
   if (as_x_radQ)
