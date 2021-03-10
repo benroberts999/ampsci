@@ -231,7 +231,8 @@ void hyperfine_vertex_test(const IO::InputBlock &input,
                            const Wavefunction &wf) {
 
   // Check input options for spelling mistakes etc.:
-  input.checkBlock({"options", "A_vertex", "b_vertex", "rrms", "out_file"});
+  input.check({},
+              {"options", "A_vertex", "b_vertex", "rrms", "out_file", "xrad"});
 
   std::cout << "\n"
             << "vertex QED corrections to hyperfine: Test + fit\n"
@@ -293,16 +294,28 @@ void hyperfine_vertex_test(const IO::InputBlock &input,
   std::cout << "\nIncluding effective vertex QED with: A=" << A_x
             << ", b=" << b_x << "\n";
 
+  bool as_x_radQ = input.get("xrad", false);
+
   std::ofstream outfile;
   const auto fname = input.get<std::string>("out_file", "");
   if (fname != "")
     outfile.open(fname, std::ios_base::app); // append instead of overwrite
 
+  auto a2 = std::pow(PhysConst::alpha, 2);
+  auto z3 = std::pow(wf.Znuc(), 3);
+  auto gImmPoI = h->getc();
+  auto factor_xRad = (4.0 / 3) * a2 * z3 * gImmPoI / PhysConst::muB_CGS;
+  std::cout << factor_xRad << "\n";
+
   std::cout << wf0.atom() << " " << wf0.nuclearParams() << "\n";
-  std::cout << "(All given as fraction of A0)\n";
-  std::cout
-      << "State   Z     A0            PO(VP)        PO(SE)        Vertex(SE) "
-         "   MLVP\n";
+  if (as_x_radQ)
+    std::cout << "(All given as x_rad)\n";
+  else
+    std::cout << "(All given as fraction of A0)\n";
+
+  std::cout << "State   Z   A0(MHz)       PO(VP)        MLVP          PO(SE)   "
+               "     Vertex(SE)\n";
+
   // Loop through each valence state, and calculate various QED corrections:
   for (const auto &Fv : wf0.valence) {
 
@@ -331,10 +344,21 @@ void hyperfine_vertex_test(const IO::InputBlock &input,
     const auto A_vertex = hVertexQED.reducedME(Fv, Fv) * a / A0;
     const auto A_mlvp = h_MLVP.reducedME(Fv, Fv) * a / A0;
 
-    auto str =
-        qip::fstring(" %4s, %2i, %12.5e, %12.5e, %12.5e, %12.5e, %12.5e\n",
-                     Fv.shortSymbol().c_str(), wf0.Znuc(), A0, A_po_VP, A_po_SE,
-                     A_vertex, A_mlvp);
+    const auto x_po_SE = (A_se - A0) / factor_xRad;
+    const auto x_po_VP = (A_vp - A0) / factor_xRad;
+    const auto x_vertex = hVertexQED.reducedME(Fv, Fv) * a / factor_xRad;
+    const auto x_mlvp = h_MLVP.reducedME(Fv, Fv) * a / factor_xRad;
+
+    auto str = as_x_radQ
+                   ? qip::fstring(
+                         " %4s, %2i, %12.5e, %12.5e, %12.5e, %12.5e, %12.5e\n",
+                         Fv.shortSymbol().c_str(), wf0.Znuc(), A0, x_po_VP,
+                         x_mlvp, x_po_SE, x_vertex)
+                   : qip::fstring(
+                         " %4s, %2i, %12.5e, %12.5e, %12.5e, %12.5e, %12.5e\n",
+                         Fv.shortSymbol().c_str(), wf0.Znuc(), A0, A_po_VP,
+                         A_mlvp, A_po_SE, A_vertex);
+
     // Write to screen, AND (optionally) append to file:
     std::cout << str;
     outfile << str;
