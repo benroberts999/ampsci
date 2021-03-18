@@ -15,12 +15,6 @@ namespace Module {
 //! Calculates matrix elements of any tensor operator, with RPA
 void matrixElements(const IO::InputBlock &input, const Wavefunction &wf);
 
-void vertexQED(const IO::InputBlock &input, const Wavefunction &wf);
-
-//! Used for finding A and b for effective vertex QED operator
-void hyperfine_vertex_test(const IO::InputBlock &input,
-                           const Wavefunction &wf);
-
 //! Calculates Structure Radiation + Normalisation of States
 /*!
 Note: Most input options are similar to MatrixElements module:
@@ -38,8 +32,7 @@ For explanation of the rest, see MatrixElements module.
 void structureRad(const IO::InputBlock &input, const Wavefunction &wf);
 
 //! Calculates state lifetimes (using E1 and E2 only). nb: HF energies
-void calculateLifetimes(const IO::InputBlock &input,
-                        const Wavefunction &wf);
+void calculateLifetimes(const IO::InputBlock &input, const Wavefunction &wf);
 
 //! Returns a ptr to the requested operator, with given properties
 std::unique_ptr<DiracOperator::TensorOperator>
