@@ -47,8 +47,18 @@ void ampsci(const IO::InputBlock &input) {
   }();
 
   // Grid: Get + setup grid parameters
-  input_ok = input_ok && input.check({"Grid"}, {"r0", "rmax", "num_points",
-                                                "type", "b", "fixed_du"});
+  input_ok =
+      input_ok &&
+      input.check2(
+          {"Grid"},
+          {{"r0", "Initial grid point, in au (~1e-6)"},
+           {"rmax", "Finial grid point ~100.0"},
+           {"num_points", "Number of grid points ~1000"},
+           {"type", "loglinear or logarithmic"},
+           {"b", "only loglinear: roughly logarithmic for r<b, linear for r>b"},
+           {"fixed_du", "du is uniform grid step size; set this instead of "
+                        "num_points (~0.1)"}});
+
   const auto r0 = input.get({"Grid"}, "r0", 1.0e-6);
   const auto rmax = input.get({"Grid"}, "rmax", 120.0);
   // du_tmp>0 means calc num_points
@@ -62,7 +72,13 @@ void ampsci(const IO::InputBlock &input) {
           : input.get<std::string>({"Grid"}, "type", "loglinear");
 
   // Nucleus: Get + setup nuclear parameters
-  input_ok = input_ok && input.check({"Nucleus"}, {"rrms", "c", "t", "type"});
+  input_ok = input_ok &&
+             input.check2({"Nucleus"},
+                          {{"rrms", "root-mean-square charge radius, in fm "
+                                    "(blank means will look up default)"},
+                           {"c", "Half-density radius (use instead of rrms)"},
+                           {"t", "Nuclear skin thickness; default = 2.3"},
+                           {"type", "Fermi, spherical, pointlike"}});
   // if {rrms, t} < 0 means get default (depends on A)
   const auto c_hdr = input.get({"Nucleus"}, "c", -1.0);
   const auto skint = input.get({"Nucleus"}, "skin_t", Nuclear::default_t);
@@ -85,9 +101,18 @@ void ampsci(const IO::InputBlock &input) {
             << "********************************************************\n";
 
   // Parse input for HF method
-  input_ok = input_ok &&
-             input.check({"HartreeFock"}, {"core", "valence", "convergence",
-                                           "method", "Breit", "sortOutput"});
+  input_ok =
+      input_ok &&
+      input.check2(
+          {"HartreeFock"},
+          {{"core", "Core configuration. e.g., [Xe] for Cs"},
+           {"valence", "Which valence states? e.g., 7sp5d"},
+           {"convergence", "HF convergance goal, 1e-12"},
+           {"method", "HartreeFock(default), Hartree, KohnSham"},
+           {"Breit",
+            "Scale for Breit. 0.0 default (no Breit), 1.0 include Breit"},
+           {"sortOutput", "Sort energy tables by energy? (default=false)"}});
+
   if (!input_ok) {
     std::cout
         << "\nProgram halted due to input errors; review above warnings\n";
@@ -122,9 +147,18 @@ void ampsci(const IO::InputBlock &input) {
   }
 
   // Inlcude QED radiatve potential
-  const auto qed_ok = input.check(
-      {"RadPot"}, {"RadPot", "Simple", "Ueh", "SE_h", "SE_l", "SE_m", "rcut",
-                   "scale_rN", "scale_l", "core_qed"});
+  const auto qed_ok = input.check2(
+      {"RadPot"},
+      {{"RadPot", "Include Radiative potential? true/false"},
+       {"Simple", "Scale for 'simple' potential: default = 0"},
+       {"Ueh", " for Uehling typical [0.0, 1.0], Default = 1"},
+       {"SE_h", " for self-energy high-freq electric. Default = 1"},
+       {"SE_l", " for self-energy low-freq electric. Default = 1"},
+       {"SE_m", " self-energy magnetic. Default = 1"},
+       {"rcut", "Maximum r to calculate Rad Pot (~5)"},
+       {"scale_rN", "Nuclear size. 0 for pointlike, 1 for typical"},
+       {"scale_l", "Extra scaling factor for each l e.g., (1,1,1)"},
+       {"core_qed", "Include rad pot into core Hartree-Fock (default=true)"}});
   const auto include_qed = input.get({"RadPot"}, "RadPot", false);
   const auto x_Simple = input.get({"RadPot"}, "Simple", 0.0);
   const auto xrp_dflt = (include_qed && x_Simple == 0.0) ? 1.0 : 0.0;
@@ -140,8 +174,7 @@ void ampsci(const IO::InputBlock &input) {
   if (include_qed && qed_ok && core_qed) {
     wf.radiativePotential(x_Simple, x_Ueh, x_SEe_h, x_SEe_l, x_SEm, rcut,
                           scale_rN, x_spd);
-    std::cout << "Including QED into Hartree-Fock core "
-                 "(and valence)\n\n";
+    std::cout << "Including QED into Hartree-Fock core (and valence)\n\n";
   }
 
   // Inlcude extra potential (read in from text file):
@@ -224,9 +257,16 @@ void ampsci(const IO::InputBlock &input) {
   wf.printValence(sorted);
 
   // Construct B-spline basis:
-  const auto basis_ok =
-      input.check({"Basis"}, {"number", "order", "r0", "r0_eps", "rmax",
-                              "states", "print", "positron"});
+  const auto basis_ok = input.check2(
+      {"Basis"}, {{"number", "Number of splines used in expansion"},
+                  {"order", "order of splines ~7-9"},
+                  {"r0", "minimum cavity radius"},
+                  {"r0_eps", "Select cavity radius r0 for each l by position "
+                             "where |psi(r0)/psi_max| falls below r0_eps"},
+                  {"rmax", "maximum cavity radius"},
+                  {"states", "states to keep (e.g., 30spdf20ghi)"},
+                  {"print", "Print all spline energies (for testing)"},
+                  {"positron", "Include -ve energy states (true/false)"}});
   if (basis_ok)
     wf.formBasis({*input.getBlock("Basis")});
   if (input.get({"Basis"}, "print", false) && !wf.basis.empty()) {

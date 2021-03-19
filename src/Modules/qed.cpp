@@ -20,8 +20,12 @@ void vertexQED(const IO::InputBlock &input, const Wavefunction &wf) {
       {"operator", "options", "rrms", "onlyDiagonal", "A_vertex", "b_vertex"});
 
   const auto oper = input.get<std::string>("operator", "");
-  const auto h_options =
-      IO::InputBlock(oper, input.get<std::string>("options", ""));
+  // Get optional 'options' for operator
+  auto h_options = IO::InputBlock(oper, {});
+  const auto tmp_opt = input.getBlock("options");
+  if (tmp_opt) {
+    h_options = *tmp_opt;
+  }
   const auto h = generateOperator(oper, h_options, wf, true);
 
   const bool radial_int = input.get("radialIntegral", false);
