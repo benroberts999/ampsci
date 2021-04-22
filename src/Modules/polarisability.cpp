@@ -4,6 +4,7 @@
 #include "IO/InputBlock.hpp"
 #include "MBPT/StructureRad.hpp"
 #include "Wavefunction/Wavefunction.hpp"
+#include "qip/Vector.hpp"
 #include <iostream>
 #include <string>
 #include <vector>
@@ -15,8 +16,13 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
 
   std::cout << "\nDipole polarisability:\n";
 
-  input.checkBlock({"rpa", "omega", "transition", "omega_max", "omega_steps",
-                    "StrucRadNorm"});
+  input.checkBlock2(
+      {{"rpa", "true/false; include RPA"},
+       {"omega", "frequency (for single w)"},
+       {"omega_max", "if >0, will run as function of w"},
+       {"omega_steps", "number of w steps (from 0) if wmax>0"},
+       {"StrucRadNorm", "[only for 'single' frequency]"},
+       {"transition", "e.g., '6s,7s' or '6s+,7s+' - not fully checked"}});
 
   const auto rpaQ = input.get("rpa", true);
   const auto omega = input.get("omega", 0.0);
@@ -29,12 +35,18 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Solve TDHF for core, is doing RPA.
   // nb: even if not doing RPA, need TDHF object for tdhf method
-  if (rpaQ)
+  if (rpaQ) {
     dVE1.solve_core(omega);
+  }
 
-  // **************
+  // =================================================================
   // "Static" core + valence dipole polarisabilities:
   // (static if omega = 0), but single omega
+  if (omega > 0.0) {
+    std::cout << "At single frequency w=" << omega << "\n";
+  } else {
+    std::cout << "Static\n";
+  }
   const auto ac_tdhf = alpha_core_tdhf(wf.core, he1, dVE1, omega);
   const auto ac_sos = alpha_core_sos(wf.core, wf.spectrum, he1, dVE1, omega);
 
@@ -46,9 +58,12 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
         alpha_valence_tdhf(Fv, Fv, he1, omega, dVE1, wf.getSigma());
     const auto av_sos = alpha_valence_sos(Fv, wf.spectrum, he1, dVE1, omega);
     printf("%4s: %9.3f  %9.3f", Fv.shortSymbol().c_str(), av_tdhf, av_sos);
-    printf("  =  %9.3f  %9.3f\n", ac_tdhf + av_tdhf, ac_sos + av_sos);
+    auto eps = std::abs((ac_tdhf + av_tdhf) / (ac_sos + av_sos) - 1.0);
+    printf("  =  %9.3f  %9.3f   eps=%.0e\n", ac_tdhf + av_tdhf, ac_sos + av_sos,
+           eps);
   }
 
+  // =================================================================
   if (srQ) {
     std::cout << "\nIncluding Structure Radiation + Normalisation\n"
               << std::flush;
@@ -60,9 +75,10 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
     }
   }
 
-  // **************
+  // =================================================================
   // Transition polarisability, alpha and beta:
   const auto ab_vec = input.get<std::vector<std::string>>("transition", {});
+  std::cout << ab_vec.size() << "\n";
   const auto ab_ok = (ab_vec.size() >= 2);
   const auto [na, ka] =
       ab_ok ? AtomData::parse_symbol(ab_vec[0]) : std::pair{0, 0};
@@ -87,8 +103,8 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
     printf(" : %9.3f + %9.3f = %9.3f\n", b1, b2, b1 + b2);
   }
 
-  // **************
-  // Dynamic dipole polarisability, alpha and beta:
+  // =================================================================
+  // Dynamic dipole polarisability, alpha:
   const auto omega_max = input.get("omega_max", 0.0);
   const auto omega_steps = std::abs(input.get("omega_steps", 30));
   const auto *const pFv = wf.valence.empty() ? nullptr : &wf.valence.front();
@@ -99,8 +115,9 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
     if (pFv)
       std::cout << "| ac+v(w) tdhf          sos";
     std::cout << "\n";
-    const auto dw = omega_max / omega_steps;
-    for (auto ww = 0.0; ww < omega_max; ww += dw) {
+
+    const auto omega_list = qip::uniform_range(0.0, omega_max, omega_steps);
+    for (const auto ww : omega_list) {
       if (dVE1.get_eps() > 1.0e-2) {
         // if tdhf didn't converge well last time, start from scratch
         // (otherwise, start from where we left off, since much faster)
@@ -118,7 +135,7 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
         const auto av_w_sos =
             alpha_valence_sos(*pFv, wf.spectrum, he1, dVE1, ww);
 
-        printf(" %11.4e  %11.4e", ac_w_tdhf + av_w_tdhf, av_w_sos);
+        printf(" %11.4e  %11.4e", ac_w_tdhf + av_w_tdhf, ac_w_sos + av_w_sos);
       }
       std::cout << "\n";
     }
@@ -293,6 +310,8 @@ double alpha_valence_sos(const DiracSpinor &Fv, const DiracSpinor &Fw,
                          ExternalField::TDHF &dVE1, double omega) {
 
   (void)omega; // XXX Where omega go??
+
+  std::cout << "\nWARNING 312: Missing omega in formula??\n";
 
   auto alpha_v = 0.0;
   const auto f = (-1.0 / 3.0) / (Fv.twoj() + 1);

@@ -64,11 +64,11 @@ Grid {
 
 Module::Tests {}
 
-// Modules::MatrixElements { operator = E1; }
-// Modules::MatrixElements { operator = E1; omega = each; }
+// Module::MatrixElements { operator = E1; }
+// Module::MatrixElements { operator = E1; omega = each; }
 
 /*
-Modules::MatrixElements {
+Module::MatrixElements {
   operator = hfs;
   rpa = false;
   options{

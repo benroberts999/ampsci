@@ -287,6 +287,8 @@ InputBlock::get_vector(std::string_view key) const {
   const auto option = std::find(m_options.crbegin(), m_options.crend(), key);
   if (option == m_options.crend())
     return std::nullopt;
+  if (option->value_str == "")
+    return std::nullopt;
   std::stringstream ss(option->value_str);
   while (ss.good()) {
     // note: *very* innefficient
