@@ -29,5 +29,6 @@ Module::HFAnomaly{
 void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf);
 
 void HF_rmag(const IO::InputBlock &input, const Wavefunction &wf);
+void BW_eta_sp(const IO::InputBlock &input, const Wavefunction &wf);
 
 } // namespace Module

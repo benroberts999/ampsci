@@ -394,6 +394,8 @@ bool InputBlock::checkBlock2(
     const auto bad_option =
         !std::any_of(list.cbegin(), list.cend(), is_optionQ);
     auto help = (option.key == "Help" || option.key == "help") ? true : false;
+    if (help)
+      print = true;
     if (bad_option && !help) {
       all_ok = false;
       std::cout << "\n⚠️  WARNING: Unclear input option in " << m_name
@@ -437,6 +439,8 @@ bool InputBlock::checkBlock(const std::vector<std::string> &list,
     const auto bad_option =
         !std::any_of(list.cbegin(), list.cend(), is_optionQ);
     auto help = (option.key == "Help" || option.key == "help") ? true : false;
+    if (help)
+      print = true;
     if (bad_option && !help) {
       all_ok = false;
       std::cout << "\n⚠️  WARNING: Unclear input option in " << m_name

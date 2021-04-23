@@ -812,10 +812,12 @@ GMatrix FeynmanSigma::FeynmanDirect(int kv, double env, int in_k) const {
 
 #pragma omp parallel for
   for (auto iw = 0ul; iw < wgrid.num_points; iw++) { // for omega integral
+
+    // Simpson's rule: Implicit ends (integrand zero at w=0 and w>wmax)
+    const auto weight = iw % 2 == 0 ? 4.0 / 3 : 2.0 / 3;
+
     // I, since dw is on imag. grid; 2 from symmetric +/- w
-    // const auto dw = I * (2.0 * sw * wgrid.drdu[iw] * wgrid.du / (2 *
-    // M_PI));
-    const auto dw = I * wgrid.drdu[iw];
+    const auto dw = I * weight * wgrid.drdu[iw];
 
     for (auto k = 0ul; int(k) <= max_k; k++) {
 

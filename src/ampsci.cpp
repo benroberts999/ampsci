@@ -12,7 +12,7 @@
 
 void ampsci(const IO::InputBlock &input);
 int main(int argc, char *argv[]) {
-
+  std::cout << "\n";
   const std::string input_file = (argc > 1) ? argv[1] : "ampsci.in";
 
   // Read in input options file

@@ -179,6 +179,7 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
     }
   }
 }
+
 //******************************************************************************
 void HF_rmag(const IO::InputBlock &input, const Wavefunction &wf) {
   // For isotope 1 and 2
@@ -584,6 +585,71 @@ void calculateBohrWeisskopf(const IO::InputBlock &input,
           continue;
         printf("    %2i %.5f %.5f\n", m.n, n.b / m.b, n.sp / m.sp);
       }
+    }
+  }
+}
+
+//******************************************************************************
+void BW_eta_sp(const IO::InputBlock &input, const Wavefunction &wf) {
+  using namespace DiracOperator;
+
+  input.checkBlock({});
+
+  auto options = input.getBlock("options");
+  auto sub_input = IO::InputBlock("hfs", {});
+  if (options) {
+    sub_input.add(options->options());
+  }
+  // sub_input.print();
+
+  std::cout << "\nScreening: eta_sp = eps{ns}/eps{(n+1)p}\n"
+            << "\nNo RPA (mainly for H-like!)\n";
+
+  auto point_in = sub_input;
+  auto ball_in = sub_input;
+  auto BW_in = sub_input;
+
+  point_in.add("F(r)=pointlike;");
+  ball_in.add("F(r)=ball;");
+  const auto doubly_odd = (wf.Anuc() % 2 == 0);
+  if (doubly_odd)
+    BW_in.add("F(r)=doublyOddBW;");
+  else
+    BW_in.add("F(r)=VolotkaBW;");
+
+  auto hp = generateOperator(point_in, wf, false);
+  auto hb = generateOperator(ball_in, wf, false);
+  auto hw = generateOperator(BW_in, wf);
+
+  std::cout << "\n      A0(MHz)         e(ball)   e(SP)     eta(b)   eta(sp)\n";
+  for (const auto &Fs : wf.valence) {
+    if (Fs.k != -1)
+      continue;
+    auto Asp = HyperfineA::hfsA(hp.get(), Fs);
+    auto Asb = HyperfineA::hfsA(hb.get(), Fs);
+    auto Asw = HyperfineA::hfsA(hw.get(), Fs);
+
+    auto es_b = 100.0 * (Asb - Asp) / Asp;
+    auto es_w = 100.0 * (Asw - Asp) / Asp;
+
+    printf("%4s  %.7e  %7.5f  %7.5f\n", Fs.shortSymbol().c_str(), Asp, es_b,
+           es_w);
+
+    auto Fp = wf.getState(Fs.n + 1, +1);
+    if (Fp) {
+
+      auto App = HyperfineA::hfsA(hp.get(), *Fp);
+      auto Apb = HyperfineA::hfsA(hb.get(), *Fp);
+      auto Apw = HyperfineA::hfsA(hw.get(), *Fp);
+
+      auto ep_b = 100.0 * (Apb - App) / App;
+      auto ep_w = 100.0 * (Apw - App) / App;
+
+      auto eta_sp_b = es_b / ep_b;
+      auto eta_sp_w = es_w / ep_w;
+
+      printf("%4s  %.7e  %7.5f  %7.5f  %7.4f  %7.4f\n",
+             Fp->shortSymbol().c_str(), App, ep_b, ep_w, eta_sp_b, eta_sp_w);
     }
   }
 }

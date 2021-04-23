@@ -36,15 +36,16 @@ static const std::vector<std::pair<
                 {"BohrWeisskopf", &calculateBohrWeisskopf},
                 {"HFAnomaly", &HFAnomaly},
                 {"HF_rmag", &HF_rmag},
+                {"screeningFactors", &screeningFactors},
+                {"BW_eta_sp", &BW_eta_sp},
                 {"pnc", &calculatePNC},
                 {"vertexQED", &vertexQED},
                 {"hyperfine_vertex_test", &hyperfine_vertex_test},
-                {"polarisability", &polarisability},
                 {"testFeynman", &testFeynman},
                 {"matrixElements", &matrixElements},
                 {"lifetimes", &calculateLifetimes},
+                {"polarisability", &polarisability},
                 {"structureRad", &structureRad},
-                {"screeningFactors", &screeningFactors},
                 {"fieldShift", &fieldShift},
                 {"exampleModule", &exampleModule}};
 
