@@ -7,23 +7,34 @@
 #include "Wavefunction/Wavefunction.hpp"
 #include "git.info"
 #include "qip/Vector.hpp"
+#include <filesystem>
 #include <iostream>
 #include <string>
 
 void ampsci(const IO::InputBlock &input);
 int main(int argc, char *argv[]) {
-  std::cout << "\n";
-  const std::string input_file = (argc > 1) ? argv[1] : "ampsci.in";
-
-  // Read in input options file
-  std::cout << "Reading input from: " << input_file << "\n";
-  const IO::InputBlock input("ampsci", std::fstream(input_file));
   std::cout << "ampsci git:" << GitInfo::gitversion << " ("
             << GitInfo::gitbranch << ")\n";
   std::cout << IO::time_date() << '\n';
 
-  // Run program. Add option to run multiple times
-  ampsci(input);
+  const std::string input_text = (argc > 1) ? argv[1] : "ampsci.in";
+
+  if (std::filesystem::is_regular_file(input_text)) {
+    // Read in input options file
+    std::cout << "Reading input from: " << input_text << "\n";
+    const IO::InputBlock input("ampsci", std::fstream(input_text));
+
+    // Run program. Add option to run multiple times
+    ampsci(input);
+  } else {
+
+    const std::string default_input = (input_text.size() <= 2)
+                                          ? "Atom{Z=" + input_text + ";}" +
+                                                "HartreeFock { core = [" +
+                                                input_text + "]; }"
+                                          : input_text;
+    ampsci({"ampsci", default_input});
+  }
 
   return 0;
 }
@@ -31,6 +42,7 @@ int main(int argc, char *argv[]) {
 //******************************************************************************
 void ampsci(const IO::InputBlock &input) {
   IO::ChronoTimer timer("\nampsci");
+  std::cout << "\n";
   IO::print_line();
   input.print();
 
