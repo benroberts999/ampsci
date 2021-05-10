@@ -59,8 +59,8 @@ There are four documentation types provided:
  * All programs compiled using the Makefile (run _$make_)
  * The file _Makefile_ has some basic compilation options. It's currently set up to work on most linux systems; you may need to change a few options for others (see below)
  * Tested with g++ and clang++ on linux and mac (requires c++17)
-    * Works+tested with g++7 and newer (best w/ g++9)
-    * Works+tested with clang++6 and newer (best w/ clang++9)
+    * Works+tested with g++8 and newer
+    * Works+tested with clang++6 and newer
 
 Requires GSL (GNU scientific libraries) https://www.gnu.org/software/gsl/, and LAPACK. These must be installed for the code to run (see below).
  * Requires GSL ver 2.0+ (tested with 2.1, 2.6)
@@ -116,7 +116,7 @@ Then, the compilation + use can proceed as per Linux above.
 
 ## ampsci (main program)
 
- * Input taken from a plain text file.
+ * Input taken from a plain text file (or via command line).
  * Several example input files are given in: _doc/examples/_, along with their expected output; use these to test if everything is working.
  * You may re-name the input files (e.g., to "filename.txt"), then run as:
     * _$ ./ampsci filename.txt_

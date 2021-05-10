@@ -98,7 +98,7 @@ bool MixedStates(std::ostream &obuff) {
     dPsi.solve_core(0.0, 1); // 1 it; no dV, but solve for dPsi
 
     int count = 0;
-    for (const auto Fv : wf.valence) {
+    for (const auto &Fv : wf.valence) {
       for (const auto &Fm : wf.valence) {
         if (Fm == Fv || h.isZero(Fm.k, Fv.k))
           continue;

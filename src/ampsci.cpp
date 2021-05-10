@@ -279,11 +279,14 @@ void ampsci(const IO::InputBlock &input) {
                   {"states", "states to keep (e.g., 30spdf20ghi)"},
                   {"print", "Print all spline energies (for testing)"},
                   {"positron", "Include -ve energy states (true/false)"}});
-  if (basis_ok)
-    wf.formBasis({*input.getBlock("Basis")});
-  if (input.get({"Basis"}, "print", false) && !wf.basis.empty()) {
-    std::cout << "Basis:\n";
-    wf.printBasis(wf.basis);
+  if (basis_ok) {
+    const auto basis_in = input.getBlock("Basis");
+    if (basis_in)
+      wf.formBasis(*basis_in);
+    if (input.get({"Basis"}, "print", false) && !wf.basis.empty()) {
+      std::cout << "Basis:\n";
+      wf.printBasis(wf.basis);
+    }
   }
 
   // Correlations: read in options
@@ -388,11 +391,14 @@ void ampsci(const IO::InputBlock &input) {
   const auto spectrum_ok =
       input.check({"Spectrum"}, {"number", "order", "r0", "r0_eps", "rmax",
                                  "states", "print", "positron"});
-  if (spectrum_ok)
-    wf.formSpectrum({*input.getBlock("Spectrum")});
-  if (input.get({"Spectrum"}, "print", false) && !wf.spectrum.empty()) {
-    std::cout << "Spectrum:\n";
-    wf.printBasis(wf.spectrum);
+  const auto spectrum_in = input.getBlock("Spectrum");
+  if (spectrum_ok) {
+    if (spectrum_in)
+      wf.formSpectrum(*spectrum_in);
+    if (input.get({"Spectrum"}, "print", false) && !wf.spectrum.empty()) {
+      std::cout << "Spectrum:\n";
+      wf.printBasis(wf.spectrum);
+    }
   }
 
   // run each of the modules with the calculated wavefunctions

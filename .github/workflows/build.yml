@@ -13,29 +13,26 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: "Install dependencies"
-      run: sudo apt install make g++-7 g++-9 clang-6.0 clang-7 clang-9 liblapack-dev libblas-dev libgsl-dev libomp5 libomp-dev
+      run: sudo apt install make g++-8 g++-11 clang-6.0 clang-10 liblapack-dev libblas-dev libgsl-dev libomp5 libomp-dev
     - name: setup
       run: cp ./doc/Makefile.example ./Makefile && cp ./doc/examples/ampsci.in ./ampsci.in
 
-    - name: Build ampsci (g++ v:7)
-      run: make clean && make CXX=g++-7
+    - name: Build ampsci (g++ v:8)
+      run: make clean && make CXX=g++-8
 
-    - name: Build ampsci (g++ v:9, no openMP)
-      run: make clean && make CXX=g++-9 UseOpenMP=no
+    - name: Build ampsci (g++ v:11, no openMP)
+      run: make clean && make CXX=g++-11 UseOpenMP=no
 
-    - name: Build ampsci (g++ v:9, release)
-      run: make clean && make CXX=g++-9
+    - name: Build ampsci (g++ v:11, release)
+      run: make clean && make CXX=g++-11 UseOpenMP=yes
     - name: Run ampsci (g++)
       run: ./ampsci
 
     - name: Build ampsci (clang++ v:6, no openMP)
       run: make clean && make CXX=clang++-6.0 UseOpenMP=no
 
-    - name: Build ampsci (clang++ v:7, no openMP)
-      run: make clean && make CXX=clang++-7 UseOpenMP=no
-
-    - name: Build ampsci (clang++ v:9, no openMP)
-      run: make clean && make CXX=clang++-9 UseOpenMP=no
+    - name: Build ampsci (clang++ v:10, no openMP)
+      run: make clean && make CXX=clang++-10 UseOpenMP=no
 
     - name: Run ampsci (clang++)
       run: ./ampsci

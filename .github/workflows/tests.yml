@@ -13,10 +13,10 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: "Install dependencies"
-      run: sudo apt install g++-9 make liblapack-dev libblas-dev libgsl-dev libomp5 libomp-dev
+      run: sudo apt install g++-11 make liblapack-dev libblas-dev libgsl-dev libomp5 libomp-dev
     - name: setup
       run: cp ./doc/Makefile.example ./Makefile
     - name: Build ampsci (g++, dev mode, with Werror)
-      run: make CXX='g++-9 -Werror' Build=dev unitTests
+      run: make CXX='g++-11 -Werror' Build=dev unitTests
     - name: Run (quick) unit tests
       run: ./unitTests quick
