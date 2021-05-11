@@ -59,7 +59,7 @@ There are four documentation types provided:
  * All programs compiled using the Makefile (run _$make_)
  * The file _Makefile_ has some basic compilation options. It's currently set up to work on most linux systems; you may need to change a few options for others (see below)
  * Tested with g++ and clang++ on linux and mac (requires c++17)
-    * Works+tested with g++8 and newer
+    * Works+tested with g++7 and newer
     * Works+tested with clang++6 and newer
 
 Requires GSL (GNU scientific libraries) https://www.gnu.org/software/gsl/, and LAPACK. These must be installed for the code to run (see below).

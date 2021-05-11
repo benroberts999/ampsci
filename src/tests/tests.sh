@@ -3,7 +3,7 @@ set -e
 make clean && make CXX=clang++-6.0 UseOpenMP=no Build=release
 make clean && make CXX=clang++-10 UseOpenMP=yes Build=dev
 ./unitTests quick
-make clean && make CXX=g++-8 UseOpenMP=yes Build=release
+make clean && make CXX=g++-7 UseOpenMP=yes Build=release
 make clean && make CXX='g++-11 -Werror' UseOpenMP=yes Build=dev
 ./unitTests quick
 ./ampsci Xe

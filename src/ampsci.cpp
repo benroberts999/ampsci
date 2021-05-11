@@ -7,7 +7,6 @@
 #include "Wavefunction/Wavefunction.hpp"
 #include "git.info"
 #include "qip/Vector.hpp"
-#include <filesystem>
 #include <iostream>
 #include <string>
 
@@ -19,22 +18,20 @@ int main(int argc, char *argv[]) {
 
   const std::string input_text = (argc > 1) ? argv[1] : "ampsci.in";
 
-  if (std::filesystem::is_regular_file(input_text)) {
-    // Read in input options file
-    std::cout << "Reading input from: " << input_text << "\n";
-    const IO::InputBlock input("ampsci", std::fstream(input_text));
+  // std::filesystem not available in g++-7 (getafix version)
+  // Reading from a file? Or from command-line?
+  const auto fstream = std::fstream(input_text);
+  const std::string default_input = (input_text.size() <= 2)
+                                        ? "Atom{Z=" + input_text + ";}" +
+                                              "HartreeFock { core = [" +
+                                              input_text + "]; }"
+                                        : input_text;
 
-    // Run program. Add option to run multiple times
-    ampsci(input);
-  } else {
+  const auto input = fstream.good() ? IO::InputBlock("ampsci", fstream)
+                                    : IO::InputBlock("ampsci", default_input);
 
-    const std::string default_input = (input_text.size() <= 2)
-                                          ? "Atom{Z=" + input_text + ";}" +
-                                                "HartreeFock { core = [" +
-                                                input_text + "]; }"
-                                          : input_text;
-    ampsci({"ampsci", default_input});
-  }
+  // Run program. Add option to run multiple times
+  ampsci(input);
 
   return 0;
 }
