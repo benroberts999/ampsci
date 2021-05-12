@@ -14,10 +14,26 @@
 
 namespace Module {
 //****************************************************************************
-void vertexQED(const IO::InputBlock &input, const Wavefunction &wf) {
 
-  input.checkBlock(
-      {"operator", "options", "rrms", "onlyDiagonal", "A_vertex", "b_vertex"});
+void vertexQED(const IO::InputBlock &input, const Wavefunction &wf) {
+  calc_vertexQED(input, wf);
+}
+
+std::vector<std::string> calc_vertexQED(const IO::InputBlock &input,
+                                        const Wavefunction &wf) {
+
+  std::vector<std::string> out; // ??
+
+  input.checkBlock2(
+      {{"operator", "operator (e.g., E1 or hfs)"},
+       {"options", "operator options (same as matrixElements)"},
+       {"rrms", "nuclear rms, for QED part"},
+       {"onlyDiagonal", "only print <a|h|a>"},
+       {"radialIntegral", "false by default (means red. mat. el)"},
+       {"A_vertex", "A vtx factor; blank=default"},
+       {"b_vertex", "A vtx factor; =1 by default"},
+       {"rpa", "include RPA? NOT USED FOR NOW"},
+       {"omega", "freq. for RPA; NOT USED FOR NOW"}});
 
   const auto oper = input.get<std::string>("operator", "");
   // Get optional 'options' for operator
@@ -43,8 +59,7 @@ void vertexQED(const IO::InputBlock &input, const Wavefunction &wf) {
   // const bool print_both = input.get("printBoth", false);
   const bool diagonal_only = input.get("onlyDiagonal", false);
 
-  const auto isotope = Nuclear::findIsotopeData(wf.Znuc(), wf.Anuc());
-  const auto r_rmsfm = input.get("rrms", isotope.r_rms);
+  const auto r_rmsfm = input.get("rrms", wf.get_rrms());
   const auto r_nucfm = std::sqrt(5.0 / 3.0) * r_rmsfm;
   const auto r_nucau = r_nucfm / PhysConst::aB_fm;
   const auto h_MLVP =
@@ -61,10 +76,29 @@ void vertexQED(const IO::InputBlock &input, const Wavefunction &wf) {
               << ", b=" << b_vertex << "\n";
   }
 
+  if (input.get("rpa", false)) {
+    std::cout << "\nNote: NO RPA in vertex (yet)!!\n";
+  }
+
+  std::cout << "\nUnit conversions:\n";
+  const auto a2 = std::pow(PhysConst::alpha, 2);
+  const auto z3 = std::pow(wf.Znuc(), 3);
+  const auto gImmPoI = h->getc();
+  // gImmPoI = mu * PhysConst::muN_CGS_MHz / IN (mu here in units of muN)
+  const auto factor_xRad = (4.0 / 3) * a2 * z3 * gImmPoI / PhysConst::muB_CGS;
+  const auto factor_eF = (PhysConst::alpha / M_PI) * factor_xRad; //?????
+
+  std::cout << wf.atom() << " " << wf.nuclearParams() << "\n";
+  // "muN * PhysConst::muN_CGS_MHz / IN"
+  // "(4/3)Z^3a^2 (g/mp)"
+  std::cout << "factor_xRad = A_Fermi = (4/3)Z^3a^2 (g/mp) = " << factor_xRad
+            << " MHz\n";
+  std::cout << "(alpha/pi)A_Fermi = " << factor_eF << " MHz\n";
+
   std::cout << "\n";
-  std::cout << "State     :    <h_0>         SE_vertex     MLVP\n";
+  std::cout << "State    :    <h_0>         SE_vertex     MLVP\n";
   for (const auto &Fb : wf.valence) {
-    for (const auto &Fa : wf.valence) { // Special case: HFS A:
+    for (const auto &Fa : wf.valence) {
       const auto a = AhfsQ ? DiracOperator::HyperfineA::convertRMEtoA(Fa, Fb)
                            : radial_int ? 1.0 / h->angularF(Fa.k, Fb.k) : 1.0;
 
@@ -75,171 +109,204 @@ void vertexQED(const IO::InputBlock &input, const Wavefunction &wf) {
       if (Fb > Fa)
         continue;
 
-      printf("%4s %4s : ", Fb.shortSymbol().c_str(), Fa.shortSymbol().c_str());
+      auto o = qip::fstring("%4s %4s: ", Fb.shortSymbol().c_str(),
+                            Fa.shortSymbol().c_str());
       const auto h0 = h->reducedME(Fa, Fb) * a;
       const auto se_vtx = hVertexQED->reducedME(Fa, Fb) * a;
       const auto mlvp = h_MLVP->reducedME(Fa, Fb) * a;
-      printf("%13.6e %13.6e %13.6e\n", h0, se_vtx, mlvp);
+      o += qip::fstring("%13.6e %13.6e %13.6e\n", h0, se_vtx, mlvp);
       // Add RPA? Might be important?
+      std::cout << o;
+      out.push_back(o);
     }
   }
+  return out;
 }
 
 //****************************************************************************
 // Used for finding A and b for effective vertex QED operator
-void hyperfine_vertex_test(const IO::InputBlock &input,
-                           const Wavefunction &wf) {
+void QED(const IO::InputBlock &input, const Wavefunction &wf) {
+
+  std::cout << "\nQED Module:\n";
 
   // Check input options for spelling mistakes etc.:
-  input.check({},
-              {"options", "A_vertex", "b_vertex", "rrms", "out_file", "units"});
+  input.checkBlock2(
+      {{"A_vertex", "A vtx factor; blank means dflt"},
+       {"b_vertex", "B vtx factor; =1 by default"},
+       {"rrms", "double; effective rrms used in radiative potential"},
+       {"out_file", "Results appended to this file (if given)"},
+       {"matrixElements", "sub-block; same as Module::matrixElements"},
+       {"coreQED", "bool; Include QED into core? Or just valence"},
+       {"vertex", "bool; Calculate vertex corrections?"}});
 
-  // units: maybe A0 (gives dA/A0), xrad, or eF
+  std::cout << "\nDO NOT include QED into wavefunction in AMPSCI\n";
 
-  std::cout << "\n"
-            << "vertex QED corrections to hyperfine: Test + fit\n"
-            << "Solve new wavefunction, without QED:\n";
+  // filename for output file
+  const auto fname = input.get<std::string>("out_file", "");
 
-  // Note: 'wf' should include QED (for perturbed orbitals)
-  // This is the wavefunction calculated in the main routine
-  // Note: As of now, this ONLY works for H-like systems
-  // (can be easily updated in future for general case)
+  std::ofstream of_en;
+  if (fname != "")
+    of_en.open(fname + ".energy", std::ios_base::app);
+  // append instead of overwrite
 
-  // Double-check wf is H-like (i.e., has no 'core' states)
-  if (!wf.core.empty()) {
-    std::cout << "Note: only works for H-like systems!\n";
-    return;
-  }
-
-  // const auto isotope = Nuclear::findIsotopeData(wf.Znuc(), wf.Anuc());
+  // allow rrms to be different from charge distribution of wavefunction
   const auto r_rmsfm0 = input.get("rrms", wf.get_rrms());
-  const auto r_nucfm = std::sqrt(5.0 / 3.0) * r_rmsfm0;
-  const auto r_nucau = r_nucfm / PhysConst::aB_fm;
-
   const auto scale_rN = r_rmsfm0 / wf.get_rrms();
 
-  // New wavefunction, but without QED, using same parameters as original
-  Wavefunction wf0(wf.rgrid->params(), wf.get_nuclearParameters());
+  // New Wavefunctions, which include the QED
   Wavefunction wf_VP(wf.rgrid->params(), wf.get_nuclearParameters());
   Wavefunction wf_SE(wf.rgrid->params(), wf.get_nuclearParameters());
 
-  wf_VP.radiativePotential(0.0, 1.0, 0.0, 0.0, 0.0, 5.0, scale_rN, {1.0});
-  wf_SE.radiativePotential(0.0, 0.0, 1.0, 1.0, 1.0, 5.0, scale_rN, {1.0});
+  const auto coreQED = input.get("coreQED", true);
+  if (coreQED) {
+    wf_VP.radiativePotential(0.0, 1.0, 0.0, 0.0, 0.0, 5.0, scale_rN, {1.0});
+    wf_SE.radiativePotential(0.0, 0.0, 1.0, 1.0, 1.0, 5.0, scale_rN, {1.0});
+  }
 
-  // Solve for same valence states (but, without QED)
-  // note: This would be editted to allow for HartreeFock (non-H-like systems)
-  wf0.localValence(DiracSpinor::state_config(wf.valence));
-  wf_VP.localValence(DiracSpinor::state_config(wf.valence));
-  wf_SE.localValence(DiracSpinor::state_config(wf.valence));
-  // print the new valence energies to screen:
-  wf0.printValence();
+  // Do Hartree-Fock on new wavefunctions
+  const auto wfhf = wf.getHF();
+  if (!wf.core.empty()) {
+    std::cout << "HF, including VP, SE: " << HF::parseMethod(wfhf->method())
+              << "\n";
+  }
+  wf_VP.hartreeFockCore(HF::parseMethod(wfhf->method()), wfhf->x_Breit(),
+                        wf.coreConfiguration());
+  wf_SE.hartreeFockCore(HF::parseMethod(wfhf->method()), wfhf->x_Breit(),
+                        wf.coreConfiguration());
 
-  // Generate the hyperfine structure operator (use "generate_hfs" function)
-  // 'h' is the hyperfine operator (without QED);
-  // nb: for now, just hyperfine. Can change easily to work for any operator
-  // const auto hfs_options = *input.getBlock("options");
-  auto options = input.getBlock("options");
-  auto hfs_options = IO::InputBlock("hfs", {});
-  if (options) {
-    hfs_options.add(options->options());
-    auto hfs_rrms = hfs_options.get("rrms");
-    if (!hfs_rrms) {
-      auto rstr = qip::fstring("%.6f", r_rmsfm0);
-      hfs_options.add("rrms = " + rstr + ";");
+  if (!coreQED) {
+    // no core QED; add QED _after_ core HartreeFock
+    wf_VP.radiativePotential(0.0, 1.0, 0.0, 0.0, 0.0, 5.0, scale_rN, {1.0});
+    wf_SE.radiativePotential(0.0, 0.0, 1.0, 1.0, 1.0, 5.0, scale_rN, {1.0});
+  }
+
+  // Copy correlation potential to new wfs
+  if (wf.getSigma() != nullptr) {
+    std::cout << "\nIncluding correlations.\n"
+                 "Copying correlation potential across to new wavefunctions\n"
+                 "Note: SAME correlation potential; i.e., QED not included in "
+                 "correlation potential.\n";
+    wf_VP.copySigma(wf.getSigma());
+    wf_SE.copySigma(wf.getSigma());
+  }
+
+  // Solve valence states for new wfs
+  if (wf.core.empty()) {
+    // H-like:
+    wf_VP.localValence(DiracSpinor::state_config(wf.valence));
+    wf_SE.localValence(DiracSpinor::state_config(wf.valence));
+  } else if (wfhf->method() == HF::Method::KohnSham) {
+    // Kohn Sham input valence list has different format
+    std::string list{};
+    for (const auto &Fv : wf.valence) {
+      if (Fv.k < 0)
+        list += Fv.shortSymbol().substr(0, Fv.shortSymbol().length() - 1);
     }
-  }
-
-  const auto h = generate_hfsA(hfs_options, wf, true);
-
-  // Form the vertex QED operator, called "hVertexQED":
-  const auto A_z_default = DiracOperator::VertexQED::a(wf.Znuc());
-  const auto A_x = input.get("A_vertex", A_z_default);
-  const auto b_x = input.get("b_vertex", 1.0);
-  const DiracOperator::VertexQED hVertexQED(h.get(), *wf.rgrid, A_x, b_x);
-  const auto h_MLVP = DiracOperator::MLVP(h.get(), *wf.rgrid, r_nucau);
-
-  std::cout << "\nIncluding effective vertex QED with: A=" << A_x
-            << ", b=" << b_x << "\n";
-
-  std::string s_units = input.get<std::string>("units", "A0");
-  enum class Units { A0, xrad, eF, D };
-  Units units = Units::A0;
-  if (s_units == "xrad")
-    units = Units::xrad;
-  else if (s_units == "eF")
-    units = Units::eF;
-  else if (s_units == "D")
-    units = Units::D;
-
-  std::ofstream outfile;
-  const auto fname = input.get<std::string>("out_file", "");
-  if (fname != "")
-    outfile.open(fname, std::ios_base::app); // append instead of overwrite
-
-  const auto a2 = std::pow(PhysConst::alpha, 2);
-  const auto z3 = std::pow(wf.Znuc(), 3);
-  const auto gImmPoI = h->getc();
-  const auto factor_xRad = (4.0 / 3) * a2 * z3 * gImmPoI / PhysConst::muB_CGS;
-  const auto factor_eF = (PhysConst::alpha / M_PI) * factor_xRad; //?????
-
-  std::cout << wf0.atom() << " " << wf0.nuclearParams() << "\n";
-  if (units == Units::xrad) {
-    std::cout << "Units: x_rad\n";
-    std::cout << "factor_xRad = " << factor_xRad << " MHz\n";
-  } else if (units == Units::eF) {
-    std::cout << "Units: (alpha/pi)E_Fermi\n";
-    std::cout << "(alpha/pi)E_Fermi = " << factor_eF << " MHz\n";
-  } else if (units == Units::D) {
-    std::cout << "Units: D = (alpha/pi)E_Fermi/n^2\n";
-    std::cout << "(alpha/pi)E_Fermi = " << factor_eF << " MHz\n";
+    std::cout << list << "\n";
+    wf_VP.localValence(list, true);
+    wf_SE.localValence(list, true);
   } else {
-    std::cout << "Units: dA/A0\n";
+    // Hartree-Fock:
+    wf_VP.hartreeFockValence(DiracSpinor::state_config(wf.valence));
+    wf_SE.hartreeFockValence(DiracSpinor::state_config(wf.valence));
   }
-  std::cout << "State   Z   A0(MHz)       PO(VP)        MLVP          PO(SE)   "
-               "     Vertex(SE)\n";
+  // Solve Brueckner orbitals
+  if (wf.getSigma() != nullptr) {
+    wf_VP.hartreeFockBrueckner();
+    wf_SE.hartreeFockBrueckner();
+  }
 
-  // Loop through each valence state, and calculate various QED corrections:
-  for (const auto &Fv : wf0.valence) {
+  // print the new valence energies to screen:
+  std::cout << "\nEnergies, including VP:\n";
+  wf_VP.printValence();
+  std::cout << "Energies, including SE:\n";
+  wf_SE.printValence();
 
-    // Factor to convert "reduced matrix element" to "hyperfine constant A"
-    //(note: cancels in ratio)
-    const auto a = DiracOperator::HyperfineA::convertRMEtoA(Fv, Fv);
+  // Copy over basis (if exists) - only used for RPA (basis/diagram)
+  if (!wf.basis.empty()) {
+    std::cout << "\nCopying basis across; Note: basis does NOT include "
+                 "QED\n(Basis may be used for RPA, otherwise not used)\n";
+    wf_VP.basis = wf.basis;
+    wf_SE.basis = wf.basis;
+  }
 
+  // Output: energy results
+  std::cout << "\nQED contribution to valence energies; atomic units\n";
+  std::cout << "       dE(VP)        dE(SE)        dE(tot)\n";
+  for (const auto &Fv : wf.valence) {
     // Find corresponding state without QED: (can't assume in same order)
-    // const auto &Fv0 = *wf0.getState(Fv.n, Fv.k);
-    const auto &Fv_SE = *wf_SE.getState(Fv.n, Fv.k);
-    const auto &Fv_VP = *wf_VP.getState(Fv.n, Fv.k);
+    const auto Fv_SE = wf_SE.getState(Fv.n, Fv.k);
+    const auto Fv_VP = wf_VP.getState(Fv.n, Fv.k);
+    if (!Fv_SE || !Fv_SE)
+      continue;
 
-    // Zeroth-order A (no QED)
-    const auto A0 = h->reducedME(Fv, Fv) * a;
-    const auto A_vp = h->reducedME(Fv_VP, Fv_VP) * a;
-    const auto A_se = h->reducedME(Fv_SE, Fv_SE) * a;
+    const auto de_vp = Fv_VP->en - Fv.en;
+    const auto de_se = Fv_SE->en - Fv.en;
+    const auto o =
+        qip::fstring("%4s  %12.5e  %12.5e  %12.5e\n", Fv.shortSymbol().c_str(),
+                     de_vp, de_se, de_vp + de_se);
+    std::cout << o;
+    of_en << wf.Znuc() << " " << o;
+  }
 
-    // Including perturbed orbital QED:
-    // (subtract A0 to get just PO contribution)
-    // nb: this is the part we need high-precission for, since A and A0 are
-    // similar in magnitude
-    auto n3 = std::pow(Fv.n, 3);
-    auto unit_factor = (units == Units::xrad)
-                           ? factor_xRad
-                           : (units == Units::eF)
-                                 ? factor_eF
-                                 : (units == Units::D) ? factor_eF / n3 : A0;
+  // QED to matrix elements (perturbed orbital part):
+  const auto me_input = input.getBlock("matrixElements");
+  if (me_input) {
 
-    const auto A_po_SE = (A_se - A0) / unit_factor;
-    const auto A_po_VP = (A_vp - A0) / unit_factor;
-    // Just the vertex part:
-    const auto A_vertex = hVertexQED.reducedME(Fv, Fv) * a / unit_factor;
-    const auto A_mlvp = h_MLVP.reducedME(Fv, Fv) * a / unit_factor;
+    std::ofstream of_me;
+    if (fname != "")
+      of_me.open(fname + ".me_po", std::ios_base::app);
 
-    auto str =
-        qip::fstring(" %4s, %2i, %12.5e, %12.5e, %12.5e, %12.5e, %12.5e\n",
-                     Fv.shortSymbol().c_str(), wf0.Znuc(), A0, A_po_VP, A_mlvp,
-                     A_po_SE, A_vertex);
+    std::cout << "\nQED correction to Matrix elements (PO)\n";
+    std::cout << "\nNo QED:";
+    const auto me0 = Module::calc_matrixElements(*me_input, wf);
+    std::cout << "\nVacuum polarisation (PO):";
+    const auto mevp = Module::calc_matrixElements(*me_input, wf_VP);
+    std::cout << "\nSelf-energy (PO):";
+    const auto mese = Module::calc_matrixElements(*me_input, wf_SE);
 
-    // Write to screen, AND (optionally) append to file:
-    std::cout << str;
-    outfile << str;
+    std::cout << "\nQED contribution matrix elements (Perturbed Orbital)\n";
+    std::cout << "             d(VP)         d(SE)         d(tot)\n";
+    for (const auto &[a, b, x0] : me0) {
+      // find corresponding ME calculations in list:
+      // (can't assume order will be the same, though usually will be)
+      auto l = [a, b](auto e) {
+        return (a == std::get<0>(e) && b == std::get<1>(e));
+      };
+      const auto vp = std::find_if(begin(mevp), end(mevp), l);
+      const auto se = std::find_if(begin(mese), end(mese), l);
+      if (vp != mevp.end() && se != mese.end()) {
+        const auto d_vp = std::get<2>(*vp) - x0;
+        const auto d_se = std::get<2>(*se) - x0;
+        const auto o =
+            qip::fstring("%4s %4s:  %12.5e  %12.5e  %12.5e\n", a.c_str(),
+                         b.c_str(), d_vp, d_se, d_vp + d_se);
+        std::cout << o;
+        of_me << wf.Znuc() << " " << o;
+      }
+    }
+
+    // For vertexQED:
+    if (input.get("vertex", false)) {
+
+      std::ofstream of_vx;
+      if (fname != "")
+        of_vx.open(fname + ".me_vx", std::ios_base::app);
+
+      auto vtx_in = *me_input; // has 'operator/options'
+      // Add options from outer block to 'vertex block'
+      for (auto &str : {"rrms", "A_vertex", "b_vertex"}) {
+        const auto opt = input.getOption(str);
+        if (opt)
+          vtx_in.add(*opt);
+      }
+
+      std::cout << "\nVertexQED contribution (nb: no PO):\n";
+      auto res = calc_vertexQED(vtx_in, wf);
+      for (const auto &line : res) {
+        of_vx << wf.Znuc() << " " << line;
+      }
+    }
   }
 }
 } // namespace Module

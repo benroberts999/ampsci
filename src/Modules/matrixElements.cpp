@@ -25,9 +25,22 @@ namespace Module {
 
 //******************************************************************************
 void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
+  calc_matrixElements(input, wf);
+}
 
-  input.checkBlock({"operator", "options", "rpa", "omega", "radialIntegral",
-                    "printBoth", "onlyDiagonal", "units"});
+//******************************************************************************
+// XXX Needs BIG cleanup!
+std::vector<std::tuple<std::string, std::string, double>>
+calc_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
+  input.checkBlock2({{"operator", "e.g., E1, hfs"},
+                     {"options", "options specific to operator; blank by dflt"},
+                     {"rpa", "true(=TDHF), false, TDHF, basis, diagram"},
+                     {"omega", "freq. for RPA"},
+                     {"radialIntegral", "false by dflt (means red. ME)"},
+                     {"printBoth", "print <a|h|b> and <b|h|a> (dflt false)"},
+                     {"onlyDiagonal", "only <a|h|a> (dflt false)"}});
+
+  std::vector<std::tuple<std::string, std::string, double>> out;
 
   const auto oper = input.get<std::string>("operator", "");
   // Get optional 'options' for operator
@@ -140,14 +153,19 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
 
       if (!rpaQ) {
         std::cout << symb << ": ";
-        printf("%13.6e \n", h->reducedME(Fa, Fb) * a);
+        const auto me = h->reducedME(Fa, Fb) * a;
+        printf("%13.6e \n", me);
+        out.emplace_back(Fa.shortSymbol(), Fb.shortSymbol(), me);
+
       } else if (!rpaDQ) {
         std::cout << symb << ": ";
         printf("%13.6e ", h->reducedME(Fa, Fb) * a);
         auto dV = rpa->dV(Fa, Fb);
         auto dV0 = rpa0->dV(Fa, Fb);
-        printf(" %13.6e  %13.6e\n", (h->reducedME(Fa, Fb) + dV0) * a,
-               (h->reducedME(Fa, Fb) + dV) * a);
+        const auto me = (h->reducedME(Fa, Fb) + dV) * a;
+        printf(" %13.6e  %13.6e\n", (h->reducedME(Fa, Fb) + dV0) * a, me);
+        out.emplace_back(Fa.shortSymbol(), Fb.shortSymbol(), me);
+
       } else { // RPA_diagram
         std::cout << symb << ": ";
         printf("%13.6e ", h->reducedME(Fa, Fb) * a);
@@ -155,19 +173,30 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
         const auto *const rpaDptr =
             static_cast<ExternalField::DiagramRPA *>(rpa.get());
         auto dV0 = rpaDptr->dV_diagram(Fa, Fb, true);
-        printf(" %13.6e  %13.6e\n", (h->reducedME(Fa, Fb) + dV0) * a,
-               (h->reducedME(Fa, Fb) + dV) * a);
+
+        const auto me = (h->reducedME(Fa, Fb) + dV) * a;
+        printf(" %13.6e  %13.6e\n", (h->reducedME(Fa, Fb) + dV0) * a, me);
+
+        out.emplace_back(Fa.shortSymbol(), Fb.shortSymbol(), me);
       }
     }
   }
+  return out;
 }
 
 //****************************************************************************
 // Calculates Structure Radiation + Normalisation of States
 void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
 
-  input.checkBlock({"operator", "options", "rpa", "printBoth", "onlyDiagonal",
-                    "omega", "n_minmax", "splineLegs"});
+  input.checkBlock2(
+      {{"operator", "e.g., E1, hfs"},
+       {"options", "options specific to operator; blank by dflt"},
+       {"rpa", "true(=TDHF), false, TDHF, basis, diagram"},
+       {"omega", "freq. for RPA"},
+       {"printBoth", "print <a|h|b> and <b|h|a> (dflt false)"},
+       {"onlyDiagonal", "only <a|h|a> (dflt false)"},
+       {"n_minmax", "list; min,max n for core/excited: (1,inf)dflt"},
+       {"splineLegs", "Use splines for diagram legs (false dflt)"}});
 
   // Get input options:
   const auto oper = input.get<std::string>("operator", "E1");

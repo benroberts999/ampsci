@@ -40,7 +40,7 @@ static const std::vector<std::pair<
                 {"BW_eta_sp", &BW_eta_sp},
                 {"pnc", &calculatePNC},
                 {"vertexQED", &vertexQED},
-                {"hyperfine_vertex_test", &hyperfine_vertex_test},
+                {"QED", &QED},
                 {"testFeynman", &testFeynman},
                 {"matrixElements", &matrixElements},
                 {"lifetimes", &calculateLifetimes},

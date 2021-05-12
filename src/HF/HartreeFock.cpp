@@ -37,6 +37,18 @@ Method parseMethod(const std::string &in_method) {
   return Method::HartreeFock;
 }
 
+std::string parseMethod(const Method &in_method) {
+  if (in_method == Method::HartreeFock)
+    return "HartreeFock";
+  if (in_method == Method::ApproxHF)
+    return "ApproxHF";
+  if (in_method == Method::Hartree)
+    return "Hartree";
+  if (in_method == Method::KohnSham)
+    return "KohnSham";
+  return "HartreeFock";
+}
+
 //******************************************************************************
 //******************************************************************************
 HartreeFock::HartreeFock(std::shared_ptr<const Grid> in_grid,

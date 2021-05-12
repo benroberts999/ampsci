@@ -1,6 +1,7 @@
 #pragma once
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 class Wavefunction;
 namespace IO {
@@ -14,6 +15,9 @@ namespace Module {
 
 //! Calculates matrix elements of any tensor operator, with RPA
 void matrixElements(const IO::InputBlock &input, const Wavefunction &wf);
+
+std::vector<std::tuple<std::string, std::string, double>>
+calc_matrixElements(const IO::InputBlock &input, const Wavefunction &wf);
 
 //! Calculates Structure Radiation + Normalisation of States
 /*!

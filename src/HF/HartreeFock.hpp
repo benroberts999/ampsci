@@ -32,6 +32,7 @@ struct EpsIts {
 enum class Method { HartreeFock, ApproxHF, Hartree, KohnSham };
 //! @brief Convers string (name) of method (HartreeFock, Hartree etc.) to enum
 Method parseMethod(const std::string &in_method);
+std::string parseMethod(const Method &in_method);
 
 //******************************************************************************
 //! Forms approx (localised) exchange potential, from scratch
@@ -141,7 +142,10 @@ public:
   double get_alpha() const { return m_alpha; }
   const std::vector<DiracSpinor> &get_core() const { return *p_core; }
   const HF::Breit *get_Breit() const { return m_VBr.get(); }
+  double x_Breit() const { return m_x_Breit; }
   DiracSpinor VBr(const DiracSpinor &Fv) const;
+
+  Method method() const { return m_method; }
 
 public:
   bool verbose = true; // update to input??
