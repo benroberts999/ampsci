@@ -20,6 +20,8 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf);
 void vertexQED(const IO::InputBlock &input, const Wavefunction &wf);
 
 std::vector<std::string> calc_vertexQED(const IO::InputBlock &input,
-                                        const Wavefunction &wf);
+                                        const Wavefunction &wf,
+                                        const Wavefunction *wf_VP = nullptr,
+                                        const Wavefunction *wf_SE = nullptr);
 
 } // namespace Module

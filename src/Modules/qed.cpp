@@ -20,9 +20,18 @@ void vertexQED(const IO::InputBlock &input, const Wavefunction &wf) {
 }
 
 std::vector<std::string> calc_vertexQED(const IO::InputBlock &input,
-                                        const Wavefunction &wf) {
+                                        const Wavefunction &wf,
+                                        const Wavefunction *wf_VP,
+                                        const Wavefunction *wf_SE) {
 
   std::vector<std::string> out; // ??
+
+  // wf_VP should include Vap Pol (only); wf_SE include SE only
+  // If not given, assume same as wf (which should include none!)
+  if (wf_VP == nullptr)
+    wf_VP = &wf;
+  if (wf_SE == nullptr)
+    wf_SE = &wf;
 
   input.checkBlock2(
       {{"operator", "operator (e.g., E1 or hfs)"},
@@ -99,6 +108,7 @@ std::vector<std::string> calc_vertexQED(const IO::InputBlock &input,
   std::cout << "State    :    <h_0>         SE_vertex     MLVP\n";
   for (const auto &Fb : wf.valence) {
     for (const auto &Fa : wf.valence) {
+
       const auto a = AhfsQ ? DiracOperator::HyperfineA::convertRMEtoA(Fa, Fb)
                            : radial_int ? 1.0 / h->angularF(Fa.k, Fb.k) : 1.0;
 
@@ -112,8 +122,17 @@ std::vector<std::string> calc_vertexQED(const IO::InputBlock &input,
       auto o = qip::fstring("%4s %4s: ", Fb.shortSymbol().c_str(),
                             Fa.shortSymbol().c_str());
       const auto h0 = h->reducedME(Fa, Fb) * a;
-      const auto se_vtx = hVertexQED->reducedME(Fa, Fb) * a;
-      const auto mlvp = h_MLVP->reducedME(Fa, Fb) * a;
+
+      // ok
+      const auto Fa_SE = wf_SE->getState(Fa.n, Fa.k);
+      const auto Fa_VP = wf_VP->getState(Fa.n, Fa.k);
+      const auto Fb_SE = wf_SE->getState(Fb.n, Fb.k);
+      const auto Fb_VP = wf_VP->getState(Fb.n, Fb.k);
+      if (!Fa_SE || !Fb_SE || !Fa_VP || !Fb_VP)
+        continue;
+
+      const auto se_vtx = hVertexQED->reducedME(*Fa_SE, *Fb_SE) * a;
+      const auto mlvp = h_MLVP->reducedME(*Fa_VP, *Fb_VP) * a;
       o += qip::fstring("%13.6e %13.6e %13.6e\n", h0, se_vtx, mlvp);
       // Add RPA? Might be important?
       std::cout << o;
@@ -301,8 +320,8 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
           vtx_in.add(*opt);
       }
 
-      std::cout << "\nVertexQED contribution (nb: no PO):\n";
-      auto res = calc_vertexQED(vtx_in, wf);
+      std::cout << "\nVertexQED contribution (incl PO):\n";
+      auto res = calc_vertexQED(vtx_in, wf, &wf_VP, &wf_SE);
       for (const auto &line : res) {
         of_vx << wf.Znuc() << " " << line;
       }
