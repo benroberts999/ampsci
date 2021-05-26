@@ -57,13 +57,18 @@ public:
   DiracSpinor form_dPsi(const DiracSpinor &Fv, const double omega,
                         dPsiType XorY, const int kappa_beta,
                         const std::vector<DiracSpinor> &spectrum,
-                        StateType st = StateType::ket) const;
+                        StateType st = StateType::ket,
+                        bool incl_dV = true) const;
 
   //! Forms \delta Psi_v for valence state Fv for all kappas (see form_dPsi)
   std::vector<DiracSpinor> form_dPsis(const DiracSpinor &Fv, const double omega,
                                       dPsiType XorY,
                                       const std::vector<DiracSpinor> &spectrum,
-                                      StateType st = StateType::ket) const;
+                                      StateType st = StateType::ket,
+                                      bool incl_dV = true) const;
+
+  virtual double dV1(const DiracSpinor &Fa,
+                     const DiracSpinor &Fb) const override final;
 
 public:
   TDHFbasis &operator=(const TDHFbasis &) = delete;

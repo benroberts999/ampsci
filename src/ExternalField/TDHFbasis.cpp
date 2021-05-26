@@ -1,4 +1,5 @@
 #include "TDHFbasis.hpp"
+#include "Coulomb/Coulomb.hpp"
 #include "DiracOperator/TensorOperator.hpp"
 #include "HF/Breit.hpp"
 #include "HF/HartreeFock.hpp"
@@ -18,7 +19,7 @@ TDHFbasis::TDHFbasis(const DiracOperator::TensorOperator *const h,
 DiracSpinor TDHFbasis::form_dPsi(const DiracSpinor &Fv, const double omega,
                                  dPsiType XorY, const int kappa_beta,
                                  const std::vector<DiracSpinor> &spectrum,
-                                 StateType st) const {
+                                 StateType st, bool incl_dV) const {
 
   const auto ww = XorY == dPsiType::X ? omega : -omega;
   auto conj = XorY == dPsiType::Y;
@@ -47,7 +48,11 @@ DiracSpinor TDHFbasis::form_dPsi(const DiracSpinor &Fv, const double omega,
       continue;
     // XXX Check:
     // why need multiply dV by s too? Thought I shouldn't??
-    const auto hnc = s2 * (s * m_h->reducedME(Fn, Fv) + s * dV(Fn, Fv, conj));
+    // const auto hnc = s2 * (s * m_h->reducedME(Fn, Fv) + s * dV(Fn, Fv,
+    // conj));
+    const auto hnc = incl_dV
+                         ? s2 * s * (m_h->reducedME(Fn, Fv) + dV(Fn, Fv, conj))
+                         : s2 * s * m_h->reducedME(Fn, Fv);
     Xx += (hnc / (Fv.en - Fn.en + ww)) * Fn;
   }
 
@@ -58,16 +63,72 @@ DiracSpinor TDHFbasis::form_dPsi(const DiracSpinor &Fv, const double omega,
 //! Forms \delta Psi_v for valence state Fv for all kappas (see solve_dPsi)
 std::vector<DiracSpinor>
 TDHFbasis::form_dPsis(const DiracSpinor &Fv, const double omega, dPsiType XorY,
-                      const std::vector<DiracSpinor> &spectrum,
-                      StateType st) const {
+                      const std::vector<DiracSpinor> &spectrum, StateType st,
+                      bool incl_dV) const {
   std::vector<DiracSpinor> dFvs;
   const auto tjmin = std::max(1, Fv.twoj() - 2 * m_rank);
   const auto tjmax = Fv.twoj() + 2 * m_rank;
   for (int tjbeta = tjmin; tjbeta <= tjmax; tjbeta += 2) {
     const auto kappa = Angular::kappa_twojpi(tjbeta, Fv.parity() * m_pi);
-    dFvs.push_back(form_dPsi(Fv, omega, XorY, kappa, spectrum, st));
+    dFvs.push_back(form_dPsi(Fv, omega, XorY, kappa, spectrum, st, incl_dV));
   }
   return dFvs;
+}
+
+//******************************************************************************
+double TDHFbasis::dV1(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
+  //
+  const auto conj = Fb.en > Fa.en;
+  // dV(Fn, Fm, conj, nullptr, false);
+  const auto s = conj && m_h->imaginaryQ() ? -1 : 1; // careful. OK?
+  // auto rhs = dV_rhs(Fa.k, Fb, conj, nullptr, false);
+  auto rhs = DiracSpinor(0, Fa.k, Fa.rgrid);
+
+  {
+    auto kappa_n = Fa.k;
+    // auto rhs = DiracSpinor(0, Fa.k, Fa.rgrid);
+    rhs.pinf = Fb.pinf;
+
+    const auto ChiType = !conj ? dPsiType::X : dPsiType::Y;
+    const auto EtaType = !conj ? dPsiType::Y : dPsiType::X;
+
+    const auto k = m_h->rank();
+    const auto tkp1 = double(2 * k + 1);
+    const auto tjn = Angular::twoj_k(Fa.k);
+
+    // nb: faster to not //ize this one
+    for (const auto &Fc : m_core) {
+      const auto &X_b =
+          form_dPsis(Fc, m_core_omega, ChiType, m_basis, StateType::ket, false);
+      const auto &Y_b =
+          form_dPsis(Fc, m_core_omega, EtaType, m_basis, StateType::ket, false);
+
+      for (auto ibeta = 0ul; ibeta < X_b.size(); ++ibeta) {
+        const auto &X_beta = X_b[ibeta];
+        const auto &Y_beta = Y_b[ibeta];
+
+        const auto sQ = Angular::neg1pow_2(tjn + X_beta.twoj() + 2 * k + 2);
+        if (sQ == 1) { // faster than multiplying!
+          rhs += Coulomb::Wkv_bcd(kappa_n, Fc, Fb, X_beta, k);
+          rhs += Coulomb::Wkv_bcd(kappa_n, Y_beta, Fb, Fc, k);
+        } else {
+          rhs -= Coulomb::Wkv_bcd(kappa_n, Fc, Fb, X_beta, k);
+          rhs -= Coulomb::Wkv_bcd(kappa_n, Y_beta, Fb, Fc, k);
+        }
+
+        // Breit part:
+        if (p_VBr) {
+          // Note: Not perfectly symmetric for E1 - some issue??
+          rhs += tkp1 * p_VBr->dVbrD_Fa(kappa_n, k, Fb, Fc, X_beta, Y_beta);
+          rhs += tkp1 * p_VBr->dVbrX_Fa(kappa_n, k, Fb, Fc, X_beta, Y_beta);
+        }
+      }
+    }
+
+    rhs *= (1.0 / tkp1);
+  }
+
+  return s * (Fa * rhs);
 }
 
 //******************************************************************************
@@ -96,8 +157,6 @@ void TDHFbasis::solve_core(const double omega, int max_its, const bool print) {
   }
 
   for (; it < max_its; it++) {
-    // eps = 0.0;
-    // std::vector<double> eps_vec(m_core.size(), 0.0);
     const auto a_damp = (it == 0) ? 0.0 : damper(it);
 
 #pragma omp parallel for
@@ -146,6 +205,6 @@ void TDHFbasis::solve_core(const double omega, int max_its, const bool print) {
   std::cout << std::flush;
   m_core_eps = eps;
   m_core_omega = omega;
-} // namespace ExternalField
+}
 
 } // namespace ExternalField

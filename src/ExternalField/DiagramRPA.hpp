@@ -62,6 +62,11 @@ public:
   double dV_diagram(const DiracSpinor &Fa, const DiracSpinor &Fb,
                     const bool first_order = false) const;
 
+  virtual double dV1(const DiracSpinor &Fa,
+                     const DiracSpinor &Fb) const override final {
+    return dV_diagram(Fa, Fb, true);
+  }
+
   //! @brief Clears the t_am and t_ma RPA ME's [RPA ME's for hole-excited]
   //! @Details If a previous run failed, can clear t_am's + re-try
   virtual void clear() override final;

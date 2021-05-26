@@ -1,5 +1,6 @@
 #include "Modules/qed.hpp"
 #include "DiracOperator/Operators.hpp"
+#include "ExternalField/MatrixElements.hpp"
 #include "IO/InputBlock.hpp"
 #include "Modules/matrixElements.hpp"
 #include "Physics/NuclearPotentials.hpp"
@@ -272,31 +273,44 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto me_input = input.getBlock("matrixElements");
   if (me_input) {
 
+    const auto oper = me_input->get<std::string>("operator", "");
+    // Get optional 'options' for operator
+    auto h_options = IO::InputBlock(oper, {});
+    const auto tmp_opt = me_input->getBlock("options");
+    if (tmp_opt) {
+      h_options = *tmp_opt;
+    }
+    const auto h = generateOperator(oper, h_options, wf, true);
+    const bool diagonal_only = me_input->get("onlyDiagonal", false);
+
     std::ofstream of_me;
     if (fname != "")
       of_me.open(fname + ".me_po", std::ios_base::app);
 
-    std::cout << "\nQED correction to Matrix elements (PO)\n";
-    std::cout << "\nNo QED:";
-    const auto me0 = Module::calc_matrixElements(*me_input, wf);
-    std::cout << "\nVacuum polarisation (PO):";
-    const auto mevp = Module::calc_matrixElements(*me_input, wf_VP);
-    std::cout << "\nSelf-energy (PO):";
-    const auto mese = Module::calc_matrixElements(*me_input, wf_SE);
+    // std::cout << "\nQED correction to Matrix elements (PO)\n";
+    // std::cout << "\nNo QED:";
+    const auto me0 = ExternalField::MatrixElements(wf.valence, h.get(), nullptr,
+                                                   0.0, false, diagonal_only);
+
+    // std::cout << "\nVacuum polarisation (PO):";
+    const auto mevp = ExternalField::MatrixElements(
+        wf_VP.valence, h.get(), nullptr, 0.0, false, diagonal_only);
+
+    // std::cout << "\nSelf-energy (PO):";
+    const auto mese = ExternalField::MatrixElements(
+        wf_SE.valence, h.get(), nullptr, 0.0, false, diagonal_only);
 
     std::cout << "\nQED contribution matrix elements (Perturbed Orbital)\n";
     std::cout << "             d(VP)         d(SE)         d(tot)\n";
-    for (const auto &[a, b, x0] : me0) {
+    for (const auto &[a, b, x0, dv1, dv] : me0) {
       // find corresponding ME calculations in list:
       // (can't assume order will be the same, though usually will be)
-      auto l = [a, b](auto e) {
-        return (a == std::get<0>(e) && b == std::get<1>(e));
-      };
+      auto l = [a, b](auto e) { return (a == e.a && b == e.b); };
       const auto vp = std::find_if(begin(mevp), end(mevp), l);
       const auto se = std::find_if(begin(mese), end(mese), l);
       if (vp != mevp.end() && se != mese.end()) {
-        const auto d_vp = std::get<2>(*vp) - x0;
-        const auto d_se = std::get<2>(*se) - x0;
+        const auto d_vp = vp->hab - x0;
+        const auto d_se = se->hab - x0;
         const auto o =
             qip::fstring("%4s %4s:  %12.5e  %12.5e  %12.5e\n", a.c_str(),
                          b.c_str(), d_vp, d_se, d_vp + d_se);
@@ -307,6 +321,27 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
 
     // For vertexQED:
     if (input.get("vertex", false)) {
+
+      std::cout << "\nQED contribution (Vertex) to radial integrals\n";
+      if (input.get("rpa", false)) {
+        std::cout << "Note: NO RPA in vertex (yet)!!\n";
+      }
+
+      std::cout << "Unit conversions:\n";
+      const auto a2 = std::pow(PhysConst::alpha, 2);
+      const auto z3 = std::pow(wf.Znuc(), 3);
+      const auto gImmPoI = h->getc();
+      // gImmPoI = mu * PhysConst::muN_CGS_MHz / IN (mu here in units of muN)
+      const auto factor_xRad =
+          (4.0 / 3) * a2 * z3 * gImmPoI / PhysConst::muB_CGS;
+      const auto factor_eF = (PhysConst::alpha / M_PI) * factor_xRad; //?????
+
+      std::cout << wf.atom() << " " << wf.nuclearParams() << "\n";
+      // "muN * PhysConst::muN_CGS_MHz / IN"
+      // "(4/3)Z^3a^2 (g/mp)"
+      std::cout << "factor_xRad = A_Fermi = (4/3)Z^3a^2 (g/mp) = "
+                << factor_xRad << " MHz\n";
+      std::cout << "(alpha/pi)A_Fermi = " << factor_eF << " MHz\n";
 
       std::ofstream of_vx;
       if (fname != "")
@@ -320,12 +355,54 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
           vtx_in.add(*opt);
       }
 
-      std::cout << "\nVertexQED contribution (incl PO):\n";
-      auto res = calc_vertexQED(vtx_in, wf, &wf_VP, &wf_SE);
-      for (const auto &line : res) {
-        of_vx << wf.Znuc() << " " << line;
+      const auto r_rmsfm = vtx_in.get("rrms", wf.get_rrms());
+      const auto r_nucau = std::sqrt(5.0 / 3.0) * r_rmsfm / PhysConst::aB_fm;
+      const auto h_MLVP =
+          std::make_unique<DiracOperator::MLVP>(h.get(), *wf.rgrid, r_nucau);
+
+      // Vertex QED term:
+      const auto A_z_default = DiracOperator::VertexQED::a(wf.Znuc());
+      const auto A_vertex = vtx_in.get("A_vertex", A_z_default);
+      const auto b_vertex = vtx_in.get("b_vertex", 1.0);
+      const auto hVertexQED = std::make_unique<DiracOperator::VertexQED>(
+          h.get(), *wf.rgrid, A_vertex, b_vertex);
+      if (A_vertex != 0.0) {
+        std::cout << "Including effective vertex (SE) QED with: A=" << A_vertex
+                  << ", b=" << b_vertex << "\n";
+      }
+
+      const auto vx_vp = ExternalField::MatrixElements(
+          wf_VP.valence, h_MLVP.get(), nullptr, 0.0, false, diagonal_only);
+      const auto vx_se = ExternalField::MatrixElements(
+          wf_VP.valence, hVertexQED.get(), nullptr, 0.0, false, diagonal_only);
+
+      std::cout
+          << "\n             h(0)         d(MLVP)       d(SEvx)       sum\n";
+      for (const auto &[a, b, x0, dv1, dv] : me0) {
+        // find corresponding ME calculations in list:
+        // (can't assume order will be the same, though usually will be)
+        auto l = [a, b](auto e) { return (a == e.a && b == e.b); };
+        const auto vp = std::find_if(begin(vx_vp), end(vx_vp), l);
+        const auto se = std::find_if(begin(vx_se), end(vx_se), l);
+
+        const auto Fa =
+            std::find_if(begin(wf.valence), end(wf.valence),
+                         [=](auto &x) { return x.shortSymbol() == a; });
+
+        auto Aconst = DiracOperator::HyperfineA::convertRMEtoA(*Fa, *Fa);
+
+        if (vp != vx_vp.end() && se != vx_se.end()) {
+          const auto d_vp = vp->hab * Aconst;
+          const auto d_se = se->hab * Aconst;
+          const auto o =
+              qip::fstring("%4s %4s:  %12.5e %12.5e  %12.5e  %12.5e\n",
+                           a.c_str(), b.c_str(), x0, d_vp, d_se, d_vp + d_se);
+          std::cout << o;
+          of_vx << wf.Znuc() << " " << o;
+        }
       }
     }
-  }
+
+  } // me_input
 }
 } // namespace Module

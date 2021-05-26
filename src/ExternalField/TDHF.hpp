@@ -68,32 +68,30 @@ public:
   virtual void solve_core(const double omega, int max_its = 100,
                           const bool print = true) override;
 
-  // void solve_core_basis(const std::vector<DiracSpinor> &basis,
-  //                       const double omega, const int max_its = 100,
-  //                       const bool print = true);
-
-  // //! @brief Uses itterative matrix method; for tests only
-  // void solve_TDHFcore_matrix(const Wavefunction &wf, const double omega,
-  //                            const int max_its = 25);
-
   //! @brief Clears the dPsi orbitals (sets to zero)
   virtual void clear() override final;
 
   //! @brief Calculate reduced matrix element <a||dV||b> or <a||dV*||b>.
   //! Will exclude orbital 'Fexcl' from sum over core (for tests only)
   double dV(const DiracSpinor &Fa, const DiracSpinor &Fb, bool conj,
-            const DiracSpinor *const Fexcl = nullptr) const;
+            const DiracSpinor *const Fexcl = nullptr,
+            bool incl_dV = true) const;
 
   //! @brief As above, but automatically determines if 'conjugate' version
   //! reuired (Based on sign of [en_a-en_b])
   virtual double dV(const DiracSpinor &Fa,
                     const DiracSpinor &Fb) const override final;
 
+  // Not final, over-ridden in TDHFbasis
+  virtual double dV1(const DiracSpinor &Fa,
+                     const DiracSpinor &Fb) const override;
+
   //! @brief Returns "reduced partial matrix element RHS": dV||Fb}.
   //! Note: Fa * dV_rhs(..) equiv to dV(..)
   DiracSpinor dV_rhs(const int kappa_n, const DiracSpinor &Fm,
                      bool conj = false,
-                     const DiracSpinor *const Fexcl = nullptr) const;
+                     const DiracSpinor *const Fexcl = nullptr,
+                     bool incl_dV = true) const;
 
   //! @brief Returns const ref to dPsi orbitals for given core orbital Fc
   const std::vector<DiracSpinor> &get_dPsis(const DiracSpinor &Fc,
@@ -118,25 +116,15 @@ public:
   solve_dPsi(const DiracSpinor &Fv, const double omega, dPsiType XorY,
              const int kappa_beta,
              const MBPT::CorrelationPotential *const Sigma = nullptr,
-             StateType st = StateType::ket) const;
+             StateType st = StateType::ket, bool incl_dV = true) const;
   //! Forms \delta Psi_v for valence state Fv for all kappas (see solve_dPsi)
   std::vector<DiracSpinor>
   solve_dPsis(const DiracSpinor &Fv, const double omega, dPsiType XorY,
               const MBPT::CorrelationPotential *const Sigma = nullptr,
-              StateType st = StateType::ket) const;
+              StateType st = StateType::ket, bool incl_dV = true) const;
 
   //! @brief Writes dPsi (f-component) to textfile
   void print(const std::string &ofname = "dPsi.txt") const;
-
-  // private:
-  //   // Calculate indevidual (4 electron) partial contributions to the
-  //   // dV (reduced) matrix element (for Matrix method: not used yet)
-  //   double dX_nm_bbe_rhs(const DiracSpinor &Fn, const DiracSpinor &Fm,
-  //                        const DiracSpinor &Fb, const DiracSpinor &X_beta)
-  //                        const;
-  //   double dY_nm_bbe_rhs(const DiracSpinor &Fn, const DiracSpinor &Fm,
-  //                        const DiracSpinor &Fb, const DiracSpinor &Y_beta)
-  //                        const;
 
 private:
   void initialise_dPsi();
