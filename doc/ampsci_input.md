@@ -122,7 +122,7 @@ Grid {
   num_points; //[i] default = 1600
   type;       //[t] default = loglinear
   b;          //[r] default = rmax/3
-  fixed_du;   //[r] default = -1.
+  du;         //[r] default = blank.
 }
 ```
 * r0: grid starting point (in atomic units)
@@ -131,7 +131,7 @@ Grid {
 * type: options are: loglinear (default), logarithmic, linear
   * Note: 'linear' grid requires a _very_ large number of points to work, and should essentially never be used.
 * b: only used for loglinear grid; the grid is roughly logarithmic below this value, and linear after it. Default is 4.0 (atomic units). If b<0 or b>rmax, will revert to using a logarithmic grid
-* fixed_du: if fixed_du>0.0, it will calculate num_points to fix du (step-size in uniform 'u' grid); will over-ride 'num_points' option.
+* du: if du>0.0, it will calculate num_points to fix du (step-size in uniform 'u' grid); will over-ride 'num_points' option.
 
 
 ## dVpol (effective polarisation potential)

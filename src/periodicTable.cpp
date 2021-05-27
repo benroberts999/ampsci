@@ -91,7 +91,7 @@ int main(int num_in, char *argv[]) {
     return 0;
   }
 
-  const auto z = AtomData::get_z(z_str);
+  const auto z = AtomData::atomic_Z(z_str);
   if (z == 0) {
     instructions();
     return 1;

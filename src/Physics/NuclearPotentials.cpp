@@ -51,7 +51,7 @@ Parameters::Parameters(int in_z, int in_a, const std::string &str_type,
 //------------
 Parameters::Parameters(const std::string &z_str, int in_a,
                        const std::string &str_type, double in_rrms, double in_t)
-    : z(AtomData::get_z(z_str)),
+    : z(AtomData::atomic_Z(z_str)),
       a((in_a < 0) ? AtomData::defaultA(z) : in_a),
       type(parseType(str_type)),
       r_rms(in_rrms),

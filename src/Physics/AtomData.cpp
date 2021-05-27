@@ -1,5 +1,4 @@
 #include "AtomData.hpp"
-#include "AtomData_PeriodicTable.hpp"
 #include <algorithm>
 #include <array>
 #include <cassert>
@@ -78,7 +77,7 @@ std::string atomicName(int Z) {
 
 // Given an atomic symbol (H, He, etc.), will return Z
 // Note: Symbol must be exact, including capitalisation
-int get_z(const std::string &at) {
+int atomic_Z(const std::string &at) {
 
   if (at.empty())
     return 0;
@@ -218,7 +217,7 @@ std::vector<NonRelSEConfig> core_parser(const std::string &str_core_in) {
         state_parser(&core, str_core);
         continue;
       } else {
-        auto z = get_z(each);
+        auto z = atomic_Z(each);
         if (z != 0) {
           core = core_guess(z);
           continue;

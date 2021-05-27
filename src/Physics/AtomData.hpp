@@ -1,4 +1,5 @@
 #pragma once
+#include "Physics/AtomData_PeriodicTable.hpp"
 #include <array>
 #include <string>
 #include <vector>
@@ -56,9 +57,9 @@ std::string atomicSymbol(int Z);
 std::string atomicName(int Z);
 
 //! Converts atomic symbol to integer Z (e.g., 'Cs' to 55 )
-int get_z(const std::string &at);
+int atomic_Z(const std::string &at);
 //! Overload, to can call with int anyway
-inline int get_z(int z) { return z; }
+inline int atomic_Z(int z) { return z; }
 
 //! l (int) to symbol (e.g., 0->'s', 1->'p')
 std::string l_symbol(int l);
