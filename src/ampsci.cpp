@@ -21,10 +21,12 @@ int main(int argc, char *argv[]) {
   // std::filesystem not available in g++-7 (getafix version)
   // Reading from a file? Or from command-line?
   const auto fstream = std::fstream(input_text);
-  const std::string default_input = (input_text.size() <= 2)
-                                        ? "Atom{Z=" + input_text + ";}" +
-                                              "HartreeFock { core = [" +
-                                              input_text + "]; }"
+  const auto symb = AtomData::atomicSymbol(AtomData::atomic_Z(input_text));
+  const auto core = symb == "H" ? "" : symb;
+  const std::string default_input = (input_text.size() <= 3)
+                                        ? "Atom{Z=" + symb + ";}" +
+                                              "HartreeFock { core = [" + core +
+                                              "]; valence = 2sp;}"
                                         : input_text;
 
   const auto input = fstream.good() ? IO::InputBlock("ampsci", fstream)

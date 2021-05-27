@@ -64,7 +64,7 @@ std::vector<double> form_Hel(const std::vector<double> &r, double x_simple,
     // The SE high-f part is very slow. We calculate it every few points only,
     // and then interpolate the intermediate points
     // const std::size_t stride = 6; // r.size()
-    const std::size_t stride = r.size() / 550;
+    const auto stride = std::max(r.size() / 1000, 1ul);
     const auto i_max_rcut = [&]() {
       for (std::size_t i = 0; i < imax; ++i) {
         if (r[i] > rcut)
@@ -77,8 +77,6 @@ std::vector<double> form_Hel(const std::vector<double> &r, double x_simple,
 #pragma omp parallel for
     for (std::size_t i = 0; i < tmp_max; ++i) {
       x[i] = r[i * stride];
-      // if (x[i] > rcut)
-      //   continue;
       y[i] = RadiativePotential::vSEh(x[i], rN_rad, z, alpha);
     }
     const auto vec_SE_h = Interpolator::interpolate(x, y, r);
