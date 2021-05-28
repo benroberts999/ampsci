@@ -5,6 +5,7 @@ This outlines/describes the input options/usage for ampsci. For a description of
 * The **ampsci** program should be run as:
   * _./ampsci inputFile.in_
   * "inputFile.in" is a plain-text input file, that contains all input options (if no input file is given, program looks for the default one, named "ampsci.in")
+* Can also be run simply by giving an atomic symbol (or Z) as command-line option, which will run a simple Hartree-Fock calculation, e.g.,: _./ampsci Cs_
 * First, the program reads in the main input options from the four main input "blocks" (Atom, Nucleus, HartreeFock, and Grid). It will use these to generate wavefunction/Hartree-Fock etc. Then, any number of optional "modules" are run using the above-calculated wavefunctions (e.g., these might calculate matrix elements, run tests etc.). The input blocks and options can be given in any order
 * In general, the input file will have the following format:
 

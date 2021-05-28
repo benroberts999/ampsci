@@ -76,6 +76,14 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   const bool eachFreqQ = str_om == "each" || str_om == "Each";
   const auto omega = eachFreqQ ? 0.0 : input.get("omega", 0.0);
 
+  if (h->freqDependantQ) {
+    std::cout << "Frequency-dependent operator; at omega = ";
+    if (eachFreqQ)
+      std::cout << "each transition frequency\n";
+    else
+      std::cout << omega << "\n";
+  }
+
   if ((h->parity() == 1) && rpa_method == ExternalField::method::TDHF) {
     std::cout << "\n\n*CAUTION*:\n RPA (TDHF method) may not work for this "
                  "operator.\n Consider using diagram or basis method\n\n";
