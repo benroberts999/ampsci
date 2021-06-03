@@ -1,4 +1,4 @@
-#include "MatrixElements.hpp"
+#include "calcMatrixElements.hpp"
 #include "CorePolarisation.hpp"
 #include "DiracOperator/Operators.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
@@ -8,11 +8,11 @@
 
 namespace ExternalField {
 
-std::vector<MEdata> MatrixElements(const std::vector<DiracSpinor> &orbs,
-                                   DiracOperator::TensorOperator *const h,
-                                   CorePolarisation *const dV, double omega,
-                                   bool each_freq, bool diagonal_only,
-                                   bool print_both, bool radial_int) {
+std::vector<MEdata> calcMatrixElements(const std::vector<DiracSpinor> &orbs,
+                                       DiracOperator::TensorOperator *const h,
+                                       CorePolarisation *const dV, double omega,
+                                       bool each_freq, bool diagonal_only,
+                                       bool print_both, bool radial_int) {
 
   std::vector<MEdata> res;
 

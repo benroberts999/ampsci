@@ -1,6 +1,6 @@
 #include "Modules/qed.hpp"
 #include "DiracOperator/Operators.hpp"
-#include "ExternalField/MatrixElements.hpp"
+#include "ExternalField/calcMatrixElements.hpp"
 #include "IO/InputBlock.hpp"
 #include "Modules/matrixElements.hpp"
 #include "Physics/NuclearPotentials.hpp"
@@ -167,15 +167,15 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
 
     // std::cout << "\nQED correction to Matrix elements (PO)\n";
     // std::cout << "\nNo QED:";
-    const auto me0 = ExternalField::MatrixElements(wf.valence, h.get(), nullptr,
-                                                   0.0, false, diagonal_only);
+    const auto me0 = ExternalField::calcMatrixElements(
+        wf.valence, h.get(), nullptr, 0.0, false, diagonal_only);
 
     // std::cout << "\nVacuum polarisation (PO):";
-    const auto mevp = ExternalField::MatrixElements(
+    const auto mevp = ExternalField::calcMatrixElements(
         wf_VP.valence, h.get(), nullptr, 0.0, false, diagonal_only);
 
     // std::cout << "\nSelf-energy (PO):";
-    const auto mese = ExternalField::MatrixElements(
+    const auto mese = ExternalField::calcMatrixElements(
         wf_SE.valence, h.get(), nullptr, 0.0, false, diagonal_only);
 
     std::cout << "\nQED contribution matrix elements (Perturbed Orbital)\n";
@@ -249,9 +249,9 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
                   << ", b=" << b_vertex << "\n";
       }
 
-      const auto vx_vp = ExternalField::MatrixElements(
+      const auto vx_vp = ExternalField::calcMatrixElements(
           wf_VP.valence, h_MLVP.get(), nullptr, 0.0, false, diagonal_only);
-      const auto vx_se = ExternalField::MatrixElements(
+      const auto vx_se = ExternalField::calcMatrixElements(
           wf_VP.valence, hVertexQED.get(), nullptr, 0.0, false, diagonal_only);
 
       std::cout

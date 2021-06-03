@@ -274,8 +274,10 @@ void HF_rmag(const IO::InputBlock &input, const Wavefunction &wf) {
   double a0_1 = h01.hfsA(F1v) + dv01;
   double a0_2 = h02.hfsA(F1v) + dv02;
 
-  auto rat_min = 1.05;
-  auto rat_max = 1.12;
+  // auto rat_min = 1.05;
+  // auto rat_max = 1.12;
+  auto rat_min = 1.065;
+  auto rat_max = 1.095;
   const auto num_steps = input.get("num_steps", 40);
   const auto dr = (rat_max - rat_min) / (num_steps - 1);
 
@@ -283,16 +285,19 @@ void HF_rmag(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "Rc(1) = " << rN0_au * PhysConst::aB_fm << "\n";
   std::cout << "Rc(2) = " << rN2 * PhysConst::aB_fm << "\n";
 
+  std::cout << "\nRunning for " << F1v.symbol() << "\n";
   const auto d12_targ = input.get<double>("1D2", 0.0);
   if (d12_targ != 0.0) {
-    std::cout << "\nA0(1) = " << a0_1 << "\n";
+    std::cout << "A0(1) = " << a0_1 << "\n";
     std::cout << "A0(2) = " << a0_2 << "\n";
     std::cout << "1D2 target: " << d12_targ << "\n";
     std::cout << "Rm/Rc(1) Rm/Rc(2) e1     e2     1D2    eps(D)   del(Rm/Rc)\n";
     bool done_one_yet = false;
+    std::cout << std::flush;
 
     for (double rat = rat_min; rat < rat_max + 0.5 * dr; rat += dr) {
       double rN = rat * rN0_au;
+      std::cout << std::flush;
 
       if (!done_one_yet && rN >= rN0_au) {
         // ensure we do exactly Rm/Rc = 1
@@ -482,7 +487,7 @@ void calculateBohrWeisskopf(const IO::InputBlock &input,
   // else
   //   BW_in.add("F(r)=VolotkaBW");
 
-  auto options = input.getBlock("options");
+  auto options = input.getBlock("hfs_options");
   auto sub_input = IO::InputBlock("hfs", {});
   if (options) {
     sub_input.add(options->options());

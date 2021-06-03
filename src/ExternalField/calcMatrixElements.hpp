@@ -24,12 +24,11 @@ struct MEdata {
   }
 };
 
-std::vector<MEdata> MatrixElements(const std::vector<DiracSpinor> &orbs,
-                                   DiracOperator::TensorOperator *const h,
-                                   CorePolarisation *const dV = nullptr,
-                                   double omega = 0.0, bool each_freq = false,
-                                   bool diagonal_only = false,
-                                   bool print_both = false,
-                                   bool radial_int = false);
+std::vector<MEdata>
+calcMatrixElements(const std::vector<DiracSpinor> &orbs,
+                   DiracOperator::TensorOperator *const h,
+                   CorePolarisation *const dV = nullptr, double omega = 0.0,
+                   bool each_freq = false, bool diagonal_only = false,
+                   bool print_both = false, bool radial_int = false);
 
 } // namespace ExternalField

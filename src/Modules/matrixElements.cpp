@@ -2,9 +2,9 @@
 #include "DiracOperator/Operators.hpp"
 #include "DiracOperator/TensorOperator.hpp"
 #include "ExternalField/DiagramRPA.hpp"
-#include "ExternalField/MatrixElements.hpp"
 #include "ExternalField/TDHF.hpp"
 #include "ExternalField/TDHFbasis.hpp"
+#include "ExternalField/calcMatrixElements.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/InputBlock.hpp"
 #include "MBPT/CorrelationPotential.hpp"
@@ -105,7 +105,7 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
                                                       wf.core, wf.identity());
   }
 
-  const auto mes = ExternalField::MatrixElements(
+  const auto mes = ExternalField::calcMatrixElements(
       wf.valence, h.get(), rpa.get(), omega, eachFreqQ, diagonal_only,
       print_both, radial_int);
 
