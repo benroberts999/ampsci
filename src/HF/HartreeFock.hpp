@@ -14,6 +14,9 @@ class CorrelationPotential;
 namespace RadiativePotential {
 class Vrad;
 }
+namespace QED {
+class RadPot;
+}
 
 //! Functions and classes for Hartree-Fock
 namespace HF {
@@ -92,7 +95,7 @@ public:
   //! @brief Method is enum class, eps_HF is convergence goal.
   HartreeFock(std::shared_ptr<const Grid>, const std::vector<double> &in_vnuc,
               std::vector<DiracSpinor> *in_core,
-              const RadiativePotential::Vrad *const in_vrad = nullptr,
+              const QED::RadPot *const in_vrad = nullptr,
               double m_alpha = PhysConst::alpha,
               Method method = Method::HartreeFock, double x_Breit = 0.0,
               double eps_HF = 0.0);
@@ -137,8 +140,8 @@ public:
 
   std::vector<double> get_vlocal(int l) const;
   int num_core_electrons() const;
-  const std::vector<double> &get_Hrad_el(int l) const;
-  const std::vector<double> &get_Hrad_mag(int l) const;
+  std::vector<double> get_Hrad_el(int l) const;
+  std::vector<double> get_Hrad_mag(int l) const;
   double get_alpha() const { return m_alpha; }
   const std::vector<DiracSpinor> &get_core() const { return *p_core; }
   const HF::Breit *get_Breit() const { return m_VBr.get(); }
@@ -153,7 +156,7 @@ public:
 
 private:
   const std::vector<double> *const p_vnuc;
-  const RadiativePotential::Vrad *const p_vrad;
+  const QED::RadPot *const p_vrad;
   const double m_alpha;
   const Method m_method;
   const bool m_include_Breit;

@@ -192,7 +192,7 @@ template <typename F, typename T, typename... Args>
 }
 
 //******************************************************************************
-//! In-pace scalar multiplication of std::vector - types must match
+//! In-place scalar multiplication of std::vector - types must match
 template <typename T> void scale(std::vector<T> *vec, T x) {
   static_assert(std::is_arithmetic_v<T>,
                 "In scale(std::vector<T>, T) : T must be arithmetic");
@@ -302,5 +302,56 @@ template <typename F, typename T> T apply_to(const F &func, T list) {
   }
   return list;
 }
+
+//******************************************************************************
+//******************************************************************************
+namespace overloads {
+
+// Provide addition of two vectors:
+template <typename T>
+std::vector<T> &operator+=(std::vector<T> &a, const std::vector<T> &b) {
+  const auto size = std::max(a.size(), b.size());
+  a.resize(size);
+  for (auto i = 0ul; i < b.size(); ++i) {
+    a[i] += b[i];
+  }
+  return a;
+}
+template <typename T>
+std::vector<T> operator+(std::vector<T> a, const std::vector<T> &b) {
+  return a += b;
+}
+// and subtraction
+template <typename T>
+std::vector<T> &operator-=(std::vector<T> &a, const std::vector<T> &b) {
+  const auto size = std::max(a.size(), b.size());
+  a.resize(size);
+  for (auto i = 0ul; i < b.size(); ++i) {
+    a[i] -= b[i];
+  }
+  return a;
+}
+template <typename T>
+std::vector<T> operator-(std::vector<T> a, const std::vector<T> &b) {
+  return a -= b;
+}
+
+// Provide scalar multiplication
+template <typename T> std::vector<T> &operator*=(std::vector<T> &v, T x) {
+  if (x != T{1.0}) {
+    for (auto &v_i : v) {
+      v_i *= x;
+    }
+  }
+  return v;
+}
+template <typename T> std::vector<T> operator*(std::vector<T> v, T x) {
+  return v *= x;
+}
+template <typename T> std::vector<T> operator*(T x, std::vector<T> v) {
+  return v *= x;
+}
+
+} // namespace overloads
 
 } // namespace qip

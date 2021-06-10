@@ -5,7 +5,7 @@
 #include "Physics/AtomData.hpp" // NonRelSEConfig
 #include "Physics/NuclearPotentials.hpp"
 #include "Physics/PhysConst_constants.hpp" //PhysConst::alpha
-#include "Physics/RadiativePotential.hpp"
+#include "Physics/RadPot.hpp"
 #include "Wavefunction/BSplineBasis.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <iostream>
@@ -63,7 +63,7 @@ public:
   //! Direct/local part of the electron potential
   std::vector<double> vdir{};
   //! QED radiative potential
-  RadiativePotential::Vrad vrad{};
+  std::unique_ptr<QED::RadPot> qed{nullptr};
 
 private:
   // Core configuration (non-rel terms)
@@ -204,10 +204,13 @@ public: // const methods: "views" into WF object
   void SOEnergyShift();
 
   //! Calculates radiative potential. Stores in vnuc, and Hmag
-  void radiativePotential(double x_simple, double x_Ueh, double x_SEe_h,
-                          double x_SEe_l, double x_SEm, double rcut,
-                          double scale_rN, const std::vector<double> &x_spd,
-                          bool do_readwrite = true);
+  void radiativePotential(QED::RadPot::Scale s, double rcut, double scale_rN,
+                          const std::vector<double> &x_spd,
+                          bool do_readwrite = true, bool print = true);
+  // void radiativePotential(double x_simple, double x_Ueh, double x_SEe_h,
+  //                         double x_SEe_l, double x_SEm, double rcut,
+  //                         double scale_rN, const std::vector<double> &x_spd,
+  //                         bool do_readwrite = true, bool print = true);
 
   //! Calculates + populates basis [see BSplineBasis]
   void formBasis(const SplineBasis::Parameters &params);
@@ -271,7 +274,7 @@ public: // const methods: "views" into WF object
 
   //! Local potential, e.g., Vl = Vnuc + Vdir + Vrad_el(l) - can be l-dependent
   std::vector<double> get_Vlocal(int l = 0) const;
-  const std::vector<double> &get_Hmag(int l = 0) const;
+  std::vector<double> get_Hmag(int l = 0) const;
 
 private:
   void determineCore(const std::string &str_core_in);

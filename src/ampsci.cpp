@@ -166,30 +166,33 @@ void ampsci(const IO::InputBlock &input) {
   // Inlcude QED radiatve potential
   const auto qed_ok = input.check2(
       {"RadPot"},
-      {{"RadPot", "Include Radiative potential? true/false"},
-       {"Simple", "Scale for 'simple' potential: default = 0"},
+      {// {"RadPot", "Include Radiative potential? true/false"},
+       // {"Simple", "Scale for 'simple' potential: default = 0"},
        {"Ueh", " for Uehling typical [0.0, 1.0], Default = 1"},
        {"SE_h", " for self-energy high-freq electric. Default = 1"},
        {"SE_l", " for self-energy low-freq electric. Default = 1"},
        {"SE_m", " self-energy magnetic. Default = 1"},
+       {"WK", " Wickman-Kroll. Default = 0"},
        {"rcut", "Maximum r to calculate Rad Pot (~5)"},
        {"scale_rN", "Nuclear size. 0 for pointlike, 1 for typical"},
        {"scale_l", "Extra scaling factor for each l e.g., (1,1,1)"},
        {"core_qed", "Include rad pot into core Hartree-Fock (default=true)"}});
-  const auto include_qed = input.get({"RadPot"}, "RadPot", false);
-  const auto x_Simple = input.get({"RadPot"}, "Simple", 0.0);
-  const auto xrp_dflt = (include_qed && x_Simple == 0.0) ? 1.0 : 0.0;
-  const auto x_Ueh = input.get({"RadPot"}, "Ueh", xrp_dflt);
-  const auto x_SEe_h = input.get({"RadPot"}, "SE_h", xrp_dflt);
-  const auto x_SEe_l = input.get({"RadPot"}, "SE_l", xrp_dflt);
-  const auto x_SEm = input.get({"RadPot"}, "SE_m", xrp_dflt);
+  // const auto include_qed = input.get({"RadPot"}, "RadPot", false);
+
+  const auto include_qed = input.getBlock("RadPot") != std::nullopt;
+  // const auto x_Simple = input.get({"RadPot"}, "Simple", 0.0);
+  const auto x_Ueh = input.get({"RadPot"}, "Ueh", 1.0);
+  const auto x_SEe_h = input.get({"RadPot"}, "SE_h", 1.0);
+  const auto x_SEe_l = input.get({"RadPot"}, "SE_l", 1.0);
+  const auto x_SEm = input.get({"RadPot"}, "SE_m", 1.0);
+  const auto x_wk = input.get({"RadPot"}, "WK", 0.0);
   const auto rcut = input.get({"RadPot"}, "rcut", 5.0);
   const auto scale_rN = input.get({"RadPot"}, "scale_rN", 1.0);
   const auto x_spd = input.get({"RadPot"}, "scale_l", std::vector{1.0});
   const bool core_qed = input.get({"RadPot"}, "core_qed", true);
 
   if (include_qed && qed_ok && core_qed) {
-    wf.radiativePotential(x_Simple, x_Ueh, x_SEe_h, x_SEe_l, x_SEm, rcut,
+    wf.radiativePotential({x_Ueh, x_SEe_h, x_SEe_l, x_SEm, x_wk}, rcut,
                           scale_rN, x_spd);
     std::cout << "Including QED into Hartree-Fock core (and valence)\n\n";
   }
@@ -223,7 +226,7 @@ void ampsci(const IO::InputBlock &input) {
   }
 
   if (include_qed && qed_ok && !core_qed) {
-    wf.radiativePotential(x_Simple, x_Ueh, x_SEe_h, x_SEe_l, x_SEm, rcut,
+    wf.radiativePotential({x_Ueh, x_SEe_h, x_SEe_l, x_SEm, x_wk}, rcut,
                           scale_rN, x_spd);
     std::cout << "Including QED into Valence only\n\n";
   }

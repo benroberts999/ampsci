@@ -12,7 +12,6 @@
 #include "Physics/NuclearPotentials.hpp"
 #include "Physics/Parametric_potentials.hpp"
 #include "Physics/PhysConst_constants.hpp"
-#include "Physics/RadiativePotential.hpp"
 #include "Wavefunction/BSplineBasis.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "qip/Vector.hpp"
@@ -51,7 +50,8 @@ Wavefunction::Wavefunction(const Wavefunction &wf)
   this->spectrum = wf.spectrum;
   this->vnuc = wf.vnuc;
   this->vdir = wf.vdir;
-  this->vrad = wf.vrad;
+  if (wf.qed)
+    this->qed = std::make_unique<QED::RadPot>(*wf.qed);
   this->m_core_configs = wf.m_core_configs;
   this->num_core_electrons = wf.num_core_electrons;
   this->m_core_string = wf.m_core_string;
@@ -190,73 +190,19 @@ void Wavefunction::localValence(const std::string &in_valence_str,
   }
 }
 //******************************************************************************
-void Wavefunction::radiativePotential(double x_simple, double x_Ueh,
-                                      double x_SEe_h, double x_SEe_l,
-                                      double x_SEm, double rcut,
+void Wavefunction::radiativePotential(QED::RadPot::Scale scale, double rcut,
                                       double scale_rN,
                                       const std::vector<double> &x_spd,
-                                      bool do_readwrite) {
+                                      bool do_readwrite, bool print) {
+
   if (x_spd.empty())
     return;
 
-  const auto r_rms_fm = scale_rN * m_nuclear.r_rms;
+  const auto r_N_au =
+      std::sqrt(5.0 / 3.0) * scale_rN * m_nuclear.r_rms / PhysConst::aB_fm;
 
-  auto is_one = [](double x) { return std::abs(x - 1.0) < 1.0e-6; };
-  // auto is_zero = [](double x) { return std::abs(x) < 1.0e-6; };
-
-  std::string label = "_";
-  if (is_one(x_Ueh))
-    label += 'u';
-  if (is_one(x_SEe_h))
-    label += 'h';
-  if (is_one(x_SEe_l))
-    label += 'l';
-  if (is_one(x_SEm))
-    label += 'm';
-  if (is_one(x_simple))
-    label += "_simple";
-
-  const auto fname = atomicSymbol() + label + ".qed";
-  std::vector<double> Hel_tmp, Hmag_tmp;
-
-  const auto read_ok =
-      do_readwrite ? RadiativePotential::read_write_qed(
-                         rgrid->r, Hel_tmp, Hmag_tmp, fname, IO::FRW::read)
-                   : false;
-
-  if (!read_ok) {
-    if (x_Ueh > 0 || x_SEe_h > 0 || x_SEe_l > 0 || x_SEm > 0 || x_simple > 0) {
-      std::cout
-          << "\nIncluding Ginges/Flambaum QED radiative potential (up to r="
-          << rcut << "):\n";
-    } else if (std::abs(x_simple) > 0) {
-      std::cout << "\nIncluding simple exponential radiative potential\n";
-    } else {
-      return;
-    }
-    Hel_tmp = RadiativePotential::form_Hel(rgrid->r, x_simple, x_Ueh, x_SEe_h,
-                                           x_SEe_l, r_rms_fm, m_nuclear.z,
-                                           alpha, rcut);
-    Hmag_tmp = RadiativePotential::form_Hmag(rgrid->r, x_SEm, r_rms_fm,
-                                             m_nuclear.z, alpha, rcut);
-    if (do_readwrite)
-      RadiativePotential::read_write_qed(rgrid->r, Hel_tmp, Hmag_tmp, fname,
-                                         IO::FRW::write);
-  }
-
-  const bool print_xl = (x_spd.size() > 1 || x_spd.front() != 1.0);
-  int l = 0;
-  for (const auto &x_l : x_spd) {
-    if (print_xl)
-      std::cout << "l=" << l << ", x_l=" << x_l << "\n";
-    auto V_l = Hel_tmp; // make a copy..dumb
-    auto H_l = Hmag_tmp;
-    qip::scale(&V_l, x_l);
-    qip::scale(&H_l, x_l);
-    vrad.set_Hel(V_l, l);
-    vrad.set_Hmag(H_l, l);
-    l++;
-  }
+  qed = std::make_unique<QED::RadPot>(QED::RadPot(
+      rgrid->r, Znuc(), r_N_au, rcut, scale, x_spd, print, do_readwrite));
 }
 
 //******************************************************************************
@@ -893,9 +839,12 @@ void Wavefunction::SOEnergyShift() {
 
 //******************************************************************************
 std::vector<double> Wavefunction::get_Vlocal(int l) const {
-  return qip::add(vnuc, vdir, vrad.get_Hel(l));
+  // return qip::add(vnuc, vdir, vrad.get_Hel(l));
+  return qed ? qip::add(vnuc, vdir, qed->Vel(l)) : qip::add(vnuc, vdir);
 }
 //******************************************************************************
-const std::vector<double> &Wavefunction::get_Hmag(int l) const {
-  return vrad.get_Hmag(l);
+std::vector<double> Wavefunction::get_Hmag(int l) const {
+  // return vrad.get_Hmag(l);
+
+  return qed ? qed->Hmag(l) : std::vector<double>{};
 }

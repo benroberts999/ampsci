@@ -26,8 +26,8 @@ std::vector<MEdata> calcMatrixElements(const std::vector<DiracSpinor> &orbs,
     dV->solve_core(omega);
   }
 
-  for (const auto &Fa : orbs) {
-    for (const auto &Fb : orbs) {
+  for (const auto &Fb : orbs) {
+    for (const auto &Fa : orbs) {
 
       if (h->isZero(Fa.k, Fb.k))
         continue;

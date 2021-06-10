@@ -599,7 +599,7 @@ DiracMatrix::DiracMatrix(const Grid &in_grid, const std::vector<double> &in_v,
 
 double DiracMatrix::a(std::size_t i) const {
   const auto h_mag = (Hmag == nullptr) ? 0.0 : (*Hmag)[i];
-  return (double(-k)) * pgr->drduor[i] + h_mag * pgr->drdu[i];
+  return (double(-k)) * pgr->drduor[i] + alpha * h_mag * pgr->drdu[i];
 }
 double DiracMatrix::b(std::size_t i) const {
   return (alpha * en + 2.0 * cc - alpha * (*v)[i]) * pgr->drdu[i];
@@ -609,7 +609,7 @@ double DiracMatrix::c(std::size_t i) const {
 }
 double DiracMatrix::d(std::size_t i) const {
   const auto h_mag = (Hmag == nullptr) ? 0.0 : (*Hmag)[i];
-  return double(k) * pgr->drduor[i] - h_mag * pgr->drdu[i];
+  return double(k) * pgr->drduor[i] - alpha * h_mag * pgr->drdu[i];
 }
 
 std::tuple<double, double, double, double>

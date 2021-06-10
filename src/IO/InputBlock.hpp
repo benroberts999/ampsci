@@ -257,6 +257,8 @@ std::optional<T> InputBlock::get(std::string_view key) const {
     const auto option = std::find(m_options.crbegin(), m_options.crend(), key);
     if (option == m_options.crend())
       return std::nullopt;
+    if (option->value_str == "default" || option->value_str == "")
+      return std::nullopt;
     const auto &str = option->value_str;
     if (str == "True" || str == "true" || str == "Yes" || str == "yes" ||
         str == "1" || str == "Y" || str == "y")

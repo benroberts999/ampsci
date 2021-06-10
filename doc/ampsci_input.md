@@ -167,12 +167,11 @@ ExtraPotential {
 ## RadPot (Ginges/Flambaum QED Radiative Potential)
 ```cpp
 RadPot {
-  RadPot;   //[b] default = false, to include QED, set to true
-  Simple;   //[r] default = 0.0 // Vrad = -Z^2 * alpha * exp(-r/alpha)
   Ueh;      //[r] default = 1.0 // Uehling (vac pol)
   SE_h;     //[r] default = 1.0 // high-f SE
   SE_l;     //[r] default = 1.0 // low-f SE
   SE_m;     //[r] default = 1.0 // Magnetic SE
+  WK;       //[r] default = 0.0 // Wickman-Kroll
   rcut;     //[r] default = 5.0
   scale_rN; //[r] default = 1.0
   scale_l;  //[r,r...] (List) default = 1.0
@@ -180,13 +179,11 @@ RadPot {
 }
 ```
 * Adds QED radiative potential to Hamiltonian.
-* RadPot must be set to true to include QED
-* If full rad pot is used (Uehling+SE), will read write from file named Z.qed
-  * Rad pot depends only on Z. Note: scale_rN ignored if reading from file (will be whatever it was when file written; not saved)
-  * scale_l and core_qed not written to .qed file; read from input each run
-* Each factor is a scale; 0 means don't include. 1 means include full potential. Any positive number is valid.
+* QED will be included if this block is present; else not
+* Will read from file if it exists (e.g., Z_uhlmw.qed)
+* Each factor (Ueh, SE_h,..) is a scale; 0 means don't include. 1 means include full potential. Any positive number is valid.
 * rcut: Only calculates potential for r < rcut [for speed; rcut in au]
-* scale_rN: finite nucleus effects: rN = rN * scale_rN (for testing only)
+* scale_rN: finite nucleus effects: rN = rN * scale_rN (=0 means pointlike)
 * scale_l: Optional input: Scaling factors for the V_rad for each l state; for higher states, uses the last given input. Input as a list of real numbers. Best explained with examples:
     * scale_l = 1; // include QED for all states
     * scale_l = 0,1,0; //include QED for p states only
