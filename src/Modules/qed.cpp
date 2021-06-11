@@ -144,8 +144,10 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 
   // Output: energy results
-  std::cout << "\nQED contribution to valence energies; atomic units (HF, "
-               "includes relaxation)\n";
+  std::cout << "\nQED contribution to valence energies; atomic units (HF)\n";
+  if (coreQED) {
+    std::cout << "Includes core relaxation\n";
+  }
   std::cout << "       dE(VP)        dE(SE)        dE(tot)\n";
   for (const auto &Fv : wf.valence) {
     // Find corresponding state without QED: (can't assume in same order)

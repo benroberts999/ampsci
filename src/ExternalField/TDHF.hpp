@@ -50,10 +50,13 @@ protected:
   // j(x)=j(c)-k,...,j(c)+k.  And: pi(x) = pi(c)*pi(h)
   std::vector<std::vector<DiracSpinor>> m_X{};
   std::vector<std::vector<DiracSpinor>> m_Y{};
+  std::vector<std::vector<DiracSpinor>> m_X0{};
+  std::vector<std::vector<DiracSpinor>> m_Y0{};
   // can just write these to disk! Read them in, continue as per normal
 
+  const HF::HartreeFock *const p_hf;
   const std::vector<DiracSpinor> m_core;
-  const std::vector<double> m_vl;
+  // const std::vector<double> m_vl;
   const std::vector<double> m_Hmag;
   const double m_alpha;
   const HF::Breit *const p_VBr;
@@ -99,6 +102,9 @@ public:
   //! @brief Returns const reference to dPsi orbital of given kappa
   const DiracSpinor &get_dPsi_x(const DiracSpinor &Fc, dPsiType XorY,
                                 const int kappa_x) const;
+  // Gets first-order dPsi
+  const std::vector<DiracSpinor> &get_dPsis_0(const DiracSpinor &Fc,
+                                              dPsiType XorY) const;
 
   //! Forms \delta Psi_v for valence state Fv (including core pol.) - 1 kappa
   //! @details

@@ -203,6 +203,10 @@ void Wavefunction::radiativePotential(QED::RadPot::Scale scale, double rcut,
 
   qed = std::make_unique<QED::RadPot>(QED::RadPot(
       rgrid->r, Znuc(), r_N_au, rcut, scale, x_spd, print, do_readwrite));
+
+  // If HF already exists, update it to include new qed!
+  if (m_pHF)
+    m_pHF->update_Vrad(qed.get());
 }
 
 //******************************************************************************
@@ -839,12 +843,9 @@ void Wavefunction::SOEnergyShift() {
 
 //******************************************************************************
 std::vector<double> Wavefunction::get_Vlocal(int l) const {
-  // return qip::add(vnuc, vdir, vrad.get_Hel(l));
   return qed ? qip::add(vnuc, vdir, qed->Vel(l)) : qip::add(vnuc, vdir);
 }
 //******************************************************************************
 std::vector<double> Wavefunction::get_Hmag(int l) const {
-  // return vrad.get_Hmag(l);
-
   return qed ? qed->Hmag(l) : std::vector<double>{};
 }

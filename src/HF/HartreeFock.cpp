@@ -58,7 +58,8 @@ HartreeFock::HartreeFock(std::shared_ptr<const Grid> in_grid,
                          Method method, double x_Breit, double in_eps)
     : rgrid(in_grid),
       p_vnuc(&in_vnuc), // or, just have a copy?
-      p_vrad(in_vrad),
+      p_vrad(in_vrad),  // XXX
+      // If adding QED _after_ HF core, this remains nullptr! XXX
       m_alpha(in_alpha),
       m_method(method),
       m_include_Breit(std::abs(x_Breit) > 1.0e-10),

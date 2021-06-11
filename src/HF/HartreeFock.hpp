@@ -150,13 +150,17 @@ public:
 
   Method method() const { return m_method; }
 
+  //! Update the Vrad used inside HF (only used if we want QED into valence but
+  // not core, for testing)
+  void update_Vrad(const QED::RadPot *const in_vrad) { p_vrad = in_vrad; }
+
 public:
   bool verbose = true; // update to input??
   std::shared_ptr<const Grid> rgrid;
 
 private:
   const std::vector<double> *const p_vnuc;
-  const QED::RadPot *const p_vrad;
+  const QED::RadPot *p_vrad;
   const double m_alpha;
   const Method m_method;
   const bool m_include_Breit;

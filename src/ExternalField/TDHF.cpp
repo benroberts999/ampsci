@@ -21,12 +21,13 @@ namespace ExternalField {
 TDHF::TDHF(const DiracOperator::TensorOperator *const h,
            const HF::HartreeFock *const hf)
     : CorePolarisation(h),
+      p_hf(hf),
       m_core(hf->get_core()),
-      m_vl(hf->get_vlocal(0)),     // for now, const Vl (same each l)
+      // m_vl(hf->get_vlocal(0)), //udpated, to use l-dependent QED [no change]
       m_Hmag(hf->get_Hrad_mag(0)), //(same each l)
       m_alpha(hf->get_alpha()),
       p_VBr(hf->get_Breit())
-// XXX Add check for null hf?
+// Add check for null hf?
 {
   initialise_dPsi();
 }
@@ -59,6 +60,8 @@ void TDHF::initialise_dPsi() {
       std::cout << "\n";
   }
   m_Y = m_X;
+  m_X0 = m_X;
+  m_Y0 = m_X;
 }
 
 //******************************************************************************
@@ -70,11 +73,23 @@ void TDHF::clear() {
     }
   }
   m_Y = m_X;
+  m_X0 = m_X;
+  m_Y0 = m_X;
 }
 
 //******************************************************************************
 const std::vector<DiracSpinor> &TDHF::get_dPsis(const DiracSpinor &Fc,
                                                 dPsiType XorY) const {
+
+  const auto index = static_cast<std::size_t>(
+      std::find(m_core.cbegin(), m_core.cend(), Fc) - m_core.cbegin());
+  // Note: no bounds checking here! Used in critical loop. Better way?
+  assert(index < m_X.size());
+  return XorY == dPsiType::X ? m_X[index] : m_Y[index];
+}
+
+const std::vector<DiracSpinor> &TDHF::get_dPsis_0(const DiracSpinor &Fc,
+                                                  dPsiType XorY) const {
 
   // return solve_dPsis(Fc, m_core_omega, XorY, nullptr, StateType::ket, false);
 
@@ -82,7 +97,7 @@ const std::vector<DiracSpinor> &TDHF::get_dPsis(const DiracSpinor &Fc,
       std::find(m_core.cbegin(), m_core.cend(), Fc) - m_core.cbegin());
   // Note: no bounds checking here! Used in critical loop. Better way?
   assert(index < m_X.size());
-  return XorY == dPsiType::X ? m_X[index] : m_Y[index];
+  return XorY == dPsiType::X ? m_X0[index] : m_Y0[index];
 }
 
 //******************************************************************************
@@ -148,7 +163,9 @@ DiracSpinor TDHF::solve_dPsi(const DiracSpinor &Fv, const double omega,
     s2 = sj * si;
   }
 
-  return s2 * ExternalField::solveMixedState(kappa_x, Fv, ww, m_vl, m_alpha,
+  const auto vl = p_hf->get_vlocal(Angular::l_k(kappa_x));
+  // The l from X ? or from Fv ?
+  return s2 * ExternalField::solveMixedState(kappa_x, Fv, ww, vl, m_alpha,
                                              m_core, rhs, 1.0e-9, Sigma, p_VBr,
                                              m_Hmag);
 }
@@ -222,8 +239,9 @@ void TDHF::solve_core(const double omega, const int max_its, const bool print) {
           // Force solveMixedState to start from scratch
           Xx *= 0.0;
         }
-        ExternalField::solveMixedState(Xx, Fc, omega, m_vl, m_alpha, m_core,
-                                       rhs, eps_ms, nullptr, p_VBr, m_Hmag);
+        const auto vl = p_hf->get_vlocal(Xx.l()); // to include l-dep QED
+        ExternalField::solveMixedState(Xx, Fc, omega, vl, m_alpha, m_core, rhs,
+                                       eps_ms, nullptr, p_VBr, m_Hmag);
         Xx = a_damp * oldX + (1.0 - a_damp) * Xx;
         const auto delta = (Xx - oldX) * (Xx - oldX) / (Xx * Xx);
         if (delta > eps_c)
@@ -241,7 +259,8 @@ void TDHF::solve_core(const double omega, const int max_its, const bool print) {
           if (has_de) {
             Yx *= 0.0;
           }
-          ExternalField::solveMixedState(Yx, Fc, -omega, m_vl, m_alpha, m_core,
+          const auto vl = p_hf->get_vlocal(Yx.l());
+          ExternalField::solveMixedState(Yx, Fc, -omega, vl, m_alpha, m_core,
                                          rhs, eps_ms, nullptr, p_VBr, m_Hmag);
           Yx = a_damp * oldY + (1.0 - a_damp) * Yx;
         }
@@ -255,6 +274,12 @@ void TDHF::solve_core(const double omega, const int max_its, const bool print) {
     }
     m_X = tmp_X;
     m_Y = tmp_Y;
+
+    if (it == 0) {
+      // On first iteration, store dPsi (for first-order dV)
+      m_X0 = m_X;
+      m_Y0 = m_Y;
+    }
 
     eps = *std::max_element(cbegin(eps_vec), cend(eps_vec));
 
@@ -313,12 +338,11 @@ DiracSpinor TDHF::dV_rhs(const int kappa_n, const DiracSpinor &Fa, bool conj,
 
   // nb: faster to not //ize this one
   for (const auto &Fb : m_core) {
-    const auto &X_b = incl_dV ? get_dPsis(Fb, ChiType)
-                              : solve_dPsis(Fb, m_core_omega, ChiType, nullptr,
-                                            StateType::ket, false);
-    const auto &Y_b = incl_dV ? get_dPsis(Fb, EtaType)
-                              : solve_dPsis(Fb, m_core_omega, EtaType, nullptr,
-                                            StateType::ket, false);
+
+    const auto &X_b =
+        incl_dV ? get_dPsis(Fb, ChiType) : get_dPsis_0(Fb, ChiType);
+    const auto &Y_b =
+        incl_dV ? get_dPsis(Fb, EtaType) : get_dPsis_0(Fb, EtaType);
 
     // only for testing: exclude certain (core) states from dV sum
     if (Fexcl && (*Fexcl) == Fb)
