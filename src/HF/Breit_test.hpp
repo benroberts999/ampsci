@@ -19,8 +19,8 @@ bool Breit(std::ostream &obuff) {
   Wavefunction wf({3500, 1.0e-6, 125.0, 40.0, "loglinear", -1.0},
                   {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
   const double x_Breit = 1.0;
-  wf.hartreeFockCore("HartreeFock", x_Breit, "[Xe]");
-  wf.hartreeFockValence("7sp");
+  wf.solve_core("HartreeFock", x_Breit, "[Xe]");
+  wf.solve_valence("7sp");
 
   // Lambda to compare against (From Vladimir's code):
   // Overall sign difference between E1, E2, and PNC ME definition (and <ab> vs

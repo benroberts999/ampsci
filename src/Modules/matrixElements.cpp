@@ -199,7 +199,7 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
     return;
 
   // Find core/valence energy: allows distingush core/valence states
-  const auto en_core = wf.en_coreval();
+  const auto en_core = wf.en_coreval_gap();
 
   // ----------- ** Actual Calculations ** -----------
 
@@ -302,7 +302,7 @@ void calculateLifetimes(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto srQ = input.get("StrucRadNorm", false);
   if (srQ) {
     std::cout << "Including Structure Radiation + Normalisation\n";
-    sr = std::make_unique<MBPT::StructureRad>(wf.basis, wf.en_coreval());
+    sr = std::make_unique<MBPT::StructureRad>(wf.basis, wf.en_coreval_gap());
   }
 
   const auto to_s = PhysConst::time_s;

@@ -19,8 +19,8 @@ bool CorrelationPotential(std::ostream &obuff) {
     // Comput. Phys. Commun. 179, 310 (2008).
     Wavefunction wf({4000, 1.0e-6, 100.0, 0.33 * 100.0, "loglinear", -1.0},
                     {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
-    wf.hartreeFockCore("HartreeFock", 0.0, "[Xe]");
-    wf.hartreeFockValence("6s");
+    wf.solve_core("HartreeFock", 0.0, "[Xe]");
+    wf.solve_valence("6s");
     const auto &Fv = wf.valence.front();
 
     {
@@ -72,8 +72,8 @@ bool CorrelationPotential(std::ostream &obuff) {
 
     Wavefunction wf({2000, 1.0e-6, 120.0, 0.33 * 120.0, "loglinear", -1.0},
                     {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
-    wf.hartreeFockCore("HartreeFock", 0.0, "[Xe]");
-    wf.hartreeFockValence("7sp5d4f"); //"7sp5d4f"
+    wf.solve_core("HartreeFock", 0.0, "[Xe]");
+    wf.solve_valence("7sp5d4f"); //"7sp5d4f"
     wf.formBasis({"30spdfg", 40, 7, 0.0, 1.0e-6, 40.0, false});
     wf.formSigma(3, true, 1.0e-4, 30.0, 14 /*stride*/);
 
@@ -104,8 +104,8 @@ bool CorrelationPotential(std::ostream &obuff) {
 
     Wavefunction wf({2000, 1.0e-6, 150.0, 0.33 * 150.0, "loglinear", -1.0},
                     {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
-    wf.hartreeFockCore("HartreeFock", 0.0, "[Xe]");
-    wf.hartreeFockValence("7sp5d4f");
+    wf.solve_core("HartreeFock", 0.0, "[Xe]");
+    wf.solve_valence("7sp5d4f");
     wf.formBasis({"30spdfghi", 40, 7, 0.0, 1.0e-6, 40.0, false});
     wf.formSigma(3, true, 1.0e-4, 30.0, 14 /*stride*/);
 
@@ -138,8 +138,8 @@ bool CorrelationPotential(std::ostream &obuff) {
 
     Wavefunction wf({4000, 1.0e-6, 120.0, 0.33 * 120.0, "loglinear", -1.0},
                     {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
-    wf.hartreeFockCore("HartreeFock", 0.0, "[Xe]");
-    wf.hartreeFockValence("7sp5d");
+    wf.solve_core("HartreeFock", 0.0, "[Xe]");
+    wf.solve_valence("7sp5d");
     wf.formBasis({"35spdfghi", 40, 9, 0.0, 1.0e-6, 40.0, false});
 
     const auto n_min_core = 3;

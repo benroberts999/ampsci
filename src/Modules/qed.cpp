@@ -66,9 +66,9 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << "HF, including VP, SE: " << HF::parseMethod(wfhf->method())
               << "\n";
   }
-  wf_VP.hartreeFockCore(HF::parseMethod(wfhf->method()), wfhf->x_Breit(),
+  wf_VP.solve_core(HF::parseMethod(wfhf->method()), wfhf->x_Breit(),
                         wf.coreConfiguration());
-  wf_SE.hartreeFockCore(HF::parseMethod(wfhf->method()), wfhf->x_Breit(),
+  wf_SE.solve_core(HF::parseMethod(wfhf->method()), wfhf->x_Breit(),
                         wf.coreConfiguration());
 
   if (!coreQED) {
@@ -104,8 +104,8 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
     wf_SE.localValence(list, true);
   } else {
     // Hartree-Fock:
-    wf_VP.hartreeFockValence(DiracSpinor::state_config(wf.valence));
-    wf_SE.hartreeFockValence(DiracSpinor::state_config(wf.valence));
+    wf_VP.solve_valence(DiracSpinor::state_config(wf.valence));
+    wf_SE.solve_valence(DiracSpinor::state_config(wf.valence));
   }
   // Solve Brueckner orbitals
   if (wf.getSigma() != nullptr) {

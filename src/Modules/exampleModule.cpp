@@ -44,12 +44,12 @@ void exampleModule(const IO::InputBlock &input, const Wavefunction &wf) {
   // Note: Assume only Hartree-Fock approximation, no Breit, QED, Sigma etc.
 
   // Solve Hartree-Fock core for new wavefuinction:
-  wfpt.hartreeFockCore("HartreeFock", 0.0, wf.coreConfiguration());
+  wfpt.solve_core("HartreeFock", 0.0, wf.coreConfiguration());
   // print the new core energies:
   wfpt.printCore();
 
   // Solve Hartree-Fock valence
-  wfpt.hartreeFockValence(DiracSpinor::state_config(wf.valence));
+  wfpt.solve_valence(DiracSpinor::state_config(wf.valence));
   wfpt.printValence();
 
   // Calculate the energy shifts in atomic units, and GHz

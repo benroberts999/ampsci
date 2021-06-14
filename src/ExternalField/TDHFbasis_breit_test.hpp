@@ -40,15 +40,15 @@ bool TDHFbasis_breit(std::ostream &obuff) { //
   // Create wavefunction object, solve HF for core+valence
   Wavefunction wf({1000, 1.0e-6, 120.0, 50.0, "loglinear", -1.0},
                   {"Cs", 133, "Fermi", -1.0, -1.0}, 1.0);
-  wf.hartreeFockCore("HartreeFock", 0.0, "[Xe]"); // no breit
-  wf.hartreeFockValence(valence);
+  wf.solve_core("HartreeFock", 0.0, "[Xe]"); // no breit
+  wf.solve_valence(valence);
   wf.formBasis(bspl_param);
   // wf.printValence();
 
   // Again, including Breit:
   Wavefunction wfB(wf.rgrid->params(), wf.get_nuclearParameters(), 1.0);
-  wfB.hartreeFockCore("HartreeFock", 1.0, "[Xe]"); // w/Breit
-  wfB.hartreeFockValence(valence);
+  wfB.solve_core("HartreeFock", 1.0, "[Xe]"); // w/Breit
+  wfB.solve_valence(valence);
   wfB.formBasis(bspl_param);
 
   const auto hE1 = DiracOperator::E1(*wf.rgrid);

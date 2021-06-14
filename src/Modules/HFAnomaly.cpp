@@ -119,8 +119,8 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto gI = nuc.mu / nuc.I_N;
     std::cout << "\nA = " << nuc.A << ", gI = " << gI
               << ", r_rms = " << nuc.r_rms << "\n";
-    wfA.hartreeFockCore("HartreeFock", 0.0, wf.coreConfiguration_nice());
-    wfA.hartreeFockValence(DiracSpinor::state_config(wf.valence));
+    wfA.solve_core("HartreeFock", 0.0, wf.coreConfiguration_nice());
+    wfA.solve_valence(DiracSpinor::state_config(wf.valence));
     wfA.basis = wf.basis; // OK??
     //  wfA.formBasis({"50spd30f", 60, 7, 0.0, 0.0, 30.0, false});
 
@@ -202,8 +202,8 @@ void HF_rmag(const IO::InputBlock &input, const Wavefunction &wf) {
 
   auto wf2 = Wavefunction(wf.rgrid->params(), {wf.Znuc(), A2},
                           wf.alpha / PhysConst::alpha);
-  wf2.hartreeFockCore("HartreeFock", 0.0, wf.coreConfiguration_nice());
-  wf2.hartreeFockValence(DiracSpinor::state_config(wf.valence));
+  wf2.solve_core("HartreeFock", 0.0, wf.coreConfiguration_nice());
+  wf2.solve_valence(DiracSpinor::state_config(wf.valence));
   wf2.basis = wf.basis; // OK??
   std::cout << "A1 = " << wf.nuclearParams() << "\n";
   std::cout << "A2 = " << wf2.nuclearParams() << "\n";

@@ -138,17 +138,46 @@ void Wavefunction::determineCore(const std::string &str_core_in)
 }
 
 //******************************************************************************
-void Wavefunction::hartreeFockCore(const std::string &method,
-                                   const double x_Breit,
-                                   const std::string &in_core, double eps_HF,
-                                   bool print) {
-  if (m_pHF == nullptr) {
-    solveInitialCore(in_core, 5);
+// void Wavefunction::solve_core(const std::string &method,
+//                                    const double x_Breit,
+//                                    const std::string &in_core, double eps_HF,
+//                                    bool print) {
+//   if (m_pHF == nullptr) {
+//     solveLocalCore(in_core, 16);
+//     m_pHF = std::make_unique<HF::HartreeFock>(this, HF::parseMethod(method),
+//                                               x_Breit, eps_HF);
+//   }
+//   m_pHF->verbose = print;
+//   vdir = m_pHF->solve_core();
+// }
+
+void Wavefunction::solve_core(const std::string &method, const double x_Breit,
+                              const std::string &in_core, double eps_HF,
+                              bool print) {
+  // core config
+  // initial core if HF
+
+  if (!m_pHF) {
+
+    if (in_core != "") {
+      double h_g = 0, d_t = 0;
+      // XXX Update to use other coefs?
+      if (method != "Local") {
+        Parametric::defaultGreenCore(m_nuclear.z, h_g, d_t);
+      } else {
+        Parametric::defaultGreen(m_nuclear.z, h_g, d_t);
+      }
+      vdir = Parametric::GreenPotential(m_nuclear.z, rgrid->r, h_g, d_t);
+    }
+    const auto eps_targ = method == "Local" ? 16 : 5;
+    solveLocalCore(in_core, eps_targ);
     m_pHF = std::make_unique<HF::HartreeFock>(this, HF::parseMethod(method),
                                               x_Breit, eps_HF);
+    m_pHF->verbose = print;
   }
-  m_pHF->verbose = print;
-  vdir = m_pHF->solveCore();
+
+  if (method != "Local")
+    vdir = m_pHF->solve_core();
 }
 
 //******************************************************************************
@@ -160,21 +189,29 @@ auto Wavefunction::coreEnergyHF() const {
 }
 
 //******************************************************************************
-void Wavefunction::hartreeFockValence(const std::string &in_valence_str,
-                                      const bool print) {
+void Wavefunction::solve_valence(const std::string &in_valence_str,
+                                 const bool print) {
   if (!m_pHF) {
-    std::cerr << "WARNING 62: Cant call hartreeFockValence before "
-                 "hartreeFockCore\n";
+    std::cerr << "WARNING 62: Cant call solve_valence before "
+                 "solve_core\n";
     return;
   }
-  auto val_lst = AtomData::listOfStates_nk(in_valence_str);
-  for (const auto &[n, k, en] : val_lst) {
-    (void)en;
-    if (!isInCore(n, k) && !isInValence(n, k)) {
-      solveNewValence(n, k, 0, 5);
+
+  auto eps = m_pHF->method() == HF::Method::Local ? 16 : 5;
+
+  if (m_pHF->method() == HF::Method::KohnSham) {
+    localValence(in_valence_str, true);
+  } else {
+    const auto val_lst = AtomData::listOfStates_nk(in_valence_str);
+    for (const auto &[n, k, en] : val_lst) {
+      (void)en;
+      if (!isInCore(n, k) && !isInValence(n, k)) {
+        solveNewValence(n, k, 0, eps);
+      }
     }
+    if (m_pHF->method() != HF::Method::Local)
+      m_pHF->solveValence(&valence, print);
   }
-  m_pHF->solveValence(&valence, print);
 }
 
 //******************************************************************************
@@ -280,7 +317,7 @@ int Wavefunction::maxCore_l() const {
 }
 
 //******************************************************************************
-double Wavefunction::en_coreval() const {
+double Wavefunction::en_coreval_gap() const {
   // Find core/valence energy: allows distingush core/valence states
   const auto ec_max = core.empty() ? 0.0
                                    : std::max_element(cbegin(core), cend(core),
@@ -295,8 +332,7 @@ double Wavefunction::en_coreval() const {
 }
 
 //******************************************************************************
-void Wavefunction::solveInitialCore(const std::string &str_core,
-                                    int log_dele_or)
+void Wavefunction::solveLocalCore(const std::string &str_core, int log_dele_or)
 // Solves the Dirac eqn for each state in the core
 // Only for local potential (direct part)
 // HF/HartreeFock.cpp has routines for Hartree Fock
@@ -307,12 +343,6 @@ void Wavefunction::solveInitialCore(const std::string &str_core,
   }
 
   determineCore(str_core); // sets m_core_configs :( ?
-
-  if (!m_core_configs.empty()) {
-    double h_g = 0, d_t = 0;
-    Parametric::defaultGreenCore(m_nuclear.z, h_g, d_t);
-    vdir = Parametric::GreenPotential(m_nuclear.z, rgrid->r, h_g, d_t);
-  }
 
   for (const auto &[n, l, num] : m_core_configs) {
     if (num == 0)
@@ -757,8 +787,8 @@ void Wavefunction::formSigma(
 //******************************************************************************
 void Wavefunction::hartreeFockBrueckner(const bool print) {
   if (!m_pHF) {
-    std::cerr << "WARNING 62: Cant call hartreeFockValence before "
-                 "hartreeFockCore\n";
+    std::cerr << "WARNING 62: Cant call solve_valence before "
+                 "solve_core\n";
     return;
   }
   if (m_Sigma)
@@ -805,10 +835,8 @@ void Wavefunction::fitSigma_hfBrueckner(
         break;
       const auto r = (e_exp - en_l) / (en_l - en_0);
       lambda = std::clamp(lambda * (1.0 + r), 0.5, 1.5);
-      // std::cout << lambda << " " << Fv_l.en << "\n";
     }
     printf("%.0e (%2i); lambda = %.4f\n", eps, its, lambda);
-    // std::cout << eps << " [" << its << "]" << lambda << "\n";
   }
 
   hartreeFockBrueckner(true);

@@ -29,8 +29,8 @@ bool TDHFbasis(std::ostream &obuff) {
   // Create wavefunction object, solve HF for core+valence
   Wavefunction wf({3500, 1.0e-6, 150.0, 50.0, "loglinear", -1.0},
                   {"Cs", 133, "Fermi", -1.0, -1.0}, 1.0);
-  wf.hartreeFockCore("HartreeFock", 0.0, "[Xe]");
-  wf.hartreeFockValence("7sp5d4f");
+  wf.solve_core("HartreeFock", 0.0, "[Xe]");
+  wf.solve_valence("7sp5d4f");
 
   SplineBasis::Parameters bspl_param;
   {

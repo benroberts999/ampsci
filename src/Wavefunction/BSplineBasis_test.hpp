@@ -20,8 +20,8 @@ bool BSplineBasis(std::ostream &obuff) {
     // Create wavefunction object, solve HF for core + valence
     Wavefunction wf({2500, 1.0e-6, 150.0, 0.33 * 150.0, "loglinear"},
                     {"Cs", -1, "Fermi"});
-    wf.hartreeFockCore("HartreeFock", 0.0, "[Xe]");
-    wf.hartreeFockValence("7sp5d4f");
+    wf.solve_core("HartreeFock", 0.0, "[Xe]");
+    wf.solve_valence("7sp5d4f");
 
     // Compare the energy of a Dirac spinor to a double:
     const auto comp_en = [](const auto &Fa, double en) {
@@ -83,10 +83,10 @@ bool BSplineBasis(std::ostream &obuff) {
   { // Check low-r behavour (splines vs HF for hyperfine)
     Wavefunction wf({6000, 1.0e-7, 150.0, 0.33 * 150.0, "loglinear"},
                     {"Cs", -1, "Fermi"}, 1.0);
-    wf.hartreeFockCore("HartreeFock", 0.0, "[Xe]");
+    wf.solve_core("HartreeFock", 0.0, "[Xe]");
 
     const std::string states = "7sp5d4f";
-    wf.hartreeFockValence(states);
+    wf.solve_valence(states);
 
     const auto r0 = 1.0e-6;
     const auto r0eps = 0.0;
@@ -123,7 +123,7 @@ bool BSplineBasis(std::ostream &obuff) {
   {
     Wavefunction wf({5000, 1.0e-6, 50.0, 0.33 * 50.0, "loglinear", -1.0},
                     {"2", -1, "Fermi", -1.0, -1.0}, 1.0);
-    wf.hartreeFockCore("Hartree", 0.0, "[]");
+    wf.solve_core("Hartree", 0.0, "[]");
 
     std::string states = "spdfghi";
     std::size_t nspl = 40;
@@ -175,7 +175,7 @@ bool BSplineBasis(std::ostream &obuff) {
   {
     Wavefunction wf({5000, 1.0e-6, 100.0, 0.33 * 100.0, "loglinear", -1.0},
                     {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
-    wf.hartreeFockCore("Hartree", 0.0, "[Xe]");
+    wf.solve_core("Hartree", 0.0, "[Xe]");
 
     std::string states = "spdfghi";
     std::size_t nspl = 50;

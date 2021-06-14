@@ -32,7 +32,7 @@ struct EpsIts {
 };
 
 //******************************************************************************
-enum class Method { HartreeFock, ApproxHF, Hartree, KohnSham };
+enum class Method { HartreeFock, ApproxHF, Hartree, KohnSham, Local };
 //! @brief Convers string (name) of method (HartreeFock, Hartree etc.) to enum
 Method parseMethod(const std::string &in_method);
 std::string parseMethod(const Method &in_method);
@@ -79,7 +79,7 @@ energies that are most important, the energies must already be good guesses).
 WaveFunction gives routine to solve initial core approx.
 
 \par Usage
-Solves HF equations for the core when solveCore() is called.
+Solves HF equations for the core when solve_core() is called.
 Core orbitals must already exist. Note: stores a pointer to external core
 orbitals. These must not be extended/deleted while HF object exists.
 
@@ -103,7 +103,7 @@ public:
               double x_Breit = 0.0, double eps_HF = 0.0);
 
   //! Solves HF equations self-consitantly for core orbs. Produces Vdir
-  const std::vector<double> &solveCore();
+  const std::vector<double> &solve_core();
 
   //! @brief Solves HF for valence list; valence states must already be present
   //! in WaveFunction (bad, instead, give it a vector of DiracSpinors!)

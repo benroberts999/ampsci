@@ -19,8 +19,8 @@ bool DiagramRPA(std::ostream &obuff) {
 
   Wavefunction wf({3000, 1.0e-6, 150.0, 0.33 * 150.0, "loglinear", -1.0},
                   {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
-  wf.hartreeFockCore("HartreeFock", 0.0, "[Xe]");
-  wf.hartreeFockValence("6sp5d4f");
+  wf.solve_core("HartreeFock", 0.0, "[Xe]");
+  wf.solve_valence("6sp5d4f");
   wf.formBasis({"40spdfgh", 50, 9, 0.0, 1.0e-9, 30.0, false});
 
   auto sorter = [](auto x, auto y) { return x.first < y.first; };

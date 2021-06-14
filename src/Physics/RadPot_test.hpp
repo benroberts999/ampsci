@@ -160,8 +160,8 @@ bool RadPot(std::ostream &obuff) {
     // Construct wavefunction, solve HF core+valence (without QED):
     Wavefunction wf({2000, 1.0e-6, 120.0, 0.3 * 120.0, "loglinear", -1.0},
                     {"Cs", 133, "Fermi", -1, 2.3}, 1.0);
-    wf.hartreeFockCore("Hartree", 0.0, "[Xe]", 0.0, false);
-    wf.hartreeFockValence("6s", false);
+    wf.solve_core("Hartree", 0.0, "[Xe]", 0.0, false);
+    wf.solve_valence("6s", false);
     std::vector pt = {1.391, 6.583, 0.762};
     std::vector st = {1.391, 6.577, 0.762};
 
@@ -221,16 +221,16 @@ helper::compare_QED(const std::vector<QEDData> &QEDdata,
     // Construct wavefunction, solve HF core+valence (without QED):
     Wavefunction wf0({5000, 1.0e-6, 120.0, 0.3 * 120.0, "loglinear", -1.0},
                      {atom.name, atom.A, "Fermi", rrms, 2.3}, 1.0);
-    wf0.hartreeFockCore("HartreeFock", 0.0, atom.core, 0.0, false);
-    wf0.hartreeFockValence(atom.val, false);
+    wf0.solve_core("HartreeFock", 0.0, atom.core, 0.0, false);
+    wf0.solve_valence(atom.val, false);
 
     // Construct wavefunction, solve HF core+valence (with QED):
     Wavefunction wf({5000, 1.0e-6, 120.0, 0.3 * 120.0, "loglinear", -1.0},
                     {atom.name, atom.A, "Fermi", rrms, 2.3}, 1.0);
     const auto rcut = 15.0;
     wf.radiativePotential(scale, rcut, 1.0, {1.0}, false, false);
-    wf.hartreeFockCore("HartreeFock", 0.0, atom.core, 0.0, false);
-    wf.hartreeFockValence(atom.val, false);
+    wf.solve_core("HartreeFock", 0.0, atom.core, 0.0, false);
+    wf.solve_valence(atom.val, false);
 
     // Loop through each state (line in table) and compare data:
     for (auto [state, t_de0, t_de] : data) {

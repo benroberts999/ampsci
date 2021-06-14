@@ -75,10 +75,7 @@ public: // const methods: "views" into WF object
   // Rule is: if function is single-line, define here. Else, in .cpp
   int Znuc() const { return m_nuclear.z; }
   int Anuc() const { return m_nuclear.a; }
-  //! Number of neutrons, A-Z
-  int Nnuc() const {
-    return (m_nuclear.a > m_nuclear.z) ? (m_nuclear.a - m_nuclear.z) : 0;
-  }
+
   //! Number of electrons in the core
   int Ncore() const { return num_core_electrons; }
   const Nuclear::Parameters &get_nuclearParameters() const { return m_nuclear; }
@@ -89,10 +86,6 @@ public: // const methods: "views" into WF object
       return true;
     return m_pHF->excludeExchangeQ();
   }
-
-  //! Returns 0.5*( max(e_core) + min(e_valence)) - energy half way between
-  //! core/valence
-  double en_coreval() const;
 
   //! Returns ptr to (const) Correlation Potential, Sigma
   const MBPT::CorrelationPotential *getSigma() const { return m_Sigma.get(); }
@@ -107,19 +100,9 @@ public: // const methods: "views" into WF object
   const DiracSpinor *getState(std::string_view state,
                               bool *is_valence = nullptr) const;
 
-  // These are only really for testing Greens function..
-  const DiracSpinor *firstCoreState(int k) const {
-    for (const auto &c : core)
-      if (c.k == k)
-        return &c;
-    return nullptr;
-  }
-  const DiracSpinor *firstValenceState(int k) const {
-    for (const auto &v : valence)
-      if (v.k == k)
-        return &v;
-    return nullptr;
-  }
+  //! Returns energy location of the "core-valence gap", 0.5*( max(e_core) +
+  //! min(e_valence)) - energy half way between core/valence
+  double en_coreval_gap() const;
 
   //! Energy gap between lowest valence + highest core state
   double energy_gap() const {
@@ -182,17 +165,16 @@ public: // const methods: "views" into WF object
   std::vector<double> coreDensity() const;
 
   //! Performs hartree-Fock procedure for core: note: poplulates core
-  void hartreeFockCore(const std::string &method = "HartreeFock",
-                       const double x_Breit = 0.0,
-                       const std::string &in_core = "", double eps_HF = 0,
-                       bool print = true);
+  void solve_core(const std::string &method = "HartreeFock",
+                  const double x_Breit = 0.0, const std::string &in_core = "",
+                  double eps_HF = 0, bool print = true);
 
   //! Calculates HF core energy (doesn't include magnetic QED?)
   auto coreEnergyHF() const;
 
   //! Performs hartree-Fock procedure for valence: note: poplulates valnece
-  void hartreeFockValence(const std::string &in_valence_str = "",
-                          const bool print = true);
+  void solve_valence(const std::string &in_valence_str = "",
+                     const bool print = true);
   //! Solves new local valence (e.g., Kohn-Sham): note: poplulates valence
   void localValence(const std::string &in_valence_str, bool list_each = false);
   //! Forms Bruckner valence orbitals: (H_hf + Sigma)|nk> = e|nk>.
@@ -207,10 +189,6 @@ public: // const methods: "views" into WF object
   void radiativePotential(QED::RadPot::Scale s, double rcut, double scale_rN,
                           const std::vector<double> &x_spd,
                           bool do_readwrite = true, bool print = true);
-  // void radiativePotential(double x_simple, double x_Ueh, double x_SEe_h,
-  //                         double x_SEe_l, double x_SEm, double rcut,
-  //                         double scale_rN, const std::vector<double> &x_spd,
-  //                         bool do_readwrite = true, bool print = true);
 
   //! Calculates + populates basis [see BSplineBasis]
   void formBasis(const SplineBasis::Parameters &params);
@@ -244,7 +222,7 @@ public: // const methods: "views" into WF object
   void solveDirac(DiracSpinor &psi, double e_a = 0, int log_eps = 0) const;
 
   //! Populates core orbitals accorind to given core string (+solves)
-  void solveInitialCore(const std::string &str_core_in, int log_dele_or = 0);
+  void solveLocalCore(const std::string &str_core_in, int log_dele_or = 0);
   //! Adds new valence orbtial (+solves using vdir)
   void solveNewValence(int n, int k, double en_a = 0, int log_dele_or = 0);
 

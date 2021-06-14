@@ -106,7 +106,7 @@ bool Coulomb(std::ostream &obuff) {
   // Don't need dense grid, and use a local potential (Hartree)
   Wavefunction wf({1000, 1.0e-6, 100.0, 10.0, "loglinear", -1.0},
                   {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
-  wf.hartreeFockCore("Hartree", 0.0, "[Xe]");
+  wf.solve_core("Hartree", 0.0, "[Xe]");
   wf.formBasis({"8spdfghi", 30, 9, 1.0e-4, 1.0e-6, 40.0, false});
 
   // Split basis into core/excited

@@ -20,8 +20,8 @@ void fieldShift(const IO::InputBlock &, const Wavefunction &wfA) {
             << wfB.atom() << ", " << wfB.nuclearParams() << "\n\n";
 
   wfB.copySigma(wfA.getSigma());
-  wfB.hartreeFockCore("HartreeFock", 0.0, wfA.coreConfiguration());
-  wfB.hartreeFockValence(DiracSpinor::state_config(wfA.valence));
+  wfB.solve_core("HartreeFock", 0.0, wfA.coreConfiguration());
+  wfB.solve_valence(DiracSpinor::state_config(wfA.valence));
   wfB.hartreeFockBrueckner();
   wfB.printValence();
 
@@ -51,8 +51,8 @@ void fieldShift(const IO::InputBlock &, const Wavefunction &wfA) {
       wfB.vnuc = Nuclear::fermiNuclearPotential(
           wfB.Znuc(), t, Nuclear::c_hdr_formula_rrms_t(rB, t), wfA.rgrid->r);
 
-      wfB.hartreeFockCore("", 0.0, "", 0.0, false);
-      wfB.hartreeFockValence("", false);
+      wfB.solve_core("", 0.0, "", 0.0, false);
+      wfB.solve_valence("", false);
       wfB.hartreeFockBrueckner(false);
 
       for (auto i = 0ul; i < wfB.valence.size(); ++i) {

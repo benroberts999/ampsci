@@ -148,6 +148,8 @@ void ampsci(const IO::InputBlock &input) {
     std::cout << "Using Kohn-Sham Method.\n"
               << "Note: You should include first valence state into the core:\n"
                  "Kohn-Sham is NOT a V^N-1 method!\n";
+  } else if (HF_method == "Local") {
+    std::cout << "Using local potential\n";
   } else if (HF_method != "HartreeFock") {
     std::cout << "\n⚠️  WARNING unkown method: " << HF_method
               << "\nDefaulting to HartreeFock method.\n";
@@ -222,7 +224,7 @@ void ampsci(const IO::InputBlock &input) {
 
   { // Solve Hartree equations for the core:
     IO::ChronoTimer t(" core");
-    wf.hartreeFockCore(HF_method, x_Breit, str_core, eps_HF);
+    wf.solve_core(HF_method, x_Breit, str_core, eps_HF);
   }
 
   if (include_qed && qed_ok && !core_qed) {
@@ -258,16 +260,7 @@ void ampsci(const IO::InputBlock &input) {
     // 'if' is only for output format, nothing bad
     // happens if below are called
     IO::ChronoTimer t("  val");
-    if (HF_method == "KohnSham") {
-      // Need different energy Guess for
-      // Kohn-sham! Also: different way of reading
-      // valence list (since core cross-over!)
-      wf.localValence(valence_list, true);
-    } else if (wf.core.empty()) {
-      wf.localValence(valence_list);
-    } else {
-      wf.hartreeFockValence(valence_list);
-    }
+    wf.solve_valence(valence_list);
   }
 
   // Output Hartree Fock energies:

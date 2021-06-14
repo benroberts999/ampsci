@@ -40,8 +40,8 @@ bool MixedStates(std::ostream &obuff) {
   // Create wavefunction object
   Wavefunction wf({6000, 1.0e-6, 150.0, 0.33 * 150.0, "loglinear", -1.0},
                   {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
-  wf.hartreeFockCore("HartreeFock", 0.0, "[Xe]");
-  wf.hartreeFockValence("7sp5d4f");
+  wf.solve_core("HartreeFock", 0.0, "[Xe]");
+  wf.solve_valence("7sp5d4f");
 
   // Define E1, E2, pnc, M1, and hyperfine operators:
   const auto hE1 = DiracOperator::E1(*wf.rgrid);

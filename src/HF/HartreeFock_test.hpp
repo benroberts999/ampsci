@@ -29,13 +29,13 @@ bool HartreeFock(std::ostream &obuff) {
 
     // Create wavefunction object + solve HF
     Wavefunction wf({2000, r0, rmax, b, "loglinear"}, {"Cs", 133, "Fermi"});
-    wf.hartreeFockCore("HartreeFock", x_Breit, "[Xe]");
-    wf.hartreeFockValence("6sp5d");
+    wf.solve_core("HartreeFock", x_Breit, "[Xe]");
+    wf.solve_valence("6sp5d");
 
     // do again, this time with more points in the grid:
     Wavefunction wf2({7000, r0, rmax, b, "loglinear"}, {"Cs", 133, "Fermi"});
-    wf2.hartreeFockCore("HartreeFock", x_Breit, "[Xe]");
-    wf2.hartreeFockValence("6sp5d");
+    wf2.solve_core("HartreeFock", x_Breit, "[Xe]");
+    wf2.solve_valence("6sp5d");
 
     // Test data: core energies (from Dzuba code)
     const std::vector expected_VD{
@@ -81,8 +81,8 @@ bool HartreeFock(std::ostream &obuff) {
   { // Test case: Yb+ (one that fails more easily)
     Wavefunction wf3({2000, 1.0e-6, 100.0, 0.33 * 100.0, "loglinear", -1.0},
                      {"Yb", 173, "Fermi", -1.0, -1.0}, 1.0);
-    wf3.hartreeFockCore("HartreeFock", 0.0, "[Xe],4f14");
-    wf3.hartreeFockValence("6sp5d5f");
+    wf3.solve_core("HartreeFock", 0.0, "[Xe],4f14");
+    wf3.solve_valence("6sp5d5f");
 
     const std::vector dzuba{-0.41366446, -0.30111301, -0.28830673, -0.30307172,
                             -0.30088656, -0.12509665, -0.12507894};
@@ -96,8 +96,8 @@ bool HartreeFock(std::ostream &obuff) {
     // cf: Grunefeld, Roberts, Ginges, Phys. Rev. A 100, 042506 (2019).
     Wavefunction wf({4000, 1.0e-7, 425.0, 0.33 * 150.0, "loglinear", -1.0},
                     {"Rb", 87, "Fermi", -1.0, -1.0}, 1.0);
-    wf.hartreeFockCore("HartreeFock", 0.0, "[Kr]");
-    wf.hartreeFockValence("12sp");
+    wf.solve_core("HartreeFock", 0.0, "[Kr]");
+    wf.solve_valence("12sp");
 
     // Test data [Phys. Rev. A 100, 042506 (2019)]
     const std::vector s{2183.0, 583.1, 238.8, 120.6,
@@ -126,8 +126,8 @@ bool HartreeFock(std::ostream &obuff) {
     // Grunefeld, Roberts, Ginges, Phys. Rev. A 100, 042506 (2019).
     Wavefunction wf({4000, 1.0e-7, 400.0, 0.33 * 150.0, "loglinear", -1.0},
                     {"Cs", 133, "Fermi", -1.0, -1.0}, 1.0);
-    wf.hartreeFockCore("HartreeFock", 0.0, "[Xe]");
-    wf.hartreeFockValence("12sp");
+    wf.solve_core("HartreeFock", 0.0, "[Xe]");
+    wf.solve_valence("12sp");
     const std::vector s{1434.0, 393.9, 164.5, 84.11, 48.71, 30.70, 20.59};
     const std::vector p{161.0, 57.65, 27.09, 14.85, 9.002, 5.863, 4.030};
 
@@ -152,8 +152,8 @@ bool HartreeFock(std::ostream &obuff) {
     // Grunefeld, Roberts, Ginges, Phys. Rev. A 100, 042506 (2019).
     Wavefunction wf({4000, 1.0e-7, 325.0, 0.33 * 150.0, "loglinear", -1.0},
                     {"Fr", 211, "Fermi", -1.0, -1.0}, 1.0);
-    wf.hartreeFockCore("HartreeFock", 0.0, "[Rn]");
-    wf.hartreeFockValence("12sp");
+    wf.solve_core("HartreeFock", 0.0, "[Rn]");
+    wf.solve_valence("12sp");
     const std::vector s{5929.0, 1520.0, 624.0, 316.8, 182.7, 114.9};
     const std::vector p{628.2, 222.9, 104.4, 57.13, 34.61, 22.53};
 

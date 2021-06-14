@@ -33,6 +33,8 @@ Method parseMethod(const std::string &in_method) {
     return Method::Hartree;
   if (in_method == "KohnSham")
     return Method::KohnSham;
+  if (in_method == "Local")
+    return Method::Local;
   std::cout << "Warning: HF Method: " << in_method << " ?? Defaulting to HF\n";
   return Method::HartreeFock;
 }
@@ -46,6 +48,8 @@ std::string parseMethod(const Method &in_method) {
     return "Hartree";
   if (in_method == Method::KohnSham)
     return "KohnSham";
+  if (in_method == Method::Local)
+    return "Local";
   return "HartreeFock";
 }
 
@@ -78,7 +82,7 @@ HartreeFock::HartreeFock(Wavefunction *wf, Method method, double x_Breit,
                   method, x_Breit, eps) {}
 
 //******************************************************************************
-const std::vector<double> &HartreeFock::solveCore() {
+const std::vector<double> &HartreeFock::solve_core() {
 
   // Core orbs must already be solutions... this OK?
 
@@ -97,10 +101,12 @@ const std::vector<double> &HartreeFock::solveCore() {
     hf_core_approx(0.1 * m_eps_HF);
     break;
   case Method::KohnSham:
-    KohnSham_core(0.1 * m_eps_HF); // XXX
+    KohnSham_core(0.1 * m_eps_HF);
     break;
-  default:
-    m_Yab.update_y_ints(); // needed?
+  case Method::Local:
+    break;
+    // default:
+    //   m_Yab.update_y_ints(); // needed?
   }
 
   // Frozen core Breit:

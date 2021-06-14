@@ -18,12 +18,12 @@ bool StructureRad(std::ostream &obuff) {
   { // Test for Na: (use splines for legs)
     Wavefunction wf({1000, 1.0e-6, 100.0, 0.33 * 100.0, "loglinear"},
                     {"Na", -1, "Fermi"}, 1.0);
-    wf.hartreeFockCore("HartreeFock", 0.0, "[Ne]");
-    wf.hartreeFockValence("4s3p");
+    wf.solve_core("HartreeFock", 0.0, "[Ne]");
+    wf.solve_valence("4s3p");
     wf.formBasis({"20spdfgh", 30, 9, 1.0e-4, 1.0e-6, 60.0, false});
 
     // Find core/valence energy: allows distingush core/valence states
-    const auto en_core = wf.en_coreval();
+    const auto en_core = wf.en_coreval_gap();
 
     const auto h = DiracOperator::E1(*wf.rgrid);
 
@@ -93,14 +93,14 @@ bool StructureRad(std::ostream &obuff) {
   { // Test for Cs: use valence states for legs
     Wavefunction wf({1000, 1.0e-6, 100.0, 0.33 * 100.0, "loglinear"},
                     {"Cs", -1, "Fermi"}, 1.0);
-    wf.hartreeFockCore("HartreeFock", 0.0, "[Xe]");
-    wf.hartreeFockValence("7s6p");
+    wf.solve_core("HartreeFock", 0.0, "[Xe]");
+    wf.solve_valence("7s6p");
     wf.formBasis({"20spdfgh", 30, 9, 1.0e-4, 1.0e-6, 60.0, false});
     // Note: We use a very small basis, so the test can run in reasonable time
     // However, we get pretty good comparison to Johnson, so this is fine!
 
     // Find core/valence energy: allows distingush core/valence states
-    const auto en_core = wf.en_coreval();
+    const auto en_core = wf.en_coreval_gap();
 
     const auto h = DiracOperator::E1(*wf.rgrid);
 

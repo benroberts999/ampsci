@@ -62,7 +62,8 @@ void calculatePNC(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "w/ c=" << c << ", t=" << t << "\n";
 
   // Generate operators:
-  DiracOperator::PNCnsi hpnc(c, t, *(wf.rgrid), -wf.Nnuc());
+  const auto N_nuc = wf.Anuc() - wf.Znuc();
+  DiracOperator::PNCnsi hpnc(c, t, *(wf.rgrid), -N_nuc);
   DiracOperator::E1 he1(*(wf.rgrid));
 
   // Find core/valence energy: allows distingush core/valence states
