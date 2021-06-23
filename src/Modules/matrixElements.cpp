@@ -461,8 +461,8 @@ generate_hfsA(const IO::InputBlock &input, const Wavefunction &wf, bool print) {
   auto isotope = Nuclear::findIsotopeData(wf.Znuc(), wf.Anuc());
   auto mu = input.get("mu", isotope.mu);
   auto I_nuc = input.get("I", isotope.I_N);
-  auto r_rmsfm = input.get("rrms", isotope.r_rms);
-  auto r_nucfm = std::sqrt(5. / 3) * r_rmsfm;
+  auto r_rmsfm = input.get("rrms", wf.get_rrms());
+  auto r_nucfm = std::sqrt(5.0 / 3) * r_rmsfm;
   auto r_nucau = r_nucfm / PhysConst::aB_fm;
   auto Fr_str = input.get<std::string>("F(r)", "ball");
 

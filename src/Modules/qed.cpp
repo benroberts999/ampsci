@@ -39,8 +39,15 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto fname = input.get<std::string>("out_file", "");
 
   std::ofstream of_en;
+
+  auto first_line_en =
+      IO::FRW::file_exists(fname + ".energy")
+          ? ""
+          : "#          E0            dE(VP)        dE(SE)        dE(tot)\n";
+
   if (fname != "")
     of_en.open(fname + ".energy", std::ios_base::app);
+  of_en << first_line_en;
   // append instead of overwrite
 
   // allow rrms to be different from charge distribution of wavefunction
@@ -148,7 +155,7 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
   if (coreQED) {
     std::cout << "Includes core relaxation\n";
   }
-  std::cout << "       dE(VP)        dE(SE)        dE(tot)\n";
+  std::cout << "       E0            dE(VP)        dE(SE)        dE(tot)\n";
   for (const auto &Fv : wf.valence) {
     // Find corresponding state without QED: (can't assume in same order)
     const auto Fv_SE = wf_SE.getState(Fv.n, Fv.k);
@@ -158,9 +165,9 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
 
     const auto de_vp = Fv_VP->en - Fv.en;
     const auto de_se = Fv_SE->en - Fv.en;
-    const auto o =
-        qip::fstring("%4s  %12.5e  %12.5e  %12.5e\n", Fv.shortSymbol().c_str(),
-                     de_vp, de_se, de_vp + de_se);
+    const auto o = qip::fstring("%4s  %12.5e  %12.5e  %12.5e  %12.5e\n",
+                                Fv.shortSymbol().c_str(), Fv.en, de_vp, de_se,
+                                de_vp + de_se);
     std::cout << o;
     of_en << wf.Znuc() << " " << o;
   }
@@ -179,9 +186,16 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto h = generateOperator(oper, h_options, wf, true);
     const bool diagonal_only = me_input->get("onlyDiagonal", false);
 
+    auto first_line_me_po =
+        IO::FRW::file_exists(fname + ".me_po")
+            ? ""
+            : "#                ME(0)         d(VP)         "
+              "d(SE)         d(tot)\n";
+
     std::ofstream of_me;
     if (fname != "")
       of_me.open(fname + ".me_po", std::ios_base::app);
+    of_me << first_line_me_po;
 
     // std::cout << "\nQED correction to Matrix elements (PO)\n";
     // std::cout << "\nNo QED:";
@@ -241,9 +255,15 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
                 << factor_xRad << " MHz\n";
       std::cout << "(alpha/pi)A_Fermi = " << factor_eF << " MHz\n";
 
+      auto first_line_vx = IO::FRW::file_exists(fname + ".me_vx")
+                               ? ""
+                               : "#                h(0)         d(MLVP)       "
+                                 "d(SEvx)       sum\n";
+
       std::ofstream of_vx;
       if (fname != "")
         of_vx.open(fname + ".me_vx", std::ios_base::app);
+      of_vx << first_line_vx;
 
       auto vtx_in = *me_input; // has 'operator/options'
       // Add options from outer block to 'vertex block'
