@@ -27,6 +27,7 @@
 
 ## TDHF
  * Issue for even-parity operators (from de?) (#3)
+ * Perhaps linked to (#11)
  * Parallelised inefficiently (#6)
  * Diagram RPA: use Qk table?
  * Write out to disk?
@@ -42,13 +43,10 @@
  * Fix up 'generate operator'
    * Have function: takes <userInputBlock> (+oper name)
 
-## Radiative potential (#10)
- * Re-write class in general form; make public
- * Allow different fittings for different l (or kappa)
- * Fix pointlike nucleus version (currently very slow)
-
 ## ADAMS
  * Write a general modern c++ DE solver
+ * Allow non-local term (requires normalisation) (#11)
+   * How to do for inward?
  * Efficient + numerically stable
 
 ## Continuum
