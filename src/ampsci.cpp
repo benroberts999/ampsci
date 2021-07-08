@@ -12,6 +12,8 @@
 
 void ampsci(const IO::InputBlock &input);
 int main(int argc, char *argv[]) {
+  std::cout << "\n";
+  IO::print_line();
   std::cout << "ampsci git:" << GitInfo::gitversion << " ("
             << GitInfo::gitbranch << ")\n";
   std::cout << IO::time_date() << '\n';
@@ -291,14 +293,29 @@ void ampsci(const IO::InputBlock &input) {
   }
 
   // Correlations: read in options
-  const auto Sigma_ok = input.check(
-      {"Correlations"}, {"Brueckner",  "energyShifts",    "n_min_core",
-                         "fitTo_cm",   "lambda_kappa",    "fk",
-                         "read",       "write",           "rmin",
-                         "rmax",       "stride",          "each_valence",
-                         "Feynman",    "screening",       "holeParticle",
-                         "lmax",       "basis_for_Green", "basis_for_pol",
-                         "real_omega", "imag_omega",      "include_G"});
+  const auto Sigma_ok = input.check({"Correlations"}, {"Brueckner",
+                                                       "energyShifts",
+                                                       "n_min_core",
+                                                       "fitTo_cm",
+                                                       "lambda_kappa",
+                                                       "fk",
+                                                       "read",
+                                                       "write",
+                                                       "rmin",
+                                                       "rmax",
+                                                       "stride",
+                                                       "each_valence",
+                                                       "ek",
+                                                       "ektest",
+                                                       "Feynman",
+                                                       "screening",
+                                                       "holeParticle",
+                                                       "lmax",
+                                                       "basis_for_Green",
+                                                       "basis_for_pol",
+                                                       "real_omega",
+                                                       "imag_omega",
+                                                       "include_G"});
   const bool do_energyShifts =
       input.get({"Correlations"}, "energyShifts", false);
   const bool do_brueckner = input.get({"Correlations"}, "Brueckner", false);
@@ -313,6 +330,7 @@ void ampsci(const IO::InputBlock &input) {
   }();
   const auto sigma_stride =
       input.get({"Correlations"}, "stride", default_stride);
+
   // Feynman method:
   const auto sigma_Feynman = input.get({"Correlations"}, "Feynman", false);
   const auto sigma_Screening = input.get({"Correlations"}, "screening", false);
@@ -341,6 +359,10 @@ void ampsci(const IO::InputBlock &input) {
     }
   }
 
+  // Solve Sigma at specific energies
+  // e.g., ek{6s+=-0.127, 7s+=-0.552;}
+  const auto ek_Sig = input.getBlock({"Correlations"}, "ek");
+
   // Read/write Sigma to file:
   auto sigma_write = input.get<std::string>({"Correlations"}, "write", "");
   // By default,  try to  read  from  write  file  (if it exists)
@@ -364,7 +386,7 @@ void ampsci(const IO::InputBlock &input) {
     wf.formSigma(n_min_core, do_brueckner, sigma_rmin, sigma_rmax, sigma_stride,
                  each_valence, include_G, lambda_k, fk, sigma_read, sigma_write,
                  sigma_Feynman, sigma_Screening, hole_particle, sigma_lmax,
-                 GreenBasis, PolBasis, sigma_omre, w0, wratio);
+                 GreenBasis, PolBasis, sigma_omre, w0, wratio, ek_Sig);
   }
 
   // Calculate + print second-order energy shifts

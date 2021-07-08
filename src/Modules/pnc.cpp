@@ -22,7 +22,8 @@ using namespace Pnc;
 void calculatePNC(const IO::InputBlock &input, const Wavefunction &wf) {
   const std::string ThisModule = "Module::PNC";
 
-  input.checkBlock({"t", "c", "transition", "nmain", "rpa", "omega"});
+  input.checkBlock({"t", "c", "transition", "nmain", "rpa", "omega",
+                    "E1_rpa_it", "pnc_rpa_it"});
 
   // input: nuc parameters for rho:
   const auto c_dflt =
@@ -81,8 +82,10 @@ void calculatePNC(const IO::InputBlock &input, const Wavefunction &wf) {
   if (rpaQ) {
     const auto omega_dflt = std::abs(Fa.en - Fb.en);
     const auto omega = input.get("omega", omega_dflt);
-    dVE1.solve_core(omega);
-    dVpnc.solve_core(0.0);
+    auto E1_it = input.get("E1_rpa_it", 99);
+    auto pnc_it = input.get("pnc_rpa_it", 99);
+    dVE1.solve_core(omega, E1_it);
+    dVpnc.solve_core(0.0, pnc_it);
   }
 
   // SOS, use HF
@@ -173,13 +176,11 @@ std::pair<double, double> pnc_sos(const DiracSpinor &Fa, const DiracSpinor &Fb,
     const auto coreQ = np.en < en_core;
     const auto mainQ = !coreQ && np.n <= main_n;
 
-    // Exclude np from dV ?? Just for testing..
-    // const auto excl = &np;
-    const auto excl = nullptr;
-    const auto dAp = he1->reducedME(Fa, np) + dVE1->dV(Fa, np, conj, excl);
-    const auto hpB = hpnc->reducedME(np, Fb) + dVpnc->dV(np, Fb, conj, excl);
-    const auto hAp = hpnc->reducedME(Fa, np) + dVpnc->dV(Fa, np, conj, excl);
-    const auto dpB = he1->reducedME(np, Fb) + dVE1->dV(np, Fb, conj, excl);
+    // nb: need 'conj' here, since w = |w|, and want work for a->b and b->a ?
+    const auto dAp = he1->reducedME(Fa, np) + dVE1->dV(Fa, np, conj);
+    const auto hpB = hpnc->reducedME(np, Fb) + dVpnc->dV(np, Fb, conj);
+    const auto hAp = hpnc->reducedME(Fa, np) + dVpnc->dV(Fa, np, conj);
+    const auto dpB = he1->reducedME(np, Fb) + dVE1->dV(np, Fb, conj);
 
     // Angular factors:
     // nb: these are always the same for pnc... but in general may not be?
@@ -272,10 +273,10 @@ std::pair<double, double> pnc_tdhf(const DiracSpinor &Fa, const DiracSpinor &Fb,
   // note: MUST be this, not RPA w
   const auto w_SE = hpnc->imaginaryQ() ? 0.0 : (Fa.en - Fb.en);
 
-  //<yA_w|d| B> + <A |d|xB_w>
-  std::cout << "<d" << Fa.shortSymbol() << "|" << he1->name() << "|"
+  //
+  std::cout << "<" << Fa.shortSymbol() << "|" << he1->name() << "|d"
             << Fb.shortSymbol() << "> + "
-            << "<" << Fa.shortSymbol() << "|" << he1->name() << "|d"
+            << "<d" << Fa.shortSymbol() << "|" << he1->name() << "|"
             << Fb.shortSymbol() << "> ; w/ h = " << hpnc->name() << "\n";
   const auto XB = dVpnc->solve_dPsis(Fb, w_SE, ExternalField::dPsiType::X,
                                      Sigma, ExternalField::StateType::ket);

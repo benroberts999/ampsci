@@ -1,7 +1,15 @@
 # To do
 
-## Modules
- * Add g-factor (g-2) module
+## Correlation
+ * Construct correlation potential at specified energies
+ * Easy way to use correct correlation potential matrix..?
+    * e.g., in SolveMixedStates.....
+ * Major cleanup..
+ * filename: label.sig2 -> CsI_label.sig2
+
+## PNC
+ * Work with diagram RPA
+ * dV conj ???
 
 ## Feynman
  * Polarisation operator instability: (#8)
@@ -10,7 +18,6 @@
  * Overall numerical stability
  * Exchange (2nd order): w1 and w1w2
  * Breit issue?
-
 
 ## Ladder diagrams (#13)
  * Qk table
@@ -53,6 +60,9 @@
  * Fix continuum class
  * Hartree-Fock?
  * Use splines?
+
+## Modules
+ * Add g-factor (g-2) module
 
 ## Data format?
   * Standard data format for output/comparison?

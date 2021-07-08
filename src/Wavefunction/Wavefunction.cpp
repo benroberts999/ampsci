@@ -719,7 +719,8 @@ void Wavefunction::formSigma(
     const std::vector<double> &fk, const std::string &in_fname,
     const std::string &out_fname, const bool FeynmanQ, const bool ScreeningQ,
     const bool holeParticleQ, const int lmax, const bool GreenBasis,
-    const bool PolBasis, const double omre, double w0, double wratio) {
+    const bool PolBasis, const double omre, double w0, double wratio,
+    const std::optional<IO::InputBlock> &ek) {
   if (valence.empty())
     return;
 
@@ -760,7 +761,7 @@ void Wavefunction::formSigma(
       for (const auto &Fv : valence) {
         m_Sigma->formSigma(Fv.k, Fv.en, Fv.n);
       }
-    } else {
+    } else if (!ek && m_Sigma->empty()) {
       // calculate sigma for lowest n valence state of each kappa:
       const auto max_ki = DiracSpinor::max_kindex(valence);
       for (int ki = 0; ki <= max_ki; ++ki) {
@@ -768,6 +769,12 @@ void Wavefunction::formSigma(
                                [ki](auto f) { return f.k_index() == ki; });
         if (Fv != cend(valence))
           m_Sigma->formSigma(Fv->k, Fv->en, Fv->n);
+      }
+    } else if (ek && m_Sigma->empty()) {
+      // solve at specific energies:
+      for (auto &[state, en] : ek->options()) {
+        auto [n, k] = AtomData::parse_symbol(state);
+        m_Sigma->formSigma(k, std::stod(en), n);
       }
     }
   }

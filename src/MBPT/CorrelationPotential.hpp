@@ -144,6 +144,8 @@ public:
     }
   }
 
+  bool empty() const { return m_Sigma_kappa.empty(); }
+
   //! Calculates <Fv|Sigma|Fw> from scratch, at Fv energy [full grid + fg+gg]
   //! @details Note: uses basis, so if reading Sigma from file, and no basis
   //! given, will return all 0.0

@@ -169,6 +169,9 @@ public:
   //! Returns optional InputBlock. Contains InputBlock if block of given name
   //! exists; empty otherwise.
   inline std::optional<InputBlock> getBlock(std::string_view name) const;
+  inline std::optional<InputBlock>
+  getBlock(std::initializer_list<std::string> blocks,
+           std::string_view name) const;
 
   //! Get an 'Option' (kay, value) - rarely needed
   inline std::optional<Option> getOption(std::string_view key) const;
@@ -334,6 +337,19 @@ std::optional<InputBlock> InputBlock::getBlock(std::string_view name) const {
   if (block == m_blocks.crend())
     return {};
   return *block;
+}
+
+std::optional<InputBlock>
+InputBlock::getBlock(std::initializer_list<std::string> blocks,
+                     std::string_view name) const {
+  // note: by copy!
+  const InputBlock *pB = this;
+  for (const auto &block : blocks) {
+    pB = pB->getBlock_cptr(block);
+    if (pB == nullptr)
+      return std::nullopt;
+  }
+  return pB->getBlock(name);
 }
 
 //******************************************************************************

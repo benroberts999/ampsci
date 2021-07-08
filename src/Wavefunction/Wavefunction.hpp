@@ -209,7 +209,8 @@ public: // const methods: "views" into WF object
                  const bool holeParticleQ = false, const int lmax = 6,
                  const bool GreenBasis = false, const bool PolBasis = false,
                  const double omre = -0.2, double w0 = 0.01,
-                 double wratio = 1.5);
+                 double wratio = 1.5,
+                 const std::optional<IO::InputBlock> &ek = std::nullopt);
   void copySigma(const MBPT::CorrelationPotential *const Sigma) {
     if (Sigma != nullptr)
       m_Sigma = std::make_unique<MBPT::CorrelationPotential>(*Sigma);
