@@ -117,6 +117,8 @@ void ampsci(const IO::InputBlock &input) {
   Wavefunction wf({num_points, r0, rmax, b, grid_type, du},
                   {atom_Z, atom_A, nuc_type, rrms, t_skin}, var_alpha);
 
+  return;
+
   std::cout << "\nRunning for " << wf.atom() << "\n"
             << wf.nuclearParams() << "\n"
             << wf.rgrid->gridParameters() << "\n"

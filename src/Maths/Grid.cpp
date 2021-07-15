@@ -1,4 +1,5 @@
 #include "Maths/Grid.hpp"
+#include "qip/methods.hpp"
 #include <algorithm>
 #include <cmath>
 #include <iostream>
@@ -189,28 +190,25 @@ std::vector<double> Grid::form_r(const GridType type, const double r0,
     // u = r + b ln(r), du/dr = r/(b+r)
     r.push_back(r0);
     auto u = r0 + b * std::log(r0);
-    auto r_prev = r0;
     for (auto i = 1ul; i < num_points; i++) {
       u += du;
-      double r_tmp = r_prev;
       // Solve eq. u = r + b ln(r) to find r
-      double delta_r = 1.0;
-      int ii = 0; // to count number of iterations
-      while (std::fabs(delta_r) > (r_tmp * 1.0e-17)) {
-        double delta_u = u - (r_tmp + b * std::log(r_tmp));
-        double drdu_tmp = r_tmp / (r_tmp + b);
-        delta_r = delta_u * drdu_tmp;
-        r_tmp += delta_r;
-        if (++ii > 20) {
-          if (std::fabs(delta_r / r_tmp) > 1.0e-6) {
-            std::cerr << "WARNING Grid:194: Converge? " << i << " " << r_tmp
-                      << " " << delta_r / r_tmp << "\n";
-          }
-          break; // usually converges in ~ 2 or 3 steps!
-        }
+      // Use Newtons method
+      // => f(r) = r + b ln(r) - u = 0
+      // dfdr = b(1/r + 1/(b+r))
+      const auto f_u = [b, u](double tr) { return tr + b * std::log(tr) - u; };
+      const auto r_guess = r.back();
+      const auto dr = 0.1 * r_guess;
+      const auto delta_targ = r_guess * 1.0e-18;
+      const auto [ri, delta_r] = qip::Newtons(f_u, r_guess, dr, delta_targ, 30);
+
+      if (std::abs(delta_r / ri) > 1.0e-6) {
+        std::cerr << "WARNING Grid:194: Converge? " << i << " " << ri << " "
+                  << delta_r / ri << "\n";
       }
-      r.push_back(r_tmp);
-      r_prev = r_tmp;
+
+      printf("%4li, %.4e, %.1e\n", i, ri, delta_r / ri);
+      r.push_back(ri);
     }
   } else if (type == GridType::logarithmic) {
     for (std::size_t i = 0; i < num_points; i++) {
