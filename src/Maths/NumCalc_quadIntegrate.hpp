@@ -133,18 +133,18 @@ additivePIntegral(std::vector<Real> &answer, const std::vector<Real> &f,
   //                    : i >= size - Nquad ? cq[size - i - 1] * dq_inv : 1.0;
   // };
 
-  Real x = int(init) < max ? 0.5 * g[init] * h[init] * gr.drdu[init] : 0.0;
-  answer[init] += f[init] * x * gr.du;
+  Real x = int(init) < max ? 0.5 * g[init] * h[init] * gr.drdu()[init] : 0.0;
+  answer[init] += f[init] * x * gr.du();
   for (auto i = int(init) + inc; i != int(fin) + inc; i += inc) {
     const auto im = std::size_t(i - inc);
     const auto i2 = std::size_t(i);
-    x += 0.5 * (g[im] * h[im] * gr.drdu[im] /** Wquad(im)*/ +
-                g[i2] * h[i2] * gr.drdu[i2] /** Wquad(i2)*/);
-    answer[i2] += f[i2] * x * gr.du;
+    x += 0.5 * (g[im] * h[im] * gr.drdu()[im] /** Wquad(im)*/ +
+                g[i2] * h[i2] * gr.drdu()[i2] /** Wquad(i2)*/);
+    answer[i2] += f[i2] * x * gr.du();
   }
   if (int(fin) < max)
-    answer[fin] +=
-        0.5 * f[fin] * g[fin] * h[fin] * gr.drdu[fin] * gr.du; // * Wquad(fin);
+    answer[fin] += 0.5 * f[fin] * g[fin] * h[fin] * gr.drdu()[fin] *
+                   gr.du(); // * Wquad(fin);
 }
 //------------------------
 template <Direction direction, typename Real>
@@ -166,17 +166,17 @@ inline void additivePIntegral(std::vector<Real> &answer,
   const auto init = forward ? 0ul : std::size_t(max);
   const auto fin = forward ? std::size_t(max) : 0ul;
 
-  Real x = int(init) < max ? 0.5 * g[init] * gr.drdu[init] : 0.0;
-  answer[init] += f[init] * x * gr.du;
+  Real x = int(init) < max ? 0.5 * g[init] * gr.drdu()[init] : 0.0;
+  answer[init] += f[init] * x * gr.du();
   for (auto i = int(init) + inc; i != int(fin) + inc; i += inc) {
     const auto im = std::size_t(i - inc);
     const auto i2 = std::size_t(i);
-    x += 0.5 * (g[im] * gr.drdu[im] + g[i2] * gr.drdu[i2]);
-    answer[i2] += f[i2] * x * gr.du;
+    x += 0.5 * (g[im] * gr.drdu()[im] + g[i2] * gr.drdu()[i2]);
+    answer[i2] += f[i2] * x * gr.du();
   }
   if (int(fin) < max)
     answer[fin] +=
-        0.5 * f[fin] * g[fin] * gr.drdu[fin] * gr.du; // * Wquad(fin);
+        0.5 * f[fin] * g[fin] * gr.drdu()[fin] * gr.du(); // * Wquad(fin);
 }
 
 //------------------------------------------------------------------------------

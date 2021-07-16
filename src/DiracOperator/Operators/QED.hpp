@@ -121,11 +121,11 @@ public:
     const double a0 = PhysConst::alpha;
     if (v.empty()) {
       // If v is empty, means it should be {1,1,1,1,...}
-      v.resize(rgrid.num_points, 1.0);
+      v.resize(rgrid.num_points(), 1.0);
     }
 
-    for (auto i = 0ul; i < rgrid.num_points; ++i) {
-      auto exp = a * a0 * std::exp(-b * rgrid.r[i] / a0);
+    for (auto i = 0ul; i < rgrid.num_points(); ++i) {
+      auto exp = a * a0 * std::exp(-b * rgrid.r(i) / a0);
       v[i] *= exp;
     }
     return v;
@@ -182,12 +182,12 @@ public:
 
     if (v.empty()) {
       // If v is empty, means it should be {1,1,1,1,...}
-      v.resize(rgrid.num_points, 1.0);
+      v.resize(rgrid.num_points(), 1.0);
     }
 
     // compute the integral at each radial grid point
-    for (auto i = 0ul; i < rgrid.num_points; ++i) {
-      const auto Z_mvlp = FGRP::Q_MLVP(rgrid.r[i], rN);
+    for (auto i = 0ul; i < rgrid.num_points(); ++i) {
+      const auto Z_mvlp = FGRP::Q_MLVP(rgrid.r(i), rN);
       // multiply the operator
       v[i] *= Z_mvlp;
     }

@@ -84,7 +84,7 @@ void GreenSolution(DiracSpinor &Fa, const DiracSpinor &Finf,
   constexpr auto ztr = NumCalc::zero_to_r;
   constexpr auto rti = NumCalc::r_to_inf;
 
-  Fa.pinf = gr.num_points;
+  Fa.pinf = gr.num_points();
   Fa *= 0.0;
   Fa.pinf = Finf.pinf;
 

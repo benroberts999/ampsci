@@ -23,7 +23,7 @@ public:
         // min_index must be at least 1
         m_rmin_index(in_grid.getIndex(in_r0) + 1),
         // max_index must be at least 2 below num_points
-        m_rmax_index(in_rmax <= 0.0 ? in_grid.num_points - 2
+        m_rmax_index(in_rmax <= 0.0 ? in_grid.num_points() - 2
                                     : in_grid.getIndex(in_rmax) - 1) {
     if (in_n != 0 && (in_k > in_n || in_k < 2)) {
       std::cerr << "Fail 24 in BSplines: k>n ? " << m_order_k << " "
@@ -35,10 +35,10 @@ public:
 
     if (verbose) {
       std::cout << "B-splines: " << m_number_n << " of order " << m_order_k
-                << ". " << GridParameters::parseType(m_rgrid_ptr->gridtype)
+                << ". " << GridParameters::parseType(m_rgrid_ptr->type())
                 << " subgrid ";
-      std::cout << m_rgrid_ptr->r[m_rmin_index] << ","
-                << m_rgrid_ptr->r[m_rmax_index] << "=[";
+      std::cout << m_rgrid_ptr->r()[m_rmin_index] << ","
+                << m_rgrid_ptr->r()[m_rmax_index] << "=[";
       std::cout << m_rmin_index << "," << m_rmax_index << "]\n";
       print_knots();
       write_splines();
@@ -61,7 +61,8 @@ private: // data
   const Grid *const m_rgrid_ptr;
   // m_rmin_index: must be at least 1
   const std::size_t m_rmin_index;
-  // Must be at least 2 below grid.num_points (inclusive + must have 1 past end)
+  // Must be at least 2 below grid.num_points() (inclusive + must have 1 past
+  // end)
   const std::size_t m_rmax_index; // inclusive
 
   gsl_bspline_workspace *gsl_bspl_work = nullptr;
@@ -107,8 +108,8 @@ public:
 
     const auto &splines = (deriv) ? m_dBkdr1 : m_Bk;
 
-    for (std::size_t ir = 0; ir < m_rgrid_ptr->num_points; ++ir) {
-      of << m_rgrid_ptr->r[ir] << " ";
+    for (std::size_t ir = 0; ir < m_rgrid_ptr->num_points(); ++ir) {
+      of << m_rgrid_ptr->r()[ir] << " ";
       auto sum = 0.0;
       for (const auto &Bi : splines) {
         sum += Bi[ir];
@@ -187,7 +188,7 @@ private:
     breaks.reserve(points.size());
     breaks.push_back(0.0);
     for (auto p : points) {
-      breaks.push_back(m_rgrid_ptr->r[p]);
+      breaks.push_back(m_rgrid_ptr->r()[p]);
     }
 
     // Ensure there are at least k grid points between knots:
@@ -208,14 +209,14 @@ private:
     m_Bk.clear();
     m_Bk.resize(m_number_n);
     for (auto &Bk : m_Bk) {
-      Bk.resize(m_rgrid_ptr->num_points);
+      Bk.resize(m_rgrid_ptr->num_points());
     }
 
-    for (std::size_t ir = 0; ir < m_rgrid_ptr->num_points; ++ir) {
+    for (std::size_t ir = 0; ir < m_rgrid_ptr->num_points(); ++ir) {
       if (ir < m_rmin_index || ir > m_rmax_index)
         // if (ir > m_rmax_index)
         continue;
-      auto r = m_rgrid_ptr->r[ir];
+      auto r = m_rgrid_ptr->r()[ir];
       gsl_bspline_eval(r, gsl_bspl_vec, gsl_bspl_work);
       for (std::size_t j = 0; j < m_number_n; ++j) {
         m_Bk[j][ir] = gsl_vector_get(gsl_bspl_vec, j);
@@ -233,16 +234,16 @@ public:
     m_dBkdr1.clear();
     m_dBkdr1.resize(m_number_n);
     for (auto &dBkdr : m_dBkdr1) {
-      dBkdr.resize(m_rgrid_ptr->num_points);
+      dBkdr.resize(m_rgrid_ptr->num_points());
     }
     m_dBkdr2 = m_dBkdr1;
 
     gsl_bspl_deriv_mat = gsl_matrix_alloc(m_number_n, n_max_deriv + 1);
-    for (std::size_t ir = 0; ir < m_rgrid_ptr->num_points; ++ir) {
+    for (std::size_t ir = 0; ir < m_rgrid_ptr->num_points(); ++ir) {
       if (ir < m_rmin_index || ir > m_rmax_index)
         // if (ir > m_rmax_index)
         continue;
-      auto r = m_rgrid_ptr->r[ir];
+      auto r = m_rgrid_ptr->r()[ir];
 
       gsl_bspline_deriv_eval(r, n_max_deriv, gsl_bspl_deriv_mat, gsl_bspl_work);
 

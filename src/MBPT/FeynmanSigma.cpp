@@ -231,8 +231,8 @@ void FeynmanSigma::form_Q_dr() {
     for (auto j = 0ul; j < m_subgrid_points; ++j) {
       const auto sj = ri_subToFull(j);
       const auto drj = dr_subToFull(j);
-      const auto rl = p_gr->r[std::min(si, sj)];
-      const auto rm = p_gr->r[std::max(si, sj)];
+      const auto rl = p_gr->r()[std::min(si, sj)];
+      const auto rm = p_gr->r()[std::max(si, sj)];
       const auto ratio = rl / rm; // = r_< / r_>
       // q0 = (1.0 / rm) = r_<^k / r_>^k+1 ,  for k=0
       qhat[0][i][j] = (1.0 / rm) * dri * drj;
@@ -390,13 +390,13 @@ void FeynmanSigma::setup_omega_grid() {
       w0, wmax, std::log(wratio), GridType::logarithmic);
   m_wgridD = std::make_unique<Grid>(w0, wmax, wsteps, GridType::logarithmic);
   std::cout << "Im(w) " << m_wgridD->gridParameters();
-  printf(". r=%.2f\n", m_wgridD->r[1] / m_wgridD->r[0]);
+  printf(". r=%.2f\n", m_wgridD->r()[1] / m_wgridD->r()[0]);
   if (m_wX_stride != 1 && (m_ex_method == ExchangeMethod::w1 ||
                            m_ex_method == ExchangeMethod::w1w2)) {
     std::cout << "Exchange Im(w) uses stride: " << m_wX_stride << "\n";
   }
 
-  // for (const auto &w : m_wgridD->r) {
+  // for (const auto &w : m_wgridD->r() ) {
   //   std::cout << w << ", ";
   // }
   // std::cout << "\n";
@@ -713,11 +713,11 @@ FeynmanSigma::make_pi_wk(int max_k, GrMethod pol_method, double omre,
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
 
   const auto num_ks = std::size_t(max_k + 1);
-  std::vector<std::vector<ComplexGMatrix>> pi_wk(wgrid.num_points);
+  std::vector<std::vector<ComplexGMatrix>> pi_wk(wgrid.num_points());
 
 #pragma omp parallel for
-  for (auto iw = 0ul; iw < wgrid.num_points; ++iw) {
-    const auto omega = ComplexDouble{omre, wgrid.r[iw]};
+  for (auto iw = 0ul; iw < wgrid.num_points(); ++iw) {
+    const auto omega = ComplexDouble{omre, wgrid.r()[iw]};
     pi_wk[iw].reserve(num_ks);
     for (auto k = 0ul; k < num_ks; ++k) {
       pi_wk[iw].push_back(Polarisation_k(int(k), omega, pol_method));
@@ -733,7 +733,7 @@ FeynmanSigma::form_QPQ_wk(int max_k, GrMethod pol_method, double omre,
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   // Returns QPQ, function of w and k
 
-  std::vector<std::vector<ComplexGMatrix>> qpq(wgrid.num_points);
+  std::vector<std::vector<ComplexGMatrix>> qpq(wgrid.num_points());
   std::cout << "Forming QPQ(w,k) matrix.." << std::flush;
 
   const auto pi_wk = make_pi_wk(max_k, pol_method, omre, wgrid);
@@ -743,7 +743,7 @@ FeynmanSigma::form_QPQ_wk(int max_k, GrMethod pol_method, double omre,
 
   const auto num_ks = std::size_t(max_k + 1);
 #pragma omp parallel for
-  for (auto iw = 0ul; iw < wgrid.num_points; ++iw) {
+  for (auto iw = 0ul; iw < wgrid.num_points(); ++iw) {
     qpq[iw].reserve(num_ks);
     for (auto k = 0ul; k < num_ks; ++k) {
       // q*p*q => q*X*p*q, x = [1-Pi*Q]^(-1)
@@ -774,9 +774,9 @@ FeynmanSigma::form_Greens_kapw(int max_kappa_index, GrMethod method,
 #pragma omp parallel for
   for (auto ik = 0ul; ik < num_kappas; ++ik) {
     const auto kappa = Angular::kappaFromIndex(int(ik));
-    gs[ik].reserve(wgrid.num_points);
-    for (auto iw = 0ul; iw < wgrid.num_points; iw++) {
-      ComplexDouble evpw{en_re, wgrid.r[iw]};
+    gs[ik].reserve(wgrid.num_points());
+    for (auto iw = 0ul; iw < wgrid.num_points(); iw++) {
+      ComplexDouble evpw{en_re, wgrid.r()[iw]};
       gs[ik].push_back(Green(kappa, evpw, States::both, method));
     }
   }
@@ -808,16 +808,16 @@ GMatrix FeynmanSigma::FeynmanDirect(int kv, double env, int in_k) const {
       form_Greens_kapw(m_max_kappaindex, m_Green_method, env + omre, wgrid);
 
   // If Im(w) grid is -ve, we integrate "wrong" way around contour; extra -ve
-  const auto sw = wgrid.r[0] > 0.0 ? 1.0 : -1.0;
+  const auto sw = wgrid.r(0) > 0.0 ? 1.0 : -1.0;
 
 #pragma omp parallel for
-  for (auto iw = 0ul; iw < wgrid.num_points; iw++) { // for omega integral
+  for (auto iw = 0ul; iw < wgrid.num_points(); iw++) { // for omega integral
 
     // Simpson's rule: Implicit ends (integrand zero at w=0 and w>wmax)
     const auto weight = iw % 2 == 0 ? 4.0 / 3 : 2.0 / 3;
 
     // I, since dw is on imag. grid; 2 from symmetric +/- w
-    const auto dw = I * weight * wgrid.drdu[iw];
+    const auto dw = I * weight * wgrid.drdu()[iw];
 
     for (auto k = 0ul; int(k) <= max_k; k++) {
 
@@ -845,7 +845,7 @@ GMatrix FeynmanSigma::FeynmanDirect(int kv, double env, int in_k) const {
   }     // beta
 
   // Extra 2 from symmetric + / -w
-  Sigma *= (2.0 * sw * wgrid.du / (2 * M_PI));
+  Sigma *= (2.0 * sw * wgrid.du() / (2 * M_PI));
 
   // devide through by dri, drj [these included in q's, but want
   // differential operator for sigma] or.. include one of these in
@@ -884,7 +884,7 @@ GMatrix FeynmanSigma::FeynmanEx_w1w2(int kv, double en_r) const {
   const auto max_k = std::min(m_maxk, m_k_cut);
 
   // If Im(w) grid is -ve, we integrate "wrong" way around contour; extra -ve
-  const auto sw = wgrid.r[0] > 0.0 ? 1.0 : -1.0;
+  const auto sw = wgrid.r(0) > 0.0 ? 1.0 : -1.0;
 
   std::cout << std::endl;
 
@@ -918,21 +918,21 @@ GMatrix FeynmanSigma::FeynmanEx_w1w2(int kv, double en_r) const {
         // symmetric Therefore, calculate 2*[X(w1,w2)+X(w1,-w2)].
         // w2 here refers just to imaginary part! real part is still + 2 is
         // included below
-        for (auto iw1 = 0ul; iw1 < wgrid.num_points; iw1 += m_wX_stride) {
-          const auto dw1 = wgrid.drdu[iw1];
-          const ComplexDouble evpw1{en_r + omre, wgrid.r[iw1]};
+        for (auto iw1 = 0ul; iw1 < wgrid.num_points(); iw1 += m_wX_stride) {
+          const auto dw1 = wgrid.drdu()[iw1];
+          const ComplexDouble evpw1{en_r + omre, wgrid.r()[iw1]};
 
-          if (std::abs(wgrid.r[iw1]) > wmax)
+          if (std::abs(wgrid.r()[iw1]) > wmax)
             continue;
 
           const auto &gA = Green(kA, evpw1, States::both, m_Green_method);
 
-          for (auto iw2 = 0ul; iw2 < wgrid.num_points; iw2 += m_wX_stride) {
-            const auto dw2 = wgrid.drdu[iw2]; //-ve for -Im(w)
-            const ComplexDouble ev_p_w2{en_r + omre, +wgrid.r[iw2]};
-            const ComplexDouble ev_m_w2{en_r + omre, -wgrid.r[iw2]};
+          for (auto iw2 = 0ul; iw2 < wgrid.num_points(); iw2 += m_wX_stride) {
+            const auto dw2 = wgrid.drdu()[iw2]; //-ve for -Im(w)
+            const ComplexDouble ev_p_w2{en_r + omre, +wgrid.r()[iw2]};
+            const ComplexDouble ev_m_w2{en_r + omre, -wgrid.r()[iw2]};
 
-            if (std::abs(wgrid.r[iw2]) > wmax)
+            if (std::abs(wgrid.r()[iw2]) > wmax)
               continue;
 
             // This seems to be a very expensive random number generator...
@@ -986,7 +986,7 @@ GMatrix FeynmanSigma::FeynmanEx_w1w2(int kv, double en_r) const {
   }
 
   // sw?
-  const double dw_const = sw * double(m_wX_stride) * wgrid.du / (2.0 * M_PI);
+  const double dw_const = sw * double(m_wX_stride) * wgrid.du() / (2.0 * M_PI);
   Sx *= 2.0 * (dw_const * dw_const / tjvp1);
 
   // devide through by dri, drj [these included in q's, but want
@@ -1017,7 +1017,7 @@ GMatrix FeynmanSigma::FeynmanEx_1(int kv, double env) const {
   const auto tjvp1 = Angular::twoj_k(kv) + 1;
 
   // If Im(w) grid is -ve, we integrate "wrong" way around contour; extra -ve
-  const auto sw = wgrid.r[0] > 0.0 ? 1.0 : -1.0;
+  const auto sw = wgrid.r(0) > 0.0 ? 1.0 : -1.0;
 
   // Store gAs in advance, since these depend only on w and kA, not a, kB or k
   const auto num_kappas = std::size_t(m_max_kappaindex + 1);
@@ -1026,9 +1026,9 @@ GMatrix FeynmanSigma::FeynmanEx_1(int kv, double env) const {
 
   // // const std::size_t num_para_threads = 12;
   // const std::size_t num_para_threads =
-  //     use_omp ? num_kappas * wgrid.num_points / m_wX_stride / 4 : 1;
+  //     use_omp ? num_kappas * wgrid.num_points() / m_wX_stride / 4 : 1;
   const std::size_t num_para_threads =
-      use_omp ? std::min(num_kappas * wgrid.num_points / m_wX_stride,
+      use_omp ? std::min(num_kappas * wgrid.num_points() / m_wX_stride,
                          std::size_t(4 * omp_get_max_threads()))
               : 1;
 
@@ -1039,17 +1039,17 @@ GMatrix FeynmanSigma::FeynmanEx_1(int kv, double env) const {
 // #pragma omp parallel for collapse(2)
 #pragma omp parallel for num_threads(num_para_threads) collapse(2)
   for (auto iB = 0ul; iB < num_kappas; ++iB) {
-    for (auto iw = 0ul; iw < wgrid.num_points; iw += m_wX_stride) {
+    for (auto iw = 0ul; iw < wgrid.num_points(); iw += m_wX_stride) {
       const auto kB = Angular::kappaFromIndex(int(iB));
 
-      if (std::abs(wgrid.r[iw]) > wmax)
+      if (std::abs(wgrid.r()[iw]) > wmax)
         continue;
 
       const auto tid = std::size_t(omp_get_thread_num());
 
-      auto omim = wgrid.r[iw]; // XXX Symmetric?? Or Not??
+      auto omim = wgrid.r()[iw]; // XXX Symmetric?? Or Not??
       const auto omega = ComplexDouble{omre, omim};
-      const auto dw1 = wgrid.drdu[iw]; // rest in 'factor'
+      const auto dw1 = wgrid.drdu()[iw]; // rest in 'factor'
 
       const auto *const qpqw_k = m_screen_Coulomb ? &m_qpq_wk[iw] : nullptr;
 
@@ -1082,7 +1082,7 @@ GMatrix FeynmanSigma::FeynmanEx_1(int kv, double env) const {
   Sx1 = std::accumulate(Sx_k.cbegin(), Sx_k.cend(), Sx1);
 
   const auto factor =
-      -2.0 * sw * double(m_wX_stride) * wgrid.du / (2.0 * M_PI) / tjvp1;
+      -2.0 * sw * double(m_wX_stride) * wgrid.du() / (2.0 * M_PI) / tjvp1;
   Sx1 *= factor;
 
   // devide through by dri, drj [these included in q's, but want

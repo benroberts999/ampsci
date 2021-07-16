@@ -7,10 +7,6 @@
  * Major cleanup..
  * filename: label.sig2 -> CsI_label.sig2
 
-## PNC
- * Work with diagram RPA
- * dV conj ???
-
 ## Feynman
  * Polarisation operator instability: (#8)
    * Fails, e.g., for Cs with n_core < 3
@@ -32,6 +28,14 @@
  * Use more efficient integration?
    * Store coefs instead of expand?
 
+## Hartree Fock
+ * Re-write class (make less inter-dependent)
+ * Option to use non-local DiracODE
+
+## Wavefunction
+ * Major cleanup
+ * Clear separation on whose job is what (WF vs HF vs RadHam..)
+
 ## TDHF
  * Issue for even-parity operators (from de?) (#3)
  * Perhaps linked to (#11)
@@ -45,7 +49,6 @@
 ## Double core Polarisation (#12)
  * Work with any class derivative?
 
-
 ## Operators (#20)
  * Fix up 'generate operator'
    * Have function: takes <userInputBlock> (+oper name)
@@ -55,6 +58,10 @@
  * Allow non-local term (requires normalisation) (#11)
    * How to do for inward?
  * Efficient + numerically stable
+
+## PNC
+ * Work with diagram RPA
+ * dV conj ???
 
 ## Continuum
  * Fix continuum class

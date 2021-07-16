@@ -74,18 +74,20 @@ bool Coulomb(std::ostream &obuff) {
       const Grid grlog(1.0e-6, 100.0, pts, GridType::logarithmic, 0);
 
       std::vector<double> vll, vlog;
-      for (const auto &r : grll.r)
+      for (const auto &r : grll.r())
         vll.push_back(func(r));
-      for (const auto &r : grlog.r)
+      for (const auto &r : grlog.r())
         vlog.push_back(func(r));
 
       // numerical integration (on grid):
-      const auto intll = NumCalc::integrate(grll.du, 0, 0, vll, grll.drdu);
-      const auto intlog = NumCalc::integrate(grlog.du, 0, 0, vlog, grlog.drdu);
+      const auto intll = NumCalc::integrate(grll.du(), 0, 0, vll, grll.drdu());
+      const auto intlog =
+          NumCalc::integrate(grlog.du(), 0, 0, vlog, grlog.drdu());
 
       // Account for possibility r0, rmax slightly different:
-      const auto exactll = Intfunc(grll.r.back()) - Intfunc(grll.r.front());
-      const auto exactlog = Intfunc(grlog.r.back()) - Intfunc(grlog.r.front());
+      const auto exactll = Intfunc(grll.r().back()) - Intfunc(grll.r().front());
+      const auto exactlog =
+          Intfunc(grlog.r().back()) - Intfunc(grlog.r().front());
 
       pass &=
           qip::check_value(&obuff,
@@ -276,25 +278,25 @@ inline std::vector<double> UnitTest::helper::yk_naive(const DiracSpinor &Fa,
                                                       const DiracSpinor &Fb,
                                                       int k) {
   const auto &gr = *Fa.rgrid;
-  std::vector<double> yk(gr.r.size());
+  std::vector<double> yk(gr.r().size());
 #pragma omp parallel for
   for (auto i = 0ul; i < yk.size(); ++i) {
-    auto r = gr.r[i];
+    auto r = gr.r(i);
 
     auto rtkr = [](double x, double y, int kk) {
       return x < y ? std::pow(x / y, kk) / y : std::pow(y / x, kk) / x;
     };
 
     std::vector<double> f;
-    f.reserve(gr.r.size());
+    f.reserve(gr.r().size());
     for (auto j = 0ul; j < yk.size(); ++j) {
-      f.push_back(rtkr(r, gr.r[j], k) *
+      f.push_back(rtkr(r, gr.r(j), k) *
                   (Fa.f[j] * Fb.f[j] + Fa.g[j] * Fb.g[j]));
     }
 
     const auto p0 = std::max(Fa.p0, Fb.p0);
     const auto pi = std::min(Fa.pinf, Fb.pinf);
-    yk[i] = NumCalc::integrate(gr.du, p0, pi, f, gr.drdu);
+    yk[i] = NumCalc::integrate(gr.du(), p0, pi, f, gr.drdu());
   }
 
   return yk;

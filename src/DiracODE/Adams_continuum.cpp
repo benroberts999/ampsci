@@ -37,8 +37,8 @@ void solveContinuum(DiracSpinor &Fa, const double en,
   auto i_asym = ext_grid.getIndex(r_asym0);
   Fa.en = en;
 
-  const auto num_pointsb = Fa.rgrid->num_points;
-  const auto num_pointsc = ext_grid.num_points;
+  const auto num_pointsb = Fa.rgrid->num_points();
+  const auto num_pointsc = ext_grid.num_points();
 
   // Perform the "outwards integration"
   // XXX DON"T need to do this! Just re-size f/g vectors!! XXX
@@ -50,11 +50,11 @@ void solveContinuum(DiracSpinor &Fa, const double en,
   outwardAM(Fa.f, Fa.g, Hd, (int)num_pointsc - 1);
 
   // Find a better (lower) asymptotic region:
-  i_asym =
-      findAsymptoticRegion(Fa.f, ext_grid.r, num_pointsb, num_pointsc, i_asym);
+  i_asym = findAsymptoticRegion(Fa.f, ext_grid.r(), num_pointsb, num_pointsc,
+                                i_asym);
 
   // Find amplitude of large-r (asymptotic region) sine-like wf
-  const double amp = findSineAmplitude(Fa.f, ext_grid.r, num_pointsc, i_asym);
+  const double amp = findSineAmplitude(Fa.f, ext_grid.r(), num_pointsc, i_asym);
 
   // Calculate normalisation coeficient, D, and re-scaling factor:
   // D = Sqrt[alpha/(pi*eps)] <-- Amplitude of large-r p(r)

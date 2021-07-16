@@ -2,8 +2,6 @@
 #include <string>
 #include <vector>
 
-// Fix the "extendedGrid to extend using a specific grid-type?"
-
 //******************************************************************************
 enum class GridType { loglinear, logarithmic, linear };
 
@@ -12,11 +10,13 @@ struct GridParameters {
   std::size_t num_points;
   double r0, rmax, b;
   GridType type;
+
+  //! indu is optional. Only used if innum_points = 0 [then, uses du to find N]
   GridParameters(std::size_t innum_points, double inr0, double inrmax,
                  double inb = 4.0, GridType intype = GridType::loglinear,
                  double indu = 0);
 
-  // indu is optional. Only used if innum_points = 0 [then, uses du to find N]
+  //! indu is optional. Only used if innum_points = 0 [then, uses du to find N]
   GridParameters(std::size_t innum_points, double inr0, double inrmax,
                  double inb = 4.0, const std::string &str_type = "loglinear",
                  double indu = 0);
@@ -30,32 +30,51 @@ struct GridParameters {
 //! Holds grid, including type + Jacobian (dr/du)
 class Grid {
 
-public:
-  //! Minimum grid value
-  const double r0;
-  //! Maximum grid value
-  const double rmax;
-  //! Number of Grid Points
-  const std::size_t num_points;
-  //! Uniform (u) grid step size
-  const double du;
-
-public:
-  //! GridType: loglinear, logarithmic, linear [enum]
+private:
+  // Minimum grid value
+  const double m_r0;
+  // Uniform (u) grid step size
+  const double m_du;
+  // GridType: loglinear, logarithmic, linear [enum]
   const GridType gridtype;
-  //! log-linear grid 'turning point'
+  // log-linear grid 'turning point'
   const double b;
-  //! Grid values r[i] = r(u)
-  const std::vector<double> r;
+  // Grid values r[i] = r(u)
+  std::vector<double> m_r;
   // Convinient: (1/r)*(dr/du)[i]
-  const std::vector<double> drduor;
-  //! Jacobian (dr/du)[i]
-  const std::vector<double> drdu;
+  std::vector<double> m_drduor;
+  // Jacobian (dr/du)[i]
+  std::vector<double> m_drdu;
 
+public:
+  //! Manual constructor
   Grid(double in_r0, double in_rmax, std::size_t in_num_points,
        GridType in_gridtype, double in_b = 0);
 
+  //! Constructor using GridParameters class
   Grid(const GridParameters &in);
+
+  //! Minium (first) grid point
+  auto r0() const { return m_r0; }
+  //! Maximum (final) grid point
+  auto rmax() const { return m_r.back(); }
+  //! Number of grid points
+  auto num_points() const { return m_r.size(); }
+  //! Linear step size dr = (dr/dr)*du
+  auto du() const { return m_du; }
+  //! Grid-type (linear, logarithmic, loglinear)
+  auto type() const { return gridtype; }
+  //! log-linear grid 'turning point' (~ roughly log for r<b, lin for r>b)
+  auto loglin_b() const { return b; }
+
+  //! Grid points
+  const std::vector<double> &r() const { return m_r; };
+  auto r(std::size_t i) const { return m_r.at(i); };
+  //! Convinient: (1/r)*(dr/du)
+  const std::vector<double> &drduor() const { return m_drduor; };
+  //! Jacobian (dr/du)[i]
+  const std::vector<double> &drdu() const { return m_drdu; };
+  auto drdu(std::size_t i) const { return m_drdu.at(i); };
 
   //! Given value, returns grid index. if not require_nearest, returns lower
   std::size_t getIndex(double x, bool require_nearest = false) const;
@@ -63,9 +82,19 @@ public:
   //! String human-readable grid parameters
   std::string gridParameters() const;
 
+  //! Calculates+returns vector of 1/r
+  std::vector<double> rpow(double k) const;
+
+  //! Extends grid to new_r_max. Note: This is the only non-const function; use
+  //! with caution
+  /*! @details Note: New grid not guarenteed to end exactly at new_rmax; usually
+      will go a bit further (might not line up exactly on existing grid)
+  */
+  void extend_to(double new_rmax);
+
+  //! Returns set of paramets; may be used to construct grid
   GridParameters params() const {
-    return GridParameters{num_points, r0, rmax, b, gridtype, du};
-    // num_points, r0, rmax, b, grid_type, du_tmp
+    return GridParameters{num_points(), m_r0, rmax(), b, gridtype, m_du};
   }
 
   // Static functions: can be called outside of instantialised object
@@ -78,14 +107,8 @@ public:
                                              double in_du, GridType in_gridtype,
                                              double in_b = 0);
 
-  //! Calculates+returns vector of 1/r
-  std::vector<double> rpow(double k) const;
-
-protected:
-  // secondary constructor: used for derivated class
-  Grid(const Grid &t_gr, const double new_rmax);
-
 private: // helper fns
+  static double next_r_loglin(double b, double u, double r_guess);
   static std::vector<double> form_r(const GridType type, const double r0,
                                     const std::size_t num_points,
                                     const double du, const double b);
@@ -95,15 +118,4 @@ private: // helper fns
   static std::vector<double> form_drdu(const GridType type,
                                        const std::vector<double> &in_r,
                                        const std::vector<double> &in_drduor);
-};
-
-//******************************************************************************
-//! @brief Created an extended grid (extending out to new_rmax), based on
-//! esisting  Grid. Grid-poins match up to end of smaller.
-//! @details Used mainly for continuum states. For now, can only extend using
-//! linear method. Could update later (but no real need)
-class ExtendedGrid : public Grid {
-public:
-  ExtendedGrid(const Grid &t_gr, const double new_rmax)
-      : Grid(t_gr, new_rmax) {}
 };

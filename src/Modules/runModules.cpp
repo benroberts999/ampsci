@@ -59,8 +59,8 @@ static void write_orbitals(const std::string &fname,
   of << "\n";
 
   of << "# f block\n";
-  for (std::size_t i = 0; i < gr.num_points; i++) {
-    of << gr.r[i] << " ";
+  for (std::size_t i = 0; i < gr.num_points(); i++) {
+    of << gr.r(i) << " ";
     for (auto &psi : orbs) {
       if (psi.l() != l && l >= 0)
         continue;
@@ -70,8 +70,8 @@ static void write_orbitals(const std::string &fname,
   }
 
   of << "\n# g block\n";
-  for (std::size_t i = 0; i < gr.num_points; i++) {
-    of << gr.r[i] << " ";
+  for (std::size_t i = 0; i < gr.num_points(); i++) {
+    of << gr.r(i) << " ";
     for (auto &psi : orbs) {
       if (psi.l() != l && l >= 0)
         continue;

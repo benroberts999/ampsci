@@ -379,8 +379,8 @@ DiracSpinor TDHF::dV_rhs(const int kappa_n, const DiracSpinor &Fa, bool conj,
 void TDHF::print(const std::string &ofname) const {
   std::ofstream of(ofname);
   const auto &gr = *((m_core.front()).rgrid);
-  for (auto i = 0ul; i < gr.num_points; ++i) {
-    of << gr.r[i] << " ";
+  for (auto i = 0ul; i < gr.num_points(); ++i) {
+    of << gr.r(i) << " ";
     for (auto ic = 0ul; ic < m_core.size(); ic++) {
       const auto &Fc = m_core[ic];
       of << Fc.f[i] << " ";

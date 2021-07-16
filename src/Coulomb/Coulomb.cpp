@@ -43,8 +43,8 @@ static inline void yk_ijk_impl(const int l, const DiracSpinor &Fa,
 // Also uses Quadrature integer rules! (Defined in NumCalc)
 {
   const auto &gr = Fa.rgrid; // just save typing
-  const auto du = gr->du;
-  const auto num_points = gr->num_points;
+  const auto du = gr->du();
+  const auto num_points = gr->num_points();
   vabk.resize(num_points); // for safety
   const auto irmax = (maxi == 0 || maxi > num_points) ? num_points : maxi;
 
@@ -68,9 +68,9 @@ static inline void yk_ijk_impl(const int l, const DiracSpinor &Fa,
   };
 
   const auto ff = [&](std::size_t i) {
-    return (Fa.f[i] * Fb.f[i] + Fa.g[i] * Fb.g[i]) * w(i) * gr->drduor[i];
+    return (Fa.f[i] * Fb.f[i] + Fa.g[i] * Fb.g[i]) * w(i) * gr->drduor()[i];
   };
-  const auto &r = gr->r;
+  const auto &r = gr->r();
 
   double Ax = 0.0, Bx = 0.0;
 
@@ -142,8 +142,8 @@ static inline void Breit_abk_impl(const int l, const DiracSpinor &Fa,
   static_assert(pm == 1 || pm == -1,
                 "Breit_abk_impl must be called with pm=+/-1 only\n");
   const auto &gr = Fa.rgrid; // just save typing
-  const auto du = gr->du;
-  const auto num_points = gr->num_points;
+  const auto du = gr->du();
+  const auto num_points = gr->num_points();
   b0.resize(num_points);   // needed
   binf.resize(num_points); // needed
   const auto irmax = (maxi == 0 || maxi > num_points) ? num_points : maxi;
@@ -179,17 +179,17 @@ static inline void Breit_abk_impl(const int l, const DiracSpinor &Fa,
   const auto bmax = std::min(Fa.pinf, Fb.pinf);
   const auto bmin = std::max(Fa.p0, Fb.p0);
   for (std::size_t i = bmin; i < bmax; i++) {
-    Bx += gr->drduor[i] * w(i) * fgfg(i) / powk(gr->r[i]);
+    Bx += gr->drduor()[i] * w(i) * fgfg(i) / powk(gr->r()[i]);
   }
 
   b0[0] = 0.0;
-  binf[0] = Bx * du * powk(gr->r[0]);
+  binf[0] = Bx * du * powk(gr->r()[0]);
   for (std::size_t i = 1; i < irmax; i++) {
-    const auto rm1_to_k = powk(gr->r[i - 1]);
-    const auto inv_rm1_to_kp1 = 1.0 / (rm1_to_k * gr->r[i - 1]);
-    const auto r_to_k = powk(gr->r[i]);
-    const auto inv_r_to_kp1 = 1.0 / (r_to_k * gr->r[i]);
-    const auto Fdr = gr->drdu[i - 1] * fgfg(i - 1) * w(i - 1);
+    const auto rm1_to_k = powk(gr->r()[i - 1]);
+    const auto inv_rm1_to_kp1 = 1.0 / (rm1_to_k * gr->r()[i - 1]);
+    const auto r_to_k = powk(gr->r()[i]);
+    const auto inv_r_to_kp1 = 1.0 / (r_to_k * gr->r()[i]);
+    const auto Fdr = gr->drdu()[i - 1] * fgfg(i - 1) * w(i - 1);
     Ax += Fdr * rm1_to_k;
     Bx -= Fdr * inv_rm1_to_kp1;
     b0[i] = du * Ax * inv_r_to_kp1;
@@ -272,12 +272,12 @@ double Rk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
 double Rk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fc,
                const std::vector<double> &yk_bd) {
   [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__, "yk");
-  const auto &drdu = Fa.rgrid->drdu;
+  const auto &drdu = Fa.rgrid->drdu();
   const auto i0 = std::max(Fa.p0, Fc.p0);
   const auto imax = std::min(Fa.pinf, Fc.pinf);
   const auto Rff = NumCalc::integrate(1.0, i0, imax, Fa.f, Fc.f, yk_bd, drdu);
   const auto Rgg = NumCalc::integrate(1.0, i0, imax, Fa.g, Fc.g, yk_bd, drdu);
-  return (Rff + Rgg) * Fa.rgrid->du;
+  return (Rff + Rgg) * Fa.rgrid->du();
 }
 
 //******************************************************************************
@@ -311,7 +311,7 @@ void Rkv_bcd(DiracSpinor *const Rkv, const DiracSpinor &Fc,
     Rkv->f[i] = Fc.f[i] * ykbd[i];
     Rkv->g[i] = Fc.g[i] * ykbd[i];
   }
-  for (auto i = Rkv->pinf; i < Rkv->rgrid->num_points; ++i) {
+  for (auto i = Rkv->pinf; i < Rkv->rgrid->num_points(); ++i) {
     Rkv->f[i] = 0.0;
     Rkv->g[i] = 0.0;
   }

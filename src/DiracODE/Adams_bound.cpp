@@ -102,7 +102,7 @@ void boundState(DiracSpinor &psi, const double en0,
   double anorm = 1.0;
   int t_its = 1;
   for (; t_its < Param::max_its; ++t_its) {
-    t_pinf = Adams::findPracticalInfinity(t_en, v, rgrid.r, Param::cALR);
+    t_pinf = Adams::findPracticalInfinity(t_en, v, rgrid.r(), Param::cALR);
     const int ctp =
         Adams::findClassicalTurningPoint(t_en, v, t_pinf, Param::d_ctp);
 
@@ -175,7 +175,8 @@ void regularAtOrigin(DiracSpinor &Fa, const double en,
   const auto &gr = Fa.rgrid;
   if (en != 0)
     Fa.en = en;
-  const auto pinf = Adams::findPracticalInfinity(Fa.en, v, gr->r, Param::cALR);
+  const auto pinf =
+      Adams::findPracticalInfinity(Fa.en, v, gr->r(), Param::cALR);
   Adams::DiracMatrix Hd(*gr, v, Fa.k, Fa.en, alpha, H_mag);
   Adams::outwardAM(Fa.f, Fa.g, Hd, pinf - 1);
   Fa.pinf = pinf;
@@ -191,7 +192,8 @@ void regularAtInfinity(DiracSpinor &Fa, const double en,
   const auto &gr = Fa.rgrid;
   if (en < 0)
     Fa.en = en;
-  const auto pinf = Adams::findPracticalInfinity(Fa.en, v, gr->r, Param::cALR);
+  const auto pinf =
+      Adams::findPracticalInfinity(Fa.en, v, gr->r(), Param::cALR);
   Adams::DiracMatrix Hd(*gr, v, Fa.k, Fa.en, alpha, H_mag);
   Adams::inwardAM(Fa.f, Fa.g, Hd, 0, pinf - 1);
   Fa.pinf = pinf;
@@ -319,7 +321,7 @@ void trialDiracSolution(std::vector<double> &f, std::vector<double> &g,
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   DiracMatrix Hd(gr, v, ka, en, alpha, H_mag);
   outwardAM(f, g, Hd, ctp + d_ctp);
-  std::vector<double> f_in(gr.num_points), g_in(gr.num_points);
+  std::vector<double> f_in(gr.num_points()), g_in(gr.num_points());
   inwardAM(f_in, g_in, Hd, ctp - d_ctp, pinf - 1);
   joinInOutSolutions(f, g, dg, f_in, g_in, ctp, d_ctp, pinf);
 }
@@ -373,9 +375,9 @@ void outwardAM(std::vector<double> &f, std::vector<double> &g,
 // (from num_loops*AMO+1 to nf = ctp+d_ctp)
 {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
-  const auto &r = Hd.pgr->r;
-  const auto &drduor = Hd.pgr->drduor;
-  const auto du = Hd.pgr->du;
+  const auto &r = Hd.pgr->r();
+  const auto &drduor = Hd.pgr->drduor();
+  const auto du = Hd.pgr->du();
   const auto &v = *(Hd.v);
   const auto alpha = Hd.alpha;
   const auto ka = Hd.k;
@@ -483,7 +485,7 @@ void inwardAM(std::vector<double> &f, std::vector<double> &g,
   const auto alpha = Hd.alpha;
   const auto ka = Hd.k;
   const auto en = Hd.en;
-  const auto &r = Hd.pgr->r;
+  const auto &r = Hd.pgr->r();
   const auto &v = *(Hd.v);
 
   const auto alpha2 = alpha * alpha;
@@ -552,7 +554,7 @@ void adamsMoulton(std::vector<double> &f, std::vector<double> &g,
   const auto inc = (nf > ni) ? 1 : -1;        //'increment' for integration
 
   // create arrays for wf derivatives + Adams-Moulton coeficients
-  const auto amDdu = inc * Hd.pgr->du * Param::AMcoef.AMd;
+  const auto amDdu = inc * Hd.pgr->du() * Param::AMcoef.AMd;
   std::array<double, Param::AMO> df, dg;
   std::array<double, Param::AMO> am;
   for (auto i = 0, ri = ni - inc * Param::AMO; i < Param::AMO; i++, ri += inc) {
@@ -599,17 +601,17 @@ DiracMatrix::DiracMatrix(const Grid &in_grid, const std::vector<double> &in_v,
 
 double DiracMatrix::a(std::size_t i) const {
   const auto h_mag = (Hmag == nullptr) ? 0.0 : (*Hmag)[i];
-  return (double(-k)) * pgr->drduor[i] + alpha * h_mag * pgr->drdu[i];
+  return (double(-k)) * pgr->drduor()[i] + alpha * h_mag * pgr->drdu(i);
 }
 double DiracMatrix::b(std::size_t i) const {
-  return (alpha * en + 2.0 * cc - alpha * (*v)[i]) * pgr->drdu[i];
+  return (alpha * en + 2.0 * cc - alpha * (*v)[i]) * pgr->drdu(i);
 }
 double DiracMatrix::c(std::size_t i) const {
-  return alpha * ((*v)[i] - en) * pgr->drdu[i];
+  return alpha * ((*v)[i] - en) * pgr->drdu(i);
 }
 double DiracMatrix::d(std::size_t i) const {
   const auto h_mag = (Hmag == nullptr) ? 0.0 : (*Hmag)[i];
-  return double(k) * pgr->drduor[i] - alpha * h_mag * pgr->drdu[i];
+  return double(k) * pgr->drduor()[i] - alpha * h_mag * pgr->drdu(i);
 }
 
 std::tuple<double, double, double, double>

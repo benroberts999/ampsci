@@ -315,10 +315,10 @@ Breit_Bk_ba::Breit_Bk_ba(const DiracSpinor &Fb, const DiracSpinor &Fa)
     // const auto maxi = std::min(Fa.pinf, Fb.pinf); // XXX OK? No.
 
     // These normally re-sized in gk_ab()... but not if skip due to SRs
-    bk_0[k].resize(Fa.rgrid->num_points);
-    bk_inf[k].resize(Fa.rgrid->num_points);
-    gk_0[k].resize(Fa.rgrid->num_points);
-    gk_inf[k].resize(Fa.rgrid->num_points);
+    bk_0[k].resize(Fa.rgrid->num_points());
+    bk_inf[k].resize(Fa.rgrid->num_points());
+    gk_0[k].resize(Fa.rgrid->num_points());
+    gk_inf[k].resize(Fa.rgrid->num_points());
 
     // bk, in M,N,O, only used if C^(k+/-1)_ba non-zero
     if (Angular::Ck_kk_SR(int(k) - 1, Fb.k, Fa.k) ||

@@ -44,12 +44,12 @@ void fieldShift(const IO::InputBlock &, const Wavefunction &wfA) {
 
   std::cout << "\n   r_rms (fm),   del(r),    del(r^2),    dE (GHz)\n";
   for (const auto pm : {-1, 1}) {
-    for (const auto del : delta_grid.r) {
+    for (const auto del : delta_grid.r()) {
       const auto rB = r0B + pm * del;
       const auto dr2 = r0B * r0B - rB * rB;
 
       wfB.vnuc = Nuclear::fermiNuclearPotential(
-          wfB.Znuc(), t, Nuclear::c_hdr_formula_rrms_t(rB, t), wfA.rgrid->r);
+          wfB.Znuc(), t, Nuclear::c_hdr_formula_rrms_t(rB, t), wfA.rgrid->r());
 
       wfB.solve_core("", 0.0, "", 0.0, false);
       wfB.solve_valence("", false);

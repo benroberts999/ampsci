@@ -142,12 +142,12 @@ std::vector<double> fermiNuclearDensity_tcN(double t, double c, double Z_norm,
 // Znorm = Z for nuclear chare density; Z_norm = 1 for nuclear density.
 {
   std::vector<double> rho;
-  rho.reserve(grid.num_points);
+  rho.reserve(grid.num_points());
 
   // form un-normalised rho:
   const double a = t / FourLn3;
   const double coa = c / a;
-  for (const auto r : grid.r) {
+  for (const auto r : grid.r()) {
     const double roa = PhysConst::aB_fm * r / a;
     const double roc = r / c * PhysConst::aB_fm;
     if (roc < 10.0) {
@@ -159,8 +159,9 @@ std::vector<double> fermiNuclearDensity_tcN(double t, double c, double Z_norm,
 
   // Find rho0, normalisation constant + re-scale (normalise rho)
   const double volume_integral =
-      NumCalc::integrate(grid.du, 0, 0, grid.r, grid.r, rho, grid.drdu) * 4.0 *
-      M_PI;
+      NumCalc::integrate(grid.du(), 0, 0, grid.r(), grid.r(), rho,
+                         grid.drdu()) *
+      4.0 * M_PI;
   const double rho0 = Z_norm / volume_integral;
   for (auto &rhoi : rho)
     rhoi *= rho0;

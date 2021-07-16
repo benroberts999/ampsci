@@ -70,8 +70,8 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
     for (const auto &Fv : wf.valence) {
       std::cout << Fv.symbol() << "\n";
       const auto delta_n_max_sum = 2;
-      alpha_v_SRN(Fv, wf.spectrum, delta_n_max_sum, wf.basis, wf.en_coreval_gap(),
-                  he1, dVE1, omega);
+      alpha_v_SRN(Fv, wf.spectrum, delta_n_max_sum, wf.basis,
+                  wf.en_coreval_gap(), he1, dVE1, omega);
     }
   }
 

@@ -2,8 +2,8 @@
 #include "DiracOperator/Operators.hpp" //for Drake-Gordon
 #include "HF/Breit.hpp"
 #include "HF/HartreeFock.hpp"
-#include "IO/SafeProfiler.hpp"
 #include "IO/InputBlock.hpp"
+#include "IO/SafeProfiler.hpp"
 #include "Maths/BSplines.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/LinAlg_MatrixVector.hpp"
@@ -449,7 +449,7 @@ std::pair<double, double> r_completeness(const DiracSpinor &Fa,
   // <a|a> = sum_n <a|r|n><n|1/r|a> = 1
   // <a|r^2|a> = sum_n <a|r|n><n|r|a>
 
-  const auto r = gr.r;
+  const auto r = gr.r();
   const auto r2 = gr.rpow(2);
   const auto rinv = gr.rpow(-1);
 

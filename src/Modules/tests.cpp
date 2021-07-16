@@ -124,7 +124,7 @@ void Module_test_r0pinf(const Wavefunction &wf) {
       auto ratios = phi.r0pinfratio();
       printf("%7s:  %.0e   %.0e   %5i/%6.2f\n", phi.symbol().c_str(),
              std::abs(ratios.first), std::abs(ratios.second), (int)phi.pinf,
-             wf.rgrid->r[phi.pinf - 1]);
+             wf.rgrid->r()[phi.pinf - 1]);
       // std::cout << ratios.first << " " << ratios.second << "\n";
     }
     std::cout << "--------------\n";

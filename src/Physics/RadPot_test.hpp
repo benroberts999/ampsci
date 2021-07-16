@@ -168,10 +168,10 @@ bool RadPot(std::ostream &obuff) {
     const auto r_N_au = std::sqrt(5.0 / 3.0) * 1.0 *
                         wf.get_nuclearParameters().r_rms / PhysConst::aB_fm;
     // Rad pot, pointlike and step nucleus
-    const auto rp0 = QED::RadPot(wf.rgrid->r, wf.Znuc(), 0.0, 15.0,
+    const auto rp0 = QED::RadPot(wf.rgrid->r(), wf.Znuc(), 0.0, 15.0,
                                  QED::RadPot::Scale{0.0, 1.0, 1.0, 1.0, 0.0},
                                  std::vector{1.0}, false, false);
-    const auto rp = QED::RadPot(wf.rgrid->r, wf.Znuc(), r_N_au, 15.0,
+    const auto rp = QED::RadPot(wf.rgrid->r(), wf.Znuc(), r_N_au, 15.0,
                                 QED::RadPot::Scale{0.0, 1.0, 1.0, 1.0, 0.0},
                                 std::vector{1.0}, false, false);
 

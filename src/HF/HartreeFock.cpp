@@ -70,7 +70,7 @@ HartreeFock::HartreeFock(std::shared_ptr<const Grid> in_grid,
       m_x_Breit(x_Breit),
       m_eps_HF(std::abs(in_eps) < 1.0 ? in_eps : std::pow(10, -in_eps)),
       p_core(in_core),
-      m_vdir(rgrid->num_points),
+      m_vdir(rgrid->num_points()),
       m_Yab(rgrid, p_core),
       m_excludeExchange(
           !(m_method == Method::HartreeFock || m_method == Method::ApproxHF)) {}
@@ -166,7 +166,7 @@ void HartreeFock::hf_core_approx(const double eps_target_HF) {
     if (hits == 1)
       vex_old = appr_vex_core; // We didn't have old vex before
 
-    for (std::size_t j = 0; j < rgrid->num_points; j++) {
+    for (std::size_t j = 0; j < rgrid->num_points(); j++) {
       m_vdir[j] = (1.0 - eta) * m_vdir[j] + eta * vdir_old[j];
       for (std::size_t i = 0; i < p_core->size(); i++) {
         appr_vex_core[i][j] =
@@ -186,9 +186,9 @@ void HartreeFock::hf_core_approx(const double eps_target_HF) {
       for (std::size_t j = 0; j < Fa.pinf; j += de_stride) {
         const double dv =
             (m_vdir[j] - vdir_old[j]) + (appr_vex_core[i][j] - vex_old[i][j]);
-        dEa += dv * Fa.f[j] * Fa.f[j] * rgrid->drdu[j];
+        dEa += dv * Fa.f[j] * Fa.f[j] * rgrid->drdu(j);
       }
-      dEa *= rgrid->du * de_stride;
+      dEa *= rgrid->du() * de_stride;
       const double en_guess = (en_old < -dEa) ? en_old + dEa : en_old;
       const auto &vrad_el = get_Hrad_el(Fa.l());
       const auto &vrad_mag = get_Hrad_mag(Fa.l());
@@ -260,7 +260,7 @@ void HartreeFock::KohnSham_core(const double eps_target_HF) {
     form_vdir(m_vdir, false);
     KohnSham_addition(m_vdir);
 
-    for (std::size_t j = 0; j < rgrid->num_points; j++) {
+    for (std::size_t j = 0; j < rgrid->num_points(); j++) {
       m_vdir[j] = (1.0 - eta) * m_vdir[j] + eta * vdir_old[j];
     }
 
@@ -274,9 +274,9 @@ void HartreeFock::KohnSham_core(const double eps_target_HF) {
       // calculate de from PT
       double dEa = 0;
       for (std::size_t j = 0; j < Fa.pinf; j += de_stride) {
-        dEa += (m_vdir[j] - vdir_old[j]) * Fa.f[j] * Fa.f[j] * rgrid->drdu[j];
+        dEa += (m_vdir[j] - vdir_old[j]) * Fa.f[j] * Fa.f[j] * rgrid->drdu(j);
       }
-      dEa *= rgrid->du * de_stride;
+      dEa *= rgrid->du() * de_stride;
       const double en_guess = (en_old < -dEa) ? en_old + dEa : en_old;
       const auto &vrad_el = get_Hrad_el(Fa.l());
       const auto &vrad_mag = get_Hrad_mag(Fa.l());
@@ -311,26 +311,26 @@ void HartreeFock::KohnSham_addition(std::vector<double> &vdir) const {
   const auto f =
       -(2.0 / 3.0) * std::pow(81.0 / (32.0 * M_PI * M_PI), 1.0 / 3.0);
 
-  std::vector<double> rho(rgrid->num_points);
+  std::vector<double> rho(rgrid->num_points());
   for (const auto &Fc : *p_core) {
     rho = qip::add(rho, Fc.rho());
   }
 
-  for (std::size_t i = 0; i < rgrid->num_points; ++i) {
-    const auto r = rgrid->r[i];
+  for (std::size_t i = 0; i < rgrid->num_points(); ++i) {
+    const auto r = rgrid->r()[i];
     vdir[i] += (f / r) * std::pow(r * rho[i], 1.0 / 3.0);
   }
 
   const auto z =
-      -(*p_vnuc)[rgrid->num_points / 2] * rgrid->r[rgrid->num_points / 2];
+      -(*p_vnuc)[rgrid->num_points() / 2] * rgrid->r()[rgrid->num_points() / 2];
   const auto zion = z - double(num_core_electrons()) + 1.0;
 
   // Latter correction:
   // Enfore V(r) = Vnuc(r)+Vel(r) =~ -1/r at large r
-  for (std::size_t i = rgrid->num_points - 1; i != 0; --i) {
+  for (std::size_t i = rgrid->num_points() - 1; i != 0; --i) {
     // nb: miss i=0, but fine. Only applies large r[i]
     const auto vn = (*p_vnuc)[i];
-    const auto r = rgrid->r[i];
+    const auto r = rgrid->r()[i];
     if (r * std::abs(vn + vdir[i]) > zion)
       break;
     vdir[i] = -zion / r - vn;
@@ -419,7 +419,7 @@ EpsIts HartreeFock::hf_valence_approx(DiracSpinor &Fa, double eps_target_HF)
   // don't include all pts in PT for new e guess
   const std::size_t de_stride = 5;
 
-  std::vector<double> vexa(rgrid->num_points, 0);
+  std::vector<double> vexa(rgrid->num_points(), 0);
   auto vexa_old = vexa;
 
   const auto &vrad_el = get_Hrad_el(Fa.l());
@@ -436,16 +436,16 @@ EpsIts HartreeFock::hf_valence_approx(DiracSpinor &Fa, double eps_target_HF)
     if (!m_excludeExchange)
       vexa = vex_approx(Fa, *p_core);
 
-    for (std::size_t i = 0; i < rgrid->num_points; i++) {
+    for (std::size_t i = 0; i < rgrid->num_points(); i++) {
       vexa[i] = (1.0 - eta) * vexa[i] + eta * vexa_old[i];
     }
     // Use P.T. to calculate energy change:
     double en_new_guess = 0;
     for (std::size_t i = 0; i < Fa.pinf; i += de_stride) {
       en_new_guess +=
-          (vexa[i] - vexa_old[i]) * Fa.f[i] * Fa.f[i] * rgrid->drdu[i];
+          (vexa[i] - vexa_old[i]) * Fa.f[i] * Fa.f[i] * rgrid->drdu(i);
     }
-    en_new_guess = en_old + en_new_guess * rgrid->du * de_stride;
+    en_new_guess = en_old + en_new_guess * rgrid->du() * de_stride;
     // Solve Dirac using new potential:
     DiracODE::boundState(Fa, en_new_guess, qip::add(v_local, vexa), Hmag,
                          m_alpha, 15);
@@ -535,7 +535,7 @@ void HartreeFock::form_vdir(std::vector<double> &vdir, bool re_scale) const
   for (const auto &Fb : (*p_core)) {
     const double f_sf = sf * (Fb.twoj() + 1) * Fb.occ_frac;
     const auto &v0bb = m_Yab.get_yk_ab(0, Fb, Fb);
-    for (std::size_t i = 0; i < rgrid->num_points; i++) {
+    for (std::size_t i = 0; i < rgrid->num_points(); i++) {
       vdir[i] += v0bb[i] * f_sf;
     }
   }
@@ -599,7 +599,7 @@ void HartreeFock::form_approx_vex_core_a(const DiracSpinor &Fa,
 {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   vex_a.clear();
-  vex_a.resize(rgrid->num_points);
+  vex_a.resize(rgrid->num_points());
 
   // don't subtract self-potential term for Hartree {match Core-Hartree}
   if (m_excludeExchange)
@@ -627,7 +627,7 @@ void HartreeFock::form_approx_vex_core_a(const DiracSpinor &Fa,
       const auto &vabk = m_Yab.get_y_ab(Fb, Fa);
 
       // hold "fraction" Fa*Fb/(Fa^2):
-      std::vector<double> v_Fab(rgrid->num_points);
+      std::vector<double> v_Fab(rgrid->num_points());
       for (std::size_t i = 0; i < irmax; i++) {
         // This is the approximte part! Divides by Fa
         if (std::abs(Fa.f[i]) < cut_off)
@@ -654,7 +654,7 @@ void HartreeFock::form_approx_vex_core_a(const DiracSpinor &Fa,
     const double x_tjap1 = (twoj_a + 1); // no occ_frac here ?
     const int kmax = twoj_a;
     const auto &vaak = m_Yab.get_y_ab(Fa, Fa);
-    const auto irmax = Fa.pinf; // rgrid->num_points;
+    const auto irmax = Fa.pinf; // rgrid->num_points();
     for (int k = 0; k <= kmax; k++) {
       const auto Labk = m_Yab.Ck().get_Lambdakab(k, Fa.k, Fa.k);
       if (Labk == 0)
@@ -676,7 +676,7 @@ std::vector<double> vex_approx(const DiracSpinor &Fa,
 {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
 
-  std::vector<double> vex(Fa.rgrid->num_points);
+  std::vector<double> vex(Fa.rgrid->num_points());
   std::vector<double> vabk;
 
   const auto tja = Fa.twoj();
@@ -700,7 +700,7 @@ std::vector<double> vex_approx(const DiracSpinor &Fa,
       kmax = k_cut;
 
     // hold "fraction" Fa*Fb/(Fa^2):
-    std::vector<double> v_Fab(Fa.rgrid->num_points);
+    std::vector<double> v_Fab(Fa.rgrid->num_points());
     for (std::size_t i = 0; i < irmax; i++) {
       // This is the approximate part! Divides by Fa
       if (std::abs(Fa.f[i]) < cut_off)
@@ -788,7 +788,7 @@ DiracSpinor vexFa(const DiracSpinor &Fa, const std::vector<DiracSpinor> &core,
   VxFa.pinf = Fa.pinf; // nb: updated below!
   // note: VxFa.pinf can be larger than psi.pinf!
 
-  std::vector<double> vabk(Fa.rgrid->num_points);
+  std::vector<double> vabk(Fa.rgrid->num_points());
 
   const auto tja = Fa.twoj();
   const auto la = Fa.l();
@@ -1109,8 +1109,8 @@ inline void HartreeFock::hf_core_refine() {
   auto damper = rampedDamp(0.8, 0.3, 5, 30);
   double extra_damp = 0;
 
-  std::vector<double> vl(rgrid->num_points); // Vnuc + fVd
-  std::vector<double> v0(rgrid->num_points); // (1-f)Vd
+  std::vector<double> vl(rgrid->num_points()); // Vnuc + fVd
+  std::vector<double> v0(rgrid->num_points()); // (1-f)Vd
   const auto Ncore = std::accumulate(
       p_core->cbegin(), p_core->cend(), 0,
       [](int sum, const auto &Fa) { return sum + Fa.num_electrons(); });
@@ -1144,7 +1144,7 @@ inline void HartreeFock::hf_core_refine() {
     const auto a_damp = damper(it) + extra_damp;
 
     // re-calculate each Vl = vnuc + fvdir, v0 = (1-f)vdir:
-    for (auto i = 0ul; i < rgrid->num_points; i++) {
+    for (auto i = 0ul; i < rgrid->num_points(); i++) {
       vl[i] = (*p_vnuc)[i] + f_core * vd[i];
       v0[i] = (1.0 - f_core) * vd[i];
     }

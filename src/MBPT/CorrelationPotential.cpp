@@ -41,7 +41,7 @@ CorrelationPotential::CorrelationPotential(
 //******************************************************************************
 void CorrelationPotential::setup_subGrid(double rmin, double rmax) {
   // Form the "Sigma sub-grid"
-  const auto &rvec = p_gr->r;
+  const auto &rvec = p_gr->r();
 
   m_imin = 0;
   for (auto i = 0ul; i < rvec.size(); i += m_stride) {
@@ -194,7 +194,7 @@ DiracSpinor CorrelationPotential::act_G_Fv(const GMatrix &Gmat,
   for (auto i = 0ul; i < m_subgrid_points; ++i) {
     for (auto j = 0ul; j < m_subgrid_points; ++j) {
       const auto sj = ri_subToFull(j);
-      const auto dr = gr.drdu[sj] * gr.du * double(m_stride);
+      const auto dr = gr.drdu()[sj] * gr.du() * double(m_stride);
       f[i] += Gmat.ff[i][j] * Fv.f[sj] * dr;
     }
   }
@@ -204,7 +204,7 @@ DiracSpinor CorrelationPotential::act_G_Fv(const GMatrix &Gmat,
     for (auto i = 0ul; i < m_subgrid_points; ++i) {
       for (auto j = 0ul; j < m_subgrid_points; ++j) {
         const auto sj = ri_subToFull(j);
-        const auto dr = gr.drdu[sj] * gr.du * double(m_stride);
+        const auto dr = gr.drdu()[sj] * gr.du() * double(m_stride);
         f[i] += Gmat.fg[i][j] * Fv.g[sj] * dr;
         g[i] += Gmat.gf[i][j] * Fv.f[sj] * dr;
         g[i] += Gmat.gg[i][j] * Fv.g[sj] * dr;
@@ -213,9 +213,9 @@ DiracSpinor CorrelationPotential::act_G_Fv(const GMatrix &Gmat,
   }
 
   // Interpolate from sub-grid to full grid
-  SigmaFv.f = Interpolator::interpolate(m_subgrid_r, f, gr.r);
+  SigmaFv.f = Interpolator::interpolate(m_subgrid_r, f, gr.r());
   if (m_include_G) {
-    SigmaFv.g = Interpolator::interpolate(m_subgrid_r, g, gr.r);
+    SigmaFv.g = Interpolator::interpolate(m_subgrid_r, g, gr.r());
   }
 
   return SigmaFv;
@@ -343,22 +343,22 @@ bool CorrelationPotential::read_write(const std::string &fname,
 
   // // write/read some grid parameters - just to check
   {
-    double r0 = rw == IO::FRW::write ? p_gr->r0 : 0;
-    double rmax = rw == IO::FRW::write ? p_gr->rmax : 0;
-    double b = rw == IO::FRW::write ? p_gr->b : 0;
-    std::size_t pts = rw == IO::FRW::write ? p_gr->num_points : 0;
+    double r0 = rw == IO::FRW::write ? p_gr->r0() : 0;
+    double rmax = rw == IO::FRW::write ? p_gr->rmax() : 0;
+    double b = rw == IO::FRW::write ? p_gr->loglin_b() : 0;
+    std::size_t pts = rw == IO::FRW::write ? p_gr->num_points() : 0;
     rw_binary(iofs, rw, r0, rmax, b, pts);
     if (rw == IO::FRW::read) {
-      const bool grid_ok = std::abs((r0 - p_gr->r0) / r0) < 1.0e-6 &&
-                           std::abs(rmax - p_gr->rmax) < 0.001 &&
-                           std::abs(b - p_gr->b) < 0.001 &&
-                           pts == p_gr->num_points;
+      const bool grid_ok = std::abs((r0 - p_gr->r0()) / r0) < 1.0e-6 &&
+                           std::abs(rmax - p_gr->rmax()) < 0.001 &&
+                           std::abs(b - p_gr->loglin_b()) < 0.001 &&
+                           pts == p_gr->num_points();
       if (!grid_ok) {
         std::cout << "\nCannot read from:" << fname << ". Grid mismatch\n"
                   << "Read: " << r0 << ", " << rmax << " w/ N=" << pts
-                  << ", b=" << b << ",\n but expected: " << p_gr->r0 << ", "
-                  << p_gr->rmax << " w/ N=" << p_gr->num_points
-                  << ", b=" << p_gr->b << "\n";
+                  << ", b=" << b << ",\n but expected: " << p_gr->r0() << ", "
+                  << p_gr->rmax() << " w/ N=" << p_gr->num_points()
+                  << ", b=" << p_gr->loglin_b() << "\n";
         std::cout << "Will calculate from scratch, + over-write file.\n";
         return false;
       }
@@ -450,7 +450,7 @@ std::size_t CorrelationPotential::ri_subToFull(std::size_t i) const {
   return ((m_imin + i) * m_stride);
 }
 double CorrelationPotential::dr_subToFull(std::size_t i) const {
-  return p_gr->drdu[ri_subToFull(i)] * p_gr->du * double(m_stride);
+  return p_gr->drdu()[ri_subToFull(i)] * p_gr->du() * double(m_stride);
 }
 
 } // namespace MBPT

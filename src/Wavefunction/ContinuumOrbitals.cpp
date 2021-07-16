@@ -64,7 +64,7 @@ int ContinuumOrbitals::solveLocalContinuum(double ec, int min_l, int max_l)
 
   // Check if 'h' is small enough for oscillating region:
   const double h_target = (M_PI / 15) / std::sqrt(2.0 * ec);
-  const auto h = rgrid->du;
+  const auto h = rgrid->du();
   if (h > h_target) {
     std::cout << "WARNING 61 CntOrb: Grid not dense enough for ec=" << ec
               << " (du=" << h << ", need du<" << h_target << ")\n";
@@ -76,18 +76,20 @@ int ContinuumOrbitals::solveLocalContinuum(double ec, int min_l, int max_l)
   }
 
   // XXX Don't need to extend grid each time...
-  ExtendedGrid cgrid(*rgrid, 1.2 * r_asym);
+  // ExtendedGrid cgrid(*rgrid, 1.2 * r_asym);
+  auto cgrid = *rgrid;
+  cgrid.extend_to(1.2 * r_asym);
 
   // "Z_ion" - "actual" (excluding exchange.....)
-  const auto z_tmp = std::abs(v_local.back() * rgrid->r.back());
+  const auto z_tmp = std::abs(v_local.back() * rgrid->r().back());
 
   auto vc = v_local;
-  vc.reserve(cgrid.num_points);
-  for (auto i = rgrid->num_points; i < cgrid.num_points; i++) {
+  vc.reserve(cgrid.num_points());
+  for (auto i = rgrid->num_points(); i < cgrid.num_points(); i++) {
     if (force_rescale) {
-      vc.push_back(-Zion / cgrid.r[i]);
+      vc.push_back(-Zion / cgrid.r(i));
     } else {
-      vc.push_back(-z_tmp / cgrid.r[i]);
+      vc.push_back(-z_tmp / cgrid.r(i));
     }
   }
 
@@ -115,8 +117,8 @@ int ContinuumOrbitals::solveLocalContinuum(double ec, int min_l, int max_l)
 
         // Ensure potential goes as - Zion / r at large r
         if (force_rescale) {
-          for (std::size_t ir = rgrid->num_points - 1; ir != 0; --ir) {
-            const auto r = rgrid->r[ir];
+          for (std::size_t ir = rgrid->num_points() - 1; ir != 0; --ir) {
+            const auto r = rgrid->r()[ir];
             if (r * std::abs(vtot[ir]) > Zion)
               break;
             vtot[ir] = -Zion / r;
@@ -142,8 +144,8 @@ int ContinuumOrbitals::solveLocalContinuum(double ec, int min_l, int max_l)
   //   of << "\"" << psi.symbol(true) << "\" ";
   // }
   // of << "\n";
-  // for (std::size_t i = 0; i < gr.num_points; i++) {
-  //   of << gr.r[i] << " ";
+  // for (std::size_t i = 0; i < gr.num_points(); i++) {
+  //   of << gr.r(i) << " ";
   //   for (auto &psi : orbitals) {
   //     of << psi.f[i] << " ";
   //   }

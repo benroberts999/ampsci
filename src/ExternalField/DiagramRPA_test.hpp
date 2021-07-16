@@ -103,7 +103,7 @@ bool DiagramRPA(std::ostream &obuff) {
 
   { // HFS (compare A, not dV)
     auto h = DiracOperator::HyperfineA(1.0, 1.0, 0.0, *wf.rgrid,
-                                      DiracOperator::Hyperfine::pointlike_F());
+                                       DiracOperator::Hyperfine::pointlike_F());
     auto rpa = ExternalField::DiagramRPA(&h, wf.basis, wf.core, "");
     using sp = std::pair<std::string, double>;
     auto e1VD = std::vector<sp>{{"6s+", 2.342288e3},  {"6p-", 2.732209e2},

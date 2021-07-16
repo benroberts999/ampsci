@@ -9,6 +9,8 @@
 #include "qip/Vector.hpp"
 #include <iostream>
 #include <string>
+//
+#include "Maths/Grid.hpp"
 
 void ampsci(const IO::InputBlock &input);
 int main(int argc, char *argv[]) {
@@ -117,8 +119,6 @@ void ampsci(const IO::InputBlock &input) {
   Wavefunction wf({num_points, r0, rmax, b, grid_type, du},
                   {atom_Z, atom_A, nuc_type, rrms, t_skin}, var_alpha);
 
-  return;
-
   std::cout << "\nRunning for " << wf.atom() << "\n"
             << wf.nuclearParams() << "\n"
             << wf.rgrid->gridParameters() << "\n"
@@ -217,7 +217,7 @@ void ampsci(const IO::InputBlock &input) {
   std::vector<double> Vextra;
   if (extra_pot) {
     const auto &[x, y] = IO::FRW::readFile_xy_PoV("testIn.txt");
-    Vextra = Interpolator::interpolate(x, y, wf.rgrid->r);
+    Vextra = Interpolator::interpolate(x, y, wf.rgrid->r());
     qip::scale(&Vextra, ep_factor);
   }
 
@@ -250,8 +250,8 @@ void ampsci(const IO::InputBlock &input) {
     const auto r_cut = input.get({"dVpol"}, "r_cut", 1.0);
     const auto a4 = r_cut * r_cut * r_cut * r_cut;
     auto dV = [=](auto x) { return -0.5 * a_eff / (x * x * x * x + a4); };
-    for (auto i = 0u; i < wf.rgrid->num_points; ++i) {
-      wf.vdir[i] += dV(wf.rgrid->r[i]);
+    for (auto i = 0u; i < wf.rgrid->num_points(); ++i) {
+      wf.vdir[i] += dV(wf.rgrid->r()[i]);
     }
   }
 

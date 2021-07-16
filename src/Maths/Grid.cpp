@@ -54,76 +54,22 @@ std::string GridParameters::parseType(GridType type) {
 }
 
 //******************************************************************************
+//******************************************************************************
+
+//******************************************************************************
 Grid::Grid(const GridParameters &in)
     : Grid(in.r0, in.rmax, in.num_points, in.type, in.b) {}
 //------------------------------------------------------------------------------
 Grid::Grid(double in_r0, double in_rmax, std::size_t in_num_points,
            GridType in_gridtype, double in_b)
-    : r0(in_r0),
-      rmax(in_rmax),
-      num_points(in_num_points),
-      du(calc_du_from_num_points(in_r0, in_rmax, in_num_points, in_gridtype,
-                                 in_b)),
-      gridtype(in_gridtype),                           //
-      b(gridtype == GridType::loglinear ? in_b : 0.0), //
-      r(form_r(gridtype, r0, num_points, du, b)),      //
-      drduor(form_drduor(gridtype, r, b)),             //
-      drdu(form_drdu(gridtype, r, drduor))             //
-{}
-//------------------------------------------------------------------------------
-
-//******************************************************************************
-Grid::Grid(const Grid &t_gr, const double new_rmax)
-    // This initialiser is only used by the derived class "ExtendedGrid"
-    // For now, grid is just extended linearly (or truncated)
-    // XXX Make it use helper funnction?
-    : r0(t_gr.r0), // thing
-      rmax([&]() {
-        return (new_rmax >= t_gr.rmax) ? new_rmax
-                                       : t_gr.r[t_gr.getIndex(new_rmax)];
-      }()), // rmax
-      num_points([&]() {
-        return (new_rmax >= t_gr.rmax)
-                   ? t_gr.num_points +
-                         std::size_t((new_rmax - t_gr.rmax) / t_gr.du)
-                   : t_gr.getIndex(new_rmax);
-      }()),                    // num_points
-      du(t_gr.du),             // du
-      gridtype(t_gr.gridtype), // gridtype
-      b(t_gr.b),               // b
-      r([&]() {
-        if (new_rmax >= t_gr.rmax) {
-          return [&]() {
-            // extend radial vector:
-            auto tmp_r = t_gr.r;
-            auto r_i = t_gr.rmax;
-            for (auto i = t_gr.num_points; i < this->num_points; i++) {
-              r_i += du;
-              tmp_r.push_back(r_i);
-            }
-            return tmp_r;
-          }();
-        }
-        return std::vector<double>(t_gr.r.begin(),
-                                   t_gr.r.begin() + long(this->num_points));
-      }()), // r
-      drduor([&]() {
-        std::vector<double> temp_drduor = t_gr.drduor;
-        for (auto i = t_gr.num_points; i < this->num_points; i++) {
-          temp_drduor.push_back(1.0 / this->r[i]);
-        }
-        return temp_drduor;
-      }()), // drduor
-      drdu([&]() {
-        if (new_rmax > t_gr.rmax) {
-          auto temp_drdu = t_gr.drdu;
-          temp_drdu.resize(this->num_points, 1.0);
-          return temp_drdu;
-        }
-        return std::vector<double>(t_gr.drdu.begin(),
-                                   t_gr.drdu.begin() + long(this->num_points));
-      }()) // drdu
-{}
+    : m_r0(in_r0),
+      m_du(calc_du_from_num_points(in_r0, in_rmax, in_num_points, in_gridtype,
+                                   in_b)),
+      gridtype(in_gridtype),
+      b(gridtype == GridType::loglinear ? in_b : 0.0),
+      m_r(form_r(gridtype, m_r0, in_num_points, m_du, b)),
+      m_drduor(form_drduor(gridtype, m_r, b)),
+      m_drdu(form_drdu(gridtype, m_r, m_drduor)) {}
 
 //******************************************************************************
 std::size_t Grid::getIndex(double x, bool require_nearest) const
@@ -135,17 +81,17 @@ std::size_t Grid::getIndex(double x, bool require_nearest) const
 // I don't think this works for "backwards" grids, maybe not negative
 // grids either
 {
-  auto low = std::lower_bound(r.begin(), r.end(), x);
-  auto index = std::size_t(std::distance(r.begin(), low));
+  auto low = std::lower_bound(m_r.begin(), m_r.end(), x);
+  auto index = std::size_t(std::distance(m_r.begin(), low));
 
-  if (index >= r.size())
+  if (index >= m_r.size())
     index--;
 
   if (!require_nearest || index == 0)
     return index;
 
   // Must resturn /nearest/ index (we have (in order): r[i-1], x, r[i])
-  if (std::fabs(x - r[index - 1]) < std::fabs(r[index] - x))
+  if (std::fabs(x - m_r[index - 1]) < std::fabs(m_r[index] - x))
     return index - 1;
   else
     return index;
@@ -164,21 +110,69 @@ std::string Grid::gridParameters() const {
   case GridType::loglinear:
     out << "Log-linear (b=" << b << ") ";
   }
-  out << "grid: " << r0 << "->" << rmax << ", N=" << num_points
-      << ", du=" << du;
+  out << "grid: " << m_r0 << "->" << rmax() << ", N=" << num_points()
+      << ", du=" << m_du;
   return out.str();
 }
 
 //******************************************************************************
 std::vector<double> Grid::rpow(double k) const {
   std::vector<double> rk;
-  rk.reserve(num_points);
-  for (const auto ir : r) {
+  rk.reserve(m_r.size());
+  for (const auto ir : m_r) {
     rk.push_back(std::pow(ir, k));
   }
   return rk;
 }
 
+//******************************************************************************
+// Extends grid to new_r_max. Note: This is the only non-const function; use
+// with caution
+void Grid::extend_to(double new_rmax) {
+
+  const auto old_max_r = rmax();
+  if (old_max_r >= new_rmax)
+    return;
+
+  // Number of points total grid should have, and number of points needed for
+  // 'extra' part of grid:
+  const auto total_points =
+      calc_num_points_from_du(r0(), new_rmax, du(), gridtype, b);
+  const auto new_points = total_points - num_points() + 1;
+
+  // Form the 'extra' part of the grid (from old max to new max)
+  const auto x_r = form_r(gridtype, old_max_r, new_points, m_du, b);
+  const auto x_drduor = form_drduor(gridtype, x_r, b);
+  const auto x_drdu = form_drdu(gridtype, x_r, x_drduor);
+
+  // The first point of new grid matches last of old, so drop these
+  m_r.pop_back();
+  m_drduor.pop_back();
+  m_drdu.pop_back();
+
+  // Insert new grids onto end of existing ones
+  m_r.insert(m_r.end(), x_r.begin(), x_r.end());
+  m_drduor.insert(m_drduor.end(), x_drduor.begin(), x_drduor.end());
+  m_drdu.insert(m_drdu.end(), x_drdu.begin(), x_drdu.end());
+}
+
+//******************************************************************************
+double Grid::next_r_loglin(double b, double u, double r_guess) {
+  // Solve eq. u = r + b ln(r) to find r
+  // Use Newtons method
+  // => f(r) = r + b ln(r) - u = 0
+  // dfdr = b(1/r + 1/(b+r))
+  const auto f_u = [b, u](double tr) { return tr + b * std::log(tr) - u; };
+  const auto dr = 0.1 * r_guess;
+  const auto delta_targ = r_guess * 1.0e-18;
+  const auto [ri, delta_r] = qip::Newtons(f_u, r_guess, dr, delta_targ, 30);
+
+  if (std::abs(delta_r / ri) > 1.0e-10) {
+    std::cerr << "\nWARNING Grid:194: Converge? " << ri << " " << delta_r / ri
+              << "\n";
+  }
+  return ri;
+}
 //******************************************************************************
 std::vector<double> Grid::form_r(const GridType type, const double r0,
                                  const std::size_t num_points, const double du,
@@ -188,36 +182,26 @@ std::vector<double> Grid::form_r(const GridType type, const double r0,
 
   if (type == GridType::loglinear) {
     // u = r + b ln(r), du/dr = r/(b+r)
-    r.push_back(r0);
     auto u = r0 + b * std::log(r0);
-    for (auto i = 1ul; i < num_points; i++) {
+    r.push_back(r0);
+    for (auto i = 1ul; i < num_points; ++i) {
       u += du;
-      // Solve eq. u = r + b ln(r) to find r
-      // Use Newtons method
-      // => f(r) = r + b ln(r) - u = 0
-      // dfdr = b(1/r + 1/(b+r))
-      const auto f_u = [b, u](double tr) { return tr + b * std::log(tr) - u; };
-      const auto r_guess = r.back();
-      const auto dr = 0.1 * r_guess;
-      const auto delta_targ = r_guess * 1.0e-18;
-      const auto [ri, delta_r] = qip::Newtons(f_u, r_guess, dr, delta_targ, 30);
-
-      if (std::abs(delta_r / ri) > 1.0e-6) {
-        std::cerr << "WARNING Grid:194: Converge? " << i << " " << ri << " "
-                  << delta_r / ri << "\n";
-      }
-
-      printf("%4li, %.4e, %.1e\n", i, ri, delta_r / ri);
-      r.push_back(ri);
+      r.push_back(next_r_loglin(b, u, r.back()));
     }
   } else if (type == GridType::logarithmic) {
-    for (std::size_t i = 0; i < num_points; i++) {
-      r.push_back(r0 * std::exp(double(i) * du));
+    double u = 0.0;
+    r.push_back(r0);
+    for (auto i = 1ul; i < num_points; ++i) {
+      u += du;
+      r.push_back(r0 * std::exp(u));
     }
   } else if (type == GridType::linear) {
-    for (std::size_t i = 0; i < num_points; i++) {
-      double tmp_r = r0 + double(i) * du;
-      r.push_back(tmp_r);
+    double u = 0.0;
+    double tr = r0;
+    for (auto i = 0ul; i < num_points; ++i) {
+      r.push_back(tr);
+      u += du;
+      tr += du;
     }
   } else {
     std::cerr << "\nFAIL252 in Grid: grid type?\n";
@@ -225,6 +209,7 @@ std::vector<double> Grid::form_r(const GridType type, const double r0,
   }
   return r;
 }
+
 //******************************************************************************
 std::vector<double> Grid::form_drduor(const GridType type,
                                       const std::vector<double> &in_r,
@@ -286,7 +271,7 @@ double Grid::calc_du_from_num_points(double r0, double rmax,
     return (rmax - r0) / double(num_points - 1);
   }
   std::cerr << "\nFAIL 63 in Grid: wrong type?\n";
-  return 1.;
+  return 1.0;
 }
 
 //******************************************************************************

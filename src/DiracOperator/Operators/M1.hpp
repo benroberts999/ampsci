@@ -14,7 +14,7 @@ class M1 final : public TensorOperator {
 public:
   M1(const Grid &gr, const double alpha, const double omega = 0.0)
       : TensorOperator(1, Parity::even, +0.0, {}, 0, Realness::real, true),
-        m_r(gr.r),
+        m_r(gr.r()),
         m_alpha(alpha) {
     updateFrequency(omega);
   }

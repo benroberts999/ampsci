@@ -37,7 +37,7 @@ bool DiracODE(std::ostream &obuff) {
   const std::string states = "10spdfghi";
 
   // Sperical potential w/ R_nuc = 0.0 is a pointlike potential
-  const auto v_nuc = Nuclear::sphericalNuclearPotential(Zeff, 0.0, grid->r);
+  const auto v_nuc = Nuclear::sphericalNuclearPotential(Zeff, 0.0, grid->r());
 
   // Solve Dirac ODE for each state, store in 'orbitals' vector:
   std::vector<DiracSpinor> orbitals;
@@ -146,7 +146,7 @@ bool DiracODE(std::ostream &obuff) {
 
     // This will act as a "non-local" potential
     std::vector<double> vp;
-    for (const auto r : grid->r) {
+    for (const auto r : grid->r()) {
       vp.push_back(-0.3 / (r * r * r * r + 1.0));
     }
     const auto v_tot = qip::add(v_nuc, vp);

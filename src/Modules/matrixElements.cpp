@@ -522,7 +522,7 @@ generate_hfsA(const IO::InputBlock &input, const Wavefunction &wf, bool print) {
   auto print_FQ = input.get<bool>("printF", false);
   if (print_FQ) {
     std::ofstream of(Fr_str + ".txt");
-    for (auto r : wf.rgrid->r) {
+    for (auto r : wf.rgrid->r()) {
       of << r * PhysConst::aB_fm << " "
          << Fr(r * PhysConst::aB_fm, r_nucau * PhysConst::aB_fm) << "\n";
     }
@@ -622,12 +622,13 @@ generate_Hrad(const IO::InputBlock & /*input*/, const Wavefunction & /*wf*/,
   // const auto rcut = input.get("rcut", 5.0);
   // const auto scale_rN = input.get("scale_rN", 1.0);
   // const auto r_rms_Fermi = scale_rN * wf.get_nuclearParameters().r_rms;
-  // const auto Hel = RadiativePotential::form_Hel(wf.rgrid->r, x_Simple, x_Ueh,
+  // const auto Hel = RadiativePotential::form_Hel(wf.rgrid->r() , x_Simple,
+  // x_Ueh,
   //                                               x_SEe_h, x_SEe_l,
   //                                               r_rms_Fermi, wf.Znuc(),
   //                                               wf.alpha, rcut);
   // const auto Hmag = RadiativePotential::form_Hmag(
-  //     wf.rgrid->r, x_SEm, r_rms_Fermi, wf.Znuc(), wf.alpha, rcut);
+  //     wf.rgrid->r() , x_SEm, r_rms_Fermi, wf.Znuc(), wf.alpha, rcut);
   // return std::make_unique<Hrad>(Hel, Hmag);
   // // return std::make_unique<Hrad_el>(Hel);
 }

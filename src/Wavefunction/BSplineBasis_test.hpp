@@ -137,7 +137,7 @@ bool BSplineBasis(std::ostream &obuff) {
     const auto [eps, str] = DiracSpinor::check_ortho(basis, basis);
     pass &= qip::check_value(&obuff, label + " orth ", eps, 0.0, 3.0e-8);
     {
-      const auto tkr = SplineBasis::sumrule_TKR(basis, wf.rgrid->r, false);
+      const auto tkr = SplineBasis::sumrule_TKR(basis, wf.rgrid->r(), false);
 
       const auto worst =
           std::max_element(cbegin(tkr), cend(tkr), qip::comp_abs);

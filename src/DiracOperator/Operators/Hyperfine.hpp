@@ -83,8 +83,8 @@ inline auto doublyOddBW_F(double mut, double It, double mu1, double I1,
 inline std::vector<double> RadialFunc(int k, double rN, const Grid &rgrid,
                                       const Func_R2_R &hfs_F) {
   std::vector<double> rfunc;
-  rfunc.reserve(rgrid.num_points);
-  for (auto r : rgrid.r)
+  rfunc.reserve(rgrid.num_points());
+  for (auto r : rgrid.r())
     rfunc.push_back(hfs_F(r, rN) / pow(r, k + 1));
   return rfunc;
 }

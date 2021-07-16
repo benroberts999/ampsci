@@ -82,12 +82,12 @@ DiracSpinor TensorOperator::radial_rhs(const int kappa_a,
     return dF;
   }
 
-  const auto &df = (diff_order == 0)
-                       ? Fb.f
-                       : NumCalc::derivative(Fb.f, gr.drdu, gr.du, diff_order);
-  const auto &dg = (diff_order == 0)
-                       ? Fb.g
-                       : NumCalc::derivative(Fb.g, gr.drdu, gr.du, diff_order);
+  const auto &df = (diff_order == 0) ? Fb.f
+                                     : NumCalc::derivative(Fb.f, gr.drdu(),
+                                                           gr.du(), diff_order);
+  const auto &dg = (diff_order == 0) ? Fb.g
+                                     : NumCalc::derivative(Fb.g, gr.drdu(),
+                                                           gr.du(), diff_order);
 
   const auto cff = angularCff(kappa_a, Fb.k);
   const auto cgg = angularCgg(kappa_a, Fb.k);
@@ -131,34 +131,38 @@ double TensorOperator::radialIntegral(const DiracSpinor &Fa,
   // // df is either just fb, or dFb/dr
   // const auto &df = (diff_order == 0)
   //                      ? Fb.f
-  //                      : NumCalc::derivative(Fb.f, gr.drdu, gr.du,
+  //                      : NumCalc::derivative(Fb.f, gr.drdu(), gr.du(),
   //                      diff_order);
   // const auto &dg = (diff_order == 0)
   //                      ? Fb.g
-  //                      : NumCalc::derivative(Fb.g, gr.drdu, gr.du,
+  //                      : NumCalc::derivative(Fb.g, gr.drdu(), gr.du(),
   //                      diff_order);
   //
   // if (m_vec.empty()) {
   //   if (cff != 0.0)
-  //     radint += NumCalc::integrate(cff, p0, pinf, Fa.f, df, gr.drdu);
+  //     radint += NumCalc::integrate(cff, p0, pinf, Fa.f, df, gr.drdu());
   //   if (cfg != 0.0)
-  //     radint += NumCalc::integrate(cfg, p0, pinf, Fa.f, dg, gr.drdu);
+  //     radint += NumCalc::integrate(cfg, p0, pinf, Fa.f, dg, gr.drdu());
   //   if (cgf != 0.0)
-  //     radint += NumCalc::integrate(cgf, p0, pinf, Fa.g, df, gr.drdu);
+  //     radint += NumCalc::integrate(cgf, p0, pinf, Fa.g, df, gr.drdu());
   //   if (cgg != 0.0)
-  //     radint += NumCalc::integrate(cgg, p0, pinf, Fa.g, dg, gr.drdu);
+  //     radint += NumCalc::integrate(cgg, p0, pinf, Fa.g, dg, gr.drdu());
   // } else {
   //   if (cff != 0.0)
-  //     radint += NumCalc::integrate(cff, p0, pinf, Fa.f, df, gr.drdu, m_vec);
+  //     radint += NumCalc::integrate(cff, p0, pinf, Fa.f, df, gr.drdu(),
+  //     m_vec);
   //   if (cfg != 0.0)
-  //     radint += NumCalc::integrate(cfg, p0, pinf, Fa.f, dg, gr.drdu, m_vec);
+  //     radint += NumCalc::integrate(cfg, p0, pinf, Fa.f, dg, gr.drdu(),
+  //     m_vec);
   //   if (cgf != 0.0)
-  //     radint += NumCalc::integrate(cgf, p0, pinf, Fa.g, df, gr.drdu, m_vec);
+  //     radint += NumCalc::integrate(cgf, p0, pinf, Fa.g, df, gr.drdu(),
+  //     m_vec);
   //   if (cgg != 0.0)
-  //     radint += NumCalc::integrate(cgg, p0, pinf, Fa.g, dg, gr.drdu, m_vec);
+  //     radint += NumCalc::integrate(cgg, p0, pinf, Fa.g, dg, gr.drdu(),
+  //     m_vec);
   // }
   //
-  // return m_constant * radint * gr.du;
+  // return m_constant * radint * gr.du();
 }
 
 //******************************************************************************

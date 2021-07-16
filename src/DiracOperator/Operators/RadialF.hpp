@@ -15,8 +15,8 @@ private:
   std::vector<double> fillVec(const Grid &gr,
                               const std::function<double(double)> &f) {
     std::vector<double> f_r;
-    f_r.reserve(gr.num_points);
-    for (auto r : gr.r)
+    f_r.reserve(gr.num_points());
+    for (auto r : gr.r())
       f_r.push_back(f(r));
     return f_r;
   }

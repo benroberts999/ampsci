@@ -74,9 +74,9 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
               << "\n";
   }
   wf_VP.solve_core(HF::parseMethod(wfhf->method()), wfhf->x_Breit(),
-                        wf.coreConfiguration());
+                   wf.coreConfiguration());
   wf_SE.solve_core(HF::parseMethod(wfhf->method()), wfhf->x_Breit(),
-                        wf.coreConfiguration());
+                   wf.coreConfiguration());
 
   if (!coreQED) {
     std::cout << "no core QED; add QED _after_ core HartreeFock\n";

@@ -74,11 +74,11 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
   // Make sure h (large-r step size) is small enough to
   // calculate (normalise) cntm functions with energy = demax
   double du_target = (M_PI / 20.) / std::sqrt(2. * demax);
-  auto du = wf.rgrid->du;
+  auto du = wf.rgrid->du();
   if (du > du_target) {
     auto new_num_points = Grid::calc_num_points_from_du(
-        wf.rgrid->r0, wf.rgrid->rmax, du_target, GridType::loglinear, 4.0);
-    auto old_num_points = wf.rgrid->num_points;
+        wf.rgrid->r0(), wf.rgrid->rmax(), du_target, GridType::loglinear, 4.0);
+    auto old_num_points = wf.rgrid->num_points();
     // num_points = (int)new_num_points;
     std::cerr
         << "\nWARNING 118: Grid not dense enough for contimuum state with "
@@ -130,7 +130,7 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
   // pre-calculate the spherical Bessel function look-up table for efficiency
   timer.start();
   std::vector<std::vector<std::vector<double>>> jLqr_f;
-  AKF::sphericalBesselTable(jLqr_f, max_L, qgrid.r, wf.rgrid->r);
+  AKF::sphericalBesselTable(jLqr_f, max_L, qgrid.r(), wf.rgrid->r());
   std::cout << "Time for SB table: " << timer.lap_reading_str() << "\n";
 
   // Calculate the AK (print to screen)
@@ -145,7 +145,7 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "Running dE loops (" << desteps << ").." << std::flush;
 #pragma omp parallel for
   for (int ide = 0; ide < desteps; ide++) {
-    double dE = Egrid.r[ide];
+    double dE = Egrid.r()[ide];
     // Loop over core (bound) states:
     // for (auto is : wf.stateIndexList) {
     for (std::size_t is = 0; is < wf.core.size(); is++) {
