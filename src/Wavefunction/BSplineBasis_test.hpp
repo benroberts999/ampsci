@@ -25,7 +25,7 @@ bool BSplineBasis(std::ostream &obuff) {
 
     // Compare the energy of a Dirac spinor to a double:
     const auto comp_en = [](const auto &Fa, double en) {
-      return (en - Fa.en) / Fa.en;
+      return (en - Fa.en()) / Fa.en();
     };
 
     // Test splines compared to HF states (for various spline sets)
@@ -52,12 +52,12 @@ bool BSplineBasis(std::ostream &obuff) {
         std::vector<double> core_en;
         for (const auto &Fc : wf.core) {
           const auto &pFb = std::find(cbegin(basis), cend(basis), Fc);
-          core_en.push_back(pFb->en);
+          core_en.push_back(pFb->en());
         }
         std::vector<double> val_en;
         for (const auto &Fv : wf.valence) {
           const auto &pFb = std::find(cbegin(basis), cend(basis), Fv);
-          val_en.push_back(pFb->en);
+          val_en.push_back(pFb->en());
         }
         // Compare core+valence HF energies to the corresponding splines
         const auto [ce, cs] = qip::compare(wf.core, core_en, comp_en);

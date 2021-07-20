@@ -207,7 +207,7 @@ double alpha_core_sos(const std::vector<DiracSpinor> &core,
         continue;
       const auto d1 = he1.reducedME(Fn, Fb);
       const auto d2 = d1 + dVE1.dV(Fn, Fb);
-      const auto de = Fb.en - Fn.en;
+      const auto de = Fb.en() - Fn.en();
       alpha_core += std::abs(d1 * d2) * de / (de * de - omega * omega);
     }
   }
@@ -231,7 +231,7 @@ double alpha_valence_sos(const DiracSpinor &Fv,
       continue;
     const auto d2 = he1.reducedME(Fn, Fv) + dVE1.dV(Fn, Fv);
     // both have dV valence
-    const auto de = Fv.en - Fn.en;
+    const auto de = Fv.en() - Fn.en();
     alpha_v += std::abs(d2 * d2) * de / (de * de - omega * omega);
   }
 
@@ -261,7 +261,7 @@ double alpha_v_SRN(const DiracSpinor &Fv,
   std::cout << "       d0        dEn      |  a0(n)     da(HF)    da(RPA)  |  "
                "%(HF)     %(RPA)\n";
   for (const auto &Fn : spectrum) {
-    if (Fn.en < en_core)
+    if (Fn.en() < en_core)
       continue;
     // Only do for terms with small delta_n
     if (std::abs(Fn.n - Fv.n) > delta_n_max_sum)
@@ -276,7 +276,7 @@ double alpha_v_SRN(const DiracSpinor &Fv,
     const auto d1 = d0 + (tb + c + n);
     const auto d2 = d0 + (tbx + cx + nx);
 
-    const auto de = Fv.en - Fn.en;
+    const auto de = Fv.en() - Fn.en();
     const auto da_v0 = f * std::abs(d0 * d0) * de / (de * de - omega * omega);
     const auto da_v1 = f * std::abs(d1 * d1) * de / (de * de - omega * omega);
     const auto da_v2 = f * std::abs(d2 * d2) * de / (de * de - omega * omega);
@@ -325,8 +325,8 @@ double alpha_valence_sos(const DiracSpinor &Fv, const DiracSpinor &Fw,
     const auto d1 = he1.reducedME(Fn, Fv) + dVE1.dV(Fn, Fv);
     const auto d2 = Fv == Fn ? d1 : he1.reducedME(Fn, Fw) + dVE1.dV(Fn, Fw);
     // both have dV valence
-    const auto dev = Fv.en - Fn.en;
-    const auto dew = Fw.en - Fn.en;
+    const auto dev = Fv.en() - Fn.en();
+    const auto dew = Fw.en() - Fn.en();
     const auto da = f * d1 * d2 * (1.0 / dew + 1.0 / dev);
     alpha_v += da;
     // std::cout << Fn.symbol() << d1 << " " << d2 << " " << da << "\n";
@@ -359,8 +359,8 @@ std::pair<double, double> beta_sos(const DiracSpinor &Fv, const DiracSpinor &Fw,
     const auto d1 = he1.reducedME(Fn, Fv) + dVE1.dV(Fn, Fv);
     const auto d2 = Fv == Fn ? d1 : he1.reducedME(Fn, Fw) + dVE1.dV(Fn, Fw);
     // both have dV valence
-    const auto dev = Fv.en - Fn.en;
-    const auto dew = Fw.en - Fn.en;
+    const auto dev = Fv.en() - Fn.en();
+    const auto dew = Fw.en() - Fn.en();
     const auto dB = f * d1 * d2 * (1.0 / dew + 1.0 / dev);
     if (Fn.twoj() == Fv.twoj())
       beta_1 += dB;

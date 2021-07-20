@@ -156,7 +156,7 @@ void GoldstoneSigma::Sigma2(GMatrix *Gmat_D, GMatrix *Gmat_X, int kappa,
           Coulomb::Qkv_bcd(&Qkv, a, m, n, k, yknb, Ck);
           // Pkv_bcd_2 allows different screening factor for each 'k2' in exch.
           Coulomb::Pkv_bcd_2(&Pkv, a, m, n, k, m_yeh(m, a), Ck, m_6j, m_fk);
-          const auto dele = en + a.en - m.en - n.en;
+          const auto dele = en + a.en() - m.en() - n.en();
           const auto factor = fk / (f_kkjj * dele);
           addto_G(&Ga_d, Qkv, Qkv, factor);
           addto_G(&Ga_x, Qkv, Pkv, factor);
@@ -168,7 +168,7 @@ void GoldstoneSigma::Sigma2(GMatrix *Gmat_D, GMatrix *Gmat_X, int kappa,
             continue;
           Coulomb::Qkv_bcd(&Qkv, n, b, a, k, yknb, Ck);
           Coulomb::Pkv_bcd_2(&Pkv, n, b, a, k, m_yeh(n, b), Ck, m_6j, m_fk);
-          const auto dele = en + n.en - b.en - a.en;
+          const auto dele = en + n.en() - b.en() - a.en();
           const auto factor = fk / (f_kkjj * dele); // XXX
           addto_G(&Ga_d, Qkv, Qkv, factor);
           addto_G(&Ga_x, Qkv, Pkv, factor);

@@ -47,7 +47,7 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
 
   if (std::abs(dF * dF) == 0) {
     // If dF is not yet a solution, solve from scratch:
-    DiracODE::solve_inhomog(dF, Fa.en + omega, vl, H_mag, alpha, -1.0 * hFa);
+    DiracODE::solve_inhomog(dF, Fa.en() + omega, vl, H_mag, alpha, -1.0 * hFa);
   }
 
   // monitor convergance:
@@ -62,7 +62,7 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
       rhs -= (*Sigma)(dF);
     if (VBr)
       rhs -= (*VBr)(dF);
-    DiracODE::solve_inhomog(dF, Fa.en + omega, v, H_mag, alpha, rhs);
+    DiracODE::solve_inhomog(dF, Fa.en() + omega, v, H_mag, alpha, rhs);
 
     const auto a = its == 0 ? 0.0 : damper(its);
     dF = (1.0 - a) * dF + a * dF0;

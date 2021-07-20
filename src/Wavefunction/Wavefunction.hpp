@@ -111,7 +111,7 @@ public: // const methods: "views" into WF object
     const auto v =
         std::min_element(cbegin(valence), cend(valence), DiracSpinor::comp_en);
     if (c != cend(core) && v != cend(valence))
-      return v->en - c->en;
+      return v->en() - c->en();
     return 0.0;
   }
 
@@ -254,6 +254,9 @@ public: // const methods: "views" into WF object
   //! Local potential, e.g., Vl = Vnuc + Vdir + Vrad_el(l) - can be l-dependent
   std::vector<double> get_Vlocal(int l = 0) const;
   std::vector<double> get_Hmag(int l = 0) const;
+
+  //! Returns <a|H|b> for Hamiltonian H (inludes Rad.pot, NOT sigma or Breit)
+  double Hab(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
 
 private:
   void determineCore(const std::string &str_core_in);

@@ -79,13 +79,13 @@ bool CorrelationPotential(std::ostream &obuff) {
 
     std::vector<double> hf, br2;
     for (const auto &Fv : wf.valence) {
-      hf.push_back(Fv.en);
+      hf.push_back(Fv.en());
     }
 
     wf.hartreeFockBrueckner();
 
     for (const auto &Fv : wf.valence) {
-      br2.push_back(Fv.en);
+      br2.push_back(Fv.en());
     }
 
     auto de = qip::compose([](auto a, auto b) { return a - b; }, br2, hf);
@@ -111,13 +111,13 @@ bool CorrelationPotential(std::ostream &obuff) {
 
     std::vector<double> hf, br2;
     for (const auto &Fv : wf.valence) {
-      hf.push_back(Fv.en);
+      hf.push_back(Fv.en());
     }
 
     wf.hartreeFockBrueckner();
 
     for (const auto &Fv : wf.valence) {
-      br2.push_back(Fv.en);
+      br2.push_back(Fv.en());
     }
 
     auto de = qip::compose([](auto a, auto b) { return a - b; }, br2, hf);
@@ -165,7 +165,7 @@ bool CorrelationPotential(std::ostream &obuff) {
 
     std::vector<double> br;
     for (const auto &Fv : wf.valence) {
-      br.push_back(Fv.en);
+      br.push_back(Fv.en());
     }
     std::sort(begin(br), end(br)); // sort: don't depend on order
 

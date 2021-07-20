@@ -37,7 +37,7 @@ DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
   for (const auto &Fi : basis) {
     // NB: this makes a huge difference! Try to implement somehow
     // NB: Need to be careful: same basis used when reading W in!
-    // if (max_de > 0.0 && std::abs(Fi.en) > max_de)
+    // if (max_de > 0.0 && std::abs(Fi.en()) > max_de)
     //   continue;
     const bool inCore = std::find(cbegin(core), cend(core), Fi) != cend(core);
     if (inCore) {
@@ -321,19 +321,19 @@ double DiagramRPA::dV_diagram(const DiracSpinor &Fw, const DiracSpinor &Fv,
   if (holes.empty() || excited.empty())
     return 0.0;
 
-  if (Fv.en > Fw.en) {
+  if (Fv.en() > Fw.en()) {
     // ??????
     const auto sj = ((Fv.twoj() - Fw.twoj()) % 4 == 0) ? 1 : -1;
     const auto si = m_imag ? -1 : 1;
     return (sj * si) * dV_diagram(Fv, Fw, first_order);
   }
 
-  const auto orderOK = true; // Fv.en <= Fw.en;
+  const auto orderOK = true; // Fv.en() <= Fw.en();
   // ??????
   const auto &Fi = orderOK ? Fv : Fw;
   const auto &Ff = orderOK ? Fw : Fv;
   const auto ww = m_core_omega;
-  // Fv.en <= Fw.en ? m_core_omega : -m_core_omega;
+  // Fv.en() <= Fw.en() ? m_core_omega : -m_core_omega;
 
   const auto f = (1.0 / (2 * m_rank + 1));
 
@@ -351,8 +351,8 @@ double DiagramRPA::dV_diagram(const DiracSpinor &Fw, const DiracSpinor &Fv,
       const auto Wwavm = Coulomb::Wk_abcd(Ff, Fa, Fi, Fm, m_rank);
       const auto ttam = first_order ? t0am[ia][im] : tam[ia][im];
       const auto ttma = first_order ? t0ma[im][ia] : tma[im][ia];
-      const auto A = ttam * Wwmva / (Fa.en - Fm.en - ww);
-      const auto B = Wwavm * ttma / (Fa.en - Fm.en + ww);
+      const auto A = ttam * Wwmva / (Fa.en() - Fm.en() - ww);
+      const auto B = Wwavm * ttma / (Fa.en() - Fm.en() + ww);
       sum_a[ia] += s1 * (A + s2 * B);
     }
   }
@@ -408,9 +408,9 @@ void DiagramRPA::solve_core(const double omega, int max_its, const bool print) {
             if (tbn == 0.0)
               continue;
             const auto tnb = tma[in][ib];
-            const auto tdem = tbn / (Fb.en - Fn.en - m_core_omega);
+            const auto tdem = tbn / (Fb.en() - Fn.en() - m_core_omega);
             const auto s2 = ((Fb.twoj() - Fn.twoj()) % 4 == 0) ? 1 : -1;
-            const auto stdep = s2 * tnb / (Fb.en - Fn.en + m_core_omega);
+            const auto stdep = s2 * tnb / (Fb.en() - Fn.en() + m_core_omega);
             // Cast form 'Wtype' (may be double or float) to double
             const auto A = tdem * MyCast<double>(Wanmb[ia][in][im][ib]);
             const auto B = stdep * MyCast<double>(Wabmn[ia][in][im][ib]);

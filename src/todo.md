@@ -1,11 +1,14 @@
 # To do
 
+`[clang-format -i src/*.cpp src/*/*.cpp src/*/*.hpp]`
+
 ## Correlation
  * Construct correlation potential at specified energies
  * Easy way to use correct correlation potential matrix..?
     * e.g., in SolveMixedStates.....
  * Major cleanup..
  * filename: label.sig2 -> CsI_label.sig2
+ * Option to use Sigma2 from Gold + rest from feyn
 
 ## Feynman
  * Polarisation operator instability: (#8)
@@ -13,6 +16,7 @@
  * Hole-particle; k=0 vs k=1?
  * Overall numerical stability
  * Exchange (2nd order): w1 and w1w2
+ * g-part for Feynman
  * Breit issue?
 
 ## Ladder diagrams (#13)
@@ -23,6 +27,8 @@
  * Iterate ladder
 
 ## B-splines (#9)
+ * Fix raw B-spline class
+ * Fix B-spline basis:
  * Correct the r0 issue; correct number of splines
  * Implement Johnson version
  * Use more efficient integration?
@@ -34,7 +40,7 @@
 
 ## Wavefunction
  * Major cleanup
- * Clear separation on whose job is what (WF vs HF vs RadHam..)
+ * WF vs HF;
 
 ## TDHF
  * Issue for even-parity operators (from de?) (#3)
@@ -45,6 +51,8 @@
  * Fewer allocations?
  * Use Qk,Pk functions?
  * RPAD: minor "eps" race cond?
+ * PNC: TDHF vs Diagram?
+ * dV conj - sometimes causes issues; + not consistent
 
 ## Double core Polarisation (#12)
  * Work with any class derivative?
@@ -62,14 +70,12 @@
 ## PNC
  * Work with diagram RPA
  * dV conj ???
+ * Different Sigma's
 
 ## Continuum
  * Fix continuum class
  * Hartree-Fock?
  * Use splines?
-
-## Modules
- * Add g-factor (g-2) module
 
 ## Data format?
   * Standard data format for output/comparison?
@@ -77,7 +83,5 @@
 
 ## Overall
  * cleanup input options for main
- * Clean Wavefunction class
- * Clean DiracSpinor class
  * Improve + add unit tests
  * CheckBlock: check for Blocks (not just options)

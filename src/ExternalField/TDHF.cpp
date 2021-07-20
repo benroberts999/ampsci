@@ -52,7 +52,7 @@ void TDHF::initialise_dPsi() {
       const auto l = (pi_chla == 1) ? l_minus : l_minus + 1;
       const auto kappa = Angular::kappa_twojl(tj, l);
       m_X[ic].emplace_back(0, kappa, Fc.rgrid);
-      m_X[ic].back().pinf = Fc.pinf;
+      m_X[ic].back().set_max_pt() = Fc.max_pt();
       if (print)
         std::cout << "|" << m_X[ic].back().symbol() << "> + ";
     }
@@ -313,12 +313,12 @@ double TDHF::dV(const DiracSpinor &Fn, const DiracSpinor &Fm, bool conj,
 }
 
 double TDHF::dV(const DiracSpinor &Fn, const DiracSpinor &Fm) const {
-  const auto conj = Fm.en > Fn.en;
+  const auto conj = Fm.en() > Fn.en();
   return dV(Fn, Fm, conj);
 }
 
 double TDHF::dV1(const DiracSpinor &Fn, const DiracSpinor &Fm) const {
-  const auto conj = Fm.en > Fn.en;
+  const auto conj = Fm.en() > Fn.en();
   return dV(Fn, Fm, conj, nullptr, false);
 }
 
@@ -327,7 +327,7 @@ DiracSpinor TDHF::dV_rhs(const int kappa_n, const DiracSpinor &Fa, bool conj,
                          const DiracSpinor *const Fexcl, bool incl_dV) const {
 
   auto dVFa = DiracSpinor(0, kappa_n, Fa.rgrid);
-  dVFa.pinf = Fa.pinf;
+  dVFa.set_max_pt() = Fa.max_pt();
 
   const auto ChiType = !conj ? dPsiType::X : dPsiType::Y;
   const auto EtaType = !conj ? dPsiType::Y : dPsiType::X;
@@ -383,11 +383,11 @@ void TDHF::print(const std::string &ofname) const {
     of << gr.r(i) << " ";
     for (auto ic = 0ul; ic < m_core.size(); ic++) {
       const auto &Fc = m_core[ic];
-      of << Fc.f[i] << " ";
+      of << Fc.f(i) << " ";
       for (auto j = 0ul; j < m_X[ic].size(); j++) {
         const auto &Xx = m_X[ic][j];
         const auto &Yx = m_Y[ic][j];
-        of << Xx.f[i] << " " << Yx.f[i] << " ";
+        of << Xx.f(i) << " " << Yx.f(i) << " ";
       }
     }
     of << "\n";

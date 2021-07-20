@@ -56,7 +56,7 @@ void exampleModule(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "\nFinite nuclear charge energy shifts:\n";
   std::cout << "  state            au           GHz\n";
   for (auto i = 0ul; i < wf.valence.size(); ++i) {
-    const auto del_e = wf.valence[i].en - wfpt.valence[i].en;
+    const auto del_e = wf.valence[i].en() - wfpt.valence[i].en();
     printf("%7s  %12.5e  %12.5e\n", wf.valence[i].symbol().c_str(), del_e,
            del_e * PhysConst::Hartree_GHz);
   }

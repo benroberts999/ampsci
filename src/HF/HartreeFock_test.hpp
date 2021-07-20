@@ -14,9 +14,9 @@ bool HartreeFock(std::ostream &obuff) {
   bool pass = true;
 
   // lambdas for comparing results to test data:
-  const auto cmpr = [](const auto &ds, double v) { return (ds.en - v) / v; };
+  const auto cmpr = [](const auto &ds, double v) { return (ds.en() - v) / v; };
   const auto cmpr2 = [](const auto &ds, const auto &ds2) {
-    return (ds.en - ds2.en) / ds2.en;
+    return (ds.en() - ds2.en()) / ds2.en();
   };
 
   { // Test case: Cs (typical)

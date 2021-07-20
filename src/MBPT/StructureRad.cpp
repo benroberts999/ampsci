@@ -23,15 +23,15 @@ StructureRad::StructureRad(const std::vector<DiracSpinor> &basis,
     : mBasis(basis), // store a local copy
       mY(basis.front().rgrid, &mBasis) {
 
-  // nb: en_core defined such that: Fa.en < en_core ==> core state!
+  // nb: en_core defined such that: Fa.en() < en_core ==> core state!
 
   // Sort into core/excited; store pointers
   // nb: this makes it faster..
   const auto [n_min, n_max] = nminmax;
   for (const auto &Fn : mBasis) {
-    if (Fn.en < en_core && Fn.n >= n_min) {
+    if (Fn.en() < en_core && Fn.n >= n_min) {
       mCore.push_back(Fn);
-    } else if (Fn.en > en_core && Fn.n <= n_max) {
+    } else if (Fn.en() > en_core && Fn.n <= n_max) {
       mExcited.push_back(Fn);
     }
   }
@@ -63,8 +63,8 @@ StructureRad::srTB(const DiracOperator::TensorOperator *const h,
       if (h->isZero(a.k, r.k))
         continue;
 
-      const auto inv_era_pw = 1.0 / (r.en - a.en + omega);
-      const auto inv_era_mw = 1.0 / (r.en - a.en - omega);
+      const auto inv_era_pw = 1.0 / (r.en() - a.en() + omega);
+      const auto inv_era_mw = 1.0 / (r.en() - a.en() - omega);
 
       const auto t_ar = h->reducedME(a, r);
       const auto t_ra = h->reducedME(r, a);
@@ -203,7 +203,7 @@ double StructureRad::t1(const int k, const DiracSpinor &w, const DiracSpinor &r,
     for (const auto &b : mCore) {
 
       const auto sab = Angular::neg1pow_2(b.twoj() + a.twoj());
-      const auto inv_e_rwab = 1.0 / (r.en + w.en - a.en - b.en);
+      const auto inv_e_rwab = 1.0 / (r.en() + w.en() - a.en() - b.en());
 
       const auto [minU, maxU] = Coulomb::k_minmax_W(w, r, b, a);
       const auto [minL, maxL] = Coulomb::k_minmax_Q(v, a, b, c);
@@ -250,7 +250,7 @@ double StructureRad::t2(const int k, const DiracSpinor &w, const DiracSpinor &r,
   for (const auto &a : mCore) {
     for (const auto &n : mExcited) {
 
-      const auto inv_e_rnav = 1.0 / (r.en + n.en - a.en - v.en);
+      const auto inv_e_rnav = 1.0 / (r.en() + n.en() - a.en() - v.en());
 
       const auto [minU1, maxU1] = Coulomb::k_minmax_W(w, a, c, n);
       const auto [minU2, maxU2] = Coulomb::k_minmax_W(v, a, r, n);
@@ -289,7 +289,7 @@ double StructureRad::t3(const int k, const DiracSpinor &w, const DiracSpinor &r,
   for (const auto &a : mCore) {
     for (const auto &n : mExcited) {
 
-      const auto inv_e_nwac = 1.0 / (n.en + w.en - a.en - c.en);
+      const auto inv_e_nwac = 1.0 / (n.en() + w.en() - a.en() - c.en());
 
       const auto [minU1, maxU1] = Coulomb::k_minmax_W(w, n, c, a);
       const auto [minU2, maxU2] = Coulomb::k_minmax_W(v, n, r, a);
@@ -329,7 +329,7 @@ double StructureRad::t4(const int k, const DiracSpinor &w, const DiracSpinor &r,
     for (const auto &m : mExcited) {
 
       const auto snm = Angular::neg1pow_2(n.twoj() + m.twoj());
-      const auto inv_e_nmcv = 1.0 / (n.en + m.en - c.en - v.en);
+      const auto inv_e_nmcv = 1.0 / (n.en() + m.en() - c.en() - v.en());
 
       const auto [minU, maxU] = Coulomb::k_minmax_Q(w, r, n, m);
       const auto [minL, maxL] = Coulomb::k_minmax_W(n, m, v, c);
@@ -372,8 +372,8 @@ double StructureRad::c1(const int k, const DiracSpinor &w, const DiracSpinor &a,
   for (const auto &b : mCore) {
     for (const auto &n : mExcited) {
 
-      const auto e_nvbc = n.en + v.en - b.en - c.en;
-      const auto e_nwab = n.en + w.en - a.en - b.en;
+      const auto e_nvbc = n.en() + v.en() - b.en() - c.en();
+      const auto e_nwab = n.en() + w.en() - a.en() - b.en();
       const auto invde = 1.0 / (e_nvbc * e_nwab);
 
       const auto [minU1, maxU1] = Coulomb::k_minmax_W(w, n, a, b);
@@ -413,8 +413,8 @@ double StructureRad::c2(const int k, const DiracSpinor &w, const DiracSpinor &a,
   for (const auto &m : mExcited) {
     for (const auto &n : mExcited) {
 
-      const auto e_mnaw = m.en + n.en - a.en - w.en;
-      const auto e_nmcv = n.en + m.en - c.en - v.en;
+      const auto e_mnaw = m.en() + n.en() - a.en() - w.en();
+      const auto e_nmcv = n.en() + m.en() - c.en() - v.en();
       const auto invde = 1.0 / (e_mnaw * e_nmcv);
       const auto smn = Angular::neg1pow_2(m.twoj() + n.twoj());
 
@@ -459,8 +459,8 @@ double StructureRad::d1(const int k, const DiracSpinor &w, const DiracSpinor &r,
   for (const auto &a : mCore) {
     for (const auto &n : mExcited) {
 
-      const auto e_mnav = m.en + n.en - a.en - v.en;
-      const auto e_rnaw = r.en + n.en - a.en - w.en;
+      const auto e_mnav = m.en() + n.en() - a.en() - v.en();
+      const auto e_rnaw = r.en() + n.en() - a.en() - w.en();
       const auto invde = 1.0 / (e_mnav * e_rnaw);
 
       const auto [minU1, maxU1] = Coulomb::k_minmax_W(w, a, r, n);
@@ -502,8 +502,8 @@ double StructureRad::d2(const int k, const DiracSpinor &w, const DiracSpinor &r,
 
       const auto sab = Angular::neg1pow_2(a.twoj() + b.twoj());
 
-      const auto e_mvab = m.en + v.en - a.en - b.en;
-      const auto e_rwba = r.en + w.en - b.en - a.en;
+      const auto e_mvab = m.en() + v.en() - a.en() - b.en();
+      const auto e_rwba = r.en() + w.en() - b.en() - a.en();
       const auto invde = 1.0 / (e_mvab * e_rwba);
 
       const auto [minU, maxU] = Coulomb::k_minmax_Q(v, b, a, m);
@@ -541,7 +541,7 @@ double StructureRad::dSigma_dE(const DiracSpinor &v, const DiracSpinor &i,
                                const DiracSpinor &k) const {
   double t = 0.0;
 
-  const auto e_vijk = (v.en + i.en - j.en - k.en);
+  const auto e_vijk = (v.en() + i.en() - j.en() - k.en());
   const auto ide2 = 1.0 / (e_vijk * e_vijk);
   const auto tjvp1 = v.twoj() + 1;
 

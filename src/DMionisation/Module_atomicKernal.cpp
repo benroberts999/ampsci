@@ -103,11 +103,11 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
   for (const auto &phi : wf.core) {
     // double rinf = wf.rinf(phi);
     // printf("%2i)%7s %2i  %3.0f %3i  %5.0e  %11.5f %12.0f %10.2f   (%.2f)\n",
-    //        i++, phi.symbol().c_str(), phi.k, rinf, phi.its, phi.eps, phi.en,
-    //        phi.en * PhysConst::Hartree_invcm, phi.en * PhysConst::Hartree_eV,
-    //        phi.occ_frac);
+    //        i++, phi.symbol().c_str(), phi.k, rinf, phi.its(), phi.eps(),
+    //        phi.en(), phi.en() * PhysConst::Hartree_invcm, phi.en() *
+    //        PhysConst::Hartree_eV, phi.occ_frac());
     printf(" %7s %2i %11.5f %10.2f   [%3.2f]", phi.symbol().c_str(), phi.k,
-           phi.en, phi.en * PhysConst::Hartree_eV, phi.occ_frac);
+           phi.en(), phi.en() * PhysConst::Hartree_eV, phi.occ_frac());
     if (phi.l() > max_l)
       std::cout << " (excluded from K)";
     std::cout << "\n";

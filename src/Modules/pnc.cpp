@@ -70,17 +70,17 @@ void calculatePNC(const IO::InputBlock &input, const Wavefunction &wf) {
   // Find core/valence energy: allows distingush core/valence states
   const auto ec_max =
       std::max_element(cbegin(wf.core), cend(wf.core), DiracSpinor::comp_en)
-          ->en;
+          ->en();
   const auto ev_min = std::min_element(cbegin(wf.valence), cend(wf.valence),
                                        DiracSpinor::comp_en)
-                          ->en;
+                          ->en();
   const auto en_core = 0.5 * (ev_min + ec_max);
 
   // TDHF (nb: need object even if not doing RPA)
   auto dVE1 = ExternalField::TDHF(&he1, wf.getHF());
   auto dVpnc = ExternalField::TDHF(&hpnc, wf.getHF());
   if (rpaQ) {
-    const auto omega_dflt = std::abs(Fa.en - Fb.en);
+    const auto omega_dflt = std::abs(Fa.en() - Fb.en());
     const auto omega = input.get("omega", omega_dflt);
     auto E1_it = input.get("E1_rpa_it", 99);
     auto pnc_it = input.get("pnc_rpa_it", 99);
@@ -150,7 +150,7 @@ std::pair<double, double> pnc_sos(const DiracSpinor &Fa, const DiracSpinor &Fb,
               << he1->name() << "|" << Fb.shortSymbol() << ">/dE\n";
   }
 
-  const bool conj = Fa.en < Fb.en ? true : false;
+  const bool conj = Fa.en() < Fb.en() ? true : false;
 
   // Print each core+tail term (for testing)
   const auto print_all = false;
@@ -162,7 +162,7 @@ std::pair<double, double> pnc_sos(const DiracSpinor &Fa, const DiracSpinor &Fb,
   const auto twom = std::min(tja, tjb);
 
   // This omega is so we can swap the E1 and PNC operators!
-  const auto w_SE = hpnc->imaginaryQ() ? 0.0 : (Fa.en - Fb.en);
+  const auto w_SE = hpnc->imaginaryQ() ? 0.0 : (Fa.en() - Fb.en());
 
   double pnc_1 = 0.0, core_1 = 0.0, main_1 = 0.0;
   double pnc_2 = 0.0, core_2 = 0.0, main_2 = 0.0;
@@ -173,7 +173,7 @@ std::pair<double, double> pnc_sos(const DiracSpinor &Fa, const DiracSpinor &Fb,
       continue;
     if (he1->isZero(np.k, Fa.k) && he1->isZero(np.k, Fb.k))
       continue;
-    const auto coreQ = np.en < en_core;
+    const auto coreQ = np.en() < en_core;
     const auto mainQ = !coreQ && np.n <= main_n;
 
     // nb: need 'conj' here, since w = |w|, and want work for a->b and b->a ?
@@ -189,8 +189,8 @@ std::pair<double, double> pnc_sos(const DiracSpinor &Fa, const DiracSpinor &Fb,
     const auto c10 = he1->rme3js(tja, tjn, twom) * hpnc->rme3js(tjn, tjb, twom);
     const auto c01 = hpnc->rme3js(tja, tjn, twom) * he1->rme3js(tjn, tjb, twom);
 
-    const double pnc1 = c10 * dAp * hpB / (Fb.en - np.en + w_SE);
-    const double pnc2 = c01 * hAp * dpB / (Fa.en - np.en - w_SE);
+    const double pnc1 = c10 * dAp * hpB / (Fb.en() - np.en() + w_SE);
+    const double pnc2 = c01 * hAp * dpB / (Fa.en() - np.en() - w_SE);
     if (np.n <= main_n && print_all)
       printf("%7s, pnc= %12.5e + %12.5e = %12.5e\n", np.symbol().c_str(), pnc1,
              pnc2, pnc1 + pnc2);
@@ -225,7 +225,7 @@ DiracSpinor orthog_to_core(DiracSpinor dF,
                            const std::vector<DiracSpinor> &in_orbs,
                            double en_core) {
   for (const auto &Fc : in_orbs) {
-    const auto coreQ = Fc.en < en_core;
+    const auto coreQ = Fc.en() < en_core;
     if (dF.k == Fc.k && coreQ)
       dF -= (dF * Fc) * Fc;
   }
@@ -236,7 +236,7 @@ DiracSpinor orthog_to_coremain(DiracSpinor dF,
                                const std::vector<DiracSpinor> &in_orbs,
                                double en_core, int n_main) {
   for (const auto &Fc : in_orbs) {
-    const auto coreQ = Fc.en < en_core;
+    const auto coreQ = Fc.en() < en_core;
     const auto mainQ = !coreQ && Fc.n <= n_main;
     if (dF.k == Fc.k && (coreQ || mainQ))
       dF -= (dF * Fc) * Fc;
@@ -267,11 +267,11 @@ std::pair<double, double> pnc_tdhf(const DiracSpinor &Fa, const DiracSpinor &Fb,
   // z-comp defined as min(a,b)
   const auto twom = std::min(tja, tjb);
 
-  const bool conj = Fa.en < Fb.en ? true : false;
+  const bool conj = Fa.en() < Fb.en() ? true : false;
 
   // Allow swapping the 'pnc' and 'E1' operators:
   // note: MUST be this, not RPA w
-  const auto w_SE = hpnc->imaginaryQ() ? 0.0 : (Fa.en - Fb.en);
+  const auto w_SE = hpnc->imaginaryQ() ? 0.0 : (Fa.en() - Fb.en());
 
   //
   std::cout << "<" << Fa.shortSymbol() << "|" << he1->name() << "|d"

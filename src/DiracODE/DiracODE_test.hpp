@@ -55,12 +55,12 @@ bool DiracODE(std::ostream &obuff) {
 
   { // Check convergence:
     const auto comp_eps = [](const auto &Fa, const auto &Fb) {
-      return Fa.eps < Fb.eps;
+      return Fa.eps() < Fb.eps();
     };
     const auto worst_F =
         std::max_element(cbegin(orbitals), cend(orbitals), comp_eps);
     pass &= qip::check_value(&obuff, "converge " + worst_F->shortSymbol(),
-                             worst_F->eps, 0.0, 1.0e-14);
+                             worst_F->eps(), 0.0, 1.0e-14);
   }
 
   { // Check orthogonality of orbitals:
@@ -74,8 +74,8 @@ bool DiracODE(std::ostream &obuff) {
           AtomData::diracen(Zeff, Fa.n, Fa.k, PhysConst::alpha);
       const auto exact_b =
           AtomData::diracen(Zeff, Fb.n, Fb.k, PhysConst::alpha);
-      const auto eps_a = std::abs((Fa.en - exact_a) / exact_a);
-      const auto eps_b = std::abs((Fb.en - exact_b) / exact_b);
+      const auto eps_a = std::abs((Fa.en() - exact_a) / exact_a);
+      const auto eps_b = std::abs((Fb.en() - exact_b) / exact_b);
       return eps_a < eps_b;
     };
 
@@ -84,7 +84,7 @@ bool DiracODE(std::ostream &obuff) {
 
     const auto exact =
         AtomData::diracen(Zeff, worst_F->n, worst_F->k, PhysConst::alpha);
-    const auto eps = std::abs((worst_F->en - exact) / exact);
+    const auto eps = std::abs((worst_F->en() - exact) / exact);
 
     pass &=
         qip::check_value(&obuff, "en vs. exact (eps) " + worst_F->shortSymbol(),
@@ -163,7 +163,7 @@ bool DiracODE(std::ostream &obuff) {
       DiracODE::boundState(Fap1, en_guess_p1, v_tot, {}, PhysConst::alpha, 15);
 
       const auto dvFa = vp * Fa; // "non-local"
-      DiracODE::solve_inhomog(Fb, Fa.en, v_nuc, {}, PhysConst::alpha,
+      DiracODE::solve_inhomog(Fb, Fa.en(), v_nuc, {}, PhysConst::alpha,
                               -1 * dvFa);
 
       const auto eps_norm = std::abs(Fb * Fb - 1.0); //<b|b> - norm

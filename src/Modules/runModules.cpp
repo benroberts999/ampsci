@@ -64,7 +64,7 @@ static void write_orbitals(const std::string &fname,
     for (auto &psi : orbs) {
       if (psi.l() != l && l >= 0)
         continue;
-      of << psi.f[i] << " ";
+      of << psi.f(i) << " ";
     }
     of << "\n";
   }
@@ -75,7 +75,7 @@ static void write_orbitals(const std::string &fname,
     for (auto &psi : orbs) {
       if (psi.l() != l && l >= 0)
         continue;
-      of << psi.g[i] << " ";
+      of << psi.g(i) << " ";
     }
     of << "\n";
   }

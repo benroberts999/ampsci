@@ -10,7 +10,6 @@
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/AtomData.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
-#include "Wavefunction/Hamiltonian.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "qip/Vector.hpp"
 #include <algorithm>
@@ -129,10 +128,10 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
     if (prev == basis.end())
       continue;
     auto nmc2 = -1.0 / (wf.alpha * wf.alpha);
-    if (Fp.en < prev->en && Fp.en > nmc2) {
+    if (Fp.en() < prev->en() && Fp.en() > nmc2) {
       // XXX Better: count nodes? ['Spurious node at large r?']
       std::cout << "WARNING: "
-                << "Spurious state?? " << Fp.symbol() << " " << Fp.en << "\n";
+                << "Spurious state?? " << Fp.symbol() << " " << Fp.en() << "\n";
       // Fp *= 0.0;
     }
   }
@@ -168,59 +167,59 @@ form_spline_basis(const int kappa, const std::size_t n_states,
   basis.reserve(2 * imax);
 
   for (auto i = imin; i < imax; i++) {
-    auto &phi = basis.emplace_back(0, kappa, rgrid);
+    auto &Fi = basis.emplace_back(0, kappa, rgrid);
 
     const auto &Bi = bspl.get_spline(i);
     const auto &dBi = bspl.get_spline_deriv(i);
-    phi.f = Bi;
+    Fi.set_f() = Bi;
     if (!ND_type) {
       auto gtmp = qip::multiply(rgrid->rpow(-1), Bi);
       qip::scale(&gtmp, double(kappa));
-      phi.g = qip::add(dBi, gtmp);
-      qip::scale(&phi.g, 0.5 * alpha);
+      Fi.set_g() = qip::add(dBi, gtmp);
+      qip::scale(&Fi.set_g(), 0.5 * alpha);
     }
 
-    // phi.df = dBi;
+    // Fi.df = dBi;
     // auto bor2 = NumCalc::mult_vectors(rgrid->rpow(-2), Bi);
     // auto dbor = NumCalc::mult_vectors(rgrid->rpow(-1), dBi);
     // NumCalc::scaleVec(bor2, -double(kappa));
     // NumCalc::scaleVec(dbor, double(kappa));
     // const auto &d2Bi = bspl.get_spline_deriv2(i);
-    // phi.dg = NumCalc::add_vectors(bor2, dbor, d2Bi);
-    // NumCalc::scaleVec(phi.dg, 0.5 * alpha);
+    // Fi.dg = NumCalc::add_vectors(bor2, dbor, d2Bi);
+    // NumCalc::scaleVec(Fi.dg, 0.5 * alpha);
 
     auto [p0, pinf] = bspl.get_ends(i);
-    phi.pinf = pinf;
-    phi.p0 = p0;
-    phi.normalise(1.0);
+    Fi.set_max_pt() = pinf;
+    Fi.set_min_pt() = p0;
+    Fi.normalise(1.0);
   }
 
   for (auto i = imin; i < imax; i++) {
-    auto &phi = basis.emplace_back(0, kappa, rgrid);
+    auto &Fi = basis.emplace_back(0, kappa, rgrid);
 
     const auto &Bi = bspl.get_spline(i);
     const auto &dBi = bspl.get_spline_deriv(i);
-    phi.g = Bi;
+    Fi.set_g() = Bi;
     if (!ND_type) {
       auto ftmp = qip::multiply(rgrid->rpow(-1), Bi);
       qip::scale(&ftmp, double(-kappa));
-      phi.f = qip::add(dBi, ftmp);
-      qip::scale(&phi.f, 0.5 * alpha);
+      Fi.set_f() = qip::add(dBi, ftmp);
+      qip::scale(&Fi.set_f(), 0.5 * alpha);
     }
 
-    // phi.dg = dBi;
+    // Fi.dg = dBi;
     // auto bor2 = NumCalc::mult_vectors(rgrid->rpow(-2), Bi);
     // auto dbor = NumCalc::mult_vectors(rgrid->rpow(-1), dBi);
     // NumCalc::scaleVec(bor2, double(kappa));
     // NumCalc::scaleVec(dbor, -double(kappa));
     // const auto &d2Bi = bspl.get_spline_deriv2(i);
-    // phi.df = NumCalc::add_vectors(bor2, dbor, d2Bi);
-    // NumCalc::scaleVec(phi.df, 0.5 * alpha);
+    // Fi.df = NumCalc::add_vectors(bor2, dbor, d2Bi);
+    // NumCalc::scaleVec(Fi.df, 0.5 * alpha);
 
     auto [p0, pinf] = bspl.get_ends(i);
-    phi.pinf = pinf;
-    phi.p0 = p0;
-    phi.normalise(1.0);
+    Fi.set_max_pt() = pinf;
+    Fi.set_min_pt() = p0;
+    Fi.normalise(1.0);
   }
 
   return basis;
@@ -244,9 +243,9 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
   const auto VBr = wf.getHF() ? wf.getHF()->get_Breit() : nullptr;
 
   // Move this into wf ??
-  auto Hd = RadialHamiltonian(wf.rgrid, wf.alpha);
-  Hd.set_v(-1, wf.get_Vlocal(0)); // same each kappa //XXX
-  Hd.set_v_mag(wf.get_Hmag(0));   // Magnetic QED form-factor [usually empty]
+  // auto Hd = RadialHamiltonian(wf.rgrid, wf.alpha);
+  // Hd.set_v(-1, wf.get_Vlocal(0)); // same each kappa //XXX
+  // Hd.set_v_mag(wf.get_Hmag(0));   // Magnetic QED form-factor [usually empty]
 
 #pragma omp parallel for
   for (auto i = 0ul; i < Aij.n; i++) {
@@ -259,7 +258,7 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
       // for (auto j = 0ul; j < Aij.n; j++) {
       const auto &sj = spl_basis[j];
 
-      auto aij = Hd.matrixEl(sj, si);
+      auto aij = wf.Hab(sj, si);
       if (!excl_exch)
         aij += (sj * VexSi);
       if (sigmaQ)
@@ -333,24 +332,24 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
         (!positive_energy && pqn_pstrn < -max_n))
       continue;
 
-    auto &phi = (positive_energy)
-                    ? basis->emplace_back(pqn, kappa, wf.rgrid)
-                    : basis_positron->emplace_back(pqn_pstrn, kappa, wf.rgrid);
-    phi.en = en;
-    phi.p0 = spl_basis[0].pinf; // yes, backwards (updated below)
-    phi.pinf = spl_basis[0].p0;
+    auto &Fi = (positive_energy)
+                   ? basis->emplace_back(pqn, kappa, wf.rgrid)
+                   : basis_positron->emplace_back(pqn_pstrn, kappa, wf.rgrid);
+    Fi.set_en() = en;
+    Fi.set_min_pt() = spl_basis[0].max_pt(); // yes, backwards (updated below)
+    Fi.set_max_pt() = spl_basis[0].min_pt();
     auto sign = pvec[0] > 0 ? 1 : -1; // mostly, but not completely, works
     for (std::size_t ib = 0; ib < spl_basis.size(); ++ib) {
-      phi += sign * pvec[ib] * spl_basis[ib];
+      Fi += sign * pvec[ib] * spl_basis[ib];
     }
     // Note: they are not even roughly normalised...I think they should be??
-    phi.normalise();
+    Fi.normalise();
   }
 
   // ensure correct sign (doesn't seem to matter.., but nicer)
   const auto ir = wf.rgrid->getIndex(0.005);
   for (auto &Fb : *basis) {
-    if (Fb.f[ir] < 0)
+    if (Fb.f(ir) < 0)
       Fb *= -1;
   }
 }
@@ -378,7 +377,7 @@ std::vector<double> sumrule_TKR(const std::vector<DiracSpinor> &basis,
       if (f == 0)
         continue;
       const auto Ran = Fa * (r * Fn);
-      const auto term = f * (Fn.en - Fa.en) * Ran * Ran / (2 * l + 1);
+      const auto term = f * (Fn.en() - Fa.en()) * Ran * Ran / (2 * l + 1);
       if (Fn.n > 0)
         sum_el += term;
       else
@@ -424,7 +423,7 @@ std::vector<double> sumrule_DG(int nDG, const std::vector<DiracSpinor> &basis,
     //   std::cout << "kappa: " << kappa << " (" << Fa.symbol() << ")\n";
     auto sum = 0.0;
     for (const auto &Fn : basis) {
-      const auto w = Fn.en - Fa.en;
+      const auto w = Fn.en() - Fa.en();
       const auto Ran = rhat.reducedME(Fa, Fn);
       const double c = 1.0 / (2 * std::abs(Fa.k));
       const auto term = std::pow(w, nDG) * Ran * Ran * c;

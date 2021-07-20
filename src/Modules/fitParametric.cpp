@@ -27,11 +27,11 @@ void fitParametric(const IO::InputBlock &input, const Wavefunction &wf) {
 
   if (which_states == "core" || which_states == "both") {
     for (const auto &phi : wf.core)
-      states.emplace_back(phi.n, phi.k, phi.en);
+      states.emplace_back(phi.n, phi.k, phi.en());
   }
   if (which_states == "valence" || which_states == "both") {
     for (const auto &phi : wf.valence)
-      states.emplace_back(phi.n, phi.k, phi.en);
+      states.emplace_back(phi.n, phi.k, phi.en());
   }
   // XXX Can easily update later to take a user-given list!
 
@@ -76,16 +76,16 @@ void fitParametric(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << "\nUsing " << which_method
               << " Parametric potential: " << wf.atom() << "\n";
 
-    double en0 = wf_prm.valence.front().en;
+    double en0 = wf_prm.valence.front().en();
     int i = 0;
     for (auto &phi : wf_prm.valence) {
       // const auto njl = phi.symbol().c_str();
       // double rinf = wf.rinf(phi);
-      double rinf = wf.rgrid->r()[phi.pinf - 1];
-      double eni = phi.en;
+      double rinf = wf.rgrid->r()[phi.max_pt() - 1];
+      double eni = phi.en();
       double enT = states[std::size_t(i++)].en;
       printf("%7s %2i  %3.0f %3i  %5.0e  %13.7f  %11.4f %8.2f%%\n",
-             phi.symbol().c_str(), phi.k, rinf, phi.its, phi.eps, eni,
+             phi.symbol().c_str(), phi.k, rinf, phi.its(), phi.eps(), eni,
              (eni - en0) * PhysConst::Hartree_invcm, 100. * (enT - eni) / enT);
     }
 
@@ -150,8 +150,8 @@ FitParametric::performFit(const std::vector<AtomData::DiracSEnken> &states,
         if (fit_worst) {
           for (std::size_t ns = 0; ns < states.size(); ns++) {
             wf.solveNewValence(states[ns].n, states[ns].k, states[ns].en);
-            auto fx2 = fabs((wf.valence[ns].en - states[ns].en) /
-                            (wf.valence[ns].en + states[ns].en));
+            auto fx2 = fabs((wf.valence[ns].en() - states[ns].en) /
+                            (wf.valence[ns].en() + states[ns].en));
             if (fx2 > fx)
               fx = fx2;
           }
@@ -159,9 +159,9 @@ FitParametric::performFit(const std::vector<AtomData::DiracSEnken> &states,
           // sum-of-squares
           for (std::size_t ns = 0; ns < states.size(); ns++) {
             wf.solveNewValence(states[ns].n, states[ns].k, states[ns].en);
-            // fx += std::pow(wf.orbitals[ns].en - states[ns].en, 2);
-            fx += std::pow((wf.valence[ns].en - states[ns].en) /
-                               (wf.valence[ns].en + states[ns].en),
+            // fx += std::pow(wf.orbitals[ns].en() - states[ns].en, 2);
+            fx += std::pow((wf.valence[ns].en() - states[ns].en) /
+                               (wf.valence[ns].en() + states[ns].en),
                            2);
           }
         }

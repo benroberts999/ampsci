@@ -75,8 +75,8 @@ void screeningFactors(const IO::InputBlock &input, const Wavefunction &wf) {
     auto &fk_v = fk.emplace_back();
     kappa.push_back(Fv.k);
     for (int k = 0; k < 9; ++k) {
-      auto Sd0 = Sigma0.FeynmanDirect(Fv.k, Fv.en, k);
-      auto SdX = SigmaX.FeynmanDirect(Fv.k, Fv.en, k);
+      auto Sd0 = Sigma0.FeynmanDirect(Fv.k, Fv.en(), k);
+      auto SdX = SigmaX.FeynmanDirect(Fv.k, Fv.en(), k);
 
       const auto de0 = Fv * Sigma0.act_G_Fv(Sd0, Fv);
       const auto deX = Fv * SigmaX.act_G_Fv(SdX, Fv);

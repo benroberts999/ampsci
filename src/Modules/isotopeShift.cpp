@@ -30,7 +30,7 @@ void fieldShift(const IO::InputBlock &, const Wavefunction &wfA) {
 
   const auto r0B = wfB.get_rrms();
 
-  // const auto enB0 = wfB.valence[0].en;
+  // const auto enB0 = wfB.valence[0].en();
   std::vector<std::vector<std::pair<double, double>>> data(wfB.valence.size());
   // data.emplace_back(0.0, 0.0);
 
@@ -58,7 +58,7 @@ void fieldShift(const IO::InputBlock &, const Wavefunction &wfA) {
       for (auto i = 0ul; i < wfB.valence.size(); ++i) {
         const auto &Fv = wfB.valence[i];
         const auto &Fv0 = *wfA.getState(Fv.n, Fv.k);
-        const auto dE = -(Fv.en - Fv0.en) * PhysConst::Hartree_GHz;
+        const auto dE = -(Fv.en() - Fv0.en()) * PhysConst::Hartree_GHz;
 
         printf("%4s, %7.5f, %+7.5f, %11.4e, %11.4e\n", Fv.shortSymbol().c_str(),
                rB, rB - r0B, dr2, dE);

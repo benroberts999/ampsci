@@ -151,7 +151,7 @@ void Feyn::test_green(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
   //----------------------------------------------------------------------------
   std::cout << "Testing Gr(ev + w)\n";
   std::cout << "Comparing <v|G(e)|v> = sum_n <v|n><n|v>/(e-en) = 1/(e-ev)\n";
-  const double env = wf.valence[0].en;
+  const double env = wf.valence[0].en();
 
   const auto max_ki = DiracSpinor::max_kindex(wf.valence);
 
@@ -190,7 +190,7 @@ void Feyn::test_green(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
           auto vGv1 = Fv * Sigma.act_G_Fv(Gr1.get_real(), Fv);
           auto vGv2 = Fv * Sigma.act_G_Fv(Gr2.get_real(), Fv);
 
-          auto denom = omega + ComplexDouble{env - Fv.en, 0};
+          auto denom = omega + ComplexDouble{env - Fv.en(), 0};
           auto expected = denom.inverse();
 
           auto expect_re = expected.re();
@@ -225,7 +225,7 @@ void Feyn::test_GQ(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
   //----------------------------------------------------------------------------
   std::cout << "Testing Gr(e + w)\n";
   std::cout << "Comparing <v| G*Q |v> = sum_i R^k_viiv / (e + w - ei)\n";
-  const double env = wf.valence[0].en;
+  const double env = wf.valence[0].en();
   const auto max_ki = DiracSpinor::max_kindex(wf.basis);
 
   const auto method = MBPT::GrMethod::Green;
@@ -277,7 +277,7 @@ void Feyn::test_GQ(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
             if (Fi.k != kappa)
               continue;
             auto Rk = Coulomb::Rk_abcd(Fv, Fi, Fi, Fv, k);
-            auto denom = (en - ComplexDouble{Fi.en});
+            auto denom = (en - ComplexDouble{Fi.en()});
             ComplexDouble term = Rk * denom.inverse();
             if (wf.isInCore(Fi.n, Fi.k))
               core += term;
@@ -342,7 +342,7 @@ void Feyn::test_pol(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
 
             const auto gqpq =
                 Sigma
-                    .Green(kB, {Fv.en + omre, omim}, MBPT::States::both,
+                    .Green(kB, {Fv.en() + omre, omim}, MBPT::States::both,
                            MBPT::GrMethod::Green)
                     .mult_elements_by(qpq);
 
@@ -360,11 +360,11 @@ void Feyn::test_pol(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
                   if (f == 0.0)
                     continue;
                   const auto ide1 =
-                      (ComplexDouble{Fv.en - FB.en} + om).inverse();
+                      (ComplexDouble{Fv.en() - FB.en()} + om).inverse();
                   const auto ide2 =
-                      (ComplexDouble{Fa.en - FA.en} - om).inverse();
+                      (ComplexDouble{Fa.en() - FA.en()} - om).inverse();
                   const auto ide3 =
-                      (ComplexDouble{Fa.en - FA.en} + om).inverse();
+                      (ComplexDouble{Fa.en() - FA.en()} + om).inverse();
                   const auto Dinv = ide1 * (ide2 + ide3);
                   const auto Rk = Coulomb::Rk_abcd(Fv, FA, FB, Fa, k);
                   sum1 += Rk * Rk * f * f * Dinv * (1.0 / (2 * k + 1));
@@ -421,8 +421,8 @@ void Feyn::test_pol(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
             if (f == 0.0)
               continue;
             const auto me = (Fa * FA);
-            const auto ide2 = (ComplexDouble{Fa.en - FA.en} - om).inverse();
-            const auto ide3 = (ComplexDouble{Fa.en - FA.en} + om).inverse();
+            const auto ide2 = (ComplexDouble{Fa.en() - FA.en()} - om).inverse();
+            const auto ide3 = (ComplexDouble{Fa.en() - FA.en()} + om).inverse();
             const auto Dinv = (ide2 + ide3);
             expected += me * me * f * f * Dinv * (1.0 / (2 * k + 1));
           }

@@ -109,10 +109,10 @@ void boundState(DiracSpinor &psi, const double en0,
     // Find solution (f,g) to DE for given energy:
     // Also stores dg (gout-gin) for PT [used for PT to find better e]
     std::vector<double> dg(2 * Param::d_ctp + 1);
-    Adams::trialDiracSolution(psi.f, psi.g, dg, t_en, psi.k, v, H_mag, rgrid,
-                              ctp, Param::d_ctp, t_pinf, alpha);
+    Adams::trialDiracSolution(psi.set_f(), psi.set_g(), dg, t_en, psi.k, v,
+                              H_mag, rgrid, ctp, Param::d_ctp, t_pinf, alpha);
 
-    const int counted_nodes = Adams::countNodes(psi.f, t_pinf);
+    const int counted_nodes = Adams::countNodes(psi.f(), t_pinf);
 
     // If correct number of nodes, use PT to make minor energy adjustment.
     // Otherwise, make large adjustmunt until correct # of nodes
@@ -120,7 +120,7 @@ void boundState(DiracSpinor &psi, const double en0,
     if (counted_nodes == required_nodes) {
       correct_nodes = true;
       anorm = psi * psi;
-      t_en = Adams::smallEnergyChangePT(en_old, anorm, psi.f, dg, ctp,
+      t_en = Adams::smallEnergyChangePT(en_old, anorm, psi.f(), dg, ctp,
                                         Param::d_ctp, alpha, sofar);
     } else {
       correct_nodes = false;
@@ -149,15 +149,15 @@ void boundState(DiracSpinor &psi, const double en0,
   if (!correct_nodes) {
     anorm = psi * psi;
     DEBUG(std::cerr << "\nFAIL-148: wrong nodes:"
-                    << Adams::countNodes(psi.f, t_pinf) << "/" << required_nodes
-                    << " for " << psi.symbol() << "\n";)
+                    << Adams::countNodes(psi.f(), t_pinf) << "/"
+                    << required_nodes << " for " << psi.symbol() << "\n";)
   }
 
   // store energy etc.
-  psi.en = t_en;
-  psi.eps = t_eps;
-  psi.pinf = (std::size_t)t_pinf;
-  psi.its = t_its;
+  psi.set_en() = t_en;
+  psi.set_eps() = t_eps;
+  psi.set_max_pt() = (std::size_t)t_pinf;
+  psi.set_its() = t_its;
 
   // Explicitely set 'tail' to zero (we may be re-using orbital)
   psi.zero_boundaries();
@@ -174,12 +174,12 @@ void regularAtOrigin(DiracSpinor &Fa, const double en,
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   const auto &gr = Fa.rgrid;
   if (en != 0)
-    Fa.en = en;
+    Fa.set_en() = en;
   const auto pinf =
-      Adams::findPracticalInfinity(Fa.en, v, gr->r(), Param::cALR);
-  Adams::DiracMatrix Hd(*gr, v, Fa.k, Fa.en, alpha, H_mag);
-  Adams::outwardAM(Fa.f, Fa.g, Hd, pinf - 1);
-  Fa.pinf = pinf;
+      Adams::findPracticalInfinity(Fa.en(), v, gr->r(), Param::cALR);
+  Adams::DiracMatrix Hd(*gr, v, Fa.k, Fa.en(), alpha, H_mag);
+  Adams::outwardAM(Fa.set_f(), Fa.set_g(), Hd, pinf - 1);
+  Fa.set_max_pt() = pinf;
   // for safety: make sure zerod! (I may re-use existing orbitals!)
   Fa.zero_boundaries();
 }
@@ -191,12 +191,12 @@ void regularAtInfinity(DiracSpinor &Fa, const double en,
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   const auto &gr = Fa.rgrid;
   if (en < 0)
-    Fa.en = en;
+    Fa.set_en() = en;
   const auto pinf =
-      Adams::findPracticalInfinity(Fa.en, v, gr->r(), Param::cALR);
-  Adams::DiracMatrix Hd(*gr, v, Fa.k, Fa.en, alpha, H_mag);
-  Adams::inwardAM(Fa.f, Fa.g, Hd, 0, pinf - 1);
-  Fa.pinf = pinf;
+      Adams::findPracticalInfinity(Fa.en(), v, gr->r(), Param::cALR);
+  Adams::DiracMatrix Hd(*gr, v, Fa.k, Fa.en(), alpha, H_mag);
+  Adams::inwardAM(Fa.set_f(), Fa.set_g(), Hd, 0, pinf - 1);
+  Fa.set_max_pt() = pinf;
   // for safety: make sure zerod! (I may re-use existing orbitals!)
   Fa.zero_boundaries();
 }

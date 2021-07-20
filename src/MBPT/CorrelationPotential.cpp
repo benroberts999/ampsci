@@ -160,7 +160,7 @@ void CorrelationPotential::addto_G(GMatrix *Gmat, const DiracSpinor &ket,
     const auto si = ri_subToFull(i);
     for (auto j = 0ul; j < m_subgrid_points; ++j) {
       const auto sj = ri_subToFull(j);
-      Gmat->ff[i][j] += f * ket.f[si] * bra.f[sj];
+      Gmat->ff[i][j] += f * ket.f(si) * bra.f(sj);
     } // j
   }   // i
 
@@ -169,9 +169,9 @@ void CorrelationPotential::addto_G(GMatrix *Gmat, const DiracSpinor &ket,
       const auto si = ri_subToFull(i);
       for (auto j = 0ul; j < m_subgrid_points; ++j) {
         const auto sj = ri_subToFull(j);
-        Gmat->fg[i][j] += f * ket.f[si] * bra.g[sj];
-        Gmat->gf[i][j] += f * ket.g[si] * bra.f[sj];
-        Gmat->gg[i][j] += f * ket.g[si] * bra.g[sj];
+        Gmat->fg[i][j] += f * ket.f(si) * bra.g(sj);
+        Gmat->gf[i][j] += f * ket.g(si) * bra.f(sj);
+        Gmat->gg[i][j] += f * ket.g(si) * bra.g(sj);
       } // j
     }   // i
   }
@@ -195,7 +195,7 @@ DiracSpinor CorrelationPotential::act_G_Fv(const GMatrix &Gmat,
     for (auto j = 0ul; j < m_subgrid_points; ++j) {
       const auto sj = ri_subToFull(j);
       const auto dr = gr.drdu()[sj] * gr.du() * double(m_stride);
-      f[i] += Gmat.ff[i][j] * Fv.f[sj] * dr;
+      f[i] += Gmat.ff[i][j] * Fv.f(sj) * dr;
     }
   }
 
@@ -205,17 +205,17 @@ DiracSpinor CorrelationPotential::act_G_Fv(const GMatrix &Gmat,
       for (auto j = 0ul; j < m_subgrid_points; ++j) {
         const auto sj = ri_subToFull(j);
         const auto dr = gr.drdu()[sj] * gr.du() * double(m_stride);
-        f[i] += Gmat.fg[i][j] * Fv.g[sj] * dr;
-        g[i] += Gmat.gf[i][j] * Fv.f[sj] * dr;
-        g[i] += Gmat.gg[i][j] * Fv.g[sj] * dr;
+        f[i] += Gmat.fg[i][j] * Fv.g(sj) * dr;
+        g[i] += Gmat.gf[i][j] * Fv.f(sj) * dr;
+        g[i] += Gmat.gg[i][j] * Fv.g(sj) * dr;
       }
     }
   }
 
   // Interpolate from sub-grid to full grid
-  SigmaFv.f = Interpolator::interpolate(m_subgrid_r, f, gr.r());
+  SigmaFv.set_f() = Interpolator::interpolate(m_subgrid_r, f, gr.r());
   if (m_include_G) {
-    SigmaFv.g = Interpolator::interpolate(m_subgrid_r, g, gr.r());
+    SigmaFv.set_g() = Interpolator::interpolate(m_subgrid_r, g, gr.r());
   }
 
   return SigmaFv;
@@ -233,7 +233,7 @@ double CorrelationPotential::act_G_Fv_2(const DiracSpinor &Fa,
     const auto si = ri_subToFull(i);
     for (auto j = 0ul; j < m_subgrid_points; ++j) {
       const auto sj = ri_subToFull(j);
-      aGb += Fa.f[si] * Gmat.ff[i][j] * Fb.f[sj];
+      aGb += Fa.f(si) * Gmat.ff[i][j] * Fb.f(sj);
     }
   }
 
@@ -242,9 +242,9 @@ double CorrelationPotential::act_G_Fv_2(const DiracSpinor &Fa,
       const auto si = ri_subToFull(i);
       for (auto j = 0ul; j < m_subgrid_points; ++j) {
         const auto sj = ri_subToFull(j);
-        aGb += Fa.f[si] * Gmat.fg[i][j] * Fb.g[sj];
-        aGb += Fa.g[si] * Gmat.gf[i][j] * Fb.f[sj];
-        aGb += Fa.g[si] * Gmat.gg[i][j] * Fb.g[sj];
+        aGb += Fa.f(si) * Gmat.fg[i][j] * Fb.g(sj);
+        aGb += Fa.g(si) * Gmat.gf[i][j] * Fb.f(sj);
+        aGb += Fa.g(si) * Gmat.gg[i][j] * Fb.g(sj);
       }
     }
   }
@@ -302,7 +302,7 @@ double CorrelationPotential::SOEnergyShift(const DiracSpinor &v,
               (&v == &w) ? Qkv : Coulomb::Qk_abcd(w, a, m, n, k, yknb, Ck);
           const auto &ybm = m_yeh.get_y_ab(m, a);
           const auto Pkw = Coulomb::Pk_abcd(w, a, m, n, k, ybm, Ck, m_6j);
-          const auto dele = v.en + a.en - m.en - n.en;
+          const auto dele = v.en() + a.en() - m.en() - n.en();
           del_a += ((1.0 / dele / f_kkjj) * (Qkw + Pkw)) * Qkv;
         } // m
 
@@ -317,7 +317,7 @@ double CorrelationPotential::SOEnergyShift(const DiracSpinor &v,
               (&v == &w) ? Qkv : Coulomb::Qk_abcd(w, n, b, a, k, yknb, Ck);
           const auto &yna = m_yeh.get_y_ab(n, b);
           const auto Pkw = Coulomb::Pk_abcd(w, n, b, a, k, yna, Ck, m_6j);
-          const auto dele = v.en + n.en - b.en - a.en;
+          const auto dele = v.en() + n.en() - b.en() - a.en();
           del_a += ((1.0 / dele / f_kkjj) * (Qkw + Pkw)) * Qkv;
         } // b
 

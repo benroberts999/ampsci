@@ -8,6 +8,7 @@
 #include "MBPT/GoldstoneSigma.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/Interpolator.hpp"
+#include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/AtomData.hpp"
 #include "Physics/NuclearPotentials.hpp"
 #include "Physics/Parametric_potentials.hpp"
@@ -72,11 +73,12 @@ void Wavefunction::solveDirac(DiracSpinor &psi, double e_a,
 {
   const auto v_a = qip::add(get_Vlocal(psi.l()), vex);
   if (e_a != 0) {
-    psi.en = e_a;
-  } else if (psi.en == 0) {
-    psi.en = enGuessVal(psi.n, psi.k);
+    psi.set_en() = e_a;
+  } else if (psi.en() == 0) {
+    psi.set_en() = enGuessVal(psi.n, psi.k);
   }
-  DiracODE::boundState(psi, psi.en, v_a, get_Hmag(psi.l()), alpha, log_dele_or);
+  DiracODE::boundState(psi, psi.en(), v_a, get_Hmag(psi.l()), alpha,
+                       log_dele_or);
 }
 
 //------------------------------------------------------------------------------
@@ -322,12 +324,12 @@ double Wavefunction::en_coreval_gap() const {
   const auto ec_max = core.empty() ? 0.0
                                    : std::max_element(cbegin(core), cend(core),
                                                       DiracSpinor::comp_en)
-                                         ->en;
+                                         ->en();
   const auto ev_min = valence.empty()
                           ? 0.0
                           : std::min_element(cbegin(valence), cend(valence),
                                              DiracSpinor::comp_en)
-                                ->en;
+                                ->en();
   return 0.5 * (ev_min + ec_max);
 }
 
@@ -352,15 +354,15 @@ void Wavefunction::solveLocalCore(const std::string &str_core, int log_dele_or)
     if (k1 != 0) {
       auto &new_Fc = core.emplace_back(n, k1, rgrid);
       solveDirac(new_Fc, en_a, log_dele_or);
-      new_Fc.occ_frac = double(num) / (4 * l + 2);
-      en_a = 0.95 * new_Fc.en;
+      new_Fc.set_occ_frac() = double(num) / (4 * l + 2);
+      en_a = 0.95 * new_Fc.en();
       if (en_a > 0)
         en_a = enGuessCore(n, l);
     }
     int k2 = -(l + 1); // j=l+1/2
     auto &new_Fc = core.emplace_back(n, k2, rgrid);
     solveDirac(new_Fc, en_a, log_dele_or);
-    new_Fc.occ_frac = double(num) / (4 * l + 2);
+    new_Fc.set_occ_frac() = double(num) / (4 * l + 2);
   }
 }
 
@@ -576,7 +578,7 @@ Wavefunction::sortedEnergyList(const std::vector<DiracSpinor> &tmp_orbs,
   using DoubleInt = std::pair<double, std::size_t>;
   std::vector<DoubleInt> t_en;
   for (std::size_t i = 0; i < tmp_orbs.size(); i++) {
-    t_en.emplace_back(tmp_orbs[i].en, i);
+    t_en.emplace_back(tmp_orbs[i].en(), i);
   }
 
   // Sort list of Pairs by first element in the pair:
@@ -616,12 +618,12 @@ void Wavefunction::printCore(bool sorted) const
   auto index_list = sortedEnergyList(core, sorted);
   for (auto i : index_list) {
     const auto &phi = core[i];
-    auto r_inf = rgrid->r()[phi.pinf - 1]; // rinf(phi);
+    auto r_inf = rgrid->r()[phi.max_pt() - 1]; // rinf(phi);
     printf("%2i) %7s %2i  %5.1f %2i  %5.0e %15.9f %15.3f", int(i),
-           phi.symbol().c_str(), phi.k, r_inf, phi.its, phi.eps, phi.en,
-           phi.en *PhysConst::Hartree_invcm);
-    if (phi.occ_frac < 1.0)
-      printf("     [%4.2f]\n", phi.occ_frac);
+           phi.symbol().c_str(), phi.k, r_inf, phi.its(), phi.eps(), phi.en(),
+           phi.en() * PhysConst::Hartree_invcm);
+    if (phi.occ_frac() < 1.0)
+      printf("     [%4.2f]\n", phi.occ_frac());
     else
       std::cout << "\n";
   }
@@ -642,8 +644,8 @@ void Wavefunction::printValence(
   // Find lowest valence energy:
   auto e0 = 0.0;
   for (auto &phi : tmp_orbs) {
-    if (phi.en < e0)
-      e0 = phi.en;
+    if (phi.en() < e0)
+      e0 = phi.en();
   }
 
   std::cout
@@ -652,11 +654,11 @@ void Wavefunction::printValence(
   auto index_list = sortedEnergyList(tmp_orbs, sorted);
   for (auto i : index_list) {
     const auto &phi = tmp_orbs[i];
-    auto r_inf = rgrid->r()[phi.pinf - 1]; // rinf(phi);
+    auto r_inf = rgrid->r()[phi.max_pt() - 1]; // rinf(phi);
     printf("%2i) %7s %2i  %5.1f %2i  %5.0e %15.9f %15.3f", int(i),
-           phi.symbol().c_str(), phi.k, r_inf, phi.its, phi.eps, phi.en,
-           phi.en *PhysConst::Hartree_invcm);
-    printf(" %10.2f\n", (phi.en - e0) * PhysConst::Hartree_invcm);
+           phi.symbol().c_str(), phi.k, r_inf, phi.its(), phi.eps(), phi.en(),
+           phi.en() * PhysConst::Hartree_invcm);
+    printf(" %10.2f\n", (phi.en() - e0) * PhysConst::Hartree_invcm);
   }
 }
 
@@ -668,18 +670,20 @@ void Wavefunction::printBasis(const std::vector<DiracSpinor> &the_basis,
   const auto index_list = sortedEnergyList(the_basis, sorted);
   for (const auto i : index_list) {
     const auto &phi = the_basis[i];
-    const auto r_0 = rgrid->r()[phi.p0];
-    const auto r_inf = rgrid->r()[phi.pinf - 1];
+    const auto r_0 = phi.r0();
+    const auto r_inf = phi.rinf();
 
     const auto *hf_phi = getState(phi.n, phi.k);
     if (hf_phi != nullptr) {
       // found HF state
-      const auto eps = 2.0 * (phi.en - hf_phi->en) / (phi.en + hf_phi->en);
+      const auto eps =
+          2.0 * (phi.en() - hf_phi->en()) / (phi.en() + hf_phi->en());
       printf("%2i) %7s %2i  %5.0e %5.1f %18.7f  %13.7f  %6.0e\n", int(i),
-             phi.symbol().c_str(), phi.k, r_0, r_inf, phi.en, hf_phi->en, eps);
+             phi.symbol().c_str(), phi.k, r_0, r_inf, phi.en(), hf_phi->en(),
+             eps);
     } else {
       printf("%2i) %7s %2i  %5.0e %5.1f %18.7f\n", int(i), phi.symbol().c_str(),
-             phi.k, r_0, r_inf, phi.en);
+             phi.k, r_0, r_inf, phi.en());
     }
   }
 }
@@ -688,9 +692,9 @@ void Wavefunction::printBasis(const std::vector<DiracSpinor> &the_basis,
 std::vector<double> Wavefunction::coreDensity() const {
   std::vector<double> rho(rgrid->num_points(), 0.0);
   for (const auto &phi : core) {
-    auto f = double(phi.twoj() + 1) * phi.occ_frac;
+    auto f = double(phi.twoj() + 1) * phi.occ_frac();
     for (auto i = 0ul; i < rgrid->num_points(); i++) {
-      rho[i] += f * (phi.f[i] * phi.f[i] + phi.g[i] * phi.g[i]);
+      rho[i] += f * (phi.f(i) * phi.f(i) + phi.g(i) * phi.g(i));
     }
   }
   return rho;
@@ -759,7 +763,7 @@ void Wavefunction::formSigma(
     if (each_valence) {
       // calculate sigma for each valence state:
       for (const auto &Fv : valence) {
-        m_Sigma->formSigma(Fv.k, Fv.en, Fv.n);
+        m_Sigma->formSigma(Fv.k, Fv.en(), Fv.n);
       }
     } else if (!ek && m_Sigma->empty()) {
       // calculate sigma for lowest n valence state of each kappa:
@@ -768,7 +772,7 @@ void Wavefunction::formSigma(
         auto Fv = std::find_if(cbegin(valence), cend(valence),
                                [ki](auto f) { return f.k_index() == ki; });
         if (Fv != cend(valence))
-          m_Sigma->formSigma(Fv->k, Fv->en, Fv->n);
+          m_Sigma->formSigma(Fv->k, Fv->en(), Fv->n);
       }
     } else if (ek && m_Sigma->empty()) {
       // solve at specific energies:
@@ -822,12 +826,13 @@ void Wavefunction::fitSigma_hfBrueckner(
     if (e_exp >= 0.0)
       continue;
 
-    // std::cout << Fv.symbol() << " " << Fv.en * PhysConst::Hartree_invcm
+    // std::cout << Fv.symbol() << " " << Fv.en() * PhysConst::Hartree_invcm
     //           << " -> " << e_exp * PhysConst::Hartree_invcm << ": ";
 
     printf("%4s %7.0f [%7.0f] : ", Fv.shortSymbol().c_str(),
-           Fv.en * PhysConst::Hartree_invcm, e_exp * PhysConst::Hartree_invcm);
-    const double en_0 = Fv.en; // HF value
+           Fv.en() * PhysConst::Hartree_invcm,
+           e_exp * PhysConst::Hartree_invcm);
+    const double en_0 = Fv.en(); // HF value
     auto lambda = 1.0;
     double eps = 1.0;
     int its = 0;
@@ -836,7 +841,7 @@ void Wavefunction::fitSigma_hfBrueckner(
       m_Sigma->scale_Sigma(Fv_l.n, Fv_l.k, lambda);
       // nb: hf_Brueckner must start from HF... so, call on copy of Fv....
       m_pHF->hf_Brueckner(Fv_l, *m_Sigma);
-      double en_l = Fv_l.en;
+      double en_l = Fv_l.en();
       eps = std::abs((e_exp - en_l) / e_exp);
       if (eps < eps_targ)
         break;
@@ -867,11 +872,11 @@ void Wavefunction::SOEnergyShift() {
     const auto delta2 = v * (*m_Sigma)(v);
     const auto cm = PhysConst::Hartree_invcm;
     if (e0 == 0)
-      e0 = (v.en + delta);
+      e0 = (v.en() + delta);
     printf("%6s| %9.6f  %+9.6f  %+9.6f | %9.6f = %8.1f  %7.1f\n",
-           v.symbol().c_str(), v.en, delta, delta2, (v.en + delta),
-           (v.en + delta) * cm, (v.en + delta - e0) * cm);
-    if (std::abs(delta / v.en) > 0.2)
+           v.symbol().c_str(), v.en(), delta, delta2, (v.en() + delta),
+           (v.en() + delta) * cm, (v.en() + delta - e0) * cm);
+    if (std::abs(delta / v.en()) > 0.2)
       std::cout << "      *** Warning: delta too large?\n";
   }
 }
@@ -883,4 +888,46 @@ std::vector<double> Wavefunction::get_Vlocal(int l) const {
 //******************************************************************************
 std::vector<double> Wavefunction::get_Hmag(int l) const {
   return qed ? qed->Hmag(l) : std::vector<double>{};
+}
+
+//******************************************************************************
+double Wavefunction::Hab(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
+  if (Fa.k != Fb.k)
+    return 0.0;
+  const auto kappa = Fa.k;
+  const auto max = std::min(Fa.max_pt(), Fb.max_pt());
+  const auto min = std::max(Fa.min_pt(), Fb.min_pt());
+  const auto &drdu = Fa.rgrid->drdu();
+
+  const auto the_same = &Fa == &Fb;
+
+  auto dga = NumCalc::derivative(Fa.g(), drdu, Fb.rgrid->du(), 1);
+  auto dgb =
+      the_same ? dga : NumCalc::derivative(Fb.g(), drdu, Fb.rgrid->du(), 1);
+
+  for (std::size_t i = min; i < max; i++) {
+    const auto r = Fa.rgrid->r(i);
+    dga[i] -= (kappa * Fa.g(i) / r);
+    dgb[i] -= (kappa * Fb.g(i) / r);
+  }
+
+  const auto D1m2 = NumCalc::integrate(1.0, min, max, Fa.f(), dgb, drdu) +
+                    NumCalc::integrate(1.0, min, max, Fb.f(), dga, drdu);
+
+  const auto Sab = NumCalc::integrate(1.0, min, max, Fa.g(), Fb.g(), drdu);
+
+  const auto &v = get_Vlocal(Fa.l());
+  const auto Vab = NumCalc::integrate(1.0, min, max, Fa.f(), Fb.f(), v, drdu) +
+                   NumCalc::integrate(1.0, min, max, Fa.g(), Fb.g(), v, drdu);
+
+  const auto &Hmag = get_Hmag(Fa.l());
+
+  const auto V_mag =
+      Hmag.empty()
+          ? 0.0
+          : NumCalc::integrate(1.0, min, max, Fa.f(), Fb.g(), Hmag, drdu) +
+                NumCalc::integrate(1.0, min, max, Fa.g(), Fb.f(), Hmag, drdu);
+  const auto c = 1.0 / alpha;
+
+  return (Vab - c * (D1m2 + 2.0 * c * Sab + V_mag)) * Fa.rgrid->du();
 }

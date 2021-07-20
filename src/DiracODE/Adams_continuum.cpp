@@ -35,7 +35,7 @@ void solveContinuum(DiracSpinor &Fa, const double en,
 {
   // guess as asymptotic region:
   auto i_asym = ext_grid.getIndex(r_asym0);
-  Fa.en = en;
+  Fa.set_en() = en;
 
   const auto num_pointsb = Fa.rgrid->num_points();
   const auto num_pointsc = ext_grid.num_points();
@@ -43,33 +43,34 @@ void solveContinuum(DiracSpinor &Fa, const double en,
   // Perform the "outwards integration"
   // XXX DON"T need to do this! Just re-size f/g vectors!! XXX
   // DiracSpinor psic(Fa.n, Fa.k, ext_grid);
-  Fa.f.resize(num_pointsc); // nb: this is a little dangerous!
-  Fa.g.resize(num_pointsc);
+  Fa.set_f().resize(num_pointsc); // nb: this is a little dangerous!
+  Fa.set_g().resize(num_pointsc);
 
-  DiracMatrix Hd(ext_grid, v, Fa.k, Fa.en, alpha, {});
-  outwardAM(Fa.f, Fa.g, Hd, (int)num_pointsc - 1);
+  DiracMatrix Hd(ext_grid, v, Fa.k, Fa.en(), alpha, {});
+  outwardAM(Fa.set_f(), Fa.set_g(), Hd, (int)num_pointsc - 1);
 
   // Find a better (lower) asymptotic region:
-  i_asym = findAsymptoticRegion(Fa.f, ext_grid.r(), num_pointsb, num_pointsc,
-                                i_asym);
+  i_asym = findAsymptoticRegion(Fa.set_f(), ext_grid.r(), num_pointsb,
+                                num_pointsc, i_asym);
 
   // Find amplitude of large-r (asymptotic region) sine-like wf
-  const double amp = findSineAmplitude(Fa.f, ext_grid.r(), num_pointsc, i_asym);
+  const double amp =
+      findSineAmplitude(Fa.set_f(), ext_grid.r(), num_pointsc, i_asym);
 
   // Calculate normalisation coeficient, D, and re-scaling factor:
   // D = Sqrt[alpha/(pi*eps)] <-- Amplitude of large-r p(r)
   // eps = Sqrt[en/(en+2mc^2)]
   const double al2 = std::pow(alpha, 2);
   // c*eps = eps/alpha
-  const double ceps = std::sqrt(Fa.en / (Fa.en * al2 + 2.));
+  const double ceps = std::sqrt(Fa.en() / (Fa.en() * al2 + 2.));
   const double D = 1.0 / std::sqrt(M_PI * ceps);
   const double sf = D / amp; // re-scale factor
 
   // // Normalise the wfs, and transfer back to shorter arrays:
   // Transfer back to shorter array:
-  Fa.f.resize(num_pointsb); // nb: this is a little dangerous!
-  Fa.g.resize(num_pointsb);
-  Fa.pinf = num_pointsb - 1;
+  Fa.set_f().resize(num_pointsb); // nb: this is a little dangerous!
+  Fa.set_g().resize(num_pointsb);
+  Fa.set_max_pt() = num_pointsb - 1;
   Fa *= sf;
 }
 

@@ -109,12 +109,12 @@ bool MixedStates(std::ostream &obuff) {
                                       nullptr, ExternalField::StateType::bra);
         const auto h_mv = h.reducedME(Fm, Fv) + dv.dV(Fm, Fv);
         const auto lhs = Fm * Xb;
-        const auto rhs = h_mv / (Fv.en - Fm.en);
+        const auto rhs = h_mv / (Fv.en() - Fm.en());
         const auto eps = (lhs - rhs) / (lhs + rhs);
 
         const auto h_vm = h.reducedME(Fv, Fm) + dv.dV(Fv, Fm);
         const auto lhsY = Yb * Fm;
-        const auto rhsY = h_vm / (Fv.en - Fm.en);
+        const auto rhsY = h_vm / (Fv.en() - Fm.en());
         const auto epsY = (lhsY - rhsY) / (lhsY + rhsY);
 
         if (count % 5 == 0 || count == 0) {
@@ -211,13 +211,13 @@ UnitTest::helper::MS_loops(const Wavefunction &wf,
 
       // loop over few frequencies:
       for (const auto &w_mult : omega_mults) {
-        const auto w = std::abs(Fv.en * w_mult);
+        const auto w = std::abs(Fv.en() * w_mult);
 
         const auto dFv = ExternalField::solveMixedState(Fm.k, Fv, w, vl,
                                                         wf.alpha, wf.core, hFv);
 
         const auto lhs = Fm * dFv;
-        const auto rhs = h_mv / (Fv.en - Fm.en + w);
+        const auto rhs = h_mv / (Fv.en() - Fm.en() + w);
         const auto eps = (lhs - rhs) / (lhs + rhs);
 
 // find the best and worst case:

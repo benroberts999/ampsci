@@ -55,9 +55,9 @@ bool Breit(std::ostream &obuff) {
     // Get my values:
     datav en{};
     for (const auto &Fc : wf.core)
-      en.emplace_back(Fc.symbol(), Fc.en);
+      en.emplace_back(Fc.symbol(), Fc.en());
     for (const auto &Fv : wf.valence)
-      en.emplace_back(Fv.symbol(), Fv.en);
+      en.emplace_back(Fv.symbol(), Fv.en());
     std::sort(begin(en), end(en), sort_by_first);
 
     const auto [eps, at] = qip::compare(en, en_VD, eps_second);

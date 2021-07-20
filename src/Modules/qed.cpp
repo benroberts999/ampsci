@@ -163,10 +163,10 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
     if (!Fv_SE || !Fv_SE)
       continue;
 
-    const auto de_vp = Fv_VP->en - Fv.en;
-    const auto de_se = Fv_SE->en - Fv.en;
+    const auto de_vp = Fv_VP->en() - Fv.en();
+    const auto de_se = Fv_SE->en() - Fv.en();
     const auto o = qip::fstring("%4s  %12.5e  %12.5e  %12.5e  %12.5e\n",
-                                Fv.shortSymbol().c_str(), Fv.en, de_vp, de_se,
+                                Fv.shortSymbol().c_str(), Fv.en(), de_vp, de_se,
                                 de_vp + de_se);
     std::cout << o;
     of_en << wf.Znuc() << " " << o;

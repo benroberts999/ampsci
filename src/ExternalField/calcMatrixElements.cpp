@@ -36,7 +36,7 @@ std::vector<MEdata> calcMatrixElements(const std::vector<DiracSpinor> &orbs,
       if (!print_both && Fb > Fa)
         continue;
 
-      const auto ww = std::abs(Fa.en - Fb.en);
+      const auto ww = std::abs(Fa.en() - Fb.en());
       if (each_freq && h->freqDependantQ) {
         h->updateFrequency(ww);
       }

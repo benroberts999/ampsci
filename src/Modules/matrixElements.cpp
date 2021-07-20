@@ -234,7 +234,7 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
 
       std::cout << "\n" << h->rme_symbol(w, v) << ":\n";
 
-      const auto ww = eachFreqQ ? std::abs(wp->en - vp->en) : const_omega;
+      const auto ww = eachFreqQ ? std::abs(wp->en() - vp->en()) : const_omega;
       if (eachFreqQ && h->freqDependantQ) {
         h->updateFrequency(ww);
       }
@@ -319,9 +319,9 @@ void calculateLifetimes(const IO::InputBlock &input, const Wavefunction &wf) {
 
     if (doE1) {
       for (const auto &Fn : wf.valence) {
-        if (Fn.en >= Fa.en || he1.isZero(Fn.k, Fa.k))
+        if (Fn.en() >= Fa.en() || he1.isZero(Fn.k, Fa.k))
           continue;
-        const auto w = Fa.en - Fn.en;
+        const auto w = Fa.en() - Fn.en();
         if (rpaQ)
           dVE1.solve_core(w, 40);
         auto d = he1.reducedME(Fn, Fa) + dVE1.dV(Fn, Fa);
@@ -341,9 +341,9 @@ void calculateLifetimes(const IO::InputBlock &input, const Wavefunction &wf) {
     }
     if (doE2) {
       for (const auto &Fn : wf.valence) {
-        if (Fn.en >= Fa.en || he2.isZero(Fn.k, Fa.k))
+        if (Fn.en() >= Fa.en() || he2.isZero(Fn.k, Fa.k))
           continue;
-        const auto w = Fa.en - Fn.en;
+        const auto w = Fa.en() - Fn.en();
         if (rpaQ)
           dVE2.solve_core(w, 40);
         const auto d = he2.reducedME(Fn, Fa) + dVE2.dV(Fn, Fa);

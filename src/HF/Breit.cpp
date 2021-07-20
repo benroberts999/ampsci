@@ -60,8 +60,8 @@ DiracSpinor Breit::dVbrX_Fa(int kappa, int K, const DiracSpinor &Fa,
 
   DiracSpinor dVFa(0, kappa, Fa.rgrid);
   // These will be updated in MOPk_ij_Fc if need be
-  dVFa.p0 = Fa.p0;
-  dVFa.pinf = Fa.pinf;
+  dVFa.set_min_pt() = Fa.min_pt();
+  dVFa.set_max_pt() = Fa.max_pt();
   if (m_scale == 0.0)
     return dVFa;
 
@@ -144,8 +144,8 @@ DiracSpinor Breit::dVbrD_Fa(int kappa, int K, const DiracSpinor &Fa,
 
   DiracSpinor dVFa(0, kappa, Fa.rgrid);
   // These will be updated in MOPk_ij_Fc if need be
-  dVFa.p0 = Fa.p0;
-  dVFa.pinf = Fa.pinf;
+  dVFa.set_min_pt() = Fa.min_pt();
+  dVFa.set_max_pt() = Fa.max_pt();
   if (m_scale == 0.0)
     return dVFa;
 
@@ -213,42 +213,42 @@ void Breit::MOPk_ij_Fc(DiracSpinor *BFc, const double Cang,
   const auto ep = eta(k + 1, ki, kj);
   const auto e = eta(k, ki, kj);
 
-  if (Fc.pinf > BFc->pinf)
-    BFc->pinf = Fc.pinf;
-  if (Fc.p0 < BFc->p0)
-    BFc->p0 = Fc.p0;
+  if (Fc.max_pt() > BFc->max_pt())
+    BFc->set_max_pt() = Fc.max_pt();
+  if (Fc.min_pt() < BFc->min_pt())
+    BFc->set_min_pt() = Fc.min_pt();
 
   // M1 and O1 term:
   if (m1 != 0.0 || o1 != 0.0) {
-    for (auto i = Fc.p0; i < Fc.pinf; ++i) {
+    for (auto i = Fc.min_pt(); i < Fc.max_pt(); ++i) {
       const auto ff =
           Cc * (m1 + o1) * (b0p[i] + bip[i] + ep * g0p[i] + ep * gip[i]);
-      BFc->f[i] += ff * (1.0 - ep) * Fc.g[i];
-      BFc->g[i] += -ff * (1.0 + ep) * Fc.f[i];
+      BFc->set_f(i) += ff * (1.0 - ep) * Fc.g(i);
+      BFc->set_g(i) += -ff * (1.0 + ep) * Fc.f(i);
     }
   }
 
   // M2 and O2 term:
   if (m2 != 0.0 || o2 != 0.0) {
-    for (auto i = Fc.p0; i < Fc.pinf; ++i) {
+    for (auto i = Fc.min_pt(); i < Fc.max_pt(); ++i) {
       const auto ff =
           Cc * (m2 + o2) * (-b0m[i] - bim[i] + e * g0m[i] + e * gim[i]);
-      BFc->f[i] += -ff * (1.0 + e) * Fc.g[i];
-      BFc->g[i] += ff * (1.0 - e) * Fc.f[i];
+      BFc->set_f(i) += -ff * (1.0 + e) * Fc.g(i);
+      BFc->set_g(i) += ff * (1.0 - e) * Fc.f(i);
     }
   }
 
   // P1 and P2term:
   if (p1 != 0.0) {
-    for (auto i = Fc.p0; i < Fc.pinf; ++i) {
+    for (auto i = Fc.min_pt(); i < Fc.max_pt(); ++i) {
       const auto ff = Cc * p1 * (-b0m[i] + e * g0m[i] + b0p[i] - e * g0p[i]);
-      BFc->f[i] += ff * (1.0 - ep) * Fc.g[i];
-      BFc->g[i] += -ff * (1.0 + ep) * Fc.f[i];
+      BFc->set_f(i) += ff * (1.0 - ep) * Fc.g(i);
+      BFc->set_g(i) += -ff * (1.0 + ep) * Fc.f(i);
     }
-    for (auto i = Fc.p0; i < Fc.pinf; ++i) {
+    for (auto i = Fc.min_pt(); i < Fc.max_pt(); ++i) {
       const auto ff = Cc * p1 * (bim[i] + ep * gim[i] - bip[i] - ep * gip[i]);
-      BFc->f[i] += -ff * (1.0 + e) * Fc.g[i];
-      BFc->g[i] += ff * (1.0 - e) * Fc.f[i];
+      BFc->set_f(i) += -ff * (1.0 + e) * Fc.g(i);
+      BFc->set_g(i) += ff * (1.0 - e) * Fc.f(i);
     }
   }
 }
@@ -258,18 +258,18 @@ void Breit::Nk_ij_Fc(DiracSpinor *BFc, const double Cang,
                      const hidden::Breit_Bk_ba &Bkij, int k, int ki, int kj,
                      const DiracSpinor &Fc) const {
 
-  if (Fc.pinf > BFc->pinf)
-    BFc->pinf = Fc.pinf;
-  if (Fc.p0 < BFc->p0)
-    BFc->p0 = Fc.p0;
+  if (Fc.max_pt() > BFc->max_pt())
+    BFc->set_max_pt() = Fc.max_pt();
+  if (Fc.min_pt() < BFc->min_pt())
+    BFc->set_min_pt() = Fc.min_pt();
 
   const auto sk = std::size_t(k);
   const auto Cg = m_scale * Cang * Nkba(k, ki, kj);
   const auto &g0 = Bkij.gk_0[sk];
   const auto &gi = Bkij.gk_inf[sk];
-  for (auto i = Fc.p0; i < Fc.pinf; ++i) {
-    BFc->f[i] += Cg * (g0[i] + gi[i]) * Fc.g[i];
-    BFc->g[i] += Cg * (g0[i] + gi[i]) * Fc.f[i];
+  for (auto i = Fc.min_pt(); i < Fc.max_pt(); ++i) {
+    BFc->set_f(i) += Cg * (g0[i] + gi[i]) * Fc.g(i);
+    BFc->set_g(i) += Cg * (g0[i] + gi[i]) * Fc.f(i);
   }
 }
 
@@ -311,8 +311,8 @@ Breit_Bk_ba::Breit_Bk_ba(const DiracSpinor &Fb, const DiracSpinor &Fa)
   for (auto k = 0ul; k <= max_k; ++k) {
     // a) selection rules (careful)
     // const auto maxi = 0; //
-    const auto maxi = std::max(Fa.pinf, Fb.pinf); // ok?
-    // const auto maxi = std::min(Fa.pinf, Fb.pinf); // XXX OK? No.
+    const auto maxi = std::max(Fa.max_pt(), Fb.max_pt()); // ok?
+    // const auto maxi = std::min(Fa.max_pt(), Fb.max_pt()); // XXX OK? No.
 
     // These normally re-sized in gk_ab()... but not if skip due to SRs
     bk_0[k].resize(Fa.rgrid->num_points());

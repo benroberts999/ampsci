@@ -3,7 +3,6 @@
 #include "HF/HartreeFock.hpp"
 #include "IO/InputBlock.hpp"
 #include "Physics/PhysConst_constants.hpp"
-#include "Wavefunction/Hamiltonian.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include <algorithm>
 #include <cmath>
@@ -37,12 +36,12 @@ namespace Helper {
 int countNodes(const DiracSpinor &Fn)
 // Just counts the number of times orbital (f) changes sign
 {
-  double sp = Fn.f[Fn.p0 + 3];
+  double sp = Fn.f(Fn.min_pt() + 3);
   int counted_nodes = 0;
-  for (auto i = Fn.p0 + 4; i < Fn.pinf - 3; ++i) {
-    if (sp * Fn.f[i] < 0) {
+  for (auto i = Fn.min_pt() + 4; i < Fn.max_pt() - 3; ++i) {
+    if (sp * Fn.f(i) < 0) {
       ++counted_nodes;
-      sp = Fn.f[i];
+      sp = Fn.f(i);
     }
   }
   return counted_nodes;
@@ -81,8 +80,8 @@ void basisTests(const Wavefunction &wf) {
     const bool hfQ = hf_phi != nullptr;
     const auto Ahf = hfQ ? DiracOperator::HyperfineA::hfsA(&hfs, *hf_phi) : 0.0;
     const auto Ab = DiracOperator::HyperfineA::hfsA(&hfs, Fn);
-    const auto Eb = Fn.en;
-    const auto Ehf = hfQ ? hf_phi->en : 0.0;
+    const auto Eb = Fn.en();
+    const auto Ehf = hfQ ? hf_phi->en() : 0.0;
 
     // const auto nodes = Helper::countNodes(Fn);
     // const int expected_nodes = Fn.n - Fn.l() - 1;
@@ -123,8 +122,8 @@ void Module_test_r0pinf(const Wavefunction &wf) {
     for (const auto &phi : *tmp_orbs) {
       auto ratios = phi.r0pinfratio();
       printf("%7s:  %.0e   %.0e   %5i/%6.2f\n", phi.symbol().c_str(),
-             std::abs(ratios.first), std::abs(ratios.second), (int)phi.pinf,
-             wf.rgrid->r()[phi.pinf - 1]);
+             std::abs(ratios.first), std::abs(ratios.second), (int)phi.max_pt(),
+             wf.rgrid->r()[phi.max_pt() - 1]);
       // std::cout << ratios.first << " " << ratios.second << "\n";
     }
     std::cout << "--------------\n";
@@ -158,9 +157,11 @@ void Module_Tests_orthonormality(const Wavefunction &wf, const bool) {
 void Module_Tests_Hamiltonian(const Wavefunction &wf) {
   std::cout << "\nTesting wavefunctions: <n|H|n>  (numerical error)\n";
 
-  auto Hd = RadialHamiltonian(wf.rgrid, wf.alpha);
-  Hd.set_v(-1, wf.get_Vlocal(0)); // same each kappa //?? XXX
-  Hd.set_v_mag(wf.get_Hmag(0));
+  // XXX Add Breit!
+
+  // auto Hd = RadialHamiltonian(wf.rgrid, wf.alpha);
+  // Hd.set_v(-1, wf.get_Vlocal(0)); // same each kappa //?? XXX
+  // Hd.set_v_mag(wf.get_Hmag(0));
 
   const auto &basis = wf.spectrum.empty() ? wf.basis : wf.spectrum;
 
@@ -168,28 +169,25 @@ void Module_Tests_Hamiltonian(const Wavefunction &wf) {
     if (tmp_orbs->empty())
       continue;
     double worst_eps = 0.0;
-    const DiracSpinor *worst_psi = nullptr;
-    for (const auto &psi : *tmp_orbs) {
-      double Haa_d = Hd.matrixEl(psi, psi);
-      double Haa_x = psi * HF::vexFa(psi, wf.core);
+    const DiracSpinor *worst_Fn = nullptr;
+    for (const auto &Fn : *tmp_orbs) {
+      double Haa_d = wf.Hab(Fn, Fn);
+      double Haa_x = Fn * HF::vexFa(Fn, wf.core);
       auto Haa = Haa_d + Haa_x;
-      // if (!wf.isInCore(psi.n, psi.k) && wf.getSigma() != nullptr) {
-      //   Haa += psi * (*wf.getSigma())(psi);
-      // }
       if (tmp_orbs != &wf.core && wf.getSigma() != nullptr) {
-        Haa += psi * (*wf.getSigma())(psi);
+        Haa += Fn * (*wf.getSigma())(Fn);
       }
-      double ens = psi.en;
+      double ens = Fn.en();
       double fracdiff = (Haa - ens) / ens;
-      printf("<%2i% i|H|%2i% i> = %17.11f, E = %17.11f; % .0e\n", psi.n, psi.k,
-             psi.n, psi.k, Haa, ens, fracdiff);
+      printf("<%2i% i|H|%2i% i> = %17.11f, E = %17.11f; % .0e\n", Fn.n, Fn.k,
+             Fn.n, Fn.k, Haa, ens, fracdiff);
       if (std::abs(fracdiff) >= std::abs(worst_eps)) {
         worst_eps = fracdiff;
-        worst_psi = &psi;
+        worst_Fn = &Fn;
       }
     }
-    if (worst_psi != nullptr)
-      std::cout << worst_psi->symbol() << ": eps=" << worst_eps << "\n";
+    if (worst_Fn != nullptr)
+      std::cout << worst_Fn->symbol() << ": eps=" << worst_eps << "\n";
   }
 }
 

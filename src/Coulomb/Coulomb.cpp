@@ -68,7 +68,7 @@ static inline void yk_ijk_impl(const int l, const DiracSpinor &Fa,
   };
 
   const auto ff = [&](std::size_t i) {
-    return (Fa.f[i] * Fb.f[i] + Fa.g[i] * Fb.g[i]) * w(i) * gr->drduor()[i];
+    return (Fa.f(i) * Fb.f(i) + Fa.g(i) * Fb.g(i)) * w(i) * gr->drduor()[i];
   };
   const auto &r = gr->r();
 
@@ -81,7 +81,8 @@ static inline void yk_ijk_impl(const int l, const DiracSpinor &Fa,
     vabk[i] = Ax * du;
   }
 
-  const auto bmax = std::min(std::min(Fa.pinf, Fb.pinf), num_points - 1);
+  const auto bmax =
+      std::min(std::min(Fa.max_pt(), Fb.max_pt()), num_points - 1);
   for (auto i = bmax; i >= 1; --i) {
     Bx = Bx * powk(r[i - 1] / r[i]) + ff(i - 1);
     vabk[i - 1] += Bx * du;
@@ -171,13 +172,13 @@ static inline void Breit_abk_impl(const int l, const DiracSpinor &Fa,
 
   auto fgfg = [&](std::size_t i) {
     if constexpr (pm == -1)
-      return (Fa.f[i] * Fb.g[i] - Fa.g[i] * Fb.f[i]);
+      return (Fa.f(i) * Fb.g(i) - Fa.g(i) * Fb.f(i));
     else
-      return (Fa.f[i] * Fb.g[i] + Fa.g[i] * Fb.f[i]);
+      return (Fa.f(i) * Fb.g(i) + Fa.g(i) * Fb.f(i));
   };
 
-  const auto bmax = std::min(Fa.pinf, Fb.pinf);
-  const auto bmin = std::max(Fa.p0, Fb.p0);
+  const auto bmax = std::min(Fa.max_pt(), Fb.max_pt());
+  const auto bmin = std::max(Fa.min_pt(), Fb.min_pt());
   for (std::size_t i = bmin; i < bmax; i++) {
     Bx += gr->drduor()[i] * w(i) * fgfg(i) / powk(gr->r()[i]);
   }
@@ -265,7 +266,7 @@ double Rk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
                const int k) //
 {
   [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__);
-  const auto yk_bd = yk_ab(Fb, Fd, k, std::min(Fa.pinf, Fc.pinf));
+  const auto yk_bd = yk_ab(Fb, Fd, k, std::min(Fa.max_pt(), Fc.max_pt()));
   return Rk_abcd(Fa, Fc, yk_bd);
 }
 //------------------------------------------------------------------------------
@@ -273,10 +274,12 @@ double Rk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fc,
                const std::vector<double> &yk_bd) {
   [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__, "yk");
   const auto &drdu = Fa.rgrid->drdu();
-  const auto i0 = std::max(Fa.p0, Fc.p0);
-  const auto imax = std::min(Fa.pinf, Fc.pinf);
-  const auto Rff = NumCalc::integrate(1.0, i0, imax, Fa.f, Fc.f, yk_bd, drdu);
-  const auto Rgg = NumCalc::integrate(1.0, i0, imax, Fa.g, Fc.g, yk_bd, drdu);
+  const auto i0 = std::max(Fa.min_pt(), Fc.min_pt());
+  const auto imax = std::min(Fa.max_pt(), Fc.max_pt());
+  const auto Rff =
+      NumCalc::integrate(1.0, i0, imax, Fa.f(), Fc.f(), yk_bd, drdu);
+  const auto Rgg =
+      NumCalc::integrate(1.0, i0, imax, Fa.g(), Fc.g(), yk_bd, drdu);
   return (Rff + Rgg) * Fa.rgrid->du();
 }
 
@@ -284,36 +287,36 @@ double Rk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fc,
 DiracSpinor Rkv_bcd(const int kappa_a, const DiracSpinor &Fb,
                     const DiracSpinor &Fc, const DiracSpinor &Fd, const int k) {
   [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__);
-  return Rkv_bcd(kappa_a, Fc, yk_ab(Fb, Fd, k, Fc.pinf));
+  return Rkv_bcd(kappa_a, Fc, yk_ab(Fb, Fd, k, Fc.max_pt()));
 }
 //------------------------------------------------------------------------------
 DiracSpinor Rkv_bcd(const int kappa_a, const DiracSpinor &Fc,
                     const std::vector<double> &ykbd) {
   [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__);
   auto out = DiracSpinor(0, kappa_a, Fc.rgrid);
-  out.p0 = Fc.p0;
-  out.pinf = Fc.pinf;
-  out.f = qip::multiply(Fc.f, ykbd);
-  out.g = qip::multiply(Fc.g, ykbd);
+  out.set_min_pt() = Fc.min_pt();
+  out.set_max_pt() = Fc.max_pt();
+  out.set_f() = qip::multiply(Fc.f(), ykbd);
+  out.set_g() = qip::multiply(Fc.g(), ykbd);
   return out;
 }
 //------------------------------------------------------------------------------
 void Rkv_bcd(DiracSpinor *const Rkv, const DiracSpinor &Fc,
              const std::vector<double> &ykbd) {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
-  Rkv->p0 = Fc.p0;
-  Rkv->pinf = Fc.pinf;
-  for (auto i = 0ul; i < Rkv->p0; ++i) {
-    Rkv->f[i] = 0.0;
-    Rkv->g[i] = 0.0;
+  Rkv->set_min_pt() = Fc.min_pt();
+  Rkv->set_max_pt() = Fc.max_pt();
+  for (auto i = 0ul; i < Rkv->min_pt(); ++i) {
+    Rkv->set_f(i) = 0.0;
+    Rkv->set_g(i) = 0.0;
   }
-  for (auto i = Rkv->p0; i < Rkv->pinf; ++i) {
-    Rkv->f[i] = Fc.f[i] * ykbd[i];
-    Rkv->g[i] = Fc.g[i] * ykbd[i];
+  for (auto i = Rkv->min_pt(); i < Rkv->max_pt(); ++i) {
+    Rkv->set_f(i) = Fc.f(i) * ykbd[i];
+    Rkv->set_g(i) = Fc.g(i) * ykbd[i];
   }
-  for (auto i = Rkv->pinf; i < Rkv->rgrid->num_points(); ++i) {
-    Rkv->f[i] = 0.0;
-    Rkv->g[i] = 0.0;
+  for (auto i = Rkv->max_pt(); i < Rkv->rgrid->num_points(); ++i) {
+    Rkv->set_f(i) = 0.0;
+    Rkv->set_g(i) = 0.0;
   }
 }
 
