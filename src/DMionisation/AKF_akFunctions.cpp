@@ -144,7 +144,7 @@ int akReadWrite(const std::string &fname, bool write,
 //******************************************************************************
 int calculateK_nk(const Wavefunction &wf, std::size_t is, int max_L, double dE,
                   std::vector<std::vector<std::vector<double>>> &jLqr_f,
-                  std::vector<float> &AK_nk_q, double)
+                  std::vector<float> &AK_nk_q, bool alt_akf, double)
 // Calculates the atomic factor for a given core state (is) and energy.
 // Note: dE = I + ec is depositied energy, not cntm energy
 // Zeff is '-1' by default. If Zeff > 0, will solve w/ Zeff model
@@ -187,6 +187,12 @@ int calculateK_nk(const Wavefunction &wf, std::size_t is, int max_L, double dE,
                                        jLqr_f[L][iq], wf.rgrid->drdu());
         double ag = NumCalc::integrate(1.0, 0, maxj, psi.g(), phic.g(),
                                        jLqr_f[L][iq], wf.rgrid->drdu());
+        if (alt_akf && psi.k == phic.k) {
+          af -= NumCalc::integrate(1.0, 0, maxj, psi.f(), phic.f(),
+                                   wf.rgrid->drdu());
+          ag -= NumCalc::integrate(1.0, 0, maxj, psi.g(), phic.g(),
+                                   wf.rgrid->drdu());
+        }
         a = af + ag;
         AK_nk_q[iq] +=
             (float)(dC_Lkk * std::pow(a * wf.rgrid->du(), 2) * x_ocf);

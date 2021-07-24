@@ -517,6 +517,7 @@ Module::AtomicKernal {
   output_binary = true;
   label = test_new;
   use_plane_waves = false;
+  use_alt_akf = false;
 }
 ```
 Calculates the "Atomic Kernal" (for scattering/ionisation) for each core
