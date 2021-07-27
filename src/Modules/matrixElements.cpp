@@ -432,7 +432,7 @@ generate_E1(const IO::InputBlock &input, const Wavefunction &wf, bool) {
   if (gauge != "vform")
     return std::make_unique<E1>(*(wf.rgrid));
   // std::cout << "(v-form [velocity gauge])\n";
-  return std::make_unique<E1_vform>(wf.alpha, 0.0);
+  return std::make_unique<E1v>(wf.alpha, 0.0);
 }
 
 //------------------------------------------------------------------------------
