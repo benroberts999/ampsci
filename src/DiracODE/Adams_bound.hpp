@@ -5,6 +5,13 @@
 class DiracSpinor;
 class Grid;
 
+#define DO_DEBUG false
+#if DO_DEBUG
+#define DEBUG(x) x
+#else
+#define DEBUG(x)
+#endif // DEBUG
+
 namespace DiracODE {
 namespace Adams {
 
@@ -44,11 +51,16 @@ class DiracMatrix {
 public:
   DiracMatrix(const Grid &in_grid, const std::vector<double> &in_v,
               const int in_k, const double in_en, const double in_alpha,
-              const std::vector<double> &Hmag = {});
+              const std::vector<double> &Hmag = {},
+              const DiracSpinor *const VxFa = nullptr,
+              const DiracSpinor *const iFa0 = nullptr, double zion = 1);
 
   const Grid *const pgr;
   const std::vector<double> *const v;
   const std::vector<double> *const Hmag;
+  const DiracSpinor *const VxFa;
+  const DiracSpinor *const Fa0;
+  const double zion = 1.0;
   const int k;
   const double en, alpha, cc;
 
@@ -62,6 +74,9 @@ public:
               std::size_t i) const;
   double dgdu(const std::vector<double> &f, const std::vector<double> &g,
               std::size_t i) const;
+  // Note: these are UN-SCALED
+  double dfdu_X(std::size_t i) const;
+  double dgdu_X(std::size_t i) const;
 };
 
 struct TrackEnGuess {
@@ -85,7 +100,10 @@ void trialDiracSolution(std::vector<double> &f, std::vector<double> &g,
                         const std::vector<double> &v,
                         const std::vector<double> &H_mag, const Grid &gr,
                         const int ctp, const int d_ctp, const int pinf,
-                        const double alpha);
+                        const double alpha,
+                        const DiracSpinor *const VxFa = nullptr,
+                        const DiracSpinor *const Fa0 = nullptr,
+                        double zion = 1);
 
 int countNodes(const std::vector<double> &f, const int maxi);
 

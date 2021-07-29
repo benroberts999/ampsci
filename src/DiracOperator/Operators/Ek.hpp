@@ -49,12 +49,12 @@ public:
 \f[ R = -\frac{2e}{\omega \alpha}
 \int( f_ag_b <ka||s||-kb> - g_af_b <-ka||s||kb>)\,dr \f]
 */
-class E1_vform final : public TensorOperator
+class E1v final : public TensorOperator
 // d_v = (ie/w alpha) v{alpha}   [v{a} = g0v{g}]\f$
 // <a||dv||b> = -2e/(w alpha) Int[ fagb <ka||s||-kb> - gafb <-ka||s||kb>]
 {
 public:
-  E1_vform(const double alpha, const double omega = 0.0)
+  E1v(const double alpha, const double omega = 0.0)
       : TensorOperator(1, Parity::odd, -0.0, {}, 0, Realness::real, true),
         m_alpha(alpha) {
     updateFrequency(omega);

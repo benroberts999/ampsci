@@ -9,8 +9,6 @@
 #include "qip/Vector.hpp"
 #include <iostream>
 #include <string>
-//
-#include "Maths/Grid.hpp"
 
 void ampsci(const IO::InputBlock &input);
 int main(int argc, char *argv[]) {

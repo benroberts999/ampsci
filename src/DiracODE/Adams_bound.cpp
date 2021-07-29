@@ -27,55 +27,50 @@ boundState is the main routine that is called from elsewhere.
 All other functions called by boundState.
 */
 
-#define DO_DEBUG false
-#if DO_DEBUG
-#define DEBUG(x) x
-#else
-#define DEBUG(x)
-#endif // DEBUG
-
 namespace DiracODE {
 
 using namespace Adams;
 //******************************************************************************
 void boundState(DiracSpinor &psi, const double en0,
                 const std::vector<double> &v, const std::vector<double> &H_mag,
-                const double alpha, int log_dele)
-// Solves local, spherical bound state dirac equation using Adams-Moulton
-// method. Based on method presented in book by W. R. Johnson:
-//   W. R. Johnson, Atomic Structure Theory (Springer, New York, 2007)
-// I have added a few extensions to this method. In particular, I integrate past
-// the classical turning point. (See below)
-//
-// See also:
-//  * https://en.wikipedia.org/wiki/Linear_multistep_method
-//  * Hairer, Ernst; Nørsett, Syvert Paul; Wanner, Gerhard (1993),
-//    Solving ordinary differential equations I: Nonstiff problems (2nd ed.),
-//    Berlin: Springer Verlag, ISBN 978-3-540-56670-0.
-//  * Quarteroni, Alfio; Sacco, Riccardo; Saleri, Fausto (2000),
-//    Matematica Numerica, Springer Verlag, ISBN 978-88-470-0077-3.
-//  * http://mathworld.wolfram.com/AdamsMethod.html
-//
-// Rough description of method:
-// 1. Start with initial 'guess' of energy
-// 2. Find "practical infinity" (psi~0), and Classical turning point (e=v)
-// 3. Performs 'inward' integration (Adams Moulton).
-//    Integrates inwards from the practical infinity inwards to d_ctp points
-//    past the classical turning point (ctp).
-// 4. Performs 'outward' integration (Adams Moulton). Integrates from 0
-//    outwards to d_ctp points past the ctp.
-// 5. Matches the two functions around ctp, by re-scaling the 'inward' solution
-//    (for f). Uses a weighted mean, with weights given by distance from ctp.
-// 6. Checks the number of nodes the wf has. If too many or too few nodes, makes
-//    a large change to the energy and tries again (from step 2).
-//    If the correct number of nodes, uses perturbation theory to make minor
-//    corrections to the energy to 'zoom in' (matching the in/out solution for
-//    g), then re-starts from step 2.
-// Continues until this energy adjustment falls below a prescribed threshold.
-//
-// Orbitals defined:
-//   psi := (1/r) {f O_k, ig O_(-k)}
-//
+                const double alpha, int log_dele, const DiracSpinor *const VxFa,
+                const DiracSpinor *const Fa0, double zion)
+/*
+Solves local, spherical bound state dirac equation using Adams-Moulton
+method. Based on method presented in book by W. R. Johnson:
+  W. R. Johnson, Atomic Structure Theory (Springer, New York, 2007)
+I have added a few extensions to this method. In particular, I integrate past
+the classical turning point. (See below)
+
+See also:
+ - https://en.wikipedia.org/wiki/Linear_multistep_method
+ - Hairer, Ernst; Nørsett, Syvert Paul; Wanner, Gerhard (1993),
+   Solving ordinary differential equations I: Nonstiff problems (2nd ed.),
+   Berlin: Springer Verlag, ISBN 978-3-540-56670-0.
+ - Quarteroni, Alfio; Sacco, Riccardo; Saleri, Fausto (2000),
+   Matematica Numerica, Springer Verlag, ISBN 978-88-470-0077-3.
+ - http://mathworld.wolfram.com/AdamsMethod.html
+
+Rough description of method:
+1. Start with initial 'guess' of energy
+2. Find "practical infinity" (psi~0), and Classical turning point (e=v)
+3. Performs 'inward' integration (Adams Moulton).
+   Integrates inwards from the practical infinity inwards to d_ctp points
+   past the classical turning point (ctp).
+4. Performs 'outward' integration (Adams Moulton). Integrates from 0
+   outwards to d_ctp points past the ctp.
+5. Matches the two functions around ctp, by re-scaling the 'inward' solution
+   (for f). Uses a weighted mean, with weights given by distance from ctp.
+6. Checks the number of nodes the wf has. If too many or too few nodes, makes
+   a large change to the energy and tries again (from step 2).
+   If the correct number of nodes, uses perturbation theory to make minor
+   corrections to the energy to 'zoom in' (matching the in/out solution for
+   g), then re-starts from step 2.
+Continues until this energy adjustment falls below a prescribed threshold.
+
+Orbitals defined:
+  psi := (1/r) {f O_k, ig O_(-k)}
+*/
 {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
 
@@ -110,7 +105,8 @@ void boundState(DiracSpinor &psi, const double en0,
     // Also stores dg (gout-gin) for PT [used for PT to find better e]
     std::vector<double> dg(2 * Param::d_ctp + 1);
     Adams::trialDiracSolution(psi.set_f(), psi.set_g(), dg, t_en, psi.k, v,
-                              H_mag, rgrid, ctp, Param::d_ctp, t_pinf, alpha);
+                              H_mag, rgrid, ctp, Param::d_ctp, t_pinf, alpha,
+                              VxFa, Fa0, zion);
 
     const int counted_nodes = Adams::countNodes(psi.f(), t_pinf);
 
@@ -312,14 +308,15 @@ void trialDiracSolution(std::vector<double> &f, std::vector<double> &g,
                         const std::vector<double> &v,
                         const std::vector<double> &H_mag, const Grid &gr,
                         const int ctp, const int d_ctp, const int pinf,
-                        const double alpha)
+                        const double alpha, const DiracSpinor *const VxFa,
+                        const DiracSpinor *const Fa0, double zion)
 // Performs inward (from pinf) and outward (from r0) integrations for given
 // energy. Intergated in/out towards ctp +/- d_ctp [class. turn. point]
 // Then, joins solutions, including weighted meshing around ctp +/ d_ctp
 // Also: stores dg [the difference: (gout-gin)], which is used for PT
 {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
-  DiracMatrix Hd(gr, v, ka, en, alpha, H_mag);
+  DiracMatrix Hd(gr, v, ka, en, alpha, H_mag, VxFa, Fa0, zion);
   outwardAM(f, g, Hd, ctp + d_ctp);
   std::vector<double> f_in(gr.num_points()), g_in(gr.num_points());
   inwardAM(f_in, g_in, Hd, ctp - d_ctp, pinf - 1);
@@ -494,7 +491,7 @@ void inwardAM(std::vector<double> &f, std::vector<double> &g,
   const auto ka2 = (double)(ka * ka);
 
   const auto lambda = std::sqrt(-en * (2.0 + en * alpha2));
-  const auto zeta = -v[pinf] * r[pinf];
+  const auto zeta = /*Hd.VxFa ? Hd.zion : */ -v[pinf] * r[pinf]; // XXX ?
   const auto zeta2 = zeta * zeta;
   const auto sigma = (1.0 + en * alpha2) * (zeta / lambda);
   const auto Ren = en + c2; // total relativistic energy
@@ -553,13 +550,18 @@ void adamsMoulton(std::vector<double> &f, std::vector<double> &g,
   const auto nosteps = std::abs(nf - ni) + 1; // number of integration steps
   const auto inc = (nf > ni) ? 1 : -1;        //'increment' for integration
 
+  const auto Xscl = (Hd.VxFa && Hd.Fa0->f(ni - inc) != 0.0)
+                        ? f[ni - inc] / Hd.Fa0->f(ni - inc)
+                        : 0.0;
+
   // create arrays for wf derivatives + Adams-Moulton coeficients
   const auto amDdu = inc * Hd.pgr->du() * Param::AMcoef.AMd;
   std::array<double, Param::AMO> df, dg;
   std::array<double, Param::AMO> am;
-  for (auto i = 0, ri = ni - inc * Param::AMO; i < Param::AMO; i++, ri += inc) {
-    df[i] = Hd.dfdu(f, g, ri);
-    dg[i] = Hd.dgdu(f, g, ri);
+  const auto ri0 = ni - inc * Param::AMO;
+  for (auto i = 0, ri = ri0; i < Param::AMO; i++, ri += inc) {
+    df[i] = Hd.dfdu(f, g, ri) + Xscl * Hd.dfdu_X(ri);
+    dg[i] = Hd.dgdu(f, g, ri) + Xscl * Hd.dgdu_X(ri);
     am[i] = amDdu * Param::AMcoef.AMa[i];
   }
 
@@ -569,8 +571,21 @@ void adamsMoulton(std::vector<double> &f, std::vector<double> &g,
   for (int i = 0, ri = ni; i < nosteps; i++, ri += inc) {
     const auto [a, b, c, d] = Hd.abcd(ri);
     const double det_inv = 1.0 / (1.0 - a02 * (b * c - a * d));
-    const double sf = f[ri - inc] + qip::inner_product(am, df);
-    const double sg = g[ri - inc] + qip::inner_product(am, dg);
+    double sf = f[ri - inc] + qip::inner_product(am, df);
+    double sg = g[ri - inc] + qip::inner_product(am, dg);
+
+    if (Hd.VxFa) {
+      // XXX nb: issue is that 'f' is not normalised, but VxFa is!
+      // const auto dr = Hd.pgr->drdu(ri - inc) * a0;
+      // const auto Xscalef = (Hd.Fa0->f(ri - inc) != 0.0)
+      //                          ? f[ri - inc] / Hd.Fa0->f(ri - inc)
+      //                          : 0.0;
+      // sf -= Hd.alpha * Xscalef * Hd.VxFa->g(ri - inc) * dr;
+      // sg += Hd.alpha * Xscalef * Hd.VxFa->f(ri - inc) * dr;
+      sf += a0 * Xscl * Hd.dfdu_X(ri);
+      sg += a0 * Xscl * Hd.dgdu_X(ri);
+    }
+
     f[ri] = (sf - a0 * (d * sf - b * sg)) * det_inv;
     g[ri] = (sg - a0 * (-c * sf + a * sg)) * det_inv;
     // Shift the derivative along
@@ -579,8 +594,8 @@ void adamsMoulton(std::vector<double> &f, std::vector<double> &g,
       dg[l] = dg[l + 1];
     }
     // gets new 'last' derivative
-    df.back() = Hd.dfdu(f, g, ri);
-    dg.back() = Hd.dgdu(f, g, ri);
+    df.back() = Hd.dfdu(f, g, ri) + Xscl * Hd.dfdu_X(ri);
+    dg.back() = Hd.dgdu(f, g, ri) + Xscl * Hd.dgdu_X(ri);
   }
 
 } // END adamsmoulton
@@ -590,10 +605,15 @@ void adamsMoulton(std::vector<double> &f, std::vector<double> &g,
 DiracMatrix::DiracMatrix(const Grid &in_grid, const std::vector<double> &in_v,
                          const int in_k, const double in_en,
                          const double in_alpha,
-                         const std::vector<double> &in_Hmag)
+                         const std::vector<double> &in_Hmag,
+                         const DiracSpinor *const iVxFa,
+                         const DiracSpinor *const iFa0, double izion)
     : pgr(&in_grid),
       v(&in_v),
       Hmag(in_Hmag.empty() ? nullptr : &in_Hmag),
+      VxFa(iVxFa),
+      Fa0(iFa0),
+      zion(izion),
       k(in_k),
       en(in_en),
       alpha(in_alpha),
@@ -622,11 +642,28 @@ DiracMatrix::abcd(std::size_t i) const {
 
 double DiracMatrix::dfdu(const std::vector<double> &f,
                          const std::vector<double> &g, std::size_t i) const {
-  return a(i) * f[i] + b(i) * g[i];
+  // XXX nb: issue is that 'f' is not normalised, but VxFa is!
+  // const auto exch = VxFa ? -alpha * VxFa->g(i) * pgr->drdu(i) : 0.0;
+  // const auto Xscale =
+  //     (VxFa != nullptr && Fa0->f(i) != 0.0) ? f[i] / Fa0->f(i) : 0.0;
+  return a(i) * f[i] + b(i) * g[i]; // + Xscale * exch;
 }
 double DiracMatrix::dgdu(const std::vector<double> &f,
                          const std::vector<double> &g, std::size_t i) const {
-  return c(i) * f[i] + d(i) * g[i];
+  // XXX nb: issue is that 'f' is not normalised, but VxFa is!
+  // const auto exch = VxFa ? alpha * VxFa->f(i) * pgr->drdu(i) : 0.0;
+  // const auto Xscale =
+  //     (VxFa != nullptr && Fa0->f(i) != 0.0) ? f[i] / Fa0->f(i) : 0.0;
+  return c(i) * f[i] + d(i) * g[i]; // + Xscale * exch;
+}
+
+double DiracMatrix::dfdu_X(std::size_t i) const {
+  // XXX nb: issue is that 'f' is not normalised, but VxFa is!
+  return VxFa ? -alpha * VxFa->g(i) * pgr->drdu(i) : 0.0;
+}
+double DiracMatrix::dgdu_X(std::size_t i) const {
+  // XXX nb: issue is that 'f' is not normalised, but VxFa is!
+  return VxFa ? alpha * VxFa->f(i) * pgr->drdu(i) : 0.0;
 }
 
 } // namespace Adams

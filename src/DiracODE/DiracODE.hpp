@@ -24,7 +24,8 @@ log_eps: log10(eps); eps is convergence target for energy.
 */
 void boundState(DiracSpinor &Fa, const double en0, const std::vector<double> &v,
                 const std::vector<double> &H_mag, const double alpha,
-                int log_eps = 14);
+                int log_eps = 14, const DiracSpinor *const VxFa = nullptr,
+                const DiracSpinor *const Fa0 = nullptr, double zion = 1);
 
 //! @brief For given energy en, solves (local) DE with correct boundary
 //! conditions at the origin
@@ -47,7 +48,9 @@ initial guess for 'asymptotic region'. ext_grid must extend past r_asym0.
 */
 void solveContinuum(DiracSpinor &Fa, const double en,
                     const std::vector<double> &v, const Grid &ext_grid,
-                    const double r_asym0, const double alpha);
+                    const double r_asym0, const double alpha,
+                    const DiracSpinor *const VxFa = nullptr,
+                    const DiracSpinor *const Fa0 = nullptr);
 
 //******************************************************************************
 
