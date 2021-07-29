@@ -24,7 +24,8 @@ using namespace Adams;
 //******************************************************************************
 void solveContinuum(DiracSpinor &Fa, const double en,
                     const std::vector<double> &v, const Grid &ext_grid,
-                    const double r_asym0, const double alpha)
+                    const double r_asym0, const double alpha,
+                    const DiracSpinor *const VxFa, const DiracSpinor *const Fa0)
 // Solves Dirac equation for continuum state, for given energy, ec
 // by integrating outwards from 0
 // ec > 0
@@ -46,7 +47,7 @@ void solveContinuum(DiracSpinor &Fa, const double en,
   Fa.set_f().resize(num_pointsc); // nb: this is a little dangerous!
   Fa.set_g().resize(num_pointsc);
 
-  DiracMatrix Hd(ext_grid, v, Fa.k, Fa.en(), alpha, {});
+  DiracMatrix Hd(ext_grid, v, Fa.k, Fa.en(), alpha, {}, VxFa, Fa0);
   outwardAM(Fa.set_f(), Fa.set_g(), Hd, (int)num_pointsc - 1);
 
   // Find a better (lower) asymptotic region:

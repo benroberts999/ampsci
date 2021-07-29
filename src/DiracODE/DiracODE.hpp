@@ -48,7 +48,9 @@ initial guess for 'asymptotic region'. ext_grid must extend past r_asym0.
 */
 void solveContinuum(DiracSpinor &Fa, const double en,
                     const std::vector<double> &v, const Grid &ext_grid,
-                    const double r_asym0, const double alpha);
+                    const double r_asym0, const double alpha,
+                    const DiracSpinor *const VxFa = nullptr,
+                    const DiracSpinor *const Fa0 = nullptr);
 
 //******************************************************************************
 
