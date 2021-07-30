@@ -1,5 +1,5 @@
 #include "Modules/tests.hpp"
-#include "DiracOperator/Operators.hpp"
+#include "DiracOperator/DiracOperator.hpp"
 #include "HF/HartreeFock.hpp"
 #include "IO/InputBlock.hpp"
 #include "Physics/PhysConst_constants.hpp"

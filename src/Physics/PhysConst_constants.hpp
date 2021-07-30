@@ -20,6 +20,9 @@ constexpr double alpha2 = alpha * alpha;
 constexpr double c_SI = 299792458.0;
 constexpr double hbar_SI = (6.62607015e-34) / (2 * M_PI); // exact
 
+//! CODATA 2018: hbar*c = 197.326 980 4... MeV fm
+constexpr double hbarc_MeVfm = 197.3269804;
+
 // Mass (mp/me)
 // CODATA 2018: m_e = 9.109 383 7015(28) e-31
 // CODATA 2018: m_p = 1.672 621 923 69(51) x 10-27 kg
@@ -27,8 +30,8 @@ constexpr double hbar_SI = (6.62607015e-34) / (2 * M_PI); // exact
 //! Proton mass, in atomic units (mp/me)
 constexpr double m_p = 1836.15267343;
 constexpr double m_e_kg = 9.1093837015e-31;
-//! MeV/c^2 - electron mass; 2014 value:
-constexpr double m_e_MeV = 0.5109989461;
+//! MeV/c^2 - electron mass; 2020 value 0.51099895000(15):
+constexpr double m_e_MeV = 0.51099895000;
 
 // CODATA 2014: 1822.888 486 192(53)
 //! "unified atomic mass" unit; nuclear mass unit; Dalton; u
@@ -57,7 +60,13 @@ constexpr double Hartree_invcm = 1.0 / (2.0 * M_PI * c * aB_m * (1.0e+2));
 constexpr double HartreeWL_nm = 2.0 * M_PI * c * aB_m * (1.0e+9);
 
 //! Fermi weak constant (au). Times 10^{11}
-constexpr double GFe11 = 2.2225e-3;
+/*! Particle Data Group 2020:
+ Gf = 1.1663787(6) e-5 (hbar*c)^3 GeV^-2
+    = 1.1663787(6) e-5 alpha (GeV/c^2)^-2 au
+ me = 0.51099895000 e-3 GeV/c^2 = 1 au
+ Gf = 2.222516(11) e-3 au
+*/
+constexpr double GFe11 = 2.222516e-3;
 constexpr double GF = GFe11 * (1.0e-11);
 
 //! electron g-factor. CODATA 2018: -2.002 319 304 362 56(35)

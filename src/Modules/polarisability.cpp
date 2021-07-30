@@ -1,5 +1,5 @@
 #include "polarisability.hpp"
-#include "DiracOperator/Operators.hpp"
+#include "DiracOperator/DiracOperator.hpp"
 #include "ExternalField/TDHF.hpp"
 #include "IO/InputBlock.hpp"
 #include "MBPT/StructureRad.hpp"

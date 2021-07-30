@@ -1,5 +1,5 @@
 #include "Modules/exampleModule.hpp"
-#include "DiracOperator/Operators.hpp" //For E1 operator
+#include "DiracOperator/DiracOperator.hpp" //For E1 operator
 #include "IO/InputBlock.hpp"
 #include "Physics/PhysConst_constants.hpp" // For GHz unit conversion
 #include "Wavefunction/Wavefunction.hpp"

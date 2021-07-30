@@ -1,5 +1,5 @@
 #pragma once
-#include "DiracOperator/Operators.hpp"
+#include "DiracOperator/DiracOperator.hpp"
 #include "ExternalField/DiagramRPA.hpp"
 #include "ExternalField/TDHF.hpp"
 #include "Wavefunction/DiracSpinor.hpp"

@@ -1,6 +1,5 @@
 #include "Modules/matrixElements.hpp"
-#include "DiracOperator/Operators.hpp"
-#include "DiracOperator/TensorOperator.hpp"
+#include "DiracOperator/DiracOperator.hpp"
 #include "ExternalField/DiagramRPA.hpp"
 #include "ExternalField/TDHF.hpp"
 #include "ExternalField/TDHFbasis.hpp"
