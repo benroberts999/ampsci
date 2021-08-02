@@ -137,8 +137,8 @@ struct ComplexDouble {
   ComplexDouble conj() const { return {cre(), -cim()}; }
   //! norm2 = re^2 + im^2, no sqrt (ruins T)
   [[nodiscard]] double norm2() const { return cre() * cre() + cim() * cim(); }
-      //
-      [[nodiscard]] ComplexDouble inverse() const {
+  //
+  [[nodiscard]] ComplexDouble inverse() const {
     //
     const auto n2 = norm2();
     return {cre() / n2, -cim() / n2};

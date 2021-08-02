@@ -263,8 +263,8 @@ public:
     return gmat;
   }
 
-      //! Return the imaginary-part of a complex GreenMatrix (by copy)
-      [[nodiscard]] GreenMatrix<LinAlg::SqMatrix> get_imaginary() const {
+  //! Return the imaginary-part of a complex GreenMatrix (by copy)
+  [[nodiscard]] GreenMatrix<LinAlg::SqMatrix> get_imaginary() const {
     static_assert(std::is_same<T, LinAlg::ComplexSqMatrix>::value,
                   "Can only call get_imaginary from Complex GMatrix!");
     auto gmat = GreenMatrix<LinAlg::SqMatrix>(size, m_include_G);
