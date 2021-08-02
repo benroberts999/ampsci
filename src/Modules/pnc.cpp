@@ -1,5 +1,5 @@
 #include "pnc.hpp"
-#include "DiracOperator/Operators.hpp"
+#include "DiracOperator/DiracOperator.hpp"
 #include "DiracOperator/TensorOperator.hpp"
 #include "ExternalField/MixedStates.hpp"
 #include "ExternalField/TDHF.hpp"
@@ -64,8 +64,8 @@ void calculatePNC(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Generate operators:
   const auto N_nuc = wf.Anuc() - wf.Znuc();
-  DiracOperator::PNCnsi hpnc(c, t, *(wf.rgrid), -N_nuc);
-  DiracOperator::E1 he1(*(wf.rgrid));
+  DiracOperator::PNCnsi hpnc(c, t, *wf.rgrid, -N_nuc, "i(Qw/-N)*e-11");
+  DiracOperator::E1 he1(*wf.rgrid);
 
   // Find core/valence energy: allows distingush core/valence states
   const auto ec_max =

@@ -19,37 +19,16 @@ enum class Realness { real, imaginary };
 //******************************************************************************
 //! 4x4 Integer matrix (for Gamma/Pauli). Can be real or imag. Not mixed.
 struct IntM4x4
-// 4x4 Integer matrix. Can be Pure real, or pure imag. Not mixed
+// 4x4 Integer matrix.
 // Notation for elements:
 //  (e00  e01)
 //  (e10  e11)
 {
-  IntM4x4(int in00, int in01, int in10, int in11, bool in_imag = false)
-      : e00(in00), e01(in01), e10(in10), e11(in11), imaginary(in_imag) {}
+  IntM4x4(int in00, int in01, int in10, int in11)
+      : e00(in00), e01(in01), e10(in10), e11(in11) {}
 
   const int e00, e01, e10, e11;
-  const bool imaginary;
-  IntM4x4 operator*(const IntM4x4 &other) const;
-  IntM4x4 operator+(const IntM4x4 &other) const;
-  IntM4x4 operator-(const IntM4x4 &other) const;
 };
-
-//******************************************************************************
-// Make some 'global' constants - common dirac matrices
-// Assumes DIRAC BASIS
-namespace PauliSpinMatrix {
-const IntM4x4 ident(1, 0, 0, 1);
-const IntM4x4 sx(0, 1, 1, 0);
-const IntM4x4 sy(0, -1, 1, 0, true);
-const IntM4x4 sz(1, 0, 0, -1);
-} // namespace PauliSpinMatrix
-
-namespace GammaMatrix {
-const IntM4x4 ident(1, 0, 0, 1);
-const IntM4x4 g0(1, 0, 0, -1);
-const IntM4x4 g5(0, 1, 1, 0);
-// const IntM4x4 ig5(0, 1, -1, 0); /*?*/
-} // namespace GammaMatrix
 
 //******************************************************************************
 //! @brief General operator (virtual base class); operators derive from this.
@@ -158,7 +137,7 @@ class ScalarOperator : public TensorOperator {
 public:
   ScalarOperator(Parity pi, double in_coef,
                  const std::vector<double> &in_v = {},
-                 const IntM4x4 &in_g = GammaMatrix::ident, int in_diff = 0,
+                 const IntM4x4 &in_g = {1, 0, 0, 1}, int in_diff = 0,
                  Realness rori = Realness::real)
       : TensorOperator(0, pi, in_coef, in_v, in_diff, rori),
         c_ff(in_g.e00),
@@ -182,9 +161,20 @@ public:
 
 public:
   virtual double angularF(const int ka, const int kb) const override {
+    // For scalar operators, <a||h||b> = RadInt / 3js
+    // 3js:= 1/(Sqrt[2j+1]) ... depends on m???
     // |k| = j+1/2
     return (std::abs(ka) == std::abs(kb)) ? std::sqrt(2.0 * std::abs(ka)) : 0.0;
   }
+
+  // ??? Always same? Or, spurious m-dependence?
+  // virtual double rme3js(const int twoja, const int, int,
+  //                       int = 0) const override {
+  //   // For scalar operators, <a||h||b> = RadInt / 3js
+  //   // 3js:= 1/(Sqrt[2j+1]) ... depends on m???
+  //   // |k| = j+1/2
+  //   return 1.0 / std::sqrt(twoja + 1.0);
+  // }
 
 private:
   const double c_ff, c_fg, c_gf, c_gg;

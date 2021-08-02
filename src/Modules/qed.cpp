@@ -1,5 +1,5 @@
 #include "Modules/qed.hpp"
-#include "DiracOperator/Operators.hpp"
+#include "DiracOperator/DiracOperator.hpp"
 #include "ExternalField/calcMatrixElements.hpp"
 #include "IO/InputBlock.hpp"
 #include "Modules/matrixElements.hpp"

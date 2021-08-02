@@ -24,6 +24,8 @@ ContinuumOrbitals::ContinuumOrbitals(const Wavefunction &wf, int izion)
 //******************************************************************************
 double ContinuumOrbitals::check_orthog(bool print) const {
   double worst = 0.0;
+  if (p_hf == nullptr)
+    return worst;
   for (const auto &Fc : orbitals) {
     for (const auto &Fn : p_hf->get_core()) {
       if (Fn.k != Fc.k)
@@ -42,14 +44,14 @@ double ContinuumOrbitals::check_orthog(bool print) const {
 }
 
 //******************************************************************************
-int ContinuumOrbitals::solveLocalContinuum(double ec, int max_l)
+int ContinuumOrbitals::solveContinuumHF(double ec, int max_l)
 // Overloaded, assumes min_l=0
 {
-  return solveLocalContinuum(ec, 0, max_l);
+  return solveContinuumHF(ec, 0, max_l);
 }
 
 //******************************************************************************
-int ContinuumOrbitals::solveLocalContinuum(double ec, int min_l, int max_l)
+int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l)
 // Solved the Dirac equation for local potential for positive energy (no mc2)
 // continuum (un-bound) states [partial waves].
 //  * Goes well past num_points, looks for asymptotic region, where wf is
@@ -81,19 +83,37 @@ int ContinuumOrbitals::solveLocalContinuum(double ec, int min_l, int max_l)
   cgrid.extend_to(1.2 * r_asym);
 
   // "Z_ion" - "actual" (excluding exchange.....)
-  const auto z_tmp = std::abs(v_local.back() * rgrid->r().back());
+  auto z_tmp = std::abs(v_local.back() * rgrid->r().back());
+  std::cout << "z_tmp=" << z_tmp << "\n";
+  // If ztm is 0, means neutral atom. Effective charge should be 1
+  // Exchange doesn't go further than core...
+  // This doesn't seem to have any impact, so unimportant
+  if (z_tmp < 1)
+    z_tmp = 1;
 
+  // Extend local (Vnuc+Vdir) potential to new grid
   auto vc = v_local;
   vc.reserve(cgrid.num_points());
   for (auto i = rgrid->num_points(); i < cgrid.num_points(); i++) {
-    if (force_rescale) {
-      vc.push_back(-Zion / cgrid.r(i));
-    } else {
-      vc.push_back(-z_tmp / cgrid.r(i));
+    vc.push_back(-z_tmp / cgrid.r(i));
+  }
+
+  // Re-scale large-r part of local potential, so goes like -1/r large r
+  // Note: doesn't inclue exchange..
+  // This also kills orthogonality for HF...
+  if (force_rescale) {
+    // nb: this, without the 'break' agrees best with Dzuba, but bad for orthog
+    for (auto i = cgrid.num_points() - 1; i != 0; i--) {
+      if (vc[i] > -Zion / cgrid.r(i)) {
+        vc[i] = -Zion / cgrid.r(i);
+      } else {
+        // break; ?
+      }
     }
   }
 
-  for (int k_i = 0; true; ++k_i) { // loop through each kappa state
+  // loop through each kappa state
+  for (int k_i = 0; true; ++k_i) {
     const auto kappa = AtomData::kappaFromIndex(k_i);
     const auto l = AtomData::l_k(kappa);
     if (l < min_l)
@@ -101,56 +121,31 @@ int ContinuumOrbitals::solveLocalContinuum(double ec, int min_l, int max_l)
     if (l > max_l)
       break;
 
-    auto &phi = orbitals.emplace_back(0, kappa, rgrid);
-    phi.set_en() = ec;
-    DiracODE::solveContinuum(phi, ec, vc, cgrid, r_asym, alpha);
+    auto &Fc = orbitals.emplace_back(0, kappa, rgrid);
+    Fc.set_en() = ec;
+    DiracODE::solveContinuum(Fc, ec, vc, cgrid, r_asym, alpha);
 
-    // Include (approximate) exchange
-    std::vector<double> vx(vc.size());
-    if (!p_hf->excludeExchangeQ()) {
-      auto n0 = phi * phi;
-      for (int iteration = 0; iteration < 50; ++iteration) {
-        qip::add(&vx, HF::vex_approx(phi, p_hf->get_core(), 99, 0.01));
-        qip::scale(&vx, 0.5);
-
-        auto vtot = qip::add(vc, vx);
-
-        // Ensure potential goes as - Zion / r at large r
-        if (force_rescale) {
-          for (std::size_t ir = rgrid->num_points() - 1; ir != 0; --ir) {
-            const auto r = rgrid->r()[ir];
-            if (r * std::abs(vtot[ir]) > Zion)
-              break;
-            vtot[ir] = -Zion / r;
-          }
-        }
-
-        DiracODE::solveContinuum(phi, ec, vtot, cgrid, r_asym, alpha);
-        const auto nn = phi * phi;
-        const auto eps = std::abs((nn - n0) / n0);
-        phi.set_eps() = eps;
-        // std::cout << iteration << "_ " << eps << "\n";
-        if (eps < 1.0e-7)
+    // Include exchange (Hartree Fock)
+    if (p_hf != nullptr && !p_hf->excludeExchangeQ()) {
+      for (int it = 0; it < 100; ++it) {
+        const auto vx0 = HF::vex_approx(Fc, p_hf->get_core());
+        const auto vl = qip::add(vc, vx0);
+        auto VxFc = HF::vexFa(Fc, p_hf->get_core()) - vx0 * Fc;
+        // Extend onto larger grid
+        VxFc.set_f().resize(vc.size());
+        VxFc.set_g().resize(vc.size());
+        // Copy old solution (needed by DiracODE)
+        const auto Fc0 = Fc;
+        DiracODE::solveContinuum(Fc, ec, vl, cgrid, r_asym, alpha, &VxFc, &Fc0);
+        const auto eps = ((Fc0 - Fc) * (Fc0 - Fc)) / (Fc * Fc);
+        if (eps < 1.0e-16 || it == 249) {
+          // std::cout << Fc.shortSymbol() << " " << it << " " << eps << "\n";
           break;
-        n0 = nn;
+        }
+        Fc = 0.5 * (Fc + Fc0);
       }
     }
   }
-
-  // std::ofstream of("hf-new.txt");
-  // const auto &gr = *rgrid;
-  // of << "r ";
-  // for (auto &psi : orbitals) {
-  //   of << "\"" << psi.symbol(true) << "\" ";
-  // }
-  // of << "\n";
-  // for (std::size_t i = 0; i < gr.num_points(); i++) {
-  //   of << gr.r(i) << " ";
-  //   for (auto &psi : orbitals) {
-  //     of << psi.f(i) << " ";
-  //   }
-  //   of << "\n";
-  // }
 
   return 0;
 }

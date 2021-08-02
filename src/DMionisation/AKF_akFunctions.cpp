@@ -166,7 +166,7 @@ int calculateK_nk(const Wavefunction &wf, std::size_t is, int max_L, double dE,
   if (lc_min < 0)
     lc_min = 0;
   if (ec > 0) {
-    cntm.solveLocalContinuum(ec, lc_min, lc_max);
+    cntm.solveContinuumHF(ec, lc_min, lc_max);
   }
 
   double x_ocf = psi.occ_frac(); // occupancy fraction. Usually 1

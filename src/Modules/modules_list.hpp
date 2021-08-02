@@ -3,6 +3,7 @@
 // (Modules don't _need_ to be in Modules/ directory
 #include "DMionisation/Module_atomicKernal.hpp"
 #include "Modules/HFAnomaly.hpp"
+#include "Modules/continuum.hpp"
 #include "Modules/exampleModule.hpp"
 #include "Modules/fitParametric.hpp"
 #include "Modules/isotopeShift.hpp"
@@ -47,6 +48,7 @@ static const std::vector<std::pair<
                 {"polarisability", &polarisability},
                 {"structureRad", &structureRad},
                 {"fieldShift", &fieldShift},
+                {"continuum", &continuum},
                 {"exampleModule", &exampleModule}};
 
 } // namespace Module

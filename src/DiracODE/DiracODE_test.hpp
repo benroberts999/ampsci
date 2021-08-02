@@ -1,6 +1,6 @@
 #pragma once
 #include "DiracODE/DiracODE.hpp"
-#include "DiracOperator/Operators.hpp"
+#include "DiracOperator/DiracOperator.hpp"
 #include "Maths/Grid.hpp"
 #include "Physics/AtomData.hpp"
 #include "Physics/DiracHydrogen.hpp"

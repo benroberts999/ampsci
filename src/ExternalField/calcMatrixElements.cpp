@@ -1,6 +1,6 @@
 #include "calcMatrixElements.hpp"
 #include "CorePolarisation.hpp"
-#include "DiracOperator/Operators.hpp"
+#include "DiracOperator/DiracOperator.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <iostream>
 #include <string>

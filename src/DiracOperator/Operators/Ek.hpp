@@ -22,7 +22,7 @@ public:
     return std::string("E") + std::to_string(m_k);
   }
   std::string units() const override {
-    return m_k == 1 ? "aB" : std::string("aB^") + std::to_string(m_k);
+    return m_k == 1 ? "|e|aB" : std::string("|e|aB^") + std::to_string(m_k);
   }
 
 private:
@@ -60,7 +60,7 @@ public:
     updateFrequency(omega);
   }
   std::string name() const override final { return "E1v"; }
-  std::string units() const override final { return "aB"; }
+  std::string units() const override final { return "|e|aB"; }
 
   double angularF(const int, const int) const override final { return 1.0; }
 
