@@ -217,10 +217,10 @@ double StructureRad::t1(const int k, const DiracSpinor &w, const DiracSpinor &r,
 
         for (int u = minU; u <= maxU; ++u) {
 
-          const auto sj1 = mY.sixj(w, v, k, l, u, b);
+          const auto sj1 = Coulomb::sixj(w, v, k, l, u, b);
           if (Angular::zeroQ(sj1))
             continue;
-          const auto sj2 = mY.sixj(r, c, k, l, u, a);
+          const auto sj2 = Coulomb::sixj(r, c, k, l, u, a);
           if (Angular::zeroQ(sj2))
             continue;
 
@@ -258,7 +258,7 @@ double StructureRad::t2(const int k, const DiracSpinor &w, const DiracSpinor &r,
       const auto maxU = std::min(maxU1, maxU2);
       for (int u = minU; u <= maxU; ++u) {
 
-        const auto sj = mY.sixj(w, v, k, r, c, u);
+        const auto sj = Coulomb::sixj(w, v, k, r, c, u);
         if (Angular::zeroQ(sj))
           continue;
 
@@ -297,7 +297,7 @@ double StructureRad::t3(const int k, const DiracSpinor &w, const DiracSpinor &r,
       const auto maxU = std::min(maxU1, maxU2);
       for (int u = minU; u <= maxU; ++u) {
 
-        const auto sj = mY.sixj(w, v, k, r, c, u);
+        const auto sj = Coulomb::sixj(w, v, k, r, c, u);
         if (Angular::zeroQ(sj))
           continue;
 
@@ -343,10 +343,10 @@ double StructureRad::t4(const int k, const DiracSpinor &w, const DiracSpinor &r,
 
         for (int l = minL; l <= maxL; ++l) {
 
-          const auto sj1 = mY.sixj(w, v, k, l, u, n);
+          const auto sj1 = Coulomb::sixj(w, v, k, l, u, n);
           if (Angular::zeroQ(sj1))
             continue;
-          const auto sj2 = mY.sixj(r, c, k, l, u, m);
+          const auto sj2 = Coulomb::sixj(r, c, k, l, u, m);
           if (Angular::zeroQ(sj2))
             continue;
 
@@ -385,7 +385,7 @@ double StructureRad::c1(const int k, const DiracSpinor &w, const DiracSpinor &a,
         const auto su = Angular::neg1pow(u);
         const auto f = 2 * u + 1;
 
-        const auto sj = mY.sixj(w, v, k, c, a, u);
+        const auto sj = Coulomb::sixj(w, v, k, c, a, u);
         if (Angular::zeroQ(sj))
           continue;
 
@@ -430,11 +430,11 @@ double StructureRad::c2(const int k, const DiracSpinor &w, const DiracSpinor &a,
 
         for (int l = minL; l <= maxL; ++l) {
 
-          const auto sj1 = mY.sixj(w, v, k, u, l, n);
+          const auto sj1 = Coulomb::sixj(w, v, k, u, l, n);
           if (Angular::zeroQ(sj1))
             continue;
 
-          const auto sj2 = mY.sixj(c, a, k, l, u, m);
+          const auto sj2 = Coulomb::sixj(c, a, k, l, u, m);
           if (Angular::zeroQ(sj2))
             continue;
 
@@ -472,7 +472,7 @@ double StructureRad::d1(const int k, const DiracSpinor &w, const DiracSpinor &r,
         const auto su = Angular::neg1pow(u);
         const auto f = 2 * u + 1;
 
-        const auto sj = mY.sixj(w, v, k, m, r, u);
+        const auto sj = Coulomb::sixj(w, v, k, m, r, u);
         if (Angular::zeroQ(sj))
           continue;
 
@@ -518,10 +518,10 @@ double StructureRad::d2(const int k, const DiracSpinor &w, const DiracSpinor &r,
 
         for (int l = minL; l <= maxL; ++l) {
 
-          const auto sj1 = mY.sixj(w, v, k, u, l, a);
+          const auto sj1 = Coulomb::sixj(w, v, k, u, l, a);
           if (Angular::zeroQ(sj1))
             continue;
-          const auto sj2 = mY.sixj(m, r, k, l, u, b);
+          const auto sj2 = Coulomb::sixj(m, r, k, l, u, b);
           if (Angular::zeroQ(sj2))
             continue;
 

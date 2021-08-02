@@ -56,6 +56,8 @@ public:
   //! Re-calculates y^k integrals involving single orbital Fn
   void update_y_ints(const DiracSpinor &Fn);
 
+  bool a_is_b() const { return m_aisb; }
+
   const std::vector<DiracSpinor> &get_a() const { return *m_a_orbs; }
   const std::vector<DiracSpinor> &get_b() const { return *m_b_orbs; }
 
@@ -113,23 +115,23 @@ public:
 
   //! "Magic" sixj symbol calculator. Integers (for k) and Spinors
   // do not multiply by 2!
-  template <class A, class B, class C, class D, class E, class F>
-  static double sixj(A a, B b, C c, D d, E e, F f) {
-    return Angular::sixj_2(twojk(a), twojk(b), twojk(c), twojk(d), twojk(e),
-                           twojk(f));
-  }
+  // template <class A, class B, class C, class D, class E, class F>
+  // static double sixj(A a, B b, C c, D d, E e, F f) {
+  //   return Angular::sixj_2(twojk(a), twojk(b), twojk(c), twojk(d), twojk(e),
+  //                          twojk(f));
+  // }
 
 private:
   // returns a.twoj() if a is a spinor, or 2*a if a is an integer
   // used for sixj symbol, just to simplify call site!
-  template <class A> static int twojk(A a) {
-    if constexpr (std::is_same_v<A, DiracSpinor>) {
-      return a.twoj();
-    } else {
-      static_assert(std::is_same_v<A, int>);
-      return 2 * a;
-    }
-  }
+  // template <class A> static int twojk(A a) {
+  //   if constexpr (std::is_same_v<A, DiracSpinor>) {
+  //     return a.twoj();
+  //   } else {
+  //     static_assert(std::is_same_v<A, int>);
+  //     return 2 * a;
+  //   }
+  // }
 };
 
 } // namespace Coulomb

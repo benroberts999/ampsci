@@ -1,4 +1,5 @@
 #pragma once
+#include "Angular/Angular_369j.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <vector>
 namespace Angular {
@@ -135,5 +136,22 @@ std::pair<int, int> k_minmax_P(int kappa_a, const DiracSpinor &b,
 //! DOES NOT contain parity rules (6j only) - so NOT safe to call k+=2
 std::pair<int, int> k_minmax_W(const DiracSpinor &a, const DiracSpinor &b,
                                const DiracSpinor &c, const DiracSpinor &d);
+
+//*
+
+template <class A> static int twojk(A a) {
+  if constexpr (std::is_same_v<A, DiracSpinor>) {
+    return a.twoj();
+  } else {
+    static_assert(std::is_same_v<A, int>);
+    return 2 * a;
+  }
+}
+
+template <class A, class B, class C, class D, class E, class F>
+static double sixj(A a, B b, C c, D d, E e, F f) {
+  return Angular::sixj_2(twojk(a), twojk(b), twojk(c), twojk(d), twojk(e),
+                         twojk(f));
+}
 
 } // namespace Coulomb

@@ -73,6 +73,7 @@ private:
   const int m_l;
   const int m_parity;
   const int m_k_index;
+  const int m_nk_index;
 
 public:
   //! Single-particle energy, not including rest energy
@@ -125,8 +126,10 @@ public:
   int twojp1() const { return m_twoj + 1; }
   //! (-1)^l, returns +/- 1
   int parity() const { return m_parity; }
-  //! kappa index (see Angular)
+  //! kappa index (see AtomData)
   int k_index() const { return m_k_index; }
+  //! (n,kappa) index (see AtomData)
+  int nk_index() const { return m_nk_index; }
 
   //! Single-electron term symbol (e.g., 6s_1/2). Gnuplot=true => 6s_{1/2}
   std::string symbol(bool gnuplot = false) const;

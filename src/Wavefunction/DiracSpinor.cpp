@@ -24,7 +24,8 @@ DiracSpinor::DiracSpinor(int in_n, int in_k,
       m_twoj(AtomData::twoj_k(in_k)),
       m_l(AtomData::l_k(in_k)),
       m_parity(AtomData::parity_k(in_k)),
-      m_k_index(AtomData::indexFromKappa(in_k)) {}
+      m_k_index(AtomData::indexFromKappa(in_k)),
+      m_nk_index(AtomData::nk_to_index(in_n, in_k)) {}
 
 //******************************************************************************
 std::string DiracSpinor::symbol(bool gnuplot) const {
