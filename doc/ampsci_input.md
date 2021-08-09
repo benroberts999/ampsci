@@ -518,6 +518,9 @@ Module::AtomicKernal {
   label = test_new;
   use_plane_waves = false;
   use_alt_akf = false;
+  force_rescale = false;  // true: forces v local to -1/r at high r
+  subtract_self = false;  // true: excl single-electron from v direct
+  force_orthog = false;   // true: continuum states orthog to core?
 }
 ```
 Calculates the "Atomic Kernal" (for scattering/ionisation) for each core
@@ -534,3 +537,17 @@ Writes result to human-readable (and gnuplot-friendly) file, and/or binary.
 Binary output from this program is read in by dmeXSection program
 Note: tested only for neutral atoms (V^N potential).
 Also: tested mainly for high values of q
+
+-------------------
+
+```cpp
+Module::continuum {
+    // Default values
+  ec = 0.5;               // units in keV I think?
+  max_l = 0;
+  filename = "";          // filename for output
+  force_rescale = false;  // true: forces v local to -1/r at high r
+  subtract_self = false;  // true: excl single-electron from v direct
+  force_orthog = false;   // true: continuum states orthog to core?
+}
+```

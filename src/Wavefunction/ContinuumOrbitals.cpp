@@ -1,4 +1,5 @@
 #include "Wavefunction/ContinuumOrbitals.hpp"
+#include "Coulomb/Coulomb.hpp"
 #include "DiracODE/DiracODE.hpp"
 #include "HF/HartreeFock.hpp"
 #include "Maths/Grid.hpp"
@@ -44,14 +45,19 @@ double ContinuumOrbitals::check_orthog(bool print) const {
 }
 
 //******************************************************************************
-int ContinuumOrbitals::solveContinuumHF(double ec, int max_l)
+int ContinuumOrbitals::solveContinuumHF(double ec, int max_l,
+                                        bool force_rescale, bool subtract_self,
+                                        bool force_orthog)
 // Overloaded, assumes min_l=0
 {
-  return solveContinuumHF(ec, 0, max_l);
+  return solveContinuumHF(ec, 0, max_l, force_rescale, subtract_self,
+                          force_orthog);
 }
 
 //******************************************************************************
-int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l)
+int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
+                                        bool force_rescale, bool subtract_self,
+                                        bool force_orthog)
 // Solved the Dirac equation for local potential for positive energy (no mc2)
 // continuum (un-bound) states [partial waves].
 //  * Goes well past num_points, looks for asymptotic region, where wf is
@@ -82,6 +88,14 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l)
   auto cgrid = *rgrid;
   cgrid.extend_to(1.2 * r_asym);
 
+  // Highest core state (later: use the state being ionised)
+  const auto &Fa = p_hf->get_core().back();
+  // Subtracting single electron contribution from direct potential
+  if (subtract_self) {
+    std::vector<double> vd_single = Coulomb::yk_ab(Fa, Fa, 0);
+    v_local = qip::add(v_local, qip::scale(vd_single, -1.0));
+  }
+
   // "Z_ion" - "actual" (excluding exchange.....)
   auto z_tmp = std::abs(v_local.back() * rgrid->r().back());
   std::cout << "z_tmp=" << z_tmp << "\n";
@@ -105,7 +119,10 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l)
     // nb: this, without the 'break' agrees best with Dzuba, but bad for orthog
     for (auto i = cgrid.num_points() - 1; i != 0; i--) {
       if (vc[i] > -Zion / cgrid.r(i)) {
+        // TEST checking whether force_rescale is doing anything
+        // std::cout << "Rescaling... Old vc: " << vc[i];
         vc[i] = -Zion / cgrid.r(i);
+        // std::cout << ", New vc: " << vc[i] << std::endl;
       } else {
         // break; ?
       }
@@ -123,6 +140,7 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l)
 
     auto &Fc = orbitals.emplace_back(0, kappa, rgrid);
     Fc.set_en() = ec;
+
     DiracODE::solveContinuum(Fc, ec, vc, cgrid, r_asym, alpha);
 
     // Include exchange (Hartree Fock)
@@ -144,6 +162,25 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l)
         }
         Fc = 0.5 * (Fc + Fc0);
       }
+    }
+
+    // Forcing orthogonality between continuum states and core (? check this)
+    if (force_orthog) {
+      for (const auto &Fn : p_hf->get_core()) {
+        if (Fc.k == Fn.k) {
+          std::cout << "Before forcing orthog: <" << Fc.shortSymbol() << "|"
+                    << Fn.shortSymbol() << "> = ";
+          printf("%.1e\n", Fc * Fn);
+          Fc -= (Fn * Fc) * Fn;
+          std::cout << "After: <" << Fc.shortSymbol() << "|" << Fn.shortSymbol()
+                    << "> = ";
+          printf("%.1e\n", Fc * Fn);
+          std::cout << std::endl;
+        }
+      }
+      // func already exists for this in Wavefunction.cpp
+      // const auto &Fn = p_hf->get_core();
+      // Wavefunction::orthogonaliseWrt(Fc, Fn);
     }
   }
 

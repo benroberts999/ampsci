@@ -144,7 +144,8 @@ int akReadWrite(const std::string &fname, bool write,
 //******************************************************************************
 int calculateK_nk(const Wavefunction &wf, std::size_t is, int max_L, double dE,
                   std::vector<std::vector<std::vector<double>>> &jLqr_f,
-                  std::vector<float> &AK_nk_q, bool alt_akf, double)
+                  std::vector<float> &AK_nk_q, bool alt_akf, bool force_rescale,
+                  bool subtract_self, bool force_orthog, double)
 // Calculates the atomic factor for a given core state (is) and energy.
 // Note: dE = I + ec is depositied energy, not cntm energy
 // Zeff is '-1' by default. If Zeff > 0, will solve w/ Zeff model
@@ -166,7 +167,8 @@ int calculateK_nk(const Wavefunction &wf, std::size_t is, int max_L, double dE,
   if (lc_min < 0)
     lc_min = 0;
   if (ec > 0) {
-    cntm.solveContinuumHF(ec, lc_min, lc_max);
+    cntm.solveContinuumHF(ec, lc_min, lc_max, force_rescale, subtract_self,
+                          force_orthog);
   }
 
   double x_ocf = psi.occ_frac(); // occupancy fraction. Usually 1
