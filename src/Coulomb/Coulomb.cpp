@@ -626,7 +626,7 @@ std::pair<int, int> k_minmax_Q(const DiracSpinor &a, const DiracSpinor &b,
 //------------------------------------------------------------------------------
 std::pair<int, int> k_minmax_P(const DiracSpinor &a, const DiracSpinor &b,
                                const DiracSpinor &c, const DiracSpinor &d) {
-  std::cout << "k_minmax_P: CHECK ME\n";
+  // std::cout << "k_minmax_P: CHECK ME\n";
   // P^k_abcd = sum_l {a, c, k \\ b, d, l} * Q^l_abdc
   //  |b-d| <= k <=|b+d|
   //  |a-c| <= k <=|a+c|
@@ -637,7 +637,7 @@ std::pair<int, int> k_minmax_P(const DiracSpinor &a, const DiracSpinor &b,
 }
 std::pair<int, int> k_minmax_P(int kappa_a, const DiracSpinor &b,
                                const DiracSpinor &c, const DiracSpinor &d) {
-  std::cout << "k_minmax_P: CHECK ME\n";
+  // std::cout << "k_minmax_P: CHECK ME\n";
   // P^k_abcd = sum_l {a, c, k \\ b, d, l} * Q^l_abdc
   //  |b-d| <= k <=|b+d|
   //  |a-c| <= k <=|a+c|
@@ -650,7 +650,7 @@ std::pair<int, int> k_minmax_P(int kappa_a, const DiracSpinor &b,
 //------------------------------------------------------------------------------
 std::pair<int, int> k_minmax_W(const DiracSpinor &a, const DiracSpinor &b,
                                const DiracSpinor &c, const DiracSpinor &d) {
-  std::cout << "k_minmax_W: CHECK ME\n";
+  // std::cout << "k_minmax_W: CHECK ME\n";
   // NOTE: Cannot safely k++2, since parity rules may be opposite for P and Q
   // parts!
   const auto [l1, u1] = k_minmax_Q(a, b, c, d);

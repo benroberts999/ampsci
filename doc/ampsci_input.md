@@ -46,6 +46,18 @@ Atom{Z=Cs;A=default;}
 * Program will _usually_ warn you if an incorrect option is given, and print all the available options to the screen -- you can use this fact to get the code to print all the available options for each block.
 
 ********************************************************************************
+## Auto-documentation
+
+ * This document may go out-of-sync with the code
+ * The best fail-safe way to check the available options for a given input block is to use the code itself.
+ * Do this by adding a blank 'help' option to the input file:
+ * The code will then print a list of all available options, and (usually) an explanation for them
+
+blockname {
+  help;
+}
+
+********************************************************************************
 # Each input block:
 
 ## Atom

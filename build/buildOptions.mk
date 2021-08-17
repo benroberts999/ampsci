@@ -37,13 +37,15 @@ endif
 endif
 
 # Changes to optimisation based on build setting:
-OPT=-O3
-ifeq ($(detected_OS),Darwin)
-ifeq ($(findstring clang++,$(CXX)),clang++)
-  $(info Sorry. clang++ on mac seems to require -01 to compile?)
-  OPT=-O1
+ifeq ($(OPT),)
+  OPT=-O3
 endif
-endif
+# ifeq ($(detected_OS),Darwin)
+# ifeq ($(findstring clang++,$(CXX)),clang++)
+#   $(info Sorry. clang++ on mac seems to require -01 to compile?)
+#   OPT=-O1
+# endif
+# endif
 ifeq ($(Build),release)
   WARN=-w
   OPT+=-g0 -DNDEBUG -fno-exceptions -fno-rtti -DHAVE_INLINE -DGSL_RANGE_CHECK_OFF

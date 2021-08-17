@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cmath>
 #include <functional>
+#include <vector>
 
 //! Flambaum-Ginges Radiative potential
 /*!@details

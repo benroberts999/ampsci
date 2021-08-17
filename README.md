@@ -86,31 +86,47 @@ Requires GSL (GNU scientific libraries) https://www.gnu.org/software/gsl/, and L
   * (homebrew is a package manager; install from _https://brew.sh/_)
   * Seems to work best with the homebrew version of gcc. Install as: _$brew install gcc_
   * Note: you may need to change the compiler from `g++` to `g++-9` (or similar), or update your environment variables, since calling g++ on mac actually calls clang++ by default
-  * You might have to tell the compiler how to link to the GSL library; see below
+  * You might have to tell the compiler how to link to the GSL library; in Makefile:
+    - PathForGSL=/usr/local/opt/gnu-scientific-library
   * Then compile by running _$make_ from the ampsci directory
+  * Use openMP for parellelisation when using clang++ on mac:
+    * If using g++, should work as per normal
+    * To use openMP with clang, seem to require the llvm version
+    * _$brew install llvm_
+    * Then, in the Makefile, set (exact paths may be different for you):
+      - CXX=/usr/local/opt/llvm/bin/clang++
+      - ExtraInclude=/usr/local/opt/llvm/include/
+      - ExtraLink=/usr/local/opt/llvm/lib/
+    * Note: For me, I have to set OPT=-O1 for this to work, otherwise takes infinite time to compile.
 
 
 ### Compilation: Windows:
 
 For windows, the easiest way (for me, anyway) is to use the 'windows subsystem for linux' (requires Windows10). Instructions on installation/use here: https://www.roberts999.com/posts/2018/11/wsl-coding-windows-ubuntu.
 Then, the compilation + use can proceed as per Linux above.
+In theory, should work with MSVC - but no CMAKE file provided (yet)
 
-### Compilation: Other:
+### Common Compilation errors:
 
- * NOTE: If you get the following error message on compile, change '_UseOpenMP=yes_' to '_UseOpenMP=no_' in Makefile:
-   * **error: unsupported option -fopenmp**
+ * **error: unsupported option -fopenmp**
+  - openmp (used for parallelisation) is not working. See above for some possible solutions.
+  - Quick fix: change '_UseOpenMP=yes_' to '_UseOpenMP=no_' in Makefile
 
- * **Linking to GSL**: If GSL library is not installed in _/usr/local/_, you have to tell the compiler where to find the GSL files. Do this by setting the _PathForGSL_ option in Makefile. Common examples:
-   * _PathForGSL=/opt/gsl/2.1/gnu_ # For UQ's getafix cluster
-   * _PathForGSL=/usr/local/opt/gnu-scientific-library_ # For my macbook
-   * Note: the exact path may differ for you, depending on where GSL was installed
+ * **fatal error: gsl/<...>.h: No such file or directory** (or similar)
+ * **gsl** related linking/compilation error:
+  - Could not find required GSL libraries. Either they are not installed, or you need to link to them
+  - 1) Ensure GSL is installed (see above for instructions)
+  - 2) If GSL library is not installed in _/usr/local/_, you have to tell the compiler where to find the GSL files. Do this by setting the _PathForGSL_ option in Makefile. Common examples:
+    * _PathForGSL=/opt/gsl/2.1/gnu_ # For UQ's getafix cluster
+    * _PathForGSL=/usr/local/opt/gnu-scientific-library_ # For my macbook
+    * Note: the exact path may differ for you, depending on where GSL was installed
 
+* **error: too few arguments to function ‘int gsl_bspline_deriv_eval**
+ - This is because the code is linking to a very old version of GSL. You might need to update GSL. If you have updated GSL (to at least version 2.0) and still get the message, the code is probably linking against the wrong version of GSL; see above to point the compiler to the correct version
+
+* **other:**
  * Sometimes, the compiler will not be able to find the correct libraries (particular, e.g., on clusters). In this case, there are two options in the Makfefile: **ExtraInclude** and **ExtraLink**
    * These add paths to include the correct directories for both -I "includes" (for compilation), and -L link flags (for linking libraries) in Makefile. These can be a little tricky to get right (don't include the -I or -L)
-
- * NOTE: If you get the following error, it is because the code is linking to a very old version of GSL. You might need to update GSL. If you have updated GSL (to at least version 2.0) and still get the message, the code is probably linking against the wrong version of GSL; see above to point the compiler to the correct version
-   * **error: too few arguments to function ‘int gsl_bspline_deriv_eval**
-
 
 --------------------------------------------------------------------------------
 
