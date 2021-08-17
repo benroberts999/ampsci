@@ -265,6 +265,7 @@ double Rk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
                const DiracSpinor &Fc, const DiracSpinor &Fd,
                const int k) //
 {
+  // note: Returns non-zero value, even if angular part would be zero
   [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__);
   const auto yk_bd = yk_ab(Fb, Fd, k, std::min(Fa.max_pt(), Fc.max_pt()));
   return Rk_abcd(Fa, Fc, yk_bd);
@@ -625,6 +626,7 @@ std::pair<int, int> k_minmax_Q(const DiracSpinor &a, const DiracSpinor &b,
 //------------------------------------------------------------------------------
 std::pair<int, int> k_minmax_P(const DiracSpinor &a, const DiracSpinor &b,
                                const DiracSpinor &c, const DiracSpinor &d) {
+  std::cout << "k_minmax_P: CHECK ME\n";
   // P^k_abcd = sum_l {a, c, k \\ b, d, l} * Q^l_abdc
   //  |b-d| <= k <=|b+d|
   //  |a-c| <= k <=|a+c|
@@ -635,6 +637,7 @@ std::pair<int, int> k_minmax_P(const DiracSpinor &a, const DiracSpinor &b,
 }
 std::pair<int, int> k_minmax_P(int kappa_a, const DiracSpinor &b,
                                const DiracSpinor &c, const DiracSpinor &d) {
+  std::cout << "k_minmax_P: CHECK ME\n";
   // P^k_abcd = sum_l {a, c, k \\ b, d, l} * Q^l_abdc
   //  |b-d| <= k <=|b+d|
   //  |a-c| <= k <=|a+c|
@@ -647,6 +650,7 @@ std::pair<int, int> k_minmax_P(int kappa_a, const DiracSpinor &b,
 //------------------------------------------------------------------------------
 std::pair<int, int> k_minmax_W(const DiracSpinor &a, const DiracSpinor &b,
                                const DiracSpinor &c, const DiracSpinor &d) {
+  std::cout << "k_minmax_W: CHECK ME\n";
   // NOTE: Cannot safely k++2, since parity rules may be opposite for P and Q
   // parts!
   const auto [l1, u1] = k_minmax_Q(a, b, c, d);

@@ -1,5 +1,6 @@
 #include "Angular/Angular_test.hpp"
 #include "Coulomb/Coulomb_test.hpp"
+#include "Coulomb/QkTable_test.hpp"
 #include "DiracODE/DiracODE_test.hpp"
 #include "ExternalField/DiagramRPA_test.hpp"
 #include "ExternalField/MixedStates_test.hpp"
@@ -69,6 +70,7 @@ static const std::vector<std::pair<std::string, bool (*)(std::ostream &obuff)>>
         {"Coulomb", &Coulomb},
         {"CorrelationPotential", &CorrelationPotential},
         {"DiagramRPA", &DiagramRPA},
+        {"QkTable", &QkTable},
         {"StructureRad", &StructureRad}
         //
     };
