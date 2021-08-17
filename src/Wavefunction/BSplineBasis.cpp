@@ -136,6 +136,42 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
     }
   }
 
+  // Compare basis states to core/valence states
+  // Check normality, orthogonality and energy differences
+  for (const auto *orbs : {&wf.core, &wf.valence}) {
+    if (orbs->empty())
+      continue;
+
+    std::cout << "Compare basis to " << (orbs == &wf.core ? "core" : "valence")
+              << "\n";
+    double worst_dN = 0.0;
+    double worst_dE = 0.0;
+    std::string wFN, wFE;
+    for (const auto &Fc : *orbs) {
+      // find corresponding basis state:
+      auto pFbc = std::find(basis.cbegin(), basis.cend(), Fc);
+      if (pFbc == basis.cend())
+        continue;
+      const auto dN = std::abs(Fc * (*pFbc) - 1.0);
+      const auto dE = std::abs((pFbc->en() - Fc.en()) / pFbc->en());
+      if (dN > worst_dN) {
+        worst_dN = dN;
+        wFN = Fc.shortSymbol();
+      }
+      if (dE > worst_dE) {
+        worst_dE = dE;
+        wFE = Fc.shortSymbol();
+      }
+    }
+    printf(" |<%s|%s>-1| = %.1e\n", wFN.c_str(), wFN.c_str(), worst_dN);
+    printf(" dE/E(%s)     = %.1e\n", wFE.c_str(), worst_dE);
+    if (worst_dN > 1.0e-3 || worst_dE > 1.0e-3) {
+      std::cout << "WARNING: basis issue?\n";
+    }
+    const auto [eps, str] = DiracSpinor::check_ortho(*orbs, basis);
+    printf(" %-10s    = %.1e\n", str.c_str(), eps);
+  }
+
   return basis;
 }
 
