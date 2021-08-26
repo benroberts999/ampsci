@@ -32,9 +32,23 @@ bool check_value(std::ostream *ostr, const std::string_view &name,
 
 //! overload which prints to cout
 template <typename T>
-bool check_value(const std::string_view &name, const T value, const T expected,
-                 const T tollerance) {
-  return check_value(&std::cout, name, value, expected, tollerance);
+bool check(const std::string_view &name, const T value, const T expected) {
+  return check(&std::cout, name, value, expected);
+}
+
+template <typename T>
+bool check(std::ostream *ostr, const std::string_view &name, const T value,
+           const T expected) {
+  const bool passedQ = value == expected;
+  if (passedQ) {
+    *ostr << "passed ";
+  } else {
+    *ostr << "FAILED ";
+  }
+
+  *ostr << std::setw(36) << std::left << name << "|\n";
+
+  return passedQ;
 }
 
 } // namespace qip

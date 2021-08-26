@@ -28,12 +28,28 @@ bool QkTable(std::ostream &obuff) {
   // These save much time when calculating Q^k coeficients
   const Coulomb::YkTable yk(wf.rgrid, &wf.basis);
 
-  Coulomb::QkTable qk;
+  Coulomb::QkTable qk_t;
   // Coulomb::WkTable qk;
   // Coulomb::NkTable qk;
-  qk.fill(yk);
+  qk_t.fill(yk);
+
+  {
+    IO::ChronoTimer t("Write to disk");
+    qk_t.write("out.qk");
+  }
+
+  // Read in to qk (test of read/write)
+  Coulomb::QkTable qk;
+  {
+    IO::ChronoTimer t("Read from disk");
+    auto ok = qk.read("out.qk");
+    std::cout << (ok ? "yes" : "no") << "\n";
+  }
+  std::cout << "\n";
 
   // Compare the speed of using Qk lookup table vs. direct calculation
+  double dir_time = 0.0;
+  double tab_time = 0.0;
   {
     IO::ChronoTimer t("Direct calc");
     double sum1 = 0.0;
@@ -55,6 +71,7 @@ bool QkTable(std::ostream &obuff) {
       }
     }
     std::cout << "sum1=" << sum1 << "\n" << std::flush;
+    dir_time = t.reading_ms();
   }
   std::cout << "\n";
 
@@ -76,7 +93,13 @@ bool QkTable(std::ostream &obuff) {
       }
     }
     std::cout << "sum2=" << sum2 << " (should = sum1)\n" << std::flush;
+    tab_time = t.reading_ms();
   }
+
+  std::cout << dir_time << "/" << tab_time
+            << ": speed-up = " << dir_time / tab_time << "x\n";
+
+  pass &= qip::check(&obuff, "QkTable: timing", tab_time < dir_time, true);
 
   {
 
@@ -133,10 +156,10 @@ bool QkTable(std::ostream &obuff) {
     }
     std::cout << "tested: " << non_zero_count << "/" << total_count
               << " non-zero\n";
-    pass &= qip::check_value(&obuff, "QkTable: Q", max_devQ, 0.0, 1.0e-14);
-    pass &= qip::check_value(&obuff, "QkTable: R", max_devR, 0.0, 1.0e-14);
-    pass &= qip::check_value(&obuff, "QkTable: P", max_devP, 0.0, 1.0e-14);
-    pass &= qip::check_value(&obuff, "QkTable: W", max_devW, 0.0, 1.0e-14);
+    pass &= qip::check_value(&obuff, "QkTable: Q", max_devQ, 0.0, 1.0e-13);
+    pass &= qip::check_value(&obuff, "QkTable: R", max_devR, 0.0, 1.0e-13);
+    pass &= qip::check_value(&obuff, "QkTable: P", max_devP, 0.0, 1.0e-13);
+    pass &= qip::check_value(&obuff, "QkTable: W", max_devW, 0.0, 1.0e-13);
   }
 
   return pass;

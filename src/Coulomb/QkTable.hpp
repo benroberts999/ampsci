@@ -49,7 +49,7 @@ public:
   virtual ~CoulombTable() = default;
 
   //! Gives arrow access to all underlying vector<unordered_map> functions
-  auto operator->() { return &m_data; }
+  auto operator-> () { return &m_data; }
 
   //! For testing: prints details of coulomb integrals stored
   void count() const;
@@ -102,6 +102,11 @@ public:
   //! non-zero Qk elements, accounting for symmetry (only really makes sense for
   //! QkTable)
   void fill(const YkTable &yk);
+
+  //! Writes coulomb integrals to disk
+  void write(const std::string &fname) const;
+  //! Reads coulomb integrals to disk. Returns false if none read in
+  bool read(const std::string &fname);
 
 protected:
   // Creates single 'BigIndex', WITHOUT accounting for 'NormalOrder'. Can be

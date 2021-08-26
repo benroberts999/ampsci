@@ -1,10 +1,12 @@
 #include "QkTable.hpp"
 #include "Coulomb.hpp"
 #include "IO/ChronoTimer.hpp"
+#include "IO/FRW_fileReadWrite.hpp"
 #include "IO/SafeProfiler.hpp"
 #include <algorithm>
 #include <cassert>
 #include <cstring> // for memcpy
+#include <string_view>
 
 namespace Coulomb {
 
@@ -210,13 +212,14 @@ void CoulombTable::fill(const YkTable &yk) {
 
   // Allow fill in parallel, by first storing in a vector, then adding vector
   // to map in series
-  class TMP {
-  public:
-    int k;
-    BigIndex ix;
-    Real val;
-  };
-  std::vector<std::vector<TMP>> maps(basis.size());
+  using TMP = std::pair<BigIndex, Real>;
+  std::vector<std::vector<std::vector<TMP>>> maps_k_a;
+
+  const auto max_k = std::size_t(DiracSpinor::max_tj(basis));
+  maps_k_a.resize(max_k + 1);
+  for (auto &mk : maps_k_a) {
+    mk.resize(basis.size());
+  }
 
   // Cannot insert into map in thread-safe manner.
   // So, fill a std::vector safely, then insert those elements into map
@@ -241,8 +244,8 @@ void CoulombTable::fill(const YkTable &yk) {
             if (yk_bd == nullptr)
               continue;
 
-            auto qk = Coulomb::Qk_abcd(a, b, c, d, k, *yk_bd, yk.Ck());
-            maps[i].push_back({k, ix, qk});
+            const auto qk = Coulomb::Qk_abcd(a, b, c, d, k, *yk_bd, yk.Ck());
+            maps_k_a[std::size_t(k)][i].emplace_back(ix, qk);
           }
         }
       }
@@ -253,13 +256,76 @@ void CoulombTable::fill(const YkTable &yk) {
   std::cout << "Fill vector: " << t.reading_str() << std::endl;
   t.start();
 
-  for (const auto &each : maps) {
-    for (const auto &[k, ix, val] : each) {
-      add(k, ix, val);
+  // Three-step method for filling map cut down time by >4x!
+
+  // 1) re-size map
+  m_data.resize(max_k + 1);
+
+  // 2) Reserve enough space in each sub-map (=> 2x speed-up!)
+  for (auto ik = 0ul; ik <= max_k; ++ik) {
+    auto size_k = 0ul;
+    for (auto ia = 0ul; ia < basis.size(); ++ia) {
+      size_k += maps_k_a[ik][ia].size();
     }
+    m_data[ik].reserve(size_k);
   }
+
+// 3) Transfer data to map (can //-ize over k (since map is re-sized!))
+#pragma omp parallel for
+  for (auto ik = 0ul; ik <= max_k; ++ik) {
+    for (const auto &k_maps : maps_k_a[ik]) {
+      m_data[ik].insert(k_maps.begin(), k_maps.end());
+    }
+    maps_k_a[ik].clear(); // can clear vector here to "save" memory..
+  }
+
   std::cout << "Fill map: " << t.lap_reading_str() << std::endl;
   count();
+}
+
+//******************************************************************************
+void CoulombTable::write(const std::string &fname) const {
+  std::fstream f;
+  const auto rw = IO::FRW::write;
+  IO::FRW::open_binary(f, fname, rw);
+
+  auto size = m_data.size();
+  rw_binary(f, rw, size);
+  for (const auto &Q_k : m_data) {
+    auto size_k = Q_k.size();
+    rw_binary(f, rw, size_k);
+    for (auto [key, value] : Q_k) {
+      auto key_copy = key; // have no pass non-const reference!
+      rw_binary(f, rw, key_copy, value);
+    }
+  }
+}
+bool CoulombTable::read(const std::string &fname) {
+  std::fstream f;
+  const auto rw = IO::FRW::read;
+  IO::FRW::open_binary(f, fname, rw);
+
+  if (!f.good())
+    return false;
+
+  std::size_t size{0};
+  rw_binary(f, rw, size);
+  m_data.resize(size);
+  if (m_data.size() == 0)
+    return false;
+  for (std::size_t i = 0; i < m_data.size(); ++i) {
+    auto &Q_k = m_data[i];
+    std::size_t size_k{0};
+    rw_binary(f, rw, size_k);
+    Q_k.reserve(size_k);
+    for (std::size_t ik = 0; ik < size_k; ++ik) {
+      BigIndex key;
+      Real value;
+      rw_binary(f, rw, key, value);
+      Q_k[key] = value;
+    }
+  }
+  return true;
 }
 
 } // namespace Coulomb
