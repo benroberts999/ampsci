@@ -11,17 +11,25 @@ void continuum(const IO::InputBlock &input, const Wavefunction &wf) {
 
   input.checkBlock2({{"ec", "energy for cntm states (>0)"},
                      {"max_l", "maximum l"},
-                     {"filename", "filename for output"}});
+                     {"filename", "filename for output"},
+                     {"force_rescale", "force rescale"},
+                     {"subtract_self", "subtract self interaction"},
+                     {"force_orthog", "force orthogonality"}});
 
   auto en_c = input.get("ec", 0.5);
   auto lmax = input.get("max_l", 0);
   auto fname = input.get("filename", std::string{""});
 
+  // Method options for solveContinuumHF
+  auto force_rescale = input.get<bool>("force_rescale", false);
+  auto subtract_self = input.get<bool>("subtract_self", false);
+  auto force_orthog = input.get<bool>("force_orthog", false);
+
   std::cout << "\nContinuum Orbitals:\n";
   std::cout << "energy: " << en_c << "\n";
 
   auto cntm = ContinuumOrbitals(wf);
-  cntm.solveContinuumHF(en_c, lmax);
+  cntm.solveContinuumHF(en_c, lmax, force_rescale, subtract_self, force_orthog);
 
   std::cout << "Check orthogonanilty:\n";
   cntm.check_orthog(true);

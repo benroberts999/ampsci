@@ -162,6 +162,7 @@ std::size_t findAsymptoticRegion(std::vector<double> &pc,
       }
       if (std::abs(wk1 - wk2) < 1.0e-4) {
         // check for "convergence"
+        // add print statement suggesting denser grid?
         i_asym = i;
         break;
       }
