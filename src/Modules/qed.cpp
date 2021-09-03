@@ -1,5 +1,6 @@
 #include "Modules/qed.hpp"
 #include "DiracOperator/DiracOperator.hpp"
+#include "ExternalField/TDHF.hpp"
 #include "ExternalField/calcMatrixElements.hpp"
 #include "IO/InputBlock.hpp"
 #include "Modules/matrixElements.hpp"
@@ -175,6 +176,14 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
   // QED to matrix elements (perturbed orbital part):
   const auto me_input = input.getBlock("matrixElements");
   if (me_input) {
+    me_input->checkBlock2(
+        {{"operator", "e.g., E1, hfs"},
+         {"options", "options specific to operator; blank by dflt"},
+         {"rpa", "true(=TDHF), false, TDHF, basis, diagram"},
+         {"omega", "freq. for RPA"},
+         {"radialIntegral", "false by dflt (means red. ME)"},
+         {"printBoth", "print <a|h|b> and <b|h|a> (dflt false)"},
+         {"onlyDiagonal", "only <a|h|a> (dflt false)"}});
 
     const auto oper = me_input->get<std::string>("operator", "");
     // Get optional 'options' for operator
@@ -185,6 +194,16 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
     }
     const auto h = generateOperator(oper, h_options, wf, true);
     const bool diagonal_only = me_input->get("onlyDiagonal", false);
+
+    const bool rpaQ = me_input->get("rpa", false);
+    std::unique_ptr<ExternalField::CorePolarisation> rpa0{nullptr},
+        rpa_vp{nullptr}, rpa_se{nullptr};
+    if (rpaQ) {
+      std::cout << "RPA: TDHF method, at zero frequency\n";
+      rpa0 = std::make_unique<ExternalField::TDHF>(h.get(), wf.getHF());
+      rpa_vp = std::make_unique<ExternalField::TDHF>(h.get(), wf_VP.getHF());
+      rpa_se = std::make_unique<ExternalField::TDHF>(h.get(), wf_SE.getHF());
+    }
 
     auto first_line_me_po =
         IO::FRW::file_exists(fname + ".me_po")
@@ -200,15 +219,15 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
     // std::cout << "\nQED correction to Matrix elements (PO)\n";
     // std::cout << "\nNo QED:";
     const auto me0 = ExternalField::calcMatrixElements(
-        wf.valence, h.get(), nullptr, 0.0, false, diagonal_only);
+        wf.valence, h.get(), rpa0.get(), 0.0, false, diagonal_only);
 
     // std::cout << "\nVacuum polarisation (PO):";
     const auto mevp = ExternalField::calcMatrixElements(
-        wf_VP.valence, h.get(), nullptr, 0.0, false, diagonal_only);
+        wf_VP.valence, h.get(), rpa_vp.get(), 0.0, false, diagonal_only);
 
     // std::cout << "\nSelf-energy (PO):";
     const auto mese = ExternalField::calcMatrixElements(
-        wf_SE.valence, h.get(), nullptr, 0.0, false, diagonal_only);
+        wf_SE.valence, h.get(), rpa_se.get(), 0.0, false, diagonal_only);
 
     std::cout << "\nQED contribution matrix elements (Perturbed Orbital)\n";
     std::cout
@@ -221,11 +240,11 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
       const auto vp = std::find_if(begin(mevp), end(mevp), l);
       const auto se = std::find_if(begin(mese), end(mese), l);
       if (vp != mevp.end() && se != mese.end()) {
-        const auto d_vp = vp->hab - x0;
-        const auto d_se = se->hab - x0;
-        const auto o =
-            qip::fstring("%4s %4s:  %12.5e  %12.5e  %12.5e  %12.5e\n",
-                         a.c_str(), b.c_str(), x0, d_vp, d_se, d_vp + d_se);
+        const auto d_vp = (vp->hab + vp->dv) - (x0 + dv);
+        const auto d_se = (se->hab + se->dv) - (x0 + dv);
+        const auto o = qip::fstring(
+            "%4s %4s:  %12.5e  %12.5e  %12.5e  %12.5e\n", a.c_str(), b.c_str(),
+            x0 + dv, d_vp, d_se, d_vp + d_se);
         std::cout << o;
         of_me << wf.Znuc() << " " << o;
       }
