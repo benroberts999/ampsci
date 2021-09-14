@@ -38,6 +38,33 @@ double CLkk(int L, int ka, int kb)
 }
 
 //******************************************************************************
+double DLkk(int L, int ka, int kb)
+// /*
+// Angular coefficient for pseudoscalar and pseudo vector cases
+// D_{k}^{k',L} related to C_{k}^{k',L} via transformation
+// k -> k_tilde = -k, l -> l_tilde = |k_tilde + 1/2| - 1/2
+// */
+{
+  int ka_tilde = -ka;
+  int la_tilde = (ka_tilde > 0) ? ka_tilde : -ka_tilde - 1;
+  // OR int la_tilde = (ka > 0) ? ka - 1 : -ka
+  // function seems to already exists -> AtomData::l_tilde_k(ka)
+  int lb = AtomData::l_k(kb); // l' and k' not transformed
+  // ***check with Ben if twoj(ka) -> twoj(ka_tilde)
+  int two_ja = AtomData::twoj_k(ka_tilde);
+  int two_jb = AtomData::twoj_k(kb);
+
+  // ***check if this can stay the same as from CLkk
+  if ((la_tilde + lb + L) % 2 != 0)
+    return 0; // Parity rule
+  if ((la_tilde + lb < L) || (std::abs(la_tilde - lb) > L))
+    return 0; // triangle rule (l)
+
+  double tjs = Angular::threej_2(two_jb, two_ja, 2 * L, -1, 1, 0);
+  return (two_ja + 1) * (two_jb + 1) * (2 * L + 1) * tjs * tjs;
+}
+
+//******************************************************************************
 void writeToTextFile(const std::string &fname,
                      const std::vector<std::vector<std::vector<float>>> &AK,
                      const std::vector<std::string> &nklst, double qmin,
@@ -174,10 +201,17 @@ int calculateK_nk(const Wavefunction &wf, std::size_t is, int max_L, double dE,
   double x_ocf = psi.occ_frac(); // occupancy fraction. Usually 1
 
   // Generate AK for each L, lc, and q
-  // L and lc are summed, not stored indevidually
+  // L and lc are summed, not stored individually
   for (int L = 0; L <= max_L; L++) {
     for (const auto &phic : cntm.orbitals) {
       int kc = phic.k;
+      // /*
+      // if scalar or vector {
+      //   double dC_Lkk = CLkk(L, k, kc);
+      // } else if pseudoscalar or pseudovector {
+      //   double dC_Lkk = DLkk(L, k, kc);
+      // }
+      // */
       double dC_Lkk = CLkk(L, k, kc);
       if (dC_Lkk == 0)
         continue;
@@ -189,6 +223,26 @@ int calculateK_nk(const Wavefunction &wf, std::size_t is, int max_L, double dE,
                                        jLqr_f[L][iq], wf.rgrid->drdu());
         double ag = NumCalc::integrate(1.0, 0, maxj, psi.g(), phic.g(),
                                        jLqr_f[L][iq], wf.rgrid->drdu());
+        // /*
+        // double aff = NumCalc::integrate(1.0, 0, maxj, psi.f(), phic.f(),
+        //                                jLqr_f[L][iq], wf.rgrid->drdu());
+        // double agg = NumCalc::integrate(1.0, 0, maxj, psi.g(), phic.g(),
+        //                                jLqr_f[L][iq], wf.rgrid->drdu());
+        // double afg = NumCalc::integrate(1.0, 0, maxj, psi.f(), phic.g(),
+        //                                jLqr_f[L][iq], wf.rgrid->drdu());
+        // double agf = NumCalc::integrate(1.0, 0, maxj, psi.f(), phic.g(),
+        //                                jLqr_f[L][iq], wf.rgrid->drdu());
+        // if scalar {
+        //   a = aff - agg; // should be (aff - PhysConst::alpha2*agg)??
+        // } else if vector {
+        //   a = aff + agg; // aff + alpha2*agg
+        // } else if pseudoscalar {
+        //   a = afg + agf; // alpha2*(afg + agf)
+        // } else if pseudovector {
+        //   a = afg - agf; // alpha2*(afg - agf)
+        // }
+        // // Each of these should have PhysConst::alpha2 in them somewhere??
+        // */
         if (alt_akf && psi.k == phic.k) {
           af -= NumCalc::integrate(1.0, 0, maxj, psi.f(), phic.f(),
                                    wf.rgrid->drdu());
