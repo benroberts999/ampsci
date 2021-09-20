@@ -7,6 +7,12 @@ namespace AKF {
 
 double CLkk(int L, int ka, int kb);
 
+void writeToTextFile_AFBE(
+    const std::string &fname,
+    const std::vector<std::vector<std::vector<float>>> &AK,
+    const std::vector<std::string> &nklst, double qmin, double qmax,
+    const std::vector<double> deion);
+
 void writeToTextFile(const std::string &fname,
                      const std::vector<std::vector<std::vector<float>>> &AK,
                      const std::vector<std::string> &nklst, double qmin,
@@ -20,7 +26,8 @@ int akReadWrite(const std::string &fname, bool write,
 int calculateK_nk(const Wavefunction &wf, std::size_t nk, int max_L, double dE,
                   std::vector<std::vector<std::vector<double>>> &jLqr_f,
                   std::vector<float> &K_nk, bool alt_akf, bool force_rescale,
-                  bool subtract_self, bool force_orthog, double Zeff = -1);
+                  bool subtract_self, bool force_orthog, std::string dmec,
+                  double Zeff = -1);
 
 int calculateKpw_nk(const Wavefunction &wf, std::size_t nk, double dE,
                     std::vector<std::vector<double>> &jl_qr,

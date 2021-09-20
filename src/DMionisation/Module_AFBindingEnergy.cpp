@@ -20,7 +20,7 @@ void AFBindingEnergy(const IO::InputBlock &input, const Wavefunction &wf) {
   input.checkBlock({"qmin", "qmax", "qsteps", "max_l_bound", "max_L",
                     "use_plane_waves", "label", "output_text", "output_binary",
                     "use_alt_akf", "force_rescale", "subtract_self",
-                    "force_orthog"});
+                    "force_orthog", "dme_coupling"});
 
   auto qmin = input.get<double>("qmin", 1.0);
   auto qmax = input.get<double>("qmax", 1.0);
@@ -67,12 +67,28 @@ void AFBindingEnergy(const IO::InputBlock &input, const Wavefunction &wf) {
   if (!text_out && !bin_out)
     bin_out = true; // print message?
 
-  // New options for function solveContinuumHF
-  // if alt_akf then subtract non-orth states from atomic factor
+  // if alt_akf then exp(iqr) -> exp(iqr) - 1 (i.e. j_L -> j_L - 1)
   auto alt_akf = input.get<bool>("use_alt_akf", false);
+  // Options used by solveContinuumHF (called in AKF)
   auto force_rescale = input.get<bool>("force_rescale", false);
   auto subtract_self = input.get<bool>("subtract_self", false);
   auto force_orthog = input.get<bool>("force_orthog", false);
+
+  // DM-electron couplings
+  std::vector<std::string> dmec_opt = {"Vector", "Scalar", "Pseudovector",
+                                       "Pseudoscalar"};
+  // std::string dme_coupling = input.get<std::string>("dme_coupling", dmec[0]);
+  std::string dmec = input.get<std::string>("dme_coupling", "Vector");
+  int dmec_check = 0;
+  for (const auto &option : dmec_opt) {
+    dmec_check += (dmec == option) ? 1 : 0;
+  }
+  if (dmec_check == 0) {
+    std::cerr << "\nWarning: dm-electron coupling " << dmec
+              << " unknown, defaulting to Vector\n";
+    dmec = "Vector";
+  }
+  // dmec = (check_dmec == true) ? ;
 
   // Make sure h (large-r step size) is small enough to
   // calculate (normalise) cntm functions with energy = demax
@@ -145,16 +161,19 @@ void AFBindingEnergy(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Calculate K(q,E)
   timer.start();
-  std::cout << "Running dE loops (" << desteps << ").." << std::flush;
+  std::cout << "Running dE loops (" << desteps << ")..\n" << std::flush;
   // #pragma omp parallel for
   // for (int ide = 0; ide < desteps; ide++) {
   // double dE = Egrid.r()[ide];
   // Loop over core (bound) states:
   // for (auto is : wf.stateIndexList) {
+  std::vector<double> eabove;
   for (std::size_t is = 0; is < wf.core.size(); is++) {
-    double dE = 1.25 * wf.core[is].en();
-    std::cout << wf.core[is].symbol().c_str() << "\t\t" << wf.core[is].en()
-              << "\t\t" << dE << std::endl;
+    // Need to store the energies used for printing!
+    double dE = -1.1 * wf.core[is].en();
+    eabove.push_back(dE);
+    std::cout << wf.core[is].symbol().c_str() << "\t" << wf.core[is].en()
+              << "\t" << dE << std::endl;
 
     int l = wf.core[is].l(); // lorb(is);
     if (l > max_l)
@@ -163,7 +182,7 @@ void AFBindingEnergy(const IO::InputBlock &input, const Wavefunction &wf) {
       AKF::calculateKpw_nk(wf, is, dE, jLqr_f[l], AK[0][is]);
     else
       AKF::calculateK_nk(wf, is, max_L, dE, jLqr_f, AK[0][is], alt_akf,
-                         force_rescale, subtract_self, force_orthog);
+                         force_rescale, subtract_self, force_orthog, dmec);
   } // END loop over bound states
   // }
   std::cout << "..done :)\n";
@@ -171,7 +190,7 @@ void AFBindingEnergy(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Write out to text file (in gnuplot friendly form)
   if (text_out)
-    AKF::writeToTextFile(fname, AK, nklst, qmin, qmax, demin, demax);
+    AKF::writeToTextFile_AFBE(fname, AK, nklst, qmin, qmax, eabove);
   // //Write out AK as binary file
   if (bin_out)
     AKF::akReadWrite(fname, true, AK, nklst, qmin, qmax, demin, demax);

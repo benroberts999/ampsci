@@ -20,7 +20,8 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
   input.checkBlock({"Emin", "Emax", "Esteps", "qmin", "qmax", "qsteps",
                     "max_l_bound", "max_L", "use_plane_waves", "label",
                     "output_text", "output_binary", "use_alt_akf",
-                    "force_rescale", "subtract_self", "force_orthog"});
+                    "force_rescale", "subtract_self", "force_orthog",
+                    "dme_coupling"});
 
   auto demin = input.get<double>("Emin", 1.0);
   auto demax = input.get<double>("Emax", 1.0);
@@ -60,6 +61,8 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
     max_l = max_l_core;
   auto max_L = input.get<int>("max_L", 2 * max_l); // random default..
 
+  std::string dme_coupling = input.get<std::string>("dme_coupling", "Vector");
+
   bool plane_wave = input.get<bool>("use_plane_waves", false);
   if (plane_wave)
     max_L = max_l; // for spherical bessel.
@@ -72,12 +75,15 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
   if (!text_out && !bin_out)
     bin_out = true; // print message?
 
-  // New options for function solveContinuumHF
-  // if alt_akf then subtract non-orth states from atomic factor
+  // if alt_akf then exp(iqr) -> exp(iqr) - 1 (i.e. j_L -> j_L - 1)
   auto alt_akf = input.get<bool>("use_alt_akf", false);
+  // Options used by solveContinuumHF (called in AKF)
   auto force_rescale = input.get<bool>("force_rescale", false);
   auto subtract_self = input.get<bool>("subtract_self", false);
   auto force_orthog = input.get<bool>("force_orthog", false);
+
+  // DM-electron coupling options (Vector, Scalar, Pseudovector, Pseudoscalar)
+  std::string dmec = input.get<std::string>("dme_coupling", "Vector");
 
   // Make sure h (large-r step size) is small enough to
   // calculate (normalise) cntm functions with energy = demax
@@ -164,7 +170,7 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
         AKF::calculateKpw_nk(wf, is, dE, jLqr_f[l], AK[ide][is]);
       else
         AKF::calculateK_nk(wf, is, max_L, dE, jLqr_f, AK[ide][is], alt_akf,
-                           force_rescale, subtract_self, force_orthog);
+                           force_rescale, subtract_self, force_orthog, dmec);
     } // END loop over bound states
   }
   std::cout << "..done :)\n";

@@ -28,8 +28,8 @@ double CLkk(int L, int ka, int kb)
 
   if ((la + lb + L) % 2 != 0)
     return 0; // Parity rule
-  if ((la + lb < L) || (std::abs(la - lb) > L))
-    return 0; // triangle rule (l)
+  // if ((la + lb < L) || (std::abs(la - lb) > L))
+  //   return 0; // triangle rule (l)
   // Note: triangle rule included in 3j, so this is not needed (but faster)
   // But, parity rule not included in 3j, so must be checked!
 
@@ -57,12 +57,47 @@ double DLkk(int L, int ka, int kb)
   // ***check if this can stay the same as from CLkk
   if ((la_tilde + lb + L) % 2 != 0)
     return 0; // Parity rule
-  if ((la_tilde + lb < L) || (std::abs(la_tilde - lb) > L))
-    return 0; // triangle rule (l)
+  // if ((la_tilde + lb < L) || (std::abs(la_tilde - lb) > L))
+  //   return 0; // triangle rule (l)
 
   double tjs = Angular::threej_2(two_jb, two_ja, 2 * L, -1, 1, 0);
   return (two_ja + 1) * (two_jb + 1) * (2 * L + 1) * tjs * tjs;
 }
+
+//******************************************************************************
+double CLkk_DLkk(int L, int ka, int kb, std::string dmec)
+// /*
+// Selects angular coefficient based on DM-electron coupling
+// Vector & scalar cases:
+// C_{k}^{k',L} = [j][j'][L] * (j,j',L, -1/,1/2,0)^2 * pi(l+l'+L)
+// Pseudovector & pseudoscalar cases:
+// D_{k}^{k',L} related to C_{k}^{k',L} via transformation
+// k -> k_tilde = -k, l -> l_tilde = |k_tilde + 1/2| - 1/2
+// */
+{
+  int la;
+  int lb = AtomData::l_k(kb);
+  int two_ja = AtomData::twoj_k(ka);
+  int two_jb = AtomData::twoj_k(kb);
+
+  if (dmec == "Pseudovector" || dmec == "Pseudoscalar") {
+    int la_tilde = (ka > 0) ? ka - 1 : -ka;
+    la = la_tilde;
+  } else {
+    la = AtomData::l_k(ka);
+  }
+
+  if ((la + lb + L) % 2 != 0)
+    return 0; // Parity rule
+
+  double tjs = Angular::threej_2(two_jb, two_ja, 2 * L, -1, 1, 0);
+  return (two_ja + 1) * (two_jb + 1) * (2 * L + 1) * tjs * tjs;
+}
+
+//******************************************************************************
+// double RLnkk(const DiracSpinor &psi, const DiracSpinor &phic, )
+
+// double
 
 //******************************************************************************
 void writeToTextFile(const std::string &fname,
@@ -110,6 +145,50 @@ void writeToTextFile(const std::string &fname,
     if (qsteps > 1)
       ofile << "\n";
   }
+  ofile.close();
+}
+
+//******************************************************************************
+void writeToTextFile_AFBE(
+    const std::string &fname,
+    const std::vector<std::vector<std::vector<float>>> &AK,
+    const std::vector<std::string> &nklst, double qmin, double qmax,
+    const std::vector<double> deion)
+// /*
+// Writes the K factor to a text-file, in GNU-plot readable format
+// XXX NOTE: Re-creates grids! Could use Grid class!
+// XXX This mean we MUST use exponential Grid! Fix this! XXX
+// */
+{
+  // int desteps = (int)AK.size();       // dE
+  int num_states = (int)AK[0].size(); // nk
+  int qsteps = (int)AK[0][0].size();  // q
+
+  double qMeV = (1.e6 / (PhysConst::Hartree_eV * PhysConst::c));
+  double keV = (1.e3 / PhysConst::Hartree_eV);
+
+  std::ofstream ofile;
+  ofile.open(fname + ".txt");
+  ofile << "q(MeV) ";
+  for (const auto &nk : nklst) {
+    ofile << "dE(keV) " << nk << " ";
+  }
+  ofile << "Sum\n\n";
+  for (int k = 0; k < qsteps; k++) {
+    double x = double(k) / (qsteps - 1);
+    if (qsteps == 1)
+      x = 0;
+    double q = qmin * std::pow(qmax / qmin, x);
+    ofile << q / qMeV << " ";
+    float sum = 0.0f;
+    for (int j = 0; j < num_states; j++) {
+      sum += AK[0][j][k];
+      ofile << deion[j] / keV << " " << AK[0][j][k] << " ";
+    }
+    ofile << sum << "\n";
+  }
+  if (qsteps > 1)
+    ofile << "\n";
   ofile.close();
 }
 
@@ -172,7 +251,8 @@ int akReadWrite(const std::string &fname, bool write,
 int calculateK_nk(const Wavefunction &wf, std::size_t is, int max_L, double dE,
                   std::vector<std::vector<std::vector<double>>> &jLqr_f,
                   std::vector<float> &AK_nk_q, bool alt_akf, bool force_rescale,
-                  bool subtract_self, bool force_orthog, double)
+                  bool subtract_self, bool force_orthog, std::string dmec,
+                  double)
 // Calculates the atomic factor for a given core state (is) and energy.
 // Note: dE = I + ec is depositied energy, not cntm energy
 // Zeff is '-1' by default. If Zeff > 0, will solve w/ Zeff model
@@ -205,51 +285,47 @@ int calculateK_nk(const Wavefunction &wf, std::size_t is, int max_L, double dE,
   for (int L = 0; L <= max_L; L++) {
     for (const auto &phic : cntm.orbitals) {
       int kc = phic.k;
-      // /*
-      // if scalar or vector {
-      //   double dC_Lkk = CLkk(L, k, kc);
-      // } else if pseudoscalar or pseudovector {
-      //   double dC_Lkk = DLkk(L, k, kc);
+      // double dC_Lkk;
+      // if ((dmec == "Pseudoscalar") || (dmec == "Pseudovector")) {
+      //   dC_Lkk = DLkk(L, k, kc);
+      // } else {
+      //   // Scalar and Vector cases (if invalid input, defaults to vector)
+      //   dC_Lkk = CLkk(L, k, kc);
       // }
-      // */
-      double dC_Lkk = CLkk(L, k, kc);
+      double dC_Lkk = CLkk_DLkk(L, k, kc, dmec);
       if (dC_Lkk == 0)
         continue;
       //#pragma omp parallel for
       for (int iq = 0; iq < qsteps; iq++) {
         double a = 0.;
         auto maxj = psi.max_pt(); // don't bother going further
-        double af = NumCalc::integrate(1.0, 0, maxj, psi.f(), phic.f(),
-                                       jLqr_f[L][iq], wf.rgrid->drdu());
-        double ag = NumCalc::integrate(1.0, 0, maxj, psi.g(), phic.g(),
-                                       jLqr_f[L][iq], wf.rgrid->drdu());
-        // /*
-        // double aff = NumCalc::integrate(1.0, 0, maxj, psi.f(), phic.f(),
-        //                                jLqr_f[L][iq], wf.rgrid->drdu());
-        // double agg = NumCalc::integrate(1.0, 0, maxj, psi.g(), phic.g(),
-        //                                jLqr_f[L][iq], wf.rgrid->drdu());
-        // double afg = NumCalc::integrate(1.0, 0, maxj, psi.f(), phic.g(),
-        //                                jLqr_f[L][iq], wf.rgrid->drdu());
-        // double agf = NumCalc::integrate(1.0, 0, maxj, psi.f(), phic.g(),
-        //                                jLqr_f[L][iq], wf.rgrid->drdu());
-        // if scalar {
-        //   a = aff - agg; // should be (aff - PhysConst::alpha2*agg)??
-        // } else if vector {
-        //   a = aff + agg; // aff + alpha2*agg
-        // } else if pseudoscalar {
-        //   a = afg + agf; // alpha2*(afg + agf)
-        // } else if pseudovector {
-        //   a = afg - agf; // alpha2*(afg - agf)
-        // }
-        // // Each of these should have PhysConst::alpha2 in them somewhere??
-        // */
-        if (alt_akf && psi.k == phic.k) {
-          af -= NumCalc::integrate(1.0, 0, maxj, psi.f(), phic.f(),
-                                   wf.rgrid->drdu());
-          ag -= NumCalc::integrate(1.0, 0, maxj, psi.g(), phic.g(),
-                                   wf.rgrid->drdu());
+        double aff = NumCalc::integrate(1.0, 0, maxj, psi.f(), phic.f(),
+                                        jLqr_f[L][iq], wf.rgrid->drdu());
+        double agg = NumCalc::integrate(1.0, 0, maxj, psi.g(), phic.g(),
+                                        jLqr_f[L][iq], wf.rgrid->drdu());
+        double afg = NumCalc::integrate(1.0, 0, maxj, psi.f(), phic.g(),
+                                        jLqr_f[L][iq], wf.rgrid->drdu());
+        double agf = NumCalc::integrate(1.0, 0, maxj, psi.g(), phic.f(),
+                                        jLqr_f[L][iq], wf.rgrid->drdu());
+        if ((alt_akf) && (psi.k == phic.k)) {
+          aff -= NumCalc::integrate(1.0, 0, maxj, psi.f(), phic.f(),
+                                    wf.rgrid->drdu());
+          agg -= NumCalc::integrate(1.0, 0, maxj, psi.g(), phic.g(),
+                                    wf.rgrid->drdu());
+          afg -= NumCalc::integrate(1.0, 0, maxj, psi.f(), phic.g(),
+                                    wf.rgrid->drdu());
+          agf -= NumCalc::integrate(1.0, 0, maxj, psi.g(), phic.f(),
+                                    wf.rgrid->drdu());
         }
-        a = af + ag;
+        if (dmec == "Vector") {
+          a = aff + agg;
+        } else if (dmec == "Scalar") {
+          a = aff - agg;
+        } else if (dmec == "Pseudovector") {
+          a = afg + agf;
+        } else if (dmec == "Pseudoscalar") {
+          a = afg - agf;
+        }
         AK_nk_q[iq] +=
             (float)(dC_Lkk * std::pow(a * wf.rgrid->du(), 2) * x_ocf);
       } // q

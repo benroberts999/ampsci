@@ -161,7 +161,7 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
       }
     }
 
-    // Forcing orthogonality between continuum states and core (? check this)
+    // Forcing orthogonality between continuum and core states
     if (force_orthog) {
       for (const auto &Fn : p_hf->get_core()) {
         if (Fc.k == Fn.k) {
