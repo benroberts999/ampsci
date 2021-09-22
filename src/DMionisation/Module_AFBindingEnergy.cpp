@@ -84,8 +84,8 @@ void AFBindingEnergy(const IO::InputBlock &input, const Wavefunction &wf) {
     dmec_check += (dmec == option) ? 1 : 0;
   }
   if (dmec_check == 0) {
-    std::cerr << "\nWarning: dm-electron coupling " << dmec
-              << " unknown, defaulting to Vector\n";
+    std::cerr << "\WARNING: dm-electron coupling '" << dmec
+              << "' unknown, defaulting to Vector\n";
     dmec = "Vector";
   }
   // dmec = (check_dmec == true) ? ;

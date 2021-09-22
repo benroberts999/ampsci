@@ -95,7 +95,55 @@ double CLkk_DLkk(int L, int ka, int kb, std::string dmec)
 }
 
 //******************************************************************************
-// double RLnkk(const DiracSpinor &psi, const DiracSpinor &phic, )
+// double RLnkk(const DiracSpinor &psi, const DiracSpinor &phic, double jLqr_f,
+//              const std::vector<double> &drdu, std::string dmec, bool alt_akf)
+// // Nightmareishly large number of if statements
+// // Could reduce by setting matrices for each coupling, but might up run time
+// // NOT CURRENTLY IN USE!
+// // Can't compile -> looks like incompatibility with some header file, not
+// // sure what yet
+// {
+//   double a = 0.;
+//   auto maxj = psi.max_pt();
+//   if ((dmec == "Vector") || (dmec == "Scalar")) {
+//     double aff =
+//         NumCalc::integrate(1.0, 0, maxj, psi.f(), phic.f(), jLqr_f, drdu);
+//     double agg =
+//         NumCalc::integrate(1.0, 0, maxj, psi.g(), phic.g(), jLqr_f, drdu);
+//     if (dmec == "Vector") {
+//       a = aff + agg;
+//       if (alt_akf) {
+//         a -= NumCalc::integrate(1.0, 0, maxj, psi.f(), phic.f(), drdu);
+//         a -= NumCalc::integrate(1.0, 0, maxj, psi.f(), phic.g(), drdu);
+//       }
+//     } else {
+//       a = aff - agg;
+//       if (alt_akf) {
+//         a -= NumCalc::integrate(1.0, 0, maxj, psi.f(), phic.f(), drdu);
+//         a += NumCalc::integrate(1.0, 0, maxj, psi.f(), phic.g(), drdu);
+//       }
+//     }
+//   } else if (dmec == "Pseudovector" || "Pseudoscalar") {
+//     double afg =
+//         NumCalc::integrate(1.0, 0, maxj, psi.f(), phic.g(), jLqr_f, drdu);
+//     double agf =
+//         NumCalc::integrate(1.0, 0, maxj, psi.g(), phic.f(), jLqr_f, drdu);
+//     if (dmec == "Pseudovector") {
+//       a = afg + agf;
+//       if (alt_akf) {
+//         a -= NumCalc::integrate(1.0, 0, maxj, psi.f(), phic.g(), drdu);
+//         a -= NumCalc::integrate(1.0, 0, maxj, psi.g(), phic.f(), drdu);
+//       }
+//     } else {
+//       a = afg - agf;
+//       if (alt_akf) {
+//         a -= NumCalc::integrate(1.0, 0, maxj, psi.f(), phic.g(), drdu);
+//         a += NumCalc::integrate(1.0, 0, maxj, psi.g(), phic.f(), drdu);
+//       }
+//     }
+//   }
+//   return a;
+// }
 
 // double
 
@@ -247,6 +295,10 @@ int akReadWrite(const std::string &fname, bool write,
   return 0;
 }
 
+/*
+int calculateK_nk()
+*/
+
 //******************************************************************************
 int calculateK_nk(const Wavefunction &wf, std::size_t is, int max_L, double dE,
                   std::vector<std::vector<std::vector<double>>> &jLqr_f,
@@ -299,6 +351,8 @@ int calculateK_nk(const Wavefunction &wf, std::size_t is, int max_L, double dE,
       for (int iq = 0; iq < qsteps; iq++) {
         double a = 0.;
         auto maxj = psi.max_pt(); // don't bother going further
+        // Need to change this so that aff, agg, afg, & agf are all
+        // calculated everytime -> separate function or if checks?
         double aff = NumCalc::integrate(1.0, 0, maxj, psi.f(), phic.f(),
                                         jLqr_f[L][iq], wf.rgrid->drdu());
         double agg = NumCalc::integrate(1.0, 0, maxj, psi.g(), phic.g(),
