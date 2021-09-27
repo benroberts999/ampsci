@@ -18,9 +18,9 @@ void AFBindingEnergy(const IO::InputBlock &input, const Wavefunction &wf) {
   IO::ChronoTimer timer; // start the overall timer
 
   input.checkBlock({"qmin", "qmax", "qsteps", "max_l_bound", "max_L",
-                    "use_plane_waves", "label", "output_text", "output_binary",
-                    "use_alt_akf", "force_rescale", "subtract_self",
-                    "force_orthog", "dme_coupling"});
+                    "use_plane_waves", "label", "output_text", "use_alt_akf",
+                    "force_rescale", "subtract_self", "force_orthog",
+                    "dme_coupling"});
 
   auto qmin = input.get<double>("qmin", 1.0);
   auto qmax = input.get<double>("qmax", 1.0);
@@ -31,7 +31,7 @@ void AFBindingEnergy(const IO::InputBlock &input, const Wavefunction &wf) {
     qmax = qmin;
 
   // Convert units for input q and dE range into atomic units
-  double keV = (1.0e3 / PhysConst::Hartree_eV);
+  // double keV = (1.0e3 / PhysConst::Hartree_eV);
   double qMeV = (1.0e6 / (PhysConst::Hartree_eV * PhysConst::c));
   qmin *= qMeV;
   qmax *= qMeV;
@@ -44,7 +44,7 @@ void AFBindingEnergy(const IO::InputBlock &input, const Wavefunction &wf) {
   //                double inb = 4.0, GridType intype = GridType::loglinear,
   //                double indu = 0);
 
-  double demin, demax;
+  // double demin, demax;
   int desteps = 1;
 
   Grid qgrid({(std::size_t)qsteps, qmin, qmax, 0, GridType::logarithmic});
@@ -62,10 +62,7 @@ void AFBindingEnergy(const IO::InputBlock &input, const Wavefunction &wf) {
   auto label = input.get<std::string>("label", "");
 
   // output format
-  auto text_out = input.get<bool>("output_text", false);
-  auto bin_out = input.get<bool>("output_binary", false);
-  if (!text_out && !bin_out)
-    bin_out = true; // print message?
+  // auto bin_out = input.get<bool>("output_binary", false);
 
   // if alt_akf then exp(iqr) -> exp(iqr) - 1 (i.e. j_L -> j_L - 1)
   auto alt_akf = input.get<bool>("use_alt_akf", false);
@@ -84,7 +81,7 @@ void AFBindingEnergy(const IO::InputBlock &input, const Wavefunction &wf) {
     dmec_check += (dmec == option) ? 1 : 0;
   }
   if (dmec_check == 0) {
-    std::cerr << "\WARNING: dm-electron coupling '" << dmec
+    std::cerr << "\nWARNING: dm-electron coupling '" << dmec
               << "' unknown, defaulting to Vector\n";
     dmec = "Vector";
   }
@@ -92,28 +89,33 @@ void AFBindingEnergy(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Make sure h (large-r step size) is small enough to
   // calculate (normalise) cntm functions with energy = demax
-  double du_target = (M_PI / 20.) / std::sqrt(2. * demax);
-  auto du = wf.rgrid->du();
-  if (du > du_target) {
-    auto new_num_points = Grid::calc_num_points_from_du(
-        wf.rgrid->r0(), wf.rgrid->rmax(), du_target, GridType::loglinear, 4.0);
-    auto old_num_points = wf.rgrid->num_points();
-    // num_points = (int)new_num_points;
-    std::cerr
-        << "\nWARNING 118: Grid not dense enough for contimuum state with "
-        << "ec=" << demax << "au\n";
-    std::cerr << "You should update num_points from " << old_num_points
-              << " --> " << new_num_points << "\n";
-    std::cerr << "Program will continue, but may fail\n";
-  }
+  // ***should change this to work for each new energy
+  // double du_target = (M_PI / 20.) / std::sqrt(2. * demax);
+  // auto du = wf.rgrid->du();
+  // if (du > du_target) {
+  //   auto new_num_points = Grid::calc_num_points_from_du(
+  //       wf.rgrid->r0(), wf.rgrid->rmax(), du_target,
+  //       GridType::loglinear, 4.0);
+  //   auto old_num_points = wf.rgrid->num_points();
+  //   // num_points = (int)new_num_points;
+  //   std::cerr
+  //       << "\nWARNING 118: Grid not dense enough for contimuum state with "
+  //       << "ec=" << demax << "au\n";
+  //   std::cerr << "You should update num_points from " << old_num_points
+  //             << " --> " << new_num_points << "\n";
+  //   std::cerr << "Program will continue, but may fail\n";
+  // }
 
   // outut file name (excluding extension):
-  std::string fname = "ak-" + wf.atomicSymbol(); // + "_" + label;
-  if (label != "")
-    fname += "_" + label;
+  // std::string fname = "afbe-" + wf.atomicSymbol(); // + "_" + label;
+  // if (label != "")
+  //   fname += "_" + label;
+
+  std::string fname_table = "afbe_table_" + dmec + "-" + wf.atomicSymbol();
 
   // Print some info to screen:
-  std::cout << "\nRunning Atomic Kernal for " << wf.atom() << "\n";
+  std::cout << "\nRunning Atomic Kernal for " << wf.atom()
+            << " at E = 1.1*I_njl\n";
   std::cout << "*************************************************\n";
   // std::cout << "Radial " << wf.rgrid->gridParameters() << "\n\n";
 
@@ -161,47 +163,30 @@ void AFBindingEnergy(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Calculate K(q,E)
   timer.start();
-  std::cout << "Running dE loops (" << desteps << ")..\n" << std::flush;
-  // #pragma omp parallel for
-  // for (int ide = 0; ide < desteps; ide++) {
-  // double dE = Egrid.r()[ide];
-  // Loop over core (bound) states:
-  // for (auto is : wf.stateIndexList) {
+  std::cout << "Generating AF table...\," << std::flush;
   std::vector<double> eabove;
   for (std::size_t is = 0; is < wf.core.size(); is++) {
-    // Need to store the energies used for printing!
+    // Storing the energies that are used
     double dE = -1.1 * wf.core[is].en();
     eabove.push_back(dE);
-    std::cout << wf.core[is].symbol().c_str() << "\t" << wf.core[is].en()
-              << "\t" << dE << std::endl;
 
     int l = wf.core[is].l(); // lorb(is);
     if (l > max_l)
       continue;
     if (plane_wave)
-      AKF::calculateKpw_nk(wf, is, dE, jLqr_f[l], AK[0][is]);
+      AKF::calculateKpw_nk(wf, wf.core[is], dE, jLqr_f[l], AK[0][is]);
     else
-      AKF::calculateK_nk(wf, is, max_L, dE, jLqr_f, AK[0][is], alt_akf,
+      AKF::calculateK_nk(wf, wf.core[is], max_L, dE, jLqr_f, AK[0][is], alt_akf,
                          force_rescale, subtract_self, force_orthog, dmec);
   } // END loop over bound states
   // }
   std::cout << "..done :)\n";
-  std::cout << "Time for AK: " << timer.lap_reading_str() << "\n";
+  std::cout << "Time for AFBE: " << timer.lap_reading_str() << "\n";
 
   // Write out to text file (in gnuplot friendly form)
-  if (text_out)
-    AKF::writeToTextFile_AFBE(fname, AK, nklst, qmin, qmax, eabove);
-  // //Write out AK as binary file
-  if (bin_out)
-    AKF::akReadWrite(fname, true, AK, nklst, qmin, qmax, demin, demax);
-  std::cout << "Written to: " << fname;
-  if (text_out)
-    std::cout << ".txt";
-  if (text_out && bin_out)
-    std::cout << ", and ";
-  if (bin_out)
-    std::cout << ".bin";
-  std::cout << "\n";
+  AKF::writeToTextFile_AFBE(fname_table, AK, nklst, qmin, qmax, eabove);
+  AKF::akReadWrite_AFBE(fname_table, true, AK, nklst, qmin, qmax, eabove);
+  std::cout << "Written to: " << fname_table << ".txt, and .bin";
 
   std::cout << "\n " << timer.reading_str() << "\n";
   return;

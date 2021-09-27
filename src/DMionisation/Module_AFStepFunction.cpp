@@ -1,5 +1,5 @@
-#include "DMionisation/Module_atomicKernal.hpp"
 #include "DMionisation/AKF_akFunctions.hpp"
+#include "DMionisation/Module_atomicKernal.hpp"
 #include "HF/HartreeFock.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/InputBlock.hpp"
@@ -14,14 +14,14 @@
 namespace Module {
 
 //******************************************************************************
-void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
+void AFStepFunction(const IO::InputBlock &input, const Wavefunction &wf) {
   IO::ChronoTimer timer; // start the overall timer
 
   input.checkBlock({"Emin", "Emax", "Esteps", "qmin", "qmax", "qsteps",
                     "max_l_bound", "max_L", "use_plane_waves", "label",
-                    "output_text", "output_binary", "use_alt_akf",
-                    "force_rescale", "subtract_self", "force_orthog",
-                    "dme_coupling"});
+                    "output_text", "output_binary", "dme_coupling"});
+  // "use_alt_akf",
+  // "force_rescale", "subtract_self", "force_orthog"
 
   auto demin = input.get<double>("Emin", 1.0);
   auto demax = input.get<double>("Emax", 1.0);
@@ -52,6 +52,7 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
   // GridParameters(std::size_t innum_points, double inr0, double inrmax,
   //                double inb = 4.0, GridType intype = GridType::loglinear,
   //                double indu = 0);
+
   Grid Egrid({(std::size_t)desteps, demin, demax, 0, GridType::logarithmic});
   Grid qgrid({(std::size_t)qsteps, qmin, qmax, 0, GridType::logarithmic});
 
@@ -75,12 +76,13 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
   if (!text_out && !bin_out)
     bin_out = true; // print message?
 
-  // if alt_akf then exp(iqr) -> exp(iqr) - 1 (i.e. j_L -> j_L - 1)
-  auto alt_akf = input.get<bool>("use_alt_akf", false);
-  // Options used by solveContinuumHF (called in AKF)
-  auto force_rescale = input.get<bool>("force_rescale", false);
-  auto subtract_self = input.get<bool>("subtract_self", false);
-  auto force_orthog = input.get<bool>("force_orthog", false);
+  // // ***using these options requires generating entirely new tables
+  // // if alt_akf then exp(iqr) -> exp(iqr) - 1 (i.e. j_L -> j_L - 1)
+  // auto alt_akf = input.get<bool>("use_alt_akf", false);
+  // // Options used by solveContinuumHF (called in AKF)
+  // auto force_rescale = input.get<bool>("force_rescale", false);
+  // auto subtract_self = input.get<bool>("subtract_self", false);
+  // auto force_orthog = input.get<bool>("force_orthog", false);
 
   // DM-electron couplings
   std::vector<std::string> dmec_opt = {"Vector", "Scalar", "Pseudovector",
@@ -96,6 +98,7 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
               << "' unknown, defaulting to Vector\n";
     dmec = "Vector";
   }
+  // dmec = (check_dmec == true) ? ;
 
   // Make sure h (large-r step size) is small enough to
   // calculate (normalise) cntm functions with energy = demax
@@ -115,7 +118,7 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 
   // outut file name (excluding extension):
-  std::string fname = "ak-" + wf.atomicSymbol(); // + "_" + label;
+  std::string fname = "afsf-" + wf.atomicSymbol(); // + "_" + label;
   if (label != "")
     fname += "_" + label;
 
@@ -140,21 +143,34 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
   }
   //////////////////////////////////////////////////
 
+  //
+
   // Arrays to store results for outputting later:
   std::vector<std::vector<std::vector<float>>> AK; // float ok?
   int num_states = (int)wf.core.size();
   AK.resize(desteps, std::vector<std::vector<float>>(
                          num_states, std::vector<float>(qsteps)));
 
-  // Store state info (each orbital) [just useful for plotting!]
-  std::vector<std::string> nklst; // human-readiable state labels (easy
-                                  // plotting)
-  nklst.reserve(wf.core.size());
-  for (auto &phi : wf.core)
-    nklst.emplace_back(phi.symbol(true));
+  // Arrays to store input K table
+  std::vector<std::vector<std::vector<float>>> AFBE_table;
+  AFBE_table.resize(1, std::vector<std::vector<float>>(
+                           num_states, std::vector<float>(qsteps)));
 
-  // pre-calculate the spherical Bessel function look-up table for efficiency
+  std::vector<std::string> nklst;
+  nklst.reserve(wf.core.size());
+
+  std::vector<double> eabove;
+  eabove.reserve(wf.core.size());
+
+  // Start timer
   timer.start();
+  std::cout << "Reading atomic factor table...\n";
+  std::string fname_table = "afbe_table_" + dmec + "-" + wf.atomicSymbol();
+  AKF::akReadWrite_AFBE(fname_table, false, AFBE_table, nklst, qmin, qmax,
+                        eabove);
+
+  // pre-calculate the spherical Bessel function look-up table for
+  // efficiency
   std::vector<std::vector<std::vector<double>>> jLqr_f;
   AKF::sphericalBesselTable(jLqr_f, max_L, qgrid.r(), wf.rgrid->r());
   std::cout << "Time for SB table: " << timer.lap_reading_str() << "\n";
@@ -168,7 +184,7 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Calculate K(q,E)
   timer.start();
-  std::cout << "Running dE loops (" << desteps << ").." << std::flush;
+  std::cout << "Running dE loops (" << desteps << ")..\n" << std::flush;
 #pragma omp parallel for
   for (int ide = 0; ide < desteps; ide++) {
     double dE = Egrid.r()[ide];
@@ -178,12 +194,13 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
       int l = wf.core[is].l(); // lorb(is);
       if (l > max_l)
         continue;
-      if (plane_wave)
-        AKF::calculateKpw_nk(wf, wf.core[is], dE, jLqr_f[l], AK[ide][is]);
-      else
-        AKF::calculateK_nk(wf, wf.core[is], max_L, dE, jLqr_f, AK[ide][is],
-                           alt_akf, force_rescale, subtract_self, force_orthog,
-                           dmec);
+      AKF::stepK_nk(wf.core[is], dE, AFBE_table[0][is], AK[ide][is]);
+      // if (plane_wave)
+      //   AKF::calculateKpw_nk(wf, wf.core[is], dE, jLqr_f[l], AK[ide][is]);
+      // else
+      //   AKF::calculateK_nk(wf, wf.core[is], max_L, dE, jLqr_f, AK[ide][is],
+      //                      alt_akf, force_rescale, subtract_self,
+      //                      force_orthog, dmec);
     } // END loop over bound states
   }
   std::cout << "..done :)\n";
