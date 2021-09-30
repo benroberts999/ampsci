@@ -37,6 +37,7 @@
 ## Hartree Fock
   * Re-write class (make less inter-dependent)
   * Option to use non-local DiracODE
+  * Two versions of Vdir (one in wf, one in HF) - BAD.
 
 ## Wavefunction
   * Major cleanup
