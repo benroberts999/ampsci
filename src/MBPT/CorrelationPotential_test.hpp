@@ -11,8 +11,8 @@
 namespace UnitTest {
 
 //******************************************************************************
-//! Unit tests for correlations (second-order MBPT correlation energy/potential)
-bool CorrelationPotential(std::ostream &obuff) {
+//! Unit tests for second-order MBPT energy correction
+bool MBPT2(std::ostream &obuff) {
   bool pass = true;
 
   { // Compare with  K. Beloy and A. Derevianko,
@@ -61,6 +61,12 @@ bool CorrelationPotential(std::ostream &obuff) {
       pass &= qip::check_value(&obuff, "MBPT(2) 'small' Cs 6s", ok, 1, 0);
     }
   }
+  return pass;
+}
+
+//! Unit tests for second-order correlation potential
+bool Sigma2(std::ostream &obuff) {
+  bool pass = true;
 
   //****************************************************************************
   { // Compare Dzuba, only using up to l=4 for splines
@@ -129,6 +135,12 @@ bool CorrelationPotential(std::ostream &obuff) {
     auto [eps, at] = qip::compare_eps(dzuba_i, de);
     pass &= qip::check_value(&obuff, "Sigma2 Cs (spdfghi)", eps, 0.0, 0.01);
   }
+  return pass;
+}
+
+//! Unit tests for all-orders correlation potential
+bool SigmaAO(std::ostream &obuff) {
+  bool pass = true;
 
   { // Compare Dzuba, All-order sigma
     auto dzuba_i =
@@ -176,7 +188,14 @@ bool CorrelationPotential(std::ostream &obuff) {
     auto [eps, at] = qip::compare_eps(dzuba_i, br);
     pass &= qip::check_value(&obuff, "Sigma all-orders Cs", eps, 0.0, 5e-04);
   }
+  return pass;
+}
 
+bool CorrelationPotential(std::ostream &obuff) {
+  bool pass = true;
+  pass &= MBPT2(obuff);
+  pass &= Sigma2(obuff);
+  pass &= SigmaAO(obuff);
   return pass;
 }
 

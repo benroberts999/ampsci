@@ -1,5 +1,7 @@
 #include "MBPT/FeynmanSigma.hpp"
+// #include "Angular/Angular_tables.hpp"
 #include "Angular/Angular_tables.hpp"
+#include "Angular/SixJTable.hpp"
 #include "Coulomb/Coulomb.hpp"
 #include "Coulomb/YkTable.hpp"
 #include "DiracODE/DiracODE.hpp"
@@ -162,7 +164,7 @@ void FeynmanSigma::formSigma(int kappa, double en, int n) {
 void FeynmanSigma::prep_Feynman() {
 
   // Extand 6j and Ck
-  m_6j.fill(m_maxk);
+  m_6j.fill(2 * m_maxk); //?
   m_yeh.extend_Ck(m_maxk);
 
   if (m_screen_Coulomb)

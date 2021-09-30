@@ -1,4 +1,5 @@
 #include "Angular/Angular_test.hpp"
+#include "Angular/SixJTable_test.hpp"
 #include "Coulomb/Coulomb_test.hpp"
 #include "Coulomb/QkTable_test.hpp"
 #include "DiracODE/DiracODE_test.hpp"
@@ -65,10 +66,14 @@ static const std::vector<std::pair<std::string, bool (*)(std::ostream &obuff)>>
         {"TDHFbasis_breit", &TDHFbasis_breit},
         {"RadPot", &RadPot},
         {"Angular", &Angular},
+        {"SixJTable", &SixJTable},
         {"LinAlg", &LinAlg},
         {"BSplineBasis", &BSplineBasis},
         {"Coulomb", &Coulomb},
-        {"CorrelationPotential", &CorrelationPotential},
+        // {"CorrelationPotential", &CorrelationPotential},
+        {"MBPT2", &MBPT2},
+        {"Sigma2", &Sigma2},
+        {"SigmaAO", &SigmaAO},
         {"DiagramRPA", &DiagramRPA},
         {"QkTable", &QkTable},
         {"StructureRad", &StructureRad}
@@ -76,10 +81,15 @@ static const std::vector<std::pair<std::string, bool (*)(std::ostream &obuff)>>
     };
 
 static const std::vector<std::pair<std::string, bool (*)(std::ostream &obuff)>>
-    quick_list{{"DiracODE", &DiracODE},       {"HartreeFock", &HartreeFock},
-               {"MixedStates", &MixedStates}, {"Angular", &Angular},
-               {"LinAlg", &LinAlg},           {"BSplineBasis", &BSplineBasis},
-               {"Coulomb", &Coulomb}};
+    quick_list{{"DiracODE", &DiracODE},
+               {"HartreeFock", &HartreeFock},
+               {"MixedStates", &MixedStates},
+               {"Angular", &Angular},
+               {"SixJTable", &SixJTable},
+               {"LinAlg", &LinAlg},
+               {"BSplineBasis", &BSplineBasis},
+               {"Coulomb", &Coulomb},
+               {"MBPT2", &MBPT2}};
 
 //------------------------------------------------------------------------------
 // Looks up test + returns its function. If test not in list, prints list to

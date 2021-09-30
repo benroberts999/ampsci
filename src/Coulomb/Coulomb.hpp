@@ -1,10 +1,11 @@
 #pragma once
 #include "Angular/Angular_369j.hpp"
+#include "Angular/SixJTable.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <vector>
 namespace Angular {
 class Ck_ab;
-class SixJ;
+// class SixJ;
 } // namespace Angular
 
 //! Functions (+classes) for computing Coulomb integrals
@@ -80,18 +81,18 @@ double Pk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
 double Pk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
                const DiracSpinor &Fc, const DiracSpinor &Fd, const int k,
                const std::vector<std::vector<double>> &ybc,
-               const Angular::Ck_ab &Ck, const Angular::SixJ &sixj);
+               const Angular::Ck_ab &Ck, const Angular::SixJTable &sixj);
 
 //! Exchange only version of W (W-Q): W = Q + P
 void Pkv_bcd(DiracSpinor *const Pkv, const DiracSpinor &Fb,
              const DiracSpinor &Fc, const DiracSpinor &Fd, const int k,
              const std::vector<std::vector<double>> &ybc,
-             const Angular::Ck_ab &Ck, const Angular::SixJ &sixj);
+             const Angular::Ck_ab &Ck, const Angular::SixJTable &sixj);
 
 DiracSpinor Pkv_bcd(int kappa_v, const DiracSpinor &Fb, const DiracSpinor &Fc,
                     const DiracSpinor &Fd, const int k,
                     const std::vector<std::vector<double>> &ybc,
-                    const Angular::Ck_ab &Ck, const Angular::SixJ &sixj);
+                    const Angular::Ck_ab &Ck, const Angular::SixJTable &sixj);
 
 DiracSpinor Pkv_bcd(int kappa_v, const DiracSpinor &Fb, const DiracSpinor &Fc,
                     const DiracSpinor &Fd, const int k);
@@ -100,7 +101,7 @@ DiracSpinor Pkv_bcd(int kappa_v, const DiracSpinor &Fb, const DiracSpinor &Fc,
 void Pkv_bcd_2(DiracSpinor *Pkv, const DiracSpinor &Fb, const DiracSpinor &Fc,
                const DiracSpinor &Fd, const int k,
                const std::vector<std::vector<double>> &ybc,
-               const Angular::Ck_ab &Ck, const Angular::SixJ &sixj,
+               const Angular::Ck_ab &Ck, const Angular::SixJTable &sixj,
                const std::vector<double> &f2k);
 
 //! Calculates W^k_abcd for given k. From scratch (calculates y)
@@ -139,7 +140,7 @@ std::pair<int, int> k_minmax_W(const DiracSpinor &a, const DiracSpinor &b,
 
 //*
 
-template <class A> static int twojk(A a) {
+template <class A> static int twojk(const A &a) {
   if constexpr (std::is_same_v<A, DiracSpinor>) {
     return a.twoj();
   } else {
@@ -149,7 +150,8 @@ template <class A> static int twojk(A a) {
 }
 
 template <class A, class B, class C, class D, class E, class F>
-static double sixj(A a, B b, C c, D d, E e, F f) {
+static double sixj(const A &a, const B &b, const C &c, const D &d, const E &e,
+                   const F &f) {
   return Angular::sixj_2(twojk(a), twojk(b), twojk(c), twojk(d), twojk(e),
                          twojk(f));
 }

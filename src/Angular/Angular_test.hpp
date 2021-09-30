@@ -18,7 +18,7 @@ namespace helper {
 double ck_loop(const Angular::Ck_ab &Ck, Angular::Ck_ab &Ck_m);
 
 // This does the same, but for the 6j symbols
-double sj_loop(const Angular::SixJ &sj, Angular::SixJ &sj_m);
+// double sj_loop(const Angular::SixJ &sj, Angular::SixJ &sj_m);
 
 } // namespace helper
 
@@ -36,29 +36,29 @@ bool Angular(std::ostream &obuff) {
     Angular::Ck_ab Ck(max2j_1);
     Angular::Ck_ab Ck_dynamic(0);
 
-    Angular::SixJ sj(max2j_1);
-    Angular::SixJ sj_dynamic(0);
+    // Angular::SixJ sj(max2j_1);
+    // Angular::SixJ sj_dynamic(0);
 
     const auto eps = helper::ck_loop(Ck, Ck_dynamic);
     pass &= qip::check_value(&obuff, "AngularTables Ck", eps, 0.0, 1.0e-14);
 
-    const auto eps6 = helper::sj_loop(sj, sj_dynamic);
-    pass &= qip::check_value(&obuff, "AngularTables 6j", eps6, 0.0, 1.0e-14);
+    // const auto eps6 = helper::sj_loop(sj, sj_dynamic);
+    // pass &= qip::check_value(&obuff, "AngularTables 6j", eps6, 0.0, 1.0e-14);
 
     // Test the "extend" capability (extend tables to larger j values:)
     const int max2j_2 = 15;
 
     // "Extend" the tables:
     Ck.fill(max2j_2);
-    sj.fill(max2j_2);
+    // sj.fill(max2j_2);
 
     const auto eps2 = helper::ck_loop(Ck, Ck_dynamic);
     pass &= qip::check_value(&obuff, "AngularTables Ck - extend", eps2, 0.0,
                              1.0e-13);
 
-    const auto eps62 = helper::sj_loop(sj, sj_dynamic);
-    pass &= qip::check_value(&obuff, "AngularTables 6j - extend", eps62, 0.0,
-                             1.0e-14);
+    // const auto eps62 = helper::sj_loop(sj, sj_dynamic);
+    // pass &= qip::check_value(&obuff, "AngularTables 6j - extend", eps62, 0.0,
+    //                          1.0e-14);
   }
 
   return pass;
@@ -117,32 +117,33 @@ double UnitTest::helper::ck_loop(const Angular::Ck_ab &Ck,
   return max;
 }
 
-double UnitTest::helper::sj_loop(const Angular::SixJ &sj, Angular::SixJ &sj_m) {
-  const auto max2j = sj.max_tj();
-
-  double max = 0.0;
-
-  // Loop through all 2j's:
-  for (int tja = 1; tja <= max2j; tja += 2) {
-    for (int tjb = 1; tjb <= max2j; tjb += 2) {
-      for (int tjc = 1; tjc <= max2j; tjc += 2) {
-        for (int tjd = 1; tjd <= max2j; tjd += 2) {
-
-          // loop through all k multipolarities:
-          for (int k = 0; k <= max2j; ++k) {
-            for (int l = 0; l <= max2j; ++l) {
-              // Calculate 6j symbol, multiple ways:
-              const auto s1 = sj.get_6j(tja, tjb, tjc, tjd, k, l);
-              const auto s1_m = sj_m.get_6j_mutable(tja, tjb, tjc, tjd, k, l);
-              const auto s2 = Angular::sixj_2(tja, tjb, 2 * k, tjc, tjd, 2 * l);
-              const auto s3 =
-                  gsl_sf_coupling_6j(tja, tjb, 2 * k, tjc, tjd, 2 * l);
-              max = qip::max_abs(max, s1 - s1_m, s1 - s2, s2 - s3);
-            }
-          }
-        }
-      }
-    }
-  }
-  return max;
-}
+// double UnitTest::helper::sj_loop(const Angular::SixJ &sj, Angular::SixJ
+// &sj_m) {
+//   const auto max2j = sj.max_tj();
+//
+//   double max = 0.0;
+//
+//   // Loop through all 2j's:
+//   for (int tja = 1; tja <= max2j; tja += 2) {
+//     for (int tjb = 1; tjb <= max2j; tjb += 2) {
+//       for (int tjc = 1; tjc <= max2j; tjc += 2) {
+//         for (int tjd = 1; tjd <= max2j; tjd += 2) {
+//
+//           // loop through all k multipolarities:
+//           for (int k = 0; k <= max2j; ++k) {
+//             for (int l = 0; l <= max2j; ++l) {
+//               // Calculate 6j symbol, multiple ways:
+//               const auto s1 = sj.get_6j(tja, tjb, tjc, tjd, k, l);
+//               const auto s1_m = sj_m.get_6j_mutable(tja, tjb, tjc, tjd, k,
+//               l); const auto s2 = Angular::sixj_2(tja, tjb, 2 * k, tjc, tjd,
+//               2 * l); const auto s3 =
+//                   gsl_sf_coupling_6j(tja, tjb, 2 * k, tjc, tjd, 2 * l);
+//               max = qip::max_abs(max, s1 - s1_m, s1 - s2, s2 - s3);
+//             }
+//           }
+//         }
+//       }
+//     }
+//   }
+//   return max;
+// }

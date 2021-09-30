@@ -1,5 +1,6 @@
 #pragma once
 #include "Angular/Angular_tables.hpp"
+#include "Angular/SixJTable.hpp"
 #include <memory>
 #include <utility>
 #include <vector>
@@ -48,7 +49,8 @@ private:
   std::size_t b_size = 0;
   std::vector<std::vector<std::vector<std::vector<double>>>> m_y_abkr = {};
   Angular::Ck_ab m_Ck = Angular::Ck_ab();
-  Angular::SixJ m_6j = Angular::SixJ();
+  // Angular::SixJ m_6j = Angular::SixJ();
+  Angular::SixJTable m_6j{}; // = Angular::SixJ();
 
 public:
   //! Re-calculates all y^k integrals [happens automatically on construct]

@@ -1,6 +1,7 @@
 #include "DiagramRPA.hpp"
 #include "Angular/Angular_369j.hpp"
 #include "Angular/Angular_tables.hpp"
+#include "Angular/SixJTable.hpp"
 #include "Coulomb/Coulomb.hpp"
 #include "Coulomb/YkTable.hpp"
 #include "DiracOperator/TensorOperator.hpp"
@@ -171,7 +172,7 @@ void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h) {
 
   const Coulomb::YkTable Yhe(holes.front().rgrid, &holes, &excited);
   const auto &Ck = Yhe.Ck();
-  const Angular::SixJ sj(maxtj);
+  const Angular::SixJTable sj(2 * maxtj);
 
   // RPA: store W Coulomb integrals (used only for Core RPA its)
   std::cout << "Filling RPA Diagram matrix ("

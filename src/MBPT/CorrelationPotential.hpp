@@ -1,5 +1,6 @@
 #pragma once
 #include "Angular/Angular_tables.hpp"
+#include "Angular/SixJTable.hpp"
 #include "Coulomb/YkTable.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
 #include "MBPT/GreenMatrix.hpp"
@@ -193,7 +194,8 @@ protected:
   // maximum multipolarity, k, = 2*max(j) {max 2*j in core/basis}
   int m_maxk;
   // 6j lookup table
-  Angular::SixJ m_6j;
+  // Angular::SixJ m_6j;
+  Angular::SixJTable m_6j;
 
   // SubGrid values:
   // Stride: only include every 'stride' grid points (between min/max)

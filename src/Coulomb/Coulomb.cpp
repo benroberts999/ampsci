@@ -1,6 +1,7 @@
 #include "Coulomb.hpp"
 #include "Angular/Angular_369j.hpp"
-#include "Angular/Angular_tables.hpp"
+#include "Angular/Angular_tables.hpp" // for Ck table
+#include "Angular/SixJTable.hpp"
 #include "IO/SafeProfiler.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
@@ -424,7 +425,7 @@ double Pk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
                const DiracSpinor &Fc, const DiracSpinor &Fd, const int k,
                // const std::vector<double> &ykbd,
                const std::vector<std::vector<double>> &ybc,
-               const Angular::Ck_ab &Ck, const Angular::SixJ &sixj) {
+               const Angular::Ck_ab &Ck, const Angular::SixJTable &sixj) {
   // W^k_abcd = Q^k_abcd +
   // W = Q + P
   // P_abcd = sum_l [k] 6j * Q^l_abdc //not index order!
@@ -441,8 +442,11 @@ double Pk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
     if (!Angular::Ck_kk_SR(l, Fb.k, Fc.k) || !Angular::Ck_kk_SR(l, Fa.k, Fd.k))
       continue;
 
+    // const auto sj =
+    //     sixj.get_6j(Fc.twoj(), Fa.twoj(), Fd.twoj(), Fb.twoj(), k, l);
     const auto sj =
-        sixj.get_6j(Fc.twoj(), Fa.twoj(), Fd.twoj(), Fb.twoj(), k, l);
+        sixj(Fc.twoj(), Fa.twoj(), 2 * k, Fd.twoj(), Fb.twoj(), 2 * l);
+
     if (Angular::zeroQ(sj))
       continue;
     sum += sj * Qk_abcd(Fa, Fb, Fd, Fc, l, ybc_l, Ck); // a,b,d,c [exch.]
@@ -477,7 +481,7 @@ DiracSpinor Pkv_bcd(int kappa_a, const DiracSpinor &Fb, const DiracSpinor &Fc,
 void Pkv_bcd(DiracSpinor *Pkv, const DiracSpinor &Fb, const DiracSpinor &Fc,
              const DiracSpinor &Fd, const int k,
              const std::vector<std::vector<double>> &ybc,
-             const Angular::Ck_ab &Ck, const Angular::SixJ &sixj) {
+             const Angular::Ck_ab &Ck, const Angular::SixJTable &sixj) {
   // W^k_abcd = Q^k_abcd +
   // W = Q + P
   // P_abcd = sum_l [k] 6j * Q^l_abdc //not index order!
@@ -497,8 +501,10 @@ void Pkv_bcd(DiracSpinor *Pkv, const DiracSpinor &Fb, const DiracSpinor &Fc,
     if (!Angular::Ck_kk_SR(l, Fb.k, Fc.k))
       continue;
 
-    const auto sj = sixj.get_6j(Fc.twoj(), Angular::twoj_k(kappa), Fd.twoj(),
-                                Fb.twoj(), k, l);
+    // const auto sj = sixj.get_6j(Fc.twoj(), Angular::twoj_k(kappa), Fd.twoj(),
+    //                             Fb.twoj(), k, l);
+    const auto sj = sixj(Fc.twoj(), Angular::twoj_k(kappa), 2 * k, Fd.twoj(),
+                         Fb.twoj(), 2 * l);
     if (Angular::zeroQ(sj))
       continue;
     *Pkv += sj * Qkv_bcd(kappa, Fb, Fd, Fc, l, ybc_l, Ck); // a,b,d,c [exch.]
@@ -509,7 +515,7 @@ void Pkv_bcd(DiracSpinor *Pkv, const DiracSpinor &Fb, const DiracSpinor &Fc,
 void Pkv_bcd_2(DiracSpinor *Pkv, const DiracSpinor &Fb, const DiracSpinor &Fc,
                const DiracSpinor &Fd, const int k,
                const std::vector<std::vector<double>> &ybc,
-               const Angular::Ck_ab &Ck, const Angular::SixJ &sixj,
+               const Angular::Ck_ab &Ck, const Angular::SixJTable &sixj,
                const std::vector<double> &f2k) {
   [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__, "yk");
 
@@ -532,8 +538,10 @@ void Pkv_bcd_2(DiracSpinor *Pkv, const DiracSpinor &Fb, const DiracSpinor &Fc,
     const auto l = min_l + count;
     ++count;
     // Include screening factor here (early escape if zero)
-    const auto sj = fk(l) * sixj.get_6j(Fc.twoj(), Angular::twoj_k(kappa),
-                                        Fd.twoj(), Fb.twoj(), k, l);
+    // const auto sj = fk(l) * sixj.get_6j(Fc.twoj(), Angular::twoj_k(kappa),
+    //                                     Fd.twoj(), Fb.twoj(), k, l);
+    const auto sj = fk(l) * sixj(Fc.twoj(), Angular::twoj_k(kappa), 2 * k,
+                                 Fd.twoj(), Fb.twoj(), 2 * l);
     if (Angular::zeroQ(sj))
       continue;
     *Pkv += sj * Qkv_bcd(kappa, Fb, Fd, Fc, l, ybc_l, Ck); // a,b,d,c [exch.]
@@ -546,7 +554,7 @@ double Wk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
                const DiracSpinor &Fc, const DiracSpinor &Fd, const int k,
                const std::vector<double> &ykbd,
                const std::vector<std::vector<double>> &ybc,
-               const Angular::Ck_ab &Ck, const Angular::SixJ &sixj) {
+               const Angular::Ck_ab &Ck, const Angular::SixJTable &sixj) {
   // W^k_abcd = Q^k_abcd + sum_l [k] 6j * Q^l_abdc
   [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__, "yk");
 

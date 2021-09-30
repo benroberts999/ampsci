@@ -92,7 +92,7 @@ void YkTable::update_y_ints() {
   resize_y();
   const auto tj_max = max_tj();
   m_Ck.fill(tj_max);
-  m_6j.fill(tj_max);
+  m_6j.fill(2 * tj_max); // max value of k is 2*j_max, so max 2k is 4*j_max
 
   a_size = m_a_orbs->size();
   b_size = m_b_orbs->size();

@@ -1,5 +1,6 @@
 #pragma once
 #include "Angular/Angular_tables.hpp"
+#include "Angular/SixJTable.hpp"
 #include "Coulomb/Coulomb.hpp"
 #include "Coulomb/YkTable.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
@@ -176,7 +177,7 @@ bool Coulomb(std::ostream &obuff) {
                                         DiracSpinor::comp_j)
                            ->twoj();
     const auto &Ck = Yij.Ck();
-    const Angular::SixJ sj(maxtj);
+    const Angular::SixJTable sj(2 * maxtj);
 
     double worstQ = 0.0;
     double worstP = 0.0;
@@ -225,8 +226,10 @@ bool Coulomb(std::ostream &obuff) {
                     Angular::Ck_kk_SR(l, Fb.k, Fc.k)) {
                   const auto &ylbc = Yij.get_yk_ab(l, Fb, Fc);
                   P4 += (2 * k + 1) *
-                        sj.get_6j(Fa.twoj(), Fc.twoj(), Fb.twoj(), Fd.twoj(), k,
-                                  l) *
+                        // sj.get_6j(Fa.twoj(), Fc.twoj(), Fb.twoj(), Fd.twoj(),
+                        // k, l) *
+                        sj(Fa.twoj(), Fc.twoj(), 2 * k, Fb.twoj(), Fd.twoj(),
+                           2 * l) *
                         Coulomb::Qk_abcd(Fa, Fb, Fd, Fc, l, ylbc, Ck);
                 }
               }
