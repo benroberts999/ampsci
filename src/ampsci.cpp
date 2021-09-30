@@ -237,7 +237,8 @@ void ampsci(const IO::InputBlock &input) {
 
   // Add "extra potential", after HF (only valence)
   if (extra_pot && !ep_beforeHF) {
-    qip::add(&wf.vdir, Vextra);
+    wf.add_to_Vdir(Vextra);
+    // qip::add(&wf.vdir, Vextra);
   }
 
   // Adds effective polarision potential to direct
@@ -248,9 +249,11 @@ void ampsci(const IO::InputBlock &input) {
     const auto r_cut = input.get({"dVpol"}, "r_cut", 1.0);
     const auto a4 = r_cut * r_cut * r_cut * r_cut;
     auto dV = [=](auto x) { return -0.5 * a_eff / (x * x * x * x + a4); };
+    std::vector<double> dv(wf.rgrid->num_points());
     for (auto i = 0u; i < wf.rgrid->num_points(); ++i) {
-      wf.vdir[i] += dV(wf.rgrid->r()[i]);
+      dv[i] = dV(wf.rgrid->r()[i]);
     }
+    wf.add_to_Vdir(dv);
   }
 
   // Solve for the valence states:
