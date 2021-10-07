@@ -255,6 +255,7 @@ void CoulombTable::fill(const YkTable &yk) {
   std::cout << "..\n";
   std::cout << "Fill vector: " << t.reading_str() << std::endl;
   t.start();
+  // std::cin.get();
 
   // Three-step method for filling map cut down time by >4x!
 
@@ -281,6 +282,7 @@ void CoulombTable::fill(const YkTable &yk) {
 
   std::cout << "Fill map: " << t.lap_reading_str() << std::endl;
   count();
+  // std::cin.get();
 }
 
 //******************************************************************************

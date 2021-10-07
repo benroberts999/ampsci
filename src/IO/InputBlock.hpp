@@ -196,6 +196,13 @@ public:
   check2(std::initializer_list<std::string> blocks,
          const std::vector<std::pair<std::string, std::string>> &list,
          bool print = false) const;
+
+  inline bool
+  check2(const std::vector<std::pair<std::string, std::string>> &list,
+         bool print = false) const {
+    return checkBlock2(list, print);
+  }
+
   inline bool check(std::initializer_list<std::string> blocks,
                     const std::vector<std::string> &list,
                     bool print = false) const;
@@ -424,7 +431,17 @@ bool InputBlock::checkBlock2(
   }
 
   for (const auto &block : m_blocks) {
-    const auto is_blockQ = [&](const auto &b) { return block == b.first; };
+    // compares, accounting for wild-cards (*)
+    const auto is_blockQ = [&](const auto &b) {
+      // check if wildcard:
+      const auto wc = std::find(b.first.cbegin(), b.first.cend(), '*');
+      if (wc != b.first.cend()) {
+        const auto len = std::size_t(std::distance(b.first.cbegin(), wc));
+        // compare sub-strings (up to wildcard):
+        return block.name().substr(0, len) == b.first.substr(0, len);
+      }
+      return block == b.first;
+    };
     const auto bad_block = !std::any_of(list.cbegin(), list.cend(), is_blockQ);
     if (bad_block) {
       all_ok = false;

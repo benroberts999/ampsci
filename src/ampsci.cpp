@@ -48,6 +48,18 @@ void ampsci(const IO::InputBlock &input) {
   IO::print_line();
   input.print();
 
+  input.check2({{"Atom", "Which atom to run for"},
+                {"Grid", "Set radial grid parameters"},
+                {"HartreeFock", "Expl"},
+                {"Nucleus", "Set nuclear parameters"},
+                {"RadPot", "Inlcude QED radiative potential"},
+                {"Basis", "Basis used for MBPT"},
+                {"Spectrum", "Like basis; used for sum-over-states"},
+                {"Correlations", "Options for correlations"},
+                {"ExtraPotential", "Include an extra potential"},
+                {"dVpol", "Approximate correlation (polarisation) potential"},
+                {"Module::*", "Run any number of modules (* -> module name)"}});
+
   // Atom: Get + setup atom parameters
   auto input_ok =
       input.check2({"Atom"}, {{"Z", "Atomic symbol/number (int or string)"},
