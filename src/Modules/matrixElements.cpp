@@ -5,9 +5,11 @@
 #include "ExternalField/TDHFbasis.hpp"
 #include "ExternalField/calcMatrixElements.hpp"
 #include "IO/ChronoTimer.hpp"
+#include "IO/FRW_fileReadWrite.hpp"
 #include "IO/InputBlock.hpp"
 #include "MBPT/CorrelationPotential.hpp"
 #include "MBPT/StructureRad.hpp"
+#include "Maths/Interpolator.hpp"
 #include "Physics/NuclearPotentials.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
@@ -475,11 +477,13 @@ generate_hfsA(const IO::InputBlock &input, const Wavefunction &wf, bool print) {
   }
 
   auto Fr = Hyperfine::sphericalBall_F();
-  if (Fr_str == "shell")
+  if (Fr_str == "ball") {
+    Fr = Hyperfine::sphericalBall_F();
+  } else if (Fr_str == "shell") {
     Fr = Hyperfine::sphericalShell_F();
-  else if (Fr_str == "pointlike" || Fr_str == "point")
+  } else if (Fr_str == "pointlike" || Fr_str == "point") {
     Fr = Hyperfine::pointlike_F();
-  else if (Fr_str == "VolotkaBW") {
+  } else if (Fr_str == "VolotkaBW") {
     auto pi = input.get("parity", isotope.parity);
     auto l_tmp = int(I_nuc + 0.5 + 0.0001);
     auto l = ((l_tmp % 2 == 0) == (pi == 1)) ? l_tmp : l_tmp - 1;
@@ -512,10 +516,14 @@ generate_hfsA(const IO::InputBlock &input, const Wavefunction &wf, bool print) {
     auto I2 = input.get<double>("I2", -1.0);
 
     Fr = Hyperfine::doublyOddBW_F(mu, I_nuc, mu1, I1, l1, gl1, I2, l2);
-  } else if (Fr_str != "ball") {
-    std::cout << "FAIL: in " << input.name() << " " << Fr_str
-              << " invalid nuclear distro. Check spelling\n";
-    return std::make_unique<NullOperator>();
+  } else {
+    // read from a file
+    const auto [rin, F_of_rin] = IO::FRW::readFile_xy_PoV(Fr_str);
+    // interpolate F(r) onto our grid:
+    const auto F_r = Interpolator::interpolate(rin, F_of_rin, wf.rgrid->r());
+    if (F_r.empty())
+      return std::make_unique<NullOperator>();
+    return std::make_unique<HyperfineA>(mu, I_nuc, r_nucau, *(wf.rgrid), F_r);
   }
 
   auto print_FQ = input.get<bool>("printF", false);

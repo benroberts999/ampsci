@@ -88,6 +88,18 @@ inline std::vector<double> RadialFunc(int k, double rN, const Grid &rgrid,
     rfunc.push_back(hfs_F(r, rN) / pow(r, k + 1));
   return rfunc;
 }
+inline std::vector<double> RadialFunc(int k, double, const Grid &rgrid,
+                                      const std::vector<double> &hfs_F) {
+  std::vector<double> rfunc = hfs_F;
+  for (auto ir = 0ul; ir < hfs_F.size(); ir++) {
+    if (rfunc[ir] != 0.0) {
+      rfunc[ir] /= pow(rgrid.r(ir), k + 1);
+    } else {
+      rfunc[ir] = 1.0 / pow(rgrid.r(ir), k + 1);
+    }
+  }
+  return rfunc;
+}
 } // namespace Hyperfine
 
 //******************************************************************************
@@ -116,6 +128,13 @@ public: // constructor
       std::cout << "\nWarning: I=0 in Hyperfine operator; Setting gI to zero\n";
     }
   }
+  // take vector for F(r)
+  HyperfineA(double muN, double IN, double rN, const Grid &rgrid,
+             const std::vector<double> &Fr)
+      : TensorOperator(1, Parity::even,
+                       IN != 0.0 ? muN * PhysConst::muN_CGS_MHz / IN : 0.0,
+                       Hyperfine::RadialFunc(1, rN, rgrid, Fr), 0) {}
+
   std::string name() const override final { return "hfs"; }
   std::string units() const override final { return "MHz"; }
 
