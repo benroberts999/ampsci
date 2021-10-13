@@ -47,7 +47,8 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf);
 namespace Polarisability {
 double alpha_core_tdhf(const std::vector<DiracSpinor> &core,
                        const DiracOperator::E1 &he1, ExternalField::TDHF &dVE1,
-                       double omega);
+                       double omega,
+                       const MBPT::CorrelationPotential *const Sigma = nullptr);
 
 double
 alpha_valence_tdhf(const DiracSpinor &Fa, const DiracSpinor &Fb,

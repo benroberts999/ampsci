@@ -47,7 +47,8 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
   } else {
     std::cout << "Static\n";
   }
-  const auto ac_tdhf = alpha_core_tdhf(wf.core, he1, dVE1, omega);
+  const auto ac_tdhf =
+      alpha_core_tdhf(wf.core, he1, dVE1, omega, wf.getSigma());
   const auto ac_sos = alpha_core_sos(wf.core, wf.spectrum, he1, dVE1, omega);
 
   std::cout << "           TDHF        SOS\n";
@@ -149,13 +150,16 @@ namespace Polarisability {
 //------------------------------------------------------------------------------
 double alpha_core_tdhf(const std::vector<DiracSpinor> &core,
                        const DiracOperator::E1 &he1, ExternalField::TDHF &dVE1,
-                       double omega) {
+                       double omega,
+                       const MBPT::CorrelationPotential *const Sigma) {
   auto alpha_core = 0.0;
   const auto f = (-1.0 / 3.0);
   for (const auto &Fb : core) {
     // this will include dV
-    const auto Xb = dVE1.solve_dPsis(Fb, omega, ExternalField::dPsiType::X);
-    const auto Yb = dVE1.solve_dPsis(Fb, omega, ExternalField::dPsiType::Y);
+    const auto Xb =
+        dVE1.solve_dPsis(Fb, omega, ExternalField::dPsiType::X, Sigma);
+    const auto Yb =
+        dVE1.solve_dPsis(Fb, omega, ExternalField::dPsiType::Y, Sigma);
     for (const auto &Xbeta : Xb) {
       // no dV here (for closed-shell core)
       alpha_core += he1.reducedME(Xbeta, Fb);

@@ -96,6 +96,7 @@ docs:
 	( cd ./doc/tex && make clean)
 # Make the doxygen code documentation
 doxy:
+	make docs
 	doxygen ./src/Doxyfile
 	( cd ./doc/latex && make )
 	cp ./doc/latex/refman.pdf ./doc/documentation.pdf
