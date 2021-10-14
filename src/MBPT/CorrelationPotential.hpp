@@ -1,5 +1,5 @@
 #pragma once
-#include "Angular/Angular_tables.hpp"
+#include "Angular/CkTable.hpp"
 #include "Angular/SixJTable.hpp"
 #include "Coulomb/YkTable.hpp"
 #include "IO/FRW_fileReadWrite.hpp"

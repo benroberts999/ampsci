@@ -1,8 +1,8 @@
 #include "DiagramRPA.hpp"
-#include "Angular/Angular_369j.hpp"
-#include "Angular/Angular_tables.hpp"
+#include "Angular/CkTable.hpp"
 #include "Angular/SixJTable.hpp"
-#include "Coulomb/Coulomb.hpp"
+#include "Angular/Wigner369j.hpp"
+#include "Coulomb/CoulombIntegrals.hpp"
 #include "Coulomb/YkTable.hpp"
 #include "DiracOperator/TensorOperator.hpp"
 #include "IO/ChronoTimer.hpp"
@@ -162,17 +162,9 @@ void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h) {
     return;
   }
 
-  const auto maxtj_c =
-      std::max_element(holes.cbegin(), holes.cend(), DiracSpinor::comp_j)
-          ->twoj();
-  const auto maxtj_e =
-      std::max_element(excited.cbegin(), excited.cend(), DiracSpinor::comp_j)
-          ->twoj();
-  const auto maxtj = std::max(maxtj_c, maxtj_e);
-
-  const Coulomb::YkTable Yhe(holes.front().rgrid, &holes, &excited);
-  const auto &Ck = Yhe.Ck();
-  const Angular::SixJTable sj(2 * maxtj);
+  Coulomb::YkTable Yhe(holes, excited);
+  Yhe.calculate(excited);
+  Yhe.calculate(holes);
 
   // RPA: store W Coulomb integrals (used only for Core RPA its)
   std::cout << "Filling RPA Diagram matrix ("
@@ -182,7 +174,7 @@ void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h) {
   Wabmn.resize(holes.size());
   // First set: only use Yhe and Yee
   {
-    const Coulomb::YkTable Yee(holes.front().rgrid, &excited);
+    const auto &Yee = Yhe;
 #pragma omp parallel for
     for (std::size_t i = 0; i < holes.size(); i++) {
       const auto &Fa = holes[i];
@@ -206,19 +198,10 @@ void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h) {
               Wabm_n.emplace_back(0.0);
               continue;
             }
-            const auto yknb = Yhe.ptr_yk_ab(m_rank, Fb, Fn);
-            const auto &ybm = Yhe.get_y_ab(Fb, Fm);
-            const auto &ynm = Yee.get_y_ab(Fn, Fm);
-            const auto xQ =
-                yknb ? Coulomb::Qk_abcd(Fa, Fn, Fm, Fb, m_rank, *yknb, Ck)
-                     : 0.0;
-            const auto xP =
-                Coulomb::Pk_abcd(Fa, Fn, Fm, Fb, m_rank, ynm, Ck, sj);
-            const auto yQ =
-                yknb ? Coulomb::Qk_abcd(Fa, Fb, Fm, Fn, m_rank, *yknb, Ck)
-                     : 0.0;
-            const auto yP =
-                Coulomb::Pk_abcd(Fa, Fb, Fm, Fn, m_rank, ybm, Ck, sj);
+            const auto xQ = Yhe.Qk(m_rank, Fa, Fn, Fm, Fb);
+            const auto xP = Yee.Pk(m_rank, Fa, Fn, Fm, Fb);
+            const auto yQ = Yee.Qk(m_rank, Fa, Fb, Fm, Fn);
+            const auto yP = Yhe.Pk(m_rank, Fa, Fb, Fm, Fn);
             Wanm_b.push_back(MyCast<Wtype>(xQ + xP));
             Wabm_n.push_back(MyCast<Wtype>(yQ + yP));
           }
@@ -232,7 +215,8 @@ void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h) {
   std::cout << "." << std::flush;
   {
     // Only use Yhe and Yhh here:
-    const Coulomb::YkTable Yhh(holes.front().rgrid, &holes);
+    // const Coulomb::YkTable Yhh(holes);
+    const auto &Yhh = Yhe;
 #pragma omp parallel for
     for (std::size_t i = 0; i < excited.size(); i++) {
       const auto &Fm = excited[i];
@@ -256,19 +240,10 @@ void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h) {
               Wabm_n.emplace_back(0.0);
               continue;
             }
-            const auto yknb = Yhe.ptr_yk_ab(m_rank, Fb, Fn);
-            const auto &yna = Yhe.get_y_ab(Fa, Fn);
-            const auto &yba = Yhh.get_y_ab(Fb, Fa);
-            const auto xQ =
-                yknb ? Coulomb::Qk_abcd(Fm, Fn, Fa, Fb, m_rank, *yknb, Ck)
-                     : 0.0;
-            const auto xP =
-                Coulomb::Pk_abcd(Fm, Fn, Fa, Fb, m_rank, yna, Ck, sj);
-            const auto yQ =
-                yknb ? Coulomb::Qk_abcd(Fm, Fb, Fa, Fn, m_rank, *yknb, Ck)
-                     : 0.0;
-            const auto yP =
-                Coulomb::Pk_abcd(Fm, Fb, Fa, Fn, m_rank, yba, Ck, sj);
+            const auto xQ = Yhe.Qk(m_rank, Fm, Fn, Fa, Fb);
+            const auto xP = Yhe.Pk(m_rank, Fm, Fn, Fa, Fb);
+            const auto yQ = Yhe.Qk(m_rank, Fm, Fb, Fa, Fn);
+            const auto yP = Yhh.Pk(m_rank, Fm, Fb, Fa, Fn);
             Wanm_b.push_back(MyCast<Wtype>(xQ + xP));
             Wabm_n.push_back(MyCast<Wtype>(yQ + yP));
           }

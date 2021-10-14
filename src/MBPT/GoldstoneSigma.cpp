@@ -1,6 +1,6 @@
 #include "MBPT/GoldstoneSigma.hpp"
-#include "Angular/Angular_tables.hpp"
-#include "Coulomb/Coulomb.hpp"
+#include "Angular/CkTable.hpp"
+#include "Coulomb/CoulombIntegrals.hpp"
 #include "Coulomb/YkTable.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
 #include "IO/SafeProfiler.hpp"
@@ -142,7 +142,6 @@ void GoldstoneSigma::Sigma2(GMatrix *Gmat_D, GMatrix *Gmat_X, int kappa,
         if (Ck(k, a.k, n.k) == 0)
           continue;
         const auto f_kkjj = (2 * k + 1) * (Angular::twoj_k(kappa) + 1);
-        const auto &yknb = m_yeh(k, n, a);
 
         // Effective screening parameter:
         const auto fk = get_fk(k);
@@ -153,9 +152,8 @@ void GoldstoneSigma::Sigma2(GMatrix *Gmat_D, GMatrix *Gmat_X, int kappa,
         for (const auto &m : m_excited) {
           if (Ck(k, kappa, m.k) == 0)
             continue;
-          Coulomb::Qkv_bcd(&Qkv, a, m, n, k, yknb, Ck);
-          // Pkv_bcd_2 allows different screening factor for each 'k2' in exch.
-          Coulomb::Pkv_bcd_2(&Pkv, a, m, n, k, m_yeh(m, a), Ck, m_6j, m_fk);
+          Qkv = m_yeh.Qkv_bcd(Qkv.k, a, m, n, k);
+          Pkv = m_yeh.Pkv_bcd(Pkv.k, a, m, n, k, m_fk);
           const auto dele = en + a.en() - m.en() - n.en();
           const auto factor = fk / (f_kkjj * dele);
           addto_G(&Ga_d, Qkv, Qkv, factor);
@@ -166,8 +164,8 @@ void GoldstoneSigma::Sigma2(GMatrix *Gmat_D, GMatrix *Gmat_X, int kappa,
         for (const auto &b : m_holes) {
           if (Ck(k, kappa, b.k) == 0)
             continue;
-          Coulomb::Qkv_bcd(&Qkv, n, b, a, k, yknb, Ck);
-          Coulomb::Pkv_bcd_2(&Pkv, n, b, a, k, m_yeh(n, b), Ck, m_6j, m_fk);
+          Qkv = m_yeh.Qkv_bcd(Qkv.k, n, b, a, k);
+          Pkv = m_yeh.Pkv_bcd(Pkv.k, n, b, a, k, m_fk);
           const auto dele = en + n.en() - b.en() - a.en();
           const auto factor = fk / (f_kkjj * dele); // XXX
           addto_G(&Ga_d, Qkv, Qkv, factor);

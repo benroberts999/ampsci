@@ -29,6 +29,8 @@ All other functions called by boundState.
 
 namespace DiracODE {
 
+static constexpr bool do_debug = false;
+
 using namespace Adams;
 //******************************************************************************
 void boundState(DiracSpinor &psi, const double en0,
@@ -77,10 +79,12 @@ Orbitals defined:
   // Convergance goal. Default: 1e-14
   const double eps_goal = std::pow(10, -std::abs(log_dele));
 
-  DEBUG(if (!(std::abs(psi.k) <= psi.n && psi.k != psi.n)) {
-    std::cerr << "\nFail96 in Adams: bad state " << psi.symbol() << "\n";
-    return;
-  })
+  if constexpr (do_debug) {
+    if (!(std::abs(psi.k) <= psi.n && psi.k != psi.n)) {
+      std::cerr << "\nFail96 in Adams: bad state " << psi.symbol() << "\n";
+      return;
+    }
+  }
 
   const auto &rgrid = *psi.rgrid;
 
@@ -126,10 +130,12 @@ Orbitals defined:
     }
     t_eps = std::abs((t_en - en_old) / en_old);
 
-    DEBUG(std::cerr << " :: it=" << t_its << " nodes:" << counted_nodes << "/"
-                    << required_nodes << " new_en = " << t_en
-                    << " delta=" << t_eps * t_en << " eps=" << t_eps << "\n";
-          std::cin.get();)
+    if constexpr (do_debug) {
+      std::cerr << " :: it=" << t_its << " nodes:" << counted_nodes << "/"
+                << required_nodes << " new_en = " << t_en
+                << " delta=" << t_eps * t_en << " eps=" << t_eps << "\n";
+      std::cin.get();
+    }
 
     auto getting_worse = (t_its > 10 && t_eps >= 1.2 * t_eps_prev &&
                           correct_nodes && t_eps < 1.0e-5);
@@ -144,9 +150,11 @@ Orbitals defined:
   // a few more HF iterations..If we don't norm wf, HF will fail.
   if (!correct_nodes) {
     anorm = psi * psi;
-    DEBUG(std::cerr << "\nFAIL-148: wrong nodes:"
-                    << Adams::countNodes(psi.f(), t_pinf) << "/"
-                    << required_nodes << " for " << psi.symbol() << "\n";)
+    if constexpr (do_debug) {
+      std::cerr << "\nFAIL-148: wrong nodes:"
+                << Adams::countNodes(psi.f(), t_pinf) << "/" << required_nodes
+                << " for " << psi.symbol() << "\n";
+    }
   }
 
   // store energy etc.
@@ -528,9 +536,11 @@ void inwardAM(std::vector<double> &f, std::vector<double> &g,
         break;
       }
     }
-    DEBUG(if (xe > 1.0e-3) std::cerr
-              << "WARNING: Asymp. expansion in inwardAM didn't converge: " << i
-              << " " << xe << "\n";)
+    if constexpr (do_debug) {
+      if (xe > 1.0e-3)
+        std::cerr << "WARNING: Asymp. expansion in inwardAM didn't converge: "
+                  << i << " " << xe << "\n";
+    }
     f[i] = rfac * (f1 * ps + f2 * qs);
     g[i] = rfac * (f1 * qs - f2 * ps);
   }

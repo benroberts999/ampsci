@@ -1,6 +1,6 @@
 #include "HF/Breit.hpp"
-#include "Angular/Angular_369j.hpp"
-#include "Coulomb/Coulomb.hpp"
+#include "Angular/Wigner369j.hpp"
+#include "Coulomb/CoulombIntegrals.hpp"
 #include "Maths/Grid.hpp"
 #include <iostream>
 #include <memory>

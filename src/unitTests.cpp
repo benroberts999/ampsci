@@ -70,6 +70,7 @@ static const std::vector<std::pair<std::string, bool (*)(std::ostream &obuff)>>
         {"LinAlg", &LinAlg},
         {"BSplineBasis", &BSplineBasis},
         {"Coulomb", &Coulomb},
+        // {"Coulomb2", &Coulomb2},
         // {"CorrelationPotential", &CorrelationPotential},
         {"MBPT2", &MBPT2},
         {"Sigma2", &Sigma2},
@@ -89,6 +90,7 @@ static const std::vector<std::pair<std::string, bool (*)(std::ostream &obuff)>>
                {"LinAlg", &LinAlg},
                {"BSplineBasis", &BSplineBasis},
                {"Coulomb", &Coulomb},
+               // {"Coulomb2", &Coulomb2},
                {"MBPT2", &MBPT2}};
 
 //------------------------------------------------------------------------------

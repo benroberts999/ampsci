@@ -101,7 +101,7 @@ public:
   //! Takes a constructed YkTable, and fills Coulomb table with all possible
   //! non-zero Qk elements, accounting for symmetry (only really makes sense for
   //! QkTable)
-  void fill(const YkTable &yk);
+  void fill(const std::vector<DiracSpinor> &basis, const YkTable &yk);
 
   //! Writes coulomb integrals to disk
   void write(const std::string &fname) const;

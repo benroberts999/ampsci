@@ -1,5 +1,5 @@
 #include "TDHFbasis.hpp"
-#include "Coulomb/Coulomb.hpp"
+#include "Coulomb/CoulombIntegrals.hpp"
 #include "DiracOperator/TensorOperator.hpp"
 #include "HF/Breit.hpp"
 #include "HF/HartreeFock.hpp"

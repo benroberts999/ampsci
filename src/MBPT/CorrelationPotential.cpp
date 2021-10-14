@@ -1,6 +1,6 @@
 #include "MBPT/CorrelationPotential.hpp"
-#include "Angular/Angular_tables.hpp"
-#include "Coulomb/Coulomb.hpp"
+#include "Angular/CkTable.hpp"
+#include "Coulomb/CoulombIntegrals.hpp"
 #include "Coulomb/YkTable.hpp"
 #include "HF/HartreeFock.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
@@ -28,7 +28,7 @@ CorrelationPotential::CorrelationPotential(
     : p_gr(in_hf->rgrid),
       m_holes(copy_holes(basis, in_hf->get_core(), sigp.min_n_core)),
       m_excited(copy_excited(basis, in_hf->get_core())),
-      m_yeh(p_gr, &m_excited, &m_holes),
+      m_yeh(m_excited, m_holes),
       m_maxk(std::max(DiracSpinor::max_tj(in_hf->get_core()),
                       DiracSpinor::max_tj(basis))),
       m_6j(2 * m_maxk),
@@ -289,19 +289,17 @@ double CorrelationPotential::SOEnergyShift(const DiracSpinor &v,
         if (Ck(k, a.k, n.k) == 0)
           continue;
         const auto f_kkjj = (2 * k + 1) * v.twojp1();
-        const auto &yknb = m_yeh.get_yk_ab(k, n, a);
 
         // Diagrams (a) [direct] and (b) [exchange]
         for (const auto &m : m_excited) {
           if (m.l() > max_l)
             continue;
-          const auto Qkv = Coulomb::Qk_abcd(v, a, m, n, k, yknb, Ck);
+          const auto Qkv = m_yeh.Qk(k, v, a, m, n);
           if (Qkv == 0.0)
             continue;
-          const auto Qkw =
-              (&v == &w) ? Qkv : Coulomb::Qk_abcd(w, a, m, n, k, yknb, Ck);
-          const auto &ybm = m_yeh.get_y_ab(m, a);
-          const auto Pkw = Coulomb::Pk_abcd(w, a, m, n, k, ybm, Ck, m_6j);
+          const auto Qkw = (&v == &w) ? Qkv : m_yeh.Qk(k, w, a, m, n);
+
+          const auto Pkw = m_yeh.Pk(k, w, a, m, n);
           const auto dele = v.en() + a.en() - m.en() - n.en();
           del_a += ((1.0 / dele / f_kkjj) * (Qkw + Pkw)) * Qkv;
         } // m
@@ -310,13 +308,11 @@ double CorrelationPotential::SOEnergyShift(const DiracSpinor &v,
         for (const auto &b : m_holes) {
           if (b.l() > max_l)
             continue;
-          const auto Qkv = Coulomb::Qk_abcd(v, n, b, a, k, yknb, Ck);
+          const auto Qkv = m_yeh.Qk(k, v, n, b, a);
           if (Qkv == 0.0)
             continue;
-          const auto Qkw =
-              (&v == &w) ? Qkv : Coulomb::Qk_abcd(w, n, b, a, k, yknb, Ck);
-          const auto &yna = m_yeh.get_y_ab(n, b);
-          const auto Pkw = Coulomb::Pk_abcd(w, n, b, a, k, yna, Ck, m_6j);
+          const auto Qkw = (&v == &w) ? Qkv : m_yeh.Qk(k, w, n, b, a);
+          const auto Pkw = m_yeh.Pk(k, w, n, b, a);
           const auto dele = v.en() + n.en() - b.en() - a.en();
           del_a += ((1.0 / dele / f_kkjj) * (Qkw + Pkw)) * Qkv;
         } // b

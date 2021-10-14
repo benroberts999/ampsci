@@ -1,7 +1,5 @@
 # To do
 
-`[clang-format -i src/*.cpp src/*/*.cpp src/*/*.hpp]`
-
 ## Correlation
   * Construct correlation potential at specified energies
   * Easy way to use correct correlation potential matrix..?

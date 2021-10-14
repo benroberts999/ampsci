@@ -81,7 +81,14 @@ bool Sigma2(std::ostream &obuff) {
     wf.solve_core("HartreeFock", 0.0, "[Xe]");
     wf.solve_valence("7sp5d4f"); //"7sp5d4f"
     wf.formBasis({"30spdfg", 40, 7, 0.0, 1.0e-6, 40.0, false});
-    wf.formSigma(3, true, 1.0e-4, 30.0, 14 /*stride*/);
+    wf.formSigma(3, true, 1.0e-4, 30.0, 14 /*stride*/, false, false, {}, {},
+                 "false", "false");
+
+    // const int nmin_core, const bool form_matrix, const double r0,
+    // const double rmax, const int stride, const bool each_valence,
+    // const bool include_G, const std::vector<double> &lambdas,
+    // const std::vector<double> &fk, const std::string &in_fname,
+    // const std::string &out_fname,
 
     std::vector<double> hf, br2;
     for (const auto &Fv : wf.valence) {
@@ -113,7 +120,8 @@ bool Sigma2(std::ostream &obuff) {
     wf.solve_core("HartreeFock", 0.0, "[Xe]");
     wf.solve_valence("7sp5d4f");
     wf.formBasis({"30spdfghi", 40, 7, 0.0, 1.0e-6, 40.0, false});
-    wf.formSigma(3, true, 1.0e-4, 30.0, 14 /*stride*/);
+    wf.formSigma(3, true, 1.0e-4, 30.0, 14 /*stride*/, false, false, {}, {},
+                 "false", "false");
 
     std::vector<double> hf, br2;
     for (const auto &Fv : wf.valence) {

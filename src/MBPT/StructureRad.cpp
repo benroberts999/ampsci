@@ -1,5 +1,5 @@
 #include "StructureRad.hpp"
-#include "Coulomb/Coulomb.hpp"
+#include "Coulomb/CoulombIntegrals.hpp"
 #include "DiracOperator/TensorOperator.hpp"
 #include "ExternalField/TDHF.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
@@ -21,7 +21,7 @@ namespace MBPT {
 StructureRad::StructureRad(const std::vector<DiracSpinor> &basis,
                            double en_core, std::pair<int, int> nminmax)
     : mBasis(basis), // store a local copy
-      mY(basis.front().rgrid, &mBasis) {
+      mY(mBasis) {
 
   // nb: en_core defined such that: Fa.en() < en_core ==> core state!
 

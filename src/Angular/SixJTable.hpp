@@ -1,5 +1,5 @@
 #pragma once
-#include "Angular/Angular_369j.hpp"
+#include "Angular/Wigner369j.hpp"
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
@@ -7,6 +7,9 @@
 #include <iostream>
 #include <unordered_map>
 #include <vector>
+
+// XXX Note: This is significantly faster if implemented in header file, not
+// sepperate cpp file. Seems due to inlineing of 'get' function
 
 namespace Angular {
 
@@ -17,6 +20,7 @@ namespace Angular {
 Lookup table for Wigner 6J symbols.
 
 @details
+Note: functions all called with 2*j and 2*k (ensure j integer)
 Makes use of symmetry.
 */
 class SixJTable {
@@ -35,6 +39,7 @@ public:
   //! Returns 2* maximum k in the tales
   int max_2jk() const { return m_max_2jk; }
 
+  //----------------------------------------------------------------------------
   //! Return 6j symbol {a/2,b/2,c/2,d/2,e/2,f/2}. Note: takes in 2*j as int
   //! @details Note: If requesting a 6J symbol beyond what is stores, will
   //! return 0 (without warning)
@@ -42,33 +47,32 @@ public:
     return get(a, b, c, d, e, f);
   }
 
-  //! Return 6j symbol {a/2,b/2,c/2,d/2,e/2,f/2}. Note: takes in 2*j as int
-  //! @details Note: If requesting a 6J symbol beyond what is stores, will
+  //----------------------------------------------------------------------------
+  //! Return 6j symbol {a/2,b/2,c/2,d/2,e/2,f/2}. Note: takes in 2*j/2*k as int
+  //! @details Note: If requesting a 6J symbol beyond what is stored, will
   //! return 0 (without warning)
-  double get(int a, int b, int c, int d, int e, int f) const {
+  inline double get(int a, int b, int c, int d, int e, int f) const {
     if (Angular::sixj_zeroQ(a, b, c, d, e, f))
       return 0.0;
-    // Faster to short-circut 0 here due to triangle? Or not?
-    if (std::max({a, b, c, d, e, f}) > m_max_2jk)
-      return 0.0; // error?
     const auto it = m_data.find(normal_order(a, b, c, d, e, f));
     return (it == m_data.cend()) ? 0.0 : it->second;
   }
 
+  //----------------------------------------------------------------------------
   //! Checks if given 6j symbol is in table (note: may not be in table because
-  //! its zero)
+  //! it's zero)
   bool contains(int a, int b, int c, int d, int e, int f) const {
     const auto it = m_data.find(normal_order(a, b, c, d, e, f));
     return (it != m_data.cend());
   }
 
+  //----------------------------------------------------------------------------
   //! Fill the table. max_2jk is 2* the maximum j/k that appears in the symnbols
   //! (note: 2*, as integer).
   /*! @details Typically, max_2jk is 2*max_2j, where max_2j is 2* max j of set
     of orbitals. You may call this function several times; if the new max_2jk is
     larger, it will extend the table. If it is smaller, does nothing. */
   void fill(int max_2jk) {
-    // const auto min_2jk = m_max_2jk + 1;
     // a = min{a,b,c,d,e,f}
     // b = min{b, c, e, f}
 
@@ -106,6 +110,7 @@ public:
   }
 
 private:
+  //----------------------------------------------------------------------------
   inline static auto make_key(uint8_t a, uint8_t b, uint8_t c, uint8_t d,
                               uint8_t e, uint8_t f) {
     uint64_t key = 0;
@@ -120,6 +125,7 @@ private:
     return key;
   }
 
+  //----------------------------------------------------------------------------
   inline static auto normal_order_level2(int a, int b, int c, int d, int e,
                                          int f) {
     // note: 'a' must be minimum!
@@ -139,6 +145,7 @@ private:
     assert(false && "Fatal error 170: unreachable");
   }
 
+  //----------------------------------------------------------------------------
   static uint64_t normal_order(int a, int b, int c, int d, int e, int f) {
     // returns unique "normal ordering" of {a,b,c,d,e,f}->{i,j,k,l,m,n}
     // where i = min{a,b,c,d,e,f}, j = min{b,c,e,f}

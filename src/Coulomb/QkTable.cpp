@@ -1,5 +1,5 @@
 #include "QkTable.hpp"
-#include "Coulomb.hpp"
+#include "CoulombIntegrals.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
 #include "IO/SafeProfiler.hpp"
@@ -202,10 +202,11 @@ CoulombTable::IndexSet CoulombTable::UnFormIndex(const BigIndex &index) const {
 //******************************************************************************
 
 //******************************************************************************
-void CoulombTable::fill(const YkTable &yk) {
+void CoulombTable::fill(const std::vector<DiracSpinor> &basis,
+                        const YkTable &yk) {
   IO::ChronoTimer t("fill");
-  assert(yk.a_is_b());
-  const auto &basis = yk.get_a();
+  // assert(yk.a_is_b());
+  // const auto &basis = yk.get_a();
 
   // XXX Note: This uses 2x memory.. issue?
   // but, much faster than not!
@@ -240,11 +241,11 @@ void CoulombTable::fill(const YkTable &yk) {
 
           const auto [kmin, kmax] = k_minmax_Q(a, b, c, d);
           for (int k = kmin; k <= kmax; k += 2) {
-            const auto yk_bd = yk.ptr_yk_ab(k, b, d);
+            const auto yk_bd = yk.get(k, b, d);
             if (yk_bd == nullptr)
               continue;
 
-            const auto qk = Coulomb::Qk_abcd(a, b, c, d, k, *yk_bd, yk.Ck());
+            const auto qk = yk.Qk(k, a, b, c, d);
             maps_k_a[std::size_t(k)][i].emplace_back(ix, qk);
           }
         }

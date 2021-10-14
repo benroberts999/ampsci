@@ -1,6 +1,6 @@
 #include "HF/HartreeFock.hpp"
-#include "Angular/Angular_369j.hpp"
-#include "Coulomb/Coulomb.hpp"
+#include "Angular/Wigner369j.hpp"
+#include "Coulomb/CoulombIntegrals.hpp"
 #include "Coulomb/YkTable.hpp"
 #include "DiracODE/Adams_Greens.hpp"
 #include "DiracODE/DiracODE.hpp"
@@ -71,7 +71,7 @@ HartreeFock::HartreeFock(std::shared_ptr<const Grid> in_grid,
       m_eps_HF(std::abs(in_eps) < 1.0 ? in_eps : std::pow(10, -in_eps)),
       p_core(in_core),
       m_vdir(rgrid->num_points()),
-      m_Yab(rgrid, p_core),
+      m_Yab(*p_core),
       m_excludeExchange(
           !(m_method == Method::HartreeFock || m_method == Method::ApproxHF)) {}
 
@@ -160,7 +160,8 @@ void HartreeFock::hf_core_approx(const double eps_target_HF) {
     vex_old = appr_vex_core;
 
     // Form new v_dir and v_ex:
-    m_Yab.update_y_ints();
+    // m_Yab.update_y_ints();
+    m_Yab.calculate(*p_core);
     form_vdir(m_vdir, false);
     form_approx_vex_core(appr_vex_core);
     if (hits == 1)
@@ -257,7 +258,8 @@ void HartreeFock::KohnSham_core(const double eps_target_HF) {
     vdir_old = m_vdir;
 
     // Form new v_dir and v_ex:
-    m_Yab.update_y_ints();
+    // m_Yab.update_y_ints();
+    m_Yab.calculate(*p_core);
     form_vdir(m_vdir, false);
     KohnSham_addition(m_vdir);
 
@@ -485,7 +487,7 @@ double HartreeFock::calculateCoreEnergy() const
     for (const auto &Fb : *p_core) {
       const auto tjb = Fb.twoj();
       const double xtjbp1 = (tjb + 1) * Fb.occ_frac();
-      const auto &v0bb = m_Yab.get_yk_ab(0, Fb, Fb);
+      const auto &v0bb = *m_Yab.get(0, Fb, Fb); // XXX may be null
       const auto R0fg2 = Fa * (v0bb * Fa);
       e2 += xtjap1 * xtjbp1 * R0fg2;
       // take advantage of symmetry for third term:
@@ -494,13 +496,16 @@ double HartreeFock::calculateCoreEnergy() const
       const auto y = (Fa == Fb) ? 1.0 : 2.0; // symmetry
       const int kmin = std::abs(tja - tjb) / 2;
       const int kmax = (tja + tjb) / 2;
-      const auto &vabk = m_Yab.get_y_ab(Fa, Fb);
+      // const auto &vabk = m_Yab.get_y_ab(Fa, Fb);
       for (auto k = kmin; k <= kmax; k++) {
         const auto Labk = m_Yab.Ck().get_Lambdakab(k, Fa.k, Fb.k);
         if (Labk == 0)
           continue;
-        const auto ik = std::size_t(k - kmin);
-        const auto R0fg3 = Fa * (vabk[ik] * Fb);
+        // const auto ik = std::size_t(k - kmin);
+        const auto vabk = m_Yab.get(k, Fa, Fb);
+        if (vabk == nullptr)
+          continue;
+        const auto R0fg3 = Fa * (*vabk * Fb); // XXX may be null
         e3 += y * xtjap1 * xtjbp1 * Labk * (R0fg3);
       }
     }
@@ -535,7 +540,7 @@ void HartreeFock::form_vdir(std::vector<double> &vdir, bool re_scale) const
   const double sf = re_scale ? (1.0 - 1.0 / Ncore) : 1.0;
   for (const auto &Fb : (*p_core)) {
     const double f_sf = sf * (Fb.twoj() + 1) * Fb.occ_frac();
-    const auto &v0bb = m_Yab.get_yk_ab(0, Fb, Fb);
+    const auto &v0bb = *m_Yab.get(0, Fb, Fb); // xxx may be null
     for (std::size_t i = 0; i < rgrid->num_points(); i++) {
       vdir[i] += v0bb[i] * f_sf;
     }
@@ -545,7 +550,7 @@ void HartreeFock::form_vdir(std::vector<double> &vdir, bool re_scale) const
 //******************************************************************************
 const std::vector<double> &
 HartreeFock::get_vdir_single(const DiracSpinor &Fa) const {
-  return m_Yab.get_yk_ab(0, Fa, Fa);
+  return *m_Yab.get(0, Fa, Fa);
 }
 //----------
 std::vector<double> HartreeFock::calc_vdir_single(const DiracSpinor &Fa) {
@@ -625,7 +630,7 @@ void HartreeFock::form_approx_vex_core_a(const DiracSpinor &Fa,
       const auto irmax = std::min(Fa.max_pt(), Fb.max_pt());
       const int kmin = std::abs(twoj_a - tjb) / 2;
       const int kmax = (twoj_a + tjb) / 2;
-      const auto &vabk = m_Yab.get_y_ab(Fb, Fa);
+      // const auto &vabk = m_Yab.get_y_ab(Fb, Fa);
 
       // hold "fraction" Fa*Fb/(Fa^2):
       std::vector<double> v_Fab(rgrid->num_points());
@@ -641,9 +646,12 @@ void HartreeFock::form_approx_vex_core_a(const DiracSpinor &Fa,
         const auto Labk = m_Yab.Ck().get_Lambdakab(k, Fa.k, Fb.k);
         if (Labk == 0)
           continue;
-        const auto ik = std::size_t(k - kmin);
+        // const auto ik = std::size_t(k - kmin);
+        const auto vabk = m_Yab.get(k, Fb, Fa);
+        if (vabk == nullptr)
+          continue;
         for (std::size_t i = 0; i < irmax; i++) {
-          vex_a[i] += Labk * vabk[ik][i] * v_Fab[i];
+          vex_a[i] += Labk * (*vabk)[i] * v_Fab[i];
         } // r
       }   // k
     }     // b
@@ -654,16 +662,19 @@ void HartreeFock::form_approx_vex_core_a(const DiracSpinor &Fa,
   {
     const double x_tjap1 = (twoj_a + 1); // no occ_frac here ?
     const int kmax = twoj_a;
-    const auto &vaak = m_Yab.get_y_ab(Fa, Fa);
+    // const auto &vaak = m_Yab.get_y_ab(Fa, Fa);
     const auto irmax = Fa.max_pt(); // rgrid->num_points();
     for (int k = 0; k <= kmax; k++) {
       const auto Labk = m_Yab.Ck().get_Lambdakab(k, Fa.k, Fa.k);
       if (Labk == 0)
         continue;
+      const auto vaak = m_Yab.get(k, Fa, Fa);
+      if (vaak == nullptr)
+        continue;
       for (std::size_t i = 0; i < irmax; i++) {
         // nb: If I don't 'cut' here, or fails w/ f states... ?? XX
         // Of course, cutting is fine. But WHY FAIL??
-        vex_a[i] += -Labk * vaak[std::size_t(k)][i] * x_tjap1;
+        vex_a[i] += -Labk * (*vaak)[i] * x_tjap1;
       }
     } // k
   }   // if a in core
@@ -764,13 +775,16 @@ void HartreeFock::vex_psia_core(const DiracSpinor &Fa, DiracSpinor &VxFa) const
     const double x_tjbp1 = (Fa == Fb) ? (tjb + 1) : (tjb + 1) * Fb.occ_frac();
     const int kmin = std::abs(twoj_a - tjb) / 2;
     const int kmax = (twoj_a + tjb) / 2;
-    const auto &vabk = m_Yab.get_y_ab(Fb, Fa);
+    // const auto &vabk = m_Yab.get_y_ab(Fb, Fa);
     for (int k = kmin; k <= kmax; k++) {
       const auto Labk = m_Yab.Ck().get_Lambdakab(k, Fa.k, Fb.k);
       if (Labk == 0)
         continue;
+      const auto vabk = m_Yab.get(k, Fb, Fa);
+      if (vabk == nullptr)
+        continue;
       for (auto i = 0u; i < Fb.max_pt(); i++) {
-        const auto v = -x_tjbp1 * Labk * vabk[std::size_t(k - kmin)][i];
+        const auto v = -x_tjbp1 * Labk * (*vabk)[i];
         VxFa.set_f(i) += v * Fb.f(i);
         VxFa.set_g(i) += v * Fb.g(i);
       } // r
@@ -1107,7 +1121,8 @@ inline void HartreeFock::hf_core_refine() {
   }
 
   const double eps_target = m_eps_HF;
-  m_Yab.update_y_ints(); // only needed if not already done!
+  // m_Yab.update_y_ints(); // only needed if not already done!
+  m_Yab.calculate(*p_core);
   auto damper = rampedDamp(0.8, 0.3, 5, 30);
   double extra_damp = 0;
 
@@ -1233,7 +1248,8 @@ inline void HartreeFock::hf_core_refine() {
     if (eps < best_worst_eps)
       best_worst_eps = eps;
 
-    m_Yab.update_y_ints();
+    // m_Yab.update_y_ints();
+    m_Yab.calculate(*p_core);
     form_vdir(m_vdir);
   }
 

@@ -1,8 +1,7 @@
 #include "MBPT/FeynmanSigma.hpp"
-// #include "Angular/Angular_tables.hpp"
-#include "Angular/Angular_tables.hpp"
+#include "Angular/CkTable.hpp"
 #include "Angular/SixJTable.hpp"
-#include "Coulomb/Coulomb.hpp"
+#include "Coulomb/CoulombIntegrals.hpp"
 #include "Coulomb/YkTable.hpp"
 #include "DiracODE/DiracODE.hpp"
 #include "HF/HartreeFock.hpp"
@@ -165,7 +164,7 @@ void FeynmanSigma::prep_Feynman() {
 
   // Extand 6j and Ck
   m_6j.fill(2 * m_maxk); //?
-  m_yeh.extend_Ck(m_maxk);
+  // m_yeh.extend_Ck(m_maxk); // XXX Check max k OK in Ck tables!?
 
   if (m_screen_Coulomb)
     std::cout << "Including Coulomb screening\n";
@@ -1276,7 +1275,7 @@ GMatrix FeynmanSigma::Exchange_Goldstone(const int kappa,
         if (Ck(k, a.k, n.k) == 0)
           continue;
         const auto f_kkjj = (2 * k + 1) * (Angular::twoj_k(kappa) + 1);
-        const auto &yknb = m_yeh(k, n, a);
+        // const auto &yknb = *m_yeh.get(k, n, a); // check null!
 
         // Effective screening parameter:
         const auto fk = get_fk(k);
@@ -1285,10 +1284,13 @@ GMatrix FeynmanSigma::Exchange_Goldstone(const int kappa,
         for (const auto &m : m_excited) {
           if (Ck(k, kappa, m.k) == 0)
             continue;
-          Coulomb::Qkv_bcd(&Qkv, a, m, n, k, yknb, Ck);
+          // Coulomb::Qkv_bcd(&Qkv, a, m, n, k, yknb, Ck);
+          Qkv = m_yeh.Qkv_bcd(Qkv.k, a, m, n, k);
           // Pkv_bcd_2 allows different screening factor for each 'k2' in
           // exch.
-          Coulomb::Pkv_bcd_2(&Pkv, a, m, n, k, m_yeh(m, a), Ck, m_6j, m_fk);
+          // Coulomb::Pkv_bcd_2(&Pkv, a, m, n, k, m_yeh(m, a), Ck, m_6j, m_fk);
+          // m_yeh.Pkv_bcd_2(&Pkv, a, m, n, k, m_fk);
+          Pkv = m_yeh.Pkv_bcd(Pkv.k, a, m, n, k, m_fk);
           const auto dele = en + a.en() - m.en() - n.en();
           const auto factor = fk / (f_kkjj * dele);
           addto_G(&Ga_x, Qkv, Pkv, factor);
@@ -1298,8 +1300,11 @@ GMatrix FeynmanSigma::Exchange_Goldstone(const int kappa,
         for (const auto &b : m_holes) {
           if (Ck(k, kappa, b.k) == 0)
             continue;
-          Coulomb::Qkv_bcd(&Qkv, n, b, a, k, yknb, Ck);
-          Coulomb::Pkv_bcd_2(&Pkv, n, b, a, k, m_yeh(n, b), Ck, m_6j, m_fk);
+          // Coulomb::Qkv_bcd(&Qkv, n, b, a, k, yknb, Ck);
+          Qkv = m_yeh.Qkv_bcd(Qkv.k, n, b, a, k);
+          // Coulomb::Pkv_bcd_2(&Pkv, n, b, a, k, m_yeh(n, b), Ck, m_6j, m_fk);
+          // m_yeh.Pkv_bcd_2(&Pkv, n, b, a, k, m_fk);
+          Pkv = m_yeh.Pkv_bcd(Pkv.k, n, b, a, k, m_fk);
           const auto dele = en + n.en() - b.en() - a.en();
           const auto factor = fk / (f_kkjj * dele); // XXX
           addto_G(&Ga_x, Qkv, Pkv, factor);

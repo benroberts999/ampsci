@@ -1,4 +1,4 @@
-#include "Coulomb/Coulomb.hpp"
+#include "Coulomb/CoulombIntegrals.hpp"
 #include "IO/InputBlock.hpp"
 #include "MBPT/FeynmanSigma.hpp"
 #include "Maths/LinAlg_MatrixVector.hpp"

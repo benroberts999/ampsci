@@ -1,6 +1,7 @@
 #pragma once
-#include "Coulomb/Coulomb.hpp"
+#include "Coulomb/CoulombIntegrals.hpp"
 #include "Coulomb/QkTable.hpp"
+#include "Coulomb/YkTable.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "qip/Check.hpp"
@@ -26,12 +27,12 @@ bool QkTable(std::ostream &obuff) {
 
   // YkTable stores Hartee Y-functions Y_ab(r)
   // These save much time when calculating Q^k coeficients
-  const Coulomb::YkTable yk(wf.rgrid, &wf.basis);
+  const Coulomb::YkTable yk(wf.basis);
 
   Coulomb::QkTable qk_t;
   // Coulomb::WkTable qk;
   // Coulomb::NkTable qk;
-  qk_t.fill(yk);
+  qk_t.fill(wf.basis, yk);
 
   {
     IO::ChronoTimer t("Write to disk");
@@ -61,10 +62,11 @@ bool QkTable(std::ostream &obuff) {
           for (const auto &d : wf.basis) {
             const auto [kmin, kmax] = Coulomb::k_minmax_Q(a, b, c, d);
             for (int k = kmin; k <= kmax; k += 2) {
-              const auto yk_bd = yk.ptr_yk_ab(k, b, d);
+              const auto yk_bd = yk.get(k, b, d);
               if (yk_bd == nullptr)
                 continue;
-              sum1 += Coulomb::Qk_abcd(a, b, c, d, k, *yk_bd, yk.Ck());
+              // sum1 += Coulomb::Qk_abcd(a, b, c, d, k, *yk_bd, yk.Ck());
+              sum1 += yk.Qk(k, a, b, c, d);
             }
           }
         }

@@ -1,7 +1,7 @@
 #pragma once
-#include "Angular/Angular_tables.hpp"
+#include "Angular/CkTable.hpp"
 #include "Angular/SixJTable.hpp"
-#include "Coulomb/Coulomb.hpp"
+#include "Coulomb/CoulombIntegrals.hpp"
 #include "Coulomb/YkTable.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Wavefunction/Wavefunction.hpp"
@@ -23,9 +23,9 @@ inline std::vector<double> yk_naive(const DiracSpinor &Fa,
                                     const DiracSpinor &Fb, int k);
 
 // This takes two sets of spinors, and calculates each y^k_ab two ways (using
-// YkTable, and using Coulomb:: functions). Also checks if y_ab = y_ba. Compares
-// these, returns the worst y1(r)-y2(r).
-// This is a test of the YkTable and symmetry, but not the Coulomb:: formula
+// YkTable, and using Coulomb:: functions). Also checks if y_ab = y_ba.
+// Compares these, returns the worst y1(r)-y2(r). This is a test of the YkTable
+// and symmetry, but not the Coulomb:: formula
 inline double check_ykab_Tab(const std::vector<DiracSpinor> &a,
                              const std::vector<DiracSpinor> &b,
                              const Coulomb::YkTable &Yab);
@@ -122,8 +122,8 @@ bool Coulomb(std::ostream &obuff) {
     }
   }
   // Form the Coulomb lookup tables:
-  const Coulomb::YkTable Yce(wf.rgrid, &core, &excited);
-  const Coulomb::YkTable Yij(wf.rgrid, &wf.basis);
+  const Coulomb::YkTable Yce(core, excited);
+  const Coulomb::YkTable Yij(wf.basis);
 
   { // Check the Ykab lookup-tables
     // check the 'different' orbitals case:
@@ -192,11 +192,9 @@ bool Coulomb(std::ostream &obuff) {
               if (Angular::Ck_kk_SR(k, Fa.k, Fc.k) &&
                   Angular::Ck_kk_SR(k, Fb.k, Fd.k)) {
 
-                const auto &ykbd = Yij.get_yk_ab(k, Fb, Fd);
-                Q1 = Coulomb::Qk_abcd(Fa, Fb, Fc, Fd, k, ykbd, Ck);
+                Q1 = Yij.Qk(k, Fa, Fb, Fc, Fd);
                 const auto Q2 = Coulomb::Qk_abcd(Fa, Fb, Fc, Fd, k);
-                const auto Q3 =
-                    Fa * Coulomb::Qkv_bcd(Fa.k, Fb, Fc, Fd, k, ykbd, Ck);
+                const auto Q3 = Fa * Yij.Qkv_bcd(Fa.k, Fb, Fc, Fd, k);
 
                 const auto Q4 =
                     Angular::neg1pow_2(2 * k + Fa.twoj() + Fb.twoj() + 2) *
@@ -217,20 +215,16 @@ bool Coulomb(std::ostream &obuff) {
               }
 
               // Calc P
-              const auto &ybc = Yij.get_y_ab(Fb, Fc);
-              const auto P1 = Coulomb::Pk_abcd(Fa, Fb, Fc, Fd, k, ybc, Ck, sj);
+              const auto P1 = Yij.Pk(k, Fa, Fb, Fc, Fd);
               const auto P2 = Coulomb::Pk_abcd(Fa, Fb, Fc, Fd, k);
               double P4 = 0.0;
               for (int l = 0; l <= Ck.max_k(); ++l) {
                 if (Angular::Ck_kk_SR(l, Fa.k, Fd.k) &&
                     Angular::Ck_kk_SR(l, Fb.k, Fc.k)) {
-                  const auto &ylbc = Yij.get_yk_ab(l, Fb, Fc);
                   P4 += (2 * k + 1) *
-                        // sj.get_6j(Fa.twoj(), Fc.twoj(), Fb.twoj(), Fd.twoj(),
-                        // k, l) *
                         sj(Fa.twoj(), Fc.twoj(), 2 * k, Fb.twoj(), Fd.twoj(),
                            2 * l) *
-                        Coulomb::Qk_abcd(Fa, Fb, Fd, Fc, l, ylbc, Ck);
+                        Yij.Qk(l, Fa, Fb, Fd, Fc);
                 }
               }
 
@@ -320,10 +314,13 @@ UnitTest::helper::check_ykab_Tab(const std::vector<DiracSpinor> &a,
         // this case)
         if (!Angular::Ck_kk_SR(k, Fa.k, Fb.k))
           continue;
-        const auto &y1 = Yab.get_yk_ab(k, Fa, Fb);
+        const auto y1 = Yab.get(k, Fa, Fb);
         const auto y2 = Coulomb::yk_ab(Fa, Fb, k);
         const auto y3 = Coulomb::yk_ab(Fb, Fa, k); // symmetric
-        const auto del = std::abs(qip::compare(y1, y2).first) +
+        if (y1 == nullptr) {
+          std::cout << k << " " << Fa.symbol() << " " << Fb.symbol() << "\n";
+        }
+        const auto del = std::abs(qip::compare(*y1, y2).first) +
                          std::abs(qip::compare(y2, y3).first);
         if (del > worst)
           worst = del;
@@ -377,7 +374,7 @@ inline double
 UnitTest::helper::check_Rkabcd(const std::vector<DiracSpinor> &orbs,
                                int max_del_n) {
   double eps_R = 0.0;
-  const Coulomb::YkTable Yab(orbs.front().rgrid, &orbs);
+  const Coulomb::YkTable Yab(orbs);
 #pragma omp parallel for
   for (auto ia = 0ul; ia < orbs.size(); ia++) {
     const auto &Fa = orbs[ia];
@@ -401,17 +398,17 @@ UnitTest::helper::check_Rkabcd(const std::vector<DiracSpinor> &orbs,
               continue;
 
             //---------
-            const auto &yac = Yab.get_yk_ab(k, Fa, Fc);
-            const auto &ybd = Yab.get_yk_ab(k, Fb, Fd);
+            const auto yac = Yab.get(k, Fa, Fc);
+            const auto ybd = Yab.get(k, Fb, Fd);
 
             const auto r1a = Coulomb::Rk_abcd(Fa, Fb, Fc, Fd, k);
             const auto r1b = Coulomb::Rk_abcd(Fb, Fa, Fd, Fc, k);
             const auto r1c = Coulomb::Rk_abcd(Fc, Fd, Fa, Fb, k);
-            const auto r2a = Coulomb::Rk_abcd(Fa, Fc, ybd);
-            const auto r2b = Coulomb::Rk_abcd(Fb, Fd, yac);
-            const auto r2c = Coulomb::Rk_abcd(Fc, Fa, ybd);
+            const auto r2a = Coulomb::Rk_abcd(Fa, Fc, *ybd);
+            const auto r2b = Coulomb::Rk_abcd(Fb, Fd, *yac);
+            const auto r2c = Coulomb::Rk_abcd(Fc, Fa, *ybd);
             const auto r3 = Fa * Coulomb::Rkv_bcd(Fa.k, Fb, Fc, Fd, k);
-            const auto r4 = Fa * Coulomb::Rkv_bcd(Fa.k, Fc, ybd);
+            const auto r4 = Fa * Coulomb::Rkv_bcd(Fa.k, Fc, *ybd);
             const auto eps = std::max({r1a, r1b, r1c, r2a, r2b, r2c, r3, r4}) -
                              std::min({r1a, r1b, r1c, r2a, r2b, r2c, r3, r4});
 #pragma omp critical(compare_epsR)

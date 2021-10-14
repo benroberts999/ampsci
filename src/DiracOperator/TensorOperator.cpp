@@ -1,5 +1,5 @@
 #include "DiracOperator/TensorOperator.hpp"
-#include "Angular/Angular_369j.hpp"
+#include "Angular/Wigner369j.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <algorithm>

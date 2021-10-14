@@ -104,3 +104,5 @@ doxy:
 	( cd ./doc/latex && make clean)
 do_the_chicken_dance:
 	@echo 'Why would I do that?'
+clang_format:
+	clang-format -i src/*.cpp src/*/*.cpp src/*/*.hpp
