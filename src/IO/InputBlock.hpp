@@ -11,7 +11,6 @@
 #include <vector>
 
 namespace IO {
-
 //******************************************************************************
 //! Removes all white space (space, tab, newline), AND quote marks!
 inline std::string removeSpaces(std::string lines);
@@ -44,7 +43,8 @@ template <typename T> struct IsVector<std::vector<T>> {
 // std::cout << IO::IsVector<std::vector<int>>::v << "\n";
 // std::cout << IO::IsVector<std::vector<double>>::v << "\n";
 
-//! Prints a line of 'c' characters (dflt '*'), num chars long (dflt 80) to cout
+//! Prints a line of 'c' characters (dflt '*'), num chars long (dflt 80) to
+//! cout
 inline void print_line(const char c = '*', const int num = 80) {
   for (int i = 0; i < num; i++)
     std::cout << c;
@@ -135,7 +135,8 @@ public:
     add(file_to_string(file));
   }
 
-  //! Add a new InputBlock (merge: will be merged with existing if names match)
+  //! Add a new InputBlock (merge: will be merged with existing if names
+  //! match)
   inline void add(InputBlock block, bool merge = false);
   //! Adds a new option to end of list
   inline void add(Option option);
@@ -183,9 +184,12 @@ public:
   //! Get an 'Option' (kay, value) - rarely needed
   inline std::optional<Option> getOption(std::string_view key) const;
 
-  //! Prints options to screen in user-friendly form. Same form as input string.
-  //! By default prints to cout, but can be given any ostream
+  //! Prints options to screen in user-friendly form. Same form as input
+  //! string. By default prints to cout, but can be given any ostream
   inline void print(std::ostream &os = std::cout, int indent_depth = 0) const;
+
+  inline bool checkBlock_old(const std::vector<std::string> &list,
+                             bool print = false) const;
 
   //! Check all the options and blocks in this; if any of them are not present
   //! in 'list', then there is likely a spelling error in the input => returns
@@ -194,27 +198,22 @@ public:
   //! is - great for 'self-documenting' code
   //! If print=true - will print all options+descriptions even if all good.
   inline bool
-  checkBlock2(const std::vector<std::pair<std::string, std::string>> &list,
-              bool print = false) const;
-  inline bool checkBlock(const std::vector<std::string> &list,
-                         bool print = false) const;
+  check(std::initializer_list<std::string> blocks,
+        const std::vector<std::pair<std::string, std::string>> &list,
+        bool print = false) const;
 
+  //! Override for when condidering current block
   inline bool
-  check2(std::initializer_list<std::string> blocks,
-         const std::vector<std::pair<std::string, std::string>> &list,
-         bool print = false) const;
-
-  inline bool
-  check2(const std::vector<std::pair<std::string, std::string>> &list,
-         bool print = false) const {
-    return checkBlock2(list, print);
+  check(const std::vector<std::pair<std::string, std::string>> &list,
+        bool print = false) const {
+    return checkBlock(list, print);
   }
 
-  inline bool check(std::initializer_list<std::string> blocks,
-                    const std::vector<std::string> &list,
-                    bool print = false) const;
-
 private:
+  inline bool
+  checkBlock(const std::vector<std::pair<std::string, std::string>> &list,
+             bool print = false) const;
+
   // Allows returning std::vector: comma-separated list input
   template <typename T>
   std::optional<std::vector<T>> get_vector(std::string_view key) const;
@@ -294,9 +293,9 @@ std::optional<T> InputBlock::get(std::string_view key) const {
 }
 
 // special function; allows return of std::vector (for comma-separated list
-// input). Optional of vector is kind of redundant, but is this way so it aligns
-// with the other functions (checks if optional is empty when deciding if should
-// return the default value)
+// input). Optional of vector is kind of redundant, but is this way so it
+// aligns with the other functions (checks if optional is empty when deciding
+// if should return the default value)
 template <typename T>
 std::optional<std::vector<T>>
 InputBlock::get_vector(std::string_view key) const {
@@ -412,7 +411,7 @@ void InputBlock::print(std::ostream &os, int depth) const {
 }
 
 //******************************************************************************
-bool InputBlock::checkBlock2(
+bool InputBlock::checkBlock(
     const std::vector<std::pair<std::string, std::string>> &list,
     bool print) const {
   // Check each option NOT each sub block!
@@ -470,8 +469,8 @@ bool InputBlock::checkBlock2(
   return all_ok;
 }
 
-bool InputBlock::checkBlock(const std::vector<std::string> &list,
-                            bool print) const {
+bool InputBlock::checkBlock_old(const std::vector<std::string> &list,
+                                bool print) const {
   // Check each option NOT each sub block!
   // For each input option stored, see if it is allowed
   // "allowed" means appears in list
@@ -515,7 +514,7 @@ bool InputBlock::checkBlock(const std::vector<std::string> &list,
 }
 
 //! Check one of the sub-blocks
-bool InputBlock::check2(
+bool InputBlock::check(
     std::initializer_list<std::string> blocks,
     const std::vector<std::pair<std::string, std::string>> &list,
     bool print) const {
@@ -525,28 +524,12 @@ bool InputBlock::check2(
     pB = pB->getBlock_cptr(block);
     if (pB == nullptr) {
       // Did not fund nested block... may be fine
-      // Return true, since a missing block is not an issue (or sepparate issue)
-      // We are checking to see if blocks exist that shouldn't
+      // Return true, since a missing block is not an issue (or sepparate
+      // issue) We are checking to see if blocks exist that shouldn't
       return true;
     }
   }
-  return pB->checkBlock2(list, print);
-}
-
-bool InputBlock::check(std::initializer_list<std::string> blocks,
-                       const std::vector<std::string> &list, bool print) const {
-  // Find key in nested blocks
-  const InputBlock *pB = this;
-  for (const auto &block : blocks) {
-    pB = pB->getBlock_cptr(block);
-    if (pB == nullptr) {
-      // Did not fund nested block... may be fine
-      // Return true, since a missing block is not an issue (or sepparate issue)
-      // We are checking to see if blocks exist that shouldn't
-      return true;
-    }
-  }
-  return pB->checkBlock(list, print);
+  return pB->check(list, print);
 }
 
 //******************************************************************************

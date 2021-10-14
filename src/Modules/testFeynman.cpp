@@ -16,7 +16,7 @@ namespace Module {
 void testFeynman(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "\ntestFeynman:\n";
 
-  input.checkBlock({"real_omega", "max_l", "screening", "rmin", "rmax",
+  input.checkBlock_old({"real_omega", "max_l", "screening", "rmin", "rmax",
                     "stride", "include_G", "testQ", "testGreen", "testGQ",
                     "testPol", "omim"});
 

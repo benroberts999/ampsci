@@ -16,7 +16,7 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
 
   std::cout << "\nDipole polarisability:\n";
 
-  input.checkBlock2(
+  input.check(
       {{"rpa", "true/false; include RPA"},
        {"omega", "frequency (for single w)"},
        {"omega_max", "if >0, will run as function of w"},

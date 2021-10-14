@@ -17,7 +17,7 @@ namespace Module {
 void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
   IO::ChronoTimer timer; // start the overall timer
 
-  input.checkBlock({"Emin", "Emax", "Esteps", "qmin", "qmax", "qsteps",
+  input.checkBlock_old({"Emin", "Emax", "Esteps", "qmin", "qmax", "qsteps",
                     "max_l_bound", "max_L", "use_plane_waves", "label",
                     "output_text", "output_binary"});
 

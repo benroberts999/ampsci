@@ -26,7 +26,7 @@ namespace Module {
 
 //******************************************************************************
 void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
-  input.checkBlock2({{"operator", "e.g., E1, hfs"},
+  input.check({{"operator", "e.g., E1, hfs"},
                      {"options", "options specific to operator; blank by dflt"},
                      {"rpa", "true(=TDHF), false, TDHF, basis, diagram"},
                      {"omega", "freq. for RPA"},
@@ -121,7 +121,7 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
 // Calculates Structure Radiation + Normalisation of States
 void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
 
-  input.checkBlock2(
+  input.check(
       {{"operator", "e.g., E1, hfs"},
        {"options", "options specific to operator; blank by dflt"},
        {"rpa", "true(=TDHF), false, TDHF, basis, diagram"},
@@ -281,7 +281,7 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
 void calculateLifetimes(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "\nLifetimes:\n";
 
-  input.checkBlock({"E1", "E2", "rpa", "StrucRadNorm"});
+  input.checkBlock_old({"E1", "E2", "rpa", "StrucRadNorm"});
   const auto doE1 = input.get("E1", true);
   const auto doE2 = input.get("E2", false);
   const auto rpaQ = input.get("rpa", true);
@@ -428,7 +428,7 @@ generateOperator(std::string_view oper_name, const IO::InputBlock &input,
 std::unique_ptr<DiracOperator::TensorOperator>
 generate_E1(const IO::InputBlock &input, const Wavefunction &wf, bool) {
   using namespace DiracOperator;
-  input.checkBlock({"gauge"});
+  input.checkBlock_old({"gauge"});
   auto gauge = input.get<std::string>("gauge", "lform");
   if (gauge != "vform")
     return std::make_unique<E1>(*(wf.rgrid));
@@ -440,7 +440,7 @@ generate_E1(const IO::InputBlock &input, const Wavefunction &wf, bool) {
 std::unique_ptr<DiracOperator::TensorOperator>
 generate_Ek(const IO::InputBlock &input, const Wavefunction &wf, bool) {
   using namespace DiracOperator;
-  input.checkBlock({"k"});
+  input.checkBlock_old({"k"});
   auto k = input.get("k", 1);
   return std::make_unique<Ek>(*(wf.rgrid), k);
 }
@@ -449,7 +449,7 @@ generate_Ek(const IO::InputBlock &input, const Wavefunction &wf, bool) {
 std::unique_ptr<DiracOperator::TensorOperator>
 generate_M1(const IO::InputBlock &input, const Wavefunction &wf, bool) {
   using namespace DiracOperator;
-  input.checkBlock({});
+  input.checkBlock_old({});
   return std::make_unique<M1>(*(wf.rgrid), wf.alpha, 0.0);
 }
 
@@ -457,7 +457,7 @@ generate_M1(const IO::InputBlock &input, const Wavefunction &wf, bool) {
 std::unique_ptr<DiracOperator::TensorOperator>
 generate_hfsA(const IO::InputBlock &input, const Wavefunction &wf, bool print) {
   using namespace DiracOperator;
-  input.checkBlock({"mu", "I", "rrms", "F(r)", "parity", "l", "gl", "mu1",
+  input.checkBlock_old({"mu", "I", "rrms", "F(r)", "parity", "l", "gl", "mu1",
                     "gl1", "l1", "l2", "I1", "I2", "printF", "screening"});
   auto isotope = Nuclear::findIsotopeData(wf.Znuc(), wf.Anuc());
   auto mu = input.get("mu", isotope.mu);
@@ -544,7 +544,7 @@ generate_hfsK(const IO::InputBlock &input, const Wavefunction &wf, bool print) {
   using namespace DiracOperator;
 
   bool ok = true;
-  input.checkBlock({"K", "rrms", "F(r)", "gQ"});
+  input.checkBlock_old({"K", "rrms", "F(r)", "gQ"});
   // gQ is g-factor (for magnetic), quadrupole moment for electric...
   const auto k = input.get("K", 0);
   if (k == 0) {
@@ -595,7 +595,7 @@ generate_hfsK(const IO::InputBlock &input, const Wavefunction &wf, bool print) {
 std::unique_ptr<DiracOperator::TensorOperator>
 generate_r(const IO::InputBlock &input, const Wavefunction &wf, bool) {
   using namespace DiracOperator;
-  input.checkBlock({"power"});
+  input.checkBlock_old({"power"});
   auto power = input.get("power", 1.0);
   std::cout << "r^(" << power << ")\n";
   return std::make_unique<RadialF>(*(wf.rgrid), power);
@@ -605,7 +605,7 @@ generate_r(const IO::InputBlock &input, const Wavefunction &wf, bool) {
 std::unique_ptr<DiracOperator::TensorOperator>
 generate_pnc(const IO::InputBlock &input, const Wavefunction &wf, bool) {
   using namespace DiracOperator;
-  input.checkBlock({"c", "t"});
+  input.checkBlock_old({"c", "t"});
   const auto r_rms = Nuclear::find_rrms(wf.Znuc(), wf.Anuc());
   const auto c = input.get("c", Nuclear::c_hdr_formula_rrms_t(r_rms));
   const auto t = input.get("t", Nuclear::default_t);
@@ -619,7 +619,7 @@ generate_Hrad(const IO::InputBlock & /*input*/, const Wavefunction & /*wf*/,
   std::cout << "\nFAIL:: generate_Hrad() need implementing!\n";
   return nullptr;
   // using namespace DiracOperator;
-  // input.checkBlock(
+  // input.checkBlock_old(
   //     {"Simple", "Ueh", "SE_h", "SE_l", "SE_m", "rcut", "scale_rN"});
   // const auto x_Simple = input.get("Simple", 0.0);
   // const auto x_Ueh = input.get("Ueh", 1.0);

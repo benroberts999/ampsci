@@ -9,7 +9,7 @@ namespace Module {
 
 void continuum(const IO::InputBlock &input, const Wavefunction &wf) {
 
-  input.checkBlock2({{"ec", "energy for cntm states (>0)"},
+  input.check({{"ec", "energy for cntm states (>0)"},
                      {"max_l", "maximum l"},
                      {"filename", "filename for output"}});
 

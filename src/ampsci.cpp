@@ -48,23 +48,23 @@ void ampsci(const IO::InputBlock &input) {
   IO::print_line();
   input.print();
 
-  input.check2({{"Atom", "Which atom to run for"},
-                {"Grid", "Set radial grid parameters"},
-                {"HartreeFock", "Expl"},
-                {"Nucleus", "Set nuclear parameters"},
-                {"RadPot", "Inlcude QED radiative potential"},
-                {"Basis", "Basis used for MBPT"},
-                {"Spectrum", "Like basis; used for sum-over-states"},
-                {"Correlations", "Options for correlations"},
-                {"ExtraPotential", "Include an extra potential"},
-                {"dVpol", "Approximate correlation (polarisation) potential"},
-                {"Module::*", "Run any number of modules (* -> module name)"}});
+  input.check({{"Atom", "Which atom to run for"},
+               {"Grid", "Set radial grid parameters"},
+               {"HartreeFock", "Expl"},
+               {"Nucleus", "Set nuclear parameters"},
+               {"RadPot", "Inlcude QED radiative potential"},
+               {"Basis", "Basis used for MBPT"},
+               {"Spectrum", "Like basis; used for sum-over-states"},
+               {"Correlations", "Options for correlations"},
+               {"ExtraPotential", "Include an extra potential"},
+               {"dVpol", "Approximate correlation (polarisation) potential"},
+               {"Module::*", "Run any number of modules (* -> module name)"}});
 
   // Atom: Get + setup atom parameters
   auto input_ok =
-      input.check2({"Atom"}, {{"Z", "Atomic symbol/number (int or string)"},
-                              {"A", "Atomic mass number (blank for default)"},
-                              {"varAlpha2", "d(a^2)/a_0^2 (1 by default)"}});
+      input.check({"Atom"}, {{"Z", "Atomic symbol/number (int or string)"},
+                             {"A", "Atomic mass number (blank for default)"},
+                             {"varAlpha2", "d(a^2)/a_0^2 (1 by default)"}});
 
   const auto atom_Z = AtomData::atomic_Z(input.get({"Atom"}, "Z", "H"s));
   const auto atom_A = input.get({"Atom"}, "A", AtomData::defaultA(atom_Z));
@@ -74,7 +74,7 @@ void ampsci(const IO::InputBlock &input) {
   }();
 
   // Grid: Get + setup grid parameters
-  input_ok &= input.check2(
+  input_ok &= input.check(
       {"Grid"},
       {{"r0", "Initial grid point, in au (~1e-6)"},
        {"rmax", "Finial grid point ~100.0"},
@@ -98,12 +98,12 @@ void ampsci(const IO::InputBlock &input) {
           : input.get<std::string>({"Grid"}, "type", "loglinear");
 
   // Nucleus: Get + setup nuclear parameters
-  input_ok &= input.check2({"Nucleus"},
-                           {{"rrms", "root-mean-square charge radius, in fm "
-                                     "(blank means will look up default)"},
-                            {"c", "Half-density radius (use instead of rrms)"},
-                            {"t", "Nuclear skin thickness; default = 2.3"},
-                            {"type", "Fermi, spherical, pointlike"}});
+  input_ok &= input.check({"Nucleus"},
+                          {{"rrms", "root-mean-square charge radius, in fm "
+                                    "(blank means will look up default)"},
+                           {"c", "Half-density radius (use instead of rrms)"},
+                           {"t", "Nuclear skin thickness; default = 2.3"},
+                           {"type", "Fermi, spherical, pointlike"}});
 
   // usually, give rrms. Giving c will over-ride rrms
   const auto c_hdr = input.get<double>({"Nucleus"}, "c");
@@ -135,7 +135,7 @@ void ampsci(const IO::InputBlock &input) {
             << "********************************************************\n";
 
   // Parse input for HF method
-  input_ok &= input.check2(
+  input_ok &= input.check(
       {"HartreeFock"},
       {{"core", "Core configuration. e.g., [Xe] for Cs"},
        {"valence", "Which valence states? e.g., 7sp5d"},
@@ -180,7 +180,7 @@ void ampsci(const IO::InputBlock &input) {
   }
 
   // Inlcude QED radiatve potential
-  const auto qed_ok = input.check2(
+  const auto qed_ok = input.check(
       {"RadPot"},
       {// {"RadPot", "Include Radiative potential? true/false"},
        // {"Simple", "Scale for 'simple' potential: default = 0"},
@@ -216,11 +216,14 @@ void ampsci(const IO::InputBlock &input) {
   // Inlcude extra potential (read in from text file):
   // Note: interpolated onto grid, but NOT extrapolated
   // (zero outside region!)
-  const auto extra_ok =
-      input.check({"ExtraPotential"}, {"filename", "factor", "beforeHF"});
+  const auto extra_ok = input.check(
+      {"ExtraPotential"},
+      {{"filename", ""},
+       {"factor", "potential is scaled by this value [default=1]"},
+       {"beforeHF", "include before HF (into core states). default=false"}});
   const auto ep_fname =
       input.get<std::string>({"ExtraPotential"}, "filename", "");
-  const auto ep_factor = input.get({"ExtraPotential"}, "factor", 0.0);
+  const auto ep_factor = input.get({"ExtraPotential"}, "factor", 1.0);
   const auto ep_beforeHF = input.get({"ExtraPotential"}, "beforeHF", false);
   const auto extra_pot =
       ep_fname != "" && std::abs(ep_factor) > 0.0 && extra_ok;
@@ -250,12 +253,13 @@ void ampsci(const IO::InputBlock &input) {
   // Add "extra potential", after HF (only valence)
   if (extra_pot && !ep_beforeHF) {
     wf.add_to_Vdir(Vextra);
-    // qip::add(&wf.vdir, Vextra);
   }
 
   // Adds effective polarision potential to direct
   // potential (After HF core, before HF valence)
-  const auto Vpol_ok = input.check({"dVpol"}, {"a_eff", "r_cut"});
+  const auto Vpol_ok = input.check(
+      {"dVpol"}, {{"a_eff", "scale factor for effective pol. potential [1]"},
+                  {"r_cut", "cut-off parameter [=1]"}});
   const auto a_eff = input.get({"dVpol"}, "a_eff", 0.0);
   if (std::abs(a_eff) > 0.0 && Vpol_ok) {
     const auto r_cut = input.get({"dVpol"}, "r_cut", 1.0);
@@ -287,7 +291,7 @@ void ampsci(const IO::InputBlock &input) {
   wf.printValence(sorted);
 
   // Construct B-spline basis:
-  const auto basis_ok = input.check2(
+  const auto basis_ok = input.check(
       {"Basis"}, {{"number", "Number of splines used in expansion"},
                   {"order", "order of splines ~7-9"},
                   {"r0", "minimum cavity radius"},
@@ -308,29 +312,33 @@ void ampsci(const IO::InputBlock &input) {
   }
 
   // Correlations: read in options
-  const auto Sigma_ok = input.check({"Correlations"}, {"Brueckner",
-                                                       "energyShifts",
-                                                       "n_min_core",
-                                                       "fitTo_cm",
-                                                       "lambda_kappa",
-                                                       "fk",
-                                                       "read",
-                                                       "write",
-                                                       "rmin",
-                                                       "rmax",
-                                                       "stride",
-                                                       "each_valence",
-                                                       "ek",
-                                                       "ektest",
-                                                       "Feynman",
-                                                       "screening",
-                                                       "holeParticle",
-                                                       "lmax",
-                                                       "basis_for_Green",
-                                                       "basis_for_pol",
-                                                       "real_omega",
-                                                       "imag_omega",
-                                                       "include_G"});
+  const auto Sigma_ok = input.check(
+      {"Correlations"},
+      {{"Brueckner", "Form Brueckner orbitals [false]"},
+       {"energyShifts", "Calculate MBPT2 shift [false]"},
+       {"n_min_core", "Minimum core n to polarise [1]"},
+       {"fitTo_cm", "List of binding energies (in cm^-1) to scale Sigma for. "
+                    "Must be in same order as valence states"},
+       {"lambda_kappa",
+        "Scaling factors for Sigma. Must be in same order as valence states"},
+       {"fk", "Screening factors for effective all-order exchange"},
+       {"read", "Filename to read in Sigma [false=don't read]"},
+       {"write", "Filename to write Sigma to [false=don't write]"},
+       {"rmin", "minimum radius to calculate sigma for [1.0e-4]"},
+       {"rmax", "maximum radius to calculate sigma for [1.0e-4]"},
+       {"stride", "Only calculate Sigma every <stride> points"},
+       {"each_valence", "Different Sigma for each valence states? [false]"},
+       {"ek", "Explicit list of energies to solve for. e.g., ek{6s+=-0.127, "
+              "7s+=-0.552;}. Blank=HF energies"},
+       {"Feynman", "Use Feynman method [false]"},
+       {"screening", "Include Screening [false]"},
+       {"holeParticle", "Include hole-particle interaction [false]"},
+       {"lmax", "Maximum l used for Feynman method [6]"},
+       {"basis_for_Green", "Use basis for Feynman Greens function [false]"},
+       {"basis_for_pol", "Use basis for Feynman polarisation op [false]"},
+       {"real_omega", "[worked out by default]"},
+       {"imag_omega", "w0, wratio for Im(w) grid [0.01, 1.5]"},
+       {"include_G", "Inlcude lower g-part into Sigma [false]"}});
   const bool do_energyShifts =
       input.get({"Correlations"}, "energyShifts", false);
   const bool do_brueckner = input.get({"Correlations"}, "Brueckner", false);
@@ -427,8 +435,17 @@ void ampsci(const IO::InputBlock &input) {
 
   // Construct B-spline Spectrum:
   const auto spectrum_ok =
-      input.check({"Spectrum"}, {"number", "order", "r0", "r0_eps", "rmax",
-                                 "states", "print", "positron"});
+      input.check({"Spectrum"},
+                  {{"number", "Number of splines used in expansion"},
+                   {"order", "order of splines ~7-9"},
+                   {"r0", "minimum cavity radius"},
+                   {"r0_eps", "Select cavity radius r0 for each l by position "
+                              "where |psi(r0)/psi_max| falls below r0_eps"},
+                   {"rmax", "maximum cavity radius"},
+                   {"states", "states to keep (e.g., 30spdf20ghi)"},
+                   {"print", "Print all spline energies (for testing)"},
+                   {"positron", "Include -ve energy states (true/false)"}});
+
   const auto spectrum_in = input.getBlock("Spectrum");
   if (spectrum_ok) {
     if (spectrum_in)
@@ -439,7 +456,8 @@ void ampsci(const IO::InputBlock &input) {
     }
   }
 
-  // run each of the modules with the calculated wavefunctions
+  // run each of the modules with the calculated
+  // wavefunctions
   IO::InputBlock modules("Modules");
   for (const auto &block : input.blocks()) {
     if (block.name().find("Module::") != std::string::npos) {

@@ -22,7 +22,7 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "\nQED Module:\n";
 
   // Check input options for spelling mistakes etc.:
-  input.checkBlock2(
+  input.check(
       {{"A_vertex", "A vtx factor; blank means dflt"},
        {"b_vertex", "B vtx factor; =1 by default"},
        {"rrms", "double; effective rrms used in radiative potential"},
@@ -176,7 +176,7 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
   // QED to matrix elements (perturbed orbital part):
   const auto me_input = input.getBlock("matrixElements");
   if (me_input) {
-    me_input->checkBlock2(
+    me_input->check(
         {{"operator", "e.g., E1, hfs"},
          {"options", "options specific to operator; blank by dflt"},
          {"rpa", "true(=TDHF), false, TDHF, basis, diagram"},
@@ -364,16 +364,15 @@ std::vector<std::string> calc_vertexQED(const IO::InputBlock &input,
   if (wf_SE == nullptr)
     wf_SE = &wf;
 
-  input.checkBlock2(
-      {{"operator", "operator (e.g., E1 or hfs)"},
-       {"options", "operator options (same as matrixElements)"},
-       {"rrms", "nuclear rms, for QED part"},
-       {"onlyDiagonal", "only print <a|h|a>"},
-       {"radialIntegral", "false by default (means red. mat. el)"},
-       {"A_vertex", "A vtx factor; blank=default"},
-       {"b_vertex", "A vtx factor; =1 by default"},
-       {"rpa", "include RPA? NOT USED FOR NOW"},
-       {"omega", "freq. for RPA; NOT USED FOR NOW"}});
+  input.check({{"operator", "operator (e.g., E1 or hfs)"},
+                    {"options", "operator options (same as matrixElements)"},
+                    {"rrms", "nuclear rms, for QED part"},
+                    {"onlyDiagonal", "only print <a|h|a>"},
+                    {"radialIntegral", "false by default (means red. mat. el)"},
+                    {"A_vertex", "A vtx factor; blank=default"},
+                    {"b_vertex", "A vtx factor; =1 by default"},
+                    {"rpa", "include RPA? NOT USED FOR NOW"},
+                    {"omega", "freq. for RPA; NOT USED FOR NOW"}});
 
   const auto oper = input.get<std::string>("operator", "");
   // Get optional 'options' for operator
