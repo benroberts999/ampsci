@@ -123,7 +123,8 @@ auto get_test(std::string_view in_name) {
 int main(int argc, char *argv[]) {
 
   std::ostringstream out_buff;
-  out_buff << "ampsci test. git:" << GitInfo::gitversion << "\n";
+  out_buff << "ampsci test. git:" << GitInfo::gitversion << " ("
+           << GitInfo::gitbranch << ")\n";
   out_buff << IO::time_date() << "\n";
 
   // Make a list of all tests to Run
@@ -175,7 +176,7 @@ int main(int argc, char *argv[]) {
 
     // Output results:
     std::cout << "\n" << out_buff.str();
-    std::ofstream of(IO::date() + "_unitTests.txt");
+    std::ofstream of("unitTests_" + IO::date() + "_" + IO::time() + ".txt");
     of << out_buff.str();
   }
 

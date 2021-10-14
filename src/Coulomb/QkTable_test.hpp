@@ -34,16 +34,18 @@ bool QkTable(std::ostream &obuff) {
   // Coulomb::NkTable qk;
   qk_t.fill(wf.basis, yk);
 
+  const std::string fname = "tmp_delete_me.qk";
+
   {
     IO::ChronoTimer t("Write to disk");
-    qk_t.write("out.qk");
+    qk_t.write(fname);
   }
 
   // Read in to qk (test of read/write)
   Coulomb::QkTable qk;
   {
     IO::ChronoTimer t("Read from disk");
-    auto ok = qk.read("out.qk");
+    auto ok = qk.read(fname);
     std::cout << (ok ? "yes" : "no") << "\n";
   }
   std::cout << "\n";
@@ -65,7 +67,6 @@ bool QkTable(std::ostream &obuff) {
               const auto yk_bd = yk.get(k, b, d);
               if (yk_bd == nullptr)
                 continue;
-              // sum1 += Coulomb::Qk_abcd(a, b, c, d, k, *yk_bd, yk.Ck());
               sum1 += yk.Qk(k, a, b, c, d);
             }
           }

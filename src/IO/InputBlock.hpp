@@ -66,6 +66,13 @@ inline std::string date() {
   std::strftime(buffer, 30, "%F", localtime(&now));
   return buffer;
 }
+inline std::string time() {
+  const auto now =
+      std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+  char buffer[30];
+  std::strftime(buffer, 30, "%T", localtime(&now));
+  return buffer;
+}
 
 //******************************************************************************
 //! Simple struct; holds key-value pair, both strings. == compares key

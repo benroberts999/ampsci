@@ -27,7 +27,9 @@ bool StructureRad(std::ostream &obuff) {
 
     const auto h = DiracOperator::E1(*wf.rgrid);
 
-    MBPT::StructureRad sr(wf.basis, en_core);
+    int nmin = 1;
+    int nmax = 99;
+    MBPT::StructureRad sr(wf.basis, en_core, {nmin, nmax});
 
     // Expected data, from: Johnson et al, At.Dat.Nuc.Dat.Tables 64, 279 (1996),
     // Table E (Na)
@@ -105,7 +107,7 @@ bool StructureRad(std::ostream &obuff) {
     const auto h = DiracOperator::E1(*wf.rgrid);
 
     // Only include core states above+including n=3
-    MBPT::StructureRad sr(wf.basis, en_core, {3, 20});
+    MBPT::StructureRad sr(wf.basis, en_core, {3, 99});
 
     // Expected data, from: Johnson et al, At.Dat.Nuc.Dat.Tables 64, 279 (1996),
     // Table J (Cs)

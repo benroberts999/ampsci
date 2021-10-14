@@ -1,7 +1,8 @@
 #pragma once
-#include "Coulomb/YkTable.hpp"
+#include "Coulomb/Coulomb.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
+#include <memory>
 #include <vector>
 class Wavefunction;
 class DiracSpinor;
@@ -54,15 +55,13 @@ public:
   while states with e > en_core are not. Typcially:
   en_core = max(e_core)-min(e_valence).
   nminmax is a pair{min, max}: we only used core states with n>=min, and only
-  uses excited states with n>=nmax in the summations.
+  uses excited states with n<=nmax in the summations.
   */
   StructureRad(const std::vector<DiracSpinor> &basis, double en_core,
                std::pair<int, int> nminmax = {0, 999});
 
 private:
-  // Store local copy of basis (seems to make faster)
-  std::vector<DiracSpinor> mBasis;
-  Coulomb::YkTable mY;
+  Coulomb::YkTable mY{};
   // nb: it seems conter-intuative, but this copy makes it FASTER!
   std::vector<DiracSpinor> mCore{}, mExcited{};
 

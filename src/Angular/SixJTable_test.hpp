@@ -54,85 +54,89 @@ bool SixJTable(std::ostream &obuff) {
                              max_del, 0.0, 1.0e-15);
   }
 
-  // the following is performance test.
-  // This shows ~2x speed up. However, in real-life application (ladder
-  // diagrams), I observed a 20x speedup compared to manually calculating 6j!?
+  /*
+    // the following is performance test.
+    // This shows ~2x speed up. However, in real-life application (ladder
+    // diagrams), I observed a 20x speedup compared to manually calculating 6j!?
+    // Should not be included in main tests, since unstable (depends on compiler
+    etc.)
 
-  auto max_2k = sjt.max_2jk();
+    auto max_2k = sjt.max_2jk();
 
-  double t1 = 0.0, t2 = 0.0;
+    double t1 = 0.0, t2 = 0.0;
 
-  {
-    IO::ChronoTimer t("Direct calc");
-    double sum = 0.0;
-    for (int k1 = 0; k1 <= max_2k; k1 += 2) {
-      for (int k2 = 0; k2 <= max_2k; k2 += 2) {
-        for (int k3 = 0; k3 <= max_2k; k3 += 2) {
-          for (int j1 = 1; j1 <= max_2k; j1 += 2) {
-            for (int j2 = 1; j2 <= max_2k; j2 += 2) {
-              for (int j3 = 1; j3 <= max_2k; j3 += 2) {
-                auto sj = Angular::sixj_2(k1, k2, k3, j1, j2, j3);
-                sum += sj;
+    {
+      IO::ChronoTimer t("Direct calc");
+      double sum = 0.0;
+      for (int k1 = 0; k1 <= max_2k; k1 += 2) {
+        for (int k2 = 0; k2 <= max_2k; k2 += 2) {
+          for (int k3 = 0; k3 <= max_2k; k3 += 2) {
+            for (int j1 = 1; j1 <= max_2k; j1 += 2) {
+              for (int j2 = 1; j2 <= max_2k; j2 += 2) {
+                for (int j3 = 1; j3 <= max_2k; j3 += 2) {
+                  auto sj = Angular::sixj_2(k1, k2, k3, j1, j2, j3);
+                  sum += sj;
+                }
               }
             }
           }
         }
       }
-    }
-    for (int j1 = 1; j1 <= max_2k; j1 += 2) {
-      for (int j2 = 1; j2 <= max_2k; j2 += 2) {
-        for (int k = 0; k <= max_2k; k += 2) {
-          for (int j3 = 1; j3 <= max_2k; j3 += 2) {
-            for (int j4 = 1; j4 <= max_2k; j4 += 2) {
-              for (int l = 0; l <= max_2k; l += 2) {
-                auto sj = Angular::sixj_2(j1, j2, k, j3, j4, l);
-                sum += sj;
+      for (int j1 = 1; j1 <= max_2k; j1 += 2) {
+        for (int j2 = 1; j2 <= max_2k; j2 += 2) {
+          for (int k = 0; k <= max_2k; k += 2) {
+            for (int j3 = 1; j3 <= max_2k; j3 += 2) {
+              for (int j4 = 1; j4 <= max_2k; j4 += 2) {
+                for (int l = 0; l <= max_2k; l += 2) {
+                  auto sj = Angular::sixj_2(j1, j2, k, j3, j4, l);
+                  sum += sj;
+                }
               }
             }
           }
         }
       }
+      std::cout << sum << "\n";
+      t1 = t.lap_reading_ms();
     }
-    std::cout << sum << "\n";
-    t1 = t.lap_reading_ms();
-  }
 
-  {
-    IO::ChronoTimer t("Table");
-    double sum = 0.0;
-    for (int k1 = 0; k1 <= max_2k; k1 += 2) {
-      for (int k2 = 0; k2 <= max_2k; k2 += 2) {
-        for (int k3 = 0; k3 <= max_2k; k3 += 2) {
-          for (int j1 = 1; j1 <= max_2k; j1 += 2) {
-            for (int j2 = 1; j2 <= max_2k; j2 += 2) {
-              for (int j3 = 1; j3 <= max_2k; j3 += 2) {
-                auto sj = sjt(k1, k2, k3, j1, j2, j3);
-                sum += sj;
+    {
+      IO::ChronoTimer t("Table");
+      double sum = 0.0;
+      for (int k1 = 0; k1 <= max_2k; k1 += 2) {
+        for (int k2 = 0; k2 <= max_2k; k2 += 2) {
+          for (int k3 = 0; k3 <= max_2k; k3 += 2) {
+            for (int j1 = 1; j1 <= max_2k; j1 += 2) {
+              for (int j2 = 1; j2 <= max_2k; j2 += 2) {
+                for (int j3 = 1; j3 <= max_2k; j3 += 2) {
+                  auto sj = sjt(k1, k2, k3, j1, j2, j3);
+                  sum += sj;
+                }
               }
             }
           }
         }
       }
-    }
-    for (int j1 = 1; j1 <= max_2k; j1 += 2) {
-      for (int j2 = 1; j2 <= max_2k; j2 += 2) {
-        for (int k = 0; k <= max_2k; k += 2) {
-          for (int j3 = 1; j3 <= max_2k; j3 += 2) {
-            for (int j4 = 1; j4 <= max_2k; j4 += 2) {
-              for (int l = 0; l <= max_2k; l += 2) {
-                auto sj = sjt(j1, j2, k, j3, j4, l);
-                sum += sj;
+      for (int j1 = 1; j1 <= max_2k; j1 += 2) {
+        for (int j2 = 1; j2 <= max_2k; j2 += 2) {
+          for (int k = 0; k <= max_2k; k += 2) {
+            for (int j3 = 1; j3 <= max_2k; j3 += 2) {
+              for (int j4 = 1; j4 <= max_2k; j4 += 2) {
+                for (int l = 0; l <= max_2k; l += 2) {
+                  auto sj = sjt(j1, j2, k, j3, j4, l);
+                  sum += sj;
+                }
               }
             }
           }
         }
       }
+      std::cout << sum << "\n";
+      t2 = t.lap_reading_ms();
     }
-    std::cout << sum << "\n";
-    t2 = t.lap_reading_ms();
-  }
 
-  pass &= qip::check(&obuff, "6Jtab: >2x speed", t1 > 2 * t2, true);
+    pass &= qip::check(&obuff, "6Jtab: >2x speed", t1 > 2 * t2, true);
+  */
 
   return pass;
 }
