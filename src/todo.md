@@ -7,6 +7,9 @@
   * Major cleanup..
   * filename: label.sig2 -> CsI_label.sig2
   * Option to use Sigma2 from Gold + rest from feyn
+    * Method = {Feynman, Goldstone, Mixed}
+    * Feynman: include scr+hp by default
+      * Calc fk if not given?
 
 ## Feynman (#22)
   * Polarisation operator instability: (#8)
@@ -24,6 +27,13 @@
   * Iterate ladder
   * Form addition to Cor. Pot.
   * Full SDs coupled-cluster??
+
+## YkTable
+  * Cleanup
+
+## StrucRad + Diagram RPA
+  * Use QkTable?
+  * Store <a|h|b> and <a|dV|b> for each reqd pair?
 
 ## B-splines (#9)
   * Fix raw B-spline class

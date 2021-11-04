@@ -3,6 +3,7 @@
 #include <cassert>
 
 void String_test() {
+
   assert(qip::wildcard_compare("helloben", "helloben") == true);
   assert(qip::wildcard_compare("helloben", "*ben") == true);
   assert(qip::wildcard_compare("helloben", "hello*") == true);
@@ -25,4 +26,19 @@ void String_test() {
   assert(qip::wildcard_compare("helloben", "**") == false);
   assert(qip::wildcard_compare("helloben", "") == false);
   assert(qip::wildcard_compare("", "helloben") == false);
+
+  assert(qip::ci_compare("hello", "hello") == true);
+  assert(qip::ci_compare("hello", "hellob") == false);
+  assert(qip::ci_compare("hellob", "hello") == false);
+  assert(qip::ci_compare("hello", "hEllO") == true);
+  assert(qip::ci_compare("hEllO", "hello") == true);
+  assert(qip::ci_compare("hello!", "hello!") == true);
+  assert(qip::ci_compare("hello!", "hello?") == false);
+  assert(qip::ci_compare("!@#$%&*()-_=+~`,./<>?[]{};':'",
+                         "!@#$%&*()-_=+~`,./<>?[]{};':'") == true);
+  assert(qip::ci_compare("!@#$%&*()-_=+~`,./<>?[]{};':'",
+                         "!@#$%&*()-_=+~`,./<>?[]{};':'x") == false);
+
+  assert(qip::fstring("%6.2e %3i %5s", 19517.123524, 2, "ben") ==
+         std::string("1.95e+04   2   ben"));
 }

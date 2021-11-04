@@ -198,10 +198,10 @@ void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h) {
               Wabm_n.emplace_back(0.0);
               continue;
             }
-            const auto xQ = Yhe.Qk(m_rank, Fa, Fn, Fm, Fb);
-            const auto xP = Yee.Pk(m_rank, Fa, Fn, Fm, Fb);
-            const auto yQ = Yee.Qk(m_rank, Fa, Fb, Fm, Fn);
-            const auto yP = Yhe.Pk(m_rank, Fa, Fb, Fm, Fn);
+            const auto xQ = Yhe.Q(m_rank, Fa, Fn, Fm, Fb);
+            const auto xP = Yee.P(m_rank, Fa, Fn, Fm, Fb);
+            const auto yQ = Yee.Q(m_rank, Fa, Fb, Fm, Fn);
+            const auto yP = Yhe.P(m_rank, Fa, Fb, Fm, Fn);
             Wanm_b.push_back(MyCast<Wtype>(xQ + xP));
             Wabm_n.push_back(MyCast<Wtype>(yQ + yP));
           }
@@ -240,10 +240,10 @@ void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h) {
               Wabm_n.emplace_back(0.0);
               continue;
             }
-            const auto xQ = Yhe.Qk(m_rank, Fm, Fn, Fa, Fb);
-            const auto xP = Yhe.Pk(m_rank, Fm, Fn, Fa, Fb);
-            const auto yQ = Yhe.Qk(m_rank, Fm, Fb, Fa, Fn);
-            const auto yP = Yhh.Pk(m_rank, Fm, Fb, Fa, Fn);
+            const auto xQ = Yhe.Q(m_rank, Fm, Fn, Fa, Fb);
+            const auto xP = Yhe.P(m_rank, Fm, Fn, Fa, Fb);
+            const auto yQ = Yhe.Q(m_rank, Fm, Fb, Fa, Fn);
+            const auto yP = Yhh.P(m_rank, Fm, Fb, Fa, Fn);
             Wanm_b.push_back(MyCast<Wtype>(xQ + xP));
             Wabm_n.push_back(MyCast<Wtype>(yQ + yP));
           }

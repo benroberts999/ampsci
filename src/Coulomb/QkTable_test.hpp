@@ -1,4 +1,5 @@
 #pragma once
+#include "Angular/SixJTable.hpp"
 #include "Coulomb/CoulombIntegrals.hpp"
 #include "Coulomb/QkTable.hpp"
 #include "Coulomb/YkTable.hpp"
@@ -67,7 +68,7 @@ bool QkTable(std::ostream &obuff) {
               const auto yk_bd = yk.get(k, b, d);
               if (yk_bd == nullptr)
                 continue;
-              sum1 += yk.Qk(k, a, b, c, d);
+              sum1 += yk.Q(k, a, b, c, d);
             }
           }
         }
@@ -106,6 +107,9 @@ bool QkTable(std::ostream &obuff) {
 
   {
 
+    const auto max_2k = 2 * DiracSpinor::max_tj(wf.basis);
+    Angular::SixJTable sjt{max_2k};
+
     // Test number of random instances of Q,P,R,W against direct way:
     // (most are zero)
 
@@ -131,6 +135,7 @@ bool QkTable(std::ostream &obuff) {
       for (int k = 0; k < kmax + 3; ++k) {
         const auto q1 = qk.Q(k, a, b, c, d);
         const auto p1 = qk.P(k, a, b, c, d);
+        const auto p2 = qk.P(k, a, b, c, d, &sjt);
         const auto w1 = qk.W(k, a, b, c, d);
         const auto r1 = qk.R(k, a, b, c, d);
         const auto q0 = Coulomb::Qk_abcd(a, b, c, d, k);
@@ -140,7 +145,7 @@ bool QkTable(std::ostream &obuff) {
         // nb: QkTable only stores Rk if Qk is non-zero, but Coulomb::Rk_abcd
         // will calculate it anyway.
         const auto devQ = std::abs(q1 - q0);
-        const auto devP = std::abs(p1 - p0);
+        const auto devP = std::max(std::abs(p1 - p0), std::abs(p2 - p0));
         const auto devW = std::abs(w1 - w0);
         const auto devR = std::abs(r1 - r0);
         if (devR > max_devR)

@@ -1,5 +1,5 @@
 #include "Maths/Grid.hpp"
-#include "qip/methods.hpp"
+#include "qip/Methods.hpp"
 #include <algorithm>
 #include <cmath>
 #include <iostream>

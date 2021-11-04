@@ -19,3 +19,4 @@ doc/tex/*
 !doc/examples/*.in
 !.gitignore
 !*.md
+!install-deps-linux.sh

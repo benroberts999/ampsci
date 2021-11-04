@@ -8,7 +8,7 @@
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
-#include "qip/Format.hpp"
+#include "qip/String.hpp"
 #include <numeric>
 #include <string>
 #include <vector>

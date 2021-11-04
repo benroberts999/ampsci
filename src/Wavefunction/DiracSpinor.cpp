@@ -18,14 +18,14 @@ DiracSpinor::DiracSpinor(int in_n, int in_k,
     : rgrid(in_rgrid),
       n(in_n),
       k(in_k),
-      m_f(std::vector<double>(rgrid->num_points(), 0.0)),
+      m_f(std::vector<double>(rgrid ? rgrid->num_points() : 0, 0.0)),
       m_g(m_f),
-      m_pinf(rgrid->num_points()),
+      m_pinf(rgrid ? rgrid->num_points() : 0),
       m_twoj(AtomData::twoj_k(in_k)),
       m_l(AtomData::l_k(in_k)),
       m_parity(AtomData::parity_k(in_k)),
       m_k_index(AtomData::indexFromKappa(in_k)),
-      m_nk_index(AtomData::nk_to_index(in_n, in_k)) {}
+      m_nk_index(static_cast<Index>(AtomData::nk_to_index(in_n, in_k))) {}
 
 //******************************************************************************
 std::string DiracSpinor::symbol(bool gnuplot) const {

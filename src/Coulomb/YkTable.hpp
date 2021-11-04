@@ -64,21 +64,21 @@ public:
 
   //! Calculates Qk using the existing yk integrals. Note: Yk and Ck tables
   //! *must* include all required values, or behaviour not defined.
-  [[nodiscard]] double Qk(const int k, const DiracSpinor &Fa,
-                          const DiracSpinor &Fb, const DiracSpinor &Fc,
-                          const DiracSpinor &Fd) const;
+  [[nodiscard]] double Q(const int k, const DiracSpinor &Fa,
+                         const DiracSpinor &Fb, const DiracSpinor &Fc,
+                         const DiracSpinor &Fd) const;
 
   //! Calculates Pk using the existing yk integrals. Note: Yk and Ck tables
   //! *must* include all required values, or behaviour not defined.
-  [[nodiscard]] double Pk(const int k, const DiracSpinor &Fa,
-                          const DiracSpinor &Fb, const DiracSpinor &Fc,
-                          const DiracSpinor &Fd) const;
+  [[nodiscard]] double P(const int k, const DiracSpinor &Fa,
+                         const DiracSpinor &Fb, const DiracSpinor &Fc,
+                         const DiracSpinor &Fd) const;
 
   //! Calculates Wk=Qk+Pk using the existing yk integrals. Note: Yk and Ck
   //! tables *must* include all required values, or behaviour not defined.
-  [[nodiscard]] double Wk(const int k, const DiracSpinor &Fa,
-                          const DiracSpinor &Fb, const DiracSpinor &Fc,
-                          const DiracSpinor &Fd) const;
+  [[nodiscard]] double W(const int k, const DiracSpinor &Fa,
+                         const DiracSpinor &Fb, const DiracSpinor &Fc,
+                         const DiracSpinor &Fd) const;
 
   //! Calculates Q^K(v)_bcd using existing yk integrals
   [[nodiscard]] DiracSpinor Qkv_bcd(int kappa, const DiracSpinor &Fb,

@@ -1,5 +1,6 @@
 #pragma once
 #include "Angular/Wigner369j.hpp"
+#include "Wavefunction/DiracSpinor.hpp" // for 'magic' 6J symbols
 #include <algorithm>
 #include <cassert>
 #include <cstdint>
@@ -26,36 +27,38 @@ Makes use of symmetry.
 class SixJTable {
 private:
   std::unordered_map<uint64_t, double> m_data{};
-  int m_max_2jk{-1};
+  int m_max_2j_k{-1};
   static auto s(int i) { return static_cast<uint8_t>(i); };
 
 public:
   SixJTable() = default;
 
-  //! Fill the table. max_2jk is 2* the maximum j/k that appears in the symnbols
-  //! (note: 2*, as integer) - see fill()
-  SixJTable(int max_2jk) { fill(max_2jk); }
+  //! Fill the table. max_2j_k is the maximum k that appears in the symbols,
+  //! equivilant to 2*max(j) (always integer) - see fill()
+  SixJTable(int max_2j_k) { fill(max_2j_k); }
 
-  //! Returns 2* maximum k in the tales
-  int max_2jk() const { return m_max_2jk; }
-
-  //----------------------------------------------------------------------------
-  //! Return 6j symbol {a/2,b/2,c/2,d/2,e/2,f/2}. Note: takes in 2*j as int
-  //! @details Note: If requesting a 6J symbol beyond what is stores, will
-  //! return 0 (without warning)
-  double operator()(int a, int b, int c, int d, int e, int f) const {
-    return get(a, b, c, d, e, f);
-  }
+  //! Returns maximum k in the tables [max(k)=2*max(j)=max(2j)]
+  int max_2jk() const { return m_max_2j_k; }
 
   //----------------------------------------------------------------------------
   //! Return 6j symbol {a/2,b/2,c/2,d/2,e/2,f/2}. Note: takes in 2*j/2*k as int
   //! @details Note: If requesting a 6J symbol beyond what is stored, will
   //! return 0 (without warning)
-  inline double get(int a, int b, int c, int d, int e, int f) const {
+  inline double get_2(int a, int b, int c, int d, int e, int f) const {
     if (Angular::sixj_zeroQ(a, b, c, d, e, f))
       return 0.0;
     const auto it = m_data.find(normal_order(a, b, c, d, e, f));
     return (it == m_data.cend()) ? 0.0 : it->second;
+  }
+
+  //! Return "magic" 6j. Pass in either integer (for k), or DiracSpinor, F.
+  //! e.g.: (F,F,k,F,F,k) -> {j,j,k,j,j,k}. Do NOT *2!
+  //! @details Note: If requesting a 6J symbol beyond what is stored, will
+  //! return 0 (without warning)
+  template <class A, class B, class C, class D, class E, class F>
+  double get(const A &a, const B &b, const C &c, const D &d, const E &e,
+             const F &f) const {
+    return get_2(twojk(a), twojk(b), twojk(c), twojk(d), twojk(e), twojk(f));
   }
 
   //----------------------------------------------------------------------------
@@ -72,24 +75,25 @@ public:
   /*! @details Typically, max_2jk is 2*max_2j, where max_2j is 2* max j of set
     of orbitals. You may call this function several times; if the new max_2jk is
     larger, it will extend the table. If it is smaller, does nothing. */
-  void fill(int max_2jk) {
+  void fill(int max_2j_k) {
     // a = min{a,b,c,d,e,f}
     // b = min{b, c, e, f}
 
-    if (max_2jk <= m_max_2jk)
+    if (max_2j_k <= m_max_2j_k)
       return;
 
     // Calculate all new *unique* 6J symbols:
     // Take advantage of symmetries, to only calc those that are needed.
     // We define a = min(a,b,c,d,e,f), b=min(b,d,e,f) => unique 6j symbol
     // in "normal" order
-    for (int a = 0; a <= max_2jk; ++a) {
+    const auto max_2k = 2 * max_2j_k;
+    for (int a = 0; a <= max_2k; ++a) {
       auto a0 = a; // std::max(min_2jk, a);
-      for (int b = a0; b <= max_2jk; ++b) {
-        for (int c = b; c <= max_2jk; ++c) {
-          for (int d = a0; d <= max_2jk; ++d) { // note: different!
-            for (int e = b; e <= max_2jk; ++e) {
-              for (int f = b; f <= max_2jk; ++f) {
+      for (int b = a0; b <= max_2k; ++b) {
+        for (int c = b; c <= max_2k; ++c) {
+          for (int d = a0; d <= max_2k; ++d) { // note: different!
+            for (int e = b; e <= max_2k; ++e) {
+              for (int f = b; f <= max_2k; ++f) {
                 if (Angular::sixj_zeroQ(a, b, c, d, e, f))
                   continue;
                 if (contains(a, b, c, d, e, f))
@@ -106,7 +110,7 @@ public:
     }
 
     // update max 2k
-    m_max_2jk = max_2jk;
+    m_max_2j_k = max_2j_k;
   }
 
 private:
@@ -168,6 +172,18 @@ private:
       return normal_order_level2(f, a, e, c, d, b);
     }
     assert(false && "Fatal error 193: unreachable");
+  }
+
+  //******************************************************************************
+  // If given an integer (k), returns 2*k
+  // If given a DiracSpinor, F, returns 2*j [F.twoj()]
+  template <class A> static int twojk(const A &a) {
+    if constexpr (std::is_same_v<A, DiracSpinor>) {
+      return a.twoj();
+    } else {
+      static_assert(std::is_same_v<A, int>);
+      return 2 * a;
+    }
   }
 };
 

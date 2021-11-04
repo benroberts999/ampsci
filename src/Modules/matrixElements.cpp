@@ -14,7 +14,7 @@
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
-#include "qip/Format.hpp"
+#include "qip/String.hpp"
 #include <fstream>
 #include <iostream>
 #include <memory>
@@ -27,12 +27,12 @@ namespace Module {
 //******************************************************************************
 void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   input.check({{"operator", "e.g., E1, hfs"},
-                     {"options", "options specific to operator; blank by dflt"},
-                     {"rpa", "true(=TDHF), false, TDHF, basis, diagram"},
-                     {"omega", "freq. for RPA"},
-                     {"radialIntegral", "false by dflt (means red. ME)"},
-                     {"printBoth", "print <a|h|b> and <b|h|a> (dflt false)"},
-                     {"onlyDiagonal", "only <a|h|a> (dflt false)"}});
+               {"options", "options specific to operator; blank by dflt"},
+               {"rpa", "true(=TDHF), false, TDHF, basis, diagram"},
+               {"omega", "freq. for RPA"},
+               {"radialIntegral", "false by dflt (means red. ME)"},
+               {"printBoth", "print <a|h|b> and <b|h|a> (dflt false)"},
+               {"onlyDiagonal", "only <a|h|a> (dflt false)"}});
 
   const auto oper = input.get<std::string>("operator", "");
   // Get optional 'options' for operator
@@ -121,15 +121,14 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
 // Calculates Structure Radiation + Normalisation of States
 void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
 
-  input.check(
-      {{"operator", "e.g., E1, hfs"},
-       {"options", "options specific to operator; blank by dflt"},
-       {"rpa", "true(=TDHF), false, TDHF, basis, diagram"},
-       {"omega", "freq. for RPA"},
-       {"printBoth", "print <a|h|b> and <b|h|a> (dflt false)"},
-       {"onlyDiagonal", "only <a|h|a> (dflt false)"},
-       {"n_minmax", "list; min,max n for core/excited: (1,inf)dflt"},
-       {"splineLegs", "Use splines for diagram legs (false dflt)"}});
+  input.check({{"operator", "e.g., E1, hfs"},
+               {"options", "options specific to operator; blank by dflt"},
+               {"rpa", "true(=TDHF), false, TDHF, basis, diagram"},
+               {"omega", "freq. for RPA"},
+               {"printBoth", "print <a|h|b> and <b|h|a> (dflt false)"},
+               {"onlyDiagonal", "only <a|h|a> (dflt false)"},
+               {"n_minmax", "list; min,max n for core/excited: (1,inf)dflt"},
+               {"splineLegs", "Use splines for diagram legs (false dflt)"}});
 
   // Get input options:
   const auto oper = input.get<std::string>("operator", "E1");
@@ -458,7 +457,7 @@ std::unique_ptr<DiracOperator::TensorOperator>
 generate_hfsA(const IO::InputBlock &input, const Wavefunction &wf, bool print) {
   using namespace DiracOperator;
   input.checkBlock_old({"mu", "I", "rrms", "F(r)", "parity", "l", "gl", "mu1",
-                    "gl1", "l1", "l2", "I1", "I2", "printF", "screening"});
+                        "gl1", "l1", "l2", "I1", "I2", "printF", "screening"});
   auto isotope = Nuclear::findIsotopeData(wf.Znuc(), wf.Anuc());
   auto mu = input.get("mu", isotope.mu);
   auto I_nuc = input.get("I", isotope.I_N);

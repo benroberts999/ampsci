@@ -20,7 +20,7 @@ void YkTable::calculate(const std::vector<DiracSpinor> &a_orbs,
       std::max(DiracSpinor::max_tj(a_orbs), DiracSpinor::max_tj(b_orbs));
 
   m_Ck.fill(max_2j); // XXX DiragramRPA test fail without +1???
-  m_6j.fill(2 * max_2j);
+  m_6j.fill(max_2j);
 
   allocate_space(a_orbs, b_orbs);
 
@@ -46,7 +46,7 @@ void YkTable::calculate(const std::vector<DiracSpinor> &a_orbs,
 //******************************************************************************
 void YkTable::extend_angular(int new_max_2j) {
   m_Ck.fill(new_max_2j);
-  m_6j.fill(2 * new_max_2j);
+  m_6j.fill(new_max_2j);
 }
 
 //******************************************************************************
@@ -111,15 +111,14 @@ std::vector<double> &YkTable::get_ref(const int k, const DiracSpinor &Fa,
   // May only call this function is assured vector exists
   const auto sk = static_cast<std::size_t>(k);
   assert(sk < m_Y.size());
-  // const auto key = ;
   const auto it = m_Y[sk].find(ab_key(Fa, Fb));
   assert(it != m_Y[sk].cend());
   return it->second;
 }
 
 //****************************************************************************
-double YkTable::Qk(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
-                   const DiracSpinor &Fc, const DiracSpinor &Fd) const {
+double YkTable::Q(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+                  const DiracSpinor &Fc, const DiracSpinor &Fd) const {
   // // nb: b and d _MUST_ be in {a},{b} orbitals
   // // assert(m_aisb && "May only use Qk if Yk init with {a}={b}");
   // const auto ykbd = get(k, Fb, Fd);
@@ -138,8 +137,8 @@ double YkTable::Qk(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
 }
 
 //******************************************************************************
-double YkTable::Pk(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
-                   const DiracSpinor &Fc, const DiracSpinor &Fd) const {
+double YkTable::P(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+                  const DiracSpinor &Fc, const DiracSpinor &Fd) const {
   // Pk = [k] Sum_l {a,c,k,b,d,l} Q^l_abdc
 
   if (Angular::triangle(Fa.twoj(), Fc.twoj(), 2 * k) == 0)
@@ -153,10 +152,8 @@ double YkTable::Pk(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
     const auto ylbc = get(l, Fb, Fc);
     assert(ylbc != nullptr);
 
-    // const auto Ql = Coulomb::Qk_abcd(Fa, Fb, Fd, Fc, l, *ylbc, m_Ck);
-    const auto Ql = Qk(l, Fa, Fb, Fd, Fc);
-    const auto sj =
-        m_6j(Fa.twoj(), Fc.twoj(), 2 * k, Fb.twoj(), Fd.twoj(), 2 * l);
+    const auto Ql = Q(l, Fa, Fb, Fd, Fc);
+    const auto sj = m_6j.get(Fa, Fc, k, Fb, Fd, l);
 
     pk += Ql * sj;
   }
@@ -164,9 +161,9 @@ double YkTable::Pk(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
 }
 
 //******************************************************************************
-double YkTable::Wk(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
-                   const DiracSpinor &Fc, const DiracSpinor &Fd) const {
-  return Qk(k, Fa, Fb, Fc, Fd) + Pk(k, Fa, Fb, Fc, Fd);
+double YkTable::W(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+                  const DiracSpinor &Fc, const DiracSpinor &Fd) const {
+  return Q(k, Fa, Fb, Fc, Fd) + P(k, Fa, Fb, Fc, Fd);
 }
 
 //******************************************************************************
@@ -206,20 +203,16 @@ DiracSpinor YkTable::Pkv_bcd(int kappa, const DiracSpinor &Fb,
   };
 
   const auto tkp1 = 2 * k + 1;
-  // const auto min_l = std::abs(Fb.twoj() - Fc.twoj()) / 2;
-  // auto count = 0;
   const auto [l0, lI] = Coulomb::k_minmax_Q(Pkv, Fb, Fd, Fc);
-  // for (const auto &ybc_l : ybc) {
   for (int l = l0; l <= lI; l += 2) {
     const auto ylbc = get(l, Fb, Fc);
     assert(ylbc != nullptr);
 
-    const auto sj = fk(l) * m_6j(Fc.twoj(), Angular::twoj_k(kappa), 2 * k,
-                                 Fd.twoj(), Fb.twoj(), 2 * l);
+    const auto sj = fk(l) * m_6j.get_2(Fc.twoj(), Angular::twoj_k(kappa), 2 * k,
+                                       Fd.twoj(), Fb.twoj(), 2 * l);
 
     if (Angular::zeroQ(sj))
       continue;
-    // Pkv += sj * Coulomb::Qkv_bcd(Pkv.k, Fb, Fd, Fc, l, *ylbc, m_Ck);
     Pkv += sj * Qkv_bcd(Pkv.k, Fb, Fd, Fc, l);
   }
   Pkv *= tkp1;

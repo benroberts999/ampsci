@@ -1,6 +1,6 @@
 #pragma once
 #include "CorePolarisation.hpp"
-#include "qip/Format.hpp"
+#include "qip/String.hpp"
 #include <iostream>
 #include <string>
 #include <vector>

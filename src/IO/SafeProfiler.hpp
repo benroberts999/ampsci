@@ -1,11 +1,19 @@
 #pragma once
 #include <chrono>
-// #include <filesystem> // needs gcc >8
 #include <fstream>
 #include <iostream>
+#include <map>
 #include <string>
+#include <unordered_map>
 #include <utility>
-#include <vector>
+
+// XXX Note: Very slow - should not be used for functions called large number of
+// times. Partly issue is due to omp critical - can be fixed
+
+// #define PROFILE(x)
+// #ifdef IOPROFILER
+// #define PROFILE(x) [[maybe_unused]] auto sp = IO::Profile::safeProfiler(x);
+// #endif
 
 //! Simple thread-safe scope-based profiler function.
 //! @details Must compile with the pre-processor macro IOPROFILER defined for
@@ -19,74 +27,63 @@ namespace IO::Profile {
 
 #ifdef IOPROFILER
 constexpr bool do_profile = true;
+// #define PROFILE(x) [[maybe_unused]] auto sp = IO::Profile::safeProfiler(x);
 #else
 constexpr bool do_profile = false;
 #endif
 
-struct StrDoubleUnsigned {
-  StrDoubleUnsigned(std::string is, double id, unsigned iu)
-      : s(std::move(is)), d(id), u(iu) {}
-  std::string s;
-  double d;
-  unsigned u;
-};
-
 //******************************************************************************
 // Thread-safe profiler (timing) tool
 class ProfileLog {
+
+  std::unordered_map<std::string,
+                     std::pair<unsigned long, std::chrono::microseconds>>
+      m_log = {};
+
   friend class Profiler;
+
   ProfileLog(){};
+
   ~ProfileLog() {
     if (m_log.empty())
       return;
 #pragma omp critical(finalise)
-    {
-      for (const auto &le : m_log) {
-        bool new_entry = true;
-        auto each_time = static_cast<double>(le.second.count());
-        for (auto &[name, time, count] : m_log_sorted) {
-          if (name == le.first) {
-            new_entry = false;
-            time += each_time;
-            count++;
-            break;
-          }
-        }
-        if (new_entry)
-          m_log_sorted.emplace_back(le.first, each_time, 1);
-      }
-      write_log();
+    write_log();
+  }
+
+  void add(const std::string &name, std::chrono::microseconds duration) {
+    // if key already exists, this does nothing and insertedQ==false:
+    auto [it, insertedQ] = m_log.insert({name, {1, duration}});
+    if (!insertedQ) {
+      // an entry already exists, so update it:
+      ++(it->second.first);
+      it->second.second += duration;
     }
   }
-  std::vector<std::pair<std::string, std::chrono::microseconds>> m_log = {};
-  std::vector<StrDoubleUnsigned> m_log_sorted = {};
 
   void write_log() {
     const std::string title = "ProfileLog";
-    auto fname = title + "_0";
-    std::string ext = ".txt";
+    const std::string ext = ".txt";
     auto file_existsQ = [](const std::string &fileName) {
       std::ifstream infile(fileName);
       return infile.good();
     };
     // std::filesystem::exists(fname + ext) // needs GCC v>8
+    // Ensure filename is unique:
+    auto fname = title + "_0";
     for (int i = 1; file_existsQ(fname + ext); ++i) {
       fname = title + "_" + std::to_string(i);
     }
     std::ofstream of(fname + ext);
     std::cout << "\nProfile:\n";
-    const auto *p_worst = &(m_log_sorted.front());
-    for (const auto &item : m_log_sorted) {
-      const auto &[name, time, count] = item;
-      std::cout << name << " x " << count << " = " << time / 1000.0 << " ms\n";
-      of << name << " x " << count << " = " << time / 1000.0 << " ms\n";
-      if (time >= p_worst->d) {
-        p_worst = &item;
-      }
+    of << "# Function call_count total_time(ms)\n";
+    for (const auto &item : m_log) {
+      const auto &[name, entry] = item;
+      const auto &[count, time] = entry;
+      const auto dtime = static_cast<double>(time.count());
+      std::cout << name << " x " << count << " = " << dtime / 1000.0 << " ms\n";
+      of << name << ", " << count << ", " << dtime / 1000.0 << "\n";
     }
-    const auto &[name, time, count] = *p_worst;
-    std::cout << "\n ** Worst: \n";
-    std::cout << name << " x " << count << " = " << time / 1000.0 << " ms\n";
   }
 };
 
@@ -112,7 +109,7 @@ public:
       const auto now = std::chrono::high_resolution_clock::now();
       const auto duration =
           std::chrono::duration_cast<std::chrono::microseconds>(now - tstart);
-      log.m_log.emplace_back(name, duration);
+      log.add(name, duration);
     }
   }
 };

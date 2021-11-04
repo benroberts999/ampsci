@@ -138,11 +138,13 @@ public:
   //! Add a new InputBlock (merge: will be merged with existing if names
   //! match)
   inline void add(InputBlock block, bool merge = false);
+  inline void merge(InputBlock block) { add(block, true); }
   //! Adds a new option to end of list
   inline void add(Option option);
   inline void add(const std::vector<Option> &options);
   //! Adds options/inputBlocks by parsing a string
   inline void add(const std::string &string, bool merge = false);
+  inline void merge(const std::string &string) { add(string, true); }
 
   std::string_view name() const { return m_name; }
   //! Return const reference to list of options

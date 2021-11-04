@@ -163,7 +163,7 @@ void FeynmanSigma::formSigma(int kappa, double en, int n) {
 void FeynmanSigma::prep_Feynman() {
 
   // Extand 6j and Ck
-  m_6j.fill(2 * m_maxk); //?
+  m_6j.fill(m_maxk); //?
   // m_yeh.extend_Ck(m_maxk); // XXX Check max k OK in Ck tables!?
 
   if (m_screen_Coulomb)
@@ -1236,7 +1236,9 @@ double FeynmanSigma::Lkl_abcd(int k, int l, int ka, int kb, int kc,
   const auto tjb = Angular::twoj_k(kb);
   const auto tjc = Angular::twoj_k(kc);
   const auto tjd = Angular::twoj_k(kd);
-  return m_6j(tja, tjc, tjb, tjd, k, l) * (Ckac * Ckbd * Clad * Clbc);
+  // return m_6j(tja, tjc, tjb, tjd, k, l) * (Ckac * Ckbd * Clad * Clbc);
+  return m_6j.get_2(tja, tjc, 2 * k, tjb, tjd, 2 * l) *
+         (Ckac * Ckbd * Clad * Clbc);
 }
 
 //******************************************************************************

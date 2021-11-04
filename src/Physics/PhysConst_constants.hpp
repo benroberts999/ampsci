@@ -55,7 +55,7 @@ constexpr double Hartree_Hz = 6.579683920502e+15;
 constexpr double Hartree_MHz = Hartree_Hz * (1.0e-6);
 constexpr double Hartree_GHz = Hartree_Hz * (1.0e-9);
 // wave-number (inverse cm):
-constexpr double Hartree_invcm = 1.0 / (2.0 * M_PI * c * aB_m * (1.0e+2));
+constexpr double Hartree_invcm = 1.0 / (2.0 * M_PI * c * aB_cm);
 // wavelength (nm):
 constexpr double HartreeWL_nm = 2.0 * M_PI * c * aB_m * (1.0e+9);
 
