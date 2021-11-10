@@ -35,13 +35,12 @@
   * Use QkTable?
   * Store <a|h|b> and <a|dV|b> for each reqd pair?
 
-## B-splines (#9)
-  * Fix raw B-spline class
-  * Fix B-spline basis:
-  * Correct the r0 issue; correct number of splines
-  * Implement Johnson version
-  * Use more efficient integration?
-    * Store coefs instead of expand?
+## B-spline stability (#26)
+  * Seem to be difficult to get working when including Breit.
+  * Also: sign of some basis functions wrong (not just w/ Breit)?
+
+## Maths
+  * Update LinAlg - use vector views
 
 ## Hartree Fock (#23)
   * Re-write class (make less inter-dependent)

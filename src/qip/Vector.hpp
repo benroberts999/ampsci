@@ -1,4 +1,5 @@
 #pragma once
+#include "qip/Methods.hpp"
 #include <algorithm>
 #include <array>
 #include <cassert>
@@ -193,8 +194,7 @@ template <typename F, typename T, typename... Args>
 
 //******************************************************************************
 //! In-place scalar multiplication of std::vector - types must match
-template <typename T>
-void scale(std::vector<T> *vec, T x) {
+template <typename T> void scale(std::vector<T> *vec, T x) {
   static_assert(std::is_arithmetic_v<T>,
                 "In scale(std::vector<T>, T) : T must be arithmetic");
   for (auto &v : *vec)
@@ -261,6 +261,49 @@ std::vector<T> logarithmic_range(T first, T last, N number) {
     range.push_back(static_cast<T>(value));
   }
   range.push_back(last);
+  return range;
+}
+
+//! Produces a Log-Linear distributed range of values between
+//! [first,last] with number steps. number must be at least 3. first+last are
+//! guarenteed to be the first and last points in the range. T must be floating
+//! point. Range is roughly logarithmic for values below 'b', and linear for
+//! values above b. Not tested for negative values.
+template <typename T, typename N>
+std::vector<T> loglinear_range(T first, T last, T b, N number) {
+  static_assert(std::is_floating_point_v<T>,
+                "In loglinear_range(T, T, T, N), T must be floating point");
+  static_assert(std::is_integral_v<N>,
+                "In loglinear_range(T, T, T, N), N must be integral");
+  assert(number >= 3);
+  assert(first > 0.0 && last > 0.0 && b > 0.0);
+
+  std::vector<T> range;
+  range.reserve(static_cast<std::size_t>(number));
+
+  const auto du = (last - first + b * std::log(last / first)) /
+                  (static_cast<T>(number - 1));
+
+  auto next_r = [b](auto u1, auto r_guess) {
+    // Solve eq. u = r + b ln(r) to find r
+    // Use Newtons method
+    // => f(r) = r + b ln(r) - u = 0
+    // dfdr = b(1/r + 1/(b+r))
+    const auto f_u = [b, u1](double tr) { return tr + b * std::log(tr) - u1; };
+    const auto dr = 0.1 * r_guess;
+    const auto delta_targ = r_guess * 1.0e-18;
+    const auto [ri, delta_r] = qip::Newtons(f_u, r_guess, dr, delta_targ, 30);
+    return ri;
+  };
+
+  auto u = first + b * std::log(first);
+  range.push_back(first);
+  for (N i = 1; i < number - 1; ++i) {
+    u += du;
+    range.push_back(next_r(u, range.back()));
+  }
+  range.push_back(last);
+
   return range;
 }
 

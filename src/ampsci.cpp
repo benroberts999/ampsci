@@ -25,14 +25,14 @@ int main(int argc, char *argv[]) {
   const auto fstream = std::fstream(input_text);
   const auto symb = AtomData::atomicSymbol(AtomData::atomic_Z(input_text));
   const auto core = symb == "H" ? "" : symb;
-  const std::string default_input = (input_text.size() <= 3)
-                                        ? "Atom{Z=" + symb + ";}" +
-                                              "HartreeFock { core = [" + core +
-                                              "]; valence = 2sp;}"
-                                        : input_text;
+  const std::string default_input = (input_text.size() <= 3) ?
+                                        "Atom{Z=" + symb + ";}" +
+                                            "HartreeFock { core = [" + core +
+                                            "]; valence = 2sp;}" :
+                                        input_text;
 
-  const auto input = fstream.good() ? IO::InputBlock("ampsci", fstream)
-                                    : IO::InputBlock("ampsci", default_input);
+  const auto input = fstream.good() ? IO::InputBlock("ampsci", fstream) :
+                                      IO::InputBlock("ampsci", default_input);
 
   // Run program. Add option to run multiple times
   ampsci(input);
@@ -93,9 +93,9 @@ void ampsci(const IO::InputBlock &input) {
       (du > 0.0) ? 0ul : input.get({"Grid"}, "num_points", 1600ul);
   const auto b = input.get({"Grid"}, "b", 0.33 * rmax);
   const auto grid_type =
-      (b <= r0 || b >= rmax)
-          ? "logarithmic"
-          : input.get<std::string>({"Grid"}, "type", "loglinear");
+      (b <= r0 || b >= rmax) ?
+          "logarithmic" :
+          input.get<std::string>({"Grid"}, "type", "loglinear");
 
   // Nucleus: Get + setup nuclear parameters
   input_ok &= input.check({"Nucleus"},
@@ -116,14 +116,14 @@ void ampsci(const IO::InputBlock &input) {
   }
   const auto t_skin = input.get({"Nucleus"}, "t", Nuclear::default_t);
   // c (half density radius) takes precidence if c and r_rms are given.
-  const auto rrms = c_hdr ? Nuclear::rrms_formula_c_t(*c_hdr, t_skin)
-                          : input.get({"Nucleus"}, "rrms", dflt_rrms);
+  const auto rrms = c_hdr ? Nuclear::rrms_formula_c_t(*c_hdr, t_skin) :
+                            input.get({"Nucleus"}, "rrms", dflt_rrms);
 
   // Set nuc. type explicitely to 'pointlike' if A=0, or r_rms = 0.0
   const auto nuc_type =
-      (atom_A == 0 || rrms == 0.0)
-          ? "pointlike"
-          : input.get<std::string>({"Nucleus"}, "type", "Fermi");
+      (atom_A == 0 || rrms == 0.0) ?
+          "pointlike" :
+          input.get<std::string>({"Nucleus"}, "type", "Fermi");
 
   // Create wavefunction object
   Wavefunction wf({num_points, r0, rmax, b, grid_type, du},
@@ -274,9 +274,9 @@ void ampsci(const IO::InputBlock &input) {
 
   // Solve for the valence states:
   const auto valence_list =
-      (wf.Ncore() < wf.Znuc() || HF_method == "KohnSham")
-          ? input.get<std::string>({"HartreeFock"}, "valence", "")
-          : "";
+      (wf.Ncore() < wf.Znuc() || HF_method == "KohnSham") ?
+          input.get<std::string>({"HartreeFock"}, "valence", "") :
+          "";
   if (valence_list != "") {
     // 'if' is only for output format, nothing bad
     // happens if below are called
@@ -300,7 +300,8 @@ void ampsci(const IO::InputBlock &input) {
                   {"rmax", "maximum cavity radius"},
                   {"states", "states to keep (e.g., 30spdf20ghi)"},
                   {"print", "Print all spline energies (for testing)"},
-                  {"positron", "Include -ve energy states (true/false)"}});
+                  {"positron", "Include -ve energy states (true/false)"},
+                  {"type", "Derevianko (DKB) or Johnson"}});
   if (basis_ok) {
     const auto basis_in = input.getBlock("Basis");
     if (basis_in)

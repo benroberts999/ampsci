@@ -265,6 +265,8 @@ public: // const methods: "views" into WF object
 
   //! Returns <a|H|b> for Hamiltonian H (inludes Rad.pot, NOT sigma or Breit)
   double Hab(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
+  double Hab(const DiracSpinor &Fa, const DiracSpinor &dFa,
+             const DiracSpinor &Fb, const DiracSpinor &dFb) const;
 
 private:
   void determineCore(const std::string &str_core_in);

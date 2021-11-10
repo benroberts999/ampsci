@@ -37,7 +37,8 @@ bool TDHFbasis(std::ostream &obuff) {
     bspl_param.states = "50spd40f20g";
     bspl_param.n = 60;
     bspl_param.k = 7;
-    bspl_param.reps = 1.0e-9;
+    bspl_param.r0 = 1.0e-5;
+    bspl_param.reps = 0.0;
     bspl_param.rmax = 50.0;
   }
   wf.formBasis(bspl_param);

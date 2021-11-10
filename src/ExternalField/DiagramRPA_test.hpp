@@ -21,7 +21,7 @@ bool DiagramRPA(std::ostream &obuff) {
                   {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
   wf.solve_core("HartreeFock", 0.0, "[Xe]");
   wf.solve_valence("6sp5d4f");
-  wf.formBasis({"40spdfgh", 50, 9, 0.0, 1.0e-9, 30.0, false});
+  wf.formBasis({"40spdfgh", 50, 9, 1.0e-5, 0.0, 30.0, false});
 
   auto sorter = [](auto x, auto y) { return x.first < y.first; };
   auto compr = [](const auto &x, const auto &y) {

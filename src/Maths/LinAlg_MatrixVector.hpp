@@ -1,4 +1,5 @@
 #pragma once
+#include <cassert>
 #include <gsl/gsl_blas.h>
 #include <gsl/gsl_complex.h>
 #include <gsl/gsl_complex_math.h>
@@ -45,6 +46,47 @@ public:
   friend double inner_product(const Vector &a, const Vector &b);
   friend double operator*(const Vector &a, const Vector &b);
   friend SqMatrix outer_product(const Vector &a, const Vector &b);
+};
+
+// XXX Add all SqMatrix functionality to this!
+//******************************************************************************
+class Matrix {
+
+  std::size_t m_rows;
+  std::size_t m_cols;
+  std::vector<double> m_data;
+
+public:
+  Matrix(std::size_t rows, std::size_t cols)
+      : m_rows(rows), m_cols(cols), m_data(rows * cols) {}
+
+  // double *SqMatrix::operator[](std::size_t i) const { return &(m->data[i *
+  // n]); }
+
+  std::size_t rows() const { return m_rows; }
+  std::size_t cols() const { return m_cols; }
+
+  double *data() { return m_data.data(); }
+  const double *data() const { return m_data.data(); }
+
+  gsl_matrix_view gsl() {
+    return gsl_matrix_view_array(m_data.data(), m_rows, m_cols);
+  }
+
+  const double *operator[](std::size_t i) const {
+    return &(m_data[i * m_cols]);
+  }
+  double *operator[](std::size_t i) { return &(m_data[i * m_cols]); }
+
+  // Access the (i,j)th element (const and non-const version)
+  double &operator()(std::size_t i, std::size_t j) {
+    assert(i < m_rows && j < m_cols);
+    return m_data[i * m_cols + j];
+  }
+  double operator()(std::size_t i, std::size_t j) const {
+    assert(i < m_rows && j < m_cols);
+    return m_data[i * m_cols + j];
+  }
 };
 
 //******************************************************************************
@@ -137,8 +179,8 @@ struct ComplexDouble {
   ComplexDouble conj() const { return {cre(), -cim()}; }
   //! norm2 = re^2 + im^2, no sqrt (ruins T)
   [[nodiscard]] double norm2() const { return cre() * cre() + cim() * cim(); }
-      //
-      [[nodiscard]] ComplexDouble inverse() const {
+  //
+  [[nodiscard]] ComplexDouble inverse() const {
     //
     const auto n2 = norm2();
     return {cre() / n2, -cim() / n2};

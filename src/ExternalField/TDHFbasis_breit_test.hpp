@@ -27,13 +27,17 @@ bool TDHFbasis_breit(std::ostream &obuff) { //
   // nb: don't use many grid points, since we don't need overall accuracy.
   // Need fair splines though, since splineTDHF compared to TDHF
 
+  // Compares the Breit correction to dV using TDHF and TDHF basis methods.
+  // NB: also a test of BASIS+Breit
+
   std::string valence = "7s6p5d";
   SplineBasis::Parameters bspl_param;
   {
     bspl_param.states = "40spd30f";
     bspl_param.n = 50;
     bspl_param.k = 7;
-    bspl_param.reps = 1.0e-10;
+    bspl_param.r0 = 1.0e-5;
+    bspl_param.reps = 1.0e-6;
     bspl_param.rmax = 40.0;
   }
 
