@@ -527,12 +527,13 @@ Module::AtomicKernal {
   max_L = 2;       // L is multipolarity
   output_text = true;
   output_binary = true;
-  label = test_new;
+  label = ;
   use_plane_waves = false;
-  use_alt_akf = false;
+  use_alt_akf = false;    // true: <j|exp(iqr)|njlm> set to <j|exp(iqr)-1|njlm>
   force_rescale = false;  // true: forces v local to -1/r at high r
   subtract_self = false;  // true: excl single-electron from v direct
   force_orthog = false;   // true: continuum states orthog to core?
+  dme_coupling = Vector;  // DM-electron coupling (case sensitive!)
 }
 ```
 Calculates the "Atomic Kernal" (for scattering/ionisation) for each core
@@ -553,9 +554,57 @@ Also: tested mainly for high values of q
 -------------------
 
 ```cpp
+Module::AFBindingEnergy {
+    // Some typical inputs.
+  qmin = 0.001; // in MeV
+  qmax = 4.0;
+  qsteps = 100;
+  max_l_bound = 1; // l for bound states
+  max_L = 2;       // L is multipolarity
+  output_text = true;
+  label = ;               // label for the output files
+  use_plane_waves = false;
+  use_alt_akf = false;    // true: <j|exp(iqr)|njlm> set to <j|exp(iqr)-1|njlm>
+  force_rescale = false;  // true: forces v local to -1/r at high r
+  subtract_self = false;  // true: excl single-electron from v direct
+  force_orthog = false;   // true: continuum states orthog to core?
+  dme_coupling = Vector;
+  Etune_mult = 1.1;       // Run code at dE = Etune_mult*I_{njl} + Etune_add
+  Etune_add = 0.01;
+}
+```
+
+-------------------
+
+```cpp
+Module::AFStepFunction {
+    // Some typical inputs.
+  // !!! Inputs that need to match generate K table: qmin, qmax, qsteps,
+  // max_l_bound, max_L, table_label (same as label in AFBE module),
+  // use_plane_waves, dme_coupling (***change to be read in from binary?)
+  Emin = 0.01; // in keV
+  Emax = 4.0;
+  Esteps = 25;
+  qmin = 0.001; // in MeV
+  qmax = 4.0;
+  qsteps = 100;
+  max_l_bound = 1; // l for bound states
+  max_L = 2;       // L is multipolarity
+  output_text = true;
+  output_binary = true;
+  table_label = ;         // label for generated K table (made by AFBE module)      
+  output_label = ;        // label for the output files
+  use_plane_waves = false;
+  dme_coupling = Vector;
+}
+```
+
+-------------------
+
+```cpp
 Module::continuum {
     // Default values
-  ec = 0.5;               // units in keV I think?
+  ec = 0.5;               // in atomic units (***will change to keV)
   max_l = 0;
   filename = "";          // filename for output
   force_rescale = false;  // true: forces v local to -1/r at high r

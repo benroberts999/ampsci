@@ -18,9 +18,9 @@ void AFBindingEnergy(const IO::InputBlock &input, const Wavefunction &wf) {
   IO::ChronoTimer timer; // start the overall timer
 
   input.checkBlock({"qmin", "qmax", "qsteps", "max_l_bound", "max_L",
-                    "use_plane_waves", "label", "output_text", "use_alt_akf",
+                    "use_plane_waves", "output_text", "label", "use_alt_akf",
                     "force_rescale", "subtract_self", "force_orthog",
-                    "dme_coupling"});
+                    "dme_coupling", "Etune_mult", "Etune_add"});
 
   auto qmin = input.get<double>("qmin", 1.0);
   auto qmax = input.get<double>("qmax", 1.0);
@@ -59,8 +59,6 @@ void AFBindingEnergy(const IO::InputBlock &input, const Wavefunction &wf) {
   if (plane_wave)
     max_L = max_l; // for spherical bessel.
 
-  auto label = input.get<std::string>("label", "");
-
   // output format
   // auto bin_out = input.get<bool>("output_binary", false);
 
@@ -70,6 +68,8 @@ void AFBindingEnergy(const IO::InputBlock &input, const Wavefunction &wf) {
   auto force_rescale = input.get<bool>("force_rescale", false);
   auto subtract_self = input.get<bool>("subtract_self", false);
   auto force_orthog = input.get<bool>("force_orthog", false);
+
+  auto label = input.get<std::string>("label", "");
 
   // DM-electron couplings
   std::vector<std::string> dmec_opt = {"Vector", "Scalar", "Pseudovector",
@@ -85,6 +85,10 @@ void AFBindingEnergy(const IO::InputBlock &input, const Wavefunction &wf) {
               << "' unknown, defaulting to Vector\n";
     dmec = "Vector";
   }
+
+  auto Etune_mult = input.get<double>("Etune_mult", 1.1);
+  auto Etune_add = input.get<double>("Etune_add", 0.01);
+
   // dmec = (check_dmec == true) ? ;
 
   // Make sure h (large-r step size) is small enough to
@@ -111,7 +115,9 @@ void AFBindingEnergy(const IO::InputBlock &input, const Wavefunction &wf) {
   // if (label != "")
   //   fname += "_" + label;
 
-  std::string fname_table = "afbe_table_" + dmec + "-" + wf.atomicSymbol();
+  std::string fname_table = "afbe_table-" + wf.atomicSymbol();
+  if (label != "")
+    fname_table += "_" + label;
 
   // Print some info to screen:
   std::cout << "\nRunning Atomic Kernal for " << wf.atom()
@@ -167,7 +173,7 @@ void AFBindingEnergy(const IO::InputBlock &input, const Wavefunction &wf) {
   std::vector<double> eabove;
   for (std::size_t is = 0; is < wf.core.size(); is++) {
     // Storing the energies that are used
-    double dE = -1.1 * wf.core[is].en();
+    double dE = -Etune_mult * wf.core[is].en() + Etune_add;
     eabove.push_back(dE);
 
     int l = wf.core[is].l(); // lorb(is);

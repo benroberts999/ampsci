@@ -18,8 +18,9 @@ void AFStepFunction(const IO::InputBlock &input, const Wavefunction &wf) {
   IO::ChronoTimer timer; // start the overall timer
 
   input.checkBlock({"Emin", "Emax", "Esteps", "qmin", "qmax", "qsteps",
-                    "max_l_bound", "max_L", "use_plane_waves", "label",
-                    "output_text", "output_binary", "dme_coupling"});
+                    "max_l_bound", "max_L", "use_plane_waves", "table_label",
+                    "output_label", "output_text", "output_binary",
+                    "dme_coupling"});
   // "use_alt_akf",
   // "force_rescale", "subtract_self", "force_orthog"
 
@@ -62,13 +63,16 @@ void AFStepFunction(const IO::InputBlock &input, const Wavefunction &wf) {
     max_l = max_l_core;
   auto max_L = input.get<int>("max_L", 2 * max_l); // random default..
 
+  auto table_label = input.get<std::string>("table_label", "");
+  auto output_label = input.get<std::string>("output_label", "");
+
   std::string dme_coupling = input.get<std::string>("dme_coupling", "Vector");
 
   bool plane_wave = input.get<bool>("use_plane_waves", false);
   if (plane_wave)
     max_L = max_l; // for spherical bessel.
 
-  auto label = input.get<std::string>("label", "");
+  // auto label = input.get<std::string>("label", "");
 
   // output format
   auto text_out = input.get<bool>("output_text", false);
@@ -119,8 +123,8 @@ void AFStepFunction(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // outut file name (excluding extension):
   std::string fname = "afsf-" + wf.atomicSymbol(); // + "_" + label;
-  if (label != "")
-    fname += "_" + label;
+  if (output_label != "")
+    fname += "_" + output_label;
 
   // Print some info to screen:
   std::cout << "\nRunning Atomic Kernal for " << wf.atom() << "\n";
@@ -164,8 +168,18 @@ void AFStepFunction(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Start timer
   timer.start();
+  // std::cout << "Looking for atomic factor table...\n";
+  std::string fname_table = "afbe_table-" + wf.atomicSymbol();
+  if (table_label != "")
+    fname_table += "_" + table_label;
+  // int reading_table = AKF::akReadWrite_AFBE(fname_table, false, AFBE_table,
+  // nklst, qmin, qmax,
+  //                       eabove);
+  // if (reading_table == 1) {
+  //   std::cout << "Atomic factor table not found, generating new table...\n";
+
+  // }
   std::cout << "Reading atomic factor table...\n";
-  std::string fname_table = "afbe_table_" + dmec + "-" + wf.atomicSymbol();
   AKF::akReadWrite_AFBE(fname_table, false, AFBE_table, nklst, qmin, qmax,
                         eabove);
 
