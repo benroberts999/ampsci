@@ -383,7 +383,7 @@ int calculateK_nk(const Wavefunction &wf, const DiracSpinor &psi, int max_L,
     lc_min = 0;
   if (ec > 0) {
     cntm.solveContinuumHF(ec, lc_min, lc_max, force_rescale, subtract_self,
-                          force_orthog);
+                          force_orthog, &psi);
   }
 
   double x_ocf = psi.occ_frac(); // occupancy fraction. Usually 1

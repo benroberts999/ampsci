@@ -47,17 +47,19 @@ double ContinuumOrbitals::check_orthog(bool print) const {
 //******************************************************************************
 int ContinuumOrbitals::solveContinuumHF(double ec, int max_l,
                                         bool force_rescale, bool subtract_self,
-                                        bool force_orthog)
+                                        bool force_orthog,
+                                        const DiracSpinor *p_psi)
 // Overloaded, assumes min_l=0
 {
   return solveContinuumHF(ec, 0, max_l, force_rescale, subtract_self,
-                          force_orthog);
+                          force_orthog, p_psi);
 }
 
 //******************************************************************************
 int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
                                         bool force_rescale, bool subtract_self,
-                                        bool force_orthog)
+                                        bool force_orthog,
+                                        const DiracSpinor *p_psi)
 // Solved the Dirac equation for local potential for positive energy (no mc2)
 // continuum (un-bound) states [partial waves].
 //  * Goes well past num_points, looks for asymptotic region, where wf is
@@ -89,16 +91,19 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
   cgrid.extend_to(1.2 * r_asym);
 
   // Highest core state (later: use the state being ionised)
-  const auto &Fa = p_hf->get_core().back();
+  // const auto &Fa = p_hf->get_core().back();
+
   // Subtracting single electron contribution from direct potential
-  if (subtract_self) {
-    std::vector<double> vd_single = Coulomb::yk_ab(Fa, Fa, 0);
-    v_local = qip::add(v_local, qip::scale(vd_single, -1.0));
+  if ((p_psi != nullptr) && (subtract_self)) {
+    // if (subtract_self) {
+    std::vector<double> vd_single = Coulomb::yk_ab(*p_psi, *p_psi, 0);
+    // v_local = qip::add(v_local, qip::scale(vd_single, -1.0));
+    v_local = qip::compose(std::minus{}, v_local, vd_single);
   }
 
   // "Z_ion" - "actual" (excluding exchange.....)
   auto z_tmp = std::abs(v_local.back() * rgrid->r().back());
-  std::cout << "z_tmp=" << z_tmp << "\n";
+  // std::cout << "z_tmp=" << z_tmp << "\n";
   // If ztm is 0, means neutral atom. Effective charge should be 1
   // Exchange doesn't go further than core...
   // This doesn't seem to have any impact, so unimportant

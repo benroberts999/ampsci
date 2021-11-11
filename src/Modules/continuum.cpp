@@ -13,8 +13,9 @@ void continuum(const IO::InputBlock &input, const Wavefunction &wf) {
                      {"max_l", "maximum l"},
                      {"filename", "filename for output"},
                      {"force_rescale", "force rescale"},
-                     {"subtract_self", "subtract self interaction"},
-                     {"force_orthog", "force orthogonality"}});
+                     {"force_orthog", "force orthogonality"},
+                     {"n", "principal quantum number for bound state"},
+                     {"kappa", "Dirac quantum number for bound state"}});
 
   auto en_c = input.get("ec", 0.5);
   auto lmax = input.get("max_l", 0);
@@ -22,16 +23,29 @@ void continuum(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Method options for solveContinuumHF
   auto force_rescale = input.get<bool>("force_rescale", false);
-  auto subtract_self = input.get<bool>("subtract_self", false);
+  // auto subtract_self = input.get<bool>("subtract_self", false);
   auto force_orthog = input.get<bool>("force_orthog", false);
+
+  // n=0 invalid -> nullptr
+  auto n = input.get<int>("n", 0);
+  auto k = input.get<int>("kappa", 0);
+  // auto p_psi = wf.getState(n, k);
+  auto p_psi = (n == 0) ? nullptr : wf.getState(n, k);
+
+  if (p_psi != nullptr) {
+    std::cout << "\n"
+              << "State for n = " << n << " and kappa = " << k << ": "
+              << p_psi->symbol() << "\n";
+    // std::cout << "Bound state: " << p_psi->symbol() << "\n";
+  }
 
   std::cout << "\nContinuum Orbitals:\n";
   std::cout << "energy: " << en_c << "\n";
 
   auto cntm = ContinuumOrbitals(wf);
-  cntm.solveContinuumHF(en_c, lmax, force_rescale, subtract_self, force_orthog);
+  cntm.solveContinuumHF(en_c, lmax, force_rescale, true, force_orthog, p_psi);
 
-  std::cout << "Check orthogonanilty:\n";
+  std::cout << "Check orthogonality:\n";
   cntm.check_orthog(true);
 
   if (fname != "") {
