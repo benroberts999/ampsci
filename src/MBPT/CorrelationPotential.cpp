@@ -8,7 +8,6 @@
 #include "MBPT/GreenMatrix.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/Interpolator.hpp"
-#include "Maths/LinAlg_MatrixVector.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <algorithm>
 #include <cassert>
@@ -105,8 +104,8 @@ DiracSpinor CorrelationPotential::SigmaFv(const DiracSpinor &v) const {
   const auto lambda = is >= m_lambda_kappa.size() ? 1.0 : m_lambda_kappa[is];
 
   if (is < m_Sigma_kappa.size())
-    return lambda == 1.0 ? act_G_Fv(m_Sigma_kappa[is], v)
-                         : lambda * act_G_Fv(m_Sigma_kappa[is], v);
+    return lambda == 1.0 ? act_G_Fv(m_Sigma_kappa[is], v) :
+                           lambda * act_G_Fv(m_Sigma_kappa[is], v);
   return 0.0 * v;
 }
 

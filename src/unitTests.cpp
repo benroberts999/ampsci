@@ -12,10 +12,10 @@
 #include "HF/HartreeFock_test.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/InputBlock.hpp" // for time+date
+#include "LinAlg/LinAlg_test.hpp"
 #include "MBPT/CorrelationPotential_test.hpp"
 #include "MBPT/StructureRad_test.hpp"
 #include "Maths/BSpline_test.hpp"
-#include "Maths/LinAlg_test.hpp"
 #include "Physics/RadPot_test.hpp"
 #include "Wavefunction/BSplineBasis_test.hpp"
 #include "git.info"
@@ -68,18 +68,16 @@ static const std::vector<std::pair<std::string, bool (*)(std::ostream &obuff)>>
         {"RadPot", &RadPot},
         {"Angular", &Angular},
         {"SixJTable", &SixJTable},
-        {"LinAlg", &LinAlg},
         {"BSplineBasis", &BSplineBasis},
         {"Coulomb", &Coulomb},
-        // {"Coulomb2", &Coulomb2},
-        // {"CorrelationPotential", &CorrelationPotential},
         {"MBPT2", &MBPT2},
         {"Sigma2", &Sigma2},
         {"SigmaAO", &SigmaAO},
         {"DiagramRPA", &DiagramRPA},
         {"QkTable", &QkTable},
         {"StructureRad", &StructureRad},
-        {"BSplineClass", &BSplineClass}
+        {"BSplineClass", &BSplineClass},
+        {"LinAlg", &LinAlg}
         //
     };
 
@@ -92,7 +90,6 @@ static const std::vector<std::pair<std::string, bool (*)(std::ostream &obuff)>>
                {"LinAlg", &LinAlg},
                {"BSplineBasis", &BSplineBasis},
                {"Coulomb", &Coulomb},
-               // {"Coulomb2", &Coulomb2},
                {"MBPT2", &MBPT2}};
 
 //------------------------------------------------------------------------------

@@ -4,10 +4,10 @@
 #include "HF/HartreeFock.hpp"
 #include "IO/InputBlock.hpp"
 #include "IO/SafeProfiler.hpp"
+#include "LinAlg/LinAlg.hpp"
 #include "Maths/BSpline.hpp"
 #include "Maths/BSplines_old.hpp"
 #include "Maths/Grid.hpp"
-#include "Maths/LinAlg_MatrixVector.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/AtomData.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
@@ -99,8 +99,7 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
 
     auto [Aij, Sij] = fill_Hamiltonian_matrix(spl_basis, d_basis, wf,
                                               correlationsQ, basis_type);
-    const auto [e_values, e_vectors] =
-        LinAlg::realSymmetricEigensystem(&Aij, &Sij);
+    const auto [e_values, e_vectors] = LinAlg::symmhEigensystem(Aij, Sij, true);
 
     expand_basis_orbitals(&basis, &basis_positron, spl_basis, kappa, max_n,
                           e_values, e_vectors, wf);
@@ -249,16 +248,16 @@ form_spline_basis(const int kappa, const std::size_t n_states,
 }
 
 //******************************************************************************
-std::pair<LinAlg::SqMatrix, LinAlg::SqMatrix>
+std::pair<LinAlg::Matrix<double>, LinAlg::Matrix<double>>
 fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
                         const std::vector<DiracSpinor> &d_basis,
                         const Wavefunction &wf, const bool correlationsQ,
                         SplineType type) {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
-  auto n_spl = (int)spl_basis.size();
+  auto n_spl = spl_basis.size();
 
-  std::pair<LinAlg::SqMatrix, LinAlg::SqMatrix> A_and_S =
-      std::make_pair(n_spl, n_spl);
+  auto A_and_S = std::make_pair(LinAlg::Matrix<double>{n_spl, n_spl},
+                                LinAlg::Matrix<double>{n_spl, n_spl});
   // auto &[Aij, Sij] = A_and_S; //XXX error w/ clang? Why?
   auto &Aij = A_and_S.first;
   auto &Sij = A_and_S.second;
@@ -268,7 +267,7 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
   const auto VBr = wf.getHF() ? wf.getHF()->get_Breit() : nullptr;
 
 #pragma omp parallel for
-  for (auto i = 0ul; i < Aij.n; i++) {
+  for (auto i = 0ul; i < Aij.rows(); i++) {
     const auto &si = spl_basis[i];
     const auto &dsi = d_basis[i];
     const auto VexSi = excl_exch ? 0.0 * si : HF::vexFa(si, wf.core);
@@ -292,13 +291,12 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
     }
   }
   // Fill second - half of symmetric matrix
-  for (auto i = 0ul; i < Aij.n; i++) {
-    for (auto j = i + 1; j < Aij.n; j++) {
+  for (auto i = 0ul; i < Aij.rows(); i++) {
+    for (auto j = i + 1; j < Aij.cols(); j++) {
       Aij[i][j] = Aij[j][i];
       Sij[i][j] = Sij[j][i];
     }
   }
-  // Aij.enforce_symmetric();
   // Note: This is work-around, since Breit seems not to be 100% symmetric!
   if (type == SplineType::Johnson)
     add_NotreDameBoundary(&Aij, spl_basis.front().k, wf.alpha);
@@ -307,10 +305,10 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
 }
 
 //******************************************************************************
-void add_NotreDameBoundary(LinAlg::SqMatrix *pAij, const int kappa,
+void add_NotreDameBoundary(LinAlg::Matrix<double> *pAij, const int kappa,
                            const double alpha) {
   auto &Aij = *pAij;
-  const auto n2 = Aij.n;
+  const auto n2 = Aij.rows();
   const auto n1 = n2 / 2;
   const auto c = 1.0 / alpha;
   // r=0 boundary conds
@@ -328,8 +326,8 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
                            std::vector<DiracSpinor> *basis_positron,
                            const std::vector<DiracSpinor> &spl_basis,
                            const int kappa, const int max_n,
-                           const LinAlg::Vector &e_values,
-                           const LinAlg::SqMatrix &e_vectors,
+                           const LinAlg::Vector<double> &e_values,
+                           const LinAlg::Matrix<double> &e_vectors,
                            const Wavefunction &wf)
 // Expands the pseudo-spectrum basis in terms of B-spline basis and expansion
 // coeficient found from diagonalising the Hamiltonian over Bsplns
@@ -341,7 +339,7 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
   const auto neg_mc2 = -1.0 / (wf.alpha * wf.alpha);
   auto pqn = min_n - 1;
   auto pqn_pstrn = -min_n + 1;
-  for (auto i = 0ul; i < e_values.n; i++) {
+  for (auto i = 0ul; i < e_values.rows(); i++) {
     const auto &en = e_values[i];
     const auto &pvec = e_vectors[i];
     const auto positive_energy = en > neg_mc2;

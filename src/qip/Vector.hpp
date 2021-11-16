@@ -382,7 +382,7 @@ std::vector<T> operator-(std::vector<T> a, const std::vector<T> &b) {
 
 // Provide scalar multiplication
 template <typename T> std::vector<T> &operator*=(std::vector<T> &v, T x) {
-  if (x != T{1.0}) {
+  if (x != T{1}) {
     for (auto &v_i : v) {
       v_i *= x;
     }
@@ -394,6 +394,19 @@ template <typename T> std::vector<T> operator*(std::vector<T> v, T x) {
 }
 template <typename T> std::vector<T> operator*(T x, std::vector<T> v) {
   return v *= x;
+}
+
+// Provide scalar devision
+template <typename T> std::vector<T> &operator/=(std::vector<T> &v, T x) {
+  if (x != T{1}) {
+    for (auto &v_i : v) {
+      v_i /= x;
+    }
+  }
+  return v;
+}
+template <typename T> std::vector<T> operator/(std::vector<T> v, T x) {
+  return v /= x;
 }
 
 } // namespace overloads

@@ -1,5 +1,5 @@
 #pragma once
-#include "Maths/LinAlg_MatrixVector.hpp"
+#include "LinAlg/LinAlg.hpp"
 #include <iostream>
 #include <type_traits>
 namespace MBPT {
@@ -56,7 +56,7 @@ public:
   }
 
   GreenMatrix<T> &plusIdent(double re, double im) {
-    static_assert(std::is_same<T, LinAlg::ComplexSqMatrix>::value,
+    static_assert(std::is_same<T, LinAlg::Matrix<std::complex<double>>>::value,
                   "Can only call plusIdent(x,y) from Complex GMatrix!");
     ff.plusIdent(re, im);
     if (m_include_G) {
@@ -75,13 +75,13 @@ public:
   }
 
   // temp! XXX
-  LinAlg::ComplexDouble ffc(std::size_t i, std::size_t j) const {
-    static_assert(std::is_same<T, LinAlg::ComplexSqMatrix>::value,
+  std::complex<double> ffc(std::size_t i, std::size_t j) const {
+    static_assert(std::is_same<T, LinAlg::Matrix<std::complex<double>>>::value,
                   "Can only call ffc from Complex GMatrix!");
     return ff.get_copy(i, j);
   }
   gsl_complex &ffc2(std::size_t i, std::size_t j) const {
-    static_assert(std::is_same<T, LinAlg::ComplexSqMatrix>::value,
+    static_assert(std::is_same<T, LinAlg::Matrix<std::complex<double>>>::value,
                   "Can only call ffc from Complex GMatrix!");
     return ff[i][j]; // pointer? reference? None! KILL
   }
@@ -128,8 +128,8 @@ public:
     return rhs *= x;
   }
 
-  GreenMatrix<T> &operator*=(const LinAlg::ComplexDouble &x) {
-    static_assert(std::is_same<T, LinAlg::ComplexSqMatrix>::value,
+  GreenMatrix<T> &operator*=(const std::complex<double> &x) {
+    static_assert(std::is_same<T, LinAlg::Matrix<std::complex<double>>>::value,
                   "Can only call *=Complex from Complex GMatrix!");
     ff *= x;
     if (m_include_G) {
@@ -141,13 +141,14 @@ public:
   }
 
   // [[nodiscard]] inline friend GreenMatrix<T>
-  // operator*(const LinAlg::ComplexDouble &x, GreenMatrix<T> rhs) {
+  // operator*(const std::complex<double> &x, GreenMatrix<T> rhs) {
   //   return rhs *= x;
   // }
 
-  [[nodiscard]] inline friend auto operator*(const LinAlg::ComplexDouble &x,
+  [[nodiscard]] inline friend auto operator*(const std::complex<double> &x,
                                              GreenMatrix<T> rhs) {
-    if constexpr (std::is_same<T, LinAlg::ComplexSqMatrix>::value) {
+    if constexpr (std::is_same<T,
+                               LinAlg::Matrix<std::complex<double>>>::value) {
       return rhs *= x;
     } else {
       return rhs.make_complex({1.0, 0.0}) *= x;
@@ -187,8 +188,9 @@ public:
       const auto dmcaib = (d - cai * b).invert();
       const auto aib_dmcaib = ai * b * dmcaib;
       ff += aib_dmcaib * cai;
-      if constexpr (std::is_same<T, LinAlg::ComplexSqMatrix>::value) {
-        const auto neg_one = LinAlg::ComplexDouble{-1.0, 0.0};
+      if constexpr (std::is_same<T,
+                                 LinAlg::Matrix<std::complex<double>>>::value) {
+        const auto neg_one = std::complex<double>{-1.0, 0.0};
         fg = neg_one * aib_dmcaib;
         gf = neg_one * dmcaib * cai;
       } else {
@@ -209,7 +211,9 @@ public:
     double maxim = 0.0;
     for (std::size_t i = 0; i < size; ++i) {
       for (std::size_t j = 0; j < size; ++j) {
-        const auto [re, im] = LinAlg::ComplexDouble(ff[i][j]).unpack();
+        // const auto [re, im] = ff[i][j];
+        const auto re = ff[i][j].real();
+        const auto im = ff[i][j].imag();
         if (std::abs(re) > std::abs(maxre))
           maxre = re;
         if (std::abs(im) > std::abs(maxim))
@@ -220,7 +224,9 @@ public:
       for (const auto tmp : {&fg, &gf, &gg}) {
         for (std::size_t i = 0; i < G_size; ++i) {
           for (std::size_t j = 0; j < G_size; ++j) {
-            const auto [re, im] = LinAlg::ComplexDouble((*tmp)[i][j]).unpack();
+            // const auto [re, im] = (*tmp)[i][j];
+            const auto re = (*tmp)[i][j].real();
+            const auto im = (*tmp)[i][j].imag();
             if (std::abs(re) > std::abs(maxre))
               maxre = re;
             if (std::abs(im) > std::abs(maxim))
@@ -250,10 +256,10 @@ public:
   }
 
   //! Return the real-part of a complex GreenMatrix (by copy)
-  [[nodiscard]] GreenMatrix<LinAlg::SqMatrix> get_real() const {
-    static_assert(std::is_same<T, LinAlg::ComplexSqMatrix>::value,
+  [[nodiscard]] GreenMatrix<LinAlg::Matrix<double>> get_real() const {
+    static_assert(std::is_same<T, LinAlg::Matrix<std::complex<double>>>::value,
                   "Can only call get_real from Complex GMatrix!");
-    auto gmat = GreenMatrix<LinAlg::SqMatrix>(size, m_include_G);
+    auto gmat = GreenMatrix<LinAlg::Matrix<double>>(size, m_include_G);
     gmat.ff = ff.real();
     if (m_include_G) {
       gmat.fg = fg.real();
@@ -263,31 +269,32 @@ public:
     return gmat;
   }
 
-      //! Return the imaginary-part of a complex GreenMatrix (by copy)
-      [[nodiscard]] GreenMatrix<LinAlg::SqMatrix> get_imaginary() const {
-    static_assert(std::is_same<T, LinAlg::ComplexSqMatrix>::value,
+  //! Return the imaginary-part of a complex GreenMatrix (by copy)
+  [[nodiscard]] GreenMatrix<LinAlg::Matrix<double>> get_imaginary() const {
+    static_assert(std::is_same<T, LinAlg::Matrix<std::complex<double>>>::value,
                   "Can only call get_imaginary from Complex GMatrix!");
-    auto gmat = GreenMatrix<LinAlg::SqMatrix>(size, m_include_G);
-    gmat.ff = ff.imaginary();
+    auto gmat = GreenMatrix<LinAlg::Matrix<double>>(size, m_include_G);
+    gmat.ff = ff.imag();
     if (m_include_G) {
-      gmat.fg = fg.imaginary();
-      gmat.gf = gf.imaginary();
-      gmat.gg = gg.imaginary();
+      gmat.fg = fg.imag();
+      gmat.gf = gf.imag();
+      gmat.gg = gg.imag();
     }
     return gmat;
   }
 
   //! Construct a complex GreenMatrix (C) from a Real one (R), by C = x*R
-  [[nodiscard]] GreenMatrix<LinAlg::ComplexSqMatrix>
-  make_complex(const LinAlg::ComplexDouble &x = {1.0, 0.0}) const {
-    static_assert(std::is_same<T, LinAlg::SqMatrix>::value,
+  [[nodiscard]] GreenMatrix<LinAlg::Matrix<std::complex<double>>>
+  make_complex(const std::complex<double> &x = {1.0, 0.0}) const {
+    static_assert(std::is_same<T, LinAlg::Matrix<double>>::value,
                   "Can only call make_complex from Real GMatrix!");
-    auto gmat = GreenMatrix<LinAlg::ComplexSqMatrix>(size, m_include_G);
-    gmat.ff = LinAlg::ComplexSqMatrix::make_complex(x, ff);
+    auto gmat =
+        GreenMatrix<LinAlg::Matrix<std::complex<double>>>(size, m_include_G);
+    gmat.ff = x * ff.complex();
     if (m_include_G) {
-      gmat.fg = LinAlg::ComplexSqMatrix::make_complex(x, fg);
-      gmat.gf = LinAlg::ComplexSqMatrix::make_complex(x, gf);
-      gmat.gg = LinAlg::ComplexSqMatrix::make_complex(x, gg);
+      gmat.fg = x * fg.complex();
+      gmat.gf = x * gf.complex();
+      gmat.gg = x * gg.complex();
     }
     return gmat;
   }
@@ -295,8 +302,8 @@ public:
 
 //******************************************************************************
 
-using GMatrix = GreenMatrix<LinAlg::SqMatrix>;
-using ComplexGMatrix = GreenMatrix<LinAlg::ComplexSqMatrix>;
-using ComplexDouble = LinAlg::ComplexDouble;
+using GMatrix = GreenMatrix<LinAlg::Matrix<double>>;
+using ComplexGMatrix = GreenMatrix<LinAlg::Matrix<std::complex<double>>>;
+using ComplexDouble = std::complex<double>;
 
 } // namespace MBPT

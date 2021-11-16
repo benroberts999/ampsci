@@ -7,7 +7,6 @@
 #include "MBPT/CorrelationPotential.hpp"
 #include "MBPT/GreenMatrix.hpp"
 #include "Maths/Grid.hpp"
-#include "Maths/LinAlg_MatrixVector.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include <algorithm>
 #include <numeric>

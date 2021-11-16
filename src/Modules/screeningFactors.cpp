@@ -1,15 +1,12 @@
 #include "Coulomb/CoulombIntegrals.hpp"
 #include "IO/InputBlock.hpp"
 #include "MBPT/FeynmanSigma.hpp"
-#include "Maths/LinAlg_MatrixVector.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Modules/testFeynman.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include <iostream>
 #include <vector>
-
-using ComplexDouble = LinAlg::ComplexDouble;
 
 namespace Module {
 

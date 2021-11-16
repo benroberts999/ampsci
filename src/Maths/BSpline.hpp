@@ -1,5 +1,5 @@
 #pragma once
-#include "Maths/LinAlg_MatrixVector.hpp"
+#include "LinAlg/LinAlg.hpp"
 #include "qip/Vector.hpp"
 #include <gsl/gsl_bspline.h>
 #include <iostream>
@@ -101,9 +101,9 @@ public:
     - If x=xmax, only last spline is nonzero, still i0+K=N [lower derivs may be
     non-zero]
   */
-  std::pair<std::size_t, LinAlg::Matrix> get_nonzero(double x,
-                                                     std::size_t n_deriv) {
-    std::pair<std::size_t, LinAlg::Matrix> out{0, {m_K, n_deriv + 1}};
+  std::pair<std::size_t, LinAlg::Matrix<double>>
+  get_nonzero(double x, std::size_t n_deriv) {
+    std::pair<std::size_t, LinAlg::Matrix<double>> out{0, {m_K, n_deriv + 1}};
     auto &i0 = out.first;
     auto &bij = out.second;
 
@@ -113,7 +113,7 @@ public:
       // outside this range, spline set to zero by default. Invalid to call
       // gsl_bspline_deriv_eval_nonzero() outside spline range
       auto i_end = i0 + m_K - 1;
-      gsl_matrix_view b_gsl = bij.gsl();
+      gsl_matrix_view b_gsl = bij.as_gsl_view();
       gsl_bspline_deriv_eval_nonzero(x, n_deriv, &b_gsl.matrix, &i0, &i_end,
                                      gsl_bspl_work);
     }

@@ -2,8 +2,8 @@
 #include "DiracODE/Adams_coefs.hpp"
 #include "DiracODE/DiracODE.hpp"
 #include "IO/SafeProfiler.hpp"
+#include "LinAlg/LinAlg.hpp"
 #include "Maths/Grid.hpp"
-#include "Maths/LinAlg_MatrixVector.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "qip/Maths.hpp"
@@ -405,7 +405,7 @@ void outwardAM(std::vector<double> &f, std::vector<double> &g,
     // defines/populates em expansion coeficients (then inverts)
     std::array<double, Param::AMO> coefa, coefb, coefc, coefd;
     std::array<double, Param::AMO> ga;
-    LinAlg::SqMatrix em(Param::AMO);
+    LinAlg::Matrix em(Param::AMO);
     const auto oid_du = Param::AMcoef.OId * du;
     for (int i = 0; i < Param::AMO; i++) {
       const std::size_t ir = static_cast<std::size_t>(i + i0);
@@ -426,7 +426,7 @@ void outwardAM(std::vector<double> &f, std::vector<double> &g,
 
     // defines/populates fm, s coefs
     std::array<double, Param::AMO> s;
-    LinAlg::SqMatrix fm(Param::AMO);
+    LinAlg::Matrix fm(Param::AMO);
     for (int i = 0; i < Param::AMO; i++) {
       s[i] = -Param::AMcoef.OIa[i] * u0;
       for (int j = 0; j < Param::AMO; j++) {
@@ -560,9 +560,9 @@ void adamsMoulton(std::vector<double> &f, std::vector<double> &g,
   const auto nosteps = std::abs(nf - ni) + 1; // number of integration steps
   const auto inc = (nf > ni) ? 1 : -1;        //'increment' for integration
 
-  const auto Xscl = (Hd.VxFa && Hd.Fa0->f(ni - inc) != 0.0)
-                        ? f[ni - inc] / Hd.Fa0->f(ni - inc)
-                        : 0.0;
+  const auto Xscl = (Hd.VxFa && Hd.Fa0->f(ni - inc) != 0.0) ?
+                        f[ni - inc] / Hd.Fa0->f(ni - inc) :
+                        0.0;
 
   // create arrays for wf derivatives + Adams-Moulton coeficients
   const auto amDdu = inc * Hd.pgr->du() * Param::AMcoef.AMd;

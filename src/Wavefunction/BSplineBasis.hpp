@@ -1,6 +1,6 @@
 #pragma once
 #include "IO/InputBlock.hpp"
-#include "Maths/LinAlg_MatrixVector.hpp"
+#include "LinAlg/LinAlg.hpp"
 #include <memory>
 #include <string>
 #include <utility>
@@ -100,14 +100,14 @@ form_spline_basis(const int kappa, const std::size_t n_states,
 
 //! Calculates  + reyurns the Hamiltonian \f$H_{ij}\f$ (and \f$S_{ij}\f$)
 //! matrices
-std::pair<LinAlg::SqMatrix, LinAlg::SqMatrix>
+std::pair<LinAlg::Matrix<double>, LinAlg::Matrix<double>>
 fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
                         const std::vector<DiracSpinor> &d_basis,
                         const Wavefunction &wf,
                         const bool correlationsQ = false,
                         SplineType itype = SplineType::Derevianko);
 
-void add_NotreDameBoundary(LinAlg::SqMatrix *Aij, const int kappa,
+void add_NotreDameBoundary(LinAlg::Matrix<double> *Aij, const int kappa,
                            const double alpha);
 
 //! @brief Expands basis orbitals in terms of spline orbitals, by
@@ -116,8 +116,8 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
                            std::vector<DiracSpinor> *basis_positron,
                            const std::vector<DiracSpinor> &spl_basis,
                            const int kappa, const int max_n,
-                           const LinAlg::Vector &e_values,
-                           const LinAlg::SqMatrix &e_vectors,
+                           const LinAlg::Vector<double> &e_values,
+                           const LinAlg::Matrix<double> &e_vectors,
                            const Wavefunction &wf);
 
 //! TKR sum rule (basis test); should =0 (must include -ve energy states)
