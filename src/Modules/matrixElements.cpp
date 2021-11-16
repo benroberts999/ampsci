@@ -60,13 +60,13 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   const bool diagonal_only = input.get("onlyDiagonal", false);
 
   const auto rpa_method_str = input.get("rpa", std::string("TDHF"));
-  auto rpa_method = (rpa_method_str == "TDHF" || rpa_method_str == "true")
-                        ? ExternalField::method::TDHF
-                        : (rpa_method_str == "basis")
-                              ? ExternalField::method::basis
-                              : (rpa_method_str == "diagram")
-                                    ? ExternalField::method::diagram
-                                    : ExternalField::method::none;
+  auto rpa_method = (rpa_method_str == "TDHF" || rpa_method_str == "true") ?
+                        ExternalField::method::TDHF :
+                        (rpa_method_str == "basis") ?
+                        ExternalField::method::basis :
+                        (rpa_method_str == "diagram") ?
+                        ExternalField::method::diagram :
+                        ExternalField::method::none;
   if (wf.core.empty())
     rpa_method = ExternalField::method::none;
   const auto rpaQ = rpa_method != ExternalField::method::none;
@@ -207,6 +207,17 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   MBPT::StructureRad sr(wf.basis, en_core, {n_min, n_max});
   std::cout << std::flush;
 
+  struct Output {
+    std::string ab{};
+    double t0{0.0};
+    double t0dv{0.0};
+    double sr{0.0};
+    double n{0.0};
+    double srdv{0.0};
+    double ndv{0.0};
+  };
+  std::vector<Output> out;
+
   // Loop through all valence states, calc SR+NS
   for (const auto &v : wf.valence) {
     for (const auto &w : wf.valence) {
@@ -217,6 +228,8 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
         continue;
       if (!print_both && v > w)
         continue;
+
+      Output t_out;
 
       // Option to use splines (or valence states) to compute Struc Rad (use
       // splines for legs)
@@ -233,6 +246,7 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
       IO::ChronoTimer timer("time");
 
       std::cout << "\n" << h->rme_symbol(w, v) << ":\n";
+      t_out.ab = h->rme_symbol(w, v);
 
       const auto ww = eachFreqQ ? std::abs(wp->en() - vp->en()) : const_omega;
       if (eachFreqQ && h->freqDependantQ) {
@@ -252,6 +266,9 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
       printer("t(spl)", twvs, dvs);
       printer("t(val)", twv, dv);
 
+      t_out.t0 = spline_legs ? twvs : twv;
+      t_out.t0dv = spline_legs ? dvs : dv;
+
       // "Top" + "Bottom" SR terms:
       const auto [tb, tb_dv] = sr.srTB(h.get(), *wp, *vp, ww, dV.get());
       printer("SR(TB)", tb, tb_dv);
@@ -262,16 +279,36 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
       std::cout << "========\n";
       printer("SR", tb + c, tb_dv + c_dv);
 
+      t_out.sr = tb + c;
+      t_out.srdv = tb_dv + c_dv;
+
       // "Normalisation"
       const auto [n, n_dv] = sr.norm(h.get(), *wp, *vp, dV.get());
       printer("Norm", n, n_dv);
 
+      t_out.n = n;
+      t_out.ndv = n_dv;
+
       printer("Total", tb + c + n, tb_dv + c_dv + n_dv);
       printer("as %", 100.0 * (tb + c + n) / twvs,
               100.0 * (tb_dv + c_dv + n_dv) / dvs);
+      out.push_back(t_out);
     }
   }
   std::cout << "\n";
+  std::cout << "Structure Radiation + Normalisation of states.\n"
+               "Reduced matrix elements (au)\n"
+            << "               t0         SR         Norm     ";
+  if (rpaQ)
+    std::cout << " |  t0+dV      SR+dV      Norm+dV";
+  std::cout << "\n";
+  for (auto &[ab, t0, t0dv, sr0, n, srdv, ndv] : out) {
+    printf("%10s %10.3e %10.3e %10.3e", ab.c_str(), t0, sr0, n);
+    if (rpaQ) {
+      printf(" | %10.3e %10.3e %10.3e", t0dv, srdv, ndv);
+    }
+    std::cout << "\n";
+  }
 
   return;
 }
@@ -569,12 +606,12 @@ generate_hfsK(const IO::InputBlock &input, const Wavefunction &wf, bool print) {
   const auto r_nucau = r_nucfm / PhysConst::aB_fm;
 
   auto Fr_str = input.get<std::string>("F(r)", "ball");
-  const auto Fr = (Fr_str == "pointlike" || Fr_str == "point")
-                      ? Hyperfine::pointlike_F()
-                      : Fr_str == "shell"
-                            ? Hyperfine::sphericalShell_F()
-                            : Fr_str == "ball" ? Hyperfine::sphericalBall_F()
-                                               : Hyperfine::pointlike_F();
+  const auto Fr = (Fr_str == "pointlike" || Fr_str == "point") ?
+                      Hyperfine::pointlike_F() :
+                      Fr_str == "shell" ?
+                      Hyperfine::sphericalShell_F() :
+                      Fr_str == "ball" ? Hyperfine::sphericalBall_F() :
+                                         Hyperfine::pointlike_F();
   if (Fr_str != "ball" && Fr_str != "shell")
     Fr_str = "pointlike";
   else
