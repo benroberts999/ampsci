@@ -14,7 +14,14 @@ double Lkmnab(int k, const DiracSpinor &m, const DiracSpinor &n,
               const Angular::SixJTable *const SJ = nullptr,
               const Coulomb::CoulombTable *const Lk = nullptr);
 
-//! Ladder integral, L^k_mnab := L1 + L2
+//! Ladder integral, L^k_mnab := L1 + L23
+/*! @details
+L1^k_mnib
+  = sum_{rs,ul} A^{kul}_mnrsib * Q^u_mnrs * (Q+L)^l_rsib / (e_ib - e_rs)
+
+A^{kul}_mnrsib
+  = (-1)^{m+n+r+s+i+b+1} * [k] * {m,i,k;l,u,r} * {n,b,k;l,u,s}
+*/
 double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
           const DiracSpinor &a, const DiracSpinor &b,
           const Coulomb::CoulombTable &qk,
@@ -22,7 +29,14 @@ double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
           const Angular::SixJTable *const SJ = nullptr,
           const Coulomb::CoulombTable *const Lk = nullptr);
 
-//! Ladder integral, L^k_mnab := L1 + L2
+//! Ladder integral, L^k_mnab := L1 + L23; L23 = L2 + L3
+/*! @details
+L2^k_mnib
+  = sum_{rc} ((-1)^k / [k]) * P^k_cnrb * (P+Lambda)^k_mric / (e_ic - e_mr)
+
+L3^k_mnib
+  = sum_{rc} ((-1)^k / [k]) * P^k_cmri * (P+Lambda)^k_nrbc / (e_bc - e_nr)
+*/
 double L23(int k, const DiracSpinor &m, const DiracSpinor &n,
            const DiracSpinor &a, const DiracSpinor &b,
            const Coulomb::CoulombTable &qk,

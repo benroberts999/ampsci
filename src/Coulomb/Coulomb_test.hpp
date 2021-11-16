@@ -204,9 +204,10 @@ bool Coulomb(std::ostream &obuff) {
                 // test the 'Qk' version, including k_minmax_Q
                 const auto [kmin, kmax] = Coulomb::k_minmax_Q(Fa, Fb, Fc, Fd);
                 // This k_min should have correct parity rule too
-                const auto Q5 = (k >= kmin && k <= kmax && (kmin % 2 == k % 2))
-                                    ? Yij.Q(k, Fa, Fb, Fc, Fd)
-                                    : 0.0;
+                const auto Q5 =
+                    (k >= kmin && k <= kmax && (kmin % 2 == k % 2)) ?
+                        Yij.Q(k, Fa, Fb, Fc, Fd) :
+                        0.0;
 
                 const auto delQ =
                     std::abs(qip::max_difference(Q1, Q2, Q3, Q4, Q5));
@@ -258,6 +259,31 @@ bool Coulomb(std::ostream &obuff) {
     pass &= qip::check_value(&obuff, "Qk_abcd ", worstQ, 0.0, 5.0e-13);
     pass &= qip::check_value(&obuff, "Pk_abcd ", worstP, 0.0, 5.0e-14);
     pass &= qip::check_value(&obuff, "Wk_abcd ", worstW, 0.0, 5.0e-14);
+
+    // Test the "Magic" 6J functions
+    {
+      double worst = 0.0;
+      for (const auto &Fa : torbs) {
+        for (const auto &Fb : torbs) {
+          for (const auto &Fc : torbs) {
+            for (const auto &Fd : torbs) {
+              for (int k = 0; k < 15; ++k) {
+                for (int l = 0; l < 15; ++l) {
+                  auto sj1 = Angular::sixj_2(Fa.twoj(), Fb.twoj(), Fc.twoj(),
+                                             Fd.twoj(), 2 * k, 2 * l);
+                  auto sj2 = Coulomb::sixjTriads(Fa, Fb, Fc, Fd, k, l) ?
+                                 Coulomb::sixj(Fa, Fb, Fc, Fd, k, l) :
+                                 0.0;
+                  if (std::abs(sj1 - sj2) > worst)
+                    worst = std::abs(sj1 - sj2);
+                }
+              }
+            }
+          }
+        }
+      }
+      pass &= qip::check_value(&obuff, "Magic 6J ", worst, 0.0, 1.0e-13);
+    }
   }
 
   return pass;

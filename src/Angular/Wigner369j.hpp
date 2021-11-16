@@ -2,6 +2,7 @@
 #include <algorithm> //std::min!
 #include <cmath>
 #include <gsl/gsl_sf_coupling.h>
+#include <optional>
 #include <utility>
 
 /*!
@@ -254,6 +255,23 @@ inline bool sixj_zeroQ(int a, int b, int c, int d, int e, int f) {
   if (!evenQ(e + f + a))
     return true;
   return false;
+}
+
+inline bool sixjTriads(std::optional<int> a, std::optional<int> b,
+                       std::optional<int> c, std::optional<int> d,
+                       std::optional<int> e, std::optional<int> f) {
+  // nb: works for 2*integers ONLY
+  // checks triangle consitions, with optional parameters
+  if (a && b && c && triangle(*a, *b, *c) == 0)
+    return false;
+  if (c && d && e && triangle(*c, *d, *e) == 0)
+    return false;
+  if (a && e && f && triangle(*a, *e, *f) == 0)
+    return false;
+  if (b && d && f && triangle(*b, *d, *f) == 0)
+    return false;
+
+  return true;
 }
 
 //******************************************************************************

@@ -1,6 +1,7 @@
 #pragma once
 #include "Angular/Angular.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
+#include <optional>
 #include <vector>
 
 //! Functions (+classes) for computing Coulomb integrals
@@ -113,11 +114,31 @@ template <class A> static int twojk(const A &a) {
   }
 }
 
+template <class A> static std::optional<int> twojknull(const A &a) {
+  if constexpr (std::is_same_v<A, DiracSpinor>) {
+    return a.twoj();
+  } else if constexpr (std::is_same_v<A, int>) {
+    static_assert(std::is_same_v<A, int>);
+    return 2 * a;
+  } else {
+    return std::nullopt;
+  }
+}
+
 template <class A, class B, class C, class D, class E, class F>
 static double sixj(const A &a, const B &b, const C &c, const D &d, const E &e,
                    const F &f) {
   return Angular::sixj_2(twojk(a), twojk(b), twojk(c), twojk(d), twojk(e),
                          twojk(f));
+}
+
+template <class A = std::optional<int>, class B = std::optional<int>,
+          class C = std::optional<int>, class D = std::optional<int>,
+          class E = std::optional<int>, class F = std::optional<int>>
+static bool sixjTriads(const A &a, const B &b, const C &c, const D &d,
+                       const E &e, const F &f) {
+  return Angular::sixjTriads(twojknull(a), twojknull(b), twojknull(c),
+                             twojknull(d), twojknull(e), twojknull(f));
 }
 
 } // namespace Coulomb
