@@ -1,4 +1,5 @@
 #pragma once
+#include "qip/String.hpp" //for case insensitive
 #include <algorithm>
 #include <chrono>
 #include <fstream>
@@ -81,7 +82,8 @@ struct Option {
   std::string value_str;
 
   friend bool operator==(Option option, std::string_view tkey) {
-    return option.key == tkey;
+    // return option.key == tkey;
+    return qip::ci_wildcard_compare(tkey, option.key);
   }
   friend bool operator==(std::string_view tkey, Option option) {
     return option == tkey;
@@ -106,6 +108,8 @@ struct Option {
      option1=v3;
    }
  }
+
+ Note: comparison for block/option names is case insensitive!
 */
 // nb: I sepparate the function implementations below (in the header file) and
 // mark them as inline. This is for readability only, and ensures this file
@@ -254,7 +258,7 @@ void InputBlock::add(const std::string &string, bool merge) {
 
 //******************************************************************************
 bool operator==(InputBlock block, std::string_view name) {
-  return block.m_name == name;
+  return qip::ci_wildcard_compare(name, block.m_name);
 }
 bool operator==(std::string_view name, InputBlock block) {
   return block == name;
@@ -275,11 +279,14 @@ std::optional<T> InputBlock::get(std::string_view key) const {
     const auto option = std::find(m_options.crbegin(), m_options.crend(), key);
     if (option == m_options.crend())
       return std::nullopt;
-    if (option->value_str == "default" || option->value_str == "")
+    if (qip::ci_wildcard_compare("default", option->value_str) ||
+        option->value_str == "")
       return std::nullopt;
     const auto &str = option->value_str;
-    if (str == "True" || str == "true" || str == "Yes" || str == "yes" ||
-        str == "1" || str == "Y" || str == "y")
+    if (qip::ci_wildcard_compare("true", str) ||
+        qip::ci_wildcard_compare("yes", str) ||
+        qip::ci_wildcard_compare("y", str) ||
+        qip::ci_wildcard_compare("1", str))
       return true;
     return false;
   } else {
@@ -288,7 +295,8 @@ std::optional<T> InputBlock::get(std::string_view key) const {
     const auto option = std::find(m_options.crbegin(), m_options.crend(), key);
     if (option == m_options.crend())
       return std::nullopt;
-    if (option->value_str == "default" || option->value_str == "")
+    if (qip::ci_wildcard_compare("default", option->value_str) ||
+        option->value_str == "")
       return std::nullopt;
     return parse_str_to_T<T>(option->value_str);
   }
@@ -422,11 +430,13 @@ bool InputBlock::checkBlock(
   bool all_ok = true;
   for (const auto &option : m_options) {
     const auto is_optionQ = [&](const auto &l) {
-      return option.key == l.first;
+      // return option.key == l.first;
+      return qip::ci_wildcard_compare(l.first, option.key);
     };
     const auto bad_option =
         !std::any_of(list.cbegin(), list.cend(), is_optionQ);
-    auto help = (option.key == "Help" || option.key == "help") ? true : false;
+    const auto help =
+        qip::ci_wildcard_compare("help", option.key) ? true : false;
     if (help)
       print = true;
     if (bad_option && !help) {
@@ -440,15 +450,18 @@ bool InputBlock::checkBlock(
 
   for (const auto &block : m_blocks) {
     // compares, accounting for wild-cards (*)
+    // const auto is_blockQ = [&](const auto &b) {
+    //   // check if wildcard:
+    //   const auto wc = std::find(b.first.cbegin(), b.first.cend(), '*');
+    //   if (wc != b.first.cend()) {
+    //     const auto len = std::size_t(std::distance(b.first.cbegin(), wc));
+    //     // compare sub-strings (up to wildcard):
+    //     return block.name().substr(0, len) == b.first.substr(0, len);
+    //   }
+    //   return block == b.first;
+    // };
     const auto is_blockQ = [&](const auto &b) {
-      // check if wildcard:
-      const auto wc = std::find(b.first.cbegin(), b.first.cend(), '*');
-      if (wc != b.first.cend()) {
-        const auto len = std::size_t(std::distance(b.first.cbegin(), wc));
-        // compare sub-strings (up to wildcard):
-        return block.name().substr(0, len) == b.first.substr(0, len);
-      }
-      return block == b.first;
+      return qip::ci_wildcard_compare(block.name(), b.first);
     };
     const auto bad_block = !std::any_of(list.cbegin(), list.cend(), is_blockQ);
     if (bad_block) {
@@ -478,10 +491,14 @@ bool InputBlock::checkBlock_old(const std::vector<std::string> &list,
   // "allowed" means appears in list
   bool all_ok = true;
   for (const auto &option : m_options) {
-    const auto is_optionQ = [&](const auto &l) { return option.key == l; };
+    // const auto is_optionQ = [&](const auto &l) { return option.key == l; };
+    const auto is_optionQ = [&](const auto &l) {
+      return qip::ci_wildcard_compare(option.key, l);
+    };
+
     const auto bad_option =
         !std::any_of(list.cbegin(), list.cend(), is_optionQ);
-    auto help = (option.key == "Help" || option.key == "help") ? true : false;
+    auto help = qip::ci_wildcard_compare(option.key, "help") ? true : false;
     if (help)
       print = true;
     if (bad_option && !help) {
@@ -494,7 +511,10 @@ bool InputBlock::checkBlock_old(const std::vector<std::string> &list,
   }
 
   for (const auto &block : m_blocks) {
-    const auto is_blockQ = [&](const auto &b) { return block == b; };
+    // const auto is_blockQ = [&](const auto &b) { return block == b; };
+    const auto is_blockQ = [&](const auto &b) {
+      return qip::ci_wildcard_compare(block.name(), b);
+    };
     const auto bad_block = !std::any_of(list.cbegin(), list.cend(), is_blockQ);
     if (bad_block) {
       all_ok = false;

@@ -457,15 +457,8 @@ void ampsci(const IO::InputBlock &input) {
     }
   }
 
-  // run each of the modules with the calculated
-  // wavefunctions
-  IO::InputBlock modules("Modules");
-  for (const auto &block : input.blocks()) {
-    if (block.name().find("Module::") != std::string::npos) {
-      modules.add(block);
-    }
-  }
-  Module::runModules(modules, wf);
+  // run each of the modules with the calculated wavefunctions
+  Module::runModules(input, wf);
 }
 
 //******************************************************************************

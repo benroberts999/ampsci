@@ -140,8 +140,7 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
     if (orbs->empty())
       continue;
 
-    std::cout << "Compare basis to " << (orbs == &wf.core ? "core" : "valence")
-              << "\n";
+    std::cout << "Basis/" << (orbs == &wf.core ? "core" : "valence") << ":\n";
     double worst_dN = 0.0;
     double worst_dE = 0.0;
     std::string wFN, wFE;
@@ -161,13 +160,21 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
         wFE = Fc.shortSymbol();
       }
     }
-    printf(" |<%s|%s>-1| = %.1e\n", wFN.c_str(), wFN.c_str(), worst_dN);
-    printf(" dE/E(%s)     = %.1e\n", wFE.c_str(), worst_dE);
-    if (worst_dN > 1.0e-3 || worst_dE > 1.0e-3) {
-      std::cout << "WARNING: basis issue?\n";
+
+    printf(" |<%s|%s>-1| = %.1e", wFN.c_str(), wFN.c_str(), worst_dN);
+    if (worst_dN > 1.0e-3) {
+      std::cout << "  ** OK?";
+    }
+    printf("\n dE/E(%s)     = %.1e", wFE.c_str(), worst_dE);
+    if (worst_dE > 1.0e-3) {
+      std::cout << "  ** OK?";
     }
     const auto [eps, str] = DiracSpinor::check_ortho(*orbs, basis);
-    printf(" %-10s    = %.1e\n", str.c_str(), eps);
+    printf("\n %-10s    = %.1e", str.c_str(), eps);
+    if (eps > 1.0e-3) {
+      std::cout << "  ** OK?";
+    }
+    std::cout << "\n";
   }
 
   return basis;
