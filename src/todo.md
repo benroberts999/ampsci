@@ -39,9 +39,6 @@
   * Seem to be difficult to get working when including Breit.
   * Also: sign of some basis functions wrong (not just w/ Breit)?
 
-## Maths
-  * Update LinAlg - use vector views
-
 ## Hartree Fock (#23)
   * Re-write class (make less inter-dependent)
   * Option to use non-local DiracODE (#11)

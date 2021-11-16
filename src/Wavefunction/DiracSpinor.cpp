@@ -72,16 +72,7 @@ const DiracSpinor &DiracSpinor::scale(const std::vector<double> &v) {
 }
 
 //******************************************************************************
-void DiracSpinor::normalise(double norm_to) {
-  scale(norm_to / norm());
-  double low_r = 0.0;
-  for (auto i = 0ul; i < std::min(m_p0 + 5, m_pinf); ++i) {
-    low_r += m_f[i];
-  }
-  if (low_r < 0.0) {
-    scale(-1.0);
-  }
-}
+void DiracSpinor::normalise(double norm_to) { scale(norm_to / norm()); }
 
 //------------------------------------------------------------------------------
 void DiracSpinor::zero_boundaries() {

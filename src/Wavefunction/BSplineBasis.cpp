@@ -356,6 +356,9 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
     for (std::size_t ib = 0; ib < spl_basis.size(); ++ib) {
       Fi += pvec[ib] * spl_basis[ib];
     }
+    const auto low_r = 0.3 / wf.Znuc();
+    if (Fi.f(wf.rgrid->getIndex(low_r)) < 0.0)
+      Fi *= -1.0;
     // std::cout << Fi.symbol() << " " << Fi * Fi << "\n";
     // Note: they are not even roughly normalised...I think they should be??
     Fi.normalise();
