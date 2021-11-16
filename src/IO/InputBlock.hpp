@@ -13,8 +13,11 @@
 
 namespace IO {
 //******************************************************************************
-//! Removes all white space (space, tab, newline), AND quote marks!
-inline std::string removeSpaces(std::string lines);
+//! Removes all white space (space, tab, newline), except for those in quotes
+inline std::string removeSpaces(std::string str);
+
+//! Removes all quote marks
+inline std::string removeQuoteMarks(std::string str);
 
 //! Removes all c++ style block comments from a string
 inline void removeBlockComments(std::string &input);
@@ -253,7 +256,8 @@ void InputBlock::add(const std::vector<Option> &options) {
 }
 //******************************************************************************
 void InputBlock::add(const std::string &string, bool merge) {
-  add_blocks_from_string(removeSpaces(removeComments(string)), merge);
+  add_blocks_from_string(removeQuoteMarks(removeSpaces(removeComments(string))),
+                         merge);
 }
 
 //******************************************************************************
@@ -668,30 +672,31 @@ void InputBlock::consolidate() {
 //******************************************************************************
 
 //******************************************************************************
-inline std::string removeSpaces(std::string lines) {
+inline std::string removeSpaces(std::string str) {
 
-  // remove spaces
-  lines.erase(std::remove_if(lines.begin(), lines.end(),
-                             [](unsigned char x) { return x == ' '; }),
-              lines.end());
-  // remove tabs
-  lines.erase(std::remove_if(lines.begin(), lines.end(),
-                             [](unsigned char x) { return x == '\t'; }),
-              lines.end());
-  // remove newlines
-  lines.erase(std::remove_if(lines.begin(), lines.end(),
-                             [](unsigned char x) { return x == '\n'; }),
-              lines.end());
+  bool inside = false;
+  auto lambda = [&inside](unsigned char x) {
+    if (x == '\"' || x == '\'')
+      inside = !inside;
+    return ((x == ' ' || x == '\t' || x == '\n') && !inside);
+  };
+
+  str.erase(std::remove_if(str.begin(), str.end(), lambda), str.end());
+
+  return str;
+}
+
+inline std::string removeQuoteMarks(std::string str) {
 
   // remove ' and "
-  lines.erase(std::remove_if(lines.begin(), lines.end(),
-                             [](unsigned char x) { return x == '\''; }),
-              lines.end());
-  lines.erase(std::remove_if(lines.begin(), lines.end(),
-                             [](unsigned char x) { return x == '\"'; }),
-              lines.end());
+  str.erase(std::remove_if(str.begin(), str.end(),
+                           [](unsigned char x) { return x == '\''; }),
+            str.end());
+  str.erase(std::remove_if(str.begin(), str.end(),
+                           [](unsigned char x) { return x == '\"'; }),
+            str.end());
 
-  return lines;
+  return str;
 }
 
 //******************************************************************************
@@ -709,7 +714,7 @@ inline void removeBlockComments(std::string &input) {
 
 //******************************************************************************
 inline std::string removeComments(const std::string &input) {
-  std::string lines = "";
+  std::string str = "";
   {
     std::string line;
     std::stringstream stream1(input);
@@ -718,13 +723,13 @@ inline std::string removeComments(const std::string &input) {
       auto comm2 = line.find('#');
       auto comm3 = line.find("//"); // str literal here
       auto comm = std::min(comm1, std::min(comm2, comm3));
-      lines += line.substr(0, comm);
-      lines += '\n';
+      str += line.substr(0, comm);
+      str += '\n';
     }
   }
-  removeBlockComments(lines);
+  removeBlockComments(str);
 
-  return lines;
+  return str;
 }
 
 //******************************************************************************
