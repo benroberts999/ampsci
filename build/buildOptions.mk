@@ -108,6 +108,6 @@ endif
 #Command to compile objects and link them
 COMP=$(CXX) -MMD -c -o $@ $< $(CXXFLAGS)
 ifeq ($(ParallelBuild),1)
-	COMP=time $(CXX) -MMD -c -o $@ $< $(CXXFLAGS)
+	COMP=time $(CXX) -MMD -MP -c -o $@ $< $(CXXFLAGS)
 endif
 LINK=$(CXX) -o $@ $^ $(CXXFLAGS) $(LIBS)
