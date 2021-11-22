@@ -21,7 +21,7 @@ Grid {
 Basis {
   number = 50;
   order = 9;
-  r0_eps = 1.0e-8;
+  r0 = 1.0e-5;
   rmax = 40.0;
   states = 45spdfghi;
 }
@@ -39,26 +39,43 @@ Module::Tests {}
 /*      ** Expected Output **
 nb: Some minor changes may be expected if the exact version of the code is not the same; but should agree well in general;
 
-ampsci git:a7c4d7f (dev)
-2020-10-22 17:48:52
-Atom { Z=Cs; }
-HartreeFock { core=[Xe]; valence=6sp5d; }
-Grid { r0=1e-6; rmax=120.0; num_points=3000; }
-Basis {
-  number=50; order=9; r0_eps=1.0e-8;
-  rmax=40.0; states=45spdfghi;
+********************************************************************************
+ampsci git:53d6b60 (dev)
+2021-11-23 09:41:35
+
+********************************************************************************
+Atom { Z = Cs; }
+HartreeFock {
+  core = [Xe];
+  valence = 6sp5d;
 }
-Correlations { energyShifts=true; Brueckner=true; n_min_core=3; }
-Module::Tests {}
+Grid {
+  r0 = 1e-6;
+  rmax = 120.0;
+  num_points = 3000;
+}
+Basis {
+  number = 50;
+  order = 9;
+  r0 = 1.0e-5;
+  rmax = 40.0;
+  states = 45spdfghi;
+}
+Correlations {
+  energyShifts = true;
+  Brueckner = true;
+  n_min_core = 3;
+}
+Module::Tests { }
 
 Running for Cs, Z=55 A=133
 Fermi nucleus;  r_rms = 4.8041, c_hdr = 5.67073, t = 2.3
 Log-linear (b=39.6) grid: 1e-06->120, N=3000, du=0.285655
 ********************************************************
-HF core:  it: 38 eps=5.5e-13 for 4d_3/2  [1.2e-15 for 5s_1/2]
- core: T = 286.56 ms
+HF core:  it: 38 eps=5.5e-13 for 4d_3/2  [1.4e-15 for 5s_1/2]
+ core: T = 378.31 ms
 HF valence:   28 eps=7.6e-13 for 5d_5/2  [4.5e-13 for 5d_3/2 w/ 28]
-  val: T = 57.20 ms
+  val: T = 93.17 ms
 
 Hartree Fock: CsI-133
 Core: [Xe] (V^N-1)
@@ -89,62 +106,71 @@ Val: state   k   Rinf its   eps         En (au)        En (/cm)   En (/cm)
  4)  5d_5/2 -3  101.3  2  5e-25    -0.064529771      -14162.648   13791.41
 
 Constructing B-spline basis with N=50, k=9. Storing: 45spdfghi
-Spline cavity l=0 s: (1.0e-06, 39.9)aB.
-Spline cavity l=1 p: (6.8e-06, 39.9)aB.
-Spline cavity l=2 d: (1.6e-03, 39.9)aB.
-Spline cavity l=3 f: (1.9e-03, 39.9)aB.
-Spline cavity l=4 g: (1.0e-02, 39.9)aB.
-Spline cavity l=5 h: (1.0e-02, 39.9)aB.
-Spline cavity l=6 i: (1.0e-02, 39.9)aB.
-Basis: T = 686.49 ms
+Using Derevinko (Duel Kinetic Balance) type splines.
+Spline cavity l=0 s: (1.0e-05, 40.0)aB.
+Spline cavity l=1 p: (1.0e-05, 40.0)aB.
+Spline cavity l=2 d: (1.0e-05, 40.0)aB.
+Spline cavity l=3 f: (1.0e-05, 40.0)aB.
+Spline cavity l=4 g: (1.0e-05, 40.0)aB.
+Spline cavity l=5 h: (1.0e-05, 40.0)aB.
+Spline cavity l=6 i: (1.0e-05, 40.0)aB.
+Basis/core:
+ |<3s+|3s+>-1| = 6.0e-07
+ dE/E(5s+)     = 1.2e-05
+ <3s+|25s+>    = 2.4e-04
+Basis/valence:
+ |<5d-|5d->-1| = 1.0e-07
+ dE/E(6s+)     = 8.5e-06
+ <5d+|21d+>    = 1.3e-04
+Basis: T = 1.20 s
 
 Correlation potential (Sigma^2): Goldstone
 Sigma sub-grid: r=(1.1e-04, 29.1)aB with 154 points. [i0=54, stride=12]
 Form correlation potential: Goldstone method
 Basis: 5sp4d/45spdfghi
-Forming correlation potential for:
-k=-1 at en=-0.12737.. de= -4209.795 + 336.855 = -3872.940
-k= 1 at en=-0.08562.. de= -1686.248 + 177.336 = -1508.912
-k=-2 at en=-0.08379.. de= -1515.954 + 163.247 = -1352.707
-k= 2 at en=-0.06442.. de= -2697.967 + 266.945 = -2431.022
-k=-3 at en=-0.06453.. de= -2596.853 + 248.256 = -2348.597
-Writing to Sigma file: CsI_3000.SigmaG ... done.
-Sigma: T = 3.14 mins
+k=-1 at en=-0.12737.. de= -4204.2 + 334.5 = -3869.7
+k= 1 at en=-0.08562.. de= -1684.3 + 176.5 = -1507.8
+k=-2 at en=-0.08379.. de= -1514.2 + 162.5 = -1351.7
+k= 2 at en=-0.06442.. de= -2694.7 + 265.5 = -2429.2
+k=-3 at en=-0.06453.. de= -2593.8 + 246.9 = -2346.9
+Writing to Sigma file: CsI.sig2 ... done.
+Sigma: T = 2.09 mins
 
 MBPT(2): Second-order valence energy shifts
 and matrix elements <v|Sigma(2)|v>:
 state |  E(HF)      E(2)       <v|S2|v> |  E(HF+2)     E(HF+2)  (cm^-1)
-6s_1/2| -0.127368  -0.017650  -0.017647 | -0.145018 = -31827.9      0.0
-6p_1/2| -0.085616  -0.006876  -0.006875 | -0.092492 = -20299.7  11528.2
-6p_3/2| -0.083785  -0.006164  -0.006163 | -0.089950 = -19741.7  12086.2
-5d_3/2| -0.064420  -0.011078  -0.011077 | -0.075498 = -16569.9  15258.0
-5d_5/2| -0.064530  -0.010702  -0.010701 | -0.075232 = -16511.5  15316.4
-de: T = 9.86 s
+6s_1/2| -0.127368  -0.017636  -0.017632 | -0.145004 = -31824.6      0.0
+6p_1/2| -0.085616  -0.006871  -0.006870 | -0.092487 = -20298.6  11526.1
+6p_3/2| -0.083785  -0.006160  -0.006159 | -0.089945 = -19740.7  12084.0
+5d_3/2| -0.064420  -0.011070  -0.011069 | -0.075490 = -16568.2  15256.5
+5d_5/2| -0.064530  -0.010694  -0.010693 | -0.075224 = -16509.8  15314.8
+de: T = 18.82 s
 
 Solving for Brueckner orbitals (correlation potential)
-6s_1/2: delta=-0.02031; eps=6.8e-13 [its= 53]
-6p_1/2: delta=-0.00796; eps=8.2e-13 [its= 52]
+6s_1/2: delta=-0.02029; eps=6.7e-13 [its= 53]
+6p_1/2: delta=-0.00795; eps=8.1e-13 [its= 52]
 6p_3/2: delta=-0.00706; eps=7.1e-13 [its= 51]
-5d_3/2: delta=-0.01561; eps=7.1e-13 [its= 74]
-5d_5/2: delta=-0.01477; eps=8.4e-13 [its= 72]
-Br: T = 513.88 ms
+5d_3/2: delta=-0.01559; eps=1.0e-12 [its= 73]
+5d_5/2: delta=-0.01475; eps=8.3e-13 [its= 72]
+Br: T = 578.26 ms
 
 Brueckner orbitals:
 Val: state   k   Rinf its   eps         En (au)        En (/cm)   En (/cm)
- 0)  6s_1/2 -1   65.3  2  5e-23    -0.147682450      -32412.551       0.00
- 1)  6p_1/2  1   83.1  2  3e-25    -0.093577940      -20537.984   11874.57
- 2)  6p_3/2 -2   84.3  2  5e-25    -0.090850426      -19939.364   12473.19
- 3)  5d_3/2  2   90.2  2  2e-24    -0.080029267      -17564.394   14848.16
- 4)  5d_5/2 -3   90.8  2  2e-24    -0.079299078      -17404.136   15008.42
+ 0)  6s_1/2 -1   65.3  2  5e-23    -0.147660713      -32407.781       0.00
+ 1)  6p_1/2  1   83.1  2  3e-25    -0.093570168      -20536.278   11871.50
+ 2)  6p_3/2 -2   84.3  2  5e-25    -0.090843476      -19937.838   12469.94
+ 3)  5d_3/2  2   90.4  2  2e-24    -0.080010055      -17560.177   14847.60
+ 4)  5d_5/2 -3   90.8  2  2e-24    -0.079281265      -17400.226   15007.55
 
 Test orthonormality:
-cc   <5s+|4s+> = 3.6e-06
+cc   <4s+|5s+> = 3.6e-06
 cv   <5s+|6s+> = 1.2e-02
-cb  <3s+|21s+> = 9.3e-04
-vv   <5d-|5d-> = 6.7e-16
+cb  <3s+|25s+> = 2.4e-04
+vv   <6s+|6s+> = 2.2e-16
 vb   <5d-|6d-> = 2.1e-01
-bb <43p-|45p-> = 2.0e-09
+bb <18p+|16p+> = 2.9e-13
 
-ampsci: T = 3.33 mins
+ampsci: T = 2.46 mins
+
 
 */

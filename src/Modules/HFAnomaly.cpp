@@ -189,8 +189,8 @@ void HF_rmag(const IO::InputBlock &input, const Wavefunction &wf) {
 
   std::cout << "\nTuning Rmag to fit hyperfine anomaly\n";
 
-  input.checkBlock_old({"n", "kappa", "A2", "1D2", "rpa", "num_steps", "mu1", "mu2",
-                    "I1", "I2", "eps_targ", "e1", "e2"});
+  input.checkBlock_old({"n", "kappa", "A2", "1D2", "rpa", "num_steps", "mu1",
+                        "mu2", "I1", "I2", "eps_targ", "e1", "e2"});
 
   // A(1) is wf
   // A(2) is wf2
@@ -200,8 +200,10 @@ void HF_rmag(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto n = input.get("n", 1);
   const auto kappa = input.get("kappa", -1);
 
-  auto wf2 = Wavefunction(wf.rgrid->params(), {wf.Znuc(), A2},
-                          wf.alpha / PhysConst::alpha);
+  auto wf2 = Wavefunction(
+      wf.rgrid->params(),
+      {wf.Znuc(), A2, Nuclear::parseType(wf.get_nuclearParameters().type)},
+      wf.alpha / PhysConst::alpha);
   wf2.solve_core("HartreeFock", 0.0, wf.coreConfiguration_nice());
   wf2.solve_valence(DiracSpinor::state_config(wf.valence));
   wf2.basis = wf.basis; // OK??

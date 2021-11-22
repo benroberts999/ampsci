@@ -103,7 +103,7 @@ void ampsci(const IO::InputBlock &input) {
                                     "(blank means will look up default)"},
                            {"c", "Half-density radius (use instead of rrms)"},
                            {"t", "Nuclear skin thickness; default = 2.3"},
-                           {"type", "Fermi, spherical, pointlike"}});
+                           {"type", "Fermi, spherical, pointlike, Gaussian"}});
 
   // usually, give rrms. Giving c will over-ride rrms
   const auto c_hdr = input.get<double>({"Nucleus"}, "c");
@@ -182,8 +182,8 @@ void ampsci(const IO::InputBlock &input) {
   // Inlcude QED radiatve potential
   const auto qed_ok = input.check(
       {"RadPot"},
-      {// {"RadPot", "Include Radiative potential? true/false"},
-       // {"Simple", "Scale for 'simple' potential: default = 0"},
+      {{"",
+        "(QED Radiative potential will be included if this block is present)"},
        {"Ueh", " for Uehling typical [0.0, 1.0], Default = 1"},
        {"SE_h", " for self-energy high-freq electric. Default = 1"},
        {"SE_l", " for self-energy low-freq electric. Default = 1"},
@@ -193,10 +193,8 @@ void ampsci(const IO::InputBlock &input) {
        {"scale_rN", "Nuclear size. 0 for pointlike, 1 for typical"},
        {"scale_l", "Extra scaling factor for each l e.g., (1,1,1)"},
        {"core_qed", "Include rad pot into core Hartree-Fock (default=true)"}});
-  // const auto include_qed = input.get({"RadPot"}, "RadPot", false);
 
   const auto include_qed = input.getBlock("RadPot") != std::nullopt;
-  // const auto x_Simple = input.get({"RadPot"}, "Simple", 0.0);
   const auto x_Ueh = input.get({"RadPot"}, "Ueh", 1.0);
   const auto x_SEe_h = input.get({"RadPot"}, "SE_h", 1.0);
   const auto x_SEe_l = input.get({"RadPot"}, "SE_l", 1.0);
@@ -294,7 +292,7 @@ void ampsci(const IO::InputBlock &input) {
   const auto basis_ok = input.check(
       {"Basis"}, {{"number", "Number of splines used in expansion"},
                   {"order", "order of splines ~7-9"},
-                  {"r0", "minimum cavity radius"},
+                  {"r0", "minimum cavity radius (first internal knot)"},
                   {"r0_eps", "Select cavity radius r0 for each l by position "
                              "where |psi(r0)/psi_max| falls below r0_eps"},
                   {"rmax", "maximum cavity radius"},
@@ -329,8 +327,9 @@ void ampsci(const IO::InputBlock &input) {
        {"rmax", "maximum radius to calculate sigma for [1.0e-4]"},
        {"stride", "Only calculate Sigma every <stride> points"},
        {"each_valence", "Different Sigma for each valence states? [false]"},
-       {"ek", "Explicit list of energies to solve for. e.g., ek{6s+=-0.127, "
-              "7s+=-0.552;}. Blank=HF energies"},
+       {"ek",
+        "Block: Explicit list of energies to solve for. e.g., ek{6s+=-0.127, "
+        "7s+=-0.552;}. Blank => HF energies"},
        {"Feynman", "Use Feynman method [false]"},
        {"screening", "Include Screening [false]"},
        {"holeParticle", "Include hole-particle interaction [false]"},
@@ -445,7 +444,8 @@ void ampsci(const IO::InputBlock &input) {
                    {"rmax", "maximum cavity radius"},
                    {"states", "states to keep (e.g., 30spdf20ghi)"},
                    {"print", "Print all spline energies (for testing)"},
-                   {"positron", "Include -ve energy states (true/false)"}});
+                   {"positron", "Include -ve energy states (true/false)"},
+                   {"type", "Derevianko (DKB) or Johnson"}});
 
   const auto spectrum_in = input.getBlock("Spectrum");
   if (spectrum_ok) {
