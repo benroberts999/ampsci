@@ -7,13 +7,8 @@ ALLEXES = $(addprefix $(XD)/, \
 )
 
 DEFAULTEXES = $(addprefix $(XD)/, \
- ampsci wigner periodicTable \
+ ampsci periodicTable unitTests \
 )
-
-# if dev or debug build, make unitTests too
-ifneq ($(Build),release)
-  DEFAULTEXES+=$(XD)/unitTests
-endif
 
 #Default make rule:
 all: $(SD)/git.info checkObj checkXdir $(DEFAULTEXES)
@@ -25,19 +20,27 @@ all: $(SD)/git.info checkObj checkXdir $(DEFAULTEXES)
 # (2) It forces a clean make when changing branches
 # The '|' means 'order only' pre-req
 
-$(BD)/%.o: $(SD)/*/%.cpp | $(SD)/git.info
+# All the files that in in src/{subsir}/.cpp don't have a main()
+# Compile them into objects; reflect the src/ directory tree.
+$(BD)/*/%.o: $(SD)/*/%.cpp | $(SD)/git.info
+	@mkdir -p $(@D)
 	$(COMP)
 
+# All the files that in in src/.cpp *do* have a main(), compile
 $(BD)/%.o: $(SD)/%.cpp $(SD)/git.info
+	@mkdir -p $(@D)
 	$(COMP)
 
--include $(BD)/*.d
+# include the dependency files
+-include $(BD)/*.d $(BD)/*/*.d
+
+################################################################################
+# List all objects in sub-directories (i.e., that don't conatin a main())
+# e.g., for each src/sub_dir/file.cpp -> build/sub_dir/file.o
+OBJS = $(subst $(SD),$(BD),$(subst .cpp,.o,$(wildcard $(SD)/*/*.cpp)))
 
 ################################################################################
 # Link + build all final programs
-
-# List all objects in sub-directories (i.e., that don't conatin a main())
-OBJS = $(addprefix $(BD)/,$(notdir $(subst .cpp,.o,$(wildcard $(SD)/*/*.cpp))))
 
 $(XD)/ampsci: $(BD)/ampsci.o $(OBJS)
 	$(LINK)
@@ -51,8 +54,8 @@ $(XD)/dmeXSection: $(BD)/dmeXSection.o $(OBJS)
 $(XD)/wigner: $(BD)/wigner.o
 	$(LINK)
 
-$(XD)/periodicTable: $(BD)/periodicTable.o $(BD)/AtomData.o \
-$(BD)/NuclearData.o
+$(XD)/periodicTable: $(BD)/periodicTable.o $(BD)/Physics/AtomData.o \
+$(BD)/Physics/NuclearData.o
 	$(LINK)
 
 ################################################################################
@@ -62,7 +65,7 @@ $(BD)/NuclearData.o
 ifneq ("$(wildcard .git/HEAD)","")
   GIT_FILES = .git/HEAD .git/index
 endif
-# Make the 'git.info' file (c++ header file)
+# Create the 'git.info' file (c++ header file)
 $(SD)/git.info: $(GIT_FILES)
 	@echo Git Files: $(GIT_FILES)
 	@echo "// git.info: auto-generated file" > $@
@@ -88,7 +91,8 @@ checkXdir:
 
 .PHONY: clean docs doxy do_the_chicken_dance checkObj checkXdir
 clean:
-	rm -f $(ALLEXES) $(BD)/*.o $(BD)/*.d
+	rm -f -v $(ALLEXES)
+	rm -rf -v $(BD)/*.o $(BD)/*.d $(BD)/*/
 # Make the 'ampsci.pdf' physics documentation
 docs:
 	( cd ./doc/tex && make )
@@ -103,6 +107,7 @@ doxy:
 	cp ./doc/ampsci.pdf ./docs/ampsci.pdf 2>/dev/null || :
 	( cd ./doc/latex && make clean)
 do_the_chicken_dance:
+	@echo $(OBJS)
 	@echo 'Why would I do that?'
 clang_format:
 	clang-format -i src/*.cpp src/*/*.cpp src/*/*.hpp
