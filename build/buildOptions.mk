@@ -27,38 +27,33 @@ WARN=-Wall -Wpedantic -Wextra -Wdouble-promotion -Wconversion -Wshadow \
 # Changes to warning based on compiler:
 ifeq ($(findstring clang++,$(CXX)),clang++)
   WARN += -Wheader-hygiene -Wno-unused-function
-# have to put in 'else' block, since clanG++ contains g++
 else
 ifeq ($(findstring g++,$(CXX)),g++)
   WARN += -Wsuggest-override -Wnon-virtual-dtor -Wcast-align \
   -Woverloaded-virtual -Wduplicated-cond -Wduplicated-branches \
-  -Wnull-dereference -Wuseless-cast
+  -Wnull-dereference -Wuseless-cast -Wformat
 endif
 endif
+# nb: have to put g++ in 'else' block, since clanG++ contains g++
+# can't use equal, since compiler might be e.g., g++-11
 
 # Changes to optimisation based on build setting:
-ifeq ($(OPT),)
-  OPT=-O3
-endif
-# ifeq ($(detected_OS),Darwin)
-# ifeq ($(findstring clang++,$(CXX)),clang++)
-#   $(info Sorry. clang++ on mac seems to require -01 to compile?)
-#   OPT=-O1
-# endif
-# endif
+OPT ?= -O3
+
 ifeq ($(Build),release)
   WARN=-w
-  OPT+=-g0 -DNDEBUG -fno-exceptions -fno-rtti -DHAVE_INLINE -DGSL_RANGE_CHECK_OFF
+  OPT+=-g0 -DNDEBUG -DHAVE_INLINE -DGSL_RANGE_CHECK_OFF
 endif
-# -DHAVE_INLINE -DGSL_RANGE_CHECK_OFF are from GSL
 ifeq ($(Build),debug)
   UseOpenMP=no
   WARN+=-Wno-unknown-pragmas
   OPT=-O0 -g3 -fno-omit-frame-pointer
 endif
+# -fno-exceptions -fno-rtti not needed
+# -DHAVE_INLINE -DGSL_RANGE_CHECK_OFF are from GSL
 
 # If not using openMP, turn off 'unkown pragmas' warning.
-OMP=-fopenmp
+OMP?=-fopenmp
 ifneq ($(UseOpenMP),yes)
   OMP=
   WARN+=-Wno-unknown-pragmas
@@ -108,6 +103,6 @@ endif
 #Command to compile objects and link them
 COMP=$(CXX) -MMD -c -o $@ $< $(CXXFLAGS)
 ifeq ($(ParallelBuild),1)
-	COMP=time $(CXX) -MMD -c -o $@ $< $(CXXFLAGS)
+	COMP=time $(CXX) -MMD -MP -c -o $@ $< $(CXXFLAGS)
 endif
 LINK=$(CXX) -o $@ $^ $(CXXFLAGS) $(LIBS)

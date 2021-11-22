@@ -25,19 +25,25 @@ all: $(SD)/git.info checkObj checkXdir $(DEFAULTEXES)
 # (2) It forces a clean make when changing branches
 # The '|' means 'order only' pre-req
 
-$(BD)/%.o: $(SD)/*/%.cpp | $(SD)/git.info
+
+dir_guard=@mkdir -p $(@D)
+
+$(BD)/*/%.o: $(SD)/*/%.cpp | $(SD)/git.info
+	$(dir_guard)
 	$(COMP)
 
 $(BD)/%.o: $(SD)/%.cpp $(SD)/git.info
+	$(dir_guard)
 	$(COMP)
 
--include $(BD)/*.d
+-include $(BD)/*.d $(BD)/*/*.d
 
 ################################################################################
 # Link + build all final programs
 
 # List all objects in sub-directories (i.e., that don't conatin a main())
-OBJS = $(addprefix $(BD)/,$(notdir $(subst .cpp,.o,$(wildcard $(SD)/*/*.cpp))))
+# OBJS = $(addprefix $(BD)/,$(notdir $(subst .cpp,.o,$(wildcard $(SD)/*/*.cpp))))
+OBJS = $(subst $(SD),$(BD),$(subst .cpp,.o,$(wildcard $(SD)/*/*.cpp)))
 
 $(XD)/ampsci: $(BD)/ampsci.o $(OBJS)
 	$(LINK)
@@ -51,8 +57,8 @@ $(XD)/dmeXSection: $(BD)/dmeXSection.o $(OBJS)
 $(XD)/wigner: $(BD)/wigner.o
 	$(LINK)
 
-$(XD)/periodicTable: $(BD)/periodicTable.o $(BD)/AtomData.o \
-$(BD)/NuclearData.o
+$(XD)/periodicTable: $(BD)/periodicTable.o $(BD)/Physics/AtomData.o \
+$(BD)/Physics/NuclearData.o
 	$(LINK)
 
 ################################################################################
@@ -88,7 +94,8 @@ checkXdir:
 
 .PHONY: clean docs doxy do_the_chicken_dance checkObj checkXdir
 clean:
-	rm -f $(ALLEXES) $(BD)/*.o $(BD)/*.d
+	rm -f -v $(ALLEXES)
+	rm -rf -v $(BD)/*.o $(BD)/*.d $(BD)/*/
 # Make the 'ampsci.pdf' physics documentation
 docs:
 	( cd ./doc/tex && make )
@@ -103,6 +110,7 @@ doxy:
 	cp ./doc/ampsci.pdf ./docs/ampsci.pdf 2>/dev/null || :
 	( cd ./doc/latex && make clean)
 do_the_chicken_dance:
+	@echo $(OBJS)
 	@echo 'Why would I do that?'
 clang_format:
 	clang-format -i src/*.cpp src/*/*.cpp src/*/*.hpp

@@ -1,4 +1,4 @@
-#include "Modules/ladder.hpp"
+#include "Modules/laddertests.hpp"
 #include "Angular/Angular.hpp"
 #include "Coulomb/Coulomb.hpp"
 #include "IO/ChronoTimer.hpp"
@@ -113,8 +113,8 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   Coulomb::LkTable lk_next;
   // Each run will continue from where last left off
   const bool read_lad = lk.read(Lfname);
-  std::cout << (read_lad ? "Read in existing ladder diagrams\n"
-                         : "Calculating ladder diagrams from scratch\n");
+  std::cout << (read_lad ? "Read in existing ladder diagrams\n" :
+                           "Calculating ladder diagrams from scratch\n");
 
   //----------------------------------------------------------------------------
   // Iterate Lk equations
