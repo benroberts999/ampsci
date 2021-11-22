@@ -19,9 +19,10 @@ public:
   ~ContinuumOrbitals() = default;
 
   //! Solves continuum states with energy ec between min/max l
-  int solveContinuumHF(double ec, int min_l, int max_l);
+  int solveContinuumHF(double ec, int min_l, int max_l,
+                       const DiracSpinor *Fi = nullptr);
   //! Solves continuum states with energy ec between l=0 and l=max_l
-  int solveContinuumHF(double ec, int max_l);
+  int solveContinuumHF(double ec, int max_l, const DiracSpinor *Fi = nullptr);
 
   double check_orthog(bool print = true) const;
 
@@ -37,6 +38,4 @@ private:
   const int Zion;
   const double alpha;
   std::vector<double> v_local; // v_nuc + v_dir
-
-  const bool force_rescale = false; // ???
 };

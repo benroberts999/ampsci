@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 class Wavefunction;
+class DiracSpinor;
 
 namespace AKF {
 
@@ -17,16 +18,17 @@ int akReadWrite(const std::string &fname, bool write,
                 std::vector<std::string> &nklst, double &qmin, double &qmax,
                 double &dEmin, double &dEmax);
 
-int calculateK_nk(const Wavefunction &wf, std::size_t nk, int max_L, double dE,
-                  std::vector<std::vector<std::vector<double>>> &jLqr_f,
-                  std::vector<float> &K_nk, double Zeff = -1);
+int calculateK_nk(const Wavefunction &wf, const DiracSpinor &psi, int max_L,
+                  double dE,
+                  const std::vector<std::vector<std::vector<double>>> &jLqr_f,
+                  std::vector<float> &K_nk);
 
-int calculateKpw_nk(const Wavefunction &wf, std::size_t nk, double dE,
-                    std::vector<std::vector<double>> &jl_qr,
+int calculateKpw_nk(const Wavefunction &wf, const DiracSpinor &psi, double dE,
+                    const std::vector<std::vector<double>> &jl_qr,
                     std::vector<float> &K_nk);
 
-void sphericalBesselTable(std::vector<std::vector<std::vector<double>>> &jLqr_f,
-                          int max_L, const std::vector<double> &q_array,
-                          const std::vector<double> &r);
+std::vector<std::vector<std::vector<double>>>
+sphericalBesselTable(int max_L, const std::vector<double> &q_array,
+                     const std::vector<double> &r);
 
 } // namespace AKF

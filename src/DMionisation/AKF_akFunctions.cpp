@@ -10,8 +10,6 @@
 #include <fstream>
 #include <iostream>
 
-#pragma GCC diagnostic ignored "-Wsign-conversion"
-
 namespace AKF {
 
 //******************************************************************************
@@ -21,20 +19,94 @@ double CLkk(int L, int ka, int kb)
 // C_{k}^{k',L} = [j][j'][L] * (j,j',L, -1/,1/2,0)^2 * pi(l+l'+L)
 // */
 {
-  int la = AtomData::l_k(ka);
-  int lb = AtomData::l_k(kb);
-  int two_ja = AtomData::twoj_k(ka);
-  int two_jb = AtomData::twoj_k(kb);
+  const int la = AtomData::l_k(ka);
+  const int lb = AtomData::l_k(kb);
+  const int two_ja = AtomData::twoj_k(ka);
+  const int two_jb = AtomData::twoj_k(kb);
 
   if ((la + lb + L) % 2 != 0)
     return 0; // Parity rule
-  if ((la + lb < L) || (std::abs(la - lb) > L))
-    return 0; // triangle rule (l)
-  // Note: triangle rule included in 3j, so this is not needed (but faster)
-  // But, parity rule not included in 3j, so must be checked!
+  // Note: parity rule not included in 3j, so must be checked!
 
-  double tjs = Angular::threej_2(two_jb, two_ja, 2 * L, -1, 1, 0);
+  const double tjs = Angular::threej_2(two_jb, two_ja, 2 * L, -1, 1, 0);
   return (two_ja + 1) * (two_jb + 1) * (2 * L + 1) * tjs * tjs;
+}
+
+//******************************************************************************
+int calculateK_nk(const Wavefunction &wf, const DiracSpinor &psi, int max_L,
+                  double dE,
+                  const std::vector<std::vector<std::vector<double>>> &jLqr_f,
+                  std::vector<float> &AK_nk_q)
+// Calculates the atomic factor for a given core state (is) and energy.
+// Note: dE = I + ec is depositied energy, not cntm energy
+// AK_nk_q may already contain contribution from previous state, so always needs
+// to be +=
+{
+  ContinuumOrbitals cntm(wf); // create cntm object [survives locally only]
+
+  const auto qsteps = jLqr_f[0].size();
+
+  // Calculate continuum wavefunctions
+  const double ec = dE + psi.en();
+  // XXX Correct? Seems fine. Triangle rule is actually for j (not l)
+  const int l = psi.l();
+  const int lc_max = l + max_L; // +1?
+  const int lc_min = std::max(l - max_L, 0);
+  if (ec > 0) {
+    cntm.solveContinuumHF(ec, lc_min, lc_max, &psi);
+  }
+
+  const double x_ocf = psi.occ_frac(); // occupancy fraction. Usually 1
+
+  // Generate AK for each L, lc, and q
+  // L and lc are summed, not stored indevidually
+  for (std::size_t L = 0; L <= std::size_t(max_L); L++) {
+    for (const auto &phic : cntm.orbitals) {
+      const double dC_Lkk = CLkk(int(L), psi.k, phic.k);
+      if (dC_Lkk == 0)
+        continue;
+      for (std::size_t iq = 0; iq < qsteps; iq++) {
+        const auto rad_int = psi * (jLqr_f[L][iq] * phic);
+        AK_nk_q[iq] += (float)(dC_Lkk * rad_int * rad_int * x_ocf);
+      } // q
+    }   // END loop over cntm states (ic)
+  }     // end L loop
+  return 0;
+}
+
+//******************************************************************************
+int calculateKpw_nk(const Wavefunction &wf, const DiracSpinor &psi, double dE,
+                    const std::vector<std::vector<double>> &jl_qr,
+                    std::vector<float> &tmpK_q)
+// /*
+// For plane-wave final state.
+// Only has f-part....Can restore g-part, but need to be sure of plane-wave!
+// Chi(q) - Int[ f_nk*j_l(qr)*r , {r,0,inf}]
+// Should be called once per initial state
+{
+
+  // auto &psi = wf.core[nk];
+
+  int twoj = psi.twoj(); // wf.twoj(nk);
+
+  auto qsteps = jl_qr.size();
+
+  double eps = dE - psi.en();
+  auto maxir = psi.max_pt(); // don't bother going further
+
+  if (eps <= 0)
+    return 0;
+
+  for (auto iq = 0ul; iq < qsteps; iq++) {
+    double chi_q =
+        NumCalc::integrate(wf.rgrid->du(), 0, maxir, psi.f(), jl_qr[iq],
+                           wf.rgrid->r(), wf.rgrid->drdu());
+    tmpK_q[iq] = (float)((2. / M_PI) * (twoj + 1) * std::pow(chi_q, 2) *
+                         std::sqrt(2. * eps));
+    // tmpK_q[iq] = std::pow(4*3.14159,2)*std::pow(chi_q,2); // just cf KOPP
+  }
+
+  return 0;
 }
 
 //******************************************************************************
@@ -48,9 +120,9 @@ void writeToTextFile(const std::string &fname,
 // XXX This mean we MUST use exponential Grid! Fix this! XXX
 // */
 {
-  int desteps = (int)AK.size();       // dE
-  int num_states = (int)AK[0].size(); // nk
-  int qsteps = (int)AK[0][0].size();  // q
+  const auto desteps = AK.size();       // dE
+  const auto num_states = AK[0].size(); // nk
+  const auto qsteps = AK[0][0].size();  // q
 
   double qMeV = (1.e6 / (PhysConst::Hartree_eV * PhysConst::c));
   double keV = (1.e3 / PhysConst::Hartree_eV);
@@ -62,19 +134,19 @@ void writeToTextFile(const std::string &fname,
     ofile << nk << " ";
   }
   ofile << "Sum\n\n";
-  for (int i = 0; i < desteps; i++) {
-    for (int k = 0; k < qsteps; k++) {
-      double x = double(k) / (qsteps - 1);
+  for (auto i = 0ul; i < desteps; i++) {
+    for (auto k = 0ul; k < qsteps; k++) {
+      double x = double(k) / double(qsteps - 1);
       if (qsteps == 1)
         x = 0;
       double q = qmin * std::pow(qmax / qmin, x);
-      double y = double(i) / (desteps - 1);
+      double y = double(i) / double(desteps - 1);
       if (desteps == 1)
         y = 0;
       double dE = demin * std::pow(demax / demin, y);
       ofile << dE / keV << " " << q / qMeV << " ";
       float sum = 0.0f;
-      for (int j = 0; j < num_states; j++) {
+      for (auto j = 0ul; j < num_states; j++) {
         sum += AK[i][j][k];
         ofile << AK[i][j][k] << " ";
       }
@@ -110,14 +182,14 @@ int akReadWrite(const std::string &fname, bool write,
   }
 
   if (write) {
-    int nde = (int)AK.size();      // dE
-    int ns = (int)AK[0].size();    // nk
-    int nq = (int)AK[0][0].size(); // q
+    auto nde = AK.size();      // dE
+    auto ns = AK[0].size();    // nk
+    auto nq = AK[0][0].size(); // q
     IO::FRW::binary_rw(iof, nde, row);
     IO::FRW::binary_rw(iof, ns, row);
     IO::FRW::binary_rw(iof, nq, row);
   } else {
-    int nq, ns, nde;
+    std::size_t nq, ns, nde;
     IO::FRW::binary_rw(iof, nde, row);
     IO::FRW::binary_rw(iof, ns, row);
     IO::FRW::binary_rw(iof, nq, row);
@@ -142,118 +214,30 @@ int akReadWrite(const std::string &fname, bool write,
 }
 
 //******************************************************************************
-int calculateK_nk(const Wavefunction &wf, std::size_t is, int max_L, double dE,
-                  std::vector<std::vector<std::vector<double>>> &jLqr_f,
-                  std::vector<float> &AK_nk_q, double)
-// Calculates the atomic factor for a given core state (is) and energy.
-// Note: dE = I + ec is depositied energy, not cntm energy
-// Zeff is '-1' by default. If Zeff > 0, will solve w/ Zeff model
-// Zeff no longer works at main() level.
-{
-  ContinuumOrbitals cntm(wf); // create cntm object [survives locally only]
-  auto &psi = wf.core[is];
-
-  int k = psi.k;   // wf.ka(is);
-  int l = psi.l(); // wf.lorb(is);
-
-  int qsteps = (int)jLqr_f[0].size();
-
-  // Calculate continuum wavefunctions
-  double ec = dE + wf.core[is].en();
-  cntm.clear();
-  int lc_max = l + max_L;
-  int lc_min = l - max_L;
-  if (lc_min < 0)
-    lc_min = 0;
-  if (ec > 0) {
-    cntm.solveContinuumHF(ec, lc_min, lc_max);
-  }
-
-  double x_ocf = psi.occ_frac(); // occupancy fraction. Usually 1
-
-  // Generate AK for each L, lc, and q
-  // L and lc are summed, not stored indevidually
-  for (int L = 0; L <= max_L; L++) {
-    for (const auto &phic : cntm.orbitals) {
-      int kc = phic.k;
-      double dC_Lkk = CLkk(L, k, kc);
-      if (dC_Lkk == 0)
-        continue;
-      //#pragma omp parallel for
-      for (int iq = 0; iq < qsteps; iq++) {
-        double a = 0.;
-        auto maxj = psi.max_pt(); // don't bother going further
-        double af = NumCalc::integrate(1.0, 0, maxj, psi.f(), phic.f(),
-                                       jLqr_f[L][iq], wf.rgrid->drdu());
-        double ag = NumCalc::integrate(1.0, 0, maxj, psi.g(), phic.g(),
-                                       jLqr_f[L][iq], wf.rgrid->drdu());
-        a = af + ag;
-        AK_nk_q[iq] +=
-            (float)(dC_Lkk * std::pow(a * wf.rgrid->du(), 2) * x_ocf);
-      } // q
-    }   // END loop over cntm states (ic)
-  }     // end L loop
-  return 0;
-}
-
-//******************************************************************************
-int calculateKpw_nk(const Wavefunction &wf, std::size_t nk, double dE,
-                    std::vector<std::vector<double>> &jl_qr,
-                    std::vector<float> &tmpK_q)
-// /*
-// For plane-wave final state.
-// Only has f-part....Can restore g-part, but need to be sure of plane-wave!
-// Chi(q) - Int[ f_nk*j_l(qr)*r , {r,0,inf}]
-// Should be called once per initial state
-{
-
-  auto &psi = wf.core[nk];
-
-  int twoj = psi.twoj(); // wf.twoj(nk);
-
-  auto qsteps = jl_qr.size();
-
-  double eps = dE - psi.en();
-  auto maxir = psi.max_pt(); // don't bother going further
-
-  if (eps <= 0)
-    return 0;
-
-  for (auto iq = 0ul; iq < qsteps; iq++) {
-    double chi_q =
-        NumCalc::integrate(wf.rgrid->du(), 0, maxir, psi.f(), jl_qr[iq],
-                           wf.rgrid->r(), wf.rgrid->drdu());
-    tmpK_q[iq] = (float)((2. / M_PI) * (twoj + 1) * std::pow(chi_q, 2) *
-                         std::sqrt(2. * eps));
-    // tmpK_q[iq] = std::pow(4*3.14159,2)*std::pow(chi_q,2); // just cf KOPP
-  }
-
-  return 0;
-}
-
-//******************************************************************************
-void sphericalBesselTable(std::vector<std::vector<std::vector<double>>> &jLqr_f,
-                          int max_L, const std::vector<double> &q_array,
-                          const std::vector<double> &r)
+std::vector<std::vector<std::vector<double>>>
+sphericalBesselTable(int max_L, const std::vector<double> &q_array,
+                     const std::vector<double> &r)
 // /*
 // Creates a look-up table w/ spherical Bessel functions. For speed.
 // Uses SphericalBessel
 // */
 {
   std::cout << std::endl;
-  int num_points = (int)r.size();
-  int qsteps = (int)q_array.size();
+  auto num_points = r.size();
+  auto qsteps = q_array.size();
 
-  jLqr_f.resize(max_L + 1, std::vector<std::vector<double>>(
-                               qsteps, std::vector<double>(num_points)));
-  for (int L = 0; L <= max_L; L++) {
+  std::vector<std::vector<std::vector<double>>> jLqr_f;
+  jLqr_f.resize(std::size_t(max_L) + 1,
+                std::vector<std::vector<double>>(
+                    qsteps, std::vector<double>(num_points)));
+  for (auto L = 0u; L <= unsigned(max_L); L++) {
     std::cout << "\rCalculating spherical Bessel look-up table for L=" << L
               << "/" << max_L << " .. " << std::flush;
 #pragma omp parallel for
-    for (int iq = 0; iq < qsteps; iq++) {
+    for (auto iq = 0ul; iq < qsteps; iq++) {
       double q = q_array[iq];
-      for (int ir = 0; ir < num_points; ir++) {
-        double tmp = SphericalBessel::JL(L, q * r[ir]);
+      for (auto ir = 0ul; ir < num_points; ir++) {
+        double tmp = SphericalBessel::JL(int(L), q *r[ir]);
         // If q(dr) is too large, "missing" j_L oscillations
         //(overstepping them). This helps to fix that.
         // By averaging the J_L function. Note: only works if wf is smooth
@@ -265,11 +249,11 @@ void sphericalBesselTable(std::vector<std::vector<std::vector<double>>> &jLqr_f,
             num_extra = int(qdrop / min_qdrop) + 3;
         }
         { // Include 'extra' points into j_L (avg):
-          for (int i = 0; i < num_extra; i++) {
-            double b = (i + 1.) / (num_extra + 1.);
-            double a = 1. - b;
+          for (auto i = 0; i < num_extra; i++) {
+            double b = (i + 1.0) / (num_extra + 1.);
+            double a = 1.0 - b;
             double qrtmp = q * (a * r[ir] + b * r[ir + 1]);
-            tmp += SphericalBessel::JL(L, qrtmp);
+            tmp += SphericalBessel::JL(int(L), qrtmp);
           }
           tmp /= (num_extra + 1);
         }
@@ -278,6 +262,7 @@ void sphericalBesselTable(std::vector<std::vector<std::vector<double>>> &jLqr_f,
     }
   }
   std::cout << "done\n";
+  return jLqr_f;
 }
 
 } // namespace AKF
