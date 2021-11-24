@@ -154,8 +154,8 @@ public:
   Matrix<T> &make_identity();
   //! Sets all elements to zero, in place
   Matrix<T> &zero();
-  //! M -> M + aI, for I=identity (adds a to diag elements), in place
-  Matrix<T> &plusIdent(T a = T(1));
+  // //! M -> M + aI, for I=identity (adds a to diag elements), in place
+  // Matrix<T> &plusIdent(T a = T(1));
   //****************************************************************************
 
   //! Returns conjugate of matrix
@@ -191,7 +191,7 @@ public:
   // Operator overloads: +,-, scalar */
   //! Overload standard operators: do what expected
   Matrix<T> &operator+=(const Matrix<T> &rhs);
-  Matrix<T> &operator-=(const Matrix<T> rhs);
+  Matrix<T> &operator-=(const Matrix<T> &rhs);
   Matrix<T> &operator*=(const T x);
   Matrix<T> &operator/=(const T x);
 
@@ -213,6 +213,19 @@ public:
   }
   [[nodiscard]] friend Matrix<T> operator/(Matrix<T> lhs, const T x) {
     return (lhs /= x);
+  }
+
+  //****************************************************************************
+  //! Matrix<T> += T : T assumed to be *Identity!
+  Matrix<T> &operator+=(T aI);
+  //! Matrix<T> -= T : T assumed to be *Identity!
+  Matrix<T> &operator-=(T aI);
+
+  [[nodiscard]] friend Matrix<T> operator+(Matrix<T> M, T aI) {
+    return (M += aI);
+  }
+  [[nodiscard]] friend Matrix<T> operator-(Matrix<T> M, T aI) {
+    return (M -= aI);
   }
 
   //****************************************************************************

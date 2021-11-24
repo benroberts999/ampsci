@@ -103,8 +103,8 @@ bool LinAlg(std::ostream & /*obuff*/) {
     assert(equal(a, d));
 
     assert(equal(a.make_identity(), {{1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}}));
-    assert(equal(a.plusIdent(), {{2.0, 0.0, 0.0}, {0.0, 2.0, 0.0}}));
-    assert(equal(a.plusIdent(2.0), {{4.0, 0.0, 0.0}, {0.0, 4.0, 0.0}}));
+    assert(equal(a += 1.0, {{2.0, 0.0, 0.0}, {0.0, 2.0, 0.0}}));
+    assert(equal(a + 2.0, {{4.0, 0.0, 0.0}, {0.0, 4.0, 0.0}}));
     assert(equal(a.zero(), {{0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}}));
   }
 
@@ -164,8 +164,8 @@ bool LinAlg(std::ostream & /*obuff*/) {
     assert(equal(c_tr, c.transpose()));
 
     assert(equal(a.make_identity(), {{1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}}));
-    assert(equal(a.plusIdent(), {{2.0f, 0.0f, 0.0f}, {0.0f, 2.0f, 0.0f}}));
-    assert(equal(a.plusIdent(2.0f), {{4.0f, 0.0f, 0.0f}, {0.0f, 4.0f, 0.0f}}));
+    assert(equal(a += 1.0f, {{2.0f, 0.0f, 0.0f}, {0.0f, 2.0f, 0.0f}}));
+    assert(equal(a + 2.0f, {{4.0f, 0.0f, 0.0f}, {0.0f, 4.0f, 0.0f}}));
     assert(equal(a.zero(), {{0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}}));
 
     // Invert and det only implemented for doubles
@@ -228,8 +228,8 @@ bool LinAlg(std::ostream & /*obuff*/) {
     auto a2 = a;
     assert(equal(a2.make_identity(),
                  {{1.0 + 0.0i, 0.0 + 0.0i}, {0.0 + 0.0i, 1.0 + 0.0i}}));
-    assert(equal(a2.plusIdent(), {{2.0, 0.0}, {0.0, 2.0}}));
-    assert(equal(a2.plusIdent(2.0i), {{2.0 + 2.0i, 0.0}, {0.0, 2.0 + 2.0i}}));
+    assert(equal(a2 += 1.0, {{2.0, 0.0}, {0.0, 2.0}}));
+    assert(equal(a2 + 2.0i, {{2.0 + 2.0i, 0.0}, {0.0, 2.0 + 2.0i}}));
     assert(equal(a2.zero(), {{0.0, 0.0}, {0.0, 0.0}}));
   }
 

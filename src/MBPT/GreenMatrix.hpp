@@ -48,9 +48,9 @@ public:
   }
 
   GreenMatrix<T> &plusIdent(double a = 1.0) {
-    ff.plusIdent(a);
+    ff += a;
     if (m_include_G) {
-      gg.plusIdent(a);
+      gg += a;
     }
     return *this;
   }

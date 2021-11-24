@@ -110,13 +110,13 @@ template <typename T> Matrix<T> &Matrix<T>::zero() {
   }
   return *this;
 }
-// M -> M + aI, for I=identity (add a to diag elements)
-template <typename T> Matrix<T> &Matrix<T>::plusIdent(T a) {
-  for (auto i = 0ul; i < std::min(m_rows, m_cols); ++i) {
-    at(i, i) += a;
-  }
-  return *this;
-}
+// // M -> M + aI, for I=identity (add a to diag elements)
+// template <typename T> Matrix<T> &Matrix<T>::plusIdent(T a) {
+//   for (auto i = 0ul; i < std::min(m_rows, m_cols); ++i) {
+//     at(i, i) += a;
+//   }
+//   return *this;
+// }
 
 //******************************************************************************
 template <typename T> Matrix<T> Matrix<T>::conj() const {
@@ -167,7 +167,7 @@ template <typename T> Matrix<T> &Matrix<T>::operator+=(const Matrix<T> &rhs) {
   this->m_data += rhs.m_data;
   return *this;
 }
-template <typename T> Matrix<T> &Matrix<T>::operator-=(const Matrix<T> rhs) {
+template <typename T> Matrix<T> &Matrix<T>::operator-=(const Matrix<T> &rhs) {
   assert(rows() == rhs.rows() && cols() == rhs.cols());
   using namespace qip::overloads;
   this->m_data -= rhs.m_data;
@@ -181,6 +181,26 @@ template <typename T> Matrix<T> &Matrix<T>::operator*=(const T x) {
 template <typename T> Matrix<T> &Matrix<T>::operator/=(const T x) {
   using namespace qip::overloads;
   this->m_data /= x;
+  return *this;
+}
+
+//******************************************************************************
+// Matrix<T> += T : T assumed to be *Identity!
+template <typename T> Matrix<T> &Matrix<T>::operator+=(T aI) {
+  // Adds 'a' to diagonal elements (Assume a*Ident)
+  assert(m_rows == m_cols && "Can only call M+a for square matrix");
+  for (auto i = 0ul; i < m_rows; ++i) {
+    at(i, i) += aI;
+  }
+  return *this;
+}
+// Matrix<T> -= T : T assumed to be *Identity!
+template <typename T> Matrix<T> &Matrix<T>::operator-=(T aI) {
+  // Adds 'a' to diagonal elements (Assume a*Ident)
+  assert(m_rows == m_cols && "Can only call M-a for square matrix");
+  for (auto i = 0ul; i < m_rows; ++i) {
+    at(i, i) -= aI;
+  }
   return *this;
 }
 
