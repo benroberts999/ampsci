@@ -422,7 +422,7 @@ void outwardAM(std::vector<double> &f, std::vector<double> &g,
       em[i][i] -= coefd[i];
     }
     // from here on, em is the inverted matrix
-    em.invert();
+    em.invert_in_place();
 
     // defines/populates fm, s coefs
     std::array<double, Param::AMO> s;
@@ -436,7 +436,7 @@ void outwardAM(std::vector<double> &f, std::vector<double> &g,
       fm[i][i] -= coefa[i];
     }
     // from here on, fm is the inverted matrix
-    fm.invert();
+    fm.invert_in_place();
 
     // writes u(r) in terms of coefs and the inverse of fm
     // P(r) = r^gamma u(r)

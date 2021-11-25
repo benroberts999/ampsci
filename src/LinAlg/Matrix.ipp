@@ -32,7 +32,7 @@ template <typename T> T Matrix<T>::determinant() const {
 //******************************************************************************
 // Inverts the matrix, in place. Uses GSL; via LU decomposition. Only works
 // for double/complex<double>.
-template <typename T> Matrix<T> &Matrix<T>::invert() {
+template <typename T> Matrix<T> &Matrix<T>::invert_in_place() {
   static_assert(std::is_same_v<T, double> ||
                     std::is_same_v<T, std::complex<double>>,
                 "invert only works for double");
@@ -60,7 +60,7 @@ template <typename T> Matrix<T> &Matrix<T>::invert() {
 
 template <typename T> Matrix<T> Matrix<T>::inverse() const {
   auto inverse = *this; // copy
-  return inverse.invert();
+  return inverse.invert_in_place();
 }
 
 //******************************************************************************
@@ -127,6 +127,14 @@ template <typename T> Matrix<T> Matrix<T>::conj() const {
     conj_data.push_back(std::conj(m_data[i]));
   }
   return Matrix<T>{m_rows, m_cols, std::move(conj_data)};
+}
+
+template <typename T> Matrix<T> &Matrix<T>::conj_in_place() const {
+  static_assert(is_complex_v<T>, "conj() only available for complex Matrix");
+  for (std::size_t i = 0; i < m_data.size(); ++i) {
+    m_data[i] = std::conj(m_data[i]);
+  }
+  return *this;
 }
 //------------------------------------------------------------------------------
 template <typename T> auto Matrix<T>::real() const {

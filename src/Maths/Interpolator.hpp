@@ -1,5 +1,6 @@
 #pragma once
 #include "IO/SafeProfiler.hpp"
+#include <cassert>
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_spline.h>
 #include <iostream>
@@ -51,5 +52,39 @@ inline std::vector<double> interpolate(const std::vector<double> &x_in,
   gsl_interp_accel_free(acc);
   return y_out;
 }
+
+//******************************************************************************
+class Interp {
+
+  gsl_interp_accel *acc; // = gsl_interp_accel_alloc();
+  gsl_spline *spline;    // = gsl_spline_alloc(gsl_interp_cspline, dim_in);
+  double x0, xmax;
+
+public:
+  Interp(const std::vector<double> &x_in, const std::vector<double> &y_in)
+      : acc(gsl_interp_accel_alloc()),
+        spline(gsl_spline_alloc(gsl_interp_cspline, x_in.size())),
+        x0(x_in.front()),
+        xmax(x_in.back()) {
+    assert(x_in.size() == y_in.size());
+    gsl_spline_init(spline, x_in.data(), y_in.data(), x_in.size());
+  }
+
+  ~Interp() {
+    gsl_spline_free(spline);
+    gsl_interp_accel_free(acc);
+  }
+  Interp(const Interpolator::Interp &) = delete;
+  Interp &operator=(const Interpolator::Interp &) = delete;
+
+  double interp(double x) {
+    if (x < x0 || x > xmax)
+      return 0.0;
+    else
+      return gsl_spline_eval(spline, x, acc);
+  }
+
+  double operator()(double x) { return interp(x); }
+};
 
 } // namespace Interpolator

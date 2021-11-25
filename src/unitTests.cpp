@@ -14,6 +14,7 @@
 #include "IO/InputBlock.hpp" // for time+date
 #include "LinAlg/LinAlg_test.hpp"
 #include "MBPT/CorrelationPotential_test.hpp"
+#include "MBPT/RDMatrix_test.hpp"
 #include "MBPT/StructureRad_test.hpp"
 #include "Maths/BSpline_test.hpp"
 #include "Physics/RadPot_test.hpp"
@@ -73,6 +74,7 @@ static const std::vector<std::pair<std::string, bool (*)(std::ostream &obuff)>>
         {"MBPT2", &MBPT2},
         {"Sigma2", &Sigma2},
         {"SigmaAO", &SigmaAO},
+        {"RDMatrix", &RDMatrix},
         {"DiagramRPA", &DiagramRPA},
         {"QkTable", &QkTable},
         {"StructureRad", &StructureRad},

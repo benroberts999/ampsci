@@ -594,7 +594,7 @@ works better for k=0 (and k>=5 ?)
     // G = [1 - G0*Vx]^{-1} * G0 = -[G0*Vx-1]^{-1} * G0
     // nb: much faster to invert _before_ make complex!
     // (but, only if imag. part is zero)
-    return (-1.0 * one) * ((g0 * Vx).plusIdent(-1.0).invert() * g0);
+    return (-1.0 * one) * ((g0 * Vx).plusIdent(-1.0).invert_in_place() * g0);
   }
 
   // G0 := G0(re{e}) - no exchange, only real part
@@ -603,7 +603,7 @@ works better for k=0 (and k>=5 ?)
   std::complex<double> iw{0.0, en.imag()};
   return ((iw * g0).mult_elements_by(*m_drj) - one * (g0 * Vx))
              .plusIdent(1.0)
-             .invert() *
+             .invert_in_place() *
          (one * g0);
 }
 
@@ -615,7 +615,7 @@ ComplexGMatrix FeynmanSigma::GreenAtComplex(const ComplexGMatrix &Gr,
   // G(w) =  G(re(w)+im(w)) ;  Gr = G(re(w)), G = G(w),   im(w) = wi
   // G = Gr * [1 + i*wi*Gr]^-1 = Gr * iX
   const std::complex<double> iw{0.0, om_imag};
-  return ((iw * Gr).mult_elements_by(*m_drj).plusIdent(1.0).invert()) * Gr;
+  return ((iw * Gr).mult_elements_by(*m_drj).plusIdent(1.0).invert_in_place()) * Gr;
 }
 
 //------------------------------------------------------------------------------
@@ -702,7 +702,7 @@ ComplexGMatrix FeynmanSigma::X_PiQ(const ComplexGMatrix &pik,
   const auto Iunit = std::complex<double>{0.0, 1.0};
   ComplexGMatrix X_piq = +1.0 * Iunit * pik * qk;
   // Extra factor of (-i) -- where from ??
-  X_piq.plusIdent(1.0).invert();
+  X_piq.plusIdent(1.0).invert_in_place();
   return X_piq;
 }
 

@@ -176,8 +176,8 @@ public:
   }
 
   //! Inversion (in place)
-  GreenMatrix<T> &invert() {
-    ff.invert();
+  GreenMatrix<T> &invert_in_place() {
+    ff.invert_in_place();
     if (m_include_G) {
       // std::cout << "\n XXX \n Warning: Inversion not tesed!\n";
       const auto &ai = ff; // already inverted
@@ -185,7 +185,7 @@ public:
       const auto &c = gf;
       const auto &d = gg;
       const auto cai = c * ai;
-      const auto dmcaib = (d - cai * b).invert();
+      const auto dmcaib = (d - cai * b).invert_in_place();
       const auto aib_dmcaib = ai * b * dmcaib;
       ff += aib_dmcaib * cai;
       if constexpr (std::is_same<T,
@@ -203,7 +203,7 @@ public:
   }
   [[nodiscard]] GreenMatrix<T> inverse() const {
     auto out = *this; //
-    return out.invert();
+    return out.invert_in_place();
   }
 
   auto max_el() const {

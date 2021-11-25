@@ -140,7 +140,7 @@ public:
 
   //! Inverts the matrix, in place. Uses GSL; via LU decomposition. Only works
   //! for double/complex<double>.
-  Matrix<T> &invert();
+  Matrix<T> &invert_in_place();
 
   //! Returns inverse of the matrix. Leaves original matrix intact. Uses GSL;
   //! via LU decomposition. Only works for double/complex<double>
@@ -166,6 +166,9 @@ public:
   [[nodiscard]] auto imag() const;
   //! Converts a real to complex matrix (changes type; returns a complex matrix)
   [[nodiscard]] auto complex() const;
+
+  //! Conjugates matrix, in place
+  Matrix<T> &conj_in_place() const;
 
   //****************************************************************************
   //! Returns gsl_matrix_view (or _float_view, _complex_view,
