@@ -265,87 +265,8 @@ CoulombTable::UnFormIndex(const BigIndex &index) const {
 
 //******************************************************************************
 //******************************************************************************
-
-//******************************************************************************
-void QkTable::fill_old(const std::vector<DiracSpinor> &basis,
-                       const YkTable &yk) {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
-  IO::ChronoTimer t("fill");
-
-  // XXX Note: This uses 2x memory.. issue?
-  // but, much faster than not!
-
-  // Allow fill in parallel, by first storing in a vector, then adding vector
-  // to map in series
-  using TMP = std::pair<BigIndex, Real>;
-  std::vector<std::vector<std::vector<TMP>>> maps_k_a;
-
-  const auto max_k = std::size_t(DiracSpinor::max_tj(basis));
-  maps_k_a.resize(max_k + 1);
-  for (auto &mk : maps_k_a) {
-    mk.resize(basis.size());
-  }
-
-  // Cannot insert into map in thread-safe manner.
-  // So, fill a std::vector safely, then insert those elements into map
-  // In order to avoid calculating equivilant Qk's twice (due to symmetry), only
-  // calculate when already in NormalOrder
-
-#pragma omp parallel for
-  for (auto ia = 0ul; ia < basis.size(); ++ia) {
-    const auto &a = basis[ia];
-    for (const auto &b : basis) {
-      for (const auto &c : basis) {
-        for (const auto &d : basis) {
-
-          // enfore symmetry here, to avoid calculating anything twice
-          const auto ix = NormalOrder(a, b, c, d);
-          if (ix != CurrentOrder(a, b, c, d))
-            continue;
-
-          const auto [kmin, kmax] = k_minmax_Q(a, b, c, d);
-          for (int k = kmin; k <= kmax; k += 2) {
-            const auto qk = yk.Q(k, a, b, c, d);
-            maps_k_a[std::size_t(k)][ia].emplace_back(ix, qk);
-          }
-        }
-      }
-    }
-  }
-
-  std::cout << "..\n";
-  std::cout << "Fill vector: " << t.reading_str() << std::endl;
-  t.start();
-
-  // Three-step method for filling map cut down time by >4x!
-
-  // 1) re-size map
-  m_data.resize(max_k + 1);
-
-  // 2) Reserve enough space in each sub-map (=> 2x speed-up!)
-  for (auto ik = 0ul; ik <= max_k; ++ik) {
-    auto size_k = 0ul;
-    for (auto ia = 0ul; ia < basis.size(); ++ia) {
-      size_k += maps_k_a[ik][ia].size();
-    }
-    m_data[ik].reserve(size_k);
-  }
-
-// 3) Transfer data to map (can //-ize over k (since map is re-sized!))
-#pragma omp parallel for
-  for (auto ik = 0ul; ik <= max_k; ++ik) {
-    for (auto &k_maps : maps_k_a[ik]) {
-      m_data[ik].insert(k_maps.begin(), k_maps.end());
-    }
-    // maps_k_a[ik].clear(); // can clear vector here to "save" memory..
-  }
-
-  std::cout << "Fill map: " << t.lap_reading_str() << std::endl;
-  summary();
-}
-
-//*****************************
-void QkTable::fill(const std::vector<DiracSpinor> &basis, const YkTable &yk) {
+void QkTable::fill(const std::vector<DiracSpinor> &basis, const YkTable &yk,
+                   int k_cut) {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   IO::ChronoTimer t("fill");
 
@@ -365,7 +286,11 @@ void QkTable::fill(const std::vector<DiracSpinor> &basis, const YkTable &yk) {
   than necisary)
   */
 
-  const auto max_k = std::size_t(DiracSpinor::max_tj(basis)) - 1;
+  const auto tmp_max_k = std::size_t(DiracSpinor::max_tj(basis)) - 1;
+
+  const auto max_k =
+      (k_cut <= 0) ? tmp_max_k : std::min(tmp_max_k, std::size_t(k_cut));
+
   m_data.resize(max_k + 1);
 
   // 1) Count non-zero Q integrals (each k). Use this to 'reserve' map space
@@ -446,7 +371,8 @@ void QkTable::fill(const std::vector<DiracSpinor> &basis, const YkTable &yk) {
         for (const auto &d : basis) {
           if (d < b) // symmetry
             continue;
-          const auto [kmin, kmax] = k_minmax_Q(a, b, c, d);
+          auto [kmin, kmax] = k_minmax_Q(a, b, c, d);
+          kmax = std::clamp(kmax, 0, int(max_k));
           for (int k = kmin; k <= kmax; k += 2) {
             update(k, a, b, c, d, yk.Q(k, a, b, c, d));
           }

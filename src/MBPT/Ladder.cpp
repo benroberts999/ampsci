@@ -67,7 +67,7 @@ double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
       for (auto u = u0; u <= uI; u += 2) {
         const auto Q_umnrs = qk.Q(u, m, n, r, s);
         if (Q_umnrs == 0.0)
-          continue; // never?
+          continue; // never? Unless have k_cut
 
         // From 6J triads:
         if (Angular::triangle(2 * u, r.twoj(), m.twoj()) == 0 ||
@@ -184,6 +184,11 @@ void calculate_Lk_mnib(Coulomb::CoulombTable *lk,
           // we only need L's when there are non-zero Q's
           const auto [k0, kI] = Coulomb::k_minmax_Q(m, n, i, b);
           for (int k = k0; k <= kI; k += 2) {
+
+            // a) only need L's with non-zero Q's [prob already case], b) may
+            // have k_max cutoff in Qk
+            if (qk.Q(k, m, n, i, b) == 0.0)
+              continue;
 
             auto L_kmnib =
                 MBPT::Lkmnab(k, m, n, i, b, qk, core, excited, sjt, lk_prev);

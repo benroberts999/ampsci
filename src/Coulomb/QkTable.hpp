@@ -177,17 +177,11 @@ class QkTable : public CoulombTable {
 public:
   static constexpr Symmetry symmetry = Symmetry::Qk;
 
-  // //! Takes a constructed YkTable, and fills Coulomb table with all
-  // possible
-  // //! non-zero Qk elements, accounting for symmetry (only really makes
-  // sense for
-  // //! QkTable)
-  // void fill(const YkTable &yk);
   //! Takes a constructed YkTable, and fills Coulomb table with all possible
   //! non-zero Qk elements, accounting for symmetry (only really makes sense
-  //! for QkTable)
-  void fill(const std::vector<DiracSpinor> &basis, const YkTable &yk);
-  void fill_old(const std::vector<DiracSpinor> &basis, const YkTable &yk);
+  //! for QkTable), up to maximum k, k_cut (set k_cut to <=0 to use all k)
+  void fill(const std::vector<DiracSpinor> &basis, const YkTable &yk,
+            int k_cut = -1);
 
 private:
   virtual BigIndex NormalOrder_impl(Index a, Index b, Index c,

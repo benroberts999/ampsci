@@ -21,6 +21,7 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   input.check({{"min", "lowest core n to include"},
                {"max", "maximum excited n to include"},
                {"max_l", "maximum excited l to include"},
+               {"max_k", "maximum k to include in Qk"},
                {"Qfile", "filename to read/write Qk integrals"},
                {"Lfile", "filename to read/write Qk integrals"},
                {"progbar", "Print progress bar? [true]"},
@@ -31,11 +32,13 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto min_n = input.get("min", 0);
   const auto max_n = input.get("max", 99);
   const auto max_l = input.get("max_l", 99);
+  const auto max_k = input.get("max_k", 99);
   const auto max_it = input.get("max_it", 15);
   const auto eps_target = input.get("eps_target", 1.0e-3);
   std::cout << "min_n (core)    = " << min_n << "\n";
   std::cout << "max_n (excited) = " << max_n << "\n";
   std::cout << "max_l (excited) = " << max_l << "\n";
+  std::cout << "max_k           = " << max_k << "\n";
   std::cout << "max_it          = " << max_it << "\n";
   std::cout << "eps_target      = " << eps_target << "\n";
 
@@ -97,7 +100,7 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   Coulomb::QkTable qk;
   const auto ok = qk.read(Qfname);
   if (!ok) {
-    qk.fill(both, yk);
+    qk.fill(both, yk, max_k);
     qk.write(Qfname);
   }
 
