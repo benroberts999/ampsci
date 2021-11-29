@@ -7,6 +7,8 @@
 #include <iostream>
 #include <type_traits>
 
+// XXX NOTE: with multiplication defined as int... identity is NOT 1!
+
 namespace MBPT {
 
 /*! Defines RDMatrix, Radial Dirac (Spinor) matrix. Designed to store
@@ -18,19 +20,23 @@ namespace MBPT {
 
 RDMatrix is a 4*4 matrix in spinor space {ff, fg, gf, gg} - the g blocks are
 small and are optional. Each block is an N*N radial matrix, where N is a subset
-of the number of points along the full radial grid. Note: RDMatrix
-multiplication is defined as integration. May store doubles or complex doubles.
+of the number of points along the full radial grid. May store doubles or complex
+doubles.
 
    RDMatrix = {ff fg}
               {gf gg}
-   RDMatrix * F = {ff fg} * (f) * dr'
+   RDMatrix * F = {ff fg} * (f)
                   {gf gg}   (g)
-                = Int (ff(r,r')*f(r') + fg(r,r')*g(r'))  dr'
-                      (gf(r,r')*f(r') + gg(r,r')*g(r'))
+                = (ff(r,r')*f(r') + fg(r,r')*g(r'))
+                  (gf(r,r')*f(r') + gg(r,r')*g(r'))
 
-Note: RDMatrix multiplication is defines as integration:
-  G1 * G2 = Int G1(ra,rb)*G2(rb,rc) drb
-          = Sum_j G1(i,j)*G2(j,k) drdu(j)*du
+Note: Careful to distinguish RDMatrix multiplication/integration:
+  G1 * G2 = Int G1(ra,rb)*G2(rb,rc)
+          = Sum_j G1(i,j)*G2(j,k)
+
+G1.drj() * G2 = Int G1(ra,rb)*G2(rb,rc)*dr_b
+              = Sum_j G1(i,j)*G2(j,k)*drdu_j*du
+              = G1 * G2.dri()
 
 While almost always symmetric, this doesn't assume that.
 */
@@ -185,77 +191,24 @@ public:
 
   //****************************************************************************
 
-  //! Matrix multplication, with integration: C=A*B := Cij = \sum_k Aik*Bkj*dr_k
+  //! Matrix multplication: C=A*B := Cij = \sum_k Aik*Bkj.
+  //! Note: integration measure not included: call .drj() first to include it!
   [[nodiscard]] friend RDMatrix<T> operator*(const RDMatrix<T> &a,
                                              const RDMatrix<T> &b) {
 
     RDMatrix<T> out(a.m_i0, a.m_stride, a.m_size, a.m_incl_g, a.m_rgrid);
 
-    for (std::size_t i = 0; i < a.m_size; ++i) {
-      for (std::size_t k = 0; k < a.m_size; ++k) {
-        const auto k2 = a.index_to_fullgrid(k);
-        const auto dr_k =
-            a.m_rgrid->drdu(k2) * a.m_rgrid->du() * double(a.m_stride);
-        const auto a_ffdr_ik = a.ff(i, k) * dr_k;
-        for (std::size_t j = 0; j < a.m_size; ++j) {
-          out.ff(i, j) += a_ffdr_ik * b.ff(k, j);
-        }
-      }
-    }
-    // nb: this is slow!
+    // FF = FF*FF + FG*GF
+    // FG = FF*FG + FG*GG
+    // GF = GF*FF + GG*GF
+    // GG = GF*FG + GG*GG
+    out.set_ff() = a.ff() * b.ff();
     if (a.m_incl_g) {
-      // FF = FF*FF + FG*GF
-      // FG = FF*FG + FG*GG
-      // GF = GF*FF + GG*GF
-      // GG = GF*FG + GG*GG
-      for (std::size_t i = 0; i < a.m_size; ++i) {
-        for (std::size_t k = 0; k < a.m_size; ++k) {
-          const auto k2 = a.index_to_fullgrid(k);
-          const auto dr_k =
-              a.m_rgrid->drdu(k2) * a.m_rgrid->du() * double(a.m_stride);
-          const auto a_ffdr_ik = a.ff(i, k) * dr_k;
-          const auto a_fgdr_ik = a.fg(i, k) * dr_k;
-          const auto a_gfdr_ik = a.gf(i, k) * dr_k;
-          const auto a_ggdr_ik = a.gg(i, k) * dr_k;
-          for (std::size_t j = 0; j < a.m_size; ++j) {
-            out.ff(i, j) += a_fgdr_ik * b.gf(k, j);
-            out.fg(i, j) += a_ffdr_ik * b.fg(k, j) + a_fgdr_ik * b.gg(k, j);
-            out.gf(i, j) += a_gfdr_ik * b.ff(k, j) + a_ggdr_ik * b.gf(k, j);
-            out.gg(i, j) += a_gfdr_ik * b.fg(k, j) + a_ggdr_ik * b.gg(k, j);
-          }
-        }
-      }
+      out.set_ff() += a.fg() * b.gf();
+      out.set_fg() = a.ff() * b.fg() + a.fg() * b.gg();
+      out.set_gf() = a.gf() * b.ff() + a.gg() * b.gf();
+      out.set_gg() = a.gf() * b.fg() + a.gg() * b.gg();
     }
-
-    return out;
-  }
-
-  //! Raw Matrix multplication: Cij = \sum_k Aik*Bkj - only for testing!
-  [[nodiscard]] friend RDMatrix<T> raw_mat_mul(const RDMatrix<T> &a,
-                                               const RDMatrix<T> &b) {
-
-    RDMatrix<T> out(a.m_i0, a.m_stride, a.m_size, a.m_incl_g, a.m_rgrid);
-
-    for (std::size_t i = 0; i < a.m_size; ++i) {
-      for (std::size_t k = 0; k < a.m_size; ++k) {
-        for (std::size_t j = 0; j < a.m_size; ++j) {
-          out.ff(i, j) += a.ff(i, k) * b.ff(k, j);
-        }
-      }
-    }
-    if (a.m_incl_g) {
-      for (std::size_t i = 0; i < a.m_size; ++i) {
-        for (std::size_t k = 0; k < a.m_size; ++k) {
-          for (std::size_t j = 0; j < a.m_size; ++j) {
-            out.ff(i, j) += a.fg(i, k) * b.gf(k, j);
-            out.fg(i, j) += a.ff(i, k) * b.fg(k, j) + a.fg(i, k) * b.gg(k, j);
-            out.gf(i, j) += a.gf(i, k) * b.ff(k, j) + a.gg(i, k) * b.gf(k, j);
-            out.gg(i, j) += a.gf(i, k) * b.fg(k, j) + a.gg(i, k) * b.gg(k, j);
-          }
-        }
-      }
-    }
-
     return out;
   }
 
@@ -320,7 +273,6 @@ public:
   RDMatrix<T> &invert_in_place() {
     m_ff.invert_in_place();
     if (m_incl_g) {
-      // std::cout << "\n XXX \n Warning: Inversion not tesed!\n";
       const auto &ai = m_ff; // already inverted
       const auto &b = m_fg;
       const auto &c = m_gf;
@@ -339,6 +291,70 @@ public:
   [[nodiscard]] RDMatrix<T> inverse() const {
     auto out = *this; //
     return out.invert_in_place();
+  }
+
+  //****************************************************************************
+  //! Multiplies by drj: Q_ij -> Q_ij*dr_j, in place
+  RDMatrix<T> &drj_in_place() {
+    const auto dus = m_rgrid->du() * double(m_stride);
+    for (auto i = 0ul; i < m_size; ++i) {
+      for (auto j = 0ul; j < m_size; ++j) {
+        const auto sj = index_to_fullgrid(j);
+        const auto dr = m_rgrid->drdu(sj) * dus;
+        m_ff[i][j] *= dr;
+      }
+    }
+    if (m_incl_g) {
+      for (auto i = 0ul; i < m_size; ++i) {
+        for (auto j = 0ul; j < m_size; ++j) {
+          const auto sj = index_to_fullgrid(j);
+          const auto dr = m_rgrid->drdu(sj) * dus;
+          m_fg[i][j] *= dr;
+          m_gf[i][j] *= dr;
+          m_gg[i][j] *= dr;
+        }
+      }
+    }
+    return *this;
+  }
+  //! Multiplies by dri: Q_ij -> Q_ij*dr_i, in place
+  RDMatrix<T> &dri_in_place() {
+    const auto dus = m_rgrid->du() * double(m_stride);
+    for (auto i = 0ul; i < m_size; ++i) {
+      const auto si = index_to_fullgrid(i);
+      const auto dr = m_rgrid->drdu(si) * dus;
+      for (auto j = 0ul; j < m_size; ++j) {
+        m_ff[i][j] *= dr;
+      }
+    }
+    if (m_incl_g) {
+      for (auto i = 0ul; i < m_size; ++i) {
+        const auto si = index_to_fullgrid(i);
+        const auto dr = m_rgrid->drdu(si) * dus;
+        for (auto j = 0ul; j < m_size; ++j) {
+          m_fg[i][j] *= dr;
+          m_gf[i][j] *= dr;
+          m_gg[i][j] *= dr;
+        }
+      }
+    }
+    return *this;
+  }
+  //! Multiplies by drj: Q_ij -> Q_ij*dr_j. Returns new matrix (orig unchanged)
+  RDMatrix<T> drj() const {
+    auto out = *this;
+    return out.drj_in_place();
+  }
+  //! Multiplies by dri: Q_ij -> Q_ij*dr_i. Returns new matrix (orig unchanged)
+  RDMatrix<T> dri() const {
+    auto out = *this;
+    return out.dri_in_place();
+  }
+
+  //! returns dr at position along sub grid
+  double dr(std::size_t sub_index) const {
+    const auto full_index = index_to_fullgrid(sub_index);
+    return m_rgrid->drdu(full_index) * m_rgrid->du() * double(m_stride);
   }
 
   //****************************************************************************
@@ -382,15 +398,15 @@ public:
   DiracSpinor operator*(const DiracSpinor &Fn) const {
 
     const auto &r = Fn.rgrid->r();
-    const auto &drdu = Fn.rgrid->drdu();
-    const double s_du = double(m_stride) * Fn.rgrid->du();
+    // const auto &drdu = Fn.rgrid->drdu();
+    // const double s_du = double(m_stride) * Fn.rgrid->du();
 
-    // include dr??
+    // include dr?? No, not by default?
     std::vector<double> f(m_size), g;
     for (auto i = 0ul; i < m_size; ++i) {
       for (auto j = 0ul; j < m_size; ++j) {
         const auto j_f = index_to_fullgrid(j);
-        f[i] += m_ff(i, j) * Fn.f(j_f) * drdu[j_f] * s_du;
+        f[i] += m_ff(i, j) * Fn.f(j_f); // * drdu[j_f] * s_du;
       }
     }
     if (m_incl_g) {
@@ -398,9 +414,10 @@ public:
       for (auto i = 0ul; i < m_size; ++i) {
         for (auto j = 0ul; j < m_size; ++j) {
           const auto j_f = index_to_fullgrid(j);
-          f[i] += m_fg(i, j) * Fn.g(j_f) * drdu[j_f] * s_du;
-          g[i] += (m_gf(i, j) * Fn.f(j_f) + m_gg(i, j) * Fn.g(j_f)) *
-                  drdu[j_f] * s_du;
+          f[i] += m_fg(i, j) * Fn.g(j_f); // * drdu[j_f] * s_du;
+          g[i] += (m_gf(i, j) * Fn.f(j_f) +
+                   m_gg(i, j) * Fn.g(j_f)); // *
+                                            // drdu[j_f] * s_du;
         }
       }
     }
@@ -508,5 +525,10 @@ double max_epsilon(const RDMatrix<T> &a, const RDMatrix<T> &b) {
   }
   return std::max({xff, xfg, xgf, xgg});
 }
+
+//******************************************************************************
+using GMatrix = RDMatrix<double>;
+using ComplexGMatrix = RDMatrix<std::complex<double>>;
+using ComplexDouble = std::complex<double>;
 
 } // namespace MBPT

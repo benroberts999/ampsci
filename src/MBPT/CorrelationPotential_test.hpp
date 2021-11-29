@@ -107,8 +107,10 @@ bool Sigma2(std::ostream &obuff) {
     auto [eps, at] = qip::compare_eps(dzuba_g, de);
     pass &= qip::check_value(&obuff, "Sigma2 Cs (spdfg)", eps, 0.0, 0.05);
   }
-  //
 
+  std::cout << "\n";
+
+  std::vector<double> first_run;
   { // Compare Dzuba, using up to l=6 for splines
     auto dzuba_i = std::vector{
         -0.02013813, -0.00410942, -0.00792483, -0.00702407, -0.00220878,
@@ -121,7 +123,7 @@ bool Sigma2(std::ostream &obuff) {
     wf.solve_valence("7sp5d4f");
     wf.formBasis({"30spdfghi", 40, 7, 0.0, 1.0e-6, 40.0, false});
     wf.formSigma(3, true, 1.0e-4, 30.0, 14 /*stride*/, false, false, {}, {},
-                 "false", "false");
+                 "false", "tmp_sigma_deleteme");
 
     std::vector<double> hf, br2;
     for (const auto &Fv : wf.valence) {
@@ -139,9 +141,46 @@ bool Sigma2(std::ostream &obuff) {
     for (auto i = 0ul; i < dzuba_i.size(); ++i) {
       std::cout << dzuba_i[i] << " " << de[i] << "\n";
     }
+    first_run = de; // copy this data, test the next run against:
 
     auto [eps, at] = qip::compare_eps(dzuba_i, de);
     pass &= qip::check_value(&obuff, "Sigma2 Cs (spdfghi)", eps, 0.0, 0.01);
+  }
+
+  std::cout << "\n";
+
+  // Test reading in Sigma:
+  { // Compare Dzuba, using up to l=6 for splines, read file in!
+    std::sort(begin(first_run), end(first_run)); // sort: don't depend on order
+
+    Wavefunction wf({2000, 1.0e-6, 150.0, 0.33 * 150.0, "loglinear", -1.0},
+                    {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
+    wf.solve_core("HartreeFock", 0.0, "[Xe]");
+    wf.solve_valence("7sp5d4f");
+    // wf.formBasis({"30spdfghi", 40, 7, 0.0, 1.0e-6, 40.0, false});
+    // Don't calculate Sigma, read it in from above example:
+    wf.formSigma(1, true, 0.0, 0.0, 1 /*stride*/, false, false, {}, {},
+                 "tmp_sigma_deleteme", "false");
+
+    std::vector<double> hf, br2;
+    for (const auto &Fv : wf.valence) {
+      hf.push_back(Fv.en());
+    }
+
+    wf.hartreeFockBrueckner();
+
+    for (const auto &Fv : wf.valence) {
+      br2.push_back(Fv.en());
+    }
+
+    auto de = qip::compose([](auto a, auto b) { return a - b; }, br2, hf);
+    std::sort(begin(de), end(de)); // sort: don't depend on order
+    for (auto i = 0ul; i < first_run.size(); ++i) {
+      std::cout << first_run[i] << " " << de[i] << "\n";
+    }
+
+    auto [eps, at] = qip::compare_eps(first_run, de);
+    pass &= qip::check_value(&obuff, "Sigma2 Cs (read)", eps, 0.0, 1.0e-14);
   }
   return pass;
 }
@@ -175,7 +214,6 @@ bool SigmaAO(std::ostream &obuff) {
 
     const std::vector fk{0.71, 0.589, 0.84, 0.885, 0.95, 0.976, 0.991};
     // const std::vector fk{0.72, 0.62, 0.83, 0.89, 0.94, 1.0};
-
     // wf.formSigma(3, true, 1.0e-4, 30.0, 14 /*stride*/);
     wf.formSigma(n_min_core, true, rmin, rmax, stride, false, false, {}, fk,
                  "false", "false", true, true, true, lmax, false, false, omre,

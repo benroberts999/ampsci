@@ -5,7 +5,8 @@
 #include "IO/FRW_fileReadWrite.hpp"
 #include "IO/SafeProfiler.hpp"
 #include "MBPT/CorrelationPotential.hpp"
-#include "MBPT/GreenMatrix.hpp"
+// #include "MBPT/GreenMatrix.hpp"
+#include "MBPT/RDMatrix.hpp"
 #include "Maths/Grid.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include <algorithm>
@@ -63,7 +64,8 @@ void GoldstoneSigma::formSigma(int kappa, double en, int n) {
   }
 
   m_nk.emplace_back(n, kappa, en);
-  auto &Sigma = m_Sigma_kappa.emplace_back(m_subgrid_points, m_include_G);
+  auto &Sigma = m_Sigma_kappa.emplace_back(m_imin, m_stride, m_subgrid_points,
+                                           m_include_G, p_gr);
 
   // if v.kappa > basis, then Ck angular factor won't exist!
   if (Angular::twoj_k(kappa) > m_yeh.Ck().max_tj()) {
@@ -126,8 +128,10 @@ void GoldstoneSigma::Sigma2(GMatrix *Gmat_D, GMatrix *Gmat_X, int kappa,
   if (m_holes.empty())
     return;
 
-  std::vector<GMatrix> Gds(m_holes.size(), {m_subgrid_points, m_include_G});
-  std::vector<GMatrix> Gxs(m_holes.size(), {m_subgrid_points, m_include_G});
+  std::vector<GMatrix> Gds(
+      m_holes.size(), {m_imin, m_stride, m_subgrid_points, m_include_G, p_gr});
+  std::vector<GMatrix> Gxs(
+      m_holes.size(), {m_imin, m_stride, m_subgrid_points, m_include_G, p_gr});
 #pragma omp parallel for
   for (auto ia = 0ul; ia < m_holes.size(); ia++) {
     const auto &a = m_holes[ia];

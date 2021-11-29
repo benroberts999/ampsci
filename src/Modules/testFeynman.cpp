@@ -124,7 +124,7 @@ void Feyn::test_Q(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma) {
 
           const auto &qk = Sigma.get_qk(k);
           const auto aQa =
-              (Sigma.G_single(a, a, 1.0)).mult_elements_by(qk).get_real();
+              (Sigma.G_single(a, a, 1.0)).mult_elements_by(qk).real();
           const auto q_aa = Sigma.act_G_Fv_2(a, aQa, a);
           const auto Rk = Coulomb::Rk_abcd(a, a, a, a, k);
           const auto eps = std::abs((q_aa - Rk) / Rk);
@@ -170,13 +170,17 @@ void Feyn::test_green(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
                                    MBPT::States::both, MBPT::GrMethod::basis);
 
       // ????????????????
-      auto zero1 = (Gr1 * Gr1.inverse()).plusIdent(-1.0);
-      auto zero2 = (Gr2 * Gr2.inverse()).plusIdent(-1.0);
+      auto zero1 = Gr1 * Gr1.inverse() - 1.0;
+      auto zero2 = Gr2 * Gr2.inverse() - 1.0;
       // needs dr ? no ?
-      auto [a, b] = zero1.max_el();
-      auto [c, d] = zero2.max_el();
-      std::cout << "Inverse (Gr): " << a << " " << b << "\n";
-      std::cout << "Inverse (Basis): " << c << " " << d << "\n";
+      // auto [a, b] = zero1.max_el();
+      // auto [c, d] = zero2.max_el();
+      auto a = MBPT::max_element(zero1);
+      auto c = MBPT::max_element(zero2);
+      std::cout << "Inverse (Gr): " << a << " "
+                << "\n";
+      std::cout << "Inverse (Basis): " << c << " "
+                << "\n";
       // ????????????????
 
       std::cout
@@ -187,8 +191,8 @@ void Feyn::test_green(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
         for (const auto &Fv : *orbs) {
           if (Fv.k != kappa)
             continue;
-          auto vGv1 = Fv * Sigma.act_G_Fv(Gr1.get_real(), Fv);
-          auto vGv2 = Fv * Sigma.act_G_Fv(Gr2.get_real(), Fv);
+          auto vGv1 = Fv * Sigma.act_G_Fv(Gr1.real(), Fv);
+          auto vGv2 = Fv * Sigma.act_G_Fv(Gr2.real(), Fv);
 
           auto denom = omega + ComplexDouble{env - Fv.en(), 0};
           auto expected = 1.0 / denom;
@@ -204,8 +208,8 @@ void Feyn::test_green(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
                  error1, error2);
 
           if (omim != 0.0) {
-            auto vGv1_i = Fv * Sigma.act_G_Fv(Gr1.get_imaginary(), Fv);
-            auto vGv2_i = Fv * Sigma.act_G_Fv(Gr2.get_imaginary(), Fv);
+            auto vGv1_i = Fv * Sigma.act_G_Fv(Gr1.imag(), Fv);
+            auto vGv2_i = Fv * Sigma.act_G_Fv(Gr2.imag(), Fv);
             auto error0_i = std::abs((vGv1_i - vGv2_i) / (vGv1_i + vGv2_i));
             auto error1_i = std::abs((vGv1_i - expect_im) / expect_im);
             auto error2_i = std::abs((vGv2_i - expect_im) / expect_im);
@@ -265,13 +269,13 @@ void Feyn::test_GQ(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
                                       MBPT::States::excited, method)
                                .mult_elements_by(qk);
 
-          vgqv_r += Sigma.act_G_Fv_2(Fv, gq.get_real(), Fv);
-          vgqCv_r += Sigma.act_G_Fv_2(Fv, gqC.get_real(), Fv);
-          vgqXv_r += Sigma.act_G_Fv_2(Fv, gqX.get_real(), Fv);
+          vgqv_r += Sigma.act_G_Fv_2(Fv, gq.real(), Fv);
+          vgqCv_r += Sigma.act_G_Fv_2(Fv, gqC.real(), Fv);
+          vgqXv_r += Sigma.act_G_Fv_2(Fv, gqX.real(), Fv);
 
-          vgqv_i += Sigma.act_G_Fv_2(Fv, gq.get_imaginary(), Fv);
-          vgqCv_i += Sigma.act_G_Fv_2(Fv, gqC.get_imaginary(), Fv);
-          vgqXv_i += Sigma.act_G_Fv_2(Fv, gqX.get_imaginary(), Fv);
+          vgqv_i += Sigma.act_G_Fv_2(Fv, gq.imag(), Fv);
+          vgqCv_i += Sigma.act_G_Fv_2(Fv, gqC.imag(), Fv);
+          vgqXv_i += Sigma.act_G_Fv_2(Fv, gqX.imag(), Fv);
 
           for (const auto &Fi : wf.basis) {
             if (Fi.k != kappa)
@@ -346,9 +350,9 @@ void Feyn::test_pol(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
                            MBPT::GrMethod::Green)
                     .mult_elements_by(qpq);
 
-            sum_k_gqpq += Sigma.act_G_Fv_2(Fv, gqpq.get_imaginary(), Fv);
+            sum_k_gqpq += Sigma.act_G_Fv_2(Fv, gqpq.imag(), Fv);
             if (omim != 0.0)
-              sum_k_gqpq_i += Sigma.act_G_Fv_2(Fv, gqpq.get_real(), Fv);
+              sum_k_gqpq_i += Sigma.act_G_Fv_2(Fv, gqpq.real(), Fv);
 
             ComplexDouble sum1 = {0.0, 0.0};
             for (const auto &FB : wf.basis) {
@@ -400,19 +404,19 @@ void Feyn::test_pol(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
       for (int k = 0; k <= Sigma.maxk(); ++k) {
         auto pi = Sigma.Polarisation_k(k, {omre, omim}, test_pol_method);
         ComplexDouble om = {omre, omim};
-        const auto rePi = pi.get_real();
-        const auto imPi = pi.get_imaginary();
+        const auto rePi = pi.real();
+        const auto imPi = pi.imag();
 
         double sum_re = 0.0;
         double sum_im = 0.0;
-        for (auto i = 0ul; i < pi.size; ++i) {
-          const auto dri = Sigma.dr_subToFull(i);
-          for (auto j = 0ul; j < pi.size; ++j) {
-            const auto drj = Sigma.dr_subToFull(j);
-            sum_re += imPi.ff[i][j] * dri * drj;
-            sum_im += rePi.ff[i][j] * dri * drj;
-          }
-        }
+        // for (auto i = 0ul; i < pi.size(); ++i) {
+        //   const auto dri = Sigma.dr_subToFull(i);
+        //   for (auto j = 0ul; j < pi.size(); ++j) {
+        //     const auto drj = Sigma.dr_subToFull(j);
+        //     sum_re += imPi.ff(i, j) * dri * drj;
+        //     sum_im += rePi.ff(i, j) * dri * drj;
+        //   }
+        // }
 
         ComplexDouble expected = {0.0, 0.0};
         for (const auto &Fa : Sigma.m_holes) {

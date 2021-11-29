@@ -70,7 +70,7 @@ bool RDMatrix(std::ostream &obuff) {
     double worst = 0.0;
     for (const auto &Fs : orbitals) {
       const auto expected = 1.0 / (e - Fs.en());
-      const auto res = Fs * (m * Fs);
+      const auto res = Fs * (m.drj() * Fs);
       const auto eps = std::abs((res - expected) / expected);
       if (eps > worst)
         worst = eps;
@@ -80,11 +80,11 @@ bool RDMatrix(std::ostream &obuff) {
     // Calculate <Fs|G*G|Fs> - should be equal to denominator^2 for Fs part of M
     // <Fs|G*S|Fs> = 1.0 / (e - e_s)^2
     // This tests matrix multiplication
-    const auto mm = m * m;
+    const auto mm = m.drj() * m;
     double worst_2 = 0.0;
     for (const auto &Fs : orbitals) {
       const auto expected = 1.0 / (e - Fs.en()) / (e - Fs.en());
-      const auto res = Fs * (mm * Fs);
+      const auto res = Fs * (mm.drj() * Fs);
       const auto eps = std::abs((res - expected) / expected);
       if (eps > worst_2)
         worst_2 = eps;
@@ -110,13 +110,12 @@ bool RDMatrix(std::ostream &obuff) {
       const auto b0 = 0.0 * m + 1.0; // just identity
       const auto b1 = b0 + (-lambda) * m;
       const auto b2 = b1 + lambda * lambda * m * m;
-      const auto b3 = b2 - lambda * lambda * lambda * m * m * m;
       // Differences from expected: [nb: eps is bad, since values small]
       const auto del0 = max_delta(a, b0);
       const auto del1 = max_delta(a, b1);
       const auto del2 = max_delta(a, b2);
 
-      pass &= qip::check_value(&obuff, "G^-1 delta (small)", del2, 0.0, 1.0e-8);
+      pass &= qip::check_value(&obuff, "G^-1 (small)", del2, 0.0, 1.0e-8);
       pass &= qip::check(&obuff, "G^-1 Neumann converge",
                          (del2 < del1 && del1 < del0), true);
 
@@ -124,7 +123,8 @@ bool RDMatrix(std::ostream &obuff) {
       // directly test inverse. Note that we don't use 'raw_mat_mul' in any
       // physics..so only a test of method
       // +1.0 to ensure inverse exists..
-      const auto prod = raw_mat_mul((m + 1.0).inverse(), m + 1.0);
+      // const auto prod = raw_mat_mul((m + 1.0).inverse(), m + 1.0);
+      const auto prod = (m + 1.0).inverse() * (m + 1.0);
       const auto ident = 0.0 * m + 1.0;
       const auto del_d = max_delta(prod, ident);
       pass &=
@@ -152,7 +152,7 @@ bool RDMatrix(std::ostream &obuff) {
     double worst = 0.0;
     for (const auto &Fs : orbitals) {
       const auto expected = 1.0 / (e - Fs.en());
-      const auto res = Fs * (m * Fs);
+      const auto res = Fs * (m.drj() * Fs);
       const auto eps = std::abs((res - expected) / expected);
       if (eps > worst)
         worst = eps;
@@ -168,19 +168,17 @@ bool RDMatrix(std::ostream &obuff) {
       const auto b0 = 0.0 * m + 1.0; // just identity
       const auto b1 = b0 + (-lambda) * m;
       const auto b2 = b1 + lambda * lambda * m * m;
-      const auto b3 = b2 - lambda * lambda * lambda * m * m * m;
       const auto del0 = max_delta(a, b0);
       const auto del1 = max_delta(a, b1);
       const auto del2 = max_delta(a, b2);
 
-      pass &=
-          qip::check_value(&obuff, "G^-1 delta (small+g)", del2, 0.0, 1.0e-8);
+      pass &= qip::check_value(&obuff, "G^-1 (small+g)", del2, 0.0, 1.0e-8);
       pass &= qip::check(&obuff, "G^-1 Neumann converge",
                          (del2 < del1 && del1 < del0), true);
 
       // Now, use 'raw_mat_mul' (doesn't contain integration measure) to
       // directly test inverse.
-      const auto prod = raw_mat_mul((m + 1.0).inverse(), m + 1.0);
+      const auto prod = ((m + 1.0).inverse()) * (m + 1.0);
       const auto ident = 0.0 * m + 1.0;
       const auto del_d = max_delta(prod, ident);
       pass &= qip::check_value(&obuff, "G^-1 direct (small+g)", del_d, 0.0,
@@ -212,8 +210,8 @@ bool RDMatrix(std::ostream &obuff) {
     for (const auto &Fs : orbitals) {
       const auto expected_re = 2.0 / (e - Fs.en());
       const auto expected_im = 3.0 / (e - Fs.en());
-      const auto res_re = Fs * (mr * Fs);
-      const auto res_im = Fs * (mi * Fs);
+      const auto res_re = Fs * (mr.drj() * Fs);
+      const auto res_im = Fs * (mi.drj() * Fs);
       const auto eps_re = std::abs((res_re - expected_re) / expected_re);
       const auto eps_im = std::abs((res_im - expected_im) / expected_im);
       const auto eps = std::max(eps_re, eps_im);
@@ -223,13 +221,14 @@ bool RDMatrix(std::ostream &obuff) {
     pass &= qip::check_value(&obuff, "<F|iG|F> (small+g)", worst, 0.0, 1.0e-4);
 
     // Test multiplication with imag. matrix:
-    const auto mm = m * m;
+    // const auto mm = m.drj() * m;
+    const auto mm = m * m.dri();
     const auto mm_re = mm.real();
     double worst2 = 0.0;
     for (const auto &Fs : orbitals) {
       const auto v = (2.0 + 3.0i) / (e - Fs.en());
       const auto expected = std::real(v * v);
-      const auto res = Fs * (mm_re * Fs);
+      const auto res = Fs * (mm_re.drj() * Fs);
       const auto eps = std::abs((res - expected) / expected);
       if (eps > worst2)
         worst2 = eps;
@@ -246,19 +245,17 @@ bool RDMatrix(std::ostream &obuff) {
       const auto b0 = 0.0 * m + 1.0; // just identity
       const auto b1 = b0 + (-lambda) * m;
       const auto b2 = b1 + lambda * lambda * m * m;
-      const auto b3 = b2 - lambda * lambda * lambda * m * m * m;
       const auto del0 = max_delta(a, b0);
       const auto del1 = max_delta(a, b1);
       const auto del2 = max_delta(a, b2);
 
-      pass &=
-          qip::check_value(&obuff, "iG^-1 delta (small+g)", del2, 0.0, 1.0e-6);
+      pass &= qip::check_value(&obuff, "iG^-1 (small+g)", del2, 0.0, 1.0e-6);
       pass &= qip::check(&obuff, "iG^-1 Neumann converge",
                          (del2 < del1 && del1 < del0), true);
 
       // Now, use 'raw_mat_mul' (doesn't contain integration measure) to
       // directly test inverse.
-      const auto prod = raw_mat_mul((m + 1.0).inverse(), m + 1.0);
+      const auto prod = ((m + 1.0).inverse()) * (m + 1.0);
       const auto ident = 0.0 * m + 1.0;
       const auto del_d = max_delta(prod, ident);
       pass &= qip::check_value(&obuff, "iG^-1 direct (small+g)", del_d, 0.0,
@@ -293,7 +290,7 @@ bool RDMatrix(std::ostream &obuff) {
     double worst = 0.0;
     for (const auto &Fs : orbitals) {
       const auto expected = 1.0 / (e - Fs.en());
-      const auto res = Fs * (m * Fs);
+      const auto res = Fs * (m.drj() * Fs);
       const auto eps = std::abs((res - expected) / expected);
       if (eps > worst)
         worst = eps;
@@ -301,11 +298,11 @@ bool RDMatrix(std::ostream &obuff) {
     pass &= qip::check_value(&obuff, "<F|G|F> (full)", worst, 0.0, 1.0e-14);
 
     // Test multiplication, including G (full matrix)
-    const auto mm = m * m;
+    const auto mm = m.drj() * m;
     double worst_2 = 0.0;
     for (const auto &Fs : orbitals) {
       const auto expected = 1.0 / (e - Fs.en()) / (e - Fs.en());
-      const auto res = Fs * (mm * Fs);
+      const auto res = Fs * (mm.drj() * Fs);
       const auto eps = std::abs((res - expected) / expected);
       if (eps > worst_2)
         worst_2 = eps;

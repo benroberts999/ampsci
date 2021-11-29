@@ -3,7 +3,8 @@
 #include "Angular/SixJTable.hpp"
 #include "Coulomb/YkTable.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
-#include "MBPT/GreenMatrix.hpp"
+// #include "MBPT/GreenMatrix.hpp"
+#include "MBPT/RDMatrix.hpp"
 #include "Physics/AtomData.hpp" //DiracSEnken
 #include "Wavefunction/DiracSpinor.hpp"
 #include <cassert>
@@ -180,9 +181,9 @@ protected:
 
 public:
   // Project subgrid onto full grid
-  std::size_t ri_subToFull(std::size_t i) const;
+  // std::size_t ri_subToFull(std::size_t i) const;
   // get value of dr on subgrid
-  double dr_subToFull(std::size_t i) const;
+  // double dr_subToFull(std::size_t i) const;
 
   std::shared_ptr<const Grid> p_gr;
   // occupied (holes) and excited (virtual) states. Holes includes from n>=nmin

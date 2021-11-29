@@ -107,7 +107,6 @@ doxy:
 	cp ./doc/ampsci.pdf ./docs/ampsci.pdf 2>/dev/null || :
 	( cd ./doc/latex && make clean)
 do_the_chicken_dance:
-	@echo $(OBJS)
 	@echo 'Why would I do that?'
 clang_format:
 	clang-format -i src/*.cpp src/*/*.cpp src/*/*.hpp
