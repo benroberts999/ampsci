@@ -140,9 +140,7 @@ double CoulombTable::P(int k, const DiracSpinor &a, const DiracSpinor &b,
   double Pk_abcd{0.0};
 
   // 6j(s) Triads: {a,c,k}, {k,b,d}, {c,b,l}, {d,a,l}
-  if (Angular::triangle(a.twoj(), c.twoj(), 2 * k) == 0)
-    return 0.0;
-  if (Angular::triangle(2 * k, b.twoj(), d.twoj()) == 0)
+  if (Coulomb::triangle(a, c, k) == 0 || Coulomb::triangle(k, b, d) == 0)
     return 0.0;
 
   const auto [lmin, lmax] = k_minmax_Q(a, b, d, c); // exchange

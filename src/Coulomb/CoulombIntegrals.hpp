@@ -141,4 +141,9 @@ static bool sixjTriads(const A &a, const B &b, const C &c, const D &d,
                              twojknull(d), twojknull(e), twojknull(f));
 }
 
+template <class A, class B, class C>
+static bool triangle(const A &a, const B &b, const C &c) {
+  return Angular::triangle(twojk(a), twojk(b), twojk(c));
+}
+
 } // namespace Coulomb

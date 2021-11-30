@@ -39,17 +39,12 @@ double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
       Angular::neg1pow_2(2 + m.twoj() + n.twoj() + i.twoj() + b.twoj());
 
   // nb: including early triad checks cuts comp time down by ~5x!!
+  // // 6j(r) Triads: {m,i,k}, {k,l,u}, {i,l,r}, {u,r,m}
+  // // 6j(s) Triads: {n,b,k}, {k,l,u}, {b,l,s}, {u,s,n}
   if (!Coulomb::sixjTriads(m, i, k, {}, {}, {})) // {m,i,k;l,u,r}
     return 0.0;
   if (!Coulomb::sixjTriads(n, b, k, {}, {}, {})) // {n,b,k;l,u,s}
     return 0.0;
-
-    // // nb: including early triad checks cuts comp time down by ~5x!!
-    // // 6j(r) Triads: {m,i,k}, {k,l,u}, {i,l,r}, {u,r,m}
-    // // 6j(s) Triads: {n,b,k}, {k,l,u}, {b,l,s}, {u,s,n}
-    // if (Angular::triangle(m.twoj(), i.twoj(), 2 * k) == 0 ||
-    //     Angular::triangle(n.twoj(), b.twoj(), 2 * k) == 0)
-    //   return 0.0;
 
 #pragma omp parallel for reduction(+ : l1)
   for (auto r_index = 0ul; r_index < excited.size(); ++r_index) {
@@ -58,7 +53,7 @@ double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
 
       const auto [u0, uI] = Coulomb::k_minmax_Q(m, n, r, s);
       const auto [l0, lI] = Coulomb::k_minmax_Q(r, s, i, b);
-      if (lI < l0)
+      if (uI < u0 || lI < l0)
         continue;
 
       const auto s_rs = Angular::neg1pow_2(r.twoj() + s.twoj());
@@ -70,8 +65,7 @@ double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
           continue; // never? Unless have k_cut
 
         // From 6J triads:
-        if (Angular::triangle(2 * u, r.twoj(), m.twoj()) == 0 ||
-            Angular::triangle(2 * u, s.twoj(), n.twoj()) == 0)
+        if (Coulomb::triangle(u, r, m) == 0 || Coulomb::triangle(u, s, n) == 0)
           continue;
 
         for (auto l = l0; l <= lI; l += 2) {
@@ -112,16 +106,18 @@ double L23(int k, const DiracSpinor &m, const DiracSpinor &n,
   const double tkp1 = 2.0 * k + 1.0;
   const auto s_k = Angular::neg1pow(k);
 
-  // // 6J triad (from Pmric)
-  // // Valid?
-  // if (Angular::triangle(m.twoj(), i.twoj(), 2 * k) == 0 ||
-  //     Angular::triangle(n.twoj(), b.twoj(), 2 * k) == 0)
-  //   return 0.0;
+  // 6J triads (common to L2 and L3)
+  if (Coulomb::triangle(m, i, k) == 0 || Coulomb::triangle(n, b, k) == 0)
+    return 0.0;
 
 #pragma omp parallel for reduction(+ : l23)
   for (auto r_index = 0ul; r_index < excited.size(); ++r_index) {
     const auto &r = excited[r_index];
     for (const auto &c : core) {
+
+      // 6J triads (common to L2 and L3)
+      if (Coulomb::triangle(c, r, k) == 0)
+        continue;
 
       const auto inv_de_acmr = 1.0 / (i.en() + c.en() - m.en() - r.en());
 
@@ -174,7 +170,7 @@ void calculate_Lk_mnib(Coulomb::CoulombTable *lk,
   int count = 0; // for prog bar
   for (const auto &m : excited) {
     if (print_progbar)
-      qip::progbar(++count, int(excited.size()));
+      qip::progbar50(count++, int(excited.size()));
 
     for (const auto &n : excited) {
       if (apply_symmetry && n < m)
@@ -229,9 +225,6 @@ void calculate_Lk_mnib(Coulomb::CoulombTable *lk,
       }
     }
   }
-
-  if (print_progbar)
-    std::cout << "\n" << std::flush; // prog bar
 }
 
 } // namespace MBPT
