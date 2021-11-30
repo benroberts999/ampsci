@@ -493,8 +493,10 @@ CorrelationPotential::Sigma_l(const DiracSpinor &v, const Coulomb::YkTable &yk,
           const auto Omega_kvamn = lk.W(k, m, n, v, a);
           // const auto W_kvamn = yk.W(k, m, n, v, a);
           const auto W_kvamn = yk.W(k, v, a, m, n);
-          const auto ratio = 0.5 * Omega_kvamn / W_kvamn;
-          const auto f = fk * ratio * inv_de / (2 * k + 1);
+          if (W_kvamn == 0.0)
+            continue;
+          const auto ratio = Omega_kvamn / W_kvamn;
+          const auto f = fk * fk * ratio * inv_de / (2 * k + 1); // fk??
           Sigma.add(Qkv_amn, Qkv_amn + Pkv_amn, f);
 
         } // k
@@ -515,8 +517,10 @@ CorrelationPotential::Sigma_l(const DiracSpinor &v, const Coulomb::YkTable &yk,
 
           const auto Omega_kvnab = lk.W(k, v, n, a, b);
           const auto W_kvnab = yk.W(k, v, n, a, b);
-          const auto ratio = 0.5 * Omega_kvnab / W_kvnab;
-          const auto f = fk * ratio * inv_de / (2 * k + 1);
+          if (W_kvnab == 0.0)
+            continue;
+          const auto ratio = Omega_kvnab / W_kvnab;
+          const auto f = fk * fk * ratio * inv_de / (2 * k + 1);
           Sigma.add(Qkv_nab, Qkv_nab + Pkv_nab, f);
         } // k
       }   // b
