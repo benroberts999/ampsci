@@ -3,7 +3,7 @@
 #include "Angular/SixJTable.hpp"
 #include "Coulomb/YkTable.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
-// #include "MBPT/GreenMatrix.hpp"
+#include "MBPT/Ladder.hpp"
 #include "MBPT/RDMatrix.hpp"
 #include "Physics/AtomData.hpp" //DiracSEnken
 #include "Wavefunction/DiracSpinor.hpp"
@@ -153,6 +153,11 @@ public:
   //! given, will return all 0.0
   double SOEnergyShift(const DiracSpinor &Fv, const DiracSpinor &Fw,
                        int max_l = 99) const;
+
+  RDMatrix<double> Sigma_l(const DiracSpinor &v, const Coulomb::YkTable &qk,
+                           const Coulomb::LkTable &lk,
+                           const std::vector<DiracSpinor> &core,
+                           const std::vector<DiracSpinor> &excited);
 
   int maxk() const { return m_maxk; }
 

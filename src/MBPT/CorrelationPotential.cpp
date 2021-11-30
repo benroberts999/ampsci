@@ -461,6 +461,74 @@ void CorrelationPotential::print_subGrid() const {
 //******************************************************************************
 
 //******************************************************************************
+RDMatrix<double>
+CorrelationPotential::Sigma_l(const DiracSpinor &v, const Coulomb::YkTable &yk,
+                              const Coulomb::LkTable &lk,
+                              const std::vector<DiracSpinor> &core,
+                              const std::vector<DiracSpinor> &excited) {
+
+  RDMatrix<double> Sigma{m_imin, m_stride, m_subgrid_points, m_include_G, p_gr};
+
+  // XXX Note: careful w/ YkTable - should have same basis as Qk?
+  //
+  for (auto in = 0ul; in < excited.size(); ++in) {
+    const auto &n = excited[in];
+    for (const auto &a : core) {
+      // Diagrams (a) + (b)
+      for (const auto &m : excited) {
+
+        const auto inv_de = 1.0 / (v.en() + a.en() - m.en() - n.en());
+        const auto [k0, kI] = Coulomb::k_minmax_Q(v, a, m, n);
+        for (int k = k0; k <= kI; k += 2) {
+
+          // Effective screening parameter:
+          const auto fk = get_fk(k);
+          if (fk == 0.0)
+            continue;
+
+          const auto Qkv_amn = yk.Qkv_bcd(v.k, a, m, n, k);
+
+          const auto Pkv_amn = yk.Pkv_bcd(v.k, a, m, n, k, m_fk);
+
+          const auto Omega_kvamn = lk.W(k, m, n, v, a);
+          // const auto W_kvamn = yk.W(k, m, n, v, a);
+          const auto W_kvamn = yk.W(k, v, a, m, n);
+          const auto ratio = 0.5 * Omega_kvamn / W_kvamn;
+          const auto f = fk * ratio * inv_de / (2 * k + 1);
+          Sigma.add(Qkv_amn, Qkv_amn + Pkv_amn, f);
+
+        } // k
+      }   // m
+
+      // Diagrams (c) + (d)
+      for (const auto &b : core) {
+        const auto inv_de = 1.0 / (v.en() + n.en() - a.en() - b.en());
+        const auto [k0, kI] = Coulomb::k_minmax_Q(v, n, a, b);
+        for (int k = k0; k <= kI; k += 2) {
+          // Effective screening parameter:
+          const auto fk = get_fk(k);
+          if (fk == 0.0)
+            continue;
+
+          const auto Qkv_nab = yk.Qkv_bcd(v.k, n, a, b, k);
+          const auto Pkv_nab = yk.Pkv_bcd(v.k, n, a, b, k, m_fk);
+
+          const auto Omega_kvnab = lk.W(k, v, n, a, b);
+          const auto W_kvnab = yk.W(k, v, n, a, b);
+          const auto ratio = 0.5 * Omega_kvnab / W_kvnab;
+          const auto f = fk * ratio * inv_de / (2 * k + 1);
+          Sigma.add(Qkv_nab, Qkv_nab + Pkv_nab, f);
+        } // k
+      }   // b
+
+      //
+    } // a
+  }   // n
+
+  return (1.0 / v.twojp1()) * Sigma;
+}
+
+//******************************************************************************
 // std::size_t CorrelationPotential::ri_subToFull(std::size_t i) const {
 //   return ((m_imin + i) * m_stride);
 // }

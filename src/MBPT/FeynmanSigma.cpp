@@ -9,7 +9,7 @@
 #include "IO/SafeProfiler.hpp"
 #include "LinAlg/LinAlg.hpp"
 #include "MBPT/CorrelationPotential.hpp"
-// #include "MBPT/GreenMatrix.hpp"
+#include "MBPT/Ladder.hpp"
 #include "MBPT/RDMatrix.hpp"
 #include "Maths/Grid.hpp"
 #include "qip/Vector.hpp"
@@ -146,9 +146,10 @@ void FeynmanSigma::formSigma(int kappa, double en, int n) {
                           FeynmanEx_w1w2(kappa, en);
 
   // Print energy shifts:
+  double deD = 0.0, deX = 0.0;
   if (vk != cend(m_excited)) {
-    auto deD = *vk * act_G_Fv(Sigma, *vk);
-    auto deX = *vk * act_G_Fv(Gmat_X, *vk);
+    deD = *vk * act_G_Fv(Sigma, *vk);
+    deX = *vk * act_G_Fv(Gmat_X, *vk);
     // nb: just approximate (uses splines)
     printf("de= %7.1f + %5.1f = ", deD * PhysConst::Hartree_invcm,
            deX * PhysConst::Hartree_invcm);
@@ -156,6 +157,26 @@ void FeynmanSigma::formSigma(int kappa, double en, int n) {
   }
 
   Sigma += Gmat_X;
+
+  bool include_ladder = true;
+  std::string Lfname = "20spdfgh.lk";
+  if (include_ladder) {
+    std::cout << "\n";
+    // Fill Lk table:
+    Coulomb::LkTable lk;
+    const bool read_lad = lk.read(Lfname);
+
+    /// XXX Also: include fk into ladder??
+    auto Sig_l = Sigma_l(*vk, m_yeh, lk, m_holes, m_excited);
+
+    if (vk != cend(m_excited)) {
+      auto deL = *vk * act_G_Fv(Sig_l, *vk);
+      printf("; + %5.1f = %7.1f", deL * PhysConst::Hartree_invcm,
+             (deL + deD + deX) * PhysConst::Hartree_invcm);
+    }
+
+    Sigma += Sig_l;
+  }
 
   std::cout << "\n";
 }
