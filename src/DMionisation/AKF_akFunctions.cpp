@@ -1,6 +1,7 @@
 #include "DMionisation/AKF_akFunctions.hpp"
 #include "Angular/Wigner369j.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
+#include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Maths/SphericalBessel.hpp"
 #include "Physics/AtomData.hpp"
@@ -33,18 +34,19 @@ double CLkk(int L, int ka, int kb)
 }
 
 //******************************************************************************
-int calculateK_nk(const Wavefunction &wf, const DiracSpinor &psi, int max_L,
-                  double dE,
-                  const std::vector<std::vector<std::vector<double>>> &jLqr_f,
-                  std::vector<float> &AK_nk_q)
+std::vector<float>
+calculateK_nk(const Wavefunction &wf, const DiracSpinor &psi, int max_L,
+              double dE,
+              const std::vector<std::vector<std::vector<double>>> &jLqr_f)
 // Calculates the atomic factor for a given core state (is) and energy.
 // Note: dE = I + ec is depositied energy, not cntm energy
-// AK_nk_q may already contain contribution from previous state, so always needs
-// to be +=
 {
   ContinuumOrbitals cntm(wf); // create cntm object [survives locally only]
 
   const auto qsteps = jLqr_f[0].size();
+
+  std::vector<float> AK_nk_q;
+  AK_nk_q.resize(qsteps); // use +=, so can't use .push_back()
 
   // Calculate continuum wavefunctions
   const double ec = dE + psi.en();
@@ -71,13 +73,14 @@ int calculateK_nk(const Wavefunction &wf, const DiracSpinor &psi, int max_L,
       } // q
     }   // END loop over cntm states (ic)
   }     // end L loop
-  return 0;
+
+  return AK_nk_q;
 }
 
 //******************************************************************************
-int calculateKpw_nk(const Wavefunction &wf, const DiracSpinor &psi, double dE,
-                    const std::vector<std::vector<double>> &jl_qr,
-                    std::vector<float> &tmpK_q)
+std::vector<float>
+calculateKpw_nk(const Wavefunction &wf, const DiracSpinor &psi, double dE,
+                const std::vector<std::vector<double>> &jl_qr)
 // /*
 // For plane-wave final state.
 // Only has f-part....Can restore g-part, but need to be sure of plane-wave!
@@ -85,20 +88,19 @@ int calculateKpw_nk(const Wavefunction &wf, const DiracSpinor &psi, double dE,
 // Should be called once per initial state
 {
 
-  // auto &psi = wf.core[nk];
+  const int twoj = psi.twoj(); // wf.twoj(nk);
 
-  int twoj = psi.twoj(); // wf.twoj(nk);
+  const auto qsteps = jl_qr.size();
+  std::vector<float> tmpK_q(qsteps);
 
-  auto qsteps = jl_qr.size();
-
-  double eps = dE - psi.en();
-  auto maxir = psi.max_pt(); // don't bother going further
+  const double eps = dE - psi.en();
+  const auto maxir = psi.max_pt(); // don't bother going further
 
   if (eps <= 0)
-    return 0;
+    return tmpK_q;
 
   for (auto iq = 0ul; iq < qsteps; iq++) {
-    double chi_q =
+    const double chi_q =
         NumCalc::integrate(wf.rgrid->du(), 0, maxir, psi.f(), jl_qr[iq],
                            wf.rgrid->r(), wf.rgrid->drdu());
     tmpK_q[iq] = (float)((2. / M_PI) * (twoj + 1) * std::pow(chi_q, 2) *
@@ -106,14 +108,14 @@ int calculateKpw_nk(const Wavefunction &wf, const DiracSpinor &psi, double dE,
     // tmpK_q[iq] = std::pow(4*3.14159,2)*std::pow(chi_q,2); // just cf KOPP
   }
 
-  return 0;
+  return tmpK_q;
 }
 
 //******************************************************************************
-void writeToTextFile(const std::string &fname,
-                     const std::vector<std::vector<std::vector<float>>> &AK,
-                     const std::vector<std::string> &nklst, double qmin,
-                     double qmax, double demin, double demax)
+void write_Knk_plaintext(const std::string &fname,
+                         const std::vector<std::vector<std::vector<float>>> &AK,
+                         const std::vector<std::string> &nklst,
+                         const Grid &qgrid, const Grid &Egrid)
 // /*
 // Writes the K factor to a text-file, in GNU-plot readable format
 // XXX NOTE: Re-creates grids! Could use Grid class!
@@ -124,8 +126,8 @@ void writeToTextFile(const std::string &fname,
   const auto num_states = AK[0].size(); // nk
   const auto qsteps = AK[0][0].size();  // q
 
-  double qMeV = (1.e6 / (PhysConst::Hartree_eV * PhysConst::c));
-  double keV = (1.e3 / PhysConst::Hartree_eV);
+  const double qMeV = (1.e6 / (PhysConst::Hartree_eV * PhysConst::c));
+  const double keV = (1.e3 / PhysConst::Hartree_eV);
 
   std::ofstream ofile;
   ofile.open(fname + ".txt");
@@ -134,26 +136,65 @@ void writeToTextFile(const std::string &fname,
     ofile << nk << " ";
   }
   ofile << "Sum\n\n";
-  for (auto i = 0ul; i < desteps; i++) {
-    for (auto k = 0ul; k < qsteps; k++) {
-      double x = double(k) / double(qsteps - 1);
-      if (qsteps == 1)
-        x = 0;
-      double q = qmin * std::pow(qmax / qmin, x);
-      double y = double(i) / double(desteps - 1);
-      if (desteps == 1)
-        y = 0;
-      double dE = demin * std::pow(demax / demin, y);
+  for (auto idE = 0ul; idE < desteps; idE++) {
+    for (auto iq = 0ul; iq < qsteps; iq++) {
+      const auto q = qgrid.r(iq);
+      const auto dE = Egrid.r(idE);
       ofile << dE / keV << " " << q / qMeV << " ";
       float sum = 0.0f;
       for (auto j = 0ul; j < num_states; j++) {
-        sum += AK[i][j][k];
-        ofile << AK[i][j][k] << " ";
+        sum += AK[idE][j][iq];
+        ofile << AK[idE][j][iq] << " ";
       }
       ofile << sum << "\n";
     }
     if (qsteps > 1)
       ofile << "\n";
+  }
+  ofile.close();
+}
+
+//******************************************************************************
+void write_Ktot_plaintext(
+    const std::string &fname,
+    const std::vector<std::vector<std::vector<float>>> &AK, const Grid &qgrid,
+    const Grid &Egrid)
+// /*
+// Writes the K factor to a text-file, in GNU-plot readable format
+// XXX NOTE: Re-creates grids! Could use Grid class!
+// XXX This mean we MUST use exponential Grid! Fix this! XXX
+// */
+{
+  const auto desteps = AK.size();       // dE
+  const auto num_states = AK[0].size(); // nk
+  const auto qsteps = AK[0][0].size();  // q
+
+  const double qMeV = (1.e6 / (PhysConst::Hartree_eV * PhysConst::c));
+  const double keV = (1.e3 / PhysConst::Hartree_eV);
+
+  std::ofstream ofile;
+  ofile.open(fname + "_tot.txt");
+  ofile
+      << "# K_tot(dE,q): dE is rows, q is cols; first row/col is dE/q values\n";
+  ofile << "q(MeV)/dE(keV)";
+  for (auto idE = 0ul; idE < desteps; idE++) {
+    const auto dE = Egrid.r(idE);
+    ofile << " " << dE / keV;
+  }
+  ofile << "\n";
+
+  for (auto iq = 0ul; iq < qsteps; iq++) {
+    const auto q = qgrid.r(iq);
+    ofile << q / qMeV;
+    for (auto idE = 0ul; idE < desteps; idE++) {
+
+      float AK_dEq = 0.0f;
+      for (auto j = 0ul; j < num_states; j++) {
+        AK_dEq += AK[idE][j][iq];
+      }
+      ofile << " " << AK_dEq;
+    }
+    ofile << "\n";
   }
   ofile.close();
 }
@@ -222,9 +263,9 @@ sphericalBesselTable(int max_L, const std::vector<double> &q_array,
 // Uses SphericalBessel
 // */
 {
-  std::cout << std::endl;
-  auto num_points = r.size();
-  auto qsteps = q_array.size();
+  std::cout << "\n";
+  const auto num_points = r.size();
+  const auto qsteps = q_array.size();
 
   std::vector<std::vector<std::vector<double>>> jLqr_f;
   jLqr_f.resize(std::size_t(max_L) + 1,
@@ -233,26 +274,26 @@ sphericalBesselTable(int max_L, const std::vector<double> &q_array,
   for (auto L = 0u; L <= unsigned(max_L); L++) {
     std::cout << "\rCalculating spherical Bessel look-up table for L=" << L
               << "/" << max_L << " .. " << std::flush;
-#pragma omp parallel for
+#pragma omp parallel for collapse(2)
     for (auto iq = 0ul; iq < qsteps; iq++) {
-      double q = q_array[iq];
       for (auto ir = 0ul; ir < num_points; ir++) {
+        const double q = q_array[iq];
         double tmp = SphericalBessel::JL(int(L), q *r[ir]);
         // If q(dr) is too large, "missing" j_L oscillations
         //(overstepping them). This helps to fix that.
         // By averaging the J_L function. Note: only works if wf is smooth
         int num_extra = 0;
         if (ir < num_points - 1) {
-          double qdrop = q * (r[ir + 1] - r[ir]) / M_PI;
-          double min_qdrop = 0.01; // require 100 pts per half wavelength!
+          const double qdrop = q * (r[ir + 1] - r[ir]) / M_PI;
+          const double min_qdrop = 0.01; // require 100 pts per half wavelength!
           if (qdrop > min_qdrop)
             num_extra = int(qdrop / min_qdrop) + 3;
         }
         { // Include 'extra' points into j_L (avg):
           for (auto i = 0; i < num_extra; i++) {
-            double b = (i + 1.0) / (num_extra + 1.);
-            double a = 1.0 - b;
-            double qrtmp = q * (a * r[ir] + b * r[ir + 1]);
+            const double b = (i + 1.0) / (num_extra + 1.0);
+            const double a = 1.0 - b;
+            const double qrtmp = q * (a * r[ir] + b * r[ir + 1]);
             tmp += SphericalBessel::JL(int(L), qrtmp);
           }
           tmp /= (num_extra + 1);
@@ -261,7 +302,7 @@ sphericalBesselTable(int max_L, const std::vector<double> &q_array,
       }
     }
   }
-  std::cout << "done\n";
+  std::cout << "done\n" << std::flush;
   return jLqr_f;
 }
 

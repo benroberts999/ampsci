@@ -1176,8 +1176,8 @@ inline void HartreeFock::hf_core_refine() {
 
     // Temporary Breit operator (with 'static' core [frozen single iteration])
     const std::unique_ptr VBr =
-        m_include_Breit ? std::make_unique<HF::Breit>(core_prev, m_x_Breit)
-                        : nullptr;
+        m_include_Breit ? std::make_unique<HF::Breit>(core_prev, m_x_Breit) :
+                          nullptr;
 
 #pragma omp parallel for
     for (std::size_t i = 0; i < num_core_states; ++i) {

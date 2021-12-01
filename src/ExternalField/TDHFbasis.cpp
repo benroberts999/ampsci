@@ -50,9 +50,9 @@ DiracSpinor TDHFbasis::form_dPsi(const DiracSpinor &Fv, const double omega,
     // why need multiply dV by s too? Thought I shouldn't??
     // const auto hnc = s2 * (s * m_h->reducedME(Fn, Fv) + s * dV(Fn, Fv,
     // conj));
-    const auto hnc = incl_dV
-                         ? s2 * s * (m_h->reducedME(Fn, Fv) + dV(Fn, Fv, conj))
-                         : s2 * s * m_h->reducedME(Fn, Fv);
+    const auto hnc = incl_dV ?
+                         s2 * s * (m_h->reducedME(Fn, Fv) + dV(Fn, Fv, conj)) :
+                         s2 * s * m_h->reducedME(Fn, Fv);
     Xx += (hnc / (Fv.en() - Fn.en() + ww)) * Fn;
   }
 

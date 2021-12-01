@@ -23,8 +23,8 @@ public:
         // min_index must be at least 1
         m_rmin_index(in_grid.getIndex(in_r0) + 1),
         // max_index must be at least 2 below num_points
-        m_rmax_index(in_rmax <= 0.0 ? in_grid.num_points() - 2
-                                    : in_grid.getIndex(in_rmax) - 1) {
+        m_rmax_index(in_rmax <= 0.0 ? in_grid.num_points() - 2 :
+                                      in_grid.getIndex(in_rmax) - 1) {
     if (in_n != 0 && (in_k > in_n || in_k < 2)) {
       std::cerr << "Fail 24 in BSplines: k>n ? " << m_order_k << " "
                 << m_number_n << "\n";

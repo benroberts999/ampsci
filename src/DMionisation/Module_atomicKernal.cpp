@@ -15,10 +15,6 @@ namespace Module {
 void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
   IO::ChronoTimer timer;
 
-  input.checkBlock_old({"Emin", "Emax", "Esteps", "qmin", "qmax", "qsteps",
-                        "max_l_bound", "max_L", "use_plane_waves", "label",
-                        "output_text", "output_binary"});
-
   input.check(
       {{"Emin", "[keV] minimum energy transfer (dE) ~0.1"},
        {"Emax", "[keV] maximum dE"},
@@ -114,8 +110,7 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
   std::vector<std::vector<std::vector<float>>> AK; // float ok?
   // AK[i_dE][n_core]
   const auto num_states = wf.core.size();
-  AK.resize(desteps, std::vector<std::vector<float>>(
-                         num_states, std::vector<float>(qsteps)));
+  AK.resize(desteps, std::vector<std::vector<float>>(num_states));
 
   // Store state info (each orbital) [just useful for plotting!]
   std::vector<std::string> nklst; // human-readiable state labels (easy
@@ -150,17 +145,19 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
       if ((int)l > max_l)
         continue;
       if (plane_wave)
-        AKF::calculateKpw_nk(wf, phi_c, dE, jLqr_f[l], AK[ide][is]);
+        AK[ide][is] = AKF::calculateKpw_nk(wf, phi_c, dE, jLqr_f[l]);
       else
-        AKF::calculateK_nk(wf, phi_c, max_L, dE, jLqr_f, AK[ide][is]);
+        AK[ide][is] = AKF::calculateK_nk(wf, phi_c, max_L, dE, jLqr_f);
     } // END loop over bound states
   }
   std::cout << "..done :)\n";
   std::cout << "Time for AK: " << timer.lap_reading_str() << "\n";
 
   // Write out to text file (in gnuplot friendly form)
-  if (text_out)
-    AKF::writeToTextFile(fname, AK, nklst, qmin, qmax, demin, demax);
+  if (text_out) {
+    AKF::write_Knk_plaintext(fname, AK, nklst, qgrid, Egrid);
+    AKF::write_Ktot_plaintext(fname, AK, qgrid, Egrid);
+  }
   // //Write out AK as binary file
   if (bin_out) {
     AKF::akReadWrite(fname, true, AK, nklst, qmin, qmax, demin, demax);

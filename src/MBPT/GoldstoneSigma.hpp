@@ -31,7 +31,7 @@ All indeces are summed over,
 a & b are core states, n & m are virtual excited states,
 k is multipolarity [Coloulmb expansion], and
 \f$ de_{xyz} = e_v + e_x - e_y - e_z \f$
- 
+
 */
 class GoldstoneSigma final : public CorrelationPotential {
 public:

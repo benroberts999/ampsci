@@ -97,9 +97,9 @@ class Profiler {
 public:
   Profiler(const char *in_name, const char *extra = "")
       : name([&]() {
-          return std::string(extra) == ""
-                     ? std::string(in_name)
-                     : std::string(in_name) + "_" + std::string(extra);
+          return std::string(extra) == "" ?
+                     std::string(in_name) :
+                     std::string(in_name) + "_" + std::string(extra);
         }()),
         tstart(std::chrono::high_resolution_clock::now()) {}
 

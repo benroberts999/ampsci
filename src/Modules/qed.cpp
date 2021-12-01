@@ -42,9 +42,9 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
   std::ofstream of_en;
 
   auto first_line_en =
-      IO::FRW::file_exists(fname + ".energy")
-          ? ""
-          : "#          E0            dE(VP)        dE(SE)        dE(tot)\n";
+      IO::FRW::file_exists(fname + ".energy") ?
+          "" :
+          "#          E0            dE(VP)        dE(SE)        dE(tot)\n";
 
   if (fname != "")
     of_en.open(fname + ".energy", std::ios_base::app);
@@ -176,14 +176,13 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
   // QED to matrix elements (perturbed orbital part):
   const auto me_input = input.getBlock("matrixElements");
   if (me_input) {
-    me_input->check(
-        {{"operator", "e.g., E1, hfs"},
-         {"options", "options specific to operator; blank by dflt"},
-         {"rpa", "true(=TDHF), false, TDHF, basis, diagram"},
-         {"omega", "freq. for RPA"},
-         {"radialIntegral", "false by dflt (means red. ME)"},
-         {"printBoth", "print <a|h|b> and <b|h|a> (dflt false)"},
-         {"onlyDiagonal", "only <a|h|a> (dflt false)"}});
+    me_input->check({{"operator", "e.g., E1, hfs"},
+                     {"options", "options specific to operator; blank by dflt"},
+                     {"rpa", "true(=TDHF), false, TDHF, basis, diagram"},
+                     {"omega", "freq. for RPA"},
+                     {"radialIntegral", "false by dflt (means red. ME)"},
+                     {"printBoth", "print <a|h|b> and <b|h|a> (dflt false)"},
+                     {"onlyDiagonal", "only <a|h|a> (dflt false)"}});
 
     const auto oper = me_input->get<std::string>("operator", "");
     // Get optional 'options' for operator
@@ -205,11 +204,10 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
       rpa_se = std::make_unique<ExternalField::TDHF>(h.get(), wf_SE.getHF());
     }
 
-    auto first_line_me_po =
-        IO::FRW::file_exists(fname + ".me_po")
-            ? ""
-            : "#                ME(0)         d(VP)         "
-              "d(SE)         d(tot)\n";
+    auto first_line_me_po = IO::FRW::file_exists(fname + ".me_po") ?
+                                "" :
+                                "#                ME(0)         d(VP)         "
+                                "d(SE)         d(tot)\n";
 
     std::ofstream of_me;
     if (fname != "")
@@ -274,10 +272,10 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
                 << factor_xRad << " MHz\n";
       std::cout << "(alpha/pi)A_Fermi = " << factor_eF << " MHz\n";
 
-      auto first_line_vx = IO::FRW::file_exists(fname + ".me_vx")
-                               ? ""
-                               : "#                h(0)         d(MLVP)       "
-                                 "d(SEvx)       sum\n";
+      auto first_line_vx = IO::FRW::file_exists(fname + ".me_vx") ?
+                               "" :
+                               "#                h(0)         d(MLVP)       "
+                               "d(SEvx)       sum\n";
 
       std::ofstream of_vx;
       if (fname != "")
@@ -365,14 +363,14 @@ std::vector<std::string> calc_vertexQED(const IO::InputBlock &input,
     wf_SE = &wf;
 
   input.check({{"operator", "operator (e.g., E1 or hfs)"},
-                    {"options", "operator options (same as matrixElements)"},
-                    {"rrms", "nuclear rms, for QED part"},
-                    {"onlyDiagonal", "only print <a|h|a>"},
-                    {"radialIntegral", "false by default (means red. mat. el)"},
-                    {"A_vertex", "A vtx factor; blank=default"},
-                    {"b_vertex", "A vtx factor; =1 by default"},
-                    {"rpa", "include RPA? NOT USED FOR NOW"},
-                    {"omega", "freq. for RPA; NOT USED FOR NOW"}});
+               {"options", "operator options (same as matrixElements)"},
+               {"rrms", "nuclear rms, for QED part"},
+               {"onlyDiagonal", "only print <a|h|a>"},
+               {"radialIntegral", "false by default (means red. mat. el)"},
+               {"A_vertex", "A vtx factor; blank=default"},
+               {"b_vertex", "A vtx factor; =1 by default"},
+               {"rpa", "include RPA? NOT USED FOR NOW"},
+               {"omega", "freq. for RPA; NOT USED FOR NOW"}});
 
   const auto oper = input.get<std::string>("operator", "");
   // Get optional 'options' for operator
@@ -439,8 +437,8 @@ std::vector<std::string> calc_vertexQED(const IO::InputBlock &input,
   for (const auto &Fb : wf.valence) {
     for (const auto &Fa : wf.valence) {
 
-      const auto a = AhfsQ ? DiracOperator::HyperfineA::convertRMEtoA(Fa, Fb)
-                           : radial_int ? 1.0 / h->angularF(Fa.k, Fb.k) : 1.0;
+      const auto a = AhfsQ ? DiracOperator::HyperfineA::convertRMEtoA(Fa, Fb) :
+                             radial_int ? 1.0 / h->angularF(Fa.k, Fb.k) : 1.0;
 
       if (h->isZero(Fa.k, Fb.k))
         continue;

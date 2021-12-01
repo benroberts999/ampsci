@@ -69,7 +69,7 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
   const bool force_rescale = false;
 
   // Find 'inital guess' for asymptotic region:
-  const double lam = 1.0e7;
+  const double lam = 1.0e6;
   const double r_asym =
       (Zion + std::sqrt(4.0 * lam * ec + std::pow(Zion, 2))) / (2.0 * ec);
 
@@ -88,17 +88,7 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
 
   // nb: Don't need to extend grid each time... but want thread-safe
   auto cgrid = *rgrid;
-  cgrid.extend_to(1.2 * r_asym);
-
-  // "Z_ion" - "actual" (excluding exchange.....)
-  const auto z_tmp = std::abs(v_local.back() * rgrid->r().back());
-
-  // Extend local (Vnuc+Vdir) potential to new grid
-  auto vc = v_local;
-  vc.reserve(cgrid.num_points());
-  for (auto i = rgrid->num_points(); i < cgrid.num_points(); i++) {
-    vc.push_back(-z_tmp / cgrid.r(i));
-  }
+  cgrid.extend_to(1.1 * r_asym);
 
   // include Hartree here? Probably shouldn't, since we do "core Hartree"
   const auto self_consistant = (p_hf->method() == HF::Method::HartreeFock ||
@@ -106,10 +96,20 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
                                 /*|| p_hf->method() == HF::Method::Hartree*/
   );
 
+  auto vc = v_local;
   if (Fi && subtract_self_int && self_consistant) {
     // Subtract off the self-interaction direct part
     const auto vdir_sub = Coulomb::yk_ab(*Fi, *Fi, 0);
     qip::compose(std::minus{}, &vc, vdir_sub);
+  }
+
+  // "Z_ion" - "actual" (excluding exchange.....)
+  const auto z_tmp = std::abs(vc.back() * rgrid->r().back());
+
+  // Extend local (Vnuc+Vdir) potential to new grid
+  vc.reserve(cgrid.num_points());
+  for (auto i = rgrid->num_points(); i < cgrid.num_points(); i++) {
+    vc.push_back(-z_tmp / cgrid.r(i));
   }
 
   // Re-scale large-r part of local potential, so goes like -1/r large r

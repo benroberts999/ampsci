@@ -194,7 +194,8 @@ template <typename F, typename T, typename... Args>
 
 //******************************************************************************
 //! In-place scalar multiplication of std::vector - types must match
-template <typename T> void scale(std::vector<T> *vec, T x) {
+template <typename T>
+void scale(std::vector<T> *vec, T x) {
   static_assert(std::is_arithmetic_v<T>,
                 "In scale(std::vector<T>, T) : T must be arithmetic");
   for (auto &v : *vec)
