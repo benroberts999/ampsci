@@ -97,6 +97,12 @@ public:
          const DiracSpinor &c, const DiracSpinor &d,
          const Angular::SixJTable *const sj = nullptr) const;
 
+  //! 'Exchange-only', defined via W = Q + P. Optionally, takes pointer to 6J
+  //! table (faster eval of 6J symbols) - with screening
+  Real P2(int k, const DiracSpinor &a, const DiracSpinor &b,
+          const DiracSpinor &c, const DiracSpinor &d,
+          const Angular::SixJTable &sj, const std::vector<double> &fk) const;
+
   //! W^k_abcd = Q^k_abcd + \sum_l [k] 6j * Q^l_abdc. Optionally, takes
   //! pointer to 6J table (faster eval of 6J symbols)
   Real W(int k, const DiracSpinor &a, const DiracSpinor &b,

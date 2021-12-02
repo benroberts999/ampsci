@@ -18,7 +18,7 @@
   * Overall numerical stability
   * Exchange (2nd order): w1 and w1w2
   * g-part for Feynman?
-  * Breit issue?
+  * Breit issue? (see below)
 
 ## Ladder diagrams (#13)
   * Qk table
@@ -61,6 +61,10 @@
   * Fewer allocations?
   * Use Qk,Pk functions?
   * RPAD: minor "eps" race cond?
+
+## Breit
+  * More efficient (calc + store integrals, as for Yk?)
+  * Breit matrix - for inclusion into Green's function
 
 ## Double core Polarisation (#12)
   * Work with any class derivative?

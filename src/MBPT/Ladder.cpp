@@ -60,7 +60,7 @@ double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
       const auto inv_de = 1.0 / (i.en() + b.en() - r.en() - s.en());
 
       for (auto u = u0; u <= uI; u += 2) {
-        const auto Q_umnrs = qk.Q(u, m, n, r, s);
+        const auto Q_umnrs = fk.scr(u) * qk.Q(u, m, n, r, s);
         if (Q_umnrs == 0.0)
           continue; // never? Unless have k_cut
 
@@ -77,7 +77,7 @@ double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
           const auto sj_r = SJ->get(m, i, k, l, u, r);
           const auto sj_s = SJ->get(n, b, k, l, u, s);
 
-          const auto Q_lrsab = qk.Q(l, r, s, i, b);
+          const auto Q_lrsab = fk.scr(l) * qk.Q(l, r, s, i, b);
           const auto L_lrsab = Lk ? Lk->Q(l, r, s, i, b) : 0.0;
 
           l1 += s_rs * sj_r * sj_s * Q_umnrs * (Q_lrsab + L_lrsab) * inv_de;
@@ -121,9 +121,9 @@ double L23(int k, const DiracSpinor &m, const DiracSpinor &n,
 
       const auto inv_de_acmr = 1.0 / (i.en() + c.en() - m.en() - r.en());
 
-      const auto P_kcnrb = qk.P(k, c, n, r, b);
+      const auto P_kcnrb = qk.P2(k, c, n, r, b, *SJ, fk.fk);
       if (P_kcnrb != 0.0) {
-        const auto P_kmrac = qk.P(k, m, r, i, c, SJ);
+        const auto P_kmrac = qk.P2(k, m, r, i, c, *SJ, fk.fk);
         const auto Lambda_kmrac = Lk ? Lk->P(k, m, r, i, c, SJ) : 0.0;
         l23 += P_kcnrb * (P_kmrac + Lambda_kmrac) * inv_de_acmr;
       }
@@ -132,9 +132,9 @@ double L23(int k, const DiracSpinor &m, const DiracSpinor &n,
 
       const auto inv_de_bcnr = 1.0 / (b.en() + c.en() - n.en() - r.en());
 
-      const auto P_kcmra = qk.P(k, c, m, r, i);
+      const auto P_kcmra = qk.P2(k, c, m, r, i, *SJ, fk.fk);
       if (P_kcmra != 0.0) {
-        const auto P_knrbc = qk.P(k, n, r, b, c, SJ);
+        const auto P_knrbc = qk.P2(k, n, r, b, c, *SJ, fk.fk);
         const auto Lambda_knrbc = Lk ? Lk->P(k, n, r, b, c, SJ) : 0.0;
         l23 += P_kcmra * (P_knrbc + Lambda_knrbc) * inv_de_bcnr;
       }
