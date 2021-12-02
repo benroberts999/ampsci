@@ -25,11 +25,11 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
 
   auto demin = input.get<double>("Emin", 1.0);
   auto demax = input.get<double>("Emax", 1.0);
-  auto desteps = input.get<int>("Esteps", 1.0);
+  auto desteps = input.get<int>("Esteps", 1);
 
   auto qmin = input.get<double>("qmin", 1.0);
   auto qmax = input.get<double>("qmax", 1.0);
-  auto qsteps = input.get<int>("qsteps", 1.0);
+  auto qsteps = input.get<int>("qsteps", 1);
 
   // allow for single-step in dE or q grid
   if (desteps == 1)

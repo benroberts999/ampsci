@@ -18,11 +18,8 @@ void AFStepFunction(const IO::InputBlock &input, const Wavefunction &wf) {
   IO::ChronoTimer timer; // start the overall timer
 
   input.checkBlock({"Emin", "Emax", "Esteps", "qmin", "qmax", "qsteps",
-                    "max_l_bound", "max_L", "use_plane_waves", "table_label",
-                    "output_label", "output_text", "output_binary",
-                    "dme_coupling"});
-  // "use_alt_akf",
-  // "force_rescale", "subtract_self", "force_orthog"
+                    "max_l_bound", "table_label", "output_label", "output_text",
+                    "output_binary", "dme_coupling"});
 
   auto demin = input.get<double>("Emin", 1.0);
   auto demax = input.get<double>("Emax", 1.0);
@@ -61,16 +58,16 @@ void AFStepFunction(const IO::InputBlock &input, const Wavefunction &wf) {
   auto max_l = input.get<int>("max_l_bound", max_l_core);
   if (max_l < 0 || max_l > max_l_core)
     max_l = max_l_core;
-  auto max_L = input.get<int>("max_L", 2 * max_l); // random default..
+  // auto max_L = input.get<int>("max_L", 2 * max_l); // random default..
 
   auto table_label = input.get<std::string>("table_label", "");
   auto output_label = input.get<std::string>("output_label", "");
 
   std::string dme_coupling = input.get<std::string>("dme_coupling", "Vector");
 
-  bool plane_wave = input.get<bool>("use_plane_waves", false);
-  if (plane_wave)
-    max_L = max_l; // for spherical bessel.
+  // bool plane_wave = input.get<bool>("use_plane_waves", false);
+  // if (plane_wave)
+  //   max_L = max_l; // for spherical bessel.
 
   // auto label = input.get<std::string>("label", "");
 
@@ -79,14 +76,6 @@ void AFStepFunction(const IO::InputBlock &input, const Wavefunction &wf) {
   auto bin_out = input.get<bool>("output_binary", false);
   if (!text_out && !bin_out)
     bin_out = true; // print message?
-
-  // // ***using these options requires generating entirely new tables
-  // // if alt_akf then exp(iqr) -> exp(iqr) - 1 (i.e. j_L -> j_L - 1)
-  // auto alt_akf = input.get<bool>("use_alt_akf", false);
-  // // Options used by solveContinuumHF (called in AKF)
-  // auto force_rescale = input.get<bool>("force_rescale", false);
-  // auto subtract_self = input.get<bool>("subtract_self", false);
-  // auto force_orthog = input.get<bool>("force_orthog", false);
 
   // DM-electron couplings
   std::vector<std::string> dmec_opt = {"Vector", "Scalar", "Pseudovector",
@@ -102,7 +91,6 @@ void AFStepFunction(const IO::InputBlock &input, const Wavefunction &wf) {
               << "' unknown, defaulting to Vector\n";
     dmec = "Vector";
   }
-  // dmec = (check_dmec == true) ? ;
 
   // Make sure h (large-r step size) is small enough to
   // calculate (normalise) cntm functions with energy = demax
@@ -172,22 +160,10 @@ void AFStepFunction(const IO::InputBlock &input, const Wavefunction &wf) {
   std::string fname_table = "afbe_table-" + wf.atomicSymbol();
   if (table_label != "")
     fname_table += "_" + table_label;
-  // int reading_table = AKF::akReadWrite_AFBE(fname_table, false, AFBE_table,
-  // nklst, qmin, qmax,
-  //                       eabove);
-  // if (reading_table == 1) {
-  //   std::cout << "Atomic factor table not found, generating new table...\n";
 
-  // }
   std::cout << "Reading atomic factor table...\n";
   AKF::akReadWrite_AFBE(fname_table, false, AFBE_table, nklst, qmin, qmax,
                         eabove);
-
-  // pre-calculate the spherical Bessel function look-up table for
-  // efficiency
-  std::vector<std::vector<std::vector<double>>> jLqr_f;
-  AKF::sphericalBesselTable(jLqr_f, max_L, qgrid.r(), wf.rgrid->r());
-  std::cout << "Time for SB table: " << timer.lap_reading_str() << "\n";
 
   // Calculate the AK (print to screen)
   std::cout << "\nCalculating atomic kernal AK(q,dE):\n";
@@ -209,12 +185,6 @@ void AFStepFunction(const IO::InputBlock &input, const Wavefunction &wf) {
       if (l > max_l)
         continue;
       AKF::stepK_nk(wf.core[is], dE, AFBE_table[0][is], AK[ide][is]);
-      // if (plane_wave)
-      //   AKF::calculateKpw_nk(wf, wf.core[is], dE, jLqr_f[l], AK[ide][is]);
-      // else
-      //   AKF::calculateK_nk(wf, wf.core[is], max_L, dE, jLqr_f, AK[ide][is],
-      //                      alt_akf, force_rescale, subtract_self,
-      //                      force_orthog, dmec);
     } // END loop over bound states
   }
   std::cout << "..done :)\n";
