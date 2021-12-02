@@ -39,17 +39,12 @@ double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
       Angular::neg1pow_2(2 + m.twoj() + n.twoj() + i.twoj() + b.twoj());
 
   // nb: including early triad checks cuts comp time down by ~5x!!
+  // // 6j(r) Triads: {m,i,k}, {k,l,u}, {i,l,r}, {u,r,m}
+  // // 6j(s) Triads: {n,b,k}, {k,l,u}, {b,l,s}, {u,s,n}
   if (!Coulomb::sixjTriads(m, i, k, {}, {}, {})) // {m,i,k;l,u,r}
     return 0.0;
   if (!Coulomb::sixjTriads(n, b, k, {}, {}, {})) // {n,b,k;l,u,s}
     return 0.0;
-
-    // // nb: including early triad checks cuts comp time down by ~5x!!
-    // // 6j(r) Triads: {m,i,k}, {k,l,u}, {i,l,r}, {u,r,m}
-    // // 6j(s) Triads: {n,b,k}, {k,l,u}, {b,l,s}, {u,s,n}
-    // if (Angular::triangle(m.twoj(), i.twoj(), 2 * k) == 0 ||
-    //     Angular::triangle(n.twoj(), b.twoj(), 2 * k) == 0)
-    //   return 0.0;
 
 #pragma omp parallel for reduction(+ : l1)
   for (auto r_index = 0ul; r_index < excited.size(); ++r_index) {
@@ -58,20 +53,19 @@ double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
 
       const auto [u0, uI] = Coulomb::k_minmax_Q(m, n, r, s);
       const auto [l0, lI] = Coulomb::k_minmax_Q(r, s, i, b);
-      if (lI < l0)
+      if (uI < u0 || lI < l0)
         continue;
 
       const auto s_rs = Angular::neg1pow_2(r.twoj() + s.twoj());
       const auto inv_de = 1.0 / (i.en() + b.en() - r.en() - s.en());
 
       for (auto u = u0; u <= uI; u += 2) {
-        const auto Q_umnrs = qk.Q(u, m, n, r, s);
+        const auto Q_umnrs = fk.scr(u) * qk.Q(u, m, n, r, s);
         if (Q_umnrs == 0.0)
           continue; // never? Unless have k_cut
 
         // From 6J triads:
-        if (Angular::triangle(2 * u, r.twoj(), m.twoj()) == 0 ||
-            Angular::triangle(2 * u, s.twoj(), n.twoj()) == 0)
+        if (Coulomb::triangle(u, r, m) == 0 || Coulomb::triangle(u, s, n) == 0)
           continue;
 
         for (auto l = l0; l <= lI; l += 2) {
@@ -83,7 +77,7 @@ double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
           const auto sj_r = SJ->get(m, i, k, l, u, r);
           const auto sj_s = SJ->get(n, b, k, l, u, s);
 
-          const auto Q_lrsab = qk.Q(l, r, s, i, b);
+          const auto Q_lrsab = fk.scr(l) * qk.Q(l, r, s, i, b);
           const auto L_lrsab = Lk ? Lk->Q(l, r, s, i, b) : 0.0;
 
           l1 += s_rs * sj_r * sj_s * Q_umnrs * (Q_lrsab + L_lrsab) * inv_de;
@@ -112,22 +106,24 @@ double L23(int k, const DiracSpinor &m, const DiracSpinor &n,
   const double tkp1 = 2.0 * k + 1.0;
   const auto s_k = Angular::neg1pow(k);
 
-  // // 6J triad (from Pmric)
-  // // Valid?
-  // if (Angular::triangle(m.twoj(), i.twoj(), 2 * k) == 0 ||
-  //     Angular::triangle(n.twoj(), b.twoj(), 2 * k) == 0)
-  //   return 0.0;
+  // 6J triads (common to L2 and L3)
+  if (Coulomb::triangle(m, i, k) == 0 || Coulomb::triangle(n, b, k) == 0)
+    return 0.0;
 
 #pragma omp parallel for reduction(+ : l23)
   for (auto r_index = 0ul; r_index < excited.size(); ++r_index) {
     const auto &r = excited[r_index];
     for (const auto &c : core) {
 
+      // 6J triads (common to L2 and L3)
+      if (Coulomb::triangle(c, r, k) == 0)
+        continue;
+
       const auto inv_de_acmr = 1.0 / (i.en() + c.en() - m.en() - r.en());
 
-      const auto P_kcnrb = qk.P(k, c, n, r, b);
+      const auto P_kcnrb = qk.P2(k, c, n, r, b, *SJ, fk.fk);
       if (P_kcnrb != 0.0) {
-        const auto P_kmrac = qk.P(k, m, r, i, c, SJ);
+        const auto P_kmrac = qk.P2(k, m, r, i, c, *SJ, fk.fk);
         const auto Lambda_kmrac = Lk ? Lk->P(k, m, r, i, c, SJ) : 0.0;
         l23 += P_kcnrb * (P_kmrac + Lambda_kmrac) * inv_de_acmr;
       }
@@ -136,9 +132,9 @@ double L23(int k, const DiracSpinor &m, const DiracSpinor &n,
 
       const auto inv_de_bcnr = 1.0 / (b.en() + c.en() - n.en() - r.en());
 
-      const auto P_kcmra = qk.P(k, c, m, r, i);
+      const auto P_kcmra = qk.P2(k, c, m, r, i, *SJ, fk.fk);
       if (P_kcmra != 0.0) {
-        const auto P_knrbc = qk.P(k, n, r, b, c, SJ);
+        const auto P_knrbc = qk.P2(k, n, r, b, c, *SJ, fk.fk);
         const auto Lambda_knrbc = Lk ? Lk->P(k, n, r, b, c, SJ) : 0.0;
         l23 += P_kcmra * (P_knrbc + Lambda_knrbc) * inv_de_bcnr;
       }
@@ -174,7 +170,7 @@ void calculate_Lk_mnib(Coulomb::CoulombTable *lk,
   int count = 0; // for prog bar
   for (const auto &m : excited) {
     if (print_progbar)
-      qip::progbar(++count, int(excited.size()));
+      qip::progbar50(count++, int(excited.size()));
 
     for (const auto &n : excited) {
       if (apply_symmetry && n < m)
@@ -229,9 +225,6 @@ void calculate_Lk_mnib(Coulomb::CoulombTable *lk,
       }
     }
   }
-
-  if (print_progbar)
-    std::cout << "\n" << std::flush; // prog bar
 }
 
 } // namespace MBPT

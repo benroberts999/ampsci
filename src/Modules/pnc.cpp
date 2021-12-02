@@ -23,7 +23,7 @@ void calculatePNC(const IO::InputBlock &input, const Wavefunction &wf) {
   const std::string ThisModule = "Module::PNC";
 
   input.checkBlock_old({"t", "c", "transition", "nmain", "rpa", "omega",
-                    "E1_rpa_it", "pnc_rpa_it"});
+                        "E1_rpa_it", "pnc_rpa_it"});
 
   // input: nuc parameters for rho:
   const auto c_dflt =

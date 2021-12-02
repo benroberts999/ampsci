@@ -82,11 +82,11 @@ DiracSpinor TensorOperator::radial_rhs(const int kappa_a,
     return dF;
   }
 
-  const auto &df = (diff_order == 0) ? Fb.f()
-                                     : NumCalc::derivative(Fb.f(), gr.drdu(),
+  const auto &df = (diff_order == 0) ? Fb.f() :
+                                       NumCalc::derivative(Fb.f(), gr.drdu(),
                                                            gr.du(), diff_order);
-  const auto &dg = (diff_order == 0) ? Fb.g()
-                                     : NumCalc::derivative(Fb.g(), gr.drdu(),
+  const auto &dg = (diff_order == 0) ? Fb.g() :
+                                       NumCalc::derivative(Fb.g(), gr.drdu(),
                                                            gr.du(), diff_order);
 
   const auto cff = angularCff(kappa_a, Fb.k);

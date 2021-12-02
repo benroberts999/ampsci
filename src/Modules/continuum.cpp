@@ -10,8 +10,8 @@ namespace Module {
 void continuum(const IO::InputBlock &input, const Wavefunction &wf) {
 
   input.check({{"ec", "energy for cntm states (>0)"},
-                     {"max_l", "maximum l"},
-                     {"filename", "filename for output"}});
+               {"max_l", "maximum l"},
+               {"filename", "filename for output"}});
 
   auto en_c = input.get("ec", 0.5);
   auto lmax = input.get("max_l", 0);

@@ -11,10 +11,10 @@
 GridParameters::GridParameters(std::size_t innum_points, double inr0,
                                double inrmax, double inb,
                                const std::string &str_type, double indu)
-    : num_points(innum_points == 0
-                     ? Grid::calc_num_points_from_du(inr0, inrmax, indu,
-                                                     parseType(str_type), inb)
-                     : innum_points),
+    : num_points(innum_points == 0 ?
+                     Grid::calc_num_points_from_du(inr0, inrmax, indu,
+                                                   parseType(str_type), inb) :
+                     innum_points),
       r0(inr0),
       rmax(inrmax),
       b(inb),
@@ -24,8 +24,8 @@ GridParameters::GridParameters(std::size_t innum_points, double inr0,
                                double inrmax, double inb, GridType intype,
                                double indu)
     : num_points(innum_points == 0 ? Grid::calc_num_points_from_du(
-                                         inr0, inrmax, indu, intype, inb)
-                                   : innum_points),
+                                         inr0, inrmax, indu, intype, inb) :
+                                     innum_points),
       r0(inr0),
       rmax(inrmax),
       b(inb),

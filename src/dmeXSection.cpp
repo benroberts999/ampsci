@@ -1021,7 +1021,7 @@ int main(int argc, char *argv[]) {
   // Note: SHM is in km/s units, both for v and f!
   // f.dv = 1 => [f] = [1/v]
 
-  double max_v = (SHMCONSTS::MAXV) / V_to_kms;
+  double max_v = (AstroConsts::v_max) / V_to_kms;
   double dv = max_v / vsteps;
   int num_cp = do_anMod ? 3 : 1; // just 1 v. dist? or 3 (for an mod.)?
   std::vector<std::vector<double>> arr_fv(num_cp, std::vector<double>(vsteps));
@@ -1040,8 +1040,9 @@ int main(int argc, char *argv[]) {
   if (dvesc != 0 || dv0 != 0)
     std::cout << " with error terms (dvesc, dv0)=" << dvesc << "," << dv0
               << ".";
-  std::cout << "\n ==> v0=" << SHMCONSTS::V0 + dv0 * SHMCONSTS::DEL_V0 << ", "
-            << "vesc =" << SHMCONSTS::VESC + dvesc * SHMCONSTS::DEL_VESC
+  std::cout << "\n ==> v0=" << AstroConsts::v0 + dv0 * AstroConsts::delta_v0
+            << ", "
+            << "vesc =" << AstroConsts::v_esc + dvesc * AstroConsts::delta_v_esc
             << " km/s\n";
 
   // Print the grid info to screen:

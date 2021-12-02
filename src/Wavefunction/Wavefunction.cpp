@@ -557,11 +557,11 @@ std::string Wavefunction::nuclearParams() const {
            << " r_rms = " << rrms
            << ", r_charge = " << Nuclear::c_hdr_formula_rrms_t(rrms, 0);
     break;
-    case Nuclear::Type::Gaussian:
-      output << "Gaussian nucleus; "
-             << " r_rms = " << rrms
-             << ", r_charge = " << Nuclear::c_hdr_formula_rrms_t(rrms, 0);
-      break;
+  case Nuclear::Type::Gaussian:
+    output << "Gaussian nucleus; "
+           << " r_rms = " << rrms
+           << ", r_charge = " << Nuclear::c_hdr_formula_rrms_t(rrms, 0);
+    break;
   case Nuclear::Type::Fermi:
     output << "Fermi nucleus; "
            << " r_rms = " << rrms

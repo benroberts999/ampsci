@@ -140,9 +140,7 @@ double CoulombTable::P(int k, const DiracSpinor &a, const DiracSpinor &b,
   double Pk_abcd{0.0};
 
   // 6j(s) Triads: {a,c,k}, {k,b,d}, {c,b,l}, {d,a,l}
-  if (Angular::triangle(a.twoj(), c.twoj(), 2 * k) == 0)
-    return 0.0;
-  if (Angular::triangle(2 * k, b.twoj(), d.twoj()) == 0)
+  if (Coulomb::triangle(a, c, k) == 0 || Coulomb::triangle(k, b, d) == 0)
     return 0.0;
 
   const auto [lmin, lmax] = k_minmax_Q(a, b, d, c); // exchange
@@ -153,6 +151,34 @@ double CoulombTable::P(int k, const DiracSpinor &a, const DiracSpinor &b,
     const auto sixj =
         sj ? sj->get(a, c, k, b, d, l) : Coulomb::sixj(a, c, k, b, d, l);
     Pk_abcd += sixj * ql;
+  }
+  Pk_abcd *= double(2 * k + 1);
+  return Pk_abcd;
+}
+
+//******************************************************************************
+double CoulombTable::P2(int k, const DiracSpinor &a, const DiracSpinor &b,
+                        const DiracSpinor &c, const DiracSpinor &d,
+                        const Angular::SixJTable &sj,
+                        const std::vector<double> &fk) const {
+  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
+  double Pk_abcd{0.0};
+
+  // 6j(s) Triads: {a,c,k}, {k,b,d}, {c,b,l}, {d,a,l}
+  if (Coulomb::triangle(a, c, k) == 0 || Coulomb::triangle(k, b, d) == 0)
+    return 0.0;
+
+  const auto [lmin, lmax] = k_minmax_Q(a, b, d, c); // exchange
+  for (int l = lmin; l <= lmax; l += 2) {
+    const auto ql = this->Q(l, a, b, d, c); // exchange
+    if (ql == 0.0)
+      continue;
+    const auto sixj = sj.get(a, c, k, b, d, l);
+
+    // include effective Coulomb screening:
+    const auto f_scr_l = (l < (int)fk.size()) ? fk[std::size_t(l)] : 1.0;
+
+    Pk_abcd += f_scr_l * sixj * ql;
   }
   Pk_abcd *= double(2 * k + 1);
   return Pk_abcd;

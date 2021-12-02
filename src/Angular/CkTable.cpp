@@ -65,8 +65,8 @@ double CkTable::get_tildeCkab_mutable(int k, int ka, int kb) {
   auto maxji = std::max(jia, jib);
   if (maxji > m_max_jindex_sofar || k > m_max_k_sofar)
     fill(std::max(k, twoj(maxji)) + 1); // XXX Hack? Why need +1 ??
-  return (jia > jib) ? m_3j_k_a_b[k][jia][jib] * m_Rjab_a_b[jia][jib]
-                     : m_3j_k_a_b[k][jib][jia] * m_Rjab_a_b[jib][jia];
+  return (jia > jib) ? m_3j_k_a_b[k][jia][jib] * m_Rjab_a_b[jia][jib] :
+                       m_3j_k_a_b[k][jib][jia] * m_Rjab_a_b[jib][jia];
 }
 
 double CkTable::get_tildeCkab(int k, int ka, int kb) const {
@@ -81,8 +81,8 @@ double CkTable::get_tildeCkab(int k, int ka, int kb) const {
     return 0.0;
   assert(std::max(jia, jib) <= m_max_jindex_sofar);
   assert(k <= m_max_k_sofar);
-  return (jia > jib) ? m_3j_k_a_b[k][jia][jib] * m_Rjab_a_b[jia][jib]
-                     : m_3j_k_a_b[k][jib][jia] * m_Rjab_a_b[jib][jia];
+  return (jia > jib) ? m_3j_k_a_b[k][jia][jib] * m_Rjab_a_b[jia][jib] :
+                       m_3j_k_a_b[k][jib][jia] * m_Rjab_a_b[jib][jia];
 }
 
 //******************************************************************************

@@ -213,8 +213,8 @@ inline double num_integrate(const std::function<double(double)> &f, double a,
                             t_grid type = linear) {
   //
 
-  const auto dt = (type == linear) ? (b - a) / double(n_pts - 1)
-                                   : std::log(b / a) / double(n_pts - 1);
+  const auto dt = (type == linear) ? (b - a) / double(n_pts - 1) :
+                                     std::log(b / a) / double(n_pts - 1);
 
   std::function<double(long unsigned)> x =
       (type == linear) ? linx(a, dt) : logx(a, dt);

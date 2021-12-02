@@ -45,7 +45,7 @@ double de_valence(const DiracSpinor &v, const Qintegrals &qk,
         const auto inv_de = 1.0 / (v.en() + a.en() - m.en() - n.en());
         const auto [k0, kI] = Coulomb::k_minmax_Q(v, a, m, n);
         for (int k = k0; k <= kI; k += 2) {
-          const auto Q_kvamn = qk.Q(k, v, a, m, n);
+          const auto Q_kvamn = fk.scr(k) * qk.Q(k, v, a, m, n);
 
           const auto L_kvamn = LisQ ? Q_kvamn : lk.Q(k, m, n, v, a);
           const auto P_kvamn = lk.P(k, n, m, a, v); // \propto Q_mnva
@@ -58,7 +58,7 @@ double de_valence(const DiracSpinor &v, const Qintegrals &qk,
         const auto inv_de = 1.0 / (v.en() + n.en() - a.en() - b.en());
         const auto [k0, kI] = Coulomb::k_minmax_Q(v, n, a, b);
         for (int k = k0; k <= kI; k += 2) {
-          const auto Q_kvnab = qk.Q(k, v, n, a, b);
+          const auto Q_kvnab = fk.scr(k) * qk.Q(k, v, n, a, b);
 
           const auto L_kvnab = LisQ ? Q_kvnab : lk.Q(k, v, n, a, b);
           const auto P_kvnab = lk.P(k, v, n, a, b);

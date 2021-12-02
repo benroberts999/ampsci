@@ -6,6 +6,15 @@
 
 namespace MBPT {
 
+struct Fk {
+  const std::vector<double> fk;
+  double scr(int k) const {
+    return k < (int)fk.size() ? fk[std::size_t(k)] : 1.0;
+  }
+};
+
+const Fk fk{{0.714, 0.585, 0.838, 0.885, 0.949, 0.975, 0.990, 0.996, 0.999}};
+
 //! Calculates ladder integral, L^k_mnab
 double Lkmnab(int k, const DiracSpinor &m, const DiracSpinor &n,
               const DiracSpinor &a, const DiracSpinor &b,

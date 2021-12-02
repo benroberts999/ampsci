@@ -136,9 +136,9 @@ std::pair<int, int> parse_symbol(std::string_view symbol) {
                    [](const char &c) { return !std::isdigit(c); });
   const auto l_pos = std::size_t(l_ptr - symbol.begin());
 
-  const auto n = (string_is_ints(symbol.substr(0, l_pos - 0)))
-                     ? std::stoi(std::string(symbol.substr(0, l_pos - 0)))
-                     : 0;
+  const auto n = (string_is_ints(symbol.substr(0, l_pos - 0))) ?
+                     std::stoi(std::string(symbol.substr(0, l_pos - 0))) :
+                     0;
 
   const auto l =
       (l_pos < symbol.size()) ? symbol_to_l(symbol.substr(l_pos, 1)) : -1;
@@ -463,8 +463,8 @@ inline std::string helper_s(const Element &el) {
 }
 inline std::string helper_z(const Element &el) {
   auto z_str = std::to_string(el.Z);
-  auto Z_buff = (el.Z < 10) ? std::string("  ")
-                            : (el.Z < 100) ? std::string(" ") : std::string("");
+  auto Z_buff = (el.Z < 10) ? std::string("  ") :
+                              (el.Z < 100) ? std::string(" ") : std::string("");
   return Z_buff + z_str + " ";
 }
 
