@@ -32,10 +32,11 @@ constexpr double m_p = 1836.15267343;
 constexpr double m_e_kg = 9.1093837015e-31;
 //! MeV/c^2 - electron mass; 2020 value 0.51099895000(15):
 constexpr double m_e_MeV = 0.51099895000;
+constexpr double m_e_GeV = m_e_MeV / 1000.0;
 
 // CODATA 2014: 1822.888 486 192(53)
 //! "unified atomic mass" unit; nuclear mass unit; Dalton; u
-constexpr double u_NMU = 1822.888486192;
+constexpr double u_NMU = 1822.888486192; // (1 u = 1822. m_e)
 
 // Length:
 // CODATA 2018: a_B = 0.529177210903(80)e-10 m
