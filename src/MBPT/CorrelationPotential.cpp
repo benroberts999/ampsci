@@ -488,15 +488,17 @@ CorrelationPotential::Sigma_l(const DiracSpinor &v, const Coulomb::YkTable &yk,
 
           const auto Qkv_amn = yk.Qkv_bcd(v.k, a, m, n, k);
 
-          const auto Pkv_amn = yk.Pkv_bcd(v.k, a, m, n, k, m_fk);
+          const auto Pkv_amn = yk.Pkv_bcd(v.k, a, m, n, k);
 
           const auto Omega_kvamn = lk.W(k, m, n, v, a);
           // const auto W_kvamn = yk.W(k, m, n, v, a);
           const auto W_kvamn = yk.W(k, v, a, m, n);
           if (W_kvamn == 0.0)
             continue;
+          /// XX OK? Or, we should include ratio for EACH Qk inside Pk!?
+          // Only include fk on Qk, not Lk integrals - already included there
           const auto ratio = Omega_kvamn / W_kvamn;
-          const auto f = fk * fk * ratio * inv_de / (2 * k + 1); // fk??
+          const auto f = fk * ratio * inv_de / (2 * k + 1); // fk??
           Sigma.add(Qkv_amn, Qkv_amn + Pkv_amn, f);
 
         } // k
@@ -513,14 +515,14 @@ CorrelationPotential::Sigma_l(const DiracSpinor &v, const Coulomb::YkTable &yk,
             continue;
 
           const auto Qkv_nab = yk.Qkv_bcd(v.k, n, a, b, k);
-          const auto Pkv_nab = yk.Pkv_bcd(v.k, n, a, b, k, m_fk);
+          const auto Pkv_nab = yk.Pkv_bcd(v.k, n, a, b, k);
 
           const auto Omega_kvnab = lk.W(k, v, n, a, b);
           const auto W_kvnab = yk.W(k, v, n, a, b);
           if (W_kvnab == 0.0)
             continue;
           const auto ratio = Omega_kvnab / W_kvnab;
-          const auto f = fk * fk * ratio * inv_de / (2 * k + 1);
+          const auto f = fk * ratio * inv_de / (2 * k + 1);
           Sigma.add(Qkv_nab, Qkv_nab + Pkv_nab, f);
         } // k
       }   // b

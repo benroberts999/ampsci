@@ -158,10 +158,11 @@ void FeynmanSigma::formSigma(int kappa, double en, int n) {
 
   Sigma += Gmat_X;
 
+  // XXX temporary!
   bool include_ladder = true;
   std::string Lfname = "20spdfgh.lk";
   if (include_ladder) {
-    std::cout << "\n";
+    std::cout << "\nLadder: ";
     // Fill Lk table:
     Coulomb::LkTable lk;
     const bool read_lad = lk.read(Lfname);

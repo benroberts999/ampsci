@@ -12,7 +12,7 @@ struct Fk {
     return k < (int)fk.size() ? fk[std::size_t(k)] : 1.0;
   }
 };
-
+// XXX Of course, this is temporary!
 const Fk fk{{0.714, 0.585, 0.838, 0.885, 0.949, 0.975, 0.990, 0.996, 0.999}};
 
 //! Calculates ladder integral, L^k_mnab

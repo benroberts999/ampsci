@@ -110,20 +110,27 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << v.symbol() << " " << MBPT::de_valence(v, qk, qk, core, excited)
               << "\n";
   }
+  std::cout << "\n";
 
   // Fill Lk table:
   Coulomb::LkTable lk;
   Coulomb::LkTable lk_next;
   // Each run will continue from where last left off
   const bool read_lad = lk.read(Lfname);
-  std::cout << (read_lad ? "Read in existing ladder diagrams\n" :
+  std::cout << (read_lad ? "Re-starting using existing ladder diagrams\n" :
                            "Calculating ladder diagrams from scratch\n");
 
   //----------------------------------------------------------------------------
   // Iterate Lk equations
   std::cout << "\nFilling Lk table: core + valence & iterate\n" << std::flush;
-  double de_0 = MBPT::de_valence(valence.front(), qk, lk, core, excited);
+
+  // initial corrections (will be zero if this is first run)
+  std::vector<double> de_0(valence.size());
+  for (std::size_t i = 0; i < valence.size(); ++i) {
+    de_0[i] = MBPT::de_valence(valence[i], qk, lk, core, excited);
+  }
   double de_c0 = MBPT::de_core(qk, lk, core, excited);
+
   bool core_converged = false;
   for (int it = 1; it <= max_it; ++it) {
     std::cout << "it:" << it << "\n";
@@ -145,17 +152,24 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto de_c = MBPT::de_core(qk, lk, core, excited);
     const auto eps_c = std::abs((de_c - de_c0) / de_c);
     de_c0 = de_c;
-    std::cout << "de_l(core): " << de_c << " " << eps_c << "\n";
+    std::cout << "de_l(core): ";
+    printf("%10.7f %.1e\n", de_c, eps_c);
     if (eps_c < eps_target)
       core_converged = true;
 
     // check convergance (valence):
-    const auto de_i = MBPT::de_valence(valence.front(), qk, lk, core, excited);
-    const auto eps = std::abs((de_i - de_0) / de_i);
-    de_0 = de_i;
-    std::cout << "de_l(" << valence.front().shortSymbol() << "): " << de_i
-              << " " << eps << "\n";
-    if (eps < eps_target)
+    double eps = 0.0;
+    for (std::size_t i = 0; i < valence.size(); ++i) {
+      const auto de_v = MBPT::de_valence(valence[i], qk, lk, core, excited);
+      const auto eps_v = std::abs((de_v - de_0[i]) / de_v);
+      de_0[i] = de_v;
+      std::cout << "de_l(" << valence[i].shortSymbol() << ") : ";
+      printf("%10.7f %.1e\n", de_v, eps_v);
+      if (eps_v > eps)
+        eps = eps_v;
+    }
+    // keep going until core and all valence have converged!
+    if (eps < eps_target && core_converged)
       break;
   }
   lk.summary();
@@ -166,14 +180,14 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
                "  de(l)/cm^-1\n";
   for (const auto &v : valence) {
 
-    auto de2 = MBPT::de_valence(v, qk, qk, core, excited);
-    auto del = MBPT::de_valence(v, qk, lk, core, excited);
+    const auto de2 = MBPT::de_valence(v, qk, qk, core, excited);
+    const auto del = MBPT::de_valence(v, qk, lk, core, excited);
 
     printf("%4s: %11.8f %11.8f   %9.3f %9.3f\n", v.shortSymbol().c_str(), de2,
            del, de2 * PhysConst::Hartree_invcm, del * PhysConst::Hartree_invcm);
   }
 
-  check_L_symmetry(core, excited, valence, qk, yk.SixJ(), &lk);
+  // check_L_symmetry(core, excited, valence, qk, yk.SixJ(), &lk);
 }
 
 //******************************************************************************
