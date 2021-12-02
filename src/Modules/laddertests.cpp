@@ -141,6 +141,8 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
         MBPT::calculate_Lk_mnib(&lk_next, qk, excited, core, core, &sjt, &lk,
                                 print_progbar);
       }
+      // in theory: each valence may converge differently, don't need to re-run
+      // for valence states which already converged...
       IO::ChronoTimer t("Fill Lk(valence)");
       MBPT::calculate_Lk_mnib(&lk_next, qk, excited, core, valence, &sjt, &lk,
                               print_progbar);
