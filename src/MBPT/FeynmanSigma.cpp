@@ -899,7 +899,7 @@ GMatrix FeynmanSigma::FeynmanDirect(int kv, double env, int in_k) const {
   }
 
   return Sigma;
-} // namespace MBPT
+}
 
 //******************************************************************************
 GMatrix FeynmanSigma::FeynmanEx_w1w2(int kv, double en_r) const {
