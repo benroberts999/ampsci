@@ -6,6 +6,7 @@
 #include "IO/FRW_fileReadWrite.hpp"
 #include "IO/SafeProfiler.hpp"
 // #include "MBPT/GreenMatrix.hpp"
+#include "MBPT/Ladder.hpp" //?
 #include "MBPT/RDMatrix.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/Interpolator.hpp"
@@ -483,23 +484,35 @@ CorrelationPotential::Sigma_l(const DiracSpinor &v, const Coulomb::YkTable &yk,
 
           // Effective screening parameter:
           const auto fk = get_fk(k);
-          if (fk == 0.0)
-            continue;
+          // if (fk == 0.0)
+          //   continue;
 
+          const auto etak = global_eta.scr(k);
+
+          // form Lkv_amn
           const auto Qkv_amn = yk.Qkv_bcd(v.k, a, m, n, k);
+          const auto Q_kvamn = yk.Q(k, v, a, m, n);
+          const auto L_kmnva = lk.Q(k, m, n, v, a);
+          const auto ratio1 = Q_kvamn == 0.0 ? 0.0 : (L_kmnva / Q_kvamn);
+          const auto Lkv_amn = ratio1 * Qkv_amn;
 
-          const auto Pkv_amn = yk.Pkv_bcd(v.k, a, m, n, k);
+          // form Lambdakv_amn
+          DiracSpinor Lambdakv_amn{0, v.k, v.rgrid};
+          const auto [l0, lI] = Coulomb::k_minmax_Q(m, n, a, v);
+          for (int l = l0; l <= lI; l += 2) {
+            const auto Lambda_kmnav = lk.Q(l, m, n, a, v);
+            const auto Q_kvanm = yk.Q(l, v, a, n, m);
+            const auto ratio = Q_kvanm == 0.0 ? 0.0 : Lambda_kmnav / Q_kvanm;
+            const auto sj = m_6j.get(m, v, k, n, a, l);
+            Lambdakv_amn += sj * ratio * yk.Qkv_bcd(v.k, a, n, m, l); //?
+          }
+          Lambdakv_amn *= (2 * k + 1);
 
-          const auto Omega_kvamn = lk.W(k, m, n, v, a);
-          // const auto W_kvamn = yk.W(k, m, n, v, a);
-          const auto W_kvamn = yk.W(k, v, a, m, n);
-          if (W_kvamn == 0.0)
-            continue;
-          /// XX OK? Or, we should include ratio for EACH Qk inside Pk!?
           // Only include fk on Qk, not Lk integrals - already included there
-          const auto ratio = Omega_kvamn / W_kvamn;
-          const auto f = fk * ratio * inv_de / (2 * k + 1); // fk??
-          Sigma.add(Qkv_amn, Qkv_amn + Pkv_amn, f);
+          // const auto ratio = Omega_kvamn / W_kvamn;
+          const auto f = inv_de / (2 * k + 1);
+          Sigma.add(Qkv_amn, Lkv_amn, fk * etak * f); //(a) //fk both?
+          Sigma.add(Qkv_amn, Lambdakv_amn, fk * f);   //(b)
 
         } // k
       }   // m
@@ -511,19 +524,43 @@ CorrelationPotential::Sigma_l(const DiracSpinor &v, const Coulomb::YkTable &yk,
         for (int k = k0; k <= kI; k += 2) {
           // Effective screening parameter:
           const auto fk = get_fk(k);
-          if (fk == 0.0)
-            continue;
+          // if (fk == 0.0)
+          //   continue;
 
+          const auto etak = global_eta.scr(k);
+
+          // const auto Qkv_nab = yk.Qkv_bcd(v.k, n, a, b, k);
+
+          // form Lkv_nab
           const auto Qkv_nab = yk.Qkv_bcd(v.k, n, a, b, k);
-          const auto Pkv_nab = yk.Pkv_bcd(v.k, n, a, b, k);
+          const auto Q_kvnab = yk.Q(k, v, n, a, b);
+          const auto L_kvnab = lk.Q(k, v, n, a, b);
+          const auto ratio1 = Q_kvnab == 0.0 ? 0.0 : (L_kvnab / Q_kvnab);
+          const auto Lkv_nab = ratio1 * Qkv_nab;
 
-          const auto Omega_kvnab = lk.W(k, v, n, a, b);
-          const auto W_kvnab = yk.W(k, v, n, a, b);
-          if (W_kvnab == 0.0)
-            continue;
-          const auto ratio = Omega_kvnab / W_kvnab;
-          const auto f = fk * ratio * inv_de / (2 * k + 1);
-          Sigma.add(Qkv_nab, Qkv_nab + Pkv_nab, f);
+          // const auto Pkv_nab = yk.Pkv_bcd(v.k, n, a, b, k);
+          // const auto Omega_kvnab = lk.W(k, v, n, a, b);
+          // const auto W_kvnab = yk.W(k, v, n, a, b);
+
+          // form Lambdakv_amn
+          DiracSpinor Lambdakv_nab{0, v.k, v.rgrid};
+          const auto [l0, lI] = Coulomb::k_minmax_Q(v, n, b, a);
+          for (int l = l0; l <= lI; l += 2) {
+            const auto Lambda_kvnba = lk.Q(l, v, n, b, a);
+            if (Lambda_kvnba == 0.0)
+              continue;
+            const auto Q_kvnba = yk.Q(l, v, n, b, a);
+            const auto ratio = Q_kvnab == 0.0 ? 0.0 : Lambda_kvnba / Q_kvnba;
+            const auto sj = m_6j.get(v, a, k, n, b, l);
+            Lambdakv_nab += sj * ratio * yk.Qkv_bcd(v.k, n, b, a, l);
+          }
+          Lambdakv_nab *= (2 * k + 1);
+
+          const auto f = inv_de / (2 * k + 1);
+          Sigma.add(Qkv_nab, Lkv_nab, fk * etak * f); //(c)
+          Sigma.add(Qkv_nab, Lambdakv_nab, fk * f);   //(d)
+          //
+
         } // k
       }   // b
 

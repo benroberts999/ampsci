@@ -45,11 +45,16 @@ double de_valence(const DiracSpinor &v, const Qintegrals &qk,
         const auto inv_de = 1.0 / (v.en() + a.en() - m.en() - n.en());
         const auto [k0, kI] = Coulomb::k_minmax_Q(v, a, m, n);
         for (int k = k0; k <= kI; k += 2) {
-          const auto Q_kvamn = global_fk.scr(k) * qk.Q(k, v, a, m, n);
 
-          const auto L_kvamn = LisQ ? Q_kvamn : lk.Q(k, m, n, v, a);
+          const auto fk = global_fk.scr(k);
+          const auto etak = global_eta.scr(k);
+
+          const auto Q_kvamn = qk.Q(k, v, a, m, n);
+          const auto L_kvamn = LisQ ? fk * Q_kvamn : lk.Q(k, m, n, v, a);
           const auto P_kvamn = lk.P(k, n, m, a, v); // \propto Q_mnva
-          de_v += Q_kvamn * (L_kvamn + P_kvamn) * inv_de / (2 * k + 1);
+          // only include fk into correct line (b) ??
+          de_v += Q_kvamn * (fk * etak * L_kvamn + fk * P_kvamn) * inv_de /
+                  (2 * k + 1);
         } // k
       }   // m
 
@@ -58,17 +63,27 @@ double de_valence(const DiracSpinor &v, const Qintegrals &qk,
         const auto inv_de = 1.0 / (v.en() + n.en() - a.en() - b.en());
         const auto [k0, kI] = Coulomb::k_minmax_Q(v, n, a, b);
         for (int k = k0; k <= kI; k += 2) {
-          const auto Q_kvnab = global_fk.scr(k) * qk.Q(k, v, n, a, b);
 
-          const auto L_kvnab = LisQ ? Q_kvnab : lk.Q(k, v, n, a, b);
+          const auto fk = global_fk.scr(k);
+          const auto etak = global_eta.scr(k);
+
+          const auto Q_kvnab = qk.Q(k, v, n, a, b);
+          const auto L_kvnab = LisQ ? fk * Q_kvnab : lk.Q(k, v, n, a, b);
           const auto P_kvnab = lk.P(k, v, n, a, b);
-          de_v += Q_kvnab * (L_kvnab + P_kvnab) * inv_de / (2 * k + 1);
+          // only include fk into correct line (c) ??
+          de_v += Q_kvnab * (fk * etak * L_kvnab + fk * P_kvnab) * inv_de /
+                  (2 * k + 1);
         } // k
       }   // b
 
       //
     } // a
   }   // n
+
+  // Fudge factor: descrease s and p correction; leave d untouched
+  // Seems to work better.....
+  // const auto fudge_factor = (2 * v.l() + 1) / 5.0;
+  // return fudge_factor * de_v / v.twojp1();
 
   return de_v / v.twojp1();
 }

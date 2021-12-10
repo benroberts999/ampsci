@@ -159,8 +159,8 @@ void FeynmanSigma::formSigma(int kappa, double en, int n) {
   Sigma += Gmat_X;
 
   // XXX temporary!
-  bool include_ladder = true;
-  std::string Lfname = "20spdfgh.lk";
+  bool include_ladder = true; // XXX
+  std::string Lfname = "20spdfgh.lk3";
   if (include_ladder) {
     std::cout << "\nLadder: ";
     // Fill Lk table:

@@ -13,8 +13,16 @@ struct Fk {
   }
 };
 // XXX Of course, this is temporary!
-const Fk global_fk{
-    {0.714, 0.585, 0.838, 0.885, 0.949, 0.975, 0.990, 0.996, 0.999}};
+const Fk global_fk{{0.654, 0.514, 0.792, 0.857, 0.930, 0.967, 0.986, 0.994}};
+const Fk global_eta{{1.258, 1.511, 1.281, 1.175, 1.114, 1.073, 1.062, 1.066}};
+
+// const Fk global_fk{{1.0}};
+// const Fk global_eta{{1.0}};
+
+// // Weighted average:
+// fk = 0.714, 0.617, 0.832, 0.885, 0.941, 0.970, 0.987, 0.994
+// fk = 0.654, 0.514, 0.792, 0.857, 0.930, 0.967, 0.986, 0.994 // w/ hp
+// eta= 1.258, 1.511, 1.281, 1.175, 1.114, 1.073, 1.062, 1.066
 
 //! Calculates ladder integral, L^k_mnab
 double Lkmnab(int k, const DiracSpinor &m, const DiracSpinor &n,
