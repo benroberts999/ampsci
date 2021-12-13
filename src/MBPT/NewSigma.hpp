@@ -31,7 +31,8 @@ public:
   std::size_t m_stride;
   std::size_t m_i0, m_size;
 
-  std::vector<double> m_lambda{}; //?
+  // std::vector<double> m_lambda{};                         //?
+  std::vector<std::pair<std::string, double>> m_lambda{}; //?
 
 public:
   Sigma(double r0, double rmax, std::size_t stride,
@@ -43,22 +44,24 @@ public:
         m_i0(rgrid->getIndex(r0)),
         m_size((rgrid->getIndex(rmax) - m_i0 + 1) / m_stride) {}
 
-  //! Find Sigma with kappa, and energy en (within +/- 1%).
+  //! Find Sigma with kappa, and energy en (within +/- 1%). If n is zero,
+  //! returns first Sigma that matches kappa
   const RDMatrix<double> *get(int kappa, double en = 0.0) const {
     if (en != 0.0) {
       // Find the sigma with the correct energy (to within +/- 1%)
-      const auto lambda = [=](const auto &tS) {
+      const auto match_k_en = [=](const auto &tS) {
         return (kappa == tS.kappa &&
                 std::abs((en - tS.en) / (en + tS.en)) < 1.0e-2);
       };
-      const auto it = std::find_if(m_Sigmas.cbegin(), m_Sigmas.cend(), lambda);
+      const auto it =
+          std::find_if(m_Sigmas.cbegin(), m_Sigmas.cend(), match_k_en);
       if (it == m_Sigmas.cend())
         return nullptr;
       return &(it->Sig);
     } else {
       // just find the First Sigma that has correct energy
-      const auto lambda = [=](const auto &tS) { return kappa == tS.kappa; };
-      const auto it = std::find_if(m_Sigmas.cbegin(), m_Sigmas.cend(), lambda);
+      const auto match_k = [=](const auto &tS) { return kappa == tS.kappa; };
+      const auto it = std::find_if(m_Sigmas.cbegin(), m_Sigmas.cend(), match_k);
       if (it == m_Sigmas.cend())
         return nullptr;
       return &(it->Sig);

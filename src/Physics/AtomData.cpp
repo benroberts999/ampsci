@@ -146,9 +146,20 @@ std::pair<int, int> parse_symbol(std::string_view symbol) {
   int kappa = l == 0 ? -1 : 0; // allow '6s' instead of '6s+'
   if (l >= 0 && l_pos + 1 < symbol.size()) {
     const auto pm = symbol.substr(l_pos + 1);
-    const auto tj = pm == "+" ? 2 * l + 1 : pm == "-" ? 2 * l - 1 : 0;
-    if (tj != 0)
-      kappa = kappa_twojl(tj, l);
+    if (pm[0] == '_') {
+      // long-form symbol, 6p_1/2
+      const auto slash_ptr = std::find_if(
+          pm.begin(), pm.end(), [](const char &c) { return c == '/'; });
+      const auto slash_pos = std::size_t(slash_ptr - pm.begin());
+      const auto tj = std::stoi(std::string(pm.substr(1, slash_pos - 0)));
+      if (tj != 0)
+        kappa = kappa_twojl(tj, l);
+    } else {
+      // short-form symbol, 6p-
+      const auto tj = pm == "+" ? 2 * l + 1 : pm == "-" ? 2 * l - 1 : 0;
+      if (tj != 0)
+        kappa = kappa_twojl(tj, l);
+    }
   }
 
   return {n, kappa};

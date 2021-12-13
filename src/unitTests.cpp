@@ -17,6 +17,7 @@
 #include "MBPT/RDMatrix_test.hpp"
 #include "MBPT/StructureRad_test.hpp"
 #include "Maths/BSpline_test.hpp"
+#include "Physics/AtomData_test.hpp"
 #include "Physics/RadPot_test.hpp"
 #include "Wavefunction/BSplineBasis_test.hpp"
 #include "git.info"
@@ -79,7 +80,8 @@ static const std::vector<std::pair<std::string, bool (*)(std::ostream &obuff)>>
         {"QkTable", &QkTable},
         {"StructureRad", &StructureRad},
         {"BSplineClass", &BSplineClass},
-        {"LinAlg", &LinAlg}
+        {"LinAlg", &LinAlg},
+        {"AtomData", &AtomDataTests}
         //
     };
 
