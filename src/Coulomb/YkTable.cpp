@@ -3,6 +3,7 @@
 #include "Angular/SixJTable.hpp"
 #include "Coulomb/CoulombIntegrals.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
+#include <array>
 #include <cstdint>
 #include <unordered_map>
 #include <vector>
