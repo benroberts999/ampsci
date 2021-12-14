@@ -725,8 +725,9 @@ void Wavefunction::formSigma(
     const int nmin_core, const bool form_matrix, const double r0,
     const double rmax, const int stride, const bool each_valence,
     const bool include_G, const std::vector<double> &lambdas,
-    const std::vector<double> &fk, const std::string &in_fname,
-    const std::string &out_fname, const bool FeynmanQ, const bool ScreeningQ,
+    const std::vector<double> &fk, const std::vector<double> &etak,
+    const std::string &in_fname, const std::string &out_fname,
+    const std::string &ladder_file, const bool FeynmanQ, const bool ScreeningQ,
     const bool holeParticleQ, const int lmax, const bool GreenBasis,
     const bool PolBasis, const double omre, double w0, double wratio,
     const std::optional<IO::InputBlock> &ek) {
@@ -746,8 +747,9 @@ void Wavefunction::formSigma(
       FeynmanQ ? MBPT::Method::Feynman : MBPT::Method::Goldstone;
 
   const auto sigp = MBPT::Sigma_params{
-      method, nmin_core, include_G, lmax,       GreenBasis,    PolBasis,
-      omre,   w0,        wratio,    ScreeningQ, holeParticleQ, fk};
+      method,        nmin_core,   include_G, lmax,   GreenBasis,
+      PolBasis,      omre,        w0,        wratio, ScreeningQ,
+      holeParticleQ, ladder_file, fk,        etak};
 
   const auto subgridp = MBPT::rgrid_params{r0, rmax, std::size_t(stride)};
 

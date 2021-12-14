@@ -22,6 +22,10 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
                {"max", "maximum excited n to include"},
                {"max_l", "maximum excited l to include"},
                {"max_k", "maximum k to include in Qk"},
+               {"fk", "List of doubles. Effective screening factors. Used to "
+                      "calculate Lk. []"},
+               {"eta", "List of doubles. Effective hp factors. Only used to "
+                       "print energy shift. []"},
                {"Qfile", "filename to read/write Qk integrals"},
                {"Lfile", "filename to read/write Qk integrals"},
                {"progbar", "Print progress bar? [true]"},
@@ -33,6 +37,8 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto max_n = input.get("max", 99);
   const auto max_l = input.get("max_l", 99);
   const auto max_k = input.get("max_k", 99);
+  const auto fk = input.get("fk", std::vector<double>{});
+  const auto etak = input.get("eta", std::vector<double>{});
   const auto max_it = input.get("max_it", 15);
   const auto eps_target = input.get("eps_target", 1.0e-3);
   std::cout << "min_n (core)    = " << min_n << "\n";
@@ -42,11 +48,22 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "max_it          = " << max_it << "\n";
   std::cout << "eps_target      = " << eps_target << "\n";
 
-  const auto print_progbar = input.get("progbar", true);
+  if (fk.empty()) {
+    std::cout << "No screening.\n";
+  } else {
+    std::cout << "Using screening factors, fk = ";
+    std::for_each(fk.cbegin(), fk.cend(),
+                  [](auto x) { std::cout << x << ", "; });
+    std::cout << "1.0\n";
+  }
+  if (!etak.empty()) {
+    std::cout << "Using eta (hp) factors, eta_k = ";
+    std::for_each(etak.cbegin(), etak.cend(),
+                  [](auto x) { std::cout << x << ", "; });
+    std::cout << "1.0 (only in de, does not affect Lk)\n";
+  }
 
-  using namespace std::string_literals;
-  const auto Qfname = input.get("Qfile", "qk.out"s);
-  const auto Lfname = input.get("Lfile", "lk.out"s);
+  const auto print_progbar = input.get("progbar", true);
 
   // Sort basis into core/excited/valcne
   std::vector<DiracSpinor> core, excited, valence;
@@ -64,6 +81,12 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto pFv = std::find(wf.basis.cbegin(), wf.basis.cend(), Fv);
     valence.push_back(*pFv);
   }
+
+  // in/out file names (default based on basis)
+  using namespace std::string_literals;
+  const auto name = wf.identity() + DiracSpinor::state_config(excited);
+  const auto Qfname = input.get("Qfile", name + "qk"s);
+  const auto Lfname = input.get("Lfile", name + "lk"s);
 
   // Create the "total" basis, which has core+excited, but only those states
   // actually included (i.e., [n_min, n_max]). This is used to calculate Qk.
@@ -94,6 +117,13 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   for (const auto &v : valence) {
     std::cout << v.symbol() << " " << MBPT::de_valence(v, yk, yk, core, excited)
               << "\n";
+  }
+  if (!fk.empty() || !etak.empty()) {
+    std::cout << "Valence, using basis + fk + eta_k" << std::endl;
+    for (const auto &v : valence) {
+      std::cout << v.symbol() << " "
+                << MBPT::de_valence(v, yk, yk, core, excited, fk, etak) << "\n";
+    }
   }
 
   std::cout << "\nFill Qk table:\n";
@@ -135,17 +165,17 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   for (int it = 1; it <= max_it; ++it) {
     std::cout << "it:" << it << "\n";
     {
+      IO::ChronoTimer t("Fill Lk");
       if (!core_converged) {
         // Don't update core terms if core energy shift converged?
-        IO::ChronoTimer t("Fill Lk(core)");
-        MBPT::calculate_Lk_mnib(&lk_next, qk, excited, core, core, &sjt, &lk,
-                                print_progbar);
+        // include screening for core parts?
+        MBPT::fill_Lk_mnib(&lk_next, qk, excited, core, core, sjt, &lk,
+                           print_progbar, fk);
       }
       // in theory: each valence may converge differently, don't need to re-run
       // for valence states which already converged...
-      IO::ChronoTimer t("Fill Lk(valence)");
-      MBPT::calculate_Lk_mnib(&lk_next, qk, excited, core, valence, &sjt, &lk,
-                              print_progbar);
+      MBPT::fill_Lk_mnib(&lk_next, qk, excited, core, valence, sjt, &lk,
+                         print_progbar, fk);
     }
     lk = lk_next; // XXX use swap or similar?
     lk.write(Lfname);
@@ -162,7 +192,9 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
     // check convergance (valence):
     double eps = 0.0;
     for (std::size_t i = 0; i < valence.size(); ++i) {
-      const auto de_v = MBPT::de_valence(valence[i], qk, lk, core, excited);
+      // XXX include eta here?
+      const auto de_v =
+          MBPT::de_valence(valence[i], qk, lk, core, excited, fk, etak);
       const auto eps_v = std::abs((de_v - de_0[i]) / de_v);
       de_0[i] = de_v;
       std::cout << "de_l(" << valence[i].shortSymbol() << ") : ";
@@ -178,15 +210,18 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   //----------------------------------------------------------------------------
 
   std::cout << "\nEnergy corrections:\n";
-  std::cout << "       de(2)/au   de(l)/au    de(2)/cm^-1 "
-               "  de(l)/cm^-1\n";
+  std::cout << "       de(2)/au   de(A)/au   de(l)/au    de(2)/cm^-1 "
+               "  de(A)/cm^-1   de(l)/cm^-1\n";
   for (const auto &v : valence) {
 
     const auto de2 = MBPT::de_valence(v, qk, qk, core, excited);
-    const auto del = MBPT::de_valence(v, qk, lk, core, excited);
+    const auto dea = MBPT::de_valence(v, qk, qk, core, excited, fk, etak) - de2;
+    const auto del = MBPT::de_valence(v, qk, lk, core, excited, fk, etak);
 
-    printf("%4s: %11.8f %11.8f   %9.3f %9.3f\n", v.shortSymbol().c_str(), de2,
-           del, de2 * PhysConst::Hartree_invcm, del * PhysConst::Hartree_invcm);
+    printf("%4s: %11.8f %11.8f %11.8f   %9.3f %9.3f %9.3f\n",
+           v.shortSymbol().c_str(), de2, dea, del,
+           de2 * PhysConst::Hartree_invcm, dea * PhysConst::Hartree_invcm,
+           del * PhysConst::Hartree_invcm);
   }
 
   // check_L_symmetry(core, excited, valence, qk, yk.SixJ(), &lk);
@@ -223,8 +258,8 @@ void check_L_symmetry(const std::vector<DiracSpinor> &core,
     const auto [k0, kI] = Coulomb::k_minmax_Q(m, n, a, b);
     for (int k = k0; k <= kI; k += 2) {
       auto gkmnab = qk.Q(k, m, n, a, b);
-      auto lkmnab = MBPT::Lkmnab(k, m, n, a, b, qk, core, excited, &sj);
-      auto lknmba = MBPT::Lkmnab(k, n, m, b, a, qk, core, excited, &sj);
+      auto lkmnab = MBPT::Lkmnab(k, m, n, a, b, qk, core, excited, sj);
+      auto lknmba = MBPT::Lkmnab(k, n, m, b, a, qk, core, excited, sj);
 
       auto lkmnab_tab = lk ? lk->Q(k, m, n, a, b) : 0.0;
       auto lknmba_tab = lk ? lk->Q(k, n, m, b, a) : 0.0;

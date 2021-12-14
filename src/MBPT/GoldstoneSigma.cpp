@@ -5,7 +5,6 @@
 #include "IO/FRW_fileReadWrite.hpp"
 #include "IO/SafeProfiler.hpp"
 #include "MBPT/CorrelationPotential.hpp"
-// #include "MBPT/GreenMatrix.hpp"
 #include "MBPT/RDMatrix.hpp"
 #include "Maths/Grid.hpp"
 #include "Physics/PhysConst_constants.hpp"
@@ -38,6 +37,12 @@ GoldstoneSigma::GoldstoneSigma(const HF::HartreeFock *const in_hf,
     if (!m_fk.empty()) {
       std::cout << "Effective screening factors: fk=";
       std::for_each(cbegin(m_fk), cend(m_fk),
+                    [](auto x) { std::cout << x << ", "; });
+      std::cout << "\n";
+    }
+    if (!m_eta.empty()) {
+      std::cout << "Effective hp factors: eta=";
+      std::for_each(cbegin(m_eta), cend(m_eta),
                     [](auto x) { std::cout << x << ", "; });
       std::cout << "\n";
     }
@@ -148,6 +153,7 @@ void GoldstoneSigma::Sigma2(GMatrix *Gmat_D, GMatrix *Gmat_X, int kappa,
 
         // Effective screening parameter:
         const auto fk = get_fk(k);
+        const auto etak = get_eta(k);
         if (fk == 0.0)
           continue;
 
@@ -158,9 +164,9 @@ void GoldstoneSigma::Sigma2(GMatrix *Gmat_D, GMatrix *Gmat_X, int kappa,
           Qkv = m_yeh.Qkv_bcd(Qkv.k, a, m, n, k);
           Pkv = m_yeh.Pkv_bcd(Pkv.k, a, m, n, k, m_fk);
           const auto dele = en + a.en() - m.en() - n.en();
-          const auto factor = fk / (f_kkjj * dele);
-          addto_G(&Ga_d, Qkv, Qkv, factor);
-          addto_G(&Ga_x, Qkv, Pkv, factor);
+          const auto factor = 1.0 / (f_kkjj * dele);
+          addto_G(&Ga_d, Qkv, Qkv, etak * fk * factor);
+          addto_G(&Ga_x, Qkv, Pkv, fk * factor);
         } // m
 
         // Diagrams (c) [direct] and (d) [exchange]
@@ -170,9 +176,9 @@ void GoldstoneSigma::Sigma2(GMatrix *Gmat_D, GMatrix *Gmat_X, int kappa,
           Qkv = m_yeh.Qkv_bcd(Qkv.k, n, b, a, k);
           Pkv = m_yeh.Pkv_bcd(Pkv.k, n, b, a, k, m_fk);
           const auto dele = en + n.en() - b.en() - a.en();
-          const auto factor = fk / (f_kkjj * dele); // XXX
-          addto_G(&Ga_d, Qkv, Qkv, factor);
-          addto_G(&Ga_x, Qkv, Pkv, factor);
+          const auto factor = 1.0 / (f_kkjj * dele); // XXX
+          addto_G(&Ga_d, Qkv, Qkv, etak * fk * factor);
+          addto_G(&Ga_x, Qkv, Pkv, fk * factor);
         } // b
 
       } // k

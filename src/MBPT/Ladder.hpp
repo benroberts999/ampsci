@@ -6,15 +6,16 @@
 
 namespace MBPT {
 
-struct Fk {
-  const std::vector<double> fk;
-  double scr(int k) const {
-    return k < (int)fk.size() ? fk[std::size_t(k)] : 1.0;
-  }
-};
-// XXX Of course, this is temporary!
-const Fk global_fk{{0.654, 0.514, 0.792, 0.857, 0.930, 0.967, 0.986, 0.994}};
-const Fk global_eta{{1.258, 1.511, 1.281, 1.175, 1.114, 1.073, 1.062, 1.066}};
+// struct Fk {
+//   const std::vector<double> fk;
+//   double scr(int k) const {
+//     return k < (int)fk.size() ? fk[std::size_t(k)] : 1.0;
+//   }
+// };
+// // XXX Of course, this is temporary!
+// const Fk global_fk{{0.654, 0.514, 0.792, 0.857, 0.930, 0.967, 0.986, 0.994}};
+// const Fk
+// global_eta{{1.258, 1.511, 1.281, 1.175, 1.114, 1.073, 1.062, 1.066}};
 
 // const Fk global_fk{{1.0}};
 // const Fk global_eta{{1.0}};
@@ -25,13 +26,17 @@ const Fk global_eta{{1.258, 1.511, 1.281, 1.175, 1.114, 1.073, 1.062, 1.066}};
 // eta= 1.258, 1.511, 1.281, 1.175, 1.114, 1.073, 1.062, 1.066
 
 //! Calculates ladder integral, L^k_mnab
+/*! @details Lk pointer is pointer to previous iteration of Lk. fk is optional
+ * vector of screening factors
+ */
 double Lkmnab(int k, const DiracSpinor &m, const DiracSpinor &n,
               const DiracSpinor &a, const DiracSpinor &b,
               const Coulomb::CoulombTable &qk,
               const std::vector<DiracSpinor> &core,
               const std::vector<DiracSpinor> &excited,
-              const Angular::SixJTable *const SJ = nullptr,
-              const Coulomb::CoulombTable *const Lk = nullptr);
+              const Angular::SixJTable &SJ,
+              const Coulomb::CoulombTable *const Lk = nullptr,
+              const std::vector<double> &fk = {});
 
 //! Ladder integral, L^k_mnab := L1 + L23
 /*! @details
@@ -44,9 +49,9 @@ A^{kul}_mnrsib
 double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
           const DiracSpinor &a, const DiracSpinor &b,
           const Coulomb::CoulombTable &qk,
-          const std::vector<DiracSpinor> &excited,
-          const Angular::SixJTable *const SJ = nullptr,
-          const Coulomb::CoulombTable *const Lk = nullptr);
+          const std::vector<DiracSpinor> &excited, const Angular::SixJTable &SJ,
+          const Coulomb::CoulombTable *const Lk = nullptr,
+          const std::vector<double> &fk = {});
 
 //! Ladder integral, L^k_mnab := L1 + L23; L23 = L2 + L3
 /*! @details
@@ -61,18 +66,19 @@ double L23(int k, const DiracSpinor &m, const DiracSpinor &n,
            const Coulomb::CoulombTable &qk,
            const std::vector<DiracSpinor> &core,
            const std::vector<DiracSpinor> &excited,
-           const Angular::SixJTable *const SJ = nullptr,
-           const Coulomb::CoulombTable *const Lk = nullptr);
+           const Angular::SixJTable &SJ,
+           const Coulomb::CoulombTable *const Lk = nullptr,
+           const std::vector<double> &fk = {});
 
 //! Fills Lk matrix
-void calculate_Lk_mnib(Coulomb::CoulombTable *lk,
-                       const Coulomb::CoulombTable &qk,
-                       const std::vector<DiracSpinor> &excited,
-                       const std::vector<DiracSpinor> &core,
-                       const std::vector<DiracSpinor> &i_orbs,
-                       const Angular::SixJTable *const sjt = nullptr,
-                       const Coulomb::CoulombTable *const lk_prev = nullptr,
-                       bool print_progbar = true);
+void fill_Lk_mnib(Coulomb::CoulombTable *lk, const Coulomb::CoulombTable &qk,
+                  const std::vector<DiracSpinor> &excited,
+                  const std::vector<DiracSpinor> &core,
+                  const std::vector<DiracSpinor> &i_orbs,
+                  const Angular::SixJTable &sjt,
+                  const Coulomb::CoulombTable *const lk_prev = nullptr,
+                  bool print_progbar = true,
+                  const std::vector<double> &fk = {});
 
 //! Calculate energy shift (either ladder, or sigma2) for valence
 /*! @details
@@ -83,7 +89,9 @@ void calculate_Lk_mnib(Coulomb::CoulombTable *lk,
 template <typename Qintegrals, typename QorLintegrals>
 double de_valence(const DiracSpinor &v, const Qintegrals &qk,
                   const QorLintegrals &lk, const std::vector<DiracSpinor> &core,
-                  const std::vector<DiracSpinor> &excited);
+                  const std::vector<DiracSpinor> &excited,
+                  const std::vector<double> &fk = {},
+                  const std::vector<double> &etak = {});
 
 //! Calculate energy shift (either ladder, or sigma2) for CORE
 /*! @details

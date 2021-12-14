@@ -36,8 +36,10 @@ struct Sigma_params {
   double w_ratio{1.5};
   bool screenCoulomb{false};
   bool holeParticle{false};
+  std::string ladder_file{""};
 
-  std::vector<double> fk{}; // this for Goldstone too..
+  std::vector<double> fk{};   // this for Goldstone too..
+  std::vector<double> etak{}; // this for Goldstone too..
 };
 
 struct rgrid_params {
@@ -157,7 +159,7 @@ public:
   RDMatrix<double> Sigma_l(const DiracSpinor &v, const Coulomb::YkTable &qk,
                            const Coulomb::LkTable &lk,
                            const std::vector<DiracSpinor> &core,
-                           const std::vector<DiracSpinor> &excited);
+                           const std::vector<DiracSpinor> &excited) const;
 
   int maxk() const { return m_maxk; }
 
@@ -225,11 +227,18 @@ protected:
   bool same_as_fileQ{false};
 
   // Effective screening parameters
-  std::vector<double> m_fk{}; // e.g., {0.72, 0.62, 0.83, 0.89, 0.94, 1.0};
+  std::vector<double> m_fk{};  // e.g., {0.72, 0.62, 0.83, 0.89, 0.94, 1.0};
+  std::vector<double> m_eta{}; // e.g., {1.1, 1.4, 1.0};
 
   double get_fk(int k) const {
     if (k < int(m_fk.size())) {
       return m_fk[std::size_t(k)];
+    }
+    return 1.0;
+  }
+  double get_eta(int k) const {
+    if (k < int(m_eta.size())) {
+      return m_eta[std::size_t(k)];
     }
     return 1.0;
   }

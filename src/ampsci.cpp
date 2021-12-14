@@ -348,15 +348,23 @@ void ampsci(const IO::InputBlock &input) {
         "Block: Explicit list of energies to solve for. e.g., ek{6s+=-0.127, "
         "7s+=-0.552;}. Blank => HF energies"},
        {"Feynman", "Use Feynman method [false]"},
-       {"fk", "List. Screening factors for effective all-order exchange"},
-       {"screening", "Include Screening [false]"},
+       {"fk",
+        "List of doubles. Screening factors for effective all-order "
+        "exchange. In Feynman method, used in exchange+ladder only; Goldstone, "
+        "used direct also. []"},
+       {"eta", "List of doubles. Hole-Particle factors. In Feynman method, "
+               "used in ladder only; Goldstone, used direct also. []"},
+       {"screening", "bool. Include Screening [false]"},
        {"holeParticle", "Include hole-particle interaction [false]"},
+       {"ladder", "string. Filename for ladder diagram file. If blank, ladder "
+                  "not included. Only in Feynman. []"},
        {"lmax", "Maximum l used for Feynman method [6]"},
        {"basis_for_Green", "Use basis for Feynman Greens function [false]"},
        {"basis_for_pol", "Use basis for Feynman polarisation op [false]"},
        {"real_omega", "[worked out by default]"},
        {"imag_omega", "w0, wratio for Im(w) grid [0.01, 1.5]"},
        {"include_G", "Inlcude lower g-part into Sigma [false]"}});
+
   const bool do_energyShifts =
       input.get({"Correlations"}, "energyShifts", false);
   const bool do_brueckner = input.get({"Correlations"}, "Brueckner", false);
@@ -381,6 +389,7 @@ void ampsci(const IO::InputBlock &input) {
   const auto PolBasis = input.get({"Correlations"}, "basis_for_pol", false);
   const auto each_valence = input.get({"Correlations"}, "each_valence", false);
   const auto include_G = input.get({"Correlations"}, "include_G", false);
+  const auto ladder_file = input.get({"Correlations"}, "ladder", ""s);
   // force sigma_omre to be always -ve
   const auto sigma_omre = -std::abs(
       input.get({"Correlations"}, "real_omega", -0.33 * wf.energy_gap()));
@@ -419,15 +428,18 @@ void ampsci(const IO::InputBlock &input) {
   qip::scale(&fit_energies, 1.0 / PhysConst::Hartree_invcm);
   const auto lambda_k =
       input.get({"Correlations"}, "lambda_kappa", std::vector<double>{});
+
   const auto fk = input.get({"Correlations"}, "fk", std::vector<double>{});
+  const auto etak = input.get({"Correlations"}, "eta", std::vector<double>{});
 
   // Form correlation potential:
   if ((do_energyShifts || do_brueckner) && Sigma_ok) {
     IO::ChronoTimer t("Sigma");
     wf.formSigma(n_min_core, do_brueckner, sigma_rmin, sigma_rmax, sigma_stride,
-                 each_valence, include_G, lambda_k, fk, sigma_read, sigma_write,
-                 sigma_Feynman, sigma_Screening, hole_particle, sigma_lmax,
-                 GreenBasis, PolBasis, sigma_omre, w0, wratio, ek_Sig);
+                 each_valence, include_G, lambda_k, fk, etak, sigma_read,
+                 sigma_write, ladder_file, sigma_Feynman, sigma_Screening,
+                 hole_particle, sigma_lmax, GreenBasis, PolBasis, sigma_omre,
+                 w0, wratio, ek_Sig);
   }
 
   // Calculate + print second-order energy shifts

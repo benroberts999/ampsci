@@ -49,7 +49,8 @@ FeynmanSigma::FeynmanSigma(const HF::HartreeFock *const in_hf,
       p_hf(in_hf),
       m_min_core_n(sigp.min_n_core),
       m_max_kappaindex_core(2 * DiracSpinor::max_l(p_hf->get_core())),
-      m_max_kappaindex(2 * sigp.max_l_excited) {
+      m_max_kappaindex(2 * sigp.max_l_excited),
+      m_ladder_file(sigp.ladder_file) {
 
   std::cout << "\nCorrelation potential (Sigma): Feynman\n";
 
@@ -158,25 +159,25 @@ void FeynmanSigma::formSigma(int kappa, double en, int n) {
 
   Sigma += Gmat_X;
 
-  // XXX temporary!
-  bool include_ladder = true; // XXX
-  std::string Lfname = "20spdfgh.lk3";
-  if (include_ladder) {
+  if (m_ladder_file != "") {
     std::cout << "\nLadder: ";
     // Fill Lk table:
     Coulomb::LkTable lk;
-    const bool read_lad = lk.read(Lfname);
+    const bool read_lad = lk.read(m_ladder_file);
+    if (!read_lad) {
+      std::cout << "couln't find ladder file\n";
+    } else {
 
-    /// XXX Also: include fk into ladder??
-    auto Sig_l = Sigma_l(*vk, m_yeh, lk, m_holes, m_excited);
+      const auto Sig_l = Sigma_l(*vk, m_yeh, lk, m_holes, m_excited);
 
-    if (vk != cend(m_excited)) {
-      auto deL = *vk * act_G_Fv(Sig_l, *vk);
-      printf("; + %5.1f = %7.1f", deL * PhysConst::Hartree_invcm,
-             (deL + deD + deX) * PhysConst::Hartree_invcm);
+      if (vk != cend(m_excited)) {
+        auto deL = *vk * act_G_Fv(Sig_l, *vk);
+        printf("; + %5.1f = %7.1f", deL * PhysConst::Hartree_invcm,
+               (deL + deD + deX) * PhysConst::Hartree_invcm);
+      }
+
+      Sigma += Sig_l;
     }
-
-    Sigma += Sig_l;
   }
 
   std::cout << "\n";
@@ -221,6 +222,14 @@ void FeynmanSigma::prep_Feynman() {
     std::cout << "\n";
   }
 
+  if (m_ladder_file != "") {
+    std::cout << "Including ladder diagrams from " << m_ladder_file << "\n";
+    std::cout << "With fk from above, and eta_k=";
+    std::for_each(cbegin(m_eta), cend(m_eta),
+                  [](auto e) { std::cout << e << ", "; });
+    std::cout << "\n";
+  }
+
   if (m_include_G)
     std::cout << "(Including FG/GF and GG)\n";
 
@@ -244,9 +253,6 @@ void FeynmanSigma::prep_Feynman() {
 //------------------------------------------------------------------------------
 void FeynmanSigma::form_Q_dr() {
 
-  // fill (complex) Qhat
-  // m_qhat.resize(std::size_t(m_maxk) + 1, {m_imin, m_stride, m_subgrid_points,
-  // m_include_G, p_gr});
   m_qhat.resize(std::size_t(m_maxk) + 1,
                 {m_imin, m_stride, m_subgrid_points, m_include_G, p_gr});
 
@@ -276,8 +282,6 @@ void FeynmanSigma::form_Q_dr() {
 
   for (auto k = 0; k <= m_maxk; ++k) {
     m_qhat[std::size_t(k)].set_ff() = qhat[std::size_t(k)].complex();
-    // m_qhat[std::size_t(k)].ff = OldLinAlg::ComplexSqMatrix::make_complex(
-    //     {1.0, 0.0}, qhat[std::size_t(k)]);
     if (m_include_G) {
       m_qhat[std::size_t(k)].set_gg() = m_qhat[std::size_t(k)].ff();
     }
@@ -471,34 +475,6 @@ ComplexGMatrix FeynmanSigma::G_single(const DiracSpinor &ket,
   ComplexGMatrix Gmat(m_imin, m_stride, m_subgrid_points, m_include_G, p_gr);
   Gmat.add(ket, bra, f);
   return Gmat;
-  // // const auto [x, iy] = f;
-  // auto x = f.real();
-  // auto iy = f.imag();
-  //
-  // for (auto i = 0ul; i < m_subgrid_points; ++i) {
-  //   const auto si = ri_subToFull(i);
-  //   for (auto j = 0ul; j < m_subgrid_points; ++j) {
-  //     const auto sj = ri_subToFull(j);
-  //     // Gmat.ff(i,j) = {x * ket.f(si) * bra.f(sj), iy * ket.f(si) *
-  //     // bra.f(sj)};
-  //     Gmat.ff(i, j) = f * ket.f(si) * bra.f(sj);
-  //   } // j
-  // }   // i
-  //
-  // if (m_include_G) {
-  //   for (auto i = 0ul; i < m_subgrid_points; ++i) {
-  //     const auto si = ri_subToFull(i);
-  //     for (auto j = 0ul; j < m_subgrid_points; ++j) {
-  //       const auto sj = ri_subToFull(j);
-  //       Gmat.fg(i, j) = {x * ket.f(si) * bra.g(sj), iy * ket.f(si) *
-  //       bra.g(sj)}; Gmat.gf(i, j) = {x * ket.g(si) * bra.f(sj), iy *
-  //       ket.g(si) * bra.f(sj)}; Gmat.gg(i, j) = {x * ket.g(si) * bra.g(sj),
-  //       iy * ket.g(si) * bra.g(sj)};
-  //     } // j
-  //   }   // i
-  // }
-  //
-  // return Gmat;
 }
 
 //******************************************************************************

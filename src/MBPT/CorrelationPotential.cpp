@@ -5,7 +5,6 @@
 #include "HF/HartreeFock.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
 #include "IO/SafeProfiler.hpp"
-// #include "MBPT/GreenMatrix.hpp"
 #include "MBPT/Ladder.hpp" //?
 #include "MBPT/RDMatrix.hpp"
 #include "Maths/Grid.hpp"
@@ -35,7 +34,8 @@ CorrelationPotential::CorrelationPotential(
       m_6j(2 * m_maxk),
       m_stride(subgridp.stride),
       m_include_G(sigp.include_G),
-      m_fk(std::move(sigp.fk)) {
+      m_fk(std::move(sigp.fk)),
+      m_eta(std::move(sigp.etak)) {
   setup_subGrid(subgridp.r0, subgridp.rmax);
 }
 
@@ -47,27 +47,7 @@ void CorrelationPotential::setup_subGrid(double rmin, double rmax) {
   auto t_i_max = p_gr->getIndex(rmax);
   // ensure multiple of stride:
   m_subgrid_points = (t_i_max - m_imin) / m_stride + 1;
-  // while ((t_i_max - m_imin) % m_stride != 0) {
-  //   std::cout << t_i_max << " -> ";
-  //   ++t_i_max;
-  //   std::cout << t_i_max << "\n";
-  // }
-  // std::cout << t_i_max << "\n";
-  // std::cout << (t_i_max - m_imin) / m_stride << "\n";
-
-  // m_imin = 0;
-  // for (auto i = 0ul; i < rvec.size(); i += m_stride) {
-  //   auto r = rvec[i];
-  //   if (r < rmin) {
-  //     m_imin++;
-  //     continue;
-  //   }
-  //   if (r > rmax)
-  //     break;
-  //   m_subgrid_r.push_back(r);
-  // }
-  //
-  m_subgrid_r.resize(m_subgrid_points); // kill!
+  m_subgrid_r.resize(m_subgrid_points); // kill! no longer used!
 }
 
 //******************************************************************************
@@ -163,32 +143,8 @@ CorrelationPotential::copy_excited(const std::vector<DiracSpinor> &basis,
 void CorrelationPotential::addto_G(GMatrix *Gmat, const DiracSpinor &ket,
                                    const DiracSpinor &bra,
                                    const double f) const {
-
+  // XXX kill
   Gmat->add(ket, bra, f);
-  // [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
-  // // Adds (f)*|ket><bra| to G matrix
-  // // G_ij = f * Q_i * W_j
-  // // Q = Q(1) = ket, W = W(2) = bra
-  // // Takes sub-grid into account; ket,bra are on full grid, G on sub-grid
-  // for (auto i = 0ul; i < m_subgrid_points; ++i) {
-  //   const auto si = ri_subToFull(i);
-  //   for (auto j = 0ul; j < m_subgrid_points; ++j) {
-  //     const auto sj = ri_subToFull(j);
-  //     Gmat->ff[i][j] += f * ket.f(si) * bra.f(sj);
-  //   } // j
-  // }   // i
-  //
-  // if (m_include_G) {
-  //   for (auto i = 0ul; i < m_subgrid_points; ++i) {
-  //     const auto si = ri_subToFull(i);
-  //     for (auto j = 0ul; j < m_subgrid_points; ++j) {
-  //       const auto sj = ri_subToFull(j);
-  //       Gmat->fg[i][j] += f * ket.f(si) * bra.g(sj);
-  //       Gmat->gf[i][j] += f * ket.g(si) * bra.f(sj);
-  //       Gmat->gg[i][j] += f * ket.g(si) * bra.g(sj);
-  //     } // j
-  //   }   // i
-  // }
 }
 
 //******************************************************************************
@@ -466,7 +422,7 @@ RDMatrix<double>
 CorrelationPotential::Sigma_l(const DiracSpinor &v, const Coulomb::YkTable &yk,
                               const Coulomb::LkTable &lk,
                               const std::vector<DiracSpinor> &core,
-                              const std::vector<DiracSpinor> &excited) {
+                              const std::vector<DiracSpinor> &excited) const {
 
   RDMatrix<double> Sigma{m_imin, m_stride, m_subgrid_points, m_include_G, p_gr};
 
@@ -484,10 +440,7 @@ CorrelationPotential::Sigma_l(const DiracSpinor &v, const Coulomb::YkTable &yk,
 
           // Effective screening parameter:
           const auto fk = get_fk(k);
-          // if (fk == 0.0)
-          //   continue;
-
-          const auto etak = global_eta.scr(k);
+          const auto etak = get_eta(k);
 
           // form Lkv_amn
           const auto Qkv_amn = yk.Qkv_bcd(v.k, a, m, n, k);
@@ -511,6 +464,7 @@ CorrelationPotential::Sigma_l(const DiracSpinor &v, const Coulomb::YkTable &yk,
           // Only include fk on Qk, not Lk integrals - already included there
           // const auto ratio = Omega_kvamn / W_kvamn;
           const auto f = inv_de / (2 * k + 1);
+          // XXX Pretty sure fk should only appear in (b), not (a)
           Sigma.add(Qkv_amn, Lkv_amn, fk * etak * f); //(a) //fk both?
           Sigma.add(Qkv_amn, Lambdakv_amn, fk * f);   //(b)
 
@@ -522,14 +476,10 @@ CorrelationPotential::Sigma_l(const DiracSpinor &v, const Coulomb::YkTable &yk,
         const auto inv_de = 1.0 / (v.en() + n.en() - a.en() - b.en());
         const auto [k0, kI] = Coulomb::k_minmax_Q(v, n, a, b);
         for (int k = k0; k <= kI; k += 2) {
+
           // Effective screening parameter:
           const auto fk = get_fk(k);
-          // if (fk == 0.0)
-          //   continue;
-
-          const auto etak = global_eta.scr(k);
-
-          // const auto Qkv_nab = yk.Qkv_bcd(v.k, n, a, b, k);
+          const auto etak = get_eta(k);
 
           // form Lkv_nab
           const auto Qkv_nab = yk.Qkv_bcd(v.k, n, a, b, k);
@@ -537,10 +487,6 @@ CorrelationPotential::Sigma_l(const DiracSpinor &v, const Coulomb::YkTable &yk,
           const auto L_kvnab = lk.Q(k, v, n, a, b);
           const auto ratio1 = Q_kvnab == 0.0 ? 0.0 : (L_kvnab / Q_kvnab);
           const auto Lkv_nab = ratio1 * Qkv_nab;
-
-          // const auto Pkv_nab = yk.Pkv_bcd(v.k, n, a, b, k);
-          // const auto Omega_kvnab = lk.W(k, v, n, a, b);
-          // const auto W_kvnab = yk.W(k, v, n, a, b);
 
           // form Lambdakv_amn
           DiracSpinor Lambdakv_nab{0, v.k, v.rgrid};
@@ -557,6 +503,7 @@ CorrelationPotential::Sigma_l(const DiracSpinor &v, const Coulomb::YkTable &yk,
           Lambdakv_nab *= (2 * k + 1);
 
           const auto f = inv_de / (2 * k + 1);
+          // XXX Pretty sure fk should only appear in (d), not (c)
           Sigma.add(Qkv_nab, Lkv_nab, fk * etak * f); //(c)
           Sigma.add(Qkv_nab, Lambdakv_nab, fk * f);   //(d)
           //
@@ -570,13 +517,5 @@ CorrelationPotential::Sigma_l(const DiracSpinor &v, const Coulomb::YkTable &yk,
 
   return (1.0 / v.twojp1()) * Sigma;
 }
-
-//******************************************************************************
-// std::size_t CorrelationPotential::ri_subToFull(std::size_t i) const {
-//   return ((m_imin + i) * m_stride);
-// }
-// double CorrelationPotential::dr_subToFull(std::size_t i) const {
-//   return p_gr->drdu()[ri_subToFull(i)] * p_gr->du() * double(m_stride);
-// }
 
 } // namespace MBPT

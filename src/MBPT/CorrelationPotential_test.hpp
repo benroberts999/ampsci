@@ -81,7 +81,7 @@ bool Sigma2(std::ostream &obuff) {
     wf.solve_core("HartreeFock", 0.0, "[Xe]");
     wf.solve_valence("7sp5d4f"); //"7sp5d4f"
     wf.formBasis({"30spdfg", 40, 7, 0.0, 1.0e-6, 40.0, false});
-    wf.formSigma(3, true, 1.0e-4, 30.0, 14 /*stride*/, false, false, {}, {},
+    wf.formSigma(3, true, 1.0e-4, 30.0, 14 /*stride*/, false, false, {}, {}, {},
                  "false", "false");
 
     // const int nmin_core, const bool form_matrix, const double r0,
@@ -122,7 +122,7 @@ bool Sigma2(std::ostream &obuff) {
     wf.solve_core("HartreeFock", 0.0, "[Xe]");
     wf.solve_valence("7sp5d4f");
     wf.formBasis({"30spdfghi", 40, 7, 0.0, 1.0e-6, 40.0, false});
-    wf.formSigma(3, true, 1.0e-4, 30.0, 14 /*stride*/, false, false, {}, {},
+    wf.formSigma(3, true, 1.0e-4, 30.0, 14 /*stride*/, false, false, {}, {}, {},
                  "false", "tmp_sigma_deleteme");
 
     std::vector<double> hf, br2;
@@ -159,7 +159,7 @@ bool Sigma2(std::ostream &obuff) {
     wf.solve_valence("7sp5d4f");
     // wf.formBasis({"30spdfghi", 40, 7, 0.0, 1.0e-6, 40.0, false});
     // Don't calculate Sigma, read it in from above example:
-    wf.formSigma(1, true, 0.0, 0.0, 1 /*stride*/, false, false, {}, {},
+    wf.formSigma(1, true, 0.0, 0.0, 1 /*stride*/, false, false, {}, {}, {},
                  "tmp_sigma_deleteme", "false");
 
     std::vector<double> hf, br2;
@@ -215,9 +215,9 @@ bool SigmaAO(std::ostream &obuff) {
     const std::vector fk{0.71, 0.589, 0.84, 0.885, 0.95, 0.976, 0.991};
     // const std::vector fk{0.72, 0.62, 0.83, 0.89, 0.94, 1.0};
     // wf.formSigma(3, true, 1.0e-4, 30.0, 14 /*stride*/);
-    wf.formSigma(n_min_core, true, rmin, rmax, stride, false, false, {}, fk,
-                 "false", "false", true, true, true, lmax, false, false, omre,
-                 w0, wratio);
+    wf.formSigma(n_min_core, true, rmin, rmax, stride, false, false, {}, fk, {},
+                 "false", "false", "", true, true, true, lmax, false, false,
+                 omre, w0, wratio);
 
     wf.hartreeFockBrueckner();
 

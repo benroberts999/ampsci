@@ -197,20 +197,19 @@ public: // const methods: "views" into WF object
   void formSpectrum(const SplineBasis::Parameters &params);
 
   //! Forms + stores correlation potential Sigma
-  void formSigma(const int nmin_core = 1, const bool form_matrix = true,
-                 const double r0 = 1.0e-4, const double rmax = 30.0,
-                 const int stride = 4, const bool each_valence = false,
-                 const bool include_G = false,
-                 const std::vector<double> &lambdas = {},
-                 const std::vector<double> &fk = {},
-                 const std::string &in_fname = "",
-                 const std::string &out_fname = "", const bool FeynmanQ = false,
-                 const bool ScreeningQ = false,
-                 const bool holeParticleQ = false, const int lmax = 6,
-                 const bool GreenBasis = false, const bool PolBasis = false,
-                 const double omre = -0.2, double w0 = 0.01,
-                 double wratio = 1.5,
-                 const std::optional<IO::InputBlock> &ek = std::nullopt);
+  void formSigma(
+      const int nmin_core = 1, const bool form_matrix = true,
+      const double r0 = 1.0e-4, const double rmax = 30.0, const int stride = 4,
+      const bool each_valence = false, const bool include_G = false,
+      const std::vector<double> &lambdas = {},
+      const std::vector<double> &fk = {}, const std::vector<double> &etak = {},
+      const std::string &in_fname = "", const std::string &out_fname = "",
+      const std::string &ladder_file = "", const bool FeynmanQ = false,
+      const bool ScreeningQ = false, const bool holeParticleQ = false,
+      const int lmax = 6, const bool GreenBasis = false,
+      const bool PolBasis = false, const double omre = -0.2, double w0 = 0.01,
+      double wratio = 1.5,
+      const std::optional<IO::InputBlock> &ek = std::nullopt);
   void copySigma(const MBPT::CorrelationPotential *const Sigma) {
     if (Sigma != nullptr)
       m_Sigma = std::make_unique<MBPT::CorrelationPotential>(*Sigma);
