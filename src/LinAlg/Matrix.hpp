@@ -150,7 +150,7 @@ public:
 
   //****************************************************************************
 
-  //! Constructs a diagonal unit matrix (identity), in place
+  //! Constructs a diagonal unit matrix (identity), in place; only for square
   Matrix<T> &make_identity();
   //! Sets all elements to zero, in place
   Matrix<T> &zero();

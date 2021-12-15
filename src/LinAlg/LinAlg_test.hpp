@@ -102,10 +102,15 @@ bool LinAlg(std::ostream & /*obuff*/) {
     a.mult_elements_by(a);
     assert(equal(a, d));
 
-    assert(equal(a.make_identity(), {{1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}}));
-    assert(equal(a += 1.0, {{2.0, 0.0, 0.0}, {0.0, 2.0, 0.0}}));
-    assert(equal(a + 2.0, {{4.0, 0.0, 0.0}, {0.0, 4.0, 0.0}}));
-    assert(equal(a.zero(), {{0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}}));
+    Matrix<double> e{{1.0, 2.0, 3.0}, {4.0, 5.0, 6.0}, {7.0, 8.0, 9.0}};
+
+    assert(equal(e.make_identity(),
+                 {{1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}}));
+    assert(
+        equal(e += 1.0, {{2.0, 0.0, 0.0}, {0.0, 2.0, 0.0}, {0.0, 0.0, 2.0}}));
+    assert(equal(e + 2.0, {{4.0, 0.0, 0.0}, {0.0, 4.0, 0.0}, {0.0, 0.0, 4.0}}));
+    assert(
+        equal(e.zero(), {{0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}, {0.0, 0.0, 0.0}}));
   }
 
   //**************************************************************************
@@ -162,11 +167,6 @@ bool LinAlg(std::ostream & /*obuff*/) {
 
     const auto c_tr = c.transpose();
     assert(equal(c_tr, c.transpose()));
-
-    assert(equal(a.make_identity(), {{1.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}}));
-    assert(equal(a += 1.0f, {{2.0f, 0.0f, 0.0f}, {0.0f, 2.0f, 0.0f}}));
-    assert(equal(a + 2.0f, {{4.0f, 0.0f, 0.0f}, {0.0f, 4.0f, 0.0f}}));
-    assert(equal(a.zero(), {{0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}}));
 
     // Invert and det only implemented for doubles
   }
