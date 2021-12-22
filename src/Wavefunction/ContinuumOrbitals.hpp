@@ -41,6 +41,4 @@ private:
   const int Zion;
   const double alpha;
   std::vector<double> v_local; // v_nuc + v_dir
-
-  // const bool force_rescale = true; // ???
 };

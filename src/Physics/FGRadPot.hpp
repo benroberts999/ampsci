@@ -105,8 +105,8 @@ double r_integral(std::function<double(double)> f, double a, double b,
   static constexpr std::array w{475.0 / 1440, 1902.0 / 1440, 1104.0 / 1440,
                                 1586.0 / 1440, 1413.0 / 1440};
 
-  const auto dt = (IT == IntType::Linear) ? (b - a) / double(n_pts - 1)
-                                          : std::log(b / a) / double(n_pts - 1);
+  const auto dt = (IT == IntType::Linear) ? (b - a) / double(n_pts - 1) :
+                                            std::log(b / a) / double(n_pts - 1);
 
   const auto x = [=](auto i) {
     if constexpr (IT == IntType::Linear) {
@@ -118,6 +118,7 @@ double r_integral(std::function<double(double)> f, double a, double b,
   };
   const auto dxdt = [=](auto i) {
     if constexpr (IT == IntType::Linear) {
+      (void)i; // suppress unused variable warning on older gcc compilers
       return 1.0;
     } else {
       return x(i); // dxdt = x(t) for log

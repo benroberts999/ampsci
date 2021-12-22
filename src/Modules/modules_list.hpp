@@ -9,6 +9,7 @@
 #include "Modules/exampleModule.hpp"
 #include "Modules/fitParametric.hpp"
 #include "Modules/isotopeShift.hpp"
+#include "Modules/laddertests.hpp"
 #include "Modules/matrixElements.hpp"
 #include "Modules/pnc.hpp"
 #include "Modules/polarisability.hpp"
@@ -53,6 +54,7 @@ static const std::vector<std::pair<
                 {"structureRad", &structureRad},
                 {"fieldShift", &fieldShift},
                 {"continuum", &continuum},
+                {"ladder", &ladder},
                 {"exampleModule", &exampleModule}};
 
 } // namespace Module

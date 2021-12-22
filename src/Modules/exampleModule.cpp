@@ -15,7 +15,10 @@ void exampleModule(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Read in some optional input options: A, rms, and type
   // "checkBlock" is optional, but helps prevent errors on input options:
-  input.checkBlock({"A", "rrms", "type"});
+  input.check({{"A", "Atomic mass number [0]"},
+               {"rrms", "root-mean-square nuclear radii [-1]"},
+               {"type", "Fermi/ball/pointlike [Fermi]"}});
+
   // If no A is specified, use 0 (i.e., poinlike)
   auto A = input.get("A", 0);
   // if rrms<0, the default value (for the given A) will be looked up

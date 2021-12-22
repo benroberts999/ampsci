@@ -1,5 +1,5 @@
 #include "DMionisation/AKF_akFunctions.hpp"
-#include "Angular/Angular_369j.hpp"
+#include "Angular/Wigner369j.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
@@ -10,8 +10,6 @@
 #include "Wavefunction/Wavefunction.hpp"
 #include <fstream>
 #include <iostream>
-
-#pragma GCC diagnostic ignored "-Wsign-conversion"
 
 namespace AKF {
 
@@ -41,7 +39,7 @@ double CLkk_DLkk(int L, int ka, int kb, std::string dmec)
   if ((la + lb + L) % 2 != 0)
     return 0; // Parity rule
 
-  double tjs = Angular::threej_2(two_jb, two_ja, 2 * L, -1, 1, 0);
+  const double tjs = Angular::threej_2(two_jb, two_ja, 2 * L, -1, 1, 0);
   return (two_ja + 1) * (two_jb + 1) * (2 * L + 1) * tjs * tjs;
 }
 
@@ -232,8 +230,8 @@ void write_Knk_plaintext(const std::string &fname,
   const auto num_states = AK[0].size(); // nk
   const auto qsteps = AK[0][0].size();  // q
 
-  double qMeV = (1.e6 / (PhysConst::Hartree_eV * PhysConst::c));
-  double keV = (1.e3 / PhysConst::Hartree_eV);
+  const double qMeV = (1.e6 / (PhysConst::Hartree_eV * PhysConst::c));
+  const double keV = (1.e3 / PhysConst::Hartree_eV);
 
   std::ofstream ofile;
   ofile.open(fname + ".txt");
@@ -373,14 +371,14 @@ int akReadWrite(const std::string &fname, bool write,
   }
 
   if (write) {
-    int nde = (int)AK.size();      // dE
-    int ns = (int)AK[0].size();    // nk
-    int nq = (int)AK[0][0].size(); // q
+    auto nde = AK.size();      // dE
+    auto ns = AK[0].size();    // nk
+    auto nq = AK[0][0].size(); // q
     IO::FRW::binary_rw(iof, nde, row);
     IO::FRW::binary_rw(iof, ns, row);
     IO::FRW::binary_rw(iof, nq, row);
   } else {
-    int nq, ns, nde;
+    std::size_t nq, ns, nde;
     IO::FRW::binary_rw(iof, nde, row);
     IO::FRW::binary_rw(iof, ns, row);
     IO::FRW::binary_rw(iof, nq, row);

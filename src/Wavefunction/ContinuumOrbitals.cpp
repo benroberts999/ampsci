@@ -1,5 +1,5 @@
 #include "Wavefunction/ContinuumOrbitals.hpp"
-#include "Coulomb/Coulomb.hpp"
+#include "Coulomb/CoulombIntegrals.hpp"
 #include "DiracODE/DiracODE.hpp"
 #include "HF/HartreeFock.hpp"
 #include "Maths/Grid.hpp"
@@ -10,6 +10,7 @@
 #include "qip/Vector.hpp"
 #include <algorithm>
 #include <cmath>
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -68,7 +69,7 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
 {
 
   // Find 'inital guess' for asymptotic region:
-  const double lam = 1.0e7;
+  const double lam = 1.0e6;
   const double r_asym =
       (Zion + std::sqrt(4.0 * lam * ec + std::pow(Zion, 2))) / (2.0 * ec);
 
@@ -85,10 +86,11 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
     }
   }
 
-  // XXX Don't need to extend grid each time...
-  // ExtendedGrid cgrid(*rgrid, 1.2 * r_asym);
+  // nb: Don't need to extend grid each time... but want thread-safe
   auto cgrid = *rgrid;
-  cgrid.extend_to(1.2 * r_asym);
+  cgrid.extend_to(1.1 * r_asym);
+
+  auto vc = v_local;
 
   // Highest core state (later: use the state being ionised)
   // const auto &Fa = p_hf->get_core().back();
@@ -102,16 +104,9 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
   }
 
   // "Z_ion" - "actual" (excluding exchange.....)
-  auto z_tmp = std::abs(v_local.back() * rgrid->r().back());
-  // std::cout << "z_tmp=" << z_tmp << "\n";
-  // If ztm is 0, means neutral atom. Effective charge should be 1
-  // Exchange doesn't go further than core...
-  // This doesn't seem to have any impact, so unimportant
-  if (z_tmp < 1)
-    z_tmp = 1;
+  const auto z_tmp = std::abs(vc.back() * rgrid->r().back());
 
   // Extend local (Vnuc+Vdir) potential to new grid
-  auto vc = v_local;
   vc.reserve(cgrid.num_points());
   for (auto i = rgrid->num_points(); i < cgrid.num_points(); i++) {
     vc.push_back(-z_tmp / cgrid.r(i));
@@ -121,15 +116,17 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
   // Note: doesn't inclue exchange..
   // This also kills orthogonality for HF...
   if (force_rescale) {
-    // nb: this, without the 'break' agrees best with Dzuba, but bad for orthog
+    // nb: this agrees best with Dzuba, but bad for orthog
     for (auto i = cgrid.num_points() - 1; i != 0; i--) {
       if (vc[i] > -Zion / cgrid.r(i)) {
         vc[i] = -Zion / cgrid.r(i);
-      } else {
-        // break; ?
       }
     }
   }
+
+  // Technically, eveything above this needs to happen only once...
+  // However, the below code takes ~10x longer than this, so doesn't matter much
+  //*******************************
 
   // loop through each kappa state
   for (int k_i = 0; true; ++k_i) {
@@ -142,29 +139,38 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
 
     auto &Fc = orbitals.emplace_back(0, kappa, rgrid);
     Fc.set_en() = ec;
-
+    // solve initial, without exchange term
     DiracODE::solveContinuum(Fc, ec, vc, cgrid, r_asym, alpha);
 
     // Include exchange (Hartree Fock)
+    const int max_its = 20;
+    const double conv_target = 1.0e-4;
     if (p_hf != nullptr && !p_hf->excludeExchangeQ()) {
-      for (int it = 0; it < 100; ++it) {
+      for (int it = 0; it <= max_its; ++it) {
         const auto vx0 = HF::vex_approx(Fc, p_hf->get_core());
         const auto vl = qip::add(vc, vx0);
-        auto VxFc = HF::vexFa(Fc, p_hf->get_core()) - vx0 * Fc;
-        // Extend onto larger grid
-        VxFc.set_f().resize(vc.size());
-        VxFc.set_g().resize(vc.size());
+
         // Copy old solution (needed by DiracODE)
         const auto Fc0 = Fc;
-        DiracODE::solveContinuum(Fc, ec, vl, cgrid, r_asym, alpha, &VxFc, &Fc0);
+        if (p_hf->method() == HF::Method::HartreeFock) {
+          auto VxFc = HF::vexFa(Fc, p_hf->get_core()) - vx0 * Fc;
+          // Extend onto larger grid
+          VxFc.set_f().resize(vc.size());
+          VxFc.set_g().resize(vc.size());
+          DiracODE::solveContinuum(Fc, ec, vl, cgrid, r_asym, alpha, &VxFc,
+                                   &Fc0);
+        } else { // HF::Method::ApproxHF)
+          DiracODE::solveContinuum(Fc, ec, vl, cgrid, r_asym, alpha);
+        }
+        // check convergance:
         const auto eps = ((Fc0 - Fc) * (Fc0 - Fc)) / (Fc * Fc);
-        if (eps < 1.0e-16 || it == 249) {
-          // std::cout << Fc.shortSymbol() << " " << it << " " << eps << "\n";
+        if (eps < conv_target || it == max_its) {
           break;
         }
+        // Damp the orbital
         Fc = 0.5 * (Fc + Fc0);
-      }
-    }
+      } // it
+    }   // if HF
 
     // Forcing orthogonality between continuum and core states
     if (force_orthog) {
@@ -178,13 +184,14 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
                     << "> = ";
           printf("%.1e\n", Fc * Fn);
           std::cout << std::endl;
-        }
-      }
-      // func already exists for this in Wavefunction.cpp
-      // const auto &Fn = p_hf->get_core();
-      // Wavefunction::orthogonaliseWrt(Fc, Fn);
-    }
-  }
+        } // if
+      }   // loop through core
+    }     // if
+    // func already exists for this in Wavefunction.cpp
+    // const auto &Fn = p_hf->get_core();
+    // Wavefunction::orthogonaliseWrt(Fc, Fn);
+
+  } // kappa
 
   return 0;
 }

@@ -3,7 +3,7 @@
 #include "MixedStates.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "qip/Check.hpp"
-#include "qip/Format.hpp"
+#include "qip/String.hpp"
 #include <iomanip>
 #include <string>
 //

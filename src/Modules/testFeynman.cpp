@@ -1,24 +1,24 @@
 #include "Modules/testFeynman.hpp"
-#include "Coulomb/Coulomb.hpp"
+#include "Coulomb/CoulombIntegrals.hpp"
 #include "IO/InputBlock.hpp"
 #include "MBPT/FeynmanSigma.hpp"
-#include "Maths/LinAlg_MatrixVector.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
+#include <complex>
 #include <iostream>
 #include <vector>
 
-using ComplexDouble = LinAlg::ComplexDouble;
+using ComplexDouble = std::complex<double>;
 
 namespace Module {
 
 void testFeynman(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "\ntestFeynman:\n";
 
-  input.checkBlock({"real_omega", "max_l", "screening", "rmin", "rmax",
-                    "stride", "include_G", "testQ", "testGreen", "testGQ",
-                    "testPol", "omim"});
+  input.checkBlock_old({"real_omega", "max_l", "screening", "rmin", "rmax",
+                        "stride", "include_G", "testQ", "testGreen", "testGQ",
+                        "testPol", "omim"});
 
   const double omre = input.get("real_omega", -0.2);
   const auto method = MBPT::Method::Feynman;
@@ -124,7 +124,7 @@ void Feyn::test_Q(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma) {
 
           const auto &qk = Sigma.get_qk(k);
           const auto aQa =
-              (Sigma.G_single(a, a, 1.0)).mult_elements_by(qk).get_real();
+              (Sigma.G_single(a, a, 1.0)).mult_elements_by(qk).real();
           const auto q_aa = Sigma.act_G_Fv_2(a, aQa, a);
           const auto Rk = Coulomb::Rk_abcd(a, a, a, a, k);
           const auto eps = std::abs((q_aa - Rk) / Rk);
@@ -170,13 +170,17 @@ void Feyn::test_green(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
                                    MBPT::States::both, MBPT::GrMethod::basis);
 
       // ????????????????
-      auto zero1 = (Gr1 * Gr1.inverse()).plusIdent(-1.0);
-      auto zero2 = (Gr2 * Gr2.inverse()).plusIdent(-1.0);
+      auto zero1 = Gr1 * Gr1.inverse() - 1.0;
+      auto zero2 = Gr2 * Gr2.inverse() - 1.0;
       // needs dr ? no ?
-      auto [a, b] = zero1.max_el();
-      auto [c, d] = zero2.max_el();
-      std::cout << "Inverse (Gr): " << a << " " << b << "\n";
-      std::cout << "Inverse (Basis): " << c << " " << d << "\n";
+      // auto [a, b] = zero1.max_el();
+      // auto [c, d] = zero2.max_el();
+      auto a = MBPT::max_element(zero1);
+      auto c = MBPT::max_element(zero2);
+      std::cout << "Inverse (Gr): " << a << " "
+                << "\n";
+      std::cout << "Inverse (Basis): " << c << " "
+                << "\n";
       // ????????????????
 
       std::cout
@@ -187,14 +191,14 @@ void Feyn::test_green(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
         for (const auto &Fv : *orbs) {
           if (Fv.k != kappa)
             continue;
-          auto vGv1 = Fv * Sigma.act_G_Fv(Gr1.get_real(), Fv);
-          auto vGv2 = Fv * Sigma.act_G_Fv(Gr2.get_real(), Fv);
+          auto vGv1 = Fv * Sigma.act_G_Fv(Gr1.real(), Fv);
+          auto vGv2 = Fv * Sigma.act_G_Fv(Gr2.real(), Fv);
 
           auto denom = omega + ComplexDouble{env - Fv.en(), 0};
-          auto expected = denom.inverse();
+          auto expected = 1.0 / denom;
 
-          auto expect_re = expected.re();
-          auto expect_im = expected.im();
+          auto expect_re = expected.real();
+          auto expect_im = expected.imag();
 
           auto error0 = std::abs((vGv1 - vGv2) / (vGv1 + vGv2));
           auto error1 = std::abs((vGv1 - expect_re) / expect_re);
@@ -204,8 +208,8 @@ void Feyn::test_green(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
                  error1, error2);
 
           if (omim != 0.0) {
-            auto vGv1_i = Fv * Sigma.act_G_Fv(Gr1.get_imaginary(), Fv);
-            auto vGv2_i = Fv * Sigma.act_G_Fv(Gr2.get_imaginary(), Fv);
+            auto vGv1_i = Fv * Sigma.act_G_Fv(Gr1.imag(), Fv);
+            auto vGv2_i = Fv * Sigma.act_G_Fv(Gr2.imag(), Fv);
             auto error0_i = std::abs((vGv1_i - vGv2_i) / (vGv1_i + vGv2_i));
             auto error1_i = std::abs((vGv1_i - expect_im) / expect_im);
             auto error2_i = std::abs((vGv2_i - expect_im) / expect_im);
@@ -265,35 +269,35 @@ void Feyn::test_GQ(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
                                       MBPT::States::excited, method)
                                .mult_elements_by(qk);
 
-          vgqv_r += Sigma.act_G_Fv_2(Fv, gq.get_real(), Fv);
-          vgqCv_r += Sigma.act_G_Fv_2(Fv, gqC.get_real(), Fv);
-          vgqXv_r += Sigma.act_G_Fv_2(Fv, gqX.get_real(), Fv);
+          vgqv_r += Sigma.act_G_Fv_2(Fv, gq.real(), Fv);
+          vgqCv_r += Sigma.act_G_Fv_2(Fv, gqC.real(), Fv);
+          vgqXv_r += Sigma.act_G_Fv_2(Fv, gqX.real(), Fv);
 
-          vgqv_i += Sigma.act_G_Fv_2(Fv, gq.get_imaginary(), Fv);
-          vgqCv_i += Sigma.act_G_Fv_2(Fv, gqC.get_imaginary(), Fv);
-          vgqXv_i += Sigma.act_G_Fv_2(Fv, gqX.get_imaginary(), Fv);
+          vgqv_i += Sigma.act_G_Fv_2(Fv, gq.imag(), Fv);
+          vgqCv_i += Sigma.act_G_Fv_2(Fv, gqC.imag(), Fv);
+          vgqXv_i += Sigma.act_G_Fv_2(Fv, gqX.imag(), Fv);
 
           for (const auto &Fi : wf.basis) {
             if (Fi.k != kappa)
               continue;
             auto Rk = Coulomb::Rk_abcd(Fv, Fi, Fi, Fv, k);
             auto denom = (en - ComplexDouble{Fi.en()});
-            ComplexDouble term = Rk * denom.inverse();
+            ComplexDouble term = Rk / denom;
             if (wf.isInCore(Fi.n, Fi.k))
               core += term;
             else
               ex += term;
           }
         }
-        auto eps_r = vgqv_r / (core + ex).re() - 1.0;
-        auto eps_i = vgqv_i / (core + ex).im() - 1.0;
+        auto eps_r = vgqv_r / (core + ex).real() - 1.0;
+        auto eps_i = vgqv_i / (core + ex).imag() - 1.0;
         printf("%3s:  %7.4f/%7.4f  %7.4f/%7.4f  %7.4f/%7.4f  %.0e\n",
-               Fv.shortSymbol().c_str(), vgqv_r, (core + ex).re(), vgqCv_r,
-               (core).re(), vgqXv_r, (ex).re(), eps_r);
+               Fv.shortSymbol().c_str(), vgqv_r, (core + ex).real(), vgqCv_r,
+               (core).real(), vgqXv_r, (ex).real(), eps_r);
         if (omim != 0.0)
           printf("  i:  %7.4f/%7.4f  %7.4f/%7.4f  %7.4f/%7.4f  %.0e\n", vgqv_i,
-                 (core + ex).im(), vgqCv_i, (core).im(), vgqXv_i, (ex).im(),
-                 eps_i);
+                 (core + ex).imag(), vgqCv_i, (core).imag(), vgqXv_i,
+                 (ex).imag(), eps_i);
       }
     }
   }
@@ -307,9 +311,9 @@ void Feyn::test_pol(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
 
   for (auto test_pol_method : {MBPT::GrMethod::Green, MBPT::GrMethod::basis}) {
 
-    const std::string str_meth = test_pol_method == MBPT::GrMethod::Green
-                                     ? "Green fn method"
-                                     : "basis method";
+    const std::string str_meth = test_pol_method == MBPT::GrMethod::Green ?
+                                     "Green fn method" :
+                                     "basis method";
 
     std::cout << "\n***********************************\n\n";
 
@@ -346,9 +350,9 @@ void Feyn::test_pol(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
                            MBPT::GrMethod::Green)
                     .mult_elements_by(qpq);
 
-            sum_k_gqpq += Sigma.act_G_Fv_2(Fv, gqpq.get_imaginary(), Fv);
+            sum_k_gqpq += Sigma.act_G_Fv_2(Fv, gqpq.imag(), Fv);
             if (omim != 0.0)
-              sum_k_gqpq_i += Sigma.act_G_Fv_2(Fv, gqpq.get_real(), Fv);
+              sum_k_gqpq_i += Sigma.act_G_Fv_2(Fv, gqpq.real(), Fv);
 
             ComplexDouble sum1 = {0.0, 0.0};
             for (const auto &FB : wf.basis) {
@@ -360,11 +364,11 @@ void Feyn::test_pol(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
                   if (f == 0.0)
                     continue;
                   const auto ide1 =
-                      (ComplexDouble{Fv.en() - FB.en()} + om).inverse();
+                      1.0 / (ComplexDouble{Fv.en() - FB.en()} + om);
                   const auto ide2 =
-                      (ComplexDouble{Fa.en() - FA.en()} - om).inverse();
+                      1.0 / (ComplexDouble{Fa.en() - FA.en()} - om);
                   const auto ide3 =
-                      (ComplexDouble{Fa.en() - FA.en()} + om).inverse();
+                      1.0 / (ComplexDouble{Fa.en() - FA.en()} + om);
                   const auto Dinv = ide1 * (ide2 + ide3);
                   const auto Rk = Coulomb::Rk_abcd(Fv, FA, FB, Fa, k);
                   sum1 += Rk * Rk * f * f * Dinv * (1.0 / (2 * k + 1));
@@ -374,16 +378,16 @@ void Feyn::test_pol(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
             sum_k_RR += ComplexDouble{0.0, 1.0} * sum1; // i from pi
           }
           const auto eps =
-              (sum_k_gqpq - sum_k_RR.cim()) / (sum_k_gqpq + sum_k_RR.cim());
-          const auto epsi =
-              (sum_k_gqpq_i - sum_k_RR.cre()) / (sum_k_gqpq_i + sum_k_RR.cre());
-          if (sum_k_RR.cim() != 0.0 || sum_k_gqpq != 0.0) {
+              (sum_k_gqpq - sum_k_RR.imag()) / (sum_k_gqpq + sum_k_RR.imag());
+          const auto epsi = (sum_k_gqpq_i - sum_k_RR.real()) /
+                            (sum_k_gqpq_i + sum_k_RR.real());
+          if (sum_k_RR.imag() != 0.0 || sum_k_gqpq != 0.0) {
             printf("%6s%2i| %11.4e  %11.4e  %6.0e\n", Fv.symbol().c_str(), k,
-                   sum_k_gqpq, sum_k_RR.cim(), eps);
+                   sum_k_gqpq, sum_k_RR.imag(), eps);
           }
-          if (sum_k_RR.cre() != 0.0 || sum_k_gqpq_i != 0.0)
+          if (sum_k_RR.real() != 0.0 || sum_k_gqpq_i != 0.0)
             printf("%6s  | %11.4ei %11.4ei %6.0e\n", Fv.symbol().c_str(),
-                   sum_k_gqpq_i, sum_k_RR.cre(), epsi);
+                   sum_k_gqpq_i, sum_k_RR.real(), epsi);
         }
         std::cout << "\n";
       }
@@ -400,19 +404,19 @@ void Feyn::test_pol(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
       for (int k = 0; k <= Sigma.maxk(); ++k) {
         auto pi = Sigma.Polarisation_k(k, {omre, omim}, test_pol_method);
         ComplexDouble om = {omre, omim};
-        const auto rePi = pi.get_real();
-        const auto imPi = pi.get_imaginary();
+        const auto rePi = pi.real();
+        const auto imPi = pi.imag();
 
         double sum_re = 0.0;
         double sum_im = 0.0;
-        for (auto i = 0ul; i < pi.size; ++i) {
-          const auto dri = Sigma.dr_subToFull(i);
-          for (auto j = 0ul; j < pi.size; ++j) {
-            const auto drj = Sigma.dr_subToFull(j);
-            sum_re += imPi.ff[i][j] * dri * drj;
-            sum_im += rePi.ff[i][j] * dri * drj;
-          }
-        }
+        // for (auto i = 0ul; i < pi.size(); ++i) {
+        //   const auto dri = Sigma.dr_subToFull(i);
+        //   for (auto j = 0ul; j < pi.size(); ++j) {
+        //     const auto drj = Sigma.dr_subToFull(j);
+        //     sum_re += imPi.ff(i, j) * dri * drj;
+        //     sum_im += rePi.ff(i, j) * dri * drj;
+        //   }
+        // }
 
         ComplexDouble expected = {0.0, 0.0};
         for (const auto &Fa : Sigma.m_holes) {
@@ -421,21 +425,21 @@ void Feyn::test_pol(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
             if (f == 0.0)
               continue;
             const auto me = (Fa * FA);
-            const auto ide2 = (ComplexDouble{Fa.en() - FA.en()} - om).inverse();
-            const auto ide3 = (ComplexDouble{Fa.en() - FA.en()} + om).inverse();
+            const auto ide2 = 1.0 / (ComplexDouble{Fa.en() - FA.en()} - om);
+            const auto ide3 = 1.0 / (ComplexDouble{Fa.en() - FA.en()} + om);
             const auto Dinv = (ide2 + ide3);
             expected += me * me * f * f * Dinv * (1.0 / (2 * k + 1));
           }
         }
         expected *= ComplexDouble{0.0, 1.0}; // i from pi
-        const auto del = (sum_re - expected.im());
-        const auto del2 = (sum_im - expected.re());
+        const auto del = (sum_re - expected.imag());
+        const auto del2 = (sum_im - expected.real());
 
-        if (sum_re != 0.0 || expected.im() != 0.0)
-          printf("%2i | %11.4e  %11.4e  %8.1e\n", k, sum_re, expected.im(),
+        if (sum_re != 0.0 || expected.imag() != 0.0)
+          printf("%2i | %11.4e  %11.4e  %8.1e\n", k, sum_re, expected.imag(),
                  del);
-        if (sum_im != 0.0 || expected.re() != 0.0)
-          printf("   | %11.4ei %11.4ei %8.1e\n", sum_im, expected.re(), del2);
+        if (sum_im != 0.0 || expected.real() != 0.0)
+          printf("   | %11.4ei %11.4ei %8.1e\n", sum_im, expected.real(), del2);
       }
     }
   }

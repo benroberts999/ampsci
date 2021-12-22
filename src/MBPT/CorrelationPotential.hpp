@@ -1,8 +1,10 @@
 #pragma once
-#include "Angular/Angular_tables.hpp"
+#include "Angular/CkTable.hpp"
+#include "Angular/SixJTable.hpp"
 #include "Coulomb/YkTable.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
-#include "MBPT/GreenMatrix.hpp"
+// #include "MBPT/GreenMatrix.hpp"
+#include "MBPT/RDMatrix.hpp"
 #include "Physics/AtomData.hpp" //DiracSEnken
 #include "Wavefunction/DiracSpinor.hpp"
 #include <cassert>
@@ -179,9 +181,9 @@ protected:
 
 public:
   // Project subgrid onto full grid
-  std::size_t ri_subToFull(std::size_t i) const;
+  // std::size_t ri_subToFull(std::size_t i) const;
   // get value of dr on subgrid
-  double dr_subToFull(std::size_t i) const;
+  // double dr_subToFull(std::size_t i) const;
 
   std::shared_ptr<const Grid> p_gr;
   // occupied (holes) and excited (virtual) states. Holes includes from n>=nmin
@@ -193,7 +195,8 @@ protected:
   // maximum multipolarity, k, = 2*max(j) {max 2*j in core/basis}
   int m_maxk;
   // 6j lookup table
-  Angular::SixJ m_6j;
+  // Angular::SixJ m_6j;
+  Angular::SixJTable m_6j;
 
   // SubGrid values:
   // Stride: only include every 'stride' grid points (between min/max)

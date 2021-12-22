@@ -10,15 +10,13 @@
 #include "Wavefunction/Wavefunction.hpp"
 #include <iostream>
 
-#pragma GCC diagnostic ignored "-Wsign-conversion"
-
 namespace Module {
 
 //******************************************************************************
 void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
-  IO::ChronoTimer timer; // start the overall timer
+  IO::ChronoTimer timer;
 
-  input.checkBlock(
+  input.check(
       {{"Emin", "[keV] minimum energy transfer (dE) ~0.1"},
        {"Emax", "[keV] maximum dE"},
        {"Esteps", "numer of steps along dE grid (logarithmic grid)"},
@@ -56,6 +54,7 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
   const Grid Egrid({desteps, demin, demax, 0, GridType::logarithmic});
   const Grid qgrid({qsteps, qmin, qmax, 0, GridType::logarithmic});
 
+  // read in max l and L
   const auto max_l_core = wf.maxCore_l();
   auto max_l = input.get<int>("max_l_bound", max_l_core);
   if (max_l < 0 || max_l > max_l_core)
@@ -113,7 +112,7 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 
   // outut file name (excluding extension):
-  std::string fname = "ak-" + wf.atomicSymbol(); // + "_" + label;
+  std::string fname = "ak-" + wf.atomicSymbol();
   if (label != "")
     fname += "_" + label;
 
@@ -164,7 +163,7 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "Running dE loops (" << desteps << ").." << std::flush;
 #pragma omp parallel for
   for (std::size_t ide = 0; ide < desteps; ide++) {
-    const double dE = Egrid.r()[ide];
+    const double dE = Egrid.r(ide);
     // Loop over core (bound) states:
     for (std::size_t is = 0; is < wf.core.size(); is++) {
       const auto &psi = wf.core[is];
@@ -188,8 +187,9 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
     AKF::write_Ktot_plaintext(fname, AK, qgrid, Egrid);
   }
   // //Write out AK as binary file
-  if (bin_out)
+  if (bin_out) {
     AKF::akReadWrite(fname, true, AK, nklst, qmin, qmax, demin, demax);
+  }
   std::cout << "Written to: " << fname;
   if (text_out)
     std::cout << ".txt";

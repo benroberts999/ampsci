@@ -11,6 +11,9 @@ namespace qip {
 template <typename T>
 bool check_value(std::ostream *ostr, const std::string_view &name,
                  const T value, const T expected, const T tollerance) {
+  static_assert(
+      std::is_arithmetic_v<T>,
+      "In check_value(os *o, sv s, T x, T y, T z), T must be arithmetic");
   const bool passedQ = std::abs(value - expected) <= tollerance;
   if (passedQ) {
     *ostr << "passed ";

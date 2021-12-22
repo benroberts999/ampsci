@@ -221,8 +221,8 @@ void Wavefunction::localValence(const std::string &in_valence_str,
                                 bool list_each) {
 
   // Use for Kohn-Sham.
-  auto val_lst = list_each ? AtomData::listOfStates_singlen(in_valence_str)
-                           : AtomData::listOfStates_nk(in_valence_str);
+  auto val_lst = list_each ? AtomData::listOfStates_singlen(in_valence_str) :
+                             AtomData::listOfStates_nk(in_valence_str);
   for (const auto &[n, k, en] : val_lst) {
     (void)en;
     solveNewValence(n, k, 0, 17);
@@ -321,15 +321,15 @@ int Wavefunction::maxCore_l() const {
 //******************************************************************************
 double Wavefunction::en_coreval_gap() const {
   // Find core/valence energy: allows distingush core/valence states
-  const auto ec_max = core.empty() ? 0.0
-                                   : std::max_element(cbegin(core), cend(core),
+  const auto ec_max = core.empty() ? 0.0 :
+                                     std::max_element(cbegin(core), cend(core),
                                                       DiracSpinor::comp_en)
                                          ->en();
-  const auto ev_min = valence.empty()
-                          ? 0.0
-                          : std::min_element(cbegin(valence), cend(valence),
-                                             DiracSpinor::comp_en)
-                                ->en();
+  const auto ev_min =
+      valence.empty() ?
+          0.0 :
+          std::min_element(cbegin(valence), cend(valence), DiracSpinor::comp_en)
+              ->en();
   return 0.5 * (ev_min + ec_max);
 }
 
@@ -554,6 +554,11 @@ std::string Wavefunction::nuclearParams() const {
     break;
   case Nuclear::Type::spherical:
     output << "Spherical nucleus; "
+           << " r_rms = " << rrms
+           << ", r_charge = " << Nuclear::c_hdr_formula_rrms_t(rrms, 0);
+    break;
+  case Nuclear::Type::Gaussian:
+    output << "Gaussian nucleus; "
            << " r_rms = " << rrms
            << ", r_charge = " << Nuclear::c_hdr_formula_rrms_t(rrms, 0);
     break;
@@ -791,7 +796,7 @@ void Wavefunction::formSigma(
     m_Sigma->print_scaling();
   }
 
-  if (out_fname != "false")
+  if (out_fname != "false" && form_matrix)
     m_Sigma->read_write(ofname, IO::FRW::RoW::write);
 }
 
@@ -923,10 +928,49 @@ double Wavefunction::Hab(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
   const auto &Hmag = get_Hmag(Fa.l());
 
   const auto V_mag =
-      Hmag.empty()
-          ? 0.0
-          : NumCalc::integrate(1.0, min, max, Fa.f(), Fb.g(), Hmag, drdu) +
-                NumCalc::integrate(1.0, min, max, Fa.g(), Fb.f(), Hmag, drdu);
+      Hmag.empty() ?
+          0.0 :
+          NumCalc::integrate(1.0, min, max, Fa.f(), Fb.g(), Hmag, drdu) +
+              NumCalc::integrate(1.0, min, max, Fa.g(), Fb.f(), Hmag, drdu);
+  const auto c = 1.0 / alpha;
+
+  return (Vab - c * (D1m2 + 2.0 * c * Sab + V_mag)) * Fa.rgrid->du();
+}
+
+double Wavefunction::Hab(const DiracSpinor &Fa, const DiracSpinor &dFa,
+                         const DiracSpinor &Fb, const DiracSpinor &dFb) const {
+  if (Fa.k != Fb.k)
+    return 0.0;
+  const auto kappa = Fa.k;
+  const auto max = std::min(Fa.max_pt(), Fb.max_pt());
+  const auto min = std::max(Fa.min_pt(), Fb.min_pt());
+  const auto &drdu = Fa.rgrid->drdu();
+
+  auto dga = dFa.g();
+  auto dgb = dFb.g();
+
+  for (std::size_t i = min; i < max; i++) {
+    const auto r = Fa.rgrid->r(i);
+    dga[i] -= (kappa * Fa.g(i) / r);
+    dgb[i] -= (kappa * Fb.g(i) / r);
+  }
+
+  const auto D1m2 = NumCalc::integrate(1.0, min, max, Fa.f(), dgb, drdu) +
+                    NumCalc::integrate(1.0, min, max, Fb.f(), dga, drdu);
+
+  const auto Sab = NumCalc::integrate(1.0, min, max, Fa.g(), Fb.g(), drdu);
+
+  const auto &v = get_Vlocal(Fa.l());
+  const auto Vab = NumCalc::integrate(1.0, min, max, Fa.f(), Fb.f(), v, drdu) +
+                   NumCalc::integrate(1.0, min, max, Fa.g(), Fb.g(), v, drdu);
+
+  const auto &Hmag = get_Hmag(Fa.l());
+
+  const auto V_mag =
+      Hmag.empty() ?
+          0.0 :
+          NumCalc::integrate(1.0, min, max, Fa.f(), Fb.g(), Hmag, drdu) +
+              NumCalc::integrate(1.0, min, max, Fa.g(), Fb.f(), Hmag, drdu);
   const auto c = 1.0 / alpha;
 
   return (Vab - c * (D1m2 + 2.0 * c * Sab + V_mag)) * Fa.rgrid->du();

@@ -16,8 +16,8 @@ namespace Module {
 void Module_tests(const IO::InputBlock &input, const Wavefunction &wf) {
   using namespace Tests;
   std::string ThisModule = "Module::Tests";
-  input.checkBlock({"orthonormal", "orthonormal_all", "Hamiltonian",
-                    "boundaries", "basisTests"});
+  input.checkBlock_old({"orthonormal", "orthonormal_all", "Hamiltonian",
+                        "boundaries", "basisTests"});
   auto othon = input.get("orthonormal", true);
   auto othon_all = input.get("orthonormal_all", false);
   if (othon || othon_all)
@@ -71,7 +71,7 @@ void basisTests(const Wavefunction &wf) {
 
   std::cout << "\nHFS and Energies: Basis cf HF:\n";
   std::cout << "    | A(HF)      Basis      eps   | En(HF)      "
-               "Basis       eps   |\n"; // nodes\n";
+               "Basis       eps   | norm\n"; // nodes\n";
   int count = 0;
   for (const auto &Fn : basis) {
     if (Fn.n < 0)
@@ -91,6 +91,7 @@ void basisTests(const Wavefunction &wf) {
       printf("%4s| %9.3e  %9.3e  %5.0e | ", Fn.shortSymbol().c_str(), Ahf, Ab,
              std::abs((Ahf - Ab) / Ab));
       printf("%10.3e  %10.3e  %5.0e | ", Ehf, Eb, std::abs((Ehf - Eb) / Eb));
+      printf("%.0e", *hf_phi * Fn - 1.0);
     } else {
       count++;
       if (count >= 3)

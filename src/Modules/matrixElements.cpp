@@ -5,14 +5,16 @@
 #include "ExternalField/TDHFbasis.hpp"
 #include "ExternalField/calcMatrixElements.hpp"
 #include "IO/ChronoTimer.hpp"
+#include "IO/FRW_fileReadWrite.hpp"
 #include "IO/InputBlock.hpp"
 #include "MBPT/CorrelationPotential.hpp"
 #include "MBPT/StructureRad.hpp"
+#include "Maths/Interpolator.hpp"
 #include "Physics/NuclearPotentials.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
-#include "qip/Format.hpp"
+#include "qip/String.hpp"
 #include <fstream>
 #include <iostream>
 #include <memory>
@@ -24,13 +26,13 @@ namespace Module {
 
 //******************************************************************************
 void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
-  input.checkBlock2({{"operator", "e.g., E1, hfs"},
-                     {"options", "options specific to operator; blank by dflt"},
-                     {"rpa", "true(=TDHF), false, TDHF, basis, diagram"},
-                     {"omega", "freq. for RPA"},
-                     {"radialIntegral", "false by dflt (means red. ME)"},
-                     {"printBoth", "print <a|h|b> and <b|h|a> (dflt false)"},
-                     {"onlyDiagonal", "only <a|h|a> (dflt false)"}});
+  input.check({{"operator", "e.g., E1, hfs"},
+               {"options", "options specific to operator; blank by dflt"},
+               {"rpa", "true(=TDHF), false, TDHF, basis, diagram"},
+               {"omega", "freq. for RPA"},
+               {"radialIntegral", "false by dflt (means red. ME)"},
+               {"printBoth", "print <a|h|b> and <b|h|a> (dflt false)"},
+               {"onlyDiagonal", "only <a|h|a> (dflt false)"}});
 
   const auto oper = input.get<std::string>("operator", "");
   // Get optional 'options' for operator
@@ -58,13 +60,13 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   const bool diagonal_only = input.get("onlyDiagonal", false);
 
   const auto rpa_method_str = input.get("rpa", std::string("TDHF"));
-  auto rpa_method = (rpa_method_str == "TDHF" || rpa_method_str == "true")
-                        ? ExternalField::method::TDHF
-                        : (rpa_method_str == "basis")
-                              ? ExternalField::method::basis
-                              : (rpa_method_str == "diagram")
-                                    ? ExternalField::method::diagram
-                                    : ExternalField::method::none;
+  auto rpa_method = (rpa_method_str == "TDHF" || rpa_method_str == "true") ?
+                        ExternalField::method::TDHF :
+                        (rpa_method_str == "basis") ?
+                        ExternalField::method::basis :
+                        (rpa_method_str == "diagram") ?
+                        ExternalField::method::diagram :
+                        ExternalField::method::none;
   if (wf.core.empty())
     rpa_method = ExternalField::method::none;
   const auto rpaQ = rpa_method != ExternalField::method::none;
@@ -119,15 +121,14 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
 // Calculates Structure Radiation + Normalisation of States
 void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
 
-  input.checkBlock2(
-      {{"operator", "e.g., E1, hfs"},
-       {"options", "options specific to operator; blank by dflt"},
-       {"rpa", "true(=TDHF), false, TDHF, basis, diagram"},
-       {"omega", "freq. for RPA"},
-       {"printBoth", "print <a|h|b> and <b|h|a> (dflt false)"},
-       {"onlyDiagonal", "only <a|h|a> (dflt false)"},
-       {"n_minmax", "list; min,max n for core/excited: (1,inf)dflt"},
-       {"splineLegs", "Use splines for diagram legs (false dflt)"}});
+  input.check({{"operator", "e.g., E1, hfs"},
+               {"options", "options specific to operator; blank by dflt"},
+               {"rpa", "true(=TDHF), false, TDHF, basis, diagram"},
+               {"omega", "freq. for RPA"},
+               {"printBoth", "print <a|h|b> and <b|h|a> (dflt false)"},
+               {"onlyDiagonal", "only <a|h|a> (dflt false)"},
+               {"n_minmax", "list; min,max n for core/excited: (1,inf)dflt"},
+               {"splineLegs", "Use splines for diagram legs (false dflt)"}});
 
   // Get input options:
   const auto oper = input.get<std::string>("operator", "E1");
@@ -206,6 +207,17 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   MBPT::StructureRad sr(wf.basis, en_core, {n_min, n_max});
   std::cout << std::flush;
 
+  struct Output {
+    std::string ab{};
+    double t0{0.0};
+    double t0dv{0.0};
+    double sr{0.0};
+    double n{0.0};
+    double srdv{0.0};
+    double ndv{0.0};
+  };
+  std::vector<Output> out;
+
   // Loop through all valence states, calc SR+NS
   for (const auto &v : wf.valence) {
     for (const auto &w : wf.valence) {
@@ -216,6 +228,8 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
         continue;
       if (!print_both && v > w)
         continue;
+
+      Output t_out;
 
       // Option to use splines (or valence states) to compute Struc Rad (use
       // splines for legs)
@@ -232,6 +246,7 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
       IO::ChronoTimer timer("time");
 
       std::cout << "\n" << h->rme_symbol(w, v) << ":\n";
+      t_out.ab = h->rme_symbol(w, v);
 
       const auto ww = eachFreqQ ? std::abs(wp->en() - vp->en()) : const_omega;
       if (eachFreqQ && h->freqDependantQ) {
@@ -251,6 +266,9 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
       printer("t(spl)", twvs, dvs);
       printer("t(val)", twv, dv);
 
+      t_out.t0 = spline_legs ? twvs : twv;
+      t_out.t0dv = spline_legs ? dvs : dv;
+
       // "Top" + "Bottom" SR terms:
       const auto [tb, tb_dv] = sr.srTB(h.get(), *wp, *vp, ww, dV.get());
       printer("SR(TB)", tb, tb_dv);
@@ -261,16 +279,36 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
       std::cout << "========\n";
       printer("SR", tb + c, tb_dv + c_dv);
 
+      t_out.sr = tb + c;
+      t_out.srdv = tb_dv + c_dv;
+
       // "Normalisation"
       const auto [n, n_dv] = sr.norm(h.get(), *wp, *vp, dV.get());
       printer("Norm", n, n_dv);
 
+      t_out.n = n;
+      t_out.ndv = n_dv;
+
       printer("Total", tb + c + n, tb_dv + c_dv + n_dv);
       printer("as %", 100.0 * (tb + c + n) / twvs,
               100.0 * (tb_dv + c_dv + n_dv) / dvs);
+      out.push_back(t_out);
     }
   }
   std::cout << "\n";
+  std::cout << "Structure Radiation + Normalisation of states.\n"
+               "Reduced matrix elements (au)\n"
+            << "               t0         SR         Norm     ";
+  if (rpaQ)
+    std::cout << " |  t0+dV      SR+dV      Norm+dV";
+  std::cout << "\n";
+  for (auto &[ab, t0, t0dv, sr0, n, srdv, ndv] : out) {
+    printf("%10s %10.3e %10.3e %10.3e", ab.c_str(), t0, sr0, n);
+    if (rpaQ) {
+      printf(" | %10.3e %10.3e %10.3e", t0dv, srdv, ndv);
+    }
+    std::cout << "\n";
+  }
 
   return;
 }
@@ -279,7 +317,7 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
 void calculateLifetimes(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "\nLifetimes:\n";
 
-  input.checkBlock({"E1", "E2", "rpa", "StrucRadNorm"});
+  input.checkBlock_old({"E1", "E2", "rpa", "StrucRadNorm"});
   const auto doE1 = input.get("E1", true);
   const auto doE2 = input.get("E2", false);
   const auto rpaQ = input.get("rpa", true);
@@ -426,7 +464,7 @@ generateOperator(std::string_view oper_name, const IO::InputBlock &input,
 std::unique_ptr<DiracOperator::TensorOperator>
 generate_E1(const IO::InputBlock &input, const Wavefunction &wf, bool) {
   using namespace DiracOperator;
-  input.checkBlock({"gauge"});
+  input.checkBlock_old({"gauge"});
   auto gauge = input.get<std::string>("gauge", "lform");
   if (gauge != "vform")
     return std::make_unique<E1>(*(wf.rgrid));
@@ -438,7 +476,7 @@ generate_E1(const IO::InputBlock &input, const Wavefunction &wf, bool) {
 std::unique_ptr<DiracOperator::TensorOperator>
 generate_Ek(const IO::InputBlock &input, const Wavefunction &wf, bool) {
   using namespace DiracOperator;
-  input.checkBlock({"k"});
+  input.checkBlock_old({"k"});
   auto k = input.get("k", 1);
   return std::make_unique<Ek>(*(wf.rgrid), k);
 }
@@ -447,7 +485,7 @@ generate_Ek(const IO::InputBlock &input, const Wavefunction &wf, bool) {
 std::unique_ptr<DiracOperator::TensorOperator>
 generate_M1(const IO::InputBlock &input, const Wavefunction &wf, bool) {
   using namespace DiracOperator;
-  input.checkBlock({});
+  input.checkBlock_old({});
   return std::make_unique<M1>(*(wf.rgrid), wf.alpha, 0.0);
 }
 
@@ -455,8 +493,8 @@ generate_M1(const IO::InputBlock &input, const Wavefunction &wf, bool) {
 std::unique_ptr<DiracOperator::TensorOperator>
 generate_hfsA(const IO::InputBlock &input, const Wavefunction &wf, bool print) {
   using namespace DiracOperator;
-  input.checkBlock({"mu", "I", "rrms", "F(r)", "parity", "l", "gl", "mu1",
-                    "gl1", "l1", "l2", "I1", "I2", "printF", "screening"});
+  input.checkBlock_old({"mu", "I", "rrms", "F(r)", "parity", "l", "gl", "mu1",
+                        "gl1", "l1", "l2", "I1", "I2", "printF", "screening"});
   auto isotope = Nuclear::findIsotopeData(wf.Znuc(), wf.Anuc());
   auto mu = input.get("mu", isotope.mu);
   auto I_nuc = input.get("I", isotope.I_N);
@@ -475,11 +513,13 @@ generate_hfsA(const IO::InputBlock &input, const Wavefunction &wf, bool print) {
   }
 
   auto Fr = Hyperfine::sphericalBall_F();
-  if (Fr_str == "shell")
+  if (Fr_str == "ball") {
+    Fr = Hyperfine::sphericalBall_F();
+  } else if (Fr_str == "shell") {
     Fr = Hyperfine::sphericalShell_F();
-  else if (Fr_str == "pointlike" || Fr_str == "point")
+  } else if (Fr_str == "pointlike" || Fr_str == "point") {
     Fr = Hyperfine::pointlike_F();
-  else if (Fr_str == "VolotkaBW") {
+  } else if (Fr_str == "VolotkaBW") {
     auto pi = input.get("parity", isotope.parity);
     auto l_tmp = int(I_nuc + 0.5 + 0.0001);
     auto l = ((l_tmp % 2 == 0) == (pi == 1)) ? l_tmp : l_tmp - 1;
@@ -512,10 +552,14 @@ generate_hfsA(const IO::InputBlock &input, const Wavefunction &wf, bool print) {
     auto I2 = input.get<double>("I2", -1.0);
 
     Fr = Hyperfine::doublyOddBW_F(mu, I_nuc, mu1, I1, l1, gl1, I2, l2);
-  } else if (Fr_str != "ball") {
-    std::cout << "FAIL: in " << input.name() << " " << Fr_str
-              << " invalid nuclear distro. Check spelling\n";
-    return std::make_unique<NullOperator>();
+  } else {
+    // read from a file
+    const auto [rin, F_of_rin] = IO::FRW::readFile_xy_PoV(Fr_str);
+    // interpolate F(r) onto our grid:
+    const auto F_r = Interpolator::interpolate(rin, F_of_rin, wf.rgrid->r());
+    if (F_r.empty())
+      return std::make_unique<NullOperator>();
+    return std::make_unique<HyperfineA>(mu, I_nuc, r_nucau, *(wf.rgrid), F_r);
   }
 
   auto print_FQ = input.get<bool>("printF", false);
@@ -536,7 +580,7 @@ generate_hfsK(const IO::InputBlock &input, const Wavefunction &wf, bool print) {
   using namespace DiracOperator;
 
   bool ok = true;
-  input.checkBlock({"K", "rrms", "F(r)", "gQ"});
+  input.checkBlock_old({"K", "rrms", "F(r)", "gQ"});
   // gQ is g-factor (for magnetic), quadrupole moment for electric...
   const auto k = input.get("K", 0);
   if (k == 0) {
@@ -562,12 +606,12 @@ generate_hfsK(const IO::InputBlock &input, const Wavefunction &wf, bool print) {
   const auto r_nucau = r_nucfm / PhysConst::aB_fm;
 
   auto Fr_str = input.get<std::string>("F(r)", "ball");
-  const auto Fr = (Fr_str == "pointlike" || Fr_str == "point")
-                      ? Hyperfine::pointlike_F()
-                      : Fr_str == "shell"
-                            ? Hyperfine::sphericalShell_F()
-                            : Fr_str == "ball" ? Hyperfine::sphericalBall_F()
-                                               : Hyperfine::pointlike_F();
+  const auto Fr = (Fr_str == "pointlike" || Fr_str == "point") ?
+                      Hyperfine::pointlike_F() :
+                      Fr_str == "shell" ?
+                      Hyperfine::sphericalShell_F() :
+                      Fr_str == "ball" ? Hyperfine::sphericalBall_F() :
+                                         Hyperfine::pointlike_F();
   if (Fr_str != "ball" && Fr_str != "shell")
     Fr_str = "pointlike";
   else
@@ -587,7 +631,7 @@ generate_hfsK(const IO::InputBlock &input, const Wavefunction &wf, bool print) {
 std::unique_ptr<DiracOperator::TensorOperator>
 generate_r(const IO::InputBlock &input, const Wavefunction &wf, bool) {
   using namespace DiracOperator;
-  input.checkBlock({"power"});
+  input.checkBlock_old({"power"});
   auto power = input.get("power", 1.0);
   std::cout << "r^(" << power << ")\n";
   return std::make_unique<RadialF>(*(wf.rgrid), power);
@@ -597,7 +641,7 @@ generate_r(const IO::InputBlock &input, const Wavefunction &wf, bool) {
 std::unique_ptr<DiracOperator::TensorOperator>
 generate_pnc(const IO::InputBlock &input, const Wavefunction &wf, bool) {
   using namespace DiracOperator;
-  input.checkBlock({"c", "t"});
+  input.checkBlock_old({"c", "t"});
   const auto r_rms = Nuclear::find_rrms(wf.Znuc(), wf.Anuc());
   const auto c = input.get("c", Nuclear::c_hdr_formula_rrms_t(r_rms));
   const auto t = input.get("t", Nuclear::default_t);
@@ -611,7 +655,7 @@ generate_Hrad(const IO::InputBlock & /*input*/, const Wavefunction & /*wf*/,
   std::cout << "\nFAIL:: generate_Hrad() need implementing!\n";
   return nullptr;
   // using namespace DiracOperator;
-  // input.checkBlock(
+  // input.checkBlock_old(
   //     {"Simple", "Ueh", "SE_h", "SE_l", "SE_m", "rcut", "scale_rN"});
   // const auto x_Simple = input.get("Simple", 0.0);
   // const auto x_Ueh = input.get("Ueh", 1.0);

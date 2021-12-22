@@ -2,6 +2,7 @@
 #include <algorithm> //std::min!
 #include <cmath>
 #include <gsl/gsl_sf_coupling.h>
+#include <optional>
 #include <utility>
 
 /*!
@@ -231,6 +232,49 @@ inline double cg_2(int two_j1, int two_m1, int two_j2, int two_m2, int two_J,
 }
 
 //******************************************************************************
+//! Checks triangle conditions for 6j symbols (for 2*j)
+inline bool sixj_zeroQ(int a, int b, int c, int d, int e, int f) {
+  // nb: works for 2*integers ONLY
+  // check triangle consitions
+  // Note: there are some  6j symbols that pass this test, though are still zero
+  // GSL calculates these to have extremely small (but non-zero) value
+  if (triangle(a, b, c) == 0)
+    return true;
+  if (triangle(c, d, e) == 0)
+    return true;
+  if (triangle(b, d, f) == 0)
+    return true;
+  if (triangle(e, f, a) == 0)
+    return true;
+  if (!evenQ(a + b + c))
+    return true;
+  if (!evenQ(c + d + e))
+    return true;
+  if (!evenQ(b + d + f))
+    return true;
+  if (!evenQ(e + f + a))
+    return true;
+  return false;
+}
+
+inline bool sixjTriads(std::optional<int> a, std::optional<int> b,
+                       std::optional<int> c, std::optional<int> d,
+                       std::optional<int> e, std::optional<int> f) {
+  // nb: works for 2*integers ONLY
+  // checks triangle consitions, with optional parameters
+  if (a && b && c && triangle(*a, *b, *c) == 0)
+    return false;
+  if (c && d && e && triangle(*c, *d, *e) == 0)
+    return false;
+  if (a && e && f && triangle(*a, *e, *f) == 0)
+    return false;
+  if (b && d && f && triangle(*b, *d, *f) == 0)
+    return false;
+
+  return true;
+}
+
+//******************************************************************************
 //!@brief 6j symbol {j1 j2 j3 \\ j4 j5 j6}
 inline double sixj(double j1, double j2, double j3, double j4, double j5,
                    double j6)
@@ -263,10 +307,8 @@ inline double sixj_1(int j1, int j2, int j3, int j4, int j5, int j6)
 // Note: this function takes INTEGER values, only works for l (not half-integer
 // j)!
 {
-  if (triangle(j1, j2, j3) * triangle(j1, j5, j6) * triangle(j4, j2, j6) *
-          triangle(j4, j5, j3) ==
-      0)
-    return 0;
+  if (sixj_zeroQ(j1, j2, j3, j4, j5, j6))
+    return 0.0;
   return gsl_sf_coupling_6j(2 * j1, 2 * j2, 2 * j3, 2 * j4, 2 * j5, 2 * j6);
 }
 
@@ -279,10 +321,8 @@ inline double sixj_2(int two_j1, int two_j2, int two_j3, int two_j4, int two_j5,
 // Note: this function takes INTEGER values, that have already multiplied by 2!
 // Works for l and j (integer and half-integer)
 {
-  if (triangle(two_j1, two_j2, two_j3) * triangle(two_j1, two_j5, two_j6) *
-          triangle(two_j4, two_j2, two_j6) * triangle(two_j4, two_j5, two_j3) ==
-      0)
-    return 0;
+  if (sixj_zeroQ(two_j1, two_j2, two_j3, two_j4, two_j5, two_j6))
+    return 0.0;
   return gsl_sf_coupling_6j(two_j1, two_j2, two_j3, two_j4, two_j5, two_j6);
 }
 

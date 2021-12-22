@@ -1,6 +1,6 @@
 #include "MixedStates.hpp"
-#include "Angular/Angular_369j.hpp"
-#include "Coulomb/Coulomb.hpp"
+#include "Angular/Wigner369j.hpp"
+#include "Coulomb/CoulombIntegrals.hpp"
 #include "DiracODE/Adams_Greens.hpp"
 #include "DiracODE/DiracODE.hpp"
 #include "HF/Breit.hpp"

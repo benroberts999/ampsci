@@ -6,7 +6,7 @@ class Grid;
 
 namespace Nuclear {
 
-enum class Type { Fermi, spherical, point };
+enum class Type { Fermi, spherical, point, Gaussian };
 
 Type parseType(const std::string &str_type);
 std::string parseType(Type type);
@@ -28,6 +28,9 @@ struct Parameters {
 
 std::vector<double> sphericalNuclearPotential(double Z, double rnuc,
                                               const std::vector<double> &rgrid);
+
+std::vector<double> GaussianNuclearPotential(double Z, double r_rms,
+                                             const std::vector<double> &rgrid);
 
 std::vector<double> fermiNuclearPotential(double Z, double t, double c,
                                           const std::vector<double> &rgrid);

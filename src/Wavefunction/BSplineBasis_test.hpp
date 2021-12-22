@@ -35,8 +35,8 @@ bool BSplineBasis(std::ostream &obuff) {
 
         // Form spline basis:
         const std::string states = "30spdf";
-        const auto r0 = 0.0;
-        const auto r0_eps = 1.0e-9;
+        const auto r0 = 1.0e-5;
+        const auto r0_eps = 0.0;
         const auto rmax = 75.0;
         const auto positronQ = false;
         const auto basis = SplineBasis::form_basis(
@@ -149,7 +149,7 @@ bool BSplineBasis(std::ostream &obuff) {
           label + " TKR(w) l=" + std::to_string(int(worst - begin(tkr)));
 
       pass &= qip::check_value(&obuff, blabel, *best, 0.0, 4.0e-8);
-      pass &= qip::check_value(&obuff, wlabel, *worst, 0.0, 1.0e-4);
+      pass &= qip::check_value(&obuff, wlabel, *worst, 0.0, 1.0e-3);
     }
 
     for (int nDG = 0; nDG <= 2; ++nDG) {

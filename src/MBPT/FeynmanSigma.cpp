@@ -1,15 +1,17 @@
 #include "MBPT/FeynmanSigma.hpp"
-#include "Angular/Angular_tables.hpp"
-#include "Coulomb/Coulomb.hpp"
+#include "Angular/CkTable.hpp"
+#include "Angular/SixJTable.hpp"
+#include "Coulomb/CoulombIntegrals.hpp"
 #include "Coulomb/YkTable.hpp"
 #include "DiracODE/DiracODE.hpp"
 #include "HF/HartreeFock.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
 #include "IO/SafeProfiler.hpp"
+#include "LinAlg/LinAlg.hpp"
 #include "MBPT/CorrelationPotential.hpp"
-#include "MBPT/GreenMatrix.hpp"
+// #include "MBPT/GreenMatrix.hpp"
+#include "MBPT/RDMatrix.hpp"
 #include "Maths/Grid.hpp"
-#include "Maths/LinAlg_MatrixVector.hpp"
 #include "qip/Vector.hpp"
 #include <algorithm>
 #include <cassert>
@@ -61,7 +63,6 @@ FeynmanSigma::FeynmanSigma(const HF::HartreeFock *const in_hf,
   const bool read_ok = read_write(fname, IO::FRW::read);
 
   if (!read_ok) {
-
     prep_Feynman();
   }
 }
@@ -96,7 +97,8 @@ void FeynmanSigma::formSigma(int kappa, double en, int n) {
   }
 
   m_nk.emplace_back(n, kappa, en);
-  auto &Sigma = m_Sigma_kappa.emplace_back(m_subgrid_points, m_include_G);
+  auto &Sigma = m_Sigma_kappa.emplace_back(m_imin, m_stride, m_subgrid_points,
+                                           m_include_G, p_gr);
 
   // if v.kappa > basis, then Ck angular factor won't exist!
   if (Angular::twoj_k(kappa) > m_yeh.Ck().max_tj()) {
@@ -135,13 +137,13 @@ void FeynmanSigma::formSigma(int kappa, double en, int n) {
   }
 
   // Exchange part:
-  const auto Gmat_X = m_ex_method == ExchangeMethod::none
-                          ? 0.0 * Sigma
-                          : m_ex_method == ExchangeMethod::Goldstone
-                                ? Exchange_Goldstone(kappa, en)
-                                : m_ex_method == ExchangeMethod::w1
-                                      ? FeynmanEx_1(kappa, en)
-                                      : FeynmanEx_w1w2(kappa, en);
+  const auto Gmat_X = m_ex_method == ExchangeMethod::none ?
+                          0.0 * Sigma :
+                          m_ex_method == ExchangeMethod::Goldstone ?
+                          Exchange_Goldstone(kappa, en) :
+                          m_ex_method == ExchangeMethod::w1 ?
+                          FeynmanEx_1(kappa, en) :
+                          FeynmanEx_w1w2(kappa, en);
 
   // Print energy shifts:
   if (vk != cend(m_excited)) {
@@ -162,8 +164,8 @@ void FeynmanSigma::formSigma(int kappa, double en, int n) {
 void FeynmanSigma::prep_Feynman() {
 
   // Extand 6j and Ck
-  m_6j.fill(m_maxk);
-  m_yeh.extend_Ck(m_maxk);
+  m_6j.fill(m_maxk); //?
+  // m_yeh.extend_Ck(m_maxk); // XXX Check max k OK in Ck tables!?
 
   if (m_screen_Coulomb)
     std::cout << "Including Coulomb screening\n";
@@ -220,51 +222,60 @@ void FeynmanSigma::prep_Feynman() {
 //------------------------------------------------------------------------------
 void FeynmanSigma::form_Q_dr() {
 
-  std::vector<LinAlg::SqMatrix> qhat(std::size_t(m_maxk + 1), m_subgrid_points);
+  // fill (complex) Qhat
+  // m_qhat.resize(std::size_t(m_maxk) + 1, {m_imin, m_stride, m_subgrid_points,
+  // m_include_G, p_gr});
+  m_qhat.resize(std::size_t(m_maxk) + 1,
+                {m_imin, m_stride, m_subgrid_points, m_include_G, p_gr});
 
-  LinAlg::SqMatrix t_dri{m_subgrid_points};
+  std::vector<LinAlg::Matrix<double>> qhat(
+      std::size_t(m_maxk + 1), LinAlg::Matrix<double>{m_subgrid_points});
+
+  LinAlg::Matrix<double> t_dri{m_subgrid_points};
 
   // calculate (real) Qhat and Jacobian
   for (auto i = 0ul; i < m_subgrid_points; ++i) {
-    const auto si = ri_subToFull(i);
-    const auto dri = dr_subToFull(i);
+    const auto si = m_qhat[0].index_to_fullgrid(i); // XXX dumb
+    const auto dri = p_gr->drdu(si) * p_gr->du() * double(m_stride);
     for (auto j = 0ul; j < m_subgrid_points; ++j) {
-      const auto sj = ri_subToFull(j);
-      const auto drj = dr_subToFull(j);
+      const auto sj = m_qhat[0].index_to_fullgrid(j);
+      const auto drj = p_gr->drdu(sj) * p_gr->du() * double(m_stride);
       const auto rl = p_gr->r()[std::min(si, sj)];
       const auto rm = p_gr->r()[std::max(si, sj)];
       const auto ratio = rl / rm; // = r_< / r_>
       // q0 = (1.0 / rm) = r_<^k / r_>^k+1 ,  for k=0
-      qhat[0][i][j] = (1.0 / rm) * dri * drj;
-      t_dri[i][j] = dri;
+      qhat[0](i, j) = (1.0 / rm) * dri * drj;
+      t_dri(i, j) = dri;
       for (int k = 1; k <= m_maxk; ++k) {
-        qhat[std::size_t(k)][i][j] = qhat[std::size_t(k - 1)][i][j] * ratio;
+        qhat[std::size_t(k)](i, j) = qhat[std::size_t(k - 1)](i, j) * ratio;
       }
     } // j
   }   // i
 
-  // fill (complex) Qhat
-  m_qhat.resize(std::size_t(m_maxk) + 1, {m_subgrid_points, m_include_G});
   for (auto k = 0; k <= m_maxk; ++k) {
-    m_qhat[std::size_t(k)].ff =
-        LinAlg::ComplexSqMatrix::make_complex({1.0, 0.0}, qhat[std::size_t(k)]);
+    m_qhat[std::size_t(k)].set_ff() = qhat[std::size_t(k)].complex();
+    // m_qhat[std::size_t(k)].ff = OldLinAlg::ComplexSqMatrix::make_complex(
+    //     {1.0, 0.0}, qhat[std::size_t(k)]);
     if (m_include_G) {
-      m_qhat[std::size_t(k)].gg = m_qhat[std::size_t(k)].ff;
+      m_qhat[std::size_t(k)].set_gg() = m_qhat[std::size_t(k)].ff();
     }
   }
 
   // fill (complex) Jacobian
-  m_dri = std::make_unique<ComplexGMatrix>(m_subgrid_points, m_include_G);
-  m_drj = std::make_unique<ComplexGMatrix>(m_subgrid_points, m_include_G);
-  m_dri->ff = LinAlg::ComplexSqMatrix::make_complex({1.0, 0.0}, t_dri);
-  m_drj->ff = m_dri->ff.transpose();
+  m_dri = std::make_unique<ComplexGMatrix>(m_imin, m_stride, m_subgrid_points,
+                                           m_include_G, p_gr);
+  m_drj = std::make_unique<ComplexGMatrix>(m_imin, m_stride, m_subgrid_points,
+                                           m_include_G, p_gr);
+  m_dri->set_ff() = t_dri.complex();
+  m_drj->set_ff() = m_dri->set_ff().transpose();
 }
 
 //------------------------------------------------------------------------------
 void FeynmanSigma::form_Vx() {
   // Fill Vx:
   const auto max_kappa_index = std::size_t(m_max_kappaindex);
-  m_Vxk.resize(max_kappa_index + 1, {m_subgrid_points, m_include_G});
+  m_Vxk.resize(max_kappa_index + 1,
+               {m_imin, m_stride, m_subgrid_points, m_include_G, p_gr});
 
   // If using a local method, exclude exchange here. Note: Only used for
   // testing!
@@ -282,13 +293,13 @@ GMatrix FeynmanSigma::calculate_Vx_kappa(int kappa) const {
 
   assert(m_dri != nullptr && "⚠️ form_Q_dr() must be run before form_Vx()");
 
-  GMatrix Vx(m_subgrid_points, m_include_G);
+  GMatrix Vx(m_imin, m_stride, m_subgrid_points, m_include_G, p_gr);
   const auto tj = Angular::twoj_k(kappa);
   const auto kmax = Angular::twojFromIndex(m_max_kappaindex_core);
   const auto &core = p_hf->get_core();
 
   for (int k = 0; k <= kmax; ++k) {
-    GMatrix Vx_k(m_subgrid_points, m_include_G);
+    GMatrix Vx_k(m_imin, m_stride, m_subgrid_points, m_include_G, p_gr);
     for (const auto &a : core) {
       const auto ck = Angular::Ck_kk(k, kappa, a.k);
       if (ck == 0.0)
@@ -296,7 +307,7 @@ GMatrix FeynmanSigma::calculate_Vx_kappa(int kappa) const {
       const auto c_ang = -1.0 * ck * ck / double(tj + 1);
       addto_G(&Vx_k, a, a, c_ang);
     }
-    Vx += Vx_k.mult_elements_by(get_qk(k).get_real());
+    Vx += Vx_k.mult_elements_by(get_qk(k).real());
   }
 
   return Vx;
@@ -309,21 +320,21 @@ GMatrix FeynmanSigma::calculate_Vhp(const DiracSpinor &Fc) const {
   // This works well for k=0, but works worse than using local pot for k=1
   // (k=1 is most important term!)
 
-  GMatrix V0(m_subgrid_points, m_include_G);
+  GMatrix V0({m_imin, m_stride, m_subgrid_points, m_include_G, p_gr});
 
   const auto y0cc = Coulomb::yk_ab(Fc, Fc, 0);
   for (auto i = 0ul; i < m_subgrid_points; ++i) {
-    const auto si = ri_subToFull(i);
-    V0.ff[i][i] = -y0cc[si];
+    const auto si = V0.index_to_fullgrid(i);
+    V0.ff(i, i) = -y0cc[si];
     if (m_include_G)
-      V0.gg[i][i] = V0.ff[i][i];
+      V0.gg(i, i) = V0.ff(i, i);
   }
 
-  V0.mult_elements_by(m_drj->get_real());
+  V0.mult_elements_by(m_drj->real());
 
   // return V0;
 
-  GMatrix OneNegPc(m_subgrid_points, m_include_G);
+  GMatrix OneNegPc(m_imin, m_stride, m_subgrid_points, m_include_G, p_gr);
   const auto &core = p_hf->get_core();
   for (const auto &Fa : core) {
     if (Fa.k != Fc.k)
@@ -333,16 +344,17 @@ GMatrix FeynmanSigma::calculate_Vhp(const DiracSpinor &Fc) const {
   }
 
   //*****
-  OneNegPc.mult_elements_by(m_drj->get_real());
-  OneNegPc.plusIdent(); // (1-P)
+  OneNegPc.mult_elements_by(m_drj->real());
+  // OneNegPc.plusIdent(); // (1-P)
+  OneNegPc += 1.0; // (1-P)
   auto out = OneNegPc * V0 * OneNegPc;
 
-  // out.mult_elements_by(m_dri->get_real());
+  // out.mult_elements_by(m_dri->real());
 
   //*****
-  // OneNegPc.mult_elements_by(m_drj->get_real());
+  // OneNegPc.mult_elements_by(m_drj->real());
   // auto OneNegPcL = OneNegPc;
-  // OneNegPcL.mult_elements_by(m_dri->get_real());
+  // OneNegPcL.mult_elements_by(m_dri->real());
   // OneNegPc.plusIdent();  // (1-P)
   // OneNegPcL.plusIdent(); // (1-P)
   // auto out = OneNegPcL * V0 * OneNegPc;
@@ -354,9 +366,10 @@ GMatrix FeynmanSigma::calculate_Vhp(const DiracSpinor &Fc) const {
 void FeynmanSigma::form_Pa_core() {
   // Fill core |a><a|
   const auto &core = p_hf->get_core();
-  m_Pa.resize(core.size(), {m_subgrid_points, m_include_G});
+  m_Pa.resize(core.size(),
+              {m_imin, m_stride, m_subgrid_points, m_include_G, p_gr});
   for (auto ia = 0ul; ia < core.size(); ia++) {
-    m_Pa[ia] = G_single(core[ia], core[ia], ComplexDouble{1.0, 0.0});
+    m_Pa[ia] = G_single(core[ia], core[ia], std::complex<double>{1.0, 0.0});
   }
 }
 
@@ -418,60 +431,60 @@ const ComplexGMatrix &FeynmanSigma::get_qk(int k) const {
 //******************************************************************************
 
 //******************************************************************************
-ComplexGMatrix FeynmanSigma::Green(int kappa, ComplexDouble en, States states,
-                                   GrMethod method) const {
+ComplexGMatrix FeynmanSigma::Green(int kappa, std::complex<double> en,
+                                   States states, GrMethod method) const {
   if (states == States::core) {
     return Green_core(kappa, en);
   } else if (states == States::excited) {
     return Green_ex(kappa, en, method);
   }
-  return (method == GrMethod::Green) ? Green_hf(kappa, en)
-                                     : Green_hf_basis(kappa, en);
+  return (method == GrMethod::Green) ? Green_hf(kappa, en) :
+                                       Green_hf_basis(kappa, en);
 }
 
 //******************************************************************************
 ComplexGMatrix FeynmanSigma::G_single(const DiracSpinor &ket,
                                       const DiracSpinor &bra,
-                                      const ComplexDouble f) const {
-  ComplexGMatrix Gmat(m_subgrid_points, m_include_G);
-  const auto [x, iy] = f.unpack();
-
-  for (auto i = 0ul; i < m_subgrid_points; ++i) {
-    const auto si = ri_subToFull(i);
-    for (auto j = 0ul; j < m_subgrid_points; ++j) {
-      const auto sj = ri_subToFull(j);
-      Gmat.ff[i][j] =
-          ComplexDouble(x * ket.f(si) * bra.f(sj), iy * ket.f(si) * bra.f(sj))
-              .val;
-    } // j
-  }   // i
-
-  if (m_include_G) {
-    for (auto i = 0ul; i < m_subgrid_points; ++i) {
-      const auto si = ri_subToFull(i);
-      for (auto j = 0ul; j < m_subgrid_points; ++j) {
-        const auto sj = ri_subToFull(j);
-        Gmat.fg[i][j] =
-            ComplexDouble(x * ket.f(si) * bra.g(sj), iy * ket.f(si) * bra.g(sj))
-                .val;
-        Gmat.gf[i][j] =
-            ComplexDouble(x * ket.g(si) * bra.f(sj), iy * ket.g(si) * bra.f(sj))
-                .val;
-        Gmat.gg[i][j] =
-            ComplexDouble(x * ket.g(si) * bra.g(sj), iy * ket.g(si) * bra.g(sj))
-                .val;
-      } // j
-    }   // i
-  }
-
+                                      const std::complex<double> f) const {
+  ComplexGMatrix Gmat(m_imin, m_stride, m_subgrid_points, m_include_G, p_gr);
+  Gmat.add(ket, bra, f);
   return Gmat;
+  // // const auto [x, iy] = f;
+  // auto x = f.real();
+  // auto iy = f.imag();
+  //
+  // for (auto i = 0ul; i < m_subgrid_points; ++i) {
+  //   const auto si = ri_subToFull(i);
+  //   for (auto j = 0ul; j < m_subgrid_points; ++j) {
+  //     const auto sj = ri_subToFull(j);
+  //     // Gmat.ff(i,j) = {x * ket.f(si) * bra.f(sj), iy * ket.f(si) *
+  //     // bra.f(sj)};
+  //     Gmat.ff(i, j) = f * ket.f(si) * bra.f(sj);
+  //   } // j
+  // }   // i
+  //
+  // if (m_include_G) {
+  //   for (auto i = 0ul; i < m_subgrid_points; ++i) {
+  //     const auto si = ri_subToFull(i);
+  //     for (auto j = 0ul; j < m_subgrid_points; ++j) {
+  //       const auto sj = ri_subToFull(j);
+  //       Gmat.fg(i, j) = {x * ket.f(si) * bra.g(sj), iy * ket.f(si) *
+  //       bra.g(sj)}; Gmat.gf(i, j) = {x * ket.g(si) * bra.f(sj), iy *
+  //       ket.g(si) * bra.f(sj)}; Gmat.gg(i, j) = {x * ket.g(si) * bra.g(sj),
+  //       iy * ket.g(si) * bra.g(sj)};
+  //     } // j
+  //   }   // i
+  // }
+  //
+  // return Gmat;
 }
 
 //******************************************************************************
-ComplexGMatrix FeynmanSigma::Green_core(int kappa, ComplexDouble en) const {
+ComplexGMatrix FeynmanSigma::Green_core(int kappa,
+                                        std::complex<double> en) const {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__, "complex");
   // G_core = \sum_a |a><a|/(e_r + i*e_i-ea), for all a with a.k = k
-  ComplexGMatrix Gcore(m_subgrid_points, m_include_G);
+  ComplexGMatrix Gcore(m_imin, m_stride, m_subgrid_points, m_include_G, p_gr);
 
   // loop over HF core, not Sigma core (used in subtraction to get G^excited)
   const auto &core = p_hf->get_core();
@@ -479,17 +492,17 @@ ComplexGMatrix FeynmanSigma::Green_core(int kappa, ComplexDouble en) const {
     const auto &a = core[ia];
     if (a.k != kappa)
       continue;
-    const auto inv_de = (en - ComplexDouble{a.en()}).inverse();
+    const auto inv_de = 1.0 / (en - std::complex<double>{a.en()});
     Gcore += inv_de * m_Pa[ia]; // Pa = |a><a|
   }
   return Gcore;
 }
 
 //------------------------------------------------------------------------------
-ComplexGMatrix FeynmanSigma::Green_ex(int kappa, ComplexDouble en,
+ComplexGMatrix FeynmanSigma::Green_ex(int kappa, std::complex<double> en,
                                       GrMethod method, const DiracSpinor *Fc_hp,
                                       int k_hp) const {
-  ComplexGMatrix Gk(m_subgrid_points, m_include_G);
+  ComplexGMatrix Gk(m_imin, m_stride, m_subgrid_points, m_include_G, p_gr);
 
   if (method == GrMethod::basis) {
     Gk = Green_hf_basis(kappa, en, true);
@@ -516,10 +529,10 @@ void FeynmanSigma::makeGOrthogCore(ComplexGMatrix *Gk, int kappa) const {
 }
 
 //------------------------------------------------------------------------------
-ComplexGMatrix FeynmanSigma::Green_hf_basis(int kappa, ComplexDouble en,
+ComplexGMatrix FeynmanSigma::Green_hf_basis(int kappa, std::complex<double> en,
                                             bool ex_only) const {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
-  ComplexGMatrix Gc(m_subgrid_points, m_include_G);
+  ComplexGMatrix Gc(m_imin, m_stride, m_subgrid_points, m_include_G, p_gr);
   // const auto &core = p_hf->get_core(); // ?????
   const auto &core = m_holes; // p_hf->get_core(); // ?????
   // XXX Should include all states, even below n_min_core?
@@ -534,7 +547,7 @@ ComplexGMatrix FeynmanSigma::Green_hf_basis(int kappa, ComplexDouble en,
       if (a.k != kappa)
         continue;
 
-      const auto inv_de = (en - ComplexDouble{a.en()}).inverse();
+      const auto inv_de = 1.0 / (en - std::complex<double>{a.en()});
       Gc += G_single(a, a, inv_de);
     }
   }
@@ -542,7 +555,7 @@ ComplexGMatrix FeynmanSigma::Green_hf_basis(int kappa, ComplexDouble en,
 }
 
 //------------------------------------------------------------------------------
-ComplexGMatrix FeynmanSigma::Green_hf(int kappa, ComplexDouble en,
+ComplexGMatrix FeynmanSigma::Green_hf(int kappa, std::complex<double> en,
                                       const DiracSpinor *Fc_hp,
                                       int k_hp) const {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
@@ -568,8 +581,8 @@ works better for k=0 (and k>=5 ?)
     qip::compose(std::minus{}, &vl, y0cc);
   }
 
-  DiracODE::regularAtOrigin(x0, en.re(), vl, Hmag, alpha);
-  DiracODE::regularAtInfinity(xI, en.re(), vl, Hmag, alpha);
+  DiracODE::regularAtOrigin(x0, en.real(), vl, Hmag, alpha);
+  DiracODE::regularAtInfinity(xI, en.real(), vl, Hmag, alpha);
 
   // Evaluate Wronskian at ~65% of the way to pinf. Should be inependent of r
   const auto pp = std::size_t(0.65 * double(xI.max_pt()));
@@ -586,25 +599,24 @@ works better for k=0 (and k>=5 ?)
     Vx += calculate_Vhp(*Fc_hp);
   }
 
-  const ComplexDouble one{1.0, 0.0}; // to convert real to complex
+  const std::complex<double> one{1.0, 0.0}; // to convert real to complex
 
   // Include exchange, and imaginary energy part:
 
-  if (en.im() == 0.0) {
+  if (en.imag() == 0.0) {
     // G = [1 - G0*Vx]^{-1} * G0 = -[G0*Vx-1]^{-1} * G0
     // nb: much faster to invert _before_ make complex!
     // (but, only if imag. part is zero)
-    return (-1 * one) * ((g0 * Vx).plusIdent(-1.0).invert() * g0);
+    return -1.0 * ((g0 * Vx - 1.0).invert_in_place() * g0).complex();
   }
 
   // G0 := G0(re{e}) - no exchange, only real part
   // G(e) = [1 + i*Im{e}*G0 - G0*Vx]^{-1} * G0
   // Note: differential dr is included in Vx (via Q)
-  ComplexDouble iw{0.0, en.im()};
-  return ((iw * g0).mult_elements_by(*m_drj) - one * (g0 * Vx))
-             .plusIdent(1.0)
-             .invert() *
-         (one * g0);
+  std::complex<double> iw{0.0, en.imag()};
+  return (iw * g0.complex().drj_in_place() - (g0 * Vx).complex() + 1.0)
+             .invert_in_place() *
+         g0.complex();
 }
 
 //------------------------------------------------------------------------------
@@ -614,8 +626,8 @@ ComplexGMatrix FeynmanSigma::GreenAtComplex(const ComplexGMatrix &Gr,
   // Given G(wr) and wi, returns G(wr+i*wi)
   // G(w) =  G(re(w)+im(w)) ;  Gr = G(re(w)), G = G(w),   im(w) = wi
   // G = Gr * [1 + i*wi*Gr]^-1 = Gr * iX
-  const ComplexDouble iw{0.0, om_imag};
-  return ((iw * Gr).mult_elements_by(*m_drj).plusIdent(1.0).invert()) * Gr;
+  const std::complex<double> iw{0.0, om_imag};
+  return ((iw * Gr).drj_in_place() + 1.0).invert_in_place() * Gr;
 }
 
 //------------------------------------------------------------------------------
@@ -624,31 +636,31 @@ GMatrix FeynmanSigma::MakeGreensG0(const DiracSpinor &x0, const DiracSpinor &xI,
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   // Takes sub-grid into account; ket,bra are on full grid, G on sub-grid
   // G(r1,r2) = x0(rmin)*xI(imax)/w
-  GMatrix g0I(m_subgrid_points, m_include_G);
+  GMatrix g0I(m_imin, m_stride, m_subgrid_points, m_include_G, p_gr);
 
   const auto winv = 1.0 / w;
 
   for (auto i = 0ul; i < m_subgrid_points; ++i) {
-    const auto si = ri_subToFull(i);
+    const auto si = g0I.index_to_fullgrid(i);
     for (auto j = 0ul; j <= i; ++j) { // j <= i
-      const auto sj = ri_subToFull(j);
-      g0I.ff[i][j] = x0.f(sj) * xI.f(si) * winv;
+      const auto sj = g0I.index_to_fullgrid(j);
+      g0I.ff(i, j) = x0.f(sj) * xI.f(si) * winv;
       // g0I is symmetric
-      g0I.ff[j][i] = g0I.ff[i][j];
+      g0I.ff(j, i) = g0I.ff(i, j);
     } // j
   }   // i
 
   if (m_include_G) {
     for (auto i = 0ul; i < m_subgrid_points; ++i) {
-      const auto si = ri_subToFull(i);
+      const auto si = g0I.index_to_fullgrid(i);
       for (auto j = 0ul; j < m_subgrid_points; ++j) {
-        const auto sj = ri_subToFull(j);
+        const auto sj = g0I.index_to_fullgrid(j);
         const auto irmin = std::min(sj, si);
         const auto irmax = std::max(sj, si);
-        g0I.fg[i][j] = x0.f(irmin) * xI.g(irmax) * winv;
+        g0I.fg(i, j) = x0.f(irmin) * xI.g(irmax) * winv;
         // fg = gf?
-        g0I.gf[i][j] = x0.g(irmin) * xI.f(irmax) * winv;
-        g0I.gg[i][j] = x0.g(irmin) * xI.g(irmax) * winv;
+        g0I.gf(i, j) = x0.g(irmin) * xI.f(irmax) * winv;
+        g0I.gg(i, j) = x0.g(irmin) * xI.g(irmax) * winv;
       } // j
     }   // i
   }
@@ -660,12 +672,12 @@ GMatrix FeynmanSigma::MakeGreensG0(const DiracSpinor &x0, const DiracSpinor &xI,
 //******************************************************************************
 
 //******************************************************************************
-ComplexGMatrix FeynmanSigma::Polarisation_k(int k, ComplexDouble omega,
+ComplexGMatrix FeynmanSigma::Polarisation_k(int k, std::complex<double> omega,
                                             GrMethod method) const {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
-  ComplexGMatrix pi_k(m_subgrid_points, m_include_G);
+  ComplexGMatrix pi_k(m_imin, m_stride, m_subgrid_points, m_include_G, p_gr);
 
-  const auto Iunit = ComplexDouble{0.0, 1.0};
+  const auto Iunit = std::complex<double>{0.0, 1.0};
   const auto &core = p_hf->get_core();
   for (auto ia = 0ul; ia < core.size(); ++ia) {
     const auto &a = core[ia];
@@ -673,8 +685,8 @@ ComplexGMatrix FeynmanSigma::Polarisation_k(int k, ComplexDouble omega,
       continue;
 
     const auto &pa = m_Pa[ia]; // |a><a|
-    const auto ea_minus_w = ComplexDouble{a.en()} - omega;
-    const auto ea_plus_w = ComplexDouble{a.en()} + omega;
+    const auto ea_minus_w = std::complex<double>{a.en()} - omega;
+    const auto ea_plus_w = std::complex<double>{a.en()} + omega;
 
     const auto *Fa_hp = m_holeParticle ? &a : nullptr;
 
@@ -699,11 +711,10 @@ ComplexGMatrix FeynmanSigma::X_PiQ(const ComplexGMatrix &pik,
                                    const ComplexGMatrix &qk) const {
   // Calculates [1-pi*q]^{-1} for single k (i.e., no sum over k inside)
 
-  const auto Iunit = ComplexDouble{0.0, 1.0};
+  const auto Iunit = std::complex<double>{0.0, 1.0};
   ComplexGMatrix X_piq = +1.0 * Iunit * pik * qk;
   // Extra factor of (-i) -- where from ??
-  X_piq.plusIdent(1.0).invert();
-  return X_piq;
+  return (X_piq + 1.0).invert_in_place();
 }
 
 //******************************************************************************
@@ -717,7 +728,7 @@ FeynmanSigma::make_pi_wk(int max_k, GrMethod pol_method, double omre,
 
 #pragma omp parallel for
   for (auto iw = 0ul; iw < wgrid.num_points(); ++iw) {
-    const auto omega = ComplexDouble{omre, wgrid.r()[iw]};
+    const auto omega = std::complex<double>{omre, wgrid.r()[iw]};
     pi_wk[iw].reserve(num_ks);
     for (auto k = 0ul; k < num_ks; ++k) {
       pi_wk[iw].push_back(Polarisation_k(int(k), omega, pol_method));
@@ -776,7 +787,7 @@ FeynmanSigma::form_Greens_kapw(int max_kappa_index, GrMethod method,
     const auto kappa = Angular::kappaFromIndex(int(ik));
     gs[ik].reserve(wgrid.num_points());
     for (auto iw = 0ul; iw < wgrid.num_points(); iw++) {
-      ComplexDouble evpw{en_re, wgrid.r()[iw]};
+      std::complex<double> evpw{en_re, wgrid.r()[iw]};
       gs[ik].push_back(Green(kappa, evpw, States::both, method));
     }
   }
@@ -793,9 +804,9 @@ GMatrix FeynmanSigma::FeynmanDirect(int kv, double env, int in_k) const {
   /* TEMPORARY: in_k ionly for testing; useful for comparing to Dzuba
    * though..*/
 
-  GMatrix Sigma(m_subgrid_points, m_include_G);
+  GMatrix Sigma(m_imin, m_stride, m_subgrid_points, m_include_G, p_gr);
 
-  const ComplexDouble I{0.0, 1.0};
+  const std::complex<double> I{0.0, 1.0};
 
   // // Set up imaginary frequency grid:
   const double omre = m_omre;
@@ -835,7 +846,7 @@ GMatrix FeynmanSigma::FeynmanDirect(int kv, double env, int in_k) const {
 
         const auto c_ang = ck_vB * ck_vB / double(Angular::twoj_k(kv) + 1);
         const auto C_gB_QPQ_dw =
-            c_ang * (mult_elements(gBs[iB][iw], qpq_dw)).get_real();
+            c_ang * (mult_elements(gBs[iB][iw], qpq_dw)).real();
 
 #pragma omp critical(sum_sigma_d)
         { Sigma += C_gB_QPQ_dw; }
@@ -851,20 +862,22 @@ GMatrix FeynmanSigma::FeynmanDirect(int kv, double env, int in_k) const {
   // differential operator for sigma] or.. include one of these in
   // definition of opertion S|v> ?
   for (auto i = 0ul; i < m_subgrid_points; ++i) {
-    const auto dri = dr_subToFull(i);
+    const auto si = Sigma.index_to_fullgrid(i);
+    const auto dri = p_gr->drdu(si) * p_gr->du() * double(m_stride);
     for (auto j = 0ul; j < m_subgrid_points; ++j) {
-      const auto drj = dr_subToFull(j);
-      Sigma.ff[i][j] /= (dri * drj);
+      const auto sj = Sigma.index_to_fullgrid(j);
+      const auto drj = p_gr->drdu(sj) * p_gr->du() * double(m_stride);
+      Sigma.ff(i, j) /= (dri * drj);
       if (m_include_G) {
-        Sigma.fg[i][j] /= (dri * drj);
-        Sigma.gf[i][j] /= (dri * drj);
-        Sigma.gg[i][j] /= (dri * drj);
+        Sigma.fg(i, j) /= (dri * drj);
+        Sigma.gf(i, j) /= (dri * drj);
+        Sigma.gg(i, j) /= (dri * drj);
       }
     }
   }
 
   return Sigma;
-} // namespace MBPT
+}
 
 //******************************************************************************
 GMatrix FeynmanSigma::FeynmanEx_w1w2(int kv, double en_r) const {
@@ -872,13 +885,13 @@ GMatrix FeynmanSigma::FeynmanEx_w1w2(int kv, double en_r) const {
 
   // Note: Takes really long time, and doesn't work! XXX
 
-  GMatrix Sx(m_subgrid_points, m_include_G);
+  GMatrix Sx(m_imin, m_stride, m_subgrid_points, m_include_G, p_gr);
 
   // Set up imaginary frequency grid:
   const double omre = m_omre;
   const auto &wgrid = *m_wgridD;
-  const ComplexDouble I{0.0, 1.0};
-  const ComplexDouble en{en_r, 0.0};
+  const std::complex<double> I{0.0, 1.0};
+  const std::complex<double> en{en_r, 0.0};
   const auto tjvp1 = Angular::twoj_k(kv) + 1;
 
   const auto max_k = std::min(m_maxk, m_k_cut);
@@ -894,11 +907,13 @@ GMatrix FeynmanSigma::FeynmanEx_w1w2(int kv, double en_r) const {
   //     use_omp ? num_kappas * num_kappas / 4 : 1;
   const std::size_t num_para_threads =
       use_omp ? std::min(num_kappas * num_kappas,
-                         std::size_t(4 * omp_get_max_threads()))
-              : 1;
+                         std::size_t(4 * omp_get_max_threads())) :
+                1;
 
   // Store parts of Sx seperately, for more efficient parallelisation
-  std::vector<GMatrix> Sxs(num_para_threads, {m_subgrid_points, m_include_G});
+  std::vector<GMatrix> Sxs(
+      num_para_threads,
+      {m_imin, m_stride, m_subgrid_points, m_include_G, p_gr});
 
   const auto wmax = 40.0;
 
@@ -920,7 +935,7 @@ GMatrix FeynmanSigma::FeynmanEx_w1w2(int kv, double en_r) const {
         // included below
         for (auto iw1 = 0ul; iw1 < wgrid.num_points(); iw1 += m_wX_stride) {
           const auto dw1 = wgrid.drdu()[iw1];
-          const ComplexDouble evpw1{en_r + omre, wgrid.r()[iw1]};
+          const std::complex<double> evpw1{en_r + omre, wgrid.r()[iw1]};
 
           if (std::abs(wgrid.r()[iw1]) > wmax)
             continue;
@@ -929,8 +944,8 @@ GMatrix FeynmanSigma::FeynmanEx_w1w2(int kv, double en_r) const {
 
           for (auto iw2 = 0ul; iw2 < wgrid.num_points(); iw2 += m_wX_stride) {
             const auto dw2 = wgrid.drdu()[iw2]; //-ve for -Im(w)
-            const ComplexDouble ev_p_w2{en_r + omre, +wgrid.r()[iw2]};
-            const ComplexDouble ev_m_w2{en_r + omre, -wgrid.r()[iw2]};
+            const std::complex<double> ev_p_w2{en_r + omre, +wgrid.r()[iw2]};
+            const std::complex<double> ev_m_w2{en_r + omre, -wgrid.r()[iw2]};
 
             if (std::abs(wgrid.r()[iw2]) > wmax)
               continue;
@@ -940,7 +955,7 @@ GMatrix FeynmanSigma::FeynmanEx_w1w2(int kv, double en_r) const {
             // note: sumkl_gqgqg is the slow part: generateing Green's
             // function here is very ineficient, but doesn't actually take any
             // longer
-            // if (std::abs((evpw1 + ev_p_w2).cim()) <= 1.5 * wmax)
+            // if (std::abs((evpw1 + ev_p_w2).cimag()) <= 1.5 * wmax)
             {
               // (w1 + w2) case:
               const auto &gB_p =
@@ -957,7 +972,7 @@ GMatrix FeynmanSigma::FeynmanEx_w1w2(int kv, double en_r) const {
             // But, I included an extra i inside sumkl_gqgqg instead (i.e.,
             // assume only get 1 i)?
             // Still, factor of 10 too big!?
-            // if (std::abs((evpw1 + ev_m_w2).cim()) <= 1.5 * wmax)
+            // if (std::abs((evpw1 + ev_m_w2).cimag()) <= 1.5 * wmax)
             {
               // (w1 - w2) case:
               const auto &gB_m =
@@ -993,10 +1008,12 @@ GMatrix FeynmanSigma::FeynmanEx_w1w2(int kv, double en_r) const {
   // differential operator for sigma] or.. include one of these in
   // definition of opertion S|v> ?
   for (auto i = 0ul; i < m_subgrid_points; ++i) {
-    const auto dri = dr_subToFull(i);
+    const auto si = Sx.index_to_fullgrid(i);
+    const auto dri = p_gr->drdu(si) * p_gr->du() * double(m_stride);
     for (auto j = 0ul; j < m_subgrid_points; ++j) {
-      const auto drj = dr_subToFull(j);
-      Sx.ff[i][j] /= (dri * drj);
+      const auto sj = Sx.index_to_fullgrid(j);
+      const auto drj = p_gr->drdu(sj) * p_gr->du() * double(m_stride);
+      Sx.ff(i, j) /= (dri * drj);
       // no g?
     }
   }
@@ -1008,7 +1025,7 @@ GMatrix FeynmanSigma::FeynmanEx_w1w2(int kv, double en_r) const {
 GMatrix FeynmanSigma::FeynmanEx_1(int kv, double env) const {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
 
-  GMatrix Sx1(m_subgrid_points, m_include_G);
+  GMatrix Sx1(m_imin, m_stride, m_subgrid_points, m_include_G, p_gr);
 
   // Set up imaginary frequency grid:
   const double omre = m_omre; // does seem to depend on this..
@@ -1029,10 +1046,12 @@ GMatrix FeynmanSigma::FeynmanEx_1(int kv, double env) const {
   //     use_omp ? num_kappas * wgrid.num_points() / m_wX_stride / 4 : 1;
   const std::size_t num_para_threads =
       use_omp ? std::min(num_kappas * wgrid.num_points() / m_wX_stride,
-                         std::size_t(4 * omp_get_max_threads()))
-              : 1;
+                         std::size_t(4 * omp_get_max_threads())) :
+                1;
 
-  std::vector<GMatrix> Sx_k(num_para_threads, {m_subgrid_points, m_include_G});
+  std::vector<GMatrix> Sx_k(
+      num_para_threads,
+      {m_imin, m_stride, m_subgrid_points, m_include_G, p_gr});
 
   const auto wmax = 100.0; // XXX Temp?
 
@@ -1048,7 +1067,7 @@ GMatrix FeynmanSigma::FeynmanEx_1(int kv, double env) const {
       const auto tid = std::size_t(omp_get_thread_num());
 
       auto omim = wgrid.r()[iw]; // XXX Symmetric?? Or Not??
-      const auto omega = ComplexDouble{omre, omim};
+      const auto omega = std::complex<double>{omre, omim};
       const auto dw1 = wgrid.drdu()[iw]; // rest in 'factor'
 
       const auto *const qpqw_k = m_screen_Coulomb ? &m_qpq_wk[iw] : nullptr;
@@ -1058,7 +1077,7 @@ GMatrix FeynmanSigma::FeynmanEx_1(int kv, double env) const {
         if (Fa.n < m_min_core_n)
           continue;
         const auto &pa = m_Pa[ia];
-        const auto ea = ComplexDouble{Fa.en(), 0.0};
+        const auto ea = std::complex<double>{Fa.en(), 0.0};
 
         // hp here too?
         const auto gxBm = Green_ex(kB, ea - omega, m_Green_method);
@@ -1089,10 +1108,12 @@ GMatrix FeynmanSigma::FeynmanEx_1(int kv, double env) const {
   // differential operator for sigma] or.. include one of these in
   // definition of opertion S|v> ?
   for (auto i = 0ul; i < m_subgrid_points; ++i) {
-    const auto dri = dr_subToFull(i);
+    const auto si = Sx1.index_to_fullgrid(i);
+    const auto dri = p_gr->drdu(si) * p_gr->du() * double(m_stride);
     for (auto j = 0ul; j < m_subgrid_points; ++j) {
-      const auto drj = dr_subToFull(j);
-      Sx1.ff[i][j] /= (dri * drj);
+      const auto sj = Sx1.index_to_fullgrid(j);
+      const auto drj = p_gr->drdu(sj) * p_gr->du() * double(m_stride);
+      Sx1.ff(i, j) /= (dri * drj);
       // No g
     }
   }
@@ -1111,7 +1132,7 @@ GMatrix FeynmanSigma::sumkl_gqgqg(const ComplexGMatrix &gA,
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   // EXCHANGE part, used in w1w2 version
 
-  auto gqgqg = GMatrix(m_subgrid_points, m_include_G);
+  auto gqgqg = GMatrix(m_imin, m_stride, m_subgrid_points, m_include_G, p_gr);
 
   for (int k = 0; k <= kmax; k++) { // k (k1)
     const auto &qk = get_qk(k);
@@ -1124,9 +1145,9 @@ GMatrix FeynmanSigma::sumkl_gqgqg(const ComplexGMatrix &gA,
       const auto Lkl = Lkl_abcd(k, l, kv, kB, kA, kG);
       if (Lkl != 0.0) {
         const auto s = Angular::neg1pow(k + l);
-        // const auto sLkl = ComplexDouble{s * Lkl, 0.0};
+        // const auto sLkl = std::complex<double>{s * Lkl, 0.0};
         // // XXX extra factor of i ??: - pretty sure this is wrong
-        const auto sLkl = ComplexDouble{0.0, s * Lkl};
+        const auto sLkl = std::complex<double>{0.0, s * Lkl};
         tensor_5_product(&gqgqg, sLkl, qk, gB, gG, gA, ql);
       }
     } // l
@@ -1144,8 +1165,8 @@ GMatrix FeynmanSigma::sumkl_GQPGQ(
   // EXCHANGE part, used in w1 version
   // (w2 was integrated over analytically)
 
-  GMatrix sum_GQPG{m_subgrid_points, m_include_G};
-  const ComplexDouble I{0.0, 1.0}; // to convert real to complex
+  GMatrix sum_GQPG{m_imin, m_stride, m_subgrid_points, m_include_G, p_gr};
+  const std::complex<double> I{0.0, 1.0}; // to convert real to complex
 
   const auto kmax = std::min(m_maxk, m_k_cut);
 
@@ -1164,8 +1185,8 @@ GMatrix FeynmanSigma::sumkl_GQPGQ(
       const auto L1 = Lkl_abcd(k, l, kv, kB, kA, ka);
       const auto L2 = Lkl_abcd(k, l, kv, ka, kA, kB);
 
-      const auto ic1 = ComplexDouble(s0 * L1, 0.0);
-      const auto ic2 = ComplexDouble(s0 * L2, 0.0);
+      const auto ic1 = std::complex<double>(s0 * L1, 0.0);
+      const auto ic2 = std::complex<double>(s0 * L2, 0.0);
 
       // tensor_5_product adds the real part of below to result
       // Sum_ij [ factor * a1j * bij * cj2 * (d_1i * e_i2) ]
@@ -1184,17 +1205,17 @@ GMatrix FeynmanSigma::sumkl_GQPGQ(
 
 //******************************************************************************
 void FeynmanSigma::tensor_5_product(
-    GMatrix *result, const ComplexDouble &factor, const ComplexGMatrix &a,
-    const ComplexGMatrix &b, const ComplexGMatrix &c, const ComplexGMatrix &d,
-    const ComplexGMatrix &e) const {
+    GMatrix *result, const std::complex<double> &factor,
+    const ComplexGMatrix &a, const ComplexGMatrix &b, const ComplexGMatrix &c,
+    const ComplexGMatrix &d, const ComplexGMatrix &e) const {
   // Adds real part of below to result
   // Sum_ij [ factor * a1j * bij * cj2 * (d_1i * e_i2) ]
-  const auto size = result->size;
+  const auto size = result->size();
 
   // The a*c part depends only on j (not i).
   // Doing this mult early saves factor of 'size' complex multiplications
   // Leads to a >2x speed-up!
-  std::vector<ComplexDouble> ac(size); // see below
+  std::vector<std::complex<double>> ac(size); // see below
 
   for (auto r1 = 0ul; r1 < size; ++r1) {
     for (auto r2 = 0ul; r2 < size; ++r2) {
@@ -1202,17 +1223,17 @@ void FeynmanSigma::tensor_5_product(
       for (auto j = 0ul; j < size; ++j) {
         // early a*c mult
         // Note: a and c are actually real (only half the time..)
-        ac[j] = ComplexDouble(a.ff[r1][j]) * c.ff[j][r2];
+        ac[j] = a.ff(r1, j) * c.ff(j, r2);
       }
-      ComplexDouble sum_ij{0.0, 0.0};
+      std::complex<double> sum_ij{0.0, 0.0};
       for (auto i = 0ul; i < size; ++i) {
-        ComplexDouble sum_j{0.0, 0.0};
+        std::complex<double> sum_j{0.0, 0.0};
         for (auto j = 0ul; j < size; ++j) {
-          sum_j += ac[j] * b.ff[i][j];
+          sum_j += ac[j] * b.ff(i, j);
         }
-        sum_ij += sum_j * d.ff[r1][i] * e.ff[i][r2];
+        sum_ij += sum_j * d.ff(r1, i) * e.ff(i, r2);
       }
-      result->ff[r1][r2] += (factor * sum_ij).cre();
+      result->ff(r1, r2) += (factor * sum_ij).real();
 
     } // r2
   }   // r1
@@ -1235,7 +1256,9 @@ double FeynmanSigma::Lkl_abcd(int k, int l, int ka, int kb, int kc,
   const auto tjb = Angular::twoj_k(kb);
   const auto tjc = Angular::twoj_k(kc);
   const auto tjd = Angular::twoj_k(kd);
-  return m_6j(tja, tjc, tjb, tjd, k, l) * (Ckac * Ckbd * Clad * Clbc);
+  // return m_6j(tja, tjc, tjb, tjd, k, l) * (Ckac * Ckbd * Clad * Clbc);
+  return m_6j.get_2(tja, tjc, 2 * k, tjb, tjd, 2 * l) *
+         (Ckac * Ckbd * Clad * Clbc);
 }
 
 //******************************************************************************
@@ -1257,11 +1280,12 @@ GMatrix FeynmanSigma::Exchange_Goldstone(const int kappa,
   // k is multipolarity [Coloulmb expansion]
   // de_xyz = e_v + e_x - e_y - e_z
 
-  GMatrix SxG(m_subgrid_points, m_include_G);
+  GMatrix SxG(m_imin, m_stride, m_subgrid_points, m_include_G, p_gr);
 
   const auto &Ck = m_yeh.Ck();
 
-  std::vector<GMatrix> Gxs(m_holes.size(), {m_subgrid_points, m_include_G});
+  std::vector<GMatrix> Gxs(
+      m_holes.size(), {m_imin, m_stride, m_subgrid_points, m_include_G, p_gr});
 #pragma omp parallel for
   for (auto ia = 0ul; ia < m_holes.size(); ia++) {
     const auto &a = m_holes[ia];
@@ -1274,7 +1298,7 @@ GMatrix FeynmanSigma::Exchange_Goldstone(const int kappa,
         if (Ck(k, a.k, n.k) == 0)
           continue;
         const auto f_kkjj = (2 * k + 1) * (Angular::twoj_k(kappa) + 1);
-        const auto &yknb = m_yeh(k, n, a);
+        // const auto &yknb = *m_yeh.get(k, n, a); // check null!
 
         // Effective screening parameter:
         const auto fk = get_fk(k);
@@ -1283,10 +1307,13 @@ GMatrix FeynmanSigma::Exchange_Goldstone(const int kappa,
         for (const auto &m : m_excited) {
           if (Ck(k, kappa, m.k) == 0)
             continue;
-          Coulomb::Qkv_bcd(&Qkv, a, m, n, k, yknb, Ck);
+          // Coulomb::Qkv_bcd(&Qkv, a, m, n, k, yknb, Ck);
+          Qkv = m_yeh.Qkv_bcd(Qkv.k, a, m, n, k);
           // Pkv_bcd_2 allows different screening factor for each 'k2' in
           // exch.
-          Coulomb::Pkv_bcd_2(&Pkv, a, m, n, k, m_yeh(m, a), Ck, m_6j, m_fk);
+          // Coulomb::Pkv_bcd_2(&Pkv, a, m, n, k, m_yeh(m, a), Ck, m_6j, m_fk);
+          // m_yeh.Pkv_bcd_2(&Pkv, a, m, n, k, m_fk);
+          Pkv = m_yeh.Pkv_bcd(Pkv.k, a, m, n, k, m_fk);
           const auto dele = en + a.en() - m.en() - n.en();
           const auto factor = fk / (f_kkjj * dele);
           addto_G(&Ga_x, Qkv, Pkv, factor);
@@ -1296,8 +1323,11 @@ GMatrix FeynmanSigma::Exchange_Goldstone(const int kappa,
         for (const auto &b : m_holes) {
           if (Ck(k, kappa, b.k) == 0)
             continue;
-          Coulomb::Qkv_bcd(&Qkv, n, b, a, k, yknb, Ck);
-          Coulomb::Pkv_bcd_2(&Pkv, n, b, a, k, m_yeh(n, b), Ck, m_6j, m_fk);
+          // Coulomb::Qkv_bcd(&Qkv, n, b, a, k, yknb, Ck);
+          Qkv = m_yeh.Qkv_bcd(Qkv.k, n, b, a, k);
+          // Coulomb::Pkv_bcd_2(&Pkv, n, b, a, k, m_yeh(n, b), Ck, m_6j, m_fk);
+          // m_yeh.Pkv_bcd_2(&Pkv, n, b, a, k, m_fk);
+          Pkv = m_yeh.Pkv_bcd(Pkv.k, n, b, a, k, m_fk);
           const auto dele = en + n.en() - b.en() - a.en();
           const auto factor = fk / (f_kkjj * dele); // XXX
           addto_G(&Ga_x, Qkv, Pkv, factor);

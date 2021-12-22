@@ -18,7 +18,7 @@ namespace Module {
 void AFBindingEnergy(const IO::InputBlock &input, const Wavefunction &wf) {
   IO::ChronoTimer timer; // start the overall timer
 
-  input.checkBlock(
+  input.check(
       {{"qmin", "[MeV] minimum momentum transfer (q) ~0.01"},
        {"qmax", "[MeV] maximum q"},
        {"qsteps", "number of steps along q grid (logarithmic grid)"},

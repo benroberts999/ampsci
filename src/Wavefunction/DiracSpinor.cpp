@@ -18,30 +18,31 @@ DiracSpinor::DiracSpinor(int in_n, int in_k,
     : rgrid(in_rgrid),
       n(in_n),
       k(in_k),
-      m_f(std::vector<double>(rgrid->num_points(), 0.0)),
+      m_f(std::vector<double>(rgrid ? rgrid->num_points() : 0, 0.0)),
       m_g(m_f),
-      m_pinf(rgrid->num_points()),
+      m_pinf(rgrid ? rgrid->num_points() : 0),
       m_twoj(AtomData::twoj_k(in_k)),
       m_l(AtomData::l_k(in_k)),
       m_parity(AtomData::parity_k(in_k)),
       m_k_index(AtomData::indexFromKappa(in_k)),
-      m_nk_index(AtomData::nk_to_index(in_n, in_k)) {}
+      m_nk_index(static_cast<Index>(AtomData::nk_to_index(in_n, in_k))) {}
 
 //******************************************************************************
 std::string DiracSpinor::symbol(bool gnuplot) const {
   // Readable symbol (s_1/2, p_{3/2} etc.).
   // gnuplot-firndly '{}' braces optional.
-  std::string ostring1 = (n != 0) ? std::to_string(n) + AtomData::l_symbol(m_l)
-                                  : AtomData::l_symbol(m_l);
-  std::string ostring2 = gnuplot ? "_{" + std::to_string(m_twoj) + "/2}"
-                                 : "_" + std::to_string(m_twoj) + "/2";
+  std::string ostring1 = (n != 0) ?
+                             std::to_string(n) + AtomData::l_symbol(m_l) :
+                             AtomData::l_symbol(m_l);
+  std::string ostring2 = gnuplot ? "_{" + std::to_string(m_twoj) + "/2}" :
+                                   "_" + std::to_string(m_twoj) + "/2";
   return ostring1 + ostring2;
 }
 
 std::string DiracSpinor::shortSymbol() const {
   const std::string pm = (k < 0) ? "+" : "-";
-  return (n != 0) ? std::to_string(n) + AtomData::l_symbol(m_l) + pm
-                  : AtomData::l_symbol(m_l) + pm;
+  return (n != 0) ? std::to_string(n) + AtomData::l_symbol(m_l) + pm :
+                    AtomData::l_symbol(m_l) + pm;
 }
 
 //******************************************************************************
@@ -272,20 +273,20 @@ std::string DiracSpinor::state_config(const std::vector<DiracSpinor> &orbs) {
 //******************************************************************************
 // static
 int DiracSpinor::max_tj(const std::vector<DiracSpinor> &orbs) {
-  return orbs.empty()
-             ? 0
-             : std::max_element(cbegin(orbs), cend(orbs), comp_j)->twoj();
+  return orbs.empty() ?
+             0 :
+             std::max_element(cbegin(orbs), cend(orbs), comp_j)->twoj();
 }
 // static
 int DiracSpinor::max_l(const std::vector<DiracSpinor> &orbs) {
-  return orbs.empty() ? 0
-                      : std::max_element(cbegin(orbs), cend(orbs), comp_l)->l();
+  return orbs.empty() ? 0 :
+                        std::max_element(cbegin(orbs), cend(orbs), comp_l)->l();
 }
 // static
 int DiracSpinor::max_kindex(const std::vector<DiracSpinor> &orbs) {
-  return orbs.empty()
-             ? 0
-             : std::max_element(cbegin(orbs), cend(orbs), comp_ki)->k_index();
+  return orbs.empty() ?
+             0 :
+             std::max_element(cbegin(orbs), cend(orbs), comp_ki)->k_index();
 }
 
 //******************************************************************************

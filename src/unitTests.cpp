@@ -1,4 +1,5 @@
 #include "Angular/Angular_test.hpp"
+#include "Angular/SixJTable_test.hpp"
 #include "Coulomb/Coulomb_test.hpp"
 #include "Coulomb/QkTable_test.hpp"
 #include "DiracODE/DiracODE_test.hpp"
@@ -11,9 +12,12 @@
 #include "HF/HartreeFock_test.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/InputBlock.hpp" // for time+date
+#include "LinAlg/LinAlg_test.hpp"
 #include "MBPT/CorrelationPotential_test.hpp"
+#include "MBPT/RDMatrix_test.hpp"
 #include "MBPT/StructureRad_test.hpp"
-#include "Maths/LinAlg_test.hpp"
+#include "Maths/BSpline_test.hpp"
+#include "Physics/AtomData_test.hpp"
 #include "Physics/RadPot_test.hpp"
 #include "Wavefunction/BSplineBasis_test.hpp"
 #include "git.info"
@@ -65,21 +69,32 @@ static const std::vector<std::pair<std::string, bool (*)(std::ostream &obuff)>>
         {"TDHFbasis_breit", &TDHFbasis_breit},
         {"RadPot", &RadPot},
         {"Angular", &Angular},
-        {"LinAlg", &LinAlg},
+        {"SixJTable", &SixJTable},
         {"BSplineBasis", &BSplineBasis},
         {"Coulomb", &Coulomb},
-        {"CorrelationPotential", &CorrelationPotential},
+        {"MBPT2", &MBPT2},
+        {"Sigma2", &Sigma2},
+        {"SigmaAO", &SigmaAO},
+        {"RDMatrix", &RDMatrix},
         {"DiagramRPA", &DiagramRPA},
         {"QkTable", &QkTable},
-        {"StructureRad", &StructureRad}
+        {"StructureRad", &StructureRad},
+        {"BSplineClass", &BSplineClass},
+        {"LinAlg", &LinAlg},
+        {"AtomData", &AtomDataTests}
         //
     };
 
 static const std::vector<std::pair<std::string, bool (*)(std::ostream &obuff)>>
-    quick_list{{"DiracODE", &DiracODE},       {"HartreeFock", &HartreeFock},
-               {"MixedStates", &MixedStates}, {"Angular", &Angular},
-               {"LinAlg", &LinAlg},           {"BSplineBasis", &BSplineBasis},
-               {"Coulomb", &Coulomb}};
+    quick_list{{"DiracODE", &DiracODE},
+               {"HartreeFock", &HartreeFock},
+               {"MixedStates", &MixedStates},
+               {"Angular", &Angular},
+               {"SixJTable", &SixJTable},
+               {"LinAlg", &LinAlg},
+               {"BSplineBasis", &BSplineBasis},
+               {"Coulomb", &Coulomb},
+               {"MBPT2", &MBPT2}};
 
 //------------------------------------------------------------------------------
 // Looks up test + returns its function. If test not in list, prints list to
@@ -111,7 +126,8 @@ auto get_test(std::string_view in_name) {
 int main(int argc, char *argv[]) {
 
   std::ostringstream out_buff;
-  out_buff << "ampsci test. git:" << GitInfo::gitversion << "\n";
+  out_buff << "ampsci test. git:" << GitInfo::gitversion << " ("
+           << GitInfo::gitbranch << ")\n";
   out_buff << IO::time_date() << "\n";
 
   // Make a list of all tests to Run
@@ -163,7 +179,7 @@ int main(int argc, char *argv[]) {
 
     // Output results:
     std::cout << "\n" << out_buff.str();
-    std::ofstream of(IO::date() + "_unitTests.txt");
+    std::ofstream of("unitTests_" + IO::date() + "_" + IO::time() + ".txt");
     of << out_buff.str();
   }
 

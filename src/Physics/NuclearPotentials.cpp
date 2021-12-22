@@ -5,6 +5,7 @@
 #include "Physics/AtomData.hpp"
 #include "Physics/NuclearData.hpp"
 #include "Physics/PhysConst_constants.hpp"
+#include "qip/String.hpp"
 #include <cmath>
 #include <gsl/gsl_sf_fermi_dirac.h>
 #include <string>
@@ -14,14 +15,18 @@ namespace Nuclear {
 
 //******************************************************************************
 Type parseType(const std::string &str_type) {
-  if (str_type == "Fermi" || str_type == "fermi")
+  if (qip::ci_wildcard_compare(str_type, "fermi"))
     return Type::Fermi;
-  if (str_type == "spherical")
+  if (qip::ci_wildcard_compare(str_type, "spher*") ||
+      qip::ci_wildcard_compare(str_type, "ball"))
     return Type::spherical;
-  if (str_type == "zero" || str_type == "point" || str_type == "pointlike")
+  if (qip::ci_wildcard_compare(str_type, "point*"))
     return Type::point;
+  if (qip::ci_wildcard_compare(str_type, "gaus*"))
+    return Type::Gaussian;
   std::cout << "\n⚠️  WARNING: Unkown nucleus type: " << str_type
-            << "; defaulting to Fermi\n";
+            << "; defaulting to Fermi\n"
+            << "Options are: Fermi, spherical, pointlike, Gaussian\n\n";
   return Type::Fermi;
 }
 std::string parseType(Type type) {
@@ -31,6 +36,8 @@ std::string parseType(Type type) {
     return "spherical";
   if (type == Type::point)
     return "pointlike";
+  if (type == Type::Gaussian)
+    return "Gaussian";
   return "Fermi";
 }
 
@@ -81,6 +88,24 @@ std::vector<double> sphericalNuclearPotential(double Z, double rnuc,
     const double temp_v =
         (r < rN) ? Z * (r * r - 3.0 * rn2) / (2.0 * rn3) : -Z / r;
     vnuc.push_back(temp_v);
+  }
+
+  return vnuc;
+}
+
+//******************************************************************************
+std::vector<double> GaussianNuclearPotential(double Z, double r_rms,
+                                             const std::vector<double> &rgrid)
+
+{
+  std::vector<double> vnuc;
+  vnuc.reserve(rgrid.size());
+
+  // Fill the vnuc array with Gaussian nuclear potantial
+  const double rN = r_rms / PhysConst::aB_fm; // convert fm -> au
+  const auto k = std::sqrt(3.0 / 2);
+  for (auto r : rgrid) {
+    vnuc.push_back(-Z * std::erf(k * r / rN) / r);
   }
 
   return vnuc;
@@ -189,6 +214,8 @@ std::vector<double> formPotential(const Parameters &params,
   }
   case Nuclear::Type::point:
     return Nuclear::sphericalNuclearPotential(z, 0.0, r);
+  case Nuclear::Type::Gaussian:
+    return Nuclear::GaussianNuclearPotential(z, r_rms, r);
 
   default:
     std::cerr << "\nFAIL Nuclear:266 - invalid nucleus type?\n";

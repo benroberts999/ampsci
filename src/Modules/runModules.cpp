@@ -3,6 +3,7 @@
 #include "Modules/modules_list.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
+#include "qip/String.hpp"
 #include <algorithm>
 #include <cmath>
 #include <fstream>
@@ -18,7 +19,8 @@ namespace Module {
 //******************************************************************************
 void runModules(const IO::InputBlock &input, const Wavefunction &wf) {
   for (const auto &module : input.blocks()) {
-    runModule(module, wf);
+    if (qip::ci_wildcard_compare(module.name(), "module*"))
+      runModule(module, wf);
   }
 }
 
@@ -30,7 +32,8 @@ void runModule(const IO::InputBlock &module_input,
 
   // Loop through all available modules, run correct one
   for (const auto &[mod_name, mod_func] : module_list) {
-    if (in_name == "Module::" + mod_name || in_name == mod_name)
+    if (qip::ci_wildcard_compare("Module::" + mod_name, in_name) ||
+        qip::ci_wildcard_compare(mod_name, in_name))
       return mod_func(module_input, wf);
   }
 
@@ -87,7 +90,7 @@ static void write_orbitals(const std::string &fname,
 //******************************************************************************
 void writeOrbitals(const IO::InputBlock &input, const Wavefunction &wf) {
   const std::string ThisModule = "Module::WriteOrbitals";
-  input.checkBlock({"label", "l"});
+  input.checkBlock_old({"label", "l"});
   std::cout << "\n Running: " << ThisModule << "\n";
   const auto label = input.get<std::string>("label", "");
   // to write only for specific l. l<0 means all

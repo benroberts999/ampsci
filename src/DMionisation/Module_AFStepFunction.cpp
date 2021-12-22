@@ -18,7 +18,7 @@ namespace Module {
 void AFStepFunction(const IO::InputBlock &input, const Wavefunction &wf) {
   IO::ChronoTimer timer; // start the overall timer
 
-  input.checkBlock(
+  input.check(
       {{"Emin", "[keV] minimum energy transfer (dE) ~0.1"},
        {"Emax", "[keV] maximum dE"},
        {"Esteps", "numer of steps along dE grid (logarithmic grid)"},

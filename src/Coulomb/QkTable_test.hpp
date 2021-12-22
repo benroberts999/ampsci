@@ -1,6 +1,8 @@
 #pragma once
-#include "Coulomb/Coulomb.hpp"
+#include "Angular/SixJTable.hpp"
+#include "Coulomb/CoulombIntegrals.hpp"
 #include "Coulomb/QkTable.hpp"
+#include "Coulomb/YkTable.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "qip/Check.hpp"
@@ -26,23 +28,25 @@ bool QkTable(std::ostream &obuff) {
 
   // YkTable stores Hartee Y-functions Y_ab(r)
   // These save much time when calculating Q^k coeficients
-  const Coulomb::YkTable yk(wf.rgrid, &wf.basis);
+  const Coulomb::YkTable yk(wf.basis);
 
   Coulomb::QkTable qk_t;
   // Coulomb::WkTable qk;
   // Coulomb::NkTable qk;
-  qk_t.fill(yk);
+  qk_t.fill(wf.basis, yk);
+
+  const std::string fname = "tmp_delete_me.qk";
 
   {
     IO::ChronoTimer t("Write to disk");
-    qk_t.write("out.qk");
+    qk_t.write(fname);
   }
 
   // Read in to qk (test of read/write)
   Coulomb::QkTable qk;
   {
     IO::ChronoTimer t("Read from disk");
-    auto ok = qk.read("out.qk");
+    auto ok = qk.read(fname);
     std::cout << (ok ? "yes" : "no") << "\n";
   }
   std::cout << "\n";
@@ -61,10 +65,10 @@ bool QkTable(std::ostream &obuff) {
           for (const auto &d : wf.basis) {
             const auto [kmin, kmax] = Coulomb::k_minmax_Q(a, b, c, d);
             for (int k = kmin; k <= kmax; k += 2) {
-              const auto yk_bd = yk.ptr_yk_ab(k, b, d);
+              const auto yk_bd = yk.get(k, b, d);
               if (yk_bd == nullptr)
                 continue;
-              sum1 += Coulomb::Qk_abcd(a, b, c, d, k, *yk_bd, yk.Ck());
+              sum1 += yk.Q(k, a, b, c, d);
             }
           }
         }
@@ -103,6 +107,9 @@ bool QkTable(std::ostream &obuff) {
 
   {
 
+    const auto max_2k = 2 * DiracSpinor::max_tj(wf.basis);
+    Angular::SixJTable sjt{max_2k};
+
     // Test number of random instances of Q,P,R,W against direct way:
     // (most are zero)
 
@@ -128,6 +135,7 @@ bool QkTable(std::ostream &obuff) {
       for (int k = 0; k < kmax + 3; ++k) {
         const auto q1 = qk.Q(k, a, b, c, d);
         const auto p1 = qk.P(k, a, b, c, d);
+        const auto p2 = qk.P(k, a, b, c, d, &sjt);
         const auto w1 = qk.W(k, a, b, c, d);
         const auto r1 = qk.R(k, a, b, c, d);
         const auto q0 = Coulomb::Qk_abcd(a, b, c, d, k);
@@ -137,7 +145,7 @@ bool QkTable(std::ostream &obuff) {
         // nb: QkTable only stores Rk if Qk is non-zero, but Coulomb::Rk_abcd
         // will calculate it anyway.
         const auto devQ = std::abs(q1 - q0);
-        const auto devP = std::abs(p1 - p0);
+        const auto devP = std::max(std::abs(p1 - p0), std::abs(p2 - p0));
         const auto devW = std::abs(w1 - w0);
         const auto devR = std::abs(r1 - r0);
         if (devR > max_devR)

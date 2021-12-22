@@ -4,9 +4,10 @@
 #include "HF/HartreeFock.hpp"
 #include "IO/InputBlock.hpp"
 #include "IO/SafeProfiler.hpp"
-#include "Maths/BSplines.hpp"
+#include "LinAlg/LinAlg.hpp"
+#include "Maths/BSpline.hpp"
+#include "Maths/BSplines_old.hpp"
 #include "Maths/Grid.hpp"
-#include "Maths/LinAlg_MatrixVector.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/AtomData.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
@@ -25,8 +26,6 @@ namespace SplineBasis {
 // columnheader(i), for [i=2:6] "Cs_basis.txt" u 1:i every :::0::0 w l dt 0 lc i
 // notitle
 
-static constexpr bool ND_type = false;
-
 //******************************************************************************
 Parameters::Parameters(IO::InputBlock input)
     : states(input.get<std::string>("states", "")),
@@ -35,17 +34,20 @@ Parameters::Parameters(IO::InputBlock input)
       r0(input.get("r0", 0.0)),
       reps(input.get("r0_eps", 0.0)),
       rmax(input.get("rmax", 0.0)),
-      positronQ(input.get("positron", false)) {}
+      positronQ(input.get("positron", false)),
+      type(parseSplineType(input.get<std::string>("type", "Derevianko"))) {}
 
 Parameters::Parameters(std::string istates, std::size_t in, std::size_t ik,
-                       double ir0, double ireps, double irmax, bool ipositronQ)
+                       double ir0, double ireps, double irmax, bool ipositronQ,
+                       SplineType itype)
     : states(istates),
       n(in),
       k(ik),
       r0(ir0),
       reps(ireps),
       rmax(irmax),
-      positronQ(ipositronQ) {}
+      positronQ(ipositronQ),
+      type(itype) {}
 
 //******************************************************************************
 std::vector<DiracSpinor> form_basis(const Parameters &params,
@@ -54,8 +56,8 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
 // Forms the pseudo-spectrum basis by diagonalising Hamiltonian over B-splines
 {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
-  const auto &[states_str, n_spl, k_spl, r0_spl, r0_eps, rmax_spl, positronQ] =
-      params;
+  const auto &[states_str, n_spl, k_spl, r0_spl, r0_eps, rmax_spl, positronQ,
+               basis_type] = params;
   std::vector<DiracSpinor> basis;
   std::vector<DiracSpinor> basis_positron;
 
@@ -63,18 +65,23 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
 
   std::cout << "\nConstructing B-spline basis with N=" << n_spl
             << ", k=" << k_spl << ". Storing: " << states_str << "\n";
+  std::cout << "Using "
+            << (basis_type == SplineType::Derevianko ?
+                    "Derevinko (Duel Kinetic Balance)" :
+                    "Johnson")
+            << " type splines.\n";
 
   for (const auto &nk : nklst) {
 
     const auto max_n = nk.n;
     const auto kappa = nk.k;
-    const auto kmin = std::size_t(AtomData::l_k(kappa) + 3);
+    // const auto kmin = std::size_t(AtomData::l_k(kappa) + 3);
     const auto k = k_spl; // < kmin ? kmin : k_spl;
-    if (k_spl < kmin) {
-      std::cout << "Warning: Spline order k=" << k
-                << " may be small for kappa=" << kappa << " (kmin=" << kmin
-                << ")\n";
-    }
+    // if (k_spl < kmin) {
+    //   std::cout << "Warning: Spline order k=" << k
+    //             << " may be small for kappa=" << kappa << " (kmin=" << kmin
+    //             << ")\n";
+    // }
 
     // Chose larger r0 depending on core density:
     const auto l = AtomData::l_k(kappa);
@@ -83,33 +90,24 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
     const auto [rmin_l, rmax_l] = wf.lminmax_core_range(l_tmp, r0_eps);
     (void)rmax_l; // don't warn on unused rmax_l
     auto r0_eff = std::max(rmin_l, r0_spl);
-    if (l_tmp < l) {
-      // For l's that arn't in core, make r0 20% larger (per delta l) ?? XXX
-      r0_eff *= 1.0 + 0.20 * (l - l_tmp);
-      const auto r0_min = l <= 1 ? 1.0e-4 : l <= 3 ? 1.0e-3 : 1.0e-2; // ?
-      r0_eff = std::max(r0_eff, r0_min);
-    }
 
-    // messy...
-    if (r0_spl == 0.0 && r0_eps == 0.0)
-      r0_eff = 0.0;
+    if (r0_eff == 0.0)
+      r0_eff = wf.rgrid->r(0);
 
-    if (ND_type)
-      r0_eff = l <= 1 ? 1.0e-4 : l <= 3 ? 1.0e-3 : 1.0e-2; // Notre-Dame XXX
+    const auto [spl_basis, d_basis] = form_spline_basis(
+        kappa, n_spl, k, r0_eff, rmax_spl, wf.rgrid, wf.alpha, basis_type);
 
-    const auto spl_basis = form_spline_basis(kappa, n_spl, k, r0_eff, rmax_spl,
-                                             wf.rgrid, wf.alpha);
-
-    auto [Aij, Sij] = fill_Hamiltonian_matrix(spl_basis, wf, correlationsQ);
-    const auto [e_values, e_vectors] =
-        LinAlg::realSymmetricEigensystem(&Aij, &Sij);
+    auto [Aij, Sij] = fill_Hamiltonian_matrix(spl_basis, d_basis, wf,
+                                              correlationsQ, basis_type);
+    const auto [e_values, e_vectors] = LinAlg::symmhEigensystem(Aij, Sij, true);
 
     expand_basis_orbitals(&basis, &basis_positron, spl_basis, kappa, max_n,
                           e_values, e_vectors, wf);
     if (!basis.empty() && kappa < 0) {
       printf("Spline cavity l=%i %1s: (%7.1e,%5.1f)aB.\n", l,
-             AtomData::l_symbol(l).c_str(), basis.back().r0(),
-             basis.back().rinf());
+             AtomData::l_symbol(l).c_str(), r0_eff, rmax_spl);
+      // printf("Spline cavity l=%i %1s: (%7.1e,%5.1f)aB.\n", l,
+      //        AtomData::l_symbol(l).c_str(), r0_eff, basis.front().rinf());
     }
   }
 
@@ -142,8 +140,7 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
     if (orbs->empty())
       continue;
 
-    std::cout << "Compare basis to " << (orbs == &wf.core ? "core" : "valence")
-              << "\n";
+    std::cout << "Basis/" << (orbs == &wf.core ? "core" : "valence") << ":\n";
     double worst_dN = 0.0;
     double worst_dE = 0.0;
     std::string wFN, wFE;
@@ -163,24 +160,32 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
         wFE = Fc.shortSymbol();
       }
     }
-    printf(" |<%s|%s>-1| = %.1e\n", wFN.c_str(), wFN.c_str(), worst_dN);
-    printf(" dE/E(%s)     = %.1e\n", wFE.c_str(), worst_dE);
-    if (worst_dN > 1.0e-3 || worst_dE > 1.0e-3) {
-      std::cout << "WARNING: basis issue?\n";
+
+    printf(" |<%s|%s>-1| = %.1e", wFN.c_str(), wFN.c_str(), worst_dN);
+    if (worst_dN > 1.0e-3) {
+      std::cout << "  ** OK?";
+    }
+    printf("\n dE/E(%s)     = %.1e", wFE.c_str(), worst_dE);
+    if (worst_dE > 1.0e-3) {
+      std::cout << "  ** OK?";
     }
     const auto [eps, str] = DiracSpinor::check_ortho(*orbs, basis);
-    printf(" %-10s    = %.1e\n", str.c_str(), eps);
+    printf("\n %-10s    = %.1e", str.c_str(), eps);
+    if (eps > 1.0e-3) {
+      std::cout << "  ** OK?";
+    }
+    std::cout << "\n";
   }
 
   return basis;
 }
 
 //******************************************************************************
-std::vector<DiracSpinor>
+std::pair<std::vector<DiracSpinor>, std::vector<DiracSpinor>>
 form_spline_basis(const int kappa, const std::size_t n_states,
                   const std::size_t k_spl, const double r0_spl,
                   const double rmax_spl, std::shared_ptr<const Grid> rgrid,
-                  const double alpha)
+                  const double alpha, SplineType type)
 // Forms the "base" basis of B-splines (DKB/Reno Method)
 {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
@@ -188,88 +193,78 @@ form_spline_basis(const int kappa, const std::size_t n_states,
   auto imin = static_cast<std::size_t>(std::abs(kappa));
   auto n_spl = n_states + imin + 1; // subtract l (n_min)?
   auto imax = n_spl - 1;
+  auto lambda = 1.0;
 
-  if (ND_type) {
-    imin = 1; // XXX
+  if (type == SplineType::Johnson) {
+    imin = 0;
     n_spl = n_states + imin;
     imax = n_spl;
+    lambda = 0.0;
   }
 
   // uses sepperate B-splines for each partial wave! OK?
-  BSplines bspl(n_spl, k_spl, *rgrid, r0_spl, rmax_spl);
-  bspl.derivitate();
 
-  std::vector<DiracSpinor> basis;
-  basis.reserve(2 * imax);
+  BSpline bspl(n_spl, k_spl, r0_spl, rmax_spl, BSpline::KnotDistro::loglinear);
 
-  for (auto i = imin; i < imax; i++) {
-    auto &Fi = basis.emplace_back(0, kappa, rgrid);
+  std::pair<std::vector<DiracSpinor>, std::vector<DiracSpinor>> out;
+  auto &basis = out.first;
+  auto &d_basis = out.second;
+  basis.resize(2 * n_states, {0, kappa, rgrid});
+  d_basis.resize(2 * n_states, {0, kappa, rgrid});
 
-    const auto &Bi = bspl.get_spline(i);
-    const auto &dBi = bspl.get_spline_deriv(i);
-    Fi.set_f() = Bi;
-    if (!ND_type) {
-      auto gtmp = qip::multiply(rgrid->rpow(-1), Bi);
-      qip::scale(&gtmp, double(kappa));
-      Fi.set_g() = qip::add(dBi, gtmp);
-      qip::scale(&Fi.set_g(), 0.5 * alpha);
+  for (auto ir = 0ul; ir < rgrid->num_points(); ++ir) {
+    const auto r = rgrid->r(ir);
+    auto [i0, bij] = bspl.get_nonzero(r, 2);
+    for (auto i = 0ul; i < bspl.K(); ++i) {
+
+      const auto nB = i + i0; // which basis spline
+
+      // Only include
+      if (nB < imin || nB >= imax)
+        continue;
+
+      // Set the splines
+      auto &Sn1 = basis.at(nB - imin);
+      // First "f-like" set
+      Sn1.set_f(ir) = bij[i][0];
+      Sn1.set_g(ir) =
+          lambda * 0.5 * alpha * (bij[i][1] + (kappa / r) * bij[i][0]);
+      // second "g-like"
+      auto &Sn2 = basis.at(nB + n_states - imin);
+      Sn2.set_f(ir) =
+          lambda * 0.5 * alpha * (bij[i][1] - (kappa / r) * bij[i][0]);
+      Sn2.set_g(ir) = bij[i][0];
+
+      // Set the spline derivatives
+      auto &dSn1 = d_basis.at(nB - imin);
+      // First "f-like" set
+      dSn1.set_f(ir) = bij[i][1];
+      dSn1.set_g(ir) =
+          lambda * 0.5 * alpha *
+          (bij[i][2] + (kappa / r) * bij[i][1] - (kappa / r / r) * bij[i][0]);
+      // second "g-like"
+      auto &dSn2 = d_basis.at(nB + n_states - imin);
+      dSn2.set_f(ir) =
+          lambda * 0.5 * alpha *
+          (bij[i][2] - (kappa / r) * bij[i][1] + (kappa / r / r) * bij[i][0]);
+      dSn2.set_g(ir) = bij[i][1];
     }
-
-    // Fi.df = dBi;
-    // auto bor2 = NumCalc::mult_vectors(rgrid->rpow(-2), Bi);
-    // auto dbor = NumCalc::mult_vectors(rgrid->rpow(-1), dBi);
-    // NumCalc::scaleVec(bor2, -double(kappa));
-    // NumCalc::scaleVec(dbor, double(kappa));
-    // const auto &d2Bi = bspl.get_spline_deriv2(i);
-    // Fi.dg = NumCalc::add_vectors(bor2, dbor, d2Bi);
-    // NumCalc::scaleVec(Fi.dg, 0.5 * alpha);
-
-    auto [p0, pinf] = bspl.get_ends(i);
-    Fi.set_max_pt() = pinf;
-    Fi.set_min_pt() = p0;
-    Fi.normalise(1.0);
   }
 
-  for (auto i = imin; i < imax; i++) {
-    auto &Fi = basis.emplace_back(0, kappa, rgrid);
-
-    const auto &Bi = bspl.get_spline(i);
-    const auto &dBi = bspl.get_spline_deriv(i);
-    Fi.set_g() = Bi;
-    if (!ND_type) {
-      auto ftmp = qip::multiply(rgrid->rpow(-1), Bi);
-      qip::scale(&ftmp, double(-kappa));
-      Fi.set_f() = qip::add(dBi, ftmp);
-      qip::scale(&Fi.set_f(), 0.5 * alpha);
-    }
-
-    // Fi.dg = dBi;
-    // auto bor2 = NumCalc::mult_vectors(rgrid->rpow(-2), Bi);
-    // auto dbor = NumCalc::mult_vectors(rgrid->rpow(-1), dBi);
-    // NumCalc::scaleVec(bor2, double(kappa));
-    // NumCalc::scaleVec(dbor, -double(kappa));
-    // const auto &d2Bi = bspl.get_spline_deriv2(i);
-    // Fi.df = NumCalc::add_vectors(bor2, dbor, d2Bi);
-    // NumCalc::scaleVec(Fi.df, 0.5 * alpha);
-
-    auto [p0, pinf] = bspl.get_ends(i);
-    Fi.set_max_pt() = pinf;
-    Fi.set_min_pt() = p0;
-    Fi.normalise(1.0);
-  }
-
-  return basis;
+  return out;
 }
 
 //******************************************************************************
-std::pair<LinAlg::SqMatrix, LinAlg::SqMatrix>
+std::pair<LinAlg::Matrix<double>, LinAlg::Matrix<double>>
 fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
-                        const Wavefunction &wf, const bool correlationsQ) {
+                        const std::vector<DiracSpinor> &d_basis,
+                        const Wavefunction &wf, const bool correlationsQ,
+                        SplineType type) {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
-  auto n_spl = (int)spl_basis.size();
+  auto n_spl = spl_basis.size();
 
-  std::pair<LinAlg::SqMatrix, LinAlg::SqMatrix> A_and_S =
-      std::make_pair(n_spl, n_spl);
+  auto A_and_S = std::make_pair(LinAlg::Matrix<double>{n_spl, n_spl},
+                                LinAlg::Matrix<double>{n_spl, n_spl});
   // auto &[Aij, Sij] = A_and_S; //XXX error w/ clang? Why?
   auto &Aij = A_and_S.first;
   auto &Sij = A_and_S.second;
@@ -278,23 +273,19 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
   const auto sigmaQ = wf.getSigma() != nullptr && correlationsQ;
   const auto VBr = wf.getHF() ? wf.getHF()->get_Breit() : nullptr;
 
-  // Move this into wf ??
-  // auto Hd = RadialHamiltonian(wf.rgrid, wf.alpha);
-  // Hd.set_v(-1, wf.get_Vlocal(0)); // same each kappa //XXX
-  // Hd.set_v_mag(wf.get_Hmag(0));   // Magnetic QED form-factor [usually empty]
-
 #pragma omp parallel for
-  for (auto i = 0ul; i < Aij.n; i++) {
+  for (auto i = 0ul; i < Aij.rows(); i++) {
     const auto &si = spl_basis[i];
+    const auto &dsi = d_basis[i];
     const auto VexSi = excl_exch ? 0.0 * si : HF::vexFa(si, wf.core);
     const auto SigmaSi = sigmaQ ? (*wf.getSigma())(si) : 0.0 * si;
     const auto BreitSi = VBr ? (*VBr)(si) : 0.0 * si;
 
     for (auto j = 0ul; j <= i; j++) {
-      // for (auto j = 0ul; j < Aij.n; j++) {
       const auto &sj = spl_basis[j];
+      const auto &dsj = d_basis[j];
 
-      auto aij = wf.Hab(sj, si);
+      auto aij = wf.Hab(sj, dsj, si, dsi);
       if (!excl_exch)
         aij += (sj * VexSi);
       if (sigmaQ)
@@ -307,37 +298,34 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
     }
   }
   // Fill second - half of symmetric matrix
-  for (auto i = 0ul; i < Aij.n; i++) {
-    for (auto j = i + 1; j < Aij.n; j++) {
+  for (auto i = 0ul; i < Aij.rows(); i++) {
+    for (auto j = i + 1; j < Aij.cols(); j++) {
       Aij[i][j] = Aij[j][i];
       Sij[i][j] = Sij[j][i];
     }
   }
-  // Aij.enforce_symmetric();
   // Note: This is work-around, since Breit seems not to be 100% symmetric!
-  if (ND_type)
+  if (type == SplineType::Johnson)
     add_NotreDameBoundary(&Aij, spl_basis.front().k, wf.alpha);
 
   return A_and_S;
 }
 
 //******************************************************************************
-void add_NotreDameBoundary(LinAlg::SqMatrix *pAij, const int kappa,
+void add_NotreDameBoundary(LinAlg::Matrix<double> *pAij, const int kappa,
                            const double alpha) {
   auto &Aij = *pAij;
-  const auto n2 = Aij.n;
+  const auto n2 = Aij.rows();
   const auto n1 = n2 / 2;
   const auto c = 1.0 / alpha;
   // r=0 boundary conds
+  // Add (c/2)*f(0)^2 + (c/2)*f(0)*g(0)
   Aij[0][0] += (kappa < 0) ? c * c : 2.0 * c * c * c;
   Aij[0][n1] += 0.5 * c;
-  Aij[n1][0] -= 0.5 * c;
+  Aij[n1][0] += 0.5 * c;
   // f(rmax)=g(rmax)
-  Aij[n1 - 1][n1 - 1] += 0.5 * c;
-  Aij[n1 - 1][n2 - 1] -= 0.5;
-  Aij[n2 - 1][n1 - 1] += 0.5;
-  // Aij[n2 - 1][n2 - 1] -= 0.5 * alpha; //?
-  Aij[n2 - 1][n2 - 1] -= 0.5 * c;
+  Aij[n1 - 1][n1 - 1] += 0.5 * c * c; // f(R)^2
+  Aij[n2 - 1][n2 - 1] -= 0.5 * c * c; // g(R)^2
 }
 
 //******************************************************************************
@@ -345,8 +333,8 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
                            std::vector<DiracSpinor> *basis_positron,
                            const std::vector<DiracSpinor> &spl_basis,
                            const int kappa, const int max_n,
-                           const LinAlg::Vector &e_values,
-                           const LinAlg::SqMatrix &e_vectors,
+                           const LinAlg::Vector<double> &e_values,
+                           const LinAlg::Matrix<double> &e_vectors,
                            const Wavefunction &wf)
 // Expands the pseudo-spectrum basis in terms of B-spline basis and expansion
 // coeficient found from diagonalising the Hamiltonian over Bsplns
@@ -358,7 +346,7 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
   const auto neg_mc2 = -1.0 / (wf.alpha * wf.alpha);
   auto pqn = min_n - 1;
   auto pqn_pstrn = -min_n + 1;
-  for (auto i = 0ul; i < e_values.n; i++) {
+  for (auto i = 0ul; i < e_values.rows(); i++) {
     const auto &en = e_values[i];
     const auto &pvec = e_vectors[i];
     const auto positive_energy = en > neg_mc2;
@@ -368,25 +356,39 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
         (!positive_energy && pqn_pstrn < -max_n))
       continue;
 
-    auto &Fi = (positive_energy)
-                   ? basis->emplace_back(pqn, kappa, wf.rgrid)
-                   : basis_positron->emplace_back(pqn_pstrn, kappa, wf.rgrid);
+    auto &Fi = (positive_energy) ?
+                   basis->emplace_back(pqn, kappa, wf.rgrid) :
+                   basis_positron->emplace_back(pqn_pstrn, kappa, wf.rgrid);
     Fi.set_en() = en;
-    Fi.set_min_pt() = spl_basis[0].max_pt(); // yes, backwards (updated below)
-    Fi.set_max_pt() = spl_basis[0].min_pt();
-    auto sign = pvec[0] > 0 ? 1 : -1; // mostly, but not completely, works
     for (std::size_t ib = 0; ib < spl_basis.size(); ++ib) {
-      Fi += sign * pvec[ib] * spl_basis[ib];
+      Fi += pvec[ib] * spl_basis[ib];
     }
+    const auto low_r = 0.3 / wf.Znuc();
+    if (Fi.f(wf.rgrid->getIndex(low_r)) < 0.0)
+      Fi *= -1.0;
+    // std::cout << Fi.symbol() << " " << Fi * Fi << "\n";
     // Note: they are not even roughly normalised...I think they should be??
     Fi.normalise();
-  }
 
-  // ensure correct sign (doesn't seem to matter.., but nicer)
-  const auto ir = wf.rgrid->getIndex(0.005);
-  for (auto &Fb : *basis) {
-    if (Fb.f(ir) < 0)
-      Fb *= -1;
+    // find first non-zero point
+    {
+      auto p0 = 0ul;
+      for (auto ir = 0ul; ir < Fi.rgrid->num_points(); ++ir) {
+        if (Fi.f(ir) != 0 || Fi.g(ir) != 0) {
+          p0 = ir;
+          break;
+        }
+      }
+      auto pinf = Fi.rgrid->num_points();
+      for (auto ir = Fi.rgrid->num_points(); ir != 0; --ir) {
+        if (Fi.f(ir - 1) != 0 || Fi.g(ir - 1) != 0) {
+          pinf = ir;
+          break;
+        }
+      }
+      Fi.set_min_pt() = p0;
+      Fi.set_max_pt() = pinf;
+    }
   }
 }
 

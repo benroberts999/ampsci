@@ -20,7 +20,7 @@ static void calc_thing(const DiracSpinor &Fv, double e_targ, double r0,
 //******************************************************************************
 void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
 
-  input.checkBlock({"rpa", "options", "A"});
+  input.checkBlock_old({"rpa", "options", "A"});
 
   const auto rpa = input.get("rpa", false);
   const auto Alist = input.get("A", std::vector<int>{});
@@ -189,8 +189,8 @@ void HF_rmag(const IO::InputBlock &input, const Wavefunction &wf) {
 
   std::cout << "\nTuning Rmag to fit hyperfine anomaly\n";
 
-  input.checkBlock({"n", "kappa", "A2", "1D2", "rpa", "num_steps", "mu1", "mu2",
-                    "I1", "I2", "eps_targ", "e1", "e2"});
+  input.checkBlock_old({"n", "kappa", "A2", "1D2", "rpa", "num_steps", "mu1",
+                        "mu2", "I1", "I2", "eps_targ", "e1", "e2"});
 
   // A(1) is wf
   // A(2) is wf2
@@ -200,8 +200,10 @@ void HF_rmag(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto n = input.get("n", 1);
   const auto kappa = input.get("kappa", -1);
 
-  auto wf2 = Wavefunction(wf.rgrid->params(), {wf.Znuc(), A2},
-                          wf.alpha / PhysConst::alpha);
+  auto wf2 = Wavefunction(
+      wf.rgrid->params(),
+      {wf.Znuc(), A2, Nuclear::parseType(wf.get_nuclearParameters().type)},
+      wf.alpha / PhysConst::alpha);
   wf2.solve_core("HartreeFock", 0.0, wf.coreConfiguration_nice());
   wf2.solve_valence(DiracSpinor::state_config(wf.valence));
   wf2.basis = wf.basis; // OK??
@@ -472,7 +474,7 @@ void calculateBohrWeisskopf(const IO::InputBlock &input,
                             const Wavefunction &wf) {
   using namespace DiracOperator;
 
-  input.checkBlock({"rpa", "rpa_diagram", "screening", "hfs_options"});
+  input.checkBlock_old({"rpa", "rpa_diagram", "screening", "hfs_options"});
 
   // const auto h_options =
   //     IO::InputBlock("hfs_options", input.get<std::string>("hfs_options",
@@ -598,7 +600,7 @@ void calculateBohrWeisskopf(const IO::InputBlock &input,
 void BW_eta_sp(const IO::InputBlock &input, const Wavefunction &wf) {
   using namespace DiracOperator;
 
-  input.checkBlock({});
+  input.checkBlock_old({});
 
   auto options = input.getBlock("options");
   auto sub_input = IO::InputBlock("hfs", {});

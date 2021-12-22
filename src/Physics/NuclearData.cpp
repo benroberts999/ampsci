@@ -53,8 +53,8 @@ double approximate_r_rms(int A)
 // https://www.sciencedirect.com/science/article/pii/S0092640X12000265
 // https://www-nds.iaea.org/radii/
 {
-  return (A < 10) ? 1.15 * std::pow(A, 0.3333)
-                  : 0.836 * std::pow(A, 0.3333) + 0.570;
+  return (A < 10) ? 1.15 * std::pow(A, 0.3333) :
+                    0.836 * std::pow(A, 0.3333) + 0.570;
 }
 
 //******************************************************************************
@@ -64,11 +64,11 @@ double c_hdr_formula_rrms_t(double rrms, double t)
 // a = t / (4 * ln[3])
 {
   const double a = t / FourLn3;
-  return (rrms < t)
-             ? std::sqrt((5.0 / 3.0) * rrms * rrms)
+  return (rrms < t) ?
+             std::sqrt((5.0 / 3.0) * rrms * rrms)
              // this is little dodgy? but formula prob  only works large A
-             : std::sqrt((5.0 / 3.0) * rrms * rrms -
-                         (7.0 / 3.0) * (Pi2 * a * a));
+             :
+             std::sqrt((5.0 / 3.0) * rrms * rrms - (7.0 / 3.0) * (Pi2 * a * a));
 }
 
 //******************************************************************************

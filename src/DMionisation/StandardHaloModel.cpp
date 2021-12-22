@@ -2,14 +2,12 @@
 #include <cmath>
 #include <vector>
 
-using namespace SHMCONSTS;
-
 StandardHaloModel::StandardHaloModel(double in_cosphi, double dves, double dv0)
     : cosphi(in_cosphi),
-      v0(V0 + dv0 * DEL_V0),
-      v_sun(VSUN + dv0 * DEL_V0),
-      vesc(VESC + dves * DEL_VESC),
-      veorb(VEORB) {
+      v0(AstroConsts::v0 + dv0 * AstroConsts::delta_v0),
+      v_sun(AstroConsts::v_sun + dv0 * AstroConsts::delta_v0),
+      vesc(AstroConsts::v_esc + dves * AstroConsts::delta_v_esc),
+      veorb(AstroConsts::v_earth_orb) {
 
   // NormCost should be 1, but *= more general
   // (means) it will work for _any_ existing m_normConst
@@ -30,21 +28,21 @@ double StandardHaloModel::fv(double v) const
 //  dves = [-1,1]
 {
   // local velocity (lab)
-  double vl = v_sun + veorb * COSBETA * cosphi;
+  const double vl = v_sun + veorb * AstroConsts::cos_beta * cosphi;
 
   // Norm const * v^2:
-  double A = m_normConst * std::pow(v, 2);
+  const double A = m_normConst * std::pow(v, 2);
 
-  double arg1 = -std::pow((v - vl) / v0, 2);
+  const double arg1 = -std::pow((v - vl) / v0, 2);
 
   if (v <= 0) {
     return 0;
   } else if (v < vesc - vl) { // here
-    double arg2 = -std::pow((v + vl) / v0, 2);
-    return A * (exp(arg1) - exp(arg2));
+    const double arg2 = -std::pow((v + vl) / v0, 2);
+    return A * (std::exp(arg1) - std::exp(arg2));
   } else if (v < vesc + vl) { // here
-    double arg2 = -std::pow(vesc / v0, 2);
-    return A * (exp(arg1) - exp(arg2));
+    const double arg2 = -std::pow(vesc / v0, 2);
+    return A * (std::exp(arg1) - std::exp(arg2));
   } else {
     return 0;
   }
@@ -52,23 +50,24 @@ double StandardHaloModel::fv(double v) const
 
 //******************************************************************************
 double StandardHaloModel::normfv() const {
-  int num_vsteps = 2000;
-  double dv = MAXV / num_vsteps;
+  const int num_vsteps = 2000;
+  const double dv = AstroConsts::v_max / num_vsteps;
 
+  // Just use Reinmann sum; accurate enough (integrand is zero at boundaries)
   double v = dv;
-  double A = 0;
+  double A = 0.0;
   for (int i = 0; i < num_vsteps; i++) {
     A += fv(v);
     v += dv;
   }
-  return 1. / (A * dv);
+  return 1.0 / (A * dv);
 }
 
 //******************************************************************************
 std::vector<double>
-StandardHaloModel::makeFvArray(const std::vector<double> &v_array) const {
+StandardHaloModel::fv(const std::vector<double> &v_array) const {
   // Fills an (external) vector array with f(v) values.
-  // Note: units will be km/s. AND VGRID must be in same units
+  // Note: units will be km/s. AND v_array must be in same units
   // Possible to re-scale; must rescale v and fv!
   std::vector<double> fv_array;
   fv_array.reserve(v_array.size());

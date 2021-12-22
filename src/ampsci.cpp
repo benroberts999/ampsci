@@ -25,14 +25,14 @@ int main(int argc, char *argv[]) {
   const auto fstream = std::fstream(input_text);
   const auto symb = AtomData::atomicSymbol(AtomData::atomic_Z(input_text));
   const auto core = symb == "H" ? "" : symb;
-  const std::string default_input = (input_text.size() <= 3)
-                                        ? "Atom{Z=" + symb + ";}" +
-                                              "HartreeFock { core = [" + core +
-                                              "]; valence = 2sp;}"
-                                        : input_text;
+  const std::string default_input = (input_text.size() <= 3) ?
+                                        "Atom{Z=" + symb + ";}" +
+                                            "HartreeFock { core = [" + core +
+                                            "]; valence = 2sp;}" :
+                                        input_text;
 
-  const auto input = fstream.good() ? IO::InputBlock("ampsci", fstream)
-                                    : IO::InputBlock("ampsci", default_input);
+  const auto input = fstream.good() ? IO::InputBlock("ampsci", fstream) :
+                                      IO::InputBlock("ampsci", default_input);
 
   // Run program. Add option to run multiple times
   ampsci(input);
@@ -42,17 +42,34 @@ int main(int argc, char *argv[]) {
 
 //******************************************************************************
 void ampsci(const IO::InputBlock &input) {
-  using namespace std::string_literals;
   IO::ChronoTimer timer("\nampsci");
   std::cout << "\n";
   IO::print_line();
   input.print();
 
+  using namespace std::string_literals;
+
+  input.check({{"", "All top-level inputs are InputBlocks"},
+               {"Atom", "InputBlock. Which atom to run for [required]"},
+               {"Grid", "InputBlock. Set radial grid parameters"},
+               {"HartreeFock",
+                "InputBlock. Options for Solving atomic system [required]"},
+               {"Nucleus", "InputBlock. Set nuclear parameters"},
+               {"RadPot", "InputBlock. Inlcude QED radiative potential"},
+               {"Basis", "InputBlock. Basis used for MBPT"},
+               {"Spectrum", "InputBlock. Like basis; used for sum-over-states"},
+               {"Correlations", "InputBlock. Options for correlations"},
+               {"ExtraPotential", "InputBlock. Include an extra potential"},
+               {"dVpol",
+                "InputBlock. Approximate correlation (polarisation) potential"},
+               {"Module::*",
+                "InputBlock. Run any number of modules (* -> module name)"}});
+
   // Atom: Get + setup atom parameters
-  auto input_ok =
-      input.check2({"Atom"}, {{"Z", "Atomic symbol/number (int or string)"},
-                              {"A", "Atomic mass number (blank for default)"},
-                              {"varAlpha2", "d(a^2)/a_0^2 (1 by default)"}});
+  auto input_ok = input.check(
+      {"Atom"}, {{"Z", "string/int. Atomic number [required]"},
+                 {"A", "Atomic mass number [default based on Z]"},
+                 {"varAlpha2", "Variation of FSC alphs: d(a^2)/a_0^2 [1.0]"}});
 
   const auto atom_Z = AtomData::atomic_Z(input.get({"Atom"}, "Z", "H"s));
   const auto atom_A = input.get({"Atom"}, "A", AtomData::defaultA(atom_Z));
@@ -62,15 +79,18 @@ void ampsci(const IO::InputBlock &input) {
   }();
 
   // Grid: Get + setup grid parameters
-  input_ok &= input.check2(
+  input_ok &= input.check(
       {"Grid"},
-      {{"r0", "Initial grid point, in au (~1e-6)"},
-       {"rmax", "Finial grid point ~100.0"},
-       {"num_points", "Number of grid points ~1000"},
-       {"type", "loglinear or logarithmic"},
-       {"b", "only loglinear: roughly logarithmic for r<b, linear for r>b"},
-       {"du", "du is uniform grid step size; set this instead of "
-              "num_points (~0.1)"}});
+      {{"r0", "double. Initial grid point, in au [1.0e-6]"},
+       {"rmax", "double. Finial grid point [120.0]"},
+       {"num_points", "int. Number of grid points [1600]"},
+       {"type",
+        "string. Type of grid: linear, loglinear or logarithmic [loglinear]"},
+       {"b", "double. only used for loglinear: grid is roughly logarithmic "
+             "for r<b, linear for r>b [rmax/3]"},
+       {"du",
+        "double. du is uniform grid step size; set this instead of "
+        "num_points - will override num_points [default set by num_points]"}});
 
   const auto r0 = input.get({"Grid"}, "r0", 1.0e-6);
   const auto rmax = input.get({"Grid"}, "rmax", 120.0);
@@ -81,17 +101,19 @@ void ampsci(const IO::InputBlock &input) {
       (du > 0.0) ? 0ul : input.get({"Grid"}, "num_points", 1600ul);
   const auto b = input.get({"Grid"}, "b", 0.33 * rmax);
   const auto grid_type =
-      (b <= r0 || b >= rmax)
-          ? "logarithmic"
-          : input.get<std::string>({"Grid"}, "type", "loglinear");
+      (b <= r0 || b >= rmax) ?
+          "logarithmic" :
+          input.get<std::string>({"Grid"}, "type", "loglinear");
 
   // Nucleus: Get + setup nuclear parameters
-  input_ok &= input.check2({"Nucleus"},
-                           {{"rrms", "root-mean-square charge radius, in fm "
-                                     "(blank means will look up default)"},
-                            {"c", "Half-density radius (use instead of rrms)"},
-                            {"t", "Nuclear skin thickness; default = 2.3"},
-                            {"type", "Fermi, spherical, pointlike"}});
+  input_ok &= input.check(
+      {"Nucleus"},
+      {{"rrms", "double. Root-mean-square charge radius, in fm "
+                "[default depends on Z and A]"},
+       {"c", "Half-density radius, in fm (use instead of rrms) [default "
+             "depends on Z and A]"},
+       {"t", "Nuclear skin thickness, in fm [2.3]"},
+       {"type", "Fermi, spherical, pointlike, Gaussian [Fermi]"}});
 
   // usually, give rrms. Giving c will over-ride rrms
   const auto c_hdr = input.get<double>({"Nucleus"}, "c");
@@ -104,14 +126,14 @@ void ampsci(const IO::InputBlock &input) {
   }
   const auto t_skin = input.get({"Nucleus"}, "t", Nuclear::default_t);
   // c (half density radius) takes precidence if c and r_rms are given.
-  const auto rrms = c_hdr ? Nuclear::rrms_formula_c_t(*c_hdr, t_skin)
-                          : input.get({"Nucleus"}, "rrms", dflt_rrms);
+  const auto rrms = c_hdr ? Nuclear::rrms_formula_c_t(*c_hdr, t_skin) :
+                            input.get({"Nucleus"}, "rrms", dflt_rrms);
 
   // Set nuc. type explicitely to 'pointlike' if A=0, or r_rms = 0.0
   const auto nuc_type =
-      (atom_A == 0 || rrms == 0.0)
-          ? "pointlike"
-          : input.get<std::string>({"Nucleus"}, "type", "Fermi");
+      (atom_A == 0 || rrms == 0.0) ?
+          "pointlike" :
+          input.get<std::string>({"Nucleus"}, "type", "Fermi");
 
   // Create wavefunction object
   Wavefunction wf({num_points, r0, rmax, b, grid_type, du},
@@ -123,14 +145,16 @@ void ampsci(const IO::InputBlock &input) {
             << "********************************************************\n";
 
   // Parse input for HF method
-  input_ok &= input.check2(
+  input_ok &= input.check(
       {"HartreeFock"},
-      {{"core", "Core configuration. e.g., [Xe] for Cs"},
-       {"valence", "Which valence states? e.g., 7sp5d"},
-       {"convergence", "HF convergance goal, 1e-12"},
-       {"method", "HartreeFock(default), Hartree, KohnSham"},
-       {"Breit", "Scale for Breit. 0.0 default (no Breit), 1.0 include Breit"},
-       {"sortOutput", "Sort energy tables by energy? (default=false)"}});
+      {{"core", "string. Core configuration. e.g., [Xe] for Cs"},
+       {"valence", "string. Which valence states? e.g., 7sp5d"},
+       {"convergence", "double. HF convergance goal [1.0e-12]"},
+       {"method",
+        "string. HartreeFock, Hartree, KohnSham, or Local [HartreeFock]"},
+       {"Breit", "double. Scale for Breit. 0.0 => no Breit, 1.0 => include "
+                 "Breit. [0.0]"},
+       {"sortOutput", "bool. Sort energy tables by energy? [false]"}});
 
   if (!input_ok) {
     std::cout
@@ -168,23 +192,26 @@ void ampsci(const IO::InputBlock &input) {
   }
 
   // Inlcude QED radiatve potential
-  const auto qed_ok = input.check2(
+  const auto qed_ok = input.check(
       {"RadPot"},
-      {// {"RadPot", "Include Radiative potential? true/false"},
-       // {"Simple", "Scale for 'simple' potential: default = 0"},
-       {"Ueh", " for Uehling typical [0.0, 1.0], Default = 1"},
-       {"SE_h", " for self-energy high-freq electric. Default = 1"},
-       {"SE_l", " for self-energy low-freq electric. Default = 1"},
-       {"SE_m", " self-energy magnetic. Default = 1"},
-       {"WK", " Wickman-Kroll. Default = 0"},
-       {"rcut", "Maximum r to calculate Rad Pot (~5)"},
-       {"scale_rN", "Nuclear size. 0 for pointlike, 1 for typical"},
-       {"scale_l", "Extra scaling factor for each l e.g., (1,1,1)"},
-       {"core_qed", "Include rad pot into core Hartree-Fock (default=true)"}});
-  // const auto include_qed = input.get({"RadPot"}, "RadPot", false);
+      {{"",
+        "QED Radiative potential will be included if this block is present"},
+       {"", "The following 5 are all doubles. Scale to include * potential; "
+            "usually either 0.0 or 1.0, but can take any value:"},
+       {"Ueh", "  Uehling (vacuum pol). [1.0]"},
+       {"SE_h", "  self-energy high-freq electric. [1.0]"},
+       {"SE_l", "  self-energy low-freq electric. [1.0]"},
+       {"SE_m", "  self-energy magnetic. [1.0]"},
+       {"WK", "  Wickman-Kroll. [0.0]"},
+       {"rcut", "double. Maximum radius (au) to calculate Rad Pot for [5.0]"},
+       {"scale_rN",
+        "Scale factor for Nuclear size. 0 for pointlike, 1 for typical [1.0]"},
+       {"scale_l", "List of doubles. Extra scaling factor for each l e.g., "
+                   "(1,0,1) => include for s and d, but not for p [1.0]"},
+       {"core_qed",
+        "bool. Include rad pot into Hartree-Fock core (relaxation) [true]"}});
 
   const auto include_qed = input.getBlock("RadPot") != std::nullopt;
-  // const auto x_Simple = input.get({"RadPot"}, "Simple", 0.0);
   const auto x_Ueh = input.get({"RadPot"}, "Ueh", 1.0);
   const auto x_SEe_h = input.get({"RadPot"}, "SE_h", 1.0);
   const auto x_SEe_l = input.get({"RadPot"}, "SE_l", 1.0);
@@ -204,11 +231,14 @@ void ampsci(const IO::InputBlock &input) {
   // Inlcude extra potential (read in from text file):
   // Note: interpolated onto grid, but NOT extrapolated
   // (zero outside region!)
-  const auto extra_ok =
-      input.check({"ExtraPotential"}, {"filename", "factor", "beforeHF"});
+  const auto extra_ok = input.check(
+      {"ExtraPotential"},
+      {{"filename", ""},
+       {"factor", "potential is scaled by this value [default=1]"},
+       {"beforeHF", "include before HF (into core states). default=false"}});
   const auto ep_fname =
       input.get<std::string>({"ExtraPotential"}, "filename", "");
-  const auto ep_factor = input.get({"ExtraPotential"}, "factor", 0.0);
+  const auto ep_factor = input.get({"ExtraPotential"}, "factor", 1.0);
   const auto ep_beforeHF = input.get({"ExtraPotential"}, "beforeHF", false);
   const auto extra_pot =
       ep_fname != "" && std::abs(ep_factor) > 0.0 && extra_ok;
@@ -237,27 +267,31 @@ void ampsci(const IO::InputBlock &input) {
 
   // Add "extra potential", after HF (only valence)
   if (extra_pot && !ep_beforeHF) {
-    qip::add(&wf.vdir, Vextra);
+    wf.add_to_Vdir(Vextra);
   }
 
   // Adds effective polarision potential to direct
   // potential (After HF core, before HF valence)
-  const auto Vpol_ok = input.check({"dVpol"}, {"a_eff", "r_cut"});
+  const auto Vpol_ok = input.check(
+      {"dVpol"}, {{"a_eff", "scale factor for effective pol. potential [1]"},
+                  {"r_cut", "cut-off parameter [=1]"}});
   const auto a_eff = input.get({"dVpol"}, "a_eff", 0.0);
   if (std::abs(a_eff) > 0.0 && Vpol_ok) {
     const auto r_cut = input.get({"dVpol"}, "r_cut", 1.0);
     const auto a4 = r_cut * r_cut * r_cut * r_cut;
     auto dV = [=](auto x) { return -0.5 * a_eff / (x * x * x * x + a4); };
+    std::vector<double> dv(wf.rgrid->num_points());
     for (auto i = 0u; i < wf.rgrid->num_points(); ++i) {
-      wf.vdir[i] += dV(wf.rgrid->r()[i]);
+      dv[i] = dV(wf.rgrid->r()[i]);
     }
+    wf.add_to_Vdir(dv);
   }
 
   // Solve for the valence states:
   const auto valence_list =
-      (wf.Ncore() < wf.Znuc() || HF_method == "KohnSham")
-          ? input.get<std::string>({"HartreeFock"}, "valence", "")
-          : "";
+      (wf.Ncore() < wf.Znuc() || HF_method == "KohnSham") ?
+          input.get<std::string>({"HartreeFock"}, "valence", "") :
+          "";
   if (valence_list != "") {
     // 'if' is only for output format, nothing bad
     // happens if below are called
@@ -272,16 +306,18 @@ void ampsci(const IO::InputBlock &input) {
   wf.printValence(sorted);
 
   // Construct B-spline basis:
-  const auto basis_ok = input.check2(
-      {"Basis"}, {{"number", "Number of splines used in expansion"},
-                  {"order", "order of splines ~7-9"},
-                  {"r0", "minimum cavity radius"},
-                  {"r0_eps", "Select cavity radius r0 for each l by position "
-                             "where |psi(r0)/psi_max| falls below r0_eps"},
-                  {"rmax", "maximum cavity radius"},
-                  {"states", "states to keep (e.g., 30spdf20ghi)"},
-                  {"print", "Print all spline energies (for testing)"},
-                  {"positron", "Include -ve energy states (true/false)"}});
+  const auto basis_ok = input.check(
+      {"Basis"},
+      {{"number", "int. Number of splines used in expansion [0]"},
+       {"order", "int. order of splines ~7-9 [7]"},
+       {"r0", "double. minimum cavity radius (first internal knot) [0.0]"},
+       {"r0_eps", "double. Select cavity radius r0 for each l by position "
+                  "where |psi(r0)/psi_max| falls below r0_eps [0.0]"},
+       {"rmax", "double. maximum cavity radius [Grid{rmax}]"},
+       {"states", "string. states to keep (e.g., 30spdf20ghi)"},
+       {"print", "bool. Print all spline energies (for testing) [false]"},
+       {"positron", "bool. Include -ve energy states [false]]"},
+       {"type", "string. Derevianko (DKB) or Johnson [Derevianko]"}});
   if (basis_ok) {
     const auto basis_in = input.getBlock("Basis");
     if (basis_in)
@@ -293,29 +329,34 @@ void ampsci(const IO::InputBlock &input) {
   }
 
   // Correlations: read in options
-  const auto Sigma_ok = input.check({"Correlations"}, {"Brueckner",
-                                                       "energyShifts",
-                                                       "n_min_core",
-                                                       "fitTo_cm",
-                                                       "lambda_kappa",
-                                                       "fk",
-                                                       "read",
-                                                       "write",
-                                                       "rmin",
-                                                       "rmax",
-                                                       "stride",
-                                                       "each_valence",
-                                                       "ek",
-                                                       "ektest",
-                                                       "Feynman",
-                                                       "screening",
-                                                       "holeParticle",
-                                                       "lmax",
-                                                       "basis_for_Green",
-                                                       "basis_for_pol",
-                                                       "real_omega",
-                                                       "imag_omega",
-                                                       "include_G"});
+  const auto Sigma_ok = input.check(
+      {"Correlations"},
+      {{"Brueckner", "Form Brueckner orbitals [false]"},
+       {"energyShifts", "Calculate MBPT2 shift [false]"},
+       {"n_min_core", "Minimum core n to polarise [1]"},
+       {"fitTo_cm", "List of binding energies (in cm^-1) to scale Sigma for. "
+                    "Must be in same order as valence states"},
+       {"lambda_kappa",
+        "Scaling factors for Sigma. Must be in same order as valence states"},
+       {"read", "Filename to read in Sigma [false=don't read]"},
+       {"write", "Filename to write Sigma to [false=don't write]"},
+       {"rmin", "minimum radius to calculate sigma for [1.0e-4]"},
+       {"rmax", "maximum radius to calculate sigma for [30.0]"},
+       {"stride", "Only calculate Sigma every <stride> points"},
+       {"each_valence", "Different Sigma for each valence states? [false]"},
+       {"ek",
+        "Block: Explicit list of energies to solve for. e.g., ek{6s+=-0.127, "
+        "7s+=-0.552;}. Blank => HF energies"},
+       {"Feynman", "Use Feynman method [false]"},
+       {"fk", "List. Screening factors for effective all-order exchange"},
+       {"screening", "Include Screening [false]"},
+       {"holeParticle", "Include hole-particle interaction [false]"},
+       {"lmax", "Maximum l used for Feynman method [6]"},
+       {"basis_for_Green", "Use basis for Feynman Greens function [false]"},
+       {"basis_for_pol", "Use basis for Feynman polarisation op [false]"},
+       {"real_omega", "[worked out by default]"},
+       {"imag_omega", "w0, wratio for Im(w) grid [0.01, 1.5]"},
+       {"include_G", "Inlcude lower g-part into Sigma [false]"}});
   const bool do_energyShifts =
       input.get({"Correlations"}, "energyShifts", false);
   const bool do_brueckner = input.get({"Correlations"}, "Brueckner", false);
@@ -412,8 +453,18 @@ void ampsci(const IO::InputBlock &input) {
 
   // Construct B-spline Spectrum:
   const auto spectrum_ok =
-      input.check({"Spectrum"}, {"number", "order", "r0", "r0_eps", "rmax",
-                                 "states", "print", "positron"});
+      input.check({"Spectrum"},
+                  {{"number", "Number of splines used in expansion"},
+                   {"order", "order of splines ~7-9"},
+                   {"r0", "minimum cavity radius"},
+                   {"r0_eps", "Select cavity radius r0 for each l by position "
+                              "where |psi(r0)/psi_max| falls below r0_eps"},
+                   {"rmax", "maximum cavity radius"},
+                   {"states", "states to keep (e.g., 30spdf20ghi)"},
+                   {"print", "Print all spline energies (for testing)"},
+                   {"positron", "Include -ve energy states (true/false)"},
+                   {"type", "Derevianko (DKB) or Johnson"}});
+
   const auto spectrum_in = input.getBlock("Spectrum");
   if (spectrum_ok) {
     if (spectrum_in)
@@ -425,13 +476,7 @@ void ampsci(const IO::InputBlock &input) {
   }
 
   // run each of the modules with the calculated wavefunctions
-  IO::InputBlock modules("Modules");
-  for (const auto &block : input.blocks()) {
-    if (block.name().find("Module::") != std::string::npos) {
-      modules.add(block);
-    }
-  }
-  Module::runModules(modules, wf);
+  Module::runModules(input, wf);
 }
 
 //******************************************************************************

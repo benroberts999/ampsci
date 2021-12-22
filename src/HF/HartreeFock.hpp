@@ -154,6 +154,11 @@ public:
   // not core, for testing)
   void update_Vrad(const QED::RadPot *const in_vrad) { p_vrad = in_vrad; }
 
+  //! If we need to add extra potential to V_dir (for testing only).
+  //! Note: This is a hack fix, since we have 2 copies of Vdir (one here, one in
+  //! wf) - FIX THIS!
+  void update_Vdir(const std::vector<double> &in_vdir) { m_vdir = in_vdir; }
+
 public:
   bool verbose = true; // update to input??
   std::shared_ptr<const Grid> rgrid;

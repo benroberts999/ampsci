@@ -232,6 +232,14 @@ public: // const methods: "views" into WF object
   //! energy guess for a valence state with n,l
   double enGuessVal(int n, int ka) const;
 
+  void add_to_Vdir(const std::vector<double> &dv) { //
+    /// XXX Fix: two versions of Vdir...
+    qip::add(&vdir, dv);
+    if (m_pHF) {
+      m_pHF->update_Vdir(vdir);
+    }
+  }
+
   //! (approximately) OrthoNormalises a set of any orbitals.
   //! @details Note: only updates orbs, not energies
   static void orthonormaliseOrbitals(std::vector<DiracSpinor> &in_orbs,
@@ -257,6 +265,8 @@ public: // const methods: "views" into WF object
 
   //! Returns <a|H|b> for Hamiltonian H (inludes Rad.pot, NOT sigma or Breit)
   double Hab(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
+  double Hab(const DiracSpinor &Fa, const DiracSpinor &dFa,
+             const DiracSpinor &Fb, const DiracSpinor &dFb) const;
 
 private:
   void determineCore(const std::string &str_core_in);
