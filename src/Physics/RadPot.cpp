@@ -182,4 +182,4 @@ std::vector<double> RadPot::Vh(int l) const {
   return xl * a * m_f.h * mVh;
 }
 
-}; // namespace QED
+} // namespace QED

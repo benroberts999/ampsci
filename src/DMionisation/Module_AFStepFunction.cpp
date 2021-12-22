@@ -5,6 +5,7 @@
 #include "IO/InputBlock.hpp"
 #include "Maths/Grid.hpp"
 #include "Physics/PhysConst_constants.hpp"
+#include "Physics/UnitConv_conversions.hpp"
 #include "Wavefunction/ContinuumOrbitals.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include <iostream>
@@ -17,80 +18,51 @@ namespace Module {
 void AFStepFunction(const IO::InputBlock &input, const Wavefunction &wf) {
   IO::ChronoTimer timer; // start the overall timer
 
-  input.checkBlock({"Emin", "Emax", "Esteps", "qmin", "qmax", "qsteps",
-                    "max_l_bound", "table_label", "output_label", "output_text",
-                    "output_binary", "dme_coupling"});
+  input.checkBlock(
+      {{"Emin", "[keV] minimum energy transfer (dE) ~0.1"},
+       {"Emax", "[keV] maximum dE"},
+       {"Esteps", "numer of steps along dE grid (logarithmic grid)"},
+       {"qmin", "[MeV] minimum momentum transfer (q) ~0.01"},
+       {"qmax", "[MeV] maximum q"},
+       {"qsteps", "number of steps along q grid (logarithmic grid)"},
+       {"max_l_bound",
+        "Max. orbital ang. mom. for bound states to include (only for tests)"},
+       {"table_label", "label for atomic factor table"},
+       {"output_label", "label for output files"},
+       {"output_text", "true/false (output K(dE,q) to .txt)"},
+       {"output_binary", "true/false (output K(dE,q) to .bin)"}});
 
-  auto demin = input.get<double>("Emin", 1.0);
-  auto demax = input.get<double>("Emax", 1.0);
-  auto desteps = input.get<int>("Esteps", 1.0);
-
-  auto qmin = input.get<double>("qmin", 1.0);
-  auto qmax = input.get<double>("qmax", 1.0);
-  auto qsteps = input.get<int>("qsteps", 1.0);
-
-  // allow for single-step in dE or q grid
-  if (desteps == 1)
-    demax = demin;
-  if (qsteps == 1)
-    qmax = qmin;
+  // Read input: q and dE grids:
+  const auto demin_kev = input.get<double>("Emin", 0.1);
+  const auto demax_kev = input.get<double>("Emax", demin_kev);
+  auto desteps = input.get<std::size_t>("Esteps", 1);
+  const auto qmin_Mev = input.get<double>("qmin", 0.01);
+  const auto qmax_Mev = input.get<double>("qmax", qmin_Mev);
+  auto qsteps = input.get<std::size_t>("qsteps", 1);
 
   // Convert units for input q and dE range into atomic units
-  double keV = (1.0e3 / PhysConst::Hartree_eV);
-  demin *= keV;
-  demax *= keV;
-  double qMeV = (1.0e6 / (PhysConst::Hartree_eV * PhysConst::c));
-  qmin *= qMeV;
-  qmax *= qMeV;
+  auto demin = demin_kev * UnitConv::Energy_keV_to_au;
+  auto demax = (desteps == 1) ? demin : demax_kev * UnitConv::Energy_keV_to_au;
+  auto qmin = qmin_Mev * UnitConv::Momentum_MeV_to_au;
+  auto qmax = (qsteps == 1) ? qmin : qmax_Mev * UnitConv::Momentum_MeV_to_au;
 
   // Set up the E and q grids
-  // Grid Egrid(demin, demax, desteps, GridType::logarithmic);
-  // Grid qgrid(qmin, qmax, qsteps, GridType::logarithmic);
+  const Grid Egrid({desteps, demin, demax, 0, GridType::logarithmic});
+  const Grid qgrid({qsteps, qmin, qmax, 0, GridType::logarithmic});
 
-  // GridParameters(std::size_t innum_points, double inr0, double inrmax,
-  //                double inb = 4.0, GridType intype = GridType::loglinear,
-  //                double indu = 0);
-
-  Grid Egrid({(std::size_t)desteps, demin, demax, 0, GridType::logarithmic});
-  Grid qgrid({(std::size_t)qsteps, qmin, qmax, 0, GridType::logarithmic});
-
-  auto max_l_core = wf.maxCore_l();
+  const auto max_l_core = wf.maxCore_l();
   auto max_l = input.get<int>("max_l_bound", max_l_core);
   if (max_l < 0 || max_l > max_l_core)
     max_l = max_l_core;
-  // auto max_L = input.get<int>("max_L", 2 * max_l); // random default..
 
   auto table_label = input.get<std::string>("table_label", "");
   auto output_label = input.get<std::string>("output_label", "");
-
-  std::string dme_coupling = input.get<std::string>("dme_coupling", "Vector");
-
-  // bool plane_wave = input.get<bool>("use_plane_waves", false);
-  // if (plane_wave)
-  //   max_L = max_l; // for spherical bessel.
-
-  // auto label = input.get<std::string>("label", "");
 
   // output format
   auto text_out = input.get<bool>("output_text", false);
   auto bin_out = input.get<bool>("output_binary", false);
   if (!text_out && !bin_out)
     bin_out = true; // print message?
-
-  // DM-electron couplings
-  std::vector<std::string> dmec_opt = {"Vector", "Scalar", "Pseudovector",
-                                       "Pseudoscalar"};
-  // std::string dme_coupling = input.get<std::string>("dme_coupling", dmec[0]);
-  std::string dmec = input.get<std::string>("dme_coupling", "Vector");
-  int dmec_check = 0;
-  for (const auto &option : dmec_opt) {
-    dmec_check += (dmec == option) ? 1 : 0;
-  }
-  if (dmec_check == 0) {
-    std::cerr << "\nWARNING: dm-electron coupling '" << dmec
-              << "' unknown, defaulting to Vector\n";
-    dmec = "Vector";
-  }
 
   // Make sure h (large-r step size) is small enough to
   // calculate (normalise) cntm functions with energy = demax
@@ -115,18 +87,13 @@ void AFStepFunction(const IO::InputBlock &input, const Wavefunction &wf) {
     fname += "_" + output_label;
 
   // Print some info to screen:
-  std::cout << "\nRunning Atomic Kernal for " << wf.atom() << "\n";
+  std::cout << "\nRunning Step Function Approximated Atomic Kernal for "
+            << wf.atom() << "\n";
   std::cout << "*************************************************\n";
-  // std::cout << "Radial " << wf.rgrid->gridParameters() << "\n\n";
 
   // Output HF results:
   std::cout << "  state   k     En (au)    En (eV)   Oc.Frac.\n";
   for (const auto &phi : wf.core) {
-    // double rinf = wf.rinf(phi);
-    // printf("%2i)%7s %2i  %3.0f %3i  %5.0e  %11.5f %12.0f %10.2f   (%.2f)\n",
-    //        i++, phi.symbol().c_str(), phi.k, rinf, phi.its(), phi.eps(),
-    //        phi.en(), phi.en() * PhysConst::Hartree_invcm, phi.en() *
-    //        PhysConst::Hartree_eV, phi.occ_frac());
     printf(" %7s %2i %11.5f %10.2f   [%3.2f]", phi.symbol().c_str(), phi.k,
            phi.en(), phi.en() * PhysConst::Hartree_eV, phi.occ_frac());
     if (phi.l() > max_l)
@@ -139,9 +106,8 @@ void AFStepFunction(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Arrays to store results for outputting later:
   std::vector<std::vector<std::vector<float>>> AK; // float ok?
-  int num_states = (int)wf.core.size();
-  AK.resize(desteps, std::vector<std::vector<float>>(
-                         num_states, std::vector<float>(qsteps)));
+  const auto num_states = wf.core.size();
+  AK.resize(desteps, std::vector<std::vector<float>>(num_states));
 
   // Arrays to store input K table
   std::vector<std::vector<std::vector<float>>> AFBE_table;
@@ -150,6 +116,8 @@ void AFStepFunction(const IO::InputBlock &input, const Wavefunction &wf) {
 
   std::vector<std::string> nklst;
   nklst.reserve(wf.core.size());
+  for (auto &phi : wf.core)
+    nklst.emplace_back(phi.symbol(true));
 
   std::vector<double> eabove;
   eabove.reserve(wf.core.size());
@@ -167,32 +135,36 @@ void AFStepFunction(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Calculate the AK (print to screen)
   std::cout << "\nCalculating atomic kernal AK(q,dE):\n";
-  printf(" dE: %5.2f -- %5.1f keV  (%.2f -- %.1f au)  [N=%i]\n", demin / keV,
-         demax / keV, demin, demax, desteps);
-  printf("  q: %5.0e -- %5.1g MeV  (%.2f -- %.1f au)  [N=%i]\n", qmin / qMeV,
-         qmax / qMeV, qmin, qmax, qsteps);
+  printf(" dE: %5.2f -- %5.1f keV  (%.2f -- %.1f au)  [N=%i]\n",
+         demin * UnitConv::Energy_au_to_keV, demax * UnitConv::Energy_au_to_keV,
+         demin, demax, (int)desteps);
+  printf("  q: %5.0e -- %5.1g MeV  (%.2f -- %.1f au)  [N=%i]\n",
+         qmin * UnitConv::Momentum_au_to_MeV,
+         qmax * UnitConv::Momentum_au_to_MeV, qmin, qmax, (int)qsteps);
 
   // Calculate K(q,E)
   timer.start();
   std::cout << "Running dE loops (" << desteps << ")..\n" << std::flush;
 #pragma omp parallel for
-  for (int ide = 0; ide < desteps; ide++) {
+  for (std::size_t ide = 0; ide < desteps; ide++) {
     double dE = Egrid.r()[ide];
     // Loop over core (bound) states:
-    // for (auto is : wf.stateIndexList) {
     for (std::size_t is = 0; is < wf.core.size(); is++) {
-      int l = wf.core[is].l(); // lorb(is);
-      if (l > max_l)
+      const auto &psi = wf.core[is];
+      const auto l = std::size_t(psi.l());
+      if ((int)l > max_l)
         continue;
-      AKF::stepK_nk(wf.core[is], dE, AFBE_table[0][is], AK[ide][is]);
+      AK[ide][is] = AKF::stepK_nk(psi, dE, AFBE_table[0][is]);
     } // END loop over bound states
   }
   std::cout << "..done :)\n";
   std::cout << "Time for AK: " << timer.lap_reading_str() << "\n";
 
   // Write out to text file (in gnuplot friendly form)
-  if (text_out)
-    AKF::writeToTextFile(fname, AK, nklst, qmin, qmax, demin, demax);
+  if (text_out) {
+    AKF::write_Knk_plaintext(fname, AK, nklst, qgrid, Egrid);
+    AKF::write_Ktot_plaintext(fname, AK, qgrid, Egrid);
+  }
   // //Write out AK as binary file
   if (bin_out)
     AKF::akReadWrite(fname, true, AK, nklst, qmin, qmax, demin, demax);
