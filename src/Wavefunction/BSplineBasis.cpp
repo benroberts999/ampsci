@@ -140,6 +140,7 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
     if (orbs->empty())
       continue;
 
+    std::string wrong_sign_list = "";
     std::cout << "Basis/" << (orbs == &wf.core ? "core" : "valence") << ":\n";
     double worst_dN = 0.0;
     double worst_dE = 0.0;
@@ -149,7 +150,12 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
       auto pFbc = std::find(basis.cbegin(), basis.cend(), Fc);
       if (pFbc == basis.cend())
         continue;
-      const auto dN = std::abs(Fc * (*pFbc) - 1.0);
+      const auto FcFb = Fc * (*pFbc);
+      if (Fc == *pFbc && FcFb < 0.0) {
+        // basis state has wrong sign!
+        wrong_sign_list += Fc.shortSymbol() + ",";
+      }
+      const auto dN = std::abs(std::abs(FcFb) - 1.0);
       const auto dE = std::abs((pFbc->en() - Fc.en()) / pFbc->en());
       if (dN > worst_dN) {
         worst_dN = dN;
@@ -175,6 +181,10 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
       std::cout << "  ** OK?";
     }
     std::cout << "\n";
+    if (wrong_sign_list != "") {
+      std::cout << "Warning: Some basis states have opposite sign (e.g.): "
+                << wrong_sign_list << "\n";
+    }
   }
 
   return basis;
@@ -212,8 +222,14 @@ form_spline_basis(const int kappa, const std::size_t n_states,
   basis.resize(2 * n_states, {0, kappa, rgrid});
   d_basis.resize(2 * n_states, {0, kappa, rgrid});
 
+  double r00 = 0.9 * r0_spl;
+  // double r00 = std::min(0.1 * r0_spl, 1.1 * rgrid->r(0));
+  r00 = std::exp(0.5 * (std::log(r0_spl) + std::log(rgrid->r(0))));
+
   for (auto ir = 0ul; ir < rgrid->num_points(); ++ir) {
     const auto r = rgrid->r(ir);
+    if (r < r00)
+      continue;
     auto [i0, bij] = bspl.get_nonzero(r, 2);
     for (auto i = 0ul; i < bspl.K(); ++i) {
 

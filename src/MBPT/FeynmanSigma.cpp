@@ -599,7 +599,7 @@ works better for k=0 (and k>=5 ?)
     Vx += calculate_Vhp(*Fc_hp);
   }
 
-  const std::complex<double> one{1.0, 0.0}; // to convert real to complex
+  // const std::complex<double> one{1.0, 0.0}; // to convert real to complex
 
   // Include exchange, and imaginary energy part:
 
@@ -890,7 +890,7 @@ GMatrix FeynmanSigma::FeynmanEx_w1w2(int kv, double en_r) const {
   // Set up imaginary frequency grid:
   const double omre = m_omre;
   const auto &wgrid = *m_wgridD;
-  const std::complex<double> I{0.0, 1.0};
+  // const std::complex<double> I{0.0, 1.0};
   const std::complex<double> en{en_r, 0.0};
   const auto tjvp1 = Angular::twoj_k(kv) + 1;
 
