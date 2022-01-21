@@ -34,7 +34,8 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
        {"force_rescale", " "},
        {"subtract_self", " "},
        {"force_orthog", " "},
-       {"dme_coupling", " "}});
+       {"dme_coupling", " "},
+       {"use_Zeff_cont", "use Zeff model for continuum states"}});
 
   // Read input: q and dE grids:
   const auto demin_kev = input.get<double>("Emin", 0.1);
@@ -79,6 +80,8 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto force_rescale = input.get<bool>("force_rescale", false);
   const auto subtract_self = input.get<bool>("subtract_self", false);
   const auto force_orthog = input.get<bool>("force_orthog", false);
+
+  const auto zeff_cont = input.get<bool>("use_Zeff_cont", false);
 
   // DM-electron couplings
   std::vector<std::string> dmec_opt = {"Vector", "Scalar", "Pseudovector",
@@ -175,7 +178,7 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
       else
         AK[ide][is] = AKF::calculateK_nk(wf, psi, max_L, dE, jLqr_f, alt_akf,
                                          force_rescale, subtract_self,
-                                         force_orthog, dmec);
+                                         force_orthog, dmec, zeff_cont);
     } // END loop over bound states
   }
   std::cout << "..done :)\n";

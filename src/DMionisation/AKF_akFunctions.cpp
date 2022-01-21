@@ -89,7 +89,7 @@ calculateK_nk(const Wavefunction &wf, const DiracSpinor &psi, int max_L,
               double dE,
               const std::vector<std::vector<std::vector<double>>> &jLqr_f,
               bool alt_akf, bool force_rescale, bool subtract_self,
-              bool force_orthog, std::string dmec, double)
+              bool force_orthog, std::string dmec, bool zeff_cont)
 // Calculates the atomic factor for a given core state (is) and energy.
 // Note: dE = I + ec is depositied energy, not cntm energy
 // Zeff is '-1' by default. If Zeff > 0, will solve w/ Zeff model
@@ -109,8 +109,13 @@ calculateK_nk(const Wavefunction &wf, const DiracSpinor &psi, int max_L,
   int lc_max = l + max_L;
   int lc_min = std::max(l - max_L, 0);
   if (ec > 0) {
-    cntm.solveContinuumHF(ec, lc_min, lc_max, force_rescale, subtract_self,
-                          force_orthog, &psi);
+    if (zeff_cont) {
+      cntm.solveContinuumZeff(ec, lc_min, lc_max, psi.en(), (double)psi.n,
+                              force_orthog);
+    } else {
+      cntm.solveContinuumHF(ec, lc_min, lc_max, force_rescale, subtract_self,
+                            force_orthog, &psi);
+    }
   }
 
   const double x_ocf = psi.occ_frac(); // occupancy fraction. Usually 1
@@ -307,7 +312,7 @@ void write_Ktot_plaintext(
 void writeToTextFile_AFBE(
     const std::string &fname,
     const std::vector<std::vector<std::vector<float>>> &AK,
-    const std::vector<std::string> &nklst, double qmin, double qmax,
+    const std::vector<std::string> &nklst, const Grid &qgrid,
     const std::vector<double> deion)
 // /*
 // Writes the K factor to a text-file, in GNU-plot readable format
@@ -316,11 +321,11 @@ void writeToTextFile_AFBE(
 // */
 {
   // int desteps = (int)AK.size();       // dE
-  int num_states = (int)AK[0].size(); // nk
-  int qsteps = (int)AK[0][0].size();  // q
+  const auto num_states = AK[0].size(); // nk
+  const auto qsteps = AK[0][0].size();  // q
 
-  double qMeV = (1.e6 / (PhysConst::Hartree_eV * PhysConst::c));
-  double keV = (1.e3 / PhysConst::Hartree_eV);
+  const double qMeV = (1.e6 / (PhysConst::Hartree_eV * PhysConst::c));
+  const double keV = (1.e3 / PhysConst::Hartree_eV);
 
   std::ofstream ofile;
   ofile.open(fname + ".txt");
@@ -329,16 +334,13 @@ void writeToTextFile_AFBE(
     ofile << "dE(keV) " << nk << " ";
   }
   ofile << "Sum\n\n";
-  for (int k = 0; k < qsteps; k++) {
-    double x = double(k) / (qsteps - 1);
-    if (qsteps == 1)
-      x = 0;
-    double q = qmin * std::pow(qmax / qmin, x);
+  for (auto iq = 0ul; iq < qsteps; iq++) {
+    const auto q = qgrid.r(iq);
     ofile << q / qMeV << " ";
     float sum = 0.0f;
-    for (int j = 0; j < num_states; j++) {
-      sum += AK[0][j][k];
-      ofile << deion[j] / keV << " " << AK[0][j][k] << " ";
+    for (auto j = 0ul; j < num_states; j++) {
+      sum += AK[0][j][iq];
+      ofile << deion[j] / keV << " " << AK[0][j][iq] << " ";
     }
     ofile << sum << "\n";
   }
@@ -426,12 +428,12 @@ int akReadWrite_AFBE(const std::string &fname, bool write,
   }
 
   if (write) {
-    int ns = (int)AK[0].size();    // nk
-    int nq = (int)AK[0][0].size(); // q
+    auto ns = AK[0].size();    // nk
+    auto nq = AK[0][0].size(); // q
     IO::FRW::binary_rw(iof, ns, row);
     IO::FRW::binary_rw(iof, nq, row);
   } else {
-    int nq, ns;
+    std::size_t nq, ns;
     IO::FRW::binary_rw(iof, ns, row);
     IO::FRW::binary_rw(iof, nq, row);
     AK.resize(1, std::vector<std::vector<float>>(ns, std::vector<float>(nq)));

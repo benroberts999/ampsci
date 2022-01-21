@@ -34,7 +34,8 @@ void AFBindingEnergy(const IO::InputBlock &input, const Wavefunction &wf) {
        {"force_orthog", " "},
        {"dme_coupling", " "},
        {"Etune_mult", " "},
-       {"Etune_add", " "}});
+       {"Etune_add", " "},
+       {"use_Zeff_cont", "use Zeff model for continuum states"}});
 
   const auto qmin_Mev = input.get<double>("qmin", 0.01);
   const auto qmax_Mev = input.get<double>("qmax", qmin_Mev);
@@ -44,7 +45,7 @@ void AFBindingEnergy(const IO::InputBlock &input, const Wavefunction &wf) {
   auto qmin = qmin_Mev * UnitConv::Momentum_MeV_to_au;
   auto qmax = (qsteps == 1) ? qmin : qmax_Mev * UnitConv::Momentum_MeV_to_au;
 
-  int desteps = 1;
+  std::size_t desteps = 1;
 
   const Grid qgrid({qsteps, qmin, qmax, 0, GridType::logarithmic});
 
@@ -64,6 +65,8 @@ void AFBindingEnergy(const IO::InputBlock &input, const Wavefunction &wf) {
   auto force_rescale = input.get<bool>("force_rescale", false);
   auto subtract_self = input.get<bool>("subtract_self", false);
   auto force_orthog = input.get<bool>("force_orthog", false);
+
+  auto zeff_cont = input.get<bool>("use_Zeff_cont", false);
 
   auto label = input.get<std::string>("label", "");
 
@@ -119,8 +122,8 @@ void AFBindingEnergy(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // pre-calculate the spherical Bessel function look-up table for efficiency
   timer.start();
-  std::vector<std::vector<std::vector<double>>> jLqr_f;
-  AKF::sphericalBesselTable(max_L, qgrid.r(), wf.rgrid->r());
+  const auto jLqr_f =
+      AKF::sphericalBesselTable(max_L, qgrid.r(), wf.rgrid->r());
   std::cout << "Time for SB table: " << timer.lap_reading_str() << "\n";
 
   // Calculate the AK (print to screen)
@@ -144,15 +147,15 @@ void AFBindingEnergy(const IO::InputBlock &input, const Wavefunction &wf) {
     if (plane_wave)
       AK[0][is] = AKF::calculateKpw_nk(wf, wf.core[is], dE, jLqr_f[l]);
     else
-      AK[0][is] =
-          AKF::calculateK_nk(wf, wf.core[is], max_L, dE, jLqr_f, alt_akf,
-                             force_rescale, subtract_self, force_orthog, dmec);
+      AK[0][is] = AKF::calculateK_nk(wf, wf.core[is], max_L, dE, jLqr_f,
+                                     alt_akf, force_rescale, subtract_self,
+                                     force_orthog, dmec, zeff_cont);
   } // END loop over bound states
   std::cout << "..done :)\n";
   std::cout << "Time for AFBE: " << timer.lap_reading_str() << "\n";
 
   // Write out to text file (in gnuplot friendly form)
-  AKF::writeToTextFile_AFBE(fname_table, AK, nklst, qmin, qmax, eabove);
+  AKF::writeToTextFile_AFBE(fname_table, AK, nklst, qgrid, eabove);
   AKF::akReadWrite_AFBE(fname_table, true, AK, nklst, qmin, qmax, eabove);
   std::cout << "Written to: " << fname_table << ".txt, and .bin";
 

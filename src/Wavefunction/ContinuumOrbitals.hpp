@@ -27,6 +27,9 @@ public:
                        bool subtract_self, bool force_orthog,
                        const DiracSpinor *psi = nullptr);
 
+  int solveContinuumZeff(double ec, int min_l, int max_l, double e_core,
+                         double n_core, bool force_orthog);
+
   double check_orthog(bool print = true) const;
 
   //! Resets (deletes) all orbitals

@@ -16,7 +16,7 @@ double Heaviside(double x);
 void writeToTextFile_AFBE(
     const std::string &fname,
     const std::vector<std::vector<std::vector<float>>> &AK,
-    const std::vector<std::string> &nklst, double qmin, double qmax,
+    const std::vector<std::string> &nklst, const Grid &qgrid,
     const std::vector<double> deion);
 
 /*! Writes K(dE,q) to text file (each core state sepparately)
@@ -57,7 +57,7 @@ calculateK_nk(const Wavefunction &wf, const DiracSpinor &psi, int max_L,
               double dE,
               const std::vector<std::vector<std::vector<double>>> &jLqr_f,
               bool alt_akf, bool force_rescale, bool subtract_self,
-              bool force_orthog, std::string dmec, double Zeff = -1);
+              bool force_orthog, std::string dmec, bool zeff_cont);
 
 std::vector<float> stepK_nk(const DiracSpinor &psi, double dE,
                             const std::vector<float> &AFBE_table);

@@ -100,7 +100,8 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
     // if (subtract_self) {
     std::vector<double> vd_single = Coulomb::yk_ab(*p_psi, *p_psi, 0);
     // v_local = qip::add(v_local, qip::scale(vd_single, -1.0));
-    v_local = qip::compose(std::minus{}, v_local, vd_single);
+    vc = qip::compose(std::minus{}, vc, vd_single);
+    std::cout << "Subtracting self-interaction..." << std::endl;
   }
 
   // "Z_ion" - "actual" (excluding exchange.....)
@@ -192,6 +193,82 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
     // Wavefunction::orthogonaliseWrt(Fc, Fn);
 
   } // kappa
+
+  return 0;
+}
+
+//******************************************************************************
+int ContinuumOrbitals::solveContinuumZeff(double ec, int min_l, int max_l,
+                                          double e_core, double n_core,
+                                          bool force_orthog)
+// Solves Dirac equation for H-like potential (Zeff model)
+// Same Zeff as used by DarkARC (eqn B35 of arxiv:1912.08204):
+// Zeff = sqrt{I_{njl} eV / 13.6 eV} * n
+// au: Zeff = sqrt{2 * I_{njl}} * n
+{
+
+  // Find 'inital guess' for asymptotic region:
+  const double lam = 1.0e6;
+  const double r_asym =
+      (Zion + std::sqrt(4.0 * lam * ec + std::pow(Zion, 2))) / (2.0 * ec);
+
+  // Check if 'h' is small enough for oscillating region:
+  const double h_target = (M_PI / 15) / std::sqrt(2.0 * ec);
+  const auto h = rgrid->du();
+  if (h > h_target) {
+    std::cout << "WARNING 61 CntOrb: Grid not dense enough for ec=" << ec
+              << " (du=" << h << ", need du<" << h_target << ")\n";
+    if (h > 2 * h_target) {
+      std::cout << "FAILURE 64 CntOrb: Grid not dense enough for ec=" << ec
+                << " (du=" << h << ", need du<" << h_target << ")\n";
+      return 1;
+    }
+  }
+
+  // nb: Don't need to extend grid each time... but want thread-safe
+  auto cgrid = *rgrid;
+  cgrid.extend_to(1.1 * r_asym);
+
+  const double Zeff = std::sqrt(-2.0 * e_core) * n_core;
+  std::cout << "Zeff = " << Zeff << " (n = " << n_core << ", e = " << e_core
+            << ")" << std::endl;
+
+  std::vector<double> vc;
+  vc.resize(cgrid.num_points());
+  for (auto i = 0ul; i < cgrid.num_points(); i++) {
+    vc[i] = -Zeff / cgrid.r(i);
+  }
+
+  // loop through each kappa state
+  for (int k_i = 0; true; ++k_i) {
+    const auto kappa = AtomData::kappaFromIndex(k_i);
+    const auto l = AtomData::l_k(kappa);
+    if (l < min_l)
+      continue;
+    if (l > max_l)
+      break;
+
+    auto &Fc = orbitals.emplace_back(0, kappa, rgrid);
+    Fc.set_en() = ec;
+    // solve initial, without exchange term
+    DiracODE::solveContinuum(Fc, ec, vc, cgrid, r_asym, alpha);
+
+    // Forcing orthogonality between continuum and core states
+    if (force_orthog) {
+      for (const auto &Fn : p_hf->get_core()) {
+        if (Fc.k == Fn.k) {
+          std::cout << "Before forcing orthog: <" << Fc.shortSymbol() << "|"
+                    << Fn.shortSymbol() << "> = ";
+          printf("%.1e\n", Fc * Fn);
+          Fc -= (Fn * Fc) * Fn;
+          std::cout << "After: <" << Fc.shortSymbol() << "|" << Fn.shortSymbol()
+                    << "> = ";
+          printf("%.1e\n", Fc * Fn);
+          std::cout << std::endl;
+        } // if
+      }   // loop through core
+    }     // if
+  }
 
   return 0;
 }
