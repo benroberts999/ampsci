@@ -29,9 +29,7 @@ Grid {
   num_points = 2000;
 }
 
-// RadPot {
-//   RadPot = false;
-// }
+// RadPot { }
 //
 // Basis {
 //   number = 40;

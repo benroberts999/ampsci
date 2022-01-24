@@ -423,7 +423,7 @@ Module::Tests {
   orthonormal_all; //[b] Print all <a|b>'s. default = false
   Hamiltonian;     //[b] check eigenvalues of Hamiltonian. default = false
   boundaries;      //[b] check f(rmax)/fmax. default = false
-  basisTests;        //[b] Tests basis by evaluating sum rules + HFS/Energies
+  basis;           //[b] Tests basis by evaluating sum rules + HFS/Energies
 }
 ```
 * Various tests of numerical errors:

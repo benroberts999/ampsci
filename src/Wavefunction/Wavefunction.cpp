@@ -927,18 +927,19 @@ double Wavefunction::Hab(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
 
   const auto &Hmag = get_Hmag(Fa.l());
 
-  const auto V_mag =
+  const auto H_mag =
       Hmag.empty() ?
           0.0 :
           NumCalc::integrate(1.0, min, max, Fa.f(), Fb.g(), Hmag, drdu) +
               NumCalc::integrate(1.0, min, max, Fa.g(), Fb.f(), Hmag, drdu);
   const auto c = 1.0 / alpha;
 
-  return (Vab - c * (D1m2 + 2.0 * c * Sab + V_mag)) * Fa.rgrid->du();
+  return (Vab - H_mag - c * (D1m2 + 2.0 * c * Sab)) * Fa.rgrid->du();
 }
 
 double Wavefunction::Hab(const DiracSpinor &Fa, const DiracSpinor &dFa,
                          const DiracSpinor &Fb, const DiracSpinor &dFb) const {
+  // as above, but for when derivatives are already known
   if (Fa.k != Fb.k)
     return 0.0;
   const auto kappa = Fa.k;
@@ -966,12 +967,12 @@ double Wavefunction::Hab(const DiracSpinor &Fa, const DiracSpinor &dFa,
 
   const auto &Hmag = get_Hmag(Fa.l());
 
-  const auto V_mag =
+  const auto H_mag =
       Hmag.empty() ?
           0.0 :
           NumCalc::integrate(1.0, min, max, Fa.f(), Fb.g(), Hmag, drdu) +
               NumCalc::integrate(1.0, min, max, Fa.g(), Fb.f(), Hmag, drdu);
   const auto c = 1.0 / alpha;
 
-  return (Vab - c * (D1m2 + 2.0 * c * Sab + V_mag)) * Fa.rgrid->du();
+  return (Vab - H_mag - c * (D1m2 + 2.0 * c * Sab)) * Fa.rgrid->du();
 }

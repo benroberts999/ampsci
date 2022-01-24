@@ -276,8 +276,9 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
                         const std::vector<DiracSpinor> &d_basis,
                         const Wavefunction &wf, const bool correlationsQ,
                         SplineType type) {
+
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
-  auto n_spl = spl_basis.size();
+  const auto n_spl = spl_basis.size();
 
   auto A_and_S = std::make_pair(LinAlg::Matrix<double>{n_spl, n_spl},
                                 LinAlg::Matrix<double>{n_spl, n_spl});
@@ -302,6 +303,10 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
       const auto &dsj = d_basis[j];
 
       auto aij = wf.Hab(sj, dsj, si, dsi);
+      // const auto aij_2 = wf.Hab(sj, si);
+      // auto aij = (0.75 * aij_1 + 0.25 * aij_2);
+      // Actually, seems more stable to calculate derivs..
+      // auto aij = wf.Hab(sj, si);
       if (!excl_exch)
         aij += (sj * VexSi);
       if (sigmaQ)
