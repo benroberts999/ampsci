@@ -12,6 +12,7 @@
       * Calc fk if not given?
 
 ## Feynman (#22)
+  * Cleanup, and re-do tests
   * Polarisation operator instability: (#8)
     * Fails, e.g., for Cs with n_core < 3
   * Hole-particle; k=0 vs k=1?
@@ -21,21 +22,23 @@
   * Breit issue?
 
 ## Ladder diagrams (#13)
-  * Qk table
-  * First-order ladder diagrams
-    * What symmetries does l have?
-  * Iterate ladder
+  * Check eqs; try rho.
   * Form addition to Cor. Pot.
-  * Full SDs coupled-cluster??
 
 ## StrucRad + Diagram RPA
-  * Use QkTable?
+  * Option to use QkTable?
   * Store <a|h|b> and <a|dV|b> for each reqd pair?
 
 ## B-spline stability (#26)
-  * Seem to be difficult to get working when including Breit.
-  * Also: sign of some basis functions wrong (not just w/ Breit)?
+  * Also: sign of some basis functions wrong sometimes?
   * Johnson-style splines not stable.. boundary conditions OK?
+  * Better option for integration (form Hij)
+  * Option to write Yk and/or Qk tables from splines block
+    * Can then potentially run multiple basis blocks?
+
+## Breit
+  * Very slow; use Yk table?
+  * Form matrix (for Feyn) = needs G?
 
 ## Hartree Fock (#23)
   * Re-write class (make less inter-dependent)
@@ -82,6 +85,7 @@
 ## Data format?
   * Standard data format for output/comparison?
   * JSON?
+  * Merge input files into input block?
 
 ## IO
   * Tidy

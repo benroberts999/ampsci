@@ -310,9 +310,9 @@ void ampsci(const IO::InputBlock &input) {
       {"Basis"},
       {{"number", "int. Number of splines used in expansion [0]"},
        {"order", "int. order of splines ~7-9 [7]"},
-       {"r0", "double. minimum cavity radius (first internal knot) [0.0]"},
+       {"r0", "double. minimum cavity radius (first internal knot) [1.0e-4]"},
        {"r0_eps", "double. Select cavity radius r0 for each l by position "
-                  "where |psi(r0)/psi_max| falls below r0_eps [0.0]"},
+                  "where |psi(r0)/psi_max| falls below r0_eps [1.0e-3]"},
        {"rmax", "double. maximum cavity radius [Grid{rmax}]"},
        {"states", "string. states to keep (e.g., 30spdf20ghi)"},
        {"print", "bool. Print all spline energies (for testing) [false]"},

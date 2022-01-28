@@ -31,8 +31,8 @@ Parameters::Parameters(IO::InputBlock input)
     : states(input.get<std::string>("states", "")),
       n(input.get("number", 0ul)),
       k(input.get("order", 0ul)),
-      r0(input.get("r0", 0.0)),
-      reps(input.get("r0_eps", 0.0)),
+      r0(input.get("r0", 1.0e-4)),
+      reps(input.get("r0_eps", 1.0e-3)),
       rmax(input.get("rmax", 0.0)),
       positronQ(input.get("positron", false)),
       type(parseSplineType(input.get<std::string>("type", "Derevianko"))) {}
