@@ -271,12 +271,12 @@ bool Breit(std::ostream &obuff) {
 
     // Then, calculate Sigma(2), compare those
     wf.formBasis({"30spdfghi", 40, 7, 1.0e-4, 1.0e-4, 40.0, false});
-    wf.formSigma(3, true, 3.0e-4, 30.0, 25 /*stride*/, false, false, {}, {},
+    wf.formSigma(3, true, 3.0e-4, 30.0, 25 /*stride*/, false, false, {}, {}, {},
                  "false", "false");
 
     wf0.formBasis({"30spdfghi", 40, 7, 1.0e-4, 1.0e-4, 40.0, false});
     wf0.formSigma(3, true, 3.0e-4, 30.0, 25 /*stride*/, false, false, {}, {},
-                  "false", "false");
+                  {}, "false", "false");
 
     wf.hartreeFockBrueckner();
     wf0.hartreeFockBrueckner();

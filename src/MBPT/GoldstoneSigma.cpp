@@ -152,8 +152,8 @@ void GoldstoneSigma::Sigma2(GMatrix *Gmat_D, GMatrix *Gmat_X, int kappa,
         const auto f_kkjj = (2 * k + 1) * (Angular::twoj_k(kappa) + 1);
 
         // Effective screening parameter:
-        const auto fk = get_fk(k);
-        const auto etak = get_eta(k);
+        const auto fk = get_fk(k);    // screening
+        const auto etak = get_eta(k); // hole-particle
         if (fk == 0.0)
           continue;
 

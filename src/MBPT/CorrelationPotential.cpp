@@ -426,6 +426,8 @@ CorrelationPotential::Sigma_l(const DiracSpinor &v, const Coulomb::YkTable &yk,
 
   RDMatrix<double> Sigma{m_imin, m_stride, m_subgrid_points, m_include_G, p_gr};
 
+  // XXX nb: not 100% tested...
+
   // XXX Note: careful w/ YkTable - should have same basis as Qk?
   //
   for (auto in = 0ul; in < excited.size(); ++in) {
@@ -465,6 +467,7 @@ CorrelationPotential::Sigma_l(const DiracSpinor &v, const Coulomb::YkTable &yk,
           // const auto ratio = Omega_kvamn / W_kvamn;
           const auto f = inv_de / (2 * k + 1);
           // XXX Pretty sure fk should only appear in (b), not (a)
+          // XXX But maybe etak should not appear either..
           Sigma.add(Qkv_amn, Lkv_amn, fk * etak * f); //(a) //fk both?
           Sigma.add(Qkv_amn, Lambdakv_amn, fk * f);   //(b)
 
@@ -504,6 +507,7 @@ CorrelationPotential::Sigma_l(const DiracSpinor &v, const Coulomb::YkTable &yk,
 
           const auto f = inv_de / (2 * k + 1);
           // XXX Pretty sure fk should only appear in (d), not (c)
+          // XXX But maybe etak should not appear either..
           Sigma.add(Qkv_nab, Lkv_nab, fk * etak * f); //(c)
           Sigma.add(Qkv_nab, Lambdakv_nab, fk * f);   //(d)
           //
