@@ -33,9 +33,9 @@ template <typename T> T Matrix<T>::determinant() const {
 // Inverts the matrix, in place. Uses GSL; via LU decomposition. Only works
 // for double/complex<double>.
 template <typename T> Matrix<T> &Matrix<T>::invert_in_place() {
-  static_assert(std::is_same_v<T, double> ||
-                    std::is_same_v<T, std::complex<double>>,
-                "invert only works for double");
+  static_assert(
+      std::is_same_v<T, double> || std::is_same_v<T, std::complex<double>>,
+      "invert only works for Matrix<double> or Matrix<complex<double>>");
 
   assert(rows() == cols() && "Inverse only defined for square matrix");
   int sLU = 0;
@@ -96,6 +96,7 @@ template <typename T> Matrix<T> Matrix<T>::transpose() const {
 //******************************************************************************
 // Constructs a diagonal unit matrix (identity)
 template <typename T> Matrix<T> &Matrix<T>::make_identity() {
+  assert(m_rows == m_cols && "Can only call make_identity() for square matrix");
   for (auto i = 0ul; i < m_rows; ++i) {
     for (auto j = 0ul; j < m_cols; ++j) {
       at(i, j) = i == j ? T(1) : T(0);
@@ -110,13 +111,6 @@ template <typename T> Matrix<T> &Matrix<T>::zero() {
   }
   return *this;
 }
-// // M -> M + aI, for I=identity (add a to diag elements)
-// template <typename T> Matrix<T> &Matrix<T>::plusIdent(T a) {
-//   for (auto i = 0ul; i < std::min(m_rows, m_cols); ++i) {
-//     at(i, i) += a;
-//   }
-//   return *this;
-// }
 
 //******************************************************************************
 template <typename T> Matrix<T> Matrix<T>::conj() const {
@@ -170,13 +164,15 @@ template <typename T> auto Matrix<T>::complex() const {
 
 //******************************************************************************
 template <typename T> Matrix<T> &Matrix<T>::operator+=(const Matrix<T> &rhs) {
-  assert(rows() == rhs.rows() && cols() == rhs.cols());
+  assert(rows() == rhs.rows() && cols() == rhs.cols() &&
+         "Matrices must have same dimensions for addition");
   using namespace qip::overloads;
   this->m_data += rhs.m_data;
   return *this;
 }
 template <typename T> Matrix<T> &Matrix<T>::operator-=(const Matrix<T> &rhs) {
-  assert(rows() == rhs.rows() && cols() == rhs.cols());
+  assert(rows() == rhs.rows() && cols() == rhs.cols() &&
+         "Matrices must have same dimensions for subtraction");
   using namespace qip::overloads;
   this->m_data -= rhs.m_data;
   return *this;
@@ -215,7 +211,8 @@ template <typename T> Matrix<T> &Matrix<T>::operator-=(T aI) {
 //******************************************************************************
 template <typename T>
 Matrix<T> &Matrix<T>::mult_elements_by(const Matrix<T> &a) {
-  assert(rows() == a.rows() && cols() == a.cols());
+  assert(rows() == a.rows() && cols() == a.cols() &&
+         "Matrices must have same dimensions for mult_elements_by");
   for (auto i = 0ul; i < m_data.size(); ++i) {
     m_data[i] *= a.m_data[i];
   }
@@ -226,7 +223,8 @@ Matrix<T> &Matrix<T>::mult_elements_by(const Matrix<T> &a) {
 template <typename T>
 [[nodiscard]] Matrix<T> operator*(const Matrix<T> &a, const Matrix<T> &b) {
   // https://www.gnu.org/software/gsl/doc/html/blas.html
-  assert(a.cols() == b.rows());
+  assert(a.cols() == b.rows() &&
+         "Matrices a and b must have correct dimension for multiplication");
   Matrix<T> product(a.rows(), b.cols());
   const auto a_gsl = a.as_gsl_view();
   const auto b_gsl = b.as_gsl_view();
@@ -264,8 +262,8 @@ template <typename T> auto Matrix<T>::as_gsl_view() {
     return gsl_matrix_complex_float_view_array(
         reinterpret_cast<float *>(m_data.data()), m_rows, m_cols);
   } else {
-    assert(false &&
-           "as_gsl_view only for double/float (or complex double/float)");
+    assert(false && "as_gsl_view() only available for double/float (or complex "
+                    "double/float)");
   }
 }
 
@@ -281,8 +279,8 @@ template <typename T> auto Matrix<T>::as_gsl_view() const {
     return gsl_matrix_complex_float_const_view_array(
         reinterpret_cast<const float *>(m_data.data()), m_rows, m_cols);
   } else {
-    assert(false &&
-           "as_gsl_view only for double/float (or complex double/float)");
+    assert(false && "as_gsl_view() only for available double/float (or complex "
+                    "double/float)");
   }
 }
 

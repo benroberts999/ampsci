@@ -31,8 +31,8 @@ Parameters::Parameters(IO::InputBlock input)
     : states(input.get<std::string>("states", "")),
       n(input.get("number", 0ul)),
       k(input.get("order", 0ul)),
-      r0(input.get("r0", 0.0)),
-      reps(input.get("r0_eps", 0.0)),
+      r0(input.get("r0", 1.0e-4)),
+      reps(input.get("r0_eps", 1.0e-3)),
       rmax(input.get("rmax", 0.0)),
       positronQ(input.get("positron", false)),
       type(parseSplineType(input.get<std::string>("type", "Derevianko"))) {}
@@ -140,6 +140,7 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
     if (orbs->empty())
       continue;
 
+    std::string wrong_sign_list = "";
     std::cout << "Basis/" << (orbs == &wf.core ? "core" : "valence") << ":\n";
     double worst_dN = 0.0;
     double worst_dE = 0.0;
@@ -149,7 +150,12 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
       auto pFbc = std::find(basis.cbegin(), basis.cend(), Fc);
       if (pFbc == basis.cend())
         continue;
-      const auto dN = std::abs(Fc * (*pFbc) - 1.0);
+      const auto FcFb = Fc * (*pFbc);
+      if (Fc == *pFbc && FcFb < 0.0) {
+        // basis state has wrong sign!
+        wrong_sign_list += Fc.shortSymbol() + ",";
+      }
+      const auto dN = std::abs(std::abs(FcFb) - 1.0);
       const auto dE = std::abs((pFbc->en() - Fc.en()) / pFbc->en());
       if (dN > worst_dN) {
         worst_dN = dN;
@@ -175,6 +181,10 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
       std::cout << "  ** OK?";
     }
     std::cout << "\n";
+    if (wrong_sign_list != "") {
+      std::cout << "Warning: Some basis states have opposite sign (e.g.): "
+                << wrong_sign_list << "\n";
+    }
   }
 
   return basis;
@@ -212,8 +222,14 @@ form_spline_basis(const int kappa, const std::size_t n_states,
   basis.resize(2 * n_states, {0, kappa, rgrid});
   d_basis.resize(2 * n_states, {0, kappa, rgrid});
 
+  double r00 = 0.9 * r0_spl;
+  // double r00 = std::min(0.1 * r0_spl, 1.1 * rgrid->r(0));
+  r00 = std::exp(0.5 * (std::log(r0_spl) + std::log(rgrid->r(0))));
+
   for (auto ir = 0ul; ir < rgrid->num_points(); ++ir) {
     const auto r = rgrid->r(ir);
+    if (r < r00)
+      continue;
     auto [i0, bij] = bspl.get_nonzero(r, 2);
     for (auto i = 0ul; i < bspl.K(); ++i) {
 
@@ -260,8 +276,9 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
                         const std::vector<DiracSpinor> &d_basis,
                         const Wavefunction &wf, const bool correlationsQ,
                         SplineType type) {
+
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
-  auto n_spl = spl_basis.size();
+  const auto n_spl = spl_basis.size();
 
   auto A_and_S = std::make_pair(LinAlg::Matrix<double>{n_spl, n_spl},
                                 LinAlg::Matrix<double>{n_spl, n_spl});
@@ -286,6 +303,10 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
       const auto &dsj = d_basis[j];
 
       auto aij = wf.Hab(sj, dsj, si, dsi);
+      // const auto aij_2 = wf.Hab(sj, si);
+      // auto aij = (0.75 * aij_1 + 0.25 * aij_2);
+      // Actually, seems more stable to calculate derivs..
+      // auto aij = wf.Hab(sj, si);
       if (!excl_exch)
         aij += (sj * VexSi);
       if (sigmaQ)

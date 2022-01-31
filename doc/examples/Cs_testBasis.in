@@ -36,7 +36,7 @@ Module::Tests {
   orthonormal = true;
   Hamiltonian = false; // compare eigen-energies e_a to <a|H|a>
   boundaries = false;  // check f(r) goes to zero at r0, rmax
-  basisTests = true;
+  basis = true;        // run basis tests
 }
 
 Module::matrixElements {
@@ -79,7 +79,7 @@ Module::Tests {
   orthonormal = true;
   Hamiltonian = false;
   boundaries = false;
-  basisTests = true;
+  basis = true;
 }
 Module::matrixElements {
   operator = E1;

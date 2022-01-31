@@ -17,11 +17,11 @@ namespace UnitTest {
 bool DiagramRPA(std::ostream &obuff) {
   bool pass = true;
 
-  Wavefunction wf({3000, 1.0e-6, 150.0, 0.33 * 150.0, "loglinear", -1.0},
+  Wavefunction wf({3500, 1.0e-6, 150.0, 0.33 * 150.0, "loglinear", -1.0},
                   {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
   wf.solve_core("HartreeFock", 0.0, "[Xe]");
   wf.solve_valence("6sp5d4f");
-  wf.formBasis({"40spdfgh", 50, 9, 1.0e-5, 0.0, 30.0, false});
+  wf.formBasis({"40spdfgh", 60, 9, 1.0e-4, 1.0e-3, 40.0, false});
 
   auto sorter = [](auto x, auto y) { return x.first < y.first; };
   auto compr = [](const auto &x, const auto &y) {
@@ -115,10 +115,12 @@ bool DiagramRPA(std::ostream &obuff) {
     rpa.solve_core(0.0);
     std::vector<sp> e1me;
     for (const auto &Fv : wf.valence) {
-      auto a = DiracOperator::HyperfineA::convertRMEtoA(Fv, Fv);
+      const auto a = DiracOperator::HyperfineA::convertRMEtoA(Fv, Fv);
+
       e1me.emplace_back(Fv.shortSymbol(),
                         a * (h.reducedME(Fv, Fv) + rpa.dV(Fv, Fv)));
     }
+
     std::sort(begin(e1me), end(e1me), sorter);
     for (auto i = 0ul; i < e1me.size(); ++i) {
       printf("%3s %12.5e [%12.5e]\n", e1me[i].first.c_str(), e1me[i].second,
@@ -126,8 +128,9 @@ bool DiagramRPA(std::ostream &obuff) {
     }
 
     auto [eps, at] = qip::compare(e1me, e1VD, compr);
-    pass &= qip::check_value(&obuff, "RPA(D) HFS(A) " + at->first, eps, 0.0,
-                             0.0007);
+    // used to be 0.0007 .. changed after "Breit/Basis" fiasco
+    pass &=
+        qip::check_value(&obuff, "RPA(D) HFS(A) " + at->first, eps, 0.0, 0.009);
   }
 
   return pass;

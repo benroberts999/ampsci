@@ -29,7 +29,7 @@ bool MBPT2(std::ostream &obuff) {
           std::vector{-0.0000130, -0.0020027, -0.0105623, -0.0039347,
                       -0.0007563, -0.0002737, -0.0001182};
       // const auto total_KBAD = -0.0176609;
-      const auto error = 0.0000001; // allow ony difference of 1 in last digit
+      const auto error = 0.0000002; // allow ony difference of 1.5 in last digit
 
       double prev = 0.0;
       std::vector<double> vals;
