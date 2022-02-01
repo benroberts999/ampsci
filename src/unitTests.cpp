@@ -179,8 +179,8 @@ int main(int argc, char *argv[]) {
 
     // Output results:
     std::cout << "\n" << out_buff.str();
-    std::ofstream of("unitTests_" + IO::date() + "_" + IO::time() + ".txt");
-    of << out_buff.str();
+    // std::ofstream of("unitTests_" + IO::date() + "_" + IO::time() + ".txt");
+    // of << out_buff.str();
   }
 
   assert(failed == 0);

@@ -203,13 +203,21 @@ form_spline_basis(const int kappa, const std::size_t n_states,
   auto imin = static_cast<std::size_t>(std::abs(kappa));
   auto n_spl = n_states + imin + 1; // subtract l (n_min)?
   auto imax = n_spl - 1;
-  auto lambda = 1.0;
+  auto lambda_DKB = 1.0; // include kinetic balance term
+
+  // double r00 = 0.9 * r0_spl;
+  // double r00 = std::min(0.1 * r0_spl, 1.1 * rgrid->r(0));
+  double r00 = std::exp(0.5 * (std::log(r0_spl) + std::log(rgrid->r(0))));
 
   if (type == SplineType::Johnson) {
     imin = 0;
     n_spl = n_states + imin;
     imax = n_spl;
-    lambda = 0.0;
+    lambda_DKB = 0.0;
+    // r00 *= 0.0;
+    r00 = 0.02 * r0_spl; // seems to  be best 5.0e-5
+    // nb: it is Breit causing issue; works best with r00=0, but that ruins
+    // Breit
   }
 
   // uses sepperate B-splines for each partial wave! OK?
@@ -221,10 +229,6 @@ form_spline_basis(const int kappa, const std::size_t n_states,
   auto &d_basis = out.second;
   basis.resize(2 * n_states, {0, kappa, rgrid});
   d_basis.resize(2 * n_states, {0, kappa, rgrid});
-
-  double r00 = 0.9 * r0_spl;
-  // double r00 = std::min(0.1 * r0_spl, 1.1 * rgrid->r(0));
-  r00 = std::exp(0.5 * (std::log(r0_spl) + std::log(rgrid->r(0))));
 
   for (auto ir = 0ul; ir < rgrid->num_points(); ++ir) {
     const auto r = rgrid->r(ir);
@@ -244,11 +248,11 @@ form_spline_basis(const int kappa, const std::size_t n_states,
       // First "f-like" set
       Sn1.set_f(ir) = bij[i][0];
       Sn1.set_g(ir) =
-          lambda * 0.5 * alpha * (bij[i][1] + (kappa / r) * bij[i][0]);
+          lambda_DKB * 0.5 * alpha * (bij[i][1] + (kappa / r) * bij[i][0]);
       // second "g-like"
       auto &Sn2 = basis.at(nB + n_states - imin);
       Sn2.set_f(ir) =
-          lambda * 0.5 * alpha * (bij[i][1] - (kappa / r) * bij[i][0]);
+          lambda_DKB * 0.5 * alpha * (bij[i][1] - (kappa / r) * bij[i][0]);
       Sn2.set_g(ir) = bij[i][0];
 
       // Set the spline derivatives
@@ -256,12 +260,12 @@ form_spline_basis(const int kappa, const std::size_t n_states,
       // First "f-like" set
       dSn1.set_f(ir) = bij[i][1];
       dSn1.set_g(ir) =
-          lambda * 0.5 * alpha *
+          lambda_DKB * 0.5 * alpha *
           (bij[i][2] + (kappa / r) * bij[i][1] - (kappa / r / r) * bij[i][0]);
       // second "g-like"
       auto &dSn2 = d_basis.at(nB + n_states - imin);
       dSn2.set_f(ir) =
-          lambda * 0.5 * alpha *
+          lambda_DKB * 0.5 * alpha *
           (bij[i][2] - (kappa / r) * bij[i][1] + (kappa / r / r) * bij[i][0]);
       dSn2.set_g(ir) = bij[i][1];
     }
@@ -335,6 +339,8 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
 //******************************************************************************
 void add_NotreDameBoundary(LinAlg::Matrix<double> *pAij, const int kappa,
                            const double alpha) {
+  // XX These should be re-checked..
+  // W. R. Johnson, S. A. Blundell, J. Sapirstein, Phys. Rev. A 37, 307 (1988)
   auto &Aij = *pAij;
   const auto n2 = Aij.rows();
   const auto n1 = n2 / 2;

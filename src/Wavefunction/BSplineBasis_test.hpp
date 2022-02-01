@@ -24,82 +24,91 @@ bool BSplineBasis(std::ostream &obuff) {
 
   //****************************************************************************
   // Check vs. Hartree-Fock (energies/ortho)
-  for (auto f_QED : {false, true}) {
-    for (auto f_Breit : {0.0, 1.0}) {
+  for (const auto type : {SplineBasis::SplineType::Derevianko,
+                          SplineBasis::SplineType::Johnson}) {
+    for (const auto f_QED : {false, true}) {
+      for (const auto f_Breit : {0.0, 1.0}) {
 
-      // Create wavefunction object, solve HF for core + valence
-      Wavefunction wf({2500, 1.0e-6, 150.0, 0.33 * 150.0, "loglinear"},
-                      {"Cs", -1, "Fermi"});
-      if (f_QED)
-        wf.radiativePotential({1.0, 1.0, 1.0, 1.0, 0.0}, 10.0, 1.0, {1.0},
-                              false, false);
-      wf.solve_core("HartreeFock", f_Breit, "[Xe]");
-      wf.solve_valence("7sp5d4f");
+        // Create wavefunction object, solve HF for core + valence
+        Wavefunction wf({2500, 1.0e-6, 150.0, 0.33 * 150.0, "loglinear"},
+                        {"Cs", -1, "Fermi"});
+        if (f_QED)
+          wf.radiativePotential({1.0, 1.0, 1.0, 1.0, 0.0}, 10.0, 1.0, {1.0},
+                                false, false);
+        wf.solve_core("HartreeFock", f_Breit, "[Xe]");
+        wf.solve_valence("7sp5d4f");
 
-      // Compare the energy of a Dirac spinor to a double:
-      const auto comp_en = [](const auto &Fa, double en) {
-        return (en - Fa.en()) / Fa.en();
-      };
+        // Compare the energy of a Dirac spinor to a double:
+        const auto comp_en = [](const auto &Fa, double en) {
+          return (en - Fa.en()) / Fa.en();
+        };
 
-      // Test splines compared to HF states (for various spline sets)
-      for (std::size_t k = 7; k <= 9; k += 2) {
-        const auto nlst = k == 7 ? std::vector{75, 85} : std::vector{70, 90};
-        for (const auto n : nlst) {
+        // Test splines compared to HF states (for various spline sets)
+        for (std::size_t k : {7ul, 9ul}) {
+          const auto nlst = k == 7 ? std::vector{75, 85} : std::vector{70, 90};
+          for (const auto n : nlst) {
 
-          // Form spline basis:
-          const std::string states = "30spdf";
-          const auto r0 = 1.0e-4;
-          const auto r0_eps = 1.0e-3;
-          const auto rmax = 75.0;
-          const auto positronQ = false;
-          const auto basis = SplineBasis::form_basis(
-              {states, std::size_t(n), k, r0, r0_eps, rmax, positronQ,
-               SplineBasis::SplineType::Derevianko},
-              wf);
+            // Form spline basis:
+            const std::string states = "30spdf";
+            const auto r0 = 1.0e-4;
+            const auto r0_eps = 1.0e-3;
+            const auto rmax = 75.0;
+            const auto positronQ = false;
+            const auto basis = SplineBasis::form_basis(
+                {states, std::size_t(n), k, r0, r0_eps, rmax, positronQ, type},
+                wf);
 
-          // Check orthonormality <a|b>:
-          const auto [eps, str] = DiracSpinor::check_ortho(basis, basis);
-          const auto [eps1, str1] = DiracSpinor::check_ortho(basis, wf.core);
-          const auto [eps2, str2] = DiracSpinor::check_ortho(basis, wf.valence);
+            // Check orthonormality <a|b>:
+            const auto [eps, str] = DiracSpinor::check_ortho(basis, basis);
+            const auto [eps1, str1] = DiracSpinor::check_ortho(basis, wf.core);
+            const auto [eps2, str2] =
+                DiracSpinor::check_ortho(basis, wf.valence);
 
-          // Find basis states corresponding to core/valence to compare
-          // energies Note: Need large cavity and large basis for this
-          std::vector<double> core_en;
-          for (const auto &Fc : wf.core) {
-            const auto &pFb = std::find(cbegin(basis), cend(basis), Fc);
-            core_en.push_back(pFb->en());
-          }
-          std::vector<double> val_en;
-          for (const auto &Fv : wf.valence) {
-            const auto &pFb = std::find(cbegin(basis), cend(basis), Fv);
-            val_en.push_back(pFb->en());
-          }
-          // Compare core+valence HF energies to the corresponding splines
-          const auto [ce, cs] = qip::compare(wf.core, core_en, comp_en);
-          const auto [ve, vs] = qip::compare(wf.valence, val_en, comp_en);
+            // Find basis states corresponding to core/valence to compare
+            // energies Note: Need large cavity and large basis for this
+            std::vector<double> core_en;
+            for (const auto &Fc : wf.core) {
+              const auto &pFb = std::find(cbegin(basis), cend(basis), Fc);
+              core_en.push_back(pFb->en());
+            }
+            std::vector<double> val_en;
+            for (const auto &Fv : wf.valence) {
+              const auto &pFb = std::find(cbegin(basis), cend(basis), Fv);
+              val_en.push_back(pFb->en());
+            }
+            // Compare core+valence HF energies to the corresponding splines
+            const auto [ce, cs] = qip::compare(wf.core, core_en, comp_en);
+            const auto [ve, vs] = qip::compare(wf.valence, val_en, comp_en);
 
-          std::string name = "HFspl[75]";
-          if (f_Breit != 0.0)
-            name += "+Br";
-          if (f_QED)
-            name += "+QED";
-          const std::string label = name + " " + std::to_string(n) + "/" +
-                                    std::to_string(k) + " (30) ";
+            std::string name = "HFspl[75]";
+            if (f_Breit != 0.0)
+              name += "+Br";
+            if (f_QED)
+              name += "+Q";
+            if (type == SplineBasis::SplineType::Johnson)
+              name += "+Jns";
+            const std::string label = name + " " + std::to_string(n) + "/" +
+                                      std::to_string(k) + " (30) ";
 
-          pass &= qip::check_value(&obuff, label + "orth",
-                                   qip::max_abs(eps, eps1, eps2), 0.0, 1.0e-4);
+            auto x = type == SplineBasis::SplineType::Johnson ? 10.0 : 1.0;
 
-          if (std::abs(ce) > std::abs(ve)) {
-            pass &= qip::check_value(&obuff, label + "E " + cs->shortSymbol(),
-                                     ce, 0.0, 7.0e-6);
-          } else {
-            pass &= qip::check_value(&obuff, label + "E " + vs->shortSymbol(),
-                                     ve, 0.0, 5.0e-6);
+            pass &=
+                qip::check_value(&obuff, label + "orth",
+                                 qip::max_abs(eps, eps1, eps2), 0.0, 1.0e-4);
+
+            if (std::abs(ce) > std::abs(ve)) {
+              pass &= qip::check_value(&obuff, label + "E " + cs->shortSymbol(),
+                                       ce, 0.0, x * 1.0e-5);
+            } else {
+              pass &= qip::check_value(&obuff, label + "E " + vs->shortSymbol(),
+                                       ve, 0.0, x * 1.0e-5);
+            }
           }
         }
       }
     }
   }
+  return pass;
 
   //****************************************************************************
 
