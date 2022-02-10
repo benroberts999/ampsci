@@ -85,8 +85,8 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   // in/out file names (default based on basis)
   using namespace std::string_literals;
   const auto name = wf.identity() + DiracSpinor::state_config(excited);
-  const auto Qfname = input.get("Qfile", name + "qk"s);
-  const auto Lfname = input.get("Lfile", name + "lk"s);
+  const auto Qfname = input.get("Qfile", name + ".qk"s);
+  const auto Lfname = input.get("Lfile", name + ".lk"s);
 
   // Create the "total" basis, which has core+excited, but only those states
   // actually included (i.e., [n_min, n_max]). This is used to calculate Qk.

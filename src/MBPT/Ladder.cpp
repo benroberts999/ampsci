@@ -15,8 +15,17 @@ Lkmnab(int k, const DiracSpinor &m, const DiracSpinor &n, const DiracSpinor &i,
        const std::vector<DiracSpinor> &core,
        const std::vector<DiracSpinor> &excited, const Angular::SixJTable &SJ,
        const Coulomb::CoulombTable *const Lk, const std::vector<double> &fk) {
+
   return L1(k, m, n, i, b, qk, excited, SJ, Lk, fk) +
-         L23(k, m, n, i, b, qk, core, excited, SJ, Lk, fk);
+         L2_v2(k, m, n, i, b, qk, core, excited, SJ, Lk, fk) +
+         L3_v2(k, m, n, i, b, qk, core, excited, SJ, Lk, fk);
+
+  // return L23(k, m, n, i, b, qk, core, excited, SJ, Lk, fk);
+  //
+  // return L1(k, m, n, i, b, qk, excited, SJ, Lk, fk);
+  //
+  // return L1(k, m, n, i, b, qk, excited, SJ, Lk, fk) +
+  //        L23(k, m, n, i, b, qk, core, excited, SJ, Lk, fk);
 }
 
 //------------------------------------------------------------------------------
@@ -146,6 +155,151 @@ double L23(int k, const DiracSpinor &m, const DiracSpinor &n,
   }
   l23 *= (s_k / tkp1);
   return l23;
+}
+
+//------------------------------------------------------------------------------
+double
+L2_v2(int k, const DiracSpinor &m, const DiracSpinor &n, const DiracSpinor &i,
+      const DiracSpinor &b, const Coulomb::CoulombTable &qk,
+      const std::vector<DiracSpinor> &core,
+      const std::vector<DiracSpinor> &excited, const Angular::SixJTable &SJ,
+      const Coulomb::CoulombTable *const Lk, const std::vector<double> &fk) {
+
+  // screening factors:
+  auto Fk = [&fk](int l) {
+    return l < (int)fk.size() ? fk[std::size_t(l)] : 1.0;
+  };
+
+  double l2 = 0.0;
+  const double tkp1 = 2.0 * k + 1.0;
+  const auto s_mnibk =
+      Angular::neg1pow_2(m.twoj() + n.twoj() + i.twoj() + b.twoj() + 2 * k);
+
+  // nb: including early triad checks cuts comp time down by ~5x!!
+  // // 6j(r) Triads: {m,i,k}, {k,l,u}, {i,l,r}, {u,r,m}
+  // // 6j(s) Triads: {n,b,k}, {k,l,u}, {b,l,s}, {u,s,n}
+  // if (!Coulomb::sixjTriads(m, i, k, {}, {}, {})) // {m,i,k;l,u,r}
+  //   return 0.0;
+  // if (!Coulomb::sixjTriads(n, b, k, {}, {}, {})) // {n,b,k;l,u,s}
+  //   return 0.0;
+
+#pragma omp parallel for reduction(+ : l2)
+  for (auto r_index = 0ul; r_index < excited.size(); ++r_index) {
+    const auto &r = excited[r_index];
+    for (const auto &c : core) {
+
+      const auto [u0, uI] = Coulomb::k_minmax_Q(m, r, c, b);
+      const auto [l0, lI] = Coulomb::k_minmax_Q(c, n, i, r);
+      if (uI < u0 || lI < l0)
+        continue;
+
+      const auto s_rc = Angular::neg1pow_2(r.twoj() + c.twoj());
+      const auto inv_de = 1.0 / (c.en() + b.en() - m.en() - r.en());
+
+      for (auto u = u0; u <= uI; u += 2) {
+        const auto Q_umrcb = Fk(u) * qk.Q(u, m, r, c, b);
+        if (Q_umrcb == 0.0)
+          continue; // never? Unless have k_cut
+
+        // From 6J triads:
+        // if (Coulomb::triangle(u, r, m) == 0 || Coulomb::triangle(u, s, n) ==
+        // 0)
+        //   continue;
+
+        for (auto l = l0; l <= lI; l += 2) {
+
+          // // 6j triad:
+          // if (Angular::triangle(k, l, u) == 0)
+          //   continue;
+
+          const auto sj_c = SJ.get(m, i, k, l, u, c);
+          const auto sj_r = SJ.get(b, n, k, l, u, r);
+
+          const auto Q_lcnir = Fk(l) * qk.Q(l, c, n, i, r);
+          const auto L_lcnir = Lk ? Lk->Q(l, c, n, i, r) : 0.0;
+
+          const auto s_ul = Angular::neg1pow(l + u);
+
+          l2 += s_rc * s_ul * sj_c * sj_r * Q_umrcb * (Q_lcnir + L_lcnir) *
+                inv_de;
+        }
+      }
+    }
+  }
+  l2 *= s_mnibk * tkp1;
+  return l2;
+}
+//------------------------------------------------------------------------------
+double
+L3_v2(int k, const DiracSpinor &m, const DiracSpinor &n, const DiracSpinor &i,
+      const DiracSpinor &b, const Coulomb::CoulombTable &qk,
+      const std::vector<DiracSpinor> &core,
+      const std::vector<DiracSpinor> &excited, const Angular::SixJTable &SJ,
+      const Coulomb::CoulombTable *const Lk, const std::vector<double> &fk) {
+
+  // screening factors:
+  auto Fk = [&fk](int l) {
+    return l < (int)fk.size() ? fk[std::size_t(l)] : 1.0;
+  };
+
+  double l3 = 0.0;
+  const double tkp1 = 2.0 * k + 1.0;
+  const auto s_mnibk =
+      Angular::neg1pow_2(m.twoj() + n.twoj() + i.twoj() + b.twoj() + 2 * k);
+
+  // nb: including early triad checks cuts comp time down by ~5x!!
+  // // 6j(r) Triads: {m,i,k}, {k,l,u}, {i,l,r}, {u,r,m}
+  // // 6j(s) Triads: {n,b,k}, {k,l,u}, {b,l,s}, {u,s,n}
+  // if (!Coulomb::sixjTriads(m, i, k, {}, {}, {})) // {m,i,k;l,u,r}
+  //   return 0.0;
+  // if (!Coulomb::sixjTriads(n, b, k, {}, {}, {})) // {n,b,k;l,u,s}
+  //   return 0.0;
+
+#pragma omp parallel for reduction(+ : l3)
+  for (auto r_index = 0ul; r_index < excited.size(); ++r_index) {
+    const auto &r = excited[r_index];
+    for (const auto &c : core) {
+
+      const auto [u0, uI] = Coulomb::k_minmax_Q(m, c, r, b);
+      const auto [l0, lI] = Coulomb::k_minmax_Q(r, n, i, c);
+      if (uI < u0 || lI < l0)
+        continue;
+
+      const auto s_rc = Angular::neg1pow_2(c.twoj() + r.twoj());
+      const auto inv_de = 1.0 / (c.en() + i.en() - n.en() - r.en());
+
+      for (auto u = u0; u <= uI; u += 2) {
+        const auto Q_umcrb = Fk(u) * qk.Q(u, m, c, r, b);
+        if (Q_umcrb == 0.0)
+          continue; // never? Unless have k_cut
+
+        // From 6J triads:
+        // if (Coulomb::triangle(u, r, m) == 0 || Coulomb::triangle(u, s, n) ==
+        // 0)
+        //   continue;
+
+        for (auto l = l0; l <= lI; l += 2) {
+
+          // // 6j triad:
+          // if (Angular::triangle(k, l, u) == 0)
+          //   continue;
+
+          const auto sj_r = SJ.get(m, i, k, l, u, r);
+          const auto sj_c = SJ.get(b, n, k, l, u, c);
+
+          const auto Q_lrnic = Fk(l) * qk.Q(l, r, n, i, c);
+          const auto L_lrnic = Lk ? Lk->Q(l, r, n, i, c) : 0.0;
+
+          const auto s_ul = Angular::neg1pow(l + u);
+
+          l3 += s_rc * s_ul * sj_c * sj_r * Q_umcrb * (Q_lrnic + L_lrnic) *
+                inv_de;
+        }
+      }
+    }
+  }
+  l3 *= s_mnibk * tkp1;
+  return l3;
 }
 
 //******************************************************************************

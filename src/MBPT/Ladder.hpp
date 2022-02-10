@@ -70,6 +70,24 @@ double L23(int k, const DiracSpinor &m, const DiracSpinor &n,
            const Coulomb::CoulombTable *const Lk = nullptr,
            const std::vector<double> &fk = {});
 
+double L2_v2(int k, const DiracSpinor &m, const DiracSpinor &n,
+             const DiracSpinor &a, const DiracSpinor &b,
+             const Coulomb::CoulombTable &qk,
+             const std::vector<DiracSpinor> &core,
+             const std::vector<DiracSpinor> &excited,
+             const Angular::SixJTable &SJ,
+             const Coulomb::CoulombTable *const Lk = nullptr,
+             const std::vector<double> &fk = {});
+
+double L3_v2(int k, const DiracSpinor &m, const DiracSpinor &n,
+             const DiracSpinor &a, const DiracSpinor &b,
+             const Coulomb::CoulombTable &qk,
+             const std::vector<DiracSpinor> &core,
+             const std::vector<DiracSpinor> &excited,
+             const Angular::SixJTable &SJ,
+             const Coulomb::CoulombTable *const Lk = nullptr,
+             const std::vector<double> &fk = {});
+
 //! Fills Lk matrix
 void fill_Lk_mnib(Coulomb::CoulombTable *lk, const Coulomb::CoulombTable &qk,
                   const std::vector<DiracSpinor> &excited,
