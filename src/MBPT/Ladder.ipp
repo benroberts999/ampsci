@@ -65,7 +65,7 @@ double de_valence(const DiracSpinor &v, const Qintegrals &qk,
           const auto P_kvamn = lk.P(k, n, m, a, v); // \propto Q_mnva
 
           // diagram (a). xxx include fk here? I though no...
-          de_v += fk * etak * Q_kvamn * L_kvamn * inv_de / (2 * k + 1);
+          de_v += /*fk **/ etak * Q_kvamn * L_kvamn * inv_de / (2 * k + 1);
           // diagram (b) [exchange]
           de_v += fk * Q_kvamn * P_kvamn * inv_de / (2 * k + 1);
         } // k
@@ -85,7 +85,7 @@ double de_valence(const DiracSpinor &v, const Qintegrals &qk,
           const auto P_kvnab = lk.P(k, v, n, a, b);
 
           // diagram (c). xxx include fk here? I though no...
-          de_v += fk * etak * Q_kvnab * L_kvnab * inv_de / (2 * k + 1);
+          de_v += /*fk **/ etak * Q_kvnab * L_kvnab * inv_de / (2 * k + 1);
           // diagram (d) [exchange]
           de_v += fk * Q_kvnab * P_kvnab * inv_de / (2 * k + 1);
         } // k

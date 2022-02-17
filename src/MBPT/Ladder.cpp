@@ -8,17 +8,6 @@
 
 namespace MBPT {
 
-// double Ak(int k, int u, int l, const DiracSpinor &m, const DiracSpinor &n,
-//           const DiracSpinor &r, const DiracSpinor &s, const DiracSpinor &i,
-//           const DiracSpinor &j, const Angular::SixJTable &SJ) {
-//   const auto sign = Angular::neg1pow_2(2 + m.twoj() + n.twoj() + r.twoj() +
-//                                        s.twoj() + i.twoj() + j.twoj());
-//   const auto tkp1 = 2 * k + 1;
-//   const auto sj_r = SJ.get(m, i, k, l, u, r);
-//   const auto sj_s = SJ.get(n, j, k, l, u, s);
-//   return (sign*tkp1)*sj_r*
-// }
-
 //******************************************************************************
 double
 Lkmnab(int k, const DiracSpinor &m, const DiracSpinor &n, const DiracSpinor &i,
@@ -27,23 +16,10 @@ Lkmnab(int k, const DiracSpinor &m, const DiracSpinor &n, const DiracSpinor &i,
        const std::vector<DiracSpinor> &excited, const Angular::SixJTable &SJ,
        const Coulomb::CoulombTable *const Lk, const std::vector<double> &fk) {
 
-  // return L1(k, m, n, i, b, qk, excited, SJ, Lk, fk) +
-  //        L2_v2(k, m, n, i, b, qk, core, excited, SJ, Lk, fk) +
-  //        L3_v2(k, m, n, i, b, qk, core, excited, SJ, Lk, fk);
-
   return L1(k, m, n, i, b, qk, excited, SJ, Lk, fk) +
          L2(k, m, n, i, b, qk, core, excited, SJ, Lk, fk) +
          L2(k, n, m, b, i, qk, core, excited, SJ, Lk, fk);
-
-  // return L23(k, m, n, i, b, qk, core, excited, SJ, Lk, fk);
-  //
-  // return L1(k, m, n, i, b, qk, excited, SJ, Lk, fk);
-  //
-  // return L1(k, m, n, i, b, qk, excited, SJ, Lk, fk) +
-  //        L23(k, m, n, i, b, qk, core, excited, SJ, Lk, fk);
 }
-
-// double Ak(int k, int mu, int lam) {
 
 //------------------------------------------------------------------------------
 double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
@@ -52,11 +28,6 @@ double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
           const std::vector<DiracSpinor> &excited, const Angular::SixJTable &SJ,
           const Coulomb::CoulombTable *const Lk,
           const std::vector<double> &fk) {
-
-  // L1^k_mnij
-  //   = sum_{rs,ul} A^{kul}_mnrsij * Q^u_mnrs * (Q+L)^l_rsij / (e_ij - e_rs)
-  // A^{kul}_mnrsij
-  //   = (-1)^{m+n+r+s+i+j+1} * [k] * {m,i,k;l,u,r} * {n,j,k;l,u,s}
 
   // screening factors:
   auto Fk = [&fk](int l) {

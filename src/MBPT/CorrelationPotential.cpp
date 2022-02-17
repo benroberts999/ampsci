@@ -468,8 +468,8 @@ CorrelationPotential::Sigma_l(const DiracSpinor &v, const Coulomb::YkTable &yk,
           const auto f = inv_de / (2 * k + 1);
           // XXX Pretty sure fk should only appear in (b), not (a)
           // XXX But maybe etak should not appear either..
-          Sigma.add(Qkv_amn, Lkv_amn, fk * etak * f); //(a) //fk both?
-          Sigma.add(Qkv_amn, Lambdakv_amn, fk * f);   //(b)
+          Sigma.add(Qkv_amn, Lkv_amn, /*fk **/ etak * f); //(a) //fk both?
+          Sigma.add(Qkv_amn, Lambdakv_amn, fk * f);       //(b)
 
         } // k
       }   // m
@@ -508,8 +508,8 @@ CorrelationPotential::Sigma_l(const DiracSpinor &v, const Coulomb::YkTable &yk,
           const auto f = inv_de / (2 * k + 1);
           // XXX Pretty sure fk should only appear in (d), not (c)
           // XXX But maybe etak should not appear either..
-          Sigma.add(Qkv_nab, Lkv_nab, fk * etak * f); //(c)
-          Sigma.add(Qkv_nab, Lambdakv_nab, fk * f);   //(d)
+          Sigma.add(Qkv_nab, Lkv_nab, /*fk **/ etak * f); //(c)
+          Sigma.add(Qkv_nab, Lambdakv_nab, fk * f);       //(d)
           //
 
         } // k

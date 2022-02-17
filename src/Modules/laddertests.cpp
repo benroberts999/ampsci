@@ -3,6 +3,7 @@
 #include "Coulomb/Coulomb.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/InputBlock.hpp"
+#include "MBPT/GoldstoneSigma.hpp"
 #include "MBPT/Ladder.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/Wavefunction.hpp"
@@ -225,6 +226,35 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 
   // check_L_symmetry(core, excited, valence, qk, yk.SixJ(), &lk);
+
+  bool include_G = false;
+  const auto sigp = MBPT::Sigma_params{MBPT::Method::Goldstone,
+                                       min_n,
+                                       include_G,
+                                       0,
+                                       false,
+                                       false,
+                                       0.0,
+                                       0.0,
+                                       1.0,
+                                       false,
+                                       false,
+                                       "",
+                                       fk,
+                                       etak};
+
+  const auto subgridp = MBPT::rgrid_params{1.0e-3, 30.0, 6};
+
+  MBPT::GoldstoneSigma Sigma(wf.getHF(), wf.basis, sigp, subgridp, "na");
+
+  std::cout << "\nEnergy corrections, using Sigma:\n";
+  for (const auto &v : valence) {
+    // auto ss = Sigma.Sigma_l(v, yk, lk, core, excited);
+    auto ss = Sigma.Sigma_l(v, yk, lk, core, excited);
+
+    std::cout << v.symbol() << " "
+              << v * Sigma.act_G_Fv(ss, v) * PhysConst::Hartree_invcm << "\n";
+  }
 }
 
 //******************************************************************************
