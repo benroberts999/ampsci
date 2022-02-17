@@ -55,38 +55,13 @@ double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
 
 //! Ladder integral, L^k_mnab := L1 + L23; L23 = L2 + L3
 /*! @details
-L2^k_mnib
-  = sum_{rc} ((-1)^k / [k]) * P^k_cnrb * (P+Lambda)^k_mric / (e_ic - e_mr)
-
-L3^k_mnib
-  = sum_{rc} ((-1)^k / [k]) * P^k_cmri * (P+Lambda)^k_nrbc / (e_bc - e_nr)
-*/
-double L23(int k, const DiracSpinor &m, const DiracSpinor &n,
-           const DiracSpinor &a, const DiracSpinor &b,
-           const Coulomb::CoulombTable &qk,
-           const std::vector<DiracSpinor> &core,
-           const std::vector<DiracSpinor> &excited,
-           const Angular::SixJTable &SJ,
-           const Coulomb::CoulombTable *const Lk = nullptr,
-           const std::vector<double> &fk = {});
-
-double L2_v2(int k, const DiracSpinor &m, const DiracSpinor &n,
-             const DiracSpinor &a, const DiracSpinor &b,
-             const Coulomb::CoulombTable &qk,
-             const std::vector<DiracSpinor> &core,
-             const std::vector<DiracSpinor> &excited,
-             const Angular::SixJTable &SJ,
-             const Coulomb::CoulombTable *const Lk = nullptr,
-             const std::vector<double> &fk = {});
-
-double L3_v2(int k, const DiracSpinor &m, const DiracSpinor &n,
-             const DiracSpinor &a, const DiracSpinor &b,
-             const Coulomb::CoulombTable &qk,
-             const std::vector<DiracSpinor> &core,
-             const std::vector<DiracSpinor> &excited,
-             const Angular::SixJTable &SJ,
-             const Coulomb::CoulombTable *const Lk = nullptr,
-             const std::vector<double> &fk = {});
+ */
+double L2(int k, const DiracSpinor &m, const DiracSpinor &n,
+          const DiracSpinor &a, const DiracSpinor &b,
+          const Coulomb::CoulombTable &qk, const std::vector<DiracSpinor> &core,
+          const std::vector<DiracSpinor> &excited, const Angular::SixJTable &SJ,
+          const Coulomb::CoulombTable *const Lk = nullptr,
+          const std::vector<double> &fk = {});
 
 //! Fills Lk matrix
 void fill_Lk_mnib(Coulomb::CoulombTable *lk, const Coulomb::CoulombTable &qk,
