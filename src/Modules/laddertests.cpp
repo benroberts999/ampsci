@@ -225,7 +225,7 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
            del * PhysConst::Hartree_invcm);
   }
 
-  // check_L_symmetry(core, excited, valence, qk, yk.SixJ(), &lk);
+  check_L_symmetry(core, excited, valence, qk, yk.SixJ(), &lk);
 
   bool include_G = false;
   const auto sigp = MBPT::Sigma_params{MBPT::Method::Goldstone,
@@ -249,11 +249,11 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
 
   std::cout << "\nEnergy corrections, using Sigma:\n";
   for (const auto &v : valence) {
-    // auto ss = Sigma.Sigma_l(v, yk, lk, core, excited);
-    auto ss = Sigma.Sigma_l(v, yk, lk, core, excited);
+    const auto sig_l = Sigma.Sigma_l(v, yk, lk, core, excited);
 
     std::cout << v.symbol() << " "
-              << v * Sigma.act_G_Fv(ss, v) * PhysConst::Hartree_invcm << "\n";
+              << v * Sigma.act_G_Fv(sig_l, v) * PhysConst::Hartree_invcm
+              << "\n";
   }
 }
 
@@ -288,8 +288,8 @@ void check_L_symmetry(const std::vector<DiracSpinor> &core,
     const auto [k0, kI] = Coulomb::k_minmax_Q(m, n, a, b);
     for (int k = k0; k <= kI; k += 2) {
       auto gkmnab = qk.Q(k, m, n, a, b);
-      auto lkmnab = MBPT::Lkmnab(k, m, n, a, b, qk, core, excited, sj);
-      auto lknmba = MBPT::Lkmnab(k, n, m, b, a, qk, core, excited, sj);
+      auto lkmnab = MBPT::Lkmnij(k, m, n, a, b, qk, core, excited, sj);
+      auto lknmba = MBPT::Lkmnij(k, n, m, b, a, qk, core, excited, sj);
 
       auto lkmnab_tab = lk ? lk->Q(k, m, n, a, b) : 0.0;
       auto lknmba_tab = lk ? lk->Q(k, n, m, b, a) : 0.0;

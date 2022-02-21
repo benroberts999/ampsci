@@ -10,7 +10,7 @@ namespace MBPT {
 
 //******************************************************************************
 double
-Lkmnab(int k, const DiracSpinor &m, const DiracSpinor &n, const DiracSpinor &i,
+Lkmnij(int k, const DiracSpinor &m, const DiracSpinor &n, const DiracSpinor &i,
        const DiracSpinor &b, const Coulomb::CoulombTable &qk,
        const std::vector<DiracSpinor> &core,
        const std::vector<DiracSpinor> &excited, const Angular::SixJTable &SJ,
@@ -196,7 +196,7 @@ void fill_Lk_mnib(Coulomb::CoulombTable *lk, const Coulomb::CoulombTable &qk,
             if (qk.Q(k, m, n, i, b) == 0.0)
               continue;
 
-            auto L_kmnib = MBPT::Lkmnab(k, m, n, i, b, qk, core, excited, sjt,
+            auto L_kmnib = MBPT::Lkmnij(k, m, n, i, b, qk, core, excited, sjt,
                                         lk_prev, fk);
 
             // If we have old value, 'damp' new value
@@ -219,7 +219,7 @@ void fill_Lk_mnib(Coulomb::CoulombTable *lk, const Coulomb::CoulombTable &qk,
           const auto [k0, kI] = Coulomb::k_minmax_Q(m, m, b, i);
           for (int k = k0; k <= kI; k += 2) {
 
-            auto L_kmmbi = MBPT::Lkmnab(k, m, m, b, i, qk, core, excited, sjt,
+            auto L_kmmbi = MBPT::Lkmnij(k, m, m, b, i, qk, core, excited, sjt,
                                         lk_prev, fk);
 
             // If we have old value, 'damp' new value
