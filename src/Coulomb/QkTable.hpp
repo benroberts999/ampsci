@@ -34,9 +34,9 @@ question.
 class CoulombTable {
 
 public:
-  //! Data type used to store integra;s
+  //! Data type used to store integrals
   using Real = double;
-  //! index tpe for set of 4 orbitals {nk,nk,nk,nk} -> BigIndex
+  //! index type for set of 4 orbitals {nk,nk,nk,nk} -> BigIndex
   using BigIndex = uint64_t;
   //! index type for each {nk} (orbital)
   using Index = uint16_t;

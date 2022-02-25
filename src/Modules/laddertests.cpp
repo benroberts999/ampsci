@@ -3,6 +3,7 @@
 #include "Coulomb/Coulomb.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/InputBlock.hpp"
+#include "MBPT/GoldstoneSigma.hpp"
 #include "MBPT/Ladder.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/Wavefunction.hpp"
@@ -85,8 +86,8 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   // in/out file names (default based on basis)
   using namespace std::string_literals;
   const auto name = wf.identity() + DiracSpinor::state_config(excited);
-  const auto Qfname = input.get("Qfile", name + "qk"s);
-  const auto Lfname = input.get("Lfile", name + "lk"s);
+  const auto Qfname = input.get("Qfile", name + ".qk"s);
+  const auto Lfname = input.get("Lfile", name + ".lk"s);
 
   // Create the "total" basis, which has core+excited, but only those states
   // actually included (i.e., [n_min, n_max]). This is used to calculate Qk.
@@ -224,7 +225,36 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
            del * PhysConst::Hartree_invcm);
   }
 
-  // check_L_symmetry(core, excited, valence, qk, yk.SixJ(), &lk);
+  check_L_symmetry(core, excited, valence, qk, yk.SixJ(), &lk);
+
+  bool include_G = false;
+  const auto sigp = MBPT::Sigma_params{MBPT::Method::Goldstone,
+                                       min_n,
+                                       include_G,
+                                       0,
+                                       false,
+                                       false,
+                                       0.0,
+                                       0.0,
+                                       1.0,
+                                       false,
+                                       false,
+                                       "",
+                                       fk,
+                                       etak};
+
+  const auto subgridp = MBPT::rgrid_params{1.0e-3, 30.0, 6};
+
+  MBPT::GoldstoneSigma Sigma(wf.getHF(), wf.basis, sigp, subgridp, "na");
+
+  std::cout << "\nEnergy corrections, using Sigma:\n";
+  for (const auto &v : valence) {
+    const auto sig_l = Sigma.Sigma_l(v, yk, lk, core, excited);
+
+    std::cout << v.symbol() << " "
+              << v * Sigma.act_G_Fv(sig_l, v) * PhysConst::Hartree_invcm
+              << "\n";
+  }
 }
 
 //******************************************************************************
@@ -258,8 +288,8 @@ void check_L_symmetry(const std::vector<DiracSpinor> &core,
     const auto [k0, kI] = Coulomb::k_minmax_Q(m, n, a, b);
     for (int k = k0; k <= kI; k += 2) {
       auto gkmnab = qk.Q(k, m, n, a, b);
-      auto lkmnab = MBPT::Lkmnab(k, m, n, a, b, qk, core, excited, sj);
-      auto lknmba = MBPT::Lkmnab(k, n, m, b, a, qk, core, excited, sj);
+      auto lkmnab = MBPT::Lkmnij(k, m, n, a, b, qk, core, excited, sj);
+      auto lknmba = MBPT::Lkmnij(k, n, m, b, a, qk, core, excited, sj);
 
       auto lkmnab_tab = lk ? lk->Q(k, m, n, a, b) : 0.0;
       auto lknmba_tab = lk ? lk->Q(k, n, m, b, a) : 0.0;

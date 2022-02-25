@@ -429,7 +429,9 @@ CorrelationPotential::Sigma_l(const DiracSpinor &v, const Coulomb::YkTable &yk,
   // XXX nb: not 100% tested...
 
   // XXX Note: careful w/ YkTable - should have same basis as Qk?
-  //
+
+  std::vector<RDMatrix<double>> Sigma_n(excited.size(), Sigma);
+#pragma omp parallel for
   for (auto in = 0ul; in < excited.size(); ++in) {
     const auto &n = excited[in];
     for (const auto &a : core) {
@@ -441,8 +443,8 @@ CorrelationPotential::Sigma_l(const DiracSpinor &v, const Coulomb::YkTable &yk,
         for (int k = k0; k <= kI; k += 2) {
 
           // Effective screening parameter:
-          const auto fk = get_fk(k);
-          const auto etak = get_eta(k);
+          const auto fk = 1.0;   // get_fk(k);
+          const auto etak = 1.0; // get_eta(k);
 
           // form Lkv_amn
           const auto Qkv_amn = yk.Qkv_bcd(v.k, a, m, n, k);
@@ -468,8 +470,8 @@ CorrelationPotential::Sigma_l(const DiracSpinor &v, const Coulomb::YkTable &yk,
           const auto f = inv_de / (2 * k + 1);
           // XXX Pretty sure fk should only appear in (b), not (a)
           // XXX But maybe etak should not appear either..
-          Sigma.add(Qkv_amn, Lkv_amn, fk * etak * f); //(a) //fk both?
-          Sigma.add(Qkv_amn, Lambdakv_amn, fk * f);   //(b)
+          Sigma_n[in].add(Qkv_amn, Lkv_amn, /*fk **/ etak * f); //(a) //fk both?
+          Sigma_n[in].add(Qkv_amn, Lambdakv_amn, fk * f);       //(b)
 
         } // k
       }   // m
@@ -481,8 +483,8 @@ CorrelationPotential::Sigma_l(const DiracSpinor &v, const Coulomb::YkTable &yk,
         for (int k = k0; k <= kI; k += 2) {
 
           // Effective screening parameter:
-          const auto fk = get_fk(k);
-          const auto etak = get_eta(k);
+          const auto fk = 1.0;   // get_fk(k);
+          const auto etak = 1.0; // get_eta(k);
 
           // form Lkv_nab
           const auto Qkv_nab = yk.Qkv_bcd(v.k, n, a, b, k);
@@ -508,8 +510,8 @@ CorrelationPotential::Sigma_l(const DiracSpinor &v, const Coulomb::YkTable &yk,
           const auto f = inv_de / (2 * k + 1);
           // XXX Pretty sure fk should only appear in (d), not (c)
           // XXX But maybe etak should not appear either..
-          Sigma.add(Qkv_nab, Lkv_nab, fk * etak * f); //(c)
-          Sigma.add(Qkv_nab, Lambdakv_nab, fk * f);   //(d)
+          Sigma_n[in].add(Qkv_nab, Lkv_nab, /*fk **/ etak * f); //(c)
+          Sigma_n[in].add(Qkv_nab, Lambdakv_nab, fk * f);       //(d)
           //
 
         } // k
@@ -519,6 +521,7 @@ CorrelationPotential::Sigma_l(const DiracSpinor &v, const Coulomb::YkTable &yk,
     } // a
   }   // n
 
+  Sigma = std::accumulate(Sigma_n.cbegin(), Sigma_n.cend(), Sigma);
   return (1.0 / v.twojp1()) * Sigma;
 }
 
