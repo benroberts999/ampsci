@@ -49,7 +49,7 @@ StructureRad::srTB(const DiracOperator::TensorOperator *const h,
   const auto k = h->rank();
 
   const std::size_t num_para_threads =
-      use_omp ? std::size_t(2 * omp_get_max_threads()) : 1;
+      use_omp ? std::size_t(omp_get_max_threads()) : 1;
 
   std::vector<double> sr(num_para_threads);
   std::vector<double> sr_dv(num_para_threads);
@@ -102,7 +102,7 @@ StructureRad::srC(const DiracOperator::TensorOperator *const h,
 
   // For parallelisation:
   const std::size_t num_para_threads =
-      use_omp ? std::size_t(2 * omp_get_max_threads()) : 1;
+      use_omp ? std::size_t(omp_get_max_threads()) : 1;
 
   std::vector<double> src(num_para_threads);
   std::vector<double> src_dv(num_para_threads);
