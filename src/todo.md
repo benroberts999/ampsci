@@ -27,6 +27,7 @@
 
 ## StrucRad + Diagram RPA
   * Option to use QkTable?
+    * Can optionally calculate Qk table at Basis{}. Then, if we have it, use it
   * Store <a|h|b> and <a|dV|b> for each reqd pair?
 
 ## B-spline stability (#26)
@@ -37,8 +38,7 @@
     * Can then potentially run multiple basis blocks?
 
 ## Breit
-  * Very slow; use Yk table?
-  * Form matrix (for Feyn) = needs G?
+
 
 ## Hartree Fock (#23)
   * Re-write class (make less inter-dependent)
@@ -67,7 +67,7 @@
 
 ## Breit
   * More efficient (calc + store integrals, as for Yk?)
-  * Breit matrix - for inclusion into Green's function
+  * Breit matrix - for inclusion into Green's function (needs G?)
 
 ## Double core Polarisation (#12)
   * Work with any class derivative?

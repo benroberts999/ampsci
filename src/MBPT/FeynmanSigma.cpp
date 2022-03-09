@@ -37,7 +37,8 @@ FeynmanSigma::FeynmanSigma(const HF::HartreeFock *const in_hf,
                            const std::vector<DiracSpinor> &basis,
                            const Sigma_params &sigp,
                            const rgrid_params &subgridp,
-                           const std::string &fname)
+                           const std::string &fname, bool verbose,
+                           ExchangeMethod ex_method)
     : CorrelationPotential(in_hf, basis, sigp, subgridp),
       m_screen_Coulomb(sigp.screenCoulomb),
       m_holeParticle(sigp.holeParticle),
@@ -50,9 +51,12 @@ FeynmanSigma::FeynmanSigma(const HF::HartreeFock *const in_hf,
       m_min_core_n(sigp.min_n_core),
       m_max_kappaindex_core(2 * DiracSpinor::max_l(p_hf->get_core())),
       m_max_kappaindex(2 * sigp.max_l_excited),
-      m_ladder_file(sigp.ladder_file) {
+      m_ex_method(ex_method),
+      m_ladder_file(sigp.ladder_file),
+      m_verbose(verbose) {
 
-  std::cout << "\nCorrelation potential (Sigma): Feynman\n";
+  if (m_verbose)
+    std::cout << "\nCorrelation potential (Sigma): Feynman\n";
 
   // note: if l_max (for Green's fn) larger than l in basis, need to increase
   // m_kmax, and therefore extend the 6j and Ck tables
@@ -107,16 +111,35 @@ void FeynmanSigma::formSigma(int kappa, double en, int n) {
     return;
   }
 
-  printf("k=%2i at en=%8.5f.. ", kappa, en);
-  std::cout << std::flush;
-
   // find lowest excited state, output <v|S|v> energy shift:
   const auto find_kappa = [kappa, n](const auto &a) {
     return a.k == kappa && (a.n == n || n == 0);
   };
   const auto vk = std::find_if(cbegin(m_excited), cend(m_excited), find_kappa);
 
-  // Exchange part:
+  // calculate fk (if not explicitely given)
+  std::vector<double> vfk;
+  if (m_S0 != nullptr && m_Sx != nullptr) {
+    std::cout << vk->shortSymbol() << ": fk = ";
+    for (int k = 0; k < 8; ++k) {
+      const auto Sd0 = m_S0->FeynmanDirect(vk->k, vk->en(), k);
+      const auto SdX = m_Sx->FeynmanDirect(vk->k, vk->en(), k);
+      const auto de0 = (*vk) * m_S0->act_G_Fv(Sd0, *vk);
+      const auto deX = (*vk) * m_Sx->act_G_Fv(SdX, *vk);
+      const auto fk = deX / de0;
+      vfk.push_back(fk);
+      printf("%.3f, ", fk);
+      if (std::abs(fk - 1.0) < 0.01)
+        break;
+    }
+    std::cout << "\n";
+  } else {
+    vfk = m_fk;
+  }
+
+  printf("k=%2i at en=%8.5f.. ", kappa, en);
+  std::cout << std::flush;
+
   if (m_print_each_k) {
     // TEMPORARY: Print each k for direct part: for testing
     std::cout << "\n";
@@ -141,7 +164,7 @@ void FeynmanSigma::formSigma(int kappa, double en, int n) {
   const auto Gmat_X = m_ex_method == ExchangeMethod::none ?
                           0.0 * Sigma :
                           m_ex_method == ExchangeMethod::Goldstone ?
-                          Exchange_Goldstone(kappa, en) :
+                          Exchange_Goldstone(kappa, en, vfk) :
                           m_ex_method == ExchangeMethod::w1 ?
                           FeynmanEx_1(kappa, en) :
                           FeynmanEx_w1w2(kappa, en);
@@ -189,54 +212,55 @@ void FeynmanSigma::prep_Feynman() {
   // Extand 6j and Ck
   m_6j.fill(m_maxk); //?
   // m_yeh.extend_Ck(m_maxk); // XXX Check max k OK in Ck tables!?
+  if (m_verbose) {
+    if (m_screen_Coulomb)
+      std::cout << "Including Coulomb screening\n";
 
-  if (m_screen_Coulomb)
-    std::cout << "Including Coulomb screening\n";
+    if (m_holeParticle)
+      std::cout << "Including hole-particle interaction\n";
 
-  if (m_holeParticle)
-    std::cout << "Including hole-particle interaction\n";
+    if (!m_screen_Coulomb && !m_holeParticle)
+      std::cout << "Second-order Feynman\n";
 
-  if (!m_screen_Coulomb && !m_holeParticle)
-    std::cout << "Second-order Feynman\n";
+    std::cout << "lmax = " << Angular::lFromIndex(m_max_kappaindex) << "\n";
+    std::cout << "Using " << ParseEnum(m_Green_method)
+              << " method for Green's functions\n";
+    std::cout << "Using " << ParseEnum(m_Pol_method)
+              << " method for Polarisation operator\n";
 
-  std::cout << "lmax = " << Angular::lFromIndex(m_max_kappaindex) << "\n";
-  std::cout << "Using " << ParseEnum(m_Green_method)
-            << " method for Green's functions\n";
-  std::cout << "Using " << ParseEnum(m_Pol_method)
-            << " method for Polarisation operator\n";
+    std::cout << "Including from core n=" << m_min_core_n << "\n";
 
-  std::cout << "Including from core n=" << m_min_core_n << "\n";
+    if (m_holeParticle && m_Pol_method == GrMethod::basis) {
+      std::cout << "WARNING: Cannot include hole-particle using basis for "
+                   "Polarisation operator!\n --> hp NOT included\n";
+    }
 
-  if (m_holeParticle && m_Pol_method == GrMethod::basis) {
-    std::cout << "WARNING: Cannot include hole-particle using basis for "
-                 "Polarisation operator!\n --> hp NOT included\n";
-  }
+    std::cout << "Using " << ParseEnum(m_ex_method) << " for exchange\n";
 
-  std::cout << "Using " << ParseEnum(m_ex_method) << " for exchange\n";
+    // Print effective screening factors (if used)
+    if (m_ex_method == ExchangeMethod::Goldstone && !m_fk.empty()) {
+      std::cout << "w/ fk=";
+      std::for_each(cbegin(m_fk), cend(m_fk),
+                    [](auto fk) { std::cout << fk << ", "; });
+      std::cout << "\n";
+    }
 
-  // Print effective screening factors (if used)
-  if (m_ex_method == ExchangeMethod::Goldstone && !m_fk.empty()) {
-    std::cout << "w/ fk=";
-    std::for_each(cbegin(m_fk), cend(m_fk),
-                  [](auto fk) { std::cout << fk << ", "; });
-    std::cout << "\n";
-  }
+    if (m_ladder_file != "") {
+      std::cout << "Including ladder diagrams from " << m_ladder_file << "\n";
+      std::cout << "With fk from above, and eta_k=";
+      std::for_each(cbegin(m_eta), cend(m_eta),
+                    [](auto e) { std::cout << e << ", "; });
+      std::cout << "\n";
+    }
 
-  if (m_ladder_file != "") {
-    std::cout << "Including ladder diagrams from " << m_ladder_file << "\n";
-    std::cout << "With fk from above, and eta_k=";
-    std::for_each(cbegin(m_eta), cend(m_eta),
-                  [](auto e) { std::cout << e << ", "; });
-    std::cout << "\n";
-  }
+    if (m_include_G)
+      std::cout << "(Including FG/GF and GG)\n";
 
-  if (m_include_G)
-    std::cout << "(Including FG/GF and GG)\n";
-
-  if (m_Pol_method == GrMethod::basis || m_Green_method == GrMethod::basis ||
-      m_ex_method == ExchangeMethod::Goldstone) {
-    std::cout << "Basis: " << DiracSpinor::state_config(m_holes) << "/"
-              << DiracSpinor::state_config(m_excited) << "\n";
+    if (m_Pol_method == GrMethod::basis || m_Green_method == GrMethod::basis ||
+        m_ex_method == ExchangeMethod::Goldstone) {
+      std::cout << "Basis: " << DiracSpinor::state_config(m_holes) << "/"
+                << DiracSpinor::state_config(m_excited) << "\n";
+    }
   }
 
   form_Q_dr();
@@ -244,10 +268,57 @@ void FeynmanSigma::prep_Feynman() {
   form_Pa_core();
   setup_omega_grid();
 
-  print_subGrid();
+  if (m_verbose)
+    print_subGrid();
 
   const auto max_k = std::min(m_maxk, m_k_cut);
   m_qpq_wk = form_QPQ_wk(max_k, m_Pol_method, m_omre, *m_wgridD);
+
+  // calculate screening factors if using Goldstone exchange, and is fk not
+  // given already
+  if (m_ex_method == ExchangeMethod::Goldstone && m_fk.empty()) {
+    const bool incl_hole_particle_in_fk = false;
+    const MBPT::Sigma_params sigp_0{MBPT::Method::Feynman,
+                                    m_min_core_n,
+                                    false,
+                                    Angular::lFromIndex(m_max_kappaindex),
+                                    false,
+                                    false,
+                                    m_omre,
+                                    m_w0,
+                                    m_w_ratio,
+                                    false,                    // screening
+                                    incl_hole_particle_in_fk, // hole-particle
+                                    {}};
+    const MBPT::Sigma_params sigp_x{MBPT::Method::Feynman,
+                                    m_min_core_n,
+                                    false,
+                                    Angular::lFromIndex(m_max_kappaindex),
+                                    false,
+                                    false,
+                                    m_omre,
+                                    m_w0,
+                                    m_w_ratio,
+                                    true,                     // screening
+                                    incl_hole_particle_in_fk, // hole-particle
+                                    {}};
+
+    const MBPT::rgrid_params gridp{
+        p_gr->r(m_imin), p_gr->r(m_imin + m_stride * (m_subgrid_points - 1)),
+        std::size_t(double(m_stride))};
+
+    // calculate screening factors:
+    std::cout << "Forming screened/unscreened potentials to calculate fk:\n";
+    m_S0 = std::make_unique<const FeynmanSigma>(
+        p_hf, std::vector<DiracSpinor>{}, sigp_0, gridp, "", false,
+        ExchangeMethod::none);
+    m_Sx = std::make_unique<const FeynmanSigma>(
+        p_hf, std::vector<DiracSpinor>{}, sigp_x, gridp, "", false,
+        ExchangeMethod::none);
+  }
+
+  if (m_verbose)
+    std::cout << "\n";
 }
 
 //------------------------------------------------------------------------------
@@ -402,7 +473,8 @@ void FeynmanSigma::form_Pa_core() {
 //------------------------------------------------------------------------------
 void FeynmanSigma::setup_omega_grid() {
   // Set up imaginary frequency grid:
-  std::cout << "Re(w) = " << m_omre << "\n";
+  if (m_verbose)
+    std::cout << "Re(w) = " << m_omre << "\n";
 
   // Find max core energy: (for w_max)
   auto wmax_core = 30.0; // don't let it go below 50
@@ -428,11 +500,13 @@ void FeynmanSigma::setup_omega_grid() {
   const std::size_t wsteps = Grid::calc_num_points_from_du(
       w0, wmax, std::log(wratio), GridType::logarithmic);
   m_wgridD = std::make_unique<Grid>(w0, wmax, wsteps, GridType::logarithmic);
-  std::cout << "Im(w) " << m_wgridD->gridParameters();
-  printf(". r=%.2f\n", m_wgridD->r()[1] / m_wgridD->r()[0]);
-  if (m_wX_stride != 1 && (m_ex_method == ExchangeMethod::w1 ||
-                           m_ex_method == ExchangeMethod::w1w2)) {
-    std::cout << "Exchange Im(w) uses stride: " << m_wX_stride << "\n";
+  if (m_verbose) {
+    std::cout << "Im(w) " << m_wgridD->gridParameters();
+    printf(". r=%.2f\n", m_wgridD->r()[1] / m_wgridD->r()[0]);
+    if (m_wX_stride != 1 && (m_ex_method == ExchangeMethod::w1 ||
+                             m_ex_method == ExchangeMethod::w1w2)) {
+      std::cout << "Exchange Im(w) uses stride: " << m_wX_stride << "\n";
+    }
   }
 
   // for (const auto &w : m_wgridD->r() ) {
@@ -484,7 +558,8 @@ ComplexGMatrix FeynmanSigma::Green_core(int kappa,
   // G_core = \sum_a |a><a|/(e_r + i*e_i-ea), for all a with a.k = k
   ComplexGMatrix Gcore(m_imin, m_stride, m_subgrid_points, m_include_G, p_gr);
 
-  // loop over HF core, not Sigma core (used in subtraction to get G^excited)
+  // loop over HF core, not Sigma core (used in subtraction to get
+  // G^excited)
   const auto &core = p_hf->get_core();
   for (auto ia = 0ul; ia < core.size(); ++ia) {
     const auto &a = core[ia];
@@ -561,8 +636,8 @@ ComplexGMatrix FeynmanSigma::Green_hf(int kappa, std::complex<double> en,
   /*
 NOTE: k_hp is "dodgy" parameter.
 For including hole-particle interaction:
-the 'local' method works best for most k's, but the matrix method (with [1-P])
-works better for k=0 (and k>=5 ?)
+the 'local' method works best for most k's, but the matrix method (with
+[1-P]) works better for k=0 (and k>=5 ?)
   */
 
   // Solve DE (no exchange), regular at 0, infinity ("pinf")
@@ -582,7 +657,8 @@ works better for k=0 (and k>=5 ?)
   DiracODE::regularAtOrigin(x0, en.real(), vl, Hmag, alpha);
   DiracODE::regularAtInfinity(xI, en.real(), vl, Hmag, alpha);
 
-  // Evaluate Wronskian at ~65% of the way to pinf. Should be inependent of r
+  // Evaluate Wronskian at ~65% of the way to pinf. Should be inependent of
+  // r
   const auto pp = std::size_t(0.65 * double(xI.max_pt()));
   // Not sure why -ve sign here... ??? But needed to agree w/ basis version;
   const auto w = -1.0 * (xI.f(pp) * x0.g(pp) - x0.f(pp) * xI.g(pp)) / alpha;
@@ -743,12 +819,16 @@ FeynmanSigma::form_QPQ_wk(int max_k, GrMethod pol_method, double omre,
   // Returns QPQ, function of w and k
 
   std::vector<std::vector<ComplexGMatrix>> qpq(wgrid.num_points());
-  std::cout << "Forming QPQ(w,k) matrix.." << std::flush;
+  std::cout << "Forming QPQ(w,k)" << std::flush;
+  if (m_holeParticle || m_screen_Coulomb) {
+    std::cout << " (w/ " << (m_screen_Coulomb ? "scr" : "")
+              << (m_holeParticle && m_screen_Coulomb ? " + " : "")
+              << (m_holeParticle ? "hp" : "") << ")";
+  }
+  std::cout << " .." << std::flush;
 
   const auto pi_wk = make_pi_wk(max_k, pol_method, omre, wgrid);
-  std::cout << "." << std::flush;
-
-  std::cout << "." << std::flush;
+  std::cout << ".." << std::flush;
 
   const auto num_ks = std::size_t(max_k + 1);
 #pragma omp parallel for
@@ -759,7 +839,6 @@ FeynmanSigma::form_QPQ_wk(int max_k, GrMethod pol_method, double omre,
       const auto &qk = get_qk(int(k));
       const auto &pi = pi_wk[iw][k];
       if (m_screen_Coulomb) {
-        // This way: works!
         const auto X = X_PiQ(pi, qk);
         qpq[iw].emplace_back(qk * X * pi * qk);
       } else {
@@ -767,7 +846,7 @@ FeynmanSigma::form_QPQ_wk(int max_k, GrMethod pol_method, double omre,
       }
     }
   }
-  std::cout << "..done\n";
+  std::cout << "done\n";
   return qpq;
 }
 
@@ -816,7 +895,8 @@ GMatrix FeynmanSigma::FeynmanDirect(int kv, double env, int in_k) const {
   const auto gBs =
       form_Greens_kapw(m_max_kappaindex, m_Green_method, env + omre, wgrid);
 
-  // If Im(w) grid is -ve, we integrate "wrong" way around contour; extra -ve
+  // If Im(w) grid is -ve, we integrate "wrong" way around contour; extra
+  // -ve
   const auto sw = wgrid.r(0) > 0.0 ? 1.0 : -1.0;
 
 #pragma omp parallel for
@@ -905,7 +985,7 @@ GMatrix FeynmanSigma::FeynmanEx_w1w2(int kv, double en_r) const {
   //     use_omp ? num_kappas * num_kappas / 4 : 1;
   const std::size_t num_para_threads =
       use_omp ? std::min(num_kappas * num_kappas,
-                         std::size_t(4 * omp_get_max_threads())) :
+                         std::size_t(omp_get_max_threads())) :
                 1;
 
   // Store parts of Sx seperately, for more efficient parallelisation
@@ -951,9 +1031,9 @@ GMatrix FeynmanSigma::FeynmanEx_w1w2(int kv, double en_r) const {
             // This seems to be a very expensive random number generator...
 
             // note: sumkl_gqgqg is the slow part: generateing Green's
-            // function here is very ineficient, but doesn't actually take any
-            // longer
-            // if (std::abs((evpw1 + ev_p_w2).cimag()) <= 1.5 * wmax)
+            // function here is very ineficient, but doesn't actually take
+            // any longer if (std::abs((evpw1 + ev_p_w2).cimag()) <= 1.5 *
+            // wmax)
             {
               // (w1 + w2) case:
               const auto &gB_p =
@@ -966,11 +1046,10 @@ GMatrix FeynmanSigma::FeynmanEx_w1w2(int kv, double en_r) const {
             }
 
             // nb: I thought these should be Sc_i -= ...
-            // because we have (i*i)=-1 from dw1*dw2, and sumkl_gqgqg is real
-            // But, I included an extra i inside sumkl_gqgqg instead (i.e.,
-            // assume only get 1 i)?
-            // Still, factor of 10 too big!?
-            // if (std::abs((evpw1 + ev_m_w2).cimag()) <= 1.5 * wmax)
+            // because we have (i*i)=-1 from dw1*dw2, and sumkl_gqgqg is
+            // real But, I included an extra i inside sumkl_gqgqg instead
+            // (i.e., assume only get 1 i)? Still, factor of 10 too big!? if
+            // (std::abs((evpw1 + ev_m_w2).cimag()) <= 1.5 * wmax)
             {
               // (w1 - w2) case:
               const auto &gB_m =
@@ -1044,7 +1123,7 @@ GMatrix FeynmanSigma::FeynmanEx_1(int kv, double env) const {
   //     use_omp ? num_kappas * wgrid.num_points() / m_wX_stride / 4 : 1;
   const std::size_t num_para_threads =
       use_omp ? std::min(num_kappas * wgrid.num_points() / m_wX_stride,
-                         std::size_t(4 * omp_get_max_threads())) :
+                         std::size_t(omp_get_max_threads())) :
                 1;
 
   std::vector<GMatrix> Sx_k(
@@ -1260,8 +1339,9 @@ double FeynmanSigma::Lkl_abcd(int k, int l, int ka, int kb, int kc,
 }
 
 //******************************************************************************
-GMatrix FeynmanSigma::Exchange_Goldstone(const int kappa,
-                                         const double en) const {
+GMatrix
+FeynmanSigma::Exchange_Goldstone(const int kappa, const double en,
+                                 const std::vector<double> &v_fk) const {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
 
   // XXX Update Goldstone to work the same way as this one.
@@ -1277,6 +1357,13 @@ GMatrix FeynmanSigma::Exchange_Goldstone(const int kappa,
   // a & b are core states, n & m are virtual excited states,
   // k is multipolarity [Coloulmb expansion]
   // de_xyz = e_v + e_x - e_y - e_z
+
+  auto local_get_fk = [&v_fk](int k) {
+    if (k < int(v_fk.size())) {
+      return v_fk[std::size_t(k)];
+    }
+    return 1.0;
+  };
 
   GMatrix SxG(m_imin, m_stride, m_subgrid_points, m_include_G, p_gr);
 
@@ -1299,7 +1386,7 @@ GMatrix FeynmanSigma::Exchange_Goldstone(const int kappa,
         // const auto &yknb = *m_yeh.get(k, n, a); // check null!
 
         // Effective screening parameter:
-        const auto fk = get_fk(k);
+        const auto fk = local_get_fk(k);
 
         // Diagrams (b) [exchange]
         for (const auto &m : m_excited) {
@@ -1309,8 +1396,8 @@ GMatrix FeynmanSigma::Exchange_Goldstone(const int kappa,
           Qkv = m_yeh.Qkv_bcd(Qkv.k, a, m, n, k);
           // Pkv_bcd_2 allows different screening factor for each 'k2' in
           // exch.
-          // Coulomb::Pkv_bcd_2(&Pkv, a, m, n, k, m_yeh(m, a), Ck, m_6j, m_fk);
-          // m_yeh.Pkv_bcd_2(&Pkv, a, m, n, k, m_fk);
+          // Coulomb::Pkv_bcd_2(&Pkv, a, m, n, k, m_yeh(m, a), Ck, m_6j,
+          // m_fk); m_yeh.Pkv_bcd_2(&Pkv, a, m, n, k, m_fk);
           Pkv = m_yeh.Pkv_bcd(Pkv.k, a, m, n, k, m_fk);
           const auto dele = en + a.en() - m.en() - n.en();
           const auto factor = fk / (f_kkjj * dele);
@@ -1323,8 +1410,8 @@ GMatrix FeynmanSigma::Exchange_Goldstone(const int kappa,
             continue;
           // Coulomb::Qkv_bcd(&Qkv, n, b, a, k, yknb, Ck);
           Qkv = m_yeh.Qkv_bcd(Qkv.k, n, b, a, k);
-          // Coulomb::Pkv_bcd_2(&Pkv, n, b, a, k, m_yeh(n, b), Ck, m_6j, m_fk);
-          // m_yeh.Pkv_bcd_2(&Pkv, n, b, a, k, m_fk);
+          // Coulomb::Pkv_bcd_2(&Pkv, n, b, a, k, m_yeh(n, b), Ck, m_6j,
+          // m_fk); m_yeh.Pkv_bcd_2(&Pkv, n, b, a, k, m_fk);
           Pkv = m_yeh.Pkv_bcd(Pkv.k, n, b, a, k, m_fk);
           const auto dele = en + n.en() - b.en() - a.en();
           const auto factor = fk / (f_kkjj * dele); // XXX

@@ -230,6 +230,7 @@ protected:
   std::vector<double> m_fk{};  // e.g., {0.72, 0.62, 0.83, 0.89, 0.94, 1.0};
   std::vector<double> m_eta{}; // e.g., {1.1, 1.4, 1.0};
 
+  // XXX KILL ?
   double get_fk(int k) const {
     if (k < int(m_fk.size())) {
       return m_fk[std::size_t(k)];
