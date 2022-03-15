@@ -818,7 +818,7 @@ void Wavefunction::fitSigma_hfBrueckner(
     const std::string &, const std::vector<double> &fit_energies) {
   std::cout << "\nFitting Sigma for lowest valence states:\n";
 
-  const auto max_its = 10;
+  const auto max_its = 30;
   const auto eps_targ = 1.0e-7;
 
   // XXX Assume the 'fit_to' are in same order as valence!!
@@ -836,11 +836,13 @@ void Wavefunction::fitSigma_hfBrueckner(
     // std::cout << Fv.symbol() << " " << Fv.en() * PhysConst::Hartree_invcm
     //           << " -> " << e_exp * PhysConst::Hartree_invcm << ": ";
 
-    printf("%4s %7.0f [%7.0f] : ", Fv.shortSymbol().c_str(),
-           Fv.en() * PhysConst::Hartree_invcm,
-           e_exp * PhysConst::Hartree_invcm);
+    // printf("%4s %7.0f [%8.1f] : \n", Fv.shortSymbol().c_str(),
+    //        Fv.en() * PhysConst::Hartree_invcm,
+    //        e_exp * PhysConst::Hartree_invcm);
     const double en_0 = Fv.en(); // HF value
+    auto e_Sig1 = 0.0;
     auto lambda = 1.0;
+    const double a_damp = 0.9; // 1 means no damping
     double eps = 1.0;
     int its = 0;
     for (; its < max_its; its++) {
@@ -849,13 +851,26 @@ void Wavefunction::fitSigma_hfBrueckner(
       // nb: hf_Brueckner must start from HF... so, call on copy of Fv....
       m_pHF->hf_Brueckner(Fv_l, *m_Sigma);
       double en_l = Fv_l.en();
+      if (its == 0)
+        e_Sig1 = en_l;
       eps = std::abs((e_exp - en_l) / e_exp);
+      // std::cout << lambda << " " << en_l * PhysConst::Hartree_invcm << " "
+      //           << eps << "\n";
       if (eps < eps_targ)
         break;
       const auto r = (e_exp - en_l) / (en_l - en_0);
-      lambda = std::clamp(lambda * (1.0 + r), 0.5, 1.5);
+      const auto new_lambda = lambda * (1.0 + a_damp * r);
+      lambda = std::clamp(new_lambda, 0.5, 1.5);
     }
-    printf("%.0e (%2i); lambda = %.4f\n", eps, its, lambda);
+    printf("%4s | %8.1f, %8.1f [%8.1f] : ", Fv.shortSymbol().c_str(),
+           en_0 * PhysConst::Hartree_invcm, e_Sig1 * PhysConst::Hartree_invcm,
+           e_exp * PhysConst::Hartree_invcm);
+    printf("%.0e (%2i); lambda = %.4f", eps, its, lambda);
+    if (eps > 1.0e-6)
+      std::cout << " **";
+    if (eps > 1.0e-5)
+      std::cout << "***";
+    std::cout << "\n";
   }
 
   hartreeFockBrueckner(true);

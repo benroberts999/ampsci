@@ -351,7 +351,7 @@ void ampsci(const IO::InputBlock &input) {
        {"fk",
         "List of doubles. Screening factors for effective all-order "
         "exchange. In Feynman method, used in exchange+ladder only; Goldstone, "
-        "used direct also. []"},
+        "used direct also. If blank, will calculate them from scratch. []"},
        {"eta", "List of doubles. Hole-Particle factors. In Feynman method, "
                "used in ladder only; Goldstone, used direct also. []"},
        {"screening", "bool. Include Screening [false]"},
