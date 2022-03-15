@@ -184,6 +184,10 @@ public:
   friend bool operator<=(const DiracSpinor &lhs, const DiracSpinor &rhs);
   friend bool operator>=(const DiracSpinor &lhs, const DiracSpinor &rhs);
 
+  friend std::ostream &operator<<(std::ostream &ostr, const DiracSpinor &Fa) {
+    return ostr << Fa.shortSymbol();
+  }
+
   //! Custom comparitors (for sorting): l, j, kappa_index, energy
   static bool comp_l(const DiracSpinor &lhs, const DiracSpinor &rhs) {
     return lhs.m_l < rhs.m_l;
