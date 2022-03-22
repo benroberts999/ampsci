@@ -268,13 +268,15 @@ void check_L_symmetry(const std::vector<DiracSpinor> &core,
   std::cout << "\ncheck_L_symmetry\n";
   std::random_device rd;
   std::mt19937 gen(rd());
+  if (excited.empty() || core.empty() || valence.empty())
+    return;
   std::uniform_int_distribution<std::size_t> e_index(0, excited.size() - 1);
   std::uniform_int_distribution<std::size_t> c_index(0, core.size() - 1);
   std::uniform_int_distribution<std::size_t> v_index(0, valence.size() - 1);
 
   double max_del = 0.0;
   std::string s1, s2;
-  const int num_to_test = 15000;
+  const int num_to_test = 150000;
   for (int tries = 0; tries < num_to_test; ++tries) {
     const auto &m = excited[e_index(gen)];
     const auto &n = excited[e_index(gen)];

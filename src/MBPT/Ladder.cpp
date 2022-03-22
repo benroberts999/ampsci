@@ -168,13 +168,12 @@ void fill_Lk_mnib(Coulomb::CoulombTable *lk, const Coulomb::CoulombTable &qk,
   const double b_damp = 1.0 - a_damp;
 
   // Check core/excited orbitals around right way:
-  assert(core.front().en() < excited.front().en());
+  if (!core.empty() && !excited.empty())
+    assert(core.front().en() < excited.front().en());
 
   // nb: we can apply the symmetry condition, and only calculate the unique
   // integrals, but ONLY if {i}={core}. When {i}={valence}, they are all unique!
   // Due to L_abcd = L_badc symmetry. ~2x speedup
-  // NOTE: When {i}!=core, we need to calculate L_nnib AND L_nnbi - ie., in the
-  // case where n=m, we need to add the {ib,bi case!}
   const auto apply_symmetry = &core == &i_orbs;
 
   int count = 0; // for prog bar
@@ -212,28 +211,29 @@ void fill_Lk_mnib(Coulomb::CoulombTable *lk, const Coulomb::CoulombTable &qk,
       }
     }
 
-    // For case when {i}!=core, we have skipped L_mmbi terms; add them here
-    if (!apply_symmetry) {
-      for (const auto &b : core) {
-        for (const auto &i : i_orbs) {
-          const auto [k0, kI] = Coulomb::k_minmax_Q(m, m, b, i);
-          for (int k = k0; k <= kI; k += 2) {
-
-            auto L_kmmbi = MBPT::Lkmnij(k, m, m, b, i, qk, core, excited, sjt,
-                                        lk_prev, fk);
-
-            // If we have old value, 'damp' new value
-            const auto L_prev = lk_prev ? lk_prev->Q(k, m, m, b, i) : 0.0;
-            if (L_prev != 0.0) {
-              L_kmmbi = b_damp * L_kmmbi + a_damp * L_prev;
-            }
-
-            // store new value in table
-            lk->update(k, m, m, b, i, L_kmmbi);
-          }
-        }
-      }
-    }
+    // // For case when {i}!=core, we have skipped L_mmbi terms; add them here
+    // if (!apply_symmetry) {
+    //   for (const auto &b : core) {
+    //     for (const auto &i : i_orbs) {
+    //       const auto [k0, kI] = Coulomb::k_minmax_Q(m, m, b, i);
+    //       for (int k = k0; k <= kI; k += 2) {
+    //
+    //         auto L_kmmbi = MBPT::Lkmnij(k, m, m, b, i, qk, core, excited,
+    //         sjt,
+    //                                     lk_prev, fk);
+    //
+    //         // If we have old value, 'damp' new value
+    //         const auto L_prev = lk_prev ? lk_prev->Q(k, m, m, b, i) : 0.0;
+    //         if (L_prev != 0.0) {
+    //           L_kmmbi = b_damp * L_kmmbi + a_damp * L_prev;
+    //         }
+    //
+    //         // store new value in table
+    //         lk->update(k, m, m, b, i, L_kmmbi);
+    //       }
+    //     }
+    //   }
+    // }
   }
 }
 
