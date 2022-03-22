@@ -172,9 +172,7 @@ void fill_Lk_mnib(Coulomb::CoulombTable *lk, const Coulomb::CoulombTable &qk,
     assert(core.front().en() < excited.front().en());
 
   // nb: we can apply the symmetry condition, and only calculate the unique
-  // integrals, but ONLY if {i}={core}. When {i}={valence}, they are all unique!
-  // Due to L_abcd = L_badc symmetry. ~2x speedup
-  const auto apply_symmetry = &core == &i_orbs;
+  // integrals by only calculating those when {mnib} is already NormalOrdered
 
   int count = 0; // for prog bar
   for (const auto &m : excited) {
@@ -182,10 +180,10 @@ void fill_Lk_mnib(Coulomb::CoulombTable *lk, const Coulomb::CoulombTable &qk,
       qip::progbar50(count++, int(excited.size()));
 
     for (const auto &n : excited) {
-      if (apply_symmetry && n < m)
-        continue;
       for (const auto &i : i_orbs) {
         for (const auto &b : core) {
+          if (!lk->is_NormalOrdered(m, n, i, b))
+            continue;
           // we only need L's when there are non-zero Q's
           const auto [k0, kI] = Coulomb::k_minmax_Q(m, n, i, b);
           for (int k = k0; k <= kI; k += 2) {
@@ -210,30 +208,6 @@ void fill_Lk_mnib(Coulomb::CoulombTable *lk, const Coulomb::CoulombTable &qk,
         }
       }
     }
-
-    // // For case when {i}!=core, we have skipped L_mmbi terms; add them here
-    // if (!apply_symmetry) {
-    //   for (const auto &b : core) {
-    //     for (const auto &i : i_orbs) {
-    //       const auto [k0, kI] = Coulomb::k_minmax_Q(m, m, b, i);
-    //       for (int k = k0; k <= kI; k += 2) {
-    //
-    //         auto L_kmmbi = MBPT::Lkmnij(k, m, m, b, i, qk, core, excited,
-    //         sjt,
-    //                                     lk_prev, fk);
-    //
-    //         // If we have old value, 'damp' new value
-    //         const auto L_prev = lk_prev ? lk_prev->Q(k, m, m, b, i) : 0.0;
-    //         if (L_prev != 0.0) {
-    //           L_kmmbi = b_damp * L_kmmbi + a_damp * L_prev;
-    //         }
-    //
-    //         // store new value in table
-    //         lk->update(k, m, m, b, i, L_kmmbi);
-    //       }
-    //     }
-    //   }
-    // }
   }
 }
 

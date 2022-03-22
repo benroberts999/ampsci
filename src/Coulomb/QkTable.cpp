@@ -357,19 +357,16 @@ void QkTable::fill(const std::vector<DiracSpinor> &basis, const YkTable &yk,
   for (auto k = 0; k <= int(max_k); ++k) {
     for (const auto &a : basis) {
       for (const auto &b : basis) {
-        if (b < a) // symmetry
-          continue;
         for (const auto &c : basis) {
-          if (c < a) // symmetry
-            continue;
           if (!Angular::Ck_kk_SR(k, a.k, c.k))
             continue;
           for (const auto &d : basis) {
-            if (d < b) // symmetry
-              continue;
-            if (!Angular::Ck_kk_SR(k, b.k, d.k))
-              continue;
-            ++count_non_zero_k[std::size_t(k)];
+            // due to symmetry, only calculate each 'unique' integral once
+            if (NormalOrder(a, b, c, d) == CurrentOrder(a, b, c, d)) {
+              if (Angular::Ck_kk_SR(k, b.k, d.k)) {
+                ++count_non_zero_k[std::size_t(k)];
+              }
+            }
           }
         }
       }
@@ -391,19 +388,15 @@ void QkTable::fill(const std::vector<DiracSpinor> &basis, const YkTable &yk,
   for (auto k = 0; k <= int(max_k); ++k) {
     for (const auto &a : basis) {
       for (const auto &b : basis) {
-        if (b < a) // symmetry
-          continue;
         for (const auto &c : basis) {
-          if (c < a) // symmetry
-            continue;
           if (!Angular::Ck_kk_SR(k, a.k, c.k))
             continue;
           for (const auto &d : basis) {
-            if (d < b) // symmetry
-              continue;
-            if (!Angular::Ck_kk_SR(k, b.k, d.k))
-              continue;
-            add(k, a, b, c, d, 0.0);
+            if (NormalOrder(a, b, c, d) == CurrentOrder(a, b, c, d)) {
+              if (Angular::Ck_kk_SR(k, b.k, d.k)) {
+                add(k, a, b, c, d, 0.0);
+              }
+            }
           }
         }
       }
@@ -411,27 +404,23 @@ void QkTable::fill(const std::vector<DiracSpinor> &basis, const YkTable &yk,
   }
   std::cout << "Fill w/ zeros: " << t.lap_reading_str() << std::endl;
 
-  // 4) Fill the pre-constructed map with values, in parallel. Since we are not
-  // adding any new elements to map, and since we are guarenteed to only access
-  // each map element once, we can do this part in parallel.
-  // nb: This //isation is not very efficient, though in theory it can be 100%
+  // 4) Fill the pre-constructed map with values, in parallel. Since we are
+  // not adding any new elements to map, and since we are guarenteed to only
+  // access each map element once, we can do this part in parallel. nb: This
+  // //isation is not very efficient, though in theory it can be 100%
   t.start();
 #pragma omp parallel for
   for (auto ia = 0ul; ia < basis.size(); ++ia) {
     const auto &a = basis[ia];
     for (const auto &b : basis) {
-      if (b < a) // symmetry
-        continue;
       for (const auto &c : basis) {
-        if (c < a) // symmetry
-          continue;
         for (const auto &d : basis) {
-          if (d < b) // symmetry
-            continue;
-          auto [kmin, kmax] = k_minmax_Q(a, b, c, d);
-          kmax = std::clamp(kmax, 0, int(max_k));
-          for (int k = kmin; k <= kmax; k += 2) {
-            update(k, a, b, c, d, yk.Q(k, a, b, c, d));
+          if (NormalOrder(a, b, c, d) == CurrentOrder(a, b, c, d)) {
+            auto [kmin, kmax] = k_minmax_Q(a, b, c, d);
+            kmax = std::clamp(kmax, 0, int(max_k));
+            for (int k = kmin; k <= kmax; k += 2) {
+              update(k, a, b, c, d, yk.Q(k, a, b, c, d));
+            }
           }
         }
       }
