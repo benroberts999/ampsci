@@ -103,7 +103,7 @@ bool QkTable(std::ostream &obuff) {
   std::cout << dir_time << "/" << tab_time
             << ": speed-up = " << dir_time / tab_time << "x\n";
 
-  pass &= qip::check(&obuff, "QkTable: timing", tab_time < dir_time, true);
+  pass &= qip::check(&obuff, "QkTable: timing", tab_time < dir_time);
 
   {
 
@@ -121,7 +121,7 @@ bool QkTable(std::ostream &obuff) {
     // (only for subset, since otherwise v. slow)
     double max_devR = 0.0, max_devQ = 0.0;
     double max_devP = 0.0, max_devW = 0.0;
-    const int num_to_test = 20000;
+    const int num_to_test = 50000;
     int non_zero_count = 0;
     int total_count = 0; // more than num_to_test, because \sum_k
     for (int tries = 0; tries < num_to_test; ++tries) {
@@ -168,6 +168,99 @@ bool QkTable(std::ostream &obuff) {
     pass &= qip::check_value(&obuff, "QkTable: R", max_devR, 0.0, 1.0e-13);
     pass &= qip::check_value(&obuff, "QkTable: P", max_devP, 0.0, 1.0e-13);
     pass &= qip::check_value(&obuff, "QkTable: W", max_devW, 0.0, 1.0e-13);
+  }
+
+  //============================================================================
+  {
+    // check Normal Ordering:
+    bool Qk_NormalOrder_ok = true;
+    for (auto &a : wf.basis) {
+      for (auto &b : wf.basis) {
+        for (auto &c : wf.basis) {
+          for (auto &d : wf.basis) {
+            // Qk: abcd = cbad = adcb = cdab = badc = bcda = dabc = dcba
+            const auto i_abcd = qk.NormalOrder(a, b, c, d);
+            const auto i_adcb = qk.NormalOrder(a, d, c, b);
+            const auto i_badc = qk.NormalOrder(b, a, d, c);
+            const auto i_bcda = qk.NormalOrder(b, c, d, a);
+            const auto i_cbad = qk.NormalOrder(c, b, a, d);
+            const auto i_cdab = qk.NormalOrder(c, d, a, b);
+            const auto i_dabc = qk.NormalOrder(d, a, b, c);
+            const auto i_dcba = qk.NormalOrder(d, c, b, a);
+            // If all are the same, max = min
+            const auto i_max = std::max({i_abcd, i_adcb, i_badc, i_bcda, i_cbad,
+                                         i_cdab, i_dabc, i_dcba});
+            const auto i_min = std::min({i_abcd, i_adcb, i_badc, i_bcda, i_cbad,
+                                         i_cdab, i_dabc, i_dcba});
+            if (i_max != i_min)
+              Qk_NormalOrder_ok = false;
+            if (i_max != i_min) {
+              std::cout << "Qk NormalOrder failed for:\n";
+              std::cout << a << b << c << d << ":" << i_abcd << "\n";
+              std::cout << a << d << c << b << ":" << i_adcb << "\n";
+              std::cout << b << a << d << c << ":" << i_badc << "\n";
+              std::cout << b << c << d << a << ":" << i_bcda << "\n";
+              std::cout << c << b << a << d << ":" << i_cbad << "\n";
+              std::cout << c << d << a << b << ":" << i_cdab << "\n";
+              std::cout << d << a << b << c << ":" << i_dabc << "\n";
+              std::cout << d << c << b << a << ":" << i_dcba << "\n";
+            }
+          }
+        }
+      }
+    }
+    pass &= qip::check(&obuff, "QkTable: NormalOrder", Qk_NormalOrder_ok);
+
+    Coulomb::WkTable wk;
+    bool Wk_NormalOrder_ok = true;
+    for (auto &a : wf.basis) {
+      for (auto &b : wf.basis) {
+        for (auto &c : wf.basis) {
+          for (auto &d : wf.basis) {
+            // Qk: abcd = badc = cdab = dcba
+            const auto i_abcd = wk.NormalOrder(a, b, c, d);
+            const auto i_badc = wk.NormalOrder(b, a, d, c);
+            const auto i_cdab = wk.NormalOrder(c, d, a, b);
+            const auto i_dcba = wk.NormalOrder(d, c, b, a);
+            // If all are the same, max = min
+            const auto i_max = std::max({i_abcd, i_badc, i_cdab, i_dcba});
+            const auto i_min = std::min({i_abcd, i_badc, i_cdab, i_dcba});
+            if (i_max != i_min)
+              Wk_NormalOrder_ok = false;
+            if (i_max != i_min) {
+              std::cout << "Wk NormalOrder failed for:\n";
+              std::cout << a << b << c << d << ":" << i_abcd << "\n";
+              std::cout << b << a << d << c << ":" << i_badc << "\n";
+              std::cout << c << d << a << b << ":" << i_cdab << "\n";
+              std::cout << d << c << b << a << ":" << i_dcba << "\n";
+            }
+          }
+        }
+      }
+    }
+    pass &= qip::check(&obuff, "WkTable: NormalOrder", Wk_NormalOrder_ok);
+
+    Coulomb::LkTable lk;
+    bool Lk_NormalOrder_ok = true;
+    for (auto &a : wf.basis) {
+      for (auto &b : wf.basis) {
+        for (auto &c : wf.basis) {
+          for (auto &d : wf.basis) {
+            // Qk: abcd = badc = cdab = dcba
+            const auto i_abcd = wk.NormalOrder(a, b, c, d);
+            const auto i_badc = wk.NormalOrder(b, a, d, c);
+            if (i_abcd != i_badc)
+              Lk_NormalOrder_ok = false;
+            if (i_abcd != i_badc) {
+              std::cout << "Lk NormalOrder failed for:\n";
+              std::cout << a << b << c << d << ":" << i_abcd << "\n";
+              std::cout << b << a << d << c << ":" << i_badc << "\n";
+            }
+          }
+        }
+      }
+    }
+    pass &= qip::check(&obuff, "LkTable: NormalOrder", Lk_NormalOrder_ok);
   }
 
   return pass;

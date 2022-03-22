@@ -195,7 +195,7 @@ private:
 };
 
 //******************************************************************************
-//! Derived CoulombTable for the Wk symmetry: {abcd} = badc = cdab = dcba
+//! Derived CoulombTable for the Wk = g symmetry: {abcd} = badc = cdab = dcba
 class WkTable : public CoulombTable {
 
 public:

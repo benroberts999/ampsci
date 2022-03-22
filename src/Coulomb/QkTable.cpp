@@ -212,53 +212,84 @@ CoulombTable::BigIndex CoulombTable::CurrentOrder(const DiracSpinor &a,
   return FormIndex(a.nk_index(), b.nk_index(), c.nk_index(), d.nk_index());
 }
 
-//******************************************************************************
+// XXX Note: this failed sometimes when there were repeated indices!
+// //******************************************************************************
+// CoulombTable::BigIndex QkTable::NormalOrder_impl(Index a, Index b, Index c,
+//                                                  Index d) const {
+//   // put smallest first
+//   const auto min = std::min({a, b, c, d});
+//   if (min == a) {
+//     // options are abcd, and adcb
+//     return (b < d) ? FormIndex(a, b, c, d) : FormIndex(a, d, c, b);
+//   } else if (min == b) {
+//     // options are badc, and bcda
+//     return (a < c) ? FormIndex(b, a, d, c) : FormIndex(b, c, d, a);
+//   } else if (min == c) {
+//     return (b < d) ? FormIndex(c, b, a, d) : FormIndex(c, d, a, b);
+//   } else if (min == d) {
+//     // options are dabc, and dcba
+//     return (a < c) ? FormIndex(d, a, b, c) : FormIndex(d, c, b, a);
+//   }
+//   assert(false);
+// }
+
 CoulombTable::BigIndex QkTable::NormalOrder_impl(Index a, Index b, Index c,
                                                  Index d) const {
-  // put smallest first
-  const auto min = std::min({a, b, c, d});
-  if (min == a) {
-    // options are abcd, and adcb
-    return (b < d) ? FormIndex(a, b, c, d) : FormIndex(a, d, c, b);
-  } else if (min == b) {
-    // options are badc, and bcda
-    return (a < c) ? FormIndex(b, a, d, c) : FormIndex(b, c, d, a);
-  } else if (min == c) {
-    // options are cbad, and cdab
-    return (b < d) ? FormIndex(c, b, a, d) : FormIndex(c, d, a, b);
-  } else if (min == d) {
-    // options are dabc, and dcba
-    return (a < c) ? FormIndex(d, a, b, c) : FormIndex(d, c, b, a);
-  }
-  assert(false);
+
+  // abcd -> ijkl, with i = min(a,b,c,d)
+
+  // abcd = adcb
+  // badc = bcda
+  // cbad = cdab
+  // dabc = dcba
+  // nb: there must be a more efficient way of doing this!
+  const auto tmp1 = FormIndex(a, b, c, d);
+  const auto tmp2 = FormIndex(a, d, c, b);
+  const auto tmp3 = FormIndex(b, a, d, c);
+  const auto tmp4 = FormIndex(b, c, d, a);
+  const auto tmp5 = FormIndex(c, b, a, d);
+  const auto tmp6 = FormIndex(c, d, a, b);
+  const auto tmp7 = FormIndex(d, a, b, c);
+  const auto tmp8 = FormIndex(d, c, b, a);
+  return std::min({tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8});
 }
 //------------------------------------------------------------------------------
 CoulombTable::BigIndex WkTable::NormalOrder_impl(Index a, Index b, Index c,
                                                  Index d) const {
-  // put smallest first
-  const auto min = std::min({a, b, c, d});
-  if (min == a) {
-    return FormIndex(a, b, c, d);
-  } else if (min == b) {
-    return FormIndex(b, a, d, c);
-  } else if (min == c) {
-    return FormIndex(c, d, a, b);
-  } else if (min == d) {
-    return FormIndex(d, c, b, a);
-  }
-  assert(false);
+  // // put smallest first
+  // XXX Note: this failed sometimes when there were repeated indices!
+  // const auto min = std::min({a, b, c, d});
+  // if (min == a) {
+  //   return FormIndex(a, b, c, d);
+  // } else if (min == b) {
+  //   return FormIndex(b, a, d, c);
+  // } else if (min == c) {
+  //   return FormIndex(c, d, a, b);
+  // } else if (min == d) {
+  //   return FormIndex(d, c, b, a);
+  // }
+  // assert(false);
+
+  const auto tmp1 = FormIndex(a, b, c, d);
+  const auto tmp2 = FormIndex(b, a, d, c);
+  const auto tmp3 = FormIndex(c, d, a, b);
+  const auto tmp4 = FormIndex(d, c, b, a);
+  return std::min({tmp1, tmp2, tmp3, tmp4});
 }
 
 //------------------------------------------------------------------------------
 CoulombTable::BigIndex LkTable::NormalOrder_impl(Index a, Index b, Index c,
                                                  Index d) const {
-  // [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
-  if (a <= b) { // a = std::min(a, b);
-    return FormIndex(a, b, c, d);
-  } else {
-    return FormIndex(b, a, d, c);
-  }
-  assert(false);
+  // // [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
+  // if (a <= b) { // a = std::min(a, b);
+  //   return FormIndex(a, b, c, d);
+  // } else {
+  //   return FormIndex(b, a, d, c);
+  // }
+  // assert(false);
+  const auto tmp1 = FormIndex(a, b, c, d);
+  const auto tmp2 = FormIndex(b, a, d, c);
+  return std::min({tmp1, tmp2});
 }
 
 //------------------------------------------------------------------------------
