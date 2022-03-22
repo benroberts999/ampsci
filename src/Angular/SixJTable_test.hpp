@@ -208,7 +208,7 @@ bool SixJTable(std::ostream &obuff) {
         t2 = t.lap_reading_ms();
       }
 
-      pass &= qip::check(&obuff, "6Jtab: >2x speed", t2 > 1.5 * t1, true);
+      pass &= qip::check(&obuff, "6Jtab: >2x speed", t2 > 1.5 * t1);
     }
   }
 

@@ -117,7 +117,7 @@ bool RDMatrix(std::ostream &obuff) {
 
       pass &= qip::check_value(&obuff, "G^-1 (small)", del2, 0.0, 1.0e-8);
       pass &= qip::check(&obuff, "G^-1 Neumann converge",
-                         (del2 < del1 && del1 < del0), true);
+                         (del2 < del1 && del1 < del0));
 
       // Now, use 'raw_mat_mul' (doesn't contain integration measure) to
       // directly test inverse. Note that we don't use 'raw_mat_mul' in any
@@ -174,7 +174,7 @@ bool RDMatrix(std::ostream &obuff) {
 
       pass &= qip::check_value(&obuff, "G^-1 (small+g)", del2, 0.0, 1.0e-8);
       pass &= qip::check(&obuff, "G^-1 Neumann converge",
-                         (del2 < del1 && del1 < del0), true);
+                         (del2 < del1 && del1 < del0));
 
       // Now, use 'raw_mat_mul' (doesn't contain integration measure) to
       // directly test inverse.
@@ -251,7 +251,7 @@ bool RDMatrix(std::ostream &obuff) {
 
       pass &= qip::check_value(&obuff, "iG^-1 (small+g)", del2, 0.0, 1.0e-6);
       pass &= qip::check(&obuff, "iG^-1 Neumann converge",
-                         (del2 < del1 && del1 < del0), true);
+                         (del2 < del1 && del1 < del0));
 
       // Now, use 'raw_mat_mul' (doesn't contain integration measure) to
       // directly test inverse.

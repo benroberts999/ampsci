@@ -54,4 +54,13 @@ bool check(std::ostream *ostr, const std::string_view &name, const T value,
   return passedQ;
 }
 
+inline bool check(const std::string_view &name, const bool condition) {
+  return check<bool>(&std::cout, name, condition, true);
+}
+
+inline bool check(std::ostream *ostr, const std::string_view &name,
+                  const bool condition) {
+  return check<bool>(ostr, name, condition, true);
+}
+
 } // namespace qip
