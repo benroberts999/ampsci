@@ -6,7 +6,6 @@
 #include "IO/SafeProfiler.hpp"
 #include "LinAlg/LinAlg.hpp"
 #include "Maths/BSpline.hpp"
-#include "Maths/BSplines_old.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/AtomData.hpp"

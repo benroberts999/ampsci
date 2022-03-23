@@ -22,8 +22,8 @@
   * Breit issue? (see below)
 
 ## Ladder diagrams (#13)
-  * Check eqs; try rho.
   * Form addition to Cor. Pot.
+  * Screening?
 
 ## StrucRad + Diagram RPA
   * Option to use QkTable?
@@ -37,9 +37,6 @@
   * Option to write Yk and/or Qk tables from splines block
     * Can then potentially run multiple basis blocks?
 
-## Breit
-
-
 ## Hartree Fock (#23)
   * Re-write class (make less inter-dependent)
   * Option to use non-local DiracODE (#11)
@@ -48,6 +45,7 @@
 ## Wavefunction (#23)
   * Major cleanup
   * WF vs HF;
+    * Can delegate much to WF
 
 ## TDHF - physics
   * Mixed-states work with non-local DiracODE? (#11)
@@ -62,12 +60,23 @@
   * Diagram RPA: use Qk table?
   * Write out to disk?
   * Fewer allocations?
-  * Use Qk,Pk functions?
+  * Use Qk,Pk functions? and/or QkTable [optionally]?
   * RPAD: minor "eps" race cond?
 
 ## Breit
   * More efficient (calc + store integrals, as for Yk?)
   * Breit matrix - for inclusion into Green's function (needs G?)
+
+## DiracSpinor
+  * Tidy up + modernise
+  * Use strong types?
+
+## ampsci (ampsci.cpp)
+  * Clean/tidy: separate input blocks
+  * Delegate input options?
+
+## Angular
+  * Ck table a mess - merge with 6J?
 
 ## Double core Polarisation (#12)
   * Work with any class derivative?
@@ -75,11 +84,19 @@
 ## DiracOperator (#20)
   * Fix up 'generate operator'
     * Have function: takes <userInputBlock> (+oper name)
+  * Cleanup base + helper classes
 
 ## DiracODE (#24)
   * Write a general modern c++ DE solver
   * Allow non-local term (requires normalisation) (#11)
   * Efficient + numerically stable
+
+## Coulomb
+  * Make calling syntax consistent
+
+## Modules:
+  * Tidy up and consolidate
+  * Better system for including new modules?
 
 ## PNC
   * Work with diagram RPA
@@ -88,17 +105,19 @@
 
 ## Data format?
   * Standard data format for output/comparison?
+  * Allow multiple runs
   * JSON?
   * Merge input files into input block?
 
 ## IO
-  * Tidy
+  * Tidy + modernise
   * Write to disk: streamline
   * Binary: make class
+  * Input block: to JSON?
 
-## Overall
-  * cleanup input options for main
-  * Improve + add unit tests
+## Unit tests
+  * Improve + add more unit tests
+  * Unit tests and regression tests. Look at Catch2
 
-## ampsci (ampsci.cpp)
-  * Clean/tidy: separate input blocks
+## NIntegrate
+  * Modernise + cleanup
