@@ -16,8 +16,12 @@ namespace Module {
 void Module_tests(const IO::InputBlock &input, const Wavefunction &wf) {
   using namespace Tests;
   std::string ThisModule = "Module::Tests";
-  input.checkBlock_old(
-      {"orthonormal", "orthonormal_all", "Hamiltonian", "boundaries", "basis"});
+  input.check({{"orthonormal", ""},
+               {"orthonormal_all", ""},
+               {"Hamiltonian", ""},
+               {"boundaries", ""},
+               {"basis", ""}});
+
   auto othon = input.get("orthonormal", true);
   auto othon_all = input.get("orthonormal_all", false);
   if (othon || othon_all)

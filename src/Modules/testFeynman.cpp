@@ -16,9 +16,18 @@ namespace Module {
 void testFeynman(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "\ntestFeynman:\n";
 
-  input.checkBlock_old({"real_omega", "max_l", "screening", "rmin", "rmax",
-                        "stride", "include_G", "testQ", "testGreen", "testGQ",
-                        "testPol", "omim"});
+  input.check({{"real_omega", ""},
+               {"max_l", ""},
+               {"screening", ""},
+               {"rmin", ""},
+               {"rmax", ""},
+               {"stride", ""},
+               {"include_G", ""},
+               {"testQ", ""},
+               {"testGreen", ""},
+               {"testGQ", ""},
+               {"testPol", ""},
+               {"omim", ""}});
 
   const double omre = input.get("real_omega", -0.2);
   const auto method = MBPT::Method::Feynman;
@@ -83,7 +92,6 @@ void testFeynman(const IO::InputBlock &input, const Wavefunction &wf) {
 
 //******************************************************************************
 void Feyn::test_Q(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma) {
-
   // Just for testing Vx matrix.
   std::cout << "\n***********************************\n\n";
   std::cout << "Test Vx matirx (also, q^k):\n";
@@ -308,7 +316,6 @@ void Feyn::test_GQ(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
 void Feyn::test_pol(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
                     double omre, const std::vector<double> &omim_v,
                     int max_l_excited) {
-
   for (auto test_pol_method : {MBPT::GrMethod::Green, MBPT::GrMethod::basis}) {
 
     const std::string str_meth = test_pol_method == MBPT::GrMethod::Green ?

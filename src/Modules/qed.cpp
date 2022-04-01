@@ -191,7 +191,8 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
     if (tmp_opt) {
       h_options = *tmp_opt;
     }
-    const auto h = generateOperator(oper, h_options, wf, true);
+    // const auto h = generateOperator(oper, h_options, wf, true);
+    const auto h = DiracOperator::generate(oper, h_options, wf);
     const bool diagonal_only = me_input->get("onlyDiagonal", false);
 
     const bool rpaQ = me_input->get("rpa", false);
@@ -379,7 +380,8 @@ std::vector<std::string> calc_vertexQED(const IO::InputBlock &input,
   if (tmp_opt) {
     h_options = *tmp_opt;
   }
-  const auto h = generateOperator(oper, h_options, wf, true);
+  // const auto h = generateOperator(oper, h_options, wf, true);
+  const auto h = DiracOperator::generate(oper, h_options, wf);
 
   const bool radial_int = input.get("radialIntegral", false);
 

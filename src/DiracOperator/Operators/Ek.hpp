@@ -1,8 +1,11 @@
 #pragma once
 #include "DiracOperator/TensorOperator.hpp"
+#include "IO/InputBlock.hpp"
+#include "Wavefunction/Wavefunction.hpp"
 
 namespace DiracOperator {
 
+//******************************************************************************
 //! E^k (electric multipole) operator
 /*! @details
 \f[ h = -|e|r^k = -e r^k \f]
@@ -80,5 +83,26 @@ public:
 private:
   double m_alpha; // (including var-alpha)
 };
+
+//******************************************************************************
+inline std::unique_ptr<DiracOperator::TensorOperator>
+generate_E1(const IO::InputBlock &input, const Wavefunction &wf) {
+  using namespace DiracOperator;
+  input.check({{"gauge", "lform or vform [lform]"}});
+  const auto gauge = input.get<std::string>("gauge", "lform");
+  if (gauge != "vform")
+    return std::make_unique<E1>(*(wf.rgrid));
+  // std::cout << "(v-form [velocity gauge])\n";
+  return std::make_unique<E1v>(wf.alpha, 0.0);
+}
+
+//------------------------------------------------------------------------------
+inline std::unique_ptr<DiracOperator::TensorOperator>
+generate_Ek(const IO::InputBlock &input, const Wavefunction &wf) {
+  using namespace DiracOperator;
+  input.check({{"k", "Rank: k=1 for E1, =2 for E2 etc. [1]"}});
+  const auto k = input.get("k", 1);
+  return std::make_unique<Ek>(*(wf.rgrid), k);
+}
 
 } // namespace DiracOperator

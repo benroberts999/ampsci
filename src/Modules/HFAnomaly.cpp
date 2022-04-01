@@ -20,7 +20,7 @@ static void calc_thing(const DiracSpinor &Fv, double e_targ, double r0,
 //******************************************************************************
 void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
 
-  input.checkBlock_old({"rpa", "options", "A"});
+  input.check({{"rpa", ""}, {"options", ""}, {"A", ""}});
 
   const auto rpa = input.get("rpa", false);
   const auto Alist = input.get("A", std::vector<int>{});
@@ -45,9 +45,12 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Uses generateOperator (from Module::MatrixElements)
   // --> Probably just as easy to do from scratch?
-  const auto hpt = generateOperator(point_in, wf, false);
-  const auto hbl = generateOperator(ball_in, wf, false);
-  const auto hsp = generateOperator(sp_in, wf, true);
+  point_in.add("print=false;");
+  ball_in.add("print=false;");
+  sp_in.add("print=true;");
+  const auto hpt = DiracOperator::generate("hfs", point_in, wf);
+  const auto hbl = DiracOperator::generate("hfs", ball_in, wf);
+  const auto hsp = DiracOperator::generate("hfs", sp_in, wf);
 
   // Struct to store hfs constant for the reference isotope (point, ball,
   // single-particle)
@@ -124,9 +127,20 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
     wfA.basis = wf.basis; // OK??
     //  wfA.formBasis({"50spd30f", 60, 7, 0.0, 0.0, 30.0, false});
 
-    const auto hpt2 = generateOperator({"hfs", "F(r)=pointlike;"}, wfA, false);
-    const auto hbl2 = generateOperator({"hfs", "F(r)=ball;"}, wfA, false);
-    const auto hsp2 = generateOperator({"hfs", "F(r)=VolotkaBW;"}, wfA, false);
+    // const auto hpt2 = generateOperator({"hfs", "F(r)=pointlike;"}, wfA,
+    // false); const auto hbl2 = generateOperator({"hfs", "F(r)=ball;"}, wfA,
+    // false); const auto hsp2 = generateOperator({"hfs", "F(r)=VolotkaBW;"},
+    // wfA, false);
+    //
+    // point_in.add("print=false;");
+    // ball_in.add("print=false;");
+    // sp_in.add("print=true;");
+    const auto hpt2 = DiracOperator::generate(
+        "hfs", {"", "F(r)=pointlike; print=false;"}, wf);
+    const auto hbl2 =
+        DiracOperator::generate("hfs", {"", "F(r)=ball; print=false;"}, wf);
+    const auto hsp2 = DiracOperator::generate(
+        "hfs", {"", "F(r)=VolotkaBW; print=false;"}, wf);
 
     std::unique_ptr<ExternalField::DiagramRPA> rpap2{nullptr}, rpab2{nullptr},
         rpas2{nullptr};
@@ -189,8 +203,19 @@ void HF_rmag(const IO::InputBlock &input, const Wavefunction &wf) {
 
   std::cout << "\nTuning Rmag to fit hyperfine anomaly\n";
 
-  input.checkBlock_old({"n", "kappa", "A2", "1D2", "rpa", "num_steps", "mu1",
-                        "mu2", "I1", "I2", "eps_targ", "e1", "e2"});
+  input.check({{"n", ""},
+               {"kappa", ""},
+               {"A2", ""},
+               {"1D2", ""},
+               {"rpa", ""},
+               {"num_steps", ""},
+               {"mu1", ""},
+               {"mu2", ""},
+               {"I1", ""},
+               {"I2", ""},
+               {"eps_targ", ""},
+               {"e1", ""},
+               {"e2", ""}});
 
   // A(1) is wf
   // A(2) is wf2
@@ -474,20 +499,10 @@ void calculateBohrWeisskopf(const IO::InputBlock &input,
                             const Wavefunction &wf) {
   using namespace DiracOperator;
 
-  input.checkBlock_old({"rpa", "rpa_diagram", "screening", "hfs_options"});
-
-  // const auto h_options =
-  //     IO::InputBlock("hfs_options", input.get<std::string>("hfs_options",
-  //     ""));
-  // IO::InputBlock point_in("hfs", h_options);
-  // IO::InputBlock ball_in("hfs", h_options);
-  // IO::InputBlock BW_in("hfs", h_options);
-  // point_in.add("F(r)=pointlike");
-  // ball_in.add("F(r)=ball");
-  // if (wf.Anuc() % 2 == 0)
-  //   BW_in.add("F(r)=doublyOddBW");
-  // else
-  //   BW_in.add("F(r)=VolotkaBW");
+  input.check({{"rpa", ""},
+               {"rpa_diagram", ""},
+               {"screening", ""},
+               {"hfs_options", ""}});
 
   auto options = input.getBlock("hfs_options");
   auto sub_input = IO::InputBlock("hfs", {});
@@ -507,9 +522,15 @@ void calculateBohrWeisskopf(const IO::InputBlock &input,
   else
     BW_in.add("F(r)=VolotkaBW;");
 
-  auto hp = generateOperator(point_in, wf, false);
-  auto hb = generateOperator(ball_in, wf, false);
-  auto hw = generateOperator(BW_in, wf);
+  // auto hp = generateOperator(point_in, wf, false);
+  // auto hb = generateOperator(ball_in, wf, false);
+  // auto hw = generateOperator(BW_in, wf);
+  point_in.add("print=false;");
+  ball_in.add("print=false;");
+  BW_in.add("print=true;");
+  const auto hp = DiracOperator::generate("hfs", point_in, wf);
+  const auto hb = DiracOperator::generate("hfs", ball_in, wf);
+  const auto hw = DiracOperator::generate("hfs", BW_in, wf);
 
   // nb: can only do diagram RPA for hfs
   const auto rpa = input.get("rpa", false) || input.get("rpa_diagram", false);
@@ -600,7 +621,7 @@ void calculateBohrWeisskopf(const IO::InputBlock &input,
 void BW_eta_sp(const IO::InputBlock &input, const Wavefunction &wf) {
   using namespace DiracOperator;
 
-  input.checkBlock_old({});
+  input.check({});
 
   auto options = input.getBlock("options");
   auto sub_input = IO::InputBlock("hfs", {});
@@ -624,9 +645,15 @@ void BW_eta_sp(const IO::InputBlock &input, const Wavefunction &wf) {
   else
     BW_in.add("F(r)=VolotkaBW;");
 
-  auto hp = generateOperator(point_in, wf, false);
-  auto hb = generateOperator(ball_in, wf, false);
-  auto hw = generateOperator(BW_in, wf);
+  // auto hp = generateOperator(point_in, wf, false);
+  // auto hb = generateOperator(ball_in, wf, false);
+  // auto hw = generateOperator(BW_in, wf);
+  point_in.add("print=false;");
+  ball_in.add("print=false;");
+  BW_in.add("print=true;");
+  const auto hp = DiracOperator::generate("hfs", point_in, wf);
+  const auto hb = DiracOperator::generate("hfs", ball_in, wf);
+  const auto hw = DiracOperator::generate("hfs", BW_in, wf);
 
   std::cout << "\n      A0(MHz)         e(ball)   e(SP)     eta(b)   eta(sp)\n";
   for (const auto &Fs : wf.valence) {

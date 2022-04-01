@@ -19,9 +19,7 @@ bool TensorOperator::isZero(const int ka, int kb) const {
   if ((m_parity == Parity::even) !=
       (Angular::parity_k(ka) == Angular::parity_k(kb)))
     return true;
-  if (angularF(ka, kb) == 0)
-    return true;
-  return false; /*may still be zero*/
+  return (angularF(ka, kb) == 0);
 }
 bool TensorOperator::isZero(const DiracSpinor &Fa,
                             const DiracSpinor &Fb) const {
@@ -82,12 +80,14 @@ DiracSpinor TensorOperator::radial_rhs(const int kappa_a,
     return dF;
   }
 
-  const auto &df = (diff_order == 0) ? Fb.f() :
-                                       NumCalc::derivative(Fb.f(), gr.drdu(),
-                                                           gr.du(), diff_order);
-  const auto &dg = (diff_order == 0) ? Fb.g() :
-                                       NumCalc::derivative(Fb.g(), gr.drdu(),
-                                                           gr.du(), diff_order);
+  const auto &df =
+      (m_diff_order == 0) ?
+          Fb.f() :
+          NumCalc::derivative(Fb.f(), gr.drdu(), gr.du(), m_diff_order);
+  const auto &dg =
+      (m_diff_order == 0) ?
+          Fb.g() :
+          NumCalc::derivative(Fb.g(), gr.drdu(), gr.du(), m_diff_order);
 
   const auto cff = angularCff(kappa_a, Fb.k);
   const auto cgg = angularCgg(kappa_a, Fb.k);

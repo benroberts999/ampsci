@@ -1,5 +1,7 @@
 #pragma once
 #include "DiracOperator/TensorOperator.hpp"
+#include "IO/InputBlock.hpp"
+#include "Wavefunction/Wavefunction.hpp"
 
 namespace DiracOperator {
 
@@ -47,5 +49,13 @@ private:
   const std::vector<double> m_r; // store radial vector (copy)
   const double m_alpha;
 };
+
+//------------------------------------------------------------------------------
+inline std::unique_ptr<DiracOperator::TensorOperator>
+generate_M1(const IO::InputBlock &input, const Wavefunction &wf) {
+  using namespace DiracOperator;
+  input.check({{"", "No input options"}});
+  return std::make_unique<M1>(*(wf.rgrid), wf.alpha, 0.0);
+}
 
 } // namespace DiracOperator

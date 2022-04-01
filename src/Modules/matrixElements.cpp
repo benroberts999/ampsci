@@ -42,7 +42,8 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
     h_options = *tmp_opt;
   }
 
-  const auto h = generateOperator(oper, h_options, wf, true);
+  // const auto h = generateOperator(oper, h_options, wf, true);
+  const auto h = DiracOperator::generate(oper, h_options, wf);
 
   const bool radial_int = input.get("radialIntegral", false);
 
@@ -139,7 +140,8 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
     h_options = *tmp_opt;
   }
 
-  const auto h = generateOperator(oper, h_options, wf, true);
+  // const auto h = generateOperator(oper, h_options, wf, true);
+  const auto h = DiracOperator::generate(oper, h_options, wf);
 
   // Use spline states as diagram legs?
   const auto spline_legs = input.get("splineLegs", false);
@@ -316,8 +318,15 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
 //******************************************************************************
 void calculateLifetimes(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "\nLifetimes:\n";
+  std::cout << "Note: Uses _valence_ states - so, must ensure all lower states "
+               "have been included in the valence list for accurate results.\n";
 
-  input.checkBlock_old({"E1", "E2", "rpa", "StrucRadNorm"});
+  input.check(
+      {{"E1", "Include E1 transitions? [true]"},
+       {"E2", "Include E2 transitions? [false]"},
+       {"rpa", "Include RPA? [true]"},
+       {"StrucRadNorm", "Include SR+Norm correction (only for E1)? [false]"}});
+
   const auto doE1 = input.get("E1", true);
   const auto doE2 = input.get("E2", false);
   const auto rpaQ = input.get("rpa", true);
@@ -325,14 +334,17 @@ void calculateLifetimes(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << "Including E1 only.\n";
   if (!doE1 && doE2)
     std::cout << "Including E2 only.\n";
+  if (doE1 && doE2)
+    std::cout << "Including E1 and E2.\n";
 
   DiracOperator::E1 he1(*(wf.rgrid));
   DiracOperator::Ek he2(*(wf.rgrid), 2);
-  const auto alpha = wf.alpha;
-  const auto alpha3 = alpha * alpha * alpha;
-  const auto alpha2 = alpha * alpha;
   auto dVE1 = ExternalField::TDHF(&he1, wf.getHF());
   auto dVE2 = ExternalField::TDHF(&he2, wf.getHF());
+  if (rpaQ && doE1)
+    dVE1.solve_core(0.0);
+  if (rpaQ && doE2)
+    dVE2.solve_core(0.0);
 
   // Construct SR object:
   std::unique_ptr<MBPT::StructureRad> sr(nullptr);
@@ -342,7 +354,11 @@ void calculateLifetimes(const IO::InputBlock &input, const Wavefunction &wf) {
     sr = std::make_unique<MBPT::StructureRad>(wf.basis, wf.en_coreval_gap());
   }
 
+  const auto alpha = wf.alpha;
+  const auto alpha3 = alpha * alpha * alpha;
+  const auto alpha2 = alpha * alpha;
   const auto to_s = PhysConst::time_s;
+  std::cout << "Time conversion: " << to_s << "\n";
 
   struct Data {
     Data(const std::string &s, double t) : state(s), tau(t){};
@@ -350,6 +366,7 @@ void calculateLifetimes(const IO::InputBlock &input, const Wavefunction &wf) {
     double tau;
   };
   std::vector<Data> data;
+
   for (const auto &Fa : wf.valence) {
     std::cout << "\n" << Fa.symbol() << "\n";
     auto Gamma = 0.0;
@@ -360,7 +377,7 @@ void calculateLifetimes(const IO::InputBlock &input, const Wavefunction &wf) {
           continue;
         const auto w = Fa.en() - Fn.en();
         if (rpaQ)
-          dVE1.solve_core(w, 40);
+          dVE1.solve_core(w);
         auto d = he1.reducedME(Fn, Fa) + dVE1.dV(Fn, Fa);
         if (sr) {
           // include SR.
@@ -372,8 +389,8 @@ void calculateLifetimes(const IO::InputBlock &input, const Wavefunction &wf) {
         const auto g_n = (4.0 / 3) * w * w * w * d * d / (Fa.twojp1());
         Gamma += g_n;
         std::cout << "  E1 --> " << Fn.symbol() << ": ";
-        printf("w=%7.5f, |d|=%7.5f, g=%10.4eau\n", w, std::abs(d),
-               g_n * alpha3);
+        printf("w=%10.4f/cm, |d|=%7.5f, g=%10.4eau\n",
+               w * PhysConst::Hartree_invcm, std::abs(d), g_n * alpha3);
       }
     }
     if (doE2) {
@@ -382,13 +399,14 @@ void calculateLifetimes(const IO::InputBlock &input, const Wavefunction &wf) {
           continue;
         const auto w = Fa.en() - Fn.en();
         if (rpaQ)
-          dVE2.solve_core(w, 40);
+          dVE2.solve_core(w);
         const auto d = he2.reducedME(Fn, Fa) + dVE2.dV(Fn, Fa);
-        const auto g_n = (1.0 / 15) * w * w * w * w * w * d * d / (Fa.twojp1());
-        Gamma += g_n * alpha2;
+        const auto g_n =
+            alpha2 * (1.0 / 15) * w * w * w * w * w * d * d / (Fa.twojp1());
+        Gamma += g_n;
         std::cout << "  E2 --> " << Fn.symbol() << ": ";
-        printf("w=%7.5f, |q|=%7.5f, g=%10.4eau\n", w, std::abs(d),
-               g_n * alpha3 * alpha2);
+        printf("w=%10.4f/cm, |q|=%7.5f, g=%10.4eau\n",
+               w * PhysConst::Hartree_invcm, std::abs(d), g_n * alpha3);
       }
     }
 
@@ -404,278 +422,5 @@ void calculateLifetimes(const IO::InputBlock &input, const Wavefunction &wf) {
   }
   std::cout << "\n";
 }
-
-//******************************************************************************
-//******************************************************************************
-std::unique_ptr<DiracOperator::TensorOperator>
-generateOperator(const IO::InputBlock &input, const Wavefunction &wf,
-                 bool print) {
-  using namespace DiracOperator;
-
-  for (const auto &[name, generator] : operator_list) {
-    // (void)generator;
-    if (/*"MatrixElements::" + name == input.name() ||*/ name == input.name())
-      return generator(input, wf, print);
-  }
-
-  std::cerr << "\nFAILED to find operator: " << input.name()
-            << " in generateOperator.\n";
-
-  std::cout << "Available operators:\n";
-  for (const auto &[name, generator] : operator_list) {
-    (void)generator;
-    std::cout << "  " << name << "\n";
-  }
-  std::cout << "\n";
-  std::cout << "Returning NULL operator (0)\n";
-
-  return std::make_unique<NullOperator>(NullOperator());
-}
-
-std::unique_ptr<DiracOperator::TensorOperator>
-generateOperator(std::string_view oper_name, const IO::InputBlock &input,
-                 const Wavefunction &wf, bool print) {
-  using namespace DiracOperator;
-
-  for (const auto &[name, generator] : operator_list) {
-    // (void)generator;
-    if (name == oper_name)
-      return generator(input, wf, print);
-  }
-
-  std::cerr << "\nFAILED to find operator: " << input.name()
-            << " in generateOperator.\n";
-
-  std::cout << "Available operators:\n";
-  for (const auto &[name, generator] : operator_list) {
-    (void)generator;
-    std::cout << "  " << name << "\n";
-  }
-  std::cout << "\n";
-  std::cout << "Returning NULL operator (0)\n";
-
-  return std::make_unique<NullOperator>(NullOperator());
-}
-
-//******************************************************************************
-//******************************************************************************
-
-//------------------------------------------------------------------------------
-std::unique_ptr<DiracOperator::TensorOperator>
-generate_E1(const IO::InputBlock &input, const Wavefunction &wf, bool) {
-  using namespace DiracOperator;
-  input.checkBlock_old({"gauge"});
-  auto gauge = input.get<std::string>("gauge", "lform");
-  if (gauge != "vform")
-    return std::make_unique<E1>(*(wf.rgrid));
-  // std::cout << "(v-form [velocity gauge])\n";
-  return std::make_unique<E1v>(wf.alpha, 0.0);
-}
-
-//------------------------------------------------------------------------------
-std::unique_ptr<DiracOperator::TensorOperator>
-generate_Ek(const IO::InputBlock &input, const Wavefunction &wf, bool) {
-  using namespace DiracOperator;
-  input.checkBlock_old({"k"});
-  auto k = input.get("k", 1);
-  return std::make_unique<Ek>(*(wf.rgrid), k);
-}
-
-//------------------------------------------------------------------------------
-std::unique_ptr<DiracOperator::TensorOperator>
-generate_M1(const IO::InputBlock &input, const Wavefunction &wf, bool) {
-  using namespace DiracOperator;
-  input.checkBlock_old({});
-  return std::make_unique<M1>(*(wf.rgrid), wf.alpha, 0.0);
-}
-
-//------------------------------------------------------------------------------
-std::unique_ptr<DiracOperator::TensorOperator>
-generate_hfsA(const IO::InputBlock &input, const Wavefunction &wf, bool print) {
-  using namespace DiracOperator;
-  input.checkBlock_old({"mu", "I", "rrms", "F(r)", "parity", "l", "gl", "mu1",
-                        "gl1", "l1", "l2", "I1", "I2", "printF", "screening"});
-  auto isotope = Nuclear::findIsotopeData(wf.Znuc(), wf.Anuc());
-  auto mu = input.get("mu", isotope.mu);
-  auto I_nuc = input.get("I", isotope.I_N);
-  auto r_rmsfm = input.get("rrms", wf.get_rrms());
-  auto r_nucfm = std::sqrt(5.0 / 3) * r_rmsfm;
-  auto r_nucau = r_nucfm / PhysConst::aB_fm;
-  auto Fr_str = input.get<std::string>("F(r)", "ball");
-
-  if (print) {
-    std::cout << "\nHyperfine structure: " << wf.atom() << "\n"
-              << "Using " << Fr_str << " nuclear distro for F(r)\n"
-              << "w/ mu = " << mu << ", I = " << I_nuc << ", r_N = " << r_nucfm
-              << "fm = " << r_nucau << "au  (r_rms=" << r_rmsfm << "fm)\n";
-    std::cout << "Points inside nucleus: " << wf.rgrid->getIndex(r_nucau)
-              << "\n";
-  }
-
-  auto Fr = Hyperfine::sphericalBall_F();
-  if (Fr_str == "ball") {
-    Fr = Hyperfine::sphericalBall_F();
-  } else if (Fr_str == "shell") {
-    Fr = Hyperfine::sphericalShell_F();
-  } else if (Fr_str == "pointlike" || Fr_str == "point") {
-    Fr = Hyperfine::pointlike_F();
-  } else if (Fr_str == "VolotkaBW") {
-    auto pi = input.get("parity", isotope.parity);
-    auto l_tmp = int(I_nuc + 0.5 + 0.0001);
-    auto l = ((l_tmp % 2 == 0) == (pi == 1)) ? l_tmp : l_tmp - 1;
-    l = input.get("l", l); // can override derived 'l' (not recommended)
-    auto gl_default = wf.Znuc() % 2 == 0 ? 0 : 1; // unparied proton?
-    auto gl = input.get<int>("gl", gl_default);
-    if (print) {
-      std::cout << "Bohr-Weiskopf (Volotka formula) for valence";
-      if (gl == 1)
-        std::cout << " proton ";
-      else if (gl == 0)
-        std::cout << " neturon ";
-      else
-        std::cout << " gl=" << gl << "??? program will run, but prob wrong!\n";
-      std::cout << "with l=" << l << " (pi=" << pi << ")\n";
-    }
-    Fr = Hyperfine::volotkaBW_F(mu, I_nuc, l, gl);
-  } else if (Fr_str == "doublyOddBW") {
-
-    auto mu1 = input.get<double>("mu1", 1.0);
-    auto gl1 = input.get<int>("gl1", -1); // 1 or 0 (p or n)
-    if (gl1 != 0 && gl1 != 1) {
-      std::cout << "FAIL: in " << input.name() << " " << Fr_str
-                << "; have gl1=" << gl1 << " but need 1 or 0\n";
-      return std::make_unique<NullOperator>(NullOperator());
-    }
-    auto l1 = input.get<double>("l1", -1.0);
-    auto l2 = input.get<double>("l2", -1.0);
-    auto I1 = input.get<double>("I1", -1.0);
-    auto I2 = input.get<double>("I2", -1.0);
-
-    Fr = Hyperfine::doublyOddBW_F(mu, I_nuc, mu1, I1, l1, gl1, I2, l2);
-  } else {
-    // read from a file
-    const auto [rin, F_of_rin] = IO::FRW::readFile_xy_PoV(Fr_str);
-    // interpolate F(r) onto our grid:
-    const auto F_r = Interpolator::interpolate(rin, F_of_rin, wf.rgrid->r());
-    if (F_r.empty())
-      return std::make_unique<NullOperator>();
-    return std::make_unique<HyperfineA>(mu, I_nuc, r_nucau, *(wf.rgrid), F_r);
-  }
-
-  auto print_FQ = input.get<bool>("printF", false);
-  if (print_FQ) {
-    std::ofstream of(Fr_str + ".txt");
-    for (auto r : wf.rgrid->r()) {
-      of << r * PhysConst::aB_fm << " "
-         << Fr(r * PhysConst::aB_fm, r_nucau * PhysConst::aB_fm) << "\n";
-    }
-  }
-
-  return std::make_unique<HyperfineA>(mu, I_nuc, r_nucau, *(wf.rgrid), Fr);
-}
-
-//------------------------------------------------------------------------------
-std::unique_ptr<DiracOperator::TensorOperator>
-generate_hfsK(const IO::InputBlock &input, const Wavefunction &wf, bool print) {
-  using namespace DiracOperator;
-
-  bool ok = true;
-  input.checkBlock_old({"K", "rrms", "F(r)", "gQ"});
-  // gQ is g-factor (for magnetic), quadrupole moment for electric...
-  const auto k = input.get("K", 0);
-  if (k == 0) {
-    std::cout
-        << "\nFAIL 602: Bad K in hfsK: must be >0 (required: 1=hfsA, 2=hfsB)\n";
-    ok = false;
-  }
-
-  const auto gQ = input.get("gQ", 1.0);
-  if (print) {
-    std::cout << "\nHyperfine k=" << k;
-    if (k % 2 == 0) {
-      std::cout << " (electric) ";
-    } else {
-      std::cout << " (magnetic) ";
-    }
-    std::cout << "w/ gQ = " << gQ << "\n";
-  }
-
-  const auto isotope = Nuclear::findIsotopeData(wf.Znuc(), wf.Anuc());
-  const auto r_rmsfm = input.get("rrms", isotope.r_rms);
-  const auto r_nucfm = std::sqrt(5.0 / 3) * r_rmsfm;
-  const auto r_nucau = r_nucfm / PhysConst::aB_fm;
-
-  auto Fr_str = input.get<std::string>("F(r)", "ball");
-  const auto Fr = (Fr_str == "pointlike" || Fr_str == "point") ?
-                      Hyperfine::pointlike_F() :
-                      Fr_str == "shell" ?
-                      Hyperfine::sphericalShell_F() :
-                      Fr_str == "ball" ? Hyperfine::sphericalBall_F() :
-                                         Hyperfine::pointlike_F();
-  if (Fr_str != "ball" && Fr_str != "shell")
-    Fr_str = "pointlike";
-  else
-    std::cout << "Warning: F(r) not correct for k!=1 XXX \n";
-  if (print) {
-    std::cout << "w/ " << Fr_str << " for F(r), r_N = " << r_nucfm << "fm "
-              << " (rrms=" << r_rmsfm << "fm)\n";
-  }
-
-  if (!ok)
-    return std::make_unique<NullOperator>();
-
-  return std::make_unique<HyperfineK>(k, gQ, r_nucau, *wf.rgrid, Fr);
-}
-
-//------------------------------------------------------------------------------
-std::unique_ptr<DiracOperator::TensorOperator>
-generate_r(const IO::InputBlock &input, const Wavefunction &wf, bool) {
-  using namespace DiracOperator;
-  input.checkBlock_old({"power"});
-  auto power = input.get("power", 1.0);
-  std::cout << "r^(" << power << ")\n";
-  return std::make_unique<RadialF>(*(wf.rgrid), power);
-}
-
-//------------------------------------------------------------------------------
-std::unique_ptr<DiracOperator::TensorOperator>
-generate_pnc(const IO::InputBlock &input, const Wavefunction &wf, bool) {
-  using namespace DiracOperator;
-  input.checkBlock_old({"c", "t"});
-  const auto r_rms = Nuclear::find_rrms(wf.Znuc(), wf.Anuc());
-  const auto c = input.get("c", Nuclear::c_hdr_formula_rrms_t(r_rms));
-  const auto t = input.get("t", Nuclear::default_t);
-  return std::make_unique<PNCnsi>(c, t, *(wf.rgrid), 1.0, "iQwe-11");
-}
-
-//------------------------------------------------------------------------------
-std::unique_ptr<DiracOperator::TensorOperator>
-generate_Hrad(const IO::InputBlock & /*input*/, const Wavefunction & /*wf*/,
-              bool) {
-  std::cout << "\nFAIL:: generate_Hrad() need implementing!\n";
-  return nullptr;
-  // using namespace DiracOperator;
-  // input.checkBlock_old(
-  //     {"Simple", "Ueh", "SE_h", "SE_l", "SE_m", "rcut", "scale_rN"});
-  // const auto x_Simple = input.get("Simple", 0.0);
-  // const auto x_Ueh = input.get("Ueh", 1.0);
-  // const auto x_SEe_h = input.get("SE_h", 1.0);
-  // const auto x_SEe_l = input.get("SE_l", 1.0);
-  // const auto x_SEm = input.get("SE_m", 1.0);
-  // const auto rcut = input.get("rcut", 5.0);
-  // const auto scale_rN = input.get("scale_rN", 1.0);
-  // const auto r_rms_Fermi = scale_rN * wf.get_nuclearParameters().r_rms;
-  // const auto Hel = RadiativePotential::form_Hel(wf.rgrid->r() , x_Simple,
-  // x_Ueh,
-  //                                               x_SEe_h, x_SEe_l,
-  //                                               r_rms_Fermi, wf.Znuc(),
-  //                                               wf.alpha, rcut);
-  // const auto Hmag = RadiativePotential::form_Hmag(
-  //     wf.rgrid->r() , x_SEm, r_rms_Fermi, wf.Znuc(), wf.alpha, rcut);
-  // return std::make_unique<Hrad>(Hel, Hmag);
-  // // return std::make_unique<Hrad_el>(Hel);
-}
-
-//******************************************************************************
 
 } // namespace Module

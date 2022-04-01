@@ -296,8 +296,10 @@ void TDHF::solve_core(const double omega, const int max_its, const bool print) {
       break;
   }
   if (print) {
-    printf("%2i %.1e\n", it, eps);
-    std::cout << std::flush;
+    printf("%2i %.1e", it, eps);
+    if (eps > 1.0e-5)
+      std::cout << "  *****";
+    std::cout << "\n" << std::flush;
   }
   // set last eps (convergance) and frequency (omega)
   m_core_eps = eps;

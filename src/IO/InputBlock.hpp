@@ -197,8 +197,9 @@ public:
   //! string. By default prints to cout, but can be given any ostream
   inline void print(std::ostream &os = std::cout, int indent_depth = 0) const;
 
-  inline bool checkBlock_old(const std::vector<std::string> &list,
-                             bool print = false) const;
+  [[deprecated]] inline bool
+  checkBlock_old(const std::vector<std::string> &list,
+                 bool print = false) const;
 
   //! Check all the options and blocks in this; if any of them are not present
   //! in 'list', then there is likely a spelling error in the input => returns

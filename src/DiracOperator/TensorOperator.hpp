@@ -43,14 +43,14 @@ struct IntM4x4
 //! c, v, and Cxx are included in radial integral.
 class TensorOperator {
 protected:
-  TensorOperator(int k, Parity pi, double c = 1,
-                 const std::vector<double> &inv = {}, int d_order = 0,
+  TensorOperator(int rank_k, Parity pi, double constant = 1.0,
+                 const std::vector<double> &inv = {}, int diff_order = 0,
                  Realness RorI = Realness::real, bool freq_dep = false)
-      : m_rank(k),
+      : m_rank(rank_k),
         m_parity(pi),
-        diff_order(d_order),
+        m_diff_order(diff_order),
         opC(RorI),
-        m_constant(c),
+        m_constant(constant),
         m_vec(inv),
         freqDependantQ(freq_dep){};
 
@@ -60,7 +60,7 @@ public:
 private:
   const int m_rank;
   const Parity m_parity;
-  const int diff_order;
+  const int m_diff_order;
   const Realness opC;
 
 protected:
@@ -83,7 +83,7 @@ public:
   const std::vector<double> &getv() const { return m_vec; }
   //! Returns a const ref to constant c
   double getc() const { return m_constant; }
-  int get_d_order() const { return diff_order; }
+  int get_d_order() const { return m_diff_order; }
 
   //! returns true if operator is imaginary (has imag MEs)
   bool imaginaryQ() const { return (opC == Realness::imaginary); }

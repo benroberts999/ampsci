@@ -1,7 +1,9 @@
 #pragma once
 #include "DiracOperator/TensorOperator.hpp"
+#include "IO/InputBlock.hpp"
 #include "Physics/FGRadPot.hpp"
 #include "Physics/PhysConst_constants.hpp"
+#include "Wavefunction/Wavefunction.hpp"
 #include <cmath>
 
 namespace DiracOperator {
@@ -195,5 +197,33 @@ public:
     return v;
   }
 };
+
+//******************************************************************************
+inline std::unique_ptr<DiracOperator::TensorOperator>
+generate_Hrad(const IO::InputBlock & /*input*/, const Wavefunction & /*wf*/
+) {
+  std::cout << "\nFAIL:: generate_Hrad() need implementing!\n";
+  return nullptr;
+  // using namespace DiracOperator;
+  // input.checkBlock_old(
+  //     {"Simple", "Ueh", "SE_h", "SE_l", "SE_m", "rcut", "scale_rN"});
+  // const auto x_Simple = input.get("Simple", 0.0);
+  // const auto x_Ueh = input.get("Ueh", 1.0);
+  // const auto x_SEe_h = input.get("SE_h", 1.0);
+  // const auto x_SEe_l = input.get("SE_l", 1.0);
+  // const auto x_SEm = input.get("SE_m", 1.0);
+  // const auto rcut = input.get("rcut", 5.0);
+  // const auto scale_rN = input.get("scale_rN", 1.0);
+  // const auto r_rms_Fermi = scale_rN * wf.get_nuclearParameters().r_rms;
+  // const auto Hel = RadiativePotential::form_Hel(wf.rgrid->r() , x_Simple,
+  // x_Ueh,
+  //                                               x_SEe_h, x_SEe_l,
+  //                                               r_rms_Fermi, wf.Znuc(),
+  //                                               wf.alpha, rcut);
+  // const auto Hmag = RadiativePotential::form_Hmag(
+  //     wf.rgrid->r() , x_SEm, r_rms_Fermi, wf.Znuc(), wf.alpha, rcut);
+  // return std::make_unique<Hrad>(Hel, Hmag);
+  // // return std::make_unique<Hrad_el>(Hel);
+}
 
 } // namespace DiracOperator

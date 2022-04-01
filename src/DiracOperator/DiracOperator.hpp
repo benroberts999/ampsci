@@ -1,4 +1,5 @@
 #pragma once
+#include "DiracOperator/GenerateOperator.hpp"
 #include "DiracOperator/Operators/Ek.hpp"
 #include "DiracOperator/Operators/Hyperfine.hpp"
 #include "DiracOperator/Operators/M1.hpp"
