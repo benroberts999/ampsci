@@ -246,10 +246,14 @@ bool Breit(std::ostream &obuff) {
 
     // My values (as a regression test, and Derevianko not necisarily better..)
     // nb: if this one fails, not neccisarily an issue, BUT should be checked!
-    const auto de2_me = datav{{"6s+", -2.876464922},  {"7s+", 0.085815490},
-                              {"6p-", 7.304751244},   {"7p-", 2.571158184},
-                              {"6p+", 0.572062485},   {"7p+", 0.434703965},
-                              {"5d-", -25.738470955}, {"5d+", -30.663081262}};
+    // const auto de2_me = datav{{"6s+", -2.876464922},  {"7s+", 0.085815490},
+    //                          {"6p-", 7.304751244},   {"7p-", 2.571158184},
+    //                          {"6p+", 0.572062485},   {"7p+", 0.434703965},
+    //                          {"5d-", -25.738470955}, {"5d+", -30.663081262}};
+    const auto de2_me = datav{{"6s+", -2.878612320},  {"7s+", 0.085538550},
+                              {"6p-", 7.305198685},   {"7p-", 2.571275498},
+                              {"6p+", 0.571894669},   {"7p+", 0.434694080},
+                              {"5d-", -25.752413108}, {"5d+", -30.679223816}};
 
     // First, compare the HF energies
     std::cout << "\nBreit corrections to HF energies cf. "
@@ -315,10 +319,11 @@ bool Breit(std::ostream &obuff) {
       }
     }
 
-    pass &= qip::check_value(&obuff, "EnHF(Br) " + worst, weps, 0.0, 0.1);
-    pass &= qip::check_value(&obuff, "Sigma2(Br) " + worst2, weps2, 0.0, 0.4);
+    pass &= qip::check_value(&obuff, "EnHF(Br,Dzuba) " + worst, weps, 0.0, 0.1);
+    pass &=
+        qip::check_value(&obuff, "Sigma2(Br,Derev) " + worst2, weps2, 0.0, 0.4);
     pass &= qip::check_value(&obuff, "Sigma2(Br,me) " + worstme, wepsme, 0.0,
-                             1.0e-3);
+                             1.0e-2);
   }
 
   return pass;

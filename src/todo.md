@@ -81,11 +81,6 @@
 ## Double core Polarisation (#12)
   * Work with any class derivative?
 
-## DiracOperator (#20)
-  * Fix up 'generate operator'
-    * Have function: takes <userInputBlock> (+oper name)
-  * Cleanup base + helper classes
-
 ## DiracODE (#24)
   * Write a general modern c++ DE solver
   * Allow non-local term (requires normalisation) (#11)
@@ -94,13 +89,10 @@
 ## Coulomb
   * Make calling syntax consistent
 
-## Modules:
-  * Tidy up and consolidate
-  * Better system for including new modules?
-
 ## PNC
   * Work with diagram RPA
   * dV conj ???
+   * Related to #3 ?
   * Different Sigma's
 
 ## Data format?

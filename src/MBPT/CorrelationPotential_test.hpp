@@ -68,50 +68,13 @@ bool MBPT2(std::ostream &obuff) {
 bool Sigma2(std::ostream &obuff) {
   bool pass = true;
 
-  //****************************************************************************
-  { // Compare Dzuba, only using up to l=4 for splines
-    // Note: Works pretty well up to f states (not sure if difference is ok)
-    auto dzuba_g = std::vector{
-        -0.0195938,  -0.00399679, -0.00770113, -0.00682331, -0.00214125,
-        -0.00193494, -0.01400596, -0.01324942, -0.00033882, -0.00033866};
-    std::sort(begin(dzuba_g), end(dzuba_g)); // sort: don't depend on order
-
-    Wavefunction wf({2000, 1.0e-6, 120.0, 0.33 * 120.0, "loglinear", -1.0},
-                    {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
-    wf.solve_core("HartreeFock", 0.0, "[Xe]");
-    wf.solve_valence("7sp5d4f"); //"7sp5d4f"
-    wf.formBasis({"30spdfg", 40, 7, 0.0, 1.0e-6, 40.0, false});
-    wf.formSigma(3, true, 1.0e-4, 30.0, 14 /*stride*/, false, false, {}, {}, {},
-                 "false", "false");
-
-    // const int nmin_core, const bool form_matrix, const double r0,
-    // const double rmax, const int stride, const bool each_valence,
-    // const bool include_G, const std::vector<double> &lambdas,
-    // const std::vector<double> &fk, const std::string &in_fname,
-    // const std::string &out_fname,
-
-    std::vector<double> hf, br2;
-    for (const auto &Fv : wf.valence) {
-      hf.push_back(Fv.en());
-    }
-
-    wf.hartreeFockBrueckner();
-
-    for (const auto &Fv : wf.valence) {
-      br2.push_back(Fv.en());
-    }
-
-    auto de = qip::compose([](auto a, auto b) { return a - b; }, br2, hf);
-    std::sort(begin(de), end(de)); // sort: don't depend on order
-
-    auto [eps, at] = qip::compare_eps(dzuba_g, de);
-    pass &= qip::check_value(&obuff, "Sigma2 Cs (spdfg)", eps, 0.0, 0.05);
-  }
-
   std::cout << "\n";
-
+  //----------------------------------------------------------------------------
+  // Test Sigma:
+  // Cs:
   std::vector<double> first_run;
   { // Compare Dzuba, using up to l=6 for splines
+    std::cout << "Test Sigma(2) Breuckner, for Cs:\n";
     auto dzuba_i = std::vector{
         -0.02013813, -0.00410942, -0.00792483, -0.00702407, -0.00220878,
         -0.00199737, -0.01551449, -0.01466935, -0.00035253, -0.00035234};
@@ -138,19 +101,24 @@ bool Sigma2(std::ostream &obuff) {
 
     auto de = qip::compose([](auto a, auto b) { return a - b; }, br2, hf);
     std::sort(begin(de), end(de)); // sort: don't depend on order
+    std::cout << "delta Sigma(2) Bruckner, cf Dzuba:\n";
     for (auto i = 0ul; i < dzuba_i.size(); ++i) {
-      std::cout << dzuba_i[i] << " " << de[i] << "\n";
+      const auto eps = std::abs((de[i] - dzuba_i[i]) / dzuba_i[i]);
+      std::cout << de[i] << " [" << dzuba_i[i] << "] " << eps << "\n";
     }
     first_run = de; // copy this data, test the next run against:
 
-    auto [eps, at] = qip::compare_eps(dzuba_i, de);
-    pass &= qip::check_value(&obuff, "Sigma2 Cs (spdfghi)", eps, 0.0, 0.01);
+    const auto [eps, at] = qip::compare_eps(dzuba_i, de);
+    pass &= qip::check_value(&obuff, "Sigma2 Cs", eps, 0.0, 0.01);
   }
 
   std::cout << "\n";
 
+  //----------------------------------------------------------------------------
   // Test reading in Sigma:
-  { // Compare Dzuba, using up to l=6 for splines, read file in!
+  // Cs:
+  {
+    std::cout << "Test reading in Sigma(2) Brueckner file, for Cs:\n";
     std::sort(begin(first_run), end(first_run)); // sort: don't depend on order
 
     Wavefunction wf({2000, 1.0e-6, 150.0, 0.33 * 150.0, "loglinear", -1.0},
@@ -176,15 +144,57 @@ bool Sigma2(std::ostream &obuff) {
     auto de = qip::compose([](auto a, auto b) { return a - b; }, br2, hf);
     std::sort(begin(de), end(de)); // sort: don't depend on order
     for (auto i = 0ul; i < first_run.size(); ++i) {
-      std::cout << first_run[i] << " " << de[i] << "\n";
+      const auto eps = std::abs((de[i] - first_run[i]) / first_run[i]);
+      std::cout << de[i] << " [" << first_run[i] << "] " << eps << "\n";
     }
 
-    auto [eps, at] = qip::compare_eps(first_run, de);
-    pass &= qip::check_value(&obuff, "Sigma2 Cs (read)", eps, 0.0, 1.0e-14);
+    const auto [eps, at] = qip::compare_eps(first_run, de);
+    pass &= qip::check_value(&obuff, "Sigma2 Cs (read)", eps, 0.0, 1.0e-16);
+  }
+
+  std::cout << "\n";
+
+  //----------------------------------------------------------------------------
+  // Fr:
+  { // Compare Dzuba, using up to l=6 for splines
+    std::cout << "Test Sigma(2) Breuckner, for Fr:\n";
+    auto dzuba_i =
+        std::vector{-0.0245075, -0.0098094, -0.0069442, -0.0153430, -0.0133382};
+    std::sort(begin(dzuba_i), end(dzuba_i)); // sort: don't depend on order
+
+    Wavefunction wf({2000, 1.0e-6, 150.0, 0.33 * 150.0, "loglinear", -1.0},
+                    {"Fr", -1, "Fermi", -1.0, -1.0}, 1.0);
+    wf.solve_core("HartreeFock", 0.0, "[Rn]");
+    wf.solve_valence("7sp6d");
+    wf.formBasis({"30spdfghi", 40, 7, 0.0, 1.0e-6, 40.0, false});
+    wf.formSigma(4, true, 1.0e-4, 30.0, 12 /*stride*/, false, false, {}, {}, {},
+                 "false", "tmp_sigma_deleteme");
+
+    std::vector<double> hf, br2;
+    for (const auto &Fv : wf.valence) {
+      hf.push_back(Fv.en());
+    }
+
+    wf.hartreeFockBrueckner();
+
+    for (const auto &Fv : wf.valence) {
+      br2.push_back(Fv.en());
+    }
+
+    auto de = qip::compose([](auto a, auto b) { return a - b; }, br2, hf);
+    std::sort(begin(de), end(de)); // sort: don't depend on order
+    for (auto i = 0ul; i < dzuba_i.size(); ++i) {
+      const auto eps = std::abs((de[i] - dzuba_i[i]) / dzuba_i[i]);
+      std::cout << de[i] << " [" << dzuba_i[i] << "] " << eps << "\n";
+    }
+
+    const auto [eps, at] = qip::compare_eps(dzuba_i, de);
+    pass &= qip::check_value(&obuff, "Sigma2 Fr", eps, 0.0, 0.02);
   }
   return pass;
 }
 
+//==============================================================================
 //! Unit tests for all-orders correlation potential
 bool SigmaAO(std::ostream &obuff) {
   bool pass = true;
@@ -237,6 +247,7 @@ bool SigmaAO(std::ostream &obuff) {
   return pass;
 }
 
+//==============================================================================
 bool CorrelationPotential(std::ostream &obuff) {
   bool pass = true;
   pass &= MBPT2(obuff);

@@ -1049,7 +1049,7 @@ EpsIts HartreeFock::hf_Brueckner(DiracSpinor &Fa,
   const auto max_br_its = m_max_hf_its;
 
   // auto damper = rampedDamp(0.33, 0.05, 1, 15);
-  auto damper = rampedDamp(0.75, 0.25, 3, 15);
+  auto damper = 0.5; // rampedDamp(0.2, 0.1, 1, 15);
 
   const auto &vrad_el = get_Hrad_el(Fa.l());
   const auto &Hmag = get_Hrad_mag(Fa.l());
@@ -1067,7 +1067,7 @@ EpsIts HartreeFock::hf_Brueckner(DiracSpinor &Fa,
   double eps = 1.0;
   int worse_count = 0;
   for (; it <= max_br_its; ++it) {
-    const auto a_damp = it == 0 ? 0.0 : damper(it);
+    const auto a_damp = damper; // it == 0 ? 0.0 : damper(it);
 
     auto VxFa = calc_vexFa(Fa);
     if (m_VBr) { // Breit
