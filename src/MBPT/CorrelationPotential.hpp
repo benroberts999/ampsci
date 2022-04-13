@@ -156,6 +156,11 @@ public:
   double SOEnergyShift(const DiracSpinor &Fv, const DiracSpinor &Fw,
                        int max_l = 99) const;
 
+  static DiracSpinor Sigmal_Fv(const DiracSpinor &v, const Coulomb::YkTable &yk,
+                               const Coulomb::LkTable &lk,
+                               const std::vector<DiracSpinor> &core,
+                               const std::vector<DiracSpinor> &excited);
+
   RDMatrix<double> Sigma_l(const DiracSpinor &v, const Coulomb::YkTable &qk,
                            const Coulomb::LkTable &lk,
                            const std::vector<DiracSpinor> &core,

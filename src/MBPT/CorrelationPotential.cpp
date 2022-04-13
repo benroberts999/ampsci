@@ -110,6 +110,9 @@ DiracSpinor CorrelationPotential::SigmaFv(const DiracSpinor &v) const {
   // Aply lambda, if exists:
   const auto lambda = is >= m_lambda_kappa.size() ? 1.0 : m_lambda_kappa[is];
 
+  if (m_lk) {
+  }
+
   if (is < m_Sigma_kappa.size())
     return lambda == 1.0 ? act_G_Fv(m_Sigma_kappa[is], v) :
                            lambda * act_G_Fv(m_Sigma_kappa[is], v);
@@ -430,6 +433,50 @@ void CorrelationPotential::print_subGrid() const {
 
 //******************************************************************************
 //******************************************************************************
+// static
+DiracSpinor CorrelationPotential::Sigmal_Fv(
+    const DiracSpinor &v, const Coulomb::YkTable &yk,
+    const Coulomb::LkTable &lk, const std::vector<DiracSpinor> &core,
+    const std::vector<DiracSpinor> &excited) {
+
+  DiracSpinor SlFv{v.n, v.k, v.rgrid};
+  std::vector<DiracSpinor> SlFv_ns(excited.size(), {v.n, v.k, v.rgrid});
+
+#pragma omp parallel for
+  for (auto in = 0ul; in < excited.size(); ++in) {
+    const auto &n = excited[in];
+    auto &SlFv_n = SlFv_ns[in];
+    for (auto &a : core) {
+
+      for (auto &m : excited) {
+        const auto [k0, kI] = Coulomb::k_minmax_Q(v, a, m, n);
+        for (int k = k0; k <= kI; k += 2) {
+          const auto de = v.en() + a.en() - m.en() - n.en();
+          auto tkp1 = (2 * k + 1);
+          SlFv_n +=
+              (lk.W(k, m, n, v, a) / de / tkp1) * yk.Qkv_bcd(v.k, a, m, n, k);
+        }
+      }
+
+      for (auto &b : core) {
+        const auto [k0, kI] = Coulomb::k_minmax_Q(v, n, a, b);
+        for (int k = k0; k <= kI; k += 2) {
+          const auto de = v.en() + n.en() - a.en() - b.en();
+          auto tkp1 = (2 * k + 1);
+          SlFv_n +=
+              (lk.W(k, v, n, a, b) / de / tkp1) * yk.Qkv_bcd(v.k, n, a, b, k);
+        }
+      }
+
+      //
+    }
+  }
+
+  const auto tjp1 = v.twoj() + 1;
+  SlFv = (1.0 / tjp1) * std::accumulate(SlFv_ns.begin(), SlFv_ns.end(), SlFv);
+
+  return SlFv;
+}
 
 //******************************************************************************
 RDMatrix<double>
@@ -486,8 +533,9 @@ CorrelationPotential::Sigma_l(const DiracSpinor &v, const Coulomb::YkTable &yk,
           // XXX But maybe etak should not appear either..
           // Sigma.add(Qkv_amn, Lkv_amn, /*fk **/ etak * f); //(a) //fk both?
           // Sigma.add(Qkv_amn, Lambdakv_amn, fk * f);       //(b)
-          Sigma_n[in].add(Qkv_amn, Lkv_amn, /*fk **/ etak * f); //(a) //fk both?
-          Sigma_n[in].add(Qkv_amn, Lambdakv_amn, fk * f);       //(b)
+          Sigma_n[in].add(Qkv_amn, Lkv_amn,
+                          /*fk **/ etak * f);             //(a) //fk both?
+          Sigma_n[in].add(Qkv_amn, Lambdakv_amn, fk * f); //(b)
 
         } // k
       }   // m
