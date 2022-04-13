@@ -112,8 +112,10 @@ public:
   //! returns Spinor: Sigma|Fv>
   //! @details If Sigma for kappa_v doesn't exist, returns |0>. m_Sigma_kappa
   //! calculated at the energy given in 'form_Sigma' (or on construct)
-  DiracSpinor SigmaFv(const DiracSpinor &Fv) const;
-  DiracSpinor operator()(const DiracSpinor &Fv) const { return SigmaFv(Fv); }
+  DiracSpinor SigmaFv(const DiracSpinor &Fv, bool lad = true) const;
+  DiracSpinor operator()(const DiracSpinor &Fv, bool lad = true) const {
+    return SigmaFv(Fv, lad);
+  }
 
 protected:
   // // n=0 means get Sigma for lowest available n

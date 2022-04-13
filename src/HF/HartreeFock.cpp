@@ -940,7 +940,7 @@ void HartreeFock::brueckner_orbital(DiracSpinor &Fa, double en,
       auto VxF_tilde = vexFa(dFa, static_core);
       if (VBr)
         VxF_tilde += (*VBr)(dFa);
-      const auto SigmaF_tilde = Sigma(dFa);
+      const auto SigmaF_tilde = Sigma(dFa, false);
       DiracODE::Adams::GreenSolution(dFa, Ginf, Gzero, alpha,
                                      dEa * Fa - VxF_tilde - SigmaF_tilde);
     }

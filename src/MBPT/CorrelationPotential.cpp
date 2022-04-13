@@ -20,6 +20,15 @@
 #include <numeric>
 #include <vector>
 
+#if defined(_OPENMP)
+#include <omp.h>
+constexpr bool use_omp = true;
+#else
+constexpr bool use_omp = true;
+#define omp_get_thread_num() 0
+#define omp_get_max_threads() 1
+#endif
+
 namespace MBPT {
 
 //******************************************************************************
@@ -101,23 +110,37 @@ const GMatrix *CorrelationPotential::getSigma(int n, int kappa) const {
 }
 
 //******************************************************************************
-DiracSpinor CorrelationPotential::SigmaFv(const DiracSpinor &v) const {
+DiracSpinor CorrelationPotential::SigmaFv(const DiracSpinor &v,
+                                          bool lad) const {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   // Find correct G matrix (corresponds to kappa_v), return Sigma|v>
   // If m_Sigma_kappa doesn't exist, returns |0>
 
+  DiracSpinor SFv = 0.0 * v;
+
   const auto is = getSigmaIndex(v.n, v.k);
+
+  if (is < m_Sigma_kappa.size())
+    SFv = act_G_Fv(m_Sigma_kappa[is], v);
+
+  if (lad && m_lk && !m_ratio_ladder_method) {
+
+    // std::cout << "\n"
+    //           << v.symbol() << " " << v * SFv << " "
+    //           << v * Sigmal_Fv(v, m_yeh, *m_lk, m_holes, m_excited) << "\n";
+    SFv += Sigmal_Fv(v, m_yeh, *m_lk, m_holes, m_excited);
+  }
 
   // Aply lambda, if exists:
   const auto lambda = is >= m_lambda_kappa.size() ? 1.0 : m_lambda_kappa[is];
+  if (lambda != 1.0)
+    SFv *= lambda;
 
-  if (m_lk) {
-  }
+  // if (is < m_Sigma_kappa.size())
+  //   return lambda == 1.0 ? act_G_Fv(m_Sigma_kappa[is], v) :
+  //                          lambda * act_G_Fv(m_Sigma_kappa[is], v);
 
-  if (is < m_Sigma_kappa.size())
-    return lambda == 1.0 ? act_G_Fv(m_Sigma_kappa[is], v) :
-                           lambda * act_G_Fv(m_Sigma_kappa[is], v);
-  return 0.0 * v;
+  return SFv;
 }
 
 //******************************************************************************
@@ -441,20 +464,24 @@ DiracSpinor CorrelationPotential::Sigmal_Fv(
     const std::vector<DiracSpinor> &excited) {
 
   DiracSpinor SlFv{v.n, v.k, v.rgrid};
-  std::vector<DiracSpinor> SlFv_ns(excited.size(), {v.n, v.k, v.rgrid});
+  std::vector<DiracSpinor> SlFv_s(std::size_t(omp_get_max_threads()),
+                                  {v.n, v.k, v.rgrid});
 
+// reduction(+ : SlFv)
 #pragma omp parallel for
   for (auto in = 0ul; in < excited.size(); ++in) {
     const auto &n = excited[in];
-    auto &SlFv_n = SlFv_ns[in];
+    const auto ithr = std::size_t(omp_get_thread_num());
+    auto &SlFv_ithr = SlFv_s[ithr];
     for (auto &a : core) {
 
       for (auto &m : excited) {
         const auto [k0, kI] = Coulomb::k_minmax_Q(v, a, m, n);
         for (int k = k0; k <= kI; k += 2) {
           const auto de = v.en() + a.en() - m.en() - n.en();
-          auto tkp1 = (2 * k + 1);
-          SlFv_n +=
+          const auto tkp1 = (2 * k + 1);
+          // #pragma omp critical
+          SlFv_ithr +=
               (lk.W(k, m, n, v, a) / de / tkp1) * yk.Qkv_bcd(v.k, a, m, n, k);
         }
       }
@@ -463,8 +490,9 @@ DiracSpinor CorrelationPotential::Sigmal_Fv(
         const auto [k0, kI] = Coulomb::k_minmax_Q(v, n, a, b);
         for (int k = k0; k <= kI; k += 2) {
           const auto de = v.en() + n.en() - a.en() - b.en();
-          auto tkp1 = (2 * k + 1);
-          SlFv_n +=
+          const auto tkp1 = (2 * k + 1);
+          // #pragma omp critical
+          SlFv_ithr +=
               (lk.W(k, v, n, a, b) / de / tkp1) * yk.Qkv_bcd(v.k, n, a, b, k);
         }
       }
@@ -473,8 +501,18 @@ DiracSpinor CorrelationPotential::Sigmal_Fv(
     }
   }
 
+  SlFv = std::accumulate(SlFv_s.begin(), SlFv_s.end(), SlFv);
   const auto tjp1 = v.twoj() + 1;
-  SlFv = (1.0 / tjp1) * std::accumulate(SlFv_ns.begin(), SlFv_ns.end(), SlFv);
+  SlFv *= (1.0 / tjp1);
+
+  // re-scale to account for difference between Fv(BO) and Fv(HF)
+  const auto &v0 = *std::find(excited.begin(), excited.end(), v);
+  for (auto i = 0ul; i < v.rgrid->num_points(); ++i) {
+    const auto fac_f = std::abs(v0.f(i)) > 1.0e-3 ? v.f(i) / v0.f(i) : 0.0;
+    const auto fac_g = std::abs(v0.g(i)) > 1.0e-5 ? v.g(i) / v0.g(i) : 0.0;
+    SlFv.set_f(i) *= fac_f;
+    SlFv.set_g(i) *= fac_g;
+  }
 
   return SlFv;
 }
