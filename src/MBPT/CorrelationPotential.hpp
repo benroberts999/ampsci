@@ -205,6 +205,10 @@ protected:
   // Angular::SixJ m_6j;
   Angular::SixJTable m_6j;
 
+  const bool m_ratio_ladder_method = false;
+  std::string m_ladder_file;
+  std::unique_ptr<Coulomb::LkTable> m_lk{nullptr};
+
   // SubGrid values:
   // Stride: only include every 'stride' grid points (between min/max)
   std::size_t m_stride;

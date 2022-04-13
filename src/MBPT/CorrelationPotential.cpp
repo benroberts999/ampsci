@@ -1,6 +1,7 @@
 #include "MBPT/CorrelationPotential.hpp"
 #include "Angular/CkTable.hpp"
 #include "Coulomb/CoulombIntegrals.hpp"
+#include "Coulomb/QkTable.hpp"
 #include "Coulomb/YkTable.hpp"
 #include "HF/HartreeFock.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
@@ -15,6 +16,7 @@
 #include <cmath>
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include <numeric>
 #include <vector>
 
@@ -32,11 +34,23 @@ CorrelationPotential::CorrelationPotential(
       m_maxk(std::max(DiracSpinor::max_tj(in_hf->get_core()),
                       DiracSpinor::max_tj(basis))),
       m_6j(2 * m_maxk),
+      m_ladder_file(sigp.ladder_file),
       m_stride(subgridp.stride),
       m_include_G(sigp.include_G),
       m_fk(std::move(sigp.fk)),
       m_eta(std::move(sigp.etak)) {
   setup_subGrid(subgridp.r0, subgridp.rmax);
+  if (m_ladder_file != "") {
+    // read in ladder
+    m_lk = std::make_unique<Coulomb::LkTable>();
+    const auto read_lad = m_lk->read(m_ladder_file);
+    if (!read_lad) {
+      std::cout << "WARNING: couln't find ladder file: " << m_ladder_file
+                << " - NOT READ ****\n";
+    } else {
+      std::cout << "Including ladder diagrams from: " << m_ladder_file << "\n";
+    }
+  }
 }
 
 //******************************************************************************

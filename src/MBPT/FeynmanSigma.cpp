@@ -182,26 +182,38 @@ void FeynmanSigma::formSigma(int kappa, double en, int n) {
 
   Sigma += Gmat_X;
 
-  if (m_ladder_file != "") {
-    std::cout << "\nLadder: ";
-    // Fill Lk table:
-    Coulomb::LkTable lk;
-    const bool read_lad = lk.read(m_ladder_file);
-    if (!read_lad) {
-      std::cout << "couln't find ladder file\n";
-    } else {
-
-      const auto Sig_l = Sigma_l(*vk, m_yeh, lk, m_holes, m_excited);
-
-      if (vk != cend(m_excited)) {
-        auto deL = *vk * act_G_Fv(Sig_l, *vk);
-        printf("; + %5.1f = %7.1f", deL * PhysConst::Hartree_invcm,
-               (deL + deD + deX) * PhysConst::Hartree_invcm);
-      }
-
-      Sigma += Sig_l;
+  // Inlcude ladder diagrams (ratio method)
+  if (m_ratio_ladder_method && m_lk) {
+    // std::cout << "Includeing ladder diagrams (ratio method)\n";
+    const auto Sig_l = Sigma_l(*vk, m_yeh, *m_lk, m_holes, m_excited);
+    if (vk != cend(m_excited)) {
+      const auto deL = *vk * act_G_Fv(Sig_l, *vk);
+      printf("; + %5.1f = %7.1f", deL * PhysConst::Hartree_invcm,
+             (deL + deD + deX) * PhysConst::Hartree_invcm);
     }
+    Sigma += Sig_l;
   }
+
+  // if (m_ladder_file != "") {
+  //   std::cout << "\nLadder: ";
+  //   // Fill Lk table:
+  //   Coulomb::LkTable lk;
+  //   const bool read_lad = lk.read(m_ladder_file);
+  //   if (!read_lad) {
+  //     std::cout << "couln't find ladder file\n";
+  //   } else {
+  //
+  //     const auto Sig_l = Sigma_l(*vk, m_yeh, lk, m_holes, m_excited);
+  //
+  //     if (vk != cend(m_excited)) {
+  //       auto deL = *vk * act_G_Fv(Sig_l, *vk);
+  //       printf("; + %5.1f = %7.1f", deL * PhysConst::Hartree_invcm,
+  //              (deL + deD + deX) * PhysConst::Hartree_invcm);
+  //     }
+  //
+  //     Sigma += Sig_l;
+  //   }
+  // }
 
   std::cout << "\n";
 }
