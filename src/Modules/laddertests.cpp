@@ -251,9 +251,11 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   for (const auto &v : valence) {
     const auto sig_l = Sigma.Sigma_l(v, yk, lk, core, excited);
 
+    const auto SlFv = Sigma.Sigmal_Fv(v, yk, lk, core, excited);
+
     std::cout << v.symbol() << " "
-              << v * Sigma.act_G_Fv(sig_l, v) * PhysConst::Hartree_invcm
-              << "\n";
+              << v * Sigma.act_G_Fv(sig_l, v) * PhysConst::Hartree_invcm << " "
+              << v * SlFv * PhysConst::Hartree_invcm << "\n";
   }
 }
 
