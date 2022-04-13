@@ -19,19 +19,21 @@ namespace Module {
 void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "\nLadder Module:\n\n";
 
-  input.check({{"min", "lowest core n to include"},
-               {"max", "maximum excited n to include"},
-               {"max_l", "maximum excited l to include"},
-               {"max_k", "maximum k to include in Qk"},
-               {"fk", "List of doubles. Effective screening factors. Used to "
-                      "calculate Lk. []"},
-               {"eta", "List of doubles. Effective hp factors. Only used to "
-                       "print energy shift. []"},
-               {"Qfile", "filename to read/write Qk integrals"},
-               {"Lfile", "filename to read/write Qk integrals"},
-               {"progbar", "Print progress bar? [true]"},
-               {"max_it", "Max # iterations"},
-               {"eps_target", "Target for convergance [1.0e-3]"}});
+  input.check(
+      {{"min", "lowest core n to include"},
+       {"max", "maximum excited n to include"},
+       {"max_l", "maximum excited l to include"},
+       {"max_k", "maximum k to include in Qk"},
+       {"fk", "List of doubles. Effective screening factors. Used to "
+              "calculate Lk. []"},
+       {"eta", "List of doubles. Effective hp factors. Only used to "
+               "print energy shift. []"},
+       {"Qfile", "filename to read/write Qk integrals"},
+       {"form_Q", "Form or read Qk? (if have lk already, dont' need!) [true]"},
+       {"Lfile", "filename to read/write Qk integrals"},
+       {"progbar", "Print progress bar? [true]"},
+       {"max_it", "Max # iterations"},
+       {"eps_target", "Target for convergance [1.0e-3]"}});
 
   // Example for retrieving input options:
   const auto min_n = input.get("min", 0);
@@ -127,12 +129,15 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
     }
   }
 
-  std::cout << "\nFill Qk table:\n";
+  const auto formQ = input.get("form_Q", true);
   Coulomb::QkTable qk;
-  const auto ok = qk.read(Qfname);
-  if (!ok) {
-    qk.fill(both, yk, max_k);
-    qk.write(Qfname);
+  if (formQ) {
+    std::cout << "\nFill Qk table:\n";
+    const auto ok = qk.read(Qfname);
+    if (!ok) {
+      qk.fill(both, yk, max_k);
+      qk.write(Qfname);
+    }
   }
 
   std::cout << "\nCore/Valence MBPT(2) shifts, using Qk table" << std::endl;
@@ -215,9 +220,14 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
                "  de(A)/cm^-1   de(l)/cm^-1\n";
   for (const auto &v : valence) {
 
-    const auto de2 = MBPT::de_valence(v, qk, qk, core, excited);
-    const auto dea = MBPT::de_valence(v, qk, qk, core, excited, fk, etak) - de2;
-    const auto del = MBPT::de_valence(v, qk, lk, core, excited, fk, etak);
+    // const auto de2 = MBPT::de_valence(v, qk, qk, core, excited);
+    // const auto dea = MBPT::de_valence(v, qk, qk, core, excited, fk, etak) -
+    // de2; const auto del = MBPT::de_valence(v, qk, lk, core, excited, fk,
+    // etak);
+
+    const auto de2 = MBPT::de_valence(v, yk, yk, core, excited);
+    const auto dea = MBPT::de_valence(v, yk, yk, core, excited, fk, etak) - de2;
+    const auto del = MBPT::de_valence(v, yk, lk, core, excited, fk, etak);
 
     printf("%4s: %11.8f %11.8f %11.8f   %9.3f %9.3f %9.3f\n",
            v.shortSymbol().c_str(), de2, dea, del,

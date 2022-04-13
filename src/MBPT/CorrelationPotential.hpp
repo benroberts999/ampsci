@@ -212,7 +212,7 @@ protected:
 
   const bool m_ratio_ladder_method = false;
   std::string m_ladder_file;
-  std::unique_ptr<Coulomb::LkTable> m_lk{nullptr};
+  std::optional<Coulomb::LkTable> m_lk{std::nullopt};
 
   // SubGrid values:
   // Stride: only include every 'stride' grid points (between min/max)

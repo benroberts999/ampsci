@@ -42,7 +42,8 @@ CorrelationPotential::CorrelationPotential(
   setup_subGrid(subgridp.r0, subgridp.rmax);
   if (m_ladder_file != "") {
     // read in ladder
-    m_lk = std::make_unique<Coulomb::LkTable>();
+    // m_lk = std::make_unique<Coulomb::LkTable>();
+    m_lk = Coulomb::LkTable{};
     const auto read_lad = m_lk->read(m_ladder_file);
     if (!read_lad) {
       std::cout << "WARNING: couln't find ladder file: " << m_ladder_file
