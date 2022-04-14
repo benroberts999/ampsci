@@ -67,6 +67,8 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
 //  sinosoidal
 //  * Uses fit to known exact H-like for normalisation.
 {
+  std::cout << "Solving Dirac equation with core state " << p_psi->shortSymbol()
+            << std::endl;
 
   // Find 'inital guess' for asymptotic region:
   const double lam = 1.0e6;
@@ -173,21 +175,39 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
       } // it
     }   // if HF
 
+    // Forcing orthogonality between continuum states and current core state
+    const auto &psi = *p_psi;
+    if ((p_psi != nullptr) && (force_orthog)) {
+      if (psi.k == Fc.k) {
+        std::cout << "Before forcing orthog: <" << Fc.shortSymbol() << "|"
+                  << psi.shortSymbol() << "> = ";
+        printf("%.1e\n", Fc * psi);
+
+        Fc -= (psi * Fc) * psi;
+
+        std::cout << "After: <" << Fc.shortSymbol() << "|" << psi.shortSymbol()
+                  << "> = ";
+        printf("%.1e\n", Fc * psi);
+        std::cout << std::endl;
+      } // if kappa
+    }   // if orthog & psi
+
     // Forcing orthogonality between continuum and core states
-    if (force_orthog) {
-      for (const auto &Fn : p_hf->get_core()) {
-        if (Fc.k == Fn.k) {
-          std::cout << "Before forcing orthog: <" << Fc.shortSymbol() << "|"
-                    << Fn.shortSymbol() << "> = ";
-          printf("%.1e\n", Fc * Fn);
-          Fc -= (Fn * Fc) * Fn;
-          std::cout << "After: <" << Fc.shortSymbol() << "|" << Fn.shortSymbol()
-                    << "> = ";
-          printf("%.1e\n", Fc * Fn);
-          std::cout << std::endl;
-        } // if
-      }   // loop through core
-    }     // if
+    // if (force_orthog) {
+    //   for (const auto &Fn : p_hf->get_core()) {
+    //     if (Fc.k == Fn.k) {
+    //       std::cout << "Before forcing orthog: <" << Fc.shortSymbol() << "|"
+    //                 << Fn.shortSymbol() << "> = ";
+    //       printf("%.1e\n", Fc * Fn);
+    //       Fc -= (Fn * Fc) * Fn;
+    //       std::cout << "After: <" << Fc.shortSymbol() << "|" <<
+    //       Fn.shortSymbol()
+    //                 << "> = ";
+    //       printf("%.1e\n", Fc * Fn);
+    //       std::cout << std::endl;
+    //     } // if
+    //   }   // loop through core
+    // }     // if
     // func already exists for this in Wavefunction.cpp
     // const auto &Fn = p_hf->get_core();
     // Wavefunction::orthogonaliseWrt(Fc, Fn);
@@ -200,7 +220,8 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
 //******************************************************************************
 int ContinuumOrbitals::solveContinuumZeff(double ec, int min_l, int max_l,
                                           double e_core, double n_core,
-                                          bool force_orthog)
+                                          bool force_orthog,
+                                          const DiracSpinor *p_psi)
 // Solves Dirac equation for H-like potential (Zeff model)
 // Same Zeff as used by DarkARC (eqn B35 of arxiv:1912.08204):
 // Zeff = sqrt{I_{njl} eV / 13.6 eV} * n
@@ -253,22 +274,41 @@ int ContinuumOrbitals::solveContinuumZeff(double ec, int min_l, int max_l,
     // solve initial, without exchange term
     DiracODE::solveContinuum(Fc, ec, vc, cgrid, r_asym, alpha);
 
-    // Forcing orthogonality between continuum and core states
-    if (force_orthog) {
-      for (const auto &Fn : p_hf->get_core()) {
-        if (Fc.k == Fn.k) {
-          std::cout << "Before forcing orthog: <" << Fc.shortSymbol() << "|"
-                    << Fn.shortSymbol() << "> = ";
-          printf("%.1e\n", Fc * Fn);
-          Fc -= (Fn * Fc) * Fn;
-          std::cout << "After: <" << Fc.shortSymbol() << "|" << Fn.shortSymbol()
-                    << "> = ";
-          printf("%.1e\n", Fc * Fn);
-          std::cout << std::endl;
-        } // if
-      }   // loop through core
-    }     // if
-  }
+    // Forcing orthogonality between continuum states and current core state
+    const auto &psi = *p_psi;
+    if ((p_psi != nullptr) && (force_orthog)) {
+      if (psi.k == Fc.k) {
+        std::cout << "Before forcing orthog: <" << Fc.shortSymbol() << "|"
+                  << psi.shortSymbol() << "> = ";
+        printf("%.1e\n", Fc * psi);
+
+        Fc -= (psi * Fc) * psi;
+
+        std::cout << "After: <" << Fc.shortSymbol() << "|" << psi.shortSymbol()
+                  << "> = ";
+        printf("%.1e\n", Fc * psi);
+        std::cout << std::endl;
+      } // if kappa
+    }   // if orthog & psi
+
+    // // Forcing orthogonality between continuum and core states
+    // if (force_orthog) {
+    //   for (const auto &Fn : p_hf->get_core()) {
+    //     if (Fc.k == Fn.k) {
+    //       std::cout << "Before forcing orthog: <" << Fc.shortSymbol() << "|"
+    //                 << Fn.shortSymbol() << "> = ";
+    //       printf("%.1e\n", Fc * Fn);
+    //       Fc -= (Fn * Fc) * Fn;
+    //       std::cout << "After: <" << Fc.shortSymbol() << "|" <<
+    //       Fn.shortSymbol()
+    //                 << "> = ";
+    //       printf("%.1e\n", Fc * Fn);
+    //       std::cout << std::endl;
+    //     } // if
+    //   }   // loop through core
+    // }     // if
+
+  } // kappa
 
   return 0;
 }

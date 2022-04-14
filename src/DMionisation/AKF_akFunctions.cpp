@@ -43,6 +43,22 @@ double CLkk_DLkk(int L, int ka, int kb, std::string dmec)
   return (two_ja + 1) * (two_jb + 1) * (2 * L + 1) * tjs * tjs;
 }
 
+double CLkk_sqrt(int L, int ka, int kb)
+// testing
+{
+  int la = AtomData::l_k(ka);
+  int lb = AtomData::l_k(kb);
+  int two_ja = AtomData::twoj_k(ka);
+  int two_jb = AtomData::twoj_k(kb);
+
+  if ((la + lb + L) % 2 != 0)
+    return 0;
+
+  const double tjs = Angular::threej_2(two_jb, two_ja, 2 * L, -1, 1, 0);
+  return std::sqrt((two_ja + 1) * (two_jb + 1) * (2 * L + 1)) * tjs *
+         std::pow(-1.0, 0.5 * (two_jb - two_ja));
+}
+
 //******************************************************************************
 // double radIntegral(const DiracSpinor &lhs, const DiracSpinor &rhs,
 //                    std::vector<double> &jLqr_f, std::string dmec)
@@ -111,7 +127,7 @@ calculateK_nk(const Wavefunction &wf, const DiracSpinor &psi, int max_L,
   if (ec > 0) {
     if (zeff_cont) {
       cntm.solveContinuumZeff(ec, lc_min, lc_max, psi.en(), (double)psi.n,
-                              force_orthog);
+                              force_orthog, &psi);
     } else {
       cntm.solveContinuumHF(ec, lc_min, lc_max, force_rescale, subtract_self,
                             force_orthog, &psi);
@@ -124,12 +140,14 @@ calculateK_nk(const Wavefunction &wf, const DiracSpinor &psi, int max_L,
   // L and lc are summed, not stored individually
   for (std::size_t L = 0; L <= std::size_t(max_L); L++) {
     for (const auto &phic : cntm.orbitals) {
+      double dC_Lkk_sqrt = CLkk_sqrt((int)L, psi.k, phic.k);
       double dC_Lkk = CLkk_DLkk((int)L, psi.k, phic.k, dmec);
       if (dC_Lkk == 0)
         continue;
       //#pragma omp parallel for
       for (std::size_t iq = 0; iq < qsteps; iq++) {
         double a = 0.;
+        double a_noj = 0;
         auto maxj = psi.max_pt(); // don't bother going further
         // Need to change this so that aff, agg, afg, & agf are all
         // calculated everytime -> separate function or if checks?
@@ -141,27 +159,42 @@ calculateK_nk(const Wavefunction &wf, const DiracSpinor &psi, int max_L,
                                         jLqr_f[L][iq], wf.rgrid->drdu());
         double agf = NumCalc::integrate(1.0, 0, maxj, psi.g(), phic.f(),
                                         jLqr_f[L][iq], wf.rgrid->drdu());
+
+        // Not working?
+        double aff_noj = NumCalc::integrate(1.0, 0, maxj, psi.f(), phic.f(),
+                                            wf.rgrid->drdu());
+        double agg_noj = NumCalc::integrate(1.0, 0, maxj, psi.g(), phic.g(),
+                                            wf.rgrid->drdu());
+        a = (aff + agg) * wf.rgrid->du();
+        a_noj = (aff_noj + agg_noj) * wf.rgrid->du();
         if ((alt_akf) && (psi.k == phic.k)) {
-          aff -= NumCalc::integrate(1.0, 0, maxj, psi.f(), phic.f(),
-                                    wf.rgrid->drdu());
-          agg -= NumCalc::integrate(1.0, 0, maxj, psi.g(), phic.g(),
-                                    wf.rgrid->drdu());
-          afg -= NumCalc::integrate(1.0, 0, maxj, psi.f(), phic.g(),
-                                    wf.rgrid->drdu());
-          agf -= NumCalc::integrate(1.0, 0, maxj, psi.g(), phic.f(),
-                                    wf.rgrid->drdu());
+          AK_nk_q[iq] += (float)((dC_Lkk * a * a + a_noj * a_noj -
+                                  2.0 * dC_Lkk_sqrt * a * a_noj) *
+                                 x_ocf);
+        } else {
+          AK_nk_q[iq] += (float)(dC_Lkk * a * a * x_ocf);
         }
-        if (dmec == "Vector") {
-          a = aff + agg;
-        } else if (dmec == "Scalar") {
-          a = aff - agg;
-        } else if (dmec == "Pseudovector") {
-          a = afg + agf;
-        } else if (dmec == "Pseudoscalar") {
-          a = afg - agf;
-        }
-        AK_nk_q[iq] +=
-            (float)(dC_Lkk * std::pow(a * wf.rgrid->du(), 2) * x_ocf);
+
+        // if ((alt_akf) && (psi.k == phic.k)) {
+        //   aff -= NumCalc::integrate(1.0, 0, maxj, psi.f(), phic.f(),
+        //                             wf.rgrid->drdu());
+        //   agg -= NumCalc::integrate(1.0, 0, maxj, psi.g(), phic.g(),
+        //                             wf.rgrid->drdu());
+        //   afg -= NumCalc::integrate(1.0, 0, maxj, psi.f(), phic.g(),
+        //                             wf.rgrid->drdu());
+        //   agf -= NumCalc::integrate(1.0, 0, maxj, psi.g(), phic.f(),
+        //                             wf.rgrid->drdu());
+        // }
+        // if (dmec == "Vector") {
+        //   a = dC_Lkk_sqrt * (aff + agg);
+        // } else if (dmec == "Scalar") {
+        //   a = aff - agg;
+        // } else if (dmec == "Pseudovector") {
+        //   a = afg + agf;
+        // } else if (dmec == "Pseudoscalar") {
+        //   a = afg - agf;
+        // }
+        // AK_nk_q[iq] += (float)(std::pow(a * wf.rgrid->du(), 2) * x_ocf);
       } // q
     }   // END loop over cntm states (ic)
   }     // end L loop
@@ -384,6 +417,8 @@ int akReadWrite(const std::string &fname, bool write,
     IO::FRW::binary_rw(iof, nde, row);
     IO::FRW::binary_rw(iof, ns, row);
     IO::FRW::binary_rw(iof, nq, row);
+    std::cout << "nde = " << nde << ", ns = " << ns << ", nq = " << nq
+              << std::endl;
     AK.resize(nde, std::vector<std::vector<float>>(ns, std::vector<float>(nq)));
     nklst.resize(ns);
   }
