@@ -167,7 +167,7 @@ public: // const methods: "views" into WF object
   //! Performs hartree-Fock procedure for core: note: poplulates core
   void solve_core(const std::string &method = "HartreeFock",
                   const double x_Breit = 0.0, const std::string &in_core = "",
-                  double eps_HF = 0, bool print = true);
+                  double eps_HF = 1.0e-13, bool print = true);
 
   //! Calculates HF core energy (doesn't include magnetic QED?)
   auto coreEnergyHF() const;
