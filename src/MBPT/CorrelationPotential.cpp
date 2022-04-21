@@ -124,10 +124,7 @@ DiracSpinor CorrelationPotential::SigmaFv(const DiracSpinor &v,
     SFv = act_G_Fv(m_Sigma_kappa[is], v);
 
   if (lad && m_lk && !m_ratio_ladder_method) {
-
-    // std::cout << "\n"
-    //           << v.symbol() << " " << v * SFv << " "
-    //           << v * Sigmal_Fv(v, m_yeh, *m_lk, m_holes, m_excited) << "\n";
+    // SFv += Sigmal_Fv(v, m_yeh, *m_lk, m_holes, m_excited, m_fk, m_eta);
     SFv += Sigmal_Fv(v, m_yeh, *m_lk, m_holes, m_excited);
   }
 
@@ -461,11 +458,25 @@ void CorrelationPotential::print_subGrid() const {
 DiracSpinor CorrelationPotential::Sigmal_Fv(
     const DiracSpinor &v, const Coulomb::YkTable &yk,
     const Coulomb::LkTable &lk, const std::vector<DiracSpinor> &core,
-    const std::vector<DiracSpinor> &excited) {
+    const std::vector<DiracSpinor> &excited,
+    const std::vector<double> & /*vfk*/, const std::vector<double> & /*veta*/) {
 
   DiracSpinor SlFv{v.n, v.k, v.rgrid};
   std::vector<DiracSpinor> SlFv_s(std::size_t(omp_get_max_threads()),
                                   {v.n, v.k, v.rgrid});
+
+  // auto get_fk = [&vfk](int k) {
+  //   if (k < int(vfk.size())) {
+  //     return vfk[std::size_t(k)];
+  //   }
+  //   return 1.0;
+  // };
+  // auto get_eta = [&veta](int k) {
+  //   if (k < int(veta.size())) {
+  //     return veta[std::size_t(k)];
+  //   }
+  //   return 1.0;
+  // };
 
 // reduction(+ : SlFv)
 #pragma omp parallel for
@@ -483,6 +494,12 @@ DiracSpinor CorrelationPotential::Sigmal_Fv(
           // #pragma omp critical
           SlFv_ithr +=
               (lk.W(k, m, n, v, a) / de / tkp1) * yk.Qkv_bcd(v.k, a, m, n, k);
+          // const auto fk = get_fk(k);
+          // const auto etak = get_eta(k);
+          // SlFv_ithr += (lk.Q(k, m, n, v, a) * etak / de / tkp1) *
+          //              yk.Qkv_bcd(v.k, a, m, n, k);
+          // SlFv_ithr += (lk.P(k, m, n, v, a) * fk / de / tkp1) *
+          //              yk.Qkv_bcd(v.k, a, m, n, k);
         }
       }
 
@@ -494,6 +511,12 @@ DiracSpinor CorrelationPotential::Sigmal_Fv(
           // #pragma omp critical
           SlFv_ithr +=
               (lk.W(k, v, n, a, b) / de / tkp1) * yk.Qkv_bcd(v.k, n, a, b, k);
+          // const auto fk = get_fk(k);
+          // const auto etak = get_eta(k);
+          // SlFv_ithr += (lk.Q(k, v, n, a, b) * etak / de / tkp1) *
+          //              yk.Qkv_bcd(v.k, n, a, b, k);
+          // SlFv_ithr += (lk.P(k, v, n, a, b) * fk / de / tkp1) *
+          //              yk.Qkv_bcd(v.k, n, a, b, k);
         }
       }
 
@@ -505,14 +528,14 @@ DiracSpinor CorrelationPotential::Sigmal_Fv(
   const auto tjp1 = v.twoj() + 1;
   SlFv *= (1.0 / tjp1);
 
-  // re-scale to account for difference between Fv(BO) and Fv(HF)
-  const auto &v0 = *std::find(excited.begin(), excited.end(), v);
-  for (auto i = 0ul; i < v.rgrid->num_points(); ++i) {
-    const auto fac_f = std::abs(v0.f(i)) > 1.0e-3 ? v.f(i) / v0.f(i) : 0.0;
-    const auto fac_g = std::abs(v0.g(i)) > 1.0e-5 ? v.g(i) / v0.g(i) : 0.0;
-    SlFv.set_f(i) *= fac_f;
-    SlFv.set_g(i) *= fac_g;
-  }
+  // // re-scale to account for difference between Fv(BO) and Fv(HF)
+  // const auto &v0 = *std::find(excited.begin(), excited.end(), v);
+  // for (auto i = 0ul; i < v.rgrid->num_points(); ++i) {
+  //   const auto fac_f = std::abs(v0.f(i)) > 1.0e-3 ? v.f(i) / v0.f(i) : 0.0;
+  //   const auto fac_g = std::abs(v0.g(i)) > 1.0e-5 ? v.g(i) / v0.g(i) : 0.0;
+  //   SlFv.set_f(i) *= fac_f;
+  //   SlFv.set_g(i) *= fac_g;
+  // }
 
   return SlFv;
 }

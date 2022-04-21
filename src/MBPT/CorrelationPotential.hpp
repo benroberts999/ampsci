@@ -161,7 +161,9 @@ public:
   static DiracSpinor Sigmal_Fv(const DiracSpinor &v, const Coulomb::YkTable &yk,
                                const Coulomb::LkTable &lk,
                                const std::vector<DiracSpinor> &core,
-                               const std::vector<DiracSpinor> &excited);
+                               const std::vector<DiracSpinor> &excited,
+                               const std::vector<double> &vfk = {},
+                               const std::vector<double> &veta = {});
 
   RDMatrix<double> Sigma_l(const DiracSpinor &v, const Coulomb::YkTable &qk,
                            const Coulomb::LkTable &lk,
