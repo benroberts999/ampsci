@@ -179,7 +179,7 @@ private:
   const bool m_excludeExchange; // XXX Kill this. Only HF,H,aHF
   std::unique_ptr<const HF::Breit> m_VBr{nullptr};
 
-  const int m_max_hf_its = 99;
+  const int m_max_hf_its = 256;
 
 private:
   void hf_core_approx(const double eps_target_HF);
