@@ -7,11 +7,14 @@
 
 namespace UnitTest {
 
-//******************************************************************************
+//==============================================================================
 //! Unit tests for angular functions/classes (threeJ symbols, lookup tables etc)
 bool SixJTable(std::ostream &obuff) {
   bool pass = true;
 
+  //----------------------------------------------------------------------------
+  // Test table against gsl_sf_coupling_6j, including with filling
+  // Test all, including 'zero' symbols
   {
 
     Angular::SixJTable sjt;
@@ -26,6 +29,7 @@ bool SixJTable(std::ostream &obuff) {
       {
         IO::ChronoTimer t("Fill " + std::to_string(max_k));
         sjt.fill(max_k); // nb: each loop, "extends" the table
+        std::cout << "Size: " << sjt.size() << "\n";
       }
 
       std::stringstream ss;
@@ -60,7 +64,10 @@ bool SixJTable(std::ostream &obuff) {
     }
   }
 
-  // Test DiracSpinor
+  //----------------------------------------------------------------------------
+  // Test DiracSpinor (same test as above, but with DiracSpinor)
+  // Tests {a,b,k \ c, d, l} and {a,b,k, \ l,u,c} seperately
+  // Also does performance test (this is more realistic scenario than above)
   {
     const int l_max = 6;
 
@@ -149,9 +156,10 @@ bool SixJTable(std::ostream &obuff) {
     {
       // performance test
       double t1 = 0.0, t2 = 0.0;
+      double sum1 = 0.0;
+      double sum2 = 0.0;
       {
         IO::ChronoTimer t("New");
-        double sum1 = 0.0;
         for (const auto &a : basis) {
           for (const auto &b : basis) {
             for (const auto &c : basis) {
@@ -179,7 +187,6 @@ bool SixJTable(std::ostream &obuff) {
       }
       {
         IO::ChronoTimer t("Old");
-        double sum2 = 0.0;
         for (const auto &a : basis) {
           for (const auto &b : basis) {
             for (const auto &c : basis) {
@@ -207,6 +214,9 @@ bool SixJTable(std::ostream &obuff) {
         }
         t2 = t.lap_reading_ms();
       }
+      std::cout << sum1 << " " << sum2 << " "
+                << 2.0 * (sum1 - sum2) / (sum1 + sum2) << "\n";
+      std::cout << t2 / t1 << "x speedup\n";
 
       pass &= qip::check(&obuff, "6Jtab: >2x speed", t2 > 1.5 * t1);
     }

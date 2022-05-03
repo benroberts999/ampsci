@@ -300,10 +300,12 @@ CoulombTable::BigIndex NkTable::NormalOrder_impl(Index a, Index b, Index c,
 
 //******************************************************************************
 CoulombTable::BigIndex CoulombTable::FormIndex(Index a, Index b, Index c,
-                                               Index d) const { //
+                                               Index d) const {
+  // create a BigIndex from four small Index, by laying out in memory
   static_assert(sizeof(BigIndex) == 4 * sizeof(Index));
   BigIndex big_index;
-  auto p_index = (Index *)(&big_index);
+  // auto p_index = (Index *)(&big_index);
+  const auto p_index = reinterpret_cast<Index *>(&big_index);
   std::memcpy(p_index, &a, sizeof(Index));
   std::memcpy(p_index + 1, &b, sizeof(Index));
   std::memcpy(p_index + 2, &c, sizeof(Index));
