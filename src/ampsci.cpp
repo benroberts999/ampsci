@@ -149,7 +149,7 @@ void ampsci(const IO::InputBlock &input) {
       {"HartreeFock"},
       {{"core", "string. Core configuration. e.g., [Xe] for Cs"},
        {"valence", "string. Which valence states? e.g., 7sp5d"},
-       {"convergence", "double. HF convergance goal [1.0e-12]"},
+       {"eps", "double. HF convergance goal [1.0e-13]"},
        {"method",
         "string. HartreeFock, Hartree, KohnSham, or Local [HartreeFock]"},
        {"Breit", "double. Scale for Breit. 0.0 => no Breit, 1.0 => include "
@@ -163,7 +163,7 @@ void ampsci(const IO::InputBlock &input) {
   }
 
   const auto str_core = input.get<std::string>({"HartreeFock"}, "core", "[]");
-  const auto eps_HF = input.get({"HartreeFock"}, "convergence", 1.0e-12);
+  const auto eps_HF = input.get({"HartreeFock"}, "eps", 1.0e-13);
   const auto HF_method =
       input.get<std::string>({"HartreeFock"}, "method", "HartreeFock");
   if (HF_method == "Hartree")

@@ -979,8 +979,8 @@ EpsIts HartreeFock::hf_valence_refine(DiracSpinor &Fa) {
 
   const auto eps_target = m_eps_HF;
 
-  const auto damper = rampedDamp(0.8, 0.3, 5, 25);
-  double extra_damp = 0.0;
+  const auto damper = 0.35; // rampedDamp(0.8, 0.3, 5, 25);
+  // double extra_damp = 0.0;
 
   const auto &vrad_el = get_Hrad_el(Fa.l());
   const auto &Hmag = get_Hrad_mag(Fa.l());
@@ -990,13 +990,13 @@ EpsIts HartreeFock::hf_valence_refine(DiracSpinor &Fa) {
   const auto vexFzero = vex_approx(Fa, *p_core) * Fa;
 
   auto prev_en = Fa.en();
-  double best_eps = 1.0;
+  // double best_eps = 1.0;
   auto VxFa = DiracSpinor(Fa.n, Fa.k, rgrid);
   int it = 0;
   double eps = 1.0;
-  int worse_count = 0;
+  // int worse_count = 0;
   for (; it <= m_max_hf_its; ++it) {
-    const auto a_damp = damper(it) + extra_damp;
+    const auto a_damp = damper; //(it) + extra_damp;
 
     VxFa = calc_vexFa(Fa);
     if (m_VBr) { // Breit
@@ -1008,18 +1008,18 @@ EpsIts HartreeFock::hf_valence_refine(DiracSpinor &Fa) {
     eps = std::abs((prev_en - Fa.en()) / Fa.en());
     prev_en = Fa.en();
 
-    if (it > 20 && eps > 1.5 * best_eps) {
-      ++worse_count;
-      extra_damp = extra_damp > 0 ? 0 : 0.1;
-    } else {
-      worse_count = 0;
-    }
+    // if (it > 20 && eps > 1.5 * best_eps) {
+    //   ++worse_count;
+    //   extra_damp = extra_damp > 0 ? 0 : 0.1;
+    // } else {
+    //   worse_count = 0;
+    // }
     const bool converged = (eps <= eps_target && it > 0);
-    if (converged || worse_count > 2)
+    if (converged || it == m_max_hf_its /*worse_count > 2*/)
       break;
 
-    if (eps < best_eps)
-      best_eps = eps;
+    // if (eps < best_eps)
+    //   best_eps = eps;
 
     if constexpr (print_each_eps) {
       std::cout << __LINE__ << "| " << it << " " << eps << " " << Fa.en() << " "
@@ -1049,7 +1049,7 @@ EpsIts HartreeFock::hf_Brueckner(DiracSpinor &Fa,
   const auto max_br_its = m_max_hf_its;
 
   // auto damper = rampedDamp(0.33, 0.05, 1, 15);
-  auto damper = 0.5; // rampedDamp(0.2, 0.1, 1, 15);
+  auto damper = 0.35; // rampedDamp(0.2, 0.1, 1, 15);
 
   const auto &vrad_el = get_Hrad_el(Fa.l());
   const auto &Hmag = get_Hrad_mag(Fa.l());
@@ -1062,10 +1062,10 @@ EpsIts HartreeFock::hf_Brueckner(DiracSpinor &Fa,
   }
 
   auto prev_en = Fa.en();
-  double best_eps = 1.0;
+  // double best_eps = 1.0;
   int it = 0;
   double eps = 1.0;
-  int worse_count = 0;
+  // int worse_count = 0;
   for (; it <= max_br_its; ++it) {
     const auto a_damp = damper; // it == 0 ? 0.0 : damper(it);
 
@@ -1085,17 +1085,17 @@ EpsIts HartreeFock::hf_Brueckner(DiracSpinor &Fa,
     eps = std::abs((prev_en - Fa.en()) / Fa.en());
     prev_en = Fa.en();
 
-    if (it > 50 && eps > 2.5 * best_eps) {
-      ++worse_count;
-    } else {
-      worse_count = 0;
-    }
+    // if (it > 50 && eps > 2.5 * best_eps) {
+    //   ++worse_count;
+    // } else {
+    //   worse_count = 0;
+    // }
     const bool converged = (eps <= eps_target && it > 0);
-    if (converged || worse_count > 3)
+    if (converged || it == max_br_its /*worse_count > 3*/)
       break;
 
-    if (eps < best_eps)
-      best_eps = eps;
+    // if (eps < best_eps)
+    //   best_eps = eps;
 
     if constexpr (print_each_eps) {
       std::cout << __LINE__ << "| " << it << " " << eps << " " << Fa.en() << " "
@@ -1123,8 +1123,8 @@ inline void HartreeFock::hf_core_refine() {
   const double eps_target = m_eps_HF;
   // m_Yab.update_y_ints(); // only needed if not already done!
   m_Yab.calculate(*p_core);
-  auto damper = rampedDamp(0.8, 0.3, 5, 30);
-  double extra_damp = 0;
+  auto damper = 0.35; // rampedDamp(0.35, 0.35, 5, 30);
+  // double extra_damp = 0;
 
   std::vector<double> vl(rgrid->num_points()); // Vnuc + fVd
   std::vector<double> v0(rgrid->num_points()); // (1-f)Vd
@@ -1155,10 +1155,10 @@ inline void HartreeFock::hf_core_refine() {
   double best_worst_eps = 1.0;
   std::size_t worst_index = 0;
   std::size_t best_index = 0;
-  int worse_count = 0;
+  // int worse_count = 0;
   int it = 0;
   for (; it <= m_max_hf_its; it++) {
-    const auto a_damp = damper(it) + extra_damp;
+    const auto a_damp = damper; //(it);// + extra_damp;
 
     // re-calculate each Vl = vnuc + fvdir, v0 = (1-f)vdir:
     for (auto i = 0ul; i < rgrid->num_points(); i++) {
@@ -1235,14 +1235,14 @@ inline void HartreeFock::hf_core_refine() {
                   << "\n";
     }
 
-    if (it > 20 && eps > 1.5 * best_worst_eps) {
-      ++worse_count;
-      extra_damp = extra_damp > 0 ? 0 : 0.4;
-    } else {
-      worse_count = 0;
-    }
+    // if (it > 20 && eps > 1.5 * best_worst_eps) {
+    //   ++worse_count;
+    //   extra_damp = extra_damp > 0 ? 0 : 0.4;
+    // } else {
+    //   worse_count = 0;
+    // }
     const bool converged = (eps <= eps_target && it > 0);
-    if (converged || worse_count > 3)
+    if (converged || it == m_max_hf_its /*|| worse_count > 3*/)
       break;
 
     if (eps < best_worst_eps)
