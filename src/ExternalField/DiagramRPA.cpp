@@ -132,14 +132,14 @@ bool DiagramRPA::read_write(const std::string &fname, IO::FRW::RoW rw) {
 
   for (const auto porbs : {&holes, &excited}) {
     for (const auto &Fn : *porbs) {
-      int n = Fn.n;
-      int k = Fn.k;
+      int n = Fn.n();
+      int k = Fn.kappa();
       rw_binary(iofs, rw, n, k);
       if (readQ) {
-        if (Fn.n != n || Fn.k != k) {
+        if (Fn.n() != n || Fn.kappa() != k) {
           std::cout
               << "\nCannot read from " << fname << ". Basis mis-match (read "
-              << n << "," << k << "; expected " << Fn.n << "," << Fn.k << ").\n"
+              << n << "," << k << "; expected " << Fn.n() << "," << Fn.kappa() << ").\n"
               << "Will recalculate rpa_Diagram matrix, and overwrite file.\n";
           return false;
         }
@@ -193,7 +193,7 @@ void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h) {
           Wanm_b.reserve(holes.size());
           Wabm_n.reserve(holes.size());
           for (const auto &Fb : holes) {
-            if (h->isZero(Fb.k, Fn.k)) {
+            if (h->isZero(Fb.kappa(), Fn.kappa())) {
               Wanm_b.emplace_back(0.0);
               Wabm_n.emplace_back(0.0);
               continue;
@@ -235,7 +235,7 @@ void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h) {
           Wanm_b.reserve(holes.size());
           Wabm_n.reserve(holes.size());
           for (const auto &Fb : holes) {
-            if (h->isZero(Fb.k, Fn.k)) {
+            if (h->isZero(Fb.kappa(), Fn.kappa())) {
               Wanm_b.emplace_back(0.0);
               Wabm_n.emplace_back(0.0);
               continue;

@@ -19,7 +19,7 @@ Note:
  * High- and low- frequency V(r) do NOT include A or B fitting coeficients.
  * All radii (r and rN) are given in atomic units
  * Sign convention: H -> H - V_rad
- * V_rad = V_Uehling + V_SEh + V_SEl + V_WK + i(g.n)H_Magnetic
+ * V_rad = V_Uehling + V_SEh + V_SEl + V_WK + i(g.n())H_Magnetic
 */
 
 namespace FGRP {

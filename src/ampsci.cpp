@@ -282,7 +282,7 @@ void ampsci(const IO::InputBlock &input) {
     auto dV = [=](auto x) { return -0.5 * a_eff / (x * x * x * x + a4); };
     std::vector<double> dv(wf.rgrid->num_points());
     for (auto i = 0u; i < wf.rgrid->num_points(); ++i) {
-      dv[i] = dV(wf.rgrid->r()[i]);
+      dv[i] = dV(wf.rgrid->r(i));
     }
     wf.add_to_Vdir(dv);
   }

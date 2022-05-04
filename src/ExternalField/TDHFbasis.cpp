@@ -40,11 +40,11 @@ DiracSpinor TDHFbasis::form_dPsi(const DiracSpinor &Fv, const double omega,
   }
 
   // nb: Spectrum must constain Sigma to include correlations
-  DiracSpinor Xx{0, kappa_beta, Fv.rgrid};
+  DiracSpinor Xx{0, kappa_beta, Fv.grid_sptr()};
   Xx.set_min_pt() = Fv.max_pt();
   Xx.set_max_pt() = Fv.max_pt();
   for (const auto &Fn : spectrum) {
-    if (Fn.k != Xx.k || m_h->isZero(Fn.k, Fv.k) || Fv == Fn)
+    if (Fn.kappa() != Xx.kappa() || m_h->isZero(Fn.kappa(), Fv.kappa()) || Fv == Fn)
       continue;
     // XXX Check:
     // why need multiply dV by s too? Thought I shouldn't??
@@ -81,12 +81,12 @@ double TDHFbasis::dV1(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
   const auto conj = Fb.en() > Fa.en();
   // dV(Fn, Fm, conj, nullptr, false);
   const auto s = conj && m_h->imaginaryQ() ? -1 : 1; // careful. OK?
-  // auto rhs = dV_rhs(Fa.k, Fb, conj, nullptr, false);
-  auto rhs = DiracSpinor(0, Fa.k, Fa.rgrid);
+  // auto rhs = dV_rhs(Fa.kappa(), Fb, conj, nullptr, false);
+  auto rhs = DiracSpinor(0, Fa.kappa(), Fa.grid_sptr());
 
   {
-    auto kappa_n = Fa.k;
-    // auto rhs = DiracSpinor(0, Fa.k, Fa.rgrid);
+    auto kappa_n = Fa.kappa();
+    // auto rhs = DiracSpinor(0, Fa.kappa(), Fa.grid_sptr());
     rhs.set_max_pt() = Fb.max_pt();
 
     const auto ChiType = !conj ? dPsiType::X : dPsiType::Y;
@@ -94,7 +94,7 @@ double TDHFbasis::dV1(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
 
     const auto k = m_h->rank();
     const auto tkp1 = double(2 * k + 1);
-    const auto tjn = Angular::twoj_k(Fa.k);
+    const auto tjn = Angular::twoj_k(Fa.kappa());
 
     // nb: faster to not //ize this one
     for (const auto &Fc : m_core) {
@@ -167,13 +167,13 @@ void TDHFbasis::solve_core(const double omega, int max_its, const bool print) {
       auto &Xx = tmp_X[ic][beta];
       Xx *= a_damp;
       Xx += (1.0 - a_damp) *
-            form_dPsi(Fc, omega, dPsiType::X, Xx.k, m_basis, StateType::ket);
+            form_dPsi(Fc, omega, dPsiType::X, Xx.kappa(), m_basis, StateType::ket);
 
       if (!staticQ) {
         auto &Yx = tmp_Y[ic][beta];
         Yx *= a_damp;
         Yx += (1.0 - a_damp) *
-              form_dPsi(Fc, omega, dPsiType::Y, Xx.k, m_basis, StateType::ket);
+              form_dPsi(Fc, omega, dPsiType::Y, Xx.kappa(), m_basis, StateType::ket);
       } else {
         const auto s = m_h->imaginaryQ() ? -1 : 1;
         tmp_Y[ic][beta] = s * Xx;

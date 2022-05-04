@@ -98,7 +98,7 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
   // Output HF results:
   std::cout << "  state   k     En (au)    En (eV)   Oc.Frac.\n";
   for (const auto &phi : wf.core) {
-    printf(" %7s %2i %11.5f %10.2f   [%3.2f]", phi.symbol().c_str(), phi.k,
+    printf(" %7s %2i %11.5f %10.2f   [%3.2f]", phi.symbol().c_str(), phi.kappa(),
            phi.en(), phi.en() * PhysConst::Hartree_eV, phi.occ_frac());
     if (phi.l() > max_l)
       std::cout << " (excluded from K)";

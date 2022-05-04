@@ -399,9 +399,9 @@ public:
   //! G*F = Int[G(r,r')*F(r') dr'] = sum_j G_ij*F_j*drdu_j*du
   DiracSpinor operator*(const DiracSpinor &Fn) const {
 
-    const auto &r = Fn.rgrid->r();
-    // const auto &drdu = Fn.rgrid->drdu();
-    // const double s_du = double(m_stride) * Fn.rgrid->du();
+    const auto &r = Fn.grid().r();
+    // const auto &drdu = Fn.grid().drdu();
+    // const double s_du = double(m_stride) * Fn.grid().du();
 
     // include dr?? No, not by default?
     std::vector<double> f(m_size), g;

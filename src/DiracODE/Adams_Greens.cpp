@@ -23,7 +23,7 @@ DiracSpinor solve_inhomog(const int kappa, const double en,
                           const std::vector<double> &H_mag, const double alpha,
                           const DiracSpinor &source) {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__, "0");
-  auto Fa = DiracSpinor(0, kappa, source.rgrid);
+  auto Fa = DiracSpinor(0, kappa, source.grid_sptr());
   solve_inhomog(Fa, en, v, H_mag, alpha, source);
   return Fa;
 }
@@ -36,8 +36,8 @@ void solve_inhomog(DiracSpinor &Fa, const double en,
 // NOTE: returns NON-normalised function!
 {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__, "a");
-  auto Fzero = DiracSpinor(Fa.n, Fa.k, Fa.rgrid);
-  auto Finf = DiracSpinor(Fa.n, Fa.k, Fa.rgrid);
+  auto Fzero = DiracSpinor(Fa.n(), Fa.kappa(), Fa.grid_sptr());
+  auto Finf = DiracSpinor(Fa.n(), Fa.kappa(), Fa.grid_sptr());
   solve_inhomog(Fa, Fzero, Finf, en, v, H_mag, alpha, source);
 }
 //------------------------------------------------------------------------------
@@ -80,7 +80,7 @@ void GreenSolution(DiracSpinor &Fa, const DiracSpinor &Finf,
   // }
 
   // save typing:
-  const auto &gr = *Fa.rgrid;
+  const auto &gr = Fa.grid();
   constexpr auto ztr = NumCalc::zero_to_r;
   constexpr auto rti = NumCalc::r_to_inf;
 

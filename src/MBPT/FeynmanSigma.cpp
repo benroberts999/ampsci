@@ -113,7 +113,7 @@ void FeynmanSigma::formSigma(int kappa, double en, int n) {
 
   // find lowest excited state, output <v|S|v> energy shift:
   const auto find_kappa = [kappa, n](const auto &a) {
-    return a.k == kappa && (a.n == n || n == 0);
+    return a.kappa() == kappa && (a.n() == n || n == 0);
   };
   const auto vk = std::find_if(cbegin(m_excited), cend(m_excited), find_kappa);
 
@@ -122,8 +122,8 @@ void FeynmanSigma::formSigma(int kappa, double en, int n) {
   if (m_S0 != nullptr && m_Sx != nullptr) {
     std::cout << vk->shortSymbol() << ": fk = ";
     for (int k = 0; k < 8; ++k) {
-      const auto Sd0 = m_S0->FeynmanDirect(vk->k, vk->en(), k);
-      const auto SdX = m_Sx->FeynmanDirect(vk->k, vk->en(), k);
+      const auto Sd0 = m_S0->FeynmanDirect(vk->kappa(), vk->en(), k);
+      const auto SdX = m_Sx->FeynmanDirect(vk->kappa(), vk->en(), k);
       const auto de0 = (*vk) * m_S0->act_G_Fv(Sd0, *vk);
       const auto deX = (*vk) * m_Sx->act_G_Fv(SdX, *vk);
       const auto fk = deX / de0;
@@ -398,7 +398,7 @@ GMatrix FeynmanSigma::calculate_Vx_kappa(int kappa) const {
   for (int k = 0; k <= kmax; ++k) {
     GMatrix Vx_k(m_imin, m_stride, m_subgrid_points, m_include_G, p_gr);
     for (const auto &a : core) {
-      const auto ck = Angular::Ck_kk(k, kappa, a.k);
+      const auto ck = Angular::Ck_kk(k, kappa, a.kappa());
       if (ck == 0.0)
         continue;
       const auto c_ang = -1.0 * ck * ck / double(tj + 1);
@@ -434,7 +434,7 @@ GMatrix FeynmanSigma::calculate_Vhp(const DiracSpinor &Fc) const {
   GMatrix OneNegPc(m_imin, m_stride, m_subgrid_points, m_include_G, p_gr);
   const auto &core = p_hf->get_core();
   for (const auto &Fa : core) {
-    if (Fa.k != Fc.k)
+    if (Fa.kappa() != Fc.kappa())
       continue;
     // const auto tjp1 = Fa.twoj() + 1;
     addto_G(&OneNegPc, Fa, Fa, -1.0);
@@ -480,7 +480,7 @@ void FeynmanSigma::setup_omega_grid() {
   auto wmax_core = 30.0; // don't let it go below 50
   const auto &core = p_hf->get_core();
   for (const auto &Fc : core) {
-    if (Fc.n < m_min_core_n)
+    if (Fc.n() < m_min_core_n)
       continue;
     if (std::abs(Fc.en()) > wmax_core)
       wmax_core = std::abs(Fc.en());
@@ -555,7 +555,7 @@ ComplexGMatrix FeynmanSigma::G_single(const DiracSpinor &ket,
 ComplexGMatrix FeynmanSigma::Green_core(int kappa,
                                         std::complex<double> en) const {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__, "complex");
-  // G_core = \sum_a |a><a|/(e_r + i*e_i-ea), for all a with a.k = k
+  // G_core = \sum_a |a><a|/(e_r + i*e_i-ea), for all a with a.kappa() = k
   ComplexGMatrix Gcore(m_imin, m_stride, m_subgrid_points, m_include_G, p_gr);
 
   // loop over HF core, not Sigma core (used in subtraction to get
@@ -563,7 +563,7 @@ ComplexGMatrix FeynmanSigma::Green_core(int kappa,
   const auto &core = p_hf->get_core();
   for (auto ia = 0ul; ia < core.size(); ++ia) {
     const auto &a = core[ia];
-    if (a.k != kappa)
+    if (a.kappa() != kappa)
       continue;
     const auto inv_de = 1.0 / (en - std::complex<double>{a.en()});
     Gcore += inv_de * m_Pa[ia]; // Pa = |a><a|
@@ -596,7 +596,7 @@ void FeynmanSigma::makeGOrthogCore(ComplexGMatrix *Gk, int kappa) const {
   const auto &drj = get_drj();
   const auto Gk_old = *Gk;
   for (auto ia = 0ul; ia < core.size(); ++ia) {
-    if (core[ia].k == kappa)
+    if (core[ia].kappa() == kappa)
       *Gk -= mult_elements(m_Pa[ia], drj) * Gk_old;
   }
 }
@@ -617,7 +617,7 @@ ComplexGMatrix FeynmanSigma::Green_hf_basis(int kappa, std::complex<double> en,
     if (ex_only && orbs == &core)
       continue;
     for (const auto &a : *orbs) {
-      if (a.k != kappa)
+      if (a.kappa() != kappa)
         continue;
 
       const auto inv_de = 1.0 / (en - std::complex<double>{a.en()});
@@ -755,7 +755,7 @@ ComplexGMatrix FeynmanSigma::Polarisation_k(int k, std::complex<double> omega,
   const auto &core = p_hf->get_core();
   for (auto ia = 0ul; ia < core.size(); ++ia) {
     const auto &a = core[ia];
-    if (a.n < m_min_core_n)
+    if (a.n() < m_min_core_n)
       continue;
 
     const auto &pa = m_Pa[ia]; // |a><a|
@@ -766,7 +766,7 @@ ComplexGMatrix FeynmanSigma::Polarisation_k(int k, std::complex<double> omega,
 
     for (int in = 0; in <= m_max_kappaindex; ++in) {
       const auto kn = Angular::kappaFromIndex(in);
-      const auto ck_an = Angular::Ck_kk(k, a.k, kn);
+      const auto ck_an = Angular::Ck_kk(k, a.kappa(), kn);
       if (ck_an == 0.0)
         continue;
       const double c_ang = ck_an * ck_an / double(2 * k + 1);
@@ -1151,7 +1151,7 @@ GMatrix FeynmanSigma::FeynmanEx_1(int kv, double env) const {
 
       for (auto ia = 0ul; ia < core.size(); ++ia) {
         const auto &Fa = core[ia];
-        if (Fa.n < m_min_core_n)
+        if (Fa.n() < m_min_core_n)
           continue;
         const auto &pa = m_Pa[ia];
         const auto ea = std::complex<double>{Fa.en(), 0.0};
@@ -1166,7 +1166,7 @@ GMatrix FeynmanSigma::FeynmanEx_1(int kv, double env) const {
           const auto &gA = gAs[iA][iw];
 
           const auto gqpg =
-              sumkl_GQPGQ(gA, gxBm, gxBp, pa, kv, kA, kB, Fa.k, qpqw_k);
+              sumkl_GQPGQ(gA, gxBm, gxBp, pa, kv, kA, kB, Fa.kappa(), qpqw_k);
 
           Sx_k[tid] += dw1 * gqpg;
 
@@ -1380,7 +1380,7 @@ FeynmanSigma::Exchange_Goldstone(const int kappa, const double en,
     for (const auto &n : m_excited) {
       const auto [kmin_nb, kmax_nb] = Coulomb::k_minmax(n, a);
       for (int k = kmin_nb; k <= kmax_nb; ++k) {
-        if (Ck(k, a.k, n.k) == 0)
+        if (Ck(k, a.kappa(), n.kappa()) == 0)
           continue;
         const auto f_kkjj = (2 * k + 1) * (Angular::twoj_k(kappa) + 1);
         // const auto &yknb = *m_yeh.get(k, n, a); // check null!
@@ -1390,15 +1390,15 @@ FeynmanSigma::Exchange_Goldstone(const int kappa, const double en,
 
         // Diagrams (b) [exchange]
         for (const auto &m : m_excited) {
-          if (Ck(k, kappa, m.k) == 0)
+          if (Ck(k, kappa, m.kappa()) == 0)
             continue;
           // Coulomb::Qkv_bcd(&Qkv, a, m, n, k, yknb, Ck);
-          Qkv = m_yeh.Qkv_bcd(Qkv.k, a, m, n, k);
+          Qkv = m_yeh.Qkv_bcd(Qkv.kappa(), a, m, n, k);
           // Pkv_bcd_2 allows different screening factor for each 'k2' in
           // exch.
           // Coulomb::Pkv_bcd_2(&Pkv, a, m, n, k, m_yeh(m, a), Ck, m_6j,
           // m_fk); m_yeh.Pkv_bcd_2(&Pkv, a, m, n, k, m_fk);
-          Pkv = m_yeh.Pkv_bcd(Pkv.k, a, m, n, k, m_fk);
+          Pkv = m_yeh.Pkv_bcd(Pkv.kappa(), a, m, n, k, m_fk);
           const auto dele = en + a.en() - m.en() - n.en();
           const auto factor = fk / (f_kkjj * dele);
           addto_G(&Ga_x, Qkv, Pkv, factor);
@@ -1406,13 +1406,13 @@ FeynmanSigma::Exchange_Goldstone(const int kappa, const double en,
 
         // Diagrams (d) [exchange]
         for (const auto &b : m_holes) {
-          if (Ck(k, kappa, b.k) == 0)
+          if (Ck(k, kappa, b.kappa()) == 0)
             continue;
           // Coulomb::Qkv_bcd(&Qkv, n, b, a, k, yknb, Ck);
-          Qkv = m_yeh.Qkv_bcd(Qkv.k, n, b, a, k);
+          Qkv = m_yeh.Qkv_bcd(Qkv.kappa(), n, b, a, k);
           // Coulomb::Pkv_bcd_2(&Pkv, n, b, a, k, m_yeh(n, b), Ck, m_6j,
           // m_fk); m_yeh.Pkv_bcd_2(&Pkv, n, b, a, k, m_fk);
-          Pkv = m_yeh.Pkv_bcd(Pkv.k, n, b, a, k, m_fk);
+          Pkv = m_yeh.Pkv_bcd(Pkv.kappa(), n, b, a, k, m_fk);
           const auto dele = en + n.en() - b.en() - a.en();
           const auto factor = fk / (f_kkjj * dele); // XXX
           addto_G(&Ga_x, Qkv, Pkv, factor);

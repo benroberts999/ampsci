@@ -170,10 +170,10 @@ bool Breit(std::ostream &obuff) {
     datav e1_me_HF, e1_me_RPA;
     for (const auto &Fv : wf.valence) {
       for (const auto &Fw : wf.valence) {
-        if (h.isZero(Fv.k, Fw.k))
+        if (h.isZero(Fv.kappa(), Fw.kappa()))
           continue;
-        const auto &Fv0 = *wf0.getState(Fv.n, Fv.k);
-        const auto &Fw0 = *wf0.getState(Fw.n, Fw.k);
+        const auto &Fv0 = *wf0.getState(Fv.n(), Fv.kappa());
+        const auto &Fw0 = *wf0.getState(Fw.n(), Fw.kappa());
         // hf:
         const auto e10 = std::abs(h.reducedME(Fv0, Fw0));
         const auto e1 = std::abs(h.reducedME(Fv, Fw));

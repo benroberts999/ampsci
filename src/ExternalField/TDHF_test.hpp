@@ -118,7 +118,7 @@ UnitTest::helper::dV_result(const Wavefunction &wf,
   std::vector<std::pair<std::string, double>> result;
   for (const auto &Fv : wf.valence) {
     for (const auto &Fm : wf.valence) {
-      if (h.isZero(Fv.k, Fm.k))
+      if (h.isZero(Fv.kappa(), Fm.kappa()))
         continue;
 
       result.emplace_back(Fv.shortSymbol() + Fm.shortSymbol(), dV.dV(Fv, Fm));

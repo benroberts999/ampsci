@@ -223,7 +223,7 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   // Loop through all valence states, calc SR+NS
   for (const auto &v : wf.valence) {
     for (const auto &w : wf.valence) {
-      if (h->isZero(w.k, v.k))
+      if (h->isZero(w.kappa(), v.kappa()))
         continue;
 
       if (only_diagonal && w != v)
@@ -373,7 +373,7 @@ void calculateLifetimes(const IO::InputBlock &input, const Wavefunction &wf) {
 
     if (doE1) {
       for (const auto &Fn : wf.valence) {
-        if (Fn.en() >= Fa.en() || he1.isZero(Fn.k, Fa.k))
+        if (Fn.en() >= Fa.en() || he1.isZero(Fn.kappa(), Fa.kappa()))
           continue;
         const auto w = Fa.en() - Fn.en();
         if (rpaQ)
@@ -395,7 +395,7 @@ void calculateLifetimes(const IO::InputBlock &input, const Wavefunction &wf) {
     }
     if (doE2) {
       for (const auto &Fn : wf.valence) {
-        if (Fn.en() >= Fa.en() || he2.isZero(Fn.k, Fa.k))
+        if (Fn.en() >= Fa.en() || he2.isZero(Fn.kappa(), Fa.kappa()))
           continue;
         const auto w = Fa.en() - Fn.en();
         if (rpaQ)

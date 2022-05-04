@@ -145,19 +145,19 @@ public: // constructor
   }
 
   static double convertRMEtoA(const DiracSpinor &Fa, const DiracSpinor &Fb) {
-    return 0.5 / Fa.jjp1() / Angular::Ck_kk(1, -Fa.k, Fb.k);
+    return 0.5 / Fa.jjp1() / Angular::Ck_kk(1, -Fa.kappa(), Fb.kappa());
     // Correct for diag. Off diag? Prob not defined?
   }
 
   double hfsA(const DiracSpinor &Fa) const {
     auto Raa = radialIntegral(Fa, Fa);
-    return Raa * Fa.k / (Fa.jjp1());
+    return Raa * Fa.kappa() / (Fa.jjp1());
     // nb: in MHz
   }
 
   static double hfsA(const TensorOperator *h, const DiracSpinor &Fa) {
     auto Raa = h->radialIntegral(Fa, Fa);
-    return Raa * Fa.k / (Fa.jjp1());
+    return Raa * Fa.kappa() / (Fa.jjp1());
   }
 
   // XXX Make this a helper "conversion" function

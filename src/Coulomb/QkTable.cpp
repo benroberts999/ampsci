@@ -127,8 +127,8 @@ double CoulombTable::R(int k, const DiracSpinor &a, const DiracSpinor &b,
   if (tQk == 0.0)
     return 0.0;
   const auto s = Angular::neg1pow(k);
-  const auto tCkac = Angular::tildeCk_kk(k, a.k, c.k);
-  const auto tCkbd = Angular::tildeCk_kk(k, b.k, d.k);
+  const auto tCkac = Angular::tildeCk_kk(k, a.kappa(), c.kappa());
+  const auto tCkbd = Angular::tildeCk_kk(k, b.kappa(), d.kappa());
   return tQk / (s * tCkac * tCkbd);
 }
 
@@ -360,12 +360,12 @@ void QkTable::fill(const std::vector<DiracSpinor> &basis, const YkTable &yk,
     for (const auto &a : basis) {
       for (const auto &b : basis) {
         for (const auto &c : basis) {
-          if (!Angular::Ck_kk_SR(k, a.k, c.k))
+          if (!Angular::Ck_kk_SR(k, a.kappa(), c.kappa()))
             continue;
           for (const auto &d : basis) {
             // due to symmetry, only calculate each 'unique' integral once
             if (NormalOrder(a, b, c, d) == CurrentOrder(a, b, c, d)) {
-              if (Angular::Ck_kk_SR(k, b.k, d.k)) {
+              if (Angular::Ck_kk_SR(k, b.kappa(), d.kappa())) {
                 ++count_non_zero_k[std::size_t(k)];
               }
             }
@@ -391,11 +391,11 @@ void QkTable::fill(const std::vector<DiracSpinor> &basis, const YkTable &yk,
     for (const auto &a : basis) {
       for (const auto &b : basis) {
         for (const auto &c : basis) {
-          if (!Angular::Ck_kk_SR(k, a.k, c.k))
+          if (!Angular::Ck_kk_SR(k, a.kappa(), c.kappa()))
             continue;
           for (const auto &d : basis) {
             if (NormalOrder(a, b, c, d) == CurrentOrder(a, b, c, d)) {
-              if (Angular::Ck_kk_SR(k, b.k, d.k)) {
+              if (Angular::Ck_kk_SR(k, b.kappa(), d.kappa())) {
                 add(k, a, b, c, d, 0.0);
               }
             }

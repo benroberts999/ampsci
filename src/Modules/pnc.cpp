@@ -175,12 +175,12 @@ std::pair<double, double> pnc_sos(const DiracSpinor &Fa, const DiracSpinor &Fb,
   for (auto &np : spectrum) {
     if (np == Fb || np == Fa)
       continue;
-    if (hpnc->isZero(np.k, Fa.k) && hpnc->isZero(np.k, Fb.k))
+    if (hpnc->isZero(np.kappa(), Fa.kappa()) && hpnc->isZero(np.kappa(), Fb.kappa()))
       continue;
-    if (he1->isZero(np.k, Fa.k) && he1->isZero(np.k, Fb.k))
+    if (he1->isZero(np.kappa(), Fa.kappa()) && he1->isZero(np.kappa(), Fb.kappa()))
       continue;
     const auto coreQ = np.en() < en_core;
-    const auto mainQ = !coreQ && np.n <= main_n;
+    const auto mainQ = !coreQ && np.n() <= main_n;
 
     // nb: need 'conj' here, since w = |w|, and want work for a->b and b->a ?
     const auto dAp = he1->reducedME(Fa, np) + dVE1->dV(Fa, np, conj);
@@ -197,7 +197,7 @@ std::pair<double, double> pnc_sos(const DiracSpinor &Fa, const DiracSpinor &Fb,
 
     const double pnc1 = c10 * dAp * hpB / (Fb.en() - np.en() + w_SE);
     const double pnc2 = c01 * hAp * dpB / (Fa.en() - np.en() - w_SE);
-    if (np.n <= main_n && print_all)
+    if (np.n() <= main_n && print_all)
       printf("%7s, pnc= %12.5e + %12.5e = %12.5e\n", np.symbol().c_str(), pnc1,
              pnc2, pnc1 + pnc2);
 
@@ -232,7 +232,7 @@ DiracSpinor orthog_to_core(DiracSpinor dF,
                            double en_core) {
   for (const auto &Fc : in_orbs) {
     const auto coreQ = Fc.en() < en_core;
-    if (dF.k == Fc.k && coreQ)
+    if (dF.kappa() == Fc.kappa() && coreQ)
       dF -= (dF * Fc) * Fc;
   }
   return dF;
@@ -243,8 +243,8 @@ DiracSpinor orthog_to_coremain(DiracSpinor dF,
                                double en_core, int n_main) {
   for (const auto &Fc : in_orbs) {
     const auto coreQ = Fc.en() < en_core;
-    const auto mainQ = !coreQ && Fc.n <= n_main;
-    if (dF.k == Fc.k && (coreQ || mainQ))
+    const auto mainQ = !coreQ && Fc.n() <= n_main;
+    if (dF.kappa() == Fc.kappa() && (coreQ || mainQ))
       dF -= (dF * Fc) * Fc;
   }
   return dF;

@@ -26,7 +26,7 @@ DiracSpinor solveMixedState(const int k, const DiracSpinor &Fa,
                             const MBPT::CorrelationPotential *const Sigma,
                             const HF::Breit *const VBr,
                             const std::vector<double> &H_mag) {
-  DiracSpinor dF{0, k, Fa.rgrid};
+  DiracSpinor dF{0, k, Fa.grid_sptr()};
   solveMixedState(dF, Fa, omega, vl, alpha, core, hFa, eps_target, Sigma, VBr,
                   H_mag);
   return dF;

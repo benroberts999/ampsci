@@ -26,9 +26,9 @@ StructureRad::StructureRad(const std::vector<DiracSpinor> &basis,
   // nb: this makes it faster..
   const auto [n_min, n_max] = nminmax;
   for (const auto &Fn : basis) {
-    if (Fn.en() < en_core && Fn.n >= n_min) {
+    if (Fn.en() < en_core && Fn.n() >= n_min) {
       mCore.push_back(Fn);
-    } else if (Fn.en() > en_core && Fn.n <= n_max) {
+    } else if (Fn.en() > en_core && Fn.n() <= n_max) {
       mExcited.push_back(Fn);
     }
   }
@@ -43,7 +43,7 @@ StructureRad::srTB(const DiracOperator::TensorOperator *const h,
                    const DiracSpinor &w, const DiracSpinor &v, double omega,
                    const ExternalField::TDHF *const dV) const {
 
-  if (h->isZero(w.k, v.k))
+  if (h->isZero(w.kappa(), v.kappa()))
     return {0.0, 0.0};
 
   const auto k = h->rank();
@@ -60,7 +60,7 @@ StructureRad::srTB(const DiracOperator::TensorOperator *const h,
     const auto tid = std::size_t(omp_get_thread_num());
     for (const auto &a : mCore) {
 
-      if (h->isZero(a.k, r.k))
+      if (h->isZero(a.kappa(), r.kappa()))
         continue;
 
       const auto inv_era_pw = 1.0 / (r.en() - a.en() + omega);
@@ -95,7 +95,7 @@ StructureRad::srC(const DiracOperator::TensorOperator *const h,
                   const DiracSpinor &w, const DiracSpinor &v,
                   const ExternalField::TDHF *const dV) const {
 
-  if (h->isZero(w.k, v.k))
+  if (h->isZero(w.kappa(), v.kappa()))
     return {0.0, 0.0};
 
   const auto k = h->rank();
@@ -113,7 +113,7 @@ StructureRad::srC(const DiracOperator::TensorOperator *const h,
       const auto &a = mCore[ia];
       const auto &b = mCore[ib];
 
-      if (h->isZero(b.k, a.k))
+      if (h->isZero(b.kappa(), a.kappa()))
         continue;
 
       const auto t_ba = h->reducedME(b, a);
@@ -137,7 +137,7 @@ StructureRad::srC(const DiracOperator::TensorOperator *const h,
     const auto tid = std::size_t(omp_get_thread_num());
     for (const auto &r : mExcited) {
 
-      if (h->isZero(m.k, r.k))
+      if (h->isZero(m.kappa(), r.kappa()))
         continue;
 
       const auto t_mr = h->reducedME(m, r);
@@ -165,7 +165,7 @@ StructureRad::norm(const DiracOperator::TensorOperator *const h,
                    const DiracSpinor &w, const DiracSpinor &v,
                    const ExternalField::TDHF *const dV) const {
 
-  if (h->isZero(w.k, v.k))
+  if (h->isZero(w.kappa(), v.kappa()))
     return {0.0, 0.0};
 
   const auto t_wv = h->reducedME(w, v);

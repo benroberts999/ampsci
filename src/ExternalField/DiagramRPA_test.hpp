@@ -48,7 +48,7 @@ bool DiagramRPA(std::ostream &obuff) {
       std::vector<sp> e1me;
       for (const auto &Fv : wf.valence) {
         for (const auto &Fw : wf.valence) {
-          if (dE1.isZero(Fv.k, Fw.k))
+          if (dE1.isZero(Fv.kappa(), Fw.kappa()))
             continue;
           // nb: -ve sign account for |e| vs -|e| diff from VD
           e1me.emplace_back(Fv.shortSymbol() + Fw.shortSymbol(),
@@ -82,7 +82,7 @@ bool DiagramRPA(std::ostream &obuff) {
       std::vector<sp> e1me;
       for (const auto &Fv : wf.valence) {
         for (const auto &Fw : wf.valence) {
-          if (dE1.isZero(Fv.k, Fw.k))
+          if (dE1.isZero(Fv.kappa(), Fw.kappa()))
             continue;
           // nb: -ve sign account for |e| vs -|e| diff from VD
           e1me.emplace_back(Fv.shortSymbol() + Fw.shortSymbol(),

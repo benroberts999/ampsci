@@ -29,7 +29,7 @@ std::vector<MEdata> calcMatrixElements(const std::vector<DiracSpinor> &orbs,
   for (const auto &Fb : orbs) {
     for (const auto &Fa : orbs) {
 
-      if (h->isZero(Fa.k, Fb.k))
+      if (h->isZero(Fa.kappa(), Fb.kappa()))
         continue;
       if (diagonal_only && Fb != Fa)
         continue;
@@ -49,7 +49,7 @@ std::vector<MEdata> calcMatrixElements(const std::vector<DiracSpinor> &orbs,
       // Special case: HFS A:
       const auto a =
           radial_int ?
-              1.0 / h->angularF(Fa.k, Fb.k) :
+              1.0 / h->angularF(Fa.kappa(), Fb.kappa()) :
               AhfsQ ? DiracOperator::HyperfineA::convertRMEtoA(Fa, Fb) : 1.0;
 
       const auto hab = h->reducedME(Fa, Fb) * a;

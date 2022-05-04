@@ -80,16 +80,16 @@ Orbitals defined:
   const double eps_goal = std::pow(10, -std::abs(log_dele));
 
   if constexpr (do_debug) {
-    if (!(std::abs(psi.k) <= psi.n && psi.k != psi.n)) {
+    if (!(std::abs(psi.kappa()) <= psi.n() && psi.kappa() != psi.n())) {
       std::cerr << "\nFail96 in Adams: bad state " << psi.symbol() << "\n";
       return;
     }
   }
 
-  const auto &rgrid = *psi.rgrid;
+  const auto &rgrid = psi.grid();
 
   // orbital should have (n-l-1) nodes:
-  const int required_nodes = psi.n - psi.l() - 1;
+  const int required_nodes = psi.n() - psi.l() - 1;
   bool correct_nodes = false;
   TrackEnGuess sofar; // track higest/lowest energy guesses etc.
 
@@ -108,8 +108,8 @@ Orbitals defined:
     // Find solution (f,g) to DE for given energy:
     // Also stores dg (gout-gin) for PT [used for PT to find better e]
     std::vector<double> dg(2 * Param::d_ctp + 1);
-    Adams::trialDiracSolution(psi.set_f(), psi.set_g(), dg, t_en, psi.k, v,
-                              H_mag, rgrid, ctp, Param::d_ctp, t_pinf, alpha,
+    Adams::trialDiracSolution(psi.set_f(), psi.set_g(), dg, t_en, psi.kappa(),
+                              v, H_mag, rgrid, ctp, Param::d_ctp, t_pinf, alpha,
                               VxFa, Fa0, zion);
 
     const int counted_nodes = Adams::countNodes(psi.f(), t_pinf);
@@ -176,12 +176,12 @@ void regularAtOrigin(DiracSpinor &Fa, const double en,
                      const std::vector<double> &v,
                      const std::vector<double> &H_mag, const double alpha) {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
-  const auto &gr = Fa.rgrid;
+  const auto &gr = Fa.grid();
   if (en != 0)
     Fa.set_en() = en;
   const auto pinf =
-      Adams::findPracticalInfinity(Fa.en(), v, gr->r(), Param::cALR);
-  Adams::DiracMatrix Hd(*gr, v, Fa.k, Fa.en(), alpha, H_mag);
+      Adams::findPracticalInfinity(Fa.en(), v, gr.r(), Param::cALR);
+  Adams::DiracMatrix Hd(gr, v, Fa.kappa(), Fa.en(), alpha, H_mag);
   Adams::outwardAM(Fa.set_f(), Fa.set_g(), Hd, pinf - 1);
   Fa.set_max_pt() = pinf;
   // for safety: make sure zerod! (I may re-use existing orbitals!)
@@ -193,12 +193,12 @@ void regularAtInfinity(DiracSpinor &Fa, const double en,
                        const std::vector<double> &v,
                        const std::vector<double> &H_mag, const double alpha) {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
-  const auto &gr = Fa.rgrid;
+  const auto &gr = Fa.grid();
   if (en < 0)
     Fa.set_en() = en;
   const auto pinf =
-      Adams::findPracticalInfinity(Fa.en(), v, gr->r(), Param::cALR);
-  Adams::DiracMatrix Hd(*gr, v, Fa.k, Fa.en(), alpha, H_mag);
+      Adams::findPracticalInfinity(Fa.en(), v, gr.r(), Param::cALR);
+  Adams::DiracMatrix Hd(gr, v, Fa.kappa(), Fa.en(), alpha, H_mag);
   Adams::inwardAM(Fa.set_f(), Fa.set_g(), Hd, 0, pinf - 1);
   Fa.set_max_pt() = pinf;
   // for safety: make sure zerod! (I may re-use existing orbitals!)
@@ -631,7 +631,7 @@ DiracMatrix::DiracMatrix(const Grid &in_grid, const std::vector<double> &in_v,
 
 double DiracMatrix::a(std::size_t i) const {
   const auto h_mag = (Hmag == nullptr) ? 0.0 : (*Hmag)[i];
-  return (double(-k)) * pgr->drduor()[i] + alpha * h_mag * pgr->drdu(i);
+  return (double(-k)) * pgr->drduor(i) + alpha * h_mag * pgr->drdu(i);
 }
 double DiracMatrix::b(std::size_t i) const {
   return (alpha * en + 2.0 * cc - alpha * (*v)[i]) * pgr->drdu(i);
@@ -641,7 +641,7 @@ double DiracMatrix::c(std::size_t i) const {
 }
 double DiracMatrix::d(std::size_t i) const {
   const auto h_mag = (Hmag == nullptr) ? 0.0 : (*Hmag)[i];
-  return double(k) * pgr->drduor()[i] - alpha * h_mag * pgr->drdu(i);
+  return double(k) * pgr->drduor(i) - alpha * h_mag * pgr->drdu(i);
 }
 
 std::tuple<double, double, double, double>

@@ -70,9 +70,9 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   std::vector<DiracSpinor> core, excited, valence;
   const auto en_core = wf.en_coreval_gap();
   for (const auto &Fn : wf.basis) {
-    if (Fn.en() < en_core && Fn.n >= min_n) {
+    if (Fn.en() < en_core && Fn.n() >= min_n) {
       core.push_back(Fn);
-    } else if (Fn.en() > en_core && Fn.n <= max_n && Fn.l() <= max_l) {
+    } else if (Fn.en() > en_core && Fn.n() <= max_n && Fn.l() <= max_l) {
       excited.push_back(Fn);
     }
   }

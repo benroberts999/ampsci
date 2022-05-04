@@ -30,7 +30,7 @@ double ContinuumOrbitals::check_orthog(bool print) const {
     return worst;
   for (const auto &Fc : orbitals) {
     for (const auto &Fn : p_hf->get_core()) {
-      if (Fn.k != Fc.k)
+      if (Fn.kappa() != Fc.kappa())
         continue;
       const auto eps = Fc * Fn;
       if (std::abs(eps) > std::abs(worst))
@@ -163,7 +163,7 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
           DiracODE::solveContinuum(Fc, ec, vl, cgrid, r_asym, alpha);
         }
         // Orthog (at each HF step)
-        if (orthog_Fi && Fi && Fi->k == Fc.k) {
+        if (orthog_Fi && Fi && Fi->kappa() == Fc.kappa()) {
           Fc -= (*Fi * Fc) * *Fi;
         }
         // check convergance:
@@ -181,7 +181,7 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
   if (orthog_core) {
     for (auto &phic : orbitals) {
       for (const auto &phi : p_hf->get_core()) {
-        if (phic.k == phi.k)
+        if (phic.kappa() == phi.kappa())
           phic -= (phic * phi) * phi;
       }
     }

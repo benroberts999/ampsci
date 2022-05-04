@@ -100,12 +100,12 @@ bool MixedStates(std::ostream &obuff) {
     int count = 0;
     for (const auto &Fv : wf.valence) {
       for (const auto &Fm : wf.valence) {
-        if (Fm == Fv || h.isZero(Fm.k, Fv.k))
+        if (Fm == Fv || h.isZero(Fm.kappa(), Fv.kappa()))
           continue;
 
         const auto Xb =
-            dv.solve_dPsi(Fv, 0.0, ExternalField::dPsiType::X, Fm.k);
-        const auto Yb = dv.solve_dPsi(Fv, 0.0, ExternalField::dPsiType::Y, Fm.k,
+            dv.solve_dPsi(Fv, 0.0, ExternalField::dPsiType::X, Fm.kappa());
+        const auto Yb = dv.solve_dPsi(Fv, 0.0, ExternalField::dPsiType::Y, Fm.kappa(),
                                       nullptr, ExternalField::StateType::bra);
         const auto h_mv = h.reducedME(Fm, Fv) + dv.dV(Fm, Fv);
         const auto lhs = Fm * Xb;
@@ -188,9 +188,9 @@ UnitTest::helper::MS_loops(const Wavefunction &wf,
       // Only do for cases that make sense:
       if (Fm == Fv)
         continue; // gives 0/0
-      if (h->isZero(Fv.k, Fm.k))
+      if (h->isZero(Fv.kappa(), Fm.kappa()))
         continue;
-      if (Fm.k != Fv.k && std::abs(Fm.n - Fv.n) != 0)
+      if (Fm.kappa() != Fv.kappa() && std::abs(Fm.n() - Fv.n()) != 0)
         continue;
 
       const auto h_mv = h->reducedME(Fm, Fv);
@@ -203,8 +203,8 @@ UnitTest::helper::MS_loops(const Wavefunction &wf,
       }
 
       // Form 'rhs': (h - de_A)|A>
-      auto hFv = h->reduced_rhs(Fm.k, Fv);
-      if (Fm.k == Fv.k) {
+      auto hFv = h->reduced_rhs(Fm.kappa(), Fv);
+      if (Fm.kappa() == Fv.kappa()) {
         auto de = h->reducedME(Fv, Fv);
         hFv -= de * Fv;
       }
@@ -213,7 +213,7 @@ UnitTest::helper::MS_loops(const Wavefunction &wf,
       for (const auto &w_mult : omega_mults) {
         const auto w = std::abs(Fv.en() * w_mult);
 
-        const auto dFv = ExternalField::solveMixedState(Fm.k, Fv, w, vl,
+        const auto dFv = ExternalField::solveMixedState(Fm.kappa(), Fv, w, vl,
                                                         wf.alpha, wf.core, hFv);
 
         const auto lhs = Fm * dFv;

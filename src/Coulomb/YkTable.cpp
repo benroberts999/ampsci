@@ -118,10 +118,10 @@ std::vector<double> &YkTable::get_ref(const int k, const DiracSpinor &Fa,
 double YkTable::Q(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
                   const DiracSpinor &Fc, const DiracSpinor &Fd) const {
 
-  const auto tCac = m_Ck.get_tildeCkab(k, Fa.k, Fc.k);
+  const auto tCac = m_Ck.get_tildeCkab(k, Fa.kappa(), Fc.kappa());
   if (Angular::zeroQ(tCac))
     return 0.0;
-  const auto tCbd = m_Ck.get_tildeCkab(k, Fb.k, Fd.k);
+  const auto tCbd = m_Ck.get_tildeCkab(k, Fb.kappa(), Fd.kappa());
   if (Angular::zeroQ(tCbd))
     return 0.0;
   const auto ykbd = get(k, Fb, Fd);
@@ -165,9 +165,9 @@ double YkTable::W(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
 DiracSpinor YkTable::Qkv_bcd(int kappa, const DiracSpinor &Fb,
                              const DiracSpinor &Fc, const DiracSpinor &Fd,
                              const int k) const {
-  DiracSpinor Qkv{0, kappa, Fb.rgrid};
-  const auto tCac = m_Ck.get_tildeCkab(k, kappa, Fc.k);
-  const auto tCbd = m_Ck.get_tildeCkab(k, Fb.k, Fd.k);
+  DiracSpinor Qkv{0, kappa, Fb.grid_sptr()};
+  const auto tCac = m_Ck.get_tildeCkab(k, kappa, Fc.kappa());
+  const auto tCbd = m_Ck.get_tildeCkab(k, Fb.kappa(), Fd.kappa());
   const auto tCC = tCbd * tCac;
   if (tCC != 0.0) {
     // const auto ylbc = get(l, Fb, Fc);
@@ -186,7 +186,7 @@ DiracSpinor YkTable::Pkv_bcd(int kappa, const DiracSpinor &Fb,
                              const int k,
                              const std::vector<double> &f2k) const {
 
-  DiracSpinor Pkv{0, kappa, Fb.rgrid};
+  DiracSpinor Pkv{0, kappa, Fb.grid_sptr()};
 
   const auto fk = [&f2k](int l) {
     // nb: only screens l, k assumed done outside...
@@ -207,7 +207,7 @@ DiracSpinor YkTable::Pkv_bcd(int kappa, const DiracSpinor &Fb,
 
     if (Angular::zeroQ(sj))
       continue;
-    Pkv += sj * Qkv_bcd(Pkv.k, Fb, Fd, Fc, l);
+    Pkv += sj * Qkv_bcd(Pkv.kappa(), Fb, Fd, Fc, l);
   }
   Pkv *= tkp1;
   return Pkv;

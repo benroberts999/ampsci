@@ -50,7 +50,7 @@ static void write_orbitals(const std::string &fname,
                            const std::vector<DiracSpinor> &orbs, int l) {
   if (orbs.empty())
     return;
-  auto &gr = *orbs.front().rgrid;
+  const auto &gr = orbs.front().grid();
 
   std::ofstream of(fname);
   of << "r ";

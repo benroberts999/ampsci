@@ -23,7 +23,7 @@ bool TensorOperator::isZero(const int ka, int kb) const {
 }
 bool TensorOperator::isZero(const DiracSpinor &Fa,
                             const DiracSpinor &Fb) const {
-  return isZero(Fa.k, Fb.k);
+  return isZero(Fa.kappa(), Fb.kappa());
 }
 
 std::string TensorOperator::rme_symbol(const DiracSpinor &Fa,
@@ -48,33 +48,33 @@ double TensorOperator::rme3js(const int twoja, const int twojb, int two_mb,
 
 DiracSpinor TensorOperator::reduced_rhs(const int ka,
                                         const DiracSpinor &Fb) const {
-  return angularF(ka, Fb.k) * radial_rhs(ka, Fb);
+  return angularF(ka, Fb.kappa()) * radial_rhs(ka, Fb);
 }
 
 DiracSpinor TensorOperator::reduced_lhs(const int ka,
                                         const DiracSpinor &Fb) const {
   const int s = imaginaryQ() ? -1 : 1;
   const auto x = Angular::evenQ_2(Angular::twoj_k(ka) - Fb.twoj()) ? s : -s;
-  return (x * angularF(ka, Fb.k)) * radial_rhs(ka, Fb);
+  return (x * angularF(ka, Fb.kappa())) * radial_rhs(ka, Fb);
 }
 
 double TensorOperator::reducedME(const DiracSpinor &Fa,
                                  const DiracSpinor &Fb) const {
-  return angularF(Fa.k, Fb.k) * radialIntegral(Fa, Fb);
+  return angularF(Fa.kappa(), Fb.kappa()) * radialIntegral(Fa, Fb);
 }
 
 //******************************************************************************
 
 DiracSpinor TensorOperator::radial_rhs(const int kappa_a,
                                        const DiracSpinor &Fb) const {
-  // Fa * radial_rhs(Fa.k,Fb) = h.radialIntegral(Fa, Fb)
+  // Fa * radial_rhs(Fa.kappa(),Fb) = h.radialIntegral(Fa, Fb)
 
-  const auto &gr = *(Fb.rgrid);
-  DiracSpinor dF(0, kappa_a, Fb.rgrid);
+  const auto &gr = *(Fb.grid_sptr());
+  DiracSpinor dF(0, kappa_a, Fb.grid_sptr());
   dF.set_min_pt() = Fb.min_pt();
   dF.set_max_pt() = Fb.max_pt();
 
-  if (isZero(kappa_a, Fb.k)) {
+  if (isZero(kappa_a, Fb.kappa())) {
     dF.set_min_pt() = Fb.min_pt();
     dF.set_max_pt() = Fb.min_pt();
     return dF;
@@ -89,10 +89,10 @@ DiracSpinor TensorOperator::radial_rhs(const int kappa_a,
           Fb.g() :
           NumCalc::derivative(Fb.g(), gr.drdu(), gr.du(), m_diff_order);
 
-  const auto cff = angularCff(kappa_a, Fb.k);
-  const auto cgg = angularCgg(kappa_a, Fb.k);
-  const auto cfg = angularCfg(kappa_a, Fb.k);
-  const auto cgf = angularCgf(kappa_a, Fb.k);
+  const auto cff = angularCff(kappa_a, Fb.kappa());
+  const auto cgg = angularCgg(kappa_a, Fb.kappa());
+  const auto cfg = angularCfg(kappa_a, Fb.kappa());
+  const auto cgf = angularCgf(kappa_a, Fb.kappa());
 
   if (m_vec.empty()) {
     for (auto i = Fb.min_pt(); i < Fb.max_pt(); i++) {
@@ -114,7 +114,7 @@ double TensorOperator::radialIntegral(const DiracSpinor &Fa,
                                       const DiracSpinor &Fb) const {
 
   // nb: faster not to do this, but nicer this way
-  return Fa * radial_rhs(Fa.k, Fb);
+  return Fa * radial_rhs(Fa.kappa(), Fb);
 }
 
 } // namespace DiracOperator

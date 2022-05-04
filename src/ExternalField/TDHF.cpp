@@ -51,7 +51,7 @@ void TDHF::initialise_dPsi() {
       const auto pi_chla = Angular::parity_l(l_minus) * pi_ch;
       const auto l = (pi_chla == 1) ? l_minus : l_minus + 1;
       const auto kappa = Angular::kappa_twojl(tj, l);
-      m_X[ic].emplace_back(0, kappa, Fc.rgrid);
+      m_X[ic].emplace_back(0, kappa, Fc.grid_sptr());
       m_X[ic].back().set_max_pt() = Fc.max_pt();
       if (print)
         std::cout << "|" << m_X[ic].back().symbol() << "> + ";
@@ -104,7 +104,7 @@ const std::vector<DiracSpinor> &TDHF::get_dPsis_0(const DiracSpinor &Fc,
 const DiracSpinor &TDHF::get_dPsi_x(const DiracSpinor &Fc, dPsiType XorY,
                                     const int kappa_x) const {
   const auto &dPsis = get_dPsis(Fc, XorY);
-  auto match_kappa_x = [=](const auto &Fa) { return Fa.k == kappa_x; };
+  auto match_kappa_x = [=](const auto &Fa) { return Fa.kappa() == kappa_x; };
   return *std::find_if(dPsis.cbegin(), dPsis.cend(), match_kappa_x);
 }
 
@@ -145,7 +145,7 @@ DiracSpinor TDHF::solve_dPsi(const DiracSpinor &Fv, const double omega,
   // auto rhs = s * hFv + dV_rhs(kappa_x, Fv, conj);
   if (incl_dV)
     rhs += dV_rhs(kappa_x, Fv, conj);
-  if (kappa_x == Fv.k && !imag) {
+  if (kappa_x == Fv.kappa() && !imag) {
     auto de = m_h->reducedME(Fv, Fv);
     if (incl_dV)
       de += dV(Fv, Fv, conj);
@@ -189,7 +189,7 @@ void TDHF::solve_core(const double omega, const int max_its, const bool print) {
     hFcore.reserve(m_X[ic].size()); // each h projection
     for (auto beta = 0ul; beta < m_X[ic].size(); beta++) {
       const auto &Xx = m_X[ic][beta];
-      hFcore[ic].push_back(m_h->reduced_rhs(Xx.k, Fc));
+      hFcore[ic].push_back(m_h->reduced_rhs(Xx.kappa(), Fc));
     }
   }
 
@@ -232,8 +232,8 @@ void TDHF::solve_core(const double omega, const int max_its, const bool print) {
         auto &Xx = tmp_X[ic][j];
         const auto &oldX = m_X[ic][j];
         const auto &hFc = hFcore[ic][j];
-        auto rhs = hFc + dV_rhs(Xx.k, Fc, false);
-        if (Xx.k == Fc.k && !imag)
+        auto rhs = hFc + dV_rhs(Xx.kappa(), Fc, false);
+        if (Xx.kappa() == Fc.kappa() && !imag)
           rhs -= (de0 + de1) * Fc;
         if (has_de) {
           // Force solveMixedState to start from scratch
@@ -253,8 +253,8 @@ void TDHF::solve_core(const double omega, const int max_its, const bool print) {
           const auto &oldY = m_Y[ic][j];
           const auto &hFc = hFcore[ic][j];
           const auto s = imag ? -1 : 1;
-          auto rhs = s * hFc + dV_rhs(Yx.k, Fc, true);
-          if (Yx.k == Fc.k && !imag)
+          auto rhs = s * hFc + dV_rhs(Yx.kappa(), Fc, true);
+          if (Yx.kappa() == Fc.kappa() && !imag)
             rhs -= (de0 + de1_dag) * Fc;
           if (has_de) {
             Yx *= 0.0;
@@ -311,7 +311,7 @@ void TDHF::solve_core(const double omega, const int max_its, const bool print) {
 double TDHF::dV(const DiracSpinor &Fn, const DiracSpinor &Fm, bool conj,
                 const DiracSpinor *const Fexcl, bool incl_dV) const {
   const auto s = conj && m_h->imaginaryQ() ? -1 : 1; // careful. OK?
-  return s * Fn * dV_rhs(Fn.k, Fm, conj, Fexcl, incl_dV);
+  return s * Fn * dV_rhs(Fn.kappa(), Fm, conj, Fexcl, incl_dV);
 }
 
 double TDHF::dV(const DiracSpinor &Fn, const DiracSpinor &Fm) const {
@@ -328,7 +328,7 @@ double TDHF::dV1(const DiracSpinor &Fn, const DiracSpinor &Fm) const {
 DiracSpinor TDHF::dV_rhs(const int kappa_n, const DiracSpinor &Fa, bool conj,
                          const DiracSpinor *const Fexcl, bool incl_dV) const {
 
-  auto dVFa = DiracSpinor(0, kappa_n, Fa.rgrid);
+  auto dVFa = DiracSpinor(0, kappa_n, Fa.grid_sptr());
   dVFa.set_max_pt() = Fa.max_pt();
 
   const auto ChiType = !conj ? dPsiType::X : dPsiType::Y;
@@ -380,7 +380,7 @@ DiracSpinor TDHF::dV_rhs(const int kappa_n, const DiracSpinor &Fa, bool conj,
 //******************************************************************************
 void TDHF::print(const std::string &ofname) const {
   std::ofstream of(ofname);
-  const auto &gr = *((m_core.front()).rgrid);
+  const auto &gr = *((m_core.front()).grid_sptr());
   for (auto i = 0ul; i < gr.num_points(); ++i) {
     of << gr.r(i) << " ";
     for (auto ic = 0ul; ic < m_core.size(); ic++) {

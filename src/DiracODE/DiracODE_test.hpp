@@ -71,9 +71,9 @@ bool DiracODE(std::ostream &obuff) {
   { // Compare energy to exact (Dirac) value:
     auto comp_eps_en = [Zeff](const auto &Fa, const auto &Fb) {
       const auto exact_a =
-          AtomData::diracen(Zeff, Fa.n, Fa.k, PhysConst::alpha);
+          AtomData::diracen(Zeff, Fa.n(), Fa.kappa(), PhysConst::alpha);
       const auto exact_b =
-          AtomData::diracen(Zeff, Fb.n, Fb.k, PhysConst::alpha);
+          AtomData::diracen(Zeff, Fb.n(), Fb.kappa(), PhysConst::alpha);
       const auto eps_a = std::abs((Fa.en() - exact_a) / exact_a);
       const auto eps_b = std::abs((Fb.en() - exact_b) / exact_b);
       return eps_a < eps_b;
@@ -83,7 +83,7 @@ bool DiracODE(std::ostream &obuff) {
         std::max_element(cbegin(orbitals), cend(orbitals), comp_eps_en);
 
     const auto exact =
-        AtomData::diracen(Zeff, worst_F->n, worst_F->k, PhysConst::alpha);
+        AtomData::diracen(Zeff, worst_F->n(), worst_F->kappa(), PhysConst::alpha);
     const auto eps = std::abs((worst_F->en() - exact) / exact);
 
     pass &=
@@ -106,7 +106,7 @@ bool DiracODE(std::ostream &obuff) {
     const auto get_worst = [&orbitals, &grid, Zeff](const auto &o) {
       std::pair<std::string, double> worst{"", 0.0};
       for (const auto &Fa : orbitals) {
-        const auto Fexact = DiracSpinor::exactHlike(Fa.n, Fa.k, grid, Zeff);
+        const auto Fexact = DiracSpinor::exactHlike(Fa.n(), Fa.kappa(), grid, Zeff);
         const auto aoa = o.radialIntegral(Fa, Fa);
         const auto AoA = o.radialIntegral(Fexact, Fexact);
         const auto eps = std::abs((aoa - AoA) / AoA);

@@ -66,9 +66,9 @@ Grid::Grid(double in_r0, double in_rmax, std::size_t in_num_points,
       m_du(calc_du_from_num_points(in_r0, in_rmax, in_num_points, in_gridtype,
                                    in_b)),
       gridtype(in_gridtype),
-      b(gridtype == GridType::loglinear ? in_b : 0.0),
-      m_r(form_r(gridtype, m_r0, in_num_points, m_du, b)),
-      m_drduor(form_drduor(gridtype, m_r, b)),
+      m_b(gridtype == GridType::loglinear ? in_b : 0.0),
+      m_r(form_r(gridtype, m_r0, in_num_points, m_du, m_b)),
+      m_drduor(form_drduor(gridtype, m_r, m_b)),
       m_drdu(form_drdu(gridtype, m_r, m_drduor)) {}
 
 //******************************************************************************
@@ -108,7 +108,7 @@ std::string Grid::gridParameters() const {
     out << "Logarithmic ";
     break;
   case GridType::loglinear:
-    out << "Log-linear (b=" << b << ") ";
+    out << "Log-linear (b=" << m_b << ") ";
   }
   out << "grid: " << m_r0 << "->" << rmax() << ", N=" << num_points()
       << ", du=" << m_du;
@@ -137,12 +137,12 @@ void Grid::extend_to(double new_rmax) {
   // Number of points total grid should have, and number of points needed for
   // 'extra' part of grid:
   const auto total_points =
-      calc_num_points_from_du(r0(), new_rmax, du(), gridtype, b);
+      calc_num_points_from_du(r0(), new_rmax, du(), gridtype, m_b);
   const auto new_points = total_points - num_points() + 1;
 
   // Form the 'extra' part of the grid (from old max to new max)
-  const auto x_r = form_r(gridtype, old_max_r, new_points, m_du, b);
-  const auto x_drduor = form_drduor(gridtype, x_r, b);
+  const auto x_r = form_r(gridtype, old_max_r, new_points, m_du, m_b);
+  const auto x_drduor = form_drduor(gridtype, x_r, m_b);
   const auto x_drdu = form_drdu(gridtype, x_r, x_drduor);
 
   // The first point of new grid matches last of old, so drop these

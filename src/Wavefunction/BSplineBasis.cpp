@@ -330,7 +330,7 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
   }
   // Note: This is work-around, since Breit seems not to be 100% symmetric!
   if (type == SplineType::Johnson)
-    add_NotreDameBoundary(&Aij, spl_basis.front().k, wf.alpha);
+    add_NotreDameBoundary(&Aij, spl_basis.front().kappa(), wf.alpha);
 
   return A_and_S;
 }
@@ -399,14 +399,14 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
     // find first non-zero point
     {
       auto p0 = 0ul;
-      for (auto ir = 0ul; ir < Fi.rgrid->num_points(); ++ir) {
+      for (auto ir = 0ul; ir < Fi.grid().num_points(); ++ir) {
         if (Fi.f(ir) != 0 || Fi.g(ir) != 0) {
           p0 = ir;
           break;
         }
       }
-      auto pinf = Fi.rgrid->num_points();
-      for (auto ir = Fi.rgrid->num_points(); ir != 0; --ir) {
+      auto pinf = Fi.grid().num_points();
+      for (auto ir = Fi.grid().num_points(); ir != 0; --ir) {
         if (Fi.f(ir - 1) != 0 || Fi.g(ir - 1) != 0) {
           pinf = ir;
           break;
@@ -437,12 +437,12 @@ std::vector<double> sumrule_TKR(const std::vector<DiracSpinor> &basis,
     for (const auto &Fn : basis) {
       if (Fn == Fa)
         continue;
-      const auto f = (Fn.k == l) ? l : (Fn.k == -l - 1) ? l + 1 : 0;
+      const auto f = (Fn.kappa() == l) ? l : (Fn.kappa() == -l - 1) ? l + 1 : 0;
       if (f == 0)
         continue;
       const auto Ran = Fa * (r * Fn);
       const auto term = f * (Fn.en() - Fa.en()) * Ran * Ran / (2 * l + 1);
-      if (Fn.n > 0)
+      if (Fn.n() > 0)
         sum_el += term;
       else
         sum_p += term;
@@ -478,7 +478,7 @@ std::vector<double> sumrule_DG(int nDG, const std::vector<DiracSpinor> &basis,
 
   for (int ki = 0; ki <= max_ki; ki++) {
     const auto kappa = Angular::kappaFromIndex(ki);
-    auto find_ka = [=](const auto &Fn) { return Fn.k == kappa; };
+    auto find_ka = [=](const auto &Fn) { return Fn.kappa() == kappa; };
     const auto &Fa = *std::find_if(basis.begin(), basis.end(), find_ka);
     // need to have l_n = la+1 terms, or sum doesn't work:
     if (Fa.l() == max_l)
@@ -489,7 +489,7 @@ std::vector<double> sumrule_DG(int nDG, const std::vector<DiracSpinor> &basis,
     for (const auto &Fn : basis) {
       const auto w = Fn.en() - Fa.en();
       const auto Ran = rhat.reducedME(Fa, Fn);
-      const double c = 1.0 / (2 * std::abs(Fa.k));
+      const double c = 1.0 / (2 * std::abs(Fa.kappa()));
       const auto term = std::pow(w, nDG) * Ran * Ran * c;
       sum += term;
     }
@@ -520,7 +520,7 @@ std::pair<double, double> r_completeness(const DiracSpinor &Fa,
   double sumr2 = 0.0;
   const auto sumr2_expect = Fa * (r2 * Fa);
   for (const auto &Fn : basis) {
-    if (Fn.k != Fa.k)
+    if (Fn.kappa() != Fa.kappa())
       continue;
     const auto arn = Fa * (r * Fn);
     const auto nra = arn; // symmetric

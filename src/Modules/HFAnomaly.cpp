@@ -447,7 +447,7 @@ static void calc_thing(const DiracSpinor &Fv, double e_targ, double r0,
   const auto Fr = DiracOperator::Hyperfine::volotkaBW_F(mu, I, l, gl);
 
   const auto h0 = DiracOperator::HyperfineA(
-      mu, I, 0.0, *Fv.rgrid, DiracOperator::Hyperfine::pointlike_F());
+      mu, I, 0.0, Fv.grid(), DiracOperator::Hyperfine::pointlike_F());
   double dv0 = 0.0; // XXX RPA!
   const auto A0 = h0.hfsA(Fv) + dv0;
 
@@ -457,9 +457,9 @@ static void calc_thing(const DiracSpinor &Fv, double e_targ, double r0,
   double r = r0;
   double ra = 0.8 * r0, rb = 1.2 * r0;
   while (tries++ < 100) {
-    const auto ha = DiracOperator::HyperfineA(mu, I, ra, *Fv.rgrid, Fr);
-    const auto h = DiracOperator::HyperfineA(mu, I, r, *Fv.rgrid, Fr);
-    const auto hb = DiracOperator::HyperfineA(mu, I, rb, *Fv.rgrid, Fr);
+    const auto ha = DiracOperator::HyperfineA(mu, I, ra, Fv.grid(), Fr);
+    const auto h = DiracOperator::HyperfineA(mu, I, r, Fv.grid(), Fr);
+    const auto hb = DiracOperator::HyperfineA(mu, I, rb, Fv.grid(), Fr);
 
     double dv = 0.0, dva = 0.0, dvb = 0.0; // XXX Inlcude RPA!
     const auto Aa = ha.hfsA(Fv) + dva;
@@ -575,7 +575,7 @@ void calculateBohrWeisskopf(const IO::InputBlock &input,
     }
     auto Fball = ((Ab / Ap) - 1.0) * 100.0;
     auto Fbw = ((Aw / Ap) - 1.0) * 100.0;
-    bw.emplace_back(phi.n, phi.k, Fball, Fbw);
+    bw.emplace_back(phi.n(), phi.kappa(), Fball, Fbw);
     printf("%7s| %12.5e %12.5e %12.5e | %9.5f  %9.5f \n", phi.symbol().c_str(),
            Ap, Ab, Aw, Fball, Fbw);
   }
@@ -600,7 +600,7 @@ void calculateBohrWeisskopf(const IO::InputBlock &input,
       auto Aw = HyperfineA::hfsA(hw.get(), phi);
       auto Fball = ((Ab / Ap) - 1.0) * 100.0;
       auto Fbw = ((Aw / Ap) - 1.0) * 100.0;
-      H_bw.emplace_back(phi.n, phi.k, Fball, Fbw);
+      H_bw.emplace_back(phi.n(), phi.kappa(), Fball, Fbw);
       printf("%7s| %12.5e %12.5e %12.5e | %9.5f  %9.5f \n",
              phi.symbol().c_str(), Ap, Ab, Aw, Fball, Fbw);
     }
@@ -657,7 +657,7 @@ void BW_eta_sp(const IO::InputBlock &input, const Wavefunction &wf) {
 
   std::cout << "\n      A0(MHz)         e(ball)   e(SP)     eta(b)   eta(sp)\n";
   for (const auto &Fs : wf.valence) {
-    if (Fs.k != -1)
+    if (Fs.kappa() != -1)
       continue;
     auto Asp = HyperfineA::hfsA(hp.get(), Fs);
     auto Asb = HyperfineA::hfsA(hb.get(), Fs);
@@ -669,7 +669,7 @@ void BW_eta_sp(const IO::InputBlock &input, const Wavefunction &wf) {
     printf("%4s  %.7e  %7.5f  %7.5f\n", Fs.shortSymbol().c_str(), Asp, es_b,
            es_w);
 
-    auto Fp = wf.getState(Fs.n + 1, +1);
+    auto Fp = wf.getState(Fs.n() + 1, +1);
     if (Fp) {
 
       auto App = HyperfineA::hfsA(hp.get(), *Fp);

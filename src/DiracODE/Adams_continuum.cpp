@@ -38,16 +38,16 @@ void solveContinuum(DiracSpinor &Fa, const double en,
   auto i_asym = ext_grid.getIndex(r_asym0);
   Fa.set_en() = en;
 
-  const auto num_pointsb = Fa.rgrid->num_points();
+  const auto num_pointsb = Fa.grid().num_points();
   const auto num_pointsc = ext_grid.num_points();
 
   // Perform the "outwards integration"
   // XXX DON"T need to do this! Just re-size f/g vectors!! XXX
-  // DiracSpinor psic(Fa.n, Fa.k, ext_grid);
+  // DiracSpinor psic(Fa.n(), Fa.kappa(), ext_grid);
   Fa.set_f().resize(num_pointsc); // nb: this is a little dangerous!
   Fa.set_g().resize(num_pointsc);
 
-  DiracMatrix Hd(ext_grid, v, Fa.k, Fa.en(), alpha, {}, VxFa, Fa0);
+  DiracMatrix Hd(ext_grid, v, Fa.kappa(), Fa.en(), alpha, {}, VxFa, Fa0);
   outwardAM(Fa.set_f(), Fa.set_g(), Hd, (int)num_pointsc - 1);
 
   // Find a better (lower) asymptotic region:

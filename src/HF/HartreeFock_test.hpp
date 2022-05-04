@@ -111,9 +111,9 @@ bool HartreeFock(std::ostream &obuff) {
     // Calculate HFS A constant for each valence state (store s,p seperately)
     std::vector<double> sme, pme;
     for (const auto &Fv : wf.valence) {
-      if (Fv.k == -1)
+      if (Fv.kappa() == -1)
         sme.push_back(h.hfsA(Fv));
-      else if (Fv.k == 1)
+      else if (Fv.kappa() == 1)
         pme.push_back(h.hfsA(Fv));
     }
     const auto [es, ats] = qip::compare_eps(sme, s);
@@ -137,9 +137,9 @@ bool HartreeFock(std::ostream &obuff) {
 
     std::vector<double> sme, pme;
     for (const auto &Fv : wf.valence) {
-      if (Fv.k == -1)
+      if (Fv.kappa() == -1)
         sme.push_back(h.hfsA(Fv));
-      else if (Fv.k == 1)
+      else if (Fv.kappa() == 1)
         pme.push_back(h.hfsA(Fv));
     }
     const auto [es, ats] = qip::compare_eps(sme, s);
@@ -163,9 +163,9 @@ bool HartreeFock(std::ostream &obuff) {
 
     std::vector<double> sme, pme;
     for (const auto &Fv : wf.valence) {
-      if (Fv.k == -1)
+      if (Fv.kappa() == -1)
         sme.push_back(h.hfsA(Fv));
-      else if (Fv.k == 1)
+      else if (Fv.kappa() == 1)
         pme.push_back(h.hfsA(Fv));
     }
     const auto [es, ats] = qip::compare_eps(sme, s);

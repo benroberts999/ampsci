@@ -39,9 +39,9 @@ static inline void yk_ijk_impl(const int l, const DiracSpinor &Fa,
 //
 // Also uses Quadrature integer rules! (Defined in NumCalc)
 {
-  const auto &gr = Fa.rgrid; // just save typing
-  const auto du = gr->du();
-  const auto num_points = gr->num_points();
+  const auto &gr = Fa.grid(); // just save typing
+  const auto du = gr.du();
+  const auto num_points = gr.num_points();
   vabk.resize(num_points); // for safety
   const auto irmax = (maxi == 0 || maxi > num_points) ? num_points : maxi;
 
@@ -65,9 +65,9 @@ static inline void yk_ijk_impl(const int l, const DiracSpinor &Fa,
   };
 
   const auto ff = [&](std::size_t i) {
-    return (Fa.f(i) * Fb.f(i) + Fa.g(i) * Fb.g(i)) * w(i) * gr->drduor()[i];
+    return (Fa.f(i) * Fb.f(i) + Fa.g(i) * Fb.g(i)) * w(i) * gr.drduor(i);
   };
-  const auto &r = gr->r();
+  const auto &r = gr.r();
 
   double Ax = 0.0, Bx = 0.0;
 
@@ -139,9 +139,9 @@ static inline void Breit_abk_impl(const int l, const DiracSpinor &Fa,
                                   const std::size_t maxi) {
   static_assert(pm == 1 || pm == -1,
                 "Breit_abk_impl must be called with pm=+/-1 only\n");
-  const auto &gr = Fa.rgrid; // just save typing
-  const auto du = gr->du();
-  const auto num_points = gr->num_points();
+  const auto &gr = Fa.grid(); // just save typing
+  const auto du = gr.du();
+  const auto num_points = gr.num_points();
   b0.resize(num_points);   // needed
   binf.resize(num_points); // needed
   const auto irmax = (maxi == 0 || maxi > num_points) ? num_points : maxi;
@@ -177,17 +177,17 @@ static inline void Breit_abk_impl(const int l, const DiracSpinor &Fa,
   const auto bmax = std::min(Fa.max_pt(), Fb.max_pt());
   const auto bmin = std::max(Fa.min_pt(), Fb.min_pt());
   for (std::size_t i = bmin; i < bmax; i++) {
-    Bx += gr->drduor()[i] * w(i) * fgfg(i) / powk(gr->r()[i]);
+    Bx += gr.drduor(i) * w(i) * fgfg(i) / powk(gr.r(i));
   }
 
   b0[0] = 0.0;
-  binf[0] = Bx * du * powk(gr->r()[0]);
+  binf[0] = Bx * du * powk(gr.r()[0]);
   for (std::size_t i = 1; i < irmax; i++) {
-    const auto rm1_to_k = powk(gr->r()[i - 1]);
-    const auto inv_rm1_to_kp1 = 1.0 / (rm1_to_k * gr->r()[i - 1]);
-    const auto r_to_k = powk(gr->r()[i]);
-    const auto inv_r_to_kp1 = 1.0 / (r_to_k * gr->r()[i]);
-    const auto Fdr = gr->drdu()[i - 1] * fgfg(i - 1) * w(i - 1);
+    const auto rm1_to_k = powk(gr.r()[i - 1]);
+    const auto inv_rm1_to_kp1 = 1.0 / (rm1_to_k * gr.r()[i - 1]);
+    const auto r_to_k = powk(gr.r(i));
+    const auto inv_r_to_kp1 = 1.0 / (r_to_k * gr.r(i));
+    const auto Fdr = gr.drdu()[i - 1] * fgfg(i - 1) * w(i - 1);
     Ax += Fdr * rm1_to_k;
     Bx -= Fdr * inv_rm1_to_kp1;
     b0[i] = du * Ax * inv_r_to_kp1;
@@ -274,14 +274,14 @@ double Rk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
 double Rk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fc,
                const std::vector<double> &yk_bd) {
   [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__, "yk");
-  const auto &drdu = Fa.rgrid->drdu();
+  const auto &drdu = Fa.grid().drdu();
   const auto i0 = std::max(Fa.min_pt(), Fc.min_pt());
   const auto imax = std::min(Fa.max_pt(), Fc.max_pt());
   const auto Rff =
       NumCalc::integrate(1.0, i0, imax, Fa.f(), Fc.f(), yk_bd, drdu);
   const auto Rgg =
       NumCalc::integrate(1.0, i0, imax, Fa.g(), Fc.g(), yk_bd, drdu);
-  return (Rff + Rgg) * Fa.rgrid->du();
+  return (Rff + Rgg) * Fa.grid().du();
 }
 
 //******************************************************************************
@@ -294,7 +294,7 @@ DiracSpinor Rkv_bcd(const int kappa_a, const DiracSpinor &Fb,
 DiracSpinor Rkv_bcd(const int kappa_a, const DiracSpinor &Fc,
                     const std::vector<double> &ykbd) {
   [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__);
-  auto out = DiracSpinor(0, kappa_a, Fc.rgrid);
+  auto out = DiracSpinor(0, kappa_a, Fc.grid_sptr());
   out.set_min_pt() = Fc.min_pt();
   out.set_max_pt() = Fc.max_pt();
   out.set_f() = qip::multiply(Fc.f(), ykbd);
@@ -315,7 +315,7 @@ void Rkv_bcd(DiracSpinor *const Rkv, const DiracSpinor &Fc,
     Rkv->set_f(i) = Fc.f(i) * ykbd[i];
     Rkv->set_g(i) = Fc.g(i) * ykbd[i];
   }
-  for (auto i = Rkv->max_pt(); i < Rkv->rgrid->num_points(); ++i) {
+  for (auto i = Rkv->max_pt(); i < Rkv->grid().num_points(); ++i) {
     Rkv->set_f(i) = 0.0;
     Rkv->set_g(i) = 0.0;
   }
@@ -325,10 +325,10 @@ void Rkv_bcd(DiracSpinor *const Rkv, const DiracSpinor &Fc,
 double Qk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
                const DiracSpinor &Fc, const DiracSpinor &Fd, const int k) {
   [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__);
-  const auto tCac = Angular::tildeCk_kk(k, Fa.k, Fc.k);
+  const auto tCac = Angular::tildeCk_kk(k, Fa.kappa(), Fc.kappa());
   if (Angular::zeroQ(tCac))
     return 0.0;
-  const auto tCbd = Angular::tildeCk_kk(k, Fb.k, Fd.k);
+  const auto tCbd = Angular::tildeCk_kk(k, Fb.kappa(), Fd.kappa());
   if (Angular::zeroQ(tCbd))
     return 0.0;
   const auto Rkabcd = Rk_abcd(Fa, Fb, Fc, Fd, k);
@@ -340,10 +340,10 @@ double Qk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
 DiracSpinor Qkv_bcd(const int kappa_a, const DiracSpinor &Fb,
                     const DiracSpinor &Fc, const DiracSpinor &Fd, const int k) {
   [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__);
-  const auto tCac = Angular::tildeCk_kk(k, kappa_a, Fc.k);
-  const auto tCbd = Angular::tildeCk_kk(k, Fb.k, Fd.k);
+  const auto tCac = Angular::tildeCk_kk(k, kappa_a, Fc.kappa());
+  const auto tCbd = Angular::tildeCk_kk(k, Fb.kappa(), Fd.kappa());
   if (Angular::zeroQ(tCbd) || Angular::zeroQ(tCac))
-    return DiracSpinor(0, kappa_a, Fc.rgrid);
+    return DiracSpinor(0, kappa_a, Fc.grid_sptr());
   const auto m1tk = Angular::evenQ(k) ? 1 : -1;
   return (m1tk * tCac * tCbd) * Rkv_bcd(kappa_a, Fb, Fc, Fd, k);
 }
@@ -353,8 +353,8 @@ void Qkv_bcd(DiracSpinor *const Qkv, const DiracSpinor &Fb,
              const DiracSpinor &Fc, const DiracSpinor &Fd, const int k,
              const std::vector<double> &ykbd, const Angular::CkTable &Ck) {
   [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__, "yk");
-  const auto tCac = Ck.get_tildeCkab(k, Qkv->k, Fc.k);
-  const auto tCbd = Ck.get_tildeCkab(k, Fb.k, Fd.k);
+  const auto tCac = Ck.get_tildeCkab(k, Qkv->kappa(), Fc.kappa());
+  const auto tCbd = Ck.get_tildeCkab(k, Fb.kappa(), Fd.kappa());
   const auto tCC = tCbd * tCac;
   if (tCC == 0.0) {
     Qkv->scale(0.0);
@@ -391,15 +391,15 @@ double Pk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
 //------------------------------------------------------------------------------
 DiracSpinor Pkv_bcd(int kappa_a, const DiracSpinor &Fb, const DiracSpinor &Fc,
                     const DiracSpinor &Fd, const int k) {
-  auto out = DiracSpinor(0, kappa_a, Fc.rgrid);
+  auto out = DiracSpinor(0, kappa_a, Fc.grid_sptr());
   const auto tkp1 = 2 * k + 1;
   const auto tja = Angular::twoj_k(kappa_a);
   const auto min_twol =
       std::max(std::abs(Fd.twoj() - tja), std::abs(Fc.twoj() - Fb.twoj()));
   const auto max_twol = std::min(Fd.twoj() + tja, Fc.twoj() + Fb.twoj());
   for (int tl = min_twol; tl <= max_twol; tl += 2) {
-    if (!Angular::Ck_kk_SR(tl / 2, Fb.k, Fc.k) ||
-        !Angular::Ck_kk_SR(tl / 2, kappa_a, Fd.k))
+    if (!Angular::Ck_kk_SR(tl / 2, Fb.kappa(), Fc.kappa()) ||
+        !Angular::Ck_kk_SR(tl / 2, kappa_a, Fd.kappa()))
       continue;
     const auto sixj =
         Angular::sixj_2(Fc.twoj(), tja, 2 * k, Fd.twoj(), Fb.twoj(), tl);
@@ -414,7 +414,8 @@ DiracSpinor Pkv_bcd(int kappa_a, const DiracSpinor &Fb, const DiracSpinor &Fc,
 DiracSpinor Wkv_bcd(int kappa_v, const DiracSpinor &Fb, const DiracSpinor &Fc,
                     const DiracSpinor &Fd, const int k) {
   auto out = Pkv_bcd(kappa_v, Fb, Fc, Fd, k);
-  if (Angular::Ck_kk_SR(k, kappa_v, Fc.k) && Angular::Ck_kk_SR(k, Fb.k, Fd.k)) {
+  if (Angular::Ck_kk_SR(k, kappa_v, Fc.kappa()) &&
+      Angular::Ck_kk_SR(k, Fb.kappa(), Fd.kappa())) {
     out += Qkv_bcd(kappa_v, Fb, Fc, Fd, k);
   }
   return out;

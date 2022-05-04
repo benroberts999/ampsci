@@ -106,12 +106,13 @@ helper::do_dV_breit_basis(const Wavefunction &wf, const Wavefunction &wfB,
   std::cout << "dBr(%)  TDHF       TDHF(basis) " << h->name() << "\n";
   for (const auto &Fv : wf.valence) {
     for (const auto &Fw : wf.valence) {
-      if (Fw > Fv || h->isZero(Fv.k, Fw.k) || Fv.l() > max_l || Fw.l() > max_l)
+      if (Fw > Fv || h->isZero(Fv.kappa(), Fw.kappa()) || Fv.l() > max_l ||
+          Fw.l() > max_l)
         continue;
 
       // lookup states in Breit wf (do this way, so no depend on order)
-      const auto &FvB = *wfB.getState(Fv.n, Fv.k);
-      const auto &FwB = *wfB.getState(Fw.n, Fw.k);
+      const auto &FvB = *wfB.getState(Fv.n(), Fv.kappa());
+      const auto &FwB = *wfB.getState(Fw.n(), Fw.kappa());
 
       const auto dv = dV_tdhf.dV(Fv, Fw);
       const auto dvB = dVB_tdhf.dV(FvB, FwB);

@@ -115,12 +115,12 @@ void screeningFactors(const IO::InputBlock &input, const Wavefunction &wf) {
 
     std::cout << Fv.symbol() << "\n";
     // auto &fk_v = fk.emplace_back();
-    // kappa.push_back(Fv.k);
+    // kappa.push_back(Fv.kappa());
     for (int k = 0; k < 8; ++k) {
-      auto Sd0 = Sigma0.FeynmanDirect(Fv.k, Fv.en(), k);
-      auto SdX = SigmaScr.FeynmanDirect(Fv.k, Fv.en(), k);
-      auto Sdhp = Sigmahp.FeynmanDirect(Fv.k, Fv.en(), k);
-      auto SdAO = SigmaAO.FeynmanDirect(Fv.k, Fv.en(), k);
+      auto Sd0 = Sigma0.FeynmanDirect(Fv.kappa(), Fv.en(), k);
+      auto SdX = SigmaScr.FeynmanDirect(Fv.kappa(), Fv.en(), k);
+      auto Sdhp = Sigmahp.FeynmanDirect(Fv.kappa(), Fv.en(), k);
+      auto SdAO = SigmaAO.FeynmanDirect(Fv.kappa(), Fv.en(), k);
 
       const auto de0 = Fv * Sigma0.act_G_Fv(Sd0, Fv);
       const auto deX = Fv * SigmaScr.act_G_Fv(SdX, Fv);

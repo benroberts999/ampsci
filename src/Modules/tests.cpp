@@ -78,9 +78,9 @@ void basisTests(const Wavefunction &wf) {
                "Basis       eps   | norm\n"; // nodes\n";
   int count = 0;
   for (const auto &Fn : basis) {
-    if (Fn.n < 0)
+    if (Fn.n() < 0)
       continue;
-    const auto *hf_phi = wf.getState(Fn.n, Fn.k);
+    const auto *hf_phi = wf.getState(Fn.n(), Fn.kappa());
     const bool hfQ = hf_phi != nullptr;
     const auto Ahf = hfQ ? DiracOperator::HyperfineA::hfsA(&hfs, *hf_phi) : 0.0;
     const auto Ab = DiracOperator::HyperfineA::hfsA(&hfs, Fn);
@@ -88,7 +88,7 @@ void basisTests(const Wavefunction &wf) {
     const auto Ehf = hfQ ? hf_phi->en() : 0.0;
 
     // const auto nodes = Helper::countNodes(Fn);
-    // const int expected_nodes = Fn.n - Fn.l() - 1;
+    // const int expected_nodes = Fn.n() - Fn.l() - 1;
 
     if (hfQ) {
       count = 0;
@@ -184,8 +184,8 @@ void Module_Tests_Hamiltonian(const Wavefunction &wf) {
       }
       double ens = Fn.en();
       double fracdiff = (Haa - ens) / ens;
-      printf("<%2i% i|H|%2i% i> = %17.11f, E = %17.11f; % .0e\n", Fn.n, Fn.k,
-             Fn.n, Fn.k, Haa, ens, fracdiff);
+      printf("<%2i% i|H|%2i% i> = %17.11f, E = %17.11f; % .0e\n", Fn.n(), Fn.kappa(),
+             Fn.n(), Fn.kappa(), Haa, ens, fracdiff);
       if (std::abs(fracdiff) >= std::abs(worst_eps)) {
         worst_eps = fracdiff;
         worst_Fn = &Fn;

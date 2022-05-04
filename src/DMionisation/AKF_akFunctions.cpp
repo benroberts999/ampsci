@@ -64,7 +64,7 @@ calculateK_nk(const Wavefunction &wf, const DiracSpinor &psi, int max_L,
   // L and lc are summed, not stored indevidually
   for (std::size_t L = 0; L <= std::size_t(max_L); L++) {
     for (const auto &phic : cntm.orbitals) {
-      const double dC_Lkk = CLkk(int(L), psi.k, phic.k);
+      const double dC_Lkk = CLkk(int(L), psi.kappa(), phic.kappa());
       if (dC_Lkk == 0)
         continue;
       for (std::size_t iq = 0; iq < qsteps; iq++) {

@@ -68,7 +68,6 @@
   * Breit matrix - for inclusion into Green's function (needs G?)
 
 ## DiracSpinor
-  * Tidy up + modernise
   * Use strong types?
 
 ## ampsci (ampsci.cpp)

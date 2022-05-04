@@ -10,7 +10,7 @@ namespace HF {
 //******************************************************************************
 // Calculates V_br*Fa = \sum_b\sum_k B^k_ba F_b - For HF potential
 DiracSpinor Breit::VbrFa(const DiracSpinor &Fa) const {
-  DiracSpinor BFa(Fa.n, Fa.k, Fa.rgrid); //
+  DiracSpinor BFa(Fa.n(), Fa.kappa(), Fa.grid_sptr()); //
   for (const auto &Fb : *p_core) {
     BkbaFb(&BFa, Fa, Fb);
   }
@@ -25,8 +25,8 @@ void Breit::BkbaFb(DiracSpinor *BFb, const DiracSpinor &Fa,
     return;
 
   const hidden::Breit_Bk_ba Bkba(Fb, Fa); // every k
-  const auto ka = Fa.k;
-  const auto kb = Fb.k;
+  const auto ka = Fa.kappa();
+  const auto kb = Fb.kappa();
 
   const auto kmax = (Fb.twoj() + Fa.twoj()) / 2;
   const auto tjap1 = Fa.twoj() + 1;
@@ -58,7 +58,7 @@ DiracSpinor Breit::dVbrX_Fa(int kappa, int K, const DiracSpinor &Fa,
                             const DiracSpinor &Fb, const DiracSpinor &Xbeta,
                             const DiracSpinor &Ybeta) const {
 
-  DiracSpinor dVFa(0, kappa, Fa.rgrid);
+  DiracSpinor dVFa(0, kappa, Fa.grid_sptr());
   // These will be updated in MOPk_ij_Fc if need be
   dVFa.set_min_pt() = Fa.min_pt();
   dVFa.set_max_pt() = Fa.max_pt();
@@ -74,10 +74,10 @@ DiracSpinor Breit::dVbrX_Fa(int kappa, int K, const DiracSpinor &Fa,
   std::unique_ptr<hidden::Breit_Bk_ba> Bkba{nullptr};
   std::unique_ptr<hidden::Breit_Bk_ba> BkYBa{nullptr};
 
-  const auto kn = dVFa.k;
-  const auto ka = Fa.k;
-  const auto kb = Fb.k;
-  const auto kB = Xbeta.k;
+  const auto kn = dVFa.kappa();
+  const auto ka = Fa.kappa();
+  const auto kb = Fb.kappa();
+  const auto kB = Xbeta.kappa();
   const auto tjn = dVFa.twoj();
   const auto tja = Fa.twoj();
   const auto tjb = Fb.twoj();
@@ -142,7 +142,7 @@ DiracSpinor Breit::dVbrD_Fa(int kappa, int K, const DiracSpinor &Fa,
   // contribution? Essentially agrees with VD for E1 and E2 (with very tiny
   // assymetry? - so probably minor mistake somewhere!)
 
-  DiracSpinor dVFa(0, kappa, Fa.rgrid);
+  DiracSpinor dVFa(0, kappa, Fa.grid_sptr());
   // These will be updated in MOPk_ij_Fc if need be
   dVFa.set_min_pt() = Fa.min_pt();
   dVFa.set_max_pt() = Fa.max_pt();
@@ -152,10 +152,10 @@ DiracSpinor Breit::dVbrD_Fa(int kappa, int K, const DiracSpinor &Fa,
   // Only need single k here?
   // Also, when X = Y, can do just once!
 
-  const auto kn = dVFa.k;
-  const auto ka = Fa.k;
-  const auto kb = Fb.k;
-  const auto kB = Xbeta.k; // kappa(X) = kappa(Y)
+  const auto kn = dVFa.kappa();
+  const auto ka = Fa.kappa();
+  const auto kb = Fb.kappa();
+  const auto kB = Xbeta.kappa(); // kappa(X) = kappa(Y)
 
   const auto k = K;
 
@@ -315,20 +315,20 @@ Breit_Bk_ba::Breit_Bk_ba(const DiracSpinor &Fb, const DiracSpinor &Fa)
     // const auto maxi = std::min(Fa.max_pt(), Fb.max_pt()); // XXX OK? No.
 
     // These normally re-sized in gk_ab()... but not if skip due to SRs
-    bk_0[k].resize(Fa.rgrid->num_points());
-    bk_inf[k].resize(Fa.rgrid->num_points());
-    gk_0[k].resize(Fa.rgrid->num_points());
-    gk_inf[k].resize(Fa.rgrid->num_points());
+    bk_0[k].resize(Fa.grid().num_points());
+    bk_inf[k].resize(Fa.grid().num_points());
+    gk_0[k].resize(Fa.grid().num_points());
+    gk_inf[k].resize(Fa.grid().num_points());
 
     // bk, in M,N,O, only used if C^(k+/-1)_ba non-zero
-    if (Angular::Ck_kk_SR(int(k) - 1, Fb.k, Fa.k) ||
-        Angular::Ck_kk_SR(int(k) + 1, Fb.k, Fa.k)) {
+    if (Angular::Ck_kk_SR(int(k) - 1, Fb.kappa(), Fa.kappa()) ||
+        Angular::Ck_kk_SR(int(k) + 1, Fb.kappa(), Fa.kappa())) {
       Coulomb::bk_ab(Fb, Fa, int(k), bk_0[k], bk_inf[k], maxi);
     }
     // gk, in M,N,O AND N only used if C^(k+/-1)_ab and C^(k)_(-b,a)
-    if (Angular::Ck_kk_SR(int(k) - 1, Fb.k, Fa.k) ||
-        Angular::Ck_kk_SR(int(k) + 1, Fb.k, Fa.k) ||
-        Angular::Ck_kk_SR(int(k), -Fb.k, Fa.k)) {
+    if (Angular::Ck_kk_SR(int(k) - 1, Fb.kappa(), Fa.kappa()) ||
+        Angular::Ck_kk_SR(int(k) + 1, Fb.kappa(), Fa.kappa()) ||
+        Angular::Ck_kk_SR(int(k), -Fb.kappa(), Fa.kappa())) {
       Coulomb::gk_ab(Fb, Fa, int(k), gk_0[k], gk_inf[k], maxi);
     }
   }
