@@ -43,8 +43,8 @@ Wavefunction::Wavefunction(const GridParameters &gridparams,
 Wavefunction::Wavefunction(const Wavefunction &wf)
     : Wavefunction(wf.rgrid->params(), wf.get_nuclearParameters(),
                    wf.alpha / PhysConst::alpha) {
-  // NOTE: orbitals in new_wf point to OLD grid (*(wf.rgrid), not this->grid_sptr())
-  // new WF ONLY has orbitals, does not have HF/Sigma etc!
+  // NOTE: orbitals in new_wf point to OLD grid (*(wf.rgrid), not
+  // this->grid_sptr()) new WF ONLY has orbitals, does not have HF/Sigma etc!
   this->core = wf.core;
   this->valence = wf.valence;
   this->basis = wf.basis;
@@ -624,12 +624,12 @@ void Wavefunction::printCore(bool sorted) const
     return;
 
   std::cout
-      << "     state   k   Rinf its   eps         En (au)        En (/cm)\n";
+      << "     state  k   Rinf its   eps         En (au)        En (/cm)\n";
   auto index_list = sortedEnergyList(core, sorted);
   for (auto i : index_list) {
     const auto &phi = core[i];
     auto r_inf = rgrid->r()[phi.max_pt() - 1]; // rinf(phi);
-    printf("%2i) %7s %2i  %5.1f %2i  %5.0e %15.9f %15.3f", int(i),
+    printf("%-2i %7s %2i  %5.1f %2i  %5.0e %15.9f %15.3f", int(i),
            phi.symbol().c_str(), phi.kappa(), r_inf, phi.its(), phi.eps(),
            phi.en(), phi.en() * PhysConst::Hartree_invcm);
     if (phi.occ_frac() < 1.0)
@@ -659,13 +659,13 @@ void Wavefunction::printValence(
   }
 
   std::cout
-      << "Val: state   "
+      << "Val: state  "
       << "k   Rinf its   eps         En (au)        En (/cm)   En (/cm)\n";
   auto index_list = sortedEnergyList(tmp_orbs, sorted);
   for (auto i : index_list) {
     const auto &phi = tmp_orbs[i];
     auto r_inf = rgrid->r()[phi.max_pt() - 1]; // rinf(phi);
-    printf("%2i) %7s %2i  %5.1f %2i  %5.0e %15.9f %15.3f", int(i),
+    printf("%-2i %7s %2i  %5.1f %2i  %5.0e %15.9f %15.3f", int(i),
            phi.symbol().c_str(), phi.kappa(), r_inf, phi.its(), phi.eps(),
            phi.en(), phi.en() * PhysConst::Hartree_invcm);
     printf(" %10.2f\n", (phi.en() - e0) * PhysConst::Hartree_invcm);
