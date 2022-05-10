@@ -5,18 +5,25 @@
 #include "Modules/runModules.hpp"
 #include "Physics/include.hpp"
 #include "Wavefunction/Wavefunction.hpp"
-#include "git.info"
+#include "git.hpp"
 #include "qip/Vector.hpp"
 #include <iostream>
 #include <string>
 
 void ampsci(const IO::InputBlock &input);
+
 int main(int argc, char *argv[]) {
+
+  if (argc > 1 &&
+      (strcmp(argv[1], "-v") == 0 || strcmp(argv[1], "--version") == 0)) {
+    GitInfo::print_git_info();
+    return 0;
+  }
+
   std::cout << "\n";
   IO::print_line();
-  std::cout << "ampsci git:" << GitInfo::gitversion << " ("
-            << GitInfo::gitbranch << ")\n";
-  std::cout << IO::time_date() << '\n';
+  GitInfo::print_git_info();
+  std::cout << "Run time: " << IO::time_date() << '\n';
 
   const std::string input_text = (argc > 1) ? argv[1] : "ampsci.in";
 

@@ -20,7 +20,7 @@
 #include "Physics/AtomData_test.hpp"
 #include "Physics/RadPot_test.hpp"
 #include "Wavefunction/BSplineBasis_test.hpp"
-#include "git.info"
+#include "git.hpp"
 #include <cassert>
 #include <iostream>
 #include <string>
@@ -126,8 +126,12 @@ auto get_test(std::string_view in_name) {
 int main(int argc, char *argv[]) {
 
   std::ostringstream out_buff;
-  out_buff << "ampsci test. git:" << GitInfo::gitversion << " ("
-           << GitInfo::gitbranch << ")\n";
+  out_buff << "AMPSCI v: " << GitInfo::git_branch << "/"
+           << GitInfo::git_revision << "\n";
+  out_buff << "Compiled: " << GitInfo::cxx_version << "\n          "
+           << GitInfo::compiled_time << "\n";
+  if (!GitInfo::git_modified.empty())
+    out_buff << "Modified: " << GitInfo::git_modified << "\n";
   out_buff << IO::time_date() << "\n";
 
   // Make a list of all tests to Run

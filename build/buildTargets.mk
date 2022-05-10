@@ -11,23 +11,19 @@ DEFAULTEXES = $(addprefix $(XD)/, \
 )
 
 #Default make rule:
-all: $(SD)/git.info checkObj checkXdir $(DEFAULTEXES)
+all: GitInfo checkObj checkXdir $(DEFAULTEXES)
 
 ################################################################################
 # Automatically generate dependency files for each cpp file, + compile:
-# I make all files depend on '$(SD)/git.info'. This achieves two things:
-# (1) It forces git.info to be built first (even in a parallel build)
-# (2) It forces a clean make when changing branches
-# The '|' means 'order only' pre-req
 
 # All the files that in in src/{subsir}/.cpp don't have a main()
 # Compile them into objects; reflect the src/ directory tree.
-$(BD)/*/%.o: $(SD)/*/%.cpp | $(SD)/git.info
+$(BD)/*/%.o: $(SD)/*/%.cpp
 	@mkdir -p $(@D)
 	$(COMP)
 
 # All the files that in in src/.cpp *do* have a main(), compile
-$(BD)/%.o: $(SD)/%.cpp $(SD)/git.info
+$(BD)/%.o: $(SD)/%.cpp
 	@mkdir -p $(@D)
 	$(COMP)
 
@@ -58,24 +54,24 @@ $(XD)/periodicTable: $(BD)/periodicTable.o $(BD)/Physics/AtomData.o \
 $(BD)/Physics/NuclearData.o
 	$(LINK)
 
+# Add git version info to compile flags
+NOW:=$(shell date +%Y-%m-%d' '%H:%M' '%Z 2>/dev/null)
+CXXFLAGS+=-D GITREVISION="$(shell git rev-parse --short HEAD 2>/dev/null)"
+CXXFLAGS+=-D GITBRANCH="$(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)"
+CXXFLAGS+=-D GITMODIFIED="$(shell git status -s 2>/dev/null)"
+CXXFLAGS+=-D CXXVERSION="$(shell $(CXX) --version 2>/dev/null | sed -n '1p' | sed s/'('/'['/ | sed s/')'/']'/)"
+CXXFLAGS+=-D COMPTIME="$(NOW)"
+
 ################################################################################
 ################################################################################
 
-# Check to see if this is a git repo, so $(SD)/git.info will work even if not
-ifneq ("$(wildcard .git/HEAD)","")
-  GIT_FILES = .git/HEAD .git/index
-endif
-# Create the 'git.info' file (c++ header file)
-$(SD)/git.info: $(GIT_FILES)
-	@echo Git Files: $(GIT_FILES)
-	@echo "// git.info: auto-generated file" > $@
-	@echo "#pragma once" >> $@
-	@echo "namespace GitInfo {" >> $@
-	@echo Git version: $(shell git rev-parse --short HEAD 2>/dev/null)
-	@echo "const char *gitversion = \"$(shell git rev-parse --short HEAD 2>/dev/null)\";" >> $@
-	@echo "const char *gitbranch = \"$(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)\";" >> $@
-	@echo Git branch : $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)
-	@echo "} // namespace GitInfo" >> $@
+# CPrint some git history to screen
+SHELL=/bin/bash
+string=$(shell $(CXX) --version 2>/dev/null | sed -n '1p' | sed s/'('/'['/ | sed s/')'/']'/)
+GitInfo:
+	@echo Git Branch: $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)
+	@echo Git Revision: $(shell git rev-parse --short HEAD 2>/dev/null)
+	@echo Modified: $(shell git status -s 2>/dev/null)
 
 checkObj:
 	@if [ ! -d $(BD) ]; then \
@@ -89,7 +85,7 @@ checkXdir:
 		false; \
 	fi
 
-.PHONY: clean docs doxy do_the_chicken_dance checkObj checkXdir
+.PHONY: clean docs doxy do_the_chicken_dance GitInfo checkObj checkXdir
 clean:
 	rm -f -v $(ALLEXES)
 	rm -rf -v $(BD)/*.o $(BD)/*.d $(BD)/*/
