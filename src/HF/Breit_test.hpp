@@ -38,9 +38,6 @@ bool Breit(std::ostream &obuff) {
   // Sort the data by states, to make comparisons easier
   using datav = std::vector<std::pair<std::string, double>>;
   auto sort_by_first = [](auto x, auto y) { return x.first < y.first; };
-  // auto eps_second = [](const auto &x, const auto &y) {
-  //   return (x.second - y.second) / y.second;
-  // };
 
   //****************************************************************************
   { // Test Breit energies:
@@ -246,17 +243,13 @@ bool Breit(std::ostream &obuff) {
 
     // My values (as a regression test, and Derevianko not necisarily better..)
     // nb: if this one fails, not neccisarily an issue, BUT should be checked!
-    // const auto de2_me = datav{{"6s+", -2.876464922},  {"7s+", 0.085815490},
-    //                          {"6p-", 7.304751244},   {"7p-", 2.571158184},
-    //                          {"6p+", 0.572062485},   {"7p+", 0.434703965},
-    //                          {"5d-", -25.738470955}, {"5d+", -30.663081262}};
     const auto de2_me = datav{{"6s+", -2.878612320},  {"7s+", 0.085538550},
                               {"6p-", 7.305198685},   {"7p-", 2.571275498},
                               {"6p+", 0.571894669},   {"7p+", 0.434694080},
                               {"5d-", -25.752413108}, {"5d+", -30.679223816}};
 
     // First, compare the HF energies
-    std::cout << "\nBreit corrections to HF energies cf. "
+    std::cout << "\nBreit corrections to HF energies \ncf. "
                  "Derevianko [Phys. Rev. A 65, 012106 (2001)] (/cm)\n";
     std::string worst;
     double weps = 0.0;
@@ -285,7 +278,7 @@ bool Breit(std::ostream &obuff) {
     wf.hartreeFockBrueckner();
     wf0.hartreeFockBrueckner();
 
-    std::cout << "\nBreit corrections to Sigma(2) energies cf. "
+    std::cout << "\nBreit corrections to Sigma(2) energies \ncf."
                  "Derevianko [Phys. Rev. A 65, 012106 (2001)] (/cm)\n";
     std::string worst2;
     double weps2 = 0.0;

@@ -461,8 +461,8 @@ EpsIts HartreeFock::hf_valence_approx(DiracSpinor &Fa, double eps_target_HF)
     eps_prev = eps;
   }
   if constexpr (print_final_eps) {
-    printf("HF val: %2i %2i | %3i eps=%6.1e  en=%11.8f\n", Fa.n(), Fa.kappa(), hits,
-           eps, Fa.en());
+    printf("HF val: %2i %2i | %3i eps=%6.1e  en=%11.8f\n", Fa.n(), Fa.kappa(),
+           hits, eps, Fa.en());
   }
 
   return {eps, hits};
@@ -979,7 +979,7 @@ EpsIts HartreeFock::hf_valence_refine(DiracSpinor &Fa) {
 
   const auto eps_target = m_eps_HF;
 
-  const auto damper = 0.35; // rampedDamp(0.8, 0.3, 5, 25);
+  const auto damper = 0.45; // rampedDamp(0.8, 0.3, 5, 25);
   // double extra_damp = 0.0;
 
   const auto &vrad_el = get_Hrad_el(Fa.l());
@@ -1032,8 +1032,8 @@ EpsIts HartreeFock::hf_valence_refine(DiracSpinor &Fa) {
   } // End HF its
 
   if constexpr (print_final_eps) {
-    printf("refine: %2i %2i | %3i eps=%6.1e  en=%11.8f\n", Fa.n(), Fa.kappa(), it, eps,
-           Fa.en());
+    printf("refine: %2i %2i | %3i eps=%6.1e  en=%11.8f\n", Fa.n(), Fa.kappa(),
+           it, eps, Fa.en());
   }
   return {eps, it};
 }
@@ -1107,8 +1107,8 @@ EpsIts HartreeFock::hf_Brueckner(DiracSpinor &Fa,
   } // End HF its
 
   if constexpr (print_final_eps) {
-    printf("Br2: %2i %2i | %3i eps=%6.1e  en=%11.8f\n", Fa.n(), Fa.kappa(), it, eps,
-           Fa.en());
+    printf("Br2: %2i %2i | %3i eps=%6.1e  en=%11.8f\n", Fa.n(), Fa.kappa(), it,
+           eps, Fa.en());
   }
   return {eps, it};
 }
