@@ -12,7 +12,7 @@
 
 namespace Module {
 
-//******************************************************************************
+//==============================================================================
 void Module_tests(const IO::InputBlock &input, const Wavefunction &wf) {
   using namespace Tests;
   std::string ThisModule = "Module::Tests";
@@ -118,7 +118,7 @@ void basisTests(const Wavefunction &wf) {
   }
 }
 
-//******************************************************************************
+//==============================================================================
 void Module_test_r0pinf(const Wavefunction &wf) {
   std::cout << "\nTesting boundaries r0 and pinf: f(r)/f_max\n";
   std::cout << " State    f(r0)   f(pinf)   pinf/Rinf\n";
@@ -184,8 +184,8 @@ void Module_Tests_Hamiltonian(const Wavefunction &wf) {
       }
       double ens = Fn.en();
       double fracdiff = (Haa - ens) / ens;
-      printf("<%2i% i|H|%2i% i> = %17.11f, E = %17.11f; % .0e\n", Fn.n(), Fn.kappa(),
-             Fn.n(), Fn.kappa(), Haa, ens, fracdiff);
+      printf("<%2i% i|H|%2i% i> = %17.11f, E = %17.11f; % .0e\n", Fn.n(),
+             Fn.kappa(), Fn.n(), Fn.kappa(), Haa, ens, fracdiff);
       if (std::abs(fracdiff) >= std::abs(worst_eps)) {
         worst_eps = fracdiff;
         worst_Fn = &Fn;

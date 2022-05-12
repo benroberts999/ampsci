@@ -10,7 +10,7 @@
 
 namespace UnitTest {
 
-//******************************************************************************
+//==============================================================================
 //! Unit tests for StructureRad + Normalisation of states
 bool StructureRad(std::ostream &obuff) {
   bool pass = true;
@@ -91,7 +91,7 @@ bool StructureRad(std::ostream &obuff) {
                              0.0, 0.05);
   }
 
-  //****************************************************************************
+  //============================================================================
   { // Test for Cs: use valence states for legs
     Wavefunction wf({1000, 1.0e-6, 100.0, 0.33 * 100.0, "loglinear"},
                     {"Cs", -1, "Fermi"}, 1.0);

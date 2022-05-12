@@ -8,7 +8,7 @@
 //! Useful atomic data/functions. Most self-explanatory
 namespace AtomData {
 
-//******************************************************************************
+//==============================================================================
 //! Stores none relativistic single-eletron config {n, l, number}
 struct NonRelSEConfig {
   int n;
@@ -38,7 +38,7 @@ struct NonRelSEConfig {
   }
 };
 
-//******************************************************************************
+//==============================================================================
 //! Stores relativistic single-eletron state {n, kappa, energy}
 struct DiracSEnken { // name OK? too short?
   int n;
@@ -48,8 +48,8 @@ struct DiracSEnken { // name OK? too short?
       : n(in_n), k(in_k), en(in_en){};
 };
 
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+//==============================================================================
 
 //! Looks up default A (most common) for given Z
 int defaultA(int Z);
@@ -112,7 +112,7 @@ void printTable();
 //! converts into to lc romain numerals
 std::string int_to_roman(int a);
 
-//******************************************************************************
+//==============================================================================
 //! Returns l given kappa (e.g., -1 -> 0; 1 -> 1)
 constexpr int l_k(int ka) { return (ka > 0) ? ka : -ka - 1; }
 //! Returns 2*j given kappa (e.g., -1 -> 1; 1 -> 1)
@@ -135,7 +135,7 @@ constexpr int l_tilde_k(int ka) {
 constexpr int kappa_twojl(int twoj, int l) {
   return ((2 * l - twoj) * (twoj + 1)) / 2;
 }
-//******************************************************************************
+//==============================================================================
 //! return kappa_index given kappa; kappa(i) = (-1,i+1)*(int(i/2)+1)
 /*! @details   Kappa Index:
  For easy array access, define 1-to-1 index for each kappa:
@@ -155,7 +155,7 @@ constexpr int twojFromIndex(int i) { return (i % 2 == 0) ? i + 1 : i; }
 //! Returns l given kappa_index
 constexpr int lFromIndex(int i) { return (i % 2 == 0) ? i / 2 : (i + 1) / 2; }
 
-//******************************************************************************
+//==============================================================================
 //! Returns number of possible states _below_ given n
 constexpr int states_below_n(int n) { return n * n - 2 * n + 1; }
 

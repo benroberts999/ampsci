@@ -82,63 +82,6 @@ public:
   int n() const { return m_n; }
   //! Dirac quantum number, kappa
   int kappa() const { return m_kappa; }
-
-  //! Resturns a const reference to the radial grid
-  const Grid &grid() const { return *m_rgrid; };
-  //! Resturns copy of shared_ptr to grid [shared resource] - used when we want
-  //! to construct a new DiracSpinor that shares this grid
-  std::shared_ptr<const Grid> grid_sptr() const { return m_rgrid; };
-
-  //! Single-particle energy, not including rest energy
-  auto en() const { return m_en; }
-  auto &set_en() { return m_en; }
-
-  //! Upper (large) radial component, f(r)
-  const auto &f() const { return m_f; }
-  auto &set_f() { return m_f; }
-  auto f(std::size_t i) const { return m_f.at(i); }
-  auto &set_f(std::size_t i) { return m_f.at(i); }
-
-  //! Lower (small) radial component, g(r)
-  const auto &g() const { return m_g; }
-  auto &set_g() { return m_g; }
-  auto g(std::size_t i) const { return m_g.at(i); }
-  auto &set_g(std::size_t i) { return m_g.at(i); }
-
-  //! First non-zero point (index for f[i])
-  auto min_pt() const { return m_p0; }
-  auto &set_min_pt() { return m_p0; }
-
-  //! Last non-zero point (index for f[i])
-  auto max_pt() const { return m_pinf; }
-  auto &set_max_pt() { return m_pinf; }
-
-  //! r0 = r[min_pt] (in atomic units)
-  double r0() const;
-  //! rinf = r[max_pt]
-  double rinf() const;
-
-  //! Number of iterations until energy convergence (for latest routine only)
-  auto its() const { return m_its; }
-  auto &set_its() { return m_its; }
-
-  //! Occupation fraction. =1 for closed shells. =1/(2j+1) for valence
-  auto occ_frac() const { return m_occ_frac; }
-  auto &set_occ_frac() { return m_occ_frac; }
-
-  //! Fractional energy convergence: eps = |(en'-en)/en|
-  auto eps() const { return m_eps; }
-  auto &set_eps() { return m_eps; }
-
-  //! Scales DiracSpinor (f and g) by constant
-  const DiracSpinor &scale(const double factor);
-  //! Scales DiracSpinor (f and g) by function of r
-  const DiracSpinor &scale(const std::vector<double> &v);
-  //! By default normalises to 1, but can normalise to other number.
-  void normalise(double norm_to = 1.0);
-  //! Forces f(r) and g(r) to be zero outside of [p0,pinf)
-  void zero_boundaries();
-
   //! Orbital angular momentum Q number
   int l() const { return m_l; }
   //! j(j+1)
@@ -152,11 +95,69 @@ public:
   int k_index() const { return m_kappa_index; }
   //! (n,kappa) index (see AtomData)
   Index nk_index() const { return m_nkappa_index; }
-
   //! Single-electron term symbol (e.g., 6s_1/2). Gnuplot=true => 6s_{1/2}
   std::string symbol(bool gnuplot = false) const;
   //! e.g., 6p_1/2 => 6p-, 6p_3/2 => 6p+
   std::string shortSymbol() const;
+
+  //! Resturns a const reference to the radial grid
+  const Grid &grid() const { return *m_rgrid; };
+  //! Resturns copy of shared_ptr to grid [shared resource] - used when we want
+  //! to construct a new DiracSpinor that shares this grid
+  std::shared_ptr<const Grid> grid_sptr() const { return m_rgrid; };
+
+  //! Single-particle energy, not including rest energy
+  double en() const { return m_en; }
+  double &en() { return m_en; }
+
+  //! Upper (large) radial component function, f
+  const std::vector<double> &f() const { return m_f; }
+  std::vector<double> &f() { return m_f; }
+  //! Upper (large) radial component, f(r_i)
+  double f(std::size_t i) const { return m_f.at(i); }
+  double &f(std::size_t i) { return m_f.at(i); }
+
+  //! Lower (small) radial component function, g
+  const std::vector<double> &g() const { return m_g; }
+  std::vector<double> &g() { return m_g; }
+  //! Lower (small) radial component, g(r_i)
+  double g(std::size_t i) const { return m_g.at(i); }
+  double &g(std::size_t i) { return m_g.at(i); }
+
+  //! First non-zero point (index for f[i])
+  // XXX Kill this?
+  auto min_pt() const { return m_p0; }
+  auto &min_pt() { return m_p0; }
+
+  //! Last non-zero point (index for f[i])
+  auto max_pt() const { return m_pinf; }
+  auto &max_pt() { return m_pinf; }
+
+  //! r0 = r[min_pt] (in atomic units) XXX Kill this?
+  double r0() const;
+  //! rinf = r[max_pt]
+  double rinf() const;
+
+  //! Number of iterations until energy convergence (for latest routine only)
+  auto its() const { return m_its; }
+  auto &its() { return m_its; }
+
+  //! Occupation fraction. =1 for closed shells. =1/(2j+1) for valence
+  auto occ_frac() const { return m_occ_frac; }
+  auto &occ_frac() { return m_occ_frac; }
+
+  //! Fractional energy convergence: eps = |(en'-en)/en|
+  auto eps() const { return m_eps; }
+  auto &eps() { return m_eps; }
+
+  //! Scales DiracSpinor (f and g) by constant
+  const DiracSpinor &scale(const double factor);
+  //! Scales DiracSpinor (f and g) by function of r
+  const DiracSpinor &scale(const std::vector<double> &v);
+  //! By default normalises to 1, but can normalise to other number.
+  void normalise(double norm_to = 1.0);
+  //! Forces f(r) and g(r) to be zero outside of [p0,pinf)
+  void zero_boundaries();
 
   //! Returns the norm, defined: Norm = Sqrt[<a|a>]
   double norm() const;
@@ -176,6 +177,7 @@ public:
   //! Returns radial integral (Fa,Fb) = Int(fa*fb + ga*gb)
   friend double operator*(const DiracSpinor &Fa, const DiracSpinor &Fb);
 
+  //! Addition of two DiracSpinors - must have same kappa
   DiracSpinor &operator+=(const DiracSpinor &rhs);
   DiracSpinor &operator-=(const DiracSpinor &rhs);
   friend DiracSpinor operator+(DiracSpinor lhs, const DiracSpinor &rhs);
@@ -198,10 +200,6 @@ public:
   friend bool operator<=(const DiracSpinor &lhs, const DiracSpinor &rhs);
   friend bool operator>=(const DiracSpinor &lhs, const DiracSpinor &rhs);
 
-  friend std::ostream &operator<<(std::ostream &ostr, const DiracSpinor &Fa) {
-    return ostr << Fa.shortSymbol();
-  }
-
   //! Custom comparitors (for sorting): l, j, kappa_index, energy
   static bool comp_l(const DiracSpinor &lhs, const DiracSpinor &rhs) {
     return lhs.m_l < rhs.m_l;
@@ -214,6 +212,11 @@ public:
   }
   static bool comp_en(const DiracSpinor &lhs, const DiracSpinor &rhs) {
     return lhs.en() < rhs.en();
+  }
+
+  //! Writes short symbol to ostream
+  friend std::ostream &operator<<(std::ostream &ostr, const DiracSpinor &Fa) {
+    return ostr << Fa.shortSymbol();
   }
 
   // Static (helper) functions:

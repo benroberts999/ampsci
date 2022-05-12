@@ -18,7 +18,7 @@
 
 namespace UnitTest {
 
-//******************************************************************************
+//==============================================================================
 //! Unit tests for solving (local) Dirac equation ODE
 bool DiracODE(std::ostream &obuff) {
   bool pass = true;
@@ -82,8 +82,8 @@ bool DiracODE(std::ostream &obuff) {
     const auto worst_F =
         std::max_element(cbegin(orbitals), cend(orbitals), comp_eps_en);
 
-    const auto exact =
-        AtomData::diracen(Zeff, worst_F->n(), worst_F->kappa(), PhysConst::alpha);
+    const auto exact = AtomData::diracen(Zeff, worst_F->n(), worst_F->kappa(),
+                                         PhysConst::alpha);
     const auto eps = std::abs((worst_F->en() - exact) / exact);
 
     pass &=
@@ -106,7 +106,8 @@ bool DiracODE(std::ostream &obuff) {
     const auto get_worst = [&orbitals, &grid, Zeff](const auto &o) {
       std::pair<std::string, double> worst{"", 0.0};
       for (const auto &Fa : orbitals) {
-        const auto Fexact = DiracSpinor::exactHlike(Fa.n(), Fa.kappa(), grid, Zeff);
+        const auto Fexact =
+            DiracSpinor::exactHlike(Fa.n(), Fa.kappa(), grid, Zeff);
         const auto aoa = o.radialIntegral(Fa, Fa);
         const auto AoA = o.radialIntegral(Fexact, Fexact);
         const auto eps = std::abs((aoa - AoA) / AoA);

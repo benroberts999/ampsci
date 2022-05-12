@@ -8,7 +8,7 @@
 
 namespace MBPT {
 
-//******************************************************************************
+//==============================================================================
 double
 Lkmnij(int k, const DiracSpinor &m, const DiracSpinor &n, const DiracSpinor &i,
        const DiracSpinor &b, const Coulomb::CoulombTable &qk,
@@ -155,7 +155,7 @@ double L2(int k, const DiracSpinor &m, const DiracSpinor &n,
   return l2;
 }
 
-//******************************************************************************
+//==============================================================================
 void fill_Lk_mnib(Coulomb::CoulombTable *lk, const Coulomb::CoulombTable &qk,
                   const std::vector<DiracSpinor> &excited,
                   const std::vector<DiracSpinor> &core,

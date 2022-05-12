@@ -41,7 +41,7 @@ inline std::string_view ParseEnum(ExchangeMethod method) {
   return "unkown";
 }
 
-//******************************************************************************
+//==============================================================================
 
 class FeynmanSigma final : public CorrelationPotential {
 public:
@@ -82,8 +82,11 @@ public:
   //! Returns (ref to) radial exchange matrix Vx_kappa. Nb: includes dri*drj
   [[nodiscard]] const GMatrix &get_Vx_kappa(int kappa) const;
 
-  [[nodiscard]] const ComplexGMatrix &get_dri() const { return *m_dri; }
-  [[nodiscard]] const ComplexGMatrix &get_drj() const { return *m_drj; }
+  [[nodiscard]] const ComplexGMatrix &get_dri() const {
+    return *m_dri;
+  }[[nodiscard]] const ComplexGMatrix &get_drj() const {
+    return *m_drj;
+  }
 
   //! Calculates direct Sigma using Feynman method
   [[nodiscard]] GMatrix FeynmanDirect(int kv, double env, int k = -1) const;

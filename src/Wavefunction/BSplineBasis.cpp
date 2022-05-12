@@ -25,7 +25,7 @@ namespace SplineBasis {
 // columnheader(i), for [i=2:6] "Cs_basis.txt" u 1:i every :::0::0 w l dt 0 lc i
 // notitle
 
-//******************************************************************************
+//==============================================================================
 Parameters::Parameters(IO::InputBlock input)
     : states(input.get<std::string>("states", "")),
       n(input.get("number", 0ul)),
@@ -48,7 +48,7 @@ Parameters::Parameters(std::string istates, std::size_t in, std::size_t ik,
       positronQ(ipositronQ),
       type(itype) {}
 
-//******************************************************************************
+//==============================================================================
 std::vector<DiracSpinor> form_basis(const Parameters &params,
                                     const Wavefunction &wf,
                                     const bool correlationsQ)
@@ -189,7 +189,7 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
   return basis;
 }
 
-//******************************************************************************
+//==============================================================================
 std::pair<std::vector<DiracSpinor>, std::vector<DiracSpinor>>
 form_spline_basis(const int kappa, const std::size_t n_states,
                   const std::size_t k_spl, const double r0_spl,
@@ -245,35 +245,35 @@ form_spline_basis(const int kappa, const std::size_t n_states,
       // Set the splines
       auto &Sn1 = basis.at(nB - imin);
       // First "f-like" set
-      Sn1.set_f(ir) = bij[i][0];
-      Sn1.set_g(ir) =
+      Sn1.f(ir) = bij[i][0];
+      Sn1.g(ir) =
           lambda_DKB * 0.5 * alpha * (bij[i][1] + (kappa / r) * bij[i][0]);
       // second "g-like"
       auto &Sn2 = basis.at(nB + n_states - imin);
-      Sn2.set_f(ir) =
+      Sn2.f(ir) =
           lambda_DKB * 0.5 * alpha * (bij[i][1] - (kappa / r) * bij[i][0]);
-      Sn2.set_g(ir) = bij[i][0];
+      Sn2.g(ir) = bij[i][0];
 
       // Set the spline derivatives
       auto &dSn1 = d_basis.at(nB - imin);
       // First "f-like" set
-      dSn1.set_f(ir) = bij[i][1];
-      dSn1.set_g(ir) =
+      dSn1.f(ir) = bij[i][1];
+      dSn1.g(ir) =
           lambda_DKB * 0.5 * alpha *
           (bij[i][2] + (kappa / r) * bij[i][1] - (kappa / r / r) * bij[i][0]);
       // second "g-like"
       auto &dSn2 = d_basis.at(nB + n_states - imin);
-      dSn2.set_f(ir) =
+      dSn2.f(ir) =
           lambda_DKB * 0.5 * alpha *
           (bij[i][2] - (kappa / r) * bij[i][1] + (kappa / r / r) * bij[i][0]);
-      dSn2.set_g(ir) = bij[i][1];
+      dSn2.g(ir) = bij[i][1];
     }
   }
 
   return out;
 }
 
-//******************************************************************************
+//==============================================================================
 std::pair<LinAlg::Matrix<double>, LinAlg::Matrix<double>>
 fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
                         const std::vector<DiracSpinor> &d_basis,
@@ -335,7 +335,7 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
   return A_and_S;
 }
 
-//******************************************************************************
+//==============================================================================
 void add_NotreDameBoundary(LinAlg::Matrix<double> *pAij, const int kappa,
                            const double alpha) {
   // XX These should be re-checked..
@@ -354,7 +354,7 @@ void add_NotreDameBoundary(LinAlg::Matrix<double> *pAij, const int kappa,
   Aij[n2 - 1][n2 - 1] -= 0.5 * c * c; // g(R)^2
 }
 
-//******************************************************************************
+//==============================================================================
 void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
                            std::vector<DiracSpinor> *basis_positron,
                            const std::vector<DiracSpinor> &spl_basis,
@@ -385,7 +385,7 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
     auto &Fi = (positive_energy) ?
                    basis->emplace_back(pqn, kappa, wf.rgrid) :
                    basis_positron->emplace_back(pqn_pstrn, kappa, wf.rgrid);
-    Fi.set_en() = en;
+    Fi.en() = en;
     for (std::size_t ib = 0; ib < spl_basis.size(); ++ib) {
       Fi += pvec[ib] * spl_basis[ib];
     }
@@ -412,13 +412,13 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
           break;
         }
       }
-      Fi.set_min_pt() = p0;
-      Fi.set_max_pt() = pinf;
+      Fi.min_pt() = p0;
+      Fi.max_pt() = pinf;
     }
   }
 }
 
-//******************************************************************************
+//==============================================================================
 std::vector<double> sumrule_TKR(const std::vector<DiracSpinor> &basis,
                                 const std::vector<double> &r, bool print) {
 
@@ -455,7 +455,7 @@ std::vector<double> sumrule_TKR(const std::vector<DiracSpinor> &basis,
   return result;
 }
 
-//******************************************************************************
+//==============================================================================
 std::vector<double> sumrule_DG(int nDG, const std::vector<DiracSpinor> &basis,
                                const Grid &gr, double alpha, bool print) {
   // Drake-Goldman sum rules: w^n |<a|r|b>|^2  (n=0,1,2)

@@ -143,7 +143,7 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 }
 
-//******************************************************************************
+//==============================================================================
 
 namespace Polarisability {
 

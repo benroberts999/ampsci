@@ -39,7 +39,7 @@ bool Breit(std::ostream &obuff) {
   using datav = std::vector<std::pair<std::string, double>>;
   auto sort_by_first = [](auto x, auto y) { return x.first < y.first; };
 
-  //****************************************************************************
+  //============================================================================
   { // Test Breit energies:
 
     // Test data: From Dzuba calculation: energies (with Breit)
@@ -115,7 +115,7 @@ bool Breit(std::ostream &obuff) {
     pass &= qip::check_value(&obuff, "dE(Br) " + worst, weps, 0.0, 1.0e-3);
   }
 
-  //****************************************************************************
+  //============================================================================
   {
     // Breit to E1:
     // Test data: from Dzuba code
@@ -222,7 +222,7 @@ bool Breit(std::ostream &obuff) {
         qip::check_value(&obuff, "E1+RPA(Br) " + worstr, wepsr, 0.0, 1.0e-5);
   }
 
-  //****************************************************************************
+  //============================================================================
   // nb: Have to do this at the end, since Sigma will be included into
   // wavefunction
   {

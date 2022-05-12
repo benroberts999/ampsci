@@ -6,13 +6,13 @@
 
 namespace Angular {
 
-//******************************************************************************
+//==============================================================================
 // "Helper" functions
 constexpr int twoj(int jindex) { return 2 * jindex + 1; }
 constexpr int jindex(int twoj) { return (twoj - 1) / 2; }
 constexpr int jindex_kappa(int ka) { return (ka > 0) ? ka - 1 : -ka - 1; }
 
-//******************************************************************************
+//==============================================================================
 /*!
 @brief Lookup table for C^k and 3j symbols (special m=1/2, q=0 case)
 @details

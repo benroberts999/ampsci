@@ -19,7 +19,7 @@ double ck_loop(const Angular::CkTable &Ck, Angular::CkTable &Ck_m);
 
 } // namespace helper
 
-//******************************************************************************
+//==============================================================================
 //! Unit tests for angular functions/classes (threeJ symbols, lookup tables etc)
 bool Angular(std::ostream &obuff) {
   bool pass = true;
@@ -52,7 +52,7 @@ bool Angular(std::ostream &obuff) {
 
 } // namespace UnitTest
 
-//******************************************************************************
+//==============================================================================
 
 double UnitTest::helper::ck_loop(const Angular::CkTable &Ck,
                                  Angular::CkTable &Ck_m) {

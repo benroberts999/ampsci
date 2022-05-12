@@ -12,7 +12,7 @@ namespace qip {
 
 // Uses "no non-const ref" rule. Pass by pointer means modify value
 
-//******************************************************************************
+//==============================================================================
 //! Directly compare two arithmetic vectors of the same type and length.
 //! Returns pair {delta, itr} where delta = |max|{first - second}, itr is
 //! iterator to position in first vector where the maximum delta occured.
@@ -87,7 +87,7 @@ auto compare_eps(const std::vector<T> &first, const std::vector<T> &second) {
   return std::make_pair(largest_eps, largest_at);
 }
 
-//******************************************************************************
+//==============================================================================
 //! Adds any number of vectors, in place (modifies first vector). Must be of
 //! same type. May allocate; will resize first to be size of largest vector.
 template <typename T, typename... Args>
@@ -121,7 +121,7 @@ add(std::vector<T> first, const std::vector<T> &second, const Args &... rest) {
 //   return first;
 // }
 
-//******************************************************************************
+//==============================================================================
 //! Multiplies any number of (arithmetic) vectors, in place (modifies first
 //! vector). Must be of same type. May allocate; will resize first to be size of
 //! largest vector.
@@ -158,7 +158,7 @@ template <typename T, typename... Args>
   return first;
 }
 
-//******************************************************************************
+//==============================================================================
 //! Composes any number of vectors, in place (modifies first vector), using the
 //! provided function. Must be of same type. May allocate; will resize first to
 //! be size of largest vector.
@@ -192,7 +192,7 @@ template <typename F, typename T, typename... Args>
   return first;
 }
 
-//******************************************************************************
+//==============================================================================
 //! In-place scalar multiplication of std::vector - types must match
 template <typename T>
 void scale(std::vector<T> *vec, T x) {
@@ -209,7 +209,7 @@ template <typename T>
   return vec;
 }
 
-//******************************************************************************
+//==============================================================================
 //! Produces a uniformly*(see below) distributed range of values between
 //! [first,last] with number steps. number must be at least 2. first+last are
 //! guarenteed to be the first and last points in the range. For integral T,
@@ -308,7 +308,7 @@ std::vector<T> loglinear_range(T first, T last, T b, N number) {
   return range;
 }
 
-//******************************************************************************
+//==============================================================================
 //! first[i]*...rest[i]  --  used to allow inner_product
 template <typename T, typename... Args>
 constexpr auto multiply_at(std::size_t i, const T &first,
@@ -340,7 +340,7 @@ auto inner_product_sub(std::size_t p0, std::size_t pinf, const T &first,
   return res;
 }
 
-//******************************************************************************
+//==============================================================================
 template <typename F, typename T> T apply_to(const F &func, T list) {
   for (auto &l : list) {
     l = func(l);
@@ -348,8 +348,8 @@ template <typename F, typename T> T apply_to(const F &func, T list) {
   return list;
 }
 
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+//==============================================================================
 namespace overloads {
 
 // Provide addition of two vectors:

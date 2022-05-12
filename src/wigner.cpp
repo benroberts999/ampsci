@@ -9,7 +9,7 @@
 Quick routine that outputs numeric values for Wigner 3,6,9J symbols.
 */
 
-//******************************************************************************
+//==============================================================================
 void instructions(const std::string &input = "") {
   std::cout << "\nI don't understand the input:\n";
   std::cout << "  '" << input << "'\n";
@@ -25,7 +25,7 @@ void instructions(const std::string &input = "") {
       << "You can use any symbol in place of the commas (incl space).\n\n";
 }
 
-//******************************************************************************
+//==============================================================================
 void calculateSingleTerm(const std::string &input) {
 
   // read each number into vector:
@@ -88,7 +88,7 @@ void calculateSingleTerm(const std::string &input) {
   }
 }
 
-//******************************************************************************
+//==============================================================================
 int main(int num_in, char *argv[]) {
 
   if (num_in <= 1) {

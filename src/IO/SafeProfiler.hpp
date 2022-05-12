@@ -32,7 +32,7 @@ constexpr bool do_profile = true;
 constexpr bool do_profile = false;
 #endif
 
-//******************************************************************************
+//==============================================================================
 // Thread-safe profiler (timing) tool
 class ProfileLog {
 
@@ -87,7 +87,7 @@ class ProfileLog {
   }
 };
 
-//******************************************************************************
+//==============================================================================
 class Profiler {
   friend class ProfileLog;
   const std::string name;
@@ -114,7 +114,7 @@ public:
   }
 };
 
-//******************************************************************************
+//==============================================================================
 //! @details This function does the timing/profiling. It returns an object (a
 //! profile logger), which must survive to the end of the scope you are trying
 //! to profile. Call function once at beginning of scope, store its returned

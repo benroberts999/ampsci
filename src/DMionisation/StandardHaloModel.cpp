@@ -14,7 +14,7 @@ StandardHaloModel::StandardHaloModel(double in_cosphi, double dves, double dv0)
   m_normConst *= normfv();
 }
 
-//******************************************************************************
+//==============================================================================
 double StandardHaloModel::fv(double v) const
 // Standard halo model for velocity distribution, in laboratory frame.
 //  f ~ v^2 exp(-v^2)
@@ -48,7 +48,7 @@ double StandardHaloModel::fv(double v) const
   }
 }
 
-//******************************************************************************
+//==============================================================================
 double StandardHaloModel::normfv() const {
   const int num_vsteps = 2000;
   const double dv = AstroConsts::v_max / num_vsteps;
@@ -63,7 +63,7 @@ double StandardHaloModel::normfv() const {
   return 1.0 / (A * dv);
 }
 
-//******************************************************************************
+//==============================================================================
 std::vector<double>
 StandardHaloModel::fv(const std::vector<double> &v_array) const {
   // Fills an (external) vector array with f(v) values.

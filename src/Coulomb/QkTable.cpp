@@ -10,7 +10,7 @@
 
 namespace Coulomb {
 
-//******************************************************************************
+//==============================================================================
 void CoulombTable::summary() const {
   std::cout << "Summary: \n";
   int k = 0;
@@ -32,7 +32,7 @@ int CoulombTable::count() const {
   return static_cast<int>(total);
 }
 
-//******************************************************************************
+//==============================================================================
 void CoulombTable::add(int k, const DiracSpinor &a, const DiracSpinor &b,
                        const DiracSpinor &c, const DiracSpinor &d, Real value) {
   // [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
@@ -53,7 +53,7 @@ void CoulombTable::add(int k, BigIndex index, Real value) {
   m_data.at(sk).insert({index, value});
 }
 
-//******************************************************************************
+//==============================================================================
 // Updates Q in table. If not present, adds new Q
 void CoulombTable::update(int k, const DiracSpinor &a, const DiracSpinor &b,
                           const DiracSpinor &c, const DiracSpinor &d,
@@ -75,7 +75,7 @@ void CoulombTable::update(int k, BigIndex index, Real value) {
   }
   m_data.at(sk).insert_or_assign(index, value);
 }
-//******************************************************************************
+//==============================================================================
 bool CoulombTable::contains(int k, const DiracSpinor &a, const DiracSpinor &b,
                             const DiracSpinor &c, const DiracSpinor &d) const {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
@@ -93,10 +93,10 @@ bool CoulombTable::contains(int k, BigIndex index) const {
   return m_data.at(sk).find(index) != m_data.at(sk).cend();
 }
 
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+//==============================================================================
 
-//******************************************************************************
+//==============================================================================
 double CoulombTable::Q(int k, const DiracSpinor &a, const DiracSpinor &b,
                        const DiracSpinor &c, const DiracSpinor &d) const {
   const auto sk = std::size_t(k);
@@ -120,7 +120,7 @@ double CoulombTable::Q(int k, BigIndex index) const {
   return map_it->second;
 }
 
-//******************************************************************************
+//==============================================================================
 double CoulombTable::R(int k, const DiracSpinor &a, const DiracSpinor &b,
                        const DiracSpinor &c, const DiracSpinor &d) const {
   const auto tQk = Q(k, a, b, c, d);
@@ -132,7 +132,7 @@ double CoulombTable::R(int k, const DiracSpinor &a, const DiracSpinor &b,
   return tQk / (s * tCkac * tCkbd);
 }
 
-//******************************************************************************
+//==============================================================================
 double CoulombTable::P(int k, const DiracSpinor &a, const DiracSpinor &b,
                        const DiracSpinor &c, const DiracSpinor &d,
                        const Angular::SixJTable *const sj) const {
@@ -156,7 +156,7 @@ double CoulombTable::P(int k, const DiracSpinor &a, const DiracSpinor &b,
   return Pk_abcd;
 }
 
-//******************************************************************************
+//==============================================================================
 double CoulombTable::P2(int k, const DiracSpinor &a, const DiracSpinor &b,
                         const DiracSpinor &c, const DiracSpinor &d,
                         const Angular::SixJTable &sj,
@@ -184,7 +184,7 @@ double CoulombTable::P2(int k, const DiracSpinor &a, const DiracSpinor &b,
   return Pk_abcd;
 }
 
-//******************************************************************************
+//==============================================================================
 double CoulombTable::W(int k, const DiracSpinor &a, const DiracSpinor &b,
                        const DiracSpinor &c, const DiracSpinor &d,
                        const Angular::SixJTable *const sj) const {
@@ -192,10 +192,10 @@ double CoulombTable::W(int k, const DiracSpinor &a, const DiracSpinor &b,
   return Q(k, a, b, c, d) + P(k, a, b, c, d, sj);
 }
 
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+//==============================================================================
 
-//******************************************************************************
+//==============================================================================
 CoulombTable::BigIndex CoulombTable::NormalOrder(const DiracSpinor &a,
                                                  const DiracSpinor &b,
                                                  const DiracSpinor &c,
@@ -204,7 +204,7 @@ CoulombTable::BigIndex CoulombTable::NormalOrder(const DiracSpinor &a,
                           d.nk_index());
 }
 
-//******************************************************************************
+//==============================================================================
 CoulombTable::BigIndex CoulombTable::CurrentOrder(const DiracSpinor &a,
                                                   const DiracSpinor &b,
                                                   const DiracSpinor &c,
@@ -213,7 +213,7 @@ CoulombTable::BigIndex CoulombTable::CurrentOrder(const DiracSpinor &a,
 }
 
 // XXX Note: this failed sometimes when there were repeated indices!
-// //******************************************************************************
+// //==============================================================================
 // CoulombTable::BigIndex QkTable::NormalOrder_impl(Index a, Index b, Index c,
 //                                                  Index d) const {
 //   // put smallest first
@@ -298,7 +298,7 @@ CoulombTable::BigIndex NkTable::NormalOrder_impl(Index a, Index b, Index c,
   return FormIndex(a, b, c, d);
 }
 
-//******************************************************************************
+//==============================================================================
 CoulombTable::BigIndex CoulombTable::FormIndex(Index a, Index b, Index c,
                                                Index d) const {
   // create a BigIndex from four small Index, by laying out in memory
@@ -313,7 +313,7 @@ CoulombTable::BigIndex CoulombTable::FormIndex(Index a, Index b, Index c,
   return big_index;
 }
 
-//******************************************************************************
+//==============================================================================
 std::array<CoulombTable::Index, 4>
 CoulombTable::UnFormIndex(const BigIndex &index) const {
   static_assert(sizeof(BigIndex) == sizeof(std::array<Index, 4>));
@@ -322,8 +322,8 @@ CoulombTable::UnFormIndex(const BigIndex &index) const {
   return set;
 }
 
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+//==============================================================================
 void QkTable::fill(const std::vector<DiracSpinor> &basis, const YkTable &yk,
                    int k_cut) {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
@@ -434,7 +434,7 @@ void QkTable::fill(const std::vector<DiracSpinor> &basis, const YkTable &yk,
   summary();
 }
 
-//******************************************************************************
+//==============================================================================
 void CoulombTable::write(const std::string &fname) const {
   if (fname == "false")
     return;

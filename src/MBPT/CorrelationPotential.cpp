@@ -20,8 +20,8 @@
 
 namespace MBPT {
 
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+//==============================================================================
 CorrelationPotential::CorrelationPotential(
     const HF::HartreeFock *const in_hf, const std::vector<DiracSpinor> &basis,
     const Sigma_params &sigp, const rgrid_params &subgridp)
@@ -39,7 +39,7 @@ CorrelationPotential::CorrelationPotential(
   setup_subGrid(subgridp.r0, subgridp.rmax);
 }
 
-//******************************************************************************
+//==============================================================================
 void CorrelationPotential::setup_subGrid(double rmin, double rmax) {
   // Form the "Sigma sub-grid"
   // const auto &rvec = p_gr->r();
@@ -50,7 +50,7 @@ void CorrelationPotential::setup_subGrid(double rmin, double rmax) {
   m_subgrid_r.resize(m_subgrid_points); // kill! no longer used!
 }
 
-//******************************************************************************
+//==============================================================================
 std::size_t CorrelationPotential::getSigmaIndex(int n, int kappa) const {
 
   //
@@ -85,7 +85,7 @@ const GMatrix *CorrelationPotential::getSigma(int n, int kappa) const {
   return (is < m_Sigma_kappa.size()) ? &m_Sigma_kappa[is] : nullptr;
 }
 
-//******************************************************************************
+//==============================================================================
 DiracSpinor CorrelationPotential::SigmaFv(const DiracSpinor &v) const {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   // Find correct G matrix (corresponds to kappa_v), return Sigma|v>
@@ -102,7 +102,7 @@ DiracSpinor CorrelationPotential::SigmaFv(const DiracSpinor &v) const {
   return 0.0 * v;
 }
 
-//******************************************************************************
+//==============================================================================
 void CorrelationPotential::scale_Sigma(int n, int kappa, double lambda) {
   // XXX Careful; likely to be incorrect?? if given too-large n...
   const auto is = getSigmaIndex(n, kappa);
@@ -112,7 +112,7 @@ void CorrelationPotential::scale_Sigma(int n, int kappa, double lambda) {
   m_lambda_kappa[is] = lambda;
 }
 
-//******************************************************************************
+//==============================================================================
 std::vector<DiracSpinor>
 CorrelationPotential::copy_holes(const std::vector<DiracSpinor> &basis,
                                  const std::vector<DiracSpinor> &core,
@@ -139,7 +139,7 @@ CorrelationPotential::copy_excited(const std::vector<DiracSpinor> &basis,
   return t_excited;
 }
 
-//******************************************************************************
+//==============================================================================
 void CorrelationPotential::addto_G(GMatrix *Gmat, const DiracSpinor &ket,
                                    const DiracSpinor &bra,
                                    const double f) const {
@@ -147,7 +147,7 @@ void CorrelationPotential::addto_G(GMatrix *Gmat, const DiracSpinor &ket,
   Gmat->add(ket, bra, f);
 }
 
-//******************************************************************************
+//==============================================================================
 DiracSpinor CorrelationPotential::act_G_Fv(const GMatrix &Gmat,
                                            const DiracSpinor &Fv) const {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
@@ -186,14 +186,14 @@ DiracSpinor CorrelationPotential::act_G_Fv(const GMatrix &Gmat,
   // }
   //
   // // Interpolate from sub-grid to full grid
-  // SigmaFv.set_f() = Interpolator::interpolate(m_subgrid_r, f, gr.r());
+  // SigmaFv.f() = Interpolator::interpolate(m_subgrid_r, f, gr.r());
   // if (m_include_G) {
-  //   SigmaFv.set_g() = Interpolator::interpolate(m_subgrid_r, g, gr.r());
+  //   SigmaFv.g() = Interpolator::interpolate(m_subgrid_r, g, gr.r());
   // }
   // return SigmaFv;
 }
 
-//******************************************************************************
+//==============================================================================
 double CorrelationPotential::act_G_Fv_2(const DiracSpinor &Fa,
                                         const GMatrix &Gmat,
                                         const DiracSpinor &Fb) const {
@@ -226,7 +226,7 @@ double CorrelationPotential::act_G_Fv_2(const DiracSpinor &Fa,
   // return aGb;
 }
 
-//******************************************************************************
+//==============================================================================
 double CorrelationPotential::SOEnergyShift(const DiracSpinor &v,
                                            const DiracSpinor &w,
                                            int max_l) const {
@@ -298,7 +298,7 @@ double CorrelationPotential::SOEnergyShift(const DiracSpinor &v,
   return std::accumulate(delta_a.cbegin(), delta_a.cend(), 0.0);
 }
 
-//******************************************************************************
+//==============================================================================
 bool CorrelationPotential::read_write(const std::string &fname,
                                       IO::FRW::RoW rw) {
 
@@ -391,7 +391,7 @@ bool CorrelationPotential::read_write(const std::string &fname,
   return true;
 }
 
-//******************************************************************************
+//==============================================================================
 void CorrelationPotential::print_scaling() const {
   if (!m_lambda_kappa.empty()) {
     std::cout << "Scaled Sigma, with: lambda_kappa = ";
@@ -402,7 +402,7 @@ void CorrelationPotential::print_scaling() const {
   }
 }
 
-//******************************************************************************
+//==============================================================================
 void CorrelationPotential::print_subGrid() const {
   if (m_subgrid_r.empty()) {
     std::cout << "No sub-grid??\n";
@@ -414,10 +414,10 @@ void CorrelationPotential::print_subGrid() const {
          int(m_subgrid_points), int(m_imin), int(m_stride));
 }
 
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+//==============================================================================
 
-//******************************************************************************
+//==============================================================================
 RDMatrix<double>
 CorrelationPotential::Sigma_l(const DiracSpinor &v, const Coulomb::YkTable &yk,
                               const Coulomb::LkTable &lk,

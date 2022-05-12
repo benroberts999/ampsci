@@ -24,7 +24,7 @@
 
 namespace Module {
 
-//******************************************************************************
+//==============================================================================
 void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   input.check({{"operator", "e.g., E1, hfs"},
                {"options", "options specific to operator; blank by dflt"},
@@ -118,7 +118,7 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 }
 
-//****************************************************************************
+//============================================================================
 // Calculates Structure Radiation + Normalisation of States
 void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
 
@@ -315,7 +315,7 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   return;
 }
 
-//******************************************************************************
+//==============================================================================
 void calculateLifetimes(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "\nLifetimes:\n";
   std::cout << "Note: Uses _valence_ states - so, must ensure all lower states "

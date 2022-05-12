@@ -45,7 +45,7 @@ Atom{Z=Cs;A=default;}
     * options{a=1; b=2;}
 * Program will _usually_ warn you if an incorrect option is given, and print all the available options to the screen -- you can use this fact to get the code to print all the available options for each block.
 
-********************************************************************************
+================================================================================
 ## Auto-documentation
 
  * This document may go out-of-sync with the code
@@ -59,7 +59,7 @@ blockname {
 
 
 
-********************************************************************************
+================================================================================
 All available ampsci options/blocks are:
 
 ```cpp
@@ -79,7 +79,7 @@ ampsci{
 ```
 
 
-********************************************************************************
+================================================================================
 # Some details for each input block:
 
 ## Atom

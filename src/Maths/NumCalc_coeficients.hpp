@@ -2,7 +2,7 @@
 #include <array>
 
 namespace NumCalc {
-//******************************************************************************
+//==============================================================================
 // Define the coeficients for quadrature integration:
 template <std::size_t N> struct QintCoefs {};
 

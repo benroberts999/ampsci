@@ -9,7 +9,7 @@
 */
 namespace SphericalBessel {
 
-//******************************************************************************
+//==============================================================================
 template <typename T> T JL(const int L, const T x) {
 
   // Very low x expansion
@@ -57,12 +57,12 @@ template <typename T> T JL(const int L, const T x) {
   return (T)gsl_sf_bessel_jl(L, (double)x);
 }
 
-//******************************************************************************
+//==============================================================================
 template <typename T> T exactGSL_JL(int L, T x) {
   return (T)gsl_sf_bessel_jl(L, (double)x);
 }
 
-//******************************************************************************
+//==============================================================================
 //! Creates a vector of Jl(r) for given r
 template <typename T> //
 std::vector<T> fillBesselVec(const int l, const std::vector<T> &xvec) {

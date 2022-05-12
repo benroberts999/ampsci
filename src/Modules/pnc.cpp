@@ -18,7 +18,7 @@ namespace Module {
 
 using namespace Pnc;
 
-//******************************************************************************
+//==============================================================================
 void calculatePNC(const IO::InputBlock &input, const Wavefunction &wf) {
   const std::string ThisModule = "Module::PNC";
 
@@ -62,7 +62,7 @@ void calculatePNC(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto &Fa = *pA;
   const auto &Fb = *pB;
 
-  std::cout << "\n********************************************** \n";
+  std::cout << "\n============================================== \n";
   std::cout << "E_pnc (B->A): " << wf.atom() << ":   A = " << Fa.symbol()
             << " ,  B = " << Fb.symbol() << "\n"
             << "z-component, z=min(ja,jb). units: i(-Qw/N)10^-11.\n";
@@ -135,11 +135,11 @@ void calculatePNC(const IO::InputBlock &input, const Wavefunction &wf) {
   printf("eps(SEs)    : %.0e, %.0e  %.1e\n", eps_se1, eps_se2, eps_se);
 }
 
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+//==============================================================================
 namespace Pnc {
 
-//******************************************************************************
+//==============================================================================
 std::pair<double, double> pnc_sos(const DiracSpinor &Fa, const DiracSpinor &Fb,
                                   const DiracOperator::TensorOperator *hpnc,
                                   const ExternalField::TDHF *dVpnc,
@@ -175,9 +175,11 @@ std::pair<double, double> pnc_sos(const DiracSpinor &Fa, const DiracSpinor &Fb,
   for (auto &np : spectrum) {
     if (np == Fb || np == Fa)
       continue;
-    if (hpnc->isZero(np.kappa(), Fa.kappa()) && hpnc->isZero(np.kappa(), Fb.kappa()))
+    if (hpnc->isZero(np.kappa(), Fa.kappa()) &&
+        hpnc->isZero(np.kappa(), Fb.kappa()))
       continue;
-    if (he1->isZero(np.kappa(), Fa.kappa()) && he1->isZero(np.kappa(), Fb.kappa()))
+    if (he1->isZero(np.kappa(), Fa.kappa()) &&
+        he1->isZero(np.kappa(), Fb.kappa()))
       continue;
     const auto coreQ = np.en() < en_core;
     const auto mainQ = !coreQ && np.n() <= main_n;
@@ -226,7 +228,7 @@ std::pair<double, double> pnc_sos(const DiracSpinor &Fa, const DiracSpinor &Fb,
   return {pnc_1, pnc_2};
 }
 
-//******************************************************************************
+//==============================================================================
 DiracSpinor orthog_to_core(DiracSpinor dF,
                            const std::vector<DiracSpinor> &in_orbs,
                            double en_core) {
@@ -250,7 +252,7 @@ DiracSpinor orthog_to_coremain(DiracSpinor dF,
   return dF;
 }
 
-//******************************************************************************
+//==============================================================================
 std::pair<double, double> pnc_tdhf(const DiracSpinor &Fa, const DiracSpinor &Fb,
                                    const DiracOperator::TensorOperator *hpnc,
                                    const ExternalField::TDHF *dVpnc,

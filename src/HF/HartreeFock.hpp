@@ -25,19 +25,19 @@ namespace HF {
 constexpr bool print_final_eps = false;
 constexpr bool print_each_eps = false;
 
-//******************************************************************************
+//==============================================================================
 struct EpsIts {
   double eps;
   int its;
 };
 
-//******************************************************************************
+//==============================================================================
 enum class Method { HartreeFock, ApproxHF, Hartree, KohnSham, Local };
 //! @brief Convers string (name) of method (HartreeFock, Hartree etc.) to enum
 Method parseMethod(const std::string &in_method);
 std::string parseMethod(const Method &in_method);
 
-//******************************************************************************
+//==============================================================================
 //! Forms approx (localised) exchange potential, from scratch
 //! @details Needs existing orbital Fa, and the core orbitals.
 //! k_cut is max multipolarity to sum over for exchange term [can limit to ~1
@@ -54,7 +54,7 @@ std::vector<double> vex_approx(const DiracSpinor &Fa,
 DiracSpinor vexFa(const DiracSpinor &Fa, const std::vector<DiracSpinor> &core,
                   int k_cut = 99);
 
-//******************************************************************************
+//==============================================================================
 //! @brief For non-constant damping. Slowly ramps the damping factor from a_beg
 //! to a_end over interval (beg, end)
 inline auto rampedDamp(double a_beg, double a_end, int beg, int end) {
@@ -67,9 +67,9 @@ inline auto rampedDamp(double a_beg, double a_end, int beg, int end) {
   };
 }
 
-//******************************************************************************
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+//==============================================================================
+//==============================================================================
 
 //! @brief Solves relativistic Hartree-Fock equations
 /*! @details

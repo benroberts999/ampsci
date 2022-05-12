@@ -5,7 +5,7 @@
 
 namespace DiracOperator {
 
-//******************************************************************************
+//==============================================================================
 //! E^k (electric multipole) operator
 /*! @details
 \f[ h = -|e|r^k = -e r^k \f]
@@ -32,7 +32,7 @@ private:
   int m_k;
 };
 
-//******************************************************************************
+//==============================================================================
 //! Electric dipole operator: -|e|r = -er
 /*! @details
 \f[<a||d||b> = R (-1)^{ja+1/2} \sqrt{[ja][jb]} \, tjs(ja,jb,1, -1/2,1/2,0)\f]
@@ -44,7 +44,7 @@ public:
   E1(const Grid &gr) : Ek(gr, 1) {}
 };
 
-//******************************************************************************
+//==============================================================================
 //! @brief Electric dipole operator, v-form:
 //! \f$ \frac{ie}{\omega \alpha} \vec{\alpha}\f$
 /*! @details
@@ -84,7 +84,7 @@ private:
   double m_alpha; // (including var-alpha)
 };
 
-//******************************************************************************
+//==============================================================================
 inline std::unique_ptr<DiracOperator::TensorOperator>
 generate_E1(const IO::InputBlock &input, const Wavefunction &wf) {
   using namespace DiracOperator;

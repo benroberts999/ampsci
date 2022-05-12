@@ -51,7 +51,7 @@ template <typename T> class RDMatrix {
   std::vector<double> sub_r{};         // sub grid
 
 public:
-  //****************************************************************************
+  //============================================================================
 
   RDMatrix(std::size_t i0, std::size_t stride, std::size_t size, bool incl_g,
            std::shared_ptr<const Grid> rgrid)
@@ -79,7 +79,7 @@ public:
     //------------------
   }
 
-  //****************************************************************************
+  //============================================================================
   //! direct access to matrix elements
   T &ff(std::size_t i, std::size_t j) { return m_ff(i, j); }
   T &fg(std::size_t i, std::size_t j) { return m_fg(i, j); }
@@ -95,15 +95,15 @@ public:
   const LinAlg::Matrix<T> &fg() const { return m_fg; }
   const LinAlg::Matrix<T> &gf() const { return m_gf; }
   const LinAlg::Matrix<T> &gg() const { return m_gg; }
-  LinAlg::Matrix<T> &set_ff() { return m_ff; }
-  LinAlg::Matrix<T> &set_fg() { return m_fg; }
-  LinAlg::Matrix<T> &set_gf() { return m_gf; }
-  LinAlg::Matrix<T> &set_gg() { return m_gg; }
+  LinAlg::Matrix<T> &ff() { return m_ff; }
+  LinAlg::Matrix<T> &fg() { return m_fg; }
+  LinAlg::Matrix<T> &gf() { return m_gf; }
+  LinAlg::Matrix<T> &gg() { return m_gg; }
 
   std::size_t size() const { return m_size; }
   std::size_t g_size() const { return m_g_size; }
 
-  //****************************************************************************
+  //============================================================================
   //! Sets all matrix elements to zero
   void zero() {
     m_ff.zero();
@@ -120,13 +120,13 @@ public:
     m_gg.make_identity();
   }
 
-  // only for transition, kill!
-  [[deprecated]] RDMatrix<T> &plusIdent(T a = T{1.0}) {
+      // only for transition, kill!
+      [[deprecated]] RDMatrix<T> &plusIdent(T a = T{1.0}) {
     (*this) += a;
     return *this;
   }
 
-  //****************************************************************************
+  //============================================================================
   //! Matrix adition +,-
   RDMatrix<T> &operator+=(const RDMatrix<T> &rhs) {
     m_ff += rhs.m_ff;
@@ -189,7 +189,7 @@ public:
     return (M -= aI);
   }
 
-  //****************************************************************************
+  //============================================================================
 
   //! Matrix multplication: C=A*B := Cij = \sum_k Aik*Bkj.
   //! Note: integration measure not included: call .drj() first to include it!
@@ -202,17 +202,17 @@ public:
     // FG = FF*FG + FG*GG
     // GF = GF*FF + GG*GF
     // GG = GF*FG + GG*GG
-    out.set_ff() = a.ff() * b.ff();
+    out.ff() = a.ff() * b.ff();
     if (a.m_incl_g) {
-      out.set_ff() += a.fg() * b.gf();
-      out.set_fg() = a.ff() * b.fg() + a.fg() * b.gg();
-      out.set_gf() = a.gf() * b.ff() + a.gg() * b.gf();
-      out.set_gg() = a.gf() * b.fg() + a.gg() * b.gg();
+      out.ff() += a.fg() * b.gf();
+      out.fg() = a.ff() * b.fg() + a.fg() * b.gg();
+      out.gf() = a.gf() * b.ff() + a.gg() * b.gf();
+      out.gg() = a.gf() * b.fg() + a.gg() * b.gg();
     }
     return out;
   }
 
-  //****************************************************************************
+  //============================================================================
   //! Multiply elements (in place): Gij -> Gij*Bij
   RDMatrix<T> &mult_elements_by(const RDMatrix<T> &rhs) {
     m_ff.mult_elements_by(rhs.ff());
@@ -228,49 +228,49 @@ public:
     return lhs;
   }
 
-  //****************************************************************************
+  //============================================================================
 
   //! Returns conjugate of matrix
   [[nodiscard]] RDMatrix<T> conj() const {
     auto out = *this;
-    out.set_ff().conj_in_place();
-    out.set_fg().conj_in_place();
-    out.set_gf().conj_in_place();
-    out.set_gg().conj_in_place();
+    out.ff().conj_in_place();
+    out.fg().conj_in_place();
+    out.gf().conj_in_place();
+    out.gg().conj_in_place();
     return out;
   }
-  //! Returns real part of complex matrix (changes type; returns a real
-  //! matrix)
-  [[nodiscard]] RDMatrix<double> real() const {
+      //! Returns real part of complex matrix (changes type; returns a real
+      //! matrix)
+      [[nodiscard]] RDMatrix<double> real() const {
     RDMatrix<double> out(m_i0, m_stride, m_size, m_incl_g, m_rgrid);
-    out.set_ff() = m_ff.real();
-    out.set_fg() = m_fg.real();
-    out.set_gf() = m_gf.real();
-    out.set_gg() = m_gg.real();
+    out.ff() = m_ff.real();
+    out.fg() = m_fg.real();
+    out.gf() = m_gf.real();
+    out.gg() = m_gg.real();
     return out;
   }
   //! Returns imag part of complex matrix (changes type; returns a real matrix)
   [[nodiscard]] RDMatrix<double> imag() const {
     RDMatrix<double> out(m_i0, m_stride, m_size, m_incl_g, m_rgrid);
-    out.set_ff() = m_ff.imag();
-    out.set_fg() = m_fg.imag();
-    out.set_gf() = m_gf.imag();
-    out.set_gg() = m_gg.imag();
+    out.ff() = m_ff.imag();
+    out.fg() = m_fg.imag();
+    out.gf() = m_gf.imag();
+    out.gg() = m_gg.imag();
     return out;
   }
-  //! Converts a real to complex matrix (changes type; returns a complex
-  //! matrix)
-  [[nodiscard]] RDMatrix<std::complex<double>> complex() const {
+      //! Converts a real to complex matrix (changes type; returns a complex
+      //! matrix)
+      [[nodiscard]] RDMatrix<std::complex<double>> complex() const {
     RDMatrix<std::complex<double>> out(m_i0, m_stride, m_size, m_incl_g,
                                        m_rgrid);
-    out.set_ff() = m_ff.complex();
-    out.set_fg() = m_fg.complex();
-    out.set_gf() = m_gf.complex();
-    out.set_gg() = m_gg.complex();
+    out.ff() = m_ff.complex();
+    out.fg() = m_fg.complex();
+    out.gf() = m_gf.complex();
+    out.gg() = m_gg.complex();
     return out;
   }
 
-  //****************************************************************************
+  //============================================================================
   //! Inversion (in place)
   RDMatrix<T> &invert_in_place() {
     m_ff.invert_in_place();
@@ -295,7 +295,7 @@ public:
     return out.invert_in_place();
   }
 
-  //****************************************************************************
+  //============================================================================
   //! Multiplies by drj: Q_ij -> Q_ij*dr_j, in place
   RDMatrix<T> &drj_in_place() {
     const auto dus = m_rgrid->du() * double(m_stride);
@@ -359,13 +359,13 @@ public:
     return m_rgrid->drdu(full_index) * m_rgrid->du() * double(m_stride);
   }
 
-  //****************************************************************************
+  //============================================================================
   //! Converts an index on the sub-grid to the full grid.
   std::size_t index_to_fullgrid(std::size_t i) const {
     return m_i0 + i * m_stride;
   }
 
-  //****************************************************************************
+  //============================================================================
   //! Adds k*|ket><bra| to matrix (used for building Green's functions)
   void add(const DiracSpinor &ket, const DiracSpinor &bra, T k = T(1.0)) {
     // Adds (k)*|ket><bra| to G matrix
@@ -394,7 +394,7 @@ public:
     }
   }
 
-  //****************************************************************************
+  //============================================================================
   //! Action of RDMatrix operator on DiracSpinor. Inludes Integration:
   //! G*F = Int[G(r,r')*F(r') dr'] = sum_j G_ij*F_j*drdu_j*du
   DiracSpinor operator*(const DiracSpinor &Fn) const {
@@ -426,14 +426,14 @@ public:
 
     DiracSpinor out = Fn * 0.0;
     // Interpolate from sub-grid to full grid
-    out.set_f() = Interpolator::interpolate(sub_r, f, r);
+    out.f() = Interpolator::interpolate(sub_r, f, r);
     if (m_incl_g) {
-      out.set_g() = Interpolator::interpolate(sub_r, g, r);
+      out.g() = Interpolator::interpolate(sub_r, g, r);
     }
     return out;
   }
 
-  //****************************************************************************
+  //============================================================================
   // For testing only:
   friend std::ostream &operator<<(std::ostream &os, const RDMatrix<T> &a) {
     os << "FF:\n";
@@ -528,7 +528,7 @@ double max_epsilon(const RDMatrix<T> &a, const RDMatrix<T> &b) {
   return std::max({xff, xfg, xgf, xgg});
 }
 
-//******************************************************************************
+//==============================================================================
 using GMatrix = RDMatrix<double>;
 using ComplexGMatrix = RDMatrix<std::complex<double>>;
 using ComplexDouble = std::complex<double>;

@@ -32,7 +32,7 @@ constexpr bool use_omp = true;
 //! Many-body perturbation theory
 namespace MBPT {
 
-//******************************************************************************
+//==============================================================================
 FeynmanSigma::FeynmanSigma(const HF::HartreeFock *const in_hf,
                            const std::vector<DiracSpinor> &basis,
                            const Sigma_params &sigp,
@@ -72,7 +72,7 @@ FeynmanSigma::FeynmanSigma(const HF::HartreeFock *const in_hf,
   }
 }
 
-//******************************************************************************
+//==============================================================================
 void FeynmanSigma::formSigma(int kappa, double en, int n) {
   // Calc dir + exchange
   // Print D, X, (D+X) energy shift
@@ -206,7 +206,7 @@ void FeynmanSigma::formSigma(int kappa, double en, int n) {
   std::cout << "\n";
 }
 
-//******************************************************************************
+//==============================================================================
 void FeynmanSigma::prep_Feynman() {
 
   // Extand 6j and Ck
@@ -352,9 +352,9 @@ void FeynmanSigma::form_Q_dr() {
   }   // i
 
   for (auto k = 0; k <= m_maxk; ++k) {
-    m_qhat[std::size_t(k)].set_ff() = qhat[std::size_t(k)].complex();
+    m_qhat[std::size_t(k)].ff() = qhat[std::size_t(k)].complex();
     if (m_include_G) {
-      m_qhat[std::size_t(k)].set_gg() = m_qhat[std::size_t(k)].ff();
+      m_qhat[std::size_t(k)].gg() = m_qhat[std::size_t(k)].ff();
     }
   }
 
@@ -363,8 +363,8 @@ void FeynmanSigma::form_Q_dr() {
                                            m_include_G, p_gr);
   m_drj = std::make_unique<ComplexGMatrix>(m_imin, m_stride, m_subgrid_points,
                                            m_include_G, p_gr);
-  m_dri->set_ff() = t_dri.complex();
-  m_drj->set_ff() = m_dri->set_ff().transpose();
+  m_dri->ff() = t_dri.complex();
+  m_drj->ff() = m_dri->ff().transpose();
 }
 
 //------------------------------------------------------------------------------
@@ -440,7 +440,7 @@ GMatrix FeynmanSigma::calculate_Vhp(const DiracSpinor &Fc) const {
     addto_G(&OneNegPc, Fa, Fa, -1.0);
   }
 
-  //*****
+  //====*
   OneNegPc.mult_elements_by(m_drj->real());
   // OneNegPc.plusIdent(); // (1-P)
   OneNegPc += 1.0; // (1-P)
@@ -448,7 +448,7 @@ GMatrix FeynmanSigma::calculate_Vhp(const DiracSpinor &Fc) const {
 
   // out.mult_elements_by(m_dri->real());
 
-  //*****
+  //====*
   // OneNegPc.mult_elements_by(m_drj->real());
   // auto OneNegPcL = OneNegPc;
   // OneNegPcL.mult_elements_by(m_dri->real());
@@ -515,7 +515,7 @@ void FeynmanSigma::setup_omega_grid() {
   // std::cout << "\n";
 }
 
-//******************************************************************************
+//==============================================================================
 const GMatrix &FeynmanSigma::get_Vx_kappa(int kappa) const {
   const auto kappa_index = std::size_t(Angular::indexFromKappa(kappa));
   assert(kappa_index < m_Vxk.size());
@@ -527,10 +527,10 @@ const ComplexGMatrix &FeynmanSigma::get_qk(int k) const {
   return m_qhat[std::size_t(k)];
 }
 
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+//==============================================================================
 
-//******************************************************************************
+//==============================================================================
 ComplexGMatrix FeynmanSigma::Green(int kappa, std::complex<double> en,
                                    States states, GrMethod method) const {
   if (states == States::core) {
@@ -542,7 +542,7 @@ ComplexGMatrix FeynmanSigma::Green(int kappa, std::complex<double> en,
                                        Green_hf_basis(kappa, en);
 }
 
-//******************************************************************************
+//==============================================================================
 ComplexGMatrix FeynmanSigma::G_single(const DiracSpinor &ket,
                                       const DiracSpinor &bra,
                                       const std::complex<double> f) const {
@@ -551,7 +551,7 @@ ComplexGMatrix FeynmanSigma::G_single(const DiracSpinor &ket,
   return Gmat;
 }
 
-//******************************************************************************
+//==============================================================================
 ComplexGMatrix FeynmanSigma::Green_core(int kappa,
                                         std::complex<double> en) const {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__, "complex");
@@ -742,10 +742,10 @@ GMatrix FeynmanSigma::MakeGreensG0(const DiracSpinor &x0, const DiracSpinor &xI,
   return g0I;
 }
 
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+//==============================================================================
 
-//******************************************************************************
+//==============================================================================
 ComplexGMatrix FeynmanSigma::Polarisation_k(int k, std::complex<double> omega,
                                             GrMethod method) const {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
@@ -780,7 +780,7 @@ ComplexGMatrix FeynmanSigma::Polarisation_k(int k, std::complex<double> omega,
   return pi_k;
 }
 
-//******************************************************************************
+//==============================================================================
 ComplexGMatrix FeynmanSigma::X_PiQ(const ComplexGMatrix &pik,
                                    const ComplexGMatrix &qk) const {
   // Calculates [1-pi*q]^{-1} for single k (i.e., no sum over k inside)
@@ -791,7 +791,7 @@ ComplexGMatrix FeynmanSigma::X_PiQ(const ComplexGMatrix &pik,
   return (X_piq + 1.0).invert_in_place();
 }
 
-//******************************************************************************
+//==============================================================================
 std::vector<std::vector<ComplexGMatrix>>
 FeynmanSigma::make_pi_wk(int max_k, GrMethod pol_method, double omre,
                          const Grid &wgrid) const {
@@ -811,7 +811,7 @@ FeynmanSigma::make_pi_wk(int max_k, GrMethod pol_method, double omre,
   return pi_wk;
 }
 
-//******************************************************************************
+//==============================================================================
 std::vector<std::vector<ComplexGMatrix>>
 FeynmanSigma::form_QPQ_wk(int max_k, GrMethod pol_method, double omre,
                           const Grid &wgrid) const {
@@ -850,7 +850,7 @@ FeynmanSigma::form_QPQ_wk(int max_k, GrMethod pol_method, double omre,
   return qpq;
 }
 
-//******************************************************************************
+//==============================================================================
 std::vector<std::vector<ComplexGMatrix>>
 FeynmanSigma::form_Greens_kapw(int max_kappa_index, GrMethod method,
                                double en_re, const Grid &wgrid) const {
@@ -871,10 +871,10 @@ FeynmanSigma::form_Greens_kapw(int max_kappa_index, GrMethod method,
   return gs;
 }
 
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+//==============================================================================
 
-//******************************************************************************
+//==============================================================================
 GMatrix FeynmanSigma::FeynmanDirect(int kv, double env, int in_k) const {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
 
@@ -957,7 +957,7 @@ GMatrix FeynmanSigma::FeynmanDirect(int kv, double env, int in_k) const {
   return Sigma;
 }
 
-//******************************************************************************
+//==============================================================================
 GMatrix FeynmanSigma::FeynmanEx_w1w2(int kv, double en_r) const {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
 
@@ -1098,7 +1098,7 @@ GMatrix FeynmanSigma::FeynmanEx_w1w2(int kv, double en_r) const {
   return Sx;
 }
 
-//******************************************************************************
+//==============================================================================
 GMatrix FeynmanSigma::FeynmanEx_1(int kv, double env) const {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
 
@@ -1198,10 +1198,10 @@ GMatrix FeynmanSigma::FeynmanEx_1(int kv, double env) const {
   return Sx1;
 }
 
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+//==============================================================================
 
-//******************************************************************************
+//==============================================================================
 GMatrix FeynmanSigma::sumkl_gqgqg(const ComplexGMatrix &gA,
                                   const ComplexGMatrix &gB,
                                   const ComplexGMatrix &gG, int kv, int kA,
@@ -1233,7 +1233,7 @@ GMatrix FeynmanSigma::sumkl_gqgqg(const ComplexGMatrix &gA,
   return gqgqg;
 }
 
-//******************************************************************************
+//==============================================================================
 GMatrix FeynmanSigma::sumkl_GQPGQ(
     const ComplexGMatrix &gA, const ComplexGMatrix &gxBm,
     const ComplexGMatrix &gxBp, const ComplexGMatrix &pa, int kv, int kA,
@@ -1280,7 +1280,7 @@ GMatrix FeynmanSigma::sumkl_GQPGQ(
   return sum_GQPG;
 }
 
-//******************************************************************************
+//==============================================================================
 void FeynmanSigma::tensor_5_product(
     GMatrix *result, const std::complex<double> &factor,
     const ComplexGMatrix &a, const ComplexGMatrix &b, const ComplexGMatrix &c,
@@ -1316,7 +1316,7 @@ void FeynmanSigma::tensor_5_product(
   }   // r1
 }
 
-//******************************************************************************
+//==============================================================================
 double FeynmanSigma::Lkl_abcd(int k, int l, int ka, int kb, int kc,
                               int kd) const {
 
@@ -1338,7 +1338,7 @@ double FeynmanSigma::Lkl_abcd(int k, int l, int ka, int kb, int kc,
          (Ckac * Ckbd * Clad * Clbc);
 }
 
-//******************************************************************************
+//==============================================================================
 GMatrix
 FeynmanSigma::Exchange_Goldstone(const int kappa, const double en,
                                  const std::vector<double> &v_fk) const {

@@ -17,7 +17,7 @@ constexpr bool use_omp = true;
 
 namespace MBPT {
 
-//******************************************************************************
+//==============================================================================
 StructureRad::StructureRad(const std::vector<DiracSpinor> &basis,
                            double en_core, std::pair<int, int> nminmax) {
 
@@ -37,7 +37,7 @@ StructureRad::StructureRad(const std::vector<DiracSpinor> &basis,
   mY.calculate(mExcited);
 }
 
-//******************************************************************************
+//==============================================================================
 std::pair<double, double>
 StructureRad::srTB(const DiracOperator::TensorOperator *const h,
                    const DiracSpinor &w, const DiracSpinor &v, double omega,
@@ -89,7 +89,7 @@ StructureRad::srTB(const DiracOperator::TensorOperator *const h,
   return {tb, dv};
 }
 
-//******************************************************************************
+//==============================================================================
 std::pair<double, double>
 StructureRad::srC(const DiracOperator::TensorOperator *const h,
                   const DiracSpinor &w, const DiracSpinor &v,
@@ -159,7 +159,7 @@ StructureRad::srC(const DiracOperator::TensorOperator *const h,
   return {t, dv};
 }
 
-//******************************************************************************
+//==============================================================================
 std::pair<double, double>
 StructureRad::norm(const DiracOperator::TensorOperator *const h,
                    const DiracSpinor &w, const DiracSpinor &v,
@@ -177,8 +177,8 @@ StructureRad::norm(const DiracOperator::TensorOperator *const h,
   return {-0.5 * t_wv * (nv + nw), -0.5 * tdv_wv * (nv + nw)};
 }
 
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+//==============================================================================
 double StructureRad::t1234(int k, const DiracSpinor &w, const DiracSpinor &r,
                            const DiracSpinor &v, const DiracSpinor &c) const {
   return t1(k, w, r, v, c) + t2(k, w, r, v, c) + t3(k, w, r, v, c) +
@@ -191,7 +191,7 @@ double StructureRad::b1234(int k, const DiracSpinor &w, const DiracSpinor &c,
   return st * t1234(k, v, r, w, c);
 }
 
-//******************************************************************************
+//==============================================================================
 double StructureRad::t1(const int k, const DiracSpinor &w, const DiracSpinor &r,
                         const DiracSpinor &v, const DiracSpinor &c) const {
 
@@ -242,7 +242,7 @@ double StructureRad::t1(const int k, const DiracSpinor &w, const DiracSpinor &r,
   // when the other terms are all non-zero!
 }
 
-//******************************************************************************
+//==============================================================================
 double StructureRad::t2(const int k, const DiracSpinor &w, const DiracSpinor &r,
                         const DiracSpinor &v, const DiracSpinor &c) const {
 
@@ -282,7 +282,7 @@ double StructureRad::t2(const int k, const DiracSpinor &w, const DiracSpinor &r,
   return s * t;
 }
 
-//******************************************************************************
+//==============================================================================
 double StructureRad::t3(const int k, const DiracSpinor &w, const DiracSpinor &r,
                         const DiracSpinor &v, const DiracSpinor &c) const {
 
@@ -322,7 +322,7 @@ double StructureRad::t3(const int k, const DiracSpinor &w, const DiracSpinor &r,
   return s * t;
 }
 
-//******************************************************************************
+//==============================================================================
 double StructureRad::t4(const int k, const DiracSpinor &w, const DiracSpinor &r,
                         const DiracSpinor &v, const DiracSpinor &c) const {
 
@@ -367,8 +367,8 @@ double StructureRad::t4(const int k, const DiracSpinor &w, const DiracSpinor &r,
   return s * t;
 }
 
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+//==============================================================================
 double StructureRad::c1(const int k, const DiracSpinor &w, const DiracSpinor &a,
                         const DiracSpinor &v, const DiracSpinor &c) const {
 
@@ -410,7 +410,7 @@ double StructureRad::c1(const int k, const DiracSpinor &w, const DiracSpinor &a,
   return s * t;
 }
 
-//******************************************************************************
+//==============================================================================
 double StructureRad::c2(const int k, const DiracSpinor &w, const DiracSpinor &a,
                         const DiracSpinor &v, const DiracSpinor &c) const {
 
@@ -458,7 +458,7 @@ double StructureRad::c2(const int k, const DiracSpinor &w, const DiracSpinor &a,
   return s * t;
 }
 
-//******************************************************************************
+//==============================================================================
 double StructureRad::d1(const int k, const DiracSpinor &w, const DiracSpinor &r,
                         const DiracSpinor &v, const DiracSpinor &m) const {
 
@@ -500,7 +500,7 @@ double StructureRad::d1(const int k, const DiracSpinor &w, const DiracSpinor &r,
   return s * t;
 }
 
-//******************************************************************************
+//==============================================================================
 double StructureRad::d2(const int k, const DiracSpinor &w, const DiracSpinor &r,
                         const DiracSpinor &v, const DiracSpinor &m) const {
 
@@ -548,7 +548,7 @@ double StructureRad::d2(const int k, const DiracSpinor &w, const DiracSpinor &r,
   return s * t;
 }
 
-//******************************************************************************
+//==============================================================================
 double StructureRad::dSigma_dE(const DiracSpinor &v, const DiracSpinor &i,
                                const DiracSpinor &j,
                                const DiracSpinor &k) const {
@@ -573,7 +573,7 @@ double StructureRad::dSigma_dE(const DiracSpinor &v, const DiracSpinor &i,
   }
   return t / tjvp1;
 }
-//******************************************************************************
+//==============================================================================
 double StructureRad::n1(const DiracSpinor &v) const {
 
   double t = 0.0;
@@ -587,7 +587,7 @@ double StructureRad::n1(const DiracSpinor &v) const {
   return t;
 }
 
-//******************************************************************************
+//==============================================================================
 double StructureRad::n2(const DiracSpinor &v) const {
 
   double t = 0.0;

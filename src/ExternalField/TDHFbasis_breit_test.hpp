@@ -9,7 +9,7 @@
 
 namespace UnitTest {
 
-//******************************************************************************
+//==============================================================================
 namespace helper {
 std::pair<double, std::string>
 do_dV_breit_basis(const Wavefunction &wf, const Wavefunction &wfB,
@@ -17,7 +17,7 @@ do_dV_breit_basis(const Wavefunction &wf, const Wavefunction &wfB,
                   double omega = 0.0, int max_l = 99);
 } // namespace helper
 
-//******************************************************************************
+//==============================================================================
 //! Compared Breit contribution to dV using TDHF and TDHFbasis methods
 bool TDHFbasis_breit(std::ostream &obuff) { //
   bool pass = true;
@@ -76,7 +76,7 @@ bool TDHFbasis_breit(std::ostream &obuff) { //
   return pass;
 }
 
-//******************************************************************************
+//==============================================================================
 std::pair<double, std::string>
 helper::do_dV_breit_basis(const Wavefunction &wf, const Wavefunction &wfB,
                           const DiracOperator::TensorOperator *const h,

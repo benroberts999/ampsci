@@ -7,7 +7,7 @@
 
 namespace DiracOperator {
 
-//******************************************************************************
+//==============================================================================
 
 //! Functions for F(r) [eg, nuclear magnetisation distribution] and similar
 namespace Hyperfine {
@@ -104,13 +104,13 @@ inline std::vector<double> RadialFunc(int k, double, const Grid &rgrid,
 }
 } // namespace Hyperfine
 
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+//==============================================================================
 
 // XXX Make special hfsA and hfsB operators, in terms of A and B coefs,
 // and then general hfsK, just reduced matrix elements?
 
-//******************************************************************************
+//==============================================================================
 //! @brief Magnetic hyperfine operator
 //! @details Note: 'hfs_F' function (magnetization distribtuion) **includes**
 //! the 1/r^2 (slightly different to definition in paper)
@@ -175,7 +175,7 @@ private:
   // double Inuc;
 };
 
-//******************************************************************************
+//==============================================================================
 //! Units: Assumes g in nuc. magneton units (magnetic), and Q in barns
 //! (electric)
 class HyperfineK final : public TensorOperator {
@@ -224,8 +224,8 @@ private:
   double cff;
 };
 
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+//==============================================================================
 inline std::unique_ptr<DiracOperator::TensorOperator>
 generate_hfsA(const IO::InputBlock &input, const Wavefunction &wf) {
   using namespace DiracOperator;

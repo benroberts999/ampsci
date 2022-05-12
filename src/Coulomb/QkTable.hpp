@@ -10,7 +10,7 @@ namespace Coulomb {
 // ! Symmetry (state index order) for tables.
 enum class Symmetry { Qk, Wk, Lk, none };
 
-//******************************************************************************
+//==============================================================================
 /*!
 @brief
 Base (pure virtual) class to store Coulomb integrals, and similar. 3 derived
@@ -175,7 +175,7 @@ protected:
                                     Index d) const = 0;
 };
 
-//******************************************************************************
+//==============================================================================
 //! Derived CoulombTable for the Qk symmetry: {abcd} = cbad = adcb = cdab =
 //! badc = bcda = dabc = dcba.
 class QkTable : public CoulombTable {
@@ -194,7 +194,7 @@ private:
                                     Index d) const override final;
 };
 
-//******************************************************************************
+//==============================================================================
 //! Derived CoulombTable for the Wk = g symmetry: {abcd} = badc = cdab = dcba
 class WkTable : public CoulombTable {
 
@@ -206,7 +206,7 @@ private:
                                     Index d) const override final;
 };
 
-//******************************************************************************
+//==============================================================================
 //! Derived CoulombTable for the Lk symmetry: {abcd} = badc
 class LkTable : public CoulombTable {
 
@@ -218,7 +218,7 @@ private:
                                     Index d) const override final;
 };
 
-//******************************************************************************
+//==============================================================================
 //! Derived CoulombTable for NO symmetry: {abcd} = abcd only
 class NkTable : public CoulombTable {
 

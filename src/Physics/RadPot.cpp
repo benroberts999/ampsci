@@ -9,7 +9,7 @@
 
 namespace QED {
 
-//******************************************************************************
+//==============================================================================
 RadPot::Xl::Xl() : m_x{1.0} {}
 RadPot::Xl::Xl(std::vector<double> x) : m_x{std::move(x)} {}
 
@@ -21,7 +21,7 @@ double RadPot::Xl::operator()(int l) const {
   return m_x.at(std::size_t(l));
 }
 
-//******************************************************************************
+//==============================================================================
 RadPot::RadPot()
     : m_Z(0),
       m_rN(0.0),
@@ -30,7 +30,7 @@ RadPot::RadPot()
       m_xl{},
       print(true) {}
 
-//******************************************************************************
+//==============================================================================
 RadPot::RadPot(const std::vector<double> &r, double Z, double rN, double rcut,
                Scale f, Xl xl, bool tprint, bool do_readwrite)
     : m_Z(Z), m_rN(rN), m_rcut(rcut), m_f(f), m_xl(xl), print(tprint) {
@@ -45,7 +45,7 @@ RadPot::RadPot(const std::vector<double> &r, double Z, double rN, double rcut,
   }
 }
 
-//******************************************************************************
+//==============================================================================
 bool RadPot::read_write(const std::vector<double> &r, IO::FRW::RoW rw) {
 
   std::string label = "_";
@@ -108,7 +108,7 @@ bool RadPot::read_write(const std::vector<double> &r, IO::FRW::RoW rw) {
   return true;
 }
 
-//******************************************************************************
+//==============================================================================
 void RadPot::form_potentials(const std::vector<double> &r) {
   if (print) {
     std::cout << "Forming QED radiative potential ";
@@ -147,7 +147,7 @@ void RadPot::form_potentials(const std::vector<double> &r) {
   }
 }
 
-//******************************************************************************
+//==============================================================================
 std::vector<double> RadPot::Vel(int l) const {
   using namespace qip::overloads;
   const auto a = FGRP::Fit::A(m_Z, l);

@@ -10,7 +10,7 @@
 
 namespace Coulomb {
 
-//******************************************************************************
+//==============================================================================
 void YkTable::calculate(const std::vector<DiracSpinor> &a_orbs,
                         const std::vector<DiracSpinor> &b_orbs) {
   // note: make use of the symmetries: force a<=b
@@ -42,13 +42,13 @@ void YkTable::calculate(const std::vector<DiracSpinor> &a_orbs,
   }
 }
 
-//******************************************************************************
+//==============================================================================
 void YkTable::extend_angular(int new_max_2j) {
   m_Ck.fill(new_max_2j);
   m_6j.fill(new_max_2j);
 }
 
-//******************************************************************************
+//==============================================================================
 void YkTable::allocate_space(const std::vector<DiracSpinor> &a_orbs,
                              const std::vector<DiracSpinor> &b_orbs) {
 
@@ -66,7 +66,7 @@ void YkTable::allocate_space(const std::vector<DiracSpinor> &a_orbs,
   }
 }
 
-//******************************************************************************
+//==============================================================================
 const std::vector<double> *YkTable::get(const int k, const DiracSpinor &Fa,
                                         const DiracSpinor &Fb) const {
   const auto sk = static_cast<std::size_t>(k);
@@ -79,7 +79,7 @@ const std::vector<double> *YkTable::get(const int k, const DiracSpinor &Fa,
   return (it == m_Y[sk].cend()) ? nullptr : &(it->second);
 }
 
-//******************************************************************************
+//==============================================================================
 uint32_t YkTable::ab_key(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
   // symmetric: define F1=min(Fa,Fb), F2=max(Fa,Fb)
   static_assert(sizeof(uint32_t) == 2 * sizeof(uint16_t), "32=2*16");
@@ -92,7 +92,7 @@ uint32_t YkTable::ab_key(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
   return tkey;
 }
 
-//******************************************************************************
+//==============================================================================
 std::vector<double> &YkTable::get_or_insert(std::size_t k, uint32_t key) {
   if (k >= m_Y.size()) {
     m_Y.resize(k + 1);
@@ -103,7 +103,7 @@ std::vector<double> &YkTable::get_or_insert(std::size_t k, uint32_t key) {
   return new_it->second;
 }
 
-//******************************************************************************
+//==============================================================================
 std::vector<double> &YkTable::get_ref(const int k, const DiracSpinor &Fa,
                                       const DiracSpinor &Fb) {
   // May only call this function is assured vector exists
@@ -114,7 +114,7 @@ std::vector<double> &YkTable::get_ref(const int k, const DiracSpinor &Fa,
   return it->second;
 }
 
-//****************************************************************************
+//============================================================================
 double YkTable::Q(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
                   const DiracSpinor &Fc, const DiracSpinor &Fd) const {
 
@@ -131,7 +131,7 @@ double YkTable::Q(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
   return m1tk * tCac * tCbd * Rkabcd;
 }
 
-//******************************************************************************
+//==============================================================================
 double YkTable::P(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
                   const DiracSpinor &Fc, const DiracSpinor &Fd) const {
   // Pk = [k] Sum_l {a,c,k,b,d,l} Q^l_abdc
@@ -155,13 +155,13 @@ double YkTable::P(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
   return pk * (2 * k + 1);
 }
 
-//******************************************************************************
+//==============================================================================
 double YkTable::W(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
                   const DiracSpinor &Fc, const DiracSpinor &Fd) const {
   return Q(k, Fa, Fb, Fc, Fd) + P(k, Fa, Fb, Fc, Fd);
 }
 
-//******************************************************************************
+//==============================================================================
 DiracSpinor YkTable::Qkv_bcd(int kappa, const DiracSpinor &Fb,
                              const DiracSpinor &Fc, const DiracSpinor &Fd,
                              const int k) const {
@@ -180,7 +180,7 @@ DiracSpinor YkTable::Qkv_bcd(int kappa, const DiracSpinor &Fb,
   return Qkv;
 }
 
-//******************************************************************************
+//==============================================================================
 DiracSpinor YkTable::Pkv_bcd(int kappa, const DiracSpinor &Fb,
                              const DiracSpinor &Fc, const DiracSpinor &Fd,
                              const int k,

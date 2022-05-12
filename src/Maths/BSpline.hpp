@@ -32,7 +32,7 @@ class BSpline {
 
 public:
   enum class KnotDistro { logarithmic, linear, loglinear };
-  //****************************************************************************
+  //============================================================================
   //! Constructs basis of n splines of order k, defined over [0,xmax]. x0 is
   //! first non-zero knot. kd = { logarithmic, linear, loglinear }
   BSpline(std::size_t n, std::size_t k, double x0, double xmax,
@@ -59,7 +59,7 @@ public:
   // Desctructor
   ~BSpline() { gsl_bspline_free(gsl_bspl_work); }
 
-  //****************************************************************************
+  //============================================================================
   //! Order of the splines, K
   std::size_t K() { return m_K; }
   //! Degree of the splines, d:=K-1
@@ -67,7 +67,7 @@ public:
   //! Number of splines, N
   std::size_t N() { return m_N; }
 
-  //****************************************************************************
+  //============================================================================
   //! Returns the first nonzero spline index i0; Note that i runs [0,N).
   //! The last non-zero index is min(i0+K-1, N-1).
   std::size_t find_i0(double x) {
@@ -79,7 +79,7 @@ public:
     return m_N;
   }
 
-  //****************************************************************************
+  //============================================================================
   //! Returns a std::vector of all splines {b0, b1, ..., b_N-1} evaluated at x
   std::vector<double> get(double x) {
     std::vector<double> b(m_N);
@@ -90,7 +90,7 @@ public:
     return b;
   }
 
-  //****************************************************************************
+  //============================================================================
   //! Returns a pair {i0, M}, where i0 is spline index of first non-zero spline,
   //! and M is a matrix of non-zero splines and their derivatives. M_ij contains
   //! the jth derivative of the spline b[i+i0] evaulated at x.
@@ -120,7 +120,7 @@ public:
     return out;
   }
 
-  //****************************************************************************
+  //============================================================================
   void print_knots() const {
 
     std::size_t n_cols_to_print = 4;
@@ -138,7 +138,7 @@ public:
   }
 
 private:
-  //****************************************************************************
+  //============================================================================
   void set_knots(double x0, double xmax, std::size_t n_break, KnotDistro kd) {
     // Make version that takes custom (internal) knot sequence?
     // Option for linear/log-spaced knots?

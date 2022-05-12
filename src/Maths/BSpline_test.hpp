@@ -90,7 +90,7 @@ bool BSplineClass(std::ostream &obuff) {
   pass &= qip::check_value(&obuff, "Spline i0", int(max_deli), 0, 0);
   pass &= qip::check_value(&obuff, "Spline values", max_eps, 0.0, 1.0e-5);
 
-  //****************************************************************************
+  //============================================================================
   { // Check that the splines sum to 1
     // This time for N=90, K=9
     BSpline b2(90, 9, 1.0e-5, 70.0);

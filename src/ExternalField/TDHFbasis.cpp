@@ -9,13 +9,13 @@
 
 namespace ExternalField {
 
-//******************************************************************************
+//==============================================================================
 TDHFbasis::TDHFbasis(const DiracOperator::TensorOperator *const h,
                      const HF::HartreeFock *const hf,
                      const std::vector<DiracSpinor> &basis)
     : TDHF(h, hf), m_basis(basis) {}
 
-//******************************************************************************
+//==============================================================================
 DiracSpinor TDHFbasis::form_dPsi(const DiracSpinor &Fv, const double omega,
                                  dPsiType XorY, const int kappa_beta,
                                  const std::vector<DiracSpinor> &spectrum,
@@ -41,10 +41,11 @@ DiracSpinor TDHFbasis::form_dPsi(const DiracSpinor &Fv, const double omega,
 
   // nb: Spectrum must constain Sigma to include correlations
   DiracSpinor Xx{0, kappa_beta, Fv.grid_sptr()};
-  Xx.set_min_pt() = Fv.max_pt();
-  Xx.set_max_pt() = Fv.max_pt();
+  Xx.min_pt() = Fv.max_pt();
+  Xx.max_pt() = Fv.max_pt();
   for (const auto &Fn : spectrum) {
-    if (Fn.kappa() != Xx.kappa() || m_h->isZero(Fn.kappa(), Fv.kappa()) || Fv == Fn)
+    if (Fn.kappa() != Xx.kappa() || m_h->isZero(Fn.kappa(), Fv.kappa()) ||
+        Fv == Fn)
       continue;
     // XXX Check:
     // why need multiply dV by s too? Thought I shouldn't??
@@ -59,7 +60,7 @@ DiracSpinor TDHFbasis::form_dPsi(const DiracSpinor &Fv, const double omega,
   return Xx;
 }
 
-//******************************************************************************
+//==============================================================================
 //! Forms \delta Psi_v for valence state Fv for all kappas (see solve_dPsi)
 std::vector<DiracSpinor>
 TDHFbasis::form_dPsis(const DiracSpinor &Fv, const double omega, dPsiType XorY,
@@ -75,7 +76,7 @@ TDHFbasis::form_dPsis(const DiracSpinor &Fv, const double omega, dPsiType XorY,
   return dFvs;
 }
 
-//******************************************************************************
+//==============================================================================
 double TDHFbasis::dV1(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
   //
   const auto conj = Fb.en() > Fa.en();
@@ -87,7 +88,7 @@ double TDHFbasis::dV1(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
   {
     auto kappa_n = Fa.kappa();
     // auto rhs = DiracSpinor(0, Fa.kappa(), Fa.grid_sptr());
-    rhs.set_max_pt() = Fb.max_pt();
+    rhs.max_pt() = Fb.max_pt();
 
     const auto ChiType = !conj ? dPsiType::X : dPsiType::Y;
     const auto EtaType = !conj ? dPsiType::Y : dPsiType::X;
@@ -131,7 +132,7 @@ double TDHFbasis::dV1(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
   return s * (Fa * rhs);
 }
 
-//******************************************************************************
+//==============================================================================
 void TDHFbasis::solve_core(const double omega, int max_its, const bool print) {
   const double converge_targ = 1.0e-8;
   const auto damper = HF::rampedDamp(0.75, 0.25, 1, 20);
@@ -166,14 +167,14 @@ void TDHFbasis::solve_core(const double omega, int max_its, const bool print) {
 
       auto &Xx = tmp_X[ic][beta];
       Xx *= a_damp;
-      Xx += (1.0 - a_damp) *
-            form_dPsi(Fc, omega, dPsiType::X, Xx.kappa(), m_basis, StateType::ket);
+      Xx += (1.0 - a_damp) * form_dPsi(Fc, omega, dPsiType::X, Xx.kappa(),
+                                       m_basis, StateType::ket);
 
       if (!staticQ) {
         auto &Yx = tmp_Y[ic][beta];
         Yx *= a_damp;
-        Yx += (1.0 - a_damp) *
-              form_dPsi(Fc, omega, dPsiType::Y, Xx.kappa(), m_basis, StateType::ket);
+        Yx += (1.0 - a_damp) * form_dPsi(Fc, omega, dPsiType::Y, Xx.kappa(),
+                                         m_basis, StateType::ket);
       } else {
         const auto s = m_h->imaginaryQ() ? -1 : 1;
         tmp_Y[ic][beta] = s * Xx;

@@ -13,7 +13,7 @@
 
 namespace MBPT {
 
-//******************************************************************************
+//==============================================================================
 GoldstoneSigma::GoldstoneSigma(const HF::HartreeFock *const in_hf,
                                const std::vector<DiracSpinor> &basis,
                                const Sigma_params &sigp,
@@ -52,7 +52,7 @@ GoldstoneSigma::GoldstoneSigma(const HF::HartreeFock *const in_hf,
   }
 } // namespace MBPT
 
-//******************************************************************************
+//==============================================================================
 void GoldstoneSigma::formSigma(int kappa, double en, int n) {
   // Calc dir + exchange
   // Print D, X, (D+X) energy shift
@@ -105,7 +105,7 @@ void GoldstoneSigma::formSigma(int kappa, double en, int n) {
   std::cout << "\n";
 }
 
-//******************************************************************************
+//==============================================================================
 void GoldstoneSigma::Sigma2(GMatrix *Gmat_D, GMatrix *Gmat_X, int kappa,
                             double en) {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);

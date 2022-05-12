@@ -11,7 +11,7 @@
 
 namespace DiracOperator {
 
-//******************************************************************************
+//==============================================================================
 bool TensorOperator::isZero(const int ka, int kb) const {
   // checks m_rank and m_parity
   if (m_rank < std::abs(Angular::twoj_k(ka) - Angular::twoj_k(kb)) / 2)
@@ -35,7 +35,7 @@ std::string TensorOperator::R_symbol(const DiracSpinor &Fa,
   return std::string("R(") + Fa.shortSymbol() + "," + Fb.shortSymbol() + ")";
 }
 
-//******************************************************************************
+//==============================================================================
 double TensorOperator::rme3js(const int twoja, const int twojb, int two_mb,
                               int two_q) const {
   // rme3js = (-1)^{ja-ma} (ja, k, jb,\ -ma, q, mb)
@@ -63,7 +63,7 @@ double TensorOperator::reducedME(const DiracSpinor &Fa,
   return angularF(Fa.kappa(), Fb.kappa()) * radialIntegral(Fa, Fb);
 }
 
-//******************************************************************************
+//==============================================================================
 
 DiracSpinor TensorOperator::radial_rhs(const int kappa_a,
                                        const DiracSpinor &Fb) const {
@@ -71,12 +71,12 @@ DiracSpinor TensorOperator::radial_rhs(const int kappa_a,
 
   const auto &gr = *(Fb.grid_sptr());
   DiracSpinor dF(0, kappa_a, Fb.grid_sptr());
-  dF.set_min_pt() = Fb.min_pt();
-  dF.set_max_pt() = Fb.max_pt();
+  dF.min_pt() = Fb.min_pt();
+  dF.max_pt() = Fb.max_pt();
 
   if (isZero(kappa_a, Fb.kappa())) {
-    dF.set_min_pt() = Fb.min_pt();
-    dF.set_max_pt() = Fb.min_pt();
+    dF.min_pt() = Fb.min_pt();
+    dF.max_pt() = Fb.min_pt();
     return dF;
   }
 
@@ -96,20 +96,20 @@ DiracSpinor TensorOperator::radial_rhs(const int kappa_a,
 
   if (m_vec.empty()) {
     for (auto i = Fb.min_pt(); i < Fb.max_pt(); i++) {
-      dF.set_f(i) = m_constant * (cff * df[i] + cfg * dg[i]);
-      dF.set_g(i) = m_constant * (cgf * df[i] + cgg * dg[i]);
+      dF.f(i) = m_constant * (cff * df[i] + cfg * dg[i]);
+      dF.g(i) = m_constant * (cgf * df[i] + cgg * dg[i]);
     }
   } else {
     for (auto i = Fb.min_pt(); i < Fb.max_pt(); i++) {
-      dF.set_f(i) = m_constant * m_vec[i] * (cff * df[i] + cfg * dg[i]);
-      dF.set_g(i) = m_constant * m_vec[i] * (cgf * df[i] + cgg * dg[i]);
+      dF.f(i) = m_constant * m_vec[i] * (cff * df[i] + cfg * dg[i]);
+      dF.g(i) = m_constant * m_vec[i] * (cgf * df[i] + cgg * dg[i]);
     }
   }
 
   return dF;
 }
 
-//******************************************************************************
+//==============================================================================
 double TensorOperator::radialIntegral(const DiracSpinor &Fa,
                                       const DiracSpinor &Fb) const {
 

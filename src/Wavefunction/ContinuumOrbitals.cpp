@@ -14,7 +14,7 @@
 #include <string>
 #include <vector>
 
-//******************************************************************************
+//==============================================================================
 ContinuumOrbitals::ContinuumOrbitals(const Wavefunction &wf, int izion)
     : rgrid(wf.rgrid),
       p_hf(wf.getHF()),
@@ -23,7 +23,7 @@ ContinuumOrbitals::ContinuumOrbitals(const Wavefunction &wf, int izion)
       alpha(wf.alpha),
       v_local(qip::add(wf.vnuc, wf.vdir)) {}
 
-//******************************************************************************
+//==============================================================================
 double ContinuumOrbitals::check_orthog(bool print) const {
   double worst = 0.0;
   if (p_hf == nullptr)
@@ -45,7 +45,7 @@ double ContinuumOrbitals::check_orthog(bool print) const {
   return worst;
 }
 
-//******************************************************************************
+//==============================================================================
 int ContinuumOrbitals::solveContinuumHF(double ec, int max_l,
                                         const DiracSpinor *Fi)
 // Overloaded, assumes min_l=0
@@ -53,7 +53,7 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int max_l,
   return solveContinuumHF(ec, 0, max_l, Fi);
 }
 
-//******************************************************************************
+//==============================================================================
 int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
                                         const DiracSpinor *Fi)
 // Solved the Dirac equation for local potential for positive energy (no mc2)
@@ -126,7 +126,7 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
 
   // Technically, eveything above this needs to happen only once...
   // However, the below code takes ~10x longer than this, so doesn't matter much
-  //*******************************
+  //==============================*
 
   // loop through each kappa state
   for (int k_i = 0; true; ++k_i) {
@@ -138,7 +138,7 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
       break;
 
     auto &Fc = orbitals.emplace_back(0, kappa, rgrid);
-    Fc.set_en() = ec;
+    Fc.en() = ec;
     // solve initial, without exchange term
     DiracODE::solveContinuum(Fc, ec, vc, cgrid, r_asym, alpha);
 
@@ -155,8 +155,8 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
         if (p_hf->method() == HF::Method::HartreeFock) {
           auto VxFc = HF::vexFa(Fc, p_hf->get_core()) - vx0 * Fc;
           // Extend onto larger grid
-          VxFc.set_f().resize(vc.size());
-          VxFc.set_g().resize(vc.size());
+          VxFc.f().resize(vc.size());
+          VxFc.g().resize(vc.size());
           DiracODE::solveContinuum(Fc, ec, vl, cgrid, r_asym, alpha, &VxFc,
                                    &Fc0);
         } else { // HF::Method::ApproxHF)
@@ -190,5 +190,5 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
   return 0;
 }
 
-//******************************************************************************
+//==============================================================================
 void ContinuumOrbitals::clear() { orbitals.clear(); }

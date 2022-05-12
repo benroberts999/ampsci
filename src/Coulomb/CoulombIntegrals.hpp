@@ -25,7 +25,7 @@ void gk_ab(const DiracSpinor &Fa, const DiracSpinor &Fb, const int k,
            std::vector<double> &g0, std::vector<double> &ginf,
            const std::size_t maxi = 0);
 
-//******************************************************************************
+//==============================================================================
 
 //! Calculates R^k_abcd for given k. From scratch (calculates y)
 double Rk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
@@ -47,7 +47,7 @@ DiracSpinor Rkv_bcd(const int kappa_v, const DiracSpinor &Fc,
 void Rkv_bcd(DiracSpinor *const Rkv, const DiracSpinor &Fc,
              const std::vector<double> &ykbd);
 
-//******************************************************************************
+//==============================================================================
 
 //! Calculates Q^k_abcd for given k. From scratch (calculates y) [see YkTable
 //! version if already have YkTable]
@@ -59,7 +59,7 @@ double Qk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
 DiracSpinor Qkv_bcd(int kappa_v, const DiracSpinor &Fb, const DiracSpinor &Fc,
                     const DiracSpinor &Fd, const int k);
 
-//******************************************************************************
+//==============================================================================
 
 //! Exchange only version of W (W-Q): W = Q + P [see Qk above]
 double Pk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
@@ -69,7 +69,7 @@ double Pk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
 DiracSpinor Pkv_bcd(int kappa_v, const DiracSpinor &Fb, const DiracSpinor &Fc,
                     const DiracSpinor &Fd, const int k);
 
-//******************************************************************************
+//==============================================================================
 
 //! Calculates W^k_abcd for given k. From scratch (calculates y)
 //! @details
@@ -81,7 +81,7 @@ double Wk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
 DiracSpinor Wkv_bcd(int kappa_v, const DiracSpinor &Fb, const DiracSpinor &Fc,
                     const DiracSpinor &Fd, const int k);
 
-//******************************************************************************
+//==============================================================================
 
 //! Returns min and max k (multipolarity) allowed for C^k_ab, accounting for
 //! parity
@@ -103,7 +103,7 @@ std::pair<int, int> k_minmax_P(int kappa_a, const DiracSpinor &b,
 std::pair<int, int> k_minmax_W(const DiracSpinor &a, const DiracSpinor &b,
                                const DiracSpinor &c, const DiracSpinor &d);
 
-//******************************************************************************
+//==============================================================================
 
 template <class A> static int twojk(const A &a) {
   if constexpr (std::is_same_v<A, DiracSpinor>) {

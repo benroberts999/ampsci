@@ -16,7 +16,7 @@ namespace UnitTest {
 
 namespace helper {
 
-//******************************************************************************
+//==============================================================================
 // This is a Naiive (slow, but simple + correct) implementation of yk
 // This forms the "baseline" to compare against
 inline std::vector<double> yk_naive(const DiracSpinor &Fa,
@@ -48,8 +48,8 @@ inline double check_Rkabcd(const std::vector<DiracSpinor> &orbs,
 
 } // namespace helper
 
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+//==============================================================================
 //! Unit tests for Coulomb integrals (y^k_ab, R^k_abcd, lookup tables etc).
 //! Also: tests quadrature integation method
 bool Coulomb(std::ostream &obuff) {
@@ -157,7 +157,7 @@ bool Coulomb(std::ostream &obuff) {
   pass &= qip::check_value(&obuff, "Rk_abcd (core) ", eps_R, 0.0, 1.0e-13);
   pass &= qip::check_value(&obuff, "Rk_abcd (basis) ", eps_R2, 0.0, 1.0e-13);
 
-  //****************************************************************************
+  //============================================================================
   // Test "other" Coulomb integrals: P, Q, W (these are defined in terms of sums
   // over R and angular coeficients):
   {
@@ -292,10 +292,10 @@ bool Coulomb(std::ostream &obuff) {
 
 } // namespace UnitTest
 
-//****************************************************************************
-//****************************************************************************
+//============================================================================
+//============================================================================
 
-//****************************************************************************
+//============================================================================
 inline std::vector<double> UnitTest::helper::yk_naive(const DiracSpinor &Fa,
                                                       const DiracSpinor &Fb,
                                                       int k) {
@@ -324,7 +324,7 @@ inline std::vector<double> UnitTest::helper::yk_naive(const DiracSpinor &Fa,
   return yk;
 }
 
-//****************************************************************************
+//============================================================================
 inline double
 UnitTest::helper::check_ykab_Tab(const std::vector<DiracSpinor> &a,
                                  const std::vector<DiracSpinor> &b,
@@ -356,7 +356,7 @@ UnitTest::helper::check_ykab_Tab(const std::vector<DiracSpinor> &a,
   return worst;
 }
 
-//****************************************************************************
+//============================================================================
 inline std::vector<double>
 UnitTest::helper::check_ykab(const std::vector<DiracSpinor> &orbs,
                              int max_del_n) {
@@ -394,7 +394,7 @@ UnitTest::helper::check_ykab(const std::vector<DiracSpinor> &orbs,
   return worst;
 }
 
-//****************************************************************************
+//============================================================================
 inline double
 UnitTest::helper::check_Rkabcd(const std::vector<DiracSpinor> &orbs,
                                int max_del_n) {

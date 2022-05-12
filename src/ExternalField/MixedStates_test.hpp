@@ -11,7 +11,7 @@
 
 namespace UnitTest {
 
-//******************************************************************************
+//==============================================================================
 namespace helper {
 
 struct Case {
@@ -31,8 +31,8 @@ inline std::pair<Case, Case> MS_loops(const Wavefunction &wf,
 
 } // namespace helper
 
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+//==============================================================================
 //! Unit tests Mixed States (TDHF method, solving non-local DE)
 bool MixedStates(std::ostream &obuff) {
   bool passQ = true;
@@ -105,8 +105,9 @@ bool MixedStates(std::ostream &obuff) {
 
         const auto Xb =
             dv.solve_dPsi(Fv, 0.0, ExternalField::dPsiType::X, Fm.kappa());
-        const auto Yb = dv.solve_dPsi(Fv, 0.0, ExternalField::dPsiType::Y, Fm.kappa(),
-                                      nullptr, ExternalField::StateType::bra);
+        const auto Yb =
+            dv.solve_dPsi(Fv, 0.0, ExternalField::dPsiType::Y, Fm.kappa(),
+                          nullptr, ExternalField::StateType::bra);
         const auto h_mv = h.reducedME(Fm, Fv) + dv.dV(Fm, Fv);
         const auto lhs = Fm * Xb;
         const auto rhs = h_mv / (Fv.en() - Fm.en());
@@ -169,7 +170,7 @@ bool MixedStates(std::ostream &obuff) {
 
 } // namespace UnitTest
 
-//******************************************************************************
+//==============================================================================
 inline std::pair<UnitTest::helper::Case, UnitTest::helper::Case>
 UnitTest::helper::MS_loops(const Wavefunction &wf,
                            const DiracOperator::TensorOperator *h) {

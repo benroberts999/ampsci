@@ -12,7 +12,7 @@
 #include <vector>
 
 namespace Module {
-//******************************************************************************
+//==============================================================================
 void fitParametric(const IO::InputBlock &input, const Wavefunction &wf) {
 
   input.check({{"statesToFit", ""}, {"method", ""}, {"fitWorst", ""}});
@@ -95,7 +95,7 @@ void fitParametric(const IO::InputBlock &input, const Wavefunction &wf) {
   return;
 }
 
-//******************************************************************************
+//==============================================================================
 std::tuple<double, double>
 FitParametric::performFit(const std::vector<AtomData::DiracSEnken> &states,
                           int Z, const GridParameters &gp,

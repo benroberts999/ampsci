@@ -47,7 +47,7 @@ int main(int argc, char *argv[]) {
   return 0;
 }
 
-//******************************************************************************
+//==============================================================================
 void ampsci(const IO::InputBlock &input) {
   IO::ChronoTimer timer("\nampsci");
   std::cout << "\n";
@@ -149,7 +149,7 @@ void ampsci(const IO::InputBlock &input) {
   std::cout << "\nRunning for " << wf.atom() << "\n"
             << wf.nuclearParams() << "\n"
             << wf.rgrid->gridParameters() << "\n"
-            << "********************************************************\n";
+            << "========================================================\n";
 
   // Parse input for HF method
   input_ok &= input.check(
@@ -498,4 +498,4 @@ void ampsci(const IO::InputBlock &input) {
   Module::runModules(input, wf);
 }
 
-//******************************************************************************
+//==============================================================================

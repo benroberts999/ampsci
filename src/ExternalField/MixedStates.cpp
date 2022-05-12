@@ -17,7 +17,7 @@
 namespace ExternalField {
 using namespace HF;
 
-//******************************************************************************
+//==============================================================================
 DiracSpinor solveMixedState(const int k, const DiracSpinor &Fa,
                             const double omega, const std::vector<double> &vl,
                             const double alpha,

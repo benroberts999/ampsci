@@ -10,7 +10,7 @@
 #include <utility> // pair
 #include <vector>
 
-//******************************************************************************
+//==============================================================================
 namespace AtomData {
 
 static inline bool string_is_ints(std::string_view s) {
@@ -20,7 +20,7 @@ static inline bool string_is_ints(std::string_view s) {
          && (std::isdigit(s[0]) || (s[0] == '-' && s.size() > 1));
 }
 
-//******************************************************************************
+//==============================================================================
 std::string int_to_roman(int a) {
   if (a > 3999)
     return std::to_string(a);
@@ -34,7 +34,7 @@ std::string int_to_roman(int a) {
   return M[a / 1000] + C[(a % 1000) / 100] + X[(a % 100) / 10] + I[(a % 10)];
 }
 
-//******************************************************************************
+//==============================================================================
 std::string NonRelSEConfig::symbol() const {
   return std::to_string(n) + AtomData::l_symbol(l) + std::to_string(num);
 }
@@ -45,7 +45,7 @@ bool NonRelSEConfig::ok() const {
   return true;
 }
 
-//******************************************************************************
+//==============================================================================
 int defaultA(int Z)
 // c++14: can make constexpr ?
 {
@@ -100,7 +100,7 @@ int atomic_Z(const std::string &at) {
   return z;
 }
 
-//******************************************************************************
+//==============================================================================
 // Short function that returns orbital term given l
 std::string l_symbol(int l) {
   if (l < (int)spectroscopic_notation.length() && l >= 0)
@@ -165,7 +165,7 @@ std::pair<int, int> parse_symbol(std::string_view symbol) {
   return {n, kappa};
 }
 
-//******************************************************************************
+//==============================================================================
 std::string coreConfig(const std::string &in_ng) {
   // Note: must return SAME string if no matching Nobel Gas found
   // (so that this doesn't break if I give it a full term list)
@@ -194,7 +194,7 @@ std::string niceCoreOutput(const std::string &full_core) {
   return nice_core;
 }
 
-//******************************************************************************
+//==============================================================================
 double diracen(double z, double n, int k, double alpha) {
   const double a2 = alpha * alpha;
   const double c2 = 1.0 / a2;
@@ -206,7 +206,7 @@ double diracen(double z, double n, int k, double alpha) {
          (0.5 * a2 * w2 + 1. - std::sqrt(1.0 + a2 * w2)) * (c2 / d);
 }
 
-//******************************************************************************
+//==============================================================================
 // Takes a "core string" in form "[X],nLm,nLm,..." converts to vector of
 // NonRelSEConfig, after converting [X] to a state string. Allows negative and
 // non-physical m's (to allow combining); responsability of whoever uses the
@@ -271,7 +271,7 @@ std::vector<NonRelSEConfig> core_parser(const std::string &str_core_in) {
   return core;
 }
 
-//******************************************************************************
+//==============================================================================
 NonRelSEConfig term_parser(std::string_view term) {
   if (term == "" || term == "0")
     return NonRelSEConfig(0, 0, 0);
@@ -310,7 +310,7 @@ NonRelSEConfig term_parser(std::string_view term) {
   return NonRelSEConfig(n, l, num);
 }
 
-//******************************************************************************
+//==============================================================================
 // Takes a string of states in form "nLm,nLm,..." converts to vector of
 // NonRelSEConfig. Allows negative and non-physical m's (to allow combining)
 std::vector<NonRelSEConfig> state_parser(const std::string &str_states) {
@@ -406,7 +406,7 @@ std::vector<NonRelSEConfig> core_guess(const int total_core_electrons) {
   return core_configs;
 }
 
-//******************************************************************************
+//==============================================================================
 std::vector<DiracSEnken> listOfStates_nk(const std::string &in_list) {
   std::vector<DiracSEnken> state_list;
 
@@ -437,7 +437,7 @@ std::vector<DiracSEnken> listOfStates_nk(const std::string &in_list) {
   return state_list;
 }
 
-//******************************************************************************
+//==============================================================================
 std::vector<DiracSEnken> listOfStates_singlen(const std::string &in_list) {
   std::vector<DiracSEnken> state_list;
 
@@ -466,7 +466,7 @@ std::vector<DiracSEnken> listOfStates_singlen(const std::string &in_list) {
   return state_list;
 }
 
-//******************************************************************************
+//==============================================================================
 inline std::string helper_s(const Element &el) {
   auto sym = el.symbol;
   auto sym_buff = (sym.length() == 1) ? std::string("  ") : std::string(" ");
@@ -479,7 +479,7 @@ inline std::string helper_z(const Element &el) {
   return Z_buff + z_str + " ";
 }
 
-//******************************************************************************
+//==============================================================================
 void printTable() {
 
   std::string output = "";

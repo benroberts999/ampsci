@@ -87,13 +87,13 @@ void testFeynman(const IO::InputBlock &input, const Wavefunction &wf) {
   */
 }
 
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+//==============================================================================
 
-//******************************************************************************
+//==============================================================================
 void Feyn::test_Q(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma) {
   // Just for testing Vx matrix.
-  std::cout << "\n***********************************\n\n";
+  std::cout << "\n==================================*\n\n";
   std::cout << "Test Vx matirx (also, q^k):\n";
 
   {
@@ -120,7 +120,7 @@ void Feyn::test_Q(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma) {
 
   //----------------------------------------------------------------------------
   // For testing Q matrix.
-  std::cout << "\n***********************************\n\n";
+  std::cout << "\n==================================*\n\n";
   std::cout << "Test Q matirx: <aa|q^k|aa> = R^k_aaaa\n";
   {
     std::cout << "           <aa|q^k|aa>  R^k_aaaa   | eps\n";
@@ -153,7 +153,7 @@ void Feyn::test_Q(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma) {
   std::cout << "\n";
 }
 
-//******************************************************************************
+//==============================================================================
 void Feyn::test_green(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
                       double omre, const std::vector<double> &omim_v) {
   //----------------------------------------------------------------------------
@@ -231,7 +231,7 @@ void Feyn::test_green(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
   } // omim
 }
 
-//******************************************************************************
+//==============================================================================
 void Feyn::test_GQ(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
                    double omre, const std::vector<double> &omim_v) {
   //----------------------------------------------------------------------------
@@ -312,7 +312,7 @@ void Feyn::test_GQ(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
   std::cout << "\n";
 }
 
-//******************************************************************************
+//==============================================================================
 void Feyn::test_pol(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
                     double omre, const std::vector<double> &omim_v,
                     int max_l_excited) {
@@ -322,7 +322,7 @@ void Feyn::test_pol(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
                                      "Green fn method" :
                                      "basis method";
 
-    std::cout << "\n***********************************\n\n";
+    std::cout << "\n==================================*\n\n";
 
     std::cout
         << "Testing polarisation operator: <v|G*Q*Pi*Q|v> = C * [R^k]^2\n";
@@ -402,7 +402,7 @@ void Feyn::test_pol(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
 
     //
 
-    std::cout << "***********************************\n\n";
+    std::cout << "==================================*\n\n";
     std::cout << "Testing polarisation operator, Int[ pi(1,2) d1 d2]:\n";
     for (auto omim : omim_v) {
       std::cout << "\n" << str_meth << "\n";

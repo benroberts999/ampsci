@@ -13,7 +13,7 @@
 
 namespace Nuclear {
 
-//******************************************************************************
+//==============================================================================
 Type parseType(const std::string &str_type) {
   if (qip::ci_wildcard_compare(str_type, "fermi"))
     return Type::Fermi;
@@ -41,7 +41,7 @@ std::string parseType(Type type) {
   return "Fermi";
 }
 
-//******************************************************************************
+//==============================================================================
 Parameters::Parameters(int in_z, int in_a, const std::string &str_type,
                        double in_rrms, double in_t)
     : z(in_z),
@@ -70,7 +70,7 @@ Parameters::Parameters(const std::string &z_str, int in_a,
   }
 }
 
-//******************************************************************************
+//==============================================================================
 std::vector<double> sphericalNuclearPotential(double Z, double rnuc,
                                               const std::vector<double> &rgrid)
 // Potential due to a spherical nucleus, with (charge) radius, rnuc.
@@ -93,7 +93,7 @@ std::vector<double> sphericalNuclearPotential(double Z, double rnuc,
   return vnuc;
 }
 
-//******************************************************************************
+//==============================================================================
 std::vector<double> GaussianNuclearPotential(double Z, double r_rms,
                                              const std::vector<double> &rgrid)
 
@@ -111,7 +111,7 @@ std::vector<double> GaussianNuclearPotential(double Z, double r_rms,
   return vnuc;
 }
 
-//******************************************************************************
+//==============================================================================
 std::vector<double> fermiNuclearPotential(double z, double t, double c,
                                           const std::vector<double> &rgrid)
 // Uses a Fermi-Dirac distribution for the nuclear potential.
@@ -160,7 +160,7 @@ std::vector<double> fermiNuclearPotential(double z, double t, double c,
   return vnuc;
 }
 
-//******************************************************************************
+//==============================================================================
 std::vector<double> fermiNuclearDensity_tcN(double t, double c, double Z_norm,
                                             const Grid &grid)
 // Integrate[ rho(r) , dV ] = Integrate[ 4pi * r^2 * rho(r) , dr ] = Z_norm
@@ -194,7 +194,7 @@ std::vector<double> fermiNuclearDensity_tcN(double t, double c, double Z_norm,
   return rho;
 }
 
-//******************************************************************************
+//==============================================================================
 std::vector<double> formPotential(const Parameters &params,
                                   const std::vector<double> &r) {
   const auto z = params.z;

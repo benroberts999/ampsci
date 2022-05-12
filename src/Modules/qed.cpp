@@ -15,7 +15,7 @@
 
 namespace Module {
 
-//****************************************************************************
+//============================================================================
 // Used for finding A and b for effective vertex QED operator
 void QED(const IO::InputBlock &input, const Wavefunction &wf) {
 
@@ -343,7 +343,7 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
   } // me_input
 } // namespace Module
 
-//****************************************************************************
+//============================================================================
 
 void vertexQED(const IO::InputBlock &input, const Wavefunction &wf) {
   calc_vertexQED(input, wf);
@@ -439,8 +439,9 @@ std::vector<std::string> calc_vertexQED(const IO::InputBlock &input,
   for (const auto &Fb : wf.valence) {
     for (const auto &Fa : wf.valence) {
 
-      const auto a = AhfsQ ? DiracOperator::HyperfineA::convertRMEtoA(Fa, Fb) :
-                             radial_int ? 1.0 / h->angularF(Fa.kappa(), Fb.kappa()) : 1.0;
+      const auto a =
+          AhfsQ ? DiracOperator::HyperfineA::convertRMEtoA(Fa, Fb) :
+                  radial_int ? 1.0 / h->angularF(Fa.kappa(), Fb.kappa()) : 1.0;
 
       if (h->isZero(Fa.kappa(), Fb.kappa()))
         continue;

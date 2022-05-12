@@ -16,7 +16,7 @@ namespace DiracOperator {
 enum class Parity { even, odd };
 enum class Realness { real, imaginary };
 
-//******************************************************************************
+//==============================================================================
 //! 4x4 Integer matrix (for Gamma/Pauli). Can be real or imag. Not mixed.
 struct IntM4x4
 // 4x4 Integer matrix.
@@ -30,7 +30,7 @@ struct IntM4x4
   const int e00, e01, e10, e11;
 };
 
-//******************************************************************************
+//==============================================================================
 //! @brief General operator (virtual base class); operators derive from this.
 //! @details
 //! k is rank, c is multiplicative constant, d_order is derivative order,
@@ -130,8 +130,8 @@ public:
   double reducedME(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
 };
 
-//****************************************************************************
-//****************************************************************************
+//============================================================================
+//============================================================================
 //! Speacial case for scalar operator
 class ScalarOperator : public TensorOperator {
 public:

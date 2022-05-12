@@ -12,7 +12,7 @@
 
 namespace UnitTest {
 
-//******************************************************************************
+//==============================================================================
 //! Unit tests for correlations (second-order MBPT correlation energy/potential)
 bool DiagramRPA(std::ostream &obuff) {
   bool pass = true;

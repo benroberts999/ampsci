@@ -13,7 +13,7 @@
 
 namespace Coulomb {
 
-//******************************************************************************
+//==============================================================================
 template <int k>
 static inline void yk_ijk_impl(const int l, const DiracSpinor &Fa,
                                const DiracSpinor &Fb, std::vector<double> &vabk,
@@ -130,7 +130,7 @@ void yk_ab(const DiracSpinor &Fa, const DiracSpinor &Fb, const int k,
     yk_ijk_impl<-1>(k, Fa, Fb, vabk, maxi);
 }
 
-//******************************************************************************
+//==============================================================================
 template <int k, int pm>
 static inline void Breit_abk_impl(const int l, const DiracSpinor &Fa,
                                   const DiracSpinor &Fb, //
@@ -257,10 +257,10 @@ void gk_ab(const DiracSpinor &Fa, const DiracSpinor &Fb, const int k,
     Breit_abk_impl<-1, pm>(k, Fa, Fb, g0, ginf, maxi);
 }
 
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+//==============================================================================
 
-//******************************************************************************
+//==============================================================================
 double Rk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
                const DiracSpinor &Fc, const DiracSpinor &Fd,
                const int k) //
@@ -284,7 +284,7 @@ double Rk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fc,
   return (Rff + Rgg) * Fa.grid().du();
 }
 
-//******************************************************************************
+//==============================================================================
 DiracSpinor Rkv_bcd(const int kappa_a, const DiracSpinor &Fb,
                     const DiracSpinor &Fc, const DiracSpinor &Fd, const int k) {
   [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__);
@@ -295,33 +295,33 @@ DiracSpinor Rkv_bcd(const int kappa_a, const DiracSpinor &Fc,
                     const std::vector<double> &ykbd) {
   [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__);
   auto out = DiracSpinor(0, kappa_a, Fc.grid_sptr());
-  out.set_min_pt() = Fc.min_pt();
-  out.set_max_pt() = Fc.max_pt();
-  out.set_f() = qip::multiply(Fc.f(), ykbd);
-  out.set_g() = qip::multiply(Fc.g(), ykbd);
+  out.min_pt() = Fc.min_pt();
+  out.max_pt() = Fc.max_pt();
+  out.f() = qip::multiply(Fc.f(), ykbd);
+  out.g() = qip::multiply(Fc.g(), ykbd);
   return out;
 }
 //------------------------------------------------------------------------------
 void Rkv_bcd(DiracSpinor *const Rkv, const DiracSpinor &Fc,
              const std::vector<double> &ykbd) {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
-  Rkv->set_min_pt() = Fc.min_pt();
-  Rkv->set_max_pt() = Fc.max_pt();
+  Rkv->min_pt() = Fc.min_pt();
+  Rkv->max_pt() = Fc.max_pt();
   for (auto i = 0ul; i < Rkv->min_pt(); ++i) {
-    Rkv->set_f(i) = 0.0;
-    Rkv->set_g(i) = 0.0;
+    Rkv->f(i) = 0.0;
+    Rkv->g(i) = 0.0;
   }
   for (auto i = Rkv->min_pt(); i < Rkv->max_pt(); ++i) {
-    Rkv->set_f(i) = Fc.f(i) * ykbd[i];
-    Rkv->set_g(i) = Fc.g(i) * ykbd[i];
+    Rkv->f(i) = Fc.f(i) * ykbd[i];
+    Rkv->g(i) = Fc.g(i) * ykbd[i];
   }
   for (auto i = Rkv->max_pt(); i < Rkv->grid().num_points(); ++i) {
-    Rkv->set_f(i) = 0.0;
-    Rkv->set_g(i) = 0.0;
+    Rkv->f(i) = 0.0;
+    Rkv->g(i) = 0.0;
   }
 }
 
-//******************************************************************************
+//==============================================================================
 double Qk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
                const DiracSpinor &Fc, const DiracSpinor &Fd, const int k) {
   [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__);
@@ -366,7 +366,7 @@ void Qkv_bcd(DiracSpinor *const Qkv, const DiracSpinor &Fb,
   return;
 }
 
-//******************************************************************************
+//==============================================================================
 double Pk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
                const DiracSpinor &Fc, const DiracSpinor &Fd, const int k) {
   // W^k_abcd = Q^k_abcd + sum_l [k] 6j * Q^l_abdc
@@ -431,7 +431,7 @@ double Wk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
   return (Qkabcd + Pkabcd);
 }
 
-//******************************************************************************
+//==============================================================================
 std::pair<int, int> k_minmax(const DiracSpinor &a, const DiracSpinor &b) {
   // return k_minmax_tj(a.twoj(), b.twoj());
   auto [min_k, max_k] = k_minmax_tj(a.twoj(), b.twoj());

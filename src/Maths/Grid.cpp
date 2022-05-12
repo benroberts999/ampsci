@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-//******************************************************************************
+//==============================================================================
 GridParameters::GridParameters(std::size_t innum_points, double inr0,
                                double inrmax, double inb,
                                const std::string &str_type, double indu)
@@ -53,10 +53,10 @@ std::string GridParameters::parseType(GridType type) {
   return "?GridType?";
 }
 
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+//==============================================================================
 
-//******************************************************************************
+//==============================================================================
 Grid::Grid(const GridParameters &in)
     : Grid(in.r0, in.rmax, in.num_points, in.type, in.b) {}
 //------------------------------------------------------------------------------
@@ -71,7 +71,7 @@ Grid::Grid(double in_r0, double in_rmax, std::size_t in_num_points,
       m_drduor(form_drduor(gridtype, m_r, m_b)),
       m_drdu(form_drdu(gridtype, m_r, m_drduor)) {}
 
-//******************************************************************************
+//==============================================================================
 std::size_t Grid::getIndex(double x, bool require_nearest) const
 // Returns index correspoding to given value
 // Note: finds NEXT LARGEST grid point (greater then or equal to.),
@@ -97,7 +97,7 @@ std::size_t Grid::getIndex(double x, bool require_nearest) const
     return index;
 }
 
-//******************************************************************************
+//==============================================================================
 std::string Grid::gridParameters() const {
   std::ostringstream out;
   switch (gridtype) {
@@ -115,7 +115,7 @@ std::string Grid::gridParameters() const {
   return out.str();
 }
 
-//******************************************************************************
+//==============================================================================
 std::vector<double> Grid::rpow(double k) const {
   std::vector<double> rk;
   rk.reserve(m_r.size());
@@ -125,7 +125,7 @@ std::vector<double> Grid::rpow(double k) const {
   return rk;
 }
 
-//******************************************************************************
+//==============================================================================
 // Extends grid to new_r_max. Note: This is the only non-const function; use
 // with caution
 void Grid::extend_to(double new_rmax) {
@@ -156,7 +156,7 @@ void Grid::extend_to(double new_rmax) {
   m_drdu.insert(m_drdu.end(), x_drdu.begin(), x_drdu.end());
 }
 
-//******************************************************************************
+//==============================================================================
 double Grid::next_r_loglin(double b, double u, double r_guess) {
   // Solve eq. u = r + b ln(r) to find r
   // Use Newtons method
@@ -173,7 +173,7 @@ double Grid::next_r_loglin(double b, double u, double r_guess) {
   }
   return ri;
 }
-//******************************************************************************
+//==============================================================================
 std::vector<double> Grid::form_r(const GridType type, const double r0,
                                  const std::size_t num_points, const double du,
                                  const double b) {
@@ -210,7 +210,7 @@ std::vector<double> Grid::form_r(const GridType type, const double r0,
   return r;
 }
 
-//******************************************************************************
+//==============================================================================
 std::vector<double> Grid::form_drduor(const GridType type,
                                       const std::vector<double> &in_r,
                                       const double b) {
@@ -232,7 +232,7 @@ std::vector<double> Grid::form_drduor(const GridType type,
   }
   return drduor;
 }
-//******************************************************************************
+//==============================================================================
 std::vector<double> Grid::form_drdu(const GridType type,
                                     const std::vector<double> &in_r,
                                     const std::vector<double> &in_drduor) {
@@ -254,7 +254,7 @@ std::vector<double> Grid::form_drdu(const GridType type,
   return drdu;
 }
 
-//******************************************************************************
+//==============================================================================
 double Grid::calc_du_from_num_points(double r0, double rmax,
                                      std::size_t num_points, GridType gridtype,
                                      double b) {
@@ -274,7 +274,7 @@ double Grid::calc_du_from_num_points(double r0, double rmax,
   return 1.0;
 }
 
-//******************************************************************************
+//==============================================================================
 std::size_t Grid::calc_num_points_from_du(double r0, double rmax, double du,
                                           GridType gridtype, double b) {
   switch (gridtype) {

@@ -13,8 +13,8 @@
 
 namespace Module {
 
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+//==============================================================================
 // Module for testing ladder diagram implementation
 void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "\nLadder Module:\n\n";
@@ -257,7 +257,7 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 }
 
-//******************************************************************************
+//==============================================================================
 void check_L_symmetry(const std::vector<DiracSpinor> &core,
                       const std::vector<DiracSpinor> &excited,
                       const std::vector<DiracSpinor> &valence,

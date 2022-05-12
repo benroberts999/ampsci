@@ -21,7 +21,7 @@ struct SigData {
 // This is a test - I'd like to re-write the Correlation potential class
 // but still not sure exactly best way to do it..
 
-//******************************************************************************
+//==============================================================================
 
 class Sigma {
 public:

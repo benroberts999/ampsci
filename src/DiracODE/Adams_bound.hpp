@@ -18,7 +18,7 @@ fine-structure constant
 */
 namespace DiracODE {
 
-//******************************************************************************
+//==============================================================================
 //! @brief Solves bound-state problem for local potential (en < 0)
 /*! @details
 \f[ (H_0 + v - \epsilon_a)F_a = 0\f]
@@ -56,7 +56,7 @@ void solveContinuum(DiracSpinor &Fa, const double en,
                     const DiracSpinor *const VxFa = nullptr,
                     const DiracSpinor *const Fa0 = nullptr);
 
-//******************************************************************************
+//==============================================================================
 
 //! @brief Solves inhomogeneous Dirac equation
 /*! @details
@@ -96,7 +96,7 @@ void solve_inhomog(DiracSpinor &Fa, DiracSpinor &Fzero, DiracSpinor &Finf,
 
 namespace Adams {
 
-//******************************************************************************
+//==============================================================================
 // Parameters used for Adams-Moulton mehtod:
 namespace Param {
 constexpr int AMO = 7;            // Adams-Moulton (between 5 and 8)
@@ -124,7 +124,7 @@ static_assert(Param::AMO >= 5 && Param::AMO <= 8,
 
 } // namespace Param
 
-//******************************************************************************
+//==============================================================================
 class DiracMatrix {
   // Notation:
   // df = af - bg

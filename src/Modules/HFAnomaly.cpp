@@ -17,7 +17,7 @@ namespace Module {
 static void calc_thing(const DiracSpinor &Fv, double e_targ, double r0,
                        double mu, double I, int l, int gl);
 
-//******************************************************************************
+//==============================================================================
 void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
 
   input.check({{"rpa", ""}, {"options", ""}, {"A", ""}});
@@ -194,7 +194,7 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 }
 
-//******************************************************************************
+//==============================================================================
 void HF_rmag(const IO::InputBlock &input, const Wavefunction &wf) {
   // For isotope 1 and 2
   // Loops over many values for magnetic radius of isotope 1, Rmag(1).
@@ -438,7 +438,7 @@ void HF_rmag(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 }
 
-//******************************************************************************
+//==============================================================================
 static void calc_thing(const DiracSpinor &Fv, double e_targ, double r0,
                        double mu, double I, int l, int gl) {
   // I'm so glad past Ben gave this function such an informative name....
@@ -494,7 +494,7 @@ static void calc_thing(const DiracSpinor &Fv, double e_targ, double r0,
   }
 }
 
-//******************************************************************************
+//==============================================================================
 void calculateBohrWeisskopf(const IO::InputBlock &input,
                             const Wavefunction &wf) {
   using namespace DiracOperator;
@@ -617,7 +617,7 @@ void calculateBohrWeisskopf(const IO::InputBlock &input,
   }
 }
 
-//******************************************************************************
+//==============================================================================
 void BW_eta_sp(const IO::InputBlock &input, const Wavefunction &wf) {
   using namespace DiracOperator;
 

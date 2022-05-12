@@ -23,7 +23,7 @@ constexpr QintCoefs<Nquad> quintcoef;
 constexpr auto cq = quintcoef.cq;
 constexpr auto dq_inv = quintcoef.dq_inv;
 
-//******************************************************************************
+//==============================================================================
 template <typename C, typename... Args>
 inline double integrate(const double dt, std::size_t beg, std::size_t end,
                         const C &f1, const Args &... rest)
@@ -56,7 +56,7 @@ inline double integrate(const double dt, std::size_t beg, std::size_t end,
   return (Rint_mid + dq_inv * Rint_ends) * dt;
 }
 
-//******************************************************************************
+//==============================================================================
 template <typename T>
 inline std::vector<T> derivative(const std::vector<T> &f,
                                  const std::vector<T> &drdt, const T dt,
@@ -106,7 +106,7 @@ inline std::vector<T> derivative(const std::vector<T> &f,
   return df;
 }
 
-//******************************************************************************
+//==============================================================================
 enum Direction { zero_to_r, r_to_inf };
 template <Direction direction, typename Real>
 inline void
@@ -190,8 +190,8 @@ std::vector<Real> partialIntegral(const std::vector<Real> &f,
   return answer;
 }
 
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+//==============================================================================
 
 enum t_grid { linear, logarithmic };
 
@@ -207,7 +207,7 @@ inline std::function<double(long unsigned)> logx(double a, double dt) {
   return [=](long unsigned i) { return a * std::exp(double(i) * dt); };
 }
 
-//******************************************************************************
+//==============================================================================
 inline double num_integrate(const std::function<double(double)> &f, double a,
                             double b, long unsigned n_pts,
                             t_grid type = linear) {

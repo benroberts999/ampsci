@@ -13,7 +13,7 @@
 
 namespace AKF {
 
-//******************************************************************************
+//==============================================================================
 double CLkk(int L, int ka, int kb)
 // /*
 // Angular coeficient (nb: is already squared)
@@ -33,7 +33,7 @@ double CLkk(int L, int ka, int kb)
   return (two_ja + 1) * (two_jb + 1) * (2 * L + 1) * tjs * tjs;
 }
 
-//******************************************************************************
+//==============================================================================
 std::vector<float>
 calculateK_nk(const Wavefunction &wf, const DiracSpinor &psi, int max_L,
               double dE,
@@ -77,7 +77,7 @@ calculateK_nk(const Wavefunction &wf, const DiracSpinor &psi, int max_L,
   return AK_nk_q;
 }
 
-//******************************************************************************
+//==============================================================================
 std::vector<float>
 calculateKpw_nk(const Wavefunction &wf, const DiracSpinor &psi, double dE,
                 const std::vector<std::vector<double>> &jl_qr)
@@ -111,7 +111,7 @@ calculateKpw_nk(const Wavefunction &wf, const DiracSpinor &psi, double dE,
   return tmpK_q;
 }
 
-//******************************************************************************
+//==============================================================================
 void write_Knk_plaintext(const std::string &fname,
                          const std::vector<std::vector<std::vector<float>>> &AK,
                          const std::vector<std::string> &nklst,
@@ -154,7 +154,7 @@ void write_Knk_plaintext(const std::string &fname,
   ofile.close();
 }
 
-//******************************************************************************
+//==============================================================================
 void write_Ktot_plaintext(
     const std::string &fname,
     const std::vector<std::vector<std::vector<float>>> &AK, const Grid &qgrid,
@@ -199,7 +199,7 @@ void write_Ktot_plaintext(
   ofile.close();
 }
 
-//******************************************************************************
+//==============================================================================
 int akReadWrite(const std::string &fname, bool write,
                 std::vector<std::vector<std::vector<float>>> &AK,
                 std::vector<std::string> &nklst, double &qmin, double &qmax,
@@ -254,7 +254,7 @@ int akReadWrite(const std::string &fname, bool write,
   return 0;
 }
 
-//******************************************************************************
+//==============================================================================
 std::vector<std::vector<std::vector<double>>>
 sphericalBesselTable(int max_L, const std::vector<double> &q_array,
                      const std::vector<double> &r)

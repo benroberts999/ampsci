@@ -17,7 +17,7 @@ namespace SplineBasis {
 struct Parameters;
 }
 
-//******************************************************************************
+//==============================================================================
 /*!
 @brief Stores Wavefunction (set of core+valence orbitals, grid etc.)
 @details
