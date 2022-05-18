@@ -9,47 +9,54 @@
 namespace PhysConst {
 
 // CODATA 2018: 1/alpha = 137.035999084(21)
-//! speed of light in a.u.
-constexpr double c = 137.035999084;
-constexpr double c2 = c * c;
 //! fine-structure constant
-constexpr double alpha = 1.0 / c;
+constexpr double alpha = 1.0 / 137.035999084;
 constexpr double alpha2 = alpha * alpha;
 
-// speed of light, in m/s [CODATA 2018, exact]
+//! speed of light in a.u. (=1/alpha)
+constexpr double c = 1.0 / alpha;
+constexpr double c2 = c * c;
+//! speed of light, in m/s [CODATA 2018, exact]
 constexpr double c_SI = 299792458.0;
-constexpr double hbar_SI = (6.62607015e-34) / (2 * M_PI); // exact
 
+//! hbar (reduced Planck constant), in SI (J.s)
+constexpr double hbar_SI = (6.62607015e-34) / (2 * M_PI); // exact
 //! CODATA 2018: hbar*c = 197.326 980 4... MeV fm
 constexpr double hbarc_MeVfm = 197.3269804;
 
 // Mass (mp/me)
 // CODATA 2018: m_e = 9.109 383 7015(28) e-31
 // CODATA 2018: m_p = 1.672 621 923 69(51) x 10-27 kg
-// codata 2018: 1836.152 673 43(11)
-//! Proton mass, in atomic units (mp/me)
+// CODATA 2018: 1836.152 673 43(11)
+//! Proton mass, in atomic units (mp/me). CODATA 2018: 1836.152 673 43(11)
 constexpr double m_p = 1836.15267343;
+//! electron mass, in SI (kg). CODATA 2018: m_e = 9.109 383 7015(28) e-31
 constexpr double m_e_kg = 9.1093837015e-31;
-//! MeV/c^2 - electron mass; 2020 value 0.51099895000(15):
+//! Electron mass (MeV/c^2); 2020 value 0.51099895000(15):
 constexpr double m_e_MeV = 0.51099895000;
 
 // CODATA 2014: 1822.888 486 192(53)
-//! "unified atomic mass" unit; nuclear mass unit; Dalton; u
+//! unified atomic mass unit; (nuclear mass unit, Dalton). CODATA 2014:
+//! 1822.888 486 192(53)
 constexpr double u_NMU = 1822.888486192;
 
 // Length:
 // CODATA 2018: a_B = 0.529177210903(80)e-10 m
+//! Bohr radius, in m. CODATA 2018: a_B = 0.529177210903(80)e-10 m
 constexpr double aB_m = 0.529177210903e-10;
 constexpr double aB_cm = aB_m * (1.0e+2);
 constexpr double aB_fm = aB_m * (1.0e+15);
 
-// Time: hbar/E_H = wiki: 2.4188843265857(47)×10−17 s [wiki 2019]
-//! Time: hbar/E_H
-constexpr double time_s = 2.4188843265857e-17;
+//! hbar/E_H. wiki: 2.4188843265857(47)×10−17 s [wiki 2019]
+constexpr double hbar_on_EH = 2.4188843265857e-17;
+//! Atomic unit of time (in seconds) - hbar/E_H
+constexpr double time_s = hbar_on_EH;
 
 // Energy:
 // CODATA 2018: E_H = 27.211 386 245 988(53) eV
 //                  = 6.579 683 920 502(13) x 10^15 Hz
+//! Hartree (atomic energy unit = 2Ry) in eV. CODATA 2018: E_H = 27.211 386 245
+//! 988(53) eV
 constexpr double Hartree_eV = 27.211386245988;
 constexpr double Hartree_Hz = 6.579683920502e+15;
 constexpr double Hartree_MHz = Hartree_Hz * (1.0e-6);
