@@ -30,10 +30,12 @@ double CLkk_DLkk(int L, int ka, int kb, std::string dmec)
   int two_jb = AtomData::twoj_k(kb);
 
   if (dmec == "Pseudovector" || dmec == "Pseudoscalar") {
-    int la_tilde = (ka > 0) ? ka - 1 : -ka;
+    int la_tilde = AtomData::l_k(-ka);
     la = la_tilde;
+    // two_ja = AtomData::twoj_k(-ka);
   } else {
     la = AtomData::l_k(ka);
+    // two_ja = AtomData::twoj_k(ka);
   }
 
   if ((la + lb + L) % 2 != 0)
@@ -140,7 +142,7 @@ calculateK_nk(const Wavefunction &wf, const DiracSpinor &psi, int max_L,
   // L and lc are summed, not stored individually
   for (std::size_t L = 0; L <= std::size_t(max_L); L++) {
     for (const auto &phic : cntm.orbitals) {
-      double dC_Lkk_sqrt = CLkk_sqrt((int)L, psi.k, phic.k);
+      // double dC_Lkk_sqrt = CLkk_sqrt((int)L, psi.k, phic.k);
       double dC_Lkk = CLkk_DLkk((int)L, psi.k, phic.k, dmec);
       if (dC_Lkk == 0)
         continue;
@@ -165,15 +167,15 @@ calculateK_nk(const Wavefunction &wf, const DiracSpinor &psi, int max_L,
                                             wf.rgrid->drdu());
         double agg_noj = NumCalc::integrate(1.0, 0, maxj, psi.g(), phic.g(),
                                             wf.rgrid->drdu());
-        a = (aff + agg) * wf.rgrid->du();
-        a_noj = (aff_noj + agg_noj) * wf.rgrid->du();
-        if ((alt_akf) && (psi.k == phic.k)) {
-          AK_nk_q[iq] += (float)((dC_Lkk * a * a + a_noj * a_noj -
-                                  2.0 * dC_Lkk_sqrt * a * a_noj) *
-                                 x_ocf);
-        } else {
-          AK_nk_q[iq] += (float)(dC_Lkk * a * a * x_ocf);
-        }
+        // a = (aff + agg) * wf.rgrid->du();
+        // a_noj = (aff_noj + agg_noj) * wf.rgrid->du();
+        // if ((alt_akf) && (psi.k == phic.k)) {
+        //   AK_nk_q[iq] += (float)((dC_Lkk * a * a + a_noj * a_noj -
+        //                           2.0 * dC_Lkk_sqrt * a * a_noj) *
+        //                          x_ocf);
+        // } else {
+        //   AK_nk_q[iq] += (float)(dC_Lkk * a * a * x_ocf);
+        // }
 
         // if ((alt_akf) && (psi.k == phic.k)) {
         //   aff -= NumCalc::integrate(1.0, 0, maxj, psi.f(), phic.f(),
@@ -185,16 +187,17 @@ calculateK_nk(const Wavefunction &wf, const DiracSpinor &psi, int max_L,
         //   agf -= NumCalc::integrate(1.0, 0, maxj, psi.g(), phic.f(),
         //                             wf.rgrid->drdu());
         // }
-        // if (dmec == "Vector") {
-        //   a = dC_Lkk_sqrt * (aff + agg);
-        // } else if (dmec == "Scalar") {
-        //   a = aff - agg;
-        // } else if (dmec == "Pseudovector") {
-        //   a = afg + agf;
-        // } else if (dmec == "Pseudoscalar") {
-        //   a = afg - agf;
-        // }
-        // AK_nk_q[iq] += (float)(std::pow(a * wf.rgrid->du(), 2) * x_ocf);
+        if (dmec == "Vector") {
+          a = (aff + agg);
+        } else if (dmec == "Scalar") {
+          a = aff - agg;
+        } else if (dmec == "Pseudovector") {
+          a = afg - agf;
+        } else if (dmec == "Pseudoscalar") {
+          a = afg + agf;
+        }
+        AK_nk_q[iq] +=
+            (float)(dC_Lkk * std::pow(a * wf.rgrid->du(), 2) * x_ocf);
       } // q
     }   // END loop over cntm states (ic)
   }     // end L loop
