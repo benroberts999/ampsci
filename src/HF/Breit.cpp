@@ -9,9 +9,10 @@ namespace HF {
 
 //==============================================================================
 // Calculates V_br*Fa = \sum_b\sum_k B^k_ba F_b - For HF potential
-DiracSpinor Breit::VbrFa(const DiracSpinor &Fa) const {
-  DiracSpinor BFa(Fa.n(), Fa.kappa(), Fa.grid_sptr()); //
-  for (const auto &Fb : *p_core) {
+DiracSpinor Breit::VbrFa(const DiracSpinor &Fa,
+                         const std::vector<DiracSpinor> &core) const {
+  DiracSpinor BFa(Fa.n(), Fa.kappa(), Fa.grid_sptr());
+  for (const auto &Fb : core) {
     BkbaFb(&BFa, Fa, Fb);
   }
   return BFa;

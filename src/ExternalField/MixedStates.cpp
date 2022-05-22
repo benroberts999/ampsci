@@ -61,7 +61,7 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
     if (Sigma)
       rhs -= (*Sigma)(dF);
     if (VBr)
-      rhs -= (*VBr)(dF);
+      rhs -= VBr->VbrFa(dF, core);
     DiracODE::solve_inhomog(dF, Fa.en() + omega, v, H_mag, alpha, rhs);
 
     const auto a = its == 0 ? 0.0 : damper(its);

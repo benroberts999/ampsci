@@ -245,7 +245,7 @@ void Wavefunction::radiativePotential(QED::RadPot::Scale scale, double rcut,
 
   // If HF already exists, update it to include new qed!
   if (m_pHF)
-    m_pHF->update_Vrad(qed.get());
+    m_pHF->update_Vrad(*qed);
 }
 
 //==============================================================================
@@ -854,7 +854,8 @@ void Wavefunction::fitSigma_hfBrueckner(
       auto Fv_l = Fv;
       m_Sigma->scale_Sigma(Fv_l.n(), Fv_l.kappa(), lambda);
       // nb: hf_Brueckner must start from HF... so, call on copy of Fv....
-      m_pHF->hf_Brueckner(Fv_l, *m_Sigma);
+      // m_pHF->hf_Brueckner(Fv_l, *m_Sigma);
+      m_pHF->hf_valence(Fv_l, m_Sigma.get());
       double en_l = Fv_l.en();
       if (its == 0)
         e_Sig1 = en_l;

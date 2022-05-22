@@ -35,7 +35,7 @@ void print_git_info() {
             << GitInfo::git_revision << "\n";
   if (!GitInfo::git_modified.empty())
     std::cout << "Modified: " << GitInfo::git_modified << "\n";
-  std::cout << "Compiled: " << GitInfo::cxx_version << "\n          "
+  std::cout << "Compiled: " << GitInfo::cxx_version << " "
             << GitInfo::compiled_time << "\n";
 }
 

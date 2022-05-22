@@ -10,13 +10,64 @@
 #include <iostream>
 #include <string>
 
+//==============================================================================
+const std::string ampsci_help{R"(
+  ampsci - Atomic Many-body Perturbation theory in the Screened Coulomb 
+  Interaction. Run the program with input options from the command line, e.g.:
+
+  $ ./ampsci filename
+    - Will run ampsci with input option specified in file "filename"
+    - If "filename" is blank, will assume it is "ampsci.in"
+
+  $ ./ampsci <At> <Core> <Valence>
+    - For quick use: simple HF calculation. e.g.,
+    $ ./ampsci Cs
+      - Will run ampsci for Cs using Hartree Fock (V^N) approximation
+    $ ./ampsci Cs [Xe] 6sd5d
+      - Will run ampsci for Cs using Hartree Fock with Xe-like core and valence
+        states up to n=6 for s,p-states and n=5 for d-states
+    $ ./ampsci Cs
+      - Will run ampsci for Cs using Hartree Fock (V^N) approximation
+
+  $ ./ampsci -v
+    - Will print version info (same as --version)
+
+  $ ./ampsci -h
+    - Will print help info (same as --help)
+
+  Output is printed to screen. It's recommended to forward this to a text file.
+  The input options and the ampsci version details are also printed, so that
+  the program output contains all required info to exactly reproduce it.
+  e.g.,
+  $ ./ampsci input |tee -a outout
+    - Will run ampsci using input options in file "input".
+    - Output will both be written to screen, and appended to 
+      file "output".
+)"};
+
 void ampsci(const IO::InputBlock &input);
 
 int main(int argc, char *argv[]) {
 
-  if (argc > 1 &&
-      (strcmp(argv[1], "-v") == 0 || strcmp(argv[1], "--version") == 0)) {
+  const std::string input_text = (argc > 1) ? argv[1] : "ampsci.in";
+  const std::string core_text = (argc > 2) ? argv[2] : "";
+  const std::string valence_text = (argc > 3) ? argv[3] : "";
+
+  if (input_text == "-v" || input_text == "--version") {
     GitInfo::print_git_info();
+    return 0;
+  } else if (input_text == "-h" || input_text == "--help") {
+    std::cout << ampsci_help << '\n';
+    return 0;
+  } else if (!input_text.empty() && input_text.front() == '-') {
+    std::cout << "Unrecognised option: " << input_text << '\n';
+    std::cout << ampsci_help << '\n';
+    return 0;
+  }
+
+  if (argc > 1 &&
+      (strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--help") == 0)) {
+    std::cout << ampsci_help << '\n';
     return 0;
   }
 
@@ -25,17 +76,19 @@ int main(int argc, char *argv[]) {
   GitInfo::print_git_info();
   std::cout << "Run time: " << IO::time_date() << '\n';
 
-  const std::string input_text = (argc > 1) ? argv[1] : "ampsci.in";
+  // const std::string input_text = (argc > 1) ? argv[1] : "ampsci.in";
 
   // std::filesystem not available in g++-7 (getafix version)
   // Reading from a file? Or from command-line?
   const auto fstream = std::fstream(input_text);
   const auto symb = AtomData::atomicSymbol(AtomData::atomic_Z(input_text));
-  const auto core = symb == "H" ? "" : symb;
+  const auto core =
+      symb == "H" ? "" : (core_text == "" ? "[" + symb + "]" : core_text);
+  const auto valence = symb == "H" ? core_text : valence_text;
   const std::string default_input = (input_text.size() <= 3) ?
                                         "Atom{Z=" + symb + ";}" +
-                                            "HartreeFock { core = [" + core +
-                                            "]; valence = 2sp;}" :
+                                            "HartreeFock { core = " + core +
+                                            "; valence = " + valence + ";}" :
                                         input_text;
 
   const auto input = fstream.good() ? IO::InputBlock("ampsci", fstream) :

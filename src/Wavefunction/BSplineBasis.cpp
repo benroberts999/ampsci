@@ -299,16 +299,17 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
     const auto &dsi = d_basis[i];
     const auto VexSi = excl_exch ? 0.0 * si : HF::vexFa(si, wf.core);
     const auto SigmaSi = sigmaQ ? (*wf.getSigma())(si) : 0.0 * si;
-    const auto BreitSi = VBr ? (*VBr)(si) : 0.0 * si;
+    const auto BreitSi = VBr ? VBr->VbrFa(si, wf.core) : 0.0 * si;
 
     for (auto j = 0ul; j <= i; j++) {
       const auto &sj = spl_basis[j];
       const auto &dsj = d_basis[j];
 
       auto aij = wf.Hab(sj, dsj, si, dsi);
-      // const auto aij_2 = wf.Hab(sj, si);
-      // auto aij = (0.75 * aij_1 + 0.25 * aij_2);
-      // Actually, seems more stable to calculate derivs..
+      // const auto aij_2 = wf.Hab(sj,
+      // si); auto aij = (0.75 * aij_1 +
+      // 0.25 * aij_2); Actually, seems
+      // more stable to calculate derivs..
       // auto aij = wf.Hab(sj, si);
       if (!excl_exch)
         aij += (sj * VexSi);

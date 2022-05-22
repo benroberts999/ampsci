@@ -14,14 +14,14 @@ struct Breit_Bk_ba; // forward decl
 class Breit {
 public:
   //! Contains ptr to core: careful if updating core (e.g., in HF)
-  Breit(const std::vector<DiracSpinor> &in_core, double in_scale = 1.0)
-      : p_core(&in_core), m_scale(in_scale) {}
+  Breit(double in_scale = 1.0) : m_scale(in_scale) {}
   // nb: During HF, must update orbitals each time
 
-  //! () operator: returns VbrFa(Fa)
-  DiracSpinor operator()(const DiracSpinor &Fa) const { return VbrFa(Fa); }
   //! Calculates V_br*Fa = \sum_b\sum_k B^k_ba F_b [Breit part of HF-Breit pot.]
-  DiracSpinor VbrFa(const DiracSpinor &Fa) const;
+  DiracSpinor VbrFa(const DiracSpinor &Fa,
+                    const std::vector<DiracSpinor> &core) const;
+
+  double scale_factor() const { return m_scale; };
 
   //! dV_b*Fa, dV_b is the exchange RPA correction arising due to Fb -> Fb + dFb
   //! @details
@@ -36,8 +36,8 @@ public:
                        const DiracSpinor &Ybeta) const;
 
 private:
-  const std::vector<DiracSpinor> *const p_core;
-  const double m_scale;
+  // const std::vector<DiracSpinor> *p_core;
+  double m_scale;
 
   // Calculates \sum_k B^k_ba F_b (single core contr. to V_brFa)
   void BkbaFb(DiracSpinor *BFb, const DiracSpinor &Fa,
@@ -58,9 +58,9 @@ private:
   double Pk(int k) const;
 
 public:
-  Breit &operator=(const Breit &) = delete;
-  Breit(const Breit &) = delete;
-  ~Breit() = default;
+  // Breit &operator=(const Breit &) = delete;
+  // Breit(const Breit &) = delete;
+  // ~Breit() = default;
 };
 
 //==============================================================================
@@ -71,7 +71,7 @@ struct Breit_Bk_ba {
 public:
   Breit_Bk_ba(const DiracSpinor &Fb, const DiracSpinor &Fa);
 
-  const std::size_t max_k;
+  std::size_t max_k;
   std::vector<std::vector<double>> bk_0{};
   std::vector<std::vector<double>> bk_inf{};
   std::vector<std::vector<double>> gk_0{};
