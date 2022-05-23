@@ -218,13 +218,13 @@ public: // const methods: "views" into WF object
   //! @brief Solves Dirac bound state problem, with optional 'extra' potential
   //! log_eps is log_10(convergence_target).
   void solveDirac(DiracSpinor &psi, double e_a, const std::vector<double> &vex,
-                  int log_eps = 0) const;
-  void solveDirac(DiracSpinor &psi, double e_a = 0, int log_eps = 0) const;
+                  double eps = 0.0) const;
+  void solveDirac(DiracSpinor &psi, double e_a = 0.0, double eps = 0.0) const;
 
-  //! Populates core orbitals accorind to given core string (+solves)
-  void solveLocalCore(const std::string &str_core_in, int log_dele_or = 0);
+  // //! Populates core orbitals accorind to given core string (+solves)
+  // void solveLocalCore(const std::string &str_core_in, int log_dele_or = 0);
   //! Adds new valence orbtial (+solves using vdir)
-  void solveNewValence(int n, int k, double en_a = 0, int log_dele_or = 0);
+  void solveNewValence(int n, int k, double en_a = 0.0, double eps = 0.0);
 
   //! energy guess for a core state with n,l; quite rough, but good enough
   double enGuessCore(int n, int l) const;
@@ -235,7 +235,7 @@ public: // const methods: "views" into WF object
     /// XXX Fix: two versions of Vdir...
     qip::add(&vdir, dv);
     if (m_pHF) {
-      m_pHF->update_Vdir(vdir);
+      m_pHF->vdir() = vdir;
     }
   }
 

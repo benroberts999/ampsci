@@ -22,10 +22,10 @@ TDHF::TDHF(const DiracOperator::TensorOperator *const h,
            const HF::HartreeFock *const hf)
     : CorePolarisation(h),
       p_hf(hf),
-      m_core(hf->get_core()),
-      // m_vl(hf->get_vlocal(0)), //udpated, to use l-dependent QED [no change]
+      m_core(hf->core()),
+      // m_vl(hf->vlocal(0)), //udpated, to use l-dependent QED [no change]
       m_Hmag(hf->get_Hrad_mag(0)), //(same each l)
-      m_alpha(hf->get_alpha()),
+      m_alpha(hf->alpha()),
       p_VBr(hf->get_Breit())
 // Add check for null hf?
 {
@@ -163,7 +163,7 @@ DiracSpinor TDHF::solve_dPsi(const DiracSpinor &Fv, const double omega,
     s2 = sj * si;
   }
 
-  const auto vl = p_hf->get_vlocal(Angular::l_k(kappa_x));
+  const auto vl = p_hf->vlocal(Angular::l_k(kappa_x));
   // The l from X ? or from Fv ?
   return s2 * ExternalField::solveMixedState(kappa_x, Fv, ww, vl, m_alpha,
                                              m_core, rhs, 1.0e-9, Sigma, p_VBr,
@@ -239,7 +239,7 @@ void TDHF::solve_core(const double omega, const int max_its, const bool print) {
           // Force solveMixedState to start from scratch
           Xx *= 0.0;
         }
-        const auto vl = p_hf->get_vlocal(Xx.l()); // to include l-dep QED
+        const auto vl = p_hf->vlocal(Xx.l()); // to include l-dep QED
         ExternalField::solveMixedState(Xx, Fc, omega, vl, m_alpha, m_core, rhs,
                                        eps_ms, nullptr, p_VBr, m_Hmag);
         Xx = a_damp * oldX + (1.0 - a_damp) * Xx;
@@ -259,7 +259,7 @@ void TDHF::solve_core(const double omega, const int max_its, const bool print) {
           if (has_de) {
             Yx *= 0.0;
           }
-          const auto vl = p_hf->get_vlocal(Yx.l());
+          const auto vl = p_hf->vlocal(Yx.l());
           ExternalField::solveMixedState(Yx, Fc, -omega, vl, m_alpha, m_core,
                                          rhs, eps_ms, nullptr, p_VBr, m_Hmag);
           Yx = a_damp * oldY + (1.0 - a_damp) * Yx;

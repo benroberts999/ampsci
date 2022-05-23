@@ -61,7 +61,7 @@ Wavefunction::Wavefunction(const Wavefunction &wf)
 //==============================================================================
 void Wavefunction::solveDirac(DiracSpinor &psi, double e_a,
                               const std::vector<double> &vex,
-                              int log_dele_or) const
+                              double eps_de) const
 // Uses Adams::boundState to solve Dirac Eqn for local potential (Vnuc + Vdir)
 // If no e_a is given, will use the existing one!
 // (Usually, a better guess should be given, using P.T.)
@@ -77,18 +77,16 @@ void Wavefunction::solveDirac(DiracSpinor &psi, double e_a,
   } else if (psi.en() == 0) {
     psi.en() = enGuessVal(psi.n(), psi.kappa());
   }
-  DiracODE::boundState(psi, psi.en(), v_a, get_Hmag(psi.l()), alpha,
-                       log_dele_or);
+  DiracODE::boundState(psi, psi.en(), v_a, get_Hmag(psi.l()), alpha, eps_de);
 }
 
 //------------------------------------------------------------------------------
-void Wavefunction::solveDirac(DiracSpinor &psi, double e_a,
-                              int log_dele_or) const
+void Wavefunction::solveDirac(DiracSpinor &psi, double e_a, double eps_de) const
 // Overloaded version; see above
 // This one doesn't have exchange potential
 {
   // std::vector<double> empty_vec;
-  return solveDirac(psi, e_a, {}, log_dele_or);
+  return solveDirac(psi, e_a, {}, eps_de);
 }
 
 //==============================================================================
@@ -100,6 +98,11 @@ void Wavefunction::determineCore(const std::string &str_core_in)
 //   Core of Gold: Xe 4f14 5d10
 // 'rest' is in form nLm : n=n, L=l, m=number of electrons in that nl shell.
 {
+  if (!core.empty()) {
+    core.clear();           //?
+    m_core_configs.clear(); //?
+  }
+
   m_core_configs = AtomData::core_parser(str_core_in);
 
   bool bad_core = false;
@@ -136,50 +139,37 @@ void Wavefunction::determineCore(const std::string &str_core_in)
     std::abort();
   }
 
+  for (const auto &[n, l, num] : m_core_configs) {
+    if (num == 0)
+      continue;
+    int k1 = l; // j = l-1/2
+    if (k1 != 0) {
+      auto &new_Fc = core.emplace_back(n, k1, rgrid);
+      new_Fc.occ_frac() = double(num) / (4 * l + 2);
+    }
+    int k2 = -(l + 1); // j=l+1/2
+    auto &new_Fc = core.emplace_back(n, k2, rgrid);
+    new_Fc.occ_frac() = double(num) / (4 * l + 2);
+  }
+
   return;
 }
 
 //==============================================================================
-// void Wavefunction::solve_core(const std::string &method,
-//                                    const double x_Breit,
-//                                    const std::string &in_core, double eps_HF,
-//                                    bool print) {
-//   if (m_pHF == nullptr) {
-//     solveLocalCore(in_core, 16);
-//     m_pHF = std::make_unique<HF::HartreeFock>(this, HF::parseMethod(method),
-//                                               x_Breit, eps_HF);
-//   }
-//   m_pHF->verbose = print;
-//   vdir = m_pHF->solve_core();
-// }
-
 void Wavefunction::solve_core(const std::string &method, const double x_Breit,
                               const std::string &in_core, double eps_HF,
                               bool print) {
-  // core config
-  // initial core if HF
 
-  if (!m_pHF) {
+  determineCore(in_core); // sets m_core_configs :( ?
 
-    if (in_core != "") {
-      double h_g = 0, d_t = 0;
-      // XXX Update to use other coefs?
-      if (method != "Local") {
-        Parametric::defaultGreenCore(m_nuclear.z, h_g, d_t);
-      } else {
-        Parametric::defaultGreen(m_nuclear.z, h_g, d_t);
-      }
-      vdir = Parametric::GreenPotential(m_nuclear.z, rgrid->r(), h_g, d_t);
-    }
-    const auto eps_targ = method == "Local" ? 16 : 5;
-    solveLocalCore(in_core, eps_targ);
-    m_pHF = std::make_unique<HF::HartreeFock>(this, HF::parseMethod(method),
-                                              x_Breit, eps_HF);
-    m_pHF->verbose = print;
-  }
+  m_pHF = std::make_unique<HF::HartreeFock>(
+      rgrid, vnuc, std::move(core), qed ? *qed : std::optional<QED::RadPot>{},
+      alpha, HF::parseMethod(method), x_Breit, eps_HF);
+  m_pHF->solve_core(print);
 
-  if (method != "Local")
-    vdir = m_pHF->solve_core();
+  // XXX
+  core = m_pHF->core();
+  vdir = m_pHF->vdir();
 }
 
 //==============================================================================
@@ -199,21 +189,23 @@ void Wavefunction::solve_valence(const std::string &in_valence_str,
     return;
   }
 
-  auto eps = m_pHF->method() == HF::Method::Local ? 16 : 5;
+  const auto explicite_val_list = m_pHF->method() == HF::Method::KohnSham;
+  const auto val_lst = explicite_val_list ?
+                           AtomData::listOfStates_singlen(in_valence_str) :
+                           AtomData::listOfStates_nk(in_valence_str);
 
-  if (m_pHF->method() == HF::Method::KohnSham) {
-    localValence(in_valence_str, true);
-  } else {
-    const auto val_lst = AtomData::listOfStates_nk(in_valence_str);
-    for (const auto &[n, k, en] : val_lst) {
-      (void)en;
-      if (!isInCore(n, k) && !isInValence(n, k)) {
-        solveNewValence(n, k, 0, eps);
-      }
+  // 1. populate valence states
+  for (const auto &[n, k, en] : val_lst) {
+    (void)en;
+    if (!isInValence(n, k) && (!isInCore(n, k) || explicite_val_list)) {
+      // For Kohn-Sham, valence state may be in core
+      auto &Fv = valence.emplace_back(n, k, rgrid);
+      Fv.occ_frac() = 1.0 / Fv.twojp1();
     }
-    if (m_pHF->method() != HF::Method::Local)
-      m_pHF->solveValence(&valence, print);
   }
+
+  // 2. Solve HF
+  m_pHF->solve_valence(&valence, print);
 }
 
 //==============================================================================
@@ -225,7 +217,7 @@ void Wavefunction::localValence(const std::string &in_valence_str,
                              AtomData::listOfStates_nk(in_valence_str);
   for (const auto &[n, k, en] : val_lst) {
     (void)en;
-    solveNewValence(n, k, 0, 17);
+    solveNewValence(n, k, 0, 1.0e-17);
   }
 }
 //==============================================================================
@@ -337,41 +329,42 @@ double Wavefunction::en_coreval_gap() const {
   return 0.5 * (ev_min + ec_max);
 }
 
+// //==============================================================================
+// void Wavefunction::solveLocalCore(const std::string &str_core, int
+// log_dele_or)
+// // Solves the Dirac eqn for each state in the core
+// // Only for local potential (direct part)
+// // HF/HartreeFock.cpp has routines for Hartree Fock
+// {
+//   if (!core.empty()) {
+//     core.clear();           //?
+//     m_core_configs.clear(); //?
+//   }
+//
+//   determineCore(str_core); // sets m_core_configs :( ?
+//
+//   // for (const auto &[n, l, num] : m_core_configs) {
+//   //   if (num == 0)
+//   //     continue;
+//   //   double en_a = enGuessCore(n, l);
+//   //   int k1 = l; // j = l-1/2
+//   //   if (k1 != 0) {
+//   //     auto &new_Fc = core.emplace_back(n, k1, rgrid);
+//   //     solveDirac(new_Fc, en_a, log_dele_or);
+//   //     new_Fc.occ_frac() = double(num) / (4 * l + 2);
+//   //     en_a = 0.95 * new_Fc.en();
+//   //     if (en_a > 0)
+//   //       en_a = enGuessCore(n, l);
+//   //   }
+//   //   int k2 = -(l + 1); // j=l+1/2
+//   //   auto &new_Fc = core.emplace_back(n, k2, rgrid);
+//   //   solveDirac(new_Fc, en_a, log_dele_or);
+//   //   new_Fc.occ_frac() = double(num) / (4 * l + 2);
+//   // }
+// }
+
 //==============================================================================
-void Wavefunction::solveLocalCore(const std::string &str_core, int log_dele_or)
-// Solves the Dirac eqn for each state in the core
-// Only for local potential (direct part)
-// HF/HartreeFock.cpp has routines for Hartree Fock
-{
-  if (!core.empty()) {
-    core.clear();           //?
-    m_core_configs.clear(); //?
-  }
-
-  determineCore(str_core); // sets m_core_configs :( ?
-
-  for (const auto &[n, l, num] : m_core_configs) {
-    if (num == 0)
-      continue;
-    double en_a = enGuessCore(n, l);
-    int k1 = l; // j = l-1/2
-    if (k1 != 0) {
-      auto &new_Fc = core.emplace_back(n, k1, rgrid);
-      solveDirac(new_Fc, en_a, log_dele_or);
-      new_Fc.occ_frac() = double(num) / (4 * l + 2);
-      en_a = 0.95 * new_Fc.en();
-      if (en_a > 0)
-        en_a = enGuessCore(n, l);
-    }
-    int k2 = -(l + 1); // j=l+1/2
-    auto &new_Fc = core.emplace_back(n, k2, rgrid);
-    solveDirac(new_Fc, en_a, log_dele_or);
-    new_Fc.occ_frac() = double(num) / (4 * l + 2);
-  }
-}
-
-//==============================================================================
-void Wavefunction::solveNewValence(int n, int k, double en_a, int log_dele_or)
+void Wavefunction::solveNewValence(int n, int k, double en_a, double eps_de)
 // Update to take a list ok nken's ?
 {
   valence.emplace_back(n, k, rgrid);
@@ -380,7 +373,7 @@ void Wavefunction::solveNewValence(int n, int k, double en_a, int log_dele_or)
   auto &psi = valence.back();
   if (en_a == 0)
     en_a = enGuessVal(n, k);
-  solveDirac(psi, en_a, log_dele_or);
+  solveDirac(psi, en_a, eps_de);
 }
 
 //==============================================================================
@@ -815,7 +808,7 @@ void Wavefunction::hartreeFockBrueckner(const bool print) {
     return;
   }
   if (m_Sigma)
-    m_pHF->solveBrueckner(&valence, *(m_Sigma.get()), print);
+    m_pHF->solve_valence(&valence, print, m_Sigma.get());
 }
 
 //==============================================================================

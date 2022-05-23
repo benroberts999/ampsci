@@ -46,7 +46,7 @@ bool DiracODE(std::ostream &obuff) {
     auto &Fnk = orbitals.emplace_back(n, k, grid);
     // Use non-rel formula for guess (alpha = 0.0 gives non-rel)
     const auto en_guess = -(Zeff * Zeff) / (2.0 * n * n);
-    DiracODE::boundState(Fnk, en_guess, v_nuc, {}, PhysConst::alpha, 15);
+    DiracODE::boundState(Fnk, en_guess, v_nuc, {}, PhysConst::alpha, 1.0e-15);
   }
 
   // In the following, we find the the _worst_ orbital (by means of comparison
@@ -160,8 +160,9 @@ bool DiracODE(std::ostream &obuff) {
       const auto en_guess = -(Zeff * Zeff) / (2.0 * n * n);
       const auto en_guess_p1 = -(Zeff * Zeff) / (2.0 * (n + 1) * (n + 1));
 
-      DiracODE::boundState(Fa, en_guess, v_tot, {}, PhysConst::alpha, 15);
-      DiracODE::boundState(Fap1, en_guess_p1, v_tot, {}, PhysConst::alpha, 15);
+      DiracODE::boundState(Fa, en_guess, v_tot, {}, PhysConst::alpha, 1.0e-15);
+      DiracODE::boundState(Fap1, en_guess_p1, v_tot, {}, PhysConst::alpha,
+                           1.0e-15);
 
       const auto dvFa = vp * Fa; // "non-local"
       DiracODE::solve_inhomog(Fb, Fa.en(), v_nuc, {}, PhysConst::alpha,
@@ -220,12 +221,13 @@ bool DiracODE(std::ostream &obuff) {
       const auto en_guess_p1 = -(Zeff * Zeff) / (2.0 * (n + 1) * (n + 1));
 
       // Solve 'a' version (local)
-      DiracODE::boundState(Fa, en_guess, v_tot, {}, PhysConst::alpha, 15);
-      DiracODE::boundState(Fap1, en_guess_p1, v_tot, {}, PhysConst::alpha, 15);
+      DiracODE::boundState(Fa, en_guess, v_tot, {}, PhysConst::alpha, 1.0e-15);
+      DiracODE::boundState(Fap1, en_guess_p1, v_tot, {}, PhysConst::alpha,
+                           1.0e-15);
 
       auto dvFa = vp * Fa;
-      DiracODE::boundState(Fb, Fa.en(), v_nuc, {}, PhysConst::alpha, 15, &dvFa,
-                           &Fa, 1);
+      DiracODE::boundState(Fb, Fa.en(), v_nuc, {}, PhysConst::alpha, 1.0e-15,
+                           &dvFa, &Fa, 1);
 
       const auto eps_norm = std::abs(Fb * Fb - 1.0); //<b|b> - norm
 

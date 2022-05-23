@@ -257,6 +257,11 @@ int DiracSpinor::max_l(const std::vector<DiracSpinor> &orbs) {
                         std::max_element(cbegin(orbs), cend(orbs), comp_l)->l();
 }
 // static
+int DiracSpinor::max_n(const std::vector<DiracSpinor> &orbs) {
+  return orbs.empty() ? 0 :
+                        std::max_element(cbegin(orbs), cend(orbs), comp_n)->n();
+}
+// static
 int DiracSpinor::max_kindex(const std::vector<DiracSpinor> &orbs) {
   return orbs.empty() ?
              0 :

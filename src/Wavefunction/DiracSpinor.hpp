@@ -210,6 +210,9 @@ public:
   static bool comp_ki(const DiracSpinor &lhs, const DiracSpinor &rhs) {
     return lhs.m_kappa_index < rhs.m_kappa_index;
   }
+  static bool comp_n(const DiracSpinor &lhs, const DiracSpinor &rhs) {
+    return lhs.m_n < rhs.m_n;
+  }
   static bool comp_en(const DiracSpinor &lhs, const DiracSpinor &rhs) {
     return lhs.en() < rhs.en();
   }
@@ -237,6 +240,8 @@ public:
   static int max_tj(const std::vector<DiracSpinor> &orbs);
   //! Returns maximum l found in {orbs}
   static int max_l(const std::vector<DiracSpinor> &orbs);
+  //! Returns maximum n found in {orbs}
+  static int max_n(const std::vector<DiracSpinor> &orbs);
   //! Returns maximum kappa_index found in {orbs}
   static int max_kindex(const std::vector<DiracSpinor> &orbs);
 };

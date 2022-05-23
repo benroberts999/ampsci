@@ -29,7 +29,7 @@ double ContinuumOrbitals::check_orthog(bool print) const {
   if (p_hf == nullptr)
     return worst;
   for (const auto &Fc : orbitals) {
-    for (const auto &Fn : p_hf->get_core()) {
+    for (const auto &Fn : p_hf->core()) {
       if (Fn.kappa() != Fc.kappa())
         continue;
       const auto eps = Fc * Fn;
@@ -147,13 +147,13 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
     const double conv_target = 1.0e-4;
     if (p_hf != nullptr && !p_hf->excludeExchangeQ()) {
       for (int it = 0; it <= max_its; ++it) {
-        const auto vx0 = HF::vex_approx(Fc, p_hf->get_core());
+        const auto vx0 = HF::vex_approx(Fc, p_hf->core());
         const auto vl = qip::add(vc, vx0);
 
         // Copy old solution (needed by DiracODE)
         const auto Fc0 = Fc;
         if (p_hf->method() == HF::Method::HartreeFock) {
-          auto VxFc = HF::vexFa(Fc, p_hf->get_core()) - vx0 * Fc;
+          auto VxFc = HF::vexFa(Fc, p_hf->core()) - vx0 * Fc;
           // Extend onto larger grid
           VxFc.f().resize(vc.size());
           VxFc.g().resize(vc.size());
@@ -180,7 +180,7 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
   // Orthogonalise against entire core?
   if (orthog_core) {
     for (auto &phic : orbitals) {
-      for (const auto &phi : p_hf->get_core()) {
+      for (const auto &phi : p_hf->core()) {
         if (phic.kappa() == phi.kappa())
           phic -= (phic * phi) * phi;
       }

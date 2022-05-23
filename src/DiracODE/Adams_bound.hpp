@@ -27,7 +27,7 @@ log_eps: log10(eps); eps is convergence target for energy.
 */
 void boundState(DiracSpinor &Fa, const double en0, const std::vector<double> &v,
                 const std::vector<double> &H_mag = {},
-                const double alpha = PhysConst::alpha, int log_eps = 14,
+                const double alpha = PhysConst::alpha, double eps = 1.0e-14,
                 const DiracSpinor *const VxFa = nullptr,
                 const DiracSpinor *const Fa0 = nullptr, double zion = 1);
 

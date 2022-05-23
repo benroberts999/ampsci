@@ -49,7 +49,7 @@ FeynmanSigma::FeynmanSigma(const HF::HartreeFock *const in_hf,
       m_Pol_method(sigp.PolBasis ? GrMethod::basis : GrMethod::Green),
       p_hf(in_hf),
       m_min_core_n(sigp.min_n_core),
-      m_max_kappaindex_core(2 * DiracSpinor::max_l(p_hf->get_core())),
+      m_max_kappaindex_core(2 * DiracSpinor::max_l(p_hf->core())),
       m_max_kappaindex(2 * sigp.max_l_excited),
       m_ex_method(ex_method),
       m_ladder_file(sigp.ladder_file),
@@ -393,7 +393,7 @@ GMatrix FeynmanSigma::calculate_Vx_kappa(int kappa) const {
   GMatrix Vx(m_imin, m_stride, m_subgrid_points, m_include_G, p_gr);
   const auto tj = Angular::twoj_k(kappa);
   const auto kmax = Angular::twojFromIndex(m_max_kappaindex_core);
-  const auto &core = p_hf->get_core();
+  const auto &core = p_hf->core();
 
   for (int k = 0; k <= kmax; ++k) {
     GMatrix Vx_k(m_imin, m_stride, m_subgrid_points, m_include_G, p_gr);
@@ -432,7 +432,7 @@ GMatrix FeynmanSigma::calculate_Vhp(const DiracSpinor &Fc) const {
   // return V0;
 
   GMatrix OneNegPc(m_imin, m_stride, m_subgrid_points, m_include_G, p_gr);
-  const auto &core = p_hf->get_core();
+  const auto &core = p_hf->core();
   for (const auto &Fa : core) {
     if (Fa.kappa() != Fc.kappa())
       continue;
@@ -462,7 +462,7 @@ GMatrix FeynmanSigma::calculate_Vhp(const DiracSpinor &Fc) const {
 //------------------------------------------------------------------------------
 void FeynmanSigma::form_Pa_core() {
   // Fill core |a><a|
-  const auto &core = p_hf->get_core();
+  const auto &core = p_hf->core();
   m_Pa.resize(core.size(),
               {m_imin, m_stride, m_subgrid_points, m_include_G, p_gr});
   for (auto ia = 0ul; ia < core.size(); ia++) {
@@ -478,7 +478,7 @@ void FeynmanSigma::setup_omega_grid() {
 
   // Find max core energy: (for w_max)
   auto wmax_core = 30.0; // don't let it go below 50
-  const auto &core = p_hf->get_core();
+  const auto &core = p_hf->core();
   for (const auto &Fc : core) {
     if (Fc.n() < m_min_core_n)
       continue;
@@ -560,7 +560,7 @@ ComplexGMatrix FeynmanSigma::Green_core(int kappa,
 
   // loop over HF core, not Sigma core (used in subtraction to get
   // G^excited)
-  const auto &core = p_hf->get_core();
+  const auto &core = p_hf->core();
   for (auto ia = 0ul; ia < core.size(); ++ia) {
     const auto &a = core[ia];
     if (a.kappa() != kappa)
@@ -592,7 +592,7 @@ ComplexGMatrix FeynmanSigma::Green_ex(int kappa, std::complex<double> en,
 //------------------------------------------------------------------------------
 void FeynmanSigma::makeGOrthogCore(ComplexGMatrix *Gk, int kappa) const {
   // Force Gk to be orthogonal to the core states
-  const auto &core = p_hf->get_core();
+  const auto &core = p_hf->core();
   const auto &drj = get_drj();
   const auto Gk_old = *Gk;
   for (auto ia = 0ul; ia < core.size(); ++ia) {
@@ -606,8 +606,8 @@ ComplexGMatrix FeynmanSigma::Green_hf_basis(int kappa, std::complex<double> en,
                                             bool ex_only) const {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   ComplexGMatrix Gc(m_imin, m_stride, m_subgrid_points, m_include_G, p_gr);
-  // const auto &core = p_hf->get_core(); // ?????
-  const auto &core = m_holes; // p_hf->get_core(); // ?????
+  // const auto &core = p_hf->core(); // ?????
+  const auto &core = m_holes; // p_hf->core(); // ?????
   // XXX Should include all states, even below n_min_core?
   // XXX BUT, total greens fn should be orthog!
   // No matter, since we don't actually use this method for green.....
@@ -643,10 +643,10 @@ the 'local' method works best for most k's, but the matrix method (with
   // Solve DE (no exchange), regular at 0, infinity ("pinf")
   DiracSpinor x0(0, kappa, p_gr);
   DiracSpinor xI(0, kappa, p_gr);
-  const auto alpha = p_hf->get_alpha();
+  const auto alpha = p_hf->alpha();
   const auto &Hmag = p_hf->get_Hrad_mag(x0.l());
 
-  auto vl = p_hf->get_vlocal(x0.l());
+  auto vl = p_hf->vlocal(x0.l());
   if (Fc_hp != nullptr && k_hp != 0) {
     // Include hole-particle interaction (simple):
     // This way works better for k=1, but ruins k=0
@@ -752,7 +752,7 @@ ComplexGMatrix FeynmanSigma::Polarisation_k(int k, std::complex<double> omega,
   ComplexGMatrix pi_k(m_imin, m_stride, m_subgrid_points, m_include_G, p_gr);
 
   const auto Iunit = std::complex<double>{0.0, 1.0};
-  const auto &core = p_hf->get_core();
+  const auto &core = p_hf->core();
   for (auto ia = 0ul; ia < core.size(); ++ia) {
     const auto &a = core[ia];
     if (a.n() < m_min_core_n)
@@ -1107,7 +1107,7 @@ GMatrix FeynmanSigma::FeynmanEx_1(int kv, double env) const {
   // Set up imaginary frequency grid:
   const double omre = m_omre; // does seem to depend on this..
   const auto &wgrid = *m_wgridD;
-  const auto &core = p_hf->get_core();
+  const auto &core = p_hf->core();
   const auto tjvp1 = Angular::twoj_k(kv) + 1;
 
   // If Im(w) grid is -ve, we integrate "wrong" way around contour; extra -ve

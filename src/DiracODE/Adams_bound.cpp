@@ -35,8 +35,9 @@ using namespace Adams;
 //==============================================================================
 void boundState(DiracSpinor &psi, const double en0,
                 const std::vector<double> &v, const std::vector<double> &H_mag,
-                const double alpha, int log_dele, const DiracSpinor *const VxFa,
-                const DiracSpinor *const Fa0, double zion)
+                const double alpha, double eps_goal,
+                const DiracSpinor *const VxFa, const DiracSpinor *const Fa0,
+                double zion)
 /*
 Solves local, spherical bound state dirac equation using Adams-Moulton
 method. Based on method presented in book by W. R. Johnson:
@@ -77,7 +78,7 @@ Orbitals defined:
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
 
   // Convergance goal. Default: 1e-14
-  const double eps_goal = std::pow(10, -std::abs(log_dele));
+  // const double eps_goal = std::pow(10, -std::abs(log_dele));
 
   if constexpr (do_debug) {
     if (!(std::abs(psi.kappa()) <= psi.n() && psi.kappa() != psi.n())) {

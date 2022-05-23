@@ -25,11 +25,11 @@ namespace MBPT {
 CorrelationPotential::CorrelationPotential(
     const HF::HartreeFock *const in_hf, const std::vector<DiracSpinor> &basis,
     const Sigma_params &sigp, const rgrid_params &subgridp)
-    : p_gr(in_hf->rgrid),
-      m_holes(copy_holes(basis, in_hf->get_core(), sigp.min_n_core)),
-      m_excited(copy_excited(basis, in_hf->get_core())),
+    : p_gr(in_hf->grid_sptr()),
+      m_holes(copy_holes(basis, in_hf->core(), sigp.min_n_core)),
+      m_excited(copy_excited(basis, in_hf->core())),
       m_yeh(m_excited, m_holes),
-      m_maxk(std::max(DiracSpinor::max_tj(in_hf->get_core()),
+      m_maxk(std::max(DiracSpinor::max_tj(in_hf->core()),
                       DiracSpinor::max_tj(basis))),
       m_6j(2 * m_maxk),
       m_stride(subgridp.stride),

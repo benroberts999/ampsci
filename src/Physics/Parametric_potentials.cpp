@@ -135,7 +135,7 @@ int defaultGreen(int z, double &H, double &d)
 }
 
 //==============================================================================
-int defaultTietz(int z, double &t, double &g)
+int defaultTietz(int z, double &g, double &t)
 // Default values for Green potential parameters.
 // Determined by fitting the 5 lowest J=1/2 states.
 // Crude quadratic fit used for other Z values.
@@ -224,7 +224,7 @@ std::vector<double> TietzPotential(int z, const std::vector<double> &r_array,
                                    double g, double t) {
   // double Gh, Gd; // Green potential parameters
   if (std::fabs(g * t) < 1.0e-6)
-    defaultTietz(z, t, g);
+    defaultTietz(z, g, t);
   // Fill the the potential, using Greens Parametric
   std::vector<double> v;
   v.reserve(r_array.size());

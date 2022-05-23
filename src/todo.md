@@ -37,15 +37,9 @@
   * Option to write Yk and/or Qk tables from splines block
     * Can then potentially run multiple basis blocks?
 
-## Hartree Fock (#23)
-  * Re-write class (make less inter-dependent)
-  * Option to use non-local DiracODE (#11)
-  * Two versions of Vdir (one in wf, one in HF) - BAD.
-
 ## Wavefunction (#23)
   * Major cleanup
-  * WF vs HF;
-    * Can delegate much to WF
+  * much moved to HF - wf: no core/vdir/vrad etc.!
 
 ## TDHF - physics
   * Mixed-states work with non-local DiracODE? (#11)

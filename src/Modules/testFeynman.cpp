@@ -104,7 +104,7 @@ void Feyn::test_Q(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma) {
       for (const auto &a : *orbs) {
         const auto &Vx = Sigma.get_Vx_kappa(a.kappa());
         const auto vxmat = Sigma.act_G_Fv_2(a, Vx, a);
-        const auto vxhf = a * (wf.getHF()->calc_vexFa(a));
+        const auto vxhf = a * (wf.getHF()->vexFa(a));
         const auto eps = std::abs((vxmat - vxhf) / vxhf);
         if (eps > worst) {
           worst = eps;
