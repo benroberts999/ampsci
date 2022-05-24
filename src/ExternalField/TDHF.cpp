@@ -17,6 +17,16 @@
 
 namespace ExternalField {
 
+inline auto rampedDamp(double a_beg, double a_end, int beg, int end) {
+  return [=](int i) {
+    if (i >= end)
+      return a_end;
+    if (i <= beg)
+      return a_beg;
+    return (a_end * (i - beg) + a_beg * (end - i)) / (end - beg);
+  };
+}
+
 //==============================================================================
 TDHF::TDHF(const DiracOperator::TensorOperator *const h,
            const HF::HartreeFock *const hf)
@@ -174,7 +184,7 @@ DiracSpinor TDHF::solve_dPsi(const DiracSpinor &Fv, const double omega,
 void TDHF::solve_core(const double omega, const int max_its, const bool print) {
 
   const double converge_targ = 1.0e-8;
-  const auto damper = HF::rampedDamp(0.75, 0.25, 1, 20);
+  const auto damper = rampedDamp(0.75, 0.25, 1, 20);
 
   const bool staticQ = std::abs(omega) < 1.0e-10;
 

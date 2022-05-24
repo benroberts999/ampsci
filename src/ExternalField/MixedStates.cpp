@@ -17,6 +17,16 @@
 namespace ExternalField {
 using namespace HF;
 
+inline auto rampedDamp(double a_beg, double a_end, int beg, int end) {
+  return [=](int i) {
+    if (i >= end)
+      return a_end;
+    if (i <= beg)
+      return a_beg;
+    return (a_end * (i - beg) + a_beg * (end - i)) / (end - beg);
+  };
+}
+
 //==============================================================================
 DiracSpinor solveMixedState(const int k, const DiracSpinor &Fa,
                             const double omega, const std::vector<double> &vl,
