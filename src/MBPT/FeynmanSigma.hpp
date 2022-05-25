@@ -41,7 +41,7 @@ inline std::string_view ParseEnum(ExchangeMethod method) {
   return "unkown";
 }
 
-//******************************************************************************
+//==============================================================================
 
 class FeynmanSigma final : public CorrelationPotential {
 public:

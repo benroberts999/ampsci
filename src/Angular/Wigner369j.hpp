@@ -23,7 +23,7 @@ Three versions of each symbol:
 */
 namespace Angular {
 
-//******************************************************************************
+//==============================================================================
 //! @brief returns l given kappa (all folliwing do similar)
 constexpr int l_k(int ka) { return (ka > 0) ? ka : -ka - 1; }
 constexpr int twoj_k(int ka) { return (ka > 0) ? 2 * ka - 1 : -2 * ka - 1; }
@@ -52,7 +52,7 @@ inline constexpr bool zeroQ(double x, double eps = 1.0e-10) {
   return x >= 0 ? x < eps : x > -eps;
 }
 
-//******************************************************************************
+//==============================================================================
 //    Kappa Index:
 // For easy array access, define 1-to-1 index for each kappa:
 // kappa: -1  1 -2  2 -3  3 -4  4 ...
@@ -68,7 +68,7 @@ constexpr int kappaFromIndex(int i) {
 constexpr int twojFromIndex(int i) { return (i % 2 == 0) ? i + 1 : i; }
 constexpr int lFromIndex(int i) { return (i % 2 == 0) ? i / 2 : (i + 1) / 2; }
 
-//******************************************************************************
+//==============================================================================
 
 //! @brief Minimum/Maximum 'l' allowed in {a,b,k \ c,d,l} 6j symbol
 inline int min_lambda_tj(int tja, int tjb, int tjc, int tjd) {
@@ -78,7 +78,7 @@ inline int min_lambda_tj(int tja, int tjb, int tjc, int tjd) {
 inline int max_lambda_tj(int tja, int tjb, int tjc, int tjd) {
   return std::min((tja + tjd), (tjb + tjc)) / 2;
 }
-//******************************************************************************
+//==============================================================================
 //! @brief Returns true if a is even
 constexpr bool evenQ(int a) { return (a % 2 == 0); }
 //! @brief Returns true if a is even, given 2*a (i.e., true if two_a/2 is even)
@@ -88,13 +88,13 @@ constexpr int neg1pow(int a) { return evenQ(a) ? 1 : -1; }
 //! Evaluates (-1)^{two_a/2}
 constexpr int neg1pow_2(int two_a) { return evenQ_2(two_a) ? 1 : -1; }
 
-//******************************************************************************
+//==============================================================================
 //! @brief Parity rule. Returns 1 only if la+lb+k is even
 constexpr int parity(int la, int lb, int k) {
   return ((la + lb + k) % 2 == 0) ? 1 : 0;
 }
 
-//******************************************************************************
+//==============================================================================
 //! @brief Returns 1 if triangle rule is satisfied
 constexpr int triangle(double j1, double j2, double J) {
   return ((j1 + j2 < J) || (std::fabs(j1 - j2) > J)) ? 0 : 1;
@@ -113,7 +113,7 @@ constexpr int sumsToZero(double m1, double m2, double m3) {
   return ((m1 + m2 + m3) > 0.00001 || (m1 + m2 + m3) < -0.00001) ? 0 : 1;
 }
 
-//******************************************************************************
+//==============================================================================
 //! @brief Calculates wigner 3j symbol: Works for l and j (integer and
 //! half-integer)
 /*! @details
@@ -152,7 +152,7 @@ inline double threej_2(int two_j1, int two_j2, int two_j3, int two_m1,
   return gsl_sf_coupling_3j(two_j1, two_j2, two_j3, two_m1, two_m2, two_m3);
 }
 
-//******************************************************************************
+//==============================================================================
 //!@brief  Special (common) 3js case:  (j1 j2 k, -0.5, 0.5, 0)
 /*! @details
    \f[ \begin{pmatrix}j1&j2&k\\-1/2&1/2&0\end{pmatrix} \f]
@@ -171,7 +171,7 @@ inline double special_threej_2(int two_j1, int two_j2, int two_k) {
   return gsl_sf_coupling_3j(two_j1, two_j2, two_k, -1, 1, 0);
 }
 
-//******************************************************************************
+//==============================================================================
 //!@brief Clebsh-Gordon coeficient <j1 m1, j2 m2 | J M>
 inline double cg(double j1, double m1, double j2, double m2, double J, double M)
 // <j1 m1, j2 m2 | J M> = (-1)^(j1-j2+M) * std::sqrt(2J+1) * (j1 j2  J)
@@ -231,7 +231,7 @@ inline double cg_2(int two_j1, int two_m1, int two_j2, int two_m2, int two_J,
          gsl_sf_coupling_3j(two_j1, two_j2, two_J, two_m1, two_m2, -two_M);
 }
 
-//******************************************************************************
+//==============================================================================
 //! Checks triangle conditions for 6j symbols (for 2*j)
 inline bool sixj_zeroQ(int a, int b, int c, int d, int e, int f) {
   // nb: works for 2*integers ONLY
@@ -274,7 +274,7 @@ inline bool sixjTriads(std::optional<int> a, std::optional<int> b,
   return true;
 }
 
-//******************************************************************************
+//==============================================================================
 //!@brief 6j symbol {j1 j2 j3 \\ j4 j5 j6}
 inline double sixj(double j1, double j2, double j3, double j4, double j5,
                    double j6)
@@ -326,7 +326,7 @@ inline double sixj_2(int two_j1, int two_j2, int two_j3, int two_j4, int two_j5,
   return gsl_sf_coupling_6j(two_j1, two_j2, two_j3, two_j4, two_j5, two_j6);
 }
 
-//******************************************************************************
+//==============================================================================
 inline double ninej(double j1, double j2, double j3, double j4, double j5,
                     double j6, double j7, double j8, double j9)
 // Calculates wigner 9j symbol:
@@ -378,7 +378,7 @@ inline double ninej_2(int two_j1, int two_j2, int two_j3, int two_j4,
                             two_j7, two_j8, two_j9);
 }
 
-//******************************************************************************
+//==============================================================================
 //!@brief Reduced (relativistic) angular ME: <ka||C^k||kb>
 inline double Ck_kk(int k, int ka, int kb)
 // Reduced (relativistic) angular ME:
@@ -426,7 +426,7 @@ inline std::pair<int, int> kminmax_Ck(int ka, int kb) {
   // return std::make_pair(std::abs(a.twoj() - b.twoj()) / 2,
   //                       (a.twoj() + b.twoj()) / 2);
 }
-//******************************************************************************
+//==============================================================================
 inline double Ck_2j2j(int k, int two_ja, int two_jb)
 // Reduced (relativistic) angular ME:
 // <ka||C^k||kb> = (-1)^(ja+1/2) * srt([ja][jb]) * 3js(ja jb k, -1/2 1/2 0) * Pi
@@ -440,7 +440,7 @@ inline double Ck_2j2j(int k, int two_ja, int two_jb)
   auto g = special_threej_2(two_ja, two_jb, 2 * k);
   return sign * f * g;
 }
-//******************************************************************************
+//==============================================================================
 //!@brief Reduced spin angular ME: (for spin 1/2): <ka||S||kb>
 inline double S_kk(int ka, int kb)
 // Reduced spin angular ME: (for spin 1/2!)

@@ -12,7 +12,7 @@
 #include <vector>
 
 namespace IO {
-//******************************************************************************
+//==============================================================================
 //! Removes all white space (space, tab, newline), except for those in quotes
 inline std::string removeSpaces(std::string str);
 
@@ -55,7 +55,7 @@ inline void print_line(const char c = '*', const int num = 80) {
   std::cout << "\n";
 }
 
-//******************************************************************************
+//==============================================================================
 inline std::string time_date() {
   const auto now =
       std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
@@ -78,7 +78,7 @@ inline std::string time() {
   return buffer;
 }
 
-//******************************************************************************
+//==============================================================================
 //! Simple struct; holds key-value pair, both strings. == compares key
 struct Option {
   std::string key;
@@ -99,7 +99,7 @@ struct Option {
   }
 };
 
-//******************************************************************************
+//==============================================================================
 //! Holds list of Options, and a list of other InputBlocks. Can be initialised
 //! with a list of options, with a string, or from a file (ifstream).
 //! Format for input is, e.g.,:
@@ -236,8 +236,8 @@ private:
   inline void consolidate();
 };
 
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+//==============================================================================
 void InputBlock::add(InputBlock block, bool merge) {
   auto existing_block = getBlock_ptr(block.m_name);
   if (merge && existing_block) {
@@ -249,19 +249,19 @@ void InputBlock::add(InputBlock block, bool merge) {
   }
 }
 
-//******************************************************************************
+//==============================================================================
 void InputBlock::add(Option option) { m_options.push_back(option); }
 void InputBlock::add(const std::vector<Option> &options) {
   for (const auto &option : options)
     m_options.push_back(option);
 }
-//******************************************************************************
+//==============================================================================
 void InputBlock::add(const std::string &string, bool merge) {
   add_blocks_from_string(removeQuoteMarks(removeSpaces(removeComments(string))),
                          merge);
 }
 
-//******************************************************************************
+//==============================================================================
 bool operator==(InputBlock block, std::string_view name) {
   return qip::ci_wildcard_compare(name, block.m_name);
 }
@@ -275,7 +275,7 @@ bool operator!=(std::string_view name, InputBlock block) {
   return !(block == name);
 }
 
-//******************************************************************************
+//==============================================================================
 template <typename T>
 std::optional<T> InputBlock::get(std::string_view key) const {
   if constexpr (IsVector<T>::v) {
@@ -358,7 +358,7 @@ std::optional<T> InputBlock::get(std::initializer_list<std::string> blocks,
   return pB->get<T>(key);
 }
 
-//******************************************************************************
+//==============================================================================
 std::optional<InputBlock> InputBlock::getBlock(std::string_view name) const {
   // note: by copy!
   const auto block = std::find(m_blocks.crbegin(), m_blocks.crend(), name);
@@ -380,7 +380,7 @@ InputBlock::getBlock(std::initializer_list<std::string> blocks,
   return pB->getBlock(name);
 }
 
-//******************************************************************************
+//==============================================================================
 std::optional<Option> InputBlock::getOption(std::string_view key) const {
   // Use reverse iterators so that we find _last_ option that matches key
   // i.e., assume later options override earlier ones.
@@ -390,7 +390,7 @@ std::optional<Option> InputBlock::getOption(std::string_view key) const {
   return {};
 }
 
-//******************************************************************************
+//==============================================================================
 void InputBlock::print(std::ostream &os, int depth) const {
 
   std::string indent = "";
@@ -425,7 +425,7 @@ void InputBlock::print(std::ostream &os, int depth) const {
     os << "}\n";
 }
 
-//******************************************************************************
+//==============================================================================
 bool InputBlock::checkBlock(
     const std::vector<std::pair<std::string, std::string>> &list,
     bool print) const {
@@ -559,7 +559,7 @@ bool InputBlock::check(
   return pB->check(list, print);
 }
 
-//******************************************************************************
+//==============================================================================
 void InputBlock::add_blocks_from_string(std::string_view string, bool merge) {
 
   // Expects that string has comments and spaces removed already
@@ -632,7 +632,7 @@ void InputBlock::add_blocks_from_string(std::string_view string, bool merge) {
   // No - want ability to have multiple blocks of same name
 }
 
-//******************************************************************************
+//==============================================================================
 void InputBlock::add_option(std::string_view in_string) {
   const auto pos = in_string.find('=');
   const auto option = in_string.substr(0, pos);
@@ -640,7 +640,7 @@ void InputBlock::add_option(std::string_view in_string) {
   m_options.push_back({std::string(option), std::string(value)});
 }
 
-//******************************************************************************
+//==============================================================================
 InputBlock *InputBlock::getBlock_ptr(std::string_view name) {
   auto block = std::find(m_blocks.rbegin(), m_blocks.rend(), name);
   if (block == m_blocks.rend())
@@ -655,7 +655,7 @@ const InputBlock *InputBlock::getBlock_cptr(std::string_view name) const {
   return &(*block);
 }
 
-//******************************************************************************
+//==============================================================================
 void InputBlock::consolidate() {
   for (auto bl = m_blocks.end() - 1; bl != m_blocks.begin() - 1; --bl) {
     bl->consolidate();
@@ -668,11 +668,11 @@ void InputBlock::consolidate() {
   }
 }
 
-//******************************************************************************
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+//==============================================================================
+//==============================================================================
 
-//******************************************************************************
+//==============================================================================
 inline std::string removeSpaces(std::string str) {
 
   bool inside = false;
@@ -700,7 +700,7 @@ inline std::string removeQuoteMarks(std::string str) {
   return str;
 }
 
-//******************************************************************************
+//==============================================================================
 inline void removeBlockComments(std::string &input) {
   for (auto posi = input.find("/*"); posi != std::string::npos;
        posi = input.find("/*")) {
@@ -713,7 +713,7 @@ inline void removeBlockComments(std::string &input) {
   }
 }
 
-//******************************************************************************
+//==============================================================================
 inline std::string removeComments(const std::string &input) {
   std::string str = "";
   {
@@ -733,7 +733,7 @@ inline std::string removeComments(const std::string &input) {
   return str;
 }
 
-//******************************************************************************
+//==============================================================================
 template <typename T> T inline parse_str_to_T(const std::string &value_as_str) {
   if constexpr (std::is_same_v<T, std::string>) {
     // already a string, just return value
@@ -747,7 +747,7 @@ template <typename T> T inline parse_str_to_T(const std::string &value_as_str) {
   }
 }
 
-//******************************************************************************
+//==============================================================================
 inline std::string file_to_string(const std::istream &file) {
   std::string out;
   if (!file)

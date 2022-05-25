@@ -18,7 +18,7 @@
 
 namespace UnitTest {
 
-//******************************************************************************
+//==============================================================================
 //! Unit tests for solving (local) Dirac equation ODE
 bool DiracODE(std::ostream &obuff) {
   bool pass = true;
@@ -46,7 +46,7 @@ bool DiracODE(std::ostream &obuff) {
     auto &Fnk = orbitals.emplace_back(n, k, grid);
     // Use non-rel formula for guess (alpha = 0.0 gives non-rel)
     const auto en_guess = -(Zeff * Zeff) / (2.0 * n * n);
-    DiracODE::boundState(Fnk, en_guess, v_nuc, {}, PhysConst::alpha, 15);
+    DiracODE::boundState(Fnk, en_guess, v_nuc, {}, PhysConst::alpha, 1.0e-15);
   }
 
   // In the following, we find the the _worst_ orbital (by means of comparison
@@ -71,9 +71,9 @@ bool DiracODE(std::ostream &obuff) {
   { // Compare energy to exact (Dirac) value:
     auto comp_eps_en = [Zeff](const auto &Fa, const auto &Fb) {
       const auto exact_a =
-          AtomData::diracen(Zeff, Fa.n, Fa.k, PhysConst::alpha);
+          AtomData::diracen(Zeff, Fa.n(), Fa.kappa(), PhysConst::alpha);
       const auto exact_b =
-          AtomData::diracen(Zeff, Fb.n, Fb.k, PhysConst::alpha);
+          AtomData::diracen(Zeff, Fb.n(), Fb.kappa(), PhysConst::alpha);
       const auto eps_a = std::abs((Fa.en() - exact_a) / exact_a);
       const auto eps_b = std::abs((Fb.en() - exact_b) / exact_b);
       return eps_a < eps_b;
@@ -82,8 +82,8 @@ bool DiracODE(std::ostream &obuff) {
     const auto worst_F =
         std::max_element(cbegin(orbitals), cend(orbitals), comp_eps_en);
 
-    const auto exact =
-        AtomData::diracen(Zeff, worst_F->n, worst_F->k, PhysConst::alpha);
+    const auto exact = AtomData::diracen(Zeff, worst_F->n(), worst_F->kappa(),
+                                         PhysConst::alpha);
     const auto eps = std::abs((worst_F->en() - exact) / exact);
 
     pass &=
@@ -106,7 +106,8 @@ bool DiracODE(std::ostream &obuff) {
     const auto get_worst = [&orbitals, &grid, Zeff](const auto &o) {
       std::pair<std::string, double> worst{"", 0.0};
       for (const auto &Fa : orbitals) {
-        const auto Fexact = DiracSpinor::exactHlike(Fa.n, Fa.k, grid, Zeff);
+        const auto Fexact =
+            DiracSpinor::exactHlike(Fa.n(), Fa.kappa(), grid, Zeff);
         const auto aoa = o.radialIntegral(Fa, Fa);
         const auto AoA = o.radialIntegral(Fexact, Fexact);
         const auto eps = std::abs((aoa - AoA) / AoA);
@@ -159,8 +160,9 @@ bool DiracODE(std::ostream &obuff) {
       const auto en_guess = -(Zeff * Zeff) / (2.0 * n * n);
       const auto en_guess_p1 = -(Zeff * Zeff) / (2.0 * (n + 1) * (n + 1));
 
-      DiracODE::boundState(Fa, en_guess, v_tot, {}, PhysConst::alpha, 15);
-      DiracODE::boundState(Fap1, en_guess_p1, v_tot, {}, PhysConst::alpha, 15);
+      DiracODE::boundState(Fa, en_guess, v_tot, {}, PhysConst::alpha, 1.0e-15);
+      DiracODE::boundState(Fap1, en_guess_p1, v_tot, {}, PhysConst::alpha,
+                           1.0e-15);
 
       const auto dvFa = vp * Fa; // "non-local"
       DiracODE::solve_inhomog(Fb, Fa.en(), v_nuc, {}, PhysConst::alpha,
@@ -219,12 +221,13 @@ bool DiracODE(std::ostream &obuff) {
       const auto en_guess_p1 = -(Zeff * Zeff) / (2.0 * (n + 1) * (n + 1));
 
       // Solve 'a' version (local)
-      DiracODE::boundState(Fa, en_guess, v_tot, {}, PhysConst::alpha, 15);
-      DiracODE::boundState(Fap1, en_guess_p1, v_tot, {}, PhysConst::alpha, 15);
+      DiracODE::boundState(Fa, en_guess, v_tot, {}, PhysConst::alpha, 1.0e-15);
+      DiracODE::boundState(Fap1, en_guess_p1, v_tot, {}, PhysConst::alpha,
+                           1.0e-15);
 
       auto dvFa = vp * Fa;
-      DiracODE::boundState(Fb, Fa.en(), v_nuc, {}, PhysConst::alpha, 15, &dvFa,
-                           &Fa, 1);
+      DiracODE::boundState(Fb, Fa.en(), v_nuc, {}, PhysConst::alpha, 1.0e-15,
+                           &dvFa, &Fa, 1);
 
       const auto eps_norm = std::abs(Fb * Fb - 1.0); //<b|b> - norm
 

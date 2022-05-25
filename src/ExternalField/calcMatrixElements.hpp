@@ -16,7 +16,7 @@ struct MEdata {
   double hab, dv1, dv;
 
   friend std::ostream &operator<<(std::ostream &os, const MEdata &m) {
-    os << qip::fstring("<%4s,%4s>: %13.6e", m.a.c_str(), m.b.c_str(), m.hab);
+    os << qip::fstring(" %4s %4s  %13.6e", m.a.c_str(), m.b.c_str(), m.hab);
     if (m.dv1 != 0.0) {
       os << qip::fstring("  %13.6e  %13.6e", m.hab + m.dv1, m.hab + m.dv);
     }

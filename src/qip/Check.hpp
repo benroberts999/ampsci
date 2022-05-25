@@ -6,7 +6,7 @@
 
 namespace qip {
 
-//******************************************************************************
+//==============================================================================
 //! Checks if value==expected, within +/-tollerance. Writes report to ostr.
 template <typename T>
 bool check_value(std::ostream *ostr, const std::string_view &name,

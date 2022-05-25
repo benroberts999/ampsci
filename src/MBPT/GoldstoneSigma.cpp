@@ -13,7 +13,7 @@
 
 namespace MBPT {
 
-//******************************************************************************
+//==============================================================================
 GoldstoneSigma::GoldstoneSigma(const HF::HartreeFock *const in_hf,
                                const std::vector<DiracSpinor> &basis,
                                const Sigma_params &sigp,
@@ -52,7 +52,7 @@ GoldstoneSigma::GoldstoneSigma(const HF::HartreeFock *const in_hf,
   }
 } // namespace MBPT
 
-//******************************************************************************
+//==============================================================================
 void GoldstoneSigma::formSigma(int kappa, double en, int n) {
   // Calc dir + exchange
   // Print D, X, (D+X) energy shift
@@ -88,7 +88,7 @@ void GoldstoneSigma::formSigma(int kappa, double en, int n) {
 
   // find lowest excited state, output <v|S|v> energy shift:
   const auto find_kappa = [kappa, n](const auto &a) {
-    return a.k == kappa && (a.n == n || n == 0);
+    return a.kappa() == kappa && (a.n() == n || n == 0);
   };
   const auto vk = std::find_if(cbegin(m_excited), cend(m_excited), find_kappa);
   if (vk != cend(m_excited)) {
@@ -105,7 +105,7 @@ void GoldstoneSigma::formSigma(int kappa, double en, int n) {
   std::cout << "\n";
 }
 
-//******************************************************************************
+//==============================================================================
 void GoldstoneSigma::Sigma2(GMatrix *Gmat_D, GMatrix *Gmat_X, int kappa,
                             double en) {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
@@ -147,7 +147,7 @@ void GoldstoneSigma::Sigma2(GMatrix *Gmat_D, GMatrix *Gmat_X, int kappa,
     for (const auto &n : m_excited) {
       const auto [kmin_nb, kmax_nb] = Coulomb::k_minmax(n, a);
       for (int k = kmin_nb; k <= kmax_nb; ++k) {
-        if (Ck(k, a.k, n.k) == 0)
+        if (Ck(k, a.kappa(), n.kappa()) == 0)
           continue;
         const auto f_kkjj = (2 * k + 1) * (Angular::twoj_k(kappa) + 1);
 
@@ -159,10 +159,10 @@ void GoldstoneSigma::Sigma2(GMatrix *Gmat_D, GMatrix *Gmat_X, int kappa,
 
         // Diagrams (a) [direct] and (b) [exchange]
         for (const auto &m : m_excited) {
-          if (Ck(k, kappa, m.k) == 0)
+          if (Ck(k, kappa, m.kappa()) == 0)
             continue;
-          Qkv = m_yeh.Qkv_bcd(Qkv.k, a, m, n, k);
-          Pkv = m_yeh.Pkv_bcd(Pkv.k, a, m, n, k, m_fk);
+          Qkv = m_yeh.Qkv_bcd(Qkv.kappa(), a, m, n, k);
+          Pkv = m_yeh.Pkv_bcd(Pkv.kappa(), a, m, n, k, m_fk);
           const auto dele = en + a.en() - m.en() - n.en();
           const auto factor = 1.0 / (f_kkjj * dele);
           addto_G(&Ga_d, Qkv, Qkv, etak * fk * factor);
@@ -171,10 +171,10 @@ void GoldstoneSigma::Sigma2(GMatrix *Gmat_D, GMatrix *Gmat_X, int kappa,
 
         // Diagrams (c) [direct] and (d) [exchange]
         for (const auto &b : m_holes) {
-          if (Ck(k, kappa, b.k) == 0)
+          if (Ck(k, kappa, b.kappa()) == 0)
             continue;
-          Qkv = m_yeh.Qkv_bcd(Qkv.k, n, b, a, k);
-          Pkv = m_yeh.Pkv_bcd(Pkv.k, n, b, a, k, m_fk);
+          Qkv = m_yeh.Qkv_bcd(Qkv.kappa(), n, b, a, k);
+          Pkv = m_yeh.Pkv_bcd(Pkv.kappa(), n, b, a, k, m_fk);
           const auto dele = en + n.en() - b.en() - a.en();
           const auto factor = 1.0 / (f_kkjj * dele); // XXX
           addto_G(&Ga_d, Qkv, Qkv, etak * fk * factor);

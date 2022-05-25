@@ -7,17 +7,18 @@
 
 namespace HF {
 
-//******************************************************************************
+//==============================================================================
 // Calculates V_br*Fa = \sum_b\sum_k B^k_ba F_b - For HF potential
-DiracSpinor Breit::VbrFa(const DiracSpinor &Fa) const {
-  DiracSpinor BFa(Fa.n, Fa.k, Fa.rgrid); //
-  for (const auto &Fb : *p_core) {
+DiracSpinor Breit::VbrFa(const DiracSpinor &Fa,
+                         const std::vector<DiracSpinor> &core) const {
+  DiracSpinor BFa(Fa.n(), Fa.kappa(), Fa.grid_sptr());
+  for (const auto &Fb : core) {
     BkbaFb(&BFa, Fa, Fb);
   }
   return BFa;
 }
 
-//******************************************************************************
+//==============================================================================
 // Calculates \sum_k B^k_ba F_b - For HF potential
 void Breit::BkbaFb(DiracSpinor *BFb, const DiracSpinor &Fa,
                    const DiracSpinor &Fb) const {
@@ -25,8 +26,8 @@ void Breit::BkbaFb(DiracSpinor *BFb, const DiracSpinor &Fa,
     return;
 
   const hidden::Breit_Bk_ba Bkba(Fb, Fa); // every k
-  const auto ka = Fa.k;
-  const auto kb = Fb.k;
+  const auto ka = Fa.kappa();
+  const auto kb = Fb.kappa();
 
   const auto kmax = (Fb.twoj() + Fa.twoj()) / 2;
   const auto tjap1 = Fa.twoj() + 1;
@@ -50,7 +51,7 @@ void Breit::BkbaFb(DiracSpinor *BFb, const DiracSpinor &Fa,
   } // sum over k
 }
 
-//******************************************************************************
+//==============================================================================
 // Returns (M+O+P)^k_ba //(for TDHF)
 // dV_Br Fa, for given b Beta
 // K is multipolarity of RPA operator, k is multipolarity of Breit/Coulomb
@@ -58,10 +59,10 @@ DiracSpinor Breit::dVbrX_Fa(int kappa, int K, const DiracSpinor &Fa,
                             const DiracSpinor &Fb, const DiracSpinor &Xbeta,
                             const DiracSpinor &Ybeta) const {
 
-  DiracSpinor dVFa(0, kappa, Fa.rgrid);
+  DiracSpinor dVFa(0, kappa, Fa.grid_sptr());
   // These will be updated in MOPk_ij_Fc if need be
-  dVFa.set_min_pt() = Fa.min_pt();
-  dVFa.set_max_pt() = Fa.max_pt();
+  dVFa.min_pt() = Fa.min_pt();
+  dVFa.max_pt() = Fa.max_pt();
   if (m_scale == 0.0)
     return dVFa;
 
@@ -74,10 +75,10 @@ DiracSpinor Breit::dVbrX_Fa(int kappa, int K, const DiracSpinor &Fa,
   std::unique_ptr<hidden::Breit_Bk_ba> Bkba{nullptr};
   std::unique_ptr<hidden::Breit_Bk_ba> BkYBa{nullptr};
 
-  const auto kn = dVFa.k;
-  const auto ka = Fa.k;
-  const auto kb = Fb.k;
-  const auto kB = Xbeta.k;
+  const auto kn = dVFa.kappa();
+  const auto ka = Fa.kappa();
+  const auto kb = Fb.kappa();
+  const auto kB = Xbeta.kappa();
   const auto tjn = dVFa.twoj();
   const auto tja = Fa.twoj();
   const auto tjb = Fb.twoj();
@@ -133,7 +134,7 @@ DiracSpinor Breit::dVbrX_Fa(int kappa, int K, const DiracSpinor &Fa,
   return dVFa;
 }
 
-//******************************************************************************
+//==============================================================================
 DiracSpinor Breit::dVbrD_Fa(int kappa, int K, const DiracSpinor &Fa,
                             const DiracSpinor &Fb, const DiracSpinor &Xbeta,
                             const DiracSpinor &Ybeta) const {
@@ -142,20 +143,20 @@ DiracSpinor Breit::dVbrD_Fa(int kappa, int K, const DiracSpinor &Fa,
   // contribution? Essentially agrees with VD for E1 and E2 (with very tiny
   // assymetry? - so probably minor mistake somewhere!)
 
-  DiracSpinor dVFa(0, kappa, Fa.rgrid);
+  DiracSpinor dVFa(0, kappa, Fa.grid_sptr());
   // These will be updated in MOPk_ij_Fc if need be
-  dVFa.set_min_pt() = Fa.min_pt();
-  dVFa.set_max_pt() = Fa.max_pt();
+  dVFa.min_pt() = Fa.min_pt();
+  dVFa.max_pt() = Fa.max_pt();
   if (m_scale == 0.0)
     return dVFa;
 
   // Only need single k here?
   // Also, when X = Y, can do just once!
 
-  const auto kn = dVFa.k;
-  const auto ka = Fa.k;
-  const auto kb = Fb.k;
-  const auto kB = Xbeta.k; // kappa(X) = kappa(Y)
+  const auto kn = dVFa.kappa();
+  const auto ka = Fa.kappa();
+  const auto kb = Fb.kappa();
+  const auto kB = Xbeta.kappa(); // kappa(X) = kappa(Y)
 
   const auto k = K;
 
@@ -189,7 +190,7 @@ DiracSpinor Breit::dVbrD_Fa(int kappa, int K, const DiracSpinor &Fa,
   return dVFa;
 }
 
-//******************************************************************************
+//==============================================================================
 void Breit::MOPk_ij_Fc(DiracSpinor *BFc, const double Cang,
                        const hidden::Breit_Bk_ba &Bkab, int k, int ki, int kj,
                        const DiracSpinor &Fc) const {
@@ -214,17 +215,17 @@ void Breit::MOPk_ij_Fc(DiracSpinor *BFc, const double Cang,
   const auto e = eta(k, ki, kj);
 
   if (Fc.max_pt() > BFc->max_pt())
-    BFc->set_max_pt() = Fc.max_pt();
+    BFc->max_pt() = Fc.max_pt();
   if (Fc.min_pt() < BFc->min_pt())
-    BFc->set_min_pt() = Fc.min_pt();
+    BFc->min_pt() = Fc.min_pt();
 
   // M1 and O1 term:
   if (m1 != 0.0 || o1 != 0.0) {
     for (auto i = Fc.min_pt(); i < Fc.max_pt(); ++i) {
       const auto ff =
           Cc * (m1 + o1) * (b0p[i] + bip[i] + ep * g0p[i] + ep * gip[i]);
-      BFc->set_f(i) += ff * (1.0 - ep) * Fc.g(i);
-      BFc->set_g(i) += -ff * (1.0 + ep) * Fc.f(i);
+      BFc->f(i) += ff * (1.0 - ep) * Fc.g(i);
+      BFc->g(i) += -ff * (1.0 + ep) * Fc.f(i);
     }
   }
 
@@ -233,8 +234,8 @@ void Breit::MOPk_ij_Fc(DiracSpinor *BFc, const double Cang,
     for (auto i = Fc.min_pt(); i < Fc.max_pt(); ++i) {
       const auto ff =
           Cc * (m2 + o2) * (-b0m[i] - bim[i] + e * g0m[i] + e * gim[i]);
-      BFc->set_f(i) += -ff * (1.0 + e) * Fc.g(i);
-      BFc->set_g(i) += ff * (1.0 - e) * Fc.f(i);
+      BFc->f(i) += -ff * (1.0 + e) * Fc.g(i);
+      BFc->g(i) += ff * (1.0 - e) * Fc.f(i);
     }
   }
 
@@ -242,38 +243,38 @@ void Breit::MOPk_ij_Fc(DiracSpinor *BFc, const double Cang,
   if (p1 != 0.0) {
     for (auto i = Fc.min_pt(); i < Fc.max_pt(); ++i) {
       const auto ff = Cc * p1 * (-b0m[i] + e * g0m[i] + b0p[i] - e * g0p[i]);
-      BFc->set_f(i) += ff * (1.0 - ep) * Fc.g(i);
-      BFc->set_g(i) += -ff * (1.0 + ep) * Fc.f(i);
+      BFc->f(i) += ff * (1.0 - ep) * Fc.g(i);
+      BFc->g(i) += -ff * (1.0 + ep) * Fc.f(i);
     }
     for (auto i = Fc.min_pt(); i < Fc.max_pt(); ++i) {
       const auto ff = Cc * p1 * (bim[i] + ep * gim[i] - bip[i] - ep * gip[i]);
-      BFc->set_f(i) += -ff * (1.0 + e) * Fc.g(i);
-      BFc->set_g(i) += ff * (1.0 - e) * Fc.f(i);
+      BFc->f(i) += -ff * (1.0 + e) * Fc.g(i);
+      BFc->g(i) += ff * (1.0 - e) * Fc.f(i);
     }
   }
 }
 
-//******************************************************************************
+//==============================================================================
 void Breit::Nk_ij_Fc(DiracSpinor *BFc, const double Cang,
                      const hidden::Breit_Bk_ba &Bkij, int k, int ki, int kj,
                      const DiracSpinor &Fc) const {
 
   if (Fc.max_pt() > BFc->max_pt())
-    BFc->set_max_pt() = Fc.max_pt();
+    BFc->max_pt() = Fc.max_pt();
   if (Fc.min_pt() < BFc->min_pt())
-    BFc->set_min_pt() = Fc.min_pt();
+    BFc->min_pt() = Fc.min_pt();
 
   const auto sk = std::size_t(k);
   const auto Cg = m_scale * Cang * Nkba(k, ki, kj);
   const auto &g0 = Bkij.gk_0[sk];
   const auto &gi = Bkij.gk_inf[sk];
   for (auto i = Fc.min_pt(); i < Fc.max_pt(); ++i) {
-    BFc->set_f(i) += Cg * (g0[i] + gi[i]) * Fc.g(i);
-    BFc->set_g(i) += Cg * (g0[i] + gi[i]) * Fc.f(i);
+    BFc->f(i) += Cg * (g0[i] + gi[i]) * Fc.g(i);
+    BFc->g(i) += Cg * (g0[i] + gi[i]) * Fc.f(i);
   }
 }
 
-//******************************************************************************
+//==============================================================================
 double Breit::eta(int k, int ka, int kb) const {
   return k == 0 ? 0.0 : double(ka - kb) / k;
 }
@@ -295,7 +296,7 @@ double Breit::Pk(int k) const {
   return double(k * (k + 1)) / double(2 * (2 * k + 1));
 }
 
-//******************************************************************************
+//==============================================================================
 namespace hidden {
 
 Breit_Bk_ba::Breit_Bk_ba(const DiracSpinor &Fb, const DiracSpinor &Fa)
@@ -315,20 +316,20 @@ Breit_Bk_ba::Breit_Bk_ba(const DiracSpinor &Fb, const DiracSpinor &Fa)
     // const auto maxi = std::min(Fa.max_pt(), Fb.max_pt()); // XXX OK? No.
 
     // These normally re-sized in gk_ab()... but not if skip due to SRs
-    bk_0[k].resize(Fa.rgrid->num_points());
-    bk_inf[k].resize(Fa.rgrid->num_points());
-    gk_0[k].resize(Fa.rgrid->num_points());
-    gk_inf[k].resize(Fa.rgrid->num_points());
+    bk_0[k].resize(Fa.grid().num_points());
+    bk_inf[k].resize(Fa.grid().num_points());
+    gk_0[k].resize(Fa.grid().num_points());
+    gk_inf[k].resize(Fa.grid().num_points());
 
     // bk, in M,N,O, only used if C^(k+/-1)_ba non-zero
-    if (Angular::Ck_kk_SR(int(k) - 1, Fb.k, Fa.k) ||
-        Angular::Ck_kk_SR(int(k) + 1, Fb.k, Fa.k)) {
+    if (Angular::Ck_kk_SR(int(k) - 1, Fb.kappa(), Fa.kappa()) ||
+        Angular::Ck_kk_SR(int(k) + 1, Fb.kappa(), Fa.kappa())) {
       Coulomb::bk_ab(Fb, Fa, int(k), bk_0[k], bk_inf[k], maxi);
     }
     // gk, in M,N,O AND N only used if C^(k+/-1)_ab and C^(k)_(-b,a)
-    if (Angular::Ck_kk_SR(int(k) - 1, Fb.k, Fa.k) ||
-        Angular::Ck_kk_SR(int(k) + 1, Fb.k, Fa.k) ||
-        Angular::Ck_kk_SR(int(k), -Fb.k, Fa.k)) {
+    if (Angular::Ck_kk_SR(int(k) - 1, Fb.kappa(), Fa.kappa()) ||
+        Angular::Ck_kk_SR(int(k) + 1, Fb.kappa(), Fa.kappa()) ||
+        Angular::Ck_kk_SR(int(k), -Fb.kappa(), Fa.kappa())) {
       Coulomb::gk_ab(Fb, Fa, int(k), gk_0[k], gk_inf[k], maxi);
     }
   }

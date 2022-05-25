@@ -1,7 +1,7 @@
 #include "Physics/NuclearData.hpp" //for Isotope
 
 namespace Nuclear {
-//******************************************************************************
+//==============================================================================
 Isotope findIsotopeData(int z, int a) {
   for (const auto &nucleus : NuclearDataTable) {
     if (nucleus.Z == z && nucleus.A == a)
@@ -47,7 +47,7 @@ double find_spin(int z, int a) {
   return nuc.I_N;
 }
 
-//******************************************************************************
+//==============================================================================
 double approximate_r_rms(int A)
 // Returns approximate root-mean-square charge radius in fm [1.e-15 m]
 // https://www.sciencedirect.com/science/article/pii/S0092640X12000265
@@ -57,7 +57,7 @@ double approximate_r_rms(int A)
                     0.836 * std::pow(A, 0.3333) + 0.570;
 }
 
-//******************************************************************************
+//==============================================================================
 double c_hdr_formula_rrms_t(double rrms, double t)
 // Calculates half-density radius, given rms charge radius, and t.
 // r_rms = sqrt(<r^2>) = (3/5)c^2 + (7/5)(pi*a)^2
@@ -71,7 +71,7 @@ double c_hdr_formula_rrms_t(double rrms, double t)
              std::sqrt((5.0 / 3.0) * rrms * rrms - (7.0 / 3.0) * (Pi2 * a * a));
 }
 
-//******************************************************************************
+//==============================================================================
 double rrms_formula_c_t(double c, double t)
 // Calculates  rms charge radius, given half-density radius (c), and t.
 // r_rms = sqrt(<r^2>) = (3/5)c^2 + (7/5)(pi*a)^2
@@ -81,7 +81,7 @@ double rrms_formula_c_t(double c, double t)
   return std::sqrt((3.0 / 5.0) * c * c + (7.0 / 5.0) * a * a * Pi2);
 }
 
-//******************************************************************************
+//==============================================================================
 
 double approximate_t_skin(int) { return default_t; }
 

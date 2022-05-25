@@ -13,7 +13,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: "Install dependencies"
-      run: sudo apt install g++-11 make liblapack-dev libblas-dev libgsl-dev libomp5 libomp-dev
+      run: sudo apt install g++-11 make liblapack-dev libblas-dev libgsl-dev libomp-dev
     - name: setup
       run: cp ./doc/Makefile.example ./Makefile
     - name: Build ampsci (g++, dev mode, with Werror)

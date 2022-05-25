@@ -5,7 +5,7 @@
 
 namespace DiracOperator {
 
-//******************************************************************************
+//==============================================================================
 //! @brief Nuclear-spin independent PNC operator (Qw)
 /*! @details
 \f[
@@ -43,7 +43,7 @@ private:
   const std::string m_unit{"iQw*e-11"};
 };
 
-//******************************************************************************
+//==============================================================================
 inline std::unique_ptr<DiracOperator::TensorOperator>
 generate_pnc(const IO::InputBlock &input, const Wavefunction &wf) {
   using namespace DiracOperator;

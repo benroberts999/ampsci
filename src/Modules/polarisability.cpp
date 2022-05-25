@@ -143,7 +143,7 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 }
 
-//******************************************************************************
+//==============================================================================
 
 namespace Polarisability {
 
@@ -205,9 +205,9 @@ double alpha_core_sos(const std::vector<DiracSpinor> &core,
   // core part: sum_{n,c} |<n|d|c>|^2, n excited states, c core states
   for (const auto &Fb : core) {
     for (const auto &Fn : basis) {
-      // if (wf.isInCore(Fn.n, Fn.k))
+      // if (wf.isInCore(Fn.n(), Fn.kappa()))
       //   continue; // if core(HF) = core(basis), these cancel excactly
-      if (he1.isZero(Fb.k, Fn.k))
+      if (he1.isZero(Fb.kappa(), Fn.kappa()))
         continue;
       const auto d1 = he1.reducedME(Fn, Fb);
       const auto d2 = d1 + dVE1.dV(Fn, Fb);
@@ -229,9 +229,9 @@ double alpha_valence_sos(const DiracSpinor &Fv,
   const auto f = (-2.0 / 3.0) / (Fv.twoj() + 1);
 
   for (const auto &Fn : basis) {
-    // if (wf.isInCore(Fn.n, Fn.k))
+    // if (wf.isInCore(Fn.n(), Fn.kappa()))
     //   continue; // if core(HF) = core(basis), these cancel excactly
-    if (he1.isZero(Fv.k, Fn.k))
+    if (he1.isZero(Fv.kappa(), Fn.kappa()))
       continue;
     const auto d2 = he1.reducedME(Fn, Fv) + dVE1.dV(Fn, Fv);
     // both have dV valence
@@ -268,9 +268,9 @@ double alpha_v_SRN(const DiracSpinor &Fv,
     if (Fn.en() < en_core)
       continue;
     // Only do for terms with small delta_n
-    if (std::abs(Fn.n - Fv.n) > delta_n_max_sum)
+    if (std::abs(Fn.n() - Fv.n()) > delta_n_max_sum)
       continue;
-    if (he1.isZero(Fv.k, Fn.k))
+    if (he1.isZero(Fv.kappa(), Fn.kappa()))
       continue;
     const auto d0 = he1.reducedME(Fn, Fv) + dVE1.dV(Fn, Fv);
 
@@ -322,9 +322,9 @@ double alpha_valence_sos(const DiracSpinor &Fv, const DiracSpinor &Fw,
 
   // core part: sum_{n,c} |<n|d|c>|^2, n excited states, c core states
   for (const auto &Fn : basis) {
-    // if (wf.isInCore(Fn.n, Fn.k))
+    // if (wf.isInCore(Fn.n(), Fn.kappa()))
     //   continue; // if core(HF) = core(basis), these cancel excactly
-    if (he1.isZero(Fv.k, Fn.k))
+    if (he1.isZero(Fv.kappa(), Fn.kappa()))
       continue;
     const auto d1 = he1.reducedME(Fn, Fv) + dVE1.dV(Fn, Fv);
     const auto d2 = Fv == Fn ? d1 : he1.reducedME(Fn, Fw) + dVE1.dV(Fn, Fw);
@@ -355,9 +355,9 @@ std::pair<double, double> beta_sos(const DiracSpinor &Fv, const DiracSpinor &Fw,
 
   // core part: sum_{n,c} |<n|d|c>|^2, n excited states, c core states
   for (const auto &Fn : basis) {
-    // if (wf.isInCore(Fn.n, Fn.k))
+    // if (wf.isInCore(Fn.n(), Fn.kappa()))
     //   continue; // if core(HF) = core(basis), these cancel excactly
-    if (he1.isZero(Fv.k, Fn.k))
+    if (he1.isZero(Fv.kappa(), Fn.kappa()))
       continue;
 
     const auto d1 = he1.reducedME(Fn, Fv) + dVE1.dV(Fn, Fv);

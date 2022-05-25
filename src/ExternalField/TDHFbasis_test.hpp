@@ -9,7 +9,7 @@
 
 namespace UnitTest {
 
-//******************************************************************************
+//==============================================================================
 namespace helper {
 
 // Calculates core-polarisation correction to matrix elements between all
@@ -20,8 +20,8 @@ dV_result_basis(const Wavefunction &wf, const DiracOperator::TensorOperator &h,
 
 } // namespace helper
 
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+//==============================================================================
 //! Unit tests External Field (RPA equations using TDHF method)
 bool TDHFbasis(std::ostream &obuff) {
   bool pass = true;
@@ -116,7 +116,7 @@ bool TDHFbasis(std::ostream &obuff) {
 
 } // namespace UnitTest
 
-//******************************************************************************
+//==============================================================================
 inline std::vector<std::pair<std::string, double>>
 UnitTest::helper::dV_result_basis(const Wavefunction &wf,
                                   const DiracOperator::TensorOperator &h,
@@ -132,7 +132,7 @@ UnitTest::helper::dV_result_basis(const Wavefunction &wf,
   std::vector<std::pair<std::string, double>> result;
   for (const auto &Fv : wf.valence) {
     for (const auto &Fm : wf.valence) {
-      if (h.isZero(Fv.k, Fm.k))
+      if (h.isZero(Fv.kappa(), Fm.kappa()))
         continue;
 
       result.emplace_back(Fv.shortSymbol() + Fm.shortSymbol(), dV.dV(Fv, Fm));

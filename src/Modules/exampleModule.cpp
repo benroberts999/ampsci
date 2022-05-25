@@ -82,7 +82,7 @@ void exampleModule(const IO::InputBlock &input, const Wavefunction &wf) {
       const auto &F0b = wfpt.valence[b]; // pointlike orbital
 
       // Skip the MEs which are zero due to selection rules:
-      if (hE1.isZero(Fa.k, Fb.k))
+      if (hE1.isZero(Fa.kappa(), Fb.kappa()))
         continue;
 
       const auto e1 = hE1.reducedME(Fa, Fb);

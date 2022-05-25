@@ -5,7 +5,7 @@
 #include <type_traits>
 // namespace MBPT
 
-//******************************************************************************
+//==============================================================================
 // Calculate energy shift (either ladder, or sigma2)
 // nb: set lk to qk to det de(2)
 template <typename Qintegrals, typename QorLintegrals>

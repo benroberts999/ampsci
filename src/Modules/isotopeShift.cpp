@@ -57,7 +57,7 @@ void fieldShift(const IO::InputBlock &, const Wavefunction &wfA) {
 
       for (auto i = 0ul; i < wfB.valence.size(); ++i) {
         const auto &Fv = wfB.valence[i];
-        const auto &Fv0 = *wfA.getState(Fv.n, Fv.k);
+        const auto &Fv0 = *wfA.getState(Fv.n(), Fv.kappa());
         const auto dE = -(Fv.en() - Fv0.en()) * PhysConst::Hartree_GHz;
 
         printf("%4s, %7.5f, %+7.5f, %11.4e, %11.4e\n", Fv.shortSymbol().c_str(),

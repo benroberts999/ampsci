@@ -2,7 +2,7 @@
 #include <string>
 #include <vector>
 
-//******************************************************************************
+//==============================================================================
 enum class GridType { loglinear, logarithmic, linear };
 
 //! Parmaters used to create Grid
@@ -25,20 +25,20 @@ struct GridParameters {
   static std::string parseType(GridType type);
 };
 
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+//==============================================================================
 //! Holds grid, including type + Jacobian (dr/du)
 class Grid {
 
 private:
   // Minimum grid value
-  const double m_r0;
+  double m_r0;
   // Uniform (u) grid step size
-  const double m_du;
+  double m_du;
   // GridType: loglinear, logarithmic, linear [enum]
-  const GridType gridtype;
+  GridType gridtype;
   // log-linear grid 'turning point'
-  const double b;
+  double m_b;
   // Grid values r[i] = r(u)
   std::vector<double> m_r;
   // Convinient: (1/r)*(dr/du)[i]
@@ -65,16 +65,17 @@ public:
   //! Grid-type (linear, logarithmic, loglinear)
   auto type() const { return gridtype; }
   //! log-linear grid 'turning point' (~ roughly log for r<b, lin for r>b)
-  auto loglin_b() const { return b; }
+  auto loglin_b() const { return m_b; }
 
-  //! Grid points
+  //! Grid points, r
   const std::vector<double> &r() const { return m_r; };
   auto r(std::size_t i) const { return m_r.at(i); };
-  //! Convinient: (1/r)*(dr/du)
-  const std::vector<double> &drduor() const { return m_drduor; };
   //! Jacobian (dr/du)[i]
   const std::vector<double> &drdu() const { return m_drdu; };
   auto drdu(std::size_t i) const { return m_drdu.at(i); };
+  //! Convinient: (1/r)*(dr/du)
+  const std::vector<double> &drduor() const { return m_drduor; };
+  auto drduor(std::size_t i) const { return m_drduor.at(i); };
 
   //! Given value, returns grid index. if not require_nearest, returns lower
   std::size_t getIndex(double x, bool require_nearest = false) const;
@@ -94,7 +95,7 @@ public:
 
   //! Returns set of paramets; may be used to construct grid
   GridParameters params() const {
-    return GridParameters{num_points(), m_r0, rmax(), b, gridtype, m_du};
+    return GridParameters{num_points(), m_r0, rmax(), m_b, gridtype, m_du};
   }
 
   // Static functions: can be called outside of instantialised object

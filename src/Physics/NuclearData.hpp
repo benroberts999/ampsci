@@ -36,7 +36,7 @@ public:
   bool I_ok() const { return (I_N < 0) ? false : true; }
 };
 
-//******************************************************************************
+//==============================================================================
 //! Looks up + returns an isotope from the list. If not in list, partially blank
 Isotope findIsotopeData(int z, int a);
 //! Returns all known isotopes of given atom
@@ -50,7 +50,7 @@ int find_parity(int z, int a);
 //! As above, for nuclear spin. Returns -1 if not found
 double find_spin(int z, int a);
 
-//******************************************************************************
+//==============================================================================
 //! Calculates c from rrms and t
 double c_hdr_formula_rrms_t(double rrms, double t = default_t);
 //! Calculates rrms from c and t

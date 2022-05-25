@@ -10,7 +10,7 @@
 
 namespace UnitTest {
 
-//******************************************************************************
+//==============================================================================
 //! Unit tests for second-order MBPT energy correction
 bool MBPT2(std::ostream &obuff) {
   bool pass = true;

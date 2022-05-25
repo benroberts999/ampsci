@@ -53,18 +53,18 @@ private:
   double total_time_ms;
 };
 
-//******************************************************************************
+//==============================================================================
 inline ChronoTimer::ChronoTimer(std::string_view in_name)
     : name(in_name), running(false), total_time_ms(0) {
   start();
 }
-//******************************************************************************
+//==============================================================================
 inline ChronoTimer::~ChronoTimer() {
   if (name != "")
     std::cout << name << ": T = " << reading_str() << "\n";
 }
 
-//******************************************************************************
+//==============================================================================
 inline void ChronoTimer::start() {
   // note: will over-ride any existing reading!
   if (running)
@@ -73,7 +73,7 @@ inline void ChronoTimer::start() {
   tstart = std::chrono::high_resolution_clock::now();
 }
 
-//******************************************************************************
+//==============================================================================
 inline void ChronoTimer::stop() {
   if (!running)
     return;
@@ -85,13 +85,13 @@ inline void ChronoTimer::stop() {
   total_time_ms += current_time;
 }
 
-//******************************************************************************
+//==============================================================================
 inline void ChronoTimer::reset() {
   running = false;
   total_time_ms = 0;
 }
 
-//******************************************************************************
+//==============================================================================
 inline double ChronoTimer::lap_reading_ms() const
 // Returns value for current riming run (lap)
 // Returns double (milliseconds)
@@ -110,24 +110,24 @@ inline double ChronoTimer::lap_reading_ms() const
   return ((double)duration) * 1.0e-3;
 }
 
-//******************************************************************************
+//==============================================================================
 inline double ChronoTimer::reading_ms() const
 // Returns total value for timnig run
 // Returns double (milliseconds)
 {
   return lap_reading_ms() + total_time_ms;
 }
-//******************************************************************************
+//==============================================================================
 
 inline std::string ChronoTimer::reading_str() const {
   return convertHR(reading_ms());
 }
-//******************************************************************************
+//==============================================================================
 inline std::string ChronoTimer::lap_reading_str() const {
   return convertHR(lap_reading_ms());
 }
 
-//******************************************************************************
+//==============================================================================
 inline std::string ChronoTimer::convertHR(double t) const
 // Convers double (in ms) into formmated 2 d.p. string in units of either
 // ms, s, mins, or hours, depending on size.

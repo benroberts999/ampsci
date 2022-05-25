@@ -27,7 +27,7 @@ template <typename T, typename U> constexpr T MyCast(U x) {
   }
 }
 
-//******************************************************************************
+//==============================================================================
 DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
                        const std::vector<DiracSpinor> &basis,
                        const std::vector<DiracSpinor> &core,
@@ -64,7 +64,7 @@ DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
   }
 }
 
-//******************************************************************************
+//==============================================================================
 DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
                        const DiagramRPA *const drpa)
     : CorePolarisation(h) {
@@ -88,7 +88,7 @@ DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
   Wmban = drpa->Wmban;
 }
 
-//******************************************************************************
+//==============================================================================
 bool DiagramRPA::read_write(const std::string &fname, IO::FRW::RoW rw) {
   // Note: only writes W (depends on k/pi, and basis). Do not write t's, since
   // they depend on operator. This makes it very fast when making small changes
@@ -132,14 +132,15 @@ bool DiagramRPA::read_write(const std::string &fname, IO::FRW::RoW rw) {
 
   for (const auto porbs : {&holes, &excited}) {
     for (const auto &Fn : *porbs) {
-      int n = Fn.n;
-      int k = Fn.k;
+      int n = Fn.n();
+      int k = Fn.kappa();
       rw_binary(iofs, rw, n, k);
       if (readQ) {
-        if (Fn.n != n || Fn.k != k) {
+        if (Fn.n() != n || Fn.kappa() != k) {
           std::cout
               << "\nCannot read from " << fname << ". Basis mis-match (read "
-              << n << "," << k << "; expected " << Fn.n << "," << Fn.k << ").\n"
+              << n << "," << k << "; expected " << Fn.n() << "," << Fn.kappa()
+              << ").\n"
               << "Will recalculate rpa_Diagram matrix, and overwrite file.\n";
           return false;
         }
@@ -154,7 +155,7 @@ bool DiagramRPA::read_write(const std::string &fname, IO::FRW::RoW rw) {
   return true;
 }
 
-//******************************************************************************
+//==============================================================================
 void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h) {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   if (holes.empty() || excited.empty()) {
@@ -193,7 +194,7 @@ void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h) {
           Wanm_b.reserve(holes.size());
           Wabm_n.reserve(holes.size());
           for (const auto &Fb : holes) {
-            if (h->isZero(Fb.k, Fn.k)) {
+            if (h->isZero(Fb.kappa(), Fn.kappa())) {
               Wanm_b.emplace_back(0.0);
               Wabm_n.emplace_back(0.0);
               continue;
@@ -235,7 +236,7 @@ void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h) {
           Wanm_b.reserve(holes.size());
           Wabm_n.reserve(holes.size());
           for (const auto &Fb : holes) {
-            if (h->isZero(Fb.k, Fn.k)) {
+            if (h->isZero(Fb.kappa(), Fn.kappa())) {
               Wanm_b.emplace_back(0.0);
               Wabm_n.emplace_back(0.0);
               continue;
@@ -254,7 +255,7 @@ void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h) {
   std::cout << " done.\n" << std::flush;
 }
 
-//******************************************************************************
+//==============================================================================
 void DiagramRPA::setup_ts(const DiracOperator::TensorOperator *const h) {
   if (holes.empty() || excited.empty())
     return;
@@ -279,18 +280,18 @@ void DiagramRPA::setup_ts(const DiracOperator::TensorOperator *const h) {
   }
   clear();
 }
-//******************************************************************************
+//==============================================================================
 void DiagramRPA::clear() {
   tam = t0am;
   tma = t0ma;
 }
 
-//******************************************************************************
+//==============================================================================
 double DiagramRPA::dV(const DiracSpinor &Fw, const DiracSpinor &Fv) const {
   return dV_diagram(Fw, Fv, false);
 }
 
-//******************************************************************************
+//==============================================================================
 double DiagramRPA::dV_diagram(const DiracSpinor &Fw, const DiracSpinor &Fv,
                               const bool first_order) const {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
@@ -335,7 +336,7 @@ double DiagramRPA::dV_diagram(const DiracSpinor &Fw, const DiracSpinor &Fv,
   return f * std::accumulate(begin(sum_a), end(sum_a), 0.0);
 }
 
-//******************************************************************************
+//==============================================================================
 void DiagramRPA::solve_core(const double omega, int max_its, const bool print) {
   [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   m_core_omega = std::abs(omega);

@@ -87,13 +87,13 @@ void testFeynman(const IO::InputBlock &input, const Wavefunction &wf) {
   */
 }
 
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+//==============================================================================
 
-//******************************************************************************
+//==============================================================================
 void Feyn::test_Q(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma) {
   // Just for testing Vx matrix.
-  std::cout << "\n***********************************\n\n";
+  std::cout << "\n==================================*\n\n";
   std::cout << "Test Vx matirx (also, q^k):\n";
 
   {
@@ -102,9 +102,9 @@ void Feyn::test_Q(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma) {
     const DiracSpinor *Fworst = &wf.core.front();
     for (const auto orbs : {&wf.core, &wf.valence}) {
       for (const auto &a : *orbs) {
-        const auto &Vx = Sigma.get_Vx_kappa(a.k);
+        const auto &Vx = Sigma.get_Vx_kappa(a.kappa());
         const auto vxmat = Sigma.act_G_Fv_2(a, Vx, a);
-        const auto vxhf = a * (wf.getHF()->calc_vexFa(a));
+        const auto vxhf = a * (wf.getHF()->vexFa(a));
         const auto eps = std::abs((vxmat - vxhf) / vxhf);
         if (eps > worst) {
           worst = eps;
@@ -120,7 +120,7 @@ void Feyn::test_Q(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma) {
 
   //----------------------------------------------------------------------------
   // For testing Q matrix.
-  std::cout << "\n***********************************\n\n";
+  std::cout << "\n==================================*\n\n";
   std::cout << "Test Q matirx: <aa|q^k|aa> = R^k_aaaa\n";
   {
     std::cout << "           <aa|q^k|aa>  R^k_aaaa   | eps\n";
@@ -153,7 +153,7 @@ void Feyn::test_Q(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma) {
   std::cout << "\n";
 }
 
-//******************************************************************************
+//==============================================================================
 void Feyn::test_green(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
                       double omre, const std::vector<double> &omim_v) {
   //----------------------------------------------------------------------------
@@ -197,7 +197,7 @@ void Feyn::test_green(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
 
       for (const auto orbs : {&wf.core, &wf.valence}) {
         for (const auto &Fv : *orbs) {
-          if (Fv.k != kappa)
+          if (Fv.kappa() != kappa)
             continue;
           auto vGv1 = Fv * Sigma.act_G_Fv(Gr1.real(), Fv);
           auto vGv2 = Fv * Sigma.act_G_Fv(Gr2.real(), Fv);
@@ -231,7 +231,7 @@ void Feyn::test_green(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
   } // omim
 }
 
-//******************************************************************************
+//==============================================================================
 void Feyn::test_GQ(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
                    double omre, const std::vector<double> &omim_v) {
   //----------------------------------------------------------------------------
@@ -286,12 +286,12 @@ void Feyn::test_GQ(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
           vgqXv_i += Sigma.act_G_Fv_2(Fv, gqX.imag(), Fv);
 
           for (const auto &Fi : wf.basis) {
-            if (Fi.k != kappa)
+            if (Fi.kappa() != kappa)
               continue;
             auto Rk = Coulomb::Rk_abcd(Fv, Fi, Fi, Fv, k);
             auto denom = (en - ComplexDouble{Fi.en()});
             ComplexDouble term = Rk / denom;
-            if (wf.isInCore(Fi.n, Fi.k))
+            if (wf.isInCore(Fi.n(), Fi.kappa()))
               core += term;
             else
               ex += term;
@@ -312,7 +312,7 @@ void Feyn::test_GQ(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
   std::cout << "\n";
 }
 
-//******************************************************************************
+//==============================================================================
 void Feyn::test_pol(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
                     double omre, const std::vector<double> &omim_v,
                     int max_l_excited) {
@@ -322,7 +322,7 @@ void Feyn::test_pol(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
                                      "Green fn method" :
                                      "basis method";
 
-    std::cout << "\n***********************************\n\n";
+    std::cout << "\n==================================*\n\n";
 
     std::cout
         << "Testing polarisation operator: <v|G*Q*Pi*Q|v> = C * [R^k]^2\n";
@@ -347,7 +347,7 @@ void Feyn::test_pol(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
           for (auto kB : {-1, 1, -2, 2, -3, 3, -4, 4, -5, 5, -6, 6, -7}) {
             if (Angular::l_k(kB) > max_l_excited)
               break;
-            auto f2 = Angular::Ck_kk(k, Fv.k, kB);
+            auto f2 = Angular::Ck_kk(k, Fv.kappa(), kB);
             if (f2 == 0)
               continue;
 
@@ -363,11 +363,11 @@ void Feyn::test_pol(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
 
             ComplexDouble sum1 = {0.0, 0.0};
             for (const auto &FB : wf.basis) {
-              if (FB.k != kB)
+              if (FB.kappa() != kB)
                 continue;
               for (const auto &Fa : wf.core) {
                 for (const auto &FA : wf.basis) {
-                  const auto f = Angular::Ck_kk(k, Fa.k, FA.k);
+                  const auto f = Angular::Ck_kk(k, Fa.kappa(), FA.kappa());
                   if (f == 0.0)
                     continue;
                   const auto ide1 =
@@ -402,7 +402,7 @@ void Feyn::test_pol(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
 
     //
 
-    std::cout << "***********************************\n\n";
+    std::cout << "==================================*\n\n";
     std::cout << "Testing polarisation operator, Int[ pi(1,2) d1 d2]:\n";
     for (auto omim : omim_v) {
       std::cout << "\n" << str_meth << "\n";
@@ -428,7 +428,7 @@ void Feyn::test_pol(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
         ComplexDouble expected = {0.0, 0.0};
         for (const auto &Fa : Sigma.m_holes) {
           for (const auto &FA : Sigma.m_excited) {
-            const auto f = Angular::Ck_kk(k, Fa.k, FA.k);
+            const auto f = Angular::Ck_kk(k, Fa.kappa(), FA.kappa());
             if (f == 0.0)
               continue;
             const auto me = (Fa * FA);

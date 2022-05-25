@@ -19,7 +19,7 @@ Note:
  * High- and low- frequency V(r) do NOT include A or B fitting coeficients.
  * All radii (r and rN) are given in atomic units
  * Sign convention: H -> H - V_rad
- * V_rad = V_Uehling + V_SEh + V_SEl + V_WK + i(g.n)H_Magnetic
+ * V_rad = V_Uehling + V_SEh + V_SEl + V_WK + i(g.n())H_Magnetic
 */
 
 namespace FGRP {
@@ -29,7 +29,7 @@ constexpr double alpha = 1.0 / 137.035999084;
 // electron reduced compton wavelength (atomic units)
 constexpr double lam_c = alpha;
 
-//******************************************************************************
+//==============================================================================
 //! Uehling potential (r, rN in atomic units)
 double V_Uehling(double Z, double r, double rN = 0.0);
 
@@ -45,7 +45,7 @@ double V_SEl(double Z, double r, double rN = 0.0);
 //! Effective Wickman-Kroll; not including FNS corrections
 double V_WK(double Z, double r, double);
 
-//******************************************************************************
+//==============================================================================
 //! Fitting factors from Ginges Berengut, Phys. Rev. A 93, 052509 (2016).
 namespace Fit {
 // static const auto a01 = std::vector{1.071, 0.0, -1.976, -2.128, 0.169};
@@ -60,7 +60,7 @@ double B(double Z, int l = 0);
 
 } // namespace Fit
 
-//******************************************************************************
+//==============================================================================
 //! Function that performs the t integral over [1,infinity)
 double t_integral(double (*f)(double, void *), std::vector<double> params,
                   double eps = 1.0e-6);
@@ -72,7 +72,7 @@ template <IntType IT = IntType::Linear>
 double r_integral(std::function<double(double)> f, double a, double b,
                   long unsigned n_pts = 1000);
 
-//******************************************************************************
+//==============================================================================
 // Helper functions:
 
 namespace Uehling {
@@ -96,7 +96,7 @@ double I2(double Z, double r, double rn, double t);
 double J_SE_gsl(double t, void *p);
 } // namespace SE
 
-//******************************************************************************
+//==============================================================================
 // Implementation:
 template <IntType IT>
 double r_integral(std::function<double(double)> f, double a, double b,
@@ -137,8 +137,8 @@ double r_integral(std::function<double(double)> f, double a, double b,
   return Rint * dt;
 }
 
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+//==============================================================================
 //! Magnetic-loop vacuum polarisation, includes finite-nuclear size
 double Q_MLVP(double r, double rN = 0.0);
 namespace Helper {

@@ -16,7 +16,7 @@
 
 namespace Module {
 
-//******************************************************************************
+//==============================================================================
 void runModules(const IO::InputBlock &input, const Wavefunction &wf) {
   for (const auto &module : input.blocks()) {
     if (qip::ci_wildcard_compare(module.name(), "module*"))
@@ -24,7 +24,7 @@ void runModules(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 }
 
-//******************************************************************************
+//==============================================================================
 void runModule(const IO::InputBlock &module_input,
                const Wavefunction &wf) //
 {
@@ -45,12 +45,12 @@ void runModule(const IO::InputBlock &module_input,
   std::cout << "\n";
 }
 
-//******************************************************************************
+//==============================================================================
 static void write_orbitals(const std::string &fname,
                            const std::vector<DiracSpinor> &orbs, int l) {
   if (orbs.empty())
     return;
-  auto &gr = *orbs.front().rgrid;
+  const auto &gr = orbs.front().grid();
 
   std::ofstream of(fname);
   of << "r ";
@@ -87,7 +87,7 @@ static void write_orbitals(const std::string &fname,
   std::cout << "Orbitals written to file: " << fname << "\n";
 }
 
-//******************************************************************************
+//==============================================================================
 void writeOrbitals(const IO::InputBlock &input, const Wavefunction &wf) {
   const std::string ThisModule = "Module::WriteOrbitals";
   input.check({{"label", ""}, {"l", ""}});

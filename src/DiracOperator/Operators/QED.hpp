@@ -8,7 +8,7 @@
 
 namespace DiracOperator {
 
-//******************************************************************************
+//==============================================================================
 //! Radiative QED operator, electric part
 class Hrad_el final : public ScalarOperator {
 public:
@@ -19,7 +19,7 @@ public:
   std::string units() const override final { return "au"; }
 };
 
-//******************************************************************************
+//==============================================================================
 //! Radiative QED operator, off-diagonal magnetic part
 class Hrad_mag final : public ScalarOperator {
 public:
@@ -30,7 +30,7 @@ public:
   std::string units() const override final { return "au"; }
 };
 
-//******************************************************************************
+//==============================================================================
 class Hrad final : public ScalarOperator {
 public:
   Hrad(const std::vector<double> &Hel, const std::vector<double> &Hmag)
@@ -49,7 +49,7 @@ private:
   Hrad_mag Vm;
 };
 
-//******************************************************************************
+//==============================================================================
 //! @brief Effective VertexQED operator
 /*! @details
 Takes in any TensorOperator (DiracOperator) h, and forms the corresponding
@@ -134,7 +134,7 @@ public:
   }
 };
 
-//******************************************************************************
+//==============================================================================
 //! Magnetic loop vacuum polarisation (Uehling vertex)
 class MLVP final : public TensorOperator {
 
@@ -198,7 +198,7 @@ public:
   }
 };
 
-//******************************************************************************
+//==============================================================================
 inline std::unique_ptr<DiracOperator::TensorOperator>
 generate_Hrad(const IO::InputBlock & /*input*/, const Wavefunction & /*wf*/
 ) {

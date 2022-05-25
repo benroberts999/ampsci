@@ -6,7 +6,7 @@
 
 namespace DiracHydrogen {
 
-//******************************************************************************
+//==============================================================================
 namespace Hidden {
 // Some helper functions:
 
@@ -47,7 +47,7 @@ double x(RaB r, PrincipalQN n, DiracQN k, Zeff z, AlphaFS a) {
 }
 } // namespace Hidden
 
-//******************************************************************************
+//==============================================================================
 double enk(PrincipalQN n, DiracQN k, Zeff z, AlphaFS a) {
   using namespace Hidden;
   const auto a2 = (a * a).v;

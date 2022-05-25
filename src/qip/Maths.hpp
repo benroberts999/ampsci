@@ -6,7 +6,7 @@ namespace qip {
 
 inline auto comp_abs = [](auto a, auto b) { return std::abs(a) < std::abs(b); };
 
-//******************************************************************************
+//==============================================================================
 template <typename T, typename... Args> T max_abs(T first, Args... rest) {
   if constexpr (sizeof...(rest) == 0) {
     return first;
@@ -54,7 +54,7 @@ T max_difference(T first, Args... rest) {
   return max(first, rest...) - min(first, rest...);
 }
 
-//******************************************************************************
+//==============================================================================
 //! x^n for integer n (n compile-time template parameter)
 template <int n, typename T> constexpr auto pow(T x) {
   static_assert(std::is_arithmetic_v<T>, "In pow(T x), T must be arithmetic");
@@ -84,7 +84,7 @@ template <typename T> constexpr T pow(T x, int n) {
   return result;
 }
 
-//******************************************************************************
+//==============================================================================
 //! Returns sign of value
 template <typename T> constexpr int sign(T value) {
   static_assert(std::is_arithmetic_v<T>,

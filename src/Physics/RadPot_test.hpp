@@ -11,7 +11,7 @@
 
 namespace UnitTest {
 
-//******************************************************************************
+//==============================================================================
 namespace helper {
 
 struct QEDData {
@@ -37,8 +37,8 @@ bool FGRadPot(std::ostream &obuff);
 
 } // namespace helper
 
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+//==============================================================================
 //! Unit tests for Ginges/Flambaum Radiative potential method
 bool RadPot(std::ostream &obuff) {
   bool pass = true;
@@ -155,7 +155,7 @@ bool RadPot(std::ostream &obuff) {
   // "Regresseion" tests: Self-energy (parts):
   {
     std::cout << "\nSelf-energy components for Cs (Core-Hartree)\n";
-    std::cout << "c.set_f(). Ginges, Berengut, Phys. Rev. A 93, 052509 (2016), "
+    std::cout << "c.f(). Ginges, Berengut, Phys. Rev. A 93, 052509 (2016), "
                  "TabII\n";
     // Construct wavefunction, solve HF core+valence (without QED):
     Wavefunction wf({2000, 1.0e-6, 120.0, 0.3 * 120.0, "loglinear", -1.0},
@@ -203,7 +203,7 @@ bool RadPot(std::ostream &obuff) {
   return pass;
 }
 
-//******************************************************************************
+//==============================================================================
 std::pair<std::string, double>
 helper::compare_QED(const std::vector<QEDData> &QEDdata,
                     QED::RadPot::Scale scale) {
@@ -263,8 +263,8 @@ helper::compare_QED(const std::vector<QEDData> &QEDdata,
   return {at_worst, eps_worst};
 }
 
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+//==============================================================================
 // Test t integrals compared to Mathematica:
 bool helper::FGRadPot(std::ostream &obuff) {
   bool pass = true;

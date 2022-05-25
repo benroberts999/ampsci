@@ -17,12 +17,12 @@ namespace UnitTest {
   - "Fix" by just loosening tollerences here
 */
 
-//******************************************************************************
+//==============================================================================
 //! Unit tests for B-Spline basis (finite basis of relativistic orbitals)
 bool BSplineBasis(std::ostream &obuff) {
   bool pass = true;
 
-  //****************************************************************************
+  //============================================================================
   // Check vs. Hartree-Fock (energies/ortho)
   for (const auto type : {SplineBasis::SplineType::Derevianko,
                           SplineBasis::SplineType::Johnson}) {
@@ -110,7 +110,7 @@ bool BSplineBasis(std::ostream &obuff) {
   }
   return pass;
 
-  //****************************************************************************
+  //============================================================================
 
   // Check low-r behavour (splines vs HF for hyperfine)
   for (auto f_QED : {false, true}) {
@@ -171,7 +171,7 @@ bool BSplineBasis(std::ostream &obuff) {
     }
   }
 
-  //****************************************************************************
+  //============================================================================
 
   // Test with a Coulomb potential Z=2: TKR and DG sum rules:
   {

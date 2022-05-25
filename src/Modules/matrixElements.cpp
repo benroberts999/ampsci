@@ -24,7 +24,7 @@
 
 namespace Module {
 
-//******************************************************************************
+//==============================================================================
 void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   input.check({{"operator", "e.g., E1, hfs"},
                {"options", "options specific to operator; blank by dflt"},
@@ -118,7 +118,7 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 }
 
-//****************************************************************************
+//============================================================================
 // Calculates Structure Radiation + Normalisation of States
 void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
 
@@ -223,7 +223,7 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   // Loop through all valence states, calc SR+NS
   for (const auto &v : wf.valence) {
     for (const auto &w : wf.valence) {
-      if (h->isZero(w.k, v.k))
+      if (h->isZero(w.kappa(), v.kappa()))
         continue;
 
       if (only_diagonal && w != v)
@@ -315,7 +315,7 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   return;
 }
 
-//******************************************************************************
+//==============================================================================
 void calculateLifetimes(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "\nLifetimes:\n";
   std::cout << "Note: Uses _valence_ states - so, must ensure all lower states "
@@ -373,7 +373,7 @@ void calculateLifetimes(const IO::InputBlock &input, const Wavefunction &wf) {
 
     if (doE1) {
       for (const auto &Fn : wf.valence) {
-        if (Fn.en() >= Fa.en() || he1.isZero(Fn.k, Fa.k))
+        if (Fn.en() >= Fa.en() || he1.isZero(Fn.kappa(), Fa.kappa()))
           continue;
         const auto w = Fa.en() - Fn.en();
         if (rpaQ)
@@ -395,7 +395,7 @@ void calculateLifetimes(const IO::InputBlock &input, const Wavefunction &wf) {
     }
     if (doE2) {
       for (const auto &Fn : wf.valence) {
-        if (Fn.en() >= Fa.en() || he2.isZero(Fn.k, Fa.k))
+        if (Fn.en() >= Fa.en() || he2.isZero(Fn.kappa(), Fa.kappa()))
           continue;
         const auto w = Fa.en() - Fn.en();
         if (rpaQ)

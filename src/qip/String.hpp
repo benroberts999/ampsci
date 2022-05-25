@@ -7,7 +7,7 @@
 
 namespace qip {
 
-//******************************************************************************
+//==============================================================================
 //! Returns a formatted std::string, with formatting printf-like commands. Note:
 //! maximum string lenth is 256 characters. If longer string required, use
 //! provided overload
@@ -52,7 +52,7 @@ inline std::string fstring(const std::size_t size, const std::string format,
   return fmt_str;
 }
 
-//******************************************************************************
+//==============================================================================
 //! Compares two strings, s1 and s2. s2 may contain ONE wildcard ('*') which
 //! will match anything
 inline bool wildcard_compare(std::string_view s1, std::string_view s2) {
@@ -76,14 +76,14 @@ inline bool wildcard_compare(std::string_view s1, std::string_view s2) {
   return s1_front == s2_front && s1_back == s2_back;
 }
 
-//******************************************************************************
+//==============================================================================
 //! return static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
 inline char tolower(char ch) {
   // https://en.cppreference.com/w/cpp/string/byte/tolower
   return static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
 }
 
-//******************************************************************************
+//==============================================================================
 //! Case insensitive string compare. Essentially: LowerCase(s1)==LowerCase(s2)
 inline bool ci_compare(std::string_view s1, std::string_view s2) {
   return std::equal(

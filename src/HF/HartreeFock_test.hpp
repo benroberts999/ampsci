@@ -1,5 +1,6 @@
 #pragma once
 #include "DiracOperator/DiracOperator.hpp"
+#include "HF/HartreeFock_test_data.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "qip/Check.hpp"
 #include "qip/Maths.hpp"
@@ -13,87 +14,304 @@ namespace UnitTest {
 bool HartreeFock(std::ostream &obuff) {
   bool pass = true;
 
-  // lambdas for comparing results to test data:
-  const auto cmpr = [](const auto &ds, double v) { return (ds.en() - v) / v; };
-  const auto cmpr2 = [](const auto &ds, const auto &ds2) {
-    return (ds.en() - ds2.en()) / ds2.en();
-  };
+  //============================================================================
 
-  { // Test case: Cs (typical)
+  // Grid parameters (etc.):
+  const auto grid_type = "loglinear";
+  const auto points = 4000;
+  const auto r0 = 1.0e-6;
+  const auto rmax = 150.0;
+  // const auto points = 10000;
+  // const auto r0 = 1.0e-7;
+  // const auto rmax = 170.0;
+  const auto b = 0.3 * rmax;
+  const auto x_Breit = 0.0; // do not include Breit
+  const int A = -1;         // use default A
+  const auto nucleus_type = "Fermi";
 
-    // Grid parameters:
-    const auto r0 = 1.0e-6;
-    const auto rmax = 120.0;
-    const auto b = 0.3 * rmax;
-    const auto x_Breit = 0.0; // do not include Breit
+  // Regression test: Compare Energies, E1 and HFS to my own calcs (test data
+  // run using very dense radial grids)
+  //--------------------------------------------------------------------------
+  {
+    double worst_eps{0.0};
+    std::string worst_case{""};
 
-    // Create wavefunction object + solve HF
-    Wavefunction wf({2000, r0, rmax, b, "loglinear"}, {"Cs", 133, "Fermi"});
-    wf.solve_core("HartreeFock", x_Breit, "[Xe]");
+    double wE1_eps{0.0};
+    std::string wE1_case{""};
+
+    double wHFSsp_eps{0.0};
+    std::string wHFSsp_case{""};
+
+    double wHFSdf_eps{0.0};
+    std::string wHFSdf_case{""};
+
+    // Loop through each test case, run HF, compare to test data
+    for (auto &[Atom, Core, Valence, EnergyData, E1Data, HFSData] :
+         HF_test_data::regression_test_data) {
+
+      Wavefunction wf({points, r0, rmax, b, grid_type},
+                      {Atom, A, nucleus_type});
+
+      const auto h = DiracOperator::HyperfineA(
+          1.0, 0.5, 0.0, *wf.rgrid, DiracOperator::Hyperfine::pointlike_F());
+      const auto d = DiracOperator::E1(*wf.rgrid);
+
+      std::cout << "\n" << wf.atom() << "\n";
+      wf.solve_core("HartreeFock", x_Breit, Core);
+      wf.solve_valence(Valence);
+
+      // // For generating test data:
+      // for (auto &Fc : wf.core) {
+      //   printf("{\"%s\", %.12f},\n", Fc.shortSymbol().c_str(), Fc.en());
+      // }
+
+      // Test the energies:
+      for (const auto &[state, energy] : EnergyData) {
+        const auto &Fv = *wf.getState(state);
+        const auto del = std::abs(Fv.en() - energy);
+        const auto eps = std::abs(del / energy);
+        const auto err = std::min(del, eps);
+        printf("%3s %9.6f [%9.6f] %.1e\n", state, Fv.en(), energy, err);
+        if (err > worst_eps) {
+          worst_eps = err;
+          worst_case = wf.atomicSymbol() + ":" + state;
+        }
+      }
+
+      // Test the E1 matrix elements (no RPA):
+      for (const auto &[fa, fb, e1] : E1Data) {
+        const auto &Fa = *wf.getState(fa);
+        const auto &Fb = *wf.getState(fb);
+        const auto e1_me = d.reducedME(Fa, Fb);
+        const auto del = std::abs(e1_me - e1);
+        const auto eps = std::abs((e1_me - e1) / e1);
+        const auto err = std::min(del, eps);
+        printf("E1:%3s,%3s %9.5f [%9.5f] %.1e\n", fa, fb, e1_me, e1, err);
+        // nb: don't test very small MEs - large eps despite high accuracy
+        if (err > wE1_eps) {
+          wE1_eps = err;
+          wE1_case = wf.atomicSymbol() + ":" + fa + "," + fb;
+        }
+      }
+
+      // Test the HFS constants (no RPA):
+      for (const auto &[fv, Ahfs] : HFSData) {
+        const auto &Fv = *wf.getState(fv);
+        const auto Ahfs_me = h.hfsA(Fv);
+        const auto eps = std::abs((Ahfs_me - Ahfs) / Ahfs);
+        printf("HFS:%3s %11.5e [%11.5e] %.1e\n", fv, Ahfs_me, Ahfs, eps);
+        if (Fv.l() <= 1 && eps > wHFSsp_eps) {
+          wHFSsp_eps = eps;
+          wHFSsp_case = wf.atomicSymbol() + ":" + fv;
+        }
+        if (Fv.l() > 1 && eps > wHFSdf_eps) {
+          wHFSdf_eps = eps;
+          wHFSdf_case = wf.atomicSymbol() + ":" + fv;
+        }
+      }
+    }
+
+    std::cout << "\nWorst cases:\n";
+    std::cout << "En : " << worst_case << " " << worst_eps << "\n";
+    std::cout << "E1 : " << wE1_case << " " << wE1_eps << "\n";
+    std::cout << "HFSsp: " << wHFSsp_case << " " << wHFSsp_eps << "\n";
+    std::cout << "HFSdf: " << wHFSdf_case << " " << wHFSdf_eps << "\n";
+    pass &= qip::check_value(&obuff, "HF regression, En: " + worst_case,
+                             worst_eps, 0.0, 3.0e-6);
+    pass &= qip::check_value(&obuff, "HF regression, E1: " + wE1_case, wE1_eps,
+                             0.0, 1.0e-5);
+    pass &= qip::check_value(&obuff, "HF regression, HFS(sp): " + wHFSsp_case,
+                             wHFSsp_eps, 0.0, 1.0e-5);
+    pass &= qip::check_value(&obuff, "HF regression, HFS(df): " + wHFSdf_case,
+                             wHFSdf_eps, 0.0, 1.0e-4);
+  }
+
+  // Accuracy test: test HF energies against Dzuba code
+  //--------------------------------------------------------------------------
+  {
+    double worst_eps{0.0};
+    std::string worst_case{""};
+
+    // Loop through each test case, run HF, compare to test data
+    for (auto &[Atom, Core, Valence, Data] : HF_test_data::compare_VD) {
+
+      Wavefunction wf({points, r0, rmax, b, grid_type},
+                      {Atom, A, nucleus_type});
+
+      std::cout << "\n" << wf.atom() << "\n";
+      wf.solve_core("HartreeFock", x_Breit, Core);
+      wf.solve_valence(Valence);
+
+      // test energies:
+      for (auto &[state, energy] : Data) {
+        const auto &Fv = *wf.getState(state);
+        const auto eps = std::abs((Fv.en() - energy) / energy);
+        if (eps > worst_eps) {
+          worst_eps = eps;
+          worst_case = wf.atomicSymbol() + ":" + state;
+        }
+        printf("%3s %9.6f [%9.6f] %.1e\n", state, Fv.en(), energy, eps);
+      }
+    }
+    std::cout << worst_case << " " << worst_eps << "\n";
+
+    pass &= qip::check_value(&obuff, "HF cf Dzuba: " + worst_case, worst_eps,
+                             0.0, 1.0e-5);
+  }
+
+  //----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  // For KS, Core-Hartree and ApproxHF
+  //--------------------------------------------------------------------------
+  {
+    Wavefunction wf({points, r0, rmax, b, grid_type},
+                    {"Cs", 133, nucleus_type});
+
+    std::cout << "\n" << wf.atom() << ": Core-Hartree:\n";
+    wf.solve_core("Hartree", 0.0, "[Xe]");
+    wf.solve_valence("6sp");
+
+    const auto CH_data = std::vector{std::tuple{"1s+", -1294.301178790881},
+                                     {"2s+", -200.035308851470},
+                                     {"2p-", -187.406456454656},
+                                     {"2p+", -174.902524561300},
+                                     {"3s+", -40.521041198710},
+                                     {"3p-", -35.394491225319},
+                                     {"3p+", -33.047465684328},
+                                     {"3d-", -24.111351801170},
+                                     {"3d+", -23.623370439065},
+                                     {"4s+", -7.247914593744},
+                                     {"4p-", -5.462936127458},
+                                     {"4p+", -4.986496836797},
+                                     {"4d-", -2.147711860432},
+                                     {"4d+", -2.073607194631},
+                                     {"5s+", -0.785050228744},
+                                     {"5p-", -0.389407938461},
+                                     {"5p+", -0.342378387138},
+                                     {"6s+", -0.120056417166},
+                                     {"6p-", -0.081300533231},
+                                     {"6p+", -0.078769175539}};
+
+    double worst_eps{0.0};
+    std::string worst_case{""};
+    // Test the energies:
+    for (const auto &[state, energy] : CH_data) {
+      const auto &Fv = *wf.getState(state);
+      const auto eps = std::abs((Fv.en() - energy) / energy);
+      printf("%3s %9.6f [%9.6f] %.1e\n", state, Fv.en(), energy, eps);
+      if (eps > worst_eps) {
+        worst_eps = eps;
+        worst_case = wf.atomicSymbol() + ":" + state;
+      }
+    }
+
+    pass &= qip::check_value(&obuff, "CH regression, En: " + worst_case,
+                             worst_eps, 0.0, 3.0e-5);
+  }
+  //--------------------------------------------------------------------------
+  {
+    // nb: Kohn-Sham seems quite grid dependent.. set b=-1 => log grid
+    Wavefunction wf({points, r0, rmax, 0, "logarithmic"},
+                    {"Cs", 133, nucleus_type});
+
+    std::cout << "\n" << wf.atom() << ": Kohn-Sham:\n";
+    wf.solve_core("KohnSham", 0.0, "[Xe],6s1", 1.0e-13);
     wf.solve_valence("6sp5d");
 
-    // do again, this time with more points in the grid:
-    Wavefunction wf2({7000, r0, rmax, b, "loglinear"}, {"Cs", 133, "Fermi"});
-    wf2.solve_core("HartreeFock", x_Breit, "[Xe]");
-    wf2.solve_valence("6sp5d");
+    const auto KS_data = std::vector{std::tuple{"1s+", -1312.974817713126},
+                                     {"2s+", -205.876011196460},
+                                     {"2p-", -193.780516952252},
+                                     {"2p+", -180.853127701472},
+                                     {"3s+", -42.750869442020},
+                                     {"3p-", -37.686361216099},
+                                     {"3p+", -35.210672201287},
+                                     {"3d-", -26.273459503137},
+                                     {"3d+", -25.747297666300},
+                                     {"4s+", -8.030659588002},
+                                     {"4p-", -6.212801652799},
+                                     {"4p+", -5.703625002649},
+                                     {"4d-", -2.743417372249},
+                                     {"4d+", -2.659126008550},
+                                     {"5s+", -0.962265397955},
+                                     {"5p-", -0.519598486174},
+                                     {"5p+", -0.459140168906},
+                                     {"6s+", -0.124015002195},
+                                     {"6s+", -0.124015002195},
+                                     {"6p-", -0.084886590220},
+                                     {"6p+", -0.082779593449},
+                                     {"5d-", -0.060460563100},
+                                     {"5d+", -0.060149046241}};
 
-    // Test data: core energies (from Dzuba code)
-    const std::vector expected_VD{
-        -1330.118692, -212.5644584, -199.4294701, -186.4365217, -45.96974213,
-        -40.44831295, -37.89428811, -28.30949791, -27.77513323, -9.512822,
-        -7.44628727,  -6.92099641,  -3.48561693,  -3.39689621,  -1.48980554,
-        -0.90789792,  -0.84033918};
-    // Test data: valence energies (from Dzuba code)
-    const std::vector expected_VD_v{-0.12736810, -0.08561590, -0.08378548,
-                                    -0.06441963, -0.06452976};
-
-    { // Check HF core vs test data:
-      const auto [eps, at] = qip::compare(wf.core, expected_VD, cmpr);
-      const std::string worst = at == wf.core.end() ? "" : at->symbol();
-      pass &= qip::check_value(&obuff, "HF core Cs vs. VD " + worst, eps, 0.0,
-                               5.0e-6);
+    double worst_eps{0.0};
+    std::string worst_case{""};
+    // Test the energies:
+    for (const auto &[state, energy] : KS_data) {
+      const auto &Fv = *wf.getState(state);
+      const auto eps = std::abs((Fv.en() - energy) / energy);
+      printf("%3s %9.6f [%9.6f] %.1e\n", state, Fv.en(), energy, eps);
+      if (eps > worst_eps) {
+        worst_eps = eps;
+        worst_case = wf.atomicSymbol() + ":" + state;
+      }
     }
 
-    { // compare 'dense grid' version to 'normal grid' (core)
-      const auto [eps, at] = qip::compare(wf.core, wf2.core, cmpr2);
-      const std::string worst = at == wf.core.end() ? "" : at->symbol();
-      pass &= qip::check_value(&obuff, "HF core Cs grid " + worst, eps, 0.0,
-                               5.0e-6);
+    pass &= qip::check_value(&obuff, "KS regression, En: " + worst_case,
+                             worst_eps, 0.0, 1.0e-5);
+  }
+  //--------------------------------------------------------------------------
+  {
+    Wavefunction wf({points, r0, rmax, b, grid_type},
+                    {"Cs", 133, nucleus_type});
+
+    std::cout << "\n" << wf.atom() << ": ApproxHF:\n";
+    wf.solve_core("ApproxHF", 0.0, "[Xe]");
+    wf.solve_valence("6sp");
+
+    const auto aHF_data = std::vector{std::tuple{"1s+", -1330.095428346559},
+                                      {"2s+", -212.549839273448},
+                                      {"2p-", -199.412267819184},
+                                      {"2p+", -186.421440251763},
+                                      {"3s+", -45.963541804192},
+                                      {"3p-", -40.441520330164},
+                                      {"3p+", -37.888138071025},
+                                      {"3d-", -28.302116154339},
+                                      {"3d+", -27.768071917649},
+                                      {"4s+", -9.511433719799},
+                                      {"4p-", -7.444887195937},
+                                      {"4p+", -6.919796669697},
+                                      {"4d-", -3.484491541740},
+                                      {"4d+", -3.395859554961},
+                                      {"5s+", -1.489655369673},
+                                      {"5p-", -0.907778905846},
+                                      {"5p+", -0.840244318069},
+                                      {"6s+", -0.127364872198},
+                                      {"6p-", -0.085613564779},
+                                      {"6p+", -0.083783585251}};
+
+    double worst_eps{0.0};
+    std::string worst_case{""};
+    // Test the energies:
+    for (const auto &[state, energy] : aHF_data) {
+      const auto &Fv = *wf.getState(state);
+      const auto eps = std::abs((Fv.en() - energy) / energy);
+      printf("%3s %9.6f [%9.6f] %.1e\n", state, Fv.en(), energy, eps);
+      if (eps > worst_eps) {
+        worst_eps = eps;
+        worst_case = wf.atomicSymbol() + ":" + state;
+      }
     }
 
-    { // Check Valence vs test data:
-      const auto [eps, at] = qip::compare(wf.valence, expected_VD_v, cmpr);
-      const std::string worst = at == wf.valence.end() ? "" : at->symbol();
-      pass &= qip::check_value(&obuff, "HF val Cs vs. VD " + worst, eps, 0.0,
-                               3.0e-6);
-    }
-
-    { // compare 'dense grid' version to 'normal grid' (valence)
-      const auto [eps, at] = qip::compare(wf.valence, wf2.valence, cmpr2);
-      const std::string worst = at == wf.valence.end() ? "" : at->symbol();
-      pass &=
-          qip::check_value(&obuff, "HF val Cs grid " + worst, eps, 0.0, 3.0e-6);
-    }
+    pass &= qip::check_value(&obuff, "aHF regression, En: " + worst_case,
+                             worst_eps, 0.0, 1.0e-5);
   }
 
-  //****************************************************************************
-
-  { // Test case: Yb+ (one that fails more easily)
-    Wavefunction wf3({2000, 1.0e-6, 100.0, 0.33 * 100.0, "loglinear", -1.0},
-                     {"Yb", 173, "Fermi", -1.0, -1.0}, 1.0);
-    wf3.solve_core("HartreeFock", 0.0, "[Xe],4f14");
-    wf3.solve_valence("6sp5d5f");
-
-    const std::vector dzuba{-0.41366446, -0.30111301, -0.28830673, -0.30307172,
-                            -0.30088656, -0.12509665, -0.12507894};
-    const auto [eps, at] = qip::compare(wf3.valence, dzuba, cmpr);
-    pass &= qip::check_value(&obuff, "HF Yb+ val", eps, 0.0, 7.0e-6);
-  }
-
-  //****************************************************************************
-
-  { // Test case: Hyperfine constants (HF; no RPA) for Rb
-    // cf: Grunefeld, Roberts, Ginges, Phys. Rev. A 100, 042506 (2019).
+  //----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  // Test hyperfine constants (HF; no RPA) against:
+  // Grunefeld, Roberts, Ginges, Phys. Rev. A 100, 042506 (2019).
+  // nb: only few digits given there
+  //----------------------------------------------------------------------------
+  {
     Wavefunction wf({4000, 1.0e-7, 425.0, 0.33 * 150.0, "loglinear", -1.0},
                     {"Rb", 87, "Fermi", -1.0, -1.0}, 1.0);
     wf.solve_core("HartreeFock", 0.0, "[Kr]");
@@ -111,9 +329,9 @@ bool HartreeFock(std::ostream &obuff) {
     // Calculate HFS A constant for each valence state (store s,p seperately)
     std::vector<double> sme, pme;
     for (const auto &Fv : wf.valence) {
-      if (Fv.k == -1)
+      if (Fv.kappa() == -1)
         sme.push_back(h.hfsA(Fv));
-      else if (Fv.k == 1)
+      else if (Fv.kappa() == 1)
         pme.push_back(h.hfsA(Fv));
     }
     const auto [es, ats] = qip::compare_eps(sme, s);
@@ -122,6 +340,7 @@ bool HartreeFock(std::ostream &obuff) {
                              3.0e-4);
   }
 
+  //----------------------------------------------------------------------------
   { // Test case: Hyperfine constants (HF; no RPA) for Cs
     // Grunefeld, Roberts, Ginges, Phys. Rev. A 100, 042506 (2019).
     Wavefunction wf({4000, 1.0e-7, 400.0, 0.33 * 150.0, "loglinear", -1.0},
@@ -137,9 +356,9 @@ bool HartreeFock(std::ostream &obuff) {
 
     std::vector<double> sme, pme;
     for (const auto &Fv : wf.valence) {
-      if (Fv.k == -1)
+      if (Fv.kappa() == -1)
         sme.push_back(h.hfsA(Fv));
-      else if (Fv.k == 1)
+      else if (Fv.kappa() == 1)
         pme.push_back(h.hfsA(Fv));
     }
     const auto [es, ats] = qip::compare_eps(sme, s);
@@ -163,9 +382,9 @@ bool HartreeFock(std::ostream &obuff) {
 
     std::vector<double> sme, pme;
     for (const auto &Fv : wf.valence) {
-      if (Fv.k == -1)
+      if (Fv.kappa() == -1)
         sme.push_back(h.hfsA(Fv));
-      else if (Fv.k == 1)
+      else if (Fv.kappa() == 1)
         pme.push_back(h.hfsA(Fv));
     }
     const auto [es, ats] = qip::compare_eps(sme, s);
@@ -175,6 +394,6 @@ bool HartreeFock(std::ostream &obuff) {
   }
 
   return pass;
-}
+} // namespace UnitTest
 
 } // namespace UnitTest

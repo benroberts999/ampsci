@@ -5,7 +5,7 @@
 
 namespace Parametric {
 
-//******************************************************************************
+//==============================================================================
 double green(int Z, double r, double H, double d)
 // Have default H and d : scaled to fit Alkali atoms!
 // Does not include nuclear part!
@@ -16,7 +16,7 @@ double green(int Z, double r, double H, double d)
          double(Z) / r;
 }
 
-//******************************************************************************
+//==============================================================================
 double tietz(int Z, double r, double t, double g)
 // TIETZ parametric potential
 // Does NOT include nuclear potential
@@ -28,7 +28,7 @@ double tietz(int Z, double r, double t, double g)
          double(Z) / r;
 }
 
-//******************************************************************************
+//==============================================================================
 int defaultGreenCore(int z, double &H, double &d)
 // Fitted to match HF closed-shell core energies - aid convergance!
 {
@@ -73,7 +73,7 @@ int defaultGreenCore(int z, double &H, double &d)
   return 0;
 }
 
-//******************************************************************************
+//==============================================================================
 int defaultGreen(int z, double &H, double &d)
 // Default values for Green potential parameters.
 // Determined by fitting the 5 lowest J=1/2 states.
@@ -134,8 +134,8 @@ int defaultGreen(int z, double &H, double &d)
   return 0;
 }
 
-//******************************************************************************
-int defaultTietz(int z, double &t, double &g)
+//==============================================================================
+int defaultTietz(int z, double &g, double &t)
 // Default values for Green potential parameters.
 // Determined by fitting the 5 lowest J=1/2 states.
 // Crude quadratic fit used for other Z values.
@@ -205,7 +205,7 @@ int defaultTietz(int z, double &t, double &g)
   return 0;
 }
 
-//******************************************************************************
+//==============================================================================
 std::vector<double> GreenPotential(int z, const std::vector<double> &r_array,
                                    double h, double d) {
   // double Gh, Gd; // Green potential parameters
@@ -224,7 +224,7 @@ std::vector<double> TietzPotential(int z, const std::vector<double> &r_array,
                                    double g, double t) {
   // double Gh, Gd; // Green potential parameters
   if (std::fabs(g * t) < 1.0e-6)
-    defaultTietz(z, t, g);
+    defaultTietz(z, g, t);
   // Fill the the potential, using Greens Parametric
   std::vector<double> v;
   v.reserve(r_array.size());

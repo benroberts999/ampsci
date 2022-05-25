@@ -53,7 +53,7 @@ inline std::vector<double> interpolate(const std::vector<double> &x_in,
   return y_out;
 }
 
-//******************************************************************************
+//==============================================================================
 class Interp {
 
   gsl_interp_accel *acc; // = gsl_interp_accel_alloc();

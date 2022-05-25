@@ -12,7 +12,7 @@
 
 namespace UnitTest {
 
-//******************************************************************************
+//==============================================================================
 
 bool RDMatrix(std::ostream &obuff) {
   bool pass = true;
@@ -41,7 +41,7 @@ bool RDMatrix(std::ostream &obuff) {
   // What the orbitals are is not important; but we will use the fact that they
   // are an orthonormal set (tested in DiracODE)
 
-  //****************************************************************************
+  //============================================================================
   // Test basics using "small" matrix (stride=5, no G)
   {
     const bool include_g = false;
@@ -132,7 +132,7 @@ bool RDMatrix(std::ostream &obuff) {
     }
   }
 
-  //****************************************************************************
+  //============================================================================
   // Test basics using "small" matrix (but, include G)
   {
     const bool include_g = true;
@@ -186,7 +186,7 @@ bool RDMatrix(std::ostream &obuff) {
     }
   }
 
-  //****************************************************************************
+  //============================================================================
   // Test basics using "small" matrix (but, include G), and complex!
   {
     using namespace std::complex_literals;
@@ -263,7 +263,7 @@ bool RDMatrix(std::ostream &obuff) {
     }
   }
 
-  //****************************************************************************
+  //============================================================================
   // Test basics using "full" matrix (no stride, include G)
   {
     const bool include_g = true;

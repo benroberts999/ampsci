@@ -3,7 +3,7 @@
 
 namespace LinAlg {
 
-//******************************************************************************
+//==============================================================================
 //! Vector class (inherits from Matrix)
 template <typename T = double> class Vector : public Matrix<T> {
 public:
@@ -33,7 +33,7 @@ public:
                             "column. Traspose first?");
   }
 
-  //****************************************************************************
+  //============================================================================
 
   //! [] index access (with no range checking). [i][j] returns ith row, jth col
   T operator[](std::size_t i) const { return this->data()[i]; }
@@ -54,7 +54,7 @@ public:
   //! As above, but const
   T operator()(std::size_t i) const { return at(i); }
 
-  //****************************************************************************
+  //============================================================================
   [[nodiscard]] Vector<T> conj() const;
   [[nodiscard]] auto real() const;
   [[nodiscard]] auto imag() const;
@@ -62,7 +62,7 @@ public:
 
   Vector<T> transpose() const = delete;
 
-  //****************************************************************************
+  //============================================================================
   Vector<T> &operator+=(const Vector<T> &rhs);
   Vector<T> &operator-=(const Vector<T> rhs);
   Vector<T> &operator*=(const T x);
@@ -86,7 +86,7 @@ public:
     return (lhs /= x);
   }
 
-  //****************************************************************************
+  //============================================================================
   //! Matrix*Vector multiplication: v_i = sum_j A_ij*B_j
   [[nodiscard]] friend Vector<T> operator*(const Matrix<T> &a,
                                            const Vector<T> &b) {
@@ -149,7 +149,7 @@ public:
     return op;
   }
 
-  //****************************************************************************
+  //============================================================================
   //! Returns gsl_vector_view (or _float_view, _complex_view,
   //! _complex_float_view). Call .matrix to use as a GSL matrix (no copy is
   //! involved). Allows one to use all GSL built-in functions. Note: non -

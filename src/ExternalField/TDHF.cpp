@@ -17,22 +17,32 @@
 
 namespace ExternalField {
 
-//******************************************************************************
+inline auto rampedDamp(double a_beg, double a_end, int beg, int end) {
+  return [=](int i) {
+    if (i >= end)
+      return a_end;
+    if (i <= beg)
+      return a_beg;
+    return (a_end * (i - beg) + a_beg * (end - i)) / (end - beg);
+  };
+}
+
+//==============================================================================
 TDHF::TDHF(const DiracOperator::TensorOperator *const h,
            const HF::HartreeFock *const hf)
     : CorePolarisation(h),
       p_hf(hf),
-      m_core(hf->get_core()),
-      // m_vl(hf->get_vlocal(0)), //udpated, to use l-dependent QED [no change]
+      m_core(hf->core()),
+      // m_vl(hf->vlocal(0)), //udpated, to use l-dependent QED [no change]
       m_Hmag(hf->get_Hrad_mag(0)), //(same each l)
-      m_alpha(hf->get_alpha()),
+      m_alpha(hf->alpha()),
       p_VBr(hf->get_Breit())
 // Add check for null hf?
 {
   initialise_dPsi();
 }
 
-//******************************************************************************
+//==============================================================================
 void TDHF::initialise_dPsi() {
   // Initialise dPsi vectors, accounting for selection rules
   const bool print = false;
@@ -51,8 +61,8 @@ void TDHF::initialise_dPsi() {
       const auto pi_chla = Angular::parity_l(l_minus) * pi_ch;
       const auto l = (pi_chla == 1) ? l_minus : l_minus + 1;
       const auto kappa = Angular::kappa_twojl(tj, l);
-      m_X[ic].emplace_back(0, kappa, Fc.rgrid);
-      m_X[ic].back().set_max_pt() = Fc.max_pt();
+      m_X[ic].emplace_back(0, kappa, Fc.grid_sptr());
+      m_X[ic].back().max_pt() = Fc.max_pt();
       if (print)
         std::cout << "|" << m_X[ic].back().symbol() << "> + ";
     }
@@ -64,7 +74,7 @@ void TDHF::initialise_dPsi() {
   m_Y0 = m_X;
 }
 
-//******************************************************************************
+//==============================================================================
 void TDHF::clear() {
   // re-set p0/pinf? no need.
   for (auto &mx : m_X) {
@@ -77,7 +87,7 @@ void TDHF::clear() {
   m_Y0 = m_X;
 }
 
-//******************************************************************************
+//==============================================================================
 const std::vector<DiracSpinor> &TDHF::get_dPsis(const DiracSpinor &Fc,
                                                 dPsiType XorY) const {
 
@@ -100,15 +110,15 @@ const std::vector<DiracSpinor> &TDHF::get_dPsis_0(const DiracSpinor &Fc,
   return XorY == dPsiType::X ? m_X0[index] : m_Y0[index];
 }
 
-//******************************************************************************
+//==============================================================================
 const DiracSpinor &TDHF::get_dPsi_x(const DiracSpinor &Fc, dPsiType XorY,
                                     const int kappa_x) const {
   const auto &dPsis = get_dPsis(Fc, XorY);
-  auto match_kappa_x = [=](const auto &Fa) { return Fa.k == kappa_x; };
+  auto match_kappa_x = [=](const auto &Fa) { return Fa.kappa() == kappa_x; };
   return *std::find_if(dPsis.cbegin(), dPsis.cend(), match_kappa_x);
 }
 
-//******************************************************************************
+//==============================================================================
 std::vector<DiracSpinor>
 TDHF::solve_dPsis(const DiracSpinor &Fv, const double omega, dPsiType XorY,
                   const MBPT::CorrelationPotential *const Sigma, StateType st,
@@ -122,7 +132,7 @@ TDHF::solve_dPsis(const DiracSpinor &Fv, const double omega, dPsiType XorY,
   }
   return dFvs;
 }
-//******************************************************************************
+//==============================================================================
 DiracSpinor TDHF::solve_dPsi(const DiracSpinor &Fv, const double omega,
                              dPsiType XorY, const int kappa_x,
                              const MBPT::CorrelationPotential *const Sigma,
@@ -145,7 +155,7 @@ DiracSpinor TDHF::solve_dPsi(const DiracSpinor &Fv, const double omega,
   // auto rhs = s * hFv + dV_rhs(kappa_x, Fv, conj);
   if (incl_dV)
     rhs += dV_rhs(kappa_x, Fv, conj);
-  if (kappa_x == Fv.k && !imag) {
+  if (kappa_x == Fv.kappa() && !imag) {
     auto de = m_h->reducedME(Fv, Fv);
     if (incl_dV)
       de += dV(Fv, Fv, conj);
@@ -163,18 +173,18 @@ DiracSpinor TDHF::solve_dPsi(const DiracSpinor &Fv, const double omega,
     s2 = sj * si;
   }
 
-  const auto vl = p_hf->get_vlocal(Angular::l_k(kappa_x));
+  const auto vl = p_hf->vlocal(Angular::l_k(kappa_x));
   // The l from X ? or from Fv ?
   return s2 * ExternalField::solveMixedState(kappa_x, Fv, ww, vl, m_alpha,
                                              m_core, rhs, 1.0e-9, Sigma, p_VBr,
                                              m_Hmag);
 }
 
-//******************************************************************************
+//==============================================================================
 void TDHF::solve_core(const double omega, const int max_its, const bool print) {
 
   const double converge_targ = 1.0e-8;
-  const auto damper = HF::rampedDamp(0.75, 0.25, 1, 20);
+  const auto damper = rampedDamp(0.75, 0.25, 1, 20);
 
   const bool staticQ = std::abs(omega) < 1.0e-10;
 
@@ -189,7 +199,7 @@ void TDHF::solve_core(const double omega, const int max_its, const bool print) {
     hFcore.reserve(m_X[ic].size()); // each h projection
     for (auto beta = 0ul; beta < m_X[ic].size(); beta++) {
       const auto &Xx = m_X[ic][beta];
-      hFcore[ic].push_back(m_h->reduced_rhs(Xx.k, Fc));
+      hFcore[ic].push_back(m_h->reduced_rhs(Xx.kappa(), Fc));
     }
   }
 
@@ -232,14 +242,14 @@ void TDHF::solve_core(const double omega, const int max_its, const bool print) {
         auto &Xx = tmp_X[ic][j];
         const auto &oldX = m_X[ic][j];
         const auto &hFc = hFcore[ic][j];
-        auto rhs = hFc + dV_rhs(Xx.k, Fc, false);
-        if (Xx.k == Fc.k && !imag)
+        auto rhs = hFc + dV_rhs(Xx.kappa(), Fc, false);
+        if (Xx.kappa() == Fc.kappa() && !imag)
           rhs -= (de0 + de1) * Fc;
         if (has_de) {
           // Force solveMixedState to start from scratch
           Xx *= 0.0;
         }
-        const auto vl = p_hf->get_vlocal(Xx.l()); // to include l-dep QED
+        const auto vl = p_hf->vlocal(Xx.l()); // to include l-dep QED
         ExternalField::solveMixedState(Xx, Fc, omega, vl, m_alpha, m_core, rhs,
                                        eps_ms, nullptr, p_VBr, m_Hmag);
         Xx = a_damp * oldX + (1.0 - a_damp) * Xx;
@@ -253,13 +263,13 @@ void TDHF::solve_core(const double omega, const int max_its, const bool print) {
           const auto &oldY = m_Y[ic][j];
           const auto &hFc = hFcore[ic][j];
           const auto s = imag ? -1 : 1;
-          auto rhs = s * hFc + dV_rhs(Yx.k, Fc, true);
-          if (Yx.k == Fc.k && !imag)
+          auto rhs = s * hFc + dV_rhs(Yx.kappa(), Fc, true);
+          if (Yx.kappa() == Fc.kappa() && !imag)
             rhs -= (de0 + de1_dag) * Fc;
           if (has_de) {
             Yx *= 0.0;
           }
-          const auto vl = p_hf->get_vlocal(Yx.l());
+          const auto vl = p_hf->vlocal(Yx.l());
           ExternalField::solveMixedState(Yx, Fc, -omega, vl, m_alpha, m_core,
                                          rhs, eps_ms, nullptr, p_VBr, m_Hmag);
           Yx = a_damp * oldY + (1.0 - a_damp) * Yx;
@@ -298,7 +308,7 @@ void TDHF::solve_core(const double omega, const int max_its, const bool print) {
   if (print) {
     printf("%2i %.1e", it, eps);
     if (eps > 1.0e-5)
-      std::cout << "  *****";
+      std::cout << "  ====*";
     std::cout << "\n" << std::flush;
   }
   // set last eps (convergance) and frequency (omega)
@@ -306,12 +316,12 @@ void TDHF::solve_core(const double omega, const int max_its, const bool print) {
   m_core_omega = omega;
 }
 
-//******************************************************************************
+//==============================================================================
 // does it matter if a or b is in the core?
 double TDHF::dV(const DiracSpinor &Fn, const DiracSpinor &Fm, bool conj,
                 const DiracSpinor *const Fexcl, bool incl_dV) const {
   const auto s = conj && m_h->imaginaryQ() ? -1 : 1; // careful. OK?
-  return s * Fn * dV_rhs(Fn.k, Fm, conj, Fexcl, incl_dV);
+  return s * Fn * dV_rhs(Fn.kappa(), Fm, conj, Fexcl, incl_dV);
 }
 
 double TDHF::dV(const DiracSpinor &Fn, const DiracSpinor &Fm) const {
@@ -324,12 +334,12 @@ double TDHF::dV1(const DiracSpinor &Fn, const DiracSpinor &Fm) const {
   return dV(Fn, Fm, conj, nullptr, false);
 }
 
-//******************************************************************************
+//==============================================================================
 DiracSpinor TDHF::dV_rhs(const int kappa_n, const DiracSpinor &Fa, bool conj,
                          const DiracSpinor *const Fexcl, bool incl_dV) const {
 
-  auto dVFa = DiracSpinor(0, kappa_n, Fa.rgrid);
-  dVFa.set_max_pt() = Fa.max_pt();
+  auto dVFa = DiracSpinor(0, kappa_n, Fa.grid_sptr());
+  dVFa.max_pt() = Fa.max_pt();
 
   const auto ChiType = !conj ? dPsiType::X : dPsiType::Y;
   const auto EtaType = !conj ? dPsiType::Y : dPsiType::X;
@@ -377,10 +387,10 @@ DiracSpinor TDHF::dV_rhs(const int kappa_n, const DiracSpinor &Fa, bool conj,
   return dVFa;
 }
 
-//******************************************************************************
+//==============================================================================
 void TDHF::print(const std::string &ofname) const {
   std::ofstream of(ofname);
-  const auto &gr = *((m_core.front()).rgrid);
+  const auto &gr = *((m_core.front()).grid_sptr());
   for (auto i = 0ul; i < gr.num_points(); ++i) {
     of << gr.r(i) << " ";
     for (auto ic = 0ul; ic < m_core.size(); ic++) {

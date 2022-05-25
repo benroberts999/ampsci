@@ -17,7 +17,7 @@ class HartreeFock;
 //! Many-body perturbation theory
 namespace MBPT {
 
-//******************************************************************************
+//==============================================================================
 // Helper classes (store parameters):
 
 enum class Method { Goldstone, Feynman };
@@ -56,7 +56,7 @@ struct wgrid_params {
   // XX add exchange stride ?
 };
 
-//******************************************************************************
+//==============================================================================
 /*!
 @brief Pure virtual. Calculates + stores Correlation Potential operator
 @details

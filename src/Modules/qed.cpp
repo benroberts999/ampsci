@@ -15,7 +15,7 @@
 
 namespace Module {
 
-//****************************************************************************
+//============================================================================
 // Used for finding A and b for effective vertex QED operator
 void QED(const IO::InputBlock &input, const Wavefunction &wf) {
 
@@ -104,7 +104,7 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
     // Kohn Sham input valence list has different format
     std::string list{};
     for (const auto &Fv : wf.valence) {
-      if (Fv.k < 0)
+      if (Fv.kappa() < 0)
         list += Fv.shortSymbol().substr(0, Fv.shortSymbol().length() - 1);
     }
     std::cout << list << "\n";
@@ -159,8 +159,8 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "       E0            dE(VP)        dE(SE)        dE(tot)\n";
   for (const auto &Fv : wf.valence) {
     // Find corresponding state without QED: (can't assume in same order)
-    const auto Fv_SE = wf_SE.getState(Fv.n, Fv.k);
-    const auto Fv_VP = wf_VP.getState(Fv.n, Fv.k);
+    const auto Fv_SE = wf_SE.getState(Fv.n(), Fv.kappa());
+    const auto Fv_VP = wf_VP.getState(Fv.n(), Fv.kappa());
     if (!Fv_SE || !Fv_SE)
       continue;
 
@@ -343,7 +343,7 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
   } // me_input
 } // namespace Module
 
-//****************************************************************************
+//============================================================================
 
 void vertexQED(const IO::InputBlock &input, const Wavefunction &wf) {
   calc_vertexQED(input, wf);
@@ -439,10 +439,11 @@ std::vector<std::string> calc_vertexQED(const IO::InputBlock &input,
   for (const auto &Fb : wf.valence) {
     for (const auto &Fa : wf.valence) {
 
-      const auto a = AhfsQ ? DiracOperator::HyperfineA::convertRMEtoA(Fa, Fb) :
-                             radial_int ? 1.0 / h->angularF(Fa.k, Fb.k) : 1.0;
+      const auto a =
+          AhfsQ ? DiracOperator::HyperfineA::convertRMEtoA(Fa, Fb) :
+                  radial_int ? 1.0 / h->angularF(Fa.kappa(), Fb.kappa()) : 1.0;
 
-      if (h->isZero(Fa.k, Fb.k))
+      if (h->isZero(Fa.kappa(), Fb.kappa()))
         continue;
       if (diagonal_only && Fb != Fa)
         continue;
@@ -454,10 +455,10 @@ std::vector<std::string> calc_vertexQED(const IO::InputBlock &input,
       const auto h0 = h->reducedME(Fa, Fb) * a;
 
       // ok
-      const auto Fa_SE = wf_SE->getState(Fa.n, Fa.k);
-      const auto Fa_VP = wf_VP->getState(Fa.n, Fa.k);
-      const auto Fb_SE = wf_SE->getState(Fb.n, Fb.k);
-      const auto Fb_VP = wf_VP->getState(Fb.n, Fb.k);
+      const auto Fa_SE = wf_SE->getState(Fa.n(), Fa.kappa());
+      const auto Fa_VP = wf_VP->getState(Fa.n(), Fa.kappa());
+      const auto Fb_SE = wf_SE->getState(Fb.n(), Fb.kappa());
+      const auto Fb_VP = wf_VP->getState(Fb.n(), Fb.kappa());
       if (!Fa_SE || !Fb_SE || !Fa_VP || !Fb_VP)
         continue;
 

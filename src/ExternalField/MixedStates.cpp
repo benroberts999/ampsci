@@ -17,7 +17,17 @@
 namespace ExternalField {
 using namespace HF;
 
-//******************************************************************************
+inline auto rampedDamp(double a_beg, double a_end, int beg, int end) {
+  return [=](int i) {
+    if (i >= end)
+      return a_end;
+    if (i <= beg)
+      return a_beg;
+    return (a_end * (i - beg) + a_beg * (end - i)) / (end - beg);
+  };
+}
+
+//==============================================================================
 DiracSpinor solveMixedState(const int k, const DiracSpinor &Fa,
                             const double omega, const std::vector<double> &vl,
                             const double alpha,
@@ -26,7 +36,7 @@ DiracSpinor solveMixedState(const int k, const DiracSpinor &Fa,
                             const MBPT::CorrelationPotential *const Sigma,
                             const HF::Breit *const VBr,
                             const std::vector<double> &H_mag) {
-  DiracSpinor dF{0, k, Fa.rgrid};
+  DiracSpinor dF{0, k, Fa.grid_sptr()};
   solveMixedState(dF, Fa, omega, vl, alpha, core, hFa, eps_target, Sigma, VBr,
                   H_mag);
   return dF;
@@ -61,7 +71,7 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
     if (Sigma)
       rhs -= (*Sigma)(dF);
     if (VBr)
-      rhs -= (*VBr)(dF);
+      rhs -= VBr->VbrFa(dF, core);
     DiracODE::solve_inhomog(dF, Fa.en() + omega, v, H_mag, alpha, rhs);
 
     const auto a = its == 0 ? 0.0 : damper(its);

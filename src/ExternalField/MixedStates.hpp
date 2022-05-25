@@ -13,6 +13,9 @@ class Breit;
 //! External field: Mixed-states + Core Polarisation
 namespace ExternalField {
 
+constexpr bool print_final_eps = false;
+constexpr bool print_each_eps = false;
+
 //! @brief Solves Mixed States (TDHF) equation, inhomogenous
 //! equation, with Hartree-Fock hamiltonian, including exchange
 /*! @details
