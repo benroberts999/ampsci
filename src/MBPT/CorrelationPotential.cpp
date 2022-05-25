@@ -11,6 +11,7 @@
 #include "Maths/Grid.hpp"
 #include "Maths/Interpolator.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
+#include "qip/omp.hpp"
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -19,15 +20,6 @@
 #include <memory>
 #include <numeric>
 #include <vector>
-
-#if defined(_OPENMP)
-#include <omp.h>
-constexpr bool use_omp = true;
-#else
-constexpr bool use_omp = true;
-#define omp_get_thread_num() 0
-#define omp_get_max_threads() 1
-#endif
 
 namespace MBPT {
 
