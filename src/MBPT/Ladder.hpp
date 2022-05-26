@@ -16,7 +16,7 @@ namespace MBPT {
  * vector of screening factors
  */
 double Lkmnij(int k, const DiracSpinor &m, const DiracSpinor &n,
-              const DiracSpinor &a, const DiracSpinor &b,
+              const DiracSpinor &i, const DiracSpinor &j,
               const Coulomb::CoulombTable &qk,
               const std::vector<DiracSpinor> &core,
               const std::vector<DiracSpinor> &excited,
@@ -33,7 +33,7 @@ A^{kul}_mnrsij
   = (-1)^{m+n+r+s+i+j+1} * [k] * {m,i,k;l,u,r} * {n,j,k;l,u,s}
 */
 double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
-          const DiracSpinor &a, const DiracSpinor &b,
+          const DiracSpinor &i, const DiracSpinor &j,
           const Coulomb::CoulombTable &qk,
           const std::vector<DiracSpinor> &excited, const Angular::SixJTable &SJ,
           const Coulomb::CoulombTable *const Lk = nullptr,
@@ -46,9 +46,27 @@ L2^k_mnij
     * Q^u_cnir * (Q+L)^l_mrcj / (e_cj - e_mr)
  */
 double L2(int k, const DiracSpinor &m, const DiracSpinor &n,
-          const DiracSpinor &a, const DiracSpinor &b,
+          const DiracSpinor &i, const DiracSpinor &j,
           const Coulomb::CoulombTable &qk, const std::vector<DiracSpinor> &core,
           const std::vector<DiracSpinor> &excited, const Angular::SixJTable &SJ,
+          const Coulomb::CoulombTable *const Lk = nullptr,
+          const std::vector<double> &fk = {});
+
+inline double L3(int k, const DiracSpinor &m, const DiracSpinor &n,
+                 const DiracSpinor &i, const DiracSpinor &j,
+                 const Coulomb::CoulombTable &qk,
+                 const std::vector<DiracSpinor> &core,
+                 const std::vector<DiracSpinor> &excited,
+                 const Angular::SixJTable &SJ,
+                 const Coulomb::CoulombTable *const Lk = nullptr,
+                 const std::vector<double> &fk = {}) {
+  return L2(k, n, m, j, i, qk, core, excited, SJ, Lk, fk);
+}
+
+double L4(int k, const DiracSpinor &m, const DiracSpinor &n,
+          const DiracSpinor &i, const DiracSpinor &j,
+          const Coulomb::CoulombTable &qk, const std::vector<DiracSpinor> &core,
+          const Angular::SixJTable &SJ,
           const Coulomb::CoulombTable *const Lk = nullptr,
           const std::vector<double> &fk = {});
 

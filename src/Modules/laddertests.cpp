@@ -235,7 +235,7 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
            del * PhysConst::Hartree_invcm);
   }
 
-  check_L_symmetry(core, excited, valence, qk, yk.SixJ(), &lk);
+  // check_L_symmetry(core, excited, valence, qk, yk.SixJ(), &lk);
 
   bool include_G = false;
   const auto sigp = MBPT::Sigma_params{MBPT::Method::Goldstone,

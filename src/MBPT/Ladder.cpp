@@ -11,14 +11,16 @@ namespace MBPT {
 //==============================================================================
 double
 Lkmnij(int k, const DiracSpinor &m, const DiracSpinor &n, const DiracSpinor &i,
-       const DiracSpinor &b, const Coulomb::CoulombTable &qk,
+       const DiracSpinor &j, const Coulomb::CoulombTable &qk,
        const std::vector<DiracSpinor> &core,
        const std::vector<DiracSpinor> &excited, const Angular::SixJTable &SJ,
        const Coulomb::CoulombTable *const Lk, const std::vector<double> &fk) {
 
-  return L1(k, m, n, i, b, qk, excited, SJ, Lk, fk) +
-         L2(k, m, n, i, b, qk, core, excited, SJ, Lk, fk) +
-         L2(k, n, m, b, i, qk, core, excited, SJ, Lk, fk);
+  return L1(k, m, n, i, j, qk, excited, SJ, Lk, fk) +
+         L2(k, m, n, i, j, qk, core, excited, SJ, Lk, fk) +
+         // L2(k, n, m, j, i, qk, core, excited, SJ, Lk, fk) +
+         L3(k, m, n, i, j, qk, core, excited, SJ, Lk, fk) +
+         L4(k, m, n, i, j, qk, core, SJ, Lk, fk);
 }
 
 //------------------------------------------------------------------------------
@@ -28,6 +30,14 @@ double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
           const std::vector<DiracSpinor> &excited, const Angular::SixJTable &SJ,
           const Coulomb::CoulombTable *const Lk,
           const std::vector<double> &fk) {
+
+  // m (and n) must be excited states, as should 'excited'
+  // Therefore, can test:
+  // Ensured 'excited' is actually the excited orbitals
+  // and that m and n are excited orbitals
+  // (Still possible BOTH wrong at the same time..)
+  assert(std::find(excited.cbegin(), excited.cend(), m) != excited.cend());
+  assert(std::find(excited.cbegin(), excited.cend(), n) != excited.cend());
 
   // screening factors:
   auto Fk = [&fk](int l) {
@@ -92,12 +102,91 @@ double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
 }
 
 //------------------------------------------------------------------------------
+double L4(int k, const DiracSpinor &m, const DiracSpinor &n,
+          const DiracSpinor &i, const DiracSpinor &j,
+          const Coulomb::CoulombTable &qk, const std::vector<DiracSpinor> &core,
+          const Angular::SixJTable &SJ, const Coulomb::CoulombTable *const Lk,
+          const std::vector<double> &fk) {
+
+  // m (and n) must be excited states, as should 'excited'
+  // Therefore, can test:
+  // Ensured 'excited' is actually the excited orbitals
+  // and that m and n are excited orbitals
+  assert(std::find(core.cbegin(), core.cend(), m) == core.cend());
+  assert(std::find(core.cbegin(), core.cend(), n) == core.cend());
+
+  // screening factors:
+  auto Fk = [&fk](int l) {
+    return l < (int)fk.size() ? fk[std::size_t(l)] : 1.0;
+  };
+
+  double l4 = 0.0;
+  const double tkp1 = 2.0 * k + 1.0;
+  const auto s_mnij1 =
+      Angular::neg1pow_2(2 + m.twoj() + n.twoj() + i.twoj() + j.twoj());
+
+  //  6j(r) Triads: {m,i,k}, {k,u,l}, {i,u,c}, {l,c,m}
+  //  6j(s) Triads: {n,b,k}, {k,u,l}, {b,u,d}, {l,d,n}
+
+#pragma omp parallel for reduction(+ : l4)
+  for (auto c_index = 0ul; c_index < core.size(); ++c_index) {
+    const auto &c = core[c_index];
+    for (const auto &d : core) {
+
+      const auto [u0, uI] = Coulomb::k_minmax_Q(c, d, i, j);
+      const auto [l0, lI] = Coulomb::k_minmax_Q(m, n, c, d);
+      if (uI < u0 || lI < l0)
+        continue;
+
+      const auto s_cd = Angular::neg1pow_2(c.twoj() + d.twoj());
+      const auto inv_e_cdmn = 1.0 / (c.en() + d.en() - m.en() - n.en());
+
+      for (auto u = u0; u <= uI; u += 2) {
+        const auto Q_ucdij = Fk(u) * qk.Q(u, c, d, i, j);
+        if (Q_ucdij == 0.0)
+          continue; // never? Unless have k_cut
+
+        // From 6J triads (this makes 1.5x speedup):
+        if (Coulomb::triangle(i, u, c) == 0 || Coulomb::triangle(j, u, d) == 0)
+          continue;
+
+        for (auto l = l0; l <= lI; l += 2) {
+
+          // 6j triad:
+          if (Angular::triangle(k, u, l) == 0)
+            continue;
+
+          const auto sj_c = SJ.get(m, i, k, u, l, c);
+          const auto sj_d = SJ.get(n, j, k, u, l, d);
+
+          const auto Q_lmncd = Fk(l) * qk.Q(l, m, n, c, d);
+          const auto L_lmncd = Lk ? Lk->Q(l, m, n, c, d) : 0.0;
+
+          l4 +=
+              (s_cd * sj_c * sj_d) * Q_ucdij * (Q_lmncd + L_lmncd) * inv_e_cdmn;
+        }
+      }
+    }
+  }
+  l4 *= s_mnij1 * tkp1;
+  return l4;
+}
+
+//------------------------------------------------------------------------------
 double L2(int k, const DiracSpinor &m, const DiracSpinor &n,
           const DiracSpinor &i, const DiracSpinor &j,
           const Coulomb::CoulombTable &qk, const std::vector<DiracSpinor> &core,
           const std::vector<DiracSpinor> &excited, const Angular::SixJTable &SJ,
           const Coulomb::CoulombTable *const Lk,
           const std::vector<double> &fk) {
+
+  // m (and n) must be excited states, as should 'excited'
+  // Therefore, can test:
+  // Ensured 'excited' is actually the excited orbitals
+  // and that m and n are excited orbitals
+  assert(std::find(excited.cbegin(), excited.cend(), m) != excited.cend());
+  assert(std::find(excited.cbegin(), excited.cend(), n) != excited.cend());
+  assert(std::find(core.cbegin(), core.cend(), m) == core.cend());
 
   // screening factors:
   auto Fk = [&fk](int l) {
