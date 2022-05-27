@@ -88,10 +88,8 @@ int main(int argc, char *argv[]) {
 
   // nb: std::filesystem not available in g++-7 (getafix version)
   const auto fstream = std::fstream(input_text);
-  const auto input = fstream.good() ? IO::InputBlock("ampsci", fstream) :
-                                      IO::InputBlock("ampsci", default_input);
-
-  // First: add any "insert" options
+  auto input = fstream.good() ? IO::InputBlock("ampsci", fstream) :
+                                IO::InputBlock("ampsci", default_input);
 
   // Run program. Add option to run multiple times
   ampsci(input);
