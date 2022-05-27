@@ -39,9 +39,22 @@ Wavefunction::Wavefunction(const GridParameters &gridparams,
   }
 }
 
+Wavefunction::Wavefunction(std::shared_ptr<const Grid> in_grid,
+                           const Nuclear::Parameters &nuc_params,
+                           double var_alpha)
+    : rgrid(std::move(in_grid)),
+      alpha(PhysConst::alpha * var_alpha),
+      m_nuclear(nuc_params),
+      vnuc(Nuclear::formPotential(nuc_params, rgrid->r())) {
+  if (alpha * m_nuclear.z > 1.0) {
+    std::cerr << "Alpha too large: Z*alpha=" << m_nuclear.z * alpha << "\n";
+    std::abort();
+  }
+}
+
 //==============================================================================
 Wavefunction::Wavefunction(const Wavefunction &wf)
-    : Wavefunction(wf.rgrid->params(), wf.get_nuclearParameters(),
+    : Wavefunction(wf.rgrid, wf.get_nuclearParameters(),
                    wf.alpha / PhysConst::alpha) {
   // NOTE: orbitals in new_wf point to OLD grid (*(wf.rgrid), not
   // this->grid_sptr()) new WF ONLY has orbitals, does not have HF/Sigma etc!

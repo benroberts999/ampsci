@@ -32,6 +32,8 @@ class Wavefunction {
 public:
   Wavefunction(const GridParameters &gridparams,
                const Nuclear::Parameters &nuc_params, double var_alpha = 1.0);
+  Wavefunction(std::shared_ptr<const Grid> grid,
+               const Nuclear::Parameters &nuc_params, double var_alpha = 1.0);
 
   //! User-defined copy-constructor. Note: Does not copy HF or Sigma
   Wavefunction(const Wavefunction &wf);

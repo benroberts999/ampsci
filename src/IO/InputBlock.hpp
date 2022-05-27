@@ -482,7 +482,7 @@ bool InputBlock::checkBlock(
     std::cout << "\nAvailable " << m_name << " options/blocks are:\n"
               << m_name << "{\n";
     std::for_each(list.cbegin(), list.cend(), [](const auto &s) {
-      std::cout << "  " << s.first << ";  // " << s.second << "\n";
+      std::cout << "  " << s.first << ";\t// " << s.second << "\n";
     });
     std::cout << "}\n\n";
   }
