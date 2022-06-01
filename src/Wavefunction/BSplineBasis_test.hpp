@@ -32,10 +32,11 @@ bool BSplineBasis(std::ostream &obuff) {
         // Create wavefunction object, solve HF for core + valence
         Wavefunction wf({2500, 1.0e-6, 150.0, 0.33 * 150.0, "loglinear"},
                         {"Cs", -1, "Fermi"});
+        wf.set_HF("HartreeFock", f_Breit, "[Xe]");
         if (f_QED)
           wf.radiativePotential({1.0, 1.0, 1.0, 1.0, 0.0}, 10.0, 1.0, {1.0},
                                 false, false);
-        wf.solve_core("HartreeFock", f_Breit, "[Xe]");
+        wf.solve_core();
         wf.solve_valence("7sp5d4f");
 
         // Compare the energy of a Dirac spinor to a double:
@@ -120,11 +121,11 @@ bool BSplineBasis(std::ostream &obuff) {
       Wavefunction wf({6000, 1.0e-7, 150.0, 0.33 * 150.0, "loglinear"},
                       {"Cs", -1, "Fermi"}, 1.0);
 
+      wf.set_HF("HartreeFock", f_Br, "[Xe]");
       if (f_QED)
         wf.radiativePotential({1.0, 1.0, 1.0, 1.0, 0.0}, 10.0, 1.0, {1.0},
                               false, false);
-
-      wf.solve_core("HartreeFock", f_Br, "[Xe]");
+      wf.solve_core();
 
       const std::string states = "7sp5d4f";
       wf.solve_valence(states);

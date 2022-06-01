@@ -211,9 +211,9 @@ public:
   void solve_core(bool print = true);
 
   //! This version will first set_HF(), then solve_core()
-  void solve_core(const std::string &method = "HartreeFock",
-                  const double x_Breit = 0.0, const std::string &in_core = "",
-                  double eps_HF = 1.0e-13, bool print = true);
+  void solve_core(const std::string &method, const double x_Breit = 0.0,
+                  const std::string &in_core = "", double eps_HF = 1.0e-13,
+                  bool print = true);
 
   //! Performs hartree-Fock procedure for valence: note: poplulates valnece
   void solve_valence(const std::string &in_valence_str = "",

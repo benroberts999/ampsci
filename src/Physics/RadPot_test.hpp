@@ -228,8 +228,9 @@ helper::compare_QED(const std::vector<QEDData> &QEDdata,
     Wavefunction wf({5000, 1.0e-6, 120.0, 0.3 * 120.0, "loglinear", -1.0},
                     {atom.name, atom.A, "Fermi", rrms, 2.3}, 1.0);
     const auto rcut = 15.0;
+    wf.set_HF("HartreeFock", 0.0, atom.core, 0.0, false);
     wf.radiativePotential(scale, rcut, 1.0, {1.0}, false, false);
-    wf.solve_core("HartreeFock", 0.0, atom.core, 0.0, false);
+    wf.solve_core(false);
     wf.solve_valence(atom.val, false);
 
     // Loop through each state (line in table) and compare data:
