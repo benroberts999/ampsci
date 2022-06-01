@@ -53,15 +53,15 @@ bool HartreeFock(std::ostream &obuff) {
                       {Atom, A, nucleus_type});
 
       const auto h = DiracOperator::HyperfineA(
-          1.0, 0.5, 0.0, *wf.rgrid, DiracOperator::Hyperfine::pointlike_F());
-      const auto d = DiracOperator::E1(*wf.rgrid);
+          1.0, 0.5, 0.0, wf.grid(), DiracOperator::Hyperfine::pointlike_F());
+      const auto d = DiracOperator::E1(wf.grid());
 
       std::cout << "\n" << wf.atom() << "\n";
       wf.solve_core("HartreeFock", x_Breit, Core);
       wf.solve_valence(Valence);
 
       // // For generating test data:
-      // for (auto &Fc : wf.core) {
+      // for (auto &Fc : wf.core()) {
       //   printf("{\"%s\", %.12f},\n", Fc.shortSymbol().c_str(), Fc.en());
       // }
 
@@ -311,6 +311,7 @@ bool HartreeFock(std::ostream &obuff) {
   // Grunefeld, Roberts, Ginges, Phys. Rev. A 100, 042506 (2019).
   // nb: only few digits given there
   //----------------------------------------------------------------------------
+  std::cout << "\nHyperfine, cf Grunefeld Phys. Rev. A 100, 042506 (2019):\n";
   {
     Wavefunction wf({4000, 1.0e-7, 425.0, 0.33 * 150.0, "loglinear", -1.0},
                     {"Rb", 87, "Fermi", -1.0, -1.0}, 1.0);
@@ -324,15 +325,25 @@ bool HartreeFock(std::ostream &obuff) {
 
     // Generate operator: use exact same parameters as paper:
     const auto h = DiracOperator::HyperfineA(
-        2.751818, 1.5, 0.0, *wf.rgrid, DiracOperator::Hyperfine::pointlike_F());
+        2.751818, 1.5, 0.0, wf.grid(), DiracOperator::Hyperfine::pointlike_F());
 
     // Calculate HFS A constant for each valence state (store s,p seperately)
     std::vector<double> sme, pme;
-    for (const auto &Fv : wf.valence) {
-      if (Fv.kappa() == -1)
+    for (const auto &Fv : wf.valence()) {
+      if (Fv.kappa() == -1) {
         sme.push_back(h.hfsA(Fv));
-      else if (Fv.kappa() == 1)
+      } else if (Fv.kappa() == 1) {
         pme.push_back(h.hfsA(Fv));
+      }
+    }
+
+    std::cout << "Rb\n";
+    assert(p.size() == s.size());
+    for (auto i = 0ul; i < s.size(); ++i) {
+      const auto epss = std::abs((sme.at(i) - s.at(i)) / s.at(i));
+      const auto epsp = std::abs((pme.at(i) - p.at(i)) / p.at(i));
+      printf("s %.3e [%.3e] %.0e\n", sme.at(i), s.at(i), epss);
+      printf("p %.3e [%.3e] %.0e\n", pme.at(i), p.at(i), epsp);
     }
     const auto [es, ats] = qip::compare_eps(sme, s);
     const auto [ep, atp] = qip::compare_eps(pme, p);
@@ -352,14 +363,22 @@ bool HartreeFock(std::ostream &obuff) {
 
     // Use exact same parameters as paper:
     const auto h = DiracOperator::HyperfineA(
-        2.582025, 3.5, 0.0, *wf.rgrid, DiracOperator::Hyperfine::pointlike_F());
+        2.582025, 3.5, 0.0, wf.grid(), DiracOperator::Hyperfine::pointlike_F());
 
     std::vector<double> sme, pme;
-    for (const auto &Fv : wf.valence) {
+    for (const auto &Fv : wf.valence()) {
       if (Fv.kappa() == -1)
         sme.push_back(h.hfsA(Fv));
       else if (Fv.kappa() == 1)
         pme.push_back(h.hfsA(Fv));
+    }
+    std::cout << "Cs\n";
+    assert(p.size() == s.size());
+    for (auto i = 0ul; i < s.size(); ++i) {
+      const auto epss = std::abs((sme.at(i) - s.at(i)) / s.at(i));
+      const auto epsp = std::abs((pme.at(i) - p.at(i)) / p.at(i));
+      printf("s %.3e [%.3e] %.0e\n", sme.at(i), s.at(i), epss);
+      printf("p %.3e [%.3e] %.0e\n", pme.at(i), p.at(i), epsp);
     }
     const auto [es, ats] = qip::compare_eps(sme, s);
     const auto [ep, atp] = qip::compare_eps(pme, p);
@@ -378,14 +397,23 @@ bool HartreeFock(std::ostream &obuff) {
 
     // Use exact same parameters as paper:
     const auto h = DiracOperator::HyperfineA(
-        4.00, 4.5, 0.0, *wf.rgrid, DiracOperator::Hyperfine::pointlike_F());
+        4.00, 4.5, 0.0, wf.grid(), DiracOperator::Hyperfine::pointlike_F());
 
     std::vector<double> sme, pme;
-    for (const auto &Fv : wf.valence) {
+    for (const auto &Fv : wf.valence()) {
       if (Fv.kappa() == -1)
         sme.push_back(h.hfsA(Fv));
       else if (Fv.kappa() == 1)
         pme.push_back(h.hfsA(Fv));
+    }
+
+    std::cout << "Fr\n";
+    assert(p.size() == s.size());
+    for (auto i = 0ul; i < s.size(); ++i) {
+      const auto epss = std::abs((sme.at(i) - s.at(i)) / s.at(i));
+      const auto epsp = std::abs((pme.at(i) - p.at(i)) / p.at(i));
+      printf("s %.3e [%.3e] %.0e\n", sme.at(i), s.at(i), epss);
+      printf("p %.3e [%.3e] %.0e\n", pme.at(i), p.at(i), epsp);
     }
     const auto [es, ats] = qip::compare_eps(sme, s);
     const auto [ep, atp] = qip::compare_eps(pme, p);

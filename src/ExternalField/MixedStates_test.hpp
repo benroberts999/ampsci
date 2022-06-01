@@ -44,16 +44,16 @@ bool MixedStates(std::ostream &obuff) {
   wf.solve_valence("7sp5d4f");
 
   // Define E1, E2, pnc, M1, and hyperfine operators:
-  const auto hE1 = DiracOperator::E1(*wf.rgrid);
-  const auto hE2 = DiracOperator::Ek(*wf.rgrid, 2);
+  const auto hE1 = DiracOperator::E1(wf.grid());
+  const auto hE2 = DiracOperator::Ek(wf.grid(), 2);
   const auto c = Nuclear::c_hdr_formula_rrms_t(wf.get_rrms());
-  const auto hpnc = DiracOperator::PNCnsi(c, Nuclear::default_t, *wf.rgrid);
+  const auto hpnc = DiracOperator::PNCnsi(c, Nuclear::default_t, wf.grid());
   // M1 little problematic
-  // const auto hM1 = DiracOperator::M1(*wf.rgrid, wf.alpha, 0.0);
+  // const auto hM1 = DiracOperator::M1(wf.grid(), wf.alpha(), 0.0);
   // Use "spherical ball" model for hyperfine (Works best.)
   // Fails for some d states with pointlike (?)
   const auto hhfs = DiracOperator::HyperfineA(
-      1.0, 1.0, std::sqrt(5.0 / 3) * wf.get_rrms(), *wf.rgrid,
+      1.0, 1.0, std::sqrt(5.0 / 3) * wf.get_rrms(), wf.grid(),
       DiracOperator::Hyperfine::sphericalBall_F());
 
   const std::vector<const DiracOperator::TensorOperator *> hs{&hE1, &hE2, &hpnc,
@@ -90,16 +90,16 @@ bool MixedStates(std::ostream &obuff) {
     std::string worst_set{};
     double best_eps = 1.0;
     std::string best_set{};
-    ExternalField::TDHF dv(&h, wf.getHF());
+    ExternalField::TDHF dv(&h, wf.vHF());
     dv.solve_core(0.0, max_its);
 
     // to test the .get() X,Y's
-    ExternalField::TDHF dPsi(&h, wf.getHF());
+    ExternalField::TDHF dPsi(&h, wf.vHF());
     dPsi.solve_core(0.0, 1); // 1 it; no dV, but solve for dPsi
 
     int count = 0;
-    for (const auto &Fv : wf.valence) {
-      for (const auto &Fm : wf.valence) {
+    for (const auto &Fv : wf.valence()) {
+      for (const auto &Fm : wf.valence()) {
         if (Fm == Fv || h.isZero(Fm.kappa(), Fv.kappa()))
           continue;
 
@@ -181,10 +181,10 @@ UnitTest::helper::MS_loops(const Wavefunction &wf,
   const auto omega_mults = std::vector{0.0, 0.25};
 
 #pragma omp parallel for
-  for (auto i = 0ul; i < wf.valence.size(); ++i) {
-    const auto &Fv = wf.valence[i];
-    const auto vl = wf.get_Vlocal(Fv.l());
-    for (const auto &Fm : wf.valence) {
+  for (auto i = 0ul; i < wf.valence().size(); ++i) {
+    const auto &Fv = wf.valence()[i];
+    const auto vl = wf.vlocal(Fv.l());
+    for (const auto &Fm : wf.valence()) {
 
       // Only do for cases that make sense:
       if (Fm == Fv)
@@ -214,8 +214,8 @@ UnitTest::helper::MS_loops(const Wavefunction &wf,
       for (const auto &w_mult : omega_mults) {
         const auto w = std::abs(Fv.en() * w_mult);
 
-        const auto dFv = ExternalField::solveMixedState(Fm.kappa(), Fv, w, vl,
-                                                        wf.alpha, wf.core, hFv);
+        const auto dFv = ExternalField::solveMixedState(
+            Fm.kappa(), Fv, w, vl, wf.alpha(), wf.core(), hFv);
 
         const auto lhs = Fm * dFv;
         const auto rhs = h_mv / (Fv.en() - Fm.en() + w);

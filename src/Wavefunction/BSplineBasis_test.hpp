@@ -60,25 +60,26 @@ bool BSplineBasis(std::ostream &obuff) {
 
             // Check orthonormality <a|b>:
             const auto [eps, str] = DiracSpinor::check_ortho(basis, basis);
-            const auto [eps1, str1] = DiracSpinor::check_ortho(basis, wf.core);
+            const auto [eps1, str1] =
+                DiracSpinor::check_ortho(basis, wf.core());
             const auto [eps2, str2] =
-                DiracSpinor::check_ortho(basis, wf.valence);
+                DiracSpinor::check_ortho(basis, wf.valence());
 
             // Find basis states corresponding to core/valence to compare
             // energies Note: Need large cavity and large basis for this
             std::vector<double> core_en;
-            for (const auto &Fc : wf.core) {
+            for (const auto &Fc : wf.core()) {
               const auto &pFb = std::find(cbegin(basis), cend(basis), Fc);
               core_en.push_back(pFb->en());
             }
             std::vector<double> val_en;
-            for (const auto &Fv : wf.valence) {
+            for (const auto &Fv : wf.valence()) {
               const auto &pFb = std::find(cbegin(basis), cend(basis), Fv);
               val_en.push_back(pFb->en());
             }
             // Compare core+valence HF energies to the corresponding splines
-            const auto [ce, cs] = qip::compare(wf.core, core_en, comp_en);
-            const auto [ve, vs] = qip::compare(wf.valence, val_en, comp_en);
+            const auto [ce, cs] = qip::compare(wf.core(), core_en, comp_en);
+            const auto [ve, vs] = qip::compare(wf.valence(), val_en, comp_en);
 
             std::string name = "HFspl[75]";
             if (f_Breit != 0.0)
@@ -138,14 +139,14 @@ bool BSplineBasis(std::ostream &obuff) {
 
       // Hyperfine operator: Pointlike, g=1
       const auto h = DiracOperator::HyperfineA(
-          1.0, 1.0, 0.0, *wf.rgrid, DiracOperator::Hyperfine::pointlike_F());
+          1.0, 1.0, 0.0, wf.grid(), DiracOperator::Hyperfine::pointlike_F());
 
       // Calculate A with HF and spline states, compare for each l:
       std::vector<std::vector<double>> hfs(4); // s,p,d,f
       std::cout << "A, hf vs spl:\n";
-      for (const auto orbs : {&wf.core, &wf.valence}) {
-        for (const auto &Fv : *orbs) {
-          const auto pFb = std::find(cbegin(wf.basis), cend(wf.basis), Fv);
+      for (const auto &orbs : {wf.core(), wf.valence()}) { //*
+        for (const auto &Fv : orbs) {
+          const auto pFb = std::find(cbegin(wf.basis()), cend(wf.basis()), Fv);
           const auto Ahf = h.hfsA(Fv);
           const auto Aspl = h.hfsA(*pFb);
           const auto eps = (Ahf - Aspl) / Ahf;
@@ -193,7 +194,7 @@ bool BSplineBasis(std::ostream &obuff) {
     const auto [eps, str] = DiracSpinor::check_ortho(basis, basis);
     pass &= qip::check_value(&obuff, label + " orth ", eps, 0.0, 1.0e-12);
     {
-      const auto tkr = SplineBasis::sumrule_TKR(basis, wf.rgrid->r(), false);
+      const auto tkr = SplineBasis::sumrule_TKR(basis, wf.grid().r(), false);
 
       const auto worst =
           std::max_element(cbegin(tkr), cend(tkr), qip::comp_abs);
@@ -210,7 +211,7 @@ bool BSplineBasis(std::ostream &obuff) {
 
     for (int nDG = 0; nDG <= 2; ++nDG) {
       const auto dg =
-          SplineBasis::sumrule_DG(nDG, basis, *wf.rgrid, wf.alpha, false);
+          SplineBasis::sumrule_DG(nDG, basis, wf.grid(), wf.alpha(), false);
 
       const auto worst = std::max_element(cbegin(dg), cend(dg), qip::comp_abs);
       const auto best = std::min_element(cbegin(dg), cend(dg), qip::comp_abs);
@@ -249,7 +250,7 @@ bool BSplineBasis(std::ostream &obuff) {
 
     for (int nDG = 0; nDG <= 2; nDG += 2) {
       const auto dg =
-          SplineBasis::sumrule_DG(nDG, basis, *wf.rgrid, wf.alpha, false);
+          SplineBasis::sumrule_DG(nDG, basis, wf.grid(), wf.alpha(), false);
 
       const auto worst = std::max_element(cbegin(dg), cend(dg), qip::comp_abs);
       const auto best = std::min_element(cbegin(dg), cend(dg), qip::comp_abs);

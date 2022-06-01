@@ -25,11 +25,11 @@ bool StructureRad(std::ostream &obuff) {
     // Find core/valence energy: allows distingush core/valence states
     const auto en_core = wf.en_coreval_gap();
 
-    const auto h = DiracOperator::E1(*wf.rgrid);
+    const auto h = DiracOperator::E1(wf.grid());
 
     int nmin = 1;
     int nmax = 99;
-    MBPT::StructureRad sr(wf.basis, en_core, {nmin, nmax});
+    MBPT::StructureRad sr(wf.basis(), en_core, {nmin, nmax});
 
     // Expected data, from: Johnson et al, At.Dat.Nuc.Dat.Tables 64, 279 (1996),
     // Table E (Na)
@@ -53,12 +53,12 @@ bool StructureRad(std::ostream &obuff) {
 
       // find the right basis states for SR/N "legs"
       const auto ws = std::find_if(
-          cbegin(wf.basis), cend(wf.basis),
+          cbegin(wf.basis()), cend(wf.basis()),
           [&sym = w_str](auto &a) { return a.shortSymbol() == sym; });
       const auto vs = std::find_if(
-          cbegin(wf.basis), cend(wf.basis),
+          cbegin(wf.basis()), cend(wf.basis()),
           [&sym = v_str](auto &a) { return a.shortSymbol() == sym; });
-      assert(ws != cend(wf.basis) && vs != cend(wf.basis));
+      assert(ws != cend(wf.basis()) && vs != cend(wf.basis()));
 
       // My calculations:
       const auto t0 = h.reducedME(*ws, *vs); // splines here?
@@ -104,10 +104,10 @@ bool StructureRad(std::ostream &obuff) {
     // Find core/valence energy: allows distingush core/valence states
     const auto en_core = wf.en_coreval_gap();
 
-    const auto h = DiracOperator::E1(*wf.rgrid);
+    const auto h = DiracOperator::E1(wf.grid());
 
     // Only include core states above+including n=3
-    MBPT::StructureRad sr(wf.basis, en_core, {3, 99});
+    MBPT::StructureRad sr(wf.basis(), en_core, {3, 99});
 
     // Expected data, from: Johnson et al, At.Dat.Nuc.Dat.Tables 64, 279 (1996),
     // Table J (Cs)
@@ -131,12 +131,12 @@ bool StructureRad(std::ostream &obuff) {
 
       // this time, use valence states:
       const auto ws = std::find_if(
-          cbegin(wf.valence), cend(wf.valence),
+          cbegin(wf.valence()), cend(wf.valence()),
           [&sym = w_str](auto &a) { return a.shortSymbol() == sym; });
       const auto vs = std::find_if(
-          cbegin(wf.valence), cend(wf.valence),
+          cbegin(wf.valence()), cend(wf.valence()),
           [&sym = v_str](auto &a) { return a.shortSymbol() == sym; });
-      assert(ws != cend(wf.valence) && vs != cend(wf.valence));
+      assert(ws != cend(wf.valence()) && vs != cend(wf.valence()));
 
       // My calculations:
       const auto t0 = h.reducedME(*ws, *vs); // splines here?

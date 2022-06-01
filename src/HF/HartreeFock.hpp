@@ -108,16 +108,25 @@ public:
       - x_Breit - Breit scaling factor. 0=no Breit (default), 1=Breit. may set
         small number to check for non-linear contributions
       - eps_HF: convergence goal
+      - potential: which parametric potential used for initial Potential
+      - h and d (or g and t) are parameters for above (if left zero, default
+        will be chosen)
+      - Note:  Parametric::Type potential (and parameters H,d) are for
+    initial approx. Usually doesn't matter at all, and defaults should be used.
+    If using local potential [method=Local], these are the final parameters. If
+    any are set to zero - will be looked up.
   */
   HartreeFock(std::shared_ptr<const Grid> rgrid, std::vector<double> vnuc,
               std::vector<DiracSpinor> core,
               std::optional<QED::RadPot> vrad = std::nullopt,
               double m_alpha = PhysConst::alpha,
               Method method = Method::HartreeFock, double x_Breit = 0.0,
-              double eps_HF = 0.0);
+              double eps_HF = 0.0,
+              Parametric::Type potential = Parametric::Type::Green,
+              double H_g = 0.0, double d_t = 0.0);
 
-  //! Solves HF equations self-consitantly for core orbs. Returns epsilon
-  double solve_core(bool print = true);
+  //! Solves HF equations self-consitantly for core orbs. Returns epsilon.
+  EpsIts solve_core(bool print = true);
 
   //! Solves HF for given valence list. They need not already be solutions.
   //! @details Note: If given energy is set to zero, states assumed to not be
@@ -163,10 +172,10 @@ public:
   std::vector<double> &vnuc() { return m_vnuc; }
 
   //! Electric part of radiative potential
-  std::vector<double> get_Hrad_el(int l) const;
+  std::vector<double> Hrad_el(int l) const;
   //! Magnetic (off-diagonal) part of radiative potential. Doesn't currently
   //! depend on l
-  std::vector<double> get_Hrad_mag(int l) const;
+  std::vector<double> Hmag(int l) const;
 
   //! vlocal = vnuc + vrad_el + vdir
   std::vector<double> vlocal(int l) const;
@@ -190,10 +199,13 @@ public:
 
   //! Update the Vrad used inside HF (only used if we want QED into valence but
   // not core, for testing)
-  void update_Vrad(QED::RadPot in_vrad) { m_vrad = in_vrad; }
+  void set_Vrad(QED::RadPot in_vrad) { m_vrad = std::move(in_vrad); } // XXX
+  //! Get (const) ptr to Vrad - may be null
+  const QED::RadPot *Vrad() const { return m_vrad ? &*m_vrad : nullptr; }
+  QED::RadPot *Vrad() { return m_vrad ? &*m_vrad : nullptr; }
 
   //! pointer to Breit - may be nullptr if no breit
-  const HF::Breit *get_Breit() const { return m_VBr ? &*m_VBr : nullptr; }
+  const HF::Breit *vBreit() const { return m_VBr ? &*m_VBr : nullptr; }
   //! Breit scale factor (usualy 0 or 1)
   double x_Breit() const { return m_VBr ? m_VBr->scale_factor() : 0.0; }
 
@@ -204,9 +216,9 @@ private:
   // Solve Dirac equation for core states (just once) using existing vdir
   // (usually, vdir set to parametric potential beforehand)
   EpsIts solve_initial_core(const double eps);
-  // Solve HF equations self-consistantly for core, using local method (either
+  // Solve equations self-consistantly for core, using local method (either
   // core-Hartree or Kohn-Sham)
-  EpsIts local_core(const double eps_target_HF);
+  EpsIts selfcon_local_core(const double eps_target_HF);
   // Solve HF equations self-consistantly for core, using approximate HF method
   EpsIts hf_approx_core(const double eps_target_HF);
   // Solve HF equations self-consistantly for core, using Hartree-Fock method
@@ -247,7 +259,8 @@ private:
 
   // Sets Vdir to be parametric potential. By default, Greens potential
   void
-  set_parametric_potential(Parametric::Type potential = Parametric::Type::Green,
+  set_parametric_potential(bool print = true,
+                           Parametric::Type potential = Parametric::Type::Green,
                            double H_g = 0.0, double d_t = 0.0);
 
   // Forms approximate vex for all core states

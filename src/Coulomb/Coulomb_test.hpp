@@ -3,6 +3,7 @@
 #include "Angular/SixJTable.hpp"
 #include "Coulomb/CoulombIntegrals.hpp"
 #include "Coulomb/YkTable.hpp"
+#include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "qip/Check.hpp"
@@ -114,7 +115,7 @@ bool Coulomb(std::ostream &obuff) {
 
   // Split basis into core/excited
   std::vector<DiracSpinor> core, excited;
-  for (const auto &Fb : wf.basis) {
+  for (const auto &Fb : wf.basis()) {
     if (wf.isInCore(Fb.n(), Fb.kappa())) {
       core.push_back(Fb);
     } else {
@@ -123,20 +124,20 @@ bool Coulomb(std::ostream &obuff) {
   }
   // Form the Coulomb lookup tables:
   const Coulomb::YkTable Yce(core, excited);
-  const Coulomb::YkTable Yij(wf.basis);
+  const Coulomb::YkTable Yij(wf.basis());
 
   { // Check the Ykab lookup-tables
     // check the 'different' orbitals case:
     double del1 = helper::check_ykab_Tab(core, excited, Yce);
     // check the 'same' orbitals case:
-    double del2 = helper::check_ykab_Tab(wf.basis, wf.basis, Yij);
+    double del2 = helper::check_ykab_Tab(wf.basis(), wf.basis(), Yij);
     pass &= qip::check_value(&obuff, "Yk_ab tables", std::max(del1, del2), 0.0,
                              1.0e-17);
   }
 
   { // Testing the Hartree Y functions formula:
-    const auto delk_core = helper::check_ykab(wf.core, 2);
-    const auto delk_basis = helper::check_ykab(wf.basis, 1);
+    const auto delk_core = helper::check_ykab(wf.core(), 2);
+    const auto delk_basis = helper::check_ykab(wf.basis(), 1);
     int k = 0;
     for (const auto &dk : delk_core) {
       pass &= qip::check_value(&obuff,
@@ -152,8 +153,8 @@ bool Coulomb(std::ostream &obuff) {
   }
 
   // test R^k_abcd:
-  const double eps_R = helper::check_Rkabcd(wf.core, 2);
-  const double eps_R2 = helper::check_Rkabcd(wf.basis, 1);
+  const double eps_R = helper::check_Rkabcd(wf.core(), 2);
+  const double eps_R2 = helper::check_Rkabcd(wf.basis(), 1);
   pass &= qip::check_value(&obuff, "Rk_abcd (core) ", eps_R, 0.0, 1.0e-13);
   pass &= qip::check_value(&obuff, "Rk_abcd (basis) ", eps_R2, 0.0, 1.0e-13);
 
@@ -165,15 +166,15 @@ bool Coulomb(std::ostream &obuff) {
     std::vector<DiracSpinor> torbs;
     for (int kappa_index = 0;; ++kappa_index) {
       auto k = Angular::kappaFromIndex(kappa_index);
-      auto phi = std::find_if(cbegin(wf.basis), cend(wf.basis),
+      auto phi = std::find_if(cbegin(wf.basis()), cend(wf.basis()),
                               [k](auto x) { return x.kappa() == k; });
-      if (phi == cend(wf.basis))
+      if (phi == cend(wf.basis()))
         break;
       torbs.emplace_back(*phi);
     }
 
     // test Q
-    const auto maxtj = std::max_element(wf.basis.cbegin(), wf.basis.cend(),
+    const auto maxtj = std::max_element(wf.basis().cbegin(), wf.basis().cend(),
                                         DiracSpinor::comp_j)
                            ->twoj();
     const auto &Ck = Yij.Ck();

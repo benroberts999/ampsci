@@ -214,14 +214,14 @@ generate_Hrad(const IO::InputBlock & /*input*/, const Wavefunction & /*wf*/
   // const auto x_SEm = input.get("SE_m", 1.0);
   // const auto rcut = input.get("rcut", 5.0);
   // const auto scale_rN = input.get("scale_rN", 1.0);
-  // const auto r_rms_Fermi = scale_rN * wf.get_nuclearParameters().r_rms;
-  // const auto Hel = RadiativePotential::form_Hel(wf.rgrid->r() , x_Simple,
+  // const auto r_rms_Fermi = scale_rN * wf.nucleus().r_rms;
+  // const auto Hel = RadiativePotential::form_Hel(wf.grid().r() , x_Simple,
   // x_Ueh,
   //                                               x_SEe_h, x_SEe_l,
   //                                               r_rms_Fermi, wf.Znuc(),
-  //                                               wf.alpha, rcut);
+  //                                               wf.alpha(), rcut);
   // const auto Hmag = RadiativePotential::form_Hmag(
-  //     wf.rgrid->r() , x_SEm, r_rms_Fermi, wf.Znuc(), wf.alpha, rcut);
+  //     wf.grid().r() , x_SEm, r_rms_Fermi, wf.Znuc(), wf.alpha(), rcut);
   // return std::make_unique<Hrad>(Hel, Hmag);
   // // return std::make_unique<Hrad_el>(Hel);
 }

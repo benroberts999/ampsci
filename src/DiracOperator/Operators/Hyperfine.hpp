@@ -264,7 +264,7 @@ generate_hfsA(const IO::InputBlock &input, const Wavefunction &wf) {
               << "Using " << Fr_str << " nuclear distro for F(r)\n"
               << "w/ mu = " << mu << ", I = " << I_nuc << ", r_N = " << r_nucfm
               << "fm = " << r_nucau << "au  (r_rms=" << r_rmsfm << "fm)\n";
-    std::cout << "Points inside nucleus: " << wf.rgrid->getIndex(r_nucau)
+    std::cout << "Points inside nucleus: " << wf.grid().getIndex(r_nucau)
               << "\n";
   }
 
@@ -312,22 +312,22 @@ generate_hfsA(const IO::InputBlock &input, const Wavefunction &wf) {
     // read from a file
     const auto [rin, F_of_rin] = IO::FRW::readFile_xy_PoV(Fr_str);
     // interpolate F(r) onto our grid:
-    const auto F_r = Interpolator::interpolate(rin, F_of_rin, wf.rgrid->r());
+    const auto F_r = Interpolator::interpolate(rin, F_of_rin, wf.grid().r());
     if (F_r.empty())
       return std::make_unique<NullOperator>();
-    return std::make_unique<HyperfineA>(mu, I_nuc, r_nucau, *(wf.rgrid), F_r);
+    return std::make_unique<HyperfineA>(mu, I_nuc, r_nucau, wf.grid(), F_r);
   }
 
   const auto print_FQ = input.get<bool>("printF", false);
   if (print_FQ) {
     std::ofstream of(Fr_str + ".txt");
-    for (auto r : wf.rgrid->r()) {
+    for (auto r : wf.grid().r()) {
       of << r * PhysConst::aB_fm << " "
          << Fr(r * PhysConst::aB_fm, r_nucau * PhysConst::aB_fm) << "\n";
     }
   }
 
-  return std::make_unique<HyperfineA>(mu, I_nuc, r_nucau, *(wf.rgrid), Fr);
+  return std::make_unique<HyperfineA>(mu, I_nuc, r_nucau, wf.grid(), Fr);
 }
 
 //------------------------------------------------------------------------------
@@ -386,7 +386,7 @@ generate_hfsK(const IO::InputBlock &input, const Wavefunction &wf) {
   if (!ok)
     return std::make_unique<NullOperator>();
 
-  return std::make_unique<HyperfineK>(k, gQ, r_nucau, *wf.rgrid, Fr);
+  return std::make_unique<HyperfineK>(k, gQ, r_nucau, wf.grid(), Fr);
 }
 
 } // namespace DiracOperator

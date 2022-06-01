@@ -29,8 +29,8 @@ bool DiagramRPA(std::ostream &obuff) {
   };
 
   {
-    auto dE1 = DiracOperator::E1(*wf.rgrid);
-    auto rpa = ExternalField::DiagramRPA(&dE1, wf.basis, wf.core, "");
+    auto dE1 = DiracOperator::E1(wf.grid());
+    auto rpa = ExternalField::DiagramRPA(&dE1, wf.basis(), wf.core(), "");
 
     { // E1, ww=0
       using sp = std::pair<std::string, double>;
@@ -46,8 +46,8 @@ bool DiagramRPA(std::ostream &obuff) {
       rpa.clear(); // dont' need here, but symmetric
       rpa.solve_core(0.0);
       std::vector<sp> e1me;
-      for (const auto &Fv : wf.valence) {
-        for (const auto &Fw : wf.valence) {
+      for (const auto &Fv : wf.valence()) {
+        for (const auto &Fw : wf.valence()) {
           if (dE1.isZero(Fv.kappa(), Fw.kappa()))
             continue;
           // nb: -ve sign account for |e| vs -|e| diff from VD
@@ -80,8 +80,8 @@ bool DiagramRPA(std::ostream &obuff) {
       rpa.clear(); // start from scratch
       rpa.solve_core(0.05);
       std::vector<sp> e1me;
-      for (const auto &Fv : wf.valence) {
-        for (const auto &Fw : wf.valence) {
+      for (const auto &Fv : wf.valence()) {
+        for (const auto &Fw : wf.valence()) {
           if (dE1.isZero(Fv.kappa(), Fw.kappa()))
             continue;
           // nb: -ve sign account for |e| vs -|e| diff from VD
@@ -102,9 +102,9 @@ bool DiagramRPA(std::ostream &obuff) {
   }
 
   { // HFS (compare A, not dV)
-    auto h = DiracOperator::HyperfineA(1.0, 1.0, 0.0, *wf.rgrid,
+    auto h = DiracOperator::HyperfineA(1.0, 1.0, 0.0, wf.grid(),
                                        DiracOperator::Hyperfine::pointlike_F());
-    auto rpa = ExternalField::DiagramRPA(&h, wf.basis, wf.core, "");
+    auto rpa = ExternalField::DiagramRPA(&h, wf.basis(), wf.core(), "");
     using sp = std::pair<std::string, double>;
     auto e1VD = std::vector<sp>{{"6s+", 2.342288e3},  {"6p-", 2.732209e2},
                                 {"6p+", 5.808505e1},  {"5d-", 0.219042e2},
@@ -114,7 +114,7 @@ bool DiagramRPA(std::ostream &obuff) {
 
     rpa.solve_core(0.0);
     std::vector<sp> e1me;
-    for (const auto &Fv : wf.valence) {
+    for (const auto &Fv : wf.valence()) {
       const auto a = DiracOperator::HyperfineA::convertRMEtoA(Fv, Fv);
 
       e1me.emplace_back(Fv.shortSymbol(),

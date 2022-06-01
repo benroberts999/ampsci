@@ -30,8 +30,8 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto srQ = input.get("StrucRadNorm", false);
 
   // Generare E1 operator and TDHF object:
-  const auto he1 = DiracOperator::E1(*wf.rgrid);
-  auto dVE1 = ExternalField::TDHF(&he1, wf.getHF());
+  const auto he1 = DiracOperator::E1(wf.grid());
+  auto dVE1 = ExternalField::TDHF(&he1, wf.vHF());
 
   // Solve TDHF for core, is doing RPA.
   // nb: even if not doing RPA, need TDHF object for tdhf method
@@ -47,17 +47,17 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
   } else {
     std::cout << "Static\n";
   }
-  const auto ac_tdhf =
-      alpha_core_tdhf(wf.core, he1, dVE1, omega, wf.getSigma());
-  const auto ac_sos = alpha_core_sos(wf.core, wf.spectrum, he1, dVE1, omega);
+  const auto ac_tdhf = alpha_core_tdhf(wf.core(), he1, dVE1, omega, wf.Sigma());
+  const auto ac_sos =
+      alpha_core_sos(wf.core(), wf.spectrum(), he1, dVE1, omega);
 
   std::cout << "           TDHF        SOS\n";
   printf("Core: %9.3f  %9.3f\n", ac_tdhf, ac_sos);
 
-  for (const auto &Fv : wf.valence) {
+  for (const auto &Fv : wf.valence()) {
     const auto av_tdhf =
-        alpha_valence_tdhf(Fv, Fv, he1, omega, dVE1, wf.getSigma());
-    const auto av_sos = alpha_valence_sos(Fv, wf.spectrum, he1, dVE1, omega);
+        alpha_valence_tdhf(Fv, Fv, he1, omega, dVE1, wf.Sigma());
+    const auto av_sos = alpha_valence_sos(Fv, wf.spectrum(), he1, dVE1, omega);
     printf("%4s: %9.3f  %9.3f", Fv.shortSymbol().c_str(), av_tdhf, av_sos);
     auto eps = std::abs((ac_tdhf + av_tdhf) / (ac_sos + av_sos) - 1.0);
     printf("  =  %9.3f  %9.3f   eps=%.0e\n", ac_tdhf + av_tdhf, ac_sos + av_sos,
@@ -68,10 +68,10 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
   if (srQ) {
     std::cout << "\nIncluding Structure Radiation + Normalisation\n"
               << std::flush;
-    for (const auto &Fv : wf.valence) {
+    for (const auto &Fv : wf.valence()) {
       std::cout << Fv.symbol() << "\n";
       const auto delta_n_max_sum = 2;
-      alpha_v_SRN(Fv, wf.spectrum, delta_n_max_sum, wf.basis,
+      alpha_v_SRN(Fv, wf.spectrum(), delta_n_max_sum, wf.basis(),
                   wf.en_coreval_gap(), he1, dVE1, omega);
     }
   }
@@ -91,15 +91,15 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << "\nScalar dipole transition polarisability, alpha\n";
 
     const auto a_tdhf =
-        alpha_valence_tdhf(*Fb, *Fa, he1, omega, dVE1, wf.getSigma());
+        alpha_valence_tdhf(*Fb, *Fa, he1, omega, dVE1, wf.Sigma());
     const auto a_sos =
-        alpha_valence_sos(*Fb, *Fa, wf.spectrum, he1, dVE1, omega);
+        alpha_valence_sos(*Fb, *Fa, wf.spectrum(), he1, dVE1, omega);
 
     std::cout << Fa->symbol() << " - " << Fb->symbol();
     printf(" : %9.3f  %9.3f\n", a_tdhf, a_sos);
 
     std::cout << "\nVector dipole transition polarisability, beta (sos)\n";
-    const auto [b1, b2] = beta_sos(*Fb, *Fa, wf.spectrum, he1, dVE1, omega);
+    const auto [b1, b2] = beta_sos(*Fb, *Fa, wf.spectrum(), he1, dVE1, omega);
     std::cout << Fa->symbol() << " - " << Fb->symbol();
     printf(" : %9.3f + %9.3f = %9.3f\n", b1, b2, b1 + b2);
   }
@@ -108,7 +108,8 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
   // Dynamic dipole polarisability, alpha:
   const auto omega_max = input.get("omega_max", 0.0);
   const auto omega_steps = std::abs(input.get("omega_steps", 30));
-  const auto *const pFv = wf.valence.empty() ? nullptr : &wf.valence.front();
+  const auto *const pFv =
+      wf.valence().empty() ? nullptr : &wf.valence().front();
   if (omega_max > 0.0) {
     std::cout << "\nDynamic polarisability:\n";
     // std::cout << "ww    a(w)[TDHF] error  a(w)[SOS]  error\n";
@@ -126,15 +127,16 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
       }
       if (rpaQ)
         dVE1.solve_core(ww, 30, false);
-      const auto ac_w_tdhf = alpha_core_tdhf(wf.core, he1, dVE1, ww);
-      const auto ac_w_sos = alpha_core_sos(wf.core, wf.spectrum, he1, dVE1, ww);
+      const auto ac_w_tdhf = alpha_core_tdhf(wf.core(), he1, dVE1, ww);
+      const auto ac_w_sos =
+          alpha_core_sos(wf.core(), wf.spectrum(), he1, dVE1, ww);
       printf("%6.4f  %.0e %11.4e %11.4e   ", ww, dVE1.get_eps(), ac_w_tdhf,
              ac_w_sos);
       if (pFv) {
         const auto av_w_tdhf =
-            alpha_valence_tdhf(*pFv, *pFv, he1, ww, dVE1, wf.getSigma());
+            alpha_valence_tdhf(*pFv, *pFv, he1, ww, dVE1, wf.Sigma());
         const auto av_w_sos =
-            alpha_valence_sos(*pFv, wf.spectrum, he1, dVE1, ww);
+            alpha_valence_sos(*pFv, wf.spectrum(), he1, dVE1, ww);
 
         printf(" %11.4e  %11.4e", ac_w_tdhf + av_w_tdhf, ac_w_sos + av_w_sos);
       }

@@ -165,13 +165,13 @@ bool RadPot(std::ostream &obuff) {
     std::vector pt = {1.391, 6.583, 0.762};
     std::vector st = {1.391, 6.577, 0.762};
 
-    const auto r_N_au = std::sqrt(5.0 / 3.0) * 1.0 *
-                        wf.get_nuclearParameters().r_rms / PhysConst::aB_fm;
+    const auto r_N_au =
+        std::sqrt(5.0 / 3.0) * 1.0 * wf.nucleus().r_rms() / PhysConst::aB_fm;
     // Rad pot, pointlike and step nucleus
-    const auto rp0 = QED::RadPot(wf.rgrid->r(), wf.Znuc(), 0.0, 15.0,
+    const auto rp0 = QED::RadPot(wf.grid().r(), wf.Znuc(), 0.0, 15.0,
                                  QED::RadPot::Scale{0.0, 1.0, 1.0, 1.0, 0.0},
                                  std::vector{1.0}, false, false);
-    const auto rp = QED::RadPot(wf.rgrid->r(), wf.Znuc(), r_N_au, 15.0,
+    const auto rp = QED::RadPot(wf.grid().r(), wf.Znuc(), r_N_au, 15.0,
                                 QED::RadPot::Scale{0.0, 1.0, 1.0, 1.0, 0.0},
                                 std::vector{1.0}, false, false);
 
@@ -181,7 +181,7 @@ bool RadPot(std::ostream &obuff) {
       const auto hm = DiracOperator::Hrad({}, RP.Hmag(0));
       const auto hh = DiracOperator::Hrad(RP.Vh(0), {});
       const auto hl = DiracOperator::Hrad(RP.Vl(0), {});
-      const auto &Fv = wf.valence.at(0);
+      const auto &Fv = wf.valence().at(0);
 
       const auto m = hm.radialIntegral(Fv, Fv) * 1.0e5;
       const auto h = hh.radialIntegral(Fv, Fv) * 1.0e5;
@@ -241,7 +241,8 @@ helper::compare_QED(const std::vector<QEDData> &QEDdata,
         continue;
 
       // Operator (for first-order shift) - l-dependent
-      auto h = DiracOperator::Hrad(wf.qed->Vel(Fv->l()), wf.qed->Hmag(Fv->l()));
+      auto h = DiracOperator::Hrad(wf.vrad()->Vel(Fv->l()),
+                                   wf.vrad()->Hmag(Fv->l()));
 
       // Calculate first-order Uehling shift (matrix element):
       const auto de0 = h.radialIntegral(*Fv, *Fv);

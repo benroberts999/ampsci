@@ -56,8 +56,8 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto scale_rN = r_rmsfm0 / wf.get_rrms();
 
   // New Wavefunctions, which include the QED
-  Wavefunction wf_VP(wf.rgrid->params(), wf.get_nuclearParameters());
-  Wavefunction wf_SE(wf.rgrid->params(), wf.get_nuclearParameters());
+  Wavefunction wf_VP(wf.grid_sptr(), wf.nucleus());
+  Wavefunction wf_SE(wf.grid_sptr(), wf.nucleus());
 
   // Diference scale for each l (mainly for core/relaxation)
   const auto x_spd = input.get("scale_l", std::vector{1.0});
@@ -69,8 +69,8 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 
   // Do Hartree-Fock on new wavefunctions
-  const auto wfhf = wf.getHF();
-  if (!wf.core.empty()) {
+  const auto wfhf = wf.vHF();
+  if (!wf.core().empty()) {
     std::cout << "HF, including VP, SE: " << HF::parseMethod(wfhf->method())
               << "\n";
   }
@@ -86,37 +86,37 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 
   // Copy correlation potential to new wfs
-  if (wf.getSigma() != nullptr) {
+  if (wf.Sigma() != nullptr) {
     std::cout << "\nIncluding correlations.\n"
                  "Copying correlation potential across to new wavefunctions\n"
                  "Note: SAME correlation potential; i.e., QED not included in "
                  "correlation potential.\n";
-    wf_VP.copySigma(wf.getSigma());
-    wf_SE.copySigma(wf.getSigma());
+    wf_VP.copySigma(wf.Sigma());
+    wf_SE.copySigma(wf.Sigma());
   }
 
   // Solve valence states for new wfs
-  if (wf.core.empty()) {
+  if (wf.core().empty()) {
     // H-like:
-    wf_VP.localValence(DiracSpinor::state_config(wf.valence));
-    wf_SE.localValence(DiracSpinor::state_config(wf.valence));
+    wf_VP.solve_valence(DiracSpinor::state_config(wf.valence()));
+    wf_SE.solve_valence(DiracSpinor::state_config(wf.valence()));
   } else if (wfhf->method() == HF::Method::KohnSham) {
     // Kohn Sham input valence list has different format
     std::string list{};
-    for (const auto &Fv : wf.valence) {
+    for (const auto &Fv : wf.valence()) {
       if (Fv.kappa() < 0)
         list += Fv.shortSymbol().substr(0, Fv.shortSymbol().length() - 1);
     }
     std::cout << list << "\n";
-    wf_VP.localValence(list, true);
-    wf_SE.localValence(list, true);
+    wf_VP.solve_valence(list);
+    wf_SE.solve_valence(list);
   } else {
     // Hartree-Fock:
-    wf_VP.solve_valence(DiracSpinor::state_config(wf.valence));
-    wf_SE.solve_valence(DiracSpinor::state_config(wf.valence));
+    wf_VP.solve_valence(DiracSpinor::state_config(wf.valence()));
+    wf_SE.solve_valence(DiracSpinor::state_config(wf.valence()));
   }
   // Solve Brueckner orbitals
-  if (wf.getSigma() != nullptr) {
+  if (wf.Sigma() != nullptr) {
     wf_VP.hartreeFockBrueckner();
     wf_SE.hartreeFockBrueckner();
   }
@@ -128,22 +128,22 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
   wf_SE.printValence();
 
   // Copy over basis (if exists) - only used for RPA (basis/diagram)
-  if (!wf.basis.empty()) {
+  if (!wf.basis().empty()) {
     std::cout << "\nCopying basis across; Note: basis does NOT include "
                  "QED\n(Basis may be used for RPA, otherwise not used)\n";
-    wf_VP.basis = wf.basis;
-    wf_SE.basis = wf.basis;
+    wf_VP.basis() = wf.basis();
+    wf_SE.basis() = wf.basis();
   }
 
   // Operator (for first-order shift) - l-dependent
   std::cout
       << "\nFirst-order QED contribution to valence energies; atomic units\n";
   std::cout << "       dE(VP)        dE(SE)        dE(tot)\n";
-  for (const auto &Fv : wf.valence) {
-    const auto h_SE =
-        DiracOperator::Hrad(wf_SE.qed->Vel(Fv.l()), wf_SE.qed->Hmag(Fv.l()));
-    const auto h_VP =
-        DiracOperator::Hrad(wf_VP.qed->Vel(Fv.l()), wf_VP.qed->Hmag(Fv.l()));
+  for (const auto &Fv : wf.valence()) {
+    const auto h_SE = DiracOperator::Hrad(wf_SE.vrad()->Vel(Fv.l()),
+                                          wf_SE.vrad()->Hmag(Fv.l()));
+    const auto h_VP = DiracOperator::Hrad(wf_VP.vrad()->Vel(Fv.l()),
+                                          wf_VP.vrad()->Hmag(Fv.l()));
 
     const auto dese = h_SE.radialIntegral(Fv, Fv);
     const auto devp = h_VP.radialIntegral(Fv, Fv);
@@ -157,7 +157,7 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << "Includes core relaxation\n";
   }
   std::cout << "       E0            dE(VP)        dE(SE)        dE(tot)\n";
-  for (const auto &Fv : wf.valence) {
+  for (const auto &Fv : wf.valence()) {
     // Find corresponding state without QED: (can't assume in same order)
     const auto Fv_SE = wf_SE.getState(Fv.n(), Fv.kappa());
     const auto Fv_VP = wf_VP.getState(Fv.n(), Fv.kappa());
@@ -200,9 +200,9 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
         rpa_vp{nullptr}, rpa_se{nullptr};
     if (rpaQ) {
       std::cout << "RPA: TDHF method, at zero frequency\n";
-      rpa0 = std::make_unique<ExternalField::TDHF>(h.get(), wf.getHF());
-      rpa_vp = std::make_unique<ExternalField::TDHF>(h.get(), wf_VP.getHF());
-      rpa_se = std::make_unique<ExternalField::TDHF>(h.get(), wf_SE.getHF());
+      rpa0 = std::make_unique<ExternalField::TDHF>(h.get(), wf.vHF());
+      rpa_vp = std::make_unique<ExternalField::TDHF>(h.get(), wf_VP.vHF());
+      rpa_se = std::make_unique<ExternalField::TDHF>(h.get(), wf_SE.vHF());
     }
 
     auto first_line_me_po = IO::FRW::file_exists(fname + ".me_po") ?
@@ -218,15 +218,15 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
     // std::cout << "\nQED correction to Matrix elements (PO)\n";
     // std::cout << "\nNo QED:";
     const auto me0 = ExternalField::calcMatrixElements(
-        wf.valence, h.get(), rpa0.get(), 0.0, false, diagonal_only);
+        wf.valence(), h.get(), rpa0.get(), 0.0, false, diagonal_only);
 
     // std::cout << "\nVacuum polarisation (PO):";
     const auto mevp = ExternalField::calcMatrixElements(
-        wf_VP.valence, h.get(), rpa_vp.get(), 0.0, false, diagonal_only);
+        wf_VP.valence(), h.get(), rpa_vp.get(), 0.0, false, diagonal_only);
 
     // std::cout << "\nSelf-energy (PO):";
     const auto mese = ExternalField::calcMatrixElements(
-        wf_SE.valence, h.get(), rpa_se.get(), 0.0, false, diagonal_only);
+        wf_SE.valence(), h.get(), rpa_se.get(), 0.0, false, diagonal_only);
 
     std::cout << "\nQED contribution matrix elements (Perturbed Orbital)\n";
     std::cout
@@ -294,23 +294,24 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
       const auto r_rmsfm = vtx_in.get("rrms", wf.get_rrms());
       const auto r_nucau = std::sqrt(5.0 / 3.0) * r_rmsfm / PhysConst::aB_fm;
       const auto h_MLVP =
-          std::make_unique<DiracOperator::MLVP>(h.get(), *wf.rgrid, r_nucau);
+          std::make_unique<DiracOperator::MLVP>(h.get(), wf.grid(), r_nucau);
 
       // Vertex QED term:
       const auto A_z_default = DiracOperator::VertexQED::a(wf.Znuc());
       const auto A_vertex = vtx_in.get("A_vertex", A_z_default);
       const auto b_vertex = vtx_in.get("b_vertex", 1.0);
       const auto hVertexQED = std::make_unique<DiracOperator::VertexQED>(
-          h.get(), *wf.rgrid, A_vertex, b_vertex);
+          h.get(), wf.grid(), A_vertex, b_vertex);
       if (A_vertex != 0.0) {
         std::cout << "Including effective vertex (SE) QED with: A=" << A_vertex
                   << ", b=" << b_vertex << "\n";
       }
 
       const auto vx_vp = ExternalField::calcMatrixElements(
-          wf_VP.valence, h_MLVP.get(), nullptr, 0.0, false, diagonal_only);
-      const auto vx_se = ExternalField::calcMatrixElements(
-          wf_VP.valence, hVertexQED.get(), nullptr, 0.0, false, diagonal_only);
+          wf_VP.valence(), h_MLVP.get(), nullptr, 0.0, false, diagonal_only);
+      const auto vx_se =
+          ExternalField::calcMatrixElements(wf_VP.valence(), hVertexQED.get(),
+                                            nullptr, 0.0, false, diagonal_only);
 
       std::cout
           << "\n             h(0)         d(MLVP)       d(SEvx)       sum\n";
@@ -323,7 +324,7 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
         const auto se = std::find_if(begin(vx_se), end(vx_se), l);
 
         const auto Fa =
-            std::find_if(begin(wf.valence), end(wf.valence),
+            std::find_if(begin(wf.valence()), end(wf.valence()),
                          [a = a](auto &x) { return x.shortSymbol() == a; });
 
         auto Aconst = DiracOperator::HyperfineA::convertRMEtoA(*Fa, *Fa);
@@ -402,14 +403,14 @@ std::vector<std::string> calc_vertexQED(const IO::InputBlock &input,
   const auto r_nucfm = std::sqrt(5.0 / 3.0) * r_rmsfm;
   const auto r_nucau = r_nucfm / PhysConst::aB_fm;
   const auto h_MLVP =
-      std::make_unique<DiracOperator::MLVP>(h.get(), *wf.rgrid, r_nucau);
+      std::make_unique<DiracOperator::MLVP>(h.get(), wf.grid(), r_nucau);
 
   // Vertex QED term:
   const auto A_z_default = DiracOperator::VertexQED::a(wf.Znuc());
   const auto A_vertex = input.get("A_vertex", A_z_default);
   const auto b_vertex = input.get("b_vertex", 1.0);
   const auto hVertexQED = std::make_unique<DiracOperator::VertexQED>(
-      h.get(), *wf.rgrid, A_vertex, b_vertex);
+      h.get(), wf.grid(), A_vertex, b_vertex);
   if (A_vertex != 0.0) {
     std::cout << "Including effective vertex (SE) QED with: A=" << A_vertex
               << ", b=" << b_vertex << "\n";
@@ -436,8 +437,8 @@ std::vector<std::string> calc_vertexQED(const IO::InputBlock &input,
 
   std::cout << "\n";
   std::cout << "State    :    <h_0>         SE_vertex     MLVP\n";
-  for (const auto &Fb : wf.valence) {
-    for (const auto &Fa : wf.valence) {
+  for (const auto &Fb : wf.valence()) {
+    for (const auto &Fa : wf.valence()) {
 
       const auto a =
           AhfsQ ? DiracOperator::HyperfineA::convertRMEtoA(Fa, Fb) :

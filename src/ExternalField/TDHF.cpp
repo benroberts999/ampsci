@@ -34,9 +34,9 @@ TDHF::TDHF(const DiracOperator::TensorOperator *const h,
       p_hf(hf),
       m_core(hf->core()),
       // m_vl(hf->vlocal(0)), //udpated, to use l-dependent QED [no change]
-      m_Hmag(hf->get_Hrad_mag(0)), //(same each l)
+      m_Hmag(hf->Hmag(0)), //(same each l)
       m_alpha(hf->alpha()),
-      p_VBr(hf->get_Breit())
+      p_VBr(hf->vBreit())
 // Add check for null hf?
 {
   initialise_dPsi();

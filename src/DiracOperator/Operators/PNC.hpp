@@ -56,7 +56,7 @@ generate_pnc(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto t = input.get("t", Nuclear::default_t);
   if (input.get("print", true))
     std::cout << "pnc: with c=" << c << ", t=" << t << "\n";
-  return std::make_unique<PNCnsi>(c, t, *(wf.rgrid), 1.0, "iQwe-11");
+  return std::make_unique<PNCnsi>(c, t, wf.grid(), 1.0, "iQwe-11");
 }
 
 } // namespace DiracOperator

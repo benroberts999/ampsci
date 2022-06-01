@@ -37,7 +37,7 @@ bool TDHF(std::ostream &obuff) {
 
   { // E1, w = 0.0
     const auto ww = 0.00;
-    auto h = DiracOperator::E1(*wf.rgrid);
+    auto h = DiracOperator::E1(wf.grid());
     // Expected <a||dV||b> values from V. Dzuba code:
     std::vector<double> expected_VD = {
         -0.303269160, 0.413337460,  -0.133010110, 0.185988360,  -0.036226022,
@@ -60,7 +60,7 @@ bool TDHF(std::ostream &obuff) {
 
   { // E1, w = 0.05
     const auto ww = 0.05;
-    auto h = DiracOperator::E1(*wf.rgrid);
+    auto h = DiracOperator::E1(wf.grid());
     std::vector<double> expected_VD = {
         -0.303213300, 0.412942330,  -0.132817610, 0.185545850,  -0.037186418,
         0.042653995,  -0.087825599, 0.117263410,  -0.303213300, -0.037186418,
@@ -85,7 +85,7 @@ bool TDHF(std::ostream &obuff) {
     // Note: even zero-order PNC disagrees at ~5th digit - possibly due to c,t?
     const auto ww = 0.0;
     const auto c = Nuclear::c_hdr_formula_rrms_t(wf.get_rrms());
-    auto h = DiracOperator::PNCnsi(c, Nuclear::default_t, *wf.rgrid);
+    auto h = DiracOperator::PNCnsi(c, Nuclear::default_t, wf.grid());
     std::vector<double> expected_VD = {
         1.5428e-04,  9.0137e-05,  7.9206e-05,  4.6296e-05,  -1.5428e-04,
         -7.9206e-05, 4.9201e-05,  -9.0137e-05, -4.6296e-05, 3.0130e-05,
@@ -109,15 +109,15 @@ UnitTest::helper::dV_result(const Wavefunction &wf,
                             const DiracOperator::TensorOperator &h, double ww) {
 
   // Form TDHF (RPA) object for this operator
-  auto dV = ExternalField::TDHF(&h, wf.getHF());
+  auto dV = ExternalField::TDHF(&h, wf.vHF());
   // Solve set of TDHF equations for core, with frequency ww
   const auto max_iterations = 150;
   const auto print_details = true;
   dV.solve_core(ww, max_iterations, print_details);
 
   std::vector<std::pair<std::string, double>> result;
-  for (const auto &Fv : wf.valence) {
-    for (const auto &Fm : wf.valence) {
+  for (const auto &Fv : wf.valence()) {
+    for (const auto &Fm : wf.valence()) {
       if (h.isZero(Fv.kappa(), Fm.kappa()))
         continue;
 

@@ -57,7 +57,7 @@ inline std::unique_ptr<DiracOperator::TensorOperator>
 generate_M1(const IO::InputBlock &input, const Wavefunction &wf) {
   using namespace DiracOperator;
   input.check({{"", "No input options"}});
-  return std::make_unique<M1>(*(wf.rgrid), wf.alpha, 0.0);
+  return std::make_unique<M1>(wf.grid(), wf.alpha(), 0.0);
 }
 
 } // namespace DiracOperator

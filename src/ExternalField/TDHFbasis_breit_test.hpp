@@ -50,15 +50,15 @@ bool TDHFbasis_breit(std::ostream &obuff) { //
   // wf.printValence();
 
   // Again, including Breit:
-  Wavefunction wfB(wf.rgrid->params(), wf.get_nuclearParameters(), 1.0);
+  Wavefunction wfB(wf.grid().params(), wf.nucleus(), 1.0);
   wfB.solve_core("HartreeFock", 1.0, "[Xe]"); // w/Breit
   wfB.solve_valence(valence);
   wfB.formBasis(bspl_param);
 
-  const auto hE1 = DiracOperator::E1(*wf.rgrid);
+  const auto hE1 = DiracOperator::E1(wf.grid());
   const auto hPNC =
       DiracOperator::PNCnsi(Nuclear::c_hdr_formula_rrms_t(wf.get_rrms()),
-                            Nuclear::default_t, *wf.rgrid);
+                            Nuclear::default_t, wf.grid());
 
   using namespace helper;
   const auto [eE1, sE1] = do_dV_breit_basis(wf, wfB, &hE1, 0.0);
@@ -82,11 +82,11 @@ helper::do_dV_breit_basis(const Wavefunction &wf, const Wavefunction &wfB,
                           const DiracOperator::TensorOperator *const h,
                           double omega, int max_l) {
 
-  auto dV_tdhf = ExternalField::TDHF(h, wf.getHF());
-  auto dV_basis = ExternalField::TDHFbasis(h, wf.getHF(), wf.basis);
+  auto dV_tdhf = ExternalField::TDHF(h, wf.vHF());
+  auto dV_basis = ExternalField::TDHFbasis(h, wf.vHF(), wf.basis());
   // w/ Breit:
-  auto dVB_tdhf = ExternalField::TDHF(h, wfB.getHF());
-  auto dVB_basis = ExternalField::TDHFbasis(h, wfB.getHF(), wfB.basis);
+  auto dVB_tdhf = ExternalField::TDHF(h, wfB.vHF());
+  auto dVB_basis = ExternalField::TDHFbasis(h, wfB.vHF(), wfB.basis());
 
   // double omega = 0.0;
   const auto max_iterations = 50;
@@ -104,8 +104,8 @@ helper::do_dV_breit_basis(const Wavefunction &wf, const Wavefunction &wfB,
   std::string worst = "";
 
   std::cout << "dBr(%)  TDHF       TDHF(basis) " << h->name() << "\n";
-  for (const auto &Fv : wf.valence) {
-    for (const auto &Fw : wf.valence) {
+  for (const auto &Fv : wf.valence()) {
+    for (const auto &Fw : wf.valence()) {
       if (Fw > Fv || h->isZero(Fv.kappa(), Fw.kappa()) || Fv.l() > max_l ||
           Fw.l() > max_l)
         continue;

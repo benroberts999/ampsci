@@ -14,61 +14,62 @@
 namespace Nuclear {
 
 //==============================================================================
-Type parseType(const std::string &str_type) {
+ChargeDistro parseType(const std::string &str_type) {
   if (qip::ci_wildcard_compare(str_type, "fermi"))
-    return Type::Fermi;
+    return ChargeDistro::Fermi;
   if (qip::ci_wildcard_compare(str_type, "spher*") ||
       qip::ci_wildcard_compare(str_type, "ball"))
-    return Type::spherical;
+    return ChargeDistro::spherical;
   if (qip::ci_wildcard_compare(str_type, "point*"))
-    return Type::point;
+    return ChargeDistro::point;
   if (qip::ci_wildcard_compare(str_type, "gaus*"))
-    return Type::Gaussian;
+    return ChargeDistro::Gaussian;
   std::cout << "\n⚠️  WARNING: Unkown nucleus type: " << str_type
             << "; defaulting to Fermi\n"
             << "Options are: Fermi, spherical, pointlike, Gaussian\n\n";
-  return Type::Fermi;
+  return ChargeDistro::Fermi;
 }
-std::string parseType(Type type) {
-  if (type == Type::Fermi)
+std::string parseType(ChargeDistro type) {
+  if (type == ChargeDistro::Fermi)
     return "Fermi";
-  if (type == Type::spherical)
+  if (type == ChargeDistro::spherical)
     return "spherical";
-  if (type == Type::point)
+  if (type == ChargeDistro::point)
     return "pointlike";
-  if (type == Type::Gaussian)
+  if (type == ChargeDistro::Gaussian)
     return "Gaussian";
   return "Fermi";
 }
 
 //==============================================================================
-Parameters::Parameters(int in_z, int in_a, const std::string &str_type,
-                       double in_rrms, double in_t)
-    : z(in_z),
-      a((in_a < 0) ? AtomData::defaultA(z) : in_a),
-      type(parseType(str_type)),
-      r_rms(in_rrms),
-      t(in_t <= 0 ? approximate_t_skin(a) : in_t) {
-  if (r_rms < 0) {
-    r_rms = find_rrms(z, a);
-    if (r_rms <= 0)
-      r_rms = approximate_r_rms(a);
+Nucleus::Nucleus(int tz, int ta, const std::string &str_type, double trrms,
+                 double tt)
+    : m_iso(findIsotopeData(tz, ta < 0 ? AtomData::defaultA(tz) : ta)),
+      m_type(parseType(str_type)),
+      m_t(tt) {
+
+  if (m_type != ChargeDistro::Fermi)
+    m_t = 0.0;
+
+  if (trrms > 0.0)
+    r_rms() = trrms;
+
+  if (r_rms() <= 0.0) {
+    const auto approx_rrms = approximate_r_rms(a());
+    r_rms() = approx_rrms;
+    std::cout << "\n\nWARNING: isotope Z=" << z() << ", A=" << a()
+              << " - cannot find rrms. Using approx formula: rrms="
+              << approx_rrms << "\n\n";
+  }
+
+  if (t() <= 0.0) {
+    t() = default_t;
   }
 }
-//------------
-Parameters::Parameters(const std::string &z_str, int in_a,
-                       const std::string &str_type, double in_rrms, double in_t)
-    : z(AtomData::atomic_Z(z_str)),
-      a((in_a < 0) ? AtomData::defaultA(z) : in_a),
-      type(parseType(str_type)),
-      r_rms(in_rrms),
-      t(in_t <= 0 ? approximate_t_skin(a) : in_t) {
-  if (r_rms < 0) {
-    r_rms = find_rrms(z, a);
-    if (r_rms <= 0)
-      r_rms = approximate_r_rms(a);
-  }
-}
+
+Nucleus::Nucleus(const std::string &z_str, int in_a,
+                 const std::string &str_type, double in_rrms, double in_t)
+    : Nucleus(AtomData::atomic_Z(z_str), in_a, str_type, in_rrms, in_t) {}
 
 //==============================================================================
 std::vector<double> sphericalNuclearPotential(double Z, double rnuc,
@@ -195,26 +196,26 @@ std::vector<double> fermiNuclearDensity_tcN(double t, double c, double Z_norm,
 }
 
 //==============================================================================
-std::vector<double> formPotential(const Parameters &params,
+std::vector<double> formPotential(const Nucleus &nuc,
                                   const std::vector<double> &r) {
-  const auto z = params.z;
-  const auto nucleus_type = params.type;
-  const auto r_rms = params.r_rms;
-  const auto t = params.t;
+  const auto z = nuc.z();
+  const auto nucleus_type = nuc.type();
+  const auto r_rms = nuc.r_rms();
+  const auto t = nuc.t();
 
   switch (nucleus_type) {
 
-  case Nuclear::Type::Fermi: {
+  case Nuclear::ChargeDistro::Fermi: {
     const auto chdr = Nuclear::c_hdr_formula_rrms_t(r_rms, t);
     return Nuclear::fermiNuclearPotential(z, t, chdr, r);
   }
-  case Nuclear::Type::spherical: {
+  case Nuclear::ChargeDistro::spherical: {
     const auto r_n = Nuclear::c_hdr_formula_rrms_t(r_rms, 0.0); // right?
     return Nuclear::sphericalNuclearPotential(z, r_n, r);
   }
-  case Nuclear::Type::point:
+  case Nuclear::ChargeDistro::point:
     return Nuclear::sphericalNuclearPotential(z, 0.0, r);
-  case Nuclear::Type::Gaussian:
+  case Nuclear::ChargeDistro::Gaussian:
     return Nuclear::GaussianNuclearPotential(z, r_rms, r);
 
   default:

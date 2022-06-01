@@ -100,10 +100,10 @@ void writeOrbitals(const IO::InputBlock &input, const Wavefunction &wf) {
   if (label != "")
     oname += "_" + label;
 
-  write_orbitals(oname + "_core.txt", wf.core, l);
-  write_orbitals(oname + "_valence.txt", wf.valence, l);
-  write_orbitals(oname + "_basis.txt", wf.basis, l);
-  write_orbitals(oname + "_spectrum.txt", wf.spectrum, l);
+  write_orbitals(oname + "_core.txt", wf.core(), l);
+  write_orbitals(oname + "_valence.txt", wf.valence(), l);
+  write_orbitals(oname + "_basis.txt", wf.basis(), l);
+  write_orbitals(oname + "_spectrum.txt", wf.spectrum(), l);
 }
 
 } // namespace Module

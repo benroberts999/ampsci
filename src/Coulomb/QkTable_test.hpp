@@ -28,12 +28,12 @@ bool QkTable(std::ostream &obuff) {
 
   // YkTable stores Hartee Y-functions Y_ab(r)
   // These save much time when calculating Q^k coeficients
-  const Coulomb::YkTable yk(wf.basis);
+  const Coulomb::YkTable yk(wf.basis());
 
   Coulomb::QkTable qk_t;
   // Coulomb::WkTable qk;
   // Coulomb::NkTable qk;
-  qk_t.fill(wf.basis, yk);
+  qk_t.fill(wf.basis(), yk);
 
   const std::string fname = "tmp_delete_me.qk";
 
@@ -58,11 +58,11 @@ bool QkTable(std::ostream &obuff) {
     IO::ChronoTimer t("Direct calc");
     double sum1 = 0.0;
 #pragma omp parallel for reduction(+ : sum1)
-    for (auto ia = 0ul; ia < wf.basis.size(); ++ia) {
-      auto &a = wf.basis[ia];
-      for (const auto &b : wf.basis) {
-        for (const auto &c : wf.basis) {
-          for (const auto &d : wf.basis) {
+    for (auto ia = 0ul; ia < wf.basis().size(); ++ia) {
+      auto &a = wf.basis()[ia];
+      for (const auto &b : wf.basis()) {
+        for (const auto &c : wf.basis()) {
+          for (const auto &d : wf.basis()) {
             const auto [kmin, kmax] = Coulomb::k_minmax_Q(a, b, c, d);
             for (int k = kmin; k <= kmax; k += 2) {
               const auto yk_bd = yk.get(k, b, d);
@@ -83,11 +83,11 @@ bool QkTable(std::ostream &obuff) {
     IO::ChronoTimer t("Use table");
     double sum2 = 0.0;
 #pragma omp parallel for reduction(+ : sum2)
-    for (auto ia = 0ul; ia < wf.basis.size(); ++ia) {
-      const auto &a = wf.basis[ia];
-      for (const auto &b : wf.basis) {
-        for (const auto &c : wf.basis) {
-          for (const auto &d : wf.basis) {
+    for (auto ia = 0ul; ia < wf.basis().size(); ++ia) {
+      const auto &a = wf.basis()[ia];
+      for (const auto &b : wf.basis()) {
+        for (const auto &c : wf.basis()) {
+          for (const auto &d : wf.basis()) {
             const auto [kmin, kmax] = Coulomb::k_minmax_Q(a, b, c, d);
             for (int k = kmin; k <= kmax; k += 2) {
               sum2 += qk.Q(k, a, b, c, d);
@@ -107,7 +107,7 @@ bool QkTable(std::ostream &obuff) {
 
   {
 
-    const auto max_2k = 2 * DiracSpinor::max_tj(wf.basis);
+    const auto max_2k = 2 * DiracSpinor::max_tj(wf.basis());
     Angular::SixJTable sjt{max_2k};
 
     // Test number of random instances of Q,P,R,W against direct way:
@@ -115,7 +115,7 @@ bool QkTable(std::ostream &obuff) {
 
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_int_distribution<std::size_t> rindex(0, wf.basis.size() - 1);
+    std::uniform_int_distribution<std::size_t> rindex(0, wf.basis().size() - 1);
 
     // Test table versions of Q,P,W,R vs. 'from scratch' ones.
     // (only for subset, since otherwise v. slow)
@@ -125,10 +125,10 @@ bool QkTable(std::ostream &obuff) {
     int non_zero_count = 0;
     int total_count = 0; // more than num_to_test, because \sum_k
     for (int tries = 0; tries < num_to_test; ++tries) {
-      const auto &a = wf.basis[rindex(gen)];
-      const auto &b = wf.basis[rindex(gen)];
-      const auto &c = wf.basis[rindex(gen)];
-      const auto &d = wf.basis[rindex(gen)];
+      const auto &a = wf.basis()[rindex(gen)];
+      const auto &b = wf.basis()[rindex(gen)];
+      const auto &c = wf.basis()[rindex(gen)];
+      const auto &d = wf.basis()[rindex(gen)];
 
       const auto [kmin, kmax] = Coulomb::k_minmax_Q(a, b, c, d);
       // nb: test every k (test of k_minmax_Q..)
@@ -174,10 +174,10 @@ bool QkTable(std::ostream &obuff) {
   {
     // check Normal Ordering:
     bool Qk_NormalOrder_ok = true;
-    for (auto &a : wf.basis) {
-      for (auto &b : wf.basis) {
-        for (auto &c : wf.basis) {
-          for (auto &d : wf.basis) {
+    for (auto &a : wf.basis()) {
+      for (auto &b : wf.basis()) {
+        for (auto &c : wf.basis()) {
+          for (auto &d : wf.basis()) {
             // Qk: abcd = cbad = adcb = cdab = badc = bcda = dabc = dcba
             const auto i_abcd = qk.NormalOrder(a, b, c, d);
             const auto i_adcb = qk.NormalOrder(a, d, c, b);
@@ -213,10 +213,10 @@ bool QkTable(std::ostream &obuff) {
 
     Coulomb::WkTable wk;
     bool Wk_NormalOrder_ok = true;
-    for (auto &a : wf.basis) {
-      for (auto &b : wf.basis) {
-        for (auto &c : wf.basis) {
-          for (auto &d : wf.basis) {
+    for (auto &a : wf.basis()) {
+      for (auto &b : wf.basis()) {
+        for (auto &c : wf.basis()) {
+          for (auto &d : wf.basis()) {
             // Qk: abcd = badc = cdab = dcba
             const auto i_abcd = wk.NormalOrder(a, b, c, d);
             const auto i_badc = wk.NormalOrder(b, a, d, c);
@@ -242,10 +242,10 @@ bool QkTable(std::ostream &obuff) {
 
     Coulomb::LkTable lk;
     bool Lk_NormalOrder_ok = true;
-    for (auto &a : wf.basis) {
-      for (auto &b : wf.basis) {
-        for (auto &c : wf.basis) {
-          for (auto &d : wf.basis) {
+    for (auto &a : wf.basis()) {
+      for (auto &b : wf.basis()) {
+        for (auto &c : wf.basis()) {
+          for (auto &d : wf.basis()) {
             // Qk: abcd = badc = cdab = dcba
             const auto i_abcd = wk.NormalOrder(a, b, c, d);
             const auto i_badc = wk.NormalOrder(b, a, d, c);

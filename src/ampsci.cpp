@@ -167,12 +167,12 @@ void ampsci(const IO::InputBlock &input) {
   // Nucleus: Get + setup nuclear parameters
   input.check(
       {"Nucleus"},
-      {{"rrms", "double. Root-mean-square charge radius, in fm "
+      {{"rrms", "Root-mean-square charge radius, in fm "
                 "[default depends on Z and A]"},
        {"c", "Half-density radius, in fm (use instead of rrms) [default "
              "depends on Z and A]"},
        {"t", "Nuclear skin thickness, in fm [2.3]"},
-       {"type", "Text. Fermi, spherical, pointlike, Gaussian [Fermi]"}});
+       {"type", "Fermi, spherical, pointlike, Gaussian [Fermi]"}});
 
   // usually, give rrms. Giving c will over-ride rrms
   const auto c_hdr = input.get<double>({"Nucleus"}, "c");
@@ -199,52 +199,30 @@ void ampsci(const IO::InputBlock &input) {
 
   std::cout << "\nRunning for " << wf.atom() << "\n"
             << wf.nuclearParams() << "\n"
-            << wf.rgrid->gridParameters() << "\n"
+            << wf.grid().gridParameters() << "\n"
             << "========================================================\n";
 
   // Parse input for Hartree-Fock
   input.check(
       {"HartreeFock"},
-      {{"core", "string. Core configuration. e.g., [Xe] for Cs"},
-       {"valence", "string. Which valence states? e.g., 7sp5d"},
-       {"eps", "double. HF convergance goal [1.0e-13]"},
-       {"method",
-        "string. HartreeFock, Hartree, KohnSham, or Local [HartreeFock]"},
-       {"Breit", "double. Scale for Breit. 0.0 => no Breit, 1.0 => include "
-                 "Breit. [0.0]"},
-       {"sortOutput", "bool. Sort energy tables by energy? [false]"}});
+      {{"core", "Core configuration. e.g., [Xe] for Cs"},
+       {"valence", "Which valence states? e.g., 7sp5d"},
+       {"eps", "HF convergance goal [1.0e-13]"},
+       {"method", "HartreeFock, Hartree, KohnSham, Local [HartreeFock]"},
+       {"Breit",
+        "Scale for Breit. 0.0 => no Breit, 1.0 => include Breit. [0.0]"},
+       {"sortOutput", "Sort energy tables by energy? [false]"}});
 
+  const auto core = input.get<std::string>({"HartreeFock"}, "core", "[]");
   const auto HF_method =
       input.get<std::string>({"HartreeFock"}, "method", "HartreeFock");
   const auto eps_HF = input.get({"HartreeFock"}, "eps", 1.0e-13);
   const auto x_Breit = input.get({"HartreeFock"}, "Breit", 0.0);
-  const auto core = input.get<std::string>({"HartreeFock"}, "core", "[]");
   const auto valence = input.get<std::string>({"HartreeFock"}, "valence", "");
   const auto sorted_output = input.get({"HartreeFock"}, "sortOutput", false);
 
-  // Print some HF into to screen:
-  if (HF_method == "Hartree")
-    std::cout << "Using Hartree Method (no Exchange)\n";
-  else if (HF_method == "ApproxHF")
-    std::cout << "Using approximate HF Method (approx Exchange)\n";
-  else if (HF_method == "KohnSham") {
-    std::cout << "Using Kohn-Sham Method.\n"
-              << "Note: You should include first valence state into the core:\n"
-                 "Kohn-Sham is NOT a V^N-1 method!\n";
-  } else if (HF_method == "Local") {
-    std::cout << "Using local potential\n";
-  } else if (HF_method != "HartreeFock") {
-    std::cout << "\n⚠️  WARNING unkown method: " << HF_method
-              << "\nDefaulting to HartreeFock method.\n";
-  }
-
-  // Can only include Breit within HF
-  if (HF_method == "HartreeFock" && x_Breit != 0.0) {
-    std::cout << "Including Breit (scale = " << x_Breit << ")\n";
-  } else if (HF_method != "HartreeFock" && x_Breit != 0.0) {
-    std::cout << "\n⚠️  WARNING can only include Breit in Hartree-Fock "
-                 "method. Breit will not be included.\n";
-  }
+  // Set up the Hartree Fock potential/method (does not solve)
+  wf.set_HF(HF_method, x_Breit, core, eps_HF, true);
 
   // Inlcude QED radiatve potential
   input.check(
@@ -258,13 +236,13 @@ void ampsci(const IO::InputBlock &input) {
        {"SE_l", "  self-energy low-freq electric. [1.0]"},
        {"SE_m", "  self-energy magnetic. [1.0]"},
        {"WK", "  Wickman-Kroll. [0.0]"},
-       {"rcut", "double. Maximum radius (au) to calculate Rad Pot for [5.0]"},
+       {"rcut", "Maximum radius (au) to calculate Rad Pot for [5.0]"},
        {"scale_rN",
         "Scale factor for Nuclear size. 0 for pointlike, 1 for typical [1.0]"},
        {"scale_l", "List of doubles. Extra scaling factor for each l e.g., "
-                   "(1,0,1) => include for s and d, but not for p [1.0]"},
+                   "1,0,1 => include for s and d, but not for p [1.0]"},
        {"core_qed",
-        "bool. Include rad pot into Hartree-Fock core (relaxation) [true]"}});
+        "Include rad pot into Hartree-Fock core (relaxation) [true]"}});
 
   const auto include_qed = input.getBlock("RadPot") != std::nullopt;
   const auto x_Ueh = input.get({"RadPot"}, "Ueh", 1.0);
@@ -303,17 +281,18 @@ void ampsci(const IO::InputBlock &input) {
   std::vector<double> Vextra;
   if (include_extra && ep_fname != "") {
     const auto &[x, y] = IO::FRW::readFile_xy_PoV(ep_fname);
-    Vextra = Interpolator::interpolate(x, y, wf.rgrid->r());
+    Vextra = Interpolator::interpolate(x, y, wf.grid().r());
     qip::scale(&Vextra, ep_factor);
   }
 
   // Add "extra potential", before HF (core + valence)
   if (include_extra && ep_beforeHF) {
-    qip::add(&wf.vnuc, Vextra);
+    // qip::add(&wf.vnuc(), Vextra);
+    wf.add_to_Vnuc(Vextra);
   }
 
   // Solve Hartree equations for the core:
-  wf.solve_core(HF_method, x_Breit, core, eps_HF);
+  wf.solve_core(true);
 
   // ... if not core_qed, then add QED _after_ HF core
   if (include_qed && !core_qed) {
@@ -342,8 +321,8 @@ void ampsci(const IO::InputBlock &input) {
       return a_eff ? -0.5 * *a_eff / (x * x * x * x + a4) : 0.0;
     };
     std::vector<double> dv;
-    dv.reserve(wf.rgrid->num_points());
-    for (auto r : wf.rgrid->r()) {
+    dv.reserve(wf.grid().num_points());
+    for (auto r : wf.grid().r()) {
       dv.push_back(dV(r));
     }
     wf.add_to_Vdir(dv);
@@ -374,9 +353,9 @@ void ampsci(const IO::InputBlock &input) {
   const auto basis_input = input.getBlock("Basis");
   if (basis_input) {
     wf.formBasis(*basis_input);
-    if (input.get({"Basis"}, "print", false) && !wf.basis.empty()) {
+    if (input.get({"Basis"}, "print", false) && !wf.basis().empty()) {
       std::cout << "Basis:\n";
-      wf.printBasis(wf.basis);
+      wf.printBasis(wf.basis());
     }
   }
 
@@ -427,7 +406,7 @@ void ampsci(const IO::InputBlock &input) {
   const auto default_stride = [&]() {
     // By default, choose stride such that there is 150 points over [1e-4,30]
     const auto stride =
-        int(wf.rgrid->getIndex(30.0) - wf.rgrid->getIndex(1.0e-4)) / 150;
+        int(wf.grid().getIndex(30.0) - wf.grid().getIndex(1.0e-4)) / 150;
     return (stride <= 2) ? 2 : stride;
   }();
   const auto sigma_stride =
@@ -496,13 +475,13 @@ void ampsci(const IO::InputBlock &input) {
   }
 
   // Calculate + print second-order energy shifts
-  if (!wf.valence.empty() && do_energyShifts && Sigma_ok) {
+  if (!wf.valence().empty() && do_energyShifts && Sigma_ok) {
     IO::ChronoTimer t("de");
     wf.SOEnergyShift();
   }
 
   // Solve Brueckner orbitals (optionally, fit Sigma to exp energies)
-  if (!wf.valence.empty() && do_brueckner && Sigma_ok) {
+  if (!wf.valence().empty() && do_brueckner && Sigma_ok) {
     std::cout << "\n";
     IO::ChronoTimer t("Br");
     if (!fit_energies.empty())
@@ -511,7 +490,7 @@ void ampsci(const IO::InputBlock &input) {
       wf.hartreeFockBrueckner();
   }
   // Print out info for new "Brueckner" valence orbitals:
-  if (!wf.valence.empty() && do_brueckner && Sigma_ok) {
+  if (!wf.valence().empty() && do_brueckner && Sigma_ok) {
     std::cout << "\nBrueckner orbitals:\n";
     wf.printValence(sorted_output);
   }
@@ -533,9 +512,9 @@ void ampsci(const IO::InputBlock &input) {
   if (spectrum_in) {
     if (spectrum_in)
       wf.formSpectrum(*spectrum_in);
-    if (input.get({"Spectrum"}, "print", false) && !wf.spectrum.empty()) {
+    if (input.get({"Spectrum"}, "print", false) && !wf.spectrum().empty()) {
       std::cout << "Spectrum:\n";
-      wf.printBasis(wf.spectrum);
+      wf.printBasis(wf.spectrum());
     }
   }
 

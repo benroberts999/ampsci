@@ -120,8 +120,8 @@ public:
     m_gg.make_identity();
   }
 
-  // only for transition, kill!
-  [[deprecated]] RDMatrix<T> &plusIdent(T a = T{1.0}) {
+      // only for transition, kill!
+      [[deprecated]] RDMatrix<T> &plusIdent(T a = T{1.0}) {
     (*this) += a;
     return *this;
   }
@@ -239,9 +239,9 @@ public:
     out.gg().conj_in_place();
     return out;
   }
-  //! Returns real part of complex matrix (changes type; returns a real
-  //! matrix)
-  [[nodiscard]] RDMatrix<double> real() const {
+      //! Returns real part of complex matrix (changes type; returns a real
+      //! matrix)
+      [[nodiscard]] RDMatrix<double> real() const {
     RDMatrix<double> out(m_i0, m_stride, m_size, m_incl_g, m_rgrid);
     out.ff() = m_ff.real();
     out.fg() = m_fg.real();
@@ -258,9 +258,9 @@ public:
     out.gg() = m_gg.imag();
     return out;
   }
-  //! Converts a real to complex matrix (changes type; returns a complex
-  //! matrix)
-  [[nodiscard]] RDMatrix<std::complex<double>> complex() const {
+      //! Converts a real to complex matrix (changes type; returns a complex
+      //! matrix)
+      [[nodiscard]] RDMatrix<std::complex<double>> complex() const {
     RDMatrix<std::complex<double>> out(m_i0, m_stride, m_size, m_incl_g,
                                        m_rgrid);
     out.ff() = m_ff.complex();

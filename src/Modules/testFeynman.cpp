@@ -48,7 +48,7 @@ void testFeynman(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto stride = input.get("stride", std::size_t(4));
   const MBPT::rgrid_params gridp{rmin, rmax, stride};
 
-  const MBPT::FeynmanSigma Sigma(wf.getHF(), wf.basis, sigp, gridp, "NA");
+  const MBPT::FeynmanSigma Sigma(wf.vHF(), wf.basis(), sigp, gridp, "NA");
 
   Sigma.print_subGrid();
 
@@ -99,12 +99,12 @@ void Feyn::test_Q(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma) {
   {
     std::cout << "      Vx-Matrix   <v|vx|v>   | eps\n";
     double worst = 0.0;
-    const DiracSpinor *Fworst = &wf.core.front();
-    for (const auto orbs : {&wf.core, &wf.valence}) {
+    const DiracSpinor *Fworst = &wf.core().front();
+    for (const auto orbs : {&wf.core(), &wf.valence()}) {
       for (const auto &a : *orbs) {
         const auto &Vx = Sigma.get_Vx_kappa(a.kappa());
         const auto vxmat = Sigma.act_G_Fv_2(a, Vx, a);
-        const auto vxhf = a * (wf.getHF()->vexFa(a));
+        const auto vxhf = a * (wf.vHF()->vexFa(a));
         const auto eps = std::abs((vxmat - vxhf) / vxhf);
         if (eps > worst) {
           worst = eps;
@@ -124,7 +124,7 @@ void Feyn::test_Q(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma) {
   std::cout << "Test Q matirx: <aa|q^k|aa> = R^k_aaaa\n";
   {
     std::cout << "           <aa|q^k|aa>  R^k_aaaa   | eps\n";
-    for (const auto orbs : {/*&wf.core,*/ &wf.valence}) {
+    for (const auto orbs : {/*&wf.core(),*/ &wf.valence()}) {
       for (const auto &a : *orbs) {
         double worst = 0.0;
         int worstk = -1;
@@ -159,9 +159,9 @@ void Feyn::test_green(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
   //----------------------------------------------------------------------------
   std::cout << "Testing Gr(ev + w)\n";
   std::cout << "Comparing <v|G(e)|v> = sum_n <v|n><n|v>/(e-en) = 1/(e-ev)\n";
-  const double env = wf.valence[0].en();
+  const double env = wf.valence()[0].en();
 
-  const auto max_ki = DiracSpinor::max_kindex(wf.valence);
+  const auto max_ki = DiracSpinor::max_kindex(wf.valence());
 
   for (const auto &omim : omim_v) {
 
@@ -195,7 +195,7 @@ void Feyn::test_green(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
           << "       Gr           Basis        Expected   |  Gr/Bs  Gr/Ex  "
              "Bs/Ex\n";
 
-      for (const auto orbs : {&wf.core, &wf.valence}) {
+      for (const auto orbs : {&wf.core(), &wf.valence()}) {
         for (const auto &Fv : *orbs) {
           if (Fv.kappa() != kappa)
             continue;
@@ -237,8 +237,8 @@ void Feyn::test_GQ(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
   //----------------------------------------------------------------------------
   std::cout << "Testing Gr(e + w)\n";
   std::cout << "Comparing <v| G*Q |v> = sum_i R^k_viiv / (e + w - ei)\n";
-  const double env = wf.valence[0].en();
-  const auto max_ki = DiracSpinor::max_kindex(wf.basis);
+  const double env = wf.valence()[0].en();
+  const auto max_ki = DiracSpinor::max_kindex(wf.basis());
 
   const auto method = MBPT::GrMethod::Green;
   // const auto method = MBPT::GrMethod::basis;
@@ -253,7 +253,7 @@ void Feyn::test_GQ(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
       std::cout
           << "   :   Total G(e)       G_core(e)        G_ex(e)         eps\n";
 
-      for (const auto &Fv : wf.valence) {
+      for (const auto &Fv : wf.valence()) {
 
         ComplexDouble core = {0.0, 0.0}, ex = {0.0, 0.0};
         auto vgqv_r = 0.0, vgqCv_r = 0.0, vgqXv_r = 0.0;
@@ -285,7 +285,7 @@ void Feyn::test_GQ(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
           vgqCv_i += Sigma.act_G_Fv_2(Fv, gqC.imag(), Fv);
           vgqXv_i += Sigma.act_G_Fv_2(Fv, gqX.imag(), Fv);
 
-          for (const auto &Fi : wf.basis) {
+          for (const auto &Fi : wf.basis()) {
             if (Fi.kappa() != kappa)
               continue;
             auto Rk = Coulomb::Rk_abcd(Fv, Fi, Fi, Fv, k);
@@ -338,8 +338,8 @@ void Feyn::test_pol(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
         const auto pik = Sigma.Polarisation_k(k, {omre, omim}, test_pol_method);
         const auto qpq = (qk * pik * qk);
 
-        // for (const auto &Fv : wf.core) {
-        for (const auto &Fv : wf.valence) {
+        // for (const auto &Fv : wf.core()) {
+        for (const auto &Fv : wf.valence()) {
           double sum_k_gqpq = 0.0;
           double sum_k_gqpq_i = 0.0;
           ComplexDouble sum_k_RR = {0.0, 0.0};
@@ -362,11 +362,11 @@ void Feyn::test_pol(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
               sum_k_gqpq_i += Sigma.act_G_Fv_2(Fv, gqpq.real(), Fv);
 
             ComplexDouble sum1 = {0.0, 0.0};
-            for (const auto &FB : wf.basis) {
+            for (const auto &FB : wf.basis()) {
               if (FB.kappa() != kB)
                 continue;
-              for (const auto &Fa : wf.core) {
-                for (const auto &FA : wf.basis) {
+              for (const auto &Fa : wf.core()) {
+                for (const auto &FA : wf.basis()) {
                   const auto f = Angular::Ck_kk(k, Fa.kappa(), FA.kappa());
                   if (f == 0.0)
                     continue;

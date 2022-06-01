@@ -71,17 +71,17 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   // Sort basis into core/excited/valcne
   std::vector<DiracSpinor> core, excited, valence;
   const auto en_core = wf.en_coreval_gap();
-  for (const auto &Fn : wf.basis) {
+  for (const auto &Fn : wf.basis()) {
     if (Fn.en() < en_core && Fn.n() >= min_n) {
       core.push_back(Fn);
     } else if (Fn.en() > en_core && Fn.n() <= max_n && Fn.l() <= max_l) {
       excited.push_back(Fn);
     }
   }
-  for (const auto &Fv : wf.valence) {
+  for (const auto &Fv : wf.valence()) {
     // valence.push_back(Fv);
     // nb: use basis version of valence states
-    const auto pFv = std::find(wf.basis.cbegin(), wf.basis.cend(), Fv);
+    const auto pFv = std::find(wf.basis().cbegin(), wf.basis().cend(), Fv);
     valence.push_back(*pFv);
   }
 
@@ -110,8 +110,8 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "\nCore/Valence MBPT(2) shifts, using Yk table" << std::endl;
   std::cout << "Core: " << MBPT::de_core(yk, yk, core, excited) << "\n";
   //
-  std::cout << "Valence, using wf.valence" << std::endl;
-  for (const auto &v : wf.valence) {
+  std::cout << "Valence, using wf.valence()" << std::endl;
+  for (const auto &v : wf.valence()) {
     std::cout << v.symbol() << " " << MBPT::de_valence(v, yk, yk, core, excited)
               << "\n";
   }
@@ -255,7 +255,7 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
 
   const auto subgridp = MBPT::rgrid_params{1.0e-3, 30.0, 6};
 
-  MBPT::GoldstoneSigma Sigma(wf.getHF(), wf.basis, sigp, subgridp, "na");
+  MBPT::GoldstoneSigma Sigma(wf.vHF(), wf.basis(), sigp, subgridp, "na");
 
   std::cout << "\nEnergy corrections, using Sigma:\n";
   for (const auto &v : valence) {

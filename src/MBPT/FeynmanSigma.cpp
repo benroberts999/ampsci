@@ -83,7 +83,7 @@ void FeynmanSigma::formSigma(int kappa, double en, int n) {
     prep_Feynman();
   }
 
-  if (p_hf->get_Breit() != nullptr) {
+  if (p_hf->vBreit() != nullptr) {
     // Breit was included into HF; we should not do this!
     std::cout
         << "\nWARNING: Trying to calculate Sigma in Feynman method when Breit "
@@ -646,7 +646,7 @@ the 'local' method works best for most k's, but the matrix method (with
   DiracSpinor x0(0, kappa, p_gr);
   DiracSpinor xI(0, kappa, p_gr);
   const auto alpha = p_hf->alpha();
-  const auto &Hmag = p_hf->get_Hrad_mag(x0.l());
+  const auto &Hmag = p_hf->Hmag(x0.l());
 
   auto vl = p_hf->vlocal(x0.l());
   if (Fc_hp != nullptr && k_hp != 0) {

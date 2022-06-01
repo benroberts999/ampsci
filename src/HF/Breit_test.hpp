@@ -81,16 +81,16 @@ bool Breit(std::ostream &obuff) {
 
     // Get my values, with Breit:
     datav en{};
-    for (const auto &Fc : wf.core)
+    for (const auto &Fc : wf.core())
       en.emplace_back(Fc.symbol(), Fc.en());
-    for (const auto &Fv : wf.valence)
+    for (const auto &Fv : wf.valence())
       en.emplace_back(Fv.symbol(), Fv.en());
 
     // Get my values, without Breit:
     datav en0{};
-    for (const auto &Fc : wf0.core)
+    for (const auto &Fc : wf0.core())
       en0.emplace_back(Fc.symbol(), Fc.en());
-    for (const auto &Fv : wf0.valence)
+    for (const auto &Fv : wf0.valence())
       en0.emplace_back(Fv.symbol(), Fv.en());
     // sort, so in same order as VD:
     std::sort(begin(en), end(en), sort_by_first);
@@ -157,16 +157,16 @@ bool Breit(std::ostream &obuff) {
         << "\nBreit corrections to E1 matrix elements, cf expected (Dzuba)\n";
 
     // Solve TDHF with Breit (for RPA)
-    const auto h{DiracOperator::E1(*wf.rgrid)};
-    auto rpa = ExternalField::TDHF(&h, wf.getHF());
-    auto rpa0 = ExternalField::TDHF(&h, wf0.getHF());
+    const auto h{DiracOperator::E1(wf.grid())};
+    auto rpa = ExternalField::TDHF(&h, wf.vHF());
+    auto rpa0 = ExternalField::TDHF(&h, wf0.vHF());
     rpa.solve_core(0.0, 20);  // w=0
     rpa0.solve_core(0.0, 20); // w=0
 
     // Get my values:
     datav e1_me_HF, e1_me_RPA;
-    for (const auto &Fv : wf.valence) {
-      for (const auto &Fw : wf.valence) {
+    for (const auto &Fv : wf.valence()) {
+      for (const auto &Fw : wf.valence()) {
         if (h.isZero(Fv.kappa(), Fw.kappa()))
           continue;
         const auto &Fv0 = *wf0.getState(Fv.n(), Fv.kappa());

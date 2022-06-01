@@ -21,7 +21,7 @@ bool MBPT2(std::ostream &obuff) {
                     {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
     wf.solve_core("HartreeFock", 0.0, "[Xe]");
     wf.solve_valence("6s");
-    const auto &Fv = wf.valence.front();
+    const auto &Fv = wf.valence().front();
 
     {
       // K. Beloy and A. Derevianko, Comput. Phys. Commun. 179, 310 (2008).
@@ -35,7 +35,7 @@ bool MBPT2(std::ostream &obuff) {
       std::vector<double> vals;
       wf.formBasis({"spdfghi", 100, 11, 0.0, 1.0e-6, 50.0, false});
       wf.formSigma(1, false);
-      const auto Sigma = wf.getSigma();
+      const auto Sigma = wf.Sigma();
       std::cout << "cf Table 2 from Beloy, Derevianko, Comput.Phys.Commun. "
                    "179, 310 (2008):\n";
       for (int l = 0; l <= 6; ++l) {
@@ -55,7 +55,7 @@ bool MBPT2(std::ostream &obuff) {
     { // "smaller" basis set (not exactly same as Derev)
       wf.formBasis({"30spdfghi", 40, 7, 0.0, 1.0e-6, 40.0, false});
       wf.formSigma(1, false);
-      const auto Sigma = wf.getSigma();
+      const auto Sigma = wf.Sigma();
       const auto de = Sigma->SOEnergyShift(Fv, Fv);
       auto ok = de >= -0.01767 && de <= -0.01748 ? 1 : 0;
       pass &= qip::check_value(&obuff, "MBPT(2) 'small' Cs 6s", ok, 1, 0);
@@ -89,13 +89,13 @@ bool Sigma2(std::ostream &obuff) {
                  "false", "tmp_sigma_deleteme");
 
     std::vector<double> hf, br2;
-    for (const auto &Fv : wf.valence) {
+    for (const auto &Fv : wf.valence()) {
       hf.push_back(Fv.en());
     }
 
     wf.hartreeFockBrueckner();
 
-    for (const auto &Fv : wf.valence) {
+    for (const auto &Fv : wf.valence()) {
       br2.push_back(Fv.en());
     }
 
@@ -131,13 +131,13 @@ bool Sigma2(std::ostream &obuff) {
                  "tmp_sigma_deleteme", "false");
 
     std::vector<double> hf, br2;
-    for (const auto &Fv : wf.valence) {
+    for (const auto &Fv : wf.valence()) {
       hf.push_back(Fv.en());
     }
 
     wf.hartreeFockBrueckner();
 
-    for (const auto &Fv : wf.valence) {
+    for (const auto &Fv : wf.valence()) {
       br2.push_back(Fv.en());
     }
 
@@ -171,13 +171,13 @@ bool Sigma2(std::ostream &obuff) {
                  "false", "tmp_sigma_deleteme");
 
     std::vector<double> hf, br2;
-    for (const auto &Fv : wf.valence) {
+    for (const auto &Fv : wf.valence()) {
       hf.push_back(Fv.en());
     }
 
     wf.hartreeFockBrueckner();
 
-    for (const auto &Fv : wf.valence) {
+    for (const auto &Fv : wf.valence()) {
       br2.push_back(Fv.en());
     }
 
@@ -215,7 +215,7 @@ bool SigmaAO(std::ostream &obuff) {
     const auto rmin = 1.0e-4;
     const auto rmax = 30.0;
     const auto stride =
-        int(wf.rgrid->getIndex(30.0) - wf.rgrid->getIndex(1.0e-4)) / 150;
+        int(wf.grid().getIndex(30.0) - wf.grid().getIndex(1.0e-4)) / 150;
 
     const auto omre = -std::abs(0.33 * wf.energy_gap());
     const double w0 = 0.01;
@@ -232,7 +232,7 @@ bool SigmaAO(std::ostream &obuff) {
     wf.hartreeFockBrueckner();
 
     std::vector<double> br;
-    for (const auto &Fv : wf.valence) {
+    for (const auto &Fv : wf.valence()) {
       br.push_back(Fv.en());
     }
     std::sort(begin(br), end(br)); // sort: don't depend on order
