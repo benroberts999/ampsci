@@ -303,7 +303,7 @@ void ampsci(const IO::InputBlock &input) {
 
   // Add "extra potential", after HF (only valence)
   if (include_extra && !ep_beforeHF) {
-    wf.add_to_Vdir(Vextra);
+    wf.add_to_Vnuc(Vextra);
   }
 
   // Adds effective polarision potential to direct
@@ -325,7 +325,7 @@ void ampsci(const IO::InputBlock &input) {
     for (auto r : wf.grid().r()) {
       dv.push_back(dV(r));
     }
-    wf.add_to_Vdir(dv);
+    wf.add_to_Vnuc(dv);
   }
 
   // Solve for the valence states:

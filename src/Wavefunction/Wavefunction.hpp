@@ -20,7 +20,7 @@ struct Parameters;
 
 //==============================================================================
 /*!
-@brief Stores Wavefunction (set of core+valence orbitals, grid etc.)
+@brief Stores Wavefunction (set of valence orbitals, grid, HF etc.)
 @details
 \par Construction:
   - Set of GridParameters [see Maths/Grid]
@@ -31,13 +31,18 @@ struct Parameters;
 class Wavefunction {
 
 public:
-  Wavefunction(const GridParameters &gridparams,
-               const Nuclear::Nucleus &nucleus, double var_alpha = 1.0);
+  //! Construct with a Grid [shared resource], a nucleus (isotope data etc.),
+  //! and (optional) fractional variation in alpha  [alpha = var_alpha *
+  //! alpha_0, alpha_0=~1/137]
   Wavefunction(std::shared_ptr<const Grid> grid,
                const Nuclear::Nucleus &nucleus, double var_alpha = 1.0);
+  //! As above, but Grid is constructed here using given parameters
+  Wavefunction(const GridParameters &gridparams,
+               const Nuclear::Nucleus &nucleus, double var_alpha = 1.0);
 
-  //! User-defined copy-constructor. Note: Does not copy HF or Sigma
+  //! User-defined copy-constructor. Note: Does not copy Sigma
   Wavefunction(const Wavefunction &wf); // XXX make sigma copyable!?
+  //! Deleted, as sigma cannot be copied. This will be fixed
   Wavefunction &operator=(const Wavefunction &) = delete;
   ~Wavefunction() = default;
 
@@ -60,9 +65,8 @@ private:
   std::optional<HF::HartreeFock> m_HF{std::nullopt};
   // Unique pointer? Copyable? XXX
   std::unique_ptr<MBPT::CorrelationPotential> m_Sigma{nullptr};
-
-  // Core configuration (non-rel terms)
-  std::string m_core_string = ""; // kill XX?
+  // Core configuration (non-rel terms) // kill XXX?
+  std::string m_core_string = "";
 
 public:
   //! Returns a const reference to the radial grid
@@ -75,14 +79,13 @@ public:
   double alpha() const { return m_alpha; }
 
   const Nuclear::Nucleus &nucleus() const { return m_nucleus; }
-  Nuclear::Nucleus &nucleus() { return m_nucleus; }
   int Znuc() const { return m_nucleus.z(); }
   int Anuc() const { return m_nucleus.a(); }
   double get_rrms() const { return m_nucleus.r_rms(); }
   //! Outputs screen-friendly nuclear parameters
   std::string nuclearParams() const;
 
-  //! Core orbitals (HF core)
+  //! Core orbitals (frozen HF core)
   const std::vector<DiracSpinor> &core() const {
     static const auto empty = std::vector<DiracSpinor>{}; //?
     return m_HF ? m_HF->core() : empty;
@@ -186,6 +189,7 @@ public:
   void printBasis(const std::vector<DiracSpinor> &the_basis,
                   bool sorted = false) const;
 
+  //! Check if a state is in the core (or valence) list
   bool isInCore(int n, int k) const;
   bool isInValence(int n, int k) const;
 
@@ -197,14 +201,16 @@ public:
 
   //------------------------------------------------------------------
 
+  //! Initialises HF object and populates core orbitals (does not solve HF
+  //! equations)
   void set_HF(const std::string &method = "HartreeFock",
               const double x_Breit = 0.0, const std::string &in_core = "",
               double eps_HF = 1.0e-13, bool print = true);
 
-  //! Performs hartree-Fock procedure for core: note: poplulates core
+  //! Performs hartree-Fock procedure for core
   void solve_core(bool print = true);
 
-  //! This version will first set_HF, then solve_core
+  //! This version will first set_HF(), then solve_core()
   void solve_core(const std::string &method = "HartreeFock",
                   const double x_Breit = 0.0, const std::string &in_core = "",
                   double eps_HF = 1.0e-13, bool print = true);
@@ -213,7 +219,8 @@ public:
   void solve_valence(const std::string &in_valence_str = "",
                      const bool print = true);
 
-  //! Forms Bruckner valence orbitals: (H_hf + Sigma)|nk> = e|nk>.
+  //! Forms Bruckner valence orbitals: (H_hf + Sigma)|nk> = e|nk>. Replaces
+  //! existing valence states
   void hartreeFockBrueckner(const bool print = true);
 
   //! First, fits Sigma to energies, then forms fitted Brueckner orbitals
@@ -254,12 +261,8 @@ public:
       m_Sigma = std::make_unique<MBPT::CorrelationPotential>(*Sigma);
   }
 
-  void add_to_Vdir(const std::vector<double> &dv) { // KILL?
-    if (m_HF) {
-      qip::add(&m_HF->vdir(), dv);
-    }
-  }
-
+  //! Allows extra potential to be added to Vnuc (updates both in Wavefunction
+  // _and_ HartreeFock) - only really for testing etc.
   void add_to_Vnuc(const std::vector<double> &dv) { //
     /// XXX Fix: two versions of Vnuc...
     qip::add(&m_vnuc, dv);

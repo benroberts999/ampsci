@@ -63,20 +63,10 @@ DiracSpinor vexFa(const DiracSpinor &Fa, const std::vector<DiracSpinor> &core,
 //==============================================================================
 //==============================================================================
 
-//! @brief Solves relativistic Hartree-Fock equations
-/*! @details
-
-\par Construction
-Stores a copy of nuclear potential Vnuc, and radiative potential, Vrad.
-These are assumed to not change once created. It's possible to update Vrad,
-which can be used to include potential into the valence but not core electrons,
-for example.
-
-\par Usage
-Solves HF equations for the core when solve_core() is called.
-Core orbitals must already exist. Note: stores a pointer to external core
-orbitals. These must not be extended/deleted while HF object exists.
-*/
+//! Solves relativistic Hartree-Fock equations for core and valence. Optionally
+//! includes Breit and QED effects. Can include Sigma (correlations) for valence
+//! states. Class stores nuc. and direct potentials, a set of yk integrals, and
+//! QED potential. Stores the core orbitals.
 class HartreeFock {
 
 private:
@@ -137,8 +127,7 @@ public:
   solve_valence(std::vector<DiracSpinor> *valence, bool print = true,
                 const MBPT::CorrelationPotential *const Sigma = nullptr) const;
 
-  //! Solves HF equation (+ Sigma) for single valence state. Only used in
-  //! fitSigma_hfBrueckner..
+  //! Solves HF equation (+ Sigma) for single valence state.
   EpsIts
   hf_valence(DiracSpinor &Fv,
              const MBPT::CorrelationPotential *const Sigma = nullptr) const;

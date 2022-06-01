@@ -47,7 +47,7 @@ constexpr double aB_m = 0.529177210903e-10;
 constexpr double aB_cm = aB_m * (1.0e+2);
 constexpr double aB_fm = aB_m * (1.0e+15);
 
-//! hbar/E_H. wiki: 2.4188843265857(47)×10−17 s [wiki 2019]
+//! hbar/E_H. wiki: 2.4188843265857(47)*10-17 s [wiki 2019]
 constexpr double hbar_on_EH = 2.4188843265857e-17;
 //! Atomic unit of time (in seconds) - hbar/E_H
 constexpr double time_s = hbar_on_EH;
