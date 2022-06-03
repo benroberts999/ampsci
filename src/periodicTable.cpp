@@ -4,6 +4,7 @@
 #include "Physics/PhysConst_constants.hpp"
 #include <algorithm>
 #include <iostream>
+#include <sstream>
 #include <vector>
 
 void instructions() {
@@ -78,58 +79,65 @@ void printConstants() //
 //==============================================================================
 int main(int num_in, char *argv[]) {
 
-  if (num_in <= 1) {
-    instructions();
-    AtomData::printTable();
-    return 1;
-  }
-
-  std::string z_str = argv[1];
-
-  if (z_str.substr(0, 1) == "c") {
-    printConstants();
-    return 0;
-  }
-
-  const auto z = AtomData::atomic_Z(z_str);
-  if (z == 0) {
-    instructions();
-    return 1;
-  }
-  z_str = AtomData::atomicSymbol(z);
+  std::string z_str = (num_in > 1) ? argv[1] : "0";
   std::string a_str = (num_in > 2) ? argv[2] : "0";
-  auto name = AtomData::atomicName(z);
 
-  std::vector<Nuclear::Isotope> isotopes;
-  int a_default = parse_A("0", z);
-  if (a_str == "all" || a_str == "list") {
-    isotopes = Nuclear::findIsotopeList(z);
-  } else {
-    int a = parse_A(a_str, z);
-    isotopes.push_back(Nuclear::findIsotopeData(z, a));
+  instructions();
+  AtomData::printTable();
+
+  if (z_str == "c") {
+    printConstants();
+    return 1;
   }
 
-  auto core_str = AtomData::guessCoreConfigStr(z);
-  auto core_vec = AtomData::core_parser(core_str);
+  while (true) {
 
-  std::cout << "\n"
-            << z_str << ",  " << name << ".\n"
-            << "Z = " << z << ";  A = " << a_default << " (default)\n\n";
-  std::cout << "Electron config: " << core_str << "   (guess)\n"
-            << " = ";
-  for (const auto &term : core_vec) {
-    if (term.frac() < 1)
-      std::cout << "| ";
-    std::cout << term.symbol() << " ";
-  }
-  std::cout << "\n";
+    const auto z = AtomData::atomic_Z(z_str);
+    if (z != 0) {
 
-  std::cout << "\nIsotpe data:";
-  if (isotopes.empty()) {
-    std::cout << " none known\n";
-  }
-  for (const auto &nuc : isotopes) {
-    std::cout << "\n";
-    printData(nuc);
+      z_str = AtomData::atomicSymbol(z);
+
+      auto name = AtomData::atomicName(z);
+
+      std::vector<Nuclear::Isotope> isotopes;
+      int a_default = parse_A("0", z);
+      if (a_str == "all" || a_str == "list") {
+        isotopes = Nuclear::findIsotopeList(z);
+      } else {
+        int a = parse_A(a_str, z);
+        isotopes.push_back(Nuclear::findIsotopeData(z, a));
+      }
+
+      auto core_str = AtomData::guessCoreConfigStr(z);
+      auto core_vec = AtomData::core_parser(core_str);
+
+      std::cout << "\n"
+                << z_str << ",  " << name << ".\n"
+                << "Z = " << z << ";  A = " << a_default << " (default)\n\n";
+      std::cout << "Electron config: " << core_str << "   (guess)\n"
+                << " = ";
+      for (const auto &term : core_vec) {
+        if (term.frac() < 1)
+          std::cout << "| ";
+        std::cout << term.symbol() << " ";
+      }
+      std::cout << "\n";
+
+      std::cout << "\nIsotpe data:";
+      if (isotopes.empty()) {
+        std::cout << " none known\n";
+      }
+      for (const auto &nuc : isotopes) {
+        std::cout << "\n";
+        printData(nuc);
+      }
+    }
+
+    std::cout << "\nEnter atom (and optional isotope):\n";
+    std::string s1;
+    std::getline(std::cin, s1);
+    std::stringstream ss(s1);
+    ss >> z_str >> a_str;
+    std::cout << "----------------------------------------------\n";
   }
 }
