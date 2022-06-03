@@ -96,10 +96,10 @@ docs:
 	( cd ./doc/tex && make clean)
 # Make the doxygen code documentation
 doxy:
-	make docs
 	doxygen ./src/Doxyfile
 	( cd ./doc/latex && make )
 	cp ./doc/latex/refman.pdf ./doc/documentation.pdf
+	make docs
 	cp ./doc/ampsci.pdf ./docs/ampsci.pdf 2>/dev/null || :
 	( cd ./doc/latex && make clean)
 do_the_chicken_dance:

@@ -57,10 +57,6 @@
   * More efficient (calc + store integrals, as for Yk?)
   * Breit matrix - for inclusion into Green's function (needs G?)
 
-## ampsci (ampsci.cpp)
-  * Clean/tidy: separate input blocks
-  * Delegate input options?
-
 ## Angular
   * Ck table a mess - merge with 6J?
 

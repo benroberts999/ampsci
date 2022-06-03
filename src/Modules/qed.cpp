@@ -266,7 +266,7 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
           (4.0 / 3) * a2 * z3 * gImmPoI / PhysConst::muB_CGS;
       const auto factor_eF = (PhysConst::alpha / M_PI) * factor_xRad; //?????
 
-      std::cout << wf.atom() << " " << wf.nuclearParams() << "\n";
+      std::cout << wf.atom() << " " << wf.nucleus() << "\n";
       // "muN * PhysConst::muN_CGS_MHz / IN"
       // "(4/3)Z^3a^2 (g/mp)"
       std::cout << "factor_xRad = A_Fermi = (4/3)Z^3a^2 (g/mp) = "
@@ -428,7 +428,7 @@ std::vector<std::string> calc_vertexQED(const IO::InputBlock &input,
   const auto factor_xRad = (4.0 / 3) * a2 * z3 * gImmPoI / PhysConst::muB_CGS;
   const auto factor_eF = (PhysConst::alpha / M_PI) * factor_xRad; //?????
 
-  std::cout << wf.atom() << " " << wf.nuclearParams() << "\n";
+  std::cout << wf.atom() << " " << wf.nucleus() << "\n";
   // "muN * PhysConst::muN_CGS_MHz / IN"
   // "(4/3)Z^3a^2 (g/mp)"
   std::cout << "factor_xRad = A_Fermi = (4/3)Z^3a^2 (g/mp) = " << factor_xRad

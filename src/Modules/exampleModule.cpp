@@ -41,8 +41,8 @@ void exampleModule(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "\n";
   IO::print_line();
   std::cout << "Calculating finite-nuclear size corrections for \n"
-            << wf.atom() << ", " << wf.nuclearParams() << "\nvs.\n"
-            << wfpt.atom() << ", " << wfpt.nuclearParams() << "\n\n";
+            << wf.atom() << ", " << wf.nucleus() << "\nvs.\n"
+            << wfpt.atom() << ", " << wfpt.nucleus() << "\n\n";
 
   // Note: Assume only Hartree-Fock approximation, no Breit, QED, Sigma etc.
 

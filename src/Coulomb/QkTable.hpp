@@ -50,7 +50,7 @@ public:
   virtual ~CoulombTable() = default;
 
   //! Gives arrow access to all underlying vector<unordered_map> functions
-  auto operator-> () { return &m_data; }
+  auto operator->() { return &m_data; }
 
   //! For testing: prints details of coulomb integrals stored
   void summary() const;

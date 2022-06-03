@@ -424,37 +424,6 @@ std::tuple<double, double> Wavefunction::lminmax_core_range(int l,
 }
 
 //==============================================================================
-std::string Wavefunction::nuclearParams() const {
-  std::ostringstream output;
-
-  auto rrms = m_nucleus.r_rms();
-  auto t = m_nucleus.t();
-
-  switch (m_nucleus.type()) {
-  case Nuclear::ChargeDistro::point:
-    output << "Point-like nucleus; ";
-    break;
-  case Nuclear::ChargeDistro::spherical:
-    output << "Spherical nucleus; "
-           << " r_rms = " << rrms
-           << ", r_charge = " << Nuclear::c_hdr_formula_rrms_t(rrms, 0);
-    break;
-  case Nuclear::ChargeDistro::Gaussian:
-    output << "Gaussian nucleus; "
-           << " r_rms = " << rrms
-           << ", r_charge = " << Nuclear::c_hdr_formula_rrms_t(rrms, 0);
-    break;
-  case Nuclear::ChargeDistro::Fermi:
-    output << "Fermi nucleus; "
-           << " r_rms = " << rrms
-           << ", c_hdr = " << Nuclear::c_hdr_formula_rrms_t(rrms, t)
-           << ", t = " << t;
-    break;
-  }
-  return output.str();
-}
-
-//==============================================================================
 std::vector<std::size_t>
 Wavefunction::sortedEnergyList(const std::vector<DiracSpinor> &tmp_orbs,
                                bool do_sort)

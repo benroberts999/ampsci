@@ -82,8 +82,6 @@ public:
   int Znuc() const { return m_nucleus.z(); }
   int Anuc() const { return m_nucleus.a(); }
   double get_rrms() const { return m_nucleus.r_rms(); }
-  //! Outputs screen-friendly nuclear parameters
-  std::string nuclearParams() const;
 
   //! Core orbitals (frozen HF core)
   const std::vector<DiracSpinor> &core() const {

@@ -19,8 +19,8 @@ void fieldShift(const IO::InputBlock &, const Wavefunction &wfA) {
   std::cout << "\n";
   IO::print_line();
   std::cout << "Calculating field shift corrections for \n"
-            << wfA.atom() << ", " << wfA.nuclearParams() << "\nvs.\n"
-            << wfB.atom() << ", " << wfB.nuclearParams() << "\n\n";
+            << wfA.atom() << ", " << wfA.nucleus() << "\nvs.\n"
+            << wfB.atom() << ", " << wfB.nucleus() << "\n\n";
 
   wfB.copySigma(wfA.Sigma());
   wfB.solve_core("HartreeFock", 0.0, wfA.coreConfiguration());

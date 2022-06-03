@@ -1,13 +1,14 @@
-#include "Physics/NuclearPotentials.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "NuclearData.hpp" //for Isotope
 #include "Physics/AtomData.hpp"
 #include "Physics/NuclearData.hpp"
+#include "Physics/NuclearPotentials.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "qip/String.hpp"
 #include <cmath>
 #include <gsl/gsl_sf_fermi_dirac.h>
+#include <iostream>
 #include <string>
 #include <vector>
 
@@ -51,10 +52,10 @@ Nucleus::Nucleus(int tz, int ta, const std::string &str_type, double trrms,
   if (m_type != ChargeDistro::Fermi)
     m_t = 0.0;
 
-  if (trrms > 0.0)
+  if (trrms >= 0.0)
     r_rms() = trrms;
 
-  if (r_rms() <= 0.0) {
+  if (r_rms() < 0.0) {
     const auto approx_rrms = approximate_r_rms(a());
     r_rms() = approx_rrms;
     std::cout << "\n\nWARNING: isotope Z=" << z() << ", A=" << a()
@@ -62,7 +63,7 @@ Nucleus::Nucleus(int tz, int ta, const std::string &str_type, double trrms,
               << approx_rrms << "\n\n";
   }
 
-  if (t() <= 0.0) {
+  if (t() < 0.0) {
     t() = default_t;
   }
 }
@@ -70,6 +71,35 @@ Nucleus::Nucleus(int tz, int ta, const std::string &str_type, double trrms,
 Nucleus::Nucleus(const std::string &z_str, int in_a,
                  const std::string &str_type, double in_rrms, double in_t)
     : Nucleus(AtomData::atomic_Z(z_str), in_a, str_type, in_rrms, in_t) {}
+
+//==============================================================================
+std::ostream &operator<<(std::ostream &ostr, const Nucleus &n) {
+  const auto rrms = n.r_rms();
+  const auto tt = n.t();
+
+  switch (n.type()) {
+  case Nuclear::ChargeDistro::point:
+    ostr << "Point-like nucleus; ";
+    break;
+  case Nuclear::ChargeDistro::spherical:
+    ostr << "Spherical nucleus; "
+         << " r_rms = " << rrms
+         << ", r_charge = " << Nuclear::c_hdr_formula_rrms_t(rrms, 0);
+    break;
+  case Nuclear::ChargeDistro::Gaussian:
+    ostr << "Gaussian nucleus; "
+         << " r_rms = " << rrms
+         << ", r_charge = " << Nuclear::c_hdr_formula_rrms_t(rrms, 0);
+    break;
+  case Nuclear::ChargeDistro::Fermi:
+    ostr << "Fermi nucleus; "
+         << " r_rms = " << rrms
+         << ", c_hdr = " << Nuclear::c_hdr_formula_rrms_t(rrms, tt)
+         << ", t = " << tt;
+    break;
+  }
+  return ostr;
+}
 
 //==============================================================================
 std::vector<double> sphericalNuclearPotential(double Z, double rnuc,
@@ -199,9 +229,10 @@ std::vector<double> fermiNuclearDensity_tcN(double t, double c, double Z_norm,
 std::vector<double> formPotential(const Nucleus &nuc,
                                   const std::vector<double> &r) {
   const auto z = nuc.z();
-  const auto nucleus_type = nuc.type();
   const auto r_rms = nuc.r_rms();
   const auto t = nuc.t();
+  const auto nucleus_type =
+      r_rms > 0.0 ? nuc.type() : Nuclear::ChargeDistro::point;
 
   switch (nucleus_type) {
 

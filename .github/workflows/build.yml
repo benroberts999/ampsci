@@ -14,7 +14,7 @@ jobs:
     - uses: actions/checkout@v1
 
     - name: "Install dependencies"
-      run: sudo apt install -y make g++-7 g++-11 clang-6.0 clang-10 clang-11 liblapack-dev libblas-dev libgsl-dev libomp5 libomp-dev
+      run: sudo apt install -y make g++-7 g++-11 clang-6.0 clang-10 clang-11 liblapack-dev libblas-dev libgsl-dev
 
     - name: setup
       run: cp ./doc/Makefile.example ./Makefile && cp ./doc/examples/ampsci.in ./ampsci.in
@@ -30,9 +30,6 @@ jobs:
 
     - name: Build ampsci (clang++ v:6, - oldest supported clang)
       run: make clean && make CXX=clang++-6.0 UseOpenMP=no
-
-    - name: Build ampsci (clang++ v:10 with openMP)
-      run: make clean && make CXX=clang++-10 UseOpenMP=yes
 
     - name: Build ampsci (clang++ v:11)
       run: make clean && make CXX=clang++-11 UseOpenMP=no

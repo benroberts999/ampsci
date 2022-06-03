@@ -41,6 +41,8 @@ public:
   double t() const { return m_t; };
 
   double c() const { return c_hdr_formula_rrms_t(m_iso.r_rms, m_t); }
+
+  friend std::ostream &operator<<(std::ostream &ostr, const Nucleus &n);
 };
 
 //------------------------------------------------------------------------------

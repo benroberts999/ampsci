@@ -1,8 +1,8 @@
 # ampsci
 _*Atomic Many-body Perturbation theory in the Screened Coulomb Interaction*_
 
-Solves the Dirac equation for single-valence atomic systems using the Hartree-Fock + correlation potential method (Dzuba-Flambaum-Sushkov method).
-Fully relativistic, includes electron correlations (all-orders screening and hole-particle interaction), finite-nuclear size, Breit interaction, radiative QED effects, and RPA for matrix elements (with structure radiation/renormalisation).
+Solves the Dirac equation for single-valence atomic systems using the Hartree-Fock + correlation potential method (based on Dzuba-Flambaum-Sushkov method).
+Fully relativistic, includes electron correlations (all-orders screening and hole-particle interaction, finite-nuclear size, Breit interaction, radiative QED effects, and RPA for matrix elements (with structure radiation/renormalisation).
 QED is included via the Ginges-Flambaum radiative potential method.
 Can solve for continuum states with high energy.
 Calculates ionisation cross sections with high values for energy/momentum transfer. Parallelised using openMP.
@@ -66,7 +66,7 @@ Requires GSL (GNU scientific libraries) https://www.gnu.org/software/gsl/, and L
  * Requires GSL ver 2.0+ (tested with 2.1, 2.6)
 
  * Quick start (ubuntu). Full dependencies list, run:
-   * _$sudo apt install g++ clang++ make liblapack-dev libblas-dev libgsl-dev libomp5 libomp-dev_
+   * _$sudo apt install g++ make liblapack-dev libblas-dev libgsl-dev libomp-dev_
 
 
 ### Compilation: Linux:
@@ -132,12 +132,38 @@ In theory, should work with MSVC - but no CMAKE file provided (yet)
 
 ## ampsci (main program)
 
+Run the program with input options from the command line, e.g.:
+
+ * $ ./ampsci filename
+   - Runs ampsci with input option specified in file "filename"
+   - This is the main way to run program
+
+ * $ ./ampsci <At> <Core> <Valence>
+   - For quick use: simple HF calculation. e.g.,
+ * $ ./ampsci Cs
+    - Runs ampsci for Cs using Hartree Fock (V^N) approximation
+ * $ ./ampsci Cs [Xe] 6sd5d
+    - Runs ampsci for Cs using Hartree Fock with Xe-like core and valence
+      states up to n=6 for s,p-states and n=5 for d-states
+ * $ ./ampsci Cs
+    - Runs ampsci for Cs using Hartree Fock (V^N) approximation
+
+ * $ ./ampsci -v
+    - Prints version info (same as --version)
+
+ * $ ./ampsci -h
+    - Print help info, including input options (same as --help)
+
+Output is printed to screen. It's recommended to forward this to a text file.
+The input options and the ampsci version details are also printed, so that the
+program output contains all required info to exactly reproduce it.
+e.g.,
+ * ./ampsci input |tee -a outout
+   - Runs ampsci using input options in file "input".
+   - Output will both be written to screen, and appended to file "output".
+
  * Input taken from a plain text file (or via command line).
  * Several example input files are given in: _doc/examples/_, along with their expected output; use these to test if everything is working.
- * You may re-name the input files (e.g., to "filename.txt"), then run as:
-    * _$ ./ampsci filename.txt_
-    * If no input filename is given, program will assume input filename is 'ampsci.in':
- * Note: input file uses c++-like format, including c++-style comments
  * See _doc/ampsci_input.md_ for a full list of input options + descriptions
  * See _ampsci.pdf_ for a description of the physics, and for references to the works where the methods implemented here were developed.
    * Available on GitHub: [benroberts999.github.io/ampsci/ampsci.pdf](https://benroberts999.github.io/ampsci/ampsci.pdf)

@@ -233,8 +233,8 @@ void HF_rmag(const IO::InputBlock &input, const Wavefunction &wf) {
   wf2.solve_core("HartreeFock", 0.0, wf.coreConfiguration_nice());
   wf2.solve_valence(DiracSpinor::state_config(wf.valence()));
   wf2.basis() = wf.basis(); // OK??
-  std::cout << "A1 = " << wf.nuclearParams() << "\n";
-  std::cout << "A2 = " << wf2.nuclearParams() << "\n";
+  std::cout << "A1 = " << wf.nucleus() << "\n";
+  std::cout << "A2 = " << wf2.nucleus() << "\n";
 
   const auto iso_1 = Nuclear::findIsotopeData(wf.Znuc(), wf.Anuc());
   const auto iso_2 = Nuclear::findIsotopeData(wf2.Znuc(), wf2.Anuc());
