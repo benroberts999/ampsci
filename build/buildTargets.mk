@@ -3,11 +3,11 @@
 ################################################################################
 #Allow exectuables to be placed in another directory:
 ALLEXES = $(addprefix $(XD)/, \
- ampsci unitTests wigner dmeXSection periodicTable \
+ ampsci unitTests wigner dmeXSection periodicTable tests \
 )
 
 DEFAULTEXES = $(addprefix $(XD)/, \
- ampsci periodicTable unitTests \
+ ampsci periodicTable unitTests tests \
 )
 
 #Default make rule:

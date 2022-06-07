@@ -35,7 +35,7 @@ $ ./ampsci <At> <Core> <Valence>
 $ ./ampsci -v
   - Prints version info (same as --version)
 $ ./ampsci -h
-  - Print help info, including input options (same as --help)
+  - Print help info, including input options (same as --help, -?)
 
 Output is printed to screen. It's recommended to forward this to a text file.
 The input options and the ampsci version details are also printed, so that the
@@ -129,7 +129,8 @@ int main(int argc, char *argv[]) {
   } else if (input_text == "-v" || input_text == "--version") {
     GitInfo::print_git_info();
     return 0;
-  } else if (input_text == "-h" || input_text == "--help") {
+  } else if (input_text == "-h" || input_text == "--help" ||
+             input_text == "-?") {
     std::cout << ampsci_help << '\n';
     std::cout << ampsci_input_format << '\n';
     return 0;

@@ -1,9 +1,9 @@
+#include "Physics/NuclearPotentials.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "NuclearData.hpp" //for Isotope
 #include "Physics/AtomData.hpp"
 #include "Physics/NuclearData.hpp"
-#include "Physics/NuclearPotentials.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "qip/String.hpp"
 #include <cmath>
