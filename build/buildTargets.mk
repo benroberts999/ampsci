@@ -33,12 +33,22 @@ $(BD)/%.o: $(SD)/%.cpp
 ################################################################################
 # List all objects in sub-directories (i.e., that don't conatin a main())
 # e.g., for each src/sub_dir/file.cpp -> build/sub_dir/file.o
-OBJS = $(subst $(SD),$(BD),$(subst .cpp,.o,$(wildcard $(SD)/*/*.cpp)))
+
+# Each test file (except main()):
+TEST_SRC_FILES := $(wildcard $(SD)/*/*.tests.cpp)
+TEST_OBJS := $(subst $(SD),$(BD),$(subst .cpp,.o,$(TEST_SRC_FILES)))
+
+#Each non-test source file (except main())
+SRC_FILES := $(filter-out $(TEST_SRC_FILES), $(wildcard $(SD)/*/*.cpp))
+OBJS := $(subst $(SD),$(BD),$(subst .cpp,.o,$(SRC_FILES)))
 
 ################################################################################
 # Link + build all final programs
 
 $(XD)/ampsci: $(BD)/ampsci.o $(OBJS)
+	$(LINK)
+
+$(XD)/tests: $(BD)/tests.o $(OBJS) $(TEST_OBJS)
 	$(LINK)
 
 $(XD)/unitTests: $(BD)/unitTests.o $(OBJS)
