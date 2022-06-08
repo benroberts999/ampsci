@@ -6,7 +6,7 @@
 #include <numeric>
 
 //==============================================================================
-TEST_CASE("LinAlg: Element access, memory layout", "[LinAlg][LinAlg2]") {
+TEST_CASE("LinAlg: Element access, memory layout", "[LinAlg]") {
 
   LinAlg::Matrix<double> a{{1.0, 2.0, 3.0}, {4.0, 5.0, 6.0}};
   LinAlg::Matrix<double> a2(2, 3);
