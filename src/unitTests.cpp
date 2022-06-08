@@ -12,7 +12,6 @@
 #include "HF/HartreeFock_test.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/InputBlock.hpp" // for time+date
-#include "LinAlg/LinAlg_test.hpp"
 #include "MBPT/CorrelationPotential_test.hpp"
 #include "MBPT/RDMatrix_test.hpp"
 #include "MBPT/StructureRad_test.hpp"
@@ -80,21 +79,15 @@ static const std::vector<std::pair<std::string, bool (*)(std::ostream &obuff)>>
         {"QkTable", &QkTable},
         {"StructureRad", &StructureRad},
         {"BSplineClass", &BSplineClass},
-        {"LinAlg", &LinAlg},
         {"AtomData", &AtomDataTests}
         //
     };
 
 static const std::vector<std::pair<std::string, bool (*)(std::ostream &obuff)>>
-    quick_list{{"DiracODE", &DiracODE},
-               {"HartreeFock", &HartreeFock},
-               {"MixedStates", &MixedStates},
-               {"Angular", &Angular},
-               {"SixJTable", &SixJTable},
-               {"LinAlg", &LinAlg},
-               {"BSplineBasis", &BSplineBasis},
-               {"Coulomb", &Coulomb},
-               {"MBPT2", &MBPT2}};
+    quick_list{{"DiracODE", &DiracODE},       {"HartreeFock", &HartreeFock},
+               {"MixedStates", &MixedStates}, {"Angular", &Angular},
+               {"SixJTable", &SixJTable},     {"BSplineBasis", &BSplineBasis},
+               {"Coulomb", &Coulomb},         {"MBPT2", &MBPT2}};
 
 //------------------------------------------------------------------------------
 // Looks up test + returns its function. If test not in list, prints list to
