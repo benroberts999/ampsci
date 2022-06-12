@@ -17,6 +17,6 @@ jobs:
     - name: setup
       run: cp ./doc/Makefile.example ./Makefile
     - name: Build ampsci (g++, dev mode, with Werror)
-      run: make CXX='g++-11 -Werror' Build=dev unitTests
-    - name: Run (quick) unit tests
-      run: ./unitTests quick
+      run: make CXX='g++-11 -Werror' Build=dev tests
+    - name: Run (quick) unit+regression tests
+      run: ./tests ~[Slow]

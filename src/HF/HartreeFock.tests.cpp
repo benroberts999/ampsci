@@ -1,18 +1,16 @@
-#pragma once
 #include "DiracOperator/DiracOperator.hpp"
 #include "HF/HartreeFock_test_data.hpp"
 #include "Wavefunction/Wavefunction.hpp"
-#include "qip/Check.hpp"
+#include "catch2/catch.hpp"
 #include "qip/Maths.hpp"
 #include "qip/Vector.hpp"
 #include <string>
 #include <tuple>
 
-namespace UnitTest {
-
 //! Unit tests for Hartree Fock equations
-bool HartreeFock(std::ostream &obuff) {
-  bool pass = true;
+TEST_CASE("HartreeFock", "[HF][HartreeFock]") {
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "HartreeFock, [HF][HartreeFock]\n";
 
   //============================================================================
 
@@ -47,7 +45,7 @@ bool HartreeFock(std::ostream &obuff) {
 
     // Loop through each test case, run HF, compare to test data
     for (auto &[Atom, Core, Valence, EnergyData, E1Data, HFSData] :
-         HF_test_data::regression_test_data) {
+         UnitTest::HF_test_data::regression_test_data) {
 
       Wavefunction wf({points, r0, rmax, b, grid_type},
                       {Atom, A, nucleus_type});
@@ -116,14 +114,11 @@ bool HartreeFock(std::ostream &obuff) {
     std::cout << "E1 : " << wE1_case << " " << wE1_eps << "\n";
     std::cout << "HFSsp: " << wHFSsp_case << " " << wHFSsp_eps << "\n";
     std::cout << "HFSdf: " << wHFSdf_case << " " << wHFSdf_eps << "\n";
-    pass &= qip::check_value(&obuff, "HF regression, En: " + worst_case,
-                             worst_eps, 0.0, 3.0e-6);
-    pass &= qip::check_value(&obuff, "HF regression, E1: " + wE1_case, wE1_eps,
-                             0.0, 1.0e-5);
-    pass &= qip::check_value(&obuff, "HF regression, HFS(sp): " + wHFSsp_case,
-                             wHFSsp_eps, 0.0, 1.0e-5);
-    pass &= qip::check_value(&obuff, "HF regression, HFS(df): " + wHFSdf_case,
-                             wHFSdf_eps, 0.0, 1.0e-4);
+
+    REQUIRE(std::abs(worst_eps) < 3.0e-6);
+    REQUIRE(std::abs(wE1_eps) < 1.0e-5);
+    REQUIRE(std::abs(wHFSsp_eps) < 1.0e-5);
+    REQUIRE(std::abs(wHFSdf_eps) < 1.0e-4);
   }
 
   // Accuracy test: test HF energies against Dzuba code
@@ -133,7 +128,8 @@ bool HartreeFock(std::ostream &obuff) {
     std::string worst_case{""};
 
     // Loop through each test case, run HF, compare to test data
-    for (auto &[Atom, Core, Valence, Data] : HF_test_data::compare_VD) {
+    for (auto &[Atom, Core, Valence, Data] :
+         UnitTest::HF_test_data::compare_VD) {
 
       Wavefunction wf({points, r0, rmax, b, grid_type},
                       {Atom, A, nucleus_type});
@@ -155,8 +151,7 @@ bool HartreeFock(std::ostream &obuff) {
     }
     std::cout << worst_case << " " << worst_eps << "\n";
 
-    pass &= qip::check_value(&obuff, "HF cf Dzuba: " + worst_case, worst_eps,
-                             0.0, 1.0e-5);
+    REQUIRE(std::abs(worst_eps) < 1.0e-5);
   }
 
   //----------------------------------------------------------------------------
@@ -205,8 +200,9 @@ bool HartreeFock(std::ostream &obuff) {
       }
     }
 
-    pass &= qip::check_value(&obuff, "CH regression, En: " + worst_case,
-                             worst_eps, 0.0, 3.0e-5);
+    // pass &= qip::check_value(&obuff, "CH regression, En: " + worst_case,
+    //                          worst_eps, 0.0, 3.0e-5);
+    REQUIRE(std::abs(worst_eps) < 3.0e-5);
   }
   //--------------------------------------------------------------------------
   {
@@ -255,8 +251,9 @@ bool HartreeFock(std::ostream &obuff) {
       }
     }
 
-    pass &= qip::check_value(&obuff, "KS regression, En: " + worst_case,
-                             worst_eps, 0.0, 1.0e-5);
+    // pass &= qip::check_value(&obuff, "KS regression, En: " + worst_case,
+    //                          worst_eps, 0.0, 1.0e-5);
+    REQUIRE(std::abs(worst_eps) < 1.0e-5);
   }
   //--------------------------------------------------------------------------
   {
@@ -301,8 +298,9 @@ bool HartreeFock(std::ostream &obuff) {
       }
     }
 
-    pass &= qip::check_value(&obuff, "aHF regression, En: " + worst_case,
-                             worst_eps, 0.0, 1.0e-5);
+    // pass &= qip::check_value(&obuff, "aHF regression, En: " + worst_case,
+    //                          worst_eps, 0.0, 1.0e-5);
+    REQUIRE(std::abs(worst_eps) < 1.0e-5);
   }
 
   //----------------------------------------------------------------------------
@@ -347,8 +345,9 @@ bool HartreeFock(std::ostream &obuff) {
     }
     const auto [es, ats] = qip::compare_eps(sme, s);
     const auto [ep, atp] = qip::compare_eps(pme, p);
-    pass &= qip::check_value(&obuff, "HF hfs Rb", qip::min_abs(es, ep), 0.0,
-                             3.0e-4);
+    // pass &= qip::check_value(&obuff, "HF hfs Rb", qip::min_abs(es, ep), 0.0,
+    //                          3.0e-4);
+    REQUIRE(qip::min_abs(es, ep) < 3.0e-4);
   }
 
   //----------------------------------------------------------------------------
@@ -382,8 +381,9 @@ bool HartreeFock(std::ostream &obuff) {
     }
     const auto [es, ats] = qip::compare_eps(sme, s);
     const auto [ep, atp] = qip::compare_eps(pme, p);
-    pass &= qip::check_value(&obuff, "HF hfs Cs", qip::min_abs(es, ep), 0.0,
-                             3.0e-4);
+    // pass &= qip::check_value(&obuff, "HF hfs Cs", qip::min_abs(es, ep), 0.0,
+    //                          3.0e-4);
+    REQUIRE(qip::min_abs(es, ep) < 3.0e-4);
   }
 
   { // Test case: Hyperfine constants (HF; no RPA) for Fr
@@ -417,11 +417,8 @@ bool HartreeFock(std::ostream &obuff) {
     }
     const auto [es, ats] = qip::compare_eps(sme, s);
     const auto [ep, atp] = qip::compare_eps(pme, p);
-    pass &= qip::check_value(&obuff, "HF hfs Fr", qip::min_abs(es, ep), 0.0,
-                             3.0e-4);
+    // pass &= qip::check_value(&obuff, "HF hfs Fr", qip::min_abs(es, ep), 0.0,
+    //                          3.0e-4);
+    REQUIRE(qip::min_abs(es, ep) < 3.0e-4);
   }
-
-  return pass;
-} // namespace UnitTest
-
-} // namespace UnitTest
+}

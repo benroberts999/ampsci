@@ -1,16 +1,16 @@
-#pragma once
-#include "DiracOperator/DiracOperator.hpp"
 #include "Physics/FGRadPot.hpp"
+#include "DiracOperator/DiracOperator.hpp"
 #include "Wavefunction/Wavefunction.hpp"
-#include "qip/Check.hpp"
+#include "catch2/catch.hpp"
 #include "qip/Vector.hpp"
 #include <algorithm>
 #include <string>
 #include <utility>
 #include <vector>
 
-bool FGRadPot(std::ostream &obuff) {
-  bool pass = true;
+TEST_CASE("Radiative Potential (functions)", "[RadPot][QED]") {
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "Radiative Potential (functions), [RadPot][QED]\n";
 
   {
     // Compare Uehling integral (J function) to Mathematica
@@ -24,8 +24,9 @@ bool FGRadPot(std::ostream &obuff) {
       res.push_back(FGRP::t_integral(FGRP::Uehling::J_Ueh_gsl, {r, rN}));
     }
     const auto [worst, at] = qip::compare_eps(res, expected);
-    pass &=
-        qip::check_value(&obuff, "FGRP::Ueh (cf Mathem)", worst, 0.0, 1.0e-6);
+    // pass &=
+    // qip::check_value(&obuff, "FGRP::Ueh (cf Mathem)", worst, 0.0, 1.0e-6);
+    REQUIRE(std::abs(worst) < 1.0e-6);
   }
 
   {
@@ -41,8 +42,10 @@ bool FGRadPot(std::ostream &obuff) {
       res.push_back(FGRP::t_integral(FGRP::Magnetic::J_mag_gsl, {r, rN}));
     }
     const auto [worst, at] = qip::compare(res, expected);
-    pass &=
-        qip::check_value(&obuff, "FGRP::Mag (cf Mathem)", worst, 0.0, 1.0e-7);
+    // pass &=
+    //     qip::check_value(&obuff, "FGRP::Mag (cf Mathem)", worst,
+    //     0.0, 1.0e-7);
+    REQUIRE(std::abs(worst) < 1.0e-7);
   }
 
   {
@@ -59,8 +62,10 @@ bool FGRadPot(std::ostream &obuff) {
       res.push_back(FGRP::SE::F_SEl(z, r, rN));
     }
     const auto [worst, at] = qip::compare_eps(res, expected);
-    pass &=
-        qip::check_value(&obuff, "FGRP::SEl (cf Mathem)", worst, 0.0, 1.0e-11);
+    // pass &=
+    //     qip::check_value(&obuff, "FGRP::SEl (cf Mathem)", worst,
+    //     0.0, 1.0e-11);
+    REQUIRE(std::abs(worst) < 1.0e-11);
   }
 
   {
@@ -79,8 +84,10 @@ bool FGRadPot(std::ostream &obuff) {
       res.push_back(x);
     }
     const auto [worst, at] = qip::compare_eps(res, expected);
-    pass &=
-        qip::check_value(&obuff, "FGRP::SEh (cf Mathem)", worst, 0.0, 1.0e-3);
+    // pass &=
+    //     qip::check_value(&obuff, "FGRP::SEh (cf Mathem)", worst,
+    //     0.0, 1.0e-3);
+    REQUIRE(std::abs(worst) < 1.0e-3);
   }
 
   {
@@ -98,10 +105,9 @@ bool FGRadPot(std::ostream &obuff) {
 
     const auto worst = std::max(std::abs(a1 - expected) / expected,
                                 std::abs(a2 - expected2) / expected2);
-
-    pass &=
-        qip::check_value(&obuff, "FGRP::Int (cf Mathem)", worst, 0.0, 1.0e-6);
+    // pass &=
+    //     qip::check_value(&obuff, "FGRP::Int (cf Mathem)", worst,
+    //     0.0, 1.0e-6);
+    REQUIRE(std::abs(worst) < 1.0e-6);
   }
-
-  return pass;
 }

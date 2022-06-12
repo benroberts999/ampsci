@@ -33,7 +33,8 @@ endif
 
 #g++-7 gives some faulty warnings with c++17 (structured bindings, constexpr)
 ifneq ($(filter $(CXX),g++-7),)
-  WARN=-Wall -Wpedantic -Wextra -Wdouble-promotion -Wconversion -Weffc++ -Wsign-conversion -Wno-unused-variable -Wno-shadow
+  WARN=-Wall -Wpedantic -Wextra -Wdouble-promotion -Wconversion -Weffc++ \
+  -Wsign-conversion -Wno-unused-variable -Wno-shadow
 endif
 
 

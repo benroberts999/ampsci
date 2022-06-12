@@ -1,21 +1,20 @@
-#pragma once
-#include "DiracOperator/DiracOperator.hpp"
 #include "ExternalField/DiagramRPA.hpp"
+#include "DiracOperator/DiracOperator.hpp"
 #include "ExternalField/TDHF.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
-#include "qip/Check.hpp"
+#include "catch2/catch.hpp"
 #include "qip/Maths.hpp"
 #include "qip/Vector.hpp"
 #include <algorithm>
 #include <string>
 
-namespace UnitTest {
-
 //==============================================================================
 //! Unit tests for correlations (second-order MBPT correlation energy/potential)
-bool DiagramRPA(std::ostream &obuff) {
-  bool pass = true;
+TEST_CASE("External Field: Diagram RPA", "[ExternalField][DiagramRPA][RPA]") {
+  std::cout << "\n----------------------------------------\n";
+  std::cout
+      << "External Field: Diagram RPA, [ExternalField][DiagramRPA][RPA]\n";
 
   Wavefunction wf({3500, 1.0e-6, 150.0, 0.33 * 150.0, "loglinear", -1.0},
                   {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
@@ -62,8 +61,8 @@ bool DiagramRPA(std::ostream &obuff) {
       }
 
       auto [eps, at] = qip::compare(e1me, e1VD, compr);
-      pass &= qip::check_value(&obuff, "RPA(D) E1 w=0.00 " + at->first, eps,
-                               0.0, 0.0004);
+      INFO("RPA(D) E1 w=0.00 " << at->first << " " << eps);
+      REQUIRE(std::abs(eps) < 0.0004);
     }
 
     { // E1, w=0.05
@@ -96,8 +95,8 @@ bool DiagramRPA(std::ostream &obuff) {
       }
 
       auto [eps, at] = qip::compare(e1me, e1VD, compr);
-      pass &= qip::check_value(&obuff, "RPA(D) E1 w=0.05 " + at->first, eps,
-                               0.0, 0.0005);
+      INFO("RPA(D) E1 w=0.05 " << at->first << " " << eps);
+      REQUIRE(std::abs(eps) < 0.0005);
     }
   }
 
@@ -128,11 +127,8 @@ bool DiagramRPA(std::ostream &obuff) {
     }
 
     auto [eps, at] = qip::compare(e1me, e1VD, compr);
+    INFO("RPA(D) HFS(A) " << at->first << " " << eps);
     // used to be 0.0007 .. changed after "Breit/Basis" fiasco
-    pass &=
-        qip::check_value(&obuff, "RPA(D) HFS(A) " + at->first, eps, 0.0, 0.009);
+    REQUIRE(std::abs(eps) < 0.009);
   }
-
-  return pass;
 }
-} // namespace UnitTest

@@ -1,15 +1,12 @@
-#pragma once
-#include "DiracOperator/DiracOperator.hpp"
+
 #include "MixedStates.hpp"
+#include "DiracOperator/DiracOperator.hpp"
+#include "ExternalField/TDHF.hpp"
 #include "Wavefunction/Wavefunction.hpp"
-#include "qip/Check.hpp"
+#include "catch2/catch.hpp"
 #include "qip/String.hpp"
 #include <iomanip>
 #include <string>
-//
-#include "ExternalField/TDHF.hpp"
-
-namespace UnitTest {
 
 //==============================================================================
 namespace helper {
@@ -34,8 +31,11 @@ inline std::pair<Case, Case> MS_loops(const Wavefunction &wf,
 //==============================================================================
 //==============================================================================
 //! Unit tests Mixed States (TDHF method, solving non-local DE)
-bool MixedStates(std::ostream &obuff) {
-  bool passQ = true;
+TEST_CASE("External Field: Mixed-states",
+          "[ExternalField][MixedStates][TDHF]") {
+  std::cout << "\n----------------------------------------\n";
+  std::cout
+      << "External Field: Mixed-states, [ExternalField][MixedStates][TDHF]\n";
 
   // Create wavefunction object
   Wavefunction wf({6000, 1.0e-6, 150.0, 0.33 * 150.0, "loglinear", -1.0},
@@ -67,13 +67,14 @@ bool MixedStates(std::ostream &obuff) {
     const auto wbest = qip::fstring("%.2g", best.w);
     const auto wworst = qip::fstring("%.2g", worst.w);
 
-    passQ &= qip::check_value(&obuff,
-                              "MS:" + h->name() + " worst (" + worst.name +
-                                  " w=" + wworst + ")",
-                              worst.eps, 0.0, 4e-5);
-    passQ &= qip::check_value(
-        &obuff, "MS:" + h->name() + " best (" + best.name + " w=" + wbest + ")",
-        best.eps, 0.0, 6e-7);
+    std::cout << "Mixed states: " + h->name() + " worst (" + worst.name +
+                     " w=" + wworst + ") "
+              << worst.eps << "\n";
+    std::cout << "Mixed states: " + h->name() + " best (" + best.name +
+                     " w=" + wbest + ") "
+              << worst.eps << "\n";
+    REQUIRE(std::abs(worst.eps) < 4.0e-5);
+    REQUIRE(std::abs(best.eps) < 6.0e-7);
   }
 
   // Since we have trouble with TDHF and HFS, do it again more thoroughly here.
@@ -159,21 +160,21 @@ bool MixedStates(std::ostream &obuff) {
     }
     std::cout << worst_set << " " << worst_eps << "\n";
     // the "best" are all ~1.e-y
-    passQ &= qip::check_value(&obuff, "MS: hfs(B) " + best_set, best_eps, 0.0,
-                              1.0e-7);
-    passQ &= qip::check_value(&obuff, "MS: hfs(W) " + worst_set, worst_eps, 0.0,
-                              1.0e-4);
+    // passQ &= qip::check_value(&obuff, "MS: hfs(B) " + best_set, best_eps,
+    // 0.0,
+    //                           1.0e-7);
+    // passQ &= qip::check_value(&obuff, "MS: hfs(W) " + worst_set, worst_eps,
+    // 0.0,
+    //                           1.0e-4);
+    REQUIRE(std::abs(best_eps) < 1.0e-7);
+    REQUIRE(std::abs(worst_eps) < 1.0e-4);
   }
-
-  return passQ;
 }
 
-} // namespace UnitTest
-
 //==============================================================================
-inline std::pair<UnitTest::helper::Case, UnitTest::helper::Case>
-UnitTest::helper::MS_loops(const Wavefunction &wf,
-                           const DiracOperator::TensorOperator *h) {
+inline std::pair<helper::Case, helper::Case>
+helper::MS_loops(const Wavefunction &wf,
+                 const DiracOperator::TensorOperator *h) {
   // compare the best and worst! (of each operator)
   Case best{999.0};
   Case worst{0.0};

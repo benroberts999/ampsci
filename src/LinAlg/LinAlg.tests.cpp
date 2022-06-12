@@ -1,12 +1,13 @@
 #include "LinAlg.hpp"
 #include "catch2/catch.hpp"
-#include "qip/Check.hpp"
 #include <algorithm>
 #include <complex>
 #include <numeric>
 
 //==============================================================================
 TEST_CASE("LinAlg: Element access, memory layout", "[LinAlg]") {
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "LinAlg: Element access, memory layout, [LinAlg]\n";
 
   LinAlg::Matrix<double> a{{1.0, 2.0, 3.0}, {4.0, 5.0, 6.0}};
   LinAlg::Matrix<double> a2(2, 3);

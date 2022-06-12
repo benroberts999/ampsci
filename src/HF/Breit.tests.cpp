@@ -1,20 +1,18 @@
-#pragma once
 #include "DiracOperator/DiracOperator.hpp"
 #include "ExternalField/TDHF.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/Wavefunction.hpp"
-#include "qip/Check.hpp"
+#include "catch2/catch.hpp"
 #include "qip/Maths.hpp"
 #include "qip/Vector.hpp"
 #include <string>
 #include <utility>
 #include <vector>
 
-namespace UnitTest {
-
 //! Unit tests for Breit
-bool Breit(std::ostream &obuff) {
-  bool pass = true;
+TEST_CASE("Breit", "[Breit]") {
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "Breit, [Breit]\n";
 
   // Solve Hartree-Fock, including Breit
   std::cout << "\nSolving WF, with Breit:\n";
@@ -112,7 +110,8 @@ bool Breit(std::ostream &obuff) {
       }
     }
 
-    pass &= qip::check_value(&obuff, "dE(Br) " + worst, weps, 0.0, 1.0e-3);
+    // pass &= qip::check_value(&obuff, "dE(Br) " + worst, weps, 0.0, 1.0e-3);
+    REQUIRE(std::abs(weps) < 1.0e-3);
   }
 
   //============================================================================
@@ -216,10 +215,11 @@ bool Breit(std::ostream &obuff) {
         worstr = e1_me_HF[i].first;
       }
     }
-
-    pass &= qip::check_value(&obuff, "E1(Br) " + worst, weps, 0.0, 1.0e-6);
-    pass &=
-        qip::check_value(&obuff, "E1+RPA(Br) " + worstr, wepsr, 0.0, 1.0e-5);
+    REQUIRE(std::abs(weps) < 1.0e-6);
+    REQUIRE(std::abs(wepsr) < 1.0e-5);
+    // pass &= qip::check_value(&obuff, "E1(Br) " + worst, weps, 0.0, 1.0e-6);
+    // pass &=
+    //     qip::check_value(&obuff, "E1+RPA(Br) " + worstr, wepsr, 0.0, 1.0e-5);
   }
 
   //============================================================================
@@ -312,13 +312,17 @@ bool Breit(std::ostream &obuff) {
       }
     }
 
-    pass &= qip::check_value(&obuff, "EnHF(Br,Dzuba) " + worst, weps, 0.0, 0.1);
-    pass &=
-        qip::check_value(&obuff, "Sigma2(Br,Derev) " + worst2, weps2, 0.0, 0.4);
-    pass &= qip::check_value(&obuff, "Sigma2(Br,me) " + worstme, wepsme, 0.0,
-                             1.0e-2);
+    REQUIRE(std::abs(weps) < 0.1);
+    REQUIRE(std::abs(weps2) < 0.4);
+    REQUIRE(std::abs(wepsme) < 1.0e-2);
+
+    // pass &= qip::check_value(&obuff, "EnHF(Br,Dzuba) " + worst, weps, 0.0,
+    // 0.1); pass &=
+    //     qip::check_value(&obuff, "Sigma2(Br,Derev) " + worst2, weps2, 0.0,
+    //     0.4);
+    // pass &= qip::check_value(&obuff, "Sigma2(Br,me) " + worstme, wepsme, 0.0,
+    //                          1.0e-2);
   }
 
-  return pass;
+  // return pass;
 }
-} // namespace UnitTest

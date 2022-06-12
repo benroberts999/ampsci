@@ -1,19 +1,17 @@
-#pragma once
+#include "MBPT/StructureRad.hpp"
 #include "DiracOperator/DiracOperator.hpp"
 #include "ExternalField/TDHF.hpp"
-#include "MBPT/StructureRad.hpp"
 #include "Physics/AtomData.hpp"
 #include "Wavefunction/Wavefunction.hpp"
-#include "qip/Check.hpp"
+#include "catch2/catch.hpp"
 #include <algorithm>
 #include <string>
 
-namespace UnitTest {
-
 //==============================================================================
 //! Unit tests for StructureRad + Normalisation of states
-bool StructureRad(std::ostream &obuff) {
-  bool pass = true;
+TEST_CASE("MBPT: Structure Rad + Norm", "[StrucRad][MBPT][ExternalField]") {
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "MBPT: Structure Rad + Norm, [StrucRad][MBPT][ExternalField]\n";
 
   { // Test for Na: (use splines for legs)
     Wavefunction wf({1000, 1.0e-6, 100.0, 0.33 * 100.0, "loglinear"},
@@ -85,10 +83,13 @@ bool StructureRad(std::ostream &obuff) {
     }
 
     // Data only known to 2 digits (with leading 1); so best is ~10%
-    pass &= qip::check_value(&obuff, "StructRad(E1,Na) " + at_sr, worst_sr, 0.0,
-                             0.1);
-    pass &= qip::check_value(&obuff, "NormStates(E1,Na) " + at_ns, worst_ns,
-                             0.0, 0.05);
+    // pass &= qip::check_value(&obuff, "StructRad(E1,Na) " + at_sr, worst_sr,
+    // 0.0,
+    //                          0.1);
+    // pass &= qip::check_value(&obuff, "NormStates(E1,Na) " + at_ns, worst_ns,
+    //                          0.0, 0.05);
+    REQUIRE(std::abs(worst_sr) < 0.1);
+    REQUIRE(std::abs(worst_ns) < 0.05);
   }
 
   //============================================================================
@@ -164,12 +165,12 @@ bool StructureRad(std::ostream &obuff) {
 
     // Aim for better than 5% for SR, and 1% for Norm
     // Note: Quite possible ours are more accurate, despite very small basis
-    pass &= qip::check_value(&obuff, "StructRad(E1,Cs) " + at_sr, worst_sr, 0.0,
-                             0.05);
-    pass &= qip::check_value(&obuff, "NormStates(E1,Cs) " + at_ns, worst_ns,
-                             0.0, 0.01);
+    // pass &= qip::check_value(&obuff, "StructRad(E1,Cs) " + at_sr, worst_sr,
+    // 0.0,
+    //                          0.05);
+    // pass &= qip::check_value(&obuff, "NormStates(E1,Cs) " + at_ns, worst_ns,
+    //                          0.0, 0.01);
+    REQUIRE(std::abs(worst_sr) < 0.05);
+    REQUIRE(std::abs(worst_ns) < 0.01);
   }
-
-  return pass;
 }
-} // namespace UnitTest

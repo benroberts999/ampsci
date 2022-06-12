@@ -1,21 +1,18 @@
-#pragma once
-#include "DiracODE/DiracODE.hpp"
 #include "MBPT/RDMatrix.hpp"
+#include "DiracODE/DiracODE.hpp"
 #include "Maths/Grid.hpp"
 #include "Physics/NuclearPotentials.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
-#include "qip/Check.hpp"
+#include "catch2/catch.hpp"
 #include <algorithm>
 #include <cassert>
 #include <complex>
 #include <numeric>
 
-namespace UnitTest {
-
 //==============================================================================
-
-bool RDMatrix(std::ostream &obuff) {
-  bool pass = true;
+TEST_CASE("MBPT: RDMatrix", "[MBPT][RDMatrix]") {
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "MBPT: RDMatrix, [MBPT][RDMatrix]\n";
 
   // Set up radial grid:
   const auto r0{1.0e-7};
@@ -75,7 +72,8 @@ bool RDMatrix(std::ostream &obuff) {
       if (eps > worst)
         worst = eps;
     }
-    pass &= qip::check_value(&obuff, "<F|G|F> (small)", worst, 0.0, 1.0e-2);
+    // pass &= qip::check_value(&obuff, "<F|G|F> (small)", worst, 0.0, 1.0e-2);
+    REQUIRE(std::abs(worst) < 1.0e-2);
 
     // Calculate <Fs|G*G|Fs> - should be equal to denominator^2 for Fs part of M
     // <Fs|G*S|Fs> = 1.0 / (e - e_s)^2
@@ -89,7 +87,9 @@ bool RDMatrix(std::ostream &obuff) {
       if (eps > worst_2)
         worst_2 = eps;
     }
-    pass &= qip::check_value(&obuff, "<F|G*G|F> (small)", worst_2, 0.0, 1.0e-1);
+    // pass &= qip::check_value(&obuff, "<F|G*G|F> (small)", worst_2,
+    // 0.0, 1.0e-1);
+    REQUIRE(std::abs(worst_2) < 1.0e-1);
 
     // Test inverse (real, no g): two ways:
     {
@@ -115,9 +115,11 @@ bool RDMatrix(std::ostream &obuff) {
       const auto del1 = max_delta(a, b1);
       const auto del2 = max_delta(a, b2);
 
-      pass &= qip::check_value(&obuff, "G^-1 (small)", del2, 0.0, 1.0e-8);
-      pass &= qip::check(&obuff, "G^-1 Neumann converge",
-                         (del2 < del1 && del1 < del0));
+      // pass &= qip::check_value(&obuff, "G^-1 (small)", del2, 0.0, 1.0e-8);
+      // pass &= qip::check(&obuff, "G^-1 Neumann converge",
+      //                    (del2 < del1 && del1 < del0));
+      REQUIRE(std::abs(del2) < 1.0e-8);
+      REQUIRE((del2 < del1 && del1 < del0));
 
       // Now, use 'raw_mat_mul' (doesn't contain integration measure) to
       // directly test inverse. Note that we don't use 'raw_mat_mul' in any
@@ -127,8 +129,10 @@ bool RDMatrix(std::ostream &obuff) {
       const auto prod = (m + 1.0).inverse() * (m + 1.0);
       const auto ident = 0.0 * m + 1.0;
       const auto del_d = max_delta(prod, ident);
-      pass &=
-          qip::check_value(&obuff, "G^-1 direct (small)", del_d, 0.0, 1.0e-13);
+      // pass &=
+      //     qip::check_value(&obuff, "G^-1 direct (small)", del_d,
+      //     0.0, 1.0e-13);
+      REQUIRE(std::abs(del_d) < 1.0e-13);
     }
   }
 
@@ -157,7 +161,9 @@ bool RDMatrix(std::ostream &obuff) {
       if (eps > worst)
         worst = eps;
     }
-    pass &= qip::check_value(&obuff, "<F|G|F> (small+g)", worst, 0.0, 1.0e-4);
+    // pass &= qip::check_value(&obuff, "<F|G|F> (small+g)", worst,
+    // 0.0, 1.0e-4);
+    REQUIRE(std::abs(worst) < 1.0e-4);
 
     // Matrix inversion (real, including g):
     {
@@ -172,17 +178,20 @@ bool RDMatrix(std::ostream &obuff) {
       const auto del1 = max_delta(a, b1);
       const auto del2 = max_delta(a, b2);
 
-      pass &= qip::check_value(&obuff, "G^-1 (small+g)", del2, 0.0, 1.0e-8);
-      pass &= qip::check(&obuff, "G^-1 Neumann converge",
-                         (del2 < del1 && del1 < del0));
+      // pass &= qip::check_value(&obuff, "G^-1 (small+g)", del2, 0.0, 1.0e-8);
+      // pass &= qip::check(&obuff, "G^-1 Neumann converge",
+      //                    (del2 < del1 && del1 < del0));
+      REQUIRE(std::abs(del2) < 1.0e-8);
+      REQUIRE((del2 < del1 && del1 < del0));
 
       // Now, use 'raw_mat_mul' (doesn't contain integration measure) to
       // directly test inverse.
       const auto prod = ((m + 1.0).inverse()) * (m + 1.0);
       const auto ident = 0.0 * m + 1.0;
       const auto del_d = max_delta(prod, ident);
-      pass &= qip::check_value(&obuff, "G^-1 direct (small+g)", del_d, 0.0,
-                               1.0e-13);
+      // pass &= qip::check_value(&obuff, "G^-1 direct (small+g)", del_d, 0.0,
+      //  1.0e-13);
+      REQUIRE(std::abs(del_d) < 1.0e-13);
     }
   }
 
@@ -218,7 +227,9 @@ bool RDMatrix(std::ostream &obuff) {
       if (eps > worst)
         worst = eps;
     }
-    pass &= qip::check_value(&obuff, "<F|iG|F> (small+g)", worst, 0.0, 1.0e-4);
+    // pass &= qip::check_value(&obuff, "<F|iG|F> (small+g)", worst,
+    // 0.0, 1.0e-4);
+    REQUIRE(std::abs(worst) < 1.0e-4);
 
     // Test multiplication with imag. matrix:
     // const auto mm = m.drj() * m;
@@ -233,8 +244,10 @@ bool RDMatrix(std::ostream &obuff) {
       if (eps > worst2)
         worst2 = eps;
     }
-    pass &=
-        qip::check_value(&obuff, "<F|iG*iG|F> (small+g)", worst2, 0.0, 1.0e-4);
+    // pass &=
+    //     qip::check_value(&obuff, "<F|iG*iG|F> (small+g)", worst2,
+    //     0.0, 1.0e-4);
+    REQUIRE(std::abs(worst2) < 1.0e-4);
 
     // Matrix inversion (complex, including g):
     {
@@ -249,17 +262,20 @@ bool RDMatrix(std::ostream &obuff) {
       const auto del1 = max_delta(a, b1);
       const auto del2 = max_delta(a, b2);
 
-      pass &= qip::check_value(&obuff, "iG^-1 (small+g)", del2, 0.0, 1.0e-6);
-      pass &= qip::check(&obuff, "iG^-1 Neumann converge",
-                         (del2 < del1 && del1 < del0));
+      // pass &= qip::check_value(&obuff, "iG^-1 (small+g)", del2, 0.0, 1.0e-6);
+      // pass &= qip::check(&obuff, "iG^-1 Neumann converge",
+      //                    (del2 < del1 && del1 < del0));
+      REQUIRE(std::abs(del2) < 1.0e-6);
+      REQUIRE((del2 < del1 && del1 < del0));
 
       // Now, use 'raw_mat_mul' (doesn't contain integration measure) to
       // directly test inverse.
       const auto prod = ((m + 1.0).inverse()) * (m + 1.0);
       const auto ident = 0.0 * m + 1.0;
       const auto del_d = max_delta(prod, ident);
-      pass &= qip::check_value(&obuff, "iG^-1 direct (small+g)", del_d, 0.0,
-                               1.0e-13);
+      // pass &= qip::check_value(&obuff, "iG^-1 direct (small+g)", del_d, 0.0,
+      //                          1.0e-13);
+      REQUIRE(std::abs(del_d) < 1.0e-13);
     }
   }
 
@@ -295,7 +311,8 @@ bool RDMatrix(std::ostream &obuff) {
       if (eps > worst)
         worst = eps;
     }
-    pass &= qip::check_value(&obuff, "<F|G|F> (full)", worst, 0.0, 1.0e-14);
+    // pass &= qip::check_value(&obuff, "<F|G|F> (full)", worst, 0.0, 1.0e-14);
+    REQUIRE(std::abs(worst) < 1.0e-14);
 
     // Test multiplication, including G (full matrix)
     const auto mm = m.drj() * m;
@@ -307,10 +324,8 @@ bool RDMatrix(std::ostream &obuff) {
       if (eps > worst_2)
         worst_2 = eps;
     }
-    pass &= qip::check_value(&obuff, "<F|G*G|F> (full)", worst_2, 0.0, 1.0e-12);
+    // pass &= qip::check_value(&obuff, "<F|G*G|F> (full)", worst_2,
+    // 0.0, 1.0e-12);
+    REQUIRE(std::abs(worst_2) < 1.0e-12);
   }
-
-  return pass;
 }
-
-} // namespace UnitTest

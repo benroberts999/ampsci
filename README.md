@@ -2,7 +2,7 @@
 _*Atomic Many-body Perturbation theory in the Screened Coulomb Interaction*_
 
 Solves the Dirac equation for single-valence atomic systems using the Hartree-Fock + correlation potential method (based on Dzuba-Flambaum-Sushkov method).
-Fully relativistic, includes electron correlations (all-orders screening and hole-particle interaction, finite-nuclear size, Breit interaction, radiative QED effects, and RPA for matrix elements (with structure radiation/renormalisation).
+Fully relativistic, includes electron correlations, all-orders screening and hole-particle interaction, finite-nuclear size, Breit interaction, radiative QED effects, and RPA for matrix elements (with structure radiation/renormalisation).
 QED is included via the Ginges-Flambaum radiative potential method.
 Can solve for continuum states with high energy.
 Calculates ionisation cross sections with high values for energy/momentum transfer. Parallelised using openMP.
@@ -54,8 +54,8 @@ There are four documentation types provided:
 
 ## Compilation:
 
- * Copy "doc/Makefile.example" from doc/ directory to the working directory, and rename to -> "Makefile"
-    * _$cp ./doc/Makefile.example ./Makefile_
+ * Copy "doc/examples/Makefile" from doc/ directory to the working directory
+    * _$cp ./doc/examples/Makefile ./_
  * All programs compiled using the Makefile (run _$make_)
  * The file _Makefile_ has some basic compilation options. It's currently set up to work on most linux systems; you may need to change a few options for others (see below)
  * Tested with g++ and clang++ on linux and mac (requires c++17)
@@ -209,20 +209,6 @@ Units:
  * r_rms: root-mean-square radius, in fm.
  * c: half-density radius (assuming Fermi nuclear distro, with t=2.3)
  * mu: magnetic moment (in nuclear magnetons)
-
-
-### wigner
-
- * Small routine to calculate 3,6,9-j symbols, and Clebsch Gordon coefficients
- * Either give input via command line directly (quote marks required)
-   * e.g., _./wigner '<0.5 -0.5, 0.5 0.5| 1 0>'_
-   * or e.g., _./wigner '(0.5 1 0.5, -0.5 0 0.5)'_ etc.
- * Or, give an input file, that contains any number of symbols, all on new line
-   * e.g., _./wigner -f myInputFile.in_
-   * nb: the '-f' flag can be dropped in the '.in' file extension is used
-   * Do not use quote marks in input file. Lines marked '!' or '#' are comments
- * 3j symbols must start with '('; 6,9j with '{', and CG with '<' (this is how code knows which symbol to calculate).
- * but, each number can be separated by any symbol (space, comma etc.)
 
 
 ### dmeXSection

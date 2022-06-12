@@ -1,15 +1,12 @@
-#pragma once
-#include "DiracOperator/DiracOperator.hpp"
 #include "Wavefunction/BSplineBasis.hpp"
+#include "DiracOperator/DiracOperator.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
-#include "qip/Check.hpp"
+#include "catch2/catch.hpp"
 #include "qip/Maths.hpp"
 #include "qip/Vector.hpp"
 #include <algorithm>
 #include <string>
-
-namespace UnitTest {
 
 /* XXX 18/01/2022
   - Made change to spline (r00 = log-average<r0,s0_spl>)
@@ -19,8 +16,9 @@ namespace UnitTest {
 
 //==============================================================================
 //! Unit tests for B-Spline basis (finite basis of relativistic orbitals)
-bool BSplineBasis(std::ostream &obuff) {
-  bool pass = true;
+TEST_CASE("Wavefunction: BSpline-basis", "[BSpline][QED][Breit]") {
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "Wavefunction: BSpline-basis, [BSpline][QED][Breit]\n";
 
   //============================================================================
   // Check vs. Hartree-Fock (energies/ortho)
@@ -94,23 +92,27 @@ bool BSplineBasis(std::ostream &obuff) {
 
             auto x = type == SplineBasis::SplineType::Johnson ? 10.0 : 1.0;
 
-            pass &=
-                qip::check_value(&obuff, label + "orth",
-                                 qip::max_abs(eps, eps1, eps2), 0.0, 1.0e-4);
+            // pass &=
+            // qip::check_value(&obuff, label + "orth",
+            //  qip::max_abs(eps, eps1, eps2), 0.0, 1.0e-4);
+            REQUIRE(qip::max_abs(eps, eps1, eps2) < 1.0e-4);
 
             if (std::abs(ce) > std::abs(ve)) {
-              pass &= qip::check_value(&obuff, label + "E " + cs->shortSymbol(),
-                                       ce, 0.0, x * 1.0e-5);
+              // pass &= qip::check_value(&obuff, label + "E " +
+              // cs->shortSymbol(),
+              //  ce, 0.0, x * 1.0e-5);
+              REQUIRE(ce < x * 1.0e-5);
             } else {
-              pass &= qip::check_value(&obuff, label + "E " + vs->shortSymbol(),
-                                       ve, 0.0, x * 1.0e-5);
+              // pass &= qip::check_value(&obuff, label + "E " +
+              // vs->shortSymbol(),
+              //                          ve, 0.0, x * 1.0e-5);
+              REQUIRE(ve < x * 1.0e-5);
             }
           }
         }
       }
     }
   }
-  return pass;
 
   //============================================================================
 
@@ -167,8 +169,9 @@ bool BSplineBasis(std::ostream &obuff) {
           name += "+QED";
         const std::string str = name + " low-r (hfs) l=";
 
-        pass &=
-            qip::check_value(&obuff, str + std::to_string(l), eps, 0.0, 1.0e-4);
+        // pass &=
+        // qip::check_value(&obuff, str + std::to_string(l), eps, 0.0, 1.0e-4);
+        REQUIRE(std::abs(eps) < 1.0e-4);
       }
     }
   }
@@ -193,7 +196,8 @@ bool BSplineBasis(std::ostream &obuff) {
         "Z=2 [50] " + std::to_string(nspl) + "/" + std::to_string(kspl);
 
     const auto [eps, str] = DiracSpinor::check_ortho(basis, basis);
-    pass &= qip::check_value(&obuff, label + " orth ", eps, 0.0, 1.0e-12);
+    // pass &= qip::check_value(&obuff, label + " orth ", eps, 0.0, 1.0e-12);
+    REQUIRE(std::abs(eps) < 1.0e-12);
     {
       const auto tkr = SplineBasis::sumrule_TKR(basis, wf.grid().r(), false);
 
@@ -206,8 +210,10 @@ bool BSplineBasis(std::ostream &obuff) {
       const auto wlabel =
           label + " TKR(w) l=" + std::to_string(int(worst - begin(tkr)));
 
-      pass &= qip::check_value(&obuff, blabel, *best, 0.0, 4.0e-8);
-      pass &= qip::check_value(&obuff, wlabel, *worst, 0.0, 1.0e-7);
+      // pass &= qip::check_value(&obuff, blabel, *best, 0.0, 4.0e-8);
+      // pass &= qip::check_value(&obuff, wlabel, *worst, 0.0, 1.0e-7);
+      REQUIRE(std::abs(*best) < 4.0e-8);
+      REQUIRE(std::abs(*worst) < 1.0e-7);
     }
 
     for (int nDG = 0; nDG <= 2; ++nDG) {
@@ -224,8 +230,10 @@ bool BSplineBasis(std::ostream &obuff) {
       const auto wlabel =
           label + " DG" + std::to_string(nDG) + "(w) k=" + std::to_string(kiw);
 
-      pass &= qip::check_value(&obuff, blabel, *best, 0.0, 1.0e-9);
-      pass &= qip::check_value(&obuff, wlabel, *worst, 0.0, 1.0e-7);
+      // pass &= qip::check_value(&obuff, blabel, *best, 0.0, 1.0e-9);
+      // pass &= qip::check_value(&obuff, wlabel, *worst, 0.0, 1.0e-7);
+      REQUIRE(std::abs(*best) < 1.0e-9);
+      REQUIRE(std::abs(*worst) < 1.0e-7);
     }
   }
 
@@ -247,7 +255,8 @@ bool BSplineBasis(std::ostream &obuff) {
         "Local [50] " + std::to_string(nspl) + "/" + std::to_string(kspl);
 
     const auto [eps, str] = DiracSpinor::check_ortho(basis, basis);
-    pass &= qip::check_value(&obuff, label + " orth ", eps, 0.0, 1.0e-12);
+    // pass &= qip::check_value(&obuff, label + " orth ", eps, 0.0, 1.0e-12);
+    REQUIRE(std::abs(eps) < 1.0e-12);
 
     for (int nDG = 0; nDG <= 2; nDG += 2) {
       const auto dg =
@@ -263,12 +272,10 @@ bool BSplineBasis(std::ostream &obuff) {
       const auto wlabel =
           label + " DG" + std::to_string(nDG) + "(w) k=" + std::to_string(kiw);
 
-      pass &= qip::check_value(&obuff, blabel, *best, 0.0, 1.0e-9);
-      pass &= qip::check_value(&obuff, wlabel, *worst, 0.0, 2.0e-6);
+      // pass &= qip::check_value(&obuff, blabel, *best, 0.0, 1.0e-9);
+      // pass &= qip::check_value(&obuff, wlabel, *worst, 0.0, 2.0e-6);
+      REQUIRE(std::abs(*best) < 1.0e-9);
+      REQUIRE(std::abs(*worst) < 2.0e-6);
     }
   }
-
-  return pass;
-} // namespace UnitTest
-
-} // namespace UnitTest
+}

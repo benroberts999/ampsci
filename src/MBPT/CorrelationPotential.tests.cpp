@@ -1,19 +1,17 @@
-#pragma once
 #include "Wavefunction/BSplineBasis.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
-#include "qip/Check.hpp"
+#include "catch2/catch.hpp"
 #include "qip/Maths.hpp"
 #include "qip/Vector.hpp"
 #include <algorithm>
 #include <string>
 
-namespace UnitTest {
-
 //==============================================================================
 //! Unit tests for second-order MBPT energy correction
-bool MBPT2(std::ostream &obuff) {
-  bool pass = true;
+TEST_CASE("MBPT: 2nd Order de", "[MBPT]") {
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "MBPT: 2nd Order de, [MBPT]\n";
 
   { // Compare with  K. Beloy and A. Derevianko,
     // Comput. Phys. Commun. 179, 310 (2008).
@@ -47,8 +45,10 @@ bool MBPT2(std::ostream &obuff) {
       }
       for (auto l = 0ul; l <= 6; ++l) {
         auto del = vals[l] - partial_KBAD[l];
-        pass &= qip::check_value(
-            &obuff, "MBPT(2) vs. KB,AD " + std::to_string(l), del, 0.0, error);
+        // pass &= qip::check_value(
+        //     &obuff, "MBPT(2) vs. KB,AD " + std::to_string(l), del, 0.0,
+        //     error);
+        REQUIRE(std::abs(del) < error);
       }
     }
 
@@ -58,15 +58,16 @@ bool MBPT2(std::ostream &obuff) {
       const auto Sigma = wf.Sigma();
       const auto de = Sigma->SOEnergyShift(Fv, Fv);
       auto ok = de >= -0.01767 && de <= -0.01748 ? 1 : 0;
-      pass &= qip::check_value(&obuff, "MBPT(2) 'small' Cs 6s", ok, 1, 0);
+      // pass &= qip::check_value(&obuff, "MBPT(2) 'small' Cs 6s", ok, 1, 0);
+      REQUIRE(ok);
     }
   }
-  return pass;
 }
 
 //! Unit tests for second-order correlation potential
-bool Sigma2(std::ostream &obuff) {
-  bool pass = true;
+TEST_CASE("MBPT: Correlation Potential: Sigma2", "[MBPT][Sigma2][Slow]") {
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "MBPT: Correlation Potential: Sigma2, [MBPT][Sigma2][Slow]\n";
 
   std::cout << "\n";
   //----------------------------------------------------------------------------
@@ -74,7 +75,7 @@ bool Sigma2(std::ostream &obuff) {
   // Cs:
   std::vector<double> first_run;
   { // Compare Dzuba, using up to l=6 for splines
-    std::cout << "Test Sigma(2) Breuckner, for Cs:\n";
+    std::cout << "Test Sigma(2) Brueckner, for Cs:\n";
     auto dzuba_i = std::vector{
         -0.02013813, -0.00410942, -0.00792483, -0.00702407, -0.00220878,
         -0.00199737, -0.01551449, -0.01466935, -0.00035253, -0.00035234};
@@ -109,7 +110,8 @@ bool Sigma2(std::ostream &obuff) {
     first_run = de; // copy this data, test the next run against:
 
     const auto [eps, at] = qip::compare_eps(dzuba_i, de);
-    pass &= qip::check_value(&obuff, "Sigma2 Cs", eps, 0.0, 0.01);
+    // pass &= qip::check_value(&obuff, "Sigma2 Cs", eps, 0.0, 0.01);
+    REQUIRE(std::abs(eps) < 0.01);
   }
 
   std::cout << "\n";
@@ -149,7 +151,8 @@ bool Sigma2(std::ostream &obuff) {
     }
 
     const auto [eps, at] = qip::compare_eps(first_run, de);
-    pass &= qip::check_value(&obuff, "Sigma2 Cs (read)", eps, 0.0, 1.0e-16);
+    // pass &= qip::check_value(&obuff, "Sigma2 Cs (read)", eps, 0.0, 1.0e-16);
+    REQUIRE(std::abs(eps) < 1.0e-16);
   }
 
   std::cout << "\n";
@@ -157,7 +160,7 @@ bool Sigma2(std::ostream &obuff) {
   //----------------------------------------------------------------------------
   // Fr:
   { // Compare Dzuba, using up to l=6 for splines
-    std::cout << "Test Sigma(2) Breuckner, for Fr:\n";
+    std::cout << "Test Sigma(2) Brueckner, for Fr:\n";
     auto dzuba_i =
         std::vector{-0.0245075, -0.0098094, -0.0069442, -0.0153430, -0.0133382};
     std::sort(begin(dzuba_i), end(dzuba_i)); // sort: don't depend on order
@@ -189,15 +192,16 @@ bool Sigma2(std::ostream &obuff) {
     }
 
     const auto [eps, at] = qip::compare_eps(dzuba_i, de);
-    pass &= qip::check_value(&obuff, "Sigma2 Fr", eps, 0.0, 0.02);
+    // pass &= qip::check_value(&obuff, "Sigma2 Fr", eps, 0.0, 0.02);
+    REQUIRE(std::abs(eps) < 0.02);
   }
-  return pass;
 }
 
 //==============================================================================
 //! Unit tests for all-orders correlation potential
-bool SigmaAO(std::ostream &obuff) {
-  bool pass = true;
+TEST_CASE("MBPT: Correlation Potential: SigmaAO", "[MBPT][SigmaAO][Slow]") {
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "MBPT: Correlation Potential: SigmaAO, [MBPT][SigmaAO][Slow]\n";
 
   { // Compare Dzuba, All-order sigma
     auto dzuba_i =
@@ -242,18 +246,7 @@ bool SigmaAO(std::ostream &obuff) {
     }
 
     auto [eps, at] = qip::compare_eps(dzuba_i, br);
-    pass &= qip::check_value(&obuff, "Sigma all-orders Cs", eps, 0.0, 5e-04);
+    // pass &= qip::check_value(&obuff, "Sigma all-orders Cs", eps, 0.0, 5e-04);
+    REQUIRE(std::abs(eps) < 5e-04);
   }
-  return pass;
 }
-
-//==============================================================================
-bool CorrelationPotential(std::ostream &obuff) {
-  bool pass = true;
-  pass &= MBPT2(obuff);
-  pass &= Sigma2(obuff);
-  pass &= SigmaAO(obuff);
-  return pass;
-}
-
-} // namespace UnitTest

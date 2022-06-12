@@ -56,12 +56,6 @@ BD=./build
 ## c++ standard. must be at least c++17
 CXXSTD=-std=c++17
 
-## Optional: set optimisation level. If blank, chosen by default
-#OPT=
-
-# Set to 'yes' to run with profiler - only do to profile the code!
-# RunProfiler=no
-
 ## Build config + options:
 include $(BD)/buildOptions.mk
 

@@ -1,21 +1,20 @@
-#pragma once
+#include "Coulomb/QkTable.hpp"
 #include "Angular/SixJTable.hpp"
 #include "Coulomb/CoulombIntegrals.hpp"
-#include "Coulomb/QkTable.hpp"
 #include "Coulomb/YkTable.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "Wavefunction/Wavefunction.hpp"
-#include "qip/Check.hpp"
+#include "catch2/catch.hpp"
 #include <random>
-
-namespace UnitTest {
 
 //==============================================================================
 //==============================================================================
 //! Unit tests for Coulomb integrals (y^k_ab, R^k_abcd, lookup tables etc).
 //! Also: tests quadrature integation method
-bool QkTable(std::ostream &obuff) {
-  bool pass = true;
+
+TEST_CASE("Coulomb: Qk Table", "[Coulomb][QkTable]") {
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "Coulomb: Qk Table, [Coulomb][QkTable]\n";
 
   using namespace Coulomb;
 
@@ -103,10 +102,11 @@ bool QkTable(std::ostream &obuff) {
   std::cout << dir_time << "/" << tab_time
             << ": speed-up = " << dir_time / tab_time << "x\n";
 
-  pass &= qip::check(&obuff, "QkTable: timing", tab_time < dir_time);
+  REQUIRE(tab_time < dir_time);
+  INFO("QkTable timing. tab time: " << tab_time
+                                    << ", direct time: " << dir_time);
 
   {
-
     const auto max_2k = 2 * DiracSpinor::max_tj(wf.basis());
     Angular::SixJTable sjt{max_2k};
 
@@ -164,10 +164,10 @@ bool QkTable(std::ostream &obuff) {
     }
     std::cout << "tested: " << non_zero_count << "/" << total_count
               << " non-zero\n";
-    pass &= qip::check_value(&obuff, "QkTable: Q", max_devQ, 0.0, 1.0e-13);
-    pass &= qip::check_value(&obuff, "QkTable: R", max_devR, 0.0, 1.0e-13);
-    pass &= qip::check_value(&obuff, "QkTable: P", max_devP, 0.0, 1.0e-13);
-    pass &= qip::check_value(&obuff, "QkTable: W", max_devW, 0.0, 1.0e-13);
+    REQUIRE(std::abs(max_devQ) < 1.0e-13);
+    REQUIRE(std::abs(max_devR) < 1.0e-13);
+    REQUIRE(std::abs(max_devP) < 1.0e-13);
+    REQUIRE(std::abs(max_devW) < 1.0e-13);
   }
 
   //============================================================================
@@ -209,7 +209,7 @@ bool QkTable(std::ostream &obuff) {
         }
       }
     }
-    pass &= qip::check(&obuff, "QkTable: NormalOrder", Qk_NormalOrder_ok);
+    REQUIRE(Qk_NormalOrder_ok);
 
     Coulomb::WkTable wk;
     bool Wk_NormalOrder_ok = true;
@@ -238,7 +238,7 @@ bool QkTable(std::ostream &obuff) {
         }
       }
     }
-    pass &= qip::check(&obuff, "WkTable: NormalOrder", Wk_NormalOrder_ok);
+    REQUIRE(Wk_NormalOrder_ok);
 
     Coulomb::LkTable lk;
     bool Lk_NormalOrder_ok = true;
@@ -260,10 +260,6 @@ bool QkTable(std::ostream &obuff) {
         }
       }
     }
-    pass &= qip::check(&obuff, "LkTable: NormalOrder", Lk_NormalOrder_ok);
+    REQUIRE(Lk_NormalOrder_ok);
   }
-
-  return pass;
 }
-
-} // namespace UnitTest

@@ -3,11 +3,11 @@
 ################################################################################
 #Allow exectuables to be placed in another directory:
 ALLEXES = $(addprefix $(XD)/, \
- ampsci unitTests wigner dmeXSection periodicTable tests \
+ ampsci dmeXSection periodicTable tests \
 )
 
 DEFAULTEXES = $(addprefix $(XD)/, \
- ampsci periodicTable unitTests tests \
+ ampsci periodicTable tests \
 )
 
 #Default make rule:
@@ -51,13 +51,7 @@ $(XD)/ampsci: $(BD)/ampsci.o $(OBJS)
 $(XD)/tests: $(BD)/tests.o $(OBJS) $(TEST_OBJS)
 	$(LINK)
 
-$(XD)/unitTests: $(BD)/unitTests.o $(OBJS)
-	$(LINK)
-
 $(XD)/dmeXSection: $(BD)/dmeXSection.o $(OBJS)
-	$(LINK)
-
-$(XD)/wigner: $(BD)/wigner.o
 	$(LINK)
 
 $(XD)/periodicTable: $(BD)/periodicTable.o $(BD)/Physics/AtomData.o \
@@ -75,9 +69,6 @@ CXXFLAGS+=-D COMPTIME="$(NOW)"
 ################################################################################
 ################################################################################
 
-# CPrint some git history to screen
-SHELL=/bin/bash
-string=$(shell $(CXX) --version 2>/dev/null | sed -n '1p' | sed s/'('/'['/ | sed s/')'/']'/)
 GitInfo:
 	@echo Git Branch: $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)
 	@echo Git Revision: $(shell git rev-parse --short HEAD 2>/dev/null)
@@ -98,7 +89,7 @@ checkXdir:
 .PHONY: clean docs doxy do_the_chicken_dance GitInfo checkObj checkXdir
 clean:
 	rm -f -v $(ALLEXES)
-	rm -rf -v $(BD)/*.o $(BD)/*.d $(BD)/*/
+	rm -rf -v $(BD)/*.o $(BD)/*.d $(BD)/*.gc* $(BD)/*/
 # Make the 'ampsci.pdf' physics documentation
 docs:
 	( cd ./doc/tex && make )

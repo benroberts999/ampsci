@@ -1,4 +1,4 @@
-#pragma once
+
 #include "DiracODE/DiracODE.hpp"
 #include "DiracOperator/DiracOperator.hpp"
 #include "Maths/Grid.hpp"
@@ -7,7 +7,7 @@
 #include "Physics/NuclearPotentials.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
-#include "qip/Check.hpp"
+#include "catch2/catch.hpp"
 #include <algorithm>
 #include <array>
 #include <memory>
@@ -16,12 +16,11 @@
 #include <utility>
 #include <vector>
 
-namespace UnitTest {
-
 //==============================================================================
 //! Unit tests for solving (local) Dirac equation ODE
-bool DiracODE(std::ostream &obuff) {
-  bool pass = true;
+TEST_CASE("DiracODE: Adams-Moulton method", "[DiracODE]") {
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "DiracODE: Adams-Moulton method, [DiracODE]\n";
 
   const double Zeff = 5.0;
 
@@ -59,13 +58,16 @@ bool DiracODE(std::ostream &obuff) {
     };
     const auto worst_F =
         std::max_element(cbegin(orbitals), cend(orbitals), comp_eps);
-    pass &= qip::check_value(&obuff, "converge " + worst_F->shortSymbol(),
-                             worst_F->eps(), 0.0, 1.0e-14);
+
+    std::cout << "DiracODE converge: " << worst_F->shortSymbol() << " "
+              << worst_F->eps() << "\n";
+    REQUIRE(std::abs(worst_F->eps()) < 1.0e-14);
   }
 
   { // Check orthogonality of orbitals:
     const auto [eps, worst] = DiracSpinor::check_ortho(orbitals, orbitals);
-    pass &= qip::check_value(&obuff, "orth " + worst, eps, 0.0, 1.0e-10);
+    std::cout << "DiracODE orth: " << worst << " " << eps << "\n";
+    REQUIRE(std::abs(eps) < 1.0e-10);
   }
 
   { // Compare energy to exact (Dirac) value:
@@ -86,9 +88,9 @@ bool DiracODE(std::ostream &obuff) {
                                          PhysConst::alpha);
     const auto eps = std::abs((worst_F->en() - exact) / exact);
 
-    pass &=
-        qip::check_value(&obuff, "en vs. exact (eps) " + worst_F->shortSymbol(),
-                         eps, 0.0, 1.0e-10);
+    std::cout << "DiracODE en vs. exact (eps): " << worst_F->shortSymbol()
+              << " " << eps << "\n";
+    REQUIRE(std::abs(eps) < 1.0e-10);
   }
 
   { // Check radial integrals (r, r^2, 1/r, 1/r^2)
@@ -124,17 +126,38 @@ bool DiracODE(std::ostream &obuff) {
     const auto winv1 = get_worst(rinv1);
     const auto winv2 = get_worst(rinv2);
 
-    pass &= qip::check_value(&obuff, "<r>    " + worst1.first, worst1.second,
-                             0.0, 1.0e-10);
-    pass &= qip::check_value(&obuff, "<r^2>  " + worst2.first, worst2.second,
-                             0.0, 1.0e-10);
-    pass &= qip::check_value(&obuff, "<r^-1> " + winv1.first, winv1.second, 0.0,
-                             1.0e-10);
-    pass &= qip::check_value(&obuff, "<r^-2> " + winv2.first, winv2.second, 0.0,
-                             1.0e-10);
+    std::cout << "DiracODE <r>: " << worst1.first << " " << worst1.second
+              << "\n";
+    std::cout << "DiracODE <r^2>: " << worst2.first << " " << worst2.second
+              << "\n";
+    std::cout << "DiracODE <r^-1>: " << winv1.first << " " << winv1.second
+              << "\n";
+    std::cout << "DiracODE <r^-2>: " << winv2.first << " " << winv2.second
+              << "\n";
+    REQUIRE(std::abs(worst1.second) < 1.0e-10);
+    REQUIRE(std::abs(worst2.second) < 1.0e-10);
+    REQUIRE(std::abs(winv1.second) < 1.0e-10);
+    REQUIRE(std::abs(winv2.second) < 1.0e-10);
   }
+}
 
-  { // Test inhomogenous (Green's) method:
+//==============================================================================
+// Test inhomogenous (Green's) method:
+TEST_CASE("DiracODE: inhomogenous (Green's) method:", "[DiracODE]") {
+
+  const double Zeff = 5.0;
+
+  // Set up radial grid:
+  const auto r0{1.0e-7};
+  const auto rmax{100.0}; // NB: rmax depends on Zeff
+  const auto num_grid_points{2000ul};
+  const auto b{10.0};
+  const auto grid = std::make_shared<const Grid>(r0, rmax, num_grid_points,
+                                                 GridType::loglinear, b);
+  // Sperical potential w/ R_nuc = 0.0 is a pointlike potential
+  const auto v_nuc = Nuclear::sphericalNuclearPotential(Zeff, 0.0, grid->r());
+
+  {
     // Solve: (Fa and Fb should be equal)
     // (H + v + vp - e)Fa = 0
     // (H + v - e)Fb = -vp*Fa
@@ -187,19 +210,19 @@ bool DiracODE(std::ostream &obuff) {
       if (!(eps_orthNorm < max_eps_orthNorm))
         max_eps_orthNorm = eps_orthNorm;
     }
-    pass &= qip::check_value(&obuff, "Inhomog (G): orthonorm", max_eps_orthNorm,
-                             0.0, 1.0e-5);
-    pass &= qip::check_value(&obuff, "Inhomog (G): value", max_eps_dF, 0.0,
-                             1.0e-11);
+    //"Inhomog (G): orthonorm"
+    REQUIRE(std::abs(max_eps_orthNorm) < 1.0e-5);
+    //"Inhomog (G): value"
+    REQUIRE(std::abs(max_eps_dF) < 1.0e-11);
   }
 
   { // Test DiracODE HartreeFock method:
     // Solve: (Fa and Fb should be equal)
     // (H + v + vp - e)Fa = 0
     // (H + v - e)Fb + X = 0, where X = VpFa (for now, local Vp)
-    std::cout << "Test inhomogenous DiracODE method:   \n"
-                 "(H + v + vp - e)Fa = 0     vs.\n"
-                 "(H + v - e)Fb = -vp*Fa    (Fa and Fb should be equal)\n";
+    std::cout << "Test DiracODE HartreeFock method:   \n"
+                 "(H + v + vx - e)Fa = 0     vs.\n"
+                 "(H + v - e)Fb = -vx*Fa    (Fa and Fb should be equal)\n";
     auto max_eps_dF = -1.0;
     auto max_eps_en = -1.0;
     auto max_eps_orthNorm = -1.0;
@@ -253,15 +276,11 @@ bool DiracODE(std::ostream &obuff) {
       if (!(eps_en < max_eps_en))
         max_eps_en = eps_en;
     }
-    pass &= qip::check_value(&obuff, "Dirac ODE HF: orthonorm",
-                             max_eps_orthNorm, 0.0, 5.0e-9);
-    pass &= qip::check_value(&obuff, "Dirac ODE HF: value", max_eps_dF, 0.0,
-                             1.0e-14);
-    pass &= qip::check_value(&obuff, "Dirac ODE HF: energy", max_eps_en, 0.0,
-                             5.0e-9);
+    //"Dirac ODE HF: orthonorm"
+    REQUIRE(std::abs(max_eps_orthNorm) < 5.0e-9);
+    //"Dirac ODE HF: value"
+    REQUIRE(std::abs(max_eps_dF) < 1.0e-14);
+    //"Dirac ODE HF: energy"
+    REQUIRE(std::abs(max_eps_en) < 5.0e-9);
   }
-
-  return pass;
 }
-
-} // namespace UnitTest

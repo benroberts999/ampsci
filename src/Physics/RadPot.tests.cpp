@@ -1,15 +1,12 @@
-#pragma once
-#include "DiracOperator/DiracOperator.hpp"
 #include "Physics/RadPot.hpp"
+#include "DiracOperator/DiracOperator.hpp"
 #include "Wavefunction/Wavefunction.hpp"
-#include "qip/Check.hpp"
+#include "catch2/catch.hpp"
 #include "qip/Vector.hpp"
 #include <algorithm>
 #include <string>
 #include <utility>
 #include <vector>
-
-namespace UnitTest {
 
 //==============================================================================
 namespace helper {
@@ -33,18 +30,19 @@ struct QEDData {
 std::pair<std::string, double> compare_QED(const std::vector<QEDData> &QEDdata,
                                            QED::RadPot::Scale scale);
 
-bool FGRadPot(std::ostream &obuff);
+void FGRadPot();
 
 } // namespace helper
 
 //==============================================================================
 //==============================================================================
 //! Unit tests for Ginges/Flambaum Radiative potential method
-bool RadPot(std::ostream &obuff) {
-  bool pass = true;
+TEST_CASE("Physics: Radiative Potential", "[RadPot][QED]") {
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "Physics: Radiative Potential, [RadPot][QED]\n";
 
   // Run unit tests (tests integrals vs Mathematica)
-  pass &= helper::FGRadPot(obuff);
+  helper::FGRadPot();
 
   // Uehling data, from: Ginges, Berengut, J. Phys. B 49, 095001 (2016).
   const std::vector<helper::QEDData> Ueh_data = //
@@ -136,8 +134,10 @@ bool RadPot(std::ostream &obuff) {
         << "        de(0)     [ expected ] |  de(HF)    [ expected ]  eps\n";
     const auto [at_worst, eps_worst] =
         helper::compare_QED(Ueh_data, {1.0, 0.0, 0.0, 0.0, 0.0});
-    pass &= qip::check_value(&obuff, "Uehling (TabIV) " + at_worst, eps_worst,
-                             0.0, 6.0e-4);
+    // pass &= qip::check_value(&obuff, "Uehling (TabIV) " + at_worst,
+    // eps_worst,
+    //  0.0, 6.0e-4);
+    REQUIRE(std::abs(eps_worst) < 6.0e-4);
   }
 
   // "Regresseion" tests: Self-energy:
@@ -148,8 +148,9 @@ bool RadPot(std::ostream &obuff) {
         << "        de(0)     [ expected ] |  de(HF)    [ expected ]  eps\n";
     const auto [at_worst, eps_worst] =
         helper::compare_QED(SE_data, {0.0, 1.0, 1.0, 1.0, 0.0});
-    pass &= qip::check_value(&obuff, "Self-Energy (TabVI) " + at_worst,
-                             eps_worst, 0.0, 6.0e-4);
+    // pass &= qip::check_value(&obuff, "Self-Energy (TabVI) " + at_worst,
+    //                          eps_worst, 0.0, 6.0e-4);
+    REQUIRE(std::abs(eps_worst) < 6.0e-4);
   }
 
   // "Regresseion" tests: Self-energy (parts):
@@ -192,15 +193,14 @@ bool RadPot(std::ostream &obuff) {
       printf("%15s: %.3f [%.3f], %.3f [%.3f], %.3f [%.3f]\n", name.c_str(), m,
              exp[0], h, exp[1], l, exp[2]);
 
-      pass &= qip::check_value(&obuff, "Self-Energy (II) " + name, eps, 0.0,
-                               1.0e-4);
+      // pass &= qip::check_value(&obuff, "Self-Energy (II) " + name, eps, 0.0,
+      //  1.0e-4);
+      REQUIRE(std::abs(eps) < 1.0e-4);
     };
 
     lam(pt, rp0, "point");
     lam(st, rp, "step");
   }
-
-  return pass;
 }
 
 //==============================================================================
@@ -268,8 +268,7 @@ helper::compare_QED(const std::vector<QEDData> &QEDdata,
 //==============================================================================
 //==============================================================================
 // Test t integrals compared to Mathematica:
-bool helper::FGRadPot(std::ostream &obuff) {
-  bool pass = true;
+void helper::FGRadPot() {
 
   {
     // Compare Uehling integral (J function) to Mathematica
@@ -283,8 +282,9 @@ bool helper::FGRadPot(std::ostream &obuff) {
       res.push_back(FGRP::t_integral(FGRP::Uehling::J_Ueh_gsl, {r, rN}));
     }
     const auto [worst, at] = qip::compare_eps(res, expected);
-    pass &=
-        qip::check_value(&obuff, "FGRP::Ueh (cf Mathem)", worst, 0.0, 1.0e-6);
+    // pass &=
+    // qip::check_value(&obuff, "FGRP::Ueh (cf Mathem)", worst, 0.0, 1.0e-6);
+    REQUIRE(std::abs(worst) < 1.0e-6);
   }
 
   {
@@ -300,8 +300,9 @@ bool helper::FGRadPot(std::ostream &obuff) {
       res.push_back(FGRP::t_integral(FGRP::Magnetic::J_mag_gsl, {r, rN}));
     }
     const auto [worst, at] = qip::compare(res, expected);
-    pass &=
-        qip::check_value(&obuff, "FGRP::Mag (cf Mathem)", worst, 0.0, 1.0e-7);
+    // pass &=
+    // qip::check_value(&obuff, "FGRP::Mag (cf Mathem)", worst, 0.0, 1.0e-7);
+    REQUIRE(std::abs(worst) < 1.0e-7);
   }
 
   {
@@ -318,8 +319,9 @@ bool helper::FGRadPot(std::ostream &obuff) {
       res.push_back(FGRP::SE::F_SEl(z, r, rN));
     }
     const auto [worst, at] = qip::compare_eps(res, expected);
-    pass &=
-        qip::check_value(&obuff, "FGRP::SEl (cf Mathem)", worst, 0.0, 1.0e-11);
+    // pass &=
+    // qip::check_value(&obuff, "FGRP::SEl (cf Mathem)", worst, 0.0, 1.0e-11);
+    REQUIRE(std::abs(worst) < 1.0e-11);
   }
 
   {
@@ -338,8 +340,9 @@ bool helper::FGRadPot(std::ostream &obuff) {
       res.push_back(x);
     }
     const auto [worst, at] = qip::compare_eps(res, expected);
-    pass &=
-        qip::check_value(&obuff, "FGRP::SEh (cf Mathem)", worst, 0.0, 1.0e-3);
+    // pass &=
+    // qip::check_value(&obuff, "FGRP::SEh (cf Mathem)", worst, 0.0, 1.0e-3);
+    REQUIRE(std::abs(worst) < 1.0e-3);
   }
 
   {
@@ -358,11 +361,8 @@ bool helper::FGRadPot(std::ostream &obuff) {
     const auto worst = std::max(std::abs(a1 - expected) / expected,
                                 std::abs(a2 - expected2) / expected2);
 
-    pass &=
-        qip::check_value(&obuff, "FGRP::Int (cf Mathem)", worst, 0.0, 1.0e-6);
+    // pass &=
+    // qip::check_value(&obuff, "FGRP::Int (cf Mathem)", worst, 0.0, 1.0e-6);
+    REQUIRE(std::abs(worst) < 1.0e-6);
   }
-
-  return pass;
 }
-
-} // namespace UnitTest

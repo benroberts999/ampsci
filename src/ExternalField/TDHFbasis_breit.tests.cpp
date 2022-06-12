@@ -1,13 +1,11 @@
-#pragma once
+
 #include "DiracOperator/DiracOperator.hpp"
 #include "TDHFbasis.hpp"
 #include "Wavefunction/Wavefunction.hpp"
-#include "qip/Check.hpp"
+#include "catch2/catch.hpp"
 #include "qip/Vector.hpp"
 #include <algorithm>
 #include <string>
-
-namespace UnitTest {
 
 //==============================================================================
 namespace helper {
@@ -19,9 +17,15 @@ do_dV_breit_basis(const Wavefunction &wf, const Wavefunction &wfB,
 
 //==============================================================================
 //! Compared Breit contribution to dV using TDHF and TDHFbasis methods
-bool TDHFbasis_breit(std::ostream &obuff) { //
-  bool pass = true;
+TEST_CASE("External Field: TDHF (basis) Breit",
+          "[ExternalField][TDHF][RPA][Breit][Slow]") {
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "External Field: TDHF (basis) Breit, "
+               "[ExternalField][TDHF][RPA][Breit][Slow]\n";
 
+  std::cout << "Compare Breit contribution to dV using TDHF and TDHFbasis "
+               "methods\nTest of internal consistancy, not validation of Breit "
+               "correction\n";
   // Test of internal consistancy, not validation of Breit correction
 
   // nb: don't use many grid points, since we don't need overall accuracy.
@@ -50,15 +54,14 @@ bool TDHFbasis_breit(std::ostream &obuff) { //
   // wf.printValence();
 
   // Again, including Breit:
-  Wavefunction wfB(wf.grid().params(), wf.nucleus(), 1.0);
+  Wavefunction wfB(wf.grid_sptr(), wf.nucleus(), 1.0);
   wfB.solve_core("HartreeFock", 1.0, "[Xe]"); // w/Breit
   wfB.solve_valence(valence);
   wfB.formBasis(bspl_param);
 
   const auto hE1 = DiracOperator::E1(wf.grid());
   const auto hPNC =
-      DiracOperator::PNCnsi(Nuclear::c_hdr_formula_rrms_t(wf.get_rrms()),
-                            Nuclear::default_t, wf.grid());
+      DiracOperator::PNCnsi(wf.nucleus().c(), wf.nucleus().t(), wf.grid());
 
   using namespace helper;
   const auto [eE1, sE1] = do_dV_breit_basis(wf, wfB, &hE1, 0.0);
@@ -66,14 +69,12 @@ bool TDHFbasis_breit(std::ostream &obuff) { //
   const auto max_l = 1; // don't include d-states for pnc?
   const auto [ePNC, sPNC] = do_dV_breit_basis(wf, wfB, &hPNC, 0.0, max_l);
 
-  pass &=
-      qip::check_value(&obuff, "Breit TDHF(bs) E1 w=0 " + sE1, eE1, 0.0, 0.005);
-  pass &= qip::check_value(&obuff, "Breit TDHF(bs) E1 w=0.05 " + sE1w, eE1w,
-                           0.0, 0.05);
-  pass &=
-      qip::check_value(&obuff, "Breit TDHF(bs) PNC " + sPNC, ePNC, 0.0, 0.1);
-
-  return pass;
+  std::cout << "Breit TDHF(bs) E1 w=0 " << sE1 << " " << eE1 << "\n";
+  std::cout << "Breit TDHF(bs) E1 w=0.05 " << sE1w << " " << eE1w << "\n";
+  std::cout << "Breit TDHF(bs) PNC " << sPNC << " " << ePNC << "\n";
+  REQUIRE(std::abs(eE1) < 0.005);
+  REQUIRE(std::abs(eE1w) < 0.05);
+  REQUIRE(std::abs(ePNC) < 0.1);
 }
 
 //==============================================================================
@@ -132,5 +133,3 @@ helper::do_dV_breit_basis(const Wavefunction &wf, const Wavefunction &wfB,
   }
   return {eps, worst};
 }
-
-} // namespace UnitTest

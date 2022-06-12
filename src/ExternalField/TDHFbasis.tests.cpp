@@ -1,13 +1,11 @@
-#pragma once
+
+#include "TDHFbasis.hpp"
 #include "DiracOperator/DiracOperator.hpp"
-#include "TDHF.hpp"
 #include "Wavefunction/Wavefunction.hpp"
-#include "qip/Check.hpp"
+#include "catch2/catch.hpp"
 #include "qip/Vector.hpp"
 #include <algorithm>
 #include <string>
-
-namespace UnitTest {
 
 //==============================================================================
 namespace helper {
@@ -15,22 +13,36 @@ namespace helper {
 // Calculates core-polarisation correction to matrix elements between all
 // valence states, returns a vector of {states(string), value}
 inline std::vector<std::pair<std::string, double>>
-dV_result(const Wavefunction &wf, const DiracOperator::TensorOperator &h,
-          double ww);
+dV_result_basis(const Wavefunction &wf, const DiracOperator::TensorOperator &h,
+                double ww);
 
 } // namespace helper
 
 //==============================================================================
 //==============================================================================
 //! Unit tests External Field (RPA equations using TDHF method)
-bool TDHF(std::ostream &obuff) {
-  bool pass = true;
+TEST_CASE("External Field: TDHFbasis (RPA)",
+          "[ExternalField][TDHFbasis][RPA][Slow]") {
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "External Field: TDHFbasis (RPA), "
+               "[ExternalField][TDHFbasis][RPA][Slow]\n";
 
   // Create wavefunction object, solve HF for core+valence
-  Wavefunction wf({6000, 1.0e-6, 175.0, 20.0, "loglinear", -1.0},
+  Wavefunction wf({3500, 1.0e-6, 150.0, 50.0, "loglinear", -1.0},
                   {"Cs", 133, "Fermi", -1.0, -1.0}, 1.0);
   wf.solve_core("HartreeFock", 0.0, "[Xe]");
   wf.solve_valence("7sp5d4f");
+
+  SplineBasis::Parameters bspl_param;
+  {
+    bspl_param.states = "50spd40f20g";
+    bspl_param.n = 60;
+    bspl_param.k = 7;
+    bspl_param.r0 = 1.0e-5;
+    bspl_param.reps = 0.0;
+    bspl_param.rmax = 50.0;
+  }
+  wf.formBasis(bspl_param);
 
   // Lambda to compare mine to test data
   auto cmpr = [](const auto &ds, const auto &v) { return (ds.second - v) / v; };
@@ -52,10 +64,12 @@ bool TDHF(std::ostream &obuff) {
     // sort to allow easy comparison:
     std::sort(begin(expected_VD), end(expected_VD));
 
-    const auto result = helper::dV_result(wf, h, ww);
+    const auto result = helper::dV_result_basis(wf, h, ww);
     const auto [eps, at] = qip::compare(result, expected_VD, cmpr);
     const std::string worst = at == result.end() ? "" : at->first;
-    pass &= qip::check_value(&obuff, "RPA E1 w=0 " + worst, eps, 0.0, 5.0e-5);
+    // pass &= qip::check_value(&obuff, "TDHF(basis) E1 w=0 " + worst, eps, 0.0,
+    //  5.0e-5);
+    REQUIRE(std::abs(eps) < 5.0e-5);
   }
 
   { // E1, w = 0.05
@@ -74,11 +88,12 @@ bool TDHF(std::ostream &obuff) {
     // sort to allow easy comparison:
     std::sort(begin(expected_VD), end(expected_VD));
 
-    const auto result = helper::dV_result(wf, h, ww);
+    const auto result = helper::dV_result_basis(wf, h, ww);
     const auto [eps, at] = qip::compare(result, expected_VD, cmpr);
     const std::string worst = at == result.end() ? "" : at->first;
-    pass &=
-        qip::check_value(&obuff, "RPA E1 w=0.05 " + worst, eps, 0.0, 5.0e-5);
+    // pass &= qip::check_value(&obuff, "TDHF(basis) E1 w=0.05 " + worst, eps,
+    // 0.0, 5.0e-5);
+    REQUIRE(std::abs(eps) < 5.0e-5);
   }
 
   { // PNC, w = 0.0
@@ -92,24 +107,22 @@ bool TDHF(std::ostream &obuff) {
         -4.9201e-05, -3.0130e-05, 3.3958e-06,  -3.3958e-06};
     std::sort(begin(expected_VD), end(expected_VD));
 
-    const auto result = helper::dV_result(wf, h, ww);
+    const auto result = helper::dV_result_basis(wf, h, ww);
     const auto [eps, at] = qip::compare(result, expected_VD, cmpr);
     const std::string worst = at == result.end() ? "" : at->first;
-    pass &= qip::check_value(&obuff, "RPA PNC w=0 " + worst, eps, 0.0, 5.0e-4);
+    // pass &= qip::check_value(&obuff, "TDHF(basis) PNC w=0 " + worst, eps,
+    // 0.0, 5.0e-3);
+    REQUIRE(std::abs(eps) < 5.0e-3);
   }
-
-  return pass;
 }
-
-} // namespace UnitTest
 
 //==============================================================================
 inline std::vector<std::pair<std::string, double>>
-UnitTest::helper::dV_result(const Wavefunction &wf,
-                            const DiracOperator::TensorOperator &h, double ww) {
+helper::dV_result_basis(const Wavefunction &wf,
+                        const DiracOperator::TensorOperator &h, double ww) {
 
   // Form TDHF (RPA) object for this operator
-  auto dV = ExternalField::TDHF(&h, wf.vHF());
+  auto dV = ExternalField::TDHFbasis(&h, wf.vHF(), wf.basis());
   // Solve set of TDHF equations for core, with frequency ww
   const auto max_iterations = 150;
   const auto print_details = true;

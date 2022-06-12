@@ -1,4 +1,3 @@
-#pragma once
 #include "Angular/CkTable.hpp"
 #include "Angular/SixJTable.hpp"
 #include "Coulomb/CoulombIntegrals.hpp"
@@ -6,7 +5,7 @@
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Wavefunction/Wavefunction.hpp"
-#include "qip/Check.hpp"
+#include "catch2/catch.hpp"
 #include "qip/Maths.hpp"
 #include "qip/Vector.hpp"
 #include <algorithm>
@@ -14,8 +13,6 @@
 #include <string>
 
 namespace UnitTest {
-
-namespace helper {
 
 //==============================================================================
 // This is a Naiive (slow, but simple + correct) implementation of yk
@@ -47,65 +44,66 @@ inline std::vector<double> check_ykab(const std::vector<DiracSpinor> &orbs,
 inline double check_Rkabcd(const std::vector<DiracSpinor> &orbs,
                            int max_del_n = 99);
 
-} // namespace helper
+} // namespace UnitTest
 
 //==============================================================================
 //==============================================================================
-//! Unit tests for Coulomb integrals (y^k_ab, R^k_abcd, lookup tables etc).
-//! Also: tests quadrature integation method
-bool Coulomb(std::ostream &obuff) {
-  bool pass = true;
 
-  { // First, test quadrature integration method:
+//! First, test quadrature integration method:
+TEST_CASE("Coulomb: quad integrate", "[Coulomb]") {
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "Coulomb: quad integrate, [Coulomb]\n";
 
-    // Define a wavefunction-like function, func,
-    auto func = [](double x) {
-      return x * std::exp(-0.2 * x) * (1.0 + 2.0 * std::sin(x));
-    };
-    // that has an exact integral, Intfunc = \int_0^x(func):
-    auto Intfunc = [](double x) {
-      return -(5.0 / 169.0) * std::exp(-0.2 * x) *
-             (169.0 * (5.0 + x) + 5.0 * (5.0 + 13.0 * x) * std::cos(x) +
-              (13.0 * x - 60.0) * std::sin(x));
-    };
+  // Define a wavefunction-like function, func,
+  auto func = [](double x) {
+    return x * std::exp(-0.2 * x) * (1.0 + 2.0 * std::sin(x));
+  };
+  // that has an exact integral, Intfunc = \int_0^x(func):
+  auto Intfunc = [](double x) {
+    return -(5.0 / 169.0) * std::exp(-0.2 * x) *
+           (169.0 * (5.0 + x) + 5.0 * (5.0 + 13.0 * x) * std::cos(x) +
+            (13.0 * x - 60.0) * std::sin(x));
+  };
 
-    // Perform the numerical integrals using a different grids, compare to exact
-    const auto pts_lst = std::vector<std::size_t>{1000};
-    for (const auto pts : pts_lst) {
-      const Grid grll(1.0e-6, 100.0, pts, GridType::loglinear, 10);
-      const Grid grlog(1.0e-6, 100.0, pts, GridType::logarithmic, 0);
+  // Perform the numerical integrals using a different grids, compare to exact
+  const auto pts_lst = std::vector<std::size_t>{1000};
+  for (const auto pts : pts_lst) {
+    const Grid grll(1.0e-6, 100.0, pts, GridType::loglinear, 10);
+    const Grid grlog(1.0e-6, 100.0, pts, GridType::logarithmic, 0);
 
-      std::vector<double> vll, vlog;
-      for (const auto &r : grll.r())
-        vll.push_back(func(r));
-      for (const auto &r : grlog.r())
-        vlog.push_back(func(r));
+    std::vector<double> vll, vlog;
+    vll.reserve(grll.num_points());
+    vlog.reserve(grlog.num_points());
+    for (const auto &r : grll.r())
+      vll.push_back(func(r));
+    for (const auto &r : grlog.r())
+      vlog.push_back(func(r));
 
-      // numerical integration (on grid):
-      const auto intll = NumCalc::integrate(grll.du(), 0, 0, vll, grll.drdu());
-      const auto intlog =
-          NumCalc::integrate(grlog.du(), 0, 0, vlog, grlog.drdu());
+    // numerical integration (on grid):
+    const auto intll = NumCalc::integrate(grll.du(), 0, 0, vll, grll.drdu());
+    const auto intlog =
+        NumCalc::integrate(grlog.du(), 0, 0, vlog, grlog.drdu());
 
-      // Account for possibility r0, rmax slightly different:
-      const auto exactll = Intfunc(grll.r().back()) - Intfunc(grll.r().front());
-      const auto exactlog =
-          Intfunc(grlog.r().back()) - Intfunc(grlog.r().front());
+    // Account for possibility r0, rmax slightly different:
+    const auto exactll = Intfunc(grll.r().back()) - Intfunc(grll.r().front());
+    const auto exactlog =
+        Intfunc(grlog.r().back()) - Intfunc(grlog.r().front());
 
-      pass &=
-          qip::check_value(&obuff,
-                           "Quad[" + std::to_string(NumCalc::Nquad) +
-                               "] int (log-lin) b=10 N=" + std::to_string(pts),
-                           (intll - exactll) / exactll, 0.0, 1.0e-13);
-      pass &= qip::check_value(
-          &obuff,
-          "Quad[" + std::to_string(NumCalc::Nquad) +
-              "] int (logarithmic)  N=" + std::to_string(pts),
-          (intlog - exactlog) / exactlog, 0.0, 1.0e-4 * (500.0 / double(pts)));
-    }
+    const auto error1 = std::abs((intll - exactll) / exactll);
+    const auto eps1 = 1.0e-13;
+    REQUIRE(error1 < eps1);
+
+    const auto error2 = std::abs((intlog - exactlog) / exactlog);
+    const auto eps2 = 1.0e-4 * (500.0 / double(pts));
+    REQUIRE(error2 < eps2);
   }
+}
 
-  //----------------------------------------------------------------------------
-
+//----------------------------------------------------------------------------
+//! Unit tests for Coulomb integrals (y^k_ab, R^k_abcd, lookup tables etc).
+//! Also: tests some 6J table things
+TEST_CASE("Coulomb: formulas", "[Coulomb]") {
+  INFO("Coulomb: formulas, [Coulomb]");
   // Test the Coulomb formulas
   // Don't need dense grid, and use a local potential (Hartree)
   Wavefunction wf({1000, 1.0e-6, 100.0, 10.0, "loglinear", -1.0},
@@ -128,35 +126,29 @@ bool Coulomb(std::ostream &obuff) {
 
   { // Check the Ykab lookup-tables
     // check the 'different' orbitals case:
-    double del1 = helper::check_ykab_Tab(core, excited, Yce);
+    double del1 = UnitTest::check_ykab_Tab(core, excited, Yce);
     // check the 'same' orbitals case:
-    double del2 = helper::check_ykab_Tab(wf.basis(), wf.basis(), Yij);
-    pass &= qip::check_value(&obuff, "Yk_ab tables", std::max(del1, del2), 0.0,
-                             1.0e-17);
+    double del2 = UnitTest::check_ykab_Tab(wf.basis(), wf.basis(), Yij);
+    REQUIRE(std::abs(del1) < 1.0e-17);
+    REQUIRE(std::abs(del2) < 1.0e-17);
   }
 
-  { // Testing the Hartree Y functions formula:
-    const auto delk_core = helper::check_ykab(wf.core(), 2);
-    const auto delk_basis = helper::check_ykab(wf.basis(), 1);
-    int k = 0;
+  { // Testing the Hartree Y functions formula against naiive:
+    const auto delk_core = UnitTest::check_ykab(wf.core(), 2);
+    const auto delk_basis = UnitTest::check_ykab(wf.basis(), 1);
     for (const auto &dk : delk_core) {
-      pass &= qip::check_value(&obuff,
-                               "Yk_ab (core) value  k=" + std::to_string(k++),
-                               dk, 0.0, 1.0e-14);
+      REQUIRE(std::abs(dk) < 1.0e-14);
     }
-    k = 0;
     for (const auto &dk : delk_basis) {
-      pass &= qip::check_value(&obuff,
-                               "Yk_ab (basis) value k=" + std::to_string(k++),
-                               dk, 0.0, 1.0e-14);
+      REQUIRE(std::abs(dk) < 1.0e-14);
     }
   }
 
   // test R^k_abcd:
-  const double eps_R = helper::check_Rkabcd(wf.core(), 2);
-  const double eps_R2 = helper::check_Rkabcd(wf.basis(), 1);
-  pass &= qip::check_value(&obuff, "Rk_abcd (core) ", eps_R, 0.0, 1.0e-13);
-  pass &= qip::check_value(&obuff, "Rk_abcd (basis) ", eps_R2, 0.0, 1.0e-13);
+  const double eps_R = UnitTest::check_Rkabcd(wf.core(), 2);
+  const double eps_R2 = UnitTest::check_Rkabcd(wf.basis(), 1);
+  REQUIRE(std::abs(eps_R) < 1.0e-13);
+  REQUIRE(std::abs(eps_R2) < 1.0e-13);
 
   //============================================================================
   // Test "other" Coulomb integrals: P, Q, W (these are defined in terms of sums
@@ -258,9 +250,9 @@ bool Coulomb(std::ostream &obuff) {
         }     // c
       }       // b
     }         // a
-    pass &= qip::check_value(&obuff, "Qk_abcd ", worstQ, 0.0, 5.0e-13);
-    pass &= qip::check_value(&obuff, "Pk_abcd ", worstP, 0.0, 5.0e-14);
-    pass &= qip::check_value(&obuff, "Wk_abcd ", worstW, 0.0, 5.0e-14);
+    REQUIRE(std::abs(worstQ) < 5.0e-13);
+    REQUIRE(std::abs(worstP) < 5.0e-14);
+    REQUIRE(std::abs(worstW) < 5.0e-14);
 
     // Test the "Magic" 6J functions
     {
@@ -284,22 +276,17 @@ bool Coulomb(std::ostream &obuff) {
           }
         }
       }
-      pass &= qip::check_value(&obuff, "Magic 6J ", worst, 0.0, 1.0e-13);
+      REQUIRE(std::abs(worst) < 1.0e-13);
     }
   }
-
-  return pass;
 }
 
-} // namespace UnitTest
-
 //============================================================================
 //============================================================================
 
 //============================================================================
-inline std::vector<double> UnitTest::helper::yk_naive(const DiracSpinor &Fa,
-                                                      const DiracSpinor &Fb,
-                                                      int k) {
+inline std::vector<double> UnitTest::yk_naive(const DiracSpinor &Fa,
+                                              const DiracSpinor &Fb, int k) {
   const auto &gr = Fa.grid();
   std::vector<double> yk(gr.r().size());
 #pragma omp parallel for
@@ -326,10 +313,9 @@ inline std::vector<double> UnitTest::helper::yk_naive(const DiracSpinor &Fa,
 }
 
 //============================================================================
-inline double
-UnitTest::helper::check_ykab_Tab(const std::vector<DiracSpinor> &a,
-                                 const std::vector<DiracSpinor> &b,
-                                 const Coulomb::YkTable &Yab) {
+inline double UnitTest::check_ykab_Tab(const std::vector<DiracSpinor> &a,
+                                       const std::vector<DiracSpinor> &b,
+                                       const Coulomb::YkTable &Yab) {
   //
   double worst = 0.0;
   for (const auto &Fa : a) {
@@ -359,12 +345,11 @@ UnitTest::helper::check_ykab_Tab(const std::vector<DiracSpinor> &a,
 
 //============================================================================
 inline std::vector<double>
-UnitTest::helper::check_ykab(const std::vector<DiracSpinor> &orbs,
-                             int max_del_n) {
+UnitTest::check_ykab(const std::vector<DiracSpinor> &orbs, int max_del_n) {
 
   // Compared Yk as calculated by fast Coulomb::yk_ab routine (used in the code)
-  // to helper::yk_naive, a very slow, but simple version. In theory, should be
-  // exactly the same
+  // to UnitTest::yk_naive, a very slow, but simple version. In theory, should
+  // be exactly the same
 
   std::vector<double> worst; // = 0.0;
   // nb: slow, so only check sub-set
@@ -381,7 +366,7 @@ UnitTest::helper::check_ykab(const std::vector<DiracSpinor> &orbs,
         if (std::size_t(k + 1) > worst.size())
           worst.resize(std::size_t(k + 1));
         const auto y2 = Coulomb::yk_ab(Fa, Fb, k);
-        const auto y4 = helper::yk_naive(Fa, Fb, k); // slow
+        const auto y4 = UnitTest::yk_naive(Fa, Fb, k); // slow
 
         const auto max = *std::max_element(cbegin(y4), cend(y4), qip::comp_abs);
         const auto del = std::abs(qip::compare(y2, y4).first / max);
@@ -396,9 +381,8 @@ UnitTest::helper::check_ykab(const std::vector<DiracSpinor> &orbs,
 }
 
 //============================================================================
-inline double
-UnitTest::helper::check_Rkabcd(const std::vector<DiracSpinor> &orbs,
-                               int max_del_n) {
+double UnitTest::check_Rkabcd(const std::vector<DiracSpinor> &orbs,
+                              int max_del_n) {
   double eps_R = 0.0;
   const Coulomb::YkTable Yab(orbs);
 #pragma omp parallel for

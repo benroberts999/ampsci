@@ -91,7 +91,6 @@
 
 ## Unit tests
   * Improve + add more unit tests
-  * Unit tests and regression tests. Look at Catch2
 
 ## NIntegrate
   * Modernise + cleanup
