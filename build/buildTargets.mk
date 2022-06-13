@@ -48,7 +48,7 @@ OBJS := $(subst $(SD),$(BD),$(subst .cpp,.o,$(SRC_FILES)))
 $(XD)/ampsci: $(BD)/ampsci.o $(OBJS)
 	$(LINK)
 
-$(XD)/tests: $(BD)/tests.o $(OBJS) $(TEST_OBJS)
+$(XD)/tests: $(OBJS) $(TEST_OBJS)
 	$(LINK)
 
 $(XD)/dmeXSection: $(BD)/dmeXSection.o $(OBJS)

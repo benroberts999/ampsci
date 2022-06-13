@@ -1,5 +1,6 @@
 #include "DiracOperator/DiracOperator.hpp"
 #include "HF/HartreeFock_test_data.hpp"
+#include "IO/ChronoTimer.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "catch2/catch.hpp"
 #include "qip/Maths.hpp"
@@ -8,9 +9,10 @@
 #include <tuple>
 
 //! Unit tests for Hartree Fock equations
-TEST_CASE("HartreeFock", "[HF][HartreeFock]") {
+TEST_CASE("HartreeFock", "[HF][HartreeFock][integration]") {
+  IO::ChronoTimer timer("HartreeFock tests");
   std::cout << "\n----------------------------------------\n";
-  std::cout << "HartreeFock, [HF][HartreeFock]\n";
+  std::cout << "HartreeFock\n";
 
   //============================================================================
 

@@ -2,6 +2,7 @@
 #include "Angular/SixJTable.hpp"
 #include "Coulomb/CoulombIntegrals.hpp"
 #include "Coulomb/YkTable.hpp"
+#include "IO/ChronoTimer.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Wavefunction/Wavefunction.hpp"
@@ -103,13 +104,16 @@ TEST_CASE("Coulomb: quad integrate", "[Coulomb]") {
 //! Unit tests for Coulomb integrals (y^k_ab, R^k_abcd, lookup tables etc).
 //! Also: tests some 6J table things
 TEST_CASE("Coulomb: formulas", "[Coulomb]") {
-  INFO("Coulomb: formulas, [Coulomb]");
+  IO::ChronoTimer("Coulomb formulas");
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "Coulomb: formulas, [Coulomb]\n";
+
   // Test the Coulomb formulas
   // Don't need dense grid, and use a local potential (Hartree)
-  Wavefunction wf({1000, 1.0e-6, 100.0, 10.0, "loglinear", -1.0},
-                  {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
-  wf.solve_core("Hartree", 0.0, "[Xe]");
-  wf.formBasis({"8spdfghi", 30, 9, 1.0e-4, 1.0e-6, 40.0, false});
+  Wavefunction wf({900, 1.0e-6, 100.0, 10.0, "loglinear", -1.0},
+                  {"Na", -1, "Fermi", -1.0, -1.0}, 1.0);
+  wf.solve_core("Hartree", 0.0, "[Ne]");
+  wf.formBasis({"4spd6fg8h8i", 30, 7, 1.0e-3, 1.0e-3, 40.0, false});
 
   // Split basis into core/excited
   std::vector<DiracSpinor> core, excited;
@@ -134,7 +138,7 @@ TEST_CASE("Coulomb: formulas", "[Coulomb]") {
   }
 
   { // Testing the Hartree Y functions formula against naiive:
-    const auto delk_core = UnitTest::check_ykab(wf.core(), 2);
+    const auto delk_core = UnitTest::check_ykab(wf.core(), 1);
     const auto delk_basis = UnitTest::check_ykab(wf.basis(), 1);
     for (const auto &dk : delk_core) {
       REQUIRE(std::abs(dk) < 1.0e-14);
@@ -145,7 +149,7 @@ TEST_CASE("Coulomb: formulas", "[Coulomb]") {
   }
 
   // test R^k_abcd:
-  const double eps_R = UnitTest::check_Rkabcd(wf.core(), 2);
+  const double eps_R = UnitTest::check_Rkabcd(wf.core(), 1);
   const double eps_R2 = UnitTest::check_Rkabcd(wf.basis(), 1);
   REQUIRE(std::abs(eps_R) < 1.0e-13);
   REQUIRE(std::abs(eps_R2) < 1.0e-13);

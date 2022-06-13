@@ -47,8 +47,6 @@ TEST_CASE("InputBlock", "[InputBlock]") {
   std::stringstream ostr2;
   ib2.print(ostr2);
   REQUIRE(ostr1.str() == ostr2.str());
-
-  std::cout << "\nPassed all tests :)\n";
 }
 
 //==============================================================================

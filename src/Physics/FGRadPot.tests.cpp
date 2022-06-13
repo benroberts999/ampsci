@@ -10,7 +10,7 @@
 
 TEST_CASE("Radiative Potential (functions)", "[RadPot][QED]") {
   std::cout << "\n----------------------------------------\n";
-  std::cout << "Radiative Potential (functions), [RadPot][QED]\n";
+  std::cout << "Radiative Potential (functions)\n";
 
   {
     // Compare Uehling integral (J function) to Mathematica

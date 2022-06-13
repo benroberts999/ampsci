@@ -9,9 +9,10 @@
 
 //==============================================================================
 //! Unit tests for StructureRad + Normalisation of states
-TEST_CASE("MBPT: Structure Rad + Norm", "[StrucRad][MBPT][ExternalField]") {
+TEST_CASE("MBPT: Structure Rad + Norm",
+          "[StrucRad][MBPT][ExternalField][integration][slow]") {
   std::cout << "\n----------------------------------------\n";
-  std::cout << "MBPT: Structure Rad + Norm, [StrucRad][MBPT][ExternalField]\n";
+  std::cout << "MBPT: Structure Rad + Norm\n";
 
   { // Test for Na: (use splines for legs)
     Wavefunction wf({1000, 1.0e-6, 100.0, 0.33 * 100.0, "loglinear"},

@@ -16,9 +16,9 @@
 
 //==============================================================================
 //! Unit tests for B-Spline basis (finite basis of relativistic orbitals)
-TEST_CASE("Wavefunction: BSpline-basis", "[BSpline][QED][Breit]") {
+TEST_CASE("Wavefunction: BSpline-basis", "[BSpline][QED][Breit][integration]") {
   std::cout << "\n----------------------------------------\n";
-  std::cout << "Wavefunction: BSpline-basis, [BSpline][QED][Breit]\n";
+  std::cout << "Wavefunction: BSpline-basis\n";
 
   //============================================================================
   // Check vs. Hartree-Fock (energies/ortho)

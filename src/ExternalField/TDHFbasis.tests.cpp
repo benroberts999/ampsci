@@ -22,10 +22,9 @@ dV_result_basis(const Wavefunction &wf, const DiracOperator::TensorOperator &h,
 //==============================================================================
 //! Unit tests External Field (RPA equations using TDHF method)
 TEST_CASE("External Field: TDHFbasis (RPA)",
-          "[ExternalField][TDHFbasis][RPA][Slow]") {
+          "[ExternalField][TDHFbasis][RPA][slow][integration]") {
   std::cout << "\n----------------------------------------\n";
-  std::cout << "External Field: TDHFbasis (RPA), "
-               "[ExternalField][TDHFbasis][RPA][Slow]\n";
+  std::cout << "External Field: TDHFbasis (RPA)\n";
 
   // Create wavefunction object, solve HF for core+valence
   Wavefunction wf({3500, 1.0e-6, 150.0, 50.0, "loglinear", -1.0},

@@ -11,10 +11,11 @@
 
 //==============================================================================
 //! Unit tests for correlations (second-order MBPT correlation energy/potential)
-TEST_CASE("External Field: Diagram RPA", "[ExternalField][DiagramRPA][RPA]") {
+TEST_CASE("External Field: Diagram RPA",
+          "[ExternalField][DiagramRPA][RPA][integration]") {
   std::cout << "\n----------------------------------------\n";
-  std::cout
-      << "External Field: Diagram RPA, [ExternalField][DiagramRPA][RPA]\n";
+  std::cout << "External Field: Diagram RPA, "
+               "[ExternalField][DiagramRPA][RPA][integration]\n";
 
   Wavefunction wf({3500, 1.0e-6, 150.0, 0.33 * 150.0, "loglinear", -1.0},
                   {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);

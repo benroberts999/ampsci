@@ -9,9 +9,9 @@
 
 //==============================================================================
 //! Unit tests for second-order MBPT energy correction
-TEST_CASE("MBPT: 2nd Order de", "[MBPT]") {
+TEST_CASE("MBPT: 2nd Order de", "[MBPT][integration]") {
   std::cout << "\n----------------------------------------\n";
-  std::cout << "MBPT: 2nd Order de, [MBPT]\n";
+  std::cout << "MBPT: 2nd Order de\n";
 
   { // Compare with  K. Beloy and A. Derevianko,
     // Comput. Phys. Commun. 179, 310 (2008).
@@ -65,9 +65,10 @@ TEST_CASE("MBPT: 2nd Order de", "[MBPT]") {
 }
 
 //! Unit tests for second-order correlation potential
-TEST_CASE("MBPT: Correlation Potential: Sigma2", "[MBPT][Sigma2][Slow]") {
+TEST_CASE("MBPT: Correlation Potential: Sigma2",
+          "[MBPT][Sigma2][slow][integration]") {
   std::cout << "\n----------------------------------------\n";
-  std::cout << "MBPT: Correlation Potential: Sigma2, [MBPT][Sigma2][Slow]\n";
+  std::cout << "MBPT: Correlation Potential: Sigma2, [MBPT][Sigma2][slow]\n";
 
   std::cout << "\n";
   //----------------------------------------------------------------------------
@@ -199,9 +200,10 @@ TEST_CASE("MBPT: Correlation Potential: Sigma2", "[MBPT][Sigma2][Slow]") {
 
 //==============================================================================
 //! Unit tests for all-orders correlation potential
-TEST_CASE("MBPT: Correlation Potential: SigmaAO", "[MBPT][SigmaAO][Slow]") {
+TEST_CASE("MBPT: Correlation Potential: SigmaAO",
+          "[MBPT][SigmaAO][slow][integration]") {
   std::cout << "\n----------------------------------------\n";
-  std::cout << "MBPT: Correlation Potential: SigmaAO, [MBPT][SigmaAO][Slow]\n";
+  std::cout << "MBPT: Correlation Potential: SigmaAO, [MBPT][SigmaAO][slow]\n";
 
   { // Compare Dzuba, All-order sigma
     auto dzuba_i =

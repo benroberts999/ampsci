@@ -18,10 +18,9 @@ do_dV_breit_basis(const Wavefunction &wf, const Wavefunction &wfB,
 //==============================================================================
 //! Compared Breit contribution to dV using TDHF and TDHFbasis methods
 TEST_CASE("External Field: TDHF (basis) Breit",
-          "[ExternalField][TDHF][RPA][Breit][Slow]") {
+          "[ExternalField][TDHF][RPA][Breit][slow][integration]") {
   std::cout << "\n----------------------------------------\n";
-  std::cout << "External Field: TDHF (basis) Breit, "
-               "[ExternalField][TDHF][RPA][Breit][Slow]\n";
+  std::cout << "External Field: TDHF (basis) Breit\n";
 
   std::cout << "Compare Breit contribution to dV using TDHF and TDHFbasis "
                "methods\nTest of internal consistancy, not validation of Breit "

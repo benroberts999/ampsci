@@ -32,10 +32,9 @@ inline std::pair<Case, Case> MS_loops(const Wavefunction &wf,
 //==============================================================================
 //! Unit tests Mixed States (TDHF method, solving non-local DE)
 TEST_CASE("External Field: Mixed-states",
-          "[ExternalField][MixedStates][TDHF]") {
+          "[ExternalField][MixedStates][TDHF][integration]") {
   std::cout << "\n----------------------------------------\n";
-  std::cout
-      << "External Field: Mixed-states, [ExternalField][MixedStates][TDHF]\n";
+  std::cout << "External Field: Mixed-states\n";
 
   // Create wavefunction object
   Wavefunction wf({6000, 1.0e-6, 150.0, 0.33 * 150.0, "loglinear", -1.0},

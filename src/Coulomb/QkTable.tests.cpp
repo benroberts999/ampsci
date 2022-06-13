@@ -12,7 +12,8 @@
 //! Unit tests for Coulomb integrals (y^k_ab, R^k_abcd, lookup tables etc).
 //! Also: tests quadrature integation method
 
-TEST_CASE("Coulomb: Qk Table", "[Coulomb][QkTable]") {
+TEST_CASE("Coulomb: Qk Table", "[Coulomb][QkTable][integration]") {
+  IO::ChronoTimer("Coulomb Qk Table");
   std::cout << "\n----------------------------------------\n";
   std::cout << "Coulomb: Qk Table, [Coulomb][QkTable]\n";
 
@@ -21,7 +22,7 @@ TEST_CASE("Coulomb: Qk Table", "[Coulomb][QkTable]") {
   Wavefunction wf({1000, 1.0e-5, 50.0, 10.0, "loglinear", -1.0},
                   {"Na", -1, "Fermi", -1.0, -1.0}, 1.0);
   wf.solve_core("HartreeFock", 0.0, "[Ne]");
-  wf.formBasis({"10spdfg", 30, 7, 1.0e-5, 1.0e-6, 30.0, false});
+  wf.formBasis({"5spd8fg", 30, 7, 1.0e-3, 1.0e-3, 30.0, false});
 
   // Form the Coulomb lookup tables:
 

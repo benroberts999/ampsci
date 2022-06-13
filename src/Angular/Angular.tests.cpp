@@ -150,13 +150,15 @@ TEST_CASE("Angular: Ck tables", "[Angular]") {
   REQUIRE(Ck.max_tj() >= max2j_1);
   REQUIRE(Ck_dynamic.max_tj() >= 0);
 
-  SECTION("Compare Ck tables agaist direct calculation") {
+  // SECTION("Compare Ck tables agaist direct calculation")
+  {
     const auto max_eps = UnitTest::ck_compare_direct(Ck, Ck_dynamic);
     REQUIRE(max_eps < 1.0e-13);
   }
 
-  SECTION("Compare Ck tables agaist direct calculation - use fill() to "
-          "extend") {
+  // SECTION("Compare Ck tables agaist direct calculation - use fill() to "
+  // "extend")
+  {
     // Test the "extend" capability (extend tables to larger j values:)
     const int max2j_2 = 15;
     // "Extend" the tables:

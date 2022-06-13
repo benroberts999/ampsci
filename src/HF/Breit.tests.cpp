@@ -10,9 +10,9 @@
 #include <vector>
 
 //! Unit tests for Breit
-TEST_CASE("Breit", "[Breit]") {
+TEST_CASE("Breit", "[Breit][integration]") {
   std::cout << "\n----------------------------------------\n";
-  std::cout << "Breit, [Breit]\n";
+  std::cout << "Breit\n";
 
   // Solve Hartree-Fock, including Breit
   std::cout << "\nSolving WF, with Breit:\n";
