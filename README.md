@@ -17,6 +17,7 @@ The "modules" system (see documentation) makes it simple to add your own routine
   [![][manual-badge]][man-url]
   [![][tests-badge]][actions-url]
   [![][build-badge]][actions-url]
+  [![][cov-badge]][cov-url]
 
 ## Documentation
 
@@ -232,3 +233,5 @@ Units:
  [tests-badge]: https://github.com/benroberts999/ampsci/workflows/Tests/badge.svg
  [doxygen-badge]: https://img.shields.io/badge/documentation-code%20(html)-blue
  [manual-badge]: https://img.shields.io/badge/documentation-physics%20(pdf)-blue
+ [cov-badge]: https://codecov.io/gh/benroberts999/ampsci/branch/main/graph/badge.svg?token=3M5MH5QXLL
+ [cov-url]: https://codecov.io/gh/benroberts999/ampsci
