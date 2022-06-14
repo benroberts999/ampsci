@@ -47,7 +47,7 @@ std::string parseMethod(const Method &in_method) {
     return "KohnSham";
   if (in_method == Method::Local)
     return "Local";
-  return "HartreeFock";
+  assert(false);
 }
 
 //==============================================================================
@@ -56,71 +56,63 @@ HartreeFock::HartreeFock(std::shared_ptr<const Grid> grid,
                          std::vector<double> vnuc,
                          std::vector<DiracSpinor> core,
                          std::optional<QED::RadPot> vrad, double alpha,
-                         Method method, double x_Breit, double in_eps)
+                         Method method, double x_Breit, double in_eps,
+                         Parametric::Type potential, double H_g, double d_t)
     : m_rgrid(grid),
       m_core(std::move(core)),
       m_vnuc(std::move(vnuc)),
-      m_vrad(vrad),
+      m_vrad(std::move(vrad)),
       m_VBr(x_Breit == 0.0 ? std::optional<HF::Breit>{} :
                              std::optional<HF::Breit>(x_Breit)),
       m_alpha(alpha),
       m_method(method),
       m_eps_HF(std::abs(in_eps) < 1.0 ? in_eps : std::pow(10, -in_eps)),
-      m_vdir(m_rgrid->num_points()),
-      m_Yab(m_core) {}
+      m_vdir(m_rgrid->num_points(), 0.0),
+      m_Yab() {
+  set_parametric_potential(true, potential, H_g, d_t);
+}
 
 //==============================================================================
-double HartreeFock::solve_core(bool print) {
-
-  if (m_core.empty())
-    return 0.0;
-
-  // have optional inputs! XXX
-  set_parametric_potential();
-
+EpsIts HartreeFock::solve_core(bool print) {
   auto eps_its = EpsIts{};
 
+  if (m_core.empty())
+    return eps_its;
+
   std::string text;
+
+  const auto initial_eps = m_method == Method::Local ? 1.0e-15 : 1.0e-5;
+  solve_initial_core(initial_eps);
+
   switch (m_method) {
 
   case Method::HartreeFock:
-    // Full Hartree-Fock
     text = "Hartree-Fock\n";
-    solve_initial_core(1.0e-5);
     eps_its = hartree_fock_core();
     break;
 
   case Method::ApproxHF:
-    // "Approximate" Hartree-Fock (with localised exchange)
     text = "Approximate (localised) Hartree-Fock\n";
-    solve_initial_core(1.0e-5);
     eps_its = hf_approx_core(m_eps_HF);
     break;
 
   case Method::Hartree:
-    // Core-Hartree method (no exchange, core has self-interaction)
-    // XXX What about V^N approx?
     text = "Hartree (No exchange)\n";
-    solve_initial_core(1.0e-5);
-    eps_its = local_core(m_eps_HF);
+    eps_its = selfcon_local_core(m_eps_HF);
     break;
 
   case Method::KohnSham:
-    // Kohn-Sham method (including Latter correction)
     text = "Kohn-Sham\n";
-    solve_initial_core(1.0e-5);
-    eps_its = local_core(m_eps_HF);
+    eps_its = selfcon_local_core(m_eps_HF);
     break;
 
   case Method::Local:
-    // Local (parametric potential) method
-    // For now, just default parameters. Add option! XXX + output!
     text = "Local (parametric) potential\n";
-    eps_its = solve_initial_core(1.0e-16);
-    // Calculate Y^k_ab integrals, since they otherwise aren't
-    // (though very unlikely they will be used)
-    m_Yab.calculate(m_core);
+    m_Yab.calculate(m_core); // aren't otherwise calc'd (prob never used)
     break;
+
+  default:
+    assert(false && "HF method missing??");
   }
 
   const auto [eps, its, nk] = eps_its;
@@ -132,7 +124,7 @@ double HartreeFock::solve_core(bool print) {
   if (eps > m_eps_HF && eps > 1.0e-6) {
     std::cout << "\n⚠️ WARNING: Core didn't converge!\n\n";
   }
-  return eps;
+  return eps_its;
 }
 
 //==============================================================================
@@ -202,7 +194,7 @@ EpsIts HartreeFock::solve_initial_core(double eps_target) {
 
   const auto *prev_Fa = &m_core.front();
   for (auto &Fa : m_core) {
-    const auto &vrad_mag = get_Hrad_mag(Fa.l());
+    const auto &vrad_mag = Hmag(Fa.l());
     const auto v = vlocal(Fa.l());
 
     double en0 = enGuessCore(Fa.n(), Fa.kappa());
@@ -226,7 +218,7 @@ EpsIts HartreeFock::solve_initial_core(double eps_target) {
 }
 
 //==============================================================================
-EpsIts HartreeFock::local_core(const double eps_target_HF) {
+EpsIts HartreeFock::selfcon_local_core(const double eps_target_HF) {
 
   if (m_core.empty()) {
     return {};
@@ -254,7 +246,7 @@ EpsIts HartreeFock::local_core(const double eps_target_HF) {
       const auto dEa = Fa * ((m_vdir - vdir_old) * Fa);
       const double en_guess = (en_old < -dEa) ? en_old + dEa : en_old;
 
-      const auto vrad_mag = get_Hrad_mag(Fa.l());
+      const auto vrad_mag = Hmag(Fa.l());
       const auto v = vlocal(Fa.l());
       DiracODE::boundState(Fa, en_guess, v, vrad_mag, m_alpha, 1.0e-7);
       const double state_eps = std::abs((Fa.en() - en_old) / en_old);
@@ -269,7 +261,7 @@ EpsIts HartreeFock::local_core(const double eps_target_HF) {
 
   // Now, re-solve core orbitals with higher precission
   for (auto &Fa : m_core) {
-    const auto &vrad_mag = get_Hrad_mag(Fa.l());
+    const auto &vrad_mag = Hmag(Fa.l());
     const auto v = vlocal(Fa.l());
     DiracODE::boundState(Fa, Fa.en(), v, vrad_mag, m_alpha, 1.0e-15);
   }
@@ -320,9 +312,8 @@ EpsIts HartreeFock::hf_approx_core(const double eps_target_HF) {
           Fa * ((m_vdir - vdir_old + vex_core[i] - vex_old[i]) * Fa);
       const double en_guess = (en_old < -dEa) ? en_old + dEa : en_old;
       // Solve Dirac equation:
-      const auto Hmag = get_Hrad_mag(Fa.l());
       const auto v = vlocal(Fa.l()) + vex_core[i];
-      DiracODE::boundState(Fa, en_guess, v, Hmag, m_alpha, 1.0e-7);
+      DiracODE::boundState(Fa, en_guess, v, Hmag(Fa.l()), m_alpha, 1.0e-7);
       const double state_eps = std::abs((Fa.en() - en_old) / en_old);
       if (state_eps > eps) {
         eps = state_eps;
@@ -339,8 +330,8 @@ EpsIts HartreeFock::hf_approx_core(const double eps_target_HF) {
   if (eps_target_HF < 1.0e-9) {
     for (std::size_t i = 0; i < m_core.size(); i++) {
       auto &Fa = m_core[i];
-      const auto &vrad_el = get_Hrad_el(Fa.l());
-      const auto &vrad_mag = get_Hrad_mag(Fa.l());
+      const auto &vrad_el = Hrad_el(Fa.l());
+      const auto &vrad_mag = Hmag(Fa.l());
       const auto v = qip::add(m_vnuc, m_vdir, vrad_el, vex_core[i]);
       DiracODE::boundState(Fa, Fa.en(), v, vrad_mag, m_alpha, 1.0e-14);
     }
@@ -443,11 +434,11 @@ EpsIts HartreeFock::hartree_fock_core() {
       }
 
       // Solve HF Dirac equation for core state
-      const auto &Hrad_el = get_Hrad_el(Fa.l());
-      const auto &Hmag = get_Hrad_mag(Fa.l());
-      const auto &VlVr = qip::add(vl, Hrad_el);
-      hf_orbital_green(Fa, en, VlVr, Hmag, v_nonlocal, core_prev, v0,
-                       get_Breit());
+      const auto &Hrad_ell = Hrad_el(Fa.l());
+      const auto &Hmagl = Hmag(Fa.l());
+      const auto &VlVr = qip::add(vl, Hrad_ell);
+      hf_orbital_green(Fa, en, VlVr, Hmagl, v_nonlocal, core_prev, v0,
+                       vBreit());
 
       Fa = (1.0 - a_damp) * Fa + a_damp * Fa_prev;
       Fa.normalise();
@@ -483,12 +474,12 @@ EpsIts HartreeFock::local_valence(DiracSpinor &Fa) const {
   const auto eps_target = 0.01 * m_eps_HF;
   const auto eta_damp = 0.4;
 
-  const auto Hmag = get_Hrad_mag(Fa.l());
+  const auto Hmagl = Hmag(Fa.l());
   const auto vl = vlocal(Fa.l());
 
   if (Fa.en() == 0.0) {
     Fa.en() = enGuessVal(Fa.n(), Fa.kappa());
-    DiracODE::boundState(Fa, Fa.en(), vl, Hmag, m_alpha, 1.0e-15);
+    DiracODE::boundState(Fa, Fa.en(), vl, Hmagl, m_alpha, 1.0e-15);
   }
 
   if (excludeExchangeQ()) {
@@ -502,7 +493,7 @@ EpsIts HartreeFock::local_valence(DiracSpinor &Fa) const {
 
     const auto vlx = vl + vex_approx(Fa, m_core);
     const auto Fa_prev = Fa;
-    DiracODE::boundState(Fa, Fa.en(), vlx, Hmag, m_alpha, 1.0e-15);
+    DiracODE::boundState(Fa, Fa.en(), vlx, Hmagl, m_alpha, 1.0e-15);
     eps = std::abs((prev_en - Fa.en()) / Fa.en());
     prev_en = Fa.en();
 
@@ -528,12 +519,12 @@ HartreeFock::hf_valence(DiracSpinor &Fa,
   const auto eps_target = 0.001 * m_eps_HF;
   const auto eta_damp = 0.4;
 
-  const auto Hmag = get_Hrad_mag(Fa.l());
+  const auto Hmagl = Hmag(Fa.l());
   const auto vl = vlocal(Fa.l());
 
   if (Fa.en() == 0.0) {
     Fa.en() = enGuessVal(Fa.n(), Fa.kappa());
-    DiracODE::boundState(Fa, Fa.en(), vl, Hmag, m_alpha, 1.0e-15);
+    DiracODE::boundState(Fa, Fa.en(), vl, Hmagl, m_alpha, 1.0e-15);
   }
 
   auto prev_en = Fa.en();
@@ -549,7 +540,7 @@ HartreeFock::hf_valence(DiracSpinor &Fa,
       VxFa += (*Sigma)(Fa);
     }
     const auto Fa_prev = Fa;
-    DiracODE::boundState(Fa, Fa.en(), vl, Hmag, m_alpha, 1.0e-15, &VxFa,
+    DiracODE::boundState(Fa, Fa.en(), vl, Hmagl, m_alpha, 1.0e-15, &VxFa,
                          &Fa_prev, zion());
     eps = std::abs((prev_en - Fa.en()) / Fa.en());
     prev_en = Fa.en();
@@ -566,6 +557,57 @@ HartreeFock::hf_valence(DiracSpinor &Fa,
 }
 
 //==============================================================================
+EpsIts HartreeFock::hf_valence_Green(
+    DiracSpinor &Fa, const MBPT::CorrelationPotential *const Sigma) const {
+
+  if (m_core.empty())
+    return local_valence(Fa);
+
+  local_valence(Fa);
+  const auto vx0 = vex_approx(Fa, m_core);
+  const auto Fzero = Fa;
+  const auto Vx0Fa = vx0 * Fa;
+
+  const auto eps_target = 0.001 * m_eps_HF;
+  const auto eta_damp = 0.4;
+
+  const auto Hmagl = Hmag(Fa.l());
+  const auto vl = vlocal(Fa.l());
+
+  auto prev_en = Fa.en();
+  int it = 1;
+  double eps = 1.0;
+  for (; it <= m_max_hf_its; ++it) {
+
+    auto VxFa = vexFa(Fa);
+    if (m_VBr) {
+      VxFa += m_VBr->VbrFa(Fa, m_core);
+    }
+    if (Sigma) {
+      VxFa += (*Sigma)(Fa);
+    }
+    const auto Fa_prev = Fa;
+
+    auto en = Fzero.en() + (Fzero * VxFa - Fa * Vx0Fa) / (Fa * Fzero);
+
+    // Solve HF Dirac equation for core state
+    // const auto &VlVr = qip::add(vl, Hrad_ell);
+    hf_orbital_green(Fa, en, vl, Hmagl, VxFa, m_core, {}, vBreit(), Sigma);
+    Fa = (1.0 - eta_damp) * Fa + eta_damp * Fa_prev;
+    Fa.normalise();
+
+    eps = std::abs((prev_en - Fa.en()) / Fa.en());
+    prev_en = Fa.en();
+
+    const bool converged = (eps <= eps_target && it > 1);
+    if (converged || it == m_max_hf_its)
+      break;
+  }
+
+  return {eps, it, Fa.shortSymbol()};
+}
+
+//==============================================================================
 
 //==============================================================================
 double HartreeFock::calculateCoreEnergy() const
@@ -573,7 +615,7 @@ double HartreeFock::calculateCoreEnergy() const
 //   E = \sum_a [ja]e_a - 0.5 \sum_(ab) (R^0_abab - \sum_k L^k_ab R^k_abba)
 // where:
 //   R^k_abcd = Integral [f_a*f_c + g_a*g_c] * v^k_bd
-//   R^0_abab is not absymmetric
+//   R^0_abab is not ab symmetric
 //   R^k_abba _is_ ab symmetric
 {
   double Etot = 0.0;
@@ -595,7 +637,6 @@ double HartreeFock::calculateCoreEnergy() const
       const auto y = (Fa == Fb) ? 1.0 : 2.0; // symmetry
       const int kmin = std::abs(tja - tjb) / 2;
       const int kmax = (tja + tjb) / 2;
-      // const auto &vabk = m_Yab.get_y_ab(Fa, Fb);
       for (auto k = kmin; k <= kmax; k++) {
         const auto Labk = m_Yab.Ck().get_Lambdakab(k, Fa.kappa(), Fb.kappa());
         if (Labk == 0)
@@ -614,7 +655,7 @@ double HartreeFock::calculateCoreEnergy() const
 
 //==============================================================================
 std::vector<double> HartreeFock::vlocal(int l) const {
-  const auto &vrad_el = get_Hrad_el(l);
+  const auto &vrad_el = Hrad_el(l);
   return qip::add(m_vnuc, m_vdir, vrad_el);
 }
 
@@ -692,8 +733,12 @@ void HartreeFock::add_KohnSham_vdir_addition() {
 }
 
 //==============================================================================
-void HartreeFock::set_parametric_potential(Parametric::Type potential,
+void HartreeFock::set_parametric_potential(bool print,
+                                           Parametric::Type potential,
                                            double H_g, double d_t) {
+
+  if (m_method != Method::Local && m_core.empty())
+    return;
 
   const auto z = int(std::round(-1.0 * m_vnuc.back() * m_rgrid->r().back()));
 
@@ -715,6 +760,15 @@ void HartreeFock::set_parametric_potential(Parametric::Type potential,
       // Note: If not using local, potential must be Green!
       assert(potential == Parametric::Type::Green);
       Parametric::defaultGreenCore(z, H_g, d_t);
+    }
+  }
+
+  if (m_method == Method::Local && print) {
+    std::cout << "Parametric potential: ";
+    if (potential == Parametric::Type::Green) {
+      std::cout << "Green, H=" << H_g << ", d=" << d_t << "\n";
+    } else {
+      std::cout << "Tietz, g=" << H_g << ", t=" << d_t << "\n";
     }
   }
 
@@ -990,10 +1044,10 @@ DiracSpinor vexFa(const DiracSpinor &Fa, const std::vector<DiracSpinor> &core,
 }
 
 //==============================================================================
-std::vector<double> HartreeFock::get_Hrad_el(int l) const {
+std::vector<double> HartreeFock::Hrad_el(int l) const {
   return m_vrad ? m_vrad->Vel(l) : std::vector<double>{};
 }
-std::vector<double> HartreeFock::get_Hrad_mag(int l) const {
+std::vector<double> HartreeFock::Hmag(int l) const {
   return m_vrad ? m_vrad->Hmag(l) : std::vector<double>{};
 }
 //==============================================================================

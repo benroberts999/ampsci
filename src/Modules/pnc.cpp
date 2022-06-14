@@ -38,7 +38,8 @@ void calculatePNC(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto c = input.get("c", c_dflt);
 
   // input: rpa? and which n to consider for 'main'
-  const auto main_n = input.get("nmain", wf.maxCore_n() + 4);
+  const int main_dflt = DiracSpinor::max_n(wf.core()) + 4;
+  const auto main_n = input.get("nmain", main_dflt);
   const auto rpaQ = input.get("rpa", true);
 
   // input: transition
@@ -70,21 +71,21 @@ void calculatePNC(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Generate operators:
   const auto N_nuc = wf.Anuc() - wf.Znuc();
-  DiracOperator::PNCnsi hpnc(c, t, *wf.rgrid, -N_nuc, "i(Qw/-N)*e-11");
-  DiracOperator::E1 he1(*wf.rgrid);
+  DiracOperator::PNCnsi hpnc(c, t, wf.grid(), -N_nuc, "i(Qw/-N)*e-11");
+  DiracOperator::E1 he1(wf.grid());
 
   // Find core/valence energy: allows distingush core/valence states
   const auto ec_max =
-      std::max_element(cbegin(wf.core), cend(wf.core), DiracSpinor::comp_en)
+      std::max_element(cbegin(wf.core()), cend(wf.core()), DiracSpinor::comp_en)
           ->en();
-  const auto ev_min = std::min_element(cbegin(wf.valence), cend(wf.valence),
+  const auto ev_min = std::min_element(cbegin(wf.valence()), cend(wf.valence()),
                                        DiracSpinor::comp_en)
                           ->en();
   const auto en_core = 0.5 * (ev_min + ec_max);
 
   // TDHF (nb: need object even if not doing RPA)
-  auto dVE1 = ExternalField::TDHF(&he1, wf.getHF());
-  auto dVpnc = ExternalField::TDHF(&hpnc, wf.getHF());
+  auto dVE1 = ExternalField::TDHF(&he1, wf.vHF());
+  auto dVpnc = ExternalField::TDHF(&hpnc, wf.vHF());
   if (rpaQ) {
     const auto omega_dflt = std::abs(Fa.en() - Fb.en());
     const auto omega = input.get("omega", omega_dflt);
@@ -96,28 +97,28 @@ void calculatePNC(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // SOS, use HF
   std::cout << "\nUsing HF states:\n";
-  auto hf_basis = wf.core;
-  hf_basis.insert(end(hf_basis), cbegin(wf.valence), cend(wf.valence));
+  auto hf_basis = wf.core();
+  hf_basis.insert(end(hf_basis), cbegin(wf.valence()), cend(wf.valence()));
   pnc_sos(Fa, Fb, &hpnc, &dVpnc, &he1, &dVE1, hf_basis, main_n, en_core, true);
 
   // SOS, use spectrum
   std::cout << "\nUsing spectrum:\n";
   const auto [sos1, sos2] = pnc_sos(Fa, Fb, &hpnc, &dVpnc, &he1, &dVE1,
-                                    wf.spectrum, main_n, en_core, true);
+                                    wf.spectrum(), main_n, en_core, true);
   // Can swap order of the E1/PNCthe operators: ("trivially" the same for sos)
-  // pnc_sos(Fa, Fb, &he1, &dVE1, &hpnc, &dVpnc, wf.spectrum, main_n, en_core,
+  // pnc_sos(Fa, Fb, &he1, &dVE1, &hpnc, &dVpnc, wf.spectrum(), main_n, en_core,
   //         true);
 
   // Solving equations method (E1 amplitude, PNC perturbed)
   std::cout << "\n";
   const auto [se_d1, se_d2] =
-      pnc_tdhf(Fa, Fb, &hpnc, &dVpnc, &he1, &dVE1, wf.getSigma(), wf.spectrum,
+      pnc_tdhf(Fa, Fb, &hpnc, &dVpnc, &he1, &dVE1, wf.Sigma(), wf.spectrum(),
                main_n, en_core, true);
 
   // Solving equations method (PNC amplitude, E1 perturbed)
   std::cout << "\n";
   const auto [se_h1, se_h2] =
-      pnc_tdhf(Fa, Fb, &he1, &dVE1, &hpnc, &dVpnc, wf.getSigma(), wf.spectrum,
+      pnc_tdhf(Fa, Fb, &he1, &dVE1, &hpnc, &dVpnc, wf.Sigma(), wf.spectrum(),
                main_n, en_core, true);
 
   // Calculate relative difference (numerical accuracy)

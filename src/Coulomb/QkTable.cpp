@@ -345,7 +345,7 @@ void QkTable::fill(const std::vector<DiracSpinor> &basis, const YkTable &yk,
   than necisary)
   */
 
-  const auto tmp_max_k = std::size_t(DiracSpinor::max_tj(basis)) - 1;
+  const auto tmp_max_k = std::size_t(DiracSpinor::max_tj(basis) - 1);
 
   const auto max_k =
       (k_cut <= 0) ? tmp_max_k : std::min(tmp_max_k, std::size_t(k_cut));
@@ -356,17 +356,18 @@ void QkTable::fill(const std::vector<DiracSpinor> &basis, const YkTable &yk,
   t.start();
   std::vector<std::size_t> count_non_zero_k(max_k + 1);
 #pragma omp parallel for
-  for (auto k = 0; k <= int(max_k); ++k) {
+  for (auto k = 0ul; k <= max_k; ++k) {
+    const auto ik = static_cast<int>(k);
     for (const auto &a : basis) {
       for (const auto &b : basis) {
         for (const auto &c : basis) {
-          if (!Angular::Ck_kk_SR(k, a.kappa(), c.kappa()))
+          if (!Angular::Ck_kk_SR(ik, a.kappa(), c.kappa()))
             continue;
           for (const auto &d : basis) {
             // due to symmetry, only calculate each 'unique' integral once
             if (NormalOrder(a, b, c, d) == CurrentOrder(a, b, c, d)) {
-              if (Angular::Ck_kk_SR(k, b.kappa(), d.kappa())) {
-                ++count_non_zero_k[std::size_t(k)];
+              if (Angular::Ck_kk_SR(ik, b.kappa(), d.kappa())) {
+                ++count_non_zero_k[k];
               }
             }
           }
@@ -387,16 +388,16 @@ void QkTable::fill(const std::vector<DiracSpinor> &basis, const YkTable &yk,
   // 3) Create space in map (set each element to zero).
   t.start();
 #pragma omp parallel for
-  for (auto k = 0; k <= int(max_k); ++k) {
+  for (auto k = 0ul; k <= max_k; ++k) {
     for (const auto &a : basis) {
       for (const auto &b : basis) {
         for (const auto &c : basis) {
-          if (!Angular::Ck_kk_SR(k, a.kappa(), c.kappa()))
+          if (!Angular::Ck_kk_SR(int(k), a.kappa(), c.kappa()))
             continue;
           for (const auto &d : basis) {
             if (NormalOrder(a, b, c, d) == CurrentOrder(a, b, c, d)) {
-              if (Angular::Ck_kk_SR(k, b.kappa(), d.kappa())) {
-                add(k, a, b, c, d, 0.0);
+              if (Angular::Ck_kk_SR(int(k), b.kappa(), d.kappa())) {
+                add(int(k), a, b, c, d, 0.0);
               }
             }
           }

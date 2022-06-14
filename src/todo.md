@@ -37,10 +37,6 @@
   * Option to write Yk and/or Qk tables from splines block
     * Can then potentially run multiple basis blocks?
 
-## Wavefunction (#23)
-  * Major cleanup
-  * much moved to HF - wf: no core/vdir/vrad etc.!
-
 ## TDHF - physics
   * Mixed-states work with non-local DiracODE? (#11)
   * Issue for even-parity operators (from de?) (#3)
@@ -60,13 +56,6 @@
 ## Breit
   * More efficient (calc + store integrals, as for Yk?)
   * Breit matrix - for inclusion into Green's function (needs G?)
-
-## DiracSpinor
-  * Use strong types?
-
-## ampsci (ampsci.cpp)
-  * Clean/tidy: separate input blocks
-  * Delegate input options?
 
 ## Angular
   * Ck table a mess - merge with 6J?
@@ -102,7 +91,6 @@
 
 ## Unit tests
   * Improve + add more unit tests
-  * Unit tests and regression tests. Look at Catch2
 
 ## NIntegrate
   * Modernise + cleanup

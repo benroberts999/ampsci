@@ -3,11 +3,11 @@
 ################################################################################
 #Allow exectuables to be placed in another directory:
 ALLEXES = $(addprefix $(XD)/, \
- ampsci unitTests wigner dmeXSection periodicTable \
+ ampsci dmeXSection tests \
 )
 
 DEFAULTEXES = $(addprefix $(XD)/, \
- ampsci periodicTable unitTests \
+ ampsci tests \
 )
 
 #Default make rule:
@@ -33,7 +33,14 @@ $(BD)/%.o: $(SD)/%.cpp
 ################################################################################
 # List all objects in sub-directories (i.e., that don't conatin a main())
 # e.g., for each src/sub_dir/file.cpp -> build/sub_dir/file.o
-OBJS = $(subst $(SD),$(BD),$(subst .cpp,.o,$(wildcard $(SD)/*/*.cpp)))
+
+# Each test file (except main()):
+TEST_SRC_FILES := $(wildcard $(SD)/*/*.tests.cpp)
+TEST_OBJS := $(subst $(SD),$(BD),$(subst .cpp,.o,$(TEST_SRC_FILES)))
+
+#Each non-test source file (except main())
+SRC_FILES := $(filter-out $(TEST_SRC_FILES), $(wildcard $(SD)/*/*.cpp))
+OBJS := $(subst $(SD),$(BD),$(subst .cpp,.o,$(SRC_FILES)))
 
 ################################################################################
 # Link + build all final programs
@@ -41,17 +48,10 @@ OBJS = $(subst $(SD),$(BD),$(subst .cpp,.o,$(wildcard $(SD)/*/*.cpp)))
 $(XD)/ampsci: $(BD)/ampsci.o $(OBJS)
 	$(LINK)
 
-$(XD)/unitTests: $(BD)/unitTests.o $(OBJS)
+$(XD)/tests: $(OBJS) $(TEST_OBJS)
 	$(LINK)
 
 $(XD)/dmeXSection: $(BD)/dmeXSection.o $(OBJS)
-	$(LINK)
-
-$(XD)/wigner: $(BD)/wigner.o
-	$(LINK)
-
-$(XD)/periodicTable: $(BD)/periodicTable.o $(BD)/Physics/AtomData.o \
-$(BD)/Physics/NuclearData.o
 	$(LINK)
 
 # Add git version info to compile flags
@@ -65,9 +65,6 @@ CXXFLAGS+=-D COMPTIME="$(NOW)"
 ################################################################################
 ################################################################################
 
-# CPrint some git history to screen
-SHELL=/bin/bash
-string=$(shell $(CXX) --version 2>/dev/null | sed -n '1p' | sed s/'('/'['/ | sed s/')'/']'/)
 GitInfo:
 	@echo Git Branch: $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)
 	@echo Git Revision: $(shell git rev-parse --short HEAD 2>/dev/null)
@@ -88,7 +85,7 @@ checkXdir:
 .PHONY: clean docs doxy do_the_chicken_dance GitInfo checkObj checkXdir
 clean:
 	rm -f -v $(ALLEXES)
-	rm -rf -v $(BD)/*.o $(BD)/*.d $(BD)/*/
+	rm -rf -v $(BD)/*.o $(BD)/*.d $(BD)/*.gc* $(BD)/*/
 # Make the 'ampsci.pdf' physics documentation
 docs:
 	( cd ./doc/tex && make )
@@ -96,10 +93,10 @@ docs:
 	( cd ./doc/tex && make clean)
 # Make the doxygen code documentation
 doxy:
-	make docs
 	doxygen ./src/Doxyfile
 	( cd ./doc/latex && make )
 	cp ./doc/latex/refman.pdf ./doc/documentation.pdf
+	make docs
 	cp ./doc/ampsci.pdf ./docs/ampsci.pdf 2>/dev/null || :
 	( cd ./doc/latex && make clean)
 do_the_chicken_dance:

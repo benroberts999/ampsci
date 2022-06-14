@@ -68,7 +68,7 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
                         (rpa_method_str == "diagram") ?
                         ExternalField::method::diagram :
                         ExternalField::method::none;
-  if (wf.core.empty())
+  if (wf.core().empty())
     rpa_method = ExternalField::method::none;
   const auto rpaQ = rpa_method != ExternalField::method::none;
   // const auto rpaDQ = rpa_method == ExternalField::method::diagram;
@@ -95,19 +95,19 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << "Including RPA: ";
   if (rpa_method == ExternalField::method::TDHF) {
     std::cout << "TDHF method\n";
-    rpa = std::make_unique<ExternalField::TDHF>(h.get(), wf.getHF());
+    rpa = std::make_unique<ExternalField::TDHF>(h.get(), wf.vHF());
   } else if (rpa_method == ExternalField::method::basis) {
     std::cout << "TDHF/basis method\n";
-    rpa = std::make_unique<ExternalField::TDHFbasis>(h.get(), wf.getHF(),
-                                                     wf.basis);
+    rpa = std::make_unique<ExternalField::TDHFbasis>(h.get(), wf.vHF(),
+                                                     wf.basis());
   } else if (rpa_method == ExternalField::method::diagram) {
     std::cout << "diagram method\n";
-    rpa = std::make_unique<ExternalField::DiagramRPA>(h.get(), wf.basis,
-                                                      wf.core, wf.identity());
+    rpa = std::make_unique<ExternalField::DiagramRPA>(h.get(), wf.basis(),
+                                                      wf.core(), wf.identity());
   }
 
   const auto mes = ExternalField::calcMatrixElements(
-      wf.valence, h.get(), rpa.get(), omega, eachFreqQ, diagonal_only,
+      wf.valence(), h.get(), rpa.get(), omega, eachFreqQ, diagonal_only,
       print_both, radial_int);
 
   if (rpaQ) {
@@ -165,7 +165,7 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   // do RPA:
   std::unique_ptr<ExternalField::TDHF> dV{nullptr};
   if (rpaQ) {
-    dV = std::make_unique<ExternalField::TDHF>(h.get(), wf.getHF());
+    dV = std::make_unique<ExternalField::TDHF>(h.get(), wf.vHF());
     if (!eachFreqQ)
       dV->solve_core(const_omega);
   }
@@ -197,7 +197,7 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
     // output to a file, this wasn't happening soon enough
   };
 
-  if (wf.core.empty() || wf.valence.empty() || wf.basis.empty())
+  if (wf.core().empty() || wf.valence().empty() || wf.basis().empty())
     return;
 
   // Find core/valence energy: allows distingush core/valence states
@@ -206,7 +206,7 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   // ----------- ** Actual Calculations ** -----------
 
   // Construct SR object:
-  MBPT::StructureRad sr(wf.basis, en_core, {n_min, n_max});
+  MBPT::StructureRad sr(wf.basis(), en_core, {n_min, n_max});
   std::cout << std::flush;
 
   struct Output {
@@ -221,8 +221,8 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   std::vector<Output> out;
 
   // Loop through all valence states, calc SR+NS
-  for (const auto &v : wf.valence) {
-    for (const auto &w : wf.valence) {
+  for (const auto &v : wf.valence()) {
+    for (const auto &w : wf.valence()) {
       if (h->isZero(w.kappa(), v.kappa()))
         continue;
 
@@ -235,9 +235,9 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
 
       // Option to use splines (or valence states) to compute Struc Rad (use
       // splines for legs)
-      const auto ws = std::find(cbegin(wf.basis), cend(wf.basis), w);
-      const auto vs = std::find(cbegin(wf.basis), cend(wf.basis), v);
-      if (spline_legs && (ws == cend(wf.basis) || vs == cend(wf.basis))) {
+      const auto ws = std::find(cbegin(wf.basis()), cend(wf.basis()), w);
+      const auto vs = std::find(cbegin(wf.basis()), cend(wf.basis()), v);
+      if (spline_legs && (ws == cend(wf.basis()) || vs == cend(wf.basis()))) {
         std::cout << "Don't have requested spline for: " << w.symbol() << "-"
                   << v.symbol() << "\n";
         continue;
@@ -337,10 +337,10 @@ void calculateLifetimes(const IO::InputBlock &input, const Wavefunction &wf) {
   if (doE1 && doE2)
     std::cout << "Including E1 and E2.\n";
 
-  DiracOperator::E1 he1(*(wf.rgrid));
-  DiracOperator::Ek he2(*(wf.rgrid), 2);
-  auto dVE1 = ExternalField::TDHF(&he1, wf.getHF());
-  auto dVE2 = ExternalField::TDHF(&he2, wf.getHF());
+  DiracOperator::E1 he1(wf.grid());
+  DiracOperator::Ek he2(wf.grid(), 2);
+  auto dVE1 = ExternalField::TDHF(&he1, wf.vHF());
+  auto dVE2 = ExternalField::TDHF(&he2, wf.vHF());
   if (rpaQ && doE1)
     dVE1.solve_core(0.0);
   if (rpaQ && doE2)
@@ -351,10 +351,10 @@ void calculateLifetimes(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto srQ = input.get("StrucRadNorm", false);
   if (srQ) {
     std::cout << "Including Structure Radiation + Normalisation\n";
-    sr = std::make_unique<MBPT::StructureRad>(wf.basis, wf.en_coreval_gap());
+    sr = std::make_unique<MBPT::StructureRad>(wf.basis(), wf.en_coreval_gap());
   }
 
-  const auto alpha = wf.alpha;
+  const auto alpha = wf.alpha();
   const auto alpha3 = alpha * alpha * alpha;
   const auto alpha2 = alpha * alpha;
   const auto to_s = PhysConst::time_s;
@@ -367,12 +367,12 @@ void calculateLifetimes(const IO::InputBlock &input, const Wavefunction &wf) {
   };
   std::vector<Data> data;
 
-  for (const auto &Fa : wf.valence) {
+  for (const auto &Fa : wf.valence()) {
     std::cout << "\n" << Fa.symbol() << "\n";
     auto Gamma = 0.0;
 
     if (doE1) {
-      for (const auto &Fn : wf.valence) {
+      for (const auto &Fn : wf.valence()) {
         if (Fn.en() >= Fa.en() || he1.isZero(Fn.kappa(), Fa.kappa()))
           continue;
         const auto w = Fa.en() - Fn.en();
@@ -394,7 +394,7 @@ void calculateLifetimes(const IO::InputBlock &input, const Wavefunction &wf) {
       }
     }
     if (doE2) {
-      for (const auto &Fn : wf.valence) {
+      for (const auto &Fn : wf.valence()) {
         if (Fn.en() >= Fa.en() || he2.isZero(Fn.kappa(), Fa.kappa()))
           continue;
         const auto w = Fa.en() - Fn.en();

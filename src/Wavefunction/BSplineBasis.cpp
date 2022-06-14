@@ -74,27 +74,22 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
 
     const auto max_n = nk.n;
     const auto kappa = nk.k;
-    // const auto kmin = std::size_t(AtomData::l_k(kappa) + 3);
-    const auto k = k_spl; // < kmin ? kmin : k_spl;
-    // if (k_spl < kmin) {
-    //   std::cout << "Warning: Spline order k=" << k
-    //             << " may be small for kappa=" << kappa << " (kmin=" << kmin
-    //             << ")\n";
-    // }
+    const auto k = k_spl;
 
     // Chose larger r0 depending on core density:
     const auto l = AtomData::l_k(kappa);
-    const auto l_tmp = std::min(l, wf.maxCore_l());
+    const auto l_tmp = std::min(l, DiracSpinor::max_l(wf.core()));
 
     const auto [rmin_l, rmax_l] = wf.lminmax_core_range(l_tmp, r0_eps);
     (void)rmax_l; // don't warn on unused rmax_l
     auto r0_eff = std::max(rmin_l, r0_spl);
 
     if (r0_eff == 0.0)
-      r0_eff = wf.rgrid->r(0);
+      r0_eff = wf.grid().r(0);
 
-    const auto [spl_basis, d_basis] = form_spline_basis(
-        kappa, n_spl, k, r0_eff, rmax_spl, wf.rgrid, wf.alpha, basis_type);
+    const auto [spl_basis, d_basis] =
+        form_spline_basis(kappa, n_spl, k, r0_eff, rmax_spl, wf.grid_sptr(),
+                          wf.alpha(), basis_type);
 
     auto [Aij, Sij] = fill_Hamiltonian_matrix(spl_basis, d_basis, wf,
                                               correlationsQ, basis_type);
@@ -124,7 +119,7 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
     auto prev = std::find_if(basis.begin(), basis.end(), comp);
     if (prev == basis.end())
       continue;
-    auto nmc2 = -1.0 / (wf.alpha * wf.alpha);
+    auto nmc2 = -1.0 / (wf.alpha() * wf.alpha());
     if (Fp.en() < prev->en() && Fp.en() > nmc2) {
       // XXX Better: count nodes? ['Spurious node at large r?']
       std::cout << "WARNING: "
@@ -135,12 +130,12 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
 
   // Compare basis states to core/valence states
   // Check normality, orthogonality and energy differences
-  for (const auto *orbs : {&wf.core, &wf.valence}) {
+  for (const auto *orbs : {&wf.core(), &wf.valence()}) {
     if (orbs->empty())
       continue;
 
     std::string wrong_sign_list = "";
-    std::cout << "Basis/" << (orbs == &wf.core ? "core" : "valence") << ":\n";
+    std::cout << "Basis/" << (orbs == &wf.core() ? "core" : "valence") << ":\n";
     double worst_dN = 0.0;
     double worst_dE = 0.0;
     std::string wFN, wFE;
@@ -289,17 +284,17 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
   auto &Aij = A_and_S.first;
   auto &Sij = A_and_S.second;
 
-  const auto excl_exch = wf.exclude_exchangeQ();
-  const auto sigmaQ = wf.getSigma() != nullptr && correlationsQ;
-  const auto VBr = wf.getHF() ? wf.getHF()->get_Breit() : nullptr;
+  const auto excl_exch = wf.vHF() ? wf.vHF()->excludeExchangeQ() : true;
+  const auto sigmaQ = wf.Sigma() != nullptr && correlationsQ;
+  const auto VBr = wf.vHF() ? wf.vHF()->vBreit() : nullptr;
 
 #pragma omp parallel for
   for (auto i = 0ul; i < Aij.rows(); i++) {
     const auto &si = spl_basis[i];
     const auto &dsi = d_basis[i];
-    const auto VexSi = excl_exch ? 0.0 * si : HF::vexFa(si, wf.core);
-    const auto SigmaSi = sigmaQ ? (*wf.getSigma())(si) : 0.0 * si;
-    const auto BreitSi = VBr ? VBr->VbrFa(si, wf.core) : 0.0 * si;
+    const auto VexSi = excl_exch ? 0.0 * si : HF::vexFa(si, wf.core());
+    const auto SigmaSi = sigmaQ ? (*wf.Sigma())(si) : 0.0 * si;
+    const auto BreitSi = VBr ? VBr->VbrFa(si, wf.core()) : 0.0 * si;
 
     for (auto j = 0ul; j <= i; j++) {
       const auto &sj = spl_basis[j];
@@ -331,7 +326,7 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
   }
   // Note: This is work-around, since Breit seems not to be 100% symmetric!
   if (type == SplineType::Johnson)
-    add_NotreDameBoundary(&Aij, spl_basis.front().kappa(), wf.alpha);
+    add_NotreDameBoundary(&Aij, spl_basis.front().kappa(), wf.alpha());
 
   return A_and_S;
 }
@@ -370,7 +365,7 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
   auto l = AtomData::l_k(kappa);
   auto min_n = l + 1;
 
-  const auto neg_mc2 = -1.0 / (wf.alpha * wf.alpha);
+  const auto neg_mc2 = -1.0 / (wf.alpha() * wf.alpha());
   auto pqn = min_n - 1;
   auto pqn_pstrn = -min_n + 1;
   for (auto i = 0ul; i < e_values.rows(); i++) {
@@ -383,15 +378,16 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
         (!positive_energy && pqn_pstrn < -max_n))
       continue;
 
-    auto &Fi = (positive_energy) ?
-                   basis->emplace_back(pqn, kappa, wf.rgrid) :
-                   basis_positron->emplace_back(pqn_pstrn, kappa, wf.rgrid);
+    auto &Fi =
+        (positive_energy) ?
+            basis->emplace_back(pqn, kappa, wf.grid_sptr()) :
+            basis_positron->emplace_back(pqn_pstrn, kappa, wf.grid_sptr());
     Fi.en() = en;
     for (std::size_t ib = 0; ib < spl_basis.size(); ++ib) {
       Fi += pvec[ib] * spl_basis[ib];
     }
     const auto low_r = 0.3 / wf.Znuc();
-    if (Fi.f(wf.rgrid->getIndex(low_r)) < 0.0)
+    if (Fi.f(wf.grid().getIndex(low_r)) < 0.0)
       Fi *= -1.0;
     // std::cout << Fi.symbol() << " " << Fi * Fi << "\n";
     // Note: they are not even roughly normalised...I think they should be??

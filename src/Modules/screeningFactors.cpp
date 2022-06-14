@@ -20,7 +20,7 @@ void screeningFactors(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto omre = -std::abs(0.33 * wf.energy_gap());
 
   const auto stride =
-      (wf.rgrid->getIndex(30.0) - wf.rgrid->getIndex(1.0e-3)) / 100;
+      (wf.grid().getIndex(30.0) - wf.grid().getIndex(1.0e-3)) / 100;
 
   double w0 = 0.01;
   double wratio = 1.5;
@@ -84,10 +84,10 @@ void screeningFactors(const IO::InputBlock &input, const Wavefunction &wf) {
 
   const MBPT::rgrid_params gridp{1.0e-3, 30.0, stride};
 
-  const MBPT::FeynmanSigma Sigma0(wf.getHF(), wf.basis, sigp_0, gridp, "");
-  const MBPT::FeynmanSigma SigmaScr(wf.getHF(), wf.basis, sigp_scr, gridp, "");
-  const MBPT::FeynmanSigma Sigmahp(wf.getHF(), wf.basis, sigp_hp, gridp, "");
-  const MBPT::FeynmanSigma SigmaAO(wf.getHF(), wf.basis, sigp_AO, gridp, "");
+  const MBPT::FeynmanSigma Sigma0(wf.vHF(), wf.basis(), sigp_0, gridp, "");
+  const MBPT::FeynmanSigma SigmaScr(wf.vHF(), wf.basis(), sigp_scr, gridp, "");
+  const MBPT::FeynmanSigma Sigmahp(wf.vHF(), wf.basis(), sigp_hp, gridp, "");
+  const MBPT::FeynmanSigma SigmaAO(wf.vHF(), wf.basis(), sigp_AO, gridp, "");
 
   std::cout << "\n";
 
@@ -100,7 +100,7 @@ void screeningFactors(const IO::InputBlock &input, const Wavefunction &wf) {
   // std::vector<int> kappa;
 
   std::cout << "k   de(0)   de(X)  de(hp)  de(AO) |     fk   fkhp   eta\n";
-  for (const auto &Fv : wf.valence) {
+  for (const auto &Fv : wf.valence()) {
 
     std::vector<double> fk;
     std::vector<double> fk_hp;

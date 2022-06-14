@@ -91,9 +91,9 @@ generate_E1(const IO::InputBlock &input, const Wavefunction &wf) {
   input.check({{"gauge", "lform or vform [lform]"}});
   const auto gauge = input.get<std::string>("gauge", "lform");
   if (gauge != "vform")
-    return std::make_unique<E1>(*(wf.rgrid));
+    return std::make_unique<E1>(wf.grid());
   // std::cout << "(v-form [velocity gauge])\n";
-  return std::make_unique<E1v>(wf.alpha, 0.0);
+  return std::make_unique<E1v>(wf.alpha(), 0.0);
 }
 
 //------------------------------------------------------------------------------
@@ -102,7 +102,7 @@ generate_Ek(const IO::InputBlock &input, const Wavefunction &wf) {
   using namespace DiracOperator;
   input.check({{"k", "Rank: k=1 for E1, =2 for E2 etc. [1]"}});
   const auto k = input.get("k", 1);
-  return std::make_unique<Ek>(*(wf.rgrid), k);
+  return std::make_unique<Ek>(wf.grid(), k);
 }
 
 } // namespace DiracOperator

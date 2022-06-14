@@ -3,6 +3,8 @@
 namespace Nuclear {
 //==============================================================================
 Isotope findIsotopeData(int z, int a) {
+  if (a == 0)
+    return Isotope{z, a, 0, 0, 0, 0};
   for (const auto &nucleus : NuclearDataTable) {
     if (nucleus.Z == z && nucleus.A == a)
       return nucleus;

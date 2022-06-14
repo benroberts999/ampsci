@@ -1,8 +1,8 @@
 # ampsci
 _*Atomic Many-body Perturbation theory in the Screened Coulomb Interaction*_
 
-Solves the Dirac equation for single-valence atomic systems using the Hartree-Fock + correlation potential method (Dzuba-Flambaum-Sushkov method).
-Fully relativistic, includes electron correlations (all-orders screening and hole-particle interaction), finite-nuclear size, Breit interaction, radiative QED effects, and RPA for matrix elements (with structure radiation/renormalisation).
+Solves the Dirac equation for single-valence atomic systems using the Hartree-Fock + correlation potential method (based on Dzuba-Flambaum-Sushkov method).
+Fully relativistic, includes electron correlations, all-orders screening and hole-particle interaction, finite-nuclear size, Breit interaction, radiative QED effects, and RPA for matrix elements (with structure radiation/renormalisation).
 QED is included via the Ginges-Flambaum radiative potential method.
 Can solve for continuum states with high energy.
 Calculates ionisation cross sections with high values for energy/momentum transfer. Parallelised using openMP.
@@ -17,6 +17,7 @@ The "modules" system (see documentation) makes it simple to add your own routine
   [![][manual-badge]][man-url]
   [![][tests-badge]][actions-url]
   [![][build-badge]][actions-url]
+  [![][cov-badge]][cov-url]
 
 ## Documentation
 
@@ -54,8 +55,8 @@ There are four documentation types provided:
 
 ## Compilation:
 
- * Copy "doc/Makefile.example" from doc/ directory to the working directory, and rename to -> "Makefile"
-    * _$cp ./doc/Makefile.example ./Makefile_
+ * Copy "doc/examples/Makefile" from doc/ directory to the working directory
+    * _$cp ./doc/examples/Makefile ./_
  * All programs compiled using the Makefile (run _$make_)
  * The file _Makefile_ has some basic compilation options. It's currently set up to work on most linux systems; you may need to change a few options for others (see below)
  * Tested with g++ and clang++ on linux and mac (requires c++17)
@@ -66,7 +67,7 @@ Requires GSL (GNU scientific libraries) https://www.gnu.org/software/gsl/, and L
  * Requires GSL ver 2.0+ (tested with 2.1, 2.6)
 
  * Quick start (ubuntu). Full dependencies list, run:
-   * _$sudo apt install g++ clang++ make liblapack-dev libblas-dev libgsl-dev libomp5 libomp-dev_
+   * _$sudo apt install g++ make liblapack-dev libblas-dev libgsl-dev libomp-dev_
 
 
 ### Compilation: Linux:
@@ -132,12 +133,38 @@ In theory, should work with MSVC - but no CMAKE file provided (yet)
 
 ## ampsci (main program)
 
+Run the program with input options from the command line, e.g.:
+
+ * $ ./ampsci filename
+   - Runs ampsci with input option specified in file "filename"
+   - This is the main way to run program
+
+ * $ ./ampsci <At> <Core> <Valence>
+   - For quick use: simple HF calculation. e.g.,
+ * $ ./ampsci Cs
+    - Runs ampsci for Cs using Hartree Fock (V^N) approximation
+ * $ ./ampsci Cs [Xe] 6sd5d
+    - Runs ampsci for Cs using Hartree Fock with Xe-like core and valence
+      states up to n=6 for s,p-states and n=5 for d-states
+ * $ ./ampsci Cs
+    - Runs ampsci for Cs using Hartree Fock (V^N) approximation
+
+ * $ ./ampsci -v
+    - Prints version info (same as --version)
+
+ * $ ./ampsci -h
+    - Print help info, including input options (same as --help)
+
+Output is printed to screen. It's recommended to forward this to a text file.
+The input options and the ampsci version details are also printed, so that the
+program output contains all required info to exactly reproduce it.
+e.g.,
+ * ./ampsci input |tee -a outout
+   - Runs ampsci using input options in file "input".
+   - Output will both be written to screen, and appended to file "output".
+
  * Input taken from a plain text file (or via command line).
  * Several example input files are given in: _doc/examples/_, along with their expected output; use these to test if everything is working.
- * You may re-name the input files (e.g., to "filename.txt"), then run as:
-    * _$ ./ampsci filename.txt_
-    * If no input filename is given, program will assume input filename is 'ampsci.in':
- * Note: input file uses c++-like format, including c++-style comments
  * See _doc/ampsci_input.md_ for a full list of input options + descriptions
  * See _ampsci.pdf_ for a description of the physics, and for references to the works where the methods implemented here were developed.
    * Available on GitHub: [benroberts999.github.io/ampsci/ampsci.pdf](https://benroberts999.github.io/ampsci/ampsci.pdf)
@@ -185,20 +212,6 @@ Units:
  * mu: magnetic moment (in nuclear magnetons)
 
 
-### wigner
-
- * Small routine to calculate 3,6,9-j symbols, and Clebsch Gordon coefficients
- * Either give input via command line directly (quote marks required)
-   * e.g., _./wigner '<0.5 -0.5, 0.5 0.5| 1 0>'_
-   * or e.g., _./wigner '(0.5 1 0.5, -0.5 0 0.5)'_ etc.
- * Or, give an input file, that contains any number of symbols, all on new line
-   * e.g., _./wigner -f myInputFile.in_
-   * nb: the '-f' flag can be dropped in the '.in' file extension is used
-   * Do not use quote marks in input file. Lines marked '!' or '#' are comments
- * 3j symbols must start with '('; 6,9j with '{', and CG with '<' (this is how code knows which symbol to calculate).
- * but, each number can be separated by any symbol (space, comma etc.)
-
-
 ### dmeXSection
 
   * Calculates the cross-section and event rates for ionisation of atoms
@@ -220,3 +233,5 @@ Units:
  [tests-badge]: https://github.com/benroberts999/ampsci/workflows/Tests/badge.svg
  [doxygen-badge]: https://img.shields.io/badge/documentation-code%20(html)-blue
  [manual-badge]: https://img.shields.io/badge/documentation-physics%20(pdf)-blue
+ [cov-badge]: https://codecov.io/gh/benroberts999/ampsci/branch/main/graph/badge.svg?token=3M5MH5QXLL
+ [cov-url]: https://codecov.io/gh/benroberts999/ampsci

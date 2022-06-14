@@ -226,7 +226,7 @@ SEPARATE_MEMBER_PAGES  = NO
 # uses this value to replace tabs by spaces in code fragments.
 # Minimum value: 1, maximum value: 16, default value: 4.
 
-TAB_SIZE               = 4
+TAB_SIZE               = 2
 
 # This tag can be used to specify a number of aliases that act as commands in
 # the documentation. An alias has the form:
@@ -815,7 +815,7 @@ INPUT_ENCODING         = UTF-8
 # *.m, *.markdown, *.md, *.mm, *.dox, *.py, *.pyw, *.f90, *.f95, *.f03, *.f08,
 # *.f, *.for, *.tcl, *.vhd, *.vhdl, *.ucf and *.qsf.
 
-FILE_PATTERNS          = *.hpp
+FILE_PATTERNS          = 
 
 # The RECURSIVE tag can be used to specify whether or not subdirectories should
 # be searched for input files as well.

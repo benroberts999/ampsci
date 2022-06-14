@@ -25,6 +25,9 @@ inline void removeBlockComments(std::string &input);
 //! Removes all c++ style comments from a string (block and line)
 inline std::string removeComments(const std::string &input);
 
+//! Expands "#include" files
+inline std::string expandIncludes(std::string input);
+
 //! Parses a string to type T by stringstream
 template <typename T> inline T parse_str_to_T(const std::string &value_as_str);
 
@@ -224,12 +227,13 @@ private:
   checkBlock(const std::vector<std::pair<std::string, std::string>> &list,
              bool print = false) const;
 
+  //! Return a pointer to a block. Allows editing of blocks
+  inline InputBlock *getBlock_ptr(std::string_view name);
+  inline const InputBlock *getBlock_cptr(std::string_view name) const;
+
   // Allows returning std::vector: comma-separated list input
   template <typename T>
   std::optional<std::vector<T>> get_vector(std::string_view key) const;
-
-  inline InputBlock *getBlock_ptr(std::string_view name);
-  inline const InputBlock *getBlock_cptr(std::string_view name) const;
 
   inline void add_option(std::string_view in_string);
   inline void add_blocks_from_string(std::string_view string, bool merge);
@@ -257,8 +261,26 @@ void InputBlock::add(const std::vector<Option> &options) {
 }
 //==============================================================================
 void InputBlock::add(const std::string &string, bool merge) {
-  add_blocks_from_string(removeQuoteMarks(removeSpaces(removeComments(string))),
-                         merge);
+
+  // std::cout << "***\n\n";
+  // std::cout << string << "\n";
+  // std::cout << "***\nremoveComments:\n";
+  // auto clean_text = removeComments(string);
+  // std::cout << clean_text << "\n";
+  // std::cout << "***\nxpandIncludes:\n";
+  // clean_text = expandIncludes(clean_text);
+  // std::cout << clean_text << "\n";
+  // std::cout << "***\nemoveSpaces:\n";
+  // clean_text = removeSpaces(clean_text);
+  // std::cout << clean_text << "\n";
+  // std::cout << "***\nemoveQuoteMarks:\n";
+  // clean_text = removeQuoteMarks(clean_text);
+  // std::cout << clean_text << "\n";
+  // std::cout << "***\n";
+
+  add_blocks_from_string(
+      removeQuoteMarks(removeSpaces(expandIncludes(removeComments(string)))),
+      merge);
 }
 
 //==============================================================================
@@ -454,17 +476,6 @@ bool InputBlock::checkBlock(
   }
 
   for (const auto &block : m_blocks) {
-    // compares, accounting for wild-cards (*)
-    // const auto is_blockQ = [&](const auto &b) {
-    //   // check if wildcard:
-    //   const auto wc = std::find(b.first.cbegin(), b.first.cend(), '*');
-    //   if (wc != b.first.cend()) {
-    //     const auto len = std::size_t(std::distance(b.first.cbegin(), wc));
-    //     // compare sub-strings (up to wildcard):
-    //     return block.name().substr(0, len) == b.first.substr(0, len);
-    //   }
-    //   return block == b.first;
-    // };
     const auto is_blockQ = [&](const auto &b) {
       return qip::ci_wildcard_compare(block.name(), b.first);
     };
@@ -482,59 +493,8 @@ bool InputBlock::checkBlock(
     std::cout << "\nAvailable " << m_name << " options/blocks are:\n"
               << m_name << "{\n";
     std::for_each(list.cbegin(), list.cend(), [](const auto &s) {
-      std::cout << "  " << s.first << ";  // " << s.second << "\n";
+      std::cout << "  " << s.first << ";\t// " << s.second << "\n";
     });
-    std::cout << "}\n\n";
-  }
-  return all_ok;
-}
-
-bool InputBlock::checkBlock_old(const std::vector<std::string> &list,
-                                bool print) const {
-  // Check each option NOT each sub block!
-  // For each input option stored, see if it is allowed
-  // "allowed" means appears in list
-  bool all_ok = true;
-  for (const auto &option : m_options) {
-    // const auto is_optionQ = [&](const auto &l) { return option.key == l; };
-    const auto is_optionQ = [&](const auto &l) {
-      return qip::ci_wildcard_compare(option.key, l);
-    };
-
-    const auto bad_option =
-        !std::any_of(list.cbegin(), list.cend(), is_optionQ);
-    auto help = qip::ci_wildcard_compare(option.key, "help") ? true : false;
-    if (help)
-      print = true;
-    if (bad_option && !help) {
-      all_ok = false;
-      std::cout << "\n⚠️  WARNING: Unclear input option in " << m_name
-                << ": " << option.key << " = " << option.value_str << ";\n"
-                << "Option may be ignored!\n"
-                << "Check spelling (or update list of options)\n";
-    }
-  }
-
-  for (const auto &block : m_blocks) {
-    // const auto is_blockQ = [&](const auto &b) { return block == b; };
-    const auto is_blockQ = [&](const auto &b) {
-      return qip::ci_wildcard_compare(block.name(), b);
-    };
-    const auto bad_block = !std::any_of(list.cbegin(), list.cend(), is_blockQ);
-    if (bad_block) {
-      all_ok = false;
-      std::cout << "\n⚠️  WARNING: Unclear input block within " << m_name
-                << ": " << block.name() << "{}\n"
-                << "Block and containing options may be ignored!\n"
-                << "Check spelling (or update list of options)\n";
-    }
-  }
-
-  if (!all_ok || print) {
-    std::cout << "\nAvailable " << m_name << " options/blocks are:\n"
-              << m_name << "{\n";
-    std::for_each(list.cbegin(), list.cend(),
-                  [](const auto &s) { std::cout << "  " << s << ";\n"; });
     std::cout << "}\n\n";
   }
   return all_ok;
@@ -671,6 +631,24 @@ void InputBlock::consolidate() {
 //==============================================================================
 //==============================================================================
 //==============================================================================
+inline std::string expandIncludes(std::string str) {
+  const std::string include_text = "#include";
+
+  for (auto ipos = str.find(include_text); ipos != std::string::npos;
+       ipos = str.find(include_text)) {
+    const auto start = std::min(str.find('"', ipos), str.find('<', ipos));
+    const auto end =
+        std::min(str.find('"', start + 1), str.find('>', start + 1));
+    const auto fname = str.substr(start + 1, end - start - 1);
+    str.erase(ipos, end - ipos + 1);
+    std::ifstream ifile(fname);
+    if (ifile.good()) {
+      str.insert(ipos, removeComments(file_to_string(ifile)));
+    }
+  }
+
+  return str;
+}
 
 //==============================================================================
 inline std::string removeSpaces(std::string str) {
@@ -720,11 +698,11 @@ inline std::string removeComments(const std::string &input) {
     std::string line;
     std::stringstream stream1(input);
     while (std::getline(stream1, line, '\n')) {
-      auto comm1 = line.find('!'); // nb: char, NOT string literal!
-      auto comm2 = line.find('#');
-      auto comm3 = line.find("//"); // str literal here
-      auto comm = std::min(comm1, std::min(comm2, comm3));
-      str += line.substr(0, comm);
+      // const auto comm1 = line.find('!');  // nb: char, NOT string literal!
+      // auto comm2 = line.find('#');
+      const auto comm3 = line.find("//"); // str literal here
+      // const auto comm = std::min({comm1, comm3});
+      str += line.substr(0, comm3);
       str += '\n';
     }
   }

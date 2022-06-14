@@ -2,48 +2,67 @@
 
 This outlines/describes the input options/usage for ampsci. For a description of the physics, see: [ampsci.pdf](https://benroberts999.github.io/ampsci/ampsci.pdf)
 
-* The **ampsci** program should be run as:
-  * _./ampsci inputFile.in_
-  * "inputFile.in" is a plain-text input file, that contains all input options * If no input file is given, program looks for the default one, named "ampsci.in"
-* Can also be run simply by giving an atomic symbol (or Z) as command-line option, which will run a simple Hartree-Fock calculation, e.g.,: _./ampsci Cs_
-* First, the program reads in the main input options from the four main input "blocks" (Atom, Nucleus, HartreeFock, and Grid). It will use these to generate wavefunction/Hartree-Fock etc. Then, any number of optional "modules" are run using the above-calculated wavefunctions (e.g., these might calculate matrix elements, run tests etc.). The input blocks and options can be given in any order
-* In general, the input file will have the following format:
+Input is a plain text file that consists of sets of 'Blocks' and 'Options'.
+ - Blocks are followed by curly-braces: BlockName{}
+ - Options are followed by a semi-colon: OptionName = option_value;
+ - Generally, each Block will have a set of Options that may be set
+ - Nearly all are optional - leave them blank and a default value will be used
+ - Blocks may be nested inside other Blocks
+ - White-space is ignored, as are ' and " characters
+ - You may use C++-style line '//' and block '/**/' comments
 
+The code is "self-documenting". At any level (i.e., in any Block or at 'global' 
+level outside of any Block), set the option 'help;', and the code will print:
+ - a list of all available Blocks and Options at that level
+ - a description of what they are for, and
+ - the default value if they are left unset.
+
+For example, setting 'help' at the top-level will print a list of all available 
+top-level Blocks:
 ```cpp
-Atom { <input_options> }
-Nucleus { <input_options> }
-Grid { <input_options> }
-HartreeFock { <input_options> }
-//Optional modules:
-Module::firstModule { <input_options> }
-Module::secondModule { <input_options> }
+  Atom{}         // InputBlock. Which atom to run for
+  Grid{}         // InputBlock. Set radial grid parameters
+  HartreeFock{}  // InputBlock. Options for Solving atomic system
+  Nucleus{}      // InputBlock. Set nuclear parameters
+  RadPot{}       // InputBlock. Inlcude QED radiative potential
+  Basis{}        // InputBlock. Basis used for MBPT
+  Spectrum{}     // InputBlock. Like basis; used for sum-over-states
+  Correlations{} // InputBlock. Options for correlations
+  ExtraPotential{} // InputBlock. Include an extra potential
+  dVpol{}        // InputBlock. Approximate correlation (polarisation) potential
+  Module::*{}    // InputBlock. Run any number of modules (* -> module name)
 ```
 
-* Most options have a default; these may be left blank, explicitly set to 'default', or removed entirely.
-* The curly-braces denote the start/end of each block. Nested blocks are allowed
-* Uses c++ style comments. Any commented-out line will not be read. White-space is ignored.
-* For example, the following inputs are all equivalent
+Set 'help;' inside any of these to get full set of options of each of these, 
+and so on.
+Full descriptions of each Block/Option are given in /doc/ - but the self-
+documentation of the code will always be more up-to-date.
+
+The general usage of the code is to use the first , then to add as many 
+'Module::' blocks as required. Each module is a sepperate routine that will take
+the calculated wavefunction and compute any desired property (e.g., matrix 
+elements). The code is designed such that anyone can write a new Module (see 
+/src/Modules/exampleModule.hpp)
+
+e.g., To calculate Cs wavefunctions at HF level with 6s, 6p, and 5d valence 
+states, and then calculate E1 matrix elements including core polarisation (RPA):
 
 ```cpp
-Atom {
-  Z = Cs;
-  A;
-}
-Atom {
-  Z = Cs;
-//  A;
-}
-Atom { Z = Cs; }
-Atom { Z = 55; A = 133; }
-Atom{Z=Cs;A=default;}
+  Atom {
+    Z = Cs;
+    A = 133;
+  }
+  Grid { } // Leave all default; can also just drop entire Block
+  Nucleus { } // Default values set according to isotope
+  HartreeFock {
+    core = [Xe];
+    valence = 6sp5d;
+  }
+  Module::matrixElements {
+    operator = E1;
+    rpa = true;
+  }
 ```
-
-* All available inputs for each input block are listed below
-  * Inputs are taken in as either text, boolean (true/false), integers, or real numbers, or a "sub-block"
-  * These will be denoted by [t], [b], [i], [r], [sub-block]
-  * A sub-block is a bracketed list of sub-options, e.g.
-    * options{a=1; b=2;}
-* Program will _usually_ warn you if an incorrect option is given, and print all the available options to the screen -- you can use this fact to get the code to print all the available options for each block.
 
 ================================================================================
 ## Auto-documentation
@@ -60,7 +79,7 @@ blockname {
 
 
 ================================================================================
-All available ampsci options/blocks are:
+All available ampsci (top-level) options/blocks are:
 
 ```cpp
 ampsci{

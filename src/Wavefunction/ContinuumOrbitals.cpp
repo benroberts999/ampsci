@@ -16,12 +16,12 @@
 
 //==============================================================================
 ContinuumOrbitals::ContinuumOrbitals(const Wavefunction &wf, int izion)
-    : rgrid(wf.rgrid),
-      p_hf(wf.getHF()),
+    : rgrid(wf.grid_sptr()),
+      p_hf(wf.vHF()),
       Z(wf.Znuc()),
       Zion(izion),
-      alpha(wf.alpha),
-      v_local(qip::add(wf.vnuc, wf.vdir)) {}
+      alpha(wf.alpha()),
+      v_local(wf.vlocal()) {}
 
 //==============================================================================
 double ContinuumOrbitals::check_orthog(bool print) const {

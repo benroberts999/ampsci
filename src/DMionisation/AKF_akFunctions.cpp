@@ -101,8 +101,8 @@ calculateKpw_nk(const Wavefunction &wf, const DiracSpinor &psi, double dE,
 
   for (auto iq = 0ul; iq < qsteps; iq++) {
     const double chi_q =
-        NumCalc::integrate(wf.rgrid->du(), 0, maxir, psi.f(), jl_qr[iq],
-                           wf.rgrid->r(), wf.rgrid->drdu());
+        NumCalc::integrate(wf.grid().du(), 0, maxir, psi.f(), jl_qr[iq],
+                           wf.grid().r(), wf.grid().drdu());
     tmpK_q[iq] = (float)((2. / M_PI) * (twoj + 1) * std::pow(chi_q, 2) *
                          std::sqrt(2. * eps));
     // tmpK_q[iq] = std::pow(4*3.14159,2)*std::pow(chi_q,2); // just cf KOPP

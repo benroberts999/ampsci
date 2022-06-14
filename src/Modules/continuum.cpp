@@ -29,7 +29,7 @@ void continuum(const IO::InputBlock &input, const Wavefunction &wf) {
   if (fname != "") {
     std::cout << "Writing orbitals (f) to " << fname << "\n";
     std::ofstream of(fname);
-    const auto &gr = *wf.rgrid;
+    const auto &gr = wf.grid();
     of << "r ";
     for (const auto &Fc : cntm.orbitals) {
       of << "\"" << Fc.symbol(true) << "\" ";

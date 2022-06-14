@@ -10,6 +10,7 @@
 #include "Wavefunction/DiracSpinor.hpp"
 #include <iostream>
 #include <memory>
+#include <numeric>
 #include <string>
 #include <utility>
 #include <vector>
@@ -19,78 +20,116 @@ struct Parameters;
 
 //==============================================================================
 /*!
-@brief Stores Wavefunction (set of core+valence orbitals, grid etc.)
+@brief Stores Wavefunction (set of valence orbitals, grid, HF etc.)
 @details
 \par Construction:
   - Set of GridParameters [see Maths/Grid]
-  - Set of Nuclear::Parameters [see Physics/NuclearPotentials]
+  - Set of Nuclear::Nucleus [see Physics/NuclearPotentials]
   - var_alpha = \f$\lambda\f$, \f$\alpha = \lambda\alpha_0\f$
 
 */
 class Wavefunction {
 
 public:
+  //! Construct with a Grid [shared resource], a nucleus (isotope data etc.),
+  //! and (optional) fractional variation in alpha  [alpha = var_alpha *
+  //! alpha_0, alpha_0=~1/137]
+  Wavefunction(std::shared_ptr<const Grid> grid,
+               const Nuclear::Nucleus &nucleus, double var_alpha = 1.0);
+  //! As above, but Grid is constructed here using given parameters
   Wavefunction(const GridParameters &gridparams,
-               const Nuclear::Parameters &nuc_params, double var_alpha = 1.0);
+               const Nuclear::Nucleus &nucleus, double var_alpha = 1.0);
 
-  //! User-defined copy-constructor. Note: Does not copy HF or Sigma
-  Wavefunction(const Wavefunction &wf);
+  //! User-defined copy-constructor. Note: Does not copy Sigma
+  Wavefunction(const Wavefunction &wf); // XXX make sigma copyable!?
+  //! Deleted, as sigma cannot be copied. This will be fixed
   Wavefunction &operator=(const Wavefunction &) = delete;
   ~Wavefunction() = default;
 
-public:
-  //! "Frozen" Core orbitals
-  std::vector<DiracSpinor> core{};
-  //! Valence (single-particle) orbitals
-  std::vector<DiracSpinor> valence{};
-  //! Basis, daigonalised over HF core. Used for MBPT
-  std::vector<DiracSpinor> basis{};
-  //! Sprectrum: like basis, but includes Sigma (correlations).
-  std::vector<DiracSpinor> spectrum{};
-  //! Radial grid
+private:
+  // Radial grid
   std::shared_ptr<const Grid> rgrid;
-  //! Internal value for alpha (alpha = var_alpha * alpha_0, alpha_0=~1/137)
-  const double alpha;
-
-private:
-  const Nuclear::Parameters m_nuclear;
-  std::unique_ptr<HF::HartreeFock> m_pHF{nullptr};
+  // Internal value for alpha (alpha = var_alpha * alpha_0, alpha_0=~1/137)
+  double m_alpha;
+  // Holds nuclear parameters (isotope, charge distro etc.)
+  Nuclear::Nucleus m_nucleus;
+  // Valence (single-particle) orbitals
+  std::vector<DiracSpinor> m_valence{};
+  // Basis, daigonalised over HF core. Used for MBPT
+  std::vector<DiracSpinor> m_basis{};
+  // Sprectrum: like basis, but includes Sigma (correlations).
+  std::vector<DiracSpinor> m_spectrum{};
+  // Nuclear potential // here AND hf?
+  std::vector<double> m_vnuc{};
+  // Hartree-Fock potential
+  std::optional<HF::HartreeFock> m_HF{std::nullopt};
+  // Unique pointer? Copyable? XXX
   std::unique_ptr<MBPT::CorrelationPotential> m_Sigma{nullptr};
-
-public:
-  //! Nuclear potential
-  std::vector<double> vnuc{};
-  //! Direct/local part of the electron potential
-  std::vector<double> vdir{};
-  //! QED radiative potential
-  std::unique_ptr<QED::RadPot> qed{nullptr};
-
-private:
-  // Core configuration (non-rel terms)
-  std::vector<AtomData::NonRelSEConfig> m_core_configs = {};
-  int num_core_electrons = 0; // Nc = N - M
+  // Core configuration (non-rel terms) // kill XXX?
   std::string m_core_string = "";
 
-public: // const methods: "views" into WF object
-  // Rule is: if function is single-line, define here. Else, in .cpp
-  int Znuc() const { return m_nuclear.z; }
-  int Anuc() const { return m_nuclear.a; }
+public:
+  //! Returns a const reference to the radial grid
+  const Grid &grid() const { return *rgrid; };
+  //! Copy of shared_ptr to grid [shared resource] - used when we want to
+  //! construct a new object that shares this grid
+  std::shared_ptr<const Grid> grid_sptr() const { return rgrid; };
 
-  //! Number of electrons in the core
-  int Ncore() const { return num_core_electrons; }
-  const Nuclear::Parameters &get_nuclearParameters() const { return m_nuclear; }
-  double get_rrms() const { return m_nuclear.r_rms; }
+  //! Local value of fine-structure constant.
+  double alpha() const { return m_alpha; }
 
-  bool exclude_exchangeQ() const {
-    if (m_pHF == nullptr)
-      return true;
-    return m_pHF->excludeExchangeQ();
+  const Nuclear::Nucleus &nucleus() const { return m_nucleus; }
+  int Znuc() const { return m_nucleus.z(); }
+  int Anuc() const { return m_nucleus.a(); }
+  double get_rrms() const { return m_nucleus.r_rms(); }
+
+  //! Core orbitals (frozen HF core)
+  const std::vector<DiracSpinor> &core() const {
+    static const auto empty = std::vector<DiracSpinor>{}; //?
+    return m_HF ? m_HF->core() : empty;
   }
 
+  //! Valence orbitals (HF or Brueckner orbitals)
+  const std::vector<DiracSpinor> &valence() const { return m_valence; }
+  std::vector<DiracSpinor> &valence() { return m_valence; }
+
+  //! Basis, eigenstates of HF potential. Used for MBPT. Includes Breit and
+  //! QED (if they are included), but not correlations
+  const std::vector<DiracSpinor> &basis() const { return m_basis; }
+  std::vector<DiracSpinor> &basis() { return m_basis; }
+
+  //! Sprectrum: like basis, but includes correlations
+  const std::vector<DiracSpinor> &spectrum() const { return m_spectrum; }
+  std::vector<DiracSpinor> &spectrum() { return m_spectrum; }
+
+  //! Nuclear potential
+  const std::vector<double> &vnuc() const { return m_vnuc; }
+  std::vector<double> &vnuc() { return m_vnuc; }
+
+  //! Returns ptr to Hartree Fock (class)
+  const HF::HartreeFock *vHF() const { return m_HF ? &*m_HF : nullptr; }
+  HF::HartreeFock *vHF() { return m_HF ? &*m_HF : nullptr; }
+
+  //! Local part of potential, e.g., Vl = Vnuc + Vdir + Vrad_el(l) - can be
+  //! l-dependent. Returns a copy
+  std::vector<double> vlocal(int l = 0) const;
+
+  //! QED Magnetic form factor. May return empty vector. Not typically
+  //! l-dependent, but may be in future. Returns a copy
+  std::vector<double> Hmag(int l = 0) const;
+
+  //! Pointer to QED radiative potnential. May be nullptr
+  const QED::RadPot *vrad() const { return m_HF ? m_HF->Vrad() : nullptr; }
+  QED::RadPot *vrad() { return m_HF ? m_HF->Vrad() : nullptr; }
+
   //! Returns ptr to (const) Correlation Potential, Sigma
-  const MBPT::CorrelationPotential *getSigma() const { return m_Sigma.get(); }
-  //! Returns ptr to (const) Hartree Fock (class)
-  const HF::HartreeFock *getHF() const { return m_pHF.get(); }
+  const MBPT::CorrelationPotential *Sigma() const { return m_Sigma.get(); }
+  MBPT::CorrelationPotential *Sigma() { return m_Sigma.get(); }
+
+  //----------------------------------
+
+  //! Number of electrons in the core
+  int Ncore() const;
 
   //! Finds requested state; returns nullptr if not found
   //! @details is_valence is optional out-parameter; tells you where orb was
@@ -104,43 +143,37 @@ public: // const methods: "views" into WF object
   //! min(e_valence)) - energy half way between core/valence
   double en_coreval_gap() const;
 
-  //! Energy gap between lowest valence + highest core state
-  double energy_gap() const {
-    const auto c =
-        std::max_element(cbegin(core), cend(core), DiracSpinor::comp_en);
-    const auto v =
-        std::min_element(cbegin(valence), cend(valence), DiracSpinor::comp_en);
-    if (c != cend(core) && v != cend(valence))
-      return v->en() - c->en();
-    return 0.0;
-  }
+  //! Energy gap between lowest valence + highest core state: e(v) - e(c)
+  //! [should be positive]
+  double energy_gap() const;
 
   //! Returns full core configuration
   std::string coreConfiguration() const { return m_core_string; }
+
   //! Returns core configuration, in nice output notation
   std::string coreConfiguration_nice() const {
     return AtomData::niceCoreOutput(m_core_string);
   }
-  //! Outputs screen-friendly nuclear parameters
-  std::string nuclearParams() const;
 
   //! String of atom info (e.g., "Cs, Z=55, A=133")
   std::string atom() const {
-    return AtomData::atomicSymbol(m_nuclear.z) +
-           ", Z=" + std::to_string(m_nuclear.z) +
-           " A=" + std::to_string(m_nuclear.a);
+    return AtomData::atomicSymbol(m_nucleus.z()) +
+           ", Z=" + std::to_string(m_nucleus.z()) +
+           " A=" + std::to_string(m_nucleus.a());
   }
   //! e.g., "Cs"
   std::string atomicSymbol() const {
-    return AtomData::atomicSymbol(m_nuclear.z);
+    return AtomData::atomicSymbol(m_nucleus.z());
   }
-  //! Effective charge (for core) = Z-N_core
-  int Zion() const { return Znuc() - Ncore(); }
+
   //! E.g., Cs in V^N-1, gives Cs-i
   std::string identity() const {
     const auto zionRoman = AtomData::int_to_roman(Zion());
-    return AtomData::atomicSymbol(m_nuclear.z) + zionRoman;
+    return AtomData::atomicSymbol(m_nucleus.z()) + zionRoman;
   }
+
+  //! Effective charge (for core) = Z-N_core
+  int Zion() const { return Znuc() - Ncore(); }
 
   //! Prints table of core orbitals + energies etc. Optionally sorted by energy
   void printCore(bool sorted = true) const;
@@ -149,39 +182,49 @@ public: // const methods: "views" into WF object
   //! @details Can optionally give it any list of orbitals to print
   void printValence(bool sorted = true,
                     const std::vector<DiracSpinor> &tmp_orbitals = {}) const;
+
   //! Prints table of Basis/Spectrum orbitals, compares to HF orbitals
   void printBasis(const std::vector<DiracSpinor> &the_basis,
                   bool sorted = false) const;
 
+  //! Check if a state is in the core (or valence) list
   bool isInCore(int n, int k) const;
   bool isInValence(int n, int k) const;
-
-  //! Largest n for core states (optional: for given kappa, otherwise overall)
-  int maxCore_n(int ka_in = 0) const;
-  //! Largest l for core states
-  int maxCore_l() const;
 
   //! Calculates rho(r) = sum_c psi^2(r) for core states, c={n,k,m}
   std::vector<double> coreDensity() const;
 
-  //! Performs hartree-Fock procedure for core: note: poplulates core
-  void solve_core(const std::string &method = "HartreeFock",
-                  const double x_Breit = 0.0, const std::string &in_core = "",
-                  double eps_HF = 1.0e-13, bool print = true);
-
   //! Calculates HF core energy (doesn't include magnetic QED?)
   auto coreEnergyHF() const;
+
+  //------------------------------------------------------------------
+
+  //! Initialises HF object and populates core orbitals (does not solve HF
+  //! equations)
+  void set_HF(const std::string &method = "HartreeFock",
+              const double x_Breit = 0.0, const std::string &in_core = "",
+              double eps_HF = 1.0e-13, bool print = true);
+
+  //! Performs hartree-Fock procedure for core
+  void solve_core(bool print = true);
+
+  //! This version will first set_HF(), then solve_core()
+  void solve_core(const std::string &method, const double x_Breit = 0.0,
+                  const std::string &in_core = "", double eps_HF = 1.0e-13,
+                  bool print = true);
 
   //! Performs hartree-Fock procedure for valence: note: poplulates valnece
   void solve_valence(const std::string &in_valence_str = "",
                      const bool print = true);
-  //! Solves new local valence (e.g., Kohn-Sham): note: poplulates valence
-  void localValence(const std::string &in_valence_str, bool list_each = false);
-  //! Forms Bruckner valence orbitals: (H_hf + Sigma)|nk> = e|nk>.
+
+  //! Forms Bruckner valence orbitals: (H_hf + Sigma)|nk> = e|nk>. Replaces
+  //! existing valence states
   void hartreeFockBrueckner(const bool print = true);
+
   //! First, fits Sigma to energies, then forms fitted Brueckner orbitals
   void fitSigma_hfBrueckner(const std::string &valence_list,
                             const std::vector<double> &fit_energies);
+
   //! Second-order MBPT energy shifts, calculates + prints
   void SOEnergyShift();
 
@@ -210,32 +253,19 @@ public: // const methods: "views" into WF object
       const bool PolBasis = false, const double omre = -0.2, double w0 = 0.01,
       double wratio = 1.5,
       const std::optional<IO::InputBlock> &ek = std::nullopt);
+
   void copySigma(const MBPT::CorrelationPotential *const Sigma) {
     if (Sigma != nullptr)
       m_Sigma = std::make_unique<MBPT::CorrelationPotential>(*Sigma);
   }
 
-  //! @brief Solves Dirac bound state problem, with optional 'extra' potential
-  //! log_eps is log_10(convergence_target).
-  void solveDirac(DiracSpinor &psi, double e_a, const std::vector<double> &vex,
-                  double eps = 0.0) const;
-  void solveDirac(DiracSpinor &psi, double e_a = 0.0, double eps = 0.0) const;
-
-  // //! Populates core orbitals accorind to given core string (+solves)
-  // void solveLocalCore(const std::string &str_core_in, int log_dele_or = 0);
-  //! Adds new valence orbtial (+solves using vdir)
-  void solveNewValence(int n, int k, double en_a = 0.0, double eps = 0.0);
-
-  //! energy guess for a core state with n,l; quite rough, but good enough
-  double enGuessCore(int n, int l) const;
-  //! energy guess for a valence state with n,l
-  double enGuessVal(int n, int ka) const;
-
-  void add_to_Vdir(const std::vector<double> &dv) { //
-    /// XXX Fix: two versions of Vdir...
-    qip::add(&vdir, dv);
-    if (m_pHF) {
-      m_pHF->vdir() = vdir;
+  //! Allows extra potential to be added to Vnuc (updates both in Wavefunction
+  // _and_ HartreeFock) - only really for testing etc.
+  void add_to_Vnuc(const std::vector<double> &dv) { //
+    /// XXX Fix: two versions of Vnuc...
+    qip::add(&m_vnuc, dv);
+    if (m_HF) {
+      m_HF->vnuc() = m_vnuc;
     }
   }
 
@@ -258,17 +288,14 @@ public: // const methods: "views" into WF object
   //! Set l<0 to get for all l (entire core)
   std::tuple<double, double> lminmax_core_range(int l, double eps = 0.0) const;
 
-  //! Local potential, e.g., Vl = Vnuc + Vdir + Vrad_el(l) - can be l-dependent
-  std::vector<double> get_Vlocal(int l = 0) const;
-  std::vector<double> get_Hmag(int l = 0) const;
-
   //! Returns <a|H|b> for Hamiltonian H (inludes Rad.pot, NOT sigma or Breit)
   double Hab(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
   double Hab(const DiracSpinor &Fa, const DiracSpinor &dFa,
              const DiracSpinor &Fb, const DiracSpinor &dFb) const;
 
 private:
-  void determineCore(const std::string &str_core_in);
+  // move to atom data?
+  std::vector<DiracSpinor> determineCore(const std::string &str_core_in);
   static std::vector<std::size_t>
   sortedEnergyList(const std::vector<DiracSpinor> &tmp_orbs,
                    bool do_sort = false);
