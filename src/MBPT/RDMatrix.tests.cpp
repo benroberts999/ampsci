@@ -10,9 +10,9 @@
 #include <numeric>
 
 //==============================================================================
-TEST_CASE("MBPT: RDMatrix", "[MBPT][RDMatrix]") {
+TEST_CASE("MBPT: RDMatrix", "[MBPT][RDMatrix][unit]") {
   std::cout << "\n----------------------------------------\n";
-  std::cout << "MBPT: RDMatrix, [MBPT][RDMatrix]\n";
+  std::cout << "MBPT: RDMatrix, [MBPT]\n";
 
   // Set up radial grid:
   const auto r0{1.0e-7};

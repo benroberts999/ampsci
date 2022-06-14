@@ -17,7 +17,7 @@ jobs:
       run: sudo apt install -y make g++-7 g++-11 clang-6.0 clang-10 clang-11 liblapack-dev libblas-dev libgsl-dev
 
     - name: setup
-      run: cp ./doc/Makefile.example ./Makefile && cp ./doc/examples/ampsci.in ./ampsci.in
+      run: cp ./doc/examples/Makefile ./ && cp ./doc/examples/ampsci.in ./ampsci.in
 
     - name: Build ampsci (g++ v:7 - oldest supported gcc)
       run: make clean && make CXX=g++-7  UseOpenMP=no
@@ -26,7 +26,7 @@ jobs:
       run: make clean && make CXX=g++-11 UseOpenMP=yes
 
     - name: Run ampsci (g++)
-      run: ./ampsci
+      run: ./ampsci ampsci.in
 
     - name: Build ampsci (clang++ v:6, - oldest supported clang)
       run: make clean && make CXX=clang++-6.0 UseOpenMP=no
@@ -35,4 +35,4 @@ jobs:
       run: make clean && make CXX=clang++-11 UseOpenMP=no
 
     - name: Run ampsci (clang++)
-      run: ./ampsci
+      run: ./ampsci ampsci.in

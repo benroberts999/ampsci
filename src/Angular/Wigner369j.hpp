@@ -231,7 +231,7 @@ inline double Ck_kk(int k, int ka, int kb)
 // Note: takes in kappa! (not j!)
 {
   if (parity(l_k(ka), l_k(kb), k) == 0) {
-    return 0;
+    return 0.0;
   }
   auto two_ja = twoj_k(ka);
   auto two_jb = twoj_k(kb);
@@ -259,29 +259,23 @@ inline double tildeCk_kk(int k, int ka, int kb) {
 }
 
 //! Returns [k_min, k_kmax] for C^k (min/max non-zero k, given kappa_a, kappa_b)
-// Does this account for parity rule? Don't think so?
+//! Accounts for parity
 inline std::pair<int, int> kminmax_Ck(int ka, int kb) {
   // j = |k|-0.5
   // kmin = |ja-jb| = | |ka| - |kb| |
   // kmax = ja+jb   = |ka| + |kb| - 1
   const auto aka = std::abs(ka);
   const auto akb = std::abs(kb);
-  return {std::abs(aka - akb), aka + akb - 1};
-}
 
-//==============================================================================
-//! Reduced (relativistic) angular ME: <ka||C^k||kb> = (-1)^(ja+1/2) *
-//! srt([ja][jb]) * 3js(ja jb k, -1/2 1/2 0) * Pi
-inline double Ck_2j2j(int k, int two_ja, int two_jb)
-// Note: takes in two*j!
-// NOTE: DOESNT check parity! Only use if that's already known to be true
-{
-  // auto sign = (((two_ja + 1) / 2) % 2 == 0) ? 1 : -1;
-  auto sign = evenQ_2(two_ja + 1) ? 1 : -1;
-  auto f = std::sqrt((two_ja + 1) * (two_jb + 1));
-  // auto g = gsl_sf_coupling_3j(two_ja, two_jb, 2 * k, -1, 1, 0);
-  auto g = special_threej_2(two_ja, two_jb, 2 * k);
-  return sign * f * g;
+  auto kmin = std::abs(aka - akb);
+  auto kmax = aka + akb - 1;
+  // account for parity
+  if (parity(l_k(ka), l_k(kb), kmin) == 0)
+    ++kmin;
+  if (parity(l_k(ka), l_k(kb), kmax) == 0)
+    --kmax;
+
+  return {kmin, kmax};
 }
 
 //==============================================================================

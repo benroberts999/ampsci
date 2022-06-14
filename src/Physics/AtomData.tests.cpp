@@ -5,9 +5,9 @@
 #include <string>
 #include <vector>
 
-TEST_CASE("Physics: AtomData", "[AtomData][Physics]") {
+TEST_CASE("Physics: AtomData", "[AtomData][Physics][unit]") {
   std::cout << "\n----------------------------------------\n";
-  std::cout << "Physics: AtomData, [AtomData][Physics]\n";
+  std::cout << "Physics: AtomData\n";
 
   REQUIRE(AtomData::atomicSymbol(55) == "Cs");
   REQUIRE(AtomData::atomicName(55) == "cesium");

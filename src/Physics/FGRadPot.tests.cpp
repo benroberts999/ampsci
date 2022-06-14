@@ -8,7 +8,7 @@
 #include <utility>
 #include <vector>
 
-TEST_CASE("Radiative Potential (functions)", "[RadPot][QED]") {
+TEST_CASE("Radiative Potential (functions)", "[RadPot][QED][unit]") {
   std::cout << "\n----------------------------------------\n";
   std::cout << "Radiative Potential (functions)\n";
 

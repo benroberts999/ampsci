@@ -18,9 +18,9 @@
 
 //==============================================================================
 //! Unit tests for solving (local) Dirac equation ODE
-TEST_CASE("DiracODE: Adams-Moulton method", "[DiracODE]") {
+TEST_CASE("DiracODE: Adams-Moulton method", "[DiracODE][unit]") {
   std::cout << "\n----------------------------------------\n";
-  std::cout << "DiracODE: Adams-Moulton method, [DiracODE]\n";
+  std::cout << "DiracODE: Adams-Moulton method\n";
 
   const double Zeff = 5.0;
 
@@ -143,7 +143,9 @@ TEST_CASE("DiracODE: Adams-Moulton method", "[DiracODE]") {
 
 //==============================================================================
 // Test inhomogenous (Green's) method:
-TEST_CASE("DiracODE: inhomogenous (Green's) method:", "[DiracODE]") {
+TEST_CASE("DiracODE: inhomogenous (Green's) method", "[DiracODE][unit]") {
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "DiracODE: inhomogenous (Green's) method\n";
 
   const double Zeff = 5.0;
 

@@ -41,9 +41,9 @@ double speedup_6jt(const Angular::SixJTable &sjt,
 //==============================================================================
 
 //------------------------------------------------------------------------------
-TEST_CASE("Angular: Winger369j functions", "[Angular]") {
+TEST_CASE("Angular: Winger369j functions", "[Angular][unit]") {
   std::cout << "\n----------------------------------------\n";
-  std::cout << "Angular: Winger369j functions, [Angular]\n";
+  std::cout << "Angular: Winger369j functions\n";
 
   // list in form: {kappa_index, kappa, l, 2j}
   const std::vector<std::tuple<int, int, int, int>> test_data{
@@ -56,7 +56,6 @@ TEST_CASE("Angular: Winger369j functions", "[Angular]") {
   for (const auto &[ki, k, l, tj] : test_data) {
     REQUIRE(Angular::l_k(k) == l);
     REQUIRE(Angular::twoj_k(k) == tj);
-    // REQUIRE(std::abs(Angular::j_k(k) - 0.5 * tj) < 1.0e-12);
     const auto parity = int(std::round(std::pow(-1, l)));
     REQUIRE(Angular::parity_k(k) == parity);
     REQUIRE(Angular::parity_l(l) == Angular::parity_k(k));
@@ -123,22 +122,74 @@ TEST_CASE("Angular: Winger369j functions", "[Angular]") {
 
   // ThreeJSymbol[{5/2, 1/2}, {1, 0}, {3/2, -1/2}] = -1/Sqrt[10]
   const auto eps = 1.0e-12;
-  REQUIRE(Angular::threej_2(5, 2, 3, 1, 0, -1) - (-1 / std::sqrt(10.0)) < eps);
-  REQUIRE(Angular::threej_2(5, 3, 2, 1, -1, 0) - (+1 / std::sqrt(10.0)) < eps);
-  REQUIRE(Angular::threej_2(5, 2, 9, 1, 0, -1) - (0.0) < eps);
-  REQUIRE(Angular::special_threej_2(5, 3, 2) - (1 / std::sqrt(10.0)) < eps);
-  REQUIRE(Angular::special_threej_2(5, 9, 2) - (0.0) < eps);
+  REQUIRE(std::abs(Angular::threej_2(5, 2, 3, 1, 0, -1) -
+                   (-1 / std::sqrt(10.0))) < eps);
+  REQUIRE(std::abs(Angular::threej_2(5, 3, 2, 1, -1, 0) -
+                   (+1 / std::sqrt(10.0))) < eps);
+  REQUIRE(std::abs(Angular::threej_2(5, 2, 9, 1, 0, -1) - (0.0)) < eps);
+  REQUIRE(std::abs(Angular::special_threej_2(5, 3, 2) -
+                   (-1 / std::sqrt(10.0))) < eps);
+  REQUIRE(std::abs(Angular::special_threej_2(5, 9, 2) - (0.0)) < eps);
 
   // ClebschGordan[{5, 0}, {4, 0}, {1, 0}] = Sqrt[5/33]
-  REQUIRE(Angular::cg_2(10, 0, 8, 0, 2, 0) - (std::sqrt(5.0 / 33.0)) < eps);
+  REQUIRE(std::abs(Angular::cg_2(10, 0, 8, 0, 2, 0) - (std::sqrt(5 / 33.0))) <
+          eps);
+
+  // <ka||C^k||kb>
+  REQUIRE(std::abs(Angular::Ck_kk(0, -1, -1) - (std::sqrt(2))) < eps);
+  REQUIRE(std::abs(Angular::Ck_kk(1, -1, -1) - (0.0)) < eps);
+  REQUIRE(std::abs(Angular::Ck_kk(1, -1, 1) - (-std::sqrt(2.0 / 3))) < eps);
+  REQUIRE(std::abs(Angular::Ck_kk(2, -2, 1) - (-2 / std::sqrt(5.0))) < eps);
+  REQUIRE(std::abs(Angular::Ck_kk(2, 1, -2) - (+2 / std::sqrt(5.0))) < eps);
+
+  // Test C^k, including selection rules, tilde version etc.
+  const auto kap_list = {-1, 1, -2, 2, -3, 3, -4, 4, -5, 5, -6, 6};
+  for (auto ka : kap_list) {
+    for (auto kb : kap_list) {
+      auto [kmin, kmax] = Angular::kminmax_Ck(ka, kb);
+      REQUIRE(Angular::Ck_kk(kmin, ka, kb) != 0.0);
+      REQUIRE(Angular::Ck_kk(kmax, ka, kb) != 0.0);
+      REQUIRE(Angular::Ck_kk(kmin - 1, ka, kb) == 0.0);
+      REQUIRE(Angular::Ck_kk(kmax + 1, ka, kb) == 0.0);
+      // only every second should be non-zero
+      for (auto k = kmin; k <= kmax; k += 2) {
+
+        const auto ck1 = Angular::Ck_kk(k, ka, kb);
+        const auto ck_next = Angular::Ck_kk(k + 1, ka, kb);
+        REQUIRE(ck1 != 0.0);
+        REQUIRE(ck_next == 0.0);
+        REQUIRE(Angular::Ck_kk_SR(k, ka, kb) == true);
+        REQUIRE(Angular::Ck_kk_SR(k + 1, ka, kb) == false);
+
+        // test tilde version (which should be symmetric)
+        const auto tja = Angular::twoj_k(ka);
+        const auto ck_tilde1 = Angular::tildeCk_kk(k, ka, kb);
+        const auto ck_tilde2 = Angular::tildeCk_kk(k, kb, ka);
+        const auto ck2 = Angular::neg1pow_2(tja + 1) * ck_tilde1;
+        REQUIRE(std::abs(ck_tilde1 - ck_tilde2) < eps);
+        REQUIRE(std::abs(ck1 - ck2) < eps);
+
+        // <ka||C^k||kb> = (-1)^(ja+1/2) * srt([ja][jb]) * 3js(ja jb k, -1/2 1/2
+        // 0) * Pi
+        const auto tjb = Angular::twoj_k(kb);
+        const auto la = Angular::l_k(ka);
+        const auto lb = Angular::l_k(kb);
+        const auto ck3 = Angular::neg1pow_2(tja + 1) *
+                         std::sqrt((tja + 1) * (tjb + 1)) *
+                         Angular::threej_2(tja, tjb, 2 * k, -1, 1, 0) *
+                         Angular::parity(la, lb, k);
+        REQUIRE(std::abs(ck1 - ck3) < eps);
+      }
+    }
+  }
 }
 
 //------------------------------------------------------------------------------
 //! Unit tests for angular functions/classes (threeJ symbols, lookup
 //! tables etc)
-TEST_CASE("Angular: Ck tables", "[Angular]") {
+TEST_CASE("Angular: Ck tables", "[Angular][unit]") {
   std::cout << "\n----------------------------------------\n";
-  std::cout << "Angular: Ck tables, [Angular]\n";
+  std::cout << "Angular: Ck tables\n";
 
   // Maximum value of 2*j (for initial run)
   const int max2j_1 = 5;
@@ -179,14 +230,14 @@ TEST_CASE("Angular: Ck tables", "[Angular]") {
 
 //------------------------------------------------------------------------------
 //! Unit tests for 6J symbol lookup tables
-TEST_CASE("Angular: 6j tables", "[Angular]") {
+TEST_CASE("Angular: 6j tables", "[Angular][unit]") {
   std::cout << "\n----------------------------------------\n";
-  std::cout << "Angular: 6j tables, [Angular]\n";
+  std::cout << "Angular: 6j tables\n";
 
-  // SECTION("6j tables - all symbols")
+  // 6j tables - all symbols. This is the slow paer
   {
     Angular::SixJTable sjt;
-    for (const auto max_k : {7, 10, 12}) {
+    for (const auto max_k : {3, 9}) {
       sjt.fill(max_k); // nb: each loop, "extends" the table
       REQUIRE(sjt.max_2jk() == max_k);
       const auto delta = UnitTest::sj_compare_direct(sjt);
@@ -205,12 +256,21 @@ TEST_CASE("Angular: 6j tables", "[Angular]") {
     const auto delta = UnitTest::sj_compare_DiracSpinor(sjt, basis);
     REQUIRE(delta < 1.0e-14);
   }
+}
 
-  // SECTION("6j tables - performance (require >2.0x)")
-  {
-    const auto speedup = UnitTest::speedup_6jt(sjt, basis);
-    REQUIRE(speedup > 2.0);
-  }
+//------------------------------------------------------------------------------
+TEST_CASE("Angular: 6j tables - performance",
+          "[Angular][!mayfail][performance]") {
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "Angular: 6j tables - performance\n";
+
+  const auto l_max = 6;
+  std::vector<DiracSpinor> basis = UnitTest::dummy_basis(l_max);
+  // Fill 6J table as usually done:
+  const auto max_k = DiracSpinor::max_tj(basis); // max_k = 2*max_j
+  Angular::SixJTable sjt(max_k);
+  const auto speedup = UnitTest::speedup_6jt(sjt, basis);
+  REQUIRE(speedup > 2.0);
 }
 
 //==============================================================================

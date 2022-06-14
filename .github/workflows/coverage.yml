@@ -1,0 +1,26 @@
+name: Coverage
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  coverage:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: "Install dependencies"
+      run: sudo apt install -y g++-9 make liblapack-dev libblas-dev libgsl-dev libomp-dev lcov
+    - name: setup
+      run: cp ./doc/examples/Makefile ./
+    - name: Build ampsci (g++, dev mode, with Werror)
+      run: make CXX='g++-9 --coverage -g' Build=dev tests
+    - name: Run unit tests only + HartreeFock
+      run: ./tests [unit],[HartreeFock]
+    - name: Use LCOV to prepare report
+      run: chmod +x ./src/tests/lcov.sh && ./src/tests/lcov.sh
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v2

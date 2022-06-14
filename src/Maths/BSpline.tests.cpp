@@ -2,9 +2,9 @@
 #include "catch2/catch.hpp"
 #include <iostream>
 
-TEST_CASE("Bspline", "[BSpline]") {
+TEST_CASE("Bspline", "[BSpline][unit]") {
   std::cout << "\n----------------------------------------\n";
-  std::cout << "Bspline, [BSpline]\n";
+  std::cout << "Bspline\n";
 
   BSpline b(30, 4, 1.0e-4, 50.0);
   // b.print_knots();

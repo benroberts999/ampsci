@@ -5,9 +5,9 @@
 
 inline void run_tests(const IO::InputBlock &ib);
 
-TEST_CASE("InputBlock", "[InputBlock]") {
+TEST_CASE("InputBlock", "[InputBlock][unit]") {
   std::cout << "\n----------------------------------------\n";
-  std::cout << "InputBlock, [InputBlock]\n";
+  std::cout << "InputBlock\n";
   // A basic unit test  of IO::InputBlock
   // Tests each function, but not all that thoroughly
 

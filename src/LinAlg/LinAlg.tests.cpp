@@ -5,9 +5,9 @@
 #include <numeric>
 
 //==============================================================================
-TEST_CASE("LinAlg: Element access, memory layout", "[LinAlg]") {
+TEST_CASE("LinAlg: Element access, memory layout", "[LinAlg][unit]") {
   std::cout << "\n----------------------------------------\n";
-  std::cout << "LinAlg: Element access, memory layout, [LinAlg]\n";
+  std::cout << "LinAlg: Element access, memory layout\n";
 
   LinAlg::Matrix<double> a{{1.0, 2.0, 3.0}, {4.0, 5.0, 6.0}};
   LinAlg::Matrix<double> a2(2, 3);
@@ -65,7 +65,7 @@ TEST_CASE("LinAlg: Element access, memory layout", "[LinAlg]") {
 
 //==============================================================================
 // Test operators, transpose, and "mult elements" for double
-TEST_CASE("LinAlg: operators<double>", "[LinAlg]") {
+TEST_CASE("LinAlg: operators<double>", "[LinAlg][unit]") {
   LinAlg::Matrix<double> a{{1.0, 2.0, 3.0}, {4.0, 5.0, 6.0}};
 
   // test addition + multipcation
@@ -114,7 +114,7 @@ TEST_CASE("LinAlg: operators<double>", "[LinAlg]") {
 
 //==============================================================================
 // Test operators, transpose, and "mult elements" for int
-TEST_CASE("LinAlg: operators<int>", "[LinAlg]") {
+TEST_CASE("LinAlg: operators<int>", "[LinAlg][unit]") {
 
   LinAlg::Matrix<int> a{{1, 2, 3}, {4, 5, 6}};
   // test addition + multipcation
@@ -145,7 +145,7 @@ TEST_CASE("LinAlg: operators<int>", "[LinAlg]") {
 
 //==============================================================================
 // Test operators, transpose for float
-TEST_CASE("LinAlg: operators<float>", "[LinAlg]") {
+TEST_CASE("LinAlg: operators<float>", "[LinAlg][unit]") {
 
   LinAlg::Matrix<float> a{{1.0f, 2.0f, 3.0f}, {4.0f, 5.0f, 6.0f}};
 
@@ -174,7 +174,7 @@ TEST_CASE("LinAlg: operators<float>", "[LinAlg]") {
 
 //==============================================================================
 // Test operators, transpose, and GSL matrix_view for complex double
-TEST_CASE("LinAlg: operators<complex<double>>", "[LinAlg]") {
+TEST_CASE("LinAlg: operators<complex<double>>", "[LinAlg][unit]") {
 
   using namespace std::complex_literals;
   const LinAlg::Matrix<std::complex<double>> a{{1.5 - 1.i, 2.5 + 2.5i},
@@ -238,7 +238,7 @@ TEST_CASE("LinAlg: operators<complex<double>>", "[LinAlg]") {
 
 //==============================================================================
 // Test operators and transpose for complex float
-TEST_CASE("LinAlg: operators<complex<float>>", "[LinAlg]") {
+TEST_CASE("LinAlg: operators<complex<float>>", "[LinAlg][unit]") {
   using namespace std::complex_literals;
   const LinAlg::Matrix<std::complex<float>> a{{1.5f - 1.if, 2.5f + 2.5if},
                                               {3.5f + 3.5if, 4.5f - 4.5if}};
@@ -272,7 +272,7 @@ TEST_CASE("LinAlg: operators<complex<float>>", "[LinAlg]") {
 }
 
 //==============================================================================
-TEST_CASE("LinAlg: matrix multiplication<double>", "[LinAlg]") {
+TEST_CASE("LinAlg: matrix multiplication<double>", "[LinAlg][unit]") {
   // Test matrix multiplication, with double, const and non-const
   LinAlg::Matrix a{{-1.0, 6.5, 0.1, 1.0, -4.0},
                    {0.5, 3.0, 0.5, 2.0, 14.0},
@@ -293,7 +293,7 @@ TEST_CASE("LinAlg: matrix multiplication<double>", "[LinAlg]") {
   const auto b2 = b;
   REQUIRE(LinAlg::equal(a2 * b2, a * b));
 }
-TEST_CASE("LinAlg: ...", "[LinAlg]") {
+TEST_CASE("LinAlg: ...", "[LinAlg][unit]") {
   // Test matrix multiplication, with float, const and non-const
   LinAlg::Matrix<float> a{{-1.0f, 6.5f, 0.1f, 1.0f, -4.0f},
                           {0.5f, 3.0f, 0.5f, 2.0f, 14.0f},
@@ -317,7 +317,7 @@ TEST_CASE("LinAlg: ...", "[LinAlg]") {
   const auto b2 = b;
   REQUIRE(LinAlg::equal(a2 * b2, a * b));
 }
-TEST_CASE("LinAlg: matrix multiplication<complex<double>>", "[LinAlg]") {
+TEST_CASE("LinAlg: matrix multiplication<complex<double>>", "[LinAlg][unit]") {
   // Test matrix multiplication, with complex double, const and non-const
   using namespace std::complex_literals;
   LinAlg::Matrix a{
@@ -346,7 +346,7 @@ TEST_CASE("LinAlg: matrix multiplication<complex<double>>", "[LinAlg]") {
   const auto b2 = b;
   REQUIRE(LinAlg::equal(a2 * b2, a * b));
 }
-TEST_CASE("LinAlg: matrix multiplication<complex<float>>", "[LinAlg]") {
+TEST_CASE("LinAlg: matrix multiplication<complex<float>>", "[LinAlg][unit]") {
   // Test matrix multiplication, with complex float, const and non-const
   using namespace std::complex_literals;
   LinAlg::Matrix<std::complex<float>> a{
@@ -380,21 +380,21 @@ TEST_CASE("LinAlg: matrix multiplication<complex<float>>", "[LinAlg]") {
 
 // Test matrix-vector operations:
 //==============================================================================
-TEST_CASE("LinAlg: matrix-vector<double>", "[LinAlg]") {
+TEST_CASE("LinAlg: matrix-vector<double>", "[LinAlg][unit]") {
   LinAlg::Vector<double> x{1.0, -1.0};
   LinAlg::Matrix<double> A{{1.0, 2.0}, {3.0, 4.0}};
   const auto b = A * x;
   REQUIRE(LinAlg::equal(b, LinAlg::Vector<double>{-1.0, -1.0}));
   REQUIRE(std::abs(b * b - 2.0) < 1.0e-15);
 }
-TEST_CASE("LinAlg: matrix-vector<float>", "[LinAlg]") {
+TEST_CASE("LinAlg: matrix-vector<float>", "[LinAlg][unit]") {
   LinAlg::Vector<float> x{1.0f, -1.0f};
   LinAlg::Matrix<float> A{{1.0f, 2.0f}, {3.0f, 4.0f}};
   const auto b = A * x;
   REQUIRE(LinAlg::equal(b, LinAlg::Vector<float>{-1.0f, -1.0f}));
   REQUIRE(std::abs(b * b - 2.0f) < 1.0e-6f);
 }
-TEST_CASE("LinAlg: matrix-vector<complex<double>>", "[LinAlg]") {
+TEST_CASE("LinAlg: matrix-vector<complex<double>>", "[LinAlg][unit]") {
   using namespace std::complex_literals;
   LinAlg::Vector<std::complex<double>> x{1.0 + 2.0i, -1.0 + 2.0i};
   LinAlg::Matrix<std::complex<double>> A{{1.0 - 1.0i, 2.0 + 1.0i},
@@ -412,7 +412,7 @@ TEST_CASE("LinAlg: matrix-vector<complex<double>>", "[LinAlg]") {
   REQUIRE(LinAlg::equal(x.real(), LinAlg::Vector{1.0, -1.0}));
   REQUIRE(LinAlg::equal(x.imag(), LinAlg::Vector{2.0, 2.0}));
 }
-TEST_CASE("LinAlg: matrix-vector<complex<float>>", "[LinAlg]") {
+TEST_CASE("LinAlg: matrix-vector<complex<float>>", "[LinAlg][unit]") {
   using namespace std::complex_literals;
   const LinAlg::Vector<std::complex<float>> x{1.0f + 2.0if, -1.0f + 2.0if};
   const LinAlg::Matrix<std::complex<float>> A{{1.0f - 1.0if, 2.0f + 1.0if},
@@ -423,7 +423,7 @@ TEST_CASE("LinAlg: matrix-vector<complex<float>>", "[LinAlg]") {
   REQUIRE(std::abs(x * b - (-40.0f - 16.0if)) < 1.0e-6f);
 }
 
-TEST_CASE("LinAlg: inner/outer product", "[LinAlg]") {
+TEST_CASE("LinAlg: inner/outer product", "[LinAlg][unit]") {
   const LinAlg::Vector<double> a{1.0, 2.0};
   const LinAlg::Vector<double> b{3.0, 4.0};
   const auto Mab = outer_product(a, b);
@@ -442,7 +442,7 @@ TEST_CASE("LinAlg: inner/outer product", "[LinAlg]") {
 
 // Test real/imag/complex conversions:
 //==============================================================================
-TEST_CASE("LinAlg: real/imag/complex conversions", "[LinAlg]") {
+TEST_CASE("LinAlg: real/imag/complex conversions", "[LinAlg][unit]") {
   using namespace std::complex_literals;
   LinAlg::Matrix A{{1.0 + 2.0i, 2.0 - 1.0i}, {3.0 + 3.0i, 4.0 + 1.0i}};
   LinAlg::Vector b{-4.0 + 2.0i, -3.0 + 1.0i};
@@ -460,7 +460,7 @@ TEST_CASE("LinAlg: real/imag/complex conversions", "[LinAlg]") {
 
 //==============================================================================
 // Solve linear equation:
-TEST_CASE("LinAlg: linear equation <double>", "[LinAlg]") {
+TEST_CASE("LinAlg: linear equation <double>", "[LinAlg][unit]") {
   LinAlg::Matrix<double> A{{1.0, 2.0}, {3.0, 4.0}};
   LinAlg::Vector<double> b{-1.0, -1.0};
   LinAlg::Vector<double> x_sol{1.0, -1.0};
@@ -468,7 +468,7 @@ TEST_CASE("LinAlg: linear equation <double>", "[LinAlg]") {
   auto x = solve_Axeqb(A, b);
   REQUIRE(LinAlg::equal(x, x_sol));
 }
-TEST_CASE("LinAlg: linear equation <complex<double>>", "[LinAlg]") {
+TEST_CASE("LinAlg: linear equation <complex<double>>", "[LinAlg][unit]") {
   using namespace std::complex_literals;
   LinAlg::Matrix A{{1.0 + 2.0i, 2.0 - 1.0i}, {3.0 + 3.0i, 4.0 + 1.0i}};
   LinAlg::Vector b{-4.0 + 2.0i, -3.0 + 1.0i};
@@ -480,7 +480,7 @@ TEST_CASE("LinAlg: linear equation <complex<double>>", "[LinAlg]") {
 
 //==============================================================================
 // Eigensystems (symmetric/Hermetian)
-TEST_CASE("LinAlg: eigensystems <double>", "[LinAlg]") {
+TEST_CASE("LinAlg: eigensystems <double>", "[LinAlg][unit]") {
   const LinAlg::Matrix A{{1.0, -1.0}, {-1.0, 2.0}};
   const auto [e, v] = symmhEigensystem(A, true);
   REQUIRE(
@@ -489,7 +489,7 @@ TEST_CASE("LinAlg: eigensystems <double>", "[LinAlg]") {
       v, LinAlg::Matrix{{0.850650808352040, 0.525731112119133},
                         {-0.525731112119133, 0.850650808352040}}));
 }
-TEST_CASE("LinAlg: eigensystems <complex<double>>", "[LinAlg]") {
+TEST_CASE("LinAlg: eigensystems <complex<double>>", "[LinAlg][unit]") {
   using namespace std::complex_literals;
   const LinAlg::Matrix A{{1.0 + 0.0i, 0.0 + 1.0i}, {0.0 - 1.0i, -1.0 + 0.0i}};
   const auto [e, v] = symmhEigensystem(A, true);
@@ -502,7 +502,7 @@ TEST_CASE("LinAlg: eigensystems <complex<double>>", "[LinAlg]") {
 }
 
 // Generalised Eigensystems (symmetric/Hermetian)
-TEST_CASE("LinAlg: Generalised eigensystems <double>", "[LinAlg]") {
+TEST_CASE("LinAlg: Generalised eigensystems <double>", "[LinAlg][unit]") {
   const LinAlg::Matrix A{{1.0, -1.0}, {-1.0, 2.0}};
   const LinAlg::Matrix B{{1.0, 0.1}, {0.1, 1.0}};
   const auto [e, v] = symmhEigensystem(A, B, true);
@@ -513,7 +513,8 @@ TEST_CASE("LinAlg: Generalised eigensystems <double>", "[LinAlg]") {
                         {-0.564870314672654, 0.825179694128265}}));
 }
 
-TEST_CASE("LinAlg: Generalised eigensystems <complex<double>>", "[LinAlg]") {
+TEST_CASE("LinAlg: Generalised eigensystems <complex<double>>",
+          "[LinAlg][unit]") {
   using namespace std::complex_literals;
   const LinAlg::Matrix<std::complex<double>> A{{1.0, -1.0 + 0.5i},
                                                {-1.0 - 0.5i, -1.0}};
@@ -539,7 +540,7 @@ TEST_CASE("LinAlg: Generalised eigensystems <complex<double>>", "[LinAlg]") {
 }
 
 // Eigensystems (non-symmetric, Real)
-TEST_CASE("LinAlg: non-symmetric eigensystems <double>", "[LinAlg]") {
+TEST_CASE("LinAlg: non-symmetric eigensystems <double>", "[LinAlg][unit]") {
   const LinAlg::Matrix A{{1.0, -1.0}, {-2.0, 3.0}};
   const auto [e, v] = genEigensystem(A, true);
   REQUIRE(LinAlg::equal(e.real(),
