@@ -5,6 +5,7 @@
 #include "Maths/Interpolator.hpp" //for 'ExtraPotential'
 #include "Modules/runModules.hpp"
 #include "Physics/include.hpp"
+#include "Physics/periodicTable.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "git.hpp"
 #include "qip/Vector.hpp"
@@ -32,10 +33,15 @@ $ ./ampsci <At> <Core> <Valence>
   $ ./ampsci Cs
     - Runs ampsci for Cs using Hartree Fock (V^N) approximation
 
+Other options:
 $ ./ampsci -v
   - Prints version info (same as --version)
 $ ./ampsci -h
   - Print help info, including input options (same as --help, -?)
+$ ./ampsci -p
+  - Prints periodic table with electronic+nuclear info (same as --periodicTable)
+$ ./ampsci -c
+  - Prints some handy physical constants (same as --constants)
 
 Output is printed to screen. It's recommended to forward this to a text file.
 The input options and the ampsci version details are also printed, so that the
@@ -133,6 +139,14 @@ int main(int argc, char *argv[]) {
              input_text == "-?") {
     std::cout << ampsci_help << '\n';
     std::cout << ampsci_input_format << '\n';
+    return 0;
+  } else if (input_text == "-p" || input_text == "--periodicTable") {
+    std::string z_str = (argc > 2) ? argv[2] : "";
+    std::string a_str = (argc > 3) ? argv[3] : "";
+    AtomData::periodicTable(z_str, a_str);
+    return 0;
+  } else if (input_text == "-c" || input_text == "--constants") {
+    AtomData::printConstants();
     return 0;
   } else if (!input_text.empty() && input_text.front() == '-') {
     std::cout << "Unrecognised option: " << input_text << '\n';

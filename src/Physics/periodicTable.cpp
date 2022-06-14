@@ -1,3 +1,4 @@
+#include "Physics/periodicTable.hpp"
 #include "Physics/AtomData.hpp"
 #include "Physics/AtomData_PeriodicTable.hpp"
 #include "Physics/NuclearData.hpp"
@@ -6,6 +7,8 @@
 #include <iostream>
 #include <sstream>
 #include <vector>
+
+namespace AtomData {
 
 void instructions() {
   std::cout
@@ -38,7 +41,7 @@ void printData(const Nuclear::Isotope &nuc) {
   std::cout << "\n";
 }
 
-int parse_A(const std::string &A_str, int z = 0) {
+int parse_A(const std::string &A_str, int z) {
 
   auto string_is_ints = [](const std::string &s) {
     return !s.empty() && std::find_if(s.begin(), s.end(), [](auto c) {
@@ -77,18 +80,18 @@ void printConstants() //
 }
 
 //==============================================================================
-int main(int num_in, char *argv[]) {
+int periodicTable(std::string z_str, std::string a_str) {
 
-  std::string z_str = (num_in > 1) ? argv[1] : "0";
-  std::string a_str = (num_in > 2) ? argv[2] : "0";
+  // std::string z_str = (num_in > 1) ? argv[1] : "0";
+  // std::string a_str = (num_in > 2) ? argv[2] : "0";
 
   instructions();
   AtomData::printTable();
 
-  if (z_str == "c") {
-    printConstants();
-    return 1;
-  }
+  // if (z_str == "c") {
+  //   printConstants();
+  //   return 1;
+  // }
 
   while (true) {
 
@@ -133,11 +136,15 @@ int main(int num_in, char *argv[]) {
       }
     }
 
-    std::cout << "\nEnter atom (and optional isotope):\n";
+    std::cout << "\nEnter atom (and optional isotope), or ctrl+c to exit\n";
     std::string s1;
     std::getline(std::cin, s1);
     std::stringstream ss(s1);
     ss >> z_str >> a_str;
+    if (a_str == "")
+      a_str = "0";
     std::cout << "----------------------------------------------\n";
   }
 }
+
+} // namespace AtomData

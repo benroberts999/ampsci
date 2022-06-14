@@ -3,11 +3,11 @@
 ################################################################################
 #Allow exectuables to be placed in another directory:
 ALLEXES = $(addprefix $(XD)/, \
- ampsci dmeXSection periodicTable tests \
+ ampsci dmeXSection tests \
 )
 
 DEFAULTEXES = $(addprefix $(XD)/, \
- ampsci periodicTable tests \
+ ampsci tests \
 )
 
 #Default make rule:
@@ -52,10 +52,6 @@ $(XD)/tests: $(OBJS) $(TEST_OBJS)
 	$(LINK)
 
 $(XD)/dmeXSection: $(BD)/dmeXSection.o $(OBJS)
-	$(LINK)
-
-$(XD)/periodicTable: $(BD)/periodicTable.o $(BD)/Physics/AtomData.o \
-$(BD)/Physics/NuclearData.o
 	$(LINK)
 
 # Add git version info to compile flags
