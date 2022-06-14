@@ -286,7 +286,7 @@ void ampsci(const IO::InputBlock &input) {
   }
   // If A or given rrms are zero, explicitely set to pointlike nucleus
   // This isn't required, but makes output more explicit
-  if (nucleus.a() || nucleus.r_rms() == 0.0) {
+  if (nucleus.a() == 0.0 || nucleus.r_rms() == 0.0) {
     nucleus.t() = 0.0;
     nucleus.r_rms() = 0.0;
     nucleus.type() = Nuclear::ChargeDistro::point;

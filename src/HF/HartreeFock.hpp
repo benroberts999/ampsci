@@ -216,6 +216,11 @@ private:
   // Local, Kohn-Sham or approxHF)
   EpsIts local_valence(DiracSpinor &Fa) const;
 
+  // same as hf_valence, but uses Green method
+  EpsIts hf_valence_Green(
+      DiracSpinor &Fv,
+      const MBPT::CorrelationPotential *const Sigma = nullptr) const;
+
   // Solves HF equation for given state, using non-local Green's method for
   // inhomogeneous ODE (used for hartree_fock_core()).
   // Solve Dirac Equation (Eigenvalue):

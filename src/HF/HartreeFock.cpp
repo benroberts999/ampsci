@@ -149,7 +149,8 @@ void HartreeFock::solve_valence(
     auto &Fa = (*valence)[i];
     const auto en0 = Fa.en();
     if (m_method == Method::HartreeFock) {
-      eis[i] = hf_valence(Fa, Sigma);
+      // eis[i] = hf_valence(Fa, Sigma);
+      eis[i] = hf_valence_Green(Fa, Sigma);
     } else {
       eis[i] = local_valence(Fa);
     }
@@ -557,6 +558,57 @@ HartreeFock::hf_valence(DiracSpinor &Fa,
 }
 
 //==============================================================================
+EpsIts HartreeFock::hf_valence_Green(
+    DiracSpinor &Fa, const MBPT::CorrelationPotential *const Sigma) const {
+
+  if (m_core.empty())
+    return local_valence(Fa);
+
+  local_valence(Fa);
+  const auto vx0 = vex_approx(Fa, m_core);
+  const auto Fzero = Fa;
+  const auto Vx0Fa = vx0 * Fa;
+
+  const auto eps_target = 0.001 * m_eps_HF;
+  const auto eta_damp = 0.4;
+
+  const auto Hmagl = Hmag(Fa.l());
+  const auto vl = vlocal(Fa.l());
+
+  auto prev_en = Fa.en();
+  int it = 1;
+  double eps = 1.0;
+  for (; it <= m_max_hf_its; ++it) {
+
+    auto VxFa = vexFa(Fa);
+    if (m_VBr) {
+      VxFa += m_VBr->VbrFa(Fa, m_core);
+    }
+    if (Sigma) {
+      VxFa += (*Sigma)(Fa);
+    }
+    const auto Fa_prev = Fa;
+
+    auto en = Fzero.en() + (Fzero * VxFa - Fa * Vx0Fa) / (Fa * Fzero);
+
+    // Solve HF Dirac equation for core state
+    // const auto &VlVr = qip::add(vl, Hrad_ell);
+    hf_orbital_green(Fa, en, vl, Hmagl, VxFa, m_core, {}, vBreit(), Sigma);
+    Fa = (1.0 - eta_damp) * Fa + eta_damp * Fa_prev;
+    Fa.normalise();
+
+    eps = std::abs((prev_en - Fa.en()) / Fa.en());
+    prev_en = Fa.en();
+
+    const bool converged = (eps <= eps_target && it > 1);
+    if (converged || it == m_max_hf_its)
+      break;
+  }
+
+  return {eps, it, Fa.shortSymbol()};
+}
+
+//==============================================================================
 
 //==============================================================================
 double HartreeFock::calculateCoreEnergy() const
@@ -564,7 +616,7 @@ double HartreeFock::calculateCoreEnergy() const
 //   E = \sum_a [ja]e_a - 0.5 \sum_(ab) (R^0_abab - \sum_k L^k_ab R^k_abba)
 // where:
 //   R^k_abcd = Integral [f_a*f_c + g_a*g_c] * v^k_bd
-//   R^0_abab is not absymmetric
+//   R^0_abab is not ab symmetric
 //   R^k_abba _is_ ab symmetric
 {
   double Etot = 0.0;
