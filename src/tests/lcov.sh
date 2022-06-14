@@ -2,7 +2,6 @@
 lcov --capture --directory . --output-file coverage.info && 
 # don't include test framework itsef in report
 lcov --remove coverage.info '*/catch2/*' --output-file coverage.info && 
-lcov --remove coverage.info '*tests*' --output-file coverage.info && 
 # don't include system headers
 lcov --remove coverage.info '/usr/*' --output-file coverage.info && 
 # don't include Modules - these just run other parts of the code

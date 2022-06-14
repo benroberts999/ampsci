@@ -12,7 +12,62 @@
 //! Unit tests for Coulomb integrals (y^k_ab, R^k_abcd, lookup tables etc).
 //! Also: tests quadrature integation method
 
-TEST_CASE("Coulomb: Qk Table", "[Coulomb][QkTable][integration]") {
+//==============================================================================
+TEST_CASE("Coulomb: Qk Table", "[Coulomb][unit]") {
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "Coulomb: Qk tables\n";
+
+  const auto radial_grid = std::make_shared<const Grid>(
+      GridParameters{500, 1.0e-4, 250.0, 50.0, GridType::loglinear});
+  const double zeff = 1.0;
+  const int lmax = 6;
+
+  // build set of H-like orbitals, one n for each kappa up to l=lmax
+  std::vector<DiracSpinor> orbs;
+  for (int l = 0; l <= lmax; ++l) {
+    int n_min = l + 1;
+    if (l != 0) {
+      orbs.push_back(DiracSpinor::exactHlike(n_min, l, radial_grid, zeff));
+    }
+    orbs.push_back(DiracSpinor::exactHlike(n_min, -l - 1, radial_grid, zeff));
+  }
+
+  // test same orbs case:
+  Coulomb::QkTable qk;
+  Coulomb::YkTable yk(orbs);
+  qk.fill(orbs, yk);
+
+  // Test the Q,P,W formulas
+  for (const auto &Fa : orbs) {
+    for (const auto &Fb : orbs) {
+      for (const auto &Fc : orbs) {
+        for (const auto &Fd : orbs) {
+          // go through _every_ k (will incllude zeros!)
+          for (int k = 0; k <= 2 * lmax; ++k) {
+            const auto q1 = qk.Q(k, Fa, Fb, Fc, Fd);
+            const auto q2 = yk.Q(k, Fa, Fb, Fc, Fd);
+            const auto eps_q = q2 == 0.0 ? q1 - q2 : (q1 - q2) / q2;
+            REQUIRE(std::abs(eps_q) < 1.0e-14);
+
+            const auto w1 = qk.W(k, Fa, Fb, Fc, Fd);
+            const auto w2 = yk.W(k, Fa, Fb, Fc, Fd);
+            const auto eps_w = std::abs(w2) < 1.0e-6 ? w1 - w2 : (w1 - w2) / w2;
+            REQUIRE(std::abs(eps_w) < 1.0e-8);
+
+            const auto p1 = qk.P(k, Fa, Fb, Fc, Fd);
+            const auto p2 = w2 - q2;
+            const auto eps_p = std::abs(p2) < 1.0e-6 ? p1 - p2 : (p1 - p2) / p2;
+            REQUIRE(std::abs(eps_p) < 1.0e-8);
+          }
+        }
+      }
+    }
+  }
+}
+
+//==============================================================================
+//==============================================================================
+TEST_CASE("Coulomb: Qk Table - with WF", "[Coulomb][QkTable][integration]") {
   IO::ChronoTimer("Coulomb Qk Table");
   std::cout << "\n----------------------------------------\n";
   std::cout << "Coulomb: Qk Table, [Coulomb][QkTable]\n";

@@ -11,6 +11,7 @@
 #include "qip/Vector.hpp"
 #include <algorithm>
 #include <cmath>
+#include <iostream>
 #include <string>
 
 namespace UnitTest {
@@ -48,8 +49,8 @@ inline double check_Rkabcd(const std::vector<DiracSpinor> &orbs,
 } // namespace UnitTest
 
 //==============================================================================
-//==============================================================================
 
+//==============================================================================
 //! First, test quadrature integration method:
 TEST_CASE("Coulomb: quad integrate", "[Coulomb][unit]") {
   std::cout << "\n----------------------------------------\n";
@@ -100,10 +101,220 @@ TEST_CASE("Coulomb: quad integrate", "[Coulomb][unit]") {
   }
 }
 
-//----------------------------------------------------------------------------
+//==============================================================================
+TEST_CASE("Coulomb: yk,Rk formulas", "[Coulomb][unit]") {
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "Coulomb: yk,Rk formulas\n";
+
+  const auto radial_grid = std::make_shared<const Grid>(
+      GridParameters{500, 1.0e-4, 250.0, 50.0, GridType::loglinear});
+  const double zeff = 1.0;
+  const int lmax = 6;
+
+  // build set of H-like orbitals, one n for each kappa up to l=lmax
+  std::vector<DiracSpinor> orbs;
+  for (int l = 0; l <= lmax; ++l) {
+    int n_min = l + 1;
+    if (l != 0) {
+      orbs.push_back(DiracSpinor::exactHlike(n_min, l, radial_grid, zeff));
+    }
+    orbs.push_back(DiracSpinor::exactHlike(n_min, -l - 1, radial_grid, zeff));
+  }
+
+  // Compare yk formula to "Naive" formula
+  using namespace qip::overloads;
+  for (const auto &Fa : orbs) {
+    for (const auto &Fb : orbs) {
+      if (Fb < Fa)
+        continue;
+      auto [k0, ki] = Angular::kminmax_Ck(Fa.kappa(), Fb.kappa());
+      for (int k = k0; k <= ki; k += 2) {
+        auto yk1 = UnitTest::yk_naive(Fa, Fb, k);
+        auto yk2 = Coulomb::yk_ab(Fa, Fb, k);
+        const auto del = std::abs(qip::compare(yk1, yk2).first);
+        REQUIRE(del < 1.0e-14);
+      }
+    }
+  }
+
+  // Check Rk_abcd formula
+  for (const auto &Fa : orbs) {
+    for (const auto &Fb : orbs) {
+      for (const auto &Fc : orbs) {
+        if (Fc < Fa)
+          continue;
+        for (const auto &Fd : orbs) {
+          if (Fd < Fb)
+            continue;
+          auto [k0, ki] = Coulomb::k_minmax_Q(Fa, Fb, Fc, Fd);
+          for (int k = k0; k <= ki; k += 2) {
+            const auto Rabcd = Coulomb::Rk_abcd(Fa, Fb, Fc, Fd, k);
+            const auto ykbd = Coulomb::yk_ab(Fb, Fd, k);
+            const auto Rabcd2 = Fa * (ykbd * Fc);
+            const auto Rabcd3 = Coulomb::Rk_abcd(Fa, Fc, ykbd);
+            const auto eps = std::abs((Rabcd - Rabcd2) / Rabcd);
+            const auto eps2 = std::abs((Rabcd - Rabcd3) / Rabcd);
+            REQUIRE(eps < 1.0e-14);
+            REQUIRE(eps2 < 1.0e-14);
+            // check symmetries:
+            const auto Rbadc = Coulomb::Rk_abcd(Fb, Fa, Fd, Fc, k);
+            const auto Rcbad = Coulomb::Rk_abcd(Fc, Fa, ykbd);
+            const auto eps3 = std::abs((Rbadc - Rabcd) / Rabcd);
+            const auto eps4 = std::abs((Rcbad - Rabcd) / Rabcd);
+            REQUIRE(eps3 < 1.0e-14);
+            REQUIRE(eps4 < 1.0e-14);
+
+            auto Rka_bcd = Coulomb::Rkv_bcd(Fa.kappa(), Fc, ykbd);
+            const auto Rka_bcd2 = Coulomb::Rkv_bcd(Fa.kappa(), Fb, Fc, Fd, k);
+            const auto Rabcd4 = Fa * Rka_bcd;
+            const auto Rabcd5 = Fa * Rka_bcd2;
+            const auto eps5 = std::abs((Rabcd4 - Rabcd) / Rabcd);
+            const auto eps6 = std::abs((Rabcd5 - Rabcd) / Rabcd);
+            REQUIRE(eps5 < 1.0e-14);
+            REQUIRE(eps6 < 1.0e-14);
+
+            Coulomb::Rkv_bcd(&Rka_bcd, Fc, ykbd);
+            const auto Rabcd6 = Fa * Rka_bcd;
+            const auto eps7 = std::abs((Rabcd6 - Rabcd) / Rabcd);
+            REQUIRE(eps7 < 1.0e-14);
+          }
+        }
+      }
+    }
+  }
+}
+
+//==============================================================================
+TEST_CASE("Coulomb: yk tables", "[Coulomb][unit]") {
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "Coulomb: yk tables\n";
+
+  const auto radial_grid = std::make_shared<const Grid>(
+      GridParameters{500, 1.0e-4, 250.0, 50.0, GridType::loglinear});
+  const double zeff = 1.0;
+  const int lmax = 6;
+
+  // build set of H-like orbitals, one n for each kappa up to l=lmax
+  std::vector<DiracSpinor> aorbs, borbs;
+  for (int l = 0; l <= lmax; ++l) {
+    int n_min = l + 1;
+    if (l != 0) {
+      aorbs.push_back(DiracSpinor::exactHlike(n_min, l, radial_grid, zeff));
+      borbs.push_back(DiracSpinor::exactHlike(n_min + 1, l, radial_grid, zeff));
+    }
+    aorbs.push_back(DiracSpinor::exactHlike(n_min, -l - 1, radial_grid, zeff));
+    borbs.push_back(
+        DiracSpinor::exactHlike(n_min + 1, -l - 1, radial_grid, zeff));
+  }
+
+  // test same orbs case:
+  Coulomb::YkTable yaa(aorbs);
+  for (const auto &Fa : aorbs) {
+    for (const auto &Faa : aorbs) {
+      if (Faa < Fa)
+        continue;
+      auto [k0, ki] = Angular::kminmax_Ck(Fa.kappa(), Faa.kappa());
+      for (int k = k0; k <= ki; k += 2) {
+        auto yk = yaa.get(k, Fa, Faa);
+        REQUIRE(yk != nullptr);
+        auto yk2 = Coulomb::yk_ab(Fa, Faa, k);
+        const auto del = std::abs(qip::compare(*yk, yk2).first);
+        REQUIRE(del < 1.0e-14);
+        // symmetric: should return same pointer:
+        auto yk3 = Coulomb::yk_ab(Faa, Fa, k);
+        REQUIRE(yk3 == yk2);
+      }
+    }
+  }
+
+  // test different orbs case:
+  Coulomb::YkTable yab(aorbs, borbs);
+  for (const auto &Fa : aorbs) {
+    for (const auto &Fb : borbs) {
+      auto [k0, ki] = Angular::kminmax_Ck(Fa.kappa(), Fb.kappa());
+      for (int k = k0; k <= ki; k += 2) {
+        auto yk = yab.get(k, Fa, Fb);
+        REQUIRE(yk != nullptr);
+        auto yk2 = Coulomb::yk_ab(Fa, Fb, k);
+        const auto del = std::abs(qip::compare(*yk, yk2).first);
+        REQUIRE(del < 1.0e-14);
+        // symmetric: should return same pointer:
+        auto yk3 = Coulomb::yk_ab(Fb, Fa, k);
+        REQUIRE(yk3 == yk2);
+      }
+    }
+  }
+
+  // Test the Q,P,W formulas
+  for (const auto &Fa : aorbs) {
+    for (const auto &Fb : aorbs) {
+      for (const auto &Fc : aorbs) {
+        if (Fc < Fa)
+          continue;
+        for (const auto &Fd : aorbs) {
+          if (Fd < Fb)
+            continue;
+
+          // test Q formulas from YkTable
+          {
+            auto [k0, ki] = Coulomb::k_minmax_Q(Fa, Fb, Fc, Fd);
+            for (int k = k0; k <= ki; k += 2) {
+              // test q
+              auto q1 = yaa.Q(k, Fa, Fb, Fc, Fd);
+              auto q2 = Coulomb::Qk_abcd(Fa, Fb, Fc, Fd, k);
+              auto eps = std::abs((q1 - q2) / q2);
+              REQUIRE(eps < 1.0e-12);
+            }
+            // test of k_minmax_Q
+            auto q3 = Coulomb::Qk_abcd(Fa, Fb, Fc, Fd, k0 - 1);
+            auto q4 = Coulomb::Qk_abcd(Fa, Fb, Fc, Fd, ki + 1);
+            REQUIRE(q3 == 0.0);
+            REQUIRE(q4 == 0.0);
+          }
+
+          // test W,P formulas from YkTable
+          {
+            auto [k0, ki] = Coulomb::k_minmax_W(Fa, Fb, Fc, Fd);
+            for (int k = k0; k <= ki; k++) {
+              // test P
+              auto p1 = yaa.P(k, Fa, Fb, Fc, Fd);
+              auto p2 = Coulomb::Pk_abcd(Fa, Fb, Fc, Fd, k);
+              auto eps =
+                  p2 == 0.0 ? std::abs(p1 - p2) : std::abs((p1 - p2) / p2);
+              REQUIRE(eps < 1.0e-10);
+              // test W
+              // nb: sometimes W "non-zero" but extremely small. OK?
+              auto q1 = yaa.Q(k, Fa, Fb, Fc, Fd);
+              auto w1 = yaa.W(k, Fa, Fb, Fc, Fd);
+              auto w2 = q1 + p2;
+              auto epsw = std::abs(w2) < 1.0e-8 ? std::abs(w1 - w2) :
+                                                  std::abs((w1 - w2) / w2);
+              REQUIRE(epsw < 1.0e-10);
+            }
+            // test of k_minmax_P,W
+            auto [k0p, kip] = Coulomb::k_minmax_P(Fa, Fb, Fc, Fd);
+            auto p3 = Coulomb::Pk_abcd(Fa, Fb, Fc, Fd, k0p - 1);
+            auto p4 = Coulomb::Pk_abcd(Fa, Fb, Fc, Fd, kip + 1);
+            REQUIRE(p3 == 0.0);
+            REQUIRE(p4 == 0.0);
+            auto w3 = Coulomb::Pk_abcd(Fa, Fb, Fc, Fd, k0 - 1);
+            auto w4 = Coulomb::Pk_abcd(Fa, Fb, Fc, Fd, ki + 1);
+
+            REQUIRE(w3 == 0.0);
+            REQUIRE(w4 == 0.0);
+          }
+          //
+        }
+      }
+    }
+  }
+}
+
+//==============================================================================
+//==============================================================================
 //! Unit tests for Coulomb integrals (y^k_ab, R^k_abcd, lookup tables etc).
 //! Also: tests some 6J table things
-TEST_CASE("Coulomb: formulas", "[Coulomb]") {
+TEST_CASE("Coulomb: formulas", "[Coulomb][integration]") {
   std::cout << "\n----------------------------------------\n";
   std::cout << "Coulomb: formulas\n";
 
@@ -154,10 +365,11 @@ TEST_CASE("Coulomb: formulas", "[Coulomb]") {
   REQUIRE(std::abs(eps_R2) < 1.0e-13);
 
   //============================================================================
-  // Test "other" Coulomb integrals: P, Q, W (these are defined in terms of sums
-  // over R and angular coeficients):
+  // Test "other" Coulomb integrals: P, Q, W (these are defined in terms of
+  // sums over R and angular coeficients):
   {
-    // Contruct a vector of DiracSpinors, with just single spinor of each kappa:
+    // Contruct a vector of DiracSpinors, with just single spinor of each
+    // kappa:
     std::vector<DiracSpinor> torbs;
     for (int kappa_index = 0;; ++kappa_index) {
       auto k = Angular::kappaFromIndex(kappa_index);
@@ -307,9 +519,9 @@ inline std::vector<double> UnitTest::yk_naive(const DiracSpinor &Fa,
                   (Fa.f(j) * Fb.f(j) + Fa.g(j) * Fb.g(j)));
     }
 
-    const auto p0 = std::max(Fa.min_pt(), Fb.min_pt());
-    const auto pi = std::min(Fa.max_pt(), Fb.max_pt());
-    yk[i] = NumCalc::integrate(gr.du(), p0, pi, f, gr.drdu());
+    // const auto p0 = std::max(Fa.min_pt(), Fb.min_pt());
+    // const auto pi = std::min(Fa.max_pt(), Fb.max_pt());
+    yk[i] = NumCalc::integrate(gr.du(), 0, 0, f, gr.drdu());
   }
 
   return yk;
@@ -325,8 +537,8 @@ inline double UnitTest::check_ykab_Tab(const std::vector<DiracSpinor> &a,
     for (const auto &Fb : b) {
       const auto [kmin, kmax] = Coulomb::k_minmax(Fa, Fb);
       for (int k = kmin; k <= kmax; ++k) {
-        // Only check if Angular factor is non-zero (since Ykab only calc'd in
-        // this case)
+        // Only check if Angular factor is non-zero (since Ykab only calc'd
+        // in this case)
         if (!Angular::Ck_kk_SR(k, Fa.kappa(), Fb.kappa()))
           continue;
         const auto y1 = Yab.get(k, Fa, Fb);
@@ -350,9 +562,9 @@ inline double UnitTest::check_ykab_Tab(const std::vector<DiracSpinor> &a,
 inline std::vector<double>
 UnitTest::check_ykab(const std::vector<DiracSpinor> &orbs, int max_del_n) {
 
-  // Compared Yk as calculated by fast Coulomb::yk_ab routine (used in the code)
-  // to UnitTest::yk_naive, a very slow, but simple version. In theory, should
-  // be exactly the same
+  // Compared Yk as calculated by fast Coulomb::yk_ab routine (used in the
+  // code) to UnitTest::yk_naive, a very slow, but simple version. In
+  // theory, should be exactly the same
 
   std::vector<double> worst; // = 0.0;
   // nb: slow, so only check sub-set

@@ -10,7 +10,6 @@
 
 //! Unit tests for Hartree Fock equations
 TEST_CASE("HartreeFock", "[HF][HartreeFock][integration]") {
-  IO::ChronoTimer timer("HartreeFock tests");
   std::cout << "\n----------------------------------------\n";
   std::cout << "HartreeFock\n";
 
@@ -155,6 +154,116 @@ TEST_CASE("HartreeFock", "[HF][HartreeFock][integration]") {
 
     REQUIRE(std::abs(worst_eps) < 1.0e-5);
   }
+}
+
+// NB: Though the following are not really "unit" tests, HF
+// is so fundamental, these can be considered "unit" tests.
+// These are pretty quick too.
+
+// Same as above, but only for Cs, and with fewer points - quick for "unit"
+// tests part
+//============================================================================
+TEST_CASE("HartreeFock - just Cs", "[HF][HartreeFock][unit]") {
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "HartreeFock - just Cs\n";
+
+  //============================================================================
+
+  // Grid parameters (etc.):
+  const auto grid_type = "loglinear";
+  const auto points = 2000;
+  const auto r0 = 1.0e-6;
+  const auto rmax = 150.0;
+  const auto b = 0.3 * rmax;
+  const auto x_Breit = 0.0; // do not include Breit
+  const int A = -1;         // use default A
+  const auto nucleus_type = "Fermi";
+
+  double worst_eps{0.0};
+  double wE1_eps{0.0};
+  double wHFSsp_eps{0.0};
+  double wHFSdf_eps{0.0};
+
+  auto Cs_data = *std::find_if(
+      UnitTest::HF_test_data::regression_test_data.begin(),
+      UnitTest::HF_test_data::regression_test_data.end(),
+      [](auto &d) { return std::get<0>(d) == std::string("Cs"); });
+
+  const auto &[Atom, Core, Valence, EnergyData, E1Data, HFSData] = Cs_data;
+
+  Wavefunction wf({points, r0, rmax, b, grid_type}, {Atom, A, nucleus_type});
+
+  const auto h = DiracOperator::HyperfineA(
+      1.0, 0.5, 0.0, wf.grid(), DiracOperator::Hyperfine::pointlike_F());
+  const auto d = DiracOperator::E1(wf.grid());
+
+  std::cout << "\n" << wf.atom() << "\n";
+  wf.solve_core("HartreeFock", x_Breit, Core);
+  wf.solve_valence(Valence);
+
+  // Test the energies:
+  for (const auto &[state, energy] : EnergyData) {
+    const auto &Fv = *wf.getState(state);
+    const auto del = std::abs(Fv.en() - energy);
+    const auto eps = std::abs(del / energy);
+    const auto err = std::min(del, eps);
+    printf("%3s %9.6f [%9.6f] %.1e\n", state, Fv.en(), energy, err);
+    if (err > worst_eps) {
+      worst_eps = err;
+    }
+  }
+
+  // Test the E1 matrix elements (no RPA):
+  for (const auto &[fa, fb, e1] : E1Data) {
+    const auto &Fa = *wf.getState(fa);
+    const auto &Fb = *wf.getState(fb);
+    const auto e1_me = d.reducedME(Fa, Fb);
+    const auto del = std::abs(e1_me - e1);
+    const auto eps = std::abs((e1_me - e1) / e1);
+    const auto err = std::min(del, eps);
+    printf("E1:%3s,%3s %9.5f [%9.5f] %.1e\n", fa, fb, e1_me, e1, err);
+    // nb: don't test very small MEs - large eps despite high accuracy
+    if (err > wE1_eps) {
+      wE1_eps = err;
+    }
+  }
+
+  // Test the HFS constants (no RPA):
+  for (const auto &[fv, Ahfs] : HFSData) {
+    const auto &Fv = *wf.getState(fv);
+    const auto Ahfs_me = h.hfsA(Fv);
+    const auto eps = std::abs((Ahfs_me - Ahfs) / Ahfs);
+    printf("HFS:%3s %11.5e [%11.5e] %.1e\n", fv, Ahfs_me, Ahfs, eps);
+    if (Fv.l() <= 1 && eps > wHFSsp_eps) {
+      wHFSsp_eps = eps;
+    }
+    if (Fv.l() > 1 && eps > wHFSdf_eps) {
+      wHFSdf_eps = eps;
+    }
+  }
+
+  REQUIRE(std::abs(worst_eps) < 1.0e-5);
+  REQUIRE(std::abs(wE1_eps) < 1.0e-4);
+  REQUIRE(std::abs(wHFSsp_eps) < 1.0e-4);
+  REQUIRE(std::abs(wHFSdf_eps) < 1.0e-3);
+}
+
+//============================================================================
+TEST_CASE("HartreeFock - KS, Core-Hartree and ApproxHF",
+          "[HF][HartreeFock][unit]") {
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "HartreeFock - KS, Core-Hartree and ApproxHF\n";
+
+  // Grid parameters (etc.):
+  const auto grid_type = "loglinear";
+  const auto points = 4000;
+  const auto r0 = 1.0e-6;
+  const auto rmax = 150.0;
+  // const auto points = 10000;
+  // const auto r0 = 1.0e-7;
+  // const auto rmax = 170.0;
+  const auto b = 0.3 * rmax;
+  const auto nucleus_type = "Fermi";
 
   //----------------------------------------------------------------------------
   //----------------------------------------------------------------------------
@@ -304,6 +413,12 @@ TEST_CASE("HartreeFock", "[HF][HartreeFock][integration]") {
     //                          worst_eps, 0.0, 1.0e-5);
     REQUIRE(std::abs(worst_eps) < 1.0e-5);
   }
+}
+
+//============================================================================
+TEST_CASE("HartreeFock - Hyperfine", "[HF][HartreeFock][unit]") {
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "HartreeFock - Hyperfine\n";
 
   //----------------------------------------------------------------------------
   //----------------------------------------------------------------------------

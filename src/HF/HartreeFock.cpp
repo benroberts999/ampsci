@@ -149,8 +149,7 @@ void HartreeFock::solve_valence(
     auto &Fa = (*valence)[i];
     const auto en0 = Fa.en();
     if (m_method == Method::HartreeFock) {
-      // eis[i] = hf_valence(Fa, Sigma);
-      eis[i] = hf_valence_Green(Fa, Sigma);
+      eis[i] = hf_valence(Fa, Sigma);
     } else {
       eis[i] = local_valence(Fa);
     }
