@@ -8,14 +8,11 @@
 #include <random>
 
 //==============================================================================
-//==============================================================================
-//! Unit tests for Coulomb integrals (y^k_ab, R^k_abcd, lookup tables etc).
-//! Also: tests quadrature integation method
 
 //==============================================================================
-TEST_CASE("Coulomb: Qk Table", "[Coulomb][unit]") {
+TEST_CASE("Coulomb: Qk Table", "[Coulomb][QkTable][unit]") {
   std::cout << "\n----------------------------------------\n";
-  std::cout << "Coulomb: Qk tables\n";
+  std::cout << "Coulomb: Qk Table\n";
 
   const auto radial_grid = std::make_shared<const Grid>(
       GridParameters{500, 1.0e-4, 250.0, 50.0, GridType::loglinear});
@@ -32,7 +29,6 @@ TEST_CASE("Coulomb: Qk Table", "[Coulomb][unit]") {
     orbs.push_back(DiracSpinor::exactHlike(n_min, -l - 1, radial_grid, zeff));
   }
 
-  // test same orbs case:
   Coulomb::QkTable qk;
   Coulomb::YkTable yk(orbs);
   qk.fill(orbs, yk);
@@ -68,16 +64,15 @@ TEST_CASE("Coulomb: Qk Table", "[Coulomb][unit]") {
 //==============================================================================
 //==============================================================================
 TEST_CASE("Coulomb: Qk Table - with WF", "[Coulomb][QkTable][integration]") {
-  IO::ChronoTimer("Coulomb Qk Table");
   std::cout << "\n----------------------------------------\n";
-  std::cout << "Coulomb: Qk Table, [Coulomb][QkTable]\n";
+  std::cout << "Coulomb: Qk Table - with WF\n";
 
   using namespace Coulomb;
 
   Wavefunction wf({1000, 1.0e-5, 50.0, 10.0, "loglinear", -1.0},
                   {"Na", -1, "Fermi", -1.0, -1.0}, 1.0);
   wf.solve_core("HartreeFock", 0.0, "[Ne]");
-  wf.formBasis({"5spd8fg", 30, 7, 1.0e-3, 1.0e-3, 30.0, false});
+  wf.formBasis({"12spdfg", 30, 7, 1.0e-3, 1.0e-3, 30.0, false});
 
   // Form the Coulomb lookup tables:
 
@@ -105,62 +100,6 @@ TEST_CASE("Coulomb: Qk Table - with WF", "[Coulomb][QkTable][integration]") {
     std::cout << (ok ? "yes" : "no") << "\n";
   }
   std::cout << "\n";
-
-  // Compare the speed of using Qk lookup table vs. direct calculation
-  double dir_time = 0.0;
-  double tab_time = 0.0;
-  {
-    IO::ChronoTimer t("Direct calc");
-    double sum1 = 0.0;
-#pragma omp parallel for reduction(+ : sum1)
-    for (auto ia = 0ul; ia < wf.basis().size(); ++ia) {
-      auto &a = wf.basis()[ia];
-      for (const auto &b : wf.basis()) {
-        for (const auto &c : wf.basis()) {
-          for (const auto &d : wf.basis()) {
-            const auto [kmin, kmax] = Coulomb::k_minmax_Q(a, b, c, d);
-            for (int k = kmin; k <= kmax; k += 2) {
-              const auto yk_bd = yk.get(k, b, d);
-              if (yk_bd == nullptr)
-                continue;
-              sum1 += yk.Q(k, a, b, c, d);
-            }
-          }
-        }
-      }
-    }
-    std::cout << "sum1=" << sum1 << "\n" << std::flush;
-    dir_time = t.reading_ms();
-  }
-  std::cout << "\n";
-
-  {
-    IO::ChronoTimer t("Use table");
-    double sum2 = 0.0;
-#pragma omp parallel for reduction(+ : sum2)
-    for (auto ia = 0ul; ia < wf.basis().size(); ++ia) {
-      const auto &a = wf.basis()[ia];
-      for (const auto &b : wf.basis()) {
-        for (const auto &c : wf.basis()) {
-          for (const auto &d : wf.basis()) {
-            const auto [kmin, kmax] = Coulomb::k_minmax_Q(a, b, c, d);
-            for (int k = kmin; k <= kmax; k += 2) {
-              sum2 += qk.Q(k, a, b, c, d);
-            }
-          }
-        }
-      }
-    }
-    std::cout << "sum2=" << sum2 << " (should = sum1)\n" << std::flush;
-    tab_time = t.reading_ms();
-  }
-
-  std::cout << dir_time << "/" << tab_time
-            << ": speed-up = " << dir_time / tab_time << "x\n";
-
-  REQUIRE(tab_time < dir_time);
-  INFO("QkTable timing. tab time: " << tab_time
-                                    << ", direct time: " << dir_time);
 
   {
     const auto max_2k = 2 * DiracSpinor::max_tj(wf.basis());
@@ -226,7 +165,7 @@ TEST_CASE("Coulomb: Qk Table - with WF", "[Coulomb][QkTable][integration]") {
     REQUIRE(std::abs(max_devW) < 1.0e-13);
   }
 
-  //============================================================================
+  //----------------------------------------------------------------------------
   {
     // check Normal Ordering:
     bool Qk_NormalOrder_ok = true;
@@ -318,4 +257,86 @@ TEST_CASE("Coulomb: Qk Table - with WF", "[Coulomb][QkTable][integration]") {
     }
     REQUIRE(Lk_NormalOrder_ok);
   }
+}
+
+//==============================================================================
+TEST_CASE("Coulomb: Qk Table - performance",
+          "[Coulomb][QkTable][performance][!mayfail]") {
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "Coulomb: Qk Table - performance\n";
+
+  // Use more realistic orbitals (have rmax, which makes 'Direct' calc faster)
+  Wavefunction wf({1600, 1.0e-6, 120.0, 40.0, "loglinear", -1.0},
+                  {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
+  wf.solve_core("Local", 0.0, "[Xe]");
+  wf.formBasis({"10spdfghi", 30, 7, 1.0e-3, 1.0e-3, 30.0, false});
+  const auto &basis = wf.basis();
+  // wf.printCore();
+  // wf.printBasis(basis);
+
+  Coulomb::QkTable qk;
+  Coulomb::YkTable yk(basis);
+  qk.fill(basis, yk);
+  const int num_runs = 3;
+
+  // Compare the speed of using Qk lookup table vs. direct calculation
+  double dir_time = 0.0;
+  double tab_time = 0.0;
+  double sum1 = 0.0;
+  double sum2 = 0.0;
+  {
+    IO::ChronoTimer t("Direct calc");
+    for (int i = 0; i < num_runs; ++i) {
+#pragma omp parallel for reduction(+ : sum1)
+      for (auto ia = 0ul; ia < basis.size(); ++ia) {
+        auto &a = basis[ia];
+        for (const auto &b : basis) {
+          for (const auto &c : basis) {
+            for (const auto &d : basis) {
+              const auto [kmin, kmax] = Coulomb::k_minmax_Q(a, b, c, d);
+              for (int k = kmin; k <= kmax; k += 2) {
+                const auto yk_bd = yk.get(k, b, d);
+                if (yk_bd == nullptr)
+                  continue;
+                sum1 += yk.Q(k, a, b, c, d);
+              }
+            }
+          }
+        }
+      }
+    }
+    std::cout << "sum1=" << sum1 << "\n" << std::flush;
+    dir_time = t.reading_ms();
+  }
+  std::cout << "\n";
+
+  {
+    IO::ChronoTimer t("Use table");
+    for (int i = 0; i < num_runs; ++i) {
+#pragma omp parallel for reduction(+ : sum2)
+      for (auto ia = 0ul; ia < basis.size(); ++ia) {
+        const auto &a = basis[ia];
+        for (const auto &b : basis) {
+          for (const auto &c : basis) {
+            for (const auto &d : basis) {
+              const auto [kmin, kmax] = Coulomb::k_minmax_Q(a, b, c, d);
+              for (int k = kmin; k <= kmax; k += 2) {
+                sum2 += qk.Q(k, a, b, c, d);
+              }
+            }
+          }
+        }
+      }
+    }
+    std::cout << "sum2=" << sum2 << " (should = sum1)\n" << std::flush;
+    tab_time = t.reading_ms();
+  }
+
+  std::cout << dir_time << "/" << tab_time
+            << ": speed-up = " << dir_time / tab_time << "x\n";
+
+  REQUIRE(std::abs(sum1 - sum2) < 1.0e-6);
+  REQUIRE(tab_time < dir_time);
+  INFO("QkTable timing. tab time: " << tab_time
+                                    << ", direct time: " << dir_time);
 }
