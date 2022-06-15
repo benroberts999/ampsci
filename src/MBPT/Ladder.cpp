@@ -9,18 +9,24 @@
 namespace MBPT {
 
 //==============================================================================
-double
-Lkmnij(int k, const DiracSpinor &m, const DiracSpinor &n, const DiracSpinor &i,
-       const DiracSpinor &j, const Coulomb::CoulombTable &qk,
-       const std::vector<DiracSpinor> &core,
-       const std::vector<DiracSpinor> &excited, const Angular::SixJTable &SJ,
-       const Coulomb::CoulombTable *const Lk, const std::vector<double> &fk) {
+double Lkmnij(int k, const DiracSpinor &m, const DiracSpinor &n,
+              const DiracSpinor &i, const DiracSpinor &j,
+              const Coulomb::CoulombTable &qk,
+              const std::vector<DiracSpinor> &core,
+              const std::vector<DiracSpinor> &excited, bool include_L4,
+              const Angular::SixJTable &SJ,
+              const Coulomb::CoulombTable *const Lk,
+              const std::vector<double> &fk) {
 
-  return L1(k, m, n, i, j, qk, excited, SJ, Lk, fk) +
-         L2(k, m, n, i, j, qk, core, excited, SJ, Lk, fk) +
-         // L2(k, n, m, j, i, qk, core, excited, SJ, Lk, fk) +
-         L3(k, m, n, i, j, qk, core, excited, SJ, Lk, fk) +
-         L4(k, m, n, i, j, qk, core, SJ, Lk, fk);
+  const auto L123 = L1(k, m, n, i, j, qk, excited, SJ, Lk, fk) +
+                    L2(k, m, n, i, j, qk, core, excited, SJ, Lk, fk) +
+                    L3(k, m, n, i, j, qk, core, excited, SJ, Lk, fk);
+  // Optionally include "4th" ladder diagram
+  // nb: L4 not fully checked!
+  if (include_L4)
+    return L123 + L4(k, m, n, i, j, qk, core, SJ, Lk, fk);
+  else
+    return L123;
 }
 
 //------------------------------------------------------------------------------
@@ -248,7 +254,7 @@ double L2(int k, const DiracSpinor &m, const DiracSpinor &n,
 void fill_Lk_mnib(Coulomb::CoulombTable *lk, const Coulomb::CoulombTable &qk,
                   const std::vector<DiracSpinor> &excited,
                   const std::vector<DiracSpinor> &core,
-                  const std::vector<DiracSpinor> &i_orbs,
+                  const std::vector<DiracSpinor> &i_orbs, bool include_L4,
                   const Angular::SixJTable &sjt,
                   const Coulomb::CoulombTable *const lk_prev,
                   bool print_progbar, const std::vector<double> &fk) {
@@ -282,8 +288,8 @@ void fill_Lk_mnib(Coulomb::CoulombTable *lk, const Coulomb::CoulombTable &qk,
             if (qk.Q(k, m, n, i, b) == 0.0)
               continue;
 
-            auto L_kmnib = MBPT::Lkmnij(k, m, n, i, b, qk, core, excited, sjt,
-                                        lk_prev, fk);
+            auto L_kmnib = MBPT::Lkmnij(k, m, n, i, b, qk, core, excited,
+                                        include_L4, sjt, lk_prev, fk);
 
             // If we have old value, 'damp' new value
             const auto L_prev = lk_prev ? lk_prev->Q(k, m, n, i, b) : 0.0;

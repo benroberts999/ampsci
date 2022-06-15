@@ -20,10 +20,11 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "\nLadder Module:\n\n";
 
   input.check(
-      {{"min", "lowest core n to include"},
-       {"max", "maximum excited n to include"},
-       {"max_l", "maximum excited l to include"},
-       {"max_k", "maximum k to include in Qk"},
+      {{"min", "lowest core n to include [0]"},
+       {"max", "maximum excited n to include [99]"},
+       {"max_l", "maximum excited l to include [99]"},
+       {"max_k", "maximum k to include in Qk [99]"},
+       {"include_L4", "Inlcude 4th Ladder diagram [false]"},
        {"fk", "List of doubles. Effective screening factors. Used to "
               "calculate Lk. []"},
        {"eta", "List of doubles. Effective hp factors. Only used to "
@@ -32,21 +33,25 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
        {"form_Q", "Form or read Qk? (if have lk already, dont' need!) [true]"},
        {"Lfile", "filename to read/write Qk integrals"},
        {"progbar", "Print progress bar? [true]"},
-       {"max_it", "Max # iterations"},
-       {"eps_target", "Target for convergance [1.0e-3]"}});
+       {"max_it", "Max # iterations [15]"},
+       {"eps_target", "Target for convergance [1.0e-4]"}});
 
-  // Example for retrieving input options:
+  // Get input + print to screen
   const auto min_n = input.get("min", 0);
   const auto max_n = input.get("max", 99);
   const auto max_l = input.get("max_l", 99);
   const auto max_k = input.get("max_k", 99);
+  const auto include_L4 = input.get("include_L4", false);
   const auto fk = input.get("fk", std::vector<double>{});
   const auto etak = input.get("eta", std::vector<double>{});
   const auto max_it = input.get("max_it", 15);
-  const auto eps_target = input.get("eps_target", 1.0e-3);
+  const auto eps_target = input.get("eps_target", 1.0e-4);
+  const auto print_progbar = input.get("progbar", true);
   std::cout << "min_n (core)    = " << min_n << "\n";
   std::cout << "max_n (excited) = " << max_n << "\n";
   std::cout << "max_l (excited) = " << max_l << "\n";
+  std::cout << std::boolalpha;
+  std::cout << "include_L4      = " << include_L4 << "\n";
   std::cout << "max_k           = " << max_k << "\n";
   std::cout << "max_it          = " << max_it << "\n";
   std::cout << "eps_target      = " << eps_target << "\n";
@@ -66,8 +71,6 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << "1.0 (only in de, does not affect Lk)\n";
   }
 
-  const auto print_progbar = input.get("progbar", true);
-
   // Sort basis into core/excited/valcne
   std::vector<DiracSpinor> core, excited, valence;
   const auto en_core = wf.en_coreval_gap();
@@ -79,8 +82,7 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
     }
   }
   for (const auto &Fv : wf.valence()) {
-    // valence.push_back(Fv);
-    // nb: use basis version of valence states
+    // nb: use _basis_ version of valence states (only for de, makes no diff)
     const auto pFv = std::find(wf.basis().cbegin(), wf.basis().cend(), Fv);
     valence.push_back(*pFv);
   }
@@ -106,7 +108,7 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   // Store reference to Yk's 6J table (save typing):
   const auto &sjt = yk.SixJ();
 
-  // Calculate initial energy corrections:
+  // Calculate initial energy corrections (mainly for checks):
   std::cout << "\nCore/Valence MBPT(2) shifts, using Yk table" << std::endl;
   std::cout << "Core: " << MBPT::de_core(yk, yk, core, excited) << "\n";
   //
@@ -129,6 +131,8 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
     }
   }
 
+  // Form the Qk table.
+  // If we already have L, and just want to print de, don't need to do this
   const auto formQ = input.get("form_Q", true);
   Coulomb::QkTable qk;
   if (formQ) {
@@ -175,13 +179,13 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
       if (!core_converged) {
         // Don't update core terms if core energy shift converged?
         // include screening for core parts?
-        MBPT::fill_Lk_mnib(&lk_next, qk, excited, core, core, sjt, &lk,
-                           print_progbar, fk);
+        MBPT::fill_Lk_mnib(&lk_next, qk, excited, core, core, include_L4, sjt,
+                           &lk, print_progbar, fk);
       }
       // in theory: each valence may converge differently, don't need to re-run
       // for valence states which already converged...
-      MBPT::fill_Lk_mnib(&lk_next, qk, excited, core, valence, sjt, &lk,
-                         print_progbar, fk);
+      MBPT::fill_Lk_mnib(&lk_next, qk, excited, core, valence, include_L4, sjt,
+                         &lk, print_progbar, fk);
     }
     lk = lk_next; // XXX use swap or similar?
     lk.write(Lfname);
@@ -220,11 +224,6 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
                "  de(A)/cm^-1   de(l)/cm^-1\n";
   for (const auto &v : valence) {
 
-    // const auto de2 = MBPT::de_valence(v, qk, qk, core, excited);
-    // const auto dea = MBPT::de_valence(v, qk, qk, core, excited, fk, etak) -
-    // de2; const auto del = MBPT::de_valence(v, qk, lk, core, excited, fk,
-    // etak);
-
     const auto de2 = MBPT::de_valence(v, yk, yk, core, excited);
     const auto dea = MBPT::de_valence(v, yk, yk, core, excited, fk, etak) - de2;
     const auto del = MBPT::de_valence(v, yk, lk, core, excited, fk, etak);
@@ -235,8 +234,9 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
            del * PhysConst::Hartree_invcm);
   }
 
-  // check_L_symmetry(core, excited, valence, qk, yk.SixJ(), &lk);
+  // check_L_symmetry(core, excited, valence, qk, include_L4, yk.SixJ(), &lk);
 
+  // Calculate Sigma_l, compare de_l to <v|Sigma_l|v>
   bool include_G = false;
   const auto sigp = MBPT::Sigma_params{MBPT::Method::Goldstone,
                                        min_n,
@@ -253,9 +253,8 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
                                        fk,
                                        etak};
 
-  const auto subgridp = MBPT::rgrid_params{1.0e-3, 30.0, 6};
-
-  MBPT::GoldstoneSigma Sigma(wf.vHF(), wf.basis(), sigp, subgridp, "na");
+  MBPT::GoldstoneSigma Sigma(wf.vHF(), wf.basis(), sigp,
+                             MBPT::rgrid_params{1.0e-3, 30.0, 6}, "na");
 
   std::cout << "\nEnergy corrections, using Sigma:\n";
   for (const auto &v : valence) {
@@ -273,7 +272,7 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
 void check_L_symmetry(const std::vector<DiracSpinor> &core,
                       const std::vector<DiracSpinor> &excited,
                       const std::vector<DiracSpinor> &valence,
-                      const Coulomb::CoulombTable &qk,
+                      const Coulomb::CoulombTable &qk, bool include_L4,
                       const Angular::SixJTable &sj,
                       const Coulomb::CoulombTable *const lk) {
 
@@ -302,8 +301,10 @@ void check_L_symmetry(const std::vector<DiracSpinor> &core,
     const auto [k0, kI] = Coulomb::k_minmax_Q(m, n, a, b);
     for (int k = k0; k <= kI; k += 2) {
       auto gkmnab = qk.Q(k, m, n, a, b);
-      auto lkmnab = MBPT::Lkmnij(k, m, n, a, b, qk, core, excited, sj);
-      auto lknmba = MBPT::Lkmnij(k, n, m, b, a, qk, core, excited, sj);
+      auto lkmnab =
+          MBPT::Lkmnij(k, m, n, a, b, qk, core, excited, include_L4, sj);
+      auto lknmba =
+          MBPT::Lkmnij(k, n, m, b, a, qk, core, excited, include_L4, sj);
 
       auto lkmnab_tab = lk ? lk->Q(k, m, n, a, b) : 0.0;
       auto lknmba_tab = lk ? lk->Q(k, n, m, b, a) : 0.0;
@@ -329,6 +330,9 @@ void check_L_symmetry(const std::vector<DiracSpinor> &core,
   }
   std::cout << s1 << "\n";
   std::cout << s2 << "\n";
+  std::cout
+      << "nb: Lk_mnab is calc'd directly, Lk_mnab(T) is from table - so "
+         "won't be the same if more than 1 iteration has been perormed.\n";
 }
 
 } // namespace Module
