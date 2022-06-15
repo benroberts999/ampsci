@@ -2,7 +2,6 @@
 #include "CoulombIntegrals.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
-#include "IO/SafeProfiler.hpp"
 #include <algorithm>
 #include <cassert>
 #include <cstring> // for memcpy
@@ -35,17 +34,10 @@ int CoulombTable::count() const {
 //==============================================================================
 void CoulombTable::add(int k, const DiracSpinor &a, const DiracSpinor &b,
                        const DiracSpinor &c, const DiracSpinor &d, Real value) {
-  // [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
-  // const auto sk = std::size_t(k);
-  // if (sk >= m_data.size()) {
-  //   m_data.resize(sk + 1);
-  // }
-  // m_data.at(sk).insert({NormalOrder(a, b, c, d), value});
   add(k, NormalOrder(a, b, c, d), value);
 }
 //----------------
 void CoulombTable::add(int k, BigIndex index, Real value) {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__, "2");
   const auto sk = std::size_t(k);
   if (sk >= m_data.size()) {
     m_data.resize(sk + 1);
@@ -58,17 +50,10 @@ void CoulombTable::add(int k, BigIndex index, Real value) {
 void CoulombTable::update(int k, const DiracSpinor &a, const DiracSpinor &b,
                           const DiracSpinor &c, const DiracSpinor &d,
                           Real value) {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
-  // const auto sk = std::size_t(k);
-  // if (sk >= m_data.size()) {
-  //   m_data.resize(sk + 1);
-  // }
-  // m_data.at(sk).insert_or_assign(NormalOrder(a, b, c, d), value);
   update(k, NormalOrder(a, b, c, d), value);
 }
 
 void CoulombTable::update(int k, BigIndex index, Real value) {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   const auto sk = std::size_t(k);
   if (sk >= m_data.size()) {
     m_data.resize(sk + 1);
@@ -78,7 +63,6 @@ void CoulombTable::update(int k, BigIndex index, Real value) {
 //==============================================================================
 bool CoulombTable::contains(int k, const DiracSpinor &a, const DiracSpinor &b,
                             const DiracSpinor &c, const DiracSpinor &d) const {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   const auto sk = std::size_t(k);
   if (sk >= m_data.size())
     return false;
@@ -86,7 +70,6 @@ bool CoulombTable::contains(int k, const DiracSpinor &a, const DiracSpinor &b,
 }
 
 bool CoulombTable::contains(int k, BigIndex index) const {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   const auto sk = std::size_t(k);
   if (sk >= m_data.size())
     return false;
@@ -136,7 +119,6 @@ double CoulombTable::R(int k, const DiracSpinor &a, const DiracSpinor &b,
 double CoulombTable::P(int k, const DiracSpinor &a, const DiracSpinor &b,
                        const DiracSpinor &c, const DiracSpinor &d,
                        const Angular::SixJTable *const sj) const {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   double Pk_abcd{0.0};
 
   // 6j(s) Triads: {a,c,k}, {k,b,d}, {c,b,l}, {d,a,l}
@@ -161,7 +143,6 @@ double CoulombTable::P2(int k, const DiracSpinor &a, const DiracSpinor &b,
                         const DiracSpinor &c, const DiracSpinor &d,
                         const Angular::SixJTable &sj,
                         const std::vector<double> &fk) const {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   double Pk_abcd{0.0};
 
   // 6j(s) Triads: {a,c,k}, {k,b,d}, {c,b,l}, {d,a,l}
@@ -188,7 +169,6 @@ double CoulombTable::P2(int k, const DiracSpinor &a, const DiracSpinor &b,
 double CoulombTable::W(int k, const DiracSpinor &a, const DiracSpinor &b,
                        const DiracSpinor &c, const DiracSpinor &d,
                        const Angular::SixJTable *const sj) const {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   return Q(k, a, b, c, d) + P(k, a, b, c, d, sj);
 }
 
@@ -212,27 +192,6 @@ CoulombTable::BigIndex CoulombTable::CurrentOrder(const DiracSpinor &a,
   return FormIndex(a.nk_index(), b.nk_index(), c.nk_index(), d.nk_index());
 }
 
-// XXX Note: this failed sometimes when there were repeated indices!
-// //==============================================================================
-// CoulombTable::BigIndex QkTable::NormalOrder_impl(Index a, Index b, Index c,
-//                                                  Index d) const {
-//   // put smallest first
-//   const auto min = std::min({a, b, c, d});
-//   if (min == a) {
-//     // options are abcd, and adcb
-//     return (b < d) ? FormIndex(a, b, c, d) : FormIndex(a, d, c, b);
-//   } else if (min == b) {
-//     // options are badc, and bcda
-//     return (a < c) ? FormIndex(b, a, d, c) : FormIndex(b, c, d, a);
-//   } else if (min == c) {
-//     return (b < d) ? FormIndex(c, b, a, d) : FormIndex(c, d, a, b);
-//   } else if (min == d) {
-//     // options are dabc, and dcba
-//     return (a < c) ? FormIndex(d, a, b, c) : FormIndex(d, c, b, a);
-//   }
-//   assert(false);
-// }
-
 CoulombTable::BigIndex QkTable::NormalOrder_impl(Index a, Index b, Index c,
                                                  Index d) const {
 
@@ -243,33 +202,44 @@ CoulombTable::BigIndex QkTable::NormalOrder_impl(Index a, Index b, Index c,
   // cbad = cdab
   // dabc = dcba
   // nb: there must be a more efficient way of doing this!
-  const auto tmp1 = FormIndex(a, b, c, d);
-  const auto tmp2 = FormIndex(a, d, c, b);
-  const auto tmp3 = FormIndex(b, a, d, c);
-  const auto tmp4 = FormIndex(b, c, d, a);
-  const auto tmp5 = FormIndex(c, b, a, d);
-  const auto tmp6 = FormIndex(c, d, a, b);
-  const auto tmp7 = FormIndex(d, a, b, c);
-  const auto tmp8 = FormIndex(d, c, b, a);
-  return std::min({tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8});
+
+  // const auto tmp1 = FormIndex(a, b, c, d);
+  // const auto tmp2 = FormIndex(a, d, c, b);
+  // const auto tmp3 = FormIndex(b, a, d, c);
+  // const auto tmp4 = FormIndex(b, c, d, a);
+  // const auto tmp5 = FormIndex(c, b, a, d);
+  // const auto tmp6 = FormIndex(c, d, a, b);
+  // const auto tmp7 = FormIndex(d, a, b, c);
+  // const auto tmp8 = FormIndex(d, c, b, a);
+  // return std::min({tmp1, tmp2, tmp3, tmp4, tmp5, tmp6, tmp7, tmp8});
+
+  BigIndex out = FormIndex(a, b, c, d);
+  const auto min = std::min({a, b, c, d});
+  if (a == min) {
+    const auto tmp = FormIndex(a, d, c, b);
+    if (tmp < out)
+      out = tmp;
+  }
+  if (b == min) {
+    const auto tmp = std::min(FormIndex(b, a, d, c), FormIndex(b, c, d, a));
+    if (tmp < out)
+      out = tmp;
+  }
+  if (c == min) {
+    const auto tmp = std::min(FormIndex(c, b, a, d), FormIndex(c, d, a, b));
+    if (tmp < out)
+      out = tmp;
+  }
+  if (d == min) {
+    const auto tmp = std::min(FormIndex(d, a, b, c), FormIndex(d, c, b, a));
+    if (tmp < out)
+      out = tmp;
+  }
+  return out;
 }
 //------------------------------------------------------------------------------
 CoulombTable::BigIndex WkTable::NormalOrder_impl(Index a, Index b, Index c,
                                                  Index d) const {
-  // // put smallest first
-  // XXX Note: this failed sometimes when there were repeated indices!
-  // const auto min = std::min({a, b, c, d});
-  // if (min == a) {
-  //   return FormIndex(a, b, c, d);
-  // } else if (min == b) {
-  //   return FormIndex(b, a, d, c);
-  // } else if (min == c) {
-  //   return FormIndex(c, d, a, b);
-  // } else if (min == d) {
-  //   return FormIndex(d, c, b, a);
-  // }
-  // assert(false);
-
   const auto tmp1 = FormIndex(a, b, c, d);
   const auto tmp2 = FormIndex(b, a, d, c);
   const auto tmp3 = FormIndex(c, d, a, b);
@@ -280,13 +250,6 @@ CoulombTable::BigIndex WkTable::NormalOrder_impl(Index a, Index b, Index c,
 //------------------------------------------------------------------------------
 CoulombTable::BigIndex LkTable::NormalOrder_impl(Index a, Index b, Index c,
                                                  Index d) const {
-  // // [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
-  // if (a <= b) { // a = std::min(a, b);
-  //   return FormIndex(a, b, c, d);
-  // } else {
-  //   return FormIndex(b, a, d, c);
-  // }
-  // assert(false);
   const auto tmp1 = FormIndex(a, b, c, d);
   const auto tmp2 = FormIndex(b, a, d, c);
   return std::min({tmp1, tmp2});
@@ -302,15 +265,21 @@ CoulombTable::BigIndex NkTable::NormalOrder_impl(Index a, Index b, Index c,
 CoulombTable::BigIndex CoulombTable::FormIndex(Index a, Index b, Index c,
                                                Index d) const {
   // create a BigIndex from four small Index, by laying out in memory
+
+  // static_assert(sizeof(BigIndex) == 4 * sizeof(Index));
+  // BigIndex big_index;
+  // const auto p_index = reinterpret_cast<Index *>(&big_index);
+  // std::memcpy(p_index, &d, sizeof(Index));
+  // std::memcpy(p_index + 1, &c, sizeof(Index));
+  // std::memcpy(p_index + 2, &b, sizeof(Index));
+  // std::memcpy(p_index + 3, &a, sizeof(Index));
+  // return big_index;
+
+  // this seems slightly faster...though variance large
   static_assert(sizeof(BigIndex) == 4 * sizeof(Index));
-  BigIndex big_index;
-  // auto p_index = (Index *)(&big_index);
-  const auto p_index = reinterpret_cast<Index *>(&big_index);
-  std::memcpy(p_index, &a, sizeof(Index));
-  std::memcpy(p_index + 1, &b, sizeof(Index));
-  std::memcpy(p_index + 2, &c, sizeof(Index));
-  std::memcpy(p_index + 3, &d, sizeof(Index));
-  return big_index;
+  static_assert(sizeof(Index) * 8 == 16);
+  return (BigIndex)d + ((BigIndex)c << 16) + ((BigIndex)b << 32) +
+         ((BigIndex)a << 48);
 }
 
 //==============================================================================
@@ -326,7 +295,6 @@ CoulombTable::UnFormIndex(const BigIndex &index) const {
 //==============================================================================
 void QkTable::fill(const std::vector<DiracSpinor> &basis, const YkTable &yk,
                    int k_cut) {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   IO::ChronoTimer t("fill");
 
   /*
