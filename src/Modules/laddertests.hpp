@@ -6,9 +6,10 @@ class DiracSpinor;
 namespace IO {
 class InputBlock;
 }
-namespace Coulomb {
-class CoulombTable;
-}
+// namespace Coulomb {
+// class CoulombTable;
+// }
+#include "Coulomb/QkTable.hpp"
 namespace Angular {
 class SixJTable;
 }
@@ -21,8 +22,8 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf);
 void check_L_symmetry(const std::vector<DiracSpinor> &core,
                       const std::vector<DiracSpinor> &excited,
                       const std::vector<DiracSpinor> &valence,
-                      const Coulomb::CoulombTable &qk, bool include_L4,
+                      const Coulomb::QkTable &qk, bool include_L4,
                       const Angular::SixJTable &sj,
-                      const Coulomb::CoulombTable *const lk = nullptr);
+                      const Coulomb::LkTable *const lk = nullptr);
 
 } // namespace Module

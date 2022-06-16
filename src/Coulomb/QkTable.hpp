@@ -9,6 +9,12 @@ namespace Coulomb {
 
 // ! Symmetry (state index order) for tables.
 enum class Symmetry { Qk, Wk, Lk, none };
+//! Data type used to store integrals
+using Real = double;
+//! index type for set of 4 orbitals {nk,nk,nk,nk} -> BigIndex
+using BigIndex = uint64_t;
+//! index type for each {nk} (orbital)
+using Index = uint16_t;
 
 //==============================================================================
 /*!
@@ -31,23 +37,23 @@ question.
  Lk symmetry:
  {abcd} = badc
 */
-class CoulombTable {
+template <Symmetry S> class CoulombTable {
 
 public:
-  //! Data type used to store integrals
-  using Real = double;
-  //! index type for set of 4 orbitals {nk,nk,nk,nk} -> BigIndex
-  using BigIndex = uint64_t;
-  //! index type for each {nk} (orbital)
-  using Index = uint16_t;
-
 protected:
   // each vector element corresponds to a 'k'
   std::vector<std::unordered_map<BigIndex, Real>> m_data{};
 
 public:
   // 'Rule of zero' (except virtual destructor)
-  virtual ~CoulombTable() = default;
+  // virtual ~CoulombTable() = default;
+
+  // XXX Should only be for QkTable
+  //! Takes a constructed YkTable, and fills Coulomb table with all possible
+  //! non-zero Qk elements, accounting for symmetry (only really makes sense
+  //! for QkTable), up to maximum k, k_cut (set k_cut to <=0 to use all k)
+  void fill(const std::vector<DiracSpinor> &basis, const YkTable &yk,
+            int k_cut = -1);
 
   //! Gives arrow access to all underlying vector<unordered_map> functions
   auto operator->() { return &m_data; }
@@ -164,70 +170,80 @@ protected:
                         const DiracSpinor &c, const DiracSpinor &d) const;
 
   // Converts given set of Index's (in any order) to BigIndex
-  BigIndex FormIndex(Index a, Index b, Index c, Index d) const;
+  static BigIndex FormIndex(Index a, Index b, Index c, Index d);
 
   // Breaks BigIndex back into {ia,ib,ic,id}. Not used.
   std::array<Index, 4> UnFormIndex(const BigIndex &index) const;
 
-  // Virtual: returns the "NormalOrder" BigIndex for given set. Overriden by
-  // derived classes.
-  virtual BigIndex NormalOrder_impl(Index a, Index b, Index c,
-                                    Index d) const = 0;
+  // // Virtual: returns the "NormalOrder" BigIndex for given set. Overriden by
+  // // derived classes.
+  // virtual BigIndex NormalOrder_impl(Index a, Index b, Index c,
+  //                                   Index d) const = 0;
+  static inline BigIndex NormalOrder_impl(Index a, Index b, Index c, Index d);
 };
 
-//==============================================================================
-//! Derived CoulombTable for the Qk symmetry: {abcd} = cbad = adcb = cdab =
-//! badc = bcda = dabc = dcba.
-class QkTable : public CoulombTable {
+using QkTable = CoulombTable<Symmetry::Qk>;
+using WkTable = CoulombTable<Symmetry::Wk>;
+using LkTable = CoulombTable<Symmetry::Lk>;
+using NkTable = CoulombTable<Symmetry::none>;
 
-public:
-  static constexpr Symmetry symmetry = Symmetry::Qk;
+// //==============================================================================
+// //! Derived CoulombTable for the Qk symmetry: {abcd} = cbad = adcb = cdab =
+// //! badc = bcda = dabc = dcba.
+// class QkTable : public CoulombTable {
 
-  //! Takes a constructed YkTable, and fills Coulomb table with all possible
-  //! non-zero Qk elements, accounting for symmetry (only really makes sense
-  //! for QkTable), up to maximum k, k_cut (set k_cut to <=0 to use all k)
-  void fill(const std::vector<DiracSpinor> &basis, const YkTable &yk,
-            int k_cut = -1);
+// public:
+//   static constexpr Symmetry symmetry = Symmetry::Qk;
 
-private:
-  virtual BigIndex NormalOrder_impl(Index a, Index b, Index c,
-                                    Index d) const override final;
-};
+//   // //! Takes a constructed YkTable, and fills Coulomb table with all
+//   possible
+//   // //! non-zero Qk elements, accounting for symmetry (only really makes
+//   sense
+//   // //! for QkTable), up to maximum k, k_cut (set k_cut to <=0 to use all k)
+//   // void fill(const std::vector<DiracSpinor> &basis, const YkTable &yk,
+//   //           int k_cut = -1);
 
-//==============================================================================
-//! Derived CoulombTable for the Wk = g symmetry: {abcd} = badc = cdab = dcba
-class WkTable : public CoulombTable {
+// private:
+//   virtual BigIndex NormalOrder_impl(Index a, Index b, Index c,
+//                                     Index d) const override final;
+// };
 
-public:
-  static constexpr Symmetry symmetry = Symmetry::Wk;
+// //==============================================================================
+// //! Derived CoulombTable for the Wk = g symmetry: {abcd} = badc = cdab = dcba
+// class WkTable : public CoulombTable {
 
-private:
-  virtual BigIndex NormalOrder_impl(Index a, Index b, Index c,
-                                    Index d) const override final;
-};
+// public:
+//   static constexpr Symmetry symmetry = Symmetry::Wk;
 
-//==============================================================================
-//! Derived CoulombTable for the Lk symmetry: {abcd} = badc
-class LkTable : public CoulombTable {
+// private:
+//   virtual BigIndex NormalOrder_impl(Index a, Index b, Index c,
+//                                     Index d) const override final;
+// };
 
-public:
-  static constexpr Symmetry symmetry = Symmetry::Lk;
+// //==============================================================================
+// //! Derived CoulombTable for the Lk symmetry: {abcd} = badc
+// class LkTable : public CoulombTable {
 
-private:
-  virtual BigIndex NormalOrder_impl(Index a, Index b, Index c,
-                                    Index d) const override final;
-};
+// public:
+//   static constexpr Symmetry symmetry = Symmetry::Lk;
 
-//==============================================================================
-//! Derived CoulombTable for NO symmetry: {abcd} = abcd only
-class NkTable : public CoulombTable {
+// private:
+//   virtual BigIndex NormalOrder_impl(Index a, Index b, Index c,
+//                                     Index d) const override final;
+// };
 
-public:
-  static constexpr Symmetry symmetry = Symmetry::none;
+// //==============================================================================
+// //! Derived CoulombTable for NO symmetry: {abcd} = abcd only
+// class NkTable : public CoulombTable {
 
-private:
-  virtual BigIndex NormalOrder_impl(Index a, Index b, Index c,
-                                    Index d) const override final;
-};
+// public:
+//   static constexpr Symmetry symmetry = Symmetry::none;
+
+// private:
+//   virtual BigIndex NormalOrder_impl(Index a, Index b, Index c,
+//                                     Index d) const override final;
+// };
 
 } // namespace Coulomb
+
+#include "QkTable.ipp"

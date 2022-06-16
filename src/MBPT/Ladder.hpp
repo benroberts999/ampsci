@@ -17,11 +17,10 @@ namespace MBPT {
  */
 double Lkmnij(int k, const DiracSpinor &m, const DiracSpinor &n,
               const DiracSpinor &i, const DiracSpinor &j,
-              const Coulomb::CoulombTable &qk,
-              const std::vector<DiracSpinor> &core,
+              const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
               const std::vector<DiracSpinor> &excited, bool include_L4,
               const Angular::SixJTable &SJ,
-              const Coulomb::CoulombTable *const Lk = nullptr,
+              const Coulomb::LkTable *const Lk = nullptr,
               const std::vector<double> &fk = {});
 
 //! Ladder integral, L^k_mnij := L1_mnij + L2_mnij + L2_nmji
@@ -34,9 +33,9 @@ A^{kul}_mnrsij
 */
 double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
           const DiracSpinor &i, const DiracSpinor &j,
-          const Coulomb::CoulombTable &qk,
-          const std::vector<DiracSpinor> &excited, const Angular::SixJTable &SJ,
-          const Coulomb::CoulombTable *const Lk = nullptr,
+          const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &excited,
+          const Angular::SixJTable &SJ,
+          const Coulomb::LkTable *const Lk = nullptr,
           const std::vector<double> &fk = {});
 
 //! Ladder integral, L^k_mnab := L1_mnij + L2_mnij + L3_nmji,  L3_mnij = L2_nmji
@@ -47,36 +46,36 @@ L2^k_mnij
  */
 double L2(int k, const DiracSpinor &m, const DiracSpinor &n,
           const DiracSpinor &i, const DiracSpinor &j,
-          const Coulomb::CoulombTable &qk, const std::vector<DiracSpinor> &core,
+          const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
           const std::vector<DiracSpinor> &excited, const Angular::SixJTable &SJ,
-          const Coulomb::CoulombTable *const Lk = nullptr,
+          const Coulomb::LkTable *const Lk = nullptr,
           const std::vector<double> &fk = {});
 
 inline double L3(int k, const DiracSpinor &m, const DiracSpinor &n,
                  const DiracSpinor &i, const DiracSpinor &j,
-                 const Coulomb::CoulombTable &qk,
+                 const Coulomb::QkTable &qk,
                  const std::vector<DiracSpinor> &core,
                  const std::vector<DiracSpinor> &excited,
                  const Angular::SixJTable &SJ,
-                 const Coulomb::CoulombTable *const Lk = nullptr,
+                 const Coulomb::LkTable *const Lk = nullptr,
                  const std::vector<double> &fk = {}) {
   return L2(k, n, m, j, i, qk, core, excited, SJ, Lk, fk);
 }
 
 double L4(int k, const DiracSpinor &m, const DiracSpinor &n,
           const DiracSpinor &i, const DiracSpinor &j,
-          const Coulomb::CoulombTable &qk, const std::vector<DiracSpinor> &core,
+          const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
           const Angular::SixJTable &SJ,
-          const Coulomb::CoulombTable *const Lk = nullptr,
+          const Coulomb::LkTable *const Lk = nullptr,
           const std::vector<double> &fk = {});
 
 //! Fills Lk matrix
-void fill_Lk_mnib(Coulomb::CoulombTable *lk, const Coulomb::CoulombTable &qk,
+void fill_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
                   const std::vector<DiracSpinor> &excited,
                   const std::vector<DiracSpinor> &core,
                   const std::vector<DiracSpinor> &i_orbs, bool include_L4,
                   const Angular::SixJTable &sjt,
-                  const Coulomb::CoulombTable *const lk_prev = nullptr,
+                  const Coulomb::LkTable *const lk_prev = nullptr,
                   bool print_progbar = true,
                   const std::vector<double> &fk = {});
 

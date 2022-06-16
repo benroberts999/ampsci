@@ -11,11 +11,9 @@ namespace MBPT {
 //==============================================================================
 double Lkmnij(int k, const DiracSpinor &m, const DiracSpinor &n,
               const DiracSpinor &i, const DiracSpinor &j,
-              const Coulomb::CoulombTable &qk,
-              const std::vector<DiracSpinor> &core,
+              const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
               const std::vector<DiracSpinor> &excited, bool include_L4,
-              const Angular::SixJTable &SJ,
-              const Coulomb::CoulombTable *const Lk,
+              const Angular::SixJTable &SJ, const Coulomb::LkTable *const Lk,
               const std::vector<double> &fk) {
 
   const auto L123 = L1(k, m, n, i, j, qk, excited, SJ, Lk, fk) +
@@ -32,9 +30,8 @@ double Lkmnij(int k, const DiracSpinor &m, const DiracSpinor &n,
 //------------------------------------------------------------------------------
 double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
           const DiracSpinor &i, const DiracSpinor &j,
-          const Coulomb::CoulombTable &qk,
-          const std::vector<DiracSpinor> &excited, const Angular::SixJTable &SJ,
-          const Coulomb::CoulombTable *const Lk,
+          const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &excited,
+          const Angular::SixJTable &SJ, const Coulomb::LkTable *const Lk,
           const std::vector<double> &fk) {
 
   // m (and n) must be excited states, as should 'excited'
@@ -110,8 +107,8 @@ double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
 //------------------------------------------------------------------------------
 double L4(int k, const DiracSpinor &m, const DiracSpinor &n,
           const DiracSpinor &i, const DiracSpinor &j,
-          const Coulomb::CoulombTable &qk, const std::vector<DiracSpinor> &core,
-          const Angular::SixJTable &SJ, const Coulomb::CoulombTable *const Lk,
+          const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
+          const Angular::SixJTable &SJ, const Coulomb::LkTable *const Lk,
           const std::vector<double> &fk) {
 
   // m (and n) must be excited states, as should 'excited'
@@ -181,10 +178,9 @@ double L4(int k, const DiracSpinor &m, const DiracSpinor &n,
 //------------------------------------------------------------------------------
 double L2(int k, const DiracSpinor &m, const DiracSpinor &n,
           const DiracSpinor &i, const DiracSpinor &j,
-          const Coulomb::CoulombTable &qk, const std::vector<DiracSpinor> &core,
+          const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
           const std::vector<DiracSpinor> &excited, const Angular::SixJTable &SJ,
-          const Coulomb::CoulombTable *const Lk,
-          const std::vector<double> &fk) {
+          const Coulomb::LkTable *const Lk, const std::vector<double> &fk) {
 
   // m (and n) must be excited states, as should 'excited'
   // Therefore, can test:
@@ -251,13 +247,13 @@ double L2(int k, const DiracSpinor &m, const DiracSpinor &n,
 }
 
 //==============================================================================
-void fill_Lk_mnib(Coulomb::CoulombTable *lk, const Coulomb::CoulombTable &qk,
+void fill_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
                   const std::vector<DiracSpinor> &excited,
                   const std::vector<DiracSpinor> &core,
                   const std::vector<DiracSpinor> &i_orbs, bool include_L4,
                   const Angular::SixJTable &sjt,
-                  const Coulomb::CoulombTable *const lk_prev,
-                  bool print_progbar, const std::vector<double> &fk) {
+                  const Coulomb::LkTable *const lk_prev, bool print_progbar,
+                  const std::vector<double> &fk) {
 
   const double a_damp = 0.35; // 0 means no damping
   const double b_damp = 1.0 - a_damp;

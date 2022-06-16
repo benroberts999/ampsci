@@ -1,7 +1,8 @@
-#include "QkTable.hpp"
+#pragma once
 #include "CoulombIntegrals.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
+#include "QkTable.hpp"
 #include <algorithm>
 #include <cassert>
 #include <cstring> // for memcpy
@@ -10,7 +11,7 @@
 namespace Coulomb {
 
 //==============================================================================
-void CoulombTable::summary() const {
+template <Symmetry S> void CoulombTable<S>::summary() const {
   std::cout << "Summary: \n";
   int k = 0;
   auto total = 0ul;
@@ -23,7 +24,7 @@ void CoulombTable::summary() const {
   std::cout << "total: " << total << " non-zero Qk\n";
 }
 
-int CoulombTable::count() const {
+template <Symmetry S> int CoulombTable<S>::count() const {
   auto total = 0ul;
   for (auto &qk : m_data) {
     total += qk.size();
@@ -32,12 +33,15 @@ int CoulombTable::count() const {
 }
 
 //==============================================================================
-void CoulombTable::add(int k, const DiracSpinor &a, const DiracSpinor &b,
-                       const DiracSpinor &c, const DiracSpinor &d, Real value) {
+template <Symmetry S>
+void CoulombTable<S>::add(int k, const DiracSpinor &a, const DiracSpinor &b,
+                          const DiracSpinor &c, const DiracSpinor &d,
+                          Real value) {
   add(k, NormalOrder(a, b, c, d), value);
 }
-//----------------
-void CoulombTable::add(int k, BigIndex index, Real value) {
+//------------------------------------------------------------------------------
+template <Symmetry S>
+void CoulombTable<S>::add(int k, BigIndex index, Real value) {
   const auto sk = std::size_t(k);
   if (sk >= m_data.size()) {
     m_data.resize(sk + 1);
@@ -46,14 +50,17 @@ void CoulombTable::add(int k, BigIndex index, Real value) {
 }
 
 //==============================================================================
+template <Symmetry S>
 // Updates Q in table. If not present, adds new Q
-void CoulombTable::update(int k, const DiracSpinor &a, const DiracSpinor &b,
-                          const DiracSpinor &c, const DiracSpinor &d,
-                          Real value) {
+void CoulombTable<S>::update(int k, const DiracSpinor &a, const DiracSpinor &b,
+                             const DiracSpinor &c, const DiracSpinor &d,
+                             Real value) {
   update(k, NormalOrder(a, b, c, d), value);
 }
 
-void CoulombTable::update(int k, BigIndex index, Real value) {
+//------------------------------------------------------------------------------
+template <Symmetry S>
+void CoulombTable<S>::update(int k, BigIndex index, Real value) {
   const auto sk = std::size_t(k);
   if (sk >= m_data.size()) {
     m_data.resize(sk + 1);
@@ -61,15 +68,18 @@ void CoulombTable::update(int k, BigIndex index, Real value) {
   m_data.at(sk).insert_or_assign(index, value);
 }
 //==============================================================================
-bool CoulombTable::contains(int k, const DiracSpinor &a, const DiracSpinor &b,
-                            const DiracSpinor &c, const DiracSpinor &d) const {
+template <Symmetry S>
+bool CoulombTable<S>::contains(int k, const DiracSpinor &a,
+                               const DiracSpinor &b, const DiracSpinor &c,
+                               const DiracSpinor &d) const {
   const auto sk = std::size_t(k);
   if (sk >= m_data.size())
     return false;
   return m_data.at(sk).find(NormalOrder(a, b, c, d)) != m_data.at(sk).cend();
 }
 
-bool CoulombTable::contains(int k, BigIndex index) const {
+template <Symmetry S>
+bool CoulombTable<S>::contains(int k, BigIndex index) const {
   const auto sk = std::size_t(k);
   if (sk >= m_data.size())
     return false;
@@ -80,8 +90,9 @@ bool CoulombTable::contains(int k, BigIndex index) const {
 //==============================================================================
 
 //==============================================================================
-double CoulombTable::Q(int k, const DiracSpinor &a, const DiracSpinor &b,
-                       const DiracSpinor &c, const DiracSpinor &d) const {
+template <Symmetry S>
+double CoulombTable<S>::Q(int k, const DiracSpinor &a, const DiracSpinor &b,
+                          const DiracSpinor &c, const DiracSpinor &d) const {
   const auto sk = std::size_t(k);
   if (sk >= m_data.size())
     return 0.0;
@@ -91,8 +102,8 @@ double CoulombTable::Q(int k, const DiracSpinor &a, const DiracSpinor &b,
     return 0.0;
   return map_it->second;
 }
-//
-double CoulombTable::Q(int k, BigIndex index) const {
+//------------------------------------------------------------------------------
+template <Symmetry S> double CoulombTable<S>::Q(int k, BigIndex index) const {
   const auto sk = std::size_t(k);
   if (sk >= m_data.size())
     return 0.0;
@@ -104,8 +115,9 @@ double CoulombTable::Q(int k, BigIndex index) const {
 }
 
 //==============================================================================
-double CoulombTable::R(int k, const DiracSpinor &a, const DiracSpinor &b,
-                       const DiracSpinor &c, const DiracSpinor &d) const {
+template <Symmetry S>
+double CoulombTable<S>::R(int k, const DiracSpinor &a, const DiracSpinor &b,
+                          const DiracSpinor &c, const DiracSpinor &d) const {
   const auto tQk = Q(k, a, b, c, d);
   if (tQk == 0.0)
     return 0.0;
@@ -116,9 +128,10 @@ double CoulombTable::R(int k, const DiracSpinor &a, const DiracSpinor &b,
 }
 
 //==============================================================================
-double CoulombTable::P(int k, const DiracSpinor &a, const DiracSpinor &b,
-                       const DiracSpinor &c, const DiracSpinor &d,
-                       const Angular::SixJTable *const sj) const {
+template <Symmetry S>
+double CoulombTable<S>::P(int k, const DiracSpinor &a, const DiracSpinor &b,
+                          const DiracSpinor &c, const DiracSpinor &d,
+                          const Angular::SixJTable *const sj) const {
   double Pk_abcd{0.0};
 
   // 6j(s) Triads: {a,c,k}, {k,b,d}, {c,b,l}, {d,a,l}
@@ -139,10 +152,11 @@ double CoulombTable::P(int k, const DiracSpinor &a, const DiracSpinor &b,
 }
 
 //==============================================================================
-double CoulombTable::P2(int k, const DiracSpinor &a, const DiracSpinor &b,
-                        const DiracSpinor &c, const DiracSpinor &d,
-                        const Angular::SixJTable &sj,
-                        const std::vector<double> &fk) const {
+template <Symmetry S>
+double CoulombTable<S>::P2(int k, const DiracSpinor &a, const DiracSpinor &b,
+                           const DiracSpinor &c, const DiracSpinor &d,
+                           const Angular::SixJTable &sj,
+                           const std::vector<double> &fk) const {
   double Pk_abcd{0.0};
 
   // 6j(s) Triads: {a,c,k}, {k,b,d}, {c,b,l}, {d,a,l}
@@ -166,9 +180,10 @@ double CoulombTable::P2(int k, const DiracSpinor &a, const DiracSpinor &b,
 }
 
 //==============================================================================
-double CoulombTable::W(int k, const DiracSpinor &a, const DiracSpinor &b,
-                       const DiracSpinor &c, const DiracSpinor &d,
-                       const Angular::SixJTable *const sj) const {
+template <Symmetry S>
+double CoulombTable<S>::W(int k, const DiracSpinor &a, const DiracSpinor &b,
+                          const DiracSpinor &c, const DiracSpinor &d,
+                          const Angular::SixJTable *const sj) const {
   return Q(k, a, b, c, d) + P(k, a, b, c, d, sj);
 }
 
@@ -176,24 +191,9 @@ double CoulombTable::W(int k, const DiracSpinor &a, const DiracSpinor &b,
 //==============================================================================
 
 //==============================================================================
-CoulombTable::BigIndex CoulombTable::NormalOrder(const DiracSpinor &a,
-                                                 const DiracSpinor &b,
-                                                 const DiracSpinor &c,
-                                                 const DiracSpinor &d) const {
-  return NormalOrder_impl(a.nk_index(), b.nk_index(), c.nk_index(),
-                          d.nk_index());
-}
-
-//==============================================================================
-CoulombTable::BigIndex CoulombTable::CurrentOrder(const DiracSpinor &a,
-                                                  const DiracSpinor &b,
-                                                  const DiracSpinor &c,
-                                                  const DiracSpinor &d) const {
-  return FormIndex(a.nk_index(), b.nk_index(), c.nk_index(), d.nk_index());
-}
-
-CoulombTable::BigIndex QkTable::NormalOrder_impl(Index a, Index b, Index c,
-                                                 Index d) const {
+template <>
+inline BigIndex CoulombTable<Symmetry::Qk>::NormalOrder_impl(Index a, Index b,
+                                                             Index c, Index d) {
 
   // abcd -> ijkl, with i = min(a,b,c,d)
 
@@ -238,8 +238,9 @@ CoulombTable::BigIndex QkTable::NormalOrder_impl(Index a, Index b, Index c,
   return out;
 }
 //------------------------------------------------------------------------------
-CoulombTable::BigIndex WkTable::NormalOrder_impl(Index a, Index b, Index c,
-                                                 Index d) const {
+template <>
+inline BigIndex CoulombTable<Symmetry::Wk>::NormalOrder_impl(Index a, Index b,
+                                                             Index c, Index d) {
   const auto tmp1 = FormIndex(a, b, c, d);
   const auto tmp2 = FormIndex(b, a, d, c);
   const auto tmp3 = FormIndex(c, d, a, b);
@@ -248,22 +249,55 @@ CoulombTable::BigIndex WkTable::NormalOrder_impl(Index a, Index b, Index c,
 }
 
 //------------------------------------------------------------------------------
-CoulombTable::BigIndex LkTable::NormalOrder_impl(Index a, Index b, Index c,
-                                                 Index d) const {
+template <>
+inline BigIndex CoulombTable<Symmetry::Lk>::NormalOrder_impl(Index a, Index b,
+                                                             Index c, Index d) {
   const auto tmp1 = FormIndex(a, b, c, d);
   const auto tmp2 = FormIndex(b, a, d, c);
   return std::min({tmp1, tmp2});
 }
 
 //------------------------------------------------------------------------------
-CoulombTable::BigIndex NkTable::NormalOrder_impl(Index a, Index b, Index c,
-                                                 Index d) const {
+template <>
+inline BigIndex CoulombTable<Symmetry::none>::NormalOrder_impl(Index a, Index b,
+                                                               Index c,
+                                                               Index d) {
   return FormIndex(a, b, c, d);
 }
 
 //==============================================================================
-CoulombTable::BigIndex CoulombTable::FormIndex(Index a, Index b, Index c,
-                                               Index d) const {
+template <Symmetry S>
+BigIndex
+CoulombTable<S>::NormalOrder(const DiracSpinor &a, const DiracSpinor &b,
+                             const DiracSpinor &c, const DiracSpinor &d) const {
+  return NormalOrder_impl(a.nk_index(), b.nk_index(), c.nk_index(),
+                          d.nk_index());
+  // if constexpr (S == Coulomb::Symmetry::Qk)
+  //   return NormalOrder_Q(a.nk_index(), b.nk_index(), c.nk_index(),
+  //                        d.nk_index());
+  // if constexpr (S == Coulomb::Symmetry::Wk)
+  //   return NormalOrder_W(a.nk_index(), b.nk_index(), c.nk_index(),
+  //                        d.nk_index());
+  // if constexpr (S == Coulomb::Symmetry::Lk)
+  //   return NormalOrder_L(a.nk_index(), b.nk_index(), c.nk_index(),
+  //                        d.nk_index());
+  // if constexpr (S == Coulomb::Symmetry::none)
+  //   return NormalOrder_none(a.nk_index(), b.nk_index(), c.nk_index(),
+  //                           d.nk_index());
+}
+
+//==============================================================================
+template <Symmetry S>
+BigIndex CoulombTable<S>::CurrentOrder(const DiracSpinor &a,
+                                       const DiracSpinor &b,
+                                       const DiracSpinor &c,
+                                       const DiracSpinor &d) const {
+  return FormIndex(a.nk_index(), b.nk_index(), c.nk_index(), d.nk_index());
+}
+
+//==============================================================================
+template <Symmetry S>
+BigIndex CoulombTable<S>::FormIndex(Index a, Index b, Index c, Index d) {
   // create a BigIndex from four small Index, by laying out in memory
 
   // static_assert(sizeof(BigIndex) == 4 * sizeof(Index));
@@ -283,8 +317,8 @@ CoulombTable::BigIndex CoulombTable::FormIndex(Index a, Index b, Index c,
 }
 
 //==============================================================================
-std::array<CoulombTable::Index, 4>
-CoulombTable::UnFormIndex(const BigIndex &index) const {
+template <Symmetry S>
+std::array<Index, 4> CoulombTable<S>::UnFormIndex(const BigIndex &index) const {
   static_assert(sizeof(BigIndex) == sizeof(std::array<Index, 4>));
   std::array<Index, 4> set;
   std::memcpy(&set, &index, sizeof(BigIndex));
@@ -293,8 +327,9 @@ CoulombTable::UnFormIndex(const BigIndex &index) const {
 
 //==============================================================================
 //==============================================================================
-void QkTable::fill(const std::vector<DiracSpinor> &basis, const YkTable &yk,
-                   int k_cut) {
+template <Symmetry S>
+void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
+                           const YkTable &yk, int k_cut) {
   IO::ChronoTimer t("fill");
 
   /*
@@ -404,7 +439,8 @@ void QkTable::fill(const std::vector<DiracSpinor> &basis, const YkTable &yk,
 }
 
 //==============================================================================
-void CoulombTable::write(const std::string &fname) const {
+template <Symmetry S>
+void CoulombTable<S>::write(const std::string &fname) const {
   if (fname == "false")
     return;
   std::cout << "Writing " << count() << " integrals to file: " << fname << ".."
@@ -425,7 +461,9 @@ void CoulombTable::write(const std::string &fname) const {
   }
   std::cout << "\n" << std::flush;
 }
-bool CoulombTable::read(const std::string &fname) {
+
+//==============================================================================
+template <Symmetry S> bool CoulombTable<S>::read(const std::string &fname) {
   if (fname == "false")
     return false;
   std::fstream f;
