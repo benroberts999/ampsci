@@ -50,8 +50,9 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   // spacial case: HFS A (MHz)
   const bool AhfsQ = (oper == "hfs" && !radial_int);
 
-  const auto which_str =
-      radial_int ? " (radial integral)." : AhfsQ ? " A (MHz)." : " (reduced).";
+  const auto which_str = radial_int ? " (radial integral)." :
+                         AhfsQ      ? " A (MHz)." :
+                                      " (reduced).";
 
   std::cout << "\n"
             << input.name() << which_str << " Operator: " << h->name() << "\n";
@@ -61,13 +62,12 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   const bool diagonal_only = input.get("onlyDiagonal", false);
 
   const auto rpa_method_str = input.get("rpa", std::string("TDHF"));
-  auto rpa_method = (rpa_method_str == "TDHF" || rpa_method_str == "true") ?
-                        ExternalField::method::TDHF :
-                        (rpa_method_str == "basis") ?
-                        ExternalField::method::basis :
-                        (rpa_method_str == "diagram") ?
-                        ExternalField::method::diagram :
-                        ExternalField::method::none;
+  auto rpa_method =
+      (rpa_method_str == "TDHF" || rpa_method_str == "true") ?
+          ExternalField::method::TDHF :
+      (rpa_method_str == "basis")   ? ExternalField::method::basis :
+      (rpa_method_str == "diagram") ? ExternalField::method::diagram :
+                                      ExternalField::method::none;
   if (wf.core().empty())
     rpa_method = ExternalField::method::none;
   const auto rpaQ = rpa_method != ExternalField::method::none;
@@ -122,14 +122,20 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
 // Calculates Structure Radiation + Normalisation of States
 void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
 
-  input.check({{"operator", "e.g., E1, hfs"},
-               {"options", "options specific to operator; blank by dflt"},
-               {"rpa", "true(=TDHF), false, TDHF, basis, diagram"},
-               {"omega", "freq. for RPA"},
-               {"printBoth", "print <a|h|b> and <b|h|a> (dflt false)"},
-               {"onlyDiagonal", "only <a|h|a> (dflt false)"},
-               {"n_minmax", "list; min,max n for core/excited: (1,inf)dflt"},
-               {"splineLegs", "Use splines for diagram legs (false dflt)"}});
+  input.check(
+      {{"operator", "e.g., E1, hfs"},
+       {"options", "options specific to operator; blank by dflt"},
+       {"rpa", "true(=TDHF), false, TDHF, basis, diagram"},
+       {"omega", "freq. for RPA"},
+       {"printBoth", "print <a|h|b> and <b|h|a> (dflt false)"},
+       {"onlyDiagonal", "only <a|h|a> (dflt false)"},
+       {"Qk_file",
+        "filename for QkTable file. If blank will not use QkTable; if exists, "
+        "will read it in; if doesn't exist, will create it and write to disk. "
+        "Save time (10x) at cost of memory. Note: Using QkTable implies "
+        "splineLegs=true"},
+       {"n_minmax", "list; min,max n for core/excited: (1,inf)dflt"},
+       {"splineLegs", "Use splines for diagram legs (false dflt)"}});
 
   // Get input options:
   const auto oper = input.get<std::string>("operator", "E1");
@@ -143,8 +149,14 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   // const auto h = generateOperator(oper, h_options, wf, true);
   const auto h = DiracOperator::generate(oper, h_options, wf);
 
+  const auto Qk_file = input.get("Qk_file", std::string{""});
+  // note: Using QkFile is ~10x faster (not including time to construct QkTable)
+  // - but requires large amount of memory. Trade-off
+
   // Use spline states as diagram legs?
-  const auto spline_legs = input.get("splineLegs", false);
+  // nb: Using QkTable imples using splines for legs
+  const auto spline_legs =
+      Qk_file.empty() ? input.get("splineLegs", false) : true;
 
   const auto print_both = input.get("printBoth", false);
   const auto only_diagonal = input.get("onlyDiagonal", false);
@@ -185,6 +197,11 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << "Using splines for diagram legs (external states)\n";
   else
     std::cout << "Using valence states for diagram legs (external states)\n";
+  if (!Qk_file.empty()) {
+    std::cout << "Will read/write Qk integrals to file: " << Qk_file << "\n";
+  } else {
+    std::cout << "Will calculate Qk integrals on-the-fly\n";
+  }
 
   // Lambda to format the output
   const auto printer = [rpaQ](auto str, auto t, auto dv) {
@@ -206,7 +223,7 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   // ----------- ** Actual Calculations ** -----------
 
   // Construct SR object:
-  MBPT::StructureRad sr(wf.basis(), en_core, {n_min, n_max});
+  MBPT::StructureRad sr(wf.basis(), en_core, {n_min, n_max}, Qk_file);
   std::cout << std::flush;
 
   struct Output {

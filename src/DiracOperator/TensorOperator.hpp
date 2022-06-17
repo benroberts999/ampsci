@@ -91,6 +91,13 @@ public:
   //! returns parity, as integer (+1 or -1)
   int parity() const { return (m_parity == Parity::even) ? 1 : -1; }
 
+  //! returns relative sign between <a||x||b> and <b||x||a>
+  int symm_sign(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
+    const auto sra_i = imaginaryQ() ? -1 : 1;
+    const auto sra = Angular::neg1pow_2(Fa.twoj() - Fb.twoj());
+    return sra_i * sra;
+  }
+
   //! Returns string for outputting to screen, e.g.: "<6s+||h||6p->"
   std::string rme_symbol(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
   std::string R_symbol(const DiracSpinor &Fa, const DiracSpinor &Fb) const;

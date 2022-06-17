@@ -28,7 +28,7 @@ states.
  However, code is written such that {w,v} (the valence states) always appear as
 the _first_ state in the Q integrals; thus those states are always directly
 integrated (other states may use the existing y^k integrals, which were
-calculated using the spline states)
+calculated using the spline states) * unless using QkTable (see below).
 
  - For using spline states as legs: This means you must typically ensure basis
 is large enough to make relevant valence states "physical"
@@ -37,17 +37,18 @@ is large enough to make relevant valence states "physical"
 valence/spline states. If not, basis/cavity is too small and SR+N probably
 meaningless
 
+ - Option to use QkTable to calculate SR+N. Otherwise, calculates Coulomb
+integrals on-the-fly. If QkTable is used, leads to ~10x speed-up, but uses large
+amount of memory. Also, using QkTable means spline states are used for "legs" of
+diagrams.
+
+
  - Formulas are presented in (for example):
    * W. R. Johnson, Z. W. Liu, and J. Sapirstein, At. Data Nucl. Data Tables 64,
 279 (1996). doi:10.1006/adnd.1996.0024
 
 */
 class StructureRad {
-
-  /*
-  TODO:
-  1. ALSO: add new Yk.Qk, Xk, Wk, Zk etc. tests to Coulomb Tests!
-  */
 
 public:
   /*! @details
@@ -56,12 +57,18 @@ public:
   en_core = max(e_core)-min(e_valence).
   nminmax is a pair{min, max}: we only used core states with n>=min, and only
   uses excited states with n<=nmax in the summations.
+  Qk_fname is filename for QkTable - if given it will read/write QkTable to this
+  file, and use QkTable to calculate SR. This ldeads to ~10x speedup in
+  calculation, at cost of using much more memory
   */
   StructureRad(const std::vector<DiracSpinor> &basis, double en_core,
-               std::pair<int, int> nminmax = {0, 999});
+               std::pair<int, int> nminmax = {0, 999},
+               const std::string &Qk_fname = "");
 
 private:
+  bool m_use_Qk;
   Coulomb::YkTable mY{};
+  std::optional<Coulomb::QkTable> mQ{std::nullopt}; //?
   // nb: it seems conter-intuative, but this copy makes it FASTER!
   std::vector<DiracSpinor> mCore{}, mExcited{};
 
@@ -119,6 +126,22 @@ private:
   double n2(const DiracSpinor &v) const;
   double dSigma_dE(const DiracSpinor &v, const DiracSpinor &i,
                    const DiracSpinor &j, const DiracSpinor &k) const;
+
+  //
+  double Q(int k, const DiracSpinor &a, const DiracSpinor &b,
+           const DiracSpinor &c, const DiracSpinor &d) const {
+    return m_use_Qk ? mQ->Q(k, a, b, c, d) : mY.Q(k, a, b, c, d);
+  }
+
+  double P(int k, const DiracSpinor &a, const DiracSpinor &b,
+           const DiracSpinor &c, const DiracSpinor &d) const {
+    return m_use_Qk ? mQ->P(k, a, b, c, d) : mY.P(k, a, b, c, d);
+  }
+
+  double W(int k, const DiracSpinor &a, const DiracSpinor &b,
+           const DiracSpinor &c, const DiracSpinor &d) const {
+    return m_use_Qk ? mQ->Q(k, a, b, c, d) : mY.W(k, a, b, c, d);
+  }
 };
 
 } // namespace MBPT
