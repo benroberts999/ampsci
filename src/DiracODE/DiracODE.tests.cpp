@@ -286,3 +286,60 @@ TEST_CASE("DiracODE: inhomogenous (Green's) method", "[DiracODE][unit]") {
     REQUIRE(std::abs(max_eps_en) < 5.0e-9);
   }
 }
+
+//==============================================================================
+// Test inhomogenous (Green's) method:
+TEST_CASE("DiracODE: continuum", "[DiracODE][unit]") {
+
+  const double Zeff = 1.0;
+
+  // Set up radial grid:
+  const auto r0{1.0e-7};
+  const auto rmax{100.0}; // NB: rmax depends on Zeff
+  const auto num_grid_points{2000ul};
+  const auto b{10.0};
+  const auto grid = std::make_shared<const Grid>(r0, rmax, num_grid_points,
+                                                 GridType::loglinear, b);
+  // Sperical potential w/ R_nuc = 0.0 is a pointlike potential
+  const auto v_nuc = Nuclear::sphericalNuclearPotential(Zeff, 0.0, grid->r());
+
+  const auto Zion = 1.0;
+  double ec = 0.5;
+
+  // Find 'inital guess' for asymptotic region:
+  const double lam = 1.0e6;
+  const double r_asym =
+      (Zion + std::sqrt(4.0 * lam * ec + std::pow(Zion, 2))) / (2.0 * ec);
+
+  // Check if 'h' is small enough for oscillating region:
+  const double h_target = (M_PI / 15) / std::sqrt(2.0 * ec);
+  const auto h = grid->du();
+  if (h > h_target) {
+    std::cout << "WARNING 318 CntOrb: Grid not dense enough for ec=" << ec
+              << " (du=" << h << ", need du<" << h_target << ")\n";
+    if (h > 2 * h_target) {
+      std::cout << "FAILURE 321 CntOrb: Grid not dense enough for ec=" << ec
+                << " (du=" << h << ", need du<" << h_target << ")\n";
+    }
+  }
+
+  // nb: Don't need to extend grid each time... but want thread-safe
+  auto cgrid = *grid;
+  cgrid.extend_to(1.1 * r_asym);
+
+  auto Fs = DiracSpinor(0, -1, grid);
+
+  DiracODE::solveContinuum(Fs, ec, v_nuc, cgrid, r_asym, PhysConst::alpha);
+
+  const auto F1s = DiracSpinor::exactHlike(1, -1, grid, Zeff, PhysConst::alpha);
+
+  // should be orthogonal
+  const auto x = std::abs(Fs * F1s);
+  REQUIRE(x < 1.0e-10);
+
+  // XXX Just a regression test for now.
+  // Update to use "exact" H0like formulas, and test properly
+  const auto y = std::abs(Fs * (grid->r() * F1s));
+  const auto y_expected = 0.417478989892057; // regression test!
+  REQUIRE(std::abs(y - y_expected) < 1.0e-5);
+}

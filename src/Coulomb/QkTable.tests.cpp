@@ -62,6 +62,120 @@ TEST_CASE("Coulomb: Qk Table", "[Coulomb][QkTable][unit]") {
 }
 
 //==============================================================================
+TEST_CASE("Coulomb: Q,W,N k Table", "[Coulomb][QkTable][unit]") {
+
+  // just 4 dummy DiracSpinors to test set/get for CoulombTable
+  const DiracSpinor a{0, -1, nullptr};
+  const DiracSpinor b{0, 1, nullptr};
+  const DiracSpinor c{0, -2, nullptr};
+  const DiracSpinor d{0, 2, nullptr};
+
+  double x = 16.5;
+  double y = 3.5;
+  int k = 3;
+  std::string file_name{"tmp_deleteme.qk"};
+
+  // Qk
+  {
+    Coulomb::QkTable q;
+    REQUIRE(q.emptyQ());
+    REQUIRE(q.count() == 0);
+    REQUIRE(!q.contains(k, a, b, c, d));
+    REQUIRE(q.Q(k, a, b, c, d) == 0.0);
+    q.add(k, a, b, c, d, x);
+    REQUIRE(!q.emptyQ());
+    REQUIRE(q.count() == 1);
+    REQUIRE(q.contains(k, a, b, c, d));
+    REQUIRE(q.Q(k, a, b, c, d) == x);
+    REQUIRE(q.Q(k, a, d, c, b) == x);
+    REQUIRE(q.Q(k, b, c, d, a) == x);
+    REQUIRE(q.Q(k, b, a, d, c) == x);
+    REQUIRE(q.Q(k, c, d, a, b) == x);
+    REQUIRE(q.Q(k, c, b, a, d) == x);
+    REQUIRE(q.Q(k, d, a, b, c) == x);
+    REQUIRE(q.Q(k, d, c, b, a) == x);
+    q.update(k, a, b, c, d, y);
+    REQUIRE(q.Q(k, a, b, c, d) == y);
+
+    q.write(file_name);
+    Coulomb::QkTable q2;
+    q2.read(file_name);
+    REQUIRE(!q2.emptyQ());
+    REQUIRE(q2.count() == q.count());
+    REQUIRE(q2.Q(k, a, b, c, d) == q.Q(k, a, b, c, d));
+  }
+
+  // Wk
+  {
+    Coulomb::WkTable w;
+    REQUIRE(w.emptyQ());
+    REQUIRE(w.count() == 0);
+    REQUIRE(!w.contains(k, a, b, c, d));
+    REQUIRE(w.Q(k, a, b, c, d) == 0.0);
+    w.add(k, a, b, c, d, x);
+    REQUIRE(!w.emptyQ());
+    REQUIRE(w.count() == 1);
+    REQUIRE(w.contains(k, a, b, c, d));
+    REQUIRE(w.Q(k, a, b, c, d) == x);
+    REQUIRE(w.Q(k, b, a, d, c) == x);
+    REQUIRE(w.Q(k, c, d, a, b) == x);
+    REQUIRE(w.Q(k, d, c, b, a) == x);
+    REQUIRE(w.Q(k, a, d, c, b) != x);
+    REQUIRE(w.Q(k, b, c, d, a) != x);
+    REQUIRE(w.Q(k, c, b, a, d) != x);
+    REQUIRE(w.Q(k, d, a, b, c) != x);
+    w.update(k, a, b, c, d, y);
+    REQUIRE(w.Q(k, a, b, c, d) == y);
+  }
+
+  // Lk
+  {
+    Coulomb::LkTable l;
+    REQUIRE(l.emptyQ());
+    REQUIRE(l.count() == 0);
+    REQUIRE(!l.contains(k, a, b, c, d));
+    REQUIRE(l.Q(k, a, b, c, d) == 0.0);
+    l.add(k, a, b, c, d, x);
+    REQUIRE(!l.emptyQ());
+    REQUIRE(l.count() == 1);
+    REQUIRE(l.contains(k, a, b, c, d));
+    REQUIRE(l.Q(k, a, b, c, d) == x);
+    REQUIRE(l.Q(k, b, a, d, c) == x);
+    REQUIRE(l.Q(k, a, d, c, b) != x);
+    REQUIRE(l.Q(k, b, c, d, a) != x);
+    REQUIRE(l.Q(k, c, d, a, b) != x);
+    REQUIRE(l.Q(k, c, b, a, d) != x);
+    REQUIRE(l.Q(k, d, a, b, c) != x);
+    REQUIRE(l.Q(k, d, c, b, a) != x);
+    l.update(k, a, b, c, d, y);
+    REQUIRE(l.Q(k, a, b, c, d) == y);
+  }
+
+  // Nk
+  {
+    Coulomb::NkTable n;
+    REQUIRE(n.emptyQ());
+    REQUIRE(n.count() == 0);
+    REQUIRE(!n.contains(k, a, b, c, d));
+    REQUIRE(n.Q(k, a, b, c, d) == 0.0);
+    n.add(k, a, b, c, d, x);
+    REQUIRE(!n.emptyQ());
+    REQUIRE(n.count() == 1);
+    REQUIRE(n.contains(k, a, b, c, d));
+    REQUIRE(n.Q(k, a, b, c, d) == x);
+    REQUIRE(n.Q(k, a, d, c, b) != x);
+    REQUIRE(n.Q(k, b, c, d, a) != x);
+    REQUIRE(n.Q(k, b, a, d, c) != x);
+    REQUIRE(n.Q(k, c, d, a, b) != x);
+    REQUIRE(n.Q(k, c, b, a, d) != x);
+    REQUIRE(n.Q(k, d, a, b, c) != x);
+    REQUIRE(n.Q(k, d, c, b, a) != x);
+    n.update(k, a, b, c, d, y);
+    REQUIRE(n.Q(k, a, b, c, d) == y);
+  }
+}
+
+//==============================================================================
 //==============================================================================
 TEST_CASE("Coulomb: Qk Table - with WF", "[Coulomb][QkTable][integration]") {
   std::cout << "\n----------------------------------------\n";

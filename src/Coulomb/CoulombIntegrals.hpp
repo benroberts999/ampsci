@@ -84,10 +84,10 @@ DiracSpinor Wkv_bcd(int kappa_v, const DiracSpinor &Fb, const DiracSpinor &Fc,
 //==============================================================================
 
 //! Returns min and max k (multipolarity) allowed for C^k_ab, accounting for
-//! parity
+//! parity (used by k_minmax_Q)
 std::pair<int, int> k_minmax(const DiracSpinor &a, const DiracSpinor &b);
 //! Returns min and max k (multipolarity) allowed for C^k_ab, NOT accounting for
-//! parity (2j only, not kappa/l)
+//! parity (2j only, not kappa/l) (used by k_minmax_P,W)
 std::pair<int, int> k_minmax_tj(int tja, int tjb);
 
 //! Returns min and max k (multipolarity) allowed for Q^k_abcd, Wk, Pk. For Q

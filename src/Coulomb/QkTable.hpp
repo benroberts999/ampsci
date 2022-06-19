@@ -39,8 +39,7 @@ question.
 */
 template <Symmetry S> class CoulombTable {
 
-public:
-protected:
+private:
   // each vector element corresponds to a 'k'
   std::vector<std::unordered_map<BigIndex, Real>> m_data{};
 
@@ -131,39 +130,39 @@ public:
   //! Reads coulomb integrals to disk. Returns false if none read in
   bool read(const std::string &fname);
 
-  //! Operator overload: scale by constant (nb: *= not *, since can't rely on
-  //! polymorphism for return type..)
-  void operator*=(double x) {
-    for (auto &q_k : m_data) {
-      for (auto &[key, qk_abcd] : q_k) {
-        qk_abcd *= x;
-      }
-    }
-  }
-  //! Operator overload: add another table (nb: += not +, since can't rely on
-  //! polymorphism for return type..)
-  void operator+=(const CoulombTable &Qk) {
-    int k = 0;
-    for (auto &q_k : m_data) {
-      for (auto &[key, qk_abcd] : q_k) {
-        // nb: cannot assume each map's entries in exact same order, so need
-        // 'find'
-        qk_abcd += Qk.Q(k, key);
-      }
-      ++k;
-    }
-  }
+  // //! Operator overload: scale by constant (nb: *= not *, since can't rely on
+  // //! polymorphism for return type..)
+  // void operator*=(double x) {
+  //   for (auto &q_k : m_data) {
+  //     for (auto &[key, qk_abcd] : q_k) {
+  //       qk_abcd *= x;
+  //     }
+  //   }
+  // }
+  // //! Operator overload: add another table (nb: += not +, since can't rely on
+  // //! polymorphism for return type..)
+  // void operator+=(const CoulombTable &Qk) {
+  //   int k = 0;
+  //   for (auto &q_k : m_data) {
+  //     for (auto &[key, qk_abcd] : q_k) {
+  //       // nb: cannot assume each map's entries in exact same order, so need
+  //       // 'find'
+  //       qk_abcd += Qk.Q(k, key);
+  //     }
+  //     ++k;
+  //   }
+  // }
 
-  auto begin() { return m_data.begin(); }
-  auto end() { return m_data.end(); }
-  auto cbegin() { return m_data.cbegin(); }
-  auto cend() { return m_data.cend(); }
-  auto begin(std::size_t k) { return m_data.at(k).begin(); }
-  auto end(std::size_t k) { return m_data.at(k).end(); }
-  auto cbegin(std::size_t k) { return m_data.at(k).cbegin(); }
-  auto cend(std::size_t k) { return m_data.at(k).cend(); }
+  // auto begin() { return m_data.begin(); }
+  // auto end() { return m_data.end(); }
+  // auto cbegin() { return m_data.cbegin(); }
+  // auto cend() { return m_data.cend(); }
+  // auto begin(std::size_t k) { return m_data.at(k).begin(); }
+  // auto end(std::size_t k) { return m_data.at(k).end(); }
+  // auto cbegin(std::size_t k) { return m_data.at(k).cbegin(); }
+  // auto cend(std::size_t k) { return m_data.at(k).cend(); }
 
-protected:
+private:
   // Creates single 'BigIndex', WITHOUT accounting for 'NormalOrder'. Can be
   // used to check if {a,b,c,d} are already in 'NormalOrder'
   BigIndex CurrentOrder(const DiracSpinor &a, const DiracSpinor &b,
@@ -186,63 +185,6 @@ using QkTable = CoulombTable<Symmetry::Qk>;
 using WkTable = CoulombTable<Symmetry::Wk>;
 using LkTable = CoulombTable<Symmetry::Lk>;
 using NkTable = CoulombTable<Symmetry::none>;
-
-// //==============================================================================
-// //! Derived CoulombTable for the Qk symmetry: {abcd} = cbad = adcb = cdab =
-// //! badc = bcda = dabc = dcba.
-// class QkTable : public CoulombTable {
-
-// public:
-//   static constexpr Symmetry symmetry = Symmetry::Qk;
-
-//   // //! Takes a constructed YkTable, and fills Coulomb table with all
-//   possible
-//   // //! non-zero Qk elements, accounting for symmetry (only really makes
-//   sense
-//   // //! for QkTable), up to maximum k, k_cut (set k_cut to <=0 to use all k)
-//   // void fill(const std::vector<DiracSpinor> &basis, const YkTable &yk,
-//   //           int k_cut = -1);
-
-// private:
-//   virtual BigIndex NormalOrder_impl(Index a, Index b, Index c,
-//                                     Index d) const override final;
-// };
-
-// //==============================================================================
-// //! Derived CoulombTable for the Wk = g symmetry: {abcd} = badc = cdab = dcba
-// class WkTable : public CoulombTable {
-
-// public:
-//   static constexpr Symmetry symmetry = Symmetry::Wk;
-
-// private:
-//   virtual BigIndex NormalOrder_impl(Index a, Index b, Index c,
-//                                     Index d) const override final;
-// };
-
-// //==============================================================================
-// //! Derived CoulombTable for the Lk symmetry: {abcd} = badc
-// class LkTable : public CoulombTable {
-
-// public:
-//   static constexpr Symmetry symmetry = Symmetry::Lk;
-
-// private:
-//   virtual BigIndex NormalOrder_impl(Index a, Index b, Index c,
-//                                     Index d) const override final;
-// };
-
-// //==============================================================================
-// //! Derived CoulombTable for NO symmetry: {abcd} = abcd only
-// class NkTable : public CoulombTable {
-
-// public:
-//   static constexpr Symmetry symmetry = Symmetry::none;
-
-// private:
-//   virtual BigIndex NormalOrder_impl(Index a, Index b, Index c,
-//                                     Index d) const override final;
-// };
 
 } // namespace Coulomb
 
