@@ -163,7 +163,7 @@ TEST_CASE("HartreeFock", "[HF][HartreeFock][integration]") {
 // Same as above, but only for Cs, and with fewer points - quick for "unit"
 // tests part
 //============================================================================
-TEST_CASE("HartreeFock - just Cs", "[HF][HartreeFock][unit]") {
+TEST_CASE("HartreeFock - just Cs", "[HF][HartreeFock][Breit][unit]") {
   std::cout << "\n----------------------------------------\n";
   std::cout << "HartreeFock - just Cs\n";
 
@@ -246,6 +246,26 @@ TEST_CASE("HartreeFock - just Cs", "[HF][HartreeFock][unit]") {
   REQUIRE(std::abs(wE1_eps) < 1.0e-4);
   REQUIRE(std::abs(wHFSsp_eps) < 1.0e-4);
   REQUIRE(std::abs(wHFSdf_eps) < 1.0e-3);
+
+  // Breit (regression test)
+  std::cout << "Breit regression test: de\n";
+  HF::Breit Vbr{1.0};
+  // generated with large # points.
+  const auto breit_data = std::vector{
+      std::tuple{"6s+", 1.333977079113e-04}, {"7s+", 3.660284833750e-05},
+      {"6p-", 6.839614663249e-05},           {"7p-", 2.450254202039e-05},
+      {"6p+", 4.938700048099e-05},           {"7p+", 1.785296077599e-05},
+      {"5d-", 5.683556145298e-05},           {"5d+", 4.292583833884e-05},
+      {"4f-", 1.023721519428e-08},           {"4f+", 6.291692462117e-09}};
+  REQUIRE(Vbr.scale_factor() == 1.0);
+  for (auto &[state, de_t] : breit_data) {
+    const auto &Fv = *wf.getState(state);
+    const auto de = Fv * Vbr.VbrFa(Fv, wf.core());
+    const auto eps = std::abs((de - de_t) / de_t);
+    // printf("{\"%s\", %.12e}\n,", state, de);
+    printf("%3s : %.5e [%.5e] %.1e\n", Fv.shortSymbol().c_str(), de, de_t, eps);
+    REQUIRE(eps < 1.0e-3);
+  }
 }
 
 //============================================================================
@@ -416,7 +436,7 @@ TEST_CASE("HartreeFock - KS, Core-Hartree and ApproxHF",
 }
 
 //============================================================================
-TEST_CASE("HartreeFock - Hyperfine", "[HF][HartreeFock][unit]") {
+TEST_CASE("HartreeFock - Hyperfine", "[HF][HartreeFock]") {
   std::cout << "\n----------------------------------------\n";
   std::cout << "HartreeFock - Hyperfine\n";
 
