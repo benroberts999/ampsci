@@ -5,7 +5,6 @@
 #include "Coulomb/YkTable.hpp"
 #include "HF/HartreeFock.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
-#include "IO/SafeProfiler.hpp"
 #include "MBPT/Ladder.hpp" //?
 #include "MBPT/RDMatrix.hpp"
 #include "Maths/Grid.hpp"
@@ -104,7 +103,6 @@ const GMatrix *CorrelationPotential::getSigma(int n, int kappa) const {
 //******************************************************************************
 DiracSpinor CorrelationPotential::SigmaFv(const DiracSpinor &v,
                                           bool lad) const {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   // Find correct G matrix (corresponds to kappa_v), return Sigma|v>
   // If m_Sigma_kappa doesn't exist, returns |0>
 
@@ -179,7 +177,7 @@ void CorrelationPotential::addto_G(GMatrix *Gmat, const DiracSpinor &ket,
 //==============================================================================
 DiracSpinor CorrelationPotential::act_G_Fv(const GMatrix &Gmat,
                                            const DiracSpinor &Fv) const {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
+
   // lambda is fitting factor (just scales Sigma|v>)
   // Sigma|v> = int G(r1,r2)*v(r2) dr2
   // (S|v>)_i = sum_j G_ij v_j drdu_j du
@@ -228,7 +226,7 @@ double CorrelationPotential::act_G_Fv_2(const DiracSpinor &Fa,
                                         const DiracSpinor &Fb) const {
   // Dores not include Jacobian (assumed already in Gmat)
   return Fa * (Gmat * Fb);
-  // [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
+  //
   // // Dores not include Jacobian (assumed already in Gmat)
   //
   // auto aGb = 0.0;

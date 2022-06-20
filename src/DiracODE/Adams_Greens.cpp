@@ -1,7 +1,6 @@
 #include "Adams_Greens.hpp"
 #include "Adams_bound.hpp"
 #include "DiracODE.hpp"
-#include "IO/SafeProfiler.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
@@ -22,7 +21,6 @@ DiracSpinor solve_inhomog(const int kappa, const double en,
                           const std::vector<double> &v,
                           const std::vector<double> &H_mag, const double alpha,
                           const DiracSpinor &source) {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__, "0");
   auto Fa = DiracSpinor(0, kappa, source.grid_sptr());
   solve_inhomog(Fa, en, v, H_mag, alpha, source);
   return Fa;
@@ -35,7 +33,6 @@ void solve_inhomog(DiracSpinor &Fa, const double en,
                    const DiracSpinor &source)
 // NOTE: returns NON-normalised function!
 {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__, "a");
   auto Fzero = DiracSpinor(Fa.n(), Fa.kappa(), Fa.grid_sptr());
   auto Finf = DiracSpinor(Fa.n(), Fa.kappa(), Fa.grid_sptr());
   solve_inhomog(Fa, Fzero, Finf, en, v, H_mag, alpha, source);
@@ -48,7 +45,6 @@ void solve_inhomog(DiracSpinor &Fa, DiracSpinor &Fzero, DiracSpinor &Finf,
 // Overload of the above. Faster, since doesn't need to allocate for Fzero and
 // Finf
 {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__, "b");
   regularAtOrigin(Fzero, en, v, H_mag, alpha);
   regularAtInfinity(Finf, en, v, H_mag, alpha);
   Fa.en() = en;
@@ -60,7 +56,6 @@ namespace Adams {
 void GreenSolution(DiracSpinor &Fa, const DiracSpinor &Finf,
                    const DiracSpinor &Fzero, const double alpha,
                    const DiracSpinor &Sr) {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
 
   // Wronskian: Should be independent of r
   const auto pp = std::size_t(0.65 * double(Finf.max_pt()));

@@ -34,6 +34,17 @@ public:
   std::string units() const override final { return "au"; }
 };
 
+//! radial derivative operator
+class dr final : public ScalarOperator {
+
+public:
+  dr()
+      : ScalarOperator(Parity::even, 1.0, {}, {1, 0, 0, 1}, 1, Realness::real) {
+  }
+  std::string name() const override final { return "dr"; }
+  std::string units() const override final { return "au"; }
+};
+
 //------------------------------------------------------------------------------
 inline std::unique_ptr<DiracOperator::TensorOperator>
 generate_r(const IO::InputBlock &input, const Wavefunction &wf) {
@@ -42,6 +53,12 @@ generate_r(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto power = input.get("power", 1.0);
   std::cout << "r^(" << power << ")\n";
   return std::make_unique<RadialF>(wf.grid(), power);
+}
+
+inline std::unique_ptr<DiracOperator::TensorOperator>
+generate_dr(const IO::InputBlock &, const Wavefunction &) {
+  using namespace DiracOperator;
+  return std::make_unique<dr>();
 }
 
 } // namespace DiracOperator

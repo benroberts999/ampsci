@@ -3,7 +3,6 @@
 #include "Coulomb/CoulombIntegrals.hpp"
 #include "Coulomb/YkTable.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
-#include "IO/SafeProfiler.hpp"
 #include "MBPT/CorrelationPotential.hpp"
 #include "MBPT/RDMatrix.hpp"
 #include "Maths/Grid.hpp"
@@ -108,7 +107,6 @@ void GoldstoneSigma::formSigma(int kappa, double en, int n) {
 //==============================================================================
 void GoldstoneSigma::Sigma2(GMatrix *Gmat_D, GMatrix *Gmat_X, int kappa,
                             double en) {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
 
   // Four second-order diagrams:
   // Diagram (a):

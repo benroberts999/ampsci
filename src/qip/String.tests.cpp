@@ -1,5 +1,5 @@
-#include "qip/String.hpp"
 #include "catch2/catch.hpp"
+#include "qip/String.hpp"
 #include <cassert>
 #include <iostream>
 

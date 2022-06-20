@@ -123,7 +123,7 @@ public:
   virtual DiracSpinor radial_rhs(const int kappa_a,
                                  const DiracSpinor &Fb) const;
   //! ME = rme3js * RME
-  double rme3js(const int twoja, const int twojb, int two_mb,
+  double rme3js(const int twoja, const int twojb, int two_mb = 1,
                 int two_q = 0) const;
 
   //! <a||h||b> = Fa * reduced_rhs(a, Fb) (a needed for angular factor)

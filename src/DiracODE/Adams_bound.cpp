@@ -1,7 +1,6 @@
 #include "DiracODE/Adams_bound.hpp"
 #include "DiracODE/Adams_coefs.hpp"
 #include "DiracODE/DiracODE.hpp"
-#include "IO/SafeProfiler.hpp"
 #include "LinAlg/LinAlg.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
@@ -75,7 +74,6 @@ Orbitals defined:
   psi := (1/r) {f O_k, ig O_(-k)}
 */
 {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
 
   // Convergance goal. Default: 1e-14
   // const double eps_goal = std::pow(10, -std::abs(log_dele));
@@ -176,7 +174,7 @@ Orbitals defined:
 void regularAtOrigin(DiracSpinor &Fa, const double en,
                      const std::vector<double> &v,
                      const std::vector<double> &H_mag, const double alpha) {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
+
   const auto &gr = Fa.grid();
   if (en != 0)
     Fa.en() = en;
@@ -193,7 +191,7 @@ void regularAtOrigin(DiracSpinor &Fa, const double en,
 void regularAtInfinity(DiracSpinor &Fa, const double en,
                        const std::vector<double> &v,
                        const std::vector<double> &H_mag, const double alpha) {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
+
   const auto &gr = Fa.grid();
   if (en < 0)
     Fa.en() = en;
@@ -245,7 +243,7 @@ double smallEnergyChangePT(const double en, const double anorm,
 // delta E = c*f(r)*[g_out(r)-g_in(r)] - evaluate at ctp
 // nb: wf not yet normalised (anorm is input param)!
 {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
+
   double p_del_q = f[ctp] * dg[d_ctp];
   double denom = 1.0;
   // weighted average around ctp:
@@ -324,7 +322,7 @@ void trialDiracSolution(std::vector<double> &f, std::vector<double> &g,
 // Then, joins solutions, including weighted meshing around ctp +/ d_ctp
 // Also: stores dg [the difference: (gout-gin)], which is used for PT
 {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
+
   DiracMatrix Hd(gr, v, ka, en, alpha, H_mag, VxFa, Fa0, zion);
   outwardAM(f, g, Hd, ctp + d_ctp);
   std::vector<double> f_in(gr.num_points()), g_in(gr.num_points());
@@ -380,7 +378,7 @@ void outwardAM(std::vector<double> &f, std::vector<double> &g,
 // Then, it then call ADAMS-MOULTON, to finish
 // (from num_loops*AMO+1 to nf = ctp+d_ctp)
 {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
+
   const auto &r = Hd.pgr->r();
   const auto &drduor = Hd.pgr->drduor();
   const auto du = Hd.pgr->du();
@@ -486,7 +484,7 @@ void inwardAM(std::vector<double> &f, std::vector<double> &g,
 // Then, it then call ADAMS-MOULTON, to finish (from num_loops*AMO+1
 //   to nf = ctp-d_ctp)
 {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
+
   // short-cuts
   const auto alpha = Hd.alpha;
   const auto ka = Hd.k;
@@ -557,7 +555,6 @@ void adamsMoulton(std::vector<double> &f, std::vector<double> &g,
 //   * ni is starting (initial) point for integration
 //   * nf is end (final) point for integration (nf=ctp+/-d_ctp)
 {
-  [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__);
   const auto nosteps = std::abs(nf - ni) + 1; // number of integration steps
   const auto inc = (nf > ni) ? 1 : -1;        //'increment' for integration
 

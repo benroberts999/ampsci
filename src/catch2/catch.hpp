@@ -4417,14 +4417,13 @@ struct IGeneratorTracker {
 
 namespace Catch {
 #if !defined(CATCH_CONFIG_DISABLE_EXCEPTIONS)
-template <typename Ex>[[noreturn]] void throw_exception(Ex const &e) {
-  throw e;
-}
+template <typename Ex>
+[[noreturn]] void throw_exception(Ex const &e) { throw e; }
 #else // ^^ Exceptions are enabled //  Exceptions are disabled vv
 [[noreturn]] void throw_exception(std::exception const &e);
 #endif
 
-[[noreturn]] void throw_logic_error(std::string const &msg);
+    [[noreturn]] void throw_logic_error(std::string const &msg);
 [[noreturn]] void throw_domain_error(std::string const &msg);
 [[noreturn]] void throw_runtime_error(std::string const &msg);
 
@@ -9422,7 +9421,7 @@ public:
     return m_tokenBuffer.front();
   }
 
-  auto operator->() const -> Token const * {
+  auto operator-> () const -> Token const * {
     assert(!m_tokenBuffer.empty());
     return &m_tokenBuffer.front();
   }
@@ -16173,8 +16172,8 @@ XmlWriter::ScopedElement::ScopedElement(ScopedElement &&other) noexcept
   other.m_writer = nullptr;
   other.m_fmt = XmlFormatting::None;
 }
-XmlWriter::ScopedElement &
-XmlWriter::ScopedElement::operator=(ScopedElement &&other) noexcept {
+XmlWriter::ScopedElement &XmlWriter::ScopedElement::
+operator=(ScopedElement &&other) noexcept {
   if (m_writer) {
     m_writer->endElement();
   }

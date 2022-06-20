@@ -1,5 +1,5 @@
-#include "Wavefunction/BSplineBasis.hpp"
 #include "DiracOperator/DiracOperator.hpp"
+#include "Wavefunction/BSplineBasis.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "catch2/catch.hpp"
@@ -13,6 +13,56 @@
   - Fixed Breit, but (slightly) broke basis
   - "Fix" by just loosening tollerences here
 */
+
+//==============================================================================
+TEST_CASE("Wavefunction: BSpline-basis unit", "[BSpline][unit]") {
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "Wavefunction: BSpline-basis unit\n";
+
+  // Create wavefunction object, solve HF for core + valence
+  Wavefunction wf({2500, 1.0e-6, 150.0, 0.33 * 150.0, "loglinear"},
+                  {"Cs", -1, "Fermi"});
+  wf.set_HF("Local", 0.0, "[Xe]");
+  wf.solve_core();
+  wf.solve_valence("7sp5d4f");
+
+  const auto hA = DiracOperator::HyperfineA(
+      1.0, 1.0, 0.0, wf.grid(), DiracOperator::Hyperfine::pointlike_F());
+  const auto r = wf.grid().r();
+
+  // Form spline basis:
+  const std::string states = "7sp5d4f";
+  const int k = 7;
+  const int n_spl = 70;
+  const auto r0 = 1.0e-3;
+  const auto r0_eps = 1.0e-3;
+  const auto rmax = 75.0;
+  const auto positronQ = false;
+  wf.formBasis({states, std::size_t(n_spl), k, r0, r0_eps, rmax, positronQ,
+                SplineBasis::SplineType::Derevianko});
+
+  std::cout << "Test B-spline\n";
+  for (auto &Fb : wf.basis()) {
+    const auto &Fn = *wf.getState(Fb.n(), Fb.kappa());
+    const auto eps = std::abs((Fb.en() - Fn.en()) / Fn.en());
+    std::cout << Fb << "\n";
+    printf("En : %11.4e [%11.4e] %.1e\n", Fb.en(), Fn.en(), eps);
+    REQUIRE(eps < 1.0e-4);
+    const auto a = hA.hfsA(Fn);
+    const auto ab = hA.hfsA(Fb);
+    const auto eps_a = std::abs((ab - a) / a);
+    printf("HFS: %11.4e [%11.4e] %.1e\n", ab, a, eps_a);
+    REQUIRE(eps_a < 1.0e-2);
+    const auto rn = Fn * (r * Fn);
+    const auto rb = Fb * (r * Fb);
+    const auto eps_r = std::abs((rb - rn) / rn);
+    printf("<r>: %11.4e [%11.4e] %.1e\n", rb, rn, eps_r);
+    REQUIRE(eps_r < 1.0e-4);
+    const auto norm = std::abs(Fb * Fn - 1.0);
+    printf("ort: %11.4e\n", norm);
+    REQUIRE(norm < 1.0e-7);
+  }
+}
 
 //==============================================================================
 //! Unit tests for B-Spline basis (finite basis of relativistic orbitals)

@@ -50,9 +50,8 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   // spacial case: HFS A (MHz)
   const bool AhfsQ = (oper == "hfs" && !radial_int);
 
-  const auto which_str = radial_int ? " (radial integral)." :
-                         AhfsQ      ? " A (MHz)." :
-                                      " (reduced).";
+  const auto which_str =
+      radial_int ? " (radial integral)." : AhfsQ ? " A (MHz)." : " (reduced).";
 
   std::cout << "\n"
             << input.name() << which_str << " Operator: " << h->name() << "\n";
@@ -62,12 +61,13 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   const bool diagonal_only = input.get("onlyDiagonal", false);
 
   const auto rpa_method_str = input.get("rpa", std::string("TDHF"));
-  auto rpa_method =
-      (rpa_method_str == "TDHF" || rpa_method_str == "true") ?
-          ExternalField::method::TDHF :
-      (rpa_method_str == "basis")   ? ExternalField::method::basis :
-      (rpa_method_str == "diagram") ? ExternalField::method::diagram :
-                                      ExternalField::method::none;
+  auto rpa_method = (rpa_method_str == "TDHF" || rpa_method_str == "true") ?
+                        ExternalField::method::TDHF :
+                        (rpa_method_str == "basis") ?
+                        ExternalField::method::basis :
+                        (rpa_method_str == "diagram") ?
+                        ExternalField::method::diagram :
+                        ExternalField::method::none;
   if (wf.core().empty())
     rpa_method = ExternalField::method::none;
   const auto rpaQ = rpa_method != ExternalField::method::none;

@@ -7,7 +7,6 @@
 #include "DiracOperator/TensorOperator.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
-#include "IO/SafeProfiler.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <algorithm>
 #include <numeric>
@@ -157,7 +156,6 @@ bool DiagramRPA::read_write(const std::string &fname, IO::FRW::RoW rw) {
 
 //==============================================================================
 void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h) {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   if (holes.empty() || excited.empty()) {
     std::cout << "\nWARNING 64 in DiagramRPA: no basis! RPA will be zero\n";
     return;
@@ -294,7 +292,7 @@ double DiagramRPA::dV(const DiracSpinor &Fw, const DiracSpinor &Fv) const {
 //==============================================================================
 double DiagramRPA::dV_diagram(const DiracSpinor &Fw, const DiracSpinor &Fv,
                               const bool first_order) const {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
+
   if (holes.empty() || excited.empty())
     return 0.0;
 
@@ -338,7 +336,7 @@ double DiagramRPA::dV_diagram(const DiracSpinor &Fw, const DiracSpinor &Fv,
 
 //==============================================================================
 void DiagramRPA::solve_core(const double omega, int max_its, const bool print) {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
+
   m_core_omega = std::abs(omega);
 
   if (holes.empty() || excited.empty())

@@ -1,5 +1,5 @@
-#include "TDHF.hpp"
 #include "DiracOperator/DiracOperator.hpp"
+#include "TDHF.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "catch2/catch.hpp"
 #include "qip/Vector.hpp"

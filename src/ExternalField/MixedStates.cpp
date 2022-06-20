@@ -5,7 +5,6 @@
 #include "DiracODE/DiracODE.hpp"
 #include "HF/Breit.hpp"
 #include "HF/HartreeFock.hpp"
-#include "IO/SafeProfiler.hpp"
 #include "MBPT/CorrelationPotential.hpp"
 #include "Maths/Grid.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
@@ -51,7 +50,6 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
                      const std::vector<double> &H_mag)
 // Solves:  (H - e - w)X = -h*Fa for X
 {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   auto damper = rampedDamp(0.8, 0.33, 3, 15);
   const int max_its = eps_target < 1.0e-8 ? 100 : 30;
 

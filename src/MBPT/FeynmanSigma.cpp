@@ -6,7 +6,6 @@
 #include "DiracODE/DiracODE.hpp"
 #include "HF/HartreeFock.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
-#include "IO/SafeProfiler.hpp"
 #include "LinAlg/LinAlg.hpp"
 #include "MBPT/CorrelationPotential.hpp"
 #include "MBPT/Ladder.hpp"
@@ -388,7 +387,6 @@ void FeynmanSigma::form_Vx() {
 
 //------------------------------------------------------------------------------
 GMatrix FeynmanSigma::calculate_Vx_kappa(int kappa) const {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
 
   assert(m_dri != nullptr && "⚠️ form_Q_dr() must be run before form_Vx()");
 
@@ -414,7 +412,6 @@ GMatrix FeynmanSigma::calculate_Vx_kappa(int kappa) const {
 
 //------------------------------------------------------------------------------
 GMatrix FeynmanSigma::calculate_Vhp(const DiracSpinor &Fc) const {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   // Hole-particle interaction, extra potential
   // This works well for k=0, but works worse than using local pot for k=1
   // (k=1 is most important term!)
@@ -556,7 +553,6 @@ ComplexGMatrix FeynmanSigma::G_single(const DiracSpinor &ket,
 //==============================================================================
 ComplexGMatrix FeynmanSigma::Green_core(int kappa,
                                         std::complex<double> en) const {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__, "complex");
   // G_core = \sum_a |a><a|/(e_r + i*e_i-ea), for all a with a.kappa() = k
   ComplexGMatrix Gcore(m_imin, m_stride, m_subgrid_points, m_include_G, p_gr);
 
@@ -606,7 +602,6 @@ void FeynmanSigma::makeGOrthogCore(ComplexGMatrix *Gk, int kappa) const {
 //------------------------------------------------------------------------------
 ComplexGMatrix FeynmanSigma::Green_hf_basis(int kappa, std::complex<double> en,
                                             bool ex_only) const {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   ComplexGMatrix Gc(m_imin, m_stride, m_subgrid_points, m_include_G, p_gr);
   // const auto &core = p_hf->core(); // ?????
   const auto &core = m_holes; // p_hf->core(); // ?????
@@ -633,7 +628,6 @@ ComplexGMatrix FeynmanSigma::Green_hf_basis(int kappa, std::complex<double> en,
 ComplexGMatrix FeynmanSigma::Green_hf(int kappa, std::complex<double> en,
                                       const DiracSpinor *Fc_hp,
                                       int k_hp) const {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
 
   /*
 NOTE: k_hp is "dodgy" parameter.
@@ -698,7 +692,6 @@ the 'local' method works best for most k's, but the matrix method (with
 //------------------------------------------------------------------------------
 ComplexGMatrix FeynmanSigma::GreenAtComplex(const ComplexGMatrix &Gr,
                                             double om_imag) const {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   // Given G(wr) and wi, returns G(wr+i*wi)
   // G(w) =  G(re(w)+im(w)) ;  Gr = G(re(w)), G = G(w),   im(w) = wi
   // G = Gr * [1 + i*wi*Gr]^-1 = Gr * iX
@@ -709,7 +702,6 @@ ComplexGMatrix FeynmanSigma::GreenAtComplex(const ComplexGMatrix &Gr,
 //------------------------------------------------------------------------------
 GMatrix FeynmanSigma::MakeGreensG0(const DiracSpinor &x0, const DiracSpinor &xI,
                                    const double w) const {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   // Takes sub-grid into account; ket,bra are on full grid, G on sub-grid
   // G(r1,r2) = x0(rmin)*xI(imax)/w
   GMatrix g0I(m_imin, m_stride, m_subgrid_points, m_include_G, p_gr);
@@ -750,7 +742,7 @@ GMatrix FeynmanSigma::MakeGreensG0(const DiracSpinor &x0, const DiracSpinor &xI,
 //==============================================================================
 ComplexGMatrix FeynmanSigma::Polarisation_k(int k, std::complex<double> omega,
                                             GrMethod method) const {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
+
   ComplexGMatrix pi_k(m_imin, m_stride, m_subgrid_points, m_include_G, p_gr);
 
   const auto Iunit = std::complex<double>{0.0, 1.0};
@@ -797,7 +789,6 @@ ComplexGMatrix FeynmanSigma::X_PiQ(const ComplexGMatrix &pik,
 std::vector<std::vector<ComplexGMatrix>>
 FeynmanSigma::make_pi_wk(int max_k, GrMethod pol_method, double omre,
                          const Grid &wgrid) const {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
 
   const auto num_ks = std::size_t(max_k + 1);
   std::vector<std::vector<ComplexGMatrix>> pi_wk(wgrid.num_points());
@@ -817,7 +808,7 @@ FeynmanSigma::make_pi_wk(int max_k, GrMethod pol_method, double omre,
 std::vector<std::vector<ComplexGMatrix>>
 FeynmanSigma::form_QPQ_wk(int max_k, GrMethod pol_method, double omre,
                           const Grid &wgrid) const {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
+
   // Returns QPQ, function of w and k
 
   std::vector<std::vector<ComplexGMatrix>> qpq(wgrid.num_points());
@@ -878,7 +869,6 @@ FeynmanSigma::form_Greens_kapw(int max_kappa_index, GrMethod method,
 
 //==============================================================================
 GMatrix FeynmanSigma::FeynmanDirect(int kv, double env, int in_k) const {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
 
   /* TEMPORARY: in_k ionly for testing; useful for comparing to Dzuba
    * though..*/
@@ -961,7 +951,6 @@ GMatrix FeynmanSigma::FeynmanDirect(int kv, double env, int in_k) const {
 
 //==============================================================================
 GMatrix FeynmanSigma::FeynmanEx_w1w2(int kv, double en_r) const {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
 
   // Note: Takes really long time, and doesn't work! XXX
 
@@ -1102,7 +1091,6 @@ GMatrix FeynmanSigma::FeynmanEx_w1w2(int kv, double en_r) const {
 
 //==============================================================================
 GMatrix FeynmanSigma::FeynmanEx_1(int kv, double env) const {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
 
   GMatrix Sx1(m_imin, m_stride, m_subgrid_points, m_include_G, p_gr);
 
@@ -1208,7 +1196,7 @@ GMatrix FeynmanSigma::sumkl_gqgqg(const ComplexGMatrix &gA,
                                   const ComplexGMatrix &gB,
                                   const ComplexGMatrix &gG, int kv, int kA,
                                   int kB, int kG, int kmax) const {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
+
   // EXCHANGE part, used in w1w2 version
 
   auto gqgqg = GMatrix(m_imin, m_stride, m_subgrid_points, m_include_G, p_gr);
@@ -1240,7 +1228,7 @@ GMatrix FeynmanSigma::sumkl_GQPGQ(
     const ComplexGMatrix &gA, const ComplexGMatrix &gxBm,
     const ComplexGMatrix &gxBp, const ComplexGMatrix &pa, int kv, int kA,
     int kB, int ka, const std::vector<ComplexGMatrix> *const qpqw_k) const {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
+
   // EXCHANGE part, used in w1 version
   // (w2 was integrated over analytically)
 
@@ -1344,7 +1332,6 @@ double FeynmanSigma::Lkl_abcd(int k, int l, int ka, int kb, int kc,
 GMatrix
 FeynmanSigma::Exchange_Goldstone(const int kappa, const double en,
                                  const std::vector<double> &v_fk) const {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
 
   // XXX Update Goldstone to work the same way as this one.
   // And, make me able to call it!!

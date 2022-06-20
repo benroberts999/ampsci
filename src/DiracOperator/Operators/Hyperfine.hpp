@@ -184,7 +184,7 @@ class HyperfineK final : public TensorOperator {
 
 public:
   HyperfineK(int in_k, double in_GQ, double rN, const Grid &rgrid,
-             const Func_R2_R &hfs_F = Hyperfine::sphericalBall_F())
+             const Func_R2_R &hfs_F = Hyperfine::pointlike_F())
       : TensorOperator(in_k, Parity::even, in_GQ,
                        Hyperfine::RadialFunc(in_k, rN, rgrid, hfs_F), 0),
         k(in_k),
@@ -269,13 +269,14 @@ generate_hfsA(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 
   auto Fr = Hyperfine::sphericalBall_F();
-  if (Fr_str == "ball") {
+  if (qip::ci_compare(Fr_str, "ball")) {
     Fr = Hyperfine::sphericalBall_F();
-  } else if (Fr_str == "shell") {
+  } else if (qip::ci_compare(Fr_str, "shell")) {
     Fr = Hyperfine::sphericalShell_F();
-  } else if (Fr_str == "pointlike" || Fr_str == "point") {
+  } else if (qip::ci_wildcard_compare(Fr_str, "point*") ||
+             qip::ci_compare(Fr_str, "zero")) {
     Fr = Hyperfine::pointlike_F();
-  } else if (Fr_str == "VolotkaBW") {
+  } else if (qip::ci_compare(Fr_str, "VolotkaBW")) {
     const auto pi = input.get("parity", isotope.parity);
     const auto l_tmp = int(I_nuc + 0.5 + 0.0001);
     auto l = ((l_tmp % 2 == 0) == (pi == 1)) ? l_tmp : l_tmp - 1;
@@ -293,8 +294,7 @@ generate_hfsA(const IO::InputBlock &input, const Wavefunction &wf) {
       std::cout << "with l=" << l << " (pi=" << pi << ")\n";
     }
     Fr = Hyperfine::volotkaBW_F(mu, I_nuc, l, gl);
-  } else if (Fr_str == "doublyOddBW") {
-
+  } else if (qip::ci_compare(Fr_str, "doublyOddBW")) {
     const auto mu1 = input.get<double>("mu1", 1.0);
     const auto gl1 = input.get<int>("gl1", -1); // 1 or 0 (p or n)
     if (gl1 != 0 && gl1 != 1) {
@@ -309,6 +309,9 @@ generate_hfsA(const IO::InputBlock &input, const Wavefunction &wf) {
 
     Fr = Hyperfine::doublyOddBW_F(mu, I_nuc, mu1, I1, l1, gl1, I2, l2);
   } else {
+    if (print) {
+      std::cout << "Reading F(r) from file: " << Fr_str << "\n";
+    }
     // read from a file
     const auto [rin, F_of_rin] = IO::FRW::readFile_xy_PoV(Fr_str);
     // interpolate F(r) onto our grid:

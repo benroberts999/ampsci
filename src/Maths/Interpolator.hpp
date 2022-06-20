@@ -1,5 +1,4 @@
 #pragma once
-#include "IO/SafeProfiler.hpp"
 #include <cassert>
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_spline.h>
@@ -19,8 +18,6 @@ namespace Interpolator {
 inline std::vector<double> interpolate(const std::vector<double> &x_in,
                                        const std::vector<double> &y_in,
                                        const std::vector<double> &x_out) {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
-
   gsl_set_error_handler_off(); //?
 
   const auto dim_in = x_in.size();

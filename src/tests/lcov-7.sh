@@ -1,5 +1,5 @@
 #!/bin/bash
-make clean && make CXX='g++-9 --coverage -g' Build=dev tests &&
+make clean && make CXX='g++-7 --coverage -g' Build=dev tests &&
 ./tests [unit] &&
 lcov --capture --directory . --output-file coverage.info &&
 # # don't include test framework itsef in report

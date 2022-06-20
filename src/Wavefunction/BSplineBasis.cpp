@@ -3,7 +3,6 @@
 #include "HF/Breit.hpp"
 #include "HF/HartreeFock.hpp"
 #include "IO/InputBlock.hpp"
-#include "IO/SafeProfiler.hpp"
 #include "LinAlg/LinAlg.hpp"
 #include "Maths/BSpline.hpp"
 #include "Maths/Grid.hpp"
@@ -54,7 +53,6 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
                                     const bool correlationsQ)
 // Forms the pseudo-spectrum basis by diagonalising Hamiltonian over B-splines
 {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   const auto &[states_str, n_spl, k_spl, r0_spl, r0_eps, rmax_spl, positronQ,
                basis_type] = params;
   std::vector<DiracSpinor> basis;
@@ -192,7 +190,7 @@ form_spline_basis(const int kappa, const std::size_t n_states,
                   const double alpha, SplineType type)
 // Forms the "base" basis of B-splines (DKB/Reno Method)
 {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
+
   //
   auto imin = static_cast<std::size_t>(std::abs(kappa));
   auto n_spl = n_states + imin + 1; // subtract l (n_min)?
@@ -275,7 +273,6 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
                         const Wavefunction &wf, const bool correlationsQ,
                         SplineType type) {
 
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   const auto n_spl = spl_basis.size();
 
   auto A_and_S = std::make_pair(LinAlg::Matrix<double>{n_spl, n_spl},
@@ -361,7 +358,7 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
 // Expands the pseudo-spectrum basis in terms of B-spline basis and expansion
 // coeficient found from diagonalising the Hamiltonian over Bsplns
 {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
+
   auto l = AtomData::l_k(kappa);
   auto min_n = l + 1;
 
