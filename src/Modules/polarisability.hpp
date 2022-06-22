@@ -1,87 +1,82 @@
 #pragma once
+#include "DiracOperator/DiracOperator.hpp"
+#include "ExternalField/TDHF.hpp"
 #include <vector>
+
+// Forward declare classes:
 class Wavefunction;
 namespace IO {
 class InputBlock;
-class InputBlock;
-} // namespace IO
-namespace DiracOperator {
-class E1;
 }
-namespace ExternalField {
-class TDHF;
-}
-namespace MBPT {
-class CorrelationPotential;
-}
-class DiracSpinor;
 
 namespace Module {
 
-//! Calculate dipole polarisabilitities (static, dynamic, alpha, vector beta)
+//! Calculate atomic (dipole) polarisability, alpha, at given frequency
 /*! @details
-
-Uses both 'solving equations' (TDHF) and sum-over-states methods.
-
-Allowed inputs:
-
-  Module::polarisability{ rpa; omega; transition; omega_max; omega_steps;  }
-
- - rpa: true/false. Include RPA or not (TDHF ,method)
- - omega: frequency used for alpha_0 (dipole polarisability). default is 0.
- - transition: For scalar/vector a->b transition polarisability.
-   - in form "a,b", e.g., "6s+,7s+" for 6s_1/2 -> 7s_1/2
- - omega_max: maximum frequency for dynamic polarisability. Default is 0.
-   - nb: only runs dynamic pol. if omega_max>0
- - omega_steps: Number of steps used for dynamic. default = 30. (linear scale)
-
-Note: transition polarisabilities written for s-states only.
-They might be correct for other states too, but NOT checked.
-Especially for beta, pretty sure it's wrong for non-s states.
-
+ - J. Mitroy, M. S. Safronova, and C. W. Clark, Theory and Applications of
+   Atomic and Ionic Polarizabilities, J. Phys. B 43, 44 (2010).
 */
 void polarisability(const IO::InputBlock &input, const Wavefunction &wf);
 
-//------------------------------------------------------------------------------
-// "private" helper functions:
-namespace Polarisability {
-double alpha_core_tdhf(const std::vector<DiracSpinor> &core,
-                       const DiracOperator::E1 &he1, ExternalField::TDHF &dVE1,
-                       double omega,
-                       const MBPT::CorrelationPotential *const Sigma = nullptr);
+//! Calculate dynamic (dipole) polarisability, alpha(w), as fn of frequency
+void dynamicPolarisability(const IO::InputBlock &input, const Wavefunction &wf);
 
-double
-alpha_valence_tdhf(const DiracSpinor &Fa, const DiracSpinor &Fb,
-                   const DiracOperator::E1 &he1, double omega,
-                   ExternalField::TDHF &dVE1,
-                   const MBPT::CorrelationPotential *const Sigma = nullptr);
+namespace alphaD {
 
-double alpha_core_sos(const std::vector<DiracSpinor> &core,
-                      const std::vector<DiracSpinor> &basis,
-                      const DiracOperator::E1 &he1, ExternalField::TDHF &dVE1,
-                      double omega);
+//! Calculates polarisability of atomic core, using some-over-states method.
+//! @details CorePolarisation (dVE1) is optional - assumed to be solved already.
+double core_sos(const std::vector<DiracSpinor> &core,
+                const std::vector<DiracSpinor> &spectrum,
+                const DiracOperator::E1 &he1,
+                const ExternalField::CorePolarisation *dVE1, double omega);
 
-double alpha_valence_sos(const DiracSpinor &Fv,
-                         const std::vector<DiracSpinor> &basis,
-                         const DiracOperator::E1 &he1,
-                         ExternalField::TDHF &dVE1, double omega);
+//! Calculates polarisability of valence state, using some-over-states method.
+//! @details Total polarisabilitity is this + core. CorePolarisation (dVE1) is
+//! optional - assumed to be solved already.
+double valence_sos(const DiracSpinor &Fv,
+                   const std::vector<DiracSpinor> &spectrum,
+                   const DiracOperator::E1 &he1,
+                   const ExternalField::CorePolarisation *dVE1, double omega);
 
-double alpha_valence_sos(const DiracSpinor &Fv, const DiracSpinor &Fw,
-                         const std::vector<DiracSpinor> &basis,
-                         const DiracOperator::E1 &he1,
-                         ExternalField::TDHF &dVE1, double omega = 0.0);
+//! Calculates polarisability of atomic core, using Mixed-States (TDHF) method.
+/*! @details TDHF (dVE1) is required - assumed to be solved already. If it's not
+solved, equivilant to no RPA.   See V. A. Dzuba, J. C. Berengut, J. S. M.
+Ginges, and V. V. Flambaum, Screening of an Oscillating External Electric Field
+in Atoms, Phys. Rev. A 98, 043411 (2018).
+*/
+double core_tdhf(const std::vector<DiracSpinor> &core,
+                 const DiracOperator::E1 &he1, const ExternalField::TDHF &dVE1,
+                 double omega, const MBPT::CorrelationPotential *const Sigma);
 
-double alpha_v_SRN(const DiracSpinor &Fv,
-                   const std::vector<DiracSpinor> &spectrum, int n_max_sum,
+//! Calculates polarisability of va.ence state, using Mixed-States (TDHF) method
+/*! @details TDHF (dVE1) is required - assumed to be solved already. If it's not
+solved, equivilant to no RPA.   See V. A. Dzuba, J. C. Berengut, J. S. M.
+Ginges, and V. V. Flambaum, Screening of an Oscillating External Electric Field
+in Atoms, Phys. Rev. A 98, 043411 (2018).
+*/
+double valence_tdhf(const DiracSpinor &Fv, const DiracOperator::E1 &he1,
+                    const ExternalField::TDHF &dVE1, double omega,
+                    const MBPT::CorrelationPotential *const Sigma);
+
+//! Calculates Structure-radiation + normalisation contribution to valence
+//! polarisability, using sum-over-states.
+/*! @details Spectrum is used for sum-over-states; hf_basis is used for MBPT.
+ - delta_n_max_sum is largest \Delta n (from valence n) to include in sum over
+states (~3 typical).
+ - n_min_core is minimum core state n to include in MBPT Structure Radiation.
+ - en_core is wf.en_coreval_gap() - used to separate core/excited.
+ - Qk_fname is optional filename to read/write QkTable [speedup at memory cost].
+ - See MBPT/StructureRad.hpp.
+ */
+double valence_SRN(const DiracSpinor &Fv,
+                   const std::vector<DiracSpinor> &spectrum,
+                   const DiracOperator::E1 &he1,
+                   const ExternalField::CorePolarisation *dVE1, double omega,
+                   // SR+N part:
+                   int delta_n_max_sum, int n_min_core,
                    const std::vector<DiracSpinor> &hf_basis,
-                   const double en_core, const DiracOperator::E1 &he1,
-                   ExternalField::TDHF &dVE1, double omega);
+                   const double en_core, const std::string &Qk_fname = "");
 
-std::pair<double, double> beta_sos(const DiracSpinor &Fv, const DiracSpinor &Fw,
-                                   const std::vector<DiracSpinor> &basis,
-                                   const DiracOperator::E1 &he1,
-                                   ExternalField::TDHF &dVE1,
-                                   double omega = 0.0);
-} // namespace Polarisability
+} // namespace alphaD
 
 } // namespace Module

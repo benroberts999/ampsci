@@ -102,7 +102,7 @@ endif
 # ASAN_SYMBOLIZER_PATH=/usr/bin/llvm-symbolizer ./ampsci
 
 #Command to compile objects and link them
-COMP=$(CXX) -MMD -c -o $@ $< $(CXXFLAGS)
+COMP=$(CXX) -MMD -MP -c -o $@ $< $(CXXFLAGS)
 ifeq ($(ParallelBuild),1)
 	COMP=time $(CXX) -MMD -MP -c -o $@ $< $(CXXFLAGS)
 endif

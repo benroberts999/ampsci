@@ -367,7 +367,7 @@ T InputBlock::get(std::initializer_list<std::string> blocks,
   return get<T>(blocks, key).value_or(default_value);
 }
 
-template <typename T = std::string>
+template <typename T>
 std::optional<T> InputBlock::get(std::initializer_list<std::string> blocks,
                                  std::string_view key) const {
   // Find key in nested blocks

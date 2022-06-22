@@ -357,8 +357,8 @@ unsigned int rngSeed();
 #define CATCH_CONFIG_NO_CPP17_VARIANT
 #else
 #define CATCH_INTERNAL_CONFIG_CPP17_VARIANT
-#endif // defined(__GLIBCXX__) && defined(_GLIBCXX_RELEASE) && (_GLIBCXX_RELEASE
-       // < 9)
+#endif // defined(__GLIBCXX__) && defined(_GLIBCXX_RELEASE) &&
+       // (_GLIBCXX_RELEASE < 9)
 #else
 #define CATCH_INTERNAL_CONFIG_CPP17_VARIANT
 #endif // defined(__clang__) && (__clang_major__ < 8)
@@ -4359,7 +4359,8 @@ auto makeMatchExpr(ArgT const &arg, MatcherT const &matcher,
     Catch::AssertionHandler catchAssertionHandler(                             \
         macroName##_catch_sr, CATCH_INTERNAL_LINEINFO,                         \
         CATCH_INTERNAL_STRINGIFY(__VA_ARGS__) ", " CATCH_INTERNAL_STRINGIFY(   \
-            exceptionType) ", " CATCH_INTERNAL_STRINGIFY(matcher),             \
+            exceptionType) ","                                                 \
+                           " " CATCH_INTERNAL_STRINGIFY(matcher),              \
         resultDisposition);                                                    \
     if (catchAssertionHandler.allowThrows())                                   \
       try {                                                                    \

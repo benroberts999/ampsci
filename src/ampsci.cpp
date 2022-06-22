@@ -91,8 +91,8 @@ and so on.
 Full descriptions of each Block/Option are given in /doc/ - but the self-
 documentation of the code will always be more up-to-date.
 
-The general usage of the code is to use the first , then to add as many 
-'Module::' blocks as required. Each module is a sepperate routine that will take
+The general usage of the code is to use the first, then to add as many 
+'Module::' blocks as required. Each module is a seperate routine that will take
 the calculated wavefunction and compute any desired property (e.g., matrix 
 elements). The code is designed such that anyone can write a new Module (see 
 /src/Modules/exampleModule.hpp)

@@ -1,6 +1,7 @@
 #include "StructureRad.hpp"
 #include "Coulomb/CoulombIntegrals.hpp"
 #include "DiracOperator/TensorOperator.hpp"
+#include "ExternalField/CorePolarisation.hpp"
 #include "ExternalField/TDHF.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "qip/omp.hpp"
@@ -50,7 +51,7 @@ StructureRad::StructureRad(const std::vector<DiracSpinor> &basis,
 std::pair<double, double>
 StructureRad::srTB(const DiracOperator::TensorOperator *const h,
                    const DiracSpinor &w, const DiracSpinor &v, double omega,
-                   const ExternalField::TDHF *const dV) const {
+                   const ExternalField::CorePolarisation *const dV) const {
   if (h->isZero(w.kappa(), v.kappa()))
     return {0.0, 0.0};
 
@@ -101,7 +102,7 @@ StructureRad::srTB(const DiracOperator::TensorOperator *const h,
 std::pair<double, double>
 StructureRad::srC(const DiracOperator::TensorOperator *const h,
                   const DiracSpinor &w, const DiracSpinor &v,
-                  const ExternalField::TDHF *const dV) const {
+                  const ExternalField::CorePolarisation *const dV) const {
   if (h->isZero(w.kappa(), v.kappa()))
     return {0.0, 0.0};
 
@@ -169,7 +170,7 @@ StructureRad::srC(const DiracOperator::TensorOperator *const h,
 std::pair<double, double>
 StructureRad::norm(const DiracOperator::TensorOperator *const h,
                    const DiracSpinor &w, const DiracSpinor &v,
-                   const ExternalField::TDHF *const dV) const {
+                   const ExternalField::CorePolarisation *const dV) const {
   if (h->isZero(w.kappa(), v.kappa()))
     return {0.0, 0.0};
 

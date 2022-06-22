@@ -10,7 +10,7 @@ namespace DiracOperator {
 class TensorOperator;
 }
 namespace ExternalField {
-class TDHF;
+class CorePolarisation;
 }
 
 //! Many-body perturbation theory
@@ -54,7 +54,7 @@ public:
   /*! @details
   en_core:  is defined such that states with e < en_core are in the core,
   while states with e > en_core are not. Typcially:
-  en_core = max(e_core)-min(e_valence).
+  en_core = max(e_core)-min(e_valence) =  wf.en_coreval_gap().
   nminmax is a pair{min, max}: we only used core states with n>=min, and only
   uses excited states with n<=nmax in the summations.
   Qk_fname is filename for QkTable - if given it will read/write QkTable to this
@@ -78,21 +78,33 @@ public:
   std::pair<double, double>
   srTB(const DiracOperator::TensorOperator *const h, const DiracSpinor &w,
        const DiracSpinor &v, double omega = 0.0,
-       const ExternalField::TDHF *const dV = nullptr) const;
+       const ExternalField::CorePolarisation *const dV = nullptr) const;
 
   //! Returns Centre (SR) diagrams, reduced ME: <w||C||v>. Returns
   //! a pair: {C, C+dV}: second includes RPA (if dV given)
   std::pair<double, double>
   srC(const DiracOperator::TensorOperator *const h, const DiracSpinor &w,
       const DiracSpinor &v,
-      const ExternalField::TDHF *const dV = nullptr) const;
+      const ExternalField::CorePolarisation *const dV = nullptr) const;
 
   //! Returns Normalisation of states, reduced ME: <w||h||v>_norm. Returns
   //! a pair: {N, N+dV}: second includes RPA (if dV given).
   std::pair<double, double>
   norm(const DiracOperator::TensorOperator *const h, const DiracSpinor &w,
        const DiracSpinor &v,
-       const ExternalField::TDHF *const dV = nullptr) const;
+       const ExternalField::CorePolarisation *const dV = nullptr) const;
+
+  //! Returns sum of SR+Norm diagrams, reduced ME: <w||T+B+C+N||v>. Returns
+  //! a pair: {SRN, SRN+dV}: second includes RPA (if dV given)
+  std::pair<double, double>
+  srn(const DiracOperator::TensorOperator *const h, const DiracSpinor &w,
+      const DiracSpinor &v, double omega = 0.0,
+      const ExternalField::CorePolarisation *const dV = nullptr) const {
+    const auto [tb, dvtb] = srTB(h, w, v, omega, dV);
+    const auto [c, dvc] = srC(h, w, v, dV);
+    const auto [n, dvn] = norm(h, w, v, dV);
+    return {tb + c + n, dvtb + dvc + dvn};
+  }
 
 private:
   // "Top" diagrams

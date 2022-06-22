@@ -16,13 +16,11 @@
 #include "Modules/screeningFactors.hpp"
 #include "Modules/testFeynman.hpp"
 #include "Modules/tests.hpp"
-//
 #include <string>
 #include <utility>
 #include <vector>
 class Wavefunction;
 namespace IO {
-class InputBlock;
 class InputBlock;
 } // namespace IO
 
@@ -47,6 +45,7 @@ static const std::vector<std::pair<
                 {"matrixElements", &matrixElements},
                 {"lifetimes", &calculateLifetimes},
                 {"polarisability", &polarisability},
+                {"dynamicPolarisability", &dynamicPolarisability},
                 {"structureRad", &structureRad},
                 {"fieldShift", &fieldShift},
                 {"continuum", &continuum},
