@@ -1,5 +1,5 @@
-#include "catch2/catch.hpp"
 #include "qip/String.hpp"
+#include "catch2/catch.hpp"
 #include <cassert>
 #include <iostream>
 
@@ -44,4 +44,16 @@ TEST_CASE("qip::String", "[qip][String][unit]") {
 
   REQUIRE(qip::fstring("%6.2e %3i %5s", 19517.123524, 2, "ben") ==
           std::string("1.95e+04   2   ben"));
+
+  std::vector<std::string> list = {"ben", "writes", "a", "list"};
+  REQUIRE(qip::Levenstein("ben", "ben") == 0);
+  REQUIRE(qip::ci_Levenstein("ben", "BEN") == 0);
+  REQUIRE(*qip::closest_match("wrote", list) == "writes");
+  REQUIRE(*qip::ci_closest_match("WrIt", list) == "writes");
+  REQUIRE(*qip::closest_match("ben", list) == "ben");
+  REQUIRE(*qip::closest_match("bon", list) == "ben");
+  REQUIRE(*qip::closest_match("a", list) == "a");
+  REQUIRE(*qip::closest_match("b", list) == "a");
+  REQUIRE(*qip::closest_match("list", list) == "list");
+  REQUIRE(*qip::closest_match("lost", list) == "list");
 }

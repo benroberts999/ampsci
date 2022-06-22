@@ -1,15 +1,11 @@
 #pragma once
+#include "Coulomb/QkTable.hpp"
 #include <vector>
-// Forward declare classes:
 class Wavefunction;
 class DiracSpinor;
 namespace IO {
 class InputBlock;
 }
-// namespace Coulomb {
-// class CoulombTable;
-// }
-#include "Coulomb/QkTable.hpp"
 namespace Angular {
 class SixJTable;
 }

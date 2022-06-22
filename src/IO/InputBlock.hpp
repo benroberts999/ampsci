@@ -472,6 +472,15 @@ bool InputBlock::checkBlock(
                 << ": " << option.key << " = " << option.value_str << ";\n"
                 << "Option may be ignored!\n"
                 << "Check spelling (or update list of options)\n";
+      // spell-check + nearest suggestion:
+      auto compare_sc = [&option](const auto &s1, const auto &s2) {
+        return qip::ci_Levenstein(s1.first, option.key) <
+               qip::ci_Levenstein(s2.first, option.key);
+      };
+      auto guess = std::min_element(list.cbegin(), list.cend(), compare_sc);
+      if (guess != list.cend()) {
+        std::cout << "\nDid you mean: " << guess->first << " ?\n";
+      }
     }
   }
 

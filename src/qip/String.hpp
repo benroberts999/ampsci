@@ -4,6 +4,7 @@
 #include <cstdarg>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace qip {
 
@@ -112,6 +113,94 @@ inline bool ci_wildcard_compare(std::string_view s1, std::string_view s2) {
   const auto s2_back = s2.substr(pos_wc + 1, std::string::npos);
 
   return ci_compare(s1_front, s2_front) && ci_compare(s1_back, s2_back);
+}
+
+//==============================================================================
+
+//! A simple non-optimised implementation of the Levenshtein distance
+inline auto Levenstein(std::string_view a, std::string_view b) {
+  // https://en.wikipedia.org/wiki/Levenshtein_distance
+  // https://stackoverflow.com/a/70237726/8446770
+  // if (b.size() == 0)
+  //   return a.size();
+  // if (a.size() == 0)
+  //   return b.size();
+  // if (a[0] == b[0])
+  //   return Levenstein(a.substr(1), b.substr(1));
+  // return 1 + std::min({Levenstein(a, b.substr(1)), Levenstein(a.substr(1),
+  // b),
+  //                      Levenstein(a.substr(1), b.substr(1))});
+  std::vector<size_t> d_t((a.size() + 1) * (b.size() + 1), size_t(-1));
+  auto d = [&](size_t ia, size_t ib) -> size_t & {
+    return d_t[ia * (b.size() + 1) + ib];
+  };
+  std::function<size_t(size_t, size_t)> LevensteinInt =
+      [&](size_t ia, size_t ib) -> size_t {
+    if (d(ia, ib) != size_t(-1))
+      return d(ia, ib);
+    size_t dist = 0;
+    if (ib >= b.size())
+      dist = a.size() - ia;
+    else if (ia >= a.size())
+      dist = b.size() - ib;
+    else if (a[ia] == b[ib])
+      dist = LevensteinInt(ia + 1, ib + 1);
+    else
+      dist = 1 + std::min(std::min(LevensteinInt(ia, ib + 1),
+                                   LevensteinInt(ia + 1, ib)),
+                          LevensteinInt(ia + 1, ib + 1));
+    d(ia, ib) = dist;
+    return dist;
+  };
+  return LevensteinInt(0, 0);
+}
+
+//! A simple non-optimised implementation of the Levenshtein distance (case
+//! insensitive)
+inline auto ci_Levenstein(std::string_view a, std::string_view b) {
+  std::vector<size_t> d_t((a.size() + 1) * (b.size() + 1), size_t(-1));
+  auto d = [&](size_t ia, size_t ib) -> size_t & {
+    return d_t[ia * (b.size() + 1) + ib];
+  };
+  std::function<size_t(size_t, size_t)> LevensteinInt =
+      [&](size_t ia, size_t ib) -> size_t {
+    if (d(ia, ib) != size_t(-1))
+      return d(ia, ib);
+    size_t dist = 0;
+    if (ib >= b.size())
+      dist = a.size() - ia;
+    else if (ia >= a.size())
+      dist = b.size() - ib;
+    else if (qip::tolower(a[ia]) == qip::tolower(b[ib]))
+      dist = LevensteinInt(ia + 1, ib + 1);
+    else
+      dist = 1 + std::min(std::min(LevensteinInt(ia, ib + 1),
+                                   LevensteinInt(ia + 1, ib)),
+                          LevensteinInt(ia + 1, ib + 1));
+    d(ia, ib) = dist;
+    return dist;
+  };
+  return LevensteinInt(0, 0);
+}
+
+//! Finds the closest match in list to test_string (return iterator)
+inline auto closest_match(std::string_view test_string,
+                          const std::vector<std::string> &list) {
+  auto compare = [&test_string](const auto &s1, const auto &s2) {
+    return qip::Levenstein(s1, test_string) < qip::Levenstein(s2, test_string);
+  };
+  return std::min_element(list.cbegin(), list.cend(), compare);
+}
+
+//! Finds the closest match (case insensitive) in list to test_string (return
+//! iterator)
+inline auto ci_closest_match(std::string_view test_string,
+                             const std::vector<std::string> &list) {
+  auto compare = [&test_string](const auto &s1, const auto &s2) {
+    return qip::ci_Levenstein(s1, test_string) <
+           qip::ci_Levenstein(s2, test_string);
+  };
+  return std::min_element(list.cbegin(), list.cend(), compare);
 }
 
 } // namespace qip
