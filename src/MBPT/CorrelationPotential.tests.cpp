@@ -88,7 +88,7 @@ TEST_CASE("MBPT: Correlation Potential: Sigma2",
     wf.solve_valence("7sp5d4f");
     wf.formBasis({"30spdfghi", 40, 7, 0.0, 1.0e-6, 40.0, false});
     wf.formSigma(3, true, 1.0e-4, 30.0, 14 /*stride*/, false, false, {}, {}, {},
-                 "false", "tmp_sigma_deleteme");
+                 "false", "tst_sigma_deleteme");
 
     std::vector<double> hf, br2;
     for (const auto &Fv : wf.valence()) {
@@ -131,7 +131,7 @@ TEST_CASE("MBPT: Correlation Potential: Sigma2",
     // wf.formBasis({"30spdfghi", 40, 7, 0.0, 1.0e-6, 40.0, false});
     // Don't calculate Sigma, read it in from above example:
     wf.formSigma(1, true, 0.0, 0.0, 1 /*stride*/, false, false, {}, {}, {},
-                 "tmp_sigma_deleteme", "false");
+                 "tst_sigma_deleteme", "false");
 
     std::vector<double> hf, br2;
     for (const auto &Fv : wf.valence()) {
@@ -172,7 +172,7 @@ TEST_CASE("MBPT: Correlation Potential: Sigma2",
     wf.solve_valence("7sp6d");
     wf.formBasis({"30spdfghi", 40, 7, 0.0, 1.0e-6, 40.0, false});
     wf.formSigma(4, true, 1.0e-4, 30.0, 12 /*stride*/, false, false, {}, {}, {},
-                 "false", "tmp_sigma_deleteme");
+                 "false", "tst_sigma_deleteme");
 
     std::vector<double> hf, br2;
     for (const auto &Fv : wf.valence()) {

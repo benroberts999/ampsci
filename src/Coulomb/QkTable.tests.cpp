@@ -1,6 +1,6 @@
+#include "Coulomb/QkTable.hpp"
 #include "Angular/SixJTable.hpp"
 #include "Coulomb/CoulombIntegrals.hpp"
-#include "Coulomb/QkTable.hpp"
 #include "Coulomb/YkTable.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "Wavefunction/Wavefunction.hpp"
@@ -73,7 +73,7 @@ TEST_CASE("Coulomb: Q,W,N k Table", "[Coulomb][QkTable][unit]") {
   double x = 16.5;
   double y = 3.5;
   int k = 3;
-  std::string file_name{"tmp_deleteme.qk"};
+  std::string file_name{"tst_deleteme.qk"};
 
   // Qk
   {
@@ -199,7 +199,7 @@ TEST_CASE("Coulomb: Qk Table - with WF", "[Coulomb][QkTable][integration]") {
   // Coulomb::NkTable qk;
   qk_t.fill(wf.basis(), yk);
 
-  const std::string fname = "tmp_delete_me.qk";
+  const std::string fname = "tst_deleteme.qk";
 
   {
     IO::ChronoTimer t("Write to disk");

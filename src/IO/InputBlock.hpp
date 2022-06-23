@@ -495,6 +495,15 @@ bool InputBlock::checkBlock(
                 << ": " << block.name() << "{}\n"
                 << "Block and containing options may be ignored!\n"
                 << "Check spelling (or update list of options)\n";
+      // spell-check + nearest suggestion:
+      auto compare_sc = [&block](const auto &s1, const auto &s2) {
+        return qip::ci_Levenstein(s1.first, block.name()) <
+               qip::ci_Levenstein(s2.first, block.name());
+      };
+      auto guess = std::min_element(list.cbegin(), list.cend(), compare_sc);
+      if (guess != list.cend()) {
+        std::cout << "\nDid you mean: " << guess->first << " ?\n";
+      }
     }
   }
 
@@ -502,7 +511,11 @@ bool InputBlock::checkBlock(
     std::cout << "\nAvailable " << m_name << " options/blocks are:\n"
               << m_name << "{\n";
     std::for_each(list.cbegin(), list.cend(), [](const auto &s) {
-      std::cout << "  " << s.first << ";\t// " << s.second << "\n";
+      if (s.first.empty()) {
+        std::cout << "  /*\n  " << s.second << "\n  */\n";
+      } else {
+        std::cout << "  " << s.first << ";\t// " << s.second << "\n";
+      }
     });
     std::cout << "}\n\n";
   }

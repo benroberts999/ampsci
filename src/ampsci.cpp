@@ -207,20 +207,25 @@ void ampsci(const IO::InputBlock &input) {
                {"Spectrum", "InputBlock. Like basis, but includes "
                             "correlations. Used for sum-over-states"},
                {"Correlations", "InputBlock. Options for correlations"},
-               {"ExtraPotential", "InputBlock. Include an extra potential"},
-               {"dVpol",
-                "InputBlock. Approximate correlation (polarisation) potential"},
+               {"ExtraPotential",
+                "InputBlock. Include an extra potential. Rarely used."},
+               {"dVpol", "InputBlock. Approximate correlation (polarisation) "
+                         "potential. Rarely used."},
                {"Module::*",
                 "InputBlock. Run any number of modules (* -> module name)"}});
 
   // Atom: Get + setup atom parameters
-  input.check({"Atom"},
-              {{"Z", "string or int. Atomic number [default H]"},
-               {"A", "int. Atomic mass number (set A=0 to use pointlike "
-                     "nucleus) [default based on Z]"},
-               {"varAlpha2", "Fractional variation of the fine-structure "
-                             "constant, alpha^2: d(a^2)/a_0^2. Use to "
-                             "calculate non-relativistic limit [1.0]"}});
+  input.check(
+      {"Atom"},
+      {{"Z",
+        "string or int (e.g., Cs equivilant to 55). Atomic number [default H]"},
+       {"A", "int. Atomic mass number (set A=0 to use pointlike "
+             "nucleus) [default based on Z]"},
+       {"varAlpha2",
+        "Fractional variation of the fine-structure constant, alpha^2: "
+        "d(a^2)/a_0^2. Use to enforce the non-relativistic limit (c->infinity "
+        "=> alpha->0), or calculate sensitivity to variation of alpha. "
+        "[1.0]"}});
 
   const auto atom_Z = AtomData::atomic_Z(input.get({"Atom"}, "Z", "H"s));
   const auto atom_A = input.get({"Atom"}, "A", AtomData::defaultA(atom_Z));
@@ -233,7 +238,10 @@ void ampsci(const IO::InputBlock &input) {
   // Grid: Get + setup grid parameters
   input.check(
       {"Grid"},
-      {{"r0", "Initial grid point, in aB [1.0e-6]"},
+      {{"", "Options for radial grid (lattice) used for integrations, solving "
+            "equations and storing oritals. All relevant quantities are in "
+            "units of Bohr radius (aB)."},
+       {"r0", "Initial grid point, in aB [1.0e-6]"},
        {"rmax", "Finial grid point [120.0]"},
        {"num_points", "Number of grid points [2000]"},
        {"type", "Type of grid: loglinear, logarithmic, linear [loglinear]"},
@@ -241,7 +249,7 @@ void ampsci(const IO::InputBlock &input) {
              "linear for r>b [rmax/3]"},
        {"du", "du is uniform grid step size; set this instead of "
               "num_points - will override num_points [default set by "
-              "num_points]"}});
+              "num_points]. Rarely used."}});
 
   // Radial grid. Shared resource used by all wavefunctions/orbitals etc
   const auto r0 = input.get({"Grid"}, "r0", 1.0e-6);
@@ -259,7 +267,10 @@ void ampsci(const IO::InputBlock &input) {
 
   // Nucleus: Get + setup nuclear parameters
   input.check({"Nucleus"},
-              {{"rrms", "Root-mean-square charge radius, in fm "
+              {{"", "Options for nuclear potential (finite nuclear size). All "
+                    "are optional. Default is a Fermi-like nucleus, with "
+                    "parameters chosen according to isotope (see Atom{A;})"},
+               {"rrms", "Root-mean-square charge radius, in fm "
                         "[default depends on Z and A]"},
                {"c", "Half-density radius, in fm (will over-ride rms) [default "
                      "depends on Z and A]"},
@@ -303,7 +314,8 @@ void ampsci(const IO::InputBlock &input) {
   // Parse input for Hartree-Fock
   input.check(
       {"HartreeFock"},
-      {{"core", "Core configuration. Either list entire core, or use [At] "
+      {{"", "Options for solving lowest-order atomic wavefunction"},
+       {"core", "Core configuration. Either list entire core, or use [At] "
                 "short-hand. e.g., [He] equivilant to 1s2; [Xe],6s1 equivilant "
                 "to [Cs] and to 1s2,2s2,...,5p6,6s1. [blank by default]"},
        {"valence",
@@ -412,7 +424,7 @@ void ampsci(const IO::InputBlock &input) {
 
   // Adds effective polarision potential to nuclear potential (After HF core,
   // before HF valence).
-  // This is rarely used - move to wf?
+  // This is rarely used - move to wf? Combine with ExtraPotential!
   input.check({"dVpol"},
               {{"a_eff", "scale factor for effective pol. potential [1]"},
                {"r_cut", "cut-off parameter [=1]"}});
@@ -442,6 +454,8 @@ void ampsci(const IO::InputBlock &input) {
   wf.printValence(sorted_output);
 
   // Construct B-spline basis:
+  // nb: check() should be performed where the options are parsed!
+  // => move this into wf
   input.check(
       {"Basis"},
       {{"number", "Number of splines used in expansion [0]"},
@@ -468,7 +482,10 @@ void ampsci(const IO::InputBlock &input) {
   // This is a mess - will re-do correlations part
   const auto Sigma_ok = input.check(
       {"Correlations"},
-      {{"Brueckner", "Form Brueckner orbitals [false]"},
+      {{"",
+        "Options for inclusion of correlations (correlation potential "
+        "method). It's become a bit of a mess, and will be refactored ~soon~"},
+       {"Brueckner", "Form Brueckner orbitals [false]"},
        {"energyShifts", "Calculate MBPT2 shift [false]"},
        {"n_min_core", "Minimum core n to polarise [1]"},
        {"fitTo_cm", "List of binding energies (in cm^-1) to scale Sigma for. "
@@ -494,7 +511,9 @@ void ampsci(const IO::InputBlock &input) {
                "used in ladder only; Goldstone, used direct also. []"},
        {"screening", "bool. Include Screening [false]"},
        {"holeParticle", "Include hole-particle interaction [false]"},
-       {"ladder", "string. Filename for ladder diagram file. If blank, ladder "
+       {"ladder", "Experimental feature. Filename for ladder diagram file "
+                  "(generated in the "
+                  "ladder Module). If blank, ladder "
                   "not included. Only in Feynman. []"},
        {"lmax", "Maximum l used for Feynman method [6]"},
        {"basis_for_Green", "Use basis for Feynman Greens function [false]"},
@@ -602,7 +621,10 @@ void ampsci(const IO::InputBlock &input) {
 
   // Construct B-spline Spectrum:
   input.check({"Spectrum"},
-              {{"number", "Number of splines used in expansion"},
+              {{"", "Options for 'spectrum', Spectrum is the same as 'Basis', "
+                    "but includes correlations. Spectrum is used for "
+                    "sum-over-states (while basis is used for MBPT)."},
+               {"number", "Number of splines used in expansion"},
                {"order", "order of splines ~7-9"},
                {"r0", "minimum cavity radius"},
                {"r0_eps", "Select cavity radius r0 for each l by position "
@@ -611,7 +633,7 @@ void ampsci(const IO::InputBlock &input) {
                {"states", "states to keep (e.g., 30spdf20ghi)"},
                {"print", "Print all spline energies (for testing)"},
                {"positron", "Include -ve energy states (true/false)"},
-               {"type", "Derevianko (DKB) or Johnson"}});
+               {"type", "Derevianko (DKB) or Johnson [Derevianko]"}});
 
   const auto spectrum_in = input.getBlock("Spectrum");
   if (spectrum_in) {
