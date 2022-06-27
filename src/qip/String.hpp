@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdarg>
+#include <functional>
 #include <string>
 #include <string_view>
 #include <vector>

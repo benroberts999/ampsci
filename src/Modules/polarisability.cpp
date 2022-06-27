@@ -28,10 +28,11 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
   input.check(
       {{"rpa", "Include RPA? [true]"},
        {"omega", "frequency (for single w) [0.0]"},
+       {"tensor", "Also calculate tensor alpha_2(w) (as well as a0) [false]"},
        {"StrucRad", "SR: include SR+Norm correction [false]"},
        {"n_min_core", "SR: Minimum n to include in SR+N [1]"},
-       {"max_delta_n",
-        "SR: Maximum delta n to include in SR+N sum-over-states [3]"},
+       {"max_n_SR",
+        "SR: Maximum n to include in the sum-over-states for SR+N [9]"},
        {"Qk_file",
         "SR: filename for QkTable file. If blank will not use QkTable; if "
         "exists, "
@@ -40,6 +41,7 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
 
   const auto omega = input.get("omega", 0.0);
   const auto rpaQ = input.get("rpa", true);
+  const auto do_tensor = input.get("tensor", false);
 
   const auto he1 = DiracOperator::E1(wf.grid());
   auto dVE1 = ExternalField::TDHF(&he1, wf.vHF());
@@ -77,22 +79,35 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
     }
   }
 
+  if (do_tensor && !wf.valence().empty()) {
+    std::cout << "\nTensor polarasability alpha_2 (at w=" << omega << "):\n";
+    std::cout << "         SOS\n";
+    for (auto &Fv : wf.valence()) {
+      const auto a2_sos = alphaD::tensor2_sos(Fv, spectrum, he1, &dVE1, omega);
+      printf("%4s :  %12.5e\n", Fv.shortSymbol().c_str(), a2_sos);
+    }
+  }
+
   // Optionally calculate SR+N contribution
   if (input.get("StrucRad", false)) {
     const auto n_min_core = input.get("n_min_core", 1);
-    const auto max_delta_n = input.get("max_delta_n", 3);
+    const auto max_n_SR = input.get("max_n_SR", 9);
     const auto Qk_file = input.get("Qk_file", std::string{""});
-    std::vector<std::pair<std::string, double>> sr_summary;
+    std::vector<std::tuple<std::string, double, double>> sr_summary;
     for (const auto &Fv : wf.valence()) {
-      const auto srn_v = alphaD::valence_SRN(
-          Fv, spectrum, he1, &dVE1, omega, n_min_core, max_delta_n, wf.basis(),
+      const auto [srn_v, srn_2] = alphaD::valence_SRN(
+          Fv, spectrum, he1, &dVE1, omega, max_n_SR, n_min_core, wf.basis(),
           wf.en_coreval_gap(), Qk_file);
-      sr_summary.push_back({Fv.shortSymbol(), srn_v});
+      sr_summary.push_back({Fv.shortSymbol(), srn_v, srn_2});
     }
     // print summary:
     std::cout << "\nSummary of SR+N contributions:\n";
-    for (const auto &[symbol, srn] : sr_summary) {
-      printf("%4s :  %12.5e\n", symbol.c_str(), srn);
+    for (const auto &[symbol, srn, srn_2] : sr_summary) {
+      printf("%4s :  %12.5e", symbol.c_str(), srn);
+      if (do_tensor) {
+        printf("  %12.5e", srn_2);
+      }
+      std::cout << "\n";
     }
   }
 }
@@ -105,19 +120,25 @@ void dynamicPolarisability(const IO::InputBlock &input,
   std::cout << "Calculate atomic dynamic polarisabilities\n";
 
   input.check(
-      {{"rpa", "Include RPA? [true]"},
+      {{"tensor", "Do tensor polarisability a2(w) (as well as a0) [false]"},
+       {"rpa", "Include RPA? [true]"},
+       {"rpa_omega", "Frequency-dependent RPA? If true, RPA solved at each "
+                     "frequency. If false, RPA solved once at w=0 [true]"},
        {"num_steps", "number of steps for dynamic polarisability [10]"},
        {"omega_minmax",
         "list (frequencies): omega_min, omega_max (in au) [0.01, 0.1]"},
        {"lambda_minmax", "list (wavelengths, will override omega_minmax): "
                          "lambda_min, lambda_max (in nm) [600, 1800]"},
-       {"method",
-        "Method used for dynamic pol. Either 'SOS' (sum-over-states) or 'MS' "
-        "(mixed-states=TDHF). MS can be unstable for dynamic pol. [SOS]"},
-       {"filename", "output filename for dynamic polarisability (if blank, "
-                    "will not wite to file) []"}});
+       {"method", "Method used for dynamic pol. for a0(w). Either 'SOS' "
+                  "(sum-over-states) or 'MS' (mixed-states=TDHF). MS can be "
+                  "unstable for dynamic pol. [SOS]"},
+       {"filename", "output filename for dynamic polarisability (a0_ and/or "
+                    "a2_ will be appended to start of filename) [identity.txt "
+                    "(e.g., CsI.txt)]"}});
 
+  const auto do_tensor = input.get("tensor", false);
   const auto rpaQ = input.get("rpa", true);
+  const auto rpa_omegaQ = input.get("rpa_omega", true);
 
   const auto he1 = DiracOperator::E1(wf.grid());
   auto dVE1 = ExternalField::TDHF(&he1, wf.vHF());
@@ -140,13 +161,13 @@ void dynamicPolarisability(const IO::InputBlock &input,
     w_list = qip::uniform_range(w_min, w_max, num_w_steps);
   } else {
     const auto w_minmax = input.get("omega_minmax", std::vector{0.01, 0.1});
-    w_list = qip::uniform_range(w_list.at(0), w_list.at(1), num_w_steps);
-  }
-
-  if (rpaQ) {
-    // solve RPA using all iterations for initial frequency
-    // then, solve the rest with just a few iterations
-    dVE1.solve_core(w_list.front());
+    if (w_minmax.size() != 2) {
+      std::cout << "\nFailure 162 in dynamicPolarisability.\nIssue with "
+                   "omega_minmax option: must have exactly 2 (or 0) entires. "
+                   "Missing or extra comma?\n";
+      return;
+    }
+    w_list = qip::uniform_range(w_minmax.at(0), w_minmax.at(1), num_w_steps);
   }
 
   // Parse method to use for dynamic pol:
@@ -162,30 +183,60 @@ void dynamicPolarisability(const IO::InputBlock &input,
               << ". Available options are 'MS' or 'SOS'\n";
     std::cout << "Defaulting to SOS\n\n";
   }
+  if (rpaQ && rpa_omegaQ) {
+    std::cout << "Solving RPA at each frequency\n";
+  } else if (rpaQ && !rpa_omegaQ) {
+    std::cout << "Solving RPA once at zero frequency\n";
+  } else {
+    std::cout << "Not including RPA\n";
+  }
+
+  if (rpaQ) {
+    // solve RPA using all iterations for initial frequency
+    // then, solve the rest with just a few iterations
+    const auto w_initial = rpa_omegaQ ? w_list.front() : 0.0;
+    dVE1.solve_core(w_initial);
+  }
 
   // Setup output optional file
-  const auto of_name = input.get("filename", ""s);
-  std::ofstream ofile;
+  const auto of_name = input.get("filename", wf.identity() + ".txt");
+  std::ofstream ofile, o2file;
   if (!of_name.empty()) {
-    ofile.open(of_name);
-    ofile << std::fixed << std::setprecision(9);
-    std::cout << "Writing dynamic polarisability to file: " << of_name << "\n";
+    ofile.open("a0_" + of_name);
+    ofile << std::scientific << std::setprecision(9);
+    std::cout << "Writing dynamic polarisability a0(w) to file: a0_" << of_name
+              << "\n";
+    if (do_tensor) {
+      o2file.open("a2_" + of_name);
+      o2file << std::scientific << std::setprecision(9);
+      std::cout << "Writing dynamic polarisability a2(w) to file: a2_"
+                << of_name << "\n";
+    }
   }
 
   // Calculate dynamic polarisability and write to screen+file
-  std::string title = " w(au)     lamda(nm) core      ";
+  std::string title = "w(au)      lamda(nm) core     ";
   for (auto &Fv : wf.valence()) {
-    title += (Fv.shortSymbol() + "       ");
+    title += (" "s + Fv.shortSymbol() + "      "s);
   }
-  if (rpaQ) {
+  if (rpaQ && rpa_omegaQ) {
     title += "eps(dV)";
   }
   std::cout << title << "\n";
   ofile << title << "\n";
+  o2file << title << "\n";
+  int count = 0;
   for (auto ww : w_list) {
     const auto lambda = (2.0 * M_PI * PhysConst::c / ww) * PhysConst::aB_nm;
 
-    if (rpaQ) {
+    // if <20, print all; otherwise, first + last + every 10th
+    count++;
+    const auto print =
+        w_list.size() < 20 ?
+            true :
+            (ww == w_list.front() || ww == w_list.back() || (count % 10 == 0));
+
+    if (rpaQ && rpa_omegaQ) {
       if (dVE1.get_eps() > 1.0e-2) {
         // if tdhf didn't converge well last time, start from scratch
         // (otherwise, start from where we left off, since much faster)
@@ -195,37 +246,60 @@ void dynamicPolarisability(const IO::InputBlock &input,
         dVE1.solve_core(ww, 5, false);
       }
     }
-    // const auto ac =
-    //     method == "MS" ?
-    //         core_tdhf(wf.core(), he1, dVE1, ww, wf.Sigma()) :
-    //         core_sos(wf.core(), spectrum, he1, &dVE1, ww);
-    // MS method is fine for the core, and _much_ faster, and core contributed
+    // MS method is fine for the core, and _much_ faster, and core contributes
     // negligably..so fine.
     const auto ac = alphaD::core_tdhf(wf.core(), he1, dVE1, ww, wf.Sigma());
-    printf("%9.2e %9.2e %9.2e ", ww, lambda, ac);
+    if (print)
+      printf("%9.2e %9.2e %9.2e ", ww, lambda, ac);
     ofile << ww << " " << lambda << " " << ac << " ";
+    // no core contrib to a2, but write zero so columns align
+    o2file << ww << " " << lambda << " " << 0.0 << " ";
     std::vector<double> avs(wf.valence().size());
-#pragma omp parallel for
+    std::vector<double> a2s(wf.valence().size());
+#pragma omp parallel for if (method == "MS")
     for (auto iv = 0ul; iv < wf.valence().size(); ++iv) {
       const auto &Fv = wf.valence().at(iv);
       const auto av =
-          (ww < -Fv.en()) ?
-              (method == "MS" ?
-                   ac + alphaD::valence_tdhf(Fv, he1, dVE1, ww, wf.Sigma()) :
-                   ac + alphaD::valence_sos(Fv, spectrum, he1, &dVE1, ww)) :
-              0.0;
+          method == "MS" ?
+              ac + alphaD::valence_tdhf(Fv, he1, dVE1, ww, wf.Sigma()) :
+              ac + alphaD::valence_sos(Fv, spectrum, he1, &dVE1, ww);
       avs.at(iv) = av;
+      if (do_tensor) {
+        const auto a2 = alphaD::tensor2_sos(Fv, spectrum, he1, &dVE1, ww);
+        a2s.at(iv) = a2;
+      }
     }
     for (auto &av : avs) {
-      printf("%9.2e ", av);
+      if (print)
+        printf("%9.2e ", av);
       ofile << av << " ";
     }
-    if (rpaQ) {
-      printf("[%.0e]", dVE1.get_eps());
+    if (rpaQ && rpa_omegaQ) {
+      if (print)
+        printf("[%.0e]", dVE1.get_eps());
       ofile << dVE1.get_eps();
     }
-    std::cout << "\n";
+    if (print)
+      std::cout << "\n";
     ofile << "\n";
+
+    if (do_tensor) {
+      if (print) {
+        std::cout << "          "
+                  << "          "
+                  << " a2(w)    ";
+      }
+      for (auto &a2 : a2s) {
+        if (print)
+          printf("%9.2e ", a2);
+        o2file << a2 << " ";
+      }
+      if (rpaQ && rpa_omegaQ)
+        o2file << dVE1.get_eps();
+      if (print)
+        std::cout << "\n";
+      o2file << "\n";
+    }
   }
 }
 
@@ -297,6 +371,45 @@ double valence_sos(const DiracSpinor &Fv,
   return f * alpha_v;
 }
 
+//------------------------------------------------------------------------------
+double tensor2_sos(const DiracSpinor &Fv,
+                   const std::vector<DiracSpinor> &spectrum,
+                   const DiracOperator::E1 &he1,
+                   const ExternalField::CorePolarisation *dVE1, double omega) {
+
+  // B. Arora, M. S. Safronova, and C. W. Clark, Phys. Rev. A 76, 052509 (2007).
+  // J. Mitroy, M. S. Safronova, and C. W. Clark, Theory and Applications of
+  // Atomic and Ionic Polarizabilities, J. Phys. B 43, 44 (2010).
+
+  const auto ctop = 2.5 * (Fv.twoj() * (Fv.twoj() - 1));
+  const auto cbot = 3.0 * ((Fv.twoj() + 2) * (Fv.twoj() + 1) * (Fv.twoj() + 3));
+  const auto C = +4.0 * std::sqrt(ctop / cbot); // nb: diff de sign
+  if (ctop <= 0.0)
+    return 0.0;
+
+  auto alpha_2 = 0.0;
+#pragma omp parallel for reduction(+ : alpha_2)
+  for (std::size_t in = 0; in < spectrum.size(); ++in) {
+    const auto &Fn = spectrum.at(in);
+    if (he1.isZero(Fv.kappa(), Fn.kappa()))
+      continue;
+
+    const auto sj = Angular::sixj_2(Fv.twoj(), 2, Fn.twoj(), 2, Fv.twoj(), 4);
+    if (sj == 0.0)
+      continue;
+    const auto s = Angular::neg1pow_2(Fv.twoj() + Fn.twoj() + 2);
+
+    const auto d0_nv = he1.reducedME(Fn, Fv);
+    const auto dv_nv = dVE1 ? dVE1->dV(Fn, Fv) : 0.0;
+    const auto d_nv = d0_nv + dv_nv;
+    const auto de = Fv.en() - Fn.en();
+    const auto denom = omega == 0.0 ? 1.0 / de : de / (de * de - omega * omega);
+    alpha_2 += s * sj * std::abs(d_nv * d_nv) * denom;
+  }
+
+  return C * alpha_2;
+}
+
 //==============================================================================
 // Calculates polarisability of atomic core, using TDHF (mixed states) method.
 // TDHF (dVE1) is required - assumed to be solved already. If it's not solved,
@@ -364,14 +477,14 @@ double valence_tdhf(const DiracSpinor &Fv, const DiracOperator::E1 &he1,
 }
 
 //==============================================================================
-double valence_SRN(const DiracSpinor &Fv,
-                   const std::vector<DiracSpinor> &spectrum,
-                   const DiracOperator::E1 &he1,
-                   const ExternalField::CorePolarisation *dVE1, double omega,
-                   // SR+N part:
-                   int delta_n_max_sum, int n_min_core,
-                   const std::vector<DiracSpinor> &hf_basis,
-                   const double en_core, const std::string &Qk_fname) {
+std::pair<double, double>
+valence_SRN(const DiracSpinor &Fv, const std::vector<DiracSpinor> &spectrum,
+            const DiracOperator::E1 &he1,
+            const ExternalField::CorePolarisation *dVE1, double omega,
+            // SR+N part:
+            int max_n_SOS, int n_min_core,
+            const std::vector<DiracSpinor> &hf_basis, const double en_core,
+            const std::string &Qk_fname) {
 
   // NOTE: Basis should be HF basis (used for MBPT), NOT spectrum
 
@@ -380,60 +493,85 @@ double valence_SRN(const DiracSpinor &Fv,
 
   auto alpha_v0 = 0.0;
   auto alpha_v1 = 0.0;
-  auto alpha_v2 = 0.0;
   const auto f = (-2.0 / 3.0) / (Fv.twoj() + 1);
+
+  // for tensor
+  auto alpha2_v0 = 0.0;
+  auto alpha2_v1 = 0.0;
+  const auto ctop = 2.5 * (Fv.twoj() * (Fv.twoj() - 1));
+  const auto cbot = 3.0 * ((Fv.twoj() + 2) * (Fv.twoj() + 1) * (Fv.twoj() + 3));
+  const auto C = ctop >= 0.0 ? +4.0 * std::sqrt(ctop / cbot) : 0.0;
 
   auto sr = MBPT::StructureRad(hf_basis, en_core, {n_min_core, 99}, Qk_fname);
   std::cout << "Including core states from n>=" << n_min_core
             << " in diagrams\n";
-  std::cout << "Calculating SR+N for terms with n=n(val)+/-" << delta_n_max_sum
+  std::cout << "Calculating SR+N for terms up to n=" << max_n_SOS
             << " in the sum-over-states\n";
 
   // Should be possible to sum over external states _first_, then to SR?
   // Maybe not
   // Issue is depends on energy of legs
 
-  std::cout << "  n    |d|       dEn      |  a0(n)     da(HF)    da(RPA)  |  "
-               "%(HF)     %(RPA)\n";
+  bool do_tensor = true;
+
+  std::cout << "  n    |d|       dEn      |  a0(n)     dSR(n)    [%]      ";
+  if (do_tensor)
+    std::cout << "|  a2(n)     dSR2(n)";
+  std::cout << "\n";
   for (const auto &Fn : spectrum) {
     if (Fn.en() < en_core)
       continue;
     // Only do for terms with small delta_n
-    if (std::abs(Fn.n() - Fv.n()) > delta_n_max_sum)
+    if (Fn.n() > max_n_SOS)
       continue;
     if (he1.isZero(Fv.kappa(), Fn.kappa()))
       continue;
     const auto d0 = he1.reducedME(Fn, Fv) + (dVE1 ? dVE1->dV(Fn, Fv) : 0.0);
 
-    const auto [srn, srndV] = sr.srn(&he1, Fn, Fv, 0.0, dVE1);
+    // don't include RPA into SR+N (simpler)
+    const auto [srn, srndV] = sr.srn(&he1, Fn, Fv, omega, nullptr);
     const auto d1 = d0 + srn;
-    const auto d2 = d0 + srndV;
 
+    // alpha_0(w)
     const auto de = Fv.en() - Fn.en();
     const auto da_v0 = f * std::abs(d0 * d0) * de / (de * de - omega * omega);
     const auto da_v1 = f * std::abs(d1 * d1) * de / (de * de - omega * omega);
-    const auto da_v2 = f * std::abs(d2 * d2) * de / (de * de - omega * omega);
     alpha_v0 += da_v0;
     alpha_v1 += da_v1;
-    alpha_v2 += da_v2;
 
-    printf(" %4s %9.2e %9.2e | %9.2e %9.2e %9.2e | %8.1e%% %8.1e%%\n",
-           Fn.shortSymbol().c_str(), d0, de, da_v0, da_v1 - da_v0,
-           da_v2 - da_v0, (da_v1 - da_v0) / da_v0 * 100,
-           (da_v2 - da_v0) / da_v0 * 100);
-    std::cout << std::flush;
+    printf(" %4s %9.2e %9.2e | %9.2e %9.2e %8.1e%%", Fn.shortSymbol().c_str(),
+           d0, de, da_v0, da_v1 - da_v0, (da_v1 - da_v0) / da_v0 * 100);
+
+    // alpha_2(w) [tensor]
+    if (do_tensor && C != 0.0) {
+      const auto sj = Angular::sixj_2(Fv.twoj(), 2, Fn.twoj(), 2, Fv.twoj(), 4);
+      const auto s = Angular::neg1pow_2(Fv.twoj() + Fn.twoj() + 2);
+      const auto da2_v0 =
+          s * sj * C * std::abs(d0 * d0) * de / (de * de - omega * omega);
+      const auto da2_v1 =
+          s * sj * C * std::abs(d1 * d1) * de / (de * de - omega * omega);
+      alpha2_v0 += da2_v0;
+      alpha2_v1 += da2_v1;
+      printf(" | %9.2e %9.2e", da2_v0, da2_v1 - da2_v0);
+    }
+
+    std::cout << '\n' << std::flush;
   }
 
   const auto srn = (alpha_v1 - alpha_v0);
-  const auto srn_x = (alpha_v2 - alpha_v0);
+  const auto srn2 = (alpha2_v1 - alpha2_v0);
 
-  std::cout << "a(main): " << alpha_v0 << "\n";
   std::cout << "StrucRad+Norm: " << Fv.symbol() << "\n";
-  std::cout << "No RPA:  " << srn << " (" << srn / alpha_v0 * 100.0 << "%)\n";
-  std::cout << "w/ RPA:  " << srn_x << " (" << srn_x / alpha_v0 * 100 << "%)\n";
+  std::cout << "a0(main): " << alpha_v0 << "\n";
+  std::cout << "dSR_0   :  " << srn << " (" << srn / alpha_v0 * 100.0 << "%)\n";
+  if (do_tensor) {
+    std::cout << "a2(main): " << alpha2_v0 << "\n";
+    std::cout << "dSR_2   :  " << srn2 << " (" << srn2 / alpha2_v0 * 100.0
+              << "%)\n";
+  }
   std::cout << std::flush;
 
-  return srn;
+  return {srn, srn2};
 }
 } // namespace alphaD
 

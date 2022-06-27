@@ -61,21 +61,30 @@ double valence_tdhf(const DiracSpinor &Fv, const DiracOperator::E1 &he1,
 //! Calculates Structure-radiation + normalisation contribution to valence
 //! polarisability, using sum-over-states.
 /*! @details Spectrum is used for sum-over-states; hf_basis is used for MBPT.
- - delta_n_max_sum is largest \Delta n (from valence n) to include in sum over
-states (~3 typical).
+ - max_n_SOS is largest n to include in sum over states for SR (~9 typical).
  - n_min_core is minimum core state n to include in MBPT Structure Radiation.
  - en_core is wf.en_coreval_gap() - used to separate core/excited.
  - Qk_fname is optional filename to read/write QkTable [speedup at memory cost].
  - See MBPT/StructureRad.hpp.
  */
-double valence_SRN(const DiracSpinor &Fv,
+std::pair<double, double>
+valence_SRN(const DiracSpinor &Fv, const std::vector<DiracSpinor> &spectrum,
+            const DiracOperator::E1 &he1,
+            const ExternalField::CorePolarisation *dVE1, double omega,
+            // SR+N part:
+            int max_n_SOS, int n_min_core,
+            const std::vector<DiracSpinor> &hf_basis, const double en_core,
+            const std::string &Qk_fname = "");
+
+//! calculate tensor polarisability, alpha_2(w).
+/*!
+  @details see B. Arora, M. S. Safronova, and C. W. Clark, Phys. Rev. A 76,
+  052509 (2007).
+*/
+double tensor2_sos(const DiracSpinor &Fv,
                    const std::vector<DiracSpinor> &spectrum,
                    const DiracOperator::E1 &he1,
-                   const ExternalField::CorePolarisation *dVE1, double omega,
-                   // SR+N part:
-                   int delta_n_max_sum, int n_min_core,
-                   const std::vector<DiracSpinor> &hf_basis,
-                   const double en_core, const std::string &Qk_fname = "");
+                   const ExternalField::CorePolarisation *dVE1, double omega);
 
 } // namespace alphaD
 

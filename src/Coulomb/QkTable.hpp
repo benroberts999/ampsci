@@ -3,6 +3,7 @@
 #include "Wavefunction/DiracSpinor.hpp"
 #include "YkTable.hpp"
 #include <array>
+#include <cstdint>
 #include <unordered_map>
 
 namespace Coulomb {
@@ -11,10 +12,10 @@ namespace Coulomb {
 enum class Symmetry { Qk, Wk, Lk, none };
 //! Data type used to store integrals
 using Real = double;
-//! index type for set of 4 orbitals {nk,nk,nk,nk} -> BigIndex
-using BigIndex = uint64_t;
+//! index type for set of 4 orbitals {nk,nk,nk,nk} -> nk4Index
+using nk4Index = uint64_t;
 //! index type for each {nk} (orbital)
-using Index = uint16_t;
+using nkIndex = uint16_t;
 
 //==============================================================================
 /*!
@@ -41,7 +42,7 @@ template <Symmetry S> class CoulombTable {
 
 private:
   // each vector element corresponds to a 'k'
-  std::vector<std::unordered_map<BigIndex, Real>> m_data{};
+  std::vector<std::unordered_map<nk4Index, Real>> m_data{};
 
 public:
   // 'Rule of zero' (except virtual destructor)
@@ -55,7 +56,7 @@ public:
             int k_cut = -1);
 
   //! Gives arrow access to all underlying vector<unordered_map> functions
-  auto operator-> () { return &m_data; }
+  auto operator->() { return &m_data; }
 
   //! For testing: prints details of coulomb integrals stored
   void summary() const;
@@ -66,18 +67,18 @@ public:
   // XXX Update to return {it,bool}?
   void add(int k, const DiracSpinor &a, const DiracSpinor &b,
            const DiracSpinor &c, const DiracSpinor &d, Real value);
-  //! Overload for when 'BigIndex' already known
-  void add(int k, BigIndex index, Real value);
+  //! Overload for when 'nk4Index' already known
+  void add(int k, nk4Index index, Real value);
 
   //! Updates value in table. If not present, adds new value
   void update(int k, const DiracSpinor &a, const DiracSpinor &b,
               const DiracSpinor &c, const DiracSpinor &d, Real value);
-  void update(int k, BigIndex index, Real value);
+  void update(int k, nk4Index index, Real value);
 
   //! Checks if given {k,a,b,c,d} is in the table
   bool contains(int k, const DiracSpinor &a, const DiracSpinor &b,
                 const DiracSpinor &c, const DiracSpinor &d) const;
-  bool contains(int k, BigIndex index) const;
+  bool contains(int k, nk4Index index) const;
 
   //! Returns true if table is empty
   bool emptyQ() const {
@@ -89,8 +90,8 @@ public:
   //! stored in table.)
   Real Q(int k, const DiracSpinor &a, const DiracSpinor &b,
          const DiracSpinor &c, const DiracSpinor &d) const;
-  //! Overload for when 'BigIndex' already known
-  Real Q(int k, BigIndex index) const;
+  //! Overload for when 'nk4Index' already known
+  Real Q(int k, nk4Index index) const;
 
   //! Returns 'R', defined via: R := Q / (angular_coef)
   Real R(int k, const DiracSpinor &a, const DiracSpinor &b,
@@ -114,9 +115,9 @@ public:
          const DiracSpinor &c, const DiracSpinor &d,
          const Angular::SixJTable *const sj = nullptr) const;
 
-  //! Creates single 'BigIndex' corresponding to 'NormalOrder' symmetry of
+  //! Creates single 'nk4Index' corresponding to 'NormalOrder' symmetry of
   //! {a,b,c,d}
-  BigIndex NormalOrder(const DiracSpinor &a, const DiracSpinor &b,
+  nk4Index NormalOrder(const DiracSpinor &a, const DiracSpinor &b,
                        const DiracSpinor &c, const DiracSpinor &d) const;
 
   //! Checks if set {a,b,c,d} are already in NormalOrder
@@ -163,22 +164,23 @@ public:
   // auto cend(std::size_t k) { return m_data.at(k).cend(); }
 
 private:
-  // Creates single 'BigIndex', WITHOUT accounting for 'NormalOrder'. Can be
+  // Creates single 'nk4Index', WITHOUT accounting for 'NormalOrder'. Can be
   // used to check if {a,b,c,d} are already in 'NormalOrder'
-  BigIndex CurrentOrder(const DiracSpinor &a, const DiracSpinor &b,
+  nk4Index CurrentOrder(const DiracSpinor &a, const DiracSpinor &b,
                         const DiracSpinor &c, const DiracSpinor &d) const;
 
-  // Converts given set of Index's (in any order) to BigIndex
-  static BigIndex FormIndex(Index a, Index b, Index c, Index d);
+  // Converts given set of nkIndex's (in any order) to nk4Index
+  static nk4Index FormIndex(nkIndex a, nkIndex b, nkIndex c, nkIndex d);
 
-  // Breaks BigIndex back into {ia,ib,ic,id}. Not used.
-  std::array<Index, 4> UnFormIndex(const BigIndex &index) const;
+  // Breaks nk4Index back into {ia,ib,ic,id}. Not used.
+  std::array<nkIndex, 4> UnFormIndex(const nk4Index &index) const;
 
-  // // Virtual: returns the "NormalOrder" BigIndex for given set. Overriden by
+  // // Virtual: returns the "NormalOrder" nk4Index for given set. Overriden by
   // // derived classes.
-  // virtual BigIndex NormalOrder_impl(Index a, Index b, Index c,
-  //                                   Index d) const = 0;
-  static inline BigIndex NormalOrder_impl(Index a, Index b, Index c, Index d);
+  // virtual nk4Index NormalOrder_impl(nkIndex a, nkIndex b, nkIndex c,
+  //                                   nkIndex d) const = 0;
+  static inline nk4Index NormalOrder_impl(nkIndex a, nkIndex b, nkIndex c,
+                                          nkIndex d);
 };
 
 using QkTable = CoulombTable<Symmetry::Qk>;
