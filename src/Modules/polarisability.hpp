@@ -1,4 +1,5 @@
 #pragma once
+#include "Coulomb/meTable.hpp"
 #include "DiracOperator/DiracOperator.hpp"
 #include "ExternalField/TDHF.hpp"
 #include <vector>
@@ -28,7 +29,8 @@ namespace alphaD {
 double core_sos(const std::vector<DiracSpinor> &core,
                 const std::vector<DiracSpinor> &spectrum,
                 const DiracOperator::E1 &he1,
-                const ExternalField::CorePolarisation *dVE1, double omega);
+                const ExternalField::CorePolarisation *dVE1, double omega,
+                const Coulomb::meTable<double> *dtab = nullptr);
 
 //! Calculates polarisability of valence state, using some-over-states method.
 //! @details Total polarisabilitity is this + core. CorePolarisation (dVE1) is
@@ -36,7 +38,8 @@ double core_sos(const std::vector<DiracSpinor> &core,
 double valence_sos(const DiracSpinor &Fv,
                    const std::vector<DiracSpinor> &spectrum,
                    const DiracOperator::E1 &he1,
-                   const ExternalField::CorePolarisation *dVE1, double omega);
+                   const ExternalField::CorePolarisation *dVE1, double omega,
+                   const Coulomb::meTable<double> *d_nv = nullptr);
 
 //! Calculates polarisability of atomic core, using Mixed-States (TDHF) method.
 /*! @details TDHF (dVE1) is required - assumed to be solved already. If it's not
@@ -84,7 +87,8 @@ valence_SRN(const DiracSpinor &Fv, const std::vector<DiracSpinor> &spectrum,
 double tensor2_sos(const DiracSpinor &Fv,
                    const std::vector<DiracSpinor> &spectrum,
                    const DiracOperator::E1 &he1,
-                   const ExternalField::CorePolarisation *dVE1, double omega);
+                   const ExternalField::CorePolarisation *dVE1, double omega,
+                   const Coulomb::meTable<double> *dtab = nullptr);
 
 } // namespace alphaD
 

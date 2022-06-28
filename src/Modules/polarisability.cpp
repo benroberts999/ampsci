@@ -1,4 +1,5 @@
 #include "Modules/polarisability.hpp"
+#include "Coulomb/meTable.hpp"
 #include "DiracOperator/DiracOperator.hpp"
 #include "ExternalField/TDHF.hpp"
 #include "IO/InputBlock.hpp"
@@ -122,6 +123,9 @@ void dynamicPolarisability(const IO::InputBlock &input,
   input.check(
       {{"tensor", "Do tensor polarisability a2(w) (as well as a0) [false]"},
        {"rpa", "Include RPA? [true]"},
+       {"core_omega",
+        "Frequency-dependent core? If true, core part evaluated at each "
+        "frequency. If false, core evaluated once at w=0 [true]"},
        {"rpa_omega", "Frequency-dependent RPA? If true, RPA solved at each "
                      "frequency. If false, RPA solved once at w=0 [true]"},
        {"num_steps", "number of steps for dynamic polarisability [10]"},
@@ -134,11 +138,21 @@ void dynamicPolarisability(const IO::InputBlock &input,
                   "unstable for dynamic pol. [SOS]"},
        {"filename", "output filename for dynamic polarisability (a0_ and/or "
                     "a2_ will be appended to start of filename) [identity.txt "
-                    "(e.g., CsI.txt)]"}});
+                    "(e.g., CsI.txt)]"},
+       {"StrucRad", "SR: include SR+Norm correction [false]"},
+       {"n_min_core", "SR: Minimum n to include in SR+N [1]"},
+       {"max_n_SR",
+        "SR: Maximum n to include in the sum-over-states for SR+N [9]"},
+       {"Qk_file",
+        "SR: filename for QkTable file. If blank will not use QkTable; if "
+        "exists, "
+        "will read it in; if doesn't exist, will create it and write to disk. "
+        "Save time (10x) at cost of memory."}});
 
   const auto do_tensor = input.get("tensor", false);
   const auto rpaQ = input.get("rpa", true);
   const auto rpa_omegaQ = input.get("rpa_omega", true);
+  const auto core_omegaQ = input.get("core_omega", true);
 
   const auto he1 = DiracOperator::E1(wf.grid());
   auto dVE1 = ExternalField::TDHF(&he1, wf.vHF());
@@ -190,12 +204,79 @@ void dynamicPolarisability(const IO::InputBlock &input,
   } else {
     std::cout << "Not including RPA\n";
   }
+  if (core_omegaQ) {
+    std::cout << "Including frequency-dependent core part.\n";
+  } else {
+    std::cout << "Core part evaluated once at zero frequency.\n";
+  }
 
   if (rpaQ) {
     // solve RPA using all iterations for initial frequency
     // then, solve the rest with just a few iterations
     const auto w_initial = rpa_omegaQ ? w_list.front() : 0.0;
     dVE1.solve_core(w_initial);
+  }
+  // if not rpa_omegaQ, then dV included in meTable
+  auto *const dVptr = rpa_omegaQ ? &dVE1 : nullptr;
+
+  // static (w=0) core part.
+  const auto ac0 = core_omegaQ ?
+                       0.0 :
+                       alphaD::core_tdhf(wf.core(), he1, dVE1, 0.0, wf.Sigma());
+
+  const auto StrucRadQ = input.get("StrucRad", false);
+
+  std::optional<MBPT::StructureRad> sr{std::nullopt};
+  const auto max_n_SR = input.get("max_n_SR", 9);
+  if (StrucRadQ) {
+    const auto n_min_core = input.get("n_min_core", 1);
+    const auto Qk_file = input.get("Qk_file", std::string{""});
+    sr = MBPT::StructureRad(wf.basis(), wf.en_coreval_gap(), {n_min_core, 99},
+                            Qk_file);
+    std::cout << "Including core states from n>=" << n_min_core
+              << " in diagrams\n";
+    std::cout << "Calculating SR+N for terms up to n=" << max_n_SR
+              << " in the sum-over-states\n";
+  }
+
+  // build tables of matrix elements;
+  // Calculate these once, saves much time for calculation
+  // *note: relies on assumption that alphaD::..._sos always calls (n,v) or
+  // (n,c) and never (v,n) or (c,n)
+  Coulomb::meTable metab;
+  if (method != "MS") {
+    std::cout << "Building table of matrix elements.." << std::flush;
+    for (const auto &Fn : spectrum) {
+      // core part:
+      for (const auto &Fc : wf.core()) {
+        if (he1.isZero(Fn, Fc))
+          continue;
+        auto me = he1.reducedME(Fn, Fc);
+        if (rpaQ && !rpa_omegaQ) {
+          me += dVE1.dV(Fn, Fc);
+        }
+        metab.add(Fn, Fc, me);
+        // *
+        // metab_c.add(Fc, Fn, he1.symm_sign(Fn, Fc) * me);
+      }
+      // valence part:
+      for (const auto &Fv : wf.valence()) {
+        if (he1.isZero(Fn, Fv))
+          continue;
+        auto me = he1.reducedME(Fn, Fv);
+        if (rpaQ && !rpa_omegaQ) {
+          me += dVE1.dV(Fn, Fv);
+        }
+        // Adds SR+Norm! (ignores freq. dependence)
+        if (sr && Fn.n() <= max_n_SR) {
+          me += sr->srn(&he1, Fn, Fv).first;
+        }
+        metab.add(Fn, Fv, me);
+        // *
+        // metab_v.add(Fv, Fn, he1.symm_sign(Fn, Fv) * me);
+      }
+    }
+    std::cout << " Done.\n" << std::flush;
   }
 
   // Setup output optional file
@@ -248,7 +329,13 @@ void dynamicPolarisability(const IO::InputBlock &input,
     }
     // MS method is fine for the core, and _much_ faster, and core contributes
     // negligably..so fine.
-    const auto ac = alphaD::core_tdhf(wf.core(), he1, dVE1, ww, wf.Sigma());
+    const auto ac =
+        !core_omegaQ ?
+            ac0 :
+            (method == "MS" ?
+                 alphaD::core_tdhf(wf.core(), he1, dVE1, ww, wf.Sigma()) :
+                 alphaD::core_sos(wf.core(), spectrum, he1, dVptr, ww, &metab));
+
     if (print)
       printf("%9.2e %9.2e %9.2e ", ww, lambda, ac);
     ofile << ww << " " << lambda << " " << ac << " ";
@@ -262,10 +349,11 @@ void dynamicPolarisability(const IO::InputBlock &input,
       const auto av =
           method == "MS" ?
               ac + alphaD::valence_tdhf(Fv, he1, dVE1, ww, wf.Sigma()) :
-              ac + alphaD::valence_sos(Fv, spectrum, he1, &dVE1, ww);
+              ac + alphaD::valence_sos(Fv, spectrum, he1, dVptr, ww, &metab);
       avs.at(iv) = av;
       if (do_tensor) {
-        const auto a2 = alphaD::tensor2_sos(Fv, spectrum, he1, &dVE1, ww);
+        const auto a2 =
+            alphaD::tensor2_sos(Fv, spectrum, he1, dVptr, ww, &metab);
         a2s.at(iv) = a2;
       }
     }
@@ -316,7 +404,8 @@ namespace alphaD {
 double core_sos(const std::vector<DiracSpinor> &core,
                 const std::vector<DiracSpinor> &spectrum,
                 const DiracOperator::E1 &he1,
-                const ExternalField::CorePolarisation *dVE1, double omega) {
+                const ExternalField::CorePolarisation *dVE1, double omega,
+                const Coulomb::meTable<double> *dtab) {
 
   const auto f = (-2.0 / 3.0); // more general?
 
@@ -333,7 +422,8 @@ double core_sos(const std::vector<DiracSpinor> &core,
     for (const auto &Fn : spectrum) {
       if (he1.isZero(Fc.kappa(), Fn.kappa()))
         continue;
-      const auto d_nc = he1.reducedME(Fn, Fc);
+      const auto dtab_nc = dtab ? dtab->get(Fn, Fc) : nullptr;
+      const auto d_nc = dtab_nc ? *dtab_nc : he1.reducedME(Fn, Fc);
       const auto dv_nc = dVE1 ? dVE1->dV(Fn, Fc) : 0.0;
       // For core, only have dV for one ME
       const auto de = Fc.en() - Fn.en();
@@ -350,7 +440,8 @@ double core_sos(const std::vector<DiracSpinor> &core,
 double valence_sos(const DiracSpinor &Fv,
                    const std::vector<DiracSpinor> &spectrum,
                    const DiracOperator::E1 &he1,
-                   const ExternalField::CorePolarisation *dVE1, double omega) {
+                   const ExternalField::CorePolarisation *dVE1, double omega,
+                   const Coulomb::meTable<double> *dtab) {
 
   const auto f = (-2.0 / 3.0) / (Fv.twoj() + 1);
 
@@ -360,7 +451,8 @@ double valence_sos(const DiracSpinor &Fv,
     const auto &Fn = spectrum.at(in);
     if (he1.isZero(Fv.kappa(), Fn.kappa()))
       continue;
-    const auto d0_nv = he1.reducedME(Fn, Fv);
+    const auto dtab_nv = dtab ? dtab->get(Fn, Fv) : nullptr;
+    const auto d0_nv = dtab_nv ? *dtab_nv : he1.reducedME(Fn, Fv);
     const auto dv_nv = dVE1 ? dVE1->dV(Fn, Fv) : 0.0;
     const auto d_nv = d0_nv + dv_nv;
     const auto de = Fv.en() - Fn.en();
@@ -375,7 +467,8 @@ double valence_sos(const DiracSpinor &Fv,
 double tensor2_sos(const DiracSpinor &Fv,
                    const std::vector<DiracSpinor> &spectrum,
                    const DiracOperator::E1 &he1,
-                   const ExternalField::CorePolarisation *dVE1, double omega) {
+                   const ExternalField::CorePolarisation *dVE1, double omega,
+                   const Coulomb::meTable<double> *dtab) {
 
   // B. Arora, M. S. Safronova, and C. W. Clark, Phys. Rev. A 76, 052509 (2007).
   // J. Mitroy, M. S. Safronova, and C. W. Clark, Theory and Applications of
@@ -399,7 +492,9 @@ double tensor2_sos(const DiracSpinor &Fv,
       continue;
     const auto s = Angular::neg1pow_2(Fv.twoj() + Fn.twoj() + 2);
 
-    const auto d0_nv = he1.reducedME(Fn, Fv);
+    // const auto d0_nv = he1.reducedME(Fn, Fv);
+    const auto dtab_nv = dtab ? dtab->get(Fn, Fv) : nullptr;
+    const auto d0_nv = dtab_nv ? *dtab_nv : he1.reducedME(Fn, Fv);
     const auto dv_nv = dVE1 ? dVE1->dV(Fn, Fv) : 0.0;
     const auto d_nv = d0_nv + dv_nv;
     const auto de = Fv.en() - Fn.en();
