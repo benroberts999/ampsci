@@ -152,7 +152,7 @@ private:
 
   double W(int k, const DiracSpinor &a, const DiracSpinor &b,
            const DiracSpinor &c, const DiracSpinor &d) const {
-    return m_use_Qk ? mQ->Q(k, a, b, c, d) : mY.W(k, a, b, c, d);
+    return m_use_Qk ? mQ->W(k, a, b, c, d) : mY.W(k, a, b, c, d);
   }
 };
 
