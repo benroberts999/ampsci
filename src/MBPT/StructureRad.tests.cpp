@@ -1,14 +1,73 @@
-#include "DiracOperator/DiracOperator.hpp"
-#include "ExternalField/TDHF.hpp"
 #include "MBPT/StructureRad.hpp"
-#include "Physics/AtomData.hpp"
+#include "DiracOperator/DiracOperator.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "catch2/catch.hpp"
+#include "qip/Random.hpp"
 #include <algorithm>
 #include <string>
 
 //==============================================================================
-//! Unit tests for StructureRad + Normalisation of states
+TEST_CASE("MBPT: Structure Rad + Norm, basic", "[StrucRad][MBPT][unit]") {
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "MBPT: Structure Rad + Norm: basic unit\n";
+
+  // note: does not test formulas: just checks class is working correctly.
+  //  Other (integration) tests below check correctness/accuracy of formulas
+
+  Wavefunction wf({200, 1.0e-2, 30.0, 10.0, "loglinear", -1.0},
+                  {"Li", -1, "Fermi", -1.0, -1.0}, 1.0);
+  wf.solve_core("Local", 0.0, "[He]");
+  wf.formBasis({"5spdf", 20, 5, 1.0e-2, 1.0e-2, 20.0, false});
+
+  const auto h = DiracOperator::E1(wf.grid());
+
+  MBPT::StructureRad srn(wf.basis(), wf.en_coreval_gap());
+
+  // test srn_table
+  const auto tab = srn.srn_table(&h, srn.core(), srn.excited());
+  for (const auto &a : srn.core()) {
+    for (const auto &b : srn.excited()) {
+      if (h.isZero(a, b))
+        continue;
+      assert(tab.get(a, b) != nullptr);
+      assert(tab.get(b, a) != nullptr);
+      const auto [srab, xab] = *tab.get(a, b);
+      const auto [srba, xba] = *tab.get(b, a);
+      REQUIRE(std::abs(srab - h.symm_sign(a, b) * srba) < 1.0e-10);
+
+      const auto srn0 = srn.srTB(&h, a, b).first + srn.srC(&h, a, b).first +
+                        srn.norm(&h, a, b).first;
+      REQUIRE(std::abs(srab - srn0) < 1.0e-10);
+    }
+  }
+
+  // TEST SRN read-write using Qk_file
+  const auto rand_str = qip::random_string(6);
+  const auto fname = "tmp_deleteme_" + rand_str + ".qk";
+  MBPT::StructureRad srn2(wf.basis(), wf.en_coreval_gap(), {0, 999}, fname);
+  MBPT::StructureRad srn3(wf.basis(), wf.en_coreval_gap(), {0, 999}, fname);
+  for (const auto &a : wf.basis()) {
+    for (const auto &b : wf.basis()) {
+      if (a < b && !h.isZero(a, b)) {
+        const auto srC0 = srn.srC(&h, a, b).first;
+        const auto srC2 = srn2.srC(&h, a, b).first;
+        const auto srC3 = srn3.srC(&h, a, b).first;
+        REQUIRE(std::abs(srC0 - srC2) < 1.0e-10);
+        REQUIRE(std::abs(srC0 - srC3) < 1.0e-10);
+
+        const auto srTB2 = srn2.srTB(&h, a, b).first;
+        const auto srTB3 = srn3.srTB(&h, a, b).first;
+        REQUIRE(std::abs(srTB2 - srTB3) < 1.0e-14);
+
+        const auto srN2 = srn2.norm(&h, a, b).first;
+        const auto srN3 = srn3.norm(&h, a, b).first;
+        REQUIRE(std::abs(srN2 - srN3) < 1.0e-14);
+      }
+    }
+  }
+}
+
+//==============================================================================
 TEST_CASE("MBPT: Structure Rad + Norm",
           "[StrucRad][MBPT][ExternalField][integration][slow]") {
   std::cout << "\n----------------------------------------\n";
@@ -83,12 +142,6 @@ TEST_CASE("MBPT: Structure Rad + Norm",
       }
     }
 
-    // Data only known to 2 digits (with leading 1); so best is ~10%
-    // pass &= qip::check_value(&obuff, "StructRad(E1,Na) " + at_sr, worst_sr,
-    // 0.0,
-    //                          0.1);
-    // pass &= qip::check_value(&obuff, "NormStates(E1,Na) " + at_ns, worst_ns,
-    //                          0.0, 0.05);
     REQUIRE(std::abs(worst_sr) < 0.1);
     REQUIRE(std::abs(worst_ns) < 0.05);
   }
@@ -166,11 +219,6 @@ TEST_CASE("MBPT: Structure Rad + Norm",
 
     // Aim for better than 5% for SR, and 1% for Norm
     // Note: Quite possible ours are more accurate, despite very small basis
-    // pass &= qip::check_value(&obuff, "StructRad(E1,Cs) " + at_sr, worst_sr,
-    // 0.0,
-    //                          0.05);
-    // pass &= qip::check_value(&obuff, "NormStates(E1,Cs) " + at_ns, worst_ns,
-    //                          0.0, 0.01);
     REQUIRE(std::abs(worst_sr) < 0.05);
     REQUIRE(std::abs(worst_ns) < 0.01);
   }

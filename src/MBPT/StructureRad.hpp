@@ -1,5 +1,6 @@
 #pragma once
 #include "Coulomb/Coulomb.hpp"
+#include "Coulomb/meTable.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <memory>
@@ -73,6 +74,9 @@ private:
   std::vector<DiracSpinor> mCore{}, mExcited{};
 
 public:
+  const std::vector<DiracSpinor> &core() const { return mCore; }
+  const std::vector<DiracSpinor> &excited() const { return mExcited; }
+
   //! Returns sum of Top+Bottom (SR) diagrams, reduced ME: <w||T+B||v>. Returns
   //! a pair: {TB, TB+dV}: second includes RPA (if dV given)
   std::pair<double, double>
@@ -105,6 +109,13 @@ public:
     const auto [n, dvn] = norm(h, w, v, dV);
     return {tb + c + n, dvtb + dvc + dvn};
   }
+
+  //! constructs an me table of {srn, srn+dv} for each pair or {a,b}
+  Coulomb::meTable<std::pair<double, double>>
+  srn_table(const DiracOperator::TensorOperator *const h,
+            const std::vector<DiracSpinor> &as,
+            const std::vector<DiracSpinor> &tbs = {}, double omega = 0.0,
+            const ExternalField::CorePolarisation *const dV = nullptr) const;
 
 private:
   // "Top" diagrams

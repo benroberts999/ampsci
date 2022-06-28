@@ -29,8 +29,6 @@ StructureRad::StructureRad(const std::vector<DiracSpinor> &basis,
   auto both = mCore;
   both.insert(both.end(), mExcited.begin(), mExcited.end());
   mY.calculate(both);
-  // mY.calculate(mCore, mExcited);
-  // mY.calculate(mExcited);
 
   // nb: don't need mY if using QkTable.
   // However, require SixJTable!
@@ -181,6 +179,48 @@ StructureRad::norm(const DiracOperator::TensorOperator *const h,
   const auto nw = w == v ? nv : n1(w) + n2(w);
 
   return {-0.5 * t_wv * (nv + nw), -0.5 * tdv_wv * (nv + nw)};
+}
+
+//==============================================================================
+Coulomb::meTable<std::pair<double, double>>
+StructureRad::srn_table(const DiracOperator::TensorOperator *const h,
+                        const std::vector<DiracSpinor> &as,
+                        const std::vector<DiracSpinor> &tbs, double omega,
+                        const ExternalField::CorePolarisation *const dV) const {
+  const auto &bs = tbs.empty() ? as : tbs;
+
+  Coulomb::meTable<std::pair<double, double>> tab;
+
+  // First, fill with zeros. Must be done in serial
+  for (const auto &a : as) {
+    for (const auto &b : bs) {
+      if (h->isZero(a, b))
+        continue;
+      // if (!tab.contains(a, b)) {
+      // }
+      tab.add(a, b, {0.0, 0.0});
+      tab.add(b, a, {0.0, 0.0});
+    }
+  }
+
+#pragma omp parallel for collapse(2)
+  for (std::size_t ia = 0; ia < as.size(); ++ia) {
+    for (std::size_t ib = 0; ib < bs.size(); ++ib) {
+      const auto &a = as[ia];
+      const auto &b = bs[ib];
+      if (h->isZero(a, b))
+        continue; //?
+      auto el_ab = tab.get(a, b);
+      assert(el_ab != nullptr);
+      if (el_ab->first == 0.0) {
+        *el_ab = srn(h, a, b, omega, dV);
+        const auto s = h->symm_sign(a, b);
+        *tab.get(b, a) = {s * el_ab->first, s * el_ab->second};
+      }
+    }
+  }
+
+  return tab;
 }
 
 //==============================================================================

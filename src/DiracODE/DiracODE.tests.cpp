@@ -348,5 +348,7 @@ TEST_CASE("DiracODE: continuum", "[DiracODE][unit][!mayfail]") {
   const auto y = std::abs(Fs * (grid->r() * F1s));
   const auto y_expected = 0.417478989892057; // regression test!
   std::cout << y << "/" << y_expected << "\n";
+  // XXX? This randomly fails sometimes. Looks like some undefined behaviour!!
+  // XXX Depends on _order_ unit tests are run?????
   REQUIRE(std::abs(y - y_expected) < 1.0e-5);
 }

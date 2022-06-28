@@ -82,10 +82,11 @@ checkXdir:
 		false; \
 	fi
 
-.PHONY: clean docs doxy do_the_chicken_dance GitInfo checkObj checkXdir
+.PHONY: clean docs doxy do_the_chicken_dance GitInfo checkObj checkXdir remove_deleteme
 clean:
 	rm -f -v $(ALLEXES)
 	rm -rf -v $(BD)/*.o $(BD)/*.d $(BD)/*.gc* $(BD)/*/
+	make remove_deleteme
 # Make the 'ampsci.pdf' physics documentation
 docs:
 	( cd ./doc/tex && make )
@@ -103,3 +104,6 @@ do_the_chicken_dance:
 	@echo 'Why would I do that?'
 clang_format:
 	clang-format -i src/*.cpp src/*/*.cpp src/*/*.hpp
+remove_deleteme:
+	@echo 'Remove junk files created by test suite'
+	rm -f -v *deleteme*
