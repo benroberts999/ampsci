@@ -16,14 +16,15 @@ all: GitInfo checkObj checkXdir $(DEFAULTEXES)
 ################################################################################
 # Automatically generate dependency files for each cpp file, + compile:
 
-# All the files that in in src/{subsir}/.cpp don't have a main()
-# Compile them into objects; reflect the src/ directory tree.
-$(BD)/*/%.o: $(SD)/*/%.cpp
+# Auto rule for all cpp files
+$(BD)/%.o: $(SD)/%.cpp
 	@mkdir -p $(@D)
 	$(COMP)
 
-# All the files that in in src/.cpp *do* have a main(), compile
-$(BD)/%.o: $(SD)/%.cpp
+# Force ampsci.o to build each time: ensure updated git+version info!
+# Not the best solution, but works?
+.PHONY: force
+$(BD)/ampsci.o: $(SD)/ampsci.cpp force
 	@mkdir -p $(@D)
 	$(COMP)
 
@@ -70,6 +71,13 @@ GitInfo:
 	@echo Git Revision: $(shell git rev-parse --short HEAD 2>/dev/null)
 	@echo Modified: $(shell git status -s 2>/dev/null)
 
+# # XXX force this each time!
+# .PHONY: force
+# $(BD)/git.txt: force
+# 	$(shell git rev-parse HEAD 2>/dev/null > $(BD)/git.txt)
+# 	$(shell git rev-parse --abbrev-ref HEAD 2>/dev/null >> $(BD)/git.txt)
+# 	$(shell git status -s 2>/dev/null >> $(BD)/git.txt)
+
 checkObj:
 	@if [ ! -d $(BD) ]; then \
 	  echo '\n ERROR: Directory: '$(BD)' doesnt exist - please create it!\n'; \
@@ -105,5 +113,4 @@ do_the_chicken_dance:
 clang_format:
 	clang-format -i src/*.cpp src/*/*.cpp src/*/*.hpp
 remove_deleteme:
-	@echo 'Remove junk files created by test suite'
 	rm -f -v *deleteme*
