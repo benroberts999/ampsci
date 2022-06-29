@@ -7,8 +7,8 @@
 #include "Physics/include.hpp"
 #include "Physics/periodicTable.hpp"
 #include "Wavefunction/Wavefunction.hpp"
-#include "git.hpp"
 #include "qip/Vector.hpp"
+#include "version/version.hpp"
 #include <iostream>
 #include <memory>
 #include <string>
@@ -133,7 +133,8 @@ int main(int argc, char *argv[]) {
     std::cout << ampsci_help << '\n';
     return 0;
   } else if (input_text == "-v" || input_text == "--version") {
-    GitInfo::print_git_info();
+    std::cout << "AMPSCI v: " << version::version() << '\n';
+    std::cout << "Compiled: " << version::compiled() << '\n';
     return 0;
   } else if (input_text == "-h" || input_text == "--help" ||
              input_text == "-?") {
@@ -155,9 +156,10 @@ int main(int argc, char *argv[]) {
   }
 
   // Print git/version info to screen:
-  std::cout << "\n";
+  std::cout << '\n';
   IO::print_line();
-  GitInfo::print_git_info();
+  std::cout << "AMPSCI v: " << version::version() << '\n';
+  std::cout << "Compiled: " << version::compiled() << '\n';
   std::cout << "Run time: " << IO::time_date() << '\n';
 
   // If we are not given a valid input text file, assume input is in form:
@@ -189,7 +191,7 @@ int main(int argc, char *argv[]) {
 
 void ampsci(const IO::InputBlock &input) {
   IO::ChronoTimer timer("\nampsci");
-  std::cout << "\n";
+  std::cout << '\n';
   IO::print_line();
   input.print();
 
@@ -306,9 +308,9 @@ void ampsci(const IO::InputBlock &input) {
   // Create wavefunction object
   Wavefunction wf(radial_grid, std::move(nucleus), var_alpha);
 
-  std::cout << "\nRunning for " << wf.atom() << "\n"
-            << wf.nucleus() << "\n"
-            << wf.grid().gridParameters() << "\n"
+  std::cout << "\nRunning for " << wf.atom() << '\n'
+            << wf.nucleus() << '\n'
+            << wf.grid().gridParameters() << '\n'
             << "========================================================\n";
 
   // Parse input for Hartree-Fock
@@ -432,7 +434,7 @@ void ampsci(const IO::InputBlock &input) {
   if (a_eff) {
     const auto r_cut = input.get({"dVpol"}, "r_cut", 1.0);
     std::cout << "Adding effective polarisation potential: a=" << *a_eff
-              << ", rc=" << r_cut << "\n";
+              << ", rc=" << r_cut << '\n';
     const auto a4 = r_cut * r_cut * r_cut * r_cut;
     auto dV = [=](auto x) {
       return a_eff ? -0.5 * *a_eff / (x * x * x * x + a4) : 0.0;
@@ -449,7 +451,7 @@ void ampsci(const IO::InputBlock &input) {
   wf.solve_valence(valence);
 
   // Output Hartree Fock energies:
-  std::cout << "\n" << wf.identity() << "-" << wf.Anuc() << "\n";
+  std::cout << '\n' << wf.identity() << "-" << wf.Anuc() << '\n';
   wf.printCore(sorted_output);
   wf.printValence(sorted_output);
 
@@ -606,7 +608,7 @@ void ampsci(const IO::InputBlock &input) {
 
   // Solve Brueckner orbitals (optionally, fit Sigma to exp energies)
   if (!wf.valence().empty() && do_brueckner && Sigma_ok) {
-    std::cout << "\n";
+    std::cout << '\n';
     IO::ChronoTimer time("Brueckner");
     if (!fit_energies.empty())
       wf.fitSigma_hfBrueckner(valence, fit_energies);

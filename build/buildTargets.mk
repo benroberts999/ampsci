@@ -21,12 +21,12 @@ $(BD)/%.o: $(SD)/%.cpp
 	@mkdir -p $(@D)
 	$(COMP)
 
-# Force ampsci.o to build each time: ensure updated git+version info!
+# Force version.o to build each time: ensure updated git+version info!
 # Not the best solution, but works?
 .PHONY: force
-$(BD)/ampsci.o: $(SD)/ampsci.cpp force
+$(BD)/version/version.o: $(SD)/version/version.cpp force
 	@mkdir -p $(@D)
-	$(COMP)
+	$(COMP) $(GITFLAGS)
 
 # include the dependency files
 -include $(BD)/*.d $(BD)/*/*.d
@@ -57,11 +57,11 @@ $(XD)/dmeXSection: $(BD)/dmeXSection.o $(OBJS)
 
 # Add git version info to compile flags
 NOW:=$(shell date +%Y-%m-%d' '%H:%M' '%Z 2>/dev/null)
-CXXFLAGS+=-D GITREVISION="$(shell git rev-parse --short HEAD 2>/dev/null)"
-CXXFLAGS+=-D GITBRANCH="$(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)"
-CXXFLAGS+=-D GITMODIFIED="$(shell git status -s 2>/dev/null)"
-CXXFLAGS+=-D CXXVERSION="$(shell $(CXX) --version 2>/dev/null | sed -n '1p' | sed s/'('/'['/ | sed s/')'/']'/)"
-CXXFLAGS+=-D COMPTIME="$(NOW)"
+GITFLAGS=-D GITREVISION="$(shell git rev-parse --short HEAD 2>/dev/null)"
+GITFLAGS+=-D GITBRANCH="$(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)"
+GITFLAGS+=-D GITMODIFIED="$(shell git status -s 2>/dev/null)"
+GITFLAGS+=-D CXXVERSION="$(shell $(CXX) --version 2>/dev/null | sed -n '1p' | sed s/'('/'['/ | sed s/')'/']'/)"
+GITFLAGS+=-D COMPTIME="$(NOW)"
 
 ################################################################################
 ################################################################################
@@ -94,7 +94,7 @@ checkXdir:
 clean:
 	rm -f -v $(ALLEXES)
 	rm -rf -v $(BD)/*.o $(BD)/*.d $(BD)/*.gc* $(BD)/*/
-	make remove_deleteme
+	rm -f -v *deleteme*
 # Make the 'ampsci.pdf' physics documentation
 docs:
 	( cd ./doc/tex && make )
