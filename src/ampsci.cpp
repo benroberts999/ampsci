@@ -3,6 +3,7 @@
 #include "IO/InputBlock.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/Interpolator.hpp" //for 'ExtraPotential'
+#include "Modules/modules_list.hpp"
 #include "Modules/runModules.hpp"
 #include "Physics/include.hpp"
 #include "Physics/periodicTable.hpp"
@@ -38,6 +39,8 @@ $ ./ampsci -v
   - Prints version info (same as --version)
 $ ./ampsci -h
   - Print help info, including input options (same as --help, -?)
+$ ./ampsci -m
+  - Prints list of available Modules (same as --modules)
 $ ./ampsci -p
   - Prints periodic table with electronic+nuclear info (same as --periodicTable)
 $ ./ampsci -c
@@ -87,14 +90,14 @@ top-level Blocks:
   Module::*{}    // InputBlock. Run any number of modules (* -> module name)
 
 Set 'help;' inside any of these to get full set of options of each of these, 
-and so on.
-Full descriptions of each Block/Option are given in /doc/ - but the self-
-documentation of the code will always be more up-to-date.
+and so on. Full descriptions of each Block/Option are given in doc/ - but the 
+self-documentation of the code will always be more up-to-date.
 
-The general usage of the code is to use the first, then to add as many 
-'Module::' blocks as required. Each module is a seperate routine that will take
-the calculated wavefunction and compute any desired property (e.g., matrix 
-elements). The code is designed such that anyone can write a new Module (see 
+The general usage of the code is to first use the main blocks to construct the 
+atomic wavefunction and basis states, then to add as many 'Module::' blocks as 
+required. Each module is a seperate routine that will take the calculated 
+wavefunction and compute any desired property (e.g., matrix elements). The code 
+is designed such that anyone can write a new Module (see 
 /src/Modules/exampleModule.hpp)
 
 e.g., To calculate Cs wavefunctions at HF level with 6s, 6p, and 5d valence 
@@ -140,6 +143,10 @@ int main(int argc, char *argv[]) {
              input_text == "-?") {
     std::cout << ampsci_help << '\n';
     std::cout << ampsci_input_format << '\n';
+    return 0;
+  } else if (input_text == "-m" || input_text == "--modules") {
+    std::cout << "Available modules: \n";
+    Module::list_modules();
     return 0;
   } else if (input_text == "-p" || input_text == "--periodicTable") {
     std::string z_str = (argc > 2) ? argv[2] : "";

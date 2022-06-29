@@ -16,6 +16,7 @@
 #include "Modules/screeningFactors.hpp"
 #include "Modules/testFeynman.hpp"
 #include "Modules/tests.hpp"
+#include <iostream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -51,5 +52,11 @@ static const std::vector<std::pair<
                 {"continuum", &continuum},
                 {"ladder", &ladder},
                 {"exampleModule", &exampleModule}};
+
+inline void list_modules() {
+  for (auto &[name, func] : module_list) {
+    std::cout << "  " << name << '\n';
+  }
+}
 
 } // namespace Module

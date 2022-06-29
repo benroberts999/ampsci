@@ -243,7 +243,7 @@ void dynamicPolarisability(const IO::InputBlock &input,
   // Calculate these once, saves much time for calculation
   // *note: relies on assumption that alphaD::..._sos always calls (n,v) or
   // (n,c) and never (v,n) or (c,n)
-  Coulomb::meTable metab;
+  Coulomb::meTable metab{};
   if (method != "MS") {
     std::cout << "Building table of matrix elements.." << std::flush;
     for (const auto &Fn : spectrum) {

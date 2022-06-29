@@ -14,7 +14,17 @@ jobs:
     - uses: actions/checkout@v1
 
     - name: "Install dependencies"
-      run: sudo apt install -y make g++-7 g++-11 clang-6.0 clang-10 clang-11 liblapack-dev libblas-dev libgsl-dev
+      run: |
+        sudo apt-get install -y make 
+        sudo apt-get install -y g++-7 
+        sudo apt-get install -y g++-11 --fix-missing
+        sudo apt-get install -y clang-6.0 
+        sudo apt-get install -y clang-10 
+        sudo apt-get install -y clang-11 --fix-missing
+        sudo apt-get install -y liblapack-dev 
+        sudo apt-get install -y libblas-dev 
+        sudo apt-get install -y libgsl-dev 
+        sudo apt-get install -y libomp-dev
 
     - name: setup
       run: cp ./doc/examples/Makefile ./ && cp ./doc/examples/ampsci.in ./ampsci.in

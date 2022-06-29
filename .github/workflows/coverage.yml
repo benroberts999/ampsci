@@ -13,7 +13,7 @@ jobs:
     steps:
     - uses: actions/checkout@v1
     - name: "Install dependencies"
-      run: sudo apt install -y g++-9 make liblapack-dev libblas-dev libgsl-dev libomp-dev lcov
+      run: sudo apt-get install -y g++-9 make liblapack-dev libblas-dev libgsl-dev libomp-dev lcov
     - name: setup
       run: cp ./doc/examples/Makefile ./ && chmod +x ./src/tests/lcov.sh 
     - name: Build ampsci & use LCOV to prepare report
