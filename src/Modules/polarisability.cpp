@@ -2,6 +2,7 @@
 #include "Coulomb/meTable.hpp"
 #include "DiracOperator/DiracOperator.hpp"
 #include "ExternalField/TDHF.hpp"
+#include "IO/ChronoTimer.hpp"
 #include "IO/InputBlock.hpp"
 #include "MBPT/StructureRad.hpp"
 #include "Physics/PhysConst_constants.hpp" // For GHz unit conversion
@@ -22,6 +23,7 @@ namespace Module {
 
 //==============================================================================
 void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
+  IO::ChronoTimer("polarisability");
 
   std::cout << "\n----------------------------------------------------------\n";
   std::cout << "Calculate atomic polarisabilities at single frequency\n";
@@ -116,6 +118,7 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
 //==============================================================================
 void dynamicPolarisability(const IO::InputBlock &input,
                            const Wavefunction &wf) {
+  IO::ChronoTimer("dynamicPolarisability");
 
   std::cout << "\n----------------------------------------------------------\n";
   std::cout << "Calculate atomic dynamic polarisabilities\n";
@@ -136,6 +139,9 @@ void dynamicPolarisability(const IO::InputBlock &input,
        {"method", "Method used for dynamic pol. for a0(w). Either 'SOS' "
                   "(sum-over-states) or 'MS' (mixed-states=TDHF). MS can be "
                   "unstable for dynamic pol. [SOS]"},
+       {"replace_w_valence",
+        "Replace corresponding spectrum states with valence states - "
+        "circumvents spectrum issue! [false]"},
        {"filename", "output filename for dynamic polarisability (a0_ and/or "
                     "a2_ will be appended to start of filename) [identity.txt "
                     "(e.g., CsI.txt)]"},
@@ -158,7 +164,18 @@ void dynamicPolarisability(const IO::InputBlock &input,
   auto dVE1 = ExternalField::TDHF(&he1, wf.vHF());
 
   // We should use _spectrum_ for the sos - but if it is empty, just use basis
-  const auto &spectrum = wf.spectrum().empty() ? wf.basis() : wf.spectrum();
+  auto spectrum = wf.spectrum().empty() ? wf.basis() : wf.spectrum();
+
+  const auto replace_w_valence = input.get("replace_w_valence", false);
+  if (replace_w_valence) {
+    std::cout
+        << "Replacing spectrum states with corresponding valence states\n";
+    std::cout << "Experimental feature!\n";
+    for (const auto &Fv : wf.valence()) {
+      auto it = std::find(spectrum.begin(), spectrum.end(), Fv);
+      *it = Fv;
+    }
+  }
 
   //-------------------------------------------------
   // dynamic polarisability:
@@ -245,6 +262,7 @@ void dynamicPolarisability(const IO::InputBlock &input,
   // (n,c) and never (v,n) or (c,n)
   Coulomb::meTable metab{};
   if (method != "MS") {
+    IO::ChronoTimer("Build meTable");
     std::cout << "Building table of matrix elements.." << std::flush;
     for (const auto &Fn : spectrum) {
       // core part:
@@ -255,9 +273,7 @@ void dynamicPolarisability(const IO::InputBlock &input,
         if (rpaQ && !rpa_omegaQ) {
           me += dVE1.dV(Fn, Fc);
         }
-        metab.add(Fn, Fc, me);
-        // *
-        // metab_c.add(Fc, Fn, he1.symm_sign(Fn, Fc) * me);
+        metab.add(Fn, Fc, me); // *
       }
       // valence part:
       for (const auto &Fv : wf.valence()) {
@@ -271,9 +287,7 @@ void dynamicPolarisability(const IO::InputBlock &input,
         if (sr && Fn.n() <= max_n_SR) {
           me += sr->srn(&he1, Fn, Fv).first;
         }
-        metab.add(Fn, Fv, me);
-        // *
-        // metab_v.add(Fv, Fn, he1.symm_sign(Fn, Fv) * me);
+        metab.add(Fn, Fv, me); // *
       }
     }
     std::cout << " Done.\n" << std::flush;
