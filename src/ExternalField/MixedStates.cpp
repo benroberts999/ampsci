@@ -97,4 +97,56 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
   }
 }
 
+//------------------------------------------------------------------------------
+void solveMixedState_v2(DiracSpinor &dF, const DiracSpinor &Fa,
+                        const double omega, const std::vector<double> &vl,
+                        const double alpha,
+                        const std::vector<DiracSpinor> &core,
+                        const DiracSpinor &hFa, const double eps_target,
+                        const MBPT::CorrelationPotential *const Sigma,
+                        const HF::Breit *const VBr,
+                        const std::vector<double> &H_mag)
+// Solves:  (H - e - w)X = -h*Fa for X
+{
+
+  /*
+  void solve_inhomog(DiracSpinor &Fa, const double en,
+                     const std::vector<double> &v,
+                     const std::vector<double> &H_mag, const double alpha,
+                     const DiracSpinor &source, const DiracSpinor *const VxFa,
+                     const DiracSpinor *const Fa0, double zion)
+  */
+
+  using namespace qip::overloads;
+  DiracODE::solve_inhomog(dF, Fa.en() + omega, vl, H_mag, alpha, -1.0 * hFa);
+  for (int its = 0; its < 100; its++) {
+    const auto vx = 1.0 * vex_approx(dF, core);
+    auto VxdF = (vexFa(dF, core) - vx * dF);
+    if (Sigma)
+      VxdF += (*Sigma)(dF);
+    if (VBr)
+      VxdF += VBr->VbrFa(dF, core);
+    const auto dF0 = dF;
+
+    DiracODE::solve_inhomog(dF, Fa.en() + omega, vl + vx, H_mag, alpha,
+                            -1.0 * hFa, &VxdF, &dF0, 1);
+
+    const auto a = its == 0 ? 0.0 : 0.35;
+    if (its != 0)
+      dF = (1.0 - a) * dF + a * dF0;
+    auto dF2 = std::abs(dF * dF);
+    auto dF20 = std::abs(dF0 * dF0);
+    auto eps = std::abs((dF2 - dF20) / dF2);
+    // std::cout << __LINE__ << "| " << Fa.symbol() << " - " << dF.symbol()
+    // << "
+    // "
+    //           << its << " " << eps << "\n";
+    // converges to !1.0e-14!
+    if (eps < eps_target || its == 99) {
+      break;
+    }
+  }
+  return;
+}
+
 } // namespace ExternalField

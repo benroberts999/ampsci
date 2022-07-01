@@ -262,7 +262,7 @@ void dynamicPolarisability(const IO::InputBlock &input,
   // (n,c) and never (v,n) or (c,n)
   Coulomb::meTable metab{};
   if (method != "MS") {
-    IO::ChronoTimer("Build meTable");
+    IO::ChronoTimer t("Build meTable");
     std::cout << "Building table of matrix elements.." << std::flush;
     for (const auto &Fn : spectrum) {
       // core part:

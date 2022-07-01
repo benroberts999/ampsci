@@ -51,4 +51,14 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
                      const HF::Breit *const VBr = nullptr,
                      const std::vector<double> &H_mag = {});
 
+void solveMixedState_v2(DiracSpinor &dF, const DiracSpinor &Fa,
+                        const double omega, const std::vector<double> &vl,
+                        const double alpha,
+                        const std::vector<DiracSpinor> &core,
+                        const DiracSpinor &hFa,
+                        const double eps_target = 1.0e-9,
+                        const MBPT::CorrelationPotential *const Sigma = nullptr,
+                        const HF::Breit *const VBr = nullptr,
+                        const std::vector<double> &H_mag = {});
+
 } // namespace ExternalField
