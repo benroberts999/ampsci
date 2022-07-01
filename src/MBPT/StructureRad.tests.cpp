@@ -1,4 +1,4 @@
-#include "MBPT/StructureRad.hpp"
+#include "StructureRad.hpp"
 #include "DiracOperator/DiracOperator.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "catch2/catch.hpp"

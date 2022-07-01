@@ -1,7 +1,7 @@
 
+#include "MixedStates.hpp"
 #include "DiracOperator/DiracOperator.hpp"
 #include "ExternalField/TDHF.hpp"
-#include "MixedStates.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "catch2/catch.hpp"
 #include "qip/String.hpp"
@@ -158,13 +158,6 @@ TEST_CASE("External Field: Mixed-states",
       }
     }
     std::cout << worst_set << " " << worst_eps << "\n";
-    // the "best" are all ~1.e-y
-    // passQ &= qip::check_value(&obuff, "MS: hfs(B) " + best_set, best_eps,
-    // 0.0,
-    //                           1.0e-7);
-    // passQ &= qip::check_value(&obuff, "MS: hfs(W) " + worst_set, worst_eps,
-    // 0.0,
-    //                           1.0e-4);
     REQUIRE(std::abs(best_eps) < 1.0e-7);
     REQUIRE(std::abs(worst_eps) < 1.0e-4);
   }

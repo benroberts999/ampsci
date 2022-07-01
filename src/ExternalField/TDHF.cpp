@@ -307,7 +307,7 @@ void TDHF::solve_core(const double omega, const int max_its, const bool print) {
   }
   if (print) {
     printf("%2i %.1e", it, eps);
-    if (eps > 1.0e-5)
+    if (eps > 1.0e-5 && max_its > 1)
       std::cout << "  ====*";
     std::cout << "\n" << std::flush;
   }

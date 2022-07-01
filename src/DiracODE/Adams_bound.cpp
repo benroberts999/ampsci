@@ -173,15 +173,19 @@ Orbitals defined:
 //==============================================================================
 void regularAtOrigin(DiracSpinor &Fa, const double en,
                      const std::vector<double> &v,
-                     const std::vector<double> &H_mag, const double alpha) {
+                     const std::vector<double> &H_mag, const double alpha,
+                     const DiracSpinor *const VxFa,
+                     const DiracSpinor *const Fa0, double zion) {
 
   const auto &gr = Fa.grid();
-  if (en != 0)
+  if (en != 0.0)
     Fa.en() = en;
   const auto pinf =
       Adams::findPracticalInfinity(Fa.en(), v, gr.r(), Param::cALR);
-  Adams::DiracMatrix Hd(gr, v, Fa.kappa(), Fa.en(), alpha, H_mag);
+  Adams::DiracMatrix Hd(gr, v, Fa.kappa(), Fa.en(), alpha, H_mag, VxFa, Fa0,
+                        zion);
   Adams::outwardAM(Fa.f(), Fa.g(), Hd, pinf - 1);
+  Fa.min_pt() = 0;
   Fa.max_pt() = pinf;
   // for safety: make sure zerod! (I may re-use existing orbitals!)
   Fa.zero_boundaries();
@@ -190,15 +194,19 @@ void regularAtOrigin(DiracSpinor &Fa, const double en,
 //==============================================================================
 void regularAtInfinity(DiracSpinor &Fa, const double en,
                        const std::vector<double> &v,
-                       const std::vector<double> &H_mag, const double alpha) {
+                       const std::vector<double> &H_mag, const double alpha,
+                       const DiracSpinor *const VxFa,
+                       const DiracSpinor *const Fa0, double zion) {
 
   const auto &gr = Fa.grid();
   if (en < 0)
     Fa.en() = en;
   const auto pinf =
       Adams::findPracticalInfinity(Fa.en(), v, gr.r(), Param::cALR);
-  Adams::DiracMatrix Hd(gr, v, Fa.kappa(), Fa.en(), alpha, H_mag);
+  Adams::DiracMatrix Hd(gr, v, Fa.kappa(), Fa.en(), alpha, H_mag, VxFa, Fa0,
+                        zion);
   Adams::inwardAM(Fa.f(), Fa.g(), Hd, 0, pinf - 1);
+  Fa.min_pt() = 0;
   Fa.max_pt() = pinf;
   // for safety: make sure zerod! (I may re-use existing orbitals!)
   Fa.zero_boundaries();
@@ -583,13 +591,7 @@ void adamsMoulton(std::vector<double> &f, std::vector<double> &g,
     double sg = g[ri - inc] + qip::inner_product(am, dg);
 
     if (Hd.VxFa) {
-      // XXX nb: issue is that 'f' is not normalised, but VxFa is!
-      // const auto dr = Hd.pgr->drdu(ri - inc) * a0;
-      // const auto Xscalef = (Hd.Fa0->f(ri - inc) != 0.0)
-      //                          ? f[ri - inc] / Hd.Fa0->f(ri - inc)
-      //                          : 0.0;
-      // sf -= Hd.alpha * Xscalef * Hd.VxFa->g(ri - inc) * dr;
-      // sg += Hd.alpha * Xscalef * Hd.VxFa->f(ri - inc) * dr;
+      // nb: issue is that 'f' is not normalised, but VxFa is!
       sf += a0 * Xscl * Hd.dfdu_X(ri);
       sg += a0 * Xscl * Hd.dgdu_X(ri);
     }
@@ -650,7 +652,7 @@ DiracMatrix::abcd(std::size_t i) const {
 
 double DiracMatrix::dfdu(const std::vector<double> &f,
                          const std::vector<double> &g, std::size_t i) const {
-  // XXX nb: issue is that 'f' is not normalised, but VxFa is!
+  // nb: issue is that 'f' is not normalised, but VxFa is!
   // const auto exch = VxFa ? -alpha * VxFa->g(i) * pgr->drdu(i) : 0.0;
   // const auto Xscale =
   //     (VxFa != nullptr && Fa0->f(i) != 0.0) ? f[i] / Fa0->f(i) : 0.0;
@@ -658,7 +660,7 @@ double DiracMatrix::dfdu(const std::vector<double> &f,
 }
 double DiracMatrix::dgdu(const std::vector<double> &f,
                          const std::vector<double> &g, std::size_t i) const {
-  // XXX nb: issue is that 'f' is not normalised, but VxFa is!
+  // nb: issue is that 'f' is not normalised, but VxFa is!
   // const auto exch = VxFa ? alpha * VxFa->f(i) * pgr->drdu(i) : 0.0;
   // const auto Xscale =
   //     (VxFa != nullptr && Fa0->f(i) != 0.0) ? f[i] / Fa0->f(i) : 0.0;
@@ -666,11 +668,11 @@ double DiracMatrix::dgdu(const std::vector<double> &f,
 }
 
 double DiracMatrix::dfdu_X(std::size_t i) const {
-  // XXX nb: issue is that 'f' is not normalised, but VxFa is!
+  // nb: issue is that 'f' is not normalised, but VxFa is!
   return VxFa ? -alpha * VxFa->g(i) * pgr->drdu(i) : 0.0;
 }
 double DiracMatrix::dgdu_X(std::size_t i) const {
-  // XXX nb: issue is that 'f' is not normalised, but VxFa is!
+  // nb: issue is that 'f' is not normalised, but VxFa is!
   return VxFa ? alpha * VxFa->f(i) * pgr->drdu(i) : 0.0;
 }
 
