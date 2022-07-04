@@ -144,6 +144,8 @@ void dynamicPolarisability(const IO::InputBlock &input,
         "circumvents spectrum issue! [false]"},
        {"drop_continuum", "Discard states from the spectrum with e>0 - these "
                           "can cause spurious resonances [false]"},
+       {"drop_states",
+        "List. Discard these states from the spectrum for sum-over-states []"},
        {"filename", "output filename for dynamic polarisability (a0_ and/or "
                     "a2_ will be appended to start of filename) [identity.txt "
                     "(e.g., CsI.txt)]"},
@@ -170,6 +172,7 @@ void dynamicPolarisability(const IO::InputBlock &input,
 
   const auto replace_w_valence = input.get("replace_w_valence", false);
   const auto drop_continuum = input.get("drop_continuum", false);
+  const auto drop_states = input.get("drop_states", std::vector<std::string>{});
   if (replace_w_valence) {
     std::cout
         << "Replacing spectrum states with corresponding valence states\n";
@@ -186,6 +189,23 @@ void dynamicPolarisability(const IO::InputBlock &input,
     auto is_continuum = [](const auto &a) { return a.en() > 0.0; };
     auto it = std::remove_if(spectrum.begin(), spectrum.end(), is_continuum);
     spectrum.erase(it, spectrum.end());
+  }
+  wf.printBasis(spectrum);
+  if (!drop_states.empty()) {
+    std::cout
+        << "Dropping following states from spectrum for sum-over-states:\n ";
+    for (const auto &state : drop_states) {
+      std::cout << state << ", ";
+      const auto [nn, kk] = AtomData::parse_symbol(state);
+      const auto n = nn;
+      const auto k = kk; // structured binding cannot be captured
+      const auto is_nk = [n, k](const auto &a) {
+        return a.n() == n && a.kappa() == k;
+      };
+      auto it = std::remove_if(spectrum.begin(), spectrum.end(), is_nk);
+      spectrum.erase(it, spectrum.end());
+    }
+    std::cout << "\n";
   }
 
   //-------------------------------------------------
@@ -340,7 +360,7 @@ void dynamicPolarisability(const IO::InputBlock &input,
     const auto print =
         w_list.size() < 20 ?
             true :
-            (ww == w_list.front() || ww == w_list.back() || (count % 10 == 0));
+            (ww == w_list.front() || ww == w_list.back() || (count % 20 == 0));
 
     if (rpaQ && rpa_omegaQ) {
       if (dVE1.get_eps() > 1.0e-2) {
