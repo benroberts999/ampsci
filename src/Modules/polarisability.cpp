@@ -118,7 +118,7 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
 //==============================================================================
 void dynamicPolarisability(const IO::InputBlock &input,
                            const Wavefunction &wf) {
-  IO::ChronoTimer("dynamicPolarisability");
+  IO::ChronoTimer t1("dynamicPolarisability");
 
   std::cout << "\n----------------------------------------------------------\n";
   std::cout << "Calculate atomic dynamic polarisabilities\n";
@@ -142,6 +142,8 @@ void dynamicPolarisability(const IO::InputBlock &input,
        {"replace_w_valence",
         "Replace corresponding spectrum states with valence states - "
         "circumvents spectrum issue! [false]"},
+       {"drop_continuum", "Discard states from the spectrum with e>0 - these "
+                          "can cause spurious resonances [false]"},
        {"filename", "output filename for dynamic polarisability (a0_ and/or "
                     "a2_ will be appended to start of filename) [identity.txt "
                     "(e.g., CsI.txt)]"},
@@ -167,6 +169,7 @@ void dynamicPolarisability(const IO::InputBlock &input,
   auto spectrum = wf.spectrum().empty() ? wf.basis() : wf.spectrum();
 
   const auto replace_w_valence = input.get("replace_w_valence", false);
+  const auto drop_continuum = input.get("drop_continuum", false);
   if (replace_w_valence) {
     std::cout
         << "Replacing spectrum states with corresponding valence states\n";
@@ -175,6 +178,14 @@ void dynamicPolarisability(const IO::InputBlock &input,
       auto it = std::find(spectrum.begin(), spectrum.end(), Fv);
       *it = Fv;
     }
+  }
+  if (drop_continuum) {
+    std::cout << "Dropping continuum states (e>0) from the sum-over-states "
+                 "spectrum.\n";
+    std::cout << "Experimental feature!\n";
+    auto is_continuum = [](const auto &a) { return a.en() > 0.0; };
+    auto it = std::remove_if(spectrum.begin(), spectrum.end(), is_continuum);
+    spectrum.erase(it, spectrum.end());
   }
 
   //-------------------------------------------------
