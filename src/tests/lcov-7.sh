@@ -10,10 +10,10 @@ lcov --capture --directory . --output-file coverage.info &&
 lcov --remove coverage.info \
   '*/catch2/*' \
   '/*.tests*' \
+  '*/version/*' \
   '/usr/*' \
   '*/Modules/*' \
   '*/DMionisation/*' \
   '*/ExternalField/*' \
-  '*/MBPT/*' \
 --output-file coverage.info &&
 lcov --list coverage.info |tee -a cov-info.txt

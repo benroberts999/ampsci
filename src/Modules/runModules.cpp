@@ -29,6 +29,9 @@ void runModule(const IO::InputBlock &module_input,
                const Wavefunction &wf) //
 {
   const auto &in_name = module_input.name();
+  std::cout << '\n';
+  IO::print_line('-');
+  std::cout << "Module: " << in_name << "\n";
 
   // Loop through all available modules, run correct one
   for (const auto &[mod_name, mod_func] : module_list) {

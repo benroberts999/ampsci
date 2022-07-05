@@ -47,6 +47,7 @@ static const std::vector<std::pair<
                 {"lifetimes", &calculateLifetimes},
                 {"polarisability", &polarisability},
                 {"dynamicPolarisability", &dynamicPolarisability},
+                {"transitionPolarisability", &transitionPolarisability},
                 {"structureRad", &structureRad},
                 {"fieldShift", &fieldShift},
                 {"continuum", &continuum},

@@ -10,6 +10,7 @@ lcov --capture --directory . --output-file coverage.info &&
 lcov --remove coverage.info \
   '*/catch2/*' \
   '/*.tests*' \
+  '*/version/*' \
   '/usr/*' \
   '*/Modules/*' \
   '*/DMionisation/*' \
