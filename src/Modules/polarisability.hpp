@@ -59,7 +59,8 @@ in Atoms, Phys. Rev. A 98, 043411 (2018).
 */
 double valence_tdhf(const DiracSpinor &Fv, const DiracOperator::E1 &he1,
                     const ExternalField::TDHF &dVE1, double omega,
-                    const MBPT::CorrelationPotential *const Sigma);
+                    const MBPT::CorrelationPotential *const Sigma,
+                    const std::vector<DiracSpinor> &force_orthog = {});
 
 //! Calculates Structure-radiation + normalisation contribution to valence
 //! polarisability, using sum-over-states.

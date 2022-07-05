@@ -32,6 +32,12 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
       {{"rpa", "Include RPA? [true]"},
        {"omega", "frequency (for single w) [0.0]"},
        {"tensor", "Also calculate tensor alpha_2(w) (as well as a0) [false]"},
+       {"drop_continuum", "Discard states from the spectrum with e>0 - these "
+                          "can cause spurious resonances [false]"},
+       {"drop_states",
+        "List. Discard these states from the spectrum for "
+        "sum-over-states for valence part of alpha, and "
+        "from TDHF by orthogonality (must be in core/valence) []"},
        {"StrucRad", "SR: include SR+Norm correction [false]"},
        {"n_min_core", "SR: Minimum n to include in SR+N [1]"},
        {"max_n_SR",
@@ -50,7 +56,7 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
   auto dVE1 = ExternalField::TDHF(&he1, wf.vHF());
 
   // We should use _spectrum_ for the sos - but if it is empty, just use basis
-  const auto &spectrum = wf.spectrum().empty() ? wf.basis() : wf.spectrum();
+  auto spectrum = wf.spectrum().empty() ? wf.basis() : wf.spectrum();
 
   // Solve TDHF for core, is doing RPA.
   // nb: even if not doing RPA, need TDHF object for tdhf method
@@ -67,6 +73,39 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "         SOS           MS             eps\n";
   printf("Core :  %12.5e  %12.5e   [%.0e]\n", ac_sos, ac_ms, eps);
 
+  // Drop states from spectrum _AFTER_ we calculate core contribution
+  const auto drop_continuum = input.get("drop_continuum", false);
+  const auto drop_states = input.get("drop_states", std::vector<std::string>{});
+  if (drop_continuum) {
+    std::cout << "Dropping continuum states (e>0) from the sum-over-states "
+                 "spectrum.\n";
+    auto is_continuum = [](const auto &a) { return a.en() > 0.0; };
+    auto it = std::remove_if(spectrum.begin(), spectrum.end(), is_continuum);
+    spectrum.erase(it, spectrum.end());
+  }
+  std::vector<DiracSpinor> force_orthog;
+  if (!drop_states.empty()) {
+    std::cout
+        << "Dropping following states from spectrum for sum-over-states:\n ";
+    for (const auto &state : drop_states) {
+      std::cout << state << ", ";
+      // first, drop from spectrum
+      const auto [nn, kk] = AtomData::parse_symbol(state);
+      const auto n = nn;
+      const auto k = kk; // structured binding cannot be captured
+      const auto is_nk = [n, k](const auto &a) {
+        return a.n() == n && a.kappa() == k;
+      };
+      auto it = std::remove_if(spectrum.begin(), spectrum.end(), is_nk);
+      spectrum.erase(it, spectrum.end());
+      // then, find core/valence state to
+      auto pFnk = wf.getState(n, k);
+      if (pFnk)
+        force_orthog.push_back(*pFnk);
+    }
+    std::cout << "\n";
+  }
+
   // Valence contributions and total polarisabilities (single omega)
   if (!wf.valence().empty()) {
     std::cout << "\nValence states (at w=" << omega
@@ -74,7 +113,8 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << "         SOS           MS             eps\n";
     for (auto &Fv : wf.valence()) {
       const auto av_sos = alphaD::valence_sos(Fv, spectrum, he1, &dVE1, omega);
-      const auto av_ms = alphaD::valence_tdhf(Fv, he1, dVE1, omega, wf.Sigma());
+      const auto av_ms =
+          alphaD::valence_tdhf(Fv, he1, dVE1, omega, wf.Sigma(), force_orthog);
       const auto epsv = std::abs(2.0 * (ac_sos + av_sos - ac_ms - av_ms) /
                                  (ac_sos + av_sos + ac_ms + av_ms));
       printf("%4s :  %12.5e  %12.5e   [%.0e]\n", Fv.shortSymbol().c_str(),
@@ -176,7 +216,6 @@ void dynamicPolarisability(const IO::InputBlock &input,
   if (replace_w_valence) {
     std::cout
         << "Replacing spectrum states with corresponding valence states\n";
-    std::cout << "Experimental feature!\n";
     for (const auto &Fv : wf.valence()) {
       auto it = std::find(spectrum.begin(), spectrum.end(), Fv);
       *it = Fv;
@@ -185,12 +224,10 @@ void dynamicPolarisability(const IO::InputBlock &input,
   if (drop_continuum) {
     std::cout << "Dropping continuum states (e>0) from the sum-over-states "
                  "spectrum.\n";
-    std::cout << "Experimental feature!\n";
     auto is_continuum = [](const auto &a) { return a.en() > 0.0; };
     auto it = std::remove_if(spectrum.begin(), spectrum.end(), is_continuum);
     spectrum.erase(it, spectrum.end());
   }
-  wf.printBasis(spectrum);
   if (!drop_states.empty()) {
     std::cout
         << "Dropping following states from spectrum for sum-over-states:\n ";
@@ -596,15 +633,28 @@ double core_tdhf(const std::vector<DiracSpinor> &core,
 //------------------------------------------------------------------------------
 double valence_tdhf(const DiracSpinor &Fv, const DiracOperator::E1 &he1,
                     const ExternalField::TDHF &dVE1, double omega,
-                    const MBPT::CorrelationPotential *const Sigma) {
+                    const MBPT::CorrelationPotential *const Sigma,
+                    const std::vector<DiracSpinor> &force_orthog) {
 
   const auto f = (-1.0 / 3.0) / (Fv.twoj() + 1);
-  const auto Xv =
-      dVE1.solve_dPsis(Fv, omega, ExternalField::dPsiType::X, Sigma);
-  const auto Yv =
-      omega == 0.0 ?
-          Xv :
-          dVE1.solve_dPsis(Fv, omega, ExternalField::dPsiType::Y, Sigma);
+  auto Xv = dVE1.solve_dPsis(Fv, omega, ExternalField::dPsiType::X, Sigma);
+  auto Yv = omega == 0.0 ?
+                Xv :
+                dVE1.solve_dPsis(Fv, omega, ExternalField::dPsiType::Y, Sigma);
+
+  // Force orthogonality:
+  if (!force_orthog.empty()) {
+    for (const auto &Fx : force_orthog) {
+      for (auto &Xbeta : Xv) {
+        if (Fx.kappa() == Xbeta.kappa())
+          Xbeta -= (Xbeta * Fx) * Fx;
+      }
+      for (auto &Ybeta : Yv) {
+        if (Fx.kappa() == Ybeta.kappa())
+          Ybeta -= (Ybeta * Fx) * Fx;
+      }
+    }
+  }
 
   double alpha_v = 0.0;
   for (const auto &Xbeta : Xv) {
