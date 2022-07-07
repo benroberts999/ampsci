@@ -34,13 +34,15 @@ $ ./ampsci <At> <Core> <Valence>
   $ ./ampsci Cs
     - Runs ampsci for Cs using Hartree Fock (V^N) approximation
 
-Other options:
+Other command-line options:
 $ ./ampsci -v
   - Prints version info (same as --version)
 $ ./ampsci -h
   - Print help info, including input options (same as --help, -?)
 $ ./ampsci -m
   - Prints list of available Modules (same as --modules)
+$ ./ampsci -o
+  - Prints list of available operators (same as --operators)
 $ ./ampsci -p
   - Prints periodic table with electronic+nuclear info (same as --periodicTable)
 $ ./ampsci -c
@@ -147,6 +149,10 @@ int main(int argc, char *argv[]) {
   } else if (input_text == "-m" || input_text == "--modules") {
     std::cout << "Available modules: \n";
     Module::list_modules();
+    return 0;
+  } else if (input_text == "-o" || input_text == "--operators") {
+    std::cout << "Available operators: \n";
+    DiracOperator::list_operators();
     return 0;
   } else if (input_text == "-p" || input_text == "--periodicTable") {
     std::string z_str = (argc > 2) ? argv[2] : "";

@@ -50,4 +50,10 @@ generate(std::string_view operator_name, const IO::InputBlock &input,
   return std::make_unique<NullOperator>(NullOperator());
 }
 
+inline void list_operators() {
+  for (auto &[name, func] : operator_list) {
+    std::cout << "  " << name << '\n';
+  }
+}
+
 } // namespace DiracOperator

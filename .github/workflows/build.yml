@@ -19,7 +19,6 @@ jobs:
         sudo apt-get install -y g++-7 
         sudo apt-get install -y g++-11 --fix-missing
         sudo apt-get install -y clang-6.0 
-        sudo apt-get install -y clang-10 
         sudo apt-get install -y clang-11 --fix-missing
         sudo apt-get install -y liblapack-dev 
         sudo apt-get install -y libblas-dev 

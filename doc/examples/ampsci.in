@@ -74,8 +74,3 @@ Module::matrixElements {
   }
 }
 */
-
-
-// Module::BohrWeisskopf{}
-
-// Module::WriteOrbitals { label = outputLabel; }

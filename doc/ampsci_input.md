@@ -42,8 +42,7 @@ The general usage of the code is to first use the main blocks to construct the
 atomic wavefunction and basis states, then to add as many 'Module::' blocks as
 required. Each module is a seperate routine that will take the calculated
 wavefunction and compute any desired property (e.g., matrix elements). The code
-is designed such that anyone can write a new Module (see
-/src/Modules/exampleModule.hpp)
+is designed such that anyone can write a new Module (See [doc/writing_modules.md](writing_modules.md))
 
 e.g., To calculate Cs wavefunctions at HF level with 6s, 6p, and 5d valence
 states, and then calculate E1 matrix elements including core polarisation (RPA):
@@ -80,7 +79,20 @@ blockname {
 
 ================================================================================
 
-## Some details for each input block
+## Modules
+
+- The modules system allows the easy calculation of any atomic properties after the wavefunction has been calculated.
+- Any number of _modules_ can be run by adding a `Module::moduleName{}' block.
+- Get a list of available modules: `$ ./ampsci -m`
+- See [doc/modules.md](modules.md) for full details
+- The code is designed so that you can easily create your own modules. See [doc/writing_modules.md](writing_modules.md) for details
+
+================================================================================
+
+## Details for each input block
+
+- Basic details for each input block are given here.
+- It's generally better to get this info from the code (by setting the `help;` option in any given block), since that will always be up-to-date, while this document may fall out-of-date
 
 ### Atom
 
@@ -326,32 +338,3 @@ Spectrum{
   type; // Derevianko (DKB) or Johnson [Derevianko]
 }
 ```
-
-### Modules
-
-Get a list of available modules: `$ampsci -m`
-
-They are:
-
-- Tests
-- WriteOrbitals
-- AtomicKernal
-- FitParametric
-- BohrWeisskopf
-- HFAnomaly
-- HF_rmag
-- screeningFactors
-- BW_eta_sp
-- pnc
-- vertexQED
-- QED
-- testFeynman
-- matrixElements
-- lifetimes
-- polarisability
-- dynamicPolarisability
-- structureRad
-- fieldShift
-- continuum
-- ladder
-- exampleModule

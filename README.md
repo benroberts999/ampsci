@@ -134,6 +134,10 @@ Run the program with input options from the command line, e.g.:
   * Prints version info (same as --version)
 * `$ ./ampsci -h`
   * Print help info, including input options (same as --help, -?)
+* `$ ./ampsci -m`
+  * Prints list of available Modules (same as --modules)
+* `$ ./ampsci -o`
+  * Prints list of available operators (same as --operators)
 * `$ ./ampsci -p`
   * Prints periodic table with electronic+nuclear info (same as --periodicTable)
 * `$ ./ampsci -c`

@@ -499,6 +499,7 @@ void transitionPolarisability(const IO::InputBlock &input,
   if (states.size() != 2) {
     std::cout << "Error 491 in transitionPolarisability(): transition option "
                  "must have exactly two states comma-separated\n";
+    return;
   }
   const auto pv = wf.getState(states.at(0));
   const auto pw = wf.getState(states.at(1));

@@ -13,12 +13,10 @@ namespace AtomData {
 void instructions() {
   std::cout
       << "Usage:\n"
-         "$./periodicTable            Prints periodic table\n"
-         "$./periodicTable Cs         Info for Cs with default A\n"
-         "$./periodicTable Cs 137     Info for Cs-137\n"
-         "$./periodicTable Cs all     Info for all available Cs isotopes\n"
+         "Cs         Info for Cs with default A\n"
+         "Cs 137     Info for Cs-137\n"
+         "Cs all     Info for all available Cs isotopes\n"
          "(Note: numbers come from online database, and should be checked)\n";
-  std::cout << "(Or, enter 'c' to print list of physics constants)\n";
 }
 
 void printData(const Nuclear::Isotope &nuc) {
@@ -82,16 +80,8 @@ void printConstants() //
 //==============================================================================
 int periodicTable(std::string z_str, std::string a_str) {
 
-  // std::string z_str = (num_in > 1) ? argv[1] : "0";
-  // std::string a_str = (num_in > 2) ? argv[2] : "0";
-
   instructions();
   AtomData::printTable();
-
-  // if (z_str == "c") {
-  //   printConstants();
-  //   return 1;
-  // }
 
   while (true) {
 
