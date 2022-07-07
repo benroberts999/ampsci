@@ -1,0 +1,33 @@
+name: Docs
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  docs:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: "Install dependencies"
+      run: |
+        sudo apt-get install -y make 
+        sudo apt-get install -y doxygen
+        sudo apt-get install -y texlive-full
+    - name: Build the documentation
+      run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git fetch
+        git checkout gh-pages
+        git reset --hard origin/main
+        cp ./doc/examples/Makefile ./ 
+        make doxy
+        git add .
+        git add docs/* -f
+        git commit -a -m "Make documentation [GH Actions]"
+        git push origin gh-pages -f
