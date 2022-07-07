@@ -8,74 +8,71 @@
 
 namespace Module {
 
-void fieldShift(const IO::InputBlock &, const Wavefunction &wfA) {
+void fieldShift(const IO::InputBlock &input, const Wavefunction &wf) {
 
-  Wavefunction wfB(wfA.grid_sptr(), wfA.nucleus(),
-                   wfA.alpha() / PhysConst::alpha);
+  input.check(
+      {{"", "Calculates field shift: F = d(E)/d(<r^2>)"},
+       {"print", "Print each step? [true]"},
+       {"min_pc", "Minimum percentage shift in r [1.0e-3]"},
+       {"max_pc", "Maximum percentage shift in r [1.0]"},
+       {"num_steps", "Number of steps for derivative (for each sign)? [10]"}});
 
-  std::cout << "\n\n NOTE: WARNING: This hasn't been re-checked since updating "
-               "WF - may no longer work! (see udpate Vnuc part!)\n\n";
+  const auto print = input.get("print", true);
 
-  std::cout << "\n";
-  IO::print_line();
+  const auto min_pc = input.get("min_pc", 1.0e-3);
+  const auto max_pc = input.get("max_pc", 1.0);
+  const auto num_steps = input.get<unsigned long>("num_steps", 10);
+
+  Wavefunction wfB(wf.grid_sptr(), wf.nucleus(), wf.alpha() / PhysConst::alpha);
+
   std::cout << "Calculating field shift corrections for \n"
-            << wfA.atom() << ", " << wfA.nucleus() << "\nvs.\n"
-            << wfB.atom() << ", " << wfB.nucleus() << "\n\n";
+            << wf.atom() << ", " << wf.nucleus() << "\n";
 
-  wfB.copySigma(wfA.Sigma());
-  wfB.solve_core("HartreeFock", 0.0, wfA.coreConfiguration());
-  wfB.solve_valence(DiracSpinor::state_config(wfA.valence()));
-  wfB.hartreeFockBrueckner();
-  wfB.printValence();
+  wfB.copySigma(wf.Sigma());
+  const auto core_string = wf.coreConfiguration();
+  const auto val_string = DiracSpinor::state_config(wf.valence());
+  const auto r0 = wf.get_rrms();
 
-  const auto vA = wfA.vnuc();
-  const auto vB = wfB.vnuc();
-
-  const auto r0B = wfB.get_rrms();
-
-  // const auto enB0 = wfB.valence()[0].en();
-  std::vector<std::vector<std::pair<double, double>>> data(
-      wfB.valence().size());
-
-  const auto min_pc = 0.001;
-  const auto max_pc = 1.0;
-  const auto num_steps = 10;
-
-  const auto delta_grid = Grid(r0B * min_pc / 100.0, r0B * max_pc / 100.0,
+  std::vector<std::vector<std::pair<double, double>>> data(wf.valence().size());
+  const auto delta_grid = Grid(r0 * min_pc / 100.0, r0 * max_pc / 100.0,
                                num_steps, GridType::logarithmic);
-  const auto t = 2.3;
 
-  std::cout << "\n   r_rms (fm),   del(r),    del(r^2),    dE (GHz)\n";
+  if (print) {
+    std::cout << "\n   r_rms (fm),   del(r),    del(r^2),    dE (GHz)\n";
+  } else {
+    std::cout << "\nRunning...\n";
+  }
   for (const auto pm : {-1, 1}) {
     for (const auto del : delta_grid.r()) {
-      const auto rB = r0B + pm * del;
-      const auto dr2 = r0B * r0B - rB * rB;
+      const auto rB = r0 + pm * del;
+      const auto dr2 = rB * rB - r0 * r0;
 
-      wfB.vnuc() = Nuclear::fermiNuclearPotential(
-          wfB.Znuc(), t, Nuclear::c_hdr_formula_rrms_t(rB, t), wfA.grid().r());
+      auto nuc_b = wf.nucleus();
+      nuc_b.r_rms() = rB;
+      Nuclear::formPotential(nuc_b, wf.grid().r());
 
-      wfB.solve_core("", 0.0, "", 0.0, false);
-      wfB.solve_valence("", false);
+      wfB.update_Vnuc(Nuclear::formPotential(nuc_b, wf.grid().r()));
+
+      wfB.solve_core("HartreeFock", 0.0, core_string, 0.0, false);
+      wfB.solve_valence(val_string, false);
       wfB.hartreeFockBrueckner(false);
 
       for (auto i = 0ul; i < wfB.valence().size(); ++i) {
         const auto &Fv = wfB.valence()[i];
-        const auto &Fv0 = *wfA.getState(Fv.n(), Fv.kappa());
-        const auto dE = -(Fv.en() - Fv0.en()) * PhysConst::Hartree_GHz;
-
-        printf("%4s, %7.5f, %+7.5f, %11.4e, %11.4e\n", Fv.shortSymbol().c_str(),
-               rB, rB - r0B, dr2, dE);
+        const auto &Fv0 = *wf.getState(Fv.n(), Fv.kappa());
+        const auto dE = (Fv.en() - Fv0.en()) * PhysConst::Hartree_GHz;
+        if (print)
+          printf("%4s, %7.5f, %+7.5f, %11.4e, %11.4e\n",
+                 Fv.shortSymbol().c_str(), rB, rB - r0, dr2, dE);
         auto &data_v = data[i];
         data_v.emplace_back(dr2, dE);
       }
+      if (print)
+        std::cout << "\n";
     }
   }
 
   std::cout << "\n";
-  // for (const auto &[dr2, de] : data) {
-  //   std::cout << dr2 << " " << de << "\n";
-  // }
-  // std::cout << "\n";
 
   auto sorter = [](auto p1, auto p2) { return p1.first < p2.first; };
 
@@ -85,15 +82,6 @@ void fieldShift(const IO::InputBlock &, const Wavefunction &wfA) {
     std::sort(begin(data_v), end(data_v), sorter);
 
     [[maybe_unused]] double c0, c1, cov00, cov01, cov11, sumsq;
-
-    /*
-        // nb: abusing fact that vector and pair store doubles in contiguous
-       memory gsl_fit_linear(&data_v[0].first, 2, &data_v[0].second, 2,
-       data_v.size(), &c0, &c1, &cov00, &cov01, &cov11, &sumsq); printf("Eb -
-       Eb0 = %.5e d<r2> + %2e\n", c1, c0); std::cout << Fv.symbol() << " "
-                  << "F = " << c1 << " GHz/fm^2, sd = " << std::sqrt(sumsq) <<
-       "\n";
-    */
 
     // Fit, without c0
     gsl_fit_mul(&data_v[0].first, 2, &data_v[0].second, 2, data_v.size(), &c1,

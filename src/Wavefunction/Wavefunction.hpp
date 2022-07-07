@@ -102,9 +102,9 @@ public:
   const std::vector<DiracSpinor> &spectrum() const { return m_spectrum; }
   std::vector<DiracSpinor> &spectrum() { return m_spectrum; }
 
-  //! Nuclear potential
+  //! Nuclear potential. Only provide const version, since HF and WF version of
+  //! vnuc must be kept in sync
   const std::vector<double> &vnuc() const { return m_vnuc; }
-  std::vector<double> &vnuc() { return m_vnuc; }
 
   //! Returns ptr to Hartree Fock (class)
   const HF::HartreeFock *vHF() const { return m_HF ? &*m_HF : nullptr; }
@@ -260,12 +260,12 @@ public:
   }
 
   //! Allows extra potential to be added to Vnuc (updates both in Wavefunction
-  // _and_ HartreeFock) - only really for testing etc.
-  void add_to_Vnuc(const std::vector<double> &dv) { //
-    /// XXX Fix: two versions of Vnuc...
-    qip::add(&m_vnuc, dv);
+  // _and_ HartreeFock)
+  void update_Vnuc(const std::vector<double> &v_new) {
+    /// nb: two versions of Vnuc...
+    m_vnuc = v_new;
     if (m_HF) {
-      m_HF->vnuc() = m_vnuc;
+      m_HF->vnuc() = v_new;
     }
   }
 

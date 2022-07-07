@@ -3,7 +3,6 @@
 class Wavefunction;
 namespace IO {
 class InputBlock;
-class InputBlock;
 } // namespace IO
 
 //! @brief Modules are run using calculated atomic wavefunctions
@@ -29,8 +28,5 @@ void runModules(const IO::InputBlock &input, const Wavefunction &wf);
 
 //! Figures out which module to run (Must be updated for each new module!)
 void runModule(const IO::InputBlock &input, const Wavefunction &wf);
-
-//! Module: writes orbitals to text file (gnuplot format)
-void writeOrbitals(const IO::InputBlock &input, const Wavefunction &wf);
 
 } // namespace Module

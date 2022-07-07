@@ -5,9 +5,8 @@
 #include "Modules/HFAnomaly.hpp"
 #include "Modules/continuum.hpp"
 #include "Modules/exampleModule.hpp"
-#include "Modules/fitParametric.hpp"
 #include "Modules/isotopeShift.hpp"
-#include "Modules/laddertests.hpp"
+#include "Modules/ladder.hpp"
 #include "Modules/matrixElements.hpp"
 #include "Modules/pnc.hpp"
 #include "Modules/polarisability.hpp"
@@ -16,6 +15,7 @@
 #include "Modules/screeningFactors.hpp"
 #include "Modules/testFeynman.hpp"
 #include "Modules/tests.hpp"
+#include "Modules/writeOrbitals.hpp"
 #include <iostream>
 #include <string>
 #include <utility>
@@ -33,7 +33,6 @@ static const std::vector<std::pair<
     module_list{{"Tests", &Module_tests},
                 {"WriteOrbitals", &writeOrbitals},
                 {"AtomicKernal", &atomicKernal},
-                {"FitParametric", &fitParametric},
                 {"BohrWeisskopf", &calculateBohrWeisskopf},
                 {"HFAnomaly", &HFAnomaly},
                 {"HF_rmag", &HF_rmag},

@@ -289,7 +289,7 @@ TEST_CASE("DiracODE: inhomogenous (Green's) method", "[DiracODE][unit]") {
 
 //==============================================================================
 // Test inhomogenous (Green's) method:
-TEST_CASE("DiracODE: continuum", "[DiracODE][unit][!mayfail]") {
+TEST_CASE("DiracODE: continuum", "[DiracODE][cntm][unit][!mayfail]") {
   std::cout << "\n----------------------------------------\n";
   std::cout << "DiracODE: continuum\n";
 
@@ -334,9 +334,7 @@ TEST_CASE("DiracODE: continuum", "[DiracODE][unit][!mayfail]") {
   cgrid.extend_to(1.1 * r_asym);
 
   auto Fs = DiracSpinor(0, -1, grid);
-
   DiracODE::solveContinuum(Fs, ec, v_nuc, cgrid, r_asym, PhysConst::alpha);
-
   const auto F1s = DiracSpinor::exactHlike(1, -1, grid, Zeff, PhysConst::alpha);
 
   // should be orthogonal
@@ -345,10 +343,29 @@ TEST_CASE("DiracODE: continuum", "[DiracODE][unit][!mayfail]") {
 
   // XXX Just a regression test for now.
   // Update to use "exact" H0like formulas, and test properly
-  const auto y = std::abs(Fs * (grid->r() * F1s));
-  const auto y_expected = 0.417478989892057; // regression test!
-  std::cout << y << "/" << y_expected << "\n";
+  const auto y0 = std::abs(Fs * (grid->r() * Fs));
+  const auto y1 = std::abs(Fs * (grid->r() * F1s));
+  const auto y0_expected = 1580.303032343806080; // regression test!
+  const auto y1_expected = 0.417478989892057;    // regression test!
+  std::cout << y0 << "/" << y0_expected << "\n";
+  std::cout << y1 << "/" << y1_expected << "\n";
+  REQUIRE(std::abs((y0 - y0_expected) / y0_expected) < 1.0e-4);
   // XXX? This randomly fails sometimes. Looks like some undefined behaviour!!
   // XXX Depends on _order_ unit tests are run?????
-  REQUIRE(std::abs(y - y_expected) < 1.0e-5);
+  REQUIRE(std::abs((y1 - y1_expected) / y1_expected) < 1.0e-4);
+
+  // Non-rel-limit: Doesn't work?
+  // Not sure if this is MMA or AMPSCI that's wrong...
+  const auto alpha_nr = 1.0e-25 * PhysConst::alpha;
+  auto Fs_nr = DiracSpinor(0, -1, grid);
+  DiracODE::solveContinuum(Fs_nr, ec, v_nuc, cgrid, r_asym, alpha_nr);
+  const auto F1s_nr = DiracSpinor::exactHlike(1, -1, grid, Zeff, alpha_nr);
+  const auto y2 = std::abs(Fs_nr * (grid->r() * Fs_nr));
+  const auto y3 = std::abs(Fs_nr * (grid->r() * F1s_nr));
+  const auto y2_expected = 1572.12;
+  const auto y3_expected = 0.416148;
+  std::cout << y2 << "/" << y2_expected << "\n";
+  std::cout << y3 << "/" << y3_expected << "\n";
+  REQUIRE(std::abs((y2 - y2_expected) / y0_expected) < 1.0e-2);
+  REQUIRE(std::abs((y3 - y3_expected) / y1_expected) < 1.0e-2);
 }

@@ -411,9 +411,9 @@ void ampsci(const IO::InputBlock &input) {
   }
 
   // Add "extra potential", before HF (core + valence)
+  using namespace qip::overloads;
   if (include_extra && ep_beforeHF) {
-    // qip::add(&wf.vnuc(), Vextra);
-    wf.add_to_Vnuc(Vextra);
+    wf.update_Vnuc(wf.vnuc() + Vextra);
   }
 
   // Solve Hartree equations for the core:
@@ -428,7 +428,7 @@ void ampsci(const IO::InputBlock &input) {
 
   // Add "extra potential", after HF (only valence)
   if (include_extra && !ep_beforeHF) {
-    wf.add_to_Vnuc(Vextra);
+    wf.update_Vnuc(wf.vnuc() + Vextra);
   }
 
   // Adds effective polarision potential to nuclear potential (After HF core,
@@ -451,7 +451,8 @@ void ampsci(const IO::InputBlock &input) {
     for (auto r : wf.grid().r()) {
       dv.push_back(dV(r));
     }
-    wf.add_to_Vnuc(dv);
+    // wf.add_to_Vnuc(dv);
+    wf.update_Vnuc(wf.vnuc() + dv);
   }
 
   // Solve for the valence states:
