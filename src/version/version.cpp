@@ -40,10 +40,10 @@ static const std::string ampsci_version = XSTRING(AMPSCI_VERSION);
 std::string version() {
   return git_revision.empty() ?
              ampsci_version :
-         git_modified.empty() ?
+             git_modified.empty() ?
              ampsci_version + " [" + git_branch + "/" + git_revision + "]" :
              ampsci_version + " [" + git_branch + "/" + git_revision + "]*\n" +
-                 " *(Modified: " + git_modified + ")";
+                     " *(Modified: " + git_modified + ")";
 }
 
 std::string compiled() { return cxx_version + " " + compiled_time; }

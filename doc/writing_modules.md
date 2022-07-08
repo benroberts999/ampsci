@@ -1,17 +1,19 @@
 # Writing Modules
 
+\brief Instructions for writing custom ampsci modules
+
 - The modules system allows the easy calculation of any atomic properties after the wavefunction has been calculated.
 - Any number of _modules_ can be run by adding a `Module::moduleName{}' block to the input file.
 - Get a list of available modules: `$ ./ampsci -m`
-- See [doc/modules.md](modules.md) for details of currently avalable modules
+- See [doc/modules.md](/doc/modules.md) for details of currently avalable modules
 - The code is designed so that you can easily create your own modules.
 
 ## Creating your own module
 
 An example module is provided to help you write your own module;
 
-- [src/Modules/exampleModule.hpp](../src/Modules/exampleModule.hpp)
-- [src/Modules/exampleModule.cpp](../src/Modules/exampleModule.cpp)
+- [src/Modules/exampleModule.hpp](/src/Modules/exampleModule.hpp)
+- [src/Modules/exampleModule.cpp](/src/Modules/exampleModule.cpp)
 
 You should duplicate this module (both the .cpp and .hpp files) and give it a new name. That will be much easier than starting from scratch.
 

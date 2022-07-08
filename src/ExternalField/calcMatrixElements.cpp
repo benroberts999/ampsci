@@ -51,9 +51,10 @@ std::vector<MEdata> calcMatrixElements(const std::vector<DiracSpinor> &b_orbs,
       }
 
       // Special case: HFS A:
-      const auto a = radial_int ? 1.0 / h->angularF(Fa.kappa(), Fb.kappa()) :
-                     AhfsQ ? DiracOperator::HyperfineA::convertRMEtoA(Fa, Fb) :
-                             1.0;
+      const auto a =
+          radial_int ?
+              1.0 / h->angularF(Fa.kappa(), Fb.kappa()) :
+              AhfsQ ? DiracOperator::HyperfineA::convertRMEtoA(Fa, Fb) : 1.0;
 
       const auto hab = h->reducedME(Fa, Fb) * a;
       const auto dv1 = dV ? dV->dV1(Fa, Fb) * a : 0.0;

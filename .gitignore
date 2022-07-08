@@ -8,6 +8,7 @@ build/*
 !doc/
 doc/*
 !doc/*.md
+!doc/doxygen
 !doc/tex
 doc/tex/*
 !doc/tex/*.tex

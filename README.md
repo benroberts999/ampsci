@@ -3,7 +3,7 @@
 ## Atomic Many-body Perturbation theory in the Screened Coulomb Interaction
 
 Solves the correlated-Dirac equation for single-valence atomic systems using the Hartree-Fock + correlation potential method (based on Dzuba-Flambaum-Sushkov method).
-Fully relativistic, includes electron correlations, all-orders screening and hole-particle interaction, finite-nuclear size, Breit interaction, radiative QED effects, and RPA for matrix elements (with structure radiation/renormalisation).
+Fully relativistic, includes electron correlations, all-orders screening and hole-particle interaction, finite-nuclear size, Breit interaction, radiative QED effects, RPA for matrix elements, and structure radiation/renormalisation.
 QED is included via the Flambaum-Ginges radiative potential method.
 Can solve for continuum states with high energy.
 Calculates ionisation cross sections with high values for energy/momentum transfer.
@@ -11,106 +11,71 @@ Full description of the physics methods and approximations, including references
 are given in the physics documentation: [ampsci.pdf][man-url].
 
 Designed to be fast, accurate, and easy to use.
-The "modules" system (see documentation) makes it simple to add your own routines to use the atomic wavefunctions to calculate whatever properties you may be interested in.
+The "modules" system (see [Documentation](#documentation)) makes it simple to add your own routines to use the atomic wavefunctions to calculate whatever properties you may be interested in.
 
 * The code is on GitHub: [github.com/benroberts999/ampsci](https://github.com/benroberts999/ampsci)
 
 * **Important:** this is a _pre-release_ version of the code: not fully tested or documented. Should not be used for publishable calculations without caution
 
+[![github][github-badge]](https://github.com/benroberts999/ampsci)
 [![doxygen][doxygen-badge]][docs-url]
 [![manual][manual-badge]][man-url]
-[![tests][tests-badge]][actions-url]
-[![build][build-badge]][actions-url]
+
+[![tests][tests-badge]][tests-url]
+[![build][build-badge]][build-url]
 [![cov][cov-badge]][cov-url]
 
 ## Contents
 
 * [Compilation](#compilation)
-* [Basic Usage](#ampsci----basic-usage)
+* [Basic Usage](#ampsci-basic-usage)
 * [Documentation](#documentation)
 
 --------------------------------------------------------------------------------
 
-## Compilation
+## Compilation <a name="compilation"></a>
 
 * Easiest methoed is to compile using provided Makefile:
 * Copy "doc/examples/Makefile" from doc/ directory to the working directory
-  * _$cp ./doc/examples/Makefile ./_
-* All programs compiled using the Makefile (run _$make_)
-* The file _Makefile_ has some basic compilation options. It's currently set up to work on most linux systems; you may need to change a few options for others (see below)
-* Tested with g++ and clang++ on linux and mac (requires c++17)
-  * Works+tested with g++7 and newer
-  * Works+tested with clang++6 and newer
+  * `$ cp ./doc/examples/Makefile ./`
+* All programs compiled using the Makefile (run `$ make`)
+* The file _Makefile_ has some basic compilation options. It's currently set up to work on most linux systems; you may need to change a few options for others (see see [doc/compilation.md](doc/compilation.md))
+* Tested with g++ and clang++ on linux and mac
 
-Requires GSL (GNU scientific libraries) <https://www.gnu.org/software/gsl/>, and LAPACK. These must be installed for the code to run (see below).
+### Dependencies / Requirements
 
-* Requires GSL ver 2.0+ (tested with 2.1, 2.6)
+* c++ compiler that supports c++17 [clang version 6 or newer, gcc version 7 or newer]
+* LAPACK and BLAS libraries [netlib.org/lapack/](http://www.netlib.org/lapack/)
+* GSL (GNU scientific libraries) [gnu.org/software/gsl/](https://www.gnu.org/software/gsl/) [version 2.0 or newer]
+* [optional] GNU Make ([gnu.org/software/make/](https://www.gnu.org/software/make/)) - used to compile code
+* [optional] OpenMP ([openmp.org/](https://www.openmp.org/)) - used for parallisation
+* [optional] git ([git-scm.com/](https://git-scm.com/)) for version tracking and to keep up-to-date with latest version
 
-* Quick start (ubuntu). Full dependencies list, run:
-  * _$sudo apt install g++ make liblapack-dev libblas-dev libgsl-dev libomp-dev_
+### Quick-start
 
-### Compilation: Linux
+This is for ubuntu/linux - for other systems, see [doc/compilation.md](doc/compilation.md)
 
-* Instructions for ubuntu; similar commands for other flavours
-* Install make: _$sudo apt-get install make_
-* Install GSL libraries: _$sudo apt-get install libgsl-dev_
-* May also need LAPACK/BLAS libraries: _$sudo apt-get install libatlas-base-dev liblapack-dev libblas-dev_
-* Install the compiler: _$sudo apt-get install g++_ and/or _$sudo apt-get install clang++_
-* Then compile by running _$make_ from the ampsci directory
-* To use with openMP (for parallelisation) with clang++, you might have to also install clangs openmp libraries: _$sudo apt install libomp5_ (and/or perhaps _$sudo apt install libomp-dev_)
+* Get the code from [GitHub](https://github.com/benroberts999/ampsci), using git:
+  * `$ sudo apt install git`
+  * `$ git clone git@github.com:benroberts999/ampsci.git`
+  * or `$ git clone https://github.com/benroberts999/ampsci.git`
+* Or, direct download (without using git):
+  * <https://github.com/benroberts999/ampsci/archive/refs/heads/main.zip>
+* Install dependencies
+  * `$ sudo apt install g++ liblapack-dev libblas-dev libgsl-dev make libomp-dev`
+* Prepare the Makefile (already setup for ubuntu, you may need minor adjustments, see [doc/compilation.md](doc/compilation.md))
+  * `$ cp ./doc/examples/Makefile ./`
+* Compile ampsci using all default options:  
+  * `$ make`
+* Run the first example program
+  * `$ cp ./doc/examples/ampsci.in ./`
+  * `$ ./ampsci ampsci.in`
 
-### Compilation: MacOS
-
-* On mac: use _homebrew_ to install gsl: _$brew install gsl_
-* _homebrew_ is a package manager; install from [https://brew.sh/](https://brew.sh/)
-* Seems to work best with the homebrew version of gcc. Install as: _$brew install gcc_
-* Note: you may need to change the compiler from `g++` to `g++-9` (or similar), or update your environment variables, since calling g++ on mac actually calls clang++ by default
-* You might have to tell the compiler how to link to the GSL library; in Makefile:
-  * PathForGSL=/usr/local/opt/gnu-scientific-library
-* Then compile by running _$make_ from the ampsci directory
-* Use openMP for parellelisation when using clang++ on mac:
-  * If using g++, should work as per normal
-  * To use openMP with clang, seem to require the llvm version
-  * _$brew install llvm_
-  * Then, in the Makefile, set (exact paths may be different for you):
-    * CXX=/usr/local/opt/llvm/bin/clang++
-    * ExtraInclude=/usr/local/opt/llvm/include/
-    * ExtraLink=/usr/local/opt/llvm/lib/
-  * This seems fragile
-
-### Compilation: Windows
-
-For windows, the easiest way (for me, anyway) is to use the 'windows subsystem for linux' (requires Windows10). Instructions on installation/use here: <https://www.roberts999.com/posts/2018/11/wsl-coding-windows-ubuntu>.
-Then, the compilation + use can proceed as per Linux above.
-
-### Common Compilation errors
-
-* **error: unsupported option -fopenmp**
-
-* openmp (used for parallelisation) is not working. See above for some possible solutions.
-* Quick fix: change '_UseOpenMP=yes_' to '_UseOpenMP=no_' in Makefile
-
-* **fatal error: gsl/<...>.h: No such file or directory** (or similar)
-* **gsl** related linking/compilation error:
-
-* Could not find required GSL libraries. Either they are not installed, or you need to link to them
-* 1) Ensure GSL is installed (see above for instructions)
-* 2) If GSL library is not installed in _/usr/local/_, you have to tell the compiler where to find the GSL files. Do this by setting the _PathForGSL_ option in Makefile. Common examples:
-  * _PathForGSL=/opt/gsl/2.1/gnu_ # For UQ's getafix cluster
-  * _PathForGSL=/usr/local/opt/gnu-scientific-library_ # For my macbook
-  * Note: the exact path may differ for you, depending on where GSL was installed
-
-* **error: too few arguments to function ‘int gsl_bspline_deriv_eval**
-
-* This is because the code is linking to a very old version of GSL. You might need to update GSL. If you have updated GSL (to at least version 2.0) and still get the message, the code is probably linking against the wrong version of GSL; see above to point the compiler to the correct version
-
-* **other:**
-* Sometimes, the compiler will not be able to find the correct libraries (particular, e.g., on clusters). In this case, there are two options in the Makfefile: **ExtraInclude** and **ExtraLink**
-  * These add paths to include the correct directories for both -I "includes" (for compilation), and -L link flags (for linking libraries) in Makefile. These can be a little tricky to get right (don't include the -I or -L)
+For full compilation guides including for mac/windows, see [doc/compilation.md](doc/compilation.md)
 
 --------------------------------------------------------------------------------
 
-## ampsci -- basic usage
+## ampsci -- basic usage <a name="ampsci-basic-usage"></a>
 
 Run the program with input options from the command line, e.g.:
 
@@ -128,7 +93,7 @@ Run the program with input options from the command line, e.g.:
   * `$ ./ampsci Cs`
     * Runs ampsci for Cs using Hartree Fock (V^N) approximation
 
-**Other options:**
+**Other command-line options:**
 
 * `$ ./ampsci -v`
   * Prints version info (same as --version)
@@ -145,8 +110,7 @@ Run the program with input options from the command line, e.g.:
 
 Output is printed to screen. It's recommended to forward this to a text file.
 The input options and the ampsci version details are also printed, so that the
-program output contains all required info to exactly reproduce it.
-e.g.,
+program output contains all required info to exactly reproduce it. e.g.,
 
 * `$ ./ampsci input |tee -a outout`
   * Runs ampsci using input options in file "input".
@@ -155,19 +119,19 @@ e.g.,
 
 * Several example input files are given in: _doc/examples/_, along with their expected output; use these to test if everything is working.
 * run `$ampsci -h` to get breif instructions for input options
-* See [doc/ampsci_input.md](doc/ampsci_input.md) for a full list of input options + descriptions
+
+See [doc/ampsci_input.md](doc/ampsci_input.md) for full description of input format,
+and a detailed list of input options + descriptions.
 
 --------------------------------------------------------------------------------
 
-## Documentation
-
-There are three documentation types provided:
+## Documentation <a name="documentation"></a>
 
 * All documentation available online: [benroberts999.github.io/ampsci/](https://benroberts999.github.io/ampsci/)
 * Also can be found in doc/ directory
 
  1. Input options -- how to run the code
-    * _doc/ampsci_input.md_ -- detailed info on all input options
+    * [doc/ampsci_input.md](doc/ampsci_input.md) -- detailed info on all input options
     * See also: _doc/examples/ampsci.in_ -- an example/template input file
     * In _doc/examples/_ there are several example input files, with the expected output; use these to test if everything is working
 
@@ -176,19 +140,30 @@ There are three documentation types provided:
     * Available online: [benroberts999.github.io/ampsci/ampsci.pdf](https://benroberts999.github.io/ampsci/ampsci.pdf)
     * Latex file provided in doc/tex/ampsci.tex
     * If you have latex installed, you can use Makefile to generate the pdf
-      * Run '_$make docs_' -- this will create new pdf file: 'doc/ampsci.pdf'
+      * Run `$ make docs` -- this will create new pdf file: 'doc/ampsci.pdf'
 
  3. Code documentation -- details on classes/functions in the code
     * Available online: [benroberts999.github.io/ampsci/](https://benroberts999.github.io/ampsci/)
 
+ 4. Modules
+    * The modules system allows the easy calculation of any atomic properties after the wavefunction has been calculated. See [doc/modules.md](doc/modules.md) for description
+    * The code is designed so that you can easily create your own modules. See [doc/writing_modules.md](doc/writing_modules.md) for details
+
 --------------------------------------------------------------------------------
 
-[docs-url]: https://benroberts999.github.io/ampsci/
-[man-url]: https://benroberts999.github.io/ampsci/ampsci.pdf
-[actions-url]: https://github.com/benroberts999/ampsci/actions
-[build-badge]: https://github.com/benroberts999/ampsci/workflows/Build/badge.svg
-[tests-badge]: https://github.com/benroberts999/ampsci/workflows/Tests/badge.svg
+[tests-badge]: https://github.com/benroberts999/ampsci/actions/workflows/tests.yml/badge.svg
+[tests-url]: https://github.com/benroberts999/ampsci/actions/workflows/tests.yml
+[build-badge]: https://github.com/benroberts999/ampsci/actions/workflows/build.yml/badge.svg
+[build-url]: https://github.com/benroberts999/ampsci/actions/workflows/build.yml
 [doxygen-badge]: https://img.shields.io/badge/documentation-code%20(html)-blue
+[docs-url]: https://benroberts999.github.io/ampsci/
 [manual-badge]: https://img.shields.io/badge/documentation-physics%20(pdf)-blue
+[man-url]: https://benroberts999.github.io/ampsci/ampsci.pdf
 [cov-badge]: https://codecov.io/gh/benroberts999/ampsci/branch/main/graph/badge.svg?token=3M5MH5QXLL
 [cov-url]: https://codecov.io/gh/benroberts999/ampsci
+[c++-badge]: https://img.shields.io/badge/c++-17-blue
+[github-badge]: https://img.shields.io/badge/Code%20available:-GitHub-blueviolet?style=flat&logo=github&logoColor=white
+
+[tests-badge-v2]: tests-badge.svg
+[build-badge-v2]: build-badge.svg
+[cov-badge-v2]: cov-badge.svg

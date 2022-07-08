@@ -1,21 +1,71 @@
 # ampsci: input options
 
+\brief ampsci input: descriptions of file format and available options
+
+Run the program with input options from the command line, e.g.:
+
+* `$ ./ampsci filename`
+  * Runs ampsci with input option specified in file "filename"
+  * This is the main way to run program
+
+* `$ ./ampsci <At> <Core> <Valence>`
+  * For quick use: simple HF calculation. e.g.,
+  * `$ ./ampsci Cs`
+    * Runs ampsci for Cs using Hartree Fock (V^N) approximation
+  * `$ ./ampsci Cs [Xe] 6sd5d`
+    * Runs ampsci for Cs using Hartree Fock with Xe-like core and valence
+      states up to n=6 for s,p-states and n=5 for d-states
+  * `$ ./ampsci Cs`
+    * Runs ampsci for Cs using Hartree Fock (V^N) approximation
+
+**Other command-line options:**
+
+* `$ ./ampsci -v`
+  * Prints version info (same as --version)
+* `$ ./ampsci -h`
+  * Print help info, including input options (same as --help, -?)
+* `$ ./ampsci -m`
+  * Prints list of available Modules (same as --modules)
+* `$ ./ampsci -o`
+  * Prints list of available operators (same as --operators)
+* `$ ./ampsci -p`
+  * Prints periodic table with electronic+nuclear info (same as --periodicTable)
+* `$ ./ampsci -c`
+  * Prints some handy physical constants (same as --constants)
+
+Output is printed to screen. It's recommended to forward this to a text file.
+The input options and the ampsci version details are also printed, so that the
+program output contains all required info to exactly reproduce it.
+e.g.,
+
+* `$ ./ampsci input |tee -a outout`
+  * Runs ampsci using input options in file "input".
+  * Output will both be written to screen, and appended to
+    file "output".
+
+* Several example input files are given in: _doc/examples/_, along with their expected output; use these to test if everything is working.
+* run `$ampsci -h` to get breif instructions for input options
+
+--------------------------------------------------------------------------------
+
+## Input file format
+
 Input is a plain text file that consists of sets of 'Blocks' and 'Options'.
 
-- Blocks are followed by curly-braces: BlockName{}
-- Options are followed by a semi-colon: OptionName = option_value;
-- Generally, each Block will have a set of Options that may be set
-- Nearly all are optional - leave them blank and a default value will be used
-- Blocks may be nested inside other Blocks
-- White-space is ignored, as are ' and " characters
-- You may use C++-style line '//' and block '/**/' comments
+* Blocks are followed by curly-braces: BlockName{}
+* Options are followed by a semi-colon: OptionName = option_value;
+* Generally, each Block will have a set of Options that may be set
+* Nearly all are optional - leave them blank and a default value will be used
+* Blocks may be nested inside other Blocks
+* White-space is ignored, as are ' and " characters
+* You may use C++-style line '//' and block '/**/' comments
 
 The code is "self-documenting". At any level (i.e., in any Block or at 'global'
 level outside of any Block), set the option 'help;', and the code will print:
 
-- a list of all available Blocks and Options at that level
-- a description of what they are for, and
-- the default value if they are left unset.
+* a list of all available Blocks and Options at that level
+* a description of what they are for, and
+* the default value if they are left unset.
 
 For example, setting 'help' at the top-level will print a list of all available
 top-level Blocks:
@@ -42,7 +92,7 @@ The general usage of the code is to first use the main blocks to construct the
 atomic wavefunction and basis states, then to add as many 'Module::' blocks as
 required. Each module is a seperate routine that will take the calculated
 wavefunction and compute any desired property (e.g., matrix elements). The code
-is designed such that anyone can write a new Module (See [doc/writing_modules.md](writing_modules.md))
+is designed such that anyone can write a new Module (See [doc/writing_modules.md](/doc/writing_modules.md))
 
 e.g., To calculate Cs wavefunctions at HF level with 6s, 6p, and 5d valence
 states, and then calculate E1 matrix elements including core polarisation (RPA):
@@ -64,35 +114,35 @@ states, and then calculate E1 matrix elements including core polarisation (RPA):
   }
 ```
 
-================================================================================
+--------------------------------------------------------------------------------
 
 ## Auto-documentation
 
-- This document may go out-of-sync with the code
-- The best fail-safe way to check the available options for a given input block is to use the code itself.
-- Do this by adding a blank 'help' option to the input file:
-- The code will then print a list of all available options, and (usually) an explanation for them
+* This document may go out-of-sync with the code
+* The best fail-safe way to check the available options for a given input block is to use the code itself.
+* Do this by adding a blank 'help' option to the input file:
+* The code will then print a list of all available options, and (usually) an explanation for them
 
 blockname {
   help;
 }
 
-================================================================================
+--------------------------------------------------------------------------------
 
 ## Modules
 
-- The modules system allows the easy calculation of any atomic properties after the wavefunction has been calculated.
-- Any number of _modules_ can be run by adding a `Module::moduleName{}' block.
-- Get a list of available modules: `$ ./ampsci -m`
-- See [doc/modules.md](modules.md) for full details
-- The code is designed so that you can easily create your own modules. See [doc/writing_modules.md](writing_modules.md) for details
+* The modules system allows the easy calculation of any atomic properties after the wavefunction has been calculated.
+* Any number of _modules_ can be run by adding a `Module::moduleName{}' block.
+* Get a list of available modules: `$ ./ampsci -m`
+* See [doc/modules.md](/doc/modules.md) for full details
+* The code is designed so that you can easily create your own modules. See [doc/writing_modules.md](/doc/writing_modules.md) for details
 
-================================================================================
+--------------------------------------------------------------------------------
 
 ## Details for each input block
 
-- Basic details for each input block are given here.
-- It's generally better to get this info from the code (by setting the `help;` option in any given block), since that will always be up-to-date, while this document may fall out-of-date
+* Basic details for each input block are given here.
+* It's generally better to get this info from the code (by setting the `help;` option in any given block), since that will always be up-to-date, while this document may fall out-of-date
 
 ### Atom
 
@@ -162,10 +212,10 @@ dVpol{
 }
 ```
 
-- Effective polarisation potential:
+* Effective polarisation potential:
 
-- dV = -0.5 * a_eff / (r^4 + r_cut^4)
-- nb: Added to direct potential _after_ HF for core, but _before_ HF for valence
+* dV = -0.5 * a_eff / (r^4 + r_cut^4)
+* nb: Added to direct potential _after_ HF for core, but _before_ HF for valence
 
 ### ExtraPotential (read from text file)
 
@@ -180,12 +230,12 @@ ExtraPotential{
 }
 ```
 
-- Reads in extra potential from text file (space separated: 'x y' format):
+* Reads in extra potential from text file (space separated: 'x y' format):
 
-- Interpolates these points onto the grid (but does NOT extrapolate,
+* Interpolates these points onto the grid (but does NOT extrapolate,
   potential is assumed to be zero outside the given range)
-- Potential is multiplied by 'factor'
-- May be added before or after HF (if before: added to vnuc, if after: to vdir)
+* Potential is multiplied by 'factor'
+* May be added before or after HF (if before: added to vnuc, if after: to vdir)
 
 ### RadPot (Ginges/Flambaum QED Radiative Potential)
 
@@ -209,23 +259,23 @@ RadPot{
 }
 ```
 
-- Adds QED radiative potential to Hamiltonian.
+* Adds QED radiative potential to Hamiltonian.
 
-- QED will be included if this block is present; else not
-- Will read from file if it exists (e.g., Z_uhlmw.qed)
-- Each factor (Ueh, SE_h,..) is a scale; 0 means don't include. 1 means include full potential. Any positive number is valid.
-- rcut: Only calculates potential for r < rcut [for speed; rcut in au]
-- scale_rN: finite nucleus effects: rN = rN * scale_rN (=0 means pointlike)
-- scale_l: Optional input: Scaling factors for the V_rad for each l state; for higher states, uses the last given input. Input as a list of real numbers. Best explained with examples:
-  - scale_l = 1; // include QED for all states
-  - scale_l = 0,1,0; //include QED for p states only
-  - scale_l = 0,1; //inlcude QED for p,d,f.. but not s states.
-  - don't need to be 1 or 0, can be any real number.
-- core_qed: if true, will include QED effects into core in Hartree-Fock (relaxation). If false, will include QED only for valence states
+* QED will be included if this block is present; else not
+* Will read from file if it exists (e.g., Z_uhlmw.qed)
+* Each factor (Ueh, SE_h,..) is a scale; 0 means don't include. 1 means include full potential. Any positive number is valid.
+* rcut: Only calculates potential for r < rcut [for speed; rcut in au]
+* scale_rN: finite nucleus effects: rN = rN * scale_rN (=0 means pointlike)
+* scale_l: Optional input: Scaling factors for the V_rad for each l state; for higher states, uses the last given input. Input as a list of real numbers. Best explained with examples:
+  * scale_l = 1; // include QED for all states
+  * scale_l = 0,1,0; //include QED for p states only
+  * scale_l = 0,1; //inlcude QED for p,d,f.. but not s states.
+  * don't need to be 1 or 0, can be any real number.
+* core_qed: if true, will include QED effects into core in Hartree-Fock (relaxation). If false, will include QED only for valence states
 
 ### Basis (B-spline basis for MBPT)
 
-- The 'basis' is used for summing over states in MBPT. (A second 'basis', called spectrum, may be used for summation over states in other problems)
+* The 'basis' is used for summing over states in MBPT. (A second 'basis', called spectrum, may be used for summation over states in other problems)
 
 ```cpp
 Basis{
@@ -241,19 +291,19 @@ Basis{
 }
 ```
 
-- Constructs basis using _number_ splines of order _order_
+* Constructs basis using _number_ splines of order _order_
 
-- on sub-grid (r0,rmax) [if zero, will use full grid]
-- r0_eps: Only calculate splines for r where relative core density is larger than r0_eps (updates r0 for each l). Typically ~1.0e-8. Set to zero to use r0.
-- If print = true, will print basis energies
-- positron: include negative energy states into basis
-- states: which basis states to store
-  - e.g., "7sp5df" will store s and p states up to n=7, and d and f up to n=5
-  - spd will store _all_ (number) states for l<=2
+* on sub-grid (r0,rmax) [if zero, will use full grid]
+* r0_eps: Only calculate splines for r where relative core density is larger than r0_eps (updates r0 for each l). Typically ~1.0e-8. Set to zero to use r0.
+* If print = true, will print basis energies
+* positron: include negative energy states into basis
+* states: which basis states to store
+  * e.g., "7sp5df" will store s and p states up to n=7, and d and f up to n=5
+  * spd will store _all_ (number) states for l<=2
 
 ### Correlations (Correlation potential, Sigma)
 
-- For including correlations. 'basis' must exist to calculate Sigma, but not to read Sigma in from file.
+* For including correlations. 'basis' must exist to calculate Sigma, but not to read Sigma in from file.
 
 ```cpp
 Correlations{
@@ -287,40 +337,40 @@ Correlations{
 }
 ```
 
-- Includes correlation corrections. note: splines must exist already
+* Includes correlation corrections. note: splines must exist already
 
-- read/write: Read/write from/to file. Set to 'false' to calculate from scratch (and not write to file). By default, the file name is: "Atom".sig.
-  - Alternatively, put any text here to be a custom filename (e.g., read/write="Cs_new"; will read/write from/to Cs_new.sig). Don't include the '.sig' extension (uses sigf for Feynman method, sig2 for Goldstone). Grids must match exactly when reading in from a file.
-  - If reading Sigma in from file, basis doesn't need to exist
-- n_min_core: minimum core n included in the Sigma calculation; lowest states often contribute little, so this speeds up the calculations
-- energyShifts: If true, will calculate the second-order energy shifts (from scratch, according to MBPT) - compares to <v|Sigma|v> if it exists
-  - Note: Uses basis. If reading Sigma from disk, and no basis given, energy shifts will all be 0.0
-- Brueckner: Construct Brueckner valence orbitals using correlation potential method (i.e., include correlations into wavefunctions and energies for valence states)
-- stride: Only calculates Sigma every nth point (Sigma is NxN matrix, so stride=4 leads to ~16x speed-up vs 1)
-- rmin/rmax: min/max points along radial Grid Sigma is calculated+stored.
-- lambda_kappa: Rescale Sigma -> lambda*Sigma. One lambda for each kappa. If not given, assumed to be 1.
-  - Note: Lambda's are not written/read to file, so these must be given (if required) even when reading Sigma from disk
-- fk: Effective screening factors; only used for 2nd-order Goldstone method
-  - Note: Included directly into Sigma
-  - e.g., for Cs: fk = 0.72, 0.62, 0.83, 0.89, 0.94, 1.0;
-  - If blank, will calculate these from scratch for each state (better, slower)
-- fitTo_cm: Provide list of energies (lowest valence states for each kappa); Sigma for each kappa will be automatically re-scaled to exactly reproduce these. Give as binding energies in inverse cm! It will print the lambda_kappa's that it calculated
-  - e.g., fitTo_cm = -31406.5, -20228.2, -19674.1; will fit for the lowest s & p states for Cs
-  - Will over-write lambda_kappa
-  - -43487.11, -28583.45, -28583.11, -12204.03, -12203.99, -6856.91, -6856.91; // Li
-  - -41449.45, -24493.28, -24476.08, -12276.56, -12276.61, -6862.53, -6862.53; // Na
-  - -35009.81, -22024.63, -21966.92, -13472.83, -13475.13, -6881.96, -6881.96; // K
-  - -33690.81, -21111.86, -20874.265, -14335.161, -14335.607, -6898.692, -6898.718; // Rb
-  - -31406.468, -20228.200, -19674.161, -16907.211, -16809.625, -6934.241, -6934.422; // Cs
-  - -80686.30, -60424.74, -58733.90, -75812.45, -75011.49, -32427.68, -32202.97; // Ba+
-  - -32848.87, -20611.46, -18924.87, -16619.00, -16419.23; // Fr
-  - -81842.5 -60491.2, -55633.6, -69758.2, -68099.5, -32854.6, -32570.4; // Ra+
+* read/write: Read/write from/to file. Set to 'false' to calculate from scratch (and not write to file). By default, the file name is: "Atom".sig.
+  * Alternatively, put any text here to be a custom filename (e.g., read/write="Cs_new"; will read/write from/to Cs_new.sig). Don't include the '.sig' extension (uses sigf for Feynman method, sig2 for Goldstone). Grids must match exactly when reading in from a file.
+  * If reading Sigma in from file, basis doesn't need to exist
+* n_min_core: minimum core n included in the Sigma calculation; lowest states often contribute little, so this speeds up the calculations
+* energyShifts: If true, will calculate the second-order energy shifts (from scratch, according to MBPT) - compares to <v|Sigma|v> if it exists
+  * Note: Uses basis. If reading Sigma from disk, and no basis given, energy shifts will all be 0.0
+* Brueckner: Construct Brueckner valence orbitals using correlation potential method (i.e., include correlations into wavefunctions and energies for valence states)
+* stride: Only calculates Sigma every nth point (Sigma is NxN matrix, so stride=4 leads to ~16x speed-up vs 1)
+* rmin/rmax: min/max points along radial Grid Sigma is calculated+stored.
+* lambda_kappa: Rescale Sigma -> lambda*Sigma. One lambda for each kappa. If not given, assumed to be 1.
+  * Note: Lambda's are not written/read to file, so these must be given (if required) even when reading Sigma from disk
+* fk: Effective screening factors; only used for 2nd-order Goldstone method
+  * Note: Included directly into Sigma
+  * e.g., for Cs: fk = 0.72, 0.62, 0.83, 0.89, 0.94, 1.0;
+  * If blank, will calculate these from scratch for each state (better, slower)
+* fitTo_cm: Provide list of energies (lowest valence states for each kappa); Sigma for each kappa will be automatically re-scaled to exactly reproduce these. Give as binding energies in inverse cm! It will print the lambda_kappa's that it calculated
+  * e.g., fitTo_cm = -31406.5, -20228.2, -19674.1; will fit for the lowest s & p states for Cs
+  * Will over-write lambda_kappa
+  * -43487.11, -28583.45, -28583.11, -12204.03, -12203.99, -6856.91, -6856.91; // Li
+  * -41449.45, -24493.28, -24476.08, -12276.56, -12276.61, -6862.53, -6862.53; // Na
+  * -35009.81, -22024.63, -21966.92, -13472.83, -13475.13, -6881.96, -6881.96; // K
+  * -33690.81, -21111.86, -20874.265, -14335.161, -14335.607, -6898.692, -6898.718; // Rb
+  * -31406.468, -20228.200, -19674.161, -16907.211, -16809.625, -6934.241, -6934.422; // Cs
+  * -80686.30, -60424.74, -58733.90, -75812.45, -75011.49, -32427.68, -32202.97; // Ba+
+  * -32848.87, -20611.46, -18924.87, -16619.00, -16419.23; // Fr
+  * -81842.5 -60491.2, -55633.6, -69758.2, -68099.5, -32854.6, -32570.4; // Ra+
 
 ### Spectrum (B-spline basis for MBPT)
 
-- The 'Spectrum' is similar to basis, but also includes correlation corrections (if Sigma exists)
+* The 'Spectrum' is similar to basis, but also includes correlation corrections (if Sigma exists)
 
-- Useful, since we often need a small basis to compute MBPT terms, but a large basis to complete other sum-over-states calculations.
+* Useful, since we often need a small basis to compute MBPT terms, but a large basis to complete other sum-over-states calculations.
 
 ```cpp
 Spectrum{

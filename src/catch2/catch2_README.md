@@ -1,6 +1,8 @@
+# Catch2
+
 This project uses Catch2 for its testing framework.
 Catch2 is opensourse, and is incorperated into ampsci via a single header include.
-It may be found: https://github.com/catchorg/Catch2
+It may be found: [github.com/catchorg/Catch2](https://github.com/catchorg/Catch2)
 
 The license is included here
 
