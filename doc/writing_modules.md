@@ -2,6 +2,8 @@
 
 \brief Instructions for writing custom ampsci modules
 
+[[Home](/README.md)]
+
 - The modules system allows the easy calculation of any atomic properties after the wavefunction has been calculated.
 - Any number of _modules_ can be run by adding a `Module::moduleName{}' block to the input file.
 - Get a list of available modules: `$ ./ampsci -m`

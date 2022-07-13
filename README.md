@@ -2,20 +2,20 @@
 
 ## Atomic Many-body Perturbation theory in the Screened Coulomb Interaction
 
-Solves the correlated-Dirac equation for single-valence atomic systems using the Hartree-Fock + correlation potential method (based on Dzuba-Flambaum-Sushkov method).
-Fully relativistic, includes electron correlations, all-orders screening and hole-particle interaction, finite-nuclear size, Breit interaction, radiative QED effects, RPA for matrix elements, and structure radiation/renormalisation.
+_ampsci_ is a c++ program for high-precision atomic structure calculations of single-valence systems.
+
+It solves the correlated Dirac equation using the Hartree-Fock + correlation potential method (based on Dzuba-Flambaum-Sushkov method) to produce a set of atomic wavefunctions and energies.
+The method is fully relativistic, includes electron correlations, all-orders screening and hole-particle interaction, finite-nuclear size, Breit interaction, radiative QED effects, RPA for matrix elements, and structure radiation/renormalisation.
 QED is included via the Flambaum-Ginges radiative potential method.
-Can solve for continuum states with high energy.
-Calculates ionisation cross sections with high values for energy/momentum transfer.
-Full description of the physics methods and approximations, including references,
-are given in the physics documentation: [ampsci.pdf][man-url].
+Can solve for continuum states with high energy, and calculate ionisation cross sections with large energy/momentum transfer.
 
 Designed to be fast, accurate, and easy to use.
 The "modules" system (see [Documentation](#documentation)) makes it simple to add your own routines to use the atomic wavefunctions to calculate whatever properties you may be interested in.
 
 * The code is on GitHub: [github.com/benroberts999/ampsci](https://github.com/benroberts999/ampsci)
-
-* **Important:** this is a _pre-release_ version of the code: not fully tested or documented. Should not be used for publishable calculations without caution
+* A full description of the physics methods and approximations, including references,
+is given in the physics documentation: [ampsci.pdf][man-url].
+* **Important:** this is a _pre-release_ version of the code: not fully tested or documented, and should not be used for publishable calculations (without consultation)
 
 [![github][github-badge]](https://github.com/benroberts999/ampsci)
 [![doxygen][doxygen-badge]][docs-url]
@@ -35,7 +35,7 @@ The "modules" system (see [Documentation](#documentation)) makes it simple to ad
 
 ## Compilation <a name="compilation"></a>
 
-* Easiest methoed is to compile using provided Makefile:
+* Easiest method is to compile using provided Makefile:
 * Copy "doc/examples/Makefile" from doc/ directory to the working directory
   * `$ cp ./doc/examples/Makefile ./`
 * All programs compiled using the Makefile (run `$ make`)
@@ -77,14 +77,31 @@ For full compilation guides including for mac/windows, see [doc/compilation.md](
 
 ## ampsci -- basic usage <a name="ampsci-basic-usage"></a>
 
-Run the program with input options from the command line, e.g.:
+The program is run with input options from the command line.
+
+### Main method: input options from a text file
 
 * `$ ./ampsci filename`
   * Runs ampsci with input option specified in file "filename"
-  * This is the main way to run program
+  * See [doc/ampsci_input.md](doc/ampsci_input.md) for full description of input format,
+and a detailed list of input options + descriptions.
+  * run `$ampsci -h` to get breif instructions for input options
+  * Several example input files are given in: _doc/examples/_, along with their expected output; use these to test if everything is working.
+
+The Output is printed to screen. It's recommended to forward this to a text file.
+The input options and the ampsci version details are also printed, so that the
+program output contains all required info to exactly reproduce it. e.g.,
+
+* `$ ./ampsci input |tee -a outout`
+  * Runs ampsci using input options in file "input".
+  * Output will both be written to screen, and appended to
+    file "output".
+
+### quick method (simple calculations)
+
+For very simple (Hartree-Fock only) calculations, you can run ampsci directly from the command line:
 
 * `$ ./ampsci <At> <Core> <Valence>`
-  * For quick use: simple HF calculation. e.g.,
   * `$ ./ampsci Cs`
     * Runs ampsci for Cs using Hartree Fock (V^N) approximation
   * `$ ./ampsci Cs [Xe] 6sd5d`
@@ -93,7 +110,7 @@ Run the program with input options from the command line, e.g.:
   * `$ ./ampsci Cs`
     * Runs ampsci for Cs using Hartree Fock (V^N) approximation
 
-**Other command-line options:**
+### Other command-line options
 
 * `$ ./ampsci -v`
   * Prints version info (same as --version)
@@ -107,21 +124,6 @@ Run the program with input options from the command line, e.g.:
   * Prints periodic table with electronic+nuclear info (same as --periodicTable)
 * `$ ./ampsci -c`
   * Prints some handy physical constants (same as --constants)
-
-Output is printed to screen. It's recommended to forward this to a text file.
-The input options and the ampsci version details are also printed, so that the
-program output contains all required info to exactly reproduce it. e.g.,
-
-* `$ ./ampsci input |tee -a outout`
-  * Runs ampsci using input options in file "input".
-  * Output will both be written to screen, and appended to
-    file "output".
-
-* Several example input files are given in: _doc/examples/_, along with their expected output; use these to test if everything is working.
-* run `$ampsci -h` to get breif instructions for input options
-
-See [doc/ampsci_input.md](doc/ampsci_input.md) for full description of input format,
-and a detailed list of input options + descriptions.
 
 --------------------------------------------------------------------------------
 

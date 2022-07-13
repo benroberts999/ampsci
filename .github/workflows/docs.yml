@@ -28,11 +28,13 @@ jobs:
         git reset --hard origin/main
         cp ./doc/examples/Makefile ./ 
         for FILE in ./doc/*.md; do sed -i 's%(/doc/%(doc/%g' $FILE; done
+        for FILE in ./doc/*.md; do sed -i 's%(/README%(README%g' $FILE; done
         for FILE in ./doc/*.md; do sed -i 's%(/src/%(https://github.com/benroberts999/ampsci/tree/main/src/%g' $FILE; done
         sed -i 's%tests-badge]]%tests-badge-v2]]%g' ./README.md
         sed -i 's%build-badge]]%build-badge-v2]]%g' ./README.md
         sed -i 's%cov-badge]]%cov-badge-v2]]%g' ./README.md
         make doxy
+        for FILE in ./doc/*.md; do sed -i 's%\\brief %%g' $FILE; done
         wget https://github.com/benroberts999/ampsci/actions/workflows/tests.yml/badge.svg -O ./docs/tests-badge.svg
         wget https://github.com/benroberts999/ampsci/actions/workflows/build.yml/badge.svg -O ./docs/build-badge.svg
         wget https://codecov.io/gh/benroberts999/ampsci/branch/main/graph/badge.svg -O ./docs/cov-badge.svg

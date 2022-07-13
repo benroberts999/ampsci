@@ -2,27 +2,37 @@
 
 \brief Compilation instructions for Linux, Mac, and Windows
 
-* Easiest methoed is to compile using provided Makefile:
+[[Home](/README.md)]
+
+* Easiest method is to compile using provided Makefile:
 * Copy "doc/examples/Makefile" from doc/ directory to the working directory
   * `$ cp ./doc/examples/Makefile ./`
 * All programs compiled using the Makefile (run `$ make`)
-* The file _Makefile_ has some basic compilation options. It's currently set up to work on most linux systems; you may need to change a few options for others (see see [doc/compilation.md](/doc/compilation.md))
+* The file _Makefile_ has some basic compilation options. It's currently set up to work on most linux systems; you may need to change a few options for others (see see below)
 * Tested with g++ and clang++ on linux and mac
 
-## Requires
+## Dependencies / Requirements
 
 * c++ compiler that supports c++17 [clang version 6 or newer, gcc version 7 or newer]
 * LAPACK and BLAS libraries [netlib.org/lapack/](http://www.netlib.org/lapack/)
 * GSL (GNU scientific libraries) [gnu.org/software/gsl/](https://www.gnu.org/software/gsl/) [version 2.0 or newer]
-* [optional] GNU Make [gnu.org/software/make/](https://www.gnu.org/software/make/) - used to compile code
-* [optional] OpenMP [openmp.org/](https://www.openmp.org/) - used for parallisation
+* [optional] GNU Make ([gnu.org/software/make/](https://www.gnu.org/software/make/)) - used to compile the code
+* [optional] OpenMP ([openmp.org/](https://www.openmp.org/)) - used for parallisation
+* [optional] git ([git-scm.com/](https://git-scm.com/)) for version tracking and to keep up-to-date with the latest version
 
 ## Quick-start
 
-* For ubuntu - for other systems, see [doc/compilation.md](/doc/compilation.md)
+This is for ubuntu/linux - for other systems, see below
+
+* Get the code from [GitHub](https://github.com/benroberts999/ampsci), using git:
+  * `$ sudo apt install git`
+  * `$ git clone git@github.com:benroberts999/ampsci.git`
+  * or `$ git clone https://github.com/benroberts999/ampsci.git`
+* Or, direct download (without using git, not redcommended):
+  * <https://github.com/benroberts999/ampsci/archive/refs/heads/main.zip>
 * Install dependencies
   * `$ sudo apt install g++ liblapack-dev libblas-dev libgsl-dev make libomp-dev`
-* Prepare the Makefile (already setup for ubuntu, you may nee)
+* Prepare the Makefile (already setup for ubuntu, you may need minor adjustments, see below)
   * `$ cp ./doc/examples/Makefile ./`
 * Compile ampsci using all default options:  
   * `$ make`
