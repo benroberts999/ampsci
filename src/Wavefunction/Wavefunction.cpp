@@ -28,15 +28,18 @@
 //==============================================================================
 Wavefunction::Wavefunction(const GridParameters &gridparams,
                            const Nuclear::Nucleus &t_nucleus, double var_alpha)
-    : rgrid(std::make_shared<const Grid>(gridparams)),
-      m_alpha(PhysConst::alpha * var_alpha),
-      m_nucleus(t_nucleus),
-      m_vnuc(Nuclear::formPotential(m_nucleus, rgrid->r())) {
-  if (m_alpha * m_nucleus.z() > 1.0) {
-    std::cerr << "Alpha too large: Z*alpha=" << m_nucleus.z() * m_alpha << "\n";
-    std::abort();
-  }
-}
+    : Wavefunction(std::make_shared<const Grid>(gridparams), t_nucleus,
+                   var_alpha) {}
+
+//     : rgrid(std::make_shared<const Grid>(gridparams)),
+//       m_alpha(PhysConst::alpha * var_alpha),
+//       m_nucleus(t_nucleus),
+//       m_vnuc(Nuclear::formPotential(m_nucleus, rgrid->r())) {
+//   if (m_alpha * m_nucleus.z() > 1.0) {
+//     std::cerr << "Alpha too large: Z*alpha=" << m_nucleus.z() * m_alpha <<
+//     "\n"; std::abort();
+//   }
+// }
 
 Wavefunction::Wavefunction(std::shared_ptr<const Grid> in_grid,
                            const Nuclear::Nucleus &t_nucleus, double var_alpha)
@@ -182,7 +185,7 @@ void Wavefunction::solve_core(const std::string &method, const double x_Breit,
 }
 
 //==============================================================================
-auto Wavefunction::coreEnergyHF() const {
+double Wavefunction::coreEnergyHF() const {
   if (!m_HF) {
     return 0.0;
   }

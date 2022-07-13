@@ -195,7 +195,7 @@ public:
   std::vector<double> coreDensity() const;
 
   //! Calculates HF core energy (doesn't include magnetic QED?)
-  auto coreEnergyHF() const;
+  double coreEnergyHF() const;
 
   //------------------------------------------------------------------
 

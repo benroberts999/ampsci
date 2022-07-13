@@ -15,6 +15,8 @@ lcov --remove coverage.info \
   '*/Modules/*' \
   '*/DMionisation/*' \
   '*/ExternalField/*' \
-  '*/MBPT/*' \
+  '*/MBPT/FeynmanSigma.*' \
+  '*/MBPT/Ladder.*' \
+  '*/qip/Widgets.*' \
 --output-file coverage.info &&
 lcov --list coverage.info |tee -a cov-info.txt
