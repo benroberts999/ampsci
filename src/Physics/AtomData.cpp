@@ -110,8 +110,8 @@ std::string l_symbol(int l) {
 }
 
 std::string kappa_symbol(int kappa) {
-  const auto lstr = l_symbol(l_k(kappa)); //
-  return lstr + "_" + std::to_string(twoj_k(kappa)) + "/2";
+  const auto lstr = l_symbol(Angular::l_k(kappa)); //
+  return lstr + "_" + std::to_string(Angular::twoj_k(kappa)) + "/2";
 }
 
 int symbol_to_l(std::string_view l_str) {
@@ -153,12 +153,12 @@ std::pair<int, int> parse_symbol(std::string_view symbol) {
       const auto slash_pos = std::size_t(slash_ptr - pm.begin());
       const auto tj = std::stoi(std::string(pm.substr(1, slash_pos - 0)));
       if (tj != 0)
-        kappa = kappa_twojl(tj, l);
+        kappa = Angular::kappa_twojl(tj, l);
     } else {
       // short-form symbol, 6p-
       const auto tj = pm == "+" ? 2 * l + 1 : pm == "-" ? 2 * l - 1 : 0;
       if (tj != 0)
-        kappa = kappa_twojl(tj, l);
+        kappa = Angular::kappa_twojl(tj, l);
     }
   }
 
@@ -474,8 +474,9 @@ inline std::string helper_s(const Element &el) {
 }
 inline std::string helper_z(const Element &el) {
   auto z_str = std::to_string(el.Z);
-  auto Z_buff = (el.Z < 10) ? std::string("  ") :
-                              (el.Z < 100) ? std::string(" ") : std::string("");
+  auto Z_buff = (el.Z < 10)  ? std::string("  ") :
+                (el.Z < 100) ? std::string(" ") :
+                               std::string("");
   return Z_buff + z_str + " ";
 }
 

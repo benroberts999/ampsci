@@ -1,3 +1,4 @@
+#include "HF/Breit.hpp"
 #include "DiracOperator/DiracOperator.hpp"
 #include "ExternalField/TDHF.hpp"
 #include "Physics/PhysConst_constants.hpp"
@@ -10,6 +11,68 @@
 #include <vector>
 
 //! Unit tests for Breit
+TEST_CASE("Breit (basic)", "[Breit][unit]") {
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "Breit (basic)\n";
+
+  // solve HF (local) without breit. Calc Breit seperately:
+  Wavefunction wf({750, 1.0e-4, 120.0, 40.0, "loglinear", -1.0},
+                  {"Rb", -1, "Fermi", -1.0, -1.0}, 1.0);
+  wf.solve_core("Local", 0.0, "[Kr]");
+  wf.solve_valence("5sp");
+
+  const HF::Breit Vb(1.0);
+
+  REQUIRE(std::abs(Vb.scale_factor() - 1.0) < 1.0e-6);
+
+  // energies:
+  // expected generated with 10,000 pts
+  const auto expected =
+      std::vector{1.446617548413e-04, 9.357310567545e-05, 6.905846245113e-05};
+  std::size_t count = 0;
+  for (const auto &Fv : wf.valence()) {
+    auto de = Fv * Vb.VbrFa(Fv, wf.core());
+    const auto eps = std::abs((de - expected.at(count)) / expected.at(count));
+    printf("%3s %.6e [%.6e] %.0e\n", Fv.shortSymbol().c_str(), de,
+           expected.at(count), eps);
+    REQUIRE(eps < 1.0e-3);
+    ++count;
+  }
+
+  const auto h{DiracOperator::E1(wf.grid())};
+  auto tdhf = ExternalField::TDHF(&h, wf.vHF());
+
+  // test TDHF Breit
+  const auto expected_dv = std::vector{7.918272149729e-06, -1.576941403210e-05};
+  count = 0;
+  for (const auto &Fw : wf.valence()) {
+    for (const auto &Fv : wf.valence()) {
+      if (Fw <= Fv || h.isZero(Fw, Fv))
+        continue;
+
+      double dv = 0.0;
+      for (const auto &Fb : wf.core()) {
+        const auto X = tdhf.solve_dPsis(Fb, 0.0, ExternalField::dPsiType::X);
+        const auto Y = tdhf.solve_dPsis(Fb, 0.0, ExternalField::dPsiType::Y);
+        for (std::size_t i = 0; i < X.size(); ++i) {
+          dv += Fw *
+                (Vb.dVbrX_Fa(Fw.kappa(), h.rank(), Fv, Fb, X.at(i), Y.at(i)) +
+                 Vb.dVbrD_Fa(Fw.kappa(), h.rank(), Fv, Fb, X.at(i), Y.at(i)));
+        }
+      }
+      auto dv0 = expected_dv.at(count);
+      const auto eps = std::abs((dv - dv0) / dv0);
+      printf("%3s-%3s %.4e [%.4e] %.0e\n", Fw.shortSymbol().c_str(),
+             Fv.shortSymbol().c_str(), dv, dv0, eps);
+      REQUIRE(eps < 1.0e-2);
+      ++count;
+    }
+  }
+}
+
+//==============================================================================
+//==============================================================================
+//! integration tests for Breit
 TEST_CASE("Breit", "[Breit][integration]") {
   std::cout << "\n----------------------------------------\n";
   std::cout << "Breit\n";
@@ -30,10 +93,9 @@ TEST_CASE("Breit", "[Breit][integration]") {
   wf0.solve_valence("7sp5d");
 
   // Lambda to compare against (From Vladimir's code):
-  // Overall sign difference between E1, E2, and PNC ME definition (and <ab> vs
-  // <ba>) taken into account
-  // Store data in list of pairs.
-  // Sort the data by states, to make comparisons easier
+  // Overall sign difference between E1, E2, and PNC ME definition (and <ab>
+  // vs <ba>) taken into account Store data in list of pairs. Sort the data by
+  // states, to make comparisons easier
   using datav = std::vector<std::pair<std::string, double>>;
   auto sort_by_first = [](auto x, auto y) { return x.first < y.first; };
 
@@ -219,7 +281,8 @@ TEST_CASE("Breit", "[Breit][integration]") {
     REQUIRE(std::abs(wepsr) < 1.0e-5);
     // pass &= qip::check_value(&obuff, "E1(Br) " + worst, weps, 0.0, 1.0e-6);
     // pass &=
-    //     qip::check_value(&obuff, "E1+RPA(Br) " + worstr, wepsr, 0.0, 1.0e-5);
+    //     qip::check_value(&obuff, "E1+RPA(Br) " + worstr, wepsr,
+    //     0.0, 1.0e-5);
   }
 
   //============================================================================
@@ -241,8 +304,9 @@ TEST_CASE("Breit", "[Breit][integration]") {
                            {"7p+", 0.38}, {"5d-", -22.0},
                            {"5d+", -26.0}};
 
-    // My values (as a regression test, and Derevianko not necisarily better..)
-    // nb: if this one fails, not neccisarily an issue, BUT should be checked!
+    // My values (as a regression test, and Derevianko not necisarily
+    // better..) nb: if this one fails, not neccisarily an issue, BUT should
+    // be checked!
     const auto de2_me = datav{{"6s+", -2.878612320},  {"7s+", 0.085538550},
                               {"6p-", 7.305198685},   {"7p-", 2.571275498},
                               {"6p+", 0.571894669},   {"7p+", 0.434694080},
@@ -320,7 +384,8 @@ TEST_CASE("Breit", "[Breit][integration]") {
     // 0.1); pass &=
     //     qip::check_value(&obuff, "Sigma2(Br,Derev) " + worst2, weps2, 0.0,
     //     0.4);
-    // pass &= qip::check_value(&obuff, "Sigma2(Br,me) " + worstme, wepsme, 0.0,
+    // pass &= qip::check_value(&obuff, "Sigma2(Br,me) " + worstme, wepsme,
+    // 0.0,
     //                          1.0e-2);
   }
 

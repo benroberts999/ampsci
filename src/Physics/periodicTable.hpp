@@ -13,6 +13,6 @@ int parse_A(const std::string &A_str, int z = 0);
 void printConstants();
 
 //==============================================================================
-int periodicTable(std::string z_str, std::string a_str);
+void periodicTable(std::string z_str, std::string a_str);
 
 } // namespace AtomData

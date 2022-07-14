@@ -1140,7 +1140,7 @@ double HartreeFock::enGuessCore(int n, int kappa) const
 // num_el_below = total electrons BELOW
 // num = num electrons in THIS shell
 {
-  const int l = AtomData::l_k(kappa);
+  const int l = Angular::l_k(kappa);
   int num_el_below = 0;
   int num_el_this = 0;
   for (const auto &Fc : m_core) {
@@ -1178,7 +1178,7 @@ double HartreeFock::enGuessVal(int n, int ka) const
 // Energy guess for valence states. Not perfect, good enough
 {
   const int maxn = DiracSpinor::max_n(m_core);
-  const int l = AtomData::l_k(ka);
+  const int l = Angular::l_k(ka);
   const int dn = n - maxn;
   double neff = 1.0 + dn;
   double x = 1;

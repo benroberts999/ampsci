@@ -1,4 +1,5 @@
 #pragma once
+#include "Angular/Wigner369j.hpp"
 #include "Physics/AtomData_PeriodicTable.hpp"
 #include <array>
 #include <cmath>
@@ -22,7 +23,7 @@ struct NonRelSEConfig {
 
   double frac() const {
     int filling = 2 * (2 * l + 1);
-    return (num < filling) ? double(num) / double(filling) : 1;
+    return (num < filling) ? double(num) / double(filling) : 1.0;
   };
 
   // comparitor overloads:
@@ -113,49 +114,6 @@ void printTable();
 std::string int_to_roman(int a);
 
 //==============================================================================
-//! Returns l given kappa (e.g., -1 -> 0; 1 -> 1)
-constexpr int l_k(int ka) { return (ka > 0) ? ka : -ka - 1; }
-//! Returns 2*j given kappa (e.g., -1 -> 1; 1 -> 1)
-constexpr int twoj_k(int ka) { return (ka > 0) ? 2 * ka - 1 : -2 * ka - 1; }
-constexpr double j_k(int ka) {
-  return (ka > 0) ? double(ka) - 0.5 : double(-ka) - 0.5;
-}
-//! Returns parity (+/-1) given kappa
-constexpr int parity_k(int ka) {
-  return (ka % 2 == 0) ? ((ka > 0) ? 1 : -1) : ((ka < 0) ? 1 : -1);
-}
-//! Returns "Complimentary l (l for lower component) given kappa.
-//! l-tilde = (2j-l) = l +/- 1, for j = l +/- 1/2
-constexpr int l_tilde_k(int ka) {
-  // "Complimentary l (l for lower component)"
-  // l-tilde = (2j-l) = l +/- 1, for j = l +/- 1/2
-  return (ka > 0) ? ka - 1 : -ka;
-}
-//! Returns kappa given (2*j) and l
-constexpr int kappa_twojl(int twoj, int l) {
-  return ((2 * l - twoj) * (twoj + 1)) / 2;
-}
-//==============================================================================
-//! return kappa_index given kappa; kappa(i) = (-1,i+1)*(int(i/2)+1)
-/*! @details   Kappa Index:
- For easy array access, define 1-to-1 index for each kappa:
- kappa: -1  1 -2  2 -3  3 -4  4 ...
- index:  0  1  2  3  4  5  6  7 ...
- kappa(i) = (-1,i+1)*(int(i/2)+1)
-*/
-constexpr int indexFromKappa(int ka) {
-  return (ka < 0) ? -2 * ka - 2 : 2 * ka - 1;
-}
-//! Returns kappa given kappa_index
-constexpr int kappaFromIndex(int i) {
-  return (i % 2 == 0) ? -(i + 2) / 2 : (i + 1) / 2;
-}
-//! Returns 2*j given kappa_index
-constexpr int twojFromIndex(int i) { return (i % 2 == 0) ? i + 1 : i; }
-//! Returns l given kappa_index
-constexpr int lFromIndex(int i) { return (i % 2 == 0) ? i / 2 : (i + 1) / 2; }
-
-//==============================================================================
 //! Returns number of possible states _below_ given n
 constexpr int states_below_n(int n) { return n * n - 2 * n + 1; }
 
@@ -168,7 +126,7 @@ constexpr int states_below_n(int n) { return n * n - 2 * n + 1; }
  Note: ONLY valid for n >= 1 (i.e., cannot be used for general basis states)
 */
 constexpr int nk_to_index(int n, int k) {
-  return states_below_n(n) + indexFromKappa(k);
+  return states_below_n(n) + Angular::indexFromKappa(k);
 }
 
 //! return {n, kappa} given nk_index:
@@ -177,7 +135,7 @@ inline std::pair<int, int> index_to_nk(int index) {
   const auto n = 1 + int(std::sqrt(index + 0.01));
   // int n = 1 + int_sqrt(index);
   const auto kappa_index = index - states_below_n(n);
-  return {n, kappa_index};
+  return {n, Angular::kappaFromIndex(kappa_index)};
 }
 
 } // namespace AtomData

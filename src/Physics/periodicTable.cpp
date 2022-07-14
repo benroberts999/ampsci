@@ -78,7 +78,9 @@ void printConstants() //
 }
 
 //==============================================================================
-int periodicTable(std::string z_str, std::string a_str) {
+void periodicTable(std::string z_str, std::string a_str) {
+  if (a_str == "")
+    a_str = "0";
 
   instructions();
   AtomData::printTable();

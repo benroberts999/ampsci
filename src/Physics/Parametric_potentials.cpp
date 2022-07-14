@@ -12,7 +12,7 @@ double green(int Z, double r, double H, double d)
 {
   if (r == 0)
     return 0;
-  return (-1. / r) * (1. + (double(Z) - 1.) / (H * (exp(r / d) - 1) + 1)) +
+  return (-1.0 / r) * (1.0 + (double(Z) - 1.) / (H * (exp(r / d) - 1) + 1)) +
          double(Z) / r;
 }
 
@@ -23,8 +23,8 @@ double tietz(int Z, double r, double t, double g)
 {
   if (r == 0)
     return 0;
-  return (-1. / r) *
-             (1. + (double(Z) - 1.) * exp(-g * r) / std::pow(1. + t * r, 2)) +
+  return (-1.0 / r) *
+             (1.0 + (double(Z) - 1.) * exp(-g * r) / std::pow(1.0 + t * r, 2)) +
          double(Z) / r;
 }
 
@@ -32,13 +32,14 @@ double tietz(int Z, double r, double t, double g)
 int defaultGreenCore(int z, double &H, double &d)
 // Fitted to match HF closed-shell core energies - aid convergance!
 {
-  std::vector<std::vector<double>> zHd = {
-      {2, 12.275, 3.552},     {3, 3.248, 2.518},       {5, 6.812, 4.535},
-      {11, 3.001, 1.038},     {13, 9.837, 2.99813},    {19, 5.55771, 1.65891},
-      {29, 2.5, 0.65},        {31, 2.932, 0.736},      {37, 4.7987, 1.06374},
-      {47, 1.95883, 0.52759}, {49, 3.363, 0.75499},    {55, 5.846, 1.145},
-      {70, 3.7, 0.66},        {79, 4.45331, 0.73931},  {81, 4.7354, 0.7749},
-      {87, 6.173, 0.967},     {102, 4.33716, 0.67213}, {113, 5.10036, 0.75391}};
+  const std::vector<std::vector<double>> zHd = {
+      {1, 0.0, 0.0},          {2, 12.275, 3.552},     {3, 3.248, 2.518},
+      {5, 6.812, 4.535},      {11, 3.001, 1.038},     {13, 9.837, 2.99813},
+      {19, 5.55771, 1.65891}, {29, 2.5, 0.65},        {31, 2.932, 0.736},
+      {37, 4.7987, 1.06374},  {47, 1.95883, 0.52759}, {49, 3.363, 0.75499},
+      {55, 5.846, 1.145},     {70, 3.7, 0.66},        {79, 4.45331, 0.73931},
+      {81, 4.7354, 0.7749},   {87, 6.173, 0.967},     {102, 4.33716, 0.67213},
+      {113, 5.10036, 0.75391}};
 
   for (auto &item : zHd) {
     int iz = (int)item[0];
@@ -60,13 +61,12 @@ int defaultGreenCore(int z, double &H, double &d)
 
       H = H1 + (H2 - H1) * (z - izm) / (izp - izm);
       d = d1 + (d2 - d1) * (z - izm) / (izp - izm);
-      // std::cout<<H<<" "<<d<<"\n";
       return 0;
     }
   }
 
   if (z > 113) {
-    H = 5.;
+    H = 5.0;
     d = 0.75;
   }
 
@@ -209,7 +209,7 @@ int defaultTietz(int z, double &g, double &t)
 std::vector<double> GreenPotential(int z, const std::vector<double> &r_array,
                                    double h, double d) {
   // double Gh, Gd; // Green potential parameters
-  if (std::fabs(h * d) < 1.0e-6)
+  if (std::abs(h * d) < 1.0e-6)
     defaultGreenCore(z, h, d);
   // Fill the the potential, using Greens Parametric
   std::vector<double> v;
@@ -223,7 +223,7 @@ std::vector<double> GreenPotential(int z, const std::vector<double> &r_array,
 std::vector<double> TietzPotential(int z, const std::vector<double> &r_array,
                                    double g, double t) {
   // double Gh, Gd; // Green potential parameters
-  if (std::fabs(g * t) < 1.0e-6)
+  if (std::abs(g * t) < 1.0e-6)
     defaultTietz(z, g, t);
   // Fill the the potential, using Greens Parametric
   std::vector<double> v;

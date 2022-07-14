@@ -1,4 +1,5 @@
-#include "Wavefunction/Wavefunction.hpp"
+#include "Wavefunction.hpp"
+#include "ContinuumOrbitals.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "catch2/catch.hpp"
@@ -140,4 +141,25 @@ TEST_CASE("Wavefunction", "[wf][unit]") {
 
   REQUIRE(wf.vrad() != nullptr);
   REQUIRE(wf.Hmag().size() == num_points);
+  wf.solve_core();
+
+  //============================================================================
+  //============================================================================
+  {
+    std::cout << "\n ContinuumOrbitals\n";
+    ContinuumOrbitals cntm(wf, 1);
+
+    cntm.solveContinuumHF(0.1, 1);
+
+    const auto eps = cntm.check_orthog(true);
+    REQUIRE(std::abs(eps) < 1.0e-3);
+
+    REQUIRE(cntm.orbitals.size() != 0);
+    cntm.clear();
+    REQUIRE(cntm.orbitals.size() == 0);
+
+    cntm.solveContinuumHF(0.1, 1, &wf.core().front());
+    auto ortho = std::abs(wf.core().front() * cntm.orbitals.front());
+    REQUIRE(std::abs(ortho) < 1.0e-10);
+  }
 }

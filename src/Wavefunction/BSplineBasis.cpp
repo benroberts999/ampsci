@@ -75,7 +75,7 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
     const auto k = k_spl;
 
     // Chose larger r0 depending on core density:
-    const auto l = AtomData::l_k(kappa);
+    const auto l = Angular::l_k(kappa);
     const auto l_tmp = std::min(l, DiracSpinor::max_l(wf.core()));
 
     const auto [rmin_l, rmax_l] = wf.lminmax_core_range(l_tmp, r0_eps);
@@ -359,7 +359,7 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
 // coeficient found from diagonalising the Hamiltonian over Bsplns
 {
 
-  auto l = AtomData::l_k(kappa);
+  auto l = Angular::l_k(kappa);
   auto min_n = l + 1;
 
   const auto neg_mc2 = -1.0 / (wf.alpha() * wf.alpha());

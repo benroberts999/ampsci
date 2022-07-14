@@ -20,10 +20,10 @@ double CLkk(int L, int ka, int kb)
 // C_{k}^{k',L} = [j][j'][L] * (j,j',L, -1/,1/2,0)^2 * pi(l+l'+L)
 // */
 {
-  const int la = AtomData::l_k(ka);
-  const int lb = AtomData::l_k(kb);
-  const int two_ja = AtomData::twoj_k(ka);
-  const int two_jb = AtomData::twoj_k(kb);
+  const int la = Angular::l_k(ka);
+  const int lb = Angular::l_k(kb);
+  const int two_ja = Angular::twoj_k(ka);
+  const int two_jb = Angular::twoj_k(kb);
 
   if ((la + lb + L) % 2 != 0)
     return 0; // Parity rule
@@ -278,7 +278,7 @@ sphericalBesselTable(int max_L, const std::vector<double> &q_array,
     for (auto iq = 0ul; iq < qsteps; iq++) {
       for (auto ir = 0ul; ir < num_points; ir++) {
         const double q = q_array[iq];
-        double tmp = SphericalBessel::JL(int(L), q *r[ir]);
+        double tmp = SphericalBessel::JL(int(L), q * r[ir]);
         // If q(dr) is too large, "missing" j_L oscillations
         //(overstepping them). This helps to fix that.
         // By averaging the J_L function. Note: only works if wf is smooth

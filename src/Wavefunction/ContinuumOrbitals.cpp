@@ -130,8 +130,8 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
 
   // loop through each kappa state
   for (int k_i = 0; true; ++k_i) {
-    const auto kappa = AtomData::kappaFromIndex(k_i);
-    const auto l = AtomData::l_k(kappa);
+    const auto kappa = Angular::kappaFromIndex(k_i);
+    const auto l = Angular::l_k(kappa);
     if (l < min_l)
       continue;
     if (l > max_l)

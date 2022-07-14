@@ -14,8 +14,10 @@ lcov --remove coverage.info \
   '/usr/*' \
   '*/Modules/*' \
   '*/DMionisation/*' \
+  '*/Physics/periodicTable.*' \
   '*/ExternalField/*' \
   '*/MBPT/FeynmanSigma.*' \
+  '*/MBPT/CorrelationPotential.*' \
   '*/MBPT/Ladder.*' \
   '*/qip/Widgets.*' \
 --output-file coverage.info &&

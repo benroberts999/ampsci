@@ -21,10 +21,10 @@ DiracSpinor::DiracSpinor(int in_n, int in_k,
       m_f(std::vector<double>(m_rgrid ? m_rgrid->num_points() : 0, 0.0)),
       m_g(m_f),
       m_pinf(m_rgrid ? m_rgrid->num_points() : 0),
-      m_twoj(AtomData::twoj_k(in_k)),
-      m_l(AtomData::l_k(in_k)),
-      m_parity(AtomData::parity_k(in_k)),
-      m_kappa_index(AtomData::indexFromKappa(in_k)),
+      m_twoj(Angular::twoj_k(in_k)),
+      m_l(Angular::l_k(in_k)),
+      m_parity(Angular::parity_k(in_k)),
+      m_kappa_index(Angular::indexFromKappa(in_k)),
       m_nkappa_index(static_cast<Index>(AtomData::nk_to_index(in_n, in_k))) {}
 
 //==============================================================================
