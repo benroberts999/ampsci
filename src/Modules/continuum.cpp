@@ -53,7 +53,7 @@ void continuum(const IO::InputBlock &input, const Wavefunction &wf) {
 
     std::cout << "\nMatrix elements of " << h->name() << "\n";
 
-    double eachFreqQ = false;
+    bool eachFreqQ = false;
 
     const auto rpaQ = input.get("rpa", false);
     const auto omega = input.get("omega", 0.0);
