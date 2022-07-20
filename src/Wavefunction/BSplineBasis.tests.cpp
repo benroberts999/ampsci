@@ -1,5 +1,5 @@
-#include "DiracOperator/DiracOperator.hpp"
 #include "Wavefunction/BSplineBasis.hpp"
+#include "DiracOperator/DiracOperator.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "catch2/catch.hpp"
@@ -210,7 +210,7 @@ TEST_CASE("Wavefunction: BSpline-basis", "[BSpline][QED][Breit][integration]") {
       }
       for (std::size_t l = 0; l < hfs.size(); l++) {
         const auto eps =
-            *std::max_element(cbegin(hfs[l]), cend(hfs[l]), qip::comp_abs);
+            *std::max_element(cbegin(hfs[l]), cend(hfs[l]), qip::less_abs{});
 
         std::string name = "spl";
         if (f_Br != 0.0)
@@ -252,8 +252,9 @@ TEST_CASE("Wavefunction: BSpline-basis", "[BSpline][QED][Breit][integration]") {
       const auto tkr = SplineBasis::sumrule_TKR(basis, wf.grid().r(), false);
 
       const auto worst =
-          std::max_element(cbegin(tkr), cend(tkr), qip::comp_abs);
-      const auto best = std::min_element(cbegin(tkr), cend(tkr), qip::comp_abs);
+          std::max_element(cbegin(tkr), cend(tkr), qip::less_abs{});
+      const auto best =
+          std::min_element(cbegin(tkr), cend(tkr), qip::less_abs{});
 
       const auto blabel =
           label + " TKR(b) l=" + std::to_string(int(best - begin(tkr)));
@@ -270,8 +271,9 @@ TEST_CASE("Wavefunction: BSpline-basis", "[BSpline][QED][Breit][integration]") {
       const auto dg =
           SplineBasis::sumrule_DG(nDG, basis, wf.grid(), wf.alpha(), false);
 
-      const auto worst = std::max_element(cbegin(dg), cend(dg), qip::comp_abs);
-      const auto best = std::min_element(cbegin(dg), cend(dg), qip::comp_abs);
+      const auto worst =
+          std::max_element(cbegin(dg), cend(dg), qip::less_abs{});
+      const auto best = std::min_element(cbegin(dg), cend(dg), qip::less_abs{});
 
       const auto kib = Angular::kappaFromIndex(int(best - begin(dg)));
       const auto kiw = Angular::kappaFromIndex(int(worst - begin(dg)));
@@ -312,8 +314,9 @@ TEST_CASE("Wavefunction: BSpline-basis", "[BSpline][QED][Breit][integration]") {
       const auto dg =
           SplineBasis::sumrule_DG(nDG, basis, wf.grid(), wf.alpha(), false);
 
-      const auto worst = std::max_element(cbegin(dg), cend(dg), qip::comp_abs);
-      const auto best = std::min_element(cbegin(dg), cend(dg), qip::comp_abs);
+      const auto worst =
+          std::max_element(cbegin(dg), cend(dg), qip::less_abs{});
+      const auto best = std::min_element(cbegin(dg), cend(dg), qip::less_abs{});
 
       const auto kib = Angular::kappaFromIndex(int(best - begin(dg)));
       const auto kiw = Angular::kappaFromIndex(int(worst - begin(dg)));

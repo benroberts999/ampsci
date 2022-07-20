@@ -169,6 +169,14 @@ TEST_CASE("HartreeFock - just Cs", "[HF][HartreeFock][Breit][unit]") {
 
   //============================================================================
 
+  for (auto method :
+       {HF::Method::HartreeFock, HF::Method::ApproxHF, HF::Method::Hartree,
+        HF::Method::KohnSham, HF::Method::Local}) {
+
+    auto m_str = HF::parseMethod(method);
+    REQUIRE(HF::parseMethod(m_str) == method);
+  }
+
   // Grid parameters (etc.):
   const auto grid_type = "loglinear";
   const auto points = 2000;

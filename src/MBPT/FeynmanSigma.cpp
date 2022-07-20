@@ -150,13 +150,12 @@ void FeynmanSigma::formSigma(int kappa, double en, int n) {
   }
 
   // Exchange part:
-  const auto Gmat_X = m_ex_method == ExchangeMethod::none ?
-                          0.0 * Sigma :
-                          m_ex_method == ExchangeMethod::Goldstone ?
-                          Exchange_Goldstone(kappa, en, vfk) :
-                          m_ex_method == ExchangeMethod::w1 ?
-                          FeynmanEx_1(kappa, en) :
-                          FeynmanEx_w1w2(kappa, en);
+  const auto Gmat_X =
+      m_ex_method == ExchangeMethod::none ? 0.0 * Sigma :
+      m_ex_method == ExchangeMethod::Goldstone ?
+                                            Exchange_Goldstone(kappa, en, vfk) :
+      m_ex_method == ExchangeMethod::w1 ? FeynmanEx_1(kappa, en) :
+                                          FeynmanEx_w1w2(kappa, en);
 
   // Print energy shifts:
   double deD = 0.0, deX = 0.0;
@@ -972,12 +971,10 @@ GMatrix FeynmanSigma::FeynmanEx_w1w2(int kv, double en_r) const {
 
   const auto num_kappas = std::size_t(m_max_kappaindex + 1);
 
-  // const std::size_t num_para_threads =
-  //     use_omp ? num_kappas * num_kappas / 4 : 1;
   const std::size_t num_para_threads =
-      use_omp ? std::min(num_kappas * num_kappas,
-                         std::size_t(omp_get_max_threads())) :
-                1;
+      qip::use_omp ? std::min(num_kappas * num_kappas,
+                              std::size_t(omp_get_max_threads())) :
+                     1;
 
   // Store parts of Sx seperately, for more efficient parallelisation
   std::vector<GMatrix> Sxs(
@@ -1108,13 +1105,10 @@ GMatrix FeynmanSigma::FeynmanEx_1(int kv, double env) const {
   const auto gAs =
       form_Greens_kapw(m_max_kappaindex, m_Green_method, env + omre, wgrid);
 
-  // // const std::size_t num_para_threads = 12;
-  // const std::size_t num_para_threads =
-  //     use_omp ? num_kappas * wgrid.num_points() / m_wX_stride / 4 : 1;
   const std::size_t num_para_threads =
-      use_omp ? std::min(num_kappas * wgrid.num_points() / m_wX_stride,
-                         std::size_t(omp_get_max_threads())) :
-                1;
+      qip::use_omp ? std::min(num_kappas * wgrid.num_points() / m_wX_stride,
+                              std::size_t(omp_get_max_threads())) :
+                     1;
 
   std::vector<GMatrix> Sx_k(
       num_para_threads,

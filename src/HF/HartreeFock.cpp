@@ -557,6 +557,7 @@ HartreeFock::hf_valence(DiracSpinor &Fa,
 }
 
 //==============================================================================
+/*
 EpsIts HartreeFock::hf_valence_Green(
     DiracSpinor &Fa, const MBPT::CorrelationPotential *const Sigma) const {
 
@@ -606,6 +607,7 @@ EpsIts HartreeFock::hf_valence_Green(
 
   return {eps, it, Fa.shortSymbol()};
 }
+*/
 
 //==============================================================================
 

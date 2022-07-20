@@ -692,7 +692,8 @@ UnitTest::check_ykab(const std::vector<DiracSpinor> &orbs, int max_del_n) {
         const auto y2 = Coulomb::yk_ab(Fa, Fb, k);
         const auto y4 = UnitTest::yk_naive(Fa, Fb, k); // slow
 
-        const auto max = *std::max_element(cbegin(y4), cend(y4), qip::comp_abs);
+        const auto max =
+            *std::max_element(cbegin(y4), cend(y4), qip::less_abs{});
         const auto del = std::abs(qip::compare(y2, y4).first / max);
 
         if (del > worst[std::size_t(k)])

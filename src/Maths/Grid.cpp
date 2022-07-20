@@ -165,7 +165,7 @@ double Grid::next_r_loglin(double b, double u, double r_guess) {
   const auto f_u = [b, u](double tr) { return tr + b * std::log(tr) - u; };
   const auto dr = 0.1 * r_guess;
   const auto delta_targ = r_guess * 1.0e-18;
-  const auto [ri, delta_r] = qip::Newtons(f_u, r_guess, dr, delta_targ, 30);
+  const auto [ri, delta_r] = qip::Newtons(f_u, r_guess, delta_targ, dr, 30);
 
   if (std::abs(delta_r / ri) > 1.0e-10) {
     std::cerr << "\nWARNING Grid:194: Converge? " << ri << " " << delta_r / ri
@@ -281,11 +281,11 @@ std::size_t Grid::calc_num_points_from_du(double r0, double rmax, double du,
   case GridType::loglinear:
     if (b <= 0)
       std::cerr << "\nFAIL57 in Grid: cant have b=0 for log-linear grid!\n";
-    return std::size_t((rmax - r0 + b * std::log(rmax / r0)) / du) + 2;
+    return std::size_t((rmax - r0 + b * std::log(rmax / r0)) / du) + 1;
   case GridType::logarithmic:
-    return std::size_t(std::log(rmax / r0) / du) + 2;
+    return std::size_t(std::log(rmax / r0) / du) + 1;
   case GridType::linear:
-    return std::size_t((rmax - r0) / du) + 2;
+    return std::size_t((rmax - r0) / du) + 1;
   }
   std::cerr << "\nFAIL 84 in Grid: wrong type?\n";
   return 1;
