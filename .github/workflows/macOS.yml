@@ -1,0 +1,29 @@
+name: Build (MacOS)
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main", "dev" ]
+
+jobs:
+  build:
+
+    runs-on: macOS-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: "Install dependencies (Homebrew)"
+      run: |
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+        brew install gcc@11
+        brew install gsl
+
+    - name: setup
+      run: cp ./doc/examples/Makefile ./ && cp ./doc/examples/ampsci.in ./ampsci.in
+
+    - name: Build ampsci (g++ v:11, with openMP)
+      run: make CXX=g++-11 UseOpenMP=yes PathForGSL=/usr/local/opt/gnu-scientific-library
+
+    - name: Run ampsci (g++)
+      run: ./ampsci ampsci.in

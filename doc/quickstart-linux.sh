@@ -1,4 +1,9 @@
 #!/bin/bash
+# Check if run as root:
+if [ "$EUID" -ne 0 ]
+  then echo "Please run using sudo"
+  exit
+fi
 # Install all the dependencies for AMPSCI
 echo ''
 echo 'Install all basic dependencies for AMPSCI'
@@ -19,9 +24,10 @@ echo 'Install GSL (GNU Scientific Libraries):'
 apt install --yes libgsl-dev &&
 echo ''
 echo 'Install OpenMP libraries (optional):'
-apt install --yes libomp-dev
+apt install --yes libomp-dev  &&
 echo ''
-echo 'To compile AMPSCI, copy the example makefile to the working directory:'
-echo '--  $ cp ./doc/Makefile.example ./Makefile'
+echo 'Compile AMPSCI: copy example makefile to the working directory:'
 echo 'Then, run make:'
-echo '--  $ make'
+cp ./doc/examples/Makefile ./  &&
+cp ./doc/examples/ampsci.in ./ampsci.in &&
+make

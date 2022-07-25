@@ -4,7 +4,6 @@
 #include <optional>
 #include <vector>
 
-//! Functions (+classes) for computing Coulomb integrals
 namespace Coulomb {
 
 //! Calculates Hartree Screening functions \f$y^k_{ab}(r)\f$
@@ -72,10 +71,11 @@ DiracSpinor Pkv_bcd(int kappa_v, const DiracSpinor &Fb, const DiracSpinor &Fc,
 //==============================================================================
 
 //! Calculates W^k_abcd for given k. From scratch (calculates y)
-//! @details
-//! \f[ W^k_abcd = Q^k_{abcd} + \sum_l [k]
-//! \begin{Bmatrix}a&c&k\\b&d&l\end{Bmatrix} * Q^l_{abdc} \f]
-//! \f[ W^k_abcd = Q^k_{abcd} + P^k_{abcd}  \f]
+/*! @details
+  \f[ W^k_{abcd} = Q^k_{abcd} + \sum_l [k]
+      \begin{Bmatrix}a&c&k\\b&d&l\end{Bmatrix} * Q^l_{abdc} \f]
+ \f[ W^k_{abcd} = Q^k_{abcd} + P^k_{abcd}  \f]
+ */
 double Wk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
                const DiracSpinor &Fc, const DiracSpinor &Fd, const int k);
 

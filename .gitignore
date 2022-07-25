@@ -1,7 +1,6 @@
 /*
 !src/
 src/*~
-src/git.info
 !build/
 build/*
 !build/*.mk
@@ -18,6 +17,8 @@ doc/tex/*
 !doc/tex/img
 !doc/examples
 !doc/examples/*.in
+!.github/
 !.gitignore
 !*.md
-!install-deps-linux.sh
+!doc/quickstart-linux.sh
+!doc/quickstart-macOS.sh

@@ -23,6 +23,7 @@ is given in the physics documentation: [ampsci.pdf][man-url].
 
 [![tests][tests-badge]][tests-url]
 [![build][build-badge]][build-url]
+[![macOS][macOS-badge]][macOS-url]
 [![cov][cov-badge]][cov-url]
 
 ## Contents
@@ -157,6 +158,8 @@ For very simple (Hartree-Fock only) calculations, you can run ampsci directly fr
 [tests-url]: https://github.com/benroberts999/ampsci/actions/workflows/tests.yml
 [build-badge]: https://github.com/benroberts999/ampsci/actions/workflows/build.yml/badge.svg
 [build-url]: https://github.com/benroberts999/ampsci/actions/workflows/build.yml
+[macOS-badge]: https://github.com/benroberts999/ampsci/actions/workflows/macOS.yml/badge.svg
+[macOS-url]: https://github.com/benroberts999/ampsci/actions/workflows/macOS.yml
 [doxygen-badge]: https://img.shields.io/badge/documentation-code%20(html)-blue
 [docs-url]: https://benroberts999.github.io/ampsci/
 [manual-badge]: https://img.shields.io/badge/documentation-physics%20(pdf)-blue
@@ -168,4 +171,5 @@ For very simple (Hartree-Fock only) calculations, you can run ampsci directly fr
 
 [tests-badge-v2]: tests-badge.svg
 [build-badge-v2]: build-badge.svg
+[macOS-badge-v2]: macOS-badge.svg
 [cov-badge-v2]: cov-badge.svg
