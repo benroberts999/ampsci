@@ -16,13 +16,10 @@ namespace Angular {
 
 //==============================================================================
 
-/*!
-@brief
-Lookup table for Wigner 6J symbols.
-
-@details
+//! Lookup table for Wigner 6J symbols.
+/*! @details
 Note: functions all called with 2*j and 2*k (ensure j integer)
-Makes use of symmetry.
+Makes use of symmetry (but not completely, not every stores symbol is unique).
 */
 class SixJTable {
 private:
@@ -31,13 +28,19 @@ private:
   static auto s(int i) { return static_cast<uint8_t>(i); };
 
 public:
+  //! Default contructor: creates empty table
   SixJTable() = default;
 
-  //! Fill the table. max_2j_k is the maximum k that appears in the symbols,
-  //! equivilant to 2*max(j) (always integer) - see fill()
+  //! On construction, calculates + stores all possible 6j symbols up to
+  //! maximum value of 2j (or k)
+  /*! @details 
+    Typically, max_2jk is 2*max_2j, where max_2j is 2* max j of set
+    of orbitals. You may call this function several times; if the new max_2jk is
+    larger, it will extend the table. If it is smaller, does nothing. 
+  */
   SixJTable(int max_2j_k) { fill(max_2j_k); }
 
-  //! Returns maximum k in the tables [max(k)=2*max(j)=max(2j)]
+  //! Returns maximum element (k or 2j) of tables [max(k) = 2*max(j) = max(2j)]
   int max_2jk() const { return m_max_2j_k; }
 
   //! Returns number of non-zero symbols stored
@@ -73,14 +76,8 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Fill the table. max_2jk is 2* the maximum j/k that appears in the symnbols
-  //! (note: 2*, as integer).
-  /*! @details Typically, max_2jk is 2*max_2j, where max_2j is 2* max j of set
-    of orbitals. You may call this function several times; if the new max_2jk is
-    larger, it will extend the table. If it is smaller, does nothing. */
+  //! Fill the table. max_2jk is maximum (2*j) or k that appears in the symbols
   void fill(int max_2j_k) {
-    // a = min{a,b,c,d,e,f}
-    // b = min{b, c, e, f}
 
     if (max_2j_k <= m_max_2j_k)
       return;
@@ -97,12 +94,6 @@ public:
           for (int d = a0; d <= max_2k; ++d) { // note: different!
             for (int e = b; e <= max_2k; ++e) {
               for (int f = b; f <= max_2k; ++f) {
-                // for (int a = 0; a <= max_2k; ++a) {
-                //   for (int b = 0; b <= max_2k; ++b) {
-                //     for (int c = 0; c <= max_2k; ++c) {
-                //       for (int d = 0; d <= max_2k; ++d) {
-                //         for (int e = 0; e <= max_2k; ++e) {
-                //           for (int f = 0; f <= max_2k; ++f) {
                 if (Angular::sixj_zeroQ(a, b, c, d, e, f))
                   continue;
                 if (contains(a, b, c, d, e, f))

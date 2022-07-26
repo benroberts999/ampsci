@@ -1,11 +1,6 @@
 #include "Angular/CkTable.hpp"
 #include "Angular/Wigner369j.hpp"
 #include <cassert>
-// NB: These headers MUST be in this order; otherwise fails to compile
-// on macOS... what :\ At least it works now....
-// Perhaps something to do with cmath vs math.h conflict???
-// math.h might be included by gsl, which is in Angular_369j...
-// Can only reproduce issue on mac..yay
 
 #pragma GCC diagnostic ignored "-Wsign-conversion"
 

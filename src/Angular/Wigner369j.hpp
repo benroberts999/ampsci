@@ -5,19 +5,6 @@
 #include <optional>
 #include <utility>
 
-/*!
-@brief
-Calculate wigner 3,6,9-J symbols + Clebsh-Gordon coefs etc..
-@details
-Wrapper functions to calculate wigner 3,6,9-J symbols.
-Uses GSL:
-https://www.gnu.org/software/gsl/doc/html/specfunc.html?highlight=3j#coupling-coefficients
-NOTE:
-Since j always integer or half-integer, GSL inputs are always integer.
-Two versions of each symbol:
- - '_1' version takes integers as-is. Only for integer angular momentum (l).
- - '_2' version, takes in 2*j (as an integer). Works for l and j.
-*/
 namespace Angular {
 
 //==============================================================================
@@ -128,7 +115,7 @@ inline double special_threej_2(int two_j1, int two_j2, int two_k) {
 }
 
 //==============================================================================
-//!@brief Clebsh-Gordon coeficient <j1 m1, j2 m2 | J M> [takes 2*j, as int]
+//! Clebsh-Gordon coeficient <j1 m1, j2 m2 | J M> [takes 2*j, as int]
 inline double cg_2(int two_j1, int two_m1, int two_j2, int two_m2, int two_J,
                    int two_M)
 // <j1 m1, j2 m2 | J M> = (-1)^(j1-j2+M) * std::sqrt(2J+1) * (j1 j2  J)
