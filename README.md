@@ -52,7 +52,7 @@ is given in the physics documentation: [ampsci.pdf][man-url].
 * [optional] OpenMP ([openmp.org/](https://www.openmp.org/)) - used for parallisation
 * [optional] git ([git-scm.com/](https://git-scm.com/)) for version tracking and to keep up-to-date with latest version
 
-### Quick-start
+### Quick-start (linux)
 
 This is for ubuntu/linux - for other systems, see [doc/compilation.md](doc/compilation.md)
 
@@ -76,7 +76,7 @@ For full compilation guides including for mac/windows, see [doc/compilation.md](
 
 --------------------------------------------------------------------------------
 
-## ampsci -- basic usage <a name="ampsci-basic-usage"></a>
+## Basic Usage <a name="ampsci-basic-usage"></a>
 
 The program is run with input options from the command line.
 
@@ -130,8 +130,7 @@ For very simple (Hartree-Fock only) calculations, you can run ampsci directly fr
 
 ## Documentation <a name="documentation"></a>
 
-* All documentation available online: [benroberts999.github.io/ampsci/](https://benroberts999.github.io/ampsci/)
-* Also can be found in doc/ directory
+* Full documentation available online: [ampsci.dev](https://ampsci.dev/)
 
  1. Input options -- how to run the code
     * [doc/ampsci_input.md](doc/ampsci_input.md) -- detailed info on all input options
@@ -140,13 +139,13 @@ For very simple (Hartree-Fock only) calculations, you can run ampsci directly fr
 
  2. Physics documentation: _ampsci.pdf_ -- Description of physics/methods used in the code
     * Includes many references to the works where the methods implemented here were developed.
-    * Available online: [benroberts999.github.io/ampsci/ampsci.pdf](https://benroberts999.github.io/ampsci/ampsci.pdf)
+    * Available online: [ampsci.dev/ampsci.pdf](https://ampsci.dev/ampsci.pdf)
     * Latex file provided in doc/tex/ampsci.tex
     * If you have latex installed, you can use Makefile to generate the pdf
       * Run `$ make docs` -- this will create new pdf file: 'doc/ampsci.pdf'
 
  3. Code documentation -- details on classes/functions in the code
-    * Available online: [benroberts999.github.io/ampsci/](https://benroberts999.github.io/ampsci/)
+    * Available online: [ampsci.dev/](https://ampsci.dev/)
 
  4. Modules
     * The modules system allows the easy calculation of any atomic properties after the wavefunction has been calculated. See [doc/modules.md](doc/modules.md) for description
@@ -161,9 +160,9 @@ For very simple (Hartree-Fock only) calculations, you can run ampsci directly fr
 [macOS-badge]: https://github.com/benroberts999/ampsci/actions/workflows/macOS.yml/badge.svg
 [macOS-url]: https://github.com/benroberts999/ampsci/actions/workflows/macOS.yml
 [doxygen-badge]: https://img.shields.io/badge/documentation-code%20(html)-blue
-[docs-url]: https://benroberts999.github.io/ampsci/
+[docs-url]: https://ampsci.dev/
 [manual-badge]: https://img.shields.io/badge/documentation-physics%20(pdf)-blue
-[man-url]: https://benroberts999.github.io/ampsci/ampsci.pdf
+[man-url]: https://ampsci.dev/ampsci.pdf
 [cov-badge]: https://codecov.io/gh/benroberts999/ampsci/branch/main/graph/badge.svg?token=3M5MH5QXLL
 [cov-url]: https://codecov.io/gh/benroberts999/ampsci
 [c++-badge]: https://img.shields.io/badge/c++-17-blue

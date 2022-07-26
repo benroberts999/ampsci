@@ -39,8 +39,8 @@ class DoxygenAwesomeDarkModeToggle extends HTMLElement {
     static prefersDarkModeInLightModeKey = "prefers-dark-mode-in-light-mode"
 
     static _staticConstructor = function() {
-        // DoxygenAwesomeDarkModeToggle.enableDarkMode(DoxygenAwesomeDarkModeToggle.userPreference)
-        DoxygenAwesomeDarkModeToggle.enableDarkMode(true)
+        DoxygenAwesomeDarkModeToggle.enableDarkMode(DoxygenAwesomeDarkModeToggle.userPreference)
+        // DoxygenAwesomeDarkModeToggle.enableDarkMode(true)
         // Update the color scheme when the browsers preference changes
         // without user interaction on the website.
         window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {

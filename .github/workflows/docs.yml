@@ -18,7 +18,6 @@ jobs:
         sudo apt-get install -y make
         sudo apt-get install -y doxygen
         sudo apt-get install -y texlive-latex-extra
-        sudo apt-get install -y texlive-full
         sudo apt-get install -y wget
     
     - name: Build the documentation
@@ -39,6 +38,7 @@ jobs:
         rm -rf ./docs/form_*.png
         rm -rf ./docs/formula.repository
         make doxy
+        wget https://cdn.mathjax.org/mathjax/latest/MathJax.js -O ./docs/MathJax.js
         echo ampsci.dev > ./docs/CNAME
         wget https://github.com/benroberts999/ampsci/actions/workflows/tests.yml/badge.svg -O ./docs/tests-badge.svg
         wget https://github.com/benroberts999/ampsci/actions/workflows/build.yml/badge.svg -O ./docs/build-badge.svg
