@@ -8,7 +8,7 @@
 * Copy "doc/examples/Makefile" from doc/ directory to the working directory
   * `$ cp ./doc/examples/Makefile ./`
 * All programs compiled using the Makefile (run `$ make`)
-* The file _Makefile_ has some basic compilation options. It's currently set up to work on most linux systems; you may need to change a few options for others (see see below)
+* The file _Makefile_ has some basic compilation options. It's currently set up to work on most linux systems; you may need to change a few options for others (see below)
 * Tested with g++ and clang++ on linux and mac
 
 ## Dependencies / Requirements

@@ -31,16 +31,6 @@ Wavefunction::Wavefunction(const GridParameters &gridparams,
     : Wavefunction(std::make_shared<const Grid>(gridparams), t_nucleus,
                    var_alpha) {}
 
-//     : rgrid(std::make_shared<const Grid>(gridparams)),
-//       m_alpha(PhysConst::alpha * var_alpha),
-//       m_nucleus(t_nucleus),
-//       m_vnuc(Nuclear::formPotential(m_nucleus, rgrid->r())) {
-//   if (m_alpha * m_nucleus.z() > 1.0) {
-//     std::cerr << "Alpha too large: Z*alpha=" << m_nucleus.z() * m_alpha <<
-//     "\n"; std::abort();
-//   }
-// }
-
 Wavefunction::Wavefunction(std::shared_ptr<const Grid> in_grid,
                            const Nuclear::Nucleus &t_nucleus, double var_alpha)
     : rgrid(std::move(in_grid)),

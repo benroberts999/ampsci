@@ -177,6 +177,17 @@ public:
   template <typename T = std::string>
   std::optional<T> get(std::string_view key) const;
 
+  //! Check is option is present (even if not set) in current block.
+  bool has_option(std::string_view key) const {
+    const auto option = std::find(m_options.crbegin(), m_options.crend(), key);
+    return !(option == m_options.crend());
+  }
+
+  //! Check if option is present AND has been set
+  bool option_is_set(std::string_view key) const {
+    return !(get(key) == std::nullopt);
+  }
+
   //! Get value from set of nested blocks. .get({block1,block2},option)
   template <typename T>
   T get(std::initializer_list<std::string> blocks, std::string_view key,

@@ -19,15 +19,14 @@ namespace Module {
 //==============================================================================
 void runModules(const IO::InputBlock &input, const Wavefunction &wf) {
   for (const auto &module : input.blocks()) {
-    if (qip::ci_wildcard_compare(module.name(), "module*"))
+    if (qip::ci_wildcard_compare(module.name(), "Module*"))
       runModule(module, wf);
   }
 }
 
 //==============================================================================
-void runModule(const IO::InputBlock &module_input,
-               const Wavefunction &wf) //
-{
+void runModule(const IO::InputBlock &module_input, const Wavefunction &wf) {
+
   const auto &in_name = module_input.name();
   std::cout << '\n';
   IO::print_line('-');
@@ -43,11 +42,11 @@ void runModule(const IO::InputBlock &module_input,
   std::cout << "\nThere is no available module named: " << in_name << "\n";
 
   // spell-check + nearest suggestion:
-  auto compare_sc = [&in_name](const auto &s1, const auto &s2) {
+  const auto compare_sc = [&in_name](const auto &s1, const auto &s2) {
     return qip::ci_Levenstein(s1.first, in_name) <
            qip::ci_Levenstein(s2.first, in_name);
   };
-  auto guess =
+  const auto guess =
       std::min_element(module_list.cbegin(), module_list.cend(), compare_sc);
   if (guess != module_list.cend()) {
     std::cout << "\nDid you mean: " << guess->first << " ?\n";

@@ -35,6 +35,10 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
        {"progbar", "Print progress bar? [true]"},
        {"max_it", "Max # iterations [15]"},
        {"eps_target", "Target for convergance [1.0e-4]"}});
+  // If we are just requesting 'help', don't run module:
+  if (input.has_option("help")) {
+    return;
+  }
 
   // Get input + print to screen
   const auto min_n = input.get("min", 0);

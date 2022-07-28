@@ -30,6 +30,10 @@ void calculatePNC(const IO::InputBlock &input, const Wavefunction &wf) {
                {"omega", ""},
                {"E1_rpa_it", ""},
                {"pnc_rpa_it", ""}});
+  // If we are just requesting 'help', don't run module:
+  if (input.has_option("help")) {
+    return;
+  }
 
   // input: nuc parameters for rho:
   const auto c_dflt =

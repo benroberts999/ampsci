@@ -2,7 +2,8 @@
 
 ## Atomic Many-body Perturbation theory in the Screened Coulomb Interaction
 
-_ampsci_ is a c++ program for high-precision atomic structure calculations of single-valence systems.
+[_ampsci_](https://ampsci.dev/)
+is a c++ program for high-precision atomic structure calculations of single-valence systems.
 
 It solves the correlated Dirac equation using the Hartree-Fock + correlation potential method (based on Dzuba-Flambaum-Sushkov method) to produce a set of atomic wavefunctions and energies.
 The method is fully relativistic, includes electron correlations, all-orders screening and hole-particle interaction, finite-nuclear size, Breit interaction, radiative QED effects, RPA for matrix elements, and structure radiation/renormalisation.
@@ -10,9 +11,10 @@ QED is included via the Flambaum-Ginges radiative potential method.
 Can solve for continuum states with high energy, and calculate ionisation cross sections with large energy/momentum transfer.
 
 Designed to be fast, accurate, and easy to use.
-The "modules" system (see [Documentation](#documentation)) makes it simple to add your own routines to use the atomic wavefunctions to calculate whatever properties you may be interested in.
+The "modules" system (see [doc/modules.md](doc/modules.md)) makes it simple to add your own routines to use the atomic wavefunctions to calculate whatever properties you may be interested in.
 
 * The code is on GitHub: [github.com/benroberts999/ampsci](https://github.com/benroberts999/ampsci)
+* See [ampsci.dev/](https://ampsci.dev/) for full documentation
 * A full description of the physics methods and approximations, including references,
 is given in the physics documentation: [ampsci.pdf][man-url].
 * **Important:** this is a _pre-release_ version of the code: not fully tested or documented, and should not be used for publishable calculations (without consultation)
@@ -40,7 +42,7 @@ is given in the physics documentation: [ampsci.pdf][man-url].
 * Copy "doc/examples/Makefile" from doc/ directory to the working directory
   * `$ cp ./doc/examples/Makefile ./`
 * All programs compiled using the Makefile (run `$ make`)
-* The file _Makefile_ has some basic compilation options. It's currently set up to work on most linux systems; you may need to change a few options for others (see see [doc/compilation.md](doc/compilation.md))
+* The file _Makefile_ has some basic compilation options. It's currently set up to work on most linux systems; you may need to change a few options for others (see [doc/compilation.md](doc/compilation.md))
 * Tested with g++ and clang++ on linux and mac
 
 ### Dependencies / Requirements
@@ -117,12 +119,22 @@ For very simple (Hartree-Fock only) calculations, you can run ampsci directly fr
   * Prints version info (same as --version)
 * `$ ./ampsci -h`
   * Print help info, including input options (same as --help, -?)
-* `$ ./ampsci -m`
+* `$ ./ampsci -m  <ModuleName>`
   * Prints list of available Modules (same as --modules)
-* `$ ./ampsci -o`
+  * ModuleName is optional. If given, will list avaiable options for that Module
+  * e.g., `./ampsci -m polarisability` will print all available options for the polarisability module
+* `$ ./ampsci -o <OperatorName>`
   * Prints list of available operators (same as --operators)
-* `$ ./ampsci -p`
+  * OperatorName is optional. If given, will list avaiable options for Operator
+  * e.g., `./ampsci -o E1` will print all available options for E1 operator
+* `$ ./ampsci -a <BlockName>`
+  * Prints list of available top-level ampsci options (same as --ampsci)
+  * BlockName is optional; if given will print options for given ampsci Block
+  * e.g., `./ampsci -a Basis` will print all available 'Basis' options
+* `$ ./ampsci -p <At> <Isotope>`
   * Prints periodic table with electronic+nuclear info (same as --periodicTable)
+  * At and Isotope are optional. If given, will print info for given isotope
+  * e.g., ./ampsci -p Cs, ./ampsci -p Cs 133, ./ampsci -p Cs all
 * `$ ./ampsci -c`
   * Prints some handy physical constants (same as --constants)
 
@@ -130,7 +142,10 @@ For very simple (Hartree-Fock only) calculations, you can run ampsci directly fr
 
 ## Documentation <a name="documentation"></a>
 
-* Full documentation available online: [ampsci.dev](https://ampsci.dev/)
+* Full documentation available online: [ampsci.dev/](https://ampsci.dev/)
+
+For most applications, the code is "self documenting" (meaning input options etc) can be extracted from the code.
+Run `$ ./ampsci -h` from the command line to see this (see [Basic Usage](#ampsci-basic-usage) for other command-line options)
 
  1. Input options -- how to run the code
     * [doc/ampsci_input.md](doc/ampsci_input.md) -- detailed info on all input options
@@ -144,12 +159,13 @@ For very simple (Hartree-Fock only) calculations, you can run ampsci directly fr
     * If you have latex installed, you can use Makefile to generate the pdf
       * Run `$ make docs` -- this will create new pdf file: 'doc/ampsci.pdf'
 
- 3. Code documentation -- details on classes/functions in the code
-    * Available online: [ampsci.dev/](https://ampsci.dev/)
-
- 4. Modules
+ 3. Modules
     * The modules system allows the easy calculation of any atomic properties after the wavefunction has been calculated. See [doc/modules.md](doc/modules.md) for description
     * The code is designed so that you can easily create your own modules. See [doc/writing_modules.md](doc/writing_modules.md) for details
+
+ 4. Code documentation -- details on classes/functions in the code
+    * Available online: [ampsci.dev/](https://ampsci.dev/)
+    * This should only be required if you plan to edit the code or add new modules
 
 --------------------------------------------------------------------------------
 
@@ -159,7 +175,7 @@ For very simple (Hartree-Fock only) calculations, you can run ampsci directly fr
 [build-url]: https://github.com/benroberts999/ampsci/actions/workflows/build.yml
 [macOS-badge]: https://github.com/benroberts999/ampsci/actions/workflows/macOS.yml/badge.svg
 [macOS-url]: https://github.com/benroberts999/ampsci/actions/workflows/macOS.yml
-[doxygen-badge]: https://img.shields.io/badge/documentation-code%20(html)-blue
+[doxygen-badge]: https://img.shields.io/badge/documentation-ampsci.dev/-blue
 [docs-url]: https://ampsci.dev/
 [manual-badge]: https://img.shields.io/badge/documentation-physics%20(pdf)-blue
 [man-url]: https://ampsci.dev/ampsci.pdf

@@ -33,6 +33,10 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
         "list; Scale factors for each l; e.g., 1,0 means s, but no p,d. "
         "default = 1, meaning include all"},
        {"vertex", "bool; Calculate vertex corrections?"}});
+  // If we are just requesting 'help', don't run module:
+  if (input.has_option("help")) {
+    return;
+  }
 
   std::cout << "\nDO NOT include QED into wavefunction in AMPSCI\n";
 
@@ -347,6 +351,19 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
 //============================================================================
 
 void vertexQED(const IO::InputBlock &input, const Wavefunction &wf) {
+  input.check({{"operator", "operator (e.g., E1 or hfs)"},
+               {"options", "operator options (same as matrixElements)"},
+               {"rrms", "nuclear rms, for QED part"},
+               {"onlyDiagonal", "only print <a|h|a>"},
+               {"radialIntegral", "false by default (means red. mat. el)"},
+               {"A_vertex", "A vtx factor; blank=default"},
+               {"b_vertex", "A vtx factor; =1 by default"},
+               {"rpa", "include RPA? NOT USED FOR NOW"},
+               {"omega", "freq. for RPA; NOT USED FOR NOW"}});
+  // If we are just requesting 'help', don't run module:
+  if (input.has_option("help")) {
+    return;
+  }
   calc_vertexQED(input, wf);
 }
 
@@ -364,16 +381,6 @@ std::vector<std::string> calc_vertexQED(const IO::InputBlock &input,
   if (wf_SE == nullptr)
     wf_SE = &wf;
 
-  input.check({{"operator", "operator (e.g., E1 or hfs)"},
-               {"options", "operator options (same as matrixElements)"},
-               {"rrms", "nuclear rms, for QED part"},
-               {"onlyDiagonal", "only print <a|h|a>"},
-               {"radialIntegral", "false by default (means red. mat. el)"},
-               {"A_vertex", "A vtx factor; blank=default"},
-               {"b_vertex", "A vtx factor; =1 by default"},
-               {"rpa", "include RPA? NOT USED FOR NOW"},
-               {"omega", "freq. for RPA; NOT USED FOR NOW"}});
-
   const auto oper = input.get<std::string>("operator", "");
   // Get optional 'options' for operator
   auto h_options = IO::InputBlock(oper, {});
@@ -389,8 +396,9 @@ std::vector<std::string> calc_vertexQED(const IO::InputBlock &input,
   // spacial case: HFS A (MHz)
   const bool AhfsQ = (oper == "hfs" && !radial_int);
 
-  const auto which_str =
-      radial_int ? " (radial integral)." : AhfsQ ? " A (MHz)." : " (reduced).";
+  const auto which_str = radial_int ? " (radial integral)." :
+                         AhfsQ      ? " A (MHz)." :
+                                      " (reduced).";
 
   std::cout << "\n"
             << input.name() << which_str << " Operator: " << h->name() << "\n";
@@ -440,9 +448,9 @@ std::vector<std::string> calc_vertexQED(const IO::InputBlock &input,
   for (const auto &Fb : wf.valence()) {
     for (const auto &Fa : wf.valence()) {
 
-      const auto a =
-          AhfsQ ? DiracOperator::HyperfineA::convertRMEtoA(Fa, Fb) :
-                  radial_int ? 1.0 / h->angularF(Fa.kappa(), Fb.kappa()) : 1.0;
+      const auto a = AhfsQ ? DiracOperator::HyperfineA::convertRMEtoA(Fa, Fb) :
+                     radial_int ? 1.0 / h->angularF(Fa.kappa(), Fb.kappa()) :
+                                  1.0;
 
       if (h->isZero(Fa.kappa(), Fb.kappa()))
         continue;

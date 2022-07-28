@@ -15,6 +15,7 @@ TEST_CASE("InputBlock", "[InputBlock][unit]") {
 
   InputBlock ib("name1", {{"k1", "1"}, {"k2", "2.5"}});
   ib.add(Option{"k3", "number_3"});
+  ib.add(Option{"k4", ""});
   ib.add(InputBlock("blockA", {{"kA1", "old_val"}, {"kA1", "new_val"}}));
   ib.add(InputBlock("blockB", {{"keyB1", "valB"}}));
   // 'true' means will be merged with existing block (if exists)
@@ -53,6 +54,12 @@ TEST_CASE("InputBlock", "[InputBlock][unit]") {
 void run_tests(const IO::InputBlock &ib) {
 
   REQUIRE(ib.get("k1", 0) == 1);
+
+  REQUIRE(ib.has_option("k1"));
+  REQUIRE(ib.option_is_set("k1"));
+  REQUIRE_FALSE(ib.has_option("option that isn't set"));
+  REQUIRE(ib.has_option("k4"));
+  REQUIRE_FALSE(ib.option_is_set("k4"));
 
   // There is no k109 option, so should return default value
   REQUIRE(ib.get("k109", -17.6) == -17.6);

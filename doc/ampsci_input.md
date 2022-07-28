@@ -45,12 +45,20 @@ For very simple (Hartree-Fock only) calculations, you can run ampsci directly fr
   * Prints version info (same as --version)
 * `$ ./ampsci -h`
   * Print help info, including input options (same as --help, -?)
-* `$ ./ampsci -m`
+* `$ ./ampsci -m  <ModuleName>`
   * Prints list of available Modules (same as --modules)
-* `$ ./ampsci -o`
+  * ModuleName is optional. If given, will list avaiable options for that Module
+* `$ ./ampsci -o <OperatorName>`
   * Prints list of available operators (same as --operators)
-* `$ ./ampsci -p`
+  * OperatorName is optional. If given, will list avaiable options for Operator
+* `$ ./ampsci -a <BlockName>`
+  * Prints list of available top-level ampsci options (same as --ampsci)
+  * BlockName is optional; if given will print options for given ampsci Block
+  * e.g., `./ampsci -a Basis` will print all available 'Basis' options
+* `$ ./ampsci -p <At> <Isotope>`
   * Prints periodic table with electronic+nuclear info (same as --periodicTable)
+  * At and Isotope are optional. If given, will print info for given isotope
+  * e.g., `$ ./ampsci -p Cs`, `$ ./ampsci -p Cs 133`, `$ ./ampsci -p Cs all`
 * `$ ./ampsci -c`
   * Prints some handy physical constants (same as --constants)
 
@@ -92,9 +100,14 @@ top-level Blocks:
   Module::*{}    // InputBlock. Run any number of modules (* -> module name)
 ```
 
+You can get the same output by running `$ ./ampsci -a`
+
 Set 'help;' inside any of these to get full set of options of each of these,
 and so on. Full descriptions of each Block/Option are given in doc/ - but the
 self-documentation of the code will always be more up-to-date.
+
+You can get the same output by running `$ ./ampsci -a BlockName`.
+For example, `$ ./ampsci -a Basis` will print all available 'Basis' options
 
 The general usage of the code is to first use the main blocks to construct the
 atomic wavefunction and basis states, then to add as many 'Module::' blocks as
@@ -135,6 +148,21 @@ blockname {
   help;
 }
 
+You can also access most of the self-documenation directly from the command-line:
+
+* `$ ./ampsci -h`
+  * Print help info, including input options (same as --help, -?)
+* `$ ./ampsci -m  <ModuleName>`
+  * Prints list of available Modules (same as --modules)
+  * ModuleName is optional. If given, will list avaiable options for that Module
+* `$ ./ampsci -o <OperatorName>`
+  * Prints list of available operators (same as --operators)
+  * OperatorName is optional. If given, will list avaiable options for Operator
+* `$ ./ampsci -a <BlockName>`
+  * Prints list of available top-level ampsci options (same as --ampsci)
+  * BlockName is optional; if given will print options for given ampsci Block
+  * e.g., `./ampsci -a Basis` will print all available 'Basis' options
+
 --------------------------------------------------------------------------------
 
 ## Modules
@@ -142,6 +170,9 @@ blockname {
 * The modules system allows the easy calculation of any atomic properties after the wavefunction has been calculated.
 * Any number of _modules_ can be run by adding a `Module::moduleName{}' block.
 * Get a list of available modules: `$ ./ampsci -m`
+* `$ ./ampsci -m  <ModuleName>`
+  * Prints list of available Modules (same as --modules)
+  * ModuleName is optional. If given, will list avaiable options for that Module
 * See [doc/modules.md](/doc/modules.md) for full details
 * The code is designed so that you can easily create your own modules. See [doc/writing_modules.md](/doc/writing_modules.md) for details
 
@@ -151,6 +182,11 @@ blockname {
 
 * Basic details for each input block are given here.
 * It's generally better to get this info from the code (by setting the `help;` option in any given block), since that will always be up-to-date, while this document may fall out-of-date
+* You can also get this directly from the command-line:
+* `$ ./ampsci -a <BlockName>`
+  * Prints list of available top-level ampsci options (same as --ampsci)
+  * BlockName is optional; if given will print options for given ampsci Block
+  * e.g., `./ampsci -a Basis` will print all available 'Basis' options
 
 ### Atom
 

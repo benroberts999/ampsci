@@ -16,6 +16,10 @@ void fieldShift(const IO::InputBlock &input, const Wavefunction &wf) {
        {"min_pc", "Minimum percentage shift in r [1.0e-3]"},
        {"max_pc", "Maximum percentage shift in r [1.0]"},
        {"num_steps", "Number of steps for derivative (for each sign)? [10]"}});
+  // If we are just requesting 'help', don't run module:
+  if (input.has_option("help")) {
+    return;
+  }
 
   const auto print = input.get("print", true);
 

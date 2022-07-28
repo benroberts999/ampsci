@@ -21,6 +21,10 @@ void Module_tests(const IO::InputBlock &input, const Wavefunction &wf) {
                {"Hamiltonian", ""},
                {"boundaries", ""},
                {"basis", ""}});
+  // If we are just requesting 'help', don't run module:
+  if (input.has_option("help")) {
+    return;
+  }
 
   auto othon = input.get("orthonormal", true);
   auto othon_all = input.get("orthonormal_all", false);

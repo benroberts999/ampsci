@@ -21,6 +21,10 @@ void continuum(const IO::InputBlock &input, const Wavefunction &wf) {
                {"options", "options specific to operator; blank by dflt"},
                {"rpa", "Include RPA (TDHF for now)? [false]"},
                {"omega", "Frequency for RPA [0.0]"}});
+  // If we are just requesting 'help', don't run module:
+  if (input.has_option("help")) {
+    return;
+  }
 
   const auto en_list = input.get("energy", std::vector{0.5});
   const auto lmax = input.get("max_l", 0);

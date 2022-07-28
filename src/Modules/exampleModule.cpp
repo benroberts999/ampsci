@@ -18,6 +18,10 @@ void exampleModule(const IO::InputBlock &input, const Wavefunction &wf) {
   input.check({{"A", "Atomic mass number [0]"},
                {"rrms", "root-mean-square nuclear radii [-1]"},
                {"type", "Fermi/ball/pointlike [Fermi]"}});
+  // If we are just requesting 'help', don't run module:
+  if (input.has_option("help")) {
+    return;
+  }
 
   // If no A is specified, use 0 (i.e., poinlike)
   auto A = input.get("A", 0);

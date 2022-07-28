@@ -55,3 +55,49 @@ You should duplicate this module (both the .cpp and .hpp files) and give it a ne
 - You then have to recompile ampsci (modules are compiled into ampsci for now)
 
 - That's it - you're now ready to run your module by adding the `Module::moduleName{}` block to the input file.
+
+## Highly recommended (but optional)
+
+- It's highly recommended that you add a 'check()' statement for any input options that you use in your module (see example below)
+- This has two benefits:
+  - Firstly, it checks for possible spelling mistakes in user inputs
+  - (If an option) is spelled incorectly, it will otherwise be ignored. This eaves the user thinking they set an option when they haven't
+  - Secondly, it allows you to provide a short description of each option, which will be printed to the screen when the user requests 'help' for a given Module
+
+```cpp
+  // Check the input option for spelling mistakes + provide descrition
+  input.check({{"option1", "Short description of option1 [default]"},
+               {"option2", "Short description of option2 [default]"}});
+```
+
+- Finally, it's strongly recommended to immediately exit the Module after the check() if 'help' was requested (see example below). This just limits unwanted noise/screen output
+- i.e., we generally don't want to actually run the module if we were just requesting help for it
+
+```cpp
+  // If we are just requesting 'help', don't run module:
+  if (input.has_option("help")) {
+    return;
+  }
+```
+
+- Minimal example:
+
+```cpp
+  void exampleModule(const IO::InputBlock &input, const Wavefunction &wf){
+
+    input.check({{"option1", "Short description of option1 [default1]"},
+               {"option2", "Short description of option2 [default2]"}});
+
+    // If we are just requesting 'help', don't run module:
+    if (input.has_option("help")) {
+      return;
+    }
+
+    // read in the input options:
+    auto option1 = input.get("option1", default1);
+    auto option2 = input.get("option2", default2);
+    // The variable 'option1' will be set according to the user input
+    // If no user input for option1 was given, it will be set to default1
+    // See documentation for IO::InputBlock for more detail
+  }
+```

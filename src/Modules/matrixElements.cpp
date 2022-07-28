@@ -33,6 +33,10 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
                {"radialIntegral", "false by dflt (means red. ME)"},
                {"printBoth", "print <a|h|b> and <b|h|a> (dflt false)"},
                {"onlyDiagonal", "only <a|h|a> (dflt false)"}});
+  // If we are just requesting 'help', don't run module:
+  if (input.has_option("help")) {
+    return;
+  }
 
   const auto oper = input.get<std::string>("operator", "");
   // Get optional 'options' for operator
@@ -50,8 +54,9 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   // spacial case: HFS A (MHz)
   const bool AhfsQ = (oper == "hfs" && !radial_int);
 
-  const auto which_str =
-      radial_int ? " (radial integral)." : AhfsQ ? " A (MHz)." : " (reduced).";
+  const auto which_str = radial_int ? " (radial integral)." :
+                         AhfsQ      ? " A (MHz)." :
+                                      " (reduced).";
 
   std::cout << "\n"
             << input.name() << which_str << " Operator: " << h->name() << "\n";
@@ -61,13 +66,12 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   const bool diagonal_only = input.get("onlyDiagonal", false);
 
   const auto rpa_method_str = input.get("rpa", std::string("TDHF"));
-  auto rpa_method = (rpa_method_str == "TDHF" || rpa_method_str == "true") ?
-                        ExternalField::method::TDHF :
-                        (rpa_method_str == "basis") ?
-                        ExternalField::method::basis :
-                        (rpa_method_str == "diagram") ?
-                        ExternalField::method::diagram :
-                        ExternalField::method::none;
+  auto rpa_method =
+      (rpa_method_str == "TDHF" || rpa_method_str == "true") ?
+          ExternalField::method::TDHF :
+      (rpa_method_str == "basis")   ? ExternalField::method::basis :
+      (rpa_method_str == "diagram") ? ExternalField::method::diagram :
+                                      ExternalField::method::none;
   if (wf.core().empty())
     rpa_method = ExternalField::method::none;
   const auto rpaQ = rpa_method != ExternalField::method::none;
@@ -136,6 +140,10 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
         "splineLegs=true"},
        {"n_minmax", "list; min,max n for core/excited: (1,inf)dflt"},
        {"splineLegs", "Use splines for diagram legs (false dflt)"}});
+  // If we are just requesting 'help', don't run module:
+  if (input.has_option("help")) {
+    return;
+  }
 
   // Get input options:
   const auto oper = input.get<std::string>("operator", "E1");
@@ -343,6 +351,10 @@ void calculateLifetimes(const IO::InputBlock &input, const Wavefunction &wf) {
        {"E2", "Include E2 transitions? [false]"},
        {"rpa", "Include RPA? [true]"},
        {"StrucRadNorm", "Include SR+Norm correction (only for E1)? [false]"}});
+  // If we are just requesting 'help', don't run module:
+  if (input.has_option("help")) {
+    return;
+  }
 
   const auto doE1 = input.get("E1", true);
   const auto doE2 = input.get("E2", false);

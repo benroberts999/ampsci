@@ -27,7 +27,8 @@ class InputBlock;
 
 namespace Module {
 
-// Add new modules to this list:
+//! List of all available modules as pair (name, function):
+//! {"ModuleName", &ModuleName}. You must add any new modules to this list
 static const std::vector<std::pair<
     std::string, void (*)(const IO::InputBlock &input, const Wavefunction &wf)>>
     module_list{{"Tests", &Module_tests},

@@ -21,6 +21,10 @@ static void calc_thing(const DiracSpinor &Fv, double e_targ, double r0,
 void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
 
   input.check({{"rpa", ""}, {"options", ""}, {"A", ""}});
+  // If we are just requesting 'help', don't run module:
+  if (input.has_option("help")) {
+    return;
+  }
 
   const auto rpa = input.get("rpa", false);
   const auto Alist = input.get("A", std::vector<int>{});
@@ -216,6 +220,10 @@ void HF_rmag(const IO::InputBlock &input, const Wavefunction &wf) {
                {"eps_targ", ""},
                {"e1", ""},
                {"e2", ""}});
+  // If we are just requesting 'help', don't run module:
+  if (input.has_option("help")) {
+    return;
+  }
 
   // A(1) is wf
   // A(2) is wf2
@@ -507,6 +515,10 @@ void calculateBohrWeisskopf(const IO::InputBlock &input,
                {"rpa_diagram", ""},
                {"screening", ""},
                {"hfs_options", ""}});
+  // If we are just requesting 'help', don't run module:
+  if (input.has_option("help")) {
+    return;
+  }
 
   auto options = input.getBlock("hfs_options");
   auto sub_input = IO::InputBlock("hfs", {});

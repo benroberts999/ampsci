@@ -39,12 +39,20 @@ $ ./ampsci -v
   - Prints version info (same as --version)
 $ ./ampsci -h
   - Print help info, including input options (same as --help, -?)
-$ ./ampsci -m
+$ ./ampsci -m <ModuleName>
   - Prints list of available Modules (same as --modules)
-$ ./ampsci -o
+  - ModuleName is optional. If given, will list avaiable options for that Module
+$ ./ampsci -o  <OperatorName>
   - Prints list of available operators (same as --operators)
-$ ./ampsci -p
+  - OperatorName is optional. If given, will list avaiable options for Operator
+$ ./ampsci -a <BlockName>
+  - Prints list of available top-level ampsci options (same as --ampsci)
+  - BlockName is optional; if given will print options for given ampsci Block
+  - e.g., './ampsci -a Basis' will print all available 'Basis' options
+$ ./ampsci -p <At> <Isotope>
   - Prints periodic table with electronic+nuclear info (same as --periodicTable)
+  - At and Isotope are optional. If given, will print info for given isotope
+  - e.g., ./ampsci -p Cs, ./ampsci -p Cs 133, ./ampsci -p Cs all
 $ ./ampsci -c
   - Prints some handy physical constants (same as --constants)
 
@@ -91,9 +99,14 @@ top-level Blocks:
   dVpol{}        // InputBlock. Approximate correlation (polarisation) potential
   Module::*{}    // InputBlock. Run any number of modules (* -> module name)
 
+You can get the same output by running './ampsci -a'
+
 Set 'help;' inside any of these to get full set of options of each of these, 
 and so on. Full descriptions of each Block/Option are given in doc/ - but the 
 self-documentation of the code will always be more up-to-date.
+
+You can get the same output by running './ampsci -a BlockName'.
+For example, './ampsci -a Basis' will print all available 'Basis' options
 
 The general usage of the code is to first use the main blocks to construct the 
 atomic wavefunction and basis states, then to add as many 'Module::' blocks as 
@@ -149,10 +162,31 @@ int main(int argc, char *argv[]) {
   } else if (input_text == "-m" || input_text == "--modules") {
     std::cout << "Available modules: \n";
     Module::list_modules();
+    const std::string module_name = (argc > 2) ? argv[2] : "";
+    if (!module_name.empty()) {
+      // make an arbitrary required as input to runModule
+      Wavefunction wf{{1, 1.0, 1.0}, {1, 1}};
+      // run the module, with option 'help' set. This will trigger the helper
+      // to print the details for the available options in that module
+      Module::runModule(IO::InputBlock{module_name, {"help;"}}, wf);
+    }
     return 0;
   } else if (input_text == "-o" || input_text == "--operators") {
     std::cout << "Available operators: \n";
     DiracOperator::list_operators();
+    const std::string op_name = (argc > 2) ? argv[2] : "";
+    if (!op_name.empty()) {
+      Wavefunction wf{{1, 1.0, 1.0}, {1, 1}};
+      DiracOperator::generate(op_name, IO::InputBlock{op_name, {"help;"}}, wf);
+    }
+    return 0;
+  } else if (input_text == "-a" || input_text == "--ampsci") {
+    auto temp_input = IO::InputBlock{"ampsci", {"help;"}};
+    const std::string block_name = (argc > 2) ? argv[2] : "";
+    if (!block_name.empty()) {
+      temp_input.add(IO::InputBlock{block_name, {"help;"}});
+    }
+    ampsci(temp_input);
     return 0;
   } else if (input_text == "-p" || input_text == "--periodicTable") {
     std::string z_str = (argc > 2) ? argv[2] : "";
@@ -228,19 +262,23 @@ void ampsci(const IO::InputBlock &input) {
                          "potential. Rarely used."},
                {"Module::*",
                 "InputBlock. Run any number of modules (* -> module name)"}});
+  // If we are just requesting 'help', don't run ampsci
+  if (input.has_option("help")) {
+    // return;
+  }
 
   // Atom: Get + setup atom parameters
-  input.check(
-      {"Atom"},
-      {{"Z",
-        "string or int (e.g., Cs equivilant to 55). Atomic number [default H]"},
-       {"A", "int. Atomic mass number (set A=0 to use pointlike "
-             "nucleus) [default based on Z]"},
-       {"varAlpha2",
-        "Fractional variation of the fine-structure constant, alpha^2: "
-        "d(a^2)/a_0^2. Use to enforce the non-relativistic limit (c->infinity "
-        "=> alpha->0), or calculate sensitivity to variation of alpha. "
-        "[1.0]"}});
+  input.check({"Atom"},
+              {{"Z", "string or int (e.g., Cs equivilant to 55). Atomic number "
+                     "[default H]"},
+               {"A", "int. Atomic mass number (set A=0 to use pointlike "
+                     "nucleus) [default based on Z]"},
+               {"varAlpha2",
+                "Fractional variation of the fine-structure constant, alpha^2: "
+                "d(a^2)/a_0^2. Use to enforce the non-relativistic limit "
+                "(c->infinity "
+                "=> alpha->0), or calculate sensitivity to variation of alpha. "
+                "[1.0]"}});
 
   const auto atom_Z = AtomData::atomic_Z(input.get({"Atom"}, "Z", "H"s));
   const auto atom_A = input.get({"Atom"}, "A", AtomData::defaultA(atom_Z));
@@ -333,10 +371,10 @@ void ampsci(const IO::InputBlock &input) {
        {"core", "Core configuration. Either list entire core, or use [At] "
                 "short-hand. e.g., [He] equivilant to 1s2; [Xe],6s1 equivilant "
                 "to [Cs] and to 1s2,2s2,...,5p6,6s1. [blank by default]"},
-       {"valence",
-        "e.g., 7sp5d will include valence states up to "
-        "n=7 for s and p, but n=5 for d states. Automatically excludes states "
-        "in the core. [blank by default]"},
+       {"valence", "e.g., 7sp5d will include valence states up to "
+                   "n=7 for s and p, but n=5 for d states. Automatically "
+                   "excludes states "
+                   "in the core. [blank by default]"},
        {"eps", "HF convergance goal [1.0e-13]"},
        {"method", "HartreeFock, Hartree, KohnSham, Local [HartreeFock]"},
        {"Breit", "Scale for factor for Breit Hamiltonian. Usially 0.0 (no "
@@ -498,9 +536,9 @@ void ampsci(const IO::InputBlock &input) {
   // This is a mess - will re-do correlations part
   const auto Sigma_ok = input.check(
       {"Correlations"},
-      {{"",
-        "Options for inclusion of correlations (correlation potential "
-        "method). It's become a bit of a mess, and will be refactored ~soon~"},
+      {{"", "Options for inclusion of correlations (correlation potential "
+            "method). It's become a bit of a mess, and will be refactored "
+            "~soon~"},
        {"Brueckner", "Form Brueckner orbitals [false]"},
        {"energyShifts", "Calculate MBPT2 shift [false]"},
        {"n_min_core", "Minimum core n to polarise [1]"},

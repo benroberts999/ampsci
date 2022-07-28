@@ -38,6 +38,12 @@ You can see all the available options by setting the 'help' option, e.g.,
 
 - `Module::moduleName{ help; }`
 
+You can also get most of this information directly from the command-line:
+
+- `$ ./ampsci -m  <ModuleName>`
+  - Prints list of available Modules (same as --modules)
+  - ModuleName is optional. If given, will list avaiable options for that Module
+
 Details for each module are given below.
 It's usually better to use the 'help' option of the code, as it will always be up-to-date, while this document may be out of date.
 
@@ -61,6 +67,9 @@ Module::matrixElements{
 
 - `$./ampsci -o` will print a list of available operators
 - Some operators take further options. Set `options{help;}` to see list
+- `$ ./ampsci -o <OperatorName>`
+  - Prints list of available operators (same as --operators)
+  - OperatorName is optional. If given, will list avaiable options for Operator
 
 --------------------------------------------------------------------------------
 

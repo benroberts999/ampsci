@@ -48,6 +48,10 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
         "exists, "
         "will read it in; if doesn't exist, will create it and write to disk. "
         "Save time (10x) at cost of memory."}});
+  // If we are just requesting 'help', don't run module:
+  if (input.has_option("help")) {
+    return;
+  }
 
   const auto omega = input.get("omega", 0.0);
   const auto rpaQ = input.get("rpa", true);
@@ -199,6 +203,10 @@ void dynamicPolarisability(const IO::InputBlock &input,
         "exists, "
         "will read it in; if doesn't exist, will create it and write to disk. "
         "Save time (10x) at cost of memory."}});
+  // If we are just requesting 'help', don't run module:
+  if (input.has_option("help")) {
+    return;
+  }
 
   const auto do_tensor = input.get("tensor", false);
   const auto rpaQ = input.get("rpa", true);
@@ -494,6 +502,10 @@ void transitionPolarisability(const IO::InputBlock &input,
         "SR: filename for QkTable file. If blank will not use QkTable; if "
         "exists, will read it in; if doesn't exist, will create it and write "
         "to disk. Save time (10x) at cost of memory."}});
+  // If we are just requesting 'help', don't run module:
+  if (input.has_option("help")) {
+    return;
+  }
 
   const auto states = input.get("transition", std::vector<std::string>{});
   if (states.size() != 2) {

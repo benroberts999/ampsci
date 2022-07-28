@@ -16,6 +16,10 @@ void screeningFactors(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "\nCalculate effective screening parameters:\n";
 
   input.check({{"n_min_core", "min n to include in core sum"}});
+  // If we are just requesting 'help', don't run module:
+  if (input.has_option("help")) {
+    return;
+  }
 
   const auto omre = -std::abs(0.33 * wf.energy_gap());
 

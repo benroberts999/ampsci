@@ -62,6 +62,11 @@ static void write_orbitals(const std::string &fname,
 void writeOrbitals(const IO::InputBlock &input, const Wavefunction &wf) {
   const std::string ThisModule = "Module::WriteOrbitals";
   input.check({{"label", ""}, {"l", ""}});
+  // If we are just requesting 'help', don't run module:
+  if (input.has_option("help")) {
+    return;
+  }
+
   std::cout << "\n Running: " << ThisModule << "\n";
   const auto label = input.get<std::string>("label", "");
   // to write only for specific l. l<0 means all

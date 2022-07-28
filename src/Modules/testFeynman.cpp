@@ -28,6 +28,10 @@ void testFeynman(const IO::InputBlock &input, const Wavefunction &wf) {
                {"testGQ", ""},
                {"testPol", ""},
                {"omim", ""}});
+  // If we are just requesting 'help', don't run module:
+  if (input.has_option("help")) {
+    return;
+  }
 
   const double omre = input.get("real_omega", -0.2);
   const auto method = MBPT::Method::Feynman;
