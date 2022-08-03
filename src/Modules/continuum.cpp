@@ -14,13 +14,17 @@ namespace Module {
 
 void continuum(const IO::InputBlock &input, const Wavefunction &wf) {
 
-  input.check({{"energy", "List. energy for cntm states (>0) [0.5]"},
-               {"max_l", "maximum l"},
-               {"filename", "filename for output"},
-               {"operator", "Operator to calculate matrix elements (e.g., E1)"},
-               {"options", "options specific to operator; blank by dflt"},
-               {"rpa", "Include RPA (TDHF for now)? [false]"},
-               {"omega", "Frequency for RPA [0.0]"}});
+  input.check(
+      {{"energy", "List. energy for cntm states (>0) [0.5]"},
+       {"max_l", "maximum l. Will calculate orbital for each energy and each l "
+                 "(and j) [0]"},
+       {"filename",
+        "filename to output continuum orbitals. If blank, will not write"},
+       {"operator",
+        "Operator to calculate matrix elements (e.g., E1) [blank by default]"},
+       {"options", "options specific to operator [blank by default]"},
+       {"rpa", "Include RPA (TDHF for now)? [false]"},
+       {"omega", "Frequency for RPA [0.0]"}});
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
     return;

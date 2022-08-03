@@ -504,8 +504,10 @@ static void calc_thing(const DiracSpinor &Fv, double e_targ, double r0,
 }
 
 //==============================================================================
-void calculateBohrWeisskopf(const IO::InputBlock &input,
-                            const Wavefunction &wf) {
+//==============================================================================
+
+//==============================================================================
+void BohrWeisskopf(const IO::InputBlock &input, const Wavefunction &wf) {
   using namespace DiracOperator;
 
   std::cout

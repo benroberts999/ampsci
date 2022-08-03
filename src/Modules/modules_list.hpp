@@ -16,10 +16,11 @@
 #include "Modules/testFeynman.hpp"
 #include "Modules/tests.hpp"
 #include "Modules/writeOrbitals.hpp"
+
 #include <iostream>
+#include <map>
 #include <string>
 #include <utility>
-#include <vector>
 class Wavefunction;
 namespace IO {
 class InputBlock;
@@ -27,37 +28,34 @@ class InputBlock;
 
 namespace Module {
 
+//! function (function ptr) signature for modules
+using module_function_t = void (*)(const IO::InputBlock &input,
+                                   const Wavefunction &wf);
+
 //! List of all available modules as pair (name, function):
 //! {"ModuleName", &ModuleName}. You must add any new modules to this list
-static const std::vector<std::pair<
-    std::string, void (*)(const IO::InputBlock &input, const Wavefunction &wf)>>
-    module_list{{"Tests", &Module_tests},
-                {"WriteOrbitals", &writeOrbitals},
-                {"AtomicKernal", &atomicKernal},
-                {"BohrWeisskopf", &calculateBohrWeisskopf},
-                {"HFAnomaly", &HFAnomaly},
-                {"HF_rmag", &HF_rmag},
-                {"screeningFactors", &screeningFactors},
-                {"BW_eta_sp", &BW_eta_sp},
-                {"pnc", &calculatePNC},
-                {"vertexQED", &vertexQED},
-                {"QED", &QED},
-                {"testFeynman", &testFeynman},
-                {"matrixElements", &matrixElements},
-                {"lifetimes", &calculateLifetimes},
-                {"polarisability", &polarisability},
-                {"dynamicPolarisability", &dynamicPolarisability},
-                {"transitionPolarisability", &transitionPolarisability},
-                {"structureRad", &structureRad},
-                {"fieldShift", &fieldShift},
-                {"continuum", &continuum},
-                {"ladder", &ladder},
-                {"exampleModule", &exampleModule}};
-
-inline void list_modules() {
-  for (auto &[name, func] : module_list) {
-    std::cout << "  " << name << '\n';
-  }
-}
+static const std::map<std::string, module_function_t> module_list{
+    {"Tests", &Module_tests},
+    {"WriteOrbitals", &writeOrbitals},
+    {"AtomicKernal", &atomicKernal},
+    {"BohrWeisskopf", &BohrWeisskopf},
+    {"HFAnomaly", &HFAnomaly},
+    {"HF_rmag", &HF_rmag},
+    {"BW_eta_sp", &BW_eta_sp},
+    {"screeningFactors", &screeningFactors},
+    {"pnc", &calculatePNC},
+    {"vertexQED", &vertexQED},
+    {"QED", &QED},
+    {"testFeynman", &testFeynman},
+    {"matrixElements", &matrixElements},
+    {"lifetimes", &calculateLifetimes},
+    {"polarisability", &polarisability},
+    {"dynamicPolarisability", &dynamicPolarisability},
+    {"transitionPolarisability", &transitionPolarisability},
+    {"structureRad", &structureRad},
+    {"fieldShift", &fieldShift},
+    {"continuum", &continuum},
+    {"ladder", &ladder},
+    {"exampleModule", &exampleModule}};
 
 } // namespace Module

@@ -5,22 +5,22 @@
 #include "Wavefunction/Wavefunction.hpp"
 #include "qip/String.hpp"
 #include <algorithm>
-#include <cmath>
-#include <fstream>
-#include <iomanip>
 #include <iostream>
-#include <memory>
-#include <sstream>
-#include <string>
-#include <vector>
 
 namespace Module {
 
 //==============================================================================
 void runModules(const IO::InputBlock &input, const Wavefunction &wf) {
-  for (const auto &module : input.blocks()) {
-    if (qip::ci_wildcard_compare(module.name(), "Module*"))
-      runModule(module, wf);
+
+  // Check if block is a module (modules state with 'Module::')
+  const auto block_is_moule = [](auto &block) {
+    return qip::ci_wildcard_compare(block.name(), "Module*");
+  };
+  // if it is, run it with its input
+  for (const auto &block : input.blocks()) {
+    if (block_is_moule(block)) {
+      runModule(block, wf);
+    }
   }
 }
 
@@ -39,6 +39,7 @@ void runModule(const IO::InputBlock &module_input, const Wavefunction &wf) {
       return mod_func(module_input, wf);
   }
 
+  // Only reach here if module not found:
   std::cout << "\nThere is no available module named: " << in_name << "\n";
 
   // spell-check + nearest suggestion:
@@ -53,10 +54,15 @@ void runModule(const IO::InputBlock &module_input, const Wavefunction &wf) {
   }
 
   std::cout << "\nAvailable modules:\n";
-  for (const auto &module : module_list) {
-    std::cout << "  " << module.first << "\n";
-  }
+  list_modules();
   std::cout << "\n";
+}
+
+//==============================================================================
+void list_modules() {
+  for (auto &[name, func] : module_list) {
+    std::cout << "  " << name << '\n';
+  }
 }
 
 } // namespace Module
