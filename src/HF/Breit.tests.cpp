@@ -11,9 +11,9 @@
 #include <vector>
 
 //! Unit tests for Breit
-TEST_CASE("Breit (basic)", "[Breit][unit]") {
+TEST_CASE("Breit (local)", "[Breit][unit]") {
   std::cout << "\n----------------------------------------\n";
-  std::cout << "Breit (basic)\n";
+  std::cout << "Breit (local)\n";
 
   // solve HF (local) without breit. Calc Breit seperately:
   Wavefunction wf({750, 1.0e-4, 120.0, 40.0, "loglinear", -1.0},
@@ -67,6 +67,34 @@ TEST_CASE("Breit (basic)", "[Breit][unit]") {
       REQUIRE(eps < 1.0e-2);
       ++count;
     }
+  }
+}
+
+//==============================================================================
+TEST_CASE("Breit (HF)", "[Breit][integration]") {
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "Breit (HF) [lowest-order only]\n";
+
+  // solve HF (local) without breit. Calc Breit seperately:
+  Wavefunction wf({2000, 1.0e-6, 150.0, 40.0, "loglinear", -1.0},
+                  {"Cu", 63, "Fermi", -1.0, -1.0}, 1.0);
+  wf.solve_core("HartreeFock", 0.0, "[Ar],3d10");
+  wf.solve_valence("4sp");
+
+  const HF::Breit Vb(1.0);
+
+  const auto expected_B1 = std::vector{
+      std::pair{"4s", 1.880e-4}, {"4p-", 7.015e-5}, {"4p+", 5.140e-5}};
+
+  std::cout << "\nBreit correction to Cu:\n"
+               "cf Table 8.6 of Atomic Structure Theory, W. R. Johnson\n";
+  for (const auto &[state, expected] : expected_B1) {
+    const auto v = wf.getState(state);
+    REQUIRE(v != nullptr);
+    const auto de0 = *v * Vb.VbrFa(*v, wf.core());
+    const auto eps = std::abs((de0 - expected) / expected);
+    printf("B1: %3s %.3e [%.3e] %.0e\n", state, de0, expected, eps);
+    REQUIRE(de0 == Approx(expected).epsilon(1.0e-3));
   }
 }
 

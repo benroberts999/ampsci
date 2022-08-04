@@ -14,8 +14,8 @@ void fieldShift(const IO::InputBlock &input, const Wavefunction &wf) {
       {{"", "Calculates field shift: F = d(E)/d(<r^2>)"},
        {"print", "Print each step? [true]"},
        {"min_pc", "Minimum percentage shift in r [1.0e-3]"},
-       {"max_pc", "Maximum percentage shift in r [1.0]"},
-       {"num_steps", "Number of steps for derivative (for each sign)? [10]"}});
+       {"max_pc", "Maximum percentage shift in r [1.0e-1]"},
+       {"num_steps", "Number of steps for derivative (for each sign)? [3]"}});
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
     return;
@@ -24,13 +24,14 @@ void fieldShift(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto print = input.get("print", true);
 
   const auto min_pc = input.get("min_pc", 1.0e-3);
-  const auto max_pc = input.get("max_pc", 1.0);
-  const auto num_steps = input.get<unsigned long>("num_steps", 10);
+  const auto max_pc = input.get("max_pc", 1.0e-1);
+  const auto num_steps = input.get<unsigned long>("num_steps", 3);
 
   Wavefunction wfB(wf.grid_sptr(), wf.nucleus(), wf.alpha() / PhysConst::alpha);
 
   std::cout << "Calculating field shift corrections for \n"
-            << wf.atom() << ", " << wf.nucleus() << "\n";
+            << wf.atom() << ", " << wf.nucleus() << "\n"
+            << "By fitting de = F<dr^2> for small delta r\n";
 
   wfB.copySigma(wf.Sigma());
   const auto core_string = wf.coreConfiguration();
@@ -42,7 +43,8 @@ void fieldShift(const IO::InputBlock &input, const Wavefunction &wf) {
                                num_steps, GridType::logarithmic);
 
   if (print) {
-    std::cout << "\n   r_rms (fm),   del(r),    del(r^2),    dE (GHz)\n";
+    std::cout << "\n   r_rms (fm)    del(r)     del(r^2)     dE (GHz)   F "
+                 "(GHz/fm^2)\n";
   } else {
     std::cout << "\nRunning...\n";
   }
@@ -53,7 +55,6 @@ void fieldShift(const IO::InputBlock &input, const Wavefunction &wf) {
 
       auto nuc_b = wf.nucleus();
       nuc_b.r_rms() = rB;
-      Nuclear::formPotential(nuc_b, wf.grid().r());
 
       wfB.update_Vnuc(Nuclear::formPotential(nuc_b, wf.grid().r()));
 
@@ -65,9 +66,10 @@ void fieldShift(const IO::InputBlock &input, const Wavefunction &wf) {
         const auto &Fv = wfB.valence()[i];
         const auto &Fv0 = *wf.getState(Fv.n(), Fv.kappa());
         const auto dE = (Fv.en() - Fv0.en()) * PhysConst::Hartree_GHz;
+        const auto tF = dE / dr2;
         if (print)
-          printf("%4s, %7.5f, %+7.5f, %11.4e, %11.4e\n",
-                 Fv.shortSymbol().c_str(), rB, rB - r0, dr2, dE);
+          printf("%4s  %7.5f  %+7.5f  %11.4e  %11.4e  %10.3e\n",
+                 Fv.shortSymbol().c_str(), rB, rB - r0, dr2, dE, tF);
         auto &data_v = data[i];
         data_v.emplace_back(dr2, dE);
       }

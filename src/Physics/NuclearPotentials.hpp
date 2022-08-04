@@ -48,24 +48,27 @@ public:
 //------------------------------------------------------------------------------
 
 //! Nuclear potentials: spherical charge distribution
-std::vector<double> sphericalNuclearPotential(double Z, double rnuc,
-                                              const std::vector<double> &rgrid);
+[[nodiscard]] std::vector<double>
+sphericalNuclearPotential(double Z, double rnuc,
+                          const std::vector<double> &rgrid);
 
 //! Nuclear potentials: Gaussian charge distribution
-std::vector<double> GaussianNuclearPotential(double Z, double r_rms,
-                                             const std::vector<double> &rgrid);
+[[nodiscard]] std::vector<double>
+GaussianNuclearPotential(double Z, double r_rms,
+                         const std::vector<double> &rgrid);
 
 //! Nuclear potentials: Fermi charge distribution [c is half-density radius, not
 //! rms]
-std::vector<double> fermiNuclearPotential(double Z, double t, double c,
-                                          const std::vector<double> &rgrid);
+[[nodiscard]] std::vector<double>
+fermiNuclearPotential(double Z, double t, double c,
+                      const std::vector<double> &rgrid);
 
 //! Fermi charge distribution, rho(r) - normalised to Z_norm
-std::vector<double> fermiNuclearDensity_tcN(double t, double c, double Z_norm,
-                                            const Grid &grid);
+[[nodiscard]] std::vector<double>
+fermiNuclearDensity_tcN(double t, double c, double Z_norm, const Grid &grid);
 
 //! Calls one of the above, depending on params. Fills V(r), given r
-std::vector<double> formPotential(const Nucleus &nucleus,
-                                  const std::vector<double> &r);
+[[nodiscard]] std::vector<double> formPotential(const Nucleus &nucleus,
+                                                const std::vector<double> &r);
 
 } // namespace Nuclear
