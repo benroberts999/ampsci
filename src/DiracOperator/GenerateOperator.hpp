@@ -6,6 +6,7 @@
 #include "Operators/PNC.hpp"
 #include "Operators/QED.hpp"
 #include "Operators/RadialF.hpp"
+#include "Operators/p.hpp"
 #include "TensorOperator.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include <memory>
@@ -22,7 +23,7 @@ static const std::vector<std::pair<
                   {"M1", &generate_M1},     {"hfs", &generate_hfsA},
                   {"hfsK", &generate_hfsK}, {"r", &generate_r},
                   {"pnc", &generate_pnc},   {"Hrad", &generate_Hrad},
-                  {"dr", &generate_dr}};
+                  {"dr", &generate_dr},     {"p", &generate_p}};
 
 //------------------------------------------------------------------------------
 

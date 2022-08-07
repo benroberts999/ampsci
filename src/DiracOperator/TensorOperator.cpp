@@ -69,7 +69,7 @@ DiracSpinor TensorOperator::radial_rhs(const int kappa_a,
                                        const DiracSpinor &Fb) const {
   // Fa * radial_rhs(Fa.kappa(),Fb) = h.radialIntegral(Fa, Fb)
 
-  const auto &gr = *(Fb.grid_sptr());
+  const auto &gr = Fb.grid();
   DiracSpinor dF(0, kappa_a, Fb.grid_sptr());
   dF.min_pt() = Fb.min_pt();
   dF.max_pt() = Fb.max_pt();

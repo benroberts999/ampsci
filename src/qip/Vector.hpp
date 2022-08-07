@@ -349,9 +349,10 @@ template <typename F, typename T> T apply_to(const F &func, T list) {
 
 //==============================================================================
 //==============================================================================
+//! namespace qip::overloads provides operator overloads for std::vector
 namespace overloads {
 
-// Provide addition of two vectors:
+//! Provide addition of two vectors:
 template <typename T>
 std::vector<T> &operator+=(std::vector<T> &a, const std::vector<T> &b) {
   const auto size = std::max(a.size(), b.size());
@@ -407,6 +408,36 @@ template <typename T> std::vector<T> &operator/=(std::vector<T> &v, T x) {
 }
 template <typename T> std::vector<T> operator/(std::vector<T> v, T x) {
   return v /= x;
+}
+
+//! In-place element-wise multiplication: a*=b => a_i := a_i * b_i
+template <typename T>
+std::vector<T> &operator*=(std::vector<T> &a, const std::vector<T> &b) {
+  assert(a.size() == b.size());
+  for (std::size_t i = 0; i < a.size(); ++i) {
+    a[i] *= b[i];
+  }
+  return a;
+}
+//! Element-wise multiplication: c=a*b => c_i = a_i * b_i
+template <typename T>
+std::vector<T> operator*(std::vector<T> a, const std::vector<T> &b) {
+  return a *= b;
+}
+
+//! In-place element-wise division: a/=b => a_i := a_i / b_i
+template <typename T>
+std::vector<T> &operator/=(std::vector<T> &a, const std::vector<T> &b) {
+  assert(a.size() == b.size());
+  for (std::size_t i = 0; i < a.size(); ++i) {
+    a[i] /= b[i];
+  }
+  return a;
+}
+//! Element-wise multiplication: c=a/b => c_i = a_i / b_i
+template <typename T>
+std::vector<T> operator/(std::vector<T> a, const std::vector<T> &b) {
+  return a /= b;
 }
 
 } // namespace overloads

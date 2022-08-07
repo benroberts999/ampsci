@@ -313,6 +313,36 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
       REQUIRE(std::abs(hab) < 1.0e-10);
     }
   }
+
+  //--------------------------------------------------------------------
+  SECTION("p") {
+    std::cout << "p\n";
+
+    std::cout << "Test p operator (Li)\n";
+    Wavefunction wf2({2000, 1.0e-5, 80.0, 20.0, "loglinear"},
+                     {"Li", 0, "pointlike"});
+    wf2.solve_core("HartreeFock", 0.0, "[He]");
+    wf2.solve_valence("2sp");
+
+    const auto test_data = std::vector{
+        std::pair{"2s+", 0.0}, {"2p-", -0.04163}, {"2p+", -0.04162}};
+
+    const auto p = DiracOperator::generate("p", {}, wf);
+    for (const auto &[state, expected] : test_data) {
+      const auto v = wf2.getState(state);
+      REQUIRE(v != nullptr);
+      double t = 0.0;
+      for (const auto &c : wf2.core()) {
+        auto pvc = p->reducedME(*v, c);
+        t += -1.0 * pvc * pvc;
+      }
+      t /= v->twojp1();
+      std::cout << *v << " " << t << " [" << expected << "]\n";
+      REQUIRE(t == Approx(expected).margin(0.000005));
+    }
+
+    //
+  }
 }
 
 // Used to generate test data (with 8000 points)
