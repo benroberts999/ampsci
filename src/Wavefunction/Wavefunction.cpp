@@ -38,7 +38,8 @@ Wavefunction::Wavefunction(std::shared_ptr<const Grid> in_grid,
       m_nucleus(t_nucleus),
       m_vnuc(Nuclear::formPotential(m_nucleus, rgrid->r())) {
   if (m_alpha * m_nucleus.z() > 1.0) {
-    std::cerr << "Alpha too large: Z*alpha=" << m_nucleus.z() * m_alpha << "\n";
+    std::cerr << "Z*alpha too large: Z*alpha=" << m_nucleus.z() * m_alpha
+              << "\n";
     std::abort();
   }
 }

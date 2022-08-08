@@ -87,17 +87,17 @@ EpsIts HartreeFock::solve_core(bool print) {
   switch (m_method) {
 
   case Method::HartreeFock:
-    text = "Hartree-Fock\n";
+    text = "Hartree-Fock";
     eps_its = hartree_fock_core();
     break;
 
   case Method::ApproxHF:
-    text = "Approximate (localised) Hartree-Fock\n";
+    text = "Approximate (localised) Hartree-Fock";
     eps_its = hf_approx_core(m_eps_HF);
     break;
 
   case Method::Hartree:
-    text = "Hartree (No exchange)\n";
+    text = "Hartree (No exchange)";
     eps_its = selfcon_local_core(m_eps_HF);
     break;
 
@@ -107,7 +107,7 @@ EpsIts HartreeFock::solve_core(bool print) {
     break;
 
   case Method::Local:
-    text = "Local (parametric) potential\n";
+    text = "Local (parametric) potential";
     m_Yab.calculate(m_core); // aren't otherwise calc'd (prob never used)
     break;
 
@@ -118,6 +118,12 @@ EpsIts HartreeFock::solve_core(bool print) {
   const auto [eps, its, nk] = eps_its;
   if (print) {
     std::cout << text;
+    const auto da = m_alpha / PhysConst::alpha;
+    if (std::abs(da - 1) > 1.0e-8) {
+      std::cout << " [w/ var(alpha) = " << da << " var(a^2) = " << da * da
+                << "]";
+    }
+    std::cout << "\n";
     printf("%-7s:  it:%3i eps=%6.1e for %s\n", "Core", its, eps, nk.c_str());
   }
 
@@ -612,46 +618,45 @@ EpsIts HartreeFock::hf_valence_Green(
 //==============================================================================
 
 //==============================================================================
-double HartreeFock::calculateCoreEnergy() const
-// Calculates the total HF core energy:
-//   E = \sum_a [ja]e_a - 0.5 \sum_(ab) (R^0_abab - \sum_k L^k_ab R^k_abba)
-// where:
-//   R^k_abcd = Integral [f_a*f_c + g_a*g_c] * v^k_bd
-//   R^0_abab is not ab symmetric
-//   R^k_abba _is_ ab symmetric
-{
+double HartreeFock::calculateCoreEnergy() const {
   double Etot = 0.0;
-  for (const auto &Fa : m_core) {
-    const auto tja = Fa.twoj();
 
-    double e1 = 0.0, e2 = 0.0, e3 = 0.0;
-    const double xtjap1 = (tja + 1) * Fa.occ_frac();
-    e1 += xtjap1 * Fa.en();
-    for (const auto &Fb : m_core) {
-      const auto tjb = Fb.twoj();
-      const double xtjbp1 = (tjb + 1) * Fb.occ_frac();
-      const auto &v0bb = *m_Yab.get(0, Fb, Fb); // XXX may be null
-      const auto R0fg2 = Fa * (v0bb * Fa);
-      e2 += xtjap1 * xtjbp1 * R0fg2;
-      // take advantage of symmetry for third term:
-      if (Fb > Fa)
+  double e0 = 0.0;
+  for (const auto &a : m_core) {
+    const auto num_a = a.twojp1() * a.occ_frac();
+    e0 += num_a * a.en();
+  }
+
+  double edir = 0.0;
+  for (const auto &a : m_core) {
+    for (const auto &b : m_core) {
+      if (b < a)
         continue;
-      const auto y = (Fa == Fb) ? 1.0 : 2.0; // symmetry
-      const int kmin = std::abs(tja - tjb) / 2;
-      const int kmax = (tja + tjb) / 2;
-      for (auto k = kmin; k <= kmax; k++) {
-        const auto Labk = m_Yab.Ck().get_Lambdakab(k, Fa.kappa(), Fb.kappa());
-        if (Labk == 0)
-          continue;
-        const auto vabk = m_Yab.get(k, Fa, Fb);
-        if (vabk == nullptr)
-          continue;
-        const auto R0fg3 = Fa * (*vabk * Fb);
-        e3 += y * xtjap1 * xtjbp1 * Labk * (R0fg3);
+      const auto sym = a == b ? 1.0 : 2.0;
+      const auto num_a = a.twojp1() * a.occ_frac();
+      const auto num_b = b.twojp1() * b.occ_frac();
+      edir += sym * num_a * num_b * m_Yab.R(0, a, b, a, b);
+    }
+  }
+
+  double ex = 0.0;
+  for (const auto &a : m_core) {
+    for (const auto &b : m_core) {
+      if (b < a)
+        continue;
+      const auto sym = a == b ? 1.0 : 2.0;
+      const auto [kmin, kmax] = Angular::kminmax_Ck(a.kappa(), b.kappa());
+      for (auto k = kmin; k <= kmax; k += 2) {
+        const auto x_a = (a == b && k == 0) ? 1.0 : a.occ_frac();
+        const auto x_b = (a == b && k == 0) ? 1.0 : b.occ_frac();
+        const auto ck = m_Yab.Ck()(k, a.kappa(), b.kappa());
+        ex -= sym * x_a * x_b * ck * ck * m_Yab.R(k, a, b, b, a);
       }
     }
-    Etot += e1 - 0.5 * (e2 - e3);
   }
+
+  return e0 - 0.5 * (edir + ex);
+
   return Etot;
 }
 
@@ -971,38 +976,35 @@ std::vector<double> vex_approx(const DiracSpinor &Fa,
 //==============================================================================
 void HartreeFock::vex_Fa_core(const DiracSpinor &Fa, DiracSpinor &VxFa) const
 // calculates V_ex Fa
-// Fa can be any orbital (so long as coulomb integrals exist!)
-// ..... i.e., must be core orbital
+// Fa must be in the core, and Yab must already be calculated
 {
-  VxFa.max_pt() = Fa.f().size(); // silly hack. Make sure VxFa = 0 after pinf
-  VxFa *= 0.0;
-  VxFa.max_pt() = Fa.max_pt(); // updated below
+  // Ensure VxFa = 0, even after pinf
+  using namespace qip::overloads;
+  VxFa.f() *= 0.0;
+  VxFa.g() *= 0.0;
+  VxFa.max_pt() = 0; // updated below
 
   if (excludeExchangeQ())
     return;
 
-  const auto twoj_a = Fa.twoj();
   for (const auto &Fb : m_core) {
     VxFa.max_pt() = std::max(VxFa.max_pt(), Fb.max_pt());
-    const auto tjb = Fb.twoj();
-    const double x_tjbp1 = (Fa == Fb) ? (tjb + 1) : (tjb + 1) * Fb.occ_frac();
-    const int kmin = std::abs(twoj_a - tjb) / 2;
-    const int kmax = (twoj_a + tjb) / 2;
-    // const auto &vabk = m_Yab.get_y_ab(Fb, Fa);
-    for (int k = kmin; k <= kmax; k++) {
-      const auto Labk = m_Yab.Ck().get_Lambdakab(k, Fa.kappa(), Fb.kappa());
-      if (Labk == 0)
-        continue;
+    const auto [kmin, kmax] = Angular::kminmax_Ck(Fb.kappa(), Fa.kappa());
+    for (int k = kmin; k <= kmax; k += 2) {
+      const auto xb = (Fa == Fb && k == 0) ? 1.0 : Fb.occ_frac();
+      const auto ckab = m_Yab.Ck()(k, Fa.kappa(), Fb.kappa());
       const auto vabk = m_Yab.get(k, Fb, Fa);
-      if (vabk == nullptr)
-        continue;
+      assert(vabk != nullptr);
+      const auto c2x = ckab * ckab * xb;
+      // VxFa -= (c2x * *vabk) * Fb;
       for (auto i = 0u; i < Fb.max_pt(); i++) {
-        const auto v = -x_tjbp1 * Labk * (*vabk)[i];
+        const auto v = -c2x * (*vabk)[i];
         VxFa.f(i) += v * Fb.f(i);
         VxFa.g(i) += v * Fb.g(i);
-      } // r
-    }   // k
-  }     // b
+      }
+    }
+  }
+  VxFa *= (1.0 / Fa.twojp1());
 }
 
 // -----------------------------------------------------------------------------
@@ -1013,34 +1015,29 @@ DiracSpinor vexFa(const DiracSpinor &Fa, const std::vector<DiracSpinor> &core,
 // Fa can be any orbital (Calculates coulomb integrals here!)
 {
   DiracSpinor VxFa(Fa.n(), Fa.kappa(), Fa.grid_sptr());
-  VxFa.max_pt() = Fa.max_pt(); // nb: updated below!
-  // note: VxFa.max_pt() can be larger than psi.max_pt()!
+  VxFa.max_pt() = 0; // nb: updated below
 
   std::vector<double> vabk(Fa.grid().num_points());
 
-  const auto tja = Fa.twoj();
-  const auto la = Fa.l();
   for (const auto &Fb : core) {
-    VxFa.max_pt() = std::max(Fb.max_pt(), VxFa.max_pt());
-    const auto tjb = Fb.twoj();
-    const auto lb = Fb.l();
-    const double x_tjbp1 = (Fa == Fb) ? (tjb + 1) : (tjb + 1) * Fb.occ_frac();
-    const int kmin = std::abs(tja - tjb) / 2;
-    const int kmax = std::min((tja + tjb) / 2, k_cut);
-    for (int k = kmin; k <= kmax; k++) {
-      if (Angular::parity(la, lb, k) == 0)
-        continue;
-      const auto tjs = Angular::threej_2(tjb, tja, 2 * k, -1, 1, 0);
-      if (tjs == 0)
-        continue;
+    VxFa.max_pt() = std::max(VxFa.max_pt(), Fb.max_pt());
+
+    const auto [kmin, kmax] = Angular::kminmax_Ck(Fa.kappa(), Fb.kappa());
+    for (int k = kmin; k <= std::min(kmax, k_cut); k += 2) {
+      const auto xb = (Fa == Fb && k == 0) ? 1.0 : Fb.occ_frac();
+      const auto ckab = Angular::Ck_kk(k, Fa.kappa(), Fb.kappa());
       Coulomb::yk_ab(Fb, Fa, k, vabk, Fb.max_pt());
-      const auto factor = -x_tjbp1 * tjs * tjs;
+      const auto c2x = ckab * ckab * xb;
+      using namespace qip::overloads;
+      // VxFa -= (c2x * vabk) * Fb;
       for (auto i = 0u; i < Fb.max_pt(); i++) {
-        VxFa.f(i) += factor * vabk[i] * Fb.f(i);
-        VxFa.g(i) += factor * vabk[i] * Fb.g(i);
-      } // r
-    }   // k
-  }     // b
+        const auto v = -c2x * vabk[i];
+        VxFa.f(i) += v * Fb.f(i);
+        VxFa.g(i) += v * Fb.g(i);
+      }
+    }
+  }
+  VxFa *= (1.0 / Fa.twojp1());
 
   return VxFa;
 }

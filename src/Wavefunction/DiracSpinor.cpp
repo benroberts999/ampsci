@@ -131,7 +131,7 @@ double operator*(const DiracSpinor &lhs, const DiracSpinor &rhs) {
 }
 
 DiracSpinor &DiracSpinor::operator+=(const DiracSpinor &rhs) {
-  assert(this->m_kappa == rhs.m_kappa);
+  // assert(this->m_kappa == rhs.m_kappa);
 
   if (rhs.max_pt() > m_pinf)
     m_pinf = rhs.max_pt();
@@ -145,7 +145,7 @@ DiracSpinor &DiracSpinor::operator+=(const DiracSpinor &rhs) {
   return *this;
 }
 DiracSpinor &DiracSpinor::operator-=(const DiracSpinor &rhs) {
-  assert(this->m_kappa == rhs.m_kappa);
+  // assert(this->m_kappa == rhs.m_kappa);
 
   if (rhs.max_pt() > m_pinf)
     m_pinf = rhs.max_pt();

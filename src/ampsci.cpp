@@ -359,8 +359,17 @@ void ampsci(const IO::InputBlock &input) {
   // Create wavefunction object
   Wavefunction wf(radial_grid, std::move(nucleus), var_alpha);
 
-  std::cout << "\nRunning for " << wf.atom() << '\n'
-            << wf.nucleus() << '\n'
+  std::cout << "\nRunning for " << wf.atom() << '\n';
+  if (std::abs(var_alpha - 1.0) > 1.0e-8) {
+    if (var_alpha > 1.0e-4) {
+      std::cout << "With variation of alpha: ";
+    } else {
+      std::cout << "Non-relativistic limit: ";
+    }
+    std::cout << "a/a0 = " << var_alpha
+              << " (a/a0)^2 = " << var_alpha * var_alpha << "\n";
+  }
+  std::cout << wf.nucleus() << '\n'
             << wf.grid().gridParameters() << '\n'
             << "========================================================\n";
 
@@ -505,6 +514,7 @@ void ampsci(const IO::InputBlock &input) {
   // Output Hartree Fock energies:
   std::cout << '\n' << wf.identity() << "-" << wf.Anuc() << '\n';
   wf.printCore(sorted_output);
+  printf("E_c = %.6f\n", wf.coreEnergyHF());
   wf.printValence(sorted_output);
 
   // Construct B-spline basis:

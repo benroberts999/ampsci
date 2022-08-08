@@ -115,6 +115,15 @@ std::vector<double> &YkTable::get_ref(const int k, const DiracSpinor &Fa,
 }
 
 //============================================================================
+double YkTable::R(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+                  const DiracSpinor &Fc, const DiracSpinor &Fd) const {
+
+  const auto ykbd = get(k, Fb, Fd);
+  assert(ykbd != nullptr && "YkTable::R() called but don't have Y_bd");
+  return Coulomb::Rk_abcd(Fa, Fc, *ykbd);
+}
+
+//============================================================================
 double YkTable::Q(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
                   const DiracSpinor &Fc, const DiracSpinor &Fd) const {
 
@@ -124,9 +133,10 @@ double YkTable::Q(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
   const auto tCbd = m_Ck.get_tildeCkab(k, Fb.kappa(), Fd.kappa());
   if (Angular::zeroQ(tCbd))
     return 0.0;
-  const auto ykbd = get(k, Fb, Fd);
-  assert(ykbd != nullptr && "YkTable::Q() called but don't have Y_bd");
-  const auto Rkabcd = Coulomb::Rk_abcd(Fa, Fc, *ykbd);
+  // const auto ykbd = get(k, Fb, Fd);
+  // assert(ykbd != nullptr && "YkTable::Q() called but don't have Y_bd");
+  // const auto Rkabcd = Coulomb::Rk_abcd(Fa, Fc, *ykbd);
+  const auto Rkabcd = R(k, Fa, Fb, Fc, Fd);
   const auto m1tk = Angular::evenQ(k) ? 1 : -1;
   return m1tk * tCac * tCbd * Rkabcd;
 }

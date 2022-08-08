@@ -62,6 +62,12 @@ public:
   const std::vector<double> *get(const int k, const DiracSpinor &Fa,
                                  const DiracSpinor &Fb) const;
 
+  //! Calculates Rk using the existing yk integrals. Note: Yk and Ck tables
+  //! *must* include all required values, or behaviour not defined.
+  [[nodiscard]] double R(const int k, const DiracSpinor &Fa,
+                         const DiracSpinor &Fb, const DiracSpinor &Fc,
+                         const DiracSpinor &Fd) const;
+
   //! Calculates Qk using the existing yk integrals. Note: Yk and Ck tables
   //! *must* include all required values, or behaviour not defined.
   [[nodiscard]] double Q(const int k, const DiracSpinor &Fa,

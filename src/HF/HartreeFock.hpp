@@ -132,7 +132,7 @@ public:
   hf_valence(DiracSpinor &Fv,
              const MBPT::CorrelationPotential *const Sigma = nullptr) const;
 
-  //! Calculates the HF core energy (not including Breit or Vrad?)
+  //! Calculates the HF core energy (not including Breit?)
   double calculateCoreEnergy() const;
 
   //! Calculates exchange term Vex*Fa
