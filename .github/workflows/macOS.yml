@@ -16,7 +16,8 @@ jobs:
     - name: "Install dependencies (Homebrew)"
       run: |
         /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-        brew install gcc@11
+        set -x
+        # brew install gcc
         brew install gsl
 
     - name: setup
