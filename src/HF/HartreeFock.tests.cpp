@@ -10,152 +10,149 @@
 
 //! Unit tests for Hartree Fock equations
 TEST_CASE("HartreeFock", "[HF][HartreeFock][integration]") {
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "HartreeFock\n";
+
+  //============================================================================
+
+  // Grid parameters (etc.):
+  const auto grid_type = "loglinear";
+  const auto points = 4000;
+  const auto r0 = 1.0e-6;
+  const auto rmax = 150.0;
+  // const auto points = 10000;
+  // const auto r0 = 1.0e-7;
+  // const auto rmax = 170.0;
+  const auto b = 0.3 * rmax;
+  const auto x_Breit = 0.0; // do not include Breit
+  const int A = -1;         // use default A
+  const auto nucleus_type = "Fermi";
+
+  // Regression test: Compare Energies, E1 and HFS to my own calcs (test data
+  // run using very dense radial grids)
+  //--------------------------------------------------------------------------
   {
-    IO::ChronoTimer thf("HartreeFock tests");
-    std::cout << "\n----------------------------------------\n";
-    std::cout << "HartreeFock\n";
+    double worst_eps{0.0};
+    std::string worst_case{""};
 
-    //============================================================================
+    double wE1_eps{0.0};
+    std::string wE1_case{""};
 
-    // Grid parameters (etc.):
-    const auto grid_type = "loglinear";
-    const auto points = 4000;
-    const auto r0 = 1.0e-6;
-    const auto rmax = 150.0;
-    // const auto points = 10000;
-    // const auto r0 = 1.0e-7;
-    // const auto rmax = 170.0;
-    const auto b = 0.3 * rmax;
-    const auto x_Breit = 0.0; // do not include Breit
-    const int A = -1;         // use default A
-    const auto nucleus_type = "Fermi";
+    double wHFSsp_eps{0.0};
+    std::string wHFSsp_case{""};
 
-    // Regression test: Compare Energies, E1 and HFS to my own calcs (test data
-    // run using very dense radial grids)
-    //--------------------------------------------------------------------------
-    {
-      double worst_eps{0.0};
-      std::string worst_case{""};
+    double wHFSdf_eps{0.0};
+    std::string wHFSdf_case{""};
 
-      double wE1_eps{0.0};
-      std::string wE1_case{""};
+    // Loop through each test case, run HF, compare to test data
+    for (auto &[Atom, Core, Valence, EnergyData, E1Data, HFSData] :
+         UnitTest::HF_test_data::regression_test_data) {
 
-      double wHFSsp_eps{0.0};
-      std::string wHFSsp_case{""};
+      Wavefunction wf({points, r0, rmax, b, grid_type},
+                      {Atom, A, nucleus_type});
 
-      double wHFSdf_eps{0.0};
-      std::string wHFSdf_case{""};
+      const auto h = DiracOperator::HyperfineA(
+          1.0, 0.5, 0.0, wf.grid(), DiracOperator::Hyperfine::pointlike_F());
+      const auto d = DiracOperator::E1(wf.grid());
 
-      // Loop through each test case, run HF, compare to test data
-      for (auto &[Atom, Core, Valence, EnergyData, E1Data, HFSData] :
-           UnitTest::HF_test_data::regression_test_data) {
+      std::cout << "\n" << wf.atom() << "\n";
+      wf.solve_core("HartreeFock", x_Breit, Core);
+      wf.solve_valence(Valence);
 
-        Wavefunction wf({points, r0, rmax, b, grid_type},
-                        {Atom, A, nucleus_type});
+      // // For generating test data:
+      // for (auto &Fc : wf.core()) {
+      //   printf("{\"%s\", %.12f},\n", Fc.shortSymbol().c_str(), Fc.en());
+      // }
 
-        const auto h = DiracOperator::HyperfineA(
-            1.0, 0.5, 0.0, wf.grid(), DiracOperator::Hyperfine::pointlike_F());
-        const auto d = DiracOperator::E1(wf.grid());
-
-        std::cout << "\n" << wf.atom() << "\n";
-        wf.solve_core("HartreeFock", x_Breit, Core);
-        wf.solve_valence(Valence);
-
-        // // For generating test data:
-        // for (auto &Fc : wf.core()) {
-        //   printf("{\"%s\", %.12f},\n", Fc.shortSymbol().c_str(), Fc.en());
-        // }
-
-        // Test the energies:
-        for (const auto &[state, energy] : EnergyData) {
-          const auto &Fv = *wf.getState(state);
-          const auto del = std::abs(Fv.en() - energy);
-          const auto eps = std::abs(del / energy);
-          const auto err = std::min(del, eps);
-          printf("%3s %9.6f [%9.6f] %.1e\n", state, Fv.en(), energy, err);
-          if (err > worst_eps) {
-            worst_eps = err;
-            worst_case = wf.atomicSymbol() + ":" + state;
-          }
-        }
-
-        // Test the E1 matrix elements (no RPA):
-        for (const auto &[fa, fb, e1] : E1Data) {
-          const auto &Fa = *wf.getState(fa);
-          const auto &Fb = *wf.getState(fb);
-          const auto e1_me = d.reducedME(Fa, Fb);
-          const auto del = std::abs(e1_me - e1);
-          const auto eps = std::abs((e1_me - e1) / e1);
-          const auto err = std::min(del, eps);
-          printf("E1:%3s,%3s %9.5f [%9.5f] %.1e\n", fa, fb, e1_me, e1, err);
-          // nb: don't test very small MEs - large eps despite high accuracy
-          if (err > wE1_eps) {
-            wE1_eps = err;
-            wE1_case = wf.atomicSymbol() + ":" + fa + "," + fb;
-          }
-        }
-
-        // Test the HFS constants (no RPA):
-        for (const auto &[fv, Ahfs] : HFSData) {
-          const auto &Fv = *wf.getState(fv);
-          const auto Ahfs_me = h.hfsA(Fv);
-          const auto eps = std::abs((Ahfs_me - Ahfs) / Ahfs);
-          printf("HFS:%3s %11.5e [%11.5e] %.1e\n", fv, Ahfs_me, Ahfs, eps);
-          if (Fv.l() <= 1 && eps > wHFSsp_eps) {
-            wHFSsp_eps = eps;
-            wHFSsp_case = wf.atomicSymbol() + ":" + fv;
-          }
-          if (Fv.l() > 1 && eps > wHFSdf_eps) {
-            wHFSdf_eps = eps;
-            wHFSdf_case = wf.atomicSymbol() + ":" + fv;
-          }
+      // Test the energies:
+      for (const auto &[state, energy] : EnergyData) {
+        const auto &Fv = *wf.getState(state);
+        const auto del = std::abs(Fv.en() - energy);
+        const auto eps = std::abs(del / energy);
+        const auto err = std::min(del, eps);
+        printf("%3s %9.6f [%9.6f] %.1e\n", state, Fv.en(), energy, err);
+        if (err > worst_eps) {
+          worst_eps = err;
+          worst_case = wf.atomicSymbol() + ":" + state;
         }
       }
 
-      std::cout << "\nWorst cases:\n";
-      std::cout << "En : " << worst_case << " " << worst_eps << "\n";
-      std::cout << "E1 : " << wE1_case << " " << wE1_eps << "\n";
-      std::cout << "HFSsp: " << wHFSsp_case << " " << wHFSsp_eps << "\n";
-      std::cout << "HFSdf: " << wHFSdf_case << " " << wHFSdf_eps << "\n";
-
-      REQUIRE(std::abs(worst_eps) < 3.0e-6);
-      REQUIRE(std::abs(wE1_eps) < 1.0e-5);
-      REQUIRE(std::abs(wHFSsp_eps) < 1.0e-5);
-      REQUIRE(std::abs(wHFSdf_eps) < 1.0e-4);
-    }
-
-    // Accuracy test: test HF energies against Dzuba code
-    //--------------------------------------------------------------------------
-    {
-      double worst_eps{0.0};
-      std::string worst_case{""};
-
-      // Loop through each test case, run HF, compare to test data
-      for (auto &[Atom, Core, Valence, Data] :
-           UnitTest::HF_test_data::compare_VD) {
-
-        Wavefunction wf({points, r0, rmax, b, grid_type},
-                        {Atom, A, nucleus_type});
-
-        std::cout << "\n" << wf.atom() << "\n";
-        wf.solve_core("HartreeFock", x_Breit, Core);
-        wf.solve_valence(Valence);
-
-        // test energies:
-        for (auto &[state, energy] : Data) {
-          const auto &Fv = *wf.getState(state);
-          const auto eps = std::abs((Fv.en() - energy) / energy);
-          if (eps > worst_eps) {
-            worst_eps = eps;
-            worst_case = wf.atomicSymbol() + ":" + state;
-          }
-          printf("%3s %9.6f [%9.6f] %.1e\n", state, Fv.en(), energy, eps);
+      // Test the E1 matrix elements (no RPA):
+      for (const auto &[fa, fb, e1] : E1Data) {
+        const auto &Fa = *wf.getState(fa);
+        const auto &Fb = *wf.getState(fb);
+        const auto e1_me = d.reducedME(Fa, Fb);
+        const auto del = std::abs(e1_me - e1);
+        const auto eps = std::abs((e1_me - e1) / e1);
+        const auto err = std::min(del, eps);
+        printf("E1:%3s,%3s %9.5f [%9.5f] %.1e\n", fa, fb, e1_me, e1, err);
+        // nb: don't test very small MEs - large eps despite high accuracy
+        if (err > wE1_eps) {
+          wE1_eps = err;
+          wE1_case = wf.atomicSymbol() + ":" + fa + "," + fb;
         }
       }
-      std::cout << worst_case << " " << worst_eps << "\n";
 
-      REQUIRE(std::abs(worst_eps) < 1.0e-5);
+      // Test the HFS constants (no RPA):
+      for (const auto &[fv, Ahfs] : HFSData) {
+        const auto &Fv = *wf.getState(fv);
+        const auto Ahfs_me = h.hfsA(Fv);
+        const auto eps = std::abs((Ahfs_me - Ahfs) / Ahfs);
+        printf("HFS:%3s %11.5e [%11.5e] %.1e\n", fv, Ahfs_me, Ahfs, eps);
+        if (Fv.l() <= 1 && eps > wHFSsp_eps) {
+          wHFSsp_eps = eps;
+          wHFSsp_case = wf.atomicSymbol() + ":" + fv;
+        }
+        if (Fv.l() > 1 && eps > wHFSdf_eps) {
+          wHFSdf_eps = eps;
+          wHFSdf_case = wf.atomicSymbol() + ":" + fv;
+        }
+      }
     }
+
+    std::cout << "\nWorst cases:\n";
+    std::cout << "En : " << worst_case << " " << worst_eps << "\n";
+    std::cout << "E1 : " << wE1_case << " " << wE1_eps << "\n";
+    std::cout << "HFSsp: " << wHFSsp_case << " " << wHFSsp_eps << "\n";
+    std::cout << "HFSdf: " << wHFSdf_case << " " << wHFSdf_eps << "\n";
+
+    REQUIRE(std::abs(worst_eps) < 3.0e-6);
+    REQUIRE(std::abs(wE1_eps) < 1.0e-5);
+    REQUIRE(std::abs(wHFSsp_eps) < 1.0e-5);
+    REQUIRE(std::abs(wHFSdf_eps) < 1.0e-4);
+  }
+
+  // Accuracy test: test HF energies against Dzuba code
+  //--------------------------------------------------------------------------
+  {
+    double worst_eps{0.0};
+    std::string worst_case{""};
+
+    // Loop through each test case, run HF, compare to test data
+    for (auto &[Atom, Core, Valence, Data] :
+         UnitTest::HF_test_data::compare_VD) {
+
+      Wavefunction wf({points, r0, rmax, b, grid_type},
+                      {Atom, A, nucleus_type});
+
+      std::cout << "\n" << wf.atom() << "\n";
+      wf.solve_core("HartreeFock", x_Breit, Core);
+      wf.solve_valence(Valence);
+
+      // test energies:
+      for (auto &[state, energy] : Data) {
+        const auto &Fv = *wf.getState(state);
+        const auto eps = std::abs((Fv.en() - energy) / energy);
+        if (eps > worst_eps) {
+          worst_eps = eps;
+          worst_case = wf.atomicSymbol() + ":" + state;
+        }
+        printf("%3s %9.6f [%9.6f] %.1e\n", state, Fv.en(), energy, eps);
+      }
+    }
+    std::cout << worst_case << " " << worst_eps << "\n";
+
+    REQUIRE(std::abs(worst_eps) < 1.0e-5);
   }
 }
 

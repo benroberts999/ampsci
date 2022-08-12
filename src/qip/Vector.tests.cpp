@@ -91,6 +91,15 @@ TEST_CASE("qip::Vector", "[qip][Vector][unit]") {
     REQUIRE(ax0 == a);
     const auto ax00 = dx0 / 2;
     REQUIRE(ax00 == a);
+
+    const std::vector w{1, 2};
+    const std::vector z{1, 2, 3, 4, 5, 6};
+
+    REQUIRE(w + z == std::vector{2, 4, 3, 4, 5, 6});
+    REQUIRE(z + w == std::vector{2, 4, 3, 4, 5, 6});
+    auto wz = w;
+    wz += z;
+    REQUIRE(wz == std::vector{2, 4, 3, 4, 5, 6});
   }
 
   //============================================================================

@@ -85,15 +85,26 @@ private:
 };
 
 //==============================================================================
+
 inline std::unique_ptr<DiracOperator::TensorOperator>
 generate_E1(const IO::InputBlock &input, const Wavefunction &wf) {
   using namespace DiracOperator;
-  input.check({{"gauge", "lform or vform [lform]"}});
-  const auto gauge = input.get<std::string>("gauge", "lform");
-  if (gauge != "vform")
-    return std::make_unique<E1>(wf.grid());
-  // std::cout << "(v-form [velocity gauge])\n";
+  input.check({{"no options", ""}});
+  return std::make_unique<E1>(wf.grid());
+}
+
+inline std::unique_ptr<DiracOperator::TensorOperator>
+generate_E1v(const IO::InputBlock &input, const Wavefunction &wf) {
+  using namespace DiracOperator;
+  input.check({{"no options", ""}});
   return std::make_unique<E1v>(wf.alpha(), 0.0);
+}
+
+inline std::unique_ptr<DiracOperator::TensorOperator>
+generate_E2(const IO::InputBlock &input, const Wavefunction &wf) {
+  using namespace DiracOperator;
+  input.check({{"no options", ""}});
+  return std::make_unique<Ek>(wf.grid(), 2);
 }
 
 //------------------------------------------------------------------------------

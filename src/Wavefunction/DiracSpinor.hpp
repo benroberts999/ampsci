@@ -161,6 +161,8 @@ public:
 
   //! Returns the norm, defined: Norm = Sqrt[<a|a>]
   double norm() const;
+  //! Returns the norm^2, defined: Norm2 = <a|a>
+  double norm2() const;
 
   //! Returns [f[p0]/f_max , f[pinf]/f_max] - for tests
   std::pair<double, double> r0pinfratio() const;

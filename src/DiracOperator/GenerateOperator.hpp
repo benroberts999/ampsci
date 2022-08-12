@@ -19,7 +19,8 @@ namespace DiracOperator {
 static const std::vector<std::pair<
     std::string, std::unique_ptr<DiracOperator::TensorOperator> (*)(
                      const IO::InputBlock &input, const Wavefunction &wf)>>
-    operator_list{{"E1", &generate_E1},     {"Ek", &generate_Ek},
+    operator_list{{"E1", &generate_E1},     {"E1v", &generate_E1v},
+                  {"E2", &generate_E2},     {"Ek", &generate_Ek},
                   {"M1", &generate_M1},     {"hfs", &generate_hfsA},
                   {"hfsK", &generate_hfsK}, {"r", &generate_r},
                   {"pnc", &generate_pnc},   {"Hrad", &generate_Hrad},

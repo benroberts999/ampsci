@@ -47,6 +47,7 @@ std::string DiracSpinor::shortSymbol() const {
 
 //==============================================================================
 double DiracSpinor::norm() const { return std::sqrt((*this) * (*this)); }
+double DiracSpinor::norm2() const { return (*this) * (*this); }
 
 //==============================================================================
 const DiracSpinor &DiracSpinor::scale(const double factor) {

@@ -355,9 +355,11 @@ namespace overloads {
 //! Provide addition of two vectors:
 template <typename T>
 std::vector<T> &operator+=(std::vector<T> &a, const std::vector<T> &b) {
-  const auto size = std::max(a.size(), b.size());
-  a.resize(size);
-  for (auto i = 0ul; i < b.size(); ++i) {
+  // The following allows this to work for types that can't be default constructed
+  const auto smaller_size = std::min(a.size(), b.size());
+  if (a.size() < b.size())
+    a.insert(a.end(), b.begin() + long(a.size()), b.end());
+  for (auto i = 0ul; i < smaller_size; ++i) {
     a[i] += b[i];
   }
   return a;
@@ -382,31 +384,36 @@ std::vector<T> operator-(std::vector<T> a, const std::vector<T> &b) {
 }
 
 // Provide scalar multiplication
-template <typename T> std::vector<T> &operator*=(std::vector<T> &v, T x) {
-  if (x != T{1}) {
+template <typename T, typename U>
+std::vector<T> &operator*=(std::vector<T> &v, U x) {
+  if (x != U{1}) {
     for (auto &v_i : v) {
       v_i *= x;
     }
   }
   return v;
 }
-template <typename T> std::vector<T> operator*(std::vector<T> v, T x) {
+template <typename T, typename U>
+std::vector<T> operator*(std::vector<T> v, U x) {
   return v *= x;
 }
-template <typename T> std::vector<T> operator*(T x, std::vector<T> v) {
+template <typename T, typename U>
+std::vector<T> operator*(U x, std::vector<T> v) {
   return v *= x;
 }
 
 // Provide scalar devision
-template <typename T> std::vector<T> &operator/=(std::vector<T> &v, T x) {
-  if (x != T{1}) {
+template <typename T, typename U>
+std::vector<T> &operator/=(std::vector<T> &v, U x) {
+  if (x != U{1}) {
     for (auto &v_i : v) {
       v_i /= x;
     }
   }
   return v;
 }
-template <typename T> std::vector<T> operator/(std::vector<T> v, T x) {
+template <typename T, typename U>
+std::vector<T> operator/(std::vector<T> v, U x) {
   return v /= x;
 }
 
