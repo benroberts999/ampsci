@@ -281,15 +281,15 @@ void TDHF::solve_core(const double omega, int max_its, const bool print) {
 
   m_hFcore = form_hFcore();
 
-  int it{0};
+  int it{1};
   std::pair<double, std::string> eps{};
   double best_eps{1.0};
   int count_worse = 0;
   for (;; it++) {
-    const auto eta = it == 0 ? 0.0 : eta_damp;
+    const auto eta = it == 1 ? 0.0 : eta_damp;
     eps = tdhf_core_it(omega, eta);
 
-    if (it == 0) {
+    if (it == 1) {
       // On first iteration, store dPsi (for first-order dV)
       // XXX If we change omega and run again, this is meaningless!
       m_X0 = m_X;
@@ -337,14 +337,15 @@ double TDHF::dV(const DiracSpinor &Fn, const DiracSpinor &Fm, bool conj,
   return s * Fn * dV_rhs(Fn.kappa(), Fm, conj, Fexcl, incl_dV);
 }
 
-double TDHF::dV(const DiracSpinor &Fn, const DiracSpinor &Fm) const {
-  const auto conj = Fm.en() > Fn.en();
-  return dV(Fn, Fm, conj);
-}
-
 double TDHF::dV1(const DiracSpinor &Fn, const DiracSpinor &Fm) const {
   const auto conj = Fm.en() > Fn.en();
   return dV(Fn, Fm, conj, nullptr, false);
+}
+
+//==============================================================================
+double TDHF::dV(const DiracSpinor &Fn, const DiracSpinor &Fm) const {
+  const auto conj = Fm.en() > Fn.en();
+  return dV(Fn, Fm, conj);
 }
 
 //==============================================================================

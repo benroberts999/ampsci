@@ -56,7 +56,7 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
     REQUIRE(!h->units().empty());
 
     // v-form
-    auto hv = DiracOperator::generate("E1", {"", "gauge=vform;"}, wf);
+    auto hv = DiracOperator::generate("E1v", {}, wf);
     REQUIRE(hv->get_d_order() == 0);
     REQUIRE(hv->imaginaryQ() == false);
     REQUIRE(hv->rank() == 1);
