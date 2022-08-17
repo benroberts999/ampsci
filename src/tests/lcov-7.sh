@@ -14,6 +14,5 @@ lcov --remove coverage.info \
   '/usr/*' \
   '*/Modules/*' \
   '*/DMionisation/*' \
-  '*/ExternalField/*' \
 --output-file coverage.info &&
 lcov --list coverage.info |tee -a cov-info.txt

@@ -8,7 +8,7 @@
 
 namespace Coulomb {
 
-// ! Symmetry (state index order) for tables.
+//! Symmetry (state index order) for tables.
 enum class Symmetry { Qk, Wk, Lk, none };
 //! Data type used to store integrals
 using Real = double;
@@ -56,7 +56,7 @@ public:
             int k_cut = -1);
 
   //! Gives arrow access to all underlying vector<unordered_map> functions
-  auto operator-> () { return &m_data; }
+  auto operator->() { return &m_data; }
 
   //! For testing: prints details of coulomb integrals stored
   void summary() const;

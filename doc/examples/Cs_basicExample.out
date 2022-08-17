@@ -1,0 +1,149 @@
+
+********************************************************************************
+AMPSCI v: 0.0 [dev/532fde8f]
+Compiled: g++-11 [Ubuntu 11.1.0-1ubuntu1~18.04.1] 11.1.0 2022-08-17 11:23 AEST
+Run time: 2022-08-17 11:26:01
+
+********************************************************************************
+Atom { 
+  Z = Cs;
+  A = 133;
+}
+HartreeFock { 
+  core = [Xe];
+  valence = 7sp;
+}
+Grid { 
+  r0 = 1e-6;
+  rmax = 120.0;
+  num_points = 4000;
+}
+Basis { 
+  number = 50;
+  order = 7;
+  r0 = 1.0e-5;
+  rmax = 40.0;
+  states = 45spdf;
+}
+Module::Tests { }
+Module::matrixElements { 
+  operator = E1;
+  rpa = TDHF;
+  omega = 0.0;
+}
+Module::matrixElements { 
+  operator = hfs;
+  rpa = diagram;
+  onlyDiagonal = true;
+  options { F(r) = pointlike; }
+}
+
+Running for Cs, Z=55 A=133
+Fermi nucleus;  r_rms = 4.8041, c_hdr = 5.67073, t = 2.3
+Log-linear (b=40) grid: 1e-06->120, N=4000, du=0.216084
+========================================================
+Hartree-Fock
+Core   :  it: 28 eps=6.3e-14 for 4d-
+Val    :  it: 37 eps=0.0e+00 for 6s+ [ 37 eps=0e+00 for 6s+]
+
+CsI-133
+Core: [Xe] (V^N-1)
+     state  k   Rinf its   eps         En (au)        En (/cm)
+0   1s_1/2 -1    0.7  2  2e-27 -1330.118842942  -291927342.724
+1   2s_1/2 -1    1.7  2  2e-24  -212.564489900   -46652513.062
+2   2p_1/2  1    1.7  2  8e-25  -199.429496689   -43769715.269
+3   2p_3/2 -2    1.8  2  1e-24  -186.436606383   -40918105.458
+4   3s_1/2 -1    3.6  2  9e-23   -45.969746141   -10089193.088
+5   3p_1/2  1    3.8  2  6e-23   -40.448305905    -8877377.028
+6   3p_3/2 -2    3.9  2  6e-23   -37.894311673    -8316840.085
+7   3d_3/2  2    4.6  2  4e-23   -28.309508841    -6213219.017
+8   3d_5/2 -3    4.6  2  4e-23   -27.775165364    -6095944.179
+9   4s_1/2 -1    7.9  2  1e-21    -9.512819879    -2087822.636
+10  4p_1/2  1    8.9  2  7e-22    -7.446283826    -1634270.398
+11  4p_3/2 -2    9.2  2  8e-22    -6.920999967    -1518983.916
+12  4d_3/2  2   13.1  2  5e-22    -3.485618749     -765004.890
+13  4d_5/2 -3   13.2  2  5e-22    -3.396901359     -745533.674
+14  5s_1/2 -1   20.3  2  6e-22    -1.489804384     -326974.268
+15  5p_1/2  1   26.1  2  3e-22    -0.907897400     -199260.447
+16  5p_3/2 -2   27.2  2  2e-22    -0.840338936     -184433.078
+E_c = -7786.644930
+Val: state  k   Rinf its   eps         En (au)        En (/cm)   En (/cm)
+0   6s_1/2 -1   70.4  1  0e+00    -0.127368056      -27954.057       0.00
+1   7s_1/2 -1  110.1  1  0e+00    -0.055187354      -12112.224   15841.83
+2   6p_1/2  1   86.9  1  0e+00    -0.085615865      -18790.510    9163.55
+3   7p_1/2  1  120.0  1  0e+00    -0.042021380       -9222.627   18731.43
+4   6p_3/2 -2   87.9  1  0e+00    -0.083785459      -18388.783    9565.27
+5   7p_3/2 -2  120.0  1  0e+00    -0.041368036       -9079.234   18874.82
+
+Constructing B-spline basis with N=50, k=7. Storing: 45spdf
+Using Derevinko (Duel Kinetic Balance) type splines.
+Spline cavity l=0 s: (1.4e-04, 40.0)aB.
+Spline cavity l=1 p: (2.8e-03, 40.0)aB.
+Spline cavity l=2 d: (2.4e-02, 40.0)aB.
+Spline cavity l=3 f: (2.4e-02, 40.0)aB.
+Basis/core:
+ |<4s+|4s+>-1| = 2.8e-08
+ dE/E(1s+)     = 1.3e-06
+ <4s+|27s+>    = 5.2e-05
+Basis/valence:
+ |<7p+|7p+>-1| = 5.5e-04
+ dE/E(7p+)     = 8.9e-04
+ <7p+|8p+>     = 1.1e-02  ** OK?
+Basis: T = 840.51 ms
+
+--------------------------------------------------------------------------------
+Module: Module::Tests
+
+Test orthonormality:
+cc   <2s+|5s+> = 2.2e-06
+cv   <3s+|6s+> = 2.8e-06
+cb  <4s+|27s+> = 5.2e-05
+vv   <7p-|7p-> = 4.4e-15
+vb   <7p+|8p+> = 1.1e-02
+bb <23d-|28d-> = 1.8e-14
+
+--------------------------------------------------------------------------------
+Module: Module::matrixElements
+
+Module::matrixElements (reduced). Operator: E1
+Units: |e|aB
+Including RPA: TDHF method
+TDHF E1 (w=0.0000): 34 4.7e-11 [3p-,d-]
+              h(0)           h(1)           h(RPA)
+  6p-  6s+  -5.277687e+00  -4.943277e+00  -4.974403e+00
+  7p-  6s+  -3.717393e-01  -2.232278e-01  -2.387229e-01
+  6p+  6s+   7.426435e+00   6.973431e+00   7.013078e+00
+  7p+  6s+   6.947392e-01   4.887840e-01   5.087421e-01
+  7p-  7s+  -1.100887e+01  -1.091207e+01  -1.092106e+01
+  7p+  7s+   1.534480e+01   1.521605e+01   1.522744e+01
+  7s+  6p-   4.413140e+00   4.457620e+00   4.449368e+00
+  7s+  6p+   6.671016e+00   6.721591e+00   6.712221e+00
+
+--------------------------------------------------------------------------------
+Module: Module::matrixElements
+
+Hyperfine structure: Cs, Z=55 A=133
+Using pointlike nuclear distro for F(r)
+w/ mu = 2.58202, I = 3.5, r_N = 6.20207fm = 0.000117202au  (r_rms=4.8041fm)
+Points inside nucleus: 882
+
+Module::matrixElements A (MHz). Operator: hfs
+Units: MHz
+Including RPA: diagram method
+Reading from RPA(diagram) file: CsI_1+.rpad (5sp4d/45spdf) ... 
+Note: still uses Basis for summation (only reads in W matrix)
+
+Cannot read from CsI_1+.rpad. Basis mis-match (read 17,193; expected 17,286).
+Will recalculate rpa_Diagram matrix, and overwrite file.
+Filling RPA Diagram matrix (5sp4d/45spdf) .. . done.
+Writing to RPA(diagram) file: CsI_1+.rpad (5sp4d/45spdf) ... done.
+RPA(D) hfs (w=0.000): 72 8.8e-11
+              h(0)           h(1)           h(RPA)
+  6s+  6s+   1.433685e+03   1.691245e+03   1.728279e+03
+  7s+  7s+   3.939430e+02   4.629429e+02   4.740640e+02
+  6p-  6p-   1.610199e+02   1.918706e+02   2.013605e+02
+  7p-  7p-   5.765291e+01   6.836910e+01   7.156378e+01
+  6p+  6p+   2.391634e+01   3.464190e+01   4.287070e+01
+  7p+  7p+   8.639728e+00   1.248341e+01   1.536949e+01
+
+ampsci: T = 22.47 s
