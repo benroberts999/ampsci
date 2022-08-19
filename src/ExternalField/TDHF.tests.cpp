@@ -8,6 +8,74 @@
 #include <string>
 
 //==============================================================================
+// Tests for TDHF (basic unit)
+TEST_CASE("External Field: TDHF - basic unit tests",
+          "[ExternalField][TDHF][RPA][unit]") {
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "External Field: TDHF - basic unit tests\n";
+
+  Wavefunction wf({800, 1.0e-4, 100.0, 20.0, "loglinear", -1.0},
+                  {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
+  wf.solve_core("HartreeFock", 0.0, "[Xe]");
+  wf.solve_valence("6sp");
+
+  auto dE1 = DiracOperator::E1(wf.grid());
+
+  auto F6s = wf.getState("6s");
+  auto F6p = wf.getState("6p-");
+  REQUIRE(F6s != nullptr);
+  REQUIRE(F6p != nullptr);
+
+  auto rpa = ExternalField::TDHF(&dE1, wf.vHF());
+  rpa.solve_core(0.0, 30);
+
+  const auto dv1_0 = rpa.dV1(*F6s, *F6p);
+  const auto dv_0 = rpa.dV(*F6s, *F6p);
+  std::cout << *F6s << "-" << *F6p << ": " << dv1_0 << " " << dv_0 << "\n";
+  REQUIRE(dv1_0 != 0.0);
+  REQUIRE(dv_0 != 0.0);
+  REQUIRE(std::abs(dv_0) < std::abs(dv1_0));
+
+  // Doing 1 iteration shuold be equiv to first-order dV
+  auto rpa1 = ExternalField::TDHF(&dE1, wf.vHF());
+  rpa1.solve_core(0.0, 1);
+  const auto dv1_1 = rpa1.dV(*F6s, *F6p);
+  REQUIRE(dv1_1 == Approx(dv1_0));
+
+  const auto &Fc = wf.core().back();
+  auto dPsis1 = rpa.solve_dPsis(Fc, 0.0, ExternalField::dPsiType::X);
+  const auto &dPsis2 = rpa.get_dPsis(Fc, ExternalField::dPsiType::X);
+  // should both be first-order:
+  auto dPsis01 = rpa.get_dPsis_0(Fc, ExternalField::dPsiType::X);
+  const auto &dPsis02 = rpa1.get_dPsis(Fc, ExternalField::dPsiType::X);
+  REQUIRE(dPsis1.size() == dPsis2.size());
+  REQUIRE(dPsis1.size() != 0);
+  REQUIRE(dPsis01.size() == dPsis2.size());
+  REQUIRE(dPsis01.size() != 0);
+  for (std::size_t i = 0; i < dPsis1.size(); ++i) {
+    // only true if TDHF converged!
+    REQUIRE(dPsis1.at(i).norm2() ==
+            Approx(dPsis2.at(i).norm2()).epsilon(1.0e-2));
+    const auto kappa = dPsis1.at(i).kappa();
+    auto dPsi1 = rpa.solve_dPsi(Fc, 0.0, ExternalField::dPsiType::X, kappa);
+    const auto &dPsi2 = rpa.get_dPsi_x(Fc, ExternalField::dPsiType::X, kappa);
+    REQUIRE(dPsi1.norm2() == Approx(dPsis2.at(i).norm2()).epsilon(1.0e-2));
+    REQUIRE(dPsi2.norm2() == Approx(dPsis2.at(i).norm2()).epsilon(1.0e-2));
+    // only true if TDHF converged!
+    REQUIRE(dPsis01.at(i).norm2() ==
+            Approx(dPsis02.at(i).norm2()).epsilon(1.0e-2));
+  }
+
+  // should be zero after clearing:
+  rpa.clear();
+  const auto dv1_00 = rpa.dV1(*F6s, *F6p);
+  const auto dv_00 = rpa.dV(*F6s, *F6p);
+  std::cout << *F6s << "-" << *F6p << ": " << dv1_00 << " " << dv_00 << "\n";
+  REQUIRE(dv1_00 == 0.0);
+  REQUIRE(dv_00 == 0.0);
+}
+
+//==============================================================================
 namespace helper {
 
 // Calculates core-polarisation correction to matrix elements between all

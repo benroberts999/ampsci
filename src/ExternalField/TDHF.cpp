@@ -401,23 +401,23 @@ DiracSpinor TDHF::dV_rhs(const int kappa_n, const DiracSpinor &Fa, bool conj,
   return dVFa;
 }
 
-//==============================================================================
-void TDHF::print(const std::string &ofname) const {
-  std::ofstream of(ofname);
-  const auto &gr = *((m_core.front()).grid_sptr());
-  for (auto i = 0ul; i < gr.num_points(); ++i) {
-    of << gr.r(i) << " ";
-    for (auto ic = 0ul; ic < m_core.size(); ic++) {
-      const auto &Fc = m_core[ic];
-      of << Fc.f(i) << " ";
-      for (auto j = 0ul; j < m_X[ic].size(); j++) {
-        const auto &Xx = m_X[ic][j];
-        const auto &Yx = m_Y[ic][j];
-        of << Xx.f(i) << " " << Yx.f(i) << " ";
-      }
-    }
-    of << "\n";
-  }
-}
+// //==============================================================================
+// void TDHF::print(const std::string &ofname) const {
+//   std::ofstream of(ofname);
+//   const auto &gr = *((m_core.front()).grid_sptr());
+//   for (auto i = 0ul; i < gr.num_points(); ++i) {
+//     of << gr.r(i) << " ";
+//     for (auto ic = 0ul; ic < m_core.size(); ic++) {
+//       const auto &Fc = m_core[ic];
+//       of << Fc.f(i) << " ";
+//       for (auto j = 0ul; j < m_X[ic].size(); j++) {
+//         const auto &Xx = m_X[ic][j];
+//         const auto &Yx = m_Y[ic][j];
+//         of << Xx.f(i) << " " << Yx.f(i) << " ";
+//       }
+//     }
+//     of << "\n";
+//   }
+// }
 
 } // namespace ExternalField

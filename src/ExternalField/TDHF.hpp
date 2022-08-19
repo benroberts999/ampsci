@@ -132,8 +132,8 @@ public:
               const MBPT::CorrelationPotential *const Sigma = nullptr,
               StateType st = StateType::ket, bool incl_dV = true) const;
 
-  //! Writes dPsi (f-component) to textfile
-  void print(const std::string &ofname = "dPsi.txt") const;
+  // //! Writes dPsi (f-component) to textfile
+  // void print(const std::string &ofname = "dPsi.txt") const;
 
 private:
   void initialise_dPsi();

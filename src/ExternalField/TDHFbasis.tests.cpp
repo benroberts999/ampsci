@@ -1,11 +1,64 @@
 
-#include "DiracOperator/DiracOperator.hpp"
 #include "TDHFbasis.hpp"
+#include "DiagramRPA.hpp"
+#include "DiracOperator/DiracOperator.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "catch2/catch.hpp"
 #include "qip/Vector.hpp"
 #include <algorithm>
 #include <string>
+
+//==============================================================================
+// Tests for TDHFbasis (basic unit)
+TEST_CASE("External Field: TDHFbasis - basic unit tests",
+          "[ExternalField][TDHFbasis][RPA][unit]") {
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "External Field: TDHFbasis - basic unit tests\n";
+
+  Wavefunction wf({500, 1.0e-4, 80.0, 20.0, "loglinear", -1.0},
+                  {"Na", -1, "Fermi", -1.0, -1.0}, 1.0);
+  wf.solve_core("HartreeFock", 0.0, "[Ne]");
+  wf.solve_valence("3sp");
+  // nb: use very small basis. Don't care about numerical results, just that eveything is working correctly.
+  wf.formBasis({"10sp8d", 20, 7, 1.0e-3, 1.0e-3, 30.0, false});
+
+  auto dE1 = DiracOperator::E1(wf.grid());
+
+  auto F6s = wf.getState("3s");
+  auto F6p = wf.getState("3p-");
+  REQUIRE(F6s != nullptr);
+  REQUIRE(F6p != nullptr);
+
+  auto rpa = ExternalField::TDHFbasis(&dE1, wf.vHF(), wf.basis());
+  rpa.solve_core(0.0, 15);
+
+  const auto dv1_0 = rpa.dV1(*F6s, *F6p);
+  const auto dv_0 = rpa.dV(*F6s, *F6p);
+  std::cout << *F6s << "-" << *F6p << ": " << dv1_0 << " " << dv_0 << "\n";
+  REQUIRE(dv1_0 != 0.0);
+  REQUIRE(dv_0 != 0.0);
+  // This work with larger basis, not with simple test
+  // Lage basis is too slow to run in a 'unit' test
+  // REQUIRE(std::abs(dv_0) < std::abs(dv1_0));
+
+  const auto &Fc = wf.core().back();
+
+  auto dPsis1 = rpa.form_dPsis(Fc, 0.0, ExternalField::dPsiType::X, wf.basis());
+  auto dPsis2 = rpa.get_dPsis(Fc, ExternalField::dPsiType::X);
+  REQUIRE(dPsis1.size() == dPsis2.size());
+  REQUIRE(dPsis1.size() != 0);
+  for (std::size_t i = 0; i < dPsis1.size(); ++i) {
+    REQUIRE(dPsis1.at(i).norm2() ==
+            Approx(dPsis2.at(i).norm2()).epsilon(1.0e-2));
+  }
+
+  rpa.clear();
+  const auto dv1_00 = rpa.dV1(*F6s, *F6p);
+  const auto dv_00 = rpa.dV(*F6s, *F6p);
+  std::cout << *F6s << "-" << *F6p << ": " << dv1_00 << " " << dv_00 << "\n";
+  REQUIRE(dv1_00 == Approx(dv1_0));
+  REQUIRE(dv_00 == 0.0);
+}
 
 //==============================================================================
 namespace helper {

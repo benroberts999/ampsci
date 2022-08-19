@@ -1,21 +1,82 @@
-#include "DiracOperator/DiracOperator.hpp"
 #include "ExternalField/DiagramRPA.hpp"
+#include "DiracOperator/DiracOperator.hpp"
 #include "ExternalField/TDHF.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "catch2/catch.hpp"
 #include "qip/Maths.hpp"
-#include "qip/Vector.hpp"
+#include "qip/Random.hpp"
 #include <algorithm>
 #include <string>
 
 //==============================================================================
-//! Unit tests for correlations (second-order MBPT correlation energy/potential)
+// Tests for Diragram RPA (basic unit)
+TEST_CASE("External Field: Diagram RPA - basic unit tests",
+          "[ExternalField][DiagramRPA][RPA][unit]") {
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "External Field: Diagram RPA - basic unit tests\n";
+
+  Wavefunction wf({500, 1.0e-4, 80.0, 20.0, "loglinear", -1.0},
+                  {"K", -1, "Fermi", -1.0, -1.0}, 1.0);
+  wf.solve_core("Local", 0.0, "[Ar]");
+  wf.solve_valence("4sp");
+  // nb: use very small basis. Don't care about numerical results, just that eveything is working correctly.
+  wf.formBasis({"10spd", 20, 7, 1.0e-3, 1.0e-3, 40.0, false});
+
+  auto dE1 = DiracOperator::E1(wf.grid());
+
+  auto F6s = wf.getState("4s");
+  auto F6p = wf.getState("4p-");
+  REQUIRE(F6s != nullptr);
+  REQUIRE(F6p != nullptr);
+
+  const auto file_name = "deleteme-" + qip::random_string(4);
+  auto rpa = ExternalField::DiagramRPA(&dE1, wf.basis(), wf.core(), file_name);
+  rpa.solve_core(0.0, 20);
+
+  const auto dv1_0 = rpa.dV1(*F6s, *F6p);
+  const auto dv_0 = rpa.dV(*F6s, *F6p);
+  std::cout << *F6s << "-" << *F6p << ": " << dv1_0 << " " << dv_0 << "\n";
+  REQUIRE(dv1_0 != 0.0);
+  REQUIRE(dv_0 != 0.0);
+  // doesn't work with small grid/basis/its etc
+  // REQUIRE(std::abs(dv_0) < std::abs(dv1_0));
+
+  // This should read W matrix from file, but not calculate t's
+  // Grabbing t's from other rpa - should yield exact same result!
+  auto rpa2 = ExternalField::DiagramRPA(&dE1, wf.basis(), wf.core(), file_name);
+  rpa2.grab_tam(&rpa);
+  const auto dv1_2 = rpa2.dV1(*F6s, *F6p);
+  const auto dv_2 = rpa2.dV(*F6s, *F6p);
+  std::cout << *F6s << "-" << *F6p << ": " << dv1_2 << " " << dv_2 << "\n";
+
+  REQUIRE(dv1_2 == Approx(dv1_0));
+  REQUIRE(dv_2 == Approx(dv_0));
+
+  auto rpa3 = ExternalField::DiagramRPA(&dE1, &rpa);
+  const auto dv1_3 = rpa3.dV1(*F6s, *F6p);
+
+  // can get lowest-rder _before_ solving core:
+  REQUIRE(dv1_3 == Approx(dv1_0));
+
+  // but need to solve_core (or 'grab_tam') to get RPA:
+  rpa3.solve_core(0.0);
+  const auto dv_3 = rpa3.dV(*F6s, *F6p);
+  std::cout << *F6s << "-" << *F6p << ": " << dv1_3 << " " << dv_3 << "\n";
+  REQUIRE(dv_3 == Approx(dv_0).epsilon(1.0e-2));
+
+  // if we 'clear' the tams, RPA should be equivilant to first-order:
+  rpa3.clear();
+  const auto dv_30 = rpa3.dV(*F6s, *F6p);
+  REQUIRE(dv_30 == Approx(dv1_0));
+}
+
+//==============================================================================
+// Tests for Diragram RPA (integration/regression)
 TEST_CASE("External Field: Diagram RPA",
           "[ExternalField][DiagramRPA][RPA][integration]") {
   std::cout << "\n----------------------------------------\n";
-  std::cout << "External Field: Diagram RPA, "
-               "[ExternalField][DiagramRPA][RPA][integration]\n";
+  std::cout << "External Field: Diagram RPA\n";
 
   Wavefunction wf({3500, 1.0e-6, 150.0, 0.33 * 150.0, "loglinear", -1.0},
                   {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
