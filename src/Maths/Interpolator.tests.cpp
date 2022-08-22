@@ -110,20 +110,20 @@ TEST_CASE("Maths::Interpolator", "[interpolator][unit]") {
   // For the rest, require that they approximate the function func.
   // Note: not looking for high accuracy - approximation itself not what we are testing.
 
-  // cspline_periodic,
-  // akima,
-  // akima_periodic,
-  // steffen
-
   Interp icp(x, y, Method::cspline_periodic);
-  const Interp ia(x, y, Method::cspline_periodic);
-  Interp iap(x, y, Method::cspline_periodic);
-  const Interp is(x, y, Method::cspline_periodic);
+  const Interp ia(x, y, Method::akima);
+  Interp iap(x, y, Method::akima_periodic);
 
   for (double t = -5.0; t <= 5.0; t += 0.1) {
     REQUIRE(icp(t) == Approx(func(t)).margin(1.0e-1));
     REQUIRE(ia(t) == Approx(func(t)).margin(1.0e-1));
     REQUIRE(iap(t) == Approx(func(t)).margin(1.0e-1));
-    REQUIRE(is(t) == Approx(func(t)).margin(1.0e-1));
+  }
+
+  if constexpr (Interpolator::has_steffen_method()) {
+    const Interp is(x, y, Method::steffen);
+    for (double t = -5.0; t <= 5.0; t += 0.1) {
+      REQUIRE(is(t) == Approx(func(t)).margin(1.0e-1));
+    }
   }
 }

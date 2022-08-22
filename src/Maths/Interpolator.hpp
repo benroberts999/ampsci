@@ -2,9 +2,17 @@
 #include <cassert>
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_spline.h>
+#include <gsl/gsl_version.h>
 #include <iostream>
 #include <map>
 #include <vector>
+
+// This should make code work with old versions of GSL
+#ifdef GSL_MAJOR_VERSION
+#if GSL_MAJOR_VERSION == 1
+#define GSL_VERSION_1
+#endif
+#endif
 
 //! Interpolates functions using cubic splines. Uses GSL:
 //! https://www.gnu.org/software/gsl/doc/html/interp.html
@@ -57,7 +65,7 @@ enum class Method {
   akima,
   //! akima interpolation with periodic boundary condition
   akima_periodic,
-  //! steffen interpolation (ensure monotonicity between points)
+  //! steffen interpolation (ensure monotonicity between points). Only GSLv2+
   steffen
 };
 
@@ -68,8 +76,11 @@ static const std::map<Method, const gsl_interp_type *> interp_method{
     {Method::cspline, gsl_interp_cspline},
     {Method::cspline_periodic, gsl_interp_cspline_periodic},
     {Method::akima, gsl_interp_akima},
-    {Method::akima_periodic, gsl_interp_akima_periodic},
-    {Method::steffen, gsl_interp_steffen},
+    {Method::akima_periodic, gsl_interp_akima_periodic}
+#ifndef GSL_VERSION_1
+    ,
+    {Method::steffen, gsl_interp_steffen}
+#endif
 };
 
 //==============================================================================
@@ -154,6 +165,17 @@ inline std::vector<double> interpolate(const std::vector<double> &x_in,
                                        Method method = Method::cspline) {
   Interp i_func(x_in, y_in, method);
   return i_func(x_out);
+}
+
+//==============================================================================
+
+//! Check if steffen method available (only with GSL version 2+)
+static constexpr bool has_steffen_method() {
+#ifndef GSL_VERSION_1
+  return true;
+#else
+  return false;
+#endif
 }
 
 } // namespace Interpolator

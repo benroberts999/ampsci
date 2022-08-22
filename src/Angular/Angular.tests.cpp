@@ -7,8 +7,17 @@
 #include "qip/Vector.hpp"
 #include <algorithm>
 #include <cmath>
+#include <gsl/gsl_version.h>
 #include <string>
 #include <utility>
+
+// This should make code work with old versions of GSL
+// This is for a work-around for what appears to be a bug in GSL v1:
+#ifdef GSL_MAJOR_VERSION
+#if GSL_MAJOR_VERSION == 1
+#define GSL_VERSION_1
+#endif
+#endif
 
 namespace UnitTest {
 // Helper functions for unit tests:
@@ -337,7 +346,15 @@ double UnitTest::sj_compare_direct(const Angular::SixJTable &sjt) {
         for (int d = 0; d <= max_2k; ++d) {
           for (int e = 0; e <= max_2k; ++e) {
             for (int f = 0; f <= max_2k; ++f) {
+
+#ifndef GSL_VERSION_1
               const auto sj = gsl_sf_coupling_6j(a, b, c, d, e, f);
+#else
+              // nb: there seems to be a bug in GSL:V1 where
+              // gsl_sf_coupling_6j returns non-zero result when
+              // symbol is non-triangular
+              const auto sj = Angular::sixj_2(a, b, c, d, e, f);
+#endif
               const auto sj2 = sjt.get_2(a, b, c, d, e, f);
               const auto sj3 = Angular::sixj_2(a, b, c, d, e, f);
               const auto del = std::max(std::abs(sj - sj2), std::abs(sj - sj3));

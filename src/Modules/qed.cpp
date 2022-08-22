@@ -396,9 +396,8 @@ std::vector<std::string> calc_vertexQED(const IO::InputBlock &input,
   // spacial case: HFS A (MHz)
   const bool AhfsQ = (oper == "hfs" && !radial_int);
 
-  const auto which_str = radial_int ? " (radial integral)." :
-                         AhfsQ      ? " A (MHz)." :
-                                      " (reduced).";
+  const auto which_str =
+      radial_int ? " (radial integral)." : AhfsQ ? " A (MHz)." : " (reduced).";
 
   std::cout << "\n"
             << input.name() << which_str << " Operator: " << h->name() << "\n";
@@ -448,9 +447,9 @@ std::vector<std::string> calc_vertexQED(const IO::InputBlock &input,
   for (const auto &Fb : wf.valence()) {
     for (const auto &Fa : wf.valence()) {
 
-      const auto a = AhfsQ ? DiracOperator::HyperfineA::convertRMEtoA(Fa, Fb) :
-                     radial_int ? 1.0 / h->angularF(Fa.kappa(), Fb.kappa()) :
-                                  1.0;
+      const auto a =
+          AhfsQ ? DiracOperator::HyperfineA::convertRMEtoA(Fa, Fb) :
+                  radial_int ? 1.0 / h->angularF(Fa.kappa(), Fb.kappa()) : 1.0;
 
       if (h->isZero(Fa.kappa(), Fb.kappa()))
         continue;

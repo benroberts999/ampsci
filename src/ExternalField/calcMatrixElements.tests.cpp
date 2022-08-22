@@ -1,7 +1,7 @@
-#include "calcMatrixElements.hpp"
 #include "DiracOperator/DiracOperator.hpp"
 #include "TDHF.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
+#include "calcMatrixElements.hpp"
 #include "catch2/catch.hpp"
 #include <iostream>
 #include <vector>

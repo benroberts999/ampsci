@@ -357,7 +357,7 @@ unsigned int rngSeed();
 #define CATCH_CONFIG_NO_CPP17_VARIANT
 #else
 #define CATCH_INTERNAL_CONFIG_CPP17_VARIANT
-#endif // defined(__GLIBCXX__) && defined(_GLIBCXX_RELEASE) &&
+#endif // defined(__GLIBCXX__) && defined(_GLIBCXX_RELEASE) &&                 \
        // (_GLIBCXX_RELEASE < 9)
 #else
 #define CATCH_INTERNAL_CONFIG_CPP17_VARIANT
@@ -2069,7 +2069,7 @@ inline id performOptionalSelector(id obj, SEL sel) {
 #ifdef _MSC_VER
 #pragma warning(push)
 #pragma warning(                                                               \
-    disable : 4180) // We attempt to stream a function (address) by const&,
+    disable : 4180) // We attempt to stream a function (address) by const&,    \
                     // which MSVC complains about but is harmless
 #endif
 
@@ -2641,7 +2641,8 @@ struct StringMaker<
 #pragma warning(push)
 #pragma warning(disable : 4389) // '==' : signed/unsigned mismatch
 #pragma warning(disable : 4018) // more "signed/unsigned mismatch"
-#pragma warning(disable : 4312) // Converting int to T* using reinterpret_cast
+#pragma warning(                                                               \
+    disable : 4312) // Converting int to T* using reinterpret_cast \
                                 // (issue on x64 platform)
 #pragma warning(                                                               \
     disable : 4180) // qualifier applied to function type has no meaning
@@ -6623,8 +6624,9 @@ struct CompactReporter : StreamingReporterBase<CompactReporter> {
 
 #if defined(_MSC_VER)
 #pragma warning(push)
-#pragma warning(disable : 4061) // Not all labels are EXPLICITLY handled in
-                                // switch Note that 4062 (not all labels are
+#pragma warning(                                                               \
+    disable : 4061) // Not all labels are EXPLICITLY handled in    \
+                                // switch Note that 4062 (not all labels are   \
                                 // handled and default is missing) is enabled
 #endif
 
@@ -14372,7 +14374,7 @@ auto ReusableStringStream::str() const -> std::string {
 
 ///////////////////////////////////////////////////////////////////////////
 
-#ifndef CATCH_CONFIG_NOSTDOUT // If you #define this you must implement these
+#ifndef CATCH_CONFIG_NOSTDOUT // If you #define this you must implement these  \
                               // functions
 std::ostream &cout() { return std::cout; }
 std::ostream &cerr() { return std::cerr; }
@@ -16681,8 +16683,8 @@ CATCH_REGISTER_REPORTER("compact", CompactReporter)
 #pragma warning(push)
 #pragma warning(                                                               \
     disable : 4061) // Not all labels are EXPLICITLY handled in switch
-  // Note that 4062 (not all labels are handled and default is missing) is
-  // enabled
+// Note that 4062 (not all labels are handled and default is missing) is
+// enabled
 #endif
 
 #if defined(__clang__)
@@ -17818,8 +17820,9 @@ bool ListeningReporter::isMulti() const { return true; }
 
 #if defined(_MSC_VER)
 #pragma warning(push)
-#pragma warning(disable : 4061) // Not all labels are EXPLICITLY handled in
-                                // switch Note that 4062 (not all labels are
+#pragma warning(                                                               \
+    disable : 4061) // Not all labels are EXPLICITLY handled in    \
+                                // switch Note that 4062 (not all labels are   \
                                 // handled and default is missing) is enabled
 #endif
 

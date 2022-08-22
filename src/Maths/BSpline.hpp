@@ -2,9 +2,18 @@
 #include "LinAlg/LinAlg.hpp"
 #include "qip/Vector.hpp"
 #include <gsl/gsl_bspline.h>
+#include <gsl/gsl_version.h>
 #include <iostream>
 #include <numeric>
 #include <vector>
+
+// This should make code work with old versions of GSL
+// See below for documentation of old GSL function
+#ifdef GSL_MAJOR_VERSION
+#if GSL_MAJOR_VERSION == 1
+#define GSL_VERSION_1
+#endif
+#endif
 
 /*!
 Calculates basis of N B-splines of order K (degree K-1), defined over range [0,
@@ -30,6 +39,11 @@ class BSpline {
   // Worskspace used by GSL library
   gsl_bspline_workspace *gsl_bspl_work{nullptr};
 
+#ifdef GSL_VERSION_1
+  // Worskspace used by old version of GSL library
+  gsl_bspline_deriv_workspace *gsl_bspl_deriv_work{nullptr};
+#endif
+
 public:
   enum class KnotDistro { logarithmic, linear, loglinear };
   //============================================================================
@@ -45,6 +59,11 @@ public:
     const std::size_t n_break = m_N - m_K + 2;
     gsl_bspl_work = gsl_bspline_alloc(m_K, n_break);
 
+#ifdef GSL_VERSION_1
+    // Worskspace used by old version of GSL library
+    gsl_bspl_deriv_work = gsl_bspline_deriv_alloc(m_K);
+#endif
+
     set_knots(x0, xmax, n_break, kd);
 
     // Consistancy check;
@@ -57,7 +76,12 @@ public:
   BSpline(const BSpline &) = delete;
 
   // Desctructor
-  ~BSpline() { gsl_bspline_free(gsl_bspl_work); }
+  ~BSpline() {
+    gsl_bspline_free(gsl_bspl_work);
+#ifdef GSL_VERSION_1
+    gsl_bspline_deriv_free(gsl_bspl_deriv_work);
+#endif
+  }
 
   //============================================================================
   //! Order of the splines, K
@@ -114,8 +138,14 @@ public:
       // gsl_bspline_deriv_eval_nonzero() outside spline range
       auto i_end = i0 + m_K - 1;
       gsl_matrix_view b_gsl = bij.as_gsl_view();
+#ifdef GSL_VERSION_1
+      // Worskspace used by old version of GSL library
+      gsl_bspline_deriv_eval_nonzero(x, n_deriv, &b_gsl.matrix, &i0, &i_end,
+                                     gsl_bspl_work, gsl_bspl_deriv_work);
+#else
       gsl_bspline_deriv_eval_nonzero(x, n_deriv, &b_gsl.matrix, &i0, &i_end,
                                      gsl_bspl_work);
+#endif
     }
     return out;
   }
@@ -162,3 +192,39 @@ private:
     gsl_bspline_knots(&gsl_break_vec.vector, gsl_bspl_work);
   }
 };
+
+// Documentation from OLD GSL v:1.x
+//  -- Function: gsl_bspline_deriv_workspace * gsl_bspline_deriv_alloc
+//           (const size_t K)
+//      This function allocates a workspace for computing the derivatives
+//      of a B-spline basis function of order K.  The size of the workspace
+//      is O(2k^2).
+//
+//  -- Function: int gsl_bspline_deriv_eval (const double X, const size_t
+//           NDERIV, gsl_matrix * DB, gsl_bspline_workspace * W,
+//           gsl_bspline_deriv_workspace * DW)
+//      This function evaluates all B-spline basis function derivatives of
+//      orders 0 through nderiv (inclusive) at the position X and stores
+//      them in the matrix DB.  The (i,j)-th element of DB is
+//      d^jB_i(x)/dx^j.  The matrix DB must be of size n = nbreak + k - 2
+//      by nderiv + 1.  The value n may also be obtained by calling
+//      `gsl_bspline_ncoeffs'.  Note that function evaluations are
+//      included as the zeroth order derivatives in DB.  Computing all the
+//      basis function derivatives at once is more efficient than
+//      computing them individually, due to the nature of the defining
+//      recurrence relation.
+//
+//  -- Function: int gsl_bspline_deriv_eval_nonzero (const double X, const
+//           size_t NDERIV, gsl_matrix * DB, size_t * ISTART, size_t *
+//           IEND, gsl_bspline_workspace * W, gsl_bspline_deriv_workspace
+//           * DW)
+//      This function evaluates all potentially nonzero B-spline basis
+//      function derivatives of orders 0 through nderiv (inclusive) at the
+//      position X and stores them in the matrix DB.  The (i,j)-th element
+//      of DB is d^j/dx^j B_(istart+i)(x).  The last row of DB contains
+//      d^j/dx^j B_(iend)(x).  The matrix DB must be of size k by at least
+//      nderiv + 1.  Note that function evaluations are included as the
+//      zeroth order derivatives in DB.  By returning only the nonzero
+//      basis functions, this function allows quantities involving linear
+//      combinations of the B_i(x) and their derivatives to be computed
+//      without unnecessary terms.

@@ -1,7 +1,7 @@
-#include "Wavefunction.hpp"
 #include "ContinuumOrbitals.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/PhysConst_constants.hpp"
+#include "Wavefunction.hpp"
 #include "catch2/catch.hpp"
 
 TEST_CASE("Wavefunction", "[wf][unit]") {

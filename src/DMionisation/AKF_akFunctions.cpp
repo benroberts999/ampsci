@@ -278,7 +278,7 @@ sphericalBesselTable(int max_L, const std::vector<double> &q_array,
     for (auto iq = 0ul; iq < qsteps; iq++) {
       for (auto ir = 0ul; ir < num_points; ir++) {
         const double q = q_array[iq];
-        double tmp = SphericalBessel::JL(int(L), q * r[ir]);
+        double tmp = SphericalBessel::JL(int(L), q *r[ir]);
         // If q(dr) is too large, "missing" j_L oscillations
         //(overstepping them). This helps to fix that.
         // By averaging the J_L function. Note: only works if wf is smooth

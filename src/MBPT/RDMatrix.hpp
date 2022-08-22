@@ -417,9 +417,8 @@ public:
         for (auto j = 0ul; j < m_size; ++j) {
           const auto j_f = index_to_fullgrid(j);
           f[i] += m_fg(i, j) * Fn.g(j_f); // * drdu[j_f] * s_du;
-          g[i] += (m_gf(i, j) * Fn.f(j_f) +
-                   m_gg(i, j) * Fn.g(j_f)); // *
-                                            // drdu[j_f] * s_du;
+          g[i] += (m_gf(i, j) * Fn.f(j_f) + m_gg(i, j) * Fn.g(j_f)); // *
+              // drdu[j_f] * s_du;
         }
       }
     }

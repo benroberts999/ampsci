@@ -15,10 +15,11 @@
 
 * c++ compiler that supports c++17 [clang version 6 or newer, gcc version 7 or newer]
 * LAPACK and BLAS libraries [netlib.org/lapack/](http://www.netlib.org/lapack/)
-* GSL (GNU scientific libraries) [gnu.org/software/gsl/](https://www.gnu.org/software/gsl/) [version 2.0 or newer]
-* [optional] GNU Make ([gnu.org/software/make/](https://www.gnu.org/software/make/)) - used to compile the code
+* GSL (GNU scientific libraries) [gnu.org/software/gsl/](https://www.gnu.org/software/gsl/) [version 2.0 or newer*]
+  * (it _should_ also work with older versions of GSL, but this is not tested and therefore not guarenteed)
+* [optional] GNU Make ([gnu.org/software/make/](https://www.gnu.org/software/make/)) - used to compile code
 * [optional] OpenMP ([openmp.org/](https://www.openmp.org/)) - used for parallisation
-* [optional] git ([git-scm.com/](https://git-scm.com/)) for version tracking and to keep up-to-date with the latest version
+* [optional] git ([git-scm.com/](https://git-scm.com/)) for version tracking and to keep up-to-date with latest version
 
 ## Quick-start
 
@@ -73,8 +74,10 @@ This is for ubuntu/linux - for other systems, see below
 
 ## Compilation: Windows
 
-For windows, the easiest way (for me, anyway) is to use the 'windows subsystem for linux' (requires Windows10). Instructions on installation/use here: <https://www.roberts999.com/posts/2018/11/wsl-coding-windows-ubuntu>.
+For windows, the easiest way (for me, anyway) is to use the 'windows subsystem for linux' (requires Windows 10+). Instructions on installation/use here: [docs.microsoft.com/en-us/windows/wsl/install](https://docs.microsoft.com/en-us/windows/wsl/install).
 Then, the compilation + use can proceed as per Linux above.
+
+--------------------------------------------------------------------------------
 
 ## Common Compilation errors
 

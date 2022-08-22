@@ -49,7 +49,8 @@ is given in the physics documentation: [ampsci.pdf][man-url].
 
 * c++ compiler that supports c++17 [clang version 6 or newer, gcc version 7 or newer]
 * LAPACK and BLAS libraries [netlib.org/lapack/](http://www.netlib.org/lapack/)
-* GSL (GNU scientific libraries) [gnu.org/software/gsl/](https://www.gnu.org/software/gsl/) [version 2.0 or newer]
+* GSL (GNU scientific libraries) [gnu.org/software/gsl/](https://www.gnu.org/software/gsl/) [version 2.0 or newer*]
+  * (it _should_ also work with older versions of GSL, but this is not tested and therefore not guarenteed)
 * [optional] GNU Make ([gnu.org/software/make/](https://www.gnu.org/software/make/)) - used to compile code
 * [optional] OpenMP ([openmp.org/](https://www.openmp.org/)) - used for parallisation
 * [optional] git ([git-scm.com/](https://git-scm.com/)) for version tracking and to keep up-to-date with latest version
