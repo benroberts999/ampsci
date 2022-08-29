@@ -59,6 +59,31 @@ constexpr int twojFromIndex(int i) { return (i % 2 == 0) ? i + 1 : i; }
 constexpr int lFromIndex(int i) { return (i % 2 == 0) ? i / 2 : (i + 1) / 2; }
 
 //==============================================================================
+//! Returns number of possible states _below_ given n
+constexpr int states_below_n(int n) { return n * n - 2 * n + 1; }
+
+//! return nk_index given {n, kappa}: nk_index(n,k) := n^2 - 2n + 1 +
+//! kappa_index
+/*! @details   nk_index:
+ For easy array access, define 1-to-1 index for each {n, kappa}:
+ nk_index(n,k) := n^2 - 2n + 1 + kappa_index.
+ nb: n^2 - 2n + 1 = states_below_n - number of possible states with n'<n.
+ Note: ONLY valid for n >= 1 (i.e., cannot be used for general basis states)
+*/
+constexpr int nk_to_index(int n, int k) {
+  return states_below_n(n) + Angular::indexFromKappa(k);
+}
+
+//! return {n, kappa} given nk_index:
+inline std::pair<int, int> index_to_nk(int index) {
+  // Better way? isqrt?
+  const auto n = 1 + int(std::sqrt(index + 0.01));
+  // int n = 1 + int_sqrt(index);
+  const auto kappa_index = index - states_below_n(n);
+  return {n, Angular::kappaFromIndex(kappa_index)};
+}
+
+//==============================================================================
 //! Returns true if a is even
 constexpr bool evenQ(int a) { return (a % 2 == 0); }
 //! Returns true if a is even, given 2*a (i.e., true if two_a/2 is even)

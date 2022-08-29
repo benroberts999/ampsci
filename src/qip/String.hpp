@@ -1,8 +1,10 @@
 #pragma once
 #include <algorithm>
 #include <cctype>
+#include <cctype> //char from string
 #include <cstdarg>
 #include <functional>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -122,15 +124,6 @@ inline bool ci_wildcard_compare(std::string_view s1, std::string_view s2) {
 inline auto Levenstein(std::string_view a, std::string_view b) {
   // https://en.wikipedia.org/wiki/Levenshtein_distance
   // https://stackoverflow.com/a/70237726/8446770
-  // if (b.size() == 0)
-  //   return a.size();
-  // if (a.size() == 0)
-  //   return b.size();
-  // if (a[0] == b[0])
-  //   return Levenstein(a.substr(1), b.substr(1));
-  // return 1 + std::min({Levenstein(a, b.substr(1)), Levenstein(a.substr(1),
-  // b),
-  //                      Levenstein(a.substr(1), b.substr(1))});
   std::vector<size_t> d_t((a.size() + 1) * (b.size() + 1), size_t(-1));
   auto d = [&](size_t ia, size_t ib) -> size_t & {
     return d_t[ia * (b.size() + 1) + ib];
@@ -202,6 +195,62 @@ inline auto ci_closest_match(std::string_view test_string,
            qip::ci_Levenstein(s2, test_string);
   };
   return std::min_element(list.cbegin(), list.cend(), compare);
+}
+
+//==============================================================================
+//! Checks if a string-like s is integer-like (including -)
+/*!
+e.g., The input strings "16" and "-12" would both return 'true', while "12x" or "12.5" would not.
+Does this by checking if all characters are integer digits exept first character, which is allowed to be an integer, or '+' or -'-
+*/
+inline bool string_is_integer(std::string_view s) {
+  return !s.empty() &&
+         // checks if all non-leading characters are integer digits
+         std::find_if(s.cbegin() + 1, s.cend(),
+                      [](auto c) { return !std::isdigit(c); }) == s.end() &&
+         // checks if leading character is one of: digit, '+', or '-'
+         (std::isdigit(s[0]) || ((s[0] == '-' || s[0] == '+') && s.size() > 1));
+}
+
+//==============================================================================
+//! Splits a string by delimeter into a vector
+inline std::vector<std::string> split(const std::string &s, char delim = ' ') {
+  std::vector<std::string> out;
+  std::stringstream ss(s);
+  std::string tmp;
+  while (getline(ss, tmp, delim)) {
+    out.push_back(tmp);
+  }
+  return out;
+}
+
+//! Takes vector of strings, concats into single string, with optional delimeter
+inline std::string concat(const std::vector<std::string> &v,
+                          const std::string &delim = "") {
+  std::string out;
+  for (std::size_t i = 0; i < v.size(); ++i) {
+    out += v[i];
+    if (i != v.size() - 1)
+      out += delim;
+  }
+  return out;
+}
+
+//==============================================================================
+//! Converts integer, a, to Roman Numerals. Assumed that |a|<=4000
+inline std::string int_to_roman(int a) {
+  if (a < 0)
+    return "-" + int_to_roman(-a);
+  if (a > 3999)
+    return std::to_string(a);
+  static const std::string M[] = {"", "M", "MM", "MMM"};
+  static const std::string C[] = {"",  "C",  "CC",  "CCC",  "CD",
+                                  "D", "DC", "DCC", "DCCC", "CM"};
+  static const std::string X[] = {"",  "X",  "XX",  "XXX",  "XL",
+                                  "L", "LX", "LXX", "LXXX", "XC"};
+  static const std::string I[] = {"",  "I",  "II",  "III",  "IV",
+                                  "V", "VI", "VII", "VIII", "IX"};
+  return M[a / 1000] + C[(a % 1000) / 100] + X[(a % 100) / 10] + I[(a % 10)];
 }
 
 } // namespace qip

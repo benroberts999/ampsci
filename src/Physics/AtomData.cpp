@@ -1,48 +1,52 @@
 #include "AtomData.hpp"
+#include "qip/String.hpp"
 #include <algorithm>
 #include <array>
 #include <cassert>
-#include <cctype> //char from string
 #include <cmath>
 #include <iostream>
 #include <sstream>
 #include <string>
-#include <utility> // pair
+#include <utility>
 #include <vector>
 
 //==============================================================================
 namespace AtomData {
 
-static inline bool string_is_ints(std::string_view s) {
-  return !s.empty() //
-         && std::find_if(s.cbegin() + 1, s.cend(),
-                         [](auto c) { return !std::isdigit(c); }) == s.end() //
-         && (std::isdigit(s[0]) || (s[0] == '-' && s.size() > 1));
-}
-
 //==============================================================================
-std::string int_to_roman(int a) {
-  if (a > 3999)
-    return std::to_string(a);
-  static const std::string M[] = {"", "M", "MM", "MMM"};
-  static const std::string C[] = {"",  "C",  "CC",  "CCC",  "CD",
-                                  "D", "DC", "DCC", "DCCC", "CM"};
-  static const std::string X[] = {"",  "X",  "XX",  "XXX",  "XL",
-                                  "L", "LX", "LXX", "LXXX", "XC"};
-  static const std::string I[] = {"",  "I",  "II",  "III",  "IV",
-                                  "V", "VI", "VII", "VIII", "IX"};
-  return M[a / 1000] + C[(a % 1000) / 100] + X[(a % 100) / 10] + I[(a % 10)];
-}
-
-//==============================================================================
-std::string NonRelSEConfig::symbol() const {
+std::string NonRelConfig::symbol() const {
   return std::to_string(n) + AtomData::l_symbol(l) + std::to_string(num);
 }
 
-bool NonRelSEConfig::ok() const {
-  if (l + 1 > n || l < 0 || n < 1 || num < 0 || num > 4 * l + 2)
-    return false;
-  return true;
+bool NonRelConfig::ok() const {
+  // return !(l + 1 > n || l < 0 || n < 1 || num < 0 || num > 4 * l + 2);
+  return (n >= l + 1) && (l >= 0) && (n >= 1) && (num >= 0) &&
+         (num <= 4 * l + 2);
+}
+
+double NonRelConfig::frac() const {
+  const int filling = 2 * (2 * l + 1);
+  return (num < filling) ? double(num) / double(filling) : 1.0;
+};
+
+// comparitor overloads: compare n then l only
+bool operator==(const NonRelConfig &lhs, const NonRelConfig &rhs) {
+  return lhs.n == rhs.n && lhs.l == rhs.l;
+}
+bool operator<(const NonRelConfig &lhs, const NonRelConfig &rhs) {
+  return lhs.n < rhs.n || (lhs.n == rhs.n && lhs.l < rhs.l);
+}
+
+NonRelConfig &NonRelConfig::operator+=(const NonRelConfig &rhs) {
+  assert((*this == rhs) && "n and l must match to add in NonRelConfig");
+  this->num += rhs.num;
+  return *this;
+}
+NonRelConfig &NonRelConfig::operator-=(const NonRelConfig &rhs) {
+  assert(n == rhs.n && l == rhs.n &&
+         "n and l must match to subtract in NonRelConfig");
+  this->num -= rhs.num;
+  return *this;
 }
 
 //==============================================================================
@@ -83,7 +87,8 @@ int atomic_Z(const std::string &at) {
     return 0;
 
   auto match_At = [=](const Element &atom) {
-    return atom.symbol == at || '[' + atom.symbol + ']' == at;
+    return atom.symbol == at || '[' + atom.symbol + ']' == at ||
+           qip::ci_compare(atom.name, at);
   };
   const auto atom =
       std::find_if(periodic_table.begin(), periodic_table.end(), match_At);
@@ -91,7 +96,7 @@ int atomic_Z(const std::string &at) {
     return atom->Z;
 
   int z = 0;
-  if (string_is_ints(at))
+  if (qip::string_is_integer(at))
     z = std::stoi(at);
   if (z <= 0) {
     // std::cerr << "Invalid atom/Z: " << at << "\n";
@@ -120,7 +125,7 @@ int symbol_to_l(std::string_view l_str) {
       return int(i);
   }
   int l = -1;
-  if (string_is_ints(l_str))
+  if (qip::string_is_integer(l_str))
     l = std::stoi(std::string(l_str));
   else
     std::cerr << "\nFAIL AtomData::69 Invalid l: " << l_str << "?\n";
@@ -136,7 +141,7 @@ std::pair<int, int> parse_symbol(std::string_view symbol) {
                    [](const char &c) { return !std::isdigit(c); });
   const auto l_pos = std::size_t(l_ptr - symbol.begin());
 
-  const auto n = (string_is_ints(symbol.substr(0, l_pos - 0))) ?
+  const auto n = (qip::string_is_integer(symbol.substr(0, l_pos - 0))) ?
                      std::stoi(std::string(symbol.substr(0, l_pos - 0))) :
                      0;
 
@@ -178,20 +183,55 @@ std::string coreConfig(const std::string &in_ng) {
   return ng_config->second;
 }
 
+//==============================================================================
 std::string niceCoreOutput(const std::string &full_core) {
-  // nb: there are 8 _actual_ nobel gasses (including H-like).
-  // Only want actual nobel gasses in 'nice' output
-  std::string nice_core = full_core;
-  for (int i = 7; i >= 0; i--) { // loop backwards (so can break)
-    auto &ng_fullterm = nobelGasses[std::size_t(i)].second;
-    if (full_core.rfind(ng_fullterm, 0) == 0) {
-      nice_core = nobelGasses[std::size_t(i)].first +
-                  full_core.substr(ng_fullterm.length());
-      break;
+
+  // First, sort list of nobel gasses by length. Want to find 'longest' match
+  auto sorter = [](auto &a, auto &b) {
+    return a.second.length() < b.second.length();
+  };
+  auto ng_sorted = nobelGasses;
+  std::sort(ng_sorted.begin(), ng_sorted.end(), sorter);
+
+  // Split core list into parts; keep in original order
+  auto core_list = qip::split(full_core, ',');
+
+  // Search _backwards_ through list of Nobel gasses
+  for (std::size_t i = ng_sorted.size(); i != 0; --i) {
+    const auto &ng = ng_sorted.at(i - 1);
+    auto ng_configs = qip::split(ng.second, ',');
+
+    // Check if the core strings contains the entire Nobel gas string:
+    if (core_list.size() < ng_configs.size())
+      continue;
+    std::vector<std::string> terms_in_ng;
+    std::vector<std::string> terms_not_ng;
+    for (const auto &term : core_list) {
+      auto it = std::find(ng_configs.begin(), ng_configs.end(), term);
+      if (it == ng_configs.end()) {
+        terms_not_ng.push_back(term);
+      } else {
+        terms_in_ng.push_back(term);
+      }
+    }
+    // If it does, this is our match: output string
+    if (terms_in_ng.size() == ng_configs.size()) {
+      const auto extra = qip::concat(terms_not_ng, ",");
+      return extra.empty() ? ng.first : ng.first + "," + extra;
     }
   }
+  return full_core;
+}
 
-  return nice_core;
+//==============================================================================
+std::string configs_to_string(const std::vector<NonRelConfig> &configs) {
+  std::string o;
+  for (std::size_t i = 0; i < configs.size(); ++i) {
+    o += configs[i].symbol();
+    if (i != configs.size() - 1)
+      o += ",";
+  }
+  return o;
 }
 
 //==============================================================================
@@ -208,12 +248,12 @@ double diracen(double z, double n, int k, double alpha) {
 
 //==============================================================================
 // Takes a "core string" in form "[X],nLm,nLm,..." converts to vector of
-// NonRelSEConfig, after converting [X] to a state string. Allows negative and
+// NonRelConfig, after converting [X] to a state string. Allows negative and
 // non-physical m's (to allow combining); responsability of whoever uses the
 // list to check for validity.
-std::vector<NonRelSEConfig> core_parser(const std::string &str_core_in) {
+std::vector<NonRelConfig> core_parser(const std::string &str_core_in) {
 
-  std::vector<NonRelSEConfig> core;
+  std::vector<NonRelConfig> core;
   // long unsigned int beg = 0;
 
   bool first = true;
@@ -272,9 +312,9 @@ std::vector<NonRelSEConfig> core_parser(const std::string &str_core_in) {
 }
 
 //==============================================================================
-NonRelSEConfig term_parser(std::string_view term) {
+NonRelConfig term_parser(std::string_view term) {
   if (term == "" || term == "0")
-    return NonRelSEConfig(0, 0, 0);
+    return NonRelConfig(0, 0, 0);
 
   bool term_ok = true;
 
@@ -284,10 +324,10 @@ NonRelSEConfig term_parser(std::string_view term) {
   const auto l_position = std::size_t(l_ptr - term.begin());
   // Extract n, num, and l:
   int n{0}, num{-1}, l{-1};
-  if (string_is_ints(term.substr(0, l_position - 0)))
+  if (qip::string_is_integer(term.substr(0, l_position - 0)))
     n = std::stoi(std::string(term.substr(0, l_position - 0)));
   if (term.size() > l_position + 1) {
-    if (string_is_ints(term.substr(l_position + 1)))
+    if (qip::string_is_integer(term.substr(l_position + 1)))
       num = std::stoi(std::string(term.substr(l_position + 1)));
   } else {
     // string too short, mussing 'num' after l
@@ -299,27 +339,27 @@ NonRelSEConfig term_parser(std::string_view term) {
     l = AtomData::symbol_to_l(term.substr(l_position, 1));
 
   if (num == 0)
-    return NonRelSEConfig(0, 0, 0);
+    return NonRelConfig(0, 0, 0);
 
   // Check if valid:
   if (!term_ok || n <= 0 || l < 0) {
-    return NonRelSEConfig(0, 0, 0);
+    return NonRelConfig(0, 0, 0);
   }
 
   // If nl term already exists, add to num. Otherwise, add new term
-  return NonRelSEConfig(n, l, num);
+  return NonRelConfig(n, l, num);
 }
 
 //==============================================================================
 // Takes a string of states in form "nLm,nLm,..." converts to vector of
-// NonRelSEConfig. Allows negative and non-physical m's (to allow combining)
-std::vector<NonRelSEConfig> state_parser(const std::string &str_states) {
-  std::vector<NonRelSEConfig> states;
+// NonRelConfig. Allows negative and non-physical m's (to allow combining)
+std::vector<NonRelConfig> state_parser(const std::string &str_states) {
+  std::vector<NonRelConfig> states;
   state_parser(&states, str_states);
   return states;
 }
 
-void state_parser(std::vector<NonRelSEConfig> *states,
+void state_parser(std::vector<NonRelConfig> *states,
                   const std::string &str_states) {
 
   if (str_states == "")
@@ -356,23 +396,31 @@ void state_parser(std::vector<NonRelSEConfig> *states,
 //------------------------------------------------------------------------------
 std::string guessCoreConfigStr(const int total_core_electrons) {
 
-  auto core_configs = core_guess(total_core_electrons);
-
-  static const std::vector<int> nobel_gas_list = {118, 86, 54, 36,
-                                                  18,  10, 2,  0};
-  static const std::vector<std::string> ng_symb_list = {
-      "[Og]", "[Rn]", "[Xe]", "[Kr]", "[Ar]", "[Ne]", "[He]", "[]"};
-
+  // special cases: outside of general formula:
+  // Not a complete list (no promise 'guess' is correct)
   switch (total_core_electrons) {
     // A few over-writes for common 'different' ones
     // Lanthenides/Actinides still possibly incorrect
+  case 24: // Cr
+    return "[Ar],3d5,4s1";
   case 29: // Cu
     return "[Ar],3d10,4s1";
+  case 41: // Nb
+    return "[Kr],4d4,5s1";
+  case 42: // Mo
+    return "[Kr],4d5,5s1";
   case 47: // Ag
     return "[Kr],4d10,5s1";
   case 79: // Au
     return "[Xe],4f14,5d10,6s1";
   }
+
+  const auto core_configs = core_guess(total_core_electrons);
+
+  static const std::vector<int> nobel_gas_list = {118, 86, 54, 36,
+                                                  18,  10, 2,  0};
+  static const std::vector<std::string> ng_symb_list = {
+      "[Og]", "[Rn]", "[Xe]", "[Kr]", "[Ar]", "[Ne]", "[He]", "[]"};
 
   std::string output_config = "";
   auto index = 0u;
@@ -391,7 +439,7 @@ std::string guessCoreConfigStr(const int total_core_electrons) {
 }
 
 //------------------------------------------------------------------------------
-std::vector<NonRelSEConfig> core_guess(const int total_core_electrons) {
+std::vector<NonRelConfig> core_guess(const int total_core_electrons) {
   auto core_configs = AtomData::state_parser(AtomData::filling_order);
   auto nel = total_core_electrons;
   for (auto &c : core_configs) {
@@ -407,8 +455,8 @@ std::vector<NonRelSEConfig> core_guess(const int total_core_electrons) {
 }
 
 //==============================================================================
-std::vector<DiracSEnken> listOfStates_nk(const std::string &in_list) {
-  std::vector<DiracSEnken> state_list;
+std::vector<DiracConfig> listOfStates_nk(const std::string &in_list) {
+  std::vector<DiracConfig> state_list;
 
   std::string n_str_previous = "";
   std::string n_str = "";
@@ -419,7 +467,7 @@ std::vector<DiracSEnken> listOfStates_nk(const std::string &in_list) {
       if (n_str == "")
         n_str = n_str_previous;
 
-      const int n_max = (string_is_ints(n_str)) ? std::stoi(n_str) : -1;
+      const int n_max = (qip::string_is_integer(n_str)) ? std::stoi(n_str) : -1;
       const auto l_str = std::string(1, c);
       const auto l = AtomData::symbol_to_l(l_str);
 
@@ -438,8 +486,8 @@ std::vector<DiracSEnken> listOfStates_nk(const std::string &in_list) {
 }
 
 //==============================================================================
-std::vector<DiracSEnken> listOfStates_singlen(const std::string &in_list) {
-  std::vector<DiracSEnken> state_list;
+std::vector<DiracConfig> listOfStates_singlen(const std::string &in_list) {
+  std::vector<DiracConfig> state_list;
 
   std::string n_str_previous = "999";
   std::string n_str = "";
@@ -449,7 +497,7 @@ std::vector<DiracSEnken> listOfStates_singlen(const std::string &in_list) {
     } else {
       if (n_str == "")
         n_str = n_str_previous;
-      const int n_max = (string_is_ints(n_str)) ? std::stoi(n_str) : -1;
+      const int n_max = (qip::string_is_integer(n_str)) ? std::stoi(n_str) : -1;
 
       auto l_str = std::string(1, c);
       auto l = AtomData::symbol_to_l(l_str);

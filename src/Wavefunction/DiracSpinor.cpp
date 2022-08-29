@@ -1,4 +1,5 @@
 #include "Wavefunction/DiracSpinor.hpp"
+#include "Angular/Wigner369j.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/AtomData.hpp"
@@ -25,7 +26,7 @@ DiracSpinor::DiracSpinor(int in_n, int in_k,
       m_l(Angular::l_k(in_k)),
       m_parity(Angular::parity_k(in_k)),
       m_kappa_index(Angular::indexFromKappa(in_k)),
-      m_nkappa_index(static_cast<Index>(AtomData::nk_to_index(in_n, in_k))) {}
+      m_nkappa_index(static_cast<Index>(Angular::nk_to_index(in_n, in_k))) {}
 
 //==============================================================================
 std::string DiracSpinor::symbol(bool gnuplot) const {

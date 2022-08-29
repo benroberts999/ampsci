@@ -5,7 +5,7 @@
 #include "IO/FRW_fileReadWrite.hpp"
 #include "MBPT/Ladder.hpp"
 #include "MBPT/RDMatrix.hpp"
-#include "Physics/AtomData.hpp" //DiracSEnken
+#include "Physics/AtomData.hpp" //DiracConfig
 #include "Wavefunction/DiracSpinor.hpp"
 #include <cassert>
 #include <vector>
@@ -232,7 +232,7 @@ protected:
   std::vector<GMatrix> m_Sigma_kappa{};
   // Lambda (fitting factors) for each kappa
   std::vector<double> m_lambda_kappa{};
-  std::vector<AtomData::DiracSEnken> m_nk{};
+  std::vector<AtomData::DiracConfig> m_nk{};
 
   // Options for sub-grid, and which matrices to include
   const bool m_include_G;

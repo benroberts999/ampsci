@@ -2,6 +2,7 @@
 #include "qip/String.hpp"
 #include <cassert>
 #include <iostream>
+#include <vector>
 
 TEST_CASE("qip::String", "[qip][String][unit]") {
   std::cout << "\n----------------------------------------\n";
@@ -56,4 +57,32 @@ TEST_CASE("qip::String", "[qip][String][unit]") {
   REQUIRE(*qip::closest_match("b", list) == "a");
   REQUIRE(*qip::closest_match("list", list) == "list");
   REQUIRE(*qip::closest_match("lost", list) == "list");
+
+  //--------------------------------------------------------------
+
+  REQUIRE(qip::string_is_integer("16"));
+  REQUIRE(qip::string_is_integer("-16"));
+  REQUIRE(qip::string_is_integer("+16"));
+  REQUIRE_FALSE(qip::string_is_integer("16.0"));
+  REQUIRE_FALSE(qip::string_is_integer("16x"));
+  REQUIRE_FALSE(qip::string_is_integer("16 12"));
+  REQUIRE_FALSE(qip::string_is_integer(" "));
+  REQUIRE_FALSE(qip::string_is_integer(""));
+
+  //===========================================
+  REQUIRE(qip::int_to_roman(3) == "III");
+  REQUIRE(qip::int_to_roman(12) == "XII");
+  REQUIRE(qip::int_to_roman(1) == "I");
+  REQUIRE(qip::int_to_roman(4000) == "4000");
+
+  //===========================================
+  REQUIRE(qip::concat(std::vector<std::string>{"a", "b", "c"}, ",") ==
+          std::string{"a,b,c"});
+  REQUIRE(qip::concat(std::vector<std::string>{"a", "b", "c"}, " ") ==
+          std::string{"a b c"});
+
+  REQUIRE(qip::split(std::string{"a b c"}, ' ') ==
+          std::vector<std::string>{"a", "b", "c"});
+  REQUIRE(qip::split(std::string{"a,b,c"}, ',') ==
+          std::vector<std::string>{"a", "b", "c"});
 }

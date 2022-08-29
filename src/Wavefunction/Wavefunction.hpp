@@ -1,10 +1,10 @@
 #pragma once
-#include "HF/HartreeFock.hpp" // forward decl..
+#include "HF/HartreeFock.hpp"
 #include "MBPT/CorrelationPotential.hpp"
 #include "Maths/Grid.hpp"
-#include "Physics/AtomData.hpp" // NonRelSEConfig
+#include "Physics/AtomData.hpp"
 #include "Physics/NuclearPotentials.hpp"
-#include "Physics/PhysConst_constants.hpp" //PhysConst::alpha
+#include "Physics/PhysConst_constants.hpp"
 #include "Physics/RadPot.hpp"
 #include "Wavefunction/BSplineBasis.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
@@ -168,7 +168,7 @@ public:
 
   //! E.g., Cs in V^N-1, gives Cs-i
   std::string identity() const {
-    const auto zionRoman = AtomData::int_to_roman(Zion());
+    const auto zionRoman = qip::int_to_roman(Zion());
     return AtomData::atomicSymbol(m_nucleus.z()) + zionRoman;
   }
 

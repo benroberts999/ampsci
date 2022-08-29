@@ -82,6 +82,34 @@ TEST_CASE("Angular: Winger369j functions", "[Angular][unit]") {
     REQUIRE(Angular::lFromIndex(ki) == l);
   }
 
+  //===========================================
+  REQUIRE(Angular::states_below_n(1) == 0);
+  REQUIRE(Angular::states_below_n(2) == 1);
+  REQUIRE(Angular::states_below_n(3) == 4);
+  REQUIRE(Angular::states_below_n(4) == 9);
+  REQUIRE(Angular::states_below_n(5) == 16);
+
+  int index = 0;
+  for (int n = 1; n < 15; ++n) {
+    for (int l = 0; l < n; ++l) {
+      const int k1 = l;
+      const int k2 = -l - 1;
+      if (l > 0) {
+        REQUIRE(Angular::nk_to_index(n, k1) == index);
+        const auto [nx, kx] = Angular::index_to_nk(index);
+        REQUIRE(nx == n);
+        REQUIRE(kx == k1);
+        ++index;
+      }
+      REQUIRE(Angular::nk_to_index(n, k2) == index);
+      const auto [ny, ky] = Angular::index_to_nk(index);
+      REQUIRE(ny == n);
+      REQUIRE(ky == k2);
+      ++index;
+    }
+  }
+  //===========================================
+
   REQUIRE(Angular::evenQ(0));
   REQUIRE(Angular::evenQ(-2));
   REQUIRE(Angular::evenQ(2));

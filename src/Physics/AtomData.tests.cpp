@@ -1,6 +1,7 @@
 #include "AtomData.hpp"
 #include "catch2/catch.hpp"
 #include "periodicTable.hpp"
+#include "qip/String.hpp"
 #include <algorithm>
 #include <iostream>
 #include <string>
@@ -15,6 +16,7 @@ TEST_CASE("Physics: AtomData", "[AtomData][Physics][unit]") {
   REQUIRE(AtomData::atomic_Z("55") == 55);
   REQUIRE(AtomData::atomic_Z(55) == 55);
   REQUIRE(AtomData::atomic_Z("Cs") == 55);
+  REQUIRE(AtomData::atomic_Z("cesium") == 55);
 
   REQUIRE(AtomData::atomicSymbol(137) == "137");
   REQUIRE(AtomData::atomicName(137) == "E137");
@@ -54,6 +56,22 @@ TEST_CASE("Physics: AtomData", "[AtomData][Physics][unit]") {
   REQUIRE(std::abs(AtomData::diracen(1.0, 1, -1) -
                    AtomData::diracen(1.0, 1, 1)) < 1.0e-6);
 
+  auto s1 = AtomData::configs_to_string(AtomData::core_parser("[Cs],6s-1"));
+  REQUIRE(AtomData::niceCoreOutput(s1) == "[Xe]");
+  auto s2 = AtomData::configs_to_string(AtomData::core_parser("[Cs],6s-1,6s1"));
+  REQUIRE(AtomData::niceCoreOutput(s2) == "[Xe],6s1");
+  auto s3 = AtomData::configs_to_string(AtomData::core_parser("[Ho]"));
+  REQUIRE(AtomData::niceCoreOutput(s3) == "[Xe],6s2,4f11");
+  REQUIRE(AtomData::niceCoreOutput(
+              "1s2,2s2,2p6,3s2,3p6,4s2,3d10,4p6,5s2,4d10,5p6,6s1") ==
+          "[Xe],6s1");
+  REQUIRE(AtomData::niceCoreOutput(
+              "1s2,2s2,2p6,3s2,3p6,4s2,3d10,4p6,5s2,4d10,5p6,6s2,4f14,"
+              "5d10,6p6,6d1,7s1") == "[Rn],6d1,7s1");
+  REQUIRE(AtomData::niceCoreOutput(
+              "4s2,3d10,4p6,5s2,4d10,5p6,4f14,5d10,6s1,1s2,2s2,2p6,3s2,3p6") ==
+          "[Xe],4f14,5d10,6s1");
+
   //===========================================
   {
     const auto core_string = "[Ne],7p1,6d7";
@@ -91,7 +109,7 @@ TEST_CASE("Physics: AtomData", "[AtomData][Physics][unit]") {
                     {2, 1},           {3, 1},  {4, 1},           //
                     {2, -2},          {3, -2}, {4, -2},          //
                     {3, 2},           {3, -3}};
-    // Generates a list of DiracSEnken from string: full list
+    // Generates a list of DiracConfig from string: full list
     const auto out_list = AtomData::listOfStates_nk(states);
     REQUIRE(out_list.size() == full_list.size());
     for (std::size_t i = 0; i < out_list.size(); ++i) {
@@ -101,7 +119,7 @@ TEST_CASE("Physics: AtomData", "[AtomData][Physics][unit]") {
 
     const std::vector single_list =
         std::vector{std::pair{4, -1}, {4, 1}, {4, -2}, {3, 2}, {3, -3}};
-    // Generates a list of DiracSEnken from string: just max n for each kappa
+    // Generates a list of DiracConfig from string: just max n for each kappa
     const auto out_single = AtomData::listOfStates_singlen(states);
     REQUIRE(out_single.size() == single_list.size());
     for (std::size_t i = 0; i < out_single.size(); ++i) {
@@ -111,62 +129,37 @@ TEST_CASE("Physics: AtomData", "[AtomData][Physics][unit]") {
   }
 
   //===========================================
-  REQUIRE(AtomData::int_to_roman(3) == "III");
-  REQUIRE(AtomData::int_to_roman(12) == "XII");
-  REQUIRE(AtomData::int_to_roman(1) == "I");
-  REQUIRE(AtomData::int_to_roman(4000) == "4000");
-
-  //===========================================
-  REQUIRE(AtomData::states_below_n(1) == 0);
-  REQUIRE(AtomData::states_below_n(2) == 1);
-  REQUIRE(AtomData::states_below_n(3) == 4);
-  REQUIRE(AtomData::states_below_n(4) == 9);
-  REQUIRE(AtomData::states_below_n(5) == 16);
-
-  int index = 0;
-  for (int n = 1; n < 15; ++n) {
-    for (int l = 0; l < n; ++l) {
-      const int k1 = l;
-      const int k2 = -l - 1;
-      if (l > 0) {
-        REQUIRE(AtomData::nk_to_index(n, k1) == index);
-        const auto [nx, kx] = AtomData::index_to_nk(index);
-        REQUIRE(nx == n);
-        REQUIRE(kx == k1);
-        ++index;
-      }
-      REQUIRE(AtomData::nk_to_index(n, k2) == index);
-      const auto [ny, ky] = AtomData::index_to_nk(index);
-      REQUIRE(ny == n);
-      REQUIRE(ky == k2);
-      ++index;
-    }
-  }
-
-  //===========================================
-  AtomData::NonRelSEConfig a{3, 0, 2};
-  AtomData::NonRelSEConfig a2{3, 0, 1};
+  AtomData::NonRelConfig a{3, 0, 2};
+  AtomData::NonRelConfig a2{3, 0, 1};
   REQUIRE(a.n == 3);
   REQUIRE(a.l == 0);
   REQUIRE(a.num == 2);
   REQUIRE(a.ok());
   REQUIRE(a.symbol() == "3s2");
-  REQUIRE(std::abs(a.frac() - 1.0) < 1.0e-6);
-  REQUIRE(std::abs(a2.frac() - 0.5) < 1.0e-6);
+  REQUIRE(a.frac() == Approx(1.0));
+  REQUIRE(a2.frac() == Approx(0.5));
   REQUIRE(a == a2);
   auto a3 = a2;
   a3 += a2;
-  REQUIRE(std::abs(a3.frac() - 1.0) < 1.0e-6);
+  REQUIRE(a3.frac() == Approx(1.0));
 
-  AtomData::NonRelSEConfig b{3, 0, 3};
+  const auto a4 = a2 + a2;
+  REQUIRE(a4 == a3);
+  REQUIRE(a4 == a2); // compares n,l only
+
+  AtomData::NonRelConfig b{3, 0, 3};
   REQUIRE(!b.ok());
   REQUIRE(b.symbol() == "3s3");
 
-  AtomData::NonRelSEConfig c{1, 1, 1};
-  REQUIRE(!c.ok());
+  AtomData::NonRelConfig c{1, 1, 1};
+  REQUIRE_FALSE(c.ok());
   REQUIRE(a != c);
+  REQUIRE(a > c);
+  REQUIRE(c < a);
+  REQUIRE(c <= a);
+  REQUIRE_FALSE(c >= a);
 
-  AtomData::DiracSEnken nk{1, -1, -0.5};
+  AtomData::DiracConfig nk{1, -1, -0.5};
   REQUIRE(nk.n == 1);
   REQUIRE(nk.k == -1);
   REQUIRE(nk.en == -0.5);
