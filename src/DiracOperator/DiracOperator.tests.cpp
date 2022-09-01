@@ -343,6 +343,39 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
 
     //
   }
+
+  //--------------------------------------------------------------------
+  SECTION("QED") {
+    std::cout << "QED (Vrad)\n";
+    const auto data = std::vector{std::tuple{"1s+", "1s+", 4.4297913070e-05},
+                                  {"2p-", "2p-", -1.4054241678e-07},
+                                  {"2p+", "2p+", 6.3439374927e-08},
+                                  {"3d-", "3d-", -6.9277166579e-09}};
+
+    // Uehling only (fast)
+    auto h = DiracOperator::generate(
+        "Vrad",
+        {"pnc", "readwrite=false; Ueh=1.0; SE_h=0.0; SE_l=0.0; SE_m=0.0"}, wf);
+
+    REQUIRE(h->get_d_order() == 0);
+    REQUIRE(h->imaginaryQ() == false);
+    REQUIRE(h->rank() == 0);
+    REQUIRE(h->parity() == 1);
+    REQUIRE(h->name() == "Vrad");
+    REQUIRE(!h->units().empty());
+
+    // for (auto &a : wf.valence()) {
+    //   auto me = h->radialIntegral(a, a);
+    //   std::cout << "{\"" << a << "\", \"" << a << "\", ";
+    //   printf("%.10e},\n", me);
+    // }
+
+    for (auto &[a, b, me] : data) {
+      const auto &Fa = *wf.getState(a);
+      const auto hab = h->radialIntegral(Fa, Fa);
+      REQUIRE(std::abs(hab - me) < 1.0e-6);
+    }
+  }
 }
 
 // Used to generate test data (with 8000 points)

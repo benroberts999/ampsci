@@ -23,7 +23,7 @@ static const std::vector<std::pair<
                   {"E2", &generate_E2},     {"Ek", &generate_Ek},
                   {"M1", &generate_M1},     {"hfs", &generate_hfsA},
                   {"hfsK", &generate_hfsK}, {"r", &generate_r},
-                  {"pnc", &generate_pnc},   {"Hrad", &generate_Hrad},
+                  {"pnc", &generate_pnc},   {"Vrad", &generate_Vrad},
                   {"dr", &generate_dr},     {"p", &generate_p}};
 
 //------------------------------------------------------------------------------

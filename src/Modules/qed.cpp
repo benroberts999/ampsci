@@ -144,10 +144,14 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
       << "\nFirst-order QED contribution to valence energies; atomic units\n";
   std::cout << "       dE(VP)        dE(SE)        dE(tot)\n";
   for (const auto &Fv : wf.valence()) {
-    const auto h_SE = DiracOperator::Hrad(wf_SE.vrad()->Vel(Fv.l()),
-                                          wf_SE.vrad()->Hmag(Fv.l()));
-    const auto h_VP = DiracOperator::Hrad(wf_VP.vrad()->Vel(Fv.l()),
-                                          wf_VP.vrad()->Hmag(Fv.l()));
+    // const auto h_SE = DiracOperator::Hrad(wf_SE.vrad()->Vel(Fv.l()),
+    //                                       wf_SE.vrad()->Hmag(Fv.l()));
+    // const auto h_VP = DiracOperator::Hrad(wf_VP.vrad()->Vel(Fv.l()),
+    //                                       wf_VP.vrad()->Hmag(Fv.l()));
+    assert(wf_SE.vrad() != nullptr);
+    assert(wf_VP.vrad() != nullptr);
+    const auto h_SE = DiracOperator::Vrad(*wf_SE.vrad());
+    const auto h_VP = DiracOperator::Vrad(*wf_VP.vrad());
 
     const auto dese = h_SE.radialIntegral(Fv, Fv);
     const auto devp = h_VP.radialIntegral(Fv, Fv);
@@ -396,8 +400,9 @@ std::vector<std::string> calc_vertexQED(const IO::InputBlock &input,
   // spacial case: HFS A (MHz)
   const bool AhfsQ = (oper == "hfs" && !radial_int);
 
-  const auto which_str =
-      radial_int ? " (radial integral)." : AhfsQ ? " A (MHz)." : " (reduced).";
+  const auto which_str = radial_int ? " (radial integral)." :
+                         AhfsQ      ? " A (MHz)." :
+                                      " (reduced).";
 
   std::cout << "\n"
             << input.name() << which_str << " Operator: " << h->name() << "\n";
@@ -447,9 +452,9 @@ std::vector<std::string> calc_vertexQED(const IO::InputBlock &input,
   for (const auto &Fb : wf.valence()) {
     for (const auto &Fa : wf.valence()) {
 
-      const auto a =
-          AhfsQ ? DiracOperator::HyperfineA::convertRMEtoA(Fa, Fb) :
-                  radial_int ? 1.0 / h->angularF(Fa.kappa(), Fb.kappa()) : 1.0;
+      const auto a = AhfsQ ? DiracOperator::HyperfineA::convertRMEtoA(Fa, Fb) :
+                     radial_int ? 1.0 / h->angularF(Fa.kappa(), Fb.kappa()) :
+                                  1.0;
 
       if (h->isZero(Fa.kappa(), Fb.kappa()))
         continue;

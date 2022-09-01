@@ -4,50 +4,72 @@
 #include "Physics/FGRadPot.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/Wavefunction.hpp"
+#include "qip/Vector.hpp"
 #include <cmath>
 
 namespace DiracOperator {
 
 //==============================================================================
-//! Radiative QED operator, electric part
-class Hrad_el final : public ScalarOperator {
+//! Flambaum-ginges radiative potential operator
+class Vrad final : public ScalarOperator {
 public:
-  Hrad_el(const std::vector<double> &Hel)
-      : ScalarOperator(Parity::even, Hel.empty() ? 0.0 : 1.0, Hel,
-                       {1, 0, 0, 1}) {}
-  std::string name() const override final { return "Hrad_el"; }
-  std::string units() const override final { return "au"; }
-};
-
-//==============================================================================
-//! Radiative QED operator, off-diagonal magnetic part
-class Hrad_mag final : public ScalarOperator {
-public:
-  Hrad_mag(const std::vector<double> &Hmag)
-      : ScalarOperator(Parity::even, Hmag.empty() ? 0.0 : -1.0, Hmag,
-                       {0, 1, 1, 0}) {}
-  std::string name() const override final { return "Hrad_mag"; }
-  std::string units() const override final { return "au"; }
-};
-
-//==============================================================================
-class Hrad final : public ScalarOperator {
-public:
-  Hrad(const std::vector<double> &Hel, const std::vector<double> &Hmag)
-      : ScalarOperator(Parity::even, 1.0), Vel(Hel), Vm(Hmag) {}
-  std::string name() const override final { return "Hrad"; }
+  Vrad(QED::RadPot rad_pot)
+      : ScalarOperator(Parity::even, 1.0), m_Vrad(std::move(rad_pot)) {}
+  std::string name() const override final { return "Vrad"; }
   std::string units() const override final { return "au"; }
 
   virtual DiracSpinor radial_rhs(const int kappa_a,
                                  const DiracSpinor &Fb) const override final {
-    // XXX Does this work?
-    return Vel.radial_rhs(kappa_a, Fb) + Vm.radial_rhs(kappa_a, Fb);
+    auto dF = m_Vrad.Vel(Fb.l()) * Fb;
+    using namespace qip::overloads;
+    const auto &Hmag = m_Vrad.Hmag(Fb.l());
+    dF.f() -= Hmag * Fb.g();
+    dF.g() -= Hmag * Fb.f();
+    if (kappa_a != Fb.kappa())
+      return 0.0 * dF;
+    return dF;
   }
 
 private:
-  Hrad_el Vel;
-  Hrad_mag Vm;
+  QED::RadPot m_Vrad;
 };
+
+//==============================================================================
+inline std::unique_ptr<DiracOperator::TensorOperator>
+generate_Vrad(const IO::InputBlock &input, const Wavefunction &wf) {
+  using namespace DiracOperator;
+  input.check(
+      {{{"Ueh", "  Uehling (vacuum pol). [1.0]"},
+        {"SE_h", "  self-energy high-freq electric. [1.0]"},
+        {"SE_l", "  self-energy low-freq electric. [1.0]"},
+        {"SE_m", "  self-energy magnetic. [1.0]"},
+        {"WK", "  Wickman-Kroll. [0.0]"},
+        {"rcut", "Maximum radius (au) to calculate Rad Pot for [5.0]"},
+        {"scale_rN", "Scale factor for Nuclear size. 0 for pointlike, 1 for "
+                     "typical [1.0]"},
+        {"scale_l", "List of doubles. Extra scaling factor for each l e.g., "
+                    "1,0,1 => include for s and d, but not for p [1.0]"},
+        {"readwrite", "Read/write potential? [true]"}}});
+
+  const auto x_Ueh = input.get({"RadPot"}, "Ueh", 1.0);
+  const auto x_SEe_h = input.get({"RadPot"}, "SE_h", 1.0);
+  const auto x_SEe_l = input.get({"RadPot"}, "SE_l", 1.0);
+  const auto x_SEm = input.get({"RadPot"}, "SE_m", 1.0);
+  const auto x_wk = input.get({"RadPot"}, "WK", 0.0);
+  const auto rcut = input.get({"RadPot"}, "rcut", 5.0);
+  const auto scale_rN = input.get({"RadPot"}, "scale_rN", 1.0);
+  const auto x_spd = input.get({"RadPot"}, "scale_l", std::vector{1.0});
+  const auto readwrite = input.get({"RadPot"}, "readwrite", true);
+
+  const auto r_N_au =
+      std::sqrt(5.0 / 3.0) * scale_rN * wf.nucleus().r_rms() / PhysConst::aB_fm;
+
+  auto qed = QED::RadPot(wf.grid().r(), wf.Znuc(), r_N_au, rcut,
+                         {x_Ueh, x_SEe_h, x_SEe_l, x_SEm, x_wk}, x_spd, true,
+                         readwrite);
+
+  return std::make_unique<Vrad>(std::move(qed));
+}
 
 //==============================================================================
 //! @brief Effective VertexQED operator
@@ -197,33 +219,5 @@ public:
     return v;
   }
 };
-
-//==============================================================================
-inline std::unique_ptr<DiracOperator::TensorOperator>
-generate_Hrad(const IO::InputBlock & /*input*/, const Wavefunction & /*wf*/
-) {
-  std::cout << "\nFAIL:: generate_Hrad() need implementing!\n";
-  return nullptr;
-  // using namespace DiracOperator;
-  // input.checkBlock_old(
-  //     {"Simple", "Ueh", "SE_h", "SE_l", "SE_m", "rcut", "scale_rN"});
-  // const auto x_Simple = input.get("Simple", 0.0);
-  // const auto x_Ueh = input.get("Ueh", 1.0);
-  // const auto x_SEe_h = input.get("SE_h", 1.0);
-  // const auto x_SEe_l = input.get("SE_l", 1.0);
-  // const auto x_SEm = input.get("SE_m", 1.0);
-  // const auto rcut = input.get("rcut", 5.0);
-  // const auto scale_rN = input.get("scale_rN", 1.0);
-  // const auto r_rms_Fermi = scale_rN * wf.nucleus().r_rms;
-  // const auto Hel = RadiativePotential::form_Hel(wf.grid().r() , x_Simple,
-  // x_Ueh,
-  //                                               x_SEe_h, x_SEe_l,
-  //                                               r_rms_Fermi, wf.Znuc(),
-  //                                               wf.alpha(), rcut);
-  // const auto Hmag = RadiativePotential::form_Hmag(
-  //     wf.grid().r() , x_SEm, r_rms_Fermi, wf.Znuc(), wf.alpha(), rcut);
-  // return std::make_unique<Hrad>(Hel, Hmag);
-  // // return std::make_unique<Hrad_el>(Hel);
-}
 
 } // namespace DiracOperator
