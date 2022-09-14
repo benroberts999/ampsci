@@ -27,9 +27,10 @@ namespace Module {
 //==============================================================================
 void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   input.check({{"operator", "e.g., E1, hfs"},
-               {"options", "options specific to operator; blank by dflt"},
+               {"options{}", "options specific to operator; blank by dflt"},
                {"rpa", "true(=TDHF), false, TDHF, basis, diagram"},
-               {"omega", "freq. for RPA"},
+               {"omega", "Text or number. Freq. for RPA. Put 'each' to solve "
+                         "at correct frequency for each transition. [0.0]"},
                {"radialIntegral", "false by dflt (means red. ME)"},
                {"printBoth", "print <a|h|b> and <b|h|a> (dflt false)"},
                {"onlyDiagonal", "only <a|h|a> (dflt false)"}});
@@ -54,8 +55,9 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   // spacial case: HFS A (MHz)
   const bool AhfsQ = (oper == "hfs" && !radial_int);
 
-  const auto which_str =
-      radial_int ? " (radial integral)." : AhfsQ ? " A (MHz)." : " (reduced).";
+  const auto which_str = radial_int ? " (radial integral)." :
+                         AhfsQ      ? " A (MHz)." :
+                                      " (reduced).";
 
   std::cout << "\n"
             << input.name() << which_str << " Operator: " << h->name() << "\n";
@@ -65,13 +67,12 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   const bool diagonal_only = input.get("onlyDiagonal", false);
 
   const auto rpa_method_str = input.get("rpa", std::string("TDHF"));
-  auto rpa_method = (rpa_method_str == "TDHF" || rpa_method_str == "true") ?
-                        ExternalField::method::TDHF :
-                        (rpa_method_str == "basis") ?
-                        ExternalField::method::basis :
-                        (rpa_method_str == "diagram") ?
-                        ExternalField::method::diagram :
-                        ExternalField::method::none;
+  auto rpa_method =
+      (rpa_method_str == "TDHF" || rpa_method_str == "true") ?
+          ExternalField::method::TDHF :
+      (rpa_method_str == "basis")   ? ExternalField::method::basis :
+      (rpa_method_str == "diagram") ? ExternalField::method::diagram :
+                                      ExternalField::method::none;
   if (wf.core().empty())
     rpa_method = ExternalField::method::none;
   const auto rpaQ = rpa_method != ExternalField::method::none;
@@ -128,7 +129,7 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
 
   input.check(
       {{"operator", "e.g., E1, hfs"},
-       {"options", "options specific to operator; blank by dflt"},
+       {"options{}", "options specific to operator; blank by dflt"},
        {"rpa", "true(=TDHF), false, TDHF, basis, diagram"},
        {"omega", "freq. for RPA"},
        {"printBoth", "print <a|h|b> and <b|h|a> (dflt false)"},

@@ -61,6 +61,45 @@ void run_tests(const IO::InputBlock &ib) {
   REQUIRE(ib.has_option("k4"));
   REQUIRE_FALSE(ib.option_is_set("k4"));
 
+  REQUIRE(ib.check({{"k1", ""},
+                    {"k2", ""},
+                    {"k3", ""},
+                    {"k4", ""},
+                    {"BlockA{}", ""},
+                    {"blockB{}", ""},
+                    {"blockC{}", ""},
+                    {"list", ""},
+                    {"bool1", ""},
+                    {"bool2", ""},
+                    {"Extra_not_in_list", ""},
+                    {"Extra_not_in_list{}", ""}}));
+
+  std::cout
+      << "Note: following warning message is expected as part of tests:\n";
+  REQUIRE_FALSE(ib.check({{"k1", ""},
+                          {"k2", ""},
+                          {"k3", ""},
+                          {"k4", ""},
+                          {"BlockA{}", ""},
+                          {"blockB{}", ""},
+                          {"blockC{}", ""},
+                          {"list", ""},
+                          /*{"bool1", ""},*/
+                          {"bool2", ""}}));
+
+  std::cout
+      << "Note: following warning message is expected as part of tests:\n";
+  REQUIRE_FALSE(ib.check({{"k1", ""},
+                          {"k2", ""},
+                          {"k3", ""},
+                          {"k4", ""},
+                          {"BlockA{}", ""},
+                          {"blockB{}", ""},
+                          /*{"blockC{}", ""},*/
+                          {"list", ""},
+                          {"bool1", ""},
+                          {"bool2", ""}}));
+
   // There is no k109 option, so should return default value
   REQUIRE(ib.get("k109", -17.6) == -17.6);
   // Test it returns 'empty' optional

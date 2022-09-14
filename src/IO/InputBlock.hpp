@@ -495,9 +495,11 @@ bool InputBlock::checkBlock(
     }
   }
 
+  using namespace std::string_literals;
   for (const auto &block : m_blocks) {
     const auto is_blockQ = [&](const auto &b) {
-      return qip::ci_wildcard_compare(block.name(), b.first);
+      return qip::ci_wildcard_compare(std::string{block.name()} + "{}"s,
+                                      b.first);
     };
     const auto bad_block = !std::any_of(list.cbegin(), list.cend(), is_blockQ);
     if (bad_block) {
@@ -525,7 +527,10 @@ bool InputBlock::checkBlock(
       if (s.first.empty()) {
         std::cout << "  /*\n  " << s.second << "\n  */\n";
       } else {
-        std::cout << "  " << s.first << ";\t// " << s.second << "\n";
+        if (s.first.back() == '}')
+          std::cout << "  " << s.first << "\t// " << s.second << "\n";
+        else
+          std::cout << "  " << s.first << ";\t// " << s.second << "\n";
       }
     });
     std::cout << "}\n\n";

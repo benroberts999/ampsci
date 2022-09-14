@@ -516,7 +516,7 @@ void BohrWeisskopf(const IO::InputBlock &input, const Wavefunction &wf) {
   input.check({{"rpa", ""},
                {"rpa_diagram", ""},
                {"screening", ""},
-               {"hfs_options", ""}});
+               {"hfs_options{}", ""}});
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
     return;
@@ -639,7 +639,11 @@ void BohrWeisskopf(const IO::InputBlock &input, const Wavefunction &wf) {
 void BW_eta_sp(const IO::InputBlock &input, const Wavefunction &wf) {
   using namespace DiracOperator;
 
-  input.check({});
+  input.check({{"options{}", "Options for hyperfine operator"}});
+  // If we are just requesting 'help', don't run module:
+  if (input.has_option("help")) {
+    return;
+  }
 
   auto options = input.getBlock("options");
   auto sub_input = IO::InputBlock("hfs", {});

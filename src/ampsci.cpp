@@ -56,15 +56,6 @@ $ ./ampsci -p <At> <Isotope>
   - e.g., ./ampsci -p Cs, ./ampsci -p Cs 133, ./ampsci -p Cs all
 $ ./ampsci -c
   - Prints some handy physical constants (same as --constants)
-
-Output is printed to screen. It's recommended to forward this to a text file.
-The input options and the ampsci version details are also printed, so that the
-program output contains all required info to exactly reproduce it.
-e.g.,
-$ ./ampsci input |tee -a outout
-  - Runs ampsci using input options in file "input".
-  - Output will both be written to screen, and appended to
-    file "output".
 )"};
 
 //! Description of input file format
@@ -141,6 +132,7 @@ void ampsci(const IO::InputBlock &input);
 
 //==============================================================================
 int main(int argc, char *argv[]) {
+  using namespace std::string_literals;
 
   // Parse input text into strings:
   const std::string input_text = (argc > 1) ? argv[1] : "";
@@ -169,7 +161,8 @@ int main(int argc, char *argv[]) {
       Wavefunction wf{{1, 1.0, 1.0}, {1, 1}};
       // run the module, with option 'help' set. This will trigger the helper
       // to print the details for the available options in that module
-      Module::runModule(IO::InputBlock{module_name, {"help;"}}, wf);
+      Module::runModule(IO::InputBlock{"Module::"s + module_name, {"help;"}},
+                        wf);
     }
     return 0;
   } else if (input_text == "-o" || input_text == "--operators") {
@@ -256,23 +249,23 @@ void ampsci(const IO::InputBlock &input) {
   }
 
   // Top-level input blocks
-  input.check({{"", "All top-level inputs are InputBlocks. Format for "
-                    "descriptions are:\n Description [default_value]"},
-               {"Atom", "InputBlock. Which atom to run for"},
-               {"Grid", "InputBlock. Set radial grid parameters"},
-               {"HartreeFock", "InputBlock. Options for Solving atomic system"},
-               {"Nucleus", "InputBlock. Set nuclear parameters"},
-               {"RadPot", "InputBlock. Inlcude QED radiative potential"},
-               {"Basis", "InputBlock. Basis of HF eigenstates used for MBPT"},
-               {"Spectrum", "InputBlock. Like basis, but includes "
-                            "correlations. Used for sum-over-states"},
-               {"Correlations", "InputBlock. Options for correlations"},
-               {"ExtraPotential",
-                "InputBlock. Include an extra potential. Rarely used."},
-               {"dVpol", "InputBlock. Approximate correlation (polarisation) "
-                         "potential. Rarely used."},
-               {"Module::*",
-                "InputBlock. Run any number of modules (* -> module name)"}});
+  input.check(
+      {{"", "Format for "
+            "descriptions are:\n Description [default_value]\n Blocks "
+            "end with '{}', options end with ';'"},
+       {"Atom{}", "Which atom to run for"},
+       {"Grid{}", "Set radial grid parameters"},
+       {"HartreeFock{}", "Options for Solving atomic system"},
+       {"Nucleus{}", "Set nuclear parameters"},
+       {"RadPot{}", "Inlcude QED radiative potential"},
+       {"Basis{}", "Basis of HF eigenstates used for MBPT"},
+       {"Spectrum{}", "Like basis, but includes "
+                      "correlations. Used for sum-over-states"},
+       {"Correlations{}", "Options for correlations"},
+       {"ExtraPotential{}", "Include an extra potential. Rarely used."},
+       {"dVpol{}", "Approximate correlation (polarisation) "
+                   "potential. Rarely used."},
+       {"Module::*{}", "Run any number of modules (* -> module name)"}});
 
   // Atom: Get + setup atom parameters
   input.check({"Atom"},

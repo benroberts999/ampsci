@@ -27,7 +27,7 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
        {"b_vertex", "B vtx factor; =1 by default"},
        {"rrms", "double; effective rrms used in radiative potential"},
        {"out_file", "Results appended to this file (if given)"},
-       {"matrixElements", "sub-block; same as Module::matrixElements"},
+       {"matrixElements{}", "sub-block; same as Module::matrixElements"},
        {"coreQED", "bool; Include QED into core? Or just valence"},
        {"scale_l",
         "list; Scale factors for each l; e.g., 1,0 means s, but no p,d. "
@@ -184,13 +184,14 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
   // QED to matrix elements (perturbed orbital part):
   const auto me_input = input.getBlock("matrixElements");
   if (me_input) {
-    me_input->check({{"operator", "e.g., E1, hfs"},
-                     {"options", "options specific to operator; blank by dflt"},
-                     {"rpa", "true(=TDHF), false, TDHF, basis, diagram"},
-                     {"omega", "freq. for RPA"},
-                     {"radialIntegral", "false by dflt (means red. ME)"},
-                     {"printBoth", "print <a|h|b> and <b|h|a> (dflt false)"},
-                     {"onlyDiagonal", "only <a|h|a> (dflt false)"}});
+    me_input->check(
+        {{"operator", "e.g., E1, hfs"},
+         {"options{}", "options specific to operator; blank by dflt"},
+         {"rpa", "true(=TDHF), false, TDHF, basis, diagram"},
+         {"omega", "freq. for RPA"},
+         {"radialIntegral", "false by dflt (means red. ME)"},
+         {"printBoth", "print <a|h|b> and <b|h|a> (dflt false)"},
+         {"onlyDiagonal", "only <a|h|a> (dflt false)"}});
 
     const auto oper = me_input->get<std::string>("operator", "");
     // Get optional 'options' for operator
@@ -356,7 +357,7 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
 
 void vertexQED(const IO::InputBlock &input, const Wavefunction &wf) {
   input.check({{"operator", "operator (e.g., E1 or hfs)"},
-               {"options", "operator options (same as matrixElements)"},
+               {"options{}", "operator options (same as matrixElements)"},
                {"rrms", "nuclear rms, for QED part"},
                {"onlyDiagonal", "only print <a|h|a>"},
                {"radialIntegral", "false by default (means red. mat. el)"},

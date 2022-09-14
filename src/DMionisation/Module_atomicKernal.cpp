@@ -29,6 +29,8 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
        {"label", "label for output files"},
        {"output_text", "true/false (output K(dE,q) to .txt)"},
        {"output_binary", "true/false (output K(dE,q) to .bin)"}});
+  if (input.has_option("help"))
+    return;
 
   // Read input: q and dE grids:
   const auto demin_kev = input.get<double>("Emin", 0.1);

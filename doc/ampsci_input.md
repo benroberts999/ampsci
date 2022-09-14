@@ -10,18 +10,18 @@ The program is run with input options from the command line.
 
 ### Main method: input options from a text file
 
-* `$ ./ampsci filename`
+* `./ampsci filename`
   * Runs ampsci with input option specified in file "filename"
   * See below for full description of input format,
 and a detailed list of input options + descriptions.
-  * run `$ampsci -h` to get breif instructions for input options
+  * run `./ampsci -h` to get breif instructions for input options
   * Several example input files are given in: _doc/examples/_, along with their expected output; use these to test if everything is working.
 
 The Output is printed to screen. It's recommended to forward this to a text file.
 The input options and the ampsci version details are also printed, so that the
 program output contains all required info to exactly reproduce it. e.g.,
 
-* `$ ./ampsci input |tee -a outout`
+* `./ampsci input |tee -a outout`
   * Runs ampsci using input options in file "input".
   * Output will both be written to screen, and appended to
     file "output".
@@ -30,36 +30,36 @@ program output contains all required info to exactly reproduce it. e.g.,
 
 For very simple (Hartree-Fock only) calculations, you can run ampsci directly from the command line:
 
-* `$ ./ampsci <At> <Core> <Valence>`
-  * `$ ./ampsci Cs`
+* `./ampsci <At> <Core> <Valence>`
+  * `./ampsci Cs`
     * Runs ampsci for Cs using Hartree Fock (V^N) approximation
-  * `$ ./ampsci Cs [Xe] 6sd5d`
+  * `./ampsci Cs [Xe] 6sd5d`
     * Runs ampsci for Cs using Hartree Fock with Xe-like core and valence
       states up to n=6 for s,p-states and n=5 for d-states
-  * `$ ./ampsci Cs`
+  * `./ampsci Cs`
     * Runs ampsci for Cs using Hartree Fock (V^N) approximation
 
 ### Other command-line options
 
-* `$ ./ampsci -v`
+* `./ampsci -v`
   * Prints version info (same as --version)
-* `$ ./ampsci -h`
+* `./ampsci -h`
   * Print help info, including input options (same as --help, -?)
-* `$ ./ampsci -m  <ModuleName>`
+* `./ampsci -m  <ModuleName>`
   * Prints list of available Modules (same as --modules)
   * ModuleName is optional. If given, will list avaiable options for that Module
-* `$ ./ampsci -o <OperatorName>`
+* `./ampsci -o <OperatorName>`
   * Prints list of available operators (same as --operators)
   * OperatorName is optional. If given, will list avaiable options for Operator
-* `$ ./ampsci -a <BlockName>`
+* `./ampsci -a <BlockName>`
   * Prints list of available top-level ampsci options (same as --ampsci)
   * BlockName is optional; if given will print options for given ampsci Block
   * e.g., `./ampsci -a Basis` will print all available 'Basis' options
-* `$ ./ampsci -p <At> <Isotope>`
+* `./ampsci -p <At> <Isotope>`
   * Prints periodic table with electronic+nuclear info (same as --periodicTable)
   * At and Isotope are optional. If given, will print info for given isotope
-  * e.g., `$ ./ampsci -p Cs`, `$ ./ampsci -p Cs 133`, `$ ./ampsci -p Cs all`
-* `$ ./ampsci -c`
+  * e.g., `./ampsci -p Cs`, `./ampsci -p Cs 133`, `./ampsci -p Cs all`
+* `./ampsci -c`
   * Prints some handy physical constants (same as --constants)
 
 --------------------------------------------------------------------------------
@@ -100,14 +100,14 @@ top-level Blocks:
   Module::*{}    // InputBlock. Run any number of modules (* -> module name)
 ```
 
-You can get the same output by running `$ ./ampsci -a`
+You can get the same output by running `./ampsci -a`
 
 Set 'help;' inside any of these to get full set of options of each of these,
 and so on. Full descriptions of each Block/Option are given in doc/ - but the
 self-documentation of the code will always be more up-to-date.
 
-You can get the same output by running `$ ./ampsci -a BlockName`.
-For example, `$ ./ampsci -a Basis` will print all available 'Basis' options
+You can get the same output by running `./ampsci -a BlockName`.
+For example, `./ampsci -a Basis` will print all available 'Basis' options
 
 The general usage of the code is to first use the main blocks to construct the
 atomic wavefunction and basis states, then to add as many 'Module::' blocks as
@@ -150,15 +150,15 @@ blockname {
 
 You can also access most of the self-documenation directly from the command-line:
 
-* `$ ./ampsci -h`
+* `./ampsci -h`
   * Print help info, including input options (same as --help, -?)
-* `$ ./ampsci -m  <ModuleName>`
+* `./ampsci -m  <ModuleName>`
   * Prints list of available Modules (same as --modules)
   * ModuleName is optional. If given, will list avaiable options for that Module
-* `$ ./ampsci -o <OperatorName>`
+* `./ampsci -o <OperatorName>`
   * Prints list of available operators (same as --operators)
   * OperatorName is optional. If given, will list avaiable options for Operator
-* `$ ./ampsci -a <BlockName>`
+* `./ampsci -a <BlockName>`
   * Prints list of available top-level ampsci options (same as --ampsci)
   * BlockName is optional; if given will print options for given ampsci Block
   * e.g., `./ampsci -a Basis` will print all available 'Basis' options
@@ -169,8 +169,8 @@ You can also access most of the self-documenation directly from the command-line
 
 * The modules system allows the easy calculation of any atomic properties after the wavefunction has been calculated.
 * Any number of _modules_ can be run by adding a `Module::moduleName{}' block.
-* Get a list of available modules: `$ ./ampsci -m`
-* `$ ./ampsci -m  <ModuleName>`
+* Get a list of available modules: `./ampsci -m`
+* `./ampsci -m  <ModuleName>`
   * Prints list of available Modules (same as --modules)
   * ModuleName is optional. If given, will list avaiable options for that Module
 * See [doc/modules.md](/doc/modules.md) for full details
@@ -183,7 +183,7 @@ You can also access most of the self-documenation directly from the command-line
 * Basic details for each input block are given here.
 * It's generally better to get this info from the code (by setting the `help;` option in any given block), since that will always be up-to-date, while this document may fall out-of-date
 * You can also get this directly from the command-line:
-* `$ ./ampsci -a <BlockName>`
+* `./ampsci -a <BlockName>`
   * Prints list of available top-level ampsci options (same as --ampsci)
   * BlockName is optional; if given will print options for given ampsci Block
   * e.g., `./ampsci -a Basis` will print all available 'Basis' options

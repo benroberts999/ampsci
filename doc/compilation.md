@@ -6,8 +6,8 @@
 
 * Easiest method is to compile using provided Makefile:
 * Copy "doc/examples/Makefile" from doc/ directory to the working directory
-  * `$ cp ./doc/examples/Makefile ./`
-* All programs compiled using the Makefile (run `$ make`)
+  * `cp ./doc/examples/Makefile ./`
+* All programs compiled using the Makefile (run `make`)
 * The file _Makefile_ has some basic compilation options. It's currently set up to work on most linux systems; you may need to change a few options for others (see below)
 * Tested with g++ and clang++ on linux and mac
 
@@ -26,46 +26,46 @@
 This is for ubuntu/linux - for other systems, see below
 
 * Get the code from [GitHub](https://github.com/benroberts999/ampsci), using git:
-  * `$ sudo apt install git`
-  * `$ git clone git@github.com:benroberts999/ampsci.git`
-  * or `$ git clone https://github.com/benroberts999/ampsci.git`
+  * `sudo apt install git`
+  * `git clone git@github.com:benroberts999/ampsci.git`
+  * or `git clone https://github.com/benroberts999/ampsci.git`
 * Or, direct download (without using git, not redcommended):
   * <https://github.com/benroberts999/ampsci/archive/refs/heads/main.zip>
 * Install dependencies
-  * `$ sudo apt install g++ liblapack-dev libblas-dev libgsl-dev make libomp-dev`
+  * `sudo apt install g++ liblapack-dev libblas-dev libgsl-dev make libomp-dev`
 * Prepare the Makefile (already setup for ubuntu, you may need minor adjustments, see below)
-  * `$ cp ./doc/examples/Makefile ./`
+  * `cp ./doc/examples/Makefile ./`
 * Compile ampsci using all default options:  
-  * `$ make`
+  * `make`
 * Run the first example program
-  * `$ cp ./doc/examples/ampsci.in ./`
-  * `$ ./ampsci ampsci.in`
+  * `cp ./doc/examples/ampsci.in ./`
+  * `./ampsci ampsci.in`
 
 --------------------------------------------------------------------------------
 
 ## Compilation: Linux
 
 * Instructions for ubuntu; similar commands for other flavours
-* Install make: _$sudo apt-get install make_
-* Install GSL libraries: _$sudo apt-get install libgsl-dev_
-* May also need LAPACK/BLAS libraries: _$sudo apt-get install libatlas-base-dev liblapack-dev libblas-dev_
-* Install the compiler: _$sudo apt-get install g++_ and/or _$sudo apt-get install clang++_
-* Then compile by running _$make_ from the ampsci directory
-* To use with openMP (for parallelisation) with clang++, you might have to also install clangs openmp libraries: _$sudo apt install libomp5_ (and/or perhaps _$sudo apt install libomp-dev_)
+* Install make: `sudo apt-get install make`
+* Install GSL libraries: `sudo apt-get install libgsl-dev`
+* May also need LAPACK/BLAS libraries: `sudo apt-get install libatlas-base-dev liblapack-dev libblas-dev`
+* Install the compiler: `sudo apt-get install g++` and/or `sudo apt-get install clang++`
+* Then compile by running `make` from the ampsci directory
+* To use with openMP (for parallelisation) with clang++, you might have to also install clangs openmp libraries: `sudo apt install libomp5` (and/or perhaps `sudo apt install libomp-dev`)
 
 ## Compilation: MacOS
 
-* On mac: use _homebrew_ to install gsl: _$brew install gsl_
+* On mac: use _homebrew_ to install gsl: _brew install gsl_
 * _homebrew_ is a package manager; install from [https://brew.sh/](https://brew.sh/)
-* Seems to work best with the homebrew version of gcc. Install as: `$ brew install gcc`
+* Seems to work best with the homebrew version of gcc. Install as: `brew install gcc`
 * Note: you may need to change the compiler from `g++` to `g++-9` (or similar), or update your environment variables, since calling g++ on mac actually calls clang++ by default
 * You might have to tell the compiler how to link to the GSL library; in Makefile:
   * PathForGSL=/usr/local/opt/gnu-scientific-library
-* Then compile by running _$make_ from the ampsci directory
+* Then compile by running _make_ from the ampsci directory
 * Use openMP for parellelisation when using clang++ on mac:
   * If using g++, should work as per normal
   * To use openMP with clang, seem to require the llvm version
-  * _$brew install llvm_
+  * _brew install llvm_
   * Then, in the Makefile, set (exact paths may be different for you):
     * CXX=/usr/local/opt/llvm/bin/clang++
     * ExtraInclude=/usr/local/opt/llvm/include/

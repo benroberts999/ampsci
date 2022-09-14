@@ -8,7 +8,7 @@
 - Any number of _modules_ can be run by adding `Module::moduleName{}' blocks.
 - The code is designed so that you can easily create your own modules. See [doc/writing_modules.md](/doc/writing_modules.md) for details
 
-Get a list of available modules: `$ ./ampsci -m`
+Get a list of available modules: `./ampsci -m`
 
 They are:
 
@@ -40,7 +40,7 @@ You can see all the available options by setting the 'help' option, e.g.,
 
 You can also get most of this information directly from the command-line:
 
-- `$ ./ampsci -m  <ModuleName>`
+- `./ampsci -m  <ModuleName>`
   - Prints list of available Modules (same as --modules)
   - ModuleName is optional. If given, will list avaiable options for that Module
 
@@ -65,9 +65,9 @@ Module::matrixElements{
 }
 ```
 
-- `$./ampsci -o` will print a list of available operators
+- `./ampsci -o` will print a list of available operators
 - Some operators take further options. Set `options{help;}` to see list
-- `$ ./ampsci -o <OperatorName>`
+- `./ampsci -o <OperatorName>`
   - Prints list of available operators (same as --operators)
   - OperatorName is optional. If given, will list avaiable options for Operator
 
