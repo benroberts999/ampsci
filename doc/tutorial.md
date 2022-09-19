@@ -1,4 +1,4 @@
-# Tutorial
+# Basic Tutorial
 
 \brief Basic tutorial for using ampsci, including examples
 
@@ -7,6 +7,7 @@
 This assumes you already have ampsci compiled.
 
 * See [doc/compilation.md](/doc/compilation.md) for compilation instructions
+* See [doc/tutorial_advanced.md](/doc/tutorial_advanced.md) for a more advanced tutorial, including correlation corrections
 
 ## Contents
 
