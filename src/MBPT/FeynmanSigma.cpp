@@ -108,7 +108,7 @@ void FeynmanSigma::formSigma(int kappa, double en, int n) {
 
   // calculate fk (if not explicitely given)
   std::vector<double> vfk;
-  if (m_S0 != nullptr && m_Sx != nullptr) {
+  if (m_S0 != nullptr && m_Sx != nullptr && m_screen_Coulomb) {
     std::cout << vk->shortSymbol() << ": fk = ";
     for (int k = 0; k < 8; ++k) {
       const auto Sd0 = m_S0->FeynmanDirect(vk->kappa(), vk->en(), k);
@@ -150,13 +150,12 @@ void FeynmanSigma::formSigma(int kappa, double en, int n) {
   }
 
   // Exchange part:
-  const auto Gmat_X = m_ex_method == ExchangeMethod::none ?
-                          0.0 * Sigma :
-                          m_ex_method == ExchangeMethod::Goldstone ?
-                          Exchange_Goldstone(kappa, en, vfk) :
-                          m_ex_method == ExchangeMethod::w1 ?
-                          FeynmanEx_1(kappa, en) :
-                          FeynmanEx_w1w2(kappa, en);
+  const auto Gmat_X =
+      m_ex_method == ExchangeMethod::none ? 0.0 * Sigma :
+      m_ex_method == ExchangeMethod::Goldstone ?
+                                            Exchange_Goldstone(kappa, en, vfk) :
+      m_ex_method == ExchangeMethod::w1 ? FeynmanEx_1(kappa, en) :
+                                          FeynmanEx_w1w2(kappa, en);
 
   // Print energy shifts:
   double deD = 0.0, deX = 0.0;
@@ -277,7 +276,8 @@ void FeynmanSigma::prep_Feynman() {
 
   // calculate screening factors if using Goldstone exchange, and is fk not
   // given already
-  if (m_ex_method == ExchangeMethod::Goldstone && m_fk.empty()) {
+  if (m_ex_method == ExchangeMethod::Goldstone && m_fk.empty() &&
+      m_screen_Coulomb) {
     const bool incl_hole_particle_in_fk = false;
     const MBPT::Sigma_params sigp_0{MBPT::Method::Feynman,
                                     m_min_core_n,
