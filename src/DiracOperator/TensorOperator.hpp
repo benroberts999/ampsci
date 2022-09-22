@@ -50,18 +50,19 @@ protected:
         m_parity(pi),
         m_diff_order(diff_order),
         opC(RorI),
+        m_freqDependantQ(freq_dep),
         m_constant(constant),
-        m_vec(inv),
-        freqDependantQ(freq_dep){};
+        m_vec(inv){};
 
 public:
   virtual ~TensorOperator() = default;
 
 private:
-  const int m_rank;
-  const Parity m_parity;
-  const int m_diff_order;
-  const Realness opC;
+  int m_rank;
+  Parity m_parity;
+  int m_diff_order;
+  Realness opC;
+  bool m_freqDependantQ{false};
 
 protected:
   // these may be updated for frequency-dependant operators
@@ -69,7 +70,7 @@ protected:
   std::vector<double> m_vec;
 
 public:
-  const bool freqDependantQ{false};
+  bool freqDependantQ() const { return m_freqDependantQ; }
 
 public:
   //! If matrix element <a|h|b> is zero, returns true
