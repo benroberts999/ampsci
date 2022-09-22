@@ -31,6 +31,9 @@ public:
     fill_table();
   }
 
+  jL(const jL &) = default;
+  jL &operator=(const jL &) = delete;
+
 protected:
   std::size_t m_max_l;
   LinAlg::Matrix<std::vector<double>> m_j_lq_r;
@@ -140,7 +143,7 @@ public:
       : jL(r_grid, q_grid, max_l) {}
 
 public:
-  virtual void set_L_q(std::size_t L, double q) {
+  void set_L_q(std::size_t L, double q) override final {
     assert(L <= m_max_l && "L must be <= max L");
     m_rank = int(L);
     // Note: opposite parity for 'pseudo' cases

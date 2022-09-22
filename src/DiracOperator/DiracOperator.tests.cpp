@@ -381,44 +381,112 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
   //--------------------------------------------------------------------
   SECTION("jL") {
     std::cout << "jL\n";
-    const auto data = std::vector{std::tuple{"1s+", "1s+", 2.4494462627e+00},
-                                  {"1s+", "3d-", 1.0524536312e-06},
-                                  {"2p-", "2p-", 8.1648571087e-01},
-                                  {"2p-", "2p+", -1.1546966950e+00},
-                                  {"2p+", "2p-", 1.1546966950e+00},
-                                  {"2p+", "2p+", 5.1639502961e+00},
-                                  {"3d-", "1s+", -1.0524536312e-06},
-                                  {"3d-", "3d-", 3.0983744553e+00}};
 
-    const auto qgrid = Grid(0.01, 100.0, 20, GridType::logarithmic);
+    const auto qgrid = Grid(0.01, 100.0, 10, GridType::logarithmic);
 
-    const IO::InputBlock options{""};
-    std::size_t in_max_l = 4;
+    std::size_t in_max_l = 3;
     auto jl = DiracOperator::jL(wf.grid(), qgrid, in_max_l);
+    auto g0jl = DiracOperator::g0jL(wf.grid(), qgrid, in_max_l);
+    auto ig5jL = DiracOperator::ig5jL(wf.grid(), qgrid, in_max_l);
+    auto ig0g5jL = DiracOperator::ig0g5jL(wf.grid(), qgrid, in_max_l);
 
     REQUIRE(jl.get_d_order() == 0);
     REQUIRE(jl.imaginaryQ() == false);
-
     REQUIRE(jl.max_L() == in_max_l);
+
+    // test copy constructor
+    auto jl_2 = jl;
+
+    auto C = [](int ka, int kb, std::size_t l) {
+      auto c = Angular::Ck_kk(int(l), ka, kb);
+      return double(2 * l + 1) * c * c;
+    };
+    auto D = [C](int ka, int kb, std::size_t l) { return C(ka, -kb, l); };
 
     // For each L and q, test against directly calculating ME
     for (auto l = 0ul; l <= jl.max_L(); ++l) {
       for (auto &q : qgrid.r()) {
         jl.set_L_q(l, q);
+        jl_2.set_L_q(l, q);
         // std::cout << l << " " << q << "\n";
         REQUIRE(jl.rank() == int(l));
         REQUIRE(jl.L() == l);
+        const auto jl2 =
+            SphericalBessel::fillBesselVec_kr(int(l), q, wf.grid().r());
 
         for (auto &a : wf.valence()) {
           for (auto &b : wf.valence()) {
             if (jl.isZero(a, b))
               continue;
-            // auto me = jl.reducedME(a, b);
+            //test radial integral vs. diract calculation
             auto ri1 = jl.radialIntegral(a, b);
-            const auto jl2 =
-                SphericalBessel::fillBesselVec_kr(int(l), q, wf.grid().r());
+
             const auto ri2 = a * (jl2 * b);
             REQUIRE(ri1 == Approx(ri2));
+
+            // test square of RME (also test copy of jl_2)
+            auto rme1 = double(2 * l + 1) * std::pow(jl_2.reducedME(a, b), 2);
+            auto rme2 = ri2 * ri2 * C(a.kappa(), b.kappa(), l);
+            REQUIRE(rme1 == Approx(rme2));
+          }
+        }
+      }
+    }
+
+    // test copy of derived:
+    auto g0jl_2 = g0jl;
+
+    // For each L and q, test against directly calculating ME
+    // For the g0, g5, and g0g5 versions:
+    for (auto l = 0ul; l <= jl.max_L(); ++l) {
+      for (auto &q : qgrid.r()) {
+        g0jl.set_L_q(l, q);
+        g0jl_2.set_L_q(l, q);
+        ig5jL.set_L_q(l, q);
+        ig0g5jL.set_L_q(l, q);
+        REQUIRE(g0jl.L() == l);
+        REQUIRE(g0jl_2.L() == l);
+        REQUIRE(ig5jL.L() == l);
+        REQUIRE(ig0g5jL.L() == l);
+
+        const auto J_L =
+            SphericalBessel::fillBesselVec_kr(int(l), q, wf.grid().r());
+
+        for (auto &a : wf.valence()) {
+          for (auto &b : wf.valence()) {
+            if (jl.isZero(a, b))
+              continue;
+
+            // test copy:
+            REQUIRE(g0jl.reducedME(a, b) == Approx(g0jl_2.reducedME(a, b)));
+
+            const auto &gr = wf.grid();
+            auto Rf =
+                NumCalc::integrate(gr.du(), 0, 0, a.f(), b.f(), J_L, gr.drdu());
+            auto Rg =
+                NumCalc::integrate(gr.du(), 0, 0, a.g(), b.g(), J_L, gr.drdu());
+            auto Rfg =
+                NumCalc::integrate(gr.du(), 0, 0, a.f(), b.g(), J_L, gr.drdu());
+            auto Rgf =
+                NumCalc::integrate(gr.du(), 0, 0, a.g(), b.f(), J_L, gr.drdu());
+
+            auto rme2_g0 =
+                C(a.kappa(), b.kappa(), l) * (Rf * Rf - 2 * Rf * Rg + Rg * Rg);
+            auto rme2_g0g5 = D(a.kappa(), b.kappa(), l) *
+                             (Rfg * Rfg + 2 * Rfg * Rgf + Rgf * Rgf);
+            auto rme2_g5 = D(a.kappa(), b.kappa(), l) *
+                           (Rfg * Rfg - 2 * Rfg * Rgf + Rgf * Rgf);
+
+            auto rme1_g0 =
+                double(2 * l + 1) * std::pow(g0jl.reducedME(a, b), 2);
+            auto rme1_g0g5 =
+                double(2 * l + 1) * std::pow(ig0g5jL.reducedME(a, b), 2);
+            auto rme1_g5 =
+                double(2 * l + 1) * std::pow(ig5jL.reducedME(a, b), 2);
+
+            REQUIRE(rme2_g0 == Approx(rme1_g0));
+            REQUIRE(rme2_g0g5 == Approx(rme1_g0g5));
+            REQUIRE(rme2_g5 == Approx(rme1_g5));
           }
         }
       }
@@ -426,6 +494,8 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
   }
 }
 
+//--------------------------------------------------------------------
+//--------------------------------------------------------------------
 // Used to generate test data (with 8000 points)
 // for (auto &a : wf.valence()) {
 //   for (auto &b : wf.valence()) {
