@@ -15,7 +15,8 @@ The program is run with input options from the command line.
   * See below for full description of input format,
 and a detailed list of input options + descriptions.
   * run `./ampsci -h` to get breif instructions for input options
-  * Several example input files are given in: _doc/examples/_, along with their expected output; use these to test if everything is working.
+  * Several example input files are given in: _doc/examples/_, along with their expected output; 
+    use these to test if everything is working.
 
 The Output is printed to screen. It's recommended to forward this to a text file.
 The input options and the ampsci version details are also printed, so that the
@@ -26,41 +27,65 @@ program output contains all required info to exactly reproduce it. e.g.,
   * Output will both be written to screen, and appended to
     file "output".
 
-### quick method (simple calculations)
+### Command-line options
 
-For very simple (Hartree-Fock only) calculations, you can run ampsci directly from the command line:
+* run `./ampsci -h` to get breif instructions for input options
 
-* `./ampsci <At> <Core> <Valence>`
-  * `./ampsci Cs`
-    * Runs ampsci for Cs using Hartree Fock (V^N) approximation
-  * `./ampsci Cs [Xe] 6sd5d`
-    * Runs ampsci for Cs using Hartree Fock with Xe-like core and valence
-      states up to n=6 for s,p-states and n=5 for d-states
-  * `./ampsci Cs`
-    * Runs ampsci for Cs using Hartree Fock (V^N) approximation
+```text
+    <filename>
+        Runs ampsci taking options specified in file "filename" (eg, ./ampsci filename). 
+        See documentation (or option -a) for input file format options.
+        Example:
+        ./ampsci input.in
+            -Runs ampsci taking input options from file 'input.in'
+    
+    <At> <Core> <Valence>
+        For quick and simple HF calculation. 
+        If core is not given, guesses core configuration and runs using V^N approximation.
+        Examples:
+        ./ampsci Cs
+            - Runs ampsci for Cs using Hartree Fock (V^N) approximation
+        ./ampsci Cs [Xe] 6sd5d
+            - Runs ampsci for Cs using Hartree Fock with Xe-like core and 
+              valence states up to n=6 for s,p-states and n=5 for d-states
 
-### Other command-line options
+    -v (--version)
+        Prints ampsci version (and git commit) details
 
-* `./ampsci -v`
-  * Prints version info (same as --version)
-* `./ampsci -h`
-  * Print help info, including input options (same as --help, -?)
-* `./ampsci -m  <ModuleName>`
-  * Prints list of available Modules (same as --modules)
-  * ModuleName is optional. If given, will list avaiable options for that Module
-* `./ampsci -o <OperatorName>`
-  * Prints list of available operators (same as --operators)
-  * OperatorName is optional. If given, will list avaiable options for Operator
-* `./ampsci -a <BlockName>`
-  * Prints list of available top-level ampsci options (same as --ampsci)
-  * BlockName is optional; if given will print options for given ampsci Block
-  * e.g., `./ampsci -a Basis` will print all available 'Basis' options
-* `./ampsci -p <At> <Isotope>`
-  * Prints periodic table with electronic+nuclear info (same as --periodicTable)
-  * At and Isotope are optional. If given, will print info for given isotope
-  * e.g., `./ampsci -p Cs`, `./ampsci -p Cs 133`, `./ampsci -p Cs all`
-* `./ampsci -c`
-  * Prints some handy physical constants (same as --constants)
+    -h (--help, -?)
+        Print help info, including some detail on input options
+
+    -a <BlockName> (--ampsci)
+        Prints list of available top-level ampsci options. BlockName is optional; 
+        if given it will print options for given ampsci Block. You may list any number of blocks (space separated)
+        Example:
+        ./ampsci -a Atom HartreeFock
+
+    -m <ModuleName> (--modules)
+        Prints list of available Modules. ModuleName is optional; if given, will list avaiable options for that Module
+        Example:
+        ./ampsci -m MatrixElements
+
+    -o <OperatorName> (--operators)
+        Prints list of available operators. OperatorName is optional; if given, 
+        will list avaiable options for that operator (most operators take no options).
+        Example:
+        ./ampsci -o E1
+
+    -p <Atom> <Isotope> (--periodicTable)
+        Prints textual periodic table with electronic + nuclear information.
+        Atom and Isotope are optional; if given, will print info for that isotope. 
+        Atom should be atomic symbol (eg Cs), or Z (55).
+        If Isotope is blank, will print for 'default' isotope. 
+        Can also list 'all' known isotope info
+        Examples:
+        ./ampsci -p Cs
+        ./ampsci -p Cs 131
+        ./ampsci -p Cs all
+    
+    -c (--constants)
+        Prints some handy physical constants
+```
 
 --------------------------------------------------------------------------------
 

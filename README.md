@@ -3,7 +3,8 @@
 ## Atomic Many-body Perturbation theory in the Screened Coulomb Interaction
 
 [_ampsci_](https://ampsci.dev/)
-is a c++ program for high-precision atomic structure calculations of single-valence systems.
+is a c++ program for high-precision atomic structure calculations of single-valence systems, 
+developed and maintained by [Benjamin M. Roberts](https://broberts.io/), University of Queensland, Australia
 
 It solves the correlated Dirac equation using the Hartree-Fock + correlation potential method (based on Dzuba-Flambaum-Sushkov method) to produce a set of atomic wavefunctions and energies.
 The method is fully relativistic, includes electron correlations, all-orders screening and hole-particle interaction, finite-nuclear size, Breit interaction, radiative QED effects, RPA for matrix elements, and structure radiation/renormalisation.
@@ -32,20 +33,20 @@ is given in the physics documentation: [ampsci.pdf][man-url].
 
 ## Compilation and usage
 
-* Full documentation available online: [ampsci.dev/](https://ampsci.dev/)
-* Compilation instructions (for linux/mac/windows): [doc/compilation.md](doc/compilation.md)
-* A basic step-by-step tuturial: [doc/tutorial.md](doc/tutorial.md)
+Full documentation available online: [ampsci.dev/](https://ampsci.dev/).
+Divided into sections:
 
  1. Usage intructions, input options
-    * [doc/ampsci_input.md](doc/ampsci_input.md) -- detailed info on all input options
-    * A basic step-by-step tutorial is given here: [doc/tutorial.md](doc/tutorial.md)
-    * A more advanced tutorial is also provided: [doc/tutorial_advanced.md](doc/tutorial_advanced.md)
+    * Compilation instructions (for linux/mac/windows): [doc/compilation.md](doc/compilation.md)
+    * Detailed info on all input options: [doc/ampsci_input.md](doc/ampsci_input.md)
+    * A basic step-by-step tutorial: [doc/tutorial.md](doc/tutorial.md)
+    * A more advanced tutorial: [doc/tutorial_advanced.md](doc/tutorial_advanced.md)
       * See also: _doc/examples/ampsci.in_ -- an example/template input file
       * In _doc/examples/_ there are several example input files, with the expected output; use these to test if everything is working
 
- 2. Physics documentation: [ampsci.pdf](https://ampsci.dev/ampsci.pdf) -- Description of physics/methods used in the code
+ 2. Physics documentation: [ampsci.dev/ampsci.pdf](https://ampsci.dev/ampsci.pdf)
+    * Description of physics/methods used in the code
     * Includes many references to the works where the methods implemented here were developed.
-    * Available online: [ampsci.dev/ampsci.pdf](https://ampsci.dev/ampsci.pdf)
 
  3. Modules
     * The modules system allows the easy calculation of any atomic properties after the wavefunction has been calculated. See [doc/modules.md](doc/modules.md) for description
