@@ -18,113 +18,55 @@
 const std::string ampsci_help{R"(
 ampsci
 Atomic Many-body Perturbation theory in the Screened Coulomb Interaction. 
-Run the program with input options from the command line, e.g.:
+Benjamin M. Roberts (https://broberts.io/), University of Queensland, Australia.
 
-$ ./ampsci <filename>
-  - Runs ampsci with input option specified in file "filename"
-  - This is the main way to run program
+OPTIONS
+    <filename>
+        Runs ampsci taking options specified in file "filename" (eg, ./ampsci filename). See documentation (or option -a) for input file format options.
+        Example:
+        ./ampsci input.in
+            -Runs ampsci taking input options from file 'input.in'
+    
+    <At> <Core> <Valence>
+        For quick and simple HF calculation. If core is not given, guesses core configuration and runs using V^N approximation.
+        Examples:
+        ./ampsci Cs
+            - Runs ampsci for Cs using Hartree Fock (V^N) approximation
+        ./ampsci Cs [Xe] 6sd5d
+            - Runs ampsci for Cs using Hartree Fock with Xe-like core and valence states up to n=6 for s,p-states and n=5 for d-states
 
-$ ./ampsci <At> <Core> <Valence>
-  - For quick use: simple HF calculation.
-  - If core is not given, guesses core configuration and runs using V^N approximation. 
-  - Examples:
-  $ ./ampsci Cs
-    - Runs ampsci for Cs using Hartree Fock (V^N) approximation
-  $ ./ampsci Cs [Xe] 6sd5d
-    - Runs ampsci for Cs using Hartree Fock with Xe-like core and valence
-      states up to n=6 for s,p-states and n=5 for d-states
+    -v (--version)
+        Prints ampsci version (and git commit) details
 
-Other command-line options:
-$ ./ampsci -v
-  - Prints version info (same as --version)
-$ ./ampsci -h
-  - Print help info, including input options (same as --help, -?)
-$ ./ampsci -a <BlockName>
-  - Prints list of available top-level ampsci options (same as --ampsci)
-  - BlockName is optional; if given will print options for given ampsci Block
-  - You may list any number of blocks (space separated)
-  - e.g., './ampsci -a Basis' will print all available 'Basis' options
-$ ./ampsci -m <ModuleName>
-  - Prints list of available Modules (same as --modules)
-  - ModuleName is optional. If given, will list avaiable options for that Module
-$ ./ampsci -o  <OperatorName>
-  - Prints list of available operators (same as --operators)
-  - OperatorName is optional. If given, will list avaiable options for Operator
-$ ./ampsci -p <At> <Isotope>
-  - Prints periodic table with electronic+nuclear info (same as --periodicTable)
-  - At and Isotope are optional. If given, will print info for given isotope
-  - e.g., ./ampsci -p Cs, ./ampsci -p Cs 133, ./ampsci -p Cs all
-$ ./ampsci -c
-  - Prints some handy physical constants (same as --constants)
-)"};
+    -h (--help, -?)
+        Print help info, including some detail on input options
 
-//! Description of input file format
-const std::string ampsci_input_format{R"(
-ampsci - input file format:
+    -a <BlockName> (--ampsci)
+        Prints list of available top-level ampsci options. BlockName is optional; if given it will print options for given ampsci Block. You may list any number of blocks (space separated)
+        Example:
+        ./ampsci -a Atom HartreeFock
 
-Input is a plain text file that consists of sets of `Blocks' and `Options'.
- - Blocks are followed by curly-braces: BlockName{}
- - Options are followed by a semi-colon: OptionName = option_value;
- - Generally, each Block will have a set of Options that may be set
- - Nearly all are optional - leave them blank and a default value will be used
- - Blocks may be nested inside other Blocks
- - White-space is ignored, as are ' and " characters
- - You may use C++-style line '//' and block '/**/' comments
+    -m <ModuleName> (--modules)
+        Prints list of available Modules. ModuleName is optional; if given, will list avaiable options for that Module
+        Example:
+        ./ampsci -m MatrixElements
 
-The code is "self-documenting". At any level (i.e., in any Block or at `global` 
-level outside of any Block), set the option 'help;', and the code will print:
- - a list of all available Blocks and Options at that level
- - a description of what they are for, and
- - the default value if they are left unset.
+    -o <OperatorName> (--operators)
+        Prints list of available operators. OperatorName is optional; if given, will list avaiable options for that operator (most operators take no options).
+        Example:
+        ./ampsci -o E1
 
-For example, setting 'help' at the top-level will print a list of all available 
-top-level Blocks:
-  Atom{}         // InputBlock. Which atom to run for
-  Grid{}         // InputBlock. Set radial grid parameters
-  HartreeFock{}  // InputBlock. Options for Solving atomic system
-  Nucleus{}      // InputBlock. Set nuclear parameters
-  RadPot{}       // InputBlock. Inlcude QED radiative potential
-  Basis{}        // InputBlock. Basis used for MBPT
-  Spectrum{}     // InputBlock. Like basis; used for sum-over-states
-  Correlations{} // InputBlock. Options for correlations
-  ExtraPotential{} // InputBlock. Include an extra potential
-  dVpol{}        // InputBlock. Approximate correlation (polarisation) potential
-  Module::*{}    // InputBlock. Run any number of modules (* -> module name)
-
-You can get the same output by running './ampsci -a'
-
-Set 'help;' inside any of these to get full set of options of each of these, 
-and so on. Full descriptions of each Block/Option are given in doc/ - but the 
-self-documentation of the code will always be more up-to-date.
-
-You can get the same output by running './ampsci -a BlockName'.
-For example, './ampsci -a Basis' will print all available 'Basis' options
-
-The general usage of the code is to first use the main blocks to construct the 
-atomic wavefunction and basis states, then to add as many 'Module::' blocks as 
-required. Each module is a seperate routine that will take the calculated 
-wavefunction and compute any desired property (e.g., matrix elements). The code 
-is designed such that anyone can write a new Module (see 
-/src/Modules/exampleModule.hpp)
-
-e.g., To calculate Cs wavefunctions at HF level with 6s, 6p, and 5d valence 
-states, and then calculate E1 matrix elements including core polarisation (RPA):
-
-  Atom {
-    Z = Cs;
-    A = 133;
-  }
-  Grid { } // Leave all default; can also just drop entire Block
-  Nucleus { } // Default values set according to isotope
-  HartreeFock {
-    core = [Xe];
-    valence = 6sp5d;
-  }
-  Module::matrixElements {
-    operator = E1;
-    rpa = true;
-  }
-
+    -p <Atom> <Isotope> (--periodicTable)
+        Prints textual periodic table with electronic + nuclear information.
+        Atom and Isotope are optional; if given, will print info for that isotope. Atom should be atomic symbol (eg Cs), or Z (55).
+        If Isotope is blank, will print for 'default' isotope. Can also list 'all' known isotope info
+        Examples:
+        ./ampsci -p Cs
+        ./ampsci -p Cs 131
+        ./ampsci -p Cs all
+    
+    -c (--constants)
+        Prints some handy physical constants
 )"};
 
 //! Calculates wavefunction and runs optional modules
@@ -146,11 +88,12 @@ int main(int argc, char *argv[]) {
   } else if (input_text == "-v" || input_text == "--version") {
     std::cout << "AMPSCI v: " << version::version() << '\n';
     std::cout << "Compiled: " << version::compiled() << '\n';
+    std::cout << "Benjamin M. Roberts (https://broberts.io/), University of "
+                 "Queensland, Australia\n";
     return 0;
   } else if (input_text == "-h" || input_text == "--help" ||
              input_text == "-?") {
     std::cout << ampsci_help << '\n';
-    std::cout << ampsci_input_format << '\n';
     return 0;
   } else if (input_text == "-m" || input_text == "--modules") {
     std::cout << "Available modules: \n";
@@ -250,9 +193,9 @@ void ampsci(const IO::InputBlock &input) {
 
   // Top-level input blocks
   input.check(
-      {{"", "Format for "
-            "descriptions are:\n Description [default_value]\n Blocks "
-            "end with '{}', options end with ';'"},
+      {{"",
+        "Format for descriptions are:\n Description [default_value]\n Blocks "
+        "end with '{}', options end with ';'"},
        {"Atom{}", "Which atom to run for"},
        {"Grid{}", "Set radial grid parameters"},
        {"HartreeFock{}", "Options for Solving atomic system"},

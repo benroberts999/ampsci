@@ -2,21 +2,13 @@
 
 ## Correlations (#21)
 
-* Construct correlation potential at specified energies
-* Easy way to use correct correlation potential matrix..?
-  * e.g., in SolveMixedStates.....
-* Major cleanup..
+* Update class that stores, calculates sigma
 * filename: label.sig2 -> CsI_label.sig2
-* Option to use Sigma2 from Gold + rest from feyn
-  * Method = {Feynman, Goldstone, Mixed}
-  * Feynman: include scr+hp by default
-    * Calc fk if not given?
 
 ## TDHF - physics
 
-* Mixed-states work with non-local DiracODE? (#11)
 * Issue for even-parity operators (from de?) (#3)
-* Perhaps linked to (#11)
+  * Perhaps linked to (#11)
 * dV conj - sometimes causes issues; + not consistent
 * PNC: TDHF vs Diagram?
 * Note: TDHF doesn't work for E1v, but diagram does!
@@ -29,9 +21,10 @@
 * Option to write Yk and/or Qk tables from splines block
   * Can then potentially run multiple basis blocks?
 
-## Spectrum stability with Feynman Sigma #28
+## Spectrum stability with Feynman Sigma (#28)
 
 * Spectrum energies do not perfectly match with valence energies when using Feynman Sigma.
+  * Seems related to hole-particle inclusion, but most likely numerical
 * When using Goldstone sigma, however, they do.
 * This implies it's probably a numerical error stemming from Feynman Sigma - but is not obvious.
 * Typically difference is small, and doesn't seem to negatively affect much.
@@ -53,7 +46,8 @@
 ## Ladder diagrams (#13)
 
 * Form addition to Cor. Pot.
-* Screening?
+* Faster Qk lookup
+* Extra diagrams (triangle, 3rd-order)
 
 ## Diagram RPA
 
@@ -64,7 +58,8 @@
 ## TDHF - performance
 
 * Parallelised inefficiently (#6)
-* Diagram RPA: use Qk table?
+  * Due to thread-safe shared_ptr?
+* Diagram RPA: use Qk table? Much slower?
 * Write out to disk?
 * Fewer allocations?
 * Use Qk,Pk functions? and/or QkTable [optionally]?
@@ -88,7 +83,6 @@
 ## DiracODE (#24)
 
 * Write a general modern c++ DE solver
-* Allow non-local term (requires normalisation) (#11)
 * Efficient + numerically stable
 
 ## Coulomb
