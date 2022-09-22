@@ -13,8 +13,8 @@
 //! Dirac Operators: General + derived
 namespace DiracOperator {
 
-enum class Parity { even, odd };
-enum class Realness { real, imaginary };
+enum class Parity { even, odd, blank };
+enum class Realness { real, imaginary, blank };
 
 //==============================================================================
 //! 4x4 Integer matrix (for Gamma/Pauli). Can be real or imag. Not mixed.
@@ -57,7 +57,7 @@ protected:
 public:
   virtual ~TensorOperator() = default;
 
-private:
+protected:
   int m_rank;
   Parity m_parity;
   int m_diff_order;
