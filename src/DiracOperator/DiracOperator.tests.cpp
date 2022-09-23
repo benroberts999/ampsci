@@ -378,6 +378,9 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
     // (should only see "Filling jL lookup table:" 3 times)
     auto ig0g5jL = DiracOperator::ig0g5jL(jl);
 
+    REQUIRE(&jl.q_grid() == &qgrid);
+    REQUIRE(&jl.r_grid() == &wf.grid());
+
     // We never call set_L_q on these ones!
     const DiracOperator::jL jl_0 = jl;
     const DiracOperator::g0jL g0jl_0 = jl;

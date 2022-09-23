@@ -67,6 +67,9 @@ public:
   //! Maximum L value in table.
   std::size_t max_L() const { return m_max_l; }
 
+  const auto &q_grid() const { return *m_q_grid; }
+  const auto &r_grid() const { return *m_r_grid; }
+
   //! Sets the current L and q values for use. Note: NOT thread safe!
   virtual void set_L_q(std::size_t L, double q) {
     assert(L <= m_max_l && "L must be <= max L");

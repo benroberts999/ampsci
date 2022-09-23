@@ -14,6 +14,8 @@ class ContinuumOrbitals {
 public:
   //! Takes existing Wavefunction object to construct. izion = 1 usually
   ContinuumOrbitals(const Wavefunction &wf, int izion = 1);
+  ContinuumOrbitals(const HF::HartreeFock *hf, int izion = 1);
+
   ContinuumOrbitals &operator=(const ContinuumOrbitals &) = delete;
   ContinuumOrbitals(const ContinuumOrbitals &) = default;
   ~ContinuumOrbitals() = default;
@@ -34,7 +36,7 @@ public:
 private:
   std::shared_ptr<const Grid> rgrid;
   const HF::HartreeFock *const p_hf;
-  const int Z;
+  // const int Z;
   const int Zion;
   const double alpha;
   std::vector<double> v_local; // v_nuc + v_dir

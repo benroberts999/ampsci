@@ -18,10 +18,17 @@
 ContinuumOrbitals::ContinuumOrbitals(const Wavefunction &wf, int izion)
     : rgrid(wf.grid_sptr()),
       p_hf(wf.vHF()),
-      Z(wf.Znuc()),
+      // Z(wf.Znuc()),
       Zion(izion),
       alpha(wf.alpha()),
       v_local(wf.vlocal()) {}
+
+ContinuumOrbitals::ContinuumOrbitals(const HF::HartreeFock *hf, int izion)
+    : rgrid(hf->grid_sptr()),
+      p_hf(hf),
+      Zion(izion),
+      alpha(hf->alpha()),
+      v_local(hf->vlocal()) {}
 
 //==============================================================================
 double ContinuumOrbitals::check_orthog(bool print) const {

@@ -161,13 +161,13 @@ public:
   std::vector<double> &vnuc() { return m_vnuc; }
 
   //! Electric part of radiative potential
-  std::vector<double> Hrad_el(int l) const;
+  std::vector<double> Hrad_el(int l = 0) const;
   //! Magnetic (off-diagonal) part of radiative potential. Doesn't currently
   //! depend on l
-  std::vector<double> Hmag(int l) const;
+  std::vector<double> Hmag(int l = 0) const;
 
   //! vlocal = vnuc + vrad_el + vdir
-  std::vector<double> vlocal(int l) const;
+  std::vector<double> vlocal(int l = 0) const;
 
   //! Which method used to solve HF
   Method method() const { return m_method; }

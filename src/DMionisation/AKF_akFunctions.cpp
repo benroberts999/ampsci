@@ -1,5 +1,6 @@
 #include "DMionisation/AKF_akFunctions.hpp"
 #include "Angular/Wigner369j.hpp"
+#include "DiracOperator/DiracOperator.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
@@ -12,6 +13,37 @@
 #include <iostream>
 
 namespace AKF {
+
+std::vector<double> K_q(double dE, const HF::HartreeFock *hf,
+                        const DiracOperator::jL &jl) {
+  const auto q_points = jl.q_grid().num_points();
+  std::vector<double> kq_out(q_points);
+
+  const int lc_max = DiracSpinor::max_l(hf->core()) + jl.max_L();
+
+  ContinuumOrbitals cntm(hf); // create cntm object [survives locally only]
+  for (auto &Fa : hf->core()) {
+    const auto ec = dE + Fa.en();
+    if (ec < 0.0)
+      continue;
+    cntm.clear();
+    cntm.solveContinuumHF(ec, lc_max, &Fa);
+    const auto x = Fa.occ_frac(); // normally 1
+#pragma omp parallel for
+    for (std::size_t iq = 0; iq < q_points; ++iq) {
+      for (const auto &Fe : cntm.orbitals) {
+        for (std::size_t L = 0; L <= jl.max_L(); ++L) {
+          if (jl.is_zero(Fa, Fe, L))
+            continue;
+          const auto q = jl.q_grid().r(iq);
+          const auto me = jl.rme(Fa, Fe, L, q);
+          kq_out.at(iq) += double(2 * L + 1) * me * me * x;
+        }
+      }
+    }
+  }
+  return kq_out;
+}
 
 //==============================================================================
 double CLkk(int L, int ka, int kb)
@@ -174,8 +206,8 @@ void write_Ktot_plaintext(
 
   std::ofstream ofile;
   ofile.open(fname + "_tot.txt");
-  ofile
-      << "# K_tot(dE,q): dE is rows, q is cols; first row/col is dE/q values\n";
+  ofile << "# K_tot(dE,q): dE is rows, q is cols; first row/col is dE/q "
+           "values\n";
   ofile << "q(MeV)/dE(keV)";
   for (auto idE = 0ul; idE < desteps; idE++) {
     const auto dE = Egrid.r(idE);
@@ -278,7 +310,7 @@ sphericalBesselTable(int max_L, const std::vector<double> &q_array,
     for (auto iq = 0ul; iq < qsteps; iq++) {
       for (auto ir = 0ul; ir < num_points; ir++) {
         const double q = q_array[iq];
-        double tmp = SphericalBessel::JL(int(L), q *r[ir]);
+        double tmp = SphericalBessel::JL(int(L), q * r[ir]);
         // If q(dr) is too large, "missing" j_L oscillations
         //(overstepping them). This helps to fix that.
         // By averaging the J_L function. Note: only works if wf is smooth
