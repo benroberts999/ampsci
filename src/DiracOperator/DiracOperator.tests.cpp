@@ -4,15 +4,6 @@
 #include "catch2/catch.hpp"
 #include <utility>
 
-// {"E1", &generate_E1},
-// {"Ek", &generate_Ek},
-// {"M1", &generate_M1},
-// {"hfs", &generate_hfsA},
-// {"hfsK", &generate_hfsK},
-// {"r", &generate_r},
-// {"pnc", &generate_pnc},
-// {"Hrad", &generate_Hrad}
-
 TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
   std::cout << "\n----------------------------------------\n";
   std::cout << "DiracOperator\n";
@@ -365,12 +356,6 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
     REQUIRE(h->name() == "Vrad");
     REQUIRE(!h->units().empty());
 
-    // for (auto &a : wf.valence()) {
-    //   auto me = h->radialIntegral(a, a);
-    //   std::cout << "{\"" << a << "\", \"" << a << "\", ";
-    //   printf("%.10e},\n", me);
-    // }
-
     for (auto &[a, b, me] : data) {
       const auto &Fa = *wf.getState(a);
       const auto hab = h->radialIntegral(Fa, Fa);
@@ -388,7 +373,16 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
     auto jl = DiracOperator::jL(wf.grid(), qgrid, in_max_l);
     auto g0jl = DiracOperator::g0jL(wf.grid(), qgrid, in_max_l);
     auto ig5jL = DiracOperator::ig5jL(wf.grid(), qgrid, in_max_l);
-    auto ig0g5jL = DiracOperator::ig0g5jL(wf.grid(), qgrid, in_max_l);
+    // auto ig0g5jL = DiracOperator::ig0g5jL(wf.grid(), qgrid, in_max_l);
+    // constructing from existing operator: copies table
+    // (should only see "Filling jL lookup table:" 3 times)
+    auto ig0g5jL = DiracOperator::ig0g5jL(jl);
+
+    // We never call set_L_q on these ones!
+    const DiracOperator::jL jl_0 = jl;
+    const DiracOperator::g0jL g0jl_0 = jl;
+    const DiracOperator::ig5jL ig5jL_0 = jl;
+    const DiracOperator::ig0g5jL ig0g5jL_0 = jl;
 
     REQUIRE(jl.get_d_order() == 0);
     REQUIRE(jl.imaginaryQ() == false);
@@ -414,8 +408,9 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
         const auto jl2 =
             SphericalBessel::fillBesselVec_kr(int(l), q, wf.grid().r());
 
-        for (auto &a : wf.valence()) {
-          for (auto &b : wf.valence()) {
+        for (const auto &a : wf.valence()) {
+          for (const auto &b : wf.valence()) {
+            REQUIRE(jl.isZero(a, b) == jl.is_zero(a, b, l));
             if (jl.isZero(a, b))
               continue;
             //test radial integral vs. diract calculation
@@ -428,6 +423,9 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
             auto rme1 = double(2 * l + 1) * std::pow(jl_2.reducedME(a, b), 2);
             auto rme2 = ri2 * ri2 * C(a.kappa(), b.kappa(), l);
             REQUIRE(rme1 == Approx(rme2));
+
+            // test direct
+            REQUIRE(jl.reducedME(a, b) == Approx(jl_0.rme(a, b, l, q)));
           }
         }
       }
@@ -452,41 +450,52 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
         const auto J_L =
             SphericalBessel::fillBesselVec_kr(int(l), q, wf.grid().r());
 
-        for (auto &a : wf.valence()) {
-          for (auto &b : wf.valence()) {
-            if (jl.isZero(a, b))
-              continue;
+        for (const auto &a : wf.valence()) {
+          for (const auto &b : wf.valence()) {
+            REQUIRE(g0jl.isZero(a, b) == g0jl_0.is_zero(a, b, l));
+            REQUIRE(ig0g5jL.isZero(a, b) == ig0g5jL_0.is_zero(a, b, l));
+            REQUIRE(ig5jL.isZero(a, b) == ig5jL_0.is_zero(a, b, l));
 
             // test copy:
             REQUIRE(g0jl.reducedME(a, b) == Approx(g0jl_2.reducedME(a, b)));
 
             const auto &gr = wf.grid();
-            auto Rf =
+            const auto Rf =
                 NumCalc::integrate(gr.du(), 0, 0, a.f(), b.f(), J_L, gr.drdu());
-            auto Rg =
+            const auto Rg =
                 NumCalc::integrate(gr.du(), 0, 0, a.g(), b.g(), J_L, gr.drdu());
-            auto Rfg =
+            const auto Rfg =
                 NumCalc::integrate(gr.du(), 0, 0, a.f(), b.g(), J_L, gr.drdu());
-            auto Rgf =
+            const auto Rgf =
                 NumCalc::integrate(gr.du(), 0, 0, a.g(), b.f(), J_L, gr.drdu());
 
-            auto rme2_g0 =
+            const auto rme2_g0 =
                 C(a.kappa(), b.kappa(), l) * (Rf * Rf - 2 * Rf * Rg + Rg * Rg);
-            auto rme2_g0g5 = D(a.kappa(), b.kappa(), l) *
-                             (Rfg * Rfg + 2 * Rfg * Rgf + Rgf * Rgf);
-            auto rme2_g5 = D(a.kappa(), b.kappa(), l) *
-                           (Rfg * Rfg - 2 * Rfg * Rgf + Rgf * Rgf);
+            const auto rme2_g0g5 = D(a.kappa(), b.kappa(), l) *
+                                   (Rfg * Rfg + 2 * Rfg * Rgf + Rgf * Rgf);
+            const auto rme2_g5 = D(a.kappa(), b.kappa(), l) *
+                                 (Rfg * Rfg - 2 * Rfg * Rgf + Rgf * Rgf);
 
-            auto rme1_g0 =
+            const auto rme1_g0 =
                 double(2 * l + 1) * std::pow(g0jl.reducedME(a, b), 2);
-            auto rme1_g0g5 =
+            const auto rme1_g0g5 =
                 double(2 * l + 1) * std::pow(ig0g5jL.reducedME(a, b), 2);
-            auto rme1_g5 =
+            const auto rme1_g5 =
                 double(2 * l + 1) * std::pow(ig5jL.reducedME(a, b), 2);
 
-            REQUIRE(rme2_g0 == Approx(rme1_g0));
-            REQUIRE(rme2_g0g5 == Approx(rme1_g0g5));
-            REQUIRE(rme2_g5 == Approx(rme1_g5));
+            // use 'margin' here, since some MEs are zero (don't skip, since some have different selection rules)
+
+            REQUIRE(rme2_g0 == Approx(rme1_g0).margin(1.0e-12));
+            REQUIRE(rme2_g0g5 == Approx(rme1_g0g5).margin(1.0e-12));
+            REQUIRE(rme2_g5 == Approx(rme1_g5).margin(1.0e-12));
+
+            // test direct
+            REQUIRE(g0jl.reducedME(a, b) ==
+                    Approx(g0jl_0.rme(a, b, l, q)).margin(1.0e-12));
+            REQUIRE(ig0g5jL.reducedME(a, b) ==
+                    Approx(ig0g5jL_0.rme(a, b, l, q)).margin(1.0e-12));
+            REQUIRE(ig5jL.reducedME(a, b) ==
+                    Approx(ig5jL_0.rme(a, b, l, q)).margin(1.0e-12));
           }
         }
       }
