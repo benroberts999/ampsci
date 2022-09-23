@@ -72,7 +72,7 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
 
   const bool orthog_Fi = true;
   const bool orthog_core = false;
-  const bool subtract_self_int = true;
+  const bool subtract_self_int = Fi != nullptr;
   const bool force_rescale = false;
 
   // Find 'inital guess' for asymptotic region:

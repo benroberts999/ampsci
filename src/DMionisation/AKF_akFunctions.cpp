@@ -27,6 +27,7 @@ std::vector<double> K_q(double dE, const HF::HartreeFock *hf,
     if (ec < 0.0)
       continue;
     cntm.clear();
+    // nb: passing in ptr to Fa subtracts self interaction; otherwise, doesn't
     cntm.solveContinuumHF(ec, lc_max, &Fa);
     const auto x = Fa.occ_frac(); // normally 1
 #pragma omp parallel for
