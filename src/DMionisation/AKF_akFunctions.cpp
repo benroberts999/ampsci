@@ -1,5 +1,6 @@
 #include "DMionisation/AKF_akFunctions.hpp"
 #include "Angular/Wigner369j.hpp"
+#include "DiracOperator/DiracOperator.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
@@ -13,6 +14,83 @@
 
 namespace AKF {
 
+//==============================================================================
+std::vector<double> K_q(double dE, const DiracSpinor &Fa,
+                        const HF::HartreeFock *hf,
+                        const DiracOperator::jL &jl) {
+  const auto q_points = jl.q_grid().num_points();
+  std::vector<double> kq_out(q_points);
+
+  const auto ec = dE + Fa.en();
+  if (ec < 0.0)
+    return kq_out;
+
+  const int lc_max = Fa.l() + int(jl.max_L()) + 1;
+  const int lc_min = std::max(0, Fa.l() - int(jl.max_L()) - 1);
+  const auto x = Fa.occ_frac(); // normally 1
+
+  ContinuumOrbitals cntm(hf); // create cntm object [survives locally only]
+  // nb: passing in ptr to Fa subtracts self interaction; otherwise, doesn't
+  cntm.solveContinuumHF(ec, lc_min, lc_max, &Fa);
+
+#pragma omp parallel for
+  for (std::size_t iq = 0; iq < q_points; ++iq) {
+    for (const auto &Fe : cntm.orbitals) {
+      for (std::size_t L = 0; L <= jl.max_L(); ++L) {
+        if (jl.is_zero(Fa, Fe, L))
+          continue;
+        const auto q = jl.q_grid().r(iq);
+        auto me = jl.rme(Fa, Fe, L, q);
+        if (Fa.kappa() == Fe.kappa()) {
+          me -= Fa * Fe;
+        }
+        kq_out.at(iq) += double(2 * L + 1) * me * me * x;
+      }
+    }
+  }
+
+  return kq_out;
+}
+
+//==============================================================================
+std::vector<double> K_tilde_q(double dE, const DiracSpinor &Fa,
+                              const HF::HartreeFock *hf,
+                              const DiracOperator::jL &jl) {
+
+  // sems to work perfectly at large q, but very poorly at small q
+  const auto q_points = jl.q_grid().num_points();
+  std::vector<double> kq_out(q_points);
+  if (dE < std::abs(Fa.en()))
+    return kq_out;
+
+  const auto ec = 100.0;
+
+  const int lc_max = Fa.l() + int(jl.max_L()) + 1;
+  const int lc_min = std::max(0, Fa.l() - int(jl.max_L()) - 1);
+  const auto x = Fa.occ_frac(); // normally 1
+
+  ContinuumOrbitals cntm(hf); // create cntm object [survives locally only]
+  // nb: passing in ptr to Fa subtracts self interaction; otherwise, doesn't
+  cntm.solveContinuumHF(ec, lc_min, lc_max, &Fa);
+
+#pragma omp parallel for
+  for (std::size_t iq = 0; iq < q_points; ++iq) {
+    for (const auto &Fe : cntm.orbitals) {
+      for (std::size_t L = 0; L <= jl.max_L(); ++L) {
+        if (jl.is_zero(Fa, Fe, L))
+          continue;
+        const auto q = jl.q_grid().r(iq);
+        const auto me = jl.rme(Fa, Fe, L, q);
+        kq_out.at(iq) += double(2 * L + 1) * me * me * x;
+      }
+    }
+  }
+
+  return kq_out;
+}
+
+//==============================================================================
+// double CLkk(int L, int ka, int kb)
 //******************************************************************************
 double CLkk_DLkk(int L, int ka, int kb, std::string dmec)
 // /*
@@ -51,7 +129,7 @@ double Heaviside(double x)
 }
 
 //==============================================================================
-std::vector<float>
+std::vector<double>
 calculateK_nk(const Wavefunction &wf, const DiracSpinor &psi, int max_L,
               double dE,
               const std::vector<std::vector<std::vector<double>>> &jLqr_f,
@@ -66,8 +144,8 @@ calculateK_nk(const Wavefunction &wf, const DiracSpinor &psi, int max_L,
 
   const auto qsteps = jLqr_f[0].size();
 
-  std::vector<float> AK_nk_q;
-  AK_nk_q.resize(qsteps);
+  std::vector<double> AK_nk_q;
+  AK_nk_q.resize(qsteps); // use +=, so can't use .push_back()
 
   // Calculate continuum wavefunctions
   double ec = dE + psi.en();
@@ -91,7 +169,6 @@ calculateK_nk(const Wavefunction &wf, const DiracSpinor &psi, int max_L,
   // L and lc are summed, not stored individually
   for (std::size_t L = 0; L <= std::size_t(max_L); L++) {
     for (const auto &phic : cntm.orbitals) {
-      // double dC_Lkk_sqrt = CLkk_sqrt((int)L, psi.k, phic.k);
       double dC_Lkk = CLkk_DLkk((int)L, psi.kappa(), phic.kappa(), dmec);
       if (dC_Lkk == 0)
         continue;
@@ -111,31 +188,6 @@ calculateK_nk(const Wavefunction &wf, const DiracSpinor &psi, int max_L,
         double agf = NumCalc::integrate(1.0, 0, maxj, psi.g(), phic.f(),
                                         jLqr_f[L][iq], wf.grid().drdu());
 
-        // Not working?
-        // double aff_noj = NumCalc::integrate(1.0, 0, maxj, psi.f(), phic.f(),
-        //                                     wf.grid().drdu());
-        // double agg_noj = NumCalc::integrate(1.0, 0, maxj, psi.g(), phic.g(),
-        //                                     wf.grid().drdu());
-        // a = (aff + agg) * wf.rgrid->du();
-        // a_noj = (aff_noj + agg_noj) * wf.rgrid->du();
-        // if ((alt_akf) && (psi.k == phic.k)) {
-        //   AK_nk_q[iq] += (float)((dC_Lkk * a * a + a_noj * a_noj -
-        //                           2.0 * dC_Lkk_sqrt * a * a_noj) *
-        //                          x_ocf);
-        // } else {
-        //   AK_nk_q[iq] += (float)(dC_Lkk * a * a * x_ocf);
-        // }
-
-        // if ((alt_akf) && (psi.k == phic.k)) {
-        //   aff -= NumCalc::integrate(1.0, 0, maxj, psi.f(), phic.f(),
-        //                             wf.rgrid->drdu());
-        //   agg -= NumCalc::integrate(1.0, 0, maxj, psi.g(), phic.g(),
-        //                             wf.rgrid->drdu());
-        //   afg -= NumCalc::integrate(1.0, 0, maxj, psi.f(), phic.g(),
-        //                             wf.rgrid->drdu());
-        //   agf -= NumCalc::integrate(1.0, 0, maxj, psi.g(), phic.f(),
-        //                             wf.rgrid->drdu());
-        // }
         if (alt_akf) {
           // getting rid of compiler warning for now
         }
@@ -149,8 +201,7 @@ calculateK_nk(const Wavefunction &wf, const DiracSpinor &psi, int max_L,
         } else if (dmec == "Pseudoscalar") {
           a = afg + agf;
         }
-        AK_nk_q[iq] +=
-            (float)(dC_Lkk * std::pow(a * wf.grid().du(), 2) * x_ocf);
+        AK_nk_q[iq] += (dC_Lkk * std::pow(a * wf.grid().du(), 2) * x_ocf);
       } // q
     }   // END loop over cntm states (ic)
   }     // end L loop
@@ -158,8 +209,8 @@ calculateK_nk(const Wavefunction &wf, const DiracSpinor &psi, int max_L,
 }
 
 //******************************************************************************
-std::vector<float> stepK_nk(const DiracSpinor &psi, double dE,
-                            const std::vector<float> &AFBE_table)
+std::vector<double> stepK_nk(const DiracSpinor &psi, double dE,
+                             const std::vector<double> &AFBE_table)
 /*
 Approximates atomic factor using table generated by AFBindingEnergy
 */
@@ -167,18 +218,18 @@ Approximates atomic factor using table generated by AFBindingEnergy
   // q range needs to be the same for the table and AK
   const auto qsteps = AFBE_table.size();
 
-  std::vector<float> AK_nk_step;
+  std::vector<double> AK_nk_step;
   AK_nk_step.resize(qsteps);
 
   for (std::size_t iq = 0; iq < qsteps; iq++) {
-    AK_nk_step[iq] += (float)Heaviside(dE + psi.en()) * AFBE_table[iq];
+    AK_nk_step[iq] += Heaviside(dE + psi.en()) * AFBE_table[iq];
   }
   // }
   return AK_nk_step;
 }
 
 //******************************************************************************
-std::vector<float>
+std::vector<double>
 calculateKpw_nk(const Wavefunction &wf, const DiracSpinor &psi, double dE,
                 const std::vector<std::vector<double>> &jl_qr)
 // /*
@@ -191,7 +242,7 @@ calculateKpw_nk(const Wavefunction &wf, const DiracSpinor &psi, double dE,
   const int twoj = psi.twoj(); // wf.twoj(nk);
 
   const auto qsteps = jl_qr.size();
-  std::vector<float> tmpK_q(qsteps);
+  std::vector<double> tmpK_q(qsteps);
 
   const double eps = dE - psi.en();
   const auto maxir = psi.max_pt(); // don't bother going further
@@ -203,8 +254,8 @@ calculateKpw_nk(const Wavefunction &wf, const DiracSpinor &psi, double dE,
     const double chi_q =
         NumCalc::integrate(wf.grid().du(), 0, maxir, psi.f(), jl_qr[iq],
                            wf.grid().r(), wf.grid().drdu());
-    tmpK_q[iq] = (float)((2. / M_PI) * (twoj + 1) * std::pow(chi_q, 2) *
-                         std::sqrt(2. * eps));
+    tmpK_q[iq] =
+        (2.0 / M_PI) * (twoj + 1) * std::pow(chi_q, 2) * std::sqrt(2.0 * eps);
     // tmpK_q[iq] = std::pow(4*3.14159,2)*std::pow(chi_q,2); // just cf KOPP
   }
 
@@ -212,10 +263,10 @@ calculateKpw_nk(const Wavefunction &wf, const DiracSpinor &psi, double dE,
 }
 
 //==============================================================================
-void write_Knk_plaintext(const std::string &fname,
-                         const std::vector<std::vector<std::vector<float>>> &AK,
-                         const std::vector<std::string> &nklst,
-                         const Grid &qgrid, const Grid &Egrid)
+void write_Knk_plaintext(
+    const std::string &fname,
+    const std::vector<std::vector<std::vector<double>>> &AK,
+    const std::vector<std::string> &nklst, const Grid &qgrid, const Grid &Egrid)
 // /*
 // Writes the K factor to a text-file, in GNU-plot readable format
 // */
@@ -239,7 +290,7 @@ void write_Knk_plaintext(const std::string &fname,
       const auto q = qgrid.r(iq);
       const auto dE = Egrid.r(idE);
       ofile << dE / keV << " " << q / qMeV << " ";
-      float sum = 0.0f;
+      double sum = 0.0f;
       for (auto j = 0ul; j < num_states; j++) {
         sum += AK[idE][j][iq];
         ofile << AK[idE][j][iq] << " ";
@@ -255,7 +306,7 @@ void write_Knk_plaintext(const std::string &fname,
 //==============================================================================
 void write_Ktot_plaintext(
     const std::string &fname,
-    const std::vector<std::vector<std::vector<float>>> &AK, const Grid &qgrid,
+    const std::vector<std::vector<std::vector<double>>> &AK, const Grid &qgrid,
     const Grid &Egrid)
 // /*
 // Writes the K factor to a text-file, in GNU-plot readable format
@@ -272,8 +323,8 @@ void write_Ktot_plaintext(
 
   std::ofstream ofile;
   ofile.open(fname + "_tot.txt");
-  ofile
-      << "# K_tot(dE,q): dE is rows, q is cols; first row/col is dE/q values\n";
+  ofile << "# K_tot(dE,q): dE is rows, q is cols; first row/col is dE/q "
+           "values\n";
   ofile << "q(MeV)/dE(keV)";
   for (auto idE = 0ul; idE < desteps; idE++) {
     const auto dE = Egrid.r(idE);
@@ -286,7 +337,7 @@ void write_Ktot_plaintext(
     ofile << q / qMeV;
     for (auto idE = 0ul; idE < desteps; idE++) {
 
-      float AK_dEq = 0.0f;
+      double AK_dEq = 0.0f;
       for (auto j = 0ul; j < num_states; j++) {
         AK_dEq += AK[idE][j][iq];
       }
@@ -300,7 +351,7 @@ void write_Ktot_plaintext(
 //******************************************************************************
 void writeToTextFile_AFBE(
     const std::string &fname,
-    const std::vector<std::vector<std::vector<float>>> &AK,
+    const std::vector<std::vector<std::vector<double>>> &AK,
     const std::vector<std::string> &nklst, const Grid &qgrid,
     const std::vector<double> deion)
 // /*
@@ -326,7 +377,7 @@ void writeToTextFile_AFBE(
   for (auto iq = 0ul; iq < qsteps; iq++) {
     const auto q = qgrid.r(iq);
     ofile << q / qMeV << " ";
-    float sum = 0.0f;
+    double sum = 0.0f;
     for (auto j = 0ul; j < num_states; j++) {
       sum += AK[0][j][iq];
       ofile << deion[j] / keV << " " << AK[0][j][iq] << " ";
@@ -340,7 +391,7 @@ void writeToTextFile_AFBE(
 
 //******************************************************************************
 int akReadWrite(const std::string &fname, bool write,
-                std::vector<std::vector<std::vector<float>>> &AK,
+                std::vector<std::vector<std::vector<double>>> &AK,
                 std::vector<std::string> &nklst, double &qmin, double &qmax,
                 double &dEmin, double &dEmax)
 // /*
@@ -375,7 +426,8 @@ int akReadWrite(const std::string &fname, bool write,
     IO::FRW::binary_rw(iof, nq, row);
     std::cout << "nde = " << nde << ", ns = " << ns << ", nq = " << nq
               << std::endl;
-    AK.resize(nde, std::vector<std::vector<float>>(ns, std::vector<float>(nq)));
+    AK.resize(nde,
+              std::vector<std::vector<double>>(ns, std::vector<double>(nq)));
     nklst.resize(ns);
   }
   IO::FRW::binary_rw(iof, qmin, row);
@@ -397,7 +449,7 @@ int akReadWrite(const std::string &fname, bool write,
 
 //******************************************************************************
 int akReadWrite_AFBE(const std::string &fname, bool write,
-                     std::vector<std::vector<std::vector<float>>> &AK,
+                     std::vector<std::vector<std::vector<double>>> &AK,
                      std::vector<std::string> &nklst, double &qmin,
                      double &qmax, std::vector<double> &deion)
 // /*
@@ -427,7 +479,7 @@ int akReadWrite_AFBE(const std::string &fname, bool write,
     std::size_t nq, ns;
     IO::FRW::binary_rw(iof, ns, row);
     IO::FRW::binary_rw(iof, nq, row);
-    AK.resize(1, std::vector<std::vector<float>>(ns, std::vector<float>(nq)));
+    AK.resize(1, std::vector<std::vector<double>>(ns, std::vector<double>(nq)));
     nklst.resize(ns);
   }
   IO::FRW::binary_rw(iof, qmin, row);
@@ -471,7 +523,7 @@ sphericalBesselTable(int max_L, const std::vector<double> &q_array,
     for (auto iq = 0ul; iq < qsteps; iq++) {
       for (auto ir = 0ul; ir < num_points; ir++) {
         const double q = q_array[iq];
-        double tmp = SphericalBessel::JL(int(L), q *r[ir]);
+        double tmp = SphericalBessel::JL(int(L), q * r[ir]);
         // If q(dr) is too large, "missing" j_L oscillations
         //(overstepping them). This helps to fix that.
         // By averaging the J_L function. Note: only works if wf is smooth

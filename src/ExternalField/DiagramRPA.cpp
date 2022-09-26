@@ -342,7 +342,7 @@ void DiagramRPA::solve_core(const double omega, int max_its, const bool print) {
   if (holes.empty() || excited.empty())
     return;
 
-  if (m_h->freqDependantQ) {
+  if (m_h->freqDependantQ()) {
     // m_h->updateFrequency(m_core_omega); // Cant, is const. must do outside
     setup_ts(m_h);
   }

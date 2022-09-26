@@ -1,16 +1,8 @@
 #include "DiracOperator.hpp"
+#include "Maths/Grid.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "catch2/catch.hpp"
 #include <utility>
-
-// {"E1", &generate_E1},
-// {"Ek", &generate_Ek},
-// {"M1", &generate_M1},
-// {"hfs", &generate_hfsA},
-// {"hfsK", &generate_hfsK},
-// {"r", &generate_r},
-// {"pnc", &generate_pnc},
-// {"Hrad", &generate_Hrad}
 
 TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
   std::cout << "\n----------------------------------------\n";
@@ -364,20 +356,158 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
     REQUIRE(h->name() == "Vrad");
     REQUIRE(!h->units().empty());
 
-    // for (auto &a : wf.valence()) {
-    //   auto me = h->radialIntegral(a, a);
-    //   std::cout << "{\"" << a << "\", \"" << a << "\", ";
-    //   printf("%.10e},\n", me);
-    // }
-
     for (auto &[a, b, me] : data) {
       const auto &Fa = *wf.getState(a);
       const auto hab = h->radialIntegral(Fa, Fa);
       REQUIRE(std::abs(hab - me) < 1.0e-6);
     }
   }
+
+  //--------------------------------------------------------------------
+  SECTION("jL") {
+    std::cout << "jL\n";
+
+    const auto qgrid = Grid(0.01, 100.0, 10, GridType::logarithmic);
+
+    std::size_t in_max_l = 3;
+    auto jl = DiracOperator::jL(wf.grid(), qgrid, in_max_l);
+    auto g0jl = DiracOperator::g0jL(wf.grid(), qgrid, in_max_l);
+    auto ig5jL = DiracOperator::ig5jL(wf.grid(), qgrid, in_max_l);
+    // auto ig0g5jL = DiracOperator::ig0g5jL(wf.grid(), qgrid, in_max_l);
+    // constructing from existing operator: copies table
+    // (should only see "Filling jL lookup table:" 3 times)
+    auto ig0g5jL = DiracOperator::ig0g5jL(jl);
+
+    REQUIRE(&jl.q_grid() == &qgrid);
+    REQUIRE(&jl.r_grid() == &wf.grid());
+
+    // We never call set_L_q on these ones!
+    const DiracOperator::jL jl_0 = jl;
+    const DiracOperator::g0jL g0jl_0 = jl;
+    const DiracOperator::ig5jL ig5jL_0 = jl;
+    const DiracOperator::ig0g5jL ig0g5jL_0 = jl;
+
+    REQUIRE(jl.get_d_order() == 0);
+    REQUIRE(jl.imaginaryQ() == false);
+    REQUIRE(jl.max_L() == in_max_l);
+
+    // test copy constructor
+    auto jl_2 = jl;
+
+    auto C = [](int ka, int kb, std::size_t l) {
+      auto c = Angular::Ck_kk(int(l), ka, kb);
+      return double(2 * l + 1) * c * c;
+    };
+    auto D = [C](int ka, int kb, std::size_t l) { return C(ka, -kb, l); };
+
+    // For each L and q, test against directly calculating ME
+    for (auto l = 0ul; l <= jl.max_L(); ++l) {
+      for (auto &q : qgrid.r()) {
+        jl.set_L_q(l, q);
+        jl_2.set_L_q(l, q);
+        // std::cout << l << " " << q << "\n";
+        REQUIRE(jl.rank() == int(l));
+        REQUIRE(jl.L() == l);
+        const auto jl2 =
+            SphericalBessel::fillBesselVec_kr(int(l), q, wf.grid().r());
+
+        for (const auto &a : wf.valence()) {
+          for (const auto &b : wf.valence()) {
+            REQUIRE(jl.isZero(a, b) == jl.is_zero(a, b, l));
+            if (jl.isZero(a, b))
+              continue;
+            //test radial integral vs. diract calculation
+            auto ri1 = jl.radialIntegral(a, b);
+
+            const auto ri2 = a * (jl2 * b);
+            REQUIRE(ri1 == Approx(ri2));
+
+            // test square of RME (also test copy of jl_2)
+            auto rme1 = double(2 * l + 1) * std::pow(jl_2.reducedME(a, b), 2);
+            auto rme2 = ri2 * ri2 * C(a.kappa(), b.kappa(), l);
+            REQUIRE(rme1 == Approx(rme2));
+
+            // test direct
+            REQUIRE(jl.reducedME(a, b) == Approx(jl_0.rme(a, b, l, q)));
+          }
+        }
+      }
+    }
+
+    // test copy of derived:
+    auto g0jl_2 = g0jl;
+
+    // For each L and q, test against directly calculating ME
+    // For the g0, g5, and g0g5 versions:
+    for (auto l = 0ul; l <= jl.max_L(); ++l) {
+      for (auto &q : qgrid.r()) {
+        g0jl.set_L_q(l, q);
+        g0jl_2.set_L_q(l, q);
+        ig5jL.set_L_q(l, q);
+        ig0g5jL.set_L_q(l, q);
+        REQUIRE(g0jl.L() == l);
+        REQUIRE(g0jl_2.L() == l);
+        REQUIRE(ig5jL.L() == l);
+        REQUIRE(ig0g5jL.L() == l);
+
+        const auto J_L =
+            SphericalBessel::fillBesselVec_kr(int(l), q, wf.grid().r());
+
+        for (const auto &a : wf.valence()) {
+          for (const auto &b : wf.valence()) {
+            REQUIRE(g0jl.isZero(a, b) == g0jl_0.is_zero(a, b, l));
+            REQUIRE(ig0g5jL.isZero(a, b) == ig0g5jL_0.is_zero(a, b, l));
+            REQUIRE(ig5jL.isZero(a, b) == ig5jL_0.is_zero(a, b, l));
+
+            // test copy:
+            REQUIRE(g0jl.reducedME(a, b) == Approx(g0jl_2.reducedME(a, b)));
+
+            const auto &gr = wf.grid();
+            const auto Rf =
+                NumCalc::integrate(gr.du(), 0, 0, a.f(), b.f(), J_L, gr.drdu());
+            const auto Rg =
+                NumCalc::integrate(gr.du(), 0, 0, a.g(), b.g(), J_L, gr.drdu());
+            const auto Rfg =
+                NumCalc::integrate(gr.du(), 0, 0, a.f(), b.g(), J_L, gr.drdu());
+            const auto Rgf =
+                NumCalc::integrate(gr.du(), 0, 0, a.g(), b.f(), J_L, gr.drdu());
+
+            const auto rme2_g0 =
+                C(a.kappa(), b.kappa(), l) * (Rf * Rf - 2 * Rf * Rg + Rg * Rg);
+            const auto rme2_g0g5 = D(a.kappa(), b.kappa(), l) *
+                                   (Rfg * Rfg + 2 * Rfg * Rgf + Rgf * Rgf);
+            const auto rme2_g5 = D(a.kappa(), b.kappa(), l) *
+                                 (Rfg * Rfg - 2 * Rfg * Rgf + Rgf * Rgf);
+
+            const auto rme1_g0 =
+                double(2 * l + 1) * std::pow(g0jl.reducedME(a, b), 2);
+            const auto rme1_g0g5 =
+                double(2 * l + 1) * std::pow(ig0g5jL.reducedME(a, b), 2);
+            const auto rme1_g5 =
+                double(2 * l + 1) * std::pow(ig5jL.reducedME(a, b), 2);
+
+            // use 'margin' here, since some MEs are zero (don't skip, since some have different selection rules)
+
+            REQUIRE(rme2_g0 == Approx(rme1_g0).margin(1.0e-12));
+            REQUIRE(rme2_g0g5 == Approx(rme1_g0g5).margin(1.0e-12));
+            REQUIRE(rme2_g5 == Approx(rme1_g5).margin(1.0e-12));
+
+            // test direct
+            REQUIRE(g0jl.reducedME(a, b) ==
+                    Approx(g0jl_0.rme(a, b, l, q)).margin(1.0e-12));
+            REQUIRE(ig0g5jL.reducedME(a, b) ==
+                    Approx(ig0g5jL_0.rme(a, b, l, q)).margin(1.0e-12));
+            REQUIRE(ig5jL.reducedME(a, b) ==
+                    Approx(ig5jL_0.rme(a, b, l, q)).margin(1.0e-12));
+          }
+        }
+      }
+    }
+  }
 }
 
+//--------------------------------------------------------------------
+//--------------------------------------------------------------------
 // Used to generate test data (with 8000 points)
 // for (auto &a : wf.valence()) {
 //   for (auto &b : wf.valence()) {

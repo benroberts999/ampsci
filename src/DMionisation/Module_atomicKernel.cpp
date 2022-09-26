@@ -1,5 +1,6 @@
-#include "DMionisation/Module_atomicKernal.hpp"
+#include "DMionisation/Module_atomicKernel.hpp"
 #include "DMionisation/AKF_akFunctions.hpp"
+#include "DiracOperator/DiracOperator.hpp"
 #include "HF/HartreeFock.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/InputBlock.hpp"
@@ -13,7 +14,7 @@
 namespace Module {
 
 //==============================================================================
-void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
+void atomicKernel(const IO::InputBlock &input, const Wavefunction &wf) {
   IO::ChronoTimer timer;
 
   input.check(
@@ -101,11 +102,12 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Make sure h (large-r step size) is small enough to
   // calculate (normalise) cntm functions with energy = demax
-  const double du_target = (M_PI / 20.) / std::sqrt(2. * demax);
+  const double du_target = (M_PI / 15.0) / std::sqrt(2.0 * demax);
   const auto du = wf.grid().du();
   if (du > du_target) {
     const auto new_num_points = Grid::calc_num_points_from_du(
-        wf.grid().r0(), wf.grid().rmax(), du_target, GridType::loglinear, 4.0);
+        wf.grid().r0(), wf.grid().rmax(), du_target, GridType::loglinear,
+        wf.grid().loglin_b());
     const auto old_num_points = wf.grid().num_points();
     // num_points = (int)new_num_points;
     std::cerr
@@ -122,7 +124,7 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
     fname += "_" + label;
 
   // Print some info to screen:
-  std::cout << "\nRunning Atomic Kernal for " << wf.atom() << "\n";
+  std::cout << "\nRunning Atomic Kernel for " << wf.atom() << "\n";
   std::cout << "================================================*\n";
 
   // Output HF results:
@@ -138,9 +140,9 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
   //////////////////////////////////////////////////
 
   // Arrays to store results for outputting later:
-  std::vector<std::vector<std::vector<float>>> AK; // float ok?
+  std::vector<std::vector<std::vector<double>>> AK;
   const auto num_states = wf.core().size();
-  AK.resize(desteps, std::vector<std::vector<float>>(num_states));
+  AK.resize(desteps, std::vector<std::vector<double>>(num_states));
 
   // Store state info (each orbital) [just useful for plotting!]
   std::vector<std::string> nklst; // human-readiable state labels (easy
@@ -150,10 +152,12 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
     nklst.emplace_back(phi.symbol(true));
 
   // pre-calculate the spherical Bessel function look-up table for efficiency
-  timer.start();
-  const auto jLqr_f =
-      AKF::sphericalBesselTable(max_L, qgrid.r(), wf.grid().r());
-  std::cout << "Time for SB table: " << timer.lap_reading_str() << "\n";
+  // timer.start();
+  // const auto jLqr_f =
+  //     AKF::sphericalBesselTable(max_L, qgrid.r(), wf.grid().r());
+  // std::cout << "Time for SB table: " << timer.lap_reading_str() << "\n";
+
+  const DiracOperator::jL jl(wf.grid(), qgrid, std::size_t(max_L));
 
   // Calculate the AK (print to screen)
   std::cout << "\nCalculating atomic kernal AK(q,dE):\n";
@@ -163,6 +167,11 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
   printf("  q: %5.0e -- %5.1g MeV  (%.2f -- %.1f au)  [N=%i]\n",
          qmin * UnitConv::Momentum_au_to_MeV,
          qmax * UnitConv::Momentum_au_to_MeV, qmin, qmax, (int)qsteps);
+  // std::cout << "\nCalculating atomic kernel AK(q,dE):\n";
+  // printf(" dE: %5.2f -- %5.1f keV  (%.2f -- %.1f au)  [N=%i]\n", demin / keV,
+  //        demax / keV, demin, demax, (int)desteps);
+  // printf("  q: %5.0e -- %5.1g MeV  (%.2f -- %.1f au)  [N=%i]\n", qmin / qMeV,
+  //        qmax / qMeV, qmin, qmax, (int)qsteps);
 
   // Calculate K(q,E)
   timer.start();
@@ -182,6 +191,8 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
         AK[ide][is] = AKF::calculateK_nk(wf, psi, max_L, dE, jLqr_f, alt_akf,
                                          force_rescale, subtract_self,
                                          force_orthog, dmec, zeff_cont);
+      //AK[ide][is] = AKF::K_q(dE, phi_c, wf.vHF(), jl);
+      // AK[ide][is] = AKF::K_tilde_q(dE, phi_c, wf.vHF(), jl);
     } // END loop over bound states
   }
   std::cout << "..done :)\n";
@@ -190,7 +201,7 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
   // Write out to text file (in gnuplot friendly form)
   if (text_out) {
     AKF::write_Knk_plaintext(fname, AK, nklst, qgrid, Egrid);
-    AKF::write_Ktot_plaintext(fname, AK, qgrid, Egrid);
+    // AKF::write_Ktot_plaintext(fname, AK, qgrid, Egrid);
   }
   // //Write out AK as binary file
   if (bin_out) {

@@ -3,7 +3,7 @@
 // (Modules don't _need_ to be in Modules/ directory
 #include "DMionisation/Module_AFBindingEnergy.hpp"
 #include "DMionisation/Module_AFStepFunction.hpp"
-#include "DMionisation/Module_atomicKernal.hpp"
+#include "DMionisation/Module_atomicKernel.hpp"
 #include "Modules/HFAnomaly.hpp"
 #include "Modules/continuum.hpp"
 #include "Modules/exampleModule.hpp"
@@ -39,7 +39,7 @@ using module_function_t = void (*)(const IO::InputBlock &input,
 static const std::map<std::string, module_function_t> module_list{
     {"Tests", &Module_tests},
     {"WriteOrbitals", &writeOrbitals},
-    {"AtomicKernal", &atomicKernal},
+    {"AtomicKernel", &atomicKernel},
     {"BohrWeisskopf", &BohrWeisskopf},
     {"HFAnomaly", &HFAnomaly},
     {"HF_rmag", &HF_rmag},

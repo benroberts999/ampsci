@@ -22,7 +22,7 @@ Xe100           ! output label (put 'na' for none)
 3. 14.          ! PE to integrate
 1               ! Write to file: 0= dS/ds1, 1= S1, 2=both
 !!!!!!!!!!!!!!!!!
-!*1 reads in binary output from "atomicKernal" program
+!*1 reads in binary output from "atomicKernel" program
 !*2 a) Gaussian resolution, error in sigma_E [+/-1]
 !   b) Error in PE-keV conversion (only used for hardware threshold)
 !   [I take average of 6.5+/-1 PE per keV...This is probably too simplistic!]

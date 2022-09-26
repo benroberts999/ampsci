@@ -82,7 +82,7 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   const bool eachFreqQ = str_om == "each" || str_om == "Each";
   const auto omega = eachFreqQ ? 0.0 : input.get("omega", 0.0);
 
-  if (h->freqDependantQ) {
+  if (h->freqDependantQ()) {
     std::cout << "Frequency-dependent operator; at omega = ";
     if (eachFreqQ)
       std::cout << "each transition frequency\n";
@@ -180,7 +180,7 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto n_max = n_minmax.size() > 1 ? n_minmax[1] : 999;
 
   // For freq-dependent operators:
-  if (h->freqDependantQ && !eachFreqQ)
+  if (h->freqDependantQ() && !eachFreqQ)
     h->updateFrequency(const_omega);
 
   // do RPA:
@@ -277,7 +277,7 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
       t_out.ab = h->rme_symbol(w, v);
 
       const auto ww = eachFreqQ ? std::abs(wp->en() - vp->en()) : const_omega;
-      if (eachFreqQ && h->freqDependantQ) {
+      if (eachFreqQ && h->freqDependantQ()) {
         h->updateFrequency(ww);
       }
       if (eachFreqQ && rpaQ) {
