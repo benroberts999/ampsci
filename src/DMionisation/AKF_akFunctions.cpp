@@ -43,6 +43,13 @@ double CLkk_DLkk(int L, int ka, int kb, std::string dmec)
   return (two_ja + 1) * (two_jb + 1) * (2 * L + 1) * tjs * tjs;
 }
 
+//******************************************************************************
+double Heaviside(double x)
+// Heaviside step function: Theta(x) = {(1 for x>0) and (0 for x<=0)}
+{
+  return (x > 0.0) ? 1.0 : 0.0;
+}
+
 //==============================================================================
 std::vector<float>
 calculateK_nk(const Wavefunction &wf, const DiracSpinor &psi, int max_L,
