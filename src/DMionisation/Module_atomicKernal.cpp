@@ -1,5 +1,6 @@
 #include "DMionisation/Module_atomicKernal.hpp"
 #include "DMionisation/AKF_akFunctions.hpp"
+#include "DiracOperator/DiracOperator.hpp"
 #include "HF/HartreeFock.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/InputBlock.hpp"
@@ -124,10 +125,12 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
     nklst.emplace_back(phi.symbol(true));
 
   // pre-calculate the spherical Bessel function look-up table for efficiency
-  timer.start();
-  const auto jLqr_f =
-      AKF::sphericalBesselTable(max_L, qgrid.r(), wf.grid().r());
-  std::cout << "Time for SB table: " << timer.lap_reading_str() << "\n";
+  // timer.start();
+  // const auto jLqr_f =
+  //     AKF::sphericalBesselTable(max_L, qgrid.r(), wf.grid().r());
+  // std::cout << "Time for SB table: " << timer.lap_reading_str() << "\n";
+
+  const DiracOperator::jL jl(wf.grid(), qgrid, std::size_t(max_L));
 
   // Calculate the AK (print to screen)
   std::cout << "\nCalculating atomic kernal AK(q,dE):\n";
@@ -148,10 +151,12 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
       const auto l = std::size_t(phi_c.l());
       if ((int)l > max_l)
         continue;
-      if (plane_wave)
-        AK[ide][is] = AKF::calculateKpw_nk(wf, phi_c, dE, jLqr_f[l]);
-      else
-        AK[ide][is] = AKF::calculateK_nk(wf, phi_c, max_L, dE, jLqr_f);
+      // if (plane_wave)
+      //   AK[ide][is] = AKF::calculateKpw_nk(wf, phi_c, dE, jLqr_f[l]);
+      // else
+      // AK[ide][is] = AKF::calculateK_nk(wf, phi_c, max_L, dE, jLqr_f);
+      AK[ide][is] = AKF::K_q(dE, phi_c, wf.vHF(), jl);
+      // AK[ide][is] = AKF::K_tilde_q(dE, phi_c, wf.vHF(), jl);
     } // END loop over bound states
   }
   std::cout << "..done :)\n";
@@ -160,7 +165,7 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
   // Write out to text file (in gnuplot friendly form)
   if (text_out) {
     AKF::write_Knk_plaintext(fname, AK, nklst, qgrid, Egrid);
-    AKF::write_Ktot_plaintext(fname, AK, qgrid, Egrid);
+    // AKF::write_Ktot_plaintext(fname, AK, qgrid, Egrid);
   }
   // //Write out AK as binary file
   if (bin_out) {

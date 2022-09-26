@@ -63,9 +63,8 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
 
   // include Hartree here? Probably shouldn't, since we do "core Hartree"
   const auto self_consistant = (p_hf->method() == HF::Method::HartreeFock ||
-                                p_hf->method() == HF::Method::ApproxHF
-                                /*|| p_hf->method() == HF::Method::Hartree*/
-  );
+                                p_hf->method() == HF::Method::ApproxHF);
+  // || p_hf->method() == HF::Method::Hartree);
 
   // If Fi given, subtract self-interactions + orthogonalise wrt Fi
   const bool subtract_self_int = Fi != nullptr;
@@ -73,7 +72,7 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
   // If Fi _not_ given, instead re-scale V(r) so ~ -Zion/r at large r
   const bool force_rescale = Fi == nullptr;
 
-  const bool orthog_core = false;
+  const bool orthog_core = true;
 
   // Find 'inital guess' for asymptotic region:
   const double lam = 1.0e6;

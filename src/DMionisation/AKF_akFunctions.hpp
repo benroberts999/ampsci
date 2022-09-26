@@ -1,9 +1,13 @@
 #pragma once
+#include "DiracOperator/DiracOperator.hpp"
 #include <string>
 #include <vector>
 class Wavefunction;
 class DiracSpinor;
 class Grid;
+namespace HF {
+class HartreeFock;
+}
 
 namespace AKF {
 
@@ -12,7 +16,8 @@ std::vector<double> K_q(double dE, const DiracSpinor &Fa,
                         const HF::HartreeFock *hf, const DiracOperator::jL &jl);
 
 //! New function; calculate K_tilde(q) [for single given core state]
-std::vector<double> K_tilde_q(const DiracSpinor &Fa, const HF::HartreeFock *hf,
+std::vector<double> K_tilde_q(double dE, const DiracSpinor &Fa,
+                              const HF::HartreeFock *hf,
                               const DiracOperator::jL &jl);
 
 //---------------------------

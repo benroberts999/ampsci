@@ -14,6 +14,7 @@
 
 namespace AKF {
 
+//==============================================================================
 std::vector<double> K_q(double dE, const DiracSpinor &Fa,
                         const HF::HartreeFock *hf,
                         const DiracOperator::jL &jl) {
@@ -39,7 +40,10 @@ std::vector<double> K_q(double dE, const DiracSpinor &Fa,
         if (jl.is_zero(Fa, Fe, L))
           continue;
         const auto q = jl.q_grid().r(iq);
-        const auto me = jl.rme(Fa, Fe, L, q);
+        auto me = jl.rme(Fa, Fe, L, q);
+        if (Fa.kappa() == Fe.kappa()) {
+          me -= Fa * Fe;
+        }
         kq_out.at(iq) += double(2 * L + 1) * me * me * x;
       }
     }
@@ -48,12 +52,18 @@ std::vector<double> K_q(double dE, const DiracSpinor &Fa,
   return kq_out;
 }
 
-std::vector<double> K_tilde_q(const DiracSpinor &Fa, const HF::HartreeFock *hf,
+//==============================================================================
+std::vector<double> K_tilde_q(double dE, const DiracSpinor &Fa,
+                              const HF::HartreeFock *hf,
                               const DiracOperator::jL &jl) {
+
+  // sems to work perfectly at large q, but very poorly at small q
   const auto q_points = jl.q_grid().num_points();
   std::vector<double> kq_out(q_points);
+  if (dE < std::abs(Fa.en()))
+    return kq_out;
 
-  const auto ec = 0.1;
+  const auto ec = 100.0;
 
   const int lc_max = Fa.l() + int(jl.max_L()) + 1;
   const int lc_min = std::max(0, Fa.l() - int(jl.max_L()) - 1);
