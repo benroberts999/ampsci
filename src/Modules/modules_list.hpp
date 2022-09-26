@@ -1,6 +1,8 @@
 #pragma once
 // Add new module includes here:
 // (Modules don't _need_ to be in Modules/ directory
+#include "DMionisation/Module_AFBindingEnergy.hpp"
+#include "DMionisation/Module_AFStepFunction.hpp"
 #include "DMionisation/Module_atomicKernal.hpp"
 #include "Modules/HFAnomaly.hpp"
 #include "Modules/continuum.hpp"

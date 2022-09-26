@@ -1,5 +1,5 @@
-#include "DMionisation/Module_atomicKernal.hpp"
 #include "DMionisation/AKF_akFunctions.hpp"
+#include "DMionisation/Module_atomicKernal.hpp"
 #include "HF/HartreeFock.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/InputBlock.hpp"
@@ -10,11 +10,13 @@
 #include "Wavefunction/Wavefunction.hpp"
 #include <iostream>
 
+#pragma GCC diagnostic ignored "-Wsign-conversion"
+
 namespace Module {
 
-//==============================================================================
-void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
-  IO::ChronoTimer timer;
+//******************************************************************************
+void AFStepFunction(const IO::InputBlock &input, const Wavefunction &wf) {
+  IO::ChronoTimer timer; // start the overall timer
 
   input.check(
       {{"Emin", "[keV] minimum energy transfer (dE) ~0.1"},
@@ -25,19 +27,10 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
        {"qsteps", "number of steps along q grid (logarithmic grid)"},
        {"max_l_bound",
         "Max. orbital ang. mom. for bound states to include (only for tests)"},
-       {"max_L", "Maximum multipolarity used in exp(iqr) expansion"},
-       {"use_plane_waves", "true/false"},
-       {"label", "label for output files"},
+       {"table_label", "label for atomic factor table"},
+       {"output_label", "label for output files"},
        {"output_text", "true/false (output K(dE,q) to .txt)"},
-       {"output_binary", "true/false (output K(dE,q) to .bin)"},
-       {"use_alt_akf", " "},
-       {"force_rescale", " "},
-       {"subtract_self", " "},
-       {"force_orthog", " "},
-       {"dme_coupling", " "},
-       {"use_Zeff_cont", "use Zeff model for continuum states"}});
-  if (input.has_option("help"))
-    return;
+       {"output_binary", "true/false (output K(dE,q) to .bin)"}});
 
   // Read input: q and dE grids:
   const auto demin_kev = input.get<double>("Emin", 0.1);
@@ -57,18 +50,13 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
   const Grid Egrid({desteps, demin, demax, 0, GridType::logarithmic});
   const Grid qgrid({qsteps, qmin, qmax, 0, GridType::logarithmic});
 
-  // read in max l and L
   const auto max_l_core = DiracSpinor::max_l(wf.core());
   auto max_l = input.get<int>("max_l_bound", max_l_core);
   if (max_l < 0 || max_l > max_l_core)
     max_l = max_l_core;
-  auto max_L = input.get<int>("max_L", 2 * max_l); // random default..
 
-  const bool plane_wave = input.get<bool>("use_plane_waves", false);
-  if (plane_wave)
-    max_L = max_l; // for spherical bessel.
-
-  const auto label = input.get<std::string>("label", "");
+  auto table_label = input.get<std::string>("table_label", "");
+  auto output_label = input.get<std::string>("output_label", "");
 
   // output format
   auto text_out = input.get<bool>("output_text", false);
@@ -76,37 +64,14 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
   if (!text_out && !bin_out)
     bin_out = true; // print message?
 
-  // if alt_akf then exp(iqr) -> exp(iqr) - 1 (i.e. j_L -> j_L - 1)
-  const auto alt_akf = input.get<bool>("use_alt_akf", false);
-  // Options used by solveContinuumHF (called in AKF)
-  const auto force_rescale = input.get<bool>("force_rescale", false);
-  const auto subtract_self = input.get<bool>("subtract_self", false);
-  const auto force_orthog = input.get<bool>("force_orthog", false);
-
-  const auto zeff_cont = input.get<bool>("use_Zeff_cont", false);
-
-  // DM-electron couplings
-  std::vector<std::string> dmec_opt = {"Vector", "Scalar", "Pseudovector",
-                                       "Pseudoscalar"};
-  std::string dmec = input.get<std::string>("dme_coupling", "Vector");
-  int dmec_check = 0;
-  for (const auto &option : dmec_opt) {
-    dmec_check += (dmec == option) ? 1 : 0;
-  }
-  if (dmec_check == 0) {
-    std::cerr << "\nWARNING: dm-electron coupling '" << dmec
-              << "' unknown, defaulting to Vector\n";
-    dmec = "Vector";
-  }
-
   // Make sure h (large-r step size) is small enough to
   // calculate (normalise) cntm functions with energy = demax
-  const double du_target = (M_PI / 20.) / std::sqrt(2. * demax);
-  const auto du = wf.grid().du();
+  double du_target = (M_PI / 20.) / std::sqrt(2. * demax);
+  auto du = wf.grid().du();
   if (du > du_target) {
-    const auto new_num_points = Grid::calc_num_points_from_du(
+    auto new_num_points = Grid::calc_num_points_from_du(
         wf.grid().r0(), wf.grid().rmax(), du_target, GridType::loglinear, 4.0);
-    const auto old_num_points = wf.grid().num_points();
+    auto old_num_points = wf.grid().num_points();
     // num_points = (int)new_num_points;
     std::cerr
         << "\nWARNING 118: Grid not dense enough for contimuum state with "
@@ -117,13 +82,14 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 
   // outut file name (excluding extension):
-  std::string fname = "ak-" + wf.atomicSymbol();
-  if (label != "")
-    fname += "_" + label;
+  std::string fname = "afsf-" + wf.atomicSymbol(); // + "_" + label;
+  if (output_label != "")
+    fname += "_" + output_label;
 
   // Print some info to screen:
-  std::cout << "\nRunning Atomic Kernal for " << wf.atom() << "\n";
-  std::cout << "================================================*\n";
+  std::cout << "\nRunning Step Function Approximated Atomic Kernal for "
+            << wf.atom() << "\n";
+  std::cout << "*************************************************\n";
 
   // Output HF results:
   std::cout << "  state   k     En (au)    En (eV)   Oc.Frac.\n";
@@ -137,23 +103,36 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
   }
   //////////////////////////////////////////////////
 
+  //
+
   // Arrays to store results for outputting later:
   std::vector<std::vector<std::vector<float>>> AK; // float ok?
   const auto num_states = wf.core().size();
   AK.resize(desteps, std::vector<std::vector<float>>(num_states));
 
-  // Store state info (each orbital) [just useful for plotting!]
-  std::vector<std::string> nklst; // human-readiable state labels (easy
-                                  // plotting)
+  // Arrays to store input K table
+  std::vector<std::vector<std::vector<float>>> AFBE_table;
+  AFBE_table.resize(1, std::vector<std::vector<float>>(
+                           num_states, std::vector<float>(qsteps)));
+
+  std::vector<std::string> nklst;
   nklst.reserve(wf.core().size());
   for (auto &phi : wf.core())
     nklst.emplace_back(phi.symbol(true));
 
-  // pre-calculate the spherical Bessel function look-up table for efficiency
+  std::vector<double> eabove;
+  eabove.reserve(wf.core().size());
+
+  // Start timer
   timer.start();
-  const auto jLqr_f =
-      AKF::sphericalBesselTable(max_L, qgrid.r(), wf.grid().r());
-  std::cout << "Time for SB table: " << timer.lap_reading_str() << "\n";
+  // std::cout << "Looking for atomic factor table...\n";
+  std::string fname_table = "afbe_table-" + wf.atomicSymbol();
+  if (table_label != "")
+    fname_table += "_" + table_label;
+
+  std::cout << "Reading atomic factor table...\n";
+  AKF::akReadWrite_AFBE(fname_table, false, AFBE_table, nklst, qmin, qmax,
+                        eabove);
 
   // Calculate the AK (print to screen)
   std::cout << "\nCalculating atomic kernal AK(q,dE):\n";
@@ -166,22 +145,17 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Calculate K(q,E)
   timer.start();
-  std::cout << "Running dE loops (" << desteps << ").." << std::flush;
+  std::cout << "Running dE loops (" << desteps << ")..\n" << std::flush;
 #pragma omp parallel for
   for (std::size_t ide = 0; ide < desteps; ide++) {
-    const double dE = Egrid.r(ide);
+    double dE = Egrid.r()[ide];
     // Loop over core (bound) states:
     for (std::size_t is = 0; is < wf.core().size(); is++) {
       const auto &psi = wf.core()[is];
       const auto l = std::size_t(psi.l());
       if ((int)l > max_l)
         continue;
-      if (plane_wave)
-        AK[ide][is] = AKF::calculateKpw_nk(wf, psi, dE, jLqr_f[l]);
-      else
-        AK[ide][is] = AKF::calculateK_nk(wf, psi, max_L, dE, jLqr_f, alt_akf,
-                                         force_rescale, subtract_self,
-                                         force_orthog, dmec, zeff_cont);
+      AK[ide][is] = AKF::stepK_nk(psi, dE, AFBE_table[0][is]);
     } // END loop over bound states
   }
   std::cout << "..done :)\n";
@@ -193,9 +167,8 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
     AKF::write_Ktot_plaintext(fname, AK, qgrid, Egrid);
   }
   // //Write out AK as binary file
-  if (bin_out) {
+  if (bin_out)
     AKF::akReadWrite(fname, true, AK, nklst, qmin, qmax, demin, demax);
-  }
   std::cout << "Written to: " << fname;
   if (text_out)
     std::cout << ".txt";

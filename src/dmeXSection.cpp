@@ -244,7 +244,41 @@ void writeForGnuplot_mxBlock(const DoubleVec3D &X_mv_mx_x, const Grid &mvgrid,
   of.close();
 }
 
-//==============================================================================
+//******************************************************************************
+// double dsdE_njl_Evmumx(const )
+double dsnjldE_vmvmx(const std::vector<std::vector<float>> &Ke_nq, double E,
+                     const Grid &qgrid, double v, double mv, double mx,
+                     std::size_t is, double (*F_chi_2)(double, double))
+/*
+calculates cross-section ds_njl/dE
+*/
+{
+  std::size_t qsteps = qgrid.num_points();
+
+  double arg = mx * mx * v * v - 2. * mx * E;
+  if (arg < 0)
+    return 0;
+
+  double mu = mv * PhysConst::c;
+
+  double qminus = mx * v - std::sqrt(arg);
+  double qplus = mx * v + std::sqrt(arg);
+  if (qminus > qgrid.rmax() || qplus < qgrid.r0())
+    return 0;
+
+  double dsdE = 0;
+  for (std::size_t iq = 0; iq < qsteps; iq++) {
+    double q = qgrid.r()[iq];
+    if (q < qminus || q > qplus)
+      continue;
+    double qdq_ondu = q * qgrid.drdu()[iq];
+    double FX2 = F_chi_2(mu, q); // DM form factr (^2) [uses function pointer]
+    dsdE += qdq_ondu * FX2 * double(Ke_nq[is][iq]);
+  } // q int
+  return dsdE * 0.5 * qgrid.du() / (v * v);
+}
+
+//******************************************************************************
 double dsdE_Evmvmx(const std::vector<std::vector<float>> &Ke_nq, double E,
                    double v, double mv, double mx, const Grid &qgrid,
                    double (*F_chi_2)(double, double))
@@ -427,7 +461,7 @@ void doDAMA(const DoubleVec3D &dsv_mv_mx_E, const Grid &mvgrid,
             const Grid &mxgrid, const Grid &Egrid, bool do_anMod,
             bool write_dSdE, bool write_SofM, double dres, double err_PEkeV,
             double Atot, double iEbin, double fEbin, double wEbin,
-            const std::string &label)
+            const std::string &label, bool doXe1T)
 /*
 Takes in <ds.v>/dE, and calculated dS/dE, for DAMA.
 Depending on above, will be either S_0 or S_m (mod. amplitude)
@@ -435,7 +469,11 @@ Includes detector resolution etc.
 Optionally further integrates into energy bins
 */
 {
-  std::cout << "\n*** Doing S1 for DAMA ***\n";
+  if (doXe1T) {
+    std::cout << "\n*** Doing S1 for XENON1T ***\n";
+  } else {
+    std::cout << "\n*** Doing S1 for DAMA ***\n";
+  }
   std::size_t n_mv = mvgrid.num_points();
   std::size_t n_mx = mxgrid.num_points();
   std::size_t desteps = Egrid.num_points();
@@ -443,10 +481,18 @@ Optionally further integrates into energy bins
   // DAMA resolution/threshold parameters:
   // Hardware threshold: should be between [-1,1]
   double PE_per_keV = 6.5 + err_PEkeV * 1.;
-  double E_thresh_HW = 1. / PE_per_keV / E_to_keV;
+  double E_thresh_HW;
+  double alpha, beta;
+  if (doXe1T) {
+    E_thresh_HW = 1. / E_to_keV;
+    alpha = 0.310 + dres * 0.004;
+    beta = 0.0037 + dres * 0.0003;
+  } else {
+    E_thresh_HW = 1. / PE_per_keV / E_to_keV;
+    alpha = 0.45 + dres * 0.04;
+    beta = 0.009 + dres * 0.005;
+  }
   // DAMA parameters for Gaussian resolution (smearing)
-  double alpha = 0.45 + dres * 0.04;
-  double beta = 0.009 + dres * 0.005;
   std::cout << "DAMA detector resolution:";
   if (dres != 0)
     std::cout << " with error term: " << dres << ".";
@@ -457,6 +503,13 @@ Optionally further integrates into energy bins
   std::cout << "\n ==> PE per keV = " << PE_per_keV << " (PE).";
   std::cout << "\n ==> E_HW       = " << E_thresh_HW * E_to_keV << " (keV).\n";
 
+  double E_bound;
+  if (doXe1T) {
+    E_bound = Egrid.r0();
+  } else {
+    E_bound = E_thresh_HW;
+  }
+
   // Create the Gaussian-smearing array (includes HW threshold)
   std::vector<std::vector<double>> gausVec(desteps);
   for (std::size_t i = 0; i < desteps; i++) {
@@ -466,7 +519,8 @@ Optionally further integrates into energy bins
         E_to_keV;
     for (auto Eer : Egrid.r()) {
       double g = gaussian(sigma, Eobs - Eer);
-      if (Eer < E_thresh_HW || Eobs < E_thresh_HW)
+
+      if (Eer < E_bound || Eobs < E_bound)
         g = 0;
       gausVec[i].push_back(g);
     }
@@ -478,7 +532,19 @@ Optionally further integrates into energy bins
                                 n_mx, std::vector<double>(desteps)));
 
   // Total atomic/mol. mass (in kg) [for units]
-  double MN = Atot * (PhysConst::u_NMU * PhysConst::m_e_kg);
+  double MN;
+  if (doXe1T) {
+    MN = 131. * (PhysConst::u_NMU * PhysConst::m_e_kg);
+  } else {
+    MN = Atot * (PhysConst::u_NMU * PhysConst::m_e_kg);
+  }
+
+  auto effic = [](double energy) {
+    return (0.876 - 7.39e-04 * energy * E_to_keV) /
+           std::pow(
+               (1.0 + 0.104 * std::exp(-(energy * E_to_keV - 1.98) / 0.360)),
+               2.03);
+  };
 
   // Calculate _observable_ rate, S, for DAMA
   // inlcuding Gaussian resolution, + hard-ware threshold
@@ -490,6 +556,17 @@ Optionally further integrates into energy bins
       double rate_units = dsvdE_to_cm3keVday * rho_on_mxc2 / MN;
       dSdE_mv_mx_E[imv][imx] =
           convolvedRate(dsv_mv_mx_E[imv][imx], Egrid, gausVec, rate_units);
+    }
+  }
+
+  if (doXe1T) {
+    // multipltying by detector efficiency
+    for (std::size_t imv = 0; imv < n_mv; imv++) {
+      for (std::size_t imx = 0; imx < n_mx; imx++) {
+        for (std::size_t ide = 0; ide < desteps; ide++) {
+          dSdE_mv_mx_E[imv][imx][ide] *= effic(Egrid.r(ide));
+        }
+      }
     }
   }
 
@@ -535,28 +612,37 @@ Optionally further integrates into energy bins
   std::cout << ")\n";
   for (std::size_t imv = 0; imv < n_mv; imv++) {
     for (std::size_t imx = 0; imx < n_mx; imx++) {
-      for (int i = 0; i < num_bins; i++) {
-        auto ieA = Egrid.getIndex(iEbin + i * wEbin);
-        auto ieB = Egrid.getIndex(iEbin + (i + 1) * wEbin);
-        // if (ieA < 0)
-        //   ieA = 0;
+      if (doXe1T) {
+        auto ieA = Egrid.getIndex(iEbin);
+        auto ieB = Egrid.getIndex(fEbin);
+        double Rate;
+        Rate = NumCalc::integrate(Egrid.du(), ieA, ieB, dSdE_mv_mx_E[imv][imx],
+                                  Egrid.drdu());
+        S_mv_mx_E[imv][imx][0] = Rate / wEbin;
+      } else {
+        for (int i = 0; i < num_bins; i++) {
+          auto ieA = Egrid.getIndex(iEbin + i * wEbin);
+          auto ieB = Egrid.getIndex(iEbin + (i + 1) * wEbin);
+          // if (ieA < 0)
+          //   ieA = 0;
 
-        double Rate = 0;
-        for (auto ie = ieA; ie < ieB; ie++) {
-          // if (ieB >= desteps)
-          //   break;
-          double dEdu = Egrid.drdu()[ie]; // r[ie];
-          Rate += double(dSdE_mv_mx_E[imv][imx][ie]) * dEdu;
-          // nb: E is from Jacobian; * dE/E below
-        }
-        Rate *= Egrid.du() / wEbin;
-        S_mv_mx_E[imv][imx][i] = Rate;
-        double EaKev = Egrid.r()[ieA] * E_to_keV;
-        double EbKev = Egrid.r()[ieB] * E_to_keV;
-        if (imv == 0 && imx == 0) {
-          // only print first one to screen
-          printf("%3.1f-%3.1f: %6.3f   %.2e     %i\n", EaKev, EbKev,
-                 0.5 * (EaKev + EbKev), Rate, (int)(ieB - ieA));
+          double Rate = 0;
+          for (auto ie = ieA; ie < ieB; ie++) {
+            // if (ieB >= desteps)
+            //   break;
+            double dEdu = Egrid.drdu()[ie]; // r[ie];
+            Rate += dSdE_mv_mx_E[imv][imx][ie] * dEdu;
+            // nb: E is from Jacobian; * dE/E below
+          }
+          Rate *= Egrid.du() / wEbin;
+          S_mv_mx_E[imv][imx][i] = Rate;
+          double EaKev = Egrid.r()[ieA] * E_to_keV;
+          double EbKev = Egrid.r()[ieB] * E_to_keV;
+          if (imv == 0 && imx == 0) {
+            // only print first one to screen
+            printf("%3.1f-%3.1f: %6.3f   %.2e     %i\n", EaKev, EbKev,
+                   0.5 * (EaKev + EbKev), Rate, (int)(ieB - ieA));
+          }
         }
       }
     }
@@ -896,6 +982,7 @@ int main(int argc, char *argv[]) {
   // Bools to control which parts to calculate:
   bool do_anMod;
   bool do_DAMA;
+  bool do_Xe1T;
   bool write_dsvde, write_dSdE, write_SofM;
   // Which type of mediator (for DM form factor)
   enum class Mediator { light, intermediate, heavy };
@@ -911,12 +998,12 @@ int main(int argc, char *argv[]) {
 
   // Open and read the input file:
   {
-    int i_mv, iwr_dsvde, idodama, ianmod, iSM; // temp settings
+    int i_mv, iwr_dsvde, idodama, idoxe1t, ianmod, iSM; // temp settings
     int iXe100, iwdS1;
     auto tp = std::forward_as_tuple(
         akfn, label, mxmin, mxmax, n_mx, i_mv, mvmin, mvmax, n_mv, dvesc, dv0,
-        ianmod, iwr_dsvde, idodama, dres, err_PEkeV, Atot_DAMA, iEbin, fEbin,
-        wEbin, iSM, iXe100, N_err, sPMT_err, Atot_XE, s1_a, s1_b, iwdS1);
+        ianmod, iwr_dsvde, idodama, idoxe1t, dres, err_PEkeV, Atot_DAMA, iEbin,
+        fEbin, wEbin, iSM, iXe100, N_err, sPMT_err, Atot_XE, s1_a, s1_b, iwdS1);
     IO::FRW::setInputParameters(input_file, tp);
     label = label == "na" ? akfn : akfn + "-" + label;
     // what to write to file:
@@ -926,6 +1013,7 @@ int main(int argc, char *argv[]) {
     // What to calclate:
     do_anMod = ianmod == 1 ? true : false;
     do_DAMA = idodama == 1 ? true : false;
+    do_Xe1T = idoxe1t == 1 ? true : false;
     do_Xe100 = iXe100 == 1 ? true : false;
     write_dSds1 = iwdS1 == 1 ? false : true;
     write_integrated = iwdS1 == 0 ? false : true;
@@ -1056,7 +1144,7 @@ int main(int argc, char *argv[]) {
   printf("v :%6.2f -> %6.2fkm/s, N=%4i\n", dv * V_to_kms, max_v * V_to_kms,
          (int)vsteps);
   printf("Mx:%6.2f -> %6.2f GeV, N=%4i\n", mxmin * M_to_GeV, mxmax * M_to_GeV,
-         (int)n_mx);
+         n_mx);
   switch (mediator) {
   case Mediator::light:
     std::cout << "Ultra-light meadiator (F_x = q^-2)\n";
@@ -1122,7 +1210,63 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  // ========================================================
+  // ********************************************************
+  // Calculate ds/dE for each E, v, mx, mv
+  std::vector<std::vector<std::vector<double>>> dsde_E_mx_mv;
+  dsde_E_mx_mv.resize(n_mv, std::vector<std::vector<double>>(
+                                n_mx, std::vector<double>(desteps)));
+
+  for (std::size_t imv = 0; imv < (std::size_t)n_mv; imv++) {
+    double mv = mvgrid.r(imv);
+    std::vector<std::vector<double>> dsde_E_mx;
+    for (std::size_t imx = 0; imx < (std::size_t)n_mx; imx++) {
+      double mx = mxgrid.r(imx);
+      std::vector<double> dsde_E;
+      for (std::size_t ide = 0; ide < desteps; ide++) {
+        double dE = Egrid.r(ide);
+        double vmin = std::sqrt(2 * dE / mx) * 10.0;
+        dsde_E_mx_mv[imv][imx][ide] =
+            dsdE_Evmvmx(Kenq[ide], dE, vmin, mv, mx, qgrid, F_chi_2);
+      }
+    }
+  }
+
+  std::string fn_dsvde = "dsde_mx-" + label + ".out";
+  if (n_mv == 1 || n_mx > 1) {
+    std::cout << "Writing to file: " << fn_dsvde << "\n";
+    writeForGnuplot_mvBlock(dsde_E_mx_mv, mvgrid, mxgrid, Egrid, fn_dsvde,
+                            dsdE_to_cm2keV);
+  }
+  if (n_mv > 1) {
+    fn_dsvde = "dsde_mx-" + label + ".out";
+    std::cout << "Writing to file: " << fn_dsvde << "\n";
+    writeForGnuplot_mxBlock(dsde_E_mx_mv, mvgrid, mxgrid, Egrid, fn_dsvde,
+                            dsdE_to_cm2keV);
+  }
+
+  // ********************************************************
+  // Calculate ds_njl/dE for each v, mx, mv
+  // std::vector<std::vector<double>> ds_njl_de;
+  // ds_njl_de.resize(desteps, std::vector<double>(num_states));
+  double dsnjlde;
+
+  std::ofstream ofile;
+  ofile.open("dsnjlde_mx-" + label + ".out");
+  ofile << "dE(keV) states" << std::endl;
+  for (auto ide = 0ul; ide < desteps; ide++) {
+    double dE = Egrid.r(ide);
+    ofile << dE * E_to_keV << " ";
+    double vmin = std::sqrt(2. * dE / mxmin) * 10.0;
+    for (auto is = 0ul; is < num_states; is++) {
+      dsnjlde =
+          dsnjldE_vmvmx(Kenq[ide], dE, qgrid, vmin, mvmin, mxmin, is, F_chi_2);
+      ofile << dsnjlde * dsdE_to_cm2keV << " ";
+    }
+    ofile << std::endl;
+  }
+  ofile.close();
+
+  // ********************************************************
 
   // Calculate and output obervable rates for XENON100
   if (do_Xe100)
@@ -1132,7 +1276,7 @@ int main(int argc, char *argv[]) {
   // Calculate and output obervable rate for DAMA
   if (do_DAMA)
     doDAMA(dsv_mv_mx_E, mvgrid, mxgrid, Egrid, do_anMod, write_dSdE, write_SofM,
-           dres, err_PEkeV, Atot_DAMA, iEbin, fEbin, wEbin, label);
+           dres, err_PEkeV, Atot_DAMA, iEbin, fEbin, wEbin, label, do_Xe1T);
 
   std::cout << "\nTotal: " << sw.reading_str() << "\n";
   return 0;

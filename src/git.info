@@ -1,0 +1,6 @@
+// git.info: auto-generated file
+#pragma once
+namespace GitInfo {
+const char *gitversion = "7e786578";
+const char *gitbranch = "dev";
+} // namespace GitInfo

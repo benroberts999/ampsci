@@ -149,7 +149,7 @@ TEST_CASE("Wavefunction", "[wf][unit]") {
     std::cout << "\n ContinuumOrbitals\n";
     ContinuumOrbitals cntm(wf, 1);
 
-    cntm.solveContinuumHF(0.1, 1);
+    cntm.solveContinuumHF(0.1, 1, false, false, false);
 
     const auto eps = cntm.check_orthog(true);
     REQUIRE(std::abs(eps) < 1.0e-3);
@@ -158,7 +158,7 @@ TEST_CASE("Wavefunction", "[wf][unit]") {
     cntm.clear();
     REQUIRE(cntm.orbitals.size() == 0);
 
-    cntm.solveContinuumHF(0.1, 1, &wf.core().front());
+    cntm.solveContinuumHF(0.1, 1, false, false, false, &wf.core().front());
     auto ortho = std::abs(wf.core().front() * cntm.orbitals.front());
     REQUIRE(std::abs(ortho) < 1.0e-10);
   }

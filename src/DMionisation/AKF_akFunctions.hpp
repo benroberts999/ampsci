@@ -8,7 +8,16 @@ class Grid;
 namespace AKF {
 
 //! Angular factor
-double CLkk(int L, int ka, int kb);
+double CLkk_DLkk(int L, int ka, int kb, std::string dmec);
+
+//! Heaviside step function
+double Heaviside(double x);
+
+void writeToTextFile_AFBE(
+    const std::string &fname,
+    const std::vector<std::vector<std::vector<float>>> &AK,
+    const std::vector<std::string> &nklst, const Grid &qgrid,
+    const std::vector<double> deion);
 
 /*! Writes K(dE,q) to text file (each core state sepparately)
 @details
@@ -20,7 +29,6 @@ void write_Knk_plaintext(const std::string &fname,
                          const std::vector<std::vector<std::vector<float>>> &AK,
                          const std::vector<std::string> &nklst,
                          const Grid &qgrid, const Grid &Egrid);
-
 /*! Writes total K(dE,q) to text file
 @details
 Each q is a column, each dE is a row. First row/col is dE/q values
@@ -37,12 +45,22 @@ int akReadWrite(const std::string &fname, bool write,
                 std::vector<std::string> &nklst, double &qmin, double &qmax,
                 double &dEmin, double &dEmax);
 
+int akReadWrite_AFBE(const std::string &fname, bool write,
+                     std::vector<std::vector<std::vector<float>>> &AK,
+                     std::vector<std::string> &nklst, double &qmin,
+                     double &qmax, std::vector<double> &deion);
+
 //! Calculates K(q) for a given core state, psi, at specific energy deposition,
 //! dE. Sums over L and continuum states.
 std::vector<float>
 calculateK_nk(const Wavefunction &wf, const DiracSpinor &psi, int max_L,
               double dE,
-              const std::vector<std::vector<std::vector<double>>> &jLqr_f);
+              const std::vector<std::vector<std::vector<double>>> &jLqr_f,
+              bool alt_akf, bool force_rescale, bool subtract_self,
+              bool force_orthog, std::string dmec, bool zeff_cont);
+
+std::vector<float> stepK_nk(const DiracSpinor &psi, double dE,
+                            const std::vector<float> &AFBE_table);
 
 //! Calculates K(q) for a given core state, psi, at specific energy deposition,
 //! dE, using plane-wave approximation. Note: only for testing; plane wave

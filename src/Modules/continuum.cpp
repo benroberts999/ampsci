@@ -34,6 +34,24 @@ void continuum(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto lmax = input.get("max_l", 0);
   const auto fname = input.get("filename", std::string{""});
 
+  // Method options for solveContinuumHF
+  // auto force_rescale = input.get<bool>("force_rescale", false);
+  // auto subtract_self = input.get<bool>("subtract_self", false);
+  // auto force_orthog = input.get<bool>("force_orthog", false);
+
+  // n=0 invalid -> nullptr
+  auto n = input.get<int>("n", 0);
+  auto k = input.get<int>("kappa", 0);
+  // auto p_psi = wf.getState(n, k);
+  auto p_psi = (n == 0) ? nullptr : wf.getState(n, k);
+
+  if (p_psi != nullptr) {
+    std::cout << "\n"
+              << "State for n = " << n << " and kappa = " << k << ": "
+              << p_psi->symbol() << "\n";
+    // std::cout << "Bound state: " << p_psi->symbol() << "\n";
+  }
+
   std::cout << "\nContinuum Orbitals:\n";
   auto cntm = ContinuumOrbitals(wf);
 
@@ -41,7 +59,7 @@ void continuum(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "At energy: ";
   for (const auto en_c : en_list) {
     std::cout << en_c << ", ";
-    cntm.solveContinuumHF(en_c, lmax);
+    cntm.solveContinuumHF(en_c, lmax, false, false, false);
   }
   std::cout << "\n";
 
