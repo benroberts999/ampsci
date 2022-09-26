@@ -16,19 +16,10 @@
 
 //==============================================================================
 ContinuumOrbitals::ContinuumOrbitals(const Wavefunction &wf, int izion)
-    : rgrid(wf.grid_sptr()),
-      p_hf(wf.vHF()),
-      // Z(wf.Znuc()),
-      Zion(izion),
-      alpha(wf.alpha()),
-      v_local(wf.vlocal()) {}
+    : rgrid(wf.grid_sptr()), p_hf(wf.vHF()), Zion(izion), alpha(wf.alpha()) {}
 
 ContinuumOrbitals::ContinuumOrbitals(const HF::HartreeFock *hf, int izion)
-    : rgrid(hf->grid_sptr()),
-      p_hf(hf),
-      Zion(izion),
-      alpha(hf->alpha()),
-      v_local(hf->vlocal()) {}
+    : rgrid(hf->grid_sptr()), p_hf(hf), Zion(izion), alpha(hf->alpha()) {}
 
 //==============================================================================
 double ContinuumOrbitals::check_orthog(bool print) const {
@@ -70,10 +61,19 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
 //  * Uses fit to known exact H-like for normalisation.
 {
 
-  const bool orthog_Fi = true;
-  const bool orthog_core = false;
+  // include Hartree here? Probably shouldn't, since we do "core Hartree"
+  const auto self_consistant = (p_hf->method() == HF::Method::HartreeFock ||
+                                p_hf->method() == HF::Method::ApproxHF
+                                /*|| p_hf->method() == HF::Method::Hartree*/
+  );
+
+  // If Fi given, subtract self-interactions + orthogonalise wrt Fi
   const bool subtract_self_int = Fi != nullptr;
-  const bool force_rescale = false;
+  const bool orthog_Fi = Fi != nullptr;
+  // If Fi _not_ given, instead re-scale V(r) so ~ -Zion/r at large r
+  const bool force_rescale = Fi == nullptr;
+
+  const bool orthog_core = false;
 
   // Find 'inital guess' for asymptotic region:
   const double lam = 1.0e6;
@@ -81,12 +81,12 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
       (Zion + std::sqrt(4.0 * lam * ec + std::pow(Zion, 2))) / (2.0 * ec);
 
   // Check if 'h' is small enough for oscillating region:
-  const double h_target = (M_PI / 15) / std::sqrt(2.0 * ec);
+  const double h_target = (M_PI / 15.0) / std::sqrt(2.0 * ec);
   const auto h = rgrid->du();
   if (h > h_target) {
     std::cout << "WARNING 61 CntOrb: Grid not dense enough for ec=" << ec
               << " (du=" << h << ", need du<" << h_target << ")\n";
-    if (h > 2 * h_target) {
+    if (h > 2.0 * h_target) {
       std::cout << "FAILURE 64 CntOrb: Grid not dense enough for ec=" << ec
                 << " (du=" << h << ", need du<" << h_target << ")\n";
       return 1;
@@ -97,34 +97,30 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
   auto cgrid = *rgrid;
   cgrid.extend_to(1.1 * r_asym);
 
-  // include Hartree here? Probably shouldn't, since we do "core Hartree"
-  const auto self_consistant = (p_hf->method() == HF::Method::HartreeFock ||
-                                p_hf->method() == HF::Method::ApproxHF
-                                /*|| p_hf->method() == HF::Method::Hartree*/
-  );
-
-  auto vc = v_local;
+  using namespace qip::overloads;
+  auto vc = p_hf->vlocal();
   if (Fi && subtract_self_int && self_consistant) {
     // Subtract off the self-interaction direct part
     const auto vdir_sub = Coulomb::yk_ab(*Fi, *Fi, 0);
-    qip::compose(std::minus{}, &vc, vdir_sub);
+    vc -= vdir_sub;
   }
 
-  // "Z_ion" - "actual" (excluding exchange.....)
-  const auto z_tmp = std::abs(vc.back() * rgrid->r().back());
+  // "Z_ion" - "actual"
+  const auto Z_eff =
+      std::max(double(Zion), std::abs(vc.back() * rgrid->r().back()));
 
   // Extend local (Vnuc+Vdir) potential to new grid
   vc.reserve(cgrid.num_points());
   for (auto i = rgrid->num_points(); i < cgrid.num_points(); i++) {
-    vc.push_back(-z_tmp / cgrid.r(i));
+    vc.push_back(-Z_eff / cgrid.r(i));
   }
 
   // Re-scale large-r part of local potential, so goes like -1/r large r
   // Note: doesn't inclue exchange..
   // This also kills orthogonality for HF...
-  if (force_rescale) {
+  if (force_rescale && self_consistant) {
     // nb: this agrees best with Dzuba, but bad for orthog
-    for (auto i = cgrid.num_points() - 1; i != 0; i--) {
+    for (std::size_t i = 0; i < cgrid.num_points(); ++i) {
       if (vc[i] > -Zion / cgrid.r(i)) {
         vc[i] = -Zion / cgrid.r(i);
       }
@@ -150,8 +146,8 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
     DiracODE::solveContinuum(Fc, ec, vc, cgrid, r_asym, alpha);
 
     // Include exchange (Hartree Fock)
-    const int max_its = 20;
-    const double conv_target = 1.0e-4;
+    const int max_its = 50;
+    const double conv_target = 1.0e-6;
     if (p_hf != nullptr && !p_hf->excludeExchangeQ()) {
       for (int it = 0; it <= max_its; ++it) {
         const auto vx0 = HF::vex_approx(Fc, p_hf->core());

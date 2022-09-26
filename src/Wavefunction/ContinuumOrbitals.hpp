@@ -36,8 +36,6 @@ public:
 private:
   std::shared_ptr<const Grid> rgrid;
   const HF::HartreeFock *const p_hf;
-  // const int Z;
   const int Zion;
   const double alpha;
-  std::vector<double> v_local; // v_nuc + v_dir
 };

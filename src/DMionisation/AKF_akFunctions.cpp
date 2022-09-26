@@ -19,7 +19,7 @@ std::vector<double> K_q(double dE, const HF::HartreeFock *hf,
   const auto q_points = jl.q_grid().num_points();
   std::vector<double> kq_out(q_points);
 
-  const int lc_max = DiracSpinor::max_l(hf->core()) + jl.max_L();
+  const int lc_max = DiracSpinor::max_l(hf->core()) + int(jl.max_L());
 
   ContinuumOrbitals cntm(hf); // create cntm object [survives locally only]
   for (auto &Fa : hf->core()) {
