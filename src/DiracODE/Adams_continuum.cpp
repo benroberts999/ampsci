@@ -77,8 +77,9 @@ void solveContinuum(DiracSpinor &Fa, const double en,
 
 namespace Adams {
 //==============================================================================
-double findSineAmplitude(std::vector<double> &pc, const std::vector<double> &rc,
-                         std::size_t num_pointsc, std::size_t i_asym)
+double findSineAmplitude(const std::vector<double> &pc,
+                         const std::vector<double> &rc, std::size_t num_pointsc,
+                         std::size_t i_asym)
 //  Find "maximum" amplitude, by using a quadratic fit to 2 nearest points
 //  Scale by ratio of this maximum to max of analytic soln
 {
@@ -97,12 +98,12 @@ double findSineAmplitude(std::vector<double> &pc, const std::vector<double> &rc,
     double y0 = 0, y1 = 0, y2 = 0, y3 = 0, y4 = 0;
     double x0 = 0, x1 = 0, x2 = 0, x3 = 0, x4 = 0;
     for (std::size_t i = i_asym + 1; i < num_pointsc - 1; i++) {
-      if (std::fabs(pc[i]) < std::fabs(pc[i - 1])) {
-        y0 = std::fabs(pc[i - 3]);
-        y1 = std::fabs(pc[i - 2]);
-        y2 = std::fabs(pc[i - 1]);
-        y3 = std::fabs(pc[i]);
-        y4 = std::fabs(pc[i + 1]);
+      if (std::abs(pc[i]) < std::abs(pc[i - 1])) {
+        y0 = std::abs(pc[i - 3]);
+        y1 = std::abs(pc[i - 2]);
+        y2 = std::abs(pc[i - 1]);
+        y3 = std::abs(pc[i]);
+        y4 = std::abs(pc[i + 1]);
         x0 = rc[i - 3];
         x1 = rc[i - 2];
         x2 = rc[i - 1];
@@ -115,14 +116,14 @@ double findSineAmplitude(std::vector<double> &pc, const std::vector<double> &rc,
     ntry++;
     const double out1 = fitQuadratic(x1, x2, x3, y1, y2, y3);
     const double out2 = fitQuadratic(x0, x2, x4, y0, y2, y4);
-    amp += 0.5 * (out1 + out2);
+    amp += (2.0 * out1 + out2) / 3.0;
   }
 
   return (amp / maxtry);
 }
 
 //==============================================================================
-std::size_t findAsymptoticRegion(std::vector<double> &pc,
+std::size_t findAsymptoticRegion(const std::vector<double> &pc,
                                  const std::vector<double> &rc,
                                  std::size_t num_pointsb,
                                  std::size_t num_pointsc, std::size_t i_asym)

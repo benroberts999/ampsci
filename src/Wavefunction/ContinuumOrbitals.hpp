@@ -35,7 +35,7 @@ public:
 
 private:
   std::shared_ptr<const Grid> rgrid;
-  const HF::HartreeFock *const p_hf;
-  const int Zion;
-  const double alpha;
+  const HF::HartreeFock *p_hf;
+  int Zion;
+  double alpha;
 };
