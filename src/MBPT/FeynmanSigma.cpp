@@ -150,12 +150,13 @@ void FeynmanSigma::formSigma(int kappa, double en, int n) {
   }
 
   // Exchange part:
-  const auto Gmat_X =
-      m_ex_method == ExchangeMethod::none ? 0.0 * Sigma :
-      m_ex_method == ExchangeMethod::Goldstone ?
-                                            Exchange_Goldstone(kappa, en, vfk) :
-      m_ex_method == ExchangeMethod::w1 ? FeynmanEx_1(kappa, en) :
-                                          FeynmanEx_w1w2(kappa, en);
+  const auto Gmat_X = m_ex_method == ExchangeMethod::none ?
+                          0.0 * Sigma :
+                          m_ex_method == ExchangeMethod::Goldstone ?
+                          Exchange_Goldstone(kappa, en, vfk) :
+                          m_ex_method == ExchangeMethod::w1 ?
+                          FeynmanEx_1(kappa, en) :
+                          FeynmanEx_w1w2(kappa, en);
 
   // Print energy shifts:
   double deD = 0.0, deX = 0.0;
